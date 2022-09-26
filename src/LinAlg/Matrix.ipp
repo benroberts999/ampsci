@@ -2,7 +2,7 @@
 
 namespace LinAlg {
 
-//******************************************************************************
+//==============================================================================
 // Returns the determinant. Uses GSL; via LU decomposition. Only works for
 // double/complex<double>
 template <typename T> T Matrix<T>::determinant() const {
@@ -29,7 +29,7 @@ template <typename T> T Matrix<T>::determinant() const {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 // Inverts the matrix, in place. Uses GSL; via LU decomposition. Only works
 // for double/complex<double>.
 template <typename T> Matrix<T> &Matrix<T>::invert_in_place() {
@@ -63,7 +63,7 @@ template <typename T> Matrix<T> Matrix<T>::inverse() const {
   return inverse.invert_in_place();
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T> Matrix<T> Matrix<T>::transpose() const {
   Matrix<T> Tr(m_cols, m_rows);
   if constexpr (std::is_same_v<T, double>) {
@@ -93,7 +93,7 @@ template <typename T> Matrix<T> Matrix<T>::transpose() const {
   return Tr;
 }
 
-//******************************************************************************
+//==============================================================================
 // Constructs a diagonal unit matrix (identity)
 template <typename T> Matrix<T> &Matrix<T>::make_identity() {
   assert(m_rows == m_cols && "Can only call make_identity() for square matrix");
@@ -112,7 +112,7 @@ template <typename T> Matrix<T> &Matrix<T>::zero() {
   return *this;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T> Matrix<T> Matrix<T>::conj() const {
   static_assert(is_complex_v<T>, "conj() only available for complex Matrix");
   std::vector<T> conj_data;
@@ -162,7 +162,7 @@ template <typename T> auto Matrix<T>::complex() const {
   return Matrix<std::complex<T>>{m_rows, m_cols, std::move(new_data)};
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T> Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &rhs) {
   assert(rows() == rhs.rows() && cols() == rhs.cols() &&
          "Matrices must have same dimensions for addition");
@@ -188,7 +188,7 @@ template <typename T> Matrix<T> &Matrix<T>::operator/=(const T x) {
   return *this;
 }
 
-//******************************************************************************
+//==============================================================================
 // Matrix<T> += T : T assumed to be *Identity!
 template <typename T> Matrix<T> &Matrix<T>::operator+=(T aI) {
   // Adds 'a' to diagonal elements (Assume a*Ident)
@@ -208,7 +208,7 @@ template <typename T> Matrix<T> &Matrix<T>::operator-=(T aI) {
   return *this;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T>
 Matrix<T> &Matrix<T>::mult_elements_by(const Matrix<T> &a) {
   assert(rows() == a.rows() && cols() == a.cols() &&
@@ -219,7 +219,7 @@ Matrix<T> &Matrix<T>::mult_elements_by(const Matrix<T> &a) {
   return *this;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T>
 [[nodiscard]] Matrix<T> operator*(const Matrix<T> &a, const Matrix<T> &b) {
   // https://www.gnu.org/software/gsl/doc/html/blas.html
@@ -248,7 +248,7 @@ template <typename T>
   return product;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T> auto Matrix<T>::as_gsl_view() {
   if constexpr (std::is_same_v<T, double>) {
     return gsl_matrix_view_array(m_data.data(), m_rows, m_cols);
@@ -284,7 +284,7 @@ template <typename T> auto Matrix<T>::as_gsl_view() const {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T>
 std::ostream &operator<<(std::ostream &os, const Matrix<T> &a) {
   for (auto i = 0ul; i < a.rows(); ++i) {
@@ -297,9 +297,9 @@ std::ostream &operator<<(std::ostream &os, const Matrix<T> &a) {
   return os;
 }
 
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
+//==============================================================================
 template <typename T> struct Matrix<T>::CollumnIterator {
   using iterator_category = std::forward_iterator_tag; //?
   using difference_type = std::ptrdiff_t;
@@ -329,7 +329,7 @@ private:
   std::size_t m_rows;
 };
 
-//******************************************************************************
+//==============================================================================
 // Helper for equal()
 template <typename T> constexpr auto myEps() {
   if constexpr (std::is_same_v<T, float> ||

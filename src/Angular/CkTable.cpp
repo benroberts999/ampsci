@@ -1,16 +1,11 @@
 #include "Angular/CkTable.hpp"
 #include "Angular/Wigner369j.hpp"
 #include <cassert>
-// NB: These headers MUST be in this order; otherwise fails to compile
-// on macOS... what :\ At least it works now....
-// Perhaps something to do with cmath vs math.h conflict???
-// math.h might be included by gsl, which is in Angular_369j...
-// Can only reproduce issue on mac..yay
 
 #pragma GCC diagnostic ignored "-Wsign-conversion"
 
 namespace Angular {
-//******************************************************************************
+//==============================================================================
 void CkTable::fill(const int in_max_twoj) {
 
   // re-factor. No longer allow 2j and k to diverge
@@ -53,7 +48,7 @@ void CkTable::fill(const int in_max_twoj) {
   m_max_k_sofar = in_max_K;
 }
 
-//******************************************************************************
+//==============================================================================
 double CkTable::get_tildeCkab_mutable(int k, int ka, int kb) {
   auto jia = jindex_kappa(ka);
   auto jib = jindex_kappa(kb);
@@ -85,7 +80,7 @@ double CkTable::get_tildeCkab(int k, int ka, int kb) const {
                        m_3j_k_a_b[k][jib][jia] * m_Rjab_a_b[jib][jia];
 }
 
-//******************************************************************************
+//==============================================================================
 double CkTable::get_Ckab_mutable(int k, int ka, int kb) {
   auto s = Angular::evenQ_2(Angular::twoj_k(ka) + 1) ? 1.0 : -1.0;
   return s * get_tildeCkab_mutable(k, ka, kb);
@@ -96,7 +91,7 @@ double CkTable::get_Ckab(int k, int ka, int kb) const {
   return s * get_tildeCkab(k, ka, kb);
 }
 
-//******************************************************************************
+//==============================================================================
 double CkTable::get_3jkab_mutable(int k, int ka, int kb) {
   auto jia = jindex_kappa(ka);
   auto jib = jindex_kappa(kb);

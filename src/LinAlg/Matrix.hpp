@@ -18,11 +18,11 @@ template <typename T> struct is_complex : std::false_type {};
 template <typename T> struct is_complex<std::complex<T>> : std::true_type {};
 template <typename T> constexpr bool is_complex_v = is_complex<T>::value;
 
-//******************************************************************************
+//==============================================================================
 //! Defines Matrix, Vector classes, and linear some algebra functions
 namespace LinAlg {
 
-//******************************************************************************
+//==============================================================================
 //! Matrix class
 template <typename T = double> class Matrix {
 
@@ -72,7 +72,7 @@ public:
            "initializer_list must be rows*cols");
   }
 
-  //****************************************************************************
+  //============================================================================
 
   //! Return rows [major index size]
   std::size_t rows() const { return m_rows; }
@@ -87,7 +87,7 @@ public:
   //! As above, but const
   const T *data() const { return m_data.data(); }
 
-  //****************************************************************************
+  //============================================================================
 
   //! [] index access (with no range checking). [i][j] returns ith row, jth col
   const T *operator[](std::size_t i) const { return &(m_data[i * m_cols]); }
@@ -109,7 +109,7 @@ public:
   //! As above, but const
   T operator()(std::size_t i, std::size_t j) const { return at(i, j); }
 
-  //****************************************************************************
+  //============================================================================
 
   //! iterators for underlying std::vector (entire data)
   auto begin() { return m_data.begin(); }
@@ -132,7 +132,7 @@ public:
     return CollumnIterator(&m_data[0] + col + m_rows * m_cols, m_rows);
   }
 
-  //****************************************************************************
+  //============================================================================
 
   //! Returns the determinant. Uses GSL; via LU decomposition. Only works for
   //! double/complex<double>
@@ -148,7 +148,7 @@ public:
   //! Returns transpose of matrix
   [[nodiscard]] Matrix<T> transpose() const;
 
-  //****************************************************************************
+  //============================================================================
 
   //! Constructs a diagonal unit matrix (identity), in place; only for square
   Matrix<T> &make_identity();
@@ -156,7 +156,7 @@ public:
   Matrix<T> &zero();
   // //! M -> M + aI, for I=identity (adds a to diag elements), in place
   // Matrix<T> &plusIdent(T a = T(1));
-  //****************************************************************************
+  //============================================================================
 
   //! Returns conjugate of matrix
   [[nodiscard]] Matrix<T> conj() const;
@@ -170,7 +170,7 @@ public:
   //! Conjugates matrix, in place
   Matrix<T> &conj_in_place() const;
 
-  //****************************************************************************
+  //============================================================================
   //! Returns gsl_matrix_view (or _float_view, _complex_view,
   //! _complex_float_view). Call .matrix to use as a GSL matrix (no copy is
   //! involved). Allows one to use all GSL built-in functions. Note: non-owning
@@ -180,7 +180,7 @@ public:
   //! As above, but const
   [[nodiscard]] auto as_gsl_view() const;
 
-  //****************************************************************************
+  //============================================================================
   //! Muplitplies all the elements by those of matrix a, in place: M_ij *= a_ij
   Matrix<T> &mult_elements_by(const Matrix<T> &a);
 
@@ -190,7 +190,7 @@ public:
     return a.mult_elements_by(b);
   }
 
-  //****************************************************************************
+  //============================================================================
   // Operator overloads: +,-, scalar */
   //! Overload standard operators: do what expected
   Matrix<T> &operator+=(const Matrix<T> &rhs);
@@ -198,7 +198,7 @@ public:
   Matrix<T> &operator*=(const T x);
   Matrix<T> &operator/=(const T x);
 
-  //****************************************************************************
+  //============================================================================
   // nb: these are defined inline here to avoid ambiguous overload?
   [[nodiscard]] friend Matrix<T> operator+(Matrix<T> lhs,
                                            const Matrix<T> &rhs) {
@@ -218,7 +218,7 @@ public:
     return (lhs /= x);
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Matrix<T> += T : T assumed to be *Identity!
   Matrix<T> &operator+=(T aI);
   //! Matrix<T> -= T : T assumed to be *Identity!
@@ -231,23 +231,23 @@ public:
     return (M -= aI);
   }
 
-  //****************************************************************************
+  //============================================================================
   //! Matrix multiplication: C_ij = sum_k A_ik*B_kj
   template <typename U>
   friend Matrix<U> operator*(const Matrix<U> &a, const Matrix<U> &b);
 
-  //****************************************************************************
+  //============================================================================
   template <typename U>
   friend std::ostream &operator<<(std::ostream &os, const Matrix<U> &a);
 };
 
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
+//==============================================================================
 
 template <typename T> constexpr auto myEps();
 //! Compares two matrices; returns true iff all elements compare relatively to

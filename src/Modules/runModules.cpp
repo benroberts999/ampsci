@@ -5,30 +5,32 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/String.hpp"
 #include <algorithm>
-#include <cmath>
-#include <fstream>
-#include <iomanip>
 #include <iostream>
-#include <memory>
-#include <sstream>
-#include <string>
-#include <vector>
 
 namespace Module {
 
-//******************************************************************************
+//==============================================================================
 void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
-  for (const auto &module : input.blocks()) {
-    if (qip::ci_wildcard_compare(module.name(), "module*"))
-      runModule(module, wf);
+
+  // Check if block is a module (modules state with 'Module::')
+  const auto block_is_moule = [](auto &block) {
+    return qip::ci_wildcard_compare(block.name(), "Module*");
+  };
+  // if it is, run it with its input
+  for (const auto &block : input.blocks()) {
+    if (block_is_moule(block)) {
+      runModule(block, wf);
+    }
   }
 }
 
-//******************************************************************************
-void runModule(const IO::InputBlock &module_input,
-               const Wavefunction &wf) //
-{
+//==============================================================================
+void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
+
   const auto &in_name = module_input.name();
+  std::cout << '\n';
+  IO::print_line('-');
+  std::cout << "Module: " << in_name << "\n";
 
   // Loop through all available modules, run correct one
   for (const auto &[mod_name, mod_func] : module_list) {
@@ -37,73 +39,30 @@ void runModule(const IO::InputBlock &module_input,
       return mod_func(module_input, wf);
   }
 
-  std::cout << "\nFail 50 in runModule: no module named: " << in_name << "\n";
-  std::cout << "Available modules:\n";
-  for (const auto &module : module_list) {
-    std::cout << "  " << module.first << "\n";
+  // Only reach here if module not found:
+  std::cout << "\nThere is no available module named: " << in_name << "\n";
+
+  // spell-check + nearest suggestion:
+  const auto compare_sc = [&in_name](const auto &s1, const auto &s2) {
+    return qip::ci_Levenstein(s1.first, in_name) <
+           qip::ci_Levenstein(s2.first, in_name);
+  };
+  const auto guess =
+      std::min_element(module_list.cbegin(), module_list.cend(), compare_sc);
+  if (guess != module_list.cend()) {
+    std::cout << "\nDid you mean: " << guess->first << " ?\n";
   }
+
+  std::cout << "\nAvailable modules:\n";
+  list_modules();
   std::cout << "\n";
 }
 
-//******************************************************************************
-static void write_orbitals(const std::string &fname,
-                           const std::vector<DiracSpinor> &orbs, int l) {
-  if (orbs.empty())
-    return;
-  auto &gr = *orbs.front().rgrid;
-
-  std::ofstream of(fname);
-  of << "r ";
-  for (auto &psi : orbs) {
-    if (psi.l() != l && l >= 0)
-      continue;
-    of << "\"" << psi.symbol(true) << "\" ";
+//==============================================================================
+void list_modules() {
+  for (auto &[name, func] : module_list) {
+    std::cout << "  " << name << '\n';
   }
-  of << "\n";
-
-  of << "# f block\n";
-  for (std::size_t i = 0; i < gr.num_points(); i++) {
-    of << gr.r(i) << " ";
-    for (auto &psi : orbs) {
-      if (psi.l() != l && l >= 0)
-        continue;
-      of << psi.f(i) << " ";
-    }
-    of << "\n";
-  }
-
-  of << "\n# g block\n";
-  for (std::size_t i = 0; i < gr.num_points(); i++) {
-    of << gr.r(i) << " ";
-    for (auto &psi : orbs) {
-      if (psi.l() != l && l >= 0)
-        continue;
-      of << psi.g(i) << " ";
-    }
-    of << "\n";
-  }
-
-  of.close();
-  std::cout << "Orbitals written to file: " << fname << "\n";
-}
-
-//******************************************************************************
-void writeOrbitals(const IO::InputBlock &input, const Wavefunction &wf) {
-  const std::string ThisModule = "Module::WriteOrbitals";
-  input.checkBlock_old({"label", "l"});
-  std::cout << "\n Running: " << ThisModule << "\n";
-  const auto label = input.get<std::string>("label", "");
-  // to write only for specific l. l<0 means all
-  auto l = input.get("l", -1);
-
-  std::string oname = wf.atomicSymbol();
-  if (label != "")
-    oname += "_" + label;
-
-  write_orbitals(oname + "_core.txt", wf.core, l);
-  write_orbitals(oname + "_valence.txt", wf.valence, l);
-  write_orbitals(oname + "_basis.txt", wf.basis, l);
-  write_orbitals(oname + "_spectrum.txt", wf.spectrum, l);
 }
 
 } // namespace Module

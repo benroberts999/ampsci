@@ -3,10 +3,8 @@
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "LinAlg/LinAlg.hpp"
 #include "Maths/BSpline.hpp"
-#include "Maths/BSplines_old.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
@@ -26,13 +24,13 @@ namespace SplineBasis {
 // columnheader(i), for [i=2:6] "Cs_basis.txt" u 1:i every :::0::0 w l dt 0 lc i
 // notitle
 
-//******************************************************************************
+//==============================================================================
 Parameters::Parameters(IO::InputBlock input)
     : states(input.get<std::string>("states", "")),
       n(input.get("number", 0ul)),
       k(input.get("order", 0ul)),
-      r0(input.get("r0", 0.0)),
-      reps(input.get("r0_eps", 0.0)),
+      r0(input.get("r0", 1.0e-4)),
+      reps(input.get("r0_eps", 1.0e-3)),
       rmax(input.get("rmax", 0.0)),
       positronQ(input.get("positron", false)),
       type(parseSplineType(input.get<std::string>("type", "Derevianko"))) {}
@@ -49,13 +47,12 @@ Parameters::Parameters(std::string istates, std::size_t in, std::size_t ik,
       positronQ(ipositronQ),
       type(itype) {}
 
-//******************************************************************************
+//==============================================================================
 std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const Wavefunction &wf,
                                     const bool correlationsQ)
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
   const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl, positronQ,
                basis_type] = params;
   std::vector<DiracSpinor> basis;
@@ -75,27 +72,22 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
     const auto max_n = nk.n;
     const auto kappa = nk.k;
-    // const auto kmin = std::size_t(AtomData::l_k(kappa) + 3);
-    const auto k = k_spl; // < kmin ? kmin : k_spl;
-    // if (k_spl < kmin) {
-    //   std::cout << "Warning: Spline order k=" << k
-    //             << " may be small for kappa=" << kappa << " (kmin=" << kmin
-    //             << ")\n";
-    // }
+    const auto k = k_spl;
 
     // Chose larger r0 depending on core density:
-    const auto l = AtomData::l_k(kappa);
-    const auto l_tmp = std::min(l, wf.maxCore_l());
+    const auto l = Angular::l_k(kappa);
+    const auto l_tmp = std::min(l, DiracSpinor::max_l(wf.core()));
 
     const auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
     (void)rmax_l; // don't warn on unused rmax_l
     auto r0_eff = std::max(rmin_l, r0_spl);
 
     if (r0_eff == 0.0)
-      r0_eff = wf.rgrid->r(0);
+      r0_eff = wf.grid().r(0);
 
-    const auto [spl_basis, d_basis] = form_spline_basis(
-        kappa, n_spl, k, r0_eff, rmax_spl, wf.rgrid, wf.alpha, basis_type);
+    const auto [spl_basis, d_basis] =
+        form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl, wf.grid_sptr(),
+                          wf.alpha(), basis_type);
 
     auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, d_basis, wf,
                                               correlationsQ, basis_type);
@@ -125,7 +117,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     auto prev = std::find_if(basis.begin(), basis.end(), comp);
     if (prev == basis.end())
       continue;
-    auto nmc2 = -1.0 / (wf.alpha * wf.alpha);
+    auto nmc2 = -1.0 / (wf.alpha() * wf.alpha());
     if (Fp.en() < prev->en() && Fp.en() > nmc2) {
       // XXX Better: count nodes? ['Spurious node at large r?']
       std::cout << "WARNING: "
@@ -136,11 +128,12 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
   // Compare basis states to core/valence states
   // Check normality, orthogonality and energy differences
-  for (const auto *orbs : {&wf.core, &wf.valence}) {
+  for (const auto *orbs : {&wf.core(), &wf.valence()}) {
     if (orbs->empty())
       continue;
 
-    std::cout << "Basis/" << (orbs == &wf.core ? "core" : "valence") << ":\n";
+    std::string wrong_sign_list = "";
+    std::cout << "Basis/" << (orbs == &wf.core() ? "core" : "valence") << ":\n";
     double worst_dN = 0.0;
     double worst_dE = 0.0;
     std::string wFN, wFE;
@@ -149,7 +142,12 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       auto pFbc = std::find(basis.cbegin(), basis.cend(), Fc);
       if (pFbc == basis.cend())
         continue;
-      const auto dN = std::abs(Fc * (*pFbc) - 1.0);
+      const auto FcFb = Fc * (*pFbc);
+      if (Fc == *pFbc && FcFb < 0.0) {
+        // basis state has wrong sign!
+        wrong_sign_list += Fc.shortSymbol() + ",";
+      }
+      const auto dN = std::abs(std::abs(FcFb) - 1.0);
       const auto dE = std::abs((pFbc->en() - Fc.en()) / pFbc->en());
       if (dN > worst_dN) {
         worst_dN = dN;
@@ -175,12 +173,16 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       std::cout << "  ** OK?";
     }
     std::cout << "\n";
+    if (wrong_sign_list != "") {
+      std::cout << "Warning: Some basis states have opposite sign (e.g.): "
+                << wrong_sign_list << "\n";
+    }
   }
 
   return basis;
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
 form_spline_basis(const int kappa, const std::size_t n_states,
                   const std::size_t k_spl, const double r0_spl,
@@ -188,18 +190,26 @@ form_spline_basis(const int kappa, const std::size_t n_states,
                   const double alpha, SplineType type)
 // Forms the "base" basis of B-splines (DKB/Reno Method)
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   //
   auto imin = static_cast<std::size_t>(std::abs(kappa));
   auto n_spl = n_states + imin + 1; // subtract l (n_min)?
   auto imax = n_spl - 1;
-  auto lambda = 1.0;
+  auto lambda_DKB = 1.0; // include kinetic balance term
+
+  // double r00 = 0.9 * r0_spl;
+  // double r00 = std::min(0.1 * r0_spl, 1.1 * rgrid->r(0));
+  double r00 = std::exp(0.5 * (std::log(r0_spl) + std::log(rgrid->r(0))));
 
   if (type == SplineType::Johnson) {
     imin = 0;
     n_spl = n_states + imin;
     imax = n_spl;
-    lambda = 0.0;
+    lambda_DKB = 0.0;
+    // r00 *= 0.0;
+    r00 = 0.02 * r0_spl; // seems to  be best 5.0e-5
+    // nb: it is Breit causing issue; works best with r00=0, but that ruins
+    // Breit
   }
 
   // uses sepperate B-splines for each partial wave! OK?
@@ -214,6 +224,8 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 
   for (auto ir = 0ul; ir < rgrid->num_points(); ++ir) {
     const auto r = rgrid->r(ir);
+    if (r < r00)
+      continue;
     auto [i0, bij] = bspl.get_nonzero(r, 2);
     for (auto i = 0ul; i < bspl.K(); ++i) {
 
@@ -226,42 +238,42 @@ form_spline_basis(const int kappa, const std::size_t n_states,
       // Set the splines
       auto &Sn1 = basis.at(nB - imin);
       // First "f-like" set
-      Sn1.set_f(ir) = bij[i][0];
-      Sn1.set_g(ir) =
-          lambda * 0.5 * alpha * (bij[i][1] + (kappa / r) * bij[i][0]);
+      Sn1.f(ir) = bij[i][0];
+      Sn1.g(ir) =
+          lambda_DKB * 0.5 * alpha * (bij[i][1] + (kappa / r) * bij[i][0]);
       // second "g-like"
       auto &Sn2 = basis.at(nB + n_states - imin);
-      Sn2.set_f(ir) =
-          lambda * 0.5 * alpha * (bij[i][1] - (kappa / r) * bij[i][0]);
-      Sn2.set_g(ir) = bij[i][0];
+      Sn2.f(ir) =
+          lambda_DKB * 0.5 * alpha * (bij[i][1] - (kappa / r) * bij[i][0]);
+      Sn2.g(ir) = bij[i][0];
 
       // Set the spline derivatives
       auto &dSn1 = d_basis.at(nB - imin);
       // First "f-like" set
-      dSn1.set_f(ir) = bij[i][1];
-      dSn1.set_g(ir) =
-          lambda * 0.5 * alpha *
+      dSn1.f(ir) = bij[i][1];
+      dSn1.g(ir) =
+          lambda_DKB * 0.5 * alpha *
           (bij[i][2] + (kappa / r) * bij[i][1] - (kappa / r / r) * bij[i][0]);
       // second "g-like"
       auto &dSn2 = d_basis.at(nB + n_states - imin);
-      dSn2.set_f(ir) =
-          lambda * 0.5 * alpha *
+      dSn2.f(ir) =
+          lambda_DKB * 0.5 * alpha *
           (bij[i][2] - (kappa / r) * bij[i][1] + (kappa / r / r) * bij[i][0]);
-      dSn2.set_g(ir) = bij[i][1];
+      dSn2.g(ir) = bij[i][1];
     }
   }
 
   return out;
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<LinAlg::Matrix<double>, LinAlg::Matrix<double>>
 fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const std::vector<DiracSpinor> &d_basis,
                         const Wavefunction &wf, const bool correlationsQ,
                         SplineType type) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  auto n_spl = spl_basis.size();
+
+  const auto n_spl = spl_basis.size();
 
   auto A_and_S = std::make_pair(LinAlg::Matrix<double>{n_spl, n_spl},
                                 LinAlg::Matrix<double>{n_spl, n_spl});
@@ -269,23 +281,28 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   auto &Aij = A_and_S.first;
   auto &Sij = A_and_S.second;
 
-  const auto excl_exch = wf.exclude_exchangeQ();
-  const auto sigmaQ = wf.getSigma() != nullptr && correlationsQ;
-  const auto VBr = wf.getHF() ? wf.getHF()->get_Breit() : nullptr;
+  const auto excl_exch = wf.vHF() ? wf.vHF()->excludeExchangeQ() : true;
+  const auto sigmaQ = wf.Sigma() != nullptr && correlationsQ;
+  const auto VBr = wf.vHF() ? wf.vHF()->vBreit() : nullptr;
 
 #pragma omp parallel for
   for (auto i = 0ul; i < Aij.rows(); i++) {
     const auto &si = spl_basis[i];
     const auto &dsi = d_basis[i];
-    const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core);
-    const auto SigmaSi = sigmaQ ? (*wf.getSigma())(si) : 0.0 * si;
-    const auto BreitSi = VBr ? (*VBr)(si) : 0.0 * si;
+    const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core());
+    const auto SigmaSi = sigmaQ ? (*wf.Sigma())(si) : 0.0 * si;
+    const auto BreitSi = VBr ? VBr->VbrFa(si, wf.core()) : 0.0 * si;
 
     for (auto j = 0ul; j <= i; j++) {
       const auto &sj = spl_basis[j];
       const auto &dsj = d_basis[j];
 
       auto aij = wf.Hab(sj, dsj, si, dsi);
+      // const auto aij_2 = wf.Hab(sj,
+      // si); auto aij = (0.75 * aij_1 +
+      // 0.25 * aij_2); Actually, seems
+      // more stable to calculate derivs..
+      // auto aij = wf.Hab(sj, si);
       if (!excl_exch)
         aij += (sj * VexSi);
       if (sigmaQ)
@@ -306,14 +323,16 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   }
   // Note: This is work-around, since Breit seems not to be 100% symmetric!
   if (type == SplineType::Johnson)
-    add_NotreDameBoundary(&Aij, spl_basis.front().k, wf.alpha);
+    add_NotreDameBoundary(&Aij, spl_basis.front().kappa(), wf.alpha());
 
   return A_and_S;
 }
 
-//******************************************************************************
+//==============================================================================
 void add_NotreDameBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
                            const double alpha) {
+  // XX These should be re-checked..
+  // W. R. Johnson, S. A. Blundell, J. Sapirstein, Phys. Rev. A 37, 307 (1988)
   auto &Aij = *pAij;
   const auto n2 = Aij.rows();
   const auto n1 = n2 / 2;
@@ -328,7 +347,7 @@ void add_NotreDameBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
   Aij[n2 - 1][n2 - 1] -= 0.5 * c * c; // g(R)^2
 }
 
-//******************************************************************************
+//==============================================================================
 void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            std::vector<DiracSpinor> *basis_positron,
                            const std::vector<DiracSpinor> &spl_basis,
@@ -339,11 +358,11 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
 // Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
 // coeficient found from diagonalising the Hamiltonian over Bsplns
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  auto l = AtomData::l_k(kappa);
+
+  auto l = Angular::l_k(kappa);
   auto min_n = l + 1;
 
-  const auto neg_mc2 = -1.0 / (wf.alpha * wf.alpha);
+  const auto neg_mc2 = -1.0 / (wf.alpha() * wf.alpha());
   auto pqn = min_n - 1;
   auto pqn_pstrn = -min_n + 1;
   for (auto i = 0ul; i < e_values.rows(); i++) {
@@ -356,15 +375,16 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
         (!positive_energy && pqn_pstrn < -max_n))
       continue;
 
-    auto &Fi = (positive_energy) ?
-                   basis->emplace_back(pqn, kappa, wf.rgrid) :
-                   basis_positron->emplace_back(pqn_pstrn, kappa, wf.rgrid);
-    Fi.set_en() = en;
+    auto &Fi =
+        (positive_energy) ?
+            basis->emplace_back(pqn, kappa, wf.grid_sptr()) :
+            basis_positron->emplace_back(pqn_pstrn, kappa, wf.grid_sptr());
+    Fi.en() = en;
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       Fi += pvec[ib] * spl_basis[ib];
     }
     const auto low_r = 0.3 / wf.Znuc();
-    if (Fi.f(wf.rgrid->getIndex(low_r)) < 0.0)
+    if (Fi.f(wf.grid().getIndex(low_r)) < 0.0)
       Fi *= -1.0;
     // std::cout << Fi.symbol() << " " << Fi * Fi << "\n";
     // Note: they are not even roughly normalised...I think they should be??
@@ -373,26 +393,26 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     // find first non-zero point
     {
       auto p0 = 0ul;
-      for (auto ir = 0ul; ir < Fi.rgrid->num_points(); ++ir) {
+      for (auto ir = 0ul; ir < Fi.grid().num_points(); ++ir) {
         if (Fi.f(ir) != 0 || Fi.g(ir) != 0) {
           p0 = ir;
           break;
         }
       }
-      auto pinf = Fi.rgrid->num_points();
-      for (auto ir = Fi.rgrid->num_points(); ir != 0; --ir) {
+      auto pinf = Fi.grid().num_points();
+      for (auto ir = Fi.grid().num_points(); ir != 0; --ir) {
         if (Fi.f(ir - 1) != 0 || Fi.g(ir - 1) != 0) {
           pinf = ir;
           break;
         }
       }
-      Fi.set_min_pt() = p0;
-      Fi.set_max_pt() = pinf;
+      Fi.min_pt() = p0;
+      Fi.max_pt() = pinf;
     }
   }
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
                                 const std::vector<double> &r, bool print) {
 
@@ -411,12 +431,12 @@ std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
     for (const auto &Fn : basis) {
       if (Fn == Fa)
         continue;
-      const auto f = (Fn.k == l) ? l : (Fn.k == -l - 1) ? l + 1 : 0;
+      const auto f = (Fn.kappa() == l) ? l : (Fn.kappa() == -l - 1) ? l + 1 : 0;
       if (f == 0)
         continue;
       const auto Ran = Fa * (r * Fn);
       const auto term = f * (Fn.en() - Fa.en()) * Ran * Ran / (2 * l + 1);
-      if (Fn.n > 0)
+      if (Fn.n() > 0)
         sum_el += term;
       else
         sum_p += term;
@@ -429,7 +449,7 @@ std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
   return result;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
                                const Grid &gr, double alpha, bool print) {
   // Drake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)
@@ -452,7 +472,7 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
 
   for (int ki = 0; ki <= max_ki; ki++) {
     const auto kappa = Angular::kappaFromIndex(ki);
-    auto find_ka = [=](const auto &Fn) { return Fn.k == kappa; };
+    auto find_ka = [=](const auto &Fn) { return Fn.kappa() == kappa; };
     const auto &Fa = *std::find_if(basis.begin(), basis.end(), find_ka);
     // need to have l_n = la+1 terms, or sum doesn't work:
     if (Fa.l() == max_l)
@@ -463,7 +483,7 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
     for (const auto &Fn : basis) {
       const auto w = Fn.en() - Fa.en();
       const auto Ran = rhat.reducedME(Fa, Fn);
-      const double c = 1.0 / (2 * std::abs(Fa.k));
+      const double c = 1.0 / (2 * std::abs(Fa.kappa()));
       const auto term = std::pow(w, nDG) * Ran * Ran * c;
       sum += term;
     }
@@ -494,7 +514,7 @@ std::pair<double, double> r_completeness(const DiracSpinor &Fa,
   double sumr2 = 0.0;
   const auto sumr2_expect = Fa * (r2 * Fa);
   for (const auto &Fn : basis) {
-    if (Fn.k != Fa.k)
+    if (Fn.kappa() != Fa.kappa())
       continue;
     const auto arn = Fa * (r * Fn);
     const auto nra = arn; // symmetric

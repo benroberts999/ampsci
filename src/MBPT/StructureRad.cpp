@@ -1,55 +1,61 @@
 #include "StructureRad.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracOperator/TensorOperator.hpp"
+#include "ExternalField/CorePolarisation.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/omp.hpp"
 #include <numeric>
 #include <vector>
 
-#if defined(_OPENMP)
-#include <omp.h>
-constexpr bool use_omp = true;
-#else
-constexpr bool use_omp = true;
-#define omp_get_thread_num() 0
-#define omp_get_max_threads() 1
-#endif
-
 namespace MBPT {
 
-//******************************************************************************
+//==============================================================================
 StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
-                           double en_core, std::pair<int, int> nminmax) {
-
+                           double en_core, std::pair<int, int> nminmax,
+                           const std::string &Qk_fname)
+    : m_use_Qk(!Qk_fname.empty()) {
   // nb: en_core defined such that: Fa.en() < en_core ==> core state!
 
   // nb: this makes it faster..
   const auto [n_min, n_max] = nminmax;
   for (const auto &Fn : basis) {
-    if (Fn.en() < en_core && Fn.n >= n_min) {
+    if (Fn.en() < en_core && Fn.n() >= n_min) {
       mCore.push_back(Fn);
-    } else if (Fn.en() > en_core && Fn.n <= n_max) {
+    } else if (Fn.en() > en_core && Fn.n() <= n_max) {
       mExcited.push_back(Fn);
     }
   }
-  mY.calculate(mCore);
-  mY.calculate(mCore, mExcited);
-  mY.calculate(mExcited);
+  auto both = mCore;
+  both.insert(both.end(), mExcited.begin(), mExcited.end());
+  mY.calculate(both);
+
+  // nb: don't need mY if using QkTable.
+  // However, require SixJTable!
+
+  // std::string Qfname;
+  if (m_use_Qk) {
+    std::cout << "\nFill Qk table:\n";
+    mQ = Coulomb::QkTable{};
+    const auto ok = mQ->read(Qk_fname);
+    if (!ok) {
+      mQ->fill(both, mY);
+      mQ->write(Qk_fname);
+    }
+  }
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<double, double>
 StructureRad::srTB(const DiracOperator::TensorOperator *const h,
                    const DiracSpinor &w, const DiracSpinor &v, double omega,
-                   const ExternalField::TDHF *const dV) const {
-
-  if (h->isZero(w.k, v.k))
+                   const ExternalField::CorePolarisation *const dV) const {
+  if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 
   const auto k = h->rank();
 
-  const std::size_t num_para_threads =
-      use_omp ? std::size_t(2 * omp_get_max_threads()) : 1;
+  const std::size_t num_para_threads = std::size_t(omp_get_max_threads());
 
   std::vector<double> sr(num_para_threads);
   std::vector<double> sr_dv(num_para_threads);
@@ -60,14 +66,14 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
     const auto tid = std::size_t(omp_get_thread_num());
     for (const auto &a : mCore) {
 
-      if (h->isZero(a.k, r.k))
+      if (h->isZero(a.kappa(), r.kappa()))
         continue;
 
       const auto inv_era_pw = 1.0 / (r.en() - a.en() + omega);
       const auto inv_era_mw = 1.0 / (r.en() - a.en() - omega);
 
       const auto t_ar = h->reducedME(a, r);
-      const auto t_ra = h->reducedME(r, a);
+      const auto t_ra = h->symm_sign(a, r) * t_ar; // h->reducedME(r, a);
 
       const auto T_wrva = t1234(k, w, r, v, a);
       const auto B_wavr = v == w ? T_wrva : b1234(k, w, a, v, r);
@@ -75,8 +81,9 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
       sr[tid] += (t_ar * T_wrva * inv_era_pw) + (t_ra * B_wavr * inv_era_mw);
 
       if (dV) {
-        const auto tdv_ar = t_ar + dV->dV(a, r);
-        const auto tdv_ra = t_ra + dV->dV(r, a);
+        const auto dVar = dV->dV(a, r);
+        const auto tdv_ar = t_ar + dVar;
+        const auto tdv_ra = h->symm_sign(a, r) * tdv_ar;
         sr_dv[tid] +=
             (tdv_ar * T_wrva * inv_era_pw) + (tdv_ra * B_wavr * inv_era_mw);
       }
@@ -89,20 +96,18 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
   return {tb, dv};
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<double, double>
 StructureRad::srC(const DiracOperator::TensorOperator *const h,
                   const DiracSpinor &w, const DiracSpinor &v,
-                  const ExternalField::TDHF *const dV) const {
-
-  if (h->isZero(w.k, v.k))
+                  const ExternalField::CorePolarisation *const dV) const {
+  if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 
   const auto k = h->rank();
 
   // For parallelisation:
-  const std::size_t num_para_threads =
-      use_omp ? std::size_t(2 * omp_get_max_threads()) : 1;
+  const std::size_t num_para_threads = std::size_t(omp_get_max_threads());
 
   std::vector<double> src(num_para_threads);
   std::vector<double> src_dv(num_para_threads);
@@ -113,7 +118,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
       const auto &a = mCore[ia];
       const auto &b = mCore[ib];
 
-      if (h->isZero(b.k, a.k))
+      if (h->isZero(b.kappa(), a.kappa()))
         continue;
 
       const auto t_ba = h->reducedME(b, a);
@@ -137,7 +142,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
     const auto tid = std::size_t(omp_get_thread_num());
     for (const auto &r : mExcited) {
 
-      if (h->isZero(m.k, r.k))
+      if (h->isZero(m.kappa(), r.kappa()))
         continue;
 
       const auto t_mr = h->reducedME(m, r);
@@ -159,13 +164,12 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
   return {t, dv};
 }
 
-//******************************************************************************
+//==============================================================================
 std::pair<double, double>
 StructureRad::norm(const DiracOperator::TensorOperator *const h,
                    const DiracSpinor &w, const DiracSpinor &v,
-                   const ExternalField::TDHF *const dV) const {
-
-  if (h->isZero(w.k, v.k))
+                   const ExternalField::CorePolarisation *const dV) const {
+  if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 
   const auto t_wv = h->reducedME(w, v);
@@ -177,8 +181,50 @@ StructureRad::norm(const DiracOperator::TensorOperator *const h,
   return {-0.5 * t_wv * (nv + nw), -0.5 * tdv_wv * (nv + nw)};
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+Coulomb::meTable<std::pair<double, double>>
+StructureRad::srn_table(const DiracOperator::TensorOperator *const h,
+                        const std::vector<DiracSpinor> &as,
+                        const std::vector<DiracSpinor> &tbs, double omega,
+                        const ExternalField::CorePolarisation *const dV) const {
+  const auto &bs = tbs.empty() ? as : tbs;
+
+  Coulomb::meTable<std::pair<double, double>> tab;
+
+  // First, fill with zeros. Must be done in serial
+  for (const auto &a : as) {
+    for (const auto &b : bs) {
+      if (h->isZero(a, b))
+        continue;
+      // if (!tab.contains(a, b)) {
+      // }
+      tab.add(a, b, {0.0, 0.0});
+      tab.add(b, a, {0.0, 0.0});
+    }
+  }
+
+#pragma omp parallel for collapse(2)
+  for (std::size_t ia = 0; ia < as.size(); ++ia) {
+    for (std::size_t ib = 0; ib < bs.size(); ++ib) {
+      const auto &a = as[ia];
+      const auto &b = bs[ib];
+      if (h->isZero(a, b))
+        continue; //?
+      auto el_ab = tab.get(a, b);
+      assert(el_ab != nullptr);
+      if (el_ab->first == 0.0) {
+        *el_ab = srn(h, a, b, omega, dV);
+        const auto s = h->symm_sign(a, b);
+        *tab.get(b, a) = {s * el_ab->first, s * el_ab->second};
+      }
+    }
+  }
+
+  return tab;
+}
+
+//==============================================================================
+//==============================================================================
 double StructureRad::t1234(int k, const DiracSpinor &w, const DiracSpinor &r,
                            const DiracSpinor &v, const DiracSpinor &c) const {
   return t1(k, w, r, v, c) + t2(k, w, r, v, c) + t3(k, w, r, v, c) +
@@ -191,10 +237,9 @@ double StructureRad::b1234(int k, const DiracSpinor &w, const DiracSpinor &c,
   return st * t1234(k, v, r, w, c);
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &c) const {
-
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(v.twoj() + r.twoj() + 2 * k);
@@ -211,7 +256,7 @@ double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
         continue;
       for (int l = minL; l <= maxL; l += 2) {
 
-        const auto ql = mY.Q(l, v, a, b, c);
+        const auto ql = Q(l, v, a, b, c);
         if (Angular::zeroQ(ql))
           continue;
 
@@ -227,7 +272,7 @@ double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
           if (Angular::zeroQ(sj2))
             continue;
 
-          const auto wu = mY.W(u, w, r, b, a); // *
+          const auto wu = W(u, w, r, b, a); // *
 
           t += sab * sj1 * sj2 * wu * ql * inv_e_rwab;
         }
@@ -242,10 +287,9 @@ double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
   // when the other terms are all non-zero!
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::t2(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &c) const {
-
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(w.twoj() - c.twoj() + 2 * k);
@@ -269,11 +313,11 @@ double StructureRad::t2(const int k, const DiracSpinor &w, const DiracSpinor &r,
         const auto su = Angular::neg1pow(u);
         const auto f = (2 * u + 1);
 
-        const auto wu1 = mY.W(u, w, a, c, n);
+        const auto wu1 = W(u, w, a, c, n);
         if (Angular::zeroQ(wu1))
           continue;
 
-        const auto wu2 = mY.W(u, v, a, r, n);
+        const auto wu2 = W(u, v, a, r, n);
 
         t += su * sj * wu1 * wu2 * inv_e_rnav / f;
       }
@@ -282,10 +326,9 @@ double StructureRad::t2(const int k, const DiracSpinor &w, const DiracSpinor &r,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::t3(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &c) const {
-
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(w.twoj() - c.twoj() + 2 * k);
@@ -309,11 +352,11 @@ double StructureRad::t3(const int k, const DiracSpinor &w, const DiracSpinor &r,
         const auto su = Angular::neg1pow(u);
         const auto f = (2 * u + 1);
 
-        const auto wu1 = mY.W(u, w, n, c, a);
+        const auto wu1 = W(u, w, n, c, a);
         if (Angular::zeroQ(wu1))
           continue;
 
-        const auto wu2 = mY.W(u, v, n, r, a);
+        const auto wu2 = W(u, v, n, r, a);
 
         t += su * sj * wu1 * wu2 * inv_e_nwac / f;
       }
@@ -322,10 +365,9 @@ double StructureRad::t3(const int k, const DiracSpinor &w, const DiracSpinor &r,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &c) const {
-
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(v.twoj() + r.twoj() + 2 * k);
@@ -342,7 +384,7 @@ double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
         continue;
       for (int u = minU; u <= maxU; u += 2) {
 
-        const auto qu = mY.Q(u, w, r, n, m);
+        const auto qu = Q(u, w, r, n, m);
         if (Angular::zeroQ(qu))
           continue;
 
@@ -357,7 +399,7 @@ double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
           if (Angular::zeroQ(sj2))
             continue;
 
-          const auto wl = mY.W(l, v, c, n, m);
+          const auto wl = W(l, v, c, n, m);
 
           t += snm * sj1 * sj2 * qu * wl * inv_e_nmcv;
         }
@@ -367,11 +409,10 @@ double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
   return s * t;
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
                         const DiracSpinor &v, const DiracSpinor &c) const {
-
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(w.twoj() - c.twoj() + 2 * k);
@@ -397,11 +438,11 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
         if (Angular::zeroQ(sj))
           continue;
 
-        const auto wu1 = mY.W(u, w, n, a, b);
+        const auto wu1 = W(u, w, n, a, b);
         if (Angular::zeroQ(wu1))
           continue;
 
-        const auto wu2 = mY.W(u, v, n, c, b);
+        const auto wu2 = W(u, v, n, c, b);
 
         t += su * sj * wu1 * wu2 * invde / f;
       }
@@ -410,10 +451,9 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
                         const DiracSpinor &v, const DiracSpinor &c) const {
-
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(v.twoj() + a.twoj() + 2 * k);
@@ -432,7 +472,7 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
         continue;
       for (int u = minU; u <= maxU; u += 2) {
 
-        const auto qu = mY.Q(u, v, m, n, c);
+        const auto qu = Q(u, v, m, n, c);
         if (Angular::zeroQ(qu))
           continue;
 
@@ -448,7 +488,7 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
           if (Angular::zeroQ(sj2))
             continue;
 
-          const auto wl = mY.W(l, w, a, n, m);
+          const auto wl = W(l, w, a, n, m);
 
           t += smn * sj1 * sj2 * qu * wl * invde;
         }
@@ -458,10 +498,9 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &m) const {
-
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(w.twoj() - m.twoj() + 2 * k);
@@ -487,11 +526,11 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
         if (Angular::zeroQ(sj))
           continue;
 
-        const auto wu1 = mY.W(u, w, a, r, n);
+        const auto wu1 = W(u, w, a, r, n);
         if (Angular::zeroQ(wu1))
           continue;
 
-        const auto wu2 = mY.W(u, v, a, m, n);
+        const auto wu2 = W(u, v, a, m, n);
 
         t += su * sj * wu1 * wu2 * invde / f;
       }
@@ -500,10 +539,9 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
                         const DiracSpinor &v, const DiracSpinor &m) const {
-
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(v.twoj() + r.twoj() + 2 * k);
@@ -523,7 +561,7 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
         continue;
       for (int u = minU; u <= maxU; u += 2) {
 
-        const auto qu = mY.Q(u, v, b, a, m);
+        const auto qu = Q(u, v, b, a, m);
         if (Angular::zeroQ(qu))
           continue;
 
@@ -538,7 +576,7 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
           if (Angular::zeroQ(sj2))
             continue;
 
-          const auto wl = mY.W(l, w, r, a, b);
+          const auto wl = W(l, w, r, a, b);
 
           t += sab * sj1 * sj2 * qu * wl * invde;
         }
@@ -548,7 +586,7 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
   return s * t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
                                const DiracSpinor &j,
                                const DiracSpinor &k) const {
@@ -563,19 +601,18 @@ double StructureRad::dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
 
     const auto tup1 = (2 * u + 1);
 
-    const auto q = mY.Q(u, v, i, j, k);
+    const auto q = Q(u, v, i, j, k);
     if (Angular::zeroQ(q))
       continue;
 
-    const auto w = q + mY.P(u, v, i, j, k);
+    const auto w = q + P(u, v, i, j, k);
 
     t += q * w * ide2 / tup1;
   }
   return t / tjvp1;
 }
-//******************************************************************************
+//==============================================================================
 double StructureRad::n1(const DiracSpinor &v) const {
-
   double t = 0.0;
   for (const auto &a : mCore) {
     for (const auto &b : mCore) {
@@ -587,9 +624,8 @@ double StructureRad::n1(const DiracSpinor &v) const {
   return t;
 }
 
-//******************************************************************************
+//==============================================================================
 double StructureRad::n2(const DiracSpinor &v) const {
-
   double t = 0.0;
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {

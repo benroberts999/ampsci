@@ -16,7 +16,7 @@ namespace DiracOperator {
 enum class Parity { even, odd };
 enum class Realness { real, imaginary };
 
-//******************************************************************************
+//==============================================================================
 //! 4x4 Integer matrix (for Gamma/Pauli). Can be real or imag. Not mixed.
 struct IntM4x4
 // 4x4 Integer matrix.
@@ -30,7 +30,7 @@ struct IntM4x4
   const int e00, e01, e10, e11;
 };
 
-//******************************************************************************
+//==============================================================================
 //! @brief General operator (virtual base class); operators derive from this.
 //! @details
 //! k is rank, c is multiplicative constant, d_order is derivative order,
@@ -43,14 +43,14 @@ struct IntM4x4
 //! c, v, and Cxx are included in radial integral.
 class TensorOperator {
 protected:
-  TensorOperator(int k, Parity pi, double c = 1,
-                 const std::vector<double> &inv = {}, int d_order = 0,
+  TensorOperator(int rank_k, Parity pi, double constant = 1.0,
+                 const std::vector<double> &inv = {}, int diff_order = 0,
                  Realness RorI = Realness::real, bool freq_dep = false)
-      : m_rank(k),
+      : m_rank(rank_k),
         m_parity(pi),
-        diff_order(d_order),
+        m_diff_order(diff_order),
         opC(RorI),
-        m_constant(c),
+        m_constant(constant),
         m_vec(inv),
         freqDependantQ(freq_dep){};
 
@@ -60,7 +60,7 @@ public:
 private:
   const int m_rank;
   const Parity m_parity;
-  const int diff_order;
+  const int m_diff_order;
   const Realness opC;
 
 protected:
@@ -83,13 +83,20 @@ public:
   const std::vector<double> &getv() const { return m_vec; }
   //! Returns a const ref to constant c
   double getc() const { return m_constant; }
-  int get_d_order() const { return diff_order; }
+  int get_d_order() const { return m_diff_order; }
 
   //! returns true if operator is imaginary (has imag MEs)
   bool imaginaryQ() const { return (opC == Realness::imaginary); }
   int rank() const { return m_rank; }
   //! returns parity, as integer (+1 or -1)
   int parity() const { return (m_parity == Parity::even) ? 1 : -1; }
+
+  //! returns relative sign between <a||x||b> and <b||x||a>
+  int symm_sign(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+    const auto sra_i = imaginaryQ() ? -1 : 1;
+    const auto sra = Angular::neg1pow_2(Fa.twoj() - Fb.twoj());
+    return sra_i * sra;
+  }
 
   //! Returns string for outputting to screen, e.g.: "<6s+||h||6p->"
   std::string rme_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
@@ -116,7 +123,7 @@ public:
   virtual DiracSpinor radial_rhs(const int kappa_a,
                                  const DiracSpinor &Fb) const;
   //! ME = rme3js * RME
-  double rme3js(const int twoja, const int twojb, int two_mb,
+  double rme3js(const int twoja, const int twojb, int two_mb = 1,
                 int two_q = 0) const;
 
   //! <a||h||b> = Fa * reduced_rhs(a, Fb) (a needed for angular factor)
@@ -130,8 +137,8 @@ public:
   double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 };
 
-//****************************************************************************
-//****************************************************************************
+//============================================================================
+//============================================================================
 //! Speacial case for scalar operator
 class ScalarOperator : public TensorOperator {
 public:

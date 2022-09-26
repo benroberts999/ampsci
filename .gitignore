@@ -1,13 +1,13 @@
 /*
 !src/
 src/*~
-src/git.info
 !build/
 build/*
 !build/*.mk
 !doc/
 doc/*
 !doc/*.md
+!doc/doxygen
 !doc/tex
 doc/tex/*
 !doc/tex/*.tex
@@ -17,6 +17,8 @@ doc/tex/*
 !doc/tex/img
 !doc/examples
 !doc/examples/*.in
+!.github/
 !.gitignore
 !*.md
-!install-deps-linux.sh
+!doc/quickstart-linux.sh
+!doc/quickstart-macOS.sh

@@ -23,12 +23,13 @@ protected:
       : m_h(h), m_rank(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {}
 
 protected:
-  const DiracOperator::TensorOperator *const m_h;
+  const DiracOperator::TensorOperator *m_h;
   double m_core_eps{1.0};
+  int m_core_its{0};
   double m_core_omega{0.0};
-  const int m_rank;
-  const int m_pi;
-  const bool m_imag;
+  int m_rank;
+  int m_pi;
+  bool m_imag;
 
 public:
   //! Returns eps (convergance) of last solve_core run

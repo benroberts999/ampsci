@@ -2,7 +2,8 @@
 #include <cmath>
 #include <vector>
 
-//! Data and useful functions. Radii all in Fermi (fm, e-15m)
+//! Data and useful functions for nuclear properties and potentials. Radii all
+//! in Fermi (fm, e-15m)
 namespace Nuclear {
 
 // skin-thickness. Always same?
@@ -15,28 +16,26 @@ constexpr auto Pi2 = M_PI * M_PI;
 //! Stores relevant isotope data
 class Isotope {
 public:
-  const int Z;
-  const int A;
+  int Z;
+  int A;
   //! root-mean-square charge radius, in Fermi (fm, e-15m)
-  const double r_rms;
+  double r_rms;
   //! Magnetic dipole moment, in nuclear magnetons
-  const double mu;
-  const int parity; // +/-1
-  //! Nuclear spin. value is -1 if unknown
-  const double I_N;
+  double mu;
+  int parity; // +/-1
+              //! Nuclear spin. value is -1 if unknown
+  double I_N;
 
   Isotope(int inz, int ina, double inr, double inm, int inp, double ini)
       : Z(inz), A(ina), r_rms(inr), mu(inm), parity(inp), I_N(ini) {}
 
-  bool r_ok() const { return (r_rms <= 0) ? false : true; }
-  bool mu_ok() const {
-    return (std::fabs(mu) < 1.e-6 && (I_N > 0)) ? false : true;
-  }
-  bool parity_ok() const { return (parity == 0) ? false : true; }
-  bool I_ok() const { return (I_N < 0) ? false : true; }
+  bool r_ok() const { return r_rms > 0.0; }
+  bool mu_ok() const { return !(std::abs(mu) < 1.e-6 && (I_N > 0)); }
+  bool parity_ok() const { return parity != 0; }
+  bool I_ok() const { return I_N >= 0.0; }
 };
 
-//******************************************************************************
+//==============================================================================
 //! Looks up + returns an isotope from the list. If not in list, partially blank
 Isotope findIsotopeData(int z, int a);
 //! Returns all known isotopes of given atom
@@ -50,7 +49,7 @@ int find_parity(int z, int a);
 //! As above, for nuclear spin. Returns -1 if not found
 double find_spin(int z, int a);
 
-//******************************************************************************
+//==============================================================================
 //! Calculates c from rrms and t
 double c_hdr_formula_rrms_t(double rrms, double t = default_t);
 //! Calculates rrms from c and t
@@ -59,10 +58,13 @@ double approximate_r_rms(int a);
 //! just returns 2.3
 double approximate_t_skin(int a); // constexpr ?
 
-// Note: rms charge radii  from:
-// https://doi.org/10.1016/j.adt.2011.12.006
-// I. Angeli and K. P. Marinova, At. Data Nucl. Data Tables 99, 69 (2013).
-// Nuclear moments, parity, spin from Mathematrica
+//! Table of nuclear isotope data - beware: may contain errors
+/*! @details
+ Note: rms charge radii  from:
+ https://doi.org/10.1016/j.adt.2011.12.006 I. Angeli and K. P. Marinova, At.
+ Data Nucl. Data Tables 99, 69 (2013). Nuclear moments, parity, spin from
+ Mathematrica
+*/
 static const std::vector<Isotope> NuclearDataTable = {
     {1, 1, 0.8783, 2.79284739, 1, 0.5},
     {1, 2, 2.1421, 0.857438230, 1, 1.},

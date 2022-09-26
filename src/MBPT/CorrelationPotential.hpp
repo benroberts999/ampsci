@@ -3,9 +3,9 @@
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-// #include "MBPT/GreenMatrix.hpp"
+#include "MBPT/Ladder.hpp"
 #include "MBPT/RDMatrix.hpp"
-#include "Physics/AtomData.hpp" //DiracSEnken
+#include "Physics/AtomData.hpp" //DiracConfig
 #include "Wavefunction/DiracSpinor.hpp"
 #include <cassert>
 #include <vector>
@@ -17,7 +17,7 @@ class HartreeFock;
 //! Many-body perturbation theory
 namespace MBPT {
 
-//******************************************************************************
+//==============================================================================
 // Helper classes (store parameters):
 
 enum class Method { Goldstone, Feynman };
@@ -36,8 +36,10 @@ struct Sigma_params {
   double w_ratio{1.5};
   bool screenCoulomb{false};
   bool holeParticle{false};
+  std::string ladder_file{""};
 
-  std::vector<double> fk{}; // this for Goldstone too..
+  std::vector<double> fk{};   // this for Goldstone too..
+  std::vector<double> etak{}; // this for Goldstone too..
 };
 
 struct rgrid_params {
@@ -54,7 +56,7 @@ struct wgrid_params {
   // XX add exchange stride ?
 };
 
-//******************************************************************************
+//==============================================================================
 /*!
 @brief Pure virtual. Calculates + stores Correlation Potential operator
 @details
@@ -110,8 +112,10 @@ public:
   //! returns Spinor: Sigma|Fv>
   //! @details If Sigma for kappa_v doesn't exist, returns |0>. m_Sigma_kappa
   //! calculated at the energy given in 'form_Sigma' (or on construct)
-  DiracSpinor SigmaFv(const DiracSpinor &Fv) const;
-  DiracSpinor operator()(const DiracSpinor &Fv) const { return SigmaFv(Fv); }
+  DiracSpinor SigmaFv(const DiracSpinor &Fv, bool lad = true) const;
+  DiracSpinor operator()(const DiracSpinor &Fv, bool lad = true) const {
+    return SigmaFv(Fv, lad);
+  }
 
 protected:
   // // n=0 means get Sigma for lowest available n
@@ -153,6 +157,18 @@ public:
   //! given, will return all 0.0
   double SOEnergyShift(const DiracSpinor &Fv, const DiracSpinor &Fw,
                        int max_l = 99) const;
+
+  static DiracSpinor Sigmal_Fv(const DiracSpinor &v, const Coulomb::YkTable &yk,
+                               const Coulomb::LkTable &lk,
+                               const std::vector<DiracSpinor> &core,
+                               const std::vector<DiracSpinor> &excited,
+                               const std::vector<double> &vfk = {},
+                               const std::vector<double> &veta = {});
+
+  RDMatrix<double> Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &qk,
+                           const Coulomb::LkTable &lk,
+                           const std::vector<DiracSpinor> &core,
+                           const std::vector<DiracSpinor> &excited) const;
 
   int maxk() const { return m_maxk; }
 
@@ -198,6 +214,10 @@ protected:
   // Angular::SixJ m_6j;
   Angular::SixJTable m_6j;
 
+  const bool m_ratio_ladder_method = false;
+  std::string m_ladder_file;
+  std::optional<Coulomb::LkTable> m_lk{std::nullopt};
+
   // SubGrid values:
   // Stride: only include every 'stride' grid points (between min/max)
   std::size_t m_stride;
@@ -212,7 +232,7 @@ protected:
   std::vector<GMatrix> m_Sigma_kappa{};
   // Lambda (fitting factors) for each kappa
   std::vector<double> m_lambda_kappa{};
-  std::vector<AtomData::DiracSEnken> m_nk{};
+  std::vector<AtomData::DiracConfig> m_nk{};
 
   // Options for sub-grid, and which matrices to include
   const bool m_include_G;
@@ -220,11 +240,19 @@ protected:
   bool same_as_fileQ{false};
 
   // Effective screening parameters
-  std::vector<double> m_fk{}; // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
+  std::vector<double> m_fk{};  // e.g., {0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
+  std::vector<double> m_eta{}; // e.g., {1.1, 1.4, 1.0};
 
+  // XXX KILL ?
   double get_fk(int k) const {
     if (k < int(m_fk.size())) {
       return m_fk[std::size_t(k)];
+    }
+    return 1.0;
+  }
+  double get_eta(int k) const {
+    if (k < int(m_eta.size())) {
+      return m_eta[std::size_t(k)];
     }
     return 1.0;
   }

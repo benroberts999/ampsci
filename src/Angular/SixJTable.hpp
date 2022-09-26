@@ -14,15 +14,12 @@
 
 namespace Angular {
 
-//******************************************************************************
+//==============================================================================
 
-/*!
-@brief
-Lookup table for Wigner 6J symbols.
-
-@details
+//! Lookup table for Wigner 6J symbols.
+/*! @details
 Note: functions all called with 2*j and 2*k (ensure j integer)
-Makes use of symmetry.
+Makes use of symmetry (but not completely, not every stores symbol is unique).
 */
 class SixJTable {
 private:
@@ -31,14 +28,23 @@ private:
   static auto s(int i) { return static_cast<uint8_t>(i); };
 
 public:
+  //! Default contructor: creates empty table
   SixJTable() = default;
 
-  //! Fill the table. max_2j_k is the maximum k that appears in the symbols,
-  //! equivilant to 2*max(j) (always integer) - see fill()
+  //! On construction, calculates + stores all possible 6j symbols up to
+  //! maximum value of 2j (or k)
+  /*! @details 
+    Typically, max_2jk is 2*max_2j, where max_2j is 2* max j of set
+    of orbitals. You may call this function several times; if the new max_2jk is
+    larger, it will extend the table. If it is smaller, does nothing. 
+  */
   SixJTable(int max_2j_k) { fill(max_2j_k); }
 
-  //! Returns maximum k in the tables [max(k)=2*max(j)=max(2j)]
+  //! Returns maximum element (k or 2j) of tables [max(k) = 2*max(j) = max(2j)]
   int max_2jk() const { return m_max_2j_k; }
+
+  //! Returns number of non-zero symbols stored
+  std::size_t size() const { return m_data.size(); }
 
   //----------------------------------------------------------------------------
   //! Return 6j symbol {a/2,b/2,c/2,d/2,e/2,f/2}. Note: takes in 2*j/2*k as int
@@ -70,14 +76,8 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Fill the table. max_2jk is 2* the maximum j/k that appears in the symnbols
-  //! (note: 2*, as integer).
-  /*! @details Typically, max_2jk is 2*max_2j, where max_2j is 2* max j of set
-    of orbitals. You may call this function several times; if the new max_2jk is
-    larger, it will extend the table. If it is smaller, does nothing. */
+  //! Fill the table. max_2jk is maximum (2*j) or k that appears in the symbols
   void fill(int max_2j_k) {
-    // a = min{a,b,c,d,e,f}
-    // b = min{b, c, e, f}
 
     if (max_2j_k <= m_max_2j_k)
       return;
@@ -117,9 +117,9 @@ private:
   //----------------------------------------------------------------------------
   inline static auto make_key(uint8_t a, uint8_t b, uint8_t c, uint8_t d,
                               uint8_t e, uint8_t f) {
+    static_assert(sizeof(uint64_t) >= 6 * sizeof(uint8_t));
     uint64_t key = 0;
-    // std::memcpy(&key, &abcdef[0], 6 * sizeof(uint8_t));
-    auto pk = (uint8_t *)(&key);
+    const auto pk = reinterpret_cast<uint8_t *>(&key);
     std::memcpy(pk, &a, sizeof(uint8_t));
     std::memcpy(pk + 1, &b, sizeof(uint8_t));
     std::memcpy(pk + 2, &c, sizeof(uint8_t));
@@ -127,6 +127,9 @@ private:
     std::memcpy(pk + 4, &e, sizeof(uint8_t));
     std::memcpy(pk + 5, &f, sizeof(uint8_t));
     return key;
+  }
+  inline static auto make_key(int a, int b, int c, int d, int e, int f) {
+    return make_key(s(a), s(b), s(c), s(d), s(e), s(f));
   }
 
   //----------------------------------------------------------------------------
@@ -152,7 +155,42 @@ private:
   //----------------------------------------------------------------------------
   static uint64_t normal_order(int a, int b, int c, int d, int e, int f) {
     // returns unique "normal ordering" of {a,b,c,d,e,f}->{i,j,k,l,m,n}
+
+    // auto t11 = make_key(a, b, c, d, e, f);
+    // auto t21 = make_key(a, c, b, d, f, e);
+    // auto t31 = make_key(b, a, c, e, d, f);
+    // auto t41 = make_key(b, c, a, e, f, d);
+    // auto t51 = make_key(c, b, a, f, e, d);
+    // auto t61 = make_key(c, a, b, f, d, e);
+    // auto t12 = make_key(a, e, f, d, b, c);
+    // auto t22 = make_key(a, f, e, d, c, b);
+    // auto t32 = make_key(b, d, f, e, a, c);
+    // auto t42 = make_key(b, f, d, e, c, a);
+    // auto t52 = make_key(c, e, d, f, b, a);
+    // auto t62 = make_key(c, d, e, f, a, b);
+    // auto t13 = make_key(d, b, f, a, e, c);
+    // auto t23 = make_key(d, c, e, a, f, b);
+    // auto t33 = make_key(e, a, f, b, d, c);
+    // auto t43 = make_key(e, c, d, b, f, a);
+    // auto t53 = make_key(f, a, e, c, d, b);
+    // auto t63 = make_key(f, b, d, c, e, a);
+    // auto t14 = make_key(d, e, c, a, b, f);
+    // auto t24 = make_key(d, f, b, a, c, e);
+    // auto t34 = make_key(e, d, c, b, a, f);
+    // auto t44 = make_key(e, f, a, b, c, d);
+    // auto t54 = make_key(f, e, a, c, b, d);
+    // auto t64 = make_key(f, d, b, c, a, e);
+    //
+    // return std::min({t11, t21, t31, t41, t51, t61, t12, t22,
+    //                  t32, t42, t52, t62, t13, t23, t33, t43,
+    //                  t53, t63, t14, t24, t34, t44, t54, t64});
+    // returns unique "normal ordering" of {a,b,c,d,e,f}->{i,j,k,l,m,n}
     // where i = min{a,b,c,d,e,f}, j = min{b,c,e,f}
+
+    // nb: This is not quite correct, and leads to storing more 6J's than
+    // required. However, so long as we actually calculate all of them, it turns
+    // out this is faster.
+
     const auto min = std::min({a, b, c, d, e, f});
     //   {a,b,c|d,e,f} = {b,a,c|e,d,f} = {c,a,b|f,d,e}
     // = {d,e,c|a,b,f} = {e,d,c|b,a,f} = {f,a,e|c,d,b}
@@ -174,7 +212,7 @@ private:
     assert(false && "Fatal error 193: unreachable");
   }
 
-  //******************************************************************************
+  //----------------------------------------------------------------------------
   // If given an integer (k), returns 2*k
   // If given a DiracSpinor, F, returns 2*j [F.twoj()]
   template <class A> static int twojk(const A &a) {

@@ -1,7 +1,7 @@
 #pragma once
 
 namespace LinAlg {
-//******************************************************************************
+//==============================================================================
 
 template <typename T> Vector<T> Vector<T>::conj() const {
   static_assert(is_complex_v<T>, "conj() only available for complex Vector");
@@ -42,7 +42,7 @@ template <typename T> auto Vector<T>::complex() const {
   return Vector<std::complex<T>>{std::move(new_data)};
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T> Vector<T> &Vector<T>::operator+=(const Vector<T> &rhs) {
   assert(this->rows() == rhs.rows() && this->cols() == rhs.cols());
   using namespace qip::overloads;
@@ -66,7 +66,7 @@ template <typename T> Vector<T> &Vector<T>::operator/=(const T x) {
   return *this;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T> auto Vector<T>::as_gsl_view() {
   const auto size = std::max(this->rows(), this->cols());
   if constexpr (std::is_same_v<T, double>) {

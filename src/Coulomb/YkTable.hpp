@@ -39,10 +39,10 @@ public:
   YkTable() {}
 
   //----------------------------------------------------------------------------
-  //! Re-calculates all y_ab functions (will over-ride existing ones); only
-  //! calculates for a in as, b in bs
+  //! Re-calculates all y_ab functions (will over-ride existing ones); NOTE:
+  //! only calculates for a in as, b in bs
   //!@details Note: will re-calculate all, so don't use this to 'extend' the
-  //! table
+  //! table.
   void calculate(const std::vector<DiracSpinor> &as,
                  const std::vector<DiracSpinor> &bs);
   //! Re-calculates all y_ij functions (will over-ride existing ones) [i and j
@@ -58,9 +58,15 @@ public:
   const Angular::SixJTable &SixJ() const { return m_6j; }
 
   //! Returns a pointer to constant vector y^k_ab. If that integral is not
-  //! stores, returns nullptr
+  //! stored, returns nullptr.
   const std::vector<double> *get(const int k, const DiracSpinor &Fa,
                                  const DiracSpinor &Fb) const;
+
+  //! Calculates Rk using the existing yk integrals. Note: Yk and Ck tables
+  //! *must* include all required values, or behaviour not defined.
+  [[nodiscard]] double R(const int k, const DiracSpinor &Fa,
+                         const DiracSpinor &Fb, const DiracSpinor &Fc,
+                         const DiracSpinor &Fd) const;
 
   //! Calculates Qk using the existing yk integrals. Note: Yk and Ck tables
   //! *must* include all required values, or behaviour not defined.
@@ -80,13 +86,15 @@ public:
                          const DiracSpinor &Fb, const DiracSpinor &Fc,
                          const DiracSpinor &Fd) const;
 
-  //! Calculates Q^K(v)_bcd using existing yk integrals
+  //! Calculates Q^K(v)_bcd using existing yk integrals. Note: Yk and Ck tables
+  //! *must* include all required values, or behaviour not defined.
   [[nodiscard]] DiracSpinor Qkv_bcd(int kappa, const DiracSpinor &Fb,
                                     const DiracSpinor &Fc,
                                     const DiracSpinor &Fd, const int k) const;
 
   //! Calculates P^K(v)_bcd using existing yk integrals, including (optional)
-  //! screening factors
+  //! screening factors. Note: Yk and Ck tables
+  //! *must* include all required values, or behaviour not defined.
   [[nodiscard]] DiracSpinor Pkv_bcd(int kappa, const DiracSpinor &Fb,
                                     const DiracSpinor &Fc,
                                     const DiracSpinor &Fd, const int k,

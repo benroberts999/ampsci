@@ -1,9 +1,9 @@
-//******************************************************************************
+//==============================================================================
 // Implementations:
 
 namespace LinAlg {
 
-//******************************************************************************
+//==============================================================================
 // Solves matrix equation Ax=b for x, for known square matrix A and vector b.
 template <typename T> Vector<T> solve_Axeqb(Matrix<T> Am, const Vector<T> &b) {
   static_assert(std::is_same_v<T, double> ||
@@ -34,7 +34,7 @@ template <typename T> Vector<T> solve_Axeqb(Matrix<T> Am, const Vector<T> &b) {
   return x;
 }
 
-//*****************************************************************************
+//============================================================================*
 // Solves Av = ev for eigenvalues e and eigenvectors v of symmetric/Hermetian
 // matrix A. Returns [e,v], where v(i,j) is the jth element of the ith
 // eigenvector corresponding to ith eigenvalue, e(i). e is always real.
@@ -87,7 +87,7 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, bool sort) {
   return eigen_vv;
 }
 
-//******************************************************************************
+//==============================================================================
 // Solves Av = eBv for eigenvalues e and eigenvectors v of symmetric/Hermetian
 // matrix pair A,B. Returns [e,v], where v(i,j) is the jth element of the ith
 // eigenvector corresponding to ith eigenvalue, e(i). e is always real.
@@ -140,7 +140,7 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, Matrix<T> B,
   return eigen_vv;
 }
 
-//******************************************************************************
+//==============================================================================
 // Solves Av = ev for eigenvalues e and eigenvectors v of non-symmetric real
 // matrix A. Returns [e,v], where v(i,j) is the jth element of the ith
 // eigenvector corresponding to ith eigenvalue, e(i). A must be real, while e

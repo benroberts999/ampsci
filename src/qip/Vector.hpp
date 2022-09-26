@@ -12,7 +12,7 @@ namespace qip {
 
 // Uses "no non-const ref" rule. Pass by pointer means modify value
 
-//******************************************************************************
+//==============================================================================
 //! Directly compare two arithmetic vectors of the same type and length.
 //! Returns pair {delta, itr} where delta = |max|{first - second}, itr is
 //! iterator to position in first vector where the maximum delta occured.
@@ -87,12 +87,12 @@ auto compare_eps(const std::vector<T> &first, const std::vector<T> &second) {
   return std::make_pair(largest_eps, largest_at);
 }
 
-//******************************************************************************
+//==============================================================================
 //! Adds any number of vectors, in place (modifies first vector). Must be of
 //! same type. May allocate; will resize first to be size of largest vector.
 template <typename T, typename... Args>
 void add(std::vector<T> *first, const std::vector<T> &second,
-         const Args &... rest) {
+         const Args &...rest) {
   // re-sizes vector:
   if (first->size() < second.size())
     first->resize(second.size());
@@ -109,7 +109,7 @@ void add(std::vector<T> *first, const std::vector<T> &second,
 //! not all of same size.
 template <typename T, typename... Args>
 [[nodiscard]] std::vector<T>
-add(std::vector<T> first, const std::vector<T> &second, const Args &... rest) {
+add(std::vector<T> first, const std::vector<T> &second, const Args &...rest) {
   add(&first, second, rest...);
   return first;
 }
@@ -121,13 +121,13 @@ add(std::vector<T> first, const std::vector<T> &second, const Args &... rest) {
 //   return first;
 // }
 
-//******************************************************************************
+//==============================================================================
 //! Multiplies any number of (arithmetic) vectors, in place (modifies first
 //! vector). Must be of same type. May allocate; will resize first to be size of
 //! largest vector.
 template <typename T, typename... Args>
 void multiply(std::vector<T> *first, const std::vector<T> &second,
-              const Args &... rest) {
+              const Args &...rest) {
 
   static_assert(std::is_arithmetic_v<T>,
                 "In multiply(std::vector<T>...) : T must be arithmetic");
@@ -153,19 +153,19 @@ void multiply(std::vector<T> *first, const std::vector<T> &second,
 template <typename T, typename... Args>
 [[nodiscard]] std::vector<T> multiply(std::vector<T> first,
                                       const std::vector<T> &second,
-                                      const Args &... rest) {
+                                      const Args &...rest) {
   multiply(&first, second, rest...);
   return first;
 }
 
-//******************************************************************************
+//==============================================================================
 //! Composes any number of vectors, in place (modifies first vector), using the
 //! provided function. Must be of same type. May allocate; will resize first to
 //! be size of largest vector.
 //! e.g., qip::compose(std::plus{}, &vo, v2, v3); same as qip::add(&vo, v2, v3)
 template <typename F, typename T, typename... Args>
 void compose(const F &func, std::vector<T> *first, const std::vector<T> &second,
-             const Args &... rest) {
+             const Args &...rest) {
   // XXX Comiple=-time constraints on f! Must be T(T,T)!
 
   if (first->size() < second.size())
@@ -187,15 +187,14 @@ void compose(const F &func, std::vector<T> *first, const std::vector<T> &second,
 template <typename F, typename T, typename... Args>
 [[nodiscard]] std::vector<T> compose(const F &func, std::vector<T> first,
                                      const std::vector<T> &second,
-                                     const Args &... rest) {
+                                     const Args &...rest) {
   compose(func, &first, second, rest...);
   return first;
 }
 
-//******************************************************************************
+//==============================================================================
 //! In-place scalar multiplication of std::vector - types must match
-template <typename T>
-void scale(std::vector<T> *vec, T x) {
+template <typename T> void scale(std::vector<T> *vec, T x) {
   static_assert(std::is_arithmetic_v<T>,
                 "In scale(std::vector<T>, T) : T must be arithmetic");
   for (auto &v : *vec)
@@ -209,7 +208,7 @@ template <typename T>
   return vec;
 }
 
-//******************************************************************************
+//==============================================================================
 //! Produces a uniformly*(see below) distributed range of values between
 //! [first,last] with number steps. number must be at least 2. first+last are
 //! guarenteed to be the first and last points in the range. For integral T,
@@ -293,7 +292,7 @@ std::vector<T> loglinear_range(T first, T last, T b, N number) {
     const auto f_u = [b, u1](double tr) { return tr + b * std::log(tr) - u1; };
     const auto dr = 0.1 * r_guess;
     const auto delta_targ = r_guess * 1.0e-18;
-    const auto [ri, delta_r] = qip::Newtons(f_u, r_guess, dr, delta_targ, 30);
+    const auto [ri, delta_r] = qip::Newtons(f_u, r_guess, delta_targ, dr, 30);
     return ri;
   };
 
@@ -308,11 +307,11 @@ std::vector<T> loglinear_range(T first, T last, T b, N number) {
   return range;
 }
 
-//******************************************************************************
+//==============================================================================
 //! first[i]*...rest[i]  --  used to allow inner_product
 template <typename T, typename... Args>
-constexpr auto multiply_at(std::size_t i, const T &first,
-                           const Args &... rest) {
+constexpr auto multiply_at(std::size_t i, const T &first, const Args &...rest) {
+  // assert(first.size() < i);
   if constexpr (sizeof...(rest) == 0) {
     return first[i];
   } else {
@@ -322,7 +321,7 @@ constexpr auto multiply_at(std::size_t i, const T &first,
 
 //! Variadic inner product (v1,v2,...vn) : sum_i v1[i]*v2[i]*...vn[i]
 template <typename T, typename... Args>
-constexpr auto inner_product(const T &first, const Args &... rest) {
+constexpr auto inner_product(const T &first, const Args &...rest) {
   auto res = multiply_at(0, first, rest...);
   for (std::size_t i = 1; i < first.size(); ++i) {
     res += multiply_at(i, first, rest...);
@@ -332,7 +331,7 @@ constexpr auto inner_product(const T &first, const Args &... rest) {
 
 template <typename T, typename... Args>
 auto inner_product_sub(std::size_t p0, std::size_t pinf, const T &first,
-                       const Args &... rest) {
+                       const Args &...rest) {
   auto res = decltype(first[0])(0);
   for (std::size_t i = p0; i < pinf; ++i) {
     res += multiply_at(i, first, rest...);
@@ -340,7 +339,7 @@ auto inner_product_sub(std::size_t p0, std::size_t pinf, const T &first,
   return res;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename F, typename T> T apply_to(const F &func, T list) {
   for (auto &l : list) {
     l = func(l);
@@ -348,16 +347,19 @@ template <typename F, typename T> T apply_to(const F &func, T list) {
   return list;
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
+//! namespace qip::overloads provides operator overloads for std::vector
 namespace overloads {
 
-// Provide addition of two vectors:
+//! Provide addition of two vectors:
 template <typename T>
 std::vector<T> &operator+=(std::vector<T> &a, const std::vector<T> &b) {
-  const auto size = std::max(a.size(), b.size());
-  a.resize(size);
-  for (auto i = 0ul; i < b.size(); ++i) {
+  // The following allows this to work for types that can't be default constructed
+  const auto smaller_size = std::min(a.size(), b.size());
+  if (a.size() < b.size())
+    a.insert(a.end(), b.begin() + long(a.size()), b.end());
+  for (auto i = 0ul; i < smaller_size; ++i) {
     a[i] += b[i];
   }
   return a;
@@ -382,32 +384,72 @@ std::vector<T> operator-(std::vector<T> a, const std::vector<T> &b) {
 }
 
 // Provide scalar multiplication
-template <typename T> std::vector<T> &operator*=(std::vector<T> &v, T x) {
-  if (x != T{1}) {
+template <typename T, typename U>
+std::vector<T> &operator*=(std::vector<T> &v, U x) {
+  if (x != U{1}) {
     for (auto &v_i : v) {
       v_i *= x;
     }
   }
   return v;
 }
-template <typename T> std::vector<T> operator*(std::vector<T> v, T x) {
+template <typename T, typename U>
+std::vector<T> operator*(std::vector<T> v, U x) {
   return v *= x;
 }
-template <typename T> std::vector<T> operator*(T x, std::vector<T> v) {
+template <typename T, typename U>
+std::vector<T> operator*(U x, std::vector<T> v) {
   return v *= x;
 }
 
 // Provide scalar devision
-template <typename T> std::vector<T> &operator/=(std::vector<T> &v, T x) {
-  if (x != T{1}) {
+template <typename T, typename U>
+std::vector<T> &operator/=(std::vector<T> &v, U x) {
+  if (x != U{1}) {
     for (auto &v_i : v) {
       v_i /= x;
     }
   }
   return v;
 }
-template <typename T> std::vector<T> operator/(std::vector<T> v, T x) {
+template <typename T, typename U>
+std::vector<T> operator/(std::vector<T> v, U x) {
   return v /= x;
+}
+
+//! In-place element-wise multiplication: a*=b => a_i := a_i * b_i
+template <typename T>
+std::vector<T> &operator*=(std::vector<T> &a, const std::vector<T> &b) {
+  const auto min_size = std::min(a.size(), b.size());
+  for (std::size_t i = 0; i < min_size; ++i) {
+    a[i] *= b[i];
+  }
+  for (std::size_t i = min_size; i < a.size(); ++i) {
+    a[i] = 0.0;
+  }
+  if (a.size() < b.size())
+    a.resize(b.size());
+  return a;
+}
+//! Element-wise multiplication: c=a*b => c_i = a_i * b_i
+template <typename T>
+std::vector<T> operator*(std::vector<T> a, const std::vector<T> &b) {
+  return a *= b;
+}
+
+//! In-place element-wise division: a/=b => a_i := a_i / b_i
+template <typename T>
+std::vector<T> &operator/=(std::vector<T> &a, const std::vector<T> &b) {
+  assert(a.size() == b.size());
+  for (std::size_t i = 0; i < a.size(); ++i) {
+    a[i] /= b[i];
+  }
+  return a;
+}
+//! Element-wise multiplication: c=a/b => c_i = a_i / b_i
+template <typename T>
+std::vector<T> operator/(std::vector<T> a, const std::vector<T> &b) {
+  return a /= b;
 }
 
 } // namespace overloads

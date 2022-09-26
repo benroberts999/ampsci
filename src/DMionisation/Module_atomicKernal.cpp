@@ -12,7 +12,7 @@
 
 namespace Module {
 
-//******************************************************************************
+//==============================================================================
 void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer;
 
@@ -36,6 +36,8 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
        {"force_orthog", " "},
        {"dme_coupling", " "},
        {"use_Zeff_cont", "use Zeff model for continuum states"}});
+  if (input.has_option("help"))
+    return;
 
   // Read input: q and dE grids:
   const auto demin_kev = input.get<double>("Emin", 0.1);
@@ -56,7 +58,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   const Grid qgrid({qsteps, qmin, qmax, 0, GridType::logarithmic});
 
   // read in max l and L
-  const auto max_l_core = wf.maxCore_l();
+  const auto max_l_core = DiracSpinor::max_l(wf.core());
   auto max_l = input.get<int>("max_l_bound", max_l_core);
   if (max_l < 0 || max_l > max_l_core)
     max_l = max_l_core;
@@ -100,11 +102,11 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
   const double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
-  const auto du = wf.rgrid->du();
+  const auto du = wf.grid().du();
   if (du > du_target) {
     const auto new_num_points = Grid::calc_num_points_from_du(
-        wf.rgrid->r0(), wf.rgrid->rmax(), du_target, GridType::loglinear, 4.0);
-    const auto old_num_points = wf.rgrid->num_points();
+        wf.grid().r0(), wf.grid().rmax(), du_target, GridType::loglinear, 4.0);
+    const auto old_num_points = wf.grid().num_points();
     // num_points = (int)new_num_points;
     std::cerr
         << "\nWARNING 118: Grid not dense enough for contimuum state with "
@@ -121,13 +123,14 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Print some info to screen:
   std::cout << "\nRunning Atomic Kernal for " << wf.atom() << "\n";
-  std::cout << "*************************************************\n";
+  std::cout << "================================================*\n";
 
   // Output HF results:
   std::cout << "  state   k     En (au)    En (eV)   Oc.Frac.\n";
-  for (const auto &phi : wf.core) {
-    printf(" %7s %2i %11.5f %10.2f   [%3.2f]", phi.symbol().c_str(), phi.k,
-           phi.en(), phi.en() * PhysConst::Hartree_eV, phi.occ_frac());
+  for (const auto &phi : wf.core()) {
+    printf(" %7s %2i %11.5f %10.2f   [%3.2f]", phi.symbol().c_str(),
+           phi.kappa(), phi.en(), phi.en() * PhysConst::Hartree_eV,
+           phi.occ_frac());
     if (phi.l() > max_l)
       std::cout << " (excluded from K)";
     std::cout << "\n";
@@ -142,14 +145,14 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   // Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst; // human-readiable state labels (easy
                                   // plotting)
-  nklst.reserve(wf.core.size());
-  for (auto &phi : wf.core)
+  nklst.reserve(wf.core().size());
+  for (auto &phi : wf.core())
     nklst.emplace_back(phi.symbol(true));
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
   timer.start();
   const auto jLqr_f =
-      AKF::sphericalBesselTable(max_L, qgrid.r(), wf.rgrid->r());
+      AKF::sphericalBesselTable(max_L, qgrid.r(), wf.grid().r());
   std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
 
   // Calculate the AK (print to screen)

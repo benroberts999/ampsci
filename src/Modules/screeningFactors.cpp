@@ -15,12 +15,16 @@ void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nCalculate effective screening parameters:\n";
 
-  input.checkBlock_old({"n_min_core"});
+  input.check({{"n_min_core", "min n to include in core sum"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto omre = -std::abs(0.33 * wf.energy_gap());
 
   const auto stride =
-      (wf.rgrid->getIndex(30.0) - wf.rgrid->getIndex(1.0e-3)) / 100;
+      (wf.grid().getIndex(30.0) - wf.grid().getIndex(1.0e-3)) / 100;
 
   double w0 = 0.01;
   double wratio = 1.5;
@@ -84,10 +88,10 @@ void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const MBPT::rgrid_params gridp{1.0e-3, 30.0, stride};
 
-  const MBPT::FeynmanSigma Sigma0(wf.getHF(), wf.basis, sigp_0, gridp, "");
-  const MBPT::FeynmanSigma SigmaScr(wf.getHF(), wf.basis, sigp_scr, gridp, "");
-  const MBPT::FeynmanSigma Sigmahp(wf.getHF(), wf.basis, sigp_hp, gridp, "");
-  const MBPT::FeynmanSigma SigmaAO(wf.getHF(), wf.basis, sigp_AO, gridp, "");
+  const MBPT::FeynmanSigma Sigma0(wf.vHF(), wf.basis(), sigp_0, gridp, "");
+  const MBPT::FeynmanSigma SigmaScr(wf.vHF(), wf.basis(), sigp_scr, gridp, "");
+  const MBPT::FeynmanSigma Sigmahp(wf.vHF(), wf.basis(), sigp_hp, gridp, "");
+  const MBPT::FeynmanSigma SigmaAO(wf.vHF(), wf.basis(), sigp_AO, gridp, "");
 
   std::cout << "\n";
 
@@ -100,7 +104,7 @@ void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // std::vector<int> kappa;
 
   std::cout << "k   de(0)   de(X)  de(hp)  de(AO) |     fk   fkhp   eta\n";
-  for (const auto &Fv : wf.valence) {
+  for (const auto &Fv : wf.valence()) {
 
     std::vector<double> fk;
     std::vector<double> fk_hp;
@@ -115,12 +119,12 @@ void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
     std::cout << Fv.symbol() << "\n";
     // auto &fk_v = fk.emplace_back();
-    // kappa.push_back(Fv.k);
+    // kappa.push_back(Fv.kappa());
     for (int k = 0; k < 8; ++k) {
-      auto Sd0 = Sigma0.FeynmanDirect(Fv.k, Fv.en(), k);
-      auto SdX = SigmaScr.FeynmanDirect(Fv.k, Fv.en(), k);
-      auto Sdhp = Sigmahp.FeynmanDirect(Fv.k, Fv.en(), k);
-      auto SdAO = SigmaAO.FeynmanDirect(Fv.k, Fv.en(), k);
+      auto Sd0 = Sigma0.FeynmanDirect(Fv.kappa(), Fv.en(), k);
+      auto SdX = SigmaScr.FeynmanDirect(Fv.kappa(), Fv.en(), k);
+      auto Sdhp = Sigmahp.FeynmanDirect(Fv.kappa(), Fv.en(), k);
+      auto SdAO = SigmaAO.FeynmanDirect(Fv.kappa(), Fv.en(), k);
 
       const auto de0 = Fv * Sigma0.act_G_Fv(Sd0, Fv);
       const auto deX = Fv * SigmaScr.act_G_Fv(SdX, Fv);

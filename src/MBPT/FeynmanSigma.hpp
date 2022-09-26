@@ -41,7 +41,7 @@ inline std::string_view ParseEnum(ExchangeMethod method) {
   return "unkown";
 }
 
-//******************************************************************************
+//==============================================================================
 
 class FeynmanSigma final : public CorrelationPotential {
 public:
@@ -49,7 +49,8 @@ public:
                const std::vector<DiracSpinor> &basis, const Sigma_params &sigp,
                const rgrid_params &subgridp,
                // const std::vector<DiracSpinor> &valence,
-               const std::string &atom);
+               const std::string &atom, bool verbose = true,
+               ExchangeMethod m_ex_method = ExchangeMethod::Goldstone);
 
   FeynmanSigma &operator=(const FeynmanSigma &) = delete;
   FeynmanSigma(const FeynmanSigma &) = delete;
@@ -180,7 +181,8 @@ private:
                         const ComplexGMatrix &e) const;
 
   // Better solution than this!
-  GMatrix Exchange_Goldstone(const int kappa, const double en) const;
+  GMatrix Exchange_Goldstone(const int kappa, const double en,
+                             const std::vector<double> &v_fk) const;
 
 private:
   const bool m_screen_Coulomb;
@@ -214,10 +216,18 @@ private:
 
   const bool m_print_each_k = false;
 
-  ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
+  ExchangeMethod m_ex_method;
+  // ExchangeMethod m_ex_method = ExchangeMethod::Goldstone;
   // ExchangeMethod m_ex_method = ExchangeMethod::w1;
   // ExchangeMethod m_ex_method = ExchangeMethod::none;
   // ExchangeMethod m_ex_method = ExchangeMethod::w1w2;
+
+  // for calculating fk (if not explicitely given)
+  std::unique_ptr<const FeynmanSigma> m_S0{nullptr};
+  std::unique_ptr<const FeynmanSigma> m_Sx{nullptr};
+
+  std::string m_ladder_file;
+  bool m_verbose;
 };
 
 } // namespace MBPT

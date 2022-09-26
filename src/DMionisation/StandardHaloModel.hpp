@@ -29,7 +29,7 @@ constexpr double v_max =
     v_esc + v_sun + v_earth_orb + v_earth_rot_eq + delta_v0 + delta_v_esc;
 } // namespace AstroConsts
 
-//******************************************************************************
+//==============================================================================
 class StandardHaloModel {
 public:
   //! in_cosphi is cosine of Earth's orbital phase [for annual modulation]:

@@ -1,11 +1,13 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
+#include "IO/InputBlock.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include "qip/Maths.hpp"
 #include <functional>
 
 namespace DiracOperator {
 
-//******************************************************************************
+//==============================================================================
 
 //! Functions for F(r) [eg, nuclear magnetisation distribution] and similar
 namespace Hyperfine {
@@ -40,10 +42,10 @@ inline auto volotkaBW_F(double mu, double I_nuc, double l_pn, int gl)
   std::cout << "BW using: gl=" << g_l << ", gs=" << g_s << ", l=" << l_pn
             << ", gI=" << gI << " (I=" << I_nuc << ")\n";
   const double factor =
-      (two_I == two_l + 1)
-          ? g_s * (1 - two_I) / (4.0 * (two_I + 2)) + g_l * 0.5 * (two_I - 1)
-          : g_s * (3 + two_I) / (4.0 * (two_I + 2)) +
-                g_l * 0.5 * two_I * (two_I + 3) / (two_I + 2);
+      (two_I == two_l + 1) ?
+          g_s * (1 - two_I) / (4.0 * (two_I + 2)) + g_l * 0.5 * (two_I - 1) :
+          g_s * (3 + two_I) / (4.0 * (two_I + 2)) +
+              g_l * 0.5 * two_I * (two_I + 3) / (two_I + 2);
   if (two_I != two_l + 1 && two_I != two_l - 1) {
     std::cerr << "\nFAIL:59 in Hyperfine (volotkaBW_F):\n "
                  "we must have I = l +/- 1/2, but we have: I,l = "
@@ -51,8 +53,8 @@ inline auto volotkaBW_F(double mu, double I_nuc, double l_pn, int gl)
     return [](double, double) { return 0.0; };
   }
   return [=](double r, double rN) {
-    return (r > rN) ? 1.0
-                    : ((r * r * r) / (rN * rN * rN)) *
+    return (r > rN) ? 1.0 :
+                      ((r * r * r) / (rN * rN * rN)) *
                           (1.0 - (3.0 / mu) * std::log(r / rN) * factor);
   };
 }
@@ -102,13 +104,13 @@ inline std::vector<double> RadialFunc(int k, double, const Grid &rgrid,
 }
 } // namespace Hyperfine
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
 // XXX Make special hfsA and hfsB operators, in terms of A and B coefs,
 // and then general hfsK, just reduced matrix elements?
 
-//******************************************************************************
+//==============================================================================
 //! @brief Magnetic hyperfine operator
 //! @details Note: 'hfs_F' function (magnetization distribtuion) **includes**
 //! the 1/r^2 (slightly different to definition in paper)
@@ -143,19 +145,19 @@ public: // constructor
   }
 
   static double convertRMEtoA(const DiracSpinor &Fa, const DiracSpinor &Fb) {
-    return 0.5 / Fa.jjp1() / Angular::Ck_kk(1, -Fa.k, Fb.k);
+    return 0.5 / Fa.jjp1() / Angular::Ck_kk(1, -Fa.kappa(), Fb.kappa());
     // Correct for diag. Off diag? Prob not defined?
   }
 
   double hfsA(const DiracSpinor &Fa) const {
     auto Raa = radialIntegral(Fa, Fa);
-    return Raa * Fa.k / (Fa.jjp1());
+    return Raa * Fa.kappa() / (Fa.jjp1());
     // nb: in MHz
   }
 
   static double hfsA(const TensorOperator *h, const DiracSpinor &Fa) {
     auto Raa = h->radialIntegral(Fa, Fa);
-    return Raa * Fa.k / (Fa.jjp1());
+    return Raa * Fa.kappa() / (Fa.jjp1());
   }
 
   // XXX Make this a helper "conversion" function
@@ -173,7 +175,7 @@ private:
   // double Inuc;
 };
 
-//******************************************************************************
+//==============================================================================
 //! Units: Assumes g in nuc. magneton units (magnetic), and Q in barns
 //! (electric)
 class HyperfineK final : public TensorOperator {
@@ -182,7 +184,7 @@ class HyperfineK final : public TensorOperator {
 
 public:
   HyperfineK(int in_k, double in_GQ, double rN, const Grid &rgrid,
-             const Func_R2_R &hfs_F = Hyperfine::sphericalBall_F())
+             const Func_R2_R &hfs_F = Hyperfine::pointlike_F())
       : TensorOperator(in_k, Parity::even, in_GQ,
                        Hyperfine::RadialFunc(in_k, rN, rgrid, hfs_F), 0),
         k(in_k),
@@ -198,9 +200,9 @@ public:
 
   double angularF(const int ka, const int kb) const override final {
     // inludes unit: Assumes g in nuc. magneton units, and/or Q in barns
-    return magnetic
-               ? (ka + kb) * Angular::Ck_kk(k, -ka, kb) * PhysConst::muN_CGS_MHz
-               : -Angular::Ck_kk(k, ka, kb) * PhysConst::barn_MHz;
+    return magnetic ?
+               (ka + kb) * Angular::Ck_kk(k, -ka, kb) * PhysConst::muN_CGS_MHz :
+               -Angular::Ck_kk(k, ka, kb) * PhysConst::barn_MHz;
 
     // // For 'A' and 'B' constants:
     // auto j = Angular::j_k(kb);
@@ -221,5 +223,173 @@ private:
   double cfg;
   double cff;
 };
+
+//==============================================================================
+//==============================================================================
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_hfsA(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+
+  input.check({{"", "Most following will be taken from the default nucleus if "
+                    "no explicitely given"},
+               {"mu", "Magnetic moment in mu_N"},
+               {"I", "Nuclear spin"},
+               {"rrms", "nuclear (magnetic) rms radius (defult is charge rms)"},
+               {"F(r)", "Ball, point, shell, VolotkaBW, or doublyOddBW [Ball]"},
+               {"printF", "Writes F(r) to a text file [false]"},
+               {"print", "Write F(r) info to screen [true]"},
+               {"", "The following are only for VolotkaBW or doublyOddBW"},
+               {"parity", "+/-1"},
+               {"l", "l for unpaired nucleon"},
+               {"gl", "=1 for proton, =0 for neutron"},
+               {"", "The following are only for doublyOddBW"},
+               {"mu1", "mag moment of 'first' unpaired nucleon"},
+               {"gl1", "gl of 'first' unpaired nucleon"},
+               {"l1", "l of 'first' unpaired nucleon"},
+               {"l2", "l of 'second' unpaired nucleon"},
+               {"I1", "total spin (J) of 'first' unpaired nucleon"},
+               {"I2", "total spin (J) of 'second' unpaired nucleon"}});
+
+  const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
+  const auto mu = input.get("mu", isotope.mu);
+  const auto I_nuc = input.get("I", isotope.I_N);
+  const auto r_rmsfm = input.get("rrms", wf.get_rrms());
+  const auto r_nucfm = std::sqrt(5.0 / 3) * r_rmsfm;
+  const auto r_nucau = r_nucfm / PhysConst::aB_fm;
+  const auto Fr_str = input.get<std::string>("F(r)", "ball");
+  const auto print = input.get("print", true);
+
+  if (print) {
+    std::cout << "\nHyperfine structure: " << wf.atom() << "\n"
+              << "Using " << Fr_str << " nuclear distro for F(r)\n"
+              << "w/ mu = " << mu << ", I = " << I_nuc << ", r_N = " << r_nucfm
+              << "fm = " << r_nucau << "au  (r_rms=" << r_rmsfm << "fm)\n";
+    std::cout << "Points inside nucleus: " << wf.grid().getIndex(r_nucau)
+              << "\n";
+  }
+
+  auto Fr = Hyperfine::sphericalBall_F();
+  if (qip::ci_compare(Fr_str, "ball")) {
+    Fr = Hyperfine::sphericalBall_F();
+  } else if (qip::ci_compare(Fr_str, "shell")) {
+    Fr = Hyperfine::sphericalShell_F();
+  } else if (qip::ci_wildcard_compare(Fr_str, "point*") ||
+             qip::ci_compare(Fr_str, "zero")) {
+    Fr = Hyperfine::pointlike_F();
+  } else if (qip::ci_compare(Fr_str, "VolotkaBW")) {
+    const auto pi = input.get("parity", isotope.parity);
+    const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
+    auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
+    l = input.get("l", l); // can override derived 'l' (not recommended)
+    const auto gl_default = wf.Znuc() % 2 == 0 ? 0 : 1; // unparied proton?
+    const auto gl = input.get<int>("gl", gl_default);
+    if (print) {
+      std::cout << "Bohr-Weiskopf (Volotka formula) for valence";
+      if (gl == 1)
+        std::cout << " proton ";
+      else if (gl == 0)
+        std::cout << " neturon ";
+      else
+        std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
+      std::cout << "with l=" << l << " (pi=" << pi << ")\n";
+    }
+    Fr = Hyperfine::volotkaBW_F(mu, I_nuc, l, gl);
+  } else if (qip::ci_compare(Fr_str, "doublyOddBW")) {
+    const auto mu1 = input.get<double>("mu1", 1.0);
+    const auto gl1 = input.get<int>("gl1", -1); // 1 or 0 (p or n)
+    if (gl1 != 0 && gl1 != 1) {
+      std::cout << "FAIL: in " << input.name() << " " << Fr_str
+                << "; have gl1=" << gl1 << " but need 1 or 0\n";
+      return std::make_unique<NullOperator>(NullOperator());
+    }
+    const auto l1 = input.get<double>("l1", -1.0);
+    const auto l2 = input.get<double>("l2", -1.0);
+    const auto I1 = input.get<double>("I1", -1.0);
+    const auto I2 = input.get<double>("I2", -1.0);
+
+    Fr = Hyperfine::doublyOddBW_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
+  } else {
+    if (print) {
+      std::cout << "Reading F(r) from file: " << Fr_str << "\n";
+    }
+    // read from a file
+    const auto [rin, F_of_rin] = IO::FRW::readFile_xy_PoV(Fr_str);
+    // interpolate F(r) onto our grid:
+    const auto F_r = Interpolator::interpolate(rin, F_of_rin, wf.grid().r());
+    if (F_r.empty())
+      return std::make_unique<NullOperator>();
+    return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, wf.grid(), F_r);
+  }
+
+  const auto print_FQ = input.get<bool>("printF", false);
+  if (print_FQ) {
+    std::ofstream of(Fr_str + ".txt");
+    for (auto r : wf.grid().r()) {
+      of << r * PhysConst::aB_fm << " "
+         << Fr(r * PhysConst::aB_fm, r_nucau * PhysConst::aB_fm) << "\n";
+    }
+  }
+
+  return std::make_unique<HyperfineA>(mu, I_nuc, r_nucau, wf.grid(), Fr);
+}
+
+//------------------------------------------------------------------------------
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_hfsK(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+
+  bool ok = true;
+  input.check({{{"", "nb: not fully tested!"},
+                {"K", ""},
+                {"rrms", ""},
+                {"F(r)", ""},
+                {"gQ", ""},
+                {"print", ""}}});
+  const auto print = input.get("print", true);
+  // gQ is g-factor (for magnetic), quadrupole moment for electric...
+  const auto k = input.get("K", 0);
+  if (k == 0) {
+    std::cout
+        << "\nFAIL 602: Bad K in hfsK: must be >0 (required: 1=hfsA, 2=hfsB)\n";
+    ok = false;
+  }
+
+  const auto gQ = input.get("gQ", 1.0);
+  if (print) {
+    std::cout << "\nHyperfine k=" << k;
+    if (k % 2 == 0) {
+      std::cout << " (electric) ";
+    } else {
+      std::cout << " (magnetic) ";
+    }
+    std::cout << "w/ gQ = " << gQ << "\n";
+  }
+
+  const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
+  const auto r_rmsfm = input.get("rrms", isotope.r_rms);
+  const auto r_nucfm = std::sqrt(5.0 / 3) * r_rmsfm;
+  const auto r_nucau = r_nucfm / PhysConst::aB_fm;
+
+  auto Fr_str = input.get<std::string>("F(r)", "ball");
+  const auto Fr = (Fr_str == "pointlike" || Fr_str == "point") ?
+                      Hyperfine::pointlike_F() :
+                      Fr_str == "shell" ?
+                      Hyperfine::sphericalShell_F() :
+                      Fr_str == "ball" ? Hyperfine::sphericalBall_F() :
+                                         Hyperfine::pointlike_F();
+  if (Fr_str != "ball" && Fr_str != "shell")
+    Fr_str = "pointlike";
+  else
+    std::cout << "Warning: F(r) not correct for k!=1 XXX \n";
+  if (print) {
+    std::cout << "w/ " << Fr_str << " for F(r), r_N = " << r_nucfm << "fm "
+              << " (rrms=" << r_rmsfm << "fm)\n";
+  }
+
+  if (!ok)
+    return std::make_unique<NullOperator>();
+
+  return std::make_unique<HyperfineK>(k, gQ, r_nucau, wf.grid(), Fr);
+}
 
 } // namespace DiracOperator

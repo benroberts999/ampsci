@@ -8,7 +8,7 @@ class InputBlock;
 
 namespace Module {
 
-//! Example module, designed as a "template" to help you add a new module
+//! Module to output continuum state wavefunctions to disk, and calculate matrix elements between them and bound states
 void continuum(const IO::InputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

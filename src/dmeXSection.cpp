@@ -44,7 +44,7 @@ using FloatVec3D = std::vector<std::vector<std::vector<float>>>;
 using DoubleVec3D = std::vector<std::vector<std::vector<double>>>;
 using DoubleVec2D = std::vector<std::vector<double>>;
 
-//******************************************************************************
+//==============================================================================
 double quickExp(double x) {
   // Good to parts in 1.e-5
   if (x < 0)
@@ -57,7 +57,7 @@ double quickExp(double x) {
   return std::exp(x);
 }
 
-//******************************************************************************
+//==============================================================================
 double gaussian(double s, double x)
 // Simple Gaussian
 {
@@ -66,7 +66,7 @@ double gaussian(double s, double x)
   return a * quickExp(-0.5 * y);
 }
 
-//******************************************************************************
+//==============================================================================
 struct SumLogk
 /*
 Calculates sum [log(n), n=1 -> k]
@@ -107,7 +107,7 @@ private:
   std::vector<double> sum_logk_array;
 };
 
-//******************************************************************************
+//==============================================================================
 double Pois(int k, double lambda)
 /*
 Safely returns Poisson distribution, without danger of overflows.
@@ -122,7 +122,7 @@ k must be >= 0. No check is performed.
   return quickExp(logP);
 }
 
-//******************************************************************************
+//==============================================================================
 /*
 DM Form factors, simplified for ultra-light, and ultra-heavy cases
 */
@@ -142,7 +142,7 @@ double F_chi_2_intermediate(double mu, double q) {
   return a * a;
 }
 
-//******************************************************************************
+//==============================================================================
 void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
                              const Grid &mxgrid, const Grid &Egrid,
                              const std::string &fname, double y_unit_convert,
@@ -199,7 +199,7 @@ void writeForGnuplot_mvBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
 
   of.close();
 }
-//******************************************************************************
+//==============================================================================
 void writeForGnuplot_mxBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
                              const Grid &mxgrid, const Grid &Egrid,
                              const std::string &fname, double y_unit_convert,
@@ -322,7 +322,7 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
   return dsdE;
 }
 
-//******************************************************************************
+//==============================================================================
 double dsvdE_Evmvmx(const std::vector<std::vector<float>> &Ke_nq, double E,
                     double mv, double mx, const Grid &qgrid,
                     const std::vector<double> &arr_fv, double dv,
@@ -346,29 +346,7 @@ Note: only takes _part_ of the K array! (for given E)
   return dsvdE * dv;
 }
 
-// //******************************************************************************
-// double dsnjlvdE_Evmvmx(const std::vector<std::vector<float>> &Ke_nq, double
-// E,
-//                        double mv, double mx, const Grid &qgrid,
-//                        const std::vector<double> &arr_fv, double dv,
-//                        double (*F_chi_2)(double, double))
-// /*
-//  */
-// {
-//   std::size_t vsteps = arr_fv.size();
-//   double vmin = std::sqrt(2 * E / mx);
-//   double dsnjlvdE = 0;
-//   for (std::size_t iv = 0; iv < vsteps; iv++) {
-//     double v = double(iv + 1) * dv;
-//     if (v < vmin)
-//       continue;
-//     // double dsnjldE = dsnjldE_vmvmx(Ke_nq, E, qgrid, v, mv, mx, F_chi_2);
-//     dsnjlvdE += arr_fv[iv] * v * dsnjldE;
-//   } // v
-//   return dsnjlvdE * dv;
-// }
-
-//******************************************************************************
+//==============================================================================
 void form_dsvdE(std::vector<double> &dsvde,
                 const std::vector<std::vector<std::vector<float>>> &K_enq,
                 double mv, double mx, const Grid &Egrid, const Grid &qgrid,
@@ -390,7 +368,7 @@ Note: mv<0 means "heavy" mediator [Fx=1]
   } // dE
 }
 
-//******************************************************************************
+//==============================================================================
 void calculate_dsvde_array(
     const std::vector<std::vector<std::vector<float>>> &Kenq,
     DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid, const Grid &mxgrid,
@@ -455,7 +433,7 @@ instead
   }       // end an. mod.
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double>
 convolvedRate(const std::vector<double> &in_rate, const Grid &in_grid,
               const std::vector<std::vector<double>> &f_conv,
@@ -478,7 +456,7 @@ convolvedRate(const std::vector<double> &in_rate, const Grid &in_grid,
   return out_rate;
 }
 
-//******************************************************************************
+//==============================================================================
 void doDAMA(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
             const Grid &mxgrid, const Grid &Egrid, bool do_anMod,
             bool write_dSdE, bool write_SofM, double dres, double err_PEkeV,
@@ -747,81 +725,7 @@ Optionally further integrates into energy bins
   }
 }
 
-// //******************************************************************************
-// void doXe1T(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
-//             const Grid &mxgrid, const Grid &Egrid, bool write_dSdE, double
-//             dres, double err_PEkev, double Atot, double iEbin, double fEbin,
-//             double wEbin, const std::string &label)
-// /*
-//  */
-// {
-//   std::cout << "\n*** Doing S1 for XENON1T ***\n\n";
-//   std::size_t n_mv = mvgrid.num_points();
-//   std::size_t n_mx = mxgrid.num_points();
-//   std::size_t desteps = Egrid.num_points();
-
-//   double E_thresh_HW = 1.0 / E_to_keV;
-//   double alpha = 0.310 + dres * 0.004;
-//   double beta = 0.0037 + dres * 0.0003;
-//   std::cout << "XENON1T detector resolution:";
-//   if (dres != 0)
-//     std::cout << " with error term: " << dres << ".";
-//   std::cout << "\n ==> alpha = " << alpha << ", beta = " << beta << "(keV).
-//   \n"; std::cout << "Hardware threshold:"; std::cout << "\n E_HW = " <<
-//   E_thresh_HW * E_to_keV << " (keV).\n";
-
-//   // Create the Gaussian-smearing array (includes HW threshold)
-//   std::vector<std::vector<double>> gausVec(desteps);
-//   for (std::size_t i = 0; i < desteps; i++) {
-//     double Eobs = Egrid.r(i);
-//     double sigma =
-//         (alpha * std::sqrt(Eobs * E_to_keV) + beta * (Eobs * E_to_keV)) /
-//         E_to_keV;
-//     for (auto Eer : Egrid.r()) {
-//       double g = gaussian(sigma, Eobs - Eer);
-//       if (Eer < Egrid.r0() || Eobs < Egrid.r0())
-//         g = 0;
-//       gausVec[i].push_back(g);
-//     }
-//   }
-
-//   DoubleVec3D dSdE_mv_mx_E;
-//   dSdE_mv_mx_E.resize(n_mv, std::vector<std::vector<double>>(
-//                                 n_mx, std::vector<double>(desteps)));
-
-//   double MN = Atot * (PhysConst::u_NMU * PhysConst::m_e_kg);
-
-//   auto effic = [](double energy) {
-//     if (energy < 0.5 / E_to_keV) {
-//       return 0.0;
-//     } else {
-//       return (0.876 - 7.39e-04 * energy * E_to_keV) /
-//              std::pow(
-//                  (1.0 + 0.104 * std::exp(-(energy * E_to_keV - 1.98) /
-//                  0.360)), 2.03);
-//     }
-//   };
-
-//   // Calculate _observable_ rate, S, for Xe1T
-//   // including Gaussian resolution, no threshold
-//   // and correction for detector efficiency
-//   // Converts units to counts/day/kg/keV
-//   for (std::size_t imv = 0; imv < n_mv; imv++) {
-//     for (std::size_t imx = 0; imx < n_mx; imx++) {
-//       double mx = mxgrid.r()[imx];
-//       double rho_on_mxc2 = rhoDM_GeVcm3 / (mx * M_to_GeV);
-//       double rate_units = dsvdE_to_cm3keVday * rho_on_mxc2 / MN;
-//       dSdE_mv_mx_E[imv][imx] =
-//           convolvedRate(dsv_mv_mx_E[imv][imx], Egrid, gausVec, rate_units);
-//       for (std::size_t ide=0; ide<desteps; ide++) {
-//         dSdE_mv_mx_E[imv][imx][ide] *= effic(Egrid.r(ide));
-//       }
-//     }
-//   }
-
-// }
-
-//******************************************************************************
+//==============================================================================
 void doXe100(const DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid,
              const Grid &mxgrid, const Grid &Egrid, double Atot, double N_err,
              double sPMT_err, bool write_dSds1, bool do_anMod,
@@ -1057,9 +961,9 @@ Mostly, coming from:
   return;
 }
 
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
+//==============================================================================
 int main(int argc, char *argv[]) {
   IO::ChronoTimer sw; // start the overall timer
 
@@ -1281,7 +1185,7 @@ int main(int argc, char *argv[]) {
     break;
   }
 
-  // ********************************************************
+  // ========================================================
   // Calculate <ds.v>/dE for each E (for each mx, mv)
   // ds.v/dE (fun. of mv, mx, E)
   DoubleVec3D dsv_mv_mx_E; // Array to store cross-section

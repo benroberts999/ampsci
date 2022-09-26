@@ -1,7 +1,6 @@
 #include "DiracODE/Adams_bound.hpp"
 #include "DiracODE/Adams_coefs.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "LinAlg/LinAlg.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -32,11 +31,12 @@ namespace DiracODE {
 static constexpr bool do_debug = false;
 
 using namespace Adams;
-//******************************************************************************
+//==============================================================================
 void boundState(DiracSpinor &psi, const double en0,
                 const std::vector<double> &v, const std::vector<double> &H_mag,
-                const double alpha, int log_dele, const DiracSpinor *const VxFa,
-                const DiracSpinor *const Fa0, double zion)
+                const double alpha, double eps_goal,
+                const DiracSpinor *const VxFa, const DiracSpinor *const Fa0,
+                double zion)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton
 method. Based on method presented in book by W. R. Johnson:
@@ -74,22 +74,21 @@ Orbitals defined:
   psi := (1/r) {f O_k, ig O_(-k)}
 */
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Convergance goal. Default: 1e-14
-  const double eps_goal = std::pow(10, -std::abs(log_dele));
+  // const double eps_goal = std::pow(10, -std::abs(log_dele));
 
   if constexpr (do_debug) {
-    if (!(std::abs(psi.k) <= psi.n && psi.k != psi.n)) {
+    if (!(std::abs(psi.kappa()) <= psi.n() && psi.kappa() != psi.n())) {
       std::cerr << "\nFail96 in Adams: bad state " << psi.symbol() << "\n";
       return;
     }
   }
 
-  const auto &rgrid = *psi.rgrid;
+  const auto &rgrid = psi.grid();
 
   // orbital should have (n-l-1) nodes:
-  const int required_nodes = psi.n - psi.l() - 1;
+  const int required_nodes = psi.n() - psi.l() - 1;
   bool correct_nodes = false;
   TrackEnGuess sofar; // track higest/lowest energy guesses etc.
 
@@ -108,9 +107,9 @@ Orbitals defined:
     // Find solution (f,g) to DE for given energy:
     // Also stores dg (gout-gin) for PT [used for PT to find better e]
     std::vector<double> dg(2 * Param::d_ctp + 1);
-    Adams::trialDiracSolution(psi.set_f(), psi.set_g(), dg, t_en, psi.k, v,
-                              H_mag, rgrid, ctp, Param::d_ctp, t_pinf, alpha,
-                              VxFa, Fa0, zion);
+    Adams::trialDiracSolution(psi.f(), psi.g(), dg, t_en, psi.kappa(), v, H_mag,
+                              rgrid, ctp, Param::d_ctp, t_pinf, alpha, VxFa,
+                              Fa0, zion);
 
     const int counted_nodes = Adams::countNodes(psi.f(), t_pinf);
 
@@ -158,10 +157,10 @@ Orbitals defined:
   }
 
   // store energy etc.
-  psi.set_en() = t_en;
-  psi.set_eps() = t_eps;
-  psi.set_max_pt() = (std::size_t)t_pinf;
-  psi.set_its() = t_its;
+  psi.en() = t_en;
+  psi.eps() = t_eps;
+  psi.max_pt() = (std::size_t)t_pinf;
+  psi.its() = t_its;
 
   // Explicitely set 'tail' to zero (we may be re-using orbital)
   psi.zero_boundaries();
@@ -171,45 +170,53 @@ Orbitals defined:
   return;
 }
 
-//******************************************************************************
+//==============================================================================
 void regularAtOrigin(DiracSpinor &Fa, const double en,
                      const std::vector<double> &v,
-                     const std::vector<double> &H_mag, const double alpha) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  const auto &gr = Fa.rgrid;
-  if (en != 0)
-    Fa.set_en() = en;
+                     const std::vector<double> &H_mag, const double alpha,
+                     const DiracSpinor *const VxFa,
+                     const DiracSpinor *const Fa0, double zion) {
+
+  const auto &gr = Fa.grid();
+  if (en != 0.0)
+    Fa.en() = en;
   const auto pinf =
-      Adams::findPracticalInfinity(Fa.en(), v, gr->r(), Param::cALR);
-  Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en(), alpha, H_mag);
-  Adams::outwardAM(Fa.set_f(), Fa.set_g(), Hd, pinf - 1);
-  Fa.set_max_pt() = pinf;
+      Adams::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
+  Adams::DiracMatrix Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag, VxFa, Fa0,
+                        zion);
+  Adams::outwardAM(Fa.f(), Fa.g(), Hd, pinf - 1);
+  Fa.min_pt() = 0;
+  Fa.max_pt() = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
   Fa.zero_boundaries();
 }
 
-//******************************************************************************
+//==============================================================================
 void regularAtInfinity(DiracSpinor &Fa, const double en,
                        const std::vector<double> &v,
-                       const std::vector<double> &H_mag, const double alpha) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
-  const auto &gr = Fa.rgrid;
+                       const std::vector<double> &H_mag, const double alpha,
+                       const DiracSpinor *const VxFa,
+                       const DiracSpinor *const Fa0, double zion) {
+
+  const auto &gr = Fa.grid();
   if (en < 0)
-    Fa.set_en() = en;
+    Fa.en() = en;
   const auto pinf =
-      Adams::findPracticalInfinity(Fa.en(), v, gr->r(), Param::cALR);
-  Adams::DiracMatrix Hd(*gr, v, Fa.k, Fa.en(), alpha, H_mag);
-  Adams::inwardAM(Fa.set_f(), Fa.set_g(), Hd, 0, pinf - 1);
-  Fa.set_max_pt() = pinf;
+      Adams::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
+  Adams::DiracMatrix Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag, VxFa, Fa0,
+                        zion);
+  Adams::inwardAM(Fa.f(), Fa.g(), Hd, 0, pinf - 1);
+  Fa.min_pt() = 0;
+  Fa.max_pt() = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
   Fa.zero_boundaries();
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 namespace Adams {
 
-//******************************************************************************
+//==============================================================================
 void largeEnergyChange(double *en, TrackEnGuess *sofar_ptr, double frac_de,
                        bool toomany_nodes)
 // wf did not have correct number of nodes. Make a large energy adjustment
@@ -235,7 +242,7 @@ void largeEnergyChange(double *en, TrackEnGuess *sofar_ptr, double frac_de,
   *en = etemp;
 }
 
-//******************************************************************************
+//==============================================================================
 double smallEnergyChangePT(const double en, const double anorm,
                            const std::vector<double> &f,
                            const std::vector<double> &dg, const int ctp,
@@ -244,7 +251,7 @@ double smallEnergyChangePT(const double en, const double anorm,
 // delta E = c*f(r)*[g_out(r)-g_in(r)] - evaluate at ctp
 // nb: wf not yet normalised (anorm is input param)!
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   double p_del_q = f[ctp] * dg[d_ctp];
   double denom = 1.0;
   // weighted average around ctp:
@@ -270,7 +277,7 @@ double smallEnergyChangePT(const double en, const double anorm,
   return new_en;
 }
 
-//******************************************************************************
+//==============================================================================
 int findPracticalInfinity(const double en, const std::vector<double> &v,
                           const std::vector<double> &r, const double alr)
 // Find the practical infinity 'pinf'
@@ -285,7 +292,7 @@ int findPracticalInfinity(const double en, const std::vector<double> &v,
   return (int)pinf + 5;
 }
 
-//******************************************************************************
+//==============================================================================
 int findClassicalTurningPoint(const double en, const std::vector<double> &v,
                               const int pinf, const int d_ctp)
 // Finds classical turning point 'ctp'
@@ -297,7 +304,7 @@ int findClassicalTurningPoint(const double en, const std::vector<double> &v,
   return (int)(low - v.begin()) - 1;
 }
 
-//******************************************************************************
+//==============================================================================
 int countNodes(const std::vector<double> &f, const int pinf)
 // Just counts the number of times orbital (f) changes sign
 {
@@ -310,7 +317,7 @@ int countNodes(const std::vector<double> &f, const int pinf)
   return counted_nodes;
 }
 
-//******************************************************************************
+//==============================================================================
 void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         std::vector<double> &dg, const double en, const int ka,
                         const std::vector<double> &v,
@@ -323,7 +330,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
 // Then, joins solutions, including weighted meshing around ctp +/ d_ctp
 // Also: stores dg [the difference: (gout-gin)], which is used for PT
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   DiracMatrix Hd(gr, v, ka, en, alpha, H_mag, VxFa, Fa0, zion);
   outwardAM(f, g, Hd, ctp + d_ctp);
   std::vector<double> f_in(gr.num_points()), g_in(gr.num_points());
@@ -331,7 +338,7 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
   joinInOutSolutions(f, g, dg, f_in, g_in, ctp, d_ctp, pinf);
 }
 
-//******************************************************************************
+//==============================================================================
 void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
                         std::vector<double> &dg,
                         const std::vector<double> &f_in,
@@ -371,7 +378,7 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void outwardAM(std::vector<double> &f, std::vector<double> &g,
                const DiracMatrix &Hd, const int nf)
 // Program to start the OUTWARD integration.
@@ -379,7 +386,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
 // Then, it then call ADAMS-MOULTON, to finish
 // (from num_loops*AMO+1 to nf = ctp+d_ctp)
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   const auto &r = Hd.pgr->r();
   const auto &drduor = Hd.pgr->drduor();
   const auto du = Hd.pgr->du();
@@ -476,7 +483,7 @@ void outwardAM(std::vector<double> &f, std::vector<double> &g,
   return;
 }
 
-//******************************************************************
+//==================================================================
 void inwardAM(std::vector<double> &f, std::vector<double> &g,
               const DiracMatrix &Hd, const int nf, const int pinf)
 // Program to start the INWARD integration.
@@ -485,7 +492,7 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g,
 // Then, it then call ADAMS-MOULTON, to finish (from num_loops*AMO+1
 //   to nf = ctp-d_ctp)
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
+
   // short-cuts
   const auto alpha = Hd.alpha;
   const auto ka = Hd.k;
@@ -549,14 +556,13 @@ void inwardAM(std::vector<double> &f, std::vector<double> &g,
     adamsMoulton(f, g, Hd, pinf - Param::AMO - 1, nf);
 }
 
-//******************************************************************************
+//==============================================================================
 void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
                   const DiracMatrix &Hd, const int ni, const int nf)
 // program finishes the INWARD/OUTWARD integrations (ADAMS-MOULTON)
 //   * ni is starting (initial) point for integration
 //   * nf is end (final) point for integration (nf=ctp+/-d_ctp)
 {
-  [[maybe_unused]] auto sp1 = IO::Profile::safeProfiler(__func__);
   const auto nosteps = std::abs(nf - ni) + 1; // number of integration steps
   const auto inc = (nf > ni) ? 1 : -1;        //'increment' for integration
 
@@ -585,13 +591,7 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
     double sg = g[ri - inc] + qip::inner_product(am, dg);
 
     if (Hd.VxFa) {
-      // XXX nb: issue is that 'f' is not normalised, but VxFa is!
-      // const auto dr = Hd.pgr->drdu(ri - inc) * a0;
-      // const auto Xscalef = (Hd.Fa0->f(ri - inc) != 0.0)
-      //                          ? f[ri - inc] / Hd.Fa0->f(ri - inc)
-      //                          : 0.0;
-      // sf -= Hd.alpha * Xscalef * Hd.VxFa->g(ri - inc) * dr;
-      // sg += Hd.alpha * Xscalef * Hd.VxFa->f(ri - inc) * dr;
+      // nb: issue is that 'f' is not normalised, but VxFa is!
       sf += a0 * Xscl * Hd.dfdu_X(ri);
       sg += a0 * Xscl * Hd.dgdu_X(ri);
     }
@@ -610,8 +610,8 @@ void adamsMoulton(std::vector<double> &f, std::vector<double> &g,
 
 } // END adamsmoulton
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 DiracMatrix::DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
                          const int in_k, const double in_en,
                          const double in_alpha,
@@ -631,7 +631,7 @@ DiracMatrix::DiracMatrix(const Grid &in_grid, const std::vector<double> &in_v,
 
 double DiracMatrix::a(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
-  return (double(-k)) * pgr->drduor()[i] + alpha * h_mag * pgr->drdu(i);
+  return (double(-k)) * pgr->drduor(i) + alpha * h_mag * pgr->drdu(i);
 }
 double DiracMatrix::b(std::size_t i) const {
   return (alpha * en + 2.0 * cc - alpha * (*v)[i]) * pgr->drdu(i);
@@ -641,7 +641,7 @@ double DiracMatrix::c(std::size_t i) const {
 }
 double DiracMatrix::d(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
-  return double(k) * pgr->drduor()[i] - alpha * h_mag * pgr->drdu(i);
+  return double(k) * pgr->drduor(i) - alpha * h_mag * pgr->drdu(i);
 }
 
 std::tuple<double, double, double, double>
@@ -652,7 +652,7 @@ DiracMatrix::abcd(std::size_t i) const {
 
 double DiracMatrix::dfdu(const std::vector<double> &f,
                          const std::vector<double> &g, std::size_t i) const {
-  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  // nb: issue is that 'f' is not normalised, but VxFa is!
   // const auto exch = VxFa ? -alpha * VxFa->g(i) * pgr->drdu(i) : 0.0;
   // const auto Xscale =
   //     (VxFa != nullptr && Fa0->f(i) != 0.0) ? f[i] / Fa0->f(i) : 0.0;
@@ -660,7 +660,7 @@ double DiracMatrix::dfdu(const std::vector<double> &f,
 }
 double DiracMatrix::dgdu(const std::vector<double> &f,
                          const std::vector<double> &g, std::size_t i) const {
-  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  // nb: issue is that 'f' is not normalised, but VxFa is!
   // const auto exch = VxFa ? alpha * VxFa->f(i) * pgr->drdu(i) : 0.0;
   // const auto Xscale =
   //     (VxFa != nullptr && Fa0->f(i) != 0.0) ? f[i] / Fa0->f(i) : 0.0;
@@ -668,11 +668,11 @@ double DiracMatrix::dgdu(const std::vector<double> &f,
 }
 
 double DiracMatrix::dfdu_X(std::size_t i) const {
-  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  // nb: issue is that 'f' is not normalised, but VxFa is!
   return VxFa ? -alpha * VxFa->g(i) * pgr->drdu(i) : 0.0;
 }
 double DiracMatrix::dgdu_X(std::size_t i) const {
-  // XXX nb: issue is that 'f' is not normalised, but VxFa is!
+  // nb: issue is that 'f' is not normalised, but VxFa is!
   return VxFa ? alpha * VxFa->f(i) * pgr->drdu(i) : 0.0;
 }
 

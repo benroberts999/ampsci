@@ -21,7 +21,7 @@ using namespace Adams;
 // ###== To do ###==
 //   * Find asymptotic region + normalise...better?
 
-//******************************************************************************
+//==============================================================================
 void solveContinuum(DiracSpinor &Fa, const double en,
                     const std::vector<double> &v, const Grid &ext_grid,
                     const double r_asym0, const double alpha,
@@ -36,27 +36,27 @@ void solveContinuum(DiracSpinor &Fa, const double en,
 {
   // guess as asymptotic region:
   auto i_asym = ext_grid.getIndex(r_asym0);
-  Fa.set_en() = en;
+  Fa.en() = en;
 
-  const auto num_pointsb = Fa.rgrid->num_points();
+  const auto num_pointsb = Fa.grid().num_points();
   const auto num_pointsc = ext_grid.num_points();
 
   // Perform the "outwards integration"
   // XXX DON"T need to do this! Just re-size f/g vectors!! XXX
-  // DiracSpinor psic(Fa.n, Fa.k, ext_grid);
-  Fa.set_f().resize(num_pointsc); // nb: this is a little dangerous!
-  Fa.set_g().resize(num_pointsc);
+  // DiracSpinor psic(Fa.n(), Fa.kappa(), ext_grid);
+  Fa.f().resize(num_pointsc); // nb: this is a little dangerous!
+  Fa.g().resize(num_pointsc);
 
-  DiracMatrix Hd(ext_grid, v, Fa.k, Fa.en(), alpha, {}, VxFa, Fa0);
-  outwardAM(Fa.set_f(), Fa.set_g(), Hd, (int)num_pointsc - 1);
+  DiracMatrix Hd(ext_grid, v, Fa.kappa(), Fa.en(), alpha, {}, VxFa, Fa0);
+  outwardAM(Fa.f(), Fa.g(), Hd, (int)num_pointsc - 1);
 
   // Find a better (lower) asymptotic region:
-  i_asym = findAsymptoticRegion(Fa.set_f(), ext_grid.r(), num_pointsb,
-                                num_pointsc, i_asym);
+  i_asym = findAsymptoticRegion(Fa.f(), ext_grid.r(), num_pointsb, num_pointsc,
+                                i_asym);
 
   // Find amplitude of large-r (asymptotic region) sine-like wf
   const double amp =
-      findSineAmplitude(Fa.set_f(), ext_grid.r(), num_pointsc, i_asym);
+      findSineAmplitude(Fa.f(), ext_grid.r(), num_pointsc, i_asym);
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
   // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
@@ -69,14 +69,14 @@ void solveContinuum(DiracSpinor &Fa, const double en,
 
   // // Normalise the wfs, and transfer back to shorter arrays:
   // Transfer back to shorter array:
-  Fa.set_f().resize(num_pointsb); // nb: this is a little dangerous!
-  Fa.set_g().resize(num_pointsb);
-  Fa.set_max_pt() = num_pointsb - 1;
+  Fa.f().resize(num_pointsb); // nb: this is a little dangerous!
+  Fa.g().resize(num_pointsb);
+  Fa.max_pt() = num_pointsb - 1;
   Fa *= sf;
 }
 
 namespace Adams {
-//******************************************************************************
+//==============================================================================
 double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
                          std::size_t num_pointsc, std::size_t i_asym)
 //  Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
@@ -121,7 +121,7 @@ double findSineAmplitude(std::vector<double> &pc, const std::vector<double> &rc,
   return (amp / maxtry);
 }
 
-//******************************************************************************
+//==============================================================================
 std::size_t findAsymptoticRegion(std::vector<double> &pc,
                                  const std::vector<double> &rc,
                                  std::size_t num_pointsb,
@@ -171,7 +171,7 @@ std::size_t findAsymptoticRegion(std::vector<double> &pc,
   return i_asym;
 }
 
-//******************************************************************************
+//==============================================================================
 double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
                     double y3)
 // Takes in three points, and fits them to a quadratic function.

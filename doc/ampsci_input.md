@@ -1,245 +1,367 @@
-# Input options for: ampsci
+# ampsci: input options
 
-This outlines/describes the input options/usage for ampsci. For a description of the physics, see: [ampsci.pdf](https://benroberts999.github.io/ampsci/ampsci.pdf)
+\brief ampsci input: descriptions of file format and available options
 
-* The **ampsci** program should be run as:
-  * _./ampsci inputFile.in_
-  * "inputFile.in" is a plain-text input file, that contains all input options * If no input file is given, program looks for the default one, named "ampsci.in"
-* Can also be run simply by giving an atomic symbol (or Z) as command-line option, which will run a simple Hartree-Fock calculation, e.g.,: _./ampsci Cs_
-* First, the program reads in the main input options from the four main input "blocks" (Atom, Nucleus, HartreeFock, and Grid). It will use these to generate wavefunction/Hartree-Fock etc. Then, any number of optional "modules" are run using the above-calculated wavefunctions (e.g., these might calculate matrix elements, run tests etc.). The input blocks and options can be given in any order
-* In general, the input file will have the following format:
+[[Home](/README.md)]
 
-```cpp
-Atom { <input_options> }
-Nucleus { <input_options> }
-Grid { <input_options> }
-HartreeFock { <input_options> }
-//Optional modules:
-Module::firstModule { <input_options> }
-Module::secondModule { <input_options> }
+## basic usage
+
+The program is run with input options from the command line.
+
+### Main method: input options from a text file
+
+* `./ampsci filename`
+  * Runs ampsci with input option specified in file "filename"
+  * See below for full description of input format,
+and a detailed list of input options + descriptions.
+  * run `./ampsci -h` to get breif instructions for input options
+  * Several example input files are given in: _doc/examples/_, along with their expected output; 
+    use these to test if everything is working.
+
+The Output is printed to screen. It's recommended to forward this to a text file.
+The input options and the ampsci version details are also printed, so that the
+program output contains all required info to exactly reproduce it. e.g.,
+
+* `./ampsci input |tee -a outout`
+  * Runs ampsci using input options in file "input".
+  * Output will both be written to screen, and appended to
+    file "output".
+
+### Command-line options
+
+* run `./ampsci -h` to get breif instructions for input options
+
+```text
+    <filename>
+        Runs ampsci taking options specified in file "filename" (eg, ./ampsci filename). 
+        See documentation (or option -a) for input file format options.
+        Example:
+        ./ampsci input.in
+            -Runs ampsci taking input options from file 'input.in'
+    
+    <At> <Core> <Valence>
+        For quick and simple HF calculation. 
+        If core is not given, guesses core configuration and runs using V^N approximation.
+        Examples:
+        ./ampsci Cs
+            - Runs ampsci for Cs using Hartree Fock (V^N) approximation
+        ./ampsci Cs [Xe] 6sd5d
+            - Runs ampsci for Cs using Hartree Fock with Xe-like core and 
+              valence states up to n=6 for s,p-states and n=5 for d-states
+
+    -v (--version)
+        Prints ampsci version (and git commit) details
+
+    -h (--help, -?)
+        Print help info, including some detail on input options
+
+    -a <BlockName> (--ampsci)
+        Prints list of available top-level ampsci options. BlockName is optional; 
+        if given it will print options for given ampsci Block. You may list any number of blocks (space separated)
+        Example:
+        ./ampsci -a Atom HartreeFock
+
+    -m <ModuleName> (--modules)
+        Prints list of available Modules. ModuleName is optional; if given, will list avaiable options for that Module
+        Example:
+        ./ampsci -m MatrixElements
+
+    -o <OperatorName> (--operators)
+        Prints list of available operators. OperatorName is optional; if given, 
+        will list avaiable options for that operator (most operators take no options).
+        Example:
+        ./ampsci -o E1
+
+    -p <Atom> <Isotope> (--periodicTable)
+        Prints textual periodic table with electronic + nuclear information.
+        Atom and Isotope are optional; if given, will print info for that isotope. 
+        Atom should be atomic symbol (eg Cs), or Z (55).
+        If Isotope is blank, will print for 'default' isotope. 
+        Can also list 'all' known isotope info
+        Examples:
+        ./ampsci -p Cs
+        ./ampsci -p Cs 131
+        ./ampsci -p Cs all
+    
+    -c (--constants)
+        Prints some handy physical constants
 ```
 
-* Most options have a default; these may be left blank, explicitly set to 'default', or removed entirely.
-* The curly-braces denote the start/end of each block. Nested blocks are allowed
-* Uses c++ style comments. Any commented-out line will not be read. White-space is ignored.
-* For example, the following inputs are all equivalent
+--------------------------------------------------------------------------------
+
+## Input file format
+
+Input is a plain text file that consists of sets of 'Blocks' and 'Options'.
+
+* Blocks are followed by curly-braces: BlockName{}
+* Options are followed by a semi-colon: OptionName = option_value;
+* Generally, each Block will have a set of Options that may be set
+* Nearly all are optional - leave them blank and a default value will be used
+* Blocks may be nested inside other Blocks
+* White-space is ignored, as are ' and " characters
+* You may use C++-style line '//' and block '/**/' comments
+
+The code is "self-documenting". At any level (i.e., in any Block or at 'global'
+level outside of any Block), set the option 'help;', and the code will print:
+
+* a list of all available Blocks and Options at that level
+* a description of what they are for, and
+* the default value if they are left unset.
+
+For example, setting 'help' at the top-level will print a list of all available
+top-level Blocks:
 
 ```cpp
-Atom {
-  Z = Cs;
-  A;
-}
-Atom {
-  Z = Cs;
-//  A;
-}
-Atom { Z = Cs; }
-Atom { Z = 55; A = 133; }
-Atom{Z=Cs;A=default;}
+  Atom{}         // InputBlock. Which atom to run for
+  Grid{}         // InputBlock. Set radial grid parameters
+  HartreeFock{}  // InputBlock. Options for Solving atomic system
+  Nucleus{}      // InputBlock. Set nuclear parameters
+  RadPot{}       // InputBlock. Inlcude QED radiative potential
+  Basis{}        // InputBlock. Basis used for MBPT
+  Spectrum{}     // InputBlock. Like basis; used for sum-over-states
+  Correlations{} // InputBlock. Options for correlations
+  ExtraPotential{} // InputBlock. Include an extra potential
+  dVpol{}        // InputBlock. Approximate correlation (polarisation) potential
+  Module::*{}    // InputBlock. Run any number of modules (* -> module name)
 ```
 
-* All available inputs for each input block are listed below
-  * Inputs are taken in as either text, boolean (true/false), integers, or real numbers, or a "sub-block"
-  * These will be denoted by [t], [b], [i], [r], [sub-block]
-  * A sub-block is a bracketed list of sub-options, e.g.
-    * options{a=1; b=2;}
-* Program will _usually_ warn you if an incorrect option is given, and print all the available options to the screen -- you can use this fact to get the code to print all the available options for each block.
+You can get the same output by running `./ampsci -a`
 
-********************************************************************************
+Set 'help;' inside any of these to get full set of options of each of these,
+and so on. Full descriptions of each Block/Option are given in doc/ - but the
+self-documentation of the code will always be more up-to-date.
+
+You can get the same output by running `./ampsci -a BlockName`.
+For example, `./ampsci -a Basis` will print all available 'Basis' options
+
+The general usage of the code is to first use the main blocks to construct the
+atomic wavefunction and basis states, then to add as many 'Module::' blocks as
+required. Each module is a seperate routine that will take the calculated
+wavefunction and compute any desired property (e.g., matrix elements). The code
+is designed such that anyone can write a new Module (See [doc/writing_modules.md](/doc/writing_modules.md))
+
+e.g., To calculate Cs wavefunctions at HF level with 6s, 6p, and 5d valence
+states, and then calculate E1 matrix elements including core polarisation (RPA):
+
+```cpp
+  Atom {
+    Z = Cs;
+    A = 133;
+  }
+  Grid { } // Leave all default; can also just drop entire Block
+  Nucleus { } // Default values set according to isotope
+  HartreeFock {
+    core = [Xe];
+    valence = 6sp5d;
+  }
+  Module::matrixElements {
+    operator = E1;
+    rpa = true;
+  }
+```
+
+--------------------------------------------------------------------------------
+
 ## Auto-documentation
 
- * This document may go out-of-sync with the code
- * The best fail-safe way to check the available options for a given input block is to use the code itself.
- * Do this by adding a blank 'help' option to the input file:
- * The code will then print a list of all available options, and (usually) an explanation for them
+* This document may go out-of-sync with the code
+* The best fail-safe way to check the available options for a given input block is to use the code itself.
+* Do this by adding a blank 'help' option to the input file:
+* The code will then print a list of all available options, and (usually) an explanation for them
 
 blockname {
   help;
 }
 
+You can also access most of the self-documenation directly from the command-line:
 
+* `./ampsci -h`
+  * Print help info, including input options (same as --help, -?)
+* `./ampsci -m  <ModuleName>`
+  * Prints list of available Modules (same as --modules)
+  * ModuleName is optional. If given, will list avaiable options for that Module
+* `./ampsci -o <OperatorName>`
+  * Prints list of available operators (same as --operators)
+  * OperatorName is optional. If given, will list avaiable options for Operator
+* `./ampsci -a <BlockName>`
+  * Prints list of available top-level ampsci options (same as --ampsci)
+  * BlockName is optional; if given will print options for given ampsci Block
+  * e.g., `./ampsci -a Basis` will print all available 'Basis' options
 
-********************************************************************************
-All available ampsci options/blocks are:
+--------------------------------------------------------------------------------
+
+## Modules
+
+* The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
+* Any number of _modules_ can be run by adding a `Module::moduleName{}' block.
+* Get a list of available modules: `./ampsci -m`
+* `./ampsci -m  <ModuleName>`
+  * Prints list of available Modules (same as --modules)
+  * ModuleName is optional. If given, will list avaiable options for that Module
+* See [doc/modules.md](/doc/modules.md) for full details
+* The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](/doc/writing_modules.md) for details
+
+--------------------------------------------------------------------------------
+
+## Details for each input block
+
+* Basic details for each input block are given here.
+* It's generally better to get this info from the code (by setting the `help;` option in any given block), since that will always be up-to-date, while this document may fall out-of-date
+* You can also get this directly from the command-line:
+* `./ampsci -a <BlockName>`
+  * Prints list of available top-level ampsci options (same as --ampsci)
+  * BlockName is optional; if given will print options for given ampsci Block
+  * e.g., `./ampsci -a Basis` will print all available 'Basis' options
+
+### Atom
+
+Available Atom options/blocks are:
 
 ```cpp
-ampsci{
-  Atom;  // Which atom to run for
-  Grid;  // Set radial grid parameters
-  HartreeFock;  // Expl
-  Nucleus;  // Set nuclear parameters
-  RadPot;  // Inlcude QED radiative potential
-  Basis;  // Basis used for MBPT
-  Spectrum;  // Like basis; used for sum-over-states
-  Correlations;  // Options for correlations
-  ExtraPotential;  // Include an extra potential
-  dVpol;  // Approximate correlation (polarisation) potential
-  Module::*;  // Run any number of modules (* -> module name)
+Atom{
+  Z; // string or int (e.g., Cs equivilant to 55). Atomic number [default H]
+  A; // int. Atomic mass number (set A=0 to use pointlike nucleus) [default based on Z]
+  varAlpha2; // Fractional variation of the fine-structure constant, alpha^2: d(a^2)/a_0^2. Use to enforce the non-relativistic limit (c->infinity => alpha->0), or calculate sensitivity to variation of alpha. [1.0]
 }
 ```
 
-
-********************************************************************************
-# Some details for each input block:
-
-## Atom
+### HartreeFock
 
 ```cpp
-Atom {
-  Z = Cs;    //[t/i] required
-  A;         //[i] Will look-up default value if default
-  varAlpha2; //[r] default = 1
+HartreeFock{
+  /*
+  Options for solving lowest-order atomic wavefunction
+  */
+  core; // Core configuration. Either list entire core, or use [At] short-hand. e.g., [He] equivilant to 1s2; [Xe],6s1 equivilant to [Cs] and to 1s2,2s2,...,5p6,6s1. [blank by default]
+  valence; // e.g., 7sp5d will include valence states up to n=7 for s and p, but n=5 for d states. Automatically excludes states in the core. [blank by default]
+  eps; // HF convergance goal [1.0e-13]
+  method; // HartreeFock, Hartree, KohnSham, Local [HartreeFock]
+  Breit; // Scale for factor for Breit Hamiltonian. Usially 0.0 (no Breit) or 1.0 (full Breit), but can take any value. [0.0]
+  sortOutput; // Sort energy tables by energy? [false]
 }
 ```
-* Z: Which atom. Can enter as symbol (e.g., Z = Cs;) or integer (e.g., Z = 55;). Required (no default)
-* A: nuclear mass number. Leave blank to look up default value
-* varAlpha2: Scaling factor for alpha^2 (c = 1/alpha in atomic units): alpha^2 = varAlpha2 * alpha_real^2.
-  * default=1. put a very small number to achieve non-relativistic limit (useful for tests)
 
+### Nucleus
 
-## HartreeFock
 ```cpp
-HartreeFock {
-  core;        //[t] default = [] (no core)
-  valence;     //[t] default = none
-  sortOutput;  //[b] default = false
-  method;      //[t] default = HartreeFock
-  Breit;       //[r] default = 0.0
-  convergence; //[r] default = 1.0e-12
+Nucleus{
+  /*
+  Options for nuclear potential (finite nuclear size). All are optional. Default is a Fermi-like nucleus, with parameters chosen according to isotope (see Atom{A;})
+  */
+  rrms; // Root-mean-square charge radius, in fm [default depends on Z and A]
+  c; // Half-density radius, in fm (will over-ride rms) [default depends on Z and A]
+  t; // Nuclear skin thickness, in fm [2.3]
+  type; // Fermi, spherical, pointlike, Gaussian [Fermi]
 }
 ```
-* core: Core configuration. Format: "[Atom],extra"
-  * 'Extra' is comma-separated list of 'nLm' terms (eg: '1s2,2s2,2p6')
-  * '[Atom]' is optional, can just list all configurations
-  * '[Atom]' is usually a Noble gas, but can be any atom
-  * Can also add negative values for occupations (m)
-  * E.g. :
-    * Cs (V^N-1): '[Xe]'
-    * Cs (V^N-1): '[Cs],6s-1'  (equivalent to [Xe])
-    * Au (V^N-1): '[Xe],4f14,5d10' or '[Hg],6s-2'
-    * Tl (V^N-1): '[Xe],4f14,5d10,6s2' or '[Hg]'
-    * I (V^N): '[Cd],5p5' or '[Xe],5p-1', or [I]
-    * H-like: enter as: []  (or 1s0) -- no electrons in core
-* valence: which valence states to calculate
-  * e.g., "7sp5df" will do s and p states up to n=7, and d and f up to n=5
-* sortOutput: true or false. Sort output by energy.
-* method: which method to use. can be:
-  * HartreeFock(default), ApproxHF, Hartree, KohnSham
-  * Note: for KohnSham: Should be V^N - i.e., include lowest valence state into core.
-    * e.g., for Cs: core=[Xe],6s1 (or 'core=[Cs]'); Then list each valence state in valence:
-    * e.g., to solve valence 6s, 7s, and 6p, write valence="6s7s6p";
-* Breit: Include Breit into HF with given scale (0 means don't include)
-  * Note: Will go into spline basis, and RPA equations automatically
-* convergence: level we try to converge to.
 
+### Grid
 
-## Nucleus
 ```cpp
-Nucleus {
-  type;    //[t] default = Fermi
-  rrms;    //[r] will loop-up default value based on Z,A
-  c;       //[r] will loop-up default value based on Z,A
-  t;       //[r] default = 2.3
+Grid{
+  /*
+  Options for radial grid (lattice) used for integrations, solving equations and storing oritals. All relevant quantities are in units of Bohr radius (aB).
+  */
+  r0; // Initial grid point, in aB [1.0e-6]
+  rmax; // Finial grid point [120.0]
+  num_points; // Number of grid points [2000]
+  type; // Type of grid: loglinear, logarithmic, linear [loglinear]
+  b; // Only used for loglinear: grid is ~ logarithmic for r<b, linear for r>b [rmax/3]
+  du; // du is uniform grid step size; set this instead of num_points - will override num_points [default set by num_points]. Rarely used.
 }
 ```
-* rrms: nuclear root-mean-square charge radius (in femptometres = 10^-15m)
-* type: Which distribution to use for nucleus? Options are: Fermi (default), spherical, point
-* t: skin thickness [only used by Fermi distro]
-* c: half-density radius [only used by Fermi distro]
-  * nb: if rrms and c are given, c takes priority, and rrms is calculated from c (and t)
 
+### dVpol (effective polarisation potential)
 
-## Grid
 ```cpp
-Grid {
-  r0;         //[r] default = 1.0e-6
-  rmax;       //[r] default = 120.0
-  num_points; //[i] default = 1600
-  type;       //[t] default = loglinear
-  b;          //[r] default = rmax/3
-  du;         //[r] default = blank.
+Available dVpol options/blocks are:
+dVpol{
+  a_eff; // scale factor for effective pol. potential [1]
+  r_cut; // cut-off parameter [=1]
 }
 ```
-* r0: grid starting point (in atomic units)
-* rmax: Final grid point (in atomic units)
-* num_points: number of points in the grid
-* type: options are: loglinear (default), logarithmic, linear
-  * Note: 'linear' grid requires a _very_ large number of points to work, and should essentially never be used.
-* b: only used for loglinear grid; the grid is roughly logarithmic below this value, and linear after it. Default is 4.0 (atomic units). If b<0 or b>rmax, will revert to using a logarithmic grid
-* du: if du>0.0, it will calculate num_points to fix du (step-size in uniform 'u' grid); will over-ride 'num_points' option.
 
-
-## dVpol (effective polarisation potential)
-```cpp
-dVpol {
-  a_eff;  //[r] default = 0.0, typical ~1
-  r_cut;  //[r] default = 1.0
-}
-//nb: all of these are optional, hence entire block can be omitted
-```
 * Effective polarisation potential:
+
 * dV = -0.5 * a_eff / (r^4 + r_cut^4)
 * nb: Added to direct potential _after_ HF for core, but _before_ HF for valence
 
+### ExtraPotential (read from text file)
 
-## ExtraPotential (read from text file)
 ```cpp
-ExtraPotential {
-  filename; //[t] default = ""
-  factor;   //[r] default = 0.0
-  beforeHF; //[b] default = false
+ExtraPotential{
+  /*
+  Option to add an extra potential (to Vnuc), before HF solved.
+  */
+  filename; // Read potential from file (r v(r)) - will be interpolated [blank]
+  factor; // potential is scaled by this value [default=1]
+  beforeHF; // include before HF (into core states). default=false
 }
-//nb: all of these are optional, hence entire block can be omitted
 ```
+
 * Reads in extra potential from text file (space separated: 'x y' format):
+
 * Interpolates these points onto the grid (but does NOT extrapolate,
   potential is assumed to be zero outside the given range)
 * Potential is multiplied by 'factor'
 * May be added before or after HF (if before: added to vnuc, if after: to vdir)
 
+### RadPot (Ginges/Flambaum QED Radiative Potential)
 
-## RadPot (Ginges/Flambaum QED Radiative Potential)
 ```cpp
-RadPot {
-  Ueh;      //[r] default = 1.0 // Uehling (vac pol)
-  SE_h;     //[r] default = 1.0 // high-f SE
-  SE_l;     //[r] default = 1.0 // low-f SE
-  SE_m;     //[r] default = 1.0 // Magnetic SE
-  WK;       //[r] default = 0.0 // Wickman-Kroll
-  rcut;     //[r] default = 5.0
-  scale_rN; //[r] default = 1.0
-  scale_l;  //[r,r...] (List) default = 1.0
-  core_qed; //[b] default = true
+RadPot{
+  /*
+  QED Radiative potential will be included if this block is present
+  */
+  /*
+  The following 5 are all doubles. Scale to include * potential; usually either 0.0 or 1.0, but can take any value:
+  */
+  Ueh; //   Uehling (vacuum pol). [1.0]
+  SE_h; //   self-energy high-freq electric. [1.0]
+  SE_l; //   self-energy low-freq electric. [1.0]
+  SE_m; //   self-energy magnetic. [1.0]
+  WK; //   Wickman-Kroll. [0.0]
+  rcut; // Maximum radius (au) to calculate Rad Pot for [5.0]
+  scale_rN; // Scale factor for Nuclear size. 0 for pointlike, 1 for typical [1.0]
+  scale_l; // List of doubles. Extra scaling factor for each l e.g., 1,0,1 => include for s and d, but not for p [1.0]
+  core_qed; // Include rad pot into Hartree-Fock core (relaxation) [true]
 }
 ```
+
 * Adds QED radiative potential to Hamiltonian.
+
 * QED will be included if this block is present; else not
 * Will read from file if it exists (e.g., Z_uhlmw.qed)
 * Each factor (Ueh, SE_h,..) is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
 * rcut: Only calculates potential for r < rcut [for speed; rcut in au]
 * scale_rN: finite nucleus effects: rN = rN * scale_rN (=0 means pointlike)
 * scale_l: Optional input: Scaling factors for the V_rad for each l state; for higher states, uses the last given input. Input as a list of real numbers. Best explained with examples:
-    * scale_l = 1; // include QED for all states
-    * scale_l = 0,1,0; //include QED for p states only
-    * scale_l = 0,1; //inlcude QED for p,d,f.. but not s states.
-    * don't need to be 1 or 0, can be any real number.
+  * scale_l = 1; // include QED for all states
+  * scale_l = 0,1,0; //include QED for p states only
+  * scale_l = 0,1; //inlcude QED for p,d,f.. but not s states.
+  * don't need to be 1 or 0, can be any real number.
 * core_qed: if true, will include QED effects into core in Hartree-Fock (relaxation). If false, will include QED only for valence states
 
-## Basis (B-spline basis for MBPT)
+### Basis (B-spline basis for MBPT)
+
 * The 'basis' is used for summing over states in MBPT. (A second 'basis', called spectrum, may be used for summation over states in other problems)
+
 ```cpp
-Basis {
-  number;   //[i] default = 0
-  order;    //[i] default = 0
-  r0;       //[r] default = 0
-  r0_eps;   //[r] default = 0
-  rmax;     //[r] default = 0
-  print;    //[b] default = false
-  positron; //[b] default = false
-  states;   //[t] default = ""
+Basis{
+  number; // Number of splines used in expansion [0]
+  order; // order of splines ~7-9 [7]
+  r0; // minimum cavity radius (first internal knot) [1.0e-4]
+  r0_eps; // Select cavity radius r0 for each l by position where |psi(r0)/psi_max| falls below r0_eps [1.0e-3]
+  rmax; // maximum cavity radius [Grid{rmax}]
+  states; // states to keep (e.g., 30spdf20ghi)
+  print; // Print all spline energies (for testing) [false]
+  positron; // Include -ve energy states [false]]
+  type; // Derevianko (DKB) or Johnson [Derevianko]
 }
 ```
+
 * Constructs basis using _number_ splines of order _order_
+
 * on sub-grid (r0,rmax) [if zero, will use full grid]
 * r0_eps: Only calculate splines for r where relative core density is larger than r0_eps (updates r0 for each l). Typically ~1.0e-8. Set to zero to use r0.
 * If print = true, will print basis energies
@@ -248,26 +370,44 @@ Basis {
   * e.g., "7sp5df" will store s and p states up to n=7, and d and f up to n=5
   * spd will store _all_ (number) states for l<=2
 
+### Correlations (Correlation potential, Sigma)
 
-## Correlations (Correlation potential, Sigma)
 * For including correlations. 'basis' must exist to calculate Sigma, but not to read Sigma in from file.
+
 ```cpp
-Correlations {
-  read;           //[t] default = ""
-  write;          //[t] default = ""
-  n_min_core;     //[i] default = 1
-  energyShifts;   //[b] default = false
-  Brueckner;      //[b] default = false
-  lambda_kappa;   //[r,r...] (list) default is blank.
-  fk;             //[r,r...] (list) default is blank.
-  fitTo_cm;       //[r,r...] (list) default is blank.
-  // Following are "sub-grid" options:
-  stride;         //[i] default chosen so there's ~150 pts in region [e-4,30]
-  rmin;           //[i] 1.0e-4
-  rmax;           //[i] 30.0
+Correlations{
+  /*
+  Options for inclusion of correlations (correlation potential method). It's become a bit of a mess, and will be refactored ~soon~
+  */
+  Brueckner; // Form Brueckner orbitals [false]
+  energyShifts; // Calculate MBPT2 shift [false]
+  n_min_core; // Minimum core n to polarise [1]
+  fitTo_cm; // List of binding energies (in cm^-1) to scale Sigma for. Must be in same order as valence states
+  lambda_kappa; // Scaling factors for Sigma. Must be in same order as valence states
+  read; // Filename to read in Sigma [false=don't read]
+  write; // Filename to write Sigma to [false=don't write]
+  rmin; // minimum radius to calculate sigma for [1.0e-4]
+  rmax; // maximum radius to calculate sigma for [30.0]
+  stride; // Only calculate Sigma every <stride> points
+  each_valence; // Different Sigma for each valence states? [false]
+  ek; // Block: Explicit list of energies to solve for. e.g., ek{6s+=-0.127, 7s+=-0.552;}. Blank => HF energies
+  Feynman; // Use Feynman method [false]
+  fk; // List of doubles. Screening factors for effective all-order exchange. In Feynman method, used in exchange+ladder only; Goldstone, used direct also. If blank, will calculate them from scratch. []
+  eta; // List of doubles. Hole-Particle factors. In Feynman method, used in ladder only; Goldstone, used direct also. []
+  screening; // bool. Include Screening [false]
+  holeParticle; // Include hole-particle interaction [false]
+  ladder; // Experimental feature. Filename for ladder diagram file (generated in the ladder Module). If blank, ladder not included. Only in Feynman. []
+  lmax; // Maximum l used for Feynman method [6]
+  basis_for_Green; // Use basis for Feynman Greens function [false]
+  basis_for_pol; // Use basis for Feynman polarisation op [false]
+  real_omega; // [worked out by default]
+  imag_omega; // w0, wratio for Im(w) grid [0.01, 1.5]
+  include_G; // Inlcude lower g-part into Sigma [false]
 }
 ```
+
 * Includes correlation corrections. note: splines must exist already
+
 * read/write: Read/write from/to file. Set to 'false' to calculate from scratch (and not write to file). By default, the file name is: "Atom".sig.
   * Alternatively, put any text here to be a custom filename (e.g., read/write="Cs_new"; will read/write from/to Cs_new.sig). Don't include the '.sig' extension (uses sigf for Feynman method, sig2 for Goldstone). Grids must match exactly when reading in from a file.
   * If reading Sigma in from file, basis doesn't need to exist
@@ -282,6 +422,7 @@ Correlations {
 * fk: Effective screening factors; only used for 2nd-order Goldstone method
   * Note: Included directly into Sigma
   * e.g., for Cs: fk = 0.72, 0.62, 0.83, 0.89, 0.94, 1.0;
+  * If blank, will calculate these from scratch for each state (better, slower)
 * fitTo_cm: Provide list of energies (lowest valence states for each kappa); Sigma for each kappa will be automatically re-scaled to exactly reproduce these. Give as binding energies in inverse cm! It will print the lambda_kappa's that it calculated
   * e.g., fitTo_cm = -31406.5, -20228.2, -19674.1; will fit for the lowest s & p states for Cs
   * Will over-write lambda_kappa
@@ -294,343 +435,25 @@ Correlations {
   * -32848.87, -20611.46, -18924.87, -16619.00, -16419.23; // Fr
   * -81842.5 -60491.2, -55633.6, -69758.2, -68099.5, -32854.6, -32570.4; // Ra+
 
+### Spectrum (B-spline basis for MBPT)
 
-## Spectrum (B-spline basis for MBPT)
 * The 'Spectrum' is similar to basis, but also includes correlation corrections (if Sigma exists)
+
 * Useful, since we often need a small basis to compute MBPT terms, but a large basis to complete other sum-over-states calculations.
-```cpp
-Spectrum {
-  // exact same inputs as Basis{}
-}
-```
-
-
-## Modules
-
-Each Modules block will be run in order.
-You can comment-out just the block name, and the block will be skipped.
-
-### Module::matrixElements
-
-Module to calculate Matrix Elements.
-For matrixElements, there are some options that apply for any operator; and then there are some options specific to each operator; these operator-specific options are given as a [] bracketed list of options ("sub-block")
 
 ```cpp
-Module::matrixElements {
-  operator;       //[t] default = ""
-  options;        //[sub-block], default = ""
-  printBoth;      //[t] default = false
-  onlyDiagonal;   //[t] default = false
-  radialIntegral; //[b] default = false
-  rpa;            //[t] default = "TDHF"
-  omega;          //[r] default = 0.0;  or [t] ('each')
-  A_vertex;       //[r] default = 0.0 - for QED vertex
-  b_vertex;       //[r] default = 1.0
-}
-```
-* operator: name of operator; see list below
-* options: list any operator-specific options (most will be blank)
-  * _see below_
-* printBoth: Print <a|h|b> and <b|h|a> ? false by default. (For _some_ operators, e.g., involving derivatives, this is a good test of numerical error. For most operators, values will be trivially the same; reduced matrix elements, sign may be different.)
-* onlyDiagonal: If true, will only print diagonal MEs <a|h|a>
-* radialIntegral: if true, calculates the radial integral (definition depends on specific operator)
-* rpa: Include RPA (core polarisation) corrections to MEs:
-  * rpa = TDHF; (default) => uses TDHF method
-  * rpa = basis; => uses TDHF/basis method (uses basis)
-  * rpa = diagram; => uses diagram (Goldstone) method (uses basis)
-  * rpa = false; no RPA included
-* omega: frequency for solving TDHF/RPA equations, should be positive. Put "omega=each;" to solve at the frequency for each transition (i.e., re-solve TDHF for each transition).
-* A_vertex, b_vertex: Effective QED vertex func: A * alpha * exp(-b * r / alpha)
-
-
-### Available operators:
-
-Here I list the available operators, and their possible options.
-Remember; the program will print out the full list of available options if you ask it to.
-
-```cpp
-operator = E1; //Electric dipole operator:
-options{
-  gauge; //[t] lform, vform. default = lform
-}
-```
-
-```cpp
-operator = Ek; //Electric multipole operator:
-options{
-  k; //[i] default = 1
-}
-```
-* k=1 => E1, dipole. k=2 => E2, quadrupole etc.
-
-```cpp
-operator = r; //scalar r
-options{
-  power; //[r] default = 1. Will calc <|r^n|>.
-}
-```
-
-```cpp
-operator = pnc; // spin-independent (Qw) PNC operator.
-options{
-  c; //[r] half-density radius. By default, uses rrms from Z,A [see nucleus]
-  t; //[r] skin thickness. default = 2.3
-}
-```
-
-```cpp
-operator = Hrad; // QED radiative potential
-```
- * Takes similar arguments as RadPot (except for scale_l and core_qed)
-   * Simple, Ueh, SE_h, SE_l, SE_mag, rcut, scale_rN
- * Including RPA should be equivalent to including QED into core HF equations
-   * Note: only diagram/basis method seems to work
- * Typically used with radialIntegral=true (get energy shifts)
-
-```cpp
-operator = hfs; // Magnetic dipole hyperfine structure constant A
-options{
-  mu;     //[r] Nuc. mag. moment. Will be looked up by default
-  I;      //[r] Nuc. spin. Will be looked up by default
-  rrms;   //[r] Nuc. rms radius. Will be looked up by default
-  F(r);   //[t] Bohr-Weisskopf function. ball, shell, pointlike, VolotkaBW, doublyOddBW
-  printF; //[b] default = false. Will write F(r)/r^2 to text file
-  // -----
-  // the following are only used for "VolotkaBW/doublyOddBW"
-  // both are optional (will be deduced otherwise)
-  parity; //[i] parity of unpaired valence nucleon (+1/-1)
-  gl;     //[i] =1 for valence proton, =0 for valence neutron
-  // -----
-  // The following are only read in if F(r) = doublyOddBW,
-  // but are _required_ in that case (current values are for 212-Fr)
-  mu1 = 4.00; //see paper for explanation
-  I1 = 4.5;
-  l1 = 5.;
-  gl1 = 1;
-  I2 = 0.5;
-  l2 = 1.;
-}
-```
-
-### Other Modules:
-
- * Note: 'Modules' documentation also available in the doxygen (html) documentation on github; that is likely more up-to-date
-
--------------------
-```cpp
-Module::Tests {
-  orthonormal;     //[b] Prints worst <a|b>'s. default = true
-  orthonormal_all; //[b] Print all <a|b>'s. default = false
-  Hamiltonian;     //[b] check eigenvalues of Hamiltonian. default = false
-  boundaries;      //[b] check f(rmax)/fmax. default = false
-  basisTests;        //[b] Tests basis by evaluating sum rules + HFS/Energies
-}
-```
-* Various tests of numerical errors:
-
--------------------
-```cpp
-  Module::pnc{ c; t; transition; rpa; omega; nmain; }
-```
-Uses both 'solving equations' (TDHF) and sum-over-states methods.
-For solving equations, calculates both:
-  - <yA_w|d| B> + <A |d|xB_w>
-  - <A |w|XB_d> + <YA_d|w| B>
-  - Does not (yet) include DCP
-
- - c, t: half-density radius and skin-thickness (in fm) for rho(r). Will look up
-default values by default.
- - transition: For E1_PNC a->b transition.
-   - in form "a,b", uses the 'short' notation:
-   - e.g., "6s+,7s+" for 6s_1/2 -> 7s_1/2
-   - e.g., "6s+,5d-" for 6s_1/2 -> 5d_3/2
- - rpa: true/false. Include RPA or not (TDHF ,method)
- - omega: frequency used for RPA (default is transition frequency of valence).
- - nmain: highest n (prin. q. number) considered as part of 'main'.
-   - If not given, will be max(n_core)+4
-   - (Calculation broken into core, main, tail)
-
--------------------
-```cpp
-Module::polarisability{ rpa; omega; transition; omega_max; omega_steps;  }
-```
-* Calculate dipole polarisabilitities (static, dynamic, alpha, vector beta)
-* Uses both 'solving equations' (TDHF) and sum-over-states methods.
-
- - rpa: true/false. Include RPA or not (TDHF ,method)
- - omega: frequency used for alpha_0 (dipole polarisability). default is 0.
- - transition: For scalar/vector a->b transition polarisability.
-   - in form "a,b", e.g., "6s+,7s+" for 6s_1/2 -> 7s_1/2
- - omega_max: maximum frequency for dynamic polarisability. Default is 0.
-   - nb: only runs dynamic pol. if omega_max>0
- - omega_steps: Number of steps used for dynamic. default = 30. (linear scale)
-
-Note: transition polarisabilities written for s-states only.
-They might be correct for other states too, but NOT checked.
-Especially for beta, pretty sure it's wrong for non-s states.
-
--------------------
-```cpp
-Module::structureRad{
-  operator; options; rpa; printBoth; onlyDiagonal; omega; n_minmax;  
-}
-```
- * Calculates Structure Radiation + Normalisation of States
- * Note: Most input options are similar to matrixElements module:
- * n_minmax: is input as list of ints:
-   * n_minmax = min,max;
-   * min: minimum n for core states kept in summations
-   * max: maximum n for excited states kept in summations
- * For explanation of the rest, see matrixElements module.
-
--------------------
-```cpp
-Module::lifetimes{
-  E1;   //[b] Include E1 transitions. default = true
-  E1;   //[b] Include E2 transitions. default = false
-}
-```
-Calculates lifetimes of valence states. Note: uses HF energies (prints all data to screen)
-
--------------------
-```cpp
-Module::HFAnomaly {
-  Alist;  //[i,i,...] // Which A's to calculate for (blank for all)
- // ~ most inputs same as operator = hfs
-}
-```
-Calculates the hyperfine anomaly (and BW effect) for all available odd
-isotopes of given atom, relative to the 'main' isotope (see Atom).
- * Note: Only runs for odd isotopes; to get anomaly for even isotopes, use am even isotope as reference (For doubly-odd Bohr-Weisskopf input options, see operator = hfs)
- * Takes same input as operator = hfs, except for F(r), since it runs for each F(r)
-
--------------------
-```cpp
-Module::BohrWeisskopf { //Calculates BW effect for Ball/Single-particle
-  // Takes same input at operator = hfs
-  // Except for F(r), since it runs for each F(r)
-}
-```
-
--------------------
-```cpp
-Module::WriteOrbitals { //writes orbitals to textfile:
-    label = outputLabel; //[t] Optional. blank by default
-}
-```
-Writes the core + valence orbitals (+ the total electron density) to a file, in GNUplot friendly format.
-The (optional) label will be appended to the output file name. Plot file using GNUPLOT. For example, try this:
-* _plot for [i=2:20] "file.txt" u 1:i every :::0::0  w l t columnheader(i)_
-* _plot for [i=2:20] "file.txt" u 1:i every :::1::1  w l t columnheader(i)_
-* _plot "file.txt" u 1:2 every :::2::2  w l t "Core Density"_
-
--------------------
-```cpp
-Module::FitParametric {
-  method = Green;     //[t] Green, Tietz
-  statesToFit = core; //[t] core, valence, both
-  fitWorst;           //[b] false (default), true;
-}
-```
-Performs a 2D fit to determine the best-fit values for the given two-parameter parametric potential (Green, or Tietz potentials), returns H/g d/t parameters for the best-fit. Does fit to Hartree-Fock energies. Will either do for core or valence states, or both (works best for one or the other). fitWorst: if true, will optimise fit for the worst state. If false, uses least squares for the fit. False is default
-
--------------------
-
-```cpp
-Module::AtomicKernal {
-    // Some typical inputs. All are required.
-  Emin = 0.01; // in keV
-  Emax = 4.0;
-  Esteps = 25;
-  qmin = 0.001; // in MeV
-  qmax = 4.0;
-  qsteps = 100;
-  max_l_bound = 1; // l for bound states
-  max_L = 2;       // L is multipolarity
-  output_text = true;
-  output_binary = true;
-  label = ;
-  use_plane_waves = false;
-  use_alt_akf = false;    // true: <j|exp(iqr)|njlm> set to <j|exp(iqr)-1|njlm>
-  force_rescale = false;  // true: forces v local to -1/r at high r
-  subtract_self = false;  // true: excl single-electron from v direct
-  force_orthog = false;   // true: continuum states orthog to core?
-  dme_coupling = Vector;  // DM-electron coupling (case sensitive!)
-}
-```
-Calculates the "Atomic Kernal" (for scattering/ionisation) for each core
-orbital, as a function of momentum transfer (q), and energy deposition (dE).
-Writes result to human-readable (and gnuplot-friendly) file, and/or binary.
-* For definitions/details, see:
-  * B.M. Roberts, V.V. Flambaum [Phys.Rev.D 100, 063017 (2019)](https://link.aps.org/doi/10.1103/PhysRevD.100.063017 "pay-walled"); [arXiv:1904.07127](https://arxiv.org/abs/1904.07127 "free download").
-  * B.M.Roberts, V.A.Dzuba, V.V.Flambaum, M.Pospelov, Y.V.Stadnik, [Phys.Rev.D 93, 115037 (2016)](https://link.aps.org/doi/10.1103/PhysRevD.93.115037 "pay-walled"); [arXiv:1604.04559](https://arxiv.org/abs/1604.04559 "free download").
-* Note: need quite a dense grid [large number of points] for
-  * a) highly oscillating J_L function at low r, and
-  * b) to solve equation for high-energy continuum states.
-* Sums over 'all' continuum angular momentum states (and multipolarities)
-  * Maximum values for l are input parameters
-Binary output from this program is read in by dmeXSection program
-Note: tested only for neutral atoms (V^N potential).
-Also: tested mainly for high values of q
-
--------------------
-
-```cpp
-Module::AFBindingEnergy {
-    // Some typical inputs.
-  qmin = 0.001; // in MeV
-  qmax = 4.0;
-  qsteps = 100;
-  max_l_bound = 1; // l for bound states
-  max_L = 2;       // L is multipolarity
-  output_text = true;
-  label = ;               // label for the output files
-  use_plane_waves = false;
-  use_alt_akf = false;    // true: <j|exp(iqr)|njlm> set to <j|exp(iqr)-1|njlm>
-  force_rescale = false;  // true: forces v local to -1/r at high r
-  subtract_self = false;  // true: excl single-electron from v direct
-  force_orthog = false;   // true: continuum states orthog to core?
-  dme_coupling = Vector;
-  Etune_mult = 1.1;       // Run code at dE = Etune_mult*I_{njl} + Etune_add
-  Etune_add = 0.01;
-}
-```
-
--------------------
-
-```cpp
-Module::AFStepFunction {
-    // Some typical inputs.
-  // !!! Inputs that need to match generate K table: qmin, qmax, qsteps,
-  // max_l_bound, max_L, table_label (same as label in AFBE module),
-  // use_plane_waves, dme_coupling (***change to be read in from binary?)
-  Emin = 0.01; // in keV
-  Emax = 4.0;
-  Esteps = 25;
-  qmin = 0.001; // in MeV
-  qmax = 4.0;
-  qsteps = 100;
-  max_l_bound = 1; // l for bound states
-  max_L = 2;       // L is multipolarity
-  output_text = true;
-  output_binary = true;
-  table_label = ;         // label for generated K table (made by AFBE module)      
-  output_label = ;        // label for the output files
-  use_plane_waves = false;
-  dme_coupling = Vector;
-}
-```
-
--------------------
-
-```cpp
-Module::continuum {
-    // Default values
-  ec = 0.5;               // in atomic units (***will change to keV)
-  max_l = 0;
-  filename = "";          // filename for output
-  force_rescale = false;  // true: forces v local to -1/r at high r
-  subtract_self = false;  // true: excl single-electron from v direct
-  force_orthog = false;   // true: continuum states orthog to core?
+Spectrum{
+  /*
+  Options for 'spectrum', Spectrum is the same as 'Basis', but includes correlations. Spectrum is used for sum-over-states (while basis is used for MBPT).
+  */
+  number; // Number of splines used in expansion
+  order; // order of splines ~7-9
+  r0; // minimum cavity radius
+  r0_eps; // Select cavity radius r0 for each l by position where |psi(r0)/psi_max| falls below r0_eps
+  rmax; // maximum cavity radius
+  states; // states to keep (e.g., 30spdf20ghi)
+  print; // Print all spline energies (for testing)
+  positron; // Include -ve energy states (true/false)
+  type; // Derevianko (DKB) or Johnson [Derevianko]
 }
 ```

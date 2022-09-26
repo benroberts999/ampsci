@@ -17,10 +17,14 @@ namespace Module {
 static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
                        double mu, double I, int l, int gl);
 
-//******************************************************************************
+//==============================================================================
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.checkBlock_old({"rpa", "options", "A"});
+  input.check({{"rpa", ""}, {"options", ""}, {"A", ""}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto rpa = input.get("rpa", false);
   const auto Alist = input.get("A", std::vector<int>{});
@@ -45,9 +49,12 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Uses generateOperator (from Module::MatrixElements)
   // --> Probably just as easy to do from scratch?
-  const auto hpt = generateOperator(point_in, wf, false);
-  const auto hbl = generateOperator(ball_in, wf, false);
-  const auto hsp = generateOperator(sp_in, wf, true);
+  point_in.add("print=false;");
+  ball_in.add("print=false;");
+  sp_in.add("print=true;");
+  const auto hpt = DiracOperator::generate("hfs", point_in, wf);
+  const auto hbl = DiracOperator::generate("hfs", ball_in, wf);
+  const auto hsp = DiracOperator::generate("hfs", sp_in, wf);
 
   // Struct to store hfs constant for the reference isotope (point, ball,
   // single-particle)
@@ -68,8 +75,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       rpas{nullptr};
   if (rpa) {
     std::cout << "\nIncluding RPA (diagram method) - must have basis\n";
-    rpap = std::make_unique<ExternalField::DiagramRPA>(hpt.get(), wf.basis,
-                                                       wf.core, wf.identity());
+    rpap = std::make_unique<ExternalField::DiagramRPA>(
+        hpt.get(), wf.basis(), wf.core(), wf.identity());
     rpab = std::make_unique<ExternalField::DiagramRPA>(hbl.get(), rpap.get());
     rpas = std::make_unique<ExternalField::DiagramRPA>(hsp.get(), rpap.get());
     std::cout << "Solving RPA core for point, ball, SP:\n";
@@ -84,7 +91,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
             << ", r_rms = " << r_rms0 << "\n\n";
   std::cout
       << "      A(point)     A(ball)      A(SP)       | e(ball)  e(SP) [%]\n";
-  for (const auto &Fv : wf.valence) {
+  for (const auto &Fv : wf.valence()) {
     auto point = DiracOperator::HyperfineA::hfsA(hpt.get(), Fv);
     auto ball = DiracOperator::HyperfineA::hfsA(hbl.get(), Fv);
     auto sp = DiracOperator::HyperfineA::hfsA(hsp.get(), Fv);
@@ -114,19 +121,30 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       if (std::find(Alist.cbegin(), Alist.cend(), nuc.A) == Alist.cend())
         continue;
     }
-    auto wfA = Wavefunction(wf.rgrid->params(), {nuc.Z, nuc.A},
-                            wf.alpha / PhysConst::alpha);
+    auto wfA = Wavefunction(wf.grid().params(), {nuc.Z, nuc.A},
+                            wf.alpha() / PhysConst::alpha);
     const auto gI = nuc.mu / nuc.I_N;
     std::cout << "\nA = " << nuc.A << ", gI = " << gI
               << ", r_rms = " << nuc.r_rms << "\n";
     wfA.solve_core("HartreeFock", 0.0, wf.coreConfiguration_nice());
-    wfA.solve_valence(DiracSpinor::state_config(wf.valence));
-    wfA.basis = wf.basis; // OK??
+    wfA.solve_valence(DiracSpinor::state_config(wf.valence()));
+    wfA.basis() = wf.basis(); // OK??
     //  wfA.formBasis({"50spd30f", 60, 7, 0.0, 0.0, 30.0, false});
 
-    const auto hpt2 = generateOperator({"hfs", "F(r)=pointlike;"}, wfA, false);
-    const auto hbl2 = generateOperator({"hfs", "F(r)=ball;"}, wfA, false);
-    const auto hsp2 = generateOperator({"hfs", "F(r)=VolotkaBW;"}, wfA, false);
+    // const auto hpt2 = generateOperator({"hfs", "F(r)=pointlike;"}, wfA,
+    // false); const auto hbl2 = generateOperator({"hfs", "F(r)=ball;"}, wfA,
+    // false); const auto hsp2 = generateOperator({"hfs", "F(r)=VolotkaBW;"},
+    // wfA, false);
+    //
+    // point_in.add("print=false;");
+    // ball_in.add("print=false;");
+    // sp_in.add("print=true;");
+    const auto hpt2 = DiracOperator::generate(
+        "hfs", {"", "F(r)=pointlike; print=false;"}, wf);
+    const auto hbl2 =
+        DiracOperator::generate("hfs", {"", "F(r)=ball; print=false;"}, wf);
+    const auto hsp2 = DiracOperator::generate(
+        "hfs", {"", "F(r)=VolotkaBW; print=false;"}, wf);
 
     std::unique_ptr<ExternalField::DiagramRPA> rpap2{nullptr}, rpab2{nullptr},
         rpas2{nullptr};
@@ -134,7 +152,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "Including RPA (diagram method) - must have basis\n";
       // OK ? or need run with new basis!?
       rpap2 = std::make_unique<ExternalField::DiagramRPA>(
-          hpt2.get(), wfA.basis, wfA.core, wfA.identity());
+          hpt2.get(), wfA.basis(), wfA.core(), wfA.identity());
       rpab2 =
           std::make_unique<ExternalField::DiagramRPA>(hbl2.get(), rpap.get());
       rpas2 =
@@ -145,14 +163,14 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       rpas2->solve_core(0.0, 100, true);
     }
 
-    // for (const auto &Fv : wf.valence)
+    // for (const auto &Fv : wf.valence())
     std::cout << "\nA = " << nuc.A << ", gI = " << gI
               << ", r_rms = " << nuc.r_rms << "\n";
     std::cout << "      A(point)      e(ball)   e(SP)   | 1D2(ball) "
                  "1D2(SP) [%]\n";
-    for (std::size_t i = 0; i < wf.valence.size(); ++i) {
+    for (std::size_t i = 0; i < wf.valence().size(); ++i) {
       // Make sure the valence states are in correct order!
-      const auto &Fv = *wfA.getState(wf.valence[i].shortSymbol());
+      const auto &Fv = *wfA.getState(wf.valence()[i].shortSymbol());
       const auto [pt0, bl0, sp0] = As[i];
       auto point = DiracOperator::HyperfineA::hfsA(hpt2.get(), Fv);
       auto ball = DiracOperator::HyperfineA::hfsA(hbl2.get(), Fv);
@@ -180,7 +198,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   // For isotope 1 and 2
   // Loops over many values for magnetic radius of isotope 1, Rmag(1).
@@ -189,8 +207,23 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nTuning Rmag to fit hyperfine anomaly\n";
 
-  input.checkBlock_old({"n", "kappa", "A2", "1D2", "rpa", "num_steps", "mu1",
-                        "mu2", "I1", "I2", "eps_targ", "e1", "e2"});
+  input.check({{"n", ""},
+               {"kappa", ""},
+               {"A2", ""},
+               {"1D2", ""},
+               {"rpa", ""},
+               {"num_steps", ""},
+               {"mu1", ""},
+               {"mu2", ""},
+               {"I1", ""},
+               {"I2", ""},
+               {"eps_targ", ""},
+               {"e1", ""},
+               {"e2", ""}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   // A(1) is wf
   // A(2) is wf2
@@ -200,15 +233,16 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto n = input.get("n", 1);
   const auto kappa = input.get("kappa", -1);
 
-  auto wf2 = Wavefunction(
-      wf.rgrid->params(),
-      {wf.Znuc(), A2, Nuclear::parseType(wf.get_nuclearParameters().type)},
-      wf.alpha / PhysConst::alpha);
+  auto nucleus_2 = wf.nucleus();
+  nucleus_2.a() = A2;
+
+  auto wf2 =
+      Wavefunction(wf.grid_sptr(), nucleus_2, wf.alpha() / PhysConst::alpha);
   wf2.solve_core("HartreeFock", 0.0, wf.coreConfiguration_nice());
-  wf2.solve_valence(DiracSpinor::state_config(wf.valence));
-  wf2.basis = wf.basis; // OK??
-  std::cout << "A1 = " << wf.nuclearParams() << "\n";
-  std::cout << "A2 = " << wf2.nuclearParams() << "\n";
+  wf2.solve_valence(DiracSpinor::state_config(wf.valence()));
+  wf2.basis() = wf.basis(); // OK??
+  std::cout << "A1 = " << wf.nucleus() << "\n";
+  std::cout << "A2 = " << wf2.nucleus() << "\n";
 
   const auto iso_1 = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
   const auto iso_2 = Nuclear::findIsotopeData(wf2.Znuc(), wf2.Anuc());
@@ -257,16 +291,16 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   // const auto dr = 5.0 * x * rN0_au / (num_steps + 1);
 
   const auto h01 = DiracOperator::HyperfineA(
-      mu1, I1, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+      mu1, I1, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
   const auto h02 = DiracOperator::HyperfineA(
-      mu2, I2, 0.0, *wf.rgrid, DiracOperator::Hyperfine::pointlike_F());
+      mu2, I2, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
   double dv01 = 0.0;
   double dv02 = 0.0;
   if (rpa) {
-    rpa01 = std::make_unique<ExternalField::DiagramRPA>(&h01, wf.basis, wf.core,
-                                                        wf.identity());
-    rpa02 = std::make_unique<ExternalField::DiagramRPA>(&h02, wf.basis, wf.core,
-                                                        wf.identity());
+    rpa01 = std::make_unique<ExternalField::DiagramRPA>(
+        &h01, wf.basis(), wf.core(), wf.identity());
+    rpa02 = std::make_unique<ExternalField::DiagramRPA>(
+        &h02, wf.basis(), wf.core(), wf.identity());
     rpa01->solve_core(0.0);
     rpa02->solve_core(0.0);
     auto a = DiracOperator::HyperfineA::convertRMEtoA(F1v, F1v);
@@ -308,7 +342,7 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
         rat -= dr;
       }
 
-      const auto h1 = DiracOperator::HyperfineA(mu1, I1, rN, *wf.rgrid, Fr1);
+      const auto h1 = DiracOperator::HyperfineA(mu1, I1, rN, wf.grid(), Fr1);
       double dv1 = 0.0;
       if (rpa) {
         rpa1 = std::make_unique<ExternalField::DiagramRPA>(&h1, rpa01.get());
@@ -336,10 +370,10 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
         // Only need to change the 'outer' guess each time, do not need to
         // re-evaluate RPA for the other two guesses! Complicated though??
         const auto h2a =
-            DiracOperator::HyperfineA(mu2, I2, r2a, *wf.rgrid, Fr2);
-        const auto h2 = DiracOperator::HyperfineA(mu2, I2, r2, *wf.rgrid, Fr2);
+            DiracOperator::HyperfineA(mu2, I2, r2a, wf.grid(), Fr2);
+        const auto h2 = DiracOperator::HyperfineA(mu2, I2, r2, wf.grid(), Fr2);
         const auto h2b =
-            DiracOperator::HyperfineA(mu2, I2, r2b, *wf.rgrid, Fr2);
+            DiracOperator::HyperfineA(mu2, I2, r2b, wf.grid(), Fr2);
 
         double dv2 = 0.0;
         double dv2a = 0.0;
@@ -413,7 +447,7 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
                        double mu, double I, int l, int gl) {
   // I'm so glad past Ben gave this function such an informative name....
@@ -422,7 +456,7 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
   const auto Fr = DiracOperator::Hyperfine::volotkaBW_F(mu, I, l, gl);
 
   const auto h0 = DiracOperator::HyperfineA(
-      mu, I, 0.0, *Fv.rgrid, DiracOperator::Hyperfine::pointlike_F());
+      mu, I, 0.0, Fv.grid(), DiracOperator::Hyperfine::pointlike_F());
   double dv0 = 0.0; // XXX RPA!
   const auto A0 = h0.hfsA(Fv) + dv0;
 
@@ -432,9 +466,9 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
   double r = r0;
   double ra = 0.8 * r0, rb = 1.2 * r0;
   while (tries++ < 100) {
-    const auto ha = DiracOperator::HyperfineA(mu, I, ra, *Fv.rgrid, Fr);
-    const auto h = DiracOperator::HyperfineA(mu, I, r, *Fv.rgrid, Fr);
-    const auto hb = DiracOperator::HyperfineA(mu, I, rb, *Fv.rgrid, Fr);
+    const auto ha = DiracOperator::HyperfineA(mu, I, ra, Fv.grid(), Fr);
+    const auto h = DiracOperator::HyperfineA(mu, I, r, Fv.grid(), Fr);
+    const auto hb = DiracOperator::HyperfineA(mu, I, rb, Fv.grid(), Fr);
 
     double dv = 0.0, dva = 0.0, dvb = 0.0; // XXX Inlcude RPA!
     const auto Aa = ha.hfsA(Fv) + dva;
@@ -469,25 +503,24 @@ static void calc_thing(const DiracSpinor &Fv, double e_targ, double r0,
   }
 }
 
-//******************************************************************************
-void calculateBohrWeisskopf(const IO::InputBlock &input,
-                            const Wavefunction &wf) {
+//==============================================================================
+//==============================================================================
+
+//==============================================================================
+void BohrWeisskopf(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
 
-  input.checkBlock_old({"rpa", "rpa_diagram", "screening", "hfs_options"});
+  std::cout
+      << "\n\n WARNING: This may need to be re-checked after refactor!\n\n";
 
-  // const auto h_options =
-  //     IO::InputBlock("hfs_options", input.get<std::string>("hfs_options",
-  //     ""));
-  // IO::InputBlock point_in("hfs", h_options);
-  // IO::InputBlock ball_in("hfs", h_options);
-  // IO::InputBlock BW_in("hfs", h_options);
-  // point_in.add("F(r)=pointlike");
-  // ball_in.add("F(r)=ball");
-  // if (wf.Anuc() % 2 == 0)
-  //   BW_in.add("F(r)=doublyOddBW");
-  // else
-  //   BW_in.add("F(r)=VolotkaBW");
+  input.check({{"rpa", ""},
+               {"rpa_diagram", ""},
+               {"screening", ""},
+               {"hfs_options{}", ""}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   auto options = input.getBlock("hfs_options");
   auto sub_input = IO::InputBlock("hfs", {});
@@ -507,9 +540,15 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
   else
     BW_in.add("F(r)=VolotkaBW;");
 
-  auto hp = generateOperator(point_in, wf, false);
-  auto hb = generateOperator(ball_in, wf, false);
-  auto hw = generateOperator(BW_in, wf);
+  // auto hp = generateOperator(point_in, wf, false);
+  // auto hb = generateOperator(ball_in, wf, false);
+  // auto hw = generateOperator(BW_in, wf);
+  point_in.add("print=false;");
+  ball_in.add("print=false;");
+  BW_in.add("print=true;");
+  const auto hp = DiracOperator::generate("hfs", point_in, wf);
+  const auto hb = DiracOperator::generate("hfs", ball_in, wf);
+  const auto hw = DiracOperator::generate("hfs", BW_in, wf);
 
   // nb: can only do diagram RPA for hfs
   const auto rpa = input.get("rpa", false) || input.get("rpa_diagram", false);
@@ -518,8 +557,8 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
       rpaw{nullptr};
   if (rpa) {
     std::cout << "\nIncluding RPA (diagram method) - must have basis\n";
-    rpap = std::make_unique<ExternalField::DiagramRPA>(hp.get(), wf.basis,
-                                                       wf.core, wf.identity());
+    rpap = std::make_unique<ExternalField::DiagramRPA>(
+        hp.get(), wf.basis(), wf.core(), wf.identity());
     rpab = std::make_unique<ExternalField::DiagramRPA>(hb.get(), rpap.get());
     rpaw = std::make_unique<ExternalField::DiagramRPA>(hw.get(), rpap.get());
     std::cout << "Solving RPA core for point, ball, SP:\n";
@@ -542,7 +581,7 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
             << wf.atom()
             << "\n       |A:      Point         Ball           SP |e:    "
                "Ball         SP\n";
-  for (const auto &phi : wf.valence) {
+  for (const auto &phi : wf.valence()) {
     auto Ap = HyperfineA::hfsA(hp.get(), phi);
     auto Ab = HyperfineA::hfsA(hb.get(), phi);
     auto Aw = HyperfineA::hfsA(hw.get(), phi);
@@ -554,7 +593,7 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
     }
     auto Fball = ((Ab / Ap) - 1.0) * 100.0;
     auto Fbw = ((Aw / Ap) - 1.0) * 100.0;
-    bw.emplace_back(phi.n, phi.k, Fball, Fbw);
+    bw.emplace_back(phi.n(), phi.kappa(), Fball, Fbw);
     printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n", phi.symbol().c_str(),
            Ap, Ab, Aw, Fball, Fbw);
   }
@@ -563,23 +602,23 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
   if (do_screening) {
     // Create H-like orbitals: note: uses same grid
     std::vector<ScreenBW> H_bw;
-    auto Hlike = Wavefunction(wf.rgrid->params(), wf.get_nuclearParameters(),
-                              wf.alpha / PhysConst::alpha);
-    std::cout << "\nH-like:\n" << Hlike.rgrid->gridParameters() << "\n";
-    Hlike.localValence(DiracSpinor::state_config(wf.valence));
+    auto Hlike = Wavefunction(wf.grid().params(), wf.nucleus(),
+                              wf.alpha() / PhysConst::alpha);
+    std::cout << "\nH-like:\n" << Hlike.grid().gridParameters() << "\n";
+    Hlike.solve_valence(DiracSpinor::state_config(wf.valence()));
     Hlike.printValence();
 
     std::cout << "\nTabulate A (Mhz), and Bohr-Weisskopf effect eps(%): "
               << Hlike.atom() << " [H-like]"
               << "\n       |A:      Point         Ball           SP |e:    "
                  "Ball         SP\n";
-    for (const auto &phi : Hlike.valence) {
+    for (const auto &phi : Hlike.valence()) {
       auto Ap = HyperfineA::hfsA(hp.get(), phi);
       auto Ab = HyperfineA::hfsA(hb.get(), phi);
       auto Aw = HyperfineA::hfsA(hw.get(), phi);
       auto Fball = ((Ab / Ap) - 1.0) * 100.0;
       auto Fbw = ((Aw / Ap) - 1.0) * 100.0;
-      H_bw.emplace_back(phi.n, phi.k, Fball, Fbw);
+      H_bw.emplace_back(phi.n(), phi.kappa(), Fball, Fbw);
       printf("%7s| %12.5e %12.5e %12.5e | %9.5f  %9.5f \n",
              phi.symbol().c_str(), Ap, Ab, Aw, Fball, Fbw);
     }
@@ -596,11 +635,15 @@ void calculateBohrWeisskopf(const IO::InputBlock &input,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
 
-  input.checkBlock_old({});
+  input.check({{"options{}", "Options for hyperfine operator"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   auto options = input.getBlock("options");
   auto sub_input = IO::InputBlock("hfs", {});
@@ -624,13 +667,19 @@ void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
   else
     BW_in.add("F(r)=VolotkaBW;");
 
-  auto hp = generateOperator(point_in, wf, false);
-  auto hb = generateOperator(ball_in, wf, false);
-  auto hw = generateOperator(BW_in, wf);
+  // auto hp = generateOperator(point_in, wf, false);
+  // auto hb = generateOperator(ball_in, wf, false);
+  // auto hw = generateOperator(BW_in, wf);
+  point_in.add("print=false;");
+  ball_in.add("print=false;");
+  BW_in.add("print=true;");
+  const auto hp = DiracOperator::generate("hfs", point_in, wf);
+  const auto hb = DiracOperator::generate("hfs", ball_in, wf);
+  const auto hw = DiracOperator::generate("hfs", BW_in, wf);
 
   std::cout << "\n      A0(MHz)         e(ball)   e(SP)     eta(b)   eta(sp)\n";
-  for (const auto &Fs : wf.valence) {
-    if (Fs.k != -1)
+  for (const auto &Fs : wf.valence()) {
+    if (Fs.kappa() != -1)
       continue;
     auto Asp = HyperfineA::hfsA(hp.get(), Fs);
     auto Asb = HyperfineA::hfsA(hb.get(), Fs);
@@ -642,7 +691,7 @@ void BW_eta_sp(const IO::InputBlock &input, const Wavefunction &wf) {
     printf("%4s  %.7e  %7.5f  %7.5f\n", Fs.shortSymbol().c_str(), Asp, es_b,
            es_w);
 
-    auto Fp = wf.getState(Fs.n + 1, +1);
+    auto Fp = wf.getState(Fs.n() + 1, +1);
     if (Fp) {
 
       auto App = HyperfineA::hfsA(hp.get(), *Fp);

@@ -16,7 +16,7 @@ struct MEdata {
   double hab, dv1, dv;
 
   friend std::ostream &operator<<(std::ostream &os, const MEdata &m) {
-    os << qip::fstring("<%4s,%4s>: %13.6e", m.a.c_str(), m.b.c_str(), m.hab);
+    os << qip::fstring(" %4s %4s  %13.6e", m.a.c_str(), m.b.c_str(), m.hab);
     if (m.dv1 != 0.0) {
       os << qip::fstring("  %13.6e  %13.6e", m.hab + m.dv1, m.hab + m.dv);
     }
@@ -25,10 +25,21 @@ struct MEdata {
 };
 
 std::vector<MEdata>
-calcMatrixElements(const std::vector<DiracSpinor> &orbs,
+calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
+                   const std::vector<DiracSpinor> &a_orbs,
                    DiracOperator::TensorOperator *const h,
                    CorePolarisation *const dV = nullptr, double omega = 0.0,
                    bool each_freq = false, bool diagonal_only = false,
                    bool print_both = false, bool radial_int = false);
+
+inline std::vector<MEdata>
+calcMatrixElements(const std::vector<DiracSpinor> &orbs,
+                   DiracOperator::TensorOperator *const h,
+                   CorePolarisation *const dV = nullptr, double omega = 0.0,
+                   bool each_freq = false, bool diagonal_only = false,
+                   bool print_both = false, bool radial_int = false) {
+  return calcMatrixElements(orbs, orbs, h, dV, omega, each_freq, diagonal_only,
+                            print_both, radial_int);
+}
 
 } // namespace ExternalField

@@ -4,7 +4,6 @@
 #include <optional>
 #include <vector>
 
-//! Functions (+classes) for computing Coulomb integrals
 namespace Coulomb {
 
 //! Calculates Hartree Screening functions \f$y^k_{ab}(r)\f$
@@ -25,7 +24,7 @@ void gk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
            std::vector<double> &g0, std::vector<double> &ginf,
            const std::size_t maxi = 0);
 
-//******************************************************************************
+//==============================================================================
 
 //! Calculates R^k_abcd for given k. From scratch (calculates y)
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
@@ -47,7 +46,7 @@ DiracSpinor Rkv_bcd(const int kappa_v, const DiracSpinor &Fc,
 void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
              const std::vector<double> &ykbd);
 
-//******************************************************************************
+//==============================================================================
 
 //! Calculates Q^k_abcd for given k. From scratch (calculates y) [see YkTable
 //! version if already have YkTable]
@@ -59,7 +58,7 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 DiracSpinor Qkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const DiracSpinor &Fd, const int k);
 
-//******************************************************************************
+//==============================================================================
 
 //! Exchange only version of W (W-Q): W = Q + P [see Qk above]
 double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
@@ -69,25 +68,27 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
 DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const DiracSpinor &Fd, const int k);
 
-//******************************************************************************
+//==============================================================================
 
 //! Calculates W^k_abcd for given k. From scratch (calculates y)
-//! @details
-//! \f[ W^k_abcd = Q^k_abcd + \sum_l [k] 6j * Q^l_abdc \f]
-//! \f[ W^k_abcd = Q^k_abcd + \P^k_abcd  \f]
+/*! @details
+  \f[ W^k_{abcd} = Q^k_{abcd} + \sum_l [k]
+      \begin{Bmatrix}a&c&k\\b&d&l\end{Bmatrix} * Q^l_{abdc} \f]
+ \f[ W^k_{abcd} = Q^k_{abcd} + P^k_{abcd}  \f]
+ */
 double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
 
 DiracSpinor Wkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
                     const DiracSpinor &Fd, const int k);
 
-//******************************************************************************
+//==============================================================================
 
 //! Returns min and max k (multipolarity) allowed for C^k_ab, accounting for
-//! parity
+//! parity (used by k_minmax_Q)
 std::pair<int, int> k_minmax(const DiracSpinor &a, const DiracSpinor &b);
 //! Returns min and max k (multipolarity) allowed for C^k_ab, NOT accounting for
-//! parity (2j only, not kappa/l)
+//! parity (2j only, not kappa/l) (used by k_minmax_P,W)
 std::pair<int, int> k_minmax_tj(int tja, int tjb);
 
 //! Returns min and max k (multipolarity) allowed for Q^k_abcd, Wk, Pk. For Q
@@ -103,7 +104,7 @@ std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
 std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d);
 
-//******************************************************************************
+//==============================================================================
 
 template <class A> static int twojk(const A &a) {
   if constexpr (std::is_same_v<A, DiracSpinor>) {

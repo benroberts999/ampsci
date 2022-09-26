@@ -3,33 +3,30 @@
 ################################################################################
 #Allow exectuables to be placed in another directory:
 ALLEXES = $(addprefix $(XD)/, \
- ampsci unitTests wigner dmeXSection periodicTable \
+ ampsci dmeXSection tests \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- ampsci periodicTable unitTests \
+ ampsci tests \
 )
 
 #Default make rule:
-all: $(SD)/git.info checkObj checkXdir $(DEFAULTEXES)
+all: GitInfo checkObj checkXdir $(DEFAULTEXES)
 
 ################################################################################
 # Automatically generate dependency files for each cpp file, + compile:
-# I make all files depend on '$(SD)/git.info'. This achieves two things:
-# (1) It forces git.info to be built first (even in a parallel build)
-# (2) It forces a clean make when changing branches
-# The '|' means 'order only' pre-req
 
-# All the files that in in src/{subsir}/.cpp don't have a main()
-# Compile them into objects; reflect the src/ directory tree.
-$(BD)/*/%.o: $(SD)/*/%.cpp | $(SD)/git.info
+# Auto rule for all cpp files
+$(BD)/%.o: $(SD)/%.cpp
 	@mkdir -p $(@D)
 	$(COMP)
 
-# All the files that in in src/.cpp *do* have a main(), compile
-$(BD)/%.o: $(SD)/%.cpp $(SD)/git.info
+# Force version.o to build each time: ensure updated git+version info!
+# Not the best solution, but works?
+.PHONY: force
+$(BD)/version/version.o: $(SD)/version/version.cpp force
 	@mkdir -p $(@D)
-	$(COMP)
+	$(COMP) $(GITFLAGS)
 
 # include the dependency files
 -include $(BD)/*.d $(BD)/*/*.d
@@ -37,7 +34,14 @@ $(BD)/%.o: $(SD)/%.cpp $(SD)/git.info
 ################################################################################
 # List all objects in sub-directories (i.e., that don't conatin a main())
 # e.g., for each src/sub_dir/file.cpp -> build/sub_dir/file.o
-OBJS = $(subst $(SD),$(BD),$(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp)))
+
+# Each test file (except main()):
+TEST_SRC_FILES := $(wildcard $(SD)/*/*.tests.cpp)
+TEST_OBJS := $(subst $(SD),$(BD),$(subst .cpp,.o,$(TEST_SRC_FILES)))
+
+#Each non-test source file (except main())
+SRC_FILES := $(filter-out $(TEST_SRC_FILES), $(wildcard $(SD)/*/*.cpp))
+OBJS := $(subst $(SD),$(BD),$(subst .cpp,.o,$(SRC_FILES)))
 
 ################################################################################
 # Link + build all final programs
@@ -45,37 +49,34 @@ OBJS = $(subst $(SD),$(BD),$(subst .cpp,.o,$(wildcard $(SD)/*/*.cpp)))
 $(XD)/ampsci: $(BD)/ampsci.o $(OBJS)
 	$(LINK)
 
-$(XD)/unitTests: $(BD)/unitTests.o $(OBJS)
+$(XD)/tests: $(OBJS) $(TEST_OBJS)
 	$(LINK)
 
 $(XD)/dmeXSection: $(BD)/dmeXSection.o $(OBJS)
 	$(LINK)
 
-$(XD)/wigner: $(BD)/wigner.o
-	$(LINK)
-
-$(XD)/periodicTable: $(BD)/periodicTable.o $(BD)/Physics/AtomData.o \
-$(BD)/Physics/NuclearData.o
-	$(LINK)
+# Add git version info to compile flags
+NOW:=$(shell date +%Y-%m-%d' '%H:%M' '%Z 2>/dev/null)
+GITFLAGS=-D GITREVISION="$(shell git rev-parse --short HEAD 2>/dev/null)"
+GITFLAGS+=-D GITBRANCH="$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)"
+GITFLAGS+=-D GITMODIFIED="$(shell git status -s 2>/dev/null)"
+GITFLAGS+=-D CXXVERSION="$(shell $(CXX) --version 2>/dev/null | sed -n '1p' | sed s/'('/'['/ | sed s/')'/']'/)"
+GITFLAGS+=-D COMPTIME="$(NOW)"
 
 ################################################################################
 ################################################################################
 
-# Check to see if this is a git repo, so $(SD)/git.info will work even if not
-ifneq ("$(wildcard .git/HEAD)","")
-  GIT_FILES = .git/HEAD .git/index
-endif
-# Create the 'git.info' file (c++ header file)
-$(SD)/git.info: $(GIT_FILES)
-	@echo Git Files: $(GIT_FILES)
-	@echo "// git.info: auto-generated file" > $@
-	@echo "#pragma once" >> $@
-	@echo "namespace GitInfo {" >> $@
-	@echo Git version: $(shell git rev-parse --short HEAD 2>/dev/null)
-	@echo "const char *gitversion = \"$(shell git rev-parse --short HEAD 2>/dev/null)\";" >> $@
-	@echo "const char *gitbranch = \"$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)\";" >> $@
-	@echo Git branch : $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
-	@echo "} // namespace GitInfo" >> $@
+GitInfo:
+	@echo Git Branch: $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
+	@echo Git Revision: $(shell git rev-parse --short HEAD 2>/dev/null)
+	@echo Modified: $(shell git status -s 2>/dev/null)
+
+# # XXX force this each time!
+# .PHONY: force
+# $(BD)/git.txt: force
+# 	$(shell git rev-parse HEAD 2>/dev/null > $(BD)/git.txt)
+# 	$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null >> $(BD)/git.txt)
+# 	$(shell git status -s 2>/dev/null >> $(BD)/git.txt)
 
 checkObj:
 	@if [ ! -d $(BD) ]; then \
@@ -89,10 +90,11 @@ checkXdir:
 		false; \
 	fi
 
-.PHONY: clean docs doxy do_the_chicken_dance checkObj checkXdir
+.PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir remove_deleteme
 clean:
 	rm -f -v $(ALLEXES)
-	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*/
+	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*.gc* $(BD)/*/
+	rm -f -v *deleteme*
 # Make the 'ampsci.pdf' physics documentation
 docs:
 	( cd ./doc/tex && make )
@@ -100,13 +102,15 @@ docs:
 	( cd ./doc/tex && make clean)
 # Make the doxygen code documentation
 doxy:
-	make docs
-	doxygen ./src/Doxyfile
+	doxygen ./doc/doxygen/Doxyfile
 	( cd ./doc/latex && make )
 	cp ./doc/latex/refman.pdf ./doc/documentation.pdf
+	make docs
 	cp ./doc/ampsci.pdf ./docs/ampsci.pdf 2>/dev/null || :
 	( cd ./doc/latex && make clean)
 do_the_chicken_dance:
 	@echo 'Why would I do that?'
 clang_format:
 	clang-format -i src/*.cpp src/*/*.cpp src/*/*.hpp
+remove_deleteme:
+	rm -f -v *deleteme*

@@ -1,7 +1,6 @@
 #include "Adams_Greens.hpp"
 #include "Adams_bound.hpp"
 #include "DiracODE.hpp"
-#include "IO/SafeProfiler.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -21,46 +20,46 @@ namespace DiracODE {
 DiracSpinor solve_inhomog(const int kappa, const double en,
                           const std::vector<double> &v,
                           const std::vector<double> &H_mag, const double alpha,
-                          const DiracSpinor &source) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "0");
-  auto Fa = DiracSpinor(0, kappa, source.rgrid);
-  solve_inhomog(Fa, en, v, H_mag, alpha, source);
+                          const DiracSpinor &source,
+                          const DiracSpinor *const VxFa,
+                          const DiracSpinor *const Fa0, double zion) {
+  auto Fa = DiracSpinor(0, kappa, source.grid_sptr());
+  solve_inhomog(Fa, en, v, H_mag, alpha, source, VxFa, Fa0, zion);
   return Fa;
 }
 
-//******************************************************************************
+//==============================================================================
 void solve_inhomog(DiracSpinor &Fa, const double en,
                    const std::vector<double> &v,
                    const std::vector<double> &H_mag, const double alpha,
-                   const DiracSpinor &source)
+                   const DiracSpinor &source, const DiracSpinor *const VxFa,
+                   const DiracSpinor *const Fa0, double zion)
 // NOTE: returns NON-normalised function!
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "a");
-  auto Fzero = DiracSpinor(Fa.n, Fa.k, Fa.rgrid);
-  auto Finf = DiracSpinor(Fa.n, Fa.k, Fa.rgrid);
-  solve_inhomog(Fa, Fzero, Finf, en, v, H_mag, alpha, source);
+  auto Fzero = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
+  auto Finf = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
+  solve_inhomog(Fa, Fzero, Finf, en, v, H_mag, alpha, source, VxFa, Fa0, zion);
 }
 //------------------------------------------------------------------------------
 void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
                    const double en, const std::vector<double> &v,
                    const std::vector<double> &H_mag, const double alpha,
-                   const DiracSpinor &source)
+                   const DiracSpinor &source, const DiracSpinor *const VxFa,
+                   const DiracSpinor *const Fa0, double zion)
 // Overload of the above. Faster, since doesn't need to allocate for Fzero and
 // Finf
 {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__, "b");
-  regularAtOrigin(Fzero, en, v, H_mag, alpha);
-  regularAtInfinity(Finf, en, v, H_mag, alpha);
-  Fa.set_en() = en;
+  regularAtOrigin(Fzero, en, v, H_mag, alpha, VxFa, Fa0, zion);
+  regularAtInfinity(Finf, en, v, H_mag, alpha, VxFa, Fa0, zion);
+  Fa.en() = en;
   Adams::GreenSolution(Fa, Finf, Fzero, alpha, source);
 }
 
 namespace Adams {
-//******************************************************************************
+//==============================================================================
 void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
                    const DiracSpinor &Fzero, const double alpha,
                    const DiracSpinor &Sr) {
-  [[maybe_unused]] auto sp = IO::Profile::safeProfiler(__func__);
 
   // Wronskian: Should be independent of r
   const auto pp = std::size_t(0.65 * double(Finf.max_pt()));
@@ -72,7 +71,7 @@ void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
   }
   w2 /= f;
 
-  // std::vector<double> invW2(Finf.set_f().size());
+  // std::vector<double> invW2(Finf.f().size());
   // for (std::size_t i = 0; i < Finf.max_pt(); ++i) {
   //   auto w2_i = alpha / (Finf.f(i) * Fzero.g(i) - Fzero.f(i) * Finf.g(i));
   //   auto w2_p = alpha / w2;
@@ -80,29 +79,29 @@ void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
   // }
 
   // save typing:
-  const auto &gr = *Fa.rgrid;
+  const auto &gr = Fa.grid();
   constexpr auto ztr = NumCalc::zero_to_r;
   constexpr auto rti = NumCalc::r_to_inf;
 
-  Fa.set_max_pt() = gr.num_points();
+  Fa.max_pt() = gr.num_points();
   Fa *= 0.0;
-  Fa.set_max_pt() = Finf.max_pt();
+  Fa.max_pt() = Finf.max_pt();
 
-  NumCalc::additivePIntegral<ztr>(Fa.set_f(), Finf.f(), Fzero.f(), Sr.f(), gr,
+  NumCalc::additivePIntegral<ztr>(Fa.f(), Finf.f(), Fzero.f(), Sr.f(), gr,
                                   Finf.max_pt());
-  NumCalc::additivePIntegral<ztr>(Fa.set_f(), Finf.f(), Fzero.g(), Sr.g(), gr,
+  NumCalc::additivePIntegral<ztr>(Fa.f(), Finf.f(), Fzero.g(), Sr.g(), gr,
                                   Finf.max_pt());
-  NumCalc::additivePIntegral<rti>(Fa.set_f(), Fzero.f(), Finf.f(), Sr.f(), gr,
+  NumCalc::additivePIntegral<rti>(Fa.f(), Fzero.f(), Finf.f(), Sr.f(), gr,
                                   Finf.max_pt());
-  NumCalc::additivePIntegral<rti>(Fa.set_f(), Fzero.f(), Finf.g(), Sr.g(), gr,
+  NumCalc::additivePIntegral<rti>(Fa.f(), Fzero.f(), Finf.g(), Sr.g(), gr,
                                   Finf.max_pt());
-  NumCalc::additivePIntegral<ztr>(Fa.set_g(), Finf.g(), Fzero.f(), Sr.f(), gr,
+  NumCalc::additivePIntegral<ztr>(Fa.g(), Finf.g(), Fzero.f(), Sr.f(), gr,
                                   Finf.max_pt());
-  NumCalc::additivePIntegral<ztr>(Fa.set_g(), Finf.g(), Fzero.g(), Sr.g(), gr,
+  NumCalc::additivePIntegral<ztr>(Fa.g(), Finf.g(), Fzero.g(), Sr.g(), gr,
                                   Finf.max_pt());
-  NumCalc::additivePIntegral<rti>(Fa.set_g(), Fzero.g(), Finf.f(), Sr.f(), gr,
+  NumCalc::additivePIntegral<rti>(Fa.g(), Fzero.g(), Finf.f(), Sr.f(), gr,
                                   Finf.max_pt());
-  NumCalc::additivePIntegral<rti>(Fa.set_g(), Fzero.g(), Finf.g(), Sr.g(), gr,
+  NumCalc::additivePIntegral<rti>(Fa.g(), Fzero.g(), Finf.g(), Sr.g(), gr,
                                   Finf.max_pt());
   Fa *= (alpha / w2);
 

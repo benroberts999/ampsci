@@ -7,7 +7,7 @@
 #include <string>
 #include <vector>
 
-//******************************************************************************
+//==============================================================================
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
                                double inrmax, double inb,
                                const std::string &str_type, double indu)
@@ -53,10 +53,10 @@ std::string GridParameters::parseType(GridType type) {
   return "?GridType?";
 }
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 
-//******************************************************************************
+//==============================================================================
 Grid::Grid(const GridParameters &in)
     : Grid(in.r0, in.rmax, in.num_points, in.type, in.b) {}
 //------------------------------------------------------------------------------
@@ -66,12 +66,12 @@ Grid::Grid(double in_r0, double in_rmax, std::size_t in_num_points,
       m_du(calc_du_from_num_points(in_r0, in_rmax, in_num_points, in_gridtype,
                                    in_b)),
       gridtype(in_gridtype),
-      b(gridtype == GridType::loglinear ? in_b : 0.0),
-      m_r(form_r(gridtype, m_r0, in_num_points, m_du, b)),
-      m_drduor(form_drduor(gridtype, m_r, b)),
+      m_b(gridtype == GridType::loglinear ? in_b : 0.0),
+      m_r(form_r(gridtype, m_r0, in_num_points, m_du, m_b)),
+      m_drduor(form_drduor(gridtype, m_r, m_b)),
       m_drdu(form_drdu(gridtype, m_r, m_drduor)) {}
 
-//******************************************************************************
+//==============================================================================
 std::size_t Grid::getIndex(double x, bool require_nearest) const
 // Returns index correspoding to given value
 // Note: finds NEXT LARGEST grid point (greater then or equal to.),
@@ -97,7 +97,7 @@ std::size_t Grid::getIndex(double x, bool require_nearest) const
     return index;
 }
 
-//******************************************************************************
+//==============================================================================
 std::string Grid::gridParameters() const {
   std::ostringstream out;
   switch (gridtype) {
@@ -108,14 +108,14 @@ std::string Grid::gridParameters() const {
     out << "Logarithmic ";
     break;
   case GridType::loglinear:
-    out << "Log-linear (b=" << b << ") ";
+    out << "Log-linear (b=" << m_b << ") ";
   }
   out << "grid: " << m_r0 << "->" << rmax() << ", N=" << num_points()
       << ", du=" << m_du;
   return out.str();
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> Grid::rpow(double k) const {
   std::vector<double> rk;
   rk.reserve(m_r.size());
@@ -125,7 +125,7 @@ std::vector<double> Grid::rpow(double k) const {
   return rk;
 }
 
-//******************************************************************************
+//==============================================================================
 // Extends grid to new_r_max. Note: This is the only non-const function; use
 // with caution
 void Grid::extend_to(double new_rmax) {
@@ -137,12 +137,12 @@ void Grid::extend_to(double new_rmax) {
   // Number of points total grid should have, and number of points needed for
   // 'extra' part of grid:
   const auto total_points =
-      calc_num_points_from_du(r0(), new_rmax, du(), gridtype, b);
+      calc_num_points_from_du(r0(), new_rmax, du(), gridtype, m_b);
   const auto new_points = total_points - num_points() + 1;
 
   // Form the 'extra' part of the grid (from old max to new max)
-  const auto x_r = form_r(gridtype, old_max_r, new_points, m_du, b);
-  const auto x_drduor = form_drduor(gridtype, x_r, b);
+  const auto x_r = form_r(gridtype, old_max_r, new_points, m_du, m_b);
+  const auto x_drduor = form_drduor(gridtype, x_r, m_b);
   const auto x_drdu = form_drdu(gridtype, x_r, x_drduor);
 
   // The first point of new grid matches last of old, so drop these
@@ -156,7 +156,7 @@ void Grid::extend_to(double new_rmax) {
   m_drdu.insert(m_drdu.end(), x_drdu.begin(), x_drdu.end());
 }
 
-//******************************************************************************
+//==============================================================================
 double Grid::next_r_loglin(double b, double u, double r_guess) {
   // Solve eq. u = r + b ln(r) to find r
   // Use Newtons method
@@ -165,7 +165,7 @@ double Grid::next_r_loglin(double b, double u, double r_guess) {
   const auto f_u = [b, u](double tr) { return tr + b * std::log(tr) - u; };
   const auto dr = 0.1 * r_guess;
   const auto delta_targ = r_guess * 1.0e-18;
-  const auto [ri, delta_r] = qip::Newtons(f_u, r_guess, dr, delta_targ, 30);
+  const auto [ri, delta_r] = qip::Newtons(f_u, r_guess, delta_targ, dr, 30);
 
   if (std::abs(delta_r / ri) > 1.0e-10) {
     std::cerr << "\nWARNING Grid:194: Converge? " << ri << " " << delta_r / ri
@@ -173,7 +173,7 @@ double Grid::next_r_loglin(double b, double u, double r_guess) {
   }
   return ri;
 }
-//******************************************************************************
+//==============================================================================
 std::vector<double> Grid::form_r(const GridType type, const double r0,
                                  const std::size_t num_points, const double du,
                                  const double b) {
@@ -210,7 +210,7 @@ std::vector<double> Grid::form_r(const GridType type, const double r0,
   return r;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> Grid::form_drduor(const GridType type,
                                       const std::vector<double> &in_r,
                                       const double b) {
@@ -232,7 +232,7 @@ std::vector<double> Grid::form_drduor(const GridType type,
   }
   return drduor;
 }
-//******************************************************************************
+//==============================================================================
 std::vector<double> Grid::form_drdu(const GridType type,
                                     const std::vector<double> &in_r,
                                     const std::vector<double> &in_drduor) {
@@ -254,7 +254,7 @@ std::vector<double> Grid::form_drdu(const GridType type,
   return drdu;
 }
 
-//******************************************************************************
+//==============================================================================
 double Grid::calc_du_from_num_points(double r0, double rmax,
                                      std::size_t num_points, GridType gridtype,
                                      double b) {
@@ -274,18 +274,18 @@ double Grid::calc_du_from_num_points(double r0, double rmax,
   return 1.0;
 }
 
-//******************************************************************************
+//==============================================================================
 std::size_t Grid::calc_num_points_from_du(double r0, double rmax, double du,
                                           GridType gridtype, double b) {
   switch (gridtype) {
   case GridType::loglinear:
     if (b <= 0)
       std::cerr << "\nFAIL57 in Grid: cant have b=0 for log-linear grid!\n";
-    return std::size_t((rmax - r0 + b * std::log(rmax / r0)) / du) + 2;
+    return std::size_t((rmax - r0 + b * std::log(rmax / r0)) / du) + 1;
   case GridType::logarithmic:
-    return std::size_t(std::log(rmax / r0) / du) + 2;
+    return std::size_t(std::log(rmax / r0) / du) + 1;
   case GridType::linear:
-    return std::size_t((rmax - r0) / du) + 2;
+    return std::size_t((rmax - r0) / du) + 1;
   }
   std::cerr << "\nFAIL 84 in Grid: wrong type?\n";
   return 1;

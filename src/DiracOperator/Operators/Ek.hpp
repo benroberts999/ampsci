@@ -1,8 +1,11 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
+#include "IO/InputBlock.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 
 namespace DiracOperator {
 
+//==============================================================================
 //! E^k (electric multipole) operator
 /*! @details
 \f[ h = -|e|r^k = -e r^k \f]
@@ -29,7 +32,7 @@ private:
   int m_k;
 };
 
-//******************************************************************************
+//==============================================================================
 //! Electric dipole operator: -|e|r = -er
 /*! @details
 \f[<a||d||b> = R (-1)^{ja+1/2} \sqrt{[ja][jb]} \, tjs(ja,jb,1, -1/2,1/2,0)\f]
@@ -41,7 +44,7 @@ public:
   E1(const Grid &gr) : Ek(gr, 1) {}
 };
 
-//******************************************************************************
+//==============================================================================
 //! @brief Electric dipole operator, v-form:
 //! \f$ \frac{ie}{\omega \alpha} \vec{\alpha}\f$
 /*! @details
@@ -80,5 +83,37 @@ public:
 private:
   double m_alpha; // (including var-alpha)
 };
+
+//==============================================================================
+
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_E1(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"no options", ""}});
+  return std::make_unique<E1>(wf.grid());
+}
+
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_E1v(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"no options", ""}});
+  return std::make_unique<E1v>(wf.alpha(), 0.0);
+}
+
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_E2(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"no options", ""}});
+  return std::make_unique<Ek>(wf.grid(), 2);
+}
+
+//------------------------------------------------------------------------------
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_Ek(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"}});
+  const auto k = input.get("k", 1);
+  return std::make_unique<Ek>(wf.grid(), k);
+}
 
 } // namespace DiracOperator

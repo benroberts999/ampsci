@@ -18,6 +18,10 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"A", "Atomic mass number [0]"},
                {"rrms", "root-mean-square nuclear radii [-1]"},
                {"type", "Fermi/ball/pointlike [Fermi]"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
 
   // If no A is specified, use 0 (i.e., poinlike)
   auto A = input.get("A", 0);
@@ -34,15 +38,15 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Use the same Grid and alpha, but different nuclear parameters (except Z)
-  Wavefunction wfpt(wf.rgrid->params(),
+  Wavefunction wfpt(wf.grid().params(),
                     {wf.Znuc(), A, nuc_type, rrms, Nuclear::default_t},
-                    wf.alpha / PhysConst::alpha);
+                    wf.alpha() / PhysConst::alpha);
 
   std::cout << "\n";
   IO::print_line();
   std::cout << "Calculating finite-nuclear size corrections for \n"
-            << wf.atom() << ", " << wf.nuclearParams() << "\nvs.\n"
-            << wfpt.atom() << ", " << wfpt.nuclearParams() << "\n\n";
+            << wf.atom() << ", " << wf.nucleus() << "\nvs.\n"
+            << wfpt.atom() << ", " << wfpt.nucleus() << "\n\n";
 
   // Note: Assume only Hartree-Fock approximation, no Breit, QED, Sigma etc.
 
@@ -52,15 +56,15 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   wfpt.printCore();
 
   // Solve Hartree-Fock valence
-  wfpt.solve_valence(DiracSpinor::state_config(wf.valence));
+  wfpt.solve_valence(DiracSpinor::state_config(wf.valence()));
   wfpt.printValence();
 
   // Calculate the energy shifts in atomic units, and GHz
   std::cout << "\nFinite nuclear charge energy shifts:\n";
   std::cout << "  state            au           GHz\n";
-  for (auto i = 0ul; i < wf.valence.size(); ++i) {
-    const auto del_e = wf.valence[i].en() - wfpt.valence[i].en();
-    printf("%7s  %12.5e  %12.5e\n", wf.valence[i].symbol().c_str(), del_e,
+  for (auto i = 0ul; i < wf.valence().size(); ++i) {
+    const auto del_e = wf.valence()[i].en() - wfpt.valence()[i].en();
+    printf("%7s  %12.5e  %12.5e\n", wf.valence()[i].symbol().c_str(), del_e,
            del_e * PhysConst::Hartree_GHz);
   }
 
@@ -71,18 +75,18 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
             << "         A=" << wfpt.Anuc() << "         Shift\n";
 
   // 1) Create E1 operator:
-  const auto hE1 = DiracOperator::E1(*wf.rgrid);
+  const auto hE1 = DiracOperator::E1(wf.grid());
 
   // 2) Loop through each pair of valence states, calc E1 matrix elements:
-  for (auto a = 0ul; a < wf.valence.size(); ++a) {
-    const auto &Fa = wf.valence[a];
-    const auto &F0a = wfpt.valence[a]; // pointlike orbital
+  for (auto a = 0ul; a < wf.valence().size(); ++a) {
+    const auto &Fa = wf.valence()[a];
+    const auto &F0a = wfpt.valence()[a]; // pointlike orbital
     for (auto b = 0ul; b < a; ++b) {
-      const auto &Fb = wf.valence[b];
-      const auto &F0b = wfpt.valence[b]; // pointlike orbital
+      const auto &Fb = wf.valence()[b];
+      const auto &F0b = wfpt.valence()[b]; // pointlike orbital
 
       // Skip the MEs which are zero due to selection rules:
-      if (hE1.isZero(Fa.k, Fb.k))
+      if (hE1.isZero(Fa.kappa(), Fb.kappa()))
         continue;
 
       const auto e1 = hE1.reducedME(Fa, Fb);

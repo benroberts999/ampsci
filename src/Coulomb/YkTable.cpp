@@ -10,7 +10,7 @@
 
 namespace Coulomb {
 
-//******************************************************************************
+//==============================================================================
 void YkTable::calculate(const std::vector<DiracSpinor> &a_orbs,
                         const std::vector<DiracSpinor> &b_orbs) {
   // note: make use of the symmetries: force a<=b
@@ -20,14 +20,13 @@ void YkTable::calculate(const std::vector<DiracSpinor> &a_orbs,
   const auto max_2j =
       std::max(DiracSpinor::max_tj(a_orbs), DiracSpinor::max_tj(b_orbs));
 
-  m_Ck.fill(max_2j); // XXX DiragramRPA test fail without +1???
+  m_Ck.fill(max_2j);
   m_6j.fill(max_2j);
 
   allocate_space(a_orbs, b_orbs);
 
   const auto a_is_b = (&a_orbs == &b_orbs);
 
-// for (const auto &a : a_orbs) {
 #pragma omp parallel for
   for (auto ia = 0ul; ia < a_orbs.size(); ++ia) {
     const auto &a = a_orbs[ia];
@@ -36,7 +35,6 @@ void YkTable::calculate(const std::vector<DiracSpinor> &a_orbs,
         continue;
       const auto [k0, kI] = k_minmax(a, b);
       for (auto k = k0; k <= kI; k += 2) {
-        // auto &ykab = get_or_insert(std::size_t(k), ab_key(a, b));
         auto &ykab = get_ref(k, a, b);
         Coulomb::yk_ab(a, b, k, ykab);
       }
@@ -44,13 +42,13 @@ void YkTable::calculate(const std::vector<DiracSpinor> &a_orbs,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void YkTable::extend_angular(int new_max_2j) {
   m_Ck.fill(new_max_2j);
   m_6j.fill(new_max_2j);
 }
 
-//******************************************************************************
+//==============================================================================
 void YkTable::allocate_space(const std::vector<DiracSpinor> &a_orbs,
                              const std::vector<DiracSpinor> &b_orbs) {
 
@@ -68,21 +66,20 @@ void YkTable::allocate_space(const std::vector<DiracSpinor> &a_orbs,
   }
 }
 
-//******************************************************************************
+//==============================================================================
 const std::vector<double> *YkTable::get(const int k, const DiracSpinor &Fa,
                                         const DiracSpinor &Fb) const {
   const auto sk = static_cast<std::size_t>(k);
   if (sk >= m_Y.size())
     return nullptr;
-  // const auto key = ;
   const auto it = m_Y[sk].find(ab_key(Fa, Fb));
-  if (it == m_Y[sk].cend()) {
-    return nullptr;
-  }
-  return &(it->second);
+  // if (it == m_Y[sk].cend()) {
+  //   return nullptr;
+  // }
+  return (it == m_Y[sk].cend()) ? nullptr : &(it->second);
 }
 
-//******************************************************************************
+//==============================================================================
 uint32_t YkTable::ab_key(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   // symmetric: define F1=min(Fa,Fb), F2=max(Fa,Fb)
   static_assert(sizeof(uint32_t) == 2 * sizeof(uint16_t), "32=2*16");
@@ -95,7 +92,7 @@ uint32_t YkTable::ab_key(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   return tkey;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> &YkTable::get_or_insert(std::size_t k, uint32_t key) {
   if (k >= m_Y.size()) {
     m_Y.resize(k + 1);
@@ -106,7 +103,7 @@ std::vector<double> &YkTable::get_or_insert(std::size_t k, uint32_t key) {
   return new_it->second;
 }
 
-//******************************************************************************
+//==============================================================================
 std::vector<double> &YkTable::get_ref(const int k, const DiracSpinor &Fa,
                                       const DiracSpinor &Fb) {
   // May only call this function is assured vector exists
@@ -117,27 +114,34 @@ std::vector<double> &YkTable::get_ref(const int k, const DiracSpinor &Fa,
   return it->second;
 }
 
-//****************************************************************************
+//============================================================================
+double YkTable::R(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                  const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+
+  const auto ykbd = get(k, Fb, Fd);
+  assert(ykbd != nullptr && "YkTable::R() called but don't have Y_bd");
+  return Coulomb::Rk_abcd(Fa, Fc, *ykbd);
+}
+
+//============================================================================
 double YkTable::Q(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  // // nb: b and d _MUST_ be in {a},{b} orbitals
-  // // assert(m_aisb && "May only use Qk if Yk init with {a}={b}");
-  // const auto ykbd = get(k, Fb, Fd);
-  // return ykbd ? Coulomb::Qk_abcd(Fa, Fb, Fc, Fd, k, *ykbd, m_Ck) : 0.0;
 
-  const auto tCac = m_Ck.get_tildeCkab(k, Fa.k, Fc.k);
+  const auto tCac = m_Ck.get_tildeCkab(k, Fa.kappa(), Fc.kappa());
   if (Angular::zeroQ(tCac))
     return 0.0;
-  const auto tCbd = m_Ck.get_tildeCkab(k, Fb.k, Fd.k);
+  const auto tCbd = m_Ck.get_tildeCkab(k, Fb.kappa(), Fd.kappa());
   if (Angular::zeroQ(tCbd))
     return 0.0;
-  const auto ykbd = get(k, Fb, Fd);
-  const auto Rkabcd = Coulomb::Rk_abcd(Fa, Fc, *ykbd);
+  // const auto ykbd = get(k, Fb, Fd);
+  // assert(ykbd != nullptr && "YkTable::Q() called but don't have Y_bd");
+  // const auto Rkabcd = Coulomb::Rk_abcd(Fa, Fc, *ykbd);
+  const auto Rkabcd = R(k, Fa, Fb, Fc, Fd);
   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
   return m1tk * tCac * tCbd * Rkabcd;
 }
 
-//******************************************************************************
+//==============================================================================
 double YkTable::P(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
   // Pk = [k] Sum_l {a,c,k,b,d,l} Q^l_abdc
@@ -151,7 +155,7 @@ double YkTable::P(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   const auto [l0, lI] = Coulomb::k_minmax_Q(Fa, Fb, Fd, Fc);
   for (int l = l0; l <= lI; l += 2) {
     const auto ylbc = get(l, Fb, Fc);
-    assert(ylbc != nullptr);
+    assert(ylbc != nullptr && "YkTable::P() called but don't have Y_bc");
 
     const auto Ql = Q(l, Fa, Fb, Fd, Fc);
     const auto sj = m_6j.get(Fa, Fc, k, Fb, Fd, l);
@@ -161,39 +165,38 @@ double YkTable::P(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   return pk * (2 * k + 1);
 }
 
-//******************************************************************************
+//==============================================================================
 double YkTable::W(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
   return Q(k, Fa, Fb, Fc, Fd) + P(k, Fa, Fb, Fc, Fd);
 }
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor YkTable::Qkv_bcd(int kappa, const DiracSpinor &Fb,
                              const DiracSpinor &Fc, const DiracSpinor &Fd,
                              const int k) const {
-  DiracSpinor Qkv{0, kappa, Fb.rgrid};
-  const auto tCac = m_Ck.get_tildeCkab(k, kappa, Fc.k);
-  const auto tCbd = m_Ck.get_tildeCkab(k, Fb.k, Fd.k);
+  DiracSpinor Qkv{0, kappa, Fb.grid_sptr()};
+  const auto tCac = m_Ck.get_tildeCkab(k, kappa, Fc.kappa());
+  const auto tCbd = m_Ck.get_tildeCkab(k, Fb.kappa(), Fd.kappa());
   const auto tCC = tCbd * tCac;
-  if (tCC == 0.0) {
-    // Qkv.scale(0.0);
-    return Qkv;
+  if (tCC != 0.0) {
+    // const auto ylbc = get(l, Fb, Fc);
+    const auto ykbd = get(k, Fb, Fd);
+    assert(ykbd != nullptr && "YkTable::Qkv_bcd() called but don't have Y_bd");
+    Coulomb::Rkv_bcd(&Qkv, Fc, *ykbd);
+    const auto m1tk = Angular::evenQ(k) ? 1 : -1;
+    Qkv.scale(m1tk * tCC);
   }
-  // const auto ylbc = get(l, Fb, Fc);
-  const auto ykbd = get(k, Fb, Fd);
-  Coulomb::Rkv_bcd(&Qkv, Fc, *ykbd);
-  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
-  Qkv.scale(m1tk * tCC);
   return Qkv;
 }
 
-//******************************************************************************
+//==============================================================================
 DiracSpinor YkTable::Pkv_bcd(int kappa, const DiracSpinor &Fb,
                              const DiracSpinor &Fc, const DiracSpinor &Fd,
                              const int k,
                              const std::vector<double> &f2k) const {
 
-  DiracSpinor Pkv{0, kappa, Fb.rgrid};
+  DiracSpinor Pkv{0, kappa, Fb.grid_sptr()};
 
   const auto fk = [&f2k](int l) {
     // nb: only screens l, k assumed done outside...
@@ -207,14 +210,14 @@ DiracSpinor YkTable::Pkv_bcd(int kappa, const DiracSpinor &Fb,
   const auto [l0, lI] = Coulomb::k_minmax_Q(Pkv, Fb, Fd, Fc);
   for (int l = l0; l <= lI; l += 2) {
     const auto ylbc = get(l, Fb, Fc);
-    assert(ylbc != nullptr);
+    assert(ylbc != nullptr && "YkTable::Pkv_bcd() called but don't have Y_bc");
 
     const auto sj = fk(l) * m_6j.get_2(Fc.twoj(), Angular::twoj_k(kappa), 2 * k,
                                        Fd.twoj(), Fb.twoj(), 2 * l);
 
     if (Angular::zeroQ(sj))
       continue;
-    Pkv += sj * Qkv_bcd(Pkv.k, Fb, Fd, Fc, l);
+    Pkv += sj * Qkv_bcd(Pkv.kappa(), Fb, Fd, Fc, l);
   }
   Pkv *= tkp1;
   return Pkv;

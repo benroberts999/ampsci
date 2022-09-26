@@ -45,63 +45,7 @@ double CLkk_DLkk(int L, int ka, int kb, std::string dmec)
   return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
 }
 
-double CLkk_sqrt(int L, int ka, int kb)
-// testing
-{
-  int la = AtomData::l_k(ka);
-  int lb = AtomData::l_k(kb);
-  int two_ja = AtomData::twoj_k(ka);
-  int two_jb = AtomData::twoj_k(kb);
-
-  if ((la + lb + L) % 2 != 0)
-    return 0;
-
-  const double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
-  return std::sqrt((two_ja + 1) * (two_jb + 1) * (2 * L + 1)) * tjs *
-         std::pow(-1.0, 0.5 * (two_jb - two_ja));
-}
-
-//******************************************************************************
-// double radIntegral(const DiracSpinor &lhs, const DiracSpinor &rhs,
-//                    std::vector<double> &jLqr_f, std::string dmec)
-// // Radial integrals
-// {
-//   double rad_int;
-//   const auto imin = std::max(lhs.min_pt(), rhs.min_pt());
-//   const auto imax = std::min(lhs.max_pt(), rhs.max_pt());
-//   const auto &dr = lhs.rgrid->drdu();
-//   if (dmec == "Vector") {
-//     rad_int =
-//         (NumCalc::integrate(1.0, imin, imax, lhs.f(), rhs.f(), jLqr_f, dr) +
-//          NumCalc::integrate(1.0, imin, imax, lhs.g(), rhs.g(), jLqr_f, dr)) *
-//         lhs.rgrid->du();
-//   } else if (dmec == "Scalar") {
-//     rad_int =
-//         (NumCalc::integrate(1.0, imin, imax, lhs.f(), rhs.f(), jLqr_f, dr) -
-//          NumCalc::integrate(1.0, imin, imax, lhs.g(), rhs.g(), jLqr_f, dr)) *
-//         lhs.rgrid->du();
-//   } else if (dmec == "Pseudovector") {
-//     rad_int =
-//         (NumCalc::integrate(1.0, imin, imax, lhs.f(), rhs.g(), jLqr_f, dr) +
-//          NumCalc::integrate(1.0, imin, imax, lhs.g(), rhs.f(), jLqr_f, dr)) *
-//         lhs.rgrid->du();
-//   } else if (dmec == "Pseudoscalar") {
-//     rad_int =
-//         (NumCalc::integrate(1.0, imin, imax, lhs.f(), rhs.g(), jLqr_f, dr) -
-//          NumCalc::integrate(1.0, imin, imax, lhs.g(), rhs.f(), jLqr_f, dr)) *
-//         lhs.rgrid->du();
-//   }
-//   return rad_int;
-// }
-
-//******************************************************************************
-double Heaviside(double x)
-// Heaviside step function: Theta(x) = {(1 for x>0) and (0 for x<=0)}
-{
-  return (x > 0.0) ? 1.0 : 0.0;
-}
-
-//******************************************************************************
+//==============================================================================
 std::vector<float>
 calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
               double dE,
@@ -248,8 +192,8 @@ calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
 
   for (auto iq = 0ul; iq < qsteps; iq++) {
     const double chi_q =
-        NumCalc::integrate(wf.rgrid->du(), 0, maxir, psi.f(), jl_qr[iq],
-                           wf.rgrid->r(), wf.rgrid->drdu());
+        NumCalc::integrate(wf.grid().du(), 0, maxir, psi.f(), jl_qr[iq],
+                           wf.grid().r(), wf.grid().drdu());
     tmpK_q[iq] = (float)((2. / M_PI) * (twoj + 1) * std::pow(chi_q, 2) *
                          std::sqrt(2. * eps));
     // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP
@@ -258,7 +202,7 @@ calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
   return tmpK_q;
 }
 
-//******************************************************************************
+//==============================================================================
 void write_Knk_plaintext(const std::string &fname,
                          const std::vector<std::vector<std::vector<float>>> &AK,
                          const std::vector<std::string> &nklst,
@@ -299,7 +243,7 @@ void write_Knk_plaintext(const std::string &fname,
   ofile.close();
 }
 
-//******************************************************************************
+//==============================================================================
 void write_Ktot_plaintext(
     const std::string &fname,
     const std::vector<std::vector<std::vector<float>>> &AK, const Grid &qgrid,

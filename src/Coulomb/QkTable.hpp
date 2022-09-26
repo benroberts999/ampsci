@@ -3,14 +3,21 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "YkTable.hpp"
 #include <array>
+#include <cstdint>
 #include <unordered_map>
 
 namespace Coulomb {
 
-// ! Symmetry (state index order) for tables.
+//! Symmetry (state index order) for tables.
 enum class Symmetry { Qk, Wk, Lk, none };
+//! Data type used to store integrals
+using Real = double;
+//! index type for set of 4 orbitals {nk,nk,nk,nk} -> nk4Index
+using nk4Index = uint64_t;
+//! index type for each {nk} (orbital)
+using nkIndex = uint16_t;
 
-//******************************************************************************
+//==============================================================================
 /*!
 @brief
 Base (pure virtual) class to store Coulomb integrals, and similar. 3 derived
@@ -31,23 +38,22 @@ question.
  Lk symmetry:
  {abcd} = badc
 */
-class CoulombTable {
+template <Symmetry S> class CoulombTable {
 
-public:
-  //! Data type used to store integra;s
-  using Real = double;
-  //! index tpe for set of 4 orbitals {nk,nk,nk,nk} -> BigIndex
-  using BigIndex = uint64_t;
-  //! index type for each {nk} (orbital)
-  using Index = uint16_t;
-
-protected:
+private:
   // each vector element corresponds to a 'k'
-  std::vector<std::unordered_map<BigIndex, Real>> m_data{};
+  std::vector<std::unordered_map<nk4Index, Real>> m_data{};
 
 public:
   // 'Rule of zero' (except virtual destructor)
-  virtual ~CoulombTable() = default;
+  // virtual ~CoulombTable() = default;
+
+  // XXX Should only be for QkTable
+  //! Takes a constructed YkTable, and fills Coulomb table with all possible
+  //! non-zero Qk elements, accounting for symmetry (only really makes sense
+  //! for QkTable), up to maximum k, k_cut (set k_cut to <=0 to use all k)
+  void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
+            int k_cut = -1);
 
   //! Gives arrow access to all underlying vector<unordered_map> functions
   auto operator-> () { return &m_data; }
@@ -61,18 +67,18 @@ public:
   // XXX Update to return {it,bool}?
   void add(int k, const DiracSpinor &a, const DiracSpinor &b,
            const DiracSpinor &c, const DiracSpinor &d, Real value);
-  //! Overload for when 'BigIndex' already known
-  void add(int k, BigIndex index, Real value);
+  //! Overload for when 'nk4Index' already known
+  void add(int k, nk4Index index, Real value);
 
   //! Updates value in table. If not present, adds new value
   void update(int k, const DiracSpinor &a, const DiracSpinor &b,
               const DiracSpinor &c, const DiracSpinor &d, Real value);
-  void update(int k, BigIndex index, Real value);
+  void update(int k, nk4Index index, Real value);
 
   //! Checks if given {k,a,b,c,d} is in the table
   bool contains(int k, const DiracSpinor &a, const DiracSpinor &b,
                 const DiracSpinor &c, const DiracSpinor &d) const;
-  bool contains(int k, BigIndex index) const;
+  bool contains(int k, nk4Index index) const;
 
   //! Returns true if table is empty
   bool emptyQ() const {
@@ -84,8 +90,8 @@ public:
   //! stored in table.)
   Real Q(int k, const DiracSpinor &a, const DiracSpinor &b,
          const DiracSpinor &c, const DiracSpinor &d) const;
-  //! Overload for when 'BigIndex' already known
-  Real Q(int k, BigIndex index) const;
+  //! Overload for when 'nk4Index' already known
+  Real Q(int k, nk4Index index) const;
 
   //! Returns 'R', defined via: R := Q / (angular_coef)
   Real R(int k, const DiracSpinor &a, const DiracSpinor &b,
@@ -97,15 +103,21 @@ public:
          const DiracSpinor &c, const DiracSpinor &d,
          const Angular::SixJTable *const sj = nullptr) const;
 
+  //! 'Exchange-only', defined via W = Q + P. Optionally, takes pointer to 6J
+  //! table (faster eval of 6J symbols) - with screening
+  Real P2(int k, const DiracSpinor &a, const DiracSpinor &b,
+          const DiracSpinor &c, const DiracSpinor &d,
+          const Angular::SixJTable &sj, const std::vector<double> &fk) const;
+
   //! W^k_abcd = Q^k_abcd + \sum_l [k] 6j * Q^l_abdc. Optionally, takes
   //! pointer to 6J table (faster eval of 6J symbols)
   Real W(int k, const DiracSpinor &a, const DiracSpinor &b,
          const DiracSpinor &c, const DiracSpinor &d,
          const Angular::SixJTable *const sj = nullptr) const;
 
-  //! Creates single 'BigIndex' corresponding to 'NormalOrder' symmetry of
+  //! Creates single 'nk4Index' corresponding to 'NormalOrder' symmetry of
   //! {a,b,c,d}
-  BigIndex NormalOrder(const DiracSpinor &a, const DiracSpinor &b,
+  nk4Index NormalOrder(const DiracSpinor &a, const DiracSpinor &b,
                        const DiracSpinor &c, const DiracSpinor &d) const;
 
   //! Checks if set {a,b,c,d} are already in NormalOrder
@@ -119,109 +131,63 @@ public:
   //! Reads coulomb integrals to disk. Returns false if none read in
   bool read(const std::string &fname);
 
-  //! Operator overload: scale by constant (nb: *= not *, since can't rely on
-  //! polymorphism for return type..)
-  void operator*=(double x) {
-    for (auto &q_k : m_data) {
-      for (auto &[key, qk_abcd] : q_k) {
-        qk_abcd *= x;
-      }
-    }
-  }
-  //! Operator overload: add another table (nb: += not +, since can't rely on
-  //! polymorphism for return type..)
-  void operator+=(const CoulombTable &Qk) {
-    int k = 0;
-    for (auto &q_k : m_data) {
-      for (auto &[key, qk_abcd] : q_k) {
-        // nb: cannot assume each map's entries in exact same order, so need
-        // 'find'
-        qk_abcd += Qk.Q(k, key);
-      }
-      ++k;
-    }
-  }
+  // //! Operator overload: scale by constant (nb: *= not *, since can't rely on
+  // //! polymorphism for return type..)
+  // void operator*=(double x) {
+  //   for (auto &q_k : m_data) {
+  //     for (auto &[key, qk_abcd] : q_k) {
+  //       qk_abcd *= x;
+  //     }
+  //   }
+  // }
+  // //! Operator overload: add another table (nb: += not +, since can't rely on
+  // //! polymorphism for return type..)
+  // void operator+=(const CoulombTable &Qk) {
+  //   int k = 0;
+  //   for (auto &q_k : m_data) {
+  //     for (auto &[key, qk_abcd] : q_k) {
+  //       // nb: cannot assume each map's entries in exact same order, so need
+  //       // 'find'
+  //       qk_abcd += Qk.Q(k, key);
+  //     }
+  //     ++k;
+  //   }
+  // }
 
-  auto begin() { return m_data.begin(); }
-  auto end() { return m_data.end(); }
-  auto cbegin() { return m_data.cbegin(); }
-  auto cend() { return m_data.cend(); }
-  auto begin(std::size_t k) { return m_data.at(k).begin(); }
-  auto end(std::size_t k) { return m_data.at(k).end(); }
-  auto cbegin(std::size_t k) { return m_data.at(k).cbegin(); }
-  auto cend(std::size_t k) { return m_data.at(k).cend(); }
+  // auto begin() { return m_data.begin(); }
+  // auto end() { return m_data.end(); }
+  // auto cbegin() { return m_data.cbegin(); }
+  // auto cend() { return m_data.cend(); }
+  // auto begin(std::size_t k) { return m_data.at(k).begin(); }
+  // auto end(std::size_t k) { return m_data.at(k).end(); }
+  // auto cbegin(std::size_t k) { return m_data.at(k).cbegin(); }
+  // auto cend(std::size_t k) { return m_data.at(k).cend(); }
 
-protected:
-  // Creates single 'BigIndex', WITHOUT accounting for 'NormalOrder'. Can be
+private:
+  // Creates single 'nk4Index', WITHOUT accounting for 'NormalOrder'. Can be
   // used to check if {a,b,c,d} are already in 'NormalOrder'
-  BigIndex CurrentOrder(const DiracSpinor &a, const DiracSpinor &b,
+  nk4Index CurrentOrder(const DiracSpinor &a, const DiracSpinor &b,
                         const DiracSpinor &c, const DiracSpinor &d) const;
 
-  // Converts given set of Index's (in any order) to BigIndex
-  BigIndex FormIndex(Index a, Index b, Index c, Index d) const;
+  // Converts given set of nkIndex's (in any order) to nk4Index
+  static nk4Index FormIndex(nkIndex a, nkIndex b, nkIndex c, nkIndex d);
 
-  // Breaks BigIndex back into {ia,ib,ic,id}. Not used.
-  std::array<Index, 4> UnFormIndex(const BigIndex &index) const;
+  // Breaks nk4Index back into {ia,ib,ic,id}. Not used.
+  std::array<nkIndex, 4> UnFormIndex(const nk4Index &index) const;
 
-  // Virtual: returns the "NormalOrder" BigIndex for given set. Overriden by
-  // derived classes.
-  virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-                                    Index d) const = 0;
+  // // Virtual: returns the "NormalOrder" nk4Index for given set. Overriden by
+  // // derived classes.
+  // virtual nk4Index NormalOrder_impl(nkIndex a, nkIndex b, nkIndex c,
+  //                                   nkIndex d) const = 0;
+  static inline nk4Index NormalOrder_impl(nkIndex a, nkIndex b, nkIndex c,
+                                          nkIndex d);
 };
 
-//******************************************************************************
-//! Derived CoulombTable for the Qk symmetry: {abcd} = cbad = adcb = cdab =
-//! badc = bcda = dabc = dcba.
-class QkTable : public CoulombTable {
-
-public:
-  static constexpr Symmetry symmetry = Symmetry::Qk;
-
-  //! Takes a constructed YkTable, and fills Coulomb table with all possible
-  //! non-zero Qk elements, accounting for symmetry (only really makes sense
-  //! for QkTable), up to maximum k, k_cut (set k_cut to <=0 to use all k)
-  void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
-            int k_cut = -1);
-
-private:
-  virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-                                    Index d) const override final;
-};
-
-//******************************************************************************
-//! Derived CoulombTable for the Wk symmetry: {abcd} = badc = cdab = dcba
-class WkTable : public CoulombTable {
-
-public:
-  static constexpr Symmetry symmetry = Symmetry::Wk;
-
-private:
-  virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-                                    Index d) const override final;
-};
-
-//******************************************************************************
-//! Derived CoulombTable for the Lk symmetry: {abcd} = badc
-class LkTable : public CoulombTable {
-
-public:
-  static constexpr Symmetry symmetry = Symmetry::Lk;
-
-private:
-  virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-                                    Index d) const override final;
-};
-
-//******************************************************************************
-//! Derived CoulombTable for NO symmetry: {abcd} = abcd only
-class NkTable : public CoulombTable {
-
-public:
-  static constexpr Symmetry symmetry = Symmetry::none;
-
-private:
-  virtual BigIndex NormalOrder_impl(Index a, Index b, Index c,
-                                    Index d) const override final;
-};
+using QkTable = CoulombTable<Symmetry::Qk>;
+using WkTable = CoulombTable<Symmetry::Wk>;
+using LkTable = CoulombTable<Symmetry::Lk>;
+using NkTable = CoulombTable<Symmetry::none>;
 
 } // namespace Coulomb
+
+#include "QkTable.ipp"

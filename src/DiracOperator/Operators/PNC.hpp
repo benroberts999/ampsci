@@ -1,9 +1,11 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
+#include "IO/InputBlock.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 
 namespace DiracOperator {
 
-//******************************************************************************
+//==============================================================================
 //! @brief Nuclear-spin independent PNC operator (Qw)
 /*! @details
 \f[
@@ -40,5 +42,21 @@ public:
 private:
   const std::string m_unit{"iQw*e-11"};
 };
+
+//==============================================================================
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_pnc(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{{"c", "Half-density radius for Ferni rho(r). Will use default "
+                      "for given nucleus"},
+                {"t", "skin thickness [2.3]"},
+                {"print", "Write details to screen [true]"}}});
+  const auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
+  const auto c = input.get("c", Nuclear::c_hdr_formula_rrms_t(r_rms));
+  const auto t = input.get("t", Nuclear::default_t);
+  if (input.get("print", true))
+    std::cout << "pnc: with c=" << c << ", t=" << t << "\n";
+  return std::make_unique<PNCnsi>(c, t, wf.grid(), 1.0, "iQwe-11");
+}
 
 } // namespace DiracOperator

@@ -13,7 +13,7 @@ Functions to help read-write data to files, including binary files.
 */
 namespace IO::FRW {
 
-//******************************************************************************
+//==============================================================================
 // Uses compile-time recursion to get access to elements of tuple.
 // Specifically, string-streams data from a string vector into tuple.
 // Works with a tuple of references, i.e., std::forward_as_tuple
@@ -35,7 +35,7 @@ template <std::size_t I = 0, typename... Tp>
   stringstreamVectorIntoTuple<I + 1, Tp...>(lst, t);
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::vector<std::string> readInputFile_byEntry(const std::string &fname)
 // Reads each item (space separated) from a file into a string vector
 // Any text after a '#' or '!' are treated as comments and ignored
@@ -58,7 +58,7 @@ inline std::vector<std::string> readInputFile_byEntry(const std::string &fname)
   return entry_list;
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::vector<std::string> readInputFile_byLine(const std::string &fname)
 // Reads each line from a file into a string vector
 // Lines beginning with '!' or '#' are comments
@@ -78,7 +78,7 @@ inline std::vector<std::string> readInputFile_byLine(const std::string &fname)
   return entry_list;
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::vector<std::pair<double, double>>
 readFile_xy_VoP(const std::string &fname)
 // Reads each line from a file into a vector of {x,y} points
@@ -145,7 +145,7 @@ inline void writeFile_xy(const std::vector<double> &x,
   //
 }
 
-//******************************************************************************
+//==============================================================================
 //! reads entire text file into a string
 inline std::string readInputFile(const std::string &fname) {
   std::ifstream f(fname); // taking file as inputstream
@@ -158,7 +158,7 @@ inline std::string readInputFile(const std::string &fname) {
   return str;
 }
 
-//******************************************************************************
+//==============================================================================
 inline void removeBlockComments(std::string &input) {
   for (auto posi = input.find("/*"); posi != std::string::npos;
        posi = input.find("/*")) {
@@ -170,7 +170,7 @@ inline void removeBlockComments(std::string &input) {
     }
   }
 }
-//******************************************************************************
+//==============================================================================
 inline std::string removeCommentsAndSpaces(const std::string &input)
 // Note: also squashes lines, except for semi-colons
 {
@@ -209,7 +209,7 @@ inline std::string removeCommentsAndSpaces(const std::string &input)
   return lines;
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::vector<std::pair<std::string, std::string>>
 splitInput_byBraces(const std::string &input) {
 
@@ -256,7 +256,7 @@ splitInput_byBraces(const std::string &input) {
   return output;
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::vector<std::string> splitInput_bySemiColon(const std::string &input)
 // ...
 {
@@ -295,7 +295,7 @@ inline std::vector<std::string> splitInput_bySemiColon(const std::string &input)
   return entry_list;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename... Tp>
 void setInputParameters(const std::string &infile, std::tuple<Tp...> &tp) {
   auto input = readInputFile_byEntry(infile);
@@ -312,7 +312,7 @@ void setInputParameters(const std::string &infile, std::tuple<Tp...> &tp) {
   stringstreamVectorIntoTuple(input, tp);
 }
 
-//******************************************************************************
+//==============================================================================
 enum RoW { read, write };
 
 // XXX Wrap these into a class. AND make explicit which types are/aren't

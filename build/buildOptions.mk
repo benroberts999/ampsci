@@ -2,22 +2,17 @@
 
 ## will return the Operating system name
 detected_OS := $(shell uname -s)
-$(info )
 $(info Detected operating system: $(detected_OS))
 
 # runs make in //
+ParallelBuild ?= 1
 ifeq ($(Build),debug)
   ParallelBuild=1
 endif
-ifneq ($(ParallelBuild),)
-ifneq ($(ParallelBuild),0)
 ifneq ($(ParallelBuild),1)
   MAKEFLAGS += -j$(ParallelBuild)
   $(info Compiling in parallel with N=$(ParallelBuild) cores)
 endif
-endif
-endif
-$(info )
 
 #Warnings:
 WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow \
@@ -25,17 +20,23 @@ WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow \
 # -Wfloat-equal
 
 # Changes to warning based on compiler:
-ifeq ($(findstring clang++,$(CXX)),clang++)
-  WARN += -Wheader-hygiene -Wno-unused-function
-else
-ifeq ($(findstring g++,$(CXX)),g++)
+GCC_Compilers:=g++ g++12 g++-11 g++-10 g++-9 g++-8 g++-7
+CLANG_Compilers:=clang++ clang++-10 clang++-9 clang++-8 clang++-7 clang++-6
+ifneq ($(filter $(CXX),$(GCC_Compilers)),)
   WARN += -Wsuggest-override -Wnon-virtual-dtor -Wcast-align \
   -Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches \
   -Wnull-dereference -Wuseless-cast -Wformat
 endif
+ifneq ($(filter $(CXX),$(CLANG_Compilers)),)
+  WARN += -Wheader-hygiene -Wno-unused-function
 endif
-# nb: have to put g++ in 'else' block, since clanG++ contains g++
-# can't use equal, since compiler might be e.g., g++-11
+
+#g++-7 gives some faulty warnings with c++17 (structured bindings, constexpr)
+ifneq ($(filter $(CXX),g++-7),)
+  WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Weffc++ \
+  -Wsign-conversion -Wno-unused-variable -Wno-shadow
+endif
+
 
 # Changes to optimisation based on build setting:
 OPT ?= -O3
@@ -101,7 +102,7 @@ endif
 # ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./ampsci
 
 #Command to compile objects and link them
-COMP=$(CXX) -MMD -c -o $@ $< $(CXXFLAGS)
+COMP=$(CXX) -MMD -MP -c -o $@ $< $(CXXFLAGS)
 ifeq ($(ParallelBuild),1)
 	COMP=time $(CXX) -MMD -MP -c -o $@ $< $(CXXFLAGS)
 endif

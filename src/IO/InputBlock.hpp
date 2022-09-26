@@ -12,7 +12,7 @@
 #include <vector>
 
 namespace IO {
-//******************************************************************************
+//==============================================================================
 //! Removes all white space (space, tab, newline), except for those in quotes
 inline std::string removeSpaces(std::string str);
 
@@ -24,6 +24,9 @@ inline void removeBlockComments(std::string &input);
 
 //! Removes all c++ style comments from a string (block and line)
 inline std::string removeComments(const std::string &input);
+
+//! Expands "#include" files
+inline std::string expandIncludes(std::string input);
 
 //! Parses a string to type T by stringstream
 template <typename T> inline T parse_str_to_T(const std::string &value_as_str);
@@ -55,7 +58,7 @@ inline void print_line(const char c = '*', const int num = 80) {
   std::cout << "\n";
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::string time_date() {
   const auto now =
       std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -78,7 +81,7 @@ inline std::string time() {
   return buffer;
 }
 
-//******************************************************************************
+//==============================================================================
 //! Simple struct; holds key-value pair, both strings. == compares key
 struct Option {
   std::string key;
@@ -99,7 +102,7 @@ struct Option {
   }
 };
 
-//******************************************************************************
+//==============================================================================
 //! Holds list of Options, and a list of other InputBlocks. Can be initialised
 //! with a list of options, with a string, or from a file (ifstream).
 //! Format for input is, e.g.,:
@@ -174,6 +177,17 @@ public:
   template <typename T = std::string>
   std::optional<T> get(std::string_view key) const;
 
+  //! Check is option is present (even if not set) in current block.
+  bool has_option(std::string_view key) const {
+    const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
+    return !(option == m_options.crend());
+  }
+
+  //! Check if option is present AND has been set
+  bool option_is_set(std::string_view key) const {
+    return !(get(key) == std::nullopt);
+  }
+
   //! Get value from set of nested blocks. .get({block1,block2},option)
   template <typename T>
   T get(std::initializer_list<std::string> blocks, std::string_view key,
@@ -197,8 +211,9 @@ public:
   //! string. By default prints to cout, but can be given any ostream
   inline void print(std::ostream &os = std::cout, int indent_depth = 0) const;
 
-  inline bool checkBlock_old(const std::vector<std::string> &list,
-                             bool print = false) const;
+  [[deprecated]] inline bool
+  checkBlock_old(const std::vector<std::string> &list,
+                 bool print = false) const;
 
   //! Check all the options and blocks in this; if any of them are not present
   //! in 'list', then there is likely a spelling error in the input => returns
@@ -223,20 +238,21 @@ private:
   checkBlock(const std::vector<std::pair<std::string, std::string>> &list,
              bool print = false) const;
 
+  //! Return a pointer to a block. Allows editing of blocks
+  inline InputBlock *getBlock_ptr(std::string_view name);
+  inline const InputBlock *getBlock_cptr(std::string_view name) const;
+
   // Allows returning std::vector: comma-separated list input
   template <typename T>
   std::optional<std::vector<T>> get_vector(std::string_view key) const;
-
-  inline InputBlock *getBlock_ptr(std::string_view name);
-  inline const InputBlock *getBlock_cptr(std::string_view name) const;
 
   inline void add_option(std::string_view in_string);
   inline void add_blocks_from_string(std::string_view string, bool merge);
   inline void consolidate();
 };
 
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
 void InputBlock::add(InputBlock block, bool merge) {
   auto existing_block = getBlock_ptr(block.m_name);
   if (merge && existing_block) {
@@ -248,19 +264,37 @@ void InputBlock::add(InputBlock block, bool merge) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 void InputBlock::add(Option option) { m_options.push_back(option); }
 void InputBlock::add(const std::vector<Option> &options) {
   for (const auto &option : options)
     m_options.push_back(option);
 }
-//******************************************************************************
+//==============================================================================
 void InputBlock::add(const std::string &string, bool merge) {
-  add_blocks_from_string(removeQuoteMarks(removeSpaces(removeComments(string))),
-                         merge);
+
+  // std::cout << "***\n\n";
+  // std::cout << string << "\n";
+  // std::cout << "***\nremoveComments:\n";
+  // auto clean_text = removeComments(string);
+  // std::cout << clean_text << "\n";
+  // std::cout << "***\nxpandIncludes:\n";
+  // clean_text = expandIncludes(clean_text);
+  // std::cout << clean_text << "\n";
+  // std::cout << "***\nemoveSpaces:\n";
+  // clean_text = removeSpaces(clean_text);
+  // std::cout << clean_text << "\n";
+  // std::cout << "***\nemoveQuoteMarks:\n";
+  // clean_text = removeQuoteMarks(clean_text);
+  // std::cout << clean_text << "\n";
+  // std::cout << "***\n";
+
+  add_blocks_from_string(
+      removeQuoteMarks(removeSpaces(expandIncludes(removeComments(string)))),
+      merge);
 }
 
-//******************************************************************************
+//==============================================================================
 bool operator==(InputBlock block, std::string_view name) {
   return qip::ci_wildcard_compare(name, block.m_name);
 }
@@ -274,7 +308,7 @@ bool operator!=(std::string_view name, InputBlock block) {
   return !(block == name);
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T>
 std::optional<T> InputBlock::get(std::string_view key) const {
   if constexpr (IsVector<T>::v) {
@@ -344,7 +378,7 @@ T InputBlock::get(std::initializer_list<std::string> blocks,
   return get<T>(blocks, key).value_or(default_value);
 }
 
-template <typename T = std::string>
+template <typename T>
 std::optional<T> InputBlock::get(std::initializer_list<std::string> blocks,
                                  std::string_view key) const {
   // Find key in nested blocks
@@ -357,7 +391,7 @@ std::optional<T> InputBlock::get(std::initializer_list<std::string> blocks,
   return pB->get<T>(key);
 }
 
-//******************************************************************************
+//==============================================================================
 std::optional<InputBlock> InputBlock::getBlock(std::string_view name) const {
   // note: by copy!
   const auto block = std::find(m_blocks.crbegin(), m_blocks.crend(), name);
@@ -379,7 +413,7 @@ InputBlock::getBlock(std::initializer_list<std::string> blocks,
   return pB->getBlock(name);
 }
 
-//******************************************************************************
+//==============================================================================
 std::optional<Option> InputBlock::getOption(std::string_view key) const {
   // Use reverse iterators so that we find _last_ option that matches key
   // i.e., assume later options override earlier ones.
@@ -389,7 +423,7 @@ std::optional<Option> InputBlock::getOption(std::string_view key) const {
   return {};
 }
 
-//******************************************************************************
+//==============================================================================
 void InputBlock::print(std::ostream &os, int depth) const {
 
   std::string indent = "";
@@ -424,7 +458,7 @@ void InputBlock::print(std::ostream &os, int depth) const {
     os << "}\n";
 }
 
-//******************************************************************************
+//==============================================================================
 bool InputBlock::checkBlock(
     const std::vector<std::pair<std::string, std::string>> &list,
     bool print) const {
@@ -449,23 +483,23 @@ bool InputBlock::checkBlock(
                 << ": " << option.key << " = " << option.value_str << ";\n"
                 << "Option may be ignored!\n"
                 << "Check spelling (or update list of options)\n";
+      // spell-check + nearest suggestion:
+      auto compare_sc = [&option](const auto &s1, const auto &s2) {
+        return qip::ci_Levenstein(s1.first, option.key) <
+               qip::ci_Levenstein(s2.first, option.key);
+      };
+      auto guess = std::min_element(list.cbegin(), list.cend(), compare_sc);
+      if (guess != list.cend()) {
+        std::cout << "\nDid you mean: " << guess->first << " ?\n";
+      }
     }
   }
 
+  using namespace std::string_literals;
   for (const auto &block : m_blocks) {
-    // compares, accounting for wild-cards (*)
-    // const auto is_blockQ = [&](const auto &b) {
-    //   // check if wildcard:
-    //   const auto wc = std::find(b.first.cbegin(), b.first.cend(), '*');
-    //   if (wc != b.first.cend()) {
-    //     const auto len = std::size_t(std::distance(b.first.cbegin(), wc));
-    //     // compare sub-strings (up to wildcard):
-    //     return block.name().substr(0, len) == b.first.substr(0, len);
-    //   }
-    //   return block == b.first;
-    // };
     const auto is_blockQ = [&](const auto &b) {
-      return qip::ci_wildcard_compare(block.name(), b.first);
+      return qip::ci_wildcard_compare(std::string{block.name()} + "{}"s,
+                                      b.first);
     };
     const auto bad_block = !std::any_of(list.cbegin(), list.cend(), is_blockQ);
     if (bad_block) {
@@ -474,6 +508,15 @@ bool InputBlock::checkBlock(
                 << ": " << block.name() << "{}\n"
                 << "Block and containing options may be ignored!\n"
                 << "Check spelling (or update list of options)\n";
+      // spell-check + nearest suggestion:
+      auto compare_sc = [&block](const auto &s1, const auto &s2) {
+        return qip::ci_Levenstein(s1.first, block.name()) <
+               qip::ci_Levenstein(s2.first, block.name());
+      };
+      auto guess = std::min_element(list.cbegin(), list.cend(), compare_sc);
+      if (guess != list.cend()) {
+        std::cout << "\nDid you mean: " << guess->first << " ?\n";
+      }
     }
   }
 
@@ -481,59 +524,15 @@ bool InputBlock::checkBlock(
     std::cout << "\nAvailable " << m_name << " options/blocks are:\n"
               << m_name << "{\n";
     std::for_each(list.cbegin(), list.cend(), [](const auto &s) {
-      std::cout << "  " << s.first << ";  // " << s.second << "\n";
+      if (s.first.empty()) {
+        std::cout << "  /*\n  " << s.second << "\n  */\n";
+      } else {
+        if (s.first.back() == '}')
+          std::cout << "  " << s.first << "\t// " << s.second << "\n";
+        else
+          std::cout << "  " << s.first << ";\t// " << s.second << "\n";
+      }
     });
-    std::cout << "}\n\n";
-  }
-  return all_ok;
-}
-
-bool InputBlock::checkBlock_old(const std::vector<std::string> &list,
-                                bool print) const {
-  // Check each option NOT each sub block!
-  // For each input option stored, see if it is allowed
-  // "allowed" means appears in list
-  bool all_ok = true;
-  for (const auto &option : m_options) {
-    // const auto is_optionQ = [&](const auto &l) { return option.key == l; };
-    const auto is_optionQ = [&](const auto &l) {
-      return qip::ci_wildcard_compare(option.key, l);
-    };
-
-    const auto bad_option =
-        !std::any_of(list.cbegin(), list.cend(), is_optionQ);
-    auto help = qip::ci_wildcard_compare(option.key, "help") ? true : false;
-    if (help)
-      print = true;
-    if (bad_option && !help) {
-      all_ok = false;
-      std::cout << "\n⚠️  WARNING: Unclear input option in " << m_name
-                << ": " << option.key << " = " << option.value_str << ";\n"
-                << "Option may be ignored!\n"
-                << "Check spelling (or update list of options)\n";
-    }
-  }
-
-  for (const auto &block : m_blocks) {
-    // const auto is_blockQ = [&](const auto &b) { return block == b; };
-    const auto is_blockQ = [&](const auto &b) {
-      return qip::ci_wildcard_compare(block.name(), b);
-    };
-    const auto bad_block = !std::any_of(list.cbegin(), list.cend(), is_blockQ);
-    if (bad_block) {
-      all_ok = false;
-      std::cout << "\n⚠️  WARNING: Unclear input block within " << m_name
-                << ": " << block.name() << "{}\n"
-                << "Block and containing options may be ignored!\n"
-                << "Check spelling (or update list of options)\n";
-    }
-  }
-
-  if (!all_ok || print) {
-    std::cout << "\nAvailable " << m_name << " options/blocks are:\n"
-              << m_name << "{\n";
-    std::for_each(list.cbegin(), list.cend(),
-                  [](const auto &s) { std::cout << "  " << s << ";\n"; });
     std::cout << "}\n\n";
   }
   return all_ok;
@@ -558,7 +557,7 @@ bool InputBlock::check(
   return pB->check(list, print);
 }
 
-//******************************************************************************
+//==============================================================================
 void InputBlock::add_blocks_from_string(std::string_view string, bool merge) {
 
   // Expects that string has comments and spaces removed already
@@ -631,7 +630,7 @@ void InputBlock::add_blocks_from_string(std::string_view string, bool merge) {
   // No - want ability to have multiple blocks of same name
 }
 
-//******************************************************************************
+//==============================================================================
 void InputBlock::add_option(std::string_view in_string) {
   const auto pos = in_string.find('=');
   const auto option = in_string.substr(0, pos);
@@ -639,7 +638,7 @@ void InputBlock::add_option(std::string_view in_string) {
   m_options.push_back({std::string(option), std::string(value)});
 }
 
-//******************************************************************************
+//==============================================================================
 InputBlock *InputBlock::getBlock_ptr(std::string_view name) {
   auto block = std::find(m_blocks.rbegin(), m_blocks.rend(), name);
   if (block == m_blocks.rend())
@@ -654,7 +653,7 @@ const InputBlock *InputBlock::getBlock_cptr(std::string_view name) const {
   return &(*block);
 }
 
-//******************************************************************************
+//==============================================================================
 void InputBlock::consolidate() {
   for (auto bl = m_blocks.end() - 1; bl != m_blocks.begin() - 1; --bl) {
     bl->consolidate();
@@ -667,11 +666,29 @@ void InputBlock::consolidate() {
   }
 }
 
-//******************************************************************************
-//******************************************************************************
-//******************************************************************************
+//==============================================================================
+//==============================================================================
+//==============================================================================
+inline std::string expandIncludes(std::string str) {
+  const std::string include_text = "#include";
 
-//******************************************************************************
+  for (auto ipos = str.find(include_text); ipos != std::string::npos;
+       ipos = str.find(include_text)) {
+    const auto start = std::min(str.find('"', ipos), str.find('<', ipos));
+    const auto end =
+        std::min(str.find('"', start + 1), str.find('>', start + 1));
+    const auto fname = str.substr(start + 1, end - start - 1);
+    str.erase(ipos, end - ipos + 1);
+    std::ifstream ifile(fname);
+    if (ifile.good()) {
+      str.insert(ipos, removeComments(file_to_string(ifile)));
+    }
+  }
+
+  return str;
+}
+
+//==============================================================================
 inline std::string removeSpaces(std::string str) {
 
   bool inside = false;
@@ -699,7 +716,7 @@ inline std::string removeQuoteMarks(std::string str) {
   return str;
 }
 
-//******************************************************************************
+//==============================================================================
 inline void removeBlockComments(std::string &input) {
   for (auto posi = input.find("/*"); posi != std::string::npos;
        posi = input.find("/*")) {
@@ -712,18 +729,18 @@ inline void removeBlockComments(std::string &input) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::string removeComments(const std::string &input) {
   std::string str = "";
   {
     std::string line;
     std::stringstream stream1(input);
     while (std::getline(stream1, line, '\n')) {
-      auto comm1 = line.find('!'); // nb: char, NOT string literal!
-      auto comm2 = line.find('#');
-      auto comm3 = line.find("//"); // str literal here
-      auto comm = std::min(comm1, std::min(comm2, comm3));
-      str += line.substr(0, comm);
+      // const auto comm1 = line.find('!');  // nb: char, NOT string literal!
+      // auto comm2 = line.find('#');
+      const auto comm3 = line.find("//"); // str literal here
+      // const auto comm = std::min({comm1, comm3});
+      str += line.substr(0, comm3);
       str += '\n';
     }
   }
@@ -732,7 +749,7 @@ inline std::string removeComments(const std::string &input) {
   return str;
 }
 
-//******************************************************************************
+//==============================================================================
 template <typename T> T inline parse_str_to_T(const std::string &value_as_str) {
   if constexpr (std::is_same_v<T, std::string>) {
     // already a string, just return value
@@ -746,7 +763,7 @@ template <typename T> T inline parse_str_to_T(const std::string &value_as_str) {
   }
 }
 
-//******************************************************************************
+//==============================================================================
 inline std::string file_to_string(const std::istream &file) {
   std::string out;
   if (!file)
