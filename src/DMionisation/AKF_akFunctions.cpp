@@ -14,35 +14,68 @@
 
 namespace AKF {
 
-std::vector<double> K_q(double dE, const HF::HartreeFock *hf,
+std::vector<double> K_q(double dE, const DiracSpinor &Fa,
+                        const HF::HartreeFock *hf,
                         const DiracOperator::jL &jl) {
   const auto q_points = jl.q_grid().num_points();
   std::vector<double> kq_out(q_points);
 
-  const int lc_max = DiracSpinor::max_l(hf->core()) + int(jl.max_L());
+  const auto ec = dE + Fa.en();
+  if (ec < 0.0)
+    return kq_out;
+
+  const int lc_max = Fa.l() + int(jl.max_L()) + 1;
+  const int lc_min = std::max(0, Fa.l() - int(jl.max_L()) - 1);
+  const auto x = Fa.occ_frac(); // normally 1
 
   ContinuumOrbitals cntm(hf); // create cntm object [survives locally only]
-  for (auto &Fa : hf->core()) {
-    const auto ec = dE + Fa.en();
-    if (ec < 0.0)
-      continue;
-    cntm.clear();
-    // nb: passing in ptr to Fa subtracts self interaction; otherwise, doesn't
-    cntm.solveContinuumHF(ec, lc_max, &Fa);
-    const auto x = Fa.occ_frac(); // normally 1
+  // nb: passing in ptr to Fa subtracts self interaction; otherwise, doesn't
+  cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa);
+
 #pragma omp parallel for
-    for (std::size_t iq = 0; iq < q_points; ++iq) {
-      for (const auto &Fe : cntm.orbitals) {
-        for (std::size_t L = 0; L <= jl.max_L(); ++L) {
-          if (jl.is_zero(Fa, Fe, L))
-            continue;
-          const auto q = jl.q_grid().r(iq);
-          const auto me = jl.rme(Fa, Fe, L, q);
-          kq_out.at(iq) += double(2 * L + 1) * me * me * x;
-        }
+  for (std::size_t iq = 0; iq < q_points; ++iq) {
+    for (const auto &Fe : cntm.orbitals) {
+      for (std::size_t L = 0; L <= jl.max_L(); ++L) {
+        if (jl.is_zero(Fa, Fe, L))
+          continue;
+        const auto q = jl.q_grid().r(iq);
+        const auto me = jl.rme(Fa, Fe, L, q);
+        kq_out.at(iq) += double(2 * L + 1) * me * me * x;
       }
     }
   }
+
+  return kq_out;
+}
+
+std::vector<double> K_tilde_q(const DiracSpinor &Fa, const HF::HartreeFock *hf,
+                              const DiracOperator::jL &jl) {
+  const auto q_points = jl.q_grid().num_points();
+  std::vector<double> kq_out(q_points);
+
+  const auto ec = 0.1;
+
+  const int lc_max = Fa.l() + int(jl.max_L()) + 1;
+  const int lc_min = std::max(0, Fa.l() - int(jl.max_L()) - 1);
+  const auto x = Fa.occ_frac(); // normally 1
+
+  ContinuumOrbitals cntm(hf); // create cntm object [survives locally only]
+  // nb: passing in ptr to Fa subtracts self interaction; otherwise, doesn't
+  cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa);
+
+#pragma omp parallel for
+  for (std::size_t iq = 0; iq < q_points; ++iq) {
+    for (const auto &Fe : cntm.orbitals) {
+      for (std::size_t L = 0; L <= jl.max_L(); ++L) {
+        if (jl.is_zero(Fa, Fe, L))
+          continue;
+        const auto q = jl.q_grid().r(iq);
+        const auto me = jl.rme(Fa, Fe, L, q);
+        kq_out.at(iq) += double(2 * L + 1) * me * me * x;
+      }
+    }
+  }
+
   return kq_out;
 }
 
@@ -67,7 +100,7 @@ double CLkk(int L, int ka, int kb)
 }
 
 //==============================================================================
-std::vector<float>
+std::vector<double>
 calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
               double dE,
               const std::vector<std::vector<std::vector<double>>> &jLqr_f)
@@ -78,7 +111,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
 
   const auto qsteps = jLqr_f[0].size();
 
-  std::vector<float> AK_nk_q;
+  std::vector<double> AK_nk_q;
   AK_nk_q.resize(qsteps); // use +=, so can't use .push_back()
 
   // Calculate continuum wavefunctions
@@ -102,7 +135,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
         continue;
       for (std::size_t iq = 0; iq < qsteps; iq++) {
         const auto rad_int = psi * (jLqr_f[L][iq] * phic);
-        AK_nk_q[iq] += (float)(dC_Lkk * rad_int * rad_int * x_ocf);
+        AK_nk_q[iq] += dC_Lkk * rad_int * rad_int * x_ocf;
       } // q
     }   // END loop over cntm states (ic)
   }     // end L loop
@@ -111,7 +144,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
 }
 
 //==============================================================================
-std::vector<float>
+std::vector<double>
 calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
                 const std::vector<std::vector<double>> &jl_qr)
 // /*
@@ -124,7 +157,7 @@ calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
   const int twoj = psi.twoj(); // wf.twoj(nk);
 
   const auto qsteps = jl_qr.size();
-  std::vector<float> tmpK_q(qsteps);
+  std::vector<double> tmpK_q(qsteps);
 
   const double eps = dE - psi.en();
   const auto maxir = psi.max_pt(); // don't bother going further
@@ -136,8 +169,8 @@ calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
     const double chi_q =
         NumCalc::integrate(wf.grid().du(), 0, maxir, psi.f(), jl_qr[iq],
                            wf.grid().r(), wf.grid().drdu());
-    tmpK_q[iq] = (float)((2. / M_PI) * (twoj + 1) * std::pow(chi_q, 2) *
-                         std::sqrt(2. * eps));
+    tmpK_q[iq] =
+        (2.0 / M_PI) * (twoj + 1) * std::pow(chi_q, 2) * std::sqrt(2.0 * eps);
     // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP
   }
 
@@ -145,10 +178,10 @@ calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
 }
 
 //==============================================================================
-void write_Knk_plaintext(const std::string &fname,
-                         const std::vector<std::vector<std::vector<float>>> &AK,
-                         const std::vector<std::string> &nklst,
-                         const Grid &qgrid, const Grid &Egrid)
+void write_Knk_plaintext(
+    const std::string &fname,
+    const std::vector<std::vector<std::vector<double>>> &AK,
+    const std::vector<std::string> &nklst, const Grid &qgrid, const Grid &Egrid)
 // /*
 // Writes the K factor to a text-file, in GNU-plot readable format
 // XXX NOTE: Re-creates grids! Could use Grid class!
@@ -174,7 +207,7 @@ void write_Knk_plaintext(const std::string &fname,
       const auto q = qgrid.r(iq);
       const auto dE = Egrid.r(idE);
       ofile << dE / keV << " " << q / qMeV << " ";
-      float sum = 0.0f;
+      double sum = 0.0f;
       for (auto j = 0ul; j < num_states; j++) {
         sum += AK[idE][j][iq];
         ofile << AK[idE][j][iq] << " ";
@@ -190,7 +223,7 @@ void write_Knk_plaintext(const std::string &fname,
 //==============================================================================
 void write_Ktot_plaintext(
     const std::string &fname,
-    const std::vector<std::vector<std::vector<float>>> &AK, const Grid &qgrid,
+    const std::vector<std::vector<std::vector<double>>> &AK, const Grid &qgrid,
     const Grid &Egrid)
 // /*
 // Writes the K factor to a text-file, in GNU-plot readable format
@@ -221,7 +254,7 @@ void write_Ktot_plaintext(
     ofile << q / qMeV;
     for (auto idE = 0ul; idE < desteps; idE++) {
 
-      float AK_dEq = 0.0f;
+      double AK_dEq = 0.0f;
       for (auto j = 0ul; j < num_states; j++) {
         AK_dEq += AK[idE][j][iq];
       }
@@ -234,7 +267,7 @@ void write_Ktot_plaintext(
 
 //==============================================================================
 int akReadWrite(const std::string &fname, bool write,
-                std::vector<std::vector<std::vector<float>>> &AK,
+                std::vector<std::vector<std::vector<double>>> &AK,
                 std::vector<std::string> &nklst, double &qmin, double &qmax,
                 double &dEmin, double &dEmax)
 // /*
@@ -267,7 +300,8 @@ int akReadWrite(const std::string &fname, bool write,
     IO::FRW::binary_rw(iof, nde, row);
     IO::FRW::binary_rw(iof, ns, row);
     IO::FRW::binary_rw(iof, nq, row);
-    AK.resize(nde, std::vector<std::vector<float>>(ns, std::vector<float>(nq)));
+    AK.resize(nde,
+              std::vector<std::vector<double>>(ns, std::vector<double>(nq)));
     nklst.resize(ns);
   }
   IO::FRW::binary_rw(iof, qmin, row);

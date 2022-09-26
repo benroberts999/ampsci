@@ -73,11 +73,12 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
-  const double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
+  const double du_target = (M_PI / 15.0) / std::sqrt(2.0 * demax);
   const auto du = wf.grid().du();
   if (du > du_target) {
     const auto new_num_points = Grid::calc_num_points_from_du(
-        wf.grid().r0(), wf.grid().rmax(), du_target, GridType::loglinear, 4.0);
+        wf.grid().r0(), wf.grid().rmax(), du_target, GridType::loglinear,
+        wf.grid().loglin_b());
     const auto old_num_points = wf.grid().num_points();
     // num_points = (int)new_num_points;
     std::cerr
@@ -110,10 +111,10 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   //////////////////////////////////////////////////
 
   // Arrays to store results for outputting later:
-  std::vector<std::vector<std::vector<float>>> AK; // float ok?
+  std::vector<std::vector<std::vector<double>>> AK;
   // AK[i_dE][n_core]
   const auto num_states = wf.core().size();
-  AK.resize(desteps, std::vector<std::vector<float>>(num_states));
+  AK.resize(desteps, std::vector<std::vector<double>>(num_states));
 
   // Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst; // human-readiable state labels (easy
