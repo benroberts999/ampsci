@@ -25,17 +25,15 @@ double CLkk_DLkk(int L, int ka, int kb, std::string dmec)
 // */
 {
   int la;
-  int lb = AtomData::l_k(kb);
-  int two_ja = AtomData::twoj_k(ka);
-  int two_jb = AtomData::twoj_k(kb);
+  int lb = Angular::l_k(kb);
+  int two_ja = Angular::twoj_k(ka);
+  int two_jb = Angular::twoj_k(kb);
 
   if (dmec == "Pseudovector" || dmec == "Pseudoscalar") {
-    int la_tilde = AtomData::l_k(-ka);
+    int la_tilde = Angular::l_k(-ka);
     la = la_tilde;
-    // two_ja = AtomData::twoj_k(-ka);
   } else {
-    la = AtomData::l_k(ka);
-    // two_ja = AtomData::twoj_k(ka);
+    la = Angular::l_k(ka);
   }
 
   if ((la + lb + L) % 2 != 0)
@@ -72,7 +70,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
   int lc_min = std::max(l - max_L, 0);
   if (ec > 0) {
     if (zeff_cont) {
-      cntm.solveContinuumZeff(ec, lc_min, lc_max, psi.en(), (double)psi.n,
+      cntm.solveContinuumZeff(ec, lc_min, lc_max, psi.en(), (double)psi.n(),
                               force_orthog, &psi);
     } else {
       cntm.solveContinuumHF(ec, lc_min, lc_max, force_rescale, subtract_self,
@@ -87,30 +85,30 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
   for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
     for (const auto &phic : cntm.orbitals) {
       // double dC_Lkk_sqrt = CLkk_sqrt((int)L, psi.k, phic.k);
-      double dC_Lkk = CLkk_DLkk((int)L, psi.k, phic.k, dmec);
+      double dC_Lkk = CLkk_DLkk((int)L, psi.kappa(), phic.kappa(), dmec);
       if (dC_Lkk == 0)
         continue;
       //#pragma omp parallel for
       for (std::size_t iq = 0; iq < qsteps; iq++) {
         double a = 0.;
-        double a_noj = 0;
+        // double a_noj = 0;
         auto maxj = psi.max_pt(); // don't bother going further
         // Need to change this so that aff, agg, afg, & agf are all
         // calculated everytime -> separate function or if checks?
         double aff = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
-                                        jLqr_f[L][iq], wf.rgrid->drdu());
+                                        jLqr_f[L][iq], wf.grid().drdu());
         double agg = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
-                                        jLqr_f[L][iq], wf.rgrid->drdu());
+                                        jLqr_f[L][iq], wf.grid().drdu());
         double afg = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
-                                        jLqr_f[L][iq], wf.rgrid->drdu());
+                                        jLqr_f[L][iq], wf.grid().drdu());
         double agf = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
-                                        jLqr_f[L][iq], wf.rgrid->drdu());
+                                        jLqr_f[L][iq], wf.grid().drdu());
 
         // Not working?
-        double aff_noj = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
-                                            wf.rgrid->drdu());
-        double agg_noj = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
-                                            wf.rgrid->drdu());
+        // double aff_noj = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
+        //                                     wf.grid().drdu());
+        // double agg_noj = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
+        //                                     wf.grid().drdu());
         // a = (aff + agg) * wf.rgrid->du();
         // a_noj = (aff_noj + agg_noj) * wf.rgrid->du();
         // if ((alt_akf) && (psi.k == phic.k)) {
@@ -131,6 +129,10 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
         //   agf -= NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
         //                             wf.rgrid->drdu());
         // }
+        if (alt_akf) {
+          // getting rid of compiler warning for now
+        }
+
         if (dmec == "Vector") {
           a = (aff + agg);
         } else if (dmec == "Scalar") {
@@ -141,7 +143,7 @@ calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
           a = afg + agf;
         }
         AK_nk_q[iq] +=
-            (float)(dC_Lkk * std::pow(a * wf.rgrid->du(), 2) * x_ocf);
+            (float)(dC_Lkk * std::pow(a * wf.grid().du(), 2) * x_ocf);
       } // q
     }   // END loop over cntm states (ic)
   }     // end L loop

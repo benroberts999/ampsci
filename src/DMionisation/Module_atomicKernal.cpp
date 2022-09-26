@@ -139,7 +139,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Arrays to store results for outputting later:
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
-  const auto num_states = wf.core.size();
+  const auto num_states = wf.core().size();
   AK.resize(desteps, std::vector<std::vector<float>>(num_states));
 
   // Store state info (each orbital) [just useful for plotting!]
@@ -171,8 +171,8 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   for (std::size_t ide = 0; ide < desteps; ide++) {
     const double dE = Egrid.r(ide);
     // Loop over core (bound) states:
-    for (std::size_t is = 0; is < wf.core.size(); is++) {
-      const auto &psi = wf.core[is];
+    for (std::size_t is = 0; is < wf.core().size(); is++) {
+      const auto &psi = wf.core()[is];
       const auto l = std::size_t(psi.l());
       if ((int)l > max_l)
         continue;

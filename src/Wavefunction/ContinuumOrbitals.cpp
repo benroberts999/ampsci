@@ -178,7 +178,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     // Forcing orthogonality between continuum states and current core state
     const auto &psi = *p_psi;
     if ((p_psi != nullptr) && (force_orthog)) {
-      if (psi.k == Fc.k) {
+      if (psi.kappa() == Fc.kappa()) {
         std::cout << "Before forcing orthog: <" << Fc.shortSymbol() << "|"
                   << psi.shortSymbol() << "> = ";
         printf("%.1e\n", Fc * psi);
@@ -262,22 +262,22 @@ int ContinuumOrbitals::solveContinuumZeff(double ec, int min_l, int max_l,
 
   // loop through each kappa state
   for (int k_i = 0; true; ++k_i) {
-    const auto kappa = AtomData::kappaFromIndex(k_i);
-    const auto l = AtomData::l_k(kappa);
+    const auto kappa = Angular::kappaFromIndex(k_i);
+    const auto l = Angular::l_k(kappa);
     if (l < min_l)
       continue;
     if (l > max_l)
       break;
 
     auto &Fc = orbitals.emplace_back(0, kappa, rgrid);
-    Fc.set_en() = ec;
+    Fc.en() = ec;
     // solve initial, without exchange term
     DiracODE::solveContinuum(Fc, ec, vc, cgrid, r_asym, alpha);
 
     // Forcing orthogonality between continuum states and current core state
     const auto &psi = *p_psi;
     if ((p_psi != nullptr) && (force_orthog)) {
-      if (psi.k == Fc.k) {
+      if (psi.kappa() == Fc.kappa()) {
         std::cout << "Before forcing orthog: <" << Fc.shortSymbol() << "|"
                   << psi.shortSymbol() << "> = ";
         printf("%.1e\n", Fc * psi);

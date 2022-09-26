@@ -35,9 +35,9 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto fname = input.get("filename", std::string{""});
 
   // Method options for solveContinuumHF
-  auto force_rescale = input.get<bool>("force_rescale", false);
+  // auto force_rescale = input.get<bool>("force_rescale", false);
   // auto subtract_self = input.get<bool>("subtract_self", false);
-  auto force_orthog = input.get<bool>("force_orthog", false);
+  // auto force_orthog = input.get<bool>("force_orthog", false);
 
   // n=0 invalid -> nullptr
   auto n = input.get<int>("n", 0);
@@ -59,7 +59,7 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "At energy: ";
   for (const auto en_c : en_list) {
     std::cout << en_c << ", ";
-    cntm.solveContinuumHF(en_c, lmax);
+    cntm.solveContinuumHF(en_c, lmax, false, false, false);
   }
   std::cout << "\n";
 

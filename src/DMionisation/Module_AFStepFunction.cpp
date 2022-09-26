@@ -50,7 +50,7 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   const Grid Egrid({desteps, demin, demax, 0, GridType::logarithmic});
   const Grid qgrid({qsteps, qmin, qmax, 0, GridType::logarithmic});
 
-  const auto max_l_core = wf.maxCore_l();
+  const auto max_l_core = DiracSpinor::max_l(wf.core());
   auto max_l = input.get<int>("max_l_bound", max_l_core);
   if (max_l < 0 || max_l > max_l_core)
     max_l = max_l_core;
@@ -67,11 +67,11 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   // Make sure h (large-r step size) is small enough to
   // calculate (normalise) cntm functions with energy = demax
   double du_target = (M_PI / 20.) / std::sqrt(2. * demax);
-  auto du = wf.rgrid->du();
+  auto du = wf.grid().du();
   if (du > du_target) {
     auto new_num_points = Grid::calc_num_points_from_du(
-        wf.rgrid->r0(), wf.rgrid->rmax(), du_target, GridType::loglinear, 4.0);
-    auto old_num_points = wf.rgrid->num_points();
+        wf.grid().r0(), wf.grid().rmax(), du_target, GridType::loglinear, 4.0);
+    auto old_num_points = wf.grid().num_points();
     // num_points = (int)new_num_points;
     std::cerr
         << "\nWARNING 118: Grid not dense enough for contimuum state with "
@@ -93,9 +93,10 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Output HF results:
   std::cout << "  state   k     En (au)    En (eV)   Oc.Frac.\n";
-  for (const auto &phi : wf.core) {
-    printf(" %7s %2i %11.5f %10.2f   [%3.2f]", phi.symbol().c_str(), phi.k,
-           phi.en(), phi.en() * PhysConst::Hartree_eV, phi.occ_frac());
+  for (const auto &phi : wf.core()) {
+    printf(" %7s %2i %11.5f %10.2f   [%3.2f]", phi.symbol().c_str(),
+           phi.kappa(), phi.en(), phi.en() * PhysConst::Hartree_eV,
+           phi.occ_frac());
     if (phi.l() > max_l)
       std::cout << " (excluded from K)";
     std::cout << "\n";
@@ -106,7 +107,7 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Arrays to store results for outputting later:
   std::vector<std::vector<std::vector<float>>> AK; // float ok?
-  const auto num_states = wf.core.size();
+  const auto num_states = wf.core().size();
   AK.resize(desteps, std::vector<std::vector<float>>(num_states));
 
   // Arrays to store input K table
@@ -115,12 +116,12 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
                            num_states, std::vector<float>(qsteps)));
 
   std::vector<std::string> nklst;
-  nklst.reserve(wf.core.size());
-  for (auto &phi : wf.core)
+  nklst.reserve(wf.core().size());
+  for (auto &phi : wf.core())
     nklst.emplace_back(phi.symbol(true));
 
   std::vector<double> eabove;
-  eabove.reserve(wf.core.size());
+  eabove.reserve(wf.core().size());
 
   // Start timer
   timer.start();
@@ -149,8 +150,8 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   for (std::size_t ide = 0; ide < desteps; ide++) {
     double dE = Egrid.r()[ide];
     // Loop over core (bound) states:
-    for (std::size_t is = 0; is < wf.core.size(); is++) {
-      const auto &psi = wf.core[is];
+    for (std::size_t is = 0; is < wf.core().size(); is++) {
+      const auto &psi = wf.core()[is];
       const auto l = std::size_t(psi.l());
       if ((int)l > max_l)
         continue;
