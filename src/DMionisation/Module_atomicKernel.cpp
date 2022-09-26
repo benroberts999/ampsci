@@ -1,4 +1,4 @@
-#include "DMionisation/Module_atomicKernal.hpp"
+#include "DMionisation/Module_atomicKernel.hpp"
 #include "DMionisation/AKF_akFunctions.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "HF/HartreeFock.hpp"
@@ -13,7 +13,7 @@
 namespace Module {
 
 //==============================================================================
-void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
+void atomicKernel(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer;
 
   input.check(
@@ -96,7 +96,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
     fname += "_" + label;
 
   // Print some info to screen:
-  std::cout << "\nRunning Atomic Kernal for " << wf.atom() << "\n";
+  std::cout << "\nRunning Atomic Kernel for " << wf.atom() << "\n";
   std::cout << "================================================*\n";
 
   // Output HF results:
@@ -133,7 +133,7 @@ void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf) {
   const DiracOperator::jL jl(wf.grid(), qgrid, std::size_t(max_L));
 
   // Calculate the AK (print to screen)
-  std::cout << "\nCalculating atomic kernal AK(q,dE):\n";
+  std::cout << "\nCalculating atomic kernel AK(q,dE):\n";
   printf(" dE: %5.2f -- %5.1f keV  (%.2f -- %.1f au)  [N=%i]\n", demin / keV,
          demax / keV, demin, demax, (int)desteps);
   printf("  q: %5.0e -- %5.1g MeV  (%.2f -- %.1f au)  [N=%i]\n", qmin / qMeV,

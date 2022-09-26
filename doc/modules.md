@@ -14,7 +14,7 @@ They are:
 
 - Tests
 - WriteOrbitals
-- AtomicKernal
+- AtomicKernel
 - BohrWeisskopf
 - HFAnomaly
 - HF_rmag

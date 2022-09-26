@@ -7,6 +7,6 @@ class InputBlock;
 
 namespace Module {
 
-void atomicKernal(const IO::InputBlock &input, const Wavefunction &wf);
+void atomicKernel(const IO::InputBlock &input, const Wavefunction &wf);
 
 } // namespace Module
