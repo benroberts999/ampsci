@@ -27,7 +27,7 @@ bool NonRelConfig::ok() const {
 double NonRelConfig::frac() const {
   const int filling = 2 * (2 * l + 1);
   return (num < filling) ? double(num) / double(filling) : 1.0;
-};
+}
 
 // comparitor overloads: compare n then l only
 bool operator==(const NonRelConfig &lhs, const NonRelConfig &rhs) {

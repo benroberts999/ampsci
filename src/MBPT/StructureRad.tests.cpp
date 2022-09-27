@@ -29,10 +29,12 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
     for (const auto &b : srn.excited()) {
       if (h.isZero(a, b))
         continue;
-      assert(tab.get(a, b) != nullptr);
-      assert(tab.get(b, a) != nullptr);
-      const auto [srab, xab] = *tab.get(a, b);
-      const auto [srba, xba] = *tab.get(b, a);
+      const auto tab_ab = tab.get(a, b);
+      const auto tab_ba = tab.get(b, a);
+      REQUIRE(tab_ab != nullptr);
+      REQUIRE(tab_ba != nullptr);
+      const auto [srab, xab] = *tab_ab;
+      const auto [srba, xba] = *tab_ba;
       REQUIRE(std::abs(srab - h.symm_sign(a, b) * srba) < 1.0e-10);
 
       const auto srn0 = srn.srTB(&h, a, b).first + srn.srC(&h, a, b).first +

@@ -2,6 +2,7 @@
 #include "Angular/Wigner369j.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include "LinAlg/Matrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Maths/SphericalBessel.hpp"
@@ -15,113 +16,79 @@
 namespace AKF {
 
 //==============================================================================
-std::vector<double> K_q(double dE, const DiracSpinor &Fa,
-                        const HF::HartreeFock *hf,
-                        const DiracOperator::jL &jl) {
-  const auto q_points = jl.q_grid().num_points();
-  std::vector<double> kq_out(q_points);
+std::vector<double>
+calculateK_nk(const Wavefunction &wf, const DiracSpinor &Fa, int max_L,
+              double dE,
+              // const std::vector<std::vector<std::vector<double>>> &jLqr_f,
+              const DiracOperator::jL &jl, bool subtract_1, bool force_rescale,
+              bool subtract_self, bool force_orthog, bool zeff_cont)
+// Calculates the atomic factor for a given core state (is) and energy.
+// Note: dE = I + ec is depositied energy, not cntm energy
+// Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
+// Zeff no longer works at main() level.
+{
+  std::vector<double> AK_nk_q;
+  const auto qsteps = jl.q_grid().num_points();
+  AK_nk_q.resize(qsteps);
 
-  const auto ec = dE + Fa.en();
-  if (ec < 0.0)
-    return kq_out;
+  // Convert energy deposition to contimuum state energy:
+  double ec = dE + Fa.en();
+  if (ec <= 0.0)
+    return AK_nk_q;
 
-  const int lc_max = Fa.l() + int(jl.max_L()) + 1;
-  const int lc_min = std::max(0, Fa.l() - int(jl.max_L()) - 1);
-  const auto x = Fa.occ_frac(); // normally 1
+  const int l = Fa.l();
+  const int lc_max = l + max_L;
+  const int lc_min = std::max(l - max_L, 0);
+  const double x_ocf = Fa.occ_frac(); // occupancy fraction. Usually 1
 
-  ContinuumOrbitals cntm(hf); // create cntm object [survives locally only]
-  // nb: passing in ptr to Fa subtracts self interaction; otherwise, doesn't
-  cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa);
+  ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
+  if (zeff_cont) {
+    // Same Zeff as used by DarkARC (eqn B35 of arxiv:1912.08204):
+    // Zeff = sqrt{I_{njl} eV / 13.6 eV} * n
+    // au: Zeff = sqrt{2 * I_{njl}} * n
+    const double Zeff = std::sqrt(-2.0 * Fa.en()) * Fa.n();
+    cntm.solveContinuumZeff(ec, lc_min, lc_max, Zeff, &Fa, force_orthog);
+  } else {
+    cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale, subtract_self,
+                          force_orthog);
+  }
 
-#pragma omp parallel for
-  for (std::size_t iq = 0; iq < q_points; ++iq) {
+  if (subtract_1 && (jl.name() != "jL" && jl.name() != "g0jL")) {
+    std::cout << "\nWARNING: subtract 1 option currently only works for vector "
+                 "and scalar operator (due to factoring out i)\n";
+    subtract_1 = false;
+  }
+
+  // Definition of matrix element:
+  // matrix element defined such that:
+  // K(E,q) = (2L+1) * |me|^2
+  // me = <a||jL||e>
+  // Now that we have 'me' directly (rather than me^2), we can -1 easily:
+  // <a| jL - 1 |e> = <a| jL |e> - <a|e>
+  // note: only works for vector/scalar, since for pseudo-cases,
+  // we factored out factor of i from me
+
+  // Generate AK for each L, lc, and q
+  // L and lc are summed, not stored individually
+  for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
     for (const auto &Fe : cntm.orbitals) {
-      for (std::size_t L = 0; L <= jl.max_L(); ++L) {
-        if (jl.is_zero(Fa, Fe, L))
-          continue;
+      if (jl.is_zero(Fe, Fa, L))
+        continue;
+#pragma omp parallel for
+      for (std::size_t iq = 0; iq < qsteps; iq++) {
         const auto q = jl.q_grid().r(iq);
         auto me = jl.rme(Fa, Fe, L, q);
-        if (Fa.kappa() == Fe.kappa()) {
-          me -= Fa * Fe;
+        if (subtract_1 && (L == 0 && Fe.kappa() == Fa.kappa())) {
+          me -= Fe * Fa;
         }
-        kq_out.at(iq) += double(2 * L + 1) * me * me * x;
+        AK_nk_q[iq] += double(2 * L + 1) * me * me * x_ocf;
       }
     }
   }
-
-  return kq_out;
+  return AK_nk_q;
 }
 
 //==============================================================================
-std::vector<double> K_tilde_q(double dE, const DiracSpinor &Fa,
-                              const HF::HartreeFock *hf,
-                              const DiracOperator::jL &jl) {
-
-  // sems to work perfectly at large q, but very poorly at small q
-  const auto q_points = jl.q_grid().num_points();
-  std::vector<double> kq_out(q_points);
-  if (dE < std::abs(Fa.en()))
-    return kq_out;
-
-  const auto ec = 100.0;
-
-  const int lc_max = Fa.l() + int(jl.max_L()) + 1;
-  const int lc_min = std::max(0, Fa.l() - int(jl.max_L()) - 1);
-  const auto x = Fa.occ_frac(); // normally 1
-
-  ContinuumOrbitals cntm(hf); // create cntm object [survives locally only]
-  // nb: passing in ptr to Fa subtracts self interaction; otherwise, doesn't
-  cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa);
-
-#pragma omp parallel for
-  for (std::size_t iq = 0; iq < q_points; ++iq) {
-    for (const auto &Fe : cntm.orbitals) {
-      for (std::size_t L = 0; L <= jl.max_L(); ++L) {
-        if (jl.is_zero(Fa, Fe, L))
-          continue;
-        const auto q = jl.q_grid().r(iq);
-        const auto me = jl.rme(Fa, Fe, L, q);
-        kq_out.at(iq) += double(2 * L + 1) * me * me * x;
-      }
-    }
-  }
-
-  return kq_out;
-}
-
-//==============================================================================
-// double CLkk(int L, int ka, int kb)
-//******************************************************************************
-double CLkk_DLkk(int L, int ka, int kb, std::string dmec)
-// /*
-// Selects angular coefficient based on DM-electron coupling
-// Vector & scalar cases:
-// C_{k}^{k',L} = [j][j'][L] * (j,j',L, -1/,1/2,0)^2 * pi(l+l'+L)
-// Pseudovector & pseudoscalar cases:
-// D_{k}^{k',L} related to C_{k}^{k',L} via transformation
-// k -> k_tilde = -k, l -> l_tilde = |k_tilde + 1/2| - 1/2
-// */
-{
-  int la;
-  int lb = Angular::l_k(kb);
-  int two_ja = Angular::twoj_k(ka);
-  int two_jb = Angular::twoj_k(kb);
-
-  if (dmec == "Pseudovector" || dmec == "Pseudoscalar") {
-    int la_tilde = Angular::l_k(-ka);
-    la = la_tilde;
-  } else {
-    la = Angular::l_k(ka);
-  }
-
-  if ((la + lb + L) % 2 != 0)
-    return 0; // Parity rule
-
-  const double tjs = Angular::threej_2(two_jb, two_ja, 2 * L, -1, 1, 0);
-  return (two_ja + 1) * (two_jb + 1) * (2 * L + 1) * tjs * tjs;
-}
-
-//******************************************************************************
 double Heaviside(double x)
 // Heaviside step function: Theta(x) = {(1 for x>0) and (0 for x<=0)}
 {
@@ -129,137 +96,25 @@ double Heaviside(double x)
 }
 
 //==============================================================================
-std::vector<double>
-calculateK_nk(const Wavefunction &wf, const DiracSpinor &psi, int max_L,
-              double dE,
-              const std::vector<std::vector<std::vector<double>>> &jLqr_f,
-              bool alt_akf, bool force_rescale, bool subtract_self,
-              bool force_orthog, std::string dmec, bool zeff_cont)
-// Calculates the atomic factor for a given core state (is) and energy.
-// Note: dE = I + ec is depositied energy, not cntm energy
-// Zeff is '-1' by default. If Zeff > 0, will solve w/ Zeff model
-// Zeff no longer works at main() level.
-{
-  ContinuumOrbitals cntm(wf); // create cntm object [survives locally only]
-
-  const auto qsteps = jLqr_f[0].size();
-
-  std::vector<double> AK_nk_q;
-  AK_nk_q.resize(qsteps); // use +=, so can't use .push_back()
-
-  // Calculate continuum wavefunctions
-  double ec = dE + psi.en();
-  // cntm.clear();
-  const int l = psi.l();
-  int lc_max = l + max_L;
-  int lc_min = std::max(l - max_L, 0);
-  if (ec > 0) {
-    if (zeff_cont) {
-      cntm.solveContinuumZeff(ec, lc_min, lc_max, psi.en(), (double)psi.n(),
-                              force_orthog, &psi);
-    } else {
-      cntm.solveContinuumHF(ec, lc_min, lc_max, force_rescale, subtract_self,
-                            force_orthog, &psi);
-    }
-  }
-
-  const double x_ocf = psi.occ_frac(); // occupancy fraction. Usually 1
-
-  // Generate AK for each L, lc, and q
-  // L and lc are summed, not stored individually
-  for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
-    for (const auto &phic : cntm.orbitals) {
-      double dC_Lkk = CLkk_DLkk((int)L, psi.kappa(), phic.kappa(), dmec);
-      if (dC_Lkk == 0)
-        continue;
-      //#pragma omp parallel for
-      for (std::size_t iq = 0; iq < qsteps; iq++) {
-        double a = 0.;
-        // double a_noj = 0;
-        auto maxj = psi.max_pt(); // don't bother going further
-        // Need to change this so that aff, agg, afg, & agf are all
-        // calculated everytime -> separate function or if checks?
-        double aff = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.f(),
-                                        jLqr_f[L][iq], wf.grid().drdu());
-        double agg = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.g(),
-                                        jLqr_f[L][iq], wf.grid().drdu());
-        double afg = NumCalc::integrate(1.0, 0, maxj, psi.f(), phic.g(),
-                                        jLqr_f[L][iq], wf.grid().drdu());
-        double agf = NumCalc::integrate(1.0, 0, maxj, psi.g(), phic.f(),
-                                        jLqr_f[L][iq], wf.grid().drdu());
-
-        if (alt_akf) {
-          // getting rid of compiler warning for now
-        }
-
-        if (dmec == "Vector") {
-          a = (aff + agg);
-        } else if (dmec == "Scalar") {
-          a = aff - agg;
-        } else if (dmec == "Pseudovector") {
-          a = afg - agf;
-        } else if (dmec == "Pseudoscalar") {
-          a = afg + agf;
-        }
-        AK_nk_q[iq] += (dC_Lkk * std::pow(a * wf.grid().du(), 2) * x_ocf);
-      } // q
-    }   // END loop over cntm states (ic)
-  }     // end L loop
-  return AK_nk_q;
-}
-
-//******************************************************************************
-std::vector<double> stepK_nk(const DiracSpinor &psi, double dE,
+std::vector<double> stepK_nk(const DiracSpinor &Fa, double dE,
                              const std::vector<double> &AFBE_table)
 /*
 Approximates atomic factor using table generated by AFBindingEnergy
 */
 {
-  // q range needs to be the same for the table and AK
-  const auto qsteps = AFBE_table.size();
+  using namespace qip::overloads;
+  return Heaviside(dE + Fa.en()) * AFBE_table;
 
-  std::vector<double> AK_nk_step;
-  AK_nk_step.resize(qsteps);
+  // // q range needs to be the same for the table and AK
+  // const auto qsteps = AFBE_table.size();
 
-  for (std::size_t iq = 0; iq < qsteps; iq++) {
-    AK_nk_step[iq] += Heaviside(dE + psi.en()) * AFBE_table[iq];
-  }
+  // std::vector<double> AK_nk_step;
+  // AK_nk_step.resize(qsteps);
+
+  // for (std::size_t iq = 0; iq < qsteps; iq++) {
+  //   AK_nk_step[iq] += Heaviside(dE + Fa.en()) * AFBE_table[iq];
   // }
-  return AK_nk_step;
-}
-
-//******************************************************************************
-std::vector<double>
-calculateKpw_nk(const Wavefunction &wf, const DiracSpinor &psi, double dE,
-                const std::vector<std::vector<double>> &jl_qr)
-// /*
-// For plane-wave final state.
-// Only has f-part....Can restore g-part, but need to be sure of plane-wave!
-// Chi(q) - Int[ f_nk*j_l(qr)*r , {r,0,inf}]
-// Should be called once per initial state
-{
-
-  const int twoj = psi.twoj(); // wf.twoj(nk);
-
-  const auto qsteps = jl_qr.size();
-  std::vector<double> tmpK_q(qsteps);
-
-  const double eps = dE - psi.en();
-  const auto maxir = psi.max_pt(); // don't bother going further
-
-  if (eps <= 0)
-    return tmpK_q;
-
-  for (auto iq = 0ul; iq < qsteps; iq++) {
-    const double chi_q =
-        NumCalc::integrate(wf.grid().du(), 0, maxir, psi.f(), jl_qr[iq],
-                           wf.grid().r(), wf.grid().drdu());
-    tmpK_q[iq] =
-        (2.0 / M_PI) * (twoj + 1) * std::pow(chi_q, 2) * std::sqrt(2.0 * eps);
-    // tmpK_q[iq] = std::pow(4*3.14159,2)*std::pow(chi_q,2); // just cf KOPP
-  }
-
-  return tmpK_q;
+  // return AK_nk_step;
 }
 
 //==============================================================================
@@ -274,12 +129,15 @@ void write_Knk_plaintext(
   const auto desteps = AK.size();       // dE
   const auto num_states = AK[0].size(); // nk
   const auto qsteps = AK[0][0].size();  // q
+  assert(nklst.size() == num_states);
+  assert(qgrid.num_points() == qsteps);
+  assert(Egrid.num_points() == desteps);
 
   const double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
   const double keV = (1.e3 / PhysConst::Hartree_eV);
 
-  std::ofstream ofile;
-  ofile.open(fname + ".txt");
+  std::ofstream ofile(fname + "_nk.txt");
+
   ofile << "dE(keV) q(MeV) ";
   for (const auto &nk : nklst) {
     ofile << nk << " ";
@@ -290,7 +148,7 @@ void write_Knk_plaintext(
       const auto q = qgrid.r(iq);
       const auto dE = Egrid.r(idE);
       ofile << dE / keV << " " << q / qMeV << " ";
-      double sum = 0.0f;
+      double sum = 0.0;
       for (auto j = 0ul; j < num_states; j++) {
         sum += AK[idE][j][iq];
         ofile << AK[idE][j][iq] << " ";
@@ -300,55 +158,41 @@ void write_Knk_plaintext(
     if (qsteps > 1)
       ofile << "\n";
   }
-  ofile.close();
 }
 
 //==============================================================================
-void write_Ktot_plaintext(
-    const std::string &fname,
-    const std::vector<std::vector<std::vector<double>>> &AK, const Grid &qgrid,
-    const Grid &Egrid)
-// /*
-// Writes the K factor to a text-file, in GNU-plot readable format
-// XXX NOTE: Re-creates grids! Could use Grid class!
-// XXX This mean we MUST use exponential Grid! Fix this! XXX
-// */
-{
-  const auto desteps = AK.size();       // dE
-  const auto num_states = AK[0].size(); // nk
-  const auto qsteps = AK[0][0].size();  // q
+void write_Ktot_plaintext(const std::string &fname,
+                          const LinAlg::Matrix<double> &Keq, const Grid &Egrid,
+                          const Grid &qgrid) {
+  std::ofstream ofile(fname + "_tot.txt");
 
-  const double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
   const double keV = (1.e3 / PhysConst::Hartree_eV);
+  const double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
 
-  std::ofstream ofile;
-  ofile.open(fname + "_tot.txt");
-  ofile << "# K_tot(dE,q): dE is rows, q is cols; first row/col is dE/q "
-           "values\n";
-  ofile << "q(MeV)/dE(keV)";
-  for (auto idE = 0ul; idE < desteps; idE++) {
-    const auto dE = Egrid.r(idE);
-    ofile << " " << dE / keV;
-  }
-  ofile << "\n";
+  ofile << "# Total ionisation factor K(E,q)\n";
+  ofile << "# In form: E/keV q/MeV K\n";
+  ofile << "# Each new E is a new block\n";
+  ofile << "# E grid in keV: " << Egrid.r0() / keV << " - "
+        << Egrid.rmax() / keV << " in " << Egrid.num_points()
+        << " logarithmic steps.\n";
+  ofile << "# q grid in MeV: " << qgrid.r0() / qMeV << " - "
+        << qgrid.rmax() / qMeV << " in " << qgrid.num_points()
+        << " logarithmic steps.\n";
 
-  for (auto iq = 0ul; iq < qsteps; iq++) {
-    const auto q = qgrid.r(iq);
-    ofile << q / qMeV;
-    for (auto idE = 0ul; idE < desteps; idE++) {
+  assert(Keq.rows() == Egrid.num_points());
+  assert(Keq.cols() == qgrid.num_points());
 
-      double AK_dEq = 0.0f;
-      for (auto j = 0ul; j < num_states; j++) {
-        AK_dEq += AK[idE][j][iq];
-      }
-      ofile << " " << AK_dEq;
+  for (auto ie = 0ul; ie < Egrid.num_points(); ie++) {
+    for (auto iq = 0ul; iq < qgrid.num_points(); iq++) {
+      const auto E_keV = Egrid.r(ie) / keV;
+      const auto q_MeV = qgrid.r(iq) / qMeV;
+      ofile << E_keV << " " << q_MeV << " " << Keq(ie, iq) << "\n";
     }
-    ofile << "\n";
+    ofile << '\n';
   }
-  ofile.close();
 }
 
-//******************************************************************************
+//==============================================================================
 void writeToTextFile_AFBE(
     const std::string &fname,
     const std::vector<std::vector<std::vector<double>>> &AK,
@@ -356,19 +200,18 @@ void writeToTextFile_AFBE(
     const std::vector<double> deion)
 // /*
 // Writes the K factor to a text-file, in GNU-plot readable format
-// XXX NOTE: Re-creates grids! Could use Grid class!
-// XXX This mean we MUST use exponential Grid! Fix this! XXX
 // */
 {
-  // int desteps = (int)AK.size();       // dE
+
   const auto num_states = AK[0].size(); // nk
   const auto qsteps = AK[0][0].size();  // q
+  assert(qgrid.num_points() == qsteps);
+  assert(deion.size() == num_states);
 
-  const double qMeV = (1.e6 / (PhysConst::Hartree_eV * PhysConst::c));
-  const double keV = (1.e3 / PhysConst::Hartree_eV);
+  const double qMeV = (1.0e6 / (PhysConst::Hartree_eV * PhysConst::c));
+  const double keV = (1.0e3 / PhysConst::Hartree_eV);
 
-  std::ofstream ofile;
-  ofile.open(fname + ".txt");
+  std::ofstream ofile(fname + ".txt");
   ofile << "q(MeV) ";
   for (const auto &nk : nklst) {
     ofile << "dE(keV) " << nk << " ";
@@ -377,7 +220,7 @@ void writeToTextFile_AFBE(
   for (auto iq = 0ul; iq < qsteps; iq++) {
     const auto q = qgrid.r(iq);
     ofile << q / qMeV << " ";
-    double sum = 0.0f;
+    double sum = 0.0;
     for (auto j = 0ul; j < num_states; j++) {
       sum += AK[0][j][iq];
       ofile << deion[j] / keV << " " << AK[0][j][iq] << " ";
@@ -386,10 +229,9 @@ void writeToTextFile_AFBE(
   }
   if (qsteps > 1)
     ofile << "\n";
-  ofile.close();
 }
 
-//******************************************************************************
+//==============================================================================
 int akReadWrite(const std::string &fname, bool write,
                 std::vector<std::vector<std::vector<double>>> &AK,
                 std::vector<std::string> &nklst, double &qmin, double &qmax,
@@ -447,7 +289,7 @@ int akReadWrite(const std::string &fname, bool write,
   return 0;
 }
 
-//******************************************************************************
+//==============================================================================
 int akReadWrite_AFBE(const std::string &fname, bool write,
                      std::vector<std::vector<std::vector<double>>> &AK,
                      std::vector<std::string> &nklst, double &qmin,
@@ -493,62 +335,6 @@ int akReadWrite_AFBE(const std::string &fname, bool write,
   }
 
   return 0;
-} // namespace AKF
-
-/*
-int calculateK_nk()
-*/
-
-//******************************************************************************
-std::vector<std::vector<std::vector<double>>>
-sphericalBesselTable(int max_L, const std::vector<double> &q_array,
-                     const std::vector<double> &r)
-// /*
-// Creates a look-up table w/ spherical Bessel functions. For speed.
-// Uses SphericalBessel
-// */
-{
-  std::cout << "\n";
-  const auto num_points = r.size();
-  const auto qsteps = q_array.size();
-
-  std::vector<std::vector<std::vector<double>>> jLqr_f;
-  jLqr_f.resize(std::size_t(max_L) + 1,
-                std::vector<std::vector<double>>(
-                    qsteps, std::vector<double>(num_points)));
-  for (auto L = 0u; L <= unsigned(max_L); L++) {
-    std::cout << "\rCalculating spherical Bessel look-up table for L=" << L
-              << "/" << max_L << " .. " << std::flush;
-#pragma omp parallel for collapse(2)
-    for (auto iq = 0ul; iq < qsteps; iq++) {
-      for (auto ir = 0ul; ir < num_points; ir++) {
-        const double q = q_array[iq];
-        double tmp = SphericalBessel::JL(int(L), q * r[ir]);
-        // If q(dr) is too large, "missing" j_L oscillations
-        //(overstepping them). This helps to fix that.
-        // By averaging the J_L function. Note: only works if wf is smooth
-        int num_extra = 0;
-        if (ir < num_points - 1) {
-          const double qdrop = q * (r[ir + 1] - r[ir]) / M_PI;
-          const double min_qdrop = 0.01; // require 100 pts per half wavelength!
-          if (qdrop > min_qdrop)
-            num_extra = int(qdrop / min_qdrop) + 3;
-        }
-        { // Include 'extra' points into j_L (avg):
-          for (auto i = 0; i < num_extra; i++) {
-            const double b = (i + 1.0) / (num_extra + 1.0);
-            const double a = 1.0 - b;
-            const double qrtmp = q * (a * r[ir] + b * r[ir + 1]);
-            tmp += SphericalBessel::JL(int(L), qrtmp);
-          }
-          tmp /= (num_extra + 1);
-        }
-        jLqr_f[L][iq][ir] = tmp;
-      }
-    }
-  }
-  std::cout << "done\n" << std::flush;
-  return jLqr_f;
 }
 
 } // namespace AKF

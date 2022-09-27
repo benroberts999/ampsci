@@ -59,7 +59,7 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "At energy: ";
   for (const auto en_c : en_list) {
     std::cout << en_c << ", ";
-    cntm.solveContinuumHF(en_c, lmax, false, false, false);
+    cntm.solveContinuumHF(en_c, 0, lmax, nullptr, false, false, false);
   }
   std::cout << "\n";
 

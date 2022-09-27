@@ -1,5 +1,5 @@
 #include "DMionisation/AKF_akFunctions.hpp"
-#include "DMionisation/Module_atomicKernal.hpp"
+#include "DMionisation/Module_atomicKernel.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
@@ -14,7 +14,7 @@
 
 namespace Module {
 
-//******************************************************************************
+//==============================================================================
 void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
@@ -106,14 +106,14 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   //
 
   // Arrays to store results for outputting later:
-  std::vector<std::vector<std::vector<float>>> AK; // float ok?
+  std::vector<std::vector<std::vector<double>>> AK;
   const auto num_states = wf.core().size();
-  AK.resize(desteps, std::vector<std::vector<float>>(num_states));
+  AK.resize(desteps, std::vector<std::vector<double>>(num_states));
 
   // Arrays to store input K table
-  std::vector<std::vector<std::vector<float>>> AFBE_table;
-  AFBE_table.resize(1, std::vector<std::vector<float>>(
-                           num_states, std::vector<float>(qsteps)));
+  std::vector<std::vector<std::vector<double>>> AFBE_table;
+  AFBE_table.resize(1, std::vector<std::vector<double>>(
+                           num_states, std::vector<double>(qsteps)));
 
   std::vector<std::string> nklst;
   nklst.reserve(wf.core().size());
@@ -164,7 +164,7 @@ void AFStepFunction(const IO::InputBlock &input, const Wavefunction &wf) {
   // Write out to text file (in gnuplot friendly form)
   if (text_out) {
     AKF::write_Knk_plaintext(fname, AK, nklst, qgrid, Egrid);
-    AKF::write_Ktot_plaintext(fname, AK, qgrid, Egrid);
+    // AKF::write_Ktot_plaintext(fname, AK, qgrid, Egrid);
   }
   // //Write out AK as binary file
   if (bin_out)

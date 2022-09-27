@@ -125,9 +125,7 @@ public:
   virtual double angularCfg(int, int) const override { return 0.0; }
   virtual double angularCgf(int, int) const override { return 0.0; }
 
-  virtual std::string name() const override {
-    return std::string("j") + std::to_string(m_rank);
-  }
+  virtual std::string name() const override { return std::string("jL"); }
   std::string units() const override final { return "au"; }
 };
 
@@ -145,9 +143,7 @@ public:
   double angularCfg(int, int) const override final { return 0.0; }
   double angularCgf(int, int) const override final { return 0.0; }
 
-  std::string name() const override final {
-    return std::string("g0j") + std::to_string(m_rank);
-  }
+  std::string name() const override final { return std::string("g0jL"); }
 };
 
 //------------------------------------------------------------------------------
@@ -177,9 +173,7 @@ public:
   double angularCfg(int, int) const override final { return 1.0; }
   double angularCgf(int, int) const override final { return -1.0; }
 
-  std::string name() const override final {
-    return std::string("ig5j") + std::to_string(m_rank);
-  }
+  std::string name() const override final { return std::string("ig5jL"); }
 };
 
 //------------------------------------------------------------------------------
@@ -209,9 +203,7 @@ public:
   virtual double angularCfg(int, int) const override { return 1.0; }
   virtual double angularCgf(int, int) const override { return 1.0; }
 
-  std::string name() const override final {
-    return std::string("ig0g5j") + std::to_string(m_rank);
-  }
+  std::string name() const override final { return std::string("ig0g5jL"); }
 };
 
 } // namespace DiracOperator

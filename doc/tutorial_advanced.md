@@ -25,9 +25,9 @@ This assumes you already have ampsci compiled and have a basic understanding of 
 ## Starting approximation <a name="begin"></a>
 
 The full atomic Hamiltonian for an $N$-electron atom:
-$$
+$\begin{equation}
 H = \sum_i^N h_0({r}_i) + \sum_{i<j}\frac{1}{{r}_i - {r}_j}
-$$
+\end{equation}$
 $\begin{equation}
 h_0(\vec r_i) = c \vec\alpha_i\cdot\vec p_i + c^2 (\beta_i-1) + V_{\rm nuc}.
 \end{equation}$

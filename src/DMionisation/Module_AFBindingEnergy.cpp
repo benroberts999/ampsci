@@ -1,5 +1,5 @@
 #include "DMionisation/AKF_akFunctions.hpp"
-#include "DMionisation/Module_atomicKernal.hpp"
+#include "DMionisation/Module_atomicKernel.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
@@ -14,7 +14,7 @@
 
 namespace Module {
 
-//******************************************************************************
+//==============================================================================
 void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer; // start the overall timer
 
@@ -25,7 +25,6 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
        {"max_l_bound",
         "Max. orbital ang. mom. for bound states to include (only for tests)"},
        {"max_L", "Maximum multipolarity used in exp(iqr) expansion"},
-       {"use_plane_waves", "true/false"},
        {"label", "label for output files"},
        {"output_text", "true/false (output K(dE,q) to .txt)"},
        {"use_alt_akf", " "},
@@ -54,10 +53,6 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   if (max_l < 0 || max_l > max_l_core)
     max_l = max_l_core;
   auto max_L = input.get<int>("max_L", 2 * max_l); // random default..
-
-  const bool plane_wave = input.get<bool>("use_plane_waves", false);
-  if (plane_wave)
-    max_L = max_l; // for spherical bessel.
 
   // if alt_akf then exp(iqr) -> exp(iqr) - 1 (i.e. j_L -> j_L - 1)
   auto alt_akf = input.get<bool>("use_alt_akf", false);
@@ -110,9 +105,9 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   //////////////////////////////////////////////////
 
   // Arrays to store results for outputting later:
-  std::vector<std::vector<std::vector<float>>> AK; // float ok?
+  std::vector<std::vector<std::vector<double>>> AK;
   const auto num_states = wf.core().size();
-  AK.resize(desteps, std::vector<std::vector<float>>(num_states));
+  AK.resize(desteps, std::vector<std::vector<double>>(num_states));
 
   // Store state info (each orbital) [just useful for plotting!]
   std::vector<std::string> nklst; // human-readiable state labels (easy
@@ -122,10 +117,19 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
     nklst.emplace_back(phi.symbol(true));
 
   // pre-calculate the spherical Bessel function look-up table for efficiency
-  timer.start();
-  const auto jLqr_f =
-      AKF::sphericalBesselTable(max_L, qgrid.r(), wf.grid().r());
-  std::cout << "Time for SB table: " << timer.lap_reading_str() << "\n";
+  std::cout << "\n";
+  const DiracOperator::jL jl_v(wf.grid(), qgrid, std::size_t(max_L));
+  const DiracOperator::g0jL jl_s(jl_v);
+  const DiracOperator::ig5jL jl_pv(jl_v);
+  const DiracOperator::ig0g5jL jl_ps(jl_v);
+
+  const DiracOperator::jL &jl = dmec == "Vector" ?
+                                    jl_v :
+                                    dmec == "Scalar" ?
+                                    jl_s :
+                                    dmec == "Pseudovector" ?
+                                    jl_pv :
+                                    dmec == "Pseudoscalar" ? jl_ps : jl_v;
 
   // Calculate the AK (print to screen)
   std::cout << "\nCalculating atomic kernal AK(q):\n";
@@ -142,15 +146,12 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
     double dE = -Etune_mult * wf.core()[is].en() + Etune_add;
     eabove.push_back(dE);
 
-    int l = wf.core()[is].l(); // lorb(is);
+    int l = wf.core()[is].l();
     if (l > max_l)
       continue;
-    if (plane_wave)
-      AK[0][is] = AKF::calculateKpw_nk(wf, wf.core()[is], dE, jLqr_f[l]);
-    else
-      AK[0][is] = AKF::calculateK_nk(wf, wf.core()[is], max_L, dE, jLqr_f,
-                                     alt_akf, force_rescale, subtract_self,
-                                     force_orthog, dmec, zeff_cont);
+    AK[0][is] = AKF::calculateK_nk(wf, wf.core()[is], max_L, dE, jl, alt_akf,
+                                   force_rescale, subtract_self, force_orthog,
+                                   zeff_cont);
   } // END loop over bound states
   std::cout << "..done :)\n";
   std::cout << "Time for AFBE: " << timer.lap_reading_str() << "\n";

@@ -196,8 +196,6 @@ StructureRad::srn_table(const DiracOperator::TensorOperator *const h,
     for (const auto &b : bs) {
       if (h->isZero(a, b))
         continue;
-      // if (!tab.contains(a, b)) {
-      // }
       tab.add(a, b, {0.0, 0.0});
       tab.add(b, a, {0.0, 0.0});
     }

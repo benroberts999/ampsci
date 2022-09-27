@@ -40,7 +40,6 @@ const double dsvdE_to_cm3_per_auday = dsdE_to_cm2_perau * V_to_cmday;
 
 // Some typedef short cuts
 // Just to save time/space
-using FloatVec3D = std::vector<std::vector<std::vector<float>>>;
 using DoubleVec3D = std::vector<std::vector<std::vector<double>>>;
 using DoubleVec2D = std::vector<std::vector<double>>;
 
@@ -104,7 +103,7 @@ public:
   }
 
 private:
-  std::vector<double> sum_logk_array;
+  std::vector<double> sum_logk_array{};
 };
 
 //==============================================================================
@@ -246,7 +245,7 @@ void writeForGnuplot_mxBlock(const DoubleVec3D &X_mv_mx_x, const Grid &mvgrid,
 
 //******************************************************************************
 // double dsdE_njl_Evmumx(const )
-double dsnjldE_vmvmx(const std::vector<std::vector<float>> &Ke_nq, double E,
+double dsnjldE_vmvmx(const std::vector<std::vector<double>> &Ke_nq, double E,
                      const Grid &qgrid, double v, double mv, double mx,
                      std::size_t is, double (*F_chi_2)(double, double))
 /*
@@ -279,7 +278,7 @@ calculates cross-section ds_njl/dE
 }
 
 //******************************************************************************
-double dsdE_Evmvmx(const std::vector<std::vector<float>> &Ke_nq, double E,
+double dsdE_Evmvmx(const std::vector<std::vector<double>> &Ke_nq, double E,
                    double v, double mv, double mx, const Grid &qgrid,
                    double (*F_chi_2)(double, double))
 /*
@@ -323,7 +322,7 @@ Uses a function pointer for DM form factor. F_chi_2(mu,q) := |F_chi|^2
 }
 
 //==============================================================================
-double dsvdE_Evmvmx(const std::vector<std::vector<float>> &Ke_nq, double E,
+double dsvdE_Evmvmx(const std::vector<std::vector<double>> &Ke_nq, double E,
                     double mv, double mx, const Grid &qgrid,
                     const std::vector<double> &arr_fv, double dv,
                     double (*F_chi_2)(double, double))
@@ -348,7 +347,7 @@ Note: only takes _part_ of the K array! (for given E)
 
 //==============================================================================
 void form_dsvdE(std::vector<double> &dsvde,
-                const std::vector<std::vector<std::vector<float>>> &K_enq,
+                const std::vector<std::vector<std::vector<double>>> &K_enq,
                 double mv, double mx, const Grid &Egrid, const Grid &qgrid,
                 const std::vector<double> &arr_fv, double dv,
                 double (*F_chi_2)(double, double))
@@ -370,7 +369,7 @@ Note: mv<0 means "heavy" mediator [Fx=1]
 
 //==============================================================================
 void calculate_dsvde_array(
-    const std::vector<std::vector<std::vector<float>>> &Kenq,
+    const std::vector<std::vector<std::vector<double>>> &Kenq,
     DoubleVec3D &dsv_mv_mx_E, const Grid &mvgrid, const Grid &mxgrid,
     const Grid &Egrid, const Grid &qgrid,
     const std::vector<std::vector<double>> &arr_fv, double dv, bool do_anMod,
@@ -1085,7 +1084,7 @@ int main(int argc, char *argv[]) {
   wEbin /= E_to_keV;
 
   // Arrays/values to be filled from input AK file:
-  FloatVec3D Kenq;
+  DoubleVec3D Kenq;
   std::vector<std::string> nklst;
   double qmin, qmax, demin, demax;
   // Read in AK file

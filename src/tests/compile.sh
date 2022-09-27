@@ -22,7 +22,7 @@ for cxx in ${compilers_list[@]}; do
   fi
 done
 
-./unitTests quick |tee -a examples.out
+./tests [~Slow] |tee -a examples.out
 ./ampsci Xe |tee -a examples.out
 ./ampsci ./doc/examples/ampsci.in |tee -a examples.out
 ./ampsci ./doc/examples/Cs_testBasis.in |tee -a examples.out
