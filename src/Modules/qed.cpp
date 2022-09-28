@@ -27,6 +27,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
        {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
                    "1,0,1 => include for s and d, but not for p [1.0]"},
        {"core_QED", "Inlcude QED into core (or only valence)? [true]"},
+       {"use_cm", "Use cm^-1 for energy corrections (otherwise au) [true]"},
        {"MatrixElements{}", "For "
                             "QED corrects to MEs. Input block; takes mostly "
                             "same inputs an Module::MatrixElements."}});
@@ -51,6 +52,10 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
         << "\nNote: QED corrections not included into correlations\n"
         << "This is probably fine, but should be confirmed independently\n";
   }
+
+  const bool use_cm = input.get("use_cm", true);
+  const auto units = use_cm ? PhysConst::Hartree_invcm : 1.0e5;
+  const std::string units_str = use_cm ? "cm^-1" : "10^{-5}au";
 
   // This module calculates QED corections:
   // 1. Energy corrections, without relaxation
@@ -179,23 +184,25 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // Output:
 
   // 1. First-order QED corrections to energies
-  std::cout << "\nFirst-order QED corrections to energies (/cm):\n";
+  std::cout << "\nFirst-order QED corrections to energies (" << units_str
+            << "):\n";
   std::cout
       << "State  Uehl      SE(h)     SE(l)     SE(m)     WK        Total\n";
   for (auto &v : wf.valence()) {
-    const auto deu = Vu.radialIntegral(v, v) * PhysConst::Hartree_invcm;
-    const auto deh = Vh.radialIntegral(v, v) * PhysConst::Hartree_invcm;
-    const auto del = Vl.radialIntegral(v, v) * PhysConst::Hartree_invcm;
-    const auto dem = Vm.radialIntegral(v, v) * PhysConst::Hartree_invcm;
-    const auto dew = Vw.radialIntegral(v, v) * PhysConst::Hartree_invcm;
-    const auto det = Vt.radialIntegral(v, v) * PhysConst::Hartree_invcm;
+    const auto deu = Vu.radialIntegral(v, v) * units;
+    const auto deh = Vh.radialIntegral(v, v) * units;
+    const auto del = Vl.radialIntegral(v, v) * units;
+    const auto dem = Vm.radialIntegral(v, v) * units;
+    const auto dew = Vw.radialIntegral(v, v) * units;
+    const auto det = Vt.radialIntegral(v, v) * units;
     // const auto det2 = deu + deh + del + dem + dew;
     printf("%4s %9.5f %9.5f %9.5f %9.5f %9.5f %9.5f\n", v.shortSymbol().c_str(),
            deu, deh, del, dem, dew, det);
   }
 
   // 2. Total QED corrections to energies
-  std::cout << "\nTotal QED corrections to energies (/cm), with relaxation:\n";
+  std::cout << "\nTotal QED corrections to energies (" << units_str
+            << "), with relaxation:\n";
   std::cout
       << "State  Uehl      SE(h)     SE(l)     SE(m)     WK        Total\n";
   for (auto &v0 : wf.valence()) {
@@ -206,12 +213,12 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto &vw = *wf_w.getState(v0.n(), v0.kappa());
     const auto &vt = *wf_t.getState(v0.n(), v0.kappa());
 
-    const auto deu = (vu.en() - v0.en()) * PhysConst::Hartree_invcm;
-    const auto deh = (vh.en() - v0.en()) * PhysConst::Hartree_invcm;
-    const auto del = (vl.en() - v0.en()) * PhysConst::Hartree_invcm;
-    const auto dem = (vm.en() - v0.en()) * PhysConst::Hartree_invcm;
-    const auto dew = (vw.en() - v0.en()) * PhysConst::Hartree_invcm;
-    const auto det = (vt.en() - v0.en()) * PhysConst::Hartree_invcm;
+    const auto deu = (vu.en() - v0.en()) * units;
+    const auto deh = (vh.en() - v0.en()) * units;
+    const auto del = (vl.en() - v0.en()) * units;
+    const auto dem = (vm.en() - v0.en()) * units;
+    const auto dew = (vw.en() - v0.en()) * units;
+    const auto det = (vt.en() - v0.en()) * units;
     printf("%4s %9.5f %9.5f %9.5f %9.5f %9.5f %9.5f\n",
            v0.shortSymbol().c_str(), deu, deh, del, dem, dew, det);
   }
