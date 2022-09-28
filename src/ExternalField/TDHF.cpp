@@ -23,7 +23,6 @@ TDHF::TDHF(const DiracOperator::TensorOperator *const h,
     : CorePolarisation((assert(h != nullptr), h)),
       p_hf((assert(hf != nullptr), hf)),
       m_core(hf->core()),
-      m_Hmag(hf->Hmag(0)), //(same each l)
       m_alpha(hf->alpha()),
       p_VBr(hf->vBreit()) {
   initialise_dPsi();
@@ -154,9 +153,10 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   }
 
   const auto vl = p_hf->vlocal(Angular::l_k(kappa_x));
+  const auto &Hmag = p_hf->Hmag(Angular::l_k(kappa_x));
   // The l from X ? or from Fv ?
   return s2 * ExternalField::solveMixedState(Fv, ww, vl, m_alpha, m_core, rhs,
-                                             1.0e-9, Sigma, p_VBr, m_Hmag);
+                                             1.0e-9, Sigma, p_VBr, Hmag);
 }
 
 //==============================================================================
@@ -187,9 +187,10 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
     }
 
     const auto vl = p_hf->vlocal(Angular::l_k(kappa_beta));
+    const auto &Hmag = p_hf->Hmag(Angular::l_k(kappa_beta));
     // The l from X ? or from Fv ?
     ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
-                                   eps_ms, nullptr, p_VBr, m_Hmag);
+                                   eps_ms, nullptr, p_VBr, Hmag);
   }
 }
 
@@ -222,17 +223,17 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
   std::vector<std::pair<double, std::string>> epss(m_core.size());
 
   const auto has_de = not m_h->imaginaryQ() && m_h->parity() == 1;
-  const auto eps_ms = (std::abs(eta_damp) < 1.0e-6 || has_de) ? 1.0e-9 : 1.0e-3;
+  const auto eps_ms = (std::abs(eta_damp) < 1.0e-6 || has_de) ? 1.0e-9 : 1.0e-6;
 
 #pragma omp parallel for
   for (auto ib = 0ul; ib < m_core.size(); ib++) {
     const auto &Fb = m_core.at(ib);
 
     const auto &hFbs = m_hFcore[ib];
-    if (has_de) {
-      // Xs[ib] *= 0.0;
-      // Ys[ib] *= 0.0;
-    }
+    // if (has_de) {
+    //   Xs[ib] *= 0.0;
+    //   Ys[ib] *= 0.0;
+    // }
 
     // solve for dF, and damp
     solve_ms_core(Xs[ib], Fb, hFbs, omega, dPsiType::X, eps_ms);
@@ -269,9 +270,9 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
 
 //==============================================================================
 void TDHF::solve_core(const double omega, int max_its, const bool print) {
-  const double converge_targ = 1.0e-10;
+  const double converge_targ = 1.0e-8;
 
-  const auto eta_damp0 = 0.4;
+  const auto eta_damp0 = 0.375;
   auto eta_damp = eta_damp0;
 
   if (print) {
@@ -300,7 +301,7 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
     if (it > 15) {
       if (eps.first > best_eps) {
         ++count_worse;
-        eta_damp += 0.05; // give a "kick"
+        eta_damp += 0.075; // give a "kick"
         assert(eta_damp < 1.0);
       } else {
         best_eps = eps.first;
@@ -310,7 +311,7 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
     }
 
     if ((it > 5 && eps.first < converge_targ) || it == max_its ||
-        count_worse > 4)
+        count_worse > 3)
       break;
   }
 
@@ -400,24 +401,5 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
 
   return dVFa;
 }
-
-// //==============================================================================
-// void TDHF::print(const std::string &ofname) const {
-//   std::ofstream of(ofname);
-//   const auto &gr = *((m_core.front()).grid_sptr());
-//   for (auto i = 0ul; i < gr.num_points(); ++i) {
-//     of << gr.r(i) << " ";
-//     for (auto ic = 0ul; ic < m_core.size(); ic++) {
-//       const auto &Fc = m_core[ic];
-//       of << Fc.f(i) << " ";
-//       for (auto j = 0ul; j < m_X[ic].size(); j++) {
-//         const auto &Xx = m_X[ic][j];
-//         const auto &Yx = m_Y[ic][j];
-//         of << Xx.f(i) << " " << Yx.f(i) << " ";
-//       }
-//     }
-//     of << "\n";
-//   }
-// }
 
 } // namespace ExternalField

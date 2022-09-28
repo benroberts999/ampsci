@@ -64,7 +64,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
             << ", k=" << k_spl << ". Storing: " << states_str << "\n";
   std::cout << "Using "
             << (basis_type == SplineType::Derevianko ?
-                    "Derevinko (Duel Kinetic Balance)" :
+                    "Derevianko (Duel Kinetic Balance)" :
                     "Johnson")
             << " type splines.\n";
 
@@ -490,8 +490,9 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
     if (nDG == 2) {
       sum *= alpha * alpha / 3;
     }
-    const auto s0 =
-        (nDG == 0) ? r2hat.radialIntegral(Fa, Fa) : (nDG == 1) ? 0.0 : 1.0;
+    const auto s0 = (nDG == 0) ? r2hat.radialIntegral(Fa, Fa) :
+                    (nDG == 1) ? 0.0 :
+                                 1.0;
     if (print)
       printf("%i| k=%2i: sum=%10.5f, exact=%+10.5f, diff = %8.1e\n", nDG, kappa,
              sum, s0, sum - s0);

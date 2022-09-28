@@ -54,7 +54,7 @@ protected:
 
   const HF::HartreeFock *const p_hf;
   const std::vector<DiracSpinor> m_core;
-  const std::vector<double> m_Hmag;
+  // const std::vector<double> m_Hmag;
   const double m_alpha;
   const HF::Breit *const p_VBr;
 

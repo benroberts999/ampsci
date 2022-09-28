@@ -224,7 +224,7 @@ In the above case (with all other default options for Cs), we get output like:
 
 ```text
 Constructing B-spline basis with N=40, k=7. Storing: 30spdfghi
-Using Derevinko (Duel Kinetic Balance) type splines.
+Using Derevianko (Duel Kinetic Balance) type splines.
 Spline cavity l=0 s: (1.4e-04, 40.0)aB.
 Spline cavity l=1 p: (2.8e-03, 40.0)aB.
 Spline cavity l=2 d: (2.4e-02, 40.0)aB.
