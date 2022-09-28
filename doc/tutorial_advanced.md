@@ -20,7 +20,6 @@ This assumes you already have ampsci compiled and have a basic understanding of 
   * [Spectrum](#spectrum)
 * [MBPT: second-order correlations](#secondorder)
 * [MBPT: all-order correlations](#allorders)
-* [Calculating matrix elements](#matrixelements)
 
 ## Starting approximation <a name="begin"></a>
 
@@ -339,6 +338,56 @@ Note that for both of these, the input list must be in the exact same order as t
 
 ## MBPT: all-order correlations <a name="allorders"></a>
 
------------
+The most important corrections beyond the second-order correlation potential are the screening of the residual Coulomb interaction by the core electrons and hole-particle interaction.
+These are taken into account using the _all-orders correlation potential method_, also called Perturbation Theory in the Screened Couloumb Interaction (PTSCI), developed by Dzuba, Flambaum and Sushkov [1-3].
 
-## Calculating matrix elements <a name="matrixelements"></a>
+1. V. A. Dzuba, V. V. Flambaum, P. G. Silvestrov, and O. P. Sushkov, [Phys. Lett. A 131, 461 (1988).](https://dx.doi.org/10.1016/0375-9601(88)90302-7)
+2. V. A. Dzuba, V. V. Flambaum, A. Y. Kraftmakher, and O. P. Sushkov, [Phys. Lett. A 142, 373 (1989).](https://dx.doi.org/10.1016/0375-9601(89)90385-X)
+3. V. A. Dzuba, V. V. Flambaum, and O. P. Sushkov, [Phys. Lett. A 140, 493 (1989).](https://dx.doi.org/10.1016/0375-9601(89)90129-1)
+
+The starying point uses the Feynman technique, in which the direct part of the correlation potential can be expressed
+$\begin{equation}
+\Sigma_{\rm d} = \int\frac{{\rm d}\omega}{2\pi} G_{12}(\varepsilon+\omega) Q_{1i}\Pi_{ij}(\omega) Q_{j2}(\omega),
+\end{equation}$
+where $G_{12} = G(r_1,r_2)$ in the Hartee-Fock Feynman Green's function, $Q$ is the (non-relativistic) Coulomb operator, and $\Pi$ is the polarisation operator
+(subsripts are coordinate indices; integration is assumed over internal $i$ and $j$). Note that $\Pi$ represents polarisation of the atomic core.
+
+The screening of the coulomb interaction can be represented by a series of polarisation corrections
+$\begin{equation}
+\widetilde Q \equiv  Q + \ Q(-i\, \Pi  Q) +  Q(-i\, \Pi  Q)^2+\ldots
+\end{equation}$
+which can be summed exactly:
+$\begin{equation}
+\widetilde Q(\omega) = Q\left[1+i\,\Pi(\omega) Q\right]^{-1}.
+\end{equation}$
+The screening is accounted for in the direct diagrams via $Q\to \widetilde Q$ for _one_ of the Coulomb operators in $\Sigma_{\rm d}$.
+(Screening for exchange diagrams is taken into account in a simpler fasion, see pdf for details).
+
+The hole-particle interaction arises due to the deviation of the Hartree-Fock potential for the excited core electron in the polarisation loop from that for the non-excited one.
+The potential that simultaneously describes the occupied core and excited states is
+$\begin{equation}
+\hat V = V^{N-1} - (1-\hat P_{\rm core})V_0 (1-\hat P_{\rm core}),
+\end{equation}$
+where $P_{\rm core}$ is the operator of projection onto the core, and $V_0$ is the zero-multipolarity potential for the outgoing electron (self-interaction part of Hartree-Fock potential).
+Therefore, hole-particle interaction is accounted for by using this potential when forming the polarisation operator.
+
+To include all-orders correlations, the `Feynman`, `screening`, and `holeParticle` options in the `Correlations{}` block should be set to `true`.
+
+```js
+Correlations{
+  Brueckner = true;
+  n_min_core = 3;
+  each_valence = true;
+  Feynman = true;
+  screening = true;
+  holeParticle = true;
+}
+```
+
+More options are available, though they rarely need to be changed from the default.
+See [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full details.
+
+Note: currently, there is a numerical problem in calculating polarisation loop for very deep core states. This leads to no issues, unless you attempt to polarise a deep core shell, where large numerical errors are encountered.
+Best to set `n_min_core = 2` for Rb, `n_min_core = 3` for Cs, `n_min_core = 4` for Fr etc.
+The effect of this is negligable, as can be checked by seeing impact on second-order results.
+This should be addressed soon.
