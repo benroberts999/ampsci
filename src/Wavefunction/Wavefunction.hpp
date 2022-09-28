@@ -228,10 +228,14 @@ public:
   //! Second-order MBPT energy shifts, calculates + prints
   void SOEnergyShift();
 
-  //! Calculates radiative potential. Stores in vnuc, and Hmag
+  //! OLD: deprecated
   void radiativePotential(QED::RadPot::Scale s, double rcut, double scale_rN,
                           const std::vector<double> &x_spd,
                           bool do_readwrite = true, bool print = true);
+
+  //! Calculates radiative potential, adds to HF potential
+  void radiativePotential(const IO::InputBlock &qed_input, bool do_readwrite,
+                          bool print);
 
   //! Calculates + populates basis [see BSplineBasis]
   void formBasis(const SplineBasis::Parameters &params);

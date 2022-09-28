@@ -345,42 +345,12 @@ void ampsci(const IO::InputBlock &input) {
   // (Must set HF before adding RadPot - but must add RadPot before solving HF)
   wf.set_HF(HF_method, x_Breit, core, eps_HF, true);
 
-  // Inlcude QED radiatve potential
-  input.check(
-      {"RadPot"},
-      {{"",
-        "QED Radiative potential will be included if this block is present"},
-       {"", "The following 5 are all doubles. Scale to include * potential; "
-            "usually either 0.0 or 1.0, but can take any value:"},
-       {"Ueh", "  Uehling (vacuum pol). [1.0]"},
-       {"SE_h", "  self-energy high-freq electric. [1.0]"},
-       {"SE_l", "  self-energy low-freq electric. [1.0]"},
-       {"SE_m", "  self-energy magnetic. [1.0]"},
-       {"WK", "  Wickman-Kroll. [0.0]"},
-       {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
-       {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
-                    "typical [1.0]"},
-       {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
-                   "1,0,1 => include for s and d, but not for p [1.0]"},
-       {"core_qed",
-        "Include rad pot into Hartree-Fock core (relaxation) [true]"}});
-
-  const auto include_qed = input.getBlock("RadPot") != std::nullopt;
-  const auto x_Ueh = input.get({"RadPot"}, "Ueh", 1.0);
-  const auto x_SEe_h = input.get({"RadPot"}, "SE_h", 1.0);
-  const auto x_SEe_l = input.get({"RadPot"}, "SE_l", 1.0);
-  const auto x_SEm = input.get({"RadPot"}, "SE_m", 1.0);
-  const auto x_wk = input.get({"RadPot"}, "WK", 0.0);
-  const auto rcut = input.get({"RadPot"}, "rcut", 5.0);
-  const auto scale_rN = input.get({"RadPot"}, "scale_rN", 1.0);
-  const auto x_spd = input.get({"RadPot"}, "scale_l", std::vector{1.0});
-  const bool core_qed = input.get({"RadPot"}, "core_qed", true);
-
-  // If 'core_qed' is true, add rad pot _before_ we solve HF core
-  if (include_qed && core_qed) {
+  // Forms QED radiative potential, if RadPot{} block is present.
+  // Note: input options are parsed inside radiativePotential()
+  const auto qed_input = input.getBlock("RadPot");
+  if (qed_input != std::nullopt) {
     std::cout << "Including QED into Hartree-Fock core (and valence)\n\n";
-    wf.radiativePotential({x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, rcut,
-                          scale_rN, x_spd);
+    wf.radiativePotential(*qed_input, true, true);
   }
 
   // Inlcude extra potential (read in from text file):
@@ -411,13 +381,6 @@ void ampsci(const IO::InputBlock &input) {
 
   // Solve Hartree equations for the core:
   wf.solve_core(true);
-
-  // ... if not core_qed, then add QED _after_ HF core
-  if (include_qed && !core_qed) {
-    std::cout << "Including QED into Valence only\n\n";
-    wf.radiativePotential({x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, rcut,
-                          scale_rN, x_spd);
-  }
 
   // Add "extra potential", after HF (only valence)
   if (include_extra && !ep_beforeHF) {

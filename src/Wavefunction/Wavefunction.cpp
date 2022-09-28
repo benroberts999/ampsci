@@ -56,6 +56,7 @@ Wavefunction::Wavefunction(const Wavefunction &wf)
   this->m_HF = wf.m_HF;
   // cannot copy sigma!?!?
   this->m_core_string = wf.m_core_string;
+  this->copySigma(wf.Sigma());
 }
 
 //==============================================================================
@@ -221,7 +222,6 @@ void Wavefunction::radiativePotential(QED::RadPot::Scale scale, double rcut,
                                       double scale_rN,
                                       const std::vector<double> &x_spd,
                                       bool do_readwrite, bool print) {
-
   if (x_spd.empty())
     return;
 
@@ -230,6 +230,25 @@ void Wavefunction::radiativePotential(QED::RadPot::Scale scale, double rcut,
 
   auto qed = QED::RadPot(rgrid->r(), Znuc(), r_N_au, rcut, scale, x_spd, print,
                          do_readwrite);
+
+  // If HF already exists, update it to include new qed!
+  if (m_HF) {
+    m_HF->set_Vrad(std::move(qed));
+  } else {
+    std::cout << "\nWarning: Can only include QED with a HF method\n";
+  }
+}
+
+//==============================================================================
+void Wavefunction::radiativePotential(const IO::InputBlock &qed_input,
+                                      bool do_readwrite, bool print) {
+
+  //re-scale happends inside ConstructRadPot
+  const auto r_N_au =
+      std::sqrt(5.0 / 3.0) * m_nucleus.r_rms() / PhysConst::aB_fm;
+
+  auto qed = QED::ConstructRadPot(rgrid->r(), Znuc(), r_N_au, qed_input, print,
+                                  do_readwrite);
 
   // If HF already exists, update it to include new qed!
   if (m_HF) {

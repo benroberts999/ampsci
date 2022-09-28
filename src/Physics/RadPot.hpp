@@ -1,6 +1,7 @@
 #pragma once
 #include "FGRadPot.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include "IO/InputBlock.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "qip/Vector.hpp"
@@ -9,6 +10,7 @@
 
 namespace QED {
 
+//==============================================================================
 //! Class holds Flambaum-Ginges QED Radiative Potential
 class RadPot {
 
@@ -130,5 +132,11 @@ std::vector<double> RadPot::fill(Func f, const std::vector<double> &r,
   }
   return stride == 1 ? tv : Interpolator::interpolate(tr, tv, r);
 }
+
+//==============================================================================
+//! Function constructs a Radiative potential with given input parameters; rN_au is nuclear radius (not rms radius), in atomic units
+RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
+                       const IO::InputBlock &input = {}, bool print = true,
+                       bool do_readwrite = true);
 
 } // namespace QED

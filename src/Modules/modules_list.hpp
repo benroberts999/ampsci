@@ -46,7 +46,6 @@ static const std::map<std::string, module_function_t> module_list{
     {"BW_eta_sp", &BW_eta_sp},
     {"screeningFactors", &screeningFactors},
     {"pnc", &calculatePNC},
-    {"vertexQED", &vertexQED},
     {"QED", &QED},
     {"testFeynman", &testFeynman},
     {"matrixElements", &matrixElements},

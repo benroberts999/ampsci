@@ -157,9 +157,10 @@ std::vector<double> RadPot::Vel(int l) const {
                (m_f.wk * mVwk));
 }
 //------------------------------------------------------------------------------
-std::vector<double> RadPot::Hmag(int) const {
+std::vector<double> RadPot::Hmag(int l) const {
   using namespace qip::overloads;
-  return m_f.m * mHm;
+  const auto xl = m_xl(l);
+  return xl * m_f.m * mHm;
 }
 //------------------------------------------------------------------------------
 std::vector<double> RadPot::Vu(int l) const {
@@ -180,6 +181,41 @@ std::vector<double> RadPot::Vh(int l) const {
   const auto a = FGRP::Fit::A(m_Z, l);
   const auto xl = m_xl(l);
   return xl * a * m_f.h * mVh;
+}
+
+//==============================================================================
+RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
+                       const IO::InputBlock &input, bool print,
+                       bool do_readwrite) {
+
+  input.check(
+      {{"",
+        "QED Radiative potential will be included if this block is present"},
+       {"", "The following 5 are all doubles. Scale to include * potential; "
+            "usually either 0.0 or 1.0, but can take any value:"},
+       {"Ueh", "  Uehling (vacuum pol). [1.0]"},
+       {"SE_h", "  self-energy high-freq electric. [1.0]"},
+       {"SE_l", "  self-energy low-freq electric. [1.0]"},
+       {"SE_m", "  self-energy magnetic. [1.0]"},
+       {"WK", "  Wickman-Kroll. [0.0]"},
+       {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
+       {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
+                    "typical [1.0]"},
+       {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
+                   "1,0,1 => include for s and d, but not for p [1.0]"}});
+
+  const auto x_Ueh = input.get({"RadPot"}, "Ueh", 1.0);
+  const auto x_SEe_h = input.get({"RadPot"}, "SE_h", 1.0);
+  const auto x_SEe_l = input.get({"RadPot"}, "SE_l", 1.0);
+  const auto x_SEm = input.get({"RadPot"}, "SE_m", 1.0);
+  const auto x_wk = input.get({"RadPot"}, "WK", 0.0);
+  const auto rcut = input.get({"RadPot"}, "rcut", 5.0);
+  const auto scale_rN = input.get({"RadPot"}, "scale_rN", 1.0);
+  const auto x_spd = input.get({"RadPot"}, "scale_l", std::vector{1.0});
+
+  return RadPot(r, Z_eff, scale_rN * rN_au, rcut,
+                {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, x_spd, print,
+                do_readwrite);
 }
 
 } // namespace QED

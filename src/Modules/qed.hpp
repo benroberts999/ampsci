@@ -12,16 +12,6 @@ class TensorOperator;
 namespace Module {
 
 //! Calculates QED corrections to energies and matrix elements
-//!@details: Note: Should be checked against manual calc, since not 100%
-//! included
 void QED(const IO::InputBlock &input, const Wavefunction &wf);
-
-//! Calculates vertex QED corrections matrix elements
-void vertexQED(const IO::InputBlock &input, const Wavefunction &wf);
-
-std::vector<std::string> calc_vertexQED(const IO::InputBlock &input,
-                                        const Wavefunction &wf,
-                                        const Wavefunction *wf_VP = nullptr,
-                                        const Wavefunction *wf_SE = nullptr);
 
 } // namespace Module
