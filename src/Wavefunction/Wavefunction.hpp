@@ -63,9 +63,9 @@ private:
   std::vector<double> m_vnuc{};
   // Hartree-Fock potential
   std::optional<HF::HartreeFock> m_HF{std::nullopt};
-  // Unique pointer? Copyable? XXX
+  // Correlation potential; for now unique_ptr; prefer std::optional
   std::unique_ptr<MBPT::CorrelationPotential> m_Sigma{nullptr};
-  // Core configuration (non-rel terms) // kill XXX?
+  // Core configuration (non-rel terms)
   std::string m_core_string = "";
 
 public:
@@ -134,10 +134,9 @@ public:
   //! Finds requested state; returns nullptr if not found
   //! @details is_valence is optional out-parameter; tells you where orb was
   //! found
-  const DiracSpinor *getState(int n, int k, bool *is_valence = nullptr) const;
+  const DiracSpinor *getState(int n, int k) const;
   //! As above, but takes 'short symbol' (e.g., 6s+, 6p-)
-  const DiracSpinor *getState(std::string_view state,
-                              bool *is_valence = nullptr) const;
+  const DiracSpinor *getState(std::string_view state) const;
 
   //! Returns energy location of the "core-valence gap", 0.5*( max(e_core) +
   //! min(e_valence)) - energy half way between core/valence
@@ -175,17 +174,14 @@ public:
   //! Effective charge (for core) = Z-N_core
   int Zion() const { return Znuc() - Ncore(); }
 
-  //! Prints table of core orbitals + energies etc. Optionally sorted by energy
-  void printCore(bool sorted = true) const;
-  //! @brief Prints table of valence orbitals + energies etc. Optionally sorted
-  //! by energy
+  //! Prints table of core orbitals + energies etc.
+  void printCore() const;
+  //! @brief Prints table of valence orbitals + energies etc.
   //! @details Can optionally give it any list of orbitals to print
-  void printValence(bool sorted = true,
-                    const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
+  void printValence(const std::vector<DiracSpinor> &tmp_orbitals = {}) const;
 
   //! Prints table of Basis/Spectrum orbitals, compares to HF orbitals
-  void printBasis(const std::vector<DiracSpinor> &the_basis,
-                  bool sorted = false) const;
+  void printBasis(const std::vector<DiracSpinor> &the_basis) const;
 
   //! Check if a state is in the core (or valence) list
   bool isInCore(int n, int k) const;
@@ -298,9 +294,6 @@ public:
              const DiracSpinor &Fb, const DiracSpinor &dFb) const;
 
 private:
-  // move to atom data?
+  // Creates set of blank core orbitals
   std::vector<DiracSpinor> determineCore(const std::string &str_core_in);
-  static std::vector<std::size_t>
-  sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
-                   bool do_sort = false);
 };

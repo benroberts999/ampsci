@@ -331,15 +331,13 @@ void ampsci(const IO::InputBlock &input) {
        {"eps", "HF convergance goal [1.0e-13]"},
        {"method", "HartreeFock, Hartree, KohnSham, Local [HartreeFock]"},
        {"Breit", "Scale for factor for Breit Hamiltonian. Usially 0.0 (no "
-                 "Breit) or 1.0 (full Breit), but can take any value. [0.0]"},
-       {"sortOutput", "Sort energy tables by energy? [false]"}});
+                 "Breit) or 1.0 (full Breit), but can take any value. [0.0]"}});
 
   const auto core = input.get({"HartreeFock"}, "core", "[]"s);
   const auto HF_method = input.get({"HartreeFock"}, "method", "HartreeFock"s);
   const auto eps_HF = input.get({"HartreeFock"}, "eps", 1.0e-13);
   const auto x_Breit = input.get({"HartreeFock"}, "Breit", 0.0);
   const auto valence = input.get({"HartreeFock"}, "valence", ""s);
-  const auto sorted_output = input.get({"HartreeFock"}, "sortOutput", false);
 
   // Set up the Hartree Fock potential/method (does not solve)
   // (Must set HF before adding RadPot - but must add RadPot before solving HF)
@@ -416,9 +414,9 @@ void ampsci(const IO::InputBlock &input) {
   // Output Hartree Fock energies:
   if (!help_mode) {
     std::cout << '\n' << wf.identity() << "-" << wf.Anuc() << '\n';
-    wf.printCore(sorted_output);
+    wf.printCore();
     printf("E_c = %.6f\n", wf.coreEnergyHF());
-    wf.printValence(sorted_output);
+    wf.printValence();
   }
 
   // Construct B-spline basis:
@@ -582,7 +580,7 @@ void ampsci(const IO::InputBlock &input) {
   // Print out info for new "Brueckner" valence orbitals:
   if (!wf.valence().empty() && do_brueckner && Sigma_ok) {
     std::cout << "\nBrueckner orbitals:\n";
-    wf.printValence(sorted_output);
+    wf.printValence();
   }
 
   // Construct B-spline Spectrum:

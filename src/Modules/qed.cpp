@@ -133,7 +133,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     wf_t.solve_core();
 
     std::cout << "\nCore energies (including total QED):\n";
-    wf_t.printCore(false);
+    wf_t.printCore();
   } else {
     std::cout
         << "\nIncluding QED radiative potential into valence states only\n";
@@ -178,7 +178,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   wf_t.hartreeFockBrueckner();
 
   std::cout << "\nValence energies (including total QED):\n";
-  wf_t.printValence(false);
+  wf_t.printValence();
 
   //----------------------------------------------------------------------------
   // Output:

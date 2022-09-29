@@ -1,7 +1,7 @@
+#include "Wavefunction.hpp"
 #include "ContinuumOrbitals.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Wavefunction.hpp"
 #include "catch2/catch.hpp"
 
 TEST_CASE("Wavefunction", "[wf][unit]") {
@@ -68,20 +68,16 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   // Na in V(n-1) shuold have Z-1 electrons
   REQUIRE(wf.Ncore() == wf.Znuc() - 1);
 
-  bool is_valence_1s{false};
-  const auto Fn = wf.getState("1s", &is_valence_1s);
+  const auto Fn = wf.getState("1s");
   REQUIRE(Fn != nullptr);
   REQUIRE(Fn->n() == 1);
   REQUIRE(Fn->kappa() == -1);
-  REQUIRE(is_valence_1s == false);
   REQUIRE(wf.isInCore(Fn->n(), Fn->kappa()));
   REQUIRE(!wf.isInValence(Fn->n(), Fn->kappa()));
-  bool is_valence_3p{false};
-  const auto Fm = wf.getState("3p+", &is_valence_3p);
+  const auto Fm = wf.getState("3p+");
   REQUIRE(Fm != nullptr);
   REQUIRE(Fm->n() == 3);
   REQUIRE(Fm->kappa() == -2);
-  REQUIRE(is_valence_3p == true);
   REQUIRE(!wf.isInCore(Fm->n(), Fm->kappa()));
   REQUIRE(wf.isInValence(Fm->n(), Fm->kappa()));
 

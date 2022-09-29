@@ -276,34 +276,28 @@ bool Wavefunction::isInValence(int n, int k) const {
 }
 
 //==============================================================================
-const DiracSpinor *Wavefunction::getState(int n, int k,
-                                          bool *is_valence) const {
+const DiracSpinor *Wavefunction::getState(int n, int k) const {
   const auto find_nk = [n, k](const auto Fa) {
     return Fa.n() == n && Fa.kappa() == k;
   };
   // Try to find in core:
   auto Fnk = std::find_if(cbegin(core()), cend(core()), find_nk);
   if (Fnk != cend(core())) {
-    if (is_valence != nullptr)
-      *is_valence = false;
     return &*Fnk;
   }
   // If not in core, try to find in valence:
   Fnk = std::find_if(cbegin(m_valence), cend(m_valence), find_nk);
   if (Fnk != cend(m_valence)) {
-    if (is_valence != nullptr)
-      *is_valence = true;
     return &*Fnk;
   }
   // otherwise, return nope
   return nullptr;
 }
 
-const DiracSpinor *Wavefunction::getState(std::string_view state,
-                                          bool *is_valence) const {
+const DiracSpinor *Wavefunction::getState(std::string_view state) const {
   // std::pair<int, int> parse_symbol(std::string_view symbol);
   const auto [n, k] = AtomData::parse_symbol(state);
-  return getState(n, k, is_valence);
+  return getState(n, k);
 }
 
 //==============================================================================
@@ -437,37 +431,37 @@ std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
 }
 
 //==============================================================================
-std::vector<std::size_t>
-Wavefunction::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
-                               bool do_sort)
-// Static
-// Outouts a list of integers corresponding to the states
-// sorted by energy (lowest energy first)
-{
-  using DoubleInt = std::pair<double, std::size_t>;
-  std::vector<DoubleInt> t_en;
-  for (std::size_t i = 0; i < tmp_orbs.size(); i++) {
-    t_en.emplace_back(tmp_orbs[i].en(), i);
-  }
+// std::vector<std::size_t>
+// Wavefunction::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
+//                                bool do_sort)
+// // Static
+// // Outouts a list of integers corresponding to the states
+// // sorted by energy (lowest energy first)
+// {
+//   using DoubleInt = std::pair<double, std::size_t>;
+//   std::vector<DoubleInt> t_en;
+//   for (std::size_t i = 0; i < tmp_orbs.size(); i++) {
+//     t_en.emplace_back(tmp_orbs[i].en(), i);
+//   }
 
-  // Sort list of Pairs by first element in the pair:
-  auto compareThePair = [](const DoubleInt &di1, const DoubleInt &di2) {
-    return di1.first < di2.first;
-  };
+//   // Sort list of Pairs by first element in the pair:
+//   auto compareThePair = [](const DoubleInt &di1, const DoubleInt &di2) {
+//     return di1.first < di2.first;
+//   };
 
-  if (do_sort)
-    std::sort(t_en.begin(), t_en.end(), compareThePair);
+//   if (do_sort)
+//     std::sort(t_en.begin(), t_en.end(), compareThePair);
 
-  // overwrite list with sorted list
-  std::vector<std::size_t> sorted_list;
-  std::for_each(t_en.begin(), t_en.end(),
-                [&](const DoubleInt &el) { sorted_list.push_back(el.second); });
+//   // overwrite list with sorted list
+//   std::vector<std::size_t> sorted_list;
+//   std::for_each(t_en.begin(), t_en.end(),
+//                 [&](const DoubleInt &el) { sorted_list.push_back(el.second); });
 
-  return sorted_list;
-}
+//   return sorted_list;
+// }
 
 //==============================================================================
-void Wavefunction::printCore(bool sorted) const
+void Wavefunction::printCore() const
 // prints core orbitals
 {
   int Zion = Znuc() - Ncore();
@@ -484,71 +478,63 @@ void Wavefunction::printCore(bool sorted) const
 
   std::cout
       << "     state  k   Rinf its   eps         En (au)        En (/cm)\n";
-  auto index_list = sortedEnergyList(core(), sorted);
-  for (auto i : index_list) {
-    const auto &phi = core()[i];
-    auto r_inf = rgrid->r()[phi.max_pt() - 1]; // rinf(phi);
-    printf("%-2i %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
-           phi.symbol().c_str(), phi.kappa(), r_inf, phi.its(), phi.eps(),
+  int i = 0;
+  for (const auto &phi : core()) {
+    printf("%-2i %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", i++,
+           phi.symbol().c_str(), phi.kappa(), phi.rinf(), phi.its(), phi.eps(),
            phi.en(), phi.en() * PhysConst::Hartree_invcm);
-    if (phi.occ_frac() < 1.0)
+    if (phi.occ_frac() < 1.0) {
       printf("     [%4.2f]\n", phi.occ_frac());
-    else
+    } else {
       std::cout << "\n";
+    }
   }
 }
 
 //==============================================================================
 void Wavefunction::printValence(
-    bool sorted, const std::vector<DiracSpinor> &in_orbitals) const {
-  auto tmp_orbs = (in_orbitals.empty()) ? m_valence : in_orbitals;
+    const std::vector<DiracSpinor> &in_orbitals) const {
+  const auto &tmp_orbs = (in_orbitals.empty()) ? m_valence : in_orbitals;
   if (tmp_orbs.empty())
     return;
 
   // Find lowest valence energy:
-  auto e0 = 0.0;
-  for (auto &phi : tmp_orbs) {
-    if (phi.en() < e0)
-      e0 = phi.en();
-  }
+  const auto min_it =
+      std::min_element(tmp_orbs.begin(), tmp_orbs.end(), DiracSpinor::comp_en);
+  const auto e0 = (min_it == tmp_orbs.end()) ? 0.0 : min_it->en();
 
   std::cout
       << "Val: state  "
       << "k   Rinf its   eps         En (au)        En (/cm)   En (/cm)\n";
-  auto index_list = sortedEnergyList(tmp_orbs, sorted);
-  for (auto i : index_list) {
-    const auto &phi = tmp_orbs[i];
-    auto r_inf = rgrid->r()[phi.max_pt() - 1]; // rinf(phi);
-    printf("%-2i %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", int(i),
-           phi.symbol().c_str(), phi.kappa(), r_inf, phi.its(), phi.eps(),
+  int i = 0;
+  for (const auto &phi : tmp_orbs) {
+    printf("%-2i %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", i++,
+           phi.symbol().c_str(), phi.kappa(), phi.rinf(), phi.its(), phi.eps(),
            phi.en(), phi.en() * PhysConst::Hartree_invcm);
     printf(" %10.2f\n", (phi.en() - e0) * PhysConst::Hartree_invcm);
   }
 }
 
 //==============================================================================
-void Wavefunction::printBasis(const std::vector<DiracSpinor> &the_basis,
-                              bool sorted) const {
+void Wavefunction::printBasis(const std::vector<DiracSpinor> &the_basis) const {
   std::cout
       << "     State   k  R0     Rinf          En(Basis)         En(HF)\n";
-  const auto index_list = sortedEnergyList(the_basis, sorted);
-  for (const auto i : index_list) {
-    const auto &phi = the_basis[i];
-    const auto r_0 = phi.r0();
-    const auto r_inf = phi.rinf();
+  int i = 0;
+  for (const auto &phi : the_basis) {
 
     const auto *hf_phi = getState(phi.n(), phi.kappa());
     if (hf_phi != nullptr) {
       // found HF state
       const auto eps =
           2.0 * (phi.en() - hf_phi->en()) / (phi.en() + hf_phi->en());
-      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f  %13.7f  %6.0e\n", int(i),
-             phi.symbol().c_str(), phi.kappa(), r_0, r_inf, phi.en(),
+      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f  %13.7f  %6.0e\n", i,
+             phi.symbol().c_str(), phi.kappa(), phi.r0(), phi.rinf(), phi.en(),
              hf_phi->en(), eps);
     } else {
-      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f\n", int(i), phi.symbol().c_str(),
-             phi.kappa(), r_0, r_inf, phi.en());
+      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f\n", i, phi.symbol().c_str(),
+             phi.kappa(), phi.r0(), phi.rinf(), phi.en());
     }
+    ++i;
   }
 }
 
