@@ -15,9 +15,10 @@ jobs:
     - name: "Install dependencies"
       run: |
         set -x
+        sudo apt-get update -y
         sudo apt-get install -y make
         sudo apt-get install -y doxygen
-        sudo apt-get install -y texlive-latex-extra
+        sudo apt-get install -y texlive-latex-extra --fix-missing
         sudo apt-get install -y wget
     
     - name: Build the documentation

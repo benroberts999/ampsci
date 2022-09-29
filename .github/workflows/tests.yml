@@ -17,6 +17,7 @@ jobs:
     - name: "Install dependencies"
       run: |
         set -x
+        sudo apt-get update -y
         sudo apt-get install -y make
         sudo apt-get install -y g++-11
         sudo apt-get install -y liblapack-dev
