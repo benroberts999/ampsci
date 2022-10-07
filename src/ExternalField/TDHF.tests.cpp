@@ -1,6 +1,6 @@
+#include "TDHF.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "IO/ChronoTimer.hpp"
-#include "TDHF.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Vector.hpp"
@@ -29,29 +29,21 @@ TEST_CASE("External Field: TDHF - basic unit tests",
   auto rpa = ExternalField::TDHF(&dE1, wf.vHF());
   rpa.solve_core(0.0, 30);
 
-  const auto dv1_0 = rpa.dV1(*F6s, *F6p);
   const auto dv_0 = rpa.dV(*F6s, *F6p);
-  std::cout << *F6s << "-" << *F6p << ": " << dv1_0 << " " << dv_0 << "\n";
-  REQUIRE(dv1_0 != 0.0);
+  std::cout << *F6s << "-" << *F6p << ": " << dv_0 << "\n";
   REQUIRE(dv_0 != 0.0);
-  REQUIRE(std::abs(dv_0) < std::abs(dv1_0));
 
-  // Doing 1 iteration shuold be equiv to first-order dV
-  auto rpa1 = ExternalField::TDHF(&dE1, wf.vHF());
-  rpa1.solve_core(0.0, 1);
-  const auto dv1_1 = rpa1.dV(*F6s, *F6p);
-  REQUIRE(dv1_1 == Approx(dv1_0));
+  // // Doing 1 iteration shuold be equiv to first-order dV
+  // auto rpa1 = ExternalField::TDHF(&dE1, wf.vHF());
+  // rpa1.solve_core(0.0, 1);
 
   const auto &Fc = wf.core().back();
   auto dPsis1 = rpa.solve_dPsis(Fc, 0.0, ExternalField::dPsiType::X);
   const auto &dPsis2 = rpa.get_dPsis(Fc, ExternalField::dPsiType::X);
   // should both be first-order:
-  auto dPsis01 = rpa.get_dPsis_0(Fc, ExternalField::dPsiType::X);
-  const auto &dPsis02 = rpa1.get_dPsis(Fc, ExternalField::dPsiType::X);
+  // const auto &dPsis02 = rpa1.get_dPsis(Fc, ExternalField::dPsiType::X);
   REQUIRE(dPsis1.size() == dPsis2.size());
   REQUIRE(dPsis1.size() != 0);
-  REQUIRE(dPsis01.size() == dPsis2.size());
-  REQUIRE(dPsis01.size() != 0);
   for (std::size_t i = 0; i < dPsis1.size(); ++i) {
     // only true if TDHF converged!
     REQUIRE(dPsis1.at(i).norm2() ==
@@ -61,17 +53,12 @@ TEST_CASE("External Field: TDHF - basic unit tests",
     const auto &dPsi2 = rpa.get_dPsi_x(Fc, ExternalField::dPsiType::X, kappa);
     REQUIRE(dPsi1.norm2() == Approx(dPsis2.at(i).norm2()).epsilon(1.0e-2));
     REQUIRE(dPsi2.norm2() == Approx(dPsis2.at(i).norm2()).epsilon(1.0e-2));
-    // only true if TDHF converged!
-    REQUIRE(dPsis01.at(i).norm2() ==
-            Approx(dPsis02.at(i).norm2()).epsilon(1.0e-2));
   }
 
   // should be zero after clearing:
   rpa.clear();
-  const auto dv1_00 = rpa.dV1(*F6s, *F6p);
   const auto dv_00 = rpa.dV(*F6s, *F6p);
-  std::cout << *F6s << "-" << *F6p << ": " << dv1_00 << " " << dv_00 << "\n";
-  REQUIRE(dv1_00 == 0.0);
+  std::cout << *F6s << "-" << *F6p << ": " << dv_00 << "\n";
   REQUIRE(dv_00 == 0.0);
 }
 

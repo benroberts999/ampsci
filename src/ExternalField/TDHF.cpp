@@ -59,8 +59,6 @@ void TDHF::initialise_dPsi() {
     }
   }
   m_Y = m_X;
-  m_X0 = m_X;
-  m_Y0 = m_X;
 }
 
 //==============================================================================
@@ -68,8 +66,6 @@ void TDHF::clear() {
   using namespace qip::overloads;
   m_X *= 0.0;
   m_Y *= 0.0;
-  m_X0 *= 0.0;
-  m_Y0 *= 0.0;
 }
 
 //==============================================================================
@@ -80,15 +76,6 @@ const std::vector<DiracSpinor> &TDHF::get_dPsis(const DiracSpinor &Fc,
       std::find(m_core.cbegin(), m_core.cend(), Fc) - m_core.cbegin());
   assert(index < m_X.size());
   return XorY == dPsiType::X ? m_X[index] : m_Y[index];
-}
-
-//------------------------------------------------------------------------------
-const std::vector<DiracSpinor> &TDHF::get_dPsis_0(const DiracSpinor &Fc,
-                                                  dPsiType XorY) const {
-  const auto index = static_cast<std::size_t>(
-      std::find(m_core.cbegin(), m_core.cend(), Fc) - m_core.cbegin());
-  assert(index < m_X.size());
-  return XorY == dPsiType::X ? m_X0[index] : m_Y0[index];
 }
 
 //==============================================================================
@@ -290,13 +277,6 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
     const auto eta = it == 1 ? 0.0 : eta_damp;
     eps = tdhf_core_it(omega, eta);
 
-    if (it == 1) {
-      // On first iteration, store dPsi (for first-order dV)
-      // XXX If we change omega and run again, this is meaningless!
-      m_X0 = m_X;
-      m_Y0 = m_Y;
-    }
-
     // Check for a "platau" in convergance (count # of 'worse' iterations)
     if (it > 15) {
       if (eps.first > best_eps) {
@@ -332,15 +312,9 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
 
 //==============================================================================
 // does it matter if a or b is in the core?
-double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj,
-                const DiracSpinor *const Fexcl, bool incl_dV) const {
+double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj) const {
   const auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful. OK?
-  return s * Fn * dV_rhs(Fn.kappa(), Fm, conj, Fexcl, incl_dV);
-}
-
-double TDHF::dV1(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
-  const auto conj = Fm.en() > Fn.en();
-  return dV(Fn, Fm, conj, nullptr, false);
+  return s * Fn * dV_rhs(Fn.kappa(), Fm, conj);
 }
 
 //==============================================================================
@@ -350,8 +324,8 @@ double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
 }
 
 //==============================================================================
-DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
-                         const DiracSpinor *const Fexcl, bool incl_dV) const {
+DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
+                         bool conj) const {
 
   auto dVFa = DiracSpinor(0, kappa_n, Fa.grid_sptr());
   dVFa.max_pt() = Fa.max_pt();
@@ -366,14 +340,8 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa, bool conj,
   // nb: faster to not //ize this one
   for (const auto &Fb : m_core) {
 
-    const auto &X_b =
-        incl_dV ? get_dPsis(Fb, ChiType) : get_dPsis_0(Fb, ChiType);
-    const auto &Y_b =
-        incl_dV ? get_dPsis(Fb, EtaType) : get_dPsis_0(Fb, EtaType);
-
-    // only for testing: exclude certain (core) states from dV sum
-    if (Fexcl && (*Fexcl) == Fb)
-      continue;
+    const auto &X_b = get_dPsis(Fb, ChiType);
+    const auto &Y_b = get_dPsis(Fb, EtaType);
 
     for (auto ibeta = 0ul; ibeta < X_b.size(); ++ibeta) {
       const auto &X_beta = X_b[ibeta];

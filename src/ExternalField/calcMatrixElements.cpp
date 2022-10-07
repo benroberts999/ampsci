@@ -17,7 +17,8 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
 
   std::vector<MEdata> res;
 
-  auto AhfsQ = h->name() == "hfs";
+  const auto AhfsQ = h->name() == "hfs";
+  const auto pi = h->parity();
 
   if (&b_orbs != &a_orbs)
     print_both = true;
@@ -30,15 +31,22 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
     dV->solve_core(omega);
   }
 
-  for (const auto &Fb : b_orbs) {
-    for (const auto &Fa : a_orbs) {
+  for (std::size_t ib = 0; ib < b_orbs.size(); ib++) {
+    const auto &Fb = b_orbs.at(ib);
+    for (std::size_t ia = 0; ia < a_orbs.size(); ia++) {
+      const auto &Fa = b_orbs.at(ia);
 
       if (h->isZero(Fa.kappa(), Fb.kappa()))
         continue;
       if (diagonal_only && Fb != Fa)
         continue;
-      if (!print_both && Fb > Fa)
-        continue;
+      if (pi == -1) {
+        if (!print_both && Fb.parity() == -1)
+          continue;
+      } else {
+        if (!print_both && ib > ia)
+          continue;
+      }
 
       const auto ww = std::abs(Fa.en() - Fb.en());
       if (each_freq && h->freqDependantQ()) {
@@ -51,17 +59,15 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
       }
 
       // Special case: HFS A:
-      const auto a =
-          radial_int ?
-              1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
-              AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) : 1.0;
+      const auto a = radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
+                     AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
+                             1.0;
 
       const auto hab = h->reducedME(Fa, Fb) * a;
-      const auto dv1 = dV ? dV->dV1(Fa, Fb) * a : 0.0;
       const auto dv = dV ? dV->dV(Fa, Fb) * a : 0.0;
 
-      auto x = res.emplace_back(
-          MEdata{Fa.shortSymbol(), Fb.shortSymbol(), hab, dv1, dv});
+      const auto w = Fa.en() - Fb.en();
+      res.emplace_back(MEdata{Fa.shortSymbol(), Fb.shortSymbol(), w, hab, dv});
     }
   }
 

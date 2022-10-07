@@ -93,12 +93,12 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto mes_v = ExternalField::calcMatrixElements(
         wf.valence(), cntm.orbitals, h.get(), p_rpa, omega, eachFreqQ);
 
-    if (rpaQ) {
-      std::cout << "              h(0)           h(1)           h(RPA)\n";
-    } else {
-      std::cout << "              h(0)\n";
+    std::cout << (rpaQ ? ExternalField::MEdata::title() :
+                         ExternalField::MEdata::title_noRPA())
+              << "\n";
+    if (!wf.core().empty()) {
+      std::cout << "Core:\n";
     }
-    std::cout << "Core:\n";
     for (const auto &me : mes_c) {
       std::cout << me << "\n";
     }

@@ -1,7 +1,7 @@
 
+#include "TDHFbasis.hpp"
 #include "DiagramRPA.hpp"
 #include "DiracOperator/DiracOperator.hpp"
-#include "TDHFbasis.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Vector.hpp"
@@ -32,14 +32,9 @@ TEST_CASE("External Field: TDHFbasis - basic unit tests",
   auto rpa = ExternalField::TDHFbasis(&dE1, wf.vHF(), wf.basis());
   rpa.solve_core(0.0, 15);
 
-  const auto dv1_0 = rpa.dV1(*F6s, *F6p);
   const auto dv_0 = rpa.dV(*F6s, *F6p);
-  std::cout << *F6s << "-" << *F6p << ": " << dv1_0 << " " << dv_0 << "\n";
-  REQUIRE(dv1_0 != 0.0);
+  std::cout << *F6s << "-" << *F6p << ": " << dv_0 << "\n";
   REQUIRE(dv_0 != 0.0);
-  // This work with larger basis, not with simple test
-  // Lage basis is too slow to run in a 'unit' test
-  // REQUIRE(std::abs(dv_0) < std::abs(dv1_0));
 
   const auto &Fc = wf.core().back();
 
@@ -53,10 +48,8 @@ TEST_CASE("External Field: TDHFbasis - basic unit tests",
   }
 
   rpa.clear();
-  const auto dv1_00 = rpa.dV1(*F6s, *F6p);
   const auto dv_00 = rpa.dV(*F6s, *F6p);
-  std::cout << *F6s << "-" << *F6p << ": " << dv1_00 << " " << dv_00 << "\n";
-  REQUIRE(dv1_00 == Approx(dv1_0));
+  std::cout << *F6s << "-" << *F6p << ": " << dv_00 << "\n";
   REQUIRE(dv_00 == 0.0);
 }
 

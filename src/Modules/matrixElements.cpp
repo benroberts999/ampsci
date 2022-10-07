@@ -55,24 +55,25 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   // spacial case: HFS A (MHz)
   const bool AhfsQ = (oper == "hfs" && !radial_int);
 
-  const auto which_str =
-      radial_int ? " (radial integral)." : AhfsQ ? " A (MHz)." : " (reduced).";
+  const auto which_str = radial_int ? "(radial integral)." :
+                         AhfsQ      ? "(HFS constant A)." :
+                                      "(reduced).";
 
   std::cout << "\n"
-            << input.name() << which_str << " Operator: " << h->name() << "\n";
+            << "Matrix Elements - " << which_str << " Operator: " << h->name()
+            << "\n";
   std::cout << "Units: " << h->units() << "\n";
 
   const bool print_both = input.get("printBoth", false);
   const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
-  auto rpa_method = (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
-                        ExternalField::method::TDHF :
-                        (rpa_method_str == "basis") ?
-                        ExternalField::method::basis :
-                        (rpa_method_str == "diagram") ?
-                        ExternalField::method::diagram :
-                        ExternalField::method::none;
+  auto rpa_method =
+      (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
+          ExternalField::method::TDHF :
+      (rpa_method_str == "basis")   ? ExternalField::method::basis :
+      (rpa_method_str == "diagram") ? ExternalField::method::diagram :
+                                      ExternalField::method::none;
   if (wf.core().empty())
     rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;
@@ -115,9 +116,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       wf.valence(), h.get(), rpa.get(), omega, eachFreqQ, diagonal_only,
       print_both, radial_int);
 
-  if (rpaQ) {
-    std::cout << "              h(0)           h(1)           h(RPA)\n";
-  }
+  std::cout << (rpaQ ? ExternalField::MEdata::title() :
+                       ExternalField::MEdata::title_noRPA())
+            << "\n";
   for (const auto &me : mes) {
     std::cout << me << "\n";
   }

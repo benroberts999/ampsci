@@ -1,8 +1,8 @@
+#include "MixedStates.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/TDHFbasis.hpp"
 #include "IO/ChronoTimer.hpp"
-#include "MixedStates.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/String.hpp"
@@ -175,9 +175,9 @@ TEST_CASE("External Field: Mixed-states2",
 
           auto dv1 = tdhf.dV(Fc, Fm);
           auto dv2 = basis.dV(Fc, Fm);
-          auto dv3 = basis.dV1(Fc, Fm);
+          // auto dv3 = basis.dV1(Fc, Fm);
           auto eps3 = std::abs((dv1 - dv2) / dv1);
-          printf("               %+.3e %+.3e %+.3e  %.1e", dv1, dv2, dv3, eps3);
+          printf("               %+.3e %+.3e  %.1e", dv1, dv2, eps3);
           if (eps3 > 1.0e-2)
             std::cout << "  ******";
           std::cout << "\n";

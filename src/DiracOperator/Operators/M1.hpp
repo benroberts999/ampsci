@@ -13,6 +13,8 @@ namespace DiracOperator {
 Negative sign (and alpha) puts into units |mu_B|.
 For k<<1 (static case): j1(kr) -> (r*k)/3,
 \f[R = \frac{-1}{\alpha} \int (f_ag_b+g_af_b) r \, dr\f]
+
+Be careful with this operator - compare with: U. I. Safronova, M. S. Safronova, and W. R. Johnson, Phys. Rev. A 95, 042507 (2017).
 */
 class M1 final : public TensorOperator {
 public:

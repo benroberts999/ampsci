@@ -1,5 +1,6 @@
 #pragma once
 #include "CorePolarisation.hpp"
+#include "Coulomb/QkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
@@ -16,8 +17,6 @@ namespace ExternalField {
 
 //! RPA correction to matrix elements, using Diagram technique
 class DiagramRPA : public CorePolarisation {
-  // Type used to store W matrix (float works equally well as double)
-  using Wtype = float;
 
 public:
   //! Normal constructor: needs core to split basis: only uses basis.
@@ -45,10 +44,14 @@ private:
 
   // Note: W's depend on rank (also parity)! Can re-use!?
   // These are probably an excellent candidate for unordered_map?
-  std::vector<std::vector<std::vector<std::vector<Wtype>>>> Wanmb{};
-  std::vector<std::vector<std::vector<std::vector<Wtype>>>> Wabmn{};
-  std::vector<std::vector<std::vector<std::vector<Wtype>>>> Wmnab{};
-  std::vector<std::vector<std::vector<std::vector<Wtype>>>> Wmban{};
+  std::vector<std::vector<std::vector<std::vector<double>>>> Wanmb{};
+  std::vector<std::vector<std::vector<std::vector<double>>>> Wabmn{};
+  std::vector<std::vector<std::vector<std::vector<double>>>> Wmnab{};
+  std::vector<std::vector<std::vector<std::vector<double>>>> Wmban{};
+
+  // nb: much slower to use Qk table
+  static constexpr bool m_USE_QK = false;
+  Coulomb::QkTable m_qk{};
 
 public:
   //! Itterates the RPA equations for core electrons
@@ -59,13 +62,7 @@ public:
   virtual double dV(const DiracSpinor &Fa,
                     const DiracSpinor &Fb) const override final;
 
-  double dV_diagram(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                    const bool first_order = false) const;
-
-  virtual double dV1(const DiracSpinor &Fa,
-                     const DiracSpinor &Fb) const override final {
-    return dV_diagram(Fa, Fb, true);
-  }
+  double dV_diagram(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   //! @brief Clears the t_am and t_ma RPA ME's [RPA ME's for hole-excited]
   //! @Details If a previous run failed, can clear t_am's + re-try

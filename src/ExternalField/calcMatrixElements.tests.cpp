@@ -1,7 +1,7 @@
+#include "calcMatrixElements.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
-#include "calcMatrixElements.hpp"
 #include "catch2/catch.hpp"
 #include <iostream>
 #include <vector>
@@ -19,12 +19,12 @@ TEST_CASE("External Field: calcMatrixElements", "[ExternalField][unit]") {
   auto rpa = ExternalField::TDHF(&dE1, wf.vHF());
   // rpa.solve_core(0.0);
 
-  auto mes =
+  const auto mes =
       ExternalField::calcMatrixElements(wf.valence(), &dE1, &rpa, 0.0, false);
 
   for (auto &me : mes) {
     std::cout << me << "\n";
-    auto [a, b, h, dv1, dv] = me;
+    auto [a, b, ww, h, dv] = me;
 
     auto Fa = wf.getState(a);
     auto Fb = wf.getState(b);
@@ -33,8 +33,7 @@ TEST_CASE("External Field: calcMatrixElements", "[ExternalField][unit]") {
     auto h0 = dE1.reducedME(*Fa, *Fb);
     REQUIRE(h == Approx(h0));
 
-    auto hdv10 = rpa.dV1(*Fa, *Fb);
-    REQUIRE(dv1 == Approx(hdv10));
+    REQUIRE(ww == Approx(Fa->en() - Fb->en()));
 
     auto hdv0 = rpa.dV(*Fa, *Fb);
     REQUIRE(dv == Approx(hdv0));

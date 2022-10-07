@@ -26,8 +26,9 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
                     "typical [1.0]"},
        {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
                    "1,0,1 => include for s and d, but not for p [1.0]"},
-       {"core_QED", "Inlcude QED into core (or only valence)? [true]"},
-       {"use_cm", "Use cm^-1 for energy corrections (otherwise au) [true]"},
+       {"core_QED",
+        "Inlcude QED into core (or only valence) - AKA relaxation? [true]"},
+       {"use_cm", "Use cm^-1 for energy corrections (otherwise au) [false]"},
        {"MatrixElements{}", "For "
                             "QED corrects to MEs. Input block; takes mostly "
                             "same inputs an Module::MatrixElements."}});
@@ -53,7 +54,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
         << "This is probably fine, but should be confirmed independently\n";
   }
 
-  const bool use_cm = input.get("use_cm", true);
+  const bool use_cm = input.get("use_cm", false);
   const auto units = use_cm ? PhysConst::Hartree_invcm : 1.0e5;
   const std::string units_str = use_cm ? "cm^-1" : "10^{-5}au";
 
@@ -243,11 +244,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto oper = me_input->get<std::string>("operator", "");
   // Get optional 'options' for operator
-  // auto h_options = IO::InputBlock(oper, {});
   const auto tmp_opt = me_input->getBlock("options");
-  // if (tmp_opt) {
-  //   h_options = *tmp_opt;
-  // }
   const auto h =
       DiracOperator::generate(oper, tmp_opt ? *tmp_opt : IO::InputBlock{}, wf);
 
@@ -314,9 +311,9 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Print matrix elements, without QED:
   std::cout << "\nReduced matrix elements (" << h->name() << "), no QED:\n";
-  if (rpaQ) {
-    std::cout << "             h(0)           h(1)           h(RPA)\n";
-  }
+  std::cout << (rpaQ ? ExternalField::MEdata::title() :
+                       ExternalField::MEdata::title_noRPA())
+            << "\n";
   for (const auto &me : me0) {
     std::cout << me << "\n";
   }
@@ -324,9 +321,9 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // Print matrix elements, with total QED:
   std::cout << "\nReduced matrix elements (" << h->name()
             << "), including full QED:\n";
-  if (rpaQ) {
-    std::cout << "             h(0)           h(1)           h(RPA)\n";
-  }
+  std::cout << (rpaQ ? ExternalField::MEdata::title() :
+                       ExternalField::MEdata::title_noRPA())
+            << "\n";
   for (const auto &me : met) {
     std::cout << me << "\n";
   }
@@ -336,13 +333,12 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "States     Uehl       SE(h)      SE(l)      SE(m)      WK     "
                "    Total\n";
   for (std::size_t i = 0; i < me0.size(); ++i) {
-    const auto [a, b, hab, d1, dv] = me0.at(i);
+    const auto [a, b, ww, hab, dv] = me0.at(i);
     printf("%4s %4s ", a.c_str(), b.c_str());
     for (const auto p : {&meu, &meh, &mel, &mem, &mew, &met}) {
-      const auto [qa, qb, qh, qd1, qdv] = (*p).at(i);
+      const auto [qa, qb, qww, qh, qdv] = (*p).at(i);
       assert(qa == a && qb == b);
       auto del0 = qh - hab;
-      // auto deldv = (qh + qdv) - (hab + dv);
       printf("%10.3e ", del0);
     }
     std::cout << "\n";
@@ -356,12 +352,11 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
         << "States     Uehl       SE(h)      SE(l)      SE(m)      WK     "
            "    Total\n";
     for (std::size_t i = 0; i < me0.size(); ++i) {
-      const auto [a, b, hab, d1, dv] = me0.at(i);
+      const auto [a, b, ww, hab, dv] = me0.at(i);
       printf("%4s %4s ", a.c_str(), b.c_str());
       for (const auto p : {&meu, &meh, &mel, &mem, &mew, &met}) {
-        const auto [qa, qb, qh, qd1, qdv] = (*p).at(i);
+        const auto [qa, qb, qww, qh, qdv] = (*p).at(i);
         assert(qa == a && qb == b);
-        // auto del0 = qh - hab;
         auto deldv = (qh + qdv) - (hab + dv);
         printf("%10.3e ", deldv);
       }

@@ -67,9 +67,6 @@ public:
                                       StateType st = StateType::ket,
                                       bool incl_dV = true) const;
 
-  virtual double dV1(const DiracSpinor &Fa,
-                     const DiracSpinor &Fb) const override final;
-
 public:
   TDHFbasis &operator=(const TDHFbasis &) = delete;
   TDHFbasis(const TDHFbasis &) = default;

@@ -11,14 +11,33 @@ class TensorOperator;
 
 namespace ExternalField {
 
+//! Small struct to store calculated matrix elements
+/*!
+@details 
+a and b: shortSymbols for finail/initial states <a||h||b>
+
+hab: Lowest-order matrix element
+
+dv: RPA correction
+
+w_wb: frequency: Ea-Eb
+*/
 struct MEdata {
+
   std::string a, b;
-  double hab, dv1, dv;
+  double w_ab;
+  double hab, dv;
+
+  static std::string title() {
+    return "    a    b   w_ab      t_ab           RPA_ab";
+  }
+  static std::string title_noRPA() { return "    a    b   w_ab      t_ab"; }
 
   friend std::ostream &operator<<(std::ostream &os, const MEdata &m) {
-    os << qip::fstring(" %4s %4s  %13.6e", m.a.c_str(), m.b.c_str(), m.hab);
-    if (m.dv1 != 0.0) {
-      os << qip::fstring("  %13.6e  %13.6e", m.hab + m.dv1, m.hab + m.dv);
+    os << qip::fstring(" %4s %4s  %8.5f  %13.6e", m.a.c_str(), m.b.c_str(),
+                       m.w_ab, m.hab);
+    if (m.dv != 0.0) {
+      os << qip::fstring("  %13.6e", m.hab + m.dv);
     }
     return os;
   }

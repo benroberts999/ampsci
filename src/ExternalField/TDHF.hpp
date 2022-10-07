@@ -47,8 +47,6 @@ protected:
   // j(x)=j(c)-k,...,j(c)+k.  And: pi(x) = pi(c)*pi(h)
   std::vector<std::vector<DiracSpinor>> m_X{};
   std::vector<std::vector<DiracSpinor>> m_Y{};
-  std::vector<std::vector<DiracSpinor>> m_X0{};
-  std::vector<std::vector<DiracSpinor>> m_Y0{};
   std::vector<std::vector<DiracSpinor>> m_hFcore{};
   // can just write these to disk! Read them in, continue as per normal
 
@@ -77,26 +75,17 @@ public:
 
   //! Calculate reduced matrix element <a||dV||b> or <a||dV*||b>.
   //! Will exclude orbital 'Fexcl' from sum over core (for tests only)
-  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj,
-            const DiracSpinor *const Fexcl = nullptr,
-            bool incl_dV = true) const;
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
 
   //! As above, but automatically determines if 'conjugate' version
   //! required (Based on sign of [en_a-en_b])
   virtual double dV(const DiracSpinor &Fa,
                     const DiracSpinor &Fb) const override final;
 
-  // Not final, over-ridden in TDHFbasis
-  //! Returns first-order  <a||dV^1||b>
-  virtual double dV1(const DiracSpinor &Fa,
-                     const DiracSpinor &Fb) const override;
-
   //! Returns "reduced partial matrix element RHS": dV||Fb}.
   //! Note: Fa * dV_rhs(..) equiv to dV(..)
   DiracSpinor dV_rhs(const int kappa_n, const DiracSpinor &Fm,
-                     bool conj = false,
-                     const DiracSpinor *const Fexcl = nullptr,
-                     bool incl_dV = true) const;
+                     bool conj = false) const;
 
   //! Returns const ref to dPsi orbitals for given core orbital Fc
   const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &Fc,
@@ -104,9 +93,6 @@ public:
   //! Returns const reference to dPsi orbital of given kappa
   const DiracSpinor &get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
                                 const int kappa_x) const;
-  // Gets first-order dPsi
-  const std::vector<DiracSpinor> &get_dPsis_0(const DiracSpinor &Fc,
-                                              dPsiType XorY) const;
 
   //! Forms \delta Psi_v for valence state Fv (including core pol.) - 1 kappa
   /*! @details 

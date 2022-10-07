@@ -49,8 +49,6 @@ public:
 
   //! @brief Calculate reduced matrix element <n||dV||m>
   virtual double dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const = 0;
-  //! @brief Calculate reduced matrix element <n||dV^1||m>, lowest-order only
-  virtual double dV1(const DiracSpinor &Fn, const DiracSpinor &Fm) const = 0;
 
 public:
   CorePolarisation &operator=(const CorePolarisation &) = delete;
