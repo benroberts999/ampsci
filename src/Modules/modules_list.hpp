@@ -9,6 +9,7 @@
 #include "Modules/exampleModule.hpp"
 #include "Modules/isotopeShift.hpp"
 #include "Modules/ladder.hpp"
+#include "Modules/lifetimes.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Modules/pnc.hpp"
 #include "Modules/polarisability.hpp"
@@ -49,7 +50,7 @@ static const std::map<std::string, module_function_t> module_list{
     {"QED", &QED},
     {"testFeynman", &testFeynman},
     {"matrixElements", &matrixElements},
-    {"lifetimes", &calculateLifetimes},
+    {"lifetimes", &lifetimes},
     {"polarisability", &polarisability},
     {"dynamicPolarisability", &dynamicPolarisability},
     {"transitionPolarisability", &transitionPolarisability},

@@ -28,8 +28,11 @@ struct MEdata {
   double w_ab;
   double hab, dv;
 
-  static std::string title() {
-    return "    a    b   w_ab      t_ab           RPA_ab";
+  static std::string title(bool rpaQ = true) {
+    if (rpaQ)
+      return "    a    b   w_ab      t_ab           RPA_ab";
+    else
+      return "    a    b   w_ab      t_ab";
   }
   static std::string title_noRPA() { return "    a    b   w_ab      t_ab"; }
 

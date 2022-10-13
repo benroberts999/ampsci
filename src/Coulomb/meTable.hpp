@@ -1,4 +1,5 @@
 #pragma once
+#include "Physics/AtomData.hpp"
 #include "QkTable.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <cstdint>
@@ -18,7 +19,7 @@ private:
   std::unordered_map<nk2Index, T> m_data{};
 
 public:
-  auto operator-> () { return &m_data; }
+  auto operator->() { return &m_data; }
 
   //! Adds new element to table. If already exists, does nothing (does not
   //! update)
@@ -38,10 +39,9 @@ public:
     return m_data.find(FormIndex(a.nk_index(), b.nk_index())) != m_data.cend();
   }
 
-      //! Gets pointer to const requested element. If element not present,
-      //! returns nullptr
-      [[nodiscard]] const T *get(const DiracSpinor &a,
-                                 const DiracSpinor &b) const {
+  //! Gets pointer to const requested element. If element not present,
+  //! returns nullptr
+  [[nodiscard]] const T *get(const DiracSpinor &a, const DiracSpinor &b) const {
     const auto map_it = m_data.find(FormIndex(a.nk_index(), b.nk_index()));
     return (map_it == m_data.cend()) ? nullptr : &(map_it->second);
   }
@@ -52,13 +52,26 @@ public:
     return (map_it == m_data.cend()) ? nullptr : &(map_it->second);
   }
 
-  private :
-      // Converts given set of nkIndex's (in any order) to nk4Index
-      [[nodiscard]] nk2Index FormIndex(nkIndex a, nkIndex b) const {
-        static_assert(sizeof(nk2Index) == 2 * sizeof(nkIndex));
-        static_assert(sizeof(nkIndex) * 8 == 16);
-        return (nk2Index)b + ((nk2Index)a << 16);
-      }
+  //! Gets pointer to const requested element. If element not present,
+  //! returns nullptr
+  [[nodiscard]] const T *get(const std::string &a, const std::string &b) const {
+    auto [na, ka] = AtomData::parse_symbol(a);
+    auto [nb, kb] = AtomData::parse_symbol(b);
+    const auto a_index =
+        static_cast<Coulomb::nkIndex>(Angular::nk_to_index(na, ka));
+    const auto b_index =
+        static_cast<Coulomb::nkIndex>(Angular::nk_to_index(nb, kb));
+    const auto map_it = m_data.find(FormIndex(a_index, b_index));
+    return (map_it == m_data.cend()) ? nullptr : &(map_it->second);
+  }
+
+private:
+  // Converts given set of nkIndex's (in any order) to nk4Index
+  [[nodiscard]] nk2Index FormIndex(nkIndex a, nkIndex b) const {
+    static_assert(sizeof(nk2Index) == 2 * sizeof(nkIndex));
+    static_assert(sizeof(nkIndex) * 8 == 16);
+    return (nk2Index)b + ((nk2Index)a << 16);
+  }
 };
 
 } // namespace Coulomb

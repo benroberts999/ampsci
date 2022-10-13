@@ -52,6 +52,13 @@ TEST_CASE("Coulomb: meTable", "[Coulomb][meTable][unit]") {
       } else {
         REQUIRE(std::abs(dab - *met.get(a, b)) < 1.0e-12);
         REQUIRE(std::abs(dba - *met.get(b, a)) < 1.0e-12);
+
+        REQUIRE(*met.get(a, b) ==
+                Approx(*met.get(a.shortSymbol(), b.shortSymbol())));
+        REQUIRE(*met.get(b, a) ==
+                Approx(*met.get(b.shortSymbol(), a.shortSymbol())));
+        REQUIRE(*met.get(a, b) == Approx(*met.get(a.symbol(), b.symbol())));
+        REQUIRE(*met.get(b, a) == Approx(*met.get(b.symbol(), a.symbol())));
       }
     }
   }

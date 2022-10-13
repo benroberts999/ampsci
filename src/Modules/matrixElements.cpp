@@ -247,16 +247,23 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   };
   std::vector<Output> out;
 
-  // Loop through all valence states, calc SR+NS
-  for (const auto &v : wf.valence()) {
-    for (const auto &w : wf.valence()) {
+  const auto pi = h->parity();
+
+  for (std::size_t ib = 0; ib < wf.valence().size(); ib++) {
+    const auto &v = wf.valence().at(ib);
+    for (std::size_t ia = 0; ia < wf.valence().size(); ia++) {
+      const auto &w = wf.valence().at(ia);
       if (h->isZero(w.kappa(), v.kappa()))
         continue;
-
-      if (only_diagonal && w != v)
+      if (only_diagonal && v != w)
         continue;
-      if (!print_both && v > w)
-        continue;
+      if (pi == -1) {
+        if (!print_both && v.parity() == -1)
+          continue;
+      } else {
+        if (!print_both && ib > ia)
+          continue;
+      }
 
       Output t_out;
 
@@ -275,16 +282,17 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       IO::ChronoTimer timer("time");
 
       std::cout << "\n" << h->rme_symbol(w, v) << ":\n";
-      t_out.ab = h->rme_symbol(w, v);
+      t_out.ab = w.shortSymbol() + " " + v.shortSymbol();
 
-      const auto ww = eachFreqQ ? std::abs(wp->en() - vp->en()) : const_omega;
+      // const auto ww = eachFreqQ ? std::abs(wp->en() - vp->en()) : const_omega;
+      const auto ww = eachFreqQ ? wp->en() - vp->en() : const_omega;
       if (eachFreqQ && h->freqDependantQ()) {
         h->updateFrequency(ww);
       }
       if (eachFreqQ && rpaQ) {
         if (dV->get_eps() > 1.0e-3)
           dV->clear();
-        dV->solve_core(ww);
+        dV->solve_core(std::abs(ww));
       }
 
       // Zeroth-order MEs:
@@ -327,12 +335,12 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\n";
   std::cout << "Structure Radiation + Normalisation of states.\n"
                "Reduced matrix elements (au)\n"
-            << "               t0         SR         Norm     ";
+            << "            t0         SR         Norm       SR+N     ";
   if (rpaQ)
     std::cout << " |  t0+dV      SR+dV      Norm+dV";
   std::cout << "\n";
   for (auto &[ab, t0, t0dv, sr0, n, srdv, ndv] : out) {
-    printf("%10s %10.3e %10.3e %10.3e", ab.c_str(), t0, sr0, n);
+    printf(" %9s %10.3e %10.3e %10.3e %10.3e", ab.c_str(), t0, sr0, n, sr0 + n);
     if (rpaQ) {
       printf(" | %10.3e %10.3e %10.3e", t0dv, srdv, ndv);
     }
@@ -340,118 +348,6 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   return;
-}
-
-//==============================================================================
-void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
-  std::cout << "\nLifetimes:\n";
-  std::cout << "Note: Uses _valence_ states - so, must ensure all lower states "
-               "have been included in the valence list for accurate results.\n";
-
-  input.check(
-      {{"E1", "Include E1 transitions? [true]"},
-       {"E2", "Include E2 transitions? [false]"},
-       {"rpa", "Include RPA? [true]"},
-       {"StrucRadNorm", "Include SR+Norm correction (only for E1)? [false]"}});
-  // If we are just requesting 'help', don't run module:
-  if (input.has_option("help")) {
-    return;
-  }
-
-  const auto doE1 = input.get("E1", true);
-  const auto doE2 = input.get("E2", false);
-  const auto rpaQ = input.get("rpa", true);
-  if (doE1 && !doE2)
-    std::cout << "Including E1 only.\n";
-  if (!doE1 && doE2)
-    std::cout << "Including E2 only.\n";
-  if (doE1 && doE2)
-    std::cout << "Including E1 and E2.\n";
-
-  DiracOperator::E1 he1(wf.grid());
-  DiracOperator::Ek he2(wf.grid(), 2);
-  auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
-  auto dVE2 = ExternalField::TDHF(&he2, wf.vHF());
-  if (rpaQ && doE1)
-    dVE1.solve_core(0.0);
-  if (rpaQ && doE2)
-    dVE2.solve_core(0.0);
-
-  // Construct SR object:
-  std::unique_ptr<MBPT::StructureRad> sr(nullptr);
-  const auto srQ = input.get("StrucRadNorm", false);
-  if (srQ) {
-    std::cout << "Including Structure Radiation + Normalisation\n";
-    sr = std::make_unique<MBPT::StructureRad>(wf.basis(), wf.en_coreval_gap());
-  }
-
-  const auto alpha = wf.alpha();
-  const auto alpha3 = alpha * alpha * alpha;
-  const auto alpha2 = alpha * alpha;
-  const auto to_s = PhysConst::time_s;
-  std::cout << "Time conversion: " << to_s << "\n";
-
-  struct Data {
-    Data(const std::string &s, double t) : state(s), tau(t){};
-    std::string state;
-    double tau;
-  };
-  std::vector<Data> data;
-
-  for (const auto &Fa : wf.valence()) {
-    std::cout << "\n" << Fa.symbol() << "\n";
-    auto Gamma = 0.0;
-
-    if (doE1) {
-      for (const auto &Fn : wf.valence()) {
-        if (Fn.en() >= Fa.en() || he1.isZero(Fn.kappa(), Fa.kappa()))
-          continue;
-        const auto w = Fa.en() - Fn.en();
-        if (rpaQ)
-          dVE1.solve_core(w);
-        auto d = he1.reducedME(Fn, Fa) + dVE1.dV(Fn, Fa);
-        if (sr) {
-          // include SR.
-          const auto [tb, tbx] = sr->srTB(&he1, Fn, Fa);
-          const auto [c, cx] = sr->srC(&he1, Fn, Fa);
-          const auto [n, nx] = sr->norm(&he1, Fn, Fa);
-          d += (tb + c + n);
-        }
-        const auto g_n = (4.0 / 3) * w * w * w * d * d / (Fa.twojp1());
-        Gamma += g_n;
-        std::cout << "  E1 --> " << Fn.symbol() << ": ";
-        printf("w=%10.4f/cm, |d|=%7.5f, g=%10.4eau\n",
-               w * PhysConst::Hartree_invcm, std::abs(d), g_n * alpha3);
-      }
-    }
-    if (doE2) {
-      for (const auto &Fn : wf.valence()) {
-        if (Fn.en() >= Fa.en() || he2.isZero(Fn.kappa(), Fa.kappa()))
-          continue;
-        const auto w = Fa.en() - Fn.en();
-        if (rpaQ)
-          dVE2.solve_core(w);
-        const auto d = he2.reducedME(Fn, Fa) + dVE2.dV(Fn, Fa);
-        const auto g_n =
-            alpha2 * (1.0 / 15) * w * w * w * w * w * d * d / (Fa.twojp1());
-        Gamma += g_n;
-        std::cout << "  E2 --> " << Fn.symbol() << ": ";
-        printf("w=%10.4f/cm, |q|=%7.5f, g=%10.4eau\n",
-               w * PhysConst::Hartree_invcm, std::abs(d), g_n * alpha3);
-      }
-    }
-
-    printf("Gamma = %10.4eau = %10.4e/s\n", Gamma * alpha3,
-           Gamma * alpha3 / to_s);
-    const auto tau = to_s / alpha3 / Gamma;
-    printf("tau = %10.4es\n", tau);
-    data.emplace_back(Fa.symbol(true), tau * 1.0e9);
-  }
-  std::cout << "\nLifetimes (summary), in ns:\n";
-  for (const auto &[s, t] : data) {
-    printf(" %9s  %10.4e\n", s.c_str(), t);
-  }
-  std::cout << "\n";
 }
 
 } // namespace Module

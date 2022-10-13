@@ -25,7 +25,4 @@ For explanation of the rest, see MatrixElements module.
 */
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf);
 
-//! Calculates state lifetimes (using E1 and E2 only). nb: HF energies
-void calculateLifetimes(const IO::InputBlock &input, const Wavefunction &wf);
-
 } // namespace Module
