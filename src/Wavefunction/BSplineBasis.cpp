@@ -33,11 +33,12 @@ Parameters::Parameters(IO::InputBlock input)
       reps(input.get("r0_eps", 1.0e-3)),
       rmax(input.get("rmax", 0.0)),
       positronQ(input.get("positron", false)),
-      type(parseSplineType(input.get<std::string>("type", "Derevianko"))) {}
+      type(parseSplineType(input.get<std::string>("type", "Derevianko"))),
+      orthogonalise(input.get("orthogonalise", false)) {}
 
 Parameters::Parameters(std::string istates, std::size_t in, std::size_t ik,
                        double ir0, double ireps, double irmax, bool ipositronQ,
-                       SplineType itype)
+                       SplineType itype, bool iorthogonalise)
     : states(istates),
       n(in),
       k(ik),
@@ -45,7 +46,8 @@ Parameters::Parameters(std::string istates, std::size_t in, std::size_t ik,
       reps(ireps),
       rmax(irmax),
       positronQ(ipositronQ),
-      type(itype) {}
+      type(itype),
+      orthogonalise(iorthogonalise) {}
 
 //==============================================================================
 std::vector<DiracSpinor> form_basis(const Parameters &params,
@@ -54,7 +56,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
   const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl, positronQ,
-               basis_type] = params;
+               basis_type, ortho] = params;
   std::vector<DiracSpinor> basis;
   std::vector<DiracSpinor> basis_positron;
 
@@ -126,60 +128,64 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     }
   }
 
+  return basis;
+}
+
+double check(const std::vector<DiracSpinor> &basis,
+             const std::vector<DiracSpinor> &orbs, bool print_warning) {
   // Compare basis states to core/valence states
   // Check normality, orthogonality and energy differences
-  for (const auto *orbs : {&wf.core(), &wf.valence()}) {
-    if (orbs->empty())
+  // for (const auto *orbs : {&core, &valence})
+
+  if (orbs.empty())
+    return 0.0;
+
+  std::string wrong_sign_list = "";
+  // std::cout << "Basis/" << (orbs == &wf.core() ? "core" : "valence") << ":\n";
+  double worst_dN = 0.0;
+  double worst_dE = 0.0;
+  std::string wFN, wFE;
+  for (const auto &Fc : orbs) {
+    // find corresponding basis state:
+    auto pFbc = std::find(basis.cbegin(), basis.cend(), Fc);
+    if (pFbc == basis.cend())
       continue;
-
-    std::string wrong_sign_list = "";
-    std::cout << "Basis/" << (orbs == &wf.core() ? "core" : "valence") << ":\n";
-    double worst_dN = 0.0;
-    double worst_dE = 0.0;
-    std::string wFN, wFE;
-    for (const auto &Fc : *orbs) {
-      // find corresponding basis state:
-      auto pFbc = std::find(basis.cbegin(), basis.cend(), Fc);
-      if (pFbc == basis.cend())
-        continue;
-      const auto FcFb = Fc * (*pFbc);
-      if (Fc == *pFbc && FcFb < 0.0) {
-        // basis state has wrong sign!
-        wrong_sign_list += Fc.shortSymbol() + ",";
-      }
-      const auto dN = std::abs(std::abs(FcFb) - 1.0);
-      const auto dE = std::abs((pFbc->en() - Fc.en()) / pFbc->en());
-      if (dN > worst_dN) {
-        worst_dN = dN;
-        wFN = Fc.shortSymbol();
-      }
-      if (dE > worst_dE) {
-        worst_dE = dE;
-        wFE = Fc.shortSymbol();
-      }
+    const auto FcFb = Fc * (*pFbc);
+    if (Fc == *pFbc && FcFb < 0.0) {
+      // basis state has wrong sign!
+      wrong_sign_list += Fc.shortSymbol() + ",";
     }
-
-    printf(" |<%s|%s>-1| = %.1e", wFN.c_str(), wFN.c_str(), worst_dN);
-    if (worst_dN > 1.0e-3) {
-      std::cout << "  ** OK?";
+    const auto dN = std::abs(std::abs(FcFb) - 1.0);
+    const auto dE = std::abs((pFbc->en() - Fc.en()) / pFbc->en());
+    if (dN > worst_dN) {
+      worst_dN = dN;
+      wFN = Fc.shortSymbol();
     }
-    printf("\n dE/E(%s)     = %.1e", wFE.c_str(), worst_dE);
-    if (worst_dE > 1.0e-3) {
-      std::cout << "  ** OK?";
-    }
-    const auto [eps, str] = DiracSpinor::check_ortho(*orbs, basis);
-    printf("\n %-10s    = %.1e", str.c_str(), eps);
-    if (eps > 1.0e-3) {
-      std::cout << "  ** OK?";
-    }
-    std::cout << "\n";
-    if (wrong_sign_list != "") {
-      std::cout << "Warning: Some basis states have opposite sign (e.g.): "
-                << wrong_sign_list << "\n";
+    if (dE > worst_dE) {
+      worst_dE = dE;
+      wFE = Fc.shortSymbol();
     }
   }
 
-  return basis;
+  printf(" |<%3s|%3s>-1| = %.1e", wFN.c_str(), wFN.c_str(), worst_dN);
+  if (worst_dN > 1.0e-3 && print_warning) {
+    std::cout << "  ** OK?";
+  }
+  printf("\n dE/E(%3s)     = %.1e", wFE.c_str(), worst_dE);
+  if (worst_dE > 1.0e-3 && print_warning) {
+    std::cout << "  ** OK?";
+  }
+  const auto [eps, str] = DiracSpinor::check_ortho(orbs, basis);
+  printf("\n %-10s    = %.1e", str.c_str(), eps);
+  if (eps > 1.0e-3 && print_warning) {
+    std::cout << "  ** OK?";
+  }
+  std::cout << "\n";
+  if (wrong_sign_list != "") {
+    std::cout << "Warning: Some basis states have opposite sign (e.g.): "
+              << wrong_sign_list << "\n";
+  }
+  return std::max({worst_dN, std::abs(worst_dE), eps});
 }
 
 //==============================================================================

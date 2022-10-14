@@ -57,7 +57,8 @@ struct Parameters {
   Parameters() {}
   Parameters(std::string states, std::size_t n, std::size_t k, double r0,
              double reps, double rmax, bool positronQ,
-             SplineType itype = SplineType::Derevianko);
+             SplineType itype = SplineType::Derevianko,
+             bool in_orthogonalise = false);
   Parameters(IO::InputBlock input);
 
   std::string states{};
@@ -65,6 +66,7 @@ struct Parameters {
   double r0{}, reps{}, rmax{};
   bool positronQ{false};
   SplineType type{SplineType::Derevianko};
+  bool orthogonalise{false};
 };
 
 //! @brief Forms + returns the basis orbitals (expanded in terms of splines)
@@ -89,6 +91,9 @@ explicitely, unless you are trying to do something different to usual.
 std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const Wavefunction &wf,
                                     const bool correlationsQ = false);
+
+double check(const std::vector<DiracSpinor> &basis,
+             const std::vector<DiracSpinor> &orbs, bool print_warning = true);
 
 //! Forms the underlying spline basis (which is not kept)
 std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>

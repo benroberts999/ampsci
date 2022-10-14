@@ -26,8 +26,7 @@ namespace Module {
 void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer t("polarisability");
 
-  std::cout << "\n----------------------------------------------------------\n";
-  std::cout << "Calculate atomic polarisabilities at single frequency\n";
+  std::cout << "Atomic polarisabilities, 𝛼, at single frequency\n";
 
   input.check(
       {{"rpa", "Include RPA? [true]"},
@@ -39,7 +38,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
         "List. Discard these states from the spectrum for "
         "sum-over-states for valence part of alpha, and "
         "from TDHF by orthogonality (must be in core/valence) []"},
-       {"StrucRad", "SR: include SR+Norm correction [false]"},
+       {"SRN", "SR: include SR+Norm correction [false]"},
        {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
@@ -137,7 +136,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Optionally calculate SR+N contribution
-  if (input.get("StrucRad", false)) {
+  if (input.get("SRN", false)) {
     const auto n_min_core = input.get("n_min_core", 1);
     const auto max_n_SR = input.get("max_n_SR", 9);
     const auto Qk_file = input.get("Qk_file", std::string{""});
@@ -158,6 +157,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "\n";
     }
   }
+  std::cout << "\n";
 }
 
 //==============================================================================
@@ -194,7 +194,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
        {"filename", "output filename for dynamic polarisability (a0_ and/or "
                     "a2_ will be appended to start of filename) [identity.txt "
                     "(e.g., CsI.txt)]"},
-       {"StrucRad", "SR: include SR+Norm correction [false]"},
+       {"SRN", "SR: include SR+Norm correction [false]"},
        {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
@@ -318,7 +318,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
                        0.0 :
                        alphaD::core_tdhf(wf.core(), he1, dVE1, 0.0, wf.Sigma());
 
-  const auto StrucRadQ = input.get("StrucRad", false);
+  const auto StrucRadQ = input.get("SRN", false);
 
   std::optional<MBPT::StructureRad> sr{std::nullopt};
   const auto max_n_SR = input.get("max_n_SR", 9);
@@ -487,14 +487,11 @@ void transitionPolarisability(const IO::InputBlock &input,
                               const Wavefunction &wf) {
   IO::ChronoTimer t("transitionPolarisability");
 
-  std::cout << "\n----------------------------------------------------------\n";
-  std::cout << "Calculate transition polarisabilities\n";
-
   input.check(
       {{"transition", "List. states (e.g., 6s,6s) []"},
        {"rpa", "Include RPA? [true]"},
        {"omega", "frequency (for single w) [default: transition freq.]"},
-       {"StrucRad", "SR: include SR+Norm correction [false]"},
+       {"SRN", "SR: include SR+Norm correction [false]"},
        {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
@@ -529,6 +526,23 @@ void transitionPolarisability(const IO::InputBlock &input,
   const auto omega_default = std::abs(Fv.en() - Fw.en());
   const auto omega = input.get("omega", omega_default);
   const auto rpaQ = input.get("rpa", true);
+  const auto srnQ = input.get("SRN", false);
+
+  const auto alpha_text =
+      " 𝛼(" + Fv.shortSymbol() + ", " + Fw.shortSymbol() + ")";
+  const auto beta_text =
+      " 𝛽(" + Fv.shortSymbol() + ", " + Fw.shortSymbol() + ")";
+  const auto ratio_text =
+      " 𝛼/𝛽(" + Fv.shortSymbol() + ", " + Fw.shortSymbol() + ")";
+
+  std::cout << "Scalar + vector transition polarisabilities\n";
+  if (rpaQ) {
+    std::cout << "Including RPA at 𝜔 = " << omega << "\n";
+  }
+  if (srnQ) {
+    std::cout << "Including Structure Radiation + Normalisation\n";
+  }
+  std::cout << "\n";
 
   const auto he1 = DiracOperator::E1(wf.grid());
   auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
@@ -539,39 +553,70 @@ void transitionPolarisability(const IO::InputBlock &input,
   // Solve TDHF for core, is doing RPA.
   // nb: even if not doing RPA, need TDHF object for tdhf method
   if (rpaQ) {
-    std::cout << "omega: " << omega << "\n";
     dVE1.solve_core(omega);
+    std::cout << "\n";
   }
 
   // Valence contributions and total polarisabilities (single omega)
   std::cout
-      << "                SOS           MS(vw)        MS(wv)        eps\n";
+      << "                 SOS           MS(vw)        MS(wv)        eps\n";
   const auto avw_sos = alphaD::transition_sos(Fv, Fw, spectrum, he1, &dVE1);
   const auto avw_ms = alphaD::transition_tdhf(Fv, Fw, he1, dVE1, wf.Sigma());
   const auto awv_ms = alphaD::transition_tdhf(Fw, Fv, he1, dVE1, wf.Sigma());
   const auto eps1 = std::abs(2.0 * (avw_sos - avw_ms) / (avw_sos + avw_ms));
   const auto eps2 = std::abs(2.0 * (awv_ms - avw_ms) / (awv_ms + avw_ms));
   const auto eps = std::max(eps1, eps2);
-  printf("%4s - %4s :  %12.5e  %12.5e  %12.5e  [%.0e]\n",
-         Fv.shortSymbol().c_str(), Fw.shortSymbol().c_str(), avw_sos, avw_ms,
-         awv_ms, eps);
+  printf("  %11s  %12.5e  %12.5e  %12.5e  [%.0e]\n", alpha_text.c_str(),
+         avw_sos, avw_ms, awv_ms, eps);
+
+  const auto Bvw_sos = alphaD::beta_sos(Fv, Fw, spectrum, he1, &dVE1);
+  const auto Bvw_ms = alphaD::beta_tdhf(Fv, Fw, he1, dVE1, wf.Sigma());
+  const auto Bwv_ms = -alphaD::beta_tdhf(Fw, Fv, he1, dVE1, wf.Sigma());
+  const auto Beps1 = std::abs(2.0 * (Bvw_sos - Bvw_ms) / (Bvw_sos + Bvw_ms));
+  const auto Beps2 = std::abs(2.0 * (Bwv_ms - Bvw_ms) / (Bwv_ms + Bvw_ms));
+  const auto Beps = std::max(Beps1, Beps2);
+  printf("  %11s  %12.5e  %12.5e  %12.5e  [%.0e]\n", beta_text.c_str(), Bvw_sos,
+         Bvw_ms, Bwv_ms, Beps);
+
+  const auto R1 = avw_sos / Bvw_sos;
+  const auto R2 = avw_ms / Bvw_ms;
+  const auto R3 = awv_ms / Bwv_ms;
+  const auto Reps1 = std::abs(2.0 * (R1 - R2) / (R1 + R2));
+  const auto Reps2 = std::abs(2.0 * (R2 - R3) / (R2 + R3));
+  const auto Reps = std::max(Reps1, Reps2);
+  printf("%13s  %12.5e  %12.5e  %12.5e  [%.0e]\n", ratio_text.c_str(), R1, R2,
+         R3, Reps);
+
+  std::cout << "\n";
 
   // Optionally calculate SR+N contribution
-  if (input.get("StrucRad", false)) {
+  if (srnQ) {
     const auto n_min_core = input.get("n_min_core", 1);
     const auto max_n_SR = input.get("max_n_SR", 9);
     const auto Qk_file = input.get("Qk_file", std::string{""});
 
     const auto [srn_v, beta_x] = alphaD::transition_SRN(
-        Fv, Fw, spectrum, he1, &dVE1, false, max_n_SR, n_min_core, wf.basis(),
+        Fv, Fw, spectrum, he1, &dVE1, max_n_SR, n_min_core, wf.basis(),
         wf.en_coreval_gap(), Qk_file);
 
-    const auto pc = 100.0 * srn_v / ((avw_sos + avw_ms + awv_ms) / 3.0);
+    const auto pc_A = 100.0 * srn_v / ((avw_sos + avw_ms + awv_ms) / 3.0);
+    const auto pc_B = 100.0 * beta_x / ((Bvw_sos + Bvw_ms + Bwv_ms) / 3.0);
     std::cout
-        << "Include SR:     SOS           MS(vw)        MS(wv)        %\n";
-    printf("%4s - %4s :  %12.5e  %12.5e  %12.5e  %.1e%%\n",
-           Fv.shortSymbol().c_str(), Fw.shortSymbol().c_str(), avw_sos + srn_v,
-           avw_ms + srn_v, awv_ms + srn_v, pc);
+        << "\nInclude SR:      SOS           MS(vw)        MS(wv)        %\n";
+
+    printf("  %11s  %12.5e  %12.5e  %12.5e  %8.1e%%\n", alpha_text.c_str(),
+           avw_sos + srn_v, avw_ms + srn_v, awv_ms + srn_v, pc_A);
+    printf("  %11s  %12.5e  %12.5e  %12.5e  %8.1e%%\n", beta_text.c_str(),
+           Bvw_sos + beta_x, Bvw_ms + beta_x, Bwv_ms + beta_x, pc_B);
+
+    const auto R1sr = (avw_sos + srn_v) / (Bvw_sos + beta_x);
+    const auto R2sr = (avw_ms + srn_v) / (Bvw_ms + beta_x);
+    const auto R3sr = (awv_ms + srn_v) / (Bwv_ms + beta_x);
+    const auto pc_R = 100.0 * (R1sr - R1) / ((R1 + R2 + R3) / 3.0);
+    printf("%13s  %12.5e  %12.5e  %12.5e  %8.1e%%\n", ratio_text.c_str(), R1sr,
+           R2sr, R3sr, pc_R);
+
+    std::cout << "\n";
   }
 }
 
@@ -652,12 +697,8 @@ double transition_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                       const std::vector<DiracSpinor> &spectrum,
                       const DiracOperator::E1 &he1,
                       const ExternalField::CorePolarisation *dVE1) {
-  const auto f = 1.0 / 6.0;
-  if (Fv.kappa() != -1 || Fw.kappa() != -1) {
-    std::cout
-        << "\nWARNING 544: transition_sos formula only valid for s-states (for "
-           "now)\n";
-  }
+  const auto two_m = 1; // assumes m=1/2
+
   double alpha_ss = 0.0;
   for (const auto &n : spectrum) {
     if (he1.isZero(Fv, n) || he1.isZero(Fw, n))
@@ -665,10 +706,31 @@ double transition_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
     const auto d_vn = he1.reducedME(Fv, n) + (dVE1 ? dVE1->dV(Fv, n) : 0.0);
     const auto d_nw = he1.reducedME(n, Fw) + (dVE1 ? dVE1->dV(n, Fw) : 0.0);
     const auto f_de = 1.0 / (Fv.en() - n.en()) + 1.0 / (Fw.en() - n.en());
-    const auto s = n.kappa() == 1 ? 1 : -1; // only for p- and p+! XXX
-    alpha_ss += s * d_vn * d_nw * f_de;
+    const auto f = he1.rme3js(Fv.twoj(), n.twoj(), two_m) *
+                   he1.rme3js(n.twoj(), Fw.twoj(), two_m);
+    alpha_ss += f * d_vn * d_nw * f_de;
   }
-  return f * alpha_ss;
+  return alpha_ss;
+}
+
+//------------------------------------------------------------------------------
+double beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
+                const std::vector<DiracSpinor> &spectrum,
+                const DiracOperator::E1 &he1,
+                const ExternalField::CorePolarisation *dVE1) {
+  assert(Fv.kappa() == Fw.kappa() && Fv.kappa() == -1); //only s-states
+
+  double beta_vw = 0.0;
+  for (const auto &n : spectrum) {
+    if (he1.isZero(Fv, n) || he1.isZero(Fw, n))
+      continue;
+    const auto d_vn = he1.reducedME(Fv, n) + (dVE1 ? dVE1->dV(Fv, n) : 0.0);
+    const auto d_nw = he1.reducedME(n, Fw) + (dVE1 ? dVE1->dV(n, Fw) : 0.0);
+    const auto f_de = 1.0 / (Fv.en() - n.en()) - 1.0 / (Fw.en() - n.en());
+    const auto f = 1.0 / (3.0 * n.twojp1());
+    beta_vw += f * d_vn * d_nw * f_de;
+  }
+  return beta_vw;
 }
 
 //------------------------------------------------------------------------------
@@ -676,25 +738,44 @@ double transition_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
                        const DiracOperator::E1 &he1,
                        const ExternalField::TDHF &dVE1,
                        const MBPT::CorrelationPotential *const Sigma) {
-  const auto f = 1.0 / 6.0;
-  if (Fv.kappa() != -1 || Fw.kappa() != -1) {
-    std::cout << "\nWARNING 578: transition_tdhf formula only valid for "
-                 "s-states (for now)\n";
-  }
+  const auto two_m = 1; // assumes m=1/2
 
   const auto X_v = dVE1.solve_dPsis(Fv, 0.0, ExternalField::dPsiType::X, Sigma);
   const auto X_w = dVE1.solve_dPsis(Fw, 0.0, ExternalField::dPsiType::X, Sigma);
 
   double alpha_ss = 0.0;
   for (const auto &x_w : X_w) {
-    const auto s = x_w.kappa() == 1 ? 1 : -1; // only for p- and p+! XXX
-    alpha_ss += s * (he1.reducedME(Fv, x_w) + dVE1.dV(Fv, x_w));
+    const auto f = he1.rme3js(Fv.twoj(), x_w.twoj(), two_m) *
+                   he1.rme3js(x_w.twoj(), Fw.twoj(), two_m);
+    alpha_ss += f * (he1.reducedME(Fv, x_w) + dVE1.dV(Fv, x_w));
   }
   for (const auto &x_v : X_v) {
-    const auto s = x_v.kappa() == 1 ? 1 : -1; // only for p- and p+! XXX
-    alpha_ss += s * (he1.reducedME(Fw, x_v) + dVE1.dV(Fw, x_v));
+    const auto f = he1.rme3js(Fw.twoj(), x_v.twoj(), two_m) *
+                   he1.rme3js(x_v.twoj(), Fv.twoj(), two_m);
+    alpha_ss += f * (he1.reducedME(Fw, x_v) + dVE1.dV(Fw, x_v));
   }
-  return f * alpha_ss;
+  return alpha_ss;
+}
+
+//------------------------------------------------------------------------------
+double beta_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
+                 const DiracOperator::E1 &he1, const ExternalField::TDHF &dVE1,
+                 const MBPT::CorrelationPotential *const Sigma) {
+  assert(Fv.kappa() == Fw.kappa() && Fv.kappa() == -1); //only s-states
+
+  const auto dv = dVE1.solve_dPsis(Fv, 0.0, ExternalField::dPsiType::X, Sigma);
+  const auto dw = dVE1.solve_dPsis(Fw, 0.0, ExternalField::dPsiType::X, Sigma);
+
+  double beta_vw = 0.0;
+  for (const auto &dw_x : dw) {
+    const auto f = 1.0 / (3.0 * dw_x.twojp1());
+    beta_vw -= f * (he1.reducedME(Fv, dw_x) + dVE1.dV(Fv, dw_x));
+  }
+  for (const auto &dv_x : dv) {
+    const auto f = 1.0 / (3.0 * dv_x.twojp1());
+    beta_vw += f * (he1.reducedME(Fw, dv_x) + dVE1.dV(Fw, dv_x));
+  }
+  return beta_vw;
 }
 
 //------------------------------------------------------------------------------
@@ -756,6 +837,9 @@ double core_tdhf(const std::vector<DiracSpinor> &core,
   // This will use the first sigma of correct kappa (which is probably fine)
   // ...*but* Sigma should _probably_ be evaluated at valence energy
 
+  // nb: "core" here is from HF - but should it be from spectrum instead?
+  // i.e., with Sigma, HF core not orthog to valence (though, is to good approx)
+
   const auto f = (-1.0 / 3.0); // More general?
 
   auto alpha_core = 0.0;
@@ -773,7 +857,6 @@ double core_tdhf(const std::vector<DiracSpinor> &core,
     for (const auto &Xbeta : Xc) {
       // no dV here (for closed-shell core)
       alpha_core += x * he1.reducedME(Xbeta, Fc);
-      // alpha_core += he1.reducedME(Fc, Xbeta);
     }
     for (const auto &Ybeta : Yc) {
       alpha_core += x * he1.reducedME(Ybeta, Fc);
@@ -917,20 +1000,20 @@ std::pair<double, double> valence_SRN(
 std::pair<double, double> transition_SRN(
     const DiracSpinor &Fv, const DiracSpinor &Fw,
     const std::vector<DiracSpinor> &spectrum, const DiracOperator::E1 &he1,
-    const ExternalField::CorePolarisation *dVE1, bool do_beta,
+    const ExternalField::CorePolarisation *dVE1,
     // SR+N part:
     int max_n_SOS, int n_min_core, const std::vector<DiracSpinor> &hf_basis,
     const double en_core, const std::string &Qk_fname) {
   // NOTE: Basis should be HF basis (used for MBPT), NOT spectrum
 
-  const auto f = 1.0 / 6.0;
+  // const auto f = 1.0 / 6.0;
 
   if (Fv.kappa() != -1 || Fw.kappa() != -1) {
     std::cout << "\nWARNING 578: transition_SRN formula only valid for "
                  "s-states (for now)\n";
   }
 
-  std::cout << "\nStructure Radiation + Normalisation contribution: transition "
+  std::cout << "Structure Radiation + Normalisation contribution: transition "
             << Fv.symbol() << "-" << Fw.symbol() << "\n";
 
   auto sr = MBPT::StructureRad(hf_basis, en_core, {n_min_core, 99}, Qk_fname);
@@ -939,9 +1022,14 @@ std::pair<double, double> transition_SRN(
   std::cout << "Calculating SR+N for terms up to n=" << max_n_SOS
             << " in the sum-over-states\n";
 
-  std::cout << " n       da(n)        dSR(n)       a(sum)      SR(n)%\n";
+  //std::cout << " n       da(n)        dSR(n)       a(sum)      SR(n)%\n";
+  // std::cout << " n    d_vn      srn_vn    d_nw      srn_nw    da\n";
+  std::cout << "n    d_vn   d_nw   alpha_n   beta_n    SRNvn  SRNnw  dAlpha   "
+               "%     dBeta    %\n";
   double alpha0_ss = 0.0;
   double alpha_ss = 0.0;
+  double beta0_ss = 0.0;
+  double beta_ss = 0.0;
   for (const auto &n : spectrum) {
     if (n.en() < en_core)
       continue;
@@ -966,36 +1054,47 @@ std::pair<double, double> transition_SRN(
     const auto d_vn = d0_vn + srn_vn;
     const auto d_nw = d0_nw + srn_nw;
 
-    const auto f_de = 1.0 / (Fv.en() - n.en()) + 1.0 / (Fw.en() - n.en());
-    const auto s = n.kappa() == 1 ? 1 : -1; // only for p- and p+! XXX
+    const auto f_de_a = 1.0 / (Fv.en() - n.en()) + 1.0 / (Fw.en() - n.en());
+    const auto f_de_B = 1.0 / (Fv.en() - n.en()) - 1.0 / (Fw.en() - n.en());
+    const auto f =
+        he1.rme3js(Fv.twoj(), n.twoj(), 1) * he1.rme3js(n.twoj(), Fw.twoj(), 1);
 
-    const auto da0 = s * d0_vn * d0_nw * f_de;
-    const auto da = s * d_vn * d_nw * f_de;
+    const auto da0 = f * d0_vn * d0_nw * f_de_a;
+    const auto da = f * d_vn * d_nw * f_de_a;
     alpha0_ss += da0;
     alpha_ss += da;
-    // if (do_beta) {
-    //   //...
-    // }
 
-    const auto pc = 100.0 * (da - da0) / da0;
-    printf("%4s: + %10.3e + %10.3e = %10.3e  (%8.1e%%)\n",
-           n.shortSymbol().c_str(), f * da0, f * (da - da0), f * alpha_ss, pc);
+    const auto fB = 1.0 / (3.0 * n.twojp1());
+    const auto dB0 = fB * d0_vn * d0_nw * f_de_B;
+    const auto dB = fB * d_vn * d_nw * f_de_B;
+    beta0_ss += dB0;
+    beta_ss += dB;
+
+    const auto svn = std::abs(d0_vn) / d0_vn;
+    const auto snw = std::abs(d0_nw) / d0_nw;
+
+    printf("%3s %6.3f %6.3f %9.2e %9.2e %6.3f %6.3f %8.1e %4.1f%% %8.1e "
+           "%4.1f%%\n",
+           n.shortSymbol().c_str(), std::abs(d0_vn), std::abs(d0_nw), da0, dB0,
+           srn_vn * svn, srn_nw * snw, da - da0, 100.0 * (da - da0) / da0,
+           dB - dB0, 100.0 * (dB - dB0) / dB0);
   }
-  alpha0_ss *= f;
-  alpha_ss *= f;
 
   const auto a_SRN = alpha_ss - alpha0_ss;
-
+  const auto B_SRN = beta_ss - beta0_ss;
+  std::cout << "\n";
   std::cout << "StrucRad+Norm: " << Fv.symbol() << " - " << Fw.symbol() << "\n";
   std::cout << "alpha(main): " << alpha0_ss << "\n";
-  std::cout << "delta(SR)  :  " << a_SRN << " (" << a_SRN / alpha0_ss * 100.0
-            << "%)\n";
-  if (do_beta) {
-    std::cout << "Beta not implemented yet!\n";
-  }
+  std::cout << "delta(SR)  :  " << a_SRN << " " << a_SRN / alpha0_ss * 100.0
+            << "%\n";
+
+  std::cout << "beta(main): " << beta0_ss << "\n";
+  std::cout << "delta(SR)  :  " << B_SRN << " " << B_SRN / beta0_ss * 100.0
+            << "%\n";
+
   std::cout << std::flush;
 
-  return {a_SRN, 0.0};
+  return {a_SRN, B_SRN};
 }
 } // namespace alphaD
 

@@ -429,6 +429,7 @@ void ampsci(const IO::InputBlock &input) {
                   "where |psi(r0)/psi_max| falls below r0_eps [1.0e-3]"},
        {"rmax", "maximum cavity radius [Grid{rmax}]"},
        {"states", "states to keep (e.g., 30spdf20ghi)"},
+       {"orthogonalise", "Force orthogonal to core [false]"},
        {"print", "Print all spline energies (for testing) [false]"},
        {"positron", "Include -ve energy states [false]]"},
        {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
@@ -595,14 +596,14 @@ void ampsci(const IO::InputBlock &input) {
                           "where |psi(r0)/psi_max| falls below r0_eps"},
                {"rmax", "maximum cavity radius"},
                {"states", "states to keep (e.g., 30spdf20ghi)"},
+               {"orthogonalise", "Force orthogonal to valence [false]"},
                {"print", "Print all spline energies (for testing)"},
                {"positron", "Include -ve energy states (true/false)"},
                {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
 
   const auto spectrum_in = input.getBlock("Spectrum");
   if (spectrum_in) {
-    if (spectrum_in)
-      wf.formSpectrum(*spectrum_in);
+    wf.formSpectrum(*spectrum_in);
     if (input.get({"Spectrum"}, "print", false) && !wf.spectrum().empty()) {
       std::cout << "Spectrum:\n";
       wf.printBasis(wf.spectrum());

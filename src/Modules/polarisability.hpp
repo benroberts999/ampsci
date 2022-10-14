@@ -77,19 +77,26 @@ double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
                     const MBPT::CorrelationPotential *const Sigma,
                     const std::vector<DiracSpinor> &force_orthog = {});
 
-//! Scalar transition polarisability, alpha, using sos method. NOTE: only for
-//! s-s transitions!
+//! Scalar transition polarisability, alpha, using sos method.
 double transition_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                       const std::vector<DiracSpinor> &spectrum,
                       const DiracOperator::E1 &he1,
                       const ExternalField::CorePolarisation *dVE1);
+//! Vector transition polarisability, beta, using sos method.
+double beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
+                const std::vector<DiracSpinor> &spectrum,
+                const DiracOperator::E1 &he1,
+                const ExternalField::CorePolarisation *dVE1);
 
-//! Scalar transition polarisability, alpha, using TDHF method. NOTE: only for
-//! s-s transitions!
+//! Scalar transition polarisability, alpha, using TDHF method.
 double transition_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
                        const DiracOperator::E1 &he1,
                        const ExternalField::TDHF &dVE1,
                        const MBPT::CorrelationPotential *const Sigma);
+//! Vector transition polarisability, beta, using TDHF method.
+double beta_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
+                 const DiracOperator::E1 &he1, const ExternalField::TDHF &dVE1,
+                 const MBPT::CorrelationPotential *const Sigma);
 
 //! Calculates Structure-radiation + normalisation contribution to valence
 //! polarisability, using sum-over-states.
@@ -111,7 +118,7 @@ std::pair<double, double> valence_SRN(
 std::pair<double, double> transition_SRN(
     const DiracSpinor &Fv, const DiracSpinor &Fw,
     const std::vector<DiracSpinor> &spectrum, const DiracOperator::E1 &he1,
-    const ExternalField::CorePolarisation *dVE1, bool do_beta,
+    const ExternalField::CorePolarisation *dVE1,
     // SR+N part:
     int max_n_SOS, int n_min_core, const std::vector<DiracSpinor> &hf_basis,
     const double en_core, const std::string &Qk_fname = "");

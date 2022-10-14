@@ -388,7 +388,11 @@ void Wavefunction::orthogonaliseWrt(DiracSpinor &psi_v,
   for (const auto &psi_c : in_orbs) {
     if (psi_v.kappa() != psi_c.kappa())
       continue;
-    psi_v -= (psi_v * psi_c) * psi_c;
+    if (psi_v == psi_c) {
+      psi_v = psi_c; // also copies energies?
+    } else {
+      psi_v -= (psi_v * psi_c) * psi_c;
+    }
   }
 }
 //==============================================================================
@@ -429,36 +433,6 @@ std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
   const auto index_last = std::size_t(rho_l.rend() - last);
   return {rgrid->r()[index_first], rgrid->r()[index_last]};
 }
-
-//==============================================================================
-// std::vector<std::size_t>
-// Wavefunction::sortedEnergyList(const std::vector<DiracSpinor> &tmp_orbs,
-//                                bool do_sort)
-// // Static
-// // Outouts a list of integers corresponding to the states
-// // sorted by energy (lowest energy first)
-// {
-//   using DoubleInt = std::pair<double, std::size_t>;
-//   std::vector<DoubleInt> t_en;
-//   for (std::size_t i = 0; i < tmp_orbs.size(); i++) {
-//     t_en.emplace_back(tmp_orbs[i].en(), i);
-//   }
-
-//   // Sort list of Pairs by first element in the pair:
-//   auto compareThePair = [](const DoubleInt &di1, const DoubleInt &di2) {
-//     return di1.first < di2.first;
-//   };
-
-//   if (do_sort)
-//     std::sort(t_en.begin(), t_en.end(), compareThePair);
-
-//   // overwrite list with sorted list
-//   std::vector<std::size_t> sorted_list;
-//   std::for_each(t_en.begin(), t_en.end(),
-//                 [&](const DoubleInt &el) { sorted_list.push_back(el.second); });
-
-//   return sorted_list;
-// }
 
 //==============================================================================
 void Wavefunction::printCore() const
@@ -555,6 +529,18 @@ void Wavefunction::formBasis(const SplineBasis::Parameters &params) {
   if (params.n > 0) {
     IO::ChronoTimer t("Basis");
     m_basis = SplineBasis::form_basis(params, *this, false);
+
+    if (params.orthogonalise) {
+      std::cout << "Forcing spectrum to be orthog to core:\n";
+      for (auto &Fb : m_basis) {
+        orthonormaliseWrt(Fb, core());
+      }
+    }
+
+    std::cout << "Basis/core:\n";
+    SplineBasis::check(m_basis, core(), true);
+    std::cout << "Basis/valence:\n";
+    SplineBasis::check(m_basis, valence(), true);
   }
 }
 //------------------------------------------------------------------------------
@@ -563,6 +549,18 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
     IO::ChronoTimer t("Spectrum");
     m_spectrum = SplineBasis::form_basis(params, *this, true);
   }
+
+  if (params.orthogonalise) {
+    std::cout << "Forcing spectrum to be orthog to valence:\n";
+    for (auto &Fb : m_spectrum) {
+      orthonormaliseWrt(Fb, m_valence);
+    }
+  }
+
+  std::cout << "Spectrum/core:\n";
+  SplineBasis::check(m_spectrum, core(), m_Sigma == nullptr);
+  std::cout << "Spectrum/valence:\n";
+  SplineBasis::check(m_spectrum, valence(), true);
 }
 
 //==============================================================================

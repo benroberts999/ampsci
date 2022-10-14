@@ -5,7 +5,7 @@
 #include "DMionisation/Module_AFStepFunction.hpp"
 #include "DMionisation/Module_atomicKernel.hpp"
 #include "Modules/HFAnomaly.hpp"
-#include "Modules/continuum.hpp"
+#include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
 #include "Modules/isotopeShift.hpp"
 #include "Modules/ladder.hpp"
@@ -17,8 +17,6 @@
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
 #include "Modules/testFeynman.hpp"
-#include "Modules/tests.hpp"
-#include "Modules/writeOrbitals.hpp"
 
 #include <iostream>
 #include <map>
@@ -38,8 +36,9 @@ using module_function_t = void (*)(const IO::InputBlock &input,
 //! List of all available modules as pair (name, function):
 //! {"ModuleName", &ModuleName}. You must add any new modules to this list
 static const std::map<std::string, module_function_t> module_list{
-    {"Tests", &Module_tests},
+    {"Tests", &tests},
     {"WriteOrbitals", &writeOrbitals},
+    {"continuum", &continuum},
     {"AtomicKernel", &atomicKernel},
     {"BohrWeisskopf", &BohrWeisskopf},
     {"HFAnomaly", &HFAnomaly},
@@ -56,7 +55,6 @@ static const std::map<std::string, module_function_t> module_list{
     {"transitionPolarisability", &transitionPolarisability},
     {"structureRad", &structureRad},
     {"fieldShift", &fieldShift},
-    {"continuum", &continuum},
     {"ladder", &ladder},
     {"exampleModule", &exampleModule}};
 
