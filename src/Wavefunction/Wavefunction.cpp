@@ -539,7 +539,7 @@ void Wavefunction::formBasis(const SplineBasis::Parameters &params) {
     if (params.orthogonalise) {
       std::cout << "Forcing spectrum to be orthog to core:\n";
       for (auto &Fb : m_basis) {
-        orthonormaliseWrt(Fb, core());
+        Fb = orthonormaliseWrt(Fb, core());
       }
     }
 
@@ -559,7 +559,7 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
   if (params.orthogonalise) {
     std::cout << "Forcing spectrum to be orthog to valence:\n";
     for (auto &Fb : m_spectrum) {
-      orthonormaliseWrt(Fb, m_valence);
+      Fb = orthonormaliseWrt(Fb, m_valence);
     }
   }
 
