@@ -1,5 +1,5 @@
-#include "DiracOperator/DiracOperator.hpp"
 #include "StructureRad.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Random.hpp"
@@ -21,7 +21,7 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
 
   const auto h = DiracOperator::E1(wf.grid());
 
-  MBPT::StructureRad srn(wf.basis(), wf.en_coreval_gap());
+  MBPT::StructureRad srn(wf.basis(), wf.FermiLevel());
 
   // test srn_table
   const auto tab = srn.srn_table(&h, srn.core(), srn.excited());
@@ -46,8 +46,8 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
   // TEST SRN read-write using Qk_file
   const auto rand_str = qip::random_string(6);
   const auto fname = "tmp_deleteme_" + rand_str + ".qk";
-  MBPT::StructureRad srn2(wf.basis(), wf.en_coreval_gap(), {0, 999}, fname);
-  MBPT::StructureRad srn3(wf.basis(), wf.en_coreval_gap(), {0, 999}, fname);
+  MBPT::StructureRad srn2(wf.basis(), wf.FermiLevel(), {0, 999}, fname);
+  MBPT::StructureRad srn3(wf.basis(), wf.FermiLevel(), {0, 999}, fname);
   for (const auto &a : wf.basis()) {
     for (const auto &b : wf.basis()) {
       if (a < b && !h.isZero(a, b)) {
@@ -83,7 +83,7 @@ TEST_CASE("MBPT: Structure Rad + Norm",
     wf.formBasis({"20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0, false});
 
     // Find core/valence energy: allows distingush core/valence states
-    const auto en_core = wf.en_coreval_gap();
+    const auto en_core = wf.FermiLevel();
 
     const auto h = DiracOperator::E1(wf.grid());
 
@@ -159,7 +159,7 @@ TEST_CASE("MBPT: Structure Rad + Norm",
     // However, we get pretty good comparison to Johnson, so this is fine!
 
     // Find core/valence energy: allows distingush core/valence states
-    const auto en_core = wf.en_coreval_gap();
+    const auto en_core = wf.FermiLevel();
 
     const auto h = DiracOperator::E1(wf.grid());
 

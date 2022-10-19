@@ -67,17 +67,32 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   if (rpaQ) {
     dVE1.solve_core(omega);
   }
+  const auto eFemi = wf.FermiLevel();
+  const auto spectrum_core =
+      qip::select_if(spectrum, [=](const auto &f) { return f.en() < eFemi; });
+  const auto spectrum_excited =
+      qip::select_if(spectrum, [=](const auto &f) { return f.en() > eFemi; });
 
   // calculate core contribution (single omega):
-  const auto ac_sos = alphaD::core_sos(wf.core(), spectrum, he1, &dVE1, omega);
-  const auto ac_ms = alphaD::core_tdhf(wf.core(), he1, dVE1, omega, wf.Sigma());
+  const auto ac_sos_0 =
+      alphaD::core_sos(wf.core(), spectrum, he1, &dVE1, omega);
+  const auto ac_sos =
+      alphaD::core_sos(spectrum_core, spectrum, he1, &dVE1, omega);
+  const auto ac_ms_0 =
+      alphaD::core_tdhf(wf.core(), he1, dVE1, omega, wf.Sigma());
+  const auto ac_ms =
+      alphaD::core_tdhf(spectrum_core, he1, dVE1, omega, wf.Sigma());
 
-  const auto eps = std::abs(2.0 * (ac_sos - ac_ms) / (ac_sos + ac_ms));
+  const auto eps_0 =
+      std::abs(2.0 * (ac_sos_0 - ac_ms_0) / (ac_sos_0 + ac_ms_0));
+  const auto eps = std::abs(2.0 * (ac_ms - ac_sos) / (ac_ms + ac_sos));
   std::cout << "\nCore polarisability (at w=" << omega << "):\n";
   std::cout << "         SOS           MS             eps\n";
-  printf("Core :  %12.5e  %12.5e   [%.0e]\n", ac_sos, ac_ms, eps);
+  printf("HF   :  %12.5e  %12.5e   [%.0e]\n", ac_sos_0, ac_ms_0, eps_0);
+  printf("Spect:  %12.5e  %12.5e   [%.0e]\n", ac_sos, ac_ms, eps);
 
   // Drop states from spectrum _AFTER_ we calculate core contribution
+  // This is used to find "tail", excluding resonant terms
   const auto drop_continuum = input.get("drop_continuum", false);
   const auto drop_states = input.get("drop_states", std::vector<std::string>{});
   if (drop_continuum) {
@@ -110,6 +125,36 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\n";
   }
 
+  //Separate out cv contribution
+  // Note: below way *alomst* the same, but not exact.
+  // Since it includes the "extra" dV in the core-valence part!
+  if (!wf.valence().empty()) {
+    const int n_main = wf.valence().front().n() + 2;
+    std::cout << "\nSOS, with core-valence seperate (at w=" << omega << ")\n";
+    std::cout << "Main includes up to n=" << n_main << "\n";
+    std::cout << "         cv            main          tail          tot\n";
+
+    for (auto &Fv : wf.valence()) {
+      const auto main = qip::select_if(spectrum, [=](const auto &f) {
+        return f.en() > eFemi && f.n() <= n_main;
+      });
+      const auto tail = qip::select_if(spectrum, [=](const auto &f) {
+        return f.en() > eFemi && f.n() > n_main;
+      });
+
+      const auto a_vc =
+          -alphaD::core_sos(spectrum_core, {Fv}, he1, &dVE1, omega) /
+          Fv.twojp1();
+      const auto av_sos2_main =
+          alphaD::valence_sos(Fv, main, he1, &dVE1, omega);
+      const auto av_sos2_tail =
+          alphaD::valence_sos(Fv, tail, he1, &dVE1, omega);
+      printf("%4s :  %12.5e  %12.5e  %12.5e  %12.5e  \n",
+             Fv.shortSymbol().c_str(), a_vc, av_sos2_main, av_sos2_tail,
+             ac_sos + a_vc + av_sos2_main + av_sos2_tail);
+    }
+  }
+
   // Valence contributions and total polarisabilities (single omega)
   if (!wf.valence().empty()) {
     std::cout << "\nValence states (at w=" << omega
@@ -117,8 +162,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "         SOS           MS             eps\n";
     for (auto &Fv : wf.valence()) {
       const auto av_sos = alphaD::valence_sos(Fv, spectrum, he1, &dVE1, omega);
-      const auto av_ms =
-          alphaD::valence_tdhf(Fv, he1, dVE1, omega, wf.Sigma(), force_orthog);
+      const auto av_ms = alphaD::valence_tdhf(Fv, he1, dVE1, omega, wf.Sigma());
       const auto epsv = std::abs(2.0 * (ac_sos + av_sos - ac_ms - av_ms) /
                                  (ac_sos + av_sos + ac_ms + av_ms));
       printf("%4s :  %12.5e  %12.5e   [%.0e]\n", Fv.shortSymbol().c_str(),
@@ -144,7 +188,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     for (const auto &Fv : wf.valence()) {
       const auto [srn_v, srn_2] = alphaD::valence_SRN(
           Fv, spectrum, he1, &dVE1, omega, do_tensor, max_n_SR, n_min_core,
-          wf.basis(), wf.en_coreval_gap(), Qk_file);
+          wf.basis(), wf.FermiLevel(), Qk_file);
       sr_summary.push_back({Fv.shortSymbol(), srn_v, srn_2});
     }
     // print summary:
@@ -325,7 +369,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
   if (StrucRadQ) {
     const auto n_min_core = input.get("n_min_core", 1);
     const auto Qk_file = input.get("Qk_file", std::string{""});
-    sr = MBPT::StructureRad(wf.basis(), wf.en_coreval_gap(), {n_min_core, 99},
+    sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min_core, 99},
                             Qk_file);
     std::cout << "Including core states from n>=" << n_min_core
               << " in diagrams\n";
@@ -557,6 +601,36 @@ void transitionPolarisability(const IO::InputBlock &input,
     std::cout << "\n";
   }
 
+  {
+    std::cout << "Seperate core/main/tail (using SOS)\n";
+    const int n_main = wf.valence().front().n() + 2;
+    const auto eFemi = wf.FermiLevel();
+    const auto core = qip::select_if(
+        spectrum, [=](const auto &f) { return f.en() <= eFemi; });
+    const auto main = qip::select_if(spectrum, [=](const auto &f) {
+      return f.en() > eFemi && f.n() <= n_main;
+    });
+    const auto tail = qip::select_if(spectrum, [=](const auto &f) {
+      return f.en() > eFemi && f.n() > n_main;
+    });
+
+    const auto a_c = alphaD::transition_sos(Fv, Fw, core, he1, &dVE1);
+    const auto a_m = alphaD::transition_sos(Fv, Fw, main, he1, &dVE1);
+    const auto a_t = alphaD::transition_sos(Fv, Fw, tail, he1, &dVE1);
+
+    const auto b_c = alphaD::beta_sos(Fv, Fw, core, he1, &dVE1);
+    const auto b_m = alphaD::beta_sos(Fv, Fw, main, he1, &dVE1);
+    const auto b_t = alphaD::beta_sos(Fv, Fw, tail, he1, &dVE1);
+
+    std::cout << "Main includes up to n=" << n_main << "\n";
+    std::cout << "   core          main          tail          tot\n";
+    printf("𝛼 %12.5e  %12.5e  %12.5e  %12.5e\n", a_c, a_m, a_t,
+           a_c + a_m + a_t);
+    printf("𝛽 %12.5e  %12.5e  %12.5e  %12.5e\n", b_c, b_m, b_t,
+           b_c + b_m + b_t);
+    std::cout << "\n";
+  }
+
   // Valence contributions and total polarisabilities (single omega)
   std::cout
       << "                 SOS           MS(vw)        MS(wv)        eps\n";
@@ -597,7 +671,7 @@ void transitionPolarisability(const IO::InputBlock &input,
 
     const auto [srn_v, beta_x] = alphaD::transition_SRN(
         Fv, Fw, spectrum, he1, &dVE1, max_n_SR, n_min_core, wf.basis(),
-        wf.en_coreval_gap(), Qk_file);
+        wf.FermiLevel(), Qk_file);
 
     const auto pc_A = 100.0 * srn_v / ((avw_sos + avw_ms + awv_ms) / 3.0);
     const auto pc_B = 100.0 * beta_x / ((Bvw_sos + Bvw_ms + Bwv_ms) / 3.0);
@@ -636,18 +710,14 @@ double core_sos(const std::vector<DiracSpinor> &core,
                 const ExternalField::CorePolarisation *dVE1, double omega,
                 const Coulomb::meTable<double> *dtab) {
 
-  const auto f = (-2.0 / 3.0); // more general?
-
-  // XXX For the "core" part - should we use HF core?
-  // OR, we should use core part from spectrum?
-  // i.e...should be orthog to valence!?
+  const auto f = (-2.0 / 3.0);
 
   // core part: sum_{n,c} |<n|d|c>|^2, n excited states, c core states
   auto alpha_core = 0.0;
 #pragma omp parallel for reduction(+ : alpha_core)
   for (std::size_t ic = 0; ic < core.size(); ++ic) {
     const auto &Fc = core.at(ic);
-    const auto x = Fc.occ_frac(); // not sure if this works for open-shells
+    // const auto x = Fc.occ_frac(); // not sure if this works for open-shells
     for (const auto &Fn : spectrum) {
       if (he1.isZero(Fc.kappa(), Fn.kappa()))
         continue;
@@ -658,7 +728,7 @@ double core_sos(const std::vector<DiracSpinor> &core,
       const auto de = Fc.en() - Fn.en();
       const auto denom =
           omega == 0.0 ? 1.0 / de : de / (de * de - omega * omega);
-      alpha_core += x * std::abs(d_nc * (d_nc + dv_nc)) * denom;
+      alpha_core += std::abs(d_nc * (d_nc + dv_nc)) * denom;
     }
   }
 
@@ -837,16 +907,14 @@ double core_tdhf(const std::vector<DiracSpinor> &core,
   // This will use the first sigma of correct kappa (which is probably fine)
   // ...*but* Sigma should _probably_ be evaluated at valence energy
 
-  // nb: "core" here is from HF - but should it be from spectrum instead?
-  // i.e., with Sigma, HF core not orthog to valence (though, is to good approx)
-
   const auto f = (-1.0 / 3.0); // More general?
 
   auto alpha_core = 0.0;
 #pragma omp parallel for reduction(+ : alpha_core)
   for (std::size_t ic = 0; ic < core.size(); ++ic) {
     const auto &Fc = core.at(ic);
-    const auto x = Fc.occ_frac(); // not sure if this works for open-shells
+    // const auto x = Fc.occ_frac(); // not sure if this works for open-shells
+    // nb: "spectrum" doesn't have occ_frac!
     // this will include dV
     const auto Xc =
         dVE1.solve_dPsis(Fc, omega, ExternalField::dPsiType::X, Sigma);
@@ -856,10 +924,10 @@ double core_tdhf(const std::vector<DiracSpinor> &core,
             dVE1.solve_dPsis(Fc, omega, ExternalField::dPsiType::Y, Sigma);
     for (const auto &Xbeta : Xc) {
       // no dV here (for closed-shell core)
-      alpha_core += x * he1.reducedME(Xbeta, Fc);
+      alpha_core += he1.reducedME(Xbeta, Fc);
     }
     for (const auto &Ybeta : Yc) {
-      alpha_core += x * he1.reducedME(Ybeta, Fc);
+      alpha_core += he1.reducedME(Ybeta, Fc);
     }
   }
   return f * alpha_core;

@@ -87,7 +87,7 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   if (do_SRN)
     std::cout << "\nIncluding SR+Norm:\n";
   auto SRN = do_SRN ? std::make_unique<MBPT::StructureRad>(
-                          wf.basis(), wf.en_coreval_gap(),
+                          wf.basis(), wf.FermiLevel(),
                           std::pair{n_min_max.at(0), n_min_max.at(1)}, Qkfile) :
                       nullptr;
 
@@ -164,7 +164,7 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   };
 
   // Calculate widths (and lifetimes) + print to screen
-  std::cout << "\nPartial widths and lifetmes:\n";
+  std::cout << "\nPartial widths and lifetimes:\n";
   std::vector<std::pair<std::string, double>> results;
   for (const auto &i : wf.valence()) {
     if (i == *ground_state)

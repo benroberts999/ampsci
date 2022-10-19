@@ -55,7 +55,7 @@ public:
   /*! @details
   en_core:  is defined such that states with e < en_core are in the core,
   while states with e > en_core are not. Typcially:
-  en_core = max(e_core)-min(e_valence) =  wf.en_coreval_gap().
+  en_core = max(e_core)-min(e_valence) =  wf.FermiLevel().
   nminmax is a pair{min, max}: we only used core states with n>=min, and only
   uses excited states with n<=nmax in the summations.
   Qk_fname is filename for QkTable - if given it will read/write QkTable to this

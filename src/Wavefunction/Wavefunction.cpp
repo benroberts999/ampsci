@@ -301,7 +301,7 @@ const DiracSpinor *Wavefunction::getState(std::string_view state) const {
 }
 
 //==============================================================================
-double Wavefunction::en_coreval_gap() const {
+double Wavefunction::FermiLevel() const {
   // Find core/valence energy: allows distingush core/valence states
   const auto ec_max =
       core().empty() ?
@@ -383,29 +383,35 @@ void Wavefunction::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
 }
 
 //==============================================================================
-void Wavefunction::orthogonaliseWrt(DiracSpinor &psi_v,
-                                    const std::vector<DiracSpinor> &in_orbs) {
+DiracSpinor
+Wavefunction::orthogonaliseWrt(const DiracSpinor &psi_v,
+                               const std::vector<DiracSpinor> &in_orbs) {
+  auto Fv = psi_v; //psi_v may be in in_orbs
   for (const auto &psi_c : in_orbs) {
-    if (psi_v.kappa() != psi_c.kappa())
+    if (Fv.kappa() != psi_c.kappa())
       continue;
-    if (psi_v == psi_c) {
-      psi_v = psi_c; // also copies energies?
+    if (Fv == psi_c) {
+      Fv = psi_c; // also copies energy
+      break;
     } else {
-      psi_v -= (psi_v * psi_c) * psi_c;
+      Fv -= (psi_v * psi_c) * psi_c; // does not update energy
     }
   }
+  return Fv;
 }
-//==============================================================================
-void Wavefunction::orthonormaliseWrt(DiracSpinor &psi_v,
-                                     const std::vector<DiracSpinor> &in_orbs)
+//------------------------------------------------------------------------------
+DiracSpinor
+Wavefunction::orthonormaliseWrt(const DiracSpinor &psi_v,
+                                const std::vector<DiracSpinor> &in_orbs)
 // Static.
 // Force given orbital to be orthogonal to all core orbitals
 // [After the core is 'frozen', don't touch core orbitals!]
 // |v> --> |v> - sum_c |c><c|v>
 // note: here, c denotes core orbitals
 {
-  orthogonaliseWrt(psi_v, in_orbs);
-  psi_v.normalise();
+  auto Fv = orthogonaliseWrt(psi_v, in_orbs);
+  Fv.normalise();
+  return Fv;
 }
 
 //==============================================================================

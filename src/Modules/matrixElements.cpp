@@ -228,7 +228,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
 
   // Find core/valence energy: allows distingush core/valence states
-  const auto en_core = wf.en_coreval_gap();
+  const auto en_core = wf.FermiLevel();
 
   // ----------- ** Actual Calculations ** -----------
 

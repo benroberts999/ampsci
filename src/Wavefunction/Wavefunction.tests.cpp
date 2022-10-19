@@ -81,7 +81,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   REQUIRE(!wf.isInCore(Fm->n(), Fm->kappa()));
   REQUIRE(wf.isInValence(Fm->n(), Fm->kappa()));
 
-  REQUIRE(wf.en_coreval_gap() < 0.0);
+  REQUIRE(wf.FermiLevel() < 0.0);
   REQUIRE(wf.energy_gap() > 0.0);
 
   REQUIRE(wf.coreConfiguration() == "1s2,2s2,2p6");

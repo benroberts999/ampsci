@@ -138,9 +138,8 @@ public:
   //! As above, but takes 'short symbol' (e.g., 6s+, 6p-)
   const DiracSpinor *getState(std::string_view state) const;
 
-  //! Returns energy location of the "core-valence gap", 0.5*( max(e_core) +
-  //! min(e_valence)) - energy half way between core/valence
-  double en_coreval_gap() const;
+  //! Returns energy location of the "Fermi Level", - energy half way between core/valence. Defined: 0.5*( max(e_core) + min(e_valence)). Should be -ve
+  double FermiLevel() const;
 
   //! Energy gap between lowest valence + highest core state: e(v) - e(c)
   //! [should be positive]
@@ -274,11 +273,11 @@ public:
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
                                      int num_its = 1);
   //! (exactly) OrthoNormalises psi_v against of any orbitals.
-  static void orthonormaliseWrt(DiracSpinor &psi_v,
-                                const std::vector<DiracSpinor> &in_orbs);
+  static DiracSpinor orthonormaliseWrt(const DiracSpinor &psi_v,
+                                       const std::vector<DiracSpinor> &in_orbs);
   //! (exactly) OrthoGonalises psi_v against of any orbitals (no Norm).
-  static void orthogonaliseWrt(DiracSpinor &psi_v,
-                               const std::vector<DiracSpinor> &in_orbs);
+  static DiracSpinor orthogonaliseWrt(const DiracSpinor &psi_v,
+                                      const std::vector<DiracSpinor> &in_orbs);
 
   //! @brief Returns [min,max] r values for which the core density (given l) is
   //! larger than cutoff (= eps*max_value)

@@ -92,7 +92,7 @@ auto compare_eps(const std::vector<T> &first, const std::vector<T> &second) {
 //! same type. May allocate; will resize first to be size of largest vector.
 template <typename T, typename... Args>
 void add(std::vector<T> *first, const std::vector<T> &second,
-         const Args &... rest) {
+         const Args &...rest) {
   // re-sizes vector:
   if (first->size() < second.size())
     first->resize(second.size());
@@ -109,7 +109,7 @@ void add(std::vector<T> *first, const std::vector<T> &second,
 //! not all of same size.
 template <typename T, typename... Args>
 [[nodiscard]] std::vector<T>
-add(std::vector<T> first, const std::vector<T> &second, const Args &... rest) {
+add(std::vector<T> first, const std::vector<T> &second, const Args &...rest) {
   add(&first, second, rest...);
   return first;
 }
@@ -127,7 +127,7 @@ add(std::vector<T> first, const std::vector<T> &second, const Args &... rest) {
 //! largest vector.
 template <typename T, typename... Args>
 void multiply(std::vector<T> *first, const std::vector<T> &second,
-              const Args &... rest) {
+              const Args &...rest) {
 
   static_assert(std::is_arithmetic_v<T>,
                 "In multiply(std::vector<T>...) : T must be arithmetic");
@@ -153,7 +153,7 @@ void multiply(std::vector<T> *first, const std::vector<T> &second,
 template <typename T, typename... Args>
 [[nodiscard]] std::vector<T> multiply(std::vector<T> first,
                                       const std::vector<T> &second,
-                                      const Args &... rest) {
+                                      const Args &...rest) {
   multiply(&first, second, rest...);
   return first;
 }
@@ -165,7 +165,7 @@ template <typename T, typename... Args>
 //! e.g., qip::compose(std::plus{}, &vo, v2, v3); same as qip::add(&vo, v2, v3)
 template <typename F, typename T, typename... Args>
 void compose(const F &func, std::vector<T> *first, const std::vector<T> &second,
-             const Args &... rest) {
+             const Args &...rest) {
   // XXX Comiple=-time constraints on f! Must be T(T,T)!
 
   if (first->size() < second.size())
@@ -187,15 +187,14 @@ void compose(const F &func, std::vector<T> *first, const std::vector<T> &second,
 template <typename F, typename T, typename... Args>
 [[nodiscard]] std::vector<T> compose(const F &func, std::vector<T> first,
                                      const std::vector<T> &second,
-                                     const Args &... rest) {
+                                     const Args &...rest) {
   compose(func, &first, second, rest...);
   return first;
 }
 
 //==============================================================================
 //! In-place scalar multiplication of std::vector - types must match
-template <typename T>
-void scale(std::vector<T> *vec, T x) {
+template <typename T> void scale(std::vector<T> *vec, T x) {
   static_assert(std::is_arithmetic_v<T>,
                 "In scale(std::vector<T>, T) : T must be arithmetic");
   for (auto &v : *vec)
@@ -311,8 +310,7 @@ std::vector<T> loglinear_range(T first, T last, T b, N number) {
 //==============================================================================
 //! first[i]*...rest[i]  --  used to allow inner_product
 template <typename T, typename... Args>
-constexpr auto multiply_at(std::size_t i, const T &first,
-                           const Args &... rest) {
+constexpr auto multiply_at(std::size_t i, const T &first, const Args &...rest) {
   // assert(first.size() < i);
   if constexpr (sizeof...(rest) == 0) {
     return first[i];
@@ -323,7 +321,7 @@ constexpr auto multiply_at(std::size_t i, const T &first,
 
 //! Variadic inner product (v1,v2,...vn) : sum_i v1[i]*v2[i]*...vn[i]
 template <typename T, typename... Args>
-constexpr auto inner_product(const T &first, const Args &... rest) {
+constexpr auto inner_product(const T &first, const Args &...rest) {
   auto res = multiply_at(0, first, rest...);
   for (std::size_t i = 1; i < first.size(); ++i) {
     res += multiply_at(i, first, rest...);
@@ -333,7 +331,7 @@ constexpr auto inner_product(const T &first, const Args &... rest) {
 
 template <typename T, typename... Args>
 auto inner_product_sub(std::size_t p0, std::size_t pinf, const T &first,
-                       const Args &... rest) {
+                       const Args &...rest) {
   auto res = decltype(first[0])(0);
   for (std::size_t i = p0; i < pinf; ++i) {
     res += multiply_at(i, first, rest...);
@@ -347,6 +345,20 @@ template <typename F, typename T> T apply_to(const F &func, T list) {
     l = func(l);
   }
   return list;
+}
+
+//==============================================================================
+//! Creates a subset of a vector, whose element match condition. By copy.
+//! condition must have function signature: bool condition(T)
+template <typename T, typename Func>
+std::vector<T> select_if(const std::vector<T> &in, Func condition) {
+  std::vector<T> out;
+  for (const auto &el : in) {
+    if (condition(el)) {
+      out.push_back(el);
+    }
+  }
+  return out;
 }
 
 //==============================================================================

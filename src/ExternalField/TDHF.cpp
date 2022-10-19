@@ -217,10 +217,6 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
     const auto &Fb = m_core.at(ib);
 
     const auto &hFbs = m_hFcore[ib];
-    // if (has_de) {
-    //   Xs[ib] *= 0.0;
-    //   Ys[ib] *= 0.0;
-    // }
 
     // solve for dF, and damp
     solve_ms_core(Xs[ib], Fb, hFbs, omega, dPsiType::X, eps_ms);
@@ -259,7 +255,7 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
 void TDHF::solve_core(const double omega, int max_its, const bool print) {
   const double converge_targ = 1.0e-8;
 
-  const auto eta_damp0 = 0.375;
+  const auto eta_damp0 = 0.35;
   auto eta_damp = eta_damp0;
 
   if (print) {
@@ -281,7 +277,7 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
     if (it > 15) {
       if (eps.first > best_eps) {
         ++count_worse;
-        eta_damp += 0.075; // give a "kick"
+        eta_damp += 0.1; // give a "kick"
         assert(eta_damp < 1.0);
       } else {
         best_eps = eps.first;
@@ -291,7 +287,7 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
     }
 
     if ((it > 5 && eps.first < converge_targ) || it == max_its ||
-        count_worse > 3)
+        count_worse > 5)
       break;
   }
 
