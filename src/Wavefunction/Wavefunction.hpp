@@ -268,17 +268,6 @@ public:
     }
   }
 
-  //! (approximately) OrthoNormalises a set of any orbitals.
-  //! @details Note: only updates orbs, not energies
-  static void orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
-                                     int num_its = 1);
-  //! (exactly) OrthoNormalises psi_v against of any orbitals.
-  static DiracSpinor orthonormaliseWrt(const DiracSpinor &psi_v,
-                                       const std::vector<DiracSpinor> &in_orbs);
-  //! (exactly) OrthoGonalises psi_v against of any orbitals (no Norm).
-  static DiracSpinor orthogonaliseWrt(const DiracSpinor &psi_v,
-                                      const std::vector<DiracSpinor> &in_orbs);
-
   //! @brief Returns [min,max] r values for which the core density (given l) is
   //! larger than cutoff (= eps*max_value)
   //! @details Returns the r values (au) for which the value of rho =

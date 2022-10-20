@@ -71,6 +71,9 @@ int symbol_to_l(std::string_view l_str);
 //! kappa (int) to symbol, e.g., -1 -> s_1/2
 std::string kappa_symbol(int kappa);
 
+//!  Returns shortSymbol, given n and kappa: (6,-1)->"6s+"
+std::string shortSymbol(int n, int kappa);
+
 //! Parses electron 'symbol' or 'shortSymbol' to {n,kappa}, e.g., "6s+" -> {6,-1}; "6p-" -> {6,1}; "6p_1/2" -> {6,1}
 std::pair<int, int> parse_symbol(std::string_view symbol);
 

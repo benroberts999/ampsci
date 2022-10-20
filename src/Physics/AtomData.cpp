@@ -119,6 +119,11 @@ std::string kappa_symbol(int kappa) {
   return lstr + "_" + std::to_string(Angular::twoj_k(kappa)) + "/2";
 }
 
+std::string shortSymbol(int n, int kappa) {
+  return std::to_string(n) + l_symbol(Angular::l_k(kappa)) +
+         ((kappa < 0) ? "+" : "-");
+}
+
 int symbol_to_l(std::string_view l_str) {
   for (auto i = 0ul; i < spectroscopic_notation.length(); i++) {
     if (spectroscopic_notation[i] == l_str[0])
@@ -522,8 +527,9 @@ inline std::string helper_s(const Element &el) {
 }
 inline std::string helper_z(const Element &el) {
   auto z_str = std::to_string(el.Z);
-  auto Z_buff = (el.Z < 10) ? std::string("  ") :
-                              (el.Z < 100) ? std::string(" ") : std::string("");
+  auto Z_buff = (el.Z < 10)  ? std::string("  ") :
+                (el.Z < 100) ? std::string(" ") :
+                               std::string("");
   return Z_buff + z_str + " ";
 }
 

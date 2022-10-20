@@ -107,7 +107,12 @@ Wavefunction::determineCore(const std::string &str_core_in)
     std::abort();
   }
 
-  for (const auto &[n, l, num] : core_configs) {
+  // for (const auto &[n, l, num] : core_configs) {
+  // This case of Structured Bindings fails with GCC<=7.4 ?
+  for (auto &config : core_configs) {
+    const auto n = config.n;
+    const auto l = config.l;
+    const auto num = config.num;
     if (num == 0)
       continue;
     int k1 = l; // j = l-1/2
@@ -328,93 +333,6 @@ double Wavefunction::energy_gap() const {
 }
 
 //==============================================================================
-void Wavefunction::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
-                                          int num_its)
-// Note: this function is static
-// Forces ALL orbitals to be orthogonal to each other, and normal
-// Note: workes best if run twice!
-// |a> ->  |a> - \sum_{b!=a} |b><b|a>
-// Then:
-// |a> -> |a> / <a|a>
-// c_ba = c_ab = <a|b>
-// num_its is optional parameter. Repeats that many times!
-// Note: I force all orthog to each other - i.e. double count.
-// {force <2|1>=0 and then <1|2>=0}
-// Would be 2x faster not to do this
-//  - but that would treat some orbitals special!
-// Hence factor of 0.5
-// Note: For HF, should never be called after core is frozen!
-//
-// Note: This allows wfs to extend past pinf!
-// ==> This causes the possible orthog issues..
-{
-  auto Ns = in_orbs.size();
-
-  // Calculate c_ab = <a|b>  [only for b>a -- symmetric]
-  std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
-  for (std::size_t a = 0; a < Ns; a++) {
-    const auto &phi_a = in_orbs[a];
-    for (auto b = a + 1; b < Ns; b++) {
-      const auto &phi_b = in_orbs[b];
-      if (phi_a.kappa() !=
-          phi_b.kappa()) //|| phi_a.n() == phi_b.n() - can't happen!
-        continue;
-      c_ab[a][b] = 0.5 * (phi_a * phi_b);
-    }
-  }
-  // note: above loop executes psia*psib half as many times as below would
-
-  // Orthogonalise + re-norm orbitals:
-  for (std::size_t a = 0; a < Ns; a++) {
-    auto &phi_a = in_orbs[a];
-    for (std::size_t b = 0; b < Ns; b++) {
-      const auto &phi_b = in_orbs[b];
-      if (phi_a.kappa() != phi_b.kappa() || phi_a.n() == phi_b.n())
-        continue;
-      double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
-      phi_a -= cab * phi_b;
-    }
-    phi_a.normalise();
-  }
-
-  // If necisary: repeat
-  if (num_its > 1)
-    orthonormaliseOrbitals(in_orbs, num_its - 1);
-}
-
-//==============================================================================
-DiracSpinor
-Wavefunction::orthogonaliseWrt(const DiracSpinor &psi_v,
-                               const std::vector<DiracSpinor> &in_orbs) {
-  auto Fv = psi_v; //psi_v may be in in_orbs
-  for (const auto &psi_c : in_orbs) {
-    if (Fv.kappa() != psi_c.kappa())
-      continue;
-    if (Fv == psi_c) {
-      Fv = psi_c; // also copies energy
-      break;
-    } else {
-      Fv -= (psi_v * psi_c) * psi_c; // does not update energy
-    }
-  }
-  return Fv;
-}
-//------------------------------------------------------------------------------
-DiracSpinor
-Wavefunction::orthonormaliseWrt(const DiracSpinor &psi_v,
-                                const std::vector<DiracSpinor> &in_orbs)
-// Static.
-// Force given orbital to be orthogonal to all core orbitals
-// [After the core is 'frozen', don't touch core orbitals!]
-// |v> --> |v> - sum_c |c><c|v>
-// note: here, c denotes core orbitals
-{
-  auto Fv = orthogonaliseWrt(psi_v, in_orbs);
-  Fv.normalise();
-  return Fv;
-}
-
-//==============================================================================
 std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
                                                             double eps) const {
   std::vector<double> rho_l(rgrid->num_points());
@@ -539,7 +457,7 @@ void Wavefunction::formBasis(const SplineBasis::Parameters &params) {
     if (params.orthogonalise) {
       std::cout << "Forcing spectrum to be orthog to core:\n";
       for (auto &Fb : m_basis) {
-        Fb = orthonormaliseWrt(Fb, core());
+        Fb = DiracSpinor::orthonormaliseWrt(Fb, core());
       }
     }
 
@@ -559,7 +477,7 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
   if (params.orthogonalise) {
     std::cout << "Forcing spectrum to be orthog to valence:\n";
     for (auto &Fb : m_spectrum) {
-      Fb = orthonormaliseWrt(Fb, m_valence);
+      Fb = DiracSpinor::orthonormaliseWrt(Fb, m_valence);
     }
   }
 

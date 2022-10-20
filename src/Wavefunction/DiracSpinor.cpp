@@ -293,6 +293,87 @@ DiracSpinor::check_ortho(const std::vector<DiracSpinor> &a,
 }
 
 //==============================================================================
+void DiracSpinor::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
+                                         int num_its)
+// Note: this function is static
+// Forces ALL orbitals to be orthogonal to each other, and normal
+// Note: workes best if run twice!
+// |a> ->  |a> - \sum_{b!=a} |b><b|a>
+// Then:
+// |a> -> |a> / <a|a>
+// c_ba = c_ab = <a|b>
+// num_its is optional parameter. Repeats that many times!
+// Note: I force all orthog to each other - i.e. double count.
+// {force <2|1>=0 and then <1|2>=0}
+// Would be 2x faster not to do this
+//  - but that would treat some orbitals special!
+// Hence factor of 0.5
+// Note: For HF, should never be called after core is frozen!
+//
+// Note: This allows wfs to extend past pinf!
+// ==> This causes the possible orthog issues..
+{
+  auto Ns = in_orbs.size();
+
+  // Calculate c_ab = <a|b>  [only for b>a -- symmetric]
+  std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
+  for (std::size_t a = 0; a < Ns; a++) {
+    const auto &phi_a = in_orbs[a];
+    for (auto b = a + 1; b < Ns; b++) {
+      const auto &phi_b = in_orbs[b];
+      if (phi_a.kappa() !=
+          phi_b.kappa()) //|| phi_a.n() == phi_b.n() - can't happen!
+        continue;
+      c_ab[a][b] = 0.5 * (phi_a * phi_b);
+    }
+  }
+  // note: above loop executes psia*psib half as many times as below would
+
+  // Orthogonalise + re-norm orbitals:
+  for (std::size_t a = 0; a < Ns; a++) {
+    auto &phi_a = in_orbs[a];
+    for (std::size_t b = 0; b < Ns; b++) {
+      const auto &phi_b = in_orbs[b];
+      if (phi_a.kappa() != phi_b.kappa() || phi_a.n() == phi_b.n())
+        continue;
+      double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
+      phi_a -= cab * phi_b;
+    }
+    phi_a.normalise();
+  }
+
+  // If necisary: repeat
+  if (num_its > 1)
+    orthonormaliseOrbitals(in_orbs, num_its - 1);
+}
+
+//==============================================================================
+DiracSpinor
+DiracSpinor::orthogonaliseWrt(const DiracSpinor &Fin,
+                              const std::vector<DiracSpinor> &orbs) {
+  auto Fv = Fin; //psi_v may be in in_orbs
+  for (const auto &Fn : orbs) {
+    if (Fv.kappa() != Fn.kappa())
+      continue;
+    if (Fv == Fn) {
+      Fv = Fn; // also copies energy
+      break;
+    } else {
+      Fv -= (Fin * Fn) * Fn; // does not update energy
+    }
+  }
+  return Fv;
+}
+//------------------------------------------------------------------------------
+DiracSpinor
+DiracSpinor::orthonormaliseWrt(const DiracSpinor &psi_v,
+                               const std::vector<DiracSpinor> &in_orbs) {
+  auto Fv = orthogonaliseWrt(psi_v, in_orbs);
+  Fv.normalise();
+  return Fv;
+}
+
+//==============================================================================
 DiracSpinor DiracSpinor::exactHlike(int n, int kappa,
                                     std::shared_ptr<const Grid> rgrid,
                                     double zeff, double alpha) {

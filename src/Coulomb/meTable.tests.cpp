@@ -63,6 +63,52 @@ TEST_CASE("Coulomb: meTable", "[Coulomb][meTable][unit]") {
     }
   }
 
+  // Test converting key to symbols
+  for (auto &[key, val] : met) {
+    const auto [a, b] = Coulomb::meTable<double>::index_to_symbols(key);
+    const auto [a2, b2] = met.index_to_symbols(key);
+    REQUIRE(a == a2);
+    REQUIRE(b == b2);
+    const auto retrieved = met.get(a, b);
+    REQUIRE(retrieved != nullptr);
+    REQUIRE(*retrieved == val);
+  }
+  // .. and for const case!
+  for (const auto &[key, val] : met) {
+    const auto [a, b] = Coulomb::meTable<double>::index_to_symbols(key);
+    const auto [a2, b2] = met.index_to_symbols(key);
+    REQUIRE(a == a2);
+    REQUIRE(b == b2);
+    const auto retrieved = met.get(a, b);
+    REQUIRE(retrieved != nullptr);
+    REQUIRE(*retrieved == val);
+  }
+
+  // Test insert:
+  // Split table into two
+  Coulomb::meTable<double> meta, metb;
+  int count = 0;
+  for (const auto &key_val : met) {
+    ++count;
+    if (count % 2 == 0) {
+      meta->insert(key_val);
+    } else {
+      metb->insert(key_val);
+    }
+  }
+  // ensure none of the "b" elements are in the "a" map
+  for (const auto &[key, val] : metb) {
+    const auto [a, b] = met.index_to_symbols(key);
+    REQUIRE(meta.get(a, b) == nullptr);
+  }
+  // insert b back into a
+  meta.add(metb);
+  // Now, ensure all of the "b" elements are in the "a" map
+  for (const auto &[key, val] : metb) {
+    const auto [a, b] = met.index_to_symbols(key);
+    REQUIRE(meta.get(a, b) != nullptr);
+  }
+
   // test update
   for (const auto &a : orbs) {
     for (const auto &b : orbs) {

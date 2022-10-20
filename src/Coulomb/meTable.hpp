@@ -27,6 +27,11 @@ public:
     m_data.insert({FormIndex(a.nk_index(), b.nk_index()), std::move(value)});
   }
 
+  //! Adds elements from one Table into another (by copy)
+  void add(const meTable<T> &other) {
+    m_data.insert(other.cbegin(), other.cend());
+  }
+
   //! Updates given element in table. If element not yet present, adds it
   void update(const DiracSpinor &a, const DiracSpinor &b, T value) {
     m_data.insert_or_assign(FormIndex(a.nk_index(), b.nk_index()),
@@ -53,7 +58,7 @@ public:
   }
 
   //! Gets pointer to const requested element. If element not present,
-  //! returns nullptr
+  //! returns nullptr. Overload for strings (parses symbol)
   [[nodiscard]] const T *get(const std::string &a, const std::string &b) const {
     auto [na, ka] = AtomData::parse_symbol(a);
     auto [nb, kb] = AtomData::parse_symbol(b);
@@ -65,12 +70,35 @@ public:
     return (map_it == m_data.cend()) ? nullptr : &(map_it->second);
   }
 
+  //! Provide iterators
+  auto begin() { return m_data.begin(); }
+  auto end() { return m_data.end(); }
+  auto cbegin() const { return m_data.cbegin(); }
+  auto cend() const { return m_data.cend(); }
+
+  static std::pair<std::string, std::string> index_to_symbols(nk2Index index) {
+    auto [a, b] = unFormIndex(index);
+    auto [na, ka] = Angular::index_to_nk(int(a));
+    auto [nb, kb] = Angular::index_to_nk(int(b));
+    return {AtomData::shortSymbol(na, ka), AtomData::shortSymbol(nb, kb)};
+  }
+
 private:
   // Converts given set of nkIndex's (in any order) to nk4Index
-  [[nodiscard]] nk2Index FormIndex(nkIndex a, nkIndex b) const {
+  [[nodiscard]] static nk2Index FormIndex(nkIndex a, nkIndex b) {
     static_assert(sizeof(nk2Index) == 2 * sizeof(nkIndex));
     static_assert(sizeof(nkIndex) * 8 == 16);
     return (nk2Index)b + ((nk2Index)a << 16);
+  }
+
+  [[nodiscard]] static std::pair<nkIndex, nkIndex> unFormIndex(nk2Index index) {
+    std::pair<nkIndex, nkIndex> out;
+    auto &[a, b] = out;
+    b = static_cast<nkIndex>(index);
+    // nb: this relies on specific encoding, and may fail?
+    a = static_cast<nkIndex>((index - static_cast<nk2Index>(b)) >> 16);
+    assert(FormIndex(a, b) == index);
+    return out;
   }
 };
 

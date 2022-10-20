@@ -119,14 +119,14 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   auto Fs = wf.spectrum().front();
   const auto spectrum = wf.spectrum();
   auto [eps1, x1] = DiracSpinor::check_ortho({Fs}, wf.core());
-  wf.orthonormaliseWrt(Fs, wf.core());
+  Fs = DiracSpinor::orthonormaliseWrt(Fs, wf.core());
 
   auto [eps2, x2] = DiracSpinor::check_ortho({Fs}, wf.core());
   std::cout << Fs << " " << eps1 << " " << eps2 << "\n";
 
   auto core = wf.core();
   auto [eps3, x3] = DiracSpinor::check_ortho(core, core);
-  wf.orthonormaliseOrbitals(core);
+  DiracSpinor::orthonormaliseOrbitals(core);
   auto [eps4, x4] = DiracSpinor::check_ortho(core, core);
   std::cout << eps3 << " " << eps4 << "\n";
   REQUIRE(eps4 < 1.0e-12);

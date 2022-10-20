@@ -231,6 +231,21 @@ public:
   check_ortho(const std::vector<DiracSpinor> &a,
               const std::vector<DiracSpinor> &b);
 
+  //! (approximately) OrthoNormalises a set of any orbitals.
+  //! @details Note: only updates orbs, not energies
+  static void orthonormaliseOrbitals(std::vector<DiracSpinor> &orbs,
+                                     int num_its = 1);
+
+  //! Forces Fin to be orthogonal to orbs. If Fn (i.e., {n,k}) in in orbs, replaces Fin with that from orbs.
+  [[nodiscard]] static DiracSpinor
+  orthogonaliseWrt(const DiracSpinor &Fin,
+                   const std::vector<DiracSpinor> &orbs);
+
+  //! As orthogonaliseWrt(), but normalises Fin afterwards
+  [[nodiscard]] static DiracSpinor
+  orthonormaliseWrt(const DiracSpinor &Fin,
+                    const std::vector<DiracSpinor> &orbs);
+
   //! Returns formatted states string (e.g., '7sp5d') given list of orbs
   static std::string state_config(const std::vector<DiracSpinor> &orbs);
 

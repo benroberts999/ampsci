@@ -42,6 +42,15 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
   REQUIRE(AtomData::parse_symbol("12d_3/2") == (std::pair<int, int>{12, 2}));
   REQUIRE(AtomData::parse_symbol("d_3/2") == (std::pair<int, int>{0, 2}));
 
+  REQUIRE(AtomData::shortSymbol(1, -1) == "1s+");
+  REQUIRE(AtomData::shortSymbol(2, 1) == "2p-");
+  REQUIRE(AtomData::shortSymbol(3, -2) == "3p+");
+  REQUIRE(AtomData::shortSymbol(4, 2) == "4d-");
+  REQUIRE(AtomData::shortSymbol(5, -3) == "5d+");
+  REQUIRE(AtomData::shortSymbol(6, 3) == "6f-");
+  REQUIRE(AtomData::shortSymbol(7, -4) == "7f+");
+  REQUIRE(AtomData::shortSymbol(8, 4) == "8g-");
+
   //===========================================
 
   REQUIRE(AtomData::coreConfig("[He]") == "1s2");
