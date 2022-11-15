@@ -196,11 +196,9 @@ std::vector<double> Grid::form_r(const GridType type, const double r0,
       r.push_back(r0 * std::exp(u));
     }
   } else if (type == GridType::linear) {
-    double u = 0.0;
     double tr = r0;
     for (auto i = 0ul; i < num_points; ++i) {
       r.push_back(tr);
-      u += du;
       tr += du;
     }
   } else {

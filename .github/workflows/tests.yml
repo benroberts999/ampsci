@@ -20,6 +20,7 @@ jobs:
         sudo apt-get update -y
         sudo apt-get install -y make
         sudo apt-get install -y g++-11
+        sudo apt-get install -y clang-11
         sudo apt-get install -y liblapack-dev
         sudo apt-get install -y libblas-dev
         sudo apt-get install -y libgsl-dev
@@ -27,9 +28,15 @@ jobs:
  
     - name: setup
       run: cp ./doc/examples/Makefile ./
+
+    - name: Build ampsci (clang++, dev mode, with Werror)
+      run: make clean && make CXX='clang++-11 -Werror' UseOpenMP=no Build=dev tests
  
+    - name: Run unit tests (clang++)
+      run: ./tests [unit] 
+
     - name: Build ampsci (g++, dev mode, with Werror)
-      run: make CXX='g++-11 -Werror' Build=dev tests
+      run: make clean && make CXX='g++-11 -Werror' Build=dev tests
  
-    - name: Run unit, regression, integrations tests
+    - name: Run unit, regression, integrations tests (g++)
       run: ./tests ~[Slow]

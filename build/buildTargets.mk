@@ -7,7 +7,7 @@ ALLEXES = $(addprefix $(XD)/, \
 )
 
 DEFAULTEXES = $(addprefix $(XD)/, \
- ampsci tests \
+ ampsci \
 )
 
 #Default make rule:

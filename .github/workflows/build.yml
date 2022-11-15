@@ -32,7 +32,7 @@ jobs:
       run: cp ./doc/examples/Makefile ./ && cp ./doc/examples/ampsci.in ./ampsci.in
 
     - name: Build ampsci (g++ v:7 - oldest supported gcc)
-      run: make clean && make CXX=g++-7  UseOpenMP=no
+      run: make clean && make CXX=g++-7 UseOpenMP=no
 
     - name: Build ampsci (g++ v:11)
       run: make clean && make CXX=g++-11 UseOpenMP=yes
