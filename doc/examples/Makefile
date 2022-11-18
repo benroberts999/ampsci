@@ -47,6 +47,12 @@ ExtraFlags=
 #ExtraLink=/usr/local/opt/llvm/lib/
 
 ################################################################################
+# Use these to pass in any other compiler/linker arguments
+# Any other arguments
+CARGS=
+LARGS=
+
+################################################################################
 ## None of the below options should need changing
 ################################################################################
 ## Set directories for source files (SD), and output object files (OD)

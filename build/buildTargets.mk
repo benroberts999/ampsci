@@ -2,34 +2,40 @@
 
 ################################################################################
 #Allow exectuables to be placed in another directory:
-ALLEXES = $(addprefix $(XD)/, \
- ampsci dmeXSection tests \
-)
-
 DEFAULTEXES = $(addprefix $(XD)/, \
  ampsci \
 )
 
+ALLEXES = $(addprefix $(XD)/, \
+ ampsci dmeXSection tests \
+)
+
+CHECKS = GitInfo checkObj checkXdir
+
 #Default make rule:
-all: GitInfo checkObj checkXdir $(DEFAULTEXES)
+all: $(CHECKS) $(DEFAULTEXES)
+full: $(CHECKS) $(ALLEXES)
 
 ################################################################################
 # Automatically generate dependency files for each cpp file, + compile:
+# Put built objects in subdirectories based on build mode and compiler
+
+SUBBD=$(Build)/$(word 1,$(CXX))
 
 # Auto rule for all cpp files
-$(BD)/%.o: $(SD)/%.cpp
+$(BD)/$(SUBBD)/%.o: $(SD)/%.cpp
 	@mkdir -p $(@D)
 	$(COMP)
 
 # Force version.o to build each time: ensure updated git+version info!
 # Not the best solution, but works?
 .PHONY: force
-$(BD)/version/version.o: $(SD)/version/version.cpp force
+$(BD)/$(SUBBD)/version/version.o: $(SD)/version/version.cpp force
 	@mkdir -p $(@D)
 	$(COMP) $(GITFLAGS)
 
 # include the dependency files
--include $(BD)/*.d $(BD)/*/*.d
+-include $(BD)/$(SUBBD)/*.d $(BD)/$(SUBBD)/*/*.d
 
 ################################################################################
 # List all objects in sub-directories (i.e., that don't conatin a main())
@@ -37,24 +43,26 @@ $(BD)/version/version.o: $(SD)/version/version.cpp force
 
 # Each test file (except main()):
 TEST_SRC_FILES := $(wildcard $(SD)/*/*.tests.cpp)
-TEST_OBJS := $(subst $(SD),$(BD),$(subst .cpp,.o,$(TEST_SRC_FILES)))
+TEST_OBJS := $(subst $(SD),$(BD)/$(SUBBD),$(subst .cpp,.o,$(TEST_SRC_FILES)))
 
 #Each non-test source file (except main())
 SRC_FILES := $(filter-out $(TEST_SRC_FILES), $(wildcard $(SD)/*/*.cpp))
-OBJS := $(subst $(SD),$(BD),$(subst .cpp,.o,$(SRC_FILES)))
+OBJS := $(subst $(SD),$(BD)/$(SUBBD),$(subst .cpp,.o,$(SRC_FILES)))
 
 ################################################################################
 # Link + build all final programs
 
-$(XD)/ampsci: $(BD)/ampsci.o $(OBJS)
+$(XD)/ampsci: $(BD)/$(SUBBD)/ampsci.o $(OBJS)
 	$(LINK)
 
 $(XD)/tests: $(OBJS) $(TEST_OBJS)
 	$(LINK)
 
-$(XD)/dmeXSection: $(BD)/dmeXSection.o $(OBJS)
+$(XD)/dmeXSection: $(BD)/$(SUBBD)/dmeXSection.o $(OBJS)
 	$(LINK)
 
+
+################################################################################
 # Add git version info to compile flags
 NOW:=$(shell date +%Y-%m-%d' '%H:%M' '%Z 2>/dev/null)
 GITFLAGS=-D GITREVISION="$(shell git rev-parse --short HEAD 2>/dev/null)"
@@ -70,13 +78,6 @@ GitInfo:
 	@echo Git Branch: $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
 	@echo Git Revision: $(shell git rev-parse --short HEAD 2>/dev/null)
 	@echo Modified: $(shell git status -s 2>/dev/null)
-
-# # XXX force this each time!
-# .PHONY: force
-# $(BD)/git.txt: force
-# 	$(shell git rev-parse HEAD 2>/dev/null > $(BD)/git.txt)
-# 	$(shell git rev-parse --abbrev-ref HEAD 2>/dev/null >> $(BD)/git.txt)
-# 	$(shell git status -s 2>/dev/null >> $(BD)/git.txt)
 
 checkObj:
 	@if [ ! -d $(BD) ]; then \

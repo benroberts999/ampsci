@@ -15,7 +15,7 @@ The program is run with input options from the command line.
   * See below for full description of input format,
 and a detailed list of input options + descriptions.
   * run `./ampsci -h` to get breif instructions for input options
-  * Several example input files are given in: _doc/examples/_, along with their expected output; 
+  * Several example input files are given in: _doc/examples/_, along with their expected output;
     use these to test if everything is working.
 
 The Output is printed to screen. It's recommended to forward this to a text file.

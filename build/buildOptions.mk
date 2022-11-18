@@ -1,9 +1,5 @@
 # Options + settings for makefile for each 'Main'
 
-## will return the Operating system name
-detected_OS := $(shell uname -s)
-$(info Detected operating system: $(detected_OS))
-
 # runs make in //
 ParallelBuild ?= 1
 ifeq ($(Build),debug)
@@ -11,13 +7,12 @@ ifeq ($(Build),debug)
 endif
 ifneq ($(ParallelBuild),1)
   MAKEFLAGS += -j$(ParallelBuild)
-  $(info Compiling in parallel with N=$(ParallelBuild) cores)
+  $(info Compiling in parallel with N=$(ParallelBuild) threads)
 endif
 
-#Warnings:
+# Warnings:
 WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow \
 -Weffc++ -Wsign-conversion
-# -Wfloat-equal
 
 # Changes to warning based on compiler:
 GCC_Compilers:=g++ g++12 g++-11 g++-10 g++-9 g++-8 g++-7
@@ -55,9 +50,11 @@ endif
 
 # If not using openMP, turn off 'unkown pragmas' warning.
 OMP?=-fopenmp
+ifneq ($(UseOpenMP),true)
 ifneq ($(UseOpenMP),yes)
   OMP=
   WARN+=-Wno-unknown-pragmas
+endif
 endif
 
 ################################################################################
@@ -102,8 +99,8 @@ endif
 # ASAN_SYMBOLIZER_PATH=/usr/bin/llvm-symbolizer ./ampsci
 
 #Command to compile objects and link them
-COMP=$(CXX) -MMD -MP -c -o $@ $< $(CXXFLAGS)
+COMP=$(CXX) $(CARGS) -MMD -MP -c -o $@ $< $(CXXFLAGS)
 ifeq ($(ParallelBuild),1)
 	COMP=time $(CXX) -MMD -MP -c -o $@ $< $(CXXFLAGS)
 endif
-LINK=$(CXX) -o $@ $^ $(CXXFLAGS) $(LIBS)
+LINK=$(CXX) $(LARGS) -o $@ $^ $(CXXFLAGS) $(LIBS)
