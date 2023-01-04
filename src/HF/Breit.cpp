@@ -142,6 +142,8 @@ DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
   // XXX Note: This one is hard to check, since it seems to give negligable
   // contribution? Essentially agrees with VD for E1 and E2 (with very tiny
   // assymetry? - so probably minor mistake somewhere!)
+  // 5d+  6p+   0.01919  -1.217635e+01  -1.174241e+01
+  // 6p+  5d+  -0.01919   1.217635e+01   1.174242e+01
 
   DiracSpinor dVFa(0, kappa, Fa.grid_sptr());
   // These will be updated in MOPk_ij_Fc if need be
@@ -167,7 +169,7 @@ DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
   const auto cang = -Ckna * CkBb / (2 * k + 1);
   const auto cang_N = -Ckna * CkBb_N / (2 * k + 1);
 
-  if (!Angular::zeroQ(cang) || !Angular::zeroQ(cang)) {
+  if (!Angular::zeroQ(cang) || !Angular::zeroQ(cang_N)) {
     const hidden::Breit_Bk_ba BkXBb(Fb, Xbeta); // every k
     // XXX When X=Y (w=0, real), These are the same(?)!!
     const hidden::Breit_Bk_ba BkYBb(Ybeta, Fb); // every k
