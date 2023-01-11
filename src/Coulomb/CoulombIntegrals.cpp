@@ -154,14 +154,14 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
     }
   }();
 
-  // Quadrature integration weights:
-  auto w = [=](std::size_t i) {
-    if (i < NumCalc::Nquad)
-      return NumCalc::dq_inv * NumCalc::cq[i];
-    if (i < num_points - NumCalc::Nquad)
-      return 1.0;
-    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
-  };
+  // // Quadrature integration weights:
+  // auto w = [=](std::size_t i) {
+  //   if (i < NumCalc::Nquad)
+  //     return NumCalc::dq_inv * NumCalc::cq[i];
+  //   if (i < num_points - NumCalc::Nquad)
+  //     return 1.0;
+  //   return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
+  // };
 
   double Ax = 0.0, Bx = 0.0;
 
@@ -175,7 +175,7 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
   const auto bmax = std::min(Fa.max_pt(), Fb.max_pt());
   const auto bmin = std::max(Fa.min_pt(), Fb.min_pt());
   for (std::size_t i = bmin; i < bmax; i++) {
-    Bx += gr.drduor(i) * w(i) * fgfg(i) / powk(gr.r(i));
+    Bx += gr.drduor(i) /** w(i)*/ * fgfg(i) / powk(gr.r(i));
   }
 
   b0[0] = 0.0;
@@ -185,7 +185,7 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
     const auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * gr.r()[i - 1]);
     const auto r_to_k = powk(gr.r(i));
     const auto inv_r_to_kp1 = 1.0 / (r_to_k * gr.r(i));
-    const auto Fdr = gr.drdu()[i - 1] * fgfg(i - 1) * w(i - 1);
+    const auto Fdr = gr.drdu()[i - 1] * fgfg(i - 1) /** w(i - 1)*/;
     Ax += Fdr * rm1_to_k;
     Bx -= Fdr * inv_rm1_to_kp1;
     b0[i] = du * Ax * inv_r_to_kp1;

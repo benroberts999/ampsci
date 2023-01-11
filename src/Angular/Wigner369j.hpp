@@ -84,13 +84,13 @@ inline std::pair<int, int> index_to_nk(int index) {
 }
 
 //==============================================================================
-//! Returns true if a is even
+//! Returns true if a is even - for integer values
 constexpr bool evenQ(int a) { return (a % 2 == 0); }
-//! Returns true if a is even, given 2*a (i.e., true if two_a/2 is even)
+//! Returns true if a (an int) is even, given 2*a (true if two_a/2 is even)
 constexpr bool evenQ_2(int two_a) { return (two_a % 4 == 0); }
-//! Evaluates (-1)^{a}
+//! Evaluates (-1)^{a} (for integer a)
 constexpr int neg1pow(int a) { return evenQ(a) ? 1 : -1; }
-//! Evaluates (-1)^{two_a/2}
+//! Evaluates (-1)^{two_a/2} (for integer a; two_a is even)
 constexpr int neg1pow_2(int two_a) { return evenQ_2(two_a) ? 1 : -1; }
 
 //==============================================================================

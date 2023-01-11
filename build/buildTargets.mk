@@ -3,7 +3,7 @@
 ################################################################################
 #Allow exectuables to be placed in another directory:
 DEFAULTEXES = $(addprefix $(XD)/, \
- ampsci \
+ ampsci tests\
 )
 
 ALLEXES = $(addprefix $(XD)/, \

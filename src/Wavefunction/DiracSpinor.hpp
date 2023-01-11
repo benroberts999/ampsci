@@ -100,6 +100,9 @@ public:
   //! e.g., 6p_1/2 => 6p-, 6p_3/2 => 6p+
   std::string shortSymbol() const;
 
+  //! Changes 'kappa' angular quantum number. Use with caution!
+  void set_new_kappa(int new_kappa);
+
   //! Resturns a const reference to the radial grid
   const Grid &grid() const { return *m_rgrid; };
   //! Resturns copy of shared_ptr to grid [shared resource] - used when we want

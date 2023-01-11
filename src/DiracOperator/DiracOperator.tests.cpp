@@ -504,6 +504,46 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       }
     }
   }
+
+  //--------------------------------------------------------------------
+  SECTION("SpinorMatrix") {
+    std::cout << "SpinorMatrix\n";
+    DiracOperator::SpinorMatrix a;
+
+    for (const auto &Fv : wf.valence()) {
+      double zero = Fv * (a * Fv);
+      REQUIRE(zero == Approx(0.0));
+    }
+
+    DiracOperator::SpinorMatrix b{1.0, 0.0, 0.0, 1.0};
+    a = b;
+    for (const auto &Fv : wf.valence()) {
+      double lhs = Fv * (a * Fv);
+      double rhs = Fv * (Fv);
+      REQUIRE(lhs == Approx(rhs));
+    }
+
+    auto c = 2.0 * b;
+    c *= 1.0;
+    auto d = a + b;
+    for (const auto &Fv : wf.valence()) {
+      double lhs = Fv * (c * Fv);
+      double rhs = Fv * (d * Fv);
+      REQUIRE(lhs == Approx(rhs));
+    }
+
+    DiracOperator::SpinorMatrix e{0.0, 1.0, 1.0, 0.0};
+    for (const auto &Fv : wf.valence()) {
+      double lhs = Fv * (e * Fv);
+
+      auto mFv = Fv;
+      mFv.f() = Fv.g();
+      mFv.g() = Fv.f();
+      double rhs = Fv * (mFv);
+
+      REQUIRE(lhs == Approx(rhs));
+    }
+  }
 }
 
 //--------------------------------------------------------------------

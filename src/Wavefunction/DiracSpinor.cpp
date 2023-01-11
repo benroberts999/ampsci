@@ -47,6 +47,16 @@ std::string DiracSpinor::shortSymbol() const {
 }
 
 //==============================================================================
+void DiracSpinor::set_new_kappa(int new_kappa) {
+  m_kappa = new_kappa;
+  m_twoj = Angular::twoj_k(new_kappa);
+  m_l = Angular::l_k(new_kappa);
+  m_parity = Angular::parity_k(new_kappa);
+  m_kappa_index = Angular::indexFromKappa(new_kappa);
+  m_nkappa_index = static_cast<Index>(Angular::nk_to_index(m_n, new_kappa));
+}
+
+//==============================================================================
 double DiracSpinor::norm() const { return std::sqrt((*this) * (*this)); }
 double DiracSpinor::norm2() const { return (*this) * (*this); }
 

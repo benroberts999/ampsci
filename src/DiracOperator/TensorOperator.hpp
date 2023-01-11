@@ -6,6 +6,7 @@
 #include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/Vector.hpp"
 #include <cmath>
 #include <string>
 #include <vector>
@@ -28,6 +29,71 @@ struct IntM4x4
       : e00(in00), e01(in01), e10(in10), e11(in11) {}
 
   const int e00, e01, e10, e11;
+};
+
+//==============================================================================
+class SpinorMatrix
+// 2x2 matrix that acts in radial spinor space.
+// Notation for elements:
+//  (ff  fg)
+//  (gf  gg)
+{
+  double ff{0.0}, fg{0.0}, gf{0.0}, gg{0.0};
+
+public:
+  // SpinorMatrix() = default;
+  constexpr SpinorMatrix(double iff, double ifg, double igf, double igg)
+      : ff(iff), fg(ifg), gf(igf), gg(igg) {}
+  constexpr SpinorMatrix() {}
+
+  constexpr SpinorMatrix &operator+=(const SpinorMatrix &rhs) {
+    ff += rhs.ff;
+    fg += rhs.fg;
+    gf += rhs.gf;
+    gg += rhs.gg;
+    return *this;
+  }
+  constexpr SpinorMatrix &operator-=(const SpinorMatrix &rhs) {
+    ff -= rhs.ff;
+    fg -= rhs.fg;
+    gf -= rhs.gf;
+    gg -= rhs.gg;
+    return *this;
+  }
+  friend SpinorMatrix operator+(SpinorMatrix lhs, const SpinorMatrix &rhs) {
+    return lhs += rhs;
+  }
+  friend SpinorMatrix operator-(SpinorMatrix lhs, const SpinorMatrix &rhs) {
+    return lhs -= rhs;
+  }
+  constexpr SpinorMatrix &operator*=(double x) {
+    ff *= x;
+    fg *= x;
+    gf *= x;
+    gg *= x;
+    return *this;
+  }
+  friend SpinorMatrix operator*(SpinorMatrix lhs, double x) { return lhs *= x; }
+  friend SpinorMatrix operator*(double x, SpinorMatrix rhs) { return rhs *= x; }
+
+  DiracSpinor act(const DiracSpinor &Fa) const {
+    using namespace qip::overloads;
+    auto mFa = Fa;
+    // mFa.f() = ff * Fa.f() + fg * Fa.g();
+    // mFa.g() = gf * Fa.f() + gg * Fa.g();
+
+    // since we start with a copy:
+    if (ff != 1.0)
+      mFa.f() *= ff;
+    if (fg != 0.0)
+      mFa.f() += fg * Fa.g();
+    if (gg != 1.0)
+      mFa.g() *= gg;
+    if (gf != 0.0)
+      mFa.g() += gf * Fa.f();
+    return mFa;
+  }
+  DiracSpinor operator*(const DiracSpinor &Fa) const { return act(Fa); }
 };
 
 //==============================================================================

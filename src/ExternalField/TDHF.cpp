@@ -354,9 +354,7 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
 
       // Breit part:
       if (p_VBr) {
-        // Note: Not perfectly symmetric for E1 - some issue??
         dVFa += tkp1 * p_VBr->dVbrD_Fa(kappa_n, k, Fa, Fb, X_beta, Y_beta);
-        dVFa += tkp1 * p_VBr->dVbrX_Fa(kappa_n, k, Fa, Fb, X_beta, Y_beta);
       }
     }
   }

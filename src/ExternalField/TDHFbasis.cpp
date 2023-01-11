@@ -86,62 +86,6 @@ TDHFbasis::form_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
   return dFvs;
 }
 
-// //==============================================================================
-// double TDHFbasis::dV1(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
-//   //
-//   const auto conj = Fb.en() > Fa.en();
-//   // dV(Fn, Fm, conj, nullptr, false);
-//   const auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful. OK?
-//   // auto rhs = dV_rhs(Fa.kappa(), Fb, conj, nullptr, false);
-//   auto rhs = DiracSpinor(0, Fa.kappa(), Fa.grid_sptr());
-
-//   {
-//     auto kappa_n = Fa.kappa();
-//     // auto rhs = DiracSpinor(0, Fa.kappa(), Fa.grid_sptr());
-//     rhs.max_pt() = Fb.max_pt();
-
-//     const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
-//     const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
-
-//     const auto k = m_h->rank();
-//     const auto tkp1 = double(2 * k + 1);
-//     const auto tjn = Angular::twoj_k(Fa.kappa());
-
-//     // nb: faster to not //ize this one
-//     for (const auto &Fc : m_core) {
-//       const auto &X_b =
-//           form_dPsis(Fc, m_core_omega, ChiType, m_basis, StateType::ket, false);
-//       const auto &Y_b =
-//           form_dPsis(Fc, m_core_omega, EtaType, m_basis, StateType::ket, false);
-
-//       for (auto ibeta = 0ul; ibeta < X_b.size(); ++ibeta) {
-//         const auto &X_beta = X_b[ibeta];
-//         const auto &Y_beta = Y_b[ibeta];
-
-//         const auto sQ = Angular::neg1pow_2(tjn + X_beta.twoj() + 2 * k + 2);
-//         if (sQ == 1) { // faster than multiplying!
-//           rhs += Coulomb::Wkv_bcd(kappa_n, Fc, Fb, X_beta, k);
-//           rhs += Coulomb::Wkv_bcd(kappa_n, Y_beta, Fb, Fc, k);
-//         } else {
-//           rhs -= Coulomb::Wkv_bcd(kappa_n, Fc, Fb, X_beta, k);
-//           rhs -= Coulomb::Wkv_bcd(kappa_n, Y_beta, Fb, Fc, k);
-//         }
-
-//         // Breit part:
-//         if (p_VBr) {
-//           // Note: Not perfectly symmetric for E1 - some issue??
-//           rhs += tkp1 * p_VBr->dVbrD_Fa(kappa_n, k, Fb, Fc, X_beta, Y_beta);
-//           rhs += tkp1 * p_VBr->dVbrX_Fa(kappa_n, k, Fb, Fc, X_beta, Y_beta);
-//         }
-//       }
-//     }
-
-//     rhs *= (1.0 / tkp1);
-//   }
-
-//   return s * (Fa * rhs);
-// }
-
 //==============================================================================
 void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
   const double converge_targ = 1.0e-8;
