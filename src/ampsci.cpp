@@ -9,6 +9,7 @@
 #include "Physics/periodicTable.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Vector.hpp"
+#include "qip/omp.hpp"
 #include "version/version.hpp"
 #include <iostream>
 #include <memory>
@@ -37,6 +38,9 @@ OPTIONS
 
     -v (--version)
         Prints ampsci version (and git commit) details
+
+    -l (--libs, --libraries)
+        Prints ampsci version details for libaries
 
     -h (--help, -?)
         Print help info, including some detail on input options
@@ -87,9 +91,13 @@ int main(int argc, char *argv[]) {
     return 0;
   } else if (input_text == "-v" || input_text == "--version") {
     std::cout << "AMPSCI v: " << version::version() << '\n';
+    std::cout << "Libraries:\n" << version::libraries() << '\n';
     std::cout << "Compiled: " << version::compiled() << '\n';
     std::cout << "Benjamin M. Roberts (https://broberts.io/), University of "
                  "Queensland, Australia\n";
+    return 0;
+  } else if (input_text == "-l" || input_text.substr(0, 5) == "--lib") {
+    std::cout << "Libraries:\n" << version::libraries() << '\n';
     return 0;
   } else if (input_text == "-h" || input_text == "--help" ||
              input_text == "-?") {
@@ -145,6 +153,7 @@ int main(int argc, char *argv[]) {
   std::cout << '\n';
   IO::print_line();
   std::cout << "AMPSCI v: " << version::version() << '\n';
+  std::cout << "Parallel: " << qip::omp_details() << '\n';
   std::cout << "Compiled: " << version::compiled() << '\n';
   std::cout << "Run time: " << IO::time_date() << '\n';
 

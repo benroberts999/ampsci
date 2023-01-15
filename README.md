@@ -63,9 +63,9 @@ Divided into sections:
 [build-url]: https://github.com/benroberts999/ampsci/actions/workflows/build.yml
 [macOS-badge]: https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml/badge.svg
 [macOS-url]: https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml
-[doxygen-badge]: https://img.shields.io/badge/documentation-ampsci.dev/-blue
+[doxygen-badge]: https://img.shields.io/badge/code%20docs-ampsci.dev/-blue
 [docs-url]: https://ampsci.dev/
-[manual-badge]: https://img.shields.io/badge/documentation-physics%20(pdf)-blue
+[manual-badge]: https://img.shields.io/badge/physics%20docs-ampsci.pdf-blue
 [man-url]: https://ampsci.dev/ampsci.pdf
 [cov-badge]: https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg?token=3M5MH5QXLL
 [cov-url]: https://codecov.io/gh/benroberts999/ampsci

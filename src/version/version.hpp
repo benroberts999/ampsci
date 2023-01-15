@@ -2,7 +2,7 @@
 #include <string>
 
 // Manually define major/minor ampsci versions
-#define AMPSCI_VERSION 0.0
+#define AMPSCI_VERSION "0.0"
 #define AMPSCI_MAJOR_VERSION 0
 #define AMPSCI_MINOR_VERSION 0
 
@@ -17,5 +17,8 @@ std::string version();
 //! String with compilation info, including which compiler was used and the time
 //! of compilation
 std::string compiled();
+
+//! String continaing details (version numbers) of libraries (e.g., GSL)
+std::string libraries();
 
 } // namespace version

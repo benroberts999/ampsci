@@ -12,6 +12,11 @@
 * Also: check correctness in general case
   * Note: TDHF doesn't work for E1v, but diagram does!
 
+## TDHF - code
+
+* Streamline the core-polarisation classes
+* Take unified bunch of options
+
 ## Qk and Coulomb
 
 * Make Coulomb:: calling syntax consistent
@@ -51,7 +56,6 @@
 * Frequency-dependent Breit
 * "Two-body" Breit (i.e., Breit into Sigma_2)
 * Breit matrix - for inclusion into Green's function (needs G?)
-* Improve efficiency?
 
 ## Modules
 

@@ -75,8 +75,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       rpas{nullptr};
   if (rpa) {
     std::cout << "\nIncluding RPA (diagram method) - must have basis\n";
-    rpap = std::make_unique<ExternalField::DiagramRPA>(
-        hpt.get(), wf.basis(), wf.core(), wf.identity());
+    rpap = std::make_unique<ExternalField::DiagramRPA>(hpt.get(), wf.basis(),
+                                                       wf.vHF(), wf.identity());
     rpab = std::make_unique<ExternalField::DiagramRPA>(hbl.get(), rpap.get());
     rpas = std::make_unique<ExternalField::DiagramRPA>(hsp.get(), rpap.get());
     std::cout << "Solving RPA core for point, ball, SP:\n";
@@ -152,7 +152,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "Including RPA (diagram method) - must have basis\n";
       // OK ? or need run with new basis!?
       rpap2 = std::make_unique<ExternalField::DiagramRPA>(
-          hpt2.get(), wfA.basis(), wfA.core(), wfA.identity());
+          hpt2.get(), wfA.basis(), wfA.vHF(), wfA.identity());
       rpab2 =
           std::make_unique<ExternalField::DiagramRPA>(hbl2.get(), rpap.get());
       rpas2 =
@@ -298,9 +298,9 @@ void HF_rmag(const IO::InputBlock &input, const Wavefunction &wf) {
   double dv02 = 0.0;
   if (rpa) {
     rpa01 = std::make_unique<ExternalField::DiagramRPA>(
-        &h01, wf.basis(), wf.core(), wf.identity());
+        &h01, wf.basis(), wf.vHF(), wf.identity());
     rpa02 = std::make_unique<ExternalField::DiagramRPA>(
-        &h02, wf.basis(), wf.core(), wf.identity());
+        &h02, wf.basis(), wf.vHF(), wf.identity());
     rpa01->solve_core(0.0);
     rpa02->solve_core(0.0);
     auto a = DiracOperator::HyperfineA::convertRMEtoA(F1v, F1v);
@@ -557,8 +557,8 @@ void BohrWeisskopf(const IO::InputBlock &input, const Wavefunction &wf) {
       rpaw{nullptr};
   if (rpa) {
     std::cout << "\nIncluding RPA (diagram method) - must have basis\n";
-    rpap = std::make_unique<ExternalField::DiagramRPA>(
-        hp.get(), wf.basis(), wf.core(), wf.identity());
+    rpap = std::make_unique<ExternalField::DiagramRPA>(hp.get(), wf.basis(),
+                                                       wf.vHF(), wf.identity());
     rpab = std::make_unique<ExternalField::DiagramRPA>(hb.get(), rpap.get());
     rpaw = std::make_unique<ExternalField::DiagramRPA>(hw.get(), rpap.get());
     std::cout << "Solving RPA core for point, ball, SP:\n";

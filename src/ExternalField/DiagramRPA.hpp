@@ -18,21 +18,11 @@ namespace ExternalField {
 //! RPA correction to matrix elements, using Diagram technique
 class DiagramRPA : public CorePolarisation {
 
-public:
-  //! Normal constructor: needs core to split basis: only uses basis.
-  DiagramRPA(const DiracOperator::TensorOperator *const h,
-             const std::vector<DiracSpinor> &basis,
-             const std::vector<DiracSpinor> &core,
-             const std::string &atom = "Atom");
-
-  //! Second constructor: copies over W matrices (depend only on k/pi)
-  DiagramRPA(const DiracOperator::TensorOperator *const h,
-             const DiagramRPA *const drpa);
-
 private:
+  const HF::HartreeFock *p_hf;
   std::vector<DiracSpinor> holes{};
   std::vector<DiracSpinor> excited{};
-  const double eps_targ = 1.0e-10;
+  double eps_targ = 1.0e-10;
 
   // t0's never change
   // NO! They change if omega is updated (frequency dependent operator!)
@@ -49,9 +39,19 @@ private:
   std::vector<std::vector<std::vector<std::vector<double>>>> Wmnab{};
   std::vector<std::vector<std::vector<std::vector<double>>>> Wmban{};
 
-  // nb: much slower to use Qk table
-  static constexpr bool m_USE_QK = false;
-  Coulomb::QkTable m_qk{};
+  // // nb: much slower to use Qk table
+  // static constexpr bool m_USE_QK = false;
+  // Coulomb::QkTable m_qk{};
+
+public:
+  //! Normal constructor: needs core to split basis: only uses basis.
+  DiagramRPA(const DiracOperator::TensorOperator *const h,
+             const std::vector<DiracSpinor> &basis,
+             const HF::HartreeFock *in_hf, const std::string &atom = "Atom");
+
+  //! Second constructor: copies over W matrices (depend only on k/pi)
+  DiagramRPA(const DiracOperator::TensorOperator *const h,
+             const DiagramRPA *const drpa);
 
 public:
   //! Itterates the RPA equations for core electrons

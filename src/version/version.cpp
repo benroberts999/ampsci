@@ -1,4 +1,5 @@
 #include "version.hpp"
+#include <gsl/gsl_version.h>
 #include <string>
 
 // Macro translates constants to "strings"
@@ -26,6 +27,12 @@
 #ifndef COMPTIME
 #define COMPTIME
 #endif
+#ifndef GSL_VERSION
+#define GSL_VERSION ""
+#endif
+#ifndef _OPENMP
+#define _OPENMP 0
+#endif
 
 //==============================================================================
 namespace version {
@@ -35,17 +42,24 @@ static const std::string git_revision = XSTRING(GITREVISION);
 static const std::string git_modified = XSTRING(GITMODIFIED);
 static const std::string cxx_version = XSTRING(CXXVERSION);
 static const std::string compiled_time = XSTRING(COMPTIME);
-static const std::string ampsci_version = XSTRING(AMPSCI_VERSION);
+static const std::string ampsci_version = std::string(AMPSCI_VERSION);
+static const std::string gsl_version = std::string(GSL_VERSION);
+static const std::string omp_version = XSTRING(_OPENMP);
 
 std::string version() {
   return git_revision.empty() ?
              ampsci_version :
-             git_modified.empty() ?
+         git_modified.empty() ?
              ampsci_version + " [" + git_branch + "/" + git_revision + "]" :
              ampsci_version + " [" + git_branch + "/" + git_revision + "]*\n" +
-                     " *(Modified: " + git_modified + ")";
+                 " *(Modified: " + git_modified + ")";
 }
 
 std::string compiled() { return cxx_version + " " + compiled_time; }
+
+std::string libraries() {
+  return "  GSL (GNU Scientific Libraries): " + gsl_version + '\n' +
+         "  OpenMP: " + omp_version;
+}
 
 } // namespace version

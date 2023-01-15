@@ -77,10 +77,10 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   auto dVe1 = (do_E1 && rpaQ) ? std::make_unique<TDHF>(&e1, wf.vHF()) : nullptr;
   // nb: we use DiagramRPA method for E2 and M1
   auto dVe2 = (do_E2 && rpaQ) ? std::make_unique<DiagramRPA>(
-                                    &e2, wf.basis(), wf.core(), wf.identity()) :
+                                    &e2, wf.basis(), wf.vHF(), wf.identity()) :
                                 nullptr;
   auto dVm1 = (do_M1 && rpaQ) ? std::make_unique<DiagramRPA>(
-                                    &m1, wf.basis(), wf.core(), wf.identity()) :
+                                    &m1, wf.basis(), wf.vHF(), wf.identity()) :
                                 nullptr;
 
   // Optionally include SR+N

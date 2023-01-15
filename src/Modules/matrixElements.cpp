@@ -109,7 +109,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   } else if (rpa_method == ExternalField::method::diagram) {
     std::cout << "diagram method\n";
     rpa = std::make_unique<ExternalField::DiagramRPA>(h.get(), wf.basis(),
-                                                      wf.core(), wf.identity());
+                                                      wf.vHF(), wf.identity());
   }
 
   const auto mes = ExternalField::calcMatrixElements(

@@ -5,6 +5,8 @@
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "DiracOperator/TensorOperator.hpp"
+#include "HF/Breit.hpp"
+#include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -18,11 +20,15 @@ namespace ExternalField {
 //==============================================================================
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const std::vector<DiracSpinor> &basis,
-                       const std::vector<DiracSpinor> &core,
-                       const std::string &atom)
-    : CorePolarisation(h) {
+                       const HF::HartreeFock *in_hf, const std::string &atom)
+    : CorePolarisation(h), p_hf(in_hf) {
+
+  if (p_hf == nullptr || h == nullptr) {
+    std::cout << "\nFAIL:25 in DiagramRPA - hf cannot be null\n" << std::flush;
+  }
 
   // Set up basis:
+  const auto &core = p_hf->core();
   for (const auto &Fi : basis) {
     // NB: this makes a huge difference! Try to implement somehow
     // NB: Need to be careful: same basis used when reading W in!
@@ -39,36 +45,36 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   // Calc t0 (and setup t) [RPA MEs for hole-excited]
   setup_ts(h);
 
-  const std::string ext = m_USE_QK ? ".qk" : ".rpad";
-  const auto fname = m_USE_QK ?
-                         atom + "_" + DiracSpinor::state_config(basis) + ".qk" :
-                         atom + "_" + std::to_string(m_rank) +
-                             (m_pi == 1 ? "+" : "-") + ".rpad";
+  bool have_breit = p_hf->vBreit() != nullptr;
+  const std::string ext = have_breit ? ".rpadb" : ".rpad";
+  const auto fname =
+      atom + "_" + std::to_string(m_rank) + (m_pi == 1 ? "+" : "-") + ext;
 
-  if constexpr (m_USE_QK) {
-    std::cout << "\nFill Qk table:\n";
-    const auto ok = m_qk.read(fname);
-    if (!ok) {
-      Coulomb::YkTable Yk(basis);
-      m_qk.fill(basis, Yk);
-      m_qk.write(fname);
-    }
-  } else {
-    // Attempt to read W's from a file:
-    const auto read_ok = read_write(fname, IO::FRW::read);
-    if (!read_ok) {
-      // If not, calc W's, and write to file
-      fill_W_matrix(h);
-      if (!holes.empty() && !excited.empty() && atom != "")
-        read_write(fname, IO::FRW::write);
-    }
+  // if constexpr (m_USE_QK) {
+  //   std::cout << "\nFill Qk table:\n";
+  //   const auto ok = m_qk.read(fname);
+  //   if (!ok) {
+  //     // doesn't work with Breit!?
+  //     Coulomb::YkTable Yk(basis);
+  //     m_qk.fill(basis, Yk);
+  //     m_qk.write(fname);
+  //   }
+  // } else {
+
+  // Attempt to read W's from a file:
+  const auto read_ok = read_write(fname, IO::FRW::read);
+  if (!read_ok) {
+    // If not, calc W's, and write to file
+    fill_W_matrix(h);
+    if (!holes.empty() && !excited.empty() && atom != "")
+      read_write(fname, IO::FRW::write);
   }
 }
 
 //==============================================================================
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const DiagramRPA *const drpa)
-    : CorePolarisation(h) {
+    : CorePolarisation(h), p_hf(drpa->p_hf) {
 
   if (m_rank != drpa->m_rank || m_pi != drpa->m_pi) {
     std::cerr << "\nFAIL21 in DiagramRPA: Cannot use 'eat' constructor for "
@@ -87,7 +93,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   Wabmn = drpa->Wabmn;
   Wmnab = drpa->Wmnab;
   Wmban = drpa->Wmban;
-  m_qk = drpa->m_qk;
+  // m_qk = drpa->m_qk;
 }
 
 //==============================================================================
@@ -168,6 +174,8 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
   Yhe.calculate(excited);
   Yhe.calculate(holes);
 
+  const auto Vbr = p_hf->vBreit(); // a pointer, may be null
+
   // RPA: store W Coulomb integrals (used only for Core RPA its)
   std::cout << "Filling RPA Diagram matrix ("
             << DiracSpinor::state_config(holes) << "/"
@@ -204,8 +212,12 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
             const auto xP = Yee.P(m_rank, Fa, Fn, Fm, Fb);
             const auto yQ = Yee.Q(m_rank, Fa, Fb, Fm, Fn);
             const auto yP = Yhe.P(m_rank, Fa, Fb, Fm, Fn);
-            Wanm_b.push_back(xQ + xP);
-            Wabm_n.push_back(yQ + yP);
+            // Breit Contribution to core:
+            const auto xB = Vbr ? Vbr->BWk_abcd(m_rank, Fa, Fn, Fm, Fb) : 0.0;
+            const auto yB = Vbr ? Vbr->BWk_abcd(m_rank, Fa, Fb, Fm, Fn) : 0.0;
+
+            Wanm_b.push_back(xQ + xP + xB);
+            Wabm_n.push_back(yQ + yP + yB);
           }
         }
       }
@@ -238,6 +250,9 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
           Wabm_n.reserve(holes.size());
           for (const auto &Fb : holes) {
             if (h->isZero(Fb.kappa(), Fn.kappa())) {
+              // do I need to store the zero's? Or can I skip them below?
+              // skipping is dangerous, mis-match of indexes
+              // However, we roughly store 2x what we need!
               Wanm_b.emplace_back(0.0);
               Wabm_n.emplace_back(0.0);
               continue;
@@ -246,8 +261,11 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
             const auto xP = Yhe.P(m_rank, Fm, Fn, Fa, Fb);
             const auto yQ = Yhe.Q(m_rank, Fm, Fb, Fa, Fn);
             const auto yP = Yhh.P(m_rank, Fm, Fb, Fa, Fn);
-            Wanm_b.push_back(xQ + xP);
-            Wabm_n.push_back(yQ + yP);
+            // nb: Breit part not double-checked! XXX
+            const auto xB = Vbr ? Vbr->BWk_abcd(m_rank, Fm, Fn, Fa, Fb) : 0.0;
+            const auto yB = Vbr ? Vbr->BWk_abcd(m_rank, Fm, Fb, Fa, Fn) : 0.0;
+            Wanm_b.push_back(xQ + xP + xB);
+            Wabm_n.push_back(yQ + yP + yB);
           }
         }
       }
@@ -299,6 +317,8 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
   if (holes.empty() || excited.empty())
     return 0.0;
 
+  const auto Vbr = p_hf->vBreit(); // a pointer, may be null
+
   if (Fv.en() > Fw.en()) {
     const auto sj = ((Fv.twoj() - Fw.twoj()) % 4 == 0) ? 1 : -1;
     const auto si = m_imag ? -1 : 1;
@@ -322,9 +342,11 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
       if (t0am[ia][im] == 0.0)
         continue;
       const auto s2 = ((Fa.twoj() - Fm.twoj()) % 4 == 0) ? 1 : -1;
-      // Calculate Wk from scratch here: Fi/Ff may be valence. nb: can use Yk?
-      const auto Wwmva = Coulomb::Wk_abcd(Ff, Fm, Fi, Fa, m_rank);
-      const auto Wwavm = Coulomb::Wk_abcd(Ff, Fa, Fi, Fm, m_rank);
+      // Calculate Wk from scratch here: Fi/Ff may be valence.
+      const auto Wwmva = Coulomb::Wk_abcd(Ff, Fm, Fi, Fa, m_rank) +
+                         (Vbr ? Vbr->BWk_abcd(m_rank, Ff, Fm, Fi, Fa) : 0.0);
+      const auto Wwavm = Coulomb::Wk_abcd(Ff, Fa, Fi, Fm, m_rank) +
+                         (Vbr ? Vbr->BWk_abcd(m_rank, Ff, Fa, Fi, Fm) : 0.0);
       const auto ttam = tam[ia][im];
       const auto ttma = tma[im][ia];
       const auto A = ttam * Wwmva / (Fa.en() - Fm.en() - ww);
@@ -387,15 +409,15 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
             const auto tdem = tbn / (Fb.en() - Fn.en() - m_core_omega);
             const auto s2 = ((Fb.twoj() - Fn.twoj()) % 4 == 0) ? 1 : -1;
             const auto stdep = s2 * tnb / (Fb.en() - Fn.en() + m_core_omega);
-            // Cast form 'double' (may be double or float) to double
-            if constexpr (m_USE_QK) {
-              const auto A = tdem * m_qk.W(m_rank, Fa, Fn, Fm, Fb);
-              const auto B = stdep * m_qk.W(m_rank, Fa, Fb, Fm, Fn);
-              const auto C = tdem * m_qk.W(m_rank, Fm, Fn, Fa, Fb);
-              const auto D = stdep * m_qk.W(m_rank, Fm, Fb, Fa, Fn);
-              sum_am += s1 * (A + B);
-              sum_ma += s3 * (C + D);
-            } else {
+            // if constexpr (m_USE_QK) {
+            //   const auto A = tdem * m_qk.W(m_rank, Fa, Fn, Fm, Fb);
+            //   const auto B = stdep * m_qk.W(m_rank, Fa, Fb, Fm, Fn);
+            //   const auto C = tdem * m_qk.W(m_rank, Fm, Fn, Fa, Fb);
+            //   const auto D = stdep * m_qk.W(m_rank, Fm, Fb, Fa, Fn);
+            //   sum_am += s1 * (A + B);
+            //   sum_ma += s3 * (C + D);
+            // } else
+            {
               const auto A = tdem * Wanmb[ia][in][im][ib];
               const auto B = stdep * Wabmn[ia][in][im][ib];
               const auto C = tdem * Wmnab[im][in][ia][ib];

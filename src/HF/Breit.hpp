@@ -44,9 +44,9 @@ public:
   //! @details
   //! K is multipolarity of RPA operator, Fb is core state, with Xbeta and Ybeta
   //! perturbations. "reduced rhs"
-  DiracSpinor dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
-                       const DiracSpinor &Fb, const DiracSpinor &Xbeta,
-                       const DiracSpinor &Ybeta) const;
+  DiracSpinor dV_Br(int kappa, int K, const DiracSpinor &Fa,
+                    const DiracSpinor &Fb, const DiracSpinor &Xbeta,
+                    const DiracSpinor &Ybeta) const;
 
   //! Reduced Breit integral (analogue of Coulomb Q^k).
   double Bk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
@@ -69,9 +69,7 @@ public:
                        const DiracSpinor &Fc, const DiracSpinor &Fd) const;
   //! BWkv_bcd defined: W(B)^k_abcd = B^k_abcd + P(B)^k_abcd= <a|BWkv_bcd>
   DiracSpinor BWkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
-                       const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-    return Bkv_bcd(k, kappa_v, Fb, Fc, Fd) + BPkv_bcd(k, kappa_v, Fb, Fc, Fd);
-  }
+                       const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 };
 
 //==============================================================================

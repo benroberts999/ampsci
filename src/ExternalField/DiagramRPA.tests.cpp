@@ -31,7 +31,7 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
   REQUIRE(F6p != nullptr);
 
   const auto file_name = "deleteme-" + qip::random_string(4);
-  auto rpa = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.core(), file_name);
+  auto rpa = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.vHF(), file_name);
   rpa.solve_core(0.0, 20);
 
   const auto dv_0 = rpa.dV(*F6s, *F6p);
@@ -42,7 +42,7 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
 
   // This should read W matrix from file, but not calculate t's
   // Grabbing t's from other rpa - should yield exact same result!
-  auto rpa2 = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.core(), file_name);
+  auto rpa2 = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.vHF(), file_name);
   rpa2.grab_tam(&rpa);
   // const auto dv1_2 = rpa2.dV1(*F6s, *F6p);
   const auto dv_2 = rpa2.dV(*F6s, *F6p);
@@ -84,7 +84,7 @@ TEST_CASE("External Field: Diagram RPA",
 
   {
     auto dE1 = DiracOperator::E1(wf.grid());
-    auto rpa = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.core(), "");
+    auto rpa = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.vHF(), "");
 
     { // E1, ww=0
       using sp = std::pair<std::string, double>;
@@ -158,7 +158,7 @@ TEST_CASE("External Field: Diagram RPA",
   { // HFS (compare A, not dV)
     auto h = DiracOperator::HyperfineA(1.0, 1.0, 0.0, wf.grid(),
                                        DiracOperator::Hyperfine::pointlike_F());
-    auto rpa = ExternalField::DiagramRPA(&h, wf.basis(), wf.core(), "");
+    auto rpa = ExternalField::DiagramRPA(&h, wf.basis(), wf.vHF(), "");
     using sp = std::pair<std::string, double>;
     auto e1VD = std::vector<sp>{{"6s+", 2.342288e3},  {"6p-", 2.732209e2},
                                 {"6p+", 5.808505e1},  {"5d-", 0.219042e2},

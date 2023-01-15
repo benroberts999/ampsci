@@ -28,20 +28,6 @@ DiracSpinor Breit::VbrFa(const DiracSpinor &Fa,
 }
 
 //==============================================================================
-double Breit::Bk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                      const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  return Fa * Bkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
-}
-double Breit::BPk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                       const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  return Fa * BPkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
-}
-double Breit::BWk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                       const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  return Fa * BWkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
-}
-
-//==============================================================================
 DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                            const DiracSpinor &Fc, const DiracSpinor &Fd) const {
 
@@ -73,10 +59,10 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
     // Angular factors
     const auto d_ac = ka - kc;
     const auto d_bd = kb - kd;
-    const auto eta_k = k == 0.0 ? 0.0 : d_bd / double(k);
-    const auto eta_kp1 = d_bd / double(k + 1);
-    const auto eacp1 = d_ac / double(k + 1);
-    const auto eac = k == 0.0 ? 0.0 : d_ac / double(k);
+    const auto d_bd_k = k == 0.0 ? 0.0 : d_bd / double(k);
+    const auto d_bd_kp1 = d_bd / double(k + 1);
+    const auto d_ac_kp1 = d_ac / double(k + 1);
+    const auto d_ac_k = k == 0.0 ? 0.0 : d_ac / double(k);
 
     // Calculate the Breit radial screening integrals
     const auto gbk = Breit_gb::single_k_mop(Fb, Fd, k);
@@ -91,10 +77,10 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
     const auto c_p0 = -m_P * k * (k + 1) / double(2 * (2 * k + 1));
 
     // "M1" and "O1" (s/X) part:
-    const auto cf1 = factor * (c_m1 + c_o1) * (eacp1 + 1.0);
-    const auto cg1 = factor * (c_m1 + c_o1) * (eacp1 - 1.0);
+    const auto cf1 = factor * (c_m1 + c_o1) * (d_ac_kp1 + 1.0);
+    const auto cg1 = factor * (c_m1 + c_o1) * (d_ac_kp1 - 1.0);
     for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-      const auto s0 = eta_kp1 * (gbk.g0_plus[i] + gbk.gi_plus[i]) +
+      const auto s0 = d_bd_kp1 * (gbk.g0_plus[i] + gbk.gi_plus[i]) +
                       gbk.b0_plus[i] + gbk.bi_plus[i];
       out.f(i) += cf1 * s0 * Fc.g(i);
       out.g(i) += cg1 * s0 * Fc.f(i);
@@ -102,30 +88,30 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
 
     if (k != 0.0) {
       // "M2" and "O2" (t/Y) part:
-      const auto cf2 = factor * (c_m2 + c_o2) * (eac - 1.0);
-      const auto cg2 = factor * (c_m2 + c_o2) * (eac + 1.0);
+      const auto cf2 = factor * (c_m2 + c_o2) * (d_ac_k - 1.0);
+      const auto cg2 = factor * (c_m2 + c_o2) * (d_ac_k + 1.0);
       for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-        const auto t0 = eta_k * (gbk.g0_minus[i] + gbk.gi_minus[i]) -
+        const auto t0 = d_bd_k * (gbk.g0_minus[i] + gbk.gi_minus[i]) -
                         gbk.b0_minus[i] - gbk.bi_minus[i];
         out.f(i) += cf2 * t0 * Fc.g(i);
         out.g(i) += cg2 * t0 * Fc.f(i);
       }
 
       // "P1" (v/X) part:
-      const auto cf3 = factor * c_p0 * (eacp1 + 1.0);
-      const auto cg3 = factor * c_p0 * (eacp1 - 1.0);
+      const auto cf3 = factor * c_p0 * (d_ac_kp1 + 1.0);
+      const auto cg3 = factor * c_p0 * (d_ac_kp1 - 1.0);
       for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-        const auto v0 = eta_k * (gbk.g0_minus[i] - gbk.g0_plus[i]) -
+        const auto v0 = d_bd_k * (gbk.g0_minus[i] - gbk.g0_plus[i]) -
                         gbk.b0_minus[i] + gbk.b0_plus[i];
         out.f(i) += cf3 * v0 * Fc.g(i);
         out.g(i) += cg3 * v0 * Fc.f(i);
       }
 
       // "P2" (w/Y) part:
-      const auto cf4 = factor * c_p0 * (eac - 1.0);
-      const auto cg4 = factor * c_p0 * (eac + 1.0);
+      const auto cf4 = factor * c_p0 * (d_ac_k - 1.0);
+      const auto cg4 = factor * c_p0 * (d_ac_k + 1.0);
       for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-        const auto w0 = eta_kp1 * (gbk.gi_minus[i] - gbk.gi_plus[i]) +
+        const auto w0 = d_bd_kp1 * (gbk.gi_minus[i] - gbk.gi_plus[i]) +
                         gbk.bi_minus[i] - gbk.bi_plus[i];
         out.f(i) += cf4 * w0 * Fc.g(i);
         out.g(i) += cg4 * w0 * Fc.f(i);
@@ -163,10 +149,12 @@ DiracSpinor Breit::BPkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
   const auto min_twol = std::max(std::abs(tjd - tja), std::abs(tjc - tjb));
   const auto max_twol = std::min(tjd + tja, tjc + tjb);
 
-  DiracSpinor out(0, ka, Fc.grid_sptr());
+  DiracSpinor out(0, ka, Fd.grid_sptr());
+  out.min_pt() = Fd.min_pt();
+  out.max_pt() = Fd.max_pt();
 
   for (int twol = min_twol; twol <= max_twol; twol += 2) {
-    const auto sj = Angular::sixj_2(tja, tjc, 2 * k, tjb, tjd, twol);
+    const auto sj = Angular::sixj_2(tjc, tja, 2 * k, tjd, tjb, twol);
     if (sj == 0.0)
       continue;
     out += sj * Bkv_bcd(twol / 2, kappa_v, Fb, Fd, Fc);
@@ -176,14 +164,36 @@ DiracSpinor Breit::BPkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
 }
 
 //==============================================================================
-DiracSpinor Breit::dVbrD_Fa(int kappa, int K, const DiracSpinor &Fa,
-                            const DiracSpinor &Fb, const DiracSpinor &Xbeta,
-                            const DiracSpinor &Ybeta) const {
+DiracSpinor Breit::BWkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
+                            const DiracSpinor &Fc,
+                            const DiracSpinor &Fd) const {
+  return Bkv_bcd(k, kappa_v, Fb, Fc, Fd) + BPkv_bcd(k, kappa_v, Fb, Fc, Fd);
+}
+
+//==============================================================================
+double Breit::Bk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                      const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  return Fa * Bkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
+}
+double Breit::BPk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                       const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  return Fa * BPkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
+}
+double Breit::BWk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                       const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  return Fa * BWkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
+}
+
+//==============================================================================
+DiracSpinor Breit::dV_Br(int kappa, int K, const DiracSpinor &Fa,
+                         const DiracSpinor &Fb, const DiracSpinor &Xbeta,
+                         const DiracSpinor &Ybeta) const {
 
   const auto twoj = Angular::twoj_k(kappa);
-  const auto sign = Angular::neg1pow_2(twoj + Xbeta.twoj() + 2 * K + 1);
-  return sign * (BWkv_bcd(K, kappa, Fb, Fa, Xbeta) +
-                 BWkv_bcd(K, kappa, Ybeta, Fa, Fb));
+  const auto sign = Angular::neg1pow_2(twoj + Xbeta.twoj() + 2 * K + 2);
+  const double tkp1 = double(2 * K + 1);
+  return (sign / tkp1) * (BWkv_bcd(K, kappa, Fb, Fa, Xbeta) +
+                          BWkv_bcd(K, kappa, Ybeta, Fa, Fb));
 }
 
 //==============================================================================
@@ -197,7 +207,6 @@ void single_k_mop::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
   // g^{k+1}, g^{k-1}, b^{k+1}, b^{k-1} used in m, o, p
   // Only used if C^k_ij is non-zero
   if (Angular::Ck_kk_SR(k, Fi.kappa(), Fj.kappa())) {
-    // assert(k > 0); // ?
     if (k > 0) {
       Coulomb::bk_ab(Fi, Fj, (k - 1), b0_minus, bi_minus, maxi);
       Coulomb::gk_ab(Fi, Fj, (k - 1), g0_minus, gi_minus, maxi);
