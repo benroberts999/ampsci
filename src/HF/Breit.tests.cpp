@@ -2,6 +2,7 @@
 #include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"
+#include "ExternalField/TDHFbasis.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -39,8 +40,85 @@ TEST_CASE("Breit (local)", "[Breit][unit]") {
     // REQUIRE(de2 == Approx(de));
     printf("%3s %.6e [%.6e] %.0e\n", Fv.shortSymbol().c_str(), de,
            expected.at(count), eps);
-    REQUIRE(eps < 1.0e-3);
+    CHECK(eps < 1.0e-3);
     ++count;
+  }
+}
+
+//==============================================================================
+TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Breit: Bk formulas\n";
+
+  const auto radial_grid = std::make_shared<const Grid>(
+      GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+  const double zeff = 1.0;
+  const int lmax = 6;
+
+  // build set of H-like orbitals, one n for each kappa up to l=lmax
+  std::vector<DiracSpinor> orbs;
+  for (int l = 0; l <= lmax; ++l) {
+    int n_min = l + 1;
+    if (l != 0) {
+      orbs.push_back(DiracSpinor::exactHlike(n_min, l, radial_grid, zeff));
+    }
+    orbs.push_back(DiracSpinor::exactHlike(n_min, -l - 1, radial_grid, zeff));
+  }
+
+  const auto Br = HF::Breit{};
+
+  // With scaling factors:
+  const auto lamba = 0.5;
+  auto BrGau = HF::Breit{};
+  BrGau.update_scale(lamba, 1.0, 1.0, 0.0, 0.0);
+  auto BrRet = HF::Breit{};
+  BrRet.update_scale(lamba, 0.0, 0.0, 1.0, 1.0);
+
+  // 1. check Symmetry:
+  for (const auto &a : orbs) {
+    for (const auto &b : orbs) {
+      if (b <= a)
+        continue;
+      for (const auto &c : orbs) {
+        if (c <= a)
+          continue;
+        for (const auto &d : orbs) {
+          if (d <= a || d <= c)
+            continue;
+          for (int k = 0; k <= 12; ++k) {
+
+            // Test symmetry (+ numerical error)
+            const auto b1 = Br.Bk_abcd(k, a, b, c, d);
+            const auto b2 = Br.Bk_abcd(k, b, a, d, c);
+            const auto b3 = Br.Bk_abcd(k, c, d, a, b);
+            const auto b4 = a * Br.Bkv_bcd(k, a.kappa(), b, c, d);
+            REQUIRE(b1 == Approx(b2).margin(1.0e-15));
+            REQUIRE(b1 == Approx(b3).margin(1.0e-15));
+            REQUIRE(b1 == Approx(b4).margin(1.0e-15));
+
+            // Test Wk (and Pk) formulas
+            const auto w1 = Br.BWk_abcd(k, a, b, c, d);
+            auto w2 = b1;
+            for (int l = 0; l <= 16; ++l) {
+              w2 += Coulomb::sixj(a, c, k, b, d, l) * (2 * k + 1) *
+                    Br.Bk_abcd(l, a, b, d, c);
+            }
+            REQUIRE(w2 == Approx(w1).margin(1.0e-15));
+            const auto w3 = a * Br.BWkv_bcd(k, a.kappa(), b, c, d);
+            REQUIRE(w3 == Approx(w1).margin(1.0e-15));
+
+            // Test scaling factors
+            if (b1 == 0.0)
+              continue;
+            const auto bG = BrGau.Bk_abcd(k, a, b, c, d);
+            const auto bR = BrRet.Bk_abcd(k, a, b, c, d);
+            REQUIRE(bG != bR);
+            REQUIRE(bG != b1);
+            REQUIRE(bG + bR == Approx(lamba * b1).margin(1.0e-15));
+          }
+        }
+      }
+    }
   }
 }
 
@@ -384,55 +462,185 @@ TEST_CASE("Breit", "[Breit][integration]") {
 
 //==============================================================================
 // Tests for Diragram RPA (integration/regression)
-TEST_CASE(
-    "Breit: RPA Corrections",
-    "[ExternalField][DiagramRPA][RPA][TDHF][Breit][integration][!mayfail]") {
+TEST_CASE("Breit: RPA Corrections",
+          "[ExternalField][DiagramRPA][RPA][TDHF][Breit][integration]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Breit: RPA Corrections (diagram and TDHF)\n";
+  std::cout << "Breit: RPA Corrections\n";
 
   // No Breit:
-  Wavefunction wf0({3500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
-                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
+  Wavefunction wf0({1600, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear", -1.0},
+                   {"Cs", -1, "Fermi", -1.0, -1.0});
   wf0.solve_core("HartreeFock", 0.0, "[Xe]");
-  wf0.solve_valence("7sp");
-  wf0.formBasis({"30spd20f", 60, 9, 1.0e-4, 1.0e-6, 40.0, false});
+  wf0.solve_valence("7sp5d");
+  wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 1.0e-6, 40.0, false});
 
   // With Breit:
-  Wavefunction wfB({3500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
-                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
+  auto wfB = wf0;
   wfB.solve_core("HartreeFock", 1.0, "[Xe]");
-  wfB.solve_valence("7sp");
-  wfB.formBasis({"30spd20f", 60, 9, 1.0e-4, 1.0e-6, 40.0, false});
+  wfB.solve_valence("7sp5d");
+  wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 1.0e-6, 40.0, false});
 
-  auto h = DiracOperator::generate_pnc({}, wf0);
+  // Format: "a", "b", Breit correction to <a|h|b>, Breit corr. to <a|h+dV|b>,
+  // Derev. PRA 65 012106 (2001)
+  // Corrections are as %, relative to lowest-order Hartree-Fock ME
 
-  std::cout << "Solve RPA; using TDHF/diagram method, with/without Breit:\n";
+  const auto expected_pnc = std::vector{std::tuple{"6s+", "6p-", -0.32, -0.80},
+                                        {"6s+", "7p-", -0.31, -0.79},
+                                        {"7s+", "6p-", -0.32, -0.81},
+                                        {"7s+", "7p-", -0.31, -0.80}};
+  auto h_pnc = DiracOperator::generate_pnc({}, wf0);
 
-  // RPA, using TDHF method:
-  auto tdhf_0 = ExternalField::TDHF(h.get(), wf0.vHF());
-  auto tdhf_B = ExternalField::TDHF(h.get(), wfB.vHF());
-  tdhf_0.solve_core(0.0);
-  tdhf_B.solve_core(0.0);
+  const auto expected_E1 = std::vector{std::tuple{"6s+", "6p-", 0.007, 0.002},
+                                       {"6s+", "6p+", 0.011, 0.005},
+                                       {"6s+", "7p-", 0.48, 0.45},
+                                       {"6s+", "7p+", 0.085, 0.056},
+                                       {"7s+", "6p-", 0.10, 0.10},
+                                       {"7s+", "6p+", 0.028, 0.028},
+                                       {"7s+", "7p-", -0.010, -0.010},
+                                       {"7s+", "7p+", 0.005, 0.004},
+                                       {"5d-", "6p-", -0.049, -0.053},
+                                       {"5d-", "6p+", -0.069, -0.074}};
+  auto h_E1 = DiracOperator::generate_E1({}, wf0);
 
-  // RPA, using diaagram method:
+  for (auto &[h, expected] : std::vector{std::tuple{h_pnc.get(), expected_pnc},
+                                         {h_E1.get(), expected_E1}}) {
+
+    std::cout << "\nSolve RPA; using TDHF/diagram/Basis method, with/without "
+                 "Breit:\n";
+    std::cout << "For " << h->name() << "\n";
+
+    // RPA, using TDHF method:
+    auto tdhf_0 = ExternalField::TDHF(h, wf0.vHF());
+    auto tdhf_B = ExternalField::TDHF(h, wfB.vHF());
+    if (h->name() != "hfs") {
+      tdhf_0.solve_core(0.0);
+      tdhf_B.solve_core(0.0);
+    }
+
+    // RPA, using diaagram method:
+    auto rpad_0 = ExternalField::DiagramRPA(h, wf0.basis(), wf0.vHF(), "");
+    auto rpad_B = ExternalField::DiagramRPA(h, wfB.basis(), wfB.vHF(), "");
+    rpad_0.solve_core(0.0);
+    rpad_B.solve_core(0.0);
+
+    // RPA, using diaagram method:
+    auto rpab_0 = ExternalField::TDHFbasis(h, wf0.vHF(), wf0.basis());
+    auto rpab_B = ExternalField::TDHFbasis(h, wfB.vHF(), wfB.basis());
+    rpab_0.solve_core(0.0);
+    rpab_B.solve_core(0.0);
+
+    // Note: RPA(D/B) for PNC matrix elements depends stronly on basis!
+
+    std::cout << "\nBreit corrections to " << h->name()
+              << " matrix elements (%, relative to hab(HF)\n";
+    std::cout << "Compare to: [Derevianko, Phys. Rev. A 65, 012106 (2001)]\n";
+    std::cout << "          HF                TDHF    Diragr. Basis         \n";
+
+    for (const auto &[a, b, d0, dRPA] : expected) {
+      auto a0 = wf0.getState(a);
+      auto b0 = wf0.getState(b);
+      auto aB = wfB.getState(a);
+      auto bB = wfB.getState(b);
+      REQUIRE(a0 != nullptr);
+      REQUIRE(b0 != nullptr);
+      REQUIRE(aB != nullptr);
+      REQUIRE(bB != nullptr);
+
+      const auto hab_0 = h->reducedME(*a0, *b0);
+      const auto hab_B = h->reducedME(*aB, *bB);
+
+      const auto TDHF_ab_0 = hab_0 + tdhf_0.dV(*a0, *b0);
+      const auto TDHF_ab_B = hab_B + tdhf_B.dV(*aB, *bB);
+
+      const auto RPAD_ab_0 = hab_0 + rpad_0.dV(*a0, *b0);
+      const auto RPAD_ab_B = hab_B + rpad_B.dV(*aB, *bB);
+
+      const auto RPAB_ab_0 = hab_0 + rpab_0.dV(*a0, *b0);
+      const auto RPAB_ab_B = hab_B + rpab_B.dV(*aB, *bB);
+
+      // Express Breit corrections as percentage, relative to HF0 value
+      const auto Breit_hf = 100.0 * (hab_B - hab_0) / hab_0;
+      const auto Breit_tfhf =
+          (h->name() == "hfs") ? 0.0 : 100.0 * (TDHF_ab_B - TDHF_ab_0) / hab_0;
+      const auto Breit_rpad = 100.0 * (RPAD_ab_B - RPAD_ab_0) / hab_0;
+      const auto Breit_rpab = 100.0 * (RPAB_ab_B - RPAB_ab_0) / hab_0;
+
+      printf("%3s %3s  %+.3f  [%+.3f]  %+.3f  %+.3f  %+.3f   [%+.3f]\n", a, b,
+             Breit_hf, d0, Breit_tfhf, Breit_rpad, Breit_rpab, dRPA);
+
+      // Compare Breit corrections to Derevianko, HF level, to 0.01%
+      REQUIRE(Breit_hf == Approx(d0).margin(0.015));
+
+      // Compare to Derevianko, RPA level, using TDHF: 0.1%
+      REQUIRE(Breit_tfhf == Approx(dRPA).margin(0.1));
+
+      // Compare to Derevianko, RPA level, using diagram RPA: 3%
+      // nb: large margins for these caused by strong basis dependence for PNC
+      CHECK(Breit_rpad == Approx(dRPA).margin(3.0));
+
+      // Compare Breit between TDHF and RPAD
+      CHECK(Breit_rpad == Approx(Breit_tfhf).margin(3.0));
+
+      // Compare Breit between TDHF and RPA_basis
+      CHECK(Breit_rpad == Approx(Breit_rpab).margin(0.1));
+    }
+  }
+}
+
+//==============================================================================
+// Tests for Diragram RPA (integration/regression)
+TEST_CASE("Breit: RPA Corrections - for HFS",
+          "[ExternalField][DiagramRPA][Breit][integration][!mayfail]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Breit: RPA Corrections - for HFS\n";
+
+  // No Breit:
+  Wavefunction wf0({1000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
+                   {"Cs", -1, "Fermi", -1.0, -1.0});
+  wf0.solve_core("HartreeFock", 0.0, "[Xe]");
+  wf0.solve_valence("7sp5d");
+  wf0.formBasis({"25spd15f", 30, 7, 1.0e-5, 1.0e-6, 40.0, false});
+
+  // With Breit:
+  auto wfB = wf0;
+  wfB.solve_core("HartreeFock", 1.0, "[Xe]");
+  wfB.solve_valence("7sp5d");
+  wfB.formBasis({"25spd15f", 30, 7, 1.0e-5, 1.0e-6, 40.0, false});
+
+  // Format: "a", "b", Breit correction to <a|h|b>, Breit corr. to <a|h+dV|b>,
+  // Derev. PRA 65 012106 (2001)
+  // Corrections are as %, relative to lowest-order Hartree-Fock ME
+  const auto expected = std::vector{std::tuple{"6s+", "6s+", 0.0008, 0.29},
+                                    {"7s+", "7s+", -0.0074, 0.27},
+                                    {"6p-", "6p-", -0.42, -0.18},
+                                    {"7p-", "7p-", -0.40, -0.16},
+                                    {"6p+", "6p+", -0.25, 0.17},
+                                    {"7p+", "7p+", -0.25, 0.19},
+                                    {"5d-", "5d-", 0.54, 1.09}};
+
+  auto h = DiracOperator::generate_hfsA({}, wf0);
+
+  std::cout << "\nSolve RPA; using diagram/Basis method, with/without Breit:\n";
+  std::cout << "For " << h->name() << "\n";
+
+  // RPA, using diagram method:
   auto rpad_0 = ExternalField::DiagramRPA(h.get(), wf0.basis(), wf0.vHF(), "");
   auto rpad_B = ExternalField::DiagramRPA(h.get(), wfB.basis(), wfB.vHF(), "");
   rpad_0.solve_core(0.0);
   rpad_B.solve_core(0.0);
 
-  // Format: "a", "b", Breit correction to <a|h|b>, Breit corr. to <a|h+dV|b>,
-  // Derev. PRA 65 012106 (2001)
-  // Corrections are relative to lowest-order Hartree-Fock ME
-  const auto expected = std::vector{std::tuple{"6s+", "6p-", -0.0032, -0.0080},
-                                    {"6s+", "7p-", -0.0031, -0.0079},
-                                    {"7s+", "6p-", -0.0032, -0.0081},
-                                    {"7s+", "7p-", -0.0031, -0.0080}};
+  // RPA, using basis method:
+  auto rpab_0 = ExternalField::TDHFbasis(h.get(), wf0.vHF(), wf0.basis());
+  auto rpab_B = ExternalField::TDHFbasis(h.get(), wfB.vHF(), wfB.basis());
+  rpab_0.solve_core(0.0);
+  rpab_B.solve_core(0.0);
 
-  std::cout
-      << "\nBreit corrections to PNC matrix elements (relative to hab(HF)\n";
-  std::cout << "Compare to Derevianko PRA 65 012106 (2001)\n";
-  std::cout << "          HF                  TDHF    Diragram         \n";
+  std::cout << "\nBreit corrections to " << h->name()
+            << " matrix elements (%, relative to hab(HF)\n";
+  std::cout << "Compare to: [Derevianko, Phys. Rev. A 65, 012106 (2001)]\n";
+  std::cout << "          HF                Diragr. Basis         \n";
 
+  bool passed = true;
   for (const auto &[a, b, d0, dRPA] : expected) {
     auto a0 = wf0.getState(a);
     auto b0 = wf0.getState(b);
@@ -446,26 +654,29 @@ TEST_CASE(
     const auto hab_0 = h->reducedME(*a0, *b0);
     const auto hab_B = h->reducedME(*aB, *bB);
 
-    const auto TDHF_ab_0 = hab_0 + tdhf_0.dV(*a0, *b0);
-    const auto TDHF_ab_B = hab_B + tdhf_B.dV(*aB, *bB);
-
     const auto RPAD_ab_0 = hab_0 + rpad_0.dV(*a0, *b0);
     const auto RPAD_ab_B = hab_B + rpad_B.dV(*aB, *bB);
 
-    // Express Breit corrections relative to HF0 value
-    const auto Breit_hf = (hab_B - hab_0) / hab_0;
-    const auto Breit_tfhf = (TDHF_ab_B - TDHF_ab_0) / hab_0;
-    const auto Breit_rpad = (RPAD_ab_B - RPAD_ab_0) / hab_0;
+    const auto RPAB_ab_0 = hab_0 + rpab_0.dV(*a0, *b0);
+    const auto RPAB_ab_B = hab_B + rpab_B.dV(*aB, *bB);
 
-    printf("%3s %3s  %+.4f  [%+.4f]  %+.4f %+.4f  [%+.4f]\n", a, b, Breit_hf,
-           d0, Breit_tfhf, Breit_rpad, dRPA);
+    // Express Breit corrections as percentage, relative to HF0 value
+    const auto Breit_hf = 100.0 * (hab_B - hab_0) / hab_0;
+    const auto Breit_rpad = 100.0 * (RPAD_ab_B - RPAD_ab_0) / hab_0;
+    const auto Breit_rpab = 100.0 * (RPAB_ab_B - RPAB_ab_0) / hab_0;
 
-    // Compare Breit corrections to Derevianko
-    REQUIRE(Breit_hf == Approx(d0).margin(0.0001));    // passes
-    REQUIRE(Breit_tfhf == Approx(dRPA).margin(0.001)); // passes
-    CHECK(Breit_rpad == Approx(dRPA).margin(0.001));   // fails
+    printf("%3s %3s  %+.3f  [%+.3f]  %+.3f  %+.3f   [%+.3f]\n", a, b, Breit_hf,
+           d0, Breit_rpad, Breit_rpab, dRPA);
+
+    // Compare Breit corrections to Derevianko, HF level, to 0.01%
+    REQUIRE(Breit_hf == Approx(d0).margin(0.05));
+    // Compare to Derevianko, RPA level, using diagram RPA: 3%
+    // nb: large margins for these caused by strong basis dependence for PNC
+    if (passed)
+      passed = (Breit_rpad == Approx(dRPA).margin(0.2));
+    // REQUIRE(Breit_rpad == Approx(dRPA).margin(0.2)); // FAILS??
     // Compare Breit between TDHF and RPAD
-    // CHECK(Breit_rpad == Approx(Breit_tfhf).margin(0.001)); // fails
+    REQUIRE(Breit_rpad == Approx(Breit_rpab).margin(0.1));
   }
-  std::cout << "nb: Breit correction at RPA(D) level kown to fail\n";
+  REQUIRE(passed); // print table even if fails
 }

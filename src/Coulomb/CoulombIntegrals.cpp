@@ -90,6 +90,84 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
 }
 
 //------------------------------------------------------------------------------
+// Used for Breit
+template <int k, typename Function>
+static inline void yk_ijk_gen_impl(const int l, const Function &ff,
+                                   const Grid &gr, std::vector<double> &v0,
+                                   std::vector<double> &vi,
+                                   const std::size_t maxi)
+// Calculalates genergic v^k_ab-like screening function.
+// Stores "0" and "infinity" parts seperately.
+//
+// Stores in v0 and vi (in/out parameter, reference to whatever)
+//
+// r_min := min(r,r')
+// rho(r') := fa(r')*fb(r') + ga(r')gb(r')
+// v^k_ab(r) = Int_0^inf [r_min^k/r_max^(k+1)]*rho(f') dr'
+//           = Int_0^r [r'^k/r^(k+1)]*rho(r') dr'
+//             + Int_r^inf [r^k/r'^(k+1)]*rho(r') dr'
+//          := A(r)/r^(k+1) + B(r)*r^k
+//           = v0(r)        + vi(r)
+// A(r0)  = 0
+// B(r0)  = Int_0^inf [r^k/r'^(k+1)]*rho(r') dr'
+// A(r_n) = A(r_{n-1}) + (rho(r_{n-1})*r_{n-1}^k)*dr
+// B(r_n) = A(r_{n-1}) + (rho(r_{n-1})/r_{n-1}^(k+1))*dr
+// y^k_ab(rn) = A(rn)/rn^(k+1) + B(rn)*rn^k
+//
+// Also uses Quadrature integer rules! (Defined in NumCalc)
+{
+  // const auto &gr = Fa.grid(); // just save typing
+  const auto du = gr.du();
+  const auto num_points = gr.num_points();
+  v0.resize(num_points); // for safety
+  vi.resize(num_points); // for safety
+  const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
+
+  // faster method to calculate r^k
+  const auto powk = [l]() {
+    if constexpr (k < 0) {
+      return [l](double x) { return std::pow(x, l); };
+    } else {
+      (void)l; // l not used
+      return qip::pow<k, double>;
+    }
+  }();
+
+  // Quadrature integration weights:
+  const auto w = [=](std::size_t i) {
+    if (i < NumCalc::Nquad)
+      return NumCalc::dq_inv * NumCalc::cq[i];
+    if (i < num_points - NumCalc::Nquad)
+      return 1.0;
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
+  };
+
+  const auto &r = gr.r();
+
+  double Ax = 0.0, Bx = 0.0;
+
+  v0[0] = 0.0;
+  for (std::size_t i = 1; i < irmax; ++i) {
+    const auto rat = r[i - 1] / r[i];
+    Ax = (Ax + ff(i - 1) * w(i - 1) * gr.drduor(i - 1)) * (rat * powk(rat));
+    v0[i] = Ax * du;
+  }
+  for (std::size_t i = irmax; i < num_points; i++) {
+    v0[i] = 0.0;
+  }
+
+  const auto bmax = irmax; // OK?
+  // std::min(std::min(Fa.max_pt(), Fb.max_pt()), num_points - 1);
+  for (std::size_t i = 0; i <= bmax; i++) {
+    vi[i] = 0.0;
+  }
+  for (auto i = bmax; i >= 1; --i) {
+    Bx = Bx * powk(r[i - 1] / r[i]) + ff(i - 1) * w(i - 1) * gr.drduor(i - 1);
+    vi[i - 1] = Bx * du;
+  }
+}
+
+//------------------------------------------------------------------------------
 std::vector<double> yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb,
                           const int k, const std::size_t maxi) {
   std::vector<double> ykab; //
@@ -137,120 +215,74 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
                                   const std::size_t maxi) {
   static_assert(pm == 1 || pm == -1,
                 "Breit_abk_impl must be called with pm=+/-1 only\n");
-  const auto &gr = Fa.grid(); // just save typing
-  const auto du = gr.du();
-  const auto num_points = gr.num_points();
-  b0.resize(num_points);   // needed
-  binf.resize(num_points); // needed
-  const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
-
-  // faster method to calculate r^k
-  const auto powk = [l]() {
-    if constexpr (k < 0) {
-      return [l](double x) { return std::pow(x, l); };
-    } else {
-      (void)l; // don't use l..
-      return qip::pow<k, double>;
-    }
-  }();
-
-  // // Quadrature integration weights:
-  // auto w = [=](std::size_t i) {
-  //   if (i < NumCalc::Nquad)
-  //     return NumCalc::dq_inv * NumCalc::cq[i];
-  //   if (i < num_points - NumCalc::Nquad)
-  //     return 1.0;
-  //   return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
-  // };
-
-  double Ax = 0.0, Bx = 0.0;
-
   auto fgfg = [&](std::size_t i) {
     if constexpr (pm == -1)
       return (Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i));
     else
       return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
   };
-
-  const auto bmax = std::min(Fa.max_pt(), Fb.max_pt());
-  const auto bmin = std::max(Fa.min_pt(), Fb.min_pt());
-  for (std::size_t i = bmin; i < bmax; i++) {
-    Bx += gr.drduor(i) /** w(i)*/ * fgfg(i) / powk(gr.r(i));
-  }
-
-  b0[0] = 0.0;
-  binf[0] = Bx * du * powk(gr.r()[0]);
-  for (std::size_t i = 1; i < irmax; i++) {
-    const auto rm1_to_k = powk(gr.r()[i - 1]);
-    const auto inv_rm1_to_kp1 = 1.0 / (rm1_to_k * gr.r()[i - 1]);
-    const auto r_to_k = powk(gr.r(i));
-    const auto inv_r_to_kp1 = 1.0 / (r_to_k * gr.r(i));
-    const auto Fdr = gr.drdu()[i - 1] * fgfg(i - 1) /** w(i - 1)*/;
-    Ax += Fdr * rm1_to_k;
-    Bx -= Fdr * inv_rm1_to_kp1;
-    b0[i] = du * Ax * inv_r_to_kp1;
-    binf[i] = du * Bx * r_to_k;
-  }
-  // std::cout << "\n";
-  // for (std::size_t i = irmax; i < num_points; i++) {
-  //   b0[i] = 0.0;
-  //   binf[i] = 0.0;
-  // }
+  yk_ijk_gen_impl<k>(l, fgfg, Fa.grid(), b0, binf, maxi);
+  return;
 }
 //------------------------------------------------------------------------------
 void bk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
            std::vector<double> &b0, std::vector<double> &binf,
-           const std::size_t maxi) {
+           std::size_t maxi) {
 
-  constexpr int pm = -1; // for fg - gf
-  // faster method to calculate r^k
+  auto fgfg = [&](std::size_t i) {
+    return (Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i));
+  };
+
   if (k == 0)
-    Breit_abk_impl<0, pm>(k, Fa, Fb, b0, binf, maxi);
+    yk_ijk_gen_impl<0>(k, fgfg, Fa.grid(), b0, binf, maxi);
   else if (k == 1)
-    Breit_abk_impl<1, pm>(k, Fa, Fb, b0, binf, maxi);
+    yk_ijk_gen_impl<1>(k, fgfg, Fa.grid(), b0, binf, maxi);
   else if (k == 2)
-    Breit_abk_impl<2, pm>(k, Fa, Fb, b0, binf, maxi);
+    yk_ijk_gen_impl<2>(k, fgfg, Fa.grid(), b0, binf, maxi);
   else if (k == 3)
-    Breit_abk_impl<3, pm>(k, Fa, Fb, b0, binf, maxi);
+    yk_ijk_gen_impl<3>(k, fgfg, Fa.grid(), b0, binf, maxi);
   else if (k == 4)
-    Breit_abk_impl<4, pm>(k, Fa, Fb, b0, binf, maxi);
+    yk_ijk_gen_impl<4>(k, fgfg, Fa.grid(), b0, binf, maxi);
   else if (k == 5)
-    Breit_abk_impl<5, pm>(k, Fa, Fb, b0, binf, maxi);
+    yk_ijk_gen_impl<5>(k, fgfg, Fa.grid(), b0, binf, maxi);
   else if (k == 6)
-    Breit_abk_impl<6, pm>(k, Fa, Fb, b0, binf, maxi);
+    yk_ijk_gen_impl<6>(k, fgfg, Fa.grid(), b0, binf, maxi);
   else if (k == 7)
-    Breit_abk_impl<7, pm>(k, Fa, Fb, b0, binf, maxi);
+    yk_ijk_gen_impl<7>(k, fgfg, Fa.grid(), b0, binf, maxi);
   else if (k == 8)
-    Breit_abk_impl<8, pm>(k, Fa, Fb, b0, binf, maxi);
+    yk_ijk_gen_impl<8>(k, fgfg, Fa.grid(), b0, binf, maxi);
   else
-    Breit_abk_impl<-1, pm>(k, Fa, Fb, b0, binf, maxi);
+    yk_ijk_gen_impl<-1>(k, fgfg, Fa.grid(), b0, binf, maxi);
 }
 //------------------------------------------------------------------------------
 void gk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
            std::vector<double> &g0, std::vector<double> &ginf,
            const std::size_t maxi) {
 
-  constexpr int pm = +1; // for fg + gf
+  auto fgfg = [&](std::size_t i) {
+    return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
+  };
+
   if (k == 0)
-    Breit_abk_impl<0, pm>(k, Fa, Fb, g0, ginf, maxi);
+    yk_ijk_gen_impl<0>(k, fgfg, Fa.grid(), g0, ginf, maxi);
   else if (k == 1)
-    Breit_abk_impl<1, pm>(k, Fa, Fb, g0, ginf, maxi);
+    yk_ijk_gen_impl<1>(k, fgfg, Fa.grid(), g0, ginf, maxi);
   else if (k == 2)
-    Breit_abk_impl<2, pm>(k, Fa, Fb, g0, ginf, maxi);
+    yk_ijk_gen_impl<2>(k, fgfg, Fa.grid(), g0, ginf, maxi);
   else if (k == 3)
-    Breit_abk_impl<3, pm>(k, Fa, Fb, g0, ginf, maxi);
+    yk_ijk_gen_impl<3>(k, fgfg, Fa.grid(), g0, ginf, maxi);
   else if (k == 4)
-    Breit_abk_impl<4, pm>(k, Fa, Fb, g0, ginf, maxi);
+    yk_ijk_gen_impl<4>(k, fgfg, Fa.grid(), g0, ginf, maxi);
   else if (k == 5)
-    Breit_abk_impl<5, pm>(k, Fa, Fb, g0, ginf, maxi);
+    yk_ijk_gen_impl<5>(k, fgfg, Fa.grid(), g0, ginf, maxi);
   else if (k == 6)
-    Breit_abk_impl<6, pm>(k, Fa, Fb, g0, ginf, maxi);
+    yk_ijk_gen_impl<6>(k, fgfg, Fa.grid(), g0, ginf, maxi);
   else if (k == 7)
-    Breit_abk_impl<7, pm>(k, Fa, Fb, g0, ginf, maxi);
+    yk_ijk_gen_impl<7>(k, fgfg, Fa.grid(), g0, ginf, maxi);
   else if (k == 8)
-    Breit_abk_impl<8, pm>(k, Fa, Fb, g0, ginf, maxi);
+    yk_ijk_gen_impl<8>(k, fgfg, Fa.grid(), g0, ginf, maxi);
   else
-    Breit_abk_impl<-1, pm>(k, Fa, Fb, g0, ginf, maxi);
+    yk_ijk_gen_impl<-1>(k, fgfg, Fa.grid(), g0, ginf, maxi);
 }
 
 //==============================================================================

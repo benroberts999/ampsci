@@ -32,6 +32,11 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                            const DiracSpinor &Fc, const DiracSpinor &Fd) const {
 
   DiracSpinor out(0, kappa_v, Fc.grid_sptr());
+  if (k == 0) {
+    out.min_pt() = 0;
+    out.max_pt() = 0;
+    return out;
+  }
   out.min_pt() = Fc.min_pt();
   out.max_pt() = Fc.max_pt();
 
@@ -47,10 +52,9 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
   const auto tja = Angular::twoj_k(ka);
   const auto sign = Angular::neg1pow_2(2 * k + tja - Fb.twoj());
 
-  // k=0 in MOP part??
-  const auto have_mop = Ckac != 0.0 && Ckbd != 0.0;
-  const auto have_n = (Dkac != 0.0) && (Dkbd != 0.0) && (ka + kc != 0) &&
-                      (kb + kd != 0) && (k != 0.0);
+  const auto have_mop = (Ckac != 0.0) && (Ckbd != 0.0);
+  const auto have_n =
+      (Dkac != 0.0) && (Dkbd != 0.0) && (ka + kc != 0) && (kb + kd != 0);
 
   // nb: never have both MOP _and_ N ! different parity rule for each k!
   assert(!(have_mop && have_n));
@@ -59,10 +63,10 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
     // Angular factors
     const auto d_ac = ka - kc;
     const auto d_bd = kb - kd;
-    const auto d_bd_k = k == 0.0 ? 0.0 : d_bd / double(k);
+    const auto d_bd_k = d_bd / double(k);
     const auto d_bd_kp1 = d_bd / double(k + 1);
     const auto d_ac_kp1 = d_ac / double(k + 1);
-    const auto d_ac_k = k == 0.0 ? 0.0 : d_ac / double(k);
+    const auto d_ac_k = d_ac / double(k);
 
     // Calculate the Breit radial screening integrals
     const auto gbk = Breit_gb::single_k_mop(Fb, Fd, k);
@@ -86,46 +90,42 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
       out.g(i) += cg1 * s0 * Fc.f(i);
     }
 
-    if (k != 0.0) {
-      // "M2" and "O2" (t/Y) part:
-      const auto cf2 = factor * (c_m2 + c_o2) * (d_ac_k - 1.0);
-      const auto cg2 = factor * (c_m2 + c_o2) * (d_ac_k + 1.0);
-      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-        const auto t0 = d_bd_k * (gbk.g0_minus[i] + gbk.gi_minus[i]) -
-                        gbk.b0_minus[i] - gbk.bi_minus[i];
-        out.f(i) += cf2 * t0 * Fc.g(i);
-        out.g(i) += cg2 * t0 * Fc.f(i);
-      }
+    // "M2" and "O2" (t/Y) part:
+    const auto cf2 = factor * (c_m2 + c_o2) * (d_ac_k - 1.0);
+    const auto cg2 = factor * (c_m2 + c_o2) * (d_ac_k + 1.0);
+    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+      const auto t0 = d_bd_k * (gbk.g0_minus[i] + gbk.gi_minus[i]) -
+                      gbk.b0_minus[i] - gbk.bi_minus[i];
+      out.f(i) += cf2 * t0 * Fc.g(i);
+      out.g(i) += cg2 * t0 * Fc.f(i);
+    }
 
-      // "P1" (v/X) part:
-      const auto cf3 = factor * c_p0 * (d_ac_kp1 + 1.0);
-      const auto cg3 = factor * c_p0 * (d_ac_kp1 - 1.0);
-      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-        const auto v0 = d_bd_k * (gbk.g0_minus[i] - gbk.g0_plus[i]) -
-                        gbk.b0_minus[i] + gbk.b0_plus[i];
-        out.f(i) += cf3 * v0 * Fc.g(i);
-        out.g(i) += cg3 * v0 * Fc.f(i);
-      }
+    // "P1" (v/X) part:
+    const auto cf3 = factor * c_p0 * (d_ac_kp1 + 1.0);
+    const auto cg3 = factor * c_p0 * (d_ac_kp1 - 1.0);
+    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+      const auto v0 = d_bd_k * (gbk.g0_minus[i] - gbk.g0_plus[i]) -
+                      gbk.b0_minus[i] + gbk.b0_plus[i];
+      out.f(i) += cf3 * v0 * Fc.g(i);
+      out.g(i) += cg3 * v0 * Fc.f(i);
+    }
 
-      // "P2" (w/Y) part:
-      const auto cf4 = factor * c_p0 * (d_ac_k - 1.0);
-      const auto cg4 = factor * c_p0 * (d_ac_k + 1.0);
-      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-        const auto w0 = d_bd_kp1 * (gbk.gi_minus[i] - gbk.gi_plus[i]) +
-                        gbk.bi_minus[i] - gbk.bi_plus[i];
-        out.f(i) += cf4 * w0 * Fc.g(i);
-        out.g(i) += cg4 * w0 * Fc.f(i);
-      }
+    // "P2" (w/Y) part:
+    const auto cf4 = factor * c_p0 * (d_ac_k - 1.0);
+    const auto cg4 = factor * c_p0 * (d_ac_k + 1.0);
+    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+      const auto w0 = d_bd_kp1 * (gbk.gi_minus[i] - gbk.gi_plus[i]) +
+                      gbk.bi_minus[i] - gbk.bi_plus[i];
+      out.f(i) += cf4 * w0 * Fc.g(i);
+      out.g(i) += cg4 * w0 * Fc.f(i);
     }
   }
 
   if (have_n && m_N != 0.0) {
     // "n" part:
     const auto gbk = Breit_gb::single_k_n(Fb, Fd, k);
-    const auto factor = k == 0.0 ?
-                            0.0 :
-                            -m_N * (ka + kc) * (kb + kd) / double(k * (k + 1)) *
-                                (sign * m_scale * Dkac * Dkbd);
+    const auto factor = -m_N * (ka + kc) * (kb + kd) / double(k * (k + 1)) *
+                        (sign * m_scale * Dkac * Dkbd);
     for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       out.f(i) += factor * gbk.g[i] * Fc.g(i);
       out.g(i) += factor * gbk.g[i] * Fc.f(i);
@@ -197,21 +197,78 @@ DiracSpinor Breit::dV_Br(int kappa, int K, const DiracSpinor &Fa,
 }
 
 //==============================================================================
+double Breit::de2_HF(const DiracSpinor &v,
+                     const std::vector<DiracSpinor> &holes,
+                     const std::vector<DiracSpinor> &excited) const {
+  double deHF = 0.0;
+#pragma omp parallel for reduction(+ : deHF)
+  for (std::size_t im = 0; im < excited.size(); ++im) {
+    const auto &m = excited[im];
+    for (const auto &a : holes) {
+      if (a.kappa() != m.kappa())
+        continue;
+      const auto s1 = Angular::neg1pow_2(v.twoj() - m.twoj());
+      // .... Would be faster to use one of the tables ....
+      deHF -= s1 * Coulomb::Wk_abcd(v, m, v, a, 0) * (a * VbrFa(m, holes)) /
+              (m.en() - a.en());
+      // nb: W symmetic since v=w : W_wavm = W_vmwa
+      const auto s2 = Angular::neg1pow_2(v.twoj() - a.twoj());
+      deHF -= s2 * Coulomb::Wk_abcd(v, a, v, m, 0) * (m * VbrFa(a, holes)) /
+              (m.en() - a.en());
+    }
+  }
+  return deHF;
+}
+
+double Breit::de2(const DiracSpinor &v, const std::vector<DiracSpinor> &holes,
+                  const std::vector<DiracSpinor> &excited) const {
+  double de = 0.0;
+#pragma omp parallel for reduction(+ : de)
+  for (std::size_t in = 0; in < excited.size(); ++in) {
+    const auto &n = excited[in];
+    for (const auto &a : holes) {
+      for (const auto &b : holes) {
+        const auto [kmin, kmax] = Coulomb::k_minmax_W(v, n, a, b);
+        for (int k = kmin; k <= kmax; k++) {
+          const auto denom = v.en() + n.en() - a.en() - b.en();
+          const auto f = 2.0 / ((2 * k + 1) * v.twojp1() * denom);
+          de += f * Coulomb::Wk_abcd(v, n, a, b, k) * Bk_abcd(k, v, n, a, b);
+        }
+      }
+      for (const auto &m : excited) {
+        const auto [kmin, kmax] = Coulomb::k_minmax_W(m, n, v, a);
+        for (int k = kmin; k <= kmax; k++) {
+          const auto denom = m.en() + n.en() - v.en() - a.en();
+          const auto f = 2.0 / ((2 * k + 1) * v.twojp1() * denom);
+          de += -f * Coulomb::Wk_abcd(m, n, v, a, k) * Bk_abcd(k, m, n, v, a);
+        }
+      }
+    }
+  }
+  return de;
+}
+
+//==============================================================================
 namespace Breit_gb {
 
 void single_k_mop::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
                              int k) {
 
-  const auto maxi = std::max(Fi.max_pt(), Fj.max_pt()); // ok?
+  const auto maxi =
+      std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points() - 1}); // ok?
 
   // g^{k+1}, g^{k-1}, b^{k+1}, b^{k-1} used in m, o, p
-  // Only used if C^k_ij is non-zero
-  if (Angular::Ck_kk_SR(k, Fi.kappa(), Fj.kappa())) {
-    if (k > 0) {
-      Coulomb::bk_ab(Fi, Fj, (k - 1), b0_minus, bi_minus, maxi);
-      Coulomb::gk_ab(Fi, Fj, (k - 1), g0_minus, gi_minus, maxi);
-    }
+  assert(k != 0);
+
+#pragma omp parallel sections num_threads(4)
+  {
+#pragma omp section
+    Coulomb::bk_ab(Fi, Fj, (k - 1), b0_minus, bi_minus, maxi);
+#pragma omp section
+    Coulomb::gk_ab(Fi, Fj, (k - 1), g0_minus, gi_minus, maxi);
+#pragma omp section
     Coulomb::bk_ab(Fi, Fj, (k + 1), b0_plus, bi_plus, maxi);
+#pragma omp section
     Coulomb::gk_ab(Fi, Fj, (k + 1), g0_plus, gi_plus, maxi);
   }
 }
@@ -219,15 +276,12 @@ void single_k_mop::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
 void single_k_n::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
                            int k) {
 
-  const auto maxi = std::max(Fi.max_pt(), Fj.max_pt()); // ok?
-
-  // g^{k} used in n
-  // Only used if C^k_-i,j is non-zero
-  if (Angular::Ck_kk_SR(k, -Fi.kappa(), Fj.kappa())) {
-    Coulomb::gk_ab(Fi, Fj, k, g, gi, maxi);
-    using namespace qip::overloads;
-    g += gi;
-  }
+  const auto maxi =
+      std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points() - 1}); // ok?
+  assert(k != 0);
+  Coulomb::gk_ab(Fi, Fj, k, g, gi, maxi);
+  using namespace qip::overloads;
+  g += gi;
 }
 
 } // namespace Breit_gb

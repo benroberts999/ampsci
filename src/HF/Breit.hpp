@@ -70,6 +70,15 @@ public:
   //! BWkv_bcd defined: W(B)^k_abcd = B^k_abcd + P(B)^k_abcd= <a|BWkv_bcd>
   DiracSpinor BWkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                        const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  //! Hartree-Fock (one-particle) part of second-order Breit correction.
+  //! With Breit-Coulomb Hartree-Fock, is included automatically.
+  double de2_HF(const DiracSpinor &Fv, const std::vector<DiracSpinor> &holes,
+                const std::vector<DiracSpinor> &excited) const;
+
+  //! Sigma (two-particle) part of second-order Breit correction.
+  double de2(const DiracSpinor &Fv, const std::vector<DiracSpinor> &holes,
+             const std::vector<DiracSpinor> &excited) const;
 };
 
 //==============================================================================

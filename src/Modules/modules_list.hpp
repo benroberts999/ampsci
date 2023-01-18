@@ -4,6 +4,7 @@
 #include "DMionisation/Module_AFBindingEnergy.hpp"
 #include "DMionisation/Module_AFStepFunction.hpp"
 #include "DMionisation/Module_atomicKernel.hpp"
+#include "Modules/Breit.hpp"
 #include "Modules/HFAnomaly.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
@@ -47,6 +48,7 @@ static const std::map<std::string, module_function_t> module_list{
     {"screeningFactors", &screeningFactors},
     {"pnc", &calculatePNC},
     {"QED", &QED},
+    {"Breit", &Breit},
     {"testFeynman", &testFeynman},
     {"matrixElements", &matrixElements},
     {"lifetimes", &lifetimes},
