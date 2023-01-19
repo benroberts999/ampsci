@@ -30,8 +30,10 @@
 #ifndef GSL_VERSION
 #define GSL_VERSION ""
 #endif
-#ifndef _OPENMP
-#define _OPENMP 0
+#ifdef _OPENMP
+#define OMP_VERSION _OPENMP
+#else
+#define OMP_VERSION 0
 #endif
 
 //==============================================================================
@@ -44,7 +46,7 @@ static const std::string cxx_version = XSTRING(CXXVERSION);
 static const std::string compiled_time = XSTRING(COMPTIME);
 static const std::string ampsci_version = std::string(AMPSCI_VERSION);
 static const std::string gsl_version = std::string(GSL_VERSION);
-static const std::string omp_version = XSTRING(_OPENMP);
+static const std::string omp_version = XSTRING(OMP_VERSION);
 
 std::string version() {
   return git_revision.empty() ?
