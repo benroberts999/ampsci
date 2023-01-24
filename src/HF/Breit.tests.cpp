@@ -640,7 +640,7 @@ TEST_CASE("Breit: RPA Corrections - for HFS",
   std::cout << "Compare to: [Derevianko, Phys. Rev. A 65, 012106 (2001)]\n";
   std::cout << "          HF                Diragr. Basis         \n";
 
-  bool passed = true;
+  // bool passed = true;
   for (const auto &[a, b, d0, dRPA] : expected) {
     auto a0 = wf0.getState(a);
     auto b0 = wf0.getState(b);
@@ -671,12 +671,9 @@ TEST_CASE("Breit: RPA Corrections - for HFS",
     // Compare Breit corrections to Derevianko, HF level, to 0.01%
     REQUIRE(Breit_hf == Approx(d0).margin(0.05));
     // Compare to Derevianko, RPA level, using diagram RPA: 3%
-    // nb: large margins for these caused by strong basis dependence for PNC
-    if (passed)
-      passed = (Breit_rpad == Approx(dRPA).margin(0.2));
-    // REQUIRE(Breit_rpad == Approx(dRPA).margin(0.2)); // FAILS??
+    CHECK(Breit_rpad == Approx(dRPA).margin(0.2)); // FAILS??
     // Compare Breit between TDHF and RPAD
     REQUIRE(Breit_rpad == Approx(Breit_rpab).margin(0.1));
   }
-  REQUIRE(passed); // print table even if fails
+  // REQUIRE(passed); // print table even if fails
 }

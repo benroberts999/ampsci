@@ -54,9 +54,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   const bool orthog_core = force_orthog_Fi;
 
   // Find 'inital guess' for asymptotic region:
-  const double lam = 1.0e6;
-  const double r_asym =
-      (Zion + std::sqrt(4.0 * lam * ec + std::pow(Zion, 2))) / (2.0 * ec);
+  const double r_asym = 2000.0 / std::sqrt(2 * ec);
 
   // Check if 'du' (step-size at large r) is small enough for oscillating region:
   // nb: Assumes log-linear grid, but should definitely use log-linear grid here!
