@@ -345,10 +345,11 @@ With y(0) = 1.0, the solutions are the Bessel functions, y(x) = J_n(x)
 This can be re-written as a pair of coupled first-order ODEs:
 
 \f[
-  \begin{align}
+  \begin{aligned}
   \frac{dy}{dx} &= p \\
-  \frac{dp}{dx} &= \left[\left(\frac{n}{x}\right)^2 - 1\right]y - \frac{1}{x}
-p \end{align} \f]
+  \frac{dp}{dx} &= \left[\left(\frac{n}{x}\right)^2 - 1\right]y - \frac{1}{x}p
+  \end{aligned} 
+\f]
 
 Putting this into the notation/form required for the solver we have:
 

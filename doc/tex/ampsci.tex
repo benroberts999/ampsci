@@ -1017,7 +1017,7 @@ Table \ref{tab:splines-hfs} shows hyperfine constants calculated using spline or
 
 
 %======================================================
-\section[External fields \& matrix elements (RPA)]{External fields \& matrix elements (RPA)\label{sec:tdhf}\footnote{Implemented in:~/src/ExternalField/}}
+\section[External fields \& matrix elements (RPA)]{External fields \& matrix elements (RPA)\footnote{Implemented in:~/src/ExternalField/}}
 
 \subsection{Time-dependent Hartree-Fock}\label{sec:tdhf}
 
@@ -1448,7 +1448,7 @@ This can be expressed as~\cite{DzubaHFS1984,JohnsonBook2007}:
 where $m$ and $n$ run over (unoccupied) virtual excited states, and $a$ and $b$ run over (occupied) core states (there is an implicit sum over magnetic quantum numbers here).
 The first term corresponds to the diagrams (a) and (b), the second to (c) and (d) [Fig.~\ref{fig:Sigma2}].
 Integrating over angular coordinates, and summing over magnetic quantum numbers, gives~\cite{DzubaHFS1984}
-\begin{align}\label{eq:dE-SO}
+\begin{align}\label{eq:dE-SO-red}
 \delta E_v &=\sum_k \frac{1}{[k][j_v]}\Bigg(
  \sum_{amn} \frac{Q^k_{vamn}W^k_{vamn}}{\en_v+\en_a - \en_m-\en_n}
 \notag\\&\qquad\qquad\qquad\qquad\qquad
@@ -2293,7 +2293,7 @@ with
 \frac{Q^\mu_{vijk}W^\mu_{vijk}}{\en_{vi} - \en_{jk}}
  \Bigg).
 \end{align}
-Note that $\delta\Sigma$ are just individual contributions to the second-order energy shift, Eq.~(\ref{eq:dE-SO});
+Note that $\delta\Sigma$ are just individual contributions to the second-order energy shift, Eq.~(\ref{eq:dE-SO-red});
 see Ref.~\cite{Dzuba1987jpbRPA} for discussion.
 
 

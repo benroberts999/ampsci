@@ -138,21 +138,35 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   REQUIRE(wf.vrad() != nullptr);
   REQUIRE(wf.Hmag().size() == num_points);
   wf.solve_core();
+}
 
-  //============================================================================
-  //============================================================================
+//==============================================================================
+TEST_CASE("Wavefunction - continuum", "[wf][cntm][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Wavefunction - continuum\n";
+
   {
-    std::cout << "\n ContinuumOrbitals\n";
-    ContinuumOrbitals cntm(wf, 1);
+    std::cout << "\nNa, V^N-1\n";
+    const unsigned long num_points = 500; // need no numerical
+    const auto r0 = 1.0e-5;
+    const auto rmax = 50.0;
+    const auto b = 10.0;
+
+    Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
+                    {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
+    wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-8);
+
+    std::cout << "ContinuumOrbitals\n";
+    ContinuumOrbitals cntm(wf);
 
     cntm.solveContinuumHF(0.1, 0, 1, nullptr, false, false, false);
     const auto eps = cntm.check_orthog(true);
-    REQUIRE(std::abs(eps) < 1.0e-3);
+    REQUIRE(std::abs(eps) < 1.0e-4);
 
     cntm.clear();
     cntm.solveContinuumHF(0.1, 0, 1, nullptr, true, false, false);
     const auto epsX = cntm.check_orthog(true);
-    REQUIRE(std::abs(epsX) < 1.0e-3);
+    REQUIRE(std::abs(epsX) < 1.0e-4);
 
     REQUIRE(cntm.orbitals.size() != 0);
     cntm.clear();
@@ -162,6 +176,78 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
     cntm.check_orthog(true);
     auto ortho = std::abs(wf.core().front() * cntm.orbitals.front());
     std::cout << ortho << "\n";
-    REQUIRE(std::abs(ortho) < 1.0e-10);
+    REQUIRE(std::abs(ortho) < 1.0e-15);
+  }
+
+  {
+    std::cout << "\nNe, V^N\n";
+    const unsigned long num_points = 500;
+    const auto r0 = 1.0e-5;
+    const auto rmax = 50.0;
+    const auto b = 10.0;
+
+    Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
+                    {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+    wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-8);
+
+    std::cout << "ContinuumOrbitals\n";
+    ContinuumOrbitals cntm(wf);
+
+    cntm.solveContinuumHF(0.1, 0, 1, nullptr, false, false, false);
+    const auto eps = cntm.check_orthog(true);
+    REQUIRE(std::abs(eps) < 1.0e-4);
+
+    cntm.clear();
+    cntm.solveContinuumHF(0.1, 0, 1, nullptr, true, false, true);
+    const auto epsX = cntm.check_orthog(true);
+    REQUIRE(std::abs(epsX) < 1.0e-4);
+
+    // REQUIRE(cntm.orbitals.size() != 0);
+    cntm.clear();
+    REQUIRE(cntm.orbitals.size() == 0);
+
+    cntm.solveContinuumHF(0.1, 0, 0, &wf.core().front(), false, true, true);
+    cntm.check_orthog(true);
+    auto ortho = std::abs(wf.core().front() * cntm.orbitals.front());
+    std::cout << ortho << "\n";
+    REQUIRE(std::abs(ortho) < 1.0e-15);
+  }
+
+  {
+    std::cout << "\nNe, V^N - ApproxHF\n";
+    const unsigned long num_points = 500;
+    const auto r0 = 1.0e-5;
+    const auto rmax = 50.0;
+    const auto b = 10.0;
+
+    Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
+                    {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+    wf.solve_core("ApproxHF", 0.0, "[Ne]", 1.0e-8);
+
+    std::cout << "ContinuumOrbitals\n";
+    ContinuumOrbitals cntm(wf);
+
+    cntm.solveContinuumHF(0.1, 0, 1, nullptr, false, false, true);
+    const auto eps = cntm.check_orthog(true);
+    REQUIRE(std::abs(eps) < 1.0e-6);
+  }
+
+  {
+    std::cout << "\nNe, V^N - KohnSham\n";
+    const unsigned long num_points = 500;
+    const auto r0 = 1.0e-5;
+    const auto rmax = 50.0;
+    const auto b = 10.0;
+
+    Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
+                    {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+    wf.solve_core("KohnSham", 0.0, "[Ne]", 1.0e-8);
+
+    std::cout << "ContinuumOrbitals\n";
+    ContinuumOrbitals cntm(wf);
+
+    cntm.solveContinuumHF(0.1, 0, 1, nullptr, false, false, false);
+    const auto eps = cntm.check_orthog(true);
+    REQUIRE(std::abs(eps) < 1.0e-6);
   }
 }

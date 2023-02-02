@@ -87,4 +87,3 @@
 * Standardise input/output
 * Option for JSON output?
 * NIntegrate
-* DiracODE: general modern c++ DE solver (#24)

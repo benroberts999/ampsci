@@ -348,7 +348,7 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
 
 //==============================================================================
 void solve_Dirac_outwards(std::vector<double> &f, std::vector<double> &g,
-                          const DiracDerivative &Hd, std::size_t pinf) {
+                          const DiracDerivative &Hd, std::size_t t_pinf) {
 
   const auto &r = Hd.pgr->r();
   // const auto &drduor = Hd.pgr->drduor();
@@ -360,6 +360,7 @@ void solve_Dirac_outwards(std::vector<double> &f, std::vector<double> &g,
   const double az0 = Z_eff < 1.0 ? alpha : Z_eff * alpha;
   const auto ka2 = (double)(ka * ka);
   const double ga0 = std::sqrt(ka2 - az0 * az0);
+  const auto pinf = t_pinf == 0 ? f.size() : t_pinf;
 
   // initial wf values
 

@@ -6,17 +6,17 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "fmt/format.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <cmath>
 #include <vector>
-
 //==============================================================================
-ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf, int izion)
-    : rgrid(wf.grid_sptr()), p_hf(wf.vHF()), Zion(izion), alpha(wf.alpha()) {}
+ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf)
+    : rgrid(wf.grid_sptr()), p_hf(wf.vHF()), alpha(wf.alpha()) {}
 
-ContinuumOrbitals::ContinuumOrbitals(const HF::HartreeFock *hf, int izion)
-    : rgrid(hf->grid_sptr()), p_hf(hf), Zion(izion), alpha(hf->alpha()) {}
+ContinuumOrbitals::ContinuumOrbitals(const HF::HartreeFock *hf)
+    : rgrid(hf->grid_sptr()), p_hf(hf), alpha(hf->alpha()) {}
 
 //==============================================================================
 double ContinuumOrbitals::check_orthog(bool print) const {
@@ -53,27 +53,6 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   // Also orthogonalise against entire core: (makes no difference)
   const bool orthog_core = force_orthog_Fi;
 
-  // Find 'inital guess' for asymptotic region:
-  const double r_asym = 2000.0 / std::sqrt(2 * ec);
-
-  // Check if 'du' (step-size at large r) is small enough for oscillating region:
-  // nb: Assumes log-linear grid, but should definitely use log-linear grid here!
-  const double du_target = (M_PI / 15.0) / std::sqrt(2.0 * ec);
-  const auto du = rgrid->du();
-  if (du > du_target) {
-    std::cout << "WARNING 61 CntOrb: Grid not dense enough for ec=" << ec
-              << " (du=" << du << ", need du<" << du_target << ")\n";
-    if (du > 2.0 * du_target) {
-      std::cout << "FAILURE 64 CntOrb: Grid not dense enough for ec=" << ec
-                << " (du=" << du << ", need du<" << du_target << ")\n";
-      return 1;
-    }
-  }
-
-  // nb: Don't need to extend grid each time... but want thread-safe
-  auto cgrid = *rgrid;
-  cgrid.extend_to(1.1 * r_asym);
-
   using namespace qip::overloads;
   auto vc = p_hf->vlocal();
   if ((Fi != nullptr) && subtract_self && self_consistant) {
@@ -81,36 +60,26 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     vc -= Coulomb::yk_ab(*Fi, *Fi, 0);
   }
 
-  // Find "actual" Z_ion: -V(r)*r ~ Zion/r at large r
-  const auto Z_eff = std::max(double(Zion), -vc.back() * rgrid->r().back());
-
-  // Extend local (Vnuc+Vdir-Vself) potential to new grid
-  vc.reserve(cgrid.num_points());
-  for (auto i = rgrid->num_points(); i < cgrid.num_points(); i++) {
-    vc.push_back(-Z_eff / cgrid.r(i));
-  }
-
   // We may wish to do this to test things, but not for final calculations:
   if (force_rescale && subtract_self) {
-    std::cout << "\nWarning: should not subtract self interaction _and_ "
-                 "rescale V(r): do one or the other\n";
+    fmt::print(fg(fmt::color::orange), "\nWARNING 65: ");
+    fmt::print("Should not subtract self interaction _and_ "
+               "rescale V(r): do one or the other\n");
   }
 
-  // Re-scale large-r part of local potential, so goes like -1/r large r
+  //Optionally, re-scale large-r part of local potential,
+  // so goes like -1/r large r
   // Note: doesn't inclue exchange..
   // This also kills orthogonality for HF...
   if (force_rescale && self_consistant) {
+    const auto Zion = std::max(1.0, -vc.back() * rgrid->r().back());
     // nb: this agrees best with Dzuba, but bad for orthog
-    for (std::size_t i = 0; i < cgrid.num_points(); ++i) {
-      if (vc[i] > -Zion / cgrid.r(i)) {
-        vc[i] = -Zion / cgrid.r(i);
+    for (std::size_t i = 0; i < rgrid->num_points(); ++i) {
+      if (vc[i] > -Zion / rgrid->r(i)) {
+        vc[i] = -Zion / rgrid->r(i);
       }
     }
   }
-
-  // Technically, eveything above this needs to happen only once...
-  // However, the below code takes ~10x longer than this, so doesn't matter much
-  //==============================*
 
   // loop through each kappa state
   for (int k_i = 0; true; ++k_i) {
@@ -124,10 +93,10 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     auto &Fc = orbitals.emplace_back(0, kappa, rgrid);
     Fc.en() = ec;
     // solve initial, without exchange term
-    DiracODE::solveContinuum(Fc, ec, vc, cgrid, r_asym, alpha);
+    DiracODE::solveContinuum(Fc, ec, vc, alpha);
     // Then, include exchange correction:
     if (p_hf != nullptr && !p_hf->excludeExchangeQ()) {
-      IncludeExchange(Fc, Fi, force_orthog_Fi, cgrid, vc, r_asym);
+      IncludeExchange(Fc, Fi, force_orthog_Fi, vc);
     }
 
   } // kappa
@@ -151,9 +120,8 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
 //******************************************************************************
 void ContinuumOrbitals::IncludeExchange(DiracSpinor &Fc, const DiracSpinor *Fi,
-                                        bool force_orthog_Fi, const Grid &cgrid,
-                                        const std::vector<double> &vc,
-                                        double r_asym) {
+                                        bool force_orthog_Fi,
+                                        const std::vector<double> &vc) {
   // Include exchange (Hartree Fock)
   const int max_its = 50;
   const double conv_target = 1.0e-6;
@@ -166,13 +134,9 @@ void ContinuumOrbitals::IncludeExchange(DiracSpinor &Fc, const DiracSpinor *Fi,
     const auto Fc0 = Fc;
     if (p_hf->method() == HF::Method::HartreeFock) {
       auto VxFc = HF::vexFa(Fc, p_hf->core()) - vx0 * Fc;
-      // Extend onto larger grid
-      VxFc.f().resize(vc.size());
-      VxFc.g().resize(vc.size());
-      DiracODE::solveContinuum(Fc, Fc.en(), vl, cgrid, r_asym, alpha, &VxFc,
-                               &Fc0);
+      DiracODE::solveContinuum(Fc, Fc.en(), vl, alpha, &VxFc, &Fc0);
     } else { // HF::Method::ApproxHF)
-      DiracODE::solveContinuum(Fc, Fc.en(), vl, cgrid, r_asym, alpha);
+      DiracODE::solveContinuum(Fc, Fc.en(), vl, alpha);
     }
     // Force orthogonality to Fi (ionised state) (at each HF step)
     if (force_orthog_Fi && Fi && Fi->kappa() == Fc.kappa()) {
@@ -201,33 +165,8 @@ int ContinuumOrbitals::solveContinuumZeff(double ec, int min_l, int max_l,
   // Also orthogonalise against entire core: (make no difference)
   const bool orthog_core = force_orthog;
 
-  // Find 'inital guess' for asymptotic region:
-  const double lam = 1.0e6;
-  const double r_asym =
-      (Zion + std::sqrt(4.0 * lam * ec + std::pow(Zion, 2))) / (2.0 * ec);
-
-  // Check if 'h' is small enough for oscillating region:
-  const double h_target = (M_PI / 15) / std::sqrt(2.0 * ec);
-  const auto h = rgrid->du();
-  if (h > h_target) {
-    std::cout << "WARNING 61 CntOrb: Grid not dense enough for ec=" << ec
-              << " (du=" << h << ", need du<" << h_target << ")\n";
-    if (h > 2 * h_target) {
-      std::cout << "FAILURE 64 CntOrb: Grid not dense enough for ec=" << ec
-                << " (du=" << h << ", need du<" << h_target << ")\n";
-      return 1;
-    }
-  }
-
-  // nb: Don't need to extend grid each time... but want thread-safe
-  auto cgrid = *rgrid;
-  cgrid.extend_to(1.1 * r_asym);
-
-  std::vector<double> vc;
-  vc.resize(cgrid.num_points());
-  for (auto i = 0ul; i < cgrid.num_points(); i++) {
-    vc[i] = -Z_eff / cgrid.r(i);
-  }
+  // Zeff potential (pointlike nucleus, spherical with Rn=0):
+  const auto vc = Nuclear::sphericalNuclearPotential(Z_eff, 0.0, rgrid->r());
 
   // loop through each kappa state
   for (int k_i = 0; true; ++k_i) {
@@ -241,7 +180,7 @@ int ContinuumOrbitals::solveContinuumZeff(double ec, int min_l, int max_l,
     auto &Fc = orbitals.emplace_back(0, kappa, rgrid);
     Fc.en() = ec;
     // solve initial, without exchange term
-    DiracODE::solveContinuum(Fc, ec, vc, cgrid, r_asym, alpha);
+    DiracODE::solveContinuum(Fc, ec, vc, alpha);
 
   } // kappa
 

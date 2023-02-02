@@ -157,10 +157,10 @@ double smallEnergyChangePT(const double en, const double anorm,
                            const TrackEnGuess &sofar);
 
 // Solves Dirac equation by integrating outwards from zero.
-// Integrates only to 'final'.
+// Integrates only to 'final' (not inclusive). If final=0, goes to f.size()
 // Solution has correct boundary condition at r=0, but not at large r.
 void solve_Dirac_outwards(std::vector<double> &f, std::vector<double> &g,
-                          const DiracDerivative &Hd, std::size_t final);
+                          const DiracDerivative &Hd, std::size_t final = 0);
 
 // Solves Dirac equation by integrating inwards from 'pinf' to 'ctp'
 // Solution has correct boundary condition at large r, but not at small r.

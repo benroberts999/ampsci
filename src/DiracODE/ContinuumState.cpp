@@ -3,173 +3,186 @@
 #include "DiracODE/DiracODE.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "fmt/format.hpp"
 #include <algorithm>
 #include <cmath>
 
 namespace DiracODE {
 using namespace DiracODE::Internal;
 
-// Program to solve single-electron continuum-state Dirac problem for a
-// (given) local, central potential. Uses "outwardAM" (from
-// adamsSolveLocalBS.cpp) to solve dirac equation
-//
-// Normalises wavefunction by solving all the way out to asymptotic region,
-// where solution should be sinosoidal. Then, matches amplitude with low-r
-// expansion. Therefore, need grid to go very far out (v. large r). Also, need
-// at least ~10 points per half-period. More points for higher energy!
-//
-// ###== To do ###==
-//   * Find asymptotic region + normalise...better?
-
 //==============================================================================
-void solveContinuum(DiracSpinor &Fa, const double en,
-                    const std::vector<double> &v, const Grid &ext_grid,
-                    const double r_asym0, const double alpha,
-                    const DiracSpinor *const VxFa, const DiracSpinor *const Fa0)
-// Solves Dirac equation for continuum state, for given energy, ec
-// by integrating outwards from 0
-// ec > 0
-// Normalises wf. by comparison w/ H-like solution at v. large r
-// num_pointsb id the regular (bound-state) grid.
-// num_pointsc is grid for continuum (only for solving). num_pointsc >>
-// num_pointsb
-{
-  // guess as asymptotic region:
-  auto i_asym = ext_grid.getIndex(r_asym0);
+void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
+                    double alpha, const DiracSpinor *const VxFa,
+                    const DiracSpinor *const Fa0) {
+
   Fa.en() = en;
+  const auto &gr = Fa.grid();
+  const auto num_points = gr.num_points();
+  Fa.max_pt() = num_points;
 
-  const auto num_pointsb = Fa.grid().num_points();
-  const auto num_pointsc = ext_grid.num_points();
+  // Rough expression for wavelenth at large r
+  // nb: sin(kr + \eta * log(kr)), so not exactly constant
+  const double approx_wavelength = 2.0 * M_PI / std::sqrt(2.0 * Fa.en());
 
-  // Perform the "outwards integration"
-  // XXX DON"T need to do this! Just re-size f/g vectors!! XXX
-  // DiracSpinor psic(Fa.n(), Fa.kappa(), ext_grid);
-  Fa.f().resize(num_pointsc); // nb: this is a little dangerous!
-  Fa.g().resize(num_pointsc);
+  // The solution on the radial grid must be reasonable at large r
+  // We ensure there is at least N (N=10) points per wavelength in this region
+  // If not, solution unstable; write zeros and return.
+  const int N_ppw = 10;
+  const auto dr0 = gr.drdu().back() * gr.du();
+  const double dr0_target = approx_wavelength / N_ppw;
+  if (dr0 > dr0_target) {
+    fmt::print(fg(fmt::color::red), "\nERROR 104: ");
+    fmt::print(
+        "Grid not dense enough for continuum state with e={:.2f} (kappa={}); \n"
+        "Try increasing points (to ~ du < {:.3f})\n"
+        "Writing zeros to Spinor for this state.\n",
+        en, Fa.kappa(), dr0_target);
+    Fa *= 0.0;
+    return;
+  }
 
-  DiracDerivative Hd(ext_grid, v, Fa.kappa(), Fa.en(), alpha, {}, VxFa, Fa0);
-  solve_Dirac_outwards(Fa.f(), Fa.g(), Hd, num_pointsc);
+  // Solve on regular grid - not yet normalised:
+  DiracDerivative Hd(Fa.grid(), v, Fa.kappa(), Fa.en(), alpha, {}, VxFa, Fa0);
+  solve_Dirac_outwards(Fa.f(), Fa.g(), Hd);
 
-  // Find a better (lower) asymptotic region:
-  i_asym = findAsymptoticRegion(Fa.f(), ext_grid.r(), num_pointsb, num_pointsc,
-                                i_asym);
+  // Now, normalise the solution.
+  // Keep solving ODE outwards, on linearly-spaced grid
+  // Use "H-like" derivative: assume exchange etc. negligable here
+  // Calculate running:
+  //    - wavelength
+  //    - amplitude
+  // Until they stabilise; find amplitude in this region
+  // Re-scale wavefunction so tha large-r amplitude matches analytic expression
 
-  // Find amplitude of large-r (asymptotic region) sine-like wf
-  const double amp =
-      findSineAmplitude(Fa.f(), ext_grid.r(), num_pointsc, i_asym);
+  // Step-size for large-r solution: Uses linear grid
+  // Require at least 40 points per wavelength (20 per half-wave)
+  // but limit to ~100 pts per half-wave (? no benefit after this)
+  auto dr = std::min(dr0, approx_wavelength / 40.0);
+  dr = std::max(dr, approx_wavelength / 200.0);
+
+  // Parameters needed to solve f(r) to large r:
+  const auto ztmp = -1.0 * v.back() * gr.r().back();
+  const auto Zeff = std::max(1.0, ztmp);
+  const auto r_final = gr.r().back();
+  const auto f_final = Fa.f().back();
+  const auto g_final = Fa.g().back();
+
+  // Find large-r amplitude:
+  const auto [amp, eps_amp] = numerical_f_amplitude(
+      en, Fa.kappa(), alpha, Zeff, f_final, g_final, r_final, dr);
+
+  Fa.max_pt() = num_points;
+  Fa.eps() = eps_amp;
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
-  // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r p(r)
+  const auto D = analytic_f_amplitude(en, alpha);
+  Fa *= (D / amp);
+}
+
+//==============================================================================
+std::pair<double, double> numerical_f_amplitude(double en, int kappa,
+                                                double alpha, double Zeff,
+                                                double f_final, double g_final,
+                                                double r_final, double dr) {
+
+  // Now, normalise the solution.
+  // Keep solving ODE outwards, on linearly-spaced grid
+  // Use "H-like" derivative: assume exchange etc. negligable here
+  // Calculate running:
+  //    - wavelength
+  //    - amplitude
+  // Until they stabilise; find amplitude in this region
+
+  // Set-up H-like solver for linearly-spaced grid
+  DiracContinuumDerivative Heff(Zeff, kappa, en, alpha);
+  AdamsMoulton::ODESolver2D<Param::K_Adams, double, double> ode{dr, &Heff};
+  // start from existing final position:
+  ode.solve_initial_K(r_final, f_final, g_final);
+
+  // convergence targets, for amplitude and wavelength
+  const double eps_target_amp = 1.0e-7;
+  const double eps_target_lambda = 2.0e-5;
+
+  // amplitude:
+  double amp = 0.0;
+  double eps_amp = 1.0;
+  double amp_maxf = 0.0;
+
+  // wavelength
+  double lambda = 0.0;
+  double eps_lambda = 1.0;
+  double r_node_0 = 0.0;
+
+  // previous points:
+  double rm1 = 0.0;
+  double fm1 = 0.0;
+  double r0 = ode.last_t();
+  double f0 = ode.last_f();
+
+  // Reasonable guess at fully asymptotic region:
+  // (Only reaches max_r if amp/wavelength don't converge)
+  const double max_r = 5000.0 / std::sqrt(2 * en);
+
+  while (ode.last_t() < max_r) {
+    ode.drive();
+    const auto r1 = ode.last_t();
+    const auto f1 = ode.last_f();
+
+    // Update wavelength:
+    if (f1 * f0 < 0.0) {
+      // linear interp: find rx (position of node)
+      const double r_node_1 = (r1 * f0 - r0 * f1) / (f0 - f1);
+      const double lambda1 = 2.0 * (r_node_1 - r_node_0);
+      eps_lambda = std::abs(2.0 * (lambda1 - lambda) / (lambda1 + lambda));
+      lambda = lambda1;
+      r_node_0 = r_node_1;
+    }
+
+    // find amplitude via maximum point:
+    if (std::abs(f1) > amp_maxf) {
+      amp_maxf = std::abs(f1);
+    }
+
+    // find amplitude by fitting around maximum:
+    if (std::abs(f1) < std::abs(f0) && std::abs(f0) > std::abs(fm1)) {
+
+      const auto amp_fit = fitQuadratic(rm1, r0, r1, fm1, f0, f1);
+      const auto eps_amp_fit =
+          std::abs(2.0 * (amp_fit - amp) / (amp_fit + amp));
+      amp = amp_fit;
+
+      const auto eps_amp_max =
+          std::abs(2.0 * (amp_fit - amp_maxf) / (amp_fit + amp_maxf));
+
+      const auto eps_amp_best = std::min({eps_amp_fit, eps_amp_max});
+      const auto eps_amp_worst = std::max({eps_amp_fit, eps_amp_max});
+      eps_amp = eps_amp_worst;
+
+      if (eps_amp_best < eps_target_amp &&
+          eps_amp_worst < 100.0 * eps_target_amp &&
+          eps_lambda < eps_target_lambda) {
+        amp = std::max(amp_fit, amp_maxf);
+        break;
+      }
+    }
+    // update "previous" values
+    rm1 = r0;
+    fm1 = f0;
+    r0 = r1;
+    f0 = f1;
+  }
+  assert(amp != 0.0);
+  return {amp, eps_amp};
+}
+
+//==============================================================================
+double analytic_f_amplitude(double en, double alpha) {
+  // D = Sqrt[alpha/(pi*eps)] <-- Amplitude of large-r f(r)
   // eps = Sqrt[en/(en+2mc^2)]
+  // ceps = c*eps = eps/alpha
   const double al2 = std::pow(alpha, 2);
-  // c*eps = eps/alpha
-  const double ceps = std::sqrt(Fa.en() / (Fa.en() * al2 + 2.));
-  const double D = 1.0 / std::sqrt(M_PI * ceps);
-  const double sf = D / amp; // re-scale factor
-
-  // // Normalise the wfs, and transfer back to shorter arrays:
-  // Transfer back to shorter array:
-  Fa.f().resize(num_pointsb); // nb: this is a little dangerous!
-  Fa.g().resize(num_pointsb);
-  Fa.max_pt() = num_pointsb - 1;
-  Fa *= sf;
-}
-
-namespace Internal {
-//==============================================================================
-double findSineAmplitude(const std::vector<double> &pc,
-                         const std::vector<double> &rc, std::size_t num_pointsc,
-                         std::size_t i_asym)
-//  Find "maximum" amplitude, by using a quadratic fit to 2 nearest points
-//  Scale by ratio of this maximum to max of analytic soln
-{
-  const int maxtry = 5;
-  int ntry = 0;
-  double amp = 0;
-  while (ntry < maxtry) {
-    // find first zero after r_asym
-    for (std::size_t i = i_asym; i < num_pointsc; i++) {
-      if (pc[i] * pc[i - 1] < 0) {
-        i_asym = i;
-        break;
-      }
-    }
-    // find max:
-    double y0 = 0, y1 = 0, y2 = 0, y3 = 0, y4 = 0;
-    double x0 = 0, x1 = 0, x2 = 0, x3 = 0, x4 = 0;
-    for (std::size_t i = i_asym + 1; i < num_pointsc - 1; i++) {
-      if (std::abs(pc[i]) < std::abs(pc[i - 1])) {
-        y0 = std::abs(pc[i - 3]);
-        y1 = std::abs(pc[i - 2]);
-        y2 = std::abs(pc[i - 1]);
-        y3 = std::abs(pc[i]);
-        y4 = std::abs(pc[i + 1]);
-        x0 = rc[i - 3];
-        x1 = rc[i - 2];
-        x2 = rc[i - 1];
-        x3 = rc[i];
-        x4 = rc[i + 1];
-        break;
-      }
-    }
-    i_asym++;
-    ntry++;
-    const double out1 = fitQuadratic(x1, x2, x3, y1, y2, y3);
-    const double out2 = fitQuadratic(x0, x2, x4, y0, y2, y4);
-    amp += (2.0 * out1 + out2) / 3.0;
-  }
-
-  return (amp / maxtry);
-}
-
-//==============================================================================
-std::size_t findAsymptoticRegion(const std::vector<double> &pc,
-                                 const std::vector<double> &rc,
-                                 std::size_t num_pointsb,
-                                 std::size_t num_pointsc, std::size_t i_asym)
-// Finds a 'better' guess for the asymptotic region, by looking for where
-// the period of oscilations becomes constant
-// (variation in periof drops below certain value)
-//
-// Note: this method works well, but not perfectly.
-//  a) am I not going out far enough?
-//  b) Or, it's just not that accurate? Seems acurate to 1 - 0.1% ?
-{
-  // Find the r's for psi=zero, two consec => period
-  // Once period is converged enough, can normalise by comparison with
-  // exact (asymptotic) solution (??)
-  // nb: looks for convergence between r(num_points) and r_asym
-  // If doesn't 'converge' in this region, uses r_asym
-  double xa = 1, xb = pc[num_pointsb]; // num_pointsb is #pts in regular grid
-  double wk1 = -1, wk2 = 0;
-  for (std::size_t i = num_pointsb; i < i_asym; i++) {
-    xa = xb;
-    xb = pc[i];
-    if (xb * xa < 0) {
-      // Use linear extrapolation to find exact r of the zero:
-      double r1 = (rc[i] * pc[i - 1] - rc[i - 1] * pc[i]) / (pc[i - 1] - pc[i]);
-      auto yb = xb;
-      for (std::size_t j = i + 1; j < num_pointsc; j++) {
-        auto ya = yb;
-        yb = pc[j];
-        if (ya * yb < 0) {
-          // Use linear extrapolation to find exact r of the next zero:
-          double r2 =
-              (rc[j] * pc[j - 1] - rc[j - 1] * pc[j]) / (pc[j - 1] - pc[j]);
-          wk1 = wk2;
-          wk2 = r2 - r1;
-          break;
-        }
-      }
-      if (std::abs(wk1 - wk2) < 1.0e-4) {
-        // check for "convergence"
-        // add print statement suggesting denser grid?
-        i_asym = i;
-        break;
-      }
-    }
-  }
-  return i_asym;
+  const double ceps = std::sqrt(en / (en * al2 + 2.0));
+  return 1.0 / std::sqrt(M_PI * ceps);
 }
 
 //==============================================================================
@@ -209,5 +222,4 @@ double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
   return y0;
 }
 
-} // namespace Internal
 } // namespace DiracODE

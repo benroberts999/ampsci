@@ -468,11 +468,6 @@ TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit]") {
 
   // Find 'inital guess' for asymptotic region:
 
-  // nb: making grid like this inside is very slow... but more realistic?
-  const double r_asym = 1500.0 / std::sqrt(2 * 0.01);
-  auto cgrid = *grid;
-  cgrid.extend_to(1.1 * r_asym);
-
   double worst = 0.0;
 
   std::cout << "\nTest continuum solutions. Compare against exact "
@@ -480,17 +475,16 @@ TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit]") {
                "formula) from Mathematica (nb: MMA solutions not perfect)\n";
   std::cout << "Compare <F_nl|r|F_el> and <F_nl|1/r|F_el>:\n\n";
 
-  std::cout << " Z  n  l   En    <Fn|r|Fe>               <Fn|1/r|Fe>\n";
+  std::cout << " Z  n  l   En    <Fn|r|Fe>             <Fn|1/r|Fe>\n";
   for (auto &[z, l, n, e, e1, e3] : data) {
 
     int kappa = -(l + 1);
 
-    const auto v0 = Nuclear::sphericalNuclearPotential(z, 0.0, cgrid.r());
+    const auto v0 = Nuclear::sphericalNuclearPotential(z, 0.0, grid->r());
 
     DiracSpinor Fe{0, kappa, grid};
 
-    DiracODE::solveContinuum(Fe, e, v0, cgrid, r_asym,
-                             1.0e-10 * PhysConst::alpha);
+    DiracODE::solveContinuum(Fe, e, v0, 1.0e-10 * PhysConst::alpha);
 
     const auto F1s =
         DiracSpinor::exactHlike(n, kappa, grid, z, 1.0e-10 * PhysConst::alpha);
@@ -501,10 +495,10 @@ TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit]") {
     auto eps1 = std::min(std::abs((v1 - e1) / e1), std::abs(v1 - e1));
     auto eps3 = std::min(std::abs((v3 - e3) / e3), std::abs(v3 - e3));
 
-    printf("%2i %2i %2i %6.2f %+8.6f [%+8.6f]   ", z, n, l, e, v1, e1);
+    printf("%2i %2i %2i %6.2f %+7.5f [%+7.5f]   ", z, n, l, e, v1, e1);
     auto eps = std::max(eps1, eps3);
 
-    printf("%+8.6f [%+8.6f] - %.1e", v3, e3, eps);
+    printf("%+7.5f [%+7.5f] - %.0e [%.0e]", v3, e3, eps, Fe.eps());
 
     if (eps > worst) {
       worst = eps;

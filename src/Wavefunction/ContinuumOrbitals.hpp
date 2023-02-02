@@ -12,10 +12,10 @@ class HartreeFock;
 class ContinuumOrbitals {
 
 public:
-  //! Takes existing Wavefunction object to construct. izion is effective charge at large r, izion = 1 usually (rarely matters).
-  ContinuumOrbitals(const Wavefunction &wf, int izion = 1);
+  //! Takes existing Wavefunction object to construct.
+  ContinuumOrbitals(const Wavefunction &wf);
   //! Construct with Hartree-Fock pointer
-  ContinuumOrbitals(const HF::HartreeFock *hf, int izion = 1);
+  ContinuumOrbitals(const HF::HartreeFock *hf);
 
   ContinuumOrbitals &operator=(const ContinuumOrbitals &) = default;
   ContinuumOrbitals(const ContinuumOrbitals &) = default;
@@ -41,11 +41,9 @@ public:
 
 private:
   void IncludeExchange(DiracSpinor &Fe, const DiracSpinor *psi,
-                       bool force_orthog, const Grid &cgrid,
-                       const std::vector<double> &vc, double r_asym);
+                       bool force_orthog, const std::vector<double> &vc);
 
   std::shared_ptr<const Grid> rgrid;
   const HF::HartreeFock *p_hf;
-  int Zion;
   double alpha;
 };
