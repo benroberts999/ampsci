@@ -88,12 +88,16 @@ EpsIts HartreeFock::solve_core(bool print) {
 
   case Method::HartreeFock:
     text = "Hartree-Fock";
+
     eps_its = hartree_fock_core();
+
     break;
 
   case Method::ApproxHF:
     text = "Approximate (localised) Hartree-Fock";
+
     eps_its = hf_approx_core(m_eps_HF);
+
     break;
 
   case Method::Hartree:
@@ -130,6 +134,7 @@ EpsIts HartreeFock::solve_core(bool print) {
   if (eps > m_eps_HF && eps > 1.0e-6) {
     std::cout << "\n⚠️ WARNING: Core didn't converge!\n\n";
   }
+
   return eps_its;
 }
 
@@ -155,8 +160,11 @@ void HartreeFock::solve_valence(
     auto &Fa = (*valence)[i];
     const auto en0 = Fa.en();
     if (m_method == Method::HartreeFock) {
+
       eis[i] = hf_valence(Fa, Sigma);
+
     } else {
+
       eis[i] = local_valence(Fa);
     }
     deltas.at(i) = Fa.en() - en0;
@@ -359,8 +367,11 @@ EpsIts HartreeFock::hartree_fock_core() {
   // First, solve using approx HF method, and store initial Vex*Fa
   // This gives better initial approximation, and a better energy guess.
   // Not always required, but sometimes helps, particularly for complex shells
+
   hf_approx_core(1.0e-9);
+
   const auto vex_core = form_approx_vex_core();
+
   std::vector<DiracSpinor> vex0F_list;
   vex0F_list.reserve(m_core.size());
   for (std::size_t i = 0; i < m_core.size(); ++i) {
@@ -546,8 +557,10 @@ HartreeFock::hf_valence(DiracSpinor &Fa,
       VxFa += (*Sigma)(Fa);
     }
     const auto Fa_prev = Fa;
+
     DiracODE::boundState(Fa, Fa.en(), vl, Hmagl, m_alpha, 1.0e-15, &VxFa,
                          &Fa_prev, zion());
+
     eps = std::abs((prev_en - Fa.en()) / Fa.en());
     prev_en = Fa.en();
 
@@ -556,6 +569,7 @@ HartreeFock::hf_valence(DiracSpinor &Fa,
       break;
 
     Fa = (1.0 - eta_damp) * Fa + eta_damp * Fa_prev;
+
     Fa.normalise();
   }
 
@@ -1090,7 +1104,7 @@ void HartreeFock::hf_orbital_green(
                           -1.0 * VnlFa0);
 
   // make small adjustments to energy to normalise Fa:
-  DiracODE::Adams::GreenSolution(dFa, Ginf, Gzero, alpha, Fa);
+  DiracODE::Internal::GreenSolution(dFa, Ginf, Gzero, alpha, Fa);
   // should dFa = dEa * dFa, but makes it worse?
   // nb: after first it, becomes correct.
   double en = en0;
@@ -1109,8 +1123,8 @@ void HartreeFock::hf_orbital_green(
       if (!dv0.empty())
         VnlF_tilde += dv0 * dFa;
       // const auto SigmaF_tilde = Sigma(dFa);
-      DiracODE::Adams::GreenSolution(dFa, Ginf, Gzero, alpha,
-                                     dEa * Fa - VnlF_tilde);
+      DiracODE::Internal::GreenSolution(dFa, Ginf, Gzero, alpha,
+                                        dEa * Fa - VnlF_tilde);
     }
     const auto delta_Norm = Fa * Fa - 1.0;
     const auto de0 = dEa;

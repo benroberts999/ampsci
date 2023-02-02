@@ -51,11 +51,13 @@ void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
 
 //==============================================================================
 
-namespace Adams {
+namespace Internal {
 
+// Takes solution regular at infinity (Finf), and that regular at zero (Fzero),
+// and the inhomogenous source term, Sr, to find particular solution, Fa.
 void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
                    const DiracSpinor &Fzero, const double alpha,
                    const DiracSpinor &Sr);
 
-} // namespace Adams
+} // namespace Internal
 } // namespace DiracODE

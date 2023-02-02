@@ -132,7 +132,7 @@ public:
   auto min_pt() const { return m_p0; }
   auto &min_pt() { return m_p0; }
 
-  //! Last non-zero point (index for f[i])
+  //! Effective size(); index _after_ last non-zero point (index for f[i])
   auto max_pt() const { return m_pinf; }
   auto &max_pt() { return m_pinf; }
 

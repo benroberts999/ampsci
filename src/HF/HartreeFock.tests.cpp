@@ -277,10 +277,10 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
 }
 
 //============================================================================
-TEST_CASE("HartreeFock - KS, Core-Hartree and ApproxHF",
+TEST_CASE("HartreeFock - KS Core-Hartree and ApproxHF",
           "[HF][HartreeFock][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "HartreeFock - KS, Core-Hartree and ApproxHF\n";
+  std::cout << "HartreeFock - KS Core-Hartree and ApproxHF\n";
 
   // Grid parameters (etc.):
   const auto grid_type = "loglinear";

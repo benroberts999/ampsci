@@ -255,7 +255,7 @@ void single_k_mop::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
                              int k) {
 
   const auto maxi =
-      std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points() - 1}); // ok?
+      std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points()}); // ok?
 
   // g^{k+1}, g^{k-1}, b^{k+1}, b^{k-1} used in m, o, p
   assert(k != 0);
@@ -277,7 +277,7 @@ void single_k_n::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
                            int k) {
 
   const auto maxi =
-      std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points() - 1}); // ok?
+      std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points()}); // ok?
   assert(k != 0);
   Coulomb::gk_ab(Fi, Fj, k, g, gi, maxi);
   using namespace qip::overloads;

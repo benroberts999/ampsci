@@ -123,13 +123,11 @@ void AFBindingEnergy(const IO::InputBlock &input, const Wavefunction &wf) {
   const DiracOperator::ig5jL jl_pv(jl_v);
   const DiracOperator::ig0g5jL jl_ps(jl_v);
 
-  const DiracOperator::jL &jl = dmec == "Vector" ?
-                                    jl_v :
-                                    dmec == "Scalar" ?
-                                    jl_s :
-                                    dmec == "Pseudovector" ?
-                                    jl_pv :
-                                    dmec == "Pseudoscalar" ? jl_ps : jl_v;
+  const DiracOperator::jL &jl = dmec == "Vector"       ? jl_v :
+                                dmec == "Scalar"       ? jl_s :
+                                dmec == "Pseudovector" ? jl_pv :
+                                dmec == "Pseudoscalar" ? jl_ps :
+                                                         jl_v;
 
   // Calculate the AK (print to screen)
   std::cout << "\nCalculating atomic kernal AK(q):\n";

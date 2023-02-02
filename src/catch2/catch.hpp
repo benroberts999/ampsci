@@ -3116,7 +3116,7 @@ public:
   }
 
   template <typename T, typename... Ts>
-  void captureValues(size_t index, T const &value, Ts const &... values) {
+  void captureValues(size_t index, T const &value, Ts const &...values) {
     captureValue(index, Catch::Detail::stringify(value));
     captureValues(index + 1, values...);
   }
@@ -4419,13 +4419,14 @@ struct IGeneratorTracker {
 
 namespace Catch {
 #if !defined(CATCH_CONFIG_DISABLE_EXCEPTIONS)
-template <typename Ex>
-[[noreturn]] void throw_exception(Ex const &e) { throw e; }
+template <typename Ex> [[noreturn]] void throw_exception(Ex const &e) {
+  throw e;
+}
 #else // ^^ Exceptions are enabled //  Exceptions are disabled vv
 [[noreturn]] void throw_exception(std::exception const &e);
 #endif
 
-    [[noreturn]] void throw_logic_error(std::string const &msg);
+[[noreturn]] void throw_logic_error(std::string const &msg);
 [[noreturn]] void throw_domain_error(std::string const &msg);
 [[noreturn]] void throw_runtime_error(std::string const &msg);
 
@@ -4472,7 +4473,7 @@ namespace Generators {
 // !TBD move this into its own location?
 namespace pf {
 template <typename T, typename... Args>
-std::unique_ptr<T> make_unique(Args &&... args) {
+std::unique_ptr<T> make_unique(Args &&...args) {
   return std::unique_ptr<T>(new T(std::forward<Args>(args)...));
 }
 } // namespace pf
@@ -4549,13 +4550,13 @@ template <typename T> class Generators : public IGenerator<T> {
     populate(T(std::forward<U>(val)));
   }
   template <typename U, typename... Gs>
-  void populate(U &&valueOrGenerator, Gs &&... moreGenerators) {
+  void populate(U &&valueOrGenerator, Gs &&...moreGenerators) {
     populate(std::forward<U>(valueOrGenerator));
     populate(std::forward<Gs>(moreGenerators)...);
   }
 
 public:
-  template <typename... Gs> Generators(Gs &&... moreGenerators) {
+  template <typename... Gs> Generators(Gs &&...moreGenerators) {
     m_generators.reserve(sizeof...(Gs));
     populate(std::forward<Gs>(moreGenerators)...);
   }
@@ -4586,7 +4587,7 @@ table(std::initializer_list<std::tuple<typename std::decay<Ts>::type...>>
 template <typename T> struct as {};
 
 template <typename T, typename... Gs>
-auto makeGenerators(GeneratorWrapper<T> &&generator, Gs &&... moreGenerators)
+auto makeGenerators(GeneratorWrapper<T> &&generator, Gs &&...moreGenerators)
     -> Generators<T> {
   return Generators<T>(std::move(generator),
                        std::forward<Gs>(moreGenerators)...);
@@ -4596,12 +4597,12 @@ auto makeGenerators(GeneratorWrapper<T> &&generator) -> Generators<T> {
   return Generators<T>(std::move(generator));
 }
 template <typename T, typename... Gs>
-auto makeGenerators(T &&val, Gs &&... moreGenerators) -> Generators<T> {
+auto makeGenerators(T &&val, Gs &&...moreGenerators) -> Generators<T> {
   return makeGenerators(value(std::forward<T>(val)),
                         std::forward<Gs>(moreGenerators)...);
 }
 template <typename T, typename U, typename... Gs>
-auto makeGenerators(as<T>, U &&val, Gs &&... moreGenerators) -> Generators<T> {
+auto makeGenerators(as<T>, U &&val, Gs &&...moreGenerators) -> Generators<T> {
   return makeGenerators(value(T(std::forward<U>(val))),
                         std::forward<Gs>(moreGenerators)...);
 }
@@ -7002,14 +7003,14 @@ inline void optimizer_barrier() {
 template <typename T> inline void deoptimize_value(T &&x) { keep_memory(&x); }
 
 template <typename Fn, typename... Args>
-inline auto invoke_deoptimized(Fn &&fn, Args &&... args) ->
+inline auto invoke_deoptimized(Fn &&fn, Args &&...args) ->
     typename std::enable_if<
         !std::is_same<void, decltype(fn(args...))>::value>::type {
   deoptimize_value(std::forward<Fn>(fn)(std::forward<Args...>(args...)));
 }
 
 template <typename Fn, typename... Args>
-inline auto invoke_deoptimized(Fn &&fn, Args &&... args) ->
+inline auto invoke_deoptimized(Fn &&fn, Args &&...args) ->
     typename std::enable_if<
         std::is_same<void, decltype(fn(args...))>::value>::type {
   std::forward<Fn>(fn)(std::forward<Args...>(args...));
@@ -7037,13 +7038,13 @@ template <typename T> using CompleteType_t = typename CompleteType<T>::type;
 
 template <typename Result> struct CompleteInvoker {
   template <typename Fun, typename... Args>
-  static Result invoke(Fun &&fun, Args &&... args) {
+  static Result invoke(Fun &&fun, Args &&...args) {
     return std::forward<Fun>(fun)(std::forward<Args>(args)...);
   }
 };
 template <> struct CompleteInvoker<void> {
   template <typename Fun, typename... Args>
-  static CompleteType_t<void> invoke(Fun &&fun, Args &&... args) {
+  static CompleteType_t<void> invoke(Fun &&fun, Args &&...args) {
     std::forward<Fun>(fun)(std::forward<Args>(args)...);
     return {};
   }
@@ -7052,7 +7053,7 @@ template <> struct CompleteInvoker<void> {
 // invoke and not return void :(
 template <typename Fun, typename... Args>
 CompleteType_t<FunctionReturnType<Fun, Args...>>
-complete_invoke(Fun &&fun, Args &&... args) {
+complete_invoke(Fun &&fun, Args &&...args) {
   return CompleteInvoker<FunctionReturnType<Fun, Args...>>::invoke(
       std::forward<Fun>(fun), std::forward<Args>(args)...);
 }
@@ -7298,7 +7299,7 @@ namespace Catch {
 namespace Benchmark {
 namespace Detail {
 template <typename Clock, typename Fun, typename... Args>
-TimingOf<Clock, Fun, Args...> measure(Fun &&fun, Args &&... args) {
+TimingOf<Clock, Fun, Args...> measure(Fun &&fun, Args &&...args) {
   auto start = Clock::now();
   auto &&r = Detail::complete_invoke(fun, std::forward<Args>(args)...);
   auto end = Clock::now();
@@ -7910,7 +7911,7 @@ template <typename T, bool Destruct> struct ObjectStorage {
 
   ~ObjectStorage() { destruct_on_exit<T>(); }
 
-  template <typename... Args> void construct(Args &&... args) {
+  template <typename... Args> void construct(Args &&...args) {
     new (&data) T(std::forward<Args>(args)...);
   }
 
@@ -9424,7 +9425,7 @@ public:
     return m_tokenBuffer.front();
   }
 
-  auto operator-> () const -> Token const * {
+  auto operator->() const -> Token const * {
     assert(!m_tokenBuffer.empty());
     return &m_tokenBuffer.front();
   }
@@ -16175,8 +16176,8 @@ XmlWriter::ScopedElement::ScopedElement(ScopedElement &&other) noexcept
   other.m_writer = nullptr;
   other.m_fmt = XmlFormatting::None;
 }
-XmlWriter::ScopedElement &XmlWriter::ScopedElement::
-operator=(ScopedElement &&other) noexcept {
+XmlWriter::ScopedElement &
+XmlWriter::ScopedElement::operator=(ScopedElement &&other) noexcept {
   if (m_writer) {
     m_writer->endElement();
   }

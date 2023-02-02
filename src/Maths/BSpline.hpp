@@ -180,9 +180,9 @@ private:
     // points are repeated K times
     auto breaks = (kd == KnotDistro::logarithmic) ?
                       qip::logarithmic_range(x0, xmax, n_break - 1) :
-                      (kd == KnotDistro::linear) ?
+                  (kd == KnotDistro::linear) ?
                       qip::uniform_range(x0, xmax, n_break - 1) :
-                      (kd == KnotDistro::loglinear) ?
+                  (kd == KnotDistro::loglinear) ?
                       qip::loglinear_range(x0, xmax, 0.5 * xmax, n_break - 1) :
                       std::vector<double>{};
 

@@ -1,4 +1,9 @@
 #pragma once
-#include "DiracODE/Adams_Greens.hpp"
-#include "DiracODE/Adams_bound.hpp"
-#include "DiracODE/Adams_continuum.hpp"
+#include "DiracODE/AdamsMoulton.hpp"
+#include "DiracODE/AsymptoticSpinor.hpp"
+#include "DiracODE/BoundState.hpp"
+#include "DiracODE/ContinuumState.hpp"
+#include "DiracODE/InhomogenousGreens.hpp"
+
+//! Functions and classes used to solve the Dirac equation.
+namespace DiracODE {}

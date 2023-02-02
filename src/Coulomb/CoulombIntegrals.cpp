@@ -77,9 +77,13 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
     vabk[i] = Ax * du;
   }
 
-  const auto bmax =
-      std::min(std::min(Fa.max_pt(), Fb.max_pt()), num_points - 1);
-  for (auto i = bmax; i >= 1; --i) {
+  const auto bmax = std::min({Fa.max_pt(), Fb.max_pt(), num_points});
+  // nb bmax may be num_points
+  const auto rbmax =
+      bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
+  Bx = Bx * powk(r[bmax - 1] / rbmax) + ff(bmax - 1);
+  vabk[bmax - 1] += Bx * du;
+  for (auto i = bmax - 1; i >= 1; --i) {
     Bx = Bx * powk(r[i - 1] / r[i]) + ff(i - 1);
     vabk[i - 1] += Bx * du;
   }
@@ -156,12 +160,16 @@ static inline void yk_ijk_gen_impl(const int l, const Function &ff,
     v0[i] = 0.0;
   }
 
-  const auto bmax = irmax; // OK?
-  // std::min(std::min(Fa.max_pt(), Fb.max_pt()), num_points - 1);
+  // nb bmax may be num_points
+  const auto bmax = irmax;
   for (std::size_t i = 0; i <= bmax; i++) {
     vi[i] = 0.0;
   }
-  for (auto i = bmax; i >= 1; --i) {
+  const auto rbmax =
+      bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
+  Bx = Bx * powk(r[bmax - 1] / rbmax) + ff(bmax - 1);
+  vi[bmax - 1] += Bx * du;
+  for (auto i = bmax - 1; i >= 1; --i) {
     Bx = Bx * powk(r[i - 1] / r[i]) + ff(i - 1) * w(i - 1) * gr.drduor(i - 1);
     vi[i - 1] = Bx * du;
   }

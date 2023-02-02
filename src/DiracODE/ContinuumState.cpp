@@ -1,5 +1,5 @@
-#include "DiracODE/Adams_continuum.hpp"
-#include "DiracODE/Adams_bound.hpp"
+#include "DiracODE/ContinuumState.hpp"
+#include "DiracODE/BoundState.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -7,7 +7,7 @@
 #include <cmath>
 
 namespace DiracODE {
-using namespace Adams;
+using namespace DiracODE::Internal;
 
 // Program to solve single-electron continuum-state Dirac problem for a
 // (given) local, central potential. Uses "outwardAM" (from
@@ -47,8 +47,8 @@ void solveContinuum(DiracSpinor &Fa, const double en,
   Fa.f().resize(num_pointsc); // nb: this is a little dangerous!
   Fa.g().resize(num_pointsc);
 
-  DiracMatrix Hd(ext_grid, v, Fa.kappa(), Fa.en(), alpha, {}, VxFa, Fa0);
-  outwardAM(Fa.f(), Fa.g(), Hd, (int)num_pointsc - 1);
+  DiracDerivative Hd(ext_grid, v, Fa.kappa(), Fa.en(), alpha, {}, VxFa, Fa0);
+  solve_Dirac_outwards(Fa.f(), Fa.g(), Hd, num_pointsc);
 
   // Find a better (lower) asymptotic region:
   i_asym = findAsymptoticRegion(Fa.f(), ext_grid.r(), num_pointsb, num_pointsc,
@@ -75,7 +75,7 @@ void solveContinuum(DiracSpinor &Fa, const double en,
   Fa *= sf;
 }
 
-namespace Adams {
+namespace Internal {
 //==============================================================================
 double findSineAmplitude(const std::vector<double> &pc,
                          const std::vector<double> &rc, std::size_t num_pointsc,
@@ -209,5 +209,5 @@ double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
   return y0;
 }
 
-} // namespace Adams
+} // namespace Internal
 } // namespace DiracODE

@@ -1,5 +1,5 @@
-#include "Adams_Greens.hpp"
-#include "Adams_bound.hpp"
+#include "InhomogenousGreens.hpp"
+#include "BoundState.hpp"
 #include "DiracODE.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -52,10 +52,10 @@ void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
   regularAtOrigin(Fzero, en, v, H_mag, alpha, VxFa, Fa0, zion);
   regularAtInfinity(Finf, en, v, H_mag, alpha, VxFa, Fa0, zion);
   Fa.en() = en;
-  Adams::GreenSolution(Fa, Finf, Fzero, alpha, source);
+  Internal::GreenSolution(Fa, Finf, Fzero, alpha, source);
 }
 
-namespace Adams {
+namespace Internal {
 //==============================================================================
 void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
                    const DiracSpinor &Fzero, const double alpha,
@@ -117,5 +117,5 @@ void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
   // Fa *= (alpha / w2);
 }
 
-} // namespace Adams
+} // namespace Internal
 } // namespace DiracODE

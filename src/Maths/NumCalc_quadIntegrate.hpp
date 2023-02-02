@@ -25,7 +25,7 @@ constexpr auto dq_inv = quintcoef.dq_inv;
 //==============================================================================
 template <typename C, typename... Args>
 inline double integrate(const double dt, std::size_t beg, std::size_t end,
-                        const C &f1, const Args &... rest)
+                        const C &f1, const Args &...rest)
 // // Note: includes no safety checks!
 // // Integrates from (point) beg to end-1 (i.e., not including end)
 // // Require:

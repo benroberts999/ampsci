@@ -1,5 +1,6 @@
-
 #include "DiracODE/DiracODE.hpp"
+#include "Angular/Angular.hpp"
+#include "DiracODE/AsymptoticSpinor.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
@@ -8,6 +9,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "catch2/catch.hpp"
+#include "fmt/format.hpp"
 #include <algorithm>
 #include <array>
 #include <memory>
@@ -18,126 +20,178 @@
 
 //==============================================================================
 //! Unit tests for solving (local) Dirac equation ODE
+TEST_CASE("DiracODE: AsymptoticSpinor expansion", "[DiracODE][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "DiracODE: AsymptoticSpinor expansion\n";
+
+  const auto r0{90.0};
+  const auto rmax{150.0};
+  const auto num_grid_points{5ul};
+  const auto b{10.0};
+  const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
+                                                 GridType::loglinear, b);
+  double worst = 0.0;
+  std::string s_worst{""};
+  for (auto z : {1.0, 2.0, 10.0}) {
+    for (auto n : {1, 2, 3, 4, 5, 6, 7}) {
+      for (auto kappa : {-1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6}) {
+
+        const auto l = Angular::l_k(kappa);
+        if (l >= n)
+          continue;
+
+        const auto e = AtomData::diracen(z, n, kappa, PhysConst::alpha);
+        const auto F1s = DiracSpinor::exactHlike(n, kappa, grid, z);
+        DiracODE::AsymptoticSpinor x{kappa, z, e};
+        for (std::size_t i = 0; i < num_grid_points; ++i) {
+          auto r = grid->r(i);
+          auto [f, g] = x.fg(r);
+          auto f0 = F1s.f(i);
+          auto g0 = F1s.g(i);
+          if (g == 0.0 || f0 == 0.0 || g0 == 0.0)
+            continue;
+
+          auto ratio_asym = f / g;
+          auto ratio_exact = f0 / g0;
+          auto eps = std::abs(ratio_asym / ratio_exact - 1.0);
+
+          const auto eps_targ = l <= 2 ? 1.0e-9 : 1.0e-7;
+
+          REQUIRE(eps < eps_targ);
+          if (eps > worst) {
+            worst = eps;
+            s_worst = fmt::format("Z={}, n={}, kappa={}, r={}", z, n, kappa, r);
+          }
+        }
+      }
+    }
+  }
+  std::cout << s_worst << " : " << worst << "\n";
+}
+
+//==============================================================================
+//! Unit tests for solving (local) Dirac equation ODE
 TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "DiracODE: Adams-Moulton method\n";
 
-  const double Zeff = 5.0;
+  std::cout << "\nTest Hydrogen-like numerical solutions vs. exact Dirac:\n";
+  for (const auto Zeff : {1.0, 5.0, 10.0, 20.0, 50.0}) {
+    std::cout << "Z = " << Zeff << "\n";
 
-  // Set up radial grid:
-  const auto r0{1.0e-7};
-  const auto rmax{100.0}; // NB: rmax depends on Zeff
-  const auto num_grid_points{2000ul};
-  const auto b{10.0};
-  const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
-                                                 GridType::loglinear, b);
+    // Set up radial grid:
+    const auto r0{5.0e-7 / Zeff};
+    const auto rmax{500.0 / Zeff}; // NB: rmax depends on Zeff
+    const auto num_grid_points{2000ul};
+    const auto b{10.0};
+    const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
+                                                   GridType::loglinear, b);
 
-  // States to solve for:
-  const std::string states = "10spdfghi";
+    // States to solve for:
+    const std::string states = "10spdfghi";
 
-  // Sperical potential w/ R_nuc = 0.0 is a pointlike potential
-  const auto v_nuc = Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r());
+    // Sperical potential w/ R_nuc = 0.0 is a pointlike potential
+    const auto v_nuc = Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r());
 
-  // Solve Dirac ODE for each state, store in 'orbitals' vector:
-  std::vector<DiracSpinor> orbitals;
-  const auto states_list = AtomData::listOfStates_nk(states);
-  for (const auto &[n, k, en] : states_list) {
-    auto &Fnk = orbitals.emplace_back(n, k, grid);
-    // Use non-rel formula for guess (alpha = 0.0 gives non-rel)
-    const auto en_guess = -(Zeff * Zeff) / (2.0 * n * n);
-    DiracODE::boundState(Fnk, en_guess, v_nuc, {}, PhysConst::alpha, 1.0e-15);
-  }
+    // Solve Dirac ODE for each state, store in 'orbitals' vector:
+    const auto converge_target = 1.0e-15;
+    std::vector<DiracSpinor> orbitals;
+    const auto states_list = AtomData::listOfStates_nk(states);
+    for (const auto &[n, k, en] : states_list) {
+      auto &Fnk = orbitals.emplace_back(n, k, grid);
+      // Use non-rel formula for guess (alpha = 0.0 gives non-rel)
+      const auto en_guess = -(Zeff * Zeff) / (2.0 * n * n);
+      DiracODE::boundState(Fnk, en_guess, v_nuc, {}, PhysConst::alpha,
+                           converge_target);
+    }
 
-  // In the following, we find the the _worst_ orbital (by means of comparison
-  // to the expected exact Dirac equation solution) for a number of properties,
-  // and check if it meets the criteria.
+    // In the following, we find the the _worst_ orbital (by means of comparison
+    // to the expected exact Dirac equation solution) for a number of properties,
+    // and check if it meets the criteria.
 
-  { // Check convergence:
-    const auto comp_eps = [](const auto &Fa, const auto &Fb) {
-      return Fa.eps() < Fb.eps();
-    };
-    const auto worst_F =
-        std::max_element(cbegin(orbitals), cend(orbitals), comp_eps);
+    { // Check convergence:
+      const auto comp_eps = [](const auto &Fa, const auto &Fb) {
+        return Fa.eps() < Fb.eps();
+      };
+      const auto worst_F =
+          std::max_element(cbegin(orbitals), cend(orbitals), comp_eps);
 
-    std::cout << "DiracODE converge: " << worst_F->shortSymbol() << " "
-              << worst_F->eps() << "\n";
-    REQUIRE(std::abs(worst_F->eps()) < 1.0e-14);
-  }
+      std::cout << "converge: " << worst_F->shortSymbol() << " "
+                << worst_F->eps() << "\n";
+      CHECK(std::abs(worst_F->eps()) < converge_target);
+    }
 
-  { // Check orthogonality of orbitals:
-    const auto [eps, worst] = DiracSpinor::check_ortho(orbitals, orbitals);
-    std::cout << "DiracODE orth: " << worst << " " << eps << "\n";
-    REQUIRE(std::abs(eps) < 1.0e-10);
-  }
+    { // Check orthogonality of orbitals:
+      const auto [eps, worst] = DiracSpinor::check_ortho(orbitals, orbitals);
+      std::cout << "orth: " << worst << " " << eps << "\n";
+      CHECK(std::abs(eps) < 1.0e-10);
+    }
 
-  { // Compare energy to exact (Dirac) value:
-    auto comp_eps_en = [Zeff](const auto &Fa, const auto &Fb) {
-      const auto exact_a =
-          AtomData::diracen(Zeff, Fa.n(), Fa.kappa(), PhysConst::alpha);
-      const auto exact_b =
-          AtomData::diracen(Zeff, Fb.n(), Fb.kappa(), PhysConst::alpha);
-      const auto eps_a = std::abs((Fa.en() - exact_a) / exact_a);
-      const auto eps_b = std::abs((Fb.en() - exact_b) / exact_b);
-      return eps_a < eps_b;
-    };
+    { // Compare energy to exact (Dirac) value:
+      auto comp_eps_en = [Zeff](const auto &Fa, const auto &Fb) {
+        const auto exact_a =
+            AtomData::diracen(Zeff, Fa.n(), Fa.kappa(), PhysConst::alpha);
+        const auto exact_b =
+            AtomData::diracen(Zeff, Fb.n(), Fb.kappa(), PhysConst::alpha);
+        const auto eps_a = std::abs((Fa.en() - exact_a) / exact_a);
+        const auto eps_b = std::abs((Fb.en() - exact_b) / exact_b);
+        return eps_a < eps_b;
+      };
 
-    const auto worst_F =
-        std::max_element(cbegin(orbitals), cend(orbitals), comp_eps_en);
+      const auto worst_F =
+          std::max_element(cbegin(orbitals), cend(orbitals), comp_eps_en);
 
-    const auto exact = AtomData::diracen(Zeff, worst_F->n(), worst_F->kappa(),
-                                         PhysConst::alpha);
-    const auto eps = std::abs((worst_F->en() - exact) / exact);
+      const auto exact = AtomData::diracen(Zeff, worst_F->n(), worst_F->kappa(),
+                                           PhysConst::alpha);
+      const auto eps = std::abs((worst_F->en() - exact) / exact);
 
-    std::cout << "DiracODE en vs. exact (eps): " << worst_F->shortSymbol()
-              << " " << eps << "\n";
-    REQUIRE(std::abs(eps) < 1.0e-10);
-  }
+      std::cout << "en vs. exact (eps): " << worst_F->shortSymbol() << " "
+                << eps << "\n";
+      CHECK(std::abs(eps) < 1.0e-9);
+    }
 
-  { // Check radial integrals (r, r^2, 1/r, 1/r^2)
+    { // Check radial integrals (r, r^2, 1/r, 1/r^2)
 
-    // Define four radial operators. Designed to test wavefunction at low,
-    // medium, and large radial distances
-    const auto rhat1 = DiracOperator::RadialF(*grid, 1);
-    const auto rhat2 = DiracOperator::RadialF(*grid, 2);
-    const auto rinv1 = DiracOperator::RadialF(*grid, -1);
-    const auto rinv2 = DiracOperator::RadialF(*grid, -2);
+      // Define four radial operators. Designed to test wavefunction at low,
+      // medium, and large radial distances
+      const auto rhat1 = DiracOperator::RadialF(*grid, 1);
+      const auto rhat2 = DiracOperator::RadialF(*grid, 2);
+      const auto rinv1 = DiracOperator::RadialF(*grid, -1);
+      const auto rinv2 = DiracOperator::RadialF(*grid, -2);
 
-    // Lambda: finds worst comparison of <a|o|a> to <A|o|A>
-    // |A> is exact orbital, |a> is solution from DiracODE
-    // Returns pair
-    const auto get_worst = [&orbitals, &grid, Zeff](const auto &o) {
-      std::pair<std::string, double> worst{"", 0.0};
-      for (const auto &Fa : orbitals) {
-        const auto Fexact =
-            DiracSpinor::exactHlike(Fa.n(), Fa.kappa(), grid, Zeff);
-        const auto aoa = o.radialIntegral(Fa, Fa);
-        const auto AoA = o.radialIntegral(Fexact, Fexact);
-        const auto eps = std::abs((aoa - AoA) / AoA);
-        if (eps > worst.second) {
-          worst.first = Fa.shortSymbol();
-          worst.second = eps;
+      // Lambda: finds worst comparison of <a|o|a> to <A|o|A>
+      // |A> is exact orbital, |a> is solution from DiracODE
+      // Returns pair
+      const auto get_worst = [&orbitals, &grid, Zeff](const auto &o) {
+        std::pair<std::string, double> worst{"", 0.0};
+        for (const auto &Fa : orbitals) {
+          const auto Fexact =
+              DiracSpinor::exactHlike(Fa.n(), Fa.kappa(), grid, Zeff);
+          const auto aoa = o.radialIntegral(Fa, Fa);
+          const auto AoA = o.radialIntegral(Fexact, Fexact);
+          const auto eps = std::abs((aoa - AoA) / AoA);
+          if (eps > worst.second) {
+            worst.first = Fa.shortSymbol();
+            worst.second = eps;
+          }
         }
-      }
-      return worst;
-    };
+        return worst;
+      };
 
-    const auto worst1 = get_worst(rhat1);
-    const auto worst2 = get_worst(rhat2);
-    const auto winv1 = get_worst(rinv1);
-    const auto winv2 = get_worst(rinv2);
+      const auto worst1 = get_worst(rhat1);
+      const auto worst2 = get_worst(rhat2);
+      const auto winv1 = get_worst(rinv1);
+      const auto winv2 = get_worst(rinv2);
 
-    std::cout << "DiracODE <r>: " << worst1.first << " " << worst1.second
-              << "\n";
-    std::cout << "DiracODE <r^2>: " << worst2.first << " " << worst2.second
-              << "\n";
-    std::cout << "DiracODE <r^-1>: " << winv1.first << " " << winv1.second
-              << "\n";
-    std::cout << "DiracODE <r^-2>: " << winv2.first << " " << winv2.second
-              << "\n";
-    REQUIRE(std::abs(worst1.second) < 1.0e-10);
-    REQUIRE(std::abs(worst2.second) < 1.0e-10);
-    REQUIRE(std::abs(winv1.second) < 1.0e-10);
-    REQUIRE(std::abs(winv2.second) < 1.0e-10);
+      std::cout << "<r>: " << worst1.first << " " << worst1.second << "\n";
+      std::cout << "<r^2>: " << worst2.first << " " << worst2.second << "\n";
+      std::cout << "<r^-1>: " << winv1.first << " " << winv1.second << "\n";
+      std::cout << "<r^-2>: " << winv2.first << " " << winv2.second << "\n";
+      CHECK(std::abs(worst1.second) < 1.0e-9);
+      CHECK(std::abs(worst2.second) < 1.0e-9);
+      CHECK(std::abs(winv1.second) < 1.0e-9);
+      CHECK(std::abs(winv2.second) < 1.0e-9);
+    }
   }
 }
 
@@ -287,89 +341,6 @@ TEST_CASE("DiracODE: inhomogenous (Green's) method", "[DiracODE][unit]") {
   }
 }
 
-// //==============================================================================
-// // Test inhomogenous (Green's) method:
-// TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit][!mayfail]") {
-//   std::cout << "\n----------------------------------------\n";
-//   std::cout << "DiracODE: continuum\n";
-
-//   //* This fails sometimes - but only when built with coverage flag, and only
-//   // when run after HartreeFock test!?!? Indicative of undefined behaviour
-//   // somewhere...??
-
-//   const double Zeff = 1.0;
-
-//   // Set up radial grid:
-//   const auto r0{1.0e-7};
-//   const auto rmax{100.0}; // NB: rmax depends on Zeff
-//   const auto num_grid_points{2000ul};
-//   const auto b{10.0};
-//   const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
-//                                                  GridType::loglinear, b);
-//   // Sperical potential w/ R_nuc = 0.0 is a pointlike potential
-//   const auto v_nuc = Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r());
-
-//   const auto Zion = 1.0;
-//   double ec = 0.5;
-
-//   // Find 'inital guess' for asymptotic region:
-//   const double lam = 1.0e6;
-//   const double r_asym =
-//       (Zion + std::sqrt(4.0 * lam * ec + std::pow(Zion, 2))) / (2.0 * ec);
-
-//   // Check if 'h' is small enough for oscillating region:
-//   const double h_target = (M_PI / 15) / std::sqrt(2.0 * ec);
-//   const auto h = grid->du();
-//   if (h > h_target) {
-//     std::cout << "WARNING 318 CntOrb: Grid not dense enough for ec=" << ec
-//               << " (du=" << h << ", need du<" << h_target << ")\n";
-//     if (h > 2 * h_target) {
-//       std::cout << "FAILURE 321 CntOrb: Grid not dense enough for ec=" << ec
-//                 << " (du=" << h << ", need du<" << h_target << ")\n";
-//     }
-//   }
-
-//   // nb: Don't need to extend grid each time... but want thread-safe
-//   auto cgrid = *grid;
-//   cgrid.extend_to(1.1 * r_asym);
-
-//   auto Fs = DiracSpinor(0, -1, grid);
-//   DiracODE::solveContinuum(Fs, ec, v_nuc, cgrid, r_asym, PhysConst::alpha);
-//   const auto F1s = DiracSpinor::exactHlike(1, -1, grid, Zeff, PhysConst::alpha);
-
-//   // should be orthogonal
-//   const auto x = std::abs(Fs * F1s);
-//   REQUIRE(x < 1.0e-10);
-
-//   // XXX Just a regression test for now.
-//   // Update to use "exact" H0like formulas, and test properly
-//   const auto y0 = std::abs(Fs * (grid->r() * Fs));
-//   const auto y1 = std::abs(Fs * (grid->r() * F1s));
-//   const auto y0_expected = 1580.303032343806080; // regression test!
-//   const auto y1_expected = 0.417478989892057;    // regression test!
-//   std::cout << y0 << "/" << y0_expected << "\n";
-//   std::cout << y1 << "/" << y1_expected << "\n";
-//   REQUIRE(std::abs((y0 - y0_expected) / y0_expected) < 1.0e-4);
-//   // XXX? This randomly fails sometimes. Looks like some undefined behaviour!!
-//   // XXX Depends on _order_ unit tests are run?????
-//   REQUIRE(std::abs((y1 - y1_expected) / y1_expected) < 1.0e-4);
-
-//   // Non-rel-limit: Doesn't work?
-//   // Not sure if this is MMA or AMPSCI that's wrong...
-//   const auto alpha_nr = 1.0e-25 * PhysConst::alpha;
-//   auto Fs_nr = DiracSpinor(0, -1, grid);
-//   DiracODE::solveContinuum(Fs_nr, ec, v_nuc, cgrid, r_asym, alpha_nr);
-//   const auto F1s_nr = DiracSpinor::exactHlike(1, -1, grid, Zeff, alpha_nr);
-//   const auto y2 = std::abs(Fs_nr * (grid->r() * Fs_nr));
-//   const auto y3 = std::abs(Fs_nr * (grid->r() * F1s_nr));
-//   const auto y2_expected = 1572.12;
-//   const auto y3_expected = 0.416148;
-//   std::cout << y2 << "/" << y2_expected << "\n";
-//   std::cout << y3 << "/" << y3_expected << "\n";
-//   REQUIRE(std::abs((y2 - y2_expected) / y0_expected) < 1.0e-2);
-//   REQUIRE(std::abs((y3 - y3_expected) / y1_expected) < 1.0e-2);
-// }
-
 //==============================================================================
 TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit]") {
   std::cout << "\n----------------------------------------\n";
@@ -504,9 +475,9 @@ TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit]") {
 
   double worst = 0.0;
 
-  std::cout
-      << "\nTest continuum solutions. Compare against exact (non-relativistic "
-         "formula) from Mathematica (nb: MMA solutions not perfect)\n";
+  std::cout << "\nTest continuum solutions. Compare against exact "
+               "(non-relativistic "
+               "formula) from Mathematica (nb: MMA solutions not perfect)\n";
   std::cout << "Compare <F_nl|r|F_el> and <F_nl|1/r|F_el>:\n\n";
 
   std::cout << " Z  n  l   En    <Fn|r|Fe>               <Fn|1/r|Fe>\n";

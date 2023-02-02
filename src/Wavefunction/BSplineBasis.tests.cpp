@@ -1,5 +1,5 @@
-#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"

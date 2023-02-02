@@ -344,7 +344,7 @@ inline bool file_exists(const std::string &fileName) {
 //! Overload for vectors
 template <typename T, typename... Types>
 void rw_binary(std::fstream &stream, RoW row, std::vector<T> &value,
-               Types &... values) {
+               Types &...values) {
   binary_rw_vec(stream, value, row);
   if constexpr (sizeof...(values) != 0)
     rw_binary(stream, row, values...);
@@ -353,7 +353,7 @@ void rw_binary(std::fstream &stream, RoW row, std::vector<T> &value,
 //! Function (variadic): reads/writes data from/to binary file. Works for
 //! trivial (PoD) types, and std::string only (but not checked)
 template <typename T, typename... Types>
-void rw_binary(std::fstream &stream, RoW row, T &value, Types &... values) {
+void rw_binary(std::fstream &stream, RoW row, T &value, Types &...values) {
   if constexpr (std::is_same_v<T, std::string>)
     binary_str_rw(stream, value, row);
   else

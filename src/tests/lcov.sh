@@ -9,6 +9,7 @@ lcov --capture --directory . --output-file coverage.info &&
 # # but the tests are too slow to run in CI
 lcov --remove coverage.info \
   '*/catch2/*' \
+  '*/fmt/*' \
   '/*.tests*' \
   '*/version/*' \
   '/usr/*' \

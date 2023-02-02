@@ -1,6 +1,6 @@
+#include "Coulomb/QkTable.hpp"
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
-#include "Coulomb/QkTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
