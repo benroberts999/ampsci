@@ -44,9 +44,20 @@ TEST_CASE("qip::Methods", "[qip][Methods][unit]") {
     const double delta_target = 1.0e-9;
     const double initial_guess = 8.0;
     const auto [x0, dx0] = qip::Newtons(y_x3, initial_guess, delta_target);
+
     const auto error = std::abs(x0 - y_x3_root);
     REQUIRE(x0 == Approx(y_x3_root).margin(2.0 * delta_target));
     REQUIRE(error < 2.0 * dx0);
+
+    const auto [x01, dx01] = qip::Newtons(
+        y_x3, initial_guess, {initial_guess + 100.0, initial_guess + 200.0},
+        delta_target);
+    REQUIRE(x01 == Approx(initial_guess + 100.0));
+
+    const auto [x02, dx02] = qip::Newtons(
+        y_x3, initial_guess, {initial_guess - 200.0, initial_guess - 100.0},
+        delta_target);
+    REQUIRE(x02 == Approx(initial_guess - 100.0));
 
     {
       const auto [dydx, err] = qip::derivative(y_x3, 0.0, delta_target);

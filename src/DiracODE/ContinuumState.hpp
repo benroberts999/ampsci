@@ -15,8 +15,8 @@ comparing asymptotic amplitude to that of analytic solution.
 We only keep solution on regular grid; extended part is not kept.
 */
 void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
-                     double alpha, const DiracSpinor *const VxFa = nullptr,
-                     const DiracSpinor *const Fa0 = nullptr);
+                    double alpha, const DiracSpinor *const VxFa = nullptr,
+                    const DiracSpinor *const Fa0 = nullptr);
 
 //! Analytic amplitude of f(r) at very large r, for H-like Dirac continuum
 double analytic_f_amplitude(double en, double alpha);

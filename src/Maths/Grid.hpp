@@ -55,11 +55,15 @@ public:
   Grid(const GridParameters &in);
 
   //! Minium (first) grid point
-  auto r0() const { return m_r0; }
+  auto r0() const { return m_r.front(); }
+  auto front() const { return m_r.front(); }
   //! Maximum (final) grid point
   auto rmax() const { return m_r.back(); }
+  auto back() const { return m_r.back(); }
   //! Number of grid points
   auto num_points() const { return m_r.size(); }
+  //! Number of grid points
+  auto size() const { return num_points(); }
   //! Linear step size dr = (dr/dr)*du
   auto du() const { return m_du; }
   //! Grid-type (linear, logarithmic, loglinear)
@@ -68,8 +72,10 @@ public:
   auto loglin_b() const { return m_b; }
 
   //! Grid points, r
-  const std::vector<double> &r() const { return m_r; };
+  const std::vector<double> &r() const { return m_r; }
   auto r(std::size_t i) const { return m_r.at(i); };
+  auto at(std::size_t i) const { return m_r.at(i); };
+  auto operator()(std::size_t i) const { return r(i); }
   //! Jacobian (dr/du)[i]
   const std::vector<double> &drdu() const { return m_drdu; };
   auto drdu(std::size_t i) const { return m_drdu.at(i); };
@@ -85,6 +91,16 @@ public:
 
   //! Calculates+returns vector of 1/r
   std::vector<double> rpow(double k) const;
+
+  //! Provide iterators, but only onst ones
+  auto begin() const { return m_r.cbegin(); }
+  auto end() const { return m_r.cend(); }
+  auto cbegin() const { return m_r.cbegin(); }
+  auto cend() const { return m_r.cend(); }
+  auto rbegin() const { return m_r.crbegin(); }
+  auto rend() const { return m_r.crend(); }
+  auto crbegin() const { return m_r.crbegin(); }
+  auto crend() const { return m_r.crend(); }
 
   //! Extends grid to new_r_max. Note: This is the only non-const function; use
   //! with caution

@@ -1,6 +1,7 @@
 #pragma once
 #include "qip/String.hpp" //for case insensitive
 #include <algorithm>
+#include <array>
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -49,6 +50,18 @@ template <typename T> struct IsVector<std::vector<T>> {
 // std::cout << IO::IsVector<int>::v << "\n";
 // std::cout << IO::IsVector<std::vector<int>>::v << "\n";
 // std::cout << IO::IsVector<std::vector<double>>::v << "\n";
+
+template <typename T> struct IsArray {
+  constexpr static bool v = false;
+  using t = T;
+  static constexpr std::size_t size = 0;
+};
+template <typename T, std::size_t N> struct IsArray<std::array<T, N>> {
+  constexpr static bool v = true;
+  // nb: returns conatined type of array
+  using t = T;
+  static constexpr std::size_t size = N;
+};
 
 //! Prints a line of 'c' characters (dflt '*'), num chars long (dflt 80) to
 //! cout
@@ -246,6 +259,10 @@ private:
   template <typename T>
   std::optional<std::vector<T>> get_vector(std::string_view key) const;
 
+  // Allows returning std::array: comma-separated list input
+  template <typename T, std::size_t N>
+  std::optional<std::array<T, N>> get_array(std::string_view key) const;
+
   inline void add_option(std::string_view in_string);
   inline void add_blocks_from_string(std::string_view string, bool merge);
   inline void consolidate();
@@ -313,6 +330,8 @@ template <typename T>
 std::optional<T> InputBlock::get(std::string_view key) const {
   if constexpr (IsVector<T>::v) {
     return get_vector<typename IsVector<T>::t>(key);
+  } else if constexpr (IsArray<T>::v) {
+    return get_array<typename IsArray<T>::t, IsArray<T>::size>(key);
   } else if constexpr (std::is_same_v<T, bool>) {
     const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
     if (option == m_options.crend())
@@ -361,6 +380,30 @@ InputBlock::get_vector(std::string_view key) const {
     std::string substr;
     std::getline(ss, substr, ',');
     out.push_back(parse_str_to_T<T>(substr));
+  }
+  return out;
+}
+
+template <typename T, std::size_t N>
+std::optional<std::array<T, N>>
+InputBlock::get_array(std::string_view key) const {
+  // Use reverse iterators so that we find _last_ option that matches key
+  // i.e., assume later options override earlier ones.
+  std::array<T, N> out;
+  const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
+  if (option == m_options.crend())
+    return std::nullopt;
+  if (option->value_str == "")
+    return std::nullopt;
+  std::stringstream ss(option->value_str);
+  std::size_t index = 0;
+  while (ss.good()) {
+    // note: *very* innefficient
+    std::string substr;
+    std::getline(ss, substr, ',');
+    // out.push_back(parse_str_to_T<T>(substr));
+    out.at(index) = parse_str_to_T<T>(substr);
+    ++index;
   }
   return out;
 }

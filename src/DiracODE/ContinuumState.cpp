@@ -3,7 +3,7 @@
 #include "DiracODE/DiracODE.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
-#include "fmt/format.hpp"
+#include "fmt/color.hpp"
 #include <algorithm>
 #include <cmath>
 

@@ -23,7 +23,7 @@ template <typename T> constexpr bool is_complex_v = is_complex<T>::value;
 namespace LinAlg {
 
 //==============================================================================
-//! Matrix class
+//! Matrix class; row-major
 template <typename T = double> class Matrix {
 
 protected:
@@ -95,14 +95,14 @@ public:
   T *operator[](std::size_t i) { return &(m_data[i * m_cols]); }
 
   //! () index access (with range checking). (i,j) returns ith row, jth col
-  T &at(std::size_t i, std::size_t j) {
-    assert(i < m_rows && j < m_cols);
-    return m_data[i * m_cols + j];
+  T &at(std::size_t row_i, std::size_t col_j) {
+    assert(row_i < m_rows && col_j < m_cols);
+    return m_data[row_i * m_cols + col_j];
   }
   //! As above, but const
-  T at(std::size_t i, std::size_t j) const {
-    assert(i < m_rows && j < m_cols);
-    return m_data[i * m_cols + j];
+  T at(std::size_t row_i, std::size_t col_j) const {
+    assert(row_i < m_rows && col_j < m_cols);
+    return m_data[row_i * m_cols + col_j];
   }
   //! () index access (with range checking). (i,j) returns ith row, jth col
   T &operator()(std::size_t i, std::size_t j) { return at(i, j); }

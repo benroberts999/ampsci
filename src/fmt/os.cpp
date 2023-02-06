@@ -19,7 +19,7 @@
 #define _CRT_SECURE_NO_WARNINGS
 #endif
 
-#include "fmt/os.h"
+#include "fmt/include/os.h"
 
 #include <climits>
 

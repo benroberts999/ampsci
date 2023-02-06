@@ -7,5 +7,5 @@
 // Avoid tons of warnings with root code
 #pragma clang system_header
 #endif
-#include "fmt/include/format.h"
-#include "fmt/include/os.h"
+#include "fmt/format.hpp"
+#include "fmt/include/ostream.h"

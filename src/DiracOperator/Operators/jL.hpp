@@ -3,11 +3,8 @@
 #include "Maths/Grid.hpp"
 #include "Maths/SphericalBessel.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-// #include "IO/InputBlock.hpp"
 
 namespace DiracOperator {
-
-// XXX Check the 4*pi!???
 
 //! Matrix element of tensor operator: J_L(qr)*C^L
 /*!@details
@@ -50,7 +47,7 @@ protected:
 private:
   // fills lookup J_l_q_r table
   void fill_table() {
-    std::cout << "Filling jL lookup table: ";
+    std::cout << "Filling jL lookup table: " << std::flush;
     for (std::size_t l = 0; l <= m_max_l; ++l) {
 #pragma omp parallel for
       for (std::size_t iq = 0; iq < m_q_grid->num_points(); ++iq) {

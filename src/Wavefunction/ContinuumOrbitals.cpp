@@ -6,7 +6,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "fmt/format.hpp"
+#include "fmt/color.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <cmath>

@@ -4,6 +4,8 @@
 #include "DMionisation/Module_AFBindingEnergy.hpp"
 #include "DMionisation/Module_AFStepFunction.hpp"
 #include "DMionisation/Module_atomicKernel.hpp"
+#include "Kionisation/Module_Kionisation.hpp"
+//
 #include "Modules/Breit.hpp"
 #include "Modules/HFAnomaly.hpp"
 #include "Modules/basic.hpp"
@@ -41,6 +43,7 @@ static const std::map<std::string, module_function_t> module_list{
     {"WriteOrbitals", &writeOrbitals},
     {"continuum", &continuum},
     {"AtomicKernel", &atomicKernel},
+    {"Kionisation", &Kionisation},
     {"BohrWeisskopf", &BohrWeisskopf},
     {"HFAnomaly", &HFAnomaly},
     {"HF_rmag", &HF_rmag},

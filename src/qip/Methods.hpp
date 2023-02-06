@@ -52,5 +52,30 @@ std::pair<Real, Real> Newtons(Function f, Real x,
   }
   return {x, 1.1 * delta};
 }
+//! Solve f(x) = 0 for x using Newtons method. Returns root + error estimate.
+//! Enforced to be between bounds.
+template <typename Function, typename Real>
+std::pair<Real, Real> Newtons(Function f, Real x, std::pair<Real, Real> bounds,
+                              Real delta_target = Real{1.0e-6},
+                              Real dx = Real{0.01}, unsigned it_limit = 250) {
+  Real delta{1.0};
+  for (auto i = 0u;; ++i) {
+    // const auto df = (f(x + dx) - f(x)) / dx;
+    const auto df = derivative(f, x, delta_target, dx, 4).first;
+    delta = f(x) / df;
+    x = x - delta;
+    if (x < bounds.first) {
+      x = bounds.first;
+      break;
+    }
+    if (x > bounds.second) {
+      x = bounds.second;
+      break;
+    }
+    if (std::abs(delta) < delta_target || i > it_limit)
+      break;
+  }
+  return {x, 1.1 * delta};
+}
 
 } // namespace qip
