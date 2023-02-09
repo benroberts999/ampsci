@@ -233,12 +233,11 @@ bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid) {
   // *Very* rough estimate of good aximum q range
   const auto i = rgrid.getIndex(1.0);
   const auto dr_q = rgrid.drdu(i) * rgrid.du();
-  const auto qmax_targ = 2.0 * M_PI / (3.0 * dr_q);
+  const auto qmax_targ = 1.5 * 2.0 * M_PI / (3.0 * dr_q);
   fmt::print("\nVery rough guess at maximum safe q: {:.0f} au = {:.2f} MeV\n",
              qmax_targ, qmax_targ * UnitConv::Momentum_au_to_MeV);
   if (qmax_au > qmax_targ) {
-    fmt::print(fg(fmt::color::orange), "Warning: ");
-    fmt::print("Grid may not be dense for highest q\n");
+    fmt::print("Warning: Grid may not be dense enough for highest q\n\n");
   }
 
   // Check if grid dense enough. If not, offers advice

@@ -66,7 +66,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nSummary of inputs:\n";
   fmt::print(
-      "Energy  : [{:.1f}, {:.1f}] keV    = [{:.1f}, {:.1f}] au, in {} steps\n",
+      "Energy  : [{:.2f}, {:.2f}] keV  = [{:.1f}, {:.1f}] au, in {} steps\n",
       Emin_keV, Emax_keV, Emin_au, Emax_au, E_steps);
 
   const auto [qmin_keV, qmax_keV] =
@@ -116,8 +116,10 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Use RPA?
   const bool use_rpa = input.get("rpa", false);
-  std::cout << "Using RPA (first-order), with basis: "
-            << DiracSpinor::state_config(wf.basis()) << "\n";
+  if (use_rpa) {
+    std::cout << "Using RPA (first-order), with basis: "
+              << DiracSpinor::state_config(wf.basis()) << "\n";
+  }
 
   // sanity check for RPA - meaningless unless we used HF method
   if (use_rpa && wf.vHF() && wf.vHF()->method() != HF::Method::HartreeFock) {
@@ -127,11 +129,11 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
   if (use_rpa && wf.basis().empty()) {
-    fmt::print(fg(fmt::color::orange), "\nWarning 120: ");
+    fmt::print(fg(fmt::color::orange), "\nWarning: ");
     fmt::print("RPA method required a basis to work. See `ampsci -a "
                "Basis`\nRPA will evaluate to zero without a basis\n\n");
   }
-  std::cout << "Using: " << tmethod << " method\n";
+  std::cout << "Using   : " << tmethod << " method\n";
 
   //----------------------------------------------------------------------------
 
@@ -165,29 +167,29 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
            "have no effect. Caution: this should only be used for tests\n";
   }
   if (use_rpa && use_Zeff_cont) {
-    fmt::print(fg(fmt::color::orange), "\nWarning 167: ");
+    fmt::print(fg(fmt::color::orange), "\nWarning: ");
     fmt::print("Using RPA with Z_eff model doesn't make sense.\n");
   }
 
   // Perform checks, print possible warnings
   if (force_rescale && !(force_orthog || subtract_1)) {
-    fmt::print(fg(fmt::color::orange), "\nWarning 159: ");
+    fmt::print(fg(fmt::color::orange), "\nWarning: ");
     fmt::print("Force rescale will ruin orthogonality; suggest use "
                "force_orthog or subtract_1\n");
   }
   if (use_Zeff_cont && !(force_orthog || subtract_1)) {
-    fmt::print(fg(fmt::color::orange), "\nWarning 164: ");
+    fmt::print(fg(fmt::color::orange), "\nWarning: ");
     fmt::print("using Zeff for continuum will ruin orthogonality; suggest use "
                "force_orthog or subtract_1\n");
   }
   if (!force_rescale && !hole_particle && !use_Zeff_cont && wf.Zion() == 0) {
-    fmt::print(fg(fmt::color::orange), "\nWarning 169: ");
+    fmt::print(fg(fmt::color::orange), "\nWarning: ");
     fmt::print(
         "Long-range behaviour of V(r) may be incorrect. Suggest to either "
         "force rescaling, or include hole-particle interaction.\n");
   }
   if (force_rescale && hole_particle) {
-    fmt::print(fg(fmt::color::orange), "\nWarning 175: ");
+    fmt::print(fg(fmt::color::orange), "\nWarning: ");
     fmt::print("Should not force rescaling of V(r) if also subtracting hole "
                "particle (self-interaction) potential.\n");
   }
@@ -303,7 +305,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
         ci_wildcard_compare(each, "mat*") ? Kion::OutputFormat::matrix :
                                             Kion::OutputFormat::Error;
     if (output == Kion::OutputFormat::Error) {
-      fmt::print(fg(fmt::color::orange), "\nWarning 286: ");
+      fmt::print(fg(fmt::color::orange), "\nWarning: ");
       fmt::print(
           "Output Format option: `{}' unknown. Options are: gnuplot, xyz, "
           "matrix\n",
@@ -327,7 +329,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
                ci_compare(tunits, "atomic")   ? Kion::Units::Atomic :
                                                 Kion::Units::Error;
   if (units == Kion::Units::Error) {
-    fmt::print(fg(fmt::color::orange), "\nWarning 320: ");
+    fmt::print(fg(fmt::color::orange), "\nWarning: ");
     fmt::print("Output units option: `{}' unknown. Options are: Particle, "
                "Atomic. Defaulting to particle\n",
                tunits);
@@ -344,7 +346,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   LinAlg::Matrix<double> Kion(Egrid.num_points(), qgrid.num_points());
 
   if (method != Kion::Method::Approx) {
-    std::cout << "Using: " << tmethod << " method\n";
+    std::cout << "Using   : " << tmethod << " method\n";
     for (const auto &Fnk : wf.core()) {
       const auto accessible = std::abs(Fnk.en()) < Emax_au;
       if (!accessible)
@@ -363,7 +365,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     std::cout << "\n";
   } else {
-    std::cout << "Using: approx (step-function) method\n";
+    std::cout << "Using   : approx (step-function) method\n";
     const auto K_approx = Kion::calculateK_nk_approx(
         wf.vHF(), wf.core(), max_L, jl.get(), subtract_1, force_rescale,
         hole_particle, force_orthog, use_Zeff_cont, use_rpa, wf.basis());
