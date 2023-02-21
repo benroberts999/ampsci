@@ -358,7 +358,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       if (write_each_state) {
         const auto oname_nk = oname + "_" + Fnk.shortSymbol();
         std::cout << "Written to file: " << oname_nk << "\n";
-        Kion::write_to_file(output_formats, Kion, Egrid, qgrid, oname_nk,
+        Kion::write_to_file(output_formats, K_nk, Egrid, qgrid, oname_nk,
                             num_output_digits, units);
       }
       Kion += K_nk;
