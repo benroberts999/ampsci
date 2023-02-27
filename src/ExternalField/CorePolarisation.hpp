@@ -1,16 +1,26 @@
 #pragma once
+#include "DiracOperator/TensorOperator.hpp"
+#include "qip/String.hpp"
 #include <string>
 #include <vector>
 class DiracSpinor;
 namespace DiracOperator {
 class TensorOperator;
 }
-#include "DiracOperator/TensorOperator.hpp"
 
 //! Calculates many-body corrections (RPA) to matrix elements of external field
 namespace ExternalField {
 
-enum class method { TDHF, basis, diagram, none };
+enum class method { TDHF, basis, diagram, none, Error };
+
+inline method ParseMethod(std::string_view str) {
+  return qip::ci_compare(str, "TDHF")    ? method::TDHF :
+         qip::ci_compare(str, "basis")   ? method::basis :
+         qip::ci_compare(str, "diagram") ? method::diagram :
+         qip::ci_compare(str, "none")    ? method::none :
+         qip::ci_compare(str, "")        ? method::none :
+                                           method::Error;
+}
 
 enum class dPsiType { X, Y };
 enum class StateType { bra, ket }; // lhs, rhs

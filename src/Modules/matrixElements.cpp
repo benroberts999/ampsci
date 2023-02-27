@@ -14,6 +14,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "fmt/color.hpp"
 #include "qip/String.hpp"
 #include <fstream>
 #include <iostream>
@@ -69,11 +70,18 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
   auto rpa_method =
-      (rpa_method_str == "TDHF" || rpa_method_str == "true") ?
-          ExternalField::method::TDHF :
-      (rpa_method_str == "basis")   ? ExternalField::method::basis :
-      (rpa_method_str == "diagram") ? ExternalField::method::diagram :
-                                      ExternalField::method::none;
+      (rpa_method_str == "true")  ? ExternalField::method::TDHF :
+      (rpa_method_str == "false") ? ExternalField::method::none :
+                                    ExternalField::ParseMethod(rpa_method_str);
+
+  if (rpa_method == ExternalField::method::Error) {
+    fmt::print(fg(fmt::color::red), "\nError 77: ");
+    fmt::print(
+        "RPA method {} not found - check spelling? Defaulting to NO rpa\n",
+        rpa_method_str);
+    rpa_method = ExternalField::method::none;
+  }
+
   if (wf.core().empty())
     rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;
@@ -131,7 +139,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check(
       {{"operator", "e.g., E1, hfs"},
        {"options{}", "options specific to operator; blank by dflt"},
-       {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
+       {"rpa", "true(=TDHF), false, TDHF, basis, diagram [false]"},
        {"omega", "freq. for RPA"},
        {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
        {"onlyDiagonal", "only <a|h|a> (dflt false)"},
@@ -170,7 +178,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto print_both = input.get("printBoth", false);
   const auto only_diagonal = input.get("onlyDiagonal", false);
-  const auto rpaQ = input.get("rpa", true);
+  // const auto rpaQ = input.get("rpa", true);
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto const_omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
@@ -184,12 +192,41 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   if (h->freqDependantQ() && !eachFreqQ)
     h->updateFrequency(const_omega);
 
+  // Parse method for RPA:
+  const auto rpa_method_str = input.get("rpa", std::string("false"));
+  auto rpa_method =
+      (rpa_method_str == "true")  ? ExternalField::method::TDHF :
+      (rpa_method_str == "false") ? ExternalField::method::none :
+                                    ExternalField::ParseMethod(rpa_method_str);
+
+  if (rpa_method == ExternalField::method::Error) {
+    fmt::print(fg(fmt::color::red), "\nError 77: ");
+    fmt::print(
+        "RPA method {} not found - check spelling? Defaulting to NO rpa\n",
+        rpa_method_str);
+    rpa_method = ExternalField::method::none;
+  }
+  const auto rpaQ = rpa_method != ExternalField::method::none;
+
   // do RPA:
-  std::unique_ptr<ExternalField::TDHF> dV{nullptr};
-  if (rpaQ) {
+  std::unique_ptr<ExternalField::CorePolarisation> dV{nullptr};
+  if (rpaQ)
+    std::cout << "Including RPA: ";
+  if (rpa_method == ExternalField::method::TDHF) {
+    std::cout << "TDHF method\n";
     dV = std::make_unique<ExternalField::TDHF>(h.get(), wf.vHF());
-    if (!eachFreqQ)
-      dV->solve_core(const_omega);
+  } else if (rpa_method == ExternalField::method::basis) {
+    std::cout << "TDHF/basis method\n";
+    dV = std::make_unique<ExternalField::TDHFbasis>(h.get(), wf.vHF(),
+                                                    wf.basis());
+  } else if (rpa_method == ExternalField::method::diagram) {
+    std::cout << "diagram method\n";
+    dV = std::make_unique<ExternalField::DiagramRPA>(h.get(), wf.basis(),
+                                                     wf.vHF(), wf.identity());
+  }
+
+  if (rpaQ && !eachFreqQ) {
+    dV->solve_core(const_omega);
   }
 
   std::cout << "\nStructure radiation and normalisation of states:\n";

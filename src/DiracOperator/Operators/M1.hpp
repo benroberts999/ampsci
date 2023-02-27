@@ -40,8 +40,9 @@ public:
 
   void updateFrequency(const double omega) override final {
     if (std::abs(omega) > 1.0e-10) {
-      m_constant = -3.0 / (m_alpha * m_alpha * omega);
-      m_vec = SphericalBessel::fillBesselVec_kr(1, omega * m_alpha, m_r);
+      m_constant = -3.0 / std::abs((m_alpha * m_alpha * omega));
+      m_vec =
+          SphericalBessel::fillBesselVec_kr(1, std::abs(omega) * m_alpha, m_r);
     } else {
       // j1(kr) -> (r*k)/3, for k<<1
       m_constant = -1.0 / (m_alpha);
