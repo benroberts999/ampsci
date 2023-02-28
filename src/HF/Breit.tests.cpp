@@ -561,7 +561,7 @@ TEST_CASE("Breit: RPA Corrections",
       // Express Breit corrections as percentage, relative to HF0 value
       const auto Breit_hf = 100.0 * (hab_B - hab_0) / hab_0;
       const auto Breit_tfhf =
-          (h->name() == "hfs") ? 0.0 : 100.0 * (TDHF_ab_B - TDHF_ab_0) / hab_0;
+          (h->name() == "hfs1") ? 0.0 : 100.0 * (TDHF_ab_B - TDHF_ab_0) / hab_0;
       const auto Breit_rpad = 100.0 * (RPAD_ab_B - RPAD_ab_0) / hab_0;
       const auto Breit_rpab = 100.0 * (RPAB_ab_B - RPAB_ab_0) / hab_0;
 
@@ -618,7 +618,7 @@ TEST_CASE("Breit: RPA Corrections - for HFS",
                                     {"7p+", "7p+", -0.25, 0.19},
                                     {"5d-", "5d-", 0.54, 1.09}};
 
-  auto h = DiracOperator::generate_hfsA({}, wf0);
+  auto h = DiracOperator::generate_hfs({}, wf0);
 
   std::cout << "\nSolve RPA; using diagram/Basis method, with/without Breit:\n";
   std::cout << "For " << h->name() << "\n";

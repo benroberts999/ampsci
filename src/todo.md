@@ -54,7 +54,7 @@
 ## Breit
 
 * Frequency-dependent Breit
-* "Two-body" Breit (i.e., Breit into Sigma_2)
+* "Two-body" Breit into Sigma(2)
 * Breit matrix - for inclusion into Green's function (needs G?)
 
 ## Modules
@@ -62,6 +62,7 @@
 * PNC
 * Cleanup and improve other modules
 * System for incorperating external modules?
+* HF_anomaly - incorperate into single + clean
 
 ## Ladder diagrams (#13)
 

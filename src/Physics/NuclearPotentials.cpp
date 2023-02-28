@@ -16,14 +16,14 @@ namespace Nuclear {
 
 //==============================================================================
 ChargeDistro parseType(const std::string &str_type) {
-  if (qip::ci_wildcard_compare(str_type, "fermi"))
+  if (qip::ci_wc_compare(str_type, "fermi"))
     return ChargeDistro::Fermi;
-  if (qip::ci_wildcard_compare(str_type, "spher*") ||
-      qip::ci_wildcard_compare(str_type, "ball"))
+  if (qip::ci_wc_compare(str_type, "spher*") ||
+      qip::ci_wc_compare(str_type, "ball"))
     return ChargeDistro::spherical;
-  if (qip::ci_wildcard_compare(str_type, "point*"))
+  if (qip::ci_wc_compare(str_type, "point*"))
     return ChargeDistro::point;
-  if (qip::ci_wildcard_compare(str_type, "gaus*"))
+  if (qip::ci_wc_compare(str_type, "gaus*"))
     return ChargeDistro::Gaussian;
   std::cout << "\n⚠️  WARNING: Unkown nucleus type: " << str_type
             << "; defaulting to Fermi\n"

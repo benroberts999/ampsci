@@ -156,8 +156,8 @@ TEST_CASE("External Field: Diagram RPA",
   }
 
   { // HFS (compare A, not dV)
-    auto h = DiracOperator::HyperfineA(1.0, 1.0, 0.0, wf.grid(),
-                                       DiracOperator::Hyperfine::pointlike_F());
+    auto h = DiracOperator::hfs(1, 1.0, 0.0, wf.grid(),
+                                DiracOperator::Hyperfine::pointlike_F());
     auto rpa = ExternalField::DiagramRPA(&h, wf.basis(), wf.vHF(), "");
     using sp = std::pair<std::string, double>;
     auto e1VD = std::vector<sp>{{"6s+", 2.342288e3},  {"6p-", 2.732209e2},
@@ -169,7 +169,8 @@ TEST_CASE("External Field: Diagram RPA",
     rpa.solve_core(0.0);
     std::vector<sp> e1me;
     for (const auto &Fv : wf.valence()) {
-      const auto a = DiracOperator::HyperfineA::convertRMEtoA(Fv, Fv);
+      const auto a = DiracOperator::Hyperfine::convert_RME_to_AB(1, Fv.kappa(),
+                                                                 Fv.kappa());
 
       e1me.emplace_back(Fv.shortSymbol(),
                         a * (h.reducedME(Fv, Fv) + rpa.dV(Fv, Fv)));

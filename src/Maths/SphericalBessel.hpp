@@ -64,17 +64,7 @@ template <typename T> T JL(const int L, const T x) {
 
 //==============================================================================
 template <typename T> T exactGSL_JL(int L, T x) {
-  // return (T)gsl_sf_bessel_jl(L, (double)x);
-  if (L < 0 || x <= 0.0) {
-    std::cout << "\n" << L << " " << x << "\n";
-  }
-  gsl_sf_result result;
-  int e = gsl_sf_bessel_jl_e(L, double(x), &result);
-  if (e != GSL_SUCCESS) {
-    std::cout << "\n" << L << " " << x << "\n";
-    return 0.0;
-  }
-  return result.val;
+  return (T)gsl_sf_bessel_jl(L, (double)x);
 }
 
 //==============================================================================

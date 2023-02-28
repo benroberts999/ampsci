@@ -32,9 +32,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
                {"omega", "Text or number. Freq. for RPA. Put 'each' to solve "
                          "at correct frequency for each transition. [0.0]"},
-               {"radialIntegral", "false by dflt (means red. ME)"},
+               {"what", "What to calculate: rme (reduced ME), A (hyperfine A/B "
+                        "coeficient), radial_integral [rme]"},
                {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-               {"onlyDiagonal", "only <a|h|a> (dflt false)"}});
+               {"diagonal", "only <a|h|a> (dflt false)"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -48,17 +49,19 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     h_options = *tmp_opt;
   }
 
-  // const auto h = generateOperator(oper, h_options, wf, true);
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
-  const bool radial_int = input.get("radialIntegral", false);
+  const auto what = input.get<std::string>("what", "rme");
+  const bool radial_int = qip::ci_wc_compare(what, "radial*");
+  const bool hf_AB =
+      oper == "hfs" && h->rank() <= 2 &&
+      (qip::ci_wc_compare(what, "A*") || qip::ci_wc_compare(what, "B*"));
+  const bool diagonal_only = hf_AB ? true : input.get("diagonal", false);
 
-  // spacial case: HFS A (MHz)
-  const bool AhfsQ = (oper == "hfs" && !radial_int);
-
-  const auto which_str = radial_int ? "(radial integral)." :
-                         AhfsQ      ? "(HFS constant A)." :
-                                      "(reduced).";
+  const auto which_str = radial_int              ? "(radial integral)." :
+                         hf_AB && h->rank() == 1 ? "(HFS constant A)." :
+                         hf_AB && h->rank() == 2 ? "(HFS constant B)." :
+                                                   "(reduced).";
 
   std::cout << "\n"
             << "Matrix Elements - " << which_str << " Operator: " << h->name()
@@ -66,7 +69,6 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "Units: " << h->units() << "\n";
 
   const bool print_both = input.get("printBoth", false);
-  const bool diagonal_only = input.get("onlyDiagonal", false);
 
   const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
   auto rpa_method =
@@ -85,10 +87,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   if (wf.core().empty())
     rpa_method = ExternalField::method::none;
   const auto rpaQ = rpa_method != ExternalField::method::none;
-  // const auto rpaDQ = rpa_method == ExternalField::method::diagram;
 
   const auto str_om = input.get<std::string>("omega", "_");
-  const bool eachFreqQ = str_om == "each" || str_om == "Each";
+  const bool eachFreqQ = qip::ci_compare(str_om, "each");
   const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
   if (h->freqDependantQ()) {
@@ -120,15 +121,27 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                                                       wf.vHF(), wf.identity());
   }
 
-  const auto mes = ExternalField::calcMatrixElements(
-      wf.valence(), h.get(), rpa.get(), omega, eachFreqQ, diagonal_only,
-      print_both, radial_int);
+  const auto mes =
+      ExternalField::calcMatrixElements(wf.valence(), h.get(), rpa.get(), omega,
+                                        eachFreqQ, diagonal_only, print_both);
 
   std::cout << (rpaQ ? ExternalField::MEdata::title() :
                        ExternalField::MEdata::title_noRPA())
             << "\n";
-  for (const auto &me : mes) {
-    std::cout << me << "\n";
+  for (const auto &[a, b, w_ab, hab, dv] : mes) {
+
+    const auto Fa = *wf.getState(a);
+    const auto Fb = *wf.getState(b);
+    const auto factor = radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
+                        hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                    h->rank(), Fa.kappa(), Fb.kappa()) :
+                                1.0;
+
+    printf(" %4s %4s  %8.5f  %13.6e", a.c_str(), b.c_str(), w_ab, factor * hab);
+    if (dv != 0.0) {
+      printf("  %13.6e", factor * (hab + dv));
+    }
+    std::cout << "\n";
   }
 }
 

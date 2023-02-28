@@ -1,7 +1,7 @@
 #pragma once
 #include "IO/InputBlock.hpp"
 #include "Operators/Ek.hpp"
-#include "Operators/Hyperfine.hpp"
+#include "Operators/hfs.hpp"
 #include "Operators/M1.hpp"
 #include "Operators/PNC.hpp"
 #include "Operators/QED.hpp"
@@ -19,12 +19,11 @@ namespace DiracOperator {
 static const std::vector<std::pair<
     std::string, std::unique_ptr<DiracOperator::TensorOperator> (*)(
                      const IO::InputBlock &input, const Wavefunction &wf)>>
-    operator_list{{"E1", &generate_E1},     {"E1v", &generate_E1v},
-                  {"E2", &generate_E2},     {"Ek", &generate_Ek},
-                  {"M1", &generate_M1},     {"hfs", &generate_hfsA},
-                  {"hfsK", &generate_hfsK}, {"r", &generate_r},
-                  {"pnc", &generate_pnc},   {"Vrad", &generate_Vrad},
-                  {"dr", &generate_dr},     {"p", &generate_p}};
+    operator_list{
+        {"E1", &generate_E1}, {"E1v", &generate_E1v}, {"E2", &generate_E2},
+        {"Ek", &generate_Ek}, {"M1", &generate_M1},   {"hfs", &generate_hfs},
+        {"r", &generate_r},   {"pnc", &generate_pnc}, {"Vrad", &generate_Vrad},
+        {"dr", &generate_dr}, {"p", &generate_p}};
 
 //------------------------------------------------------------------------------
 
@@ -35,7 +34,7 @@ generate(std::string_view operator_name, const IO::InputBlock &input,
          const Wavefunction &wf) {
 
   for (auto &[t_name, t_generator] : operator_list) {
-    if (t_name == operator_name) {
+    if (qip::ci_wc_compare(t_name, operator_name)) {
       return t_generator(input, wf);
     }
   }
@@ -43,6 +42,17 @@ generate(std::string_view operator_name, const IO::InputBlock &input,
   std::cerr << "\nFAILED to find operator: " << operator_name
             << " in DiracOperator::generate. Make sure you add it to "
                "operator_list!\n";
+
+  const auto name_list = [&]() {
+    std::vector<std::string> out;
+    for (const auto &[name, generator] : operator_list) {
+      out.push_back(name);
+    }
+    return out;
+  }();
+  std::cout << "Did you mean: "
+            << *qip::ci_closest_match(operator_name, name_list) << " ?\n ";
+
   std::cout << "Currently available operators:\n";
   for (const auto &[name, generator] : operator_list) {
     std::cout << "  " << name << "\n";

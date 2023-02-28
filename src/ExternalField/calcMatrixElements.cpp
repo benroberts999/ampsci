@@ -13,15 +13,14 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
                                        DiracOperator::TensorOperator *const h,
                                        CorePolarisation *const dV, double omega,
                                        bool each_freq, bool diagonal_only,
-                                       bool print_both, bool radial_int) {
+                                       bool calculate_both) {
 
   std::vector<MEdata> res;
 
-  const auto AhfsQ = h->name() == "hfs";
   const auto pi = h->parity();
 
   if (&b_orbs != &a_orbs)
-    print_both = true;
+    calculate_both = true;
 
   if (h->freqDependantQ() && !each_freq) {
     h->updateFrequency(omega);
@@ -41,10 +40,10 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
       if (diagonal_only && Fb != Fa)
         continue;
       if (pi == -1) {
-        if (!print_both && Fb.parity() == -1)
+        if (!calculate_both && Fb.parity() == -1)
           continue;
       } else {
-        if (!print_both && ib > ia)
+        if (!calculate_both && ib > ia)
           continue;
       }
 
@@ -58,13 +57,8 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
         dV->solve_core(ww);
       }
 
-      // Special case: HFS A:
-      const auto a = radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
-                     AhfsQ ? DiracOperator::HyperfineA::convertRMEtoA(Fa, Fb) :
-                             1.0;
-
-      const auto hab = h->reducedME(Fa, Fb) * a;
-      const auto dv = dV ? dV->dV(Fa, Fb) * a : 0.0;
+      const auto hab = h->reducedME(Fa, Fb);
+      const auto dv = dV ? dV->dV(Fa, Fb) : 0.0;
 
       const auto w = Fa.en() - Fb.en();
       res.emplace_back(MEdata{Fa.shortSymbol(), Fb.shortSymbol(), w, hab, dv});

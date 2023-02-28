@@ -174,13 +174,16 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     const IO::InputBlock options{""};
     auto h0 = DiracOperator::generate("hfs", {"hfs", "F(r)=pointlike;"}, wf);
     auto hB = DiracOperator::generate("hfs", {"hfs", "F(r)=Ball;"}, wf);
-    auto hS = DiracOperator::generate("hfs", {"hfs", "F(r)=VolotkaBW;"}, wf);
+    auto hS =
+        DiracOperator::generate("hfs", {"hfs", "F(r)=SingleParticle;"}, wf);
+    auto h0_au = DiracOperator::generate(
+        "hfs", {"hfs", "F(r)=pointlike; units=au;"}, wf);
 
     REQUIRE(h0->get_d_order() == 0);
     REQUIRE(h0->imaginaryQ() == false);
     REQUIRE(h0->rank() == 1);
     REQUIRE(h0->parity() == 1);
-    REQUIRE(h0->name() == "hfs");
+    REQUIRE(h0->name() == "hfs1");
     REQUIRE(!h0->units().empty());
 
     for (std::size_t i = 0; i < data0.size(); ++i) {
@@ -193,17 +196,19 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       const auto A0 = h0->reducedME(Fa, Fb);
       const auto AB = hB->reducedME(Fa, Fb);
       const auto AS = hS->reducedME(Fa, Fb);
+      const auto A0_2 = h0_au->reducedME(Fa, Fb) * PhysConst::muN_CGS_MHz;
       const auto BW = (AS - A0) / A0;
       REQUIRE(std::abs(A0 - a0) < 1.0e-6);
       REQUIRE(std::abs(AB - ab) < 1.0e-6);
       REQUIRE(std::abs(AS - as) < 1.0e-6);
       REQUIRE(std::abs(BW - bw) < 1.0e-8);
+      REQUIRE(std::abs(A0 - A0_2) < 1.0e-14);
     }
   }
 
   //--------------------------------------------------------------------
-  SECTION("hfsK(2)") {
-    std::cout << "hfsK(2)\n";
+  SECTION("hfs(2)") {
+    std::cout << "hfs(2)\n";
     const auto data = std::vector{std::tuple{"1s+", "3d-", 2.1316106092e+00},
                                   {"2p-", "2p+", 8.7571740357e+00},
                                   {"2p+", "2p-", -8.7571740357e+00},
@@ -213,13 +218,13 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
     const IO::InputBlock options{""};
     auto h =
-        DiracOperator::generate("hfsK", {"hfsK", "k=2; F(r)=pointlike;"}, wf);
+        DiracOperator::generate("hfs", {"hfs", "k=2; F(r)=pointlike;"}, wf);
 
     REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 2);
     REQUIRE(h->parity() == 1);
-    REQUIRE(h->name() == "hfs(2)");
+    REQUIRE(h->name() == "hfs2");
     REQUIRE(!h->units().empty());
 
     for (auto &[a, b, me] : data) {

@@ -281,8 +281,8 @@ void basis(const Wavefunction &wf) {
   const auto isotope = Nuclear::findIsotopeData(wf.Znuc(), wf.Anuc());
   const auto mu = isotope.mu;
   const auto I_nuc = isotope.I_N;
-  const auto hfs = DiracOperator::HyperfineA(
-      mu, I_nuc, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+  const auto hfs = DiracOperator::hfs(1, mu / I_nuc, 0.0, wf.grid(),
+                                      DiracOperator::Hyperfine::pointlike_F());
 
   std::cout << "\nHFS and Energies: Basis cf HF:\n";
   std::cout << "    | A(HF)      Basis      eps   | En(HF)      "
@@ -293,8 +293,8 @@ void basis(const Wavefunction &wf) {
       continue;
     const auto *hf_phi = wf.getState(Fn.n(), Fn.kappa());
     const bool hfQ = hf_phi != nullptr;
-    const auto Ahf = hfQ ? DiracOperator::HyperfineA::hfsA(&hfs, *hf_phi) : 0.0;
-    const auto Ab = DiracOperator::HyperfineA::hfsA(&hfs, Fn);
+    const auto Ahf = hfQ ? DiracOperator::Hyperfine::hfsA(&hfs, *hf_phi) : 0.0;
+    const auto Ab = DiracOperator::Hyperfine::hfsA(&hfs, Fn);
     const auto Eb = Fn.en();
     const auto Ehf = hfQ ? hf_phi->en() : 0.0;
 

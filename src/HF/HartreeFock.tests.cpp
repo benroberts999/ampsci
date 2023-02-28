@@ -51,8 +51,9 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
       Wavefunction wf({points, r0, rmax, b, grid_type},
                       {Atom, A, nucleus_type});
 
-      const auto h = DiracOperator::HyperfineA(
-          1.0, 0.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+      const auto h =
+          DiracOperator::hfs(1, 1.0 / 0.5, 0.0, wf.grid(),
+                             DiracOperator::Hyperfine::pointlike_F());
       const auto d = DiracOperator::E1(wf.grid());
 
       std::cout << "\n" << wf.atom() << "\n";
@@ -96,7 +97,8 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
       // Test the HFS constants (no RPA):
       for (const auto &[fv, Ahfs] : HFSData) {
         const auto &Fv = *wf.getState(fv);
-        const auto Ahfs_me = h.hfsA(Fv);
+        // const auto Ahfs_me = h.hfsA(Fv);
+        const auto Ahfs_me = DiracOperator::Hyperfine::hfsA(&h, Fv);
         const auto eps = std::abs((Ahfs_me - Ahfs) / Ahfs);
         printf("HFS:%3s %11.5e [%11.5e] %.1e\n", fv, Ahfs_me, Ahfs, eps);
         if (Fv.l() <= 1 && eps > wHFSsp_eps) {
@@ -201,8 +203,8 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
 
   Wavefunction wf({points, r0, rmax, b, grid_type}, {Atom, A, nucleus_type});
 
-  const auto h = DiracOperator::HyperfineA(
-      1.0, 0.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+  const auto h = DiracOperator::hfs(1, 1.0 / 0.5, 0.0, wf.grid(),
+                                    DiracOperator::Hyperfine::pointlike_F());
   const auto d = DiracOperator::E1(wf.grid());
 
   std::cout << "\n" << wf.atom() << "\n";
@@ -239,7 +241,8 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
   // Test the HFS constants (no RPA):
   for (const auto &[fv, Ahfs] : HFSData) {
     const auto &Fv = *wf.getState(fv);
-    const auto Ahfs_me = h.hfsA(Fv);
+    // const auto Ahfs_me = h.hfsA(Fv);
+    const auto Ahfs_me = DiracOperator::Hyperfine::hfsA(&h, Fv);
     const auto eps = std::abs((Ahfs_me - Ahfs) / Ahfs);
     printf("HFS:%3s %11.5e [%11.5e] %.1e\n", fv, Ahfs_me, Ahfs, eps);
     if (Fv.l() <= 1 && eps > wHFSsp_eps) {
@@ -467,16 +470,16 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
     const std::vector p{236.8, 83.21, 38.60, 20.97, 12.64, 8.192, 5.610, 4.008};
 
     // Generate operator: use exact same parameters as paper:
-    const auto h = DiracOperator::HyperfineA(
-        2.751818, 1.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+    const auto h = DiracOperator::hfs(1, 2.751818 / 1.5, 0.0, wf.grid(),
+                                      DiracOperator::Hyperfine::pointlike_F());
 
     // Calculate HFS A constant for each valence state (store s,p seperately)
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence()) {
       if (Fv.kappa() == -1) {
-        sme.push_back(h.hfsA(Fv));
+        sme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
       } else if (Fv.kappa() == 1) {
-        pme.push_back(h.hfsA(Fv));
+        pme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
       }
     }
 
@@ -506,15 +509,15 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
     const std::vector p{161.0, 57.65, 27.09, 14.85, 9.002, 5.863, 4.030};
 
     // Use exact same parameters as paper:
-    const auto h = DiracOperator::HyperfineA(
-        2.582025, 3.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+    const auto h = DiracOperator::hfs(1, 2.582025 / 3.5, 0.0, wf.grid(),
+                                      DiracOperator::Hyperfine::pointlike_F());
 
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence()) {
       if (Fv.kappa() == -1)
-        sme.push_back(h.hfsA(Fv));
+        sme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
       else if (Fv.kappa() == 1)
-        pme.push_back(h.hfsA(Fv));
+        pme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
     }
     std::cout << "Cs\n";
     assert(p.size() == s.size());
@@ -541,15 +544,15 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
     const std::vector p{628.2, 222.9, 104.4, 57.13, 34.61, 22.53};
 
     // Use exact same parameters as paper:
-    const auto h = DiracOperator::HyperfineA(
-        4.00, 4.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+    const auto h = DiracOperator::hfs(1, 4.00 / 4.5, 0.0, wf.grid(),
+                                      DiracOperator::Hyperfine::pointlike_F());
 
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence()) {
       if (Fv.kappa() == -1)
-        sme.push_back(h.hfsA(Fv));
+        sme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
       else if (Fv.kappa() == 1)
-        pme.push_back(h.hfsA(Fv));
+        pme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
     }
 
     std::cout << "Fr\n";

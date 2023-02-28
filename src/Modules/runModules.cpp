@@ -14,7 +14,7 @@ void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Check if block is a module (modules state with 'Module::')
   const auto block_is_moule = [](auto &block) {
-    return qip::ci_wildcard_compare(block.name(), "Module*");
+    return qip::ci_wc_compare(block.name(), "Module*");
   };
   // if it is, run it with its input
   for (const auto &block : input.blocks()) {
@@ -34,8 +34,8 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
 
   // Loop through all available modules, run correct one
   for (const auto &[mod_name, mod_func] : module_list) {
-    if (qip::ci_wildcard_compare("Module::" + mod_name, in_name) ||
-        qip::ci_wildcard_compare(mod_name, in_name))
+    if (qip::ci_wc_compare("Module::" + mod_name, in_name) ||
+        qip::ci_wc_compare(mod_name, in_name))
       return mod_func(module_input, wf);
   }
 

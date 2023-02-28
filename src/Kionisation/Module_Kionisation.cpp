@@ -98,8 +98,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Method for cntm states:
-  using qip::ci_compare;          // case-insensitive string comparison
-  using qip::ci_wildcard_compare; // case-insensitive string comparison with *
+  using qip::ci_compare;    // case-insensitive string comparison
+  using qip::ci_wc_compare; // case-insensitive string comparison with *
   const auto tmethod = input.get<std::string>("method", "standard");
   const auto method = ci_compare(tmethod, "standard") ? Kion::Method::Standard :
                       ci_compare(tmethod, "approx")   ? Kion::Method::Approx :
@@ -300,10 +300,10 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   std::vector<Kion::OutputFormat> output_formats;
   for (auto &each : toutput) {
     const auto output =
-        ci_wildcard_compare(each, "gnu*") ? Kion::OutputFormat::gnuplot :
-        ci_wildcard_compare(each, "xyz")  ? Kion::OutputFormat::xyz :
-        ci_wildcard_compare(each, "mat*") ? Kion::OutputFormat::matrix :
-                                            Kion::OutputFormat::Error;
+        ci_wc_compare(each, "gnu*") ? Kion::OutputFormat::gnuplot :
+        ci_wc_compare(each, "xyz")  ? Kion::OutputFormat::xyz :
+        ci_wc_compare(each, "mat*") ? Kion::OutputFormat::matrix :
+                                      Kion::OutputFormat::Error;
     if (output == Kion::OutputFormat::Error) {
       fmt::print(fg(fmt::color::orange), "\nWarning: ");
       fmt::print(

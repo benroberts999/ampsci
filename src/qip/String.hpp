@@ -97,7 +97,7 @@ inline bool ci_compare(std::string_view s1, std::string_view s2) {
 
 //! Compares two strings, s1 and s2. s2 may contain ONE wildcard ('*') which
 //! will match anything. Case Insensitive version
-inline bool ci_wildcard_compare(std::string_view s1, std::string_view s2) {
+inline bool ci_wc_compare(std::string_view s1, std::string_view s2) {
   // look for wildcard:
   const auto wc = std::find(s2.cbegin(), s2.cend(), '*');
   if (wc == s2.cend())
