@@ -583,7 +583,7 @@ void Wavefunction::hartreeFockBrueckner(const bool print) {
 //==============================================================================
 void Wavefunction::fitSigma_hfBrueckner(
     const std::string &, const std::vector<double> &fit_energies) {
-  std::cout << "\nFitting Sigma for lowest valence states:\n";
+  std::cout << "\nFitting Sigma for lowest valence states:\n" << std::flush;
 
   const auto max_its = 30;
   const auto eps_targ = 1.0e-7;
@@ -603,10 +603,10 @@ void Wavefunction::fitSigma_hfBrueckner(
     const double en_0 = Fv.en(); // HF value
     auto e_Sig1 = 0.0;
     auto lambda = 1.0;
-    const double a_damp = 0.9; // 1 means no damping
+    const double a_damp = 0.5; // 1 means no damping
     double eps = 1.0;
     int its = 0;
-    for (; its < max_its; its++) {
+    for (; its <= max_its; its++) {
       auto Fv_l = Fv;
       m_Sigma->scale_Sigma(Fv_l.n(), Fv_l.kappa(), lambda);
       // nb: hf_Brueckner must start from HF... so, call on copy of Fv....
@@ -616,9 +616,11 @@ void Wavefunction::fitSigma_hfBrueckner(
       if (its == 0)
         e_Sig1 = en_l;
       eps = std::abs((e_exp - en_l) / e_exp);
-      // std::cout << lambda << " " << en_l * PhysConst::Hartree_invcm << " "
-      //           << eps << "\n";
-      if (eps < eps_targ)
+      // std::cout << " ... " << Fv_l << " " << lambda << " "
+      //           << en_l * PhysConst::Hartree_invcm << " ["
+      //           << e_exp * PhysConst::Hartree_invcm << "] " << eps << "\n"
+      //           << std::flush;
+      if (eps < eps_targ || its == max_its)
         break;
       const auto r = (e_exp - en_l) / (en_l - en_0);
       const auto new_lambda = lambda * (1.0 + a_damp * r);
