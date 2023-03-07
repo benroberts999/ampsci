@@ -51,6 +51,9 @@ generate_pnc(const IO::InputBlock &input, const Wavefunction &wf) {
                       "for given nucleus"},
                 {"t", "skin thickness [2.3]"},
                 {"print", "Write details to screen [true]"}}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
   const auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
   const auto c = input.get("c", Nuclear::c_hdr_formula_rrms_t(r_rms));
   const auto t = input.get("t", Nuclear::default_t);

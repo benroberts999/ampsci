@@ -3,6 +3,7 @@
 #include "Modules/modules_list.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "fmt/format.hpp"
 #include "qip/String.hpp"
 #include <algorithm>
 #include <iostream>
@@ -13,12 +14,12 @@ namespace Module {
 void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Check if block is a module (modules state with 'Module::')
-  const auto block_is_moule = [](auto &block) {
+  const auto block_is_module = [](auto &block) {
     return qip::ci_wc_compare(block.name(), "Module*");
   };
   // if it is, run it with its input
   for (const auto &block : input.blocks()) {
-    if (block_is_moule(block)) {
+    if (block_is_module(block)) {
       runModule(block, wf);
     }
   }
@@ -33,7 +34,7 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
   std::cout << "Module: " << in_name << "\n";
 
   // Loop through all available modules, run correct one
-  for (const auto &[mod_name, mod_func] : module_list) {
+  for (const auto &[mod_name, mod_func, description] : module_list) {
     if (qip::ci_wc_compare("Module::" + mod_name, in_name) ||
         qip::ci_wc_compare(mod_name, in_name))
       return mod_func(module_input, wf);
@@ -44,13 +45,13 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
 
   // spell-check + nearest suggestion:
   const auto compare_sc = [&in_name](const auto &s1, const auto &s2) {
-    return qip::ci_Levenstein(s1.first, in_name) <
-           qip::ci_Levenstein(s2.first, in_name);
+    return qip::ci_Levenstein(s1.name, in_name) <
+           qip::ci_Levenstein(s2.name, in_name);
   };
   const auto guess =
       std::min_element(module_list.cbegin(), module_list.cend(), compare_sc);
   if (guess != module_list.cend()) {
-    std::cout << "\nDid you mean: " << guess->first << " ?\n";
+    std::cout << "\nDid you mean: " << guess->name << " ?\n";
   }
 
   std::cout << "\nAvailable modules:\n";
@@ -60,9 +61,12 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
 
 //==============================================================================
 void list_modules() {
-  for (auto &[name, func] : module_list) {
-    std::cout << "  " << name << '\n';
+  for (auto &[name, func, description] : module_list) {
+    // std::cout << "  " << name << '\n';
+    fmt::print("{:25s} : {}\n", name, description);
   }
 }
 
 } // namespace Module
+
+//transitionPolarisability

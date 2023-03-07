@@ -208,6 +208,9 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
        {"l2", "l of 'second' unpaired nucleon"},
        {"I1", "total spin (J) of 'first' unpaired nucleon"},
        {"I2", "total spin (J) of 'second' unpaired nucleon"}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
 
   const auto nuc = wf.nucleus();
   const auto isotope = Nuclear::findIsotopeData(nuc.z(), nuc.a());

@@ -90,6 +90,9 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_E1(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check({{"no options", ""}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
   return std::make_unique<E1>(wf.grid());
 }
 
@@ -97,6 +100,9 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_E1v(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check({{"no options", ""}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
   return std::make_unique<E1v>(wf.alpha(), 0.0);
 }
 
@@ -104,6 +110,9 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_E2(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check({{"no options", ""}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
   return std::make_unique<Ek>(wf.grid(), 2);
 }
 
@@ -112,6 +121,9 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_Ek(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
   const auto k = input.get("k", 1);
   return std::make_unique<Ek>(wf.grid(), k);
 }

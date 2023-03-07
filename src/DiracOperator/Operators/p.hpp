@@ -55,6 +55,9 @@ public:
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_p(const IO::InputBlock &input, const Wavefunction &) {
   input.check({{"", "no input"}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
   return std::make_unique<DiracOperator::p>();
 }
 

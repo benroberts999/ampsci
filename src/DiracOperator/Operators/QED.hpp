@@ -50,6 +50,9 @@ generate_Vrad(const IO::InputBlock &input, const Wavefunction &wf) {
         {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
                     "1,0,1 => include for s and d, but not for p [1.0]"},
         {"readwrite", "Read/write potential? [true]"}}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
 
   const auto x_Ueh = input.get({"RadPot"}, "Ueh", 1.0);
   const auto x_SEe_h = input.get({"RadPot"}, "SE_h", 1.0);

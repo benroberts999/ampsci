@@ -50,13 +50,20 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_r(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check({{"power", "Power (real) for r^k"}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
   const auto power = input.get("power", 1.0);
   std::cout << "r^(" << power << ")\n";
   return std::make_unique<RadialF>(wf.grid(), power);
 }
 
 inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_dr(const IO::InputBlock &, const Wavefunction &) {
+generate_dr(const IO::InputBlock &input, const Wavefunction &) {
+  input.check({{"", "no input"}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
   using namespace DiracOperator;
   return std::make_unique<dr>();
 }

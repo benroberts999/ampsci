@@ -1,11 +1,11 @@
 #pragma once
 #include "IO/InputBlock.hpp"
 #include "Operators/Ek.hpp"
-#include "Operators/hfs.hpp"
 #include "Operators/M1.hpp"
 #include "Operators/PNC.hpp"
 #include "Operators/QED.hpp"
 #include "Operators/RadialF.hpp"
+#include "Operators/hfs.hpp"
 #include "Operators/p.hpp"
 #include "TensorOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
