@@ -10,29 +10,30 @@
 
 Get a list of available modules: `./ampsci -m`
 
-They are:
+They are (at time of writing):
 
-- Tests
-- WriteOrbitals
-- AtomicKernel
-- BohrWeisskopf
-- HFAnomaly
-- HF_rmag
-- screeningFactors
-- BW_eta_sp
-- pnc
-- vertexQED
-- QED
-- testFeynman
-- matrixElements
-- lifetimes
-- polarisability
-- dynamicPolarisability
-- transitionPolarisability
-- structureRad
-- fieldShift
-- continuum
-- ladder
+ * Tests                   : Some basic wavefunction tests
+ * WriteOrbitals           : Write orbitals to disk for plotting
+ * matrixElements          : Calculates matrix elements of any operator
+ * lifetimes               : Calculate radiative lifetimes (E1, E2, M1)
+ * polarisability          : Calculates static polarisabilities
+ * dynamicPolarisability   : Calculates dynamic polarisabilities
+ * transitionPolarisability : Calculates transition polarisabilities
+ * structureRad            : Calculates Struct. Rad + Normalisation corrections to MEs
+ * fieldShift              : Calculates field-shift constants (isotope shift)
+ * QED                     : QED corrections to energies/matrix elements
+ * Breit                   : Breit corrections to energies/matrix elements
+ * ladder                  : Calculates ladder diagrams and energy corrections
+ * Kionisation             : Calculate atomic ionisation form-factors
+ * continuum               : Compute and use continuum wavefunctions
+ * BohrWeisskopf           : Calculates Bohr-Weisskopf effect
+ * HFAnomaly               : 
+ * HF_rmag                 : 
+ * BW_eta_sp               : 
+ * screeningFactors        : Calculates Feynman electron screening factors
+ * pnc                     : Calculates APV amplitudes
+ * testFeynman             : 
+ * exampleModule           : A short description of the module
 
 You can see all the available options by setting the 'help' option, e.g.,
 
@@ -234,154 +235,5 @@ Module::BohrWeisskopf{
   rpa_diagram; //
   screening; //
   hfs_options; //
-}
-```
-
---------------------------------------------------------------------------------
-
-## Module::HFAnomaly
-
-Calculates HF Anomaly effect
-
-```cpp
-Module::HFAnomaly{
-  rpa; //
-  options; //
-  A; //
-}
-```
-
---------------------------------------------------------------------------------
-
-## Module::HF_rmag
-
-Tuning Rmag to fit hyperfine anomaly
-
-```cpp
-Module::HF_rmag{
-  n; //
-  kappa; //
-  A2; //
-  1D2; //
-  rpa; //
-  num_steps; //
-  mu1; //
-  mu2; //
-  I1; //
-  I2; //
-  eps_targ; //
-  e1; //
-  e2; //
-}
-```
-
---------------------------------------------------------------------------------
-
-## Module::BW_eta_sp
-
-Calculates ets_sp function for transating s-p BW effect
-
-```cpp
-Module::BW_eta_sp{
-}
-```
-
---------------------------------------------------------------------------------
-
-## Module::pnc
-
-Calculates PNC amplitudes
-
-```cpp
-Module::pnc{
-  t; //
-  c; //
-  transition; //
-  nmain; //
-  rpa; //
-  omega; //
-  E1_rpa_it; //
-  pnc_rpa_it; //
-}
-```
-
---------------------------------------------------------------------------------
-
-## Module::vertexQED
-
-In progress: calculates QED vertex correction using approx formula
-
-```cpp
-Module::vertexQED{
-  operator; // operator (e.g., E1 or hfs)
-  options; // operator options (same as matrixElements)
-  rrms; // nuclear rms, for QED part
-  onlyDiagonal; // only print <a|h|a>
-  radialIntegral; // false by default (means red. mat. el)
-  A_vertex; // A vtx factor; blank=default
-  b_vertex; // A vtx factor; =1 by default
-  rpa; // include RPA? NOT USED FOR NOW
-  omega; // freq. for RPA; NOT USED FOR NOW
-}
-```
-
---------------------------------------------------------------------------------
-
-## Module::QED
-
-Calculates QED corrections to energies, matrix elements
-
-```cpp
-Module::QED{
-  A_vertex; // A vtx factor; blank means dflt
-  b_vertex; // B vtx factor; =1 by default
-  rrms; // double; effective rrms used in radiative potential
-  out_file; // Results appended to this file (if given)
-  matrixElements; // sub-block; same as Module::matrixElements
-  coreQED; // bool; Include QED into core? Or just valence
-  scale_l; // list; Scale factors for each l; e.g., 1,0 means s, but no p,d. default = 1, meaning include all
-  vertex; // bool; Calculate vertex corrections?
-}
-```
-
---------------------------------------------------------------------------------
-
-## Module::continuum
-
-Calculates continuum wavefunctions, optionally matrix elements, and writes wfs to disk
-
-```cpp
-Module::continuum{
-  energy; // List. energy for cntm states (>0) [0.5]
-  max_l; // maximum l
-  filename; // filename for output
-  operator; // Operator to calculate matrix elements (e.g., E1)
-  options; // options specific to operator; blank by dflt
-  rpa; // Include RPA (TDHF for now)? [false]
-  omega; // Frequency for RPA [0.0]
-}
-```
-
---------------------------------------------------------------------------------
-
-## Module::ladder
-
-Calculates ladder diagrams, stores in file (Lfile).
-
-```cpp
-Module::ladder{
-  min; // lowest core n to include [0]
-  max; // maximum excited n to include [99]
-  max_l; // maximum excited l to include [99]
-  max_k; // maximum k to include in Qk [99]
-  include_L4; // Inlcude 4th Ladder diagram [false]
-  fk; // List of doubles. Effective screening factors. Used to calculate Lk. []
-  eta; // List of doubles. Effective hp factors. Only used to print energy shift. []
-  Qfile; // filename to read/write Qk integrals
-  form_Q; // Form or read Qk? (if have lk already, dont' need!) [true]
-  Lfile; // filename to read/write Qk integrals
-  progbar; // Print progress bar? [true]
-  max_it; // Max # iterations [15]
-  eps_target; // Target for convergance [1.0e-4]
 }
 ```

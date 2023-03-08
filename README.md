@@ -56,18 +56,23 @@ Divided into sections:
     * This should only be required if you plan to edit the code or add new modules
 
 **Quick start**:
- * See which ampsci input options are available: `./ampsci -a`
-   * See available input options for each input block by following with its name
-   * e.g., `./ampsci -a HartreeFock`
- * Check which Modules are aviable: `./ampsci -m`
-   * See available input options for each module by following with its name
-   * e.g., `./ampsci -m MatrixElements`
- * Check which operators are aviable: `./ampsci -o`
-   * See available input options for each operator by following with its name
-   * e.g., `./ampsci -o hfs`
+
+* The `setup.sh` bash script should install all required dependencies and build ampsci
+  * It uses only defaults, and may not work on all systems.
+    See above instructions for full guide to compilation.
+* See which ampsci input options are available: `./ampsci -a`
+  * See available input options for each input block by following with its name
+  * e.g., `./ampsci -a HartreeFock`
+* Check which Modules are aviable: `./ampsci -m`
+  * See available input options for each module by following with its name
+  * e.g., `./ampsci -m MatrixElements`
+* Check which operators are aviable: `./ampsci -o`
+  * See available input options for each operator by following with its name
+  * e.g., `./ampsci -o hfs`
 
 Looking for atomic ionisation form-factors for dark-matter-electron scattering?
- * See `Kionisation` module (`./ampsci -m Kionisation`)
+
+* See `Kionisation` module (`./ampsci -m Kionisation`)
 
 --------------------------------------------------------------------------------
 

@@ -11,7 +11,7 @@ ifneq ($(Build),release)
 endif
 
 ALLEXES = $(addprefix $(XD)/, \
- ampsci dmeXSection tests \
+ ampsci tests \
 )
 
 CHECKS = GitInfo checkObj checkXdir
@@ -65,10 +65,6 @@ $(XD)/ampsci: $(BD)/$(SUBBD)/ampsci.o $(OBJS)
 	$(LINK)
 
 $(XD)/tests: $(OBJS) $(TEST_OBJS)
-	$(LINK)
-
-# This is temporary, and will be killed soon
-$(XD)/dmeXSection: $(BD)/$(SUBBD)/dmeXSection.o $(OBJS)
 	$(LINK)
 
 ################################################################################

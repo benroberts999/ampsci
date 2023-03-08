@@ -458,13 +458,15 @@ void write_to_file(const std::vector<OutputFormat> &formats,
                    const LinAlg::Matrix<double> &K, const Grid &E_grid,
                    const Grid &q_grid, const std::string &filename,
                    int num_digits, Units units) {
+  // Update: Always use atomic units for mat and xyz
   for (const auto &format : formats) {
     if (format == OutputFormat::gnuplot)
       write_to_file_gnuplot(K, E_grid, q_grid, filename, num_digits, units);
     if (format == OutputFormat::matrix)
-      write_to_file_matrix(K, E_grid, q_grid, filename, num_digits, units);
+      write_to_file_matrix(K, E_grid, q_grid, filename, num_digits,
+                           Units::Atomic);
     if (format == OutputFormat::xyz)
-      write_to_file_xyz(K, E_grid, q_grid, filename, num_digits, units);
+      write_to_file_xyz(K, E_grid, q_grid, filename, num_digits, Units::Atomic);
   }
 }
 

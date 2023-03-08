@@ -20,5 +20,4 @@ doc/tex/*
 !.github/
 !.gitignore
 !*.md
-!doc/quickstart-linux.sh
-!doc/quickstart-macOS.sh
+!setup.sh

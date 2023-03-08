@@ -50,8 +50,9 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
                          "grids printed prior\n"},
        {"each_state", "bool. If true, will output K(E,q) for each "
                       "(accessible) core-state [false]"},
-       {"units", "Units for output: Particle (keV/MeV) or Atomic (E_H,1/a0) "
-                 "[Particle]"}});
+       {"units", "Units for output: Particle (keV/MeV) or Atomic (E_H,1/a0). "
+                 "Only affects _gnu output format, all _mat and _xyz are "
+                 "always in atomic units. [Atomic]"}});
   if (input.has_option("help"))
     return;
 
@@ -324,18 +325,19 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Units:
-  const auto tunits = input.get<std::string>("units", "particle");
+  const auto tunits = input.get<std::string>("units", "atomic");
   auto units = ci_compare(tunits, "particle") ? Kion::Units::Particle :
                ci_compare(tunits, "atomic")   ? Kion::Units::Atomic :
                                                 Kion::Units::Error;
   if (units == Kion::Units::Error) {
     fmt::print(fg(fmt::color::orange), "\nWarning: ");
     fmt::print("Output units option: `{}' unknown. Options are: Particle, "
-               "Atomic. Defaulting to particle\n",
+               "Atomic. Defaulting to atomic\n",
                tunits);
-    units = Kion::Units::Particle;
+    units = Kion::Units::Atomic;
   }
-  std::cout << "Output files will use: " << tunits << " units\n";
+  std::cout << "_gnu output file will use: " << tunits << " units\n";
+  std::cout << "_mat and _xyz output files always use atomic units\n";
   const int num_output_digits = 5;
 
   //----------------------------------------------------------------------------

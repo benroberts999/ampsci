@@ -62,8 +62,7 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
 //==============================================================================
 void list_modules() {
   for (auto &[name, func, description] : module_list) {
-    // std::cout << "  " << name << '\n';
-    fmt::print("{:25s} : {}\n", name, description);
+    fmt::print(" * {:23s} : {}\n", name, description);
   }
 }
 

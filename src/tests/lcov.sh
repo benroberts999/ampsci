@@ -14,7 +14,6 @@ lcov --remove coverage.info \
   '*/version/*' \
   '/usr/*' \
   '*/Modules/*' \
-  '*/DMionisation/*' \
   '*/Kionisation/*' \
   '*/Physics/periodicTable.*' \
   '*/MBPT/FeynmanSigma.*' \
