@@ -1,5 +1,6 @@
 #include "Kion_functions.hpp"
 #include "DiracOperator/DiracOperator.hpp"
+#include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/DiagramRPA0_jL.hpp"
 #include "HF/HartreeFock.hpp"
 #include "LinAlg/Matrix.hpp"
@@ -22,7 +23,7 @@ LinAlg::Matrix<double>
 calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
               const Grid &Egrid, const DiracOperator::jL *jl, bool subtract_1,
               bool force_rescale, bool hole_particle, bool force_orthog,
-              bool zeff_cont, bool use_rpa,
+              bool zeff_cont, bool use_rpa0,
               const std::vector<DiracSpinor> &basis) {
   assert(vHF != nullptr && "Hartree-Fock potential must not be null");
 
@@ -31,8 +32,8 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
 
   LinAlg::Matrix Knk_Eq(Egrid.num_points(), qgrid.num_points());
 
-  std::unique_ptr<ExternalField::DiagramRPA0_jL> rpa;
-  if (use_rpa)
+  std::unique_ptr<ExternalField::DiagramRPA0_jL> rpa{nullptr};
+  if (use_rpa0)
     rpa = std::make_unique<ExternalField::DiagramRPA0_jL>(jl, basis, vHF);
 
   if (std::abs(Fnk.en()) > Egrid.r().back()) {
@@ -55,8 +56,6 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
 
   const bool parallelise_E =
       Egrid.num_points() > std::min(qsteps, (std::size_t)omp_get_max_threads());
-  // const bool parallelise_E =
-  //     Egrid.num_points() >= std::min(qsteps, std::size_t(10));
 
 #pragma omp parallel for if (parallelise_E)
   for (std::size_t idE = 0; idE < Egrid.num_points(); ++idE) {
@@ -86,8 +85,8 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
                             hole_particle, force_orthog);
     }
 
-    // Generate AK for each L, lc, and q
-    // L and lc are summed, not stored individually
+// Generate AK for each L, lc, and q
+// L and lc are summed, not stored individually
 #pragma omp parallel for if (!parallelise_E)
     for (std::size_t iq = 0; iq < qsteps; iq++) {
       for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
@@ -109,6 +108,69 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
     }
   }
   return Knk_Eq;
+}
+
+//==============================================================================
+std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
+    const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &core, int max_L,
+    const Grid &Egrid, DiracOperator::jL *jl, bool subtract_1,
+    bool force_rescale, bool hole_particle, bool force_orthog,
+    const std::vector<DiracSpinor> &basis, const std::string &atom) {
+  assert(vHF != nullptr && "Hartree-Fock potential must not be null");
+
+  const auto &qgrid = jl->q_grid();
+  const auto qsteps = qgrid.num_points();
+
+  const int max_rpa_its = 128;
+
+  std::vector<LinAlg::Matrix<double>> K_nk_Eq(
+      core.size(), {Egrid.num_points(), qgrid.num_points()});
+
+  // This could be done more efficiently, but this seems fine.
+  // Don't need to run RPA for large number of q anyway
+  std::cout << "\nInlcuding RPA. RPA equations solved for each L and q\n";
+  for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
+    jl->set_L_q(L, 0.0);
+    auto rpa = ExternalField::DiagramRPA(jl, basis, vHF, atom);
+    for (std::size_t iq = 0; iq < qsteps; iq++) {
+      const auto q = jl->q_grid().at(iq);
+      jl->set_L_q(L, q);
+      rpa.update_t0s(); // Udate t0, since JL(q) changed
+      rpa.solve_core(0.0, max_rpa_its, false);
+      fmt::print("L={}, q={:7.2f}, eps={:.1e}, its={}\n", L, q, rpa.get_eps(),
+                 rpa.get_its());
+      std::cout << std::flush;
+#pragma omp parallel for collapse(2)
+      for (std::size_t ink = 0; ink < core.size(); ink++) {
+        for (std::size_t idE = 0; idE < Egrid.num_points(); ++idE) {
+          const auto &Fnk = core.at(ink);
+          const auto dE = Egrid(idE);
+          double ec = dE + Fnk.en();
+          if (ec <= 0.0)
+            continue;
+          const auto [lc_max, lc_min] =
+              std::pair{Fnk.l() + max_L, std::max(Fnk.l() - max_L, 0)};
+          const double x_ocf = Fnk.occ_frac();
+          ContinuumOrbitals cntm(vHF);
+          cntm.solveContinuumHF(ec, lc_min, lc_max, &Fnk, force_rescale,
+                                hole_particle, force_orthog);
+          double K_tmp_Fe = 0.0;
+          for (const auto &Fe : cntm.orbitals) {
+            if (jl->isZero(Fe, Fnk))
+              continue;
+            auto me = jl->reducedME(Fe, Fnk) + rpa.dV(Fe, Fnk);
+            if (subtract_1 && (L == 0 && Fe.kappa() == Fnk.kappa())) {
+              me -= Fe * Fnk;
+            }
+            K_tmp_Fe += double(2 * L + 1) * me * me * x_ocf;
+          }
+          K_nk_Eq.at(ink).at(idE, iq) += K_tmp_Fe;
+        }
+      }
+    }
+  }
+
+  return K_nk_Eq;
 }
 
 //==============================================================================

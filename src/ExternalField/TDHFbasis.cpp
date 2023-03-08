@@ -159,6 +159,7 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
   }
   std::cout << std::flush;
   m_core_eps = eps;
+  m_core_its = it;
   m_core_omega = omega;
 }
 

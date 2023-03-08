@@ -286,9 +286,12 @@ void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
   t0am.clear();
   t0ma.clear();
 
+  t0am.reserve(holes.size());
+  t0ma.reserve(excited.size());
   // Calc t0 (and setup t)
   for (const auto &Fa : holes) {
     std::vector<double> t0a_m;
+    t0a_m.reserve(excited.size());
     for (const auto &Fm : excited) {
       t0a_m.push_back(h->reducedME(Fa, Fm));
     }
@@ -296,6 +299,7 @@ void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
   }
   for (const auto &Fm : excited) {
     std::vector<double> t0m_a;
+    t0m_a.reserve(holes.size());
     for (const auto &Fa : holes) {
       t0m_a.push_back(h->reducedME(Fm, Fa));
     }
@@ -307,6 +311,27 @@ void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
 void DiagramRPA::clear() {
   tam = t0am;
   tma = t0ma;
+}
+
+//==============================================================================
+void DiagramRPA::update_t0s() {
+  assert(t0am.size() == holes.size());
+  assert(t0ma.size() == excited.size());
+  if (holes.size() > 0) {
+    assert(t0am.at(0).size() == excited.size());
+  }
+  if (excited.size() > 0) {
+    assert(t0ma.at(0).size() == holes.size());
+  }
+  for (std::size_t ia = 0; ia < holes.size(); ++ia) {
+    const auto &Fa = holes[ia];
+    for (std::size_t im = 0; im < excited.size(); ++im) {
+      const auto &Fm = excited[im];
+      t0am[ia][im] = m_h->reducedME(Fa, Fm);
+      t0ma[im][ia] = m_h->symm_sign(Fa, Fm) * t0am[ia][im];
+    }
+  }
+  clear();
 }
 
 //==============================================================================
@@ -379,10 +404,10 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
     std::cout << std::flush;
   }
 
-  int it = 2; // 1 iteration means use t0 inside dV
+  int it = 0;
   auto eps = 0.0;
   const auto f = (1.0 / (2 * m_rank + 1));
-  for (; it <= max_its; it++) {
+  for (; it < max_its; it++) {
     std::vector<double> eps_m(excited.size()); //"thread-safe" eps..?
 // XXX "Small" race condition in here???
 #pragma omp parallel for
@@ -454,6 +479,7 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
     std::cout << std::flush;
   }
   m_core_eps = eps;
+  m_core_its = it;
 }
 
 } // namespace ExternalField

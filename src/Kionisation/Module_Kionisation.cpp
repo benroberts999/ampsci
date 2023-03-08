@@ -12,8 +12,34 @@
 #include "fmt/ostream.hpp"
 #include "qip/Methods.hpp"
 #include "qip/String.hpp"
+#include <cassert>
 #include <iostream>
 #include <memory>
+
+static const std::string Kionisation_description_text{R"(
+This module calculates atomic ionisation factors.
+Some further detail is given here.
+
+Method:
+  - 'hf' is the standard choice, calculated continuum wavefunctions in 
+    Hartree-Fock potential of bound states. "hole_particle" option, which is 
+    true by default, corrects the Hartree-Fock potential to account for missing 
+    ionised electron.
+  - RPA means include core-polarisation (many-body) corrections.
+    'RPA0' will include only lowest-order RPA corrections, and is quite fast
+    'RPA' will include all-orders rpa. This is slow, since the RPA equations
+    need to be iterated for each L and q seperately. Therefore, it is advised 
+    only to use full RPA for a small subset of E/q grids.
+  - Other methods (Zeff etc.) are mainly used for tests, and to compare with 
+    other less accurate codes. These are not accurate methods to use.
+
+Output format:
+  - xyz:      For easy 2D interpolation. Each row is in form: 'E q K(E,q)'
+  - gnuplot:  For easy plotting. Each column is new E
+  - matrix:   Outputs entire matrix in table form, with E and q grids 
+              printed prior. This is form expected by 'dmex' program
+
+    )"};
 
 namespace Module {
 
@@ -30,10 +56,12 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
         "List (2). Minimum, maximum momentum transfer (q), in MeV [0.01,0.01]"},
        {"q_steps", "Number of steps along q grid (logarithmic grid) [1]"},
        {"max_L", "Maximum multipolarity used in exp(iqr) expansion [6]"},
-       {"label", "label for output files"},
-       {"method", "Method for continuum: standard (rel. HF), zeff (for "
-                  "continuum), approx (step function). [standard]"},
-       {"rpa", "bool. Use RPA (rel HF, with first-order RPA)? [false]"},
+       {"label", "optional extra label for output files"},
+       {"method", "'hf' (relativistic Hartree-Fock), "
+                  "'rpa0' (lowst-order RPA), "
+                  "'rpa' (all-orders RPA), "
+                  "'zeff' (Z_eff for continuum), "
+                  "'approx' (step function). [hf]"},
        {"subtract_1", "Replace e^(iqr) -> e^(iqr)-1 [false]"},
        {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
        {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
@@ -42,19 +70,16 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
        {"coupling", "Vector, Scalar (g0), Pseudovector (g5), Pseudoscalar "
                     "(g0g5) [Vector]"},
        {"output_format", "List: Format for output. List any of: gnuplot, xyz, "
-                         "matrix (comma-separated). [gnuplot]\n\n"
-                         "xyz: For easy 2D interpolation. list formmated with "
-                         "each row 'E q K(E,q)'\n"
-                         "gnuplot: For easy plotting. Each column is new E\n"
-                         "matrix: Outputs entire matrix in table form. E and q "
-                         "grids printed prior\n"},
+                         "matrix (comma-separated). [gnuplot]"},
        {"each_state", "bool. If true, will output K(E,q) for each "
                       "(accessible) core-state [false]"},
        {"units", "Units for output: Particle (keV/MeV) or Atomic (E_H,1/a0). "
                  "Only affects _gnu output format, all _mat and _xyz are "
                  "always in atomic units. [Atomic]"}});
-  if (input.has_option("help"))
+  if (input.has_option("help")) {
+    std::cout << Kionisation_description_text;
     return;
+  }
 
   //----------------------------------------------------------------------------
 
@@ -101,11 +126,13 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   // Method for cntm states:
   using qip::ci_compare;    // case-insensitive string comparison
   using qip::ci_wc_compare; // case-insensitive string comparison with *
-  const auto tmethod = input.get<std::string>("method", "standard");
-  const auto method = ci_compare(tmethod, "standard") ? Kion::Method::Standard :
-                      ci_compare(tmethod, "approx")   ? Kion::Method::Approx :
-                      ci_compare(tmethod, "zeff")     ? Kion::Method::Zeff :
-                                                        Kion::Method::Error;
+  const auto tmethod = input.get<std::string>("method", "hf");
+  const auto method = ci_wc_compare(tmethod, "h*")      ? Kion::Method::HF :
+                      ci_compare(tmethod, "rpa0")       ? Kion::Method::RPA0 :
+                      ci_compare(tmethod, "rpa")        ? Kion::Method::RPA :
+                      ci_compare(tmethod, "zeff")       ? Kion::Method::Zeff :
+                      ci_wc_compare(tmethod, "approx*") ? Kion::Method::Approx :
+                                                          Kion::Method::Error;
   const auto use_Zeff_cont = method == Kion::Method::Zeff;
   if (method == Kion::Method::Error) {
     fmt::print(fg(fmt::color::red), "\nError 104: ");
@@ -114,27 +141,28 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
                tmethod);
     return;
   }
+  std::cout << "Using   : " << tmethod << " method\n";
 
-  // Use RPA?
-  const bool use_rpa = input.get("rpa", false);
-  if (use_rpa) {
-    std::cout << "Using RPA (first-order), with basis: "
-              << DiracSpinor::state_config(wf.basis()) << "\n";
+  const bool use_rpa0 = method == Kion::Method::RPA0;
+  const bool use_rpa_ao = method == Kion::Method::RPA;
+  if (use_rpa0 || use_rpa_ao) {
+    std::cout << "Using RPA " << (use_rpa0 ? "(lowest-order)" : "(all-orders)")
+              << ", with basis: " << DiracSpinor::state_config(wf.basis())
+              << "\n";
   }
-
+  if ((use_rpa0 || use_rpa_ao) && wf.basis().empty()) {
+    fmt::print(fg(fmt::color::orange), "\nWarning: ");
+    fmt::print("RPA method required a basis to work. See `ampsci -a "
+               "Basis`\nRPA will evaluate to zero without a basis\n\n");
+  }
   // sanity check for RPA - meaningless unless we used HF method
-  if (use_rpa && wf.vHF() && wf.vHF()->method() != HF::Method::HartreeFock) {
+  if ((use_rpa0 || use_rpa_ao) && wf.vHF() &&
+      wf.vHF()->method() != HF::Method::HartreeFock) {
     fmt::print(fg(fmt::color::red), "\nError 113: ");
     fmt::print("It's only meaningful to include RPA if we start with "
                "HartreeFock method (for core states).\n");
     return;
   }
-  if (use_rpa && wf.basis().empty()) {
-    fmt::print(fg(fmt::color::orange), "\nWarning: ");
-    fmt::print("RPA method required a basis to work. See `ampsci -a "
-               "Basis`\nRPA will evaluate to zero without a basis\n\n");
-  }
-  std::cout << "Using   : " << tmethod << " method\n";
 
   //----------------------------------------------------------------------------
 
@@ -166,10 +194,6 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout
         << "Using Z_eff model for continuum; hole_particle and force_rescale "
            "have no effect. Caution: this should only be used for tests\n";
-  }
-  if (use_rpa && use_Zeff_cont) {
-    fmt::print(fg(fmt::color::orange), "\nWarning: ");
-    fmt::print("Using RPA with Z_eff model doesn't make sense.\n");
   }
 
   // Perform checks, print possible warnings
@@ -256,13 +280,24 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   //----------------------------------------------------------------------------
 
   // Create output file-name template
-  const std::string method_text = method == Kion::Method::Standard ? "" :
-                                  method == Kion::Method::Approx   ? "aprx_" :
-                                  method == Kion::Method::Zeff     ? "zeff_" :
-                                                                     "???_";
 
   const std::string rpa_text =
-      use_rpa ? "rpa" + DiracSpinor::state_config(wf.basis()) + "_" : "";
+      (use_rpa0 ? "rpa_" : "rpa0_") + DiracSpinor::state_config(wf.basis());
+
+  const auto hf_text = wf.vHF() == nullptr                           ? "??" :
+                       wf.vHF()->method() == HF::Method::HartreeFock ? "hf" :
+                       wf.vHF()->method() == HF::Method::Hartree     ? "ha" :
+                       wf.vHF()->method() == HF::Method::KohnSham    ? "ks" :
+                       wf.vHF()->method() == HF::Method::ApproxHF    ? "ahf" :
+                       wf.vHF()->method() == HF::Method::Local       ? "loc" :
+                                                                       "??";
+
+  const std::string method_text = method == Kion::Method::HF     ? hf_text :
+                                  method == Kion::Method::RPA0   ? rpa_text :
+                                  method == Kion::Method::RPA    ? rpa_text :
+                                  method == Kion::Method::Approx ? "aprx_" :
+                                  method == Kion::Method::Zeff   ? "zeff_" :
+                                                                   "???_";
 
   const std::string coupling_text =
       coupling == Kion::Coupling::Vector       ? "v" :
@@ -270,8 +305,9 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       coupling == Kion::Coupling::PseudoVector ? "pv" :
       coupling == Kion::Coupling::PseudoScalar ? "ps" :
                                                  "???";
+
   // doesn't include suffix
-  std::string oname = "K_" + method_text + rpa_text + wf.atomicSymbol() + "_";
+  std::string oname = "K_" + wf.atomicSymbol() + "_" + method_text + "_";
   if (wf.Zion() != 0)
     oname += fmt::format("{}+_", wf.Zion());
   oname += coupling_text + "_";
@@ -324,7 +360,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
-  // Units:
+  // Units (only for gnuplot-style):
   const auto tunits = input.get<std::string>("units", "atomic");
   auto units = ci_compare(tunits, "particle") ? Kion::Units::Particle :
                ci_compare(tunits, "atomic")   ? Kion::Units::Atomic :
@@ -336,19 +372,56 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
                tunits);
     units = Kion::Units::Atomic;
   }
-  std::cout << "_gnu output file will use: " << tunits << " units\n";
-  std::cout << "_mat and _xyz output files always use atomic units\n";
-  const int num_output_digits = 5;
+  std::cout << "_gnu output file (if requested) will use: " << tunits
+            << " units\n";
+  std::cout << "(_mat and _xyz output files always use atomic units)\n";
 
   //----------------------------------------------------------------------------
 
-  std::cout << "Calculating K(E,q) - ionisation factor\n" << std::flush;
+  std::cout << "\nCalculating K(E,q) - ionisation factor\n" << std::flush;
+  const int num_output_digits = 5;
 
   // Kion stored K(dE, q)
   LinAlg::Matrix<double> Kion(Egrid.num_points(), qgrid.num_points());
 
-  if (method != Kion::Method::Approx) {
-    std::cout << "Using   : " << tmethod << " method\n";
+  if (method == Kion::Method::HF || method == Kion::Method::RPA0) {
+  }
+
+  if (method == Kion::Method::RPA) {
+
+    /// XXX print each nk
+    const auto Knks = Kion::calculateK_nk_rpa(
+        wf.vHF(), wf.core(), max_L, Egrid, jl.get(), subtract_1, force_rescale,
+        hole_particle, force_orthog, wf.basis(), wf.identity());
+
+    assert(Knks.size() == wf.core().size());
+
+    for (std::size_t ic = 0; ic < wf.core().size(); ++ic) {
+      const auto &Fnk = wf.core().at(ic);
+      const auto Fc_accessible = std::abs(Fnk.en()) <= Emax_au;
+      if (write_each_state && Fc_accessible) {
+        const auto oname_nk = oname + "_" + Fnk.shortSymbol();
+        std::cout << "Written to file: " << oname_nk << "\n";
+        Kion::write_to_file(output_formats, Knks.at(ic), Egrid, qgrid, oname_nk,
+                            num_output_digits, units);
+      }
+      Kion += Knks.at(ic);
+    }
+
+  } else if (method == Kion::Method::Approx) {
+
+    std::cout << "Using   : approx (step-function) method\n";
+    const auto K_approx = Kion::calculateK_nk_approx(
+        wf.vHF(), wf.core(), max_L, jl.get(), subtract_1, force_rescale,
+        hole_particle, force_orthog, use_Zeff_cont, use_rpa0, wf.basis());
+    Kion::write_approxTable_to_file(K_approx, wf.core(), qgrid, oname,
+                                    num_output_digits, units);
+    // convert to "standard" form, for easy comparison
+    Kion = Kion::convert_K_nk_approx_to_std(K_approx, Egrid, wf.core());
+
+  } else {
+    // all other methods (including standard)
+
     for (const auto &Fnk : wf.core()) {
       const auto accessible = std::abs(Fnk.en()) < Emax_au;
       if (!accessible)
@@ -356,7 +429,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << Fnk << ", " << std::flush;
       const auto K_nk = Kion::calculateK_nk(
           wf.vHF(), Fnk, max_L, Egrid, jl.get(), subtract_1, force_rescale,
-          hole_particle, force_orthog, use_Zeff_cont, use_rpa, wf.basis());
+          hole_particle, force_orthog, use_Zeff_cont, use_rpa0, wf.basis());
       if (write_each_state) {
         const auto oname_nk = oname + "_" + Fnk.shortSymbol();
         std::cout << "Written to file: " << oname_nk << "\n";
@@ -365,21 +438,9 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       }
       Kion += K_nk;
     }
-    std::cout << "\n";
-  } else {
-    std::cout << "Using   : approx (step-function) method\n";
-    const auto K_approx = Kion::calculateK_nk_approx(
-        wf.vHF(), wf.core(), max_L, jl.get(), subtract_1, force_rescale,
-        hole_particle, force_orthog, use_Zeff_cont, use_rpa, wf.basis());
-
-    Kion::write_approxTable_to_file(K_approx, wf.core(), qgrid, oname,
-                                    num_output_digits, units);
-
-    // convert to "standard" form, for easy comparison
-    Kion = Kion::convert_K_nk_approx_to_std(K_approx, Egrid, wf.core());
   }
 
-  std::cout << "\nWritten to file: " << oname << "\n";
+    std::cout << "\nWritten to file: " << oname << "\n";
   Kion::write_to_file(output_formats, Kion, Egrid, qgrid, oname,
                       num_output_digits, units);
 

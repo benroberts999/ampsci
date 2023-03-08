@@ -44,6 +44,8 @@ protected:
 public:
   //! Returns eps (convergance) of last solve_core run
   double get_eps() const { return m_core_eps; }
+  //! Returns its (# of iterations) of last solve_core run
+  double get_its() const { return m_core_its; }
   //! Returns omega (frequency) of last solve_core run
   double get_omega() const { return m_core_omega; }
   int get_rank() const { return m_rank; }
