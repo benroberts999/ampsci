@@ -25,10 +25,9 @@ private:
   Coulomb::YkTable m_yk{};
 
 public:
-  //! Normal constructor: needs core to split basis: only uses basis.
   DiagramRPA0_jL(const DiracOperator::TensorOperator *const h,
                  const std::vector<DiracSpinor> &basis,
-                 const HF::HartreeFock *in_hf)
+                 const HF::HartreeFock *in_hf, int max_l)
       : CorePolarisation(h), p_hf(in_hf) {
 
     if (p_hf == nullptr || h == nullptr) {
@@ -48,7 +47,9 @@ public:
     }
 
     m_yk.calculate(basis);
-    m_yk.extend_angular(16); //??
+    // need Ck up to continuum states; depends on max_l
+    const auto max_tj = DiracSpinor::max_tj(basis) + 2 * max_l;
+    m_yk.extend_angular(max_tj); //??
   }
 
 public:
@@ -67,6 +68,7 @@ public:
   }
 
   //----------------------------------------------------------------------------
+  // nb: Fv MUST appear within basis!
   double dV_diagram_jL(const DiracSpinor &Fw, const DiracSpinor &Fv,
                        const DiracOperator::jL *jl, std::size_t L,
                        double q) const {

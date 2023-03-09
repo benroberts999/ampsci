@@ -74,6 +74,13 @@ double CkTable::get_tildeCkab(int k, int ka, int kb) const {
 
   if (Angular::triangle(twoj_k(ka), twoj_k(kb), 2 * k) == 0)
     return 0.0;
+  // if (std::max(jia, jib) > m_max_jindex_sofar) {
+  //   std::cout << k << " " << ka << " " << kb << "\n";
+  //   std::cout << "m_max_jindex_sofar " << m_max_jindex_sofar << " - "
+  //             << twoj(m_max_jindex_sofar) << "\n";
+  //   std::cout << "jia " << jia << " - " << twoj(jia) << "\n";
+  //   std::cout << "jib " << jib << " - " << twoj(jib) << "\n";
+  // }
   assert(std::max(jia, jib) <= m_max_jindex_sofar);
   assert(k <= m_max_k_sofar);
   return (jia > jib) ? m_3j_k_a_b[k][jia][jib] * m_Rjab_a_b[jia][jib] :

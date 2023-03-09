@@ -34,7 +34,8 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
 
   std::unique_ptr<ExternalField::DiagramRPA0_jL> rpa{nullptr};
   if (use_rpa0)
-    rpa = std::make_unique<ExternalField::DiagramRPA0_jL>(jl, basis, vHF);
+    rpa =
+        std::make_unique<ExternalField::DiagramRPA0_jL>(jl, basis, vHF, max_L);
 
   if (std::abs(Fnk.en()) > Egrid.r().back()) {
     return Knk_Eq;
@@ -54,11 +55,20 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
            "and scalar operator (due to factoring out i)\n";
   }
 
+  // Find first energy grid point for which Fnk is accessible:
+  const auto idE_first_accessible = std::size_t(std::distance(
+      Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
+                                  [&](auto e) { return e > -Fnk.en(); })));
+  const auto num_accessible_E_steps = Egrid.num_points() - idE_first_accessible;
+
+  // decide what to parallelise over:
   const bool parallelise_E =
-      Egrid.num_points() > std::min(qsteps, (std::size_t)omp_get_max_threads());
+      num_accessible_E_steps >
+      std::min(qsteps, (std::size_t)omp_get_max_threads());
 
 #pragma omp parallel for if (parallelise_E)
-  for (std::size_t idE = 0; idE < Egrid.num_points(); ++idE) {
+  for (std::size_t idE = idE_first_accessible; idE < Egrid.num_points();
+       ++idE) {
     const auto dE = Egrid(idE);
 
     // Convert energy deposition to contimuum state energy:
@@ -126,6 +136,13 @@ std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
   std::vector<LinAlg::Matrix<double>> K_nk_Eq(
       core.size(), {Egrid.num_points(), qgrid.num_points()});
 
+  // Find index of first accessible core state:
+  const auto Emax = Egrid.back();
+  const auto i_first_accessible_nk = std::size_t(std::distance(
+      core.begin(), std::find_if(core.begin(), core.end(), [Emax](auto &Fc) {
+        return std::abs(Fc.en()) < Emax;
+      })));
+
   // This could be done more efficiently, but this seems fine.
   // Don't need to run RPA for large number of q anyway
   std::cout << "\nInlcuding RPA. RPA equations solved for each L and q\n";
@@ -137,15 +154,17 @@ std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
       jl->set_L_q(L, q);
       rpa.update_t0s(); // Udate t0, since JL(q) changed
       rpa.solve_core(0.0, max_rpa_its, false);
-      fmt::print("L={}, q={:7.2f}, eps={:.1e}, its={}\n", L, q, rpa.get_eps(),
-                 rpa.get_its());
+      fmt::print("RPA: L={}, q={:7.2f} au [{}/{}], eps={:.1e}, its={} \r", L, q,
+                 iq + 1, qsteps, rpa.get_eps(), rpa.get_its());
+      if (rpa.get_eps() > 1.0e-5)
+        std::cout << " **\n";
       std::cout << std::flush;
 #pragma omp parallel for collapse(2)
-      for (std::size_t ink = 0; ink < core.size(); ink++) {
+      for (std::size_t ink = i_first_accessible_nk; ink < core.size(); ink++) {
         for (std::size_t idE = 0; idE < Egrid.num_points(); ++idE) {
           const auto &Fnk = core.at(ink);
           const auto dE = Egrid(idE);
-          double ec = dE + Fnk.en();
+          const auto ec = dE + Fnk.en();
           if (ec <= 0.0)
             continue;
           const auto [lc_max, lc_min] =
@@ -168,6 +187,7 @@ std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
         }
       }
     }
+    std::cout << "\n";
   }
 
   return K_nk_Eq;
@@ -189,7 +209,8 @@ LinAlg::Matrix<double> calculateK_nk_approx(
 
   std::unique_ptr<ExternalField::DiagramRPA0_jL> rpa;
   if (use_rpa)
-    rpa = std::make_unique<ExternalField::DiagramRPA0_jL>(jl, basis, vHF);
+    rpa =
+        std::make_unique<ExternalField::DiagramRPA0_jL>(jl, basis, vHF, max_L);
 
   // Definition of matrix element:
   // matrix element defined such that:

@@ -48,6 +48,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
   // include Hartree here? Probably shouldn't, since we do "core Hartree"
   const auto self_consistant = (p_hf->method() == HF::Method::HartreeFock ||
+                                p_hf->method() == HF::Method::Hartree ||
                                 p_hf->method() == HF::Method::ApproxHF);
 
   // Also orthogonalise against entire core: (makes no difference)

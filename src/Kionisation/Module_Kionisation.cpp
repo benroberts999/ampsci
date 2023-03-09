@@ -73,9 +73,10 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
                          "matrix (comma-separated). [gnuplot]"},
        {"each_state", "bool. If true, will output K(E,q) for each "
                       "(accessible) core-state [false]"},
-       {"units", "Units for output: Particle (keV/MeV) or Atomic (E_H,1/a0). "
-                 "Only affects _gnu output format, all _mat and _xyz are "
-                 "always in atomic units. [Atomic]"}});
+       {"units",
+        "Units for 'gnuplot' output: Particle (keV/MeV) or Atomic (E_H,1/a0). "
+        "Only affects _gnu output format, all _mat and _xyz are "
+        "always in atomic units. [Particle]"}});
   if (input.has_option("help")) {
     std::cout << Kionisation_description_text;
     return;
@@ -84,8 +85,12 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   //----------------------------------------------------------------------------
 
   // Read in energy-deposit/momentum-exchange input options:
-  const auto [Emin_keV, Emax_keV] = input.get("E_range", std::array{0.1, 0.1});
-  const auto E_steps = input.get<std::size_t>("E_steps", 1);
+  auto [Emin_keV, Emax_keV] = input.get("E_range", std::array{0.1, 0.1});
+  auto E_steps = input.get<std::size_t>("E_steps", 1);
+  if (E_steps <= 1) {
+    E_steps = 1;
+    Emax_keV = Emin_keV;
+  }
   const auto Emin_au = Emin_keV * UnitConv::Energy_keV_to_au;
   const auto Emax_au =
       Emax_keV < Emin_keV ? Emin_au : Emax_keV * UnitConv::Energy_keV_to_au;
@@ -95,17 +100,20 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       "Energy  : [{:.2f}, {:.2f}] keV  = [{:.1f}, {:.1f}] au, in {} steps\n",
       Emin_keV, Emax_keV, Emin_au, Emax_au, E_steps);
 
-  const auto [qmin_keV, qmax_keV] =
-      input.get("q_range", std::array{0.01, 0.01});
-  const auto q_steps = input.get<std::size_t>("q_steps", 1);
-  const auto qmin_au = qmin_keV * UnitConv::Momentum_MeV_to_au;
-  const auto qmax_au = qmax_keV * UnitConv::Momentum_MeV_to_au;
+  auto [qmin_MeV, qmax_MeV] = input.get("q_range", std::array{0.01, 0.01});
+  auto q_steps = input.get<std::size_t>("q_steps", 1);
+  if (q_steps <= 1) {
+    q_steps = 1;
+    qmax_MeV = qmin_MeV;
+  }
+  const auto qmin_au = qmin_MeV * UnitConv::Momentum_MeV_to_au;
+  const auto qmax_au = qmax_MeV * UnitConv::Momentum_MeV_to_au;
   const auto max_L = input.get("max_L", 6);
   const auto label = input.get("label", std::string{""});
 
   fmt::print(
       "Momentum: [{:.3f}, {:.3f}] MeV = [{:.1f}, {:.1f}] au, in {} steps\n",
-      qmin_keV, qmax_keV, qmin_au, qmax_au, q_steps);
+      qmin_MeV, qmax_MeV, qmin_au, qmax_au, q_steps);
 
   // Set up the E and q grids
   const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
@@ -282,7 +290,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   // Create output file-name template
 
   const std::string rpa_text =
-      (use_rpa0 ? "rpa_" : "rpa0_") + DiracSpinor::state_config(wf.basis());
+      (use_rpa0 ? "rpa0_" : "rpa_") + DiracSpinor::state_config(wf.basis());
 
   const auto hf_text = wf.vHF() == nullptr                           ? "??" :
                        wf.vHF()->method() == HF::Method::HartreeFock ? "hf" :
@@ -295,9 +303,9 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::string method_text = method == Kion::Method::HF     ? hf_text :
                                   method == Kion::Method::RPA0   ? rpa_text :
                                   method == Kion::Method::RPA    ? rpa_text :
-                                  method == Kion::Method::Approx ? "aprx_" :
-                                  method == Kion::Method::Zeff   ? "zeff_" :
-                                                                   "???_";
+                                  method == Kion::Method::Approx ? "aprx" :
+                                  method == Kion::Method::Zeff   ? "zeff" :
+                                                                   "???";
 
   const std::string coupling_text =
       coupling == Kion::Coupling::Vector       ? "v" :
@@ -361,7 +369,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Units (only for gnuplot-style):
-  const auto tunits = input.get<std::string>("units", "atomic");
+  const auto tunits = input.get<std::string>("units", "Particle");
   auto units = ci_compare(tunits, "particle") ? Kion::Units::Particle :
                ci_compare(tunits, "atomic")   ? Kion::Units::Atomic :
                                                 Kion::Units::Error;
@@ -440,7 +448,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-    std::cout << "\nWritten to file: " << oname << "\n";
+  std::cout << "\nWritten to file: " << oname << "\n";
   Kion::write_to_file(output_formats, Kion, Egrid, qgrid, oname,
                       num_output_digits, units);
 
