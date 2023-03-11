@@ -10,6 +10,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Vector.hpp"
 #include "qip/omp.hpp"
+#include "version/EasterEgg.hpp"
 #include "version/version.hpp"
 #include <iostream>
 #include <memory>
@@ -206,31 +207,29 @@ void ampsci(const IO::InputBlock &input) {
         "Format for descriptions are:\n Description [default_value]\n Blocks "
         "end with '{}', options end with ';'"},
        {"Atom{}", "Which atom to run for"},
+       {"Nucleus{}", "Set nuclear parameters"},
        {"Grid{}", "Set radial grid parameters"},
        {"HartreeFock{}", "Options for Solving atomic system"},
-       {"Nucleus{}", "Set nuclear parameters"},
        {"RadPot{}", "Inlcude QED radiative potential"},
-       {"Basis{}", "Basis of HF eigenstates used for MBPT"},
-       {"Spectrum{}", "Like basis, but includes "
-                      "correlations. Used for sum-over-states"},
-       {"Correlations{}", "Options for correlations"},
        {"ExtraPotential{}", "Include an extra potential. Rarely used."},
-       {"dVpol{}", "Approximate correlation (polarisation) "
-                   "potential. Rarely used."},
-       {"Module::*{}", "Run any number of modules (* -> module name)"}});
+       {"Basis{}", "Basis of HF eigenstates used for MBPT"},
+       {"Correlations{}", "Options for correlations"},
+       {"Spectrum{}",
+        "Like basis, but includes correlations. Used for sum-over-states"},
+       {"Module::*{}", "Run any number of modules (* -> module name). `ampsci "
+                       "-m` to see available modules"}});
+  input.check({"EasterEgg"}, {{"", EasterEgg::get_egg()}});
 
   // Atom: Get + setup atom parameters
   input.check({"Atom"},
-              {{"Z", "string or int (e.g., Cs equivilant to 55). Atomic number "
-                     "[default H]"},
-               {"A", "int. Atomic mass number (set A=0 to use pointlike "
-                     "nucleus) [default based on Z]"},
+              {{"Z", "Atomic number or symbol (e.g., 55 or Cs). [H]"},
+               {"A", "Atomic mass number, for nuclear parameters including "
+                     "finite nuclear size. Default based on Z."},
                {"varAlpha2",
                 "Fractional variation of the fine-structure constant, alpha^2: "
                 "d(a^2)/a_0^2. Use to enforce the non-relativistic limit "
-                "(c->infinity "
-                "=> alpha->0), or calculate sensitivity to variation of alpha. "
-                "[1.0]"}});
+                "(c->infinity => alpha->0), or calculate sensitivity to "
+                "variation of alpha. [1.0]"}});
 
   const auto atom_Z = AtomData::atomic_Z(input.get({"Atom"}, "Z", "H"s));
   const auto atom_A = input.get({"Atom"}, "A", AtomData::defaultA(atom_Z));
@@ -239,35 +238,6 @@ void ampsci(const IO::InputBlock &input) {
     // cannot explicitely set alpha to zero - so make it very small
     return (varAlpha2 > 0.0) ? std::sqrt(varAlpha2) : 1.0e-25;
   }();
-
-  // Grid: Get + setup grid parameters
-  input.check(
-      {"Grid"},
-      {{"", "Options for radial grid (lattice) used for integrations, solving "
-            "equations and storing oritals. All relevant quantities are in "
-            "units of Bohr radius (aB)."},
-       {"r0", "Initial grid point, in aB [1.0e-6]"},
-       {"rmax", "Finial grid point [120.0]"},
-       {"num_points", "Number of grid points [2000]"},
-       {"type", "Type of grid: loglinear, logarithmic, linear [loglinear]"},
-       {"b", "Only used for loglinear: grid is ~ logarithmic for r<b, "
-             "linear for r>b [rmax/3]"},
-       {"du", "du is uniform grid step size; set this instead of "
-              "num_points - will override num_points [default set by "
-              "num_points]. Rarely used."}});
-
-  // Radial grid. Shared resource used by all wavefunctions/orbitals etc
-  const auto r0 = input.get({"Grid"}, "r0", 1.0e-6);
-  const auto rmax = input.get({"Grid"}, "rmax", 120.0);
-  const auto du = input.get<double>({"Grid"}, "du");
-  // if num_points = 0, uses du.
-  const auto num_points = du ? 0ul : input.get({"Grid"}, "num_points", 2000ul);
-  const auto b = input.get({"Grid"}, "b", rmax / 3.0);
-  const auto grid_type = (b <= r0 || b >= rmax) ?
-                             "logarithmic" :
-                             input.get({"Grid"}, "type", "loglinear"s);
-  const auto radial_grid = std::make_shared<const Grid>(
-      GridParameters{num_points, r0, rmax, b, grid_type, du ? *du : 0});
 
   // Nucleus: Get + setup nuclear parameters
   input.check({"Nucleus"},
@@ -306,6 +276,35 @@ void ampsci(const IO::InputBlock &input) {
     nucleus.r_rms() = 0.0;
     nucleus.type() = Nuclear::ChargeDistro::point;
   }
+
+  // Grid: Get + setup grid parameters
+  input.check(
+      {"Grid"},
+      {{"", "Options for radial grid (lattice) used for integrations, solving "
+            "equations and storing oritals. All relevant quantities are in "
+            "units of Bohr radius (aB)."},
+       {"r0", "Initial grid point, in aB [1.0e-6]"},
+       {"rmax", "Finial grid point [120.0]"},
+       {"num_points", "Number of grid points [2000]"},
+       {"type", "Type of grid: loglinear, logarithmic, linear [loglinear]"},
+       {"b", "Only used for loglinear: grid is ~ logarithmic for r<b, "
+             "linear for r>b [rmax/3]"},
+       {"du", "du is uniform grid step size; set this instead of "
+              "num_points - will override num_points [default set by "
+              "num_points]. Rarely used."}});
+
+  // Radial grid. Shared resource used by all wavefunctions/orbitals etc
+  const auto r0 = input.get({"Grid"}, "r0", 1.0e-6);
+  const auto rmax = input.get({"Grid"}, "rmax", 120.0);
+  const auto du = input.get<double>({"Grid"}, "du");
+  // if num_points = 0, uses du.
+  const auto num_points = du ? 0ul : input.get({"Grid"}, "num_points", 2000ul);
+  const auto b = input.get({"Grid"}, "b", rmax / 3.0);
+  const auto grid_type = (b <= r0 || b >= rmax) ?
+                             "logarithmic" :
+                             input.get({"Grid"}, "type", "loglinear"s);
+  const auto radial_grid = std::make_shared<const Grid>(
+      GridParameters{num_points, r0, rmax, b, grid_type, du ? *du : 0});
 
   // Create wavefunction object
   Wavefunction wf(radial_grid, std::move(nucleus), var_alpha);
@@ -360,62 +359,50 @@ void ampsci(const IO::InputBlock &input) {
     wf.radiativePotential(*qed_input, true, true);
   }
 
-  // Inlcude extra potential (read in from text file):
-  // Note: interpolated onto grid, but NOT extrapolated
-  // (zero outside region!)
+  // Inlcude extra potential. Either read in from text file.
+  // or "polarisation operator": V(r) = -0.5/(r^4 + r_cut^4)
+  // Note: If read in, it is interpolated onto grid, but NOT extrapolated
   input.check(
       {"ExtraPotential"},
-      {{"", "Option to add an extra potential (to Vnuc), before HF solved."},
-       {"filename",
-        "Read potential from file (r v(r)) - will be interpolated [blank]"},
-       {"factor", "potential is scaled by this value [default=1]"},
-       {"beforeHF", "include before HF (into core states). default=false"}});
+      {{"",
+        "Adds an extra potential (to Vnuc), before HF solved. Either effective "
+        "polarisation potential, V(r) = -0.5/(r^4 + r_cut^4), or read in from "
+        "a file."},
+       {"filename", "Read potential from file (r v(r)) - will be interpolated. "
+                    "If not given, will use pol. potential"},
+       {"r_cut", "Radial cut-off parameter for effective pol. potential [=1]"},
+       {"scale",
+        "Overall scaling factor for potential is scaled by this value [1]"}});
+  const auto include_extra_potential =
+      input.getBlock("ExtraPotential") != std::nullopt;
+  if (include_extra_potential) {
+    const auto ep_fname = input.get({"ExtraPotential"}, "filename", ""s);
+    const auto ep_scale = input.get({"ExtraPotential"}, "scale", 1.0);
 
-  const auto include_extra = input.getBlock("ExtraPotential") != std::nullopt;
-  const auto ep_fname = input.get({"ExtraPotential"}, "filename", ""s);
-  const auto ep_factor = input.get({"ExtraPotential"}, "factor", 1.0);
-  const auto ep_beforeHF = input.get({"ExtraPotential"}, "beforeHF", false);
-  std::vector<double> Vextra;
-  if (include_extra && ep_fname != "") {
-    const auto &[x, y] = IO::FRW::readFile_xy_PoV(ep_fname);
-    Vextra = ep_factor * Interpolator::interpolate(x, y, wf.grid().r());
-  }
-
-  // Add "extra potential", before HF (core + valence)
-  if (include_extra && ep_beforeHF) {
-    wf.update_Vnuc(wf.vnuc() + Vextra);
+    if (ep_fname != "") {
+      std::cout << "Including extra potential, read in from file: " << ep_fname
+                << ", with scale factor: " << ep_scale << "\n";
+      const auto &[x, y] = IO::FRW::readFile_xy_PoV(ep_fname);
+      if (x.size() == y.size() && x.size() > 1) {
+        const auto Vextra = Interpolator::interpolate(x, y, wf.grid().r());
+        wf.update_Vnuc(wf.vnuc() + ep_scale * Vextra);
+      } else {
+        std::cout << "Error 391: Bad file. Not included.\n";
+      }
+    } else {
+      const auto rc = input.get({"ExtraPotential"}, "r_cut", 1.0);
+      std::cout << "Adding effective polarisation potential [-0.5 * a * (r^4 + "
+                   "rc^4)]: a="
+                << ep_scale << ", rc=" << rc << '\n';
+      const auto a4 = rc * rc * rc * rc;
+      auto dV = [=](auto r) { return -0.5 / (r * r * r * r + a4); };
+      const auto dv = qip::apply_to(dV, wf.grid().r());
+      wf.update_Vnuc(wf.vnuc() + ep_scale * dv);
+    }
   }
 
   // Solve Hartree equations for the core:
   wf.solve_core(true);
-
-  // Add "extra potential", after HF (only valence)
-  if (include_extra && !ep_beforeHF) {
-    wf.update_Vnuc(wf.vnuc() + Vextra);
-  }
-
-  // Adds effective polarision potential to nuclear potential (After HF core,
-  // before HF valence).
-  // This is rarely used - move to wf? Combine with ExtraPotential!
-  input.check({"dVpol"},
-              {{"a_eff", "scale factor for effective pol. potential [0.0]"},
-               {"r_cut", "cut-off parameter [=1]"}});
-  const auto a_eff = input.get<double>({"dVpol"}, "a_eff");
-  if (a_eff) {
-    const auto r_cut = input.get({"dVpol"}, "r_cut", 1.0);
-    std::cout << "Adding effective polarisation potential: a=" << *a_eff
-              << ", rc=" << r_cut << '\n';
-    const auto a4 = r_cut * r_cut * r_cut * r_cut;
-    auto dV = [=](auto x) {
-      return a_eff ? -0.5 * *a_eff / (x * x * x * x + a4) : 0.0;
-    };
-    std::vector<double> dv;
-    dv.reserve(wf.grid().num_points());
-    for (auto r : wf.grid().r()) {
-      dv.push_back(dV(r));
-    }
-    wf.update_Vnuc(wf.vnuc() + dv);
-  }
 
   // Solve for the valence states:
   wf.solve_valence(valence);

@@ -123,13 +123,16 @@ void periodicTable(std::string z_str, std::string a_str) {
       }
     }
 
-    std::cout << "\nEnter atom (and optional isotope), or ctrl+c to exit\n";
+    std::cout << "\nEnter atom (and optional isotope):\n";
     std::string s1;
     std::getline(std::cin, s1);
     std::stringstream ss(s1);
     ss >> z_str >> a_str;
+    if (z_str == "" || z_str == "q" || z_str == "exit" || z_str == "quit")
+      return;
     if (a_str == "")
       a_str = "0";
+
     std::cout << "----------------------------------------------\n";
   }
 }
