@@ -19,7 +19,6 @@
 
 ## Qk and Coulomb
 
-* Make Coulomb:: calling syntax consistent
 * QkTable - better hash table?
 * Create QkTable at Basis{}?
   * Option to use different basis for RPA/Sigma etc?

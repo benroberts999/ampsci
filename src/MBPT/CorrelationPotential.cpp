@@ -284,7 +284,7 @@ double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
     for (const auto &n : m_excited) {
       if (n.l() > max_l)
         continue;
-      const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax(n, a);
+      const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, a);
       const auto max_k = std::min(m_maxk, kmax_nb);
       for (int k = kmin_nb; k <= max_k; ++k) {
         if (Ck(k, a.kappa(), n.kappa()) == 0)
@@ -482,7 +482,7 @@ DiracSpinor CorrelationPotential::Sigmal_Fv(
           const auto tkp1 = (2 * k + 1);
           // #pragma omp critical
           SlFv_ithr += (lk.W(k, m, n, v, a) / de / tkp1) *
-                       yk.Qkv_bcd(v.kappa(), a, m, n, k);
+                       yk.Qkv_bcd(k, v.kappa(), a, m, n);
           // const auto fk = get_fk(k);
           // const auto etak = get_eta(k);
           // SlFv_ithr += (lk.Q(k, m, n, v, a) * etak / de / tkp1) *
@@ -499,13 +499,7 @@ DiracSpinor CorrelationPotential::Sigmal_Fv(
           const auto tkp1 = (2 * k + 1);
           // #pragma omp critical
           SlFv_ithr += (lk.W(k, v, n, a, b) / de / tkp1) *
-                       yk.Qkv_bcd(v.kappa(), n, a, b, k);
-          // const auto fk = get_fk(k);
-          // const auto etak = get_eta(k);
-          // SlFv_ithr += (lk.Q(k, v, n, a, b) * etak / de / tkp1) *
-          //              yk.Qkv_bcd(v.k, n, a, b, k);
-          // SlFv_ithr += (lk.P(k, v, n, a, b) * fk / de / tkp1) *
-          //              yk.Qkv_bcd(v.k, n, a, b, k);
+                       yk.Qkv_bcd(k, v.kappa(), n, a, b);
         }
       }
 
@@ -559,7 +553,7 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           const auto etak = 1.0; // get_eta(k);
 
           // form Lkv_amn
-          const auto Qkv_amn = yk.Qkv_bcd(v.kappa(), a, m, n, k);
+          const auto Qkv_amn = yk.Qkv_bcd(k, v.kappa(), a, m, n);
           const auto Q_kvamn = yk.Q(k, v, a, m, n);
           const auto L_kmnva = lk.Q(k, m, n, v, a);
           const auto ratio1 = Q_kvamn == 0.0 ? 0.0 : (L_kmnva / Q_kvamn);
@@ -573,7 +567,7 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
             const auto Q_kvanm = yk.Q(l, v, a, n, m);
             const auto ratio = Q_kvanm == 0.0 ? 0.0 : Lambda_kmnav / Q_kvanm;
             const auto sj = m_6j.get(m, v, k, n, a, l);
-            Lambdakv_amn += sj * ratio * yk.Qkv_bcd(v.kappa(), a, n, m, l); //?
+            Lambdakv_amn += sj * ratio * yk.Qkv_bcd(l, v.kappa(), a, n, m); //?
           }
           Lambdakv_amn *= (2 * k + 1);
 
@@ -602,7 +596,7 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
           const auto etak = 1.0; // get_eta(k);
 
           // form Lkv_nab
-          const auto Qkv_nab = yk.Qkv_bcd(v.kappa(), n, a, b, k);
+          const auto Qkv_nab = yk.Qkv_bcd(k, v.kappa(), n, a, b);
           const auto Q_kvnab = yk.Q(k, v, n, a, b);
           const auto L_kvnab = lk.Q(k, v, n, a, b);
           const auto ratio1 = Q_kvnab == 0.0 ? 0.0 : (L_kvnab / Q_kvnab);
@@ -618,7 +612,7 @@ CorrelationPotential::Sigma_l(const DiracSpinor &v, const Coulomb::YkTable &yk,
             const auto Q_kvnba = yk.Q(l, v, n, b, a);
             const auto ratio = Q_kvnab == 0.0 ? 0.0 : Lambda_kvnba / Q_kvnba;
             const auto sj = m_6j.get(v, a, k, n, b, l);
-            Lambdakv_nab += sj * ratio * yk.Qkv_bcd(v.kappa(), n, b, a, l);
+            Lambdakv_nab += sj * ratio * yk.Qkv_bcd(l, v.kappa(), n, b, a);
           }
           Lambdakv_nab *= (2 * k + 1);
 

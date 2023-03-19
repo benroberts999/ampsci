@@ -58,7 +58,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   auto vc = p_hf->vlocal();
   if ((Fi != nullptr) && subtract_self && self_consistant) {
     // Subtract off the self-interaction direct part: V-self(r) = y^0_ii(r)
-    vc -= Coulomb::yk_ab(*Fi, *Fi, 0);
+    vc -= Coulomb::yk_ab(0, *Fi, *Fi);
   }
 
   // We may wish to do this to test things, but not for final calculations:

@@ -974,7 +974,7 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
       if (tjs == 0)
         continue;
       const auto tjs2 = tjs * tjs;
-      Coulomb::yk_ab(Fb, Fa, k, vabk);
+      Coulomb::yk_ab(k, Fb, Fa, vabk);
 
       for (std::size_t i = 0; i < irmax; i++) {
         if (v_Fab[i] == 0)
@@ -1040,7 +1040,7 @@ DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
     for (int k = kmin; k <= std::min(kmax, k_cut); k += 2) {
       const auto xb = (Fa == Fb && k == 0) ? 1.0 : Fb.occ_frac();
       const auto ckab = Angular::Ck_kk(k, Fa.kappa(), Fb.kappa());
-      Coulomb::yk_ab(Fb, Fa, k, vabk, Fb.max_pt());
+      Coulomb::yk_ab(k, Fb, Fa, vabk, Fb.max_pt());
       const auto c2x = ckab * ckab * xb;
       using namespace qip::overloads;
       // VxFa -= (c2x * vabk) * Fb;

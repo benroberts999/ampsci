@@ -176,15 +176,15 @@ static inline void yk_ijk_gen_impl(const int l, const Function &ff,
 }
 
 //------------------------------------------------------------------------------
-std::vector<double> yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                          const int k, const std::size_t maxi) {
+std::vector<double> yk_ab(const int k, const DiracSpinor &Fa,
+                          const DiracSpinor &Fb, const std::size_t maxi) {
   std::vector<double> ykab; //
-  yk_ab(Fa, Fb, k, ykab, maxi);
+  yk_ab(k, Fa, Fb, ykab, maxi);
   return ykab;
 }
 
 //------------------------------------------------------------------------------
-void yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
+void yk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
            std::vector<double> &vabk, const std::size_t maxi) {
 
   // faster method to calculate r^k
@@ -233,7 +233,7 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
   return;
 }
 //------------------------------------------------------------------------------
-void bk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
+void bk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
            std::vector<double> &b0, std::vector<double> &binf,
            std::size_t maxi) {
 
@@ -263,7 +263,7 @@ void bk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
     yk_ijk_gen_impl<-1>(k, fgfg, Fa.grid(), b0, binf, maxi);
 }
 //------------------------------------------------------------------------------
-void gk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
+void gk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
            std::vector<double> &g0, std::vector<double> &ginf,
            const std::size_t maxi) {
 
@@ -297,13 +297,10 @@ void gk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
 //==============================================================================
 
 //==============================================================================
-double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd,
-               const int k) //
-{
+double Rk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd) {
   // note: Returns non-zero value, even if angular part would be zero
-
-  const auto yk_bd = yk_ab(Fb, Fd, k, std::min(Fa.max_pt(), Fc.max_pt()));
+  const auto yk_bd = yk_ab(k, Fb, Fd, std::min(Fa.max_pt(), Fc.max_pt()));
   return Rk_abcd(Fa, Fc, yk_bd);
 }
 //------------------------------------------------------------------------------
@@ -320,10 +317,10 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
 }
 
 //==============================================================================
-DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fb,
-                    const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
+DiracSpinor Rkv_bcd(const int k, const int kappa_a, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd) {
 
-  return Rkv_bcd(kappa_a, Fc, yk_ab(Fb, Fd, k, Fc.max_pt()));
+  return Rkv_bcd(kappa_a, Fc, yk_ab(k, Fb, Fd, Fc.max_pt()));
 }
 //------------------------------------------------------------------------------
 DiracSpinor Rkv_bcd(const int kappa_a, const DiracSpinor &Fc,
@@ -357,8 +354,8 @@ void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
 }
 
 //==============================================================================
-double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
+double Qk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd) {
 
   const auto tCac = Angular::tildeCk_kk(k, Fa.kappa(), Fc.kappa());
   if (Angular::zeroQ(tCac))
@@ -366,43 +363,44 @@ double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
   const auto tCbd = Angular::tildeCk_kk(k, Fb.kappa(), Fd.kappa());
   if (Angular::zeroQ(tCbd))
     return 0.0;
-  const auto Rkabcd = Rk_abcd(Fa, Fb, Fc, Fd, k);
+  const auto Rkabcd = Rk_abcd(k, Fa, Fb, Fc, Fd);
   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
   return m1tk * tCac * tCbd * Rkabcd;
 }
 
 //------------------------------------------------------------------------------
-DiracSpinor Qkv_bcd(const int kappa_a, const DiracSpinor &Fb,
-                    const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
+DiracSpinor Qkv_bcd(const int k, const int kappa_a, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd) {
+  assert(k >= 0 && "Check k and kappa order");
 
   const auto tCac = Angular::tildeCk_kk(k, kappa_a, Fc.kappa());
   const auto tCbd = Angular::tildeCk_kk(k, Fb.kappa(), Fd.kappa());
   if (Angular::zeroQ(tCbd) || Angular::zeroQ(tCac))
     return DiracSpinor(0, kappa_a, Fc.grid_sptr());
   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
-  return (m1tk * tCac * tCbd) * Rkv_bcd(kappa_a, Fb, Fc, Fd, k);
+  return (m1tk * tCac * tCbd) * Rkv_bcd(k, kappa_a, Fb, Fc, Fd);
 }
 
 //------------------------------------------------------------------------------
-void Qkv_bcd(DiracSpinor *const Qkv, const DiracSpinor &Fb,
-             const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
-             const std::vector<double> &ykbd, const Angular::CkTable &Ck) {
-  const auto tCac = Ck.get_tildeCkab(k, Qkv->kappa(), Fc.kappa());
-  const auto tCbd = Ck.get_tildeCkab(k, Fb.kappa(), Fd.kappa());
-  const auto tCC = tCbd * tCac;
-  if (tCC == 0.0) {
-    Qkv->scale(0.0);
-    return;
-  }
-  Rkv_bcd(Qkv, Fc, ykbd);
-  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
-  Qkv->scale(m1tk * tCC);
-  return;
-}
+// void Qkv_bcd(DiracSpinor *const Qkv, const DiracSpinor &Fb,
+//              const DiracSpinor &Fc, const DiracSpinor &Fd, const int k,
+//              const std::vector<double> &ykbd, const Angular::CkTable &Ck) {
+//   const auto tCac = Ck.get_tildeCkab(k, Qkv->kappa(), Fc.kappa());
+//   const auto tCbd = Ck.get_tildeCkab(k, Fb.kappa(), Fd.kappa());
+//   const auto tCC = tCbd * tCac;
+//   if (tCC == 0.0) {
+//     Qkv->scale(0.0);
+//     return;
+//   }
+//   Rkv_bcd(Qkv, Fc, ykbd);
+//   const auto m1tk = Angular::evenQ(k) ? 1 : -1;
+//   Qkv->scale(m1tk * tCC);
+//   return;
+// }
 
 //==============================================================================
-double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
+double Pk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd) {
   // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
 
   const auto tkp1 = 2 * k + 1;
@@ -415,15 +413,16 @@ double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                       Fd.twoj(), Fb.twoj(), tl);
     if (sixj == 0)
       continue;
-    const auto Qlabdc = Qk_abcd(Fa, Fb, Fd, Fc, tl / 2);
+    const auto Qlabdc = Qk_abcd(tl / 2, Fa, Fb, Fd, Fc);
     sum += sixj * Qlabdc;
   }
   return (tkp1 * sum);
 }
 
 //------------------------------------------------------------------------------
-DiracSpinor Pkv_bcd(int kappa_a, const DiracSpinor &Fb, const DiracSpinor &Fc,
-                    const DiracSpinor &Fd, const int k) {
+DiracSpinor Pkv_bcd(const int k, int kappa_a, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd) {
+  assert(k >= 0 && "Check k and kappa order");
   auto out = DiracSpinor(0, kappa_a, Fc.grid_sptr());
   const auto tkp1 = 2 * k + 1;
   const auto tja = Angular::twoj_k(kappa_a);
@@ -438,57 +437,47 @@ DiracSpinor Pkv_bcd(int kappa_a, const DiracSpinor &Fb, const DiracSpinor &Fc,
         Angular::sixj_2(Fc.twoj(), tja, 2 * k, Fd.twoj(), Fb.twoj(), tl);
     if (sixj == 0)
       continue;
-    out += sixj * Qkv_bcd(kappa_a, Fb, Fd, Fc, tl / 2);
+    out += sixj * Qkv_bcd(tl / 2, kappa_a, Fb, Fd, Fc);
   }
   return (tkp1 * out);
 }
 
 //------------------------------------------------------------------------------
-DiracSpinor Wkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
-                    const DiracSpinor &Fd, const int k) {
-  auto out = Pkv_bcd(kappa_v, Fb, Fc, Fd, k);
+DiracSpinor Wkv_bcd(const int k, int kappa_v, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd) {
+  assert(k >= 0 && "Check k and kappa order");
+  auto out = Pkv_bcd(k, kappa_v, Fb, Fc, Fd);
   if (Angular::Ck_kk_SR(k, kappa_v, Fc.kappa()) &&
       Angular::Ck_kk_SR(k, Fb.kappa(), Fd.kappa())) {
-    out += Qkv_bcd(kappa_v, Fb, Fc, Fd, k);
+    out += Qkv_bcd(k, kappa_v, Fb, Fc, Fd);
   }
   return out;
 }
 
 //------------------------------------------------------------------------------
-double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k) {
+double Wk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd) {
   // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
-
-  const auto Qkabcd = Qk_abcd(Fa, Fb, Fc, Fd, k);
-  const auto Pkabcd = Pk_abcd(Fa, Fb, Fc, Fd, k);
-  return (Qkabcd + Pkabcd);
+  return Qk_abcd(k, Fa, Fb, Fc, Fd) + Pk_abcd(k, Fa, Fb, Fc, Fd);
 }
 
 //==============================================================================
-std::pair<int, int> k_minmax(const DiracSpinor &a, const DiracSpinor &b) {
+std::pair<int, int> k_minmax_Ck(const DiracSpinor &a, const DiracSpinor &b) {
   // return k_minmax_tj(a.twoj(), b.twoj());
-  auto [min_k, max_k] = k_minmax_tj(a.twoj(), b.twoj());
+  auto minmax = k_minmax_tj(a.twoj(), b.twoj());
+  auto &min_k = minmax.first;
+  auto &max_k = minmax.second;
   if ((a.l() + b.l() + min_k) % 2 != 0) {
     ++min_k;
   }
   if ((a.l() + b.l() + max_k) % 2 != 0) {
     --max_k;
   }
-  return {min_k, max_k};
-}
-std::pair<int, int> k_minmax_tj(int tja, int tjb) {
-  return std::make_pair(std::abs(tja - tjb) / 2, (tja + tjb) / 2);
+  return minmax;
 }
 
-std::pair<int, int> k_minmax_Y(const DiracSpinor &a, const DiracSpinor &b) {
-  auto [min_k, max_k] = k_minmax_tj(a.twoj(), b.twoj());
-  if ((a.l() + b.l() + min_k) % 2 != 0) {
-    ++min_k;
-  }
-  if ((a.l() + b.l() + max_k) % 2 != 0) {
-    --max_k;
-  }
-  return {min_k, max_k};
+std::pair<int, int> k_minmax_tj(int tja, int tjb) {
+  return std::make_pair(std::abs(tja - tjb) / 2, (tja + tjb) / 2);
 }
 
 //------------------------------------------------------------------------------
@@ -504,27 +493,14 @@ std::pair<int, int> k_minmax_Q(const DiracSpinor &a, const DiracSpinor &b,
   }
 
   // Find min/max k from triangle rule:
-  const auto [l1, u1] = k_minmax(a, c);
-  const auto [l2, u2] = k_minmax(b, d);
-  const auto min_k = std::max(l1, l2);
-  const auto max_k = std::min(u1, u2);
-
-  // // Adjust min/max k due to parity selectrion rule:
-  // // Allows one to safely use only evey second k to calculate Q
-  // if ((b.l() + d.l() + min_k) % 2 != 0) {
-  //   ++min_k;
-  // }
-  // if ((b.l() + d.l() + max_k) % 2 != 0) {
-  //   --max_k;
-  // }
-
-  return {min_k, max_k};
+  const auto [l1, u1] = k_minmax_Ck(a, c);
+  const auto [l2, u2] = k_minmax_Ck(b, d);
+  return {std::max(l1, l2), std::min(u1, u2)};
 }
 
 //------------------------------------------------------------------------------
 std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d) {
-  // std::cout << "k_minmax_P: CHECK ME\n";
   // P^k_abcd = sum_l {a, c, k \\ b, d, l} * Q^l_abdc
   //  |b-d| <= k <=|b+d|
   //  |a-c| <= k <=|a+c|
@@ -533,24 +509,10 @@ std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
   const auto [l2, u2] = k_minmax_tj(b.twoj(), d.twoj());
   return {std::max({l1, l2}), std::min({u1, u2})};
 }
-std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
-                               const DiracSpinor &c, const DiracSpinor &d) {
-  // std::cout << "k_minmax_P: CHECK ME\n";
-  // P^k_abcd = sum_l {a, c, k \\ b, d, l} * Q^l_abdc
-  //  |b-d| <= k <=|b+d|
-  //  |a-c| <= k <=|a+c|
-  // min/max k Comes from 6j symbol ONLY
-  const auto [l1, u1] = k_minmax_tj(Angular::twoj_k(kappa_a), c.twoj());
-  const auto [l2, u2] = k_minmax_tj(b.twoj(), d.twoj());
-  return {std::max({l1, l2}), std::min({u1, u2})};
-}
 
 //------------------------------------------------------------------------------
 std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d) {
-  // std::cout << "k_minmax_W: CHECK ME\n";
-  // NOTE: Cannot safely k++2, since parity rules may be opposite for P and Q
-  // parts!
   const auto [l1, u1] = k_minmax_Q(a, b, c, d);
   const auto [l2, u2] = k_minmax_P(a, b, c, d);
   // nb: min/max swapped, since W = Q+P, so only 1 needs to survive!

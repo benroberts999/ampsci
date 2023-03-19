@@ -88,17 +88,17 @@ public:
 
   //! Calculates Q^K(v)_bcd using existing yk integrals. Note: Yk and Ck tables
   //! *must* include all required values, or behaviour not defined.
-  [[nodiscard]] DiracSpinor Qkv_bcd(int kappa, const DiracSpinor &Fb,
+  [[nodiscard]] DiracSpinor Qkv_bcd(const int k, int kappa,
+                                    const DiracSpinor &Fb,
                                     const DiracSpinor &Fc,
-                                    const DiracSpinor &Fd, const int k) const;
+                                    const DiracSpinor &Fd) const;
 
   //! Calculates P^K(v)_bcd using existing yk integrals, including (optional)
   //! screening factors. Note: Yk and Ck tables
   //! *must* include all required values, or behaviour not defined.
-  [[nodiscard]] DiracSpinor Pkv_bcd(int kappa, const DiracSpinor &Fb,
-                                    const DiracSpinor &Fc,
-                                    const DiracSpinor &Fd, const int k,
-                                    const std::vector<double> &f2k = {}) const;
+  [[nodiscard]] DiracSpinor
+  Pkv_bcd(const int k, int kappa, const DiracSpinor &Fb, const DiracSpinor &Fc,
+          const DiracSpinor &Fd, const std::vector<double> &f2k = {}) const;
 
 private:
   // Allocates space for the Yk table, but does not calculate Yk. This is

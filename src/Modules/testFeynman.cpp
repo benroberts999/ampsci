@@ -138,7 +138,7 @@ void Feyn::test_Q(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma) {
           const auto aQa =
               (Sigma.G_single(a, a, 1.0)).mult_elements_by(qk).real();
           const auto q_aa = Sigma.act_G_Fv_2(a, aQa, a);
-          const auto Rk = Coulomb::Rk_abcd(a, a, a, a, k);
+          const auto Rk = Coulomb::Rk_abcd(k, a, a, a, a);
           const auto eps = std::abs((q_aa - Rk) / Rk);
           if (eps > worst) {
             worst = eps;
@@ -292,7 +292,7 @@ void Feyn::test_GQ(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
           for (const auto &Fi : wf.basis()) {
             if (Fi.kappa() != kappa)
               continue;
-            auto Rk = Coulomb::Rk_abcd(Fv, Fi, Fi, Fv, k);
+            auto Rk = Coulomb::Rk_abcd(k, Fv, Fi, Fi, Fv);
             auto denom = (en - ComplexDouble{Fi.en()});
             ComplexDouble term = Rk / denom;
             if (wf.isInCore(Fi.n(), Fi.kappa()))
@@ -381,7 +381,7 @@ void Feyn::test_pol(const Wavefunction &wf, const MBPT::FeynmanSigma &Sigma,
                   const auto ide3 =
                       1.0 / (ComplexDouble{Fa.en() - FA.en()} + om);
                   const auto Dinv = ide1 * (ide2 + ide3);
-                  const auto Rk = Coulomb::Rk_abcd(Fv, FA, FB, Fa, k);
+                  const auto Rk = Coulomb::Rk_abcd(k, Fv, FA, FB, Fa);
                   sum1 += Rk * Rk * f * f * Dinv * (1.0 / (2 * k + 1));
                 }
               }

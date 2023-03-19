@@ -247,10 +247,10 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
         const auto p2 = qk.P(k, a, b, c, d, &sjt);
         const auto w1 = qk.W(k, a, b, c, d);
         const auto r1 = qk.R(k, a, b, c, d);
-        const auto q0 = Coulomb::Qk_abcd(a, b, c, d, k);
-        const auto p0 = Coulomb::Pk_abcd(a, b, c, d, k);
-        const auto w0 = Coulomb::Wk_abcd(a, b, c, d, k);
-        const auto r0 = q0 != 0.0 ? Coulomb::Rk_abcd(a, b, c, d, k) : 0.0;
+        const auto q0 = Coulomb::Qk_abcd(k, a, b, c, d);
+        const auto p0 = Coulomb::Pk_abcd(k, a, b, c, d);
+        const auto w0 = Coulomb::Wk_abcd(k, a, b, c, d);
+        const auto r0 = q0 != 0.0 ? Coulomb::Rk_abcd(k, a, b, c, d) : 0.0;
         // nb: QkTable only stores Rk if Qk is non-zero, but Coulomb::Rk_abcd
         // will calculate it anyway.
         const auto devQ = std::abs(q1 - q0);

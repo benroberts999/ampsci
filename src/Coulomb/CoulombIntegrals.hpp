@@ -8,35 +8,36 @@ namespace Coulomb {
 
 //! Calculates Hartree Screening functions \f$y^k_{ab}(r)\f$
 //! @details maxi is max point to calculate; blank or zero means all the way
-std::vector<double> yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                          const int k, const std::size_t maxi = 0);
+std::vector<double> yk_ab(const int k, const DiracSpinor &Fa,
+                          const DiracSpinor &Fb, const std::size_t maxi = 0);
+
 //! Overload: does not allocate ykab
-void yk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
+void yk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
            std::vector<double> &ykab, const std::size_t maxi = 0);
 
 //! Breit b^k function: (0,r) and (r,inf) part stored sepperately (in/out)
-void bk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
+void bk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
            std::vector<double> &b0, std::vector<double> &binf,
            const std::size_t maxi = 0);
 
 //! Breit g^k function: (0,r) + (r,inf) part stored together (in/out)
-void gk_ab(const DiracSpinor &Fa, const DiracSpinor &Fb, const int k,
+void gk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
            std::vector<double> &g0, std::vector<double> &ginf,
            const std::size_t maxi = 0);
 
 //==============================================================================
 
 //! Calculates R^k_abcd for given k. From scratch (calculates y)
-double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+double Rk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd);
 
 //! Overload for when y^k_bd already exists [much faster]
 double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
                const std::vector<double> &ykbd);
 
 //! "Right-hand-side" R^k{v}_bcd [i.e., without Fv integral]
-DiracSpinor Rkv_bcd(const int kappa_v, const DiracSpinor &Fb,
-                    const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+DiracSpinor Rkv_bcd(const int k, const int kappa_v, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd);
 
 //! Overload for when y^k_bd already exists [much faster]
 DiracSpinor Rkv_bcd(const int kappa_v, const DiracSpinor &Fc,
@@ -50,23 +51,23 @@ void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
 
 //! Calculates Q^k_abcd for given k. From scratch (calculates y) [see YkTable
 //! version if already have YkTable]
-double Qk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+double Qk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd);
 
 //! Calculates Q^k(v)_bcd for given k,kappa_v. From scratch (calculates y) [see
 //! YkTable version if already have YkTable]
-DiracSpinor Qkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
-                    const DiracSpinor &Fd, const int k);
+DiracSpinor Qkv_bcd(const int k, int kappa_v, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd);
 
 //==============================================================================
 
 //! Exchange only version of W (W-Q): W = Q + P [see Qk above]
-double Pk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+double Pk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd);
 
 //! Exchange only version of W (W-Q): W = Q + P [see Qk above]
-DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
-                    const DiracSpinor &Fd, const int k);
+DiracSpinor Pkv_bcd(const int k, int kappa_v, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd);
 
 //==============================================================================
 
@@ -76,30 +77,31 @@ DiracSpinor Pkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
       \begin{Bmatrix}a&c&k\\b&d&l\end{Bmatrix} * Q^l_{abdc} \f]
  \f[ W^k_{abcd} = Q^k_{abcd} + P^k_{abcd}  \f]
  */
-double Wk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fb,
-               const DiracSpinor &Fc, const DiracSpinor &Fd, const int k);
+double Wk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+               const DiracSpinor &Fc, const DiracSpinor &Fd);
 
-DiracSpinor Wkv_bcd(int kappa_v, const DiracSpinor &Fb, const DiracSpinor &Fc,
-                    const DiracSpinor &Fd, const int k);
+DiracSpinor Wkv_bcd(const int k, int kappa_v, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd);
 
 //==============================================================================
 
 //! Returns min and max k (multipolarity) allowed for C^k_ab, accounting for
 //! parity (used by k_minmax_Q)
-std::pair<int, int> k_minmax(const DiracSpinor &a, const DiracSpinor &b);
-//! Returns min and max k (multipolarity) allowed for C^k_ab, NOT accounting for
-//! parity (2j only, not kappa/l) (used by k_minmax_P,W)
+std::pair<int, int> k_minmax_Ck(const DiracSpinor &a, const DiracSpinor &b);
+
+//! Returns min and max k (multipolarity) allowed for Triangle(k,a,b),
+//! NOT accounting for parity (2j only, not kappa/l) (used by k_minmax_P,W)
 std::pair<int, int> k_minmax_tj(int tja, int tjb);
 
 //! Returns min and max k (multipolarity) allowed for Q^k_abcd, Wk, Pk. For Q
 //! (and Q only), parity rule is included, so you may safely call k+=2
 std::pair<int, int> k_minmax_Q(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d);
+
 //! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2
 std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d);
-std::pair<int, int> k_minmax_P(int kappa_a, const DiracSpinor &b,
-                               const DiracSpinor &c, const DiracSpinor &d);
+
 //! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2
 std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d);

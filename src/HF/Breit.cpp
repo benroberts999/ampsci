@@ -209,11 +209,11 @@ double Breit::de2_HF(const DiracSpinor &v,
         continue;
       const auto s1 = Angular::neg1pow_2(v.twoj() - m.twoj());
       // .... Would be faster to use one of the tables ....
-      deHF -= s1 * Coulomb::Wk_abcd(v, m, v, a, 0) * (a * VbrFa(m, holes)) /
+      deHF -= s1 * Coulomb::Wk_abcd(0, v, m, v, a) * (a * VbrFa(m, holes)) /
               (m.en() - a.en());
       // nb: W symmetic since v=w : W_wavm = W_vmwa
       const auto s2 = Angular::neg1pow_2(v.twoj() - a.twoj());
-      deHF -= s2 * Coulomb::Wk_abcd(v, a, v, m, 0) * (m * VbrFa(a, holes)) /
+      deHF -= s2 * Coulomb::Wk_abcd(0, v, a, v, m) * (m * VbrFa(a, holes)) /
               (m.en() - a.en());
     }
   }
@@ -232,7 +232,7 @@ double Breit::de2(const DiracSpinor &v, const std::vector<DiracSpinor> &holes,
         for (int k = kmin; k <= kmax; k++) {
           const auto denom = v.en() + n.en() - a.en() - b.en();
           const auto f = 2.0 / ((2 * k + 1) * v.twojp1() * denom);
-          de += f * Coulomb::Wk_abcd(v, n, a, b, k) * Bk_abcd(k, v, n, a, b);
+          de += f * Coulomb::Wk_abcd(k, v, n, a, b) * Bk_abcd(k, v, n, a, b);
         }
       }
       for (const auto &m : excited) {
@@ -240,7 +240,7 @@ double Breit::de2(const DiracSpinor &v, const std::vector<DiracSpinor> &holes,
         for (int k = kmin; k <= kmax; k++) {
           const auto denom = m.en() + n.en() - v.en() - a.en();
           const auto f = 2.0 / ((2 * k + 1) * v.twojp1() * denom);
-          de += -f * Coulomb::Wk_abcd(m, n, v, a, k) * Bk_abcd(k, m, n, v, a);
+          de += -f * Coulomb::Wk_abcd(k, m, n, v, a) * Bk_abcd(k, m, n, v, a);
         }
       }
     }
@@ -263,13 +263,13 @@ void single_k_mop::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
 #pragma omp parallel sections num_threads(4)
   {
 #pragma omp section
-    Coulomb::bk_ab(Fi, Fj, (k - 1), b0_minus, bi_minus, maxi);
+    Coulomb::bk_ab((k - 1), Fi, Fj, b0_minus, bi_minus, maxi);
 #pragma omp section
-    Coulomb::gk_ab(Fi, Fj, (k - 1), g0_minus, gi_minus, maxi);
+    Coulomb::gk_ab((k - 1), Fi, Fj, g0_minus, gi_minus, maxi);
 #pragma omp section
-    Coulomb::bk_ab(Fi, Fj, (k + 1), b0_plus, bi_plus, maxi);
+    Coulomb::bk_ab((k + 1), Fi, Fj, b0_plus, bi_plus, maxi);
 #pragma omp section
-    Coulomb::gk_ab(Fi, Fj, (k + 1), g0_plus, gi_plus, maxi);
+    Coulomb::gk_ab((k + 1), Fi, Fj, g0_plus, gi_plus, maxi);
   }
 }
 
@@ -279,7 +279,7 @@ void single_k_n::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
   const auto maxi =
       std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points()}); // ok?
   assert(k != 0);
-  Coulomb::gk_ab(Fi, Fj, k, g, gi, maxi);
+  Coulomb::gk_ab(k, Fi, Fj, g, gi, maxi);
   using namespace qip::overloads;
   g += gi;
 }

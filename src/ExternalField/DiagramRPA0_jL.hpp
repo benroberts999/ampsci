@@ -1,17 +1,11 @@
 #pragma once
 #include "CorePolarisation.hpp"
 #include "Coulomb/YkTable.hpp"
+#include "DiracOperator/DiracOperator.hpp"
+#include "HF/HartreeFock.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
-class Wavefunction;
-class DiracSpinor;
-namespace DiracOperator {
-class TensorOperator;
-}
-namespace HF {
-class HartreeFock;
-}
 
 namespace ExternalField {
 

@@ -418,7 +418,7 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
 
   GMatrix V0({m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
 
-  const auto y0cc = Coulomb::yk_ab(Fc, Fc, 0);
+  const auto y0cc = Coulomb::yk_ab(0, Fc, Fc);
   for (auto i = 0ul; i < m_subgrid_points; ++i) {
     const auto si = V0.index_to_fullgrid(i);
     V0.ff(i, i) = -y0cc[si];
@@ -646,7 +646,7 @@ the 'local' method works best for most k's, but the matrix method (with
   if (Fc_hp != nullptr && k_hp != 0) {
     // Include hole-particle interaction (simple):
     // This way works better for k=1, but ruins k=0
-    auto y0cc = Coulomb::yk_ab(*Fc_hp, *Fc_hp, 0);
+    auto y0cc = Coulomb::yk_ab(0, *Fc_hp, *Fc_hp);
     qip::compose(std::minus{}, &vl, y0cc);
   }
 
@@ -1362,7 +1362,7 @@ FeynmanSigma::Exchange_Goldstone(const int kappa, const double en,
     auto Qkv = DiracSpinor(0, kappa, p_gr); // re-use to reduce alloc'ns
     auto Pkv = DiracSpinor(0, kappa, p_gr); // re-use to reduce alloc'ns
     for (const auto &n : m_excited) {
-      const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax(n, a);
+      const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, a);
       for (int k = kmin_nb; k <= kmax_nb; ++k) {
         if (Ck(k, a.kappa(), n.kappa()) == 0)
           continue;
@@ -1377,12 +1377,12 @@ FeynmanSigma::Exchange_Goldstone(const int kappa, const double en,
           if (Ck(k, kappa, m.kappa()) == 0)
             continue;
           // Coulomb::Qkv_bcd(&Qkv, a, m, n, k, yknb, Ck);
-          Qkv = m_yeh.Qkv_bcd(Qkv.kappa(), a, m, n, k);
+          Qkv = m_yeh.Qkv_bcd(k, Qkv.kappa(), a, m, n);
           // Pkv_bcd_2 allows different screening factor for each 'k2' in
           // exch.
           // Coulomb::Pkv_bcd_2(&Pkv, a, m, n, k, m_yeh(m, a), Ck, m_6j,
           // m_fk); m_yeh.Pkv_bcd_2(&Pkv, a, m, n, k, m_fk);
-          Pkv = m_yeh.Pkv_bcd(Pkv.kappa(), a, m, n, k, m_fk);
+          Pkv = m_yeh.Pkv_bcd(k, Pkv.kappa(), a, m, n, m_fk);
           const auto dele = en + a.en() - m.en() - n.en();
           const auto factor = fk / (f_kkjj * dele);
           addto_G(&Ga_x, Qkv, Pkv, factor);
@@ -1393,10 +1393,10 @@ FeynmanSigma::Exchange_Goldstone(const int kappa, const double en,
           if (Ck(k, kappa, b.kappa()) == 0)
             continue;
           // Coulomb::Qkv_bcd(&Qkv, n, b, a, k, yknb, Ck);
-          Qkv = m_yeh.Qkv_bcd(Qkv.kappa(), n, b, a, k);
+          Qkv = m_yeh.Qkv_bcd(k, Qkv.kappa(), n, b, a);
           // Coulomb::Pkv_bcd_2(&Pkv, n, b, a, k, m_yeh(n, b), Ck, m_6j,
           // m_fk); m_yeh.Pkv_bcd_2(&Pkv, n, b, a, k, m_fk);
-          Pkv = m_yeh.Pkv_bcd(Pkv.kappa(), n, b, a, k, m_fk);
+          Pkv = m_yeh.Pkv_bcd(k, Pkv.kappa(), n, b, a, m_fk);
           const auto dele = en + n.en() - b.en() - a.en();
           const auto factor = fk / (f_kkjj * dele); // XXX
           addto_G(&Ga_x, Qkv, Pkv, factor);

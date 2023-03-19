@@ -374,9 +374,9 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
         continue;
       const auto s2 = ((Fa.twoj() - Fm.twoj()) % 4 == 0) ? 1 : -1;
       // Calculate Wk from scratch here: Fi/Ff may be valence.
-      const auto Wwmva = Coulomb::Wk_abcd(Ff, Fm, Fi, Fa, m_rank) +
+      const auto Wwmva = Coulomb::Wk_abcd(m_rank, Ff, Fm, Fi, Fa) +
                          (Vbr ? Vbr->BWk_abcd(m_rank, Ff, Fm, Fi, Fa) : 0.0);
-      const auto Wwavm = Coulomb::Wk_abcd(Ff, Fa, Fi, Fm, m_rank) +
+      const auto Wwavm = Coulomb::Wk_abcd(m_rank, Ff, Fa, Fi, Fm) +
                          (Vbr ? Vbr->BWk_abcd(m_rank, Ff, Fa, Fi, Fm) : 0.0);
       const auto ttam = tam[ia][im];
       const auto ttma = tma[im][ia];

@@ -33,10 +33,10 @@ void YkTable::calculate(const std::vector<DiracSpinor> &a_orbs,
     for (const auto &b : b_orbs) {
       if (a_is_b && b > a)
         continue;
-      const auto [k0, kI] = k_minmax(a, b);
+      const auto [k0, kI] = k_minmax_Ck(a, b);
       for (auto k = k0; k <= kI; k += 2) {
         auto &ykab = get_ref(k, a, b);
-        Coulomb::yk_ab(a, b, k, ykab);
+        Coulomb::yk_ab(k, a, b, ykab);
       }
     }
   }
@@ -58,7 +58,7 @@ void YkTable::allocate_space(const std::vector<DiracSpinor> &a_orbs,
     for (const auto &b : b_orbs) {
       if (a_is_b && b > a)
         continue;
-      const auto [k0, kI] = k_minmax(a, b);
+      const auto [k0, kI] = k_minmax_Ck(a, b);
       for (auto k = k0; k <= kI; k += 2) {
         get_or_insert(std::size_t(k), ab_key(a, b));
       }
@@ -172,9 +172,10 @@ double YkTable::W(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 }
 
 //==============================================================================
-DiracSpinor YkTable::Qkv_bcd(int kappa, const DiracSpinor &Fb,
-                             const DiracSpinor &Fc, const DiracSpinor &Fd,
-                             const int k) const {
+DiracSpinor YkTable::Qkv_bcd(const int k, int kappa, const DiracSpinor &Fb,
+                             const DiracSpinor &Fc,
+                             const DiracSpinor &Fd) const {
+  assert(k >= 0 && "Check k and kappa");
   DiracSpinor Qkv{0, kappa, Fb.grid_sptr()};
   const auto tCac = m_Ck.get_tildeCkab(k, kappa, Fc.kappa());
   const auto tCbd = m_Ck.get_tildeCkab(k, Fb.kappa(), Fd.kappa());
@@ -191,11 +192,10 @@ DiracSpinor YkTable::Qkv_bcd(int kappa, const DiracSpinor &Fb,
 }
 
 //==============================================================================
-DiracSpinor YkTable::Pkv_bcd(int kappa, const DiracSpinor &Fb,
+DiracSpinor YkTable::Pkv_bcd(const int k, int kappa, const DiracSpinor &Fb,
                              const DiracSpinor &Fc, const DiracSpinor &Fd,
-                             const int k,
                              const std::vector<double> &f2k) const {
-
+  assert(k >= 0 && "Check k and kappa");
   DiracSpinor Pkv{0, kappa, Fb.grid_sptr()};
 
   const auto fk = [&f2k](int l) {
@@ -217,7 +217,7 @@ DiracSpinor YkTable::Pkv_bcd(int kappa, const DiracSpinor &Fb,
 
     if (Angular::zeroQ(sj))
       continue;
-    Pkv += sj * Qkv_bcd(Pkv.kappa(), Fb, Fd, Fc, l);
+    Pkv += sj * Qkv_bcd(l, Pkv.kappa(), Fb, Fd, Fc);
   }
   Pkv *= tkp1;
   return Pkv;

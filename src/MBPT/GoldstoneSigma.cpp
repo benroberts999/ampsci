@@ -143,7 +143,7 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
     auto Qkv = DiracSpinor(0, kappa, p_gr); // re-use to reduce alloc'ns
     auto Pkv = DiracSpinor(0, kappa, p_gr); // re-use to reduce alloc'ns
     for (const auto &n : m_excited) {
-      const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax(n, a);
+      const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, a);
       for (int k = kmin_nb; k <= kmax_nb; ++k) {
         if (Ck(k, a.kappa(), n.kappa()) == 0)
           continue;
@@ -159,8 +159,8 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
         for (const auto &m : m_excited) {
           if (Ck(k, kappa, m.kappa()) == 0)
             continue;
-          Qkv = m_yeh.Qkv_bcd(Qkv.kappa(), a, m, n, k);
-          Pkv = m_yeh.Pkv_bcd(Pkv.kappa(), a, m, n, k, m_fk);
+          Qkv = m_yeh.Qkv_bcd(k, Qkv.kappa(), a, m, n);
+          Pkv = m_yeh.Pkv_bcd(k, Pkv.kappa(), a, m, n, m_fk);
           const auto dele = en + a.en() - m.en() - n.en();
           const auto factor = 1.0 / (f_kkjj * dele);
           addto_G(&Ga_d, Qkv, Qkv, etak * fk * factor);
@@ -171,8 +171,8 @@ void GoldstoneSigma::Sigma2(GMatrix *Gmat_D, GMatrix *Gmat_X, int kappa,
         for (const auto &b : m_holes) {
           if (Ck(k, kappa, b.kappa()) == 0)
             continue;
-          Qkv = m_yeh.Qkv_bcd(Qkv.kappa(), n, b, a, k);
-          Pkv = m_yeh.Pkv_bcd(Pkv.kappa(), n, b, a, k, m_fk);
+          Qkv = m_yeh.Qkv_bcd(k, Qkv.kappa(), n, b, a);
+          Pkv = m_yeh.Pkv_bcd(k, Pkv.kappa(), n, b, a, m_fk);
           const auto dele = en + n.en() - b.en() - a.en();
           const auto factor = 1.0 / (f_kkjj * dele); // XXX
           addto_G(&Ga_d, Qkv, Qkv, etak * fk * factor);

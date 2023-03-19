@@ -345,11 +345,11 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
 
       const auto sQ = Angular::neg1pow_2(tjn + X_beta.twoj() + 2 * k + 2);
       if (sQ == 1) { // faster than multiplying!
-        dVFa += Coulomb::Wkv_bcd(kappa_n, Fb, Fa, X_beta, k);
-        dVFa += Coulomb::Wkv_bcd(kappa_n, Y_beta, Fa, Fb, k);
+        dVFa += Coulomb::Wkv_bcd(k, kappa_n, Fb, Fa, X_beta);
+        dVFa += Coulomb::Wkv_bcd(k, kappa_n, Y_beta, Fa, Fb);
       } else {
-        dVFa -= Coulomb::Wkv_bcd(kappa_n, Fb, Fa, X_beta, k);
-        dVFa -= Coulomb::Wkv_bcd(kappa_n, Y_beta, Fa, Fb, k);
+        dVFa -= Coulomb::Wkv_bcd(k, kappa_n, Fb, Fa, X_beta);
+        dVFa -= Coulomb::Wkv_bcd(k, kappa_n, Y_beta, Fa, Fb);
       }
 
       // Breit part:
