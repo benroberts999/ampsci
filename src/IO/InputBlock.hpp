@@ -1,4 +1,5 @@
 #pragma once
+#include "fmt/color.hpp"
 #include "qip/String.hpp" //for case insensitive
 #include <algorithm>
 #include <array>
@@ -224,10 +225,6 @@ public:
   //! string. By default prints to cout, but can be given any ostream
   inline void print(std::ostream &os = std::cout, int indent_depth = 0) const;
 
-  [[deprecated]] inline bool
-  checkBlock_old(const std::vector<std::string> &list,
-                 bool print = false) const;
-
   //! Check all the options and blocks in this; if any of them are not present
   //! in 'list', then there is likely a spelling error in the input => returns
   //! false, warns user, and prints all options to screen. list is a pair:
@@ -289,22 +286,6 @@ void InputBlock::add(const std::vector<Option> &options) {
 }
 //==============================================================================
 void InputBlock::add(const std::string &string, bool merge) {
-
-  // std::cout << "***\n\n";
-  // std::cout << string << "\n";
-  // std::cout << "***\nremoveComments:\n";
-  // auto clean_text = removeComments(string);
-  // std::cout << clean_text << "\n";
-  // std::cout << "***\nxpandIncludes:\n";
-  // clean_text = expandIncludes(clean_text);
-  // std::cout << clean_text << "\n";
-  // std::cout << "***\nemoveSpaces:\n";
-  // clean_text = removeSpaces(clean_text);
-  // std::cout << clean_text << "\n";
-  // std::cout << "***\nemoveQuoteMarks:\n";
-  // clean_text = removeQuoteMarks(clean_text);
-  // std::cout << clean_text << "\n";
-  // std::cout << "***\n";
 
   add_blocks_from_string(
       removeQuoteMarks(removeSpaces(expandIncludes(removeComments(string)))),
@@ -519,8 +500,9 @@ bool InputBlock::checkBlock(
       print = true;
     if (bad_option && !help) {
       all_ok = false;
-      std::cout << "\n⚠️  WARNING: Unclear input option in " << m_name
-                << ": " << option.key << " = " << option.value_str << ";\n"
+      fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+      std::cout << "Unclear input option in " << m_name << ": " << option.key
+                << " = " << option.value_str << ";\n"
                 << "Option may be ignored!\n"
                 << "Check spelling (or update list of options)\n";
       // spell-check + nearest suggestion:
@@ -543,8 +525,9 @@ bool InputBlock::checkBlock(
     const auto bad_block = !std::any_of(list.cbegin(), list.cend(), is_blockQ);
     if (bad_block) {
       all_ok = false;
-      std::cout << "\n⚠️  WARNING: Unclear input block within " << m_name
-                << ": " << block.name() << "{}\n"
+      fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+      std::cout << "Unclear input block within " << m_name << ": "
+                << block.name() << "{}\n"
                 << "Block and containing options may be ignored!\n"
                 << "Check spelling (or update list of options)\n";
       // spell-check + nearest suggestion:
@@ -560,16 +543,19 @@ bool InputBlock::checkBlock(
   }
 
   if (!all_ok || print) {
-    std::cout << "\nAvailable " << m_name << " options/blocks are:\n"
-              << m_name << "{\n";
+    fmt::print(fg(fmt::color::light_blue), "\n// Available {} options/blocks\n",
+               m_name);
+    std::cout << m_name << "{\n";
     std::for_each(list.cbegin(), list.cend(), [](const auto &s) {
-      if (s.first.empty()) {
-        std::cout << "  /*\n  " << s.second << "\n  */\n";
+      const auto option_is_block = s.first.back() == '}';
+      if (!s.second.empty()) {
+        fmt::print(fg(fmt::color::light_blue), "{}\n",
+                   qip::wrap(s.second, 80, "  // "));
+      }
+      if (!s.first.empty()) {
+        std::cout << "  " << s.first << (option_is_block ? "\n" : ";\n");
       } else {
-        if (s.first.back() == '}')
-          std::cout << "  " << s.first << "\t// " << s.second << "\n";
-        else
-          std::cout << "  " << s.first << ";\t// " << s.second << "\n";
+        std::cout << "\n";
       }
     });
     std::cout << "}\n\n";

@@ -203,6 +203,9 @@ RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
                     "typical [1.0]"},
        {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
                    "1,0,1 => include for s and d, but not for p [1.0]"}});
+  if (input.has_option("help")) {
+    return {};
+  }
 
   const auto x_Ueh = input.get({"RadPot"}, "Ueh", 1.0);
   const auto x_SEe_h = input.get({"RadPot"}, "SE_h", 1.0);

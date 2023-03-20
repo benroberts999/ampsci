@@ -25,7 +25,7 @@ ChargeDistro parseType(const std::string &str_type) {
     return ChargeDistro::point;
   if (qip::ci_wc_compare(str_type, "gaus*"))
     return ChargeDistro::Gaussian;
-  std::cout << "\n⚠️  WARNING: Unkown nucleus type: " << str_type
+  std::cout << "\n!!  WARNING: Unkown nucleus type: " << str_type
             << "; defaulting to Fermi\n"
             << "Options are: Fermi, spherical, pointlike, Gaussian\n\n";
   return ChargeDistro::Fermi;

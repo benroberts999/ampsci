@@ -203,17 +203,20 @@ void ampsci(const IO::InputBlock &input) {
 
   // Top-level input blocks
   input.check(
-      {{"",
-        "Format for descriptions are:\n Description [default_value]\n Blocks "
-        "end with '{}', options end with ';'"},
+      {{"", "These are the top-level ampsci input blocks and options. Default "
+            "values are given in square brackets following the description: "
+            "[default_value]. Blocks end with '{}', options end with ';'. run "
+            "`ampsci -a BlockName` (for any of the following blocks) to see "
+            "all the options available for that block."},
        {"Atom{}", "Which atom to run for"},
        {"Nucleus{}", "Set nuclear parameters"},
-       {"Grid{}", "Set radial grid parameters"},
-       {"HartreeFock{}", "Options for Solving atomic system"},
+       {"Grid{}", "Set radial grid/lattice parameters"},
+       {"HartreeFock{}", "Options for solving atomic system"},
        {"RadPot{}", "Inlcude QED radiative potential"},
-       {"ExtraPotential{}", "Include an extra potential. Rarely used."},
+       {"ExtraPotential{}",
+        "Include an extra effective potential. Rarely used."},
        {"Basis{}", "Basis of HF eigenstates used for MBPT"},
-       {"Correlations{}", "Options for correlations"},
+       {"Correlations{}", "Options for MBPT and correlation corrections"},
        {"Spectrum{}",
         "Like basis, but includes correlations. Used for sum-over-states"},
        {"Module::*{}", "Run any number of modules (* -> module name). `ampsci "
@@ -373,9 +376,9 @@ void ampsci(const IO::InputBlock &input) {
        {"r_cut", "Radial cut-off parameter for effective pol. potential [=1]"},
        {"scale",
         "Overall scaling factor for potential is scaled by this value [1]"}});
-  const auto include_extra_potential =
-      input.getBlock("ExtraPotential") != std::nullopt;
-  if (include_extra_potential) {
+
+  const auto extra_in = input.getBlock("ExtraPotential");
+  if (extra_in && !extra_in->has_option("help")) {
     const auto ep_fname = input.get({"ExtraPotential"}, "filename", ""s);
     const auto ep_scale = input.get({"ExtraPotential"}, "scale", 1.0);
 
@@ -598,7 +601,7 @@ void ampsci(const IO::InputBlock &input) {
                {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
 
   const auto spectrum_in = input.getBlock("Spectrum");
-  if (spectrum_in) {
+  if (spectrum_in && !spectrum_in->has_option("help")) {
     wf.formSpectrum(*spectrum_in);
     if (input.get({"Spectrum"}, "print", false) && !wf.spectrum().empty()) {
       std::cout << "Spectrum:\n";

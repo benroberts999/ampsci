@@ -10,6 +10,7 @@
 #include "Physics/RadPot.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "fmt/color.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <cassert>
@@ -132,7 +133,8 @@ EpsIts HartreeFock::solve_core(bool print) {
   }
 
   if (eps > m_eps_HF && eps > 1.0e-6) {
-    std::cout << "\n⚠️ WARNING: Core didn't converge!\n\n";
+    fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+    std::cout << "Core didn't converge!\n\n";
   }
 
   return eps_its;
@@ -194,7 +196,8 @@ void HartreeFock::solve_valence(
            its, eps, state.c_str(), bits, beps, bstate.c_str());
   }
   if (eps > m_eps_HF && eps > 1.0e-6) {
-    std::cout << "\n⚠️ WARNING: Valence didn't converge!\n\n";
+    fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+    std::cout << "Valence didn't converge!\n\n";
   }
 }
 

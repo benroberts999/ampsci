@@ -3,7 +3,7 @@
 #include "Modules/modules_list.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "fmt/format.hpp"
+#include "fmt/color.hpp"
 #include "qip/String.hpp"
 #include <algorithm>
 #include <iostream>
@@ -62,7 +62,11 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
 //==============================================================================
 void list_modules() {
   for (auto &[name, func, description] : module_list) {
-    fmt::print(" * {:23s} : {}\n", name, description);
+    // fmt::print(" * {:23s} : {}\n", name, description);
+    fmt::print(" * {}\n", name);
+    if (!description.empty())
+      fmt::print(fg(fmt::color::light_blue), "{}\n",
+                 qip::wrap(description, 80, "     "));
   }
 }
 

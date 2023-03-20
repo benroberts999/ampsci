@@ -85,4 +85,12 @@ TEST_CASE("qip::String", "[qip][String][unit]") {
           std::vector<std::string>{"a", "b", "c"});
   REQUIRE(qip::split(std::string{"a,b,c"}, ',') ==
           std::vector<std::string>{"a", "b", "c"});
+
+  //===========================================
+  REQUIRE(qip::wrap("hello world", 80) == "hello world");
+  REQUIRE(qip::wrap("hello world", 5) == "hello\nworld");
+  REQUIRE(qip::wrap("hello world", 6) == "hello\nworld");
+  REQUIRE(qip::wrap("hello world", 4) == "hell\no\nworl\nd");
+  REQUIRE(qip::wrap("hello cat world hello world x", 10, "# ") ==
+          "# hello\n# cat\n# world\n# hello\n# world x");
 }

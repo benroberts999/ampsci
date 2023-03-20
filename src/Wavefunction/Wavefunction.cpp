@@ -15,6 +15,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "fmt/color.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <cmath>
@@ -154,7 +155,8 @@ void Wavefunction::set_HF(const std::string &method, const double x_Breit,
     } else if (method == "Local") {
       std::cout << "Using local potential\n";
     } else if (method != "HartreeFock") {
-      std::cout << "\n⚠️  WARNING unkown method: " << method
+      fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+      std::cout << "unkown method: " << method
                 << "\nDefaulting to HartreeFock method.\n";
     }
 
@@ -162,7 +164,8 @@ void Wavefunction::set_HF(const std::string &method, const double x_Breit,
     if (method == "HartreeFock" && x_Breit != 0.0) {
       std::cout << "Including Breit (scale = " << x_Breit << ")\n";
     } else if (method != "HartreeFock" && x_Breit != 0.0) {
-      std::cout << "\n⚠️  WARNING can only include Breit in Hartree-Fock "
+      fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+      std::cout << "can only include Breit in Hartree-Fock "
                    "method. Breit will not be included.\n";
     }
   }

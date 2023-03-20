@@ -388,7 +388,7 @@ void FeynmanSigma::form_Vx() {
 //------------------------------------------------------------------------------
 GMatrix FeynmanSigma::calculate_Vx_kappa(int kappa) const {
 
-  assert(m_dri != nullptr && "⚠️ form_Q_dr() must be run before form_Vx()");
+  assert(m_dri != nullptr && "!! form_Q_dr() must be run before form_Vx()");
 
   GMatrix Vx(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
   const auto tj = Angular::twoj_k(kappa);

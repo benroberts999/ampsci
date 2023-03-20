@@ -237,6 +237,31 @@ inline std::string concat(const std::vector<std::string> &v,
 }
 
 //==============================================================================
+//! Wraps the string, 'input', at line 'at'. Optionally appends a prefix
+//! 'prefix' to each line. Does not split words (if can be avoided)
+inline std::string wrap(const std::string &input, std::size_t at = 80,
+                        const std::string &prefix = "") {
+  std::string output;
+  const auto length = at - prefix.size();
+  std::size_t ipos = 0;
+  std::size_t fpos = length;
+  while (input.length() > fpos) {
+    const auto temp_pos = input.rfind(' ', fpos);
+    if (temp_pos <= ipos || temp_pos == std::string::npos) {
+      output += prefix + input.substr(ipos, fpos - ipos) + "\n";
+      ipos = fpos;
+      fpos = ipos + length;
+    } else {
+      output += prefix + input.substr(ipos, temp_pos - ipos) + "\n";
+      ipos = temp_pos + 1;
+      fpos = ipos + length;
+    }
+  }
+  output += prefix + input.substr(ipos, fpos - ipos);
+  return output;
+}
+
+//==============================================================================
 //! Converts integer, a, to Roman Numerals. Assumed that |a|<=4000
 inline std::string int_to_roman(int a) {
   if (a < 0)
