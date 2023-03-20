@@ -7,7 +7,6 @@
 #include "MBPT/FeynmanSigma.hpp"
 #include "MBPT/GoldstoneSigma.hpp"
 #include "Maths/Grid.hpp"
-#include "Maths/Interpolator.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -57,6 +56,7 @@ Wavefunction::Wavefunction(const Wavefunction &wf)
   this->m_HF = wf.m_HF;
   // cannot copy sigma!?!?
   this->m_core_string = wf.m_core_string;
+  this->m_aboveFermi_core_string = wf.m_aboveFermi_core_string;
   this->copySigma(wf.Sigma());
 }
 
@@ -72,7 +72,16 @@ Wavefunction::determineCore(const std::string &str_core_in)
 {
   std::vector<DiracSpinor> core;
 
-  const auto core_configs = AtomData::core_parser(str_core_in);
+  // std::string a, b;
+  std::string str_core = str_core_in;
+
+  const auto fermi_pos = str_core.find(':');
+  if (fermi_pos != std::string::npos) {
+    m_aboveFermi_core_string = str_core.substr(fermi_pos + 1);
+    str_core.replace(fermi_pos, 1, ",");
+  }
+
+  const auto core_configs = AtomData::core_parser(str_core);
 
   bool bad_core = false;
   m_core_string = "";
@@ -196,8 +205,8 @@ double Wavefunction::coreEnergyHF() const {
 void Wavefunction::solve_valence(const std::string &in_valence_str,
                                  const bool print) {
 
-  const auto explicite_val_list =
-      (m_HF && m_HF->method() == HF::Method::KohnSham);
+  const auto explicite_val_list = false;
+  // (m_HF && m_HF->method() == HF::Method::KohnSham);
   const auto val_lst = explicite_val_list ?
                            AtomData::listOfStates_singlen(in_valence_str) :
                            AtomData::listOfStates_nk(in_valence_str);
@@ -205,7 +214,8 @@ void Wavefunction::solve_valence(const std::string &in_valence_str,
   // 1. populate valence states
   for (const auto &[n, k, en] : val_lst) {
     (void)en;
-    if (!isInValence(n, k) && (!isInCore(n, k) || explicite_val_list)) {
+    // if (!isInValence(n, k) && (!isInCore(n, k) || explicite_val_list)) {
+    if (!isInValence(n, k) && (!isInCore(n, k) || isInAboveFermiCore(n, k))) {
       // For Kohn-Sham, valence state may be in core
       auto &Fv = m_valence.emplace_back(n, k, rgrid);
       Fv.occ_frac() = 1.0 / Fv.twojp1();
@@ -283,21 +293,35 @@ bool Wavefunction::isInValence(int n, int k) const {
   return Fnk != cend(m_valence);
 }
 
+//------------------------------------------------------------------------------
+bool Wavefunction::isInAboveFermiCore(int n, int k) const {
+  std::istringstream ss(m_aboveFermi_core_string);
+  std::string each;
+  auto sn = std::to_string(n) + AtomData::l_symbol(Angular::l_k(k));
+  while (std::getline(ss, each, ',')) {
+    if (each.substr(0, sn.length()) == sn)
+      return true;
+  }
+  return false;
+}
+
 //==============================================================================
 const DiracSpinor *Wavefunction::getState(int n, int k) const {
   const auto find_nk = [n, k](const auto Fa) {
     return Fa.n() == n && Fa.kappa() == k;
   };
-  // Try to find in core:
-  auto Fnk = std::find_if(cbegin(core()), cend(core()), find_nk);
-  if (Fnk != cend(core())) {
-    return &*Fnk;
-  }
-  // If not in core, try to find in valence:
-  Fnk = std::find_if(cbegin(m_valence), cend(m_valence), find_nk);
+  // Try to find in valence first:
+  // nb: search valence first
+  auto Fnk = std::find_if(cbegin(m_valence), cend(m_valence), find_nk);
   if (Fnk != cend(m_valence)) {
     return &*Fnk;
   }
+  // If not in valence, try to find in core:
+  Fnk = std::find_if(cbegin(core()), cend(core()), find_nk);
+  if (Fnk != cend(core())) {
+    return &*Fnk;
+  }
+
   // otherwise, return nope
   return nullptr;
 }
@@ -575,8 +599,7 @@ void Wavefunction::formSigma(
 //==============================================================================
 void Wavefunction::hartreeFockBrueckner(const bool print) {
   if (!m_HF) {
-    std::cerr << "WARNING 62: Cant call solve_valence before "
-                 "solve_core\n";
+    std::cerr << "WARNING 62: Cant call solve_valence before solve_core\n";
     return;
   }
   if (m_Sigma)

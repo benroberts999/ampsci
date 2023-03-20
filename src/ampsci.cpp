@@ -334,13 +334,18 @@ void ampsci(const IO::InputBlock &input) {
       {{"", "Options for solving lowest-order atomic wavefunction"},
        {"core", "Core configuration. Either list entire core, or use [At] "
                 "short-hand. e.g., [He] equivilant to 1s2; [Xe],6s1 equivilant "
-                "to [Cs] and to 1s2,2s2,...,5p6,6s1. [blank by default]"},
-       {"valence", "e.g., 7sp5d will include valence states up to "
-                   "n=7 for s and p, but n=5 for d states. Automatically "
-                   "excludes states "
-                   "in the core. [blank by default]"},
+                "to [Cs] and to 1s2,2s2,...,5p6,6s1. Instead of one of the "
+                "commas, you may use a ':' - states above this are included "
+                "into the core, but not excluded from the valence list. Use "
+                "this method for KohnSham, for example. [blank by default]"},
+       {"valence",
+        "Valence configuration in `basis string' format. e.g., 7sp5df will "
+        "include valence states up to  n=7 for s and p, and up to n=5 for d "
+        "and f states. Automatically excludes states in the core (except those "
+        "above the optional ':'). [blank by default]"},
        {"eps", "HF convergance goal [1.0e-13]"},
-       {"method", "HartreeFock, Hartree, KohnSham, Local [HartreeFock]"},
+       {"method", "Method for mean-field approximation: HartreeFock, Hartree, "
+                  "KohnSham, Local [HartreeFock]"},
        {"Breit", "Scale for factor for Breit Hamiltonian. Usially 0.0 (no "
                  "Breit) or 1.0 (full Breit), but can take any value. [0.0]"}});
 

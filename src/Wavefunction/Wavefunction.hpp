@@ -67,6 +67,7 @@ private:
   std::unique_ptr<MBPT::CorrelationPotential> m_Sigma{nullptr};
   // Core configuration (non-rel terms)
   std::string m_core_string = "";
+  std::string m_aboveFermi_core_string = "";
 
 public:
   //! Returns a const reference to the radial grid
@@ -284,4 +285,5 @@ public:
 private:
   // Creates set of blank core orbitals
   std::vector<DiracSpinor> determineCore(const std::string &str_core_in);
+  bool isInAboveFermiCore(int n, int k) const;
 };
