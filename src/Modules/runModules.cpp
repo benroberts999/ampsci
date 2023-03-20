@@ -65,8 +65,8 @@ void list_modules() {
     // fmt::print(" * {:23s} : {}\n", name, description);
     fmt::print(" * {}\n", name);
     if (!description.empty())
-      fmt::print(fg(fmt::color::light_blue), "{}\n",
-                 qip::wrap(description, 80, "     "));
+      fmt2::styled_print(fg(fmt::color::light_blue), "{}\n",
+                         qip::wrap(description, 80, "     "));
   }
 }
 

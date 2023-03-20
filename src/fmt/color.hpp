@@ -9,3 +9,22 @@
 #endif
 #include "fmt/format.hpp"
 #include "fmt/include/color.h"
+#include <unistd.h> // isatty
+
+namespace fmt2 {
+
+#if defined(__GNUC__) || defined(__clang__)
+static const bool enable_fmt_text_style = isatty(STDOUT_FILENO);
+#else
+static const bool enable_fmt_text_style = false;
+#endif
+
+//! wrapper for text_style formatted fmt::print. Will only apply styling if
+//! output is a terminal (stops ANSI characters written to file with >> or |tee)
+template <typename... Args>
+void styled_print(const fmt::text_style &ts, const Args &...args) {
+  isatty(STDOUT_FILENO);
+  fmt::print(enable_fmt_text_style ? ts : fmt::text_style(), args...);
+}
+
+} // namespace fmt2

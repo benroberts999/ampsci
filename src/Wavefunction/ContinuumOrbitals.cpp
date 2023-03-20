@@ -63,7 +63,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
   // We may wish to do this to test things, but not for final calculations:
   if (force_rescale && subtract_self) {
-    fmt::print(fg(fmt::color::orange), "\nWARNING 65: ");
+    fmt2::styled_print(fg(fmt::color::orange), "\nWARNING 65: ");
     fmt::print("Should not subtract self interaction _and_ "
                "rescale V(r): do one or the other\n");
   }

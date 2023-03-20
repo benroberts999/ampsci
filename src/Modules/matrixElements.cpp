@@ -77,7 +77,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                                     ExternalField::ParseMethod(rpa_method_str);
 
   if (rpa_method == ExternalField::method::Error) {
-    fmt::print(fg(fmt::color::red), "\nError 77: ");
+    fmt2::styled_print(fg(fmt::color::red), "\nError 77: ");
     fmt::print(
         "RPA method {} not found - check spelling? Defaulting to NO rpa\n",
         rpa_method_str);
@@ -213,7 +213,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
                                     ExternalField::ParseMethod(rpa_method_str);
 
   if (rpa_method == ExternalField::method::Error) {
-    fmt::print(fg(fmt::color::red), "\nError 77: ");
+    fmt2::styled_print(fg(fmt::color::red), "\nError 77: ");
     fmt::print(
         "RPA method {} not found - check spelling? Defaulting to NO rpa\n",
         rpa_method_str);

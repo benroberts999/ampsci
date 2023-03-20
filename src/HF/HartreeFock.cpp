@@ -133,7 +133,7 @@ EpsIts HartreeFock::solve_core(bool print) {
   }
 
   if (eps > m_eps_HF && eps > 1.0e-6) {
-    fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+    fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
     std::cout << "Core didn't converge!\n\n";
   }
 
@@ -196,7 +196,7 @@ void HartreeFock::solve_valence(
            its, eps, state.c_str(), bits, beps, bstate.c_str());
   }
   if (eps > m_eps_HF && eps > 1.0e-6) {
-    fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+    fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
     std::cout << "Valence didn't converge!\n\n";
   }
 }

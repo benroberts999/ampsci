@@ -164,7 +164,7 @@ void Wavefunction::set_HF(const std::string &method, const double x_Breit,
     } else if (method == "Local") {
       std::cout << "Using local potential\n";
     } else if (method != "HartreeFock") {
-      fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+      fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
       std::cout << "unkown method: " << method
                 << "\nDefaulting to HartreeFock method.\n";
     }
@@ -173,7 +173,7 @@ void Wavefunction::set_HF(const std::string &method, const double x_Breit,
     if (method == "HartreeFock" && x_Breit != 0.0) {
       std::cout << "Including Breit (scale = " << x_Breit << ")\n";
     } else if (method != "HartreeFock" && x_Breit != 0.0) {
-      fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+      fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
       std::cout << "can only include Breit in Hartree-Fock "
                    "method. Breit will not be included.\n";
     }

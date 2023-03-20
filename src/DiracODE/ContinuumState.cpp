@@ -31,7 +31,7 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
   const auto dr0 = gr.drdu().back() * gr.du();
   const double dr0_target = approx_wavelength / N_ppw;
   if (dr0 > dr0_target) {
-    fmt::print(fg(fmt::color::red), "\nERROR 104: ");
+    fmt2::styled_print(fg(fmt::color::red), "\nERROR 104: ");
     fmt::print(
         "Grid not dense enough for continuum state with e={:.2f} (kappa={}); \n"
         "Try increasing points (to ~ du < {:.3f})\n"

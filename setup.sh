@@ -39,7 +39,6 @@ if [ ${machine} == 'Linux' ]; then
   apt-get install --yes make g++ liblapack-dev libblas-dev libgsl-dev libomp-dev &&
   make
 elif [ ${machine} == 'Mac' ]; then
-  echo "Please run using sudo"
   # check if homebrew is installed:
   which -s brew
   if [[ $? != 0 ]] ; then
@@ -54,10 +53,10 @@ elif [ ${machine} == 'Mac' ]; then
   else
     brew update
   fi
-  echo "Please run using sudo"
   set -x
   brew install gcc@11 &&
   brew install gsl &&
+  # nb: path to gsl is different for new M1 mac
   make CXX=g++-11 PathForGSL=/usr/local/opt/gnu-scientific-library
 else
   echo 'Unsupported system for setup - requires manual setup'

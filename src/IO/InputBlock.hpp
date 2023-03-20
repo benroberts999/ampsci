@@ -500,7 +500,7 @@ bool InputBlock::checkBlock(
       print = true;
     if (bad_option && !help) {
       all_ok = false;
-      fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+      fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
       std::cout << "Unclear input option in " << m_name << ": " << option.key
                 << " = " << option.value_str << ";\n"
                 << "Option may be ignored!\n"
@@ -525,7 +525,7 @@ bool InputBlock::checkBlock(
     const auto bad_block = !std::any_of(list.cbegin(), list.cend(), is_blockQ);
     if (bad_block) {
       all_ok = false;
-      fmt::print(fg(fmt::color::orange), "\n WARNING\n");
+      fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
       std::cout << "Unclear input block within " << m_name << ": "
                 << block.name() << "{}\n"
                 << "Block and containing options may be ignored!\n"
@@ -543,14 +543,15 @@ bool InputBlock::checkBlock(
   }
 
   if (!all_ok || print) {
-    fmt::print(fg(fmt::color::light_blue), "\n// Available {} options/blocks\n",
-               m_name);
-    std::cout << m_name << "{\n";
+    fmt2::styled_print(fg(fmt::color::light_blue),
+                       "\n// Available {} options/blocks\n", m_name);
+    fmt2::styled_print(fmt::emphasis::bold, m_name);
+    std::cout << "{\n";
     std::for_each(list.cbegin(), list.cend(), [](const auto &s) {
       const auto option_is_block = s.first.back() == '}';
       if (!s.second.empty()) {
-        fmt::print(fg(fmt::color::light_blue), "{}\n",
-                   qip::wrap(s.second, 80, "  // "));
+        fmt2::styled_print(fg(fmt::color::light_blue), "{}\n",
+                           qip::wrap(s.second, 80, "  // "));
       }
       if (!s.first.empty()) {
         std::cout << "  " << s.first << (option_is_block ? "\n" : ";\n");

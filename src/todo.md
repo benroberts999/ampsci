@@ -12,16 +12,17 @@
 * Also: check correctness in general case
   * Note: TDHF doesn't work for E1v, but diagram does!
 
-## TDHF - code
+## CorePolarisation - code
 
-* Streamline the core-polarisation classes
-* Take unified bunch of options
+* Streamline the core-polarisation classes: unified calling syntax
 
-## Qk and Coulomb
+## Qk, Coulomb, Angular
 
 * QkTable - better hash table?
 * Create QkTable at Basis{}?
   * Option to use different basis for RPA/Sigma etc?
+* Clean and fix Yk table [calculate() function etc]
+* Fix up Angular tables. Combine? Generalise?
 
 ## B-spline stability (#26)
 
@@ -69,17 +70,12 @@
 * Extra diagrams (triangle, 3rd-order)
   * Complete to third-order?
 
-## Double core Polarisation (#12)
-
-* Work with any class derivative?
-
 ## Performance
 
 * TDHF
   * Parallelised inefficiently (#6): thread-safe shared_ptr?
   * Fewer allocations?
   * Particularly noticable with Breit
-* Breit: ineficient?
 * Qk table: better table?
 
 ## Improve/modernise

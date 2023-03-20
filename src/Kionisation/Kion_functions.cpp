@@ -307,7 +307,7 @@ convert_K_nk_approx_to_std(const LinAlg::Matrix<double> &Kaprx,
 bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid) {
   // Check grid type: only loglinear is reasonable for this module
   if (rgrid.type() != GridType::loglinear) {
-    fmt::print(fg(fmt::color::orange), "\nWarning:\n");
+    fmt2::styled_print(fg(fmt::color::orange), "\nWarning:\n");
     std::cout << "This module unlikely to work with grid type: "
               << GridParameters::parseType(rgrid.type())
               << "; consider changing to loglinear\n";
@@ -332,7 +332,7 @@ bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid) {
              "Approx dr at large r: {:.4f}\n",
              approx_wavelength, dr);
   if (dr > dr_target) {
-    fmt::print(fg(fmt::color::orange), "Warning: ");
+    fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
     fmt::print(
         "Grid may not be dense enough for continuum state with e={:.2f}\n",
         Emax_au);

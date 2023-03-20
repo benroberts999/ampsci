@@ -224,11 +224,11 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
        qip::ci_compare(input.get<std::string>("units", "MHz"), "MHz"));
 
   if (k <= 0) {
-    fmt::print(fg(fmt::color::red), "\nError 246:\n");
+    fmt2::styled_print(fg(fmt::color::red), "\nError 246:\n");
     std::cout << "In hyperfine: invalid K=" << k << "! meaningless results\n";
   }
   if (I_nuc <= 0) {
-    fmt::print(fg(fmt::color::orange), "\nWarning 253:\n");
+    fmt2::styled_print(fg(fmt::color::orange), "\nWarning 253:\n");
     std::cout << "In hyperfine: invalid I_nuc=" << I_nuc
               << "! meaningless results\n";
   }
@@ -254,7 +254,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
       qip::ci_compare(Fr_str, "doublyOdd*") ? DistroType::doublyOddSP :
                                               DistroType::Error;
   if (distro_type == DistroType::Error) {
-    fmt::print(fg(fmt::color::red), "\nError 271:\n");
+    fmt2::styled_print(fg(fmt::color::red), "\nError 271:\n");
     std::cout << "\nIn hyperfine. Unkown F(r) - " << Fr_str << "\n";
     std::cout << "Defaulting to pointlike!\n";
   }
@@ -313,7 +313,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto mu1 = input.get<double>("mu1", 1.0);
     const auto gl1 = input.get<int>("gl1", -1); // 1 or 0 (p or n)
     if (gl1 != 0 && gl1 != 1) {
-      fmt::print(fg(fmt::color::red), "\nError 324:\n");
+      fmt2::styled_print(fg(fmt::color::red), "\nError 324:\n");
       std::cout << "In " << input.name() << " " << Fr_str
                 << "; have gl1=" << gl1 << " but need 1 or 0\n";
       return std::make_unique<NullOperator>(NullOperator());
