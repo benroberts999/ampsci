@@ -120,4 +120,8 @@ std::vector<DiracConfig> listOfStates_nk(const std::string &in_list);
 //! Generates a list of DiracConfig from string: just max n for each kappa
 std::vector<DiracConfig> listOfStates_singlen(const std::string &in_list);
 
+//! Given a "basis string", returns list of {n, kappa}.
+//! e.g., 6sp5d ->{{6,-1}, {6,1}, {6,-2}, {5,2}, {5,-2}}
+std::vector<std::pair<int, int>> n_kappa_list(const std::string &basis_string);
+
 } // namespace AtomData

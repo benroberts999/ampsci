@@ -527,7 +527,7 @@ void Wavefunction::formSigma(
     const std::optional<IO::InputBlock> &ek) {
   if (m_valence.empty())
     return;
-
+  std::cout << "\nIncluding correlation potential:\n" << std::flush;
   /*
       // XXX Re-factor
       a) Make sub-block for Feynman, Goldstone Options
@@ -680,7 +680,7 @@ void Wavefunction::SOEnergyShift() {
   std::cout << "state |  E(HF)      E(2)       <v|S2|v> |  E(HF+2)     E(HF+2) "
                " (cm^-1)\n";
   for (const auto &v : m_valence) {
-    const auto delta = m_Sigma->SOEnergyShift(v, v);
+    const auto delta = m_Sigma->Sigma_vw(v, v);
     const auto delta2 = v * (*m_Sigma)(v);
     const auto cm = PhysConst::Hartree_invcm;
     if (e0 == 0)

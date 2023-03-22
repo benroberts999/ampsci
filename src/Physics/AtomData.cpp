@@ -520,6 +520,35 @@ std::vector<DiracConfig> listOfStates_singlen(const std::string &in_list) {
 }
 
 //==============================================================================
+std::vector<std::pair<int, int>> n_kappa_list(const std::string &basis_string) {
+
+  std::vector<std::pair<int, int>> state_list;
+  std::string n_str_previous = "999";
+  std::string n_str = "";
+  for (char c : basis_string) {
+    if (std::isdigit(c)) {
+      n_str += c;
+    } else {
+      if (n_str == "")
+        n_str = n_str_previous;
+      const int n_max = (qip::string_is_integer(n_str)) ? std::stoi(n_str) : -1;
+
+      auto l_str = std::string(1, c);
+      auto l = AtomData::symbol_to_l(l_str);
+
+      if (l != 0) {
+        state_list.emplace_back(n_max, l);
+      }
+      state_list.emplace_back(n_max, -l - 1);
+
+      n_str_previous = n_str;
+      n_str = "";
+    }
+  }
+  return state_list;
+}
+
+//==============================================================================
 inline std::string helper_s(const Element &el) {
   auto sym = el.symbol;
   auto sym_buff = (sym.length() == 1) ? std::string("  ") : std::string(" ");

@@ -4,6 +4,7 @@
 #include "Kionisation/Module_Kionisation.hpp"
 #include "Modules/Breit.hpp"
 #include "Modules/HFAnomaly.hpp"
+#include "Modules/VQE.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
 #include "Modules/isotopeShift.hpp"
@@ -69,6 +70,7 @@ static const std::vector<ModuleInfo> module_list{
      "Calculates Feynman electron screening factors"},
     {"pnc", &calculatePNC, "Calculates APV amplitudes"},
     {"testFeynman", &testFeynman, ""},
+    {"VQE", &VQE, "For testing/playing with VQE method"},
 
     {"exampleModule", &exampleModule, "A short description of the module"}};
 

@@ -445,6 +445,102 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
 
 //==============================================================================
 template <Symmetry S>
+void CoulombTable<S>::fill_ab(const std::vector<DiracSpinor> &basis,
+                              const YkTable &yk, int k_cut) {
+  IO::ChronoTimer t("fill(ab)");
+
+  const auto tmp_max_k = std::size_t(DiracSpinor::max_tj(basis) - 1);
+
+  const auto max_k =
+      (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
+
+  m_data.resize(max_k + 1);
+
+  // 1) Count unique non-zero Q integrals (each k). Use this to 'reserve' map space
+  t.start();
+  std::vector<std::size_t> count_non_zero_k(max_k + 1);
+#pragma omp parallel for
+  for (auto k = 0ul; k <= max_k; ++k) {
+    const auto ik = static_cast<int>(k);
+    for (const auto &a : basis) {
+      for (const auto &b : basis) {
+        if (b > a)
+          continue;
+        // 1. abab
+        if (Angular::Ck_kk_SR(ik, a.kappa(), a.kappa()) &&
+            Angular::Ck_kk_SR(ik, b.kappa(), b.kappa())) {
+          ++count_non_zero_k[k];
+        }
+        // 2. abba (only if abba!=abab, i.e., b!=a)
+        if (Angular::Ck_kk_SR(ik, a.kappa(), b.kappa()) && b != a) {
+          ++count_non_zero_k[k];
+        }
+      }
+    }
+  }
+  std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
+
+  // 2) Reserve space in each sub-map
+  t.start();
+#pragma omp parallel for
+  for (auto ik = 0ul; ik <= max_k; ++ik) {
+    m_data[ik].reserve(count_non_zero_k[ik]);
+  }
+  std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
+
+  // 3) Create space in map (set each element to zero).
+  t.start();
+#pragma omp parallel for
+  for (auto k = 0ul; k <= max_k; ++k) {
+    for (const auto &a : basis) {
+      for (const auto &b : basis) {
+        if (b > a)
+          continue;
+        // 1. abab
+        if (Angular::Ck_kk_SR(int(k), a.kappa(), a.kappa()) &&
+            Angular::Ck_kk_SR(int(k), b.kappa(), b.kappa())) {
+          add(int(k), a, b, a, b, 1.0);
+        }
+        // 2. abba (only if abba!=abab, i.e., b!=a)
+        if (Angular::Ck_kk_SR(int(k), a.kappa(), b.kappa()) && b != a) {
+          add(int(k), a, b, b, a, 1.0);
+        }
+      }
+    }
+  }
+  std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
+
+  t.start();
+#pragma omp parallel for
+  for (auto ia = 0ul; ia < basis.size(); ++ia) {
+    const auto &a = basis[ia];
+    for (const auto &b : basis) {
+      if (b > a)
+        continue;
+      {
+        auto [kmin, kmax] = k_minmax_Q(a, b, a, b);
+        kmax = std::clamp(kmax, 0, int(max_k));
+        for (int k = kmin; k <= kmax; k += 2) {
+          update(k, a, b, a, b, yk.Q(k, a, b, a, b));
+        }
+      }
+      if (b != a) {
+        auto [kmin, kmax] = k_minmax_Q(a, b, b, a);
+        kmax = std::clamp(kmax, 0, int(max_k));
+        for (int k = kmin; k <= kmax; k += 2) {
+          update(k, a, b, b, a, yk.Q(k, a, b, b, a));
+        }
+      }
+    }
+  }
+
+  std::cout << "Fill w/ values: " << t.lap_reading_str() << std::endl;
+
+  summary();
+}
+
+//==============================================================================
+template <Symmetry S>
 void CoulombTable<S>::write(const std::string &fname) const {
   if (fname == "false")
     return;

@@ -254,9 +254,8 @@ double CorrelationPotential::act_G_Fv_2(const DiracSpinor &Fa,
 }
 
 //==============================================================================
-double CorrelationPotential::SOEnergyShift(const DiracSpinor &v,
-                                           const DiracSpinor &w,
-                                           int max_l) const {
+double CorrelationPotential::Sigma_vw(const DiracSpinor &v,
+                                      const DiracSpinor &w, int max_l) const {
   // Calculates <Fv|Sigma|Fw> from scratch, at Fw energy [full grid + fg+gg]
   if (v.kappa() != w.kappa())
     return 0.0;

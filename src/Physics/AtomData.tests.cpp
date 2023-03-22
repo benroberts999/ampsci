@@ -173,6 +173,17 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
   REQUIRE(nk.k == -1);
   REQUIRE(nk.en == -0.5);
 
+  REQUIRE(AtomData::n_kappa_list("6sp5d") ==
+          std::vector{std::pair{6, -1}, {6, 1}, {6, -2}, {5, 2}, {5, -3}});
+  REQUIRE(AtomData::n_kappa_list("12s11p5d17f") ==
+          std::vector{std::pair{12, -1},
+                      {11, 1},
+                      {11, -2},
+                      {5, 2},
+                      {5, -3},
+                      {17, 3},
+                      {17, -4}});
+
   //===========================================
   //===========================================
   // Just require that this causes no errors

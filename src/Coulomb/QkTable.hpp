@@ -55,6 +55,10 @@ public:
   void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
             int k_cut = -1);
 
+  //! Fills table, only for all Q_abab and Q_abba values
+  void fill_ab(const std::vector<DiracSpinor> &basis, const YkTable &yk,
+               int k_cut = -1);
+
   //! Gives arrow access to all underlying vector<unordered_map> functions
   auto operator->() { return &m_data; }
 

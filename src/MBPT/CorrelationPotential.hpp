@@ -23,8 +23,8 @@ namespace MBPT {
 enum class Method { Goldstone, Feynman };
 
 struct Sigma_params {
-  Method method;
-  int min_n_core;
+  Method method{Method::Goldstone};
+  int min_n_core{1};
   bool include_G{false};
 
   // Following only for Feynman method
@@ -43,9 +43,9 @@ struct Sigma_params {
 };
 
 struct rgrid_params {
-  double r0;
-  double rmax;
-  std::size_t stride;
+  double r0{1.0e-4};
+  double rmax{30.0};
+  std::size_t stride{4};
 };
 
 struct wgrid_params {
@@ -77,14 +77,15 @@ to write.
 
 */
 class CorrelationPotential {
-protected:
+public:
   //! If given (optional) en_list, will form Sigma matrix.
   //! @details if given filename, will read Sigma in from file instead of
   //! calculating it. If given filename for file that doesn't exist yet,
   //! will write sigma to that file.
   CorrelationPotential(const HF::HartreeFock *const in_hf,
                        const std::vector<DiracSpinor> &basis,
-                       const Sigma_params &sigp, const rgrid_params &subgridp);
+                       const Sigma_params &sigp = {},
+                       const rgrid_params &subgridp = {});
 
   // Try to "undelete" these??
   CorrelationPotential &operator=(const CorrelationPotential &) = delete;
@@ -155,8 +156,8 @@ public:
   //! Calculates <Fv|Sigma|Fw> from scratch, at Fv energy [full grid + fg+gg]
   //! @details Note: uses basis, so if reading Sigma from file, and no basis
   //! given, will return all 0.0
-  double SOEnergyShift(const DiracSpinor &Fv, const DiracSpinor &Fw,
-                       int max_l = 99) const;
+  double Sigma_vw(const DiracSpinor &Fv, const DiracSpinor &Fw,
+                  int max_l = 99) const;
 
   static DiracSpinor Sigmal_Fv(const DiracSpinor &v, const Coulomb::YkTable &yk,
                                const Coulomb::LkTable &lk,

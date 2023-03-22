@@ -361,6 +361,17 @@ std::vector<T> select_if(const std::vector<T> &in, Func condition) {
   return out;
 }
 
+//! Inserts elements from in into inout, if condition is met
+template <typename T, typename Func>
+void insert_into_if(const std::vector<T> &in, std::vector<T> *inout,
+                    Func condition) {
+  for (const auto &el : in) {
+    if (condition(el)) {
+      inout->push_back(el);
+    }
+  }
+}
+
 //==============================================================================
 //==============================================================================
 //! namespace qip::overloads provides operator overloads for std::vector

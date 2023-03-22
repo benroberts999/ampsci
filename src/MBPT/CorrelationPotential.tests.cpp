@@ -37,7 +37,7 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
       std::cout << "cf Table 2 from Beloy, Derevianko, Comput.Phys.Commun. "
                    "179, 310 (2008):\n";
       for (int l = 0; l <= 6; ++l) {
-        const auto de = Sigma->SOEnergyShift(Fv, Fv, l);
+        const auto de = Sigma->Sigma_vw(Fv, Fv, l);
         vals.push_back(de - prev);
         printf("%i %10.7f %10.7f  [%10.7f]\n", l, de, de - prev,
                partial_KBAD[std::size_t(l)]);
@@ -56,7 +56,7 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
       wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
       wf.formSigma(1, false);
       const auto Sigma = wf.Sigma();
-      const auto de = Sigma->SOEnergyShift(Fv, Fv);
+      const auto de = Sigma->Sigma_vw(Fv, Fv);
       auto ok = de >= -0.01767 && de <= -0.01748 ? 1 : 0;
       // pass &= qip::check_value(&obuff, "MBPT(2) 'small' Cs 6s", ok, 1, 0);
       REQUIRE(ok);
