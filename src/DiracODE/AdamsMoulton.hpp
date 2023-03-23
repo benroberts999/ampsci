@@ -528,8 +528,12 @@ public:
                                        am.aK * S_scale * m_D->Sf(t_next));
     const auto sg = g.back() + m_dt * (inner_product(dg, am.ak) +
                                        am.aK * S_scale * m_D->Sg(t_next));
-    const auto [a, b, c, d] = std::tuple{m_D->a(t_next), m_D->b(t_next),
-                                         m_D->c(t_next), m_D->d(t_next)};
+
+    const auto a = m_D->a(t_next);
+    const auto b = m_D->b(t_next);
+    const auto c = m_D->c(t_next);
+    const auto d = m_D->d(t_next);
+
     const auto a0 = m_dt * static_cast<Y>(am.aK);
     const auto a02 = a0 * a0;
     const auto det_inv =
@@ -604,8 +608,10 @@ private:
                                              am.aK * S_scale * m_D->Sg(t_next));
       const auto a0 = m_dt * static_cast<Y>(ai.aK);
       const auto a02 = a0 * a0;
-      const auto [a, b, c, d] = std::tuple{m_D->a(t_next), m_D->b(t_next),
-                                           m_D->c(t_next), m_D->d(t_next)};
+      const auto a = m_D->a(t_next);
+      const auto b = m_D->b(t_next);
+      const auto c = m_D->c(t_next);
+      const auto d = m_D->d(t_next);
       const auto det_inv =
           Y{1.0} / (Y{1.0} - (a02 * (b * c - a * d) + a0 * (a + d)));
       const auto fi = (sf - a0 * (d * sf - b * sg)) * det_inv;

@@ -345,7 +345,8 @@ double Wavefunction::FermiLevel() const {
                           std::min_element(cbegin(m_valence), cend(m_valence),
                                            DiracSpinor::comp_en)
                               ->en();
-  return 0.5 * (ev_min + ec_max);
+  // return 0.5 * (ev_min + ec_max);
+  return ec_max + 0.5 * (ev_min - ec_max) + 1.0e-9;
 }
 double Wavefunction::energy_gap() const {
 
