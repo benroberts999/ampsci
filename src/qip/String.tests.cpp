@@ -93,4 +93,21 @@ TEST_CASE("qip::String", "[qip][String][unit]") {
   REQUIRE(qip::wrap("hello world", 4) == "hell\no\nworl\nd");
   REQUIRE(qip::wrap("hello cat world hello world x", 10, "# ") ==
           "# hello\n# cat\n# world\n# hello\n# world x");
+
+  REQUIRE(qip::wrap("hello world", 8, "---") == "---hello\n---world");
+  REQUIRE(qip::wrap("hello\nworld hello world", 16, "---") ==
+          "---hello\n---world hello\n---world");
+
+  REQUIRE(qip::wrap("hello\nworld hello world", 17) ==
+          "hello\nworld hello world");
+  REQUIRE(qip::wrap("hello\nworld hello world", 15) ==
+          "hello\nworld hello\nworld");
+  REQUIRE(qip::wrap("hello\nworld hello world", 15, ",,") ==
+          ",,hello\n,,world hello\n,,world");
+  REQUIRE(qip::wrap("hello world hello\n world", 15, "   ") ==
+          "   hello world\n   hello\n    world");
+
+  REQUIRE(qip::wrap("hello\nworld hello world hello\nworld\nhello\nworld", 100,
+                    "__") ==
+          "__hello\n__world hello world hello\n__world\n__hello\n__world");
 }

@@ -12,9 +12,9 @@ struct GridParameters {
   GridType type;
 
   //! indu is optional. Only used if innum_points = 0 [then, uses du to find N]
-  GridParameters(std::size_t innum_points, double inr0, double inrmax,
-                 double inb = 4.0, GridType intype = GridType::loglinear,
-                 double indu = 0);
+  GridParameters(std::size_t innum_points = 1, double inr0 = 1.0,
+                 double inrmax = 1.0, double inb = 4.0,
+                 GridType intype = GridType::loglinear, double indu = 0);
 
   //! indu is optional. Only used if innum_points = 0 [then, uses du to find N]
   GridParameters(std::size_t innum_points, double inr0, double inrmax,

@@ -21,7 +21,7 @@ class Nucleus {
   double m_t;
 
 public:
-  Nucleus(int in_z, int in_a, const std::string &str_type = "Fermi",
+  Nucleus(int in_z = 1, int in_a = 0, const std::string &str_type = "Fermi",
           double in_rrms = -1.0, double in_t = -1.0);
 
   Nucleus(const std::string &z_str, int in_a,

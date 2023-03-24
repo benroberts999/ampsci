@@ -245,19 +245,35 @@ inline std::string wrap(const std::string &input, std::size_t at = 80,
   const auto length = at - prefix.size();
   std::size_t ipos = 0;
   std::size_t fpos = length;
-  while (input.length() > fpos) {
-    const auto temp_pos = input.rfind(' ', fpos);
+  while (ipos < input.length()) {
+    if (!output.empty())
+      output += '\n';
+
+    auto temp_pos_nl = input.find('\n', ipos);
+    if (temp_pos_nl > ipos && temp_pos_nl < fpos &&
+        temp_pos_nl != std::string::npos) {
+      output += prefix + input.substr(ipos, temp_pos_nl - ipos);
+      ipos = temp_pos_nl + 1;
+      fpos = ipos + length;
+      continue;
+    }
+
+    if (fpos >= input.length()) {
+      output += prefix + input.substr(ipos, fpos - ipos);
+      break;
+    }
+
+    auto temp_pos = input.rfind(' ', fpos);
     if (temp_pos <= ipos || temp_pos == std::string::npos) {
-      output += prefix + input.substr(ipos, fpos - ipos) + "\n";
+      output += prefix + input.substr(ipos, fpos - ipos);
       ipos = fpos;
       fpos = ipos + length;
     } else {
-      output += prefix + input.substr(ipos, temp_pos - ipos) + "\n";
+      output += prefix + input.substr(ipos, temp_pos - ipos);
       ipos = temp_pos + 1;
       fpos = ipos + length;
     }
   }
-  output += prefix + input.substr(ipos, fpos - ipos);
   return output;
 }
 

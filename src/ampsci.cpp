@@ -8,6 +8,7 @@
 #include "Physics/include.hpp"
 #include "Physics/periodicTable.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "fmt/color.hpp"
 #include "qip/Vector.hpp"
 #include "qip/omp.hpp"
 #include "version/EasterEgg.hpp"
@@ -16,67 +17,148 @@
 #include <memory>
 #include <string>
 
-//! General usage instructions
-const std::string ampsci_help{R"(
-ampsci
-Atomic Many-body Perturbation theory in the Screened Coulomb Interaction. 
-Benjamin M. Roberts (https://broberts.io/), University of Queensland, Australia.
+//! Man page info
+namespace man {
 
-OPTIONS
-    <filename>
-        Runs ampsci taking options specified in file "filename" (eg, ./ampsci filename). See documentation (or option -a) for input file format options.
-        Example:
-        ./ampsci input.in
-            -Runs ampsci taking input options from file 'input.in'
-    
-    <At> <Core> <Valence>
-        For quick and simple HF calculation. If core is not given, guesses core configuration and runs using V^N approximation.
-        Examples:
-        ./ampsci Cs
-            - Runs ampsci for Cs using Hartree Fock (V^N) approximation
-        ./ampsci Cs [Xe] 6sd5d
-            - Runs ampsci for Cs using Hartree Fock with Xe-like core and valence states up to n=6 for s,p-states and n=5 for d-states
+const std::string name{"ampsci - Atomic Many-body Perturbation theory in the "
+                       "Screened Coulomb Interaction."};
 
-    -v (--version)
-        Prints ampsci version (and git commit) details
+const std::string author{"Benjamin M. Roberts (https://broberts.io/), "
+                         "University of Queensland, Australia."};
 
-    -l (--libs, --libraries)
-        Prints ampsci version details for libaries
+const std::string synopsis{"ampsci [InputFile]\n"
+                           "ampsci [Atom] [Core] [Valence]\n"
+                           "ampsci -a [InputBlock]\n"
+                           "ampsci -m [Module]\n"
+                           "ampsci -o [Operator]\n"};
 
-    -h (--help, -?)
-        Print help info, including some detail on input options
+const std::string description{
+    "ampsci is a C++ program for high-precision atomic structure calculations "
+    "of single-valence systems.\n"
+    "It solves the correlated Dirac equation using the Hartree-Fock + "
+    "correlation potential method (based on Dzuba-Flambaum-Sushkov method) to "
+    "produce a set of atomic wavefunctions and energies. The method is fully "
+    "relativistic, includes electron correlations, all-orders screening and "
+    "hole-particle interaction, finite-nuclear size, Breit interaction, "
+    "radiative QED effects, RPA for matrix elements, and structure "
+    "radiation/renormalisation. QED is included via the Flambaum-Ginges "
+    "radiative potential method.\n"
+    "Can solve for continuum states with very high and very low energy, and "
+    "calculate ionisation cross sections with large momentum transfer values.\n"
+    "Full documentation (including of the physics methods) can be found "
+    "online: https://ampsci.dev/"};
 
-    -a <BlockName> (--ampsci)
-        Prints list of available top-level ampsci options. BlockName is optional; if given it will print options for given ampsci Block. You may list any number of blocks (space separated)
-        Example:
-        ./ampsci -a Atom HartreeFock
+const std::vector<std::pair<std::string, std::string>> options{
+    {"[InputFile]",
+     "Runs ampsci taking options specified in file 'InputFile'. "
+     "See documentation (or option -a) for input file format.\n"
+     "Example:\n"
+     "./ampsci input.in\n"
+     "    - Runs ampsci taking input options from file 'input.in'"},
+    {"[Atom] [Core] [Valence]",
+     "For quick and simple HF calculation. If core is not given, guesses "
+     "core configuration and runs using V^N approximation. Input strings use "
+     "same format as input file.\n"
+     "Examples:\n"
+     "./ampsci Cs\n"
+     "    - Runs ampsci for Cs using Hartree Fock (V^N) approximation\n"
+     "./ampsci Cs [Xe] 6sd5d\n"
+     "    - Runs ampsci for Cs using Hartree Fock with Xe-like core and "
+     "valence states up to n=6 for s,p-states and n=5 for d-states\n"},
+    {"-a [BlockName] ..., --ampsci [BlockName] ...",
+     "Prints list of available top-level ampsci options. BlockName is "
+     "optional; if given it will print options for given ampsci Block. You may "
+     "list any number of blocks (space separated).\nExamples:\n"
+     "./ampsci -a\n"
+     "    - Prints list of all available top-level ampsci options\n"
+     "./ampsci -a Atom HartreeFock\n"
+     "    - Prints list of all available options in the 'Atom' and "
+     "'HartreeFock' input blocks"},
+    {"-c, --constants", "Prints some handy physical constants"},
+    {"-h, --help, -?",
+     "Prints help info, including some detail on input options"},
+    {"-l, --libs, --libraries",
+     "Prints version details for libaries used by ampsci"},
+    {"-m [ModuleName], --modules [ModuleName]",
+     "Prints list of available Modules. ModuleName is optional; if given, "
+     "will list avaiable options for that Module.\n"
+     "Examples:\n"
+     "./ampsci -m\n"
+     "    - Prints list of available modules\n"
+     "./ampsci -m MatrixElements\n"
+     "    - Prints list of input options for the 'MatrixElements' module\n"},
+    {"-o [OperatorName], --operators [OperatorName]",
+     "Prints list of available operators (for calculating matrix elements). "
+     "OperatorName is optional; if given, will list avaiable options for that "
+     "operator (most operators take no options).\n"
+     "Examples:\n"
+     "./ampsci -o\n"
+     "    - Prints list of available operators\n"
+     "./ampsci -o E1\n"
+     "    - Prints list of input optins for the 'E1' operator\n"},
+    {"-p [Atom] [Isotope], --periodicTable [Atom] [Isotope]",
+     "Prints textual periodic table with electronic + nuclear information. "
+     "Atom and Isotope are optional; if given, will print info for that "
+     "isotope. Atom should be atomic symbol (eg Cs), or Z (55). If Isotope is "
+     "blank, will print for 'default' isotope. Can also list 'all' known "
+     "isotope info\n"
+     "Examples:\n"
+     "./ampsci -p\n"
+     "    - Prints a text periodic table\n"
+     "./ampsci -p Cs\n"
+     "    - Prints a text periodic table, with atomic information for default "
+     "Cs nucleus\n"
+     "./ampsci -p Cs 131\n"
+     "    - Prints a text periodic table, with atomic information for Cs-131\n"
+     "./ampsci -p Cs all\n"
+     "    - Prints a text periodic table, with atomic information for all "
+     "(available) Cs iotopes\n"},
+    {"-v, --version", "Prints ampsci version (and git commit) details"}
+    //
+};
 
-    -m <ModuleName> (--modules)
-        Prints list of available Modules. ModuleName is optional; if given, will list avaiable options for that Module
-        Example:
-        ./ampsci -m MatrixElements
+//! Prints 'man page' style info
+void print() {
+  const int wrap_at = 80;
+  std::string tab = "    ";
+  fmt2::styled_print(fmt::emphasis::bold, "NAME\n");
+  fmt::print(qip::wrap(name, wrap_at, tab + tab));
 
-    -o <OperatorName> (--operators)
-        Prints list of available operators. OperatorName is optional; if given, will list avaiable options for that operator (most operators take no options).
-        Example:
-        ./ampsci -o E1
+  std::cout << "\n\n";
 
-    -p <Atom> <Isotope> (--periodicTable)
-        Prints textual periodic table with electronic + nuclear information.
-        Atom and Isotope are optional; if given, will print info for that isotope. Atom should be atomic symbol (eg Cs), or Z (55).
-        If Isotope is blank, will print for 'default' isotope. Can also list 'all' known isotope info
-        Examples:
-        ./ampsci -p Cs
-        ./ampsci -p Cs 131
-        ./ampsci -p Cs all
-    
-    -c (--constants)
-        Prints some handy physical constants
-)"};
+  fmt2::styled_print(fmt::emphasis::bold, "SYNPOSIS\n");
+  fmt::print(qip::wrap(synopsis, wrap_at, tab + tab));
+
+  std::cout << "\n\n";
+
+  fmt2::styled_print(fmt::emphasis::bold, "DESCRIPTION\n");
+  fmt::print(qip::wrap(description, wrap_at, tab + tab));
+
+  std::cout << "\n\n";
+
+  fmt2::styled_print(fmt::emphasis::bold, "OPTIONS\n");
+  for (const auto &[option, text] : options) {
+    fmt2::styled_print(fg(fmt::color::steel_blue),
+                       qip::wrap(option, wrap_at, tab + tab));
+    std::cout << "\n";
+    fmt::print(qip::wrap(text, wrap_at, tab + tab + tab));
+    std::cout << "\n\n";
+  }
+
+  fmt2::styled_print(fmt::emphasis::bold, "AUTHOR\n");
+  fmt::print(qip::wrap(author, wrap_at, tab + tab));
+
+  std::cout << "\n";
+}
+
+} // namespace man
+
+//==============================================================================
 
 //! Calculates wavefunction and runs optional modules
 void ampsci(const IO::InputBlock &input);
 
+//==============================================================================
 //==============================================================================
 int main(int argc, char *argv[]) {
   using namespace std::string_literals;
@@ -88,33 +170,30 @@ int main(int argc, char *argv[]) {
 
   // check for special commands
   if (input_text == "") {
-    std::cout << ampsci_help << '\n';
+    man::print();
     return 0;
   } else if (input_text == "-v" || input_text == "--version") {
     std::cout << "AMPSCI v: " << version::version() << '\n';
     std::cout << "Libraries:\n" << version::libraries() << '\n';
     std::cout << "Compiled: " << version::compiled() << '\n';
-    std::cout << "Benjamin M. Roberts (https://broberts.io/), University of "
-                 "Queensland, Australia\n";
+    std::cout << man::author << "\n";
     return 0;
   } else if (input_text == "-l" || input_text.substr(0, 5) == "--lib") {
     std::cout << "Libraries:\n" << version::libraries() << '\n';
     return 0;
   } else if (input_text == "-h" || input_text == "--help" ||
              input_text == "-?") {
-    std::cout << ampsci_help << '\n';
+    man::print();
     return 0;
   } else if (input_text == "-m" || input_text == "--modules") {
     std::cout << "Available modules: \n";
     Module::list_modules();
     const std::string module_name = (argc > 2) ? argv[2] : "";
     if (!module_name.empty()) {
-      // make an arbitrary required as input to runModule
-      Wavefunction wf{{1, 1.0, 1.0}, {1, 1}};
       // run the module, with option 'help' set. This will trigger the helper
       // to print the details for the available options in that module
       Module::runModule(IO::InputBlock{"Module::"s + module_name, {"help;"}},
-                        wf);
+                        {});
     }
     return 0;
   } else if (input_text == "-o" || input_text == "--operators") {
@@ -146,7 +225,7 @@ int main(int argc, char *argv[]) {
     return 0;
   } else if (!input_text.empty() && input_text.front() == '-') {
     std::cout << "Unrecognised option: " << input_text << '\n';
-    std::cout << ampsci_help << '\n';
+    man::print();
     return 0;
   }
 
@@ -177,8 +256,6 @@ int main(int argc, char *argv[]) {
 
   // Run program. Add option to run multiple times
   ampsci(input);
-
-  return 0;
 }
 
 //==============================================================================
@@ -341,8 +418,8 @@ void ampsci(const IO::InputBlock &input) {
        {"valence",
         "Valence configuration in `basis string' format. e.g., 7sp5df will "
         "include valence states up to  n=7 for s and p, and up to n=5 for d "
-        "and f states. Automatically excludes states in the core (except those "
-        "above the optional ':'). [blank by default]"},
+        "and f states. Automatically excludes states in the core (except "
+        "those above the optional ':'). [blank by default]"},
        {"eps", "HF convergance goal [1.0e-13]"},
        {"method", "Method for mean-field approximation: HartreeFock, Hartree, "
                   "KohnSham, Local [HartreeFock]"},
@@ -372,15 +449,14 @@ void ampsci(const IO::InputBlock &input) {
   // Note: If read in, it is interpolated onto grid, but NOT extrapolated
   input.check(
       {"ExtraPotential"},
-      {{"",
-        "Adds an extra potential (to Vnuc), before HF solved. Either effective "
-        "polarisation potential, V(r) = -0.5/(r^4 + r_cut^4), or read in from "
-        "a file."},
+      {{"", "Adds an extra potential (to Vnuc), before HF solved. Either "
+            "effective polarisation potential, V(r) = -0.5/(r^4 + r_cut^4), or "
+            "read in from a file."},
        {"filename", "Read potential from file (r v(r)) - will be interpolated. "
                     "If not given, will use pol. potential"},
        {"r_cut", "Radial cut-off parameter for effective pol. potential [=1]"},
-       {"scale",
-        "Overall scaling factor for potential is scaled by this value [1]"}});
+       {"scale", "Overall scaling factor for potential is scaled by this "
+                 "value [1]"}});
 
   const auto extra_in = input.getBlock("ExtraPotential");
   if (extra_in && !extra_in->has_option("help")) {
@@ -467,9 +543,8 @@ void ampsci(const IO::InputBlock &input) {
        {"rmax", "maximum radius to calculate sigma for [30.0]"},
        {"stride", "Only calculate Sigma every <stride> points"},
        {"each_valence", "Different Sigma for each valence states? [false]"},
-       {"ek",
-        "Block: Explicit list of energies to solve for. e.g., ek{6s+=-0.127, "
-        "7s+=-0.552;}. Blank => HF energies"},
+       {"ek", "Block: Explicit list of energies to solve for. e.g., "
+              "ek{6s+=-0.127, 7s+=-0.552;}. Blank => HF energies"},
        {"Feynman", "Use Feynman method [false]"},
        {"fk",
         "List of doubles. Screening factors for effective all-order "

@@ -40,6 +40,8 @@ public:
   Wavefunction(const GridParameters &gridparams,
                const Nuclear::Nucleus &nucleus, double var_alpha = 1.0);
 
+  Wavefunction() : Wavefunction(GridParameters{}, Nuclear::Nucleus{}, 1.0) {}
+
   //! User-defined copy-constructor. Note: Does not copy Sigma
   Wavefunction(const Wavefunction &wf); // XXX make sigma copyable!?
   //! Deleted, as sigma cannot be copied. This will be fixed
