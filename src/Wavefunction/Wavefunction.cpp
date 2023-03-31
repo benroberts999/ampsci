@@ -518,7 +518,7 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 //==============================================================================
 void Wavefunction::formSigma(
     const int nmin_core, const bool form_matrix, const double r0,
-    const double rmax, const int stride, const bool each_valence,
+    const double rmax, const int stride, bool each_valence,
     const bool include_G, const std::vector<double> &lambdas,
     const std::vector<double> &fk, const std::vector<double> &etak,
     const std::string &in_fname, const std::string &out_fname,
@@ -559,6 +559,9 @@ void Wavefunction::formSigma(
                                                    subgridp, ifname);
     break;
   }
+
+  if (ek)
+    each_valence = false;
 
   // This is for each valence state.... otherwise, just do for lowest??
   if (form_matrix && !m_valence.empty()) {

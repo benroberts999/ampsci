@@ -543,8 +543,9 @@ void ampsci(const IO::InputBlock &input) {
        {"rmax", "maximum radius to calculate sigma for [30.0]"},
        {"stride", "Only calculate Sigma every <stride> points"},
        {"each_valence", "Different Sigma for each valence states? [false]"},
-       {"ek", "Block: Explicit list of energies to solve for. e.g., "
-              "ek{6s+=-0.127, 7s+=-0.552;}. Blank => HF energies"},
+       {"ek{}", "Block: Explicit list of energies to solve for. e.g., "
+                "ek{6s+=-0.127; 7s+=-0.552;}. Blank => HF energies. Takes "
+                "precidence over each_valence. [blank]"},
        {"Feynman", "Use Feynman method [false]"},
        {"fk",
         "List of doubles. Screening factors for effective all-order "

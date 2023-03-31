@@ -42,6 +42,7 @@ elif [ ${machine} == 'Mac' ]; then
   # check if homebrew is installed:
   which -s brew
   if [[ $? != 0 ]] ; then
+        # If not installed, ask if user would like to install it:
         read -r -p "Homebrew not installed Would you like to install it? [y/N] " response
         if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
           # Install Homebrew
@@ -54,10 +55,18 @@ elif [ ${machine} == 'Mac' ]; then
     brew update
   fi
   set -x
-  brew install gcc@11 &&
+  brew install gcc@12 &&
   brew install gsl &&
-  # nb: path to gsl is different for new M1 mac
-  make CXX=g++-11 PathForGSL=/usr/local/opt/gnu-scientific-library
+  # nb: path to gsl is different for new M1 mac. 
+  # I don't have an M1 mac, so this isn't tested
+  if [[ $(arch) == 'arm64' ]]; then
+    echo "M1 silicon mac"
+    make CXX=g++-12 PathForGSL=/opt/homebrew/Cellar/gsl/2.7
+  else
+    echo "Intel silicon mac"
+    make CXX=g++-12 PathForGSL=/usr/local/opt/gsl
+    # nb: simply using g++ here will link to clang instead
+  fi
 else
   echo 'Unsupported system for setup - requires manual setup'
   exit
