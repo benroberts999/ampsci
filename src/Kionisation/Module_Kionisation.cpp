@@ -271,10 +271,10 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   std::unique_ptr<DiracOperator::jL> jl = nullptr;
   if (coupling == Kion::Coupling::Vector) {
     jl = std::make_unique<DiracOperator::jL>(wf.grid(), qgrid,
-                                             std::size_t(max_L));
+                                             std::size_t(max_L), subtract_1);
   } else if (coupling == Kion::Coupling::Scalar) {
     jl = std::make_unique<DiracOperator::g0jL>(wf.grid(), qgrid,
-                                               std::size_t(max_L));
+                                               std::size_t(max_L), subtract_1);
   } else if (coupling == Kion::Coupling::PseudoVector) {
     jl = std::make_unique<DiracOperator::ig5jL>(wf.grid(), qgrid,
                                                 std::size_t(max_L));
@@ -399,7 +399,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
 
     /// XXX print each nk
     const auto Knks = Kion::calculateK_nk_rpa(
-        wf.vHF(), wf.core(), max_L, Egrid, jl.get(), subtract_1, force_rescale,
+        wf.vHF(), wf.core(), max_L, Egrid, jl.get(), force_rescale,
         hole_particle, force_orthog, wf.basis(), wf.identity());
 
     assert(Knks.size() == wf.core().size());
@@ -420,8 +420,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
 
     std::cout << "Using   : approx (step-function) method\n";
     const auto K_approx = Kion::calculateK_nk_approx(
-        wf.vHF(), wf.core(), max_L, jl.get(), subtract_1, force_rescale,
-        hole_particle, force_orthog, use_Zeff_cont, use_rpa0, wf.basis());
+        wf.vHF(), wf.core(), max_L, jl.get(), force_rescale, hole_particle,
+        force_orthog, use_Zeff_cont, use_rpa0, wf.basis());
     Kion::write_approxTable_to_file(K_approx, wf.core(), qgrid, oname,
                                     num_output_digits, units);
     // convert to "standard" form, for easy comparison
@@ -436,8 +436,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
         continue;
       std::cout << Fnk << ", " << std::flush;
       const auto K_nk = Kion::calculateK_nk(
-          wf.vHF(), Fnk, max_L, Egrid, jl.get(), subtract_1, force_rescale,
-          hole_particle, force_orthog, use_Zeff_cont, use_rpa0, wf.basis());
+          wf.vHF(), Fnk, max_L, Egrid, jl.get(), force_rescale, hole_particle,
+          force_orthog, use_Zeff_cont, use_rpa0, wf.basis());
       if (write_each_state) {
         const auto oname_nk = oname + "_" + Fnk.shortSymbol();
         std::cout << "Written to file: " << oname_nk << "\n";

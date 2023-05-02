@@ -21,7 +21,7 @@ namespace Kion {
 //==============================================================================
 LinAlg::Matrix<double>
 calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
-              const Grid &Egrid, const DiracOperator::jL *jl, bool subtract_1,
+              const Grid &Egrid, const DiracOperator::jL *jl,
               bool force_rescale, bool hole_particle, bool force_orthog,
               bool zeff_cont, bool use_rpa0,
               const std::vector<DiracSpinor> &basis) {
@@ -49,11 +49,12 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
   // <a| jL - 1 |e> = <a| jL |e> - <a|e>
   // note: only works for vector/scalar, since for pseudo-cases,
   // we factored out factor of i from me?
-  if (subtract_1 && (jl->name() != "jL" && jl->name() != "g0jL")) {
-    std::cout
-        << "\nWARNING: subtract 1 option currently only checked for vector "
-           "and scalar operator (due to factoring out i)\n";
-  }
+  // if (subtract_1 && (jl->name() != "jL" && jl->name() != "g0jL")) {
+  //   std::cout
+  //       << "\nWARNING: subtract 1 option currently only checked for vector "
+  //          "and scalar operator (due to factoring out i)\n";
+  // }
+  // Note: 'subtract 1' feature moved into definition of operator
 
   // Find first energy grid point for which Fnk is accessible:
   const auto idE_first_accessible = std::size_t(std::distance(
@@ -109,9 +110,9 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
             // nb: only first-order core-pol
             me += rpa->dV_diagram_jL(Fe, Fnk, jl, L, q);
           }
-          if (subtract_1 && (L == 0 && Fe.kappa() == Fnk.kappa())) {
-            me -= Fe * Fnk;
-          }
+          // if (subtract_1 && (L == 0 && Fe.kappa() == Fnk.kappa())) {
+          //   me -= Fe * Fnk;
+          // }
           Knk_Eq(idE, iq) += double(2 * L + 1) * me * me * x_ocf;
         }
       }
@@ -123,8 +124,8 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
 //==============================================================================
 std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
     const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &core, int max_L,
-    const Grid &Egrid, DiracOperator::jL *jl, bool subtract_1,
-    bool force_rescale, bool hole_particle, bool force_orthog,
+    const Grid &Egrid, DiracOperator::jL *jl, bool force_rescale,
+    bool hole_particle, bool force_orthog,
     const std::vector<DiracSpinor> &basis, const std::string &atom) {
   assert(vHF != nullptr && "Hartree-Fock potential must not be null");
 
@@ -177,10 +178,10 @@ std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
           for (const auto &Fe : cntm.orbitals) {
             if (jl->isZero(Fe, Fnk))
               continue;
-            auto me = jl->reducedME(Fe, Fnk) + rpa.dV(Fe, Fnk);
-            if (subtract_1 && (L == 0 && Fe.kappa() == Fnk.kappa())) {
-              me -= Fe * Fnk;
-            }
+            const auto me = jl->reducedME(Fe, Fnk) + rpa.dV(Fe, Fnk);
+            // if (subtract_1 && (L == 0 && Fe.kappa() == Fnk.kappa())) {
+            //   me -= Fe * Fnk;
+            // }
             K_tmp_Fe += double(2 * L + 1) * me * me * x_ocf;
           }
           K_nk_Eq.at(ink).at(idE, iq) += K_tmp_Fe;
@@ -194,11 +195,12 @@ std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
 }
 
 //==============================================================================
-LinAlg::Matrix<double> calculateK_nk_approx(
-    const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &core, int max_L,
-    const DiracOperator::jL *jl, bool subtract_1, bool force_rescale,
-    bool hole_particle, bool force_orthog, bool zeff_cont, bool use_rpa,
-    const std::vector<DiracSpinor> &basis) {
+LinAlg::Matrix<double>
+calculateK_nk_approx(const HF::HartreeFock *vHF,
+                     const std::vector<DiracSpinor> &core, int max_L,
+                     const DiracOperator::jL *jl, bool force_rescale,
+                     bool hole_particle, bool force_orthog, bool zeff_cont,
+                     bool use_rpa, const std::vector<DiracSpinor> &basis) {
 
   assert(vHF != nullptr && "Hartree-Fock potential must not be null");
 
@@ -220,11 +222,11 @@ LinAlg::Matrix<double> calculateK_nk_approx(
   // <a| jL - 1 |e> = <a| jL |e> - <a|e>
   // note: only works for vector/scalar, since for pseudo-cases,
   // we factored out factor of i from me?
-  if (subtract_1 && (jl->name() != "jL" && jl->name() != "g0jL")) {
-    std::cout
-        << "\nWARNING: subtract 1 option currently only checked for vector "
-           "and scalar operator (due to factoring out i)\n";
-  }
+  // if (subtract_1 && (jl->name() != "jL" && jl->name() != "g0jL")) {
+  //   std::cout
+  //       << "\nWARNING: subtract 1 option currently only checked for vector "
+  //          "and scalar operator (due to factoring out i)\n";
+  // }
 
   for (std::size_t ink = 0; ink < core.size(); ink++) {
     const auto &Fnk = core.at(ink);
@@ -264,9 +266,9 @@ LinAlg::Matrix<double> calculateK_nk_approx(
             // nb: only first-order core-pol
             me += rpa->dV_diagram_jL(Fe, Fnk, jl, L, q);
           }
-          if (subtract_1 && (L == 0 && Fe.kappa() == Fnk.kappa())) {
-            me -= Fe * Fnk;
-          }
+          // if (subtract_1 && (L == 0 && Fe.kappa() == Fnk.kappa())) {
+          //   me -= Fe * Fnk;
+          // }
           K_nk_q(ink, iq) += double(2 * L + 1) * me * me * x_ocf;
         }
       }

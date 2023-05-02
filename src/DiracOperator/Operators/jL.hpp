@@ -19,12 +19,14 @@ Must use set_L_q (which sets L and q value) prior to use. Note: this is not thre
 class jL : public TensorOperator {
 public:
   //! Contruction takes radial grid, a q grid, and a maximum L. Fills lookup table
-  jL(const Grid &r_grid, const Grid &q_grid, std::size_t max_l)
+  jL(const Grid &r_grid, const Grid &q_grid, std::size_t max_l,
+     bool subtract_one = false)
       : TensorOperator(-1, Parity::blank),
         m_max_l(max_l),
         m_j_lq_r(m_max_l + 1, q_grid.num_points()),
         m_r_grid(&r_grid),
-        m_q_grid(&q_grid) {
+        m_q_grid(&q_grid),
+        m_subtract_one(subtract_one) {
     fill_table();
   }
   //! Constructing from existing operator: copies JL table - faster. Can copy from a jL of different type (g0,g5 etc)
@@ -33,7 +35,8 @@ public:
         m_max_l(other.m_max_l),
         m_j_lq_r(other.m_j_lq_r),
         m_r_grid(other.m_r_grid),
-        m_q_grid(other.m_q_grid) {}
+        m_q_grid(other.m_q_grid),
+        m_subtract_one(other.m_subtract_one) {}
 
   // jL(const jL &) = default;
   jL &operator=(const jL &) = delete;
@@ -43,6 +46,7 @@ protected:
   LinAlg::Matrix<std::vector<double>> m_j_lq_r;
   const Grid *m_r_grid;
   const Grid *m_q_grid;
+  bool m_subtract_one;
 
 private:
   // fills lookup J_l_q_r table
@@ -76,6 +80,64 @@ public:
     m_vec = m_j_lq_r.at(L, iq);
   }
 
+  // This is _not_ thread safe
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override {
+    // Fa * radial_rhs(Fa.kappa(),Fb) = h.radialIntegral(Fa, Fb)
+
+    // const auto &gr = Fb.grid();
+    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
+    dF.min_pt() = Fb.min_pt();
+    dF.max_pt() = Fb.max_pt();
+
+    if (isZero(kappa_a, Fb.kappa())) {
+      dF.min_pt() = Fb.min_pt();
+      dF.max_pt() = Fb.min_pt();
+      return dF;
+    }
+
+    const auto &df = Fb.f();
+    const auto &dg = Fb.g();
+
+    const auto cff = angularCff(kappa_a, Fb.kappa());
+    const auto cgg = angularCgg(kappa_a, Fb.kappa());
+    const auto cfg = angularCfg(kappa_a, Fb.kappa());
+    const auto cgf = angularCgf(kappa_a, Fb.kappa());
+
+    if (m_subtract_one && m_rank == 0 && Fb.kappa() == kappa_a) {
+      // jL -> (jL-1)
+      // Vector
+      //   (ff + gg)*jL - (ff+gg)
+      // = (ff + gg)*(jL-1)
+
+      // Scalar:
+      // (ff - gg)*jL - (ff+gg)
+      // = ff*(jL-1) - gg*(jL+1)
+      if (cgg > 0.0) {
+        //vector
+        for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+          dF.f(i) = m_constant * (m_vec[i] - 1.0) * cff * df[i];
+          dF.g(i) = m_constant * (m_vec[i] - 1.0) * cgg * dg[i];
+        }
+      } else if (cgg < 0.0) {
+        //scalar
+        for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+          dF.f(i) = m_constant * (m_vec[i] - 1.0) * cff * df[i];
+          dF.g(i) = m_constant * (m_vec[i] + 1.0) * cgg * dg[i];
+        }
+      } else {
+        assert(false && "Error 111 - subtract_one for pseudo case?");
+      }
+    } else {
+      for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+        dF.f(i) = m_constant * m_vec[i] * (cff * df[i] + cfg * dg[i]);
+        dF.g(i) = m_constant * m_vec[i] * (cgf * df[i] + cgg * dg[i]);
+      }
+    }
+
+    return dF;
+  }
+
   //! Directly calculate reduced matrix element without needing to call set_L_q - this *is* thread safe
   double rme(const DiracSpinor &a, const DiracSpinor &b, std::size_t L,
              double q) const {
@@ -87,12 +149,46 @@ public:
     const auto cfg = angularCfg(a.kappa(), b.kappa());
     const auto cgf = angularCgf(a.kappa(), b.kappa());
     auto max = std::min(a.max_pt(), b.max_pt());
-    const auto Rf = cff == 0.0 ? 0.0 :
-                                 NumCalc::integrate(1.0, 0, max, a.f(), b.f(),
-                                                    jlqr, gr.drdu());
-    const auto Rg = cgg == 0.0 ? 0.0 :
-                                 NumCalc::integrate(1.0, 0, max, a.g(), b.g(),
-                                                    jlqr, gr.drdu());
+
+    double Rf{0.0}, Rg{0.0};
+    if (m_subtract_one && a.kappa() == b.kappa() && L == 0) {
+      auto jl_neg1 = jlqr;
+      for (auto &el : jl_neg1) {
+        el -= 1.0;
+      }
+      // jL -> (jL-1)
+      // Vector
+      //   (ff + gg)*jL - (ff+gg)
+      // = (ff + gg)*(jL-1)
+
+      // Scalar:
+      // (ff - gg)*jL - (ff+gg)
+      // (ff - gg)*jL - (ff-gg)
+      // = ff*(jL-1) - gg*(jL+1)
+
+      Rf = NumCalc::integrate(1.0, 0, max, a.f(), b.f(), jl_neg1, gr.drdu());
+
+      if (cgg > 0.01) {
+        //vector
+        Rg = NumCalc::integrate(1.0, 0, max, a.g(), b.g(), jl_neg1, gr.drdu());
+      } else if (cgg < -0.01) {
+        //scalar (-ve sign is inside cgg)
+        auto jl_p1 = jlqr;
+        for (auto &el : jl_p1) {
+          el += 1.0;
+        }
+        Rg = NumCalc::integrate(1.0, 0, max, a.g(), b.g(), jl_p1, gr.drdu());
+      } else {
+        assert(false && "Error: subtract 1 in pseudo-case?");
+      }
+    } else {
+      Rf = cff == 0.0 ?
+               0.0 :
+               NumCalc::integrate(1.0, 0, max, a.f(), b.f(), jlqr, gr.drdu());
+      Rg = cgg == 0.0 ?
+               0.0 :
+               NumCalc::integrate(1.0, 0, max, a.g(), b.g(), jlqr, gr.drdu());
+    }
     const auto Rfg = cfg == 0.0 ? 0.0 :
                                   NumCalc::integrate(1.0, 0, max, a.f(), b.g(),
                                                      jlqr, gr.drdu());
@@ -105,6 +201,7 @@ public:
     return s * Angular::Ck_kk(int(L), a.kappa(), kb) *
            (cff * Rf + cgg * Rg + cfg * Rfg + cgf * Rgf) * gr.du();
   }
+
   //! Checks if specific ME is zero (when not useing set_L_q)
   bool is_zero(const DiracSpinor &a, const DiracSpinor &b,
                std::size_t L) const {
@@ -130,8 +227,9 @@ public:
 //! Matrix element of tensor operator: gamma^0 J_L(qr) C^L
 class g0jL : public jL {
 public:
-  g0jL(const Grid &r_grid, const Grid &q_grid, std::size_t max_l)
-      : jL(r_grid, q_grid, max_l) {}
+  g0jL(const Grid &r_grid, const Grid &q_grid, std::size_t max_l,
+       bool subtract_one = false)
+      : jL(r_grid, q_grid, max_l, subtract_one) {}
   g0jL(const jL &other) : jL(other) {}
 
 public:
@@ -148,7 +246,7 @@ public:
 class ig5jL : public jL {
 public:
   ig5jL(const Grid &r_grid, const Grid &q_grid, std::size_t max_l)
-      : jL(r_grid, q_grid, max_l) {}
+      : jL(r_grid, q_grid, max_l, false) {}
   ig5jL(const jL &other) : jL(other) {}
 
 public:
@@ -178,7 +276,7 @@ public:
 class ig0g5jL : public jL {
 public:
   ig0g5jL(const Grid &r_grid, const Grid &q_grid, std::size_t max_l)
-      : jL(r_grid, q_grid, max_l) {}
+      : jL(r_grid, q_grid, max_l, false) {}
   ig0g5jL(const jL &other) : jL(other) {}
 
 public:

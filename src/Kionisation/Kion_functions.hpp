@@ -43,7 +43,7 @@ bool check_radial_grid(double Emax, double qmax, const Grid &rgrid);
 //! lowest-order RPA (i.e., with zero iterations)
 LinAlg::Matrix<double>
 calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
-              const Grid &Egrid, const DiracOperator::jL *jl, bool subtract_1,
+              const Grid &Egrid, const DiracOperator::jL *jl,
               bool force_rescale, bool hole_particle, bool force_orthog,
               bool zeff_cont, bool use_rpa0 = false,
               const std::vector<DiracSpinor> &basis = {});
@@ -52,8 +52,8 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
 //! Uses all-orders RPA, so is quite slow (RPA must be solved for each L and q)
 std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
     const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &core, int max_L,
-    const Grid &Egrid, DiracOperator::jL *jl, bool subtract_1,
-    bool force_rescale, bool hole_particle, bool force_orthog,
+    const Grid &Egrid, DiracOperator::jL *jl, bool force_rescale,
+    bool hole_particle, bool force_orthog,
     const std::vector<DiracSpinor> &basis, const std::string &atom);
 
 //! Calculates approxinate ionisation factor K_nk(q) for each core state.
@@ -62,11 +62,12 @@ std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
 Then, K(E,q) = Theta[E-enk]*K_nk(q).
 K_nk(q) is calculated with continuum energy just above threshold.
 */
-LinAlg::Matrix<double> calculateK_nk_approx(
-    const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &core, int max_L,
-    const DiracOperator::jL *jl, bool subtract_1, bool force_rescale,
-    bool hole_particle, bool force_orthog, bool zeff_cont, bool use_rpa,
-    const std::vector<DiracSpinor> &basis);
+LinAlg::Matrix<double>
+calculateK_nk_approx(const HF::HartreeFock *vHF,
+                     const std::vector<DiracSpinor> &core, int max_L,
+                     const DiracOperator::jL *jl, bool force_rescale,
+                     bool hole_particle, bool force_orthog, bool zeff_cont,
+                     bool use_rpa, const std::vector<DiracSpinor> &basis);
 
 //! Converts K_nk(q) to K(E,q) - for ease of plotting/comparison
 LinAlg::Matrix<double>
