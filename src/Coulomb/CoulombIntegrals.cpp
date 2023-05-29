@@ -510,9 +510,9 @@ std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
   const auto [lk2, uk2] = k_minmax_tj(b.twoj(), d.twoj());
 
   // From the Qk part: nb: this is for l, internal sum!
-  const auto [lq0, lqi] = k_minmax_Q(a, b, d, c);
+  const auto [lq0, uq0] = k_minmax_Q(a, b, d, c);
   // but if there are _no_ Q^l, then it is zero
-  if (lq0 > lqi)
+  if (lq0 > uq0)
     return {1, 0};
 
   return {std::max({lk1, lk2}), std::min({uk1, uk2})};
@@ -523,8 +523,12 @@ std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d) {
   const auto [l1, u1] = k_minmax_Q(a, b, c, d);
   const auto [l2, u2] = k_minmax_P(a, b, c, d);
-  if (l1 > u1 && l2 > u2)
-    return {1, 0};
+  // if (l1 > u1 && l2 > u2)
+  //   return {1, 0};
+  if (l1 > u1)
+    return {l2, u2};
+  if (l2 > u2)
+    return {l1, u1};
   // nb: min/max swapped, since W = Q+P, so only 1 needs to survive!
   return {std::min(l1, l2), std::max(u1, u2)};
 }

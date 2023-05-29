@@ -195,6 +195,68 @@ TEST_CASE("Coulomb: yk,Rk formulas", "[Coulomb][unit]") {
     }
   }
 
+  // check min_max formulas
+  for (const auto &a : orbs) {
+    for (const auto &b : orbs) {
+      for (const auto &c : orbs) {
+        for (const auto &d : orbs) {
+
+          // test k_minmax_Q
+          const auto [kminQ, kmaxQ] = Coulomb::k_minmax_Q(a, b, c, d);
+          for (int k = kminQ; k <= kmaxQ; k += 2) {
+            REQUIRE(Coulomb::Qk_abcd(k, a, b, c, d) != 0.0);
+            if (k != 0) {
+              REQUIRE(Coulomb::Qk_abcd(k - 1, a, b, c, d) == 0.0);
+            }
+            REQUIRE(Coulomb::Qk_abcd(k + 1, a, b, c, d) == 0.0);
+          }
+
+          // test k_minmax_P
+          const auto [kminP, kmaxP] = Coulomb::k_minmax_P(a, b, c, d);
+          for (int k = 0; k <= kmaxP + 5; ++k) {
+            if (k < kminP) {
+              REQUIRE(Coulomb::Pk_abcd(k, a, b, c, d) == 0.0);
+            }
+            if (k > kmaxP) {
+              REQUIRE(Coulomb::Pk_abcd(k, a, b, c, d) == 0.0);
+            }
+            // there are no non-zero in this case:
+            if (kmaxP < kminP)
+              continue;
+            if (k == kminP) {
+              REQUIRE(Coulomb::Pk_abcd(k, a, b, c, d) != 0.0);
+            }
+            if (k == kmaxP) {
+              REQUIRE(Coulomb::Pk_abcd(k, a, b, c, d) != 0.0);
+            }
+          }
+
+          // test k_minmax_W
+          const auto [kminW, kmaxW] = Coulomb::k_minmax_W(a, b, c, d);
+          for (int k = 0; k <= kmaxW + 5; ++k) {
+            if (k < kminW) {
+              REQUIRE(Coulomb::Wk_abcd(k, a, b, c, d) == 0.0);
+            }
+            if (k > kmaxW) {
+              REQUIRE(Coulomb::Wk_abcd(k, a, b, c, d) == 0.0);
+            }
+
+            // there are no non-zero in this case:
+            if (kmaxW < kminW)
+              continue;
+            // Can't check for non-zero in this case, since might have P=-Q
+            if (c == d || a == b)
+              continue;
+
+            if (k == kmaxW) {
+              REQUIRE(Coulomb::Wk_abcd(k, a, b, c, d) != 0.0);
+            }
+          }
+        }
+      }
+    }
+  }
+
   // Check other formula
   for (const auto &Fa : orbs) {
     for (const auto &Fb : orbs) {

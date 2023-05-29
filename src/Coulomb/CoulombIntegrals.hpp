@@ -94,15 +94,21 @@ std::pair<int, int> k_minmax_Ck(const DiracSpinor &a, const DiracSpinor &b);
 std::pair<int, int> k_minmax_tj(int tja, int tjb);
 
 //! Returns min and max k (multipolarity) allowed for Q^k_abcd.
-//! Parity rule is included, so you may safely call k+=2
+//! Parity rule is included, so you may safely call k+=2.
+//! Guaranteed to be non-zero *at* min and max, and every 2nd inbetween.
 std::pair<int, int> k_minmax_Q(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d);
 
 //! Returns min and max k (multipolarity) allowed for P^k_abcd.
+//! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2.
+//! Guaranteed to be non-zero *at* min and max.
 std::pair<int, int> k_minmax_P(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d);
 
-//! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2
+//! Returns min and max k (multipolarity) allowed for W^k_abcd.
+//! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2.
+//! Cannot guarantee non-zero, since when a=b or c=d, sometimes have P=-Q.
+//! But when a!=b and c!=d, guaranteed to be non-zero *at* min and max.
 std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d);
 

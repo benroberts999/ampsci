@@ -13,10 +13,12 @@
 
 ## Dependencies / Requirements
 
-* c++ compiler that supports c++17 [clang version 6 or newer, gcc version 7 or newer]
+* c++ compiler that supports c++17
+  * Tested with clang version 6 and newer; gcc version 7 and newer
+  * Also tested with intel [icc 2021.2.0], though this is tested infrequently
 * LAPACK and BLAS libraries [netlib.org/lapack/](http://www.netlib.org/lapack/)
 * GSL (GNU scientific libraries) [gnu.org/software/gsl/](https://www.gnu.org/software/gsl/) [version 2.0 or newer*]
-  * (it _should_ also work with older versions of GSL, but this is not tested and therefore not guarenteed)
+  * (it _should_ also work with older versions of GSL, but this is not regularly tested and therefore not guarenteed)
 * [optional] GNU Make ([gnu.org/software/make/](https://www.gnu.org/software/make/)) - used to compile code
 * [optional] OpenMP ([openmp.org/](https://www.openmp.org/)) - used for parallisation
 * [optional] git ([git-scm.com/](https://git-scm.com/)) for version tracking and to keep up-to-date with latest version
