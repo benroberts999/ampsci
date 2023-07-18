@@ -81,9 +81,13 @@ public:
   //! Local value of fine-structure constant.
   double alpha() const { return m_alpha; }
 
+  //! Returns Nuclear::nucleus object (contains nuc. parameters)
   const Nuclear::Nucleus &nucleus() const { return m_nucleus; }
+  //! Nuclear charge, Z
   int Znuc() const { return m_nucleus.z(); }
+  //! Nuclear mass number, A
   int Anuc() const { return m_nucleus.a(); }
+  //! Nuclear rms charge radii, in fm (femptometres)
   double get_rrms() const { return m_nucleus.r_rms(); }
 
   //! Core orbitals (frozen HF core)

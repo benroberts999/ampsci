@@ -68,7 +68,8 @@ public:
   //! @Details If a previous run failed, can clear t_am's + re-try
   virtual void clear() override final;
 
-  void update_t0s();
+  //! Updates lowest-order t_am matrix elements and resets RPA (+updates operator)
+  void update_t0s(const DiracOperator::TensorOperator *const h = nullptr);
 
   //! Copies the tam (and tma) values across from different RPAD. If two
   //! operators are similar, this can save time on the itterations.

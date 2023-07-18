@@ -316,7 +316,13 @@ void DiagramRPA::clear() {
 }
 
 //==============================================================================
-void DiagramRPA::update_t0s() {
+void DiagramRPA::update_t0s(const DiracOperator::TensorOperator *const h) {
+  if (h != nullptr) {
+    assert(h->rank() == m_rank && "Rank must match in update_t0s");
+    assert(h->parity() == m_pi && "Parity must match in update_t0s");
+    assert(h->imaginaryQ() == m_imag && "Imaginarity must match in update_t0s");
+    m_h = h;
+  }
   assert(t0am.size() == holes.size());
   assert(t0ma.size() == excited.size());
   if (holes.size() > 0) {
@@ -468,7 +474,7 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
           eps_worst_a = delta;
       } // a (holes)
       eps_m[im] = eps_worst_a;
-    } // m (excited)
+    }   // m (excited)
     // XXX "small" race condition somewhere regarding eps??
     // The itteraion it converges on always seems to be the same..
     // but the value for eps printed changes slightly each run???

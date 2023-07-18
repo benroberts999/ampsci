@@ -33,8 +33,8 @@ inline auto pointlike_F() -> Func_R2_R {
 
 //------------------------------------------------------------------------------
 //! 'Volotka' single-particle model: see Phys. Rev. Lett. 125, 063002 (2020)
-inline auto VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl)
-    -> Func_R2_R
+inline auto VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl,
+                        bool print = true) -> Func_R2_R
 // Function that returns generates + returns F_BW Bohr-Weiskopf
 // gl = 1 for proton, =0 for neutron. Double allowed for testing..
 // mu is in units of Nuclear Magneton!
@@ -46,8 +46,9 @@ inline auto VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl)
 
   const auto K = (l_pn * (l_pn + 1.0) - (3. / 4.)) / (I_nuc * (I_nuc + 1.0));
   const double g_s = (2.0 * gI - g_l * (K + 1.0)) / (1.0 - K);
-  std::cout << "BW using: gl=" << g_l << ", gs=" << g_s << ", l=" << l_pn
-            << ", gI=" << gI << " (I=" << I_nuc << ")\n";
+  if (print)
+    std::cout << "BW using: gl=" << g_l << ", gs=" << g_s << ", l=" << l_pn
+              << ", gI=" << gI << " (I=" << I_nuc << ")\n";
   const double factor =
       (two_I == two_l + 1) ?
           g_s * (1 - two_I) / (4.0 * (two_I + 2)) + g_l * 0.5 * (two_I - 1) :
@@ -69,7 +70,8 @@ inline auto VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl)
 //------------------------------------------------------------------------------
 //! 'Volotka' SP model, for doubly-odd nuclei: Phys. Rev. Lett. 125, 063002 (2020)
 inline auto doublyOddSP_F(double mut, double It, double mu1, double I1,
-                          double l1, int gl1, double I2, double l2) -> Func_R2_R
+                          double l1, int gl1, double I2, double l2,
+                          bool print = true) -> Func_R2_R
 // F(r) * g = 0.5 [ g1F1 + g2F2 + (g1F1 - g2F2) * K]
 // K = [I1(I1+1) - I2(I2+1)] / [I(I+1)]
 // return F(r) [divide by g]
@@ -82,8 +84,8 @@ inline auto doublyOddSP_F(double mut, double It, double mu1, double I1,
   const auto g2 = (g1 * (K + 1.0) - 2.0 * gt) / (K - 1.0);
   const auto mu2 = g2 * I2;
   const auto gl2 = (gl1 == 0) ? 1 : 0;
-  const auto F1 = VolotkaSP_F(mu1, I1, l1, gl1);
-  const auto F2 = VolotkaSP_F(mu2, I2, l2, gl2);
+  const auto F1 = VolotkaSP_F(mu1, I1, l1, gl1, print);
+  const auto F2 = VolotkaSP_F(mu2, I2, l2, gl2, print);
   return [=](double r, double rN) {
     return (0.5 / gt) * (g1 * F1(r, rN) + g2 * F2(r, rN) +
                          K * (g1 * F1(r, rN) - g2 * F2(r, rN)));
@@ -244,7 +246,8 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
     Error
   };
 
-  const auto Fr_str = input.get<std::string>("F(r)", "point");
+  std::string default_distribution = "ball";
+  const auto Fr_str = input.get<std::string>("F(r)", default_distribution);
   const auto distro_type =
       (qip::ci_wc_compare(Fr_str, "point*") || qip::ci_compare(Fr_str, "1")) ?
           DistroType::point :
@@ -285,7 +288,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-  // default is pointlike:
+  // default is BALL:
   auto Fr = Hyperfine::sphericalBall_F();
   if (distro_type == DistroType::ball) {
     Fr = Hyperfine::sphericalBall_F();
@@ -308,7 +311,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
         std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
       std::cout << "with l=" << l << " (pi=" << pi << ")\n";
     }
-    Fr = Hyperfine::VolotkaSP_F(mu, I_nuc, l, gl);
+    Fr = Hyperfine::VolotkaSP_F(mu, I_nuc, l, gl, print);
   } else if (distro_type == DistroType::doublyOddSP) {
     const auto mu1 = input.get<double>("mu1", 1.0);
     const auto gl1 = input.get<int>("gl1", -1); // 1 or 0 (p or n)
@@ -323,7 +326,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto I1 = input.get<double>("I1", -1.0);
     const auto I2 = input.get<double>("I2", -1.0);
 
-    Fr = Hyperfine::doublyOddSP_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2);
+    Fr = Hyperfine::doublyOddSP_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2, print);
   }
 
   // Optionally print F(r) function to file

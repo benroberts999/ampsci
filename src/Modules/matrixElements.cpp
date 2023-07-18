@@ -33,7 +33,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                {"omega", "Text or number. Freq. for RPA. Put 'each' to solve "
                          "at correct frequency for each transition. [0.0]"},
                {"what", "What to calculate: rme (reduced ME), A (hyperfine A/B "
-                        "coeficient), radial_integral [rme]"},
+                        "coeficient), radial_integral. [rme]"},
                {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
                {"diagonal", "only <a|h|a> (dflt false)"}});
   // If we are just requesting 'help', don't run module:
@@ -51,7 +51,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
-  const auto what = input.get<std::string>("what", "rme");
+  const auto default_what = oper == "hfs" ? "A" : "rme";
+  const auto what = input.get<std::string>("what", default_what);
   const bool radial_int = qip::ci_wc_compare(what, "radial*");
   const bool hf_AB =
       oper == "hfs" && h->rank() <= 2 &&
