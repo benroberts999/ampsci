@@ -26,6 +26,11 @@ public:
   void add(const DiracSpinor &a, const DiracSpinor &b, T value) {
     m_data.insert({FormIndex(a.nk_index(), b.nk_index()), std::move(value)});
   }
+  //! Adds new element to table. If already exists, does nothing (does not
+  //! update)
+  void add(DiracSpinor::Index a, DiracSpinor::Index b, T value) {
+    m_data.insert({FormIndex(a, b), std::move(value)});
+  }
 
   //! Adds elements from one Table into another (by copy)
   void add(const meTable<T> &other) {
@@ -37,11 +42,20 @@ public:
     m_data.insert_or_assign(FormIndex(a.nk_index(), b.nk_index()),
                             std::move(value));
   }
+  //! Updates given element in table. If element not yet present, adds it
+  void update(DiracSpinor::Index a, DiracSpinor::Index b, T value) {
+    m_data.insert_or_assign(FormIndex(a, b), std::move(value));
+  }
 
   //! Checks if given element is in the table
   [[nodiscard]] bool contains(const DiracSpinor &a,
                               const DiracSpinor &b) const {
     return m_data.find(FormIndex(a.nk_index(), b.nk_index())) != m_data.cend();
+  }
+  //! Checks if given element is in the table
+  [[nodiscard]] bool contains(DiracSpinor::Index a,
+                              DiracSpinor::Index b) const {
+    return m_data.find(FormIndex(a, b)) != m_data.cend();
   }
 
   //! Gets pointer to const requested element. If element not present,
@@ -50,18 +64,44 @@ public:
     const auto map_it = m_data.find(FormIndex(a.nk_index(), b.nk_index()));
     return (map_it == m_data.cend()) ? nullptr : &(map_it->second);
   }
+  //! Gets pointer to const requested element. If element not present,
+  //! returns nullptr
+  [[nodiscard]] const T *get(DiracSpinor::Index a, DiracSpinor::Index b) const {
+    const auto map_it = m_data.find(FormIndex(a, b));
+    return (map_it == m_data.cend()) ? nullptr : &(map_it->second);
+  }
+
   //! Gets pointer to mutable requested element. If element not present, returns
   //! nullptr
   [[nodiscard]] T *get(const DiracSpinor &a, const DiracSpinor &b) {
     const auto map_it = m_data.find(FormIndex(a.nk_index(), b.nk_index()));
     return (map_it == m_data.cend()) ? nullptr : &(map_it->second);
   }
+  //! Gets pointer to mutable requested element. If element not present, returns
+  //! nullptr
+  [[nodiscard]] T *get(DiracSpinor::Index a, DiracSpinor::Index b) {
+    const auto map_it = m_data.find(FormIndex(a, b));
+    return (map_it == m_data.cend()) ? nullptr : &(map_it->second);
+  }
+
+  //! Gets value of requested element. If element not present,
+  //! returns zero (or default constructed T)
+  [[nodiscard]] T getv(const DiracSpinor &a, const DiracSpinor &b) const {
+    const auto ptr = get(a, b);
+    return ptr ? *ptr : T{};
+  }
+  //! Gets value of requested element. If element not present,
+  //! returns zero (or default constructed T)
+  [[nodiscard]] T getv(DiracSpinor::Index a, DiracSpinor::Index b) const {
+    const auto ptr = get(a, b);
+    return ptr ? *ptr : T{};
+  }
 
   //! Gets pointer to const requested element. If element not present,
   //! returns nullptr. Overload for strings (parses symbol)
   [[nodiscard]] const T *get(const std::string &a, const std::string &b) const {
-    auto [na, ka] = AtomData::parse_symbol(a);
-    auto [nb, kb] = AtomData::parse_symbol(b);
+    const auto [na, ka] = AtomData::parse_symbol(a);
+    const auto [nb, kb] = AtomData::parse_symbol(b);
     const auto a_index =
         static_cast<Coulomb::nkIndex>(Angular::nk_to_index(na, ka));
     const auto b_index =
@@ -77,9 +117,9 @@ public:
   auto cend() const { return m_data.cend(); }
 
   static std::pair<std::string, std::string> index_to_symbols(nk2Index index) {
-    auto [a, b] = unFormIndex(index);
-    auto [na, ka] = Angular::index_to_nk(int(a));
-    auto [nb, kb] = Angular::index_to_nk(int(b));
+    const auto [a, b] = unFormIndex(index);
+    const auto [na, ka] = Angular::index_to_nk(int(a));
+    const auto [nb, kb] = Angular::index_to_nk(int(b));
     return {AtomData::shortSymbol(na, ka), AtomData::shortSymbol(nb, kb)};
   }
 

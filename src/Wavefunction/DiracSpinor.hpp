@@ -44,6 +44,7 @@ public:
   //! Constructor: Requires n (PQN), kappa (Dirac QN), and grid (shared pointer,
   //! as it's a shared resource)
   DiracSpinor(int in_n, int in_kappa, std::shared_ptr<const Grid> in_rgrid);
+  using Index = uint16_t;
 
 private:
   // Radial Grid; links F[i] to F(r)
@@ -74,7 +75,6 @@ private:
   int m_l;
   int m_parity;
   int m_kappa_index;
-  using Index = uint16_t;
   Index m_nkappa_index;
 
 public:

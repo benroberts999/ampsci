@@ -10,7 +10,7 @@
 namespace AtomData {
 
 //==============================================================================
-//! Stores non-relativistic single-eletron config: {n, l, number}
+//! Stores non-relativistic single-electron config: {n, l, number}
 struct NonRelConfig : qip::Comparison<NonRelConfig>,
                       qip::Arithmetic<NonRelConfig> {
   int n;
@@ -39,7 +39,7 @@ struct NonRelConfig : qip::Comparison<NonRelConfig>,
 };
 
 //==============================================================================
-//! Stores relativistic single-eletron state {n, kappa, energy}
+//! Stores relativistic single-electron state {n, kappa, energy}
 struct DiracConfig { // name OK? too short?
   int n;
   int k;

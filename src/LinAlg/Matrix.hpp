@@ -124,6 +124,13 @@ public:
     return m_data.begin() + long(row * m_cols);
   }
   auto row_end(std::size_t row) { return row_begin(row + 1); }
+
+  //! iterators for rows
+  const auto row_cbegin(std::size_t row) const {
+    return m_data.cbegin() + long(row * m_cols);
+  }
+  const auto row_cend(std::size_t row) const { return row_cbegin(row + 1); }
+
   //! iterators for columns
   auto col_begin(std::size_t col) {
     return CollumnIterator(&m_data[0] + col, m_rows);
