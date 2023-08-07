@@ -4,6 +4,7 @@
 #include "IO/InputBlock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/CorrelationPotential.hpp"
+#include "MBPT/Sigma2.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/format.hpp"
@@ -32,6 +33,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
        {"J", "List of J angular symmetry for CSFs (comma separated). For "
              "half-integer, enter as floats: '0.5' not '1/2' [default: 0]"},
        {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
+       {"sigma2", "Include two-body correlations? [false]"},
        {"e0", "Optional: ground-state energy (in 1/cm) for relative energies. "
               "If not given, will assume lowest J+"},
        {"write_integrals", "Writes CSFs, CI matrix, and 1 and 2 particle "
@@ -89,7 +91,10 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
         continue;
       const auto h0_vw = v == w ? v.en() : 0.0;
       // const auto h0_vw = wf.Hab(v, w);
+      // nb: This makes a difference: energy denominators!
+      // Take lowest n (from valence) of that state?
       const auto Sigma_vw = Sigma ? v * Sigma->SigmaFv(w) : 0.0;
+      // const auto Sigma_vw = Sigma ? Sigma->Sigma_vw(v, w) : 0.0;
       h1.add(v, w, h0_vw + Sigma_vw);
       if (v != w)
         h1.add(w, v, h0_vw + Sigma_vw);
@@ -103,18 +108,23 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
 
-  std::cout << "\nCalculate two-body Coulomb integrals: W^k_abcd\n";
+  std::cout << "\nCalculate two-body Coulomb integrals: Q^k_abcd\n";
 
   // Lookup table; stores all qk's
   Coulomb::QkTable qk;
   const auto qk_filename =
-      wf.identity() + DiracSpinor::state_config(ci_sp_basis) + ".qk";
+      wf.identity() + DiracSpinor::state_config(wf.basis()) + ".qk";
   // Try to read from disk (may already have calculated Qk)
   const auto read_from_file_ok = qk.read(qk_filename);
   if (!read_from_file_ok) {
     // if didn't find Qk file to read in, calculate from scratch:
-    const Coulomb::YkTable yk(ci_sp_basis);
-    qk.fill(ci_sp_basis, yk);
+
+    // const Coulomb::YkTable yk(ci_sp_basis);
+    // qk.fill(ci_sp_basis, yk);
+    // qk.write(qk_filename);
+
+    const Coulomb::YkTable yk(wf.basis());
+    qk.fill(wf.basis(), yk);
     qk.write(qk_filename);
   }
 
@@ -126,18 +136,21 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   //----------------------------------------------------------------------------
   const auto J_list = input.get("J", std::vector<double>{0.0});
   const auto num_solutions = input.get("num_solutions", 5);
+  const auto include_Sigma2 = input.get("sigma2", false);
   double e0 = input.get("e0", 0.0) / PhysConst::Hartree_invcm;
   // even parity:
   for (auto &J : J_list) {
     auto e1 = run_CI(wf.atomicSymbol(), ci_sp_basis, int(std::round(2 * J)), +1,
-                     num_solutions, h1, qk, e0, write_integrals);
+                     num_solutions, h1, qk, e0, write_integrals, include_Sigma2,
+                     wf.basis(), wf.FermiLevel(), 1);
     if (e0 == 0.0)
       e0 = e1;
   }
   // odd parity:
   for (auto &J : J_list) {
     run_CI(wf.atomicSymbol(), ci_sp_basis, int(std::round(2 * J)), -1,
-           num_solutions, h1, qk, e0, write_integrals);
+           num_solutions, h1, qk, e0, write_integrals, include_Sigma2,
+           wf.basis(), wf.FermiLevel(), 1);
   }
 }
 
@@ -395,6 +408,69 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, const DiracSpinor &a,
 }
 
 //==============================================================================
+double CSF2_Sigma2(const Coulomb::QkTable &qk, const DiracSpinor &a,
+                   const DiracSpinor &b, const DiracSpinor &c,
+                   const DiracSpinor &d, int twoJ,
+                   const std::vector<DiracSpinor> &core,
+                   const std::vector<DiracSpinor> &excited,
+                   const Angular::SixJTable &SixJ) {
+
+  // If c==d, or a==b : can make short-cut due to symmetry
+  // More efficient to use two Q's than W:
+
+  double out = 0.0;
+
+  // Direct part:
+  const auto [k0, k1] = Coulomb::k_minmax_Q(a, b, c, d);
+  for (int k = k0; k <= k1; k += 2) {
+    const auto sjs =
+        Angular::sixj_2(a.twoj(), b.twoj(), twoJ, d.twoj(), c.twoj(), 2 * k);
+    if (sjs == 0.0)
+      continue;
+    const auto Sk_abcd = MBPT::Sk_vwxy(k, a, b, c, d, qk, core, excited, SixJ);
+    const auto s = Angular::neg1pow_2(a.twoj() + c.twoj() + 2 * k + twoJ);
+    out += s * sjs * Sk_abcd;
+  }
+
+  // Take advantage of symmetries: faster (+ numerically stable)
+  // c == d => J is even (identical states), eta2=1/sqrt(2)
+  // eta_ab = 1/sqrt(2) if a==b
+  // Therefore: e.g., if c==d
+  // => eta_ab * eta_cd * (out + (-1)^J*out) = eta_ab * sqrt(2) * out
+  if (a == b && c == d) {
+    return out;
+  } else if (c == d || a == b) {
+    // by {ab},{cd} symmetry: same works for case a==b
+    return std::sqrt(2.0) * out;
+  }
+
+  // Exchange part:
+  const auto [l0, l1] = Coulomb::k_minmax_Q(a, b, d, c);
+  for (int k = l0; k <= l1; k += 2) {
+    const auto sjs =
+        Angular::sixj_2(a.twoj(), b.twoj(), twoJ, c.twoj(), d.twoj(), 2 * k);
+    if (sjs == 0.0)
+      continue;
+    const auto Sk_abdc = MBPT::Sk_vwxy(k, a, b, d, c, qk, core, excited, SixJ);
+    const auto s = Angular::neg1pow_2(a.twoj() + c.twoj() + 2 * k);
+    out += s * sjs * Sk_abdc;
+  }
+
+  return out;
+}
+
+//==============================================================================
+double Sigma2_AB(const CSF2 &A, const CSF2 &B, int twoJ,
+                 const Coulomb::QkTable &qk,
+                 const std::vector<DiracSpinor> &core,
+                 const std::vector<DiracSpinor> &excited,
+                 const Angular::SixJTable &SixJ) {
+  const auto [v, w] = A.states;
+  const auto [x, y] = B.states;
+  return CSF2_Sigma2(qk, *v, *w, *x, *y, twoJ, core, excited, SixJ);
+}
+
+//==============================================================================
 // Determines CI Hamiltonian matrix element for two 2-particle CSFs, a and b
 double Hab(const CSF2 &A, const CSF2 &B, int twoJ,
            const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk) {
@@ -468,7 +544,9 @@ double Hab_2(const CSF2 &A, const CSF2 &B, int twoJ,
 double run_CI(const std::string &atom_name,
               const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_solutions, const Coulomb::meTable<double> &h1,
-              const Coulomb::QkTable &qk, double e0, bool write_integrals) {
+              const Coulomb::QkTable &qk, double e0, bool write_integrals,
+              bool include_Sigma2, const std::vector<DiracSpinor> &mbpt_basis,
+              double E_Fermi, int min_n) {
   //----------------------------------------------------------------------------
 
   auto printJ = [](int twoj) {
@@ -529,6 +607,42 @@ double run_CI(const std::string &atom_name,
   }
   std::cout << std::flush;
 
+  if (include_Sigma2 && !mbpt_basis.empty()) {
+    LinAlg::Matrix H_sigma(CSFs.size(), CSFs.size());
+
+    std::vector<DiracSpinor> core, excited;
+    for (const auto &Fn : mbpt_basis) {
+      if (Fn.en() < E_Fermi && Fn.n() >= min_n) {
+        core.push_back(Fn);
+      } else if (Fn.en() > E_Fermi) {
+        excited.push_back(Fn);
+      }
+    }
+
+    Angular::SixJTable sjt(DiracSpinor::max_tj(mbpt_basis));
+
+    IO::ChronoTimer t("Add Sigma Sigma matrix");
+#pragma omp parallel for collapse(2)
+    for (std::size_t iA = 0; iA < CSFs.size(); ++iA) {
+      // go to iB <= iA only: symmetric matrix
+      for (std::size_t iB = 0; iB <= iA; ++iB) {
+        const auto &A = CSFs.at(iA);
+        const auto &B = CSFs.at(iB);
+
+        const auto dE_AB = Sigma2_AB(A, B, twoJ, qk, core, excited, sjt);
+        H_sigma(iA, iB) = dE_AB;
+        // Add to other half of symmetric matrix:
+        if (iB != iA) {
+          H_sigma(iB, iA) = dE_AB;
+        }
+      }
+    }
+    // std::cin.get();
+    // std::cout << H_sigma << "\n";
+    Hci += H_sigma;
+  }
+  std::cout << std::flush;
+
   // Write CI matrix (H matrix) to file
   if (write_integrals) {
     std::string ci_fname = "ci-" + output_prefix + ".txt";
@@ -571,34 +685,34 @@ double run_CI(const std::string &atom_name,
     std::cout << "\n";
   }
 
-  //----------------------------------------------------------------------------
-  std::cout
-      << "\n`Direct' energy calculation: E = Σ_{IJ} c_I * c_J * <I|H|J>:\n";
-  std::cout
-      << "(Using the CI expansion coefficients from full CI, just a test)\n";
-  // Energy calculation for ground state:
-  double E_direct1 = 0.0, E_direct2 = 0.0;
-  const auto Nci = vec.rows(); // number of CSFs
-  // Energy:  E = Sum_ij c_i * c_j * <i|H|j>
-  for (std::size_t i = 0ul; i < Nci; ++i) {
-    const auto &csf_i = CSFs.at(i); // the ith CSF
-    const auto ci = vec.at(0, i);   // the ith CI coefficient (for 0th e.val)
-    for (std::size_t j = 0ul; j < Nci; ++j) {
-      const auto &csf_j = CSFs.at(j); // jth CSF
-      const auto cj = vec.at(0, j);   // the jth CI coefficient (for 0th e.val)
-      // use pre-calculated CI matrix:
-      E_direct1 += ci * cj * Hci.at(i, j);
-      // Calculate MEs on-the-fly
-      E_direct2 += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
-    }
-  }
+  // //----------------------------------------------------------------------------
+  // std::cout
+  //     << "\n`Direct' energy calculation: E = Σ_{IJ} c_I * c_J * <I|H|J>:\n";
+  // std::cout
+  //     << "(Using the CI expansion coefficients from full CI, just a test)\n";
+  // // Energy calculation for ground state:
+  // double E_direct1 = 0.0, E_direct2 = 0.0;
+  // const auto Nci = vec.rows(); // number of CSFs
+  // // Energy:  E = Sum_ij c_i * c_j * <i|H|j>
+  // for (std::size_t i = 0ul; i < Nci; ++i) {
+  //   const auto &csf_i = CSFs.at(i); // the ith CSF
+  //   const auto ci = vec.at(0, i);   // the ith CI coefficient (for 0th e.val)
+  //   for (std::size_t j = 0ul; j < Nci; ++j) {
+  //     const auto &csf_j = CSFs.at(j); // jth CSF
+  //     const auto cj = vec.at(0, j);   // the jth CI coefficient (for 0th e.val)
+  //     // use pre-calculated CI matrix:
+  //     E_direct1 += ci * cj * Hci.at(i, j);
+  //     // Calculate MEs on-the-fly
+  //     E_direct2 += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
+  //   }
+  // }
 
-  std::cout << "E0 = " << val.at(0) * PhysConst::Hartree_invcm
-            << " cm^-1  (from diagonalisation)\n";
-  std::cout << "E0 = " << E_direct1 * PhysConst::Hartree_invcm
-            << " cm^-1  (uses pre-calculated CI matrix)\n";
-  std::cout << "E0 = " << E_direct2 * PhysConst::Hartree_invcm
-            << " cm^-1  (calculates H matrix elements from scratch)\n";
+  // std::cout << "E0 = " << val.at(0) * PhysConst::Hartree_invcm
+  //           << " cm^-1  (from diagonalisation)\n";
+  // std::cout << "E0 = " << E_direct1 * PhysConst::Hartree_invcm
+  //           << " cm^-1  (uses pre-calculated CI matrix)\n";
+  // std::cout << "E0 = " << E_direct2 * PhysConst::Hartree_invcm
+  //           << " cm^-1  (calculates H matrix elements from scratch)\n";
 
   return val.at(0);
 }

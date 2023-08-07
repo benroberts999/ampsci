@@ -25,7 +25,10 @@ std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
 double run_CI(const std::string &atom_name,
               const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_solutions, const Coulomb::meTable<double> &h1,
-              const Coulomb::QkTable &qk, double e0, bool write_integrals);
+              const Coulomb::QkTable &qk, double e0, bool write_integrals,
+              bool include_Sigma2,
+              const std::vector<DiracSpinor> &mbpt_basis = {},
+              double E_Fermi = 0.0, int min_n = 1);
 
 class CSF2;
 

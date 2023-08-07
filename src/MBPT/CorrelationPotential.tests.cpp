@@ -1,3 +1,4 @@
+#include "Sigma2.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -31,13 +32,20 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
 
       double prev = 0.0;
       std::vector<double> vals;
-      wf.formBasis({"spdfghi", 100, 11, 0.0, 1.0e-6, 50.0, false});
+      wf.formBasis({"100spdfghi", 101, 11, 0.0, 1.0e-6, 50.0, false});
       wf.formSigma(1, false);
+      // Coulomb::YkTable yk(wf.basis()); // this is a *huge* basis!
+      const auto [holes, excited] =
+          DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
+      Coulomb::YkTable yk(holes, excited);
       const auto Sigma = wf.Sigma();
       std::cout << "cf Table 2 from Beloy, Derevianko, Comput.Phys.Commun. "
                    "179, 310 (2008):\n";
       for (int l = 0; l <= 6; ++l) {
-        const auto de = Sigma->Sigma_vw(Fv, Fv, l);
+
+        const auto de = MBPT::Sigma_vw(Fv, Fv, yk, holes, excited, l);
+        const auto de_2 = Sigma->Sigma_vw(Fv, Fv, l);
+        REQUIRE(de == Approx(de_2).epsilon(1.0e-9));
         vals.push_back(de - prev);
         printf("%i %10.7f %10.7f  [%10.7f]\n", l, de, de - prev,
                partial_KBAD[std::size_t(l)]);
@@ -45,9 +53,6 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
       }
       for (auto l = 0ul; l <= 6; ++l) {
         auto del = vals[l] - partial_KBAD[l];
-        // pass &= qip::check_value(
-        //     &obuff, "MBPT(2) vs. KB,AD " + std::to_string(l), del, 0.0,
-        //     error);
         REQUIRE(std::abs(del) < error);
       }
     }

@@ -3,25 +3,26 @@
 namespace MBPT {
 
 //==============================================================================
-double S_Sigma2(int k, const DiracSpinor &v, const DiracSpinor &w,
-                const DiracSpinor &x, const DiracSpinor &y,
-                const Coulomb::QkTable &qk,
-                const std::vector<DiracSpinor> &core,
-                const std::vector<DiracSpinor> &excited,
-                const Angular::SixJTable *SJ = nullptr) {
-  return S_Sigma2_a(k, v, w, x, y, qk, core, excited, SJ) +
-         S_Sigma2_b(k, v, w, x, y, qk, core, excited, SJ) +
-         S_Sigma2_c(k, v, w, x, y, qk, core, excited, SJ) +
-         S_Sigma2_d(k, v, w, x, y, qk, core, excited, SJ);
+double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
+               const DiracSpinor &x, const DiracSpinor &y,
+               const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+               const std::vector<DiracSpinor> &excited,
+               const Angular::SixJTable &SixJ) {
+  using namespace InternalSigma;
+  return S_Sigma2_a(k, v, w, x, y, qk, core, excited, SixJ) +
+         S_Sigma2_b(k, v, w, x, y, qk, core, excited, SixJ) +
+         S_Sigma2_c(k, v, w, x, y, qk, core, excited, SixJ) +
+         S_Sigma2_d(k, v, w, x, y, qk, core, excited, SixJ);
 }
 
 //==============================================================================
-double S_Sigma2_a(int k, const DiracSpinor &v, const DiracSpinor &w,
-                  const DiracSpinor &x, const DiracSpinor &y,
-                  const Coulomb::QkTable &qk,
-                  const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &excited,
-                  const Angular::SixJTable *SJ = nullptr) {
+double InternalSigma::S_Sigma2_a(int k, const DiracSpinor &v,
+                                 const DiracSpinor &w, const DiracSpinor &x,
+                                 const DiracSpinor &y,
+                                 const Coulomb::QkTable &qk,
+                                 const std::vector<DiracSpinor> &core,
+                                 const std::vector<DiracSpinor> &excited,
+                                 const Angular::SixJTable &) {
   /*
     S2^K_vwxy = [k]^-1 (-1)^k
                 * (Qk_vnxa * Qk_awny + Pk_vnxa * Qk_awny + Qk_vnxa * Pk_awny)
@@ -51,12 +52,13 @@ double S_Sigma2_a(int k, const DiracSpinor &v, const DiracSpinor &w,
 }
 
 //==============================================================================
-double S_Sigma2_b(int k, const DiracSpinor &v, const DiracSpinor &w,
-                  const DiracSpinor &x, const DiracSpinor &y,
-                  const Coulomb::QkTable &qk,
-                  const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &excited,
-                  const Angular::SixJTable *SJ = nullptr) {
+double InternalSigma::S_Sigma2_b(int k, const DiracSpinor &v,
+                                 const DiracSpinor &w, const DiracSpinor &x,
+                                 const DiracSpinor &y,
+                                 const Coulomb::QkTable &qk,
+                                 const std::vector<DiracSpinor> &core,
+                                 const std::vector<DiracSpinor> &excited,
+                                 const Angular::SixJTable &SixJ) {
 
   const auto f =
       Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
@@ -84,21 +86,21 @@ double S_Sigma2_b(int k, const DiracSpinor &v, const DiracSpinor &w,
       const auto de = de_yv + a.en() - n.en();
 
       for (int u = u0; u <= u1; u += 2) {
-        const auto l0_sj = std::max(l0, std::abs(u - k));
-        const auto l1_sj = std::min(l1, std::abs(u + k));
-        for (int l = l0_sj; l <= l1_sj; l += 2) {
+        const auto l0_SixJ = std::max(l0, std::abs(u - k));
+        const auto l1_SixJ = std::min(l1, std::abs(u + k));
+        for (int l = l0_SixJ; l <= l1_SixJ; l += 2) {
 
           // if (!Coulomb::triangle(l, u, k))
           //   continue;
 
-          const auto sj1 = SJ->get(l, u, k, v, x, a);
-          const auto sj2 = SJ->get(l, u, k, y, w, n);
+          const auto SixJ1 = SixJ.get(l, u, k, v, x, a);
+          const auto SixJ2 = SixJ.get(l, u, k, y, w, n);
           const auto s = Angular::neg1pow_2(2 * a.twoj() + 2 * l + 2 * u);
 
           const auto qk_vnay = qk.Q(u, v, n, a, y);
           const auto qk_awxn = qk.Q(l, a, w, x, n);
 
-          sum += s * sj1 * sj2 * qk_vnay * qk_awxn / de;
+          sum += s * SixJ1 * SixJ2 * qk_vnay * qk_awxn / de;
         }
       }
     }
@@ -107,12 +109,13 @@ double S_Sigma2_b(int k, const DiracSpinor &v, const DiracSpinor &w,
 }
 
 //==============================================================================
-double S_Sigma2_c(int k, const DiracSpinor &v, const DiracSpinor &w,
-                  const DiracSpinor &x, const DiracSpinor &y,
-                  const Coulomb::QkTable &qk,
-                  const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &excited,
-                  const Angular::SixJTable *SJ = nullptr) {
+double InternalSigma::S_Sigma2_c(int k, const DiracSpinor &v,
+                                 const DiracSpinor &w, const DiracSpinor &x,
+                                 const DiracSpinor &y,
+                                 const Coulomb::QkTable &qk,
+                                 const std::vector<DiracSpinor> &core,
+                                 const std::vector<DiracSpinor> &excited,
+                                 const Angular::SixJTable &SixJ) {
 
   const auto f =
       Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
@@ -140,18 +143,18 @@ double S_Sigma2_c(int k, const DiracSpinor &v, const DiracSpinor &w,
       const auto de = de_yv + a.en() - n.en();
 
       for (int u = u0; u <= u1; u += 2) {
-        const auto l0_sj = std::max(l0, std::abs(u - k));
-        const auto l1_sj = std::min(l1, std::abs(u + k));
-        for (int l = l0_sj; l <= l1_sj; l += 2) {
+        const auto l0_SixJ = std::max(l0, std::abs(u - k));
+        const auto l1_SixJ = std::min(l1, std::abs(u + k));
+        for (int l = l0_SixJ; l <= l1_SixJ; l += 2) {
 
-          const auto sj1 = SJ->get(l, u, k, v, x, n);
-          const auto sj2 = SJ->get(l, u, k, y, w, a);
+          const auto SixJ1 = SixJ.get(l, u, k, v, x, n);
+          const auto SixJ2 = SixJ.get(l, u, k, y, w, a);
           const auto s = Angular::neg1pow_2(2 * a.twoj() + 2 * l + 2 * u);
 
           const auto qk_vany = qk.Q(u, v, a, n, y);
           const auto qk_nwxa = qk.Q(l, n, w, x, a);
 
-          sum += s * sj1 * sj2 * qk_vany * qk_nwxa / de;
+          sum += s * SixJ1 * SixJ2 * qk_vany * qk_nwxa / de;
         }
       }
     }
@@ -160,12 +163,13 @@ double S_Sigma2_c(int k, const DiracSpinor &v, const DiracSpinor &w,
 }
 
 //==============================================================================
-double S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
-                  const DiracSpinor &x, const DiracSpinor &y,
-                  const Coulomb::QkTable &qk,
-                  const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &excited,
-                  const Angular::SixJTable *SJ = nullptr) {
+double InternalSigma::S_Sigma2_d(int k, const DiracSpinor &v,
+                                 const DiracSpinor &w, const DiracSpinor &x,
+                                 const DiracSpinor &y,
+                                 const Coulomb::QkTable &qk,
+                                 const std::vector<DiracSpinor> &core,
+                                 const std::vector<DiracSpinor> &,
+                                 const Angular::SixJTable &SixJ) {
 
   const auto f =
       Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
@@ -193,18 +197,18 @@ double S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
       const auto de = de_vw + a.en() + b.en();
 
       for (int u = u0; u <= u1; u += 2) {
-        const auto l0_sj = std::max(l0, std::abs(u - k));
-        const auto l1_sj = std::min(l1, std::abs(u + k));
-        for (int l = l0_sj; l <= l1_sj; l += 2) {
+        const auto l0_SixJ = std::max(l0, std::abs(u - k));
+        const auto l1_SixJ = std::min(l1, std::abs(u + k));
+        for (int l = l0_SixJ; l <= l1_SixJ; l += 2) {
 
-          const auto sj1 = SJ->get(l, u, k, v, x, a);
-          const auto sj2 = SJ->get(l, u, k, w, y, b);
+          const auto SixJ1 = SixJ.get(l, u, k, v, x, a);
+          const auto SixJ2 = SixJ.get(l, u, k, w, y, b);
           const auto s = Angular::neg1pow_2(2 * a.twoj() + 2 * l + 2 * u);
 
           const auto qk_vwab = qk.Q(u, v, w, a, b);
           const auto qk_abxy = qk.Q(l, a, b, x, y);
 
-          sum += s * sj1 * sj2 * qk_vwab * qk_abxy / de;
+          sum += s * SixJ1 * SixJ2 * qk_vwab * qk_abxy / de;
         }
       }
     }

@@ -264,4 +264,18 @@ public:
   static int max_n(const std::vector<DiracSpinor> &orbs);
   //! Returns maximum kappa_index found in {orbs}
   static int max_kindex(const std::vector<DiracSpinor> &orbs);
+
+  static std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
+  split_by_energy(const std::vector<DiracSpinor> &orbitals, double energy) {
+    std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> out;
+    auto &[below, above] = out;
+    for (const auto &n : orbitals) {
+      if (n.en() <= energy) {
+        below.push_back(n);
+      } else {
+        above.push_back(n);
+      }
+    }
+    return out;
+  }
 };
