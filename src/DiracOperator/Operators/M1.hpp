@@ -2,6 +2,7 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/InputBlock.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "jls.hpp"
 
 namespace DiracOperator {
 
@@ -55,6 +56,29 @@ private:
   const double m_alpha;
 };
 
+//==============================================================================
+//! Magnetic dipole operator, in non-relativistic form: M1 = L + 2S
+class M1nr final : public TensorOperator {
+public:
+  M1nr() : TensorOperator(1, Parity::even, 1.0) {}
+  std::string name() const override final { return "M1nr"; }
+  std::string units() const override final { return "|mu_B|"; }
+
+  double angularF(const int, const int) const override final {
+    // angular factor included in L and S
+    return 1.0;
+  }
+
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final {
+    return m_l.reduced_rhs(kappa_a, Fb) + 2.0 * m_s.reduced_rhs(kappa_a, Fb);
+  }
+
+private:
+  DiracOperator::s m_s{};
+  DiracOperator::l m_l{};
+};
+
 //------------------------------------------------------------------------------
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_M1(const IO::InputBlock &input, const Wavefunction &wf) {
@@ -64,6 +88,16 @@ generate_M1(const IO::InputBlock &input, const Wavefunction &wf) {
     return nullptr;
   }
   return std::make_unique<M1>(wf.grid(), wf.alpha(), 0.0);
+}
+
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_M1nr(const IO::InputBlock &input, const Wavefunction &) {
+  using namespace DiracOperator;
+  input.check({{"", "No input options"}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
+  return std::make_unique<M1nr>();
 }
 
 } // namespace DiracOperator

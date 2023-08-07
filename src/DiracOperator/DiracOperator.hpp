@@ -7,5 +7,6 @@
 #include "DiracOperator/Operators/RadialF.hpp"
 #include "DiracOperator/Operators/hfs.hpp"
 #include "DiracOperator/Operators/jL.hpp"
+#include "DiracOperator/Operators/jls.hpp"
 #include "DiracOperator/Operators/p.hpp"
 #include "DiracOperator/TensorOperator.hpp"
