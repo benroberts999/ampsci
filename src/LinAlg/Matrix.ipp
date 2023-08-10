@@ -300,27 +300,29 @@ std::ostream &operator<<(std::ostream &os, const Matrix<T> &a) {
 //==============================================================================
 //==============================================================================
 //==============================================================================
-template <typename T> struct Matrix<T>::CollumnIterator {
+template <typename T> struct Matrix<T>::ColumnIterator {
   using iterator_category = std::forward_iterator_tag; //?
   using difference_type = std::ptrdiff_t;
   using value_type = T;
   using pointer = T *;   // or also value_type*
   using reference = T &; // or also value_type&
-  CollumnIterator(pointer ptr, std::size_t rows) : m_ptr(ptr), m_rows(rows) {}
+  ColumnIterator(pointer ptr, std::size_t rows) : m_ptr(ptr), m_rows(rows) {}
 
   reference operator*() const { return *m_ptr; }
   pointer operator->() { return m_ptr; }
 
   // Prefix increment
-  CollumnIterator &operator++() {
+  ColumnIterator &operator++() {
     m_ptr += m_rows;
     return *this;
   }
 
-  friend bool operator==(const CollumnIterator &a, const CollumnIterator &b) {
+  T operator[](std::size_t i) const { return m_ptr[i * m_rows]; }
+
+  friend bool operator==(const ColumnIterator &a, const ColumnIterator &b) {
     return a.m_ptr == b.m_ptr;
   };
-  friend bool operator!=(const CollumnIterator &a, const CollumnIterator &b) {
+  friend bool operator!=(const ColumnIterator &a, const ColumnIterator &b) {
     return a.m_ptr != b.m_ptr;
   };
 

@@ -1,6 +1,8 @@
 #pragma once
 #include "Coulomb/QkTable.hpp"
 #include "Coulomb/meTable.hpp"
+#include "DiracOperator/DiracOperator.hpp"
+#include "LinAlg/Matrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <string>
 #include <vector>
@@ -43,7 +45,7 @@ void write_CSFs(const std::vector<CSF2> &CSFs, int twoJ,
                 const std::string &csf_fname);
 
 //! Calculates the anti-symmetrised Coulomb integral for 2-particle states:
-//! C1*C2*(g_abcd-g_abdc), where Cs are C.G. coefs
+//! C1*C2*(g_abcd-g_abdc), where Cs are C.G. coefficients
 double CSF2_Coulomb(const Coulomb::QkTable &qk, const DiracSpinor &a,
                     const DiracSpinor &b, const DiracSpinor &c,
                     const DiracSpinor &d, int twoJ);
@@ -52,16 +54,17 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, const DiracSpinor &a,
 double Hab(const CSF2 &A, const CSF2 &B, int twoJ,
            const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk);
 
-//! CI Hamiltonian matrix element for two 2-particle CSFs: diagonal case
-double Hab_0(const CSF2 &A, const CSF2 &B, int twoJ,
-             const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk);
+//! Calculate reduced matrix elements between two CI states. cA is CI expansion coefficients (row if CI eigenvector matrix)
+double CI_RME(const double *cA, const std::vector<CSF2> &CSFAs, int twoJA,
+              const double *cB, const std::vector<CSF2> &CSFBs, int twoJB,
+              const DiracOperator::TensorOperator *h);
 
-//! CI Hamiltonian matrix element for two 2-particle CSFs: differ by 1 case
-double Hab_1(const CSF2 &A, const CSF2 &B, int twoJ,
-             const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk);
+//! Overload for diagonal matrix elements
+double CI_RME(const double *cA, const std::vector<CSF2> &CSFs, int twoJ,
+              const DiracOperator::TensorOperator *h);
 
-//! CI Hamiltonian matrix element for two 2-particle CSFs: differ by 2 case
-double Hab_2(const CSF2 &A, const CSF2 &B, int twoJ,
-             const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk);
+//! Calculate reduce ME between two 2-particle CSFs - XXX not quite right??
+double RME_CSF2(const CSF2 &V, int twoJV, const CSF2 &X, int twoJX,
+                const DiracOperator::TensorOperator *h);
 
 } // namespace Module

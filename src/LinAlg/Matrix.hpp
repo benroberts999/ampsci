@@ -117,27 +117,29 @@ public:
   auto end() { return m_data.end(); }
   auto cend() const { return m_data.cend(); }
 
-  //! Define iterator for rolw/columnsL
-  struct CollumnIterator;
+  //! Define iterator for row/column:
+  struct ColumnIterator; // what?
+  using RowIterator = T *;
+
   //! iterators for rows
-  auto row_begin(std::size_t row) {
-    return m_data.begin() + long(row * m_cols);
+  RowIterator row_begin(std::size_t row) {
+    return m_data.data() + long(row * m_cols);
   }
   auto row_end(std::size_t row) { return row_begin(row + 1); }
-
-  //! iterators for rows
-  const auto row_cbegin(std::size_t row) const {
-    return m_data.cbegin() + long(row * m_cols);
+  RowIterator row(std::size_t row) { return row_begin(row); }
+  const T *row(std::size_t row) const {
+    return m_data.data() + long(row * m_cols);
   }
-  const auto row_cend(std::size_t row) const { return row_cbegin(row + 1); }
 
   //! iterators for columns
-  auto col_begin(std::size_t col) {
-    return CollumnIterator(&m_data[0] + col, m_rows);
+  ColumnIterator col_begin(std::size_t col) {
+    return ColumnIterator(&m_data[0] + col, m_rows);
   }
-  auto col_end(std::size_t col) {
-    return CollumnIterator(&m_data[0] + col + m_rows * m_cols, m_rows);
+  ColumnIterator col_end(std::size_t col) {
+    return ColumnIterator(&m_data[0] + col + m_rows * m_cols, m_rows);
   }
+  RowIterator col(std::size_t col) { return col_begin(row); }
+  // const RowIterator col(std::size_t col) const { return col_begin(row); }
 
   //============================================================================
 

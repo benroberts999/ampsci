@@ -1,6 +1,7 @@
 #include "Modules/VQE.hpp"
 #include "Angular/Angular.hpp"
 #include "Coulomb/Coulomb.hpp"
+#include "DiracOperator/DiracOperator.hpp"
 #include "IO/InputBlock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/CorrelationPotential.hpp"
@@ -472,72 +473,21 @@ double Sigma2_AB(const CSF2 &A, const CSF2 &B, int twoJ,
 
 //==============================================================================
 // Determines CI Hamiltonian matrix element for two 2-particle CSFs, a and b
-double Hab(const CSF2 &A, const CSF2 &B, int twoJ,
+double Hab(const CSF2 &X, const CSF2 &V, int twoJ,
            const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk) {
 
   // Calculates matrix element of the CI Hamiltonian between two CSFs
 
-  // This doesn't work with Sigma, but is good test for Sigma=0 case
-  // const auto [v, w] = A.states;
-  // const auto [x, y] = B.states;
-  // const auto Evw = (v == x && y == w) ? v->en() + w->en() : 0.0;
-  // return Evw + CSF2_Coulomb(qk, *v, *w, *x, *y, twoJ);
+  const auto [v, w] = V.states;
+  const auto [x, y] = X.states;
 
-  const auto num_different = CSF2::num_different(A, B);
-  if (num_different == 0) {
-    return Hab_0(A, B, twoJ, h1, qk);
-  }
-  if (num_different == 1) {
-    return Hab_1(A, B, twoJ, h1, qk);
-  }
-  if (num_different == 2) {
-    return Hab_2(A, B, twoJ, h1, qk);
-  }
-  assert(false); // can't have more than 2 different in a 2-particle CSF!
-  return 0.0;
-}
+  // One electron part (formula specific to two-electron CSF case):
+  const auto h1_VX = (v == x && w == y) ? h1.getv(*v, *v) + h1.getv(*w, *w) :
+                     (v != y && w == x) ? h1.getv(*v, *y) :
+                     (v == y && w != x) ? h1.getv(*w, *x) :
+                                          0.0;
 
-//==============================================================================
-// CI Hamiltonian matrix element for two 2-particle CSFs: diagonal case
-double Hab_0(const CSF2 &A, const CSF2 &, int twoJ,
-             const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk) {
-
-  // Orbitals:
-  const auto &a = *A.state(0);
-  const auto &b = *A.state(1);
-
-  // lookup single-particle matrix elements (includes Sigma)
-  const auto h1_aa = h1.getv(a, a);
-  const auto h1_bb = h1.getv(b, b);
-
-  return h1_aa + h1_bb + CSF2_Coulomb(qk, a, b, a, b, twoJ);
-}
-
-//==============================================================================
-// CI Hamiltonian matrix element for two 2-particle CSFs: differ by 1 case
-double Hab_1(const CSF2 &A, const CSF2 &B, int twoJ,
-             const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk) {
-
-  // get the 'different' orbitals in A/B:
-  const auto [n, a] = CSF2::diff_1_na(A, B);
-
-  // one-electron part (includes Sigma):
-  const auto h1_na = h1.getv(*n, *a);
-
-  const auto [v, w] = A.states;
-  const auto [x, y] = B.states;
-
-  return h1_na + CSF2_Coulomb(qk, *v, *w, *x, *y, twoJ);
-}
-
-//==============================================================================
-// CI Hamiltonian matrix element for two 2-particle CSFs: differ by 2 case
-double Hab_2(const CSF2 &A, const CSF2 &B, int twoJ,
-             const Coulomb::meTable<double> &, const Coulomb::QkTable &qk) {
-
-  const auto [a, b] = A.states;
-  const auto [n, m] = B.states;
-  return CSF2_Coulomb(qk, *a, *b, *n, *m, twoJ);
+  return h1_VX + CSF2_Coulomb(qk, *v, *w, *x, *y, twoJ);
 }
 
 //==============================================================================
@@ -592,7 +542,7 @@ double run_CI(const std::string &atom_name,
 #pragma omp parallel for collapse(2)
     for (std::size_t iA = 0; iA < CSFs.size(); ++iA) {
       // go to iB <= iA only: symmetric matrix
-      for (std::size_t iB = 0; iB <= iA; ++iB) {
+      for (std::size_t iB = 0; iB <= iA; ++iB) { // work with collapse? how?
         const auto &A = CSFs.at(iA);
         const auto &B = CSFs.at(iB);
 
@@ -667,6 +617,11 @@ double run_CI(const std::string &atom_name,
              printPi(parity), E0 * PhysConst::Hartree_invcm);
   std::cout << std::flush;
 
+  // For calculating g-factors
+  // (Use non-rel formula? Or relativistic M1?)
+  DiracOperator::M1nr m1{};
+  // DiracOperator::M1 m1{wf.grid(), wf.alpha(), 0.0};
+
   for (std::size_t i = 0; i < val.size() && int(i) < num_solutions; ++i) {
 
     fmt::print(
@@ -682,39 +637,156 @@ double run_CI(const std::string &atom_name,
                    CSFs.at(j).state(1)->shortSymbol(), cj);
       }
     }
+
+    // Calculate g-factors, for line identification. Only defined for J!=0
+    if (twoJ != 0) {
+      // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
+      // take J=Jz, <JJz|J|JJz> = J
+      // then: g_J = <JJ|L + 2*S|JJ> / J
+      // And: <JJ|L + 2*S|JJ> = 3js * <A||L+2S||A> (W.E. Theorem)
+      const auto m1AA = CI_RME(vec.row(i), CSFs, twoJ, &m1);
+      const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
+      std::cout << "gJ = " << tjs * m1AA / (0.5 * twoJ) << "\n";
+    }
+
     std::cout << "\n";
   }
 
-  // //----------------------------------------------------------------------------
-  // std::cout
-  //     << "\n`Direct' energy calculation: E = Σ_{IJ} c_I * c_J * <I|H|J>:\n";
-  // std::cout
-  //     << "(Using the CI expansion coefficients from full CI, just a test)\n";
-  // // Energy calculation for ground state:
-  // double E_direct1 = 0.0, E_direct2 = 0.0;
-  // const auto Nci = vec.rows(); // number of CSFs
-  // // Energy:  E = Sum_ij c_i * c_j * <i|H|j>
-  // for (std::size_t i = 0ul; i < Nci; ++i) {
-  //   const auto &csf_i = CSFs.at(i); // the ith CSF
-  //   const auto ci = vec.at(0, i);   // the ith CI coefficient (for 0th e.val)
-  //   for (std::size_t j = 0ul; j < Nci; ++j) {
-  //     const auto &csf_j = CSFs.at(j); // jth CSF
-  //     const auto cj = vec.at(0, j);   // the jth CI coefficient (for 0th e.val)
-  //     // use pre-calculated CI matrix:
-  //     E_direct1 += ci * cj * Hci.at(i, j);
-  //     // Calculate MEs on-the-fly
-  //     E_direct2 += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
-  //   }
-  // }
+  //----------------------------------------------------------------------------
+  std::cout
+      << "\n`Direct' energy calculation: E = Σ_{IJ} c_I * c_J * <I|H|J>:\n";
+  std::cout
+      << "(Using the CI expansion coefficients from full CI, just a test)\n";
+  // Energy calculation for ground state:
+  double E_direct1 = 0.0, E_direct2 = 0.0;
+  const auto Nci = vec.rows(); // number of CSFs
+  // Energy:  E = Sum_ij c_i * c_j * <i|H|j>
+  for (std::size_t i = 0ul; i < Nci; ++i) {
+    const auto &csf_i = CSFs.at(i); // the ith CSF
+    const auto ci = vec.at(0, i);   // the ith CI coefficient (for 0th e.val)
+    for (std::size_t j = 0ul; j < Nci; ++j) {
+      const auto &csf_j = CSFs.at(j); // jth CSF
+      const auto cj = vec.at(0, j);   // the jth CI coefficient (for 0th e.val)
+      // use pre-calculated CI matrix:
+      E_direct1 += ci * cj * Hci.at(i, j);
+      // Calculate MEs on-the-fly
+      E_direct2 += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
+    }
+  }
 
-  // std::cout << "E0 = " << val.at(0) * PhysConst::Hartree_invcm
-  //           << " cm^-1  (from diagonalisation)\n";
-  // std::cout << "E0 = " << E_direct1 * PhysConst::Hartree_invcm
-  //           << " cm^-1  (uses pre-calculated CI matrix)\n";
-  // std::cout << "E0 = " << E_direct2 * PhysConst::Hartree_invcm
-  //           << " cm^-1  (calculates H matrix elements from scratch)\n";
+  std::cout << "E0 = " << val.at(0) * PhysConst::Hartree_invcm
+            << " cm^-1  (from diagonalisation)\n";
+  std::cout << "E0 = " << E_direct1 * PhysConst::Hartree_invcm
+            << " cm^-1  (uses pre-calculated CI matrix)\n";
+  std::cout << "E0 = " << E_direct2 * PhysConst::Hartree_invcm
+            << " cm^-1  (calculates H matrix elements from scratch)\n";
 
   return val.at(0);
+}
+
+//==============================================================================
+double RME_CSF2(const CSF2 &V, int twoJV, const CSF2 &X, int twoJX,
+                const DiracOperator::TensorOperator *h) {
+
+  // XXX Needs to be double checked!
+  // Sometimes, doesn't have correct symmetry properties
+
+  const auto [v, w] = V.states;
+  const auto [x, y] = X.states;
+  const auto etaV = v == w ? 1.0 / std::sqrt(2.0) : 1.0;
+  const auto etaX = x == y ? 1.0 / std::sqrt(2.0) : 1.0;
+
+  const auto num_diff = CSF2::num_different(V, X);
+  const auto twok = 2 * h->rank();
+
+  const auto f = etaV * etaX * std::sqrt(double(twoJV + 1) * (twoJX + 1)) *
+                 Angular::neg1pow_2(v->twoj() + w->twoj() + twok);
+
+  // This is probably a very inefficient way to implement Slater-Condon rules...
+  if (v == x && w == y) {
+    assert(num_diff == 0);
+    const auto sj1 =
+        Angular::sixj_2(twoJV, twoJX, twok, v->twoj(), v->twoj(), w->twoj());
+    const auto t1 = h->reducedME(*v, *v);
+    const auto s1 = Angular::neg1pow_2(twoJX);
+    const auto sj2 =
+        Angular::sixj_2(twoJV, twoJX, twok, w->twoj(), w->twoj(), v->twoj());
+    const auto t2 = h->reducedME(*w, *w);
+    const auto s2 = Angular::neg1pow_2(twoJV);
+    return f * (sj1 * t1 * s1 + sj2 * t2 * s2);
+  }
+
+  if (v == x && w != y) {
+    assert(num_diff == 1);
+    const auto sj =
+        Angular::sixj_2(twoJV, twoJX, twok, y->twoj(), w->twoj(), v->twoj());
+    const auto t = h->reducedME(*w, *y);
+    const auto s = Angular::neg1pow_2(y->twoj() - w->twoj() + twoJV);
+    return f * sj * t * s;
+
+  } else if (v != x && w == y) {
+    assert(num_diff == 1);
+    const auto sj =
+        Angular::sixj_2(twoJV, twoJX, twok, x->twoj(), v->twoj(), w->twoj());
+    const auto t = h->reducedME(*v, *x);
+    const auto s = Angular::neg1pow_2(twoJX);
+    return f * sj * t * s;
+
+  } else if (v != y && w == x) {
+    assert(num_diff == 1);
+    const auto sj =
+        Angular::sixj_2(twoJV, twoJX, twok, y->twoj(), v->twoj(), w->twoj());
+    const auto t = h->reducedME(*v, *y);
+    const auto s = Angular::neg1pow_2(w->twoj() + x->twoj());
+    return f * sj * t * s;
+
+  } else if (v == y && w != x) {
+    assert(num_diff == 1);
+    const auto sj =
+        Angular::sixj_2(twoJV, twoJX, twok, x->twoj(), w->twoj(), v->twoj());
+    const auto t = h->reducedME(*w, *x);
+    const auto s = Angular::neg1pow_2(v->twoj() + w->twoj() + twoJV + twoJX);
+    return f * sj * t * s;
+  }
+
+  assert(num_diff == 2);
+  return 0.0;
+}
+
+//==============================================================================
+double CI_RME(const double *cA, const std::vector<CSF2> &CSFAs, int twoJA,
+              const double *cB, const std::vector<CSF2> &CSFBs, int twoJB,
+              const DiracOperator::TensorOperator *h) {
+
+  // <A|h|A>   = Σ_{IJ} c_I * c_J * <I|h|J>
+  // <A||h||A> = Σ_{IJ} c_I * c_J * <I||h||J>
+  const auto NA = CSFAs.size();
+  const auto NB = CSFBs.size();
+
+  double sum = 0.0;
+#pragma omp parallel for collapse(2) reduction(+ : sum)
+  for (std::size_t i = 0ul; i < NA; ++i) {
+    for (std::size_t j = 0ul; j < NB; ++j) {
+      const auto &csf_i = CSFAs.at(i);
+      const auto ci = cA[i];
+      const auto &csf_j = CSFBs.at(j);
+      const auto cj = cB[j];
+
+      // Not perfectly symmetric: means issue!
+      // ... but only for small terms? So, perhaps numerical noise?
+      // std::cout << RME_CSF2(csf_i, twoJ, csf_j, twoJ, h) << " "
+      //           << RME_CSF2(csf_j, twoJ, csf_i, twoJ, h) << "\n";
+
+      sum += ci * cj * RME_CSF2(csf_i, twoJA, csf_j, twoJB, h);
+    }
+  }
+  return sum;
+}
+
+//------------------------------------------------------------------------------
+double CI_RME(const double *cA, const std::vector<CSF2> &CSFs, int twoJ,
+              const DiracOperator::TensorOperator *h) {
+  return CI_RME(cA, CSFs, twoJ, cA, CSFs, twoJ, h);
 }
 
 } // namespace Module
