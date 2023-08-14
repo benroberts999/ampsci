@@ -1,5 +1,40 @@
 # To do
 
+## CI
+
+* CI Data structure. Store:
+  * CSFs
+  * Expansion coefs
+  * Estimated term??
+* Write H matrix, and coefs to disk
+* Option for E-denominator type
+* Screening for Sigma(2)
+* Breit into g_2
+  * Breit into Sigma(2)?
+* Matrix elements module for CI
+* CI Routine:
+  * Form cisp_basis
+  * Form CSFs (for each Jpi)
+  * Calculate Qk etc.
+  * Form H matrix (quick)
+  * Sigma1
+    * Option: use matrix, or diagrams
+    * If matrix, but not formed - form?
+    * Denoms: lowest, or actual
+  * Form Sigma_2 matrix (slow)
+    * First, calculate (g+V)_vwxy just w/cisp_basis?
+    * Method for f_k and eta_k screening?
+  * Solve eigenvalue problem
+    * Use Davidson?
+    * Parallel?
+    * g-factors + terms
+
+## Matrix elements module
+
+* Calculate diag + non-diag seperately
+* diag = true
+* off-diag = true
+
 ## Correlations (#21)
 
 * Update full integration tests
@@ -22,8 +57,6 @@
 * QkTable - better hash table?
 * Create QkTable at Basis{}?
   * Option to use different basis for RPA/Sigma etc?
-* Clean and fix Yk table [calculate() function etc]
-* Fix up Angular tables. Combine? Generalise?
 
 ## B-spline stability (#26)
 
@@ -62,7 +95,6 @@
 * PNC
 * Cleanup and improve other modules
 * System for incorperating external modules?
-* HF_anomaly - incorperate into single + clean
 
 ## Ladder diagrams (#13)
 
@@ -76,10 +108,8 @@
   * Parallelised inefficiently (#6): thread-safe shared_ptr?
   * Fewer allocations?
   * Particularly noticable with Breit
-* Qk table: better table?
 
 ## Improve/modernise
 
 * Standardise input/output
 * Option for JSON output?
-* NIntegrate

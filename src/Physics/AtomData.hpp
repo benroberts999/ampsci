@@ -66,6 +66,8 @@ inline int atomic_Z(int z) { return z; }
 
 //! l (int) to symbol (e.g., 0->'s', 1->'p')
 std::string l_symbol(int l);
+//! L (int) to symbol (e.g., 0->'S', 1->'P')
+std::string L_symbol(int l);
 //! e.g., 'p' -> 1
 int symbol_to_l(std::string_view l_str);
 //! kappa (int) to symbol, e.g., -1 -> s_1/2

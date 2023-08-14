@@ -3,15 +3,32 @@
 namespace MBPT {
 
 //==============================================================================
+std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
+split_basis(const std::vector<DiracSpinor> &basis, double E_Fermi,
+            int min_n_core, int max_n_excited) {
+
+  std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> core_excited;
+  auto &[core, excited] = core_excited;
+  for (const auto &Fn : basis) {
+    if (Fn.en() <= E_Fermi && Fn.n() >= min_n_core) {
+      core.push_back(Fn);
+    } else if (Fn.en() > E_Fermi && Fn.n() <= max_n_excited) {
+      excited.push_back(Fn);
+    }
+  }
+  return core_excited;
+}
+
+//==============================================================================
 double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const DiracSpinor &x, const DiracSpinor &y,
                const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
                const std::vector<DiracSpinor> &excited,
-               const Angular::SixJTable &SixJ) {
+               const Angular::SixJTable &SixJ, Denominators denominators) {
   using namespace InternalSigma;
-  return S_Sigma2_a(k, v, w, x, y, qk, core, excited, SixJ) +
-         S_Sigma2_b(k, v, w, x, y, qk, core, excited, SixJ) +
-         S_Sigma2_c(k, v, w, x, y, qk, core, excited, SixJ) +
+  return S_Sigma2_a(k, v, w, x, y, qk, core, excited, SixJ, denominators) +
+         S_Sigma2_b(k, v, w, x, y, qk, core, excited, SixJ, denominators) +
+         S_Sigma2_c(k, v, w, x, y, qk, core, excited, SixJ, denominators) +
          S_Sigma2_d(k, v, w, x, y, qk, core, excited, SixJ);
 }
 
@@ -22,7 +39,8 @@ double InternalSigma::S_Sigma2_a(int k, const DiracSpinor &v,
                                  const Coulomb::QkTable &qk,
                                  const std::vector<DiracSpinor> &core,
                                  const std::vector<DiracSpinor> &excited,
-                                 const Angular::SixJTable &) {
+                                 const Angular::SixJTable &SixJ,
+                                 Denominators denominators) {
   /*
     S2^K_vwxy = [k]^-1 (-1)^k
                 * (Qk_vnxa * Qk_awny + Pk_vnxa * Qk_awny + Qk_vnxa * Pk_awny)
@@ -31,7 +49,10 @@ double InternalSigma::S_Sigma2_a(int k, const DiracSpinor &v,
 
   const auto f = Angular::neg1pow(k) / (2.0 * k + 1.0);
 
-  const auto de_xv = x.en() - v.en();
+  // const auto de_xv = x.en() - v.en();
+  const auto de_xv = denominators == Denominators::BW ?
+                         0.0 :
+                         0.5 * (x.en() - v.en() + y.en() - w.en());
 
   double sum = 0.0;
   for (const auto &a : core) {
@@ -40,11 +61,17 @@ double InternalSigma::S_Sigma2_a(int k, const DiracSpinor &v,
 
       const auto qk_vnxa = qk.Q(k, v, n, x, a);
       const auto qk_awny = qk.Q(k, a, w, n, y);
-
-      const auto pk_vnxa = qk.P(k, v, n, x, a);
-      const auto pk_awny = qk.P(k, a, w, n, y);
+      const auto pk_vnxa = qk.P(k, v, n, x, a, &SixJ);
+      const auto pk_awny = qk.P(k, a, w, n, y, &SixJ);
 
       sum += (qk_vnxa * (qk_awny + pk_awny) + pk_vnxa * qk_awny) / de;
+
+      const auto qk_vaxn = qk.Q(k, v, a, x, n);
+      const auto qk_nway = qk.Q(k, n, w, a, y);
+      const auto pk_vaxn = qk.P(k, v, a, x, n, &SixJ);
+      const auto pk_nway = qk.P(k, n, w, a, y, &SixJ);
+
+      sum += (qk_vaxn * (qk_nway + pk_nway) + pk_vaxn * qk_nway) / de;
     }
   }
 
@@ -58,13 +85,17 @@ double InternalSigma::S_Sigma2_b(int k, const DiracSpinor &v,
                                  const Coulomb::QkTable &qk,
                                  const std::vector<DiracSpinor> &core,
                                  const std::vector<DiracSpinor> &excited,
-                                 const Angular::SixJTable &SixJ) {
+                                 const Angular::SixJTable &SixJ,
+                                 Denominators denominators) {
 
   const auto f =
       Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
       (2.0 * k + 1.0);
 
-  const auto de_yv = y.en() - v.en();
+  // const auto de_yv = y.en() - v.en();
+  const auto de_yv = denominators == Denominators::BW ?
+                         0.0 :
+                         0.5 * (y.en() - v.en() + x.en() - w.en());
 
   if (!Coulomb::sixjTriads({}, {}, k, v, x, {}) ||
       !Coulomb::sixjTriads({}, {}, k, y, w, {}))
@@ -115,13 +146,17 @@ double InternalSigma::S_Sigma2_c(int k, const DiracSpinor &v,
                                  const Coulomb::QkTable &qk,
                                  const std::vector<DiracSpinor> &core,
                                  const std::vector<DiracSpinor> &excited,
-                                 const Angular::SixJTable &SixJ) {
+                                 const Angular::SixJTable &SixJ,
+                                 Denominators denominators) {
 
   const auto f =
       Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
       (2.0 * k + 1.0);
 
-  const auto de_yv = x.en() - w.en();
+  // const auto de_yv = x.en() - w.en();
+  const auto de_yv = denominators == Denominators::BW ?
+                         0.0 :
+                         0.5 * (x.en() - w.en() + y.en() - v.en());
 
   if (!Coulomb::sixjTriads({}, {}, k, v, x, {}) ||
       !Coulomb::sixjTriads({}, {}, k, y, w, {}))

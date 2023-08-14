@@ -9,9 +9,12 @@ void zheev_(char *, char *, int *, long double *, int *, double *,
             long double *, int *, double *, int *);
 void dsygv_(int *, char *, char *, int *, double *, int *, double *, int *,
             double *, double *, int *, int *);
-
 void zhegv_(int *, char *, char *, int *, long double *, int *, long double *,
             int *, double *, long double *, int *, double *, int *);
+
+void dsyevx_(char *, char *, char *, int *, double *, int *, double *, double *,
+             int *, int *, double *, int *, double *, double *, int *, double *,
+             int *, int *, int *, int *);
 }
 
 namespace LinAlg {
@@ -85,7 +88,7 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A) {
   }
 
   if (info != 0) {
-    std::cerr << "\nError 88: symmhEigensystem " << info << " " << dim << " "
+    std::cerr << "\nError 91: symmhEigensystem " << info << " " << dim << " "
               << std::endl;
     if (info < 0) {
       std::cerr << "The " << -info << "-th argument had an illegal value\n";
@@ -95,6 +98,47 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A) {
                    "tridiagonal form did not converge to zero.\n";
     }
     std::cerr << info << " " << A.size() << "\n";
+  }
+
+  return eigen_vv;
+}
+
+//============================================================================*
+template <typename T>
+std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number) {
+  assert(A.rows() == A.cols());
+  assert(number < (int)A.rows());
+
+  // E. values of Hermetian complex matrix are _real_
+  auto eigen_vv = std::make_pair(Vector<double>(A.rows()),
+                                 Matrix<T>(std::size_t(A.rows())));
+  auto &[e_values, e_vectors] = eigen_vv;
+
+  int dim = (int)A.rows();
+  char jobz{'V'};
+  char uplo{'U'};
+  char range{'I'};
+  double vl{0.0};
+  double vu{0.0};
+  int il{1};
+  int iu{number};
+  double abstol{1.0e-12}; //?
+  int m{0};
+  int info{0};
+
+  std::vector<T> work(8 * A.rows());
+  std::vector<int> iwork(5 * A.rows());
+  std::vector<int> ifail(A.rows());
+  int workspace_size = (int)work.size();
+
+  // For double (symmetric real) matrix
+  dsyevx_(&jobz, &range, &uplo, &dim, A.data(), &dim, &vl, &vu, &il, &iu,
+          &abstol, &m, e_values.data(), e_vectors.data(), &dim, work.data(),
+          &workspace_size, iwork.data(), ifail.data(), &info);
+
+  if (info != 0) {
+    std::cerr << "\nError 135: symmhEigensystem " << info << " " << dim << " "
+              << std::endl;
   }
 
   return eigen_vv;

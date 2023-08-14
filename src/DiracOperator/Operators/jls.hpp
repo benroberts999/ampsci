@@ -7,6 +7,22 @@
 namespace DiracOperator {
 
 //==============================================================================
+//! j (total angular momentum) operator
+class j : public TensorOperator {
+public:
+  j() : TensorOperator(1, Parity::even) {}
+
+  double angularF(const int ka, const int kb) const override final {
+    if (ka != kb)
+      return 0.0;
+    const auto tj = Angular::twoj_k(ka);
+    return std::sqrt(tj * (tj + 2) * (tj + 1)) / 2;
+  }
+  std::string name() const override { return std::string("j"); }
+  std::string units() const override { return "au"; }
+};
+
+//==============================================================================
 //! l (orbital angular momentum) operator
 class l : public TensorOperator {
 public:

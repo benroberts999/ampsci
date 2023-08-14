@@ -113,6 +113,12 @@ std::string l_symbol(int l) {
   else
     return "[" + std::to_string(l) + "]";
 }
+std::string L_symbol(int l) {
+  if (l < (int)Spectroscopic_Notation.length() && l >= 0)
+    return Spectroscopic_Notation.substr(static_cast<unsigned long>(l), 1);
+  else
+    return "[" + std::to_string(l) + "]";
+}
 
 std::string kappa_symbol(int kappa) {
   const auto lstr = l_symbol(Angular::l_k(kappa)); //

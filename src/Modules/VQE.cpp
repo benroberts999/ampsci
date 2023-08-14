@@ -1,5 +1,6 @@
 #include "Modules/VQE.hpp"
 #include "Angular/Angular.hpp"
+#include "CI/CI.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "IO/InputBlock.hpp"
@@ -64,8 +65,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Select from wf.basis() [MBPT basis], those which match input 'basis_string'
   const std::vector<DiracSpinor> ci_sp_basis =
-      // basis_subset(wf.basis(), basis_string, wf.FermiLevel());
-      basis_subset(wf.basis(), basis_string, frozen_core_string);
+      CI::basis_subset(wf.basis(), basis_string, frozen_core_string);
 
   // Print info re: basis to screen:
   std::cout << "\nUsing " << DiracSpinor::state_config(ci_sp_basis) << " = "
@@ -107,11 +107,16 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
     for (const auto &w : ci_sp_basis) {
       if (w > v)
         continue;
+      if (w.kappa() != v.kappa())
+        continue;
       const auto h0_vw = v == w ? v.en() : 0.0;
       // const auto h0_vw = wf.Hab(v, w);
       // nb: This makes a difference: energy denominators!
       // Take lowest n (from valence) of that state?
       const auto Sigma_vw = Sigma ? v * Sigma->SigmaFv(w) : 0.0;
+      // if (w == v && Sigma_vw != 0.0) {
+      //   std::cout << v << " " << w << " " << Sigma_vw << "\n";
+      // }
       // const auto Sigma_vw = Sigma ? Sigma->Sigma_vw(v, w) : 0.0;
       h1.add(v, w, h0_vw + Sigma_vw);
       if (v != w)
@@ -167,6 +172,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
     qk.fill(wf.basis(), yk);
     qk.write(qk_filename);
   }
+  std::cout << std::flush;
 
   // Writes Rk integrals to text file
   // Modify this to include Sigma_2!
@@ -181,21 +187,48 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto num_solutions = input.get("num_solutions", 5);
   const auto include_Sigma2 = input.get("sigma2", false);
   const auto ci_input = input.get("ci_input", std::string{""});
-  double e0 = input.get("e0", 0.0) / PhysConst::Hartree_invcm;
+  // double e0 = input.get("e0", 0.0) / PhysConst::Hartree_invcm;
   // even parity:
+  std::vector<CIlevel> levels;
   for (auto &J : J_even_list) {
-    auto e1 = run_CI(wf.atomicSymbol(), ci_sp_basis, orbital_map,
-                     int(std::round(2 * J)), +1, num_solutions, h1, qk, e0,
-                     write_integrals, include_Sigma2, wf.basis(),
-                     wf.FermiLevel(), 1, ci_input);
-    if (e0 == 0.0)
-      e0 = e1;
+    const auto t_levels = run_CI(wf.atomicSymbol(), ci_sp_basis, orbital_map,
+                                 int(std::round(2 * J)), +1, num_solutions, h1,
+                                 qk, write_integrals, include_Sigma2,
+                                 wf.basis(), wf.FermiLevel(), 1, ci_input);
+    levels.insert(levels.begin(), t_levels.begin(), t_levels.end());
+    // if (e0 == 0.0)
+    // e0 = e1;
   }
   // odd parity:
   for (auto &J : J_odd_list) {
-    run_CI(wf.atomicSymbol(), ci_sp_basis, orbital_map, int(std::round(2 * J)),
-           -1, num_solutions, h1, qk, e0, write_integrals, include_Sigma2,
-           wf.basis(), wf.FermiLevel(), 1, ci_input);
+    const auto t_levels = run_CI(wf.atomicSymbol(), ci_sp_basis, orbital_map,
+                                 int(std::round(2 * J)), -1, num_solutions, h1,
+                                 qk, write_integrals, include_Sigma2,
+                                 wf.basis(), wf.FermiLevel(), 1, ci_input);
+    levels.insert(levels.begin(), t_levels.begin(), t_levels.end());
+  }
+
+  std::sort(levels.begin(), levels.end(),
+            [](const auto &a, const auto &b) { return a.e < b.e; });
+
+  std::cout << "\nLevel Summry:\n\n";
+  const auto e0 = levels.at(0).e;
+
+  std::cout
+      << "config.   Jπ   Energy(au)    Energy(/cm)  Level(/cm)  Term    gJ\n";
+  for (const auto &[config, twoj, parity, e, gJ, L, tSp1] : levels) {
+
+    char pm = parity == 1 ? '+' : '-';
+
+    fmt::print("{:<8s} {:>2}{}  {:+11.8f}  {:+11.2f}  "
+               "{:11.2f}   {}^{}_{}{}",
+               config, twoj / 2, pm, e, e * PhysConst::Hartree_invcm,
+               (e - e0) * PhysConst::Hartree_invcm, uint(std::round(tSp1)),
+               AtomData::L_symbol((int)std::round(L)), twoj / 2, pm);
+    if (gJ != 0.0) {
+      fmt::print("  {:.4f}", gJ);
+    }
+    std::cout << "\n";
   }
 }
 
@@ -203,95 +236,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 //==============================================================================
 
 //==============================================================================
-//! Very basic two-electron CSF.
-class CSF2 {
-public:
-  // nb: array of states is always sorted
-  std::array<const DiracSpinor *, 2> states;
-
-  CSF2(const DiracSpinor &a, const DiracSpinor &b)
-      : states(a <= b ? std::array{&a, &b} : std::array{&b, &a}) {}
-
-  const DiracSpinor *state(std::size_t i) const { return states.at(i); }
-
-  friend bool operator==(const CSF2 &A, const CSF2 &B) {
-    // only works because states is sorted
-    return A.states == B.states;
-  }
-  friend bool operator!=(const CSF2 &A, const CSF2 &B) {
-    // only works because states is sorted
-    return !(A.states == B.states);
-  }
-
-  //! Returns number of different orbitals between two CSFs
-  static nkIndex num_different(const CSF2 &A, const CSF2 &B) {
-    if (A == B)
-      return 0;
-    if (A.state(0) == B.state(0) || A.state(1) == B.state(1) || //
-        A.state(0) == B.state(1) || A.state(1) == B.state(0))
-      return 1;
-    return 2;
-  }
-
-  //! returns _different_ orbitals, for case where CSFs differ by 1.
-  //! i.e., returns {n,a} where |A> = |B_a^n> (i.e., A has n, but not a)
-  static std::array<const DiracSpinor *, 2> diff_1_na(const CSF2 &A,
-                                                      const CSF2 &B) {
-    assert(num_different(A, B) == 1); // only valid in this case
-    if (A.state(0) == B.state(0))
-      return {A.state(1), B.state(1)};
-    if (A.state(1) == B.state(1))
-      return {A.state(0), B.state(0)};
-    if (A.state(0) == B.state(1))
-      return {A.state(1), B.state(0)};
-    if (A.state(1) == B.state(0))
-      return {A.state(0), B.state(1)};
-    assert(false); // should be unreachable, for testing
-  }
-};
-
-//==============================================================================
-// Takes a subset of input basis according to subset_string.
-// Only states *not* included in frozen_core_string are included.
-std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
-                                      const std::string &subset_string,
-                                      const std::string &frozen_core_string) {
-
-  // Form 'subset' from {a} in 'basis', if:
-  //    a _is_ in subset_string AND
-  //    a _is not_ in basis string
-
-  std::vector<DiracSpinor> subset;
-  const auto nmaxk_list = AtomData::n_kappa_list(subset_string);
-  const auto core_list = AtomData::core_parser(frozen_core_string);
-
-  for (const auto &a : basis) {
-
-    // Check if a is present in 'subset_string'
-    const auto nk =
-        std::find_if(nmaxk_list.cbegin(), nmaxk_list.cend(),
-                     [&a](const auto &tnk) { return a.kappa() == tnk.second; });
-    if (nk == nmaxk_list.cend())
-      continue;
-    // nk is now max n, for given kappa {max_n, kappa}
-    if (a.n() > nk->first)
-      continue;
-
-    // assume only filled shells in frozen core
-    const auto core = std::find_if(
-        core_list.cbegin(), core_list.cend(), [&a](const auto &tcore) {
-          return a.n() == tcore.n && a.l() == tcore.l;
-        });
-
-    if (core != core_list.cend())
-      continue;
-    subset.push_back(a);
-  }
-  return subset;
-}
-
-//==============================================================================
-void write_CSFs(const std::vector<CSF2> &CSFs, int twoJ,
+void write_CSFs(const std::vector<CI::CSF2> &CSFs, int twoJ,
                 const std::map<nkm, int> &orbital_map,
                 const std::string &csf_fname) {
 
@@ -424,178 +369,17 @@ void write_CoulombIntegrals(const std::vector<DiracSpinor> &ci_sp_basis,
 }
 
 //==============================================================================
-// Forms list of 2-particle CSFs with given symmetry
-std::vector<CSF2> form_CSFs(int twoJ, int parity,
-                            const std::vector<DiracSpinor> &ci_sp_basis) {
-
-  std::vector<CSF2> CSFs;
-
-  for (const auto &v : ci_sp_basis) {
-    for (const auto &w : ci_sp_basis) {
-
-      // Symmetric: only include unique CSFs once
-      if (w < v)
-        continue;
-
-      // Parity symmetry:
-      if (v.parity() * w.parity() != parity)
-        continue;
-
-      // J triangle rule (use M=Jz=J):
-      if (v.twoj() + w.twoj() < twoJ || std::abs(v.twoj() - w.twoj()) > twoJ)
-        continue;
-
-      // identical particles can only give even J (cannot have mv=mw)
-      if (v == w && twoJ % 4 != 0)
-        continue;
-
-      CSFs.emplace_back(v, w);
-    }
-  }
-
-  return CSFs;
-}
-
-//==============================================================================
-double CSF2_Coulomb(const Coulomb::QkTable &qk, const DiracSpinor &a,
-                    const DiracSpinor &b, const DiracSpinor &c,
-                    const DiracSpinor &d, int twoJ) {
-
-  // If c==d, or a==b : can make short-cut due to symmetry
-  // More efficient to use two Q's than W:
-
-  double out = 0.0;
-
-  // Direct part:
-  const auto [k0, k1] = Coulomb::k_minmax_Q(a, b, c, d);
-  for (int k = k0; k <= k1; k += 2) {
-    const auto sjs =
-        Angular::sixj_2(a.twoj(), b.twoj(), twoJ, d.twoj(), c.twoj(), 2 * k);
-    if (sjs == 0.0)
-      continue;
-    const auto qk_abcd = qk.Q(k, a, b, c, d);
-    const auto s = Angular::neg1pow_2(a.twoj() + c.twoj() + 2 * k + twoJ);
-    out += s * sjs * qk_abcd;
-  }
-
-  // Take advantage of symmetries: faster (+ numerically stable)
-  // c == d => J is even (identical states), eta2=1/sqrt(2)
-  // eta_ab = 1/sqrt(2) if a==b
-  // Therefore: e.g., if c==d
-  // => eta_ab * eta_cd * (out + (-1)^J*out) = eta_ab * sqrt(2) * out
-  if (a == b && c == d) {
-    return out;
-  } else if (c == d || a == b) {
-    // by {ab},{cd} symmetry: same works for case a==b
-    return std::sqrt(2.0) * out;
-  }
-
-  // Exchange part:
-  const auto [l0, l1] = Coulomb::k_minmax_Q(a, b, d, c);
-  for (int k = l0; k <= l1; k += 2) {
-    const auto sjs =
-        Angular::sixj_2(a.twoj(), b.twoj(), twoJ, c.twoj(), d.twoj(), 2 * k);
-    if (sjs == 0.0)
-      continue;
-    const auto qk_abdc = qk.Q(k, a, b, d, c);
-    const auto s = Angular::neg1pow_2(a.twoj() + c.twoj() + 2 * k);
-    out += s * sjs * qk_abdc;
-  }
-
-  return out;
-}
-
-//==============================================================================
-double CSF2_Sigma2(const Coulomb::QkTable &qk, const DiracSpinor &a,
-                   const DiracSpinor &b, const DiracSpinor &c,
-                   const DiracSpinor &d, int twoJ,
-                   const std::vector<DiracSpinor> &core,
-                   const std::vector<DiracSpinor> &excited,
-                   const Angular::SixJTable &SixJ) {
-
-  // If c==d, or a==b : can make short-cut due to symmetry
-  // More efficient to use two Q's than W:
-
-  double out = 0.0;
-
-  // Direct part:
-  const auto [k0, k1] = Coulomb::k_minmax_Q(a, b, c, d);
-  for (int k = k0; k <= k1; k += 2) {
-    const auto sjs =
-        Angular::sixj_2(a.twoj(), b.twoj(), twoJ, d.twoj(), c.twoj(), 2 * k);
-    if (sjs == 0.0)
-      continue;
-    const auto Sk_abcd = MBPT::Sk_vwxy(k, a, b, c, d, qk, core, excited, SixJ);
-    const auto s = Angular::neg1pow_2(a.twoj() + c.twoj() + 2 * k + twoJ);
-    out += s * sjs * Sk_abcd;
-  }
-
-  // Take advantage of symmetries: faster (+ numerically stable)
-  // c == d => J is even (identical states), eta2=1/sqrt(2)
-  // eta_ab = 1/sqrt(2) if a==b
-  // Therefore: e.g., if c==d
-  // => eta_ab * eta_cd * (out + (-1)^J*out) = eta_ab * sqrt(2) * out
-  if (a == b && c == d) {
-    return out;
-  } else if (c == d || a == b) {
-    // by {ab},{cd} symmetry: same works for case a==b
-    return std::sqrt(2.0) * out;
-  }
-
-  // Exchange part:
-  const auto [l0, l1] = Coulomb::k_minmax_Q(a, b, d, c);
-  for (int k = l0; k <= l1; k += 2) {
-    const auto sjs =
-        Angular::sixj_2(a.twoj(), b.twoj(), twoJ, c.twoj(), d.twoj(), 2 * k);
-    if (sjs == 0.0)
-      continue;
-    const auto Sk_abdc = MBPT::Sk_vwxy(k, a, b, d, c, qk, core, excited, SixJ);
-    const auto s = Angular::neg1pow_2(a.twoj() + c.twoj() + 2 * k);
-    out += s * sjs * Sk_abdc;
-  }
-
-  return out;
-}
-
-//==============================================================================
-double Sigma2_AB(const CSF2 &A, const CSF2 &B, int twoJ,
-                 const Coulomb::QkTable &qk,
-                 const std::vector<DiracSpinor> &core,
-                 const std::vector<DiracSpinor> &excited,
-                 const Angular::SixJTable &SixJ) {
-  const auto [v, w] = A.states;
-  const auto [x, y] = B.states;
-  return CSF2_Sigma2(qk, *v, *w, *x, *y, twoJ, core, excited, SixJ);
-}
-
-//==============================================================================
-// Determines CI Hamiltonian matrix element for two 2-particle CSFs, a and b
-double Hab(const CSF2 &X, const CSF2 &V, int twoJ,
-           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk) {
-
-  // Calculates matrix element of the CI Hamiltonian between two CSFs
-
-  const auto [v, w] = V.states;
-  const auto [x, y] = X.states;
-
-  // One electron part (formula specific to two-electron CSF case):
-  const auto h1_VX = (v == x && w == y) ? h1.getv(*v, *v) + h1.getv(*w, *w) :
-                     (v != y && w == x) ? h1.getv(*v, *y) :
-                     (v == y && w != x) ? h1.getv(*w, *x) :
-                                          0.0;
-
-  return h1_VX + CSF2_Coulomb(qk, *v, *w, *x, *y, twoJ);
-}
-
-//==============================================================================
-double run_CI(const std::string &atom_name,
-              const std::vector<DiracSpinor> &ci_sp_basis,
-              const std::map<nkm, int> &orbital_map, int twoJ, int parity,
-              int num_solutions, const Coulomb::meTable<double> &h1,
-              const Coulomb::QkTable &qk, double e0, bool write_integrals,
-              bool include_Sigma2, const std::vector<DiracSpinor> &mbpt_basis,
-              double E_Fermi, int min_n, const std::string &ci_input) {
+std::vector<CIlevel>
+run_CI(const std::string &atom_name,
+       const std::vector<DiracSpinor> &ci_sp_basis,
+       const std::map<nkm, int> &orbital_map, int twoJ, int parity,
+       int num_solutions, const Coulomb::meTable<double> &h1,
+       const Coulomb::QkTable &qk, bool write_integrals, bool include_Sigma2,
+       const std::vector<DiracSpinor> &mbpt_basis, double E_Fermi, int min_n,
+       const std::string &ci_input) {
   //----------------------------------------------------------------------------
+
+  std::vector<CIlevel> out;
 
   auto printJ = [](int twoj) {
     return twoj % 2 == 0 ? std::to_string(twoj / 2) :
@@ -609,13 +393,13 @@ double run_CI(const std::string &atom_name,
 
   if (twoJ < 0) {
     std::cout << "twoJ must >=0\n";
-    return 0.0;
+    return out;
   }
   if (twoJ % 2 != 0) {
     std::cout << "twoJ must be even for two-electron CSF\n";
   }
 
-  std::vector<CSF2> CSFs = form_CSFs(twoJ, parity, ci_sp_basis);
+  std::vector<CI::CSF2> CSFs = CI::form_CSFs(twoJ, parity, ci_sp_basis);
   std::cout << "Total CSFs: " << CSFs.size() << "\n";
   std::cout << std::flush;
 
@@ -661,29 +445,20 @@ double run_CI(const std::string &atom_name,
   if (include_Sigma2 && !mbpt_basis.empty()) {
     LinAlg::Matrix H_sigma(CSFs.size(), CSFs.size());
 
-    std::vector<DiracSpinor> core, excited;
-    for (const auto &Fn : mbpt_basis) {
-      if (Fn.en() < E_Fermi && Fn.n() >= min_n) {
-        core.push_back(Fn);
-      } else if (Fn.en() > E_Fermi) {
-        excited.push_back(Fn);
-      }
-    }
+    const auto [core, excited] = MBPT::split_basis(mbpt_basis, E_Fermi, 1);
 
     Angular::SixJTable sjt(DiracSpinor::max_tj(mbpt_basis));
 
     IO::ChronoTimer t("Add Sigma Sigma matrix");
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for
     for (std::size_t iA = 0; iA < CSFs.size(); ++iA) {
-      // for (std::size_t iB = 0; iB <= iA; ++iB) { // fails with old omp
-      for (std::size_t iB = 0; iB < CSFs.size(); ++iB) {
+      for (std::size_t iB = 0; iB <= iA; ++iB) {
         // go to iB <= iA only: symmetric matrix
-        if (iB > iA)
-          continue;
+
         const auto &A = CSFs.at(iA);
         const auto &B = CSFs.at(iB);
 
-        const auto dE_AB = Sigma2_AB(A, B, twoJ, qk, core, excited, sjt);
+        const auto dE_AB = CI::Sigma2_AB(A, B, twoJ, qk, core, excited, sjt);
         H_sigma(iA, iB) = dE_AB;
         // Add to other half of symmetric matrix:
         if (iB != iA) {
@@ -712,8 +487,11 @@ double run_CI(const std::string &atom_name,
   //----------------------------------------------------------------------------
   std::cout << std::flush;
 
-  const auto [val, vec] = LinAlg::symmhEigensystem(Hci);
-  const auto E0 = e0 == 0.0 ? val(0) : e0;
+  IO::ChronoTimer t2("Diagonalise:");
+  // const auto [val, vec] = LinAlg::symmhEigensystem(Hci);
+  const auto [val, vec] = LinAlg::symmhEigensystem(Hci, num_solutions);
+  std::cout << "T=" << t2.lap_reading_str() << "\n";
+  const auto E0 = val(0);
 
   fmt::print("Full CI for J={}, pi={} : E0 = {:.1f} cm^-1\n\n", printJ(twoJ),
              printPi(parity), E0 * PhysConst::Hartree_invcm);
@@ -724,6 +502,8 @@ double run_CI(const std::string &atom_name,
   DiracOperator::M1nr m1{};
   // DiracOperator::M1 m1{wf.grid(), wf.alpha(), 0.0};
 
+  int l1, l2;
+
   for (std::size_t i = 0; i < val.size() && int(i) < num_solutions; ++i) {
 
     fmt::print(
@@ -731,8 +511,16 @@ double run_CI(const std::string &atom_name,
         0.5 * twoJ, parity, val(i), val(i) * PhysConst::Hartree_invcm,
         (val(i) - E0) * PhysConst::Hartree_invcm);
 
+    std::size_t max_j = 0;
+    double max_cj = 0.0;
     for (std::size_t j = 0ul; j < vec.cols(); ++j) {
       const auto cj = 100.0 * std::pow(vec(i, j), 2);
+      if (cj > max_cj) {
+        max_cj = cj;
+        max_j = j;
+        l1 = CSFs.at(j).state(0)->l();
+        l2 = CSFs.at(j).state(1)->l();
+      }
       if (cj > 1.0) {
         fmt::print("  {:>4s},{:<4s} {:5.3f}%\n",
                    CSFs.at(j).state(0)->shortSymbol(),
@@ -741,175 +529,103 @@ double run_CI(const std::string &atom_name,
     }
 
     // Calculate g-factors, for line identification. Only defined for J!=0
+    double gJ = 0.0;
+
+    // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
+    // take J=Jz, <JJz|J|JJz> = J
+    // then: g_J = <JJ|L + 2*S|JJ> / J
+    // And: <JJ|L + 2*S|JJ> = 3js * <A||L+2S||A> (W.E. Theorem)
+    const auto m1AA = CI::ReducedME(vec.row(i), CSFs, twoJ, &m1);
+    const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
+
     if (twoJ != 0) {
-      // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
-      // take J=Jz, <JJz|J|JJz> = J
-      // then: g_J = <JJ|L + 2*S|JJ> / J
-      // And: <JJ|L + 2*S|JJ> = 3js * <A||L+2S||A> (W.E. Theorem)
-      const auto m1AA = CI_RME(vec.row(i), CSFs, twoJ, &m1);
-      const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
-      std::cout << "gJ = " << tjs * m1AA / (0.5 * twoJ) << "\n";
+      gJ = tjs * m1AA / (0.5 * twoJ);
+      std::cout << "gJ = " << gJ << "\n";
     }
+
+    // Determine Term Symbol, from g-factor
+    const auto min_L = std::abs(l1 - l2);
+    const auto max_L = std::abs(l1 + l2);
+    const auto min_S = 0;
+    const auto max_S = 1;
+    int L = min_L;
+    int S = min_L;
+    double best_del = 2.0;
+    if (twoJ != 0) {
+      for (int tL = min_L; tL <= max_L; ++tL) {
+        for (int tS = min_S; tS <= max_S; ++tS) {
+          auto gJNR = 1.5 + (tS * (tS + 1.0) - tL * (tL + 1.0)) /
+                                (twoJ * (0.5 * twoJ + 1.0));
+          if (std::abs(gJ - gJNR) < best_del) {
+            best_del = std::abs(gJ - gJNR);
+            L = tL;
+            S = tS;
+          }
+        }
+      }
+    }
+    const auto tSp1 = 2.0 * S + 1.0;
+
+    const auto config =
+        fmt::format("{:s},{:s}", CSFs.at(max_j).state(0)->shortSymbol(),
+                    CSFs.at(max_j).state(1)->shortSymbol());
+    out.emplace_back(
+        CIlevel{config, twoJ, parity, val(i), gJ, double(L), tSp1});
 
     std::cout << "\n";
   }
 
   //----------------------------------------------------------------------------
-  std::cout
-      << "\n`Direct' energy calculation: E = Σ_{IJ} c_I * c_J * <I|H|J>:\n";
-  std::cout
-      << "(Using the CI expansion coefficients from full CI, just a test)\n";
-  // Energy calculation for ground state:
-  double E_direct1 = 0.0, E_direct2 = 0.0;
-  const auto Nci = vec.rows(); // number of CSFs
-  // Energy:  E = Sum_ij c_i * c_j * <i|H|j>
-  for (std::size_t i = 0ul; i < Nci; ++i) {
-    const auto &csf_i = CSFs.at(i); // the ith CSF
-    const auto ci = vec.at(0, i);   // the ith CI coefficient (for 0th e.val)
-    for (std::size_t j = 0ul; j < Nci; ++j) {
-      const auto &csf_j = CSFs.at(j); // jth CSF
-      const auto cj = vec.at(0, j);   // the jth CI coefficient (for 0th e.val)
-      // use pre-calculated CI matrix:
-      E_direct1 += ci * cj * Hci.at(i, j);
-      // Calculate MEs on-the-fly
-      E_direct2 += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
-    }
-  }
+  // std::cout
+  //     << "\n`Direct' energy calculation: E = Σ_{IJ} c_I * c_J * <I|H|J>:\n";
+  // std::cout
+  //     << "(Using the CI expansion coefficients from full CI, just a test)\n";
+  // // Energy calculation for ground state:
+  // double E_direct1 = 0.0, E_direct2 = 0.0;
+  // const auto Nci = vec.rows(); // number of CSFs
+  // // Energy:  E = Sum_ij c_i * c_j * <i|H|j>
+  // for (std::size_t i = 0ul; i < Nci; ++i) {
+  //   const auto &csf_i = CSFs.at(i); // the ith CSF
+  //   const auto ci = vec.at(0, i);   // the ith CI coefficient (for 0th e.val)
+  //   for (std::size_t j = 0ul; j < Nci; ++j) {
+  //     const auto &csf_j = CSFs.at(j); // jth CSF
+  //     const auto cj = vec.at(0, j);   // the jth CI coefficient (for 0th e.val)
+  //     // use pre-calculated CI matrix:
+  //     E_direct1 += ci * cj * Hci.at(i, j);
+  //     // Calculate MEs on-the-fly
+  //     E_direct2 += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
+  //   }
+  // }
 
-  std::cout << "E0 = " << val.at(0) * PhysConst::Hartree_invcm
-            << " cm^-1  (from diagonalisation)\n";
-  std::cout << "E0 = " << E_direct1 * PhysConst::Hartree_invcm
-            << " cm^-1  (uses pre-calculated CI matrix)\n";
-  std::cout << "E0 = " << E_direct2 * PhysConst::Hartree_invcm
-            << " cm^-1  (calculates H matrix elements from scratch)\n";
+  // std::cout << "E0 = " << val.at(0) * PhysConst::Hartree_invcm
+  //           << " cm^-1  (from diagonalisation)\n";
+  // std::cout << "E0 = " << E_direct1 * PhysConst::Hartree_invcm
+  //           << " cm^-1  (uses pre-calculated CI matrix)\n";
+  // std::cout << "E0 = " << E_direct2 * PhysConst::Hartree_invcm
+  //           << " cm^-1  (calculates H matrix elements from scratch)\n";
 
-  // std::ifstream ci("")
-  std::ifstream is(ci_input);
-  if (is) {
-    std::istream_iterator<double> start(is), end;
-    std::vector<double> in_CI(start, end);
-    std::cout << "\nCalculate energy from input CI coeficients:\n";
-    std::cout << "Read " << in_CI.size() << " CI coeficients from: " << ci_input
-              << "\n";
-    double E_input = 0.0;
-    for (std::size_t i = 0ul; i < std::min(Nci, in_CI.size()); ++i) {
-      const auto &csf_i = CSFs.at(i); // the ith CSF
-      const auto ci = in_CI.at(i);    // the ith CI coefficient (for 0th e.val)
-      for (std::size_t j = 0ul; j < std::min(Nci, in_CI.size()); ++j) {
-        const auto &csf_j = CSFs.at(j); // jth CSF
-        const auto cj = in_CI.at(j); // the jth CI coefficient (for 0th e.val)
-        E_input += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
-      }
-    }
-    std::cout << "E = " << E_input * PhysConst::Hartree_invcm << "\n";
-  }
+  // // std::ifstream ci("")
+  // std::ifstream is(ci_input);
+  // if (is) {
+  //   std::istream_iterator<double> start(is), end;
+  //   std::vector<double> in_CI(start, end);
+  //   std::cout << "\nCalculate energy from input CI coeficients:\n";
+  //   std::cout << "Read " << in_CI.size() << " CI coeficients from: " << ci_input
+  //             << "\n";
+  //   double E_input = 0.0;
+  //   for (std::size_t i = 0ul; i < std::min(Nci, in_CI.size()); ++i) {
+  //     const auto &csf_i = CSFs.at(i); // the ith CSF
+  //     const auto ci = in_CI.at(i);    // the ith CI coefficient (for 0th e.val)
+  //     for (std::size_t j = 0ul; j < std::min(Nci, in_CI.size()); ++j) {
+  //       const auto &csf_j = CSFs.at(j); // jth CSF
+  //       const auto cj = in_CI.at(j); // the jth CI coefficient (for 0th e.val)
+  //       E_input += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
+  //     }
+  //   }
+  //   std::cout << "E = " << E_input * PhysConst::Hartree_invcm << "\n";
+  // }
 
-  return val.at(0);
-}
-
-//==============================================================================
-double RME_CSF2(const CSF2 &V, int twoJV, const CSF2 &X, int twoJX,
-                const DiracOperator::TensorOperator *h) {
-
-  // XXX Needs to be double checked!
-  // Sometimes, doesn't have correct symmetry properties
-
-  const auto [v, w] = V.states;
-  const auto [x, y] = X.states;
-  const auto etaV = v == w ? 1.0 / std::sqrt(2.0) : 1.0;
-  const auto etaX = x == y ? 1.0 / std::sqrt(2.0) : 1.0;
-
-  const auto num_diff = CSF2::num_different(V, X);
-  const auto twok = 2 * h->rank();
-
-  const auto f = etaV * etaX * std::sqrt(double(twoJV + 1) * (twoJX + 1)) *
-                 Angular::neg1pow_2(v->twoj() + w->twoj() + twok);
-
-  // This is probably a very inefficient way to implement Slater-Condon rules...
-  if (v == x && w == y) {
-    assert(num_diff == 0);
-    const auto sj1 =
-        Angular::sixj_2(twoJV, twoJX, twok, v->twoj(), v->twoj(), w->twoj());
-    const auto t1 = h->reducedME(*v, *v);
-    const auto s1 = Angular::neg1pow_2(twoJX);
-    const auto sj2 =
-        Angular::sixj_2(twoJV, twoJX, twok, w->twoj(), w->twoj(), v->twoj());
-    const auto t2 = h->reducedME(*w, *w);
-    const auto s2 = Angular::neg1pow_2(twoJV);
-    return f * (sj1 * t1 * s1 + sj2 * t2 * s2);
-  }
-
-  if (v == x && w != y) {
-    assert(num_diff == 1);
-    const auto sj =
-        Angular::sixj_2(twoJV, twoJX, twok, y->twoj(), w->twoj(), v->twoj());
-    const auto t = h->reducedME(*w, *y);
-    const auto s = Angular::neg1pow_2(y->twoj() - w->twoj() + twoJV);
-    return f * sj * t * s;
-
-  } else if (v != x && w == y) {
-    assert(num_diff == 1);
-    const auto sj =
-        Angular::sixj_2(twoJV, twoJX, twok, x->twoj(), v->twoj(), w->twoj());
-    const auto t = h->reducedME(*v, *x);
-    const auto s = Angular::neg1pow_2(twoJX);
-    return f * sj * t * s;
-
-  } else if (v != y && w == x) {
-    assert(num_diff == 1);
-    const auto sj =
-        Angular::sixj_2(twoJV, twoJX, twok, y->twoj(), v->twoj(), w->twoj());
-    const auto t = h->reducedME(*v, *y);
-    const auto s = Angular::neg1pow_2(w->twoj() + x->twoj());
-    return f * sj * t * s;
-
-  } else if (v == y && w != x) {
-    assert(num_diff == 1);
-    const auto sj =
-        Angular::sixj_2(twoJV, twoJX, twok, x->twoj(), w->twoj(), v->twoj());
-    const auto t = h->reducedME(*w, *x);
-    const auto s = Angular::neg1pow_2(v->twoj() + w->twoj() + twoJV + twoJX);
-    return f * sj * t * s;
-  }
-
-  assert(num_diff == 2);
-  return 0.0;
-}
-
-//==============================================================================
-double CI_RME(const double *cA, const std::vector<CSF2> &CSFAs, int twoJA,
-              const double *cB, const std::vector<CSF2> &CSFBs, int twoJB,
-              const DiracOperator::TensorOperator *h) {
-
-  // <A|h|A>   = Σ_{IJ} c_I * c_J * <I|h|J>
-  // <A||h||A> = Σ_{IJ} c_I * c_J * <I||h||J>
-  const auto NA = CSFAs.size();
-  const auto NB = CSFBs.size();
-
-  double sum = 0.0;
-#pragma omp parallel for collapse(2) reduction(+ : sum)
-  for (std::size_t i = 0ul; i < NA; ++i) {
-    for (std::size_t j = 0ul; j < NB; ++j) {
-      const auto &csf_i = CSFAs.at(i);
-      const auto ci = cA[i];
-      const auto &csf_j = CSFBs.at(j);
-      const auto cj = cB[j];
-
-      // Not perfectly symmetric: means issue!
-      // ... but only for small terms? So, perhaps numerical noise?
-      // std::cout << RME_CSF2(csf_i, twoJ, csf_j, twoJ, h) << " "
-      //           << RME_CSF2(csf_j, twoJ, csf_i, twoJ, h) << "\n";
-
-      sum += ci * cj * RME_CSF2(csf_i, twoJA, csf_j, twoJB, h);
-    }
-  }
-  return sum;
-}
-
-//------------------------------------------------------------------------------
-double CI_RME(const double *cA, const std::vector<CSF2> &CSFs, int twoJ,
-              const DiracOperator::TensorOperator *h) {
-  return CI_RME(cA, CSFs, twoJ, cA, CSFs, twoJ, h);
+  return out;
 }
 
 } // namespace Module
