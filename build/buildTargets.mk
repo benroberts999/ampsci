@@ -26,7 +26,8 @@ full: $(CHECKS) $(ALLEXES)
 # Automatically generate dependency files for each cpp file, + compile:
 # Put built objects in subdirectories based on build mode and compiler
 
-SUBBD=$(Build)/$(word 1,$(CXX))
+
+SUBBD=$(Build)/$(OMP)/$(word 1,$(CXX))
 
 # Auto rule for all cpp files
 $(BD)/$(SUBBD)/%.o: $(SD)/%.cpp

@@ -151,6 +151,31 @@ double CoulombTable<S>::P(int k, const DiracSpinor &a, const DiracSpinor &b,
   return Pk_abcd;
 }
 
+template <Symmetry S>
+double CoulombTable<S>::g(const DiracSpinor &a, const DiracSpinor &b,
+                          const DiracSpinor &c, const DiracSpinor &d, int tma,
+                          int tmb, int tmc, int tmd) const {
+
+  if (tmc - tma != tmb - tmd)
+    return 0.0;
+  const int twoq = tmc - tma;
+  const auto s = Angular::neg1pow_2(tma - tmb + twoq);
+
+  //
+  double g = 0.0;
+  const auto [k0, ki] = k_minmax_Q(a, b, c, d);
+  for (int k = k0; k <= ki; k += 2) {
+    const auto tjs1 =
+        Angular::threej_2(a.twoj(), 2 * k, c.twoj(), -tma, -twoq, tmc);
+    const auto tjs2 =
+        Angular::threej_2(b.twoj(), 2 * k, d.twoj(), -tmb, twoq, tmd);
+    if (tjs1 == 0.0 || tjs2 == 0.0)
+      continue;
+    g += Angular::neg1pow(k) * s * tjs1 * tjs2 * Q(k, a, b, c, d);
+  }
+  return g;
+}
+
 //==============================================================================
 template <Symmetry S>
 double CoulombTable<S>::P2(int k, const DiracSpinor &a, const DiracSpinor &b,

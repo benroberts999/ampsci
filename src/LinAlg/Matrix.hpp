@@ -138,8 +138,7 @@ public:
   ColumnIterator col_end(std::size_t col) {
     return ColumnIterator(&m_data[0] + col + m_rows * m_cols, m_rows);
   }
-  RowIterator col(std::size_t col) { return col_begin(row); }
-  // const RowIterator col(std::size_t col) const { return col_begin(row); }
+  // ColumnIterator col(std::size_t col) { return col_begin(row); }
 
   //============================================================================
 

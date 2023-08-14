@@ -67,6 +67,7 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
       num_accessible_E_steps >
       std::min(qsteps, (std::size_t)omp_get_max_threads());
 
+  (void)parallelise_E; //suppress unused variable warning clang, when no OMP
 #pragma omp parallel for if (parallelise_E)
   for (std::size_t idE = idE_first_accessible; idE < Egrid.num_points();
        ++idE) {

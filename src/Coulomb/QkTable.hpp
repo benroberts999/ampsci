@@ -119,6 +119,10 @@ public:
          const DiracSpinor &c, const DiracSpinor &d,
          const Angular::SixJTable *const sj = nullptr) const;
 
+  //! Returns 'g_abcd'
+  Real g(const DiracSpinor &a, const DiracSpinor &b, const DiracSpinor &c,
+         const DiracSpinor &d, int tma, int tmb, int tmc, int tmd) const;
+
   //! Creates single 'nk4Index' corresponding to 'NormalOrder' symmetry of
   //! {a,b,c,d}
   nk4Index NormalOrder(const DiracSpinor &a, const DiracSpinor &b,

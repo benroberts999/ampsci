@@ -123,7 +123,7 @@ public:
     return {AtomData::shortSymbol(na, ka), AtomData::shortSymbol(nb, kb)};
   }
 
-private:
+  // private:
   // Converts given set of nkIndex's (in any order) to nk4Index
   [[nodiscard]] static nk2Index FormIndex(nkIndex a, nkIndex b) {
     static_assert(sizeof(nk2Index) == 2 * sizeof(nkIndex));
