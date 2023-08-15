@@ -52,15 +52,15 @@ TEST_CASE("LinAlg: Element access, memory layout", "[LinAlg][unit]") {
     REQUIRE(&(Mb[0][0]) == mem1);
   }
 
-  SECTION("Row and column iterators") {
-    LinAlg::Matrix<int> a3{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
-    REQUIRE(std::accumulate(a3.row_begin(0), a3.row_end(0), 0) == 6);
-    REQUIRE(std::accumulate(a3.row_begin(1), a3.row_end(1), 0) == 15);
-    REQUIRE(std::accumulate(a3.row_begin(2), a3.row_end(2), 0) == 24);
-    REQUIRE(std::accumulate(a3.col_begin(0), a3.col_end(0), 0) == 12);
-    REQUIRE(std::accumulate(a3.col_begin(1), a3.col_end(1), 0) == 15);
-    REQUIRE(std::accumulate(a3.col_begin(2), a3.col_end(2), 0) == 18);
-  }
+  // SECTION("Row and column iterators") {
+  //   LinAlg::Matrix<int> a3{{1, 2, 3}, {4, 5, 6}, {7, 8, 9}};
+  //   REQUIRE(std::accumulate(a3.row_begin(0), a3.row_end(0), 0) == 6);
+  //   REQUIRE(std::accumulate(a3.row_begin(1), a3.row_end(1), 0) == 15);
+  //   REQUIRE(std::accumulate(a3.row_begin(2), a3.row_end(2), 0) == 24);
+  //   REQUIRE(std::accumulate(a3.col_begin(0), a3.col_end(0), 0) == 12);
+  //   REQUIRE(std::accumulate(a3.col_begin(1), a3.col_end(1), 0) == 15);
+  //   REQUIRE(std::accumulate(a3.col_begin(2), a3.col_end(2), 0) == 18);
+  // }
 }
 
 //==============================================================================
@@ -548,4 +548,97 @@ TEST_CASE("LinAlg: non-symmetric eigensystems <double>", "[LinAlg][unit]") {
   REQUIRE(LinAlg::equal(
       v.real(), LinAlg::Matrix{{-0.806898221355073, -0.590690494568872},
                                {0.343723769333440, -0.939070801588044}}));
+}
+
+//==============================================================================
+TEST_CASE("LinAlg: Row and Column Views", "[LinAlg][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "LinAlg: Row and Column Views\n";
+
+  const LinAlg::Matrix<double> a{
+      {1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, {7.0, 8.0, 9.0}};
+
+  for (std::size_t i = 0; i < a.rows(); ++i) {
+    auto row = a.row_view(i);
+    for (std::size_t j = 0; j < a.rows(); ++j) {
+      REQUIRE(row(j) == a(i, j));
+    }
+  }
+
+  for (std::size_t j = 0; j < a.rows(); ++j) {
+    auto col = a.column_view(j);
+    for (std::size_t i = 0; i < a.rows(); ++i) {
+      REQUIRE(col(i) == a(i, j));
+    }
+  }
+
+  // Test non-const row/col and modifying
+  auto b = a;
+
+  for (std::size_t i = 0; i < a.rows(); ++i) {
+    auto row = b.row_view(i);
+    for (std::size_t j = 0; j < a.rows(); ++j) {
+      row(j) *= 2.0;
+    }
+  }
+  for (std::size_t j = 0; j < a.rows(); ++j) {
+    auto col = b.column_view(j);
+    for (std::size_t i = 0; i < a.rows(); ++i) {
+      col(i) *= 2.0;
+    }
+  }
+
+  for (std::size_t i = 0; i < a.rows(); ++i) {
+    for (std::size_t j = 0; j < a.rows(); ++j) {
+      REQUIRE(b(i, j) == 4.0 * a(i, j));
+    }
+  }
+}
+
+//==============================================================================
+TEST_CASE("LinAlg: Row and Column Views, complex", "[LinAlg][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "LinAlg: Row and Column Views, complex\n";
+
+  using namespace std::complex_literals;
+  const LinAlg::Matrix<std::complex<double>> a{
+      {1.0 + 1.0i, 2.0 + 9.0i, 3.0 - 7.6i},
+      {4.0 + 3.0i, 5.0 - 1.0i, 6.0 + 0.5i},
+      {7.0 + 7.0i, 8.0 - 2.0i, 9.0 + 0.1i}};
+
+  for (std::size_t i = 0; i < a.rows(); ++i) {
+    auto row = a.row_view(i);
+    for (std::size_t j = 0; j < a.rows(); ++j) {
+      REQUIRE(row(j) == a(i, j));
+    }
+  }
+
+  for (std::size_t j = 0; j < a.rows(); ++j) {
+    auto col = a.column_view(j);
+    for (std::size_t i = 0; i < a.rows(); ++i) {
+      REQUIRE(col(i) == a(i, j));
+    }
+  }
+
+  // Test non-const row/col and modifying
+  auto b = a;
+
+  for (std::size_t i = 0; i < a.rows(); ++i) {
+    auto row = b.row_view(i);
+    for (std::size_t j = 0; j < a.rows(); ++j) {
+      row(j) *= 2.0;
+    }
+  }
+  for (std::size_t j = 0; j < a.rows(); ++j) {
+    auto col = b.column_view(j);
+    for (std::size_t i = 0; i < a.rows(); ++i) {
+      col(i) *= 2.0;
+    }
+  }
+
+  for (std::size_t i = 0; i < a.rows(); ++i) {
+    for (std::size_t j = 0; j < a.rows(); ++j) {
+      REQUIRE(b(i, j) == 4.0 * a(i, j));
+    }
+  }
 }

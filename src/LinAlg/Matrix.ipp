@@ -3,6 +3,43 @@
 namespace LinAlg {
 
 //==============================================================================
+template <typename T> class View {
+  std::size_t m_size;
+  std::size_t m_stride;
+  T *m_data;
+
+public:
+  View(T *data, std::size_t start, std::size_t size, std::size_t stride)
+      : m_size(size), m_stride(stride), m_data(data + long(start)) {}
+
+  std::size_t size() const { return m_size; }
+
+  //! [] index access (with no range checking). [i][j] returns ith row, jth col
+  T &operator[](std::size_t i) { return m_data[i * m_stride]; }
+  //! As above, but const
+  T operator[](std::size_t i) const { return m_data[i * m_stride]; }
+
+  //! () index access (with range checking). (i,j) returns ith row, jth col
+  T &at(std::size_t i) {
+    assert(i < m_size);
+    return m_data[i * m_stride];
+  }
+  //! As above, but const
+  T at(std::size_t i) const {
+    assert(i < m_size);
+    return m_data[i * m_stride];
+  }
+  //! () index access (with range checking). (i,j) returns ith row, jth col
+  T &operator()(std::size_t i) { return at(i); }
+  //! As above, but const
+  T operator()(std::size_t i) const { return at(i); }
+};
+
+//==============================================================================
+//==============================================================================
+//==============================================================================
+
+//==============================================================================
 // Returns the determinant. Uses GSL; via LU decomposition. Only works for
 // double/complex<double>
 template <typename T> T Matrix<T>::determinant() const {
@@ -300,36 +337,6 @@ std::ostream &operator<<(std::ostream &os, const Matrix<T> &a) {
 //==============================================================================
 //==============================================================================
 //==============================================================================
-template <typename T> struct Matrix<T>::ColumnIterator {
-  using iterator_category = std::forward_iterator_tag; //?
-  using difference_type = std::ptrdiff_t;
-  using value_type = T;
-  using pointer = T *;   // or also value_type*
-  using reference = T &; // or also value_type&
-  ColumnIterator(pointer ptr, std::size_t rows) : m_ptr(ptr), m_rows(rows) {}
-
-  reference operator*() const { return *m_ptr; }
-  pointer operator->() { return m_ptr; }
-
-  // Prefix increment
-  ColumnIterator &operator++() {
-    m_ptr += m_rows;
-    return *this;
-  }
-
-  T operator[](std::size_t i) const { return m_ptr[i * m_rows]; }
-
-  friend bool operator==(const ColumnIterator &a, const ColumnIterator &b) {
-    return a.m_ptr == b.m_ptr;
-  };
-  friend bool operator!=(const ColumnIterator &a, const ColumnIterator &b) {
-    return a.m_ptr != b.m_ptr;
-  };
-
-private:
-  pointer m_ptr;
-  std::size_t m_rows;
-};
 
 //==============================================================================
 // Helper for equal()

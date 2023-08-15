@@ -22,6 +22,9 @@ template <typename T> constexpr bool is_complex_v = is_complex<T>::value;
 //! Defines Matrix, Vector classes, and linear some algebra functions
 namespace LinAlg {
 
+//! Proved a "view" onto an array
+template <typename T> class View;
+
 //==============================================================================
 //! Matrix class; row-major
 template <typename T = double> class Matrix {
@@ -117,29 +120,41 @@ public:
   auto end() { return m_data.end(); }
   auto cend() const { return m_data.cend(); }
 
-  //! Define iterator for row/column:
-  struct ColumnIterator; // what?
-  using RowIterator = T *;
-
-  //! iterators for rows
-  RowIterator row_begin(std::size_t row) {
-    return m_data.data() + long(row * m_cols);
-  }
-  auto row_end(std::size_t row) { return row_begin(row + 1); }
-  RowIterator row(std::size_t row) { return row_begin(row); }
-  const T *row(std::size_t row) const {
+  //! Returns raw c pointer to start of a row
+  [[deprecated]] const T *row(std::size_t row) const {
     return m_data.data() + long(row * m_cols);
   }
 
-  //! iterators for columns
-  ColumnIterator col_begin(std::size_t col) {
-    return ColumnIterator(&m_data[0] + col, m_rows);
+  //! Returns a mutable 'View' of a row
+  [[nodiscard]] View<T> row_view(std::size_t row) {
+    return View<T>(this->data(), row * m_cols, m_cols, 1ul);
   }
-  ColumnIterator col_end(std::size_t col) {
-    return ColumnIterator(&m_data[0] + col + m_rows * m_cols, m_rows);
+  //! Returns an immutable 'View' of a row
+  [[nodiscard]] View<const T> row_view(std::size_t row) const {
+    return View<const T>(this->data(), row * m_cols, m_cols, 1ul);
   }
-  // ColumnIterator col(std::size_t col) { return col_begin(row); }
+  //! Returns a mutable 'View' of a column
+  [[nodiscard]] View<T> column_view(std::size_t col) {
+    return View<T>(this->data(), col, m_rows, m_rows);
+  }
+  //! Returns an immutable 'View' of a column
+  [[nodiscard]] View<const T> column_view(std::size_t col) const {
+    return View<const T>(this->data(), col, m_rows, m_rows);
+  }
 
+  //============================================================================
+  //! Returns gsl_matrix_view (or _float_view, _complex_view,
+  //! _complex_float_view). Call .matrix to use as a GSL matrix (no copy is
+  //! involved). Allows one to use all GSL built-in functions. Note: non-owning
+  //! pointer - matrix AND gsl_view must remain in scope.
+  [[nodiscard]] auto as_gsl_view();
+
+  //! As above, but const
+  [[nodiscard]] auto as_gsl_view() const;
+
+  //============================================================================
+  // Basic matrix operations:
+  //============================================================================
   //============================================================================
 
   //! Returns the determinant. Uses GSL; via LU decomposition. Only works for
@@ -177,16 +192,6 @@ public:
 
   //! Conjugates matrix, in place
   Matrix<T> &conj_in_place() const;
-
-  //============================================================================
-  //! Returns gsl_matrix_view (or _float_view, _complex_view,
-  //! _complex_float_view). Call .matrix to use as a GSL matrix (no copy is
-  //! involved). Allows one to use all GSL built-in functions. Note: non-owning
-  //! pointer - matrix AND gsl_view must remain in scope.
-  [[nodiscard]] auto as_gsl_view();
-
-  //! As above, but const
-  [[nodiscard]] auto as_gsl_view() const;
 
   //============================================================================
   //! Muplitplies all the elements by those of matrix a, in place: M_ij *= a_ij
