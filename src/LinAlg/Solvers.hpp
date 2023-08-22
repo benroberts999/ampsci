@@ -17,8 +17,7 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A);
 //! matrix pair A,B. Returns [e,v], where v(i,j) is the jth element of the ith
 //! eigenvector corresponding to ith eigenvalue, e(i). e is always real.
 template <typename T>
-std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, Matrix<T> B,
-                                                      bool sort);
+std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, Matrix<T> B);
 
 //! Solves Av = ev for eigenvalues e and eigenvectors v of non-symmetric real
 //! matrix A. Returns [e,v], where v(i,j) is the jth element of the ith

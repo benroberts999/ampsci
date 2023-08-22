@@ -488,11 +488,12 @@ TEST_CASE("LinAlg: eigensystems <double>", "[LinAlg][unit]") {
 
   REQUIRE((LinAlg::equal(
                v, LinAlg::Matrix{{0.850650808352040, 0.525731112119133},
-                                 {-0.525731112119133, 0.850650808352040}}) or
+                                 {-0.525731112119133, 0.850650808352040}}) ||
            LinAlg::equal(
                v, LinAlg::Matrix{{-0.850650808352040, -0.525731112119133},
                                  {-0.525731112119133, 0.850650808352040}})));
 }
+
 TEST_CASE("LinAlg: eigensystems <complex<double>>", "[LinAlg][unit]") {
   using namespace std::complex_literals;
   const LinAlg::Matrix A{{1.0 + 0.0i, 0.0 + 1.0i}, {0.0 - 1.0i, -1.0 + 0.0i}};
@@ -504,7 +505,7 @@ TEST_CASE("LinAlg: eigensystems <complex<double>>", "[LinAlg][unit]") {
   REQUIRE((LinAlg::equal(v,
                          LinAlg::Matrix<std::complex<double>>{
                              {0.382683432365090, 0.923879532511287i},
-                             {0.923879532511287, -0.382683432365090i}}) or
+                             {0.923879532511287, -0.382683432365090i}}) ||
            LinAlg::equal(v, LinAlg::Matrix<std::complex<double>>{
                                 {-0.382683432365090i, -0.923879532511287},
                                 {-0.923879532511287i, 0.382683432365090}})));
@@ -514,12 +515,16 @@ TEST_CASE("LinAlg: eigensystems <complex<double>>", "[LinAlg][unit]") {
 TEST_CASE("LinAlg: Generalised eigensystems <double>", "[LinAlg][unit]") {
   const LinAlg::Matrix A{{1.0, -1.0}, {-1.0, 2.0}};
   const LinAlg::Matrix B{{1.0, 0.1}, {0.1, 1.0}};
-  const auto [e, v] = symmhEigensystem(A, B, true);
+  const auto [e, v] = symmhEigensystem(A, B);
   REQUIRE(
       LinAlg::equal(e, LinAlg::Vector{0.350508678167508, 2.88181455415572}));
-  REQUIRE(LinAlg::equal(
-      v, LinAlg::Matrix{{0.847046341910562, 0.531519044490351},
-                        {-0.564870314672654, 0.825179694128265}}));
+
+  REQUIRE((LinAlg::equal(
+               v, LinAlg::Matrix{{0.847046341910562, 0.531519044490351},
+                                 {-0.564870314672654, 0.825179694128265}}) ||
+           LinAlg::equal(
+               v, LinAlg::Matrix{{-0.811306782295598, -0.5090925777940842},
+                                 {-0.593196691749182, 0.8665597251984343}})));
 }
 
 TEST_CASE("LinAlg: Generalised eigensystems <complex<double>>",
@@ -529,7 +534,7 @@ TEST_CASE("LinAlg: Generalised eigensystems <complex<double>>",
                                                {-1.0 - 0.5i, -1.0}};
   const LinAlg::Matrix<std::complex<double>> B{{1.0, 0.5 + 0.1i},
                                                {0.5 - 0.1i, 1.0}};
-  const auto [e, v] = symmhEigensystem(A, B, true);
+  const auto [e, v] = symmhEigensystem(A, B);
   REQUIRE(LinAlg::equal(
       e, LinAlg::Vector<double>{-1.238601401177898, 2.45481761739411}));
 

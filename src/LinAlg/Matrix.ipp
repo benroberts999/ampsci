@@ -160,7 +160,7 @@ template <typename T> Matrix<T> Matrix<T>::conj() const {
   return Matrix<T>{m_rows, m_cols, std::move(conj_data)};
 }
 
-template <typename T> Matrix<T> &Matrix<T>::conj_in_place() const {
+template <typename T> Matrix<T> &Matrix<T>::conj_in_place() {
   static_assert(is_complex_v<T>, "conj() only available for complex Matrix");
   for (std::size_t i = 0; i < m_data.size(); ++i) {
     m_data[i] = std::conj(m_data[i]);

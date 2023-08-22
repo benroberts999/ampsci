@@ -93,7 +93,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
     auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, d_basis, wf,
                                               correlationsQ, basis_type);
-    const auto [e_values, e_vectors] = LinAlg::symmhEigensystem(Aij, Sij, true);
+    const auto [e_values, e_vectors] = LinAlg::symmhEigensystem(Aij, Sij);
 
     expand_basis_orbitals(&basis, &basis_positron, spl_basis, kappa, max_n,
                           e_values, e_vectors, wf);

@@ -191,7 +191,7 @@ public:
   [[nodiscard]] auto complex() const;
 
   //! Conjugates matrix, in place
-  Matrix<T> &conj_in_place() const;
+  Matrix<T> &conj_in_place();
 
   //============================================================================
   //! Muplitplies all the elements by those of matrix a, in place: M_ij *= a_ij
