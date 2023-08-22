@@ -713,7 +713,7 @@ double run_CI(const std::string &atom_name,
   //----------------------------------------------------------------------------
   std::cout << std::flush;
 
-  const auto [val, vec] = LinAlg::symmhEigensystem(Hci, true);
+  const auto [val, vec] = LinAlg::symmhEigensystem(Hci);
   const auto E0 = e0 == 0.0 ? val(0) : e0;
 
   fmt::print("Full CI for J={}, pi={} : E0 = {:.1f} cm^-1\n\n", printJ(twoJ),

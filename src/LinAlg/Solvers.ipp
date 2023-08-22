@@ -1,6 +1,20 @@
 //==============================================================================
 // Implementations:
 
+extern "C" {
+/** Lapack routines */
+void dsyev_(char *, char *, int *, double *, int *, double *, double *, int *,
+            int *);
+
+void zheev_(char *, char *, int *, long double *, int *, double *,
+            long double *, int *, double *, int *);
+// void dsyev_2stage_(char *, char *, int *, double *, int *, double *, double *,
+//                    int *, int *);
+// void dgesv_(int *, int *, double *, int *, int *, double *, int *, int *);
+// void dsygv_(int *, char *, char *, int *, double *, int *, double *, int *,
+//             double *, double *, int *, int *);
+}
+
 namespace LinAlg {
 
 //==============================================================================
@@ -38,51 +52,103 @@ template <typename T> Vector<T> solve_Axeqb(Matrix<T> Am, const Vector<T> &b) {
 // Solves Av = ev for eigenvalues e and eigenvectors v of symmetric/Hermetian
 // matrix A. Returns [e,v], where v(i,j) is the jth element of the ith
 // eigenvector corresponding to ith eigenvalue, e(i). e is always real.
+// template <typename T>
+// std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, bool sort) {
+//   assert(A.rows() == A.cols());
+
+//   // Solves Av = ev for eigenvalues e and eigenvectors v
+
+//   const auto dim = A.rows();
+//   // E. values of Hermetian complex matrix are _real_
+//   auto eigen_vv = std::make_pair(Vector<double>(dim), Matrix<T>{dim});
+//   auto &[e_values, e_vectors] = eigen_vv;
+
+//   // From GSL:
+//   // This function computes the eigenvalues and eigenvectors of the
+//   // symmetric (or hermetian) matrix A. The diagonal and lower triangular part
+//   // of A are destroyed during the computation, but the strict upper triangular
+//   // part is not referenced. The eigenvalues are stored in the vector eval and
+//   // are unordered. The corresponding eigenvectors are stored in the columns of
+//   // the matrix evec. For example, the eigenvector in the first column
+//   // corresponds to the first eigenvalue. The eigenvectors are guaranteed to be
+//   // mutually orthogonal and normalised to unit magnitude.
+//   // https://www.gnu.org/software/gsl/doc/html/eigen.html
+
+//   auto A_gsl = A.as_gsl_view();
+//   auto val_gsl = e_values.as_gsl_view();
+//   auto vec_gsl = e_vectors.as_gsl_view();
+//   if constexpr (std::is_same_v<T, double>) {
+//     gsl_eigen_symmv_workspace *work = gsl_eigen_symmv_alloc(dim);
+//     gsl_eigen_symmv(&A_gsl.matrix, &val_gsl.vector, &vec_gsl.matrix, work);
+//     gsl_eigen_symmv_free(work);
+//     if (sort)
+//       gsl_eigen_symmv_sort(&val_gsl.vector, &vec_gsl.matrix,
+//                            GSL_EIGEN_SORT_VAL_ASC);
+//   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
+//     gsl_eigen_hermv_workspace *work = gsl_eigen_hermv_alloc(dim);
+//     gsl_eigen_hermv(&A_gsl.matrix, &val_gsl.vector, &vec_gsl.matrix, work);
+//     gsl_eigen_hermv_free(work);
+//     if (sort)
+//       gsl_eigen_hermv_sort(&val_gsl.vector, &vec_gsl.matrix,
+//                            GSL_EIGEN_SORT_VAL_ASC);
+//   }
+
+//   // Eigensystems using GSL. NOTE: e-vectors are stored in COLUMNS (not rows) of
+//   // matrix! Therefore, we transpose the matrix (duuumb)
+//   auto tmp = e_vectors.transpose();
+//   e_vectors = std::move(tmp);
+
+//   return eigen_vv;
+// }
+
+//============================================================================*
+// Solves Av = ev for eigenvalues e and eigenvectors v of symmetric/Hermetian
+// matrix A. Returns [e,v], where v(i,j) is the jth element of the ith
+// eigenvector corresponding to ith eigenvalue, e(i). e is always real.
 template <typename T>
-std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, bool sort) {
+std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A) {
   assert(A.rows() == A.cols());
 
-  // Solves Av = ev for eigenvalues e and eigenvectors v
-
-  const auto dim = A.rows();
   // E. values of Hermetian complex matrix are _real_
-  auto eigen_vv = std::make_pair(Vector<double>(dim), Matrix<T>{dim});
+  auto eigen_vv = std::make_pair(Vector<double>(A.rows()), std::move(A));
   auto &[e_values, e_vectors] = eigen_vv;
 
-  // From GSL:
-  // This function computes the eigenvalues and eigenvectors of the
-  // symmetric (or hermetian) matrix A. The diagonal and lower triangular part
-  // of A are destroyed during the computation, but the strict upper triangular
-  // part is not referenced. The eigenvalues are stored in the vector eval and
-  // are unordered. The corresponding eigenvectors are stored in the columns of
-  // the matrix evec. For example, the eigenvector in the first column
-  // corresponds to the first eigenvalue. The eigenvectors are guaranteed to be
-  // mutually orthogonal and normalised to unit magnitude.
-  // https://www.gnu.org/software/gsl/doc/html/eigen.html
+  int dim = (int)A.rows();
+  char jobz{'V'};
+  char uplo{'U'};
+  int info = 0;
 
-  auto A_gsl = A.as_gsl_view();
-  auto val_gsl = e_values.as_gsl_view();
-  auto vec_gsl = e_vectors.as_gsl_view();
+  std::vector<T> work(3 * A.rows());
+  int workspace_size = (int)work.size();
+
   if constexpr (std::is_same_v<T, double>) {
-    gsl_eigen_symmv_workspace *work = gsl_eigen_symmv_alloc(dim);
-    gsl_eigen_symmv(&A_gsl.matrix, &val_gsl.vector, &vec_gsl.matrix, work);
-    gsl_eigen_symmv_free(work);
-    if (sort)
-      gsl_eigen_symmv_sort(&val_gsl.vector, &vec_gsl.matrix,
-                           GSL_EIGEN_SORT_VAL_ASC);
+
+    // For double (symmetric real) matrix
+    dsyev_(&jobz, &uplo, &dim, e_vectors.data(), &dim, e_values.data(),
+           work.data(), &workspace_size, &info);
+
   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
-    gsl_eigen_hermv_workspace *work = gsl_eigen_hermv_alloc(dim);
-    gsl_eigen_hermv(&A_gsl.matrix, &val_gsl.vector, &vec_gsl.matrix, work);
-    gsl_eigen_hermv_free(work);
-    if (sort)
-      gsl_eigen_hermv_sort(&val_gsl.vector, &vec_gsl.matrix,
-                           GSL_EIGEN_SORT_VAL_ASC);
+    static_assert(sizeof(long double) == 16); // LAPACK assumption
+
+    // For complex double (Hermetian) matrix
+    std::vector<double> Rwork(3 * A.rows() - 2ul);
+    long double *evec_ptr = reinterpret_cast<long double *>(e_vectors.data());
+    long double *work_ptr = reinterpret_cast<long double *>(work.data());
+    zheev_(&jobz, &uplo, &dim, evec_ptr, &dim, e_values.data(), work_ptr,
+           &workspace_size, Rwork.data(), &info);
   }
 
-  // Eigensystems using GSL. NOTE: e-vectors are stored in COLUMNS (not rows) of
-  // matrix! Therefore, we transpose the matrix (duuumb)
-  auto tmp = e_vectors.transpose();
-  e_vectors = std::move(tmp);
+  if (info != 0) {
+    std::cerr << "\nError 142: symmhEigensystem " << info << "\n" << std::flush;
+    if (info < 0) {
+      std::cerr << "The " << -info << "-th argument had an illegal value\n";
+    } else {
+      std::cerr << "The algorithm failed to converge; " << info
+                << " off-diagonal elements of an intermediate "
+                   "tridiagonal form did not converge to zero.\n";
+    }
+    std::cerr << info << " " << A.size() << "\n";
+  }
 
   return eigen_vv;
 }

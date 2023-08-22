@@ -482,23 +482,32 @@ TEST_CASE("LinAlg: linear equation <complex<double>>", "[LinAlg][unit]") {
 // Eigensystems (symmetric/Hermetian)
 TEST_CASE("LinAlg: eigensystems <double>", "[LinAlg][unit]") {
   const LinAlg::Matrix A{{1.0, -1.0}, {-1.0, 2.0}};
-  const auto [e, v] = symmhEigensystem(A, true);
+  const auto [e, v] = symmhEigensystem(A);
   REQUIRE(
       LinAlg::equal(e, LinAlg::Vector{0.381966011250105, 2.61803398874989}));
-  REQUIRE(LinAlg::equal(
-      v, LinAlg::Matrix{{0.850650808352040, 0.525731112119133},
-                        {-0.525731112119133, 0.850650808352040}}));
+
+  REQUIRE((LinAlg::equal(
+               v, LinAlg::Matrix{{0.850650808352040, 0.525731112119133},
+                                 {-0.525731112119133, 0.850650808352040}}) or
+           LinAlg::equal(
+               v, LinAlg::Matrix{{-0.850650808352040, -0.525731112119133},
+                                 {-0.525731112119133, 0.850650808352040}})));
 }
 TEST_CASE("LinAlg: eigensystems <complex<double>>", "[LinAlg][unit]") {
   using namespace std::complex_literals;
   const LinAlg::Matrix A{{1.0 + 0.0i, 0.0 + 1.0i}, {0.0 - 1.0i, -1.0 + 0.0i}};
-  const auto [e, v] = symmhEigensystem(A, true);
+  const auto [e, v] = symmhEigensystem(A);
 
   const auto root2 = std::sqrt(2.0);
   REQUIRE(LinAlg::equal(e, LinAlg::Vector{-root2, root2}));
-  REQUIRE(LinAlg::equal(v, LinAlg::Matrix<std::complex<double>>{
-                               {0.382683432365090, 0.923879532511287i},
-                               {0.923879532511287, -0.382683432365090i}}));
+
+  REQUIRE((LinAlg::equal(v,
+                         LinAlg::Matrix<std::complex<double>>{
+                             {0.382683432365090, 0.923879532511287i},
+                             {0.923879532511287, -0.382683432365090i}}) or
+           LinAlg::equal(v, LinAlg::Matrix<std::complex<double>>{
+                                {-0.382683432365090i, -0.923879532511287},
+                                {-0.923879532511287i, 0.382683432365090}})));
 }
 
 // Generalised Eigensystems (symmetric/Hermetian)

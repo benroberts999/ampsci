@@ -11,7 +11,7 @@ template <typename T> Vector<T> solve_Axeqb(Matrix<T> Am, const Vector<T> &b);
 //! matrix A. Returns [e,v], where v(i,j) is the jth element of the ith
 //! eigenvector corresponding to ith eigenvalue, e(i). e is always real.
 template <typename T>
-std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, bool sort);
+std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A);
 
 //! Solves Av = eBv for eigenvalues e and eigenvectors v of symmetric/Hermetian
 //! matrix pair A,B. Returns [e,v], where v(i,j) is the jth element of the ith

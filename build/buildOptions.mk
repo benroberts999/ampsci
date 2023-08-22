@@ -61,7 +61,7 @@ endif
 # Linking + Compiling:
 
 CXXFLAGS= $(CXXSTD) $(OPT) $(OMP) $(WARN) -I$(SD)
-LIBS=-lgsl -lgslcblas
+LIBS=-lgsl -lgslcblas -llapack -lblas
 
 ifeq ($(RunProfiler),yes)
   CXXFLAGS+=-DIOPROFILER
