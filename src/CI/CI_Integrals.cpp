@@ -1,6 +1,6 @@
 #include "CI_Integrals.hpp"
 #include "CSF.hpp"
-#include "Coulomb/QkTable.hpp"
+#include "Coulomb/Coulomb.hpp"
 #include "MBPT/Sigma2.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
@@ -73,7 +73,8 @@ double CSF2_Sigma2(const Coulomb::QkTable &qk, const DiracSpinor &a,
 
   // Direct part:
   const auto [k0, k1] = Coulomb::k_minmax_Q(a, b, c, d);
-  for (int k = k0; k <= k1; k += 2) {
+  // for (int k = k0 ; k <= k1 ; += 2) { // No! diff rules!
+  for (int k = 0; k <= k1 + 1; ++k) {
     const auto sjs =
         Angular::sixj_2(a.twoj(), b.twoj(), twoJ, d.twoj(), c.twoj(), 2 * k);
     if (sjs == 0.0)
@@ -97,7 +98,8 @@ double CSF2_Sigma2(const Coulomb::QkTable &qk, const DiracSpinor &a,
 
   // Exchange part:
   const auto [l0, l1] = Coulomb::k_minmax_Q(a, b, d, c);
-  for (int k = l0; k <= l1; k += 2) {
+  // for (int k = l0; k <= l1; k += 2) {
+  for (int k = 0; k <= l1 + 1; ++k) {
     const auto sjs =
         Angular::sixj_2(a.twoj(), b.twoj(), twoJ, c.twoj(), d.twoj(), 2 * k);
     if (sjs == 0.0)
@@ -135,27 +137,22 @@ double Hab(const CI::CSF2 &V, const CI::CSF2 &X, int twoJ,
   const auto etaX = x == y ? 1.0 / std::sqrt(2.0) : 1.0;
   const auto eta2 = etaV * etaX;
 
-  // One electron part (formula specific to two-electron CSF case):
-  // const auto h1_VX = (v == x && w == y) ? h1.getv(*v, *x) + h1.getv(*w, *y) :
-  //                    (v == x && w != y) ? eta2 * h1.getv(*w, *y) :
-  //                    (v == y && w != x) ? eta2 * h1.getv(*w, *x) :
-  //                    (w == x && v != y) ? eta2 * h1.getv(*v, *y) :
-  //                    (w == y && v != x) ? eta2 * h1.getv(*v, *x) :
-  //                                         0.0;
+  double h1_VX = 0.0;
+  if (y == w) {
+    h1_VX += eta2 * h1.getv(*v, *x);
+  }
+  if (y == v) {
+    h1_VX += eta2 * h1.getv(*w, *x);
+  }
+  if (x == w) {
+    h1_VX += eta2 * h1.getv(*v, *y);
+  }
+  if (x == v) {
+    h1_VX += eta2 * h1.getv(*w, *y);
+  }
 
-  // double h1_VX = 0.0;
-  // if (y == w) {
-  //   h1_VX += eta2 * h1.getv(*v, *x);
-  // }
-  // if (y == v) {
-  //   h1_VX += eta2 * h1.getv(*w, *x);
-  // }
-  // if (x == w) {
-  //   h1_VX += eta2 * h1.getv(*v, *y);
-  // }
-  // if (x == v) {
-  //   h1_VX += eta2 * h1.getv(*w, *y);
-  // }
+  // understand why these two are different => the answer!
+  // BUT, they are the same when no Sigma included..
 
   // double h1_VX = 0.0;
   // auto nd = CI::CSF2::num_different(V, X);
@@ -163,17 +160,9 @@ double Hab(const CI::CSF2 &V, const CI::CSF2 &X, int twoJ,
   //   h1_VX = h1.getv(*v, *v) + h1.getv(*w, *w);
   // } else if (nd == 1) {
   //   auto [n, a] = CI::CSF2::diff_1_na(V, X);
+  //   assert(n != a);
   //   h1_VX = eta2 * h1.getv(*n, *a);
   // }
-
-  // XXX There is something funny here! XXX
-
-  const auto h1_VX = (v == x && w == y) ? h1.getv(*v, *v) + h1.getv(*w, *w) :
-                     (v == x /*&& w != y*/) ? eta2 * h1.getv(*w, *y) :
-                     (v == y /*&& w != x*/) ? eta2 * h1.getv(*w, *x) :
-                     (w == x /*&& v != y*/) ? eta2 * h1.getv(*v, *y) :
-                     (w == y /*&& v != x*/) ? eta2 * h1.getv(*v, *x) :
-                                              0.0;
 
   return h1_VX + CSF2_Coulomb(qk, *v, *w, *x, *y, twoJ);
 }
@@ -186,13 +175,22 @@ double ReducedME(const double *cA, const std::vector<CI::CSF2> &CSFAs,
                  const std::vector<CI::CSF2> &CSFBs, int twoJB,
                  const DiracOperator::TensorOperator *h) {
 
+  // selection rules: Not required (operator encodes it's own),
+  // but it's faster to check in advance
+  const auto piA = CSFAs.front().parity();
+  const auto piB = CSFBs.front().parity();
+  if (piA * piB != h->parity())
+    return 0.0;
+  if (std::abs(twoJA - twoJB) > 2 * h->rank())
+    return 0.0;
+
   // <A|h|A>   = Σ_{IJ} c_I * c_J * <I|h|J>
   // <A||h||A> = Σ_{IJ} c_I * c_J * <I||h||J>
   const auto NA = CSFAs.size();
   const auto NB = CSFBs.size();
 
-  double sum = 0.0;
-#pragma omp parallel for collapse(2) reduction(+ : sum)
+  double rme = 0.0;
+#pragma omp parallel for collapse(2) reduction(+ : rme)
   for (std::size_t i = 0ul; i < NA; ++i) {
     for (std::size_t j = 0ul; j < NB; ++j) {
       const auto &csf_i = CSFAs.at(i);
@@ -200,20 +198,10 @@ double ReducedME(const double *cA, const std::vector<CI::CSF2> &CSFAs,
       const auto &csf_j = CSFBs.at(j);
       const auto cj = cB[j];
 
-      // Check symmtric: yes!
-      // const auto rme1 = RME_CSF2(csf_i, twoJA, csf_j, twoJB, h);
-      // const auto rme2 = Angular::neg1pow_2(twoJA - twoJB) *
-      //                   RME_CSF2(csf_j, twoJB, csf_i, twoJA, h);
-      // auto x = std::abs((rme1 - rme2));
-      // if (x > 1.0e-14) {
-      //   std::cout << x << "\n";
-      //   std::cin.get();
-      // }
-
-      sum += ci * cj * RME_CSF2(csf_i, twoJA, csf_j, twoJB, h);
+      rme += ci * cj * RME_CSF2(csf_i, twoJA, csf_j, twoJB, h);
     }
   }
-  return sum;
+  return rme;
 }
 
 //==============================================================================
@@ -269,59 +257,6 @@ double RME_CSF2(const CI::CSF2 &V, int twoJV, const CI::CSF2 &X, int twoJX,
     sum += f * sj * t * s;
   }
   return sum;
-
-  // const auto f = etaV * etaX * std::sqrt(double(twoJV + 1) * (twoJX + 1)) *
-  //              Angular::neg1pow_2(v->twoj() + w->twoj() + twok);
-
-  // // This is probably a very inefficient way to implement Slater-Condon rules...
-  // if (v == x && w == y) {
-  //   assert(num_diff == 0);
-  //   const auto sj1 =
-  //       Angular::sixj_2(twoJV, twoJX, twok, v->twoj(), v->twoj(), w->twoj());
-  //   const auto t1 = h->reducedME(*v, *v);
-  //   const auto s1 = Angular::neg1pow_2(twoJX);
-  //   const auto sj2 =
-  //       Angular::sixj_2(twoJV, twoJX, twok, w->twoj(), w->twoj(), v->twoj());
-  //   const auto t2 = h->reducedME(*w, *w);
-  //   const auto s2 = Angular::neg1pow_2(twoJV);
-  //   return f * (sj1 * t1 * s1 + sj2 * t2 * s2);
-  // }
-
-  // if (v == x && w != y) {
-  //   assert(num_diff == 1);
-  //   const auto sj =
-  //       Angular::sixj_2(twoJV, twoJX, twok, y->twoj(), w->twoj(), v->twoj());
-  //   const auto t = h->reducedME(*w, *y);
-  //   const auto s = Angular::neg1pow_2(y->twoj() - w->twoj() + twoJV);
-  //   return f * sj * t * s;
-
-  // } else if (v != x && w == y) {
-  //   assert(num_diff == 1);
-  //   const auto sj =
-  //       Angular::sixj_2(twoJV, twoJX, twok, x->twoj(), v->twoj(), w->twoj());
-  //   const auto t = h->reducedME(*v, *x);
-  //   const auto s = Angular::neg1pow_2(twoJX);
-  //   return f * sj * t * s;
-
-  // } else if (v != y && w == x) {
-  //   assert(num_diff == 1);
-  //   const auto sj =
-  //       Angular::sixj_2(twoJV, twoJX, twok, y->twoj(), v->twoj(), w->twoj());
-  //   const auto t = h->reducedME(*v, *y);
-  //   const auto s = Angular::neg1pow_2(w->twoj() + y->twoj());
-  //   return f * sj * t * s;
-
-  // } else if (v == y && w != x) {
-  //   assert(num_diff == 1);
-  //   const auto sj =
-  //       Angular::sixj_2(twoJV, twoJX, twok, x->twoj(), w->twoj(), v->twoj());
-  //   const auto t = h->reducedME(*w, *x);
-  //   const auto s = Angular::neg1pow_2(v->twoj() + w->twoj() + twoJV + twoJX);
-  //   return f * sj * t * s;
-  // }
-
-  // assert(num_diff == 2);
-  // return 0.0;
 }
 
 } // namespace CI

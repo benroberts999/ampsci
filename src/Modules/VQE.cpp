@@ -36,7 +36,9 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
        {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
        {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
        {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
+       {"sigma1", "Include one-body correlations? [false]"},
        {"sigma2", "Include two-body correlations? [false]"},
+       {"sort", "Sort output by level [true]"},
        {"e0", "Optional: ground-state energy (in 1/cm) for relative energies. "
               "If not given, will assume lowest J+"},
        {"write_integrals",
@@ -94,7 +96,30 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
 
+  std::cout << "\nCalculate two-body Coulomb integrals: Q^k_abcd\n";
+
+  // Lookup table; stores all qk's
+  Coulomb::QkTable qk;
+  const auto qk_filename =
+      wf.identity() + DiracSpinor::state_config(wf.basis()) + ".qk";
+  // Try to read from disk (may already have calculated Qk)
+  const auto read_from_file_ok = qk.read(qk_filename);
+  if (!read_from_file_ok) {
+    // if didn't find Qk file to read in, calculate from scratch:
+
+    // use whole basis (these are used iside Sigma_2)
+    const Coulomb::YkTable yk(wf.basis());
+    qk.fill(wf.basis(), yk);
+    qk.write(qk_filename);
+  }
+  std::cout << std::flush;
+
+  const auto [coret, excitedt] = MBPT::split_basis(wf.basis(), wf.FermiLevel());
+
+  //----------------------------------------------------------------------------
+
   std::cout << "\nSingle-particle matrix elements:\n";
+  const auto include_Sigma1 = input.get("sigma1", false);
 
   // Correlation potential (one-particle Sigma matrix):
   const auto Sigma = wf.Sigma();
@@ -104,20 +129,25 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Calculate + store all 1-body integrals
   for (const auto &v : ci_sp_basis) {
+
+    // Find lowest valence state of this l; for Sigma energy
+    const auto vp =
+        std::find_if(ci_sp_basis.begin(), ci_sp_basis.end(),
+                     [l = v.l()](const auto &n) { return n.l() == l; });
+    auto ev = vp->en();
+
     for (const auto &w : ci_sp_basis) {
       if (w > v)
         continue;
       if (w.kappa() != v.kappa())
         continue;
       const auto h0_vw = v == w ? v.en() : 0.0;
-      // const auto h0_vw = wf.Hab(v, w);
-      // nb: This makes a difference: energy denominators!
-      // Take lowest n (from valence) of that state?
-      const auto Sigma_vw = Sigma ? v * Sigma->SigmaFv(w) : 0.0;
-      // if (w == v && Sigma_vw != 0.0) {
-      //   std::cout << v << " " << w << " " << Sigma_vw << "\n";
-      // }
-      // const auto Sigma_vw = Sigma ? Sigma->Sigma_vw(v, w) : 0.0;
+
+      // const auto Sigma_vw = Sigma ? v * Sigma->SigmaFv(w) : 0.0;
+      const auto Sigma_vw =
+          include_Sigma1 ? MBPT::Sigma_vw(v, w, qk, coret, excitedt, 99, ev) :
+                           0.0;
+
       h1.add(v, w, h0_vw + Sigma_vw);
       if (v != w)
         h1.add(w, v, h0_vw + Sigma_vw);
@@ -154,25 +184,64 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-  //----------------------------------------------------------------------------
+  //-----------------
+  //-----------------
+  //-----------------
+  //-----------------
 
-  std::cout << "\nCalculate two-body Coulomb integrals: Q^k_abcd\n";
+  // //--------
+  // const Coulomb::YkTable ykt(ci_sp_basis);
+  // Coulomb::QkTable QkT;
+  // QkT.fill(ci_sp_basis, ykt);
 
-  // Lookup table; stores all qk's
-  Coulomb::QkTable qk;
-  const auto qk_filename =
-      wf.identity() + DiracSpinor::state_config(wf.basis()) + ".qk";
-  // Try to read from disk (may already have calculated Qk)
-  const auto read_from_file_ok = qk.read(qk_filename);
-  if (!read_from_file_ok) {
-    // if didn't find Qk file to read in, calculate from scratch:
+  // std::cout << "\n\n";
 
-    // use whole basis (these are used iside Sigma_2)
-    const Coulomb::YkTable yk(wf.basis());
-    qk.fill(wf.basis(), yk);
-    qk.write(qk_filename);
-  }
-  std::cout << std::flush;
+  // Coulomb::QkTable QkT2;
+  // const auto lam = [&ykt](int k, const DiracSpinor &a, const DiracSpinor &b,
+  //                         const DiracSpinor &c, const DiracSpinor &d) {
+  //   return ykt.Q(k, a, b, c, d);
+  // };
+
+  // QkT2.fill(ci_sp_basis, lam, Coulomb::Qk_abcd_SR);
+
+  // std::cout << "\n\n";
+
+  // Coulomb::WkTable WkT;
+
+  // WkT.fill(ci_sp_basis, lam, Coulomb::Qk_abcd_SR);
+
+  // std::cout << "\n\n";
+
+  // Coulomb::WkTable WkT2;
+
+  // WkT2.fill(ci_sp_basis, lam, MBPT::Sk_vwxy_SR);
+
+  // std::cout << "\n\n";
+
+  //-----------------
+
+  // const auto [coret, excitedt] = MBPT::split_basis(wf.basis(), wf.FermiLevel());
+  // Angular::SixJTable sjt(DiracSpinor::max_tj(wf.basis()));
+  // const auto core = coret;
+  // const auto excited = excitedt;
+
+  // Coulomb::WkTable WkT3;
+  // const auto lam2 = [&](int k, const DiracSpinor &v, const DiracSpinor &w,
+  //                       const DiracSpinor &x, const DiracSpinor &y) {
+  //   // no! should have FULL Qk!
+  //   return qk.Q(k, v, w, x, y) +
+  //          MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, sjt);
+  // };
+
+  // // WkT3.fill(ci_sp_basis, lam2, MBPT::Sk_vwxy_SR);
+  // WkT3.fill(ci_sp_basis, lam2, Coulomb::Qk_abcd_SR);
+
+  // // return;
+
+  //-----------------
+  //-----------------
+  //-----------------
+  //-----------------
 
   // Writes Rk integrals to text file
   // Modify this to include Sigma_2!
@@ -195,7 +264,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
                                  int(std::round(2 * J)), +1, num_solutions, h1,
                                  qk, write_integrals, include_Sigma2,
                                  wf.basis(), wf.FermiLevel(), 1, ci_input);
-    levels.insert(levels.begin(), t_levels.begin(), t_levels.end());
+    levels.insert(levels.end(), t_levels.begin(), t_levels.end());
     // if (e0 == 0.0)
     // e0 = e1;
   }
@@ -205,13 +274,15 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
                                  int(std::round(2 * J)), -1, num_solutions, h1,
                                  qk, write_integrals, include_Sigma2,
                                  wf.basis(), wf.FermiLevel(), 1, ci_input);
-    levels.insert(levels.begin(), t_levels.begin(), t_levels.end());
+    levels.insert(levels.end(), t_levels.begin(), t_levels.end());
   }
 
-  std::sort(levels.begin(), levels.end(),
-            [](const auto &a, const auto &b) { return a.e < b.e; });
+  const auto sort_ouput = input.get("sort", true);
+  if (sort_ouput)
+    std::sort(levels.begin(), levels.end(),
+              [](const auto &a, const auto &b) { return a.e < b.e; });
 
-  std::cout << "\nLevel Summry:\n\n";
+  std::cout << "\nLevel Summary:\n\n";
   const auto e0 = levels.at(0).e;
 
   std::cout

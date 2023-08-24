@@ -1,5 +1,6 @@
 #pragma once
 #include "Wavefunction/DiracSpinor.hpp"
+#include <array>
 #include <vector>
 
 namespace CI {
@@ -25,6 +26,8 @@ public:
   //! i.e., returns {n,a} where |V> = |X_a^n> (i.e., V has n, but not a)
   static std::array<const DiracSpinor *, 2> diff_1_na(const CSF2 &V,
                                                       const CSF2 &X);
+
+  int parity() const { return states[0]->parity() * states[1]->parity(); }
 };
 
 //==============================================================================

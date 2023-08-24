@@ -25,9 +25,7 @@
     * First, calculate (g+V)_vwxy just w/cisp_basis?
     * Method for f_k and eta_k screening?
   * Solve eigenvalue problem
-    * Use Davidson?
     * Parallel?
-    * g-factors + terms
 
 ## Matrix elements module
 

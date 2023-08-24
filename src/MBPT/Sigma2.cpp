@@ -78,8 +78,10 @@ double InternalSigma::S_Sigma2_a(int k, const DiracSpinor &v,
 
       sum += (qk_vnxa * (qk_awny + pk_awny) + pk_vnxa * qk_awny) / de;
 
-      const auto qk_vaxn = qk.Q(k, v, a, x, n);
-      const auto qk_nway = qk.Q(k, n, w, a, y);
+      // const auto qk_vaxn = qk.Q(k, v, a, x, n);
+      // const auto qk_nway = qk.Q(k, n, w, a, y);
+      const auto qk_vaxn = qk_vnxa; //qk.Q(k, v, a, x, n);
+      const auto qk_nway = qk_awny; //qk.Q(k, n, w, a, y);
       const auto pk_vaxn = qk.P(k, v, a, x, n, &SixJ);
       const auto pk_nway = qk.P(k, n, w, a, y, &SixJ);
 
@@ -100,6 +102,11 @@ double InternalSigma::S_Sigma2_b(int k, const DiracSpinor &v,
                                  const Angular::SixJTable &SixJ,
                                  Denominators denominators) {
 
+  // I do this outside now
+  // if (!Coulomb::sixjTriads({}, {}, k, v, x, {}) ||
+  //     !Coulomb::sixjTriads({}, {}, k, y, w, {}))
+  //   return 0.0;
+
   const auto f =
       Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
       (2.0 * k + 1.0);
@@ -108,10 +115,6 @@ double InternalSigma::S_Sigma2_b(int k, const DiracSpinor &v,
   const auto de_yv = denominators == Denominators::BW ?
                          0.0 :
                          0.5 * (y.en() - v.en() + x.en() - w.en());
-
-  if (!Coulomb::sixjTriads({}, {}, k, v, x, {}) ||
-      !Coulomb::sixjTriads({}, {}, k, y, w, {}))
-    return 0.0;
 
   double sum = 0.0;
   for (const auto &a : core) {
@@ -129,12 +132,12 @@ double InternalSigma::S_Sigma2_b(int k, const DiracSpinor &v,
       const auto de = de_yv + a.en() - n.en();
 
       for (int u = u0; u <= u1; u += 2) {
-        const auto l0_SixJ = std::max(l0, std::abs(u - k));
+        const auto l0_SixJ = l0; //std::max(l0, std::abs(u - k));
         const auto l1_SixJ = std::min(l1, std::abs(u + k));
-        for (int l = l0_SixJ; l <= l1_SixJ; l += 2) {
+        for (int l = l0_SixJ; l <= l1_SixJ; l += 2) { // +=2 ?????
 
-          // if (!Coulomb::triangle(l, u, k))
-          //   continue;
+          if (!Coulomb::triangle(l, u, k))
+            continue;
 
           const auto SixJ1 = SixJ.get(l, u, k, v, x, a);
           const auto SixJ2 = SixJ.get(l, u, k, y, w, n);
@@ -170,9 +173,9 @@ double InternalSigma::S_Sigma2_c(int k, const DiracSpinor &v,
                          0.0 :
                          0.5 * (x.en() - w.en() + y.en() - v.en());
 
-  if (!Coulomb::sixjTriads({}, {}, k, v, x, {}) ||
-      !Coulomb::sixjTriads({}, {}, k, y, w, {}))
-    return 0.0;
+  // if (!Coulomb::sixjTriads({}, {}, k, v, x, {}) ||
+  //     !Coulomb::sixjTriads({}, {}, k, y, w, {}))
+  //   return 0.0;
 
   double sum = 0.0;
   for (const auto &a : core) {
@@ -190,9 +193,12 @@ double InternalSigma::S_Sigma2_c(int k, const DiracSpinor &v,
       const auto de = de_yv + a.en() - n.en();
 
       for (int u = u0; u <= u1; u += 2) {
-        const auto l0_SixJ = std::max(l0, std::abs(u - k));
+        const auto l0_SixJ = l0; //std::max(l0, std::abs(u - k));
         const auto l1_SixJ = std::min(l1, std::abs(u + k));
         for (int l = l0_SixJ; l <= l1_SixJ; l += 2) {
+
+          if (!Coulomb::triangle(l, u, k))
+            continue;
 
           const auto SixJ1 = SixJ.get(l, u, k, v, x, n);
           const auto SixJ2 = SixJ.get(l, u, k, y, w, a);
@@ -224,9 +230,9 @@ double InternalSigma::S_Sigma2_d(int k, const DiracSpinor &v,
 
   const auto de_vw = -v.en() - w.en();
 
-  if (!Coulomb::sixjTriads({}, {}, k, v, x, {}) ||
-      !Coulomb::sixjTriads({}, {}, k, w, y, {})) // check!
-    return 0.0;
+  // if (!Coulomb::sixjTriads({}, {}, k, v, x, {}) ||
+  //     !Coulomb::sixjTriads({}, {}, k, w, y, {})) // check!
+  //   return 0.0;
 
   double sum = 0.0;
   for (const auto &a : core) {
@@ -244,9 +250,12 @@ double InternalSigma::S_Sigma2_d(int k, const DiracSpinor &v,
       const auto de = de_vw + a.en() + b.en();
 
       for (int u = u0; u <= u1; u += 2) {
-        const auto l0_SixJ = std::max(l0, std::abs(u - k));
+        const auto l0_SixJ = l0; // std::max(l0, std::abs(u - k));
         const auto l1_SixJ = std::min(l1, std::abs(u + k));
-        for (int l = l0_SixJ; l <= l1_SixJ; l += 2) {
+        for (int l = l0_SixJ; l <= l1_SixJ; l += 2) { // +=2???
+
+          if (!Coulomb::triangle(l, u, k))
+            continue;
 
           const auto SixJ1 = SixJ.get(l, u, k, v, x, a);
           const auto SixJ2 = SixJ.get(l, u, k, w, y, b);
