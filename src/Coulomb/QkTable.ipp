@@ -360,6 +360,7 @@ CoulombTable<S>::UnFormIndex(const nk4Index &index) const {
 template <Symmetry S>
 void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
                            const YkTable &yk, int k_cut) {
+  static_assert(S == Symmetry::Qk);
   IO::ChronoTimer t("fill");
 
   /*
@@ -444,6 +445,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   // not adding any new elements to map, and since we are guarenteed to only
   // access each map element once, we can do this part in parallel. nb: This
   // //isation is not very efficient, though in theory it can be 100%
+  std::cout << "Fill w/ values: " << std::flush;
   t.start();
 #pragma omp parallel for
   for (auto ia = 0ul; ia < basis.size(); ++ia) {
@@ -463,7 +465,122 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     }
   }
 
-  std::cout << "Fill w/ values: " << t.lap_reading_str() << std::endl;
+  std::cout << t.lap_reading_str() << std::endl;
+
+  summary();
+}
+
+//==============================================================================
+template <Symmetry S>
+void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
+                           const CoulombFunction &Fk,
+                           const SelectionRules &Fk_SR, int k_cut) {
+  IO::ChronoTimer t("fill");
+
+  /*
+  In order to make best use of CPU and Memory, we "fill" the QK table in a
+  strange 4-step manner.
+  1. Count the number of non-zero Q's for each k
+  2. Use info from aboe to 'reserve()' space in the map
+  3. Fill all the non-zero Q entries in the map with 0. Note that this adds new
+  elements into the map, so cannot be done in parallel. Since we store a
+  different map for each k, we may parallelise over k (though this is not super
+  efficient)
+  4. Now that we have a fully sized map, we can update each of its values in
+  parallel
+  Note that we make use of the symmetry to ensure we do not access any element
+  from more than 1 thread (also, allowing us to not do any more calculations
+  than necisary)
+  */
+
+  const auto tmp_max_k = std::size_t(DiracSpinor::max_tj(basis) - 1);
+
+  const auto max_k =
+      (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
+
+  m_data.resize(max_k + 1);
+
+  // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space
+  t.start();
+  std::vector<std::size_t> count_non_zero_k(max_k + 1);
+#pragma omp parallel for
+  for (auto k = 0ul; k <= max_k; ++k) {
+    const auto ik = static_cast<int>(k);
+    for (const auto &a : basis) {
+      for (const auto &b : basis) {
+        for (const auto &c : basis) {
+          for (const auto &d : basis) {
+            // due to symmetry, only calculate each 'unique' integral once
+            if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
+              if (Fk_SR(ik, a, b, c, d)) {
+                ++count_non_zero_k[k];
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
+
+  // 2) Reserve space in each sub-map
+  t.start();
+#pragma omp parallel for
+  for (auto ik = 0ul; ik <= max_k; ++ik) {
+    m_data[ik].reserve(count_non_zero_k[ik]);
+  }
+  std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
+
+  // 3) Create space in map (set each element to zero).
+  t.start();
+#pragma omp parallel for
+  for (auto k = 0ul; k <= max_k; ++k) {
+    for (const auto &a : basis) {
+      for (const auto &b : basis) {
+        for (const auto &c : basis) {
+          for (const auto &d : basis) {
+            if (Fk_SR(int(k), a, b, c, d)) {
+              if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
+                add(int(k), a, b, c, d, 0.0);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
+
+  // 4) Fill the pre-constructed map with values, in parallel. Since we are
+  // not adding any new elements to map, and since we are guarenteed to only
+  // access each map element once, we can do this part in parallel. nb: This
+  // //isation is not very efficient, though in theory it can be 100%
+  std::cout << "Fill w/ values: \n" << std::flush;
+  t.start();
+
+  for (auto ia = 0ul; ia < basis.size(); ++ia) {
+    const auto &a = basis[ia];
+    t.start();
+    // For tests only:
+    std::cout << ia << "/" << basis.size() << "     \r" << std::flush;
+#pragma omp parallel for
+    for (const auto &b : basis) {
+      for (const auto &c : basis) {
+        for (const auto &d : basis) {
+          if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
+            for (int k = 0; k <= int(max_k); ++k) {
+              if (Fk_SR(k, a, b, c, d)) {
+                update(k, a, b, c, d, Fk(k, a, b, c, d));
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  std::cout << "\n";
+
+  std::cout << t.lap_reading_str() << std::endl;
 
   summary();
 }

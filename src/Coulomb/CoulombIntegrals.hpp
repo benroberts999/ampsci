@@ -60,6 +60,14 @@ DiracSpinor Qkv_bcd(const int k, int kappa_v, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd);
 
 //==============================================================================
+//! Just selection rule for Qk_abcd
+bool Qk_abcd_SR(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                const DiracSpinor &Fc, const DiracSpinor &Fd);
+//! Just selection rule for Pk_abcd
+bool Pk_abcd_SR(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                const DiracSpinor &Fc, const DiracSpinor &Fd);
+
+//==============================================================================
 
 //! Exchange only version of W (W-Q): W = Q + P [see Qk above]
 double Pk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,

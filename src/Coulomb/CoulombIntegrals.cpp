@@ -369,6 +369,19 @@ double Qk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 }
 
 //------------------------------------------------------------------------------
+bool Qk_abcd_SR(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                const DiracSpinor &Fc, const DiracSpinor &Fd) {
+  return Angular::Ck_kk_SR(k, Fa.kappa(), Fc.kappa()) &&
+         Angular::Ck_kk_SR(k, Fb.kappa(), Fd.kappa());
+}
+//------------------------------------------------------------------------------
+bool Pk_abcd_SR(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                const DiracSpinor &Fc, const DiracSpinor &Fd) {
+  return Angular::Ck_kk_SR(k, Fa.kappa(), Fd.kappa()) &&
+         Angular::Ck_kk_SR(k, Fb.kappa(), Fc.kappa());
+}
+
+//------------------------------------------------------------------------------
 DiracSpinor Qkv_bcd(const int k, const int kappa_a, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd) {
   assert(k >= 0 && "Check k and kappa order");

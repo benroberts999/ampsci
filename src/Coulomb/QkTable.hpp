@@ -4,6 +4,7 @@
 #include "YkTable.hpp"
 #include <array>
 #include <cstdint>
+#include <functional>
 #include <unordered_map>
 
 namespace Coulomb {
@@ -16,6 +17,13 @@ using Real = double;
 using nk4Index = uint64_t;
 //! index type for each {nk} (orbital)
 using nkIndex = uint16_t;
+
+using CoulombFunction =
+    std::function<double(int, const DiracSpinor &a, const DiracSpinor &b,
+                         const DiracSpinor &c, const DiracSpinor &d)>;
+using SelectionRules =
+    std::function<bool(int, const DiracSpinor &a, const DiracSpinor &b,
+                       const DiracSpinor &c, const DiracSpinor &d)>;
 
 //==============================================================================
 /*!
@@ -48,12 +56,14 @@ public:
   // 'Rule of zero' (except virtual destructor)
   // virtual ~CoulombTable() = default;
 
-  // XXX Should only be for QkTable
   //! Takes a constructed YkTable, and fills Coulomb table with all possible
-  //! non-zero Qk elements, accounting for symmetry (only really makes sense
+  //! non-zero Qk elements, accounting for symmetry (only makes sense
   //! for QkTable), up to maximum k, k_cut (set k_cut to <=0 to use all k)
   void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
             int k_cut = -1);
+
+  void fill(const std::vector<DiracSpinor> &basis, const CoulombFunction &Fk,
+            const SelectionRules &Fk_SR, int k_cut = -1);
 
   //! Fills table, only for all Q_abab and Q_abba values
   void fill_ab(const std::vector<DiracSpinor> &basis, const YkTable &yk,

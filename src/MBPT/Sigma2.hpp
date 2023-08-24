@@ -29,6 +29,10 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const Angular::SixJTable &SixJ,
                Denominators denominators = Denominators::BW);
 
+//! Selection rule for Sk_vwxy (differs from Qk_vwxy due to parity)
+bool Sk_vwxy_SR(int k, const DiracSpinor &v, const DiracSpinor &w,
+                const DiracSpinor &x, const DiracSpinor &y);
+
 //! Matrix element of 1-body Sigma (2nd-order correlation) operator;
 //! de_v = <v|Sigma|v>.
 /*! @details 

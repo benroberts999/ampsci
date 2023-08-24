@@ -19,6 +19,12 @@ split_basis(const std::vector<DiracSpinor> &basis, double E_Fermi,
   return core_excited;
 }
 
+bool Sk_vwxy_SR(int k, const DiracSpinor &v, const DiracSpinor &w,
+                const DiracSpinor &x, const DiracSpinor &y) {
+  return Coulomb::sixjTriads({}, {}, k, v, x, {}) &&
+         Coulomb::sixjTriads({}, {}, k, w, y, {});
+}
+
 //==============================================================================
 double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const DiracSpinor &x, const DiracSpinor &y,
@@ -26,12 +32,18 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const std::vector<DiracSpinor> &excited,
                const Angular::SixJTable &SixJ, Denominators denominators) {
   using namespace InternalSigma;
+
+  if (!Sk_vwxy_SR(k, v, w, x, y))
+    return 0.0;
+
   return S_Sigma2_a(k, v, w, x, y, qk, core, excited, SixJ, denominators) +
          S_Sigma2_b(k, v, w, x, y, qk, core, excited, SixJ, denominators) +
          S_Sigma2_c(k, v, w, x, y, qk, core, excited, SixJ, denominators) +
          S_Sigma2_d(k, v, w, x, y, qk, core, excited, SixJ);
 }
 
+//==============================================================================
+//==============================================================================
 //==============================================================================
 double InternalSigma::S_Sigma2_a(int k, const DiracSpinor &v,
                                  const DiracSpinor &w, const DiracSpinor &x,
