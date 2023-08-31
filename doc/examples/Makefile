@@ -34,6 +34,11 @@ PathForGSL=
 ## uncomment for macbook:
 # PathForGSL=/usr/local/opt/gnu-scientific-library
 
+################################################################################
+# By default, uses -lblas (set BLAS=blas).
+# On some systems, openblas is available
+BLASLIB=
+#BLASLIB=openblas
 
 ################################################################################
 ## If compiler cannot find correct libraries/headers, add the paths here.

@@ -38,7 +38,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
        {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
        {"sigma1", "Include one-body correlations? [false]"},
        {"sigma2", "Include two-body correlations? [false]"},
-       {"sort", "Sort output by level [true]"},
+       {"sort", "Sort output by level [false]"},
        {"e0", "Optional: ground-state energy (in 1/cm) for relative energies. "
               "If not given, will assume lowest J+"},
        {"write_integrals",
@@ -277,7 +277,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
     levels.insert(levels.end(), t_levels.begin(), t_levels.end());
   }
 
-  const auto sort_ouput = input.get("sort", true);
+  const auto sort_ouput = input.get("sort", false);
   if (sort_ouput)
     std::sort(levels.begin(), levels.end(),
               [](const auto &a, const auto &b) { return a.e < b.e; });

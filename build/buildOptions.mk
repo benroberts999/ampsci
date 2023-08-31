@@ -15,8 +15,8 @@ WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow \
 -Weffc++ -Wsign-conversion
 
 # Changes to warning based on compiler:
-GCC_Compilers:=g++ g++12 g++-11 g++-10 g++-9 g++-8 g++-7
-CLANG_Compilers:=clang++ clang++-10 clang++-9 clang++-8 clang++-7 clang++-6
+GCC_Compilers:=g++ g++13 g++12 g++-11 g++-10 g++-9 g++-8 g++-7
+CLANG_Compilers:=clang++ clang++-11 clang++-10 clang++-9 clang++-8 clang++-7 clang++-6
 ifneq ($(filter $(CXX),$(GCC_Compilers)),)
   WARN += -Wsuggest-override -Wnon-virtual-dtor -Wcast-align \
   -Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches \
@@ -49,7 +49,7 @@ endif
 # -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF are from GSL
 
 # If not using openMP, turn off 'unkown pragmas' warning.
-OMP?=-fopenmp
+OMP ?= -fopenmp
 ifneq ($(UseOpenMP),true)
 ifneq ($(UseOpenMP),yes)
   OMP=
@@ -58,10 +58,14 @@ endif
 endif
 
 ################################################################################
+# Allows different blas standard (e.g., openblas) by setting BLAS=openblas
+BLASLIB ?= blas
+
+################################################################################
 # Linking + Compiling:
 
 CXXFLAGS= $(CXXSTD) $(OPT) $(OMP) $(WARN) -I$(SD)
-LIBS=-lgsl -lgslcblas -llapack -lblas
+LIBS=-lgsl -lgslcblas -llapack -l$(BLASLIB)
 
 ifeq ($(RunProfiler),yes)
   CXXFLAGS+=-DIOPROFILER
