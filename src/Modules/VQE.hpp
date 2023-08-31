@@ -41,6 +41,7 @@ struct CIlevel {
   std::string config;
   int twoJ;
   int parity;
+  int index;
   double e;
   double gJ;
   double L;

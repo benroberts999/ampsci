@@ -285,17 +285,18 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLevel Summary:\n\n";
   const auto e0 = levels.at(0).e;
 
-  std::cout
-      << "config.   Jπ   Energy(au)    Energy(/cm)  Level(/cm)  Term    gJ\n";
-  for (const auto &[config, twoj, parity, e, gJ, L, tSp1] : levels) {
+  std::cout << "config. J π #    Term   Energy(au)  Energy(/cm)   Level(/cm) "
+               " gJ\n";
+  for (const auto &[config, twoj, parity, index, e, gJ, L, tSp1] : levels) {
 
     char pm = parity == 1 ? '+' : '-';
 
-    fmt::print("{:<8s} {:>2}{}  {:+11.8f}  {:+11.2f}  "
-               "{:11.2f}   {}^{}_{}{}",
-               config, twoj / 2, pm, e, e * PhysConst::Hartree_invcm,
-               (e - e0) * PhysConst::Hartree_invcm, uint(std::round(tSp1)),
-               AtomData::L_symbol((int)std::round(L)), twoj / 2, pm);
+    fmt::print("{:<6s} {:>2} {} {}   {}^{}_{}  {:+11.8f}  {:+11.2f}  "
+               "{:11.2f}",
+               config, twoj / 2, pm, index, uint(std::round(tSp1)),
+               AtomData::L_symbol((int)std::round(L)), twoj / 2, e,
+               e * PhysConst::Hartree_invcm,
+               (e - e0) * PhysConst::Hartree_invcm);
     if (gJ != 0.0) {
       fmt::print("  {:.4f}", gJ);
     }
@@ -582,6 +583,7 @@ run_CI(const std::string &atom_name,
         0.5 * twoJ, parity, val(i), val(i) * PhysConst::Hartree_invcm,
         (val(i) - E0) * PhysConst::Hartree_invcm);
 
+    double minimum_percentage = 1.0;
     std::size_t max_j = 0;
     double max_cj = 0.0;
     for (std::size_t j = 0ul; j < vec.cols(); ++j) {
@@ -592,10 +594,8 @@ run_CI(const std::string &atom_name,
         l1 = CSFs.at(j).state(0)->l();
         l2 = CSFs.at(j).state(1)->l();
       }
-      if (cj > 1.0) {
-        fmt::print("  {:>4s},{:<4s} {:5.3f}%\n",
-                   CSFs.at(j).state(0)->shortSymbol(),
-                   CSFs.at(j).state(1)->shortSymbol(), cj);
+      if (cj > minimum_percentage) {
+        fmt::print("  {:>8s} {:5.3f}%\n", CSFs.at(j).config(true), cj);
       }
     }
 
@@ -637,11 +637,14 @@ run_CI(const std::string &atom_name,
     }
     const auto tSp1 = 2.0 * S + 1.0;
 
-    const auto config =
-        fmt::format("{:s},{:s}", CSFs.at(max_j).state(0)->shortSymbol(),
-                    CSFs.at(max_j).state(1)->shortSymbol());
+    const auto config = CSFs.at(max_j).config();
+    char pm = parity == 1 ? '+' : '-';
+
+    fmt::print("{:<6s} {}^{}_{} {}\n", config, uint(std::round(tSp1)),
+               AtomData::L_symbol((int)std::round(L)), twoJ / 2, pm);
+
     out.emplace_back(
-        CIlevel{config, twoJ, parity, val(i), gJ, double(L), tSp1});
+        CIlevel{config, twoJ, parity, int(i), val(i), gJ, double(L), tSp1});
 
     std::cout << "\n";
   }

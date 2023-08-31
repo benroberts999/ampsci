@@ -28,6 +28,16 @@ public:
                                                       const CSF2 &X);
 
   int parity() const { return states[0]->parity() * states[1]->parity(); }
+
+  std::string config(bool relativistic = false) const {
+    auto s1 = states[0]->shortSymbol();
+    auto s2 = states[1]->shortSymbol();
+    if (!relativistic) {
+      s1.pop_back();
+      s2.pop_back();
+    }
+    return s1 == s2 ? s1 + "^2" : s1 + s2;
+  }
 };
 
 //==============================================================================
