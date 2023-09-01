@@ -33,6 +33,10 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
 bool Sk_vwxy_SR(int k, const DiracSpinor &v, const DiracSpinor &w,
                 const DiracSpinor &x, const DiracSpinor &y);
 
+//! Minimum/maximum k allowed by selectrion rules for Sk_vwxy. Cannot +=2.
+std::pair<int, int> k_minmax_S(const DiracSpinor &v, const DiracSpinor &w,
+                               const DiracSpinor &x, const DiracSpinor &y);
+
 //! Matrix element of 1-body Sigma (2nd-order correlation) operator;
 //! de_v = <v|Sigma|v>.
 /*! @details 

@@ -10,9 +10,9 @@ namespace CI {
 //==============================================================================
 // Calculates the anti-symmetrised Coulomb integral for 2-particle states:
 // C1*C2*(g_abcd-g_abdc), where Cs are C.G. coefficients
-double CSF2_Coulomb(const Coulomb::QkTable &qk, const DiracSpinor &a,
-                    const DiracSpinor &b, const DiracSpinor &c,
-                    const DiracSpinor &d, int twoJ) {
+double CSF2_Coulomb(const Coulomb::QkTable &qk, const DiracSpinor &v,
+                    const DiracSpinor &w, const DiracSpinor &x,
+                    const DiracSpinor &y, int twoJ) {
 
   // If c==d, or a==b : can make short-cut due to symmetry
   // More efficient to use two Q's than W:
@@ -20,14 +20,14 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, const DiracSpinor &a,
   double out = 0.0;
 
   // Direct part:
-  const auto [k0, k1] = Coulomb::k_minmax_Q(a, b, c, d);
+  const auto [k0, k1] = Coulomb::k_minmax_Q(v, w, x, y);
   for (int k = k0; k <= k1; k += 2) {
     const auto sjs =
-        Angular::sixj_2(a.twoj(), b.twoj(), twoJ, d.twoj(), c.twoj(), 2 * k);
+        Angular::sixj_2(v.twoj(), w.twoj(), twoJ, y.twoj(), x.twoj(), 2 * k);
     if (sjs == 0.0)
       continue;
-    const auto qk_abcd = qk.Q(k, a, b, c, d);
-    const auto s = Angular::neg1pow_2(a.twoj() + c.twoj() + 2 * k + twoJ);
+    const auto qk_abcd = qk.Q(k, v, w, x, y);
+    const auto s = Angular::neg1pow_2(v.twoj() + x.twoj() + 2 * k + twoJ);
     out += s * sjs * qk_abcd;
   }
 
@@ -36,22 +36,22 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, const DiracSpinor &a,
   // eta_ab = 1/sqrt(2) if a==b
   // Therefore: e.g., if c==d
   // => eta_ab * eta_cd * (out + (-1)^J*out) = eta_ab * sqrt(2) * out
-  if (a == b && c == d) {
+  if (v == w && x == y) {
     return out;
-  } else if (c == d || a == b) {
+  } else if (x == y || v == w) {
     // by {ab},{cd} symmetry: same works for case a==b
     return std::sqrt(2.0) * out;
   }
 
   // Exchange part:
-  const auto [l0, l1] = Coulomb::k_minmax_Q(a, b, d, c);
+  const auto [l0, l1] = Coulomb::k_minmax_Q(v, w, y, x);
   for (int k = l0; k <= l1; k += 2) {
     const auto sjs =
-        Angular::sixj_2(a.twoj(), b.twoj(), twoJ, c.twoj(), d.twoj(), 2 * k);
+        Angular::sixj_2(v.twoj(), w.twoj(), twoJ, x.twoj(), y.twoj(), 2 * k);
     if (sjs == 0.0)
       continue;
-    const auto qk_abdc = qk.Q(k, a, b, d, c);
-    const auto s = Angular::neg1pow_2(a.twoj() + c.twoj() + 2 * k);
+    const auto qk_abdc = qk.Q(k, v, w, y, x);
+    const auto s = Angular::neg1pow_2(v.twoj() + x.twoj() + 2 * k);
     out += s * sjs * qk_abdc;
   }
 
@@ -59,12 +59,9 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, const DiracSpinor &a,
 }
 
 //==============================================================================
-double CSF2_Sigma2(const Coulomb::QkTable &qk, const DiracSpinor &a,
-                   const DiracSpinor &b, const DiracSpinor &c,
-                   const DiracSpinor &d, int twoJ,
-                   const std::vector<DiracSpinor> &core,
-                   const std::vector<DiracSpinor> &excited,
-                   const Angular::SixJTable &SixJ) {
+double CSF2_Sigma2(const Coulomb::LkTable &Sk, const DiracSpinor &v,
+                   const DiracSpinor &w, const DiracSpinor &x,
+                   const DiracSpinor &y, int twoJ) {
 
   // If c==d, or a==b : can make short-cut due to symmetry
   // More efficient to use two Q's than W:
@@ -72,15 +69,15 @@ double CSF2_Sigma2(const Coulomb::QkTable &qk, const DiracSpinor &a,
   double out = 0.0;
 
   // Direct part:
-  const auto [k0, k1] = Coulomb::k_minmax_Q(a, b, c, d);
-  // for (int k = k0 ; k <= k1 ; += 2) { // No! diff rules!
-  for (int k = 0; k <= k1 + 1; ++k) {
+  const auto [k0, k1] = MBPT::k_minmax_S(v, w, x, y);
+  for (int k = k0; k <= k1; ++k) {
     const auto sjs =
-        Angular::sixj_2(a.twoj(), b.twoj(), twoJ, d.twoj(), c.twoj(), 2 * k);
+        Angular::sixj_2(v.twoj(), w.twoj(), twoJ, y.twoj(), x.twoj(), 2 * k);
     if (sjs == 0.0)
       continue;
-    const auto Sk_abcd = MBPT::Sk_vwxy(k, a, b, c, d, qk, core, excited, SixJ);
-    const auto s = Angular::neg1pow_2(a.twoj() + c.twoj() + 2 * k + twoJ);
+    // const auto Sk_abcd = MBPT::Sk_vwxy(k, a, b, c, d, qk, core, excited, SixJ);
+    const auto Sk_abcd = Sk.Q(k, v, w, x, y);
+    const auto s = Angular::neg1pow_2(v.twoj() + x.twoj() + 2 * k + twoJ);
     out += s * sjs * Sk_abcd;
   }
 
@@ -89,23 +86,23 @@ double CSF2_Sigma2(const Coulomb::QkTable &qk, const DiracSpinor &a,
   // eta_ab = 1/sqrt(2) if a==b
   // Therefore: e.g., if c==d
   // => eta_ab * eta_cd * (out + (-1)^J*out) = eta_ab * sqrt(2) * out
-  if (a == b && c == d) {
+  if (v == w && x == y) {
     return out;
-  } else if (c == d || a == b) {
+  } else if (x == y || v == w) {
     // by {ab},{cd} symmetry: same works for case a==b
     return std::sqrt(2.0) * out;
   }
 
   // Exchange part:
-  const auto [l0, l1] = Coulomb::k_minmax_Q(a, b, d, c);
-  // for (int k = l0; k <= l1; k += 2) {
-  for (int k = 0; k <= l1 + 1; ++k) {
+  const auto [l0, l1] = MBPT::k_minmax_S(v, w, y, x);
+  for (int k = l0; k <= l1; ++k) {
     const auto sjs =
-        Angular::sixj_2(a.twoj(), b.twoj(), twoJ, c.twoj(), d.twoj(), 2 * k);
+        Angular::sixj_2(v.twoj(), w.twoj(), twoJ, x.twoj(), y.twoj(), 2 * k);
     if (sjs == 0.0)
       continue;
-    const auto Sk_abdc = MBPT::Sk_vwxy(k, a, b, d, c, qk, core, excited, SixJ);
-    const auto s = Angular::neg1pow_2(a.twoj() + c.twoj() + 2 * k);
+    // const auto Sk_abdc = MBPT::Sk_vwxy(k, a, b, d, c, qk, core, excited, SixJ);
+    const auto Sk_abdc = Sk.Q(k, v, w, y, x);
+    const auto s = Angular::neg1pow_2(v.twoj() + x.twoj() + 2 * k);
     out += s * sjs * Sk_abdc;
   }
 
@@ -114,13 +111,10 @@ double CSF2_Sigma2(const Coulomb::QkTable &qk, const DiracSpinor &a,
 
 //==============================================================================
 double Sigma2_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
-                 const Coulomb::QkTable &qk,
-                 const std::vector<DiracSpinor> &core,
-                 const std::vector<DiracSpinor> &excited,
-                 const Angular::SixJTable &SixJ) {
+                 const Coulomb::LkTable &Sk) {
   const auto [v, w] = A.states;
   const auto [x, y] = B.states;
-  return CSF2_Sigma2(qk, *v, *w, *x, *y, twoJ, core, excited, SixJ);
+  return CSF2_Sigma2(Sk, *v, *w, *x, *y, twoJ);
 }
 
 //==============================================================================
@@ -165,6 +159,93 @@ double Hab(const CI::CSF2 &V, const CI::CSF2 &X, int twoJ,
   // }
 
   return h1_VX + CSF2_Coulomb(qk, *v, *w, *x, *y, twoJ);
+}
+
+//==============================================================================
+Coulomb::meTable<double>
+calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
+                   const std::vector<DiracSpinor> &s1_basis_core,
+                   const std::vector<DiracSpinor> &s1_basis_excited,
+                   const Coulomb::QkTable &qk, bool include_Sigma1) {
+  // Create lookup table for one-particle matrix elements, h1
+  Coulomb::meTable<double> h1;
+
+  // Calculate + store all 1-body integrals
+  for (const auto &v : ci_basis) {
+
+    // Find lowest valence state of this l; for Sigma energy
+    const auto vp =
+        std::find_if(ci_basis.begin(), ci_basis.end(),
+                     [l = v.l()](const auto &n) { return n.l() == l; });
+    auto ev = vp->en();
+
+    for (const auto &w : ci_basis) {
+      if (w > v)
+        continue;
+      if (w.kappa() != v.kappa())
+        continue;
+      const auto h0_vw = v == w ? v.en() : 0.0;
+
+      // Can use Sigma matrix instead: all-orders?
+      const auto Sigma_vw = include_Sigma1 ?
+                                MBPT::Sigma_vw(v, w, qk, s1_basis_core,
+                                               s1_basis_excited, 99, ev) :
+                                0.0;
+
+      h1.add(v, w, h0_vw + Sigma_vw);
+      // Add symmetric partner:
+      if (v != w)
+        h1.add(w, v, h0_vw + Sigma_vw);
+    }
+  }
+  return h1;
+}
+
+//==============================================================================
+Coulomb::LkTable calculate_Sk(const std::string &filename,
+                              const std::vector<DiracSpinor> &cis2_basis,
+                              const std::vector<DiracSpinor> &s2_basis_core,
+                              const std::vector<DiracSpinor> &s2_basis_excited,
+                              const Coulomb::QkTable &qk, int max_delta_n,
+                              bool exclude_wrong_parity_box) {
+
+  Coulomb::LkTable Sk;
+
+  const auto max_twoj = std::max({DiracSpinor::max_tj(s2_basis_excited),
+                                  DiracSpinor::max_tj(s2_basis_core),
+                                  DiracSpinor::max_tj(cis2_basis)});
+  Angular::SixJTable sjt(max_twoj);
+
+  const auto Sk_function = [&](int k, const DiracSpinor &v,
+                               const DiracSpinor &w, const DiracSpinor &x,
+                               const DiracSpinor &y) {
+    return MBPT::Sk_vwxy(k, v, w, x, y, qk, s2_basis_core, s2_basis_excited,
+                         sjt);
+  };
+  const auto Sk_selection_rule = [&](int k, const DiracSpinor &v,
+                                     const DiracSpinor &w, const DiracSpinor &x,
+                                     const DiracSpinor &y) {
+    const auto min_n = std::min({v.n(), w.n(), x.n(), y.n()});
+    const auto max_n = std::max({v.n(), w.n(), x.n(), y.n()});
+    if (max_n - min_n > max_delta_n)
+      return false;
+    return exclude_wrong_parity_box ? Coulomb::Qk_abcd_SR(k, v, w, x, y) :
+                                      MBPT::Sk_vwxy_SR(k, v, w, x, y);
+  };
+
+  // XXX Update this, so that it can read in a partially-filled existing map, and extend for new integrals!
+
+  // Try to read from disk (may already have calculated Qk)
+  const auto read_Sk_from_file_ok = Sk.read(filename);
+  if (!read_Sk_from_file_ok) {
+    // if didn't find Qk file to read in, calculate from scratch:
+
+    // use whole basis (these are used iside Sigma_2)
+    Sk.fill(cis2_basis, Sk_function, Sk_selection_rule);
+
+    Sk.write(filename);
+  }
+  return Sk;
 }
 
 //==============================================================================
@@ -257,6 +338,33 @@ double RME_CSF2(const CI::CSF2 &V, int twoJV, const CI::CSF2 &X, int twoJX,
     sum += f * sj * t * s;
   }
   return sum;
+}
+
+//==============================================================================
+std::pair<int, int> Term_S_L(int l1, int l2, int twoJ, double gJ_target) {
+  // Determine Term Symbol, from g-factor
+  const auto min_L = std::abs(l1 - l2);
+  const auto max_L = std::abs(l1 + l2);
+  const auto min_S = 0;
+  const auto max_S = 1;
+  int L = min_L;
+  int S = min_L;
+  double best_del = 2.0;
+  if (twoJ != 0) {
+    for (int tL = min_L; tL <= max_L; ++tL) {
+      for (int tS = min_S; tS <= max_S; ++tS) {
+        const auto gJNR = 1.5 + (tS * (tS + 1.0) - tL * (tL + 1.0)) /
+                                    (twoJ * (0.5 * twoJ + 1.0));
+        if (std::abs(gJ_target - gJNR) < best_del) {
+          best_del = std::abs(gJ_target - gJNR);
+          L = tL;
+          S = tS;
+        }
+      }
+    }
+  }
+  // const auto tSp1 = 2.0 * S + 1.0;
+  return {S, L};
 }
 
 } // namespace CI

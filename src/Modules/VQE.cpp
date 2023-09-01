@@ -29,8 +29,10 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check(
       {{"frozen_core", "Core states that are not included in CI expansion. By "
                        "default, this is the same as the HartreeFock{} core"},
-       {"basis", "Basis used for CI expansion; must be a sub-set of MBPT basis "
-                 "[default: 5spd]"},
+       {"ci_basis",
+        "Basis used for CI expansion; must be a sub-set of MBPT basis "
+        "[default: 10spdf]"},
+
        {"J", "List of J angular symmetry for CSFs (comma separated). For "
              "half-integer, enter as floats: '0.5' not '1/2' [default: 0]"},
        {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
@@ -38,9 +40,27 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
        {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
        {"sigma1", "Include one-body correlations? [false]"},
        {"sigma2", "Include two-body correlations? [false]"},
+       {"n_min_core", "Minimum n for core to be included in MBPT [1]"},
+       {"s1_basis",
+        "Basis used for the one-body MBPT diagrams (Sigma^1). These are the "
+        "most important, so in general the default (all basis states) should "
+        "be used. Must be a subset of MBPT basis. [default: full basis]"},
+       {"s2_basis",
+        "Basis used for internal lines of the two-body MBPT diagrams "
+        "(Sigma^2). Must be a subset of MBPT basis. [default: full basis]"},
+       {"cis2_basis",
+        "The subset of ci_basis for with the two-body MBPT corrections are "
+        "calculated. Must be a subset of ci_basis. [default: ci_basis]"},
+       {"exclude_wrong_parity_box",
+        "Excludes the Sigma_2 box corrections that have 'wrong' "
+        "parity [false]"},
+       {"max_delta_n",
+        "Maximum difference in n of valence states (external lines) included "
+        "in calculation of two-body MBPT corrections - i.e., Sk_ijkl "
+        "max(ni,nj,nk,nl)-min(ni,nj,nk,nl)<=max_delta_n [99]"},
        {"sort", "Sort output by level [false]"},
-       {"e0", "Optional: ground-state energy (in 1/cm) for relative energies. "
-              "If not given, will assume lowest J+"},
+       //  {"e0", "Optional: ground-state energy (in 1/cm) for relative energies. "
+       //         "If not given, will assume lowest calculated energy"},
        {"write_integrals",
         "Writes orbitals, CSFs, CI matrix, and 1 and 2 particle "
         "integrals to plain text file [false]"},
@@ -60,7 +80,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nConstruct single-particle basis:\n";
 
   // Determine the sub-set of basis to use in CI:
-  const auto basis_string = input.get("basis", std::string{"5spd"});
+  const auto basis_string = input.get("ci_basis", std::string{"10spdf"});
 
   const auto frozen_core_string =
       input.get("frozen_core", wf.coreConfiguration());
@@ -98,6 +118,10 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nCalculate two-body Coulomb integrals: Q^k_abcd\n";
 
+  // Exclude some states??
+  // Don't need all (e.g., Qk_aaaa)
+  // Limit k?
+
   // Lookup table; stores all qk's
   Coulomb::QkTable qk;
   const auto qk_filename =
@@ -109,50 +133,71 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
     // use whole basis (these are used iside Sigma_2)
     const Coulomb::YkTable yk(wf.basis());
+    // nb: ineficient: don't need _all_ (e.g., Qk_aaaa)
+    // only need up to two core orbitals...I think
     qk.fill(wf.basis(), yk);
     qk.write(qk_filename);
   }
   std::cout << std::flush;
 
-  const auto [coret, excitedt] = MBPT::split_basis(wf.basis(), wf.FermiLevel());
+  // s1 and s2 MBPT basis
+  const auto s1_basis_string = input.get("s1_basis");
+  const auto &s1_basis =
+      s1_basis_string ? CI::basis_subset(wf.basis(), *s1_basis_string, "") :
+                        wf.basis();
+  const auto s2_basis_string = input.get("s2_basis");
+  const auto &s2_basis =
+      s2_basis_string ? CI::basis_subset(wf.basis(), *s2_basis_string, "") :
+                        wf.basis();
+
+  // Split basis' into core/excited (for MBPT evaluations)
+  const auto n_min_core = input.get("n_min_core", 1);
+  const auto [core_s1, excited_s1] =
+      MBPT::split_basis(s1_basis, wf.FermiLevel(), n_min_core);
+  const auto [core_s2, excited_s2] =
+      MBPT::split_basis(s2_basis, wf.FermiLevel(), n_min_core);
+
+  // S2 corrections are included only for this subset of the CI basis:
+  const auto cis2_basis_string = input.get("cis2_basis");
+  const auto &cis2_basis =
+      cis2_basis_string ?
+          CI::basis_subset(ci_sp_basis, *cis2_basis_string, "") :
+          ci_sp_basis;
+
+  const auto include_Sigma1 = input.get("sigma1", false);
+  const auto include_Sigma2 = input.get("sigma2", false);
+  const auto max_delta_n = input.get("max_delta_n", 99);
+  const auto exclude_wrong_parity_box =
+      input.get("exclude_wrong_parity_box", false);
+  if (include_Sigma1 || include_Sigma2) {
+    std::cout << "\nIncluding MBPT: "
+              << (include_Sigma1 && include_Sigma2 ? "Σ_1 + Σ_2" :
+                  include_Sigma1                   ? "Σ_1" :
+                                                     "Σ_2")
+              << "\n";
+    std::cout << "Including core excitations from n ≥ " << n_min_core << "\n";
+    if (include_Sigma1)
+      std::cout << "With basis for Σ_1: " << DiracSpinor::state_config(s1_basis)
+                << "\n";
+    if (include_Sigma2) {
+      std::cout << "With basis for Σ_2: " << DiracSpinor::state_config(s2_basis)
+                << "\n";
+
+      std::cout << "Including Σ_2 correction to Coulomb integrals up to: "
+                << DiracSpinor::state_config(cis2_basis) << "\n";
+      std::cout << "With maximum Δn ≤ " << max_delta_n << "\n";
+      if (exclude_wrong_parity_box) {
+        std::cout
+            << "Excluding the Σ_2 diagrams that have the 'wrong' parity\n";
+      }
+    }
+  }
 
   //----------------------------------------------------------------------------
 
-  std::cout << "\nSingle-particle matrix elements:\n";
-  const auto include_Sigma1 = input.get("sigma1", false);
-
-  // Correlation potential (one-particle Sigma matrix):
-  const auto Sigma = wf.Sigma();
-
   // Create lookup table for one-particle matrix elements, h1
-  Coulomb::meTable<double> h1;
-
-  // Calculate + store all 1-body integrals
-  for (const auto &v : ci_sp_basis) {
-
-    // Find lowest valence state of this l; for Sigma energy
-    const auto vp =
-        std::find_if(ci_sp_basis.begin(), ci_sp_basis.end(),
-                     [l = v.l()](const auto &n) { return n.l() == l; });
-    auto ev = vp->en();
-
-    for (const auto &w : ci_sp_basis) {
-      if (w > v)
-        continue;
-      if (w.kappa() != v.kappa())
-        continue;
-      const auto h0_vw = v == w ? v.en() : 0.0;
-
-      // const auto Sigma_vw = Sigma ? v * Sigma->SigmaFv(w) : 0.0;
-      const auto Sigma_vw =
-          include_Sigma1 ? MBPT::Sigma_vw(v, w, qk, coret, excitedt, 99, ev) :
-                           0.0;
-
-      h1.add(v, w, h0_vw + Sigma_vw);
-      if (v != w)
-        h1.add(w, v, h0_vw + Sigma_vw);
-    }
-  }
+  const auto h1 = CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
+                                         include_Sigma1);
 
   // print all single-body integrals to file:
   std::string one_file =
@@ -184,64 +229,18 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-  //-----------------
-  //-----------------
-  //-----------------
-  //-----------------
-
-  // //--------
-  // const Coulomb::YkTable ykt(ci_sp_basis);
-  // Coulomb::QkTable QkT;
-  // QkT.fill(ci_sp_basis, ykt);
-
-  // std::cout << "\n\n";
-
-  // Coulomb::QkTable QkT2;
-  // const auto lam = [&ykt](int k, const DiracSpinor &a, const DiracSpinor &b,
-  //                         const DiracSpinor &c, const DiracSpinor &d) {
-  //   return ykt.Q(k, a, b, c, d);
-  // };
-
-  // QkT2.fill(ci_sp_basis, lam, Coulomb::Qk_abcd_SR);
-
-  // std::cout << "\n\n";
-
-  // Coulomb::WkTable WkT;
-
-  // WkT.fill(ci_sp_basis, lam, Coulomb::Qk_abcd_SR);
-
-  // std::cout << "\n\n";
-
-  // Coulomb::WkTable WkT2;
-
-  // WkT2.fill(ci_sp_basis, lam, MBPT::Sk_vwxy_SR);
-
-  // std::cout << "\n\n";
-
-  //-----------------
-
-  // const auto [coret, excitedt] = MBPT::split_basis(wf.basis(), wf.FermiLevel());
-  // Angular::SixJTable sjt(DiracSpinor::max_tj(wf.basis()));
-  // const auto core = coret;
-  // const auto excited = excitedt;
-
-  // Coulomb::WkTable WkT3;
-  // const auto lam2 = [&](int k, const DiracSpinor &v, const DiracSpinor &w,
-  //                       const DiracSpinor &x, const DiracSpinor &y) {
-  //   // no! should have FULL Qk!
-  //   return qk.Q(k, v, w, x, y) +
-  //          MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, sjt);
-  // };
-
-  // // WkT3.fill(ci_sp_basis, lam2, MBPT::Sk_vwxy_SR);
-  // WkT3.fill(ci_sp_basis, lam2, Coulomb::Qk_abcd_SR);
-
-  // // return;
-
-  //-----------------
-  //-----------------
-  //-----------------
-  //-----------------
+  //----------------------------------------------------------------------------
+  // Calculate MBPT corrections to two-body Coulomb integrals
+  // Fix filename: account for n_min_core!
+  const auto prefix = exclude_wrong_parity_box ? ".sk0" : ".sk";
+  const auto Sk_filename = wf.identity() + "_" + std::to_string(max_delta_n) +
+                           "_" + DiracSpinor::state_config(s2_basis) + "_" +
+                           DiracSpinor::state_config(cis2_basis) + prefix;
+  Coulomb::LkTable Sk;
+  if (include_Sigma2) {
+    Sk = CI::calculate_Sk(Sk_filename, cis2_basis, core_s2, excited_s2, qk,
+                          max_delta_n, exclude_wrong_parity_box);
+  }
 
   // Writes Rk integrals to text file
   // Modify this to include Sigma_2!
@@ -254,7 +253,6 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto J_even_list = input.get("J+", J_list);
   const auto J_odd_list = input.get("J-", J_list);
   const auto num_solutions = input.get("num_solutions", 5);
-  const auto include_Sigma2 = input.get("sigma2", false);
   const auto ci_input = input.get("ci_input", std::string{""});
   // double e0 = input.get("e0", 0.0) / PhysConst::Hartree_invcm;
   // even parity:
@@ -262,40 +260,45 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   for (auto &J : J_even_list) {
     const auto t_levels = run_CI(wf.atomicSymbol(), ci_sp_basis, orbital_map,
                                  int(std::round(2 * J)), +1, num_solutions, h1,
-                                 qk, write_integrals, include_Sigma2,
+                                 qk, Sk, write_integrals, include_Sigma2,
                                  wf.basis(), wf.FermiLevel(), 1, ci_input);
     levels.insert(levels.end(), t_levels.begin(), t_levels.end());
-    // if (e0 == 0.0)
-    // e0 = e1;
   }
   // odd parity:
   for (auto &J : J_odd_list) {
     const auto t_levels = run_CI(wf.atomicSymbol(), ci_sp_basis, orbital_map,
                                  int(std::round(2 * J)), -1, num_solutions, h1,
-                                 qk, write_integrals, include_Sigma2,
+                                 qk, Sk, write_integrals, include_Sigma2,
                                  wf.basis(), wf.FermiLevel(), 1, ci_input);
     levels.insert(levels.end(), t_levels.begin(), t_levels.end());
   }
 
   const auto sort_ouput = input.get("sort", false);
+  const auto compare_energy = [](const auto &a, const auto &b) {
+    return a.e < b.e;
+  };
   if (sort_ouput)
-    std::sort(levels.begin(), levels.end(),
-              [](const auto &a, const auto &b) { return a.e < b.e; });
+    std::sort(levels.begin(), levels.end(), compare_energy);
+
+  // Find minimum (ground-state) energy (for level comparison)
+  const auto e0 =
+      !levels.empty() ?
+          std::min_element(levels.begin(), levels.end(), compare_energy)->e :
+          0.0;
 
   std::cout << "\nLevel Summary:\n\n";
-  const auto e0 = levels.at(0).e;
-
-  std::cout << "config. J π #    Term   Energy(au)  Energy(/cm)   Level(/cm) "
+  std::cout << "config Term J  π  #   Energy(au)  Energy(/cm)   Level(/cm) "
                " gJ\n";
   for (const auto &[config, twoj, parity, index, e, gJ, L, tSp1] : levels) {
 
-    char pm = parity == 1 ? '+' : '-';
+    // char pm = parity == 1 ? '+' : '-';
+    std::string pi = parity == 1 ? "" : "°";
 
-    fmt::print("{:<6s} {:>2} {} {}   {}^{}_{}  {:+11.8f}  {:+11.2f}  "
+    fmt::print("{:<6s} {}{:<2s} {:>2} {:+2} {:2}  {:+11.8f}  {:+11.2f}  "
                "{:11.2f}",
-               config, twoj / 2, pm, index, uint(std::round(tSp1)),
-               AtomData::L_symbol((int)std::round(L)), twoj / 2, e,
-               e * PhysConst::Hartree_invcm,
+               config, uint(std::round(tSp1)),
+               AtomData::L_symbol((int)std::round(L)) + pi, twoj / 2, parity,
+               index, e, e * PhysConst::Hartree_invcm,
                (e - e0) * PhysConst::Hartree_invcm);
     if (gJ != 0.0) {
       fmt::print("  {:.4f}", gJ);
@@ -446,7 +449,8 @@ run_CI(const std::string &atom_name,
        const std::vector<DiracSpinor> &ci_sp_basis,
        const std::map<nkm, int> &orbital_map, int twoJ, int parity,
        int num_solutions, const Coulomb::meTable<double> &h1,
-       const Coulomb::QkTable &qk, bool write_integrals, bool include_Sigma2,
+       const Coulomb::QkTable &qk, const Coulomb::LkTable &Sk,
+       bool write_integrals, bool include_Sigma2,
        const std::vector<DiracSpinor> &mbpt_basis, double E_Fermi, int min_n,
        const std::string &ci_input) {
   //----------------------------------------------------------------------------
@@ -517,9 +521,8 @@ run_CI(const std::string &atom_name,
   if (include_Sigma2 && !mbpt_basis.empty()) {
     LinAlg::Matrix H_sigma(CSFs.size(), CSFs.size());
 
-    const auto [core, excited] = MBPT::split_basis(mbpt_basis, E_Fermi, 1);
-
-    Angular::SixJTable sjt(DiracSpinor::max_tj(mbpt_basis));
+    // const auto [core, excited] = MBPT::split_basis(mbpt_basis, E_Fermi, 1);
+    // Angular::SixJTable sjt(DiracSpinor::max_tj(mbpt_basis));
 
     IO::ChronoTimer t("Add Sigma Sigma matrix");
 #pragma omp parallel for
@@ -530,7 +533,8 @@ run_CI(const std::string &atom_name,
         const auto &A = CSFs.at(iA);
         const auto &B = CSFs.at(iB);
 
-        const auto dE_AB = CI::Sigma2_AB(A, B, twoJ, qk, core, excited, sjt);
+        // const auto dE_AB = CI::Sigma2_AB(A, B, twoJ, qk, core, excited, sjt);
+        const auto dE_AB = CI::Sigma2_AB(A, B, twoJ, Sk);
         H_sigma(iA, iB) = dE_AB;
         // Add to other half of symmetric matrix:
         if (iB != iA) {
@@ -559,8 +563,7 @@ run_CI(const std::string &atom_name,
   //----------------------------------------------------------------------------
   std::cout << std::flush;
 
-  IO::ChronoTimer t2("Diagonalise:");
-  // const auto [val, vec] = LinAlg::symmhEigensystem(Hci);
+  IO::ChronoTimer t2("Diagonalise");
   const auto [val, vec] = LinAlg::symmhEigensystem(Hci, num_solutions);
   std::cout << "T=" << t2.lap_reading_str() << "\n";
   const auto E0 = val(0);
@@ -572,7 +575,8 @@ run_CI(const std::string &atom_name,
   // For calculating g-factors
   // (Use non-rel formula? Or relativistic M1?)
   DiracOperator::M1nr m1{};
-  // DiracOperator::M1 m1{wf.grid(), wf.alpha(), 0.0};
+  const auto pFa = CSFs.front().state(0);
+  DiracOperator::M1 m1_rel{pFa->grid(), 1.0 / 137.036, 0.0};
 
   int l1, l2;
 
@@ -583,7 +587,7 @@ run_CI(const std::string &atom_name,
         0.5 * twoJ, parity, val(i), val(i) * PhysConst::Hartree_invcm,
         (val(i) - E0) * PhysConst::Hartree_invcm);
 
-    double minimum_percentage = 1.0;
+    const double minimum_percentage = 1.0; // min % to print
     std::size_t max_j = 0;
     double max_cj = 0.0;
     for (std::size_t j = 0ul; j < vec.cols(); ++j) {
@@ -599,49 +603,33 @@ run_CI(const std::string &atom_name,
       }
     }
 
-    // Calculate g-factors, for line identification. Only defined for J!=0
-    double gJ = 0.0;
-
     // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
     // take J=Jz, <JJz|J|JJz> = J
     // then: g_J = <JJ|L + 2*S|JJ> / J
     // And: <JJ|L + 2*S|JJ> = 3js * <A||L+2S||A> (W.E. Theorem)
-    const auto m1AA = CI::ReducedME(vec.row(i), CSFs, twoJ, &m1);
+    const auto m1AA_NR = CI::ReducedME(vec.row(i), CSFs, twoJ, &m1);
+    const auto m1AA_R = CI::ReducedME(vec.row(i), CSFs, twoJ, &m1_rel);
     const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
 
+    // Calculate g-factors, for line identification. Only defined for J!=0
+    const double gJnr = twoJ != 0 ? tjs * m1AA_NR / (0.5 * twoJ) : 0.0;
+    const double gJ = twoJ != 0 ? tjs * m1AA_R / (0.5 * twoJ) : 0.0;
+
+    // Determine Term Symbol, from g-factor
+    // Use non-relativistic M1 operator for closest match
+    const auto [S, L] = CI::Term_S_L(l1, l2, twoJ, gJnr);
+
     if (twoJ != 0) {
-      gJ = tjs * m1AA / (0.5 * twoJ);
       std::cout << "gJ = " << gJ << "\n";
     }
 
-    // Determine Term Symbol, from g-factor
-    const auto min_L = std::abs(l1 - l2);
-    const auto max_L = std::abs(l1 + l2);
-    const auto min_S = 0;
-    const auto max_S = 1;
-    int L = min_L;
-    int S = min_L;
-    double best_del = 2.0;
-    if (twoJ != 0) {
-      for (int tL = min_L; tL <= max_L; ++tL) {
-        for (int tS = min_S; tS <= max_S; ++tS) {
-          auto gJNR = 1.5 + (tS * (tS + 1.0) - tL * (tL + 1.0)) /
-                                (twoJ * (0.5 * twoJ + 1.0));
-          if (std::abs(gJ - gJNR) < best_del) {
-            best_del = std::abs(gJ - gJNR);
-            L = tL;
-            S = tS;
-          }
-        }
-      }
-    }
     const auto tSp1 = 2.0 * S + 1.0;
 
     const auto config = CSFs.at(max_j).config();
-    char pm = parity == 1 ? '+' : '-';
+    const auto pm = parity == 1 ? "" : "°";
 
-    fmt::print("{:<6s} {}^{}_{} {}\n", config, uint(std::round(tSp1)),
-               AtomData::L_symbol((int)std::round(L)), twoJ / 2, pm);
+    fmt::print("{:<6s} {}^{}{}_{}\n", config, uint(std::round(tSp1)),
+               AtomData::L_symbol((int)std::round(L)), pm, twoJ / 2);
 
     out.emplace_back(
         CIlevel{config, twoJ, parity, int(i), val(i), gJ, double(L), tSp1});

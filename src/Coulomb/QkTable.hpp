@@ -75,7 +75,7 @@ public:
   //! For testing: prints details of coulomb integrals stored
   void summary() const;
   //! Returns number of stored integrals
-  int count() const;
+  std::size_t count() const;
 
   //! adds a new value. Note: does nothing if {k,a,b,c,d} already exists
   // XXX Update to return {it,bool}?
@@ -148,38 +148,6 @@ public:
   void write(const std::string &fname) const;
   //! Reads coulomb integrals to disk. Returns false if none read in
   bool read(const std::string &fname);
-
-  // //! Operator overload: scale by constant (nb: *= not *, since can't rely on
-  // //! polymorphism for return type..)
-  // void operator*=(double x) {
-  //   for (auto &q_k : m_data) {
-  //     for (auto &[key, qk_abcd] : q_k) {
-  //       qk_abcd *= x;
-  //     }
-  //   }
-  // }
-  // //! Operator overload: add another table (nb: += not +, since can't rely on
-  // //! polymorphism for return type..)
-  // void operator+=(const CoulombTable &Qk) {
-  //   int k = 0;
-  //   for (auto &q_k : m_data) {
-  //     for (auto &[key, qk_abcd] : q_k) {
-  //       // nb: cannot assume each map's entries in exact same order, so need
-  //       // 'find'
-  //       qk_abcd += Qk.Q(k, key);
-  //     }
-  //     ++k;
-  //   }
-  // }
-
-  // auto begin() { return m_data.begin(); }
-  // auto end() { return m_data.end(); }
-  // auto cbegin() { return m_data.cbegin(); }
-  // auto cend() { return m_data.cend(); }
-  // auto begin(std::size_t k) { return m_data.at(k).begin(); }
-  // auto end(std::size_t k) { return m_data.at(k).end(); }
-  // auto cbegin(std::size_t k) { return m_data.at(k).cbegin(); }
-  // auto cend(std::size_t k) { return m_data.at(k).cend(); }
 
 private:
   // Creates single 'nk4Index', WITHOUT accounting for 'NormalOrder'. Can be

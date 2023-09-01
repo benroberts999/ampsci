@@ -2,30 +2,22 @@
 
 ## CI
 
+* XXX Seems that Sigma1 breaks fine-structre.
+  * Lowest J seems to be correct, with far too big corrections for higher J?
 * CI Data structure. Store:
   * CSFs
   * Expansion coefs
   * Estimated term??
-* Write H matrix, and coefs to disk
+* Two-body integral file
+  * Read in file each time; calculate any new integrals only
+  * Only _use_ integrals corresponding to requested basis (even if they exist)
+  * Check this works with ci_sp in Hab_Sigma
 * Option for E-denominator type
 * Screening for Sigma(2)
+  * fk screening
+  * etak hp
 * Breit into g_2
-  * Breit into Sigma(2)?
 * Matrix elements module for CI
-* CI Routine:
-  * Form cisp_basis
-  * Form CSFs (for each Jpi)
-  * Calculate Qk etc.
-  * Form H matrix (quick)
-  * Sigma1
-    * Option: use matrix, or diagrams
-    * If matrix, but not formed - form?
-    * Denoms: lowest, or actual
-  * Form Sigma_2 matrix (slow)
-    * First, calculate (g+V)_vwxy just w/cisp_basis?
-    * Method for f_k and eta_k screening?
-  * Solve eigenvalue problem
-    * Parallel?
 
 ## Matrix elements module
 

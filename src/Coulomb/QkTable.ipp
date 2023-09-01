@@ -21,15 +21,15 @@ template <Symmetry S> void CoulombTable<S>::summary() const {
     total += qk.size();
     ++k;
   }
-  std::cout << "total: " << total << " non-zero Qk\n";
+  std::cout << "Total: " << total << " non-zero integrals\n";
 }
 
-template <Symmetry S> int CoulombTable<S>::count() const {
+template <Symmetry S> std::size_t CoulombTable<S>::count() const {
   auto total = 0ul;
   for (auto &qk : m_data) {
     total += qk.size();
   }
-  return static_cast<int>(total);
+  return total;
 }
 
 //==============================================================================
@@ -300,18 +300,6 @@ CoulombTable<S>::NormalOrder(const DiracSpinor &a, const DiracSpinor &b,
                              const DiracSpinor &c, const DiracSpinor &d) const {
   return NormalOrder_impl(a.nk_index(), b.nk_index(), c.nk_index(),
                           d.nk_index());
-  // if constexpr (S == Coulomb::Symmetry::Qk)
-  //   return NormalOrder_Q(a.nk_index(), b.nk_index(), c.nk_index(),
-  //                        d.nk_index());
-  // if constexpr (S == Coulomb::Symmetry::Wk)
-  //   return NormalOrder_W(a.nk_index(), b.nk_index(), c.nk_index(),
-  //                        d.nk_index());
-  // if constexpr (S == Coulomb::Symmetry::Lk)
-  //   return NormalOrder_L(a.nk_index(), b.nk_index(), c.nk_index(),
-  //                        d.nk_index());
-  // if constexpr (S == Coulomb::Symmetry::none)
-  //   return NormalOrder_none(a.nk_index(), b.nk_index(), c.nk_index(),
-  //                           d.nk_index());
 }
 
 //==============================================================================
@@ -341,8 +329,8 @@ nk4Index CoulombTable<S>::FormIndex(nkIndex a, nkIndex b, nkIndex c,
   // this seems slightly faster...though variance large
   static_assert(sizeof(nk4Index) == 4 * sizeof(nkIndex));
   static_assert(sizeof(nkIndex) * 8 == 16);
-  return (nk4Index)d + ((nk4Index)c << 16) + ((nk4Index)b << 32) +
-         ((nk4Index)a << 48);
+  return ((nk4Index)a << 48) + ((nk4Index)b << 32) + ((nk4Index)c << 16) +
+         (nk4Index)d;
 }
 
 //==============================================================================
@@ -424,15 +412,15 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
 #pragma omp parallel for
   for (auto k = 0ul; k <= max_k; ++k) {
     for (const auto &a : basis) {
-      for (const auto &b : basis) {
-        for (const auto &c : basis) {
-          if (!Angular::Ck_kk_SR(int(k), a.kappa(), c.kappa()))
-            continue;
+      for (const auto &c : basis) {
+        if (!Angular::Ck_kk_SR(int(k), a.kappa(), c.kappa()))
+          continue;
+        for (const auto &b : basis) {
           for (const auto &d : basis) {
+            if (!Angular::Ck_kk_SR(int(k), b.kappa(), d.kappa()))
+              continue;
             if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
-              if (Angular::Ck_kk_SR(int(k), b.kappa(), d.kappa())) {
-                add(int(k), a, b, c, d, 0.0);
-              }
+              add(int(k), a, b, c, d, 0.0);
             }
           }
         }
@@ -447,16 +435,17 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   // //isation is not very efficient, though in theory it can be 100%
   std::cout << "Fill w/ values: " << std::flush;
   t.start();
-#pragma omp parallel for
+#pragma omp parallel for collapse(2)
   for (auto ia = 0ul; ia < basis.size(); ++ia) {
-    const auto &a = basis[ia];
-    for (const auto &b : basis) {
+    for (auto ib = 0ul; ib < basis.size(); ++ib) {
+      const auto &a = basis[ia];
+      const auto &b = basis[ib];
       for (const auto &c : basis) {
         for (const auto &d : basis) {
           if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
-            auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
-            kmax = std::clamp(kmax, 0, int(max_k));
-            for (int k = kmin; k <= kmax; k += 2) {
+            const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
+            // kmax = std::clamp(kmax, 0, int(max_k));
+            for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
               update(k, a, b, c, d, yk.Q(k, a, b, c, d));
             }
           }
@@ -493,7 +482,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   than necisary)
   */
 
-  const auto tmp_max_k = std::size_t(DiracSpinor::max_tj(basis) - 1);
+  const auto tmp_max_k = std::size_t(DiracSpinor::max_tj(basis));
+  // May have different parity rule, so don't -1 here
 
   const auto max_k =
       (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
@@ -555,15 +545,16 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   // not adding any new elements to map, and since we are guarenteed to only
   // access each map element once, we can do this part in parallel. nb: This
   // //isation is not very efficient, though in theory it can be 100%
-  std::cout << "Fill w/ values: \n" << std::flush;
+  std::cout << "Fill w/ values: " << std::flush;
   t.start();
 
-  for (auto ia = 0ul; ia < basis.size(); ++ia) {
-    const auto &a = basis[ia];
-    t.start();
+#pragma omp parallel for collapse(2)
+  for (const auto &a : basis) {
+    // const auto &a = basis[ia];
+    // t.start();
     // For tests only:
-    std::cout << ia << "/" << basis.size() << "     \r" << std::flush;
-#pragma omp parallel for
+    // std::cout << ia << "/" << basis.size() << "     \r" << std::flush;
+    // Faster to parelise here??? or random?
     for (const auto &b : basis) {
       for (const auto &c : basis) {
         for (const auto &d : basis) {
@@ -578,8 +569,6 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  std::cout << "\n";
-
   std::cout << t.lap_reading_str() << std::endl;
 
   summary();
