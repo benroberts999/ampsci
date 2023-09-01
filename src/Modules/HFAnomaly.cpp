@@ -211,6 +211,9 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
         "differential hyperfine anomaly (1D2). Two inputs, comma separated: "
         "state (in 'short symbol' form), and 1D2 (in %). E.g.: '6s+, 0.5' "
         "[optional]"}});
+  if (input.has_option("help")) {
+    return;
+  }
 
   const auto hfs_options = input.getBlock("hfs_options");
 
