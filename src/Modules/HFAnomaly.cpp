@@ -210,7 +210,11 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
         "Fits magnetic radius for both nuclei to reproduce given target for "
         "differential hyperfine anomaly (1D2). Two inputs, comma separated: "
         "state (in 'short symbol' form), and 1D2 (in %). E.g.: '6s+, 0.5' "
-        "[optional]"}});
+        "[optional]"},
+       {"min_max_steps",
+        "List: For 1D2_target only: minimum and maximum magnetic "
+        "radii, as a fraction of charge radius, and number of "
+        "steps in the fit. Default=[0.9,1.5,10]"}});
   if (input.has_option("help")) {
     return;
   }
@@ -414,10 +418,12 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto &Fv1 = *pFv;
       const auto &Fv2 = *wf2.getState(a);
 
-      int num_steps = 10;
-      double r1_i = 0.9 * wf.get_rrms();
-      double r1_f = 1.3 * wf.get_rrms();
-      double dr = (r1_f - r1_i) / (num_steps - 1);
+      const auto min_max_steps =
+          input.get<std::vector<double>>("min_max_steps", {0.9, 1.5, 10});
+      const int num_steps = int(min_max_steps.at(2));
+      const double r1_i = min_max_steps.at(0) * wf.get_rrms();
+      const double r1_f = min_max_steps.at(1) * wf.get_rrms();
+      const double dr = (r1_f - r1_i) / (num_steps - 1);
 
       std::unique_ptr<ExternalField::DiagramRPA> rpa1{nullptr}, rpa22{nullptr};
 
@@ -472,11 +478,14 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
           return hf_1D2 - target_1D2;
         };
 
-        const auto r2_0 = (r1 / wf.get_rrms()) * wf2.get_rrms();
+        const auto r2_0 = /*(r1 / wf.get_rrms())**/ wf2.get_rrms();
         const auto [r2_fitted, error] = qip::Newtons(
-            delta_1D2, r2_0, {0.75 * r2_0, 1.5 * r1}, 2.0e-3, 0.05, 100);
+            delta_1D2, r2_0, {0.5 * r2_0, 2.0 * r2_0}, 2.0e-3, 0.005, 100);
 
-        fmt::print("{:.5f}   {:.5f}   {:.4f}\n", r1, r2_fitted, hf_1D2);
+        const auto D12_error = std::abs(hf_1D2 / target_1D2 - 1.0);
+        const auto flag = D12_error > 0.01 ? "***" : "";
+        fmt::print("{:.5f}   {:.5f}   {:.4f}  {}\n", r1, r2_fitted, hf_1D2,
+                   flag);
       }
     }
   }
