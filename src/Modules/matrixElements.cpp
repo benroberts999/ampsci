@@ -27,15 +27,19 @@ namespace Module {
 
 //==============================================================================
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
-  input.check({{"operator", "e.g., E1, hfs"},
-               {"options{}", "options specific to operator; blank by dflt"},
-               {"rpa", "true(=TDHF), false, TDHF, basis, diagram"},
-               {"omega", "Text or number. Freq. for RPA. Put 'each' to solve "
-                         "at correct frequency for each transition. [0.0]"},
-               {"what", "What to calculate: rme (reduced ME), A (hyperfine A/B "
-                        "coeficient), radial_integral. [rme]"},
-               {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-               {"diagonal", "only <a|h|a> (dflt false)"}});
+  input.check(
+      {{"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
+       {"options{}", "options specific to operator"},
+       {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram"},
+       {"omega", "Text or number. Freq. for RPA. Put 'each' to solve "
+                 "at correct frequency for each transition. [0.0]"},
+       {"what", "What to calculate: rme (reduced ME), A (hyperfine A/B "
+                "coeficient), radial_integral. Default is rme, except when "
+                "operator=hfs, in which case default is A"},
+       {"printBoth", "print <a|h|b> and <b|h|a> [false]"},
+       {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
+       {"off-diagonal",
+        "Calculate off-diagonal matrix elements (if non-zero) [true]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -57,7 +61,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool hf_AB =
       oper == "hfs" && h->rank() <= 2 &&
       (qip::ci_wc_compare(what, "A*") || qip::ci_wc_compare(what, "B*"));
-  const bool diagonal_only = hf_AB ? true : input.get("diagonal", false);
+
+  const bool diagonal = input.get("diagonal", true);
+  const bool off_diagonal = input.get("off-diagonal", true);
 
   const auto which_str = radial_int              ? "(radial integral)." :
                          hf_AB && h->rank() == 1 ? "(HFS constant A)." :
@@ -122,9 +128,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                                                       wf.vHF(), wf.identity());
   }
 
-  const auto mes =
-      ExternalField::calcMatrixElements(wf.valence(), h.get(), rpa.get(), omega,
-                                        eachFreqQ, diagonal_only, print_both);
+  const auto mes = ExternalField::calcMatrixElements(
+      wf.valence(), h.get(), rpa.get(), omega, eachFreqQ, diagonal,
+      off_diagonal, print_both);
 
   std::cout << (rpaQ ? ExternalField::MEdata::title() :
                        ExternalField::MEdata::title_noRPA())

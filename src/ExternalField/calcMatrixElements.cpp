@@ -12,8 +12,8 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
                                        const std::vector<DiracSpinor> &a_orbs,
                                        DiracOperator::TensorOperator *const h,
                                        CorePolarisation *const dV, double omega,
-                                       bool each_freq, bool diagonal_only,
-                                       bool calculate_both) {
+                                       bool each_freq, bool diagonal,
+                                       bool off_diagonal, bool calculate_both) {
 
   std::vector<MEdata> res;
 
@@ -30,38 +30,70 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
     dV->solve_core(omega);
   }
 
-  for (std::size_t ib = 0; ib < b_orbs.size(); ib++) {
-    const auto &Fb = b_orbs.at(ib);
+  // First, diagonal:
+  if (diagonal) {
+
+    if (each_freq && h->freqDependantQ()) {
+      h->updateFrequency(0.0);
+    }
+    if (each_freq && dV) {
+      if (dV->get_eps() > 1.0e-5)
+        dV->clear();
+      dV->solve_core(0.0);
+    }
+
     for (std::size_t ia = 0; ia < a_orbs.size(); ia++) {
       const auto &Fa = b_orbs.at(ia);
 
-      if (h->isZero(Fa.kappa(), Fb.kappa()))
+      if (h->isZero(Fa.kappa(), Fa.kappa()))
         continue;
-      if (diagonal_only && Fb != Fa)
-        continue;
-      if (pi == -1) {
-        if (!calculate_both && Fb.parity() == -1)
+
+      const auto hab = h->reducedME(Fa, Fa);
+      const auto dv = dV ? dV->dV(Fa, Fa) : 0.0;
+
+      const auto w = 0.0;
+      res.emplace_back(MEdata{Fa.shortSymbol(), Fa.shortSymbol(), w, hab, dv});
+    }
+  }
+
+  // Then, off-diagonal:
+  if (off_diagonal) {
+    for (std::size_t ib = 0; ib < b_orbs.size(); ib++) {
+      const auto &Fb = b_orbs.at(ib);
+      for (std::size_t ia = 0; ia < a_orbs.size(); ia++) {
+        const auto &Fa = b_orbs.at(ia);
+
+        if (Fa == Fb)
           continue;
-      } else {
-        if (!calculate_both && ib > ia)
+        if (h->isZero(Fa.kappa(), Fb.kappa()))
           continue;
-      }
 
-      const auto ww = std::abs(Fa.en() - Fb.en());
-      if (each_freq && h->freqDependantQ()) {
-        h->updateFrequency(ww);
-      }
-      if (each_freq && dV) {
-        if (dV->get_eps() > 1.0e-5)
-          dV->clear();
-        dV->solve_core(ww);
-      }
+        // Ensure even-parity state on right for odd-parity operators
+        if (pi == -1) {
+          if (!calculate_both && Fb.parity() == -1)
+            continue;
+        } else {
+          if (!calculate_both && ib > ia)
+            continue;
+        }
 
-      const auto hab = h->reducedME(Fa, Fb);
-      const auto dv = dV ? dV->dV(Fa, Fb) : 0.0;
+        const auto ww = std::abs(Fa.en() - Fb.en());
+        if (each_freq && h->freqDependantQ()) {
+          h->updateFrequency(ww);
+        }
+        if (each_freq && dV) {
+          if (dV->get_eps() > 1.0e-5)
+            dV->clear();
+          dV->solve_core(ww);
+        }
 
-      const auto w = Fa.en() - Fb.en();
-      res.emplace_back(MEdata{Fa.shortSymbol(), Fb.shortSymbol(), w, hab, dv});
+        const auto hab = h->reducedME(Fa, Fb);
+        const auto dv = dV ? dV->dV(Fa, Fb) : 0.0;
+
+        const auto w = Fa.en() - Fb.en();
+        res.emplace_back(
+            MEdata{Fa.shortSymbol(), Fb.shortSymbol(), w, hab, dv});
+      }
     }
   }
 

@@ -46,23 +46,22 @@ struct MEdata {
   }
 };
 
-std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
-                                       const std::vector<DiracSpinor> &a_orbs,
-                                       DiracOperator::TensorOperator *const h,
-                                       CorePolarisation *const dV = nullptr,
-                                       double omega = 0.0,
-                                       bool each_freq = false,
-                                       bool diagonal_only = false,
-                                       bool calculate_both = false);
+std::vector<MEdata>
+calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
+                   const std::vector<DiracSpinor> &a_orbs,
+                   DiracOperator::TensorOperator *const h,
+                   CorePolarisation *const dV = nullptr, double omega = 0.0,
+                   bool each_freq = false, bool diagonal = true,
+                   bool off_diagonal = true, bool calculate_both = false);
 
 inline std::vector<MEdata>
 calcMatrixElements(const std::vector<DiracSpinor> &orbs,
                    DiracOperator::TensorOperator *const h,
                    CorePolarisation *const dV = nullptr, double omega = 0.0,
-                   bool each_freq = false, bool diagonal_only = false,
-                   bool calculate_both = false) {
-  return calcMatrixElements(orbs, orbs, h, dV, omega, each_freq, diagonal_only,
-                            calculate_both);
+                   bool each_freq = false, bool diagonal = true,
+                   bool off_diagonal = true, bool calculate_both = false) {
+  return calcMatrixElements(orbs, orbs, h, dV, omega, each_freq, diagonal,
+                            off_diagonal, calculate_both);
 }
 
 } // namespace ExternalField
