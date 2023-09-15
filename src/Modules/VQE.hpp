@@ -49,15 +49,16 @@ struct CIlevel {
 };
 
 //==============================================================================
-std::vector<CIlevel>
-run_CI(const std::string &atom_name,
-       const std::vector<DiracSpinor> &ci_sp_basis,
-       const std::map<nkm, int> &orbital_map, int twoJ, int parity,
-       int num_solutions, const Coulomb::meTable<double> &h1,
-       const Coulomb::QkTable &qk, const Coulomb::LkTable &Sk,
-       bool write_integrals, bool include_Sigma2,
-       const std::vector<DiracSpinor> &mbpt_basis = {}, double E_Fermi = 0.0,
-       int min_n = 1, const std::string &ci_input = "");
+std::vector<CIlevel> run_CI(const std::string &atom_name,
+                            const std::vector<DiracSpinor> &ci_sp_basis,
+                            const std::map<nkm, int> &orbital_map, int twoJ,
+                            int parity, int num_solutions,
+                            const Coulomb::meTable<double> &h1,
+                            const Coulomb::QkTable &qk,
+                            const Coulomb::LkTable &Sk, bool write_integrals,
+                            bool include_Sigma2,
+                            const std::vector<DiracSpinor> &mbpt_basis = {},
+                            const std::string &ci_input = "");
 
 void write_CoulombIntegrals(const std::vector<DiracSpinor> &ci_sp_basis,
                             const std::map<nkm, int> &orbital_map,

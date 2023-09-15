@@ -33,6 +33,8 @@ public:
   T &operator()(std::size_t i) { return at(i); }
   //! As above, but const
   T operator()(std::size_t i) const { return at(i); }
+
+  T *data() { return m_data; }
 };
 
 //==============================================================================

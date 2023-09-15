@@ -303,7 +303,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
       const auto &sj = spl_basis[j];
       const auto &dsj = d_basis[j];
 
-      auto aij = wf.Hab(sj, dsj, si, dsi);
+      auto aij = wf.H0ab(sj, dsj, si, dsi);
       // const auto aij_2 = wf.Hab(sj,
       // si); auto aij = (0.75 * aij_1 +
       // 0.25 * aij_2); Actually, seems
@@ -509,7 +509,7 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
 
 std::pair<double, double> r_completeness(const DiracSpinor &Fa,
                                          const std::vector<DiracSpinor> &basis,
-                                         const Grid &gr) {
+                                         const Grid &gr, bool print) {
   // <a|a> = sum_n <a|r|n><n|1/r|a> = 1
   // <a|r^2|a> = sum_n <a|r|n><n|r|a>
 
@@ -531,11 +531,13 @@ std::pair<double, double> r_completeness(const DiracSpinor &Fa,
     // std::cout << Fn.shortSymbol() << " " << sum1 - 1.0 << " .. "
     //           << (sumr2 - sumr2_expect) / sumr2_expect << "\n";
   }
-  const auto eps1 = (sum1 - 1.0) / 1.0;
-  const auto epsr2 = (sumr2 - sumr2_expect) / sumr2_expect;
-  // std::cout << Fa.symbol() << ":\n";
-  // std::cout << sum1 << " " << eps1 << "\n";
-  // std::cout << sumr2 << " " << sumr2_expect << " " << epsr2 << "\n";
+  const auto eps1 = std::abs((sum1 - 1.0) / 1.0);
+  const auto epsr2 = std::abs((sumr2 - sumr2_expect) / sumr2_expect);
+  if (print) {
+    printf("%3s : %.0f [%.0f] %.1e | %9.4f [%9.4f] %.1e\n",
+           Fa.shortSymbol().c_str(), sum1, 1.0, eps1, sumr2, sumr2_expect,
+           epsr2);
+  }
   return {eps1, epsr2};
 }
 

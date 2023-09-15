@@ -36,17 +36,27 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
                               const std::vector<DiracSpinor> &cis2_basis,
                               const std::vector<DiracSpinor> &s2_basis_core,
                               const std::vector<DiracSpinor> &s2_basis_excited,
-                              const Coulomb::QkTable &qk, int max_delta_n,
+                              const Coulomb::QkTable &qk, int max_k,
                               bool exclude_wrong_parity_box);
 
+//==============================================================================
+//! Takes a subset of input basis according to subset_string.
+//! Only states *not* included in frozen_core_string are included.
+std::vector<DiracSpinor>
+basis_subset(const std::vector<DiracSpinor> &basis,
+             const std::string &subset_string,
+             const std::string &frozen_core_string = "");
+
 //! Calculate reduced matrix elements between two CI states. cA is CI expansion coefficients (row if CI eigenvector matrix)
-double ReducedME(const double *cA, const std::vector<CI::CSF2> &CSFAs,
-                 int twoJA, const double *cB,
+double ReducedME(const LinAlg::View<const double> &cA,
+                 const std::vector<CI::CSF2> &CSFAs, int twoJA,
+                 const LinAlg::View<const double> &cB,
                  const std::vector<CI::CSF2> &CSFBs, int twoJB,
                  const DiracOperator::TensorOperator *h);
 
 //! Overload for diagonal matrix elements
-double ReducedME(const double *cA, const std::vector<CI::CSF2> &CSFs, int twoJ,
+double ReducedME(const LinAlg::View<const double> &cA,
+                 const std::vector<CI::CSF2> &CSFs, int twoJ,
                  const DiracOperator::TensorOperator *h);
 
 //! Calculate reduce ME between two 2-particle CSFs - XXX not quite right??

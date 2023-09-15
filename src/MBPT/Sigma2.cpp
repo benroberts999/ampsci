@@ -1,4 +1,7 @@
 #include "Sigma2.hpp"
+#include "Angular/Angular.hpp"
+#include "Coulomb/Coulomb.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 
 namespace MBPT {
 
@@ -72,6 +75,8 @@ double InternalSigma::S_Sigma2_a(int k, const DiracSpinor &v,
                 / (e_xa - e_vn)
   */
 
+  // overall selectrion rule tested outside
+
   const auto f = Angular::neg1pow(k) / (2.0 * k + 1.0);
 
   // const auto de_xv = x.en() - v.en();
@@ -115,10 +120,7 @@ double InternalSigma::S_Sigma2_b(int k, const DiracSpinor &v,
                                  const Angular::SixJTable &SixJ,
                                  Denominators denominators) {
 
-  // I do this outside now
-  // if (!Coulomb::sixjTriads({}, {}, k, v, x, {}) ||
-  //     !Coulomb::sixjTriads({}, {}, k, y, w, {}))
-  //   return 0.0;
+  // overall selectrion rule tested outside
 
   const auto f =
       Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
@@ -177,6 +179,8 @@ double InternalSigma::S_Sigma2_c(int k, const DiracSpinor &v,
                                  const Angular::SixJTable &SixJ,
                                  Denominators denominators) {
 
+  // overall selectrion rule tested outside
+
   const auto f =
       Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
       (2.0 * k + 1.0);
@@ -185,10 +189,6 @@ double InternalSigma::S_Sigma2_c(int k, const DiracSpinor &v,
   const auto de_yv = denominators == Denominators::BW ?
                          0.0 :
                          0.5 * (x.en() - w.en() + y.en() - v.en());
-
-  // if (!Coulomb::sixjTriads({}, {}, k, v, x, {}) ||
-  //     !Coulomb::sixjTriads({}, {}, k, y, w, {}))
-  //   return 0.0;
 
   double sum = 0.0;
   for (const auto &a : core) {

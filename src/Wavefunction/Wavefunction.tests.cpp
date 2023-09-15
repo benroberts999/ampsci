@@ -100,6 +100,11 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   REQUIRE(std::abs(number_in_core_from_rho - wf.Ncore()) < 1.0e-6);
 
   //============================================================================
+  for (auto &v : wf.valence()) {
+    REQUIRE(v.en() == Approx(wf.Hab(v, v)).epsilon(1.0e-7));
+  }
+
+  //============================================================================
 
   wf.formSigma(2, 1.0e-3, 15.0, 8, false, false, {}, {}, {}, "false", "false");
   wf.hartreeFockBrueckner(true);
@@ -131,12 +136,85 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   REQUIRE(eps4 < 1.0e-12);
 
   //============================================================================
-  wf.radiativePotential({1.0, 0.0, 1.0, 1.0, 1.0}, 1.0, 1.0, {1.0, 0.0}, false,
-                        true);
+  // With Brueckner
+  wf.printValence();
+  for (auto &v : wf.valence()) {
+    REQUIRE(v.en() == Approx(wf.Hab(v, v)).epsilon(1.0e-7));
+  }
 
-  REQUIRE(wf.vrad() != nullptr);
-  REQUIRE(wf.Hmag().size() == num_points);
-  wf.solve_core();
+  //============================================================================
+  std::cout << "\nRadiative Potential inclusion (just wf unit test)\n";
+
+  Wavefunction wfQED({num_points, r0, rmax, b, "loglinear", -1.0},
+                     {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wfQED.set_HF("HartreeFock", 0.0, "[Ne]", 1.0e-4);
+  wfQED.radiativePotential({1.0, 0.0, 1.0, 1.0, 1.0}, 1.0, 1.0, {1.0, 0.0},
+                           false, true);
+  wfQED.solve_core(true);
+  wfQED.solve_valence(val_str);
+
+  REQUIRE(wfQED.vrad() != nullptr);
+  REQUIRE(wfQED.Hmag().size() == num_points);
+
+  for (auto &v : wfQED.valence()) {
+    REQUIRE(v.en() != Approx(wf.Hab(v, v)).epsilon(1.0e-7));
+    REQUIRE(v.en() == Approx(wfQED.Hab(v, v)).epsilon(1.0e-7));
+  }
+
+  wfQED.radiativePotential(IO::InputBlock{}, false, true);
+
+  REQUIRE(wfQED.vrad() != nullptr);
+  REQUIRE(wfQED.Hmag().size() == num_points);
+
+  //============================================================================
+  std::cout << "\nBreit inclusion (just wf unit test)\n";
+
+  Wavefunction wfBr({num_points, r0, rmax, b, "loglinear", -1.0},
+                    {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wfBr.solve_core("HartreeFock", 1.0, "[Ne]", 1.0e-4);
+  wfBr.solve_valence(val_str);
+
+  REQUIRE(wfBr.vHF()->vBreit() != nullptr);
+
+  for (auto &v : wfBr.valence()) {
+    REQUIRE(v.en() != Approx(wf.Hab(v, v)).epsilon(1.0e-7));
+    REQUIRE(v.en() == Approx(wfBr.Hab(v, v)).epsilon(1.0e-7));
+  }
+
+  //============================================================================
+  std::cout << "\nH-like test:\n";
+  Wavefunction hlike({2000, r0, 150, b, "loglinear", -1.0},
+                     {"H", -1, "pointlike", -1.0, -1.0}, 1.0);
+  hlike.solve_core("HartreeFock", 0.0, "[]"); // should do nothing!
+  hlike.solve_valence("4spdf");
+  hlike.printValence();
+
+  for (auto &v : hlike.valence()) {
+    REQUIRE(v.en() ==
+            Approx(AtomData::diracen(1.0, v.n(), v.kappa(), hlike.alpha()))
+                .epsilon(1.0e-9));
+  }
+
+  std::cout << "\nH-like test, non-relativistic limit:\n";
+  Wavefunction hlike_nr({2000, r0, 150, b, "loglinear", -1.0},
+                        {"H", -1, "pointlike", -1.0, -1.0}, 1.0e-9);
+  // should be allowed to skip for H-like!
+  // hlike_nr.solve_core("HartreeFock", 0.0, "[]");
+  hlike_nr.solve_valence("4spdf");
+  hlike_nr.printValence();
+  for (auto &v : hlike_nr.valence()) {
+    std::cout << v.en() << " "
+              << AtomData::diracen(1.0, v.n(), v.kappa(), hlike.alpha()) << " "
+              << AtomData::diracen(1.0, v.n(), v.kappa(), hlike_nr.alpha())
+              << "\n";
+
+    REQUIRE(v.en() !=
+            Approx(AtomData::diracen(1.0, v.n(), v.kappa(), hlike.alpha()))
+                .epsilon(1.0e-9));
+    REQUIRE(v.en() ==
+            Approx(AtomData::diracen(1.0, v.n(), v.kappa(), hlike_nr.alpha()))
+                .epsilon(1.0e-9));
+  }
 }
 
 //==============================================================================

@@ -296,6 +296,7 @@ void ampsci(const IO::InputBlock &input) {
        {"Correlations{}", "Options for MBPT and correlation corrections"},
        {"Spectrum{}",
         "Like basis, but includes correlations. Used for sum-over-states"},
+       {"CI{}", "Configuration Interaction"},
        {"Module::*{}", "Run any number of modules (* -> module name). `ampsci "
                        "-m` to see available modules"}});
   input.check({"EasterEgg"}, {{"", EasterEgg::get_egg()}});
@@ -678,6 +679,11 @@ void ampsci(const IO::InputBlock &input) {
       std::cout << "Spectrum:\n";
       wf.printBasis(wf.spectrum());
     }
+  }
+
+  const auto CI_in = input.getBlock("CI");
+  if (CI_in) {
+    wf.ConfigurationInteraction(*CI_in);
   }
 
   // run each of the modules with the calculated wavefunctions

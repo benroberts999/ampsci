@@ -78,7 +78,6 @@ public:
   std::size_t count() const;
 
   //! adds a new value. Note: does nothing if {k,a,b,c,d} already exists
-  // XXX Update to return {it,bool}?
   void add(int k, const DiracSpinor &a, const DiracSpinor &b,
            const DiracSpinor &c, const DiracSpinor &d, Real value);
   //! Overload for when 'nk4Index' already known
@@ -150,6 +149,8 @@ public:
   bool read(const std::string &fname);
 
 private:
+  double *get(int k, nk4Index index);
+
   // Creates single 'nk4Index', WITHOUT accounting for 'NormalOrder'. Can be
   // used to check if {a,b,c,d} are already in 'NormalOrder'
   nk4Index CurrentOrder(const DiracSpinor &a, const DiracSpinor &b,

@@ -7,6 +7,9 @@ namespace LinAlg {
 //! Vector class (inherits from Matrix)
 template <typename T = double> class Vector : public Matrix<T> {
 public:
+  //! Default construct
+  Vector() : Matrix<T>() {}
+
   //! Initialise a blank square matrix dimension*dimension, filled with 0
   Vector(std::size_t dimension) : Matrix<T>(dimension, 1) {}
 

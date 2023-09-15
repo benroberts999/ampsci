@@ -1,4 +1,5 @@
 #include "Wavefunction/Wavefunction.hpp"
+#include "CI/CI.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
@@ -341,7 +342,8 @@ double Wavefunction::FermiLevel() const {
   if (core().empty()) {
     return 1.1 * ev_min;
   }
-  return ec_max + 0.5 * (ev_min - ec_max) + 1.0e-9;
+  const auto extra = m_valence.empty() ? 1.0e-3 : 1.0e-5;
+  return ec_max + 0.5 * (ev_min - ec_max) + extra;
 }
 double Wavefunction::energy_gap() const {
 
@@ -707,6 +709,45 @@ int Wavefunction::Ncore() const {
 
 //==============================================================================
 double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+
+  auto H0 = H0ab(Fa, Fb);
+
+  const auto excl_exch = vHF() ? vHF()->excludeExchangeQ() : true;
+  const auto sigmaQ = Sigma() != nullptr;
+  const auto VBr = vHF() ? vHF()->vBreit() : nullptr;
+
+  if (!excl_exch)
+    H0 += Fa * vHF()->vexFa(Fb); // what about non-HF method?
+  if (sigmaQ)
+    H0 += Fa * (*Sigma())(Fb);
+  if (VBr)
+    H0 += Fa * VBr->VbrFa(Fb, core());
+  return H0;
+}
+
+//==============================================================================
+double Wavefunction::H0ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+  if (Fa.kappa() != Fb.kappa())
+    return 0.0;
+  const auto the_same = &Fa == &Fb;
+  const auto dga = NumCalc::derivative(Fa.g(), rgrid->drdu(), rgrid->du(), 1);
+  const auto dgb =
+      the_same ? dga :
+                 NumCalc::derivative(Fb.g(), rgrid->drdu(), rgrid->du(), 1);
+  return H0ab_impl(Fa, dga, Fb, dgb);
+}
+
+//==============================================================================
+double Wavefunction::H0ab(const DiracSpinor &Fa, const DiracSpinor &dFa,
+                          const DiracSpinor &Fb, const DiracSpinor &dFb) const {
+  return H0ab_impl(Fa, dFa.g(), Fb, dFb.g());
+}
+
+//==============================================================================
+double Wavefunction::H0ab_impl(const DiracSpinor &Fa, std::vector<double> dga,
+                               const DiracSpinor &Fb,
+                               std::vector<double> dgb) const {
+  // as above, but for when derivatives are already known
   if (Fa.kappa() != Fb.kappa())
     return 0.0;
   const auto kappa = Fa.kappa();
@@ -714,11 +755,8 @@ double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   const auto min = std::max(Fa.min_pt(), Fb.min_pt());
   const auto &drdu = Fa.grid().drdu();
 
-  const auto the_same = &Fa == &Fb;
-
-  auto dga = NumCalc::derivative(Fa.g(), drdu, Fb.grid().du(), 1);
-  auto dgb =
-      the_same ? dga : NumCalc::derivative(Fb.g(), drdu, Fb.grid().du(), 1);
+  // auto dga = dFa.g();
+  // auto dgb = dFb.g();
 
   for (std::size_t i = min; i < max; i++) {
     const auto r = Fa.grid().r(i);
@@ -747,42 +785,9 @@ double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   return (Vab - H_mag - c * (D1m2 + 2.0 * c * Sab)) * Fa.grid().du();
 }
 
-double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &dFa,
-                         const DiracSpinor &Fb, const DiracSpinor &dFb) const {
-  // as above, but for when derivatives are already known
-  if (Fa.kappa() != Fb.kappa())
-    return 0.0;
-  const auto kappa = Fa.kappa();
-  const auto max = std::min(Fa.max_pt(), Fb.max_pt());
-  const auto min = std::max(Fa.min_pt(), Fb.min_pt());
-  const auto &drdu = Fa.grid().drdu();
-
-  auto dga = dFa.g();
-  auto dgb = dFb.g();
-
-  for (std::size_t i = min; i < max; i++) {
-    const auto r = Fa.grid().r(i);
-    dga[i] -= (kappa * Fa.g(i) / r);
-    dgb[i] -= (kappa * Fb.g(i) / r);
-  }
-
-  const auto D1m2 = NumCalc::integrate(1.0, min, max, Fa.f(), dgb, drdu) +
-                    NumCalc::integrate(1.0, min, max, Fb.f(), dga, drdu);
-
-  const auto Sab = NumCalc::integrate(1.0, min, max, Fa.g(), Fb.g(), drdu);
-
-  const auto &v = vlocal(Fa.l());
-  const auto Vab = NumCalc::integrate(1.0, min, max, Fa.f(), Fb.f(), v, drdu) +
-                   NumCalc::integrate(1.0, min, max, Fa.g(), Fb.g(), v, drdu);
-
-  const auto &Hmaga = Hmag(Fa.l());
-
-  const auto H_mag =
-      Hmaga.empty() ?
-          0.0 :
-          NumCalc::integrate(1.0, min, max, Fa.f(), Fb.g(), Hmaga, drdu) +
-              NumCalc::integrate(1.0, min, max, Fa.g(), Fb.f(), Hmaga, drdu);
-  const auto c = 1.0 / m_alpha;
-
-  return (Vab - H_mag - c * (D1m2 + 2.0 * c * Sab)) * Fa.grid().du();
+//==============================================================================
+void Wavefunction::ConfigurationInteraction(const IO::InputBlock &input) {
+  std::cout << "\n========================================================\n"
+            << "Configuration Interaction:\n";
+  m_CIwfs = CI::configuration_interaction(input, *this);
 }

@@ -1,8 +1,7 @@
-#include "MBPT/CorrelationPotential.hpp"
+#include "CorrelationPotential.hpp"
 #include "DiracODE/DiracODE.hpp"
-#include "MBPT/Feynman.hpp"
-#include "MBPT/Goldstone.hpp"
-#include "MBPT/Sigma2.hpp"
+#include "Feynman.hpp"
+#include "Goldstone.hpp"
 #include "Maths/Grid.hpp"
 #include "Sigma2.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
@@ -19,7 +18,7 @@
 TEST_CASE("MBPT: Goldstone, unit tests", "[MBPT][Goldstone][unit]") {
 
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Feynman diagram, unit tests (not meant to be accurate)\n";
+  std::cout << "Goldstone diagram, unit tests (not meant to be accurate)\n";
 
   Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
                   {"Na", -1, "Fermi"}, 1.0);
@@ -182,8 +181,10 @@ TEST_CASE("MBPT: Feynman, unit tests", "[MBPT][Feynman][unit]") {
 }
 
 //==============================================================================
-TEST_CASE("MBPT: CorrelationPotential",
-          "[MBPT][CorrelationPotential][unit]") { //
+TEST_CASE("MBPT: CorrelationPotential", "[MBPT][CorrelationPotential][unit]") {
+
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "MBPT: CorrelationPotential\n";
 
   Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
                   {"Na", -1, "Fermi"}, 1.0);
@@ -518,5 +519,77 @@ TEST_CASE("MBPT: Correlation Potential: SigmaAO",
     // pass &= qip::check_value(&obuff, "Sigma all-orders Cs", eps, 0.0, 5e-04);
     // Used to be 5e-4..?
     REQUIRE(std::abs(eps) < 5e-03);
+  }
+}
+
+//==============================================================================
+TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][unit]") {
+
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "MBPT: Sigma2 (unit)\n";
+
+  // note: does not test formulas: just checks class is working correctly.
+  // Not meant to be accurate!
+  Wavefunction wf({400, 1.0e-3, 30.0, 10.0, "loglinear", -1.0},
+                  {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("Local", 0.0, "[Ne]", 1.0e-4);
+  wf.solve_valence("3spd");
+  wf.formBasis({"5spdf", 20, 5, 1.0e-2, 1.0e-2, 20.0, false});
+
+  const auto &[core, excited] =
+      MBPT::split_basis(wf.basis(), wf.FermiLevel(), 2);
+  const auto mbpt_basis = qip::merge(core, excited);
+
+  int kmax = 4;
+  Coulomb::QkTable qk;
+  Coulomb::YkTable yk(mbpt_basis);
+  const Angular::SixJTable &SixJ = yk.SixJ();
+  qk.fill(mbpt_basis, yk, kmax);
+
+  for (auto &v : wf.valence()) {
+    for (auto &w : wf.valence()) {
+      for (auto &x : wf.valence()) {
+        for (auto &y : wf.valence()) {
+          for (int k = 0; k <= kmax; ++k) {
+
+            //  Lk symmetry:
+            //  {abcd} = badc
+
+            const double sk1 = MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited,
+                                             SixJ, MBPT::Denominators::BW);
+
+            const double sk2 = MBPT::Sk_vwxy(k, w, v, y, x, qk, core, excited,
+                                             SixJ, MBPT::Denominators::BW);
+
+            const double sk3 =
+                MBPT::InternalSigma::S_Sigma2_a(k, v, w, x, y, qk, core,
+                                                excited, SixJ,
+                                                MBPT::Denominators::BW) +
+                MBPT::InternalSigma::S_Sigma2_b(k, v, w, x, y, qk, core,
+                                                excited, SixJ,
+                                                MBPT::Denominators::BW) +
+                MBPT::InternalSigma::S_Sigma2_c(k, v, w, x, y, qk, core,
+                                                excited, SixJ,
+                                                MBPT::Denominators::BW) +
+                MBPT::InternalSigma::S_Sigma2_d(k, v, w, x, y, qk, core,
+                                                excited, SixJ);
+
+            // tests symmetry:
+            REQUIRE(sk2 == Approx(sk1));
+
+            // tests formula (SR is checked in Sk_vwxy, not in internal):
+            REQUIRE(sk3 == Approx(sk1));
+
+            // Check selectrion rules
+            if (MBPT::Sk_vwxy_SR(k, v, w, x, y)) {
+              // This isn't always true... ?? Means SRs should be improves!
+              // REQUIRE(sk3 != 0.0);
+            } else {
+              REQUIRE(sk3 == 0.0);
+            }
+          }
+        }
+      }
+    }
   }
 }

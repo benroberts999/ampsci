@@ -2,12 +2,13 @@
 
 ## CI
 
-* XXX Seems that Sigma1 breaks fine-structre.
+* BUG: Seems that Sigma1 breaks fine-structre.
   * Lowest J seems to be correct, with far too big corrections for higher J?
-* CI Data structure. Store:
-  * CSFs
-  * Expansion coefs
-  * Estimated term??
+* Calculate MEs for CI
+* Update solutions:
+  * re-calculate more?
+  * Check if any didn't converge
+  * Control over tolerance?
 * Two-body integral file
   * Read in file each time; calculate any new integrals only
   * Only _use_ integrals corresponding to requested basis (even if they exist)
@@ -17,13 +18,6 @@
   * fk screening
   * etak hp
 * Breit into g_2
-* Matrix elements module for CI
-
-## Matrix elements module
-
-* Calculate diag + non-diag seperately
-* diag = true
-* off-diag = true
 
 ## Correlations (#21)
 
@@ -41,6 +35,7 @@
 ## CorePolarisation - code
 
 * Streamline the core-polarisation classes: unified calling syntax
+* Allow it to work like an operator!
 
 ## Qk, Coulomb, Angular
 
@@ -73,18 +68,24 @@
 * Exchange (2nd order): w1 and w1w2
 * g-part for Feynman?
 * Breit issue? (see below)
+* New method for Green's function at imag. energy
+* Mixed methods: etak and fk
 
 ## Breit
 
 * Frequency-dependent Breit
 * "Two-body" Breit into Sigma(2)
 * Breit matrix - for inclusion into Green's function (needs G?)
+* Breit into RPA(D)/RPA - test?
 
 ## Modules
 
 * PNC
 * Cleanup and improve other modules
 * System for incorperating external modules?
+* Compile seperately: required read wf from disk!
+  * and/or, call external functions
+* Compile seperate modules: use ampsci as a library
 
 ## Ladder diagrams (#13)
 
@@ -101,5 +102,7 @@
 
 ## Improve/modernise
 
+* Consider TOML input?
+* Clean UserInput
 * Standardise input/output
 * Option for JSON output?

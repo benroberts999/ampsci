@@ -7,8 +7,14 @@ TEST_CASE("qip::Vector", "[qip][Vector][unit]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "qip::Vector\n";
 
+  //--------------------------------
+
   const std::vector a{1, 2, 3, 4, 5, 6};
   const std::vector b{1, 2, 4, 4, 5, 6};
+  const std::vector b2{9, 10, 11};
+
+  REQUIRE(qip::merge(a, b, b2) ==
+          std::vector{1, 2, 3, 4, 5, 6, 1, 2, 4, 4, 5, 6, 9, 10, 11});
 
   const auto [del, it] = qip::compare(a, b);
   REQUIRE(*it == 3);
@@ -21,6 +27,9 @@ TEST_CASE("qip::Vector", "[qip][Vector][unit]") {
 
   const std::vector x{1.0, 2.0, 3.0, 4.0, 5.0, 6.0};
   const std::vector y{1.0, 2.0, 4.0, 4.0, 5.0, 6.0};
+
+  REQUIRE(qip::merge(x, y) == std::vector{1.0, 2.0, 3.0, 4.0, 5.0, 6.0, 1.0,
+                                          2.0, 4.0, 4.0, 5.0, 6.0});
 
   const auto [eps3, it3] = qip::compare_eps(x, y);
   REQUIRE(*it3 == 3.0);

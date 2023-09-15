@@ -562,7 +562,7 @@ void Hamiltonian(const Wavefunction &wf) {
     double worst_eps = 0.0;
     const DiracSpinor *worst_Fn = nullptr;
     for (const auto &Fn : *tmp_orbs) {
-      double Haa_d = wf.Hab(Fn, Fn);
+      double Haa_d = wf.H0ab(Fn, Fn);
       double Haa_x = Fn * HF::vexFa(Fn, wf.core());
       auto Haa = Haa_d + Haa_x;
       if (tmp_orbs != &wf.core() && wf.Sigma() != nullptr) {

@@ -13,6 +13,18 @@ namespace qip {
 // Uses "no non-const ref" rule. Pass by pointer means modify value
 
 //==============================================================================
+//! Merges a number of vectors: {a,b,c},{d,e},{f} -> {a,b,c,d,e,f}
+template <typename T, typename... Args>
+std::vector<T> merge(std::vector<T> first, const std::vector<T> &second,
+                     const Args &...rest) {
+  first.insert(first.end(), second.cbegin(), second.cend());
+  if constexpr (sizeof...(rest) == 0) {
+    return first;
+  } else {
+    return merge(std::move(first), rest...);
+  }
+}
+//==============================================================================
 //! Directly compare two arithmetic vectors of the same type and length.
 //! Returns pair {delta, itr} where delta = |max|{first - second}, itr is
 //! iterator to position in first vector where the maximum delta occured.

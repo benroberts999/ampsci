@@ -2,6 +2,7 @@
 #include "Angular/Angular.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <vector>
 
 namespace MBPT {
 

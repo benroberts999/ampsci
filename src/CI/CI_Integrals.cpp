@@ -206,7 +206,7 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
                               const std::vector<DiracSpinor> &cis2_basis,
                               const std::vector<DiracSpinor> &s2_basis_core,
                               const std::vector<DiracSpinor> &s2_basis_excited,
-                              const Coulomb::QkTable &qk, int max_delta_n,
+                              const Coulomb::QkTable &qk, int max_k,
                               bool exclude_wrong_parity_box) {
 
   Coulomb::LkTable Sk;
@@ -225,34 +225,74 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
   const auto Sk_selection_rule = [&](int k, const DiracSpinor &v,
                                      const DiracSpinor &w, const DiracSpinor &x,
                                      const DiracSpinor &y) {
-    const auto min_n = std::min({v.n(), w.n(), x.n(), y.n()});
-    const auto max_n = std::max({v.n(), w.n(), x.n(), y.n()});
-    if (max_n - min_n > max_delta_n)
-      return false;
     return exclude_wrong_parity_box ? Coulomb::Qk_abcd_SR(k, v, w, x, y) :
                                       MBPT::Sk_vwxy_SR(k, v, w, x, y);
   };
 
-  // XXX Update this, so that it can read in a partially-filled existing map, and extend for new integrals!
-
   // Try to read from disk (may already have calculated Qk)
-  const auto read_Sk_from_file_ok = Sk.read(filename);
-  if (!read_Sk_from_file_ok) {
-    // if didn't find Qk file to read in, calculate from scratch:
+  Sk.read(filename);
 
-    // use whole basis (these are used iside Sigma_2)
-    Sk.fill(cis2_basis, Sk_function, Sk_selection_rule);
+  const auto existing = Sk.count();
+  {
+    Sk.fill(cis2_basis, Sk_function, Sk_selection_rule, max_k);
 
-    Sk.write(filename);
+    const auto total = Sk.count();
+    assert(total >= existing);
+    const auto new_integrals = total - existing;
+    std::cout << "Calculated " << new_integrals << " new MBPT integrals\n";
+    if (new_integrals > 0) {
+      Sk.write(filename);
+    }
   }
   return Sk;
 }
 
 //==============================================================================
+// Takes a subset of input basis according to subset_string.
+// Only states *not* included in frozen_core_string are included.
+std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
+                                      const std::string &subset_string,
+                                      const std::string &frozen_core_string) {
+
+  // Form 'subset' from {a} in 'basis', if:
+  //    a _is_ in subset_string AND
+  //    a _is not_ in basis string
+
+  std::vector<DiracSpinor> subset;
+  const auto nmaxk_list = AtomData::n_kappa_list(subset_string);
+  const auto core_list = AtomData::core_parser(frozen_core_string);
+
+  for (const auto &a : basis) {
+
+    // Check if a is present in 'subset_string'
+    const auto nk =
+        std::find_if(nmaxk_list.cbegin(), nmaxk_list.cend(),
+                     [&a](const auto &tnk) { return a.kappa() == tnk.second; });
+    if (nk == nmaxk_list.cend())
+      continue;
+    // nk is now max n, for given kappa {max_n, kappa}
+    if (a.n() > nk->first)
+      continue;
+
+    // assume only filled shells in frozen core
+    const auto core = std::find_if(
+        core_list.cbegin(), core_list.cend(), [&a](const auto &tcore) {
+          return a.n() == tcore.n && a.l() == tcore.l;
+        });
+
+    if (core != core_list.cend())
+      continue;
+    subset.push_back(a);
+  }
+  return subset;
+}
+
+//==============================================================================
 // Calculate reduced matrix elements between two CI states.
 // cA is CI expansion coefficients (row if CI eigenvector matrix)
-double ReducedME(const double *cA, const std::vector<CI::CSF2> &CSFAs,
-                 int twoJA, const double *cB,
+double ReducedME(const LinAlg::View<const double> &cA,
+                 const std::vector<CI::CSF2> &CSFAs, int twoJA,
+                 const LinAlg::View<const double> &cB,
                  const std::vector<CI::CSF2> &CSFBs, int twoJB,
                  const DiracOperator::TensorOperator *h) {
 
@@ -287,7 +327,8 @@ double ReducedME(const double *cA, const std::vector<CI::CSF2> &CSFAs,
 
 //==============================================================================
 // Overload for diagonal matrix elements
-double ReducedME(const double *cA, const std::vector<CI::CSF2> &CSFs, int twoJ,
+double ReducedME(const LinAlg::View<const double> &cA,
+                 const std::vector<CI::CSF2> &CSFs, int twoJ,
                  const DiracOperator::TensorOperator *h) {
   return ReducedME(cA, CSFs, twoJ, cA, CSFs, twoJ, h);
 }

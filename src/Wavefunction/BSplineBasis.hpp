@@ -136,5 +136,5 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
 
 std::pair<double, double> r_completeness(const DiracSpinor &Fv,
                                          const std::vector<DiracSpinor> &basis,
-                                         const Grid &gr);
+                                         const Grid &gr, bool print = false);
 } // namespace SplineBasis

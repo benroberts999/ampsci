@@ -5,6 +5,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
+#include "qip/Random.hpp"
 #include <random>
 
 //==============================================================================
@@ -73,7 +74,8 @@ TEST_CASE("Coulomb: Q,W,N k Table", "[Coulomb][QkTable][unit]") {
   double x = 16.5;
   double y = 3.5;
   int k = 3;
-  std::string file_name{"tst_deleteme.qk"};
+  const auto rand_str = qip::random_string(6);
+  std::string file_name{"deleteme_" + rand_str + ".qk"};
 
   // Qk
   {
@@ -199,7 +201,8 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
   // Coulomb::NkTable qk;
   qk_t.fill(wf.basis(), yk);
 
-  const std::string fname = "tst_deleteme.qk";
+  const auto rand_str = qip::random_string(6);
+  std::string fname{"deleteme_" + rand_str + ".qk"};
 
   {
     IO::ChronoTimer t("Write to disk");

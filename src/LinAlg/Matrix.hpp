@@ -32,9 +32,12 @@ template <typename T = double> class Matrix {
 protected:
   std::size_t m_rows;
   std::size_t m_cols;
-  std::vector<T> m_data;
+  std::vector<T> m_data{};
 
 public:
+  //! Default initialiser
+  Matrix() : m_rows(0), m_cols(0) {}
+
   //! Initialise a blank matrix rows*cols, filled with 0
   Matrix(std::size_t rows, std::size_t cols)
       : m_rows(rows), m_cols(cols), m_data(rows * cols) {}

@@ -352,7 +352,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     // Uehling only (fast)
     auto h = DiracOperator::generate(
         "Vrad",
-        {"pnc", "readwrite=false; Ueh=1.0; SE_h=0.0; SE_l=0.0; SE_m=0.0"}, wf);
+        {"Vrad", "readwrite=false; Ueh=1.0; SE_h=1.0; SE_l=1.0; SE_m=1.0"}, wf);
 
     REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);

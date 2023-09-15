@@ -49,6 +49,18 @@ std::array<const DiracSpinor *, 2> CSF2::diff_1_na(const CSF2 &A,
   assert(false); // should be unreachable, for testing
 }
 
+int CSF2::parity() const { return states[0]->parity() * states[1]->parity(); }
+
+std::string CSF2::config(bool relativistic) const {
+  auto s1 = states[0]->shortSymbol();
+  auto s2 = states[1]->shortSymbol();
+  if (!relativistic) {
+    s1.pop_back();
+    s2.pop_back();
+  }
+  return s1 == s2 ? s1 + "^2" : s1 + s2;
+}
+
 //==============================================================================
 // Forms list of all possible (2-particle) CSFs with given J and parity
 std::vector<CSF2> form_CSFs(int twoJ, int parity,
@@ -89,43 +101,70 @@ std::vector<CSF2> form_CSFs(int twoJ, int parity,
 }
 
 //==============================================================================
-// Takes a subset of input basis according to subset_string.
-// Only states *not* included in frozen_core_string are included.
-std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
-                                      const std::string &subset_string,
-                                      const std::string &frozen_core_string) {
 
-  // Form 'subset' from {a} in 'basis', if:
-  //    a _is_ in subset_string AND
-  //    a _is not_ in basis string
+// Solves the CI equation for Hamiltonian matrix Hci;
+// finds first num_solutions solutions.
+// Doesn't set the Config info: have to call update_config_info() manually.
+void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions) {
+  assert(Hci.rows() == Hci.cols());
+  assert(Hci.rows() == m_CSFs.size());
 
-  std::vector<DiracSpinor> subset;
-  const auto nmaxk_list = AtomData::n_kappa_list(subset_string);
-  const auto core_list = AtomData::core_parser(frozen_core_string);
-
-  for (const auto &a : basis) {
-
-    // Check if a is present in 'subset_string'
-    const auto nk =
-        std::find_if(nmaxk_list.cbegin(), nmaxk_list.cend(),
-                     [&a](const auto &tnk) { return a.kappa() == tnk.second; });
-    if (nk == nmaxk_list.cend())
-      continue;
-    // nk is now max n, for given kappa {max_n, kappa}
-    if (a.n() > nk->first)
-      continue;
-
-    // assume only filled shells in frozen core
-    const auto core = std::find_if(
-        core_list.cbegin(), core_list.cend(), [&a](const auto &tcore) {
-          return a.n() == tcore.n && a.l() == tcore.l;
-        });
-
-    if (core != core_list.cend())
-      continue;
-    subset.push_back(a);
+  if (num_solutions == 0 || num_solutions >= int(m_CSFs.size())) {
+    m_Solution = LinAlg::symmhEigensystem(Hci);
+    m_num_solutions = m_CSFs.size();
+  } else {
+    m_Solution = LinAlg::symmhEigensystem(Hci, num_solutions);
+    m_num_solutions = std::size_t(num_solutions);
   }
-  return subset;
+
+  if (m_num_solutions >= m_Info.size()) {
+    m_Info.resize(m_num_solutions);
+  }
+}
+
+// You must manuall update the config. info for each solution (if required)
+void PsiJPi::update_config_info(std::size_t i, const ConfigInfo &info) {
+  assert(m_Info.size() == m_num_solutions);
+  m_Info.at(i) = info;
+}
+
+// Full list of CSFs
+const std::vector<CSF2> &PsiJPi::CSFs() const { return m_CSFs; }
+
+// The ith CSF
+const CSF2 &PsiJPi::CSF(std::size_t i) const { return m_CSFs.at(i); }
+
+// Energy of the ith CI solution
+double PsiJPi::energy(std::size_t i) const {
+  assert(i < m_num_solutions);
+  return m_Solution.first.at(i);
+}
+
+// List of CI expansion coefs for the ith CI solution
+LinAlg::View<const double> PsiJPi::coefs(std::size_t i) const {
+  assert(i < m_num_solutions);
+  return m_Solution.second.row_view(i);
+}
+
+// The CI coeficient for the ith CI solution, corresponding to the jth CSF
+double PsiJPi::coef(std::size_t i, std::size_t j) const {
+  assert(i < m_num_solutions);
+  return m_Solution.second.at(i, j);
+}
+
+// Parity for the CI solutions (+/-1)
+int PsiJPi::parity() const { return m_pi; }
+
+// 2J for the CI solutions
+int PsiJPi::twoJ() const { return m_twoj; }
+
+// Number of CI solutions stored
+std::size_t PsiJPi::num_solutions() const { return m_num_solutions; }
+
+// Configuration info for the ith CI solution, if it has been set
+const ConfigInfo &PsiJPi::info(std::size_t i) const {
+  assert(m_Info.size() == m_num_solutions);
+  return m_Info.at(i);
 }
 
 } // namespace CI

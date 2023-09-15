@@ -62,6 +62,38 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
     printf("ort: %11.4e\n", norm);
     REQUIRE(norm < 1.0e-7);
   }
+
+  std::cout << "\nBigger basis, for sum rules:\n";
+  wf.formBasis({"spdf", 70, 9, 0.0, 0.0, rmax, true,
+                SplineBasis::SplineType::Derevianko});
+
+  std::cout << "\nTKR sum rule, including positron states:\n";
+  const auto &tkr_l = SplineBasis::sumrule_TKR(wf.basis(), wf.grid().r(), true);
+  for (auto &tkr : tkr_l) {
+    REQUIRE(tkr < 1.0e-7);
+  }
+
+  std::cout << "\nDrake-Gordon sum rule, including positron states:\n";
+  for (int n = 0; n <= 2; ++n) {
+    const auto &dgs =
+        SplineBasis::sumrule_DG(n, wf.basis(), wf.grid(), wf.alpha(), true);
+    for (auto &dg : dgs) {
+      REQUIRE(std::abs(dg) < 1.0e-7);
+    }
+  }
+
+  std::cout << "\nCompleteness (wrt <r>):\n";
+  for (auto &v : wf.valence()) {
+    const auto [e1, e2] =
+        SplineBasis::r_completeness(v, wf.basis(), wf.grid(), true);
+    if (v.l() <= 2) {
+      REQUIRE(e1 < 1.0e-10);
+      REQUIRE(e1 < 1.0e-9);
+    } else {
+      REQUIRE(e1 < 1.0e-8);
+      REQUIRE(e1 < 1.0e-6);
+    }
+  }
 }
 
 //==============================================================================

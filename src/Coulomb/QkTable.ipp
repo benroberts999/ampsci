@@ -89,6 +89,17 @@ bool CoulombTable<S>::contains(int k, nk4Index index) const {
 //==============================================================================
 //==============================================================================
 
+template <Symmetry S> double *CoulombTable<S>::get(int k, nk4Index index) {
+  const auto sk = std::size_t(k);
+  if (sk >= m_data.size())
+    return nullptr;
+  // check valid k? Probably faster to lookup in table
+  const auto map_it = m_data.at(sk).find(index);
+  if (map_it == m_data.at(sk).cend())
+    return nullptr;
+  return &(map_it->second);
+}
+
 //==============================================================================
 template <Symmetry S>
 double CoulombTable<S>::Q(int k, const DiracSpinor &a, const DiracSpinor &b,
@@ -367,12 +378,14 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   than necisary)
   */
 
-  const auto tmp_max_k = std::size_t(DiracSpinor::max_tj(basis) - 1);
+  const auto tmp_max_k =
+      std::size_t(std::max(DiracSpinor::max_tj(basis), 1) - 1);
 
   const auto max_k =
       (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
 
-  m_data.resize(max_k + 1);
+  if (m_data.size() < max_k + 1)
+    m_data.resize(max_k + 1);
 
   // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space
   t.start();
@@ -419,8 +432,9 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
           for (const auto &d : basis) {
             if (!Angular::Ck_kk_SR(int(k), b.kappa(), d.kappa()))
               continue;
-            if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
-              add(int(k), a, b, c, d, 0.0);
+            const auto normal_index = NormalOrder(a, b, c, d);
+            if (normal_index == CurrentOrder(a, b, c, d)) {
+              add(int(k), normal_index, 0.0);
             }
           }
         }
@@ -442,11 +456,18 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       const auto &b = basis[ib];
       for (const auto &c : basis) {
         for (const auto &d : basis) {
-          if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
+          const auto normal_index = NormalOrder(a, b, c, d);
+          if (normal_index == CurrentOrder(a, b, c, d)) {
             const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
-            // kmax = std::clamp(kmax, 0, int(max_k));
             for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
-              update(k, a, b, c, d, yk.Q(k, a, b, c, d));
+              double *ptr = get(k, normal_index);
+              assert(ptr != nullptr);
+              if (*ptr == 0.0) {
+                // only calculate if not already in table
+                // This saves some time, but surprisingly little!
+                *ptr = yk.Q(k, a, b, c, d);
+              }
+              // update(k, a, b, c, d, yk.Q(k, a, b, c, d));
             }
           }
         }
@@ -488,7 +509,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   const auto max_k =
       (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
 
-  m_data.resize(max_k + 1);
+  if (m_data.size() < max_k + 1)
+    m_data.resize(max_k + 1);
 
   // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space
   t.start();
@@ -530,8 +552,9 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
         for (const auto &c : basis) {
           for (const auto &d : basis) {
             if (Fk_SR(int(k), a, b, c, d)) {
-              if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
-                add(int(k), a, b, c, d, 0.0);
+              const auto normal_index = NormalOrder(a, b, c, d);
+              if (normal_index == CurrentOrder(a, b, c, d)) {
+                add(int(k), normal_index, 0.0);
               }
             }
           }
@@ -558,10 +581,17 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     for (const auto &b : basis) {
       for (const auto &c : basis) {
         for (const auto &d : basis) {
-          if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
+          const auto normal_index = NormalOrder(a, b, c, d);
+          if (normal_index == CurrentOrder(a, b, c, d)) {
             for (int k = 0; k <= int(max_k); ++k) {
               if (Fk_SR(k, a, b, c, d)) {
-                update(k, a, b, c, d, Fk(k, a, b, c, d));
+                double *ptr = get(k, normal_index);
+                assert(ptr != nullptr);
+                if (*ptr == 0.0) {
+                  // only calculate if not already in table
+                  *ptr = Fk(k, a, b, c, d);
+                }
+                // update(k, a, b, c, d, Fk(k, a, b, c, d));
               }
             }
           }

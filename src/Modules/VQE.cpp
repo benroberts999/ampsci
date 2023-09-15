@@ -27,9 +27,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Check input options:
   input.check(
-      {{"frozen_core", "Core states that are not included in CI expansion. By "
-                       "default, this is the same as the HartreeFock{} core"},
-       {"ci_basis",
+      {{"ci_basis",
         "Basis used for CI expansion; must be a sub-set of MBPT basis "
         "[default: 10spdf]"},
 
@@ -58,9 +56,6 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
         "Maximum difference in n of valence states (external lines) included "
         "in calculation of two-body MBPT corrections - i.e., Sk_ijkl "
         "max(ni,nj,nk,nl)-min(ni,nj,nk,nl)<=max_delta_n [99]"},
-       {"sort", "Sort output by level [false]"},
-       //  {"e0", "Optional: ground-state energy (in 1/cm) for relative energies. "
-       //         "If not given, will assume lowest calculated energy"},
        {"write_integrals",
         "Writes orbitals, CSFs, CI matrix, and 1 and 2 particle "
         "integrals to plain text file [false]"},
@@ -82,12 +77,12 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   // Determine the sub-set of basis to use in CI:
   const auto basis_string = input.get("ci_basis", std::string{"10spdf"});
 
-  const auto frozen_core_string =
-      input.get("frozen_core", wf.coreConfiguration());
+  // const auto frozen_core_string =
+  //     input.get("frozen_core", wf.coreConfiguration());
 
   // Select from wf.basis() [MBPT basis], those which match input 'basis_string'
   const std::vector<DiracSpinor> ci_sp_basis =
-      CI::basis_subset(wf.basis(), basis_string, frozen_core_string);
+      CI::basis_subset(wf.basis(), basis_string, wf.coreConfiguration());
 
   // Print info re: basis to screen:
   std::cout << "\nUsing " << DiracSpinor::state_config(ci_sp_basis) << " = "
@@ -258,18 +253,18 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   // even parity:
   std::vector<CIlevel> levels;
   for (auto &J : J_even_list) {
-    const auto t_levels = run_CI(wf.atomicSymbol(), ci_sp_basis, orbital_map,
-                                 int(std::round(2 * J)), +1, num_solutions, h1,
-                                 qk, Sk, write_integrals, include_Sigma2,
-                                 wf.basis(), wf.FermiLevel(), 1, ci_input);
+    const auto t_levels =
+        run_CI(wf.atomicSymbol(), ci_sp_basis, orbital_map,
+               int(std::round(2 * J)), +1, num_solutions, h1, qk, Sk,
+               write_integrals, include_Sigma2, wf.basis(), ci_input);
     levels.insert(levels.end(), t_levels.begin(), t_levels.end());
   }
   // odd parity:
   for (auto &J : J_odd_list) {
-    const auto t_levels = run_CI(wf.atomicSymbol(), ci_sp_basis, orbital_map,
-                                 int(std::round(2 * J)), -1, num_solutions, h1,
-                                 qk, Sk, write_integrals, include_Sigma2,
-                                 wf.basis(), wf.FermiLevel(), 1, ci_input);
+    const auto t_levels =
+        run_CI(wf.atomicSymbol(), ci_sp_basis, orbital_map,
+               int(std::round(2 * J)), -1, num_solutions, h1, qk, Sk,
+               write_integrals, include_Sigma2, wf.basis(), ci_input);
     levels.insert(levels.end(), t_levels.begin(), t_levels.end());
   }
 
@@ -296,7 +291,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
     fmt::print("{:<6s} {}{:<2s} {:>2} {:+2} {:2}  {:+11.8f}  {:+11.2f}  "
                "{:11.2f}",
-               config, uint(std::round(tSp1)),
+               config, int(std::round(tSp1)),
                AtomData::L_symbol((int)std::round(L)) + pi, twoj / 2, parity,
                index, e, e * PhysConst::Hartree_invcm,
                (e - e0) * PhysConst::Hartree_invcm);
@@ -444,15 +439,13 @@ void write_CoulombIntegrals(const std::vector<DiracSpinor> &ci_sp_basis,
 }
 
 //==============================================================================
-std::vector<CIlevel>
-run_CI(const std::string &atom_name,
-       const std::vector<DiracSpinor> &ci_sp_basis,
-       const std::map<nkm, int> &orbital_map, int twoJ, int parity,
-       int num_solutions, const Coulomb::meTable<double> &h1,
-       const Coulomb::QkTable &qk, const Coulomb::LkTable &Sk,
-       bool write_integrals, bool include_Sigma2,
-       const std::vector<DiracSpinor> &mbpt_basis, double E_Fermi, int min_n,
-       const std::string &ci_input) {
+std::vector<CIlevel> run_CI(
+    const std::string &atom_name, const std::vector<DiracSpinor> &ci_sp_basis,
+    const std::map<nkm, int> &orbital_map, int twoJ, int parity,
+    int num_solutions, const Coulomb::meTable<double> &h1,
+    const Coulomb::QkTable &qk, const Coulomb::LkTable &Sk,
+    bool write_integrals, bool include_Sigma2,
+    const std::vector<DiracSpinor> &mbpt_basis, const std::string &ci_input) {
   //----------------------------------------------------------------------------
 
   std::vector<CIlevel> out;
@@ -578,7 +571,7 @@ run_CI(const std::string &atom_name,
   const auto pFa = CSFs.front().state(0);
   DiracOperator::M1 m1_rel{pFa->grid(), 1.0 / 137.036, 0.0};
 
-  int l1, l2;
+  int l1{-1}, l2{-1};
 
   for (std::size_t i = 0; i < val.size() && int(i) < num_solutions; ++i) {
 
@@ -607,8 +600,8 @@ run_CI(const std::string &atom_name,
     // take J=Jz, <JJz|J|JJz> = J
     // then: g_J = <JJ|L + 2*S|JJ> / J
     // And: <JJ|L + 2*S|JJ> = 3js * <A||L+2S||A> (W.E. Theorem)
-    const auto m1AA_NR = CI::ReducedME(vec.row(i), CSFs, twoJ, &m1);
-    const auto m1AA_R = CI::ReducedME(vec.row(i), CSFs, twoJ, &m1_rel);
+    const auto m1AA_NR = CI::ReducedME(vec.row_view(i), CSFs, twoJ, &m1);
+    const auto m1AA_R = CI::ReducedME(vec.row_view(i), CSFs, twoJ, &m1_rel);
     const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
 
     // Calculate g-factors, for line identification. Only defined for J!=0
@@ -628,7 +621,7 @@ run_CI(const std::string &atom_name,
     const auto config = CSFs.at(max_j).config();
     const auto pm = parity == 1 ? "" : "°";
 
-    fmt::print("{:<6s} {}^{}{}_{}\n", config, uint(std::round(tSp1)),
+    fmt::print("{:<6s} {}^{}{}_{}\n", config, int(std::round(tSp1)),
                AtomData::L_symbol((int)std::round(L)), pm, twoJ / 2);
 
     out.emplace_back(
@@ -638,54 +631,54 @@ run_CI(const std::string &atom_name,
   }
 
   //----------------------------------------------------------------------------
-  // std::cout
-  //     << "\n`Direct' energy calculation: E = Σ_{IJ} c_I * c_J * <I|H|J>:\n";
-  // std::cout
-  //     << "(Using the CI expansion coefficients from full CI, just a test)\n";
-  // // Energy calculation for ground state:
-  // double E_direct1 = 0.0, E_direct2 = 0.0;
-  // const auto Nci = vec.rows(); // number of CSFs
-  // // Energy:  E = Sum_ij c_i * c_j * <i|H|j>
-  // for (std::size_t i = 0ul; i < Nci; ++i) {
-  //   const auto &csf_i = CSFs.at(i); // the ith CSF
-  //   const auto ci = vec.at(0, i);   // the ith CI coefficient (for 0th e.val)
-  //   for (std::size_t j = 0ul; j < Nci; ++j) {
-  //     const auto &csf_j = CSFs.at(j); // jth CSF
-  //     const auto cj = vec.at(0, j);   // the jth CI coefficient (for 0th e.val)
-  //     // use pre-calculated CI matrix:
-  //     E_direct1 += ci * cj * Hci.at(i, j);
-  //     // Calculate MEs on-the-fly
-  //     E_direct2 += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
-  //   }
-  // }
+  std::cout
+      << "\n`Direct' energy calculation: E = Σ_{IJ} c_I * c_J * <I|H|J>:\n";
+  std::cout
+      << "(Using the CI expansion coefficients from full CI, just a test)\n";
+  // Energy calculation for ground state:
+  double E_direct1 = 0.0, E_direct2 = 0.0;
+  const auto Nci = vec.rows(); // number of CSFs
+  // Energy:  E = Sum_ij c_i * c_j * <i|H|j>
+  for (std::size_t i = 0ul; i < Nci; ++i) {
+    const auto &csf_i = CSFs.at(i); // the ith CSF
+    const auto ci = vec.at(0, i);   // the ith CI coefficient (for 0th e.val)
+    for (std::size_t j = 0ul; j < Nci; ++j) {
+      const auto &csf_j = CSFs.at(j); // jth CSF
+      const auto cj = vec.at(0, j);   // the jth CI coefficient (for 0th e.val)
+      // use pre-calculated CI matrix:
+      E_direct1 += ci * cj * Hci.at(i, j);
+      // Calculate MEs on-the-fly
+      E_direct2 += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
+    }
+  }
 
-  // std::cout << "E0 = " << val.at(0) * PhysConst::Hartree_invcm
-  //           << " cm^-1  (from diagonalisation)\n";
-  // std::cout << "E0 = " << E_direct1 * PhysConst::Hartree_invcm
-  //           << " cm^-1  (uses pre-calculated CI matrix)\n";
-  // std::cout << "E0 = " << E_direct2 * PhysConst::Hartree_invcm
-  //           << " cm^-1  (calculates H matrix elements from scratch)\n";
+  std::cout << "E0 = " << val.at(0) * PhysConst::Hartree_invcm
+            << " cm^-1  (from diagonalisation)\n";
+  std::cout << "E0 = " << E_direct1 * PhysConst::Hartree_invcm
+            << " cm^-1  (uses pre-calculated CI matrix)\n";
+  std::cout << "E0 = " << E_direct2 * PhysConst::Hartree_invcm
+            << " cm^-1  (calculates H matrix elements from scratch)\n";
 
-  // // std::ifstream ci("")
-  // std::ifstream is(ci_input);
-  // if (is) {
-  //   std::istream_iterator<double> start(is), end;
-  //   std::vector<double> in_CI(start, end);
-  //   std::cout << "\nCalculate energy from input CI coeficients:\n";
-  //   std::cout << "Read " << in_CI.size() << " CI coeficients from: " << ci_input
-  //             << "\n";
-  //   double E_input = 0.0;
-  //   for (std::size_t i = 0ul; i < std::min(Nci, in_CI.size()); ++i) {
-  //     const auto &csf_i = CSFs.at(i); // the ith CSF
-  //     const auto ci = in_CI.at(i);    // the ith CI coefficient (for 0th e.val)
-  //     for (std::size_t j = 0ul; j < std::min(Nci, in_CI.size()); ++j) {
-  //       const auto &csf_j = CSFs.at(j); // jth CSF
-  //       const auto cj = in_CI.at(j); // the jth CI coefficient (for 0th e.val)
-  //       E_input += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
-  //     }
-  //   }
-  //   std::cout << "E = " << E_input * PhysConst::Hartree_invcm << "\n";
-  // }
+  // std::ifstream ci("")
+  std::ifstream is(ci_input);
+  if (is) {
+    std::istream_iterator<double> start(is), end;
+    std::vector<double> in_CI(start, end);
+    std::cout << "\nCalculate energy from input CI coeficients:\n";
+    std::cout << "Read " << in_CI.size() << " CI coeficients from: " << ci_input
+              << "\n";
+    double E_input = 0.0;
+    for (std::size_t i = 0ul; i < std::min(Nci, in_CI.size()); ++i) {
+      const auto &csf_i = CSFs.at(i); // the ith CSF
+      const auto ci = in_CI.at(i);    // the ith CI coefficient (for 0th e.val)
+      for (std::size_t j = 0ul; j < std::min(Nci, in_CI.size()); ++j) {
+        const auto &csf_j = CSFs.at(j); // jth CSF
+        const auto cj = in_CI.at(j); // the jth CI coefficient (for 0th e.val)
+        E_input += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
+      }
+    }
+    std::cout << "E = " << E_input * PhysConst::Hartree_invcm << "\n";
+  }
 
   return out;
 }

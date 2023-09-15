@@ -1,4 +1,5 @@
 #pragma once
+#include "CI/CSF.hpp"
 #include "HF/HartreeFock.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
@@ -15,6 +16,8 @@
 #include <string>
 #include <utility>
 #include <vector>
+//
+//
 namespace SplineBasis {
 struct Parameters;
 }
@@ -71,6 +74,8 @@ private:
   // Core configuration (non-rel terms)
   std::string m_core_string = "";
   std::string m_aboveFermi_core_string = "";
+
+  std::vector<CI::PsiJPi> m_CIwfs{};
 
 public:
   //! Returns a const reference to the radial grid
@@ -175,8 +180,8 @@ public:
   }
 
   //! E.g., Cs in V^N-1, gives Cs-i
-  std::string identity() const {
-    const auto zionRoman = qip::int_to_roman(Zion());
+  std::string identity(int num_val = 1) const {
+    const auto zionRoman = qip::int_to_roman(Zion() - num_val + 1);
     return AtomData::atomicSymbol(m_nucleus.z()) + zionRoman;
   }
 
@@ -287,12 +292,20 @@ public:
   //! Set l<0 to get for all l (entire core)
   std::tuple<double, double> lminmax_core_range(int l, double eps = 0.0) const;
 
-  //! Returns <a|H|b> for Hamiltonian H (inludes Rad.pot, NOT sigma or Breit)
+  //! Returns <a|H|b> for Hamiltonian H (inludes Rad.pot, NOT sigma, Breit, or exchange!)
+  double H0ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+  //! Returns <a|H|b> for Hamiltonian H (inludes Rad.pot, NOT sigma, Breit, or exchange!)
+  double H0ab(const DiracSpinor &Fa, const DiracSpinor &dFa,
+              const DiracSpinor &Fb, const DiracSpinor &dFb) const;
+
   double Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
-  double Hab(const DiracSpinor &Fa, const DiracSpinor &dFa,
-             const DiracSpinor &Fb, const DiracSpinor &dFb) const;
+
+  void ConfigurationInteraction(const IO::InputBlock &input);
 
 private:
+  double H0ab_impl(const DiracSpinor &Fa, std::vector<double> dga,
+                   const DiracSpinor &Fb, std::vector<double> dgb) const;
+
   // Creates set of blank core orbitals
   std::vector<DiracSpinor> determineCore(const std::string &str_core_in);
   bool isInAboveFermiCore(int n, int k) const;
