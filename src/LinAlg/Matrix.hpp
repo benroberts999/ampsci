@@ -121,7 +121,8 @@ public:
   auto cend() const { return m_data.cend(); }
 
   //! Returns raw c pointer to start of a row
-  [[deprecated]] const T *row(std::size_t row) const {
+  // [[deprecated]]
+  const T *row(std::size_t row) const {
     return m_data.data() + long(row * m_cols);
   }
 
