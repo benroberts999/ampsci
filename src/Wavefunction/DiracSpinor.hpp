@@ -266,12 +266,15 @@ public:
   static int max_kindex(const std::vector<DiracSpinor> &orbs);
 
   static std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
-  split_by_energy(const std::vector<DiracSpinor> &orbitals, double energy) {
+  split_by_energy(const std::vector<DiracSpinor> &orbitals, double energy,
+                  int n_min_core = 1) {
     std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> out;
     auto &[below, above] = out;
     for (const auto &n : orbitals) {
       if (n.en() <= energy) {
-        below.push_back(n);
+        if (n.n() >= n_min_core) {
+          below.push_back(n);
+        }
       } else {
         above.push_back(n);
       }

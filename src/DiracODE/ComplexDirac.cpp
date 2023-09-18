@@ -157,6 +157,7 @@ void solve_Dirac_inwards_C(std::vector<std::complex<double>> &f,
 
   ode.S_scale = 0.0;
 
+  // XXX Perhaps this can be updated? Depends only weakly on energy I think
   const auto Rasym =
       AsymptoticSpinor{ka, Zeff, en.real(), alpha, Param::nx_eps};
 
