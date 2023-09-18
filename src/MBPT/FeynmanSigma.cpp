@@ -411,10 +411,8 @@ GMatrix FeynmanSigma::calculate_Vx_kappa(int kappa) const {
 }
 
 //------------------------------------------------------------------------------
-GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
+GMatrix FeynmanSigma::calculate_Vhp(int kappa, const DiracSpinor &Fc) const {
   // Hole-particle interaction, extra potential
-  // This works well for k=0, but works worse than using local pot for k=1
-  // (k=1 is most important term!)
 
   GMatrix V0({m_imin, m_stride, m_subgrid_points, m_include_G, p_gr});
 
@@ -426,6 +424,20 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
       V0.gg(i, i) = V0.ff(i, i);
   }
 
+  // higher-k hp interaction:
+  {
+    const auto tjcp1 = Fc.twojp1();
+    for (int k = 2; k <= 6; k += 2) {
+      const auto ykcc = Coulomb::yk_ab(k, Fc, Fc);
+      const auto ck = Angular::Ck_kk(k, Fc.kappa(), Fc.kappa());
+      const auto coef = (ck / tjcp1) * (ck / tjcp1);
+      for (auto i = 0ul; i < m_subgrid_points; ++i) {
+        const auto si = V0.index_to_fullgrid(i);
+        V0.ff(i, i) += coef * ykcc[si];
+      }
+    }
+  }
+
   V0.mult_elements_by(m_drj->real());
 
   // return V0;
@@ -433,27 +445,15 @@ GMatrix FeynmanSigma::calculate_Vhp(const DiracSpinor &Fc) const {
   GMatrix OneNegPc(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
   const auto &core = p_hf->core();
   for (const auto &Fa : core) {
-    if (Fa.kappa() != Fc.kappa())
+    if (Fa.kappa() != kappa)
       continue;
-    // const auto tjp1 = Fa.twoj() + 1;
     addto_G(&OneNegPc, Fa, Fa, -1.0);
   }
 
   //====*
   OneNegPc.mult_elements_by(m_drj->real());
-  // OneNegPc.plusIdent(); // (1-P)
   OneNegPc += 1.0; // (1-P)
   auto out = OneNegPc * V0 * OneNegPc;
-
-  // out.mult_elements_by(m_dri->real());
-
-  //====*
-  // OneNegPc.mult_elements_by(m_drj->real());
-  // auto OneNegPcL = OneNegPc;
-  // OneNegPcL.mult_elements_by(m_dri->real());
-  // OneNegPc.plusIdent();  // (1-P)
-  // OneNegPcL.plusIdent(); // (1-P)
-  // auto out = OneNegPcL * V0 * OneNegPc;
 
   return out;
 }
@@ -571,8 +571,8 @@ ComplexGMatrix FeynmanSigma::Green_core(int kappa,
 
 //------------------------------------------------------------------------------
 ComplexGMatrix FeynmanSigma::Green_ex(int kappa, std::complex<double> en,
-                                      GrMethod method, const DiracSpinor *Fc_hp,
-                                      int k_hp) const {
+                                      GrMethod method,
+                                      const DiracSpinor *Fc_hp) const {
   ComplexGMatrix Gk(m_imin, m_stride, m_subgrid_points, m_include_G, p_gr);
 
   if (method == GrMethod::basis) {
@@ -580,7 +580,7 @@ ComplexGMatrix FeynmanSigma::Green_ex(int kappa, std::complex<double> en,
   } else {
     // Subtract core states, by forceing Gk to be orthogonal to core:
     // Gk -> Gk - \sum_a|a><a|G
-    Gk = Green_hf(kappa, en, Fc_hp, k_hp); // - Green_core(kappa, en);
+    Gk = Green_hf(kappa, en, Fc_hp); // - Green_core(kappa, en);
     makeGOrthogCore(&Gk, kappa);
   }
 
@@ -626,15 +626,7 @@ ComplexGMatrix FeynmanSigma::Green_hf_basis(int kappa, std::complex<double> en,
 
 //------------------------------------------------------------------------------
 ComplexGMatrix FeynmanSigma::Green_hf(int kappa, std::complex<double> en,
-                                      const DiracSpinor *Fc_hp,
-                                      int k_hp) const {
-
-  /*
-NOTE: k_hp is "dodgy" parameter.
-For including hole-particle interaction:
-the 'local' method works best for most k's, but the matrix method (with
-[1-P]) works better for k=0 (and k>=5 ?)
-  */
+                                      const DiracSpinor *Fc_hp) const {
 
   // Solve DE (no exchange), regular at 0, infinity ("pinf")
   DiracSpinor x0(0, kappa, p_gr);
@@ -642,37 +634,24 @@ the 'local' method works best for most k's, but the matrix method (with
   const auto alpha = p_hf->alpha();
   const auto &Hmag = p_hf->Hmag(x0.l());
 
-  auto vl = p_hf->vlocal(x0.l());
-  if (Fc_hp != nullptr && k_hp != 0) {
-    // Include hole-particle interaction (simple):
-    // This way works better for k=1, but ruins k=0
-    auto y0cc = Coulomb::yk_ab(0, *Fc_hp, *Fc_hp);
-    qip::compose(std::minus{}, &vl, y0cc);
-  }
+  const auto vl = p_hf->vlocal(x0.l());
 
   DiracODE::regularAtOrigin(x0, en.real(), vl, Hmag, alpha);
   DiracODE::regularAtInfinity(xI, en.real(), vl, Hmag, alpha);
 
-  // Evaluate Wronskian at ~65% of the way to pinf. Should be inependent of
-  // r
+  // Evaluate Wronskian at ~65% of the way to pinf. Should be inependent of r
   const auto pp = std::size_t(0.65 * double(xI.max_pt()));
-  // Not sure why -ve sign here... ??? But needed to agree w/ basis version;
   const auto w = -1.0 * (xI.f(pp) * x0.g(pp) - x0.f(pp) * xI.g(pp)) / alpha;
 
   // Get G0 (Green's function, without exchange):
   const auto g0 = MakeGreensG0(x0, xI, w);
   auto Vx = get_Vx_kappa(kappa);
 
-  if (Fc_hp != nullptr && k_hp == 0) {
-    // Include hole-particle interaction (w/ [1-P]V[1-P]):
-    // This way works better for k=0, but ruins k=1
-    Vx += calculate_Vhp(*Fc_hp);
+  if (Fc_hp != nullptr) {
+    Vx += calculate_Vhp(kappa, *Fc_hp);
   }
 
-  // const std::complex<double> one{1.0, 0.0}; // to convert real to complex
-
   // Include exchange, and imaginary energy part:
-
   if (en.imag() == 0.0) {
     // G = [1 - G0*Vx]^{-1} * G0 = -[G0*Vx-1]^{-1} * G0
     // nb: much faster to invert _before_ make complex!
@@ -765,8 +744,8 @@ ComplexGMatrix FeynmanSigma::Polarisation_k(int k, std::complex<double> omega,
         continue;
       const double c_ang = ck_an * ck_an / double(2 * k + 1);
 
-      pi_k += c_ang * ((Green_ex(kn, ea_minus_w, method, Fa_hp, k) +
-                        Green_ex(kn, ea_plus_w, method, Fa_hp, k))
+      pi_k += c_ang * ((Green_ex(kn, ea_minus_w, method, Fa_hp) +
+                        Green_ex(kn, ea_plus_w, method, Fa_hp))
                            .mult_elements_by(pa));
     }
   }

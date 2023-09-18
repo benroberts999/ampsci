@@ -106,7 +106,7 @@ private:
   void form_Vx();
   // Forms Vx for given kappa, exhange operator matrix (includes dri,drj)
   [[nodiscard]] GMatrix calculate_Vx_kappa(int kappa) const;
-  GMatrix calculate_Vhp(const DiracSpinor &Fa) const;
+  GMatrix calculate_Vhp(int kappa, const DiracSpinor &Fa) const;
 
   // Calculates and stores radial projection operators for core state |a><a|
   void form_Pa_core();
@@ -116,10 +116,9 @@ private:
   // Calculate "Core" Green fn by direct summation over only core states
   [[nodiscard]] ComplexGMatrix Green_core(int kappa, ComplexDouble en) const;
   // Calculates "excited" Greens function, by: G_ex = G - G_core
-  [[nodiscard]] ComplexGMatrix Green_ex(int kappa, ComplexDouble en,
-                                        GrMethod method = GrMethod::Green,
-                                        const DiracSpinor *Fc_hp = nullptr,
-                                        int k_hp = 0) const;
+  [[nodiscard]] ComplexGMatrix
+  Green_ex(int kappa, ComplexDouble en, GrMethod method = GrMethod::Green,
+           const DiracSpinor *Fc_hp = nullptr) const;
 
   // Force Gk to be orthogonal to the core states
   void makeGOrthogCore(ComplexGMatrix *Gk, int kappa) const;
@@ -127,9 +126,9 @@ private:
   // // Calculates Hartree-Fock Green function (including exchange), for real en
   // [[nodiscard]] ComplexGMatrix Green_hf_real(int kappa, double en) const;
   // Calculates HF Green function (including exchange), for Complex en
-  [[nodiscard]] ComplexGMatrix Green_hf(int kappa, ComplexDouble en,
-                                        const DiracSpinor *Fc_hp = nullptr,
-                                        int k_hp = 0) const;
+  [[nodiscard]] ComplexGMatrix
+  Green_hf(int kappa, ComplexDouble en,
+           const DiracSpinor *Fc_hp = nullptr) const;
 
   // Calculate HF Greens function (complex en), using basis expansion
   [[nodiscard]] ComplexGMatrix Green_hf_basis(int kappa, ComplexDouble en,

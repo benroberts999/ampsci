@@ -45,7 +45,6 @@
 * Cleanup, and re-do tests
 * Polarisation operator instability: (#8)
   * Fails, e.g., for Cs with n_core < 3
-* Hole-particle; k=0 vs k=1?
 * Overall numerical stability
 * Exchange (2nd order): w1 and w1w2
 * g-part for Feynman?
