@@ -587,7 +587,9 @@ private:
   // where next value is t+dt, and for integral t, where next value is t++ is
   // driving forward (dt>0), or t-- if driving backwards (dt<0)
   T next_t(T last_t) {
-    if constexpr (std::is_integral_v<T>) {
+    if constexpr (std::is_integral_v<T> && is_complex_v<Y>) {
+      return (m_dt.real() > 0.0) ? last_t + 1 : last_t - 1;
+    } else if constexpr (std::is_integral_v<T>) {
       return (m_dt > 0.0) ? last_t + 1 : last_t - 1;
     } else {
       return last_t + m_dt;
