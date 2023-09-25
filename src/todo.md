@@ -2,8 +2,8 @@
 
 ## Correlations (#21)
 
-* Update class that stores, calculates Sigma
-* Option to mix methods (e.g., Goldstone for g-part?)
+* Re-do tests
+* Clean up interface (ampsci/wavefunction)
 
 ## TDHF - physics (#3)
 

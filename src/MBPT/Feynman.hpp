@@ -1,5 +1,4 @@
 #pragma once
-#include "CorrelationPotential.hpp" // for rgrid_params
 #include "HF/HartreeFock.hpp"
 #include "MBPT/RDMatrix.hpp"
 #include "Maths/Grid.hpp"
@@ -9,12 +8,24 @@
 
 namespace MBPT {
 
+// FeynmanOptions class
+
 //! Options for including hole-particle interaction. include mean all k;
 //! include_k0 means k=0 term only
 enum class HoleParticle { exclude, include, include_k0 };
 
 //! Options for including Screening
 enum class Screening { exclude, include, only };
+
+struct FeynmanOptions {
+  Screening screening{Screening::exclude};
+  HoleParticle hole_particle{HoleParticle::exclude};
+  int max_l_internal{6};
+  double omre{-0.3};
+  double w0{0.05};
+  double w_ratio{1.5};
+  // int n_min_core{1};
+};
 
 //! Which states to include in Green's function:
 enum class GreenStates { both, core, excited };
@@ -28,7 +39,7 @@ class Feynman {
   // Pointer to shared radial grid (full grid)
   std::shared_ptr<const Grid> m_grid;
   // Parameters of the sub-grid: initial/final points, stride
-  std::size_t m_i0, m_imax, m_stride, m_subgrid_points;
+  std::size_t m_i0, m_stride, m_subgrid_points;
 
   // maximum kappa_index appearing in the core
   int m_max_ki_core;
@@ -42,9 +53,6 @@ class Feynman {
   double m_omre;
   // Stores imaginary frequency grid (setup post-construction)
   Grid m_wgrid;
-
-  // Option to print to screen, or calculate quietly
-  bool m_verbose;
 
   // Option: include hole-particle interaction into polarisation operator
   bool m_hole_particle;
@@ -83,18 +91,29 @@ public:
   //! max_l is maximum l to include for internal lines (Green's functions);
   //! n_min_core is minimum n to include in polarisation loop **
   //! ** Currently have issue: polarising deep n leads to failure?
-  Feynman(const HF::HartreeFock *vHF, MBPT::rgrid_params subgrid, double omre,
-          double w_0, double w_ratio, Screening scr_option,
-          HoleParticle hp_option, int max_l = 6, int n_min_core = 1,
+  Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
+          std::size_t size, const FeynmanOptions &options, int n_min_core,
           bool verbose = true);
 
-public:
+  bool screening() const { return m_screen_Coulomb; }
+  bool hole_particle() const { return m_hole_particle; }
+
+  //! Returns stride used for sub-grid
+  std::size_t stride() const { return m_stride; }
+
+  int n_min() const { return m_min_core_n; }
+  double omre() const { return m_omre; }
+  double w0() const { return m_wgrid.r0(); }
+  double wratio() const { return m_wgrid.r(1) / m_wgrid.r(0); }
+  int lmax() const { return Angular::lFromIndex(m_max_ki); }
+
   //! Calculates Green's function for kappa, and complex energy
   ComplexGMatrix green(int kappa, std::complex<double> en,
                        GreenStates states) const;
 
   //! Polarisation operator pi^k(w), for multipolarity k
-  ComplexGMatrix polarisation_k(int k, std::complex<double> omega) const;
+  ComplexGMatrix polarisation_k(int k, std::complex<double> omega,
+                                bool hole_particle) const;
 
   //! Calculate Direct part of correlation potential
   GMatrix Sigma_direct(int kappa_v, double en_v,
@@ -107,9 +126,6 @@ public:
   const GMatrix &get_Vx_kappa(int kappa) const {
     return m_Vx_kappa.at(std::size_t(Angular::indexFromKappa(kappa)));
   }
-
-  //! Returns stride used for sub-grid
-  std::size_t stride() const { return m_stride; }
 
 private:
   // hack: checks if n_min_core is OK, updates if not

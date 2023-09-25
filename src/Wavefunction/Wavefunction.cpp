@@ -3,9 +3,7 @@
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //just for enum..
-#include "MBPT/CorrelationPotential.hpp"
-#include "MBPT/FeynmanSigma.hpp"
-#include "MBPT/GoldstoneSigma.hpp"
+#include "MBPT/NewSigma.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
@@ -513,65 +511,58 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
   }
 
   std::cout << "Spectrum/core:\n";
-  SplineBasis::check(m_spectrum, core(), m_Sigma == nullptr);
+  SplineBasis::check(m_spectrum, core(), m_Sigma == std::nullopt);
   std::cout << "Spectrum/valence:\n";
   SplineBasis::check(m_spectrum, valence(), true);
 }
 
 //==============================================================================
 void Wavefunction::formSigma(
-    const int nmin_core, const bool form_matrix, const double r0,
-    const double rmax, const int stride, bool each_valence,
-    const bool include_G, const std::vector<double> &lambdas,
+    int nmin_core, double r0, double rmax, int stride, bool each_valence,
+    bool include_G, const std::vector<double> &lambdas,
     const std::vector<double> &fk, const std::vector<double> &etak,
-    const std::string &in_fname, const std::string &out_fname,
-    const std::string &ladder_file, const bool FeynmanQ, const bool ScreeningQ,
-    const bool holeParticleQ, const int lmax, const bool GreenBasis,
-    const bool PolBasis, const double omre, double w0, double wratio,
-    const std::optional<IO::InputBlock> &ek) {
+    const std::string &in_fname, const std::string &out_fname, bool FeynmanQ,
+    bool ScreeningQ, bool holeParticleQ, int lmax, double omre, double w0,
+    double wratio, const std::optional<IO::InputBlock> &ek) {
   if (m_valence.empty())
     return;
   std::cout << "\nIncluding correlation potential:\n" << std::flush;
-  /*
-      // XXX Re-factor
-      a) Make sub-block for Feynman, Goldstone Options
-      b) make sub-block for fit_to: e.g., fitTo = [6s+=31406;];
-  */
+
   const std::string ext = FeynmanQ ? ".sigf" : ".sig2";
   const auto ifname = in_fname == "" ? identity() + ext : in_fname + ext;
   const auto ofname = out_fname == "" ? identity() + ext : out_fname + ext;
 
   const auto method =
-      FeynmanQ ? MBPT::Method::Feynman : MBPT::Method::Goldstone;
+      FeynmanQ ? MBPT::SigmaMethod::Feynman : MBPT::SigmaMethod::Goldstone;
 
-  const auto sigp = MBPT::Sigma_params{
-      method,        nmin_core,   include_G, lmax,   GreenBasis,
-      PolBasis,      omre,        w0,        wratio, ScreeningQ,
-      holeParticleQ, ladder_file, fk,        etak};
+  MBPT::Screening screening =
+      ScreeningQ ? MBPT::Screening::include : MBPT::Screening::exclude;
 
-  const auto subgridp = MBPT::rgrid_params{r0, rmax, std::size_t(stride)};
+  // XXX Update to allow all k
+  // MBPT::HoleParticle hp = holeParticleQ ? MBPT::HoleParticle::include_k0 :
+  //                                         MBPT::HoleParticle::exclude;
 
-  // Correlaion potential matrix:
-  switch (method) {
-  case MBPT::Method::Goldstone:
-    m_Sigma = std::make_unique<MBPT::GoldstoneSigma>(&*m_HF, m_basis, sigp,
-                                                     subgridp, ifname);
-    break;
-  case MBPT::Method::Feynman:
-    m_Sigma = std::make_unique<MBPT::FeynmanSigma>(&*m_HF, m_basis, sigp,
-                                                   subgridp, ifname);
-    break;
-  }
+  MBPT::HoleParticle hp =
+      holeParticleQ ? MBPT::HoleParticle::include : MBPT::HoleParticle::exclude;
+
+  bool calculate_fk = FeynmanQ && fk.empty();
+
+  m_Sigma = MBPT::NewSigma(
+      ifname, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core, method,
+      include_G, MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio},
+      calculate_fk, fk, etak);
+
+  std::cout << "\n";
 
   if (ek)
     each_valence = false;
 
   // This is for each valence state.... otherwise, just do for lowest??
-  if (form_matrix && !m_valence.empty()) {
+  if (!m_valence.empty()) {
     if (each_valence) {
       // calculate sigma for each valence state:
       for (const auto &Fv : m_valence) {
-        m_Sigma->formSigma(Fv.kappa(), Fv.en(), Fv.n());
+        m_Sigma->formSigma(Fv.kappa(), Fv.en(), Fv.n(), &Fv);
       }
     } else if (!ek && m_Sigma->empty()) {
       // calculate sigma for lowest n valence state of each kappa:
@@ -580,13 +571,20 @@ void Wavefunction::formSigma(
         auto Fv = std::find_if(cbegin(m_valence), cend(m_valence),
                                [ki](auto f) { return f.k_index() == ki; });
         if (Fv != cend(m_valence))
-          m_Sigma->formSigma(Fv->kappa(), Fv->en(), Fv->n());
+          m_Sigma->formSigma(Fv->kappa(), Fv->en(), Fv->n(), &*Fv);
       }
     } else if (ek && m_Sigma->empty()) {
       // solve at specific energies:
       for (auto &[state, en] : ek->options()) {
         auto [n, k] = AtomData::parse_symbol(state);
-        m_Sigma->formSigma(k, std::stod(en), n);
+
+        auto Fv = std::find_if(cbegin(m_valence), cend(m_valence),
+                               [ki = k](auto f) { return f.k_index() == ki; });
+        if (Fv != cend(m_valence)) {
+          m_Sigma->formSigma(k, std::stod(en), n, &*Fv);
+        } else {
+          m_Sigma->formSigma(k, std::stod(en), n);
+        }
       }
     }
   }
@@ -599,7 +597,7 @@ void Wavefunction::formSigma(
     m_Sigma->print_scaling();
   }
 
-  if (out_fname != "false" && form_matrix)
+  if (out_fname != "false")
     m_Sigma->read_write(ofname, IO::FRW::RoW::write);
 }
 
@@ -610,7 +608,7 @@ void Wavefunction::hartreeFockBrueckner(const bool print) {
     return;
   }
   if (m_Sigma)
-    m_HF->solve_valence(&m_valence, print, m_Sigma.get());
+    m_HF->solve_valence(&m_valence, print, &*m_Sigma);
 }
 
 //==============================================================================
@@ -641,10 +639,11 @@ void Wavefunction::fitSigma_hfBrueckner(
     int its = 0;
     for (; its <= max_its; its++) {
       auto Fv_l = Fv;
-      m_Sigma->scale_Sigma(Fv_l.n(), Fv_l.kappa(), lambda);
+      // m_Sigma->scale_Sigma(Fv_l.n(), Fv_l.kappa(), lambda);
+      m_Sigma->scale_Sigma(lambda, Fv_l.kappa(), Fv_l.n());
       // nb: hf_Brueckner must start from HF... so, call on copy of Fv....
       // m_HF->hf_Brueckner(Fv_l, *m_Sigma);
-      m_HF->hf_valence(Fv_l, m_Sigma.get());
+      m_HF->hf_valence(Fv_l, &*m_Sigma);
       double en_l = Fv_l.en();
       if (its == 0)
         e_Sig1 = en_l;
@@ -687,7 +686,8 @@ void Wavefunction::SOEnergyShift() {
   std::cout << "state |  E(HF)      E(2)       <v|S2|v> |  E(HF+2)     E(HF+2) "
                " (cm^-1)\n";
   for (const auto &v : m_valence) {
-    const auto delta = m_Sigma->Sigma_vw(v, v);
+    // XXX update to MBPT!
+    const auto delta = 0.0; // m_Sigma->Sigma_vw(v, v);
     const auto delta2 = v * (*m_Sigma)(v);
     const auto cm = PhysConst::Hartree_invcm;
     if (e0 == 0)

@@ -1,18 +1,37 @@
 #include "Goldstone.hpp"
+#include "Coulomb/CoulombIntegrals.hpp"
 
 namespace MBPT {
 
 //==============================================================================
-Goldstone::Goldstone(const std::vector<DiracSpinor> &basis, double e_Fermi,
-                     MBPT::rgrid_params subgrid, int n_min_core, bool include_G)
+Goldstone::Goldstone(const std::vector<DiracSpinor> &basis,
+                     const std::vector<DiracSpinor> &core, std::size_t i0,
+                     std::size_t stride, std::size_t size, int n_min_core,
+                     bool include_G)
     : m_grid(basis.front().grid_sptr()),
-      m_basis(DiracSpinor::split_by_energy(basis, e_Fermi, n_min_core)),
+      m_basis(DiracSpinor::split_by_core(basis, core, n_min_core)),
       m_Yeh(m_basis.second, m_basis.first),
-      m_i0(m_grid->getIndex(subgrid.r0)),
-      m_imax(m_grid->getIndex(subgrid.rmax)),
-      m_stride(subgrid.stride),
-      m_subgrid_points((m_imax - m_i0) / m_stride + 1),
-      m_include_G(include_G) {}
+      m_i0(i0),
+      // m_imax(m_grid->getIndex(subgrid.rmax)),
+      m_stride(stride),
+      m_subgrid_points(size),
+      m_n_min_core(n_min_core),
+      m_include_G(include_G) {
+
+  bool verbose = true;
+  if (verbose) {
+    std::cout << "\nGoldstone diagrams:\n";
+    std::cout << "Basis: " << DiracSpinor::state_config(basis) << "\n";
+    fmt::print("Including n ≥ {} in internal hole states\n", n_min_core);
+    if (m_include_G) {
+      std::cout << "Including G parts of matrix\n";
+    }
+    printf("Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, "
+           "stride=%i]\n",
+           m_grid->r(m_i0), m_grid->r(m_i0 + m_stride * (m_subgrid_points - 1)),
+           int(m_subgrid_points), int(m_i0), int(m_stride));
+  }
+}
 
 //==============================================================================
 GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
@@ -118,7 +137,7 @@ GMatrix Goldstone::Sigma_exchange(int kappa_v, double en_v,
       GMatrix Sx_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
 
       const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, a);
-      for (int k = kmin_nb; k <= kmax_nb; ++k) {
+      for (int k = kmin_nb; k <= kmax_nb; k += 2) {
 
         const auto f_kkjj = (2 * k + 1) * (tjv + 1);
 
@@ -127,15 +146,19 @@ GMatrix Goldstone::Sigma_exchange(int kappa_v, double en_v,
         if (fk == 0.0)
           continue;
 
+        // std::cout << "\n(" << k << "," << fk << ")\n";
+
         // Diagram (b) [exchange]
         for (const auto &m : excited) {
           if (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()))
             continue;
           const auto Qkv = m_Yeh.Qkv_bcd(k, kappa_v, a, m, n);
-          const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, a, m, n, fks);
+          // screen both Coulomb lines??
+          // const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, a, m, n, fks);
+          const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, a, m, n);
           const auto dele = en_v + a.en() - m.en() - n.en();
-          const auto factor = 1.0 / (f_kkjj * dele);
-          Sx_an.add(Qkv, Pkv, fk * factor);
+          const auto factor = fk / (f_kkjj * dele);
+          Sx_an.add(Qkv, Pkv, factor);
         }
 
         // Diagram (d) [exchange]
@@ -143,19 +166,23 @@ GMatrix Goldstone::Sigma_exchange(int kappa_v, double en_v,
           if (!Angular::Ck_kk_SR(k, kappa_v, b.kappa()))
             continue;
           const auto Qkv = m_Yeh.Qkv_bcd(k, kappa_v, n, b, a);
-          const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, n, b, a, fks);
+          // screen both Coulomb lines??
+          // const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, n, b, a, fks);
+          const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, n, b, a);
           const auto dele = en_v + n.en() - b.en() - a.en();
-          const auto factor = 1.0 / (f_kkjj * dele);
-          Sx_an.add(Qkv, Pkv, fk * factor);
+          const auto factor = fk / (f_kkjj * dele);
+          Sx_an.add(Qkv, Pkv, factor);
         } // b
 
       } // k
 
-#pragma omp critical(sum_Sd)
+#pragma omp critical(sum_Sx)
       { Sx += Sx_an; }
 
     } // n
   }   // a
+
+  // std::cin.get();
 
   return Sx.drj_in_place();
 }

@@ -102,6 +102,9 @@ public:
 
   std::size_t size() const { return m_size; }
   std::size_t g_size() const { return m_g_size; }
+  bool includes_g() const { return m_g_size == m_size; };
+  std::size_t i0() const { return m_i0; }
+  std::size_t stride() const { return m_stride; }
 
   //============================================================================
   //! Sets all matrix elements to zero

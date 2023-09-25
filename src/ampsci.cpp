@@ -528,48 +528,47 @@ void ampsci(const IO::InputBlock &input) {
   const auto Sigma_ok = input.check(
       {"Correlations"},
       {{"", "Options for inclusion of correlations (correlation potential "
-            "method). It's become a bit of a mess, and will be refactored "
-            "~soon~"},
-       {"Brueckner", "Form Brueckner orbitals [false]"},
-       {"energyShifts", "Calculate MBPT2 shift [false]"},
+            "method)."},
        {"n_min_core", "Minimum core n to polarise [1]"},
+       {"each_valence",
+        "Construct seperate Sigma for each valence state? [false]"},
        {"fitTo_cm", "List of binding energies (in cm^-1) to scale Sigma for. "
                     "Must be in same order as valence states"},
        {"lambda_kappa",
         "Scaling factors for Sigma. Must be in same order as valence states"},
-       {"read", "Filename to read in Sigma [false=don't read]"},
-       {"write", "Filename to write Sigma to [false=don't write]"},
+       {"read", "Filename to read in Sigma. Set read=false to not read in. By "
+                "default, will be, e.g., CsI.sig2 or CsI.sigf."},
+       {"write", "Filename to write Sigma to. Set write=false to not write. By "
+                 "default same as read"},
        {"rmin", "minimum radius to calculate sigma for [1.0e-4]"},
        {"rmax", "maximum radius to calculate sigma for [30.0]"},
-       {"stride", "Only calculate Sigma every <stride> points"},
-       {"each_valence", "Different Sigma for each valence states? [false]"},
+       {"stride", "Only calculate Sigma every <stride> points. Default such "
+                  "that there are 150 points between (1e-4, 30)"},
        {"ek{}", "Block: Explicit list of energies to solve for. e.g., "
                 "ek{6s+=-0.127; 7s+=-0.552;}. Blank => HF energies. Takes "
                 "precidence over each_valence. [blank]"},
        {"Feynman", "Use Feynman method [false]"},
        {"fk",
         "List of doubles. Screening factors for effective all-order "
-        "exchange. In Feynman method, used in exchange+ladder only; "
+        "exchange. In Feynman method, used in exchange only (and G-part); "
         "Goldstone, "
         "used direct also. If blank, will calculate them from scratch. []"},
        {"eta", "List of doubles. Hole-Particle factors. In Feynman method, "
-               "used in ladder only; Goldstone, used direct also. []"},
-       {"screening", "bool. Include Screening [false]"},
-       {"holeParticle", "Include hole-particle interaction [false]"},
-       {"ladder", "Experimental feature. Filename for ladder diagram file "
-                  "(generated in the "
-                  "ladder Module). If blank, ladder "
-                  "not included. Only in Feynman. []"},
-       {"lmax", "Maximum l used for Feynman method [6]"},
-       {"basis_for_Green", "Use basis for Feynman Greens function [false]"},
-       {"basis_for_pol", "Use basis for Feynman polarisation op [false]"},
-       {"real_omega", "[worked out by default]"},
-       {"imag_omega", "w0, wratio for Im(w) grid [0.01, 1.5]"},
+               "used only for G part; Goldstone, used in direct also. []"},
+       {"screening", "Include all-orders screening. Only applicable for "
+                     "Feynman method [false]"},
+       {"holeParticle",
+        "Include all-orders hole-particle interaction. Only applicable for "
+        "Feynman method [false]"},
+       {"lmax", "Maximum l used for internal lines in Feynman method [6]"},
+       {"real_omega", "Real part of frequency used in contour integral. By "
+                      "Default, ~1/3 of the core/valence energy gap"},
+       {"imag_omega",
+        "Pair of comma-separated doubles: w0, wratio. Initial point, and "
+        "ratio, for logarithimg Im(w) grid [0.01, 1.5]"},
        {"include_G", "Inlcude lower g-part into Sigma [false]"}});
 
-  const bool do_energyShifts =
-      input.get({"Correlations"}, "energyShifts", false);
-  const bool do_brueckner = input.get({"Correlations"}, "Brueckner", false);
+  const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
   const auto sigma_rmin = input.get({"Correlations"}, "rmin", 1.0e-4);
   const auto sigma_rmax = input.get({"Correlations"}, "rmax", 30.0);
@@ -587,11 +586,8 @@ void ampsci(const IO::InputBlock &input) {
   const auto sigma_Screening = input.get({"Correlations"}, "screening", false);
   const auto hole_particle = input.get({"Correlations"}, "holeParticle", false);
   const auto sigma_lmax = input.get({"Correlations"}, "lmax", 6);
-  const auto GreenBasis = input.get({"Correlations"}, "basis_for_Green", false);
-  const auto PolBasis = input.get({"Correlations"}, "basis_for_pol", false);
   const auto each_valence = input.get({"Correlations"}, "each_valence", false);
   const auto include_G = input.get({"Correlations"}, "include_G", false);
-  const auto ladder_file = input.get({"Correlations"}, "ladder", ""s);
   // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(
       input.get({"Correlations"}, "real_omega", -0.33 * wf.energy_gap()));
@@ -635,18 +631,12 @@ void ampsci(const IO::InputBlock &input) {
   const auto etak = input.get({"Correlations"}, "eta", std::vector<double>{});
 
   // Form correlation potential:
-  if ((do_energyShifts || do_brueckner) && Sigma_ok) {
+  if (Sigma_ok) {
     IO::ChronoTimer time("Sigma");
-    wf.formSigma(n_min_core, do_brueckner, sigma_rmin, sigma_rmax, sigma_stride,
-                 each_valence, include_G, lambda_k, fk, etak, sigma_read,
-                 sigma_write, ladder_file, sigma_Feynman, sigma_Screening,
-                 hole_particle, sigma_lmax, GreenBasis, PolBasis, sigma_omre,
-                 w0, wratio, ek_Sig);
-  }
-
-  // Calculate + print second-order energy shifts
-  if (!wf.valence().empty() && do_energyShifts && Sigma_ok) {
-    wf.SOEnergyShift();
+    wf.formSigma(n_min_core, sigma_rmin, sigma_rmax, sigma_stride, each_valence,
+                 include_G, lambda_k, fk, etak, sigma_read, sigma_write,
+                 sigma_Feynman, sigma_Screening, hole_particle, sigma_lmax,
+                 sigma_omre, w0, wratio, ek_Sig);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

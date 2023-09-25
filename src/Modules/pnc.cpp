@@ -4,6 +4,7 @@
 #include "ExternalField/MixedStates.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "IO/InputBlock.hpp"
+#include "MBPT/NewSigma.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -263,7 +264,7 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                    const ExternalField::TDHF *dVpnc,
                                    const DiracOperator::TensorOperator *he1,
                                    const ExternalField::TDHF *dVE1,
-                                   const MBPT::CorrelationPotential *Sigma,
+                                   const MBPT::NewSigma *Sigma,
                                    const std::vector<DiracSpinor> &spectrum,
                                    int main_n, double en_core, bool print) {
   // Note: calling with e1 and pnc swapped is valid! (and a good consistancy

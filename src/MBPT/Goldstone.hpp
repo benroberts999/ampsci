@@ -1,5 +1,4 @@
 #pragma once
-#include "CorrelationPotential.hpp" // for rgrid_params
 #include "Coulomb/YkTable.hpp"
 #include "HF/HartreeFock.hpp"
 #include "MBPT/RDMatrix.hpp"
@@ -18,22 +17,19 @@ class Goldstone {
   std::shared_ptr<const Grid> m_grid;
 
   using Basis = std::vector<DiracSpinor>;
-  const std::pair<Basis, Basis> m_basis;
+  std::pair<Basis, Basis> m_basis;
   Coulomb::YkTable m_Yeh;
 
   // Parameters of the sub-grid: initial/final points, stride
-  std::size_t m_i0, m_imax, m_stride, m_subgrid_points;
+  std::size_t m_i0, m_stride, m_subgrid_points;
 
+  int m_n_min_core;
   bool m_include_G;
-  // Lowest n to polarise in polarisation operator
-  // int m_min_core_n;
-
-  // maximum multipolarity, k
-  // int m_max_k;
 
 public:
-  Goldstone(const std::vector<DiracSpinor> &basis, double e_Fermi,
-            MBPT::rgrid_params subgrid, int n_min_core = 1,
+  Goldstone(const std::vector<DiracSpinor> &basis,
+            const std::vector<DiracSpinor> &core, std::size_t i0,
+            std::size_t stride, std::size_t size, int n_min_core = 1,
             bool include_G = false);
 
   //! Calculate Direct part of correlation potential
@@ -44,6 +40,13 @@ public:
   // nb: can be a little faster by combining w/ direct?
   GMatrix Sigma_exchange(int kappa_v, double en_v,
                          const std::vector<double> &fk = {}) const;
+
+  const std::pair<Basis, Basis> &basis() const { return m_basis; }
+  const Coulomb::YkTable &Yeh() const { return m_Yeh; }
+
+  std::size_t stride() const { return m_stride; }
+  int n_min() const { return m_n_min_core; }
+  int lmax() const { return DiracSpinor::max_l(m_basis.second); }
 
 private:
   inline double get_k(int k, const std::vector<double> &f) const {

@@ -267,18 +267,9 @@ public:
 
   static std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
   split_by_energy(const std::vector<DiracSpinor> &orbitals, double energy,
-                  int n_min_core = 1) {
-    std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> out;
-    auto &[below, above] = out;
-    for (const auto &n : orbitals) {
-      if (n.en() <= energy) {
-        if (n.n() >= n_min_core) {
-          below.push_back(n);
-        }
-      } else {
-        above.push_back(n);
-      }
-    }
-    return out;
-  }
+                  int n_min_core = 1);
+
+  static std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
+  split_by_core(const std::vector<DiracSpinor> &orbitals,
+                const std::vector<DiracSpinor> &core, int n_min_core = 1);
 };

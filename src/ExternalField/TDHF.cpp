@@ -7,6 +7,7 @@
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "MBPT/NewSigma.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -87,10 +88,10 @@ const DiracSpinor &TDHF::get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
 }
 
 //==============================================================================
-std::vector<DiracSpinor>
-TDHF::solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-                  const MBPT::CorrelationPotential *const Sigma, StateType st,
-                  bool incl_dV) const {
+std::vector<DiracSpinor> TDHF::solve_dPsis(const DiracSpinor &Fv,
+                                           const double omega, dPsiType XorY,
+                                           const MBPT::NewSigma *const Sigma,
+                                           StateType st, bool incl_dV) const {
   std::vector<DiracSpinor> dFvs;
   const auto tjmin = std::max(1, Fv.twoj() - 2 * m_rank);
   const auto tjmax = Fv.twoj() + 2 * m_rank;
@@ -103,8 +104,8 @@ TDHF::solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
 //==============================================================================
 DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
                              dPsiType XorY, const int kappa_x,
-                             const MBPT::CorrelationPotential *const Sigma,
-                             StateType st, bool incl_dV) const {
+                             const MBPT::NewSigma *const Sigma, StateType st,
+                             bool incl_dV) const {
   // Solves (H + Sigma - e - w)X = -(h + dV - de)Psi
   // or     (H + Sigma - e + w)Y = -(h^dag + dV^dag - de)Psi
 

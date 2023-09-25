@@ -4,7 +4,6 @@
 #include "DiracOperator/DiracOperator.hpp"
 #include "IO/InputBlock.hpp"
 #include "LinAlg/Matrix.hpp"
-#include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/Sigma2.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/Wavefunction.hpp"

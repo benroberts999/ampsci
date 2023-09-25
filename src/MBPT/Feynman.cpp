@@ -1,4 +1,4 @@
-#include "Feynman.hpp"
+#include "MBPT/Feynman.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "HF/HartreeFock.hpp"
@@ -12,37 +12,35 @@
 namespace MBPT {
 
 //==============================================================================
-Feynman::Feynman(const HF::HartreeFock *vHF, MBPT::rgrid_params subgrid,
-                 double omre, double w_0, double w_ratio, Screening scr_option,
-                 HoleParticle hp_option, int max_l, int n_min_core,
-                 bool verbose)
+Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
+                 std::size_t size, const FeynmanOptions &options,
+                 int n_min_core, bool verbose)
     : m_HF(vHF),
       m_grid(vHF->grid_sptr()),
-      m_i0(vHF->grid().getIndex(subgrid.r0)),
-      m_imax(vHF->grid().getIndex(subgrid.rmax)),
-      m_stride(subgrid.stride), // check lines up? XXX
-      m_subgrid_points((m_imax - m_i0) / m_stride + 1),
+      m_i0(i0),
+      // m_imax(imax),
+      m_stride(stride),
+      m_subgrid_points(size),
       m_max_ki_core(2 * DiracSpinor::max_l(m_HF->core())),
-      m_max_ki(std::max(2 * max_l, m_max_ki_core)),
+      m_max_ki(std::max(2 * options.max_l_internal, m_max_ki_core)),
       m_max_k(std::max(m_max_ki_core + 1, m_max_ki + 1)),
       m_min_core_n(n_min_core),
-      m_omre(omre),
-      m_wgrid(form_w_grid(w_0, w_ratio)),
-      m_verbose(verbose),
-      m_hole_particle(hp_option == HoleParticle::include ||
-                      hp_option == HoleParticle::include_k0),
-      m_include_higher_order_hp(hp_option != HoleParticle::include_k0),
-      m_screen_Coulomb(scr_option == Screening::include),
-      m_only_screen(scr_option == Screening::only),
+      m_omre(options.omre),
+      m_wgrid(form_w_grid(options.w0, options.w_ratio)),
+      m_hole_particle(options.hole_particle == HoleParticle::include ||
+                      options.hole_particle == HoleParticle::include_k0),
+      m_include_higher_order_hp(options.hole_particle !=
+                                HoleParticle::include_k0),
+      m_screen_Coulomb(options.screening == Screening::include),
+      m_only_screen(options.screening == Screening::only),
       // creats empty arrays, these are filled below
       m_dri(m_i0, m_stride, m_subgrid_points, false, m_grid),
       m_drj(m_i0, m_stride, m_subgrid_points, false, m_grid) {
 
   if (verbose) {
-    std::cout << "\nFeynman diagrams for correlation potential\n";
-    std::cout << "lmax = " << Angular::lFromIndex(m_max_ki)
-              << " (internal lines)\n";
-    std::cout << "Including from core n=" << m_min_core_n << "\n";
+    std::cout << "\nFeynman diagrams:\n";
+    fmt::print("lmax = {} (internal lines)\n", Angular::lFromIndex(m_max_ki));
+    fmt::print("Including n ≥ {} in polarisation loops\n", m_min_core_n);
     if (m_screen_Coulomb) {
       std::cout << "Including all-orders Coulomb screening\n";
     }
@@ -67,10 +65,9 @@ Feynman::Feynman(const HF::HartreeFock *vHF, MBPT::rgrid_params subgrid,
 
   if (m_HF->vBreit()) {
     // Breit was included into HF; we should not do this!
-    std::cout
-        << "\nWARNING: Trying to calculate Sigma in Feynman method when Breit "
-           "is included will result in incorrect results! Calculate Sigma "
-           "first (without Breit), then you may include Breit\n";
+    fmt2::warning();
+    std::cout << "\nTrying to calculate Sigma in Feynman method when Breit "
+                 "is included may result in incorrect results!\n";
   }
 
   // work-around for polarisation issue
@@ -86,7 +83,6 @@ Feynman::Feynman(const HF::HartreeFock *vHF, MBPT::rgrid_params subgrid,
 
 //==============================================================================
 void Feynman::check_min_n() {
-
   // This is a hacky workaround for the polarisation problem
 
   double cut_off = 137.0; // Is this a coincidence???
@@ -113,7 +109,6 @@ void Feynman::check_min_n() {
 
 //==============================================================================
 void Feynman::form_qk() {
-
   // q_ij includes right-hand integration measure!
   // q_ij := (r_< / r_>)^k/r_> * dr_j
 
@@ -165,7 +160,6 @@ void Feynman::form_pa() {
 ComplexGMatrix Feynman::green_single(const DiracSpinor &ket,
                                      const DiracSpinor &bra,
                                      const std::complex<double> f) const {
-
   ComplexGMatrix Gmat(m_i0, m_stride, m_subgrid_points, false, m_grid);
   Gmat.add(ket, bra, f);
   return Gmat;
@@ -200,10 +194,9 @@ void Feynman::form_vx() {
         V_k += c_ang * m_pa[ia];
       }
 
-      const auto sk = std::size_t(k);
+      const auto &qk = get_qk(k);
 
-      m_Vx_kappa[std::size_t(kapi)] +=
-          V_k.mult_elements_by(m_qk.at(sk).dri()).real();
+      m_Vx_kappa[std::size_t(kapi)] += V_k.mult_elements_by(qk.dri()).real();
     }
   }
 }
@@ -222,7 +215,6 @@ ComplexGMatrix Feynman::green(int kappa, std::complex<double> en,
 //==============================================================================
 ComplexGMatrix Feynman::green_hf(int kappa, std::complex<double> en,
                                  const DiracSpinor *Fc_hp) const {
-
   // Solve DE (no exchange), regular at 0, infinity ("pinf")
   DiracSpinor x0(0, kappa, m_grid);
   DiracSpinor xI(0, kappa, m_grid);
@@ -271,7 +263,6 @@ ComplexGMatrix Feynman::green_hf(int kappa, std::complex<double> en,
 //==============================================================================
 ComplexGMatrix Feynman::green_hf_v2(int kappa, std::complex<double> en,
                                     const DiracSpinor *Fc_hp) const {
-
   if (en.imag() == 0.0) {
     // If en is real, don't need to use complex version:
     return green_hf(kappa, en, Fc_hp);
@@ -468,8 +459,8 @@ ComplexGMatrix Feynman::construct_green_g0(const DiracSpinor &x0,
 }
 
 //==============================================================================
-ComplexGMatrix Feynman::polarisation_k(int k,
-                                       std::complex<double> omega) const {
+ComplexGMatrix Feynman::polarisation_k(int k, std::complex<double> omega,
+                                       bool hole_particle) const {
 
   ComplexGMatrix pi_k(m_i0, m_stride, m_subgrid_points, false, m_grid);
 
@@ -484,7 +475,8 @@ ComplexGMatrix Feynman::polarisation_k(int k,
     const auto ea_minus_w = std::complex<double>{a.en()} - omega;
     const auto ea_plus_w = std::complex<double>{a.en()} + omega;
 
-    const auto *Fa_hp = m_hole_particle ? &a : nullptr;
+    // not m_hole_particle, as need both for "screen only"
+    const auto *Fa_hp = hole_particle ? &a : nullptr;
 
     for (int in = 0; in <= m_max_ki; ++in) {
       const auto kn = Angular::kappaFromIndex(in);
@@ -510,7 +502,6 @@ ComplexGMatrix Feynman::polarisation_k(int k,
 
 //==============================================================================
 Grid Feynman::form_w_grid(double w0, double wratio) const {
-
   // Find max core energy: (for w_max)
   auto wmax_core = 30.0; // don't let it go below 50
   const auto &core = m_HF->core();
@@ -521,11 +512,19 @@ Grid Feynman::form_w_grid(double w0, double wratio) const {
       wmax_core = std::abs(Fc.en());
   }
 
-  // maximum Im(w): based on core energy.
-  const auto wmax = 2.0 * wratio * wmax_core;
+  // Target for maximum Im(w): based on core energy.
+  const auto wmax_t = 2.0 * wratio * wmax_core;
 
-  const std::size_t wsteps = Grid::calc_num_points_from_du(
-      w0, wmax, std::log(wratio), GridType::logarithmic);
+  // Solve wmax < w0 * ratio^{N-1} for N
+  const std::size_t wsteps =
+      std::size_t(std::log(wratio * wmax_t / w0) / std::log(wratio)) + 1;
+
+  // actual w0, to keep w_ratio exact
+  const auto wmax = w0 * std::pow(wratio, int(wsteps - 1));
+
+  // const auto wmax = 2.0 * wratio * wmax_core;
+  // const std::size_t wsteps = Grid::calc_num_points_from_du(
+  //     w0, wmax, std::log(wratio), GridType::logarithmic);
 
   auto wgrid = Grid(w0, wmax, wsteps, GridType::logarithmic);
 
@@ -534,16 +533,13 @@ Grid Feynman::form_w_grid(double w0, double wratio) const {
 
 //==============================================================================
 void Feynman::form_qpiq() {
-
-  if (m_verbose) {
-    std::cout << "Forming QPQ(w,k)";
-    if (m_hole_particle || m_screen_Coulomb) {
-      std::cout << " (w/ " << (m_screen_Coulomb ? "scr" : "")
-                << (m_hole_particle && m_screen_Coulomb ? " + " : "")
-                << (m_hole_particle ? "hp" : "") << ")";
-    }
-    std::cout << " .. " << std::flush;
+  std::cout << "Forming QPQ(w,k)";
+  if (m_hole_particle || m_screen_Coulomb) {
+    std::cout << " (w/ " << (m_screen_Coulomb ? "scr" : "")
+              << (m_hole_particle && m_screen_Coulomb ? " + " : "")
+              << (m_hole_particle ? "hp" : "") << ")";
   }
+  std::cout << " .. " << std::flush;
 
   const auto num_ks = std::size_t(m_max_k + 1);
 
@@ -557,25 +553,30 @@ void Feynman::form_qpiq() {
     for (auto k = 0ul; k < num_ks; ++k) {
       const auto omega = std::complex<double>{m_omre, m_wgrid.r(iw)};
 
-      const auto &q = m_qk.at(k); // has drj
-      const auto qdri = q.dri();  // has drj, and dri
-      const auto pi = polarisation_k(int(k), omega);
+      const auto &q = get_qk(int(k)); // has drj
+      const auto qdri = q.dri();      // has drj, and dri
+      const auto pi = polarisation_k(int(k), omega, m_hole_particle);
 
       if (m_screen_Coulomb && !m_only_screen) {
         const auto X = X_screen(pi, qdri);
         m_qpiq_wk[iw][k] = q * pi * X * qdri;
       } else if (m_only_screen) {
+        // _only_ includes screening (and hp) corrections
+        // i.e., this will give dSigma, where Sigma = Sigma_2 + dSigma
         const auto X = X_screen(pi, qdri);
-        m_qpiq_wk[iw][k] = q * pi * (X - 1.0) * qdri;
+        if (m_hole_particle) {
+          const auto pi0 = polarisation_k(int(k), omega, false);
+          m_qpiq_wk[iw][k] = q * (pi * X - pi0) * qdri;
+        } else {
+          m_qpiq_wk[iw][k] = q * pi * (X - 1.0) * qdri;
+        }
       } else {
         m_qpiq_wk[iw][k] = q * pi * qdri;
       }
     }
   }
 
-  if (m_verbose) {
-    std::cout << " done\n" << std::flush;
-  }
+  std::cout << " done\n" << std::flush;
 }
 
 //==============================================================================
@@ -589,7 +590,6 @@ ComplexGMatrix Feynman::X_screen(const ComplexGMatrix &pik,
 //==============================================================================
 GMatrix Feynman::Sigma_direct(int kv, double env,
                               std::optional<int> in_k) const {
-
   // If in_k is set, only calculate for single k
   // Used both for testing, and for calculating f_k factors
 
@@ -645,6 +645,6 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
   Sigma *= (m_wgrid.du() / M_PI);
 
   return Sigma;
-} // namespace MBPT
+}
 
 } // namespace MBPT

@@ -11,7 +11,7 @@ class Wavefunction;
 class DiracSpinor;
 class Grid;
 namespace MBPT {
-class CorrelationPotential;
+class NewSigma;
 }
 
 //! Functions and classes for Hartree-Fock
@@ -123,14 +123,12 @@ public:
   //! existing solutions; initial energy is guessed and solved from scratch. If
   //! initial energy is non-zero, that energy is used and states are assumed to
   //! already be (approximate) solutions.
-  void
-  solve_valence(std::vector<DiracSpinor> *valence, bool print = true,
-                const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+  void solve_valence(std::vector<DiracSpinor> *valence, bool print = true,
+                     const MBPT::NewSigma *const Sigma = nullptr) const;
 
   //! Solves HF equation (+ Sigma) for single valence state.
-  EpsIts
-  hf_valence(DiracSpinor &Fv,
-             const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+  EpsIts hf_valence(DiracSpinor &Fv,
+                    const MBPT::NewSigma *const Sigma = nullptr) const;
 
   //! Calculates the HF core energy (not including Breit?)
   double calculateCoreEnergy() const;
@@ -220,7 +218,7 @@ private:
     // same as hf_valence, but uses Green method
     EpsIts hf_valence_Green(
         DiracSpinor &Fv,
-        const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+        const MBPT::NewSigma *const Sigma = nullptr) const;
   */
 
   // Solves HF equation for given state, using non-local Green's method for
@@ -236,12 +234,14 @@ private:
   // e -> e+de, F->F+dF
   // Core is input so can call in a thread-safe way! (with a 'old_core' copy)
   // Only used in dE from dF
-  void hf_orbital_green(
-      DiracSpinor &Fa, double en, const std::vector<double> &vl,
-      const std::vector<double> &H_mag, const DiracSpinor &VxF,
-      const std::vector<DiracSpinor> &static_core,
-      const std::vector<double> &dv0 = {}, const HF::Breit *const VBr = nullptr,
-      const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+  void hf_orbital_green(DiracSpinor &Fa, double en,
+                        const std::vector<double> &vl,
+                        const std::vector<double> &H_mag,
+                        const DiracSpinor &VxF,
+                        const std::vector<DiracSpinor> &static_core,
+                        const std::vector<double> &dv0 = {},
+                        const HF::Breit *const VBr = nullptr,
+                        const MBPT::NewSigma *const Sigma = nullptr) const;
 
   // Calc's Vex*Fa, for Fa in the core. Fa must be in the core
   void vex_Fa_core(const DiracSpinor &Fa, DiracSpinor &vexFa) const;

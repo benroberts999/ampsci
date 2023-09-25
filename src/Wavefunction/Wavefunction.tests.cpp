@@ -101,13 +101,12 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
   //============================================================================
 
-  wf.formSigma(2, true, 1.0e-3, 15.0, 8, false, false, {}, {}, {}, "false",
-               "false");
+  wf.formSigma(2, 1.0e-3, 15.0, 8, false, false, {}, {}, {}, "false", "false");
   wf.hartreeFockBrueckner(true);
   wf.formSpectrum({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0, false});
   wf.printValence();
   //
-  wf.SOEnergyShift();
+  // wf.SOEnergyShift();
   std::vector<double> br_en_list;
   for (const auto &Fv : wf.valence()) {
     br_en_list.push_back(Fv.en());

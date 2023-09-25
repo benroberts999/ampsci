@@ -7,7 +7,6 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/InputBlock.hpp"
-#include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Physics/NuclearPotentials.hpp"

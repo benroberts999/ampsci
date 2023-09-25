@@ -16,7 +16,6 @@
 #include "Modules/qed.hpp"
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
-#include "Modules/testFeynman.hpp"
 
 #include <iostream>
 #include <string>
@@ -67,7 +66,6 @@ static const std::vector<ModuleInfo> module_list{
     {"screeningFactors", &screeningFactors,
      "Calculates Feynman electron screening factors"},
     {"pnc", &calculatePNC, "Calculates APV amplitudes"},
-    {"testFeynman", &testFeynman, ""},
     {"VQE", &VQE, "For testing/playing with VQE method"},
 
     {"exampleModule", &exampleModule, "A short description of the module"}};

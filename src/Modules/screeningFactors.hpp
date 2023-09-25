@@ -6,12 +6,6 @@ class Wavefunction;
 namespace IO {
 class InputBlock;
 }
-namespace DiracOperator {
-class TensorOperator;
-}
-namespace MBPT {
-class FeynmanSigma;
-}
 
 namespace Module {
 

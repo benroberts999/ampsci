@@ -1,6 +1,6 @@
 #pragma once
 #include "HF/HartreeFock.hpp"
-#include "MBPT/CorrelationPotential.hpp"
+#include "MBPT/NewSigma.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -11,6 +11,7 @@
 #include <iostream>
 #include <memory>
 #include <numeric>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -66,7 +67,7 @@ private:
   // Hartree-Fock potential
   std::optional<HF::HartreeFock> m_HF{std::nullopt};
   // Correlation potential; for now unique_ptr; prefer std::optional
-  std::unique_ptr<MBPT::CorrelationPotential> m_Sigma{nullptr};
+  std::optional<MBPT::NewSigma> m_Sigma{};
   // Core configuration (non-rel terms)
   std::string m_core_string = "";
   std::string m_aboveFermi_core_string = "";
@@ -130,8 +131,8 @@ public:
   QED::RadPot *vrad() { return m_HF ? m_HF->Vrad() : nullptr; }
 
   //! Returns ptr to (const) Correlation Potential, Sigma
-  const MBPT::CorrelationPotential *Sigma() const { return m_Sigma.get(); }
-  MBPT::CorrelationPotential *Sigma() { return m_Sigma.get(); }
+  const MBPT::NewSigma *Sigma() const { return m_Sigma ? &*m_Sigma : nullptr; }
+  MBPT::NewSigma *Sigma() { return m_Sigma ? &*m_Sigma : nullptr; }
 
   //----------------------------------
 
@@ -246,23 +247,24 @@ public:
   void formSpectrum(const SplineBasis::Parameters &params);
 
   //! Forms + stores correlation potential Sigma
-  void formSigma(
-      const int nmin_core = 1, const bool form_matrix = true,
-      const double r0 = 1.0e-4, const double rmax = 30.0, const int stride = 4,
-      bool each_valence = false, const bool include_G = false,
-      const std::vector<double> &lambdas = {},
-      const std::vector<double> &fk = {}, const std::vector<double> &etak = {},
-      const std::string &in_fname = "", const std::string &out_fname = "",
-      const std::string &ladder_file = "", const bool FeynmanQ = false,
-      const bool ScreeningQ = false, const bool holeParticleQ = false,
-      const int lmax = 6, const bool GreenBasis = false,
-      const bool PolBasis = false, const double omre = -0.2, double w0 = 0.01,
-      double wratio = 1.5,
-      const std::optional<IO::InputBlock> &ek = std::nullopt);
+  void formSigma(int nmin_core = 1, double r0 = 1.0e-4, double rmax = 30.0,
+                 int stride = 4, bool each_valence = false,
+                 bool include_G = false,
+                 const std::vector<double> &lambdas = {},
+                 const std::vector<double> &fk = {},
+                 const std::vector<double> &etak = {},
+                 const std::string &in_fname = "",
+                 const std::string &out_fname = "", bool FeynmanQ = false,
+                 bool ScreeningQ = false, bool holeParticleQ = false,
+                 int lmax = 6, double omre = -0.2, double w0 = 0.01,
+                 double wratio = 1.5,
+                 const std::optional<IO::InputBlock> &ek = std::nullopt);
 
-  void copySigma(const MBPT::CorrelationPotential *const Sigma) {
+  // void correlations(const IO::InputBlock &input);
+
+  void copySigma(const MBPT::NewSigma *const Sigma) {
     if (Sigma != nullptr)
-      m_Sigma = std::make_unique<MBPT::CorrelationPotential>(*Sigma);
+      m_Sigma = *Sigma;
   }
 
   //! Allows extra potential to be added to Vnuc (updates both in Wavefunction

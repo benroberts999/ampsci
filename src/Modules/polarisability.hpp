@@ -64,7 +64,7 @@ in Atoms, Phys. Rev. A 98, 043411 (2018).
 */
 double core_tdhf(const std::vector<DiracSpinor> &core,
                  const DiracOperator::E1 &he1, const ExternalField::TDHF &dVE1,
-                 double omega, const MBPT::CorrelationPotential *const Sigma);
+                 double omega, const MBPT::NewSigma *const Sigma);
 
 //! Calculates polarisability of va.ence state, using Mixed-States (TDHF) method
 /*! @details TDHF (dVE1) is required - assumed to be solved already. If it's not
@@ -74,7 +74,7 @@ in Atoms, Phys. Rev. A 98, 043411 (2018).
 */
 double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
                     const ExternalField::TDHF &dVE1, double omega,
-                    const MBPT::CorrelationPotential *const Sigma,
+                    const MBPT::NewSigma *const Sigma,
                     const std::vector<DiracSpinor> &force_orthog = {});
 
 //! Scalar transition polarisability, alpha, using sos method.
@@ -92,11 +92,11 @@ double beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
 double transition_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
                        const DiracOperator::E1 &he1,
                        const ExternalField::TDHF &dVE1,
-                       const MBPT::CorrelationPotential *const Sigma);
+                       const MBPT::NewSigma *const Sigma);
 //! Vector transition polarisability, beta, using TDHF method.
 double beta_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
                  const DiracOperator::E1 &he1, const ExternalField::TDHF &dVE1,
-                 const MBPT::CorrelationPotential *const Sigma);
+                 const MBPT::NewSigma *const Sigma);
 
 //! Calculates Structure-radiation + normalisation contribution to valence
 //! polarisability, using sum-over-states.

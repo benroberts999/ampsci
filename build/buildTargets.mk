@@ -105,7 +105,7 @@ checkXdir:
 		false; \
 	fi
 
-.PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir remove_deleteme
+.PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir remove_junk
 
 # Removes all compiled files: executables, objects, dependency files etc.
 # Also deletes junk

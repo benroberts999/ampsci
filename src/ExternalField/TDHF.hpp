@@ -7,7 +7,7 @@ namespace DiracOperator {
 class TensorOperator;
 }
 namespace MBPT {
-class CorrelationPotential;
+class NewSigma;
 }
 
 namespace HF {
@@ -107,15 +107,15 @@ public:
    XorY takes values: dPsiType::X or dPsiType::Y.
    st takes values: StateType::ket or StateType::bra
   */
-  DiracSpinor
-  solve_dPsi(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-             const int kappa_beta,
-             const MBPT::CorrelationPotential *const Sigma = nullptr,
-             StateType st = StateType::ket, bool incl_dV = true) const;
+  DiracSpinor solve_dPsi(const DiracSpinor &Fv, const double omega,
+                         dPsiType XorY, const int kappa_beta,
+                         const MBPT::NewSigma *const Sigma = nullptr,
+                         StateType st = StateType::ket,
+                         bool incl_dV = true) const;
   //! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
   std::vector<DiracSpinor>
   solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-              const MBPT::CorrelationPotential *const Sigma = nullptr,
+              const MBPT::NewSigma *const Sigma = nullptr,
               StateType st = StateType::ket, bool incl_dV = true) const;
 
   // //! Writes dPsi (f-component) to textfile
