@@ -474,7 +474,7 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
           eps_worst_a = delta;
       } // a (holes)
       eps_m[im] = eps_worst_a;
-    }   // m (excited)
+    } // m (excited)
     // XXX "small" race condition somewhere regarding eps??
     // The itteraion it converges on always seems to be the same..
     // but the value for eps printed changes slightly each run???

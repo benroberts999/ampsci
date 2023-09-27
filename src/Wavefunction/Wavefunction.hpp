@@ -1,6 +1,6 @@
 #pragma once
 #include "HF/HartreeFock.hpp"
-#include "MBPT/NewSigma.hpp"
+#include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -67,7 +67,7 @@ private:
   // Hartree-Fock potential
   std::optional<HF::HartreeFock> m_HF{std::nullopt};
   // Correlation potential; for now unique_ptr; prefer std::optional
-  std::optional<MBPT::NewSigma> m_Sigma{};
+  std::optional<MBPT::CorrelationPotential> m_Sigma{};
   // Core configuration (non-rel terms)
   std::string m_core_string = "";
   std::string m_aboveFermi_core_string = "";
@@ -131,8 +131,10 @@ public:
   QED::RadPot *vrad() { return m_HF ? m_HF->Vrad() : nullptr; }
 
   //! Returns ptr to (const) Correlation Potential, Sigma
-  const MBPT::NewSigma *Sigma() const { return m_Sigma ? &*m_Sigma : nullptr; }
-  MBPT::NewSigma *Sigma() { return m_Sigma ? &*m_Sigma : nullptr; }
+  const MBPT::CorrelationPotential *Sigma() const {
+    return m_Sigma ? &*m_Sigma : nullptr;
+  }
+  MBPT::CorrelationPotential *Sigma() { return m_Sigma ? &*m_Sigma : nullptr; }
 
   //----------------------------------
 
@@ -262,7 +264,7 @@ public:
 
   // void correlations(const IO::InputBlock &input);
 
-  void copySigma(const MBPT::NewSigma *const Sigma) {
+  void copySigma(const MBPT::CorrelationPotential *const Sigma) {
     if (Sigma != nullptr)
       m_Sigma = *Sigma;
   }

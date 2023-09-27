@@ -44,7 +44,7 @@ struct rgrid_params {
 
 //==============================================================================
 
-class NewSigma {
+class CorrelationPotential {
   const HF::HartreeFock *m_HF;
   std::vector<DiracSpinor> m_basis; // so we can delay goldstone construction
   std::vector<SigmaData> m_Sigmas{};
@@ -71,23 +71,21 @@ class NewSigma {
   std::optional<Feynman> m_FyH{};
 
 public:
-  NewSigma(const std::string &fname, const HF::HartreeFock *vHF,
-           const std::vector<DiracSpinor> &basis, double r0, double rmax,
-           std::size_t stride, int n_min_core, SigmaMethod method,
-           bool include_g, const FeynmanOptions &Foptions = {},
-           bool calculate_fk = true, const std::vector<double> &fk = {},
-           const std::vector<double> &etak = {});
-
-  void setup_Feynman();
-
-  void write(const std::string &fname) { read_write(fname, IO::FRW::write); }
+  CorrelationPotential(const std::string &fname, const HF::HartreeFock *vHF,
+                       const std::vector<DiracSpinor> &basis, double r0,
+                       double rmax, std::size_t stride, int n_min_core,
+                       SigmaMethod method, bool include_g,
+                       const FeynmanOptions &Foptions = {},
+                       bool calculate_fk = true,
+                       const std::vector<double> &fk = {},
+                       const std::vector<double> &etak = {});
 
   // // not thread safe!
   // void formSigma(int kappa, double en, int n = 0) {}
   // not thread safe!
   void formSigma(int kappa, double ev, int n, const DiracSpinor *Fv = nullptr);
 
-  const SigmaData *get(int kappa, int n = 0) const;
+  bool empty() const { return m_Sigmas.empty(); }
 
   const GMatrix *getSigma(int kappa, int n = 0) const;
 
@@ -110,23 +108,22 @@ public:
   //! Prints the sub-grid parameters to screen
   void print_subGrid() const;
 
-  // void print_info() const;
-
-  bool empty() const { return m_Sigmas.empty(); }
-
-  bool read_write(const std::string &fname, IO::FRW::RoW rw);
-
-  std::vector<double> calculate_fk(double ev, const DiracSpinor &v) const;
-  std::vector<double> calculate_etak(double ev, const DiracSpinor &v) const;
+  void write(const std::string &fname) { read_write(fname, IO::FRW::write); }
 
 private:
+  bool read_write(const std::string &fname, IO::FRW::RoW rw);
+  void setup_Feynman();
+  std::vector<double> calculate_fk(double ev, const DiracSpinor &v) const;
+  std::vector<double> calculate_etak(double ev, const DiracSpinor &v) const;
+  const SigmaData *get(int kappa, int n = 0) const;
+
   GMatrix formSigma_F(int kappa, double ev, const DiracSpinor *Fv = nullptr);
   GMatrix formSigma_G(int kappa, double ev, const DiracSpinor *Fv = nullptr);
 
 public:
-  NewSigma &operator=(const NewSigma &) = default;
-  NewSigma(const NewSigma &) = default;
-  ~NewSigma() = default;
+  CorrelationPotential &operator=(const CorrelationPotential &) = default;
+  CorrelationPotential(const CorrelationPotential &) = default;
+  ~CorrelationPotential() = default;
 
   //
 };

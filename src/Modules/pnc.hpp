@@ -15,7 +15,7 @@ class TDHF;
 class DiracSpinor;
 namespace MBPT {
 // class CorrelationPotential;
-class NewSigma;
+class CorrelationPotential;
 } // namespace MBPT
 namespace Module {
 
@@ -70,7 +70,7 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                    const ExternalField::TDHF *dVpnc,
                                    const DiracOperator::TensorOperator *he1,
                                    const ExternalField::TDHF *dVE1,
-                                   const MBPT::NewSigma *Sigma,
+                                   const MBPT::CorrelationPotential *Sigma,
                                    const std::vector<DiracSpinor> &spectrum,
                                    int main_n, double en_core, bool print);
 

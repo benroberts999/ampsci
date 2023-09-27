@@ -26,8 +26,8 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
   wf.solve_core();
   wf.solve_valence("7sp5d4f");
 
-  const auto hA = DiracOperator::hfs(
-      1, 1.0, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+  const auto hA = DiracOperator::hfs(1, 1.0, 0.0, wf.grid(),
+                                     DiracOperator::Hyperfine::pointlike_F());
   const auto r = wf.grid().r();
 
   // Form spline basis:

@@ -807,7 +807,7 @@ double beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
 double transition_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
                        const DiracOperator::E1 &he1,
                        const ExternalField::TDHF &dVE1,
-                       const MBPT::NewSigma *const Sigma) {
+                       const MBPT::CorrelationPotential *const Sigma) {
   const auto two_m = 1; // assumes m=1/2
 
   const auto X_v = dVE1.solve_dPsis(Fv, 0.0, ExternalField::dPsiType::X, Sigma);
@@ -830,7 +830,7 @@ double transition_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
 //------------------------------------------------------------------------------
 double beta_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
                  const DiracOperator::E1 &he1, const ExternalField::TDHF &dVE1,
-                 const MBPT::NewSigma *const Sigma) {
+                 const MBPT::CorrelationPotential *const Sigma) {
   assert(Fv.kappa() == Fw.kappa() && Fv.kappa() == -1); //only s-states
 
   const auto dv = dVE1.solve_dPsis(Fv, 0.0, ExternalField::dPsiType::X, Sigma);
@@ -896,7 +896,7 @@ double tensor2_sos(const DiracSpinor &Fv,
 // equivilant to no RPA.?
 double core_tdhf(const std::vector<DiracSpinor> &core,
                  const DiracOperator::E1 &he1, const ExternalField::TDHF &dVE1,
-                 double omega, const MBPT::NewSigma *const Sigma) {
+                 double omega, const MBPT::CorrelationPotential *const Sigma) {
 
   // V. A. Dzuba, J. C. Berengut, J. S. M. Ginges, and V. V. Flambaum, Screening
   // of an Oscillating External Electric Field in Atoms, Phys. Rev. A 98, 043411
@@ -936,7 +936,7 @@ double core_tdhf(const std::vector<DiracSpinor> &core,
 //------------------------------------------------------------------------------
 double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
                     const ExternalField::TDHF &dVE1, double omega,
-                    const MBPT::NewSigma *const Sigma,
+                    const MBPT::CorrelationPotential *const Sigma,
                     const std::vector<DiracSpinor> &force_orthog) {
 
   const auto f = (-1.0 / 3.0) / (Fv.twoj() + 1);

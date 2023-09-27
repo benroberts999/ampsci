@@ -1,12 +1,266 @@
+#include "MBPT/CorrelationPotential.hpp"
+#include "DiracODE/DiracODE.hpp"
+#include "MBPT/Feynman.hpp"
+#include "MBPT/Goldstone.hpp"
+#include "MBPT/Sigma2.hpp"
+#include "Maths/Grid.hpp"
 #include "Sigma2.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
+#include "qip/Random.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>
+
+//==============================================================================
+TEST_CASE("MBPT: Goldstone, unit tests", "[MBPT][Goldstone][unit]") {
+
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Feynman diagram, unit tests (not meant to be accurate)\n";
+
+  Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
+                  {"Na", -1, "Fermi"}, 1.0);
+  wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-5);
+  wf.solve_valence("3sp");
+  wf.formBasis(
+      SplineBasis::Parameters("20spd", 20, 6, 1.0e-4, 1.0e-4, 30.0, false));
+
+  // These parameters are not meant to be accurate
+  const double r0{1.0e-2};
+  const double rmax{20.0};
+  const std::size_t stride = 6;
+  const int n_min_core = 2;
+
+  const auto i0 = wf.grid().getIndex(r0);
+  const auto size = (wf.grid().getIndex(rmax) - i0) / stride + 1;
+
+  // Construct Goldtone diagrams (second-order only)
+  MBPT::Goldstone Gs = MBPT::Goldstone(wf.basis(), wf.core(), i0, stride, size,
+                                       n_min_core, false);
+
+  // Test the "parameter" getters
+  REQUIRE(Gs.stride() == stride);
+  REQUIRE(Gs.n_min() == n_min_core);
+  REQUIRE(Gs.lmax() == 2);
+
+  const auto &Yeh = Gs.Yeh();
+  const auto &[holes, excited] = Gs.basis();
+
+  for (auto &v : wf.valence()) {
+
+    auto Sigma = Gs.Sigma_direct(v.kappa(), v.en()) +
+                 Gs.Sigma_exchange(v.kappa(), v.en());
+
+    auto de0 = MBPT::Sigma_vw(v, v, Yeh, holes, excited);
+
+    auto de1 = v * (Sigma * v);
+
+    // Not an accuracy test
+    REQUIRE(de1 == Approx(de0).epsilon(1.0e-3));
+  }
+}
+
+//==============================================================================
+TEST_CASE("MBPT: Feynman, unit tests", "[MBPT][Feynman][unit]") {
+
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "Feynman diagram, unit tests (not meant to be accurate)\n";
+
+  Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
+                  {"Na", -1, "Fermi"}, 1.0);
+  wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-5);
+  wf.solve_valence("3sp");
+
+  // These parameters are not meant to be accurate
+  const double r0{1.0e-2};
+  const double rmax{20.0};
+  const std::size_t stride = 6;
+  const auto omre = -0.33 * wf.energy_gap();
+  const int lmax = 2;
+  const double w0{0.1};
+  const double wratio{3.0};
+  const int n_min_core = 2;
+
+  const auto i0 = wf.grid().getIndex(r0);
+  const auto size = (wf.grid().getIndex(rmax) - i0) / stride + 1;
+
+  // Construct Feynman diagrams (second-order only)
+  MBPT::Feynman Fy(wf.vHF(), i0, stride, size,
+                   {MBPT::Screening::exclude, MBPT::HoleParticle::exclude, lmax,
+                    omre, w0, wratio},
+                   n_min_core, true);
+
+  // Test the "parameter" getters
+  REQUIRE(Fy.screening() == false);
+  REQUIRE(Fy.hole_particle() == false);
+  REQUIRE(Fy.stride() == stride);
+  REQUIRE(Fy.n_min() == n_min_core);
+  REQUIRE(Fy.lmax() == lmax);
+  REQUIRE(Fy.w0() == Approx(w0));
+  REQUIRE(Fy.wratio() == Approx(wratio));
+  REQUIRE(Fy.omre() == Approx(omre));
+
+  // Test exchange potential: just that it works, not an accuracy test
+  for (auto &v : wf.valence()) {
+    const auto vx = Fy.get_Vx_kappa(v.kappa());
+    const auto dv = vx * v;
+    const auto dex = qip::inner_product(v.f(), dv.f()) / double(Fy.stride());
+    const auto dex0 = v * (wf.vHF()->vexFa(v));
+    const auto eps = std::abs(dex / dex0 - 1.0);
+    REQUIRE(eps < 1.0e-1);
+  }
+
+  // with screening
+  MBPT::Feynman FyS(wf.vHF(), i0, stride, size,
+                    {MBPT::Screening::include, MBPT::HoleParticle::exclude,
+                     lmax, omre, w0, wratio},
+                    n_min_core, false);
+
+  // with screening + hole-particle (all-order)
+  MBPT::Feynman FyAO(wf.vHF(), i0, stride, size,
+                     {MBPT::Screening::include, MBPT::HoleParticle::include,
+                      lmax, omre, w0, wratio},
+                     n_min_core, false);
+
+  // "Only screening": i.e., just screening correction, no 2nd order (no hp)
+  MBPT::Feynman FyS_only(wf.vHF(), i0, stride, size,
+                         {MBPT::Screening::only, MBPT::HoleParticle::exclude,
+                          lmax, omre, w0, wratio},
+                         n_min_core, false);
+
+  // "Only screening + hp": i.e., just screening + hp corrections, no 2nd order
+  MBPT::Feynman FyHS_only(wf.vHF(), i0, stride, size,
+                          {MBPT::Screening::only, MBPT::HoleParticle::include,
+                           lmax, omre, w0, wratio},
+                          n_min_core, false);
+
+  // expected data
+  const std::vector expected_de{-0.0049, -0.0015, -0.0015};
+  const std::vector expected_sc_ratio{0.85, 0.90, 0.90};
+  const std::vector expected_hp_ratio{1.22, 1.23, 1.23};
+  const double epsilon = 1.0e-1; // just test to 10% (not anccuracy test)
+
+  for (std::size_t i = 0; i < wf.valence().size(); ++i) {
+    const auto &v = wf.valence().at(i);
+
+    // Check second-order Feynman against expected
+    const auto Sd = Fy.Sigma_direct(v.kappa(), v.en());
+    const auto de0 = v * (Sd * v);
+    // only require to ~1%, since not an accuracy test
+    REQUIRE(de0 == Approx(expected_de[i]).epsilon(epsilon));
+
+    // Test screening and hole-particle:
+    const auto Sd_S = FyS.Sigma_direct(v.kappa(), v.en());
+    const auto Sd_ao = FyAO.Sigma_direct(v.kappa(), v.en());
+    const auto des = v * (Sd_S * v);
+    const auto deao = v * (Sd_ao * v);
+
+    // Test screening: ratio of screened to unscreened:
+    REQUIRE(des / de0 == Approx(expected_sc_ratio[i]).epsilon(epsilon));
+
+    // Test hole-particle: ratio of all-orders to screening
+    REQUIRE(deao / des == Approx(expected_hp_ratio[i]).epsilon(epsilon));
+
+    // Test the "only screening" methods (i.e., corrections only)
+    const auto Sd_Sonly = FyS_only.Sigma_direct(v.kappa(), v.en());
+    const auto Sd_HSonly = FyHS_only.Sigma_direct(v.kappa(), v.en());
+
+    // Only screening (no hp)
+    const auto des_only = v * (Sd_Sonly * v);
+    // Only screening (with hp)
+    const auto deshp_only = v * (Sd_HSonly * v);
+
+    // Screening only is equal to screening correction (without hp):
+    REQUIRE(des_only == Approx(des - de0));
+    // Screening only is equal to screening correction (with hp):
+    REQUIRE(deshp_only == Approx(deao - de0));
+  }
+  std::cout << "\n";
+}
+
+//==============================================================================
+TEST_CASE("MBPT: CorrelationPotential",
+          "[MBPT][CorrelationPotential][unit]") { //
+
+  Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
+                  {"Na", -1, "Fermi"}, 1.0);
+  wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-5);
+  wf.solve_valence("3sp");
+  wf.formBasis(
+      SplineBasis::Parameters("20spd", 20, 6, 1.0e-4, 1.0e-4, 30.0, false));
+
+  // These parameters are not meant to be accurate
+  const double r0{1.0e-2};
+  const double rmax{20.0};
+  const std::size_t stride = 6;
+  const int n_min_core = 2;
+
+  auto SigmaG = MBPT::CorrelationPotential("", wf.vHF(), wf.basis(), r0, rmax,
+                                           stride, n_min_core,
+                                           MBPT::SigmaMethod::Goldstone, false);
+
+  REQUIRE(SigmaG.empty());
+
+  for (auto &v : wf.valence()) {
+    SigmaG.formSigma(v.kappa(), v.en(), v.n(), &v);
+  }
+
+  REQUIRE(!SigmaG.empty());
+
+  std::string file_name = "deleteme_" + qip::random_string(6) + ".sig";
+
+  // test write and read:
+  SigmaG.write(file_name);
+
+  // read in:
+  auto SigmaG2 = MBPT::CorrelationPotential(
+      file_name, wf.vHF(), wf.basis(), r0, rmax, stride, n_min_core,
+      MBPT::SigmaMethod::Goldstone, false);
+
+  SigmaG2.print_subGrid();
+
+  std::cout << "\n";
+
+  for (auto &v : wf.valence()) {
+
+    const auto de1 = v * SigmaG2(v);
+    const auto de2 = v * SigmaG(v);
+
+    REQUIRE(de1 == Approx(de2));
+
+    const auto S = SigmaG2.getSigma(v.kappa(), v.n());
+    REQUIRE(S != nullptr);
+    const auto de3 = v * (*S * v);
+
+    REQUIRE(de1 == Approx(de3));
+  }
+
+  //------------------------------------------------------
+
+  // test scaling:
+  SigmaG2.scale_Sigma({2.0, 2.0, 2.0});
+  SigmaG2.print_scaling();
+  for (auto &v : wf.valence()) {
+
+    const auto de1 = v * SigmaG2(v);
+    const auto de2 = 2.0 * v * SigmaG(v);
+
+    REQUIRE(de1 == Approx(de2));
+  }
+
+  for (auto &v : wf.valence()) {
+    SigmaG2.scale_Sigma(v.n() * 1.5, v.kappa(), v.n());
+    const auto de1 = v * SigmaG2(v);
+    const auto de2 = v.n() * 1.5 * v * SigmaG(v);
+    REQUIRE(de1 == Approx(de2));
+  }
+}
+
+//==============================================================================
+//==============================================================================
 
 //==============================================================================
 //! Unit tests for second-order MBPT energy correction
@@ -73,7 +327,8 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
   }
 }
 
-//! Unit tests for second-order correlation potential
+//==============================================================================
+//! Tests for second-order correlation potential
 TEST_CASE("MBPT: Correlation Potential: Sigma2",
           "[MBPT][Sigma2][slow][integration]") {
   std::cout << "\n----------------------------------------\n";

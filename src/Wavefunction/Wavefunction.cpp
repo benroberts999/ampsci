@@ -3,7 +3,7 @@
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //just for enum..
-#include "MBPT/NewSigma.hpp"
+#include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/AtomData.hpp"
@@ -547,7 +547,7 @@ void Wavefunction::formSigma(
 
   bool calculate_fk = FeynmanQ && fk.empty();
 
-  m_Sigma = MBPT::NewSigma(
+  m_Sigma = MBPT::CorrelationPotential(
       ifname, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core, method,
       include_G, MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio},
       calculate_fk, fk, etak);
@@ -598,7 +598,7 @@ void Wavefunction::formSigma(
   }
 
   if (out_fname != "false")
-    m_Sigma->read_write(ofname, IO::FRW::RoW::write);
+    m_Sigma->write(ofname);
 }
 
 //==============================================================================
@@ -614,7 +614,7 @@ void Wavefunction::hartreeFockBrueckner(const bool print) {
 //==============================================================================
 void Wavefunction::fitSigma_hfBrueckner(
     const std::string &, const std::vector<double> &fit_energies) {
-  std::cout << "\nFitting Sigma for lowest valence states:\n" << std::flush;
+  std::cout << "Fitting Sigma for lowest valence states:\n" << std::flush;
 
   const auto max_its = 30;
   const auto eps_targ = 1.0e-7;
@@ -627,9 +627,7 @@ void Wavefunction::fitSigma_hfBrueckner(
     if (i >= m_valence.size())
       break;
     const auto &Fv = m_valence[i];
-    const auto e_exp = fit_energies[i];
-    if (e_exp >= 0.0)
-      continue;
+    const auto e_exp = -std::abs(fit_energies[i]);
 
     const double en_0 = Fv.en(); // HF value
     auto e_Sig1 = 0.0;
@@ -639,19 +637,12 @@ void Wavefunction::fitSigma_hfBrueckner(
     int its = 0;
     for (; its <= max_its; its++) {
       auto Fv_l = Fv;
-      // m_Sigma->scale_Sigma(Fv_l.n(), Fv_l.kappa(), lambda);
       m_Sigma->scale_Sigma(lambda, Fv_l.kappa(), Fv_l.n());
-      // nb: hf_Brueckner must start from HF... so, call on copy of Fv....
-      // m_HF->hf_Brueckner(Fv_l, *m_Sigma);
       m_HF->hf_valence(Fv_l, &*m_Sigma);
       double en_l = Fv_l.en();
       if (its == 0)
         e_Sig1 = en_l;
       eps = std::abs((e_exp - en_l) / e_exp);
-      // std::cout << " ... " << Fv_l << " " << lambda << " "
-      //           << en_l * PhysConst::Hartree_invcm << " ["
-      //           << e_exp * PhysConst::Hartree_invcm << "] " << eps << "\n"
-      //           << std::flush;
       if (eps < eps_targ || its == max_its)
         break;
       const auto r = (e_exp - en_l) / (en_l - en_0);
@@ -668,6 +659,7 @@ void Wavefunction::fitSigma_hfBrueckner(
       std::cout << "***";
     std::cout << "\n";
   }
+  std::cout << "\n";
 
   hartreeFockBrueckner(true);
 }

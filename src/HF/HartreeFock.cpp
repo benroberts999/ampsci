@@ -4,7 +4,7 @@
 #include "Coulomb/YkTable.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "HF/Breit.hpp"
-#include "MBPT/NewSigma.hpp"
+#include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/Parametric_potentials.hpp"
 #include "Physics/RadPot.hpp"
@@ -141,9 +141,9 @@ EpsIts HartreeFock::solve_core(bool print) {
 }
 
 //==============================================================================
-void HartreeFock::solve_valence(std::vector<DiracSpinor> *valence,
-                                const bool print,
-                                const MBPT::NewSigma *const Sigma) const {
+void HartreeFock::solve_valence(
+    std::vector<DiracSpinor> *valence, const bool print,
+    const MBPT::CorrelationPotential *const Sigma) const {
 
   if (valence == nullptr || valence->empty())
     return;
@@ -529,8 +529,9 @@ EpsIts HartreeFock::local_valence(DiracSpinor &Fa) const {
 }
 
 //==============================================================================
-EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
-                               const MBPT::NewSigma *const Sigma) const {
+EpsIts
+HartreeFock::hf_valence(DiracSpinor &Fa,
+                        const MBPT::CorrelationPotential *const Sigma) const {
 
   if (m_core.empty())
     return local_valence(Fa);
@@ -581,7 +582,7 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
 //==============================================================================
 /*
 EpsIts HartreeFock::hf_valence_Green(
-    DiracSpinor &Fa, const MBPT::NewSigma *const Sigma) const {
+    DiracSpinor &Fa, const MBPT::CorrelationPotential *const Sigma) const {
 
   if (m_core.empty())
     return local_valence(Fa);
@@ -1074,7 +1075,8 @@ void HartreeFock::hf_orbital_green(
     DiracSpinor &Fa, double en0, const std::vector<double> &vl,
     const std::vector<double> &H_mag, const DiracSpinor &VnlFa0,
     const std::vector<DiracSpinor> &static_core, const std::vector<double> &dv0,
-    const HF::Breit *const tVBr, const MBPT::NewSigma *const Sigma) const
+    const HF::Breit *const tVBr,
+    const MBPT::CorrelationPotential *const Sigma) const
 // Solves HF equation for given state, using non-local Green's method for
 // inhomogeneous ODE (used for hartree_fock_core()).
 // Solve Dirac Equation (Eigenvalue):

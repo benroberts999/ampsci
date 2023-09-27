@@ -2,7 +2,7 @@
 #include "DiracODE/DiracODE.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
-#include "MBPT/NewSigma.hpp"
+#include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Vector.hpp"
@@ -17,7 +17,7 @@ DiracSpinor solveMixedState(const DiracSpinor &Fa, double omega,
                             const std::vector<double> &vl, double alpha,
                             const std::vector<DiracSpinor> &core,
                             const DiracSpinor &hFa, double eps_target,
-                            const MBPT::NewSigma *const Sigma,
+                            const MBPT::CorrelationPotential *const Sigma,
                             const HF::Breit *const VBr,
                             const std::vector<double> &H_mag) {
   DiracSpinor dF{0, hFa.kappa(), Fa.grid_sptr()};
@@ -31,7 +31,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const std::vector<double> &vl, const double alpha,
                      const std::vector<DiracSpinor> &core,
                      const DiracSpinor &hFa, const double eps_target,
-                     const MBPT::NewSigma *const Sigma,
+                     const MBPT::CorrelationPotential *const Sigma,
                      const HF::Breit *const VBr,
                      const std::vector<double> &H_mag) {
   using namespace qip::overloads;
@@ -90,7 +90,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
 DiracSpinor solveMixedState(const DiracSpinor &Fa, double omega,
                             const DiracSpinor &hFa,
                             const HF::HartreeFock *const hf, double eps_target,
-                            const MBPT::NewSigma *const Sigma) {
+                            const MBPT::CorrelationPotential *const Sigma) {
   return solveMixedState(Fa, omega, hf->vlocal(hFa.l()), hf->alpha(),
                          hf->core(), hFa, eps_target, Sigma, hf->vBreit(),
                          hf->Hmag(0));
@@ -98,7 +98,8 @@ DiracSpinor solveMixedState(const DiracSpinor &Fa, double omega,
 
 void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const DiracSpinor &hFa, const HF::HartreeFock *const hf,
-                     double eps_target, const MBPT::NewSigma *const Sigma) {
+                     double eps_target,
+                     const MBPT::CorrelationPotential *const Sigma) {
   return solveMixedState(dF, Fa, omega, hf->vlocal(dF.l()), hf->alpha(),
                          hf->core(), hFa, eps_target, Sigma, hf->vBreit(),
                          hf->Hmag(0));

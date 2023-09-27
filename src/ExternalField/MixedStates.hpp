@@ -4,7 +4,7 @@ class Wavefunction;
 class DiracSpinor;
 class Grid;
 namespace MBPT {
-class NewSigma;
+class CorrelationPotential;
 }
 namespace HF {
 class HartreeFock;
@@ -36,13 +36,14 @@ eps_target is convergance goal for solving the inhomogenous dif.
 equation.
 Can optionally include Sigma (correlations), Breit, and Magnetic part of QED radiative potential (electric part should be included in vl).
 */
-DiracSpinor solveMixedState(const DiracSpinor &Fa, double omega,
-                            const std::vector<double> &vl, double alpha,
-                            const std::vector<DiracSpinor> &core,
-                            const DiracSpinor &Fs, double eps_target = 1.0e-9,
-                            const MBPT::NewSigma *const Sigma = nullptr,
-                            const HF::Breit *const VBr = nullptr,
-                            const std::vector<double> &H_mag = {});
+DiracSpinor
+solveMixedState(const DiracSpinor &Fa, double omega,
+                const std::vector<double> &vl, double alpha,
+                const std::vector<DiracSpinor> &core, const DiracSpinor &Fs,
+                double eps_target = 1.0e-9,
+                const MBPT::CorrelationPotential *const Sigma = nullptr,
+                const HF::Breit *const VBr = nullptr,
+                const std::vector<double> &H_mag = {});
 
 //! Solves Mixed States (TDHF) equation, inhomogenous equation, staring from existing approximate solition, dF.
 /*! @details
@@ -53,21 +54,20 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const std::vector<double> &vl, double alpha,
                      const std::vector<DiracSpinor> &core,
                      const DiracSpinor &Fs, double eps_target = 1.0e-9,
-                     const MBPT::NewSigma *const Sigma = nullptr,
+                     const MBPT::CorrelationPotential *const Sigma = nullptr,
                      const HF::Breit *const VBr = nullptr,
                      const std::vector<double> &H_mag = {});
 
 //! Solves Mixed States (TDHF) equation. Overload; takes hf object
-DiracSpinor solveMixedState(const DiracSpinor &Fa, double omega,
-                            const DiracSpinor &Fs,
-                            const HF::HartreeFock *const hf,
-                            double eps_target = 1.0e-9,
-                            const MBPT::NewSigma *const Sigma = nullptr);
+DiracSpinor
+solveMixedState(const DiracSpinor &Fa, double omega, const DiracSpinor &Fs,
+                const HF::HartreeFock *const hf, double eps_target = 1.0e-9,
+                const MBPT::CorrelationPotential *const Sigma = nullptr);
 
 //! Solves Mixed States (TDHF) equation. Overload; takes hf object
 void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const DiracSpinor &Fs, const HF::HartreeFock *const hf,
                      double eps_target = 1.0e-9,
-                     const MBPT::NewSigma *const Sigma = nullptr);
+                     const MBPT::CorrelationPotential *const Sigma = nullptr);
 
 } // namespace ExternalField

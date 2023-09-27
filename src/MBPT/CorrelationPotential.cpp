@@ -1,4 +1,4 @@
-#include "NewSigma.hpp"
+#include "CorrelationPotential.hpp"
 #include "Angular/CkTable.hpp"
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/YkTable.hpp"
@@ -14,13 +14,12 @@
 namespace MBPT {
 
 //==============================================================================
-NewSigma::NewSigma(const std::string &fname, const HF::HartreeFock *vHF,
-                   const std::vector<DiracSpinor> &basis, double r0,
-                   double rmax, std::size_t stride, int n_min_core,
-                   SigmaMethod method, bool include_g,
-                   const FeynmanOptions &Foptions, bool calculate_fk,
-                   const std::vector<double> &fk,
-                   const std::vector<double> &etak)
+CorrelationPotential::CorrelationPotential(
+    const std::string &fname, const HF::HartreeFock *vHF,
+    const std::vector<DiracSpinor> &basis, double r0, double rmax,
+    std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
+    const FeynmanOptions &Foptions, bool calculate_fk,
+    const std::vector<double> &fk, const std::vector<double> &etak)
     : m_HF(vHF),
       m_basis(basis), // dumb
       m_r0(r0),
@@ -104,7 +103,8 @@ NewSigma::NewSigma(const std::string &fname, const HF::HartreeFock *vHF,
 }
 
 //==============================================================================
-void NewSigma::formSigma(int kappa, double ev, int n, const DiracSpinor *Fv) {
+void CorrelationPotential::formSigma(int kappa, double ev, int n,
+                                     const DiracSpinor *Fv) {
 
   // 1. check if exists. If so, do nothing.
 
@@ -134,7 +134,8 @@ void NewSigma::formSigma(int kappa, double ev, int n, const DiracSpinor *Fv) {
 }
 
 //==============================================================================
-GMatrix NewSigma::formSigma_F(int kappa, double ev, const DiracSpinor *Fv) {
+GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
+                                          const DiracSpinor *Fv) {
 
   if (!m_Fy) {
     setup_Feynman();
@@ -194,8 +195,8 @@ GMatrix NewSigma::formSigma_F(int kappa, double ev, const DiracSpinor *Fv) {
 }
 
 //==============================================================================
-std::vector<double> NewSigma::calculate_fk(double ev,
-                                           const DiracSpinor &v) const {
+std::vector<double>
+CorrelationPotential::calculate_fk(double ev, const DiracSpinor &v) const {
 
   assert(m_Fy0 && m_FyX);
   std::vector<double> vfk;
@@ -216,8 +217,8 @@ std::vector<double> NewSigma::calculate_fk(double ev,
 }
 
 //==============================================================================
-std::vector<double> NewSigma::calculate_etak(double ev,
-                                             const DiracSpinor &v) const {
+std::vector<double>
+CorrelationPotential::calculate_etak(double ev, const DiracSpinor &v) const {
   assert(m_Fy0 && m_FyH);
   std::vector<double> vetak;
   for (int k = 0; k <= 6; ++k) {
@@ -238,7 +239,8 @@ std::vector<double> NewSigma::calculate_etak(double ev,
 }
 
 //==============================================================================
-GMatrix NewSigma::formSigma_G(int kappa, double ev, const DiracSpinor *Fv) {
+GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
+                                          const DiracSpinor *Fv) {
 
   if (!m_Gold) {
     m_Gold = Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size,
@@ -265,7 +267,7 @@ GMatrix NewSigma::formSigma_G(int kappa, double ev, const DiracSpinor *Fv) {
 }
 
 //==============================================================================
-void NewSigma::setup_Feynman() {
+void CorrelationPotential::setup_Feynman() {
 
   if (!m_Gold) {
     // Also need Goldstone for Feynman
@@ -311,7 +313,7 @@ void NewSigma::setup_Feynman() {
 }
 
 //==============================================================================
-const SigmaData *NewSigma::get(int kappa, int n) const {
+const SigmaData *CorrelationPotential::get(int kappa, int n) const {
   if (n <= 0) {
     // returns FIRST sigma that has correct kappa, order matters!
     const auto it =
@@ -333,13 +335,13 @@ const SigmaData *NewSigma::get(int kappa, int n) const {
 }
 
 //==============================================================================
-const GMatrix *NewSigma::getSigma(int kappa, int n) const {
+const GMatrix *CorrelationPotential::getSigma(int kappa, int n) const {
   const auto Sig = get(kappa, n);
   return Sig ? &(Sig->Sigma) : nullptr;
 }
 
 //==============================================================================
-double NewSigma::getLambda(int kappa, int n) const {
+double CorrelationPotential::getLambda(int kappa, int n) const {
   const auto Sig = get(kappa, n);
   return Sig ? (Sig->lambda) : 1.0;
 }
@@ -347,14 +349,14 @@ double NewSigma::getLambda(int kappa, int n) const {
 //==============================================================================
 //! returns Spinor: Sigma|Fv>
 //! @details If Sigma for kappa_v doesn't exist, returns |0>.
-DiracSpinor NewSigma::SigmaFv(const DiracSpinor &Fv) const {
+DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &Fv) const {
   auto Sv = get(Fv.kappa(), Fv.n());
   return Sv ? Sv->lambda * (Sv->Sigma * Fv) : 0.0 * Fv;
 }
 
 //==============================================================================
 //! Stores scaling factors, lambda, for each kappa (Sigma -> lamda*Sigma)
-void NewSigma::scale_Sigma(const std::vector<double> &lambdas) {
+void CorrelationPotential::scale_Sigma(const std::vector<double> &lambdas) {
   for (std::size_t i = 0; i < m_Sigmas.size() && i < lambdas.size(); ++i) {
     m_Sigmas.at(i).lambda = lambdas.at(i);
   }
@@ -362,7 +364,7 @@ void NewSigma::scale_Sigma(const std::vector<double> &lambdas) {
 
 //==============================================================================
 // if n=0, scales _all_
-void NewSigma::scale_Sigma(double lambda, int kappa, int n) {
+void CorrelationPotential::scale_Sigma(double lambda, int kappa, int n) {
   for (auto &Sig : m_Sigmas) {
     if (Sig.kappa == kappa && (Sig.n == n || n <= 0)) {
       Sig.lambda = lambda;
@@ -372,17 +374,26 @@ void NewSigma::scale_Sigma(double lambda, int kappa, int n) {
 
 //==============================================================================
 //! Prints the scaling factors to screen
-void NewSigma::print_scaling() const {
-  std::cout << "Scaling factors: lambda = ";
+void CorrelationPotential::print_scaling() const {
+
+  bool print = false;
   for (const auto &Sig : m_Sigmas) {
-    std::cout << Sig.lambda << ", ";
+    if (std::abs(Sig.lambda - 1.0) > 0.00001)
+      print = true;
   }
-  std::cout << "\n";
+
+  if (print) {
+    std::cout << "Scaling factors: lambda = ";
+    for (const auto &Sig : m_Sigmas) {
+      std::cout << Sig.lambda << ", ";
+    }
+    std::cout << "\n";
+  }
 }
 
 //==============================================================================
 //! Prints the sub-grid parameters to screen
-void NewSigma::print_subGrid() const {
+void CorrelationPotential::print_subGrid() const {
   printf("Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, "
          "stride=%i]\n",
          m_HF->grid().r(m_i0), m_HF->grid().r(m_i0 + m_stride * (m_size - 1)),
@@ -390,7 +401,7 @@ void NewSigma::print_subGrid() const {
 }
 
 //==============================================================================
-// void NewSigma::print_info() const {
+// void CorrelationPotential::print_info() const {
 //   print_subGrid();
 //   if (!m_Sigmas.empty())
 //     std::cout << "Have Sigma for:\n";
@@ -405,7 +416,8 @@ void NewSigma::print_subGrid() const {
 // }
 
 //==============================================================================
-bool NewSigma::read_write(const std::string &fname, IO::FRW::RoW rw) {
+bool CorrelationPotential::read_write(const std::string &fname,
+                                      IO::FRW::RoW rw) {
 
   if (rw == IO::FRW::read && !IO::FRW::file_exists(fname))
     return false;
