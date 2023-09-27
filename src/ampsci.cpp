@@ -631,7 +631,7 @@ void ampsci(const IO::InputBlock &input) {
   const auto etak = input.get({"Correlations"}, "eta", std::vector<double>{});
 
   // Form correlation potential:
-  if (Sigma_ok) {
+  if (Sigma_ok && do_brueckner) {
     IO::ChronoTimer time("Sigma");
     wf.formSigma(n_min_core, sigma_rmin, sigma_rmax, sigma_stride, each_valence,
                  include_G, lambda_k, fk, etak, sigma_read, sigma_write,
