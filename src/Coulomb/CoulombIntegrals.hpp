@@ -96,6 +96,9 @@ DiracSpinor Wkv_bcd(const int k, int kappa_v, const DiracSpinor &Fb,
 //! Returns min and max k (multipolarity) allowed for C^k_ab, accounting for
 //! parity (used by k_minmax_Q)
 std::pair<int, int> k_minmax_Ck(const DiracSpinor &a, const DiracSpinor &b);
+//! Returns min and max k (multipolarity) allowed for C^k_ab, accounting for
+//! parity (used by k_minmax_Q)
+std::pair<int, int> k_minmax_Ck(int kappa_a, int kappa_b);
 
 //! Returns min and max k (multipolarity) allowed for Triangle(k,a,b),
 //! NOT accounting for parity (2j only, not kappa/l) (used by k_minmax_P,W)
@@ -106,6 +109,12 @@ std::pair<int, int> k_minmax_tj(int tja, int tjb);
 //! Guaranteed to be non-zero *at* min and max, and every 2nd inbetween.
 std::pair<int, int> k_minmax_Q(const DiracSpinor &a, const DiracSpinor &b,
                                const DiracSpinor &c, const DiracSpinor &d);
+
+//! Returns min and max k (multipolarity) allowed for Q^k_abcd.
+//! Parity rule is included, so you may safely call k+=2.
+//! Guaranteed to be non-zero *at* min and max, and every 2nd inbetween.
+std::pair<int, int> k_minmax_Q(int kappa_a, int kappa_b, int kappa_c,
+                               int kappa_d);
 
 //! Returns min and max k (multipolarity) allowed for P^k_abcd.
 //! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2.

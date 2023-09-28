@@ -4,6 +4,7 @@
 #include "CSF.hpp"
 #include "Coulomb/Coulomb.hpp"
 #include "DiracOperator/DiracOperator.hpp"
+#include "ExternalField/calcMatrixElements.hpp"
 #include "IO/InputBlock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/CorrelationPotential.hpp"
@@ -138,9 +139,15 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
       std::cout << "Including k ≤ " << max_k_Coulomb
                 << " in Coulomb integrals (unless already calculated)\n";
     }
-    if (include_Sigma1)
-      std::cout << "With basis for Σ_1: " << DiracSpinor::state_config(s1_basis)
-                << "\n";
+    if (include_Sigma1) {
+      if (wf.Sigma()) {
+        std::cout << "With existing Correlation Potential for Σ_1:\n";
+        wf.Sigma()->print_info();
+      } else {
+        std::cout << "With basis for Σ_1: "
+                  << DiracSpinor::state_config(s1_basis) << "\n";
+      }
+    }
     if (include_Sigma2) {
       std::cout << "With basis for Σ_2: " << DiracSpinor::state_config(s2_basis)
                 << "\n";
@@ -167,22 +174,43 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     // use whole basis (these are used inside Sigma_2)
     // If not including MBPT, only need to caculate smaller set of integrals
     // nb: we still calculate too many: (e.g., Qk_aaaa)
-    const auto &temp_basis =
-        include_MBPT ? qip::merge(core_s1, excited_s1) : ci_sp_basis;
-
-    std::cout << "For: " << DiracSpinor::state_config(temp_basis) << "\n";
-
     const auto qk_filename = input.get("qk_file", wf.atomicSymbol() + ".qk");
 
     // Try to read from disk (may already have calculated Qk)
     qk.read(qk_filename);
     const auto existing = qk.count();
     {
-      const auto yk = Coulomb::YkTable(temp_basis);
-      // nb: ineficient: don't need _all_ (e.g., Qk_aaaa)
-      // only need up to two core orbitals...I think
-      qk.fill(temp_basis, yk, max_k_Coulomb);
 
+      // First, calculate the integrals between ci basis states:
+      {
+        std::cout << "For: " << DiracSpinor::state_config(ci_sp_basis) << "\n";
+        const auto yk = Coulomb::YkTable(ci_sp_basis);
+        qk.fill(ci_sp_basis, yk, max_k_Coulomb, false);
+      }
+
+      // Then, add those required for Sigma_1 (unless we have matrix!)
+      if (include_Sigma1 && !wf.Sigma()) {
+        // XXX Still calculates too many!
+        // nb: ineficient: don't need _all_ (e.g., Qk_aaaa)
+        // only need up to two core orbitals...I think
+        const auto temp_basis = qip::merge(core_s1, excited_s1);
+        std::cout << "and: " << DiracSpinor::state_config(temp_basis) << "\n";
+        const auto yk = Coulomb::YkTable(temp_basis);
+        qk.fill(temp_basis, yk, max_k_Coulomb, false);
+      }
+
+      // Then, add those required for Sigma_2 (unless we already did Sigma_1)
+      if (include_Sigma2 && !(include_Sigma1 && !wf.Sigma())) {
+        const auto temp_basis = qip::merge(core_s2, excited_s2);
+        std::cout << "and: " << DiracSpinor::state_config(temp_basis) << "\n";
+        const auto yk = Coulomb::YkTable(temp_basis);
+        qk.fill(temp_basis, yk, max_k_Coulomb, false);
+      }
+
+      // print summary
+      qk.summary();
+
+      // If we calculated new integrals, write to disk
       const auto total = qk.count();
       assert(total >= existing);
       const auto new_integrals = total - existing;
@@ -197,8 +225,11 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   //----------------------------------------------------------------------------
 
   // Create lookup table for one-particle matrix elements, h1
-  const auto h1 = CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
-                                         include_Sigma1);
+  const auto h1 =
+      wf.Sigma() ?
+          CI::calculate_h1_table(ci_sp_basis, *wf.Sigma(), include_Sigma1) :
+          CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
+                                 include_Sigma1);
 
   //----------------------------------------------------------------------------
   // Calculate MBPT corrections to two-body Coulomb integrals
@@ -235,17 +266,15 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   // even parity:
   for (const auto J : J_even_list) {
-    const auto t_levels =
-        run_CI(ci_sp_basis, int(std::round(2 * J)), +1, num_solutions, h1, qk,
-               Sk, include_Sigma2, wf.basis());
+    const auto t_levels = run_CI(ci_sp_basis, int(std::round(2 * J)), +1,
+                                 num_solutions, h1, qk, Sk, include_Sigma2);
     levels.push_back(t_levels);
   }
 
   // odd parity:
   for (const auto J : J_odd_list) {
-    const auto t_levels =
-        run_CI(ci_sp_basis, int(std::round(2 * J)), -1, num_solutions, h1, qk,
-               Sk, include_Sigma2, wf.basis());
+    const auto t_levels = run_CI(ci_sp_basis, int(std::round(2 * J)), -1,
+                                 num_solutions, h1, qk, Sk, include_Sigma2);
     levels.push_back(t_levels);
   }
 
@@ -292,10 +321,12 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 }
 
 //==============================================================================
+//==============================================================================
+//==============================================================================
 PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_solutions, const Coulomb::meTable<double> &h1,
               const Coulomb::QkTable &qk, const Coulomb::LkTable &Sk,
-              bool include_Sigma2, const std::vector<DiracSpinor> &mbpt_basis) {
+              bool include_Sigma2) {
 
   auto printJ = [](int twoj) {
     return twoj % 2 == 0 ? std::to_string(twoj / 2) :
@@ -309,11 +340,12 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   PsiJPi psi{twoJ, parity, ci_sp_basis};
 
   if (twoJ < 0) {
-    std::cout << "twoJ must >=0\n";
+    std::cout << "Fail: twoJ must >=0\n";
     return psi;
   }
   if (twoJ % 2 != 0) {
-    std::cout << "twoJ must be even for two-electron CSF\n";
+    std::cout << "Fail: twoJ must be even for two-electron CSF\n";
+    return psi;
   }
 
   const auto N_CSFs = psi.CSFs().size();
@@ -322,75 +354,26 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
 
   //----------------------------------------------------------------------------
 
-  //----------------------------------------------------------------------------
-  fmt::print("Construct CI matrix:\n");
-  std::cout << std::flush;
-
-  LinAlg::Matrix Hci(N_CSFs, N_CSFs);
-
-  {
-    IO::ChronoTimer t("Fill CI matrix");
-#pragma omp parallel for collapse(2)
-    for (std::size_t iA = 0; iA < N_CSFs; ++iA) {
-      // go to iB <= iA only: symmetric matrix
-      for (std::size_t iB = 0; iB < N_CSFs; ++iB) {
-        if (iB > iA)
-          continue;
-        const auto &A = psi.CSF(iA);
-        const auto &B = psi.CSF(iB);
-
-        const auto E_AB = Hab(A, B, twoJ, h1, qk);
-        Hci(iA, iB) = E_AB;
-        // fill other half of symmetric matrix:
-        if (iB != iA) {
-          Hci(iB, iA) = E_AB;
-        }
-      }
-    }
-  }
-  std::cout << std::flush;
-
-  if (include_Sigma2 && !mbpt_basis.empty()) {
-    LinAlg::Matrix H_sigma(N_CSFs, N_CSFs);
-
-    IO::ChronoTimer t("Add Sigma matrix");
-#pragma omp parallel for
-    for (std::size_t iA = 0; iA < N_CSFs; ++iA) {
-      for (std::size_t iB = 0; iB <= iA; ++iB) {
-        // go to iB <= iA only: symmetric matrix
-
-        const auto &A = psi.CSF(iA);
-        const auto &B = psi.CSF(iB);
-
-        const auto dE_AB = CI::Sigma2_AB(A, B, twoJ, Sk);
-        H_sigma(iA, iB) = dE_AB;
-        // Add to other half of symmetric matrix:
-        if (iB != iA) {
-          H_sigma(iB, iA) = dE_AB;
-        }
-      }
-    }
-    Hci += H_sigma;
-  }
-  std::cout << std::flush;
+  // Construct the CI matrix:
+  const auto Hci = include_Sigma2 ? CI::construct_Hci(psi, h1, qk, &Sk) :
+                                    CI::construct_Hci(psi, h1, qk);
 
   //----------------------------------------------------------------------------
 
+  fmt::print("Find first {} solutions\n", num_solutions);
   {
     IO::ChronoTimer t2("Diagonalise");
     psi.solve(Hci, num_solutions);
   }
   const auto E0 = psi.energy(0);
 
-  fmt::print("Full CI for J={}, pi={} : E0 = {:.1f} cm^-1\n\n", printJ(twoJ),
-             printPi(parity), E0 * PhysConst::Hartree_invcm);
-  std::cout << std::flush;
-
   // For calculating g-factors
   // (Use non-rel formula? Or relativistic M1?)
   DiracOperator::M1nr m1{};
-  const auto pFa = psi.CSF(0).state(0);
-  DiracOperator::M1 m1_rel{pFa->grid(), PhysConst::alpha, 0.0};
+  DiracOperator::M1 m1_rel{ci_sp_basis.front().grid(), PhysConst::alpha, 0.0};
+
+  // const auto m1_tab = ExternalField::me_table(ci_sp_basis, &m1_rel);
+  const auto m1_tab = ExternalField::me_table(ci_sp_basis, &m1_rel);
 
   int l1{-1}, l2{-1};
 
@@ -410,11 +393,11 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       if (cj > max_cj) {
         max_cj = cj;
         max_j = j;
-        l1 = psi.CSF(j).state(0)->l();
-        l2 = psi.CSF(j).state(1)->l();
+        l1 = Angular::nkindex_to_l(psi.CSF(j).state(0));
+        l2 = Angular::nkindex_to_l(psi.CSF(j).state(1));
       }
       if (cj > minimum_percentage) {
-        fmt::print("  {:>8s} {:5.3f}%\n", psi.CSF(j).config(true), cj);
+        fmt::print("   {:<6s} {:5.3f}%\n", psi.CSF(j).config(true), cj);
       }
     }
 
@@ -422,20 +405,25 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     // take J=Jz, <JJz|J|JJz> = J
     // then: g_J = <JJ|L + 2*S|JJ> / J
     // And: <JJ|L + 2*S|JJ> = 3js * <A||L+2S||A> (W.E. Theorem)
-    const auto m1AA_NR = CI::ReducedME(psi.coefs(i), psi.CSFs(), twoJ, &m1);
-    const auto m1AA_R = CI::ReducedME(psi.coefs(i), psi.CSFs(), twoJ, &m1_rel);
+    // const auto m1AA_NR = CI::ReducedME(psi.coefs(i), psi.CSFs(), twoJ, &m1);
+    const auto m1AA_R =
+        CI::ReducedME(psi.coefs(i), psi.CSFs(), twoJ, psi.coefs(i), psi.CSFs(),
+                      twoJ, m1_tab, m1.rank(), m1.parity());
     const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
 
     // Calculate g-factors, for line identification. Only defined for J!=0
-    const double gJnr = twoJ != 0 ? tjs * m1AA_NR / (0.5 * twoJ) : 0.0;
+    // const double gJnr = twoJ != 0 ? tjs * m1AA_NR / (0.5 * twoJ) : 0.0;
+    // const double gJ = twoJ != 0 ? tjs * m1AA_R / (0.5 * twoJ) : 0.0;
+
     const double gJ = twoJ != 0 ? tjs * m1AA_R / (0.5 * twoJ) : 0.0;
+    const double gJnr = gJ;
 
     // Determine Term Symbol, from g-factor
     // Use non-relativistic M1 operator for closest match
     const auto [S, L] = CI::Term_S_L(l1, l2, twoJ, gJnr);
 
     if (twoJ != 0) {
-      std::cout << "gJ = " << gJ << "\n";
+      std::cout << "   gJ = " << gJ << "\n";
     }
 
     const auto tSp1 = 2.0 * S + 1.0;
@@ -443,11 +431,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     const auto config = psi.CSF(max_j).config();
     const auto pm = parity == 1 ? "" : "°";
 
-    fmt::print("{:<6s} {}^{}{}_{}\n", config, int(std::round(tSp1)),
+    fmt::print("   {:<6s} {}^{}{}_{}\n", config, int(std::round(tSp1)),
                AtomData::L_symbol((int)std::round(L)), pm, twoJ / 2);
-
-    // out.emplace_back(
-    //     CIlevel{config, twoJ, parity, int(i), val(i), gJ, double(L), tSp1});
 
     psi.update_config_info(i, {config, gJ, double(L), 2.0 * S});
 

@@ -34,10 +34,16 @@ template <Symmetry S> std::size_t CoulombTable<S>::count() const {
 
 //==============================================================================
 template <Symmetry S>
+void CoulombTable<S>::add(int k, nkIndex a, nkIndex b, nkIndex c, nkIndex d,
+                          Real value) {
+  add(k, NormalOrder(a, b, c, d), value);
+}
+//------------------------------------------------------------------------------
+template <Symmetry S>
 void CoulombTable<S>::add(int k, const DiracSpinor &a, const DiracSpinor &b,
                           const DiracSpinor &c, const DiracSpinor &d,
                           Real value) {
-  add(k, NormalOrder(a, b, c, d), value);
+  add(k, a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index(), value);
 }
 //------------------------------------------------------------------------------
 template <Symmetry S>
@@ -52,10 +58,18 @@ void CoulombTable<S>::add(int k, nk4Index index, Real value) {
 //==============================================================================
 template <Symmetry S>
 // Updates Q in table. If not present, adds new Q
+void CoulombTable<S>::update(int k, nkIndex a, nkIndex b, nkIndex c, nkIndex d,
+                             Real value) {
+  update(k, NormalOrder(a, b, c, d), value);
+}
+
+//------------------------------------------------------------------------------
+template <Symmetry S>
+// Updates Q in table. If not present, adds new Q
 void CoulombTable<S>::update(int k, const DiracSpinor &a, const DiracSpinor &b,
                              const DiracSpinor &c, const DiracSpinor &d,
                              Real value) {
-  update(k, NormalOrder(a, b, c, d), value);
+  update(k, a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index(), value);
 }
 
 //------------------------------------------------------------------------------
@@ -69,15 +83,21 @@ void CoulombTable<S>::update(int k, nk4Index index, Real value) {
 }
 //==============================================================================
 template <Symmetry S>
-bool CoulombTable<S>::contains(int k, const DiracSpinor &a,
-                               const DiracSpinor &b, const DiracSpinor &c,
-                               const DiracSpinor &d) const {
+bool CoulombTable<S>::contains(int k, nkIndex a, nkIndex b, nkIndex c,
+                               nkIndex d) const {
   const auto sk = std::size_t(k);
   if (sk >= m_data.size())
     return false;
   return m_data.at(sk).find(NormalOrder(a, b, c, d)) != m_data.at(sk).cend();
 }
-
+//------------------------------------------------------------------------------
+template <Symmetry S>
+bool CoulombTable<S>::contains(int k, const DiracSpinor &a,
+                               const DiracSpinor &b, const DiracSpinor &c,
+                               const DiracSpinor &d) const {
+  return contains(k, a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
+}
+//------------------------------------------------------------------------------
 template <Symmetry S>
 bool CoulombTable<S>::contains(int k, nk4Index index) const {
   const auto sk = std::size_t(k);
@@ -102,8 +122,8 @@ template <Symmetry S> double *CoulombTable<S>::get(int k, nk4Index index) {
 
 //==============================================================================
 template <Symmetry S>
-double CoulombTable<S>::Q(int k, const DiracSpinor &a, const DiracSpinor &b,
-                          const DiracSpinor &c, const DiracSpinor &d) const {
+double CoulombTable<S>::Q(int k, nkIndex a, nkIndex b, nkIndex c,
+                          nkIndex d) const {
   const auto sk = std::size_t(k);
   if (sk >= m_data.size())
     return 0.0;
@@ -112,6 +132,12 @@ double CoulombTable<S>::Q(int k, const DiracSpinor &a, const DiracSpinor &b,
   if (map_it == m_data.at(sk).cend())
     return 0.0;
   return map_it->second;
+}
+//------------------------------------------------------------------------------
+template <Symmetry S>
+double CoulombTable<S>::Q(int k, const DiracSpinor &a, const DiracSpinor &b,
+                          const DiracSpinor &c, const DiracSpinor &d) const {
+  return Q(k, a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
 }
 //------------------------------------------------------------------------------
 template <Symmetry S> double CoulombTable<S>::Q(int k, nk4Index index) const {
@@ -127,64 +153,71 @@ template <Symmetry S> double CoulombTable<S>::Q(int k, nk4Index index) const {
 
 //==============================================================================
 template <Symmetry S>
-double CoulombTable<S>::R(int k, const DiracSpinor &a, const DiracSpinor &b,
-                          const DiracSpinor &c, const DiracSpinor &d) const {
+double CoulombTable<S>::R(int k, nkIndex a, nkIndex b, nkIndex c,
+                          nkIndex d) const {
   const auto tQk = Q(k, a, b, c, d);
   if (tQk == 0.0)
     return 0.0;
   const auto s = Angular::neg1pow(k);
-  const auto tCkac = Angular::tildeCk_kk(k, a.kappa(), c.kappa());
-  const auto tCkbd = Angular::tildeCk_kk(k, b.kappa(), d.kappa());
+
+  const auto [na, ka] = Angular::index_to_nk(a);
+  const auto [nb, kb] = Angular::index_to_nk(b);
+  const auto [nc, kc] = Angular::index_to_nk(c);
+  const auto [nd, kd] = Angular::index_to_nk(d);
+
+  const auto tCkac = Angular::tildeCk_kk(k, ka, kc);
+  const auto tCkbd = Angular::tildeCk_kk(k, kb, kd);
   return tQk / (s * tCkac * tCkbd);
+}
+//------------------------------------------------------------------------------
+template <Symmetry S>
+double CoulombTable<S>::R(int k, const DiracSpinor &a, const DiracSpinor &b,
+                          const DiracSpinor &c, const DiracSpinor &d) const {
+  return R(k, a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
 }
 
 //==============================================================================
 template <Symmetry S>
-double CoulombTable<S>::P(int k, const DiracSpinor &a, const DiracSpinor &b,
-                          const DiracSpinor &c, const DiracSpinor &d,
+double CoulombTable<S>::P(int k, nkIndex a, nkIndex b, nkIndex c, nkIndex d,
                           const Angular::SixJTable *const sj) const {
   double Pk_abcd{0.0};
 
+  const auto ka = Angular::nkindex_to_kappa(a);
+  const auto kb = Angular::nkindex_to_kappa(b);
+  const auto kc = Angular::nkindex_to_kappa(c);
+  const auto kd = Angular::nkindex_to_kappa(d);
+
+  const auto tja = Angular::twoj_k(ka);
+  const auto tjb = Angular::twoj_k(kb);
+  const auto tjc = Angular::twoj_k(kc);
+  const auto tjd = Angular::twoj_k(kd);
+
   // 6j(s) Triads: {a,c,k}, {k,b,d}, {c,b,l}, {d,a,l}
-  if (Coulomb::triangle(a, c, k) == 0 || Coulomb::triangle(k, b, d) == 0)
+  if (Angular::triangle(tja, tjc, 2 * k) == 0 ||
+      Angular::triangle(2 * k, tjb, tjd) == 0)
     return 0.0;
 
-  const auto [lmin, lmax] = k_minmax_Q(a, b, d, c); // exchange
+  const auto [lmin, lmax] = k_minmax_Q(ka, kb, kd, kc); // exchange
   for (int l = lmin; l <= lmax; l += 2) {
     const auto ql = this->Q(l, a, b, d, c); // exchange
     if (ql == 0.0)
       continue;
-    const auto sixj =
-        sj ? sj->get(a, c, k, b, d, l) : Coulomb::sixj(a, c, k, b, d, l);
+    const auto sixj = sj ? sj->get_2(tja, tjc, 2 * k, tjb, tjd, 2 * l) :
+                           Angular::sixj_2(tja, tjc, 2 * k, tjb, tjd, 2 * l);
     Pk_abcd += sixj * ql;
   }
   Pk_abcd *= double(2 * k + 1);
   return Pk_abcd;
 }
 
+//------------------------------------------------------------------------------
+
 template <Symmetry S>
-double CoulombTable<S>::g(const DiracSpinor &a, const DiracSpinor &b,
-                          const DiracSpinor &c, const DiracSpinor &d, int tma,
-                          int tmb, int tmc, int tmd) const {
+double CoulombTable<S>::P(int k, const DiracSpinor &a, const DiracSpinor &b,
+                          const DiracSpinor &c, const DiracSpinor &d,
+                          const Angular::SixJTable *const sj) const {
 
-  if (tmc - tma != tmb - tmd)
-    return 0.0;
-  const int twoq = tmc - tma;
-  const auto s = Angular::neg1pow_2(tma - tmb + twoq);
-
-  //
-  double g = 0.0;
-  const auto [k0, ki] = k_minmax_Q(a, b, c, d);
-  for (int k = k0; k <= ki; k += 2) {
-    const auto tjs1 =
-        Angular::threej_2(a.twoj(), 2 * k, c.twoj(), -tma, -twoq, tmc);
-    const auto tjs2 =
-        Angular::threej_2(b.twoj(), 2 * k, d.twoj(), -tmb, twoq, tmd);
-    if (tjs1 == 0.0 || tjs2 == 0.0)
-      continue;
-    g += Angular::neg1pow(k) * s * tjs1 * tjs2 * Q(k, a, b, c, d);
-  }
-  return g;
+  return P(k, a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index(), sj);
 }
 
 //==============================================================================
@@ -220,7 +253,39 @@ template <Symmetry S>
 double CoulombTable<S>::W(int k, const DiracSpinor &a, const DiracSpinor &b,
                           const DiracSpinor &c, const DiracSpinor &d,
                           const Angular::SixJTable *const sj) const {
+  return W(k, a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index(), sj);
+}
+
+template <Symmetry S>
+double CoulombTable<S>::W(int k, nkIndex a, nkIndex b, nkIndex c, nkIndex d,
+                          const Angular::SixJTable *const sj) const {
   return Q(k, a, b, c, d) + P(k, a, b, c, d, sj);
+}
+
+//==============================================================================
+template <Symmetry S>
+double CoulombTable<S>::g(const DiracSpinor &a, const DiracSpinor &b,
+                          const DiracSpinor &c, const DiracSpinor &d, int tma,
+                          int tmb, int tmc, int tmd) const {
+
+  if (tmc - tma != tmb - tmd)
+    return 0.0;
+  const int twoq = tmc - tma;
+  const auto s = Angular::neg1pow_2(tma - tmb + twoq);
+
+  //
+  double g = 0.0;
+  const auto [k0, ki] = k_minmax_Q(a, b, c, d);
+  for (int k = k0; k <= ki; k += 2) {
+    const auto tjs1 =
+        Angular::threej_2(a.twoj(), 2 * k, c.twoj(), -tma, -twoq, tmc);
+    const auto tjs2 =
+        Angular::threej_2(b.twoj(), 2 * k, d.twoj(), -tmb, twoq, tmd);
+    if (tjs1 == 0.0 || tjs2 == 0.0)
+      continue;
+    g += Angular::neg1pow(k) * s * tjs1 * tjs2 * Q(k, a, b, c, d);
+  }
+  return g;
 }
 
 //==============================================================================
@@ -306,20 +371,31 @@ CoulombTable<Symmetry::none>::NormalOrder_impl(nkIndex a, nkIndex b, nkIndex c,
 
 //==============================================================================
 template <Symmetry S>
+nk4Index CoulombTable<S>::NormalOrder(nkIndex a, nkIndex b, nkIndex c,
+                                      nkIndex d) const {
+  return NormalOrder_impl(a, b, c, d);
+}
+//------------------------------------------------------------------------------
+template <Symmetry S>
 nk4Index
 CoulombTable<S>::NormalOrder(const DiracSpinor &a, const DiracSpinor &b,
                              const DiracSpinor &c, const DiracSpinor &d) const {
-  return NormalOrder_impl(a.nk_index(), b.nk_index(), c.nk_index(),
-                          d.nk_index());
+  return NormalOrder(a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
 }
 
 //==============================================================================
+template <Symmetry S>
+nk4Index CoulombTable<S>::CurrentOrder(nkIndex a, nkIndex b, nkIndex c,
+                                       nkIndex d) const {
+  return FormIndex(a, b, c, d);
+}
+//------------------------------------------------------------------------------
 template <Symmetry S>
 nk4Index CoulombTable<S>::CurrentOrder(const DiracSpinor &a,
                                        const DiracSpinor &b,
                                        const DiracSpinor &c,
                                        const DiracSpinor &d) const {
-  return FormIndex(a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
+  return CurrentOrder(a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
 }
 
 //==============================================================================
@@ -358,7 +434,7 @@ CoulombTable<S>::UnFormIndex(const nk4Index &index) const {
 //==============================================================================
 template <Symmetry S>
 void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
-                           const YkTable &yk, int k_cut) {
+                           const YkTable &yk, int k_cut, bool print) {
   static_assert(S == Symmetry::Qk);
   IO::ChronoTimer t("fill");
 
@@ -410,7 +486,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
+  if (print)
+    std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
 
   // 2) Reserve space in each sub-map
   t.start();
@@ -418,7 +495,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   for (auto ik = 0ul; ik <= max_k; ++ik) {
     m_data[ik].reserve(count_non_zero_k[ik]);
   }
-  std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
+  if (print)
+    std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
 
   // 3) Create space in map (set each element to zero).
   t.start();
@@ -441,13 +519,15 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
+  if (print)
+    std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
 
   // 4) Fill the pre-constructed map with values, in parallel. Since we are
   // not adding any new elements to map, and since we are guarenteed to only
   // access each map element once, we can do this part in parallel. nb: This
   // //isation is not very efficient, though in theory it can be 100%
-  std::cout << "Fill w/ values: " << std::flush;
+  if (print)
+    std::cout << "Fill w/ values: " << std::flush;
   t.start();
 #pragma omp parallel for collapse(2)
   for (auto ia = 0ul; ia < basis.size(); ++ia) {
@@ -475,16 +555,18 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     }
   }
 
-  std::cout << t.lap_reading_str() << std::endl;
+  if (print)
+    std::cout << t.lap_reading_str() << std::endl;
 
-  summary();
+  if (print)
+    summary();
 }
 
 //==============================================================================
 template <Symmetry S>
 void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
                            const CoulombFunction &Fk,
-                           const SelectionRules &Fk_SR, int k_cut) {
+                           const SelectionRules &Fk_SR, int k_cut, bool print) {
   IO::ChronoTimer t("fill");
 
   /*
@@ -533,7 +615,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
+  if (print)
+    std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
 
   // 2) Reserve space in each sub-map
   t.start();
@@ -541,7 +624,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   for (auto ik = 0ul; ik <= max_k; ++ik) {
     m_data[ik].reserve(count_non_zero_k[ik]);
   }
-  std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
+  if (print)
+    std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
 
   // 3) Create space in map (set each element to zero).
   t.start();
@@ -562,13 +646,15 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
+  if (print)
+    std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
 
   // 4) Fill the pre-constructed map with values, in parallel. Since we are
   // not adding any new elements to map, and since we are guarenteed to only
   // access each map element once, we can do this part in parallel. nb: This
   // //isation is not very efficient, though in theory it can be 100%
-  std::cout << "Fill w/ values: " << std::flush;
+  if (print)
+    std::cout << "Fill w/ values: " << std::flush;
   t.start();
 
 #pragma omp parallel for collapse(2)
@@ -599,105 +685,11 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  std::cout << t.lap_reading_str() << std::endl;
+  if (print)
+    std::cout << t.lap_reading_str() << std::endl;
 
-  summary();
-}
-
-//==============================================================================
-template <Symmetry S>
-void CoulombTable<S>::fill_ab(const std::vector<DiracSpinor> &basis,
-                              const YkTable &yk, int k_cut) {
-  IO::ChronoTimer t("fill(ab)");
-
-  const auto tmp_max_k = std::size_t(DiracSpinor::max_tj(basis) - 1);
-
-  const auto max_k =
-      (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
-
-  m_data.resize(max_k + 1);
-
-  // 1) Count unique non-zero Q integrals (each k). Use this to 'reserve' map space
-  t.start();
-  std::vector<std::size_t> count_non_zero_k(max_k + 1);
-#pragma omp parallel for
-  for (auto k = 0ul; k <= max_k; ++k) {
-    const auto ik = static_cast<int>(k);
-    for (const auto &a : basis) {
-      for (const auto &b : basis) {
-        if (b > a)
-          continue;
-        // 1. abab
-        if (Angular::Ck_kk_SR(ik, a.kappa(), a.kappa()) &&
-            Angular::Ck_kk_SR(ik, b.kappa(), b.kappa())) {
-          ++count_non_zero_k[k];
-        }
-        // 2. abba (only if abba!=abab, i.e., b!=a)
-        if (Angular::Ck_kk_SR(ik, a.kappa(), b.kappa()) && b != a) {
-          ++count_non_zero_k[k];
-        }
-      }
-    }
-  }
-  std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
-
-  // 2) Reserve space in each sub-map
-  t.start();
-#pragma omp parallel for
-  for (auto ik = 0ul; ik <= max_k; ++ik) {
-    m_data[ik].reserve(count_non_zero_k[ik]);
-  }
-  std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
-
-  // 3) Create space in map (set each element to zero).
-  t.start();
-#pragma omp parallel for
-  for (auto k = 0ul; k <= max_k; ++k) {
-    for (const auto &a : basis) {
-      for (const auto &b : basis) {
-        if (b > a)
-          continue;
-        // 1. abab
-        if (Angular::Ck_kk_SR(int(k), a.kappa(), a.kappa()) &&
-            Angular::Ck_kk_SR(int(k), b.kappa(), b.kappa())) {
-          add(int(k), a, b, a, b, 1.0);
-        }
-        // 2. abba (only if abba!=abab, i.e., b!=a)
-        if (Angular::Ck_kk_SR(int(k), a.kappa(), b.kappa()) && b != a) {
-          add(int(k), a, b, b, a, 1.0);
-        }
-      }
-    }
-  }
-  std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
-
-  t.start();
-#pragma omp parallel for
-  for (auto ia = 0ul; ia < basis.size(); ++ia) {
-    const auto &a = basis[ia];
-    for (const auto &b : basis) {
-      if (b > a)
-        continue;
-      {
-        auto [kmin, kmax] = k_minmax_Q(a, b, a, b);
-        kmax = std::clamp(kmax, 0, int(max_k));
-        for (int k = kmin; k <= kmax; k += 2) {
-          update(k, a, b, a, b, yk.Q(k, a, b, a, b));
-        }
-      }
-      if (b != a) {
-        auto [kmin, kmax] = k_minmax_Q(a, b, b, a);
-        kmax = std::clamp(kmax, 0, int(max_k));
-        for (int k = kmin; k <= kmax; k += 2) {
-          update(k, a, b, b, a, yk.Q(k, a, b, b, a));
-        }
-      }
-    }
-  }
-
-  std::cout << "Fill w/ values: " << t.lap_reading_str() << std::endl;
-
-  summary();
+  if (print)
+    summary();
 }
 
 //==============================================================================

@@ -18,6 +18,6 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_solutions, const Coulomb::meTable<double> &h1,
               const Coulomb::QkTable &qk, const Coulomb::LkTable &Sk,
-              bool include_Sigma2, const std::vector<DiracSpinor> &mbpt_basis);
+              bool include_Sigma2);
 
 } // namespace CI

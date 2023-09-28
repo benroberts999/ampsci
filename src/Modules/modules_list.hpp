@@ -47,6 +47,8 @@ static const std::vector<ModuleInfo> module_list{
     {"WriteOrbitals", &writeOrbitals, "Write orbitals to disk for plotting"},
     {"matrixElements", &matrixElements,
      "Calculates matrix elements of any operator"},
+    {"CI_matrixElements", &CI_matrixElements,
+     "Calculates matrix elements of any operator for CI wavefunctions"},
     {"lifetimes", &lifetimes, "Calculate radiative lifetimes (E1, E2, M1)"},
     {"polarisability", &polarisability, "Calculates static polarisabilities"},
     {"dynamicPolarisability", &dynamicPolarisability,

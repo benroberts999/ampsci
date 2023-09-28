@@ -70,6 +70,9 @@ public:
   virtual void solve_core(const double omega, int max_its = 100,
                           const bool print = true) override;
 
+  //! Returns RPA method
+  virtual Method method() const override { return Method::TDHF; }
+
   //! Clears the dPsi orbitals (sets to zero)
   virtual void clear() override final;
 

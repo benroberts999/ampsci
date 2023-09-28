@@ -52,6 +52,9 @@ public:
     std::cout << "ERROR: solve_core() not implemented\n";
   }
 
+  //! Returns RPA method
+  virtual Method method() const override final { return Method::Error; }
+
   //! Calculates RPA correction to matrix element: <A||dV||B>
   virtual double dV(const DiracSpinor &,
                     const DiracSpinor &) const override final {

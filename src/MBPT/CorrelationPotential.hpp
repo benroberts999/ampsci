@@ -105,6 +105,9 @@ public:
   //! Prints the scaling factors to screen
   void print_scaling() const;
 
+  //! Prints the scaling factors to screen
+  void print_info() const;
+
   //! Prints the sub-grid parameters to screen
   void print_subGrid() const;
 

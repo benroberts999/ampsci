@@ -99,12 +99,18 @@ TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
         const auto [nx, kx] = Angular::index_to_nk(index);
         REQUIRE(nx == n);
         REQUIRE(kx == k1);
+        REQUIRE(Angular::nkindex_to_kappa(index) == kx);
+        REQUIRE(Angular::nkindex_to_twoj(index) == Angular::twoj_k(kx));
+        REQUIRE(Angular::nkindex_to_l(index) == Angular::l_k(kx));
         ++index;
       }
       REQUIRE(Angular::nk_to_index(n, k2) == index);
       const auto [ny, ky] = Angular::index_to_nk(index);
       REQUIRE(ny == n);
       REQUIRE(ky == k2);
+      REQUIRE(Angular::nkindex_to_kappa(index) == ky);
+      REQUIRE(Angular::nkindex_to_twoj(index) == Angular::twoj_k(ky));
+      REQUIRE(Angular::nkindex_to_l(index) == Angular::l_k(ky));
       ++index;
     }
   }

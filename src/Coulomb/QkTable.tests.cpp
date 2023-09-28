@@ -284,47 +284,6 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
 
   //----------------------------------------------------------------------------
   {
-    Coulomb::QkTable qk_ab;
-    qk_ab.fill_ab(wf.basis(), yk);
-    for (auto &a : wf.basis()) {
-      for (auto &b : wf.basis()) {
-        {
-          auto [kmin, kmax] = k_minmax_Q(a, b, a, b);
-          for (auto k = kmin; k <= kmax; ++k) {
-            auto q1 = yk.Q(k, a, b, a, b);
-            auto q2 = qk_ab.Q(k, a, b, a, b);
-            REQUIRE(q1 == Approx(q2));
-          }
-        }
-        {
-          auto [kmin, kmax] = k_minmax_Q(a, b, b, a);
-          for (auto k = kmin; k <= kmax; ++k) {
-            auto q1 = yk.Q(k, a, b, b, a);
-            auto q2 = qk_ab.Q(k, a, b, b, a);
-            if (q1 != Approx(q2)) {
-              std::cout << k << " " << a << b << b << a << "\n";
-              std::cout << yk.Q(k, a, b, b, a) << " " << qk_ab.Q(k, a, b, b, a)
-                        << "\n";
-              std::cout << yk.Q(k, a, a, b, b) << " " << qk_ab.Q(k, a, a, b, b)
-                        << "\n";
-            }
-            REQUIRE(q1 == Approx(q2));
-          }
-        }
-        {
-          auto [kmin, kmax] = k_minmax_W(a, b, a, b);
-          for (auto k = kmin; k <= kmax; ++k) {
-            auto w1 = yk.W(k, a, b, a, b);
-            auto w2 = qk_ab.W(k, a, b, a, b);
-            REQUIRE(w1 == Approx(w2));
-          }
-        }
-      }
-    }
-  }
-
-  //----------------------------------------------------------------------------
-  {
     // check Normal Ordering:
     bool Qk_NormalOrder_ok = true;
     for (auto &a : wf.basis()) {

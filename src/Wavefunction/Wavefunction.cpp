@@ -789,5 +789,7 @@ double Wavefunction::H0ab_impl(const DiracSpinor &Fa, std::vector<double> dga,
 void Wavefunction::ConfigurationInteraction(const IO::InputBlock &input) {
   std::cout << "\n========================================================\n"
             << "Configuration Interaction:\n";
+  IO::ChronoTimer t("CI");
   m_CIwfs = CI::configuration_interaction(input, *this);
+  std::cout << "\n";
 }

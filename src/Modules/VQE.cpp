@@ -306,53 +306,52 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 //==============================================================================
 
 //==============================================================================
-void write_CSFs(const std::vector<CI::CSF2> &CSFs, int twoJ,
-                const std::map<nkm, int> &orbital_map,
-                const std::string &csf_fname) {
+void write_CSFs(const std::vector<CI::CSF2> &, int, const std::map<nkm, int> &,
+                const std::string &) {
 
-  std::cout << "Writing CSFs and projections to files: {csf/proj}-" << csf_fname
-            << "\n";
-  std::ofstream csf_file("csf-" + csf_fname);
-  std::ofstream proj_file("proj-" + csf_fname);
+  // std::cout << "Writing CSFs and projections to files: {csf/proj}-" << csf_fname
+  //           << "\n";
+  // std::ofstream csf_file("csf-" + csf_fname);
+  // std::ofstream proj_file("proj-" + csf_fname);
 
-  csf_file << "# csf_index  a  b\n";
-  proj_file << "# proj_index  a  b  CGC\n";
-  int csf_count = 0;
-  int proj_count = 0;
-  for (const auto &csf : CSFs) {
+  // csf_file << "# csf_index  a  b\n";
+  // proj_file << "# proj_index  a  b  CGC\n";
+  // int csf_count = 0;
+  // int proj_count = 0;
+  // for (const auto &csf : CSFs) {
 
-    const auto &v = *csf.state(0);
-    const auto &w = *csf.state(1);
+  // const auto &v = *csf.state(0);
+  // const auto &w = *csf.state(1);
 
-    fmt::print(csf_file, "{} {} {}\n", csf_count, v.shortSymbol(),
-               w.shortSymbol());
-    ++csf_count;
+  // fmt::print(csf_file, "{} {} {}\n", csf_count, v.shortSymbol(),
+  //            w.shortSymbol());
+  // ++csf_count;
 
-    // Each individual m projection:
-    for (int two_m_v = -v.twoj(); two_m_v <= v.twoj(); two_m_v += 2) {
-      const auto two_m_w = twoJ - two_m_v;
-      if (std::abs(two_m_w) > w.twoj())
-        continue;
-      const auto cgc =
-          Angular::cg_2(v.twoj(), two_m_v, w.twoj(), two_m_w, twoJ, twoJ);
-      if (cgc == 0.0)
-        continue;
+  // // Each individual m projection:
+  // for (int two_m_v = -v.twoj(); two_m_v <= v.twoj(); two_m_v += 2) {
+  //   const auto two_m_w = twoJ - two_m_v;
+  //   if (std::abs(two_m_w) > w.twoj())
+  //     continue;
+  //   const auto cgc =
+  //       Angular::cg_2(v.twoj(), two_m_v, w.twoj(), two_m_w, twoJ, twoJ);
+  //   if (cgc == 0.0)
+  //     continue;
 
-      const auto iv = orbital_map.at(nkm{v.n(), v.kappa(), two_m_v});
-      const auto iw = orbital_map.at(nkm{w.n(), w.kappa(), two_m_w});
-      if (iw > iv)
-        continue;
+  //   const auto iv = orbital_map.at(nkm{v.n(), v.kappa(), two_m_v});
+  //   const auto iw = orbital_map.at(nkm{w.n(), w.kappa(), two_m_w});
+  //   if (iw > iv)
+  //     continue;
 
-      // if (v == w && two_m_v == two_m_w)
-      //   continue;
+  //   // if (v == w && two_m_v == two_m_w)
+  //   //   continue;
 
-      const auto eta = v == w ? 1 / std::sqrt(2.0) : 1.0;
-      const auto d_proj = eta * cgc; //?
+  //   const auto eta = v == w ? 1 / std::sqrt(2.0) : 1.0;
+  //   const auto d_proj = eta * cgc; //?
 
-      fmt::print(proj_file, "{} {} {} {:.8f}\n", proj_count, iv, iw, d_proj);
-      ++proj_count;
-    }
-  }
+  //   fmt::print(proj_file, "{} {} {} {:.8f}\n", proj_count, iv, iw, d_proj);
+  //   ++proj_count;
+  // }
+  // }
 }
 
 //==============================================================================
@@ -439,246 +438,246 @@ void write_CoulombIntegrals(const std::vector<DiracSpinor> &ci_sp_basis,
 }
 
 //==============================================================================
-std::vector<CIlevel> run_CI(
-    const std::string &atom_name, const std::vector<DiracSpinor> &ci_sp_basis,
-    const std::map<nkm, int> &orbital_map, int twoJ, int parity,
-    int num_solutions, const Coulomb::meTable<double> &h1,
-    const Coulomb::QkTable &qk, const Coulomb::LkTable &Sk,
-    bool write_integrals, bool include_Sigma2,
-    const std::vector<DiracSpinor> &mbpt_basis, const std::string &ci_input) {
+std::vector<CIlevel> run_CI(const std::string &,
+                            const std::vector<DiracSpinor> &,
+                            const std::map<nkm, int> &, int, int, int,
+                            const Coulomb::meTable<double> &,
+                            const Coulomb::QkTable &, const Coulomb::LkTable &,
+                            bool, bool, const std::vector<DiracSpinor> &,
+                            const std::string &) {
   //----------------------------------------------------------------------------
 
   std::vector<CIlevel> out;
 
-  auto printJ = [](int twoj) {
-    return twoj % 2 == 0 ? std::to_string(twoj / 2) :
-                           std::to_string(twoj) + "/2";
-  };
-  auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
+  //   auto printJ = [](int twoj) {
+  //     return twoj % 2 == 0 ? std::to_string(twoj / 2) :
+  //                            std::to_string(twoj) + "/2";
+  //   };
+  //   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
-  fmt::print("\nForm CSFs for J={}, {} parity\n", printJ(twoJ),
-             printPi(parity));
-  std::cout << std::flush;
+  //   fmt::print("\nForm CSFs for J={}, {} parity\n", printJ(twoJ),
+  //              printPi(parity));
+  //   std::cout << std::flush;
 
-  if (twoJ < 0) {
-    std::cout << "twoJ must >=0\n";
-    return out;
-  }
-  if (twoJ % 2 != 0) {
-    std::cout << "twoJ must be even for two-electron CSF\n";
-  }
+  //   if (twoJ < 0) {
+  //     std::cout << "twoJ must >=0\n";
+  //     return out;
+  //   }
+  //   if (twoJ % 2 != 0) {
+  //     std::cout << "twoJ must be even for two-electron CSF\n";
+  //   }
 
-  std::vector<CI::CSF2> CSFs = CI::form_CSFs(twoJ, parity, ci_sp_basis);
-  std::cout << "Total CSFs: " << CSFs.size() << "\n";
-  std::cout << std::flush;
+  //   std::vector<CI::CSF2> CSFs = CI::form_CSFs(twoJ, parity, ci_sp_basis);
+  //   std::cout << "Total CSFs: " << CSFs.size() << "\n";
+  //   std::cout << std::flush;
 
-  //----------------------------------------------------------------------------
+  //   //----------------------------------------------------------------------------
 
-  std::string output_prefix =
-      atom_name + "_" + printJ(twoJ) + "_" + printPi(parity);
+  //   std::string output_prefix =
+  //       atom_name + "_" + printJ(twoJ) + "_" + printPi(parity);
 
-  // Write CSFs (just labels) to file:
-  if (write_integrals)
-    write_CSFs(CSFs, twoJ, orbital_map, output_prefix + ".txt");
+  //   // Write CSFs (just labels) to file:
+  //   if (write_integrals)
+  //     write_CSFs(CSFs, twoJ, orbital_map, output_prefix + ".txt");
 
-  //----------------------------------------------------------------------------
-  fmt::print("Construct CI matrix for J={}, {} parity:\n", printJ(twoJ),
-             printPi(parity));
-  std::cout << std::flush;
+  //   //----------------------------------------------------------------------------
+  //   fmt::print("Construct CI matrix for J={}, {} parity:\n", printJ(twoJ),
+  //              printPi(parity));
+  //   std::cout << std::flush;
 
-  LinAlg::Matrix Hci(CSFs.size(), CSFs.size());
+  //   LinAlg::Matrix Hci(CSFs.size(), CSFs.size());
 
-  {
-    IO::ChronoTimer t("Fill matrix");
-#pragma omp parallel for collapse(2)
-    for (std::size_t iA = 0; iA < CSFs.size(); ++iA) {
-      // go to iB <= iA only: symmetric matrix
-      // for (std::size_t iB = 0; iB <= iA; ++iB) { // work with collapse? how?
-      for (std::size_t iB = 0; iB < CSFs.size(); ++iB) {
-        if (iB > iA)
-          continue;
-        const auto &A = CSFs.at(iA);
-        const auto &B = CSFs.at(iB);
+  //   {
+  //     IO::ChronoTimer t("Fill matrix");
+  // #pragma omp parallel for collapse(2)
+  //     for (std::size_t iA = 0; iA < CSFs.size(); ++iA) {
+  //       // go to iB <= iA only: symmetric matrix
+  //       // for (std::size_t iB = 0; iB <= iA; ++iB) { // work with collapse? how?
+  //       for (std::size_t iB = 0; iB < CSFs.size(); ++iB) {
+  //         if (iB > iA)
+  //           continue;
+  //         const auto &A = CSFs.at(iA);
+  //         const auto &B = CSFs.at(iB);
 
-        const auto E_AB = Hab(A, B, twoJ, h1, qk);
-        Hci(iA, iB) = E_AB;
-        // fill other half of symmetric matrix:
-        if (iB != iA) {
-          Hci(iB, iA) = E_AB;
-        }
-      }
-    }
-  }
-  std::cout << std::flush;
+  //         const auto E_AB = Hab(A, B, twoJ, h1, qk);
+  //         Hci(iA, iB) = E_AB;
+  //         // fill other half of symmetric matrix:
+  //         if (iB != iA) {
+  //           Hci(iB, iA) = E_AB;
+  //         }
+  //       }
+  //     }
+  //   }
+  //   std::cout << std::flush;
 
-  if (include_Sigma2 && !mbpt_basis.empty()) {
-    LinAlg::Matrix H_sigma(CSFs.size(), CSFs.size());
+  //   if (include_Sigma2 && !mbpt_basis.empty()) {
+  //     LinAlg::Matrix H_sigma(CSFs.size(), CSFs.size());
 
-    // const auto [core, excited] = MBPT::split_basis(mbpt_basis, E_Fermi, 1);
-    // Angular::SixJTable sjt(DiracSpinor::max_tj(mbpt_basis));
+  //     // const auto [core, excited] = MBPT::split_basis(mbpt_basis, E_Fermi, 1);
+  //     // Angular::SixJTable sjt(DiracSpinor::max_tj(mbpt_basis));
 
-    IO::ChronoTimer t("Add Sigma Sigma matrix");
-#pragma omp parallel for
-    for (std::size_t iA = 0; iA < CSFs.size(); ++iA) {
-      for (std::size_t iB = 0; iB <= iA; ++iB) {
-        // go to iB <= iA only: symmetric matrix
+  //     IO::ChronoTimer t("Add Sigma Sigma matrix");
+  // #pragma omp parallel for
+  //     for (std::size_t iA = 0; iA < CSFs.size(); ++iA) {
+  //       for (std::size_t iB = 0; iB <= iA; ++iB) {
+  //         // go to iB <= iA only: symmetric matrix
 
-        const auto &A = CSFs.at(iA);
-        const auto &B = CSFs.at(iB);
+  //         const auto &A = CSFs.at(iA);
+  //         const auto &B = CSFs.at(iB);
 
-        // const auto dE_AB = CI::Sigma2_AB(A, B, twoJ, qk, core, excited, sjt);
-        const auto dE_AB = CI::Sigma2_AB(A, B, twoJ, Sk);
-        H_sigma(iA, iB) = dE_AB;
-        // Add to other half of symmetric matrix:
-        if (iB != iA) {
-          H_sigma(iB, iA) = dE_AB;
-        }
-      }
-    }
-    Hci += H_sigma;
-  }
-  std::cout << std::flush;
+  //         // const auto dE_AB = CI::Sigma2_AB(A, B, twoJ, qk, core, excited, sjt);
+  //         const auto dE_AB = CI::Sigma2_AB(A, B, twoJ, Sk);
+  //         H_sigma(iA, iB) = dE_AB;
+  //         // Add to other half of symmetric matrix:
+  //         if (iB != iA) {
+  //           H_sigma(iB, iA) = dE_AB;
+  //         }
+  //       }
+  //     }
+  //     Hci += H_sigma;
+  //   }
+  //   std::cout << std::flush;
 
-  // Write CI matrix (H matrix) to file
-  if (write_integrals) {
-    std::string ci_fname = "ci-" + output_prefix + ".txt";
-    std::cout << "Writing CI matrix to file: " << ci_fname << "\n";
-    std::ofstream ci_file(ci_fname);
-    ci_file << "# in matrix/table form: \n";
-    for (std::size_t iA = 0; iA < CSFs.size(); ++iA) {
-      for (std::size_t iX = 0; iX < CSFs.size(); ++iX) {
-        fmt::print(ci_file, "{:+.6e} ", Hci(iA, iX));
-      }
-      ci_file << "\n";
-    }
-  }
+  //   // Write CI matrix (H matrix) to file
+  //   if (write_integrals) {
+  //     std::string ci_fname = "ci-" + output_prefix + ".txt";
+  //     std::cout << "Writing CI matrix to file: " << ci_fname << "\n";
+  //     std::ofstream ci_file(ci_fname);
+  //     ci_file << "# in matrix/table form: \n";
+  //     for (std::size_t iA = 0; iA < CSFs.size(); ++iA) {
+  //       for (std::size_t iX = 0; iX < CSFs.size(); ++iX) {
+  //         fmt::print(ci_file, "{:+.6e} ", Hci(iA, iX));
+  //       }
+  //       ci_file << "\n";
+  //     }
+  //   }
 
-  //----------------------------------------------------------------------------
-  std::cout << std::flush;
+  //   //----------------------------------------------------------------------------
+  //   std::cout << std::flush;
 
-  IO::ChronoTimer t2("Diagonalise");
-  const auto [val, vec] = LinAlg::symmhEigensystem(Hci, num_solutions);
-  std::cout << "T=" << t2.lap_reading_str() << "\n";
-  const auto E0 = val(0);
+  // IO::ChronoTimer t2("Diagonalise");
+  // const auto [val, vec] = LinAlg::symmhEigensystem(Hci, num_solutions);
+  // std::cout << "T=" << t2.lap_reading_str() << "\n";
+  // const auto E0 = val(0);
 
-  fmt::print("Full CI for J={}, pi={} : E0 = {:.1f} cm^-1\n\n", printJ(twoJ),
-             printPi(parity), E0 * PhysConst::Hartree_invcm);
-  std::cout << std::flush;
+  // fmt::print("Full CI for J={}, pi={} : E0 = {:.1f} cm^-1\n\n", printJ(twoJ),
+  //            printPi(parity), E0 * PhysConst::Hartree_invcm);
+  // std::cout << std::flush;
 
-  // For calculating g-factors
-  // (Use non-rel formula? Or relativistic M1?)
-  DiracOperator::M1nr m1{};
-  const auto pFa = CSFs.front().state(0);
-  DiracOperator::M1 m1_rel{pFa->grid(), 1.0 / 137.036, 0.0};
+  // // For calculating g-factors
+  // // (Use non-rel formula? Or relativistic M1?)
+  // DiracOperator::M1nr m1{};
+  // const auto pFa = CSFs.front().state(0);
+  // DiracOperator::M1 m1_rel{pFa->grid(), 1.0 / 137.036, 0.0};
 
-  int l1{-1}, l2{-1};
+  // int l1{-1}, l2{-1};
 
-  for (std::size_t i = 0; i < val.size() && int(i) < num_solutions; ++i) {
+  // for (std::size_t i = 0; i < val.size() && int(i) < num_solutions; ++i) {
 
-    fmt::print(
-        "{:<2} {} {:+1}  {:+11.8f} au  {:+11.2f} cm^-1  {:11.2f} cm^-1\n", i,
-        0.5 * twoJ, parity, val(i), val(i) * PhysConst::Hartree_invcm,
-        (val(i) - E0) * PhysConst::Hartree_invcm);
+  //   fmt::print(
+  //       "{:<2} {} {:+1}  {:+11.8f} au  {:+11.2f} cm^-1  {:11.2f} cm^-1\n", i,
+  //       0.5 * twoJ, parity, val(i), val(i) * PhysConst::Hartree_invcm,
+  //       (val(i) - E0) * PhysConst::Hartree_invcm);
 
-    const double minimum_percentage = 1.0; // min % to print
-    std::size_t max_j = 0;
-    double max_cj = 0.0;
-    for (std::size_t j = 0ul; j < vec.cols(); ++j) {
-      const auto cj = 100.0 * std::pow(vec(i, j), 2);
-      if (cj > max_cj) {
-        max_cj = cj;
-        max_j = j;
-        l1 = CSFs.at(j).state(0)->l();
-        l2 = CSFs.at(j).state(1)->l();
-      }
-      if (cj > minimum_percentage) {
-        fmt::print("  {:>8s} {:5.3f}%\n", CSFs.at(j).config(true), cj);
-      }
-    }
+  //   const double minimum_percentage = 1.0; // min % to print
+  //   std::size_t max_j = 0;
+  //   double max_cj = 0.0;
+  //   for (std::size_t j = 0ul; j < vec.cols(); ++j) {
+  //     const auto cj = 100.0 * std::pow(vec(i, j), 2);
+  //     if (cj > max_cj) {
+  //       max_cj = cj;
+  //       max_j = j;
+  //       l1 = CSFs.at(j).state(0)->l();
+  //       l2 = CSFs.at(j).state(1)->l();
+  //     }
+  //     if (cj > minimum_percentage) {
+  //       fmt::print("  {:>8s} {:5.3f}%\n", CSFs.at(j).config(true), cj);
+  //     }
+  //   }
 
-    // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
-    // take J=Jz, <JJz|J|JJz> = J
-    // then: g_J = <JJ|L + 2*S|JJ> / J
-    // And: <JJ|L + 2*S|JJ> = 3js * <A||L+2S||A> (W.E. Theorem)
-    const auto m1AA_NR = CI::ReducedME(vec.row_view(i), CSFs, twoJ, &m1);
-    const auto m1AA_R = CI::ReducedME(vec.row_view(i), CSFs, twoJ, &m1_rel);
-    const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
+  //   // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
+  //   // take J=Jz, <JJz|J|JJz> = J
+  //   // then: g_J = <JJ|L + 2*S|JJ> / J
+  //   // And: <JJ|L + 2*S|JJ> = 3js * <A||L+2S||A> (W.E. Theorem)
+  //   const auto m1AA_NR = CI::ReducedME(vec.row_view(i), CSFs, twoJ, &m1);
+  //   const auto m1AA_R = CI::ReducedME(vec.row_view(i), CSFs, twoJ, &m1_rel);
+  //   const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
 
-    // Calculate g-factors, for line identification. Only defined for J!=0
-    const double gJnr = twoJ != 0 ? tjs * m1AA_NR / (0.5 * twoJ) : 0.0;
-    const double gJ = twoJ != 0 ? tjs * m1AA_R / (0.5 * twoJ) : 0.0;
+  //   // Calculate g-factors, for line identification. Only defined for J!=0
+  //   const double gJnr = twoJ != 0 ? tjs * m1AA_NR / (0.5 * twoJ) : 0.0;
+  //   const double gJ = twoJ != 0 ? tjs * m1AA_R / (0.5 * twoJ) : 0.0;
 
-    // Determine Term Symbol, from g-factor
-    // Use non-relativistic M1 operator for closest match
-    const auto [S, L] = CI::Term_S_L(l1, l2, twoJ, gJnr);
+  //   // Determine Term Symbol, from g-factor
+  //   // Use non-relativistic M1 operator for closest match
+  //   const auto [S, L] = CI::Term_S_L(l1, l2, twoJ, gJnr);
 
-    if (twoJ != 0) {
-      std::cout << "gJ = " << gJ << "\n";
-    }
+  //   if (twoJ != 0) {
+  //     std::cout << "gJ = " << gJ << "\n";
+  //   }
 
-    const auto tSp1 = 2.0 * S + 1.0;
+  //   const auto tSp1 = 2.0 * S + 1.0;
 
-    const auto config = CSFs.at(max_j).config();
-    const auto pm = parity == 1 ? "" : "°";
+  //   const auto config = CSFs.at(max_j).config();
+  //   const auto pm = parity == 1 ? "" : "°";
 
-    fmt::print("{:<6s} {}^{}{}_{}\n", config, int(std::round(tSp1)),
-               AtomData::L_symbol((int)std::round(L)), pm, twoJ / 2);
+  //   fmt::print("{:<6s} {}^{}{}_{}\n", config, int(std::round(tSp1)),
+  //              AtomData::L_symbol((int)std::round(L)), pm, twoJ / 2);
 
-    out.emplace_back(
-        CIlevel{config, twoJ, parity, int(i), val(i), gJ, double(L), tSp1});
+  //   out.emplace_back(
+  //       CIlevel{config, twoJ, parity, int(i), val(i), gJ, double(L), tSp1});
 
-    std::cout << "\n";
-  }
+  //   std::cout << "\n";
+  // }
 
-  //----------------------------------------------------------------------------
-  std::cout
-      << "\n`Direct' energy calculation: E = Σ_{IJ} c_I * c_J * <I|H|J>:\n";
-  std::cout
-      << "(Using the CI expansion coefficients from full CI, just a test)\n";
-  // Energy calculation for ground state:
-  double E_direct1 = 0.0, E_direct2 = 0.0;
-  const auto Nci = vec.rows(); // number of CSFs
-  // Energy:  E = Sum_ij c_i * c_j * <i|H|j>
-  for (std::size_t i = 0ul; i < Nci; ++i) {
-    const auto &csf_i = CSFs.at(i); // the ith CSF
-    const auto ci = vec.at(0, i);   // the ith CI coefficient (for 0th e.val)
-    for (std::size_t j = 0ul; j < Nci; ++j) {
-      const auto &csf_j = CSFs.at(j); // jth CSF
-      const auto cj = vec.at(0, j);   // the jth CI coefficient (for 0th e.val)
-      // use pre-calculated CI matrix:
-      E_direct1 += ci * cj * Hci.at(i, j);
-      // Calculate MEs on-the-fly
-      E_direct2 += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
-    }
-  }
+  // //----------------------------------------------------------------------------
+  // std::cout
+  //     << "\n`Direct' energy calculation: E = Σ_{IJ} c_I * c_J * <I|H|J>:\n";
+  // std::cout
+  //     << "(Using the CI expansion coefficients from full CI, just a test)\n";
+  // // Energy calculation for ground state:
+  // double E_direct1 = 0.0, E_direct2 = 0.0;
+  // const auto Nci = vec.rows(); // number of CSFs
+  // // Energy:  E = Sum_ij c_i * c_j * <i|H|j>
+  // for (std::size_t i = 0ul; i < Nci; ++i) {
+  //   const auto &csf_i = CSFs.at(i); // the ith CSF
+  //   const auto ci = vec.at(0, i);   // the ith CI coefficient (for 0th e.val)
+  //   for (std::size_t j = 0ul; j < Nci; ++j) {
+  //     const auto &csf_j = CSFs.at(j); // jth CSF
+  //     const auto cj = vec.at(0, j);   // the jth CI coefficient (for 0th e.val)
+  //     // use pre-calculated CI matrix:
+  //     E_direct1 += ci * cj * Hci.at(i, j);
+  //     // Calculate MEs on-the-fly
+  //     E_direct2 += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
+  //   }
+  // }
 
-  std::cout << "E0 = " << val.at(0) * PhysConst::Hartree_invcm
-            << " cm^-1  (from diagonalisation)\n";
-  std::cout << "E0 = " << E_direct1 * PhysConst::Hartree_invcm
-            << " cm^-1  (uses pre-calculated CI matrix)\n";
-  std::cout << "E0 = " << E_direct2 * PhysConst::Hartree_invcm
-            << " cm^-1  (calculates H matrix elements from scratch)\n";
+  // std::cout << "E0 = " << val.at(0) * PhysConst::Hartree_invcm
+  //           << " cm^-1  (from diagonalisation)\n";
+  // std::cout << "E0 = " << E_direct1 * PhysConst::Hartree_invcm
+  //           << " cm^-1  (uses pre-calculated CI matrix)\n";
+  // std::cout << "E0 = " << E_direct2 * PhysConst::Hartree_invcm
+  //           << " cm^-1  (calculates H matrix elements from scratch)\n";
 
-  // std::ifstream ci("")
-  std::ifstream is(ci_input);
-  if (is) {
-    std::istream_iterator<double> start(is), end;
-    std::vector<double> in_CI(start, end);
-    std::cout << "\nCalculate energy from input CI coeficients:\n";
-    std::cout << "Read " << in_CI.size() << " CI coeficients from: " << ci_input
-              << "\n";
-    double E_input = 0.0;
-    for (std::size_t i = 0ul; i < std::min(Nci, in_CI.size()); ++i) {
-      const auto &csf_i = CSFs.at(i); // the ith CSF
-      const auto ci = in_CI.at(i);    // the ith CI coefficient (for 0th e.val)
-      for (std::size_t j = 0ul; j < std::min(Nci, in_CI.size()); ++j) {
-        const auto &csf_j = CSFs.at(j); // jth CSF
-        const auto cj = in_CI.at(j); // the jth CI coefficient (for 0th e.val)
-        E_input += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
-      }
-    }
-    std::cout << "E = " << E_input * PhysConst::Hartree_invcm << "\n";
-  }
+  // // std::ifstream ci("")
+  // std::ifstream is(ci_input);
+  // if (is) {
+  //   std::istream_iterator<double> start(is), end;
+  //   std::vector<double> in_CI(start, end);
+  //   std::cout << "\nCalculate energy from input CI coeficients:\n";
+  //   std::cout << "Read " << in_CI.size() << " CI coeficients from: " << ci_input
+  //             << "\n";
+  //   double E_input = 0.0;
+  //   for (std::size_t i = 0ul; i < std::min(Nci, in_CI.size()); ++i) {
+  //     const auto &csf_i = CSFs.at(i); // the ith CSF
+  //     const auto ci = in_CI.at(i);    // the ith CI coefficient (for 0th e.val)
+  //     for (std::size_t j = 0ul; j < std::min(Nci, in_CI.size()); ++j) {
+  //       const auto &csf_j = CSFs.at(j); // jth CSF
+  //       const auto cj = in_CI.at(j); // the jth CI coefficient (for 0th e.val)
+  //       E_input += ci * cj * Hab(csf_i, csf_j, twoJ, h1, qk);
+  //     }
+  //   }
+  //   std::cout << "E = " << E_input * PhysConst::Hartree_invcm << "\n";
+  // }
 
   return out;
 }

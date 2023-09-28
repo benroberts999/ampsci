@@ -40,6 +40,9 @@ public:
   virtual void solve_core(const double omega, int max_its = 100,
                           const bool print = true) override final;
 
+  //! Returns RPA method
+  virtual Method method() const override final { return Method::basis; }
+
   //! Forms \delta Psi_v for valence state Fv (including core pol.) - 1 kappa
   //! @details
   //!  Solves

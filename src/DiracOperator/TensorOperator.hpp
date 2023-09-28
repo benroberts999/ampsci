@@ -143,6 +143,14 @@ public:
   bool isZero(const int ka, int kb) const;
   bool isZero(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
+  bool selectrion_rule(int twoJA, int piA, int twoJB, int piB) const {
+    if (twoJA == twoJB && twoJA == 0.0)
+      return false;
+    if (2 * m_rank < std::abs(twoJA - twoJB))
+      return false;
+    return (m_parity == Parity::even) == (piA == piB);
+  }
+
   //! Update frequency for frequency-dependant operators.
   virtual void updateFrequency(const double){};
 

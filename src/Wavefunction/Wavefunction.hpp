@@ -115,6 +115,16 @@ public:
   const std::vector<DiracSpinor> &spectrum() const { return m_spectrum; }
   std::vector<DiracSpinor> &spectrum() { return m_spectrum; }
 
+  const std::vector<CI::PsiJPi> &CIwfs() const { return m_CIwfs; }
+
+  const CI::PsiJPi *CIwf(int J, int parity) const {
+    for (const auto &ci_wf : m_CIwfs) {
+      if (ci_wf.twoJ() == 2 * J && ci_wf.parity() == parity)
+        return &ci_wf;
+    }
+    return nullptr;
+  }
+
   //! Nuclear potential. Only provide const version, since HF and WF version of
   //! vnuc must be kept in sync
   const std::vector<double> &vnuc() const { return m_vnuc; }

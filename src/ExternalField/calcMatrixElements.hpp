@@ -1,5 +1,6 @@
 #pragma once
 #include "CorePolarisation.hpp"
+#include "Coulomb/meTable.hpp"
 #include "qip/String.hpp"
 #include <iostream>
 #include <string>
@@ -7,6 +8,9 @@
 class DiracSpinor;
 namespace DiracOperator {
 class TensorOperator;
+}
+namespace HF {
+class HartreeFock;
 }
 
 namespace ExternalField {
@@ -63,5 +67,26 @@ calcMatrixElements(const std::vector<DiracSpinor> &orbs,
   return calcMatrixElements(orbs, orbs, h, dV, omega, each_freq, diagonal,
                             off_diagonal, calculate_both);
 }
+
+//! Fills me_table with MEs, <a||h||b> and <b||h||a>.
+//! Required to set omega for freq. dependent operators initially
+Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
+                                  const std::vector<DiracSpinor> &b_orbs,
+                                  const DiracOperator::TensorOperator *h,
+                                  const CorePolarisation *dV = nullptr);
+
+//! Fills me_table with MEs.
+//! Required to set omega for freq. dependent operators initially
+inline Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
+                                         const DiracOperator::TensorOperator *h,
+                                         const CorePolarisation *dV = nullptr) {
+  return me_table(a_orbs, a_orbs, h, dV);
+}
+
+std::unique_ptr<CorePolarisation>
+make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
+         const HF::HartreeFock *vhf, bool print = false,
+         const std::vector<DiracSpinor> &basis = {},
+         const std::string &atom = "");
 
 } // namespace ExternalField

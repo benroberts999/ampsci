@@ -10,13 +10,15 @@ namespace CI {
 //==============================================================================
 //! Very basic two-electron CSF. Only two-electron is implemented.
 class CSF2 {
+  int m_parity;
+
 public:
   // nb: array of states is always sorted
-  std::array<const DiracSpinor *, 2> states;
+  std::array<DiracSpinor::Index, 2> states;
 
   CSF2(const DiracSpinor &a, const DiracSpinor &b);
 
-  const DiracSpinor *state(std::size_t i) const;
+  DiracSpinor::Index state(std::size_t i) const;
 
   friend bool operator==(const CSF2 &A, const CSF2 &B);
   friend bool operator!=(const CSF2 &A, const CSF2 &B);
@@ -26,8 +28,11 @@ public:
 
   //! returns _different_ orbitals, for case where CSFs differ by 1.
   //! i.e., returns {n,a} where |V> = |X_a^n> (i.e., V has n, but not a)
-  static std::array<const DiracSpinor *, 2> diff_1_na(const CSF2 &V,
-                                                      const CSF2 &X);
+  static std::array<DiracSpinor::Index, 2> diff_1_na(const CSF2 &V,
+                                                     const CSF2 &X);
+  //! Returns the state in A and B that is the same (assumes A and B differ by 1)
+  static DiracSpinor::Index same_1_j(const CSF2 &A, const CSF2 &B);
+
   //! Parity of the CSF, +/-1
   int parity() const;
 

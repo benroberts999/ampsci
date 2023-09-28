@@ -38,6 +38,8 @@ bool Sk_vwxy_SR(int k, const DiracSpinor &v, const DiracSpinor &w,
 std::pair<int, int> k_minmax_S(const DiracSpinor &v, const DiracSpinor &w,
                                const DiracSpinor &x, const DiracSpinor &y);
 
+std::pair<int, int> k_minmax_S(int twoj_v, int twoj_w, int twoj_x, int twoj_y);
+
 //! Matrix element of 1-body Sigma (2nd-order correlation) operator;
 //! de_v = <v|Sigma|v>.
 /*! @details 

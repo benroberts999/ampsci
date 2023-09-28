@@ -41,9 +41,14 @@ std::string DiracSpinor::symbol(bool gnuplot) const {
 }
 
 std::string DiracSpinor::shortSymbol() const {
-  const std::string pm = (m_kappa < 0) ? "+" : "-";
-  return (m_n != 0) ? std::to_string(m_n) + AtomData::l_symbol(m_l) + pm :
-                      AtomData::l_symbol(m_l) + pm;
+  return shortSymbol(m_n, m_kappa);
+}
+
+std::string DiracSpinor::shortSymbol(int n, int kappa) {
+  const std::string pm = (kappa < 0) ? "+" : "-";
+  int l = Angular::l_k(kappa);
+  return (n != 0) ? std::to_string(n) + AtomData::l_symbol(l) + pm :
+                    AtomData::l_symbol(l) + pm;
 }
 
 //==============================================================================

@@ -83,6 +83,33 @@ inline std::pair<int, int> index_to_nk(int index) {
   return {n, Angular::kappaFromIndex(kappa_index)};
 }
 
+//! Returns kappa, given nk_index
+inline int nkindex_to_kappa(int index) {
+  // Better way? isqrt?
+  const auto n = 1 + int(std::sqrt(index + 0.01));
+  // int n = 1 + int_sqrt(index);
+  const auto kappa_index = index - states_below_n(n);
+  return kappaFromIndex(kappa_index);
+}
+
+//! Returns 2*j, given nk_index
+inline int nkindex_to_twoj(int index) {
+  // Better way? isqrt?
+  const auto n = 1 + int(std::sqrt(index + 0.01));
+  // int n = 1 + int_sqrt(index);
+  const auto kappa_index = index - states_below_n(n);
+  return twojFromIndex(kappa_index);
+}
+
+//! Returns l, given nk_index
+inline int nkindex_to_l(int index) {
+  // Better way? isqrt?
+  const auto n = 1 + int(std::sqrt(index + 0.01));
+  // int n = 1 + int_sqrt(index);
+  const auto kappa_index = index - states_below_n(n);
+  return l_k(kappaFromIndex(kappa_index));
+}
+
 //==============================================================================
 //! Returns true if a is even - for integer values
 constexpr bool evenQ(int a) { return (a % 2 == 0); }

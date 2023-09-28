@@ -41,6 +41,17 @@ std::pair<int, int> k_minmax_S(const DiracSpinor &v, const DiracSpinor &w,
   return {std::max({lk1, lk2}), std::min({uk1, uk2})};
 }
 
+std::pair<int, int> k_minmax_S(int twojv, int twojw, int twojx, int twojy) {
+
+  // From the 6j part only:
+  // |b-d| <= k <=|b+d|
+  // |a-c| <= k <=|a+c|
+  const auto [lk1, uk1] = Coulomb::k_minmax_tj(twojv, twojx);
+  const auto [lk2, uk2] = Coulomb::k_minmax_tj(twojw, twojy);
+
+  return {std::max({lk1, lk2}), std::min({uk1, uk2})};
+}
+
 //==============================================================================
 double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const DiracSpinor &x, const DiracSpinor &y,

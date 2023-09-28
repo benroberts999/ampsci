@@ -9,9 +9,11 @@ namespace CI {
 
 //==============================================================================
 CSF2::CSF2(const DiracSpinor &a, const DiracSpinor &b)
-    : states(a <= b ? std::array{&a, &b} : std::array{&b, &a}) {}
+    : m_parity(a.parity() * b.parity()),
+      states(a <= b ? std::array{a.nk_index(), b.nk_index()} :
+                      std::array{b.nk_index(), a.nk_index()}) {}
 
-const DiracSpinor *CSF2::state(std::size_t i) const { return states.at(i); }
+DiracSpinor::Index CSF2::state(std::size_t i) const { return states.at(i); }
 
 bool operator==(const CSF2 &A, const CSF2 &B) {
   // only works because states is sorted
@@ -35,8 +37,8 @@ int CSF2::num_different(const CSF2 &A, const CSF2 &B) {
 
 // returns _different_ orbitals, for case where CSFs differ by 1.
 // i.e., returns {n,a} where |A> = |B_a^n> (i.e., A has n, but not a)
-std::array<const DiracSpinor *, 2> CSF2::diff_1_na(const CSF2 &A,
-                                                   const CSF2 &B) {
+std::array<DiracSpinor::Index, 2> CSF2::diff_1_na(const CSF2 &A,
+                                                  const CSF2 &B) {
   assert(num_different(A, B) == 1); // only valid in this case
   if (A.state(0) == B.state(0))
     return {A.state(1), B.state(1)};
@@ -49,11 +51,28 @@ std::array<const DiracSpinor *, 2> CSF2::diff_1_na(const CSF2 &A,
   assert(false); // should be unreachable, for testing
 }
 
-int CSF2::parity() const { return states[0]->parity() * states[1]->parity(); }
+DiracSpinor::Index CSF2::same_1_j(const CSF2 &A, const CSF2 &B) {
+  assert(num_different(A, B) == 1); // only valid in this case
+  if (A.state(0) == B.state(0))
+    return A.state(0);
+  if (A.state(1) == B.state(1))
+    return A.state(1);
+  if (A.state(0) == B.state(1))
+    return A.state(0);
+  if (A.state(1) == B.state(0))
+    return A.state(1);
+  assert(false); // should be unreachable, for testing
+}
+
+int CSF2::parity() const { return m_parity; }
 
 std::string CSF2::config(bool relativistic) const {
-  auto s1 = states[0]->shortSymbol();
-  auto s2 = states[1]->shortSymbol();
+  // auto s1 = states[0]->shortSymbol();
+  // auto s2 = states[1]->shortSymbol();
+  const auto [na, ka] = Angular::index_to_nk(states[0]);
+  const auto [nb, kb] = Angular::index_to_nk(states[1]);
+  auto s1 = DiracSpinor::shortSymbol(na, ka);
+  auto s2 = DiracSpinor::shortSymbol(nb, kb);
   if (!relativistic) {
     s1.pop_back();
     s2.pop_back();

@@ -11,15 +11,17 @@ class TensorOperator;
 //! Calculates many-body corrections (RPA) to matrix elements of external field
 namespace ExternalField {
 
-enum class method { TDHF, basis, diagram, none, Error };
+enum class Method { TDHF, basis, diagram, none, Error };
 
-inline method ParseMethod(std::string_view str) {
-  return qip::ci_compare(str, "TDHF")    ? method::TDHF :
-         qip::ci_compare(str, "basis")   ? method::basis :
-         qip::ci_compare(str, "diagram") ? method::diagram :
-         qip::ci_compare(str, "none")    ? method::none :
-         qip::ci_compare(str, "")        ? method::none :
-                                           method::Error;
+inline Method ParseMethod(std::string_view str) {
+  return qip::ci_compare(str, "TDHF")    ? Method::TDHF :
+         qip::ci_compare(str, "true")    ? Method::TDHF :
+         qip::ci_compare(str, "basis")   ? Method::basis :
+         qip::ci_compare(str, "diagram") ? Method::diagram :
+         qip::ci_compare(str, "none")    ? Method::none :
+         qip::ci_compare(str, "false")   ? Method::none :
+         qip::ci_compare(str, "")        ? Method::none :
+                                           Method::Error;
 }
 
 enum class dPsiType { X, Y };
@@ -51,6 +53,9 @@ public:
   int get_rank() const { return m_rank; }
   int get_parity() const { return m_pi; }
   bool get_imagQ() const { return m_imag; }
+
+  //! Returns RPA method
+  virtual Method method() const = 0;
 
   //! Solve RPA equations (for whichever method) for core.
   virtual void solve_core(const double omega, int max_its = 100,

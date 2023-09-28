@@ -249,6 +249,9 @@ public:
   orthonormaliseWrt(const DiracSpinor &Fin,
                     const std::vector<DiracSpinor> &orbs);
 
+  //! e.g., 6p_1/2 => 6p-, 6p_3/2 => 6p+
+  static std::string shortSymbol(int n, int kappa);
+
   //! Returns formatted states string (e.g., '7sp5d') given list of orbs
   static std::string state_config(const std::vector<DiracSpinor> &orbs);
 

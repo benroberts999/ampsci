@@ -489,6 +489,24 @@ std::pair<int, int> k_minmax_Ck(const DiracSpinor &a, const DiracSpinor &b) {
   return minmax;
 }
 
+//------------------------------------------------------------------------------
+std::pair<int, int> k_minmax_Ck(int kappa_a, int kappa_b) {
+
+  auto minmax = k_minmax_tj(Angular::twoj_k(kappa_a), Angular::twoj_k(kappa_b));
+  auto &min_k = minmax.first;
+  auto &max_k = minmax.second;
+  const auto la = Angular::l_k(kappa_a);
+  const auto lb = Angular::l_k(kappa_b);
+  if ((la + lb + min_k) % 2 != 0) {
+    ++min_k;
+  }
+  if ((la + lb + max_k) % 2 != 0) {
+    --max_k;
+  }
+  return minmax;
+}
+
+//------------------------------------------------------------------------------
 std::pair<int, int> k_minmax_tj(int tja, int tjb) {
   return std::make_pair(std::abs(tja - tjb) / 2, (tja + tjb) / 2);
 }
@@ -508,6 +526,23 @@ std::pair<int, int> k_minmax_Q(const DiracSpinor &a, const DiracSpinor &b,
   // Find min/max k from triangle rule:
   const auto [l1, u1] = k_minmax_Ck(a, c);
   const auto [l2, u2] = k_minmax_Ck(b, d);
+  return {std::max(l1, l2), std::min(u1, u2)};
+}
+
+//------------------------------------------------------------------------------
+std::pair<int, int> k_minmax_Q(int kap_a, int kap_b, int kap_c, int kap_d) {
+
+  // Determine if K needs to be even/odd (parity selection rule)
+  const auto k_even_ac = (Angular::l_k(kap_a) + Angular::l_k(kap_c)) % 2 == 0;
+  const auto k_even_bd = (Angular::l_k(kap_b) + Angular::l_k(kap_d)) % 2 == 0;
+  if (k_even_ac != k_even_bd) {
+    // no K satisfies selection rule!
+    return {1, 0};
+  }
+
+  // Find min/max k from triangle rule:
+  const auto [l1, u1] = k_minmax_Ck(kap_a, kap_c);
+  const auto [l2, u2] = k_minmax_Ck(kap_b, kap_d);
   return {std::max(l1, l2), std::min(u1, u2)};
 }
 

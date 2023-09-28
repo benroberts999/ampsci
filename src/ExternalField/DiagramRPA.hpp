@@ -58,6 +58,9 @@ public:
   virtual void solve_core(const double omega, int max_its = 200,
                           const bool print = true) override final;
 
+  //! Returns RPA method
+  virtual Method method() const override final { return Method::diagram; }
+
   //! Calculates RPA correction to matrix element: <A||dV||B>
   virtual double dV(const DiracSpinor &Fa,
                     const DiracSpinor &Fb) const override final;

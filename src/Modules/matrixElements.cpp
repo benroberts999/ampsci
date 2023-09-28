@@ -1,4 +1,5 @@
 #include "Modules/matrixElements.hpp"
+#include "CI/CI.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"
@@ -30,8 +31,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       {{"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
        {"options{}", "options specific to operator"},
        {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram"},
-       {"omega", "Text or number. Freq. for RPA. Put 'each' to solve "
-                 "at correct frequency for each transition. [0.0]"},
+       {"omega",
+        "Text or number. Freq. for RPA (and freq. dependent operators). Put "
+        "'each' to solve at correct frequency for each transition. [0.0]"},
        {"what", "What to calculate: rme (reduced ME), A (hyperfine A/B "
                 "coeficient), radial_integral. Default is rme, except when "
                 "operator=hfs, in which case default is A"},
@@ -76,23 +78,14 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const bool print_both = input.get("printBoth", false);
 
-  const auto rpa_method_str = input.get("rpa", std::string("TDHF"));
-  auto rpa_method =
-      (rpa_method_str == "true")  ? ExternalField::method::TDHF :
-      (rpa_method_str == "false") ? ExternalField::method::none :
-                                    ExternalField::ParseMethod(rpa_method_str);
-
-  if (rpa_method == ExternalField::method::Error) {
-    fmt2::styled_print(fg(fmt::color::red), "\nError 77: ");
-    fmt::print(
-        "RPA method {} not found - check spelling? Defaulting to NO rpa\n",
-        rpa_method_str);
-    rpa_method = ExternalField::method::none;
-  }
-
+  // RPA:
+  auto rpa_method_str = input.get("rpa", std::string("false"));
   if (wf.core().empty())
-    rpa_method = ExternalField::method::none;
-  const auto rpaQ = rpa_method != ExternalField::method::none;
+    rpa_method_str = "false";
+  auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
+                                     wf.basis(), wf.identity());
+
+  const auto rpaQ = rpa != nullptr;
 
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = qip::ci_compare(str_om, "each");
@@ -106,25 +99,11 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << omega << "\n";
   }
 
-  if ((h->parity() == 1) && rpa_method == ExternalField::method::TDHF) {
+  if ((h->parity() == 1) && rpa &&
+      rpa->method() == ExternalField::Method::TDHF) {
+    fmt2::warning();
     std::cout << "\n\n*CAUTION*:\n RPA (TDHF method) may not work for this "
                  "operator.\n Consider using diagram or basis method\n\n";
-  }
-
-  std::unique_ptr<ExternalField::CorePolarisation> rpa{nullptr};
-  if (rpaQ)
-    std::cout << "Including RPA: ";
-  if (rpa_method == ExternalField::method::TDHF) {
-    std::cout << "TDHF method\n";
-    rpa = std::make_unique<ExternalField::TDHF>(h.get(), wf.vHF());
-  } else if (rpa_method == ExternalField::method::basis) {
-    std::cout << "TDHF/basis method\n";
-    rpa = std::make_unique<ExternalField::TDHFbasis>(h.get(), wf.vHF(),
-                                                     wf.basis());
-  } else if (rpa_method == ExternalField::method::diagram) {
-    std::cout << "diagram method\n";
-    rpa = std::make_unique<ExternalField::DiagramRPA>(h.get(), wf.basis(),
-                                                      wf.vHF(), wf.identity());
   }
 
   const auto mes = ExternalField::calcMatrixElements(
@@ -211,38 +190,12 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   if (h->freqDependantQ() && !eachFreqQ)
     h->updateFrequency(const_omega);
 
-  // Parse method for RPA:
+  // RPA:
   const auto rpa_method_str = input.get("rpa", std::string("false"));
-  auto rpa_method =
-      (rpa_method_str == "true")  ? ExternalField::method::TDHF :
-      (rpa_method_str == "false") ? ExternalField::method::none :
-                                    ExternalField::ParseMethod(rpa_method_str);
+  auto dV = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
+                                    wf.basis(), wf.identity());
 
-  if (rpa_method == ExternalField::method::Error) {
-    fmt2::styled_print(fg(fmt::color::red), "\nError 77: ");
-    fmt::print(
-        "RPA method {} not found - check spelling? Defaulting to NO rpa\n",
-        rpa_method_str);
-    rpa_method = ExternalField::method::none;
-  }
-  const auto rpaQ = rpa_method != ExternalField::method::none;
-
-  // do RPA:
-  std::unique_ptr<ExternalField::CorePolarisation> dV{nullptr};
-  if (rpaQ)
-    std::cout << "Including RPA: ";
-  if (rpa_method == ExternalField::method::TDHF) {
-    std::cout << "TDHF method\n";
-    dV = std::make_unique<ExternalField::TDHF>(h.get(), wf.vHF());
-  } else if (rpa_method == ExternalField::method::basis) {
-    std::cout << "TDHF/basis method\n";
-    dV = std::make_unique<ExternalField::TDHFbasis>(h.get(), wf.vHF(),
-                                                    wf.basis());
-  } else if (rpa_method == ExternalField::method::diagram) {
-    std::cout << "diagram method\n";
-    dV = std::make_unique<ExternalField::DiagramRPA>(h.get(), wf.basis(),
-                                                     wf.vHF(), wf.identity());
-  }
+  const auto rpaQ = dV != nullptr;
 
   if (rpaQ && !eachFreqQ) {
     dV->solve_core(const_omega);
@@ -404,6 +357,199 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   return;
+}
+
+//============================================================================
+// Calculates matrix elements for CI wavefunctions
+void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
+  //
+  input.check({
+      {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
+      {"options{}", "options specific to operator"},
+      {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram"},
+      {"omega",
+       "Text or number. Freq. for RPA (and freq. dependent operators). Put "
+       "'each' to solve at correct frequency for each transition. [0.0]"},
+      {"J", "List of angular momentum Js to calculate matrix elements for. If "
+            "blank, all available Js will be calculated. Must be integers "
+            "(two-electron only)."},
+      {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
+      {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
+      {"num_solutions", "Maximum solution number to calculate MEs for. If "
+                        "blank, will calculate all."},
+      // {"what", "What to calculate: rme (reduced ME), A (hyperfine A/B "
+      //          "coeficient). Default is rme, except when "
+      //          "operator=hfs, in which case default is A"}
+      //           ,
+      //  {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
+      //  {"off-diagonal",
+      //   "Calculate off-diagonal matrix elements (if non-zero) [true]"}
+  });
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
+
+  const auto oper = input.get<std::string>("operator", "");
+  // Get optional 'options' for operator
+  auto h_options = IO::InputBlock(oper, {});
+  const auto tmp_opt = input.getBlock("options");
+  if (tmp_opt) {
+    h_options = *tmp_opt;
+  }
+
+  const auto h = DiracOperator::generate(oper, h_options, wf);
+
+  const auto str_om = input.get<std::string>("omega", "_");
+  const bool eachFreqQ = qip::ci_compare(str_om, "each");
+  const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
+
+  if (h->freqDependantQ()) {
+    std::cout << "Frequency-dependent operator; at omega = ";
+    if (eachFreqQ)
+      std::cout << "each transition frequency\n";
+    else
+      std::cout << omega << "\n";
+  }
+
+  std::cout << "\n"
+            << "CI Matrix Elements -  Operator: " << h->name() << "\n";
+  std::cout << "Units: " << h->units() << "\n";
+
+  // RPA:
+  auto rpa_method_str = input.get("rpa", std::string("false"));
+
+  if (wf.core().empty())
+    rpa_method_str = "false";
+  auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
+                                     wf.basis(), wf.identity(2));
+
+  if ((h->parity() == 1) && rpa &&
+      rpa->method() == ExternalField::Method::TDHF) {
+    fmt2::warning();
+    std::cout << "\n\n*CAUTION*:\n RPA (TDHF method) may not work for this "
+                 "operator.\n Consider using diagram or basis method\n\n";
+  }
+
+  if (!eachFreqQ && h->freqDependantQ()) {
+    std::cout << "Frequency-dependent operator at fixed frequency: w=" << omega
+              << "\n";
+    h->updateFrequency(omega);
+  }
+  if (eachFreqQ && h->freqDependantQ()) {
+    std::cout
+        << "Frequency-dependent operator at frequency of each transition\n";
+  }
+
+  if (!eachFreqQ && rpa) {
+    std::cout << "Solving RPA at fixed frequency: w=" << omega << "\n";
+    rpa->solve_core(omega);
+  }
+  if (eachFreqQ && rpa) {
+    std::cout << "Solving RPA at each frequency\n";
+  }
+
+  Coulomb::meTable<double> me_tab;
+  if (!eachFreqQ || !h->freqDependantQ()) {
+    me_tab = ExternalField::me_table(wf.basis(), h.get(), rpa.get());
+  }
+
+  const auto J_list =
+      input.get("J", std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
+  const auto J_even_list = input.get("J+", J_list);
+  const auto J_odd_list = input.get("J-", J_list);
+  const auto num_solutions = input.get("num_solutions", 5ul);
+
+  auto calc_me = [&](const CI::PsiJPi &wfA, std::size_t iA,
+                     const CI::PsiJPi &wfB, std::size_t iB) {
+    const auto t_omega = std::abs(wfA.energy(iA) - wfB.energy(iB));
+
+    if (eachFreqQ && h->freqDependantQ()) {
+      h->updateFrequency(t_omega);
+    }
+    if (eachFreqQ && rpa) {
+      rpa->solve_core(t_omega, 50, false);
+    }
+    if (eachFreqQ && h->freqDependantQ()) {
+      me_tab = ExternalField::me_table(wf.basis(), h.get());
+    }
+
+    const auto me =
+        CI::ReducedME(wfA, iA, wfB, iB, me_tab, h->rank(), h->parity());
+
+    auto p1 = wfA.parity() == 1 ? '+' : '-';
+    auto p2 = wfB.parity() == 1 ? '+' : '-';
+
+    if (eachFreqQ && rpa) {
+      fmt::print("{}{} {:2} {} - {}{} {:2} {}  {:2} {:.0e}  {:.5f} {:12.5e}\n",
+                 wfA.twoJ() / 2, p1, iA, wfA.info(iA).config, wfB.twoJ() / 2,
+                 p2, iB, wfB.info(iB).config, rpa->get_its(), rpa->get_eps(),
+                 t_omega, me);
+    } else {
+      fmt::print("{}{} {:2} {} - {}{} {:2} {}  {:.5f} {:12.5e}\n",
+                 wfA.twoJ() / 2, p1, iA, wfA.info(iA).config, wfB.twoJ() / 2,
+                 p2, iB, wfB.info(iB).config, t_omega, me);
+    }
+  };
+
+  //-----------------------------------------------------------------------
+  //-----------------------------------------------------------------------
+  //-----------------------------------------------------------------------
+
+  std::cout << "\n";
+
+  auto lam = [&](const auto &list1, int pi1, const auto &list2, int pi2,
+                 bool diagonal) {
+    for (auto ej : list1) {
+      const auto wf_e = wf.CIwf(ej, pi1);
+      if (wf_e == nullptr)
+        continue;
+      for (auto oj : list2) {
+        const auto wf_o = wf.CIwf(oj, pi2);
+        if (wf_o == nullptr)
+          continue;
+
+        // selection rules:
+        if (!h->selectrion_rule(2 * ej, pi1, 2 * oj, pi2))
+          continue;
+
+        for (std::size_t i = 0; i < num_solutions && i < wf_e->num_solutions();
+             ++i) {
+          for (std::size_t j = 0;
+               j < num_solutions && j < wf_o->num_solutions(); ++j) {
+
+            if (diagonal && pi1 == pi2 && ej == oj && i == j) {
+              calc_me(*wf_e, i, *wf_o, j);
+            }
+            if (!diagonal && (pi1 != pi2 || ej != oj || i != j)) {
+              calc_me(*wf_e, i, *wf_o, j);
+            }
+          }
+        }
+      }
+    }
+  };
+
+  if (eachFreqQ && rpa) {
+    std::cout << "Ja  # conf - Jb  # conf its eps    w_ab     t_ab\n";
+  } else {
+    std::cout << "Ja  # conf - Jb  # conf  w_ab     t_ab\n";
+  }
+
+  lam(J_even_list, 1, J_odd_list, -1, true);
+  lam(J_odd_list, -1, J_even_list, 1, true);
+
+  // never exist:
+  // lam(J_even_list, 1, J_even_list, 1, true);
+  // lam(J_odd_list, -1, J_odd_list, -1, true);
+
+  lam(J_even_list, 1, J_odd_list, -1, false);
+  lam(J_odd_list, -1, J_even_list, 1, false);
+
+  lam(J_even_list, 1, J_even_list, 1, false);
+  lam(J_odd_list, -1, J_odd_list, -1, false);
+
+  std::cout << "\n - Not symmetric - means problem somewhere!\n";
 }
 
 } // namespace Module

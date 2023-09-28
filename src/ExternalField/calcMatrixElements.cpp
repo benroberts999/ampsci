@@ -1,7 +1,12 @@
 #include "calcMatrixElements.hpp"
 #include "CorePolarisation.hpp"
+#include "DiagramRPA.hpp"
 #include "DiracOperator/DiracOperator.hpp"
+#include "HF/HartreeFock.hpp"
+#include "TDHF.hpp"
+#include "TDHFbasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "fmt/color.hpp"
 #include <iostream>
 #include <string>
 #include <vector>
@@ -98,6 +103,77 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
   }
 
   return res;
+}
+
+//==============================================================================
+// Required to set omega for freq. dependent operators initially
+Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
+                                  const std::vector<DiracSpinor> &b_orbs,
+                                  const DiracOperator::TensorOperator *h,
+                                  const CorePolarisation *dV) {
+
+  Coulomb::meTable<double> h_ab;
+
+  const auto a_is_b = &a_orbs == &b_orbs;
+
+  for (auto &a : a_orbs) {
+    for (auto &b : b_orbs) {
+
+      if (b < a && a_is_b)
+        continue;
+
+      if (h->isZero(a, b))
+        continue;
+
+      const auto me = h->reducedME(a, b) + (dV ? dV->dV(a, b) : 0.0);
+
+      h_ab.add(a, b, me);
+      if (a != b) {
+        h_ab.add(b, a, h->symm_sign(a, b) * me);
+      }
+    }
+  }
+  return h_ab;
+}
+
+//==============================================================================
+std::unique_ptr<CorePolarisation>
+make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
+         const HF::HartreeFock *vhf, bool print,
+         const std::vector<DiracSpinor> &basis, const std::string &atom) {
+
+  // Parse method for RPA:
+  auto rpa_method = ExternalField::ParseMethod(method);
+
+  if (rpa_method == ExternalField::Method::Error) {
+    fmt2::styled_print(fg(fmt::color::red), "\nError 148: ");
+    fmt::print(
+        "RPA method {} not found - check spelling? Defaulting to NO rpa\n",
+        method);
+    rpa_method = ExternalField::Method::none;
+  }
+  const auto rpaQ = rpa_method != ExternalField::Method::none;
+
+  // do RPA:
+  std::unique_ptr<ExternalField::CorePolarisation> dV{nullptr};
+  if (rpaQ && print)
+    std::cout << "Including RPA: ";
+  if (rpa_method == ExternalField::Method::TDHF) {
+    if (print)
+      std::cout << "TDHF method\n";
+    dV = std::make_unique<ExternalField::TDHF>(h, vhf);
+  } else if (rpa_method == ExternalField::Method::basis) {
+    if (print)
+      std::cout << "TDHF/basis method (" << DiracSpinor::state_config(basis)
+                << ")\n";
+    dV = std::make_unique<ExternalField::TDHFbasis>(h, vhf, basis);
+  } else if (rpa_method == ExternalField::Method::diagram) {
+    if (print)
+      std::cout << "diagram method (" << DiracSpinor::state_config(basis)
+                << ")\n";
+    dV = std::make_unique<ExternalField::DiagramRPA>(h, basis, vhf, atom);
+  }
+  return dV;
 }
 
 } // namespace ExternalField

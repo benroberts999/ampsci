@@ -499,15 +499,23 @@ bool CorrelationPotential::read_write(const std::string &fname,
   std::cout << "done.\n";
   if (rw == IO::FRW::read) {
     std::cout << "Read Sigma from file: " << fname << "\n";
-    for (const auto &Sig : m_Sigmas) {
-      fmt::print("kappa = {}, ev = {:.5f}", Sig.kappa, Sig.en);
-      if (Sig.n > 0) {
-        fmt::print(" (n = {})", Sig.n);
-      }
-      std::cout << "\n";
-    }
+    print_info();
   }
   return true;
+}
+
+//==============================================================================
+void CorrelationPotential::print_info() const {
+  for (const auto &Sig : m_Sigmas) {
+    fmt::print("kappa = {}, ev = {:.5f}", Sig.kappa, Sig.en);
+    if (Sig.n > 0) {
+      fmt::print(" (n = {})", Sig.n);
+    }
+    if (std::abs(Sig.lambda - 1.0) > 1.0e-16) {
+      fmt::print(" ; scaled with λ = {}", Sig.lambda);
+    }
+    std::cout << "\n";
+  }
 }
 
 } // namespace MBPT
