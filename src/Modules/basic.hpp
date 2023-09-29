@@ -19,12 +19,13 @@ void tests(const IO::InputBlock &input, const Wavefunction &wf);
 //! Module to output continuum state wavefunctions to disk, and calculate matrix elements between them and bound states
 void continuum(const IO::InputBlock &input, const Wavefunction &wf);
 
+void testBasis(const IO::InputBlock &input, const Wavefunction &wf);
+
 // Sub-functions for "tests"
 namespace Tests {
 void orthonormality(const Wavefunction &wf, const bool print_all = true);
 void Hamiltonian(const Wavefunction &wf);
 void r0pinf(const Wavefunction &wf);
-void basis(const Wavefunction &wf);
 } // namespace Tests
 
 } // namespace Module

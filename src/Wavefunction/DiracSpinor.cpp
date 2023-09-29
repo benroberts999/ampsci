@@ -280,6 +280,20 @@ int DiracSpinor::max_kindex(const std::vector<DiracSpinor> &orbs) {
              std::max_element(cbegin(orbs), cend(orbs), comp_ki)->k_index();
 }
 
+// static
+const DiracSpinor *DiracSpinor::find(int n, int k,
+                                     const std::vector<DiracSpinor> &orbs) {
+  const auto find_nk = [n, k](const auto Fa) {
+    return Fa.n() == n && Fa.kappa() == k;
+  };
+  auto Fnk = std::find_if(cbegin(orbs), cend(orbs), find_nk);
+  if (Fnk != cend(orbs)) {
+    return &*Fnk;
+  }
+  // otherwise, return nope
+  return nullptr;
+}
+
 //==============================================================================
 std::pair<double, std::string>
 DiracSpinor::check_ortho(const std::vector<DiracSpinor> &a,

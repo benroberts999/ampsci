@@ -256,6 +256,10 @@ public:
   static DiracSpinor exactHlike(int n, int k, std::shared_ptr<const Grid> rgrid,
                                 double zeff, double alpha = 0.0);
 
+  //! Searches for {n,k} in list of orbitals, returns pointer (may be null)
+  static const DiracSpinor *find(int n, int k,
+                                 const std::vector<DiracSpinor> &orbs);
+
   //! Returns maximum (2j) found in {orbs}
   static int max_tj(const std::vector<DiracSpinor> &orbs);
   //! Returns maximum l found in {orbs}

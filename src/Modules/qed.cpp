@@ -55,8 +55,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   const bool use_cm = input.get("use_cm", false);
-  const auto units = use_cm ? PhysConst::Hartree_invcm : 1.0e5;
-  const std::string units_str = use_cm ? "cm^-1" : "10^{-5}au";
+  const auto units = use_cm ? PhysConst::Hartree_invcm : 1.0;
+  const std::string units_str = use_cm ? "cm^-1" : "au";
 
   // This module calculates QED corections:
   // 1. Energy corrections, without relaxation
@@ -187,8 +187,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // 1. First-order QED corrections to energies
   std::cout << "\nFirst-order QED corrections to energies (" << units_str
             << "):\n";
-  std::cout
-      << "State  Uehl      SE(h)     SE(l)     SE(m)     WK        Total\n";
+  std::cout << "State Uehl        SE(h)       SE(l)       SE(m)       WK  "
+               "        Total\n";
   for (auto &v : wf.valence()) {
     const auto deu = Vu.radialIntegral(v, v) * units;
     const auto deh = Vh.radialIntegral(v, v) * units;
@@ -197,15 +197,15 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto dew = Vw.radialIntegral(v, v) * units;
     const auto det = Vt.radialIntegral(v, v) * units;
     // const auto det2 = deu + deh + del + dem + dew;
-    printf("%4s %9.5f %9.5f %9.5f %9.5f %9.5f %9.5f\n", v.shortSymbol().c_str(),
-           deu, deh, del, dem, dew, det);
+    printf("%4s %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e\n",
+           v.shortSymbol().c_str(), deu, deh, del, dem, dew, det);
   }
 
   // 2. Total QED corrections to energies
   std::cout << "\nTotal QED corrections to energies (" << units_str
             << "), with relaxation:\n";
-  std::cout
-      << "State  Uehl      SE(h)     SE(l)     SE(m)     WK        Total\n";
+  std::cout << "State Uehl        SE(h)       SE(l)       SE(m)       WK  "
+               "        Total\n";
   for (auto &v0 : wf.valence()) {
     const auto &vu = *wf_u.getState(v0.n(), v0.kappa());
     const auto &vh = *wf_h.getState(v0.n(), v0.kappa());
@@ -220,7 +220,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto dem = (vm.en() - v0.en()) * units;
     const auto dew = (vw.en() - v0.en()) * units;
     const auto det = (vt.en() - v0.en()) * units;
-    printf("%4s %9.5f %9.5f %9.5f %9.5f %9.5f %9.5f\n",
+    printf("%4s %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e\n",
            v0.shortSymbol().c_str(), deu, deh, del, dem, dew, det);
   }
 

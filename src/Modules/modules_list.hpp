@@ -42,7 +42,8 @@ struct ModuleInfo {
 //! {"ModuleName", &ModuleName, "ModuleDescription"}.
 //! You must add any new modules to this list.
 static const std::vector<ModuleInfo> module_list{
-    {"Tests", &tests, "Some basic wavefunction tests"},
+    {"Tests", &tests, "Some basic wavefunction numerical tests"},
+    {"testBasis", &testBasis, "Tests of basis and spectrum"},
     {"WriteOrbitals", &writeOrbitals, "Write orbitals to disk for plotting"},
     {"matrixElements", &matrixElements,
      "Calculates matrix elements of any operator"},
@@ -57,7 +58,7 @@ static const std::vector<ModuleInfo> module_list{
     {"fieldShift", &fieldShift,
      "Calculates field-shift constants (isotope shift)"},
     {"QED", &QED, "QED corrections to energies/matrix elements"},
-    {"Breit", &Breit, "Breit corrections to energies/matrix elements"},
+    {"Breit", &Breit, "Breit corrections to energies"},
     {"ladder", &ladder, "Calculates ladder diagrams and energy corrections"},
     {"Kionisation", &Kionisation, "Calculate atomic ionisation form-factors"},
     {"continuum", &continuum, "Compute and use continuum wavefunctions"},

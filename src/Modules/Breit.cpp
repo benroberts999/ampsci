@@ -16,6 +16,18 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
+  if (wf.vHF()->vBreit()) {
+    std::cout << "Error: This module assumes Breit is not included in "
+                 "wavefunction (it is included within this module!).\n";
+    return;
+  }
+
+  if (wf.Sigma()) {
+    std::cout
+        << "Error: This module assumes Sigma is not included (due to basis).\n";
+    return;
+  }
+
   const auto Br = HF::Breit{};
 
   // To separate Gaus/Retardation parts
@@ -23,10 +35,6 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
   auto R = HF::Breit{};
   G.update_scale(1.0, 1.0, 1.0, 0.0, 0.0);
   R.update_scale(1.0, 0.0, 0.0, 1.0, 1.0);
-
-  for (const auto &v : wf.valence()) {
-    std::cout << v << " " << v * Br.VbrFa(v, wf.core()) << "\n";
-  }
 
   const auto eFermi = wf.FermiLevel();
   const auto holes =
@@ -45,6 +53,13 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
     printf("%4s %10.4f %7.4f %7.4f  %7.4f\n", a.shortSymbol().c_str(), e0, eg,
            er, eg + er);
   }
+
+  std::cout
+      << "\nde(1)    = <v|Vbr|v> - first-order Breit correction\n"
+         "de(2,Z1) - HF (one-particle) part of second-order Breit correction.\n"
+         "de(2,Z2) - Sigma (two-particle) part of second-order Breit "
+         "correction.\n"
+         "de(2) = de(2,Z1) + de(2,Z2).\n";
 
   if (!wf.valence().empty()) {
     std::cout << "\nValence energy corrections (without relaxation):\n";

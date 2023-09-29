@@ -2,8 +2,9 @@
 
 ## Correlations (#21)
 
-* Re-do tests
+* Update full integration tests
 * Clean up interface (ampsci/wavefunction)
+* Issue when -ve energy states included!
 
 ## TDHF - physics (#3)
 

@@ -132,16 +132,16 @@ inline std::vector<double> RadialFunc(int k, double rN, const Grid &rgrid,
 
 //==============================================================================
 //! Units: Assumes g in nuc. magneton units (magnetic), and Q in barns
-//! (electric)
+//! (electric), and rN is atomic units
 class hfs final : public TensorOperator {
   // see Xiao, ..., Derevianko, Phys. Rev. A 102, 022810 (2020).
   using Func_R2_R = std::function<double(double, double)>;
 
 public:
-  hfs(int in_k, double in_GQ, double rN, const Grid &rgrid,
+  hfs(int in_k, double in_GQ, double rN_au, const Grid &rgrid,
       const Func_R2_R &hfs_F = Hyperfine::pointlike_F(), bool MHzQ = true)
       : TensorOperator(in_k, Parity::even, in_GQ,
-                       Hyperfine::RadialFunc(in_k, rN, rgrid, hfs_F), 0),
+                       Hyperfine::RadialFunc(in_k, rN_au, rgrid, hfs_F), 0),
         k(in_k),
         magnetic(k % 2 != 0),
         cfg(magnetic ? 1.0 : 0.0),
