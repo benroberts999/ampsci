@@ -64,10 +64,18 @@ public:
   // virtual ~CoulombTable() = default;
 
   //! Takes a constructed YkTable, and fills Coulomb table with all possible
-  //! non-zero Qk elements, accounting for symmetry (only makes sense
+  //! non-zero Qk Coulomb integrals, accounting for symmetry (only allowed
   //! for QkTable), up to maximum k, k_cut (set k_cut to <=0 to use all k)
   void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
             int k_cut = -1, bool print = true);
+
+  //! Takes a constructed YkTable, and fills Coulomb table with all possible
+  //! non-zero Qk Coulomb integrals that are allowed by the SelectionFunction,
+  //! accounting for symmetry (only allowed for QkTable), up to maximum k,
+  //! k_cut (set k_cut to <=0 to use all k)
+  void fill_if(const std::vector<DiracSpinor> &basis, const YkTable &yk,
+               const SelectionRules &SelectionFunction, int k_cut = -1,
+               bool print = true);
 
   void fill(const std::vector<DiracSpinor> &basis, const CoulombFunction &Fk,
             const SelectionRules &Fk_SR, int k_cut = -1, bool print = true);

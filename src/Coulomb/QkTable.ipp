@@ -564,6 +564,131 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
 
 //==============================================================================
 template <Symmetry S>
+void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
+                              const YkTable &yk,
+                              const SelectionRules &SelectionFunction,
+                              int k_cut, bool print) {
+  static_assert(S == Symmetry::Qk);
+  IO::ChronoTimer t("fill");
+
+  /*
+  Same as above, but only calculate integrals satisfying the SelectionFunction
+  */
+
+  const auto tmp_max_k =
+      std::size_t(std::max(DiracSpinor::max_tj(basis), 1) - 1);
+
+  const auto max_k =
+      (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
+
+  if (m_data.size() < max_k + 1)
+    m_data.resize(max_k + 1);
+
+  // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space
+  t.start();
+  std::vector<std::size_t> count_non_zero_k(max_k + 1);
+#pragma omp parallel for
+  for (auto k = 0ul; k <= max_k; ++k) {
+    const auto ik = static_cast<int>(k);
+    for (const auto &a : basis) {
+      for (const auto &b : basis) {
+        for (const auto &c : basis) {
+          if (!Angular::Ck_kk_SR(ik, a.kappa(), c.kappa()))
+            continue;
+          for (const auto &d : basis) {
+            // due to symmetry, only calculate each 'unique' integral once
+            if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
+              if (Angular::Ck_kk_SR(ik, b.kappa(), d.kappa()) &&
+                  SelectionFunction(ik, a, b, c, d)) {
+                ++count_non_zero_k[k];
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  if (print)
+    std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
+
+  // 2) Reserve space in each sub-map
+  t.start();
+#pragma omp parallel for
+  for (auto ik = 0ul; ik <= max_k; ++ik) {
+    m_data[ik].reserve(count_non_zero_k[ik]);
+  }
+  if (print)
+    std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
+
+  // 3) Create space in map (set each element to zero).
+  t.start();
+#pragma omp parallel for
+  for (auto k = 0ul; k <= max_k; ++k) {
+    for (const auto &a : basis) {
+      for (const auto &c : basis) {
+        if (!Angular::Ck_kk_SR(int(k), a.kappa(), c.kappa()))
+          continue;
+        for (const auto &b : basis) {
+          for (const auto &d : basis) {
+            if (!Angular::Ck_kk_SR(int(k), b.kappa(), d.kappa()))
+              continue;
+            if (!SelectionFunction(int(k), a, b, c, d))
+              continue;
+            const auto normal_index = NormalOrder(a, b, c, d);
+            if (normal_index == CurrentOrder(a, b, c, d)) {
+              add(int(k), normal_index, 0.0);
+            }
+          }
+        }
+      }
+    }
+  }
+  if (print)
+    std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
+
+  // 4) Fill the pre-constructed map with values, in parallel. Since we are
+  // not adding any new elements to map, and since we are guarenteed to only
+  // access each map element once, we can do this part in parallel. nb: This
+  // //isation is not very efficient, though in theory it can be 100%
+  if (print)
+    std::cout << "Fill w/ values: " << std::flush;
+  t.start();
+#pragma omp parallel for collapse(2)
+  for (auto ia = 0ul; ia < basis.size(); ++ia) {
+    for (auto ib = 0ul; ib < basis.size(); ++ib) {
+      const auto &a = basis[ia];
+      const auto &b = basis[ib];
+      for (const auto &c : basis) {
+        for (const auto &d : basis) {
+          const auto normal_index = NormalOrder(a, b, c, d);
+          if (normal_index == CurrentOrder(a, b, c, d)) {
+            const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
+            for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
+              if (!SelectionFunction(k, a, b, c, d))
+                continue;
+              double *ptr = get(k, normal_index);
+              assert(ptr != nullptr);
+              if (*ptr == 0.0) {
+                // only calculate if not already in table
+                // This saves some time, but surprisingly little!
+                *ptr = yk.Q(k, a, b, c, d);
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  if (print)
+    std::cout << t.lap_reading_str() << std::endl;
+
+  if (print)
+    summary();
+}
+
+//==============================================================================
+template <Symmetry S>
 void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
                            const CoulombFunction &Fk,
                            const SelectionRules &Fk_SR, int k_cut, bool print) {
