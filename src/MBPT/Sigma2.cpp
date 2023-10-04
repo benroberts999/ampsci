@@ -22,10 +22,27 @@ split_basis(const std::vector<DiracSpinor> &basis, double E_Fermi,
   return core_excited;
 }
 
+//==============================================================================
 bool Sk_vwxy_SR(int k, const DiracSpinor &v, const DiracSpinor &w,
                 const DiracSpinor &x, const DiracSpinor &y) {
   return Coulomb::sixjTriads({}, {}, k, v, x, {}) &&
          Coulomb::sixjTriads({}, {}, k, w, y, {});
+}
+
+//==============================================================================
+int number_below_Fermi(const DiracSpinor &i, const DiracSpinor &j,
+                       const DiracSpinor &k, const DiracSpinor &l,
+                       double eFermi) {
+  int num_core = 0;
+  if (i.en() < eFermi)
+    ++num_core;
+  if (j.en() < eFermi)
+    ++num_core;
+  if (k.en() < eFermi)
+    ++num_core;
+  if (l.en() < eFermi)
+    ++num_core;
+  return num_core;
 }
 
 //==============================================================================

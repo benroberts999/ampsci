@@ -170,10 +170,6 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   {
     std::cout << "Calculate two-body Coulomb integrals: Q^k_abcd\n";
 
-    // Try to limit number of Coulomb integrals we calculate
-    // use whole basis (these are used inside Sigma_2)
-    // If not including MBPT, only need to caculate smaller set of integrals
-    // nb: we still calculate too many: (e.g., Qk_aaaa)
     const auto qk_filename = input.get("qk_file", wf.atomicSymbol() + ".qk");
 
     // Try to read from disk (may already have calculated Qk)
@@ -181,30 +177,47 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     const auto existing = qk.count();
     {
 
+      // Try to limit number of Coulomb integrals we calculate
+      // use whole basis (these are used inside Sigma_2)
+      // If not including MBPT, only need to caculate smaller set of integrals
+
       // First, calculate the integrals between ci basis states:
       {
-        std::cout << "For: " << DiracSpinor::state_config(ci_sp_basis) << "\n";
+        std::cout << "For: " << DiracSpinor::state_config(ci_sp_basis) << "\n"
+                  << std::flush;
         const auto yk = Coulomb::YkTable(ci_sp_basis);
         qk.fill(ci_sp_basis, yk, max_k_Coulomb, false);
       }
 
+      // Selection function for which Qk's to calculate.
+      // For Sigma, we only need those with 1 or 2 core electrons
+      // i.e., no Q_vwxy, Q_vabc, or Q_abcd
+      // Note: we *do* need Q_vwxy for the CI part (but with smaller basis)
+      const auto select_Q_sigma =
+          [eF = wf.FermiLevel()](int, const DiracSpinor &s,
+                                 const DiracSpinor &t, const DiracSpinor &u,
+                                 const DiracSpinor &v) {
+            // Only calculate Coulomb integrals with 1 or 2 electrons in the core
+            auto num = MBPT::number_below_Fermi(s, t, u, v, eF);
+            return num == 1 || num == 2;
+          };
+
       // Then, add those required for Sigma_1 (unless we have matrix!)
       if (include_Sigma1 && !wf.Sigma()) {
-        // XXX Still calculates too many!
-        // nb: ineficient: don't need _all_ (e.g., Qk_aaaa)
-        // only need up to two core orbitals...I think
         const auto temp_basis = qip::merge(core_s1, excited_s1);
-        std::cout << "and: " << DiracSpinor::state_config(temp_basis) << "\n";
+        std::cout << "and: " << DiracSpinor::state_config(temp_basis) << "\n"
+                  << std::flush;
         const auto yk = Coulomb::YkTable(temp_basis);
-        qk.fill(temp_basis, yk, max_k_Coulomb, false);
+        qk.fill_if(temp_basis, yk, select_Q_sigma, max_k_Coulomb, false);
       }
 
       // Then, add those required for Sigma_2 (unless we already did Sigma_1)
       if (include_Sigma2 && !(include_Sigma1 && !wf.Sigma())) {
         const auto temp_basis = qip::merge(core_s2, excited_s2);
-        std::cout << "and: " << DiracSpinor::state_config(temp_basis) << "\n";
+        std::cout << "and: " << DiracSpinor::state_config(temp_basis) << "\n"
+                  << std::flush;
         const auto yk = Coulomb::YkTable(temp_basis);
-        qk.fill(temp_basis, yk, max_k_Coulomb, false);
+        qk.fill_if(temp_basis, yk, select_Q_sigma, max_k_Coulomb, false);
       }
 
       // print summary
@@ -234,12 +247,12 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   //----------------------------------------------------------------------------
   // Calculate MBPT corrections to two-body Coulomb integrals
 
-  // Here, writa basis info into file, since these are _internal_ lines!
+  // Here, write basis info into filename, since these are _internal_ lines!
   const auto Sk_filename = input.get(
       "sk_file", wf.atomicSymbol() + "_" + std::to_string(n_min_core) + "_" +
                      DiracSpinor::state_config(excited_s2) +
                      (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
-                          "_" + std::to_string(n_min_core) :
+                          "_" + std::to_string(max_k_Coulomb) :
                           "") +
                      ".sk");
 
