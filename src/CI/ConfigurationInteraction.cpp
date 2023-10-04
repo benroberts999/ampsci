@@ -44,7 +44,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
         "Basis used for the one-body MBPT diagrams (Sigma^1). These are the "
         "most important, so in general the default (all basis states) should "
         "be used. Must be a subset of full ampsci basis. [default: full "
-        "basis]"},
+        "basis]\n"
+        " - Note: if CorrelationPotential is available, it will be used "
+        "instead of calculating the Sigma_1 integrals"},
        {"s2_basis",
         "Basis used for internal lines of the two-body MBPT diagrams "
         "(Sigma^2). Must be a subset of s1_basis. [default: s1_basis]"},
@@ -269,7 +271,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   }
 
   //----------------------------------------------------------------------------
-  const auto J_list = input.get("J", std::vector<double>{0.0});
+  const auto J_list = input.get("J", std::vector<int>{0});
   const auto J_even_list = input.get("J+", J_list);
   const auto J_odd_list = input.get("J-", J_list);
   const auto num_solutions = input.get("num_solutions", 5);
@@ -435,12 +437,12 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     // Use non-relativistic M1 operator for closest match
     const auto [S, L] = CI::Term_S_L(l1, l2, twoJ, gJnr);
 
+    std::cout << "   --------------\n";
     if (twoJ != 0) {
       std::cout << "   gJ = " << gJ << "\n";
     }
 
     const auto tSp1 = 2.0 * S + 1.0;
-
     const auto config = psi.CSF(max_j).config();
     const auto pm = parity == 1 ? "" : "°";
 

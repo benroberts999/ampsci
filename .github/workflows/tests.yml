@@ -39,4 +39,4 @@ jobs:
       run: make clean && make CXX='g++-11' CARGS='-Werror' Build=dev tests
  
     - name: Run unit, regression, integrations tests (g++)
-      run: ./tests ~[Slow]
+      run: ./tests ~[slow]

@@ -53,7 +53,13 @@ GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
   // k is multipolarity [Coloulmb expansion]
   // de_xyz = e_v + e_x - e_y - e_z
 
-  const auto &[holes, excited] = m_basis;
+  const auto &[t_holes, t_excited] = m_basis;
+
+  // This is required by clang++14??
+  // "reference to local binding 'holes' declared in enclosing function"
+  const auto &holes = t_holes;
+  const auto &excited = t_excited;
+
   const auto tjv = Angular::twoj_k(kappa_v);
 
   GMatrix Sd{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
@@ -120,7 +126,13 @@ GMatrix Goldstone::Sigma_exchange(int kappa_v, double en_v,
   // Diagram (d) (exchange):
   // |Q^k_nba><P^k_nba| / de_nba / [k][j]
 
-  const auto &[holes, excited] = m_basis;
+  const auto &[t_holes, t_excited] = m_basis;
+
+  // This is required by clang++14??
+  // "reference to local binding 'holes' declared in enclosing function"
+  const auto &holes = t_holes;
+  const auto &excited = t_excited;
+
   const auto tjv = Angular::twoj_k(kappa_v);
 
   GMatrix Sx{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};

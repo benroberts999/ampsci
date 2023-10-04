@@ -48,8 +48,6 @@ TEST_CASE("CI: Configuration Interaction, unit tests", "[CI][unit]") {
       REQUIRE(ci_wf.energy(j) == Approx(energy[i][j]).epsilon(1.0e-2));
       REQUIRE(ci_wf.info(j).gJ == Approx(gj[i][j]).epsilon(1.0e-2));
     }
-
-    ++i;
   }
 
   // again, this time, should read in qk file
@@ -64,6 +62,5 @@ TEST_CASE("CI: Configuration Interaction, unit tests", "[CI][unit]") {
       REQUIRE(ci_wf.energy(j) == Approx(ci_wf_2.energy(j)));
       REQUIRE(ci_wf.info(j).gJ == Approx(ci_wf_2.info(j).gJ));
     }
-    ++i;
   }
 }
