@@ -124,7 +124,7 @@ void write_CoulombIntegrals(const std::string &fname,
                       continue;
                   }
 
-                  const auto g = qk.g(a, b, c, d, tma, tmb, tmc, tmc);
+                  const auto g = qk.g(a, b, c, d, tma, tmb, tmc, tmd);
                   // Note sure why zero values slip through?
                   // Missing SR? or mistake?
                   if (g == 0.0)

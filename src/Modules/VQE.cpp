@@ -335,7 +335,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   //----------------------------------------------------------------------------
-  const auto J_list = input.get("J", std::vector<int>{0});
+  const auto J_list = input.get("J", std::vector<int>{});
   const auto J_even_list = input.get("J+", J_list);
   const auto J_odd_list = input.get("J-", J_list);
   const auto num_solutions = input.get("num_solutions", 5);

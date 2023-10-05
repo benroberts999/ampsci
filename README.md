@@ -57,9 +57,13 @@ Divided into sections:
 
 **Quick start**:
 
-* The `setup.sh` bash script should install all required dependencies and build ampsci
+* The `setup.sh` bash script should compile and build ampsci
   * It uses only defaults, and may not work on all systems.
     See above instructions for full guide to compilation.
+  * It assumes dependencies have already been installed. If not, see next:
+* The `install-dependencies.sh` bash script should install all required dependencies.
+  * It uses only defaults, and may not work on all systems.
+  * As upsream repositories update, this may fall out-of-date
 * See which ampsci input options are available: `./ampsci -a`
   * See available input options for each input block by following with its name
   * e.g., `./ampsci -a HartreeFock`
