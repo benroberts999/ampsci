@@ -310,7 +310,11 @@ void dynamicPolarisability(const IO::InputBlock &input,
         (2.0 * M_PI * PhysConst::c / l_minmax.at(1)) * PhysConst::aB_nm;
     const auto w_max =
         (2.0 * M_PI * PhysConst::c / l_minmax.at(0)) * PhysConst::aB_nm;
-    w_list = qip::uniform_range(w_min, w_max, num_w_steps);
+
+    // w_list = qip::uniform_range(w_min, w_max, num_w_steps);
+    // logarithmic in omega is roughly ~linear in lambda
+    w_list = qip::logarithmic_range(w_min, w_max, num_w_steps);
+
   } else {
     const auto w_minmax = input.get("omega_minmax", std::vector{0.01, 0.1});
     if (w_minmax.size() != 2) {

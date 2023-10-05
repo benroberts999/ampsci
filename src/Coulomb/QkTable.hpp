@@ -189,25 +189,27 @@ public:
   //! Reads coulomb integrals to disk. Returns false if none read in
   bool read(const std::string &fname);
 
-private:
+  //! Directly gets one of the stored elements, given normal-ordered nk4Index
   double *get(int k, nk4Index index);
 
-  // Creates single 'nk4Index', WITHOUT accounting for 'NormalOrder'. Can be
-  // used to check if {a,b,c,d} are already in 'NormalOrder'
+  //! Creates single 'nk4Index', WITHOUT accounting for 'NormalOrder'. Can be
+  //! used to check if {a,b,c,d} are already in 'NormalOrder'
   nk4Index CurrentOrder(const DiracSpinor &a, const DiracSpinor &b,
                         const DiracSpinor &c, const DiracSpinor &d) const;
-  // Creates single 'nk4Index', WITHOUT accounting for 'NormalOrder'. Can be
-  // used to check if {a,b,c,d} are already in 'NormalOrder'
+
+  //! Creates single 'nk4Index', WITHOUT accounting for 'NormalOrder'. Can be
+  //! used to check if {a,b,c,d} are already in 'NormalOrder'
   nk4Index CurrentOrder(nkIndex a, nkIndex b, nkIndex c, nkIndex d) const;
 
-  // Converts given set of nkIndex's (in any order) to nk4Index
+  //! Converts given set of nkIndex's (in any order) to nk4Index
   static nk4Index FormIndex(nkIndex a, nkIndex b, nkIndex c, nkIndex d);
 
-  // Breaks nk4Index back into {ia,ib,ic,id}. Not used.
+  //! Breaks nk4Index back into {ia,ib,ic,id}. Not used.
   std::array<nkIndex, 4> UnFormIndex(const nk4Index &index) const;
 
-  // Virtual: returns the "NormalOrder" nk4Index for given set. Overriden by
-  // derived classes.
+private:
+  // Returns the "NormalOrder" nk4Index for given set. Implemented by
+  // specific symmetries
   static inline nk4Index NormalOrder_impl(nkIndex a, nkIndex b, nkIndex c,
                                           nkIndex d);
 };

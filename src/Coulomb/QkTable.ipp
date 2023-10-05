@@ -427,6 +427,12 @@ CoulombTable<S>::UnFormIndex(const nk4Index &index) const {
   static_assert(sizeof(nk4Index) == sizeof(std::array<nkIndex, 4>));
   std::array<nkIndex, 4> set;
   std::memcpy(&set, &index, sizeof(nk4Index));
+  // note: this returns {d, c, b, a}, not {a, b, c, d}
+  // A warning: this might depend on "endiness"
+  // It's OK, this function is never used???
+  // If there's an issue, a unit test will fail, so it's "safe"
+  std::swap(set[0], set[3]);
+  std::swap(set[1], set[2]);
   return set;
 }
 

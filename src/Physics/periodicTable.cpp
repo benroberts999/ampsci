@@ -59,15 +59,18 @@ int parse_A(const std::string &A_str, int z) {
 void printConstants() //
 {
   std::cout << "\n";
-  printf("1/alpha = %.9f\n", PhysConst::c);
-  printf("alpha   = %.14f\n", PhysConst::alpha);
+  printf("1/α     = %.9f\n", PhysConst::c);
+  printf("α       = %.14f\n", PhysConst::alpha);
   printf("c       = %.0f m/s\n", PhysConst::c_SI);
-  printf("hbar    = %.10e Js\n", PhysConst::hbar_SI);
+  printf("ℏ       = %.10e Js\n", PhysConst::hbar_SI);
+  printf("ℏc      = %.7f MeV.fm\n", PhysConst::hbarc_MeVfm);
   printf("mp/me   = %.8f\n", PhysConst::m_p);
-  printf("me      = %.10f MeV\n", PhysConst::m_e_MeV);
+  printf("me      = %.11f MeV\n", PhysConst::m_e_MeV);
   printf("aB      = %.12e m\n", PhysConst::aB_m);
-  printf("Hy      = %.12f eV = %.12e Hz\n", PhysConst::Hartree_eV,
-         PhysConst::Hartree_Hz);
+  printf("E_H     = %.12f eV\n", PhysConst::Hartree_eV);
+  printf("        = %.12e Hz\n", PhysConst::Hartree_Hz);
+  printf("        = %.8f /cm\n", PhysConst::Hartree_invcm);
+  printf("ℏ/E_H   = %.10e s\n", PhysConst::hbar_on_EH);
   std::cout << "\n";
   return;
 }

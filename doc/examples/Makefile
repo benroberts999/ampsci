@@ -37,7 +37,7 @@ PathForGSL=
 ################################################################################
 # By default, uses -lblas (set BLAS=blas).
 # On some systems, openblas is available
-BLASLIB=
+BLASLIB=blas
 #BLASLIB=openblas
 
 ################################################################################

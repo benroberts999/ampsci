@@ -20,9 +20,14 @@ constexpr double c2 = c * c;
 constexpr double c_SI = 299792458.0;
 
 //! hbar (reduced Planck constant), in SI (J.s)
-constexpr double hbar_SI = (6.62607015e-34) / (2 * M_PI); // exact
+constexpr double hbar_SI = (6.62607015e-34) / (2.0 * M_PI); // exact
+
+//! Fundamental charge, Coulombs. 1.602176634 x 10-19 [exact]
+constexpr double e_C = 1.602176634e-19;
+
 //! CODATA 2018: hbar*c = 197.326 980 4... MeV fm
-constexpr double hbarc_MeVfm = 197.3269804;
+// constexpr double hbarc_MeVfm = 197.3269804;
+constexpr double hbarc_MeVfm = (hbar_SI * c_SI / e_C) * 1.0e9;
 
 // Mass (mp/me)
 // CODATA 2018: m_e = 9.109 383 7015(28) e-31

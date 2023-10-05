@@ -4,15 +4,10 @@
 
 * BUG: Seems that Sigma1 breaks fine-structre.
   * Lowest J seems to be correct, with far too big corrections for higher J?
-* Calculate MEs for CI
 * Update solutions:
   * re-calculate more?
   * Check if any didn't converge
   * Control over tolerance?
-* Two-body integral file
-  * Read in file each time; calculate any new integrals only
-  * Only _use_ integrals corresponding to requested basis (even if they exist)
-  * Check this works with ci_sp in Hab_Sigma
 * Option for E-denominator type
 * Screening for Sigma(2)
   * fk screening
@@ -23,7 +18,6 @@
 
 * Update full integration tests
 * Clean up interface (ampsci/wavefunction)
-* Issue when -ve energy states included!
 
 ## TDHF - physics (#3)
 

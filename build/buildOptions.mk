@@ -49,7 +49,7 @@ endif
 # -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF are from GSL
 
 # If not using openMP, turn off 'unkown pragmas' warning.
-OMP ?= -fopenmp
+OMP?=-fopenmp
 ifneq ($(UseOpenMP),true)
 ifneq ($(UseOpenMP),yes)
   OMP=
@@ -59,7 +59,7 @@ endif
 
 ################################################################################
 # Allows different blas standard (e.g., openblas) by setting BLAS=openblas
-BLASLIB ?= blas
+BLASLIB?=blas
 
 ################################################################################
 # Linking + Compiling:

@@ -3,6 +3,7 @@
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/ChronoTimer.hpp"
+#include "MBPT/Sigma2.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Random.hpp"
@@ -39,6 +40,36 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
     for (const auto &Fb : orbs) {
       for (const auto &Fc : orbs) {
         for (const auto &Fd : orbs) {
+
+          // test index
+          const auto norm_index = qk.NormalOrder(Fa, Fb, Fc, Fd);
+          const auto abcd_index = qk.CurrentOrder(Fa, Fb, Fc, Fd);
+
+          const auto [ia, ib, ic, id] = qk.UnFormIndex(norm_index);
+          const auto [ja, jb, jc, jd] = qk.UnFormIndex(abcd_index);
+
+          REQUIRE(ja == Fa.nk_index());
+          REQUIRE(jb == Fb.nk_index());
+          REQUIRE(jc == Fc.nk_index());
+          REQUIRE(jd == Fd.nk_index());
+
+          REQUIRE((ia == Fa.nk_index() || ia == Fb.nk_index() ||
+                   ia == Fc.nk_index() || ia == Fd.nk_index()));
+          REQUIRE((ib == Fa.nk_index() || ib == Fb.nk_index() ||
+                   ib == Fc.nk_index() || ib == Fd.nk_index()));
+          REQUIRE((ic == Fa.nk_index() || ic == Fb.nk_index() ||
+                   ic == Fc.nk_index() || ic == Fd.nk_index()));
+          REQUIRE((id == Fa.nk_index() || id == Fb.nk_index() ||
+                   id == Fc.nk_index() || id == Fd.nk_index()));
+
+          if (qk.is_NormalOrdered(Fa, Fb, Fc, Fd)) {
+            REQUIRE(norm_index == abcd_index);
+            REQUIRE(ia == ja);
+            REQUIRE(ib == jb);
+            REQUIRE(ic == jc);
+            REQUIRE(id == jd);
+          }
+
           // go through _every_ k (will incllude zeros!)
           for (int k = 0; k <= 2 * lmax; ++k) {
             const auto q1 = qk.Q(k, Fa, Fb, Fc, Fd);
@@ -55,6 +86,76 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
             const auto p2 = w2 - q2;
             const auto eps_p = std::abs(p2) < 1.0e-6 ? p1 - p2 : (p1 - p2) / p2;
             REQUIRE(std::abs(eps_p) < 1.0e-8);
+          }
+        }
+      }
+    }
+  }
+
+  //------------------------------------------------------------------------
+
+  // Arbitrary Fermi level:
+  const auto e_Fermi =
+      0.5 * (orbs.at(orbs.size() / 2).en() + orbs.at(orbs.size() / 2 + 1).en());
+  const auto [core, excited] = MBPT::split_basis(orbs, e_Fermi);
+
+  const auto selection_func = [eF = e_Fermi](int k, auto &a, auto &b, auto &c,
+                                             auto &d) {
+    const auto num = MBPT::number_below_Fermi(a, b, c, d, eF);
+    return num == 2 && k <= 6;
+  };
+
+  // Test fill_if with a filling rule:
+  Coulomb::QkTable qk_mnab;
+  qk_mnab.fill_if(orbs, yk, selection_func, -1, false);
+  for (const auto &m : excited) {
+    for (const auto &n : excited) {
+      for (const auto &a : core) {
+        for (const auto &b : core) {
+          for (int k = 0; k <= 6; ++k) {
+
+            REQUIRE(qk_mnab.Q(k, m, n, a, b) == Approx(qk.Q(k, m, n, a, b)));
+            REQUIRE(qk_mnab.Q(k, a, b, a, b) == 0.0);
+            REQUIRE(qk_mnab.Q(k, m, n, m, n) == 0.0);
+          }
+          for (int k = 7; k <= 12; ++k) {
+            REQUIRE(qk_mnab.Q(k, m, n, a, b) == 0.0);
+          }
+        }
+      }
+    }
+  }
+
+  //------------------------------------------------------------------------
+
+  // Arbitrary function to fill Qk table with (obeys Qk symmetry!):
+  const auto Coul_func = [](int k, auto &a, auto &b, auto &c, auto &d) {
+    return double(k) + a.en() + b.en() + c.en() + d.en();
+  };
+
+  // Arbitrary selectrion rule for Coul_func (obeys Qk symmetry!):
+  const auto select_rule = [](int k, auto &a, auto &b, auto &c, auto &d) {
+    return (k + a.l() + b.l() + c.l() + d.l()) % 2 == 0;
+  };
+
+  // Test fill_if with a filling rule:
+  Coulomb::QkTable qk_custom;
+  qk_custom.fill(orbs, Coul_func, select_rule, 8, false);
+  for (const auto &a : orbs) {
+    for (const auto &b : orbs) {
+      for (const auto &c : orbs) {
+        for (const auto &d : orbs) {
+          for (int k = 0; k <= 8; ++k) {
+            if ((k + a.l() + b.l() + c.l() + d.l()) % 2 == 0) {
+              const auto expected =
+                  double(k) + a.en() + b.en() + c.en() + d.en();
+              REQUIRE(qk_custom.Q(k, a, b, c, d) == Approx(expected));
+            } else {
+              REQUIRE(qk_custom.Q(k, a, b, c, d) == 0.0);
+            }
+          }
+          for (int k = 9; k <= 12; ++k) {
+            REQUIRE(qk_custom.Q(k, a, b, c, d) == 0.0);
           }
         }
       }
