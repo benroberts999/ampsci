@@ -12,6 +12,7 @@
 #include <algorithm>
 #include <cmath>
 #include <iostream>
+#include <random>
 #include <string>
 
 namespace UnitTest {
@@ -329,6 +330,41 @@ TEST_CASE("Coulomb: yk,Rk formulas", "[Coulomb][unit]") {
               if (!triad || !triangle) {
                 REQUIRE(sj1 == 0.0);
               }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Test the g formulas
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  int num_to_test = 100;
+  std::uniform_int_distribution<std::size_t> rindex(0, orbs.size() - 1);
+  for (int tries = 0; tries < num_to_test; ++tries) {
+    const auto &Fa = orbs[rindex(gen)];
+    const auto &Fb = orbs[rindex(gen)];
+    const auto &Fc = orbs[rindex(gen)];
+    const auto &Fd = orbs[rindex(gen)];
+
+    for (int tma = -Fa.twoj(); tma <= Fa.twoj(); tma += 2) {
+      for (int tmb = -Fb.twoj(); tmb <= Fb.twoj(); tmb += 2) {
+        for (int tmc = -Fc.twoj(); tmc <= Fc.twoj(); tmc += 2) {
+          for (int tmd = -Fd.twoj(); tmd <= Fd.twoj(); tmd += 2) {
+
+            const auto g1 = Coulomb::g_abcd(Fa, Fb, Fc, Fd, tma, tmb, tmc, tmd);
+            const auto g2 = Coulomb::g_abcd(Fc, Fd, Fa, Fb, tmc, tmd, tma, tmb);
+            const auto g3 = Coulomb::g_abcd(Fb, Fa, Fd, Fc, tmb, tma, tmd, tmc);
+            // const auto g4 = Coulomb::g_abcd(Fa, Fd, Fc, Fb, tma, tmd, tmc, tmb);
+            if (std::abs(g1) < 1.0e-8) {
+              REQUIRE(g1 == Approx(g2).margin(1.0e-8));
+              REQUIRE(g1 == Approx(g3).margin(1.0e-8));
+              // REQUIRE(g1 == Approx(g4).margin(1.0e-8));
+            } else {
+              REQUIRE(g1 == Approx(g2).epsilon(1.0e-8));
+              REQUIRE(g1 == Approx(g3).epsilon(1.0e-8));
+              // REQUIRE(g1 == Approx(g4).epsilon(1.0e-8));
             }
           }
         }

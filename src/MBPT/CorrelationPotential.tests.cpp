@@ -523,7 +523,7 @@ TEST_CASE("MBPT: Correlation Potential: SigmaAO",
 }
 
 //==============================================================================
-TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][unit]") {
+TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][CI][unit]") {
 
   std::cout << "\n----------------------------------------\n";
   std::cout << "MBPT: Sigma2 (unit)\n";
@@ -562,17 +562,18 @@ TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][unit]") {
                                              SixJ, MBPT::Denominators::BW);
 
             const double sk3 =
-                MBPT::InternalSigma::S_Sigma2_a(k, v, w, x, y, qk, core,
-                                                excited, SixJ,
-                                                MBPT::Denominators::BW) +
-                MBPT::InternalSigma::S_Sigma2_b(k, v, w, x, y, qk, core,
-                                                excited, SixJ,
-                                                MBPT::Denominators::BW) +
-                MBPT::InternalSigma::S_Sigma2_c(k, v, w, x, y, qk, core,
-                                                excited, SixJ,
-                                                MBPT::Denominators::BW) +
+                MBPT::InternalSigma::S_Sigma2_ab(k, v, w, x, y, qk, core,
+                                                 excited, SixJ,
+                                                 MBPT::Denominators::BW) +
+                MBPT::InternalSigma::S_Sigma2_c1(k, v, w, x, y, qk, core,
+                                                 excited, SixJ,
+                                                 MBPT::Denominators::BW) +
+                MBPT::InternalSigma::S_Sigma2_c2(k, v, w, x, y, qk, core,
+                                                 excited, SixJ,
+                                                 MBPT::Denominators::BW) +
                 MBPT::InternalSigma::S_Sigma2_d(k, v, w, x, y, qk, core,
-                                                excited, SixJ);
+                                                excited, SixJ,
+                                                MBPT::Denominators::BW);
 
             // tests symmetry:
             REQUIRE(sk2 == Approx(sk1));

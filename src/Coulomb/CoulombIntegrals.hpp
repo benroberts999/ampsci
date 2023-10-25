@@ -60,6 +60,11 @@ DiracSpinor Qkv_bcd(const int k, int kappa_v, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd);
 
 //==============================================================================
+//! Calculates g from scratch - not used often
+double g_abcd(const DiracSpinor &a, const DiracSpinor &b, const DiracSpinor &c,
+              const DiracSpinor &d, int tma, int tmb, int tmc, int tmd);
+
+//==============================================================================
 //! Just selection rule for Qk_abcd
 bool Qk_abcd_SR(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                 const DiracSpinor &Fc, const DiracSpinor &Fd);

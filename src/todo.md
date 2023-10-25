@@ -2,8 +2,6 @@
 
 ## CI
 
-* BUG: Seems that Sigma1 breaks fine-structre.
-  * Lowest J seems to be correct, with far too big corrections for higher J?
 * Update solutions:
   * re-calculate more?
   * Check if any didn't converge

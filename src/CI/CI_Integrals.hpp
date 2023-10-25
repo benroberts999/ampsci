@@ -90,6 +90,11 @@ double RME_CSF2(const CI::CSF2 &X, int twoJX, const CI::CSF2 &V, int twoJV,
 //! Determines best-fit for S and L for two-electron state by matching g-factor
 std::pair<int, int> Term_S_L(int l1, int l2, int twoJ, double gJ_target);
 
+//! Returns Term_Symbol as string
+std::string Term_Symbol(int two_J, int L, int two_S, int parity);
+//! Returns Term_Symbol as string, without J part
+std::string Term_Symbol(int L, int two_S, int parity);
+
 //! Constructs the CI matrix, optionally including Sigma corrections.
 //! @details
 //! h1 is table of one-body <a|h1|b> matrix elements, and may include Sigma_1.

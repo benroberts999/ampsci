@@ -481,14 +481,24 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     auto p2 = wfB.parity() == 1 ? '+' : '-';
 
     if (eachFreqQ && rpa) {
-      fmt::print("{}{} {:2} {} - {}{} {:2} {}  {:2} {:.0e}  {:.5f} {:12.5e}\n",
-                 wfA.twoJ() / 2, p1, iA, wfA.info(iA).config, wfB.twoJ() / 2,
-                 p2, iB, wfB.info(iB).config, rpa->get_its(), rpa->get_eps(),
-                 t_omega, me);
+      fmt::print("{}{} {:2} {} {:3s} - {}{} {:2} {} {:3s}  {:2} {:.0e}  {:.5f} "
+                 "{:12.5e}\n",
+                 wfA.twoJ() / 2, p1, iA, wfA.info(iA).config,
+                 CI::Term_Symbol((int)wfA.info(iA).L, (int)wfA.info(iA).twoS,
+                                 wfA.parity()),
+                 wfB.twoJ() / 2, p2, iB, wfB.info(iB).config,
+                 CI::Term_Symbol((int)wfB.info(iB).L, (int)wfB.info(iB).twoS,
+                                 wfB.parity()),
+                 rpa->get_its(), rpa->get_eps(), t_omega, me);
     } else {
-      fmt::print("{}{} {:2} {} - {}{} {:2} {}  {:.5f} {:12.5e}\n",
-                 wfA.twoJ() / 2, p1, iA, wfA.info(iA).config, wfB.twoJ() / 2,
-                 p2, iB, wfB.info(iB).config, t_omega, me);
+      fmt::print("{}{} {:2} {} {:3s} - {}{} {:2} {} {:3s}  {:.5f} {:12.5e}\n",
+                 wfA.twoJ() / 2, p1, iA, wfA.info(iA).config,
+                 CI::Term_Symbol((int)wfA.info(iA).L, (int)wfA.info(iA).twoS,
+                                 wfA.parity()),
+                 wfB.twoJ() / 2, p2, iB, wfB.info(iB).config,
+                 CI::Term_Symbol((int)wfB.info(iB).L, (int)wfB.info(iB).twoS,
+                                 wfB.parity()),
+                 t_omega, me);
     }
   };
 
@@ -498,8 +508,8 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\n";
 
-  auto lam = [&](const auto &list1, int pi1, const auto &list2, int pi2,
-                 bool diagonal) {
+  auto me_calculator = [&](const auto &list1, int pi1, const auto &list2,
+                           int pi2, bool diagonal) {
     for (auto ej : list1) {
       const auto wf_e = wf.CIwf(ej, pi1);
       if (wf_e == nullptr)
@@ -531,25 +541,23 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   };
 
   if (eachFreqQ && rpa) {
-    std::cout << "Ja  # conf - Jb  # conf its eps    w_ab     t_ab\n";
+    std::cout << "Ja  # conf     - Jb  # conf     its eps    w_ab     t_ab\n";
   } else {
-    std::cout << "Ja  # conf - Jb  # conf  w_ab     t_ab\n";
+    std::cout << "Ja  # conf     - Jb  # conf      w_ab     t_ab\n";
   }
 
-  lam(J_even_list, 1, J_odd_list, -1, true);
-  lam(J_odd_list, -1, J_even_list, 1, true);
+  me_calculator(J_even_list, 1, J_odd_list, -1, true);
+  me_calculator(J_odd_list, -1, J_even_list, 1, true);
 
   // never exist:
-  // lam(J_even_list, 1, J_even_list, 1, true);
-  // lam(J_odd_list, -1, J_odd_list, -1, true);
+  // me_calculator(J_even_list, 1, J_even_list, 1, true);
+  // me_calculator(J_odd_list, -1, J_odd_list, -1, true);
 
-  lam(J_even_list, 1, J_odd_list, -1, false);
-  lam(J_odd_list, -1, J_even_list, 1, false);
+  me_calculator(J_even_list, 1, J_odd_list, -1, false);
+  me_calculator(J_odd_list, -1, J_even_list, 1, false);
 
-  lam(J_even_list, 1, J_even_list, 1, false);
-  lam(J_odd_list, -1, J_odd_list, -1, false);
-
-  std::cout << "\n - Not symmetric - means problem somewhere!\n";
+  me_calculator(J_even_list, 1, J_even_list, 1, false);
+  me_calculator(J_odd_list, -1, J_odd_list, -1, false);
 }
 
 } // namespace Module

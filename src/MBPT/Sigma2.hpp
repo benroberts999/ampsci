@@ -62,41 +62,44 @@ double Sigma_vw(const DiracSpinor &v, const DiracSpinor &w,
                 int max_l_internal = 99,
                 std::optional<double> ev = std::nullopt);
 
+//! Returns energy of first state in excited that matches given kappa
+double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
+
 //==============================================================================
 //==============================================================================
 
 namespace InternalSigma {
-//! Diagram a for reduced two-body Sigma (sum of six Goldstone diagrams)
-double S_Sigma2_a(int k, const DiracSpinor &v, const DiracSpinor &w,
-                  const DiracSpinor &x, const DiracSpinor &y,
-                  const Coulomb::QkTable &qk,
-                  const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &excited,
-                  const Angular::SixJTable &SixJ, Denominators denominators);
+//! Diagrams a+b for reduced two-body Sigma (sum of six Goldstone diagrams)
+double S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
+                   const DiracSpinor &x, const DiracSpinor &y,
+                   const Coulomb::QkTable &qk,
+                   const std::vector<DiracSpinor> &core,
+                   const std::vector<DiracSpinor> &excited,
+                   const Angular::SixJTable &SixJ, Denominators denominators);
 
 //! Diagram b for reduced two-body Sigma
-double S_Sigma2_b(int k, const DiracSpinor &v, const DiracSpinor &w,
-                  const DiracSpinor &x, const DiracSpinor &y,
-                  const Coulomb::QkTable &qk,
-                  const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &excited,
-                  const Angular::SixJTable &SixJ, Denominators denominators);
+double S_Sigma2_c1(int k, const DiracSpinor &v, const DiracSpinor &w,
+                   const DiracSpinor &x, const DiracSpinor &y,
+                   const Coulomb::QkTable &qk,
+                   const std::vector<DiracSpinor> &core,
+                   const std::vector<DiracSpinor> &excited,
+                   const Angular::SixJTable &SixJ, Denominators denominators);
 
 //! Diagram c for reduced two-body Sigma
-double S_Sigma2_c(int k, const DiracSpinor &v, const DiracSpinor &w,
-                  const DiracSpinor &x, const DiracSpinor &y,
-                  const Coulomb::QkTable &qk,
-                  const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &excited,
-                  const Angular::SixJTable &SixJ, Denominators denominators);
+double S_Sigma2_c2(int k, const DiracSpinor &v, const DiracSpinor &w,
+                   const DiracSpinor &x, const DiracSpinor &y,
+                   const Coulomb::QkTable &qk,
+                   const std::vector<DiracSpinor> &core,
+                   const std::vector<DiracSpinor> &excited,
+                   const Angular::SixJTable &SixJ, Denominators denominators);
 
-//! Diagram d for reduced two-body Sigma (no choice for denominators)
+//! Diagram d for reduced two-body Sigma
 double S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
                   const DiracSpinor &x, const DiracSpinor &y,
                   const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &excited,
-                  const Angular::SixJTable &SixJ);
+                  const Angular::SixJTable &SixJ, Denominators denominators);
 } // namespace InternalSigma
 
 } // namespace MBPT

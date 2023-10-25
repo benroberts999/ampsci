@@ -66,7 +66,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
        {"exclude_wrong_parity_box",
         "Excludes the Sigma_2 box corrections that "
         "have 'wrong' parity when calculating Sigma2 matrix elements. Note: If "
-        "existing sk file already has these, they will be included [false]"}});
+        "existing sk file already has these, they will be included [false]"},
+       {"sort_output", "Sort output by energy? Default is to sort by J and Pi "
+                       "first. [false]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -276,6 +278,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   const auto J_odd_list = input.get("J-", J_list);
   const auto num_solutions = input.get("num_solutions", 5);
   const auto ci_input = input.get("ci_input", std::string{""});
+  const auto sort_output = input.get("sort_output", false);
 
   std::vector<PsiJPi> levels;
 
@@ -293,43 +296,54 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     levels.push_back(t_levels);
   }
 
-  // const auto sort_ouput = input.get("sort", false);
-  const auto compare_energy = [](const auto &a, const auto &b) {
-    return a.energy(0) < b.energy(0);
-  };
+  //----------------------------------------------------------------------------
 
   // Find minimum (ground-state) energy (for level comparison)
   // Assumes levels for each J/Pi are sorted (they always are)
-  const auto e0 =
-      !levels.empty() ?
-          std::min_element(levels.cbegin(), levels.cend(), compare_energy)
-              ->energy(0) :
-          0.0;
+  const auto e0 = !levels.empty() ?
+                      std::min_element(levels.cbegin(), levels.cend(),
+                                       [](const auto &a, const auto &b) {
+                                         return a.energy(0) < b.energy(0);
+                                       })
+                          ->energy(0) :
+                      0.0;
+
+  // This is just for screen output:
+  // Sort output in pair {energy, output_string}, so we can optionally sort
+  std::vector<std::pair<double, std::string>> E_output;
+  for (const auto &Psi_Jpi : levels) {
+
+    for (std::size_t i = 0; i < Psi_Jpi.num_solutions(); ++i) {
+
+      const auto [config, gJ, L, twoS] = Psi_Jpi.info(i);
+      const auto iL = (int)std::round(L);
+      const auto itwoS = (int)std::round(twoS);
+
+      auto out_string = fmt::format(
+          "{:<2} {:+2} {:>2}  {:<6s} {:<3s}  {:+11.8f}  {:+11.2f} "
+          "{:11.2f}",
+          Psi_Jpi.twoJ() / 2, Psi_Jpi.parity(), i, config,
+          Term_Symbol(iL, itwoS, Psi_Jpi.parity()), Psi_Jpi.energy(i),
+          Psi_Jpi.energy(i) * PhysConst::Hartree_invcm,
+          (Psi_Jpi.energy(i) - e0) * PhysConst::Hartree_invcm);
+      if (gJ != 0.0) {
+        out_string += fmt::format("  {:.4f}", gJ);
+      }
+      E_output.emplace_back(Psi_Jpi.energy(i), out_string);
+    }
+  }
+
+  // optionally, sort by energy
+  if (sort_output) {
+    std::sort(E_output.begin(), E_output.end(),
+              [](const auto &a, const auto &b) { return a.first < b.first; });
+  }
 
   std::cout << "\nLevel Summary:\n\n";
-  std::cout << "config Term J  π  #   Energy(au)  Energy(/cm)   Level(/cm) "
+  std::cout << "J   π  #  config Term  Energy(au)  Energy(/cm)  Level(/cm) "
                " gJ\n";
-  for (const auto &Psis : levels) {
-
-    std::string pi = Psis.parity() == 1 ? "" : "°";
-    const auto twoj = Psis.twoJ();
-
-    for (std::size_t i = 0; i < Psis.num_solutions(); ++i) {
-
-      const auto [config, gJ, L, twoS] = Psis.info(i);
-
-      fmt::print("{:<6s} {}{:<2s} {:>2} {:+2} {:2}  {:+11.8f}  {:+11.2f}  "
-                 "{:11.2f}",
-                 config, int(std::round(twoS + 1)),
-                 AtomData::L_symbol((int)std::round(L)) + pi, twoj / 2,
-                 Psis.parity(), i, Psis.energy(i),
-                 Psis.energy(i) * PhysConst::Hartree_invcm,
-                 (Psis.energy(i) - e0) * PhysConst::Hartree_invcm);
-      if (gJ != 0.0) {
-        fmt::print("  {:.4f}", gJ);
-      }
-      std::cout << "\n";
-    }
+  for (const auto &[E, output] : E_output) {
+    std::cout << output << "\n";
   }
 
   return levels;
@@ -383,24 +397,21 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   const auto E0 = psi.energy(0);
 
   // For calculating g-factors
-  // (Use non-rel formula? Or relativistic M1?)
-  DiracOperator::M1nr m1{};
-  DiracOperator::M1 m1_rel{ci_sp_basis.front().grid(), PhysConst::alpha, 0.0};
-
-  // const auto m1_tab = ExternalField::me_table(ci_sp_basis, &m1_rel);
-  const auto m1_tab = ExternalField::me_table(ci_sp_basis, &m1_rel);
-
-  int l1{-1}, l2{-1};
+  DiracOperator::M1 m1{ci_sp_basis.front().grid(), PhysConst::alpha, 0.0};
+  // only actually need to do this once..
+  const auto m1_tab = ExternalField::me_table(ci_sp_basis, &m1);
 
   for (std::size_t i = 0; i < N_CSFs && int(i) < num_solutions; ++i) {
 
-    fmt::print(
-        "{:<2} {} {:+1}  {:+11.8f} au  {:+11.2f} cm^-1  {:11.2f} cm^-1\n", i,
-        0.5 * twoJ, parity, psi.energy(i),
-        psi.energy(i) * PhysConst::Hartree_invcm,
-        (psi.energy(i) - E0) * PhysConst::Hartree_invcm);
+    const auto pi = parity == 1 ? '+' : '-';
+    fmt::print("{} {} {:<2}  {:+11.8f} au  {:+11.2f} cm^-1  {:11.2f} cm^-1\n",
+               twoJ / 2, pi, i, psi.energy(i),
+               psi.energy(i) * PhysConst::Hartree_invcm,
+               (psi.energy(i) - E0) * PhysConst::Hartree_invcm);
 
     const double minimum_percentage = 1.0; // min % to print
+    // l's of the leading configuration (for gJ)
+    int l1{-1}, l2{-1};
     std::size_t max_j = 0;
     double max_cj = 0.0;
     for (std::size_t j = 0ul; j < N_CSFs; ++j) {
@@ -427,29 +438,21 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
 
     // Calculate g-factors, for line identification. Only defined for J!=0
-    // const double gJnr = twoJ != 0 ? tjs * m1AA_NR / (0.5 * twoJ) : 0.0;
-    // const double gJ = twoJ != 0 ? tjs * m1AA_R / (0.5 * twoJ) : 0.0;
-
     const double gJ = twoJ != 0 ? tjs * m1AA_R / (0.5 * twoJ) : 0.0;
-    const double gJnr = gJ;
 
     // Determine Term Symbol, from g-factor
-    // Use non-relativistic M1 operator for closest match
-    const auto [S, L] = CI::Term_S_L(l1, l2, twoJ, gJnr);
+    const auto [S, L] = CI::Term_S_L(l1, l2, twoJ, gJ);
 
     std::cout << "   --------------\n";
     if (twoJ != 0) {
       std::cout << "   gJ = " << gJ << "\n";
     }
 
-    const auto tSp1 = 2.0 * S + 1.0;
     const auto config = psi.CSF(max_j).config();
-    const auto pm = parity == 1 ? "" : "°";
 
-    fmt::print("   {:<6s} {}^{}{}_{}\n", config, int(std::round(tSp1)),
-               AtomData::L_symbol((int)std::round(L)), pm, twoJ / 2);
+    fmt::print("   {:<6s} {}\n", config, Term_Symbol(twoJ, L, 2 * S, parity));
 
-    psi.update_config_info(i, {config, gJ, double(L), 2.0 * S});
+    psi.update_config_info(i, {config, gJ, 1.0 * L, 2.0 * S});
 
     std::cout << "\n";
   }

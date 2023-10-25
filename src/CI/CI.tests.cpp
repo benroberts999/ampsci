@@ -1,3 +1,4 @@
+#include "CI_Integrals.hpp"
 #include "ConfigurationInteraction.hpp"
 #include "IO/InputBlock.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -63,4 +64,15 @@ TEST_CASE("CI: Configuration Interaction, unit tests", "[CI][unit]") {
       REQUIRE(ci_wf.info(j).gJ == Approx(ci_wf_2.info(j).gJ));
     }
   }
+
+  //-----------------------------------------------------------------------
+  // basic/Misc tests
+
+  // Term(int two_J, int L, int two_S, int parity)
+
+  REQUIRE(CI::Term_Symbol(2, 3, 2, +1) == "3^F_1");
+  REQUIRE(CI::Term_Symbol(2, 3, 2, -1) == "3^F°_1");
+  REQUIRE(CI::Term_Symbol(1, 3, 2, -1) == "3^F°_1/2");
+  REQUIRE(CI::Term_Symbol(1, 2, 1, -1) == "2^D°_1/2");
+  REQUIRE(CI::Term_Symbol(6, 0, 0, 1) == "1^S_3");
 }

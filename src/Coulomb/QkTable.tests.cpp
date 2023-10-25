@@ -92,6 +92,37 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
     }
   }
 
+  // test g
+  std::random_device rd;
+  std::mt19937 gen(rd());
+  int num_to_test = 100;
+  std::uniform_int_distribution<std::size_t> rindex(0, orbs.size() - 1);
+  for (int tries = 0; tries < num_to_test; ++tries) {
+    const auto &Fa = orbs[rindex(gen)];
+    const auto &Fb = orbs[rindex(gen)];
+    const auto &Fc = orbs[rindex(gen)];
+    const auto &Fd = orbs[rindex(gen)];
+    for (int tma = -Fa.twoj(); tma <= Fa.twoj(); tma += 2) {
+      for (int tmb = -Fb.twoj(); tmb <= Fb.twoj(); tmb += 2) {
+        for (int tmc = -Fc.twoj(); tmc <= Fc.twoj(); tmc += 2) {
+          for (int tmd = -Fd.twoj(); tmd <= Fd.twoj(); tmd += 2) {
+            const auto g1 = qk.g(Fa, Fb, Fc, Fd, tma, tmb, tmc, tmd);
+            const auto g2 = qk.g(Fb, Fa, Fd, Fc, tmb, tma, tmd, tmc);
+            const auto g3 = qk.g(Fc, Fd, Fa, Fb, tmc, tmd, tma, tmb);
+            REQUIRE(g2 == Approx(g1).margin(1.0e-13));
+            REQUIRE(g3 == Approx(g1).margin(1.0e-13));
+            const auto g0 = Coulomb::g_abcd(Fa, Fb, Fc, Fd, tma, tmb, tmc, tmd);
+            REQUIRE(g0 == Approx(g1).margin(1.0e-13));
+            // const auto g5 = qk.g(Fa, Fd, Fc, Fb, tma, tmd, tmc, tmb);
+            // const auto g6 = qk.g(Fc, Fb, Fa, Fd, tmc, tmb, tma, tmd);
+            // REQUIRE(g5 == Approx(g1).margin(1.0e-13));
+            // REQUIRE(g6 == Approx(g1).margin(1.0e-13));
+          }
+        }
+      }
+    }
+  }
+
   //------------------------------------------------------------------------
 
   // Arbitrary Fermi level:

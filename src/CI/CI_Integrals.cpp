@@ -144,43 +144,23 @@ double Hab(const CI::CSF2 &X, const CI::CSF2 &V, int twoJ,
   const auto etaX = x == y ? 1.0 / std::sqrt(2.0) : 1.0;
   const auto eta2 = etaV * etaX;
 
-  // const auto tjvp1 = Angular::nkindex_to_twoj(v) + 1.0;
-  // const auto tjwp1 = Angular::nkindex_to_twoj(w) + 1.0;
-  // // const auto tjxp1 = Angular::nkindex_to_twoj(x) + 1.0;
-  // // const auto tjyp1 = Angular::nkindex_to_twoj(y) + 1.0;
+  const auto tjv = Angular::nkindex_to_twoj(v);
+  const auto tjw = Angular::nkindex_to_twoj(w);
+  const auto s = Angular::neg1pow_2(twoJ + tjv + tjw);
 
   double h1_VX = 0.0;
-  if (y == w) {
-    // const auto f = X == V ? 1.0 : 1.0 / tjwp1;
-    h1_VX += eta2 * h1.getv(v, x);
-  }
-  if (y == v) {
-    // const auto f = X == V ? 1.0 : 1.0 / tjvp1;
-    h1_VX += eta2 * h1.getv(w, x);
+  if (x == v) {
+    h1_VX += eta2 * h1.getv(y, w);
   }
   if (x == w) {
-    // const auto f = X == V ? 1.0 : 1.0 / tjwp1;
-    h1_VX += eta2 * h1.getv(v, y);
+    h1_VX -= s * eta2 * h1.getv(y, v);
   }
-  if (x == v) {
-    // const auto f = X == V ? 1.0 : 1.0 / tjvp1;
-    h1_VX += eta2 * h1.getv(w, y);
+  if (y == v) {
+    h1_VX -= s * eta2 * h1.getv(x, w);
   }
-
-  // understand why these two are different => the answer!
-  // BUT, they are the same when no Sigma included..
-
-  // h1_VX = 0.0;
-  // auto nd = CI::CSF2::num_different(V, X);
-  // if (nd == 0) {
-  //   h1_VX = h1.getv(v, v) + h1.getv(w, w);
-  // } else if (nd == 1) {
-  //   auto [n, a] = CI::CSF2::diff_1_na(V, X);
-  //   auto j = CI::CSF2::same_1_j(V, X);
-  //   assert(n != a);
-  //   // const auto eta = j == a || j == n ? 1.0 / std::sqrt(2.0) : 1.0;
-  //   h1_VX = eta2 * h1.getv(n, a);
-  // }
+  if (y == w) {
+    h1_VX += eta2 * h1.getv(x, v);
+  }
 
   return h1_VX + CSF2_Coulomb(qk, v, w, x, y, twoJ);
 }
@@ -215,14 +195,6 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
                                 MBPT::Sigma_vw(v, w, qk, s1_basis_core,
                                                s1_basis_excited, 99, ev) :
                                 0.0;
-
-      // Issue is caused by off-diagonal Sigma. Not sure if here, or above!.
-      // Test by inputing Sigma matrix!
-      // const auto Sigma_vw =
-      //     include_Sigma1 ? v == w ? MBPT::Sigma_vw(v, w, qk, s1_basis_core,
-      //                                              s1_basis_excited, 99, ev) :
-      //                               0.0 :
-      //                      0.0;
 
       h1.add(v, w, h0_vw + Sigma_vw);
       // Add symmetric partner:
@@ -479,6 +451,20 @@ std::pair<int, int> Term_S_L(int l1, int l2, int twoJ, double gJ_target) {
   }
 
   return {S, L};
+}
+
+//==============================================================================
+std::string Term_Symbol(int two_J, int L, int two_S, int parity) {
+  return two_J % 2 == 0 ?
+             fmt::format("{}^{}{}_{}", int(two_S + 1), AtomData::L_symbol(L),
+                         parity == 1 ? "" : "°", two_J / 2) :
+             fmt::format("{}^{}{}_{}/2", two_S + 1, AtomData::L_symbol(L),
+                         parity == 1 ? "" : "°", two_J);
+}
+
+std::string Term_Symbol(int L, int two_S, int parity) {
+  return fmt::format("{}{}{}", two_S + 1, AtomData::L_symbol(L),
+                     parity == 1 ? "" : "°");
 }
 
 //==============================================================================

@@ -281,6 +281,14 @@ inline double Ck_kk(int k, int ka, int kb)
   return sign * f * g;
 }
 
+//! Full C^k_q matrix element - rarely used
+inline double Ck_kk_mmq(int k, int ka, int kb, int twoma, int twomb, int twoq) {
+  const auto tja = twoj_k(ka);
+  const auto tjb = twoj_k(kb);
+  return neg1pow_2(tja - twoma) *
+         threej_2(tja, 2 * k, tjb, -twoma, twoq, twomb) * Ck_kk(k, ka, kb);
+}
+
 //! Ck selection rule only. Returns false if C^k=0, true if non-zero.
 inline bool Ck_kk_SR(int k, int ka, int kb) {
   if (parity(l_k(ka), l_k(kb), k) == 0)

@@ -357,15 +357,22 @@ void Rkv_bcd(DiracSpinor *const Rkv, const DiracSpinor &Fc,
 double Qk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd) {
 
-  const auto tCac = Angular::tildeCk_kk(k, Fa.kappa(), Fc.kappa());
-  if (Angular::zeroQ(tCac))
+  // const auto tCac = Angular::tildeCk_kk(k, Fa.kappa(), Fc.kappa());
+  // if (Angular::zeroQ(tCac))
+  //   return 0.0;
+  // const auto tCbd = Angular::tildeCk_kk(k, Fb.kappa(), Fd.kappa());
+  // if (Angular::zeroQ(tCbd))
+  //   return 0.0;
+  const auto tCac = Angular::Ck_kk(k, Fa.kappa(), Fc.kappa());
+  if (tCac == 0.0)
     return 0.0;
-  const auto tCbd = Angular::tildeCk_kk(k, Fb.kappa(), Fd.kappa());
-  if (Angular::zeroQ(tCbd))
+  const auto tCbd = Angular::Ck_kk(k, Fb.kappa(), Fd.kappa());
+  if (tCbd == 0.0)
     return 0.0;
   const auto Rkabcd = Rk_abcd(k, Fa, Fb, Fc, Fd);
-  const auto m1tk = Angular::evenQ(k) ? 1 : -1;
-  return m1tk * tCac * tCbd * Rkabcd;
+  // const auto m1tk = Angular::evenQ(k) ? 1 : -1;
+  const auto m1tk2 = Angular::neg1pow_2(2 * k + Fa.twoj() - Fb.twoj());
+  return m1tk2 * tCac * tCbd * Rkabcd;
 }
 
 //------------------------------------------------------------------------------
@@ -472,6 +479,34 @@ double Wk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                const DiracSpinor &Fc, const DiracSpinor &Fd) {
   // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
   return Qk_abcd(k, Fa, Fb, Fc, Fd) + Pk_abcd(k, Fa, Fb, Fc, Fd);
+}
+
+//==============================================================================
+double g_abcd(const DiracSpinor &a, const DiracSpinor &b, const DiracSpinor &c,
+              const DiracSpinor &d, int tma, int tmb, int tmc, int tmd) {
+
+  if (tmc - tma != tmb - tmd)
+    return 0.0;
+  const int twoq = tmc - tma;
+
+  //
+  double g = 0.0;
+  const auto [k0, ki] = k_minmax_Q(a, b, c, d);
+  for (int k = k0; k <= ki; k += 2) {
+    // for (int q = -k; q <= k; q++) {
+    //   int twoq = 2 * q;
+    if (std::abs(twoq) > 2 * k)
+      continue;
+    const auto A =
+        Angular::neg1pow_2(twoq) *
+        Angular::Ck_kk_mmq(k, a.kappa(), c.kappa(), tma, tmc, -twoq) *
+        Angular::Ck_kk_mmq(k, b.kappa(), d.kappa(), tmb, tmd, twoq);
+    if (A != 0.0) {
+      g += A * Rk_abcd(k, a, b, c, d);
+    }
+  }
+  // }
+  return g;
 }
 
 //==============================================================================

@@ -271,19 +271,28 @@ double CoulombTable<S>::g(const DiracSpinor &a, const DiracSpinor &b,
   if (tmc - tma != tmb - tmd)
     return 0.0;
   const int twoq = tmc - tma;
-  const auto s = Angular::neg1pow_2(tma - tmb + twoq);
 
   //
   double g = 0.0;
   const auto [k0, ki] = k_minmax_Q(a, b, c, d);
   for (int k = k0; k <= ki; k += 2) {
+    if (std::abs(twoq) > 2 * k)
+      continue;
+
+    // const auto A =
+    //     Angular::neg1pow_2(twoq) *
+    //     Angular::Ck_kk_mmq(k, a.kappa(), c.kappa(), tma, tmc, -twoq) *
+    //     Angular::Ck_kk_mmq(k, b.kappa(), d.kappa(), tmb, tmd, twoq);
+    // if (A != 0.0) {
+    //   g += A * R(k, a, b, c, d);
+    // }
+
     const auto tjs1 =
         Angular::threej_2(a.twoj(), 2 * k, c.twoj(), -tma, -twoq, tmc);
     const auto tjs2 =
         Angular::threej_2(b.twoj(), 2 * k, d.twoj(), -tmb, twoq, tmd);
-    if (tjs1 == 0.0 || tjs2 == 0.0)
-      continue;
-    g += Angular::neg1pow(k) * s * tjs1 * tjs2 * Q(k, a, b, c, d);
+    const auto s = Angular::neg1pow_2(2 * k + tmb - tma + twoq);
+    g += s * tjs1 * tjs2 * Q(k, a, b, c, d);
   }
   return g;
 }
