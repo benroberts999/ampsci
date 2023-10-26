@@ -85,7 +85,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   // Write orbital list
   std::map<nkm, int> orbital_map;
   if (write_integrals) {
-    std::string fname = wf.atomicSymbol() + "_orbitals_" +
+    std::string fname = wf.identity() + "_orbitals_" +
                         DiracSpinor::state_config(ci_sp_basis) + ".txt";
     std::ofstream of(fname);
     int index = 0;
@@ -178,7 +178,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   {
     std::cout << "Calculate two-body Coulomb integrals: Q^k_abcd\n";
 
-    const auto qk_filename = input.get("qk_file", wf.atomicSymbol() + ".qk");
+    const auto qk_filename = input.get("qk_file", wf.identity() + ".qk");
 
     // Try to read from disk (may already have calculated Qk)
     qk.read(qk_filename);
@@ -257,8 +257,8 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   //----------------------------------------------------------------------------
 
   // print all single-body integrals to file:
-  std::string one_file = wf.atomicSymbol() + "_h1_" +
-                         DiracSpinor::state_config(ci_sp_basis) + ".txt";
+  std::string one_file =
+      wf.identity() + "_h1_" + DiracSpinor::state_config(ci_sp_basis) + ".txt";
   if (write_integrals) {
     std::cout << "Writing one-particle (h1) integrals to file: " << one_file
               << "\n";
@@ -293,7 +293,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   // Writes g integrals to text file
   // Modify this to include Sigma_2!
   if (write_integrals) {
-    std::string g_file = wf.atomicSymbol() + "_h2_" +
+    std::string g_file = wf.identity() + "_h2_" +
                          DiracSpinor::state_config(ci_sp_basis) + ".txt";
 
     std::cout << "Writing two-particle (h2 = g_vwxy) integrals to file: "
@@ -304,9 +304,8 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   //----------------------------------------------------------------------------
   // Calculate MBPT corrections to two-body Coulomb integrals
   // Fix filename: account for n_min_core!
-  const auto Sk_filename = wf.atomicSymbol() + "_" +
-                           std::to_string(n_min_core) + "_" +
-                           DiracSpinor::state_config(excited_s2) +
+  const auto Sk_filename = wf.identity() + "_" + std::to_string(n_min_core) +
+                           "_" + DiracSpinor::state_config(excited_s2) +
                            (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
                                 "_" + std::to_string(max_k_Coulomb) :
                                 "") +
@@ -325,8 +324,8 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   if (include_Sigma2 && write_integrals) {
-    std::string s_file = wf.atomicSymbol() + "_s2_" +
-                         DiracSpinor::state_config(cis2_basis) + ".txt";
+    std::string s_file =
+        wf.identity() + "_s2_" + DiracSpinor::state_config(cis2_basis) + ".txt";
 
     std::cout << "Writing two-particle correlation corrections (s2 = S_vwxy) "
                  "integrals to file: "
@@ -346,7 +345,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\n";
     for (const auto J : J_even_list) {
       CI::PsiJPi psi{2 * J, +1, ci_sp_basis};
-      std::string csf_file = wf.atomicSymbol() + "_" + std::to_string(J) + "+";
+      std::string csf_file = wf.identity() + "_" + std::to_string(J) + "+";
       fmt::print("{} CSFs for J={}, even parity: {}\n", psi.CSFs().size(), J,
                  csf_file);
       write_CSFs(psi.CSFs(), 2 * J, orbital_map, csf_file);
@@ -360,7 +359,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
     for (const auto J : J_odd_list) {
       CI::PsiJPi psi{2 * J, -1, ci_sp_basis};
 
-      std::string csf_file = wf.atomicSymbol() + "_" + std::to_string(J) + "-";
+      std::string csf_file = wf.identity() + "_" + std::to_string(J) + "-";
       fmt::print("{} CSFs for J={}, odd parity: {}\n", psi.CSFs().size(), J,
                  csf_file);
       write_CSFs(psi.CSFs(), 2 * J, orbital_map, csf_file);

@@ -16,7 +16,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   const auto val_str = "3sp";
 
   Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
-                  {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
+                  {"Na", -1, "Fermi", -1.0, -1.0}, 1.0, "0");
   wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-4);
   wf.formBasis({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0, false});
   wf.solve_valence(val_str);
@@ -89,7 +89,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
   REQUIRE(wf.atom() == "Na, Z=11 A=23");
   REQUIRE(wf.atomicSymbol() == "Na");
-  REQUIRE(wf.identity() == "NaI");
+  REQUIRE(wf.identity() == "Na0");
 
   REQUIRE(wf.Zion() == 1);
 

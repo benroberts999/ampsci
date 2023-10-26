@@ -315,7 +315,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
                                                  "???";
 
   // doesn't include suffix
-  std::string oname = "K_" + wf.atomicSymbol() + "_" + method_text + "_";
+  std::string oname =
+      "K_" + wf.identity() + wf.ion_symbol(0) + "_" + method_text + "_";
   if (wf.Zion() != 0)
     oname += fmt::format("{}+_", wf.Zion());
   oname += coupling_text + "_";

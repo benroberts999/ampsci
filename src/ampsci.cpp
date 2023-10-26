@@ -302,15 +302,18 @@ void ampsci(const IO::InputBlock &input) {
   input.check({"EasterEgg"}, {{"", EasterEgg::get_egg()}});
 
   // Atom: Get + setup atom parameters
-  input.check({"Atom"},
-              {{"Z", "Atomic number or symbol (e.g., 55 or Cs). [H]"},
-               {"A", "Atomic mass number, for nuclear parameters including "
-                     "finite nuclear size. Default based on Z."},
-               {"varAlpha2",
-                "Fractional variation of the fine-structure constant, alpha^2: "
-                "d(a^2)/a_0^2. Use to enforce the non-relativistic limit "
-                "(c->infinity => alpha->0), or calculate sensitivity to "
-                "variation of alpha. [1.0]"}});
+  input.check(
+      {"Atom"},
+      {{"Z", "Atomic number or symbol (e.g., 55 or Cs). [H]"},
+       {"A", "Atomic mass number, for nuclear parameters including "
+             "finite nuclear size. Default based on Z."},
+       {"varAlpha2",
+        "Fractional variation of the fine-structure constant, alpha^2: "
+        "(a/a0)^2. Use to enforce the non-relativistic limit "
+        "(c->infinity => alpha->0), or calculate sensitivity to "
+        "variation of alpha. [1.0]"},
+       {"run_label", "Optional label for output identity - for destinguishing "
+                     "outputs with different parameters"}});
 
   const auto atom_Z = AtomData::atomic_Z(input.get({"Atom"}, "Z", "H"s));
   const auto atom_A = input.get({"Atom"}, "A", AtomData::defaultA(atom_Z));
@@ -494,9 +497,10 @@ void ampsci(const IO::InputBlock &input) {
 
   // Output Hartree Fock energies:
   if (!help_mode) {
-    std::cout << '\n' << wf.identity() << "-" << wf.Anuc() << '\n';
+    std::cout << '\n' << wf.atomicSymbol() << "-" << wf.Anuc() << '\n';
     wf.printCore();
-    printf("E_c = %.6f\n", wf.coreEnergyHF());
+    printf("E_c = %.6f\n\n", wf.coreEnergyHF());
+
     wf.printValence();
   }
 

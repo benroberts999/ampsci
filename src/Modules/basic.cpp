@@ -353,7 +353,7 @@ void writeOrbitals(const IO::InputBlock &input, const Wavefunction &wf) {
   // to write only for specific l. l<0 means all
   auto l = input.get("l", -1);
 
-  std::string oname = wf.atomicSymbol();
+  std::string oname = wf.identity();
   if (label != "")
     oname += "_" + label;
 

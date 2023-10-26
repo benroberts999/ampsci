@@ -41,6 +41,8 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, DiracSpinor::Index v,
     const auto s = Angular::neg1pow_2(tjv + tjx + 2 * k + twoJ);
     out += s * sjs * qk_abcd;
   }
+  // const auto f = Angular::neg1pow_2(tjv + tjx + 2 * k0 + twoJ) / (twoJ + 1.0);
+  // out += f * qk.P(twoJ / 2, v, y, w, x);
 
   // Take advantage of symmetries: faster (+ numerically stable)
   // c == d => J is even (identical states), eta2=1/sqrt(2)

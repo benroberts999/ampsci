@@ -26,32 +26,19 @@
 
 //==============================================================================
 Wavefunction::Wavefunction(const GridParameters &gridparams,
-                           const Nuclear::Nucleus &t_nucleus, double var_alpha)
+                           const Nuclear::Nucleus &t_nucleus, double var_alpha,
+                           const std::string &run_label)
     : Wavefunction(std::make_shared<const Grid>(gridparams), t_nucleus,
-                   var_alpha) {}
+                   var_alpha, run_label) {}
 
 Wavefunction::Wavefunction(std::shared_ptr<const Grid> in_grid,
-                           const Nuclear::Nucleus &t_nucleus, double var_alpha)
+                           const Nuclear::Nucleus &t_nucleus, double var_alpha,
+                           const std::string &run_label)
     : rgrid(std::move(in_grid)),
       m_alpha(PhysConst::alpha * var_alpha),
+      m_run_label(run_label),
       m_nucleus(t_nucleus),
       m_vnuc(Nuclear::formPotential(m_nucleus, rgrid->r())) {}
-
-//==============================================================================
-Wavefunction::Wavefunction(const Wavefunction &wf)
-    : Wavefunction(wf.grid_sptr(), wf.nucleus(),
-                   wf.m_alpha / PhysConst::alpha) {
-  // NOTE: new WF ONLY has orbitals, does not have Sigma
-  this->m_valence = wf.m_valence;
-  this->m_basis = wf.m_basis;
-  this->m_spectrum = wf.m_spectrum;
-  this->m_vnuc = wf.m_vnuc;
-  this->m_HF = wf.m_HF;
-  // cannot copy sigma!?!?
-  this->m_core_string = wf.m_core_string;
-  this->m_aboveFermi_core_string = wf.m_aboveFermi_core_string;
-  this->copySigma(wf.Sigma());
-}
 
 //==============================================================================
 std::vector<DiracSpinor>
@@ -387,15 +374,16 @@ std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
 void Wavefunction::printCore() const
 // prints core orbitals
 {
-  int Zion = Znuc() - Ncore();
-  std::cout << "Core: " << coreConfiguration_nice() << " (V^N";
-  if (Zion != 0)
-    std::cout << "-" << Zion;
+  // int Zion = Znuc() - Ncore();
+  std::cout << "Core: " << coreConfiguration_nice() << " V^N";
+  if (Zion() != 0) {
+    std::cout << "-" << Zion();
+  }
 
   if (Ncore() == 0) {
     std::cout << " - H-like";
   }
-  std::cout << ")\n";
+  std::cout << "\n";
   if (Ncore() < 1)
     return;
 
@@ -421,13 +409,15 @@ void Wavefunction::printValence(
   if (tmp_orbs.empty())
     return;
 
+  std::cout << "Valence: " << atomicSymbol() << ion_symbol(1) << "\n";
+
   // Find lowest valence energy:
   const auto min_it =
       std::min_element(tmp_orbs.begin(), tmp_orbs.end(), DiracSpinor::comp_en);
   const auto e0 = (min_it == tmp_orbs.end()) ? 0.0 : min_it->en();
 
   std::cout
-      << "Val: state  "
+      << "     state  "
       << "k   Rinf its   eps         En (au)        En (/cm)   En (/cm)\n";
   int i = 0;
   for (const auto &phi : tmp_orbs) {
@@ -524,7 +514,16 @@ void Wavefunction::formSigma(
     return;
   std::cout << "\nIncluding correlation potential:\n" << std::flush;
 
-  const std::string ext = FeynmanQ ? ".sigf" : ".sig2";
+  std::string ext = FeynmanQ ? ".sigf" : ".sig2";
+  if (FeynmanQ && ScreeningQ)
+    ext += "s";
+  if (FeynmanQ && holeParticleQ)
+    ext += "h";
+  if (m_HF->vBreit())
+    ext += "b";
+  if (vrad())
+    ext += "q";
+
   const auto ifname = in_fname == "" ? identity() + ext : in_fname + ext;
   const auto ofname = out_fname == "" ? identity() + ext : out_fname + ext;
 

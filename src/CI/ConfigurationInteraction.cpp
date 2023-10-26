@@ -29,7 +29,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
         "Basis used for CI expansion; must be a sub-set of full ampsci basis "
         "[default: 10spdf]"},
        {"J", "List of total angular momentum J for CI solutions (comma "
-             "separated). Must be integers (two-electron only). [0]"},
+             "separated). Must be integers (two-electron only). []"},
        {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
        {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
        {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
@@ -55,7 +55,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
         "Maximum k (multipolarity) to include when calculating new "
         "Coulomb integrals. Higher k often contribute negligably. Note: if qk "
         "file already has higher-k terms, they will be included. Set negative "
-        "(or very large) to include all k. [6]"},
+        "(or very large) to include all k. [8]"},
        {"qk_file",
         "Filename for storing two-body Coulomb integrals. By default, is "
         "At.qk, where At is atomic symbol."},
@@ -98,7 +98,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   // check if including MBPT corrections
   const auto include_Sigma1 = input.get("sigma1", false);
   const auto include_Sigma2 = input.get("sigma2", false);
-  const auto max_k_Coulomb = input.get("max_k", 6);
+  const auto max_k_Coulomb = input.get("max_k", 8);
   const auto exclude_wrong_parity_box =
       input.get("exclude_wrong_parity_box", false);
   const auto include_MBPT = include_Sigma1 || include_Sigma2;
@@ -174,7 +174,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   {
     std::cout << "Calculate two-body Coulomb integrals: Q^k_abcd\n";
 
-    const auto qk_filename = input.get("qk_file", wf.atomicSymbol() + ".qk");
+    const auto qk_filename = input.get("qk_file", wf.identity() + ".qk");
 
     // Try to read from disk (may already have calculated Qk)
     qk.read(qk_filename);
@@ -252,13 +252,13 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   // Calculate MBPT corrections to two-body Coulomb integrals
 
   // Here, write basis info into filename, since these are _internal_ lines!
-  const auto Sk_filename = input.get(
-      "sk_file", wf.atomicSymbol() + "_" + std::to_string(n_min_core) + "_" +
-                     DiracSpinor::state_config(excited_s2) +
-                     (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
-                          "_" + std::to_string(max_k_Coulomb) :
-                          "") +
-                     ".sk");
+  const auto Sk_filename =
+      input.get("sk_file", wf.identity() + "_" + std::to_string(n_min_core) +
+                               "_" + DiracSpinor::state_config(excited_s2) +
+                               (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
+                                    "_" + std::to_string(max_k_Coulomb) :
+                                    "") +
+                               ".sk");
 
   Coulomb::LkTable Sk;
   if (include_Sigma2) {
@@ -273,7 +273,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   }
 
   //----------------------------------------------------------------------------
-  const auto J_list = input.get("J", std::vector<int>{0});
+  const auto J_list = input.get("J", std::vector<int>{});
   const auto J_even_list = input.get("J+", J_list);
   const auto J_odd_list = input.get("J-", J_list);
   const auto num_solutions = input.get("num_solutions", 5);
@@ -315,14 +315,14 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
     for (std::size_t i = 0; i < Psi_Jpi.num_solutions(); ++i) {
 
-      const auto [config, gJ, L, twoS] = Psi_Jpi.info(i);
+      const auto [config, pc, gJ, L, twoS] = Psi_Jpi.info(i);
       const auto iL = (int)std::round(L);
       const auto itwoS = (int)std::round(twoS);
 
       auto out_string = fmt::format(
-          "{:<2} {:+2} {:>2}  {:<6s} {:<3s}  {:+11.8f}  {:+11.2f} "
-          "{:11.2f}",
-          Psi_Jpi.twoJ() / 2, Psi_Jpi.parity(), i, config,
+          "{:<2} {:+2} {:>2}  {:<6s} {:2.0f}  {:<3s}  {:+12.8f}  {:+12.2f} "
+          "{:12.2f}",
+          Psi_Jpi.twoJ() / 2, Psi_Jpi.parity(), i, config, pc * 100.0,
           Term_Symbol(iL, itwoS, Psi_Jpi.parity()), Psi_Jpi.energy(i),
           Psi_Jpi.energy(i) * PhysConst::Hartree_invcm,
           (Psi_Jpi.energy(i) - e0) * PhysConst::Hartree_invcm);
@@ -340,8 +340,12 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   }
 
   std::cout << "\nLevel Summary:\n\n";
-  std::cout << "J   π  #  config Term  Energy(au)  Energy(/cm)  Level(/cm) "
-               " gJ\n";
+  if (std::abs(wf.dalpha2()) > 1.0e-5) {
+    std::cout << "d(α^2) = " << wf.dalpha2() << "\n";
+  }
+  std::cout
+      << "J   π  #  conf.  %   Term   Energy(au)   Energy(/cm)   Level(/cm) "
+         " gJ\n";
   for (const auto &[E, output] : E_output) {
     std::cout << output << "\n";
   }
@@ -448,11 +452,21 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       std::cout << "   gJ = " << gJ << "\n";
     }
 
-    const auto config = psi.CSF(max_j).config();
+    // maximum relativistic config, into non-relativistic notation:
+    const auto config = psi.CSF(max_j).config(false);
+
+    // Percentage of that non-relativistic config*
+    double pc = 0.0;
+    for (std::size_t j = 0; j < N_CSFs; ++j) {
+      if (psi.CSF(j).config(false) == config) {
+        pc += psi.coef(i, j) * psi.coef(i, j);
+      }
+    }
+    // * technically, might not be maximum non-rel config.. realistically, fine
 
     fmt::print("   {:<6s} {}\n", config, Term_Symbol(twoJ, L, 2 * S, parity));
 
-    psi.update_config_info(i, {config, gJ, 1.0 * L, 2.0 * S});
+    psi.update_config_info(i, {config, pc, gJ, 1.0 * L, 2.0 * S});
 
     std::cout << "\n";
   }

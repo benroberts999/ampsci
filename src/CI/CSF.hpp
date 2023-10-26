@@ -48,7 +48,10 @@ std::vector<CSF2> form_CSFs(int twoJ, int parity,
 //==============================================================================
 //! Basic configuration info for each CI level solution
 struct ConfigInfo {
+  // configuration (typically uses non-rel notation)
   std::string config{};
+  // square of config coeficient (if non-rel, sum of all)
+  double ci2{0.0};
   double gJ{0.0};
   double L{-1.0};
   double twoS{-1.0};

@@ -30,7 +30,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check(
       {{"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
        {"options{}", "options specific to operator"},
-       {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram"},
+       {"rpa",
+        "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]"},
        {"omega",
         "Text or number. Freq. for RPA (and freq. dependent operators). Put "
         "'each' to solve at correct frequency for each transition. [0.0]"},
@@ -79,7 +80,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool print_both = input.get("printBoth", false);
 
   // RPA:
-  auto rpa_method_str = input.get("rpa", std::string("false"));
+  auto rpa_method_str = input.get("rpa", std::string("true"));
   if (wf.core().empty())
     rpa_method_str = "false";
   auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
@@ -422,7 +423,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   if (wf.core().empty())
     rpa_method_str = "false";
   auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
-                                     wf.basis(), wf.identity(2));
+                                     wf.basis(), wf.identity());
 
   if ((h->parity() == 1) && rpa &&
       rpa->method() == ExternalField::Method::TDHF) {

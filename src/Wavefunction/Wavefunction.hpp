@@ -16,8 +16,7 @@
 #include <string>
 #include <utility>
 #include <vector>
-//
-//
+
 namespace SplineBasis {
 struct Parameters;
 }
@@ -30,6 +29,8 @@ struct Parameters;
   - Set of GridParameters [see Maths/Grid]
   - Set of Nuclear::Nucleus [see Physics/NuclearPotentials]
   - var_alpha = \f$\lambda\f$, \f$\alpha = \lambda\alpha_0\f$
+  - run_label:  Optional label for output identity - for destinguishing 
+    outputs with different parameters
 
 */
 class Wavefunction {
@@ -39,24 +40,21 @@ public:
   //! and (optional) fractional variation in alpha  [alpha = var_alpha *
   //! alpha_0, alpha_0=~1/137]
   Wavefunction(std::shared_ptr<const Grid> grid,
-               const Nuclear::Nucleus &nucleus, double var_alpha = 1.0);
+               const Nuclear::Nucleus &nucleus, double var_alpha = 1.0,
+               const std::string &run_label = "");
   //! As above, but Grid is constructed here using given parameters
   Wavefunction(const GridParameters &gridparams,
-               const Nuclear::Nucleus &nucleus, double var_alpha = 1.0);
+               const Nuclear::Nucleus &nucleus, double var_alpha = 1.0,
+               const std::string &run_label = "");
 
-  Wavefunction() : Wavefunction(GridParameters{}, Nuclear::Nucleus{}, 1.0) {}
-
-  //! User-defined copy-constructor. Note: Does not copy Sigma
-  Wavefunction(const Wavefunction &wf); // XXX make sigma copyable!?
-  //! Deleted, as sigma cannot be copied. This will be fixed
-  Wavefunction &operator=(const Wavefunction &) = delete;
-  ~Wavefunction() = default;
+  Wavefunction() : Wavefunction(GridParameters{}, Nuclear::Nucleus{}) {}
 
 private:
   // Radial grid
   std::shared_ptr<const Grid> rgrid;
   // Internal value for alpha (alpha = var_alpha * alpha_0, alpha_0=~1/137)
   double m_alpha;
+  std::string m_run_label;
   // Holds nuclear parameters (isotope, charge distro etc.)
   Nuclear::Nucleus m_nucleus;
   // Valence (single-particle) orbitals
@@ -86,6 +84,12 @@ public:
 
   //! Local value of fine-structure constant.
   double alpha() const { return m_alpha; }
+
+  //! Variation in alpha^2 : x = (alpha/alpha_0)^2 - 1
+  double dalpha2() const {
+    // (alpha/alpha_0)^2 -1
+    return (m_alpha * m_alpha / PhysConst::alpha2) - 1.0;
+  }
 
   //! Returns Nuclear::nucleus object (contains nuc. parameters)
   const Nuclear::Nucleus &nucleus() const { return m_nucleus; }
@@ -184,15 +188,24 @@ public:
            ", Z=" + std::to_string(m_nucleus.z()) +
            " A=" + std::to_string(m_nucleus.a());
   }
+
   //! e.g., "Cs"
   std::string atomicSymbol() const {
     return AtomData::atomicSymbol(m_nucleus.z());
   }
 
-  //! E.g., Cs in V^N-1, gives Cs-i
-  std::string identity(int num_val = 1) const {
-    const auto zionRoman = qip::int_to_roman(Zion() - num_val + 1);
-    return AtomData::atomicSymbol(m_nucleus.z()) + zionRoman;
+  //! Atomic symbol, including core ionisation degree and run_label
+  std::string identity() const {
+    const auto lab = m_run_label == "" ? "" : "_" + m_run_label;
+    return atomicSymbol() + std::to_string(Zion()) + lab;
+  }
+
+  //! 0 for neutral, 1 for singly-ionised etc.
+  int ion_degree(int num_val) const { return Zion() - num_val; }
+
+  //! I for neutral, II for singly-ionised etc.
+  std::string ion_symbol(int num_val) const {
+    return qip::int_to_roman(Zion() - num_val + 1);
   }
 
   //! Effective charge (for core) = Z-N_core

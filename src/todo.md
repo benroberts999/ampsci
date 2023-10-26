@@ -56,12 +56,11 @@
 * Cleanup, and re-do tests
 * Polarisation operator instability: (#8)
   * Fails, e.g., for Cs with n_core < 3
+  * Use Goldstone for small n for now?
 * Overall numerical stability
 * Exchange (2nd order): w1 and w1w2
-* g-part for Feynman?
 * Breit issue? (see below)
 * New method for Green's function at imag. energy
-* Mixed methods: etak and fk
 
 ## Breit
 

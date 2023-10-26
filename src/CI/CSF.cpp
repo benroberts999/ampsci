@@ -128,7 +128,7 @@ void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions) {
   assert(Hci.rows() == Hci.cols());
   assert(Hci.rows() == m_CSFs.size());
 
-  if (num_solutions == 0 || num_solutions >= int(m_CSFs.size())) {
+  if (num_solutions <= 0 || num_solutions >= int(m_CSFs.size())) {
     m_Solution = LinAlg::symmhEigensystem(Hci);
     m_num_solutions = m_CSFs.size();
   } else {
