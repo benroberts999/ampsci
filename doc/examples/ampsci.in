@@ -38,13 +38,11 @@ Basis {
   states = 35spdfghi;
 }
 
-Correlations {
-  energyShifts = false;
-  Brueckner = false;
-  n_min_core = 3;
-  fitTo_cm;
-  lambda_kappa;
-}
+// Correlations {
+//   n_min_core = 3;
+//   fitTo_cm;
+//   lambda_kappa;
+// }
 
 Spectrum {
   number = 100;

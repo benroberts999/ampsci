@@ -3,9 +3,10 @@
 ## Atomic Many-body Perturbation theory in the Screened Coulomb Interaction
 
 [_ampsci_](https://ampsci.dev/)
-is a c++ program for high-precision atomic structure calculations of single-valence systems, developed and maintained by [Benjamin M. Roberts](https://broberts.io/), University of Queensland, Australia
+is a c++ program for high-precision atomic structure calculations of one and two valence atomic systems, developed and maintained by [Benjamin M. Roberts](https://broberts.io/), University of Queensland, Australia
 
 It solves the correlated Dirac equation using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method) to produce a set of atomic wavefunctions and energies.
+For two-valence systems, uses the CI+MBPT (Configuration Interaction with many-body perturbation theory) method.
 The method is fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, RPA for matrix elements, and structure radiation/renormalisation.
 QED is included via the Flambaum-Ginges radiative potential method.
 Can solve for continuum states with high energy, and calculate ionisation cross sections with large energy/momentum transfer.
@@ -32,6 +33,31 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 
 ## Compilation and usage
 
+### Quick start
+
+* The `setup.sh` bash script should compile and build ampsci (uses Make)
+  * It uses only defaults, and may not work on all systems.
+    See documentation for full guide to compilation.
+  * It assumes dependencies have already been installed. If not, see next:
+* The `install-dependencies.sh` bash script should install all required dependencies.
+  * It uses only defaults, and may not work on all systems.
+  * As upsream repositories update, this may fall out-of-date
+* See which ampsci input options are available: `./ampsci -a`
+  * See available input options for each input block by following with its name
+  * e.g., `./ampsci -a HartreeFock`
+* Check which Modules are aviable: `./ampsci -m`
+  * See available input options for each module by following with its name
+  * e.g., `./ampsci -m MatrixElements`
+* Check which operators are aviable: `./ampsci -o`
+  * See available input options for each operator by following with its name
+  * e.g., `./ampsci -o hfs`
+
+Looking for atomic ionisation form-factors for dark-matter-electron scattering?
+
+* See `Kionisation` module (`./ampsci -m Kionisation`)
+
+### Documentation
+
 Full documentation available online: [ampsci.dev/](https://ampsci.dev/).
 Divided into sections:
 
@@ -55,28 +81,14 @@ Divided into sections:
     * Available online: [ampsci.dev/](https://ampsci.dev/)
     * This should only be required if you plan to edit the code or add new modules
 
-**Quick start**:
+--------------------------------------------------------------------------------
 
-* The `setup.sh` bash script should compile and build ampsci
-  * It uses only defaults, and may not work on all systems.
-    See above instructions for full guide to compilation.
-  * It assumes dependencies have already been installed. If not, see next:
-* The `install-dependencies.sh` bash script should install all required dependencies.
-  * It uses only defaults, and may not work on all systems.
-  * As upsream repositories update, this may fall out-of-date
-* See which ampsci input options are available: `./ampsci -a`
-  * See available input options for each input block by following with its name
-  * e.g., `./ampsci -a HartreeFock`
-* Check which Modules are aviable: `./ampsci -m`
-  * See available input options for each module by following with its name
-  * e.g., `./ampsci -m MatrixElements`
-* Check which operators are aviable: `./ampsci -o`
-  * See available input options for each operator by following with its name
-  * e.g., `./ampsci -o hfs`
+#### A selection of publications resulting from ampsci
 
-Looking for atomic ionisation form-factors for dark-matter-electron scattering?
-
-* See `Kionisation` module (`./ampsci -m Kionisation`)
+* _Accurate electron-recoil ionization factors for dark matter direct detection in xenon, krypton and argon_, A. R. Caddell, V. V. Flambaum, B. M. Roberts, [Physical Review D **108**, 083030 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.108.083030), [arXiv:2305.05125](https://arxiv.org/abs/2305.05125)
+* _Electric dipole transition amplitudes for atoms and ions with one valence electron_, B. M. Roberts, C. J. Fairhall, J. S. M. Ginges, [Physical Review A **107**, 052812 (2023)](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.107.052812), [arXiv:2211.11134](https://arxiv.org/abs/2211.11134)
+* _Experimental and Theoretical Study of Dynamic Polarizabilities in the $5S - 5D_{5/2}$ Clock Transition in Rubidium-87 and Determination of Electric Dipole Matrix Elements_, R. Hamilton _et al._, [Physical Review Applied **19**, 054059 (2023)](https://link.aps.org/doi/10.1103/PhysRevApplied.19.054059), [arXiv:2212.10743](https://arxiv.org/abs/2212.10743)
+* _QED radiative corrections to electric dipole amplitudes in heavy atoms_, C. J. Fairhall, B. M. Roberts, J. S. M. Ginges, [Physical Review A **107**, 022813 (2023)](https://link.aps.org/doi/10.1103/PhysRevA.107.022813), [arXiv:2212.11490](https://arxiv.org/abs/2212.11490)
 
 --------------------------------------------------------------------------------
 

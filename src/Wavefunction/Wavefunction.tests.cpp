@@ -89,7 +89,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
   REQUIRE(wf.atom() == "Na, Z=11 A=23");
   REQUIRE(wf.atomicSymbol() == "Na");
-  REQUIRE(wf.identity() == "Na0");
+  REQUIRE(wf.identity() == "Na1_0");
 
   REQUIRE(wf.Zion() == 1);
 

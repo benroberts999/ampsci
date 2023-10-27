@@ -44,7 +44,7 @@ Module::matrixElements {
 Module::matrixElements {
   operator = hfs;
   rpa = diagram;
-  onlyDiagonal = true;
+  off-diagonal = false;
   options{
       F(r) = pointlike;
   }

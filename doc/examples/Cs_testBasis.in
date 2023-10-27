@@ -30,14 +30,22 @@ Basis {
   r0 = 1.0e-5;
   rmax = 30.0;
   states = 40spdf;
-  print = false;
+  positron = false;
 }
 
-Module::Tests {
-  orthonormal = true;
-  Hamiltonian = false; // compare eigen-energies e_a to <a|H|a>
-  boundaries = false;  // check f(r) goes to zero at r0, rmax
-  basis = true;        // run basis tests
+Spectrum {
+  number = 90;
+  order = 9;
+  r0 = 1.0e-5;
+  rmax = 80.0;
+  states = 90spdfgh;
+  positron = true;
+}
+
+
+Module::testBasis{
+  E1 = true;
+  sum_rules = true;
 }
 
 Module::matrixElements {
@@ -47,6 +55,6 @@ Module::matrixElements {
 
 Module::matrixElements {
   operator = E1;
-  rpa = diagram;
+  rpa = diagram; // uses Basis, so vs TDHF is a test of basis
 }
 

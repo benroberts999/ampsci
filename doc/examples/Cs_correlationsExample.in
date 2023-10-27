@@ -28,10 +28,6 @@ Basis {
 }
 
 Correlations {
-  energyShifts = true;
-  Brueckner = true;
   // Only include core states with n of 3 and higher
   n_min_core = 3;
 }
-
-Module::Tests {}
