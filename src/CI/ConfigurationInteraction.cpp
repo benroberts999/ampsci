@@ -17,6 +17,7 @@
 #include "qip/Vector.hpp"
 #include <array>
 #include <fstream>
+#include <iostream>
 #include <vector>
 
 namespace CI {
@@ -68,7 +69,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
         "have 'wrong' parity when calculating Sigma2 matrix elements. Note: If "
         "existing sk file already has these, they will be included [false]"},
        {"sort_output", "Sort output by energy? Default is to sort by J and Pi "
-                       "first. [false]"}});
+                       "first. [false]"},
+       {"parallel_ci", "Run CI in parallel (solve each J/Pi in parallel). "
+                       "Faster, uses slightly more memory [true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -279,21 +282,35 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   const auto num_solutions = input.get("num_solutions", 5);
   const auto ci_input = input.get("ci_input", std::string{""});
   const auto sort_output = input.get("sort_output", false);
+  const auto parallel_ci = input.get("parallel_ci", true);
 
-  std::vector<PsiJPi> levels;
+  const auto n_Js = J_even_list.size() + J_odd_list.size();
 
-  // even parity:
-  for (const auto J : J_even_list) {
-    const auto t_levels = run_CI(ci_sp_basis, int(std::round(2 * J)), +1,
-                                 num_solutions, h1, qk, Sk, include_Sigma2);
-    levels.push_back(t_levels);
-  }
+  std::vector<PsiJPi> levels(n_Js);
+  std::vector<std::ostringstream> os(n_Js); // for parallel output
 
-  // odd parity:
-  for (const auto J : J_odd_list) {
-    const auto t_levels = run_CI(ci_sp_basis, int(std::round(2 * J)), -1,
-                                 num_solutions, h1, qk, Sk, include_Sigma2);
-    levels.push_back(t_levels);
+  if (parallel_ci)
+    fmt::print("Running CI for {} J/pi's in parallel\n", n_Js);
+
+  {
+    IO::ChronoTimer t2("CI Eigenvalues");
+#pragma omp parallel for if (parallel_ci)
+    for (std::size_t i = 0; i < n_Js; ++i) {
+      const auto [twoj, pi] =
+          i < J_even_list.size() ?
+              std::pair{2 * J_even_list.at(i), +1} :
+              std::pair{2 * J_odd_list.at(i - J_even_list.size()), -1};
+
+      auto &output_stream = parallel_ci ? os.at(i) : std::cout;
+      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_solutions, h1, qk, Sk,
+                            include_Sigma2, output_stream);
+    }
+
+    // If doing in parallel, output detailed output at end
+    if (parallel_ci) {
+      for (const auto &out : os)
+        std::cout << out.str();
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -359,7 +376,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_solutions, const Coulomb::meTable<double> &h1,
               const Coulomb::QkTable &qk, const Coulomb::LkTable &Sk,
-              bool include_Sigma2) {
+              bool include_Sigma2, std::ostream &outstream) {
 
   auto printJ = [](int twoj) {
     return twoj % 2 == 0 ? std::to_string(twoj / 2) :
@@ -367,23 +384,24 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   };
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
-  fmt::print("Run CI for J={}, {} parity\n", printJ(twoJ), printPi(parity));
-  std::cout << std::flush;
+  fmt::print(outstream, "Run CI for J={}, {} parity\n", printJ(twoJ),
+             printPi(parity));
+  outstream << std::flush;
 
   PsiJPi psi{twoJ, parity, ci_sp_basis};
 
   if (twoJ < 0) {
-    std::cout << "Fail: twoJ must >=0\n";
+    outstream << "Fail: twoJ must >=0\n";
     return psi;
   }
   if (twoJ % 2 != 0) {
-    std::cout << "Fail: twoJ must be even for two-electron CSF\n";
+    outstream << "Fail: twoJ must be even for two-electron CSF\n";
     return psi;
   }
 
   const auto N_CSFs = psi.CSFs().size();
-  std::cout << "Total CSFs: " << psi.CSFs().size() << "\n";
-  std::cout << std::flush;
+  outstream << "Total CSFs: " << psi.CSFs().size() << "\n";
+  outstream << std::flush;
 
   //----------------------------------------------------------------------------
 
@@ -393,10 +411,11 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
 
   //----------------------------------------------------------------------------
 
-  fmt::print("Find first {} solutions\n", num_solutions);
+  fmt::print(outstream, "Find first {} solutions\n", num_solutions);
   {
-    IO::ChronoTimer t2("Diagonalise");
+    IO::ChronoTimer t2("");
     psi.solve(Hci, num_solutions);
+    outstream << "Eigenvalues: T = " << t2.reading_str() << "\n";
   }
   const auto E0 = psi.energy(0);
 
@@ -408,7 +427,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   for (std::size_t i = 0; i < N_CSFs && int(i) < num_solutions; ++i) {
 
     const auto pi = parity == 1 ? '+' : '-';
-    fmt::print("{} {} {:<2}  {:+11.8f} au  {:+11.2f} cm^-1  {:11.2f} cm^-1\n",
+    fmt::print(outstream,
+               "{} {} {:<2}  {:+11.8f} au  {:+11.2f} cm^-1  {:11.2f} cm^-1\n",
                twoJ / 2, pi, i, psi.energy(i),
                psi.energy(i) * PhysConst::Hartree_invcm,
                (psi.energy(i) - E0) * PhysConst::Hartree_invcm);
@@ -427,7 +447,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
         l2 = Angular::nkindex_to_l(psi.CSF(j).state(1));
       }
       if (cj > minimum_percentage) {
-        fmt::print("   {:<6s} {:5.3f}%\n", psi.CSF(j).config(true), cj);
+        fmt::print(outstream, "   {:<6s} {:5.3f}%\n", psi.CSF(j).config(true),
+                   cj);
       }
     }
 
@@ -447,9 +468,9 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     // Determine Term Symbol, from g-factor
     const auto [S, L] = CI::Term_S_L(l1, l2, twoJ, gJ);
 
-    std::cout << "   --------------\n";
+    outstream << "   --------------\n";
     if (twoJ != 0) {
-      std::cout << "   gJ = " << gJ << "\n";
+      outstream << "   gJ = " << gJ << "\n";
     }
 
     // maximum relativistic config, into non-relativistic notation:
@@ -464,11 +485,12 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     }
     // * technically, might not be maximum non-rel config.. realistically, fine
 
-    fmt::print("   {:<6s} {}\n", config, Term_Symbol(twoJ, L, 2 * S, parity));
+    fmt::print(outstream, "   {:<6s} {}\n", config,
+               Term_Symbol(twoJ, L, 2 * S, parity));
 
     psi.update_config_info(i, {config, pc, gJ, 1.0 * L, 2.0 * S});
 
-    std::cout << "\n";
+    outstream << "\n";
   }
 
   return psi;

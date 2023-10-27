@@ -61,8 +61,8 @@ struct ConfigInfo {
 //! Stores the CI Solutions for given J and parity (only two-electron).
 class PsiJPi {
 
-  int m_twoj;
-  int m_pi;
+  int m_twoj{-1};
+  int m_pi{0};
 
   // Number of solutions stored:
   std::size_t m_num_solutions{0};
@@ -77,6 +77,8 @@ public:
   //! Constructs the CSFs, but doesn't solve system; have to call solve().
   PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis)
       : m_twoj(twoJ), m_pi(pi), m_CSFs(form_CSFs(twoJ, pi, cisp_basis)) {}
+
+  PsiJPi() {}
 
   //! Solves the CI equation for Hamiltonian matrix Hci;
   //! finds first num_solutions solutions.
