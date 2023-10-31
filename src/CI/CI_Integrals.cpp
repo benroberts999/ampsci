@@ -458,7 +458,7 @@ std::pair<int, int> Term_S_L(int l1, int l2, int twoJ, double gJ_target) {
 //==============================================================================
 std::string Term_Symbol(int two_J, int L, int two_S, int parity) {
   return two_J % 2 == 0 ?
-             fmt::format("{}^{}{}_{}", int(two_S + 1), AtomData::L_symbol(L),
+             fmt::format("{}^{}{}_{}", two_S + 1, AtomData::L_symbol(L),
                          parity == 1 ? "" : "°", two_J / 2) :
              fmt::format("{}^{}{}_{}/2", two_S + 1, AtomData::L_symbol(L),
                          parity == 1 ? "" : "°", two_J);

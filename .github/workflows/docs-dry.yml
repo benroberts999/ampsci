@@ -1,0 +1,40 @@
+name: Docs-DryRun
+
+on:
+  push:
+    branches: [ "dev" ]
+  pull_request:
+    branches: [ "main", "dev" ]
+
+jobs:
+  docs:
+
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+
+    - name: "Install dependencies"
+      run: |
+        set -x
+        sudo apt-get update -y
+        sudo apt-get install -y make
+        sudo apt-get install -y doxygen
+        sudo apt-get install -y texlive-latex-extra --fix-missing
+    
+    - name: Build the documentation
+      run: |
+        cp ./doc/examples/Makefile ./ 
+        for FILE in ./doc/*.md; do sed -i 's%(/doc/%(doc/%g' $FILE; done
+        for FILE in ./doc/*.md; do sed -i 's%(/README%(README%g' $FILE; done
+        for FILE in ./doc/*.md; do sed -i 's%(/src/%(https://github.com/benroberts999/ampsci/tree/main/src/%g' $FILE; done
+        for FILE in ./doc/tutorial*.md; do sed -i -e 's/\$\\begin{equation}/\\f\[/g' $FILE; done
+        for FILE in ./doc/tutorial*.md; do sed -i -e 's/\\end{equation}\$/\\f\]/g' $FILE; done
+        for FILE in ./doc/tutorial*.md; do sed -i -e 's/\$/\\f\$/g' $FILE; done
+        sed -i 's%tests-badge]]%tests-badge-v2]]%g' ./README.md
+        sed -i 's%build-badge]]%build-badge-v2]]%g' ./README.md
+        sed -i 's%macOS-badge]]%macOS-badge-v2]]%g' ./README.md
+        sed -i 's%cov-badge]]%cov-badge-v2]]%g' ./README.md
+        rm -rf ./docs/form_*.png
+        rm -rf ./docs/formula.repository
+        make doxy

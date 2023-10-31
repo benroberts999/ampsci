@@ -56,6 +56,14 @@ Looking for atomic ionisation form-factors for dark-matter-electron scattering?
 
 * See `Kionisation` module (`./ampsci -m Kionisation`)
 
+### Tutorials/examples
+
+* The fastest way to get familiar with ampsci is to follow the tutorials
+* A basic step-by-step tutorial: [doc/tutorial.md](doc/tutorial.md)
+* More advanced tutorials follow: [doc/tutorial_advanced.md](doc/tutorial_advanced.md), [doc/tutorial_CI.md](doc/tutorial_CI.md)
+  * See also: _doc/examples/ampsci.in_ -- an example/template input file
+  * In _doc/examples/_ there are several example input files, with the expected output; use these to test if everything is working
+
 ### Documentation
 
 Full documentation available online: [ampsci.dev/](https://ampsci.dev/).
@@ -64,10 +72,6 @@ Divided into sections:
  1. Usage intructions, input options
     * Compilation instructions (for linux/mac/windows): [doc/compilation.md](doc/compilation.md)
     * Detailed info on all input options: [doc/ampsci_input.md](doc/ampsci_input.md)
-    * A basic step-by-step tutorial: [doc/tutorial.md](doc/tutorial.md)
-    * A more advanced tutorial: [doc/tutorial_advanced.md](doc/tutorial_advanced.md)
-      * See also: _doc/examples/ampsci.in_ -- an example/template input file
-      * In _doc/examples/_ there are several example input files, with the expected output; use these to test if everything is working
 
  2. Physics documentation: [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf)
     * Description of physics/methods used in the code

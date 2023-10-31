@@ -6,9 +6,9 @@
 %Control: page (0) single
 %Control: year (1) truncated
 %Control: production of eprint (0) enabled
-\begin{thebibliography}{40}%
-\makeatletter
+\begin{thebibliography}{45}%
 \itemsep0.25em
+\makeatletter
 \providecommand \@ifxundefined [1]{%
  \@ifx{#1\undefined}
 }%
@@ -413,6 +413,57 @@
   {journal} {\bibinfo  {journal} {Phys. Rev. A}\ }\textbf {\bibinfo {volume}
   {72}},\ \bibinfo {pages} {052115} (\bibinfo {year} {2005})}\BibitemShut
   {NoStop}%
+\bibitem [{\citenamefont {Dzuba}\ \emph {et~al.}(1996)\citenamefont {Dzuba},
+  \citenamefont {Flambaum},\ and\ \citenamefont {Kozlov}}]{DzubaCIMBPT1996}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.}\ \bibnamefont
+  {Dzuba}}, \bibinfo {author} {\bibfnamefont {V.~V.}\ \bibnamefont
+  {Flambaum}},\ and\ \bibinfo {author} {\bibfnamefont {M.~G.}\ \bibnamefont
+  {Kozlov}},\ }\href {https://doi.org/10.1103/PhysRevA.54.3948} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev. A}\ }\textbf {\bibinfo {volume}
+  {54}},\ \bibinfo {pages} {3948} (\bibinfo {year} {1996})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Dzuba}(2005)}]{DzubaVN-M2005}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {V.~A.}\ \bibnamefont
+  {Dzuba}},\ }\href {https://doi.org/10.1103/PhysRevA.71.032512} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev. A}\ }\textbf {\bibinfo {volume}
+  {71}},\ \bibinfo {pages} {032512} (\bibinfo {year} {2005})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Berengut}\ \emph {et~al.}(2006)\citenamefont
+  {Berengut}, \citenamefont {Flambaum},\ and\ \citenamefont
+  {Kozlov}}]{Berengut2006}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {J.~C.}\ \bibnamefont
+  {Berengut}}, \bibinfo {author} {\bibfnamefont {V.~V.}\ \bibnamefont
+  {Flambaum}},\ and\ \bibinfo {author} {\bibfnamefont {M.~G.}\ \bibnamefont
+  {Kozlov}},\ }\href {https://doi.org/10.1103/PhysRevA.73.012504} {\bibfield
+  {journal} {\bibinfo  {journal} {Phys. Rev. A}\ }\textbf {\bibinfo {volume}
+  {73}},\ \bibinfo {pages} {012504} (\bibinfo {year} {2006})}\BibitemShut
+  {NoStop}%
+\bibitem [{\citenamefont {Kozlov}\ \emph {et~al.}(2022)\citenamefont {Kozlov},
+  \citenamefont {Tupitsyn}, \citenamefont {Bondarev},\ and\ \citenamefont
+  {Mironova}}]{Kozlov2022}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {M.~G.}\ \bibnamefont
+  {Kozlov}}, \bibinfo {author} {\bibfnamefont {I.~I.}\ \bibnamefont
+  {Tupitsyn}}, \bibinfo {author} {\bibfnamefont {A.~I.}\ \bibnamefont
+  {Bondarev}},\ and\ \bibinfo {author} {\bibfnamefont {D.~V.}\ \bibnamefont
+  {Mironova}},\ }\href {http://arxiv.org/abs/2202.02026} {\bibfield  {journal}
+  {\bibinfo  {journal} {arXiv}} (\bibinfo {year}
+  {2022})},\ \Eprint {https://arxiv.org/abs/2202.02026} {arXiv:2202.02026}
+  \BibitemShut {NoStop}%
+\bibitem [{\citenamefont {Kozlov}\ \emph {et~al.}(2015)\citenamefont {Kozlov},
+  \citenamefont {Porsev}, \citenamefont {Safronova},\ and\ \citenamefont
+  {Tupitsyn}}]{Kozlov2015}%
+  \BibitemOpen
+  \bibfield  {author} {\bibinfo {author} {\bibfnamefont {M.~G.}\ \bibnamefont
+  {Kozlov}}, \bibinfo {author} {\bibfnamefont {S.~G.}\ \bibnamefont {Porsev}},
+  \bibinfo {author} {\bibfnamefont {M.~S.}\ \bibnamefont {Safronova}},\ and\
+  \bibinfo {author} {\bibfnamefont {I.~I.}\ \bibnamefont {Tupitsyn}},\
+  }\bibfield  {journal} {\bibinfo  {journal} {Comput. Phys. Commun.}\ }\href
+  {https://doi.org/10.1016/j.cpc.2015.05.007} {10.1016/j.cpc.2015.05.007}
+  (\bibinfo {year} {2015})\BibitemShut {NoStop}%
 \bibitem [{\citenamefont {Landau}\ and\ \citenamefont
   {Lifshitz}(1977)}]{LLVol3}%
   \BibitemOpen

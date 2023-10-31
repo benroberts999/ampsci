@@ -2,7 +2,7 @@ name: Build (linux)
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
   pull_request:
     branches: [ "main", "dev" ]
 
@@ -66,8 +66,14 @@ jobs:
     - name: Run ampsci (g++)
       run: ./ampsci ampsci.in
 
+    - name: Run unit tests (g++)
+      run: make CXX=g++-12 UseOpenMP=yes tests && ./tests [unit]
+
     - name: Build ampsci (clang++ v:14)
       run: make clean && make CXX=clang++-14 UseOpenMP=yes
 
     - name: Run ampsci (clang++)
       run: ./ampsci ampsci.in
+
+    - name: Run unit tests (g++)
+      run: make CXX=clang++-14 UseOpenMP=yes tests && ./tests [unit]

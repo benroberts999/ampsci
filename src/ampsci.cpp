@@ -552,6 +552,8 @@ void ampsci(const IO::InputBlock &input) {
        {"ek{}", "Block: Explicit list of energies to solve for. e.g., "
                 "ek{6s+=-0.127; 7s+=-0.552;}. Blank => HF energies. Takes "
                 "precidence over each_valence. [blank]"},
+       {"allOrder", "Use all-orders method (implies Feynman=true; "
+                    "screening=true; holeParticle=true;) [false]"},
        {"Feynman", "Use Feynman method [false]"},
        {"fk",
         "List of doubles. Screening factors for effective all-order "
@@ -577,6 +579,7 @@ void ampsci(const IO::InputBlock &input) {
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
   const auto sigma_rmin = input.get({"Correlations"}, "rmin", 1.0e-4);
   const auto sigma_rmax = input.get({"Correlations"}, "rmax", 30.0);
+  const auto each_valence = input.get({"Correlations"}, "each_valence", false);
   const auto default_stride = [&]() {
     // By default, choose stride such that there is 150 points over [1e-4,30]
     const auto stride =
@@ -587,11 +590,13 @@ void ampsci(const IO::InputBlock &input) {
       input.get({"Correlations"}, "stride", default_stride);
 
   // Feynman method:
-  const auto sigma_Feynman = input.get({"Correlations"}, "Feynman", false);
-  const auto sigma_Screening = input.get({"Correlations"}, "screening", false);
-  const auto hole_particle = input.get({"Correlations"}, "holeParticle", false);
+  const auto all_order = input.get({"Correlations"}, "allOrder", false);
+  const auto sigma_Feynman = input.get({"Correlations"}, "Feynman", all_order);
+  const auto sigma_Screening =
+      input.get({"Correlations"}, "screening", all_order);
+  const auto hole_particle =
+      input.get({"Correlations"}, "holeParticle", all_order);
   const auto sigma_lmax = input.get({"Correlations"}, "lmax", 6);
-  const auto each_valence = input.get({"Correlations"}, "each_valence", false);
   const auto include_G = input.get({"Correlations"}, "include_G", false);
   // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(

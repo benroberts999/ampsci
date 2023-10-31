@@ -4,7 +4,9 @@
 
 [[Home](/README.md)]
 
-* Easiest method is to compile using provided Makefile:
+* Easiest method is to use provided shell scripts `install-dependencies.sh` (which installs the required packages/compilers), and `setup.sh` (which compiles ampsci)
+  * These might not work on all systems, meaning a manual setup will be required.
+* You can also compile using the provided Makefile:
 * Copy "doc/examples/Makefile" from doc/ directory to the working directory
   * `cp ./doc/examples/Makefile ./`
 * All programs compiled using the Makefile (run `make`)
@@ -55,7 +57,7 @@ This is for ubuntu/linux - for other systems, see below
 * Then compile by running `make` from the ampsci directory
 * To use with openMP (for parallelisation) with clang++, you might have to also install clangs openmp libraries: `sudo apt install libomp5` (and/or perhaps `sudo apt install libomp-dev`)
 
-## Compilation: MacOS
+## Compilation: MacOS (intel chip)
 
 * On mac: use _homebrew_ to install gsl: _brew install gsl_
 * _homebrew_ is a package manager; install from [https://brew.sh/](https://brew.sh/)
@@ -74,16 +76,23 @@ This is for ubuntu/linux - for other systems, see below
     * ExtraLink=/usr/local/opt/llvm/lib/
   * This seems fragile
 
+## Compilation: MacOS (M1/M2/apple silicon chip)
+
+* Mostly the same as above, but some of the libraries are installed to different directories by default. In particular:
+* PathForGSL=/opt/homebrew/Cellar/gsl/2.7
+
 ## Compilation: Windows
 
-For windows, the easiest way (for me, anyway) is to use the 'windows subsystem for linux' (requires Windows 10+). Instructions on installation/use here: [docs.microsoft.com/en-us/windows/wsl/install](https://docs.microsoft.com/en-us/windows/wsl/install).
-Then, the compilation + use can proceed as per Linux above.
+* For windows, the easiest way (for me, anyway) is to use the 'windows subsystem for linux' (requires Windows 10+).
+* Instructions on installation/use here: [docs.microsoft.com/en-us/windows/wsl/install](https://docs.microsoft.com/en-us/windows/wsl/install).
+* Then, the compilation + use can proceed as per Linux above.
 
 --------------------------------------------------------------------------------
 
 ## Common Compilation errors
 
 * **error: unsupported option -fopenmp**
+* **error: could not find <omp.h>**
 
 * openmp (used for parallelisation) is not working. See above for some possible solutions.
 * Quick fix: change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile

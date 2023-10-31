@@ -12,11 +12,6 @@
   * etak hp
 * Breit into g_2
 
-## Correlations (#21)
-
-* Update full integration tests
-* Clean up interface (ampsci/wavefunction)
-
 ## TDHF - physics (#3)
 
 * Issue for even-parity operators (from de?) (#3)
@@ -51,12 +46,12 @@
   * Possibly related to #22
   * Possibly related to #26
 
-## Feynman (#22)
+## Feynman (+correlations) (#22)
 
 * Cleanup, and re-do tests
 * Polarisation operator instability: (#8)
   * Fails, e.g., for Cs with n_core < 3
-  * Use Goldstone for small n for now?
+  * Use Goldstone for small n
 * Overall numerical stability
 * Exchange (2nd order): w1 and w1w2
 * Breit issue? (see below)
@@ -91,7 +86,7 @@
   * Fewer allocations?
   * Particularly noticable with Breit
 * Breit
-  * Inneficient calculations?
+  * Inneficient calculations? (#3)
 * Struc Rad
   * Inneficient, not parellised efficiently?
 

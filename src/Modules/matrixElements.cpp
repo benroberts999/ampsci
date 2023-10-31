@@ -42,7 +42,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
        {"printBoth", "print <a|h|b> and <b|h|a> [false]"},
        {"use_spectrum",
         "If true (and spectrum available), will use spectrum for valence "
-        "states AND for RPA (if diagram method), AND for SR+N [false]"},
+        "states [false]"},
        {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
        {"off-diagonal",
         "Calculate off-diagonal matrix elements (if non-zero) [true]"},
@@ -70,6 +70,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.has_option("help")) {
     return;
   }
+
+  IO::ChronoTimer timer("matrixElements");
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
@@ -216,7 +218,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
         fmt::print(" + {:15.8e} = {:15.8e}", dv, hab + dv);
       fmt::print("\n");
       if (factor != 1.0) {
-        fmt::print("RME to A/B factor: {:13.8e}", factor);
+        fmt::print("RME to A/B factor: {:13.8e}\n", factor);
         fmt::print("A/B: {:15.8e}", factor * hab);
         if (rpa)
           fmt::print(" + {:15.8e} = {:15.8e}", factor * dv, sub_tot);
@@ -231,18 +233,24 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
         fmt::print(os, "  {:13.6e}", factor * (hab + dv));
       }
       if (sr) {
+        fmt::print("SR0: ");
+        std::cout << std::flush;
         const auto [tb, dvtb] = sr->srTB(h.get(), a, a, 0.0, rpa.get());
-        fmt::print("SR0: {:15.8e} + ", factor * tb);
+        fmt::print("{:15.8e} + ", factor * tb);
+        std::cout << std::flush;
         const auto [c, dvc] = sr->srC(h.get(), a, a, rpa.get());
         fmt::print("{:15.8e} + ", factor * c);
+        std::cout << std::flush;
         const auto [n, dvn] = sr->norm(h.get(), a, a, rpa.get());
         const auto sr0 = (tb + c + n) * factor;
         fmt::print("{:15.8e} = {:15.8e}\n", factor * n, sr0);
+        std::cout << std::flush;
         const auto sr_rpa = (dvtb + dvc + dvn) * factor;
         if (rpa)
           fmt::print("SRr: {:15.8e} + {:15.8e} + {:15.8e} = {:15.8e}\n",
                      factor * dvtb, factor * dvc, factor * dvn, sr_rpa);
         fmt::print("Tot: {:15.8e}\n", sub_tot + sr_rpa);
+        std::cout << std::flush;
         fmt::print(os, "  {:13.6e}", sub_tot + sr_rpa);
       }
 
@@ -300,7 +308,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           fmt::print(" + {:15.8e} = {:15.8e}", dv, hab + dv);
         fmt::print("\n");
         if (factor != 1.0) {
-          fmt::print("RME to A/B factor: {:13.8e}", factor);
+          fmt::print("RME to A/B factor: {:13.8e}\n", factor);
           fmt::print("A/B: {:15.8e}", factor * hab);
           if (rpa)
             fmt::print(" + {:15.8e} = {:15.8e}", factor * dv, sub_tot);
@@ -330,6 +338,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
             fmt::print("SRr: {:15.8e} + {:15.8e} + {:15.8e} = {:15.8e}\n",
                        factor * dvtb, factor * dvc, factor * dvn, sr_rpa);
           fmt::print("Tot: {:15.8e}\n", sub_tot + sr_rpa);
+          std::cout << std::flush;
           fmt::print(os, "  {:13.6e}", sub_tot + sr_rpa);
         }
         fmt::print(os, "\n");
@@ -344,6 +353,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "          +SRN";
   std::cout << "\n";
   std::cout << os.str();
+  std::cout << "\n";
 }
 
 //============================================================================
@@ -624,6 +634,8 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
+  IO::ChronoTimer t("CI_matrixElements");
+
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
   auto h_options = IO::InputBlock(oper, {});
@@ -830,6 +842,8 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   me_calculator(J_even_list, 1, J_odd_list, -1, false);
   me_calculator(J_odd_list, -1, J_even_list, 1, false);
   me_calculator(J_odd_list, -1, J_odd_list, -1, false);
+
+  std::cout << "\n";
 }
 
 } // namespace Module

@@ -34,7 +34,7 @@ endif
 
 
 # Changes to optimisation based on build setting:
-OPT ?= -O3
+OPT?=-O3
 
 ifeq ($(Build),release)
   WARN=-w

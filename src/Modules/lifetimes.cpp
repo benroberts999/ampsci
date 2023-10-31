@@ -19,7 +19,8 @@ double gamma_E1(double d, double w, double gi) {
 //! M1 partial rate: m = <f||M1||i>,  gi = [Ji] = 2Ji+1, w = Ef - Ei
 double gamma_M1(double m, double w, double gi) {
   const auto aw = std::abs(PhysConst::alpha * w);
-  const auto C = (4.0 / 3.0) * qip::pow<3>(aw) * PhysConst::alpha2;
+  const auto u2 = PhysConst::muB_CGS * PhysConst::muB_CGS;
+  const auto C = (4.0 / 3.0) * qip::pow<3>(aw) * u2;
   return C * qip::pow<2>(m) / gi;
 }
 

@@ -20,35 +20,37 @@ This assumes you already have ampsci compiled and have a basic understanding of 
   * [Spectrum](#spectrum)
 * [MBPT: second-order correlations](#secondorder)
 * [MBPT: all-order correlations](#allorders)
+* [MBPT for matrix elements: Core Polarisation/RPA](#rpa)
+* [MBPT for matrix elements: Structure Radiation](#sructrad)
 
 ## Starting approximation <a name="begin"></a>
 
 The full atomic Hamiltonian for an $N$-electron atom:
 $\begin{equation}
-H = \sum_i^N h_0({r}_i) + \sum_{i<j}\frac{1}{{r}_i - {r}_j}
+  H = \sum_i^N h_0({r}_i) + \sum_{i<j}\frac{1}{{r}_i - {r}_j}
 \end{equation}$
 $\begin{equation}
-h_0(\vec r_i) = c \vec\alpha_i\cdot\vec p_i + c^2 (\beta_i-1) + V_{\rm nuc}.
+  h_0(\vec r_i) = c \vec\alpha_i\cdot\vec p_i + c^2 (\beta_i-1) + V_{\rm nuc}.
 \end{equation}$
 The starting approximation is the Hartree-Fock method:
 $\begin{equation}
-H \approx \sum_i^N [h_0(\vec r_i) + v^{\rm HF} ].
+  H \approx \sum_i^N [h_0(\vec r_i) + v^{\rm HF} ].
 \end{equation}$
 
 ### Hartree-Fock <a name="hf"></a>
 
 We focus on case of single-valence systems, and start with so-called $V^{N-1}$ approximation, in which Hartree-Fock potential is due to the $N-1$ core electrons:
 $\begin{equation}
-\hat v^{\rm HF}\phi_a(\vec{r}_1) = \sum_{i\neq a}^{N_c}\Bigg(
-\int \frac{\phi_i^\dagger(\vec{r}_2)\phi_i(\vec{r}_2)}{|{r}_{12}|}d^3\vec{r}_2\,\phi_a(\vec{r}_1)
--\int \frac{\phi_i^\dagger(\vec{r}_2)\phi_a(\vec{r}_2)}{|{r}_{12}|}d^3\vec{r}_2\,\phi_i(\vec{r}_1)
-\Bigg),
+  \hat v^{\rm HF}\phi_a(\vec{r}_1) = \sum_{i\neq a}^{N_c}\Bigg(
+  \int \frac{\phi_i^\dagger(\vec{r}_2)\phi_i(\vec{r}_2)}{|{r}_{12}|}d^3\vec{r}_2\,\phi_a(\vec{r}_1)
+  -\int \frac{\phi_i^\dagger(\vec{r}_2)\phi_a(\vec{r}_2)}{|{r}_{12}|}d^3\vec{r}_2\,\phi_i(\vec{r}_1)
+  \Bigg),
 \end{equation}$
 
 First, Hartree-Fock equations are solved self-consistantly for all core electrons, then the valence states are found in the Frozen Hartree-Fock potential due to the core.
 For example, to run Hartree-Fock for Cs with a $N-1$ (implies Xe-like core),
 
-```text
+```java
 HartreeFock{
   core = [Xe];
   valence = 6sp5d;
@@ -57,14 +59,14 @@ HartreeFock{
 
 Besides Hartree-Fock, other methods are available:
 
-* Hartree: exchange term excluded)
+* Hartree: exchange term excluded
 * KohnSham: Uses Kohn-Sham density functional, which includes a localised exchange potential and Latter correction (nb: valence electron should be included into the 'core' here, i.e. `core=[Xe],6s1')
 * ApproxHF: Approximate (localised) Hartree-Fock potential (only for tests)
 * Local: Uses a local parametric potential (Green's potential)
 
 e.g.,
 
-```text
+```java
 HartreeFock{
   core = [Xe],6s1;
   valence = 6sp5d;
@@ -76,12 +78,14 @@ HartreeFock{
 
 If no innputs are given, the code will assume a Fermi-like distribution for the nuclear charge, and look up default values for the nuclear parameters (charge radius and skin thickness). The default values are chosen from the specified isotope in the `Atom{}` block. These may also be specified specifically:
 
+```java
 Nucleus{
   rrms;
   type;
   c;
   t;
 }
+```
 
 * rrms: nuclear root-mean-square charge radius, in fm
 * type: Nuclear charge distribution. The available nuclear types are: Fermi, spherical, pointlike, and Gaussian, with Fermi being the default.
@@ -105,18 +109,18 @@ Nucleus{
 The Breit Hamiltonian accounts for magnetic interactions between electrons (also known as the Gaunt interaction), and retardation effects.
 It leads to a correction to the electron-electron Coulomb term in the many-body Hamiltonian:
 $\begin{equation}
-\sum_{ij}\frac{1}{r_{ij}}
-\to
-\sum_{ij}( \frac{1}{r_{ij}} + \hat h^B_{ij}),
+  \sum_{ij}\frac{1}{r_{ij}}
+  \to
+  \sum_{ij}\left( \frac{1}{r_{ij}} + \hat h^B_{ij}\right),
 \end{equation}$
 where, in the limit of zero frequency, the two-particle Breit Hamiltonian is
 $\begin{equation}
-\hat h^B_{ij} = - \frac{\vec{\alpha}_i\cdot\vec{\alpha}_j + (\vec{\alpha}_i\cdot\hat{n}_{ij})(\vec{\alpha}_j\cdot\hat{n}_{ij})}{2\, {r}_{ij}}.
+  \hat h^B_{ij} = - \frac{\vec{\alpha}_i\cdot\vec{\alpha}_j + (\vec{\alpha}_i\cdot\hat{n}_{ij})(\vec{\alpha}_j\cdot\hat{n}_{ij})}{2\, {r}_{ij}}.
 \end{equation}$
 
 This can be included at the Hartree-Fock level with the `HartreeFock{Breit = 1.0;}` setting.
 
-```text
+```java
 HartreeFock{
   core = [Xe];
   valence = 6sp5d;
@@ -136,20 +140,20 @@ An effective potential, $V_{\rm rad}$,
 is added to the Hamiltonian before the equations are solved.
 The potential can be written as the sum of the Uehling (vacuum polarisation), Wichmann-Kroll (higher-order vacuum polarisation) and self-energy potentials; the self-energy potential itself is written as the sum of the high- and low-frequency electric contributions, and the magnetic contribution:
 $\begin{equation}
-V_{\rm rad}(\vec{r}) = V_{\rm Ueh}(r) + V_{\rm WK}(r) + V_{\rm SE}^{h}(r) +  V_{\rm SE}^{l}(r) + i (\vec{\gamma}\cdot\hat{n}) V^{\rm mag}(r).
+  V_{\rm rad}(\vec{r}) = V_{\rm Ueh}(r) + V_{\rm WK}(r) + V_{\rm SE}^{h}(r) +  V_{\rm SE}^{l}(r) + i (\vec{\gamma}\cdot\hat{n}) V^{\rm mag}(r).
 \end{equation}$
 
 * Flambaum, Ginges, [Phys. Rev. A **72**, 052115 (2005)](http://link.aps.org/doi/10.1103/PhysRevA.72.052115).
 
 If the `RadPot{}` block is inlcuded, then the QED radiative potential will be included with the default parameters.
 
-```text
+```java
 RadPot{}
 ```
 
 equivilant to:
 
-```text
+```java
 RadPot{
   Ueh = 1.0;
   SE_h = 1.0;
@@ -175,12 +179,12 @@ e.g., `scale_l = 0,1,0;` will include $V_{\rm rad}$ for p states, but not s or d
 
 We often require a full "compete" set of solutions to the Hartree-Fock equation in order to permorm sums-over-states required in perturbation theory. To form these, the set of atomic orbitals are expanded as
 $\begin{equation}
-\phi_{n\kappa}(\vec{r}) = \sum_i^{2N} p_i S_i(\vec{r}),
+  \phi_{n\kappa}(\vec{r}) = \sum_i^{2N} p_i S_i(\vec{r}),
 \end{equation}$
 where $S_i$ are a set of $2N$ basis orbitals that form an approximately complete set over a sub-domain of the radial grid $[0,r_{\rm max}]$ ($N$ is defined this way because of the duel set of positive/negative energy Dirac solutions).
 The $p_i$ expansion coefficients are found by diagonalising the set of basis orbitals with respect to the Hamiltonian matrix, equivalent to solving the eigenvalue problem:
 $\begin{equation}
-\langle{S_i}|h_{\rm HF} |S_j \rangle p_i = \varepsilon\langle S_i|S_j \rangle p_i.
+  \langle{S_i}|h_{\rm HF} |S_j \rangle p_i = \varepsilon\langle S_i|S_j \rangle p_i.
 \end{equation}$
 There are $2N$ solutions of eigenvalues $\varepsilon$ with corresponding eigenvectors $\vec{p}$, which correspond to the spectrum of stationary states; $N$ of these correspond to negative-energy ($\varepsilon<-mc^2$) states.
 
@@ -188,17 +192,30 @@ For the $S_i$ basis orbitals, we use the Duel-Kinetic-Balence basis of Beloy and
 
 * Beloy, Derevianko, [Comput. Phys. Commun. **179**, 310 (2008)](https://linkinghub.elsevier.com/retrieve/pii/S0010465508001148).
 
-```js
+```java
+// Available Basis options/blocks
 Basis{
-  number;       // Number of splines used in expansion [0]
-  order;        // order of splines ~7-9 [7]
-  r0;   // minimum cavity radius (first internal knot) [1.0e-4]
-  r0_eps;       // Select cavity radius r0 for each l by position where |psi(r0)/psi_max| falls below r0_eps [1.0e-3]
-  rmax; // maximum cavity radius [Grid{rmax}]
-  states;       // states to keep (e.g., 30spdf20ghi)
-  print;        // Print all spline energies (for testing) [false]
-  positron;     // Include -ve energy states [false]
-  type; // Derevianko (DKB) or Johnson [Derevianko]
+  // Number of splines used in expansion [0]
+  number;
+  // order of splines ~7-9 [7]
+  order;
+  // minimum cavity radius (first internal knot) [1.0e-4]
+  r0;
+  // Select cavity radius r0 for each l by position where |psi(r0)/psi_max|
+  // falls below r0_eps [1.0e-3]
+  r0_eps;
+  // maximum cavity radius [Grid{rmax}]
+  rmax;
+  // states to keep (e.g., 30spdf20ghi)
+  states;
+  // Force orthogonal to core [false]
+  orthogonalise;
+  // Print all spline energies (for testing) [false]
+  print;
+  // Include -ve energy states [false]]
+  positron;
+  // Derevianko (DKB) or Johnson [Derevianko]
+  type;
 }
 ```
 
@@ -207,7 +224,7 @@ Typically, we instead set `r0_eps`, which automatically choses `r0` such that th
 
 e.g, to calculate basis including up to $n=30$ for states up to $l=6$ in a cavity of 40 $a_0$, using 40 B-splines of order 7:
 
-```text
+```java
 Basis{
   number = 40;
   order = 7;
@@ -254,7 +271,7 @@ The worst energy comparison was for $5s$ state (parts in $10^5$), and the worst 
 The spectrum is the same as the basis (takes the same options), except that it also includes correlations (see below):
 
 $\begin{equation}
-\langle{S_i}|\hat h_{\rm HF} + \hat \Sigma|{S_j}\rangle p_i = \varepsilon\langle{S_i|S_j}\rangle p_i.
+  \langle{S_i}|\hat h_{\rm HF} + \hat \Sigma|{S_j}\rangle p_i = \varepsilon\langle{S_i|S_j}\rangle p_i.
 \end{equation}$
 
 We typically use Basis to calculate $\Sigma$ (or other MBPT corrections), and then use spectrum to calculate atomic properties where a direct sum-over-states is required (e.g., polarisabilities).
@@ -263,7 +280,7 @@ We directly use the spectrum, so we typically require a larger basis set.
 It's now typically also crucial for the spectrum to be orthogonal to the valence states (not just the core states).
 e.g.,
 
-```text
+```java
 Spectrum{
   number = 90;
   order = 9;
@@ -278,34 +295,35 @@ Spectrum{
 ## MBPT: second-order correlations <a name="secondorder"></a>
 
 $\begin{equation}
-H = \sum_i h_{\rm HF}(\vec{r}_i) + \delta V_{\rm corr},
+  H = \sum_i h_{\rm HF}(\vec{r}_i) + \delta V_{\rm corr},
 \end{equation}$
 where $h_{\rm HF}(\vec{r}_i)$ is the single-particle HF Hamiltonian, and
 $\begin{equation}
-\delta V_{\rm corr} = \sum_{i<j}\frac{1}{{r}_{ij}} - \sum_iV_{\rm HF}(\vec{r}_i)
+  \delta V_{\rm corr} = \sum_{i<j}\frac{1}{{r}_{ij}} - \sum_iV_{\rm HF}(\vec{r}_i)
 \end{equation}$
 
 $\begin{equation}
-\delta \varepsilon_v =
-\sum_{amn}
-\frac{g_{vamn}\widetilde g_{nmav}}{\varepsilon_v+\varepsilon_a - \varepsilon_m-\varepsilon_n}
-+\sum_{abn}
- \frac{g_{vnab}\widetilde g_{banv}}{\varepsilon_v+\varepsilon_n-\varepsilon_a-\varepsilon_b}  ,
+  \delta \varepsilon_v =
+  \sum_{amn}
+    \frac{g_{vamn}\widetilde g_{nmav}}{\varepsilon_v+\varepsilon_a - \varepsilon_m-\varepsilon_n}
+  +\sum_{abn}
+    \frac{g_{vnab}\widetilde g_{banv}}{\varepsilon_v+\varepsilon_n-\varepsilon_a-\varepsilon_b}  ,
 \end{equation}$
 
 We define _correlation potential_, $\Sigma$:
 $\begin{equation}
-\delta \varepsilon_v =\langle v | \Sigma |v \rangle
+  \delta \varepsilon_v =\langle v | \Sigma |v \rangle
 \end{equation}$
 
 We then solve the Hartree-Fock equation, including the correlation potential. The solutions are known as _Brueckner orbitals_, and include correlation corrections.
 $\begin{equation}
-[h_{\rm HF} +  \Sigma(\varepsilon)]\phi^{\rm Br} = \varepsilon^{\rm Br}\phi^{\rm Br}
+  [h_{\rm HF} +  \Sigma(\varepsilon)]\phi^{\rm Br} = \varepsilon^{\rm Br}\phi^{\rm Br}
 \end{equation}$
 
-```text
+There are quite a few options available for Correlation corrections (see `ampsci -a Correlations`) -- we will focus on the most important here.
+
+```java
 Correlations{
-  Brueckner = true;
   n_min_core = 3;
   read;
   write;
@@ -322,7 +340,7 @@ Very low core states contribute very little (due to large excitation energy), so
 
 If `each_valence` is true, a new correlation potential will be calculated for each valence state, fully taking energy dependence into account; if false, only 1 $\Sigma$ for $\kappa$ will be formed (i.e. assumes the same energy for calculating $\Sigma$ for each angular symmetry).
 
-```text
+```java
 Correlations{
   // .... above options
   fitTo_cm;
@@ -333,6 +351,35 @@ Correlations{
 `fitTo_cm` takes a list of experimental energies (in ${\rm cm}^{-1}$). A scaling factor $\lambda$ will be introduced in front of the correlation potential, and will be tuned so that energies exactly match those given. This is a semi-empirical method for accounting for hiher-order correlations in wavefunctions.
 `lambda_kappa` is for manually setting the scaling factors.
 Note that for both of these, the input list must be in the exact same order as the valence states - check the 'valence' output.
+
+### Excplicit energy dependence
+
+```java
+Correlations{
+  // .... above options
+  // Block: Explicit list of energies to solve for. e.g., ek{6s+=-0.127;
+  // 7s+=-0.552;}. Blank => HF energies. Takes precidence over each_valence.
+  // [blank]
+  ek{}
+}
+```
+
+Will form the correlation potential $\Sigma(\varepsilon)$ for the listed states at the given energy $\varepsilon$.
+
+```java
+Correlations{
+  // .... above options
+  // Block: Explicit list of energies to solve for. e.g., ek{6s+=-0.127;
+  // 7s+=-0.552;}. Blank => HF energies. Takes precidence over each_valence.
+  // [blank]
+  ek{
+    6s+=-0.127;
+    6p-=-0.127;
+  }
+}
+```
+
+Will use the correlation potential for $\kappa=-1$ and $\varepsilon = -0.127$ for the $6s$ state, and $\kappa=+1$ and $\varepsilon = -0.127$ for the $6p_{1/2}$ state.
 
 -----------
 
@@ -347,18 +394,18 @@ These are taken into account using the _all-orders correlation potential method_
 
 The starying point uses the Feynman technique, in which the direct part of the correlation potential can be expressed
 $\begin{equation}
-\Sigma_{\rm d} = \int\frac{{\rm d}\omega}{2\pi} G_{12}(\varepsilon+\omega) Q_{1i}\Pi_{ij}(\omega) Q_{j2}(\omega),
+  \Sigma_{\rm d} = \int\frac{{\rm d}\omega}{2\pi} G_{12}(\varepsilon+\omega) Q_{1i}\Pi_{ij}(\omega) Q_{j2}(\omega),
 \end{equation}$
 where $G_{12} = G(r_1,r_2)$ in the Hartee-Fock Feynman Green's function, $Q$ is the (non-relativistic) Coulomb operator, and $\Pi$ is the polarisation operator
 (subsripts are coordinate indices; integration is assumed over internal $i$ and $j$). Note that $\Pi$ represents polarisation of the atomic core.
 
 The screening of the coulomb interaction can be represented by a series of polarisation corrections
 $\begin{equation}
-\widetilde Q \equiv  Q + \ Q(-i\, \Pi  Q) +  Q(-i\, \Pi  Q)^2+\ldots
+  \widetilde Q \equiv  Q + \ Q(-i\, \Pi  Q) +  Q(-i\, \Pi  Q)^2+\ldots
 \end{equation}$
 which can be summed exactly:
 $\begin{equation}
-\widetilde Q(\omega) = Q\left[1+i\,\Pi(\omega) Q\right]^{-1}.
+  \widetilde Q(\omega) = Q\left[1+i\,\Pi(\omega) Q\right]^{-1}.
 \end{equation}$
 The screening is accounted for in the direct diagrams via $Q\to \widetilde Q$ for _one_ of the Coulomb operators in $\Sigma_{\rm d}$.
 (Screening for exchange diagrams is taken into account in a simpler fasion, see pdf for details).
@@ -366,21 +413,31 @@ The screening is accounted for in the direct diagrams via $Q\to \widetilde Q$ fo
 The hole-particle interaction arises due to the deviation of the Hartree-Fock potential for the excited core electron in the polarisation loop from that for the non-excited one.
 The potential that simultaneously describes the occupied core and excited states is
 $\begin{equation}
-\hat V = V^{N-1} - (1-\hat P_{\rm core})V_0 (1-\hat P_{\rm core}),
+  \hat V = V^{N-1} - (1-\hat P_{\rm core})V_{\rm self} (1-\hat P_{\rm core}),
 \end{equation}$
-where $P_{\rm core}$ is the operator of projection onto the core, and $V_0$ is the zero-multipolarity potential for the outgoing electron (self-interaction part of Hartree-Fock potential).
+where $P_{\rm core}$ is the operator of projection onto the core, and $V_{\rm self}$ is the self-interaction part of the Hartree-Fock potential for the outgoing electron.
 Therefore, hole-particle interaction is accounted for by using this potential when forming the polarisation operator.
 
 To include all-orders correlations, the `Feynman`, `screening`, and `holeParticle` options in the `Correlations{}` block should be set to `true`.
+Alternativel, just set `AllOrder=true;`
 
-```js
+```java
 Correlations{
-  Brueckner = true;
   n_min_core = 3;
   each_valence = true;
   Feynman = true;
   screening = true;
   holeParticle = true;
+}
+```
+
+equivilant to:
+
+```java
+Correlations{
+  n_min_core = 3;
+  each_valence = true;
+  AllOrder = true;
 }
 ```
 
@@ -391,3 +448,50 @@ Note: currently, there is a numerical problem in calculating polarisation loop f
 Best to set `n_min_core = 2` for Rb, `n_min_core = 3` for Cs, `n_min_core = 4` for Fr etc.
 The effect of this is negligable, as can be checked by seeing impact on second-order results.
 This should be addressed soon.
+
+Note also: it is currently not possible to correctly account for Breit Hamiltonian within the all-orders method (problem is in construction of Green's function).
+Therefore, Breit should only be included at second-order level.
+
+-----------
+
+## MBPT for matrix elements: Core Polarisation/RPA <a name="rpa"></a>
+
+Core polarisation (RPA) is included in the matrix elements.
+
+The best method to use is TDHF, which is numerically stable, and includes contribution from negative energy states automatically.
+However, it doesn't work (at the moment) for even parity operators, so for these we must use the diagram method.
+The diagram method uses `Basis{}` for internal summations, so one should ensure the basis is complete enough for this to work.
+
+-----------
+
+## MBPT for matrix elements: Structure Radiation <a name="sructrad"></a>
+
+To improve tha accuracy of matrix elements, structure radiation and normalisation corrections should be included.
+There is an option to do this in the MatrixElements module.
+There is also a `Module::StructureRad` module, which gives some finer control.
+
+```java
+// Available Module::matrixElements options/blocks
+Module::matrixElements{
+  //.... same as before
+
+  // Options for Structure Radiation and normalisation (details below)
+  StructureRadiation{}
+}
+
+
+// Available StructureRadiation options/blocks
+StructureRadiation{
+  // If this block is included, SR + Normalisation corrections will be included
+
+  // filename for QkTable file. If blank will not use QkTable; if exists, will
+  // read it in; if doesn't exist, will create it and write to disk. Save time
+  // (10x) at cost of memory. Note: Using QkTable implies splines used for
+  // diagram legs
+  Qk_file;
+  // list; min,max n for core/excited: [1,inf]
+  n_minmax;
+}
+```
+
+If a Qk filename is given, program will first calculate all required Q^k Coulomb integrals before calculating structure radiation. This speeds up the calculation, at a great memory cost.

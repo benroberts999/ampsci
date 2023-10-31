@@ -8,6 +8,7 @@ This assumes you already have ampsci compiled.
 
 * See [doc/compilation.md](/doc/compilation.md) for compilation instructions
 * See [doc/tutorial_advanced.md](/doc/tutorial_advanced.md) for a more advanced tutorial, including correlation corrections
+* and [doc/tutorial_CI.md](/doc/tutorial_CI.md) for tutorial on Configuration Interaction (+MBPT) calculations for two-valence systems
 
 ## Contents
 
@@ -90,25 +91,37 @@ Firstly, we can use the code to tell us which input options are available using 
 This will print the list of available top-level "Input Blocks".
 The output will look something like this:
 
-```text
-Available ampsci options/blocks are:
+```java
+// Available ampsci options/blocks
 ampsci{
-  /*
-  Format for descriptions are:
- Description [default_value]
- Blocks end with '{}', options end with ';'
-  */
-  Atom{}        // Which atom to run for
-  Grid{}        // Set radial grid parameters
-  HartreeFock{} // Options for Solving atomic system
-  Nucleus{}     // Set nuclear parameters
-  RadPot{}      // Inlcude QED radiative potential
-  Basis{}       // Basis of HF eigenstates used for MBPT
-  Spectrum{}    // Like basis, but includes correlations. Used for sum-over-states
-  Correlations{}        // Options for correlations
-  ExtraPotential{}      // Include an extra potential. Rarely used.
-  dVpol{}       // Approximate correlation (polarisation) potential. Rarely used.
-  Module::*{}   // Run any number of modules (* -> module name)
+  // These are the top-level ampsci input blocks and options. Default values are
+  // given in square brackets following the description: [default_value]. Blocks
+  // end with '{}', options end with ';'. run `ampsci -a BlockName` (for any of
+  // the following blocks) to see all the options available for that block.
+
+  // Which atom to run for
+  Atom{}
+  // Set nuclear parameters
+  Nucleus{}
+  // Set radial grid/lattice parameters
+  Grid{}
+  // Options for solving atomic system
+  HartreeFock{}
+  // Inlcude QED radiative potential
+  RadPot{}
+  // Include an extra effective potential. Rarely used.
+  ExtraPotential{}
+  // Basis of HF eigenstates used for MBPT
+  Basis{}
+  // Options for MBPT and correlation corrections
+  Correlations{}
+  // Like basis, but includes correlations. Used for sum-over-states
+  Spectrum{}
+  // Configuration Interaction
+  CI{}
+  // Run any number of modules (* -> module name). `ampsci -m` to see available
+  // modules
+  Module::*{}
 }
 ```
 
@@ -145,31 +158,53 @@ We can list more than one block name for this. For example, try:
 
 which will give something like:
 
-```text
-Available Grid options/blocks are:
+```java
+// Available Grid options/blocks
 Grid{
-  /*
-  Options for radial grid (lattice) used for integrations, solving equations and storing oritals. All relevant quantities are in units of Bohr radius (aB).
-  */
-  r0;   // Initial grid point, in aB [1.0e-6]
-  rmax; // Finial grid point [120.0]
-  num_points;   // Number of grid points [2000]
-  type; // Type of grid: loglinear, logarithmic, linear [loglinear]
-  b;    // Only used for loglinear: grid is ~ logarithmic for r<b, linear for r>b [rmax/3]
-  du;   // du is uniform grid step size; set this instead of num_points - will override num_points [default set by num_points]. Rarely used.
+  // Options for radial grid (lattice) used for integrations, solving equations
+  // and storing oritals. All relevant quantities are in units of Bohr radius
+  // (aB).
+
+  // Initial grid point, in aB [1.0e-6]
+  r0;
+  // Finial grid point [120.0]
+  rmax;
+  // Number of grid points [2000]
+  num_points;
+  // Type of grid: loglinear, logarithmic, linear [loglinear]
+  type;
+  // Only used for loglinear: grid is ~ logarithmic for r<b, linear for r>b
+  // [rmax/3]
+  b;
+  // du is uniform grid step size; set this instead of num_points - will
+  // override num_points [default set by num_points]. Rarely used.
+  du;
 }
 
-Available HartreeFock options/blocks are:
+
+// Available HartreeFock options/blocks
 HartreeFock{
-  /*
-  Options for solving lowest-order atomic wavefunction
-  */
-  core; // Core configuration. Either list entire core, or use [At] short-hand. e.g., [He] equivilant to 1s2; [Xe],6s1 equivilant to [Cs] and to 1s2,2s2,...,5p6,6s1. [blank by default]
-  valence;      // e.g., 7sp5d will include valence states up to n=7 for s and p, but n=5 for d states. Automatically excludes states in the core. [blank by default]
-  eps;  // HF convergance goal [1.0e-13]
-  method;       // HartreeFock, Hartree, KohnSham, Local [HartreeFock]
-  Breit;        // Scale for factor for Breit Hamiltonian. Usially 0.0 (no Breit) or 1.0 (full Breit), but can take any value. [0.0]
-  sortOutput;   // Sort energy tables by energy? [false]
+  // Options for solving lowest-order atomic wavefunction
+
+  // Core configuration. Either list entire core, or use [At] short-hand. e.g.,
+  // [He] equivilant to 1s2; [Xe],6s1 equivilant to [Cs] and to
+  // 1s2,2s2,...,5p6,6s1. Instead of one of the commas, you may use a ':' -
+  // states above this are included into the core, but not excluded from the
+  // valence list. Use this method for KohnSham, for example. [blank by default]
+  core;
+  // Valence configuration in `basis string' format. e.g., 7sp5df will include
+  // valence states up to  n=7 for s and p, and up to n=5 for d and f states.
+  // Automatically excludes states in the core (except those above the optional
+  // ':'). [blank by default]
+  valence;
+  // HF convergance goal [1.0e-13]
+  eps;
+  // Method for mean-field approximation: HartreeFock, Hartree, KohnSham, Local
+  // [HartreeFock]
+  method;
+  // Scale for factor for Breit Hamiltonian. Usially 0.0 (no Breit) or 1.0 (full
+  // Breit), but can take any value. [0.0]
+  Breit;
 }
 ```
 
@@ -179,7 +214,7 @@ We will use the above to create our first simple
 We will call this text file `example.in`, but any filename is OK (the `.in` file extension is just by convention; you may use `.txt` or anything else).
 We may then set up the input file like:
 
-```js
+```java
 // example.in
 Atom{
   Z = Cs; // Or Z = 55;
@@ -411,16 +446,46 @@ To see the available options for this block, list the block name after `-m` on t
 
 which prints:
 
-```text
-Available Module::Matrixelements options/blocks are:
-Module::Matrixelements{
-  operator;     // e.g., E1, hfs
-  options{}     // options specific to operator; blank by dflt
-  rpa;  // true(=TDHF), false, TDHF, basis, diagram
-  omega;        // Text or number. Freq. for RPA. Put 'each' to solve at correct frequency for each transition. [0.0]
-  radialIntegral;       // false by dflt (means red. ME)
-  printBoth;    // print <a|h|b> and <b|h|a> (dflt false)
-  onlyDiagonal; // only <a|h|a> (dflt false)
+```java
+// Available Module::matrixElements options/blocks
+Module::matrixElements{
+  // e.g., E1, hfs (see ampsci -o for available operators)
+  operator;
+  // options specific to operator (see ampsci -o 'operator')
+  options{}
+  // Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]
+  rpa;
+  // Text or number. Freq. for RPA (and freq. dependent operators). Put 'each'
+  // to solve at correct frequency for each transition. [0.0]
+  omega;
+  // What to calculate: rme (reduced ME), A (hyperfine A/B coeficient). Default
+  // is rme, except when operator=hfs, in which case default is A
+  what;
+  // print <a|h|b> and <b|h|a> [false]
+  printBoth;
+  // If true (and spectrum available), will use spectrum for valence states AND
+  // for RPA (if diagram method), AND for SR+N [false]
+  use_spectrum;
+  // Calculate diagonal matrix elements (if non-zero) [true]
+  diagonal;
+  // Calculate off-diagonal matrix elements (if non-zero) [true]
+  off-diagonal;
+  // Options for Structure Radiation and normalisation (details below)
+  StructureRadiation{}
+}
+
+
+// Available StructureRadiation options/blocks
+StructureRadiation{
+  // If this block is included, SR + Normalisation corrections will be included
+
+  // filename for QkTable file. If blank will not use QkTable; if exists, will
+  // read it in; if doesn't exist, will create it and write to disk. Save time
+  // (10x) at cost of memory. Note: Using QkTable implies splines used for
+  // diagram legs
+  Qk_file;
+  // list; min,max n for core/excited: [1,inf]
+  n_minmax;
 }
 ```
 
@@ -438,9 +503,9 @@ The second option, which is a sub-input-block, `options` is the set of options f
 ```
 
 Here we will consider the simpler `E1` operator.
-To our above `exampl.in` file, we can add the following block (note we may add as many Module:: blocks as we like, they will all be run one-by-one in order):
+To our above `example.in` file, we can add the following block (note we may add as many Module:: blocks as we like, they will all be run one-by-one in order):
 
-```js
+```java
 // example.in
 // ... above input options ...
 Module::Matrixelements{
