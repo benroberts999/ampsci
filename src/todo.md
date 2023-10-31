@@ -2,9 +2,9 @@
 
 ## CI
 
+* Allow use of Yk, instead of Qk, to save memory
 * Update solutions:
   * re-calculate more?
-  * Check if any didn't converge
   * Control over tolerance?
 * Option for E-denominator type
 * Screening for Sigma(2)
@@ -90,6 +90,10 @@
   * Parallelised inefficiently (#6): thread-safe shared_ptr?
   * Fewer allocations?
   * Particularly noticable with Breit
+* Breit
+  * Inneficient calculations?
+* Struc Rad
+  * Inneficient, not parellised efficiently?
 
 ## Improve/modernise
 

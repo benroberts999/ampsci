@@ -15,6 +15,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
+#include "fmt/ostream.hpp"
 #include "qip/String.hpp"
 #include <fstream>
 #include <iostream>
@@ -29,19 +30,42 @@ namespace Module {
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check(
       {{"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
-       {"options{}", "options specific to operator"},
+       {"options{}", "options specific to operator (see ampsci -o 'operator')"},
        {"rpa",
         "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]"},
        {"omega",
         "Text or number. Freq. for RPA (and freq. dependent operators). Put "
         "'each' to solve at correct frequency for each transition. [0.0]"},
        {"what", "What to calculate: rme (reduced ME), A (hyperfine A/B "
-                "coeficient), radial_integral. Default is rme, except when "
+                "coeficient). Default is rme, except when "
                 "operator=hfs, in which case default is A"},
        {"printBoth", "print <a|h|b> and <b|h|a> [false]"},
+       {"use_spectrum",
+        "If true (and spectrum available), will use spectrum for valence "
+        "states AND for RPA (if diagram method), AND for SR+N [false]"},
        {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
        {"off-diagonal",
-        "Calculate off-diagonal matrix elements (if non-zero) [true]"}});
+        "Calculate off-diagonal matrix elements (if non-zero) [true]"},
+       {"StructureRadiation{}",
+        "Options for Structure Radiation and normalisation (details below)"}});
+
+  const auto t_SR_input = input.getBlock("StructureRadiation");
+  auto SR_input =
+      t_SR_input ? *t_SR_input : IO::InputBlock{"StructureRadiation"};
+  if (input.has_option("help")) {
+    SR_input.add("help;");
+  }
+  SR_input.check(
+      {{"", "If this block is included, SR + Normalisation "
+            "corrections will be included"},
+       //  {"rpa", "Include RPA within SR+N? [true]"},
+       {"Qk_file",
+        "filename for QkTable file. If blank will not use QkTable; if "
+        "exists, will read it in; if doesn't exist, will create it and write "
+        "to disk. Save time (10x) at cost of memory. Note: Using QkTable "
+        "implies splines used for diagram legs"},
+       {"n_minmax", "list; min,max n for core/excited: [1,inf]"}});
+
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -59,7 +83,6 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto default_what = oper == "hfs" ? "A" : "rme";
   const auto what = input.get<std::string>("what", default_what);
-  const bool radial_int = qip::ci_wc_compare(what, "radial*");
   const bool hf_AB =
       oper == "hfs" && h->rank() <= 2 &&
       (qip::ci_wc_compare(what, "A*") || qip::ci_wc_compare(what, "B*"));
@@ -67,8 +90,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool diagonal = input.get("diagonal", true);
   const bool off_diagonal = input.get("off-diagonal", true);
 
-  const auto which_str = radial_int              ? "(radial integral)." :
-                         hf_AB && h->rank() == 1 ? "(HFS constant A)." :
+  const auto which_str = hf_AB && h->rank() == 1 ? "(HFS constant A)." :
                          hf_AB && h->rank() == 2 ? "(HFS constant B)." :
                                                    "(reduced).";
 
@@ -78,6 +100,11 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "Units: " << h->units() << "\n";
 
   const bool print_both = input.get("printBoth", false);
+  const auto use_spectrum =
+      wf.spectrum().empty() ? false : input.get("use_spectrum", false);
+  if (use_spectrum) {
+    std::cout << "Using Spectrum (instead of valence) for matrix elements\n";
+  }
 
   // RPA:
   auto rpa_method_str = input.get("rpa", std::string("true"));
@@ -107,28 +134,216 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                  "operator.\n Consider using diagram or basis method\n\n";
   }
 
-  const auto mes = ExternalField::calcMatrixElements(
-      wf.valence(), h.get(), rpa.get(), omega, eachFreqQ, diagonal,
-      off_diagonal, print_both);
+  // For SR+N
+  std::optional<MBPT::StructureRad> sr;
+  if (t_SR_input) {
+    // min/max n (for core/excited basis)
+    const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
+    const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+    const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
+    const auto Qk_file = SR_input.get("Qk_file", std::string{""});
 
-  std::cout << (rpaQ ? ExternalField::MEdata::title() :
-                       ExternalField::MEdata::title_noRPA())
-            << "\n";
-  for (const auto &[a, b, w_ab, hab, dv] : mes) {
-
-    const auto Fa = *wf.getState(a);
-    const auto Fb = *wf.getState(b);
-    const auto factor = radial_int ? 1.0 / h->angularF(Fa.kappa(), Fb.kappa()) :
-                        hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                    h->rank(), Fa.kappa(), Fb.kappa()) :
-                                1.0;
-
-    printf(" %4s %4s  %8.5f  %13.6e", a.c_str(), b.c_str(), w_ab, factor * hab);
-    if (dv != 0.0) {
-      printf("  %13.6e", factor * (hab + dv));
+    std::cout
+        << "\nIncluding Structure radiation and normalisation of states:\n";
+    if (n_min > 1)
+      std::cout << "Including from n = " << n_min << "\n";
+    if (n_max < 999)
+      std::cout << "Including to n = " << n_max << "\n";
+    if (!Qk_file.empty()) {
+      std::cout
+          << "Will read/write Qk integrals to file: " << Qk_file
+          << "\n  -- Note: means spline/basis states used for spline legs\n";
+    } else {
+      std::cout << "Will calculate Qk integrals on-the-fly\n";
     }
-    std::cout << "\n";
+    std::cout << std::flush;
+
+    sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max},
+                            Qk_file);
   }
+
+  const auto pi = h->parity();
+
+  // ability to use spectrum instead of valence
+  std::vector<DiracSpinor> t_orbs;
+  if (use_spectrum) {
+    for (const auto &v : wf.valence()) {
+      const auto t = std::find(wf.spectrum().cbegin(), wf.spectrum().cend(), v);
+      if (t != wf.spectrum().cend()) {
+        t_orbs.push_back(*t);
+      }
+    }
+  }
+  const auto &orbs = use_spectrum ? t_orbs : wf.valence();
+
+  if (h->freqDependantQ() && !eachFreqQ) {
+    h->updateFrequency(omega);
+  }
+
+  if (rpa && !eachFreqQ) {
+    rpa->solve_core(omega);
+  }
+
+  std::stringstream os;
+
+  //----------------------------------------------------
+  // First, diagonal:
+  if (diagonal && h->parity() == 1) {
+
+    if (eachFreqQ && h->freqDependantQ()) {
+      h->updateFrequency(0.0);
+    }
+    if (eachFreqQ && rpa) {
+      rpa->solve_core(0.0);
+    }
+
+    for (const auto &a : orbs) {
+
+      if (h->isZero(a.kappa(), a.kappa()))
+        continue;
+      fmt::print("\n{}\n", a.shortSymbol());
+
+      const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                      h->rank(), a.kappa(), a.kappa()) :
+                                  1.0;
+
+      const auto hab = h->reducedME(a, a);
+      const auto dv = rpa ? rpa->dV(a, a) : 0.0;
+      const auto sub_tot = factor * (hab + dv);
+
+      fmt::print("RME: {:15.8e}", hab);
+      if (rpa)
+        fmt::print(" + {:15.8e} = {:15.8e}", dv, hab + dv);
+      fmt::print("\n");
+      if (factor != 1.0) {
+        fmt::print("RME to A/B factor: {:13.8e}", factor);
+        fmt::print("A/B: {:15.8e}", factor * hab);
+        if (rpa)
+          fmt::print(" + {:15.8e} = {:15.8e}", factor * dv, sub_tot);
+        fmt::print("\n");
+      }
+
+      const auto ww = 0.0;
+
+      fmt::print(os, " {:4s} {:4s}  {:10.7f}  {:13.6e}", a.shortSymbol(),
+                 a.shortSymbol(), ww, factor * hab);
+      if (dv != 0.0) {
+        fmt::print(os, "  {:13.6e}", factor * (hab + dv));
+      }
+      if (sr) {
+        const auto [tb, dvtb] = sr->srTB(h.get(), a, a, 0.0, rpa.get());
+        fmt::print("SR0: {:15.8e} + ", factor * tb);
+        const auto [c, dvc] = sr->srC(h.get(), a, a, rpa.get());
+        fmt::print("{:15.8e} + ", factor * c);
+        const auto [n, dvn] = sr->norm(h.get(), a, a, rpa.get());
+        const auto sr0 = (tb + c + n) * factor;
+        fmt::print("{:15.8e} = {:15.8e}\n", factor * n, sr0);
+        const auto sr_rpa = (dvtb + dvc + dvn) * factor;
+        if (rpa)
+          fmt::print("SRr: {:15.8e} + {:15.8e} + {:15.8e} = {:15.8e}\n",
+                     factor * dvtb, factor * dvc, factor * dvn, sr_rpa);
+        fmt::print("Tot: {:15.8e}\n", sub_tot + sr_rpa);
+        fmt::print(os, "  {:13.6e}", sub_tot + sr_rpa);
+      }
+
+      fmt::print(os, "\n");
+    }
+  }
+
+  //----------------------------------------------------
+  // Then, off-diagonal:
+  if (off_diagonal) {
+    for (std::size_t ib = 0; ib < orbs.size(); ib++) {
+      const auto &b = orbs.at(ib);
+      for (std::size_t ia = 0; ia < orbs.size(); ia++) {
+        const auto &a = orbs.at(ia);
+
+        if (a == b)
+          continue;
+        if (h->isZero(a.kappa(), b.kappa()))
+          continue;
+
+        // Ensure even-parity state on right for odd-parity operators
+        if (pi == -1) {
+          if (!print_both && b.parity() == -1)
+            continue;
+        } else {
+          if (!print_both && ib > ia)
+            continue;
+        }
+
+        const auto ww = eachFreqQ ? std::abs(a.en() - b.en()) : 0.0;
+        const auto ww_s = a.en() - b.en();
+
+        fmt::print("\n{} - {} : {:.8f}\n", a.shortSymbol(), b.shortSymbol(),
+                   ww_s);
+
+        if (eachFreqQ && h->freqDependantQ()) {
+          h->updateFrequency(ww);
+        }
+        if (eachFreqQ && rpa) {
+          if (rpa->get_eps() > 1.0e-5)
+            rpa->clear();
+          rpa->solve_core(ww);
+        }
+
+        const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                        h->rank(), a.kappa(), b.kappa()) :
+                                    1.0;
+
+        const auto hab = h->reducedME(a, b);
+        const auto dv = rpa ? rpa->dV(a, b) : 0.0;
+        const auto sub_tot = factor * (hab + dv);
+
+        fmt::print("RME: {:15.8e}", hab);
+        if (rpa)
+          fmt::print(" + {:15.8e} = {:15.8e}", dv, hab + dv);
+        fmt::print("\n");
+        if (factor != 1.0) {
+          fmt::print("RME to A/B factor: {:13.8e}", factor);
+          fmt::print("A/B: {:15.8e}", factor * hab);
+          if (rpa)
+            fmt::print(" + {:15.8e} = {:15.8e}", factor * dv, sub_tot);
+          fmt::print("\n");
+        }
+
+        fmt::print(os, " {:4s} {:4s}  {:10.7f}  {:13.6e}", a.shortSymbol(),
+                   b.shortSymbol(), ww_s, factor * hab);
+        if (dv != 0.0) {
+          fmt::print(os, "  {:13.6e}", factor * (hab + dv));
+        }
+        if (sr) {
+          fmt::print("SR0: ");
+          std::cout << std::flush;
+          const auto [tb, dvtb] = sr->srTB(h.get(), a, b, ww, rpa.get());
+          fmt::print("{:15.8e} + ", factor * tb);
+          std::cout << std::flush;
+          const auto [c, dvc] = sr->srC(h.get(), a, b, rpa.get());
+          fmt::print("{:15.8e} + ", factor * c);
+          std::cout << std::flush;
+          const auto [n, dvn] = sr->norm(h.get(), a, b, rpa.get());
+          const auto sr0 = (tb + c + n) * factor;
+          std::cout << std::flush;
+          fmt::print("{:15.8e} = {:15.8e}\n", factor * n, sr0);
+          const auto sr_rpa = (dvtb + dvc + dvn) * factor;
+          if (rpa)
+            fmt::print("SRr: {:15.8e} + {:15.8e} + {:15.8e} = {:15.8e}\n",
+                       factor * dvtb, factor * dvc, factor * dvn, sr_rpa);
+          fmt::print("Tot: {:15.8e}\n", sub_tot + sr_rpa);
+          fmt::print(os, "  {:13.6e}", sub_tot + sr_rpa);
+        }
+        fmt::print(os, "\n");
+      }
+    }
+  }
+
+  std::cout << "\n   a    b    w_ab        t0_ab";
+  if (rpaQ)
+    std::cout << "          +RPA ";
+  if (sr)
+    std::cout << "          +SRN";
+  std::cout << "\n";
+  std::cout << os.str();
 }
 
 //============================================================================
@@ -143,8 +358,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
        {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
        {"onlyDiagonal", "only <a|h|a> (dflt false)"},
        {"Qk_file",
-        "filename for QkTable file. If blank will not use QkTable; if exists, "
-        "will read it in; if doesn't exist, will create it and write to disk. "
+        "filename for QkTable file. If blank will not use QkTable; if "
+        "exists, "
+        "will read it in; if doesn't exist, will create it and write to "
+        "disk. "
         "Save time (10x) at cost of memory. Note: Using QkTable implies "
         "splineLegs=true"},
        {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
@@ -364,28 +581,44 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 // Calculates matrix elements for CI wavefunctions
 void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   //
-  input.check({
-      {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
-      {"options{}", "options specific to operator"},
-      {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram"},
-      {"omega",
-       "Text or number. Freq. for RPA (and freq. dependent operators). Put "
-       "'each' to solve at correct frequency for each transition. [0.0]"},
-      {"J", "List of angular momentum Js to calculate matrix elements for. If "
-            "blank, all available Js will be calculated. Must be integers "
-            "(two-electron only)."},
-      {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
-      {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
-      {"num_solutions", "Maximum solution number to calculate MEs for. If "
-                        "blank, will calculate all."},
-      // {"what", "What to calculate: rme (reduced ME), A (hyperfine A/B "
-      //          "coeficient). Default is rme, except when "
-      //          "operator=hfs, in which case default is A"}
-      //           ,
-      //  {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
-      //  {"off-diagonal",
-      //   "Calculate off-diagonal matrix elements (if non-zero) [true]"}
-  });
+  input.check(
+      {{"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
+       {"options{}", "options specific to operator"},
+       {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram"},
+       {"ci_basis",
+        "Re-list the CI basis used in CI{} for more efficient ME calculations "
+        "[20spdf]. Only matrix elements between these states included"},
+       {"omega",
+        "Text or number. Freq. for RPA (and freq. dependent operators). Put "
+        "'each' to solve at correct frequency for each transition. [0.0]"},
+       {"J", "List of angular momentum Js to calculate matrix elements for. If "
+             "blank, all available Js will be calculated. Must be integers "
+             "(two-electron only)."},
+       {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
+       {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
+       {"num_solutions", "Maximum solution number to calculate MEs for. If "
+                         "blank, will calculate all."},
+       {"StructureRadiation{}",
+        "Options for Structure Radiation and normalisation (details below)"}});
+
+  // Check for Struc Rad
+  const auto t_SR_input = input.getBlock("StructureRadiation");
+  auto SR_input =
+      t_SR_input ? *t_SR_input : IO::InputBlock{"StructureRadiation"};
+  if (input.has_option("help")) {
+    SR_input.add("help;");
+  }
+  SR_input.check(
+      {{"", "If this block is included, SR + Normalisation "
+            "corrections will be included"},
+       //  {"rpa", "Include RPA within SR+N? [true]"},
+       {"Qk_file",
+        "filename for QkTable file. If blank will not use QkTable; if "
+        "exists, will read it in; if doesn't exist, will create it and write "
+        "to disk. Save time (10x) at cost of memory. Note: Using QkTable "
+        "implies splines used for diagram legs"},
+       {"n_minmax", "list; min,max n for core/excited: [1,inf]"}});
+
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -425,6 +658,38 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
                                      wf.basis(), wf.identity());
 
+  const auto basis_string = input.get("ci_basis", std::string{"20spdf"});
+  const std::vector<DiracSpinor> ci_basis =
+      CI::basis_subset(wf.basis(), basis_string, wf.coreConfiguration());
+
+  std::optional<MBPT::StructureRad> sr;
+  if (t_SR_input) {
+    // min/max n (for core/excited basis)
+    const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
+    const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+    const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
+    const auto Qk_file = SR_input.get("Qk_file", std::string{""});
+
+    std::cout
+        << "\nIncluding Structure radiation and normalisation of states:\n";
+    if (n_min > 1)
+      std::cout << "Including from n = " << n_min << "\n";
+    if (n_max < 999)
+      std::cout << "Including to n = " << n_max << "\n";
+    if (!Qk_file.empty()) {
+      std::cout
+          << "Will read/write Qk integrals to file: " << Qk_file
+          << "\n  -- Note: means spline/basis states used for spline legs\n";
+    } else {
+      std::cout << "Will calculate Qk integrals on-the-fly\n";
+    }
+    std::cout << std::flush;
+
+    sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max},
+                            Qk_file);
+  }
+  const MBPT::StructureRad *const p_sr = sr ? &*sr : nullptr;
+
   if ((h->parity() == 1) && rpa &&
       rpa->method() == ExternalField::Method::TDHF) {
     fmt2::warning();
@@ -442,6 +707,10 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
         << "Frequency-dependent operator at frequency of each transition\n";
   }
 
+  if (eachFreqQ && p_sr) {
+    std::cout << "Warning: SR+N will take a long time..\n";
+  }
+
   if (!eachFreqQ && rpa) {
     std::cout << "Solving RPA at fixed frequency: w=" << omega << "\n";
     rpa->solve_core(omega);
@@ -452,7 +721,9 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   Coulomb::meTable<double> me_tab;
   if (!eachFreqQ || !h->freqDependantQ()) {
-    me_tab = ExternalField::me_table(wf.basis(), h.get(), rpa.get());
+    std::cout << "Calculate matrix element table:\n" << std::flush;
+    // XXX Don't need full basis here! just valence part!
+    me_tab = ExternalField::me_table(ci_basis, h.get(), rpa.get(), p_sr, omega);
   }
 
   const auto J_list =
@@ -472,7 +743,10 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       rpa->solve_core(t_omega, 50, false);
     }
     if (eachFreqQ && h->freqDependantQ()) {
-      me_tab = ExternalField::me_table(wf.basis(), h.get());
+      std::cout << "Re-calculate matrix element table:\n" << std::flush;
+      // XXX Don't need full basis here! just valence part!
+      me_tab =
+          ExternalField::me_table(ci_basis, h.get(), rpa.get(), p_sr, t_omega);
     }
 
     const auto me =
@@ -547,17 +821,14 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Ja  # conf     - Jb  # conf      w_ab     t_ab\n";
   }
 
-  me_calculator(J_even_list, 1, J_odd_list, -1, true);
-  me_calculator(J_odd_list, -1, J_even_list, 1, true);
+  // diagonal:
+  me_calculator(J_even_list, 1, J_even_list, 1, true);
+  me_calculator(J_odd_list, -1, J_odd_list, -1, true);
 
-  // never exist:
-  // me_calculator(J_even_list, 1, J_even_list, 1, true);
-  // me_calculator(J_odd_list, -1, J_odd_list, -1, true);
-
+  // off-diagonal:
+  me_calculator(J_even_list, 1, J_even_list, 1, false);
   me_calculator(J_even_list, 1, J_odd_list, -1, false);
   me_calculator(J_odd_list, -1, J_even_list, 1, false);
-
-  me_calculator(J_even_list, 1, J_even_list, 1, false);
   me_calculator(J_odd_list, -1, J_odd_list, -1, false);
 }
 

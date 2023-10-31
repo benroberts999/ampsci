@@ -110,14 +110,31 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
 Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
                                   const std::vector<DiracSpinor> &b_orbs,
                                   const DiracOperator::TensorOperator *h,
-                                  const CorePolarisation *dV) {
+                                  const CorePolarisation *dV,
+                                  const MBPT::StructureRad *srn,
+                                  std::optional<double> omega) {
 
   Coulomb::meTable<double> h_ab;
 
   const auto a_is_b = &a_orbs == &b_orbs;
 
-  for (auto &a : a_orbs) {
-    for (auto &b : b_orbs) {
+  for (const auto &a : a_orbs) {
+    for (const auto &b : b_orbs) {
+      if (b < a && a_is_b)
+        continue;
+      if (h->isZero(a, b))
+        continue;
+      h_ab.add(a, b, 0.0);
+      if (a != b) {
+        h_ab.add(b, a, 0.0);
+      }
+    }
+  }
+
+#pragma omp parallel for
+  for (std::size_t i = 0; i < a_orbs.size(); ++i) {
+    const auto &a = a_orbs[i];
+    for (const auto &b : b_orbs) {
 
       if (b < a && a_is_b)
         continue;
@@ -125,11 +142,17 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
       if (h->isZero(a, b))
         continue;
 
-      const auto me = h->reducedME(a, b) + (dV ? dV->dV(a, b) : 0.0);
+      const auto ww = omega ? *omega : std::abs(b.en() - a.en()); // abs?
 
-      h_ab.add(a, b, me);
+      const auto tab = h->reducedME(a, b);
+      const auto dv = dV ? dV->dV(a, b) : 0.0;
+      const auto sr = srn ? srn->srn(h, a, b, ww, dV).second : 0.0;
+
+      const auto me = tab + dv + sr;
+
+      h_ab.update(a, b, me);
       if (a != b) {
-        h_ab.add(b, a, h->symm_sign(a, b) * me);
+        h_ab.update(b, a, h->symm_sign(a, b) * me);
       }
     }
   }

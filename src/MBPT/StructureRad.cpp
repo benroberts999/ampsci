@@ -55,15 +55,10 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
 
   const auto k = h->rank();
 
-  const std::size_t num_para_threads = std::size_t(omp_get_max_threads());
-
-  std::vector<double> sr(num_para_threads);
-  std::vector<double> sr_dv(num_para_threads);
-
-#pragma omp parallel for num_threads(num_para_threads)
+  double tb{0.0}, dv{0.0};
+#pragma omp parallel for reduction(+ : tb) reduction(+ : dv)
   for (auto ir = 0ul; ir < mExcited.size(); ++ir) {
     const auto &r = mExcited[ir];
-    const auto tid = std::size_t(omp_get_thread_num());
     for (const auto &a : mCore) {
 
       if (h->isZero(a.kappa(), r.kappa()))
@@ -73,25 +68,21 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
       const auto inv_era_mw = 1.0 / (r.en() - a.en() - omega);
 
       const auto t_ar = h->reducedME(a, r);
-      const auto t_ra = h->symm_sign(a, r) * t_ar; // h->reducedME(r, a);
+      const auto t_ra = h->symm_sign(a, r) * t_ar;
 
       const auto T_wrva = t1234(k, w, r, v, a);
       const auto B_wavr = v == w ? T_wrva : b1234(k, w, a, v, r);
 
-      sr[tid] += (t_ar * T_wrva * inv_era_pw) + (t_ra * B_wavr * inv_era_mw);
+      tb += (t_ar * T_wrva * inv_era_pw) + (t_ra * B_wavr * inv_era_mw);
 
       if (dV) {
         const auto dVar = dV->dV(a, r);
         const auto tdv_ar = t_ar + dVar;
         const auto tdv_ra = h->symm_sign(a, r) * tdv_ar;
-        sr_dv[tid] +=
-            (tdv_ar * T_wrva * inv_era_pw) + (tdv_ra * B_wavr * inv_era_mw);
+        dv += (tdv_ar * T_wrva * inv_era_pw) + (tdv_ra * B_wavr * inv_era_mw);
       }
     }
   }
-
-  const auto tb = std::accumulate(cbegin(sr), cend(sr), 0.0);
-  const auto dv = std::accumulate(cbegin(sr_dv), cend(sr_dv), 0.0);
 
   return {tb, dv};
 }
@@ -106,13 +97,8 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
 
   const auto k = h->rank();
 
-  // For parallelisation:
-  const std::size_t num_para_threads = std::size_t(omp_get_max_threads());
-
-  std::vector<double> src(num_para_threads);
-  std::vector<double> src_dv(num_para_threads);
-
-#pragma omp parallel for num_threads(num_para_threads) collapse(2)
+  double c{0.0}, dv{0.0};
+#pragma omp parallel for reduction(- : c) reduction(- : dv)
   for (auto ia = 0ul; ia < mCore.size(); ++ia) {
     for (auto ib = 0ul; ib < mCore.size(); ++ib) {
       const auto &a = mCore[ia];
@@ -125,22 +111,19 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
       const auto C_wavb = c1(k, w, a, v, b) + c2(k, w, a, v, b);
 
       // nb: -ve
-      const auto tid = std::size_t(omp_get_thread_num());
-      src[tid] -= t_ba * C_wavb;
+      c -= t_ba * C_wavb;
 
       if (dV) {
         const auto tdv_ba = t_ba + dV->dV(b, a);
-        src_dv[tid] -= tdv_ba * C_wavb;
+        dv -= tdv_ba * C_wavb;
       }
     }
   }
 
-// collapse(2)
-#pragma omp parallel for num_threads(num_para_threads)
+#pragma omp parallel for reduction(- : c) reduction(- : dv)
   for (auto im = 0ul; im < mExcited.size(); ++im) {
-    const auto &m = mExcited[im];
-    const auto tid = std::size_t(omp_get_thread_num());
     for (const auto &r : mExcited) {
+      const auto &m = mExcited[im];
 
       if (h->isZero(m.kappa(), r.kappa()))
         continue;
@@ -149,19 +132,16 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
       const auto C_wrvm = d2(k, w, r, v, m) + d1(k, w, r, v, m);
 
       // nb: -ve
-      src[tid] -= t_mr * C_wrvm;
+      c -= t_mr * C_wrvm;
 
       if (dV) {
         const auto tdv_mr = t_mr + dV->dV(m, r);
-        src_dv[tid] -= tdv_mr * C_wrvm;
+        dv -= tdv_mr * C_wrvm;
       }
     }
   }
 
-  const auto t = std::accumulate(cbegin(src), cend(src), 0.0);
-  const auto dv = std::accumulate(cbegin(src_dv), cend(src_dv), 0.0);
-
-  return {t, dv};
+  return {c, dv};
 }
 
 //==============================================================================
