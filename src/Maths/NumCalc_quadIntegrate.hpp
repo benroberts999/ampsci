@@ -209,7 +209,8 @@ inline double num_integrate(const std::function<double(double)> &f, double a,
                             double b, long unsigned n_pts,
                             t_grid type = linear) {
   //
-
+  if (a >= b || n_pts <= 1)
+    return 0.0;
   const auto dt = (type == linear) ? (b - a) / double(n_pts - 1) :
                                      std::log(b / a) / double(n_pts - 1);
 

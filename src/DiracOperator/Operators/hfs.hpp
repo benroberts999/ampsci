@@ -47,8 +47,8 @@ inline auto VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl,
   const auto K = (l_pn * (l_pn + 1.0) - (3. / 4.)) / (I_nuc * (I_nuc + 1.0));
   const double g_s = (2.0 * gI - g_l * (K + 1.0)) / (1.0 - K);
   if (print)
-    std::cout << "BW using: gl=" << g_l << ", gs=" << g_s << ", l=" << l_pn
-              << ", gI=" << gI << " (I=" << I_nuc << ")\n";
+    std::cout << "SingleParticle using: gl=" << g_l << ", gs=" << g_s
+              << ", l=" << l_pn << ", gI=" << gI << " (I=" << I_nuc << ")\n";
   const double factor =
       (two_I == two_l + 1) ?
           g_s * (1 - two_I) / (4.0 * (two_I + 2)) + g_l * 0.5 * (two_I - 1) :
@@ -64,6 +64,75 @@ inline auto VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl,
     return (r > rN) ? 1.0 :
                       ((r * r * r) / (rN * rN * rN)) *
                           (1.0 - (3.0 / mu) * std::log(r / rN) * factor);
+  };
+}
+
+//------------------------------------------------------------------------------
+//! Elizarov et al., Optics and Spectroscopy (2006): u(r) = u0(R-r)^n
+inline auto uSP(double mu, double I_nuc, double l_pn, int gl, double n,
+                double R, bool u_option, bool print = true) -> Func_R2_R {
+  const auto two_I = int(2 * I_nuc + 0.0001);
+  const auto two_l = int(2 * l_pn + 0.0001);
+  const auto g_l = double(gl); // just safety
+  const auto gI = mu / I_nuc;
+
+  const auto K = (l_pn * (l_pn + 1.0) - (3. / 4.)) / (I_nuc * (I_nuc + 1.0));
+  const double g_s = (2.0 * gI - g_l * (K + 1.0)) / (1.0 - K);
+  if (print) {
+    std::cout << "uSP using: gl=" << g_l << ", gs=" << g_s << ", l=" << l_pn
+              << ", gI=" << gI << " (I=" << I_nuc << ")\n";
+    if (u_option) {
+      std::cout << "u(r) = u1(r) = u0 (R-r)^n ";
+    } else {
+      std::cout << "u(r) = u2(r) = u0 r^n ";
+    }
+    std::cout << "with n = " << n << "\n";
+  }
+  if (two_I != two_l + 1 && two_I != two_l - 1) {
+    std::cerr << "\nFAIL:59 in Hyperfine (uSP):\n "
+                 "we must have I = l +/- 1/2, but we have: I,l = "
+              << I_nuc << "," << l_pn << "\n";
+    return [](double, double) { return 0.0; };
+  }
+
+  // nb: in theory, can read u(r) in from file!
+  // r^2 * u(r)^2
+  const auto r2u2 = [=](double r) {
+    return u_option ? r * r * std::pow(R - r, 2.0 * n) :
+                      r * r * std::pow(r, 2.0 * n);
+  };
+
+  // normalisation
+  const auto u02 =
+      1.0 / NumCalc::num_integrate(r2u2, 0.0, R, 100, NumCalc::linear);
+
+  const auto F0r = [=](double r) {
+    const auto f = [=](double x) { return u02 * r2u2(x); };
+    return NumCalc::num_integrate(f, 0.0, r, 100, NumCalc::linear);
+  };
+
+  const auto FrR = [=](double r) {
+    const auto f = [=](double x) {
+      return u02 * r2u2(x) * r * r * r / x / x / x;
+    };
+    return NumCalc::num_integrate(f, r, R, 100, NumCalc::linear);
+  };
+
+  const auto two_Ip1 = 2.0 * (I_nuc + 1.0);
+  const auto twoI_p3 = 2.0 * I_nuc + 3.0;
+  const auto twoI_m1 = 2.0 * I_nuc - 1.0;
+
+  double f1 = (two_I == two_l + 1) ?
+                  0.5 * g_s + (I_nuc - 0.5) * g_l :
+                  -I_nuc / two_Ip1 * g_s + I_nuc * twoI_p3 / two_Ip1 * g_l;
+
+  double f2 =
+      (two_I == two_l + 1) ?
+          -twoI_m1 / (4.0 * two_Ip1) * g_s + (I_nuc - 0.5) * g_l :
+          twoI_p3 / (4.0 * two_Ip1) * g_s + I_nuc * twoI_p3 / two_Ip1 * g_l;
+
+  return [=](double r, double rN) {
+    return (r > rN) ? 1.0 : (1.0 / mu) * (f1 * F0r(r) + f2 * FrR(r));
   };
 }
 
@@ -212,7 +281,10 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
        {"l1", "l of 'first' unpaired nucleon"},
        {"l2", "l of 'second' unpaired nucleon"},
        {"I1", "total spin (J) of 'first' unpaired nucleon"},
-       {"I2", "total spin (J) of 'second' unpaired nucleon"}});
+       {"I2", "total spin (J) of 'second' unpaired nucleon"},
+       {"", "The following are only for u(r) function"},
+       {"u", "u1 or u2 : u1(r) = (R-r)^n, u2(r) = r^n [u1]"},
+       {"n", "n that appears above. Should be between 0 and 2 [0]"}});
   if (input.has_option("help")) {
     return nullptr;
   }
@@ -246,6 +318,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
     shell,
     SingleParticle,
     doublyOddSP,
+    spu,
     Error
   };
 
@@ -258,6 +331,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
       qip::ci_compare(Fr_str, "shell")      ? DistroType::shell :
       qip::ci_wc_compare(Fr_str, "Single*") ? DistroType::SingleParticle :
       qip::ci_compare(Fr_str, "doublyOdd*") ? DistroType::doublyOddSP :
+      qip::ci_compare(Fr_str, "spu")        ? DistroType::spu :
                                               DistroType::Error;
   if (distro_type == DistroType::Error) {
     fmt2::styled_print(fg(fmt::color::red), "\nError 271:\n");
@@ -315,6 +389,27 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "with l=" << l << " (pi=" << pi << ")\n";
     }
     Fr = Hyperfine::VolotkaSP_F(mu, I_nuc, l, gl, print);
+  } else if (distro_type == DistroType::spu) {
+    const auto pi = input.get("parity", isotope.parity);
+    const auto u_func = input.get("u", std::string{"u1"}); // u1=(R-r)^n, u2=r^n
+    const bool u_option = u_func == std::string{"u1"};
+    const auto n = input.get("n", 0.0); // u1=(R-r)^n, u2=r^n
+    const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
+    auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
+    l = input.get("l", l); // can override derived 'l' (not recommended)
+    const auto gl_default = wf.Znuc() % 2 == 0 ? 0 : 1; // unparied proton?
+    const auto gl = input.get<int>("gl", gl_default);
+    if (print) {
+      std::cout << "Single-Particle (Volotka formula) with u(r) for unpaired";
+      if (gl == 1)
+        std::cout << " proton ";
+      else if (gl == 0)
+        std::cout << " neturon ";
+      else
+        std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
+      std::cout << "with l=" << l << " (pi=" << pi << ")\n";
+    }
+    Fr = Hyperfine::uSP(mu, I_nuc, l, gl, n, r_nucau, u_option, print);
   } else if (distro_type == DistroType::doublyOddSP) {
     const auto mu1 = input.get<double>("mu1", 1.0);
     const auto gl1 = input.get<int>("gl1", -1); // 1 or 0 (p or n)
