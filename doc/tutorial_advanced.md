@@ -1,4 +1,4 @@
-# Advanced Tutorial
+# Advanced Tutorial: MBPT
 
 \brief Adanced ampsci tutorial: correlations
 

@@ -93,24 +93,27 @@ inline auto doublyOddSP_F(double mut, double It, double mu1, double I1,
 }
 
 //------------------------------------------------------------------------------
-//! Converts reduced matrix element to A/B coeficients
+//! Converts reduced matrix element to A/B coeficients (takes k, 2J, 2J)
+inline double convert_RME_to_AB_2J(int k, int tja, int tjb) {
+  const auto tjz = std::min(tja, tjb); // arbitrary choice
+  const auto s = Angular::neg1pow_2(tja - tjb);
+  const auto tjs = Angular::threej_2(tja, 2 * k, tjb, -tjz, 0, tjz);
+  const auto f = k % 2 == 0 ? 2.0 : 1 / (0.5 * tjz);
+  return s * f * tjs;
+}
+
+//! Converts reduced matrix element to A/B coeficients (takes k, kappa, kappa)
 inline double convert_RME_to_AB(int k, int ka, int kb) {
-  if (k > 2)
-    return 1.0;
-  // nb: only makes sense if ka==kb?
-  const auto magnetic = k % 2 != 0;
-  const auto angular_F = magnetic ? (ka + kb) * Angular::Ck_kk(k, -ka, kb) :
-                                    -Angular::Ck_kk(k, ka, kb);
-  const auto j = 0.5 * Angular::twoj_k(ka);
-  const auto cA = ka / (j * (j + 1.0));
-  const auto cB = (2.0 * j - 1.0) / (2.0 * j + 2.0);
-  return magnetic ? cA / angular_F : cB / angular_F;
+  const auto tja = Angular::twoj_k(ka);
+  const auto tjb = Angular::twoj_k(kb);
+  return convert_RME_to_AB_2J(k, tja, tjb);
 }
 
 inline double hfsA(const TensorOperator *h, const DiracSpinor &Fa) {
   auto Raa = h->radialIntegral(Fa, Fa); //?
   return Raa * Fa.kappa() / (Fa.jjp1()) * PhysConst::muN_CGS_MHz;
 }
+
 inline double hfsB(const TensorOperator *h, const DiracSpinor &Fa) {
   auto Raa = h->radialIntegral(Fa, Fa); //?
   return Raa * double(Fa.twoj() - 1) / double(Fa.twoj() + 2) *
@@ -161,7 +164,7 @@ public:
     const auto unit = (mMHzQ && k == 1) ? PhysConst::muN_CGS_MHz :
                       (mMHzQ && k == 2) ? PhysConst::barn_MHz :
                                           1.0;
-    return magnetic ? (ka + kb) * Angular::Ck_kk(k, -ka, kb) * unit :
+    return magnetic ? -(ka + kb) * Angular::Ck_kk(k, -ka, kb) * unit :
                       -Angular::Ck_kk(k, ka, kb) * unit;
   }
 

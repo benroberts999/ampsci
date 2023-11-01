@@ -1,4 +1,4 @@
-# Advanced Tutorial
+# Advanced Tutorial: CI+MBPT
 
 \brief Adanced ampsci tutorial: CI+MBPT for two-valence atoms
 
