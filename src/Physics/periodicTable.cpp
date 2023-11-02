@@ -26,17 +26,17 @@ void printData(const Nuclear::Isotope &nuc) {
             << ", A=" << nuc.A << ")\n";
 
   std::cout << "r_rms = ";
-  nuc.r_ok() ? std::cout << nuc.r_rms : std::cout << "??";
+  nuc.r_rms ? std::cout << *nuc.r_rms : std::cout << "??";
   std::cout << ", c = ";
-  nuc.r_ok() ? std::cout << Nuclear::c_hdr_formula_rrms_t(nuc.r_rms) :
-               std::cout << "??";
+  nuc.r_rms ? std::cout << Nuclear::c_hdr_formula_rrms_t(*nuc.r_rms) :
+              std::cout << "??";
   std::cout << ", mu = ";
-  nuc.mu_ok() ? std::cout << nuc.mu : std::cout << "??";
+  nuc.mu ? std::cout << *nuc.mu : std::cout << "??";
 
   std::cout << ", I = ";
-  nuc.I_ok() ? std::cout << nuc.I_N : std::cout << "??";
+  nuc.I_N ? std::cout << *nuc.I_N : std::cout << "??";
   std::cout << ", parity = ";
-  nuc.parity_ok() ? std::cout << nuc.parity : std::cout << "??";
+  nuc.parity ? std::cout << *nuc.parity : std::cout << "??";
   std::cout << "\n";
 }
 

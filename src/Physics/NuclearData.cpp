@@ -3,13 +3,13 @@
 namespace Nuclear {
 //==============================================================================
 Isotope findIsotopeData(int z, int a) {
-  if (a == 0)
-    return Isotope{z, a, 0, 0, 0, 0};
+  if (a < z)
+    return Isotope{z, 0, 0.0, 0, {}, {}, {}};
   for (const auto &nucleus : NuclearDataTable) {
     if (nucleus.Z == z && nucleus.A == a)
       return nucleus;
   }
-  return Isotope{z, a, -1, 0, 0, -1};
+  return Isotope{z, a, {}, {}, {}, {}, {}};
 }
 
 std::vector<Isotope> findIsotopeList(int z) {
@@ -22,41 +22,50 @@ std::vector<Isotope> findIsotopeList(int z) {
 }
 
 double find_rrms(int z, int a) {
-  auto nuc = findIsotopeData(z, a);
-  if (!nuc.r_ok())
-    return 0;
-  return nuc.r_rms;
+  const auto nuc = findIsotopeData(z, a);
+  return nuc.r_rms ? *nuc.r_rms : 0.0;
 }
 
 double find_mu(int z, int a) {
   auto nuc = findIsotopeData(z, a);
-  if (!nuc.mu_ok())
-    return 0;
-  return nuc.mu;
+  return nuc.mu ? *nuc.mu : 0.0;
 }
 
 int find_parity(int z, int a) {
-  auto nuc = findIsotopeData(z, a);
-  if (!nuc.parity_ok())
-    return 0;
-  return nuc.parity;
+  const auto nuc = findIsotopeData(z, a);
+  return nuc.parity ? *nuc.parity : 0;
 }
 
 double find_spin(int z, int a) {
-  auto nuc = findIsotopeData(z, a);
-  if (!nuc.I_ok())
-    return -1.0;
-  return nuc.I_N;
+  const auto nuc = findIsotopeData(z, a);
+  return nuc.I_N ? *nuc.I_N : 0.0;
 }
 
 //==============================================================================
-double approximate_r_rms(int A)
+double approximate_r_rms(int A, int Z)
 // Returns approximate root-mean-square charge radius in fm [1.e-15 m]
 // https://www.sciencedirect.com/science/article/pii/S0092640X12000265
 // https://www-nds.iaea.org/radii/
 {
-  return (A < 10) ? 1.15 * std::pow(A, 0.3333) :
-                    0.836 * std::pow(A, 0.3333) + 0.570;
+  // return (A < 10) ? 1.15 * std::pow(A, 0.3333) :
+  //                   0.836 * std::pow(A, 0.3333) + 0.570;
+
+  const auto a13 = std::pow(A, 1.0 / 3.0);
+  const auto z13 = std::pow(Z, 1.0 / 3.0);
+
+  // From mathematica fit to Angeli data
+  if (A <= 0)
+    return 0.0;
+  double rt{0.0};
+  if (A % 2 == 0) {
+    rt = (A < 20) ? 1.15875 - 0.384013 * a13 + 1.26460 * z13 :
+                    0.344936 + 0.554395 * a13 + 0.439873 * z13;
+  } else {
+    rt = (A < 5) ? -1.90973 + 1.99164 * a13 + 0.796396 * z13 :
+                   0.488201 + 0.60582 * a13 + 0.333936 * z13;
+  }
+  // round to 2 digits so as not to give impression of accuracy
+  return (static_cast<int>(rt * 100.0)) / 100.0;
 }
 
 //==============================================================================

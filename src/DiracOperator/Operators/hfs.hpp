@@ -291,8 +291,8 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto nuc = wf.nucleus();
   const auto isotope = Nuclear::findIsotopeData(nuc.z(), nuc.a());
-  const auto mu = input.get("mu", isotope.mu);
-  const auto I_nuc = input.get("I", isotope.I_N);
+  const auto mu = input.get("mu", isotope.mu ? *isotope.mu : 0.0);
+  const auto I_nuc = input.get("I", isotope.I_N ? *isotope.I_N : 0.0);
   const auto print = input.get("print", true);
   const auto k = input.get("k", 1);
 
@@ -372,7 +372,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
   } else if (distro_type == DistroType::shell) {
     Fr = Hyperfine::sphericalShell_F();
   } else if (distro_type == DistroType::SingleParticle) {
-    const auto pi = input.get("parity", isotope.parity);
+    const auto pi = input.get("parity", isotope.parity ? *isotope.parity : 0);
     const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
     auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
     l = input.get("l", l); // can override derived 'l' (not recommended)
@@ -390,7 +390,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     Fr = Hyperfine::VolotkaSP_F(mu, I_nuc, l, gl, print);
   } else if (distro_type == DistroType::spu) {
-    const auto pi = input.get("parity", isotope.parity);
+    const auto pi = input.get("parity", isotope.parity ? *isotope.parity : 0);
     const auto u_func = input.get("u", std::string{"u1"}); // u1=(R-r)^n, u2=r^n
     const bool u_option = u_func == std::string{"u1"};
     const auto n = input.get("n", 0.0); // u1=(R-r)^n, u2=r^n

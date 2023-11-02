@@ -45,7 +45,7 @@ For the single-particle basis, we use eigenfuctions of the same $h^{\rm HF}$ Ham
 
 As always, we check the available input options: `./ampsci -a CI`
 
-`$ ./ampsci -a CI`
+`./ampsci -a CI`
 
 ```java
 // Available CI options/blocks

@@ -48,8 +48,10 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
     for (auto &[Atom, Core, Valence, EnergyData, E1Data, HFSData] :
          UnitTest::HF_test_data::regression_test_data) {
 
+      // Fr generated with old rms value 5.6951
+      double r_rms = Atom == "Fl" ? 6.0 : Atom == "Fr" ? 5.6951 : -1.0;
       Wavefunction wf({points, r0, rmax, b, grid_type},
-                      {Atom, A, nucleus_type});
+                      {Atom, A, nucleus_type, r_rms});
 
       const auto h =
           DiracOperator::hfs(1, 1.0 / 0.5, 0.0, wf.grid(),
@@ -57,6 +59,7 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
       const auto d = DiracOperator::E1(wf.grid());
 
       std::cout << "\n" << wf.atom() << "\n";
+      std::cout << wf.nucleus() << "\n";
       wf.solve_core("HartreeFock", x_Breit, Core);
       wf.solve_valence(Valence);
 

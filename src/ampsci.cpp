@@ -347,17 +347,17 @@ void ampsci(const IO::InputBlock &input) {
     nucleus.t() = *t;
   }
   if (rrms) {
-    nucleus.r_rms() = *rrms;
+    nucleus.set_rrms(*rrms);
   }
   if (c_hdr) {
     // this will over-ride given rms
-    nucleus.r_rms() = Nuclear::rrms_formula_c_t(*c_hdr, nucleus.t());
+    nucleus.set_rrms(Nuclear::rrms_formula_c_t(*c_hdr, nucleus.t()));
   }
   // If A or given rrms are zero, explicitely set to pointlike nucleus
   // This isn't required, but makes output more explicit
   if (nucleus.a() == 0.0 || nucleus.r_rms() == 0.0) {
     nucleus.t() = 0.0;
-    nucleus.r_rms() = 0.0;
+    nucleus.set_rrms(0.0);
     nucleus.type() = Nuclear::ChargeDistro::point;
   }
 

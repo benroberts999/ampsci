@@ -35,12 +35,15 @@ public:
   int z() const { return m_iso.Z; };
   int &a() { return m_iso.A; };
   int a() const { return m_iso.A; };
-  double &r_rms() { return m_iso.r_rms; };
-  double r_rms() const { return m_iso.r_rms; };
+  // std::optional<double> &r_rms() { return m_iso.r_rms; };
+
+  void set_rrms(double rrms) { m_iso.r_rms = rrms; }
+
+  double r_rms() const { return m_iso.r_rms ? *m_iso.r_rms : 0.0; };
   double &t() { return m_t; };
   double t() const { return m_t; };
 
-  double c() const { return c_hdr_formula_rrms_t(m_iso.r_rms, m_t); }
+  double c() const { return c_hdr_formula_rrms_t(r_rms(), m_t); }
 
   friend std::ostream &operator<<(std::ostream &ostr, const Nucleus &n);
 };

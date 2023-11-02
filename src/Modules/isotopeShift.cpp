@@ -54,7 +54,7 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto dr2 = rB * rB - r0 * r0;
 
       auto nuc_b = wf.nucleus();
-      nuc_b.r_rms() = rB;
+      nuc_b.set_rrms(rB);
 
       wfB.update_Vnuc(Nuclear::formPotential(nuc_b, wf.grid().r()));
 

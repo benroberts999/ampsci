@@ -53,11 +53,14 @@ Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
     m_t = 0.0;
 
   if (trrms >= 0.0)
-    r_rms() = trrms;
+    set_rrms(trrms);
 
-  if (r_rms() < 0.0) {
-    const auto approx_rrms = approximate_r_rms(a());
-    r_rms() = approx_rrms;
+  if (ta == 0)
+    set_rrms(0.0);
+
+  if (r_rms() <= 0.0 && trrms < 0.0 && ta != 0) {
+    const auto approx_rrms = approximate_r_rms(a(), z());
+    set_rrms(approx_rrms);
     std::cout << "\n\nWARNING: isotope Z=" << z() << ", A=" << a()
               << " - cannot find rrms. Using approx formula: rrms="
               << approx_rrms << "\n\n";

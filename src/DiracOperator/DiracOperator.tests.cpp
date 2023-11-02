@@ -133,6 +133,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
   //--------------------------------------------------------------------
   SECTION("hfs") {
+    // test data generated with "old" mu = 2.582025
     std::cout << "hfs\n";
     const auto data0 = std::vector{std::tuple{"1s+", "1s+", 2.2989921474e+02},
                                    {"1s+", "3d-", -1.2365855864e+00},
@@ -171,13 +172,16 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                     {"3d-", "1s+", -3.0880838988e-09},
                     {"3d-", "3d-", -0.0000000000e+00}};
 
+    // test data generated with "old" mu = 2.582025
     const IO::InputBlock options{""};
-    auto h0 = DiracOperator::generate("hfs", {"hfs", "F(r)=pointlike;"}, wf);
-    auto hB = DiracOperator::generate("hfs", {"hfs", "F(r)=Ball;"}, wf);
-    auto hS =
-        DiracOperator::generate("hfs", {"hfs", "F(r)=SingleParticle;"}, wf);
+    auto h0 = DiracOperator::generate(
+        "hfs", {"hfs", "F(r)=pointlike; mu=2.582025;"}, wf);
+    auto hB =
+        DiracOperator::generate("hfs", {"hfs", "F(r)=Ball; mu=2.582025;"}, wf);
+    auto hS = DiracOperator::generate(
+        "hfs", {"hfs", "F(r)=SingleParticle; mu=2.582025;"}, wf);
     auto h0_au = DiracOperator::generate(
-        "hfs", {"hfs", "F(r)=pointlike; units=au;"}, wf);
+        "hfs", {"hfs", "F(r)=pointlike; units=au; mu=2.582025;"}, wf);
 
     REQUIRE(h0->get_d_order() == 0);
     REQUIRE(h0->imaginaryQ() == false);

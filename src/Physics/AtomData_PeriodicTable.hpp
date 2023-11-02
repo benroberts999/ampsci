@@ -14,6 +14,7 @@ static const std::string filling_order =
     "6p6,7s2,5f14,6d10,7p6,8s2,6f14,7d10,8p6,9s2";
 
 //==============================================================================
+//! Atomic element data: Z, symbol, A, name
 struct Element {
   int Z;
   std::string symbol;
@@ -24,8 +25,7 @@ struct Element {
       : Z(inZ), symbol(insymbol), A(inA), name(inname) {}
 };
 
-// Default values for A for each atom.
-// Goes up to E120 (Z=120)
+//! Default values for A for each atom. Goes up to E120 (Z=120)
 static const std::vector<Element> periodic_table = {
     {1, "H", 1, "hydrogen"},
     {2, "He", 4, "helium"},
@@ -54,14 +54,14 @@ static const std::vector<Element> periodic_table = {
     {25, "Mn", 55, "manganese"},
     {26, "Fe", 56, "iron"},
     {27, "Co", 59, "cobalt"},
-    {28, "Ni", 59, "nickel"},
-    {29, "Cu", 64, "copper"},
-    {30, "Zn", 65, "zinc"},
-    {31, "Ga", 70, "gallium"},
+    {28, "Ni", 58, "nickel"},
+    {29, "Cu", 63, "copper"},
+    {30, "Zn", 64, "zinc"},
+    {31, "Ga", 71, "gallium"},
     {32, "Ge", 73, "germanium"},
     {33, "As", 75, "arsenic"},
-    {34, "Se", 79, "selenium"},
-    {35, "Br", 80, "bromine"},
+    {34, "Se", 77, "selenium"},
+    {35, "Br", 79, "bromine"},
     {36, "Kr", 84, "krypton"},
     {37, "Rb", 85, "rubidium"},
     {38, "Sr", 88, "strontium"},
@@ -69,15 +69,15 @@ static const std::vector<Element> periodic_table = {
     {40, "Zr", 91, "zirconium"},
     {41, "Nb", 93, "niobium"},
     {42, "Mo", 96, "molybdenum"},
-    {43, "Tc", 97, "technetium"},
+    {43, "Tc", 99, "technetium"},
     {44, "Ru", 101, "ruthenium"},
     {45, "Rh", 103, "rhodium"},
     {46, "Pd", 106, "palladium"},
-    {47, "Ag", 108, "silver"},
+    {47, "Ag", 107, "silver"},
     {48, "Cd", 112, "cadmium"},
     {49, "In", 115, "indium"},
     {50, "Sn", 119, "tin"},
-    {51, "Sb", 122, "antimony"},
+    {51, "Sb", 121, "antimony"},
     {52, "Te", 128, "tellurium"},
     {53, "I", 127, "iodine"},
     {54, "Xe", 131, "xenon"},
@@ -101,9 +101,9 @@ static const std::vector<Element> periodic_table = {
     {72, "Hf", 178, "hafnium"},
     {73, "Ta", 181, "tantalum"},
     {74, "W", 184, "tungsten"},
-    {75, "Re", 186, "rhenium"},
+    {75, "Re", 185, "rhenium"},
     {76, "Os", 190, "osmium"},
-    {77, "Ir", 192, "iridium"},
+    {77, "Ir", 191, "iridium"},
     {78, "Pt", 195, "platinum"},
     {79, "Au", 197, "gold"},
     {80, "Hg", 201, "mercury"},
@@ -122,7 +122,7 @@ static const std::vector<Element> periodic_table = {
     {93, "Np", 237, "neptunium"},
     {94, "Pu", 244, "plutonium"},
     {95, "Am", 243, "americium"},
-    {96, "Cm", 247, "curium"},
+    {96, "Cm", 246, "curium"},
     {97, "Bk", 247, "berkelium"},
     {98, "Cf", 251, "californium"},
     {99, "Es", 252, "einsteinium"},

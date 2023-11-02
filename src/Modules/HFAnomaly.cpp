@@ -202,8 +202,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
         "(eps). Two inputs, comma separated: state (in 'short "
         "symbol' form), and eps (in %). E.g.: '6s+, -0.05' [optional]"},
        {"A2", "Second isotope (for differential anomaly) [optional]"},
-       {"Nucleus2", "Nuclear (charge) parameters for isotope 2 (see -a "
-                    "Nucleus); uses default for A2 if blank. [optional]"},
+       {"Nucleus2{}", "Nuclear (charge) parameters for isotope 2 (see -a "
+                      "Nucleus); uses default for A2 if blank. [optional]"},
        {"hfs2_options{}",
         "Options for HFS operator for isotope 2 (see -o hfs)"},
        {"1D2_target",
@@ -316,17 +316,17 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       nucleus.t() = *t;
     }
     if (rrms) {
-      nucleus.r_rms() = *rrms;
+      nucleus.set_rrms(*rrms);
     }
     if (c_hdr) {
       // this will over-ride given rms
-      nucleus.r_rms() = Nuclear::rrms_formula_c_t(*c_hdr, nucleus.t());
+      nucleus.set_rrms(Nuclear::rrms_formula_c_t(*c_hdr, nucleus.t()));
     }
     // If A or given rrms are zero, explicitely set to pointlike nucleus
     // This isn't required, but makes output more explicit
     if (nucleus.a() == 0.0 || nucleus.r_rms() == 0.0) {
       nucleus.t() = 0.0;
-      nucleus.r_rms() = 0.0;
+      nucleus.set_rrms(0.0);
       nucleus.type() = Nuclear::ChargeDistro::point;
     }
 
