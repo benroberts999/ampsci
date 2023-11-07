@@ -486,8 +486,11 @@ TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit]") {
 
     DiracODE::solveContinuum(Fe, e, v0, 1.0e-10 * PhysConst::alpha);
 
+    // const auto F1s =
+    //     DiracSpinor::exactHlike(n, kappa, grid, z, 1.0e-10 * PhysConst::alpha);
+    // Above fails on M1 mac, leads to 'nan'. Probably alpha is too small
     const auto F1s =
-        DiracSpinor::exactHlike(n, kappa, grid, z, 1.0e-10 * PhysConst::alpha);
+        DiracSpinor::exactHlike(n, kappa, grid, z, 1.0e-8 * PhysConst::alpha);
 
     auto v1 = Fe * (grid->r() * F1s);
     auto v3 = Fe * (grid->rpow(-1) * F1s);
