@@ -39,7 +39,7 @@ elif [ ${machine} == 'Mac' ]; then
   which -s brew
   if [[ $? != 0 ]] ; then
         # If not installed, ask if user would like to install it:
-        read -r -p "Homebrew not installed Would you like to install it? [y/N] " response
+        read -r -p "Homebrew not installed. Would you like to install it? [y/N] " response
         if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]; then
           # Install Homebrew
           set -x
@@ -51,7 +51,7 @@ elif [ ${machine} == 'Mac' ]; then
     brew update
   fi
   set -x
-  brew install gcc@12 &&
+  brew install gcc &&
   brew install gsl
 else
   echo 'Unsupported system for setup - requires manual setup'

@@ -14,6 +14,8 @@ endif
 WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow \
 -Weffc++ -Wsign-conversion
 
+#-Wno-psabi: #https://stackoverflow.com/questions/48149323/what-does-the-gcc-warning-project-parameter-passing-for-x-changed-in-gcc-7-1-m
+
 # Changes to warning based on compiler:
 GCC_Compilers:=g++ g++13 g++12 g++-11 g++-10 g++-9 g++-8 g++-7
 CLANG_Compilers:=clang++ clang++-11 clang++-10 clang++-9 clang++-8 clang++-7 clang++-6
@@ -37,7 +39,7 @@ endif
 OPT?=-O3
 
 ifeq ($(Build),release)
-  WARN=-w
+  WARN=-w -Wno-psabi
   OPT+=-g0 -DNDEBUG -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF
 endif
 ifeq ($(Build),debug)

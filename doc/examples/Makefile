@@ -6,16 +6,12 @@
 
 ## Which compiler: (g++, clang++) [no spaces]
 CXX=g++
-# CXX=g++-9
-# CXX=clang++
 
 ## Use OpenMP (parallelisation) yes/no:
 UseOpenMP=yes
 
 ## Build mode (changes warnings + optimisation level): release/dev/debug
 Build=release
-# Build=dev
-# Build=debug
 
 ## Compile in parallel with n cores (Faster, but makes reading errors difficult)
 ParallelBuild=6
@@ -24,21 +20,19 @@ ParallelBuild=6
 XD=.
 
 ################################################################################
-## Path to the GSL library. Try first with these blank. Exact path will depend
+## Path to the GSL library. Try first with this blank. Exact path will depend
 ## on where GSL has been installed. Usually, this can be left blank.
 ## nb: do not leave a trailing space after the line
+## Some common places include '/opt/gsl/2.1/gnu'
+## Intel Mac: '/usr/local/opt/gnu-scientific-library', 
+## M1/M2 mac: '/opt/homebrew/Cellar/gsl/2.7.1/'
 
 PathForGSL=
-## uncomment for getafix:
-# PathForGSL=/opt/gsl/2.1/gnu
-## uncomment for macbook:
-# PathForGSL=/usr/local/opt/gnu-scientific-library
 
 ################################################################################
-# By default, uses -lblas (set BLAS=blas).
+# By default, uses -lblas (set =blas). For openblas, set =openblas.
 # On some systems, openblas is available
 BLASLIB=blas
-#BLASLIB=openblas
 
 ################################################################################
 ## If compiler cannot find correct libraries/headers, add the paths here.
