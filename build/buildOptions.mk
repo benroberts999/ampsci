@@ -12,7 +12,7 @@ endif
 
 # Warnings:
 WARN=-Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow \
--Weffc++ -Wsign-conversion
+-Weffc++ -Wsign-conversion -Wno-psabi
 
 #-Wno-psabi: #https://stackoverflow.com/questions/48149323/what-does-the-gcc-warning-project-parameter-passing-for-x-changed-in-gcc-7-1-m
 

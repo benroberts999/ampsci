@@ -3,14 +3,20 @@
 
 extern "C" {
 
+using complex_double = long double;
+// https://gcc.gnu.org/onlinedocs/gcc-4.5.4/gfortran/ISO_005fC_005fBINDING.html
+// on apple M1, long double is just double
+// nb: it actually doesn't matter, since all operations happen on fortran end
+
 void dsyev_(char *, char *, int *, double *, int *, double *, double *, int *,
             int *);
-void zheev_(char *, char *, int *, long double *, int *, double *,
-            long double *, int *, double *, int *);
+void zheev_(char *, char *, int *, complex_double *, int *, double *,
+            complex_double *, int *, double *, int *);
 void dsygv_(int *, char *, char *, int *, double *, int *, double *, int *,
             double *, double *, int *, int *);
-void zhegv_(int *, char *, char *, int *, long double *, int *, long double *,
-            int *, double *, long double *, int *, double *, int *);
+void zhegv_(int *, char *, char *, int *, complex_double *, int *,
+            complex_double *, int *, double *, complex_double *, int *,
+            double *, int *);
 
 void dsyevx_(char *, char *, char *, int *, double *, int *, double *, double *,
              int *, int *, double *, int *, double *, double *, int *, double *,
@@ -77,12 +83,14 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A) {
            work.data(), &workspace_size, &info);
 
   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
-    static_assert(sizeof(long double) == 16); // LAPACK assumption
+    // static_assert(sizeof(complex_double) == 16); // LAPACK assumption
+    // nb: this isn't actually required
 
     // For complex double (Hermetian) matrix
     std::vector<double> Rwork(3 * e_vectors.rows() - 2ul);
-    long double *evec_ptr = reinterpret_cast<long double *>(e_vectors.data());
-    long double *work_ptr = reinterpret_cast<long double *>(work.data());
+    complex_double *evec_ptr =
+        reinterpret_cast<complex_double *>(e_vectors.data());
+    complex_double *work_ptr = reinterpret_cast<complex_double *>(work.data());
     zheev_(&jobz, &uplo, &dim, evec_ptr, &dim, e_values.data(), work_ptr,
            &workspace_size, Rwork.data(), &info);
   }
@@ -175,12 +183,15 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A,
            e_values.data(), work.data(), &workspace_size, &info);
 
   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
-    static_assert(sizeof(long double) == 16); // LAPACK assumption
+    // static_assert(sizeof(complex_double) == 16); // LAPACK assumption
+    // nb: this isn't actually required
+
     // For complex double (Hermetian) matrix
     std::vector<double> Rwork(3 * e_vectors.rows() - 2ul);
-    long double *evec_ptr = reinterpret_cast<long double *>(e_vectors.data());
-    long double *Bmat_ptr = reinterpret_cast<long double *>(B.data());
-    long double *work_ptr = reinterpret_cast<long double *>(work.data());
+    complex_double *evec_ptr =
+        reinterpret_cast<complex_double *>(e_vectors.data());
+    complex_double *Bmat_ptr = reinterpret_cast<complex_double *>(B.data());
+    complex_double *work_ptr = reinterpret_cast<complex_double *>(work.data());
     zhegv_(&itype, &jobz, &uplo, &dim, evec_ptr, &dim, Bmat_ptr, &dim,
            e_values.data(), work_ptr, &workspace_size, Rwork.data(), &info);
     e_vectors.conj_in_place(); // ?? why?

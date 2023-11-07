@@ -511,6 +511,16 @@ TEST_CASE("LinAlg: eigensystems <complex<double>>", "[LinAlg][unit]") {
                                 {-0.923879532511287i, 0.382683432365090}})));
 }
 
+TEST_CASE("LinAlg: eigensystems <complex<double>> 2", "[LinAlg][unit]") {
+  using namespace std::complex_literals;
+  const LinAlg::Matrix A{{35.254 + 0.i, 14.272 + 9.21i, 0.11 + 16.21i},
+                         {14.272 - 9.21i, 4. + 0.i, 21. - 0.21i},
+                         {0.11 - 16.21i, 21. + 0.21i, 1.22 + 0.i}};
+  const auto [e, v] = symmhEigensystem(A);
+  REQUIRE(LinAlg::equal(e, LinAlg::Vector{-21.1352313820589, 9.58605091059717,
+                                          52.0231804714617}));
+}
+
 // Generalised Eigensystems (symmetric/Hermetian)
 TEST_CASE("LinAlg: Generalised eigensystems <double>", "[LinAlg][unit]") {
   const LinAlg::Matrix A{{1.0, -1.0}, {-1.0, 2.0}};
