@@ -529,15 +529,19 @@ EpsIts HartreeFock::local_valence(DiracSpinor &Fa) const {
 }
 
 //==============================================================================
-EpsIts
-HartreeFock::hf_valence(DiracSpinor &Fa,
-                        const MBPT::CorrelationPotential *const Sigma) const {
+EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
+                               const MBPT::CorrelationPotential *const Sigma,
+                               std::optional<double> eta,
+                               std::optional<int> prev_its) const {
+  using namespace qip::overloads;
 
   if (m_core.empty())
     return local_valence(Fa);
 
+  const auto max_its = m_max_hf_its;
+
   const auto eps_target = 0.001 * m_eps_HF;
-  const auto eta_damp = 0.4;
+  const auto eta_damp = eta ? *eta : 0.4;
 
   const auto Hmagl = Hmag(Fa.l());
   const auto vl = vlocal(Fa.l());
@@ -546,18 +550,20 @@ HartreeFock::hf_valence(DiracSpinor &Fa,
     Fa.en() = enGuessVal(Fa.n(), Fa.kappa());
     DiracODE::boundState(Fa, Fa.en(), vl, Hmagl, m_alpha, 1.0e-15);
   }
+  const auto F_orig = Fa;
 
   auto prev_en = Fa.en();
   int it = 1;
   double eps = 1.0;
-  for (; it <= m_max_hf_its; ++it) {
+  for (; it <= max_its; ++it) {
 
     auto VxFa = vexFa(Fa);
     if (m_VBr) {
       VxFa += m_VBr->VbrFa(Fa, m_core);
     }
     if (Sigma) {
-      VxFa += (*Sigma)(Fa);
+      const auto f = prev_its && it < 15 ? it / 15.0 : 1.0;
+      VxFa += f * Sigma->SigmaFv(Fa);
     }
     const auto Fa_prev = Fa;
 
@@ -568,15 +574,22 @@ HartreeFock::hf_valence(DiracSpinor &Fa,
     prev_en = Fa.en();
 
     const bool converged = (eps <= eps_target && it > 1);
-    if (converged || it == m_max_hf_its)
+    if (converged || it == max_its)
       break;
 
     Fa = (1.0 - eta_damp) * Fa + eta_damp * Fa_prev;
-
     Fa.normalise();
   }
 
-  return {eps, it, Fa.shortSymbol()};
+  if (prev_its)
+    it += *prev_its;
+
+  if (eps < 10.0 * eps_target || prev_its)
+    return {eps, it, Fa.shortSymbol()};
+
+  // if it didn't converge, try again with larger eta (damp)
+  Fa = F_orig;
+  return hf_valence(Fa, Sigma, 0.85, it);
 }
 
 //==============================================================================

@@ -128,9 +128,10 @@ public:
                 const MBPT::CorrelationPotential *const Sigma = nullptr) const;
 
   //! Solves HF equation (+ Sigma) for single valence state.
-  EpsIts
-  hf_valence(DiracSpinor &Fv,
-             const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+  EpsIts hf_valence(DiracSpinor &Fv,
+                    const MBPT::CorrelationPotential *const Sigma = nullptr,
+                    std::optional<double> eta = {},
+                    std::optional<int> prev_its = {}) const;
 
   //! Calculates the HF core energy (not including Breit?)
   double calculateCoreEnergy() const;
