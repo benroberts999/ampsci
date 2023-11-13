@@ -64,6 +64,11 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
         "Filename for storing two-body Sigma_2 integrals. By default, is "
         "At_n_b_k.sk, where At is atomic symbol, n is n_min_core, b is "
         "cis2_basis, k is max_k."},
+       {"no_new_integrals",
+        "Usually false. If set to true, ampsci will not calculate any new "
+        "Coulomb or Sigma_2 integrals, even if they are implied by the above "
+        "settings. This saves time when we know all required integrals already "
+        "exist, since the code doesn't need to check. [true]"},
        {"exclude_wrong_parity_box",
         "Excludes the Sigma_2 box corrections that "
         "have 'wrong' parity when calculating Sigma2 matrix elements. Note: If "
@@ -174,6 +179,10 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   // Lookup table; stores all qk's
   Coulomb::QkTable qk;
+  // Often, we don't need to calculate new integrals.
+  // It takes time to check if we need to, so faster to skip if we already
+  // know all integrals exist.
+  const auto no_new_integrals = input.get("no_new_integrals", false);
   {
     std::cout << "Calculate two-body Coulomb integrals: Q^k_abcd\n";
 
@@ -182,8 +191,8 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     // Try to read from disk (may already have calculated Qk)
     qk.read(qk_filename);
     const auto existing = qk.count();
-    {
 
+    if (!no_new_integrals) {
       // Try to limit number of Coulomb integrals we calculate
       // use whole basis (these are used inside Sigma_2)
       // If not including MBPT, only need to caculate smaller set of integrals
@@ -271,7 +280,8 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
               << DiracSpinor::state_config(excited_s2) << "\n";
 
     Sk = CI::calculate_Sk(Sk_filename, cis2_basis, core_s2, excited_s2, qk,
-                          max_k_Coulomb, exclude_wrong_parity_box);
+                          max_k_Coulomb, exclude_wrong_parity_box,
+                          no_new_integrals);
     std::cout << "\n" << std::flush;
   }
 

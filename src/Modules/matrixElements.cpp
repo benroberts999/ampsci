@@ -723,7 +723,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   if (!eachFreqQ && rpa) {
     std::cout << "Solving RPA at fixed frequency: w=" << omega << "\n";
-    rpa->solve_core(omega);
+    rpa->solve_core(omega, 300);
   }
   if (eachFreqQ && rpa) {
     std::cout << "Solving RPA at each frequency\n";

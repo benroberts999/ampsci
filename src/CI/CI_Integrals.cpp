@@ -245,7 +245,8 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
                               const std::vector<DiracSpinor> &s2_basis_core,
                               const std::vector<DiracSpinor> &s2_basis_excited,
                               const Coulomb::QkTable &qk, int max_k,
-                              bool exclude_wrong_parity_box) {
+                              bool exclude_wrong_parity_box,
+                              bool no_new_integrals) {
 
   Coulomb::LkTable Sk;
 
@@ -272,7 +273,8 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
 
   const auto existing = Sk.count();
   {
-    Sk.fill(cis2_basis, Sk_function, Sk_selection_rule, max_k);
+    if (!no_new_integrals)
+      Sk.fill(cis2_basis, Sk_function, Sk_selection_rule, max_k);
 
     const auto total = Sk.count();
     assert(total >= existing);

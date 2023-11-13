@@ -52,7 +52,8 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
                               const std::vector<DiracSpinor> &s2_basis_core,
                               const std::vector<DiracSpinor> &s2_basis_excited,
                               const Coulomb::QkTable &qk, int max_k,
-                              bool exclude_wrong_parity_box);
+                              bool exclude_wrong_parity_box,
+                              bool no_new_integrals = false);
 
 //! Takes a subset of input basis according to subset_string.
 //! Only states *not* included in frozen_core_string are included.
