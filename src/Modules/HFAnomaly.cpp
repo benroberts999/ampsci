@@ -369,6 +369,31 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       rpa2->solve_core(0.0, 100, true);
     }
 
+    // std::cout << "\n-------------------------------\n";
+    // fmt::print("Bohr-Weisskopf effect, Z={}, A={}\n", wf2.Znuc(), wf2.Anuc());
+    // fmt::print("R_charge = {:.4f} fm [Rrms_charge = {:.4f} fm]\n",
+    //            std::sqrt(5.0 / 3) * wf2.get_rrms(), wf2.get_rrms());
+
+    // // Build pointlike HFS operator
+    // IO::InputBlock h2_0_options{"h0", "F(r)=pointlike;"};
+    // // Ensure same parameters as other operator
+    // {
+    //   if (hfs2_options.has_option("mu"))
+    //     h2_0_options.add(*hfs_options->getOption("mu"));
+    //   if (hfs2_options.has_option("I"))
+    //     h2_0_options.add(*hfs_options->getOption("I"));
+    //   if (hfs2_options.has_option("Q"))
+    //     h2_0_options.add(*hfs_options->getOption("Q"));
+    //   if (hfs2_options.has_option("k"))
+    //     h2_0_options.add(*hfs_options->getOption("k"));
+    //   if (hfs2_options.has_option("print"))
+    //     h2_0_options.add(*hfs_options->getOption("print"));
+    // }
+    // const auto h2_0 = DiracOperator::generate("hfs", h2_0_options, wf);
+
+    // // 1. Calculate BW effect
+    // BW_effect(wf2.valence(), h2_0.get(), nullptr, h2.get(), nullptr);
+
     std::cout << "\nDifferential hyperfine anomaly:\n";
     fmt::print("\n{:4s} {:11s} {:11s} {:8s}  {:11s} {:11s} {:8s}\n", "",
                "A1_HF/g", "A2_HF/g", "1D2_HF(%)", "A1_RPA/g", "A2_RPA/g",
@@ -468,7 +493,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
           if (rpaQ) {
             rpa22->update_t0s(h22.get());
-            rpa22->solve_core(0.0, 40, false);
+            rpa22->solve_core(0.0, 60, false);
           }
 
           const auto A22 =
@@ -480,7 +505,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
         const auto r2_0 = /*(r1 / wf.get_rrms())**/ wf2.get_rrms();
         const auto [r2_fitted, error] = qip::Newtons(
-            delta_1D2, r2_0, {0.5 * r2_0, 2.0 * r2_0}, 2.0e-3, 0.005, 100);
+            delta_1D2, r2_0, {0.5 * r2_0, 2.0 * r2_0}, 1.0e-5, 0.001, 150);
 
         const auto D12_error = std::abs(hf_1D2 / target_1D2 - 1.0);
         const auto flag = D12_error > 0.01 ? "***" : "";
