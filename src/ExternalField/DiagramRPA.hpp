@@ -1,6 +1,7 @@
 #pragma once
 #include "CorePolarisation.hpp"
 #include "Coulomb/QkTable.hpp"
+#include "HF/Breit.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <vector>
@@ -23,6 +24,8 @@ private:
   std::vector<DiracSpinor> holes{};
   std::vector<DiracSpinor> excited{};
   double eps_targ = 1.0e-10;
+
+  std::optional<HF::Breit> m_Br{};
 
   // t0's never change
   // NO! They change if omega is updated (frequency dependent operator!)

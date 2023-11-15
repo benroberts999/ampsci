@@ -65,7 +65,7 @@ TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
     orbs.push_back(DiracSpinor::exactHlike(n_min, -l - 1, radial_grid, zeff));
   }
 
-  const auto Br = HF::Breit{};
+  auto Br = HF::Breit{};
 
   // With scaling factors:
   const auto lamba = 0.5;
@@ -73,6 +73,11 @@ TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
   BrGau.update_scale(lamba, 1.0, 1.0, 0.0, 0.0);
   auto BrRet = HF::Breit{};
   BrRet.update_scale(lamba, 0.0, 0.0, 1.0, 1.0);
+
+  {
+    IO::ChronoTimer t("fill");
+    Br.fill_gb(orbs);
+  }
 
   // 1. check Symmetry:
   for (const auto &a : orbs) {
@@ -92,9 +97,24 @@ TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
             const auto b2 = Br.Bk_abcd(k, b, a, d, c);
             const auto b3 = Br.Bk_abcd(k, c, d, a, b);
             const auto b4 = a * Br.Bkv_bcd(k, a.kappa(), b, c, d);
+            const auto b5 = Br.Bk_abcd_2(k, a, b, c, d);
             REQUIRE(b1 == Approx(b2).margin(1.0e-15));
             REQUIRE(b1 == Approx(b3).margin(1.0e-15));
             REQUIRE(b1 == Approx(b4).margin(1.0e-15));
+            REQUIRE(b1 == Approx(b5).margin(1.0e-15));
+
+            const auto b6 = Br.Bk_abcd(k, c, b, a, d);
+            const auto b7 = Br.Bk_abcd(k, a, d, c, b);
+            REQUIRE(b6 == Approx(b7).margin(1.0e-15));
+            if ((a.l() + c.l() + k) % 2 == 0) {
+              // M, O, P terms are anti-symmetric
+              REQUIRE(b6 == Approx(-b1).margin(1.0e-15));
+            } else {
+              // N terms are symmetric
+              REQUIRE(b6 == Approx(b1).margin(1.0e-15));
+            }
+            const auto s = Angular::neg1pow(a.l() + c.l() + k + 1);
+            REQUIRE(b6 == Approx(s * b1).margin(1.0e-15));
 
             // Test Wk (and Pk) formulas
             const auto w1 = Br.BWk_abcd(k, a, b, c, d);
@@ -106,6 +126,8 @@ TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
             REQUIRE(w2 == Approx(w1).margin(1.0e-15));
             const auto w3 = a * Br.BWkv_bcd(k, a.kappa(), b, c, d);
             REQUIRE(w3 == Approx(w1).margin(1.0e-15));
+            const auto w4 = Br.BWk_abcd_2(k, a, b, c, d);
+            REQUIRE(w4 == Approx(w1).margin(1.0e-15));
 
             // Test scaling factors
             if (b1 == 0.0)
@@ -120,6 +142,54 @@ TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
       }
     }
   }
+
+  // XXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXXX
+  double total1 = 0.0;
+  double total2 = 0.0;
+  double t1 = 0.0;
+  double t2 = 0.0;
+  auto Br2 = HF::Breit{};
+
+  Br2.fill_gb(orbs);
+  {
+    IO::ChronoTimer t("Old");
+
+    for (const auto &a : orbs) {
+      for (const auto &b : orbs) {
+        for (const auto &c : orbs) {
+          for (const auto &d : orbs) {
+            for (int k = 0; k <= 12; ++k) {
+              // Test symmetry (+ numerical error)
+              total1 += Br.Bk_abcd(k, a, b, c, d);
+            }
+          }
+        }
+      }
+    }
+    t1 = t.reading_ms();
+  }
+
+  {
+    IO::ChronoTimer t("new");
+
+    for (const auto &a : orbs) {
+      for (const auto &b : orbs) {
+        for (const auto &c : orbs) {
+          for (const auto &d : orbs) {
+            for (int k = 0; k <= 12; ++k) {
+              // Test symmetry (+ numerical error)
+              total2 += Br2.Bk_abcd_2(k, a, b, c, d);
+            }
+          }
+        }
+      }
+    }
+    t2 = t.reading_ms();
+  }
+
+  std::cout << total1 << " " << total2 << "\n";
+  std::cout << "Speedup: " << t1 / t2 << "\n";
+  REQUIRE(t1 / t2 > 1.5);
 }
 
 //==============================================================================

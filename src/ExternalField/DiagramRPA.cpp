@@ -56,6 +56,12 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   const auto fname = atom + "_" + std::to_string(m_rank) +
                      (m_pi == 1 ? "+" : "-") + "_" + basis_string + ext;
 
+  // Setup faster Breit
+  if (have_breit) {
+    m_Br = *p_hf->vBreit();
+    m_Br->fill_gb(basis);
+  }
+
   // if constexpr (m_USE_QK) {
   //   std::cout << "\nFill Qk table:\n";
   //   const auto ok = m_qk.read(fname);
@@ -180,7 +186,7 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
   Yhe.calculate(excited);
   Yhe.calculate(holes);
 
-  const auto Vbr = p_hf->vBreit(); // a pointer, may be null
+  // const auto Vbr = p_hf->vBreit(); // a pointer, may be null
 
   // RPA: store W Coulomb integrals (used only for Core RPA its)
   std::cout << "Filling RPA Diagram matrix ("
@@ -219,8 +225,10 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
             const auto yQ = Yee.Q(m_rank, Fa, Fb, Fm, Fn);
             const auto yP = Yhe.P(m_rank, Fa, Fb, Fm, Fn);
             // Breit Contribution to core:
-            const auto xB = Vbr ? Vbr->BWk_abcd(m_rank, Fa, Fn, Fm, Fb) : 0.0;
-            const auto yB = Vbr ? Vbr->BWk_abcd(m_rank, Fa, Fb, Fm, Fn) : 0.0;
+            const auto xB =
+                m_Br ? m_Br->BWk_abcd_2(m_rank, Fa, Fn, Fm, Fb) : 0.0;
+            const auto yB =
+                m_Br ? m_Br->BWk_abcd_2(m_rank, Fa, Fb, Fm, Fn) : 0.0;
 
             Wanm_b.push_back(xQ + xP + xB);
             Wabm_n.push_back(yQ + yP + yB);
@@ -268,8 +276,10 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
             const auto yQ = Yhe.Q(m_rank, Fm, Fb, Fa, Fn);
             const auto yP = Yhh.P(m_rank, Fm, Fb, Fa, Fn);
             // nb: Breit part not double-checked! XXX
-            const auto xB = Vbr ? Vbr->BWk_abcd(m_rank, Fm, Fn, Fa, Fb) : 0.0;
-            const auto yB = Vbr ? Vbr->BWk_abcd(m_rank, Fm, Fb, Fa, Fn) : 0.0;
+            const auto xB =
+                m_Br ? m_Br->BWk_abcd_2(m_rank, Fm, Fn, Fa, Fb) : 0.0;
+            const auto yB =
+                m_Br ? m_Br->BWk_abcd_2(m_rank, Fm, Fb, Fa, Fn) : 0.0;
             Wanm_b.push_back(xQ + xP + xB);
             Wabm_n.push_back(yQ + yP + yB);
           }
@@ -354,7 +364,7 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
   if (holes.empty() || excited.empty())
     return 0.0;
 
-  const auto Vbr = p_hf->vBreit(); // a pointer, may be null
+  // const auto Vbr = p_hf->vBreit(); // a pointer, may be null
 
   if (Fv.en() > Fw.en()) {
     const auto sj = ((Fv.twoj() - Fw.twoj()) % 4 == 0) ? 1 : -1;
@@ -380,10 +390,12 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
         continue;
       const auto s2 = ((Fa.twoj() - Fm.twoj()) % 4 == 0) ? 1 : -1;
       // Calculate Wk from scratch here: Fi/Ff may be valence.
-      const auto Wwmva = Coulomb::Wk_abcd(m_rank, Ff, Fm, Fi, Fa) +
-                         (Vbr ? Vbr->BWk_abcd(m_rank, Ff, Fm, Fi, Fa) : 0.0);
-      const auto Wwavm = Coulomb::Wk_abcd(m_rank, Ff, Fa, Fi, Fm) +
-                         (Vbr ? Vbr->BWk_abcd(m_rank, Ff, Fa, Fi, Fm) : 0.0);
+      const auto Wwmva =
+          Coulomb::Wk_abcd(m_rank, Ff, Fm, Fi, Fa) +
+          (m_Br ? m_Br->BWk_abcd_2(m_rank, Ff, Fm, Fi, Fa) : 0.0);
+      const auto Wwavm =
+          Coulomb::Wk_abcd(m_rank, Ff, Fa, Fi, Fm) +
+          (m_Br ? m_Br->BWk_abcd_2(m_rank, Ff, Fa, Fi, Fm) : 0.0);
       const auto ttam = tam[ia][im];
       const auto ttma = tma[im][ia];
       const auto A = ttam * Wwmva / (Fa.en() - Fm.en() - ww);
