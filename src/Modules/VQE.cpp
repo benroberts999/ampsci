@@ -351,8 +351,9 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
       write_CSFs(psi.CSFs(), 2 * J, orbital_map, csf_file);
 
       // Construct the CI matrix:
-      const auto Hci = include_Sigma2 ? CI::construct_Hci(psi, h1, qk, &Sk) :
-                                        CI::construct_Hci(psi, h1, qk);
+      const auto Hci = include_Sigma2 ?
+                           CI::construct_Hci(psi, h1, qk, nullptr, &Sk) :
+                           CI::construct_Hci(psi, h1, qk);
       write_H(Hci, csf_file);
       std::cout << "\n";
     }
@@ -365,8 +366,9 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
       write_CSFs(psi.CSFs(), 2 * J, orbital_map, csf_file);
 
       // Construct the CI matrix:
-      const auto Hci = include_Sigma2 ? CI::construct_Hci(psi, h1, qk, &Sk) :
-                                        CI::construct_Hci(psi, h1, qk);
+      const auto Hci = include_Sigma2 ?
+                           CI::construct_Hci(psi, h1, qk, nullptr, &Sk) :
+                           CI::construct_Hci(psi, h1, qk);
       write_H(Hci, csf_file);
       std::cout << "\n";
     }
@@ -378,13 +380,13 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   // even parity:
   for (const auto J : J_even_list) {
     CI::run_CI(ci_sp_basis, int(std::round(2 * J)), +1, num_solutions, h1, qk,
-               Sk, include_Sigma2);
+               {}, Sk, include_Sigma2);
   }
 
   // odd parity:
   for (const auto J : J_odd_list) {
     CI::run_CI(ci_sp_basis, int(std::round(2 * J)), -1, num_solutions, h1, qk,
-               Sk, include_Sigma2);
+               {}, Sk, include_Sigma2);
   }
 }
 

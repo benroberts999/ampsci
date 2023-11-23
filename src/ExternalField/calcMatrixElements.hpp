@@ -93,6 +93,6 @@ std::unique_ptr<CorePolarisation>
 make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
          const HF::HartreeFock *vhf, bool print = false,
          const std::vector<DiracSpinor> &basis = {},
-         const std::string &atom = "");
+         const std::string &identity = "");
 
 } // namespace ExternalField

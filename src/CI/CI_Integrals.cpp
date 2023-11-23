@@ -1,6 +1,7 @@
 #include "CI_Integrals.hpp"
 #include "CSF.hpp"
 #include "Coulomb/Coulomb.hpp"
+#include "HF/Breit.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/Sigma2.hpp"
@@ -125,11 +126,69 @@ double CSF2_Sigma2(const Coulomb::LkTable &Sk, DiracSpinor::Index v,
 }
 
 //==============================================================================
+// Calculates the anti-symmetrised Breit integral for 2-particle states:
+// C1*C2*(b_abcd-b_abdc), where Cs are C.G. coefficients
+double CSF2_Breit(const Coulomb::WkTable &Bk, DiracSpinor::Index v,
+                  DiracSpinor::Index w, DiracSpinor::Index x,
+                  DiracSpinor::Index y, int twoJ) {
+
+  // If c==d, or a==b : can make short-cut due to symmetry
+  // More efficient to use two Q's than W:
+
+  const auto tjv = Angular::nkindex_to_twoj(v);
+  const auto tjw = Angular::nkindex_to_twoj(w);
+  const auto tjx = Angular::nkindex_to_twoj(x);
+  const auto tjy = Angular::nkindex_to_twoj(y);
+
+  double out = 0.0;
+
+  // Direct part:
+  const auto [k0, k1] = HF::Breit::k_minmax_tj(tjv, tjw, tjx, tjy);
+  for (int k = k0; k <= k1; ++k) {
+    const auto sjs = Angular::sixj_2(tjv, tjw, twoJ, tjy, tjx, 2 * k);
+    if (sjs == 0.0)
+      continue;
+    const auto bk_abcd = Bk.Q(k, v, w, x, y);
+    const auto s = Angular::neg1pow_2(tjv + tjx + 2 * k + twoJ);
+    out += s * sjs * bk_abcd;
+  }
+
+  // Take advantage of symmetries: faster (+ numerically stable)
+  if (v == w && x == y) {
+    return out;
+  } else if (x == y || v == w) {
+    // by {ab},{cd} symmetry: same works for case a==b
+    return std::sqrt(2.0) * out;
+  }
+
+  // Exchange part:
+  const auto [l0, l1] = HF::Breit::k_minmax_tj(tjv, tjw, tjy, tjx);
+  for (int k = l0; k <= l1; ++k) {
+    const auto sjs = Angular::sixj_2(tjv, tjw, twoJ, tjx, tjy, 2 * k);
+    if (sjs == 0.0)
+      continue;
+    const auto bk_abdc = Bk.Q(k, v, w, y, x);
+    const auto s = Angular::neg1pow_2(tjv + tjx + 2 * k);
+    out += s * sjs * bk_abdc;
+  }
+
+  return out;
+}
+
+//==============================================================================
 double Sigma2_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
                  const Coulomb::LkTable &Sk) {
   const auto [v, w] = A.states;
   const auto [x, y] = B.states;
   return CSF2_Sigma2(Sk, v, w, x, y, twoJ);
+}
+
+//==============================================================================
+double Breit_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
+                const Coulomb::WkTable &Bk) {
+  const auto [v, w] = A.states;
+  const auto [x, y] = B.states;
+  return CSF2_Breit(Bk, v, w, x, y, twoJ);
 }
 
 //==============================================================================
@@ -284,7 +343,45 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
       Sk.write(filename);
     }
   }
+  std::cout << "\n" << std::flush;
   return Sk;
+}
+
+//==============================================================================
+Coulomb::WkTable calculate_Bk(const std::string &bk_filename,
+                              const HF::Breit *const pBr,
+                              const std::vector<DiracSpinor> &ci_basis,
+                              int max_k) {
+  // Breit table
+  Coulomb::WkTable Bk;
+
+  Bk.read(bk_filename);
+  const auto existing = Bk.count();
+  auto vBr = *pBr;              //copy, so we can fill two-particle 'bk'
+  vBr.fill_gb(ci_basis, max_k); // very quick, and makes below *much* faster
+
+  const auto Bk_function = [&](int k, const DiracSpinor &v,
+                               const DiracSpinor &w, const DiracSpinor &x,
+                               const DiracSpinor &y) {
+    return vBr.Bk_abcd_2(k, v, w, x, y);
+  };
+
+  Bk.fill(ci_basis, Bk_function, HF::Breit::Bk_SR, max_k, false);
+
+  // print summary
+  Bk.summary();
+
+  // If we calculated new integrals, write to disk
+  const auto total = Bk.count();
+  assert(total >= existing);
+  const auto new_integrals = total - existing;
+  std::cout << "Calculated " << new_integrals << " new Breit integrals\n";
+  if (new_integrals > 0) {
+    Bk.write(bk_filename);
+  }
+  std::cout << "\n" << std::flush;
+
+  return Bk;
 }
 
 //==============================================================================
@@ -475,6 +572,7 @@ std::string Term_Symbol(int L, int two_S, int parity) {
 LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi,
                                      const Coulomb::meTable<double> &h1,
                                      const Coulomb::QkTable &qk,
+                                     const Coulomb::WkTable *Bk,
                                      const Coulomb::LkTable *Sk) {
 
   const auto N_CSFs = psi.CSFs().size();
@@ -492,12 +590,14 @@ LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi,
       // Regular CI matrix (h1 may include Sigma_1):
       const auto E_AB = Hab(A, B, twoJ, h1, qk);
       // Sigma_2 correction:
-      const auto dE_AB = Sk ? CI::Sigma2_AB(A, B, twoJ, *Sk) : 0.0;
+      const auto dEs_AB = Sk ? CI::Sigma2_AB(A, B, twoJ, *Sk) : 0.0;
+      // Breit correction:
+      const auto dEb_AB = Bk ? CI::Breit_AB(A, B, twoJ, *Bk) : 0.0;
 
-      Hci(iA, iB) = E_AB + dE_AB;
+      Hci(iA, iB) = E_AB + dEs_AB + dEb_AB;
       // fill other half of symmetric matrix:
       if (iB != iA) {
-        Hci(iB, iA) = E_AB + dE_AB;
+        Hci(iB, iA) = E_AB + dEs_AB + dEb_AB;
       }
     }
   }

@@ -103,6 +103,26 @@ TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
             REQUIRE(b1 == Approx(b4).margin(1.0e-15));
             REQUIRE(b1 == Approx(b5).margin(1.0e-15));
 
+            // test selection rule (it's not inside Bk_abcd explicitely)
+            if (b1 == 0.0) {
+              REQUIRE(!HF::Breit::Bk_SR(k, a, b, c, d));
+            } else {
+              REQUIRE(HF::Breit::Bk_SR(k, a, b, c, d));
+            }
+            if (HF::Breit::Bk_SR(k, a, b, c, d)) {
+              REQUIRE(k != 0);
+            }
+
+            const auto [k1, k2] = HF::Breit::k_minmax(a, b, c, d);
+            if (b1 != 0) {
+              REQUIRE(k >= k1);
+              REQUIRE(k <= k2);
+            }
+
+            const auto [k3, k4] =
+                HF::Breit::k_minmax_tj(a.twoj(), b.twoj(), c.twoj(), d.twoj());
+            REQUIRE((k1 == k3 && k2 == k4));
+
             const auto b6 = Br.Bk_abcd(k, c, b, a, d);
             const auto b7 = Br.Bk_abcd(k, a, d, c, b);
             REQUIRE(b6 == Approx(b7).margin(1.0e-15));

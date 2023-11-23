@@ -253,6 +253,19 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   //----------------------------------------------------------------------------
 
+  // Creat Breit table (only for CI, not MBPT part)
+  Coulomb::WkTable Bk;
+  if (wf.vHF()->vBreit()) {
+    std::cout << "Calculate two-body Breit integrals: B^k_abcd\n";
+
+    const auto bk_filename = input.get("qk_file", wf.identity() + ".bk");
+
+    CI::calculate_Bk(bk_filename, wf.vHF()->vBreit(), ci_sp_basis,
+                     max_k_Coulomb);
+  }
+
+  //----------------------------------------------------------------------------
+
   // Create lookup table for one-particle matrix elements, h1
   const auto h1 =
       wf.Sigma() ?
@@ -263,17 +276,18 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   //----------------------------------------------------------------------------
   // Calculate MBPT corrections to two-body Coulomb integrals
 
-  // Here, write basis info into filename, since these are _internal_ lines!
-  const auto Sk_filename =
-      input.get("sk_file", wf.identity() + "_" + std::to_string(n_min_core) +
-                               "_" + DiracSpinor::state_config(excited_s2) +
-                               (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
-                                    "_" + std::to_string(max_k_Coulomb) :
-                                    "") +
-                               ".sk");
-
   Coulomb::LkTable Sk;
   if (include_Sigma2) {
+
+    // Here, write basis info into filename, since these are _internal_ lines!
+    const auto Sk_filename =
+        input.get("sk_file", wf.identity() + "_" + std::to_string(n_min_core) +
+                                 "_" + DiracSpinor::state_config(excited_s2) +
+                                 (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
+                                      "_" + std::to_string(max_k_Coulomb) :
+                                      "") +
+                                 ".sk");
+
     std::cout << "Calculate two-body MBPT integrals: Σ^k_abcd\n";
 
     std::cout << "For: " << DiracSpinor::state_config(cis2_basis) << ", using "
@@ -282,7 +296,6 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     Sk = CI::calculate_Sk(Sk_filename, cis2_basis, core_s2, excited_s2, qk,
                           max_k_Coulomb, exclude_wrong_parity_box,
                           no_new_integrals);
-    std::cout << "\n" << std::flush;
   }
 
   //----------------------------------------------------------------------------
@@ -312,8 +325,8 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
               std::pair{2 * J_odd_list.at(i - J_even_list.size()), -1};
 
       auto &output_stream = parallel_ci ? os.at(i) : std::cout;
-      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_solutions, h1, qk, Sk,
-                            include_Sigma2, output_stream);
+      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_solutions, h1, qk, Bk,
+                            Sk, include_Sigma2, output_stream);
     }
 
     // If doing in parallel, output detailed output at end
@@ -385,8 +398,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 //==============================================================================
 PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_solutions, const Coulomb::meTable<double> &h1,
-              const Coulomb::QkTable &qk, const Coulomb::LkTable &Sk,
-              bool include_Sigma2, std::ostream &outstream) {
+              const Coulomb::QkTable &qk, const Coulomb::WkTable &Bk,
+              const Coulomb::LkTable &Sk, bool include_Sigma2,
+              std::ostream &outstream) {
 
   auto printJ = [](int twoj) {
     return twoj % 2 == 0 ? std::to_string(twoj / 2) :
@@ -416,8 +430,9 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   //----------------------------------------------------------------------------
 
   // Construct the CI matrix:
-  const auto Hci = include_Sigma2 ? CI::construct_Hci(psi, h1, qk, &Sk) :
-                                    CI::construct_Hci(psi, h1, qk);
+  const auto br_ptr = !Bk.emptyQ() ? &Bk : nullptr;
+  const auto s2_ptr = include_Sigma2 ? &Sk : nullptr;
+  const auto Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr);
 
   //----------------------------------------------------------------------------
 

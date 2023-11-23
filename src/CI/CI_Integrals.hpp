@@ -9,6 +9,9 @@ class DiracDiracSpinor;
 namespace MBPT {
 class CorrelationPotential;
 }
+namespace HF {
+class Breit;
+}
 
 namespace CI {
 
@@ -24,6 +27,12 @@ double CSF2_Sigma2(const Coulomb::LkTable &Sk, DiracSpinor::Index v,
                    DiracSpinor::Index w, DiracSpinor::Index x,
                    DiracSpinor::Index y, int twoJ);
 
+//! Calculates the anti-symmetrised Breit integral for 2-particle states:
+//! C1*C2*(b_abcd-b_abdc), where Cs are C.G. coefficients
+double CSF2_Breit(const Coulomb::WkTable &Bk, DiracSpinor::Index v,
+                  DiracSpinor::Index w, DiracSpinor::Index x,
+                  DiracSpinor::Index y, int twoJ);
+
 //! Determines CI Hamiltonian matrix element for two 2-particle CSFs, a and b.
 //! Does NOT include Sigma(2) matrix, but does include Sigma1 (if it's in h1)
 double Hab(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
@@ -32,6 +41,10 @@ double Hab(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
 //! Calculates the Sigma(2) correction to Hab()
 double Sigma2_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
                  const Coulomb::LkTable &Sk);
+
+//! Calculates the Breit correction to Hab()
+double Breit_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
+                const Coulomb::WkTable &Bk);
 
 //! Calculates table of single-particle matrix elements of one-body Hamiltonian.
 //! Note: assumes basis are Hartree-Fock eigenstates!
@@ -54,6 +67,12 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
                               const Coulomb::QkTable &qk, int max_k,
                               bool exclude_wrong_parity_box,
                               bool no_new_integrals = false);
+
+//! Calculates table of single-particle matrix elements of two-body Breit operator.
+Coulomb::WkTable calculate_Bk(const std::string &bk_filename,
+                              const HF::Breit *const pBr,
+                              const std::vector<DiracSpinor> &ci_basis,
+                              int max_k);
 
 //! Takes a subset of input basis according to subset_string.
 //! Only states *not* included in frozen_core_string are included.
@@ -104,6 +123,7 @@ std::string Term_Symbol(int L, int two_S, int parity);
 LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi,
                                      const Coulomb::meTable<double> &h1,
                                      const Coulomb::QkTable &qk,
+                                     const Coulomb::WkTable *Bk = nullptr,
                                      const Coulomb::LkTable *Sk = nullptr);
 
 } // namespace CI

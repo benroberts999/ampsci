@@ -163,7 +163,7 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
 std::unique_ptr<CorePolarisation>
 make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
          const HF::HartreeFock *vhf, bool print,
-         const std::vector<DiracSpinor> &basis, const std::string &atom) {
+         const std::vector<DiracSpinor> &basis, const std::string &identity) {
 
   // Parse method for RPA:
   auto rpa_method = ExternalField::ParseMethod(method);
@@ -194,7 +194,7 @@ make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
     if (print)
       std::cout << "diagram method (" << DiracSpinor::state_config(basis)
                 << ")\n";
-    dV = std::make_unique<ExternalField::DiagramRPA>(h, basis, vhf, atom);
+    dV = std::make_unique<ExternalField::DiagramRPA>(h, basis, vhf, identity);
   }
   return dV;
 }

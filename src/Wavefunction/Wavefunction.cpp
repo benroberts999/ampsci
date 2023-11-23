@@ -514,15 +514,16 @@ void Wavefunction::formSigma(
     return;
   std::cout << "\nIncluding correlation potential:\n" << std::flush;
 
-  std::string ext = FeynmanQ ? ".sigf" : ".sig2";
+  std::string ext = FeynmanQ ? ".sf" : ".s2";
   if (FeynmanQ && ScreeningQ)
     ext += "s";
   if (FeynmanQ && holeParticleQ)
     ext += "h";
-  if (m_HF->vBreit())
-    ext += "b";
-  if (vrad())
-    ext += "q";
+  // This is now in "identity"
+  // if (m_HF->vBreit())
+  //   ext += "b";
+  // if (vrad())
+  //   ext += "q";
 
   const auto ifname = in_fname == "" ? identity() + ext : in_fname + ext;
   const auto ofname = out_fname == "" ? identity() + ext : out_fname + ext;
@@ -704,6 +705,19 @@ int Wavefunction::Ncore() const {
     return count + Fc.num_electrons();
   };
   return std::accumulate(core().cbegin(), core().cend(), 0, count_electrons);
+}
+
+//==============================================================================
+std::string Wavefunction::identity() const {
+  const auto lab = m_run_label == "" ? "" : "_" + m_run_label;
+
+  const std::string bq = vrad() && m_HF && m_HF->vBreit() ? "bq" :
+                         m_HF && m_HF->vBreit()           ? "b" :
+                         vrad()                           ? "q" :
+                                                            "";
+  const std::string va2 =
+      dalpha2() > 1.0e-5 ? fmt::format("_{:1.4g}", 1.0 + dalpha2()) : "";
+  return atomicSymbol() + std::to_string(Zion()) + bq + va2 + lab;
 }
 
 //==============================================================================

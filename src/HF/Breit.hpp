@@ -73,6 +73,36 @@ public:
     m_P = t_P;
   }
 
+  static bool Bk_SR(int k, const DiracSpinor &v, const DiracSpinor &w,
+                    const DiracSpinor &x, const DiracSpinor &y) {
+
+    const auto have_mop = Angular::Ck_kk_SR(k, v.kappa(), x.kappa()) &&
+                          Angular::Ck_kk_SR(k, w.kappa(), y.kappa()) &&
+                          v != x && w != y;
+
+    const auto have_n = Angular::Ck_kk_SR(k, -v.kappa(), x.kappa()) &&
+                        Angular::Ck_kk_SR(k, -w.kappa(), y.kappa()) &&
+                        (v.kappa() + x.kappa() != 0) &&
+                        (w.kappa() + y.kappa() != 0);
+
+    return (have_mop || have_n);
+  }
+
+  static std::pair<int, int> k_minmax(const DiracSpinor &a,
+                                      const DiracSpinor &b,
+                                      const DiracSpinor &c,
+                                      const DiracSpinor &d) {
+    const auto [k1, k2] = Coulomb::k_minmax_tj(a.twoj(), c.twoj());
+    const auto [k3, k4] = Coulomb::k_minmax_tj(b.twoj(), d.twoj());
+    return {std::max({1, k1, k3}), std::min(k2, k4)};
+  }
+
+  static std::pair<int, int> k_minmax_tj(int tja, int tjb, int tjc, int tjd) {
+    const auto [k1, k2] = Coulomb::k_minmax_tj(tja, tjc);
+    const auto [k3, k4] = Coulomb::k_minmax_tj(tjb, tjd);
+    return {std::max({1, k1, k3}), std::min(k2, k4)};
+  }
+
   void fill_gb(const std::vector<DiracSpinor> &basis, int t_max_k = 99);
 
   //! Resturns scaling factor
