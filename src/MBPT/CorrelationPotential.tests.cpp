@@ -352,7 +352,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
     wf.solve_core("HartreeFock", 0.0, "[Xe]");
     wf.solve_valence("7sp5d4f");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
-    wf.formSigma(3, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {}, {},
+    wf.formSigma(3, 3, 1.0e-4, 30.0, 14 /*stride*/, false, false, {}, {}, {},
                  "false", "tst_sigma_deleteme");
 
     std::vector<double> hf, br2;
@@ -396,7 +396,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
     wf.solve_valence("7sp5d4f");
     // wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
     // Don't calculate Sigma, read it in from above example:
-    wf.formSigma(1, 0.0, 0.0, 1 /*stride*/, false, false, {}, {}, {},
+    wf.formSigma(1, 1, 0.0, 0.0, 1 /*stride*/, false, false, {}, {}, {},
                  "tst_sigma_deleteme", "false");
 
     std::vector<double> hf, br2;
@@ -439,7 +439,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
     wf.solve_core("HartreeFock", 0.0, "[Rn]");
     wf.solve_valence("7sp6d");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
-    wf.formSigma(4, 1.0e-4, 30.0, 12 /*stride*/, false, false, {}, {}, {},
+    wf.formSigma(4, 4, 1.0e-4, 30.0, 12 /*stride*/, false, false, {}, {}, {},
                  "false", "tst_sigma_deleteme");
 
     std::vector<double> hf, br2;
@@ -499,8 +499,9 @@ TEST_CASE("MBPT: Correlation Potential: SigmaAO",
     const std::vector fk{0.71, 0.589, 0.84, 0.885, 0.95, 0.976, 0.991};
     // const std::vector fk{0.72, 0.62, 0.83, 0.89, 0.94, 1.0};
     // wf.formSigma(3, true, 1.0e-4, 30.0, 14 /*stride*/);
-    wf.formSigma(n_min_core, rmin, rmax, stride, false, false, {}, fk, {},
-                 "false", "false", true, true, true, lmax, omre, w0, wratio);
+    wf.formSigma(n_min_core, n_min_core, rmin, rmax, stride, false, false, {},
+                 fk, {}, "false", "false", true, true, true, lmax, omre, w0,
+                 wratio);
 
     wf.hartreeFockBrueckner();
 

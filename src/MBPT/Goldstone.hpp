@@ -35,7 +35,8 @@ public:
   //! Calculate Direct part of correlation potential
   GMatrix Sigma_direct(int kappa_v, double en_v,
                        const std::vector<double> &fk = {},
-                       const std::vector<double> &etak = {}) const;
+                       const std::vector<double> &etak = {},
+                       int n_max_core = 99) const;
 
   // nb: can be a little faster by combining w/ direct?
   GMatrix Sigma_exchange(int kappa_v, double en_v,

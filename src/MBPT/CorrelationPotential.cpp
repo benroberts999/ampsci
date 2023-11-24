@@ -19,7 +19,8 @@ CorrelationPotential::CorrelationPotential(
     const std::vector<DiracSpinor> &basis, double r0, double rmax,
     std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
     const FeynmanOptions &Foptions, bool calculate_fk,
-    const std::vector<double> &fk, const std::vector<double> &etak)
+    const std::vector<double> &fk, const std::vector<double> &etak,
+    std::optional<int> n_min_core_F)
     : m_HF(vHF),
       m_basis(basis), // dumb
       m_r0(r0),
@@ -29,6 +30,7 @@ CorrelationPotential::CorrelationPotential(
       m_size((m_HF->grid().getIndex(rmax) - m_i0) / m_stride + 1),
       m_method(method),
       m_n_min_core(n_min_core),
+      m_n_min_core_F(n_min_core_F ? *n_min_core_F : n_min_core),
       m_includeG(include_g),
       m_Foptions(Foptions),
       m_calculate_fk(calculate_fk),
@@ -161,12 +163,24 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
       }
       std::cout << "}\n";
     }
+    // If not stored, store first screening factors
+    if (m_fk.empty()) {
+      m_fk = vfk;
+    }
+    if (m_etak.empty()) {
+      m_etak = vetak;
+    }
   } else {
     vfk = m_fk;
     vetak = m_etak;
   }
 
   auto Sd = m_Fy->Sigma_direct(kappa, ev);
+  if (m_n_min_core_F > m_n_min_core) {
+    // Go from m_n_min_core to m_n_min_core_F using Goldstone method
+    // Don't screen? vetak may not be calculated..
+    Sd += m_Gold->Sigma_direct(kappa, ev, vfk, vetak, m_n_min_core_F - 1);
+  }
   if (m_includeG) {
     // If 'Includeing G', calculate using Goldstone technique
     auto Sd2 = m_Gold->Sigma_direct(kappa, ev, vfk, vetak);
@@ -276,7 +290,7 @@ void CorrelationPotential::setup_Feynman() {
   }
 
   if (!m_Fy) {
-    m_Fy = Feynman(m_HF, m_i0, m_stride, m_size, m_Foptions, m_n_min_core);
+    m_Fy = Feynman(m_HF, m_i0, m_stride, m_size, m_Foptions, m_n_min_core_F);
   }
 
   if (m_calculate_fk && !m_Fy0) {

@@ -274,8 +274,8 @@ public:
   void formSpectrum(const SplineBasis::Parameters &params);
 
   //! Forms + stores correlation potential Sigma
-  void formSigma(int nmin_core = 1, double r0 = 1.0e-4, double rmax = 30.0,
-                 int stride = 4, bool each_valence = false,
+  void formSigma(int nmin_core = 1, int nmin_core_F = 1, double r0 = 1.0e-4,
+                 double rmax = 30.0, int stride = 4, bool each_valence = false,
                  bool include_G = false,
                  const std::vector<double> &lambdas = {},
                  const std::vector<double> &fk = {},

@@ -535,6 +535,10 @@ void ampsci(const IO::InputBlock &input) {
       {{"", "Options for inclusion of correlations (correlation potential "
             "method)."},
        {"n_min_core", "Minimum core n to polarise [1]"},
+       {"n_min_core_F",
+        "Minimum core n to polarise in Feynman method. By default, same as "
+        "n_min_core. If n_min_core_F>n_min_core, code will use Goldstone "
+        "method for lowest ns"},
        {"each_valence",
         "Construct seperate Sigma for each valence state? [false]"},
        {"fitTo_cm", "List of binding energies (in cm^-1) to scale Sigma for. "
@@ -552,8 +556,8 @@ void ampsci(const IO::InputBlock &input) {
        {"ek{}", "Block: Explicit list of energies to solve for. e.g., "
                 "ek{6s+=-0.127; 7s+=-0.552;}. Blank => HF energies. Takes "
                 "precidence over each_valence. [blank]"},
-       {"allOrder", "Use all-orders method (implies Feynman=true; "
-                    "screening=true; holeParticle=true;) [false]"},
+       {"all_order", "Use all-orders method (implies Feynman=true; "
+                     "screening=true; holeParticle=true;) [false]"},
        {"Feynman", "Use Feynman method [false]"},
        {"fk",
         "List of doubles. Screening factors for effective all-order "
@@ -577,6 +581,8 @@ void ampsci(const IO::InputBlock &input) {
 
   const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
+  const auto n_min_core_F =
+      input.get({"Correlations"}, "n_min_core_F", n_min_core);
   const auto sigma_rmin = input.get({"Correlations"}, "rmin", 1.0e-4);
   const auto sigma_rmax = input.get({"Correlations"}, "rmax", 30.0);
   const auto each_valence = input.get({"Correlations"}, "each_valence", false);
@@ -590,7 +596,7 @@ void ampsci(const IO::InputBlock &input) {
       input.get({"Correlations"}, "stride", default_stride);
 
   // Feynman method:
-  const auto all_order = input.get({"Correlations"}, "allOrder", false);
+  const auto all_order = input.get({"Correlations"}, "all_order", false);
   const auto sigma_Feynman = input.get({"Correlations"}, "Feynman", all_order);
   const auto sigma_Screening =
       input.get({"Correlations"}, "screening", all_order);
@@ -643,10 +649,10 @@ void ampsci(const IO::InputBlock &input) {
   // Form correlation potential:
   if (Sigma_ok && do_brueckner) {
     IO::ChronoTimer time("Sigma");
-    wf.formSigma(n_min_core, sigma_rmin, sigma_rmax, sigma_stride, each_valence,
-                 include_G, lambda_k, fk, etak, sigma_read, sigma_write,
-                 sigma_Feynman, sigma_Screening, hole_particle, sigma_lmax,
-                 sigma_omre, w0, wratio, ek_Sig);
+    wf.formSigma(n_min_core, n_min_core_F, sigma_rmin, sigma_rmax, sigma_stride,
+                 each_valence, include_G, lambda_k, fk, etak, sigma_read,
+                 sigma_write, sigma_Feynman, sigma_Screening, hole_particle,
+                 sigma_lmax, sigma_omre, w0, wratio, ek_Sig);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

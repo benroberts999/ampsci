@@ -36,7 +36,8 @@ Goldstone::Goldstone(const std::vector<DiracSpinor> &basis,
 //==============================================================================
 GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
                                 const std::vector<double> &fks,
-                                const std::vector<double> &etaks) const {
+                                const std::vector<double> &etaks,
+                                int n_max_core) const {
 
   // Four second-order diagrams:
   // Diagram (a):
@@ -72,6 +73,8 @@ GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
     for (auto in = 0ul; in < excited.size(); in++) {
       const auto &a = holes[ia];
       const auto &n = excited[in];
+      if (n_max_core > 0 && a.n() > n_max_core)
+        continue;
 
       GMatrix Sd_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
 

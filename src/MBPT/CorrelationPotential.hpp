@@ -54,6 +54,7 @@ class CorrelationPotential {
 
   SigmaMethod m_method;
   int m_n_min_core;
+  int m_n_min_core_F;
   bool m_includeG;
 
   std::optional<Goldstone> m_Gold{};
@@ -78,7 +79,8 @@ public:
                        const FeynmanOptions &Foptions = {},
                        bool calculate_fk = true,
                        const std::vector<double> &fk = {},
-                       const std::vector<double> &etak = {});
+                       const std::vector<double> &etak = {},
+                       std::optional<int> n_min_core_F = {});
 
   // // not thread safe!
   // void formSigma(int kappa, double en, int n = 0) {}
