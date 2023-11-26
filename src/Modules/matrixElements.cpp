@@ -232,7 +232,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto sr0 = (tb + c + n) * factor;
         fmt::print("{:15.8e} = {:15.8e}\n", factor * n, sr0);
         std::cout << std::flush;
-        const auto sr_rpa = (dvtb + dvc + dvn) * factor;
+        const auto sr_rpa = rpa ? (dvtb + dvc + dvn) * factor : sr0;
         if (rpa)
           fmt::print(" SR+RPA : {:15.8e} + {:15.8e} + {:15.8e} = {:15.8e}\n",
                      factor * dvtb, factor * dvc, factor * dvn, sr_rpa);
@@ -318,7 +318,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           const auto sr0 = (tb + c + n) * factor;
           std::cout << std::flush;
           fmt::print("{:15.8e} = {:15.8e}\n", factor * n, sr0);
-          const auto sr_rpa = (dvtb + dvc + dvn) * factor;
+          const auto sr_rpa = rpa ? (dvtb + dvc + dvn) * factor : sr0;
           if (rpa)
             fmt::print(" SR+RPA : {:15.8e} + {:15.8e} + {:15.8e} = {:15.8e}\n",
                        factor * dvtb, factor * dvc, factor * dvn, sr_rpa);
