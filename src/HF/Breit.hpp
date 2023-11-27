@@ -124,7 +124,8 @@ public:
   double Bk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                  const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
-  //! Reduced Breit integral (analogue of Coulomb Q^k).
+  //! Reduced Breit integral (analogue of Coulomb Q^k), faster version.
+  //! Can only use if fill_gb() has been called
   double Bk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                    const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
@@ -132,7 +133,8 @@ public:
   double BPk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
-  //! Reduced exchange Breit integral (analogue of Coulomb P^k).
+  //! Reduced exchange Breit integral (analogue of Coulomb P^k), faster version.
+  //! Can only use if fill_gb() has been called
   double BPk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
@@ -141,8 +143,8 @@ public:
   double BWk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
-  //! Reduced anti-symmetrised Breit integral (analogue of Coulomb W^k).
-  //! BWk_abcd = Bk_abcd + BPk_abcd
+  //! Reduced anti-symmetrised Breit integral (analogue of Coulomb W^k), faster.
+  //! Can only use if fill_gb() has been called.
   double BWk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 

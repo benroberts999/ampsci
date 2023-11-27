@@ -66,11 +66,17 @@ double g_abcd(const DiracSpinor &a, const DiracSpinor &b, const DiracSpinor &c,
 
 //==============================================================================
 //! Just selection rule for Qk_abcd
-bool Qk_abcd_SR(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+bool Qk_abcd_SR(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                 const DiracSpinor &Fc, const DiracSpinor &Fd);
+//! Just selection rule for Qk_abcd
+bool Qk_abcd_SR(int k, int ka, int kb, int kc, int kd);
+
 //! Just selection rule for Pk_abcd
-bool Pk_abcd_SR(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+bool Pk_abcd_SR(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                 const DiracSpinor &Fc, const DiracSpinor &Fd);
+
+//! Just selection rule for Pk_abcd
+bool Pk_abcd_SR(int k, int ka, int kb, int kc, int kd);
 
 //==============================================================================
 

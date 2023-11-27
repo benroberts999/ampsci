@@ -1,5 +1,6 @@
 #pragma once
 #include "Coulomb/YkTable.hpp"
+#include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "MBPT/RDMatrix.hpp"
 #include "Maths/Grid.hpp"
@@ -19,6 +20,7 @@ class Goldstone {
   using Basis = std::vector<DiracSpinor>;
   std::pair<Basis, Basis> m_basis;
   Coulomb::YkTable m_Yeh;
+  std::optional<HF::Breit> m_Br{};
 
   // Parameters of the sub-grid: initial/final points, stride
   std::size_t m_i0, m_stride, m_subgrid_points;
@@ -30,7 +32,7 @@ public:
   Goldstone(const std::vector<DiracSpinor> &basis,
             const std::vector<DiracSpinor> &core, std::size_t i0,
             std::size_t stride, std::size_t size, int n_min_core = 1,
-            bool include_G = false);
+            bool include_G = false, const HF::Breit *Br = nullptr);
 
   //! Calculate Direct part of correlation potential
   GMatrix Sigma_direct(int kappa_v, double en_v,

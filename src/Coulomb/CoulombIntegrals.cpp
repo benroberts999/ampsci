@@ -376,16 +376,22 @@ double Qk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 }
 
 //------------------------------------------------------------------------------
-bool Qk_abcd_SR(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                const DiracSpinor &Fc, const DiracSpinor &Fd) {
-  return Angular::Ck_kk_SR(k, Fa.kappa(), Fc.kappa()) &&
-         Angular::Ck_kk_SR(k, Fb.kappa(), Fd.kappa());
+bool Qk_abcd_SR(int k, int ka, int kb, int kc, int kd) {
+  return Angular::Ck_kk_SR(k, ka, kc) && Angular::Ck_kk_SR(k, kb, kd);
+}
+
+bool Qk_abcd_SR(int k, const DiracSpinor &a, const DiracSpinor &b,
+                const DiracSpinor &c, const DiracSpinor &d) {
+  return Qk_abcd_SR(k, a.kappa(), b.kappa(), c.kappa(), d.kappa());
 }
 //------------------------------------------------------------------------------
-bool Pk_abcd_SR(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                const DiracSpinor &Fc, const DiracSpinor &Fd) {
-  return Angular::Ck_kk_SR(k, Fa.kappa(), Fd.kappa()) &&
-         Angular::Ck_kk_SR(k, Fb.kappa(), Fc.kappa());
+bool Pk_abcd_SR(int k, int ka, int kb, int kc, int kd) {
+  return Angular::Ck_kk_SR(k, ka, kd) && Angular::Ck_kk_SR(k, kb, kc);
+}
+
+bool Pk_abcd_SR(int k, const DiracSpinor &a, const DiracSpinor &b,
+                const DiracSpinor &c, const DiracSpinor &d) {
+  return Pk_abcd_SR(k, a.kappa(), b.kappa(), d.kappa(), c.kappa());
 }
 
 //------------------------------------------------------------------------------

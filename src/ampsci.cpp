@@ -562,8 +562,8 @@ void ampsci(const IO::InputBlock &input) {
        {"fk",
         "List of doubles. Screening factors for effective all-order "
         "exchange. In Feynman method, used in exchange only (and G-part); "
-        "Goldstone, "
-        "used direct also. If blank, will calculate them from scratch. []"},
+        "Goldstone, used direct also. If blank, will calculate them from "
+        "scratch. []"},
        {"eta", "List of doubles. Hole-Particle factors. In Feynman method, "
                "used only for G part; Goldstone, used in direct also. []"},
        {"screening", "Include all-orders screening. Only applicable for "
@@ -577,7 +577,9 @@ void ampsci(const IO::InputBlock &input) {
        {"imag_omega",
         "Pair of comma-separated doubles: w0, wratio. Initial point, and "
         "ratio, for logarithimg Im(w) grid [0.01, 1.5]"},
-       {"include_G", "Inlcude lower g-part into Sigma [false]"}});
+       {"include_G", "Inlcude lower g-part into Sigma [false]"},
+       {"include_Breit",
+        "Inlcude Breit corrections into Sigma (only for 2nd order) [false]"}});
 
   const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
@@ -604,6 +606,8 @@ void ampsci(const IO::InputBlock &input) {
       input.get({"Correlations"}, "holeParticle", all_order);
   const auto sigma_lmax = input.get({"Correlations"}, "lmax", 6);
   const auto include_G = input.get({"Correlations"}, "include_G", false);
+  const auto include_Breit =
+      input.get({"Correlations"}, "include_Breit", false);
   // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(
       input.get({"Correlations"}, "real_omega", -0.33 * wf.energy_gap()));
@@ -650,9 +654,9 @@ void ampsci(const IO::InputBlock &input) {
   if (Sigma_ok && do_brueckner) {
     IO::ChronoTimer time("Sigma");
     wf.formSigma(n_min_core, n_min_core_F, sigma_rmin, sigma_rmax, sigma_stride,
-                 each_valence, include_G, lambda_k, fk, etak, sigma_read,
-                 sigma_write, sigma_Feynman, sigma_Screening, hole_particle,
-                 sigma_lmax, sigma_omre, w0, wratio, ek_Sig);
+                 each_valence, include_G, include_Breit, lambda_k, fk, etak,
+                 sigma_read, sigma_write, sigma_Feynman, sigma_Screening,
+                 hole_particle, sigma_lmax, sigma_omre, w0, wratio, ek_Sig);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

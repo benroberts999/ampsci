@@ -18,7 +18,7 @@ CorrelationPotential::CorrelationPotential(
     const std::string &fname, const HF::HartreeFock *vHF,
     const std::vector<DiracSpinor> &basis, double r0, double rmax,
     std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
-    const FeynmanOptions &Foptions, bool calculate_fk,
+    bool include_Breit, const FeynmanOptions &Foptions, bool calculate_fk,
     const std::vector<double> &fk, const std::vector<double> &etak,
     std::optional<int> n_min_core_F)
     : m_HF(vHF),
@@ -32,6 +32,7 @@ CorrelationPotential::CorrelationPotential(
       m_n_min_core(n_min_core),
       m_n_min_core_F(n_min_core_F ? *n_min_core_F : n_min_core),
       m_includeG(include_g),
+      m_includeBreit(include_Breit),
       m_Foptions(Foptions),
       m_calculate_fk(calculate_fk),
       m_fk(fk),
@@ -96,8 +97,8 @@ CorrelationPotential::CorrelationPotential(
     }
 
     // If didn't read, setup Goldstone/Feynman (create Yk, pol operator etc.)
-    m_Gold = Goldstone(basis, vHF->core(), m_i0, m_stride, m_size, n_min_core,
-                       m_includeG);
+    m_Gold = Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
+                       m_includeG, m_includeBreit ? m_HF->vBreit() : nullptr);
     if (m_method == SigmaMethod::Feynman) {
       setup_Feynman();
     }
@@ -257,8 +258,9 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
                                           const DiracSpinor *Fv) {
 
   if (!m_Gold) {
-    m_Gold = Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size,
-                       m_n_min_core, m_includeG);
+    m_Gold =
+        Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size, m_n_min_core,
+                  m_includeG, m_includeBreit ? m_HF->vBreit() : nullptr);
   }
 
   const auto Sd = m_Gold->Sigma_direct(kappa, ev, m_fk, m_etak);

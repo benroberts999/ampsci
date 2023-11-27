@@ -505,11 +505,12 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 //==============================================================================
 void Wavefunction::formSigma(
     int nmin_core, int nmin_core_F, double r0, double rmax, int stride,
-    bool each_valence, bool include_G, const std::vector<double> &lambdas,
-    const std::vector<double> &fk, const std::vector<double> &etak,
-    const std::string &in_fname, const std::string &out_fname, bool FeynmanQ,
-    bool ScreeningQ, bool holeParticleQ, int lmax, double omre, double w0,
-    double wratio, const std::optional<IO::InputBlock> &ek) {
+    bool each_valence, bool include_G, bool include_Breit,
+    const std::vector<double> &lambdas, const std::vector<double> &fk,
+    const std::vector<double> &etak, const std::string &in_fname,
+    const std::string &out_fname, bool FeynmanQ, bool ScreeningQ,
+    bool holeParticleQ, int lmax, double omre, double w0, double wratio,
+    const std::optional<IO::InputBlock> &ek) {
   if (m_valence.empty())
     return;
   std::cout << "\nIncluding correlation potential:\n" << std::flush;
@@ -519,11 +520,8 @@ void Wavefunction::formSigma(
     ext += "s";
   if (FeynmanQ && holeParticleQ)
     ext += "h";
-  // This is now in "identity"
-  // if (m_HF->vBreit())
-  //   ext += "b";
-  // if (vrad())
-  //   ext += "q";
+  if (include_Breit && m_HF->vBreit() && !FeynmanQ)
+    ext += "b";
 
   const auto ifname = in_fname == "" ? identity() + ext : in_fname + ext;
   const auto ofname = out_fname == "" ? identity() + ext : out_fname + ext;
@@ -545,8 +543,9 @@ void Wavefunction::formSigma(
 
   m_Sigma = MBPT::CorrelationPotential(
       ifname, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core, method,
-      include_G, MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio},
-      calculate_fk, fk, etak, nmin_core_F);
+      include_G, include_Breit,
+      MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
+      fk, etak, nmin_core_F);
 
   std::cout << "\n";
 
