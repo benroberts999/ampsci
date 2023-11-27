@@ -798,13 +798,10 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   t.start();
 
 #pragma omp parallel for collapse(2)
-  for (const auto &a : basis) {
-    // const auto &a = basis[ia];
-    // t.start();
-    // For tests only:
-    // std::cout << ia << "/" << basis.size() << "     \r" << std::flush;
-    // Faster to parelise here??? or random?
-    for (const auto &b : basis) {
+  for (std::size_t ia = 0; ia < basis.size(); ++ia) {
+    for (std::size_t ib = 0; ib < basis.size(); ++ib) {
+      const auto &a = basis[ia];
+      const auto &b = basis[ib];
       for (const auto &c : basis) {
         for (const auto &d : basis) {
           const auto normal_index = NormalOrder(a, b, c, d);
