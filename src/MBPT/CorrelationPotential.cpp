@@ -180,7 +180,10 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
   if (m_n_min_core_F > m_n_min_core) {
     // Go from m_n_min_core to m_n_min_core_F using Goldstone method
     // Don't screen? vetak may not be calculated..
-    Sd += m_Gold->Sigma_direct(kappa, ev, vfk, vetak, m_n_min_core_F - 1);
+    const auto tmp =
+        m_Gold->Sigma_direct(kappa, ev, vfk, vetak, m_n_min_core_F - 1);
+    // Feynman only has ff, goldstone may have g parts
+    Sd.ff() += tmp.ff();
   }
   if (m_includeG) {
     // If 'Includeing G', calculate using Goldstone technique
