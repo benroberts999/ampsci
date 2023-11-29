@@ -38,15 +38,18 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
         "List. Discard these states from the spectrum for "
         "sum-over-states for valence part of alpha, and "
         "from TDHF by orthogonality (must be in core/valence) []"},
+       {"replace_w_valence", "Replace 'spectrum' states with valence states "
+                             "for some-over-states method [false]"},
        {"SRN", "SR: include SR+Norm correction [false]"},
        {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
        {"Qk_file",
-        "SR: filename for QkTable file. If blank will not use QkTable; if "
-        "exists, "
-        "will read it in; if doesn't exist, will create it and write to disk. "
-        "Save time (10x) at cost of memory."}});
+        "true/false/filename - SR: filename for QkTable file. If blank will "
+        "not use QkTable; if exists, will read it in; if doesn't exist, will "
+        "create it and write to disk. If 'true' will use default filename. "
+        "Save time (10x) at cost of memory. Note: Using QkTable "
+        "implies splines used for diagram legs"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -61,6 +64,19 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // We should use _spectrum_ for the sos - but if it is empty, just use basis
   auto spectrum = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
+
+  const auto replace_w_valence = input.get("replace_w_valence", false);
+  if (replace_w_valence) {
+    std::cout
+        << "Replacing spectrum states with corresponding valence states\n";
+    for (const auto &v : wf.valence()) {
+      auto pv = std::find(spectrum.begin(), spectrum.end(), v);
+      if (pv != spectrum.end()) {
+        *pv = v;
+      }
+    }
+    // re-orthogonalise spectrum?
+  }
 
   // Solve TDHF for core, is doing RPA.
   // nb: even if not doing RPA, need TDHF object for tdhf method
@@ -183,7 +199,11 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.get("SRN", false)) {
     const auto n_min_core = input.get("n_min_core", 1);
     const auto max_n_SR = input.get("max_n_SR", 9);
-    const auto Qk_file = input.get("Qk_file", std::string{""});
+    const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
+    std::string Qk_file =
+        Qk_file_t != "false" ?
+            Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+            "";
     std::vector<std::tuple<std::string, double, double>> sr_summary;
     for (const auto &Fv : wf.valence()) {
       const auto [srn_v, srn_2] = alphaD::valence_SRN(
@@ -243,10 +263,11 @@ void dynamicPolarisability(const IO::InputBlock &input,
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
        {"Qk_file",
-        "SR: filename for QkTable file. If blank will not use QkTable; if "
-        "exists, "
-        "will read it in; if doesn't exist, will create it and write to disk. "
-        "Save time (10x) at cost of memory."}});
+        "true/false/filename - SR: filename for QkTable file. If blank will "
+        "not use QkTable; if exists, will read it in; if doesn't exist, will "
+        "create it and write to disk. If 'true' will use default filename. "
+        "Save time (10x) at cost of memory. Note: Using QkTable "
+        "implies splines used for diagram legs"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -372,7 +393,11 @@ void dynamicPolarisability(const IO::InputBlock &input,
   const auto max_n_SR = input.get("max_n_SR", 9);
   if (StrucRadQ) {
     const auto n_min_core = input.get("n_min_core", 1);
-    const auto Qk_file = input.get("Qk_file", std::string{""});
+    const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
+    std::string Qk_file =
+        Qk_file_t != "false" ?
+            Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+            "";
     sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min_core, 99},
                             Qk_file);
     std::cout << "Including core states from n>=" << n_min_core
@@ -544,9 +569,11 @@ void transitionPolarisability(const IO::InputBlock &input,
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
        {"Qk_file",
-        "SR: filename for QkTable file. If blank will not use QkTable; if "
-        "exists, will read it in; if doesn't exist, will create it and write "
-        "to disk. Save time (10x) at cost of memory."}});
+        "true/false/filename - SR: filename for QkTable file. If blank will "
+        "not use QkTable; if exists, will read it in; if doesn't exist, will "
+        "create it and write to disk. If 'true' will use default filename. "
+        "Save time (10x) at cost of memory. Note: Using QkTable "
+        "implies splines used for diagram legs"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -671,7 +698,11 @@ void transitionPolarisability(const IO::InputBlock &input,
   if (srnQ) {
     const auto n_min_core = input.get("n_min_core", 1);
     const auto max_n_SR = input.get("max_n_SR", 9);
-    const auto Qk_file = input.get("Qk_file", std::string{""});
+    const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
+    std::string Qk_file =
+        Qk_file_t != "false" ?
+            Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+            "";
 
     const auto [srn_v, beta_x] = alphaD::transition_SRN(
         Fv, Fw, spectrum, he1, &dVE1, max_n_SR, n_min_core, wf.basis(),

@@ -36,27 +36,34 @@ fi
 cp -n ./doc/examples/Makefile ./
 cp -n ./doc/examples/ampsci.in ./ampsci.in
 
-# Locate GCC compiler:
+# Locate GCC compiler: find newest installed first:
 gccver=14
 while [[ $gccver -gt 6 ]]; do
   if [ -x "$(command -v "g++-"${gccver})" ]; then
     echo "Compiler Found:" $(command which "g++-"${gccver})
     cxx=$(command which "g++-"${gccver})
-    sed -i '' -e "s@CXX=.*@CXX=${cxx}@g" Makefile
+    sed -i '' -e "s@CXX=.*@CXX=${cxx}@g" Makefile 2> /dev/null
     break
   fi
   ((gccver--))
 done
+# If didn't find specific version, try g++
 if ! [ $gccver -gt 6 ]; then
-  echo "Compatible gcc compiler not found."
-  echo "Run: install-dependencies.sh, or"
-  if [ ${machine} == 'Linux' ]; then
-    echo "Run: sudo apt install g++"
-  elif [ ${machine} == 'Mac' ]; then
-    echo "Run: brew install gcc"
+  if [ -x "$(command -v "g++")" ]; then
+    echo "Compiler Found:" "$(command -v "g++")"
+    cxx="g++"
+    sed -i '' -e "s@CXX=.*@CXX=${cxx}@g" Makefile 2> /dev/null
+  else
+    echo "Compatible gcc compiler not found."
+    echo "Run: install-dependencies.sh, or"
+    if [ ${machine} == 'Linux' ]; then
+      echo "Run: sudo apt install g++"
+    elif [ ${machine} == 'Mac' ]; then
+      echo "Run: brew install gcc"
+    fi
+    echo "Or proceed with manual compilation for other compilers"
+    exit
   fi
-  echo "Or proceed with manual compilation for other compilers"
-  exit
 fi
 
 # Locate GSL libraries:
@@ -65,7 +72,7 @@ if [ -x "$(command -v "gsl-config")" ]; then
   gslpath=$(gsl-config --prefix)
   echo "GSL found version:" $gslver
   echo "GSL Libraries found:" $gslpath
-  sed -i '' -e "s@PathForGSL=.*@PathForGSL=${gslpath}@g" Makefile
+  sed -i '' -e "s@PathForGSL=.*@PathForGSL=${gslpath}@g" Makefile 2> /dev/null
 else
   echo "GSL libraries not installed"
   echo "Run: install-dependencies.sh, or"

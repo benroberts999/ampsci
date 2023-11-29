@@ -56,9 +56,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       {{"", "If this block is included, SR + Normalisation "
             "corrections will be included"},
        {"Qk_file",
-        "filename for QkTable file. If blank will not use QkTable; if "
-        "exists, will read it in; if doesn't exist, will create it and write "
-        "to disk. Save time (10x) at cost of memory. Note: Using QkTable "
+        "true/false/filename - SR: filename for QkTable file. If blank will "
+        "not use QkTable; if exists, will read it in; if doesn't exist, will "
+        "create it and write to disk. If 'true' will use default filename. "
+        "Save time (10x) at cost of memory. Note: Using QkTable "
         "implies splines used for diagram legs"},
        {"n_minmax", "list; min,max n for core/excited: [1,inf]"}});
 
@@ -138,7 +139,11 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
     const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
-    const auto Qk_file = SR_input.get("Qk_file", std::string{""});
+    const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
+    std::string Qk_file =
+        Qk_file_t != "false" ?
+            Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+            "";
 
     std::cout
         << "\nIncluding Structure radiation and normalisation of states:\n";
@@ -353,10 +358,9 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
        {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
        {"onlyDiagonal", "only <a|h|a> (dflt false)"},
        {"Qk_file",
-        "filename for QkTable file. If blank will not use QkTable; if "
-        "exists, "
-        "will read it in; if doesn't exist, will create it and write to "
-        "disk. "
+        "true/false/filename - SR: filename for QkTable file. If blank will "
+        "not use QkTable; if exists, will read it in; if doesn't exist, will "
+        "create it and write to disk. If 'true' will use default filename. "
         "Save time (10x) at cost of memory. Note: Using QkTable implies "
         "splineLegs=true"},
        {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
@@ -378,7 +382,11 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // const auto h = generateOperator(oper, h_options, wf, true);
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
-  const auto Qk_file = input.get("Qk_file", std::string{""});
+  const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
+  std::string Qk_file =
+      Qk_file_t != "false" ?
+          Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+          "";
   // note: Using QkFile is ~10x faster (not including time to construct QkTable)
   // - but requires large amount of memory. Trade-off
 
@@ -610,9 +618,10 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       {{"", "If this block is included, SR + Normalisation "
             "corrections will be included"},
        {"Qk_file",
-        "filename for QkTable file. If blank will not use QkTable; if "
-        "exists, will read it in; if doesn't exist, will create it and write "
-        "to disk. Save time (10x) at cost of memory. Note: Using QkTable "
+        "true/false/filename - SR: filename for QkTable file. If blank will "
+        "not use QkTable; if exists, will read it in; if doesn't exist, will "
+        "create it and write to disk. If 'true' will use default filename. "
+        "Save time (10x) at cost of memory. Note: Using QkTable "
         "implies splines used for diagram legs"},
        {"n_minmax", "list; min,max n for core/excited: [1,inf]"}});
 
@@ -678,7 +687,11 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
     const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
-    const auto Qk_file = SR_input.get("Qk_file", std::string{""});
+    const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
+    std::string Qk_file =
+        Qk_file_t != "false" ?
+            Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+            "";
 
     std::cout
         << "\nIncluding Structure radiation and normalisation of states:\n";
