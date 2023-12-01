@@ -207,14 +207,14 @@ RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
     return {};
   }
 
-  const auto x_Ueh = input.get({"RadPot"}, "Ueh", 1.0);
-  const auto x_SEe_h = input.get({"RadPot"}, "SE_h", 1.0);
-  const auto x_SEe_l = input.get({"RadPot"}, "SE_l", 1.0);
-  const auto x_SEm = input.get({"RadPot"}, "SE_m", 1.0);
-  const auto x_wk = input.get({"RadPot"}, "WK", 0.0);
-  const auto rcut = input.get({"RadPot"}, "rcut", 5.0);
-  const auto scale_rN = input.get({"RadPot"}, "scale_rN", 1.0);
-  const auto x_spd = input.get({"RadPot"}, "scale_l", std::vector{1.0});
+  const auto x_Ueh = input.get("Ueh", 1.0);
+  const auto x_SEe_h = input.get("SE_h", 1.0);
+  const auto x_SEe_l = input.get("SE_l", 1.0);
+  const auto x_SEm = input.get("SE_m", 1.0);
+  const auto x_wk = input.get("WK", 0.0);
+  const auto rcut = input.get("rcut", 5.0);
+  const auto scale_rN = input.get("scale_rN", 1.0);
+  const auto x_spd = input.get("scale_l", std::vector{1.0});
 
   return RadPot(r, Z_eff, scale_rN * rN_au, rcut,
                 {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, x_spd, print,
