@@ -7,7 +7,7 @@
 This assumes you already have ampsci compiled and have a basic understanding of how to run and use it.
 
 * See [doc/tutorial.md](/doc/tutorial.md) for the basic tutorial
-* See [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full descrition of the physics
+* See [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full description of the physics
 
 ## Contents
 
@@ -47,7 +47,7 @@ $\begin{equation}
   \Bigg),
 \end{equation}$
 
-First, Hartree-Fock equations are solved self-consistantly for all core electrons, then the valence states are found in the Frozen Hartree-Fock potential due to the core.
+First, Hartree-Fock equations are solved self-consistently for all core electrons, then the valence states are found in the Frozen Hartree-Fock potential due to the core.
 For example, to run Hartree-Fock for Cs with a $N-1$ (implies Xe-like core),
 
 ```java
@@ -88,9 +88,9 @@ Nucleus{
 ```
 
 * rrms: nuclear root-mean-square charge radius, in fm
-* type: Nuclear charge distribution. The available nuclear types are: Fermi, spherical, pointlike, and Gaussian, with Fermi being the default.
+* type: Nuclear charge distribution. The available nuclear types are: Fermi, spherical, point-like, and Gaussian, with Fermi being the default.
   * c: nuclear half-density radius (only meaningful for Fermi distribution). Usually this is not set; if it is set, it will _override_ rrms: $3c^2=5r_{\rm rms}^2-7\pi^2a^2$, and $t=4a~{\rm ln}3$
-  * t: nuclear ``skin thickness'' (90-10% fall-off radius), in fm. Only for Fermi distro.
+  * t: nuclear ``skin thickness'' (90-10% fall-off radius), in fm. Only for Fermi distribution.
   * $3c^2=5r_{\rm rms}^2-7\pi^2a^2$, and $t=4a~{\rm ln}3$
 
 Default rms values are taken from:
@@ -130,7 +130,7 @@ HartreeFock{
 
 This setting is a scaling factor; i.e., setting `Breit = 0.5;` will add effective factor of 0.5 in front of $h^B$. Typically, only 0 or 1 is set; other values are useful for checking for non-physical non-linear-in-Breit effects.
 
-**Note:** it's very important when including Breit effects along with correlations that the breit Hamiltonian is included in the Dirac equation when forming the basis used to construct the correlation potential! This is to ensure basis is orthogonal to the Hartree-Fock core states
+**Note:** it's very important when including Breit effects along with correlations that the Breit Hamiltonian is included in the Dirac equation when forming the basis used to construct the correlation potential! This is to ensure basis is orthogonal to the Hartree-Fock core states
 At the moment, there is no way to include the Breit effect into the Hartree-Fock Green's function; as a result, we cannot include Breit at the level of all-order correlations (see below).
 
 ### Radiative QED <a name="qed"></a>
@@ -145,13 +145,13 @@ $\begin{equation}
 
 * Flambaum, Ginges, [Phys. Rev. A **72**, 052115 (2005)](http://link.aps.org/doi/10.1103/PhysRevA.72.052115).
 
-If the `RadPot{}` block is inlcuded, then the QED radiative potential will be included with the default parameters.
+If the `RadPot{}` block is included, then the QED radiative potential will be included with the default parameters.
 
 ```java
 RadPot{}
 ```
 
-equivilant to:
+equivalent to:
 
 ```java
 RadPot{
@@ -171,13 +171,13 @@ RadPot{
 * `core_qed` means radiative potential will be included into the core states - this gives an important contribution and should only be set to false for testing.
 * `scale_l` takes a list of scaling factors for each l; these will rescale $V_{\rm rad}$ for each partial wave.
 e.g., `scale_l = 0,1,0;` will include $V_{\rm rad}$ for p states, but not s or d states.
-* `scale_rN;` Re-scales the effective nuclear radius; used to test finite-nuclear size effects on $V_{\rm rad}$. =1 means normal, =0 means assume pointlike nucleus (when calculating $V_{\rm rad}$).
+* `scale_rN;` Re-scales the effective nuclear radius; used to test finite-nuclear size effects on $V_{\rm rad}$. =1 means normal, =0 means assume point-like nucleus (when calculating $V_{\rm rad}$).
 
 -----------
 
 ## Constructing a basis <a name="basis"></a>
 
-We often require a full "compete" set of solutions to the Hartree-Fock equation in order to permorm sums-over-states required in perturbation theory. To form these, the set of atomic orbitals are expanded as
+We often require a full "compete" set of solutions to the Hartree-Fock equation in order to perform sums-over-states required in perturbation theory. To form these, the set of atomic orbitals are expanded as
 $\begin{equation}
   \phi_{n\kappa}(\vec{r}) = \sum_i^{2N} p_i S_i(\vec{r}),
 \end{equation}$
@@ -263,7 +263,7 @@ The line `Spline cavity l=0 s: (1.4e-04, 40.0)aB.` tells us the actual point of 
 
 The most important output is the `Basis/core:` output - this tells us how orthogonal the generated basis is to the Hartree-Fock core. The MBPT formalism relies on the orthogonality here, so it's important to check. If the results are not good enough (the code will warn you with `**`), try increasing `rmax` and/or `number`.
 
-In this case, the worst normality occured for the 3s state, where the inner-product of the finite-difference (Hartree Fock) $3s$ state and the corresponding basis $3s$ state was different from 1 by parts in $10^6$.
+In this case, the worst normality occurred for the 3s state, where the inner-product of the finite-difference (Hartree Fock) $3s$ state and the corresponding basis $3s$ state was different from 1 by parts in $10^6$.
 The worst energy comparison was for $5s$ state (parts in $10^5$), and the worst orthogonality comparison was for the $3s$ finite-difference Hartree-Fock state, and the $22s$ basis state, which were orthogonal to parts in $10^4$.
 
 ### Spectrum <a name="spectrum"></a>
@@ -335,8 +335,8 @@ The `read` and `write` option are filenames the correlation potential will be wr
 If none are given, it will read/write from the default filename.
 Set to 'false' to not read/write.
 
-`n_min_core` is minumum n for core states to include in polarisation loops.
-Very low core states contribute very little (due to large excitation energy), so this saves much time for almost no degredation in results.
+`n_min_core` is minimum n for core states to include in polarisation loops.
+Very low core states contribute very little (due to large excitation energy), so this saves much time for almost no degradation in results.
 
 If `each_valence` is true, a new correlation potential will be calculated for each valence state, fully taking energy dependence into account; if false, only 1 $\Sigma$ for $\kappa$ will be formed (i.e. assumes the same energy for calculating $\Sigma$ for each angular symmetry).
 
@@ -348,7 +348,7 @@ Correlations{
 }
 ```
 
-`fitTo_cm` takes a list of experimental energies (in ${\rm cm}^{-1}$). A scaling factor $\lambda$ will be introduced in front of the correlation potential, and will be tuned so that energies exactly match those given. This is a semi-empirical method for accounting for hiher-order correlations in wavefunctions.
+`fitTo_cm` takes a list of experimental energies (in ${\rm cm}^{-1}$). A scaling factor $\lambda$ will be introduced in front of the correlation potential, and will be tuned so that energies exactly match those given. This is a semi-empirical method for accounting for higher-order correlations in wavefunctions.
 `lambda_kappa` is for manually setting the scaling factors.
 Note that for both of these, the input list must be in the exact same order as the valence states - check the 'valence' output.
 
@@ -358,7 +358,7 @@ Note that for both of these, the input list must be in the exact same order as t
 Correlations{
   // .... above options
   // Block: Explicit list of energies to solve for. e.g., ek{6s+=-0.127;
-  // 7s+=-0.552;}. Blank => HF energies. Takes precidence over each_valence.
+  // 7s+=-0.552;}. Blank => HF energies. Takes precedence over each_valence.
   // [blank]
   ek{}
 }
@@ -386,18 +386,18 @@ Will use the correlation potential for $\kappa=-1$ and $\varepsilon = -0.127$ fo
 ## MBPT: all-order correlations <a name="allorders"></a>
 
 The most important corrections beyond the second-order correlation potential are the screening of the residual Coulomb interaction by the core electrons and hole-particle interaction.
-These are taken into account using the _all-orders correlation potential method_, also called Perturbation Theory in the Screened Couloumb Interaction (PTSCI), developed by Dzuba, Flambaum and Sushkov [1-3].
+These are taken into account using the _all-orders correlation potential method_, also called Perturbation Theory in the Screened Coulomb Interaction (PTSCI), developed by Dzuba, Flambaum and Sushkov [1-3].
 
 1. V. A. Dzuba, V. V. Flambaum, P. G. Silvestrov, and O. P. Sushkov, [Phys. Lett. A 131, 461 (1988).](https://dx.doi.org/10.1016/0375-9601(88)90302-7)
 2. V. A. Dzuba, V. V. Flambaum, A. Y. Kraftmakher, and O. P. Sushkov, [Phys. Lett. A 142, 373 (1989).](https://dx.doi.org/10.1016/0375-9601(89)90385-X)
 3. V. A. Dzuba, V. V. Flambaum, and O. P. Sushkov, [Phys. Lett. A 140, 493 (1989).](https://dx.doi.org/10.1016/0375-9601(89)90129-1)
 
-The starying point uses the Feynman technique, in which the direct part of the correlation potential can be expressed
+The starting point uses the Feynman technique, in which the direct part of the correlation potential can be expressed
 $\begin{equation}
   \Sigma_{\rm d} = \int\frac{{\rm d}\omega}{2\pi} G_{12}(\varepsilon+\omega) Q_{1i}\Pi_{ij}(\omega) Q_{j2}(\omega),
 \end{equation}$
 where $G_{12} = G(r_1,r_2)$ in the Hartee-Fock Feynman Green's function, $Q$ is the (non-relativistic) Coulomb operator, and $\Pi$ is the polarisation operator
-(subsripts are coordinate indices; integration is assumed over internal $i$ and $j$). Note that $\Pi$ represents polarisation of the atomic core.
+(subscripts are coordinate indices; integration is assumed over internal $i$ and $j$). Note that $\Pi$ represents polarisation of the atomic core.
 
 The screening of the coulomb interaction can be represented by a series of polarisation corrections
 $\begin{equation}

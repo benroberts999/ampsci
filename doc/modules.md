@@ -65,4 +65,4 @@ You can also get most of this information directly from the command-line:
 
 - `./ampsci -m  <ModuleName>`
   - Prints list of available Modules (same as --modules)
-  - ModuleName is optional. If given, will list avaiable options for that Module
+  - ModuleName is optional. If given, will list available options for that Module

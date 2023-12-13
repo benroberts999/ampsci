@@ -7,7 +7,7 @@
 - The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
 - Any number of _modules_ can be run by adding a `Module::moduleName{}' block to the input file.
 - Get a list of available modules: `./ampsci -m`
-- See [doc/modules.md](/doc/modules.md) for details of currently avalable modules
+- See [doc/modules.md](/doc/modules.md) for details of currently available modules
 - The code is designed so that you can easily create your own modules.
 
 ## Creating your own module
@@ -61,11 +61,11 @@ You should duplicate this module (both the .cpp and .hpp files) and give it a ne
 - It's highly recommended that you add a 'check()' statement for any input options that you use in your module (see example below)
 - This has two benefits:
   - Firstly, it checks for possible spelling mistakes in user inputs
-  - (If an option) is spelled incorectly, it will otherwise be ignored. This eaves the user thinking they set an option when they haven't
+  - (If an option) is spelled incorrectly, it will otherwise be ignored. This eaves the user thinking they set an option when they haven't
   - Secondly, it allows you to provide a short description of each option, which will be printed to the screen when the user requests 'help' for a given Module
 
 ```cpp
-  // Check the input option for spelling mistakes + provide descrition
+  // Check the input option for spelling mistakes + provide description
   input.check({{"option1", "Short description of option1 [default]"},
                {"option2", "Short description of option2 [default]"}});
 ```

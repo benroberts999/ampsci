@@ -20,9 +20,9 @@
   * Also tested with intel [icc 2021.2.0], though this is tested infrequently
 * LAPACK and BLAS libraries [netlib.org/lapack/](http://www.netlib.org/lapack/)
 * GSL (GNU scientific libraries) [gnu.org/software/gsl/](https://www.gnu.org/software/gsl/) [version 2.0 or newer*]
-  * (it _should_ also work with older versions of GSL, but this is not regularly tested and therefore not guarenteed)
+  * (it _should_ also work with older versions of GSL, but this is not regularly tested and therefore not guaranteed)
 * [optional] GNU Make ([gnu.org/software/make/](https://www.gnu.org/software/make/)) - used to compile code
-* [optional] OpenMP ([openmp.org/](https://www.openmp.org/)) - used for parallisation
+* [optional] OpenMP ([openmp.org/](https://www.openmp.org/)) - used for parallelisation
 * [optional] git ([git-scm.com/](https://git-scm.com/)) for version tracking and to keep up-to-date with latest version
 
 ## Quick-start
@@ -33,7 +33,7 @@ This is for ubuntu/linux - for other systems, see below
   * `sudo apt install git`
   * `git clone git@github.com:benroberts999/ampsci.git`
   * or `git clone https://github.com/benroberts999/ampsci.git`
-* Or, direct download (without using git, not redcommended):
+* Or, direct download (without using git, not recommended):
   * <https://github.com/benroberts999/ampsci/archive/refs/heads/main.zip>
 * Install dependencies
   * `sudo apt install g++ liblapack-dev libblas-dev libgsl-dev make libomp-dev`

@@ -1,6 +1,6 @@
 # Basic Tutorial
 
-\brief Basic tutorial for using ampsci, including examples
+\brief Basic tutorial for using ampsci, including examples.
 
 [[Home](/README.md)]
 
@@ -21,7 +21,7 @@ This assumes you already have ampsci compiled.
 
 ## Getting started <a name="start"></a>
 
-Open up a terminal and navigate to the directory where ampsci was compiled
+Open up a terminal and navigate to the directory where ampsci was compiled.
 
 * If you are unsure using the terminal, see [this tutorial (ubuntu)](https://ubuntu.com/tutorials/command-line-for-beginners) (It's specifically for ubuntu (linux), but is mostly the same on mac)
 
@@ -31,14 +31,14 @@ First, just run the executable:
 ./ampsci
 ```
 
-No calculation was performed, however, some intructions should be printed to the screen. These should serve as a reminder if you forget any of the commands we will look at blow. You can also run:
+No calculation was performed, however, some instructions should be printed to the screen. These should serve as a reminder if you forget any of the commands we will look at below. You can also run:
 
 ```bash
 ./ampsci -h
 ```
 
 which will print the same, along with some more detailed 'help' information.
-You can ingore this output for now, as we'll work through the basic examples.
+You can ignore this output for now, as we'll work through the basic examples.
 
 Now, try the following, which should print the current _version_ info (including the git commit hash, if you're using git). You can use this to check which exact version of the code you are running. This is also automatically printed when you run any calculation.
 
@@ -107,7 +107,7 @@ ampsci{
   Grid{}
   // Options for solving atomic system
   HartreeFock{}
-  // Inlcude QED radiative potential
+  // Include QED radiative potential
   RadPot{}
   // Include an extra effective potential. Rarely used.
   ExtraPotential{}
@@ -139,7 +139,7 @@ The output will list all options for the `Atom{}` block:
 ```text
 Available Atom options/blocks are:
 Atom{
-  Z;    // string or int (e.g., Cs equivilant to 55). Atomic number [default H]
+  Z;    // string or int (e.g., Cs equivalent to 55). Atomic number [default H]
   A;    // int. Atomic mass number (set A=0 to use pointlike nucleus) [default based on Z]
   varAlpha2;    // Fractional variation of the fine-structure constant, alpha^2: d(a^2)/a_0^2. Use to enforce the non-relativistic limit (c->infinity => alpha->0), or calculate sensitivity to variation of alpha. [1.0]
 }
@@ -162,7 +162,7 @@ which will give something like:
 // Available Grid options/blocks
 Grid{
   // Options for radial grid (lattice) used for integrations, solving equations
-  // and storing oritals. All relevant quantities are in units of Bohr radius
+  // and storing orbitals. All relevant quantities are in units of Bohr radius
   // (aB).
 
   // Initial grid point, in aB [1.0e-6]
@@ -197,12 +197,12 @@ HartreeFock{
   // Automatically excludes states in the core (except those above the optional
   // ':'). [blank by default]
   valence;
-  // HF convergance goal [1.0e-13]
+  // HF convergence goal [1.0e-13]
   eps;
   // Method for mean-field approximation: HartreeFock, Hartree, KohnSham, Local
   // [HartreeFock]
   method;
-  // Scale for factor for Breit Hamiltonian. Usially 0.0 (no Breit) or 1.0 (full
+  // Scale for factor for Breit Hamiltonian. Usually 0.0 (no Breit) or 1.0 (full
   // Breit), but can take any value. [0.0]
   Breit;
 }
@@ -233,7 +233,7 @@ HartreeFock{
 
 From the `Atom{}` block, we have chosen to run calculations for Cs-133. Since we did not set any parameters in the `Nucleus{}` block, the code will run using the default nuclear parameters (which are looked up based on the isotope).
 
-In the `Grid{}` block, we specify the descrete radial grid to have `3000` grid points dispersed between the range `[1.0e-6, 150.0]` atomic units (atomic unit of length is the Bohr radius: $1\,{\rm au}=1\,a_0 = \tfrac{4\pi\epsilon_0\hbar^2}{m_e e^2}\approx 5.3\times10^{-11}\,{\rm m}$).
+In the `Grid{}` block, we specify the discrete radial grid to have `3000` grid points dispersed between the range `[1.0e-6, 150.0]` atomic units (atomic unit of length is the Bohr radius: $1\,{\rm au}=1\,a_0 = \tfrac{4\pi\epsilon_0\hbar^2}{m_e e^2}\approx 5.3\times10^{-11}\,{\rm m}$).
 Since we did not specify a grid `type` the default (log-linear) will be used (see [ampsci.pdf](https://ampsci.dev/ampsci.pdf)).
 
 Finally, in the `HartreeFock{}` block, we specify that we wish to solve Hartree-Fock equations for Cs with a Xe-like core, and consider valence states up to $n=5$ for $s,p$-states, and $n=5$ for $d$-states.
@@ -324,10 +324,10 @@ ampsci: T = 522.26 ms
 ```
 
 For calculations that matter, the _entire_ output should be saved.
-The best way to do this is to forward the ouput directly to a text file when running the code.
+The best way to do this is to forward the output directly to a text file when running the code.
 The input options and the ampsci version details are also printed, so that the
 program output contains all required info to exactly reproduce it.
-A nice way to do this is by `piping` the ouput through the unix `tee` program:
+A nice way to do this is by `piping` the output through the unix `tee` program:
 e.g.,
 
 ```bash
@@ -339,10 +339,10 @@ e.g.,
 
 It's important to understand the meaning of the program output.
 The first part of the output just prints the version information for ampsci.
-This is imortant for reproducing old results, which may depend on the ampsci version.
+This is important for reproducing old results, which may depend on the ampsci version.
 
 Then, the entire set of input options is printed.
-This is useful, since it tells you explicitely which calculations were run, and is very useful for catching mistakes and reproducing old calculations.
+This is useful, since it tells you explicitly which calculations were run, and is very useful for catching mistakes and reproducing old calculations.
 Importantly, the format is exactly what is required on input, so to re-run the calculation, this can simply be copy+pasted into a new input file.
 
 ```text
@@ -360,7 +360,7 @@ Val    :  it: 38 eps=0.0e+00 for 6s+ [ 38 eps=0e+00 for 6s+]
 ```
 
 * This is one of the most important outputs to check.
-* This tells us that Hartree-Fock equations for the core converged to parts in $10^{14}$ in 28 iterations, and the worst core state convergance was for $5p_{3/2}$.
+* This tells us that Hartree-Fock equations for the core converged to parts in $10^{14}$ in 28 iterations, and the worst core state convergence was for $5p_{3/2}$.
 * The worst valence state converged to `0` (i.e., floating point underflowed) in 38 iterations
 * It's important to check that none of these 'epsilon' values are large (i.e., $\epsilon\lesssim10^{-6}$), otherwise it means Hartree-Fock didn't converge properly, and the calculations will be unreliable. This is rarely an issue.
 
@@ -392,12 +392,12 @@ E_c = -7786.643737
 * The columns are:
   * `state`: which core state
   * `k`: value of $\kappa$ (Dirac quantum number) for state
-  * `Rinf`: Radius of the 'practicle infinity', i.e., point on the radial grid where that orbital can be safely said to be zero. It's crucial to check all of these values lie well below `rmax` (set in `Grid{}`). If these are close to `rmax`, `rmax` should be increased.
+  * `Rinf`: Radius of the 'practical infinity', i.e., point on the radial grid where that orbital can be safely said to be zero. It's crucial to check all of these values lie well below `rmax` (set in `Grid{}`). If these are close to `rmax`, `rmax` should be increased.
   * `its`: Number of iterations it took to solve the single-particle Dirac equation upon the final Hartree-Fock iteration
   * `eps`: Extent to which the single-particle energy converged when solving the Dirac equation upon the last Hartree-Fock iteration. These numbers should be extremely small; if any are larger, it means there is possibly a serious numerical error. Normally, these will always be fine, so long as Hartree-Fock converged
   * `En (au)` and `En (/cm)` are the single-particle (binding) energies in atomic units and ${\rm cm}^{-1}$, respectively. Atomic unit for energy is the Hartree:
   $E_h = 2 Ry = \frac{\hbar^2}{m_e a_0^2} \approx 27.2\,{\rm eV}$.
-  * The final numer `E_c` is the total Hartree-Fock energy of the core, in atomic units
+  * The final number `E_c` is the total Hartree-Fock energy of the core, in atomic units
 
 ```text
 Val: state  k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
@@ -496,7 +496,7 @@ You can see a list of operators with the `-o` command-line option:
 ./ampsci -o
 ```
 
-The second option, which is a sub-input-block, `options` is the set of options for the given operator. Most operators have no extra options, so this can be left blank. Some (e.g., hyperfine operatr `hfs` have many available options). Like above, you can see the available options by further passing the operator name after `-o`. For example:
+The second option, which is a sub-input-block, `options` is the set of options for the given operator. Most operators have no extra options, so this can be left blank. Some (e.g., hyperfine operator `hfs` have many available options). Like above, you can see the available options by further passing the operator name after `-o`. For example:
 
 ```bash
 ./ampsci -o hfs
@@ -515,7 +515,7 @@ Module::Matrixelements{
 }
 ```
 
-The `omega = 0.0;` option means we have solved RPA equations for each transition at zero frequency. It is also possible to automatically solve RPA for each transition frequncy by setting: `omega = each;`.
+The `omega = 0.0;` option means we have solved RPA equations for each transition at zero frequency. It is also possible to automatically solve RPA for each transition frequency by setting: `omega = each;`.
 See [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for description of RPA.
 
 The output format will depend on the specific module.

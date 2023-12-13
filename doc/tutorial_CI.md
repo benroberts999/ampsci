@@ -1,13 +1,13 @@
 # Advanced Tutorial: CI+MBPT
 
-\brief Adanced ampsci tutorial: CI+MBPT for two-valence atoms
+\brief Advanced ampsci tutorial: CI+MBPT for two-valence atoms
 
 [[Home](/README.md)]
 
 This assumes you already have ampsci compiled and have a basic understanding of how to run and use it.
 
 * See [doc/tutorial.md](/doc/tutorial.md) for the basic tutorial
-* See [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full descrition of the physics
+* See [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full description of the physics
 
 ## Contents
 
@@ -37,7 +37,7 @@ For each $J^\pi$ symmetry, the energies and wavefunctions (expansion coefficient
 $\begin{equation}
     \sum_J c_J\left\langle{I}\right|H_{\rm eff}\left|{J}\right\rangle = E c_I,
 \end{equation}$
-For the single-particle basis, we use eigenfuctions of the same $h^{\rm HF}$ Hamiltonian from the CI Hamiltonian. This is known as the $V^{N-M}$ approximation, with simplifies the MBPT part of the calculation, and is very accurate for two-valence systems.
+For the single-particle basis, we use eigenfunctions of the same $h^{\rm HF}$ Hamiltonian from the CI Hamiltonian. This is known as the $V^{N-M}$ approximation, with simplifies the MBPT part of the calculation, and is very accurate for two-valence systems.
 
 -----------
 
@@ -83,7 +83,7 @@ CI{
   // Minimum n for core to be included in MBPT [1]
   n_min_core;
   // Maximum k (multipolarity) to include when calculating new Coulomb
-  // integrals. Higher k often contribute negligably. Note: if qk file already
+  // integrals. Higher k often contribute negligibly. Note: if qk file already
   // has higher-k terms, they will be included. Set negative (or very large) to
   // include all k. [8]
   max_k;
@@ -108,7 +108,7 @@ CI{
 
 For a simple example, we'll consider neutral Mg.
 
-The first part of the imput file will be familiar from previous examples.
+The first part of the input file will be familiar from previous examples.
 We don't need valence states in Hartree-Fock, so, this can be left blank.
 We don't include the two valence states in the core, hence use $V^{N-2}$ approximation.
 
@@ -209,7 +209,7 @@ The output for each symmetry will look something like this:
     3s4d   1^D_2
 ```
 
-After each line, the code will list all CSFs that contribute to the solutiom at above the 1% level (i.e., with $c_I^2>0.01$).
+After each line, the code will list all CSFs that contribute to the solution at above the 1% level (i.e., with $c_I^2>0.01$).
 The code also calculates the $g$-factor (without RPAd), which are useful for level identification.
 The term symbol (${}^{2S+1}L_J$ e.g., 1^D_2) and leading configuration are given -- the term symbol is 'guessed' based on the g-factor. It is not well defined relativistically, so should be seen as indicative only.
 
@@ -237,7 +237,7 @@ The final output shows a summary of the calculation:
   2  -1  2  3s6p   64  3Po   -0.57511959    -126224.16     53315.28  1.5000
 ```
 
-Where `conf` is the leading configuration (in non-relativistic notation), and the `%` column shows the combined contrutions from each relativistic configuration with the same non-relativistic configuration
+Where `conf` is the leading configuration (in non-relativistic notation), and the `%` column shows the combined constructions from each relativistic configuration with the same non-relativistic configuration
 (e.g., `3s3d` may have contributions from `3s3d-` and `3s3d+`).
 
 | Level  |             | AMPSCI  | Exp.    | $\Delta$ |
@@ -309,7 +309,7 @@ The code will now calculate more $Q^k$ Coulomb integrals, since they are require
   Writing 45660133 integrals to file: Mg2.qk..
 ```
 
-This uses close to 5Gb of memory, so may already be difficuly on some laptops.
+This uses close to 5Gb of memory, so may already be difficulty on some laptops.
 Then, is will calculate the matrix elements of the two-body $\Sigma^2$ operator.
 This is the slow part of the calculation.
 Fortunately, the $\Sigma^2$ correction is rather small, and good accuracy can be obtained by only including matrix elements between the lowest few valence-space basis states.
