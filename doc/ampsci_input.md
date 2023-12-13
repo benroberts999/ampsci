@@ -11,10 +11,10 @@ The program is run with input options from the command line.
 ### Main method: input options from a text file
 
 * `./ampsci filename`
-  * Runs ampsci with input option specified in file "filename"
+  * Runs ampsci with input option specified in file "filename".
   * See below for full description of input format,
 and a detailed list of input options + descriptions.
-  * run `./ampsci -h` to get breif instructions for input options
+  * Run `./ampsci -h` to get brief instructions for input options
   * Several example input files are given in: _doc/examples/_, along with their expected output;
     use these to test if everything is working.
 
@@ -22,14 +22,14 @@ The Output is printed to screen. It's recommended to forward this to a text file
 The input options and the ampsci version details are also printed, so that the
 program output contains all required info to exactly reproduce it. e.g.,
 
-* `./ampsci input |tee -a outout`
+* `./ampsci input |tee -a output`
   * Runs ampsci using input options in file "input".
   * Output will both be written to screen, and appended to
     file "output".
 
 ### Command-line options
 
-* run `./ampsci -h` to get breif instructions for input options
+* run `./ampsci -h` to get brief instructions for input options
 
 ```text
     <filename>
@@ -44,9 +44,9 @@ program output contains all required info to exactly reproduce it. e.g.,
         If core is not given, guesses core configuration and runs using V^N approximation.
         Examples:
         ./ampsci Cs
-            - Runs ampsci for Cs using Hartree Fock (V^N) approximation
+            - Runs ampsci for Cs using Hartree-Fock (V^N) approximation
         ./ampsci Cs [Xe] 6sd5d
-            - Runs ampsci for Cs using Hartree Fock with Xe-like core and 
+            - Runs ampsci for Cs using Hartree-Fock with Xe-like core and 
               valence states up to n=6 for s,p-states and n=5 for d-states
 
     -v (--version)
@@ -62,13 +62,13 @@ program output contains all required info to exactly reproduce it. e.g.,
         ./ampsci -a Atom HartreeFock
 
     -m <ModuleName> (--modules)
-        Prints list of available Modules. ModuleName is optional; if given, will list avaiable options for that Module
+        Prints list of available Modules. ModuleName is optional; if given, will list available options for that Module
         Example:
         ./ampsci -m MatrixElements
 
     -o <OperatorName> (--operators)
         Prints list of available operators. OperatorName is optional; if given, 
-        will list avaiable options for that operator (most operators take no options).
+        will list available options for that operator (most operators take no options).
         Example:
         ./ampsci -o E1
 
@@ -127,7 +127,7 @@ ampsci{
   Grid{}
   // Options for solving atomic system
   HartreeFock{}
-  // Inlcude QED radiative potential
+  // Include QED radiative potential
   RadPot{}
   // Include an extra effective potential. Rarely used.
   ExtraPotential{}
@@ -156,7 +156,7 @@ For example, `./ampsci -a Basis` will print all available 'Basis' options
 
 The general usage of the code is to first use the main blocks to construct the
 atomic wavefunction and basis states, then to add as many 'Module::' blocks as
-required. Each module is a seperate routine that will take the calculated
+required. Each module is a separate routine that will take the calculated
 wavefunction and compute any desired property (e.g., matrix elements). The code
 is designed such that anyone can write a new Module (See [doc/writing_modules.md](/doc/writing_modules.md))
 
@@ -193,16 +193,16 @@ blockname {
   help;
 }
 
-You can also access most of the self-documenation directly from the command-line:
+You can also access most of the self-documentation directly from the command-line:
 
 * `./ampsci -h`
   * Print help info, including input options (same as --help, -?)
 * `./ampsci -m  <ModuleName>`
   * Prints list of available Modules (same as --modules)
-  * ModuleName is optional. If given, will list avaiable options for that Module
+  * ModuleName is optional. If given, will list available options for that Module
 * `./ampsci -o <OperatorName>`
   * Prints list of available operators (same as --operators)
-  * OperatorName is optional. If given, will list avaiable options for Operator
+  * OperatorName is optional. If given, will list available options for Operator
 * `./ampsci -a <BlockName>`
   * Prints list of available top-level ampsci options (same as --ampsci)
   * BlockName is optional; if given will print options for given ampsci Block
@@ -217,7 +217,7 @@ You can also access most of the self-documenation directly from the command-line
 * Get a list of available modules: `./ampsci -m`
 * `./ampsci -m  <ModuleName>`
   * Prints list of available Modules (same as --modules)
-  * ModuleName is optional. If given, will list avaiable options for that Module
+  * ModuleName is optional. If given, will list available options for that Module
 * See [doc/modules.md](/doc/modules.md) for full details
 * The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](/doc/writing_modules.md) for details
 
@@ -249,7 +249,7 @@ Atom{
   // to enforce the non-relativistic limit (c->infinity => alpha->0), or
   // calculate sensitivity to variation of alpha. [1.0]
   varAlpha2;
-  // Optional label for output identity - for destinguishing outputs with
+  // Optional label for output identity - for distinguishing outputs with
   // different parameters
   run_label;
 }
@@ -263,7 +263,7 @@ HartreeFock{
   // Options for solving lowest-order atomic wavefunction
 
   // Core configuration. Either list entire core, or use [At] short-hand. e.g.,
-  // [He] equivilant to 1s2; [Xe],6s1 equivilant to [Cs] and to
+  // [He] equivalent to 1s2; [Xe],6s1 equivalent to [Cs] and to
   // 1s2,2s2,...,5p6,6s1. Instead of one of the commas, you may use a ':' -
   // states above this are included into the core, but not excluded from the
   // valence list. Use this method for KohnSham, for example. [blank by default]
@@ -273,12 +273,12 @@ HartreeFock{
   // Automatically excludes states in the core (except those above the optional
   // ':'). [blank by default]
   valence;
-  // HF convergance goal [1.0e-13]
+  // HF convergence goal [1.0e-13]
   eps;
   // Method for mean-field approximation: HartreeFock, Hartree, KohnSham, Local
   // [HartreeFock]
   method;
-  // Scale for factor for Breit Hamiltonian. Usially 0.0 (no Breit) or 1.0 (full
+  // Scale for factor for Breit Hamiltonian. Usually 0.0 (no Breit) or 1.0 (full
   // Breit), but can take any value. [0.0]
   Breit;
 }
@@ -300,7 +300,7 @@ Nucleus{
   c;
   // Nuclear skin thickness, in fm [2.3]
   t;
-  // Fermi, spherical, pointlike, Gaussian [Fermi]
+  // Fermi, spherical, point-like, Gaussian [Fermi]
   type;
 }
 ```
@@ -310,7 +310,7 @@ Nucleus{
 ```java
 Grid{
   // Options for radial grid (lattice) used for integrations, solving equations
-  // and storing oritals. All relevant quantities are in units of Bohr radius
+  // and storing orbitals. All relevant quantities are in units of Bohr radius
   // (aB).
 
   // Initial grid point, in aB [1.0e-6]
@@ -354,7 +354,7 @@ ExtraPotential{
 * Interpolates these points onto the grid (but does NOT extrapolate,
   potential is assumed to be zero outside the given range)
 * Potential is multiplied by 'factor'
-* May be added before or after HF (if before: added to vnuc, if after: to vdir)
+* May be added before or after HF (if before: added to Vnuc, if after: to Vdir)
 
 ### RadPot (Ginges/Flambaum QED Radiative Potential)
 
@@ -377,7 +377,7 @@ RadPot{
   WK;
   // Maximum radius (au) to calculate Rad Pot for [5.0]
   rcut;
-  // Scale factor for Nuclear size. 0 for pointlike, 1 for typical [1.0]
+  // Scale factor for Nuclear size. 0 for point-like, 1 for typical [1.0]
   scale_rN;
   // List of doubles. Extra scaling factor for each l e.g., 1,0,1 => include for
   // s and d, but not for p [1.0]
@@ -391,11 +391,11 @@ RadPot{
 * Will read from file if it exists (e.g., Z_uhlmw.qed)
 * Each factor (Ueh, SE_h,..) is a scale; 0 means don't include. 1 means include full potential. Any positive number is valid.
 * rcut: Only calculates potential for r < rcut [for speed; rcut in au]
-* scale_rN: finite nucleus effects: rN = rN * scale_rN (=0 means pointlike)
+* scale_rN: finite nucleus effects: rN = rN * scale_rN (=0 means point-like)
 * scale_l: Optional input: Scaling factors for the V_rad for each l state; for higher states, uses the last given input. Input as a list of real numbers. Best explained with examples:
   * scale_l = 1; // include QED for all states
   * scale_l = 0,1,0; //include QED for p states only
-  * scale_l = 0,1; //inlcude QED for p,d,f.. but not s states.
+  * scale_l = 0,1; //include QED for p,d,f.. but not s states.
   * don't need to be 1 or 0, can be any real number.
 * core_qed: if true, will include QED effects into core in Hartree-Fock (relaxation). If false, will include QED only for valence states
 
@@ -451,7 +451,7 @@ Correlations{
 
   // Minimum core n to polarise [1]
   n_min_core;
-  // Construct seperate Sigma for each valence state? [false]
+  // Construct separate Sigma for each valence state? [false]
   each_valence;
   // List of binding energies (in cm^-1) to scale Sigma for. Must be in same
   // order as valence states
@@ -472,7 +472,7 @@ Correlations{
   // points between (1e-4, 30)
   stride;
   // Block: Explicit list of energies to solve for. e.g., ek{6s+=-0.127;
-  // 7s+=-0.552;}. Blank => HF energies. Takes precidence over each_valence.
+  // 7s+=-0.552;}. Blank => HF energies. Takes precedence over each_valence.
   // [blank]
   ek{}
   // Use all-orders method (implies Feynman=true; screening=true;
@@ -498,9 +498,9 @@ Correlations{
   // core/valence energy gap
   real_omega;
   // Pair of comma-separated doubles: w0, wratio. Initial point, and ratio, for
-  // logarithimg Im(w) grid [0.01, 1.5]
+  // logarithmic Im(w) grid [0.01, 1.5]
   imag_omega;
-  // Inlcude lower g-part into Sigma [false]
+  // Include lower g-part into Sigma [false]
   include_G;
 }
 ```
