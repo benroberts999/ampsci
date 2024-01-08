@@ -41,7 +41,17 @@ is given in the physics documentation: [ampsci.pdf][man-url].
   * It assumes dependencies have already been installed. If not, see next:
 * The `install-dependencies.sh` bash script should install all required dependencies.
   * It uses only defaults, and may not work on all systems.
-  * As upsream repositories update, this may fall out-of-date
+* If there are issue with compilation
+  * See full compilation instructions: [doc/compilation.md](doc/compilation.md)
+* Check out the example input files to get running:
+  * [_doc/examples/ampsci.in_](doc/examples/ampsci.in) -- an example/template input file
+  * More: in [_doc/examples/_](doc/examples/) there are several example input files, along with the expected output; use these to test if everything is working
+
+### Tutorials/examples
+
+* The fastest way to get familiar with ampsci is to follow the tutorials
+* A basic step-by-step tutorial: [doc/tutorial.md](doc/tutorial.md)
+* More advanced tutorials follow: [doc/tutorial_advanced.md](doc/tutorial_advanced.md), [doc/tutorial_CI.md](doc/tutorial_CI.md)
 * See which ampsci input options are available: `./ampsci -a`
   * See available input options for each input block by following with its name
   * e.g., `./ampsci -a HartreeFock`
@@ -52,17 +62,9 @@ is given in the physics documentation: [ampsci.pdf][man-url].
   * See available input options for each operator by following with its name
   * e.g., `./ampsci -o hfs`
 
-Looking for atomic ionisation form-factors for dark-matter-electron scattering?
+### Looking for atomic ionisation form-factors for dark-matter-electron scattering?
 
 * See `Kionisation` module (`./ampsci -m Kionisation`)
-
-### Tutorials/examples
-
-* The fastest way to get familiar with ampsci is to follow the tutorials
-* A basic step-by-step tutorial: [doc/tutorial.md](doc/tutorial.md)
-* More advanced tutorials follow: [doc/tutorial_advanced.md](doc/tutorial_advanced.md), [doc/tutorial_CI.md](doc/tutorial_CI.md)
-  * See also: _doc/examples/ampsci.in_ -- an example/template input file
-  * In _doc/examples/_ there are several example input files, with the expected output; use these to test if everything is working
 
 ### Documentation
 

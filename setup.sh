@@ -1,10 +1,9 @@
 #!/bin/bash
 
 echo ''
-echo 'This attempt to compile ampsci using'
-echo 'the default options. You may need to update some options in the Makefile,'
-echo 'depending on your system.'
-echo 'You may need to run install-dependencies.sh first, to install dependencies'
+echo 'This will attempt to compile ampsci using the default options.'
+echo 'You may need to update some options in the Makefile, depending on your system.'
+echo 'You may need to run install-dependencies.sh first, to install dependencies.'
 echo ''
 
 if [[ "$1" != "--yes" ]]; then

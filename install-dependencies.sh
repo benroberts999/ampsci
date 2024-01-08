@@ -1,8 +1,10 @@
 #!/bin/bash
 
-echo 'This will install all dependencies, and attempt to compile ampsci using'
-echo 'the default options. You may need to update some options in the Makefile,'
-echo 'depending on your system'
+echo ''
+echo 'This will attempt to install all ampsci dependencies.'
+echo 'After this, run setup.sh to compile ampsci with default options.'
+echo 'You may need to update some options in the Makefile, depending on your system.'
+echo ''
 
 if [[ "$1" != "--yes" ]]; then
   read -r -p "This script will install programs. Do you wish to continue? [y/N] " response

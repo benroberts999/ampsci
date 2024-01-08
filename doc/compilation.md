@@ -55,7 +55,7 @@ This is for ubuntu/linux - for other systems, see below
 * May also need LAPACK/BLAS libraries: `sudo apt-get install libatlas-base-dev liblapack-dev libblas-dev`
 * Install the compiler: `sudo apt-get install g++` and/or `sudo apt-get install clang++`
 * Then compile by running `make` from the ampsci directory
-* To use with openMP (for parallelisation) with clang++, you might have to also install clangs openmp libraries: `sudo apt install libomp5` (and/or perhaps `sudo apt install libomp-dev`)
+* To use with openMP (for parallelisation) with clang++, you might have to also install clang openmp libraries: `sudo apt install libomp5` (and/or perhaps `sudo apt install libomp-dev`)
 
 ## Compilation: MacOS (intel chip)
 
@@ -91,11 +91,15 @@ This is for ubuntu/linux - for other systems, see below
 
 ## Common Compilation errors
 
+### OpenMP errors
+
 * **error: unsupported option -fopenmp**
 * **error: could not find <omp.h>**
 
 * openmp (used for parallelisation) is not working. See above for some possible solutions.
 * Quick fix: change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile
+
+### GSL Errors
 
 * **fatal error: gsl/<...>.h: No such file or directory** (or similar)
 * **gsl** related linking/compilation error:
@@ -111,6 +115,40 @@ This is for ubuntu/linux - for other systems, see below
 
 * This is because the code is linking to a very old version of GSL. You might need to update GSL. If you have updated GSL (to at least version 2.0) and still get the message, the code is probably linking against the wrong version of GSL; see above to point the compiler to the correct version
 
-* **other:**
+### ld: Assertion failed: (resultIndex < sectData.atoms.size())
+
+Full error message may look something like::
+
+```text
+0  0x102497648  __assert_rtn + 72
+1  0x1023cbfac  ld::AtomPlacement::findAtom(unsigned char, unsigned long long, ld::AtomPlacement::AtomLoc const*&, long long&) const + 1204
+2  0x1023e1924  ld::InputFiles::SliceParser::parseObjectFile(mach_o::Header const*) const + 15164
+3  0x1023eee30  ld::InputFiles::parseAllFiles(void (ld::AtomFile const*) block_pointer)::$_7::operator()(unsigned long, ld::FileInfo const&) const + 420
+4  0x185a37950  _dispatch_client_callout2 + 20
+5  0x185a4aba0  _dispatch_apply_invoke + 176
+6  0x185a37910  _dispatch_client_callout + 20
+7  0x185a493cc  _dispatch_root_queue_drain + 864
+8  0x185a49a04  _dispatch_worker_thread2 + 156
+9  0x185be10d8  _pthread_wqthread + 228
+ld: Assertion failed: (resultIndex < sectData.atoms.size()), function findAtom, file Relocations.cpp, line 1336.
+collect2: error: ld returned 1 exit status
+```
+
+* This seems to be a bug with M1/M2 mac linker implementation with CommandLineTools version 15.0 (see [developer.apple.com/forums/thread/737707](https://developer.apple.com/forums/thread/737707))
+* See also: [github.com/Homebrew/homebrew-core/issues/145991](https://github.com/Homebrew/homebrew-core/issues/145991)
+
+* This issue seems to have been resolved in version 15.1 - so run an update if you can.
+
+* If you can't update, it seems this can be fixed by adding the following to the Makefile:
+
+```Make
+LARGS=-Wl,-ld_classic
+```
+
+(Or, also try `-LW`)
+You shouldn't need to make clean first, but if it doesn't work, try that too.
+
+### Others
+
 * Sometimes, the compiler will not be able to find the correct libraries (particular, e.g., on clusters). In this case, there are two options in the Makfefile: **ExtraInclude** and **ExtraLink**
   * These add paths to include the correct directories for both -I "includes" (for compilation), and -L link flags (for linking libraries) in Makefile. These can be a little tricky to get right (don't include the -I or -L)

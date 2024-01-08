@@ -52,8 +52,6 @@ Available modules:
   - Calculates Feynman electron screening factors
 - pnc
   - Calculates APV amplitudes
-- VQE
-  - For testing/playing with VQE method
 - exampleModule
   - A short description of the module
 
