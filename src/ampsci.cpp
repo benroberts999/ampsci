@@ -312,7 +312,7 @@ void ampsci(const IO::InputBlock &input) {
         "(a/a0)^2. Use to enforce the non-relativistic limit "
         "(c->infinity => alpha->0), or calculate sensitivity to "
         "variation of alpha. [1.0]"},
-       {"run_label", "Optional label for output identity - for destinguishing "
+       {"run_label", "Optional label for output identity - for distinguishing "
                      "outputs with different parameters"}});
 
   const auto atom_Z = AtomData::atomic_Z(input.get({"Atom"}, "Z", "H"s));

@@ -29,7 +29,7 @@ struct Parameters;
   - Set of GridParameters [see Maths/Grid]
   - Set of Nuclear::Nucleus [see Physics/NuclearPotentials]
   - var_alpha = \f$\lambda\f$, \f$\alpha = \lambda\alpha_0\f$
-  - run_label:  Optional label for output identity - for destinguishing 
+  - run_label:  Optional label for output identity - for distinguishing 
     outputs with different parameters
 
 */

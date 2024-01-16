@@ -7,8 +7,11 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "fmt/format.hpp"
 #include "qip/Methods.hpp"
 #include <fstream>
+#include <gsl/gsl_fit.h>
+#include <gsl/gsl_multifit.h>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -190,6 +193,116 @@ void BW_screening_factor(const Wavefunction &wf,
 }
 
 //==============================================================================
+void fit(std::vector<double> &xd, std::vector<double> &yd, std::size_t terms) {
+  gsl_matrix *X, *cov;
+  gsl_vector *y, *w, *c;
+  const auto n = xd.size();
+  X = gsl_matrix_alloc(n, terms);
+  y = gsl_vector_alloc(n);
+  w = gsl_vector_alloc(n);
+
+  c = gsl_vector_alloc(terms);
+  cov = gsl_matrix_alloc(terms, terms);
+
+  for (std::size_t i = 0; i < n; ++i) {
+    for (std::size_t j = 0; j < terms; ++j) {
+      gsl_matrix_set(X, i, j, std::pow(xd.at(i), 2 * (j + 1)));
+    }
+
+    gsl_vector_set(y, i, yd.at(i));
+    gsl_vector_set(w, i, 1.0);
+  }
+
+  double chisq;
+  gsl_multifit_linear_workspace *work = gsl_multifit_linear_alloc(n, terms);
+  gsl_multifit_wlinear(X, w, y, c, cov, &chisq, work);
+  gsl_multifit_linear_free(work);
+
+  auto C = [&](std::size_t i) { return gsl_vector_get(c, i); };
+
+  fmt::print("K{}(Rm) = ", 2 * terms);
+  for (std::size_t j = 0; j < terms; ++j) {
+    const auto p = 2 * (j + 1);
+    fmt::print("{:+.3e} *Rm^{}", C(j), p);
+    if (j + 1 != terms)
+      std::cout << " ";
+  }
+  std::cout << "\n";
+
+  gsl_matrix_free(X);
+  gsl_vector_free(y);
+  gsl_vector_free(w);
+  gsl_vector_free(c);
+  gsl_matrix_free(cov);
+}
+
+//==============================================================================
+void b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
+               int max_power) {
+
+  std::cout << "\nb moments: " << v << "\n";
+
+  const auto &grid = v.grid();
+
+  const auto R0 = R0_fm / PhysConst::aB_fm;
+  const auto i0 = grid.getIndex(R0);
+  std::cout << "R0 = " << R0_fm << " fm  --  ";
+  std::cout << "[points within R0: " << i0 << "]\n";
+  const auto ri = 0.01 * R0;
+  const auto rf = 1.5 * R0;
+  const int num_steps = 200;
+
+  const auto R_pts = qip::logarithmic_range(ri, rf, num_steps);
+
+  const auto r3 = grid.rpow(3.0);
+  const auto r2inv = grid.rpow(-2.0);
+
+  const auto fg_inf =
+      NumCalc::integrate(1.0, 0, v.max_pt(), v.f(), v.g(), r2inv, grid.drdu());
+
+  const auto fg_rm = [&v, &grid, &r2inv](double rm) {
+    const auto im = grid.getIndex(rm, true);
+    if (im < 20) {
+      std::cout << "Warning: not enough points within nuclear radius: " << rm
+                << "\n";
+    }
+    return NumCalc::integrate(1.0, 0, im, v.f(), v.g(), r2inv, grid.drdu());
+  };
+
+  const auto fg_r3_rm = [&v, &grid, &r3, &r2inv](double rm) {
+    const auto im = grid.getIndex(rm, true);
+    return NumCalc::integrate(1.0, 0, im, v.f(), v.g(), r2inv, r3, grid.drdu());
+  };
+
+  std::ofstream of("KS_" + iso + "_" + v.shortSymbol() + ".txt");
+  std::ofstream of2("KL_" + iso + "_" + v.shortSymbol() + ".txt");
+  std::vector<double> xd;
+  std::vector<double> yd;
+  std::vector<double> zd;
+  for (auto rm : R_pts) {
+    // const auto rm = ri + i * dr;
+    const auto rm3 = rm * rm * rm;
+    const auto F_rm = fg_rm(rm) / fg_inf;
+    const auto F_r3_rm = (fg_rm(rm) - fg_r3_rm(rm) / rm3) / fg_inf;
+    of << rm / R0 << " " << F_rm << "\n";
+    of2 << rm / R0 << " " << F_r3_rm << "\n";
+    xd.push_back(rm / R0);
+    yd.push_back(F_rm);
+    zd.push_back(F_r3_rm);
+  }
+
+  const int max_terms = max_power / 2;
+
+  std::cout << "\nKS(R):\n";
+  for (int i = 1; i <= max_terms; ++i)
+    fit(xd, yd, std::size_t(i));
+
+  std::cout << "\nKL(R):\n";
+  for (int i = 1; i <= max_terms; ++i)
+    fit(xd, zd, std::size_t(i));
+}
+
+//==============================================================================
 //==============================================================================
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
@@ -197,6 +310,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       {{"hfs_options{}", "Options for HFS operator (see -o hfs)"},
        {"rpa", "Include RPA (diagram method)? [false]"},
        {"screening", "Calculate screening parameters (x and eta) [false]"},
+       {"b_power", "Maximum power for which to caculate b moments in "
+                   "KS(R),KL(R) expansion. Must be >=2 to calculate any [0]"},
        {"eps_target",
         "Tune magnetic radius to match experimental BW effect "
         "(eps). Two inputs, comma separated: state (in 'short "
@@ -265,6 +380,16 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // 1. Calculate BW effect
   BW_effect(wf.valence(), h0.get(), rpa0.get(), h.get(), rpa.get());
+
+  // calculate the B moments in KS(R) and KL(R) expansions
+  int b_power = input.get("b_power", 0);
+  if (b_power >= 2) {
+    const auto iso = wf.identity() + "-" + std::to_string(wf.Anuc());
+
+    for (const auto &v : wf.valence()) {
+      b_moments(iso, v, std::sqrt(5.0 / 3) * wf.get_rrms(), b_power);
+    }
+  }
 
   //----------------------------------------------------------------------------
   // 1.5: Tune magnetic radius to reproduce experimental BW effect:
