@@ -26,8 +26,14 @@ full: $(CHECKS) $(ALLEXES)
 # Automatically generate dependency files for each cpp file, + compile:
 # Put built objects in subdirectories based on build mode and compiler
 
+OMP_BDIR=omp
+ifneq ($(UseOpenMP),true)
+ifneq ($(UseOpenMP),yes)
+  OMP_BDIR=
+endif
+endif
 
-SUBBD=$(Build)/$(OMP)/$(word 1,$(CXX))
+SUBBD=$(Build)/$(OMP_BDIR)/$(word 1,$(CXX))
 
 # Auto rule for all cpp files
 $(BD)/$(SUBBD)/%.o: $(SD)/%.cpp

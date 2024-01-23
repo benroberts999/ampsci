@@ -1,11 +1,9 @@
 # Modules
 
-\brief Descpription of modules system: available modules and options
-
-[[Home](/README.md)]
+:: Descpription of modules system: available modules and options
 
 - The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
-- Any number of _modules_ can be run by adding `Module::moduleName{}' blocks.
+- Any number of _modules_ can be run by adding `ModulebriefmoduleName{}' blocks.
 - The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](/doc/writing_modules.md) for details
 
 Get a list of available modules: `./ampsci -m`
@@ -57,7 +55,7 @@ Available modules:
 
 You can see all the available options by setting the 'help' option, e.g.,
 
-- `Module::moduleName{ help; }`
+- `ModulebriefmoduleName{ help; }`
 
 You can also get most of this information directly from the command-line:
 

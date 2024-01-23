@@ -1,8 +1,6 @@
 # Advanced Tutorial: CI+MBPT
 
-\brief Advanced ampsci tutorial: CI+MBPT for two-valence atoms
-
-[[Home](/README.md)]
+:: Advanced ampsci tutorial: CI+MBPT for two-valence atoms
 
 This assumes you already have ampsci compiled and have a basic understanding of how to run and use it.
 
@@ -17,26 +15,32 @@ This assumes you already have ampsci compiled and have a basic understanding of 
 ## CI+MBPT overview: Configuration Interaction with Many-Body Perturbation Theory <a name="cimbpt"></a>
 
 For an $M$-valence atomic system, the effective Hamiltonian is
-$\begin{equation}
+
+$$~
     H_{\rm CI} = H_{\rm CI}^1 + H_{\rm CI}^2 =
     \sum_i^M \left(h^{\rm HF}(r_i) + \Sigma^1(r_i)\right)
-    +\sum_{i<j}\left(r^{-1}_{ij}
+    +\sum_{i < j}\left(r^{-1}_{ij}
     +\Sigma^2(r_i,r_j)\right),
-\end{equation}$
+~$$
+
 where $h^{\rm HF}$ is one-particle the Hartree-Fock Hamiltonian (with HF potential due to the $N-M$ core electrons), $\Sigma^1$ accounts for the core-valence correlations, and $\Sigma^2$ accounts for the screening of the valence-valence Coulomb interaction by the core electrons.
 
 The CI routines in ampsci are only for two-valence systems: $M=2$.
 
 In the CI method, approximate valence-space wavefunctions, $\Psi$, are expanded over $M$-particle wavefunctions called Configuration-State Functions (CSFs), $\psi_I$:
-$\begin{equation}
+
+$$~
     \left|{\Psi,J^\pi J_z}\right\rangle = \sum_I c_I  \left|{I,J^\pi J_z}\right\rangle.
-\end{equation}$
+~$$
+
 The CSFs are combinations of Slater-determinants formed from single-particle eigenfunctions.
 The CSFs are eigenfunctions of $J^2$, $J_z$, and parity ($\pi$).
 For each $J^\pi$ symmetry, the energies and wavefunctions (expansion coefficients) are found by solving the Schr\"odinger equation, which for a finite set of $N_{CSF}$ CSFs, is cast to an $N_{CSF}^2$ eigenvalue problem:
-$\begin{equation}
+
+$$~
     \sum_J c_J\left\langle{I}\right|H_{\rm eff}\left|{J}\right\rangle = E c_I,
-\end{equation}$
+~$$
+
 For the single-particle basis, we use eigenfunctions of the same $h^{\rm HF}$ Hamiltonian from the CI Hamiltonian. This is known as the $V^{N-M}$ approximation, with simplifies the MBPT part of the calculation, and is very accurate for two-valence systems.
 
 -----------
@@ -374,8 +378,8 @@ On my pc, this entire calculation took less than two minutes.
 This takes very similar options to the regular `MatrixElements{}` module:
 
 ```java
-// Available Module::CI_matrixElements options/blocks
-Module::CI_matrixElements{
+// Available ModulebriefCI_matrixElements options/blocks
+ModulebriefCI_matrixElements{
   // e.g., E1, hfs (see ampsci -o for available operators)
   operator;
   // options specific to operator
@@ -400,7 +404,7 @@ Module::CI_matrixElements{
 It's typically not recommended to use `omega=each`, as this solves the RPA equations for each transition, and the frequency-dependence is usually small.
 
 ```java
-Module::CI_MatrixElements{
+ModulebriefCI_MatrixElements{
   operator = E1;
   rpa = true;
   omega = 0.15970531;

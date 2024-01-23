@@ -1,8 +1,6 @@
 # Basic Tutorial
 
-\brief Basic tutorial for using ampsci, including examples.
-
-[[Home](/README.md)]
+:: Basic tutorial for using ampsci, including examples.
 
 This assumes you already have ampsci compiled.
 
@@ -121,7 +119,7 @@ ampsci{
   CI{}
   // Run any number of modules (* -> module name). `ampsci -m` to see available
   // modules
-  Module::*{}
+  Modulebrief*{}
 }
 ```
 
@@ -423,7 +421,7 @@ To do more complicated calculations, including constructing complete set of basi
 
 Above, we ran ampsci, which calculated the atomic wavefunctions and printed their energies to screen.
 If we want to actually _do_ anything with the wavefunctions, we have to run one or more **modules**.
-We do this by adding a module block to the input file, which has the form `Module::ModuleName{}`
+We do this by adding a module block to the input file, which has the form `ModulebriefModuleName{}`
 
 Here, we will just consider a simple example. For further detail:
 
@@ -447,8 +445,8 @@ To see the available options for this block, list the block name after `-m` on t
 which prints:
 
 ```java
-// Available Module::matrixElements options/blocks
-Module::matrixElements{
+// Available ModulebriefmatrixElements options/blocks
+ModulebriefmatrixElements{
   // e.g., E1, hfs (see ampsci -o for available operators)
   operator;
   // options specific to operator (see ampsci -o 'operator')
@@ -503,12 +501,12 @@ The second option, which is a sub-input-block, `options` is the set of options f
 ```
 
 Here we will consider the simpler `E1` operator.
-To our above `example.in` file, we can add the following block (note we may add as many Module:: blocks as we like, they will all be run one-by-one in order):
+To our above `example.in` file, we can add the following block (note we may add as many Modulebrief blocks as we like, they will all be run one-by-one in order):
 
 ```java
 // example.in
 // ... above input options ...
-Module::Matrixelements{
+ModulebriefMatrixelements{
   operator = E1;
   rpa = true;
   omega = 0.0;

@@ -1,8 +1,6 @@
 # Advanced Tutorial: MBPT
 
-\brief Adanced ampsci tutorial: correlations
-
-[[Home](/README.md)]
+:: Advanced ampsci tutorial: correlations
 
 This assumes you already have ampsci compiled and have a basic understanding of how to run and use it.
 
@@ -26,26 +24,30 @@ This assumes you already have ampsci compiled and have a basic understanding of 
 ## Starting approximation <a name="begin"></a>
 
 The full atomic Hamiltonian for an $N$-electron atom:
-$\begin{equation}
-  H = \sum_i^N h_0({r}_i) + \sum_{i<j}\frac{1}{{r}_i - {r}_j}
-\end{equation}$
-$\begin{equation}
-  h_0(\vec r_i) = c \vec\alpha_i\cdot\vec p_i + c^2 (\beta_i-1) + V_{\rm nuc}.
-\end{equation}$
+$$~
+H = \sum_i^N h_0(r_i) + \sum_{i < j}\frac{1}{r_i - r_j}
+~$$
+
+$$~
+h_0(\vec{r_i}) = c \vec\alpha_i\cdot\vec{p_i} + c^2 (\beta_i-1) + V_{\rm nuc}.
+~$$
+
 The starting approximation is the Hartree-Fock method:
-$\begin{equation}
+
+$$~
   H \approx \sum_i^N [h_0(\vec r_i) + v^{\rm HF} ].
-\end{equation}$
+~$$
 
 ### Hartree-Fock <a name="hf"></a>
 
 We focus on case of single-valence systems, and start with so-called $V^{N-1}$ approximation, in which Hartree-Fock potential is due to the $N-1$ core electrons:
-$\begin{equation}
-  \hat v^{\rm HF}\phi_a(\vec{r}_1) = \sum_{i\neq a}^{N_c}\Bigg(
-  \int \frac{\phi_i^\dagger(\vec{r}_2)\phi_i(\vec{r}_2)}{|{r}_{12}|}d^3\vec{r}_2\,\phi_a(\vec{r}_1)
-  -\int \frac{\phi_i^\dagger(\vec{r}_2)\phi_a(\vec{r}_2)}{|{r}_{12}|}d^3\vec{r}_2\,\phi_i(\vec{r}_1)
+
+$$~
+  \hat v^{\rm HF}\phi_a(\vec{r_1}) = \sum_{i\neq a}^{N_c}\Bigg(
+  \int \frac{\phi_i^\dagger(\vec{r_2})\phi_i(\vec{r_2})}{|r_{12}|}d^3\vec{r_2}\,\phi_a(\vec{r_1})
+  -\int \frac{\phi_i^\dagger(\vec{r_2})\phi_a(\vec{r_2})}{|r_{12}|}d^3\vec{r_2}\,\phi_i(\vec{r_1})
   \Bigg),
-\end{equation}$
+~$$
 
 First, Hartree-Fock equations are solved self-consistently for all core electrons, then the valence states are found in the Frozen Hartree-Fock potential due to the core.
 For example, to run Hartree-Fock for Cs with a $N-1$ (implies Xe-like core),
@@ -108,15 +110,18 @@ Nucleus{
 
 The Breit Hamiltonian accounts for magnetic interactions between electrons (also known as the Gaunt interaction), and retardation effects.
 It leads to a correction to the electron-electron Coulomb term in the many-body Hamiltonian:
-$\begin{equation}
+
+$$~
   \sum_{ij}\frac{1}{r_{ij}}
   \to
   \sum_{ij}\left( \frac{1}{r_{ij}} + \hat h^B_{ij}\right),
-\end{equation}$
+~$$
+
 where, in the limit of zero frequency, the two-particle Breit Hamiltonian is
-$\begin{equation}
-  \hat h^B_{ij} = - \frac{\vec{\alpha}_i\cdot\vec{\alpha}_j + (\vec{\alpha}_i\cdot\hat{n}_{ij})(\vec{\alpha}_j\cdot\hat{n}_{ij})}{2\, {r}_{ij}}.
-\end{equation}$
+
+$$~
+  h^B_{ij} = - \frac{\vec{\alpha_i}\cdot\vec{\alpha_j} + (\vec{\alpha_i}\cdot\hat{n_{ij}})(\vec{\alpha_j}\cdot\hat{n_{ij}})}{2\, r_{ij}}.
+~$$
 
 This can be included at the Hartree-Fock level with the `HartreeFock{Breit = 1.0;}` setting.
 
@@ -139,9 +144,10 @@ Radiative QED corrections can be included into the wavefunctions using the Flamb
 An effective potential, $V_{\rm rad}$,
 is added to the Hamiltonian before the equations are solved.
 The potential can be written as the sum of the Uehling (vacuum polarisation), Wichmann-Kroll (higher-order vacuum polarisation) and self-energy potentials; the self-energy potential itself is written as the sum of the high- and low-frequency electric contributions, and the magnetic contribution:
-$\begin{equation}
+
+$$~
   V_{\rm rad}(\vec{r}) = V_{\rm Ueh}(r) + V_{\rm WK}(r) + V_{\rm SE}^{h}(r) +  V_{\rm SE}^{l}(r) + i (\vec{\gamma}\cdot\hat{n}) V^{\rm mag}(r).
-\end{equation}$
+~$$
 
 * Flambaum, Ginges, [Phys. Rev. A **72**, 052115 (2005)](http://link.aps.org/doi/10.1103/PhysRevA.72.052115).
 
@@ -178,14 +184,16 @@ e.g., `scale_l = 0,1,0;` will include $V_{\rm rad}$ for p states, but not s or d
 ## Constructing a basis <a name="basis"></a>
 
 We often require a full "compete" set of solutions to the Hartree-Fock equation in order to perform sums-over-states required in perturbation theory. To form these, the set of atomic orbitals are expanded as
-$\begin{equation}
+
+$$~
   \phi_{n\kappa}(\vec{r}) = \sum_i^{2N} p_i S_i(\vec{r}),
-\end{equation}$
+~$$
+
 where $S_i$ are a set of $2N$ basis orbitals that form an approximately complete set over a sub-domain of the radial grid $[0,r_{\rm max}]$ ($N$ is defined this way because of the duel set of positive/negative energy Dirac solutions).
 The $p_i$ expansion coefficients are found by diagonalising the set of basis orbitals with respect to the Hamiltonian matrix, equivalent to solving the eigenvalue problem:
-$\begin{equation}
+$$~
   \langle{S_i}|h_{\rm HF} |S_j \rangle p_i = \varepsilon\langle S_i|S_j \rangle p_i.
-\end{equation}$
+~$$
 There are $2N$ solutions of eigenvalues $\varepsilon$ with corresponding eigenvectors $\vec{p}$, which correspond to the spectrum of stationary states; $N$ of these correspond to negative-energy ($\varepsilon<-mc^2$) states.
 
 For the $S_i$ basis orbitals, we use the Duel-Kinetic-Balence basis of Beloy and Dereviano, and $S_i$ is built from $N_{\rm spl}$ B-splines of order $k$.
@@ -270,9 +278,9 @@ The worst energy comparison was for $5s$ state (parts in $10^5$), and the worst 
 
 The spectrum is the same as the basis (takes the same options), except that it also includes correlations (see below):
 
-$\begin{equation}
+$$~
   \langle{S_i}|\hat h_{\rm HF} + \hat \Sigma|{S_j}\rangle p_i = \varepsilon\langle{S_i|S_j}\rangle p_i.
-\end{equation}$
+~$$
 
 We typically use Basis to calculate $\Sigma$ (or other MBPT corrections), and then use spectrum to calculate atomic properties where a direct sum-over-states is required (e.g., polarisabilities).
 Since we often only use basis to calculate MBPT corrections, it doesn't need to be very large.
@@ -294,31 +302,35 @@ Spectrum{
 
 ## MBPT: second-order correlations <a name="secondorder"></a>
 
-$\begin{equation}
-  H = \sum_i h_{\rm HF}(\vec{r}_i) + \delta V_{\rm corr},
-\end{equation}$
-where $h_{\rm HF}(\vec{r}_i)$ is the single-particle HF Hamiltonian, and
-$\begin{equation}
-  \delta V_{\rm corr} = \sum_{i<j}\frac{1}{{r}_{ij}} - \sum_iV_{\rm HF}(\vec{r}_i)
-\end{equation}$
+$$~
+  H = \sum_i h_{\rm HF}(\vec{r_i}) + \delta V_{\rm corr},
+~$$
 
-$\begin{equation}
+where $h_{\rm HF}(\vec{r}_i)$ is the single-particle HF Hamiltonian, and
+
+$$~
+  \delta V_{\rm corr} = \sum_{i < j}\frac{1}{r_{ij}} - \sum_i V_{\rm HF}(\vec{r_i})
+~$$
+
+$$~
   \delta \varepsilon_v =
   \sum_{amn}
     \frac{g_{vamn}\widetilde g_{nmav}}{\varepsilon_v+\varepsilon_a - \varepsilon_m-\varepsilon_n}
   +\sum_{abn}
     \frac{g_{vnab}\widetilde g_{banv}}{\varepsilon_v+\varepsilon_n-\varepsilon_a-\varepsilon_b}  ,
-\end{equation}$
+~$$
 
 We define _correlation potential_, $\Sigma$:
-$\begin{equation}
+
+$$~
   \delta \varepsilon_v =\langle v | \Sigma |v \rangle
-\end{equation}$
+~$$
 
 We then solve the Hartree-Fock equation, including the correlation potential. The solutions are known as _Brueckner orbitals_, and include correlation corrections.
-$\begin{equation}
+
+$$~
   [h_{\rm HF} +  \Sigma(\varepsilon)]\phi^{\rm Br} = \varepsilon^{\rm Br}\phi^{\rm Br}
-\end{equation}$
+~$$
 
 There are quite a few options available for Correlation corrections (see `ampsci -a Correlations`) -- we will focus on the most important here.
 
@@ -393,28 +405,34 @@ These are taken into account using the _all-orders correlation potential method_
 3. V. A. Dzuba, V. V. Flambaum, and O. P. Sushkov, [Phys. Lett. A 140, 493 (1989).](https://dx.doi.org/10.1016/0375-9601(89)90129-1)
 
 The starting point uses the Feynman technique, in which the direct part of the correlation potential can be expressed
-$\begin{equation}
+
+$$~
   \Sigma_{\rm d} = \int\frac{{\rm d}\omega}{2\pi} G_{12}(\varepsilon+\omega) Q_{1i}\Pi_{ij}(\omega) Q_{j2}(\omega),
-\end{equation}$
+~$$
+
 where $G_{12} = G(r_1,r_2)$ in the Hartee-Fock Feynman Green's function, $Q$ is the (non-relativistic) Coulomb operator, and $\Pi$ is the polarisation operator
 (subscripts are coordinate indices; integration is assumed over internal $i$ and $j$). Note that $\Pi$ represents polarisation of the atomic core.
 
 The screening of the coulomb interaction can be represented by a series of polarisation corrections
-$\begin{equation}
+
+$$~
   \widetilde Q \equiv  Q + \ Q(-i\, \Pi  Q) +  Q(-i\, \Pi  Q)^2+\ldots
-\end{equation}$
+~$$
+
 which can be summed exactly:
-$\begin{equation}
+
+$$~
   \widetilde Q(\omega) = Q\left[1+i\,\Pi(\omega) Q\right]^{-1}.
-\end{equation}$
+~$$
+
 The screening is accounted for in the direct diagrams via $Q\to \widetilde Q$ for _one_ of the Coulomb operators in $\Sigma_{\rm d}$.
 (Screening for exchange diagrams is taken into account in a simpler fasion, see pdf for details).
 
 The hole-particle interaction arises due to the deviation of the Hartree-Fock potential for the excited core electron in the polarisation loop from that for the non-excited one.
 The potential that simultaneously describes the occupied core and excited states is
-$\begin{equation}
+$$~
   \hat V = V^{N-1} - (1-\hat P_{\rm core})V_{\rm self} (1-\hat P_{\rm core}),
-\end{equation}$
+~$$
 where $P_{\rm core}$ is the operator of projection onto the core, and $V_{\rm self}$ is the self-interaction part of the Hartree-Fock potential for the outgoing electron.
 Therefore, hole-particle interaction is accounted for by using this potential when forming the polarisation operator.
 
@@ -468,11 +486,11 @@ The diagram method uses `Basis{}` for internal summations, so one should ensure 
 
 To improve tha accuracy of matrix elements, structure radiation and normalisation corrections should be included.
 There is an option to do this in the MatrixElements module.
-There is also a `Module::StructureRad` module, which gives some finer control.
+There is also a `ModulebriefStructureRad` module, which gives some finer control.
 
 ```java
-// Available Module::matrixElements options/blocks
-Module::matrixElements{
+// Available ModulebriefmatrixElements options/blocks
+ModulebriefmatrixElements{
   //.... same as before
 
   // Options for Structure Radiation and normalisation (details below)

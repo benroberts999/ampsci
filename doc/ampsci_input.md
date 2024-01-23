@@ -1,8 +1,6 @@
 # ampsci: input options
 
-\brief ampsci input: descriptions of file format and available options
-
-[[Home](/README.md)]
+:: ampsci input: descriptions of file format and available options
 
 ## basic usage
 

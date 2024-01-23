@@ -41,6 +41,9 @@ BLASLIB=blas
 ExtraInclude=
 ExtraLink=
 ExtraFlags=
+## Required on bunya:
+#ExtraFlags=-lgfortran 
+
 # To use openmp with the llvm version clang++ on mac:
 #ExtraInclude=/usr/local/opt/llvm/include/
 #ExtraLink=/usr/local/opt/llvm/lib/
