@@ -80,7 +80,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
-  const bool hf_AB = oper == "hfs";
+  const bool hf_AB = qip::ci_compare(oper, "hfs");
   const bool diagonal = input.get("diagonal", true);
   const bool off_diagonal = input.get("off-diagonal", true);
 

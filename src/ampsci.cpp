@@ -220,6 +220,9 @@ int main(int argc, char *argv[]) {
     std::string a_str = (argc > 3) ? argv[3] : "";
     AtomData::periodicTable(z_str, a_str);
     return 0;
+  } else if (input_text == "-e" || input_text == "--EasterEgg") {
+    std::cout << EasterEgg::get_egg();
+    return 0;
   } else if (input_text == "-c" || input_text == "--constants") {
     AtomData::printConstants();
     return 0;
@@ -299,7 +302,6 @@ void ampsci(const IO::InputBlock &input) {
        {"CI{}", "Configuration Interaction"},
        {"Module::*{}", "Run any number of modules (* -> module name). `ampsci "
                        "-m` to see available modules"}});
-  input.check({"EasterEgg"}, {{"", EasterEgg::get_egg()}});
 
   // Atom: Get + setup atom parameters
   input.check(

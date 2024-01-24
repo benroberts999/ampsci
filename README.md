@@ -91,10 +91,11 @@ Divided into sections:
 
 #### A selection of publications resulting from ampsci
 
-* _Accurate electron-recoil ionization factors for dark matter direct detection in xenon, krypton and argon_, A. R. Caddell, V. V. Flambaum, B. M. Roberts, [Physical Review D **108**, 083030 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.108.083030), [arXiv:2305.05125](https://arxiv.org/abs/2305.05125)
-* _Electric dipole transition amplitudes for atoms and ions with one valence electron_, B. M. Roberts, C. J. Fairhall, J. S. M. Ginges, [Physical Review A **107**, 052812 (2023)](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.107.052812), [arXiv:2211.11134](https://arxiv.org/abs/2211.11134)
-* _Experimental and Theoretical Study of Dynamic Polarizabilities in the_ $5S - 5D_{5/2}$ _Clock Transition in Rubidium-87 and Determination of Electric Dipole Matrix Elements_, R. Hamilton _et al._, [Physical Review Applied **19**, 054059 (2023)](https://link.aps.org/doi/10.1103/PhysRevApplied.19.054059), [arXiv:2212.10743](https://arxiv.org/abs/2212.10743)
-* _QED radiative corrections to electric dipole amplitudes in heavy atoms_, C. J. Fairhall, B. M. Roberts, J. S. M. Ginges, [Physical Review A **107**, 022813 (2023)](https://link.aps.org/doi/10.1103/PhysRevA.107.022813), [arXiv:2212.11490](https://arxiv.org/abs/2212.11490)
+* _Accurate electron-recoil ionization factors for dark matter direct detection in xenon, krypton and argon_, A. R. Caddell, V. V. Flambaum, B. M. Roberts, [Physical Review D **108**, 083030 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.108.083030), [[arXiv:2305.05125](https://arxiv.org/abs/2305.05125)]
+* _The neutrino fog for dark matter-electron scattering experiments_, B. Carew, A. R. Caddell, T. N. Maity, C. A. J. O'Hare, [arXiv:2312.04303](https://arxiv.org/abs/2312.04303)
+* _Electric dipole transition amplitudes for atoms and ions with one valence electron_, B. M. Roberts, C. J. Fairhall, J. S. M. Ginges, [Physical Review A **107**, 052812 (2023)](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.107.052812), [[arXiv:2211.11134](https://arxiv.org/abs/2211.11134)]
+* _Experimental and Theoretical Study of Dynamic Polarizabilities in the_ $5S - 5D_{5/2}$ _Clock Transition in Rubidium-87 and Determination of Electric Dipole Matrix Elements_, R. Hamilton _et al._, [Physical Review Applied **19**, 054059 (2023)](https://link.aps.org/doi/10.1103/PhysRevApplied.19.054059), [[arXiv:2212.10743](https://arxiv.org/abs/2212.10743)]
+* _QED radiative corrections to electric dipole amplitudes in heavy atoms_, C. J. Fairhall, B. M. Roberts, J. S. M. Ginges, [Physical Review A **107**, 022813 (2023)](https://link.aps.org/doi/10.1103/PhysRevA.107.022813), [[arXiv:2212.11490](https://arxiv.org/abs/2212.11490)]
 
 --------------------------------------------------------------------------------
 

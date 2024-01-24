@@ -69,10 +69,6 @@ BLASLIB?=blas
 CXXFLAGS= $(CXXSTD) $(OPT) $(OMP) $(WARN) -I$(SD)
 LIBS=-lgsl -lgslcblas -llapack -l$(BLASLIB)
 
-ifeq ($(RunProfiler),yes)
-  CXXFLAGS+=-DIOPROFILER
-endif
-
 # GSL location (if different from assumed default)
 ifneq ($(PathForGSL),)
   CXXFLAGS+=-I$(PathForGSL)/include/

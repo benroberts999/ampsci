@@ -161,9 +161,9 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
         << "\n----------------------------------------------------------\n";
     std::cout << "Energies and <r> expectation values:\n";
 
-    std::cout << "\nEnergies: Basis vs core HF orbitals:\n";
+    std::cout << "\nBasis vs core HF orbitals:\n";
     comp_energies(wf.core(), wf.basis());
-    std::cout << "\nEnergies: Basis vs valence HF orbitals:\n";
+    std::cout << "\nBasis vs valence HF orbitals:\n";
     if (wf.Sigma()) {
       std::cout
           << "Note: Bruckner valence orbitals, not expected to be equal:\n";

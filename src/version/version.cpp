@@ -27,9 +27,11 @@
 #ifndef COMPTIME
 #define COMPTIME
 #endif
+// GSL_VERSION defined by GSL library (if it exists)
 #ifndef GSL_VERSION
 #define GSL_VERSION ""
 #endif
+// _OPENMP defined by openMP library (if it exists)
 #ifdef _OPENMP
 #define OMP_VERSION _OPENMP
 #else

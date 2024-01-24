@@ -7,7 +7,13 @@
 #define AMPSCI_MINOR_VERSION 0
 
 //==============================================================================
-//! Information about the ampsci code (version, compiler etc.)
+//! Information about the ampsci code (version, compiler etc.).
+/*! @details Defines the macros: 
+AMPSCI_VERSION, AMPSCI_MAJOR_VERSION, AMPSCI_MINOR_VERSION 
+(defined in version.hpp).
+Also, defines macros: GITBRANCH, GITREVISION, GITMODIFIED, CXXVERSION, COMPTIME
+These should be set using compil flags (-D) on compilation.
+*/
 namespace version {
 
 //! String with version info, including git branch/revision, and if any files
