@@ -2,6 +2,7 @@
 #include "LinAlg/LinAlg.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <array>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -72,6 +73,9 @@ class PsiJPi {
   std::pair<LinAlg::Vector<double>, LinAlg::Matrix<double>> m_Solution{};
   std::vector<ConfigInfo> m_Info{};
 
+  // optionally, store matrix (for testing etc.)
+  std::optional<LinAlg::Matrix<double>> m_H{};
+
 public:
   //! Construct containter for CI solutions.
   //! Constructs the CSFs, but doesn't solve system; have to call solve().
@@ -115,6 +119,20 @@ public:
 
   //! Configuration info for the ith CI solution, if it has been set
   const ConfigInfo &info(std::size_t i) const;
+
+  //! Stores the matrix; by move
+  void store_matrix(LinAlg::Matrix<double> &&matrix) {
+    m_H = std::forward<LinAlg::Matrix<double>>(matrix);
+  }
+
+  //! Stores a copy of the CI matrix
+  void store_matrix(const LinAlg::Matrix<double> &matrix) {
+    auto copy = matrix;
+    store_matrix(std::move(copy));
+  }
+
+  //! Returns a (const) pointer to the CI matrix, if it's stored, otherwise null
+  const LinAlg::Matrix<double> *Hci() const { return m_H ? &*m_H : nullptr; }
 };
 
 } // namespace CI

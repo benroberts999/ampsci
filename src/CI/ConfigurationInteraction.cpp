@@ -34,6 +34,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
        {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
        {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
        {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
+       {"store_matrix",
+        "Store the Hamiltonian matrix (for each J/Pi)? Only required if matrix "
+        "is needed later, e.g., in a module [false]"},
        {"sigma1", "Include one-body MBPT correlations? [false]"},
        {"sigma2", "Include two-body MBPT correlations? [false]"},
        {"cis2_basis",
@@ -303,6 +306,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   const auto J_even_list = input.get("J+", J_list);
   const auto J_odd_list = input.get("J-", J_list);
   const auto num_solutions = input.get("num_solutions", 5);
+  const auto store_matrix = input.get("store_matrix", false);
   const auto ci_input = input.get("ci_input", std::string{""});
   const auto sort_output = input.get("sort_output", false);
   const auto parallel_ci = input.get("parallel_ci", true);
@@ -326,7 +330,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
       auto &output_stream = parallel_ci ? os.at(i) : std::cout;
       levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_solutions, h1, qk, Bk,
-                            Sk, include_Sigma2, output_stream);
+                            Sk, include_Sigma2, store_matrix, output_stream);
     }
 
     // If doing in parallel, output detailed output at end
@@ -400,7 +404,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_solutions, const Coulomb::meTable<double> &h1,
               const Coulomb::QkTable &qk, const Coulomb::WkTable &Bk,
               const Coulomb::LkTable &Sk, bool include_Sigma2,
-              std::ostream &outstream) {
+              bool store_matrix, std::ostream &outstream) {
 
   auto printJ = [](int twoj) {
     return twoj % 2 == 0 ? std::to_string(twoj / 2) :
@@ -432,7 +436,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   // Construct the CI matrix:
   const auto br_ptr = !Bk.emptyQ() ? &Bk : nullptr;
   const auto s2_ptr = include_Sigma2 ? &Sk : nullptr;
-  const auto Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr);
+  auto Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr);
 
   //----------------------------------------------------------------------------
 
@@ -517,6 +521,11 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
 
     outstream << "\n";
   }
+
+  // Optionally store matrix (by move, avoid copy)
+  // Uses extra memory, so only if required
+  if (store_matrix)
+    psi.store_matrix(std::move(Hci));
 
   return psi;
 }
