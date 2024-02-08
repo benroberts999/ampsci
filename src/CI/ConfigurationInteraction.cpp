@@ -461,21 +461,63 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     const double minimum_percentage = 1.0; // min % to print
     // l's of the leading configuration (for gJ)
     int l1{-1}, l2{-1};
-    std::size_t max_j = 0;
-    double max_cj = 0.0;
+    // std::size_t max_j = 0;
+    // double max_cj = 0.0;
+
+    std::cout << "WARNING: Half-way through a change!!\n";
+
+    std::string sym1{""};
+    double cc1 = 0.0;
+    std::string sym2{""};
+    double cc2 = 0.0;
+
     for (std::size_t j = 0ul; j < N_CSFs; ++j) {
-      const auto cj = 100.0 * std::pow(psi.coef(i, j), 2);
-      if (cj > max_cj) {
-        max_cj = cj;
-        max_j = j;
+
+      const auto ccj = 100.0 * std::pow(psi.coef(i, j), 2);
+
+      if (ccj > minimum_percentage) {
+        fmt::print(outstream, "   {:<6s} {:5.3f}%\n", psi.CSF(j).config(true),
+                   ccj);
+      }
+
+      if (psi.CSF(j).config(false) == sym1) {
+        cc1 += ccj;
+      } else if (psi.CSF(j).config(false) == sym2) {
+        cc2 += ccj;
+        if (cc2 > cc1) {
+          std::swap(sym1, sym2);
+          std::swap(cc1, cc2);
+          l1 = Angular::nkindex_to_l(psi.CSF(j).state(0));
+          l2 = Angular::nkindex_to_l(psi.CSF(j).state(1));
+        }
+      } else if (ccj > cc1) {
+        std::swap(sym1, sym2);
+        std::swap(cc1, cc2);
+        sym1 = psi.CSF(j).config(false);
+        cc1 = ccj;
         l1 = Angular::nkindex_to_l(psi.CSF(j).state(0));
         l2 = Angular::nkindex_to_l(psi.CSF(j).state(1));
-      }
-      if (cj > minimum_percentage) {
-        fmt::print(outstream, "   {:<6s} {:5.3f}%\n", psi.CSF(j).config(true),
-                   cj);
+      } else if (ccj > cc2) {
+        sym2 = psi.CSF(j).config(false);
+        cc2 = ccj;
       }
     }
+
+    // for (std::size_t j = 0ul; j < N_CSFs; ++j) {
+    //   const auto cj = 100.0 * std::pow(psi.coef(i, j), 2);
+    //   if (cj > max_cj) {
+    //     max_cj = cj;
+    //     max_j = j;
+    //     l1 = Angular::nkindex_to_l(psi.CSF(j).state(0));
+    //     l2 = Angular::nkindex_to_l(psi.CSF(j).state(1));
+    //   }
+    //   // if (cj * cj > cc1)
+
+    //   if (cj > minimum_percentage) {
+    //     fmt::print(outstream, "   {:<6s} {:5.3f}%\n", psi.CSF(j).config(true),
+    //                cj);
+    //   }
+    // }
 
     // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
     // take J=Jz, <JJz|J|JJz> = J
@@ -499,7 +541,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     }
 
     // maximum relativistic config, into non-relativistic notation:
-    const auto config = psi.CSF(max_j).config(false);
+    const auto config = sym1; //psi.CSF(max_j).config(false);
 
     // Percentage of that non-relativistic config*
     double pc = 0.0;
