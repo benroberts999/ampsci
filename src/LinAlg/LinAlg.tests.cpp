@@ -219,7 +219,8 @@ TEST_CASE("LinAlg: operators<complex<double>>", "[LinAlg][unit]") {
   const auto ca_inv = a.inverse();
   REQUIRE(LinAlg::equal(ca_inv, a.inverse()));
 
-  REQUIRE(a.determinant() == 2.25 - 28.75i);
+  REQUIRE(a.determinant().real() == Approx(2.25));
+  REQUIRE(a.determinant().imag() == Approx(-28.75));
   REQUIRE(std::abs(ca_inv.determinant() -
                    (0.0027055463700586 + 0.0345708702840824i)) < 1.0e-12);
 

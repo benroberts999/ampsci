@@ -182,7 +182,9 @@ void HartreeFock::solve_valence(
     for (std::size_t i = 0; i < valence->size(); i++) {
       const auto &[veps, vits, vstate] = eis.at(i);
       const auto delta = deltas.at(i);
-      printf(" delta=%8.5f; eps=%5.0e [its=%3i]", delta, veps, vits);
+      fmt::print(" {:4s} delta={:8.5f}; eps={:5.0e} [its={:3}]",
+                 valence->at(i).shortSymbol(), delta, veps, vits);
+      // printf(" delta=%8.5f; eps=%5.0e [its=%3i]", delta, veps, vits);
       if (veps > m_eps_HF && veps > 1.0e-6) {
         std::cout << " ====*";
       }
