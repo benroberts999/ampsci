@@ -324,6 +324,7 @@ void ampsci(const IO::InputBlock &input) {
     // cannot explicitely set alpha to zero - so make it very small
     return (varAlpha2 > 0.0) ? std::sqrt(varAlpha2) : 1.0e-25;
   }();
+  const auto run_label = input.get({"Atom"}, "run_label", ""s);
 
   // Nucleus: Get + setup nuclear parameters
   input.check({"Nucleus"},
@@ -393,7 +394,7 @@ void ampsci(const IO::InputBlock &input) {
       GridParameters{num_points, r0, rmax, b, grid_type, du ? *du : 0});
 
   // Create wavefunction object
-  Wavefunction wf(radial_grid, std::move(nucleus), var_alpha);
+  Wavefunction wf(radial_grid, std::move(nucleus), var_alpha, run_label);
 
   if (!help_mode) {
     std::cout << "\nRunning for " << wf.atom() << '\n';
