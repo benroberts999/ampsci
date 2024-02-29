@@ -193,7 +193,9 @@ void BW_screening_factor(const Wavefunction &wf,
 }
 
 //==============================================================================
-void fit(std::vector<double> &xd, std::vector<double> &yd, std::size_t terms) {
+std::vector<double> fit(std::vector<double> &xd, std::vector<double> &yd,
+                        std::size_t terms) {
+  std::vector<double> out;
   gsl_matrix *X, *cov;
   gsl_vector *y, *w, *c;
   const auto n = xd.size();
@@ -220,10 +222,11 @@ void fit(std::vector<double> &xd, std::vector<double> &yd, std::size_t terms) {
 
   auto C = [&](std::size_t i) { return gsl_vector_get(c, i); };
 
-  fmt::print("K{}(Rm) = ", 2 * terms);
+  fmt::print("K{}(R) = ", 2 * terms);
   for (std::size_t j = 0; j < terms; ++j) {
     const auto p = 2 * (j + 1);
-    fmt::print("{:+.3e} *Rm^{}", C(j), p);
+    fmt::print("{:+.3e} *R**{}", C(j), p);
+    out.push_back(C(j));
     if (j + 1 != terms)
       std::cout << " ";
   }
@@ -234,6 +237,7 @@ void fit(std::vector<double> &xd, std::vector<double> &yd, std::size_t terms) {
   gsl_vector_free(w);
   gsl_vector_free(c);
   gsl_matrix_free(cov);
+  return out;
 }
 
 //==============================================================================
@@ -250,9 +254,10 @@ void b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
   std::cout << "[points within R0: " << i0 << "]\n";
   const auto ri = 0.01 * R0;
   const auto rf = 1.5 * R0;
-  const int num_steps = 200;
+  const int num_steps = 500;
 
-  const auto R_pts = qip::logarithmic_range(ri, rf, num_steps);
+  // const auto R_pts = qip::logarithmic_range(ri, rf, num_steps);
+  const auto R_pts = qip::uniform_range(ri, rf, num_steps);
 
   const auto r3 = grid.rpow(3.0);
   const auto r2inv = grid.rpow(-2.0);
@@ -274,19 +279,20 @@ void b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
     return NumCalc::integrate(1.0, 0, im, v.f(), v.g(), r2inv, r3, grid.drdu());
   };
 
-  std::ofstream of("KS_" + iso + "_" + v.shortSymbol() + ".txt");
-  std::ofstream of2("KL_" + iso + "_" + v.shortSymbol() + ".txt");
+  // std::ofstream of("KS_" + iso + "_" + v.shortSymbol() + ".txt");
+  // std::ofstream of2("KL_" + iso + "_" + v.shortSymbol() + ".txt");
+  std::ofstream of("KSL_" + iso + "_" + v.shortSymbol() + ".txt");
   std::vector<double> xd;
   std::vector<double> yd;
   std::vector<double> zd;
+  of << "# R/fm   KS(R)   KL(R)\n";
+  const auto to_fm = PhysConst::aB_fm;
   for (auto rm : R_pts) {
-    // const auto rm = ri + i * dr;
     const auto rm3 = rm * rm * rm;
     const auto F_rm = fg_rm(rm) / fg_inf;
     const auto F_r3_rm = (fg_rm(rm) - fg_r3_rm(rm) / rm3) / fg_inf;
-    of << rm / R0 << " " << F_rm << "\n";
-    of2 << rm / R0 << " " << F_r3_rm << "\n";
-    xd.push_back(rm / R0);
+    of << rm * to_fm << " " << F_rm << " " << F_r3_rm << "\n";
+    xd.push_back(rm * to_fm);
     yd.push_back(F_rm);
     zd.push_back(F_r3_rm);
   }
