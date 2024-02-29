@@ -395,6 +395,7 @@ void ampsci(const IO::InputBlock &input) {
 
   // Create wavefunction object
   Wavefunction wf(radial_grid, std::move(nucleus), var_alpha, run_label);
+  Wavefunction wf(radial_grid, std::move(nucleus), var_alpha, run_label);
 
   if (!help_mode) {
     std::cout << "\nRunning for " << wf.atom() << '\n';
