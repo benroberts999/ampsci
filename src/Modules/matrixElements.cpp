@@ -139,7 +139,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
     const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
-    const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
+    const auto Qk_file_t = SR_input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
         Qk_file_t != "false" ?
             Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
