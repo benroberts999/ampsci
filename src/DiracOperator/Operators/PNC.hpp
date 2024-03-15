@@ -43,6 +43,19 @@ private:
   const std::string m_unit{"iQw*e-11"};
 };
 
+class PNCnsi0 final : public ScalarOperator {
+public:
+  PNCnsi0(double factor = 1.0, const std::string &in_units = "iQw*e-11")
+      : ScalarOperator(Parity::odd, factor * PhysConst::GFe11 / std::sqrt(8.0),
+                       {}, {0, -1, +1, 0}, 0, Realness::imaginary),
+        m_unit(in_units) {}
+  std::string name() const override final { return "pnc0"; }
+  std::string units() const override final { return m_unit; }
+
+private:
+  const std::string m_unit{"iQw*e-11"};
+};
+
 //==============================================================================
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_pnc(const IO::InputBlock &input, const Wavefunction &wf) {

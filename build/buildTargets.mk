@@ -3,7 +3,7 @@
 ################################################################################
 #Allow exectuables to be placed in another directory:
 DEFAULTEXES = $(addprefix $(XD)/, \
- ampsci\
+ ampsci \
 )
 # Compile 'tests' by default, unless in 'release' build
 ifneq ($(Build),release)
@@ -69,6 +69,9 @@ OBJS := $(subst $(SD),$(BD)/$(SUBBD),$(subst .cpp,.o,$(SRC_FILES)))
 # Link + build all final programs
 
 $(XD)/ampsci: $(BD)/$(SUBBD)/ampsci.o $(OBJS)
+	$(LINK)
+
+$(XD)/muon: $(BD)/$(SUBBD)/muon.o $(OBJS)
 	$(LINK)
 
 $(XD)/tests: $(OBJS) $(TEST_OBJS)

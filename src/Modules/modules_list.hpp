@@ -11,6 +11,7 @@
 #include "Modules/ladder.hpp"
 #include "Modules/lifetimes.hpp"
 #include "Modules/matrixElements.hpp"
+#include "Modules/muonPV.hpp"
 #include "Modules/pnc.hpp"
 #include "Modules/polarisability.hpp"
 #include "Modules/qed.hpp"
@@ -69,6 +70,7 @@ static const std::vector<ModuleInfo> module_list{
     {"screeningFactors", &screeningFactors,
      "Calculates Feynman electron screening factors"},
     {"pnc", &calculatePNC, "Calculates APV amplitudes"},
+    {"muonPV", &muonPV, "For testing/playing with muonic PV"},
     {"VQE", &VQE, "For testing/playing with VQE method"},
 
     {"exampleModule", &exampleModule, "A short description of the module"}};

@@ -1,9 +1,10 @@
 #pragma once
 #include "AdamsMoulton.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
+#include <memory>
 #include <utility>
 #include <vector>
-class DiracSpinor;
 class Grid;
 
 namespace DiracODE {
@@ -23,14 +24,30 @@ void boundState(DiracSpinor &Fa, const double en0, const std::vector<double> &v,
                 const std::vector<double> &H_off_diag = {},
                 const double alpha = PhysConst::alpha, double eps = 1.0e-14,
                 const DiracSpinor *const VxFa = nullptr,
-                const DiracSpinor *const Fa0 = nullptr, double zion = 1);
+                const DiracSpinor *const Fa0 = nullptr, double zion = 1,
+                double mass = 1.0);
+
+inline DiracSpinor boundState(int n, int kappa, const double en0,
+                              std::shared_ptr<const Grid> &gr,
+                              const std::vector<double> &v,
+                              const std::vector<double> &H_off_diag = {},
+                              const double alpha = PhysConst::alpha,
+                              double eps = 1.0e-14,
+                              const DiracSpinor *const VxFa = nullptr,
+                              const DiracSpinor *const Fa0 = nullptr,
+                              double zion = 1, double mass = 1.0) {
+  DiracSpinor Fnk = DiracSpinor(n, kappa, gr);
+  boundState(Fnk, en0, v, H_off_diag, alpha, eps, VxFa, Fa0, zion, mass);
+  return Fnk;
+}
 
 //! For given energy en, solves DE with correct boundary conditions at the origin
 void regularAtOrigin(DiracSpinor &Fa, const double en,
                      const std::vector<double> &v,
                      const std::vector<double> &H_off_diag, const double alpha,
                      const DiracSpinor *const VxFa = nullptr,
-                     const DiracSpinor *const Fa0 = nullptr, double zion = 1);
+                     const DiracSpinor *const Fa0 = nullptr, double zion = 1,
+                     double mass = 1.0);
 
 //! For given energy en, solves (local) DE with correct boundary conditions at infinity
 void regularAtInfinity(DiracSpinor &Fa, const double en,
@@ -38,7 +55,8 @@ void regularAtInfinity(DiracSpinor &Fa, const double en,
                        const std::vector<double> &H_off_diag,
                        const double alpha,
                        const DiracSpinor *const VxFa = nullptr,
-                       const DiracSpinor *const Fa0 = nullptr, double zion = 1);
+                       const DiracSpinor *const Fa0 = nullptr, double zion = 1,
+                       double mass = 1.0);
 
 namespace Internal {
 
@@ -82,7 +100,8 @@ struct DiracDerivative : AdamsMoulton::DerivativeMatrix<std::size_t, double> {
                   const int in_k, const double in_en, const double in_alpha,
                   const std::vector<double> &V_off_diag = {},
                   const DiracSpinor *const VxFa = nullptr,
-                  const DiracSpinor *const iFa0 = nullptr, double zion = 1);
+                  const DiracSpinor *const iFa0 = nullptr, double zion = 1,
+                  double in_mass = 1.0);
   const Grid *const pgr;
   const std::vector<double> *const v;
   const std::vector<double> *const Hmag;
@@ -91,6 +110,7 @@ struct DiracDerivative : AdamsMoulton::DerivativeMatrix<std::size_t, double> {
   const double zion = 1.0;
   const int k;
   const double en, alpha, cc;
+  double mass;
 
   double a(std::size_t i) const final;
   double b(std::size_t i) const final;
@@ -139,8 +159,8 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         std::size_t ctp, std::size_t d_ctp, std::size_t pinf,
                         const double alpha,
                         const DiracSpinor *const VxFa = nullptr,
-                        const DiracSpinor *const Fa0 = nullptr,
-                        double zion = 1);
+                        const DiracSpinor *const Fa0 = nullptr, double zion = 1,
+                        double mass = 1.0);
 
 // Counts the nodes a given function f
 int countNodes(const std::vector<double> &f, const std::size_t maxi);
@@ -166,7 +186,7 @@ void solve_Dirac_outwards(std::vector<double> &f, std::vector<double> &g,
 // Solution has correct boundary condition at large r, but not at small r.
 void solve_Dirac_inwards(std::vector<double> &f, std::vector<double> &g,
                          const DiracDerivative &Hd, std::size_t ctp,
-                         std::size_t pinf);
+                         std::size_t pinf, double mass = 1.0);
 
 // Meshes the two solutions from inwards/outwards integration.
 // Produces solution that has correct boundary conditions at 0 and infinity,

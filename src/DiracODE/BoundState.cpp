@@ -21,7 +21,7 @@ using namespace Internal;
 void boundState(DiracSpinor &Fn, const double en0, const std::vector<double> &v,
                 const std::vector<double> &H_mag, const double alpha,
                 double eps_goal, const DiracSpinor *const VxFa,
-                const DiracSpinor *const Fa0, double zion)
+                const DiracSpinor *const Fa0, double zion, double mass)
 /*
 Solves local, spherical bound state dirac equation using Adams-Moulton
 method. Based on method presented in book by W. R. Johnson:
@@ -86,7 +86,7 @@ Orbitals defined:
 
     Internal::trialDiracSolution(Fn.f(), Fn.g(), dg, t_en, Fn.kappa(), v, H_mag,
                                  rgrid, ctp, Param::d_ctp, t_pinf, alpha, VxFa,
-                                 Fa0, zion);
+                                 Fa0, zion, mass);
 
     const int counted_nodes = Internal::countNodes(Fn.f(), t_pinf);
 
@@ -140,7 +140,7 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
                      const std::vector<double> &v,
                      const std::vector<double> &H_mag, const double alpha,
                      const DiracSpinor *const VxFa,
-                     const DiracSpinor *const Fa0, double zion) {
+                     const DiracSpinor *const Fa0, double zion, double mass) {
 
   const auto &gr = Fa.grid();
   if (en != 0.0)
@@ -148,7 +148,7 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
   const auto pinf =
       Internal::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
   Internal::DiracDerivative Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag, VxFa,
-                               Fa0, zion);
+                               Fa0, zion, mass);
   Internal::solve_Dirac_outwards(Fa.f(), Fa.g(), Hd, pinf);
   Fa.min_pt() = 0;
   Fa.max_pt() = pinf;
@@ -161,7 +161,7 @@ void regularAtInfinity(DiracSpinor &Fa, const double en,
                        const std::vector<double> &v,
                        const std::vector<double> &H_mag, const double alpha,
                        const DiracSpinor *const VxFa,
-                       const DiracSpinor *const Fa0, double zion) {
+                       const DiracSpinor *const Fa0, double zion, double mass) {
 
   const auto &gr = Fa.grid();
   if (en < 0)
@@ -169,8 +169,8 @@ void regularAtInfinity(DiracSpinor &Fa, const double en,
   const auto pinf =
       Internal::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
   Internal::DiracDerivative Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag, VxFa,
-                               Fa0, zion);
-  Internal::solve_Dirac_inwards(Fa.f(), Fa.g(), Hd, 0, pinf);
+                               Fa0, zion, mass);
+  Internal::solve_Dirac_inwards(Fa.f(), Fa.g(), Hd, 0, pinf, mass);
   Fa.min_pt() = 0;
   Fa.max_pt() = pinf;
   // for safety: make sure zerod! (I may re-use existing orbitals!)
@@ -292,17 +292,17 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         const std::vector<double> &H_mag, const Grid &gr,
                         std::size_t ctp, std::size_t d_ctp, std::size_t pinf,
                         const double alpha, const DiracSpinor *const VxFa,
-                        const DiracSpinor *const Fa0, double zion)
+                        const DiracSpinor *const Fa0, double zion, double mass)
 // Performs inward (from pinf) and outward (from r0) integrations for given
 // energy. Intergated in/out towards ctp +/- d_ctp [class. turn. point]
 // Then, joins solutions, including weighted meshing around ctp +/ d_ctp
 // Also: stores dg [the difference: (gout-gin)], which is used for PT
 {
 
-  DiracDerivative Hd(gr, v, ka, en, alpha, H_mag, VxFa, Fa0, zion);
+  DiracDerivative Hd(gr, v, ka, en, alpha, H_mag, VxFa, Fa0, zion, mass);
   solve_Dirac_outwards(f, g, Hd, ctp + d_ctp + 1);
   std::vector<double> f_in(gr.num_points()), g_in(gr.num_points());
-  solve_Dirac_inwards(f_in, g_in, Hd, ctp - d_ctp, pinf);
+  solve_Dirac_inwards(f_in, g_in, Hd, ctp - d_ctp, pinf, mass);
   joinInOutSolutions(f, g, dg, f_in, g_in, ctp, d_ctp, pinf);
 }
 
@@ -395,7 +395,7 @@ void solve_Dirac_outwards(std::vector<double> &f, std::vector<double> &g,
 //==================================================================
 void solve_Dirac_inwards(std::vector<double> &f, std::vector<double> &g,
                          const DiracDerivative &Hd, std::size_t nf,
-                         std::size_t pinf)
+                         std::size_t pinf, double mass)
 // Program to start the INWARD integration.
 // Starts from Pinf, and uses an expansion [WKB approx] to go to (pinf-K_Adams)
 // i.e., gets last K_Adams points
@@ -418,7 +418,7 @@ void solve_Dirac_inwards(std::vector<double> &f, std::vector<double> &g,
 
   ode.S_scale = 0.0;
 
-  const auto Rasym = AsymptoticSpinor{ka, Zeff, en, alpha, Param::nx_eps};
+  const auto Rasym = AsymptoticSpinor{ka, Zeff, en, alpha, Param::nx_eps, mass};
 
   // nb: can use AsymptoticWavefunction for more r values?
   for (std::size_t i0 = pinf - 1, i = 0; i < ode.K_steps(); ++i) {
@@ -464,13 +464,11 @@ void solve_Dirac_inwards(std::vector<double> &f, std::vector<double> &g,
 }
 
 //==============================================================================
-DiracDerivative::DiracDerivative(const Grid &in_grid,
-                                 const std::vector<double> &in_v,
-                                 const int in_k, const double in_en,
-                                 const double in_alpha,
-                                 const std::vector<double> &V_off_diag,
-                                 const DiracSpinor *const iVxFa,
-                                 const DiracSpinor *const iFa0, double izion)
+DiracDerivative::DiracDerivative(
+    const Grid &in_grid, const std::vector<double> &in_v, const int in_k,
+    const double in_en, const double in_alpha,
+    const std::vector<double> &V_off_diag, const DiracSpinor *const iVxFa,
+    const DiracSpinor *const iFa0, double izion, double in_mass)
     : pgr(&in_grid),
       v(&in_v),
       Hmag(V_off_diag.empty() ? nullptr : &V_off_diag),
@@ -480,14 +478,15 @@ DiracDerivative::DiracDerivative(const Grid &in_grid,
       k(in_k),
       en(in_en),
       alpha(in_alpha),
-      cc(1.0 / in_alpha) {}
+      cc(1.0 / in_alpha),
+      mass(in_mass) {}
 
 double DiracDerivative::a(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];
   return (double(-k)) * pgr->drduor(i) + alpha * h_mag * pgr->drdu(i);
 }
 double DiracDerivative::b(std::size_t i) const {
-  return (alpha * en + 2.0 * cc - alpha * (*v)[i]) * pgr->drdu(i);
+  return (alpha * en + 2.0 * mass * cc - alpha * (*v)[i]) * pgr->drdu(i);
 }
 double DiracDerivative::c(std::size_t i) const {
   return alpha * ((*v)[i] - en) * pgr->drdu(i);
@@ -502,4 +501,5 @@ double DiracDerivative::Sg(std::size_t i) const {
 }
 
 } // namespace Internal
+
 } // namespace DiracODE

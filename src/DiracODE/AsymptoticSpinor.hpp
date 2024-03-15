@@ -13,13 +13,14 @@ private:
   int kappa;
   double Zeff, en, alpha, eps_target;
   double kappa2, alpha2, c, c2, lambda, sigma, Ren;
+  double m_mass;
   std::array<double, Nx> bx; // bx must be first
   std::array<double, Nx> ax; // ax depends on bx
 
 public:
   AsymptoticSpinor(int in_kappa, double in_Zeff, double in_en,
                    double in_alpha = PhysConst::alpha,
-                   double in_eps_target = 1.0e-14)
+                   double in_eps_target = 1.0e-14, double m = 1.0)
       : kappa(in_kappa),
         Zeff(std::max(in_Zeff, 1.0)),
         en(in_en),
@@ -29,9 +30,10 @@ public:
         alpha2(alpha * alpha),
         c(1.0 / alpha),
         c2(c * c),
-        lambda(std::sqrt(-en * (2.0 + en * alpha2))),
-        sigma((1.0 + en * alpha2) * (Zeff / lambda)),
-        Ren(en + c2),
+        lambda(std::sqrt(-en * (2.0 + en * alpha2 / m))),
+        sigma((m + en * alpha2) * (Zeff / lambda)),
+        Ren(en + m * c2),
+        m_mass(m),
         bx(make_bx()),
         ax(make_ax()) {
     // assert(en < 0.0 && "Must have en<0 in AsymptoticSpinor");
@@ -59,7 +61,7 @@ public:
     // Q(r) = -g(r)
     // There appears to by typo in Eq. (2.171)
 
-    const double A_large = std::sqrt(1.0 + 0.5 * en * alpha2);
+    const double A_large = std::sqrt(1.0 + 0.5 * en * alpha2 / m_mass);
     const double A_small = std::sqrt(-0.5 * en) * alpha;
 
     const double rfac = 2.0 * std::pow(r, sigma) * std::exp(-lambda * r);
