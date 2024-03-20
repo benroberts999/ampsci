@@ -45,6 +45,14 @@ public:
 };
 
 //==============================================================================
+class sigma_r final : public ScalarOperator {
+public:
+  sigma_r(const Grid &rgrid) : ScalarOperator(Parity::odd, -1.0, rgrid.r()) {}
+  std::string name() const override final { return "s.r"; }
+  std::string units() const override final { return "aB"; }
+};
+
+//==============================================================================
 //! @brief Electric dipole operator, v-form:
 //! \f$ \frac{ie}{\omega \alpha} \vec{\alpha}\f$
 /*! @details
@@ -85,6 +93,16 @@ private:
 };
 
 //==============================================================================
+
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_sigma_r(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"no options", ""}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
+  return std::make_unique<sigma_r>(wf.grid());
+}
 
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_E1(const IO::InputBlock &input, const Wavefunction &wf) {
