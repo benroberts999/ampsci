@@ -13,8 +13,7 @@ namespace Module {
 void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"rrms", "root-mean-square nuclear radii for muonic atom. Will "
-                "use Atomic rrms by default"},
+      {{"t", "t: skin thickness parameter in fm [2.3]"},
        {"type", "Nuclear density type: Fermi/ball/Gaussian/pointlike [Fermi]"},
        {"mass", "Mass of muon [206.7682830]"}});
 
@@ -23,12 +22,13 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
-  auto rrms = input.get("rrms", wf.get_rrms());
-  auto nuc_type = input.get<std::string>("type", "Fermi");
+  const auto rrms = input.get("rrms", wf.get_rrms());
+  const auto nuc_type = input.get<std::string>("type", "Fermi");
 
-  int Z = wf.Znuc();
-  double t = 2.3;
-  double c = Nuclear::c_hdr_formula_rrms_t(rrms, t);
+  const int Z = wf.Znuc();
+  const int A = wf.Anuc();
+  const double t = input.get("t", 2.3);
+  // const double c = Nuclear::c_hdr_formula_rrms_t(rrms, t);
 
   // Use a different radial grid for muonic atom
   double r0 = 1.0e-7 / Z;
@@ -39,14 +39,21 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       Grid{r0, rmax, n_steps, GridType::loglinear, b});
   std::cout << "Muonic grid: " << radial_grid->gridParameters() << "\n";
 
-  const auto Vnuc = Nuclear::fermiNuclearPotential(Z, t, c, radial_grid->r());
+  const auto Vnuc = Nuclear::formPotential(
+      Nuclear::Nucleus(Z, A, nuc_type, rrms, t), radial_grid->r());
 
   const double m_muon = input.get("mass", 206.7682830);
+
+  std::cout << "\n"
+            << "Running for 'muon' with mass:\nM = " << m_muon
+            << " m_e = " << m_muon * PhysConst::m_e_MeV << " MeV\n";
+  std::cout << "Using " << nuc_type << " nuclear potential\n";
 
   //============================================================================
 
   std::cout << "\nStep 0: Check pointlike non-relativistic muon solutions:\n";
-  std::cout << "(Z = " << Z << ")\n\n";
+  std::cout << "(Z = " << Z << ")\n";
+  std::cout << "(M = " << m_muon << ")\n\n";
 
   std::cout << "        En            <r>           <1/r>\n";
   const auto V0 = Nuclear::sphericalNuclearPotential(Z, 0.0, radial_grid->r());
@@ -87,7 +94,8 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //============================================================================
   std::cout << "\nStep 1: Check pointlike Relativistic muon solutions:\n";
-  std::cout << "(Z = " << Z << ")\n\n";
+  std::cout << "(Z = " << Z << ")\n";
+  std::cout << "(M = " << m_muon << ")\n\n";
 
   std::cout << "        En            <r>           <1/r>\n";
   eps = 0.0;
@@ -130,10 +138,14 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
   // 2s-2p
 
   std::cout << "\n---------------------------------------------\n";
-  std::cout << "Step 2: Scaling of PNC with Z\n\n";
+  std::cout << "Step 2: Scaling of PNC with Z\n";
+  std::cout << "Using " << nuc_type << " nuclear potential\n";
+  std::cout << "(M = " << m_muon << ")\n\n";
 
-  fmt::print("{:2s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s}\n", "Z", "Nrms/fm",
-             "Arms/fm", "dE_bn", "Dz_an", "W_nb", "APVz");
+  fmt::print(
+      "{:2s} {:3s}  {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s}\n",
+      "Z", "N", "E1s", "Nrms_fm", "Arms_fm", "dE_bn*", "Dz_an", "W_nb", "W0_nb",
+      "sr_nb", "APVz");
   for (int t_Z = 1; t_Z <= 99; ++t_Z) {
 
     // Get alpha: allow non-relativistic calculations
@@ -144,12 +156,10 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 
     // Look up nuclear rrms from Angeli tables
     double t_rrms = Nuclear::find_rrms(t_Z, t_A);
-    // if t_rrms==0, means wasn't found. Use approx formula
-    if (t_rrms == 0.0)
+    // if t_rrms==0, means wasn't found in tables. Use approx formula
+    if (t_rrms == 0.0) {
       t_rrms = Nuclear::approximate_r_rms(t_A, t_Z);
-
-    // Half-density radius, c, for PNC operator
-    const double t_c = Nuclear::c_hdr_formula_rrms_t(t_rrms, t);
+    }
 
     // Use a different radial grid for each muonic atom
     const double tr0 = 1.0e-8 / t_Z;
@@ -159,16 +169,24 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     auto t_grid = std::make_shared<const Grid>(
         Grid{tr0, trmax, tn_steps, GridType::loglinear, tb});
 
-    // Fermi (charge) distribution for Nuclear potential
-    const auto t_Vnuc =
-        Nuclear::fermiNuclearPotential(t_Z, t, t_c, t_grid->r());
+    // Form nuclear potential:
+    const auto t_Vnuc = Nuclear::formPotential(
+        Nuclear::Nucleus(t_Z, t_A, nuc_type, t_rrms, t), t_grid->r());
 
     // Neutron number (for hW units only)
     const int t_N = t_A - t_Z;
 
+    // Half-density radius, c, for PNC operator
+    const double t_c = Nuclear::c_hdr_formula_rrms_t(t_rrms, t);
+
     // Weak and dipole operators
     const auto hw = DiracOperator::PNCnsi(t_c, t, *t_grid, t_N, "i(Qw/N)e-11");
     const auto d = DiracOperator::E1(*t_grid);
+    // "Special" weak operator: constant rho(r), assumed to be larger than wavefunction
+    const double Rn_au = std::sqrt(5.0 / 3) * t_rrms / PhysConst::aB_fm;
+    const auto hw0 = DiracOperator::PNCnsi_const(Rn_au, t_N, "i(Qw/N)e-11");
+    // sigma.r
+    const auto sr = DiracOperator::sigma_r(*t_grid);
 
     // initial energy guess
     // 0.9 roughly to account for finite nuc. size. Doesn't really matter
@@ -204,6 +222,12 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto h_pb = hw.radialIntegral(Fp, Fb);
     const auto dE_bn = Fb.en() - Fp.en();
 
+    // std::cout << Fb.en() << "\n" << Fp.en() << "\n" << dE_bn << "\n";
+    // std::cin.get();
+
+    const auto h0_pb = hw0.radialIntegral(Fp, Fb);
+    const auto sr_bp = sr.radialIntegral(Fp, Fb);
+
     using namespace qip::overloads;
 
     // Atomic RMS radius (for p-state, just example):
@@ -212,9 +236,13 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     // PNC amplitude (just main term)
     const auto pnc = d_ap * h_pb / dE_bn;
 
-    fmt::print("{:<2} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e}\n", t_Z, t_rrms,
-               rev_p * PhysConst::aB_fm, dE_bn, d_ap, h_pb, pnc);
+    fmt::print("{:<2} {:<3} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} "
+               "{:.2e} {:.2e}\n",
+               t_Z, t_N, Fa.en(), t_rrms, rev_p * PhysConst::aB_fm, dE_bn, d_ap,
+               h_pb, h0_pb, sr_bp, pnc);
   }
+
+  std::cout << "* This is Lamb shift.. why not zero? FNS?\n";
 }
 
 } // namespace Module
