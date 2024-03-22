@@ -1,4 +1,5 @@
 #include "Maths/Grid.hpp"
+#include "fmt/format.hpp"
 #include "qip/Methods.hpp"
 #include <algorithm>
 #include <cmath>
@@ -99,20 +100,21 @@ std::size_t Grid::getIndex(double x, bool require_nearest) const
 
 //==============================================================================
 std::string Grid::gridParameters() const {
-  std::ostringstream out;
+  std::string out;
   switch (gridtype) {
   case GridType::linear:
-    out << "Linear ";
+    out += "Linear ";
     break;
   case GridType::logarithmic:
-    out << "Logarithmic ";
+    out += "Logarithmic ";
     break;
   case GridType::loglinear:
-    out << "Log-linear (b=" << m_b << ") ";
+    // out << "Log-linear (b=" << m_b << ") ";
+    out += fmt::format("Log-linear (b={:.1e}) ", m_b);
   }
-  out << "grid: " << m_r0 << "->" << rmax() << ", N=" << num_points()
-      << ", du=" << m_du;
-  return out.str();
+  out += fmt::format("grid: {:.1e} -> {:.1e}, N={}, du={:.1e}", m_r0, rmax(),
+                     num_points(), m_du);
+  return out;
 }
 
 //==============================================================================
