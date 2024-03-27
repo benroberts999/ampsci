@@ -1,5 +1,6 @@
 #include "Modules/muonPV.hpp"
 #include "DiracODE/BoundState.hpp"
+#include "DiracODE/InhomogenousGreens.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "IO/InputBlock.hpp"
 #include "Physics/AtomData.hpp"
@@ -21,6 +22,7 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
        {"mass", "Mass of muon (in units of electron mass) [206.7682830]"},
        {"N_steps", "Number of grid points to use for Muon solutions (is "
                    "different from neutral case). [10000]"},
+       {"write_wf", "Write wavefunctions (f and g) to file [false]"},
        {"Uehling", "Include Uehling potential [false]"},
        {"Screening",
         "Account for electron screening (direct potental)? [false]"},
@@ -35,6 +37,7 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto rrms = input.get("rrms", wf.get_rrms());
   const double t = input.get("t", 2.3);
   const auto nuc_type = input.get<std::string>("type", "Fermi");
+  const auto write_wf = input.get("write_wf", false);
   // nb: Uehling/screening not used in first few tests/checks
   const auto Uehling = input.get("Uehling", false);
   const auto elec_screening = input.get("Screening", false);
@@ -183,6 +186,7 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
                                         radial_grid->r());
     }
 
+    std::cout << "Energies:\n";
     std::cout << "nk    Rinf  eps    R_rms (a0)    E (au)            E "
                  "(keV)\n";
 
@@ -207,7 +211,8 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto hw = DiracOperator::PNCnsi(c, t, *radial_grid, N, "i(Qw/N)e-11");
     const auto d = DiracOperator::E1(*radial_grid);
 
-    std::cout << "\ne    o      E_e-E_o (au)    <e|dz|o> (ea0)   <e|hw|o> "
+    std::cout << "\nMatrix elements:\n";
+    std::cout << "e    o      E_e-E_o (au)    <e|dz|o> (ea0)   <e|hw|o> "
                  "(i[Qw/N]e-11)\n";
     for (const auto &Fe : muon_Fs) {
       for (const auto &Fo : muon_Fs) {
@@ -235,19 +240,100 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
 
-    // print wavefunctions:
-    std::ofstream ofile{fmt::format("muon_fg_{}.txt", Z)};
-    ofile << "R ";
-    for (const auto &Fn : muon_Fs) {
-      ofile << "f_{" << Fn.shortSymbol() << "} g_{" << Fn.shortSymbol() << "} ";
+    std::cout << "\n\n----------------------------------------------------\n";
+    std::cout << "Calculate full PNC using Mixed States method\n";
+    std::cout << "Solve: (H - e_a)δFa = -h*Fa\n";
+    std::cout << "Then PNC = <Fa|d|δFb> + <δFa|d|Fb>\n";
+    std::cout << "* [units: i(Qw/N)e-11]\n";
+
+    // Calculate PNC using mixed states
+    for (const auto &Fa : muon_Fs) {
+      // do for s states only
+      if (Fa.kappa() != -1)
+        continue;
+      // Find correspinding (n+1)s state:
+      const auto pFb = DiracSpinor::find(Fa.n() + 1, Fa.kappa(), muon_Fs);
+      // "main" intermediate state:
+      const auto pF2p = DiracSpinor::find(Fa.n() + 1, 1, muon_Fs);
+
+      // ensure it exists:
+      if (pFb == nullptr && pF2p == nullptr)
+        continue;
+      const auto &Fb = *pFb;
+      const auto &F2p = *pF2p;
+
+      std::cout << "\n" << Fa << " " << Fb << "\n";
+
+      // Solve inhomogenous Dirac equation:
+      // (H_0 + v - e)dF = -h*F
+      const auto kappa_n = -1 * Fa.kappa();
+      const auto hFa_dag = -1 * hw.radial_rhs(kappa_n, Fa); // <Fa|h = -h|Fa>
+      const auto hFb = hw.radial_rhs(kappa_n, Fb);          // h|Fb
+
+      const auto dFa_dag =
+          DiracODE::solve_inhomog(kappa_n, Fa.en(), Vnuc, {}, alpha,
+                                  -1 * hFa_dag, nullptr, nullptr, Z, m_muon);
+      const auto dFb =
+          DiracODE::solve_inhomog(kappa_n, Fb.en(), Vnuc, {}, alpha, -1 * hFb,
+                                  nullptr, nullptr, Z, m_muon);
+
+      // angular factors (for dipole z component)
+      const auto Angular_d_a = d.rme3js(Fa.twoj(), dFb.twoj());
+      const auto Angular_d_b = d.rme3js(Fb.twoj(), dFa_dag.twoj());
+
+      // Full PNC from Mixed states: dd_a + dd_b = <δFa|d|Fb> + <Fa|d|δFb>
+      const auto dd_a = Angular_d_a * d.reducedME(Fa, dFb);
+      const auto dd_b = Angular_d_b * d.reducedME(dFa_dag, Fb);
+
+      // Main term (from mixed states, by forcing orthogonality):
+      const auto pnc_main_MS = Angular_d_a * d.reducedME(Fa, (dFb * F2p) * F2p);
+
+      // // Numerical test:
+      // // Main term (direct calculation):
+      // const auto pnc_main_direct = Angular_d_a * d.reducedME(Fa, F2p) *
+      //                              hw.radialIntegral(F2p, Fb) /
+      //                              (Fb.en() - F2p.en());
+      // std::cout << "Numerical test of MS method:\nmain = "
+      //           << fmt::format("<{}|dz|{}><{}|hw|{}>/dE = ", Fa.shortSymbol(),
+      //                          F2p.shortSymbol(), F2p.shortSymbol(),
+      //                          Fb.shortSymbol())
+      //           << pnc_main_direct << "\n"
+      //           << fmt::format("     = <{}|dz|{}><{}|δ{}>", Fa.shortSymbol(),
+      //                          F2p.shortSymbol(), F2p.shortSymbol(),
+      //                          Fb.shortSymbol())
+      //           << "      = " << pnc_main_MS << "\n";
+      // // std::cout << "Main (direct calc): " << pnc_main_direct << "\n";
+      // // std::cout << "Main (MS + orthog): " << pnc_main_MS << "\n";
+      // const auto err = std::abs(pnc_main_MS / pnc_main_direct - 1.0);
+      // std::cout << "Error: " << err << "\n";
+
+      const auto pnc = dd_a + dd_b;
+      const auto tail = pnc - pnc_main_MS;
+      std::cout << "\n";
+      fmt::print("<{}s|dz|δ{}s> = {:12.5e}\n", Fa.n(), Fb.n(), dd_a);
+      fmt::print("<δ{}s|dz|{}s> = {:12.5e}\n", Fa.n(), Fb.n(), dd_b);
+      fmt::print("main term   = {:12.5e}   ({:.1f}%)\n", pnc_main_MS,
+                 pnc_main_MS / pnc * 100.0);
+      fmt::print("rest        = {:12.5e}\n", tail);
+      fmt::print("Total       = {:12.5e}  i(Qw/N)e-11\n", pnc);
     }
-    ofile << "\n";
-    for (auto i = 0ul; i < radial_grid->size(); ++i) {
-      ofile << radial_grid->r(i) << " ";
+
+    // print wavefunctions:
+    if (write_wf) {
+      std::ofstream ofile{fmt::format("muon_fg_{}.txt", Z)};
+      ofile << "R ";
       for (const auto &Fn : muon_Fs) {
-        ofile << Fn.f(i) << " " << Fn.g(i) << " ";
+        ofile << "f_{" << Fn.shortSymbol() << "} g_{" << Fn.shortSymbol()
+              << "} ";
       }
       ofile << "\n";
+      for (auto i = 0ul; i < radial_grid->size(); ++i) {
+        ofile << radial_grid->r(i) << " ";
+        for (const auto &Fn : muon_Fs) {
+          ofile << Fn.f(i) << " " << Fn.g(i) << " ";
+        }
+        ofile << "\n";
+      }
     }
   }
 
@@ -379,8 +465,6 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
                  t_Z, t_N, Fa.en(), t_rrms, rev_p * PhysConst::aB_fm, dE_bn,
                  d_ap, h_pb, h0_pb, sr_bp, pnc);
     }
-
-    std::cout << "This is Lamb shift.. why not zero? FNS?\n";
   }
 }
 

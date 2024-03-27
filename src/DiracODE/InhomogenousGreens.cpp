@@ -17,14 +17,13 @@ S (source) is spinor
 
 namespace DiracODE {
 
-DiracSpinor solve_inhomog(const int kappa, const double en,
-                          const std::vector<double> &v,
-                          const std::vector<double> &H_mag, const double alpha,
-                          const DiracSpinor &source,
-                          const DiracSpinor *const VxFa,
-                          const DiracSpinor *const Fa0, double zion) {
+DiracSpinor
+solve_inhomog(const int kappa, const double en, const std::vector<double> &v,
+              const std::vector<double> &H_mag, const double alpha,
+              const DiracSpinor &source, const DiracSpinor *const VxFa,
+              const DiracSpinor *const Fa0, double zion, double mass) {
   auto Fa = DiracSpinor(0, kappa, source.grid_sptr());
-  solve_inhomog(Fa, en, v, H_mag, alpha, source, VxFa, Fa0, zion);
+  solve_inhomog(Fa, en, v, H_mag, alpha, source, VxFa, Fa0, zion, mass);
   return Fa;
 }
 
@@ -33,24 +32,25 @@ void solve_inhomog(DiracSpinor &Fa, const double en,
                    const std::vector<double> &v,
                    const std::vector<double> &H_mag, const double alpha,
                    const DiracSpinor &source, const DiracSpinor *const VxFa,
-                   const DiracSpinor *const Fa0, double zion)
+                   const DiracSpinor *const Fa0, double zion, double mass)
 // NOTE: returns NON-normalised function!
 {
   auto Fzero = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
   auto Finf = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
-  solve_inhomog(Fa, Fzero, Finf, en, v, H_mag, alpha, source, VxFa, Fa0, zion);
+  solve_inhomog(Fa, Fzero, Finf, en, v, H_mag, alpha, source, VxFa, Fa0, zion,
+                mass);
 }
 //------------------------------------------------------------------------------
 void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
                    const double en, const std::vector<double> &v,
                    const std::vector<double> &H_mag, const double alpha,
                    const DiracSpinor &source, const DiracSpinor *const VxFa,
-                   const DiracSpinor *const Fa0, double zion)
+                   const DiracSpinor *const Fa0, double zion, double mass)
 // Overload of the above. Faster, since doesn't need to allocate for Fzero and
 // Finf
 {
-  regularAtOrigin(Fzero, en, v, H_mag, alpha, VxFa, Fa0, zion);
-  regularAtInfinity(Finf, en, v, H_mag, alpha, VxFa, Fa0, zion);
+  regularAtOrigin(Fzero, en, v, H_mag, alpha, VxFa, Fa0, zion, mass);
+  regularAtInfinity(Finf, en, v, H_mag, alpha, VxFa, Fa0, zion, mass);
   Fa.en() = en;
   Internal::GreenSolution(Fa, Finf, Fzero, alpha, source);
 }

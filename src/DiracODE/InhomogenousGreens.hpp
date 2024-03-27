@@ -19,7 +19,7 @@ DiracSpinor solve_inhomog(const int kappa, const double en,
                           const DiracSpinor &source,
                           const DiracSpinor *const VxFa = nullptr,
                           const DiracSpinor *const Fa0 = nullptr,
-                          double zion = 1);
+                          double zion = 1, double mass = 1.0);
 
 //! @brief Solves inhomogeneous Dirac equation
 /*! @details
@@ -30,7 +30,8 @@ void solve_inhomog(DiracSpinor &Fa, const double en,
                    const std::vector<double> &H_mag, const double alpha,
                    const DiracSpinor &source,
                    const DiracSpinor *const VxFa = nullptr,
-                   const DiracSpinor *const Fa0 = nullptr, double zion = 1);
+                   const DiracSpinor *const Fa0 = nullptr, double zion = 1,
+                   double mass = 1.0);
 
 //! @brief Solves inhomogeneous Dirac equation
 /*! @details
@@ -47,7 +48,8 @@ void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
                    const std::vector<double> &H_mag, const double alpha,
                    const DiracSpinor &source,
                    const DiracSpinor *const VxFa = nullptr,
-                   const DiracSpinor *const Fa0 = nullptr, double zion = 1);
+                   const DiracSpinor *const Fa0 = nullptr, double zion = 1,
+                   double mass = 1.0);
 
 //==============================================================================
 
