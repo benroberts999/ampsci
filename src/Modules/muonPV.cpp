@@ -1,5 +1,6 @@
 #include "Modules/muonPV.hpp"
 #include "DiracODE/BoundState.hpp"
+#include "DiracODE/InhomogenousGreens.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "IO/InputBlock.hpp"
 #include "Physics/AtomData.hpp"
@@ -21,6 +22,7 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
        {"mass", "Mass of muon (in units of electron mass) [206.7682830]"},
        {"N_steps", "Number of grid points to use for Muon solutions (is "
                    "different from neutral case). [10000]"},
+       {"write_wf", "Write wavefunctions (f and g) to file [false]"},
        {"Uehling", "Include Uehling potential [false]"},
        {"Screening",
         "Account for electron screening (direct potental)? [false]"},
@@ -35,6 +37,7 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto rrms = input.get("rrms", wf.get_rrms());
   const double t = input.get("t", 2.3);
   const auto nuc_type = input.get<std::string>("type", "Fermi");
+  const auto write_wf = input.get("write_wf", false);
   // nb: Uehling/screening not used in first few tests/checks
   const auto Uehling = input.get("Uehling", false);
   const auto elec_screening = input.get("Screening", false);
@@ -235,19 +238,65 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
 
-    // print wavefunctions:
-    std::ofstream ofile{fmt::format("muon_fg_{}.txt", Z)};
-    ofile << "R ";
-    for (const auto &Fn : muon_Fs) {
-      ofile << "f_{" << Fn.shortSymbol() << "} g_{" << Fn.shortSymbol() << "} ";
+    std::cout << "\n\n\n";
+
+    // Calculate PNC using mixed states
+    for (const auto &Fa : muon_Fs) {
+      // do for s states only
+      if (Fa.kappa() != -1)
+        continue;
+      // Find correspinding (n+1)s state:
+      const auto pFb = DiracSpinor::find(Fa.n() + 1, Fa.kappa(), muon_Fs);
+      const auto F2p = *DiracSpinor::find(2, 1, muon_Fs);
+      // ensure it exists:
+      if (pFb == nullptr)
+        continue;
+      const auto &Fb = *pFb;
+
+      // Solve inhomogenous Dirac equation:
+      // (H_0 + v - e)dF = -h*F
+      const auto kappa_n = -1 * Fa.kappa();
+      const auto hFa_dag = -1 * hw.radial_rhs(kappa_n, Fa); // <Fa|h = -h|Fa>
+      const auto hFb = hw.radial_rhs(kappa_n, Fb);          // h|Fb
+      auto dFa_dag = DiracODE::solve_inhomog(kappa_n, Fa.en(), Vnuc, {}, alpha,
+                                             -1 * hFa_dag);
+      auto dFb =
+          DiracODE::solve_inhomog(kappa_n, Fb.en(), Vnuc, {}, alpha, -1 * hFb);
+
+      // dFb = (F2p * dFb) * F2p;
+      // dFa_dag = (F2p * dFa_dag) * F2p;
+
+      const auto Angular_d_a = d.rme3js(Fa.twoj(), dFb.twoj());
+      const auto Angular_d_b = d.rme3js(Fb.twoj(), dFa_dag.twoj());
+
+      const auto dd_a = Angular_d_a * d.reducedME(Fa, dFb);
+      const auto dd_b = Angular_d_b * d.reducedME(dFa_dag, Fb);
+
+      std::cout << Fa << " " << Fb << " " << dd_a << " " << dd_b << "\n";
+
+      const auto hw_nb_1 = F2p * dFb * (Fb.en() - F2p.en());
+      const auto hw_nb_2 = hw.radialIntegral(F2p, Fb);
+      const auto eps = std::abs(hw_nb_1 / hw_nb_2 - 1.0);
+
+      std::cout << hw_nb_1 << " = " << hw_nb_2 << " : " << eps << "\n";
     }
-    ofile << "\n";
-    for (auto i = 0ul; i < radial_grid->size(); ++i) {
-      ofile << radial_grid->r(i) << " ";
+
+    // print wavefunctions:
+    if (write_wf) {
+      std::ofstream ofile{fmt::format("muon_fg_{}.txt", Z)};
+      ofile << "R ";
       for (const auto &Fn : muon_Fs) {
-        ofile << Fn.f(i) << " " << Fn.g(i) << " ";
+        ofile << "f_{" << Fn.shortSymbol() << "} g_{" << Fn.shortSymbol()
+              << "} ";
       }
       ofile << "\n";
+      for (auto i = 0ul; i < radial_grid->size(); ++i) {
+        ofile << radial_grid->r(i) << " ";
+        for (const auto &Fn : muon_Fs) {
+          ofile << Fn.f(i) << " " << Fn.g(i) << " ";
+        }
+        ofile << "\n";
+      }
     }
   }
 
@@ -379,8 +428,6 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
                  t_Z, t_N, Fa.en(), t_rrms, rev_p * PhysConst::aB_fm, dE_bn,
                  d_ap, h_pb, h0_pb, sr_bp, pnc);
     }
-
-    std::cout << "This is Lamb shift.. why not zero? FNS?\n";
   }
 }
 
