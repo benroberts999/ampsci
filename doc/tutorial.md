@@ -1,12 +1,12 @@
 # Basic Tutorial
 
-:: Basic tutorial for using ampsci, including examples.
+brief Basic tutorial for using ampsci, including examples.
 
 This assumes you already have ampsci compiled.
 
-* See [doc/compilation.md](/doc/compilation.md) for compilation instructions
-* See [doc/tutorial_advanced.md](/doc/tutorial_advanced.md) for a more advanced tutorial, including correlation corrections
-* and [doc/tutorial_CI.md](/doc/tutorial_CI.md) for tutorial on Configuration Interaction (+MBPT) calculations for two-valence systems
+* See [doc/compilation.md](doc/compilation.md) for compilation instructions
+* See [doc/tutorial_advanced.md](doc/tutorial_advanced.md) for a more advanced tutorial, including correlation corrections
+* and [doc/tutorial_CI.md](doc/tutorial_CI.md) for tutorial on Configuration Interaction (+MBPT) calculations for two-valence systems
 
 ## Contents
 
@@ -56,7 +56,7 @@ For very simple calculations, however, we can do this directly from the command 
 ```
 
 (where `<Core>` and `<Valence>` are both optional).
-For example, the following should all produce the same result. They will calculate Hartree-Fock for Cs, including all the electrons in the "core" (so-called $V^N$ approximation).
+For example, the following should all produce the same result. They will calculate Hartree-Fock for Cs, including all the electrons in the "core" (so-called \f$V^N\f$ approximation).
 
 ```bash
 ./ampsci Cs
@@ -67,7 +67,7 @@ For example, the following should all produce the same result. They will calcula
 * The format for the "core" configuration copies that used by NIST in their periodic table. A nice copy can be downloaded from [here](https://www.nist.gov/image/periodic-table).
 * Usually the term in the brackets `[]` is a noble gas, but in ampsci you can put any atom (the core configuration for non-noble-gas atoms is guessed based on simple filling rules, and is sometimes not correct, so always check the output!).
 
-The next few cases will calculate Hartree-Fock for Cs, using the $V^{N-1}$ approximation, including valence states up to $n=7$ for $s$ and $p$ states, and $n=5$ for $d$ states:
+The next few cases will calculate Hartree-Fock for Cs, using the \f$V^{N-1}\f$ approximation, including valence states up to \f$n=7\f$ for \f$s\f$ and \f$p\f$ states, and \f$n=5\f$ for \f$d\f$ states:
 
 ```bash
 ./ampsci Cs [Xe] 7sp5d
@@ -76,9 +76,9 @@ The next few cases will calculate Hartree-Fock for Cs, using the $V^{N-1}$ appro
 ## Setting up the input file <a name="input"></a>
 
 For anything more complicated, we must use an input file.
-The input file is a plain-text file; a full description of the format is given [elsewhere](/doc/ampsci_input.md) - here we will run through a basic example.
+The input file is a plain-text file; a full description of the format is given [elsewhere](doc/ampsci_input.md) - here we will run through a basic example.
 
-* See [doc/ampsci_input.md](/doc/ampsci_input.md) for detail input descriptions
+* See [doc/ampsci_input.md](doc/ampsci_input.md) for detail input descriptions
 
 Firstly, we can use the code to tell us which input options are available using the `-a` (or `--ampsci`) command-line option:
 
@@ -231,11 +231,11 @@ HartreeFock{
 
 From the `Atom{}` block, we have chosen to run calculations for Cs-133. Since we did not set any parameters in the `Nucleus{}` block, the code will run using the default nuclear parameters (which are looked up based on the isotope).
 
-In the `Grid{}` block, we specify the discrete radial grid to have `3000` grid points dispersed between the range `[1.0e-6, 150.0]` atomic units (atomic unit of length is the Bohr radius: $1\,{\rm au}=1\,a_0 = \tfrac{4\pi\epsilon_0\hbar^2}{m_e e^2}\approx 5.3\times10^{-11}\,{\rm m}$).
+In the `Grid{}` block, we specify the discrete radial grid to have `3000` grid points dispersed between the range `[1.0e-6, 150.0]` atomic units (atomic unit of length is the Bohr radius: \f$1\,{\rm au}=1\,a_0 = \tfrac{4\pi\epsilon_0\hbar^2}{m_e e^2}\approx 5.3\times10^{-11}\,{\rm m}\f$).
 Since we did not specify a grid `type` the default (log-linear) will be used (see [ampsci.pdf](https://ampsci.dev/ampsci.pdf)).
 
-Finally, in the `HartreeFock{}` block, we specify that we wish to solve Hartree-Fock equations for Cs with a Xe-like core, and consider valence states up to $n=5$ for $s,p$-states, and $n=5$ for $d$-states.
-Since a Xenon-like core has 1 fewer electrons than neutral Cs, this is a $V^{N-1}$ calculation.
+Finally, in the `HartreeFock{}` block, we specify that we wish to solve Hartree-Fock equations for Cs with a Xe-like core, and consider valence states up to \f$n=5\f$ for \f$s,p\f$-states, and \f$n=5\f$ for \f$d\f$-states.
+Since a Xenon-like core has 1 fewer electrons than neutral Cs, this is a \f$V^{N-1}\f$ calculation.
 Note that the format for the core configuration copies that used by NIST in their periodic table. A nice copy can be downloaded from [here](https://www.nist.gov/image/periodic-table).
 
 You may also use the built-in periodic table to see the possible ground-state electron configuration:
@@ -358,9 +358,9 @@ Val    :  it: 38 eps=0.0e+00 for 6s+ [ 38 eps=0e+00 for 6s+]
 ```
 
 * This is one of the most important outputs to check.
-* This tells us that Hartree-Fock equations for the core converged to parts in $10^{14}$ in 28 iterations, and the worst core state convergence was for $5p_{3/2}$.
+* This tells us that Hartree-Fock equations for the core converged to parts in \f$10^{14}\f$ in 28 iterations, and the worst core state convergence was for \f$5p_{3/2}\f$.
 * The worst valence state converged to `0` (i.e., floating point underflowed) in 38 iterations
-* It's important to check that none of these 'epsilon' values are large (i.e., $\epsilon\lesssim10^{-6}$), otherwise it means Hartree-Fock didn't converge properly, and the calculations will be unreliable. This is rarely an issue.
+* It's important to check that none of these 'epsilon' values are large (i.e., \f$\epsilon\lesssim10^{-6}\f$), otherwise it means Hartree-Fock didn't converge properly, and the calculations will be unreliable. This is rarely an issue.
 
 ```text
 CsI-133
@@ -389,12 +389,12 @@ E_c = -7786.643737
 * This is the output for the core states.
 * The columns are:
   * `state`: which core state
-  * `k`: value of $\kappa$ (Dirac quantum number) for state
+  * `k`: value of \f$\kappa\f$ (Dirac quantum number) for state
   * `Rinf`: Radius of the 'practical infinity', i.e., point on the radial grid where that orbital can be safely said to be zero. It's crucial to check all of these values lie well below `rmax` (set in `Grid{}`). If these are close to `rmax`, `rmax` should be increased.
   * `its`: Number of iterations it took to solve the single-particle Dirac equation upon the final Hartree-Fock iteration
   * `eps`: Extent to which the single-particle energy converged when solving the Dirac equation upon the last Hartree-Fock iteration. These numbers should be extremely small; if any are larger, it means there is possibly a serious numerical error. Normally, these will always be fine, so long as Hartree-Fock converged
-  * `En (au)` and `En (/cm)` are the single-particle (binding) energies in atomic units and ${\rm cm}^{-1}$, respectively. Atomic unit for energy is the Hartree:
-  $E_h = 2 Ry = \frac{\hbar^2}{m_e a_0^2} \approx 27.2\,{\rm eV}$.
+  * `En (au)` and `En (/cm)` are the single-particle (binding) energies in atomic units and \f${\rm cm}^{-1}\f$, respectively. Atomic unit for energy is the Hartree:
+  \f$E_h = 2 Ry = \frac{\hbar^2}{m_e a_0^2} \approx 27.2\,{\rm eV}\f$.
   * The final number `E_c` is the total Hartree-Fock energy of the core, in atomic units
 
 ```text
@@ -410,12 +410,12 @@ Val: state  k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
 ```
 
 * Finally, we have the output for the valence states
-* Most of these are the same as above, except there is an extra column, which gives the excitation energies (in ${\rm cm}^{-1}$) relative to the lowest valence state (useful for comparing with [NIST database](https://physics.nist.gov/PhysRefData/ASD/levels_form.html))
+* Most of these are the same as above, except there is an extra column, which gives the excitation energies (in \f${\rm cm}^{-1}\f$) relative to the lowest valence state (useful for comparing with [NIST database](https://physics.nist.gov/PhysRefData/ASD/levels_form.html))
 
 To do more complicated calculations, including constructing complete set of basis orbitals, and including core-valence correlations, see:
 
 * [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full physics description of what the code can do
-* [doc/ampsci_input.md](/doc/ampsci_input.md) for detail on all input options
+* [doc/ampsci_input.md](doc/ampsci_input.md) for detail on all input options
 
 ## Modules: using the wavefunctions <a name="modules"></a>
 
@@ -425,8 +425,8 @@ We do this by adding a module block to the input file, which has the form `Modul
 
 Here, we will just consider a simple example. For further detail:
 
-* See [doc/modules.md](/doc/modules.md) for details of currently avalable modules
-* The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](/doc/writing_modules.md) for details
+* See [doc/modules.md](doc/modules.md) for details of currently avalable modules
+* The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](doc/writing_modules.md) for details
 
 We can see a list of all available modules with the `-m` command-line option
 
