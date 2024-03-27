@@ -52,7 +52,7 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Use a different radial grid for muonic atom
   const double r0 = 1.0e-5 / Z / m_muon;
-  const double rmax = 1.0e5 / Z / m_muon;
+  const double rmax = 2.0e5 / Z / m_muon;
   const std::size_t n_steps = input.get("N_steps", 10000ul);
   const double b = rmax / 10.0;
 
@@ -242,7 +242,8 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 
     std::cout << "\n\n----------------------------------------------------\n";
     std::cout << "Calculate full PNC using Mixed States method\n";
-    std::cout << "Solve: (H - e_a)δFa = -h*Fa\n";
+
+    std::cout << "\nSolve: (H - e_a)δFa = -h*Fa\n";
     std::cout << "Then PNC = <Fa|d|δFb> + <δFa|d|Fb>\n";
     std::cout << "* [units: i(Qw/N)e-11]\n";
 
@@ -286,7 +287,11 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto dd_b = Angular_d_b * d.reducedME(dFa_dag, Fb);
 
       // Main term (from mixed states, by forcing orthogonality):
-      const auto pnc_main_MS = Angular_d_a * d.reducedME(Fa, (dFb * F2p) * F2p);
+      const auto pnc_main_MS_a =
+          Angular_d_a * d.reducedME(Fa, (dFb * F2p) * F2p);
+
+      const auto pnc_main_MS_b =
+          Angular_d_b * d.reducedME((dFa_dag * F2p) * F2p, Fb);
 
       // // Numerical test:
       // // Main term (direct calculation):
@@ -308,14 +313,16 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       // std::cout << "Error: " << err << "\n";
 
       const auto pnc = dd_a + dd_b;
-      const auto tail = pnc - pnc_main_MS;
+      const auto tail_a = dd_a - pnc_main_MS_a;
+      const auto tail_b = dd_b - pnc_main_MS_b;
       std::cout << "\n";
-      fmt::print("<{}s|dz|δ{}s> = {:12.5e}\n", Fa.n(), Fb.n(), dd_a);
-      fmt::print("<δ{}s|dz|{}s> = {:12.5e}\n", Fa.n(), Fb.n(), dd_b);
-      fmt::print("main term   = {:12.5e}   ({:.1f}%)\n", pnc_main_MS,
-                 pnc_main_MS / pnc * 100.0);
-      fmt::print("rest        = {:12.5e}\n", tail);
-      fmt::print("Total       = {:12.5e}  i(Qw/N)e-11\n", pnc);
+      fmt::print("PNC      :  <{}s|dz|δ{}s> +  <δ{}s|dz|{}s>\n", Fa.n(), Fb.n(),
+                 Fa.n(), Fb.n());
+      fmt::print("Full (MS): {:12.5e} + {:12.5e}\n", dd_a, dd_b);
+      fmt::print("Main     : {:12.5e} + {:12.5e}\n", pnc_main_MS_a,
+                 pnc_main_MS_b);
+      fmt::print("Tail     : {:12.5e} + {:12.5e}\n", tail_a, tail_b);
+      fmt::print("Total    : {:12.5e}\n", pnc);
     }
 
     // print wavefunctions:
@@ -352,10 +359,10 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     std::cout << "(M = " << m_muon << ")\n\n";
 
-    fmt::print(
-        "{:2s} {:3s}  {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s}\n",
-        "Z", "N", "E1s", "Nrms_fm", "Arms_fm", "dE_bn", "Dz_an", "W_nb",
-        "W0_nb", "sr_nb", "APVz");
+    fmt::print("{:2s} {:3s}  {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} "
+               "{:8s} {:8s}\n",
+               "Z", "N", "E1s", "Nrms_fm", "Arms_fm", "fracRn", "dE_bn",
+               "Dz_an", "W_nb", "W0_nb", "sr_nb", "APVz");
     for (int t_Z = 1; t_Z <= 99; ++t_Z) {
 
       // Get alpha: allow non-relativistic calculations
@@ -460,10 +467,17 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       // PNC amplitude (just main term)
       const auto pnc = d_ap * h_pb / dE_bn;
 
-      fmt::print("{:<2} {:<3} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} "
-                 "{:.2e} {:.2e}\n",
-                 t_Z, t_N, Fa.en(), t_rrms, rev_p * PhysConst::aB_fm, dE_bn,
-                 d_ap, h_pb, h0_pb, sr_bp, pnc);
+      const auto Rn = std::sqrt(5.0 / 3) * t_rrms / PhysConst::aB_fm;
+      const auto iRn = t_grid->getIndex(Rn);
+      auto fraction =
+          NumCalc::integrate(t_grid->du(), 0, iRn,
+                             Fa.f() * Fa.f() + Fa.g() * Fa.g(), t_grid->drdu());
+
+      fmt::print(
+          "{:<2} {:<3} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} "
+          "{:.2e} {:.2e}\n",
+          t_Z, t_N, Fa.en(), t_rrms, rev_p * PhysConst::aB_fm, fraction, dE_bn,
+          d_ap, h_pb, h0_pb, sr_bp, pnc);
     }
   }
 }
