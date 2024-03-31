@@ -20,6 +20,8 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
        {"t", "t: skin thickness parameter in fm [2.3]"},
        {"type", "Nuclear density type: Fermi/ball/Gaussian/pointlike [Fermi]"},
        {"mass", "Mass of muon (in units of electron mass) [206.7682830]"},
+       {"delta_neutron",
+        "Fractionional +/- change in neutron (half density) radius [0.2]"},
        {"N_steps", "Number of grid points to use for Muon solutions (is "
                    "different from neutral case). [10000]"},
        {"write_wf", "Write wavefunctions (f and g) to file [false]"},
@@ -42,6 +44,7 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto Uehling = input.get("Uehling", false);
   const auto elec_screening = input.get("Screening", false);
   const auto Z_scaling = input.get("Z_scaling", true);
+  const auto delta_neutron = input.get("delta_neutron", 0.2);
 
   const auto states_str = input.get("states", std::string{"4sp"});
 
@@ -360,9 +363,9 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "(M = " << m_muon << ")\n\n";
 
     fmt::print("{:2s} {:3s}  {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} {:8s} "
-               "{:8s} {:8s}\n",
+               "{:8s} {:8s} {:8s} {:8s}\n",
                "Z", "N", "E1s", "Nrms_fm", "Arms_fm", "fracRn", "dE_bn",
-               "Dz_an", "W_nb", "W0_nb", "sr_nb", "APVz");
+               "Dz_an", "W_nb", "W0_nb", "sr_nb", "APVz", "hplus", "hminus");
     for (int t_Z = 1; t_Z <= 99; ++t_Z) {
 
       // Get alpha: allow non-relativistic calculations
@@ -418,6 +421,12 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       // sigma.r
       const auto sr = DiracOperator::sigma_r(*t_grid);
 
+      // Sensitivity to neutron radius (in PNC operator only)
+      const auto hw_plus = DiracOperator::PNCnsi(t_c * (1.0 + delta_neutron), t,
+                                                 *t_grid, t_N, "i(Qw/N)e-11");
+      const auto hw_minus = DiracOperator::PNCnsi(
+          t_c * (1.0 - delta_neutron), t, *t_grid, t_N, "i(Qw/N)e-11");
+
       // initial energy guess
       // 0.9 roughly to account for finite nuc. size. Doesn't really matter
       const auto ea0 = 0.9 * m_muon * AtomData::diracen(t_Z, 1, -1, alpha);
@@ -453,8 +462,8 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto h_pb = hw.radialIntegral(Fp, Fb);
       const auto dE_bn = Fb.en() - Fp.en();
 
-      // std::cout << Fb.en() << "\n" << Fp.en() << "\n" << dE_bn << "\n";
-      // std::cin.get();
+      const auto h_plus = hw_plus.radialIntegral(Fp, Fb);
+      const auto h_minus = hw_minus.radialIntegral(Fp, Fb);
 
       const auto h0_pb = hw0.radialIntegral(Fp, Fb);
       const auto sr_bp = sr.radialIntegral(Fp, Fb);
@@ -475,9 +484,9 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 
       fmt::print(
           "{:<2} {:<3} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} "
-          "{:.2e} {:.2e}\n",
+          "{:.2e} {:.2e} {:.2e} {:.2e}\n",
           t_Z, t_N, Fa.en(), t_rrms, rev_p * PhysConst::aB_fm, fraction, dE_bn,
-          d_ap, h_pb, h0_pb, sr_bp, pnc);
+          d_ap, h_pb, h0_pb, sr_bp, pnc, h_plus, h_minus);
     }
   }
 }
