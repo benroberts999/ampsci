@@ -40,6 +40,8 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
         "from TDHF by orthogonality (must be in core/valence) []"},
        {"replace_w_valence", "Replace 'spectrum' states with valence states "
                              "for some-over-states method [false]"},
+       {"orthogonalise",
+        "Re-orthogonalise spectrum (only if replace_w_valence=true) [false]"},
        {"SRN", "SR: include SR+Norm correction [false]"},
        {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
@@ -76,6 +78,11 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
     // re-orthogonalise spectrum?
+    const auto orthogonalise = input.get("orthogonalise", false);
+    if (orthogonalise) {
+      std::cout << "And re-orthogonalising\n";
+      DiracSpinor::orthonormaliseOrbitals(spectrum, 2);
+    }
   }
 
   // Solve TDHF for core, is doing RPA.
@@ -537,9 +544,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
 
     if (do_tensor) {
       if (print) {
-        std::cout << "          "
-                  << "          "
-                  << " a2(w)    ";
+        std::cout << "          " << "          " << " a2(w)    ";
       }
       for (auto &a2 : a2s) {
         if (print)
@@ -564,6 +569,10 @@ void transitionPolarisability(const IO::InputBlock &input,
       {{"transition", "List. states (e.g., 6s,6s) []"},
        {"rpa", "Include RPA? [true]"},
        {"omega", "frequency (for single w) [default: transition freq.]"},
+       {"replace_w_valence", "Replace 'spectrum' states with valence states "
+                             "for some-over-states method [false]"},
+       {"orthogonalise",
+        "Re-orthogonalise spectrum (only if replace_w_valence=true) [false]"},
        {"SRN", "SR: include SR+Norm correction [false]"},
        {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
@@ -623,7 +632,24 @@ void transitionPolarisability(const IO::InputBlock &input,
   auto dVE1 = ExternalField::TDHF(&he1, wf.vHF());
 
   // We should use _spectrum_ for the sos - but if it is empty, just use basis
-  const auto &spectrum = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
+  auto spectrum = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
+
+  // Use valence states in place of spectrum states in the sum
+  const auto replace_w_valence = input.get("replace_w_valence", false);
+  if (replace_w_valence) {
+    std::cout
+        << "Replacing spectrum states with corresponding valence states\n";
+    for (const auto &Fv : wf.valence()) {
+      auto it = std::find(spectrum.begin(), spectrum.end(), Fv);
+      *it = Fv;
+    }
+
+    const auto orthogonalise = input.get("orthogonalise", false);
+    if (orthogonalise) {
+      std::cout << "And re-orthogonalising\n";
+      DiracSpinor::orthonormaliseOrbitals(spectrum, 2);
+    }
+  }
 
   // Solve TDHF for core, is doing RPA.
   // nb: even if not doing RPA, need TDHF object for tdhf method

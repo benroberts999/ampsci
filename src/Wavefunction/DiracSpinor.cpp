@@ -342,33 +342,32 @@ void DiracSpinor::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
 // Note: This allows wfs to extend past pinf!
 // ==> This causes the possible orthog issues..
 {
-  auto Ns = in_orbs.size();
+  const auto Ns = in_orbs.size();
 
   // Calculate c_ab = <a|b>  [only for b>a -- symmetric]
   std::vector<std::vector<double>> c_ab(Ns, std::vector<double>(Ns));
   for (std::size_t a = 0; a < Ns; a++) {
-    const auto &phi_a = in_orbs[a];
+    const auto &Fa = in_orbs[a];
     for (auto b = a + 1; b < Ns; b++) {
-      const auto &phi_b = in_orbs[b];
-      if (phi_a.kappa() !=
-          phi_b.kappa()) //|| phi_a.n() == phi_b.n() - can't happen!
+      const auto &Fb = in_orbs[b];
+      if (Fa.kappa() != Fb.kappa())
         continue;
-      c_ab[a][b] = 0.5 * (phi_a * phi_b);
+      c_ab[a][b] = 0.5 * (Fa * Fb);
     }
   }
   // note: above loop executes psia*psib half as many times as below would
 
   // Orthogonalise + re-norm orbitals:
   for (std::size_t a = 0; a < Ns; a++) {
-    auto &phi_a = in_orbs[a];
+    auto &Fa = in_orbs[a];
     for (std::size_t b = 0; b < Ns; b++) {
-      const auto &phi_b = in_orbs[b];
-      if (phi_a.kappa() != phi_b.kappa() || phi_a.n() == phi_b.n())
+      const auto &Fb = in_orbs[b];
+      if (Fa.kappa() != Fb.kappa() || Fa.n() == Fb.n())
         continue;
       double cab = (a < b) ? c_ab[a][b] : c_ab[b][a];
-      phi_a -= cab * phi_b;
+      Fa -= cab * Fb;
     }
-    phi_a.normalise();
+    Fa.normalise();
   }
 
   // If necisary: repeat
