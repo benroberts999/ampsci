@@ -248,14 +248,21 @@ void b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
   const auto i0 = grid.getIndex(R0);
   std::cout << "R0 = " << R0_fm << " fm  --  ";
   std::cout << "[points within R0: " << i0 << "]\n";
-  const auto ri = 0.01 * R0;
-  const auto rf = 1.5 * R0;
-  const int num_steps = 200;
 
-  const auto R_pts = qip::logarithmic_range(ri, rf, num_steps);
+  const auto ri = 0.001 * R0;
+  const auto rf = 1.1 * R0;
+  const int num_steps = 10000;
+  const bool log = true;
+
+  const auto R_pts = log ? qip::logarithmic_range(ri, rf, num_steps) :
+                           qip::uniform_range(ri, rf, num_steps);
 
   const auto r3 = grid.rpow(3.0);
   const auto r2inv = grid.rpow(-2.0);
+
+  std::cout << ri * PhysConst::aB_fm << " - " << rf * PhysConst::aB_fm << " in "
+            << num_steps << " (" << (log ? "logarithmic" : "linear")
+            << ") steps\n";
 
   const auto fg_inf =
       NumCalc::integrate(1.0, 0, v.max_pt(), v.f(), v.g(), r2inv, grid.drdu());
@@ -284,9 +291,9 @@ void b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
     const auto rm3 = rm * rm * rm;
     const auto F_rm = fg_rm(rm) / fg_inf;
     const auto F_r3_rm = (fg_rm(rm) - fg_r3_rm(rm) / rm3) / fg_inf;
-    of << rm / R0 << " " << F_rm << "\n";
-    of2 << rm / R0 << " " << F_r3_rm << "\n";
-    xd.push_back(rm / R0);
+    of << rm * PhysConst::aB_fm << " " << F_rm << "\n";
+    of2 << rm * PhysConst::aB_fm << " " << F_r3_rm << "\n";
+    xd.push_back(rm * PhysConst::aB_fm);
     yd.push_back(F_rm);
     zd.push_back(F_r3_rm);
   }
