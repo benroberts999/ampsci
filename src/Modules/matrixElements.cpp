@@ -80,7 +80,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
-  const bool hf_AB = qip::ci_compare(oper, "hfs");
+  // treat hyperfine operator differently: A constants instead of RME
+  const bool hf_AB =
+      qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
+
   const bool diagonal = input.get("diagonal", true);
   const bool off_diagonal = input.get("off-diagonal", true);
 

@@ -1,4 +1,6 @@
 #pragma once
+#include "DiracOperator/GenerateOperator.hpp"
+#include "DiracOperator/Operators/hfs.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/InputBlock.hpp"
 #include "Physics/FGRadPot.hpp"
@@ -166,41 +168,37 @@ public:
 class MLVP final : public TensorOperator {
 
 public:
-  //! rN is nuclear radius, in atomic units
-  MLVP(const TensorOperator *const h0, const Grid &rgrid, double rN)
+  //! rN is nuclear (charge) radius, in atomic units
+  MLVP(const DiracOperator::hfs *const h0, const Grid &rgrid, double rN)
       : TensorOperator(
             h0->rank(), h0->parity() == 1 ? Parity::even : Parity::odd,
             h0->getc(), MLVP_func(rgrid, rN, h0->getv()), h0->get_d_order(),
             h0->imaginaryQ() ? Realness::imaginary : Realness::real,
             h0->freqDependantQ()),
-        m_h0(h0) {}
+        m_h0(*h0) {}
 
-  std::string name() const override final { return m_h0->name() + "_MLVP"; }
-  std::string units() const override final { return m_h0->units(); }
+  std::string name() const override final { return "MLVP"; }
+  std::string units() const override final { return m_h0.units(); }
 
   double angularF(const int ka, const int kb) const override final {
-    return m_h0->angularF(ka, kb);
+    return m_h0.angularF(ka, kb);
   }
-
   double angularCff(int ka, int kb) const override final {
-    return m_h0->angularCff(ka, kb);
+    return m_h0.angularCff(ka, kb);
   }
   double angularCgg(int ka, int kb) const override final {
-    return m_h0->angularCgg(ka, kb);
+    return m_h0.angularCgg(ka, kb);
   }
   double angularCfg(int ka, int kb) const override final {
-    return m_h0->angularCfg(ka, kb);
+    return m_h0.angularCfg(ka, kb);
   }
   double angularCgf(int ka, int kb) const override final {
-    return m_h0->angularCgf(ka, kb);
+    return m_h0.angularCgf(ka, kb);
   }
 
-  // Have m_h0 pointer, so delete copy/asign constructors
-  MLVP(const DiracOperator::MLVP &) = delete;
-  MLVP &operator=(const DiracOperator::MLVP &) = delete;
-
-private:
-  const TensorOperator *const m_h0;
+public:
+  // Store a copy?
+  DiracOperator::hfs m_h0;
 
 public:
   // public since may as well be
@@ -224,5 +222,43 @@ public:
     return v;
   }
 };
+
+//==============================================================================
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_MLVP(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check(
+      {{"rN",
+        "Nuclear radius (in fm), for finite-nuclear size "
+        "correction to Uehling loop. If not given, taken from wavefunction."},
+       {"options{}", "Options for hyperfine operator [see `ampsci -o hfs`]."}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
+
+  // 1. generate regular hfs operator
+  const auto t_options = input.getBlock("options");
+  const auto oper_options = t_options ? *t_options : IO::InputBlock{};
+
+  // 2. MLVP
+  const auto rN_fm =
+      input.get("rN", std::sqrt(5.0 / 3.0) * wf.nucleus().r_rms());
+
+  if (oper_options.get("print", true)) {
+    std::cout << "\nGenerate MLVP operator for hfs, with parameters:\n";
+    if (rN_fm != 0.0)
+      std::cout << "Using finite nuclear charge in Uehling loop, with rN="
+                << rN_fm << " fm.\n";
+    else
+      std::cout << "Using pointlike Uehling loop.\n";
+  }
+
+  const auto h = generate_hfs(oper_options, wf);
+
+  const auto r_N_au = rN_fm / PhysConst::aB_fm;
+
+  return std::make_unique<MLVP>(dynamic_cast<DiracOperator::hfs *>(h.get()),
+                                wf.grid(), r_N_au);
+}
 
 } // namespace DiracOperator
