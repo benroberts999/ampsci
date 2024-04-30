@@ -207,7 +207,7 @@ TEST_CASE("Coulomb: Q,W,N k Table", "[Coulomb][QkTable][unit]") {
   double y = 3.5;
   int k = 3;
   const auto rand_str = qip::random_string(6);
-  std::string file_name{"deleteme_" + rand_str + ".qk"};
+  std::string file_name{"deleteme_" + rand_str + ".qk.abf"};
 
   // Qk
   {
@@ -334,7 +334,7 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
   qk_t.fill(wf.basis(), yk);
 
   const auto rand_str = qip::random_string(6);
-  std::string fname{"deleteme_" + rand_str + ".qk"};
+  std::string fname{"deleteme_" + rand_str + ".qk.abf"};
 
   {
     IO::ChronoTimer t("Write to disk");

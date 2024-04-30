@@ -209,7 +209,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
         Qk_file_t != "false" ?
-            Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+            Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
             "";
     std::vector<std::tuple<std::string, double, double>> sr_summary;
     for (const auto &Fv : wf.valence()) {
@@ -403,7 +403,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
         Qk_file_t != "false" ?
-            Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+            Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
             "";
     sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min_core, 99},
                             Qk_file);
@@ -727,7 +727,7 @@ void transitionPolarisability(const IO::InputBlock &input,
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
         Qk_file_t != "false" ?
-            Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+            Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
             "";
 
     const auto [srn_v, beta_x] = alphaD::transition_SRN(

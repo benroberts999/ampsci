@@ -47,13 +47,8 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
 
   const auto basis_string = DiracSpinor::state_config(basis);
 
-  // This is now in identity
-  // const std::string ext = have_breit && have_qed ? ".rpadbq" :
-  //                         have_breit             ? ".rpadb" :
-  //                         have_qed               ? ".rpadq" :
-  //                                                  ".rpad";
   const auto fname = atom + "_" + std::to_string(m_rank) +
-                     (m_pi == 1 ? "+" : "-") + "_" + basis_string + ".rpad";
+                     (m_pi == 1 ? "+" : "-") + "_" + basis_string + ".rpad.abf";
 
   // Setup faster Breit
   if (p_hf->vBreit() != nullptr) {

@@ -186,7 +186,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   {
     std::cout << "Calculate two-body Coulomb integrals: Q^k_abcd\n";
 
-    const auto qk_filename = input.get("qk_file", wf.identity() + ".qk");
+    const auto qk_filename = input.get("qk_file", wf.identity() + ".qk.abf");
 
     // Try to read from disk (may already have calculated Qk)
     qk.read(qk_filename);

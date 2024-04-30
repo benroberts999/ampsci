@@ -45,7 +45,7 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
 
   // TEST SRN read-write using Qk_file
   const auto rand_str = qip::random_string(6);
-  const auto fname = "deleteme_" + rand_str + ".qk";
+  const auto fname = "deleteme_" + rand_str + ".qk.abf";
   MBPT::StructureRad srn2(wf.basis(), wf.FermiLevel(), {0, 999}, fname);
   MBPT::StructureRad srn3(wf.basis(), wf.FermiLevel(), {0, 999}, fname);
   for (const auto &a : wf.basis()) {

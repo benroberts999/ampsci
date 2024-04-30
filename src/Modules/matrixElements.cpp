@@ -145,7 +145,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto Qk_file_t = SR_input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
         Qk_file_t != "false" ?
-            Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+            Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
             "";
 
     std::cout
@@ -388,7 +388,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
   std::string Qk_file =
       Qk_file_t != "false" ?
-          Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+          Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
           "";
   // note: Using QkFile is ~10x faster (not including time to construct QkTable)
   // - but requires large amount of memory. Trade-off
@@ -693,7 +693,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
         Qk_file_t != "false" ?
-            Qk_file_t == "true" ? wf.identity() + ".qk" : Qk_file_t :
+            Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
             "";
 
     std::cout

@@ -17,8 +17,7 @@ TEST_CASE("CI: Configuration Interaction, unit tests", "[CI][unit]") {
   wf.formBasis(
       SplineBasis::Parameters("6spd", 20, 6, 1.0e-2, 1.0e-2, 20.0, false));
 
-  std::string qk_filename = "deleteme_" + qip::random_string(6) + ".qk";
-  ;
+  std::string qk_filename = "deleteme_" + qip::random_string(6) + ".qk.abf";
 
   const IO::InputBlock input{"CI", "ci_basis = 6spd;"
                                    "n_min_core = 1;"
