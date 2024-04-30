@@ -61,7 +61,7 @@ bool RadPot::read_write(const std::vector<double> &r, IO::FRW::RoW rw) {
     label += "w";
   if (m_rN == 0.0)
     label += "_pt";
-  const auto fname = std::to_string(int(m_Z + 0.1)) + label + ".qed";
+  const auto fname = std::to_string(int(m_Z + 0.1)) + label + ".qed.abf";
 
   const auto readQ = rw == IO::FRW::read;
 

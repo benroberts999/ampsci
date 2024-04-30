@@ -515,7 +515,7 @@ void Wavefunction::formSigma(
     return;
   std::cout << "\nIncluding correlation potential:\n" << std::flush;
 
-  std::string ext = FeynmanQ ? ".sf.abf" : ".s2.abf";
+  std::string ext = FeynmanQ ? ".sf" : ".s2";
   if (include_G)
     ext += "g";
   if (FeynmanQ && ScreeningQ)
@@ -524,6 +524,8 @@ void Wavefunction::formSigma(
     ext += "h";
   if (include_Breit && m_HF->vBreit() && !FeynmanQ)
     ext += "b";
+
+  ext += ".abf";
 
   const auto ifname = in_fname == "" ? identity() + ext : in_fname + ext;
   const auto ofname = out_fname == "" ? identity() + ext : out_fname + ext;
