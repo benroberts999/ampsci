@@ -46,6 +46,6 @@ Module::matrixElements {
   rpa = diagram;
   off-diagonal = false;
   options{
-      F(r) = pointlike;
+      nuc_mag = pointlike;
   }
 }

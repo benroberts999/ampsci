@@ -223,11 +223,20 @@ void fit(std::vector<double> &xd, std::vector<double> &yd, std::size_t terms) {
   fmt::print("K{}(Rm) = ", 2 * terms);
   for (std::size_t j = 0; j < terms; ++j) {
     const auto p = 2 * (j + 1);
-    fmt::print("{:+.3e} *Rm^{}", C(j), p);
+    fmt::print("{:+.3e} *Rm**{}", C(j), p);
     if (j + 1 != terms)
       std::cout << " ";
   }
   std::cout << "\n";
+  // std::cout << "#         [";
+  fmt::print("k{} = [", 2 * terms);
+  for (std::size_t j = 0; j < terms; ++j) {
+    const auto p = 2 * (j + 1);
+    fmt::print("{:.4e}", C(j), p);
+    if (j + 1 != terms)
+      std::cout << ", ";
+  }
+  std::cout << "]\n";
 
   gsl_matrix_free(X);
   gsl_vector_free(y);
@@ -246,39 +255,40 @@ void b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
 
   const auto R0 = R0_fm / PhysConst::aB_fm;
   const auto i0 = grid.getIndex(R0);
-  std::cout << "R0 = " << R0_fm << " fm  --  ";
-  std::cout << "[points within R0: " << i0 << "]\n";
+  std::cout << "Fit up to: Rmax = " << R0_fm << " fm  --  ";
+  std::cout << "[points within Rmax: " << i0 << "]\n";
 
-  const auto ri = 0.001 * R0;
-  const auto rf = 1.1 * R0;
-  const int num_steps = 10000;
-  const bool log = true;
-
-  const auto R_pts = log ? qip::logarithmic_range(ri, rf, num_steps) :
-                           qip::uniform_range(ri, rf, num_steps);
+  // Why?? Just use atomig grid!
+  // const auto ri = 0.001 * R0;
+  // const auto rf = 1.1 * R0;
+  // const int num_steps = 10000;
+  // const bool log = true;
+  // const auto R_pts = log ? qip::logarithmic_range(ri, rf, num_steps) :
+  //                          qip::uniform_range(ri, rf, num_steps);
 
   const auto r3 = grid.rpow(3.0);
   const auto r2inv = grid.rpow(-2.0);
 
-  std::cout << ri * PhysConst::aB_fm << " - " << rf * PhysConst::aB_fm << " in "
-            << num_steps << " (" << (log ? "logarithmic" : "linear")
-            << ") steps\n";
+  // std::cout << ri * PhysConst::aB_fm << " - " << rf * PhysConst::aB_fm << " in "
+  //           << num_steps << " (" << (log ? "logarithmic" : "linear")
+  //           << ") steps\n";
 
   const auto fg_inf =
       NumCalc::integrate(1.0, 0, v.max_pt(), v.f(), v.g(), r2inv, grid.drdu());
 
-  const auto fg_rm = [&v, &grid, &r2inv](double rm) {
-    const auto im = grid.getIndex(rm, true);
-    if (im < 20) {
-      std::cout << "Warning: not enough points within nuclear radius: " << rm
-                << "\n";
-    }
-    return NumCalc::integrate(1.0, 0, im, v.f(), v.g(), r2inv, grid.drdu());
+  const auto fg_rm = [&v, &grid, &r2inv](std::size_t i_rm) {
+    // const auto im = grid.getIndex(rm, true);
+    // if (im < 20) {
+    //   std::cout << "Warning: not enough points within nuclear radius: " << rm
+    //             << "\n";
+    // }
+    return NumCalc::integrate(1.0, 0, i_rm, v.f(), v.g(), r2inv, grid.drdu());
   };
 
-  const auto fg_r3_rm = [&v, &grid, &r3, &r2inv](double rm) {
-    const auto im = grid.getIndex(rm, true);
-    return NumCalc::integrate(1.0, 0, im, v.f(), v.g(), r2inv, r3, grid.drdu());
+  const auto fg_r3_rm = [&v, &grid, &r3, &r2inv](std::size_t i_rm) {
+    // const auto im = grid.getIndex(rm, true);
+    return NumCalc::integrate(1.0, 0, i_rm, v.f(), v.g(), r2inv, r3,
+                              grid.drdu());
   };
 
   std::ofstream of("KS_" + iso + "_" + v.shortSymbol() + ".txt");
@@ -286,11 +296,13 @@ void b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
   std::vector<double> xd;
   std::vector<double> yd;
   std::vector<double> zd;
-  for (auto rm : R_pts) {
+  // for (auto rm : R_pts) {
+  for (std::size_t i_rm = 10; i_rm < i0; ++i_rm) {
+    const auto rm = grid.r(i_rm);
     // const auto rm = ri + i * dr;
     const auto rm3 = rm * rm * rm;
-    const auto F_rm = fg_rm(rm) / fg_inf;
-    const auto F_r3_rm = (fg_rm(rm) - fg_r3_rm(rm) / rm3) / fg_inf;
+    const auto F_rm = fg_rm(i_rm) / fg_inf;
+    const auto F_r3_rm = (fg_rm(i_rm) - fg_r3_rm(i_rm) / rm3) / fg_inf;
     of << rm * PhysConst::aB_fm << " " << F_rm << "\n";
     of2 << rm * PhysConst::aB_fm << " " << F_r3_rm << "\n";
     xd.push_back(rm * PhysConst::aB_fm);
@@ -319,6 +331,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
        {"screening", "Calculate screening parameters (x and eta) [false]"},
        {"b_power", "Maximum power for which to caculate b moments in "
                    "KS(R),KL(R) expansion. Must be >=2 to calculate any [0]"},
+       {"b_max_ratio_Rnuc",
+        "Maximum radius to include in fit for b (as ratio of R_nuc) [1]"},
        {"eps_target",
         "Tune magnetic radius to match experimental BW effect "
         "(eps). Two inputs, comma separated: state (in 'short "
@@ -348,7 +362,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       "hfs", hfs_options ? *hfs_options : IO::InputBlock{}, wf);
 
   // Build pointlike HFS operator
-  IO::InputBlock h0_options{"h0", "F(r)=pointlike;"};
+  IO::InputBlock h0_options{"h0", "nuc_mag=pointlike;"};
   // Ensure same parameters as other operator
   if (hfs_options) {
     if (hfs_options->has_option("mu"))
@@ -389,12 +403,16 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
   BW_effect(wf.valence(), h0.get(), rpa0.get(), h.get(), rpa.get());
 
   // calculate the B moments in KS(R) and KL(R) expansions
-  int b_power = input.get("b_power", 0);
+  // maximum moment to consider:
+  const int b_power = input.get("b_power", 0);
+  // Maximum radius to include in fit (as ratio of R_nuc)
+  const double max_ratio = input.get("b_max_ratio_Rnuc", 1.0);
   if (b_power >= 2) {
     const auto iso = wf.identity() + "-" + std::to_string(wf.Anuc());
 
     for (const auto &v : wf.valence()) {
-      b_moments(iso, v, std::sqrt(5.0 / 3) * wf.get_rrms(), b_power);
+      b_moments(iso, v, std::sqrt(5.0 / 3) * wf.get_rrms() * max_ratio,
+                b_power);
     }
   }
 

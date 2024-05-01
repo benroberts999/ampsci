@@ -29,7 +29,7 @@ Module::matrixElements {
   operator = hfs;
   rpa = diagram;
   off-diagonal = false;
-  options { F(r) = pointlike; }
+  options { nuc_mag = pointlike; }
 }
 
 Running for Cs, Z=55 A=133

@@ -67,7 +67,7 @@ Module::matrixElements {
   operator = hfs;
   rpa = false;
   options{
-    F(r) = pointlike;
+    nuc_mag = pointlike;
   }
 }
 */
