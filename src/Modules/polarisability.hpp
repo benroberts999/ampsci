@@ -107,21 +107,21 @@ double beta_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
  - Qk_fname is optional filename to read/write QkTable [speedup at memory cost].
  - See MBPT/StructureRad.hpp.
  */
-std::pair<double, double> valence_SRN(
-    const DiracSpinor &Fv, const std::vector<DiracSpinor> &spectrum,
-    const DiracOperator::E1 &he1, const ExternalField::CorePolarisation *dVE1,
-    double omega, bool do_tensor,
-    // SR+N part:
-    int max_n_SOS, int n_min_core, const std::vector<DiracSpinor> &hf_basis,
-    const double en_core, const std::string &Qk_fname = "");
+std::pair<double, double>
+valence_SRN(const DiracSpinor &Fv, const std::vector<DiracSpinor> &spectrum,
+            const DiracOperator::E1 &he1,
+            const ExternalField::CorePolarisation *dVE1, double omega,
+            bool do_tensor,
+            // SR+N part:
+            const Coulomb::meTable<double> &srn);
 
-std::pair<double, double> transition_SRN(
-    const DiracSpinor &Fv, const DiracSpinor &Fw,
-    const std::vector<DiracSpinor> &spectrum, const DiracOperator::E1 &he1,
-    const ExternalField::CorePolarisation *dVE1,
-    // SR+N part:
-    int max_n_SOS, int n_min_core, const std::vector<DiracSpinor> &hf_basis,
-    const double en_core, const std::string &Qk_fname = "");
+std::pair<double, double>
+transition_SRN(const DiracSpinor &Fv, const DiracSpinor &Fw,
+               const std::vector<DiracSpinor> &spectrum,
+               const DiracOperator::E1 &he1,
+               const ExternalField::CorePolarisation *dVE1,
+               // SR+N part:
+               const Coulomb::meTable<double> &srn);
 
 } // namespace alphaD
 

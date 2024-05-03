@@ -7,6 +7,7 @@
 #include "MBPT/StructureRad.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
+#include "fmt/format.hpp"
 #include "qip/Vector.hpp"
 #include <cassert>
 #include <fstream>
@@ -43,7 +44,9 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
        {"orthogonalise",
         "Re-orthogonalise spectrum (only if replace_w_valence=true) [false]"},
        {"SRN", "SR: include SR+Norm correction [false]"},
-       {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
+       {"n_minmax", "list; min,max n for core/excited basis states to include "
+                    "in Structure radiation: [1,inf]"},
+       //  {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
        {"Qk_file",
@@ -67,6 +70,9 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   // We should use _spectrum_ for the sos - but if it is empty, just use basis
   auto spectrum = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
 
+  // Optional: use valence states in place of spectrum states if we have them
+  // This can be used, for example, when we fitted valence states to Exp.
+  // Not obvious if more or less accurate: downside is orthogonality
   const auto replace_w_valence = input.get("replace_w_valence", false);
   if (replace_w_valence) {
     std::cout
@@ -77,7 +83,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
         *pv = v;
       }
     }
-    // re-orthogonalise spectrum?
+    // re-orthogonalise the spectrum?
     const auto orthogonalise = input.get("orthogonalise", false);
     if (orthogonalise) {
       std::cout << "And re-orthogonalising\n";
@@ -90,6 +96,8 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   if (rpaQ) {
     dVE1.solve_core(omega);
   }
+
+  // Separate spectrum into core/valence parts
   const auto eFemi = wf.FermiLevel();
   const auto spectrum_core =
       qip::select_if(spectrum, [=](const auto &f) { return f.en() < eFemi; });
@@ -148,7 +156,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\n";
   }
 
-  //Separate out cv contribution
+  // Separate out cv contribution
   // Note: below way *alomst* the same, but not exact.
   // Since it includes the "extra" dV in the core-valence part!
   if (!wf.valence().empty()) {
@@ -204,24 +212,52 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Optionally calculate SR+N contribution
   if (input.get("SRN", false)) {
-    const auto n_min_core = input.get("n_min_core", 1);
+    // const auto n_min_core = input.get("n_min_core", 1);
+    const auto n_minmax = input.get("n_minmax", std::vector{1});
+    const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+    const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
     const auto max_n_SR = input.get("max_n_SR", 9);
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
         Qk_file_t != "false" ?
             Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
             "";
+    std::cout << "\nStructure Radiation:\n";
+    std::cout << "Including core states from n>=" << n_min << " to " << n_max
+              << " SR in diagrams\n";
+    std::cout << "Calculating SR+N for terms up to n=" << max_n_SR
+              << " in the sum-over-states\n";
+
+    const auto sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(),
+                                       {n_min, n_max}, Qk_file);
+
+    Coulomb::meTable srn{};
+    {
+      IO::ChronoTimer t2("Build meTable");
+      std::cout << "Building table of SR matrix elements.." << std::flush;
+      // Always store in order: <Spectrum|d|Valence>
+      for (const auto &Fn : spectrum) {
+        for (const auto &Fv : wf.valence()) {
+          if (he1.isZero(Fn, Fv) || Fn.n() > max_n_SR ||
+              wf.isInCore(Fn.n(), Fn.kappa()))
+            continue;
+          // Calculates SR+Norm (ignores freq. dependence and RPA)
+          srn.add(Fn, Fv, sr.srn(&he1, Fn, Fv).first);
+        }
+      }
+      std::cout << " Done.\n" << std::flush;
+    }
+
     std::vector<std::tuple<std::string, double, double>> sr_summary;
     for (const auto &Fv : wf.valence()) {
-      const auto [srn_v, srn_2] = alphaD::valence_SRN(
-          Fv, spectrum, he1, &dVE1, omega, do_tensor, max_n_SR, n_min_core,
-          wf.basis(), wf.FermiLevel(), Qk_file);
+      const auto [srn_v, srn_2] =
+          alphaD::valence_SRN(Fv, spectrum, he1, &dVE1, omega, do_tensor, srn);
       sr_summary.push_back({Fv.shortSymbol(), srn_v, srn_2});
     }
     // print summary:
     std::cout << "\nSummary of SR+N contributions:\n";
-    for (const auto &[symbol, srn, srn_2] : sr_summary) {
-      printf("%4s :  %12.5e", symbol.c_str(), srn);
+    for (const auto &[symbol, srn_0, srn_2] : sr_summary) {
+      printf("%4s :  %12.5e", symbol.c_str(), srn_0);
       if (do_tensor) {
         printf("  %12.5e", srn_2);
       }
@@ -574,7 +610,9 @@ void transitionPolarisability(const IO::InputBlock &input,
        {"orthogonalise",
         "Re-orthogonalise spectrum (only if replace_w_valence=true) [false]"},
        {"SRN", "SR: include SR+Norm correction [false]"},
-       {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
+       {"n_minmax", "list; min,max n for core/excited basis states to include "
+                    "in Structure radiation: [1,inf]"},
+       //  {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
        {"Qk_file",
@@ -722,7 +760,9 @@ void transitionPolarisability(const IO::InputBlock &input,
 
   // Optionally calculate SR+N contribution
   if (srnQ) {
-    const auto n_min_core = input.get("n_min_core", 1);
+    const auto n_minmax = input.get("n_minmax", std::vector{1});
+    const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+    const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
     const auto max_n_SR = input.get("max_n_SR", 9);
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
@@ -730,9 +770,35 @@ void transitionPolarisability(const IO::InputBlock &input,
             Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
             "";
 
-    const auto [srn_v, beta_x] = alphaD::transition_SRN(
-        Fv, Fw, spectrum, he1, &dVE1, max_n_SR, n_min_core, wf.basis(),
-        wf.FermiLevel(), Qk_file);
+    std::cout << "\nStructure Radiation:\n";
+    std::cout << "Including core states from n>=" << n_min << " to " << n_max
+              << " SR in diagrams\n";
+    std::cout << "Calculating SR+N for terms up to n=" << max_n_SR
+              << " in the sum-over-states\n";
+
+    const auto sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(),
+                                       {n_min, n_max}, Qk_file);
+
+    Coulomb::meTable srn{};
+    {
+      IO::ChronoTimer t2("Build meTable");
+      std::cout << "Building table of SR matrix elements.." << std::flush;
+      // Always store in order: <Spectrum|d|Valence>
+      for (const auto &Fn : spectrum) {
+        for (const auto &Fa : {Fv, Fw}) {
+          // only include non-core terms below max_n_SR
+          if (he1.isZero(Fn, Fa) || Fn.n() > max_n_SR ||
+              wf.isInCore(Fn.n(), Fn.kappa()))
+            continue;
+          // Calculates SR+Norm (ignores freq. dependence and RPA)
+          srn.add(Fn, Fa, sr.srn(&he1, Fn, Fa).first);
+        }
+      }
+      std::cout << " Done.\n" << std::flush;
+    }
+
+    const auto [srn_v, beta_x] =
+        alphaD::transition_SRN(Fv, Fw, spectrum, he1, &dVE1, srn);
 
     const auto pc_A = 100.0 * srn_v / ((avw_sos + avw_ms + awv_ms) / 3.0);
     const auto pc_B = 100.0 * beta_x / ((Bvw_sos + Bvw_ms + Bwv_ms) / 3.0);
@@ -1031,13 +1097,13 @@ double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
 }
 
 //==============================================================================
-std::pair<double, double> valence_SRN(
-    const DiracSpinor &Fv, const std::vector<DiracSpinor> &spectrum,
-    const DiracOperator::E1 &he1, const ExternalField::CorePolarisation *dVE1,
-    double omega, bool do_tensor,
-    // SR+N part:
-    int max_n_SOS, int n_min_core, const std::vector<DiracSpinor> &hf_basis,
-    const double en_core, const std::string &Qk_fname) {
+std::pair<double, double>
+valence_SRN(const DiracSpinor &Fv, const std::vector<DiracSpinor> &spectrum,
+            const DiracOperator::E1 &he1,
+            const ExternalField::CorePolarisation *dVE1, double omega,
+            bool do_tensor,
+            // SR+N part:
+            const Coulomb::meTable<double> &srn) {
 
   // NOTE: Basis should be HF basis (used for MBPT), NOT spectrum
 
@@ -1055,33 +1121,21 @@ std::pair<double, double> valence_SRN(
   const auto cbot = 3.0 * ((Fv.twoj() + 2) * (Fv.twoj() + 1) * (Fv.twoj() + 3));
   const auto C = ctop >= 0.0 ? +4.0 * std::sqrt(ctop / cbot) : 0.0;
 
-  auto sr = MBPT::StructureRad(hf_basis, en_core, {n_min_core, 99}, Qk_fname);
-  std::cout << "Including core states from n>=" << n_min_core
-            << " in diagrams\n";
-  std::cout << "Calculating SR+N for terms up to n=" << max_n_SOS
-            << " in the sum-over-states\n";
-
-  // Should be possible to sum over external states _first_, then to SR?
-  // Maybe not
-  // Issue is depends on energy of legs
-
   std::cout << "  n    |d|       dEn      |  a0(n)     dSR(n)    [%]      ";
   if (do_tensor)
     std::cout << "|  a2(n)     dSR2(n)";
   std::cout << "\n";
   for (const auto &Fn : spectrum) {
-    if (Fn.en() < en_core)
+    // Only include states with SR correction
+    auto d_sr = srn.getv(Fn, Fv);
+    if (d_sr == 0.0)
       continue;
-    // Only do for terms with small delta_n
-    if (Fn.n() > max_n_SOS)
-      continue;
+
     if (he1.isZero(Fv.kappa(), Fn.kappa()))
       continue;
     const auto d0 = he1.reducedME(Fn, Fv) + (dVE1 ? dVE1->dV(Fn, Fv) : 0.0);
 
-    // don't include RPA into SR+N (simpler)
-    const auto [srn, srndV] = sr.srn(&he1, Fn, Fv, omega, nullptr);
-    const auto d1 = d0 + srn;
+    const auto d1 = d0 + d_sr;
 
     // alpha_0(w)
     const auto de = Fv.en() - Fn.en();
@@ -1109,30 +1163,31 @@ std::pair<double, double> valence_SRN(
     std::cout << '\n' << std::flush;
   }
 
-  const auto srn = (alpha_v1 - alpha_v0);
-  const auto srn2 = (alpha2_v1 - alpha2_v0);
+  const auto srn0 = (alpha_v1 - alpha_v0);   //scalar
+  const auto srn2 = (alpha2_v1 - alpha2_v0); //tensor
 
   std::cout << "StrucRad+Norm: " << Fv.symbol() << "\n";
   std::cout << "a0(main): " << alpha_v0 << "\n";
-  std::cout << "dSR_0   :  " << srn << " (" << srn / alpha_v0 * 100.0 << "%)\n";
-  if (do_tensor) {
+  std::cout << "dSR_0   :  " << srn0 << " (" << srn0 / alpha_v0 * 100.0
+            << "%)\n";
+  if (do_tensor && alpha2_v0 != 0.0) {
     std::cout << "a2(main): " << alpha2_v0 << "\n";
     std::cout << "dSR_2   :  " << srn2 << " (" << srn2 / alpha2_v0 * 100.0
               << "%)\n";
   }
   std::cout << std::flush;
 
-  return {srn, srn2};
+  return {srn0, srn2};
 }
 
 //==============================================================================
-std::pair<double, double> transition_SRN(
-    const DiracSpinor &Fv, const DiracSpinor &Fw,
-    const std::vector<DiracSpinor> &spectrum, const DiracOperator::E1 &he1,
-    const ExternalField::CorePolarisation *dVE1,
-    // SR+N part:
-    int max_n_SOS, int n_min_core, const std::vector<DiracSpinor> &hf_basis,
-    const double en_core, const std::string &Qk_fname) {
+std::pair<double, double>
+transition_SRN(const DiracSpinor &Fv, const DiracSpinor &Fw,
+               const std::vector<DiracSpinor> &spectrum,
+               const DiracOperator::E1 &he1,
+               const ExternalField::CorePolarisation *dVE1,
+               // SR+N part:
+               const Coulomb::meTable<double> &srn) {
   // NOTE: Basis should be HF basis (used for MBPT), NOT spectrum
 
   // const auto f = 1.0 / 6.0;
@@ -1145,43 +1200,27 @@ std::pair<double, double> transition_SRN(
   std::cout << "Structure Radiation + Normalisation contribution: transition "
             << Fv.symbol() << "-" << Fw.symbol() << "\n";
 
-  auto sr = MBPT::StructureRad(hf_basis, en_core, {n_min_core, 99}, Qk_fname);
-  std::cout << "Including core states from n>=" << n_min_core
-            << " in diagrams\n";
-  std::cout << "Calculating SR+N for terms up to n=" << max_n_SOS
-            << " in the sum-over-states\n";
+  fmt::print("\n{:<4s} {:>6s} {:>6s} {:>6s} {:>6s} {:>9s} {:>9s} {:>7s} "
+             "{:>9s} {:>9s} {:>7s}\n",
+             "n", "d_nv", "SR_nv", "d_nw", "SR_nw", "alpha_n", "aSR_n", "eps_a",
+             "beta_n", "bSR_n", "eps_b");
 
-  //std::cout << " n       da(n)        dSR(n)       a(sum)      SR(n)%\n";
-  // std::cout << " n    d_vn      srn_vn    d_nw      srn_nw    da\n";
-  std::cout << "n    d_vn   d_nw   alpha_n   beta_n    SRNvn  SRNnw  dAlpha   "
-               "%     dBeta    %\n";
   double alpha0_ss = 0.0;
   double alpha_ss = 0.0;
   double beta0_ss = 0.0;
   double beta_ss = 0.0;
   for (const auto &n : spectrum) {
-    if (n.en() < en_core)
-      continue;
-    if (n.n() > max_n_SOS)
-      continue;
-    if (he1.isZero(Fv.kappa(), n.kappa()) || he1.isZero(Fw.kappa(), n.kappa()))
+    // Only include states with SR correction
+    auto d_vn_sr = srn.getv(n, Fv) * he1.symm_sign(n, Fv);
+    auto d_nw_sr = srn.getv(n, Fw);
+    if (d_vn_sr == 0.0 || d_nw_sr == 0.0)
       continue;
 
     const auto d0_vn = he1.reducedME(Fv, n) + (dVE1 ? dVE1->dV(Fv, n) : 0.0);
     const auto d0_nw = he1.reducedME(n, Fw) + (dVE1 ? dVE1->dV(n, Fw) : 0.0);
 
-    // don't include RPA into SR+N (simpler)
-    // use HF states for "legs"
-    const auto v0 = std::find(hf_basis.cbegin(), hf_basis.cend(), Fv);
-    const auto w0 = std::find(hf_basis.cbegin(), hf_basis.cend(), Fw);
-    const auto n0 = std::find(hf_basis.cbegin(), hf_basis.cend(), n);
-    assert(v0 != hf_basis.cend() && w0 != hf_basis.cend() &&
-           n0 != hf_basis.cend() && "Missing relevant states from HF basis?");
-    const auto [srn_vn, x1] = sr.srn(&he1, *v0, *n0, 0.0, nullptr);
-    const auto [srn_nw, x2] = sr.srn(&he1, *n0, *w0, 0.0, nullptr);
-
-    const auto d_vn = d0_vn + srn_vn;
-    const auto d_nw = d0_nw + srn_nw;
+    const auto d_vn = d0_vn + d_vn_sr;
+    const auto d_nw = d0_nw + d_nw_sr;
 
     const auto f_de_a = 1.0 / (Fv.en() - n.en()) + 1.0 / (Fw.en() - n.en());
     const auto f_de_B = 1.0 / (Fv.en() - n.en()) - 1.0 / (Fw.en() - n.en());
@@ -1199,14 +1238,11 @@ std::pair<double, double> transition_SRN(
     beta0_ss += dB0;
     beta_ss += dB;
 
-    const auto svn = std::abs(d0_vn) / d0_vn;
-    const auto snw = std::abs(d0_nw) / d0_nw;
-
-    printf("%3s %6.3f %6.3f %9.2e %9.2e %6.3f %6.3f %8.1e %4.1f%% %8.1e "
-           "%4.1f%%\n",
-           n.shortSymbol().c_str(), std::abs(d0_vn), std::abs(d0_nw), da0, dB0,
-           srn_vn * svn, srn_nw * snw, da - da0, 100.0 * (da - da0) / da0,
-           dB - dB0, 100.0 * (dB - dB0) / dB0);
+    fmt::print("{:4s} {:6.2f} {:6.3f} {:6.2f} {:6.3f} {:9.2e} {:9.2e} {:7.0e} "
+               "{:9.2e} {:9.2e} "
+               "{:7.0e}\n",
+               n.shortSymbol(), d0_vn, d_vn_sr, d0_nw, d_nw_sr, da0, da - da0,
+               (da - da0) / da0, dB0, dB - dB0, (dB - dB0) / dB0);
   }
 
   const auto a_SRN = alpha_ss - alpha0_ss;
