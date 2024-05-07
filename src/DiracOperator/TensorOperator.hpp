@@ -173,10 +173,6 @@ public:
     return sra_i * sra;
   }
 
-  //! Returns string for outputting to screen, e.g.: "<6s+||h||6p->"
-  std::string rme_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
-  std::string R_symbol(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
-
   //! Returns "name" of operator (e.g., 'E1')
   virtual std::string name() const { return "Operator"; };
   //! Returns units of operator (usually au, may be MHz, etc.)
@@ -197,6 +193,12 @@ public:
   //! radial_int = Fa * radial_rhs(a, Fb) (a needed for angular factor)
   virtual DiracSpinor radial_rhs(const int kappa_a,
                                  const DiracSpinor &Fb) const;
+
+  //! Defined via <a||h||b> = angularF(a,b) * radialIntegral(a,b)
+  //! (Note: if radial_rhs is overridden, then radialIntegral must also be_
+  virtual double radialIntegral(const DiracSpinor &Fa,
+                                const DiracSpinor &Fb) const;
+
   //! ME = rme3js * RME
   double rme3js(const int twoja, const int twojb, int two_mb = 1,
                 int two_q = 0) const;
@@ -208,8 +210,16 @@ public:
   DiracSpinor reduced_lhs(const int ka, const DiracSpinor &Fb) const;
 
   //! Defined via <a||h||b> = angularF(a,b) * radialIntegral(a,b)
-  double radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+  double radialIntegral_x(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+
+  //! The reduced matrix element
   double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+
+  //! Returns "full" matrix element, for optional (ma, mb, q) [taken as int 2*].
+  //! If not specified, returns z-component (q=0), with ma=mb=min(ja,jb)
+  double fullME(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                std::optional<int> two_ma = {}, std::optional<int> two_mb = {},
+                std::optional<int> two_q = {}) const;
 };
 
 //============================================================================
@@ -248,15 +258,6 @@ public:
     // |k| = j+1/2
     return (std::abs(ka) == std::abs(kb)) ? std::sqrt(2.0 * std::abs(ka)) : 0.0;
   }
-
-  // ??? Always same? Or, spurious m-dependence?
-  // virtual double rme3js(const int twoja, const int, int,
-  //                       int = 0) const override {
-  //   // For scalar operators, <a||h||b> = RadInt / 3js
-  //   // 3js:= 1/(Sqrt[2j+1]) ... depends on m???
-  //   // |k| = j+1/2
-  //   return 1.0 / std::sqrt(twoja + 1.0);
-  // }
 
 private:
   const double c_ff, c_fg, c_gf, c_gg;

@@ -138,6 +138,12 @@ public:
     return dF;
   }
 
+  virtual double radialIntegral(const DiracSpinor &Fa,
+                                const DiracSpinor &Fb) const override final {
+    // nb: faster not to do this, but nicer this way
+    return Fa * radial_rhs(Fa.kappa(), Fb);
+  }
+
   //! Directly calculate reduced matrix element without needing to call set_L_q - this *is* thread safe
   double rme(const DiracSpinor &a, const DiracSpinor &b, std::size_t L,
              double q) const {

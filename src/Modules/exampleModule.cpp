@@ -93,7 +93,7 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto e10 = hE1.reducedME(F0a, F0b);
       const auto delta = e1 - e10;
 
-      std::cout << hE1.rme_symbol(Fa, Fb) << ": ";
+      std::cout << Fa << " - " << Fb << ": ";
       printf("%12.5e  %12.5e  %12.5e\n", e1, e10, delta);
     }
   }

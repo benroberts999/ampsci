@@ -74,6 +74,12 @@ public:
     return m_l.reduced_rhs(kappa_a, Fb) + 2.0 * m_s.reduced_rhs(kappa_a, Fb);
   }
 
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final {
+    // nb: faster not to do this, but nicer this way
+    return Fa * radial_rhs(Fa.kappa(), Fb);
+  }
+
 private:
   DiracOperator::s m_s{};
   DiracOperator::l m_l{};

@@ -63,19 +63,24 @@ private:
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_pnc(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
-  input.check({{{"c", "Half-density radius for Ferni rho(r). Will use default "
-                      "for given nucleus"},
-                {"t", "skin thickness [2.3]"},
-                {"print", "Write details to screen [true]"}}});
+  input.check(
+      {{{"c",
+         "Half-density radius for Fermi rho(r). [defaut: from wavefunction]"},
+        {"t", "skin thickness [2.3]"},
+        {"N", "Neutron number, for units [default: from wavefunction]"},
+        {"print", "Write details to screen [true]"}}});
   if (input.has_option("help")) {
     return nullptr;
   }
-  const auto r_rms = Nuclear::find_rrms(wf.Znuc(), wf.Anuc());
+  const auto r_rms = wf.get_rrms();
   const auto c = input.get("c", Nuclear::c_hdr_formula_rrms_t(r_rms));
   const auto t = input.get("t", Nuclear::default_t);
+  const auto N = input.get("N", wf.Anuc() - wf.Znuc());
+  std::string units =
+      N == 1 ? "i(-Qw)e-11" : "i(-Qw/" + std::to_string(N) + ")e-11";
   if (input.get("print", true))
-    std::cout << "pnc: with c=" << c << ", t=" << t << "\n";
-  return std::make_unique<PNCnsi>(c, t, wf.grid(), 1.0, "iQwe-11");
+    std::cout << "pnc: with c=" << c << ", t=" << t << " [" << units << "]\n";
+  return std::make_unique<PNCnsi>(c, t, wf.grid(), -1.0 * N, "units");
 }
 
 } // namespace DiracOperator

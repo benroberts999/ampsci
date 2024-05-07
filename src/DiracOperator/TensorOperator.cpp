@@ -21,28 +21,20 @@ bool TensorOperator::isZero(const int ka, int kb) const {
     return true;
   return (angularF(ka, kb) == 0);
 }
+
 bool TensorOperator::isZero(const DiracSpinor &Fa,
                             const DiracSpinor &Fb) const {
   return isZero(Fa.kappa(), Fb.kappa());
-}
-
-std::string TensorOperator::rme_symbol(const DiracSpinor &Fa,
-                                       const DiracSpinor &Fb) const {
-  return std::string("<") + Fa.shortSymbol() + "||h||" + Fb.shortSymbol() + ">";
-}
-std::string TensorOperator::R_symbol(const DiracSpinor &Fa,
-                                     const DiracSpinor &Fb) const {
-  return std::string("R(") + Fa.shortSymbol() + "," + Fb.shortSymbol() + ")";
 }
 
 //==============================================================================
 double TensorOperator::rme3js(const int twoja, const int twojb, int two_mb,
                               int two_q) const {
   // rme3js = (-1)^{ja-ma} (ja, k, jb,\ -ma, q, mb)
-  const auto two_ma = two_mb - two_q; // -ma + mb + q = 0;
-  // sig = (-1)^(ja - ma)
-  const auto sig = ((twoja - two_ma) / 2) % 2 == 0 ? 1 : -1;
-  return sig *
+  const auto two_ma = two_mb + two_q; // -ma + mb + q = 0;
+  // sign = (-1)^(ja - ma)
+  const auto sign = ((twoja - two_ma) / 2) % 2 == 0 ? 1 : -1;
+  return sign *
          Angular::threej_2(twoja, 2 * m_rank, twojb, -two_ma, two_q, two_mb);
 }
 
@@ -61,6 +53,22 @@ DiracSpinor TensorOperator::reduced_lhs(const int ka,
 double TensorOperator::reducedME(const DiracSpinor &Fa,
                                  const DiracSpinor &Fb) const {
   return angularF(Fa.kappa(), Fb.kappa()) * radialIntegral(Fa, Fb);
+}
+
+double TensorOperator::fullME(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                              std::optional<int> two_ma,
+                              std::optional<int> two_mb,
+                              std::optional<int> two_q) const {
+
+  const auto tma = two_ma ? *two_ma : std::min(Fa.twoj(), Fb.twoj());
+  const auto tmb = two_mb ? *two_mb : tma;
+  const auto tqq = two_q ? *two_q : 0;
+
+  const auto sign = Angular::neg1pow_2(Fa.twoj() - tma);
+  const auto factor = sign * Angular::threej_2(Fa.twoj(), 2 * m_rank, Fb.twoj(),
+                                               -tma, tqq, tmb);
+
+  return factor * reducedME(Fa, Fb);
 }
 
 //==============================================================================
@@ -110,11 +118,66 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
 }
 
 //==============================================================================
-double TensorOperator::radialIntegral(const DiracSpinor &Fa,
-                                      const DiracSpinor &Fb) const {
+double TensorOperator::radialIntegral_x(const DiracSpinor &Fa,
+                                        const DiracSpinor &Fb) const {
 
   // nb: faster not to do this, but nicer this way
   return Fa * radial_rhs(Fa.kappa(), Fb);
+}
+
+double TensorOperator::radialIntegral(const DiracSpinor &Fa,
+                                      const DiracSpinor &Fb) const {
+
+  const int kappa_a = Fa.kappa();
+  if (isZero(kappa_a, Fb.kappa())) {
+    return 0.0;
+  }
+
+  const auto &gr = Fb.grid();
+
+  const auto p0 = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+
+  const auto &df =
+      (m_diff_order == 0) ?
+          Fb.f() :
+          NumCalc::derivative(Fb.f(), gr.drdu(), gr.du(), m_diff_order);
+  const auto &dg =
+      (m_diff_order == 0) ?
+          Fb.g() :
+          NumCalc::derivative(Fb.g(), gr.drdu(), gr.du(), m_diff_order);
+
+  const auto cff = angularCff(kappa_a, Fb.kappa());
+  const auto cgg = angularCgg(kappa_a, Fb.kappa());
+  const auto cfg = angularCfg(kappa_a, Fb.kappa());
+  const auto cgf = angularCgf(kappa_a, Fb.kappa());
+
+  const auto Rff =
+      cff == 0.0 ?
+          0.0 :
+      m_vec.empty() ?
+          cff * NumCalc::integrate(1.0, p0, pf, Fa.f(), df, gr.drdu()) :
+          cff * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.f(), df, gr.drdu());
+  const auto Rfg =
+      cfg == 0.0 ?
+          0.0 :
+      m_vec.empty() ?
+          cfg * NumCalc::integrate(1.0, p0, pf, Fa.f(), dg, gr.drdu()) :
+          cfg * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.f(), dg, gr.drdu());
+  const auto Rgf =
+      cgf == 0.0 ?
+          0.0 :
+      m_vec.empty() ?
+          cgf * NumCalc::integrate(1.0, p0, pf, Fa.g(), df, gr.drdu()) :
+          cgf * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.g(), df, gr.drdu());
+  const auto Rgg =
+      cgg == 0.0 ?
+          0.0 :
+      m_vec.empty() ?
+          cgg * NumCalc::integrate(1.0, p0, pf, Fa.g(), dg, gr.drdu()) :
+          cgg * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.g(), dg, gr.drdu());
+
+  return m_constant * gr.du() * (Rff + Rfg + Rgf + Rgg);
 }
 
 } // namespace DiracOperator

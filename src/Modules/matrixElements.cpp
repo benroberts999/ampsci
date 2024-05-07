@@ -514,7 +514,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
       IO::ChronoTimer timer("time");
 
-      std::cout << "\n" << h->rme_symbol(w, v) << ":\n";
+      std::cout << "\n" << w << " - " << v << ":\n";
       t_out.ab = w.shortSymbol() + " " + v.shortSymbol();
 
       // const auto ww = eachFreqQ ? std::abs(wp->en() - vp->en()) : const_omega;

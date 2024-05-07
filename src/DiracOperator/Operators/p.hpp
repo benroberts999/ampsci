@@ -49,6 +49,12 @@ public:
     dF.max_pt() = Fb.max_pt(); //?
     return dF;
   }
+
+  virtual double radialIntegral(const DiracSpinor &Fa,
+                                const DiracSpinor &Fb) const override final {
+    // nb: faster not to do this, but nicer this way
+    return Fa * radial_rhs(Fa.kappa(), Fb);
+  }
 };
 
 //==============================================================================

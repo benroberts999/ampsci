@@ -282,7 +282,8 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                                   {"3d-", "2p+", -3.4613851942e-17}};
 
     const IO::InputBlock options{""};
-    auto h = DiracOperator::generate("pnc", {"pnc", "c=5.67073; t=2.3;"}, wf);
+    auto h =
+        DiracOperator::generate("pnc", {"pnc", "c=5.67073; t=2.3; N=-1;"}, wf);
 
     REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == true);
