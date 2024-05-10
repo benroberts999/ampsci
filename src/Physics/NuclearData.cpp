@@ -1,4 +1,5 @@
 #include "Physics/NuclearData.hpp" //for Isotope
+#include "Physics/nuclear_data_table.hpp"
 
 namespace Nuclear {
 //==============================================================================
