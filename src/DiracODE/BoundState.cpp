@@ -107,7 +107,7 @@ Orbitals defined:
     }
     t_eps = std::abs((t_en - en_old) / en_old);
 
-    if (t_eps < eps_goal && correct_nodes)
+    if ((t_eps < eps_goal && correct_nodes) || std::isnan(t_en))
       break;
 
   } // END itterations
@@ -131,6 +131,14 @@ Orbitals defined:
   Fn.zero_boundaries();
   // normalises the orbital (alrady cal'd anorm)
   Fn *= 1.0 / std::sqrt(anorm);
+
+  if (std::isnan(t_en)) {
+    Fn.en() = 0.0;
+    Fn.eps() = 1.0 / 0.0;
+    Fn.max_pt() = rgrid.num_points();
+    Fn.its() = 0;
+    Fn *= 0.0;
+  }
 
   return;
 }
@@ -252,9 +260,9 @@ std::size_t findPracticalInfinity(const double en, const std::vector<double> &v,
 // (V(r) - E)*r^2 >  alr    (alr = "asymptotically large r")
 {
   auto pinf = r.size();
-  while ((v[pinf - 1] - en) * r[pinf - 1] * r[pinf - 1] > alr) {
-    --pinf;
+  while (pinf > 100 && (v[pinf - 1] - en) * r[pinf - 1] * r[pinf - 1] > alr) {
     assert(pinf > 1);
+    --pinf;
   }
   return pinf;
 }
@@ -269,7 +277,11 @@ std::size_t findClassicalTurningPoint(const double en,
 {
   const auto low = std::lower_bound(v.begin() + long(d_ctp + 1),
                                     v.begin() + long(pinf - d_ctp - 1), en);
-  return (std::size_t)(low - v.begin()) - 1;
+
+  const auto distance = std::distance(v.begin(), low);
+
+  return distance > 20 ? std::size_t(distance - 1) :
+                         std::size_t((pinf - d_ctp + 20) / 2);
 }
 
 //==============================================================================
@@ -278,7 +290,7 @@ int countNodes(const std::vector<double> &f, std::size_t pinf)
 {
   int counted_nodes = 0;
   for (std::size_t i = 2; i < pinf; ++i) {
-    if (f[i - 1] * f[i] < 0.0) { // ok if f[i]==0 ?? (-0<0?) XXX
+    if (f[i - 1] * f[i] < 0.0) {
       ++counted_nodes;
     }
   }

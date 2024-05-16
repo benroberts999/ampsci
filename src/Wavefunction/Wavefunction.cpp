@@ -664,34 +664,6 @@ void Wavefunction::fitSigma_hfBrueckner(
 }
 
 //==============================================================================
-void Wavefunction::SOEnergyShift() {
-  std::cout << "\nMBPT(2): Second-order valence energy shifts\n";
-  std::cout << "and matrix elements <v|Sigma(2)|v>:\n";
-
-  if (!m_Sigma) {
-    std::cout << "No Sigma?\n";
-    return;
-  }
-
-  double e0 = 0;
-  std::cout << "state |  E(HF)      E(2)       <v|S2|v> |  E(HF+2)     E(HF+2) "
-               " (cm^-1)\n";
-  for (const auto &v : m_valence) {
-    // XXX update to MBPT!
-    const auto delta = 0.0; // m_Sigma->Sigma_vw(v, v);
-    const auto delta2 = v * (*m_Sigma)(v);
-    const auto cm = PhysConst::Hartree_invcm;
-    if (e0 == 0)
-      e0 = (v.en() + delta);
-    printf("%6s| %9.6f  %+9.6f  %+9.6f | %9.6f = %8.1f  %7.1f\n",
-           v.symbol().c_str(), v.en(), delta, delta2, (v.en() + delta),
-           (v.en() + delta) * cm, (v.en() + delta - e0) * cm);
-    if (std::abs(delta / v.en()) > 0.2)
-      std::cout << "      *** Warning: delta too large?\n";
-  }
-}
-
-//==============================================================================
 std::vector<double> Wavefunction::vlocal(int l) const {
   return m_HF ? m_HF->vlocal(l) : m_vnuc;
 }

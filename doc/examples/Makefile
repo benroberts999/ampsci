@@ -35,6 +35,12 @@ PathForGSL=
 BLASLIB=blas
 
 ################################################################################
+# OpenMP library to use. -fopenmp default for GCC, -fopenmp=libomp for clang
+# libomp for clang++X requires package libomp-X-dev (e.g., X=15)
+OMPLIB=-fopenmp
+# OMPLIB=-fopenmp=libomp
+
+################################################################################
 ## If compiler cannot find correct libraries/headers, add the paths here.
 ## (Adds to -I and -L on compile and link; don't include the "-L" or "-I" here)
 ## Usually, these will be blank.

@@ -51,7 +51,10 @@ endif
 # -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF are from GSL
 
 # If not using openMP, turn off 'unkown pragmas' warning.
-OMP?=-fopenmp
+
+
+OMPLIB?=-fopenmp
+OMP?=$(OMPLIB)
 ifneq ($(UseOpenMP),true)
 ifneq ($(UseOpenMP),yes)
   OMP=

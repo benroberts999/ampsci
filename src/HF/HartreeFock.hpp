@@ -130,8 +130,8 @@ public:
   //! Solves HF equation (+ Sigma) for single valence state.
   EpsIts hf_valence(DiracSpinor &Fv,
                     const MBPT::CorrelationPotential *const Sigma = nullptr,
-                    std::optional<double> eta = {},
-                    std::optional<int> prev_its = {}) const;
+                    std::optional<double> eta = std::nullopt,
+                    std::optional<int> prev_its = std::nullopt) const;
 
   //! Calculates the HF core energy (not including Breit?)
   double calculateCoreEnergy() const;
@@ -178,7 +178,8 @@ public:
 
   //! Returns true if exchange not included
   bool excludeExchangeQ() const {
-    return !(m_method == Method::HartreeFock || m_method == Method::ApproxHF);
+    return m_core.empty() ||
+           !(m_method == Method::HartreeFock || m_method == Method::ApproxHF);
   }
 
   //! vector of core orbitals

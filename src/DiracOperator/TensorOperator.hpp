@@ -218,8 +218,9 @@ public:
   //! Returns "full" matrix element, for optional (ma, mb, q) [taken as int 2*].
   //! If not specified, returns z-component (q=0), with ma=mb=min(ja,jb)
   double fullME(const DiracSpinor &Fa, const DiracSpinor &Fb,
-                std::optional<int> two_ma = {}, std::optional<int> two_mb = {},
-                std::optional<int> two_q = {}) const;
+                std::optional<int> two_ma = std::nullopt,
+                std::optional<int> two_mb = std::nullopt,
+                std::optional<int> two_q = std::nullopt) const;
 };
 
 //============================================================================

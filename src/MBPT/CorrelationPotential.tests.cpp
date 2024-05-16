@@ -211,7 +211,7 @@ TEST_CASE("MBPT: CorrelationPotential", "[MBPT][CorrelationPotential][unit]") {
 
   REQUIRE(!SigmaG.empty());
 
-  std::string file_name = "deleteme_" + qip::random_string(6) + ".sig";
+  std::string file_name = "deleteme_" + qip::random_string(6) + ".sig.abf";
 
   // test write and read:
   SigmaG.write(file_name);
@@ -339,6 +339,9 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
   //----------------------------------------------------------------------------
   // Test Sigma:
   // Cs:
+
+  const auto fname = std::string{"deleteme_"} + qip::random_string(5);
+
   std::vector<double> first_run;
   { // Compare Dzuba, using up to l=6 for splines
     std::cout << "Test Sigma(2) Brueckner, for Cs:\n";
@@ -353,7 +356,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
     wf.solve_valence("7sp5d4f");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
     wf.formSigma(3, 3, 1.0e-4, 30.0, 14 /*stride*/, false, false, false, {}, {},
-                 {}, "false", "tst_sigma_deleteme");
+                 {}, "false", fname);
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence()) {
@@ -397,7 +400,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
     // wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
     // Don't calculate Sigma, read it in from above example:
     wf.formSigma(1, 1, 0.0, 0.0, 1 /*stride*/, false, false, false, {}, {}, {},
-                 "tst_sigma_deleteme", "false");
+                 fname, "false");
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence()) {
@@ -440,7 +443,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
     wf.solve_valence("7sp6d");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0, false});
     wf.formSigma(4, 4, 1.0e-4, 30.0, 12 /*stride*/, false, false, false, {}, {},
-                 {}, "false", "tst_sigma_deleteme");
+                 {}, "false", fname);
 
     std::vector<double> hf, br2;
     for (const auto &Fv : wf.valence()) {

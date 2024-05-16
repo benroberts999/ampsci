@@ -255,9 +255,6 @@ public:
   void fitSigma_hfBrueckner(const std::string &valence_list,
                             const std::vector<double> &fit_energies);
 
-  //! Second-order MBPT energy shifts, calculates + prints
-  void SOEnergyShift();
-
   //! OLD: deprecated
   void radiativePotential(QED::RadPot::Scale s, double rcut, double scale_rN,
                           const std::vector<double> &x_spd,

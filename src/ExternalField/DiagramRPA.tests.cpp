@@ -30,7 +30,7 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
   REQUIRE(F6s != nullptr);
   REQUIRE(F6p != nullptr);
 
-  const auto file_name = "deleteme-" + qip::random_string(4);
+  const auto file_name = "deleteme_" + qip::random_string(4);
   auto rpa = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.vHF(), file_name);
   rpa.solve_core(0.0, 20);
 
