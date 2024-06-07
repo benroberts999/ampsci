@@ -1,5 +1,7 @@
 #pragma once
+#include "IO/InputBlock.hpp"
 #include "NuclearData.hpp" //for Isotope
+#include <optional>
 #include <string>
 #include <vector>
 class Grid;
@@ -7,7 +9,7 @@ class Grid;
 namespace Nuclear {
 
 //! Nuclear charge distribution options
-enum class ChargeDistro { Fermi, spherical, point, Gaussian };
+enum class ChargeDistro { Fermi, spherical, point, Gaussian, Error };
 
 ChargeDistro parseType(const std::string &str_type);
 std::string parseType(ChargeDistro type);
@@ -16,17 +18,24 @@ std::string parseType(ChargeDistro type);
 
 //! Stores set of nuclear parameters (all radii in fm)
 class Nucleus {
+  // Isotope data
   Isotope m_iso;
+  // Charge distribution type
   Nuclear::ChargeDistro m_type;
+  // skin thickness parameter (in fm). Usually 2.3
   double m_t;
+  // Other parameters: not used for now
+  std::vector<double> m_params;
 
 public:
   Nucleus(int in_z = 1, int in_a = 0, const std::string &str_type = "Fermi",
-          double in_rrms = -1.0, double in_t = -1.0);
+          double in_rrms = -1.0, double in_t = -1.0,
+          const std::vector<double> &in_params = {});
 
   Nucleus(const std::string &z_str, int in_a,
           const std::string &str_type = "Fermi", double in_rrms = -1.0,
-          double in_t = Nuclear::default_t);
+          double in_t = Nuclear::default_t,
+          const std::vector<double> &in_params = {});
 
 public:
   ChargeDistro &type() { return m_type; }
@@ -35,11 +44,13 @@ public:
   int z() const { return m_iso.Z; };
   int &a() { return m_iso.A; };
   int a() const { return m_iso.A; };
-  // std::optional<double> &r_rms() { return m_iso.r_rms; };
+
+  const std::vector<double> &params() const { return m_params; };
+  std::vector<double> &params() { return m_params; };
 
   void set_rrms(double rrms) { m_iso.r_rms = rrms; }
-
   double r_rms() const { return m_iso.r_rms ? *m_iso.r_rms : 0.0; };
+
   double &t() { return m_t; };
   double t() const { return m_t; };
 
@@ -47,6 +58,10 @@ public:
 
   friend std::ostream &operator<<(std::ostream &ostr, const Nucleus &n);
 };
+
+//------------------------------------------------------------------------------
+Nucleus form_nucleus(int Z, std::optional<int> A = std::nullopt,
+                     IO::InputBlock input = {});
 
 //------------------------------------------------------------------------------
 

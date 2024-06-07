@@ -580,7 +580,9 @@ void dynamicPolarisability(const IO::InputBlock &input,
 
     if (do_tensor) {
       if (print) {
-        std::cout << "          " << "          " << " a2(w)    ";
+        std::cout << "          "
+                  << "          "
+                  << " a2(w)    ";
       }
       for (auto &a2 : a2s) {
         if (print)

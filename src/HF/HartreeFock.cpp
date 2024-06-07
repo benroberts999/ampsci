@@ -916,8 +916,8 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         for (std::size_t i = 0; i < irmax; i++) {
           vex_a[i] += Labk * (*vabk)[i] * v_Fab[i];
         } // r
-      } // k
-    } // b
+      }   // k
+    }     // b
   }
 
   // now, do a=b, ONLY if a is in the core!
@@ -940,7 +940,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         vex_a[i] += -Labk * (*vaak)[i] * x_tjap1;
       }
     } // k
-  } // if a in core
+  }   // if a in core
 }
 
 //------------------------------------------------------------------------------
@@ -999,8 +999,8 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
           continue;
         vex[i] += tjs2 * vabk[i] * v_Fab[i];
       } // r
-    } // k
-  } // b
+    }   // k
+  }     // b
 
   return vex;
 }

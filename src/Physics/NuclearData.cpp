@@ -77,7 +77,7 @@ double c_hdr_formula_rrms_t(double rrms, double t)
 {
   const double a = t / FourLn3;
   return (rrms < t) ?
-             std::sqrt((5.0 / 3.0) * rrms * rrms)
+             std::sqrt(5.0 / 3.0) * rrms
              // this is little dodgy? but formula prob  only works large A
              :
              std::sqrt((5.0 / 3.0) * rrms * rrms - (7.0 / 3.0) * (Pi2 * a * a));

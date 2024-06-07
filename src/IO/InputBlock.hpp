@@ -218,6 +218,26 @@ public:
   getBlock(std::initializer_list<std::string> blocks,
            std::string_view name) const;
 
+  //! If block is present, returns a copy of it. If not, returns empty block
+  inline InputBlock get_block(std::string_view name) const {
+    auto temp = getBlock(name);
+    if (temp)
+      return *temp;
+    return InputBlock{};
+  }
+
+  //! Checks if block 'name' is present in current block
+  bool has_block(std::string_view name) const {
+    auto temp = getBlock(name);
+    return temp != std::nullopt;
+  }
+  //! Checks if block 'name' is present in nesteded block
+  bool has_block(std::initializer_list<std::string> blocks,
+                 std::string_view name) const {
+    auto temp = getBlock(blocks, name);
+    return temp != std::nullopt;
+  }
+
   //! Get an 'Option' (kay, value) - rarely needed
   inline std::optional<Option> getOption(std::string_view key) const;
 

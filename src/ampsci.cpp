@@ -281,7 +281,7 @@ void ampsci(const IO::InputBlock &input) {
     input.print();
   }
 
-  // Top-level input blocks
+  // Check Top-level input blocks
   input.check(
       {{"", "These are the top-level ampsci input blocks and options. Default "
             "values are given in square brackets following the description: "
@@ -303,6 +303,7 @@ void ampsci(const IO::InputBlock &input) {
        {"Module::*{}", "Run any number of modules (* -> module name). `ampsci "
                        "-m` to see available modules"}});
 
+  //----------------------------------------------------------------------------
   // Atom: Get + setup atom parameters
   input.check(
       {"Atom"},
@@ -317,53 +318,28 @@ void ampsci(const IO::InputBlock &input) {
        {"run_label", "Optional label for output identity - for distinguishing "
                      "outputs with different parameters"}});
 
-  const auto atom_Z = AtomData::atomic_Z(input.get({"Atom"}, "Z", "H"s));
-  const auto atom_A = input.get({"Atom"}, "A", AtomData::defaultA(atom_Z));
+  const auto atom_block = input.get_block("Atom");
+
+  // Z is taken as a string, so can write "Cs" or "55"
+  const auto atom_Z = AtomData::atomic_Z(atom_block.get("Z", "H"s));
+  // A: is a "std::optional<int>" (if blank, nucleus will use default value)
+  const auto atom_A = atom_block.get<int>("A");
+
+  // Variation of fine structure constant
   const auto var_alpha = [&]() {
-    const auto varAlpha2 = input.get({"Atom"}, "varAlpha2", 1.0);
+    const auto varAlpha2 = atom_block.get("varAlpha2", 1.0);
     // cannot explicitely set alpha to zero - so make it very small
     return (varAlpha2 > 0.0) ? std::sqrt(varAlpha2) : 1.0e-25;
   }();
-  const auto run_label = input.get({"Atom"}, "run_label", ""s);
+  const auto run_label = atom_block.get("run_label", ""s);
 
-  // Nucleus: Get + setup nuclear parameters
-  input.check({"Nucleus"},
-              {{"", "Options for nuclear potential (finite nuclear size). All "
-                    "are optional. Default is a Fermi-like nucleus, with "
-                    "parameters chosen according to isotope (see Atom{A;})"},
-               {"rrms", "Root-mean-square charge radius, in fm "
-                        "[default depends on Z and A]"},
-               {"c", "Half-density radius, in fm (will over-ride rms) [default "
-                     "depends on Z and A]"},
-               {"t", "Nuclear skin thickness, in fm [2.3]"},
-               {"type", "Fermi, spherical, pointlike, Gaussian [Fermi]"}});
+  //----------------------------------------------------------------------------
+  // Nucleus: parse nuclear options
+  const auto nucleus_options = input.get_block("Nucleus");
 
-  // Set nuclear type. If given
-  const auto nuc_type = input.get({"Nucleus"}, "type", "Fermi"s);
-  // Get default nucleus:
-  auto nucleus = Nuclear::Nucleus{atom_Z, atom_A, nuc_type};
-  // over-ride default options
-  const auto rrms = input.get<double>({"Nucleus"}, "rrms");
-  const auto t = input.get<double>({"Nucleus"}, "t");
-  const auto c_hdr = input.get<double>({"Nucleus"}, "c");
-  if (t) {
-    nucleus.t() = *t;
-  }
-  if (rrms) {
-    nucleus.set_rrms(*rrms);
-  }
-  if (c_hdr) {
-    // this will over-ride given rms
-    nucleus.set_rrms(Nuclear::rrms_formula_c_t(*c_hdr, nucleus.t()));
-  }
-  // If A or given rrms are zero, explicitely set to pointlike nucleus
-  // This isn't required, but makes output more explicit
-  if (nucleus.a() == 0.0 || nucleus.r_rms() == 0.0) {
-    nucleus.t() = 0.0;
-    nucleus.set_rrms(0.0);
-    nucleus.type() = Nuclear::ChargeDistro::point;
-  }
+  const auto nucleus = Nuclear::form_nucleus(atom_Z, atom_A, nucleus_options);
 
+  //----------------------------------------------------------------------------
   // Grid: Get + setup grid parameters
   input.check(
       {"Grid"},
@@ -393,6 +369,7 @@ void ampsci(const IO::InputBlock &input) {
   const auto radial_grid = std::make_shared<const Grid>(
       GridParameters{num_points, r0, rmax, b, grid_type, du ? *du : 0});
 
+  //----------------------------------------------------------------------------
   // Create wavefunction object
   Wavefunction wf(radial_grid, std::move(nucleus), var_alpha, run_label);
 
@@ -412,6 +389,7 @@ void ampsci(const IO::InputBlock &input) {
               << "========================================================\n";
   }
 
+  //----------------------------------------------------------------------------
   // Parse input for Hartree-Fock
   input.check(
       {"HartreeFock"},
@@ -451,6 +429,7 @@ void ampsci(const IO::InputBlock &input) {
     wf.radiativePotential(*qed_input, true, true);
   }
 
+  //----------------------------------------------------------------------------
   // Inlcude extra potential. Either read in from text file.
   // or "polarisation operator": V(r) = -0.5/(r^4 + r_cut^4)
   // Note: If read in, it is interpolated onto grid, but NOT extrapolated
@@ -492,6 +471,9 @@ void ampsci(const IO::InputBlock &input) {
     }
   }
 
+  //----------------------------------------------------------------------------
+  //----------------------------------------------------------------------------
+
   // Solve Hartree equations for the core:
   wf.solve_core(true);
 
@@ -506,6 +488,8 @@ void ampsci(const IO::InputBlock &input) {
 
     wf.printValence();
   }
+
+  //----------------------------------------------------------------------------
 
   // Construct B-spline basis:
   input.check(
@@ -530,6 +514,8 @@ void ampsci(const IO::InputBlock &input) {
       wf.printBasis(wf.basis());
     }
   }
+
+  //----------------------------------------------------------------------------
 
   // Correlations: read in options
   // This is a mess - will re-do correlations part
@@ -677,6 +663,8 @@ void ampsci(const IO::InputBlock &input) {
     wf.printValence();
   }
 
+  //----------------------------------------------------------------------------
+
   // Construct B-spline Spectrum:
   input.check({"Spectrum"},
               {{"", "Options for 'spectrum', Spectrum is the same as 'Basis', "
@@ -702,6 +690,8 @@ void ampsci(const IO::InputBlock &input) {
       wf.printBasis(wf.spectrum());
     }
   }
+
+  //----------------------------------------------------------------------------
 
   const auto CI_in = input.getBlock("CI");
   if (CI_in) {

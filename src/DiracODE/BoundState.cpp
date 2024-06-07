@@ -280,8 +280,7 @@ std::size_t findClassicalTurningPoint(const double en,
 
   const auto distance = std::distance(v.begin(), low);
 
-  return distance > 20 ? std::size_t(distance - 1) :
-                         std::size_t((pinf - d_ctp + 20) / 2);
+  return distance > 20 ? std::size_t(distance - 1) : ((pinf - d_ctp + 20) / 2);
 }
 
 //==============================================================================

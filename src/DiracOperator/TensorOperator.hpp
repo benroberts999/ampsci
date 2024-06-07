@@ -152,7 +152,7 @@ public:
   }
 
   //! Update frequency for frequency-dependant operators.
-  virtual void updateFrequency(const double) {};
+  virtual void updateFrequency(const double){};
 
   //! Returns a const ref to vector v
   const std::vector<double> &getv() const { return m_vec; }

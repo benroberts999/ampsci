@@ -6,6 +6,7 @@
 #include "Physics/NuclearData.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "qip/String.hpp"
+#include "qip/Vector.hpp"
 #include <cmath>
 #include <gsl/gsl_sf_fermi_dirac.h>
 #include <iostream>
@@ -19,17 +20,28 @@ ChargeDistro parseType(const std::string &str_type) {
   if (qip::ci_wc_compare(str_type, "fermi"))
     return ChargeDistro::Fermi;
   if (qip::ci_wc_compare(str_type, "spher*") ||
-      qip::ci_wc_compare(str_type, "ball"))
+      qip::ci_wc_compare(str_type, "ball") ||
+      qip::ci_wc_compare(str_type, "uniform"))
     return ChargeDistro::spherical;
-  if (qip::ci_wc_compare(str_type, "point*"))
+  if (qip::ci_wc_compare(str_type, "point*") ||
+      qip::ci_wc_compare(str_type, "zero*"))
     return ChargeDistro::point;
   if (qip::ci_wc_compare(str_type, "gaus*"))
     return ChargeDistro::Gaussian;
-  std::cout << "\n!!  WARNING: Unkown nucleus type: " << str_type
-            << "; defaulting to Fermi\n"
-            << "Options are: Fermi, spherical, pointlike, Gaussian\n\n";
-  return ChargeDistro::Fermi;
+  std::cout << "\n!!  WARNING: Unkown nucleus type: " << str_type << "\n";
+
+  // spelling suggestions:
+  std::cout << "Did you mean: "
+            << *qip::ci_closest_match(str_type, {"Fermi", "spherical", "ball",
+                                                 "pointlike", "Gaussian"})
+            << " ?\n ";
+  std::cout << "Options are: Fermi, spherical (or ball, uniform), pointlike, "
+               "Gaussian\n\n";
+
+  return ChargeDistro::Error;
 }
+
+//------------------------------------------------------------------------------
 std::string parseType(ChargeDistro type) {
   if (type == ChargeDistro::Fermi)
     return "Fermi";
@@ -39,15 +51,16 @@ std::string parseType(ChargeDistro type) {
     return "pointlike";
   if (type == ChargeDistro::Gaussian)
     return "Gaussian";
-  return "Fermi";
+  return "Error";
 }
 
 //==============================================================================
 Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
-                 double tt)
+                 double tt, const std::vector<double> &in_params)
     : m_iso(findIsotopeData(tz, ta < 0 ? AtomData::defaultA(tz) : ta)),
       m_type(parseType(str_type)),
-      m_t(tt) {
+      m_t(tt),
+      m_params(in_params) {
 
   if (m_type != ChargeDistro::Fermi)
     m_t = 0.0;
@@ -72,8 +85,10 @@ Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
 }
 
 Nucleus::Nucleus(const std::string &z_str, int in_a,
-                 const std::string &str_type, double in_rrms, double in_t)
-    : Nucleus(AtomData::atomic_Z(z_str), in_a, str_type, in_rrms, in_t) {}
+                 const std::string &str_type, double in_rrms, double in_t,
+                 const std::vector<double> &in_params)
+    : Nucleus(AtomData::atomic_Z(z_str), in_a, str_type, in_rrms, in_t,
+              in_params) {}
 
 //==============================================================================
 std::ostream &operator<<(std::ostream &ostr, const Nucleus &n) {
@@ -100,8 +115,76 @@ std::ostream &operator<<(std::ostream &ostr, const Nucleus &n) {
          << ", c_hdr = " << Nuclear::c_hdr_formula_rrms_t(rrms, tt)
          << ", t = " << tt;
     break;
+  default:
+    ostr << "Invalid nucleus type?";
   }
+
+  if (!n.params().empty()) {
+    ostr << " (parameters: ";
+    for (auto p : n.params())
+      ostr << p << ", ";
+    ostr << ")";
+  }
+
   return ostr;
+}
+
+//==============================================================================
+Nucleus form_nucleus(int Z, std::optional<int> tA, IO::InputBlock input) {
+
+  // Nucleus: Get + setup nuclear parameters
+
+  input.check(
+      {{"", "Options for nuclear potential (finite nuclear size). All "
+            "are optional. Default is a Fermi-like nucleus, with "
+            "parameters chosen according to isotope (see Atom{A;})"},
+       {"rrms", "Root-mean-square charge radius, in fm. If not given, will use "
+                "default for given Z,A."},
+       {"c", "Half-density radius, in fm. ( If c and rrms are defined, c will "
+             "over-ride rms). Default "
+             "depends on Z and A."},
+       {"t", "Nuclear skin thickness, in fm [2.3]"},
+       {"type", "Fermi, spherical, pointlike, Gaussian [Fermi]"},
+       {"parameters",
+        "List of comma separated real numbers. Not currently unsed, but may "
+        "be used in futur for more complicated nuclear distros."}});
+
+  using namespace std::string_literals;
+  // Set nuclear type if given
+  const auto nuc_type = input.get("type", "Fermi"s);
+
+  // Use A. If not given, find default for Z
+  const auto A = tA ? *tA : AtomData::defaultA(Z);
+
+  // Get default nucleus:
+  auto nucleus = Nuclear::Nucleus{Z, A, nuc_type};
+
+  // over-ride default options if given
+  const auto rrms = input.get<double>("rrms");
+  const auto t = input.get<double>("t");
+  const auto c_hdr = input.get<double>("c");
+  if (t) {
+    nucleus.t() = *t;
+  }
+  if (rrms) {
+    nucleus.set_rrms(*rrms);
+  }
+  if (c_hdr) {
+    // this will over-ride given rms
+    nucleus.set_rrms(Nuclear::rrms_formula_c_t(*c_hdr, nucleus.t()));
+  }
+
+  // Set "extra" parameters (not currently used)
+  nucleus.params() = input.get<std::vector<double>>("parameters", {});
+
+  // If A or given rrms are zero, explicitely set to pointlike nucleus
+  // This isn't required, but makes output more explicit
+  if (nucleus.a() == 0.0 || nucleus.r_rms() == 0.0) {
+    nucleus.t() = 0.0;
+    nucleus.set_rrms(0.0);
+    nucleus.type() = Nuclear::ChargeDistro::point;
+  }
+  return nucleus;
 }
 
 //==============================================================================
@@ -221,9 +304,11 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
       NumCalc::integrate(grid.du(), 0, 0, grid.r(), grid.r(), rho,
                          grid.drdu()) *
       4.0 * M_PI;
+
   const double rho0 = Z_norm / volume_integral;
-  for (auto &rhoi : rho)
-    rhoi *= rho0;
+
+  using namespace qip::overloads;
+  rho *= rho0;
 
   return rho;
 }
@@ -234,6 +319,9 @@ std::vector<double> formPotential(const Nucleus &nuc,
   const auto z = nuc.z();
   const auto r_rms = nuc.r_rms();
   const auto t = nuc.t();
+
+  // const auto params = nuc.params(); // not used as yet
+
   const auto nucleus_type =
       r_rms > 0.0 ? nuc.type() : Nuclear::ChargeDistro::point;
 
@@ -243,18 +331,26 @@ std::vector<double> formPotential(const Nucleus &nuc,
     const auto chdr = Nuclear::c_hdr_formula_rrms_t(r_rms, t);
     return Nuclear::fermiNuclearPotential(z, t, chdr, r);
   }
+
   case Nuclear::ChargeDistro::spherical: {
-    const auto r_n = Nuclear::c_hdr_formula_rrms_t(r_rms, 0.0); // right?
+    const auto r_n = std::sqrt(5.0 / 3.0) * r_rms;
     return Nuclear::sphericalNuclearPotential(z, r_n, r);
   }
-  case Nuclear::ChargeDistro::point:
-    return Nuclear::sphericalNuclearPotential(z, 0.0, r);
-  case Nuclear::ChargeDistro::Gaussian:
-    return Nuclear::GaussianNuclearPotential(z, r_rms, r);
 
-  default:
-    std::cerr << "\nFAIL Nuclear:266 - invalid nucleus type?\n";
+  case Nuclear::ChargeDistro::point: {
+    // return Nuclear::sphericalNuclearPotential(z, 0.0, r);
+    using namespace qip::overloads;
+    return -z / r;
+  }
+
+  case Nuclear::ChargeDistro::Gaussian: {
+    return Nuclear::GaussianNuclearPotential(z, r_rms, r);
+  }
+
+  default: {
+    std::cout << "\nFAIL Nuclear:266 - invalid nucleus type?\n";
     std::abort();
+  }
   }
 }
 

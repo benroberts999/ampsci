@@ -454,6 +454,15 @@ std::vector<T> operator/(std::vector<T> v, U x) {
   return v /= x;
 }
 
+// Provide scalar devision, vector in denominator
+template <typename T, typename U>
+std::vector<T> operator/(U x, std::vector<T> v) {
+  for (auto &v_i : v) {
+    v_i = x / v_i;
+  }
+  return v;
+}
+
 //! In-place element-wise multiplication: a*=b => a_i := a_i * b_i
 template <typename T>
 std::vector<T> &operator*=(std::vector<T> &a, const std::vector<T> &b) {
