@@ -14,8 +14,7 @@
 #define GSL_VERSION_1
 #endif
 // GSL 2.8 introduces substantial changes to bspline library.
-// Minor workaround in the meantime.
-#if GSL_MAJOR_VERSION == 2 && GSL_MINOR_VERSION < 8
+#if GSL_MAJOR_VERSION <= 2 && GSL_MINOR_VERSION < 8
 #define GSL_VERSION_PRIOR_2_8
 #endif
 #endif
@@ -71,8 +70,15 @@ public:
 
     set_knots(x0, xmax, n_break, kd);
 
-    // Consistancy check;
+    // Consistancy check:
+#ifdef GSL_VERSION_PRIOR_2_8
+    // gsl_bspline_ncoeffs will be deprecated in future GSL
     assert(gsl_bspline_ncoeffs(gsl_bspl_work) == m_N);
+#else
+    assert(gsl_bspline_ncontrol(gsl_bspl_work) == m_N);
+#endif
+    assert(gsl_bspline_order(gsl_bspl_work) == m_K);
+    assert(gsl_bspline_nbreak(gsl_bspl_work) == n_break);
   }
 
   // delete copy assignment (no simple way to copy gsl_bspl_work)
@@ -114,7 +120,13 @@ public:
     std::vector<double> b(m_N);
     gsl_vector_view b_gsl = gsl_vector_view_array(b.data(), b.size());
     if (x >= 0.0 && x <= m_xmax) {
+
+#ifdef GSL_VERSION_PRIOR_2_8
+      // gsl_bspline_eval will be deprecated in future GSL
       gsl_bspline_eval(x, &b_gsl.vector, gsl_bspl_work);
+#else
+      gsl_bspline_eval_basis(x, &b_gsl.vector, gsl_bspl_work);
+#endif
     }
     return b;
   }
@@ -133,28 +145,28 @@ public:
   std::pair<std::size_t, LinAlg::Matrix<double>>
   get_nonzero(double x, std::size_t n_deriv) {
     std::pair<std::size_t, LinAlg::Matrix<double>> out{0, {m_K, n_deriv + 1}};
-    auto &i0 = out.first;
-    auto &bij = out.second;
-
-    i0 = find_i0(x);
 
     if (x >= 0.0 && x <= m_xmax) {
       // outside this range, spline set to zero by default. Invalid to call
       // gsl_bspline_deriv_eval_nonzero() outside spline range
-      auto i_end = i0 + m_K - 1;
+
+      auto &i0 = out.first;
+      auto &bij = out.second;
       gsl_matrix_view b_gsl = bij.as_gsl_view();
+
 #ifdef GSL_VERSION_1
-      // Worskspace used by old version of GSL library
+      size_t i_end{};
       gsl_bspline_deriv_eval_nonzero(x, n_deriv, &b_gsl.matrix, &i0, &i_end,
-                                      gsl_bspl_work, gsl_bspl_deriv_work);
+                                     gsl_bspl_work, gsl_bspl_deriv_work);
 #elif defined GSL_VERSION_PRIOR_2_8
+      size_t i_end{};
       gsl_bspline_deriv_eval_nonzero(x, n_deriv, &b_gsl.matrix, &i0, &i_end,
-                                      gsl_bspl_work);
+                                     gsl_bspl_work);
 #else
-      gsl_bspline_basis_deriv(x, n_deriv, &b_gsl.matrix, &i0,
-                                      gsl_bspl_work);
+      gsl_bspline_basis_deriv(x, n_deriv, &b_gsl.matrix, &i0, gsl_bspl_work);
 #endif
     }
+
     return out;
   }
 
@@ -197,7 +209,13 @@ private:
     breaks.insert(breaks.begin(), 0.0);
 
     auto gsl_break_vec = gsl_vector_view_array(breaks.data(), breaks.size());
+
+#ifdef GSL_VERSION_PRIOR_2_8
+    // gsl_bspline_knots will be deprecated in future GSL
     gsl_bspline_knots(&gsl_break_vec.vector, gsl_bspl_work);
+#else
+    gsl_bspline_init_augment(&gsl_break_vec.vector, gsl_bspl_work);
+#endif
   }
 };
 

@@ -19,6 +19,7 @@
 * LAPACK and BLAS libraries [netlib.org/lapack/](http://www.netlib.org/lapack/)
 * GSL (GNU scientific libraries) [gnu.org/software/gsl/](https://www.gnu.org/software/gsl/) [version 2.0 or newer*]
   * (it _should_ also work with older versions of GSL, but this is not regularly tested and therefore not guaranteed)
+  * Updated to work with newer GSL version 2.8; still works with older versions too
 * [optional] GNU Make ([gnu.org/software/make/](https://www.gnu.org/software/make/)) - used to compile code
 * [optional] OpenMP ([openmp.org/](https://www.openmp.org/)) - used for parallelisation
 * [optional] git ([git-scm.com/](https://git-scm.com/)) for version tracking and to keep up-to-date with latest version

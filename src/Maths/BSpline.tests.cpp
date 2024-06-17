@@ -87,8 +87,6 @@ TEST_CASE("Bspline", "[BSpline][unit]") {
     }
   }
 
-  // pass &= qip::check_value(&obuff, "Spline i0", int(max_deli), 0, 0);
-  // pass &= qip::check_value(&obuff, "Spline values", max_eps, 0.0, 1.0e-5);
   REQUIRE(max_deli == 0);
   REQUIRE(std::abs(max_eps) < 1.0e-5);
 
@@ -105,7 +103,6 @@ TEST_CASE("Bspline", "[BSpline][unit]") {
       }
       delta += std::abs(1.0 - sum);
     }
-    // pass &= qip::check_value(&obuff, "Spline Sum", delta, 0.0, 1.0e-14);
     REQUIRE(std::abs(delta) < 1.0e-14);
   }
   { // Check that the splines sum to 1
@@ -120,7 +117,6 @@ TEST_CASE("Bspline", "[BSpline][unit]") {
       }
       delta += std::abs(1.0 - sum);
     }
-    // pass &= qip::check_value(&obuff, "Spline Sum LL", delta, 0.0, 1.0e-14);
     REQUIRE(std::abs(delta) < 1.0e-14);
   }
 }
