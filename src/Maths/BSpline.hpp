@@ -13,6 +13,11 @@
 #if GSL_MAJOR_VERSION == 1
 #define GSL_VERSION_1
 #endif
+// GSL 2.8 introduces substantial changes to bspline library.
+// Minor workaround in the meantime.
+#if GSL_MAJOR_VERSION == 2 && GSL_MINOR_VERSION < 8
+#define GSL_VERSION_PRIOR_2_8
+#endif
 #endif
 
 /*!
@@ -141,10 +146,13 @@ public:
 #ifdef GSL_VERSION_1
       // Worskspace used by old version of GSL library
       gsl_bspline_deriv_eval_nonzero(x, n_deriv, &b_gsl.matrix, &i0, &i_end,
-                                     gsl_bspl_work, gsl_bspl_deriv_work);
-#else
+                                      gsl_bspl_work, gsl_bspl_deriv_work);
+#elif defined GSL_VERSION_PRIOR_2_8
       gsl_bspline_deriv_eval_nonzero(x, n_deriv, &b_gsl.matrix, &i0, &i_end,
-                                     gsl_bspl_work);
+                                      gsl_bspl_work);
+#else
+      gsl_bspline_basis_deriv(x, n_deriv, &b_gsl.matrix, &i0,
+                                      gsl_bspl_work);
 #endif
     }
     return out;
