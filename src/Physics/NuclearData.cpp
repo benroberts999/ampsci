@@ -93,6 +93,14 @@ double rrms_formula_c_t(double c, double t)
   return std::sqrt((3.0 / 5.0) * c * c + (7.0 / 5.0) * a * a * Pi2);
 }
 
+double deformation_effective_t(double c, double t, double beta)
+// Nuclear quadrupole deformation is approximately equivalent
+// to change in skin thickness (see, e.g., Eq. 8 10.1103/PhysRevA.100.032511)
+{
+  const double sqrt_delta_t = FourLn3 * c * beta;
+  return std::sqrt(t * t + 3.0 / (4.0 * M_PI * M_PI * M_PI) * sqrt_delta_t * sqrt_delta_t);
+}
+
 //==============================================================================
 
 double approximate_t_skin(int) { return default_t; }
