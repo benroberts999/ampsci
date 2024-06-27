@@ -7,7 +7,7 @@
 #include "Modules/VQE.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
-#include "Modules/isotopeShift.hpp"
+#include "Modules/fieldShift.hpp"
 #include "Modules/ladder.hpp"
 #include "Modules/lifetimes.hpp"
 #include "Modules/matrixElements.hpp"
