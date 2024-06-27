@@ -24,8 +24,10 @@ class Nucleus {
   Nuclear::ChargeDistro m_type;
   // skin thickness parameter (in fm). Usually 2.3
   double m_t;
+  // Deformation parameter beta. Usually 0.
+  double m_beta;
   // Name of input file used to read in custom nuclear potential
-  std::string m_potential_if_name;
+  std::string m_custom_pot_file_name;
   // Other parameters: not used for now
   std::vector<double> m_params;
 
@@ -33,13 +35,13 @@ public:
   Nucleus(int in_z = 1, int in_a = 0, const std::string &str_type = "Fermi",
           double in_rrms = -1.0, double in_t = -1.0,
           const std::vector<double> &in_params = {},
-          const std::string & potential_if_name = "");
+          const std::string & custom_pot_file_name = "");
 
   Nucleus(const std::string &z_str, int in_a,
           const std::string &str_type = "Fermi", double in_rrms = -1.0,
           double in_t = Nuclear::default_t,
           const std::vector<double> &in_params = {},
-          const std::string & potential_if_name = "");
+          const std::string & custom_pot_file_name = "");
 
 public:
   ChargeDistro &type() { return m_type; }
@@ -58,8 +60,11 @@ public:
   double &t() { return m_t; };
   double t() const { return m_t; };
 
-  void set_potential_if_name(const std::string& name) { m_potential_if_name = name; };
-  std::string potential_if_name() const {return m_potential_if_name; };
+  double &beta() { return m_beta; };
+  double beta() const { return m_beta; };
+
+  std::string& custom_pot_file() { return m_custom_pot_file_name; };
+  std::string custom_pot_file() const {return m_custom_pot_file_name; };
 
   double c() const { return c_hdr_formula_rrms_t(r_rms(), m_t); }
 
