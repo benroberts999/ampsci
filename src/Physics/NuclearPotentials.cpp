@@ -30,7 +30,7 @@ ChargeDistro parseType(const std::string &str_type) {
     return ChargeDistro::Gaussian;
   if (qip::ci_wc_compare(str_type, "custom"))
     return ChargeDistro::custom;
-  std::cout << "\n!!  WARNING: Unkown nucleus type: " << str_type << "\n";
+  std::cout << "\n!!  WARNING: Unknown nucleus type: " << str_type << "\n";
 
   // spelling suggestions:
   std::cout << "Did you mean: "
@@ -65,8 +65,8 @@ Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
     : m_iso(findIsotopeData(tz, ta < 0 ? AtomData::defaultA(tz) : ta)),
       m_type(parseType(str_type)),
       m_t(tt),
-      m_params(in_params),
-      m_custom_pot_file_name(custom_pot_file_name) {
+      m_custom_pot_file_name(custom_pot_file_name),
+      m_params(in_params) {
 
   if (m_type != ChargeDistro::Fermi)
     m_t = 0.0;
