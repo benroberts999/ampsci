@@ -65,6 +65,7 @@ Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
     : m_iso(findIsotopeData(tz, ta < 0 ? AtomData::defaultA(tz) : ta)),
       m_type(parseType(str_type)),
       m_t(tt),
+      m_beta(0.0),
       m_custom_pot_file_name(custom_pot_file_name),
       m_params(in_params) {
 
