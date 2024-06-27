@@ -60,12 +60,12 @@ std::string parseType(ChargeDistro type) {
 
 //==============================================================================
 Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
-                 double tt, const std::vector<double> &in_params,
+                 double tt, double in_beta, const std::vector<double> &in_params,
                  const std::string & custom_pot_file_name)
     : m_iso(findIsotopeData(tz, ta < 0 ? AtomData::defaultA(tz) : ta)),
       m_type(parseType(str_type)),
       m_t(tt),
-      m_beta(0.0),
+      m_beta(in_beta),
       m_custom_pot_file_name(custom_pot_file_name),
       m_params(in_params) {
 
@@ -92,10 +92,10 @@ Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
 }
 
 Nucleus::Nucleus(const std::string &z_str, int in_a,
-                 const std::string &str_type, double in_rrms, double in_t,
+                 const std::string &str_type, double in_rrms, double in_t, double in_beta,
                  const std::vector<double> &in_params,
                  const std::string & custom_pot_file_name)
-    : Nucleus(AtomData::atomic_Z(z_str), in_a, str_type, in_rrms, in_t,
+    : Nucleus(AtomData::atomic_Z(z_str), in_a, str_type, in_rrms, in_t, in_beta,
               in_params, custom_pot_file_name) {}
 
 //==============================================================================
