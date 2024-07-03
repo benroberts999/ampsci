@@ -7,6 +7,7 @@
 #include "Operators/hfs.hpp"
 #include "Operators/jls.hpp"
 #include "Operators/p.hpp"
+#include "Operators/fieldshift.hpp"
 
 namespace DiracOperator {
 
@@ -29,7 +30,8 @@ static const std::vector<std::pair<
                   {"dr", &generate_dr},
                   {"p", &generate_p},
                   {"l", &generate_l},
-                  {"s", &generate_s}};
+                  {"s", &generate_s},
+                  {"fieldshift", &generate_fieldshift}};
 
 //--------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>

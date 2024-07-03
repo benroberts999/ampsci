@@ -9,4 +9,5 @@
 #include "DiracOperator/Operators/jL.hpp"
 #include "DiracOperator/Operators/jls.hpp"
 #include "DiracOperator/Operators/p.hpp"
+#include "DiracOperator/Operators/fieldshift.hpp"
 #include "DiracOperator/TensorOperator.hpp"
