@@ -1,5 +1,7 @@
 #include "Physics/NuclearPotentials.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "Maths/Grid.hpp"
+#include "Maths/Interpolator.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "NuclearData.hpp" //for Isotope
 #include "Physics/AtomData.hpp"
@@ -166,7 +168,7 @@ Nucleus form_nucleus(int Z, std::optional<int> tA, IO::InputBlock input) {
        {"t", "Nuclear skin thickness, in fm [2.3]"},
        {"beta", "Intrinsic nuclear quadrupole deformation parameter \u03b2 "
             "(Currently only for Fermi potential) [0.0]"},
-       {"input_file", "Input text file containing nuclear potential grid values to use."},
+       {"input_file", "Read potential from given file of the form (r v(r)) - will be interpolated."},
        {"parameters",
         "List of comma separated real numbers. Not currently unused, but may "
         "be used in future for more complicated nuclear distros."}});
@@ -346,31 +348,6 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
   return rho;
 }
 
-std::vector<double> readCustomNuclearPotential(const std::string& if_name, std::size_t rgrid_size)
-{
-  std::vector<double> vnuc;
-  vnuc.reserve(rgrid_size);
-  
-  std::ifstream potential_fstream;
-  potential_fstream.open(if_name);
-  double current_value = 0.0;
-
-  // Consistency check to ensure the potential grid has the same number of points as the radial grid.
-  std::size_t number_lines = 0;
-  while (potential_fstream >> current_value) {
-      vnuc.push_back(current_value);
-      ++number_lines;
-  }
-
-  if(number_lines != rgrid_size) {
-    std::cout << "Error: provided nuclear potential file: \"" << if_name << "\" has incompatible size"
-              << " (expected " << rgrid_size << ", got " << number_lines << ").";
-    std::abort();
-  }
-
-  return vnuc;
-}
-
 //==============================================================================
 std::vector<double> formPotential(const Nucleus &nuc,
                                   const std::vector<double> &r) {
@@ -407,7 +384,14 @@ std::vector<double> formPotential(const Nucleus &nuc,
   }
 
   case Nuclear::ChargeDistro::custom: {
-    return Nuclear::readCustomNuclearPotential(nuc.custom_pot_file(), r.size());
+      const auto &[x, y] = IO::FRW::readFile_xy_PoV(nuc.custom_pot_file());
+
+      if (x.size() == y.size() && x.size() > 1) {
+      return Interpolator::interpolate(x, y, r);
+      } else {
+        std::cout << "\nError 391: Bad file - invalid custom nuclear potential.";
+        std::abort();
+      }
   }
 
   default: {

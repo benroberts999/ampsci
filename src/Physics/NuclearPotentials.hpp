@@ -97,9 +97,6 @@ fermiNuclearPotential(double Z, double t, double c,
 [[nodiscard]] std::vector<double>
 fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid);
 
-[[nodiscard]] std::vector<double>
-readCustomNuclearPotential(const std::string& if_name, std::size_t rgrid_size);
-
 //! Calls one of the above, depending on params. Fills V(r), given r
 [[nodiscard]] std::vector<double> formPotential(const Nucleus &nucleus,
                                                 const std::vector<double> &r);
