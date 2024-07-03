@@ -8,7 +8,6 @@ class InputBlock;
 
 namespace Module {
 
-//! Calculates field shift: F = d(E)/d(<r^2>)
-void fieldShift(const IO::InputBlock &input, const Wavefunction &wf);
+void IsotopeShift(const IO::InputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

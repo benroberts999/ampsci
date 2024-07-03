@@ -18,6 +18,7 @@
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
 #include "Modules/thirdOrder.hpp"
+#include "Modules/isotopeShift.hpp"
 
 #include <iostream>
 #include <string>
@@ -74,6 +75,8 @@ static const std::vector<ModuleInfo> module_list{
     {"pnc", &calculatePNC, "Calculates APV amplitudes"},
     {"muonPV", &muonPV, "For testing/playing with muonic PV"},
     {"VQE", &VQE, "For testing/playing with VQE method"},
+    {"IsotopeShift", &IsotopeShift,
+     "Compute field isotopic shift using RPA (TDHF/Basis)"},
 
     {"exampleModule", &exampleModule, "A short description of the module"}};
 

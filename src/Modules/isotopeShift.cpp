@@ -1,100 +1,104 @@
 #include "Modules/isotopeShift.hpp"
-#include "DiracOperator/DiracOperator.hpp" //For E1 operator
+#include "DiracOperator/DiracOperator.hpp"
+#include "ExternalField/TDHFbasis.hpp"
 #include "IO/InputBlock.hpp"
-#include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
+#include "fmt/ostream.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "qip/Vector.hpp"
 
-#include <gsl/gsl_fit.h>
+#include <iostream>
 
 namespace Module {
 
-void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
+void IsotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
+  input.check({{"num_iter", "Number of iterations to compute changes for [10]"},
+                {"include_QFS", "Include quadratic field shift (requires spectrum!) [false]"},
+                {"dr", "Change in rms charge radius [0.001]"}});
 
-  input.check(
-      {{"", "Calculates field shift: F = d(E)/d(<r^2>)"},
-       {"print", "Print each step? [true]"},
-       {"min_pc", "Minimum percentage shift in r [1.0e-3]"},
-       {"max_pc", "Maximum percentage shift in r [1.0e-1]"},
-       {"num_steps", "Number of steps for derivative (for each sign)? [3]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
   }
 
-  const auto print = input.get("print", true);
+  const auto num_iter = input.get<int>("num_iter", 10);
+  const auto include_qfs = input.get<bool>("include_QFS", false);
+  const auto dr = input.get<double>("dr", 0.001);
 
-  const auto min_pc = input.get("min_pc", 1.0e-3);
-  const auto max_pc = input.get("max_pc", 1.0e-1);
-  const auto num_steps = input.get<unsigned long>("num_steps", 3);
+  using namespace qip::overloads;
 
-  Wavefunction wfB(wf.grid_sptr(), wf.nucleus(), wf.alpha() / PhysConst::alpha);
+  constexpr auto abfm4factor = 4 * M_PI * PhysConst::aB_fm * PhysConst::aB_fm * PhysConst::aB_fm * PhysConst::aB_fm;
 
-  std::cout << "Calculating field shift corrections for \n"
-            << wf.atom() << ", " << wf.nucleus() << "\n"
-            << "By fitting de = F<dr^2> for small delta r\n";
+  const auto vnuc0 = wf.vnuc();
 
-  wfB.copySigma(wf.Sigma());
-  const auto core_string = wf.coreConfiguration();
-  const auto val_string = DiracSpinor::state_config(wf.valence());
-  const auto r0 = wf.get_rrms();
+  // Used for computing fourth radial moment integral.
+  auto rpow6 = wf.grid().rpow(6);
 
-  std::vector<std::vector<std::pair<double, double>>> data(wf.valence().size());
-  const auto delta_grid = Grid(r0 * min_pc / 100.0, r0 * max_pc / 100.0,
-                               num_steps, GridType::logarithmic);
+  auto nucpt = wf.nucleus();
+  const auto r_rms0 = nucpt.r_rms();
+  const auto rho0 = Nuclear::fermiNuclearDensity_tcN(
+                      Nuclear::deformation_effective_t(nucpt.c(), nucpt.t(), nucpt.beta()),
+                      nucpt.c(), nucpt.z(), wf.grid());
+  
+  const auto r4   = NumCalc::integrate(wf.grid().du(), 0.0, 0.0, rpow6, rho0,  wf.grid().drdu()) * abfm4factor / nucpt.z();
 
-  if (print) {
-    std::cout << "\n   r_rms (fm)    del(r)     del(r^2)     dE (GHz)   F "
-                 "(GHz/fm^2)\n";
-  } else {
-    std::cout << "\nRunning...\n";
-  }
-  for (const auto pm : {-1, 1}) {
-    for (const auto del : delta_grid.r()) {
-      const auto rB = r0 + pm * del;
-      const auto dr2 = rB * rB - r0 * r0;
+  std::cout << "Calculating change in valence state energies using TDHF(basis).\n"
+            << "Field isotopic shift: dE = F d<r^2> + G^2 [d<r^2>]^2 + G^4 d<r^4>\n";
 
-      auto nuc_b = wf.nucleus();
-      nuc_b.set_rrms(rB);
+  if(include_qfs && wf.spectrum().empty())
+    std::cout << "Attempted to calculate second-order corrections (QFS) w/o spectrum. Skipping\n";
 
-      wfB.update_Vnuc(Nuclear::formPotential(nuc_b, wf.grid().r()));
+  std::stringstream os;
 
-      wfB.solve_core("HartreeFock", 0.0, core_string, 0.0, false);
-      wfB.solve_valence(val_string, false);
-      wfB.hartreeFockBrueckner(false);
+  for(int i = 1; i < num_iter+1; ++i) {
 
-      for (auto i = 0ul; i < wfB.valence().size(); ++i) {
-        const auto &Fv = wfB.valence()[i];
-        const auto &Fv0 = *wf.getState(Fv.n(), Fv.kappa());
-        const auto dE = (Fv.en() - Fv0.en()) * PhysConst::Hartree_GHz;
-        const auto tF = dE / dr2;
-        if (print)
-          printf("%4s  %7.5f  %+7.5f  %11.4e  %11.4e  %10.3e\n",
-                 Fv.shortSymbol().c_str(), rB, rB - r0, dr2, dE, tF);
-        auto &data_v = data[i];
-        data_v.emplace_back(dr2, dE);
+    nucpt.set_rrms(r_rms0 + i * dr);
+    auto vnucpt = Nuclear::formPotential(nucpt, wf.grid().r());
+
+    const auto rhopt = Nuclear::fermiNuclearDensity_tcN(
+                        Nuclear::deformation_effective_t(nucpt.c(), nucpt.t(), nucpt.beta()),
+                        nucpt.c(), nucpt.z(), wf.grid());
+
+    auto r4pt = NumCalc::integrate(wf.grid().du(), 0.0, 0.0, rpow6, rhopt, wf.grid().drdu()) * abfm4factor/ nucpt.z();
+
+    const auto delta_r2 = nucpt.r_rms() * nucpt.r_rms() - r_rms0 * r_rms0;
+    const auto delta_r4 = r4pt - r4;
+    const auto delta_vnuc = vnucpt - vnuc0;
+
+    DiracOperator::fieldshift fis(delta_vnuc, delta_r2, delta_r4);
+
+    auto dVfis = ExternalField::TDHFbasis(&fis, wf.vHF(), wf.basis());
+
+    dVfis.solve_core(0.0, 100, false);
+
+    fmt::print(os, "{:9.7f} {:9.7f}", delta_r2, delta_r4);
+
+    for(const auto& Fv : wf.valence()) {
+      auto redME = fis.reducedME(Fv, Fv);
+      auto dv = dVfis.dV(Fv, Fv);
+
+      fmt::print(os, " {:13.6e}",  (redME + dv)*PhysConst::Hartree_GHz / sqrt(Fv.twojp1()));
+
+      if(include_qfs && !wf.spectrum().empty()) {
+        // Both lhs and rhs are "reduced"---need to divide by 3j symbol twice. 
+        auto lhs = dVfis.form_dPsi(Fv, 0.0, ExternalField::dPsiType::X, Fv.kappa(), wf.spectrum(), ExternalField::StateType::bra);
+        auto rhs = fis.reduced_rhs(Fv.kappa(), Fv) + dVfis.dV_rhs(Fv.kappa(), Fv);
+        
+        // See, e.g., Eq. 8 Phys. Rev. A 103, (2021)
+        auto red_q2 = (lhs * rhs) / (delta_r2 * delta_r2);
+        fmt::print(os, " {:13.6e}",  red_q2*PhysConst::Hartree_GHz / Fv.twojp1());
       }
-      if (print)
-        std::cout << "\n";
     }
+    os << "\n";
   }
-
+  std::cout << "\ndr2 (fm2) dr4 (fm4) ";
+  for(auto Fv : wf.valence()){
+    fmt::print(stdout, " {:13s}", Fv.shortSymbol()+std::string(" dE (GHz)"));
+    if (include_qfs && !wf.spectrum().empty())
+      fmt::print(stdout, " {:13s}", "G^2(GHz/fm4)");
+  }
   std::cout << "\n";
-
-  auto sorter = [](auto p1, auto p2) { return p1.first < p2.first; };
-
-  for (auto i = 0ul; i < wfB.valence().size(); ++i) {
-    const auto &Fv = wfB.valence()[i];
-    auto &data_v = data[i];
-    std::sort(begin(data_v), end(data_v), sorter);
-
-    [[maybe_unused]] double c0, c1, cov00, cov01, cov11, sumsq;
-
-    // Fit, without c0
-    gsl_fit_mul(&data_v[0].first, 2, &data_v[0].second, 2, data_v.size(), &c1,
-                &cov11, &sumsq);
-    std::cout << Fv.symbol() << " "
-              << "F = " << c1 << " GHz/fm^2, sd = " << std::sqrt(sumsq) << "\n";
-  }
+  std::cout << os.str();
 }
 
-} // namespace Module
+} // namespace Module::IsotopeShift
