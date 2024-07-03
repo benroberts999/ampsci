@@ -5,7 +5,8 @@ namespace LinAlg {
 
 //==============================================================================
 //! Vector class (inherits from Matrix)
-template <typename T = double> class Vector : public Matrix<T> {
+template <typename T = double>
+class Vector : public Matrix<T> {
 public:
   //! Default construct
   Vector() : Matrix<T>() {}

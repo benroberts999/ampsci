@@ -17,7 +17,8 @@ struct less_abs {
 
 //==============================================================================
 //! Returns maximum of any number of parameters (variadic function)
-template <typename T, typename... Args> T max(T first, Args... rest) {
+template <typename T, typename... Args>
+T max(T first, Args... rest) {
   if constexpr (sizeof...(rest) == 0) {
     return first;
   } else {
@@ -28,7 +29,8 @@ template <typename T, typename... Args> T max(T first, Args... rest) {
   }
 }
 //! Returns minimum of any number of parameters (variadic function)
-template <typename T, typename... Args> T min(T first, Args... rest) {
+template <typename T, typename... Args>
+T min(T first, Args... rest) {
   if constexpr (sizeof...(rest) == 0) {
     return first;
   } else {
@@ -41,7 +43,8 @@ template <typename T, typename... Args> T min(T first, Args... rest) {
 
 //! Returns value with maximum absolute value of any number of parameters
 //! (variadic function)
-template <typename T, typename... Args> T max_abs(T first, Args... rest) {
+template <typename T, typename... Args>
+T max_abs(T first, Args... rest) {
   static_assert(std::is_arithmetic_v<T>,
                 "In max_abs<T>(), T must be arithmetic");
   if constexpr (sizeof...(rest) == 0) {
@@ -55,7 +58,8 @@ template <typename T, typename... Args> T max_abs(T first, Args... rest) {
 }
 //! Returns value with minimum absolute value of any number of parameters
 //! (variadic function)
-template <typename T, typename... Args> T min_abs(T first, Args... rest) {
+template <typename T, typename... Args>
+T min_abs(T first, Args... rest) {
   static_assert(std::is_arithmetic_v<T>,
                 "In min_abs<T>(), T must be arithmetic");
   if constexpr (sizeof...(rest) == 0) {
@@ -79,7 +83,8 @@ T max_difference(T first, Args... rest) {
 //==============================================================================
 //! x^n for integer n (n compile-time template parameter), x any arithmetic type
 //! (T). Returns double for inverse powers, T otherwise
-template <int n, typename T> constexpr auto pow(T x) {
+template <int n, typename T>
+constexpr auto pow(T x) {
   static_assert(std::is_arithmetic_v<T>, "In pow(T x), T must be arithmetic");
   // Returns double for inverse powers, T otherwise
   if constexpr (n < 0) {
@@ -95,7 +100,8 @@ template <int n, typename T> constexpr auto pow(T x) {
 }
 
 //! x^n for integer n (runtime n), x any floating point type (T).
-template <typename T> constexpr T pow(T x, int n) {
+template <typename T>
+constexpr T pow(T x, int n) {
   static_assert(std::is_floating_point_v<T>,
                 "In pow(T x, int n), T must be foating point");
   if (n < 0) {
@@ -111,7 +117,8 @@ template <typename T> constexpr T pow(T x, int n) {
 
 //==============================================================================
 //! Returns sign of value. Note: sign(0)==0
-template <typename T> constexpr int sign(T value) {
+template <typename T>
+constexpr int sign(T value) {
   static_assert(std::is_arithmetic_v<T>,
                 "In sign(T value), T must be arithmetic");
   return (T(0) < value) - (value < T(0));
@@ -119,7 +126,8 @@ template <typename T> constexpr int sign(T value) {
 
 //! Clips value to between -max <= value <= max
 //! clip(x,max) : |x| > max, ret max; if |x|<-max, -max; else x
-template <typename T> constexpr T clip(T value, T max_abs) {
+template <typename T>
+constexpr T clip(T value, T max_abs) {
   static_assert(std::is_arithmetic_v<T>,
                 "In clip(T value, T max_abs), T must be arithmetic");
   if (value > max_abs)
@@ -130,7 +138,8 @@ template <typename T> constexpr T clip(T value, T max_abs) {
 }
 
 //! Sets values |v|<min to zero; if |v|>=min, returns v
-template <typename T> constexpr T chop(T value, T min_abs) {
+template <typename T>
+constexpr T chop(T value, T min_abs) {
   static_assert(std::is_arithmetic_v<T>,
                 "In clip(T value, T max_abs), T must be arithmetic");
   if (std::abs(value) < min_abs)

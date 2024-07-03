@@ -206,7 +206,8 @@ template <typename F, typename T, typename... Args>
 
 //==============================================================================
 //! In-place scalar multiplication of std::vector - types must match
-template <typename T> void scale(std::vector<T> *vec, T x) {
+template <typename T>
+void scale(std::vector<T> *vec, T x) {
   static_assert(std::is_arithmetic_v<T>,
                 "In scale(std::vector<T>, T) : T must be arithmetic");
   for (auto &v : *vec)
@@ -352,7 +353,8 @@ auto inner_product_sub(std::size_t p0, std::size_t pinf, const T &first,
 }
 
 //==============================================================================
-template <typename F, typename T> T apply_to(const F &func, T list) {
+template <typename F, typename T>
+T apply_to(const F &func, T list) {
   for (auto &l : list) {
     l = func(l);
   }

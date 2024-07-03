@@ -5,7 +5,8 @@
 namespace LinAlg {
 
 //! Solves matrix equation Ax=b for x, for known square matrix A and vector b.
-template <typename T> Vector<T> solve_Axeqb(Matrix<T> Am, const Vector<T> &b);
+template <typename T>
+Vector<T> solve_Axeqb(Matrix<T> Am, const Vector<T> &b);
 
 //! Solves Av = ev for eigenvalues e and eigenvectors v of symmetric/Hermetian
 //! matrix A. Returns [e,v], where v(i,j) is the jth element of the ith

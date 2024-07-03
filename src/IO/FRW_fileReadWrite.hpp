@@ -363,7 +363,8 @@ void rw_binary(std::fstream &stream, RoW row, T &value, Types &...values) {
 }
 
 // make "private" behind 'helper' namespace: used in old code still
-template <typename T> void binary_rw(std::fstream &stream, T &value, RoW row) {
+template <typename T>
+void binary_rw(std::fstream &stream, T &value, RoW row) {
   switch (row) {
   case write:
     stream.write(reinterpret_cast<const char *>(&value), sizeof(T));

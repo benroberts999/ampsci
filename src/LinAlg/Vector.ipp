@@ -3,7 +3,8 @@
 namespace LinAlg {
 //==============================================================================
 
-template <typename T> Vector<T> Vector<T>::conj() const {
+template <typename T>
+Vector<T> Vector<T>::conj() const {
   static_assert(is_complex_v<T>, "conj() only available for complex Vector");
   std::vector<T> conj_data;
   conj_data.reserve(this->size());
@@ -13,7 +14,8 @@ template <typename T> Vector<T> Vector<T>::conj() const {
   return Vector<T>{std::move(conj_data)};
 }
 
-template <typename T> auto Vector<T>::real() const {
+template <typename T>
+auto Vector<T>::real() const {
   static_assert(is_complex_v<T>, "real() only available for complex Vector");
   std::vector<typename T::value_type> real_data;
   real_data.reserve(this->size());
@@ -22,7 +24,8 @@ template <typename T> auto Vector<T>::real() const {
   }
   return Vector<typename T::value_type>{std::move(real_data)};
 }
-template <typename T> auto Vector<T>::imag() const {
+template <typename T>
+auto Vector<T>::imag() const {
   static_assert(is_complex_v<T>, "imag() only available for complex Vector");
   std::vector<typename T::value_type> imag_data;
   imag_data.reserve(this->size());
@@ -31,7 +34,8 @@ template <typename T> auto Vector<T>::imag() const {
   }
   return Vector<typename T::value_type>{std::move(imag_data)};
 }
-template <typename T> auto Vector<T>::complex() const {
+template <typename T>
+auto Vector<T>::complex() const {
   static_assert(!is_complex_v<T>, "complex() only available for real Vector");
   // use move constructor to avoid default Matrix construction:
   std::vector<std::complex<T>> new_data;
@@ -43,31 +47,36 @@ template <typename T> auto Vector<T>::complex() const {
 }
 
 //==============================================================================
-template <typename T> Vector<T> &Vector<T>::operator+=(const Vector<T> &rhs) {
+template <typename T>
+Vector<T> &Vector<T>::operator+=(const Vector<T> &rhs) {
   assert(this->rows() == rhs.rows() && this->cols() == rhs.cols());
   using namespace qip::overloads;
   this->m_data += rhs.m_data;
   return *this;
 }
-template <typename T> Vector<T> &Vector<T>::operator-=(const Vector<T> rhs) {
+template <typename T>
+Vector<T> &Vector<T>::operator-=(const Vector<T> rhs) {
   assert(this->rows() == rhs.rows() && this->cols() == rhs.cols());
   using namespace qip::overloads;
   this->m_data -= rhs.m_data;
   return *this;
 }
-template <typename T> Vector<T> &Vector<T>::operator*=(const T x) {
+template <typename T>
+Vector<T> &Vector<T>::operator*=(const T x) {
   using namespace qip::overloads;
   this->m_data *= x;
   return *this;
 }
-template <typename T> Vector<T> &Vector<T>::operator/=(const T x) {
+template <typename T>
+Vector<T> &Vector<T>::operator/=(const T x) {
   using namespace qip::overloads;
   this->m_data /= x;
   return *this;
 }
 
 //==============================================================================
-template <typename T> auto Vector<T>::as_gsl_view() {
+template <typename T>
+auto Vector<T>::as_gsl_view() {
   const auto size = std::max(this->rows(), this->cols());
   if constexpr (std::is_same_v<T, double>) {
     return gsl_vector_view_array(this->data(), size);
@@ -85,7 +94,8 @@ template <typename T> auto Vector<T>::as_gsl_view() {
   }
 }
 
-template <typename T> auto Vector<T>::as_gsl_view() const {
+template <typename T>
+auto Vector<T>::as_gsl_view() const {
   const auto size = std::max(this->rows(), this->cols());
   if constexpr (std::is_same_v<T, double>) {
     return gsl_vector_const_view_array(this->data(), size);

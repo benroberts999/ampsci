@@ -142,7 +142,8 @@ std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
 
 //==============================================================================
 
-template <class A> static int twojk(const A &a) {
+template <class A>
+static int twojk(const A &a) {
   if constexpr (std::is_same_v<A, DiracSpinor>) {
     return a.twoj();
   } else {
@@ -151,7 +152,8 @@ template <class A> static int twojk(const A &a) {
   }
 }
 
-template <class A> static std::optional<int> twojknull(const A &a) {
+template <class A>
+static std::optional<int> twojknull(const A &a) {
   if constexpr (std::is_same_v<A, DiracSpinor>) {
     return a.twoj();
   } else if constexpr (std::is_same_v<A, int>) {

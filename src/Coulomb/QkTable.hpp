@@ -53,7 +53,8 @@ question.
  Lk symmetry:
  {abcd} = badc
 */
-template <Symmetry S> class CoulombTable {
+template <Symmetry S>
+class CoulombTable {
 
 private:
   // each vector element corresponds to a 'k'

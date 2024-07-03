@@ -28,7 +28,8 @@ class D : public qip::Comparison<D>,
   friend bool operator<(const C &lhs, const D &rhs);
 };
 */
-template <typename T, typename U = T> class Comparison {
+template <typename T, typename U = T>
+class Comparison {
   friend bool operator!=(const T &lhs, const U &rhs) { return !(lhs == rhs); }
   friend bool operator>(const T &lhs, const U &rhs) { return rhs < lhs; }
   friend bool operator<=(const T &lhs, const U &rhs) { return !(lhs > rhs); }
@@ -36,7 +37,8 @@ template <typename T, typename U = T> class Comparison {
 };
 
 //! Helper template for Arithmetic operations. Derive from this to provide +,-,*,/, given +=, -=, *=, /=
-template <typename T> class Arithmetic {
+template <typename T>
+class Arithmetic {
   friend T operator+(T lhs, const T &rhs) { return lhs += rhs; }
   friend T operator-(T lhs, const T &rhs) { return lhs -= rhs; }
   friend T operator*(T lhs, const T &rhs) { return lhs *= rhs; }
@@ -44,7 +46,8 @@ template <typename T> class Arithmetic {
 };
 
 //! Helper template for Arithmetic operations. Derive from this to provide +,-,*,/, given +=, -=, *=, /=. Works for two different types
-template <typename T, typename U> class Arithmetic2 {
+template <typename T, typename U>
+class Arithmetic2 {
   friend T operator+(T lhs, const U &rhs) { return lhs += rhs; }
   friend T operator-(T lhs, const U &rhs) { return lhs -= rhs; }
   friend T operator*(T lhs, const U &rhs) { return lhs *= rhs; }

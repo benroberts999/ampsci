@@ -27,7 +27,8 @@ namespace LinAlg {
 
 //==============================================================================
 // Solves matrix equation Ax=b for x, for known square matrix A and vector b.
-template <typename T> Vector<T> solve_Axeqb(Matrix<T> Am, const Vector<T> &b) {
+template <typename T>
+Vector<T> solve_Axeqb(Matrix<T> Am, const Vector<T> &b) {
   static_assert(std::is_same_v<T, double> ||
                     std::is_same_v<T, std::complex<double>>,
                 "solve_Axeqb only available for Matrix<double> or "

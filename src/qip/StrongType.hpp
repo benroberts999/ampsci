@@ -41,7 +41,8 @@ using Mass     = qip::StrongType<MechanicsTypes::mass, double>;
 using Velocity = qip::StrongType<MechanicsTypes::velocity, double>;
 ```
 */
-template <auto enumV, typename BaseT> struct StrongType {
+template <auto enumV, typename BaseT>
+struct StrongType {
 private:
   static_assert(std::is_arithmetic_v<BaseT>,
                 "StrongType only available for arithmetic types");

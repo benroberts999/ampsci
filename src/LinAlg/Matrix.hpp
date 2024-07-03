@@ -14,20 +14,25 @@
 #include <utility>
 #include <vector>
 
-template <typename T> struct is_complex : std::false_type {};
-template <typename T> struct is_complex<std::complex<T>> : std::true_type {};
-template <typename T> constexpr bool is_complex_v = is_complex<T>::value;
+template <typename T>
+struct is_complex : std::false_type {};
+template <typename T>
+struct is_complex<std::complex<T>> : std::true_type {};
+template <typename T>
+constexpr bool is_complex_v = is_complex<T>::value;
 
 //==============================================================================
 //! Defines Matrix, Vector classes, and linear some algebra functions
 namespace LinAlg {
 
 //! Proved a "view" onto an array
-template <typename T> class View;
+template <typename T>
+class View;
 
 //==============================================================================
 //! Matrix class; row-major
-template <typename T = double> class Matrix {
+template <typename T = double>
+class Matrix {
 
 protected:
   std::size_t m_rows;
@@ -266,7 +271,8 @@ public:
 //==============================================================================
 //==============================================================================
 
-template <typename T> constexpr auto myEps();
+template <typename T>
+constexpr auto myEps();
 //! Compares two matrices; returns true iff all elements compare relatively to
 //! better than eps
 template <typename T>

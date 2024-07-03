@@ -75,7 +75,8 @@ Note: in tests, deriving from a struct was significantly faster than using
 std::function, slightly faster than using function pointers, and performed
 about equally to directly implementing the DerivativeMatrix.
 */
-template <typename T = double, typename Y = double> struct DerivativeMatrix {
+template <typename T = double, typename Y = double>
+struct DerivativeMatrix {
   //! a,b,c,d are derivative matrix functions; all must be user implemented
   virtual Y a(T t) const = 0;
   virtual Y b(T t) const = 0;
@@ -90,9 +91,11 @@ template <typename T = double, typename Y = double> struct DerivativeMatrix {
 //==============================================================================
 
 // User-defined type-trait: Checks whether T is a std::complex type
-template <typename T> struct is_complex : std::false_type {};
+template <typename T>
+struct is_complex : std::false_type {};
 // User-defined type-trait: Checks whether T is a std::complex type
-template <typename T> struct is_complex<std::complex<T>> : std::true_type {};
+template <typename T>
+struct is_complex<std::complex<T>> : std::true_type {};
 //! User-defined type-trait: Checks whether T is a std::complex type
 /*! @details
   For example:
@@ -102,7 +105,8 @@ template <typename T> struct is_complex<std::complex<T>> : std::true_type {};
   static_assert(is_complex_v<std::complex<float>>);
   static_assert(is_complex<std::complex<float>>::value);
 */
-template <typename T> constexpr bool is_complex_v = is_complex<T>::value;
+template <typename T>
+constexpr bool is_complex_v = is_complex<T>::value;
 
 //==============================================================================
 
@@ -160,7 +164,8 @@ for k = {0,1,...,K-1} \n
 and
  \f[ a_K = b_K / denom \f]
 */
-template <std::size_t K> struct AdamsB {
+template <std::size_t K>
+struct AdamsB {
   long denom;
   std::array<long, K> bk;
   long bK;
@@ -597,7 +602,8 @@ private:
   }
 
   // Used recursively by solve_initial_K() to find first K points
-  template <std::size_t ik> void first_k_i(T t_next) {
+  template <std::size_t ik>
+  void first_k_i(T t_next) {
     if constexpr (ik >= K) {
       (void)t_next; // suppress unused variable warning on old g++ versions
       return;

@@ -13,7 +13,8 @@ using nk2Index = uint32_t;
 //! Look-up table for matrix elements. Note: does not assume any symmetry: (a,b)
 //! is stored independantly of (b,a). In general, maps a pair of DiracSpinors to
 //! a single value (of any type, T).
-template <typename T = double> class meTable {
+template <typename T = double>
+class meTable {
 
 private:
   std::unordered_map<nk2Index, T> m_data{};

@@ -215,7 +215,8 @@ private:
   //----------------------------------------------------------------------------
   // If given an integer (k), returns 2*k
   // If given a DiracSpinor, F, returns 2*j [F.twoj()]
-  template <class A> static int twojk(const A &a) {
+  template <class A>
+  static int twojk(const A &a) {
     if constexpr (std::is_same_v<A, DiracSpinor>) {
       return a.twoj();
     } else {

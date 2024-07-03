@@ -3,7 +3,8 @@
 namespace LinAlg {
 
 //==============================================================================
-template <typename T> class View {
+template <typename T>
+class View {
   std::size_t m_size;
   std::size_t m_stride;
   T *m_data;
@@ -44,7 +45,8 @@ public:
 //==============================================================================
 // Returns the determinant. Uses GSL; via LU decomposition. Only works for
 // double/complex<double>
-template <typename T> T Matrix<T>::determinant() const {
+template <typename T>
+T Matrix<T>::determinant() const {
   static_assert(std::is_same_v<T, double> ||
                     std::is_same_v<T, std::complex<double>>,
                 "Determinant only works for double");
@@ -71,7 +73,8 @@ template <typename T> T Matrix<T>::determinant() const {
 //==============================================================================
 // Inverts the matrix, in place. Uses GSL; via LU decomposition. Only works
 // for double/complex<double>.
-template <typename T> Matrix<T> &Matrix<T>::invert_in_place() {
+template <typename T>
+Matrix<T> &Matrix<T>::invert_in_place() {
   static_assert(
       std::is_same_v<T, double> || std::is_same_v<T, std::complex<double>>,
       "invert only works for Matrix<double> or Matrix<complex<double>>");
@@ -97,13 +100,15 @@ template <typename T> Matrix<T> &Matrix<T>::invert_in_place() {
   return *this;
 }
 
-template <typename T> Matrix<T> Matrix<T>::inverse() const {
+template <typename T>
+Matrix<T> Matrix<T>::inverse() const {
   auto inverse = *this; // copy
   return inverse.invert_in_place();
 }
 
 //==============================================================================
-template <typename T> Matrix<T> Matrix<T>::transpose() const {
+template <typename T>
+Matrix<T> Matrix<T>::transpose() const {
   Matrix<T> Tr(m_cols, m_rows);
   if constexpr (std::is_same_v<T, double>) {
     auto Tr_gsl = Tr.as_gsl_view();
@@ -134,7 +139,8 @@ template <typename T> Matrix<T> Matrix<T>::transpose() const {
 
 //==============================================================================
 // Constructs a diagonal unit matrix (identity)
-template <typename T> Matrix<T> &Matrix<T>::make_identity() {
+template <typename T>
+Matrix<T> &Matrix<T>::make_identity() {
   assert(m_rows == m_cols && "Can only call make_identity() for square matrix");
   for (auto i = 0ul; i < m_rows; ++i) {
     for (auto j = 0ul; j < m_cols; ++j) {
@@ -144,7 +150,8 @@ template <typename T> Matrix<T> &Matrix<T>::make_identity() {
   return *this;
 }
 // Sets all elements to zero
-template <typename T> Matrix<T> &Matrix<T>::zero() {
+template <typename T>
+Matrix<T> &Matrix<T>::zero() {
   for (std::size_t i = 0; i < size(); ++i) {
     m_data[i] = T(0);
   }
@@ -152,7 +159,8 @@ template <typename T> Matrix<T> &Matrix<T>::zero() {
 }
 
 //==============================================================================
-template <typename T> Matrix<T> Matrix<T>::conj() const {
+template <typename T>
+Matrix<T> Matrix<T>::conj() const {
   static_assert(is_complex_v<T>, "conj() only available for complex Matrix");
   std::vector<T> conj_data;
   conj_data.reserve(m_data.size());
@@ -162,7 +170,8 @@ template <typename T> Matrix<T> Matrix<T>::conj() const {
   return Matrix<T>{m_rows, m_cols, std::move(conj_data)};
 }
 
-template <typename T> Matrix<T> &Matrix<T>::conj_in_place() {
+template <typename T>
+Matrix<T> &Matrix<T>::conj_in_place() {
   static_assert(is_complex_v<T>, "conj() only available for complex Matrix");
   for (std::size_t i = 0; i < m_data.size(); ++i) {
     m_data[i] = std::conj(m_data[i]);
@@ -170,7 +179,8 @@ template <typename T> Matrix<T> &Matrix<T>::conj_in_place() {
   return *this;
 }
 //------------------------------------------------------------------------------
-template <typename T> auto Matrix<T>::real() const {
+template <typename T>
+auto Matrix<T>::real() const {
   static_assert(is_complex_v<T>, "real() only available for complex Matrix");
   std::vector<typename T::value_type> real_data;
   real_data.reserve(m_data.size());
@@ -180,7 +190,8 @@ template <typename T> auto Matrix<T>::real() const {
   return Matrix<typename T::value_type>{m_rows, m_cols, std::move(real_data)};
 }
 //------------------------------------------------------------------------------
-template <typename T> auto Matrix<T>::imag() const {
+template <typename T>
+auto Matrix<T>::imag() const {
   static_assert(is_complex_v<T>, "imag() only available for complex Matrix");
   std::vector<typename T::value_type> imag_data;
   imag_data.reserve(m_data.size());
@@ -190,7 +201,8 @@ template <typename T> auto Matrix<T>::imag() const {
   return Matrix<typename T::value_type>{m_rows, m_cols, std::move(imag_data)};
 }
 //------------------------------------------------------------------------------
-template <typename T> auto Matrix<T>::complex() const {
+template <typename T>
+auto Matrix<T>::complex() const {
   static_assert(!is_complex_v<T>, "complex() only available for real Matrix");
   // use move constructor to avoid default Matrix construction
   std::vector<std::complex<T>> new_data;
@@ -202,26 +214,30 @@ template <typename T> auto Matrix<T>::complex() const {
 }
 
 //==============================================================================
-template <typename T> Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &rhs) {
+template <typename T>
+Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &rhs) {
   assert(rows() == rhs.rows() && cols() == rhs.cols() &&
          "Matrices must have same dimensions for addition");
   using namespace qip::overloads;
   this->m_data += rhs.m_data;
   return *this;
 }
-template <typename T> Matrix<T> &Matrix<T>::operator-=(const Matrix<T> &rhs) {
+template <typename T>
+Matrix<T> &Matrix<T>::operator-=(const Matrix<T> &rhs) {
   assert(rows() == rhs.rows() && cols() == rhs.cols() &&
          "Matrices must have same dimensions for subtraction");
   using namespace qip::overloads;
   this->m_data -= rhs.m_data;
   return *this;
 }
-template <typename T> Matrix<T> &Matrix<T>::operator*=(const T x) {
+template <typename T>
+Matrix<T> &Matrix<T>::operator*=(const T x) {
   using namespace qip::overloads;
   this->m_data *= x;
   return *this;
 }
-template <typename T> Matrix<T> &Matrix<T>::operator/=(const T x) {
+template <typename T>
+Matrix<T> &Matrix<T>::operator/=(const T x) {
   using namespace qip::overloads;
   this->m_data /= x;
   return *this;
@@ -229,7 +245,8 @@ template <typename T> Matrix<T> &Matrix<T>::operator/=(const T x) {
 
 //==============================================================================
 // Matrix<T> += T : T assumed to be *Identity!
-template <typename T> Matrix<T> &Matrix<T>::operator+=(T aI) {
+template <typename T>
+Matrix<T> &Matrix<T>::operator+=(T aI) {
   // Adds 'a' to diagonal elements (Assume a*Ident)
   assert(m_rows == m_cols && "Can only call M+a for square matrix");
   for (auto i = 0ul; i < m_rows; ++i) {
@@ -238,7 +255,8 @@ template <typename T> Matrix<T> &Matrix<T>::operator+=(T aI) {
   return *this;
 }
 // Matrix<T> -= T : T assumed to be *Identity!
-template <typename T> Matrix<T> &Matrix<T>::operator-=(T aI) {
+template <typename T>
+Matrix<T> &Matrix<T>::operator-=(T aI) {
   // Adds 'a' to diagonal elements (Assume a*Ident)
   assert(m_rows == m_cols && "Can only call M-a for square matrix");
   for (auto i = 0ul; i < m_rows; ++i) {
@@ -288,7 +306,8 @@ template <typename T>
 }
 
 //==============================================================================
-template <typename T> auto Matrix<T>::as_gsl_view() {
+template <typename T>
+auto Matrix<T>::as_gsl_view() {
   if constexpr (std::is_same_v<T, double>) {
     return gsl_matrix_view_array(m_data.data(), m_rows, m_cols);
   } else if constexpr (std::is_same_v<T, float>) {
@@ -306,7 +325,8 @@ template <typename T> auto Matrix<T>::as_gsl_view() {
   }
 }
 
-template <typename T> auto Matrix<T>::as_gsl_view() const {
+template <typename T>
+auto Matrix<T>::as_gsl_view() const {
   if constexpr (std::is_same_v<T, double>) {
     return gsl_matrix_const_view_array(m_data.data(), m_rows, m_cols);
   } else if constexpr (std::is_same_v<T, float>) {
@@ -342,7 +362,8 @@ std::ostream &operator<<(std::ostream &os, const Matrix<T> &a) {
 
 //==============================================================================
 // Helper for equal()
-template <typename T> constexpr auto myEps() {
+template <typename T>
+constexpr auto myEps() {
   if constexpr (std::is_same_v<T, float> ||
                 std::is_same_v<T, std::complex<float>>) {
     return 1.0e-6f;

@@ -31,17 +31,20 @@ inline std::string removeComments(const std::string &input);
 inline std::string expandIncludes(std::string input);
 
 //! Parses a string to type T by stringstream
-template <typename T> inline T parse_str_to_T(const std::string &value_as_str);
+template <typename T>
+inline T parse_str_to_T(const std::string &value_as_str);
 
 //! Parses entire file into string. Note: v. inefficient
 inline std::string file_to_string(const std::istream &file);
 
 //! Class to determine if a class template in vector
-template <typename T> struct IsVector {
+template <typename T>
+struct IsVector {
   constexpr static bool v = false;
   using t = T;
 };
-template <typename T> struct IsVector<std::vector<T>> {
+template <typename T>
+struct IsVector<std::vector<T>> {
   constexpr static bool v = true;
   // nb: returns conatined type of vector
   using t = T;
@@ -52,12 +55,14 @@ template <typename T> struct IsVector<std::vector<T>> {
 // std::cout << IO::IsVector<std::vector<int>>::v << "\n";
 // std::cout << IO::IsVector<std::vector<double>>::v << "\n";
 
-template <typename T> struct IsArray {
+template <typename T>
+struct IsArray {
   constexpr static bool v = false;
   using t = T;
   static constexpr std::size_t size = 0;
 };
-template <typename T, std::size_t N> struct IsArray<std::array<T, N>> {
+template <typename T, std::size_t N>
+struct IsArray<std::array<T, N>> {
   constexpr static bool v = true;
   // nb: returns conatined type of array
   using t = T;
@@ -184,7 +189,8 @@ public:
 
   //! If 'key' exists in the options, returns value. Else, returns
   //! default_value. Note: If two keys with same name, will use the later
-  template <typename T> T get(std::string_view key, T default_value) const;
+  template <typename T>
+  T get(std::string_view key, T default_value) const;
 
   //! Returns optional value. Contains value if key exists; empty otherwise.
   //! Note: If two keys with same name, will use the later
@@ -796,7 +802,8 @@ inline std::string removeComments(const std::string &input) {
 }
 
 //==============================================================================
-template <typename T> T inline parse_str_to_T(const std::string &value_as_str) {
+template <typename T>
+T inline parse_str_to_T(const std::string &value_as_str) {
   if constexpr (std::is_same_v<T, std::string>) {
     // already a string, just return value
     return value_as_str;

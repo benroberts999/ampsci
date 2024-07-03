@@ -11,7 +11,8 @@
 namespace Coulomb {
 
 //==============================================================================
-template <Symmetry S> void CoulombTable<S>::summary() const {
+template <Symmetry S>
+void CoulombTable<S>::summary() const {
   std::cout << "Summary: \n";
   int k = 0;
   auto total = 0ul;
@@ -24,7 +25,8 @@ template <Symmetry S> void CoulombTable<S>::summary() const {
   std::cout << "Total: " << total << " non-zero integrals\n";
 }
 
-template <Symmetry S> std::size_t CoulombTable<S>::count() const {
+template <Symmetry S>
+std::size_t CoulombTable<S>::count() const {
   auto total = 0ul;
   for (auto &qk : m_data) {
     total += qk.size();
@@ -109,7 +111,8 @@ bool CoulombTable<S>::contains(int k, nk4Index index) const {
 //==============================================================================
 //==============================================================================
 
-template <Symmetry S> double *CoulombTable<S>::get(int k, nk4Index index) {
+template <Symmetry S>
+double *CoulombTable<S>::get(int k, nk4Index index) {
   const auto sk = std::size_t(k);
   if (sk >= m_data.size())
     return nullptr;
@@ -140,7 +143,8 @@ double CoulombTable<S>::Q(int k, const DiracSpinor &a, const DiracSpinor &b,
   return Q(k, a.nk_index(), b.nk_index(), c.nk_index(), d.nk_index());
 }
 //------------------------------------------------------------------------------
-template <Symmetry S> double CoulombTable<S>::Q(int k, nk4Index index) const {
+template <Symmetry S>
+double CoulombTable<S>::Q(int k, nk4Index index) const {
   const auto sk = std::size_t(k);
   if (sk >= m_data.size())
     return 0.0;
@@ -854,7 +858,8 @@ void CoulombTable<S>::write(const std::string &fname) const {
 }
 
 //==============================================================================
-template <Symmetry S> bool CoulombTable<S>::read(const std::string &fname) {
+template <Symmetry S>
+bool CoulombTable<S>::read(const std::string &fname) {
   if (fname == "false")
     return false;
   std::fstream f;

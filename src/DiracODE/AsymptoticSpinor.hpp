@@ -8,7 +8,8 @@
 namespace DiracODE {
 
 //! Performs asymptotic expansion for f and g at large r, up to order Nx in (1/r)
-template <std::size_t Nx = 15> class AsymptoticSpinor {
+template <std::size_t Nx = 15>
+class AsymptoticSpinor {
 private:
   int kappa;
   double Zeff, en, alpha, eps_target;

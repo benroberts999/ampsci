@@ -40,7 +40,8 @@ G1.drj() * G2 = Int G1(ra,rb)*G2(rb,rc)*dr_b
 
 While almost always symmetric, this doesn't assume that.
 */
-template <typename T> class RDMatrix {
+template <typename T>
+class RDMatrix {
 
   std::size_t m_i0, m_stride;
   std::size_t m_size;
@@ -460,7 +461,8 @@ bool equal(const RDMatrix<T> &lhs, const RDMatrix<T> &rhs) {
 }
 
 //! returns maximum element (by abs)
-template <typename T> double max_element(const RDMatrix<T> &a) {
+template <typename T>
+double max_element(const RDMatrix<T> &a) {
   double xff = 0.0, xfg = 0.0, xgf = 0.0, xgg = 0.0;
   for (auto i = 0ul; i < a.size(); ++i) {
     for (auto j = 0ul; j < a.size(); ++j) {
