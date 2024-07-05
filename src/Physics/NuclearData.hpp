@@ -54,7 +54,7 @@ double rrms_formula_c_t(double c, double t = default_t);
 //! Approximate rms radius from a for to Angeli data
 double approximate_r_rms(int a, int z);
 
-//! Calculates effective skin thickness due to quadrupole deformation.
+//! Calculates effective skin thickness due to quadrupole deformation [See Eq. 8 of https://doi.org/10.1103/PhysRevA.100.032511.]
 double deformation_effective_t(double c, double t, double beta);
 
 //! just returns 2.3
