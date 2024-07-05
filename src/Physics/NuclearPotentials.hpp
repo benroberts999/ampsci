@@ -9,7 +9,7 @@ class Grid;
 namespace Nuclear {
 
 //! Nuclear charge distribution options
-enum class ChargeDistro { Fermi, spherical, point, Gaussian, Error };
+enum class ChargeDistro { Fermi, spherical, point, Gaussian, custom, Error };
 
 ChargeDistro parseType(const std::string &str_type);
 std::string parseType(ChargeDistro type);
@@ -24,18 +24,24 @@ class Nucleus {
   Nuclear::ChargeDistro m_type;
   // skin thickness parameter (in fm). Usually 2.3
   double m_t;
+  // Deformation parameter beta. Usually 0.
+  double m_beta;
+  // Name of input file used to read in custom nuclear potential
+  std::string m_custom_pot_file_name;
   // Other parameters: not used for now
   std::vector<double> m_params;
 
 public:
   Nucleus(int in_z = 1, int in_a = 0, const std::string &str_type = "Fermi",
-          double in_rrms = -1.0, double in_t = -1.0,
-          const std::vector<double> &in_params = {});
+          double in_rrms = -1.0, double in_t = -1.0, double in_beta = 0.0,
+          const std::vector<double> &in_params = {},
+          const std::string & custom_pot_file_name = "");
 
   Nucleus(const std::string &z_str, int in_a,
           const std::string &str_type = "Fermi", double in_rrms = -1.0,
-          double in_t = Nuclear::default_t,
-          const std::vector<double> &in_params = {});
+          double in_t = Nuclear::default_t, double in_beta = 0.0,
+          const std::vector<double> &in_params = {},
+          const std::string & custom_pot_file_name = "");
 
 public:
   ChargeDistro &type() { return m_type; }
@@ -53,6 +59,12 @@ public:
 
   double &t() { return m_t; };
   double t() const { return m_t; };
+
+  double &beta() { return m_beta; };
+  double beta() const { return m_beta; };
+
+  std::string& custom_pot_file() { return m_custom_pot_file_name; };
+  std::string custom_pot_file() const {return m_custom_pot_file_name; };
 
   double c() const { return c_hdr_formula_rrms_t(r_rms(), m_t); }
 
@@ -88,5 +100,6 @@ fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid);
 //! Calls one of the above, depending on params. Fills V(r), given r
 [[nodiscard]] std::vector<double> formPotential(const Nucleus &nucleus,
                                                 const std::vector<double> &r);
+
 
 } // namespace Nuclear

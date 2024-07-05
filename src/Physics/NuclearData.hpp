@@ -51,8 +51,12 @@ double c_hdr_formula_rrms_t(double rrms, double t = default_t);
 //! Calculates rrms from c and t
 double rrms_formula_c_t(double c, double t = default_t);
 
-//! Aproximate rms radius from a fir to Angeli data
+//! Approximate rms radius from a for to Angeli data
 double approximate_r_rms(int a, int z);
+
+//! Calculates effective skin thickness due to quadrupole deformation.
+double deformation_effective_t(double c, double t, double beta);
+
 //! just returns 2.3
 double approximate_t_skin(int a);
 
