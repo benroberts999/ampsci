@@ -52,10 +52,9 @@ class Arithmetic2 {
   friend T operator-(T lhs, const U &rhs) { return lhs -= rhs; }
   friend T operator*(T lhs, const U &rhs) { return lhs *= rhs; }
   friend T operator/(T lhs, const U &rhs) { return lhs /= rhs; }
+  // Also define these symmetric ones
   friend T operator+(const U &lhs, T rhs) { return rhs += lhs; }
-  friend T operator-(const U &lhs, T rhs) { return rhs -= lhs; }
   friend T operator*(const U &lhs, T rhs) { return rhs *= lhs; }
-  friend T operator/(const U &lhs, T rhs) { return rhs /= lhs; }
 };
 
 } // namespace qip

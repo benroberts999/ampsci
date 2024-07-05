@@ -44,7 +44,7 @@ public:
 //-----------------------
 class C : qip::Comparison<C>, qip::Arithmetic<C>, qip::Arithmetic2<C, int> {
 public:
-  C(int x) : a(x){};
+  explicit C(int x) : a(x){};
   int a{};
 
   friend bool operator==(const C &lhs, const C &rhs) { return lhs.a == rhs.a; }
@@ -63,6 +63,15 @@ public:
   }
   C &operator-=(int rhs) {
     this->a -= rhs;
+    return *this;
+  }
+
+  C &operator*=(int rhs) {
+    this->a *= rhs;
+    return *this;
+  }
+  C &operator/=(int rhs) {
+    this->a /= rhs;
     return *this;
   }
 };
@@ -131,11 +140,15 @@ TEST_CASE("qip::Template", "[qip][Template][unit]") {
   // REQUIRE(a1 / a2 == A{1, 1});
 
   C c1{6};
-  C c2{6};
+  C c2{7};
   C c3{12};
   REQUIRE(c1 + 6 == C{12});
-  REQUIRE(c1 - 6 == C{0});
-
+  REQUIRE(c1 - 3 == C{3});
   REQUIRE(6 + c1 == C{12});
-  REQUIRE(6 - c1 == C{0});
+
+  REQUIRE(c2 * 2 == C{14});
+  REQUIRE(2 * c2 + 6 == C{20});
+  REQUIRE(c2 / 2 == C{3});
+
+  // REQUIRE(3 - c1 == C{-3});
 }
