@@ -12,14 +12,11 @@ namespace DiracOperator {
 
 class fieldshift : public ScalarOperator {
 public:
-  fieldshift(const std::vector<double>& vec, double delta_r2, double delta_r4)
-      : ScalarOperator(vec), m_delta_r2(delta_r2), m_delta_r4(delta_r4) {};
+  fieldshift(const std::vector<double>& vec)
+      : ScalarOperator(vec) {};
 
   std::string name() const override { return std::string("Field shift"); }
   std::string units() const override { return "au"; }
-
-  double m_delta_r2;
-  double m_delta_r4;
 };
 
 inline std::unique_ptr<DiracOperator::TensorOperator>
@@ -61,7 +58,7 @@ generate_fieldshift(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "Field shift:\ndelta<r^2> = " << delta_r2 << " fm^2\ndelta<r^4> = " << delta_r4 <<" fm^4\n";
 
-  return std::make_unique<fieldshift>(scale * delta_vnuc, delta_r2, delta_r4);
+  return std::make_unique<fieldshift>(scale * delta_vnuc);
 }
 
 }

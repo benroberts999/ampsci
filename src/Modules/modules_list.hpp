@@ -75,7 +75,7 @@ static const std::vector<ModuleInfo> module_list{
     {"pnc", &calculatePNC, "Calculates APV amplitudes"},
     {"muonPV", &muonPV, "For testing/playing with muonic PV"},
     {"VQE", &VQE, "For testing/playing with VQE method"},
-    {"IsotopeShift", &IsotopeShift,
+    {"isotopeShift", &isotopeShift,
      "Compute field isotopic shift using RPA (TDHF/Basis)"},
 
     {"exampleModule", &exampleModule, "A short description of the module"}};

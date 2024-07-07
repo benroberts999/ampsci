@@ -8,6 +8,6 @@ class InputBlock;
 
 namespace Module {
 
-void IsotopeShift(const IO::InputBlock &input, const Wavefunction &wf);
+void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf);
 
 } // namespace Module
