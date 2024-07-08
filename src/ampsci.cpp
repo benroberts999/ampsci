@@ -409,7 +409,13 @@ void ampsci(const IO::InputBlock &input) {
        {"method", "Method for mean-field approximation: HartreeFock, Hartree, "
                   "KohnSham, Local [HartreeFock]"},
        {"Breit", "Scale for factor for Breit Hamiltonian. Usially 0.0 (no "
-                 "Breit) or 1.0 (full Breit), but can take any value. [0.0]"}});
+                 "Breit) or 1.0 (full Breit), but can take any value. [0.0]"},
+       {"QED",
+        "Include QED? Three options: true, false, valence. If 'valencel, will "
+        "include QED only into valence states, but not the core. Detailed QED "
+        "options are set within the RadPot{} block - if that block is not set, "
+        "defaults will be used. By default, this option is false, unless the "
+        "RadPot{} block exists, in which case it is true"}});
 
   const auto core = input.get({"HartreeFock"}, "core", "[]"s);
   const auto HF_method = input.get({"HartreeFock"}, "method", "HartreeFock"s);
@@ -417,16 +423,28 @@ void ampsci(const IO::InputBlock &input) {
   const auto x_Breit = input.get({"HartreeFock"}, "Breit", 0.0);
   const auto valence = input.get({"HartreeFock"}, "valence", ""s);
 
+  // Decide if to include QED into core+valence, just core, or not at all
+  const auto qed_input = input.getBlock("RadPot");
+  const auto [include_qed, qed_core] = [&]() {
+    const auto default_qed = qed_input ? "true"s : "false"s;
+    const auto qed_option = input.get({"HartreeFock"}, "QED", default_qed);
+    const auto valence_qed = qip::ci_compare(qed_option, "valence");
+    const auto t_include_qed =
+        qip::ci_compare(qed_option, "true") || valence_qed;
+    return std::pair{t_include_qed, !valence_qed};
+  }();
+
   // Set up the Hartree Fock potential/method (does not solve)
   // (Must set HF before adding RadPot - but must add RadPot before solving HF)
   wf.set_HF(HF_method, x_Breit, core, eps_HF, true);
 
   // Forms QED radiative potential, if RadPot{} block is present.
   // Note: input options are parsed inside radiativePotential()
-  const auto qed_input = input.getBlock("RadPot");
-  if (qed_input != std::nullopt) {
-    std::cout << "Including QED into Hartree-Fock core (and valence)\n\n";
-    wf.radiativePotential(*qed_input, true, true);
+  if (include_qed && qed_core) {
+    std::cout << "\nIncluding QED into core (and valence)\n";
+    wf.radiativePotential(qed_input ? *qed_input : IO::InputBlock{}, true,
+                          true);
+    std::cout << "\n";
   }
 
   //----------------------------------------------------------------------------
@@ -476,6 +494,13 @@ void ampsci(const IO::InputBlock &input) {
 
   // Solve Hartree equations for the core:
   wf.solve_core(true);
+
+  if (include_qed && !qed_core) {
+    std::cout << "\nIncluding QED into valence (not included in core)\n";
+    wf.radiativePotential(qed_input ? *qed_input : IO::InputBlock{}, true,
+                          true);
+    std::cout << "\n";
+  }
 
   // Solve for the valence states:
   wf.solve_valence(valence);
