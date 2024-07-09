@@ -17,6 +17,7 @@
 #include "Modules/qed.hpp"
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
+#include "Modules/thirdOrder.hpp"
 
 #include <iostream>
 #include <string>
@@ -50,6 +51,7 @@ static const std::vector<ModuleInfo> module_list{
      "Calculates matrix elements of any operator"},
     {"CI_matrixElements", &CI_matrixElements,
      "Calculates matrix elements of any operator for CI wavefunctions"},
+    {"thirdOrderME", &thirdOrderME, "Calculates Third-order matrix elements"},
     {"lifetimes", &lifetimes, "Calculate radiative lifetimes (E1, E2, M1)"},
     {"polarisability", &polarisability, "Calculates static polarisabilities"},
     {"dynamicPolarisability", &dynamicPolarisability,

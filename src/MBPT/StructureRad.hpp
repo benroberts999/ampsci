@@ -77,6 +77,9 @@ public:
   const std::vector<DiracSpinor> &core() const { return mCore; }
   const std::vector<DiracSpinor> &excited() const { return mExcited; }
 
+  const Coulomb::YkTable &Yk() const { return mY; }
+  const std::optional<Coulomb::QkTable> &Qk() const { return mQ; }
+
   //! Returns sum of Top+Bottom (SR) diagrams, reduced ME: <w||T+B||v>. Returns
   //! a pair: {TB, TB+dV}: second includes RPA (if dV given)
   std::pair<double, double>
@@ -109,6 +112,15 @@ public:
     const auto [n, dvn] = norm(h, w, v, dV);
     return {tb + c + n, dvtb + dvc + dvn};
   }
+
+  //! Returns Brueckner orbital contribution to the, reduced ME: <w||h||v>_norm.
+  //! Returns a pair: {N, N+dV}: second includes RPA (if dV given).
+  //! @details from 10.1006/adnd.1996.0024
+  std::pair<double, double>
+  BO(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
+     const DiracSpinor &v,
+     const ExternalField::CorePolarisation *const dV = nullptr, double fw = 1.0,
+     double fv = 1.0) const;
 
   //! constructs an me table of {srn, srn+dv} for each pair or {a,b}
   Coulomb::meTable<std::pair<double, double>>
@@ -149,6 +161,11 @@ private:
   double n2(const DiracSpinor &v) const;
   double dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
                    const DiracSpinor &j, const DiracSpinor &k) const;
+
+  std::pair<double, double>
+  z_bo(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
+       const DiracSpinor &v, bool transpose = false,
+       const ExternalField::CorePolarisation *const dV = nullptr) const;
 
   //
   double Q(int k, const DiracSpinor &a, const DiracSpinor &b,
