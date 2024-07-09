@@ -156,7 +156,7 @@ void print() {
 //==============================================================================
 
 //! Calculates wavefunction and runs optional modules
-void ampsci(const IO::InputBlock &input);
+Wavefunction ampsci(const IO::InputBlock &input);
 
 //==============================================================================
 //==============================================================================
@@ -265,7 +265,7 @@ int main(int argc, char *argv[]) {
 //==============================================================================
 //==============================================================================
 
-void ampsci(const IO::InputBlock &input) {
+Wavefunction ampsci(const IO::InputBlock &input) {
   IO::ChronoTimer timer("\nampsci");
 
   using namespace std::string_literals;
@@ -517,19 +517,18 @@ void ampsci(const IO::InputBlock &input) {
   //----------------------------------------------------------------------------
 
   // Construct B-spline basis:
-  input.check(
-      {"Basis"},
-      {{"number", "Number of splines used in expansion [0]"},
-       {"order", "order of splines ~7-9 [7]"},
-       {"r0", "minimum cavity radius (first internal knot) [1.0e-4]"},
-       {"r0_eps", "Select cavity radius r0 for each l by position "
-                  "where |psi(r0)/psi_max| falls below r0_eps [1.0e-3]"},
-       {"rmax", "maximum cavity radius [Grid{rmax}]"},
-       {"states", "states to keep (e.g., 30spdf20ghi)"},
-       {"orthogonalise", "Force orthogonal to core [false]"},
-       {"print", "Print all spline energies (for testing) [false]"},
-       {"positron", "Include -ve energy states [false]]"},
-       {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
+  input.check({"Basis"},
+              {{"number", "Number of splines used in expansion [30]"},
+               {"order", "order of splines ~7-9 [7]"},
+               {"r0", "minimum cavity radius (first internal knot) [1.0e-4]"},
+               {"r0_eps", "Select cavity radius r0 for each l by position "
+                          "where |psi(r0)/psi_max| falls below r0_eps [0.0]"},
+               {"rmax", "maximum cavity radius [40.0]"},
+               {"states", "states to keep (e.g., 30spdf20ghi)"},
+               {"orthogonalise", "Force orthogonal to core [false]"},
+               {"print", "Print all spline energies (for testing) [false]"},
+               {"positron", "Include -ve energy states [false]]"},
+               {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
 
   const auto basis_input = input.getBlock("Basis");
   if (basis_input) {
@@ -725,4 +724,6 @@ void ampsci(const IO::InputBlock &input) {
 
   // run each of the modules with the calculated wavefunctions
   Module::runModules(input, wf);
+
+  return wf;
 }
