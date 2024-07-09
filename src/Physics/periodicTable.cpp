@@ -13,8 +13,9 @@ namespace AtomData {
 
 void instructions() {
   std::cout
-      << "Usage:\n"
+      << "Usage example:\n"
          "Cs         Info for Cs with default A\n"
+         "55         Same as above\n"
          "Cs 137     Info for Cs-137\n"
          "Cs all     Info for all available Cs isotopes\n"
          "(Note: numbers come from online database, and should be checked)\n";
@@ -67,9 +68,12 @@ void printConstants() //
   printf("mp/me   = %.8f\n", PhysConst::m_p);
   printf("me      = %.11f MeV\n", PhysConst::m_e_MeV);
   printf("aB      = %.12e m\n", PhysConst::aB_m);
+  printf("        = %.8f fm\n", PhysConst::aB_fm);
+  printf("        = %.12e c/MeV\n", PhysConst::aB_fm / PhysConst::hbarc_MeVfm);
   printf("E_H     = %.12f eV\n", PhysConst::Hartree_eV);
   printf("        = %.12e Hz\n", PhysConst::Hartree_Hz);
   printf("        = %.8f /cm\n", PhysConst::Hartree_invcm);
+  printf("λ(E_H)  = %.8f nm\n", 1e9 * PhysConst::c_SI / PhysConst::Hartree_Hz);
   printf("ℏ/E_H   = %.10e s\n", PhysConst::hbar_on_EH);
   std::cout << "\n";
   return;
@@ -83,60 +87,45 @@ void periodicTable(std::string z_str, std::string a_str) {
   instructions();
   AtomData::printTable();
 
-  while (true) {
+  const auto z = AtomData::atomic_Z(z_str);
+  if (z != 0) {
 
-    const auto z = AtomData::atomic_Z(z_str);
-    if (z != 0) {
+    z_str = AtomData::atomicSymbol(z);
 
-      z_str = AtomData::atomicSymbol(z);
+    auto name = AtomData::atomicName(z);
 
-      auto name = AtomData::atomicName(z);
-
-      std::vector<Nuclear::Isotope> isotopes;
-      int a_default = parse_A("0", z);
-      if (a_str == "all" || a_str == "list") {
-        isotopes = Nuclear::findIsotopeList(z);
-      } else {
-        int a = parse_A(a_str, z);
-        isotopes.push_back(Nuclear::findIsotopeData(z, a));
-      }
-
-      auto core_str = AtomData::guessCoreConfigStr(z);
-      auto core_vec = AtomData::core_parser(core_str);
-
-      std::cout << "\n"
-                << z_str << ",  " << name << ".\n"
-                << "Z = " << z << ";  A = " << a_default << " (default)\n\n";
-      std::cout << "Electron config: " << core_str << "   (guess)\n"
-                << " = ";
-      for (const auto &term : core_vec) {
-        if (term.frac() < 1)
-          std::cout << "| ";
-        std::cout << term.symbol() << " ";
-      }
-      std::cout << "\n";
-
-      std::cout << "\nIsotpe data:";
-      if (isotopes.empty()) {
-        std::cout << " none known\n";
-      }
-      for (const auto &nuc : isotopes) {
-        std::cout << "\n";
-        printData(nuc);
-      }
+    std::vector<Nuclear::Isotope> isotopes;
+    int a_default = parse_A("0", z);
+    if (a_str == "all" || a_str == "list") {
+      isotopes = Nuclear::findIsotopeList(z);
+    } else {
+      int a = parse_A(a_str, z);
+      isotopes.push_back(Nuclear::findIsotopeData(z, a));
     }
 
-    std::cout << "\nEnter atom (and optional isotope):\n";
-    std::string s1;
-    std::getline(std::cin, s1);
-    std::stringstream ss(s1);
-    ss >> z_str >> a_str;
-    if (z_str == "" || z_str == "q" || z_str == "exit" || z_str == "quit")
-      return;
-    if (a_str == "")
-      a_str = "0";
+    auto core_str = AtomData::guessCoreConfigStr(z);
+    auto core_vec = AtomData::core_parser(core_str);
 
-    std::cout << "----------------------------------------------\n";
+    std::cout << "\n"
+              << z_str << ",  " << name << ".\n"
+              << "Z = " << z << ";  A = " << a_default << " (default)\n\n";
+    std::cout << "Electron config: " << core_str << "   (guess)\n"
+              << " = ";
+    for (const auto &term : core_vec) {
+      if (term.frac() < 1)
+        std::cout << "| ";
+      std::cout << term.symbol() << " ";
+    }
+    std::cout << "\n";
+
+    std::cout << "\nIsotpe data:";
+    if (isotopes.empty()) {
+      std::cout << " none known\n";
+    }
+    for (const auto &nuc : isotopes) {
+      std::cout << "\n";
+      printData(nuc);
+    }
   }
 }
 

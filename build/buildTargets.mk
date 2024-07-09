@@ -68,10 +68,7 @@ OBJS := $(subst $(SD),$(BD)/$(SUBBD),$(subst .cpp,.o,$(SRC_FILES)))
 ################################################################################
 # Link + build all final programs
 
-$(XD)/ampsci: $(BD)/$(SUBBD)/ampsci.o $(OBJS)
-	$(LINK)
-
-$(XD)/muon: $(BD)/$(SUBBD)/muon.o $(OBJS)
+$(XD)/ampsci: $(BD)/$(SUBBD)/main.o $(BD)/$(SUBBD)/ampsci.o $(OBJS)
 	$(LINK)
 
 $(XD)/tests: $(OBJS) $(TEST_OBJS)
