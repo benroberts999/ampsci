@@ -38,6 +38,7 @@ public:
   void start();
   void stop();
   void reset();
+  void restart();
   ~ChronoTimer();
 
   double reading_ms() const;
@@ -83,6 +84,12 @@ inline void ChronoTimer::stop() {
 
   // update total time
   total_time_ms += current_time;
+}
+
+//==============================================================================
+inline void ChronoTimer::restart() {
+  reset();
+  start();
 }
 
 //==============================================================================

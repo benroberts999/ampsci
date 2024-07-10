@@ -43,6 +43,8 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
       mQ->write(Qk_fname);
     }
   }
+
+  // set index lists, for faster
 }
 
 //==============================================================================
@@ -105,47 +107,62 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
 
   const auto k = h->rank();
 
+  std::vector<std::pair<std::size_t, std::size_t>> index_ab;
+  for (auto ia = 0ul; ia < mCore.size(); ++ia) {
+    const auto &a = mCore[ia];
+    for (auto ib = 0ul; ib < mCore.size(); ++ib) {
+      const auto &b = mCore[ib];
+      if (h->isZero(a.kappa(), b.kappa()))
+        continue;
+      index_ab.emplace_back(ia, ib);
+    }
+  }
+
+  std::vector<std::pair<std::size_t, std::size_t>> index_mr;
+  for (auto im = 0ul; im < mExcited.size(); ++im) {
+    const auto &m = mExcited[im];
+    for (auto ir = 0ul; ir < mExcited.size(); ++ir) {
+      const auto &r = mExcited[ir];
+      if (h->isZero(m.kappa(), r.kappa()))
+        continue;
+      index_mr.emplace_back(im, ir);
+    }
+  }
+
   double c{0.0}, dv{0.0};
 #pragma omp parallel for reduction(- : c) reduction(- : dv)
-  for (auto ia = 0ul; ia < mCore.size(); ++ia) {
-    for (auto ib = 0ul; ib < mCore.size(); ++ib) {
-      const auto &a = mCore[ia];
-      const auto &b = mCore[ib];
+  for (std::size_t i = 0; i < index_ab.size(); ++i) {
+    const auto [ia, ib] = index_ab[i];
+    const auto &a = mCore[ia];
+    const auto &b = mCore[ib];
 
-      if (h->isZero(b.kappa(), a.kappa()))
-        continue;
+    const auto t_ba = h->reducedME(b, a);
+    const auto C_wavb = c1(k, w, a, v, b) + c2(k, w, a, v, b);
 
-      const auto t_ba = h->reducedME(b, a);
-      const auto C_wavb = c1(k, w, a, v, b) + c2(k, w, a, v, b);
+    // nb: -ve
+    c -= t_ba * C_wavb;
 
-      // nb: -ve
-      c -= t_ba * C_wavb;
-
-      if (dV) {
-        const auto tdv_ba = t_ba + dV->dV(b, a);
-        dv -= tdv_ba * C_wavb;
-      }
+    if (dV) {
+      const auto tdv_ba = t_ba + dV->dV(b, a);
+      dv -= tdv_ba * C_wavb;
     }
   }
 
 #pragma omp parallel for reduction(- : c) reduction(- : dv)
-  for (auto im = 0ul; im < mExcited.size(); ++im) {
-    for (const auto &r : mExcited) {
-      const auto &m = mExcited[im];
+  for (std::size_t i = 0; i < index_mr.size(); ++i) {
+    const auto [im, ir] = index_mr[i];
+    const auto &m = mExcited[im];
+    const auto &r = mExcited[ir];
 
-      if (h->isZero(m.kappa(), r.kappa()))
-        continue;
+    const auto t_mr = h->reducedME(m, r);
+    const auto C_wrvm = d2(k, w, r, v, m) + d1(k, w, r, v, m);
 
-      const auto t_mr = h->reducedME(m, r);
-      const auto C_wrvm = d2(k, w, r, v, m) + d1(k, w, r, v, m);
+    // nb: -ve
+    c -= t_mr * C_wrvm;
 
-      // nb: -ve
-      c -= t_mr * C_wrvm;
-
-      if (dV) {
-        const auto tdv_mr = t_mr + dV->dV(m, r);
-        dv -= tdv_mr * C_wrvm;
-      }
+    if (dV) {
+      const auto tdv_mr = t_mr + dV->dV(m, r);
+      dv -= tdv_mr * C_wrvm;
     }
   }
 
@@ -406,6 +423,10 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
   for (const auto &b : mCore) {
     for (const auto &n : mExcited) {
 
+      if (!Angular::sixjTriads(w.twoj(), v.twoj(), 2 * k, c.twoj(), a.twoj(),
+                               {}))
+        continue;
+
       const auto e_nvbc = n.en() + v.en() - b.en() - c.en();
       const auto e_nwab = n.en() + w.en() - a.en() - b.en();
       const auto invde = 1.0 / (e_nvbc * e_nwab);
@@ -416,18 +437,15 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
 
-        const auto su = Angular::neg1pow(u);
-        const auto f = 2 * u + 1;
-
         const auto sj = mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, c.twoj(),
                                         a.twoj(), 2 * u);
-        if (Angular::zeroQ(sj))
+        if (sj == 0.0)
           continue;
+
+        const auto su = Angular::neg1pow(u);
+        const auto f = 2.0 * u + 1.0;
 
         const auto wu1 = W(u, w, n, a, b);
-        if (Angular::zeroQ(wu1))
-          continue;
-
         const auto wu2 = W(u, v, n, c, b);
 
         t += su * sj * wu1 * wu2 * invde / f;
@@ -447,6 +465,11 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
   for (const auto &m : mExcited) {
     for (const auto &n : mExcited) {
 
+      if (!Angular::sixjTriads(w.twoj(), v.twoj(), 2 * k, {}, {}, n.twoj()))
+        continue;
+      if (!Angular::sixjTriads(c.twoj(), a.twoj(), 2 * k, {}, {}, m.twoj()))
+        continue;
+
       const auto e_mnaw = m.en() + n.en() - a.en() - w.en();
       const auto e_nmcv = n.en() + m.en() - c.en() - v.en();
       const auto invde = 1.0 / (e_mnaw * e_nmcv);
@@ -458,25 +481,23 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
         continue;
       for (int u = minU; u <= maxU; u += 2) {
 
-        const auto qu = Q(u, v, m, n, c);
-        if (Angular::zeroQ(qu))
-          continue;
+        const auto s_qu_invde = smn * Q(u, v, m, n, c) * invde;
 
         for (int l = minL; l <= maxL; ++l) {
 
           const auto sj1 = mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, 2 * u,
                                            2 * l, n.twoj());
-          if (Angular::zeroQ(sj1))
+          if (sj1 == 0.0)
             continue;
 
           const auto sj2 = mY.SixJ().get_2(c.twoj(), a.twoj(), 2 * k, 2 * l,
                                            2 * u, m.twoj());
-          if (Angular::zeroQ(sj2))
+          if (sj2 == 0.0)
             continue;
 
           const auto wl = W(l, w, a, n, m);
 
-          t += smn * sj1 * sj2 * qu * wl * invde;
+          t += sj1 * sj2 * s_qu_invde * wl;
         }
       }
     }
@@ -494,6 +515,10 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
 
+      if (!Angular::sixjTriads(w.twoj(), v.twoj(), 2 * k, m.twoj(), r.twoj(),
+                               {}))
+        continue;
+
       const auto e_mnav = m.en() + n.en() - a.en() - v.en();
       const auto e_rnaw = r.en() + n.en() - a.en() - w.en();
       const auto invde = 1.0 / (e_mnav * e_rnaw);
@@ -504,21 +529,16 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
 
-        const auto su = Angular::neg1pow(u);
-        const auto f = 2 * u + 1;
-
         const auto sj = mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, m.twoj(),
                                         r.twoj(), 2 * u);
-        if (Angular::zeroQ(sj))
+        if (sj == 0.0)
           continue;
 
         const auto wu1 = W(u, w, a, r, n);
-        if (Angular::zeroQ(wu1))
-          continue;
-
         const auto wu2 = W(u, v, a, m, n);
+        const auto fsu = Angular::neg1pow(u) / (2.0 * u + 1.0);
 
-        t += su * sj * wu1 * wu2 * invde / f;
+        t += fsu * sj * wu1 * wu2 * invde;
       }
     }
   }
@@ -535,6 +555,11 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
   for (const auto &a : mCore) {
     for (const auto &b : mCore) {
 
+      if (!Angular::sixjTriads(w.twoj(), v.twoj(), 2 * k, {}, {}, a.twoj()))
+        continue;
+      if (!Angular::sixjTriads(m.twoj(), r.twoj(), 2 * k, {}, {}, b.twoj()))
+        continue;
+
       const auto sab = Angular::neg1pow_2(a.twoj() + b.twoj());
 
       const auto e_mvab = m.en() + v.en() - a.en() - b.en();
@@ -547,24 +572,22 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
         continue;
       for (int u = minU; u <= maxU; u += 2) {
 
-        const auto qu = Q(u, v, b, a, m);
-        if (Angular::zeroQ(qu))
-          continue;
+        const auto s_qu_invde = sab * Q(u, v, b, a, m) * invde;
 
         for (int l = minL; l <= maxL; ++l) {
 
           const auto sj1 = mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, 2 * u,
                                            2 * l, a.twoj());
-          if (Angular::zeroQ(sj1))
+          if (sj1 == 0.0)
             continue;
           const auto sj2 = mY.SixJ().get_2(m.twoj(), r.twoj(), 2 * k, 2 * l,
                                            2 * u, b.twoj());
-          if (Angular::zeroQ(sj2))
+          if (sj2 == 0.0)
             continue;
 
           const auto wl = W(l, w, r, a, b);
 
-          t += sab * sj1 * sj2 * qu * wl * invde;
+          t += sj1 * sj2 * s_qu_invde * wl;
         }
       }
     }
@@ -632,47 +655,52 @@ StructureRad::z_bo(const DiracOperator::TensorOperator *const h,
 
   double zBO = 0.0, zBO_dv = 0.0;
 
+  std::vector<const DiracSpinor *> i_ptr;
   for (const auto &t_basis : {&mCore, &mExcited}) {
     for (const auto &i : *t_basis) {
       if (i.kappa() != v.kappa() || i == v)
         continue;
+      i_ptr.push_back(&i);
+    }
+  }
 
-      const auto ftr = transpose ? h->symm_sign(w, i) : 1.0;
-      const auto h_wi = ftr * h->reducedME(w, i);
-      const auto dV_wi = ftr * (dV ? dV->dV(w, i) : 0.0);
+#pragma omp parallel for reduction(+ : zBO) reduction(+ : zBO_dv)
+  for (std::size_t ii = 0; ii < i_ptr.size(); ++ii) {
+    const auto &i = *i_ptr[ii];
 
-      const auto de_vi = v.en() - i.en();
-      const auto sign = Angular::neg1pow_2(v.twoj() - i.twoj());
+    const auto ftr = transpose ? h->symm_sign(w, i) : 1.0;
+    const auto h_wi = ftr * h->reducedME(w, i);
+    const auto dV_wi = ftr * (dV ? dV->dV(w, i) : 0.0);
 
-      const auto f_iv = h_wi / v.twojp1() / de_vi * sign;
-      const auto dv_iv = (h_wi + dV_wi) / v.twojp1() / de_vi * sign;
+    const auto de_vi = v.en() - i.en();
+    // const auto sign = Angular::neg1pow_2(v.twoj() - i.twoj());
 
-      double zBO_i = 0.0;
-#pragma omp parallel for reduction(+ : zBO_i)
-      for (const auto &m : mExcited) {
-        for (const auto &a : mCore) {
-          for (const auto &b : mCore) {
-            const auto [k0, km] = Coulomb::k_minmax_Q(i, m, a, b);
-            for (auto k = k0; k <= km; k += 2) {
-              const auto e_vmab = v.en() + m.en() - a.en() - b.en();
-              zBO_i +=
-                  Q(k, i, m, a, b) * W(k, v, m, a, b) / e_vmab / (2 * k + 1);
-            }
+    const auto f_iv = h_wi / v.twojp1() / de_vi;
+    const auto dv_iv = (h_wi + dV_wi) / v.twojp1() / de_vi;
+
+    double zBO_i = 0.0;
+
+    for (const auto &m : mExcited) {
+      for (const auto &a : mCore) {
+        for (const auto &b : mCore) {
+          const auto [k0, km] = Coulomb::k_minmax_Q(i, m, a, b);
+          for (auto k = k0; k <= km; k += 2) {
+            const auto e_vmab = v.en() + m.en() - a.en() - b.en();
+            zBO_i += Q(k, i, m, a, b) * W(k, v, m, a, b) / e_vmab / (2 * k + 1);
           }
-          for (const auto &n : mExcited) {
-            const auto [k0, km] = Coulomb::k_minmax_Q(i, a, n, m);
-            for (auto k = k0; k <= km; k += 2) {
-              const auto e_nmav = v.en() + a.en() - n.en() - m.en();
-              zBO_i +=
-                  Q(k, i, a, n, m) * W(k, v, a, n, m) / e_nmav / (2 * k + 1);
-            }
+        }
+        for (const auto &n : mExcited) {
+          const auto [k0, km] = Coulomb::k_minmax_Q(i, a, n, m);
+          for (auto k = k0; k <= km; k += 2) {
+            const auto e_nmav = v.en() + a.en() - n.en() - m.en();
+            zBO_i += Q(k, i, a, n, m) * W(k, v, a, n, m) / e_nmav / (2 * k + 1);
           }
         }
       }
-
-      zBO += zBO_i * f_iv;
-      zBO_dv += zBO_i * dv_iv;
     }
+
+    zBO += zBO_i * f_iv;
+    zBO_dv += zBO_i * dv_iv;
   }
 
   return {zBO, zBO_dv};

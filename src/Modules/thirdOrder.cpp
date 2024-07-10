@@ -18,36 +18,45 @@ namespace Module {
 void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
+      {{"", "Calculates third-order matrix elements, entirely using the basis. "
+            "Includes RPA, `Brueckner' orbital, SR+Norm, and optionally "
+            "T_deriv contributions. Good for cases where orthogonality of the "
+            "basis is crucial, e.g., M1."},
+       {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
        {"options{}", "options specific to operator (see ampsci -o 'operator')"},
        {"rpa", "True/false (always uses diagram method) [true]"},
        {"scale",
-        "Scaling factors for BO contributions (same as lambda in "
-        "Correlations), comma-sepparated list. There must be one factor for "
-        "each valence state, in the same order as the valence states."},
+        "Scaling factors for BO contributions, comma-sepparated list. "
+        "There must be one factor for each valence state, in the same order as "
+        "the valence states. Note: these are NOT the same as lambda_kappa in "
+        "Correlations; this is scaling for MBPT(2) energy correction."},
+       {"fitTo_cm",
+        "Experimental energies, in inverse cm, to fit BO to. Autmatically "
+        "works out, and overrides 'scale'. Comma-sepparated list, one per "
+        "valence state, in same order."},
        {"omega",
         "Text or number. Freq. for RPA (and freq. dependent operators). Put "
         "'each' to solve at correct frequency for each transition. [0.0]"},
-       {"Tderiv", "Include T_deriv term. Only if omega=each, and "
+       {"Tderiv", "Include T_deriv term. Only used if omega=each, and "
                   "frequency-dependent operator. [true]"},
-       {"printBoth", "print <a|h|b> and <b|h|a> [false]"},
        {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
        {"off-diagonal",
         "Calculate off-diagonal matrix elements (if non-zero) [true]"},
+       {"printBoth", "print <a|h|b> and <b|h|a> (mostly for checks) [false]"},
        {"Qk_file",
         "true/false/filename - filename for QkTable file. If blank will "
         "not use QkTable; if exists, will read it in; if doesn't exist, will "
         "create it and write to disk. If 'true' will use default filename. "
         "Save time (10x) at cost of memory."},
        {"n_minmax", "list; min,max n for core/excited in internal diagram "
-                    "lines: [1,inf]"}});
+                    "lines for BO and SR (all used in RPA): [1,inf]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
   }
 
-  std::cout << "Calculating Third-Order matrix elements\n\n";
+  std::cout << "Calculating Third-Order matrix elements\n";
   IO::ChronoTimer timer("thirdOrderME");
 
   const auto oper = input.get<std::string>("operator", "");
@@ -66,6 +75,81 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const bool diagonal = input.get("diagonal", true);
   const bool off_diagonal = input.get("off-diagonal", true);
+  const bool print_both = input.get("printBoth", false);
+
+  // use basis states, not valence states
+  std::vector<DiracSpinor> orbs;
+  for (const auto &v : wf.valence()) {
+    orbs.push_back(v);
+  }
+
+  // For MBPT:
+  const auto n_minmax = input.get("n_minmax", std::vector{1});
+  const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
+  const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
+  const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
+  std::string Qk_file =
+      Qk_file_t != "false" ?
+          Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
+          "";
+
+  std::cout
+      << "\nIncluding Structure radiation, normalisation of states and BO:\n";
+  if (n_min > 1)
+    std::cout << "Including from n = " << n_min << "\n";
+  if (n_max < 999)
+    std::cout << "Including to n = " << n_max << "\n";
+  if (!Qk_file.empty()) {
+    std::cout << "Will read/write Qk integrals to file: " << Qk_file << "\n";
+  } else {
+    std::cout << "Will calculate Qk integrals on-the-fly\n";
+  }
+  std::cout << std::flush;
+
+  auto sr =
+      MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
+
+  // Optional re-scaling of BO part:
+  std::map<std::string, double> scale_factors;
+  auto lambda = input.get("scale", std::vector<double>{});
+  auto exp_cm = input.get("fitTo_cm", std::vector<double>{});
+  using namespace qip::overloads;
+  if (!exp_cm.empty()) {
+    lambda.resize(exp_cm.size());
+    exp_cm /= PhysConst::Hartree_invcm;
+    if (exp_cm.front() > 0.0)
+      exp_cm *= -1.0;
+  }
+
+  std::cout << "\nMBPT(2) energy corrections:\n";
+  fmt::print("{:4s} {:>8s} {:>8s} {:>8s} {:>8s}", "v", "HF", "Basis", "de(2)",
+             "Total");
+  if (!exp_cm.empty())
+    fmt::print("  {:>8s}  {}", "Expt", "BO_scale");
+  std::cout << "\n";
+  for (std::size_t i = 0; i < orbs.size(); ++i) {
+    const auto &vv = wf.valence().at(i);
+    const auto &vb = orbs.at(i);
+    const auto de2 = MBPT::Sigma_vw(vb, vb, sr.Yk(), sr.core(), sr.excited());
+    fmt::print("{:4s} {:8.5f} {:8.5f} {:8.5f} {:8.5f}", vv.shortSymbol(),
+               vv.en(), vb.en(), de2, vb.en() + de2);
+    if (exp_cm.size() > i) {
+      const auto lam = (exp_cm.at(i) - vb.en()) / de2;
+      lambda.at(i) = lam;
+      fmt::print("  {:8.5f}  {:.3f}", exp_cm.at(i), lam);
+    }
+    std::cout << "\n";
+  }
+
+  const auto do_scale = !lambda.empty();
+  if (!lambda.empty()) {
+    std::cout << "\nUsing scaling factors for BO:\n";
+    for (std::size_t i = 0; i < wf.valence().size(); ++i) {
+      const auto lam = lambda.size() > i ? lambda.at(i) : 1.0;
+      std::cout << wf.valence().at(i) << " : " << lam << "\n";
+      scale_factors[wf.valence().at(i).shortSymbol()] = lam;
+    }
+  }
 
   std::cout << "\n"
             << "Matrix Elements - Operator: " << h->name() << "\n";
@@ -99,50 +183,6 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "each transition frequency\n";
     else
       std::cout << omega << "\n";
-  }
-
-  std::map<std::string, double> scale_factors;
-  bool do_scale = false;
-  const auto lambda = input.get("scale", std::vector<double>{});
-  if (!lambda.empty()) {
-    do_scale = true;
-    std::cout << "Using scaling factors for BO:\n";
-    for (std::size_t i = 0; i < wf.valence().size(); ++i) {
-      const auto lam = lambda.size() > i ? lambda.at(i) : 1.0;
-      std::cout << wf.valence().at(i) << " : " << lam << "\n";
-      scale_factors[wf.valence().at(i).shortSymbol()] = lam;
-    }
-  }
-
-  const auto n_minmax = input.get("n_minmax", std::vector{1});
-  const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
-  const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
-  const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
-  std::string Qk_file =
-      Qk_file_t != "false" ?
-          Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
-          "";
-
-  std::cout
-      << "\nIncluding Structure radiation, normalisation of states and BO:\n";
-  if (n_min > 1)
-    std::cout << "Including from n = " << n_min << "\n";
-  if (n_max < 999)
-    std::cout << "Including to n = " << n_max << "\n";
-  if (!Qk_file.empty()) {
-    std::cout << "Will read/write Qk integrals to file: " << Qk_file << "\n";
-  } else {
-    std::cout << "Will calculate Qk integrals on-the-fly\n";
-  }
-  std::cout << std::flush;
-
-  auto sr =
-      MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
-
-  // use basis states, not valence states
-  std::vector<DiracSpinor> orbs;
-  for (const auto &v : wf.valence()) {
-    orbs.push_back(v);
   }
 
   if (h->freqDependantQ() && !eachFreqQ) {
@@ -224,11 +264,11 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
           continue;
 
         // Ensure even-parity state on right for odd-parity operators
-        if (pi == -1) {
+        if (!print_both && pi == -1) {
           if (b.parity() == -1)
             continue;
         } else {
-          if (ib > ia)
+          if (!print_both && ib > ia)
             continue;
         }
 
@@ -257,12 +297,10 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
 
         const auto [tb, dvtb] = sr.srTB(h.get(), a, b, ww, rpa.get());
         const auto [c, dvc] = sr.srC(h.get(), a, b, rpa.get());
-
         fmt::print("   SR: {:11.4e} + {:11.4e}\n", ff * (tb + c),
                    ff * (dvtb + dvc - tb - c));
 
         const auto [n, dvn] = sr.norm(h.get(), a, b, rpa.get());
-
         fmt::print("   Nm: {:11.4e} + {:11.4e}\n", ff * n, ff * (dvn - n));
 
         // Calculate T_deriv:
@@ -293,6 +331,7 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto fb = do_scale ? scale_factors[b.shortSymbol()] : 1.0;
 
         auto [bo, dvbo] = sr.BO(h.get(), a, b, rpa.get(), fa, fb);
+
         bo += T_deriv;
         dvbo += T_deriv;
 
