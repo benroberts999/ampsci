@@ -64,7 +64,6 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
       rhs -= VBr->VbrFa(dF, core);
 
     DiracODE::solve_inhomog(dF, Fa.en() + omega, v, H_mag, alpha, rhs);
-
     // damp the solution
     if (its != 0)
       dF = (1.0 - eta_damp) * dF + eta_damp * dF0;
@@ -83,6 +82,12 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
 
   dF.its() = its;
   dF.eps() = eps;
+
+  // do this here? Or when we use it?
+  if (dF.kappa() == Fa.kappa()) {
+    // if imaginary?
+    dF -= (Fa * dF) * Fa;
+  }
   return;
 }
 
@@ -103,6 +108,21 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
   return solveMixedState(dF, Fa, omega, hf->vlocal(dF.l()), hf->alpha(),
                          hf->core(), hFa, eps_target, Sigma, hf->vBreit(),
                          hf->Hmag(0));
+}
+
+//==============================================================================
+DiracSpinor solveMixedState_basis(const DiracSpinor &Fa, const DiracSpinor &hFa,
+                                  double omega,
+                                  const std::vector<DiracSpinor> &basis) {
+  DiracSpinor dFa = 0.0 * hFa;
+
+  for (const auto &n : basis) {
+    if (n == Fa || n.kappa() != hFa.kappa())
+      continue;
+    dFa += ((n * hFa) / (Fa.en() - n.en() + omega)) * n;
+    // Xx += (hnc / (Fv.en() - Fn.en() + ww)) * Fn;
+  }
+  return dFa;
 }
 
 } // namespace ExternalField

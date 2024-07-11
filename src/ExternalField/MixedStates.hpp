@@ -70,4 +70,9 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      double eps_target = 1.0e-9,
                      const MBPT::CorrelationPotential *const Sigma = nullptr);
 
+//! Directly findes dF = \sum_n |n><n|hFa> / (ea - en + omega) - mainly for tests
+DiracSpinor solveMixedState_basis(const DiracSpinor &Fa, const DiracSpinor &hFa,
+                                  double omega,
+                                  const std::vector<DiracSpinor> &basis);
+
 } // namespace ExternalField

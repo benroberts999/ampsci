@@ -145,6 +145,10 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   // The l from X ? or from Fv ?
   return s2 * ExternalField::solveMixedState(Fv, ww, vl, m_alpha, m_core, rhs,
                                              1.0e-9, Sigma, p_VBr, Hmag);
+  // if (kappa_x == Fv.kappa() && !imag) {
+  //   tmp -= (Fv * tmp) * Fv;
+  // }
+  // return tmp;
 }
 
 //==============================================================================
@@ -179,6 +183,9 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
     // The l from X ? or from Fv ?
     ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
                                    eps_ms, nullptr, p_VBr, Hmag);
+    // if (dF_beta.kappa() == Fb.kappa() && !imag) {
+    //   dF_beta -= (Fb * dF_beta) * Fb;
+    // }
   }
 }
 
@@ -210,10 +217,11 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
   auto Ys = m_Y;
   std::vector<std::pair<double, std::string>> epss(m_core.size());
 
-  const auto has_de = not m_h->imaginaryQ() && m_h->parity() == 1;
-  const auto eps_ms = (std::abs(eta_damp) < 1.0e-6 || has_de) ? 1.0e-9 : 1.0e-6;
+  const auto eps_ms = std::abs(eta_damp) < 1.0e-6 ? 1.0e-9 : 1.0e-6;
 
-#pragma omp parallel for
+  double DdF2 = 0.0;
+  double dF2 = 0.0;
+#pragma omp parallel for reduction(+ : DdF2) reduction(+ : dF2)
   for (auto ib = 0ul; ib < m_core.size(); ib++) {
     const auto &Fb = m_core.at(ib);
 
@@ -229,27 +237,39 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
       Ys[ib] = eta_damp * m_Y[ib] + (1.0 - eta_damp) * Ys[ib];
     }
 
-    // find eps
+    // find eps: of each orbital (just so I know which was the 'worst')
+    // and for total core (for overal convergance)
     epss[ib] = {0.0, ""};
     for (std::size_t ibeta = 0; ibeta < Xs[ib].size(); ++ibeta) {
       const auto &Xx = Xs[ib][ibeta];
       const auto &oldX = m_X[ib][ibeta];
-      const auto delta = (Xx - oldX).norm2() / Xx.norm2();
-      if (delta > epss[ib].first) {
-        epss[ib].first = delta;
+
+      const auto t_DdF2 = (Xx - oldX).norm2();
+      const auto t_dF2 = Xx.norm2();
+      DdF2 += t_DdF2;
+      dF2 += t_dF2;
+
+      // find worst orbital
+      const auto t_eps = t_DdF2 / t_dF2;
+      if (t_eps > epss[ib].first) {
+        epss[ib].first = t_eps;
         epss[ib].second = Fb.shortSymbol() + "," + Xx.shortSymbol();
       }
     }
   }
+  const auto total_eps = DdF2 / dF2;
+
+  // Find the worst orbital (just for reporting)
+  const auto comp_first = [](const auto &a, const auto &b) {
+    return a.first < b.first;
+  };
+  const auto worst_orbital =
+      *std::max_element(epss.begin(), epss.end(), comp_first);
 
   m_X = std::move(Xs);
   m_Y = std::move(Ys);
 
-  const auto comp_first = [](const auto &a, const auto &b) {
-    return a.first < b.first;
-  };
-
-  return *std::max_element(epss.begin(), epss.end(), comp_first);
+  return {total_eps, worst_orbital.second};
 }
 
 //==============================================================================

@@ -251,11 +251,6 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto rpaQ = me_input->get("rpa", true);
   const auto omega = me_input->get("omega", 0.0);
 
-  if (h->parity() == 1 && rpaQ) {
-    std::cout << "\n\n*CAUTION*:\n RPA (TDHF method) may not work for this "
-                 "operator.\n Consider using diagram or basis method\n\n";
-  }
-
   // set up RPA, for each QED sub-operator:
   using namespace ExternalField;
   std::unique_ptr<CorePolarisation> dV0{nullptr};

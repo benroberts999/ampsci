@@ -128,13 +128,6 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << omega << "\n";
   }
 
-  if ((h->parity() == 1) && rpa &&
-      rpa->method() == ExternalField::Method::TDHF) {
-    fmt2::warning();
-    std::cout << "\n\n*CAUTION*:\n RPA (TDHF method) may not work for this "
-                 "operator.\n Consider using diagram or basis method\n\n";
-  }
-
   // For SR+N
   std::optional<MBPT::StructureRad> sr;
   if (t_SR_input) {
@@ -715,13 +708,6 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                             Qk_file);
   }
   const MBPT::StructureRad *const p_sr = sr ? &*sr : nullptr;
-
-  if ((h->parity() == 1) && rpa &&
-      rpa->method() == ExternalField::Method::TDHF) {
-    fmt2::warning();
-    std::cout << "\n\n*CAUTION*:\n RPA (TDHF method) may not work for this "
-                 "operator.\n Consider using diagram or basis method\n\n";
-  }
 
   if (!eachFreqQ && h->freqDependantQ()) {
     std::cout << "Frequency-dependent operator at fixed frequency: w=" << omega
