@@ -20,15 +20,6 @@ Grid {
   num_points = 4000;
 }
 
-// For hyperfine constants, we will use diagram method for RPA, so need a basis
-Basis {
-  number = 50;
-  order = 7;
-  r0 = 1.0e-5;
-  rmax = 40.0;
-  states = 45spdf;
-}
-
 // Run some basic tests (orthogonality)
 Module::Tests {}
 
@@ -43,7 +34,6 @@ Module::matrixElements {
 // Use a point-like magnetisation distro; and lookup the default mu,I
 Module::matrixElements {
   operator = hfs;
-  rpa = diagram;
   off-diagonal = false;
   options{
       nuc_mag = pointlike;

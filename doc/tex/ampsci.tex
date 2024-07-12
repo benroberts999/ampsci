@@ -5,6 +5,7 @@
 
 \usepackage{bm,dcolumn,amsmath,graphicx,amsfonts,amssymb,fancyhdr}
 \usepackage{cancel}
+\usepackage{comment}
 
 %Spacing, header sizes, title white space:
 \usepackage{titling}
@@ -141,7 +142,7 @@
 
 %=================================================
 
-\def\updatedDate{October 2023}
+\def\updatedDate{July 2024}
 %\def\updatedDate{\today}
 
 \pagestyle{fancy}
@@ -1145,6 +1146,7 @@ Then, in terms of the partial waves ($\chi$), the solution becomes:
 This is done so that we only need to calculate the ($m$-independent) {\rm reduced} matrix element of $\hat h$.
 The radial integral $|\chi_\a|^2$ is used to control convergence (for including the exchange term).
 Using $U_x$ from Sec.~\ref{sec:hf-approx}, convergence (for a given orbital) to parts in $10^9$ is typically reached in $\sim$\,10 iterations.
+For the case that $\kappa_\alpha = \kappa_a$ (which only happens for even operators), one should explicitly ensure that $\chi_\alpha$ is orthogonal to $\psi_a$.
 
 One may use the perturbation expression (\ref{eq:XiEtaSum}) to test the method.
 Consider, e.g., (excluding $\delta V$)
@@ -2577,22 +2579,31 @@ In analogy with the Coulomb case, we express this as
 where
 $m,n$ are due to the magnetic (Gaunt) effects, $o,p$ are due to retardation, and $C^k_{-b,a} \equiv \bra{-\k_b}|C^k|\ket{\k_a}$. 
 The lower-case integrals (e.g., $m^k_{abcd}$) may be called the Breit radial integrals, and are somewhat analogous to $R^k_{abcd}$, though they also depend on angular quantum numbers $\kappa$ (but not projections).
-The $B^k$ integrals have the same symmetries as the $W^k$ Coulomb integrals.
+The $B^k$ integrals have similar symmetries as the $W^k$ Coulomb integrals:
+\be
+    B^k_{abcd} = B^k_{badc} = B^k_{cdab} = B^k_{dcba},
+\ee
+with the extra symmetry:
+\be
+    B^k_{cbad} = (-1)^{l_a+l_c+k+1}B^k_{abcd}
+\ee
+(the $m$, $o$, $p$ parts are anti-symmetric under $a\leftrightarrow c$, while the $n$ is symmetric).
+Note also the the $n$ part has the opposite parity selection rule to the other terms, and to the regular Coulomb integrals.
 
 
 The complete equations are substantially more cumbersome than for the Coulomb case.
 We follow Ref.~\cite{Mann1971} and introduce:
 \begin{equation}
 \begin{split}
-P^k_{ij}(r) &= \frac{\Delta_{ij}}{k}X_{ij}(r)-Y_{ij}(r)\\
-Q^k_{ij}(r) &= \frac{\Delta_{ij}}{k+1}X_{ij}(r)+Y_{ij}(r),
+P^k_{ij}(r) &= \frac{\Delta_{ij}}{k}X_{ij}(r)-Y_{ij}(r) = -P^k_{ji}(r)\\
+Q^k_{ij}(r) &= \frac{\Delta_{ij}}{k+1}X_{ij}(r)+Y_{ij}(r) = -Q^k_{ji}(r),
 \end{split}
 \end{equation}
 where $\Delta_{ij}\equiv\kappa_i-\kappa_j$, 
 \begin{equation}
 \begin{split}
-X_{ij}(r) &= F_i^\dag\hat\theta_xF_j = f_i(r)g_j(r) + g_i(r)f_j(r)\\
-Y_{ij}(r) &= F_i^\dag\hat\theta_yF_j = f_i(r)g_j(r) - g_i(r)f_j(r),
+X_{ij}(r) &= F_i^\dag\hat\theta_xF_j = f_i(r)g_j(r) + g_i(r)f_j(r) = X_{ji}\\
+Y_{ij}(r) &= F_i^\dag\hat\theta_yF_j = f_i(r)g_j(r) - g_i(r)f_j(r) = -Y_{ji},
 \end{split}
 \end{equation}
 and 
@@ -2628,6 +2639,7 @@ We also introduce notation for the integrals:
 \end{split}
 \end{equation}
 where $q^k\equiv\frac{r_<^k}{r_>^{k+1}}$ is the (radial) two-body Coulomb operator.
+\begin{comment}
 These can also be expressed:
 \begin{equation}
 \begin{split}
@@ -2640,15 +2652,14 @@ These can also be expressed:
     &\hspace{2.75cm}+ b^{\infty,k-1}_{bd}(r)-b^{\infty,k+1}_{bd}(r)\Bigg).
 \end{split}
 \end{equation}
+\end{comment}
 With these definitions, we can write~\cite{Mann1971,JohnsonBook2007}:
-\begin{equation}
-\begin{split}
-m^k_{abcd} &= \frac{k+1}{2k+3}s^k_{abcd}+\frac{k}{2k-1}t^k_{abcd}\\
+\begin{align}
+m^k_{abcd} &= \frac{k+1}{2k+3}s^k_{abcd}+\frac{k}{2k-1}t^k_{abcd}\notag\\
 n^k_{abcd} &= -\frac{(\k_a+\k_c)(\k_b+\k_d)}{k(k+1)}u^k_{abcd}\\
-o^k_{abcd} &= -\frac{(k+1)^2}{(2k+1)(2k+3)}s^k_{abcd}-\frac{k^2}{(2k+1)(2k-1)}t^k_{abcd}\\
-p^k_{abcd} &= -\frac{k(k+1)}{2(2k+1)}v^k_{abcd}.
-\end{split}
-\end{equation}
+o^k_{abcd} &= -\frac{(k+1)^2}{(2k+1)(2k+3)}s^k_{abcd}-\frac{k^2}{(2k+1)(2k-1)}t^k_{abcd}\notag\\
+p^k_{abcd} &= -\frac{k(k+1)}{2(2k+1)}v^k_{abcd}.\notag
+\end{align}
 
 For including Breit into HF or TDHF equations, it is convenient to define the effective one-body Breit operators, which may be called ``Breit screening functions'' in analogy with $y^k_{bd}(r)$.
 For example,
@@ -2665,11 +2676,11 @@ With these, we can finally write:
 s^{k(ac)}_{bd} &= 
 %\Upsilon^{k+1}\{Q^k_{bd}\}
 \left(\frac{\Delta_{bd}}{k+1}g^{k+1}_{bd}+b^{k+1}_{bd}\right)
-\left[\frac{\delta_{ac}}{k+1}\theta_x + \theta_y\right]\\
+\left[\frac{\Delta_{ac}}{k+1}\theta_x + \theta_y\right]\\
 %
 t^{k(ac)}_{bd} &= 
 %\Upsilon^{k-1}\{P^k_{bd}\}
-\left(\frac{\delta_{bd}}{k}g^{k-1}_{bd}-b^{k-1}_{bd}\right)
+\left(\frac{\Delta_{bd}}{k}g^{k-1}_{bd}-b^{k-1}_{bd}\right)
 \left[\frac{\Delta_{ac}}{k}\theta_x - \theta_y\right]\\
 %
 u^{k(ac)}_{bd} &= 
@@ -2679,7 +2690,7 @@ g^k_{bd}(r)
 %
 v^{k(ac)}_{bd} &= \Bigg(
 %\Upsilon_0^{k-1}\{P^k_{bd}\}
-\frac{\delta_{bd}}{k}[g^{0,k-1}_{bd}-g^{0,k+1}_{bd}]
+\frac{\Delta_{bd}}{k}[g^{0,k-1}_{bd}-g^{0,k+1}_{bd}]
 -b^{0,k-1}_{bd}+b^{0,k+1}_{bd}
 %-\Upsilon_0^{k+1}\{P^k_{bd}\}
 \Bigg)\left[\frac{\Delta_{ac}}{k+1}\theta_x + \theta_y\right]\\
@@ -2689,7 +2700,7 @@ v^{k(ac)}_{bd} &= \Bigg(
 % \right)\left[\frac{\delta_{ac}}{k}\theta_x - \theta_y\right].
 +\Bigg(&
 %\Upsilon_0^{k-1}\{P^k_{bd}\}
-\frac{\delta_{bd}}{k+1}[g^{\infty,k-1}_{bd}-g^{\infty,k+1}_{bd}]
+\frac{\Delta_{bd}}{k+1}[g^{\infty,k-1}_{bd}-g^{\infty,k+1}_{bd}]
 +b^{\infty,k-1}_{bd}-b^{\infty,k+1}_{bd}
 %-\Upsilon_0^{k+1}\{P^k_{bd}\}
 \Bigg)\left[\frac{\Delta_{ac}}{k}\theta_x - \theta_y\right].

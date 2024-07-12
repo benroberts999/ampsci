@@ -12,13 +12,6 @@ Grid {
   rmax = 120.0;
   num_points = 4000;
 }
-Basis { 
-  number = 50;
-  order = 7;
-  r0 = 1.0e-5;
-  rmax = 40.0;
-  states = 45spdf;
-}
 Module::Tests { }
 Module::matrixElements { 
   operator = E1;
@@ -27,14 +20,13 @@ Module::matrixElements {
 }
 Module::matrixElements { 
   operator = hfs;
-  rpa = diagram;
   off-diagonal = false;
   options { nuc_mag = pointlike; }
 }
 
 Running for Cs, Z=55 A=133
 Fermi nucleus;  r_rms = 4.8041, c_hdr = 5.67073, t = 2.3
-Log-linear (b=40) grid: 1e-06->120, N=4000, du=0.216084
+Log-linear (b=40) grid: 1e-06 -> 120.0, N=4000, du=0.216
 ========================================================
 Hartree-Fock
 Core   :  it: 28 eps=8.9e-14 for 5p+
@@ -71,32 +63,13 @@ Valence: CsI
 4   6p_3/2 -2   87.2  1  0e+00    -0.083785459      -18388.783    9565.27
 5   7p_3/2 -2  120.0  1  0e+00    -0.041368036       -9079.234   18874.82
 
-Constructing B-spline basis with N=50, k=7. Storing: 45spdf
-Using Derevianko (Duel Kinetic Balance) type splines.
-Spline cavity l=0 s: (1.4e-04, 40.0)aB.
-Spline cavity l=1 p: (2.8e-03, 40.0)aB.
-Spline cavity l=2 d: (2.4e-02, 40.0)aB.
-Spline cavity l=3 f: (2.4e-02, 40.0)aB.
-Basis/core:
- |<4s+|4s+>-1| = 2.8e-08
- dE/E(1s+)     = 1.3e-06
- <4s+|27s+>    = 5.2e-05
-Basis/valence:
- |<7p+|7p+>-1| = 5.5e-04
- dE/E(7p+)     = 8.9e-04
- <7p+|8p+>     = 1.1e-02  ** OK?
-Basis: T = 472.33 ms
-
 --------------------------------------------------------------------------------
 Module: Module::Tests
 
 Test orthonormality:
 cc   <2s+|5s+> = 2.3e-06
 cv   <3s+|6s+> = 3.1e-06
-cb  <4s+|27s+> = 5.2e-05
 vv   <6p-|7p-> = 2.3e-15
-vb   <7p+|8p+> = 1.1e-02
-bb <20p-|17p-> = 2.0e-14
 
 Testing wavefunctions: <n|H|n>  (numerical error)
 < 1-1|H| 1-1> = -1330.11884403352, E = -1330.11884314981;  7e-10
@@ -158,19 +131,23 @@ Testing boundaries r0 and pinf: R = f(r)/f_max
 --------------------------------------------------------------------------------
 Module: Module::matrixElements
 
-Matrix Elements - (reduced). Operator: E1
+Matrix Elements - Operator: E1
+Reduced matrix elements
 Units: |e|aB
 Including RPA: TDHF method
-TDHF E1 (w=0.0000): 38 3.2e-08 [3d-,p-]
-    a    b   w_ab      t_ab           RPA_ab
-  6p-  6s+   0.04175  -5.277687e+00  -4.974403e+00
-  7p-  6s+   0.08535  -3.717393e-01  -2.387229e-01
-  6p+  6s+   0.04358   7.426435e+00   7.013078e+00
-  7p+  6s+   0.08600   6.947392e-01   5.087421e-01
-  6p-  7s+  -0.03043   4.413140e+00   4.449368e+00
-  7p-  7s+   0.01317  -1.100887e+01  -1.092106e+01
-  6p+  7s+  -0.02860  -6.671016e+00  -6.712221e+00
-  7p+  7s+   0.01382   1.534480e+01   1.522744e+01
+TDHF E1 (w=0.0000): 15 7.5e-10 [3p+,d-]
+
+   a    b    w_ab        t0_ab          +RPA 
+ 6p-  6s+    0.0417522  -5.277687e+00  -4.974408e+00
+ 7p-  6s+    0.0853467  -3.717393e-01  -2.387249e-01
+ 6p+  6s+    0.0435826   7.426435e+00   7.013085e+00
+ 7p+  6s+    0.0860000   6.947392e-01   5.087453e-01
+ 6p-  7s+   -0.0304285   4.413140e+00   4.449367e+00
+ 7p-  7s+    0.0131660  -1.100887e+01  -1.092107e+01
+ 6p+  7s+   -0.0285981  -6.671016e+00  -6.712221e+00
+ 7p+  7s+    0.0138193   1.534480e+01   1.522745e+01
+
+matrixElements: T = 1.68 s
 
 --------------------------------------------------------------------------------
 Module: Module::matrixElements
@@ -180,20 +157,22 @@ K=1 (magnetic dipole)
 Using pointlike nuclear distro for F(r)
 w/ r_N = 0fm = 0au  (r_rms=0fm)
 Points inside nucleus: 0
-mu = 2.58202, I = 3.5, g = 0.737721
+mu = 2.5778, I = 3.5, g = 0.736514
 
-Matrix Elements - (HFS constant A). Operator: hfs1
+Matrix Elements - Operator: hfs1
+Hyperfine A constants (magnetic type), K=1
 Units: MHz
-Including RPA: diagram method (45spdf)
-Filling RPA Diagram matrix (5sp4d/45spdf) .. . done.
-Writing to RPA(diagram) file: Cs1_1+_45spdf.rpad (5sp4d/45spdf) ... done.
-RPA(D) hfs1 (w=0.000): 70 8.2e-11
-    a    b   w_ab      t_ab           RPA_ab
-  6s+  6s+   0.00000   1.433687e+03   1.728281e+03
-  7s+  7s+   0.00000   3.939434e+02   4.740645e+02
-  6p-  6p-   0.00000   1.610199e+02   2.013605e+02
-  7p-  7p-   0.00000   5.765292e+01   7.156379e+01
-  6p+  6p+   0.00000   2.391634e+01   4.287070e+01
-  7p+  7p+   0.00000   8.639729e+00   1.536949e+01
+Including RPA: TDHF method
+TDHF hfs1 (w=0.0000): 30 3.6e-10 [4d-,s+]
 
-ampsci: T = 12.22 s
+   a    b    w_ab        t0_ab          +RPA 
+ 6s+  6s+    0.0000000   1.431341e+03   1.725253e+03
+ 7s+  7s+    0.0000000   3.932988e+02   4.732343e+02
+ 6p-  6p-    0.0000000   1.607564e+02   2.012620e+02
+ 7p-  7p-    0.0000000   5.755858e+01   7.152823e+01
+ 6p+  6p+    0.0000000   2.387720e+01   4.276679e+01
+ 7p+  7p+    0.0000000   8.625592e+00   1.533223e+01
+
+matrixElements: T = 2.27 s
+
+ampsci: T = 4.40 s

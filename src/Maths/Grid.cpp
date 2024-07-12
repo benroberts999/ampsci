@@ -109,10 +109,9 @@ std::string Grid::gridParameters() const {
     out += "Logarithmic ";
     break;
   case GridType::loglinear:
-    // out << "Log-linear (b=" << m_b << ") ";
-    out += fmt::format("Log-linear (b={:.1e}) ", m_b);
+    out += fmt::format("Loglinear (b={:g}) ", m_b);
   }
-  out += fmt::format("grid: {:.1e} -> {:.1e}, N={}, du={:.1e}", m_r0, rmax(),
+  out += fmt::format("grid: {:g} -> {:.1f}, N={}, du={:.3g}", m_r0, rmax(),
                      num_points(), m_du);
   return out;
 }

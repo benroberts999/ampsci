@@ -1,6 +1,6 @@
 # Advanced Tutorial: CI+MBPT
 
-:: Advanced ampsci tutorial: CI+MBPT for two-valence atoms
+:::: Advanced ampsci tutorial: CI+MBPT for two-valence atoms
 
 This assumes you already have ampsci compiled and have a basic understanding of how to run and use it.
 
@@ -378,8 +378,8 @@ On my pc, this entire calculation took less than two minutes.
 This takes very similar options to the regular `MatrixElements{}` module:
 
 ```java
-// Available ModulebriefCI_matrixElements options/blocks
-ModulebriefCI_matrixElements{
+// Available Module::CI_matrixElements options/blocks
+Module::CI_matrixElements{
   // e.g., E1, hfs (see ampsci -o for available operators)
   operator;
   // options specific to operator
@@ -404,7 +404,7 @@ ModulebriefCI_matrixElements{
 It's typically not recommended to use `omega=each`, as this solves the RPA equations for each transition, and the frequency-dependence is usually small.
 
 ```java
-ModulebriefCI_MatrixElements{
+Module::CI_MatrixElements{
   operator = E1;
   rpa = true;
   omega = 0.15970531;

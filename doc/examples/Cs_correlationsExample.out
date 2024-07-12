@@ -20,11 +20,11 @@ Correlations { n_min_core = 3; }
 
 Running for Cs, Z=55 A=133
 Fermi nucleus;  r_rms = 4.8041, c_hdr = 5.67073, t = 2.3
-Log-linear (b=40) grid: 1e-06->120, N=3000, du=0.288136
+Log-linear (b=40) grid: 1e-06 -> 120.0, N=3000, du=0.288
 ========================================================
 Hartree-Fock
 Core   :  it: 28 eps=6.5e-14 for 5p+
-Val    :  it:128 eps=2.4e-15 for 5d- [ 50 eps=0e+00 for 6s+]
+Val    :  it:256 eps=3.7e-12 for 5d- [ 50 eps=0e+00 for 6s+]
 
 Cs-133
 Core: [Xe] V^N-1
@@ -53,27 +53,27 @@ Valence: CsI
 0   6s_1/2 -1   69.7  1  0e+00    -0.127368047      -27954.055       0.00
 1   6p_1/2  1   86.0  1  0e+00    -0.085615846      -18790.506    9163.55
 2   6p_3/2 -2   87.0  1  0e+00    -0.083785437      -18388.778    9565.28
-3   5d_3/2  2  100.4  3  0e+00    -0.064419639      -14138.477   13815.58
+3   5d_3/2  2  100.4  4  6e-16    -0.064419639      -14138.477   13815.58
 4   5d_5/2 -3  100.4  1  0e+00    -0.064529772      -14162.648   13791.41
 
 Constructing B-spline basis with N=50, k=9. Storing: 45spdfghi
 Using Derevianko (Duel Kinetic Balance) type splines.
-Spline cavity l=0 s: (1.4e-04, 40.0)aB.
-Spline cavity l=1 p: (2.8e-03, 40.0)aB.
-Spline cavity l=2 d: (2.4e-02, 40.0)aB.
-Spline cavity l=3 f: (2.4e-02, 40.0)aB.
-Spline cavity l=4 g: (2.4e-02, 40.0)aB.
-Spline cavity l=5 h: (2.4e-02, 40.0)aB.
-Spline cavity l=6 i: (2.4e-02, 40.0)aB.
+Spline cavity l=0 s: (1.0e-05, 40.0)aB.
+Spline cavity l=1 p: (1.0e-05, 40.0)aB.
+Spline cavity l=2 d: (1.0e-05, 40.0)aB.
+Spline cavity l=3 f: (1.0e-05, 40.0)aB.
+Spline cavity l=4 g: (1.0e-05, 40.0)aB.
+Spline cavity l=5 h: (1.0e-05, 40.0)aB.
+Spline cavity l=6 i: (1.0e-05, 40.0)aB.
 Basis/core:
- |<3s+|3s+>-1| = 1.7e-08
- dE/E(1s+)     = 2.9e-06
- <3s+|28s+>    = 4.7e-05
+ |<3s+|3s+>-1| = 6.0e-07
+ dE/E(5s+)     = 1.0e-05
+ <3s+|25s+>    = 2.4e-04
 Basis/valence:
  |<5d-|5d->-1| = 1.0e-07
- dE/E(6s+)     = 1.1e-06
- <5d-|8d->     = 1.1e-04
-Basis: T = 680.80 ms
+ dE/E(6s+)     = 7.2e-06
+ <5d-|21d->    = 1.3e-04
+Basis: T = 754.95 ms
 
 Including correlation potential:
 
@@ -86,35 +86,35 @@ Including n ≥ 3 in internal hole states
 Sigma sub-grid: r=(1.0e-04, 29.2)aB with 155 points. [i0=640, stride=12]
 
 Form Σ for 6s+ at e = -0.1274
-  de(6s+) = -4212.88 + 337.59 = -3875.29
+  de(6s+) = -4204.29 + 334.51 = -3869.78
 Form Σ for 6p- at e = -0.0856
-  de(6p-) = -1687.19 + 177.63 = -1509.56
+  de(6p-) = -1684.37 + 176.55 = -1507.82
 Form Σ for 6p+ at e = -0.0838
-  de(6p+) = -1516.83 + 163.53 = -1353.30
+  de(6p+) = -1514.18 + 162.49 = -1351.69
 Form Σ for 5d- at e = -0.0644
-  de(5d-) = -2699.80 + 267.70 = -2432.10
+  de(5d-) = -2694.75 + 265.51 = -2429.25
 Form Σ for 5d+ at e = -0.0645
-  de(5d+) = -2598.58 + 248.97 = -2349.62
+  de(5d+) = -2593.75 + 246.87 = -2346.88
 
-Writing to Sigma file: Cs1.sig2 ... done.
-Sigma: T = 32.69 s
+Writing to Sigma file: Cs1.s2.abf ... done.
+Sigma: T = 31.46 s
 
 Solving for Brueckner orbitals (correlation potential)
- delta=-0.02033; eps=0e+00 [its= 47]
- delta=-0.00797; eps=0e+00 [its= 51]
- delta=-0.00707; eps=0e+00 [its= 37]
- delta=-0.01562; eps=0e+00 [its= 56]
- delta=-0.01478; eps=0e+00 [its= 46]
-Bru    :  it: 47 eps=0.0e+00 for 6s+ [ 47 eps=0e+00 for 6s+]
-Brueckner: T = 95.38 ms
+ 6s+  delta=-0.02029; eps=0e+00 [its= 37]
+ 6p-  delta=-0.00795; eps=0e+00 [its= 48]
+ 6p+  delta=-0.00706; eps=0e+00 [its= 33]
+ 5d-  delta=-0.01559; eps=5e-12 [its=256]
+ 5d+  delta=-0.01475; eps=0e+00 [its= 56]
+Bru    :  it:256 eps=4.7e-12 for 5d- [ 37 eps=0e+00 for 6s+]
+Brueckner: T = 501.61 ms
 
 Brueckner orbitals:
 Valence: CsI
      state  k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
-0   6s_1/2 -1   64.5  1  0e+00    -0.147698024      -32415.969       0.00
-1   6p_1/2  1   82.1  1  0e+00    -0.093582354      -20538.953   11877.02
-2   6p_3/2 -2   83.3  1  0e+00    -0.090854345      -19940.224   12475.75
-3   5d_3/2  2   89.2  1  0e+00    -0.080040528      -17566.865   14849.10
-4   5d_5/2 -3   89.8 99  1e-15    -0.079309280      -17406.375   15009.59
+0   6s_1/2 -1   64.5  1  0e+00    -0.147660591      -32407.754       0.00
+1   6p_1/2  1   82.1  1  0e+00    -0.093570131      -20536.270   11871.48
+2   6p_3/2 -2   83.5  1  0e+00    -0.090843443      -19937.831   12469.92
+3   5d_3/2  2   89.2  7  7e-16    -0.080009880      -17560.139   14847.61
+4   5d_5/2 -3   89.8 99  3e-15    -0.079281102      -17400.191   15007.56
 
-ampsci: T = 34.16 s
+ampsci: T = 33.20 s

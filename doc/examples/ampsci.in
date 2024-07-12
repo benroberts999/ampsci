@@ -1,7 +1,6 @@
 // Example "template" ampsci input file.
 // Lines with "//" are ignored
 // Comment out an entire block (or just its name) to skip block
-// See doc/ampsci_input.md for full description of all options
 // run as:
 // $ ./ampsci ampsci.in
 

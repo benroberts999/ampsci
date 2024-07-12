@@ -1,12 +1,13 @@
 # Basic Tutorial
 
-:: Basic tutorial for using ampsci, including examples.
+:::: Basic tutorial for using ampsci, including examples.
 
 This assumes you already have ampsci compiled.
 
 * See [doc/compilation.md](/doc/compilation.md) for compilation instructions
 * See [doc/tutorial_advanced.md](/doc/tutorial_advanced.md) for a more advanced tutorial, including correlation corrections
 * and [doc/tutorial_CI.md](/doc/tutorial_CI.md) for tutorial on Configuration Interaction (+MBPT) calculations for two-valence systems
+* There are several examples in [doc/examples/](/doc/examples/) - also try running those, and comparing the output to the expected output
 
 ## Contents
 
@@ -35,8 +36,7 @@ No calculation was performed, however, some instructions should be printed to th
 ./ampsci -h
 ```
 
-which will print the same, along with some more detailed 'help' information.
-You can ignore this output for now, as we'll work through the basic examples.
+which will print the same.
 
 Now, try the following, which should print the current _version_ info (including the git commit hash, if you're using git). You can use this to check which exact version of the code you are running. This is also automatically printed when you run any calculation.
 
@@ -76,9 +76,16 @@ The next few cases will calculate Hartree-Fock for Cs, using the $V^{N-1}$ appro
 ## Setting up the input file <a name="input"></a>
 
 For anything more complicated, we must use an input file.
-The input file is a plain-text file; a full description of the format is given [elsewhere](/doc/ampsci_input.md) - here we will run through a basic example.
 
-* See [doc/ampsci_input.md](/doc/ampsci_input.md) for detail input descriptions
+Input is a plain text file that consists of sets of 'Blocks' and 'Options'.
+
+* Blocks are followed by curly-braces: BlockName{}
+* Options are followed by a semi-colon: OptionName = option_value;
+* Generally, each Block will have a set of Options that may be set
+* Nearly all are optional - leave them blank and a default value will be used
+* Blocks may be nested inside other Blocks
+* White-space is ignored, as are ' and " characters
+* You may use C++-style line '//' and block '/**/' comments
 
 Firstly, we can use the code to tell us which input options are available using the `-a` (or `--ampsci`) command-line option:
 
@@ -105,7 +112,7 @@ ampsci{
   Grid{}
   // Options for solving atomic system
   HartreeFock{}
-  // Include QED radiative potential
+  // Inlcude QED radiative potential
   RadPot{}
   // Include an extra effective potential. Rarely used.
   ExtraPotential{}
@@ -119,7 +126,7 @@ ampsci{
   CI{}
   // Run any number of modules (* -> module name). `ampsci -m` to see available
   // modules
-  Modulebrief*{}
+  Module::*{}
 }
 ```
 
@@ -134,16 +141,25 @@ We can also ask the code to tell us which options are available for each block, 
 
 The output will list all options for the `Atom{}` block:
 
-```text
-Available Atom options/blocks are:
+```java
+// Available Atom options/blocks
 Atom{
-  Z;    // string or int (e.g., Cs equivalent to 55). Atomic number [default H]
-  A;    // int. Atomic mass number (set A=0 to use pointlike nucleus) [default based on Z]
-  varAlpha2;    // Fractional variation of the fine-structure constant, alpha^2: d(a^2)/a_0^2. Use to enforce the non-relativistic limit (c->infinity => alpha->0), or calculate sensitivity to variation of alpha. [1.0]
+  // Atomic number or symbol (e.g., 55 or Cs). [H]
+  Z;
+  // Atomic mass number, for nuclear parameters including finite nuclear size.
+  // Default based on Z.
+  A;
+  // Fractional variation of the fine-structure constant, alpha^2: (a/a0)^2. Use
+  // to enforce the non-relativistic limit (c->infinity => alpha->0), or
+  // calculate sensitivity to variation of alpha. [1.0]
+  varAlpha2;
+  // Optional label for output identity - for distinguishing outputs with
+  // different parameters
+  run_label;
 }
 ```
 
-This is also in the correct format, so we can copy+paste into our input file.
+This is also in the correct format for the input file, so we can copy+paste into our input file.
 
 * Anything after `//` is a comment and will be ignored by the program.
 * Don't forget to close the curly braces `}` at the end of each input block, and the semi-colon `;` after each option!
@@ -160,7 +176,7 @@ which will give something like:
 // Available Grid options/blocks
 Grid{
   // Options for radial grid (lattice) used for integrations, solving equations
-  // and storing orbitals. All relevant quantities are in units of Bohr radius
+  // and storing oritals. All relevant quantities are in units of Bohr radius
   // (aB).
 
   // Initial grid point, in aB [1.0e-6]
@@ -195,14 +211,20 @@ HartreeFock{
   // Automatically excludes states in the core (except those above the optional
   // ':'). [blank by default]
   valence;
-  // HF convergence goal [1.0e-13]
+  // HF convergance goal [1.0e-13]
   eps;
   // Method for mean-field approximation: HartreeFock, Hartree, KohnSham, Local
   // [HartreeFock]
   method;
-  // Scale for factor for Breit Hamiltonian. Usually 0.0 (no Breit) or 1.0 (full
+  // Scale for factor for Breit Hamiltonian. Usially 0.0 (no Breit) or 1.0 (full
   // Breit), but can take any value. [0.0]
   Breit;
+  // Include QED? Three options: true, false, valence. If 'valencel, will
+  // include QED only into valence states, but not the core. Detailed QED
+  // options are set within the RadPot{} block - if that block is not set,
+  // defaults will be used. By default, this option is false, unless the
+  // RadPot{} block exists, in which case it is true
+  QED;
 }
 ```
 
@@ -260,9 +282,11 @@ we will get something like the following output:
 
 ```text
 ********************************************************************************
-AMPSCI v: 0.0 [dev/f06534f0]
-Compiled: g++-11 [Ubuntu 11.1.0-1ubuntu1~18.04.1] 11.1.0 2022-09-14 12:42 AEST
-Run time: 2022-09-14 17:01:02
+AMPSCI v: 0.0 [dev/16c2fe5e]*
+ *(Modified: M doc/modules.md M doc/tutorial.md)
+Parallel: Using OpenMP with 24 threads.
+Compiled: g++-13 [Ubuntu 13.1.0-8ubuntu1~22.04] 13.1.0 2024-07-12 15:40 AEST
+Run time: 2024-07-12 15:43:32
 
 ********************************************************************************
 Atom { 
@@ -281,44 +305,46 @@ HartreeFock {
 
 Running for Cs, Z=55 A=133
 Fermi nucleus;  r_rms = 4.8041, c_hdr = 5.67073, t = 2.3
-Log-linear (b=50) grid: 1e-06->150, N=3000, du=0.36389
+Log-linear (b=5.0e+01) grid: 1.0e-06 -> 1.5e+02, N=3000, du=3.6e-01
 ========================================================
 Hartree-Fock
-Core   :  it: 28 eps=8.2e-14 for 5p+
+Core   :  it: 28 eps=6.0e-14 for 4d-
 Val    :  it: 38 eps=0.0e+00 for 6s+ [ 38 eps=0e+00 for 6s+]
 
-CsI-133
-Core: [Xe] (V^N-1)
+Cs-133
+Core: [Xe] V^N-1
      state  k   Rinf its   eps         En (au)        En (/cm)
-0   1s_1/2 -1    0.7  2  3e-26 -1330.118948369  -291927365.862
-1   2s_1/2 -1    1.7  2  2e-23  -212.564531430   -46652522.176
-2   2p_1/2  1    1.7  2  9e-24  -199.429544824   -43769725.833
-3   2p_3/2 -2    1.8  2  1e-23  -186.436652692   -40918115.622
-4   3s_1/2 -1    3.6  2  1e-21   -45.969754343   -10089194.888
-5   3p_1/2  1    3.8  2  7e-22   -40.448315684    -8877379.174
-6   3p_3/2 -2    4.0  2  7e-22   -37.894321341    -8316842.207
-7   3d_3/2  2    4.6  2  4e-22   -28.309520222    -6213221.515
-8   3d_5/2 -3    4.6  2  5e-22   -27.775176728    -6095946.673
-9   4s_1/2 -1    7.9  2  1e-20    -9.512819127    -2087822.471
-10  4p_1/2  1    9.0  2  8e-21    -7.446283820    -1634270.397
-11  4p_3/2 -2    9.3  2  9e-21    -6.920999547    -1518983.824
-12  4d_3/2  2   13.2  2  6e-21    -3.485619409     -765005.035
-13  4d_5/2 -3   13.3  2  6e-21    -3.396901915     -745533.796
-14  5s_1/2 -1   20.3  2  7e-21    -1.489803443     -326974.061
-15  5p_1/2  1   26.3  2  3e-21    -0.907896946     -199260.348
-16  5p_3/2 -2   27.3  2  3e-21    -0.840338411     -184432.963
+0   1s_1/2 -1    0.6  2  3e-26 -1330.118948578  -291927365.908
+1   2s_1/2 -1    1.6  2  2e-23  -212.564531454   -46652522.182
+2   2p_1/2  1    1.7  2  9e-24  -199.429544822   -43769725.833
+3   2p_3/2 -2    1.7  2  1e-23  -186.436652689   -40918115.622
+4   3s_1/2 -1    3.5  2  1e-21   -45.969754347   -10089194.889
+5   3p_1/2  1    3.7  2  7e-22   -40.448315683    -8877379.174
+6   3p_3/2 -2    3.8  2  7e-22   -37.894321340    -8316842.207
+7   3d_3/2  2    4.4  2  4e-22   -28.309520221    -6213221.515
+8   3d_5/2 -3    4.5  2  5e-22   -27.775176726    -6095946.673
+9   4s_1/2 -1    7.7  2  1e-20    -9.512819127    -2087822.471
+10  4p_1/2  1    8.7  2  8e-21    -7.446283819    -1634270.396
+11  4p_3/2 -2    9.1  2  9e-21    -6.920999546    -1518983.824
+12  4d_3/2  2   12.8  2  6e-21    -3.485619407     -765005.034
+13  4d_5/2 -3   13.0  2  6e-21    -3.396901914     -745533.795
+14  5s_1/2 -1   19.8  2  7e-21    -1.489803443     -326974.062
+15  5p_1/2  1   25.7  2  3e-21    -0.907896945     -199260.347
+16  5p_3/2 -2   26.7  2  3e-21    -0.840338410     -184432.963
 E_c = -7786.643737
-Val: state  k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
-0   6s_1/2 -1   70.8  1  0e+00    -0.127368053      -27954.056       0.00
-1   7s_1/2 -1  110.4  1  0e+00    -0.055187351      -12112.224   15841.83
-2   6p_1/2  1   87.2  1  0e+00    -0.085615846      -18790.506    9163.55
-3   7p_1/2  1  128.1  1  0e+00    -0.042021373       -9222.625   18731.43
-4   6p_3/2 -2   88.2  1  0e+00    -0.083785436      -18388.778    9565.28
-5   7p_3/2 -2  129.1  1  0e+00    -0.041368028       -9079.233   18874.82
-6   5d_3/2  2  101.5  1  0e+00    -0.064419644      -14138.478   13815.58
-7   5d_5/2 -3  101.5  1  0e+00    -0.064529777      -14162.649   13791.41
 
-ampsci: T = 522.26 ms
+Valence: CsI
+     state  k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
+0   6s_1/2 -1   69.7  1  0e+00    -0.127368053      -27954.056       0.00
+1   7s_1/2 -1  109.1  1  0e+00    -0.055187351      -12112.224   15841.83
+2   6p_1/2  1   86.1  1  0e+00    -0.085615846      -18790.506    9163.55
+3   7p_1/2  1  126.8  1  0e+00    -0.042021373       -9222.625   18731.43
+4   6p_3/2 -2   87.0  1  0e+00    -0.083785436      -18388.778    9565.28
+5   7p_3/2 -2  127.8  1  0e+00    -0.041368028       -9079.233   18874.82
+6   5d_3/2  2  100.3  1  0e+00    -0.064419644      -14138.478   13815.58
+7   5d_5/2 -3  100.3  1  0e+00    -0.064529777      -14162.649   13791.41
+
+ampsci: T = 742.64 ms
 ```
 
 For calculations that matter, the _entire_ output should be saved.
@@ -346,43 +372,45 @@ Importantly, the format is exactly what is required on input, so to re-run the c
 ```text
 Running for Cs, Z=55 A=133
 Fermi nucleus;  r_rms = 4.8041, c_hdr = 5.67073, t = 2.3
-Log-linear (b=50) grid: 1e-06->150, N=3000, du=0.36389
+Log-linear (b=50) grid: 1e-06 -> 150.0, N=3000, du=0.364
 ```
 
 * This tells you atom and isotope for which the calculations were run, the exact nuclear parameters used (these are for the finite-nuclear size effect), and the exact grid parameters used.
 
 ```text
 Hartree-Fock
-Core   :  it: 28 eps=8.2e-14 for 5p+
+Core   :  it: 28 eps=6.0e-14 for 4d-
 Val    :  it: 38 eps=0.0e+00 for 6s+ [ 38 eps=0e+00 for 6s+]
 ```
 
 * This is one of the most important outputs to check.
-* This tells us that Hartree-Fock equations for the core converged to parts in $10^{14}$ in 28 iterations, and the worst core state convergence was for $5p_{3/2}$.
+* This tells us that Hartree-Fock equations for the core converged to parts in $10^{14}$ in 28 iterations, and the worst core state convergence was for $4d_{3/2}$.
+* A short-hand is often used for states, with $\pm$ used to denote $j=l\pm 1/2$
+  * e.g., `s+` = $s_{1/2}$, `p-` = $p_{1/2}$, `p+` = $p_{3/2}$, `d-` = $d_{3/2}$, and so on
 * The worst valence state converged to `0` (i.e., floating point underflowed) in 38 iterations
 * It's important to check that none of these 'epsilon' values are large (i.e., $\epsilon\lesssim10^{-6}$), otherwise it means Hartree-Fock didn't converge properly, and the calculations will be unreliable. This is rarely an issue.
 
 ```text
-CsI-133
-Core: [Xe] (V^N-1)
+Cs-133
+Core: [Xe] V^N-1
      state  k   Rinf its   eps         En (au)        En (/cm)
-0   1s_1/2 -1    0.7  2  3e-26 -1330.118948369  -291927365.862
-1   2s_1/2 -1    1.7  2  2e-23  -212.564531430   -46652522.176
-2   2p_1/2  1    1.7  2  9e-24  -199.429544824   -43769725.833
-3   2p_3/2 -2    1.8  2  1e-23  -186.436652692   -40918115.622
-4   3s_1/2 -1    3.6  2  1e-21   -45.969754343   -10089194.888
-5   3p_1/2  1    3.8  2  7e-22   -40.448315684    -8877379.174
-6   3p_3/2 -2    4.0  2  7e-22   -37.894321341    -8316842.207
-7   3d_3/2  2    4.6  2  4e-22   -28.309520222    -6213221.515
-8   3d_5/2 -3    4.6  2  5e-22   -27.775176728    -6095946.673
-9   4s_1/2 -1    7.9  2  1e-20    -9.512819127    -2087822.471
-10  4p_1/2  1    9.0  2  8e-21    -7.446283820    -1634270.397
-11  4p_3/2 -2    9.3  2  9e-21    -6.920999547    -1518983.824
-12  4d_3/2  2   13.2  2  6e-21    -3.485619409     -765005.035
-13  4d_5/2 -3   13.3  2  6e-21    -3.396901915     -745533.796
-14  5s_1/2 -1   20.3  2  7e-21    -1.489803443     -326974.061
-15  5p_1/2  1   26.3  2  3e-21    -0.907896946     -199260.348
-16  5p_3/2 -2   27.3  2  3e-21    -0.840338411     -184432.963
+0   1s_1/2 -1    0.6  2  3e-26 -1330.118948578  -291927365.908
+1   2s_1/2 -1    1.6  2  2e-23  -212.564531454   -46652522.182
+2   2p_1/2  1    1.7  2  9e-24  -199.429544822   -43769725.833
+3   2p_3/2 -2    1.7  2  1e-23  -186.436652689   -40918115.622
+4   3s_1/2 -1    3.5  2  1e-21   -45.969754347   -10089194.889
+5   3p_1/2  1    3.7  2  7e-22   -40.448315683    -8877379.174
+6   3p_3/2 -2    3.8  2  7e-22   -37.894321340    -8316842.207
+7   3d_3/2  2    4.4  2  4e-22   -28.309520221    -6213221.515
+8   3d_5/2 -3    4.5  2  5e-22   -27.775176726    -6095946.673
+9   4s_1/2 -1    7.7  2  1e-20    -9.512819127    -2087822.471
+10  4p_1/2  1    8.7  2  8e-21    -7.446283819    -1634270.396
+11  4p_3/2 -2    9.1  2  9e-21    -6.920999546    -1518983.824
+12  4d_3/2  2   12.8  2  6e-21    -3.485619407     -765005.034
+13  4d_5/2 -3   13.0  2  6e-21    -3.396901914     -745533.795
+14  5s_1/2 -1   19.8  2  7e-21    -1.489803443     -326974.062
+15  5p_1/2  1   25.7  2  3e-21    -0.907896945     -199260.347
+16  5p_3/2 -2   26.7  2  3e-21    -0.840338410     -184432.963
 E_c = -7786.643737
 ```
 
@@ -398,15 +426,16 @@ E_c = -7786.643737
   * The final number `E_c` is the total Hartree-Fock energy of the core, in atomic units
 
 ```text
-Val: state  k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
-0   6s_1/2 -1   70.8  1  0e+00    -0.127368053      -27954.056       0.00
-1   7s_1/2 -1  110.4  1  0e+00    -0.055187351      -12112.224   15841.83
-2   6p_1/2  1   87.2  1  0e+00    -0.085615846      -18790.506    9163.55
-3   7p_1/2  1  128.1  1  0e+00    -0.042021373       -9222.625   18731.43
-4   6p_3/2 -2   88.2  1  0e+00    -0.083785436      -18388.778    9565.28
-5   7p_3/2 -2  129.1  1  0e+00    -0.041368028       -9079.233   18874.82
-6   5d_3/2  2  101.5  1  0e+00    -0.064419644      -14138.478   13815.58
-7   5d_5/2 -3  101.5  1  0e+00    -0.064529777      -14162.649   13791.41
+Valence: CsI
+     state  k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
+0   6s_1/2 -1   69.7  1  0e+00    -0.127368053      -27954.056       0.00
+1   7s_1/2 -1  109.1  1  0e+00    -0.055187351      -12112.224   15841.83
+2   6p_1/2  1   86.1  1  0e+00    -0.085615846      -18790.506    9163.55
+3   7p_1/2  1  126.8  1  0e+00    -0.042021373       -9222.625   18731.43
+4   6p_3/2 -2   87.0  1  0e+00    -0.083785436      -18388.778    9565.28
+5   7p_3/2 -2  127.8  1  0e+00    -0.041368028       -9079.233   18874.82
+6   5d_3/2  2  100.3  1  0e+00    -0.064419644      -14138.478   13815.58
+7   5d_5/2 -3  100.3  1  0e+00    -0.064529777      -14162.649   13791.41
 ```
 
 * Finally, we have the output for the valence states
@@ -415,13 +444,20 @@ Val: state  k   Rinf its   eps         En (au)        En (/cm)   En (/cm)
 To do more complicated calculations, including constructing complete set of basis orbitals, and including core-valence correlations, see:
 
 * [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full physics description of what the code can do
-* [doc/ampsci_input.md](/doc/ampsci_input.md) for detail on all input options
+
+-------------------------------------------------------
 
 ## Modules: using the wavefunctions <a name="modules"></a>
 
+The general usage of the code is to first use the main blocks to construct the
+atomic wavefunction and basis states, then to add as many 'Module::' blocks as
+required. Each module is a separate routine that will take the calculated
+wavefunction and compute any desired property (e.g., matrix elements). The code
+is designed such that anyone can write a new Module (See [doc/writing_modules.md](/doc/writing_modules.md))
+
 Above, we ran ampsci, which calculated the atomic wavefunctions and printed their energies to screen.
 If we want to actually _do_ anything with the wavefunctions, we have to run one or more **modules**.
-We do this by adding a module block to the input file, which has the form `ModulebriefModuleName{}`
+We do this by adding a module block to the input file, which has the form `Module::ModuleName{}`
 
 Here, we will just consider a simple example. For further detail:
 
@@ -445,8 +481,8 @@ To see the available options for this block, list the block name after `-m` on t
 which prints:
 
 ```java
-// Available ModulebriefmatrixElements options/blocks
-ModulebriefmatrixElements{
+// Available Module::matrixElements options/blocks
+Module::matrixElements{
   // e.g., E1, hfs (see ampsci -o for available operators)
   operator;
   // options specific to operator (see ampsci -o 'operator')
@@ -501,12 +537,12 @@ The second option, which is a sub-input-block, `options` is the set of options f
 ```
 
 Here we will consider the simpler `E1` operator.
-To our above `example.in` file, we can add the following block (note we may add as many Modulebrief blocks as we like, they will all be run one-by-one in order):
+To our above `example.in` file, we can add the following block (note we may add as many Module:: blocks as we like, they will all be run one-by-one in order):
 
 ```java
 // example.in
 // ... above input options ...
-ModulebriefMatrixelements{
+Module::Matrixelements{
   operator = E1;
   rpa = true;
   omega = 0.0;

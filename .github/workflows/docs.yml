@@ -32,7 +32,7 @@ jobs:
         for FILE in ./doc/*.md; do sed -i 's%(/doc/%(doc/%g' $FILE; done
         for FILE in ./doc/*.md; do sed -i 's%(/README%(README%g' $FILE; done
         for FILE in ./doc/*.md; do sed -i 's%(/src/%(https://github.com/benroberts999/ampsci/tree/main/src/%g' $FILE; done
-        for FILE in ./doc/*.md; do sed -i 's%::%\brief%g' $FILE; done
+        for FILE in ./doc/*.md; do sed -i 's%::::%\brief%g' $FILE; done
         for FILE in ./doc/tutorial*.md; do sed -i -e 's/\$\$~/\\f\[/g' $FILE; done
         for FILE in ./doc/tutorial*.md; do sed -i -e 's/~\$\$/\\f\]/g' $FILE; done
         for FILE in ./doc/tutorial*.md; do sed -i -e 's/\$/\\f\$/g' $FILE; done

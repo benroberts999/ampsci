@@ -73,7 +73,6 @@ Divided into sections:
 
  1. Usage intructions, input options
     * Compilation instructions (for linux/mac/windows): [doc/compilation.md](doc/compilation.md)
-    * Detailed info on all input options: [doc/ampsci_input.md](doc/ampsci_input.md)
 
  2. Physics documentation: [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf)
     * Description of physics/methods used in the code

@@ -368,7 +368,7 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
       const auto &X_beta = X_b[ibeta];
       const auto &Y_beta = Y_b[ibeta];
 
-      const auto sQ = Angular::neg1pow_2(tjn + X_beta.twoj() + 2 * k + 2);
+      const auto sQ = Angular::neg1pow_2(tjn - X_beta.twoj() + 2 * k);
       if (sQ == 1) { // faster than multiplying!
         dVFa += Coulomb::Wkv_bcd(k, kappa_n, Fb, Fa, X_beta);
         dVFa += Coulomb::Wkv_bcd(k, kappa_n, Y_beta, Fa, Fb);

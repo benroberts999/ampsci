@@ -1,6 +1,6 @@
 # Compilation
 
-:: Compilation instructions for Linux, Mac, and Windows
+:::: Compilation instructions for Linux, Mac, and Windows
 
 * Easiest method is to use provided shell scripts `install-dependencies.sh` (which installs the required packages/compilers), and `setup.sh` (which compiles ampsci)
   * These might not work on all systems, meaning a manual setup will be required.
@@ -132,13 +132,13 @@ ExtraFlags=-lgfortran
 
 ### ld: Assertion failed: (resultIndex < sectData.atoms.size())
 
-Full error message may look something likebrief
+Full error message may look something like:
 
 ```text
 0  0x102497648  __assert_rtn + 72
-1  0x1023cbfac  ldbriefAtomPlacementbrieffindAtom(unsigned char, unsigned long long, ldbriefAtomPlacementbriefAtomLoc const*&, long long&) const + 1204
-2  0x1023e1924  ldbriefInputFilesbriefSliceParserbriefparseObjectFile(mach_obriefHeader const*) const + 15164
-3  0x1023eee30  ldbriefInputFilesbriefparseAllFiles(void (ldbriefAtomFile const*) block_pointer)brief$_7briefoperator()(unsigned long, ldbriefFileInfo const&) const + 420
+1  0x1023cbfac  ld::AtomPlacement::findAtom(unsigned char, unsigned long long, ld::AtomPlacement::AtomLoc const*&, long long&) const + 1204
+2  0x1023e1924  ld::InputFiles::SliceParser::parseObjectFile(mach_o::Header const*) const + 15164
+3  0x1023eee30  ld::InputFiles::parseAllFiles(void (ld::AtomFile const*) block_pointer)::$_7::operator()(unsigned long, ld::FileInfo const&) const + 420
 4  0x185a37950  _dispatch_client_callout2 + 20
 5  0x185a4aba0  _dispatch_apply_invoke + 176
 6  0x185a37910  _dispatch_client_callout + 20

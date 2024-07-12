@@ -1,9 +1,9 @@
 # Writing Modules
 
-:: Instructions for writing custom ampsci modules
+:::: Instructions for writing custom ampsci modules
 
 - The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
-- Any number of _modules_ can be run by adding a `ModulebriefmoduleName{}' block to the input file.
+- Any number of _modules_ can be run by adding a `Module::moduleName{}' block to the input file.
 - Get a list of available modules: `./ampsci -m`
 - See [doc/modules.md](/doc/modules.md) for details of currently available modules
 - The code is designed so that you can easily create your own modules.
@@ -21,11 +21,11 @@ You should duplicate this module (both the .cpp and .hpp files) and give it a ne
 
   ```cpp
   namespace Module{
-  void exampleModule(const IObriefInputBlock &input, const Wavefunction &wf);
+  void exampleModule(const IO::InputBlock &input, const Wavefunction &wf);
   }
   ```
 
-- `input` is an `IObriefInputBlock` that holds any input options.
+- `input` is an `IO::InputBlock` that holds any input options.
 
 - `wf` is the `Wavefunction` object that was calculated by ampsci
 
@@ -40,7 +40,7 @@ You should duplicate this module (both the .cpp and .hpp files) and give it a ne
 - In order for ampsci to know about your module, you must update the file `src/Modules/module_list.hpp`
   - Add the corresponding header file to the #includes list
 
-- Add a `stdbriefpair` the the `stdbriefvector` _module_list_ in the form
+- Add a `std::pair` the the `std::vector` _module_list_ in the form
 
     ```cpp
     {"moduleName", &moduleName}
@@ -52,7 +52,7 @@ You should duplicate this module (both the .cpp and .hpp files) and give it a ne
 
 - You then have to recompile ampsci (modules are compiled into ampsci for now)
 
-- That's it - you're now ready to run your module by adding the `ModulebriefmoduleName{}` block to the input file.
+- That's it - you're now ready to run your module by adding the `Module::moduleName{}` block to the input file.
 
 ## Highly recommended (but optional)
 
@@ -81,7 +81,7 @@ You should duplicate this module (both the .cpp and .hpp files) and give it a ne
 - Minimal example:
 
 ```cpp
-  void exampleModule(const IObriefInputBlock &input, const Wavefunction &wf){
+  void exampleModule(const IO::InputBlock &input, const Wavefunction &wf){
 
     input.check({{"option1", "Short description of option1 [default1]"},
                {"option2", "Short description of option2 [default2]"}});
@@ -96,6 +96,6 @@ You should duplicate this module (both the .cpp and .hpp files) and give it a ne
     auto option2 = input.get("option2", default2);
     // The variable 'option1' will be set according to the user input
     // If no user input for option1 was given, it will be set to default1
-    // See documentation for IObriefInputBlock for more detail
+    // See documentation for IO::InputBlock for more detail
   }
 ```

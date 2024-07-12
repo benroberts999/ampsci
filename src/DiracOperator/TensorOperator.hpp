@@ -118,7 +118,7 @@ protected:
         opC(RorI),
         m_freqDependantQ(freq_dep),
         m_constant(constant),
-        m_vec(inv) {};
+        m_vec(inv){};
 
 public:
   virtual ~TensorOperator() = default;
@@ -156,7 +156,7 @@ public:
   }
 
   //! Update frequency for frequency-dependant operators.
-  virtual void updateFrequency(const double) {};
+  virtual void updateFrequency(const double){};
 
   //! Returns a const ref to vector v
   const std::vector<double> &getv() const { return m_vec; }
