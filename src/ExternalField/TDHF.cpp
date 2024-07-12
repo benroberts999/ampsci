@@ -47,6 +47,10 @@ void TDHF::initialise_dPsi() {
     for (int tj = tjmin; tj <= tjmax; tj += 2) {
       const auto l_minus = (tj - 1) / 2;
       const auto pi_chla = Angular::parity_l(l_minus) * pi_ch;
+
+      if (Angular::triangle(tj_c, tj, 2 * m_rank) == 0)
+        continue;
+
       const auto l = (pi_chla == 1) ? l_minus : l_minus + 1;
       const auto kappa = Angular::kappa_twojl(tj, l);
       m_X[ic].emplace_back(0, kappa, Fc.grid_sptr());
@@ -245,12 +249,12 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
       const auto &oldX = m_X[ib][ibeta];
 
       const auto t_DdF2 = (Xx - oldX).norm2();
-      const auto t_dF2 = Xx.norm2();
+      const auto t_dF2 = 0.5 * (Xx + oldX).norm2();
       DdF2 += t_DdF2;
       dF2 += t_dF2;
 
       // find worst orbital
-      const auto t_eps = t_DdF2 / t_dF2;
+      const auto t_eps = t_dF2 == 0.0 ? 1.0 : t_DdF2 / t_dF2;
       if (t_eps > epss[ib].first) {
         epss[ib].first = t_eps;
         epss[ib].second = Fb.shortSymbol() + "," + Xx.shortSymbol();
@@ -274,7 +278,7 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
 
 //==============================================================================
 void TDHF::solve_core(const double omega, int max_its, const bool print) {
-  const double converge_targ = 1.0e-8;
+  const double converge_targ = 1.0e-9;
 
   const auto eta_damp0 = 0.35;
   auto eta_damp = eta_damp0;

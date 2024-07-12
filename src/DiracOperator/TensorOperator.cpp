@@ -14,12 +14,21 @@ namespace DiracOperator {
 //==============================================================================
 bool TensorOperator::isZero(const int ka, int kb) const {
   // checks m_rank and m_parity
-  if (m_rank < std::abs(Angular::twoj_k(ka) - Angular::twoj_k(kb)) / 2)
+
+  // if (m_rank < std::abs(Angular::twoj_k(ka) - Angular::twoj_k(kb)) / 2)
+  //   return true;
+
+  if (Angular::triangle(Angular::twoj_k(ka), Angular::twoj_k(kb), 2 * m_rank) ==
+      0)
     return true;
+
   if ((m_parity == Parity::even) !=
       (Angular::parity_k(ka) == Angular::parity_k(kb)))
     return true;
-  return (angularF(ka, kb) == 0);
+
+  return false;
+  // can remove this??
+  // return (angularF(ka, kb) == 0);
 }
 
 bool TensorOperator::isZero(const DiracSpinor &Fa,

@@ -3,6 +3,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
+#include "fmt/format.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <string>
@@ -63,15 +64,128 @@ TEST_CASE("External Field: TDHF - basic unit tests",
 }
 
 //==============================================================================
-namespace helper {
+struct TestData {
+  std::string a, b;
+  double h, rpa;
+};
 
-// Calculates core-polarisation correction to matrix elements between all
-// valence states, returns a vector of {states(string), value}
-inline std::vector<std::pair<std::string, double>>
-dV_result(const Wavefunction &wf, const DiracOperator::TensorOperator &h,
-          double ww);
+// All data with: Omega = 0.0 or 0.1
 
-} // namespace helper
+std::vector<TestData> dzuba_e1_0{
+    {"6p-", "6s+", 5.277685, 4.974416},   {"6p-", "7s+", -4.413137, -4.449363},
+    {"6p+", "6s+", 7.426433, 7.013095},   {"6p+", "7s+", -6.671013, -6.712218},
+    {"7p-", "6s+", 0.3717475, 0.2387373}, {"7p-", "7s+", 11.00887, 10.92106},
+    {"7p+", "6s+", 0.6947538, 0.5087653}, {"7p+", "7s+", 15.34478, 15.22744},
+    {"5d-", "6p-", -8.978332, -8.639903}, {"5d-", "6p+", -4.062459, -3.916489},
+    {"5d-", "7p-", 4.039455, 4.147366},   {"5d-", "7p+", 1.688036, 1.736073},
+    {"5d+", "6p+", -12.18643, -11.75336}, {"5d+", "7p+", 5.024624, 5.166189},
+    {"4f-", "5d-", -10.65973, -10.52085}, {"4f-", "5d+", -2.840239, -2.803322},
+    {"4f+", "5d+", -12.70344, -12.5383}};
+
+std::vector<TestData> dzuba_e1_w{
+    {"6p-", "6s+", 5.277685, 4.971342},   {"6p-", "7s+", -4.413137, -4.451618},
+    {"6p+", "6s+", 7.426433, 7.009477},   {"6p+", "7s+", -6.671013, -6.715528},
+    {"7p-", "6s+", 0.3717475, 0.2377626}, {"7p-", "7s+", 11.00887, 10.92009},
+    {"7p+", "6s+", 0.6947538, 0.5077115}, {"7p+", "7s+", 15.34478, 15.22634},
+    {"5d-", "6p-", -8.978332, -8.627918}, {"5d-", "6p+", -4.062459, -3.911142},
+    {"5d-", "7p-", 4.039455, 4.147084},   {"5d-", "7p+", 1.688036, 1.735976},
+    {"5d+", "6p+", -12.18643, -11.73544}, {"5d+", "7p+", 5.024624, 5.164451},
+    {"4f-", "5d-", -10.65973, -10.51826}, {"4f-", "5d+", -2.840239, -2.802684},
+    {"4f+", "5d+", -12.70344, -12.53541}};
+
+std::vector<TestData> dzuba_e2_0{
+    {"6p+", "6p-", 68.48282, 68.23295},   {"6p+", "6p+", -70.2262, -69.97999},
+    {"7p-", "6p+", 49.3854, 49.48805},    {"7p+", "6p-", -42.52614, -42.63387},
+    {"7p+", "6p+", 46.81519, 46.9199},    {"7p+", "7p-", 299.8769, 299.8039},
+    {"7p+", "7p+", -305.114, -305.0414},  {"5d-", "6s+", -43.84649, -43.63158},
+    {"5d-", "7s+", 80.74682, 80.78614},   {"5d-", "5d-", -67.06309, -66.83697},
+    {"5d+", "6s+", -53.71202, -53.47216}, {"5d+", "7s+", 98.51161, 98.55041},
+    {"5d+", "5d-", 43.84507, 43.70795},   {"5d+", "5d+", -87.57531, -87.30408}};
+
+std::vector<TestData> dzuba_e2_w{
+    {"6p+", "6p-", 68.48282, 68.23044},   {"6p+", "6p+", -70.2262, -69.97613},
+    {"7p-", "6p+", 49.3854, 49.49049},    {"7p+", "6p-", -42.52614, -42.63489},
+    {"7p+", "6p+", 46.81519, 46.92167},   {"7p+", "7p-", 299.8769, 299.8032},
+    {"7p+", "7p+", -305.114, -305.0403},  {"5d-", "6s+", -43.84649, -43.62903},
+    {"5d-", "7s+", 80.74682, 80.7866},    {"5d-", "5d-", -67.06309, -66.83467},
+    {"5d+", "6s+", -53.71202, -53.46243}, {"5d+", "7s+", 98.51161, 98.54769},
+    {"5d+", "5d-", 43.84507, 43.70911},   {"5d+", "5d+", -87.57531, -87.30183}};
+
+std::vector<TestData> dzuba_m1_0{{"6p+", "6p-", 1.153521, 1.153505},
+                                 {"7p-", "6p+", 0.03014502, 0.03016005},
+                                 {"7p+", "6p-", 0.02855965, 0.02855698},
+                                 {"7p+", "7p-", 1.153342, 1.153337},
+                                 {"5d+", "5d-", 1.549161, 1.54951},
+                                 {"4f+", "4f-", 1.851639, 1.85164}};
+
+std::vector<TestData> dzuba_m1_w{{"6p+", "6p-", 1.153511, 1.153558},
+                                 {"7p-", "6p+", 0.03013823, 0.0301901},
+                                 {"7p+", "6p-", 0.0285655, 0.02859815},
+                                 {"7p+", "7p-", 1.153301, 1.153316},
+                                 {"5d+", "5d-", 1.549149, 1.549712},
+                                 {"4f+", "4f-", 1.851568, 1.85157}};
+
+std::vector<TestData> dzuba_pnc{{"6p-", "6s+", -5.72823E-4, -7.270836e-4},
+                                {"6p-", "7s+", -3.002691e-4, -3.794671e-4},
+                                {"7p-", "6s+", -3.429023e-4, -4.330309e-4},
+                                {"7p-", "7s+", -1.797466e-4, -2.260384e-4}};
+
+// with g = 1.0;
+std::vector<TestData> dzuba_hfs{{"6s+", "6s+", 1943.394, 2342.449},
+                                {"7s+", "6s+", 1018.711, 1227.127},
+                                {"7s+", "7s+", 533.9993, 642.53},
+                                {"6p-", "6p-", 218.2665, 273.257},
+                                {"6p+", "6p+", 32.41904, 58.06549},
+                                {"7p-", "6p-", 130.5002, 162.7951},
+                                {"7p-", "7p-", 78.14994, 97.1154},
+                                {"7p+", "6p+", 19.46554, 34.75759},
+                                {"7p+", "7p+", 11.71131, 20.81699},
+                                {"5d-", "5d-", 24.71128, 21.90427},
+                                {"5d+", "5d+", 10.1202, -33.08472},
+                                {"4f-", "4f-", 0.05106033, 0.04225674},
+                                {"4f+", "4f+", 0.02838632, -0.01949691}};
+
+//-/-/----------------------------------------------------------------/////-----
+void test_RPA(const Wavefunction &wf, DiracOperator::TensorOperator &h,
+              double omega, const std::vector<TestData> &test_data,
+              double target_1, double target_2) {
+  std::cout << "\n";
+  ExternalField::TDHF dV(&h, wf.vHF());
+  if (h.freqDependantQ()) {
+    h.updateFrequency(omega);
+  }
+  dV.solve_core(omega);
+
+  for (const auto &[a, b, h0, rpa0] : test_data) {
+    const auto &Fa = *wf.getState(a);
+    const auto &Fb = *wf.getState(b);
+
+    const auto f = h.name() == "hfs1" ?
+                       DiracOperator::Hyperfine::convert_RME_to_AB(
+                           1, Fa.kappa(), Fb.kappa()) :
+                       1.0;
+    const auto hab = f * h.reducedME(Fa, Fb);
+    const auto dv = f * dV.dV(Fa, Fb);
+
+    // don't worry about sign (tested elsewhere)
+    const auto s1 = hab / std::abs(hab);
+    const auto s2 = h0 / std::abs(h0);
+
+    const auto delta1 = (s1 * (hab + dv) - s2 * (rpa0));
+    const auto eps1 = std::abs(delta1 / rpa0);
+
+    const auto delta2 = (s1 * dv - s2 * (rpa0 - h0));
+    const auto eps2 = std::abs(delta2 / (rpa0 - h0));
+
+    fmt::print("{:3s} {:3s} {:12.5e} [{:12.5e}] {:.0e}  {:12.5e} [{:12.5e}] "
+               "{:.0e}\n",
+               a, b, s1 * (hab + dv), s2 * rpa0, eps1, s1 * dv,
+               s2 * (rpa0 - h0), eps2);
+
+    REQUIRE(eps1 < target_1);
+    REQUIRE(eps2 < target_2);
+  }
+}
 
 //==============================================================================
 //==============================================================================
@@ -85,110 +199,31 @@ TEST_CASE("External Field: TDHF (RPA)",
 
     // Create wavefunction object, solve HF for core+valence
     Wavefunction wf({6000, 1.0e-6, 175.0, 20.0, "loglinear", -1.0},
-                    {"Cs", 133, "Fermi", -1.0, -1.0}, 1.0);
+                    {"Cs", 133, "Fermi", 4.8041, 2.0}, 1.0);
     wf.solve_core("HartreeFock", 0.0, "[Xe]");
     wf.solve_valence("7sp5d4f");
 
-    // Lambda to compare mine to test data
-    auto cmpr = [](const auto &ds, const auto &v) {
-      return (ds.second - v) / v;
-    };
+    DiracOperator::E1 dE1(wf.grid());
+    DiracOperator::Ek dE2(wf.grid(), 2);
+    DiracOperator::M1 m1(wf.grid(), wf.alpha());
+    DiracOperator::PNCnsi dpnc(5.67073, 2.3, wf.grid());
+    DiracOperator::hfs hfs(1, 1.0, 0.0, wf.grid(),
+                           DiracOperator::Hyperfine::pointlike_F());
 
-    { // E1, w = 0.0
-      const auto ww = 0.00;
-      auto h = DiracOperator::E1(wf.grid());
-      // Expected <a||dV||b> values from V. Dzuba code:
-      std::vector<double> expected_VD = {
-          -0.303269160, 0.413337460,  -0.133010110, 0.185988360,  -0.036226022,
-          0.041204439,  -0.087804876, 0.117345560,  -0.303269160, -0.036226022,
-          -0.338428260, -0.413337460, -0.041204439, 0.145969420,  -0.433068210,
-          -0.133010110, -0.087804876, -0.107910900, -0.185988360, -0.117345560,
-          0.048037122,  -0.141564780, 0.338428260,  0.145969420,  0.107910900,
-          0.048037122,  -0.138879730, 0.433068210,  0.141564780,  0.036916812,
-          -0.165144850, 0.138879730,  0.036916812,  0.165144850};
-      // -ve: |e|r vs er = -|e|r
-      qip::scale(&expected_VD, -1.0);
-      // sort to allow easy comparison:
-      std::sort(begin(expected_VD), end(expected_VD));
+    test_RPA(wf, dE1, 0.0, dzuba_e1_0, 1.0e-4, 1.0e-4);
 
-      const auto result = helper::dV_result(wf, h, ww);
-      const auto [eps, at] = qip::compare(result, expected_VD, cmpr);
-      const std::string worst = at == result.end() ? "" : at->first;
-      // pass &= qip::check_value(&obuff, "RPA E1 w=0 " + worst, eps,
-      // 0.0, 5.0e-5);
-      std::cout << "TDHF: RPA E1 w=0 " << worst << " " << eps << "\n";
-      REQUIRE(std::abs(eps) < 5.0e-5);
-    }
+    test_RPA(wf, dE1, 0.1, dzuba_e1_w, 1.0e-4, 1.0e-4);
 
-    { // E1, w = 0.05
-      const auto ww = 0.05;
-      auto h = DiracOperator::E1(wf.grid());
-      std::vector<double> expected_VD = {
-          -0.303213300, 0.412942330,  -0.132817610, 0.185545850,  -0.037186418,
-          0.042653995,  -0.087825599, 0.117263410,  -0.303213300, -0.037186418,
-          -0.342497480, -0.412942330, -0.042653995, 0.147791470,  -0.439517730,
-          -0.132817610, -0.087825599, -0.107218100, -0.185545850, -0.117263410,
-          0.047727162,  -0.139992440, 0.342497480,  0.147791470,  0.107218100,
-          0.047727162,  -0.139387570, 0.439517730,  0.139992440,  0.037028834,
-          -0.165663560, 0.139387570,  0.037028834,  0.165663560};
-      // -ve: |e|r vs er = -er
-      qip::scale(&expected_VD, -1.0);
-      // sort to allow easy comparison:
-      std::sort(begin(expected_VD), end(expected_VD));
+    // RPA is very small for E2, so test less stringent (simply, number of digits!)
+    test_RPA(wf, dE2, 0.0, dzuba_e2_0, 1.0e-5, 1.0e-3);
+    test_RPA(wf, dE2, 0.1, dzuba_e2_w, 1.0e-5, 1.0e-3);
 
-      const auto result = helper::dV_result(wf, h, ww);
-      const auto [eps, at] = qip::compare(result, expected_VD, cmpr);
-      const std::string worst = at == result.end() ? "" : at->first;
-      // pass &=
-      // qip::check_value(&obuff, "RPA E1 w=0.05 " + worst, eps, 0.0, 5.0e-5);
-      std::cout << "TDHF: RPA E1 w=0.05 " << worst << " " << eps << "\n";
-      REQUIRE(std::abs(eps) < 5.0e-5);
-    }
+    // RPA is extremely small for M1, so test less stringent (simply, number of digits!)
+    test_RPA(wf, m1, 0.0, dzuba_m1_0, 1.0e-4, 3.0e-1);
+    test_RPA(wf, m1, 0.1, dzuba_m1_w, 1.0e-4, 3.0e-1);
 
-    { // PNC, w = 0.0
-      // Note: even zero-order PNC disagrees at ~5th digit - possibly due to c,t?
-      const auto ww = 0.0;
-      const auto c = Nuclear::c_hdr_formula_rrms_t(wf.get_rrms());
-      auto h = DiracOperator::PNCnsi(c, Nuclear::default_t, wf.grid());
-      std::vector<double> expected_VD = {
-          1.5428e-04,  9.0137e-05,  7.9206e-05,  4.6296e-05,  -1.5428e-04,
-          -7.9206e-05, 4.9201e-05,  -9.0137e-05, -4.6296e-05, 3.0130e-05,
-          -4.9201e-05, -3.0130e-05, 3.3958e-06,  -3.3958e-06};
-      std::sort(begin(expected_VD), end(expected_VD));
+    test_RPA(wf, hfs, 0.0, dzuba_hfs, 1.0e-3, 1.0e-3);
 
-      const auto result = helper::dV_result(wf, h, ww);
-      const auto [eps, at] = qip::compare(result, expected_VD, cmpr);
-      const std::string worst = at == result.end() ? "" : at->first;
-      // pass &= qip::check_value(&obuff, "RPA PNC w=0 " + worst, eps,
-      // 0.0, 5.0e-4);
-      std::cout << "TDHF: RPA PNC w=0 " << worst << " " << eps << "\n";
-      REQUIRE(std::abs(eps) < 5.0e-4);
-    }
+    test_RPA(wf, dpnc, 0.0, dzuba_pnc, 1.0e-3, 1.0e-3);
   }
-}
-
-//==============================================================================
-inline std::vector<std::pair<std::string, double>>
-helper::dV_result(const Wavefunction &wf,
-                  const DiracOperator::TensorOperator &h, double ww) {
-
-  // Form TDHF (RPA) object for this operator
-  auto dV = ExternalField::TDHF(&h, wf.vHF());
-  // Solve set of TDHF equations for core, with frequency ww
-  const auto max_iterations = 150;
-  const auto print_details = true;
-  dV.solve_core(ww, max_iterations, print_details);
-
-  std::vector<std::pair<std::string, double>> result;
-  for (const auto &Fv : wf.valence()) {
-    for (const auto &Fm : wf.valence()) {
-      if (h.isZero(Fv.kappa(), Fm.kappa()))
-        continue;
-
-      result.emplace_back(Fv.shortSymbol() + Fm.shortSymbol(), dV.dV(Fv, Fm));
-    }
-  }
-  std::sort(begin(result), end(result),
-            [](auto a, auto b) { return a.second < b.second; });
-  return result;
 }

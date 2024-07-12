@@ -118,7 +118,7 @@ protected:
         opC(RorI),
         m_freqDependantQ(freq_dep),
         m_constant(constant),
-        m_vec(inv){};
+        m_vec(inv) {};
 
 public:
   virtual ~TensorOperator() = default;
@@ -146,13 +146,17 @@ public:
   bool selectrion_rule(int twoJA, int piA, int twoJB, int piB) const {
     if (twoJA == twoJB && twoJA == 0.0)
       return false;
-    if (2 * m_rank < std::abs(twoJA - twoJB))
+
+    if (Angular::triangle(twoJA, twoJB, 2 * m_rank) == 0)
       return false;
+
+    // if (2 * m_rank < std::abs(twoJA - twoJB))
+    //   return false;
     return (m_parity == Parity::even) == (piA == piB);
   }
 
   //! Update frequency for frequency-dependant operators.
-  virtual void updateFrequency(const double){};
+  virtual void updateFrequency(const double) {};
 
   //! Returns a const ref to vector v
   const std::vector<double> &getv() const { return m_vec; }
