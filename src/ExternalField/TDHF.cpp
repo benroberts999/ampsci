@@ -379,6 +379,7 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
 
       // Breit part:
       if (p_VBr) {
+        // Makes small difference for E1, huge difference for HFS
         dVFa += tkp1 * p_VBr->dV_Br(kappa_n, k, Fa, Fb, X_beta, Y_beta);
       }
     }

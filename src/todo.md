@@ -12,8 +12,6 @@
 
 ## TDHF
 
-* Issue for even-parity operators (from de?) (#3)
-  * Green's method fails for even operators when k=k'
 * Also: check correctness in general case (#33)
   * Note: TDHF doesn't work for E1v, but diagram does!
 
