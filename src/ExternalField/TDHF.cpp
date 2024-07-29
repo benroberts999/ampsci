@@ -225,7 +225,9 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
 
   double DdF2 = 0.0;
   double dF2 = 0.0;
-#pragma omp parallel for reduction(+ : DdF2) reduction(+ : dF2)
+  int count = 0;
+#pragma omp parallel for reduction(+ : DdF2) reduction(+ : dF2)                \
+    reduction(+ : count)
   for (auto ib = 0ul; ib < m_core.size(); ib++) {
     const auto &Fb = m_core.at(ib);
 
@@ -252,6 +254,7 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
       const auto t_dF2 = 0.5 * (Xx + oldX).norm2();
       DdF2 += t_DdF2;
       dF2 += t_dF2;
+      count++;
 
       // find worst orbital
       const auto t_eps = t_dF2 == 0.0 ? 1.0 : t_DdF2 / t_dF2;
@@ -261,7 +264,7 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
       }
     }
   }
-  const auto total_eps = DdF2 / dF2;
+  const auto total_eps = dF2 == 0.0 ? 0.0 : std::sqrt(2 * count) * DdF2 / dF2;
 
   // Find the worst orbital (just for reporting)
   const auto comp_first = [](const auto &a, const auto &b) {
@@ -280,8 +283,7 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
 void TDHF::solve_core(const double omega, int max_its, const bool print) {
   const double converge_targ = 1.0e-9;
 
-  const auto eta_damp0 = 0.35;
-  auto eta_damp = eta_damp0;
+  const auto eta_damp = 0.4;
 
   if (print) {
     printf("TDHF %s (w=%.4f): ", m_h->name().c_str(), omega);
@@ -289,6 +291,9 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
   }
 
   m_hFcore = form_hFcore();
+
+  if (max_its == 0)
+    return;
 
   int it{1};
   std::pair<double, std::string> eps{};
@@ -302,12 +307,12 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
     if (it > 15) {
       if (eps.first > best_eps) {
         ++count_worse;
-        eta_damp += 0.1; // give a "kick"
-        assert(eta_damp < 1.0);
+        // eta_damp += 0.1; // give a "kick"
+        // assert(eta_damp < 1.0);
       } else {
         best_eps = eps.first;
         count_worse = 0;
-        eta_damp = eta_damp0;
+        // eta_damp = eta_damp0;
       }
     }
 

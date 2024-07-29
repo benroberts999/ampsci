@@ -9,16 +9,6 @@
 
 namespace ExternalField {
 
-inline auto rampedDamp(double a_beg, double a_end, int beg, int end) {
-  return [=](int i) {
-    if (i >= end)
-      return a_end;
-    if (i <= beg)
-      return a_beg;
-    return (a_end * (i - beg) + a_beg * (end - i)) / (end - beg);
-  };
-}
-
 //==============================================================================
 TDHFbasis::TDHFbasis(const DiracOperator::TensorOperator *const h,
                      const HF::HartreeFock *const hf,
@@ -89,14 +79,14 @@ TDHFbasis::form_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
 //==============================================================================
 void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
   const double converge_targ = 1.0e-8;
-  const auto damper = rampedDamp(0.75, 0.25, 1, 20);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
+  const auto eta_damp = 0.4;
 
   auto tmp_X = m_X;
   auto tmp_Y = m_Y;
 
-  auto eps = 0.0;
+  // auto eps = 0.0;
   int it = 0;
   if (print) {
     printf("TDHFb %s (w=%.3f): ", m_h->name().c_str(), omega);
@@ -111,8 +101,10 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
     }
   }
 
+  auto total_eps = 0.0;
+  auto worst_orbital = std::pair<double, std::string>{0.0, ""};
   for (; it < max_its; it++) {
-    const auto a_damp = (it == 0) ? 0.0 : damper(it);
+    const auto a_damp = it == 1 ? 0.0 : eta_damp;
 
 #pragma omp parallel for
     for (auto i = 0ul; i < indexs.size(); i++) {
@@ -136,29 +128,56 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
     }
 
     // Find convergance from worst X
-    eps = 0.0;
+    // eps = 0.0;
+    double DdF2 = 0.0;
+    double dF2 = 0.0;
+    int count = 0;
+    std::vector<std::pair<double, std::string>> epss(m_core.size());
     for (auto ic = 0ul; ic < m_core.size(); ic++) {
       for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
+        const auto &Fc = m_core[ic];
         const auto &Xx = tmp_X[ic][beta];
         const auto &oldX = m_X[ic][beta];
-        const auto eps_beta = (Xx - oldX) * (Xx - oldX) / (Xx * Xx);
-        if (eps_beta > eps) {
-          eps = eps_beta;
+
+        const auto t_DdF2 = (Xx - oldX).norm2();
+        const auto t_dF2 = 0.5 * (Xx + oldX).norm2();
+        DdF2 += t_DdF2;
+        dF2 += t_dF2;
+        ++count;
+
+        // find worst orbital
+        const auto t_eps = t_dF2 == 0.0 ? 1.0 : t_DdF2 / t_dF2;
+        if (t_eps > epss[ic].first) {
+          epss[ic].first = t_eps;
+          epss[ic].second = Fc.shortSymbol() + "," + Xx.shortSymbol();
         }
       }
     }
 
+    total_eps = dF2 == 0.0 ? 0.0 : std::sqrt(2 * count) * DdF2 / dF2;
+
+    // Find the worst orbital (just for reporting)
+    const auto comp_first = [](const auto &a, const auto &b) {
+      return a.first < b.first;
+    };
+    worst_orbital = *std::max_element(epss.begin(), epss.end(), comp_first);
+
     m_X = tmp_X;
     m_Y = tmp_Y;
 
-    if ((it > 1 && eps < converge_targ))
+    if ((it > 1 && total_eps < converge_targ))
       break;
   }
   if (print) {
-    printf("%2i %.1e\n", it, eps);
+    printf("%2i %.1e [%s]", it, total_eps, worst_orbital.second.c_str());
+    if (total_eps > 1.0e-6 && max_its > 1)
+      std::cout << "  *";
+    if (total_eps > 1.0e-4 && max_its > 1)
+      std::cout << "**";
+    std::cout << "\n" << std::flush;
   }
   std::cout << std::flush;
-  m_core_eps = eps;
+  m_core_eps = total_eps;
   m_core_its = it;
   m_core_omega = omega;
 }

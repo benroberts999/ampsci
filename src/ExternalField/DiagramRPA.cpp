@@ -403,13 +403,17 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
 //==============================================================================
 void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
 
-  m_core_omega = std::abs(omega);
+  m_core_omega = omega; // abs?
+
+  const auto eta_damp = 0.4;
+  // "1st" interation: already done
+  const auto a_damp = eta_damp;
+  const auto b_damp = 1.0 - a_damp;
 
   if (holes.empty() || excited.empty())
     return;
 
   if (m_h->freqDependantQ()) {
-    // m_h->updateFrequency(m_core_omega); // Cant, is const. must do outside
     setup_ts(m_h);
   }
 
@@ -418,16 +422,18 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
     std::cout << std::flush;
   }
 
-  int it = 0;
+  int it = 1; // 1st interation already done intrinsically
   auto eps = 0.0;
+  std::string worst_a{""};
   const auto f = (1.0 / (2 * m_rank + 1));
   for (; it < max_its; it++) {
-    std::vector<double> eps_m(excited.size()); //"thread-safe" eps..?
+    std::vector<std::pair<double, std::string>> eps_m(excited.size());
 // XXX "Small" race condition in here???
 #pragma omp parallel for
     for (std::size_t im = 0; im < excited.size(); im++) {
       const auto &Fm = excited[im];
       double eps_worst_a = 0.0;
+      std::string eps_worst_s = "";
       for (std::size_t ia = 0; ia < holes.size(); ia++) {
         const auto &Fa = holes[ia];
 
@@ -452,14 +458,6 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
             const auto tdem = tbn / (Fb.en() - Fn.en() - m_core_omega);
             const auto s2 = ((Fb.twoj() - Fn.twoj()) % 4 == 0) ? 1 : -1;
             const auto stdep = s2 * tnb / (Fb.en() - Fn.en() + m_core_omega);
-            // if constexpr (m_USE_QK) {
-            //   const auto A = tdem * m_qk.W(m_rank, Fa, Fn, Fm, Fb);
-            //   const auto B = stdep * m_qk.W(m_rank, Fa, Fb, Fm, Fn);
-            //   const auto C = tdem * m_qk.W(m_rank, Fm, Fn, Fa, Fb);
-            //   const auto D = stdep * m_qk.W(m_rank, Fm, Fb, Fa, Fn);
-            //   sum_am += s1 * (A + B);
-            //   sum_ma += s3 * (C + D);
-            // } else
             {
               const auto A = tdem * Wanmb[ia][in][im][ib];
               const auto B = stdep * Wabmn[ia][in][im][ib];
@@ -473,24 +471,42 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
 
         const auto prev = tam[ia][im];
         // 0.5 factor is for damping. f*sum is dV
-        tam[ia][im] = 0.5 * (tam[ia][im] + t0am[ia][im] + f * sum_am);
-        tma[im][ia] = 0.5 * (tma[im][ia] + t0ma[im][ia] + f * sum_ma);
+        // tam[ia][im] = 0.5 * (tam[ia][im] + t0am[ia][im] + f * sum_am);
+        // tma[im][ia] = 0.5 * (tma[im][ia] + t0ma[im][ia] + f * sum_ma);
+
+        tam[ia][im] =
+            a_damp * tam[ia][im] + b_damp * (t0am[ia][im] + f * sum_am);
+        tma[im][ia] =
+            a_damp * tma[im][ia] + b_damp * (t0ma[im][ia] + f * sum_ma);
+
         const auto delta = std::abs((tam[ia][im] - prev) / tam[ia][im]);
-        if (delta > eps_worst_a)
+        if (delta > eps_worst_a) {
           eps_worst_a = delta;
+          eps_worst_s = Fa.shortSymbol() + "," + Fm.shortSymbol();
+        }
       } // a (holes)
-      eps_m[im] = eps_worst_a;
+      eps_m[im].first = eps_worst_a;
+      eps_m[im].second = eps_worst_s;
     } // m (excited)
     // XXX "small" race condition somewhere regarding eps??
     // The itteraion it converges on always seems to be the same..
     // but the value for eps printed changes slightly each run???
-    eps = *std::max_element(cbegin(eps_m), cend(eps_m));
+    const auto comp_first = [](const auto &a, const auto &b) {
+      return a.first < b.first;
+    };
+    auto worst = *std::max_element(cbegin(eps_m), cend(eps_m), comp_first);
+    eps = worst.first;
+    worst_a = worst.second;
     if (eps < eps_targ)
       break;
   } // its
   if (print) {
-    printf("%2i %.1e\n", it, eps);
-    std::cout << std::flush;
+    printf("%2i %.1e [%s]\n", it + 1, eps, worst_a.c_str());
+    if (eps > 1.0e-6 && max_its > 1)
+      std::cout << "  *";
+    if (eps > 1.0e-4 && max_its > 1)
+      std::cout << "**";
+    std::cout << "\n" << std::flush;
   }
   m_core_eps = eps;
   m_core_its = it;
