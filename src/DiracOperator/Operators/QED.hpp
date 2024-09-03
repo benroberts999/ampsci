@@ -237,14 +237,23 @@ generate_MLVP(const IO::InputBlock &input, const Wavefunction &wf) {
       {{"rN",
         "Nuclear radius (in fm), for finite-nuclear size "
         "correction to Uehling loop. If not given, taken from wavefunction."},
-       {"options{}", "Options for hyperfine operator [see `ampsci -o hfs`]."}});
+       {"hfs_options{}",
+        "Options for hyperfine operator that sits inside the MLVP operator. "
+        "Note: should use pointlike F(r)! [see `ampsci -o hfs`]."}});
   if (input.has_option("help")) {
     return nullptr;
   }
 
   // 1. generate regular hfs operator
-  const auto t_options = input.getBlock("options");
-  const auto oper_options = t_options ? *t_options : IO::InputBlock{};
+  const auto t_options = input.getBlock("hfs_options");
+  auto oper_options = t_options ? *t_options : IO::InputBlock{};
+
+  if (!oper_options.get("nuc_mag")) {
+    // Typically, deault is Ball. But in our case, should be pointlike
+    oper_options.add(IO::Option{"nuc_mag", "pointlike"});
+  }
+  oper_options.print();
+  std::cin.get();
 
   // 2. MLVP
   const auto rN_fm =
