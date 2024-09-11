@@ -387,6 +387,23 @@ void insert_into_if(const std::vector<T> &in, std::vector<T> *inout,
 }
 
 //==============================================================================
+//! Reverses a list
+template <typename T>
+std::vector<T> reverse(std::vector<T> in) {
+
+  std::size_t i = 0ul;
+  std::size_t f = in.size();
+
+  while (f > i + 1) {
+    std::swap(in[i], in[f - 1]);
+    ++i;
+    --f;
+  }
+
+  return in;
+}
+
+//==============================================================================
 //==============================================================================
 //! namespace qip::overloads provides operator overloads for std::vector
 namespace overloads {
