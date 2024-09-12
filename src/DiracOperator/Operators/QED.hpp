@@ -249,11 +249,9 @@ generate_MLVP(const IO::InputBlock &input, const Wavefunction &wf) {
   auto oper_options = t_options ? *t_options : IO::InputBlock{};
 
   if (!oper_options.get("nuc_mag")) {
-    // Typically, deault is Ball. But in our case, should be pointlike
+    // Typically, default is Ball. But in our case, should be pointlike
     oper_options.add(IO::Option{"nuc_mag", "pointlike"});
   }
-  oper_options.print();
-  std::cin.get();
 
   // 2. MLVP
   const auto rN_fm =

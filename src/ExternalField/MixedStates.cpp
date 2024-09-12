@@ -68,6 +68,11 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     if (its != 0)
       dF = (1.0 - eta_damp) * dF + eta_damp * dF0;
 
+    if (dF.kappa() == Fa.kappa()) {
+      // if imaginary?
+      dF -= (Fa * dF) * Fa;
+    }
+
     // Check convergence:
     const auto dF2 = dF * dF;
     eps = std::abs((dF2 - dF20) / dF2);
@@ -83,11 +88,6 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   dF.its() = its;
   dF.eps() = eps;
 
-  // do this here? Or when we use it?
-  if (dF.kappa() == Fa.kappa()) {
-    // if imaginary?
-    dF -= (Fa * dF) * Fa;
-  }
   return;
 }
 

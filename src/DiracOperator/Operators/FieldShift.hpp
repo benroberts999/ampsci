@@ -11,7 +11,7 @@ namespace DiracOperator {
 class F_fs final : public ScalarOperator {
 
 private:
-  double dr2;
+  double m_dr2;
 
 public:
   F_fs(const Grid &rgrid, const Nuclear::Nucleus &nuc1,
@@ -22,10 +22,11 @@ public:
                 (nuc2.r_rms() * nuc2.r_rms() - nuc1.r_rms() * nuc1.r_rms()),
             qip::overloads::operator-(Nuclear::formPotential(nuc2, rgrid.r()),
                                       Nuclear::formPotential(nuc1, rgrid.r()))),
-        dr2(nuc2.r_rms() * nuc2.r_rms() - nuc1.r_rms() * nuc1.r_rms()) {}
+        m_dr2(nuc2.r_rms() * nuc2.r_rms() - nuc1.r_rms() * nuc1.r_rms()) {}
 
   std::string name() const override final { return "dV_FS"; }
   std::string units() const override final { return "GHz/fm^2"; }
+  double dr2() const { return m_dr2; }
 };
 
 //------------------------------------------------------------------------------
