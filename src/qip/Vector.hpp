@@ -234,12 +234,14 @@ std::vector<T> uniform_range(T first, T last, N number) {
                 "In uniform_range(T, T, N), T must be arithmetic");
   static_assert(std::is_integral_v<N>,
                 "In uniform_range(T, T, N), N must be integral");
-  assert(number >= 2);
-
   std::vector<T> range;
+  if (number == 0)
+    return range;
   range.reserve(static_cast<std::size_t>(number));
-  const auto interval = static_cast<double>(last - first);
   range.push_back(first); // guarentee first is first
+  if (number <= 1)
+    return range;
+  const auto interval = static_cast<double>(last - first);
   for (N i = 1; i < number - 1; ++i) {
     const auto eps = static_cast<double>(i) / static_cast<double>(number - 1);
     const auto value = static_cast<double>(first) + (eps * interval);
@@ -261,13 +263,16 @@ std::vector<T> logarithmic_range(T first, T last, N number) {
                 "In logarithmic_range(T, T, N), T must be arithmetic");
   static_assert(std::is_integral_v<N>,
                 "In logarithmic_range(T, T, N), N must be integral");
-  assert(number >= 2);
 
   std::vector<T> range;
+  if (number == 0)
+    return range;
   range.reserve(static_cast<std::size_t>(number));
+  range.push_back(first);
+  if (number <= 1)
+    return range;
   const auto log_ratio =
       std::log(static_cast<double>(last) / static_cast<double>(first));
-  range.push_back(first);
   for (N i = 1; i < number - 1; ++i) {
     const auto eps = static_cast<double>(i) / static_cast<double>(number - 1);
     const auto value = static_cast<double>(first) * std::exp(log_ratio * eps);

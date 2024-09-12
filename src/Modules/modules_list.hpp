@@ -62,6 +62,8 @@ static const std::vector<ModuleInfo> module_list{
      "Calculates Struct. Rad + Normalisation corrections to MEs"},
     {"fieldShift", &fieldShift,
      "Calculates field-shift constants (isotope shift)"},
+    {"fieldShift2", &fieldShift2,
+     "Calculates field-shift constants (isotope shift)"},
     {"QED", &QED, "QED corrections to energies/matrix elements"},
     {"Breit", &Breit, "Breit corrections to energies"},
     {"ladder", &ladder, "Calculates ladder diagrams and energy corrections"},

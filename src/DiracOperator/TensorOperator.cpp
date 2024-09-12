@@ -81,6 +81,9 @@ double TensorOperator::fullME(const DiracSpinor &Fa, const DiracSpinor &Fb,
 }
 
 //==============================================================================
+void TensorOperator::scale(double lambda) { m_constant *= lambda; }
+
+//==============================================================================
 
 DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
                                        const DiracSpinor &Fb) const {
@@ -127,13 +130,6 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
 }
 
 //==============================================================================
-double TensorOperator::radialIntegral_x(const DiracSpinor &Fa,
-                                        const DiracSpinor &Fb) const {
-
-  // nb: faster not to do this, but nicer this way
-  return Fa * radial_rhs(Fa.kappa(), Fb);
-}
-
 double TensorOperator::radialIntegral(const DiracSpinor &Fa,
                                       const DiracSpinor &Fb) const {
 

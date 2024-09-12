@@ -118,7 +118,7 @@ protected:
         opC(RorI),
         m_freqDependantQ(freq_dep),
         m_constant(constant),
-        m_vec(inv){};
+        m_vec(inv) {};
 
 public:
   virtual ~TensorOperator() = default;
@@ -156,7 +156,10 @@ public:
   }
 
   //! Update frequency for frequency-dependant operators.
-  virtual void updateFrequency(const double){};
+  virtual void updateFrequency(const double) {};
+
+  //! Permanently re-scales the operator by constant, lambda
+  void scale(double lambda);
 
   //! Returns a const ref to vector v
   const std::vector<double> &getv() const { return m_vec; }
@@ -212,9 +215,6 @@ public:
 
   //! <b||h||a>  = Fa * reduced_lhs(a, Fb) (a needed for angular factor)
   DiracSpinor reduced_lhs(const int ka, const DiracSpinor &Fb) const;
-
-  //! Defined via <a||h||b> = angularF(a,b) * radialIntegral(a,b)
-  double radialIntegral_x(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   //! The reduced matrix element
   double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
