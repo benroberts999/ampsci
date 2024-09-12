@@ -23,7 +23,7 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
-  const auto core_relax = input.get("core_relax*", true);
+  const auto core_relax = input.get("core_relaxation", true);
   const auto print = input.get("print", true);
   const auto write = input.get("write", false);
 
