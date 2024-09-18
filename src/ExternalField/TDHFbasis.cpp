@@ -100,7 +100,7 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
 
   auto eps = 0.0;
   std::string s_worst;
-  int it = 0;
+
   if (print) {
     printf("TDHFb %s (w=%.3f): ", m_h->name().c_str(), omega);
     std::cout << std::flush;
@@ -114,6 +114,7 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
     }
   }
 
+  int it = 0;
   for (; it < max_its; it++) {
     const auto a_damp = (it == 0) ? 0.0 : eta_damp;
 

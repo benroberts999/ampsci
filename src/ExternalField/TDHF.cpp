@@ -281,12 +281,12 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
 
   m_hFcore = form_hFcore();
 
-  int it{1};
   std::pair<double, std::string> eps{};
   double best_eps{1.0};
   int count_worse = 0;
-  for (;; it++) {
-    const auto eta = it == 1 ? 0.0 : eta_damp;
+  int it{0};
+  for (; it < max_its; it++) {
+    const auto eta = it == 0 ? 0.0 : eta_damp;
     eps = tdhf_core_it(omega, eta);
 
     // Check for a "platau" in convergance (count # of 'worse' iterations)
@@ -299,8 +299,7 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
       }
     }
 
-    if ((it > 1 && eps.first < converge_targ) || it == max_its ||
-        count_worse > 5)
+    if ((it > 1 && eps.first < converge_targ) || count_worse > 5)
       break;
   }
 

@@ -33,6 +33,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
        {"options{}", "options specific to operator (see ampsci -o 'operator')"},
        {"rpa",
         "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]"},
+       {"rpa_options{}", "Block: some further options for RPA"},
        {"omega",
         "Text or number. Freq. for RPA (and freq. dependent operators). Put "
         "'each' to solve at correct frequency for each transition. [0.0]"},
@@ -62,6 +63,16 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
         "Save time (10x) at cost of memory. Note: Using QkTable "
         "implies splines used for diagram legs"},
        {"n_minmax", "list; min,max n for core/excited: [1,inf]"}});
+
+  const auto t_rpa_input = input.getBlock("rpa_options");
+  auto rpa_input = t_rpa_input ? *t_rpa_input : IO::InputBlock{"rpa_options"};
+  if (input.has_option("help")) {
+    rpa_input.add("help;");
+  }
+  rpa_input.check({{"eps", "Convergance goal [1.0e-10]"},
+                   {"eta", "Damping factor - be carful with this [0.4]"},
+                   {"max_iterations", "Maximum number of iterations. 1 should "
+                                      "correspond to first-order RPA [100]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -113,6 +124,14 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     rpa_method_str = "false";
   auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
                                      wf.basis(), wf.identity());
+
+  const auto rpa_eps = rpa_input.get("eps", 1.0e-10);
+  const auto rpa_its = rpa_input.get("max_iterations", 100);
+  const auto rpa_eta = rpa_input.get("eta", 0.4);
+  if (rpa) {
+    rpa->set_eta(rpa_eta);
+    rpa->eps_target() = rpa_eps;
+  }
 
   const auto rpaQ = rpa != nullptr;
 
@@ -179,7 +198,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   if (rpa && !eachFreqQ) {
-    rpa->solve_core(omega);
+    rpa->solve_core(omega, rpa_its);
   }
 
   std::stringstream os;
@@ -192,7 +211,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       h->updateFrequency(0.0);
     }
     if (eachFreqQ && rpa) {
-      rpa->solve_core(0.0);
+      if (rpa_its == 1) {
+        rpa->clear();
+      }
+      rpa->solve_core(0.0, rpa_its);
     }
 
     for (const auto &a : orbs) {
@@ -283,10 +305,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           h->updateFrequency(ww);
         }
         if (eachFreqQ && rpa) {
-          if (rpa->last_eps() > 1.0e-5)
+          if (rpa->last_eps() > 1.0e-5 || rpa_its == 1)
             rpa->clear();
           std::cout << " RPA(w) : ";
-          rpa->solve_core(ww);
+          rpa->solve_core(ww, rpa_its);
         }
 
         const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(

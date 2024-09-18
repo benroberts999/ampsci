@@ -406,7 +406,7 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
     std::cout << std::flush;
   }
 
-  int it = 0;
+  int it = 1;
   auto eps = 0.0;
   std::string s_worst;
   const auto f = (1.0 / (2 * m_rank + 1));
