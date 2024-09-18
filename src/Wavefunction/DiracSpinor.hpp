@@ -249,6 +249,9 @@ public:
   orthonormaliseWrt(const DiracSpinor &Fin,
                     const std::vector<DiracSpinor> &orbs);
 
+  //! A more correct way to force orthogonality than normal
+  void orthog(const DiracSpinor &rhs);
+
   //! e.g., 6p_1/2 => 6p-, 6p_3/2 => 6p+
   static std::string shortSymbol(int n, int kappa);
 

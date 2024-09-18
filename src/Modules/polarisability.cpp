@@ -525,7 +525,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
             (ww == w_list.front() || ww == w_list.back() || (count % 20 == 0));
 
     if (rpaQ && rpa_omegaQ) {
-      if (dVE1.get_eps() > 1.0e-2) {
+      if (dVE1.last_eps() > 1.0e-2) {
         // if tdhf didn't converge well last time, start from scratch
         // (otherwise, start from where we left off, since much faster)
         dVE1.clear();
@@ -571,8 +571,8 @@ void dynamicPolarisability(const IO::InputBlock &input,
     }
     if (rpaQ && rpa_omegaQ) {
       if (print)
-        printf("[%.0e]", dVE1.get_eps());
-      ofile << dVE1.get_eps();
+        printf("[%.0e]", dVE1.last_eps());
+      ofile << dVE1.last_eps();
     }
     if (print)
       std::cout << "\n";
@@ -590,7 +590,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
         o2file << a2 << " ";
       }
       if (rpaQ && rpa_omegaQ)
-        o2file << dVE1.get_eps();
+        o2file << dVE1.last_eps();
       if (print)
         std::cout << "\n";
       o2file << "\n";

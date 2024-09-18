@@ -37,16 +37,15 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   using namespace qip::overloads;
   assert(dF.kappa() == hFa.kappa());
 
-  const auto eta_damp = 0.4;
-  const int max_its = (eps_target < 1.0e-8) ? 100 : 30;
+  const auto eta_damp = 0.5;
+  const int max_its = (eps_target < 1.0e-7) ? 100 : 30;
 
   if (std::abs(dF * dF) == 0.0) {
     // If dF is not yet a solution, solve from scratch:
     DiracODE::solve_inhomog(dF, Fa.en() + omega, vl, H_mag, alpha, -1.0 * hFa);
+    dF.orthog(Fa);
   }
 
-  // monitor convergance:
-  auto dF20 = std::abs(dF * dF);
   // Old/previous value of dF, used for damping
   auto dF0 = dF;
 
@@ -64,24 +63,23 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
       rhs -= VBr->VbrFa(dF, core);
 
     DiracODE::solve_inhomog(dF, Fa.en() + omega, v, H_mag, alpha, rhs);
+
     // damp the solution
     if (its != 0)
       dF = (1.0 - eta_damp) * dF + eta_damp * dF0;
 
-    if (dF.kappa() == Fa.kappa()) {
-      // if imaginary?
-      dF -= (Fa * dF) * Fa;
-    }
+    // Force orthogonality
+    dF.orthog(Fa);
 
     // Check convergence:
     const auto dF2 = dF * dF;
-    eps = std::abs((dF2 - dF20) / dF2);
+    eps = (dF - dF0).norm2() / dF2;
+
     if (eps < eps_target || its == max_its) {
       break;
     }
 
     // store old values (for damping and convergence)
-    dF20 = dF2;
     dF0 = dF;
   }
 
@@ -96,18 +94,18 @@ DiracSpinor solveMixedState(const DiracSpinor &Fa, double omega,
                             const DiracSpinor &hFa,
                             const HF::HartreeFock *const hf, double eps_target,
                             const MBPT::CorrelationPotential *const Sigma) {
-  return solveMixedState(Fa, omega, hf->vlocal(hFa.l()), hf->alpha(),
-                         hf->core(), hFa, eps_target, Sigma, hf->vBreit(),
-                         hf->Hmag(0));
+  return solveMixedState(Fa, omega, hf->vlocal(Fa.l()), hf->alpha(), hf->core(),
+                         hFa, eps_target, Sigma, hf->vBreit(),
+                         hf->Hmag(Fa.l()));
 }
 
 void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const DiracSpinor &hFa, const HF::HartreeFock *const hf,
                      double eps_target,
                      const MBPT::CorrelationPotential *const Sigma) {
-  return solveMixedState(dF, Fa, omega, hf->vlocal(dF.l()), hf->alpha(),
+  return solveMixedState(dF, Fa, omega, hf->vlocal(Fa.l()), hf->alpha(),
                          hf->core(), hFa, eps_target, Sigma, hf->vBreit(),
-                         hf->Hmag(0));
+                         hf->Hmag(Fa.l()));
 }
 
 //==============================================================================
@@ -120,7 +118,6 @@ DiracSpinor solveMixedState_basis(const DiracSpinor &Fa, const DiracSpinor &hFa,
     if (n == Fa || n.kappa() != hFa.kappa())
       continue;
     dFa += ((n * hFa) / (Fa.en() - n.en() + omega)) * n;
-    // Xx += (hnc / (Fv.en() - Fn.en() + ww)) * Fn;
   }
   return dFa;
 }

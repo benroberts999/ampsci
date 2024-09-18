@@ -23,7 +23,6 @@ private:
   const HF::HartreeFock *p_hf;
   std::vector<DiracSpinor> holes{};
   std::vector<DiracSpinor> excited{};
-  double eps_targ = 1.0e-10;
 
   std::optional<HF::Breit> m_Br{};
 
@@ -41,10 +40,6 @@ private:
   std::vector<std::vector<std::vector<std::vector<double>>>> Wabmn{};
   std::vector<std::vector<std::vector<std::vector<double>>>> Wmnab{};
   std::vector<std::vector<std::vector<std::vector<double>>>> Wmban{};
-
-  // // nb: much slower to use Qk table
-  // static constexpr bool m_USE_QK = false;
-  // Coulomb::QkTable m_qk{};
 
 public:
   //! Normal constructor: needs core to split basis: only uses basis.

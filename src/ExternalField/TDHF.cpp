@@ -144,15 +144,11 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
     s2 = sj * si;
   }
 
-  const auto vl = p_hf->vlocal(Angular::l_k(kappa_x));
-  const auto &Hmag = p_hf->Hmag(Angular::l_k(kappa_x));
+  const auto vl = p_hf->vlocal(Angular::l_k(Fv.kappa()));
+  const auto &Hmag = p_hf->Hmag(Angular::l_k(Fv.kappa()));
   // The l from X ? or from Fv ?
   return s2 * ExternalField::solveMixedState(Fv, ww, vl, m_alpha, m_core, rhs,
                                              1.0e-9, Sigma, p_VBr, Hmag);
-  // if (kappa_x == Fv.kappa() && !imag) {
-  //   tmp -= (Fv * tmp) * Fv;
-  // }
-  // return tmp;
 }
 
 //==============================================================================
@@ -182,14 +178,11 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
       rhs -= de * Fb;
     }
 
-    const auto vl = p_hf->vlocal(Angular::l_k(kappa_beta));
-    const auto &Hmag = p_hf->Hmag(Angular::l_k(kappa_beta));
+    const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
+    const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
     // The l from X ? or from Fv ?
     ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
                                    eps_ms, nullptr, p_VBr, Hmag);
-    // if (dF_beta.kappa() == Fb.kappa() && !imag) {
-    //   dF_beta -= (Fb * dF_beta) * Fb;
-    // }
   }
 }
 
@@ -278,10 +271,8 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
 
 //==============================================================================
 void TDHF::solve_core(const double omega, int max_its, const bool print) {
-  const double converge_targ = 1.0e-9;
-
-  const auto eta_damp0 = 0.35;
-  auto eta_damp = eta_damp0;
+  const double converge_targ = m_eps;
+  const auto eta_damp = m_eta;
 
   if (print) {
     printf("TDHF %s (w=%.4f): ", m_h->name().c_str(), omega);
@@ -302,16 +293,13 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
     if (it > 15) {
       if (eps.first > best_eps) {
         ++count_worse;
-        eta_damp += 0.1; // give a "kick"
-        assert(eta_damp < 1.0);
       } else {
         best_eps = eps.first;
         count_worse = 0;
-        eta_damp = eta_damp0;
       }
     }
 
-    if ((it > 5 && eps.first < converge_targ) || it == max_its ||
+    if ((it > 1 && eps.first < converge_targ) || it == max_its ||
         count_worse > 5)
       break;
   }

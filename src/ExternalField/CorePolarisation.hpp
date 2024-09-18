@@ -14,20 +14,24 @@ namespace ExternalField {
 enum class Method { TDHF, basis, diagram, none, Error };
 
 inline Method ParseMethod(std::string_view str) {
-  return qip::ci_compare(str, "TDHF")    ? Method::TDHF :
-         qip::ci_compare(str, "true")    ? Method::TDHF :
-         qip::ci_compare(str, "basis")   ? Method::basis :
-         qip::ci_compare(str, "diagram") ? Method::diagram :
-         qip::ci_compare(str, "none")    ? Method::none :
-         qip::ci_compare(str, "false")   ? Method::none :
-         qip::ci_compare(str, "")        ? Method::none :
-                                           Method::Error;
+  return qip::ci_compare(str, "TDHF")       ? Method::TDHF :
+         qip::ci_compare(str, "true")       ? Method::TDHF :
+         qip::ci_compare(str, "basis")      ? Method::basis :
+         qip::ci_compare(str, "tdhf_basis") ? Method::basis :
+         qip::ci_compare(str, "tdhfbasis")  ? Method::basis :
+         qip::ci_compare(str, "diagram")    ? Method::diagram :
+         qip::ci_compare(str, "rpad")       ? Method::diagram :
+         qip::ci_compare(str, "rpa(d)")     ? Method::diagram :
+         qip::ci_compare(str, "none")       ? Method::none :
+         qip::ci_compare(str, "false")      ? Method::none :
+         qip::ci_compare(str, "")           ? Method::none :
+                                              Method::Error;
 }
 
 enum class dPsiType { X, Y };
 enum class StateType { bra, ket }; // lhs, rhs
 
-//! Virtual Core Polarisation class, for <a||dV||b>. See TDHF, DiagramRPA
+//! Virtual Core Polarisation class, for <a||dV||b>. See TDHF, DiagramRPA, etc.
 class CorePolarisation {
 
 protected:
@@ -43,16 +47,32 @@ protected:
   int m_pi;
   bool m_imag;
 
+  double m_eta{0.4};
+  double m_eps{1.0e-10};
+
 public:
   //! Returns eps (convergance) of last solve_core run
-  double get_eps() const { return m_core_eps; }
+  double last_eps() const { return m_core_eps; }
   //! Returns its (# of iterations) of last solve_core run
-  double get_its() const { return m_core_its; }
+  double last_its() const { return m_core_its; }
   //! Returns omega (frequency) of last solve_core run
-  double get_omega() const { return m_core_omega; }
-  int get_rank() const { return m_rank; }
-  int get_parity() const { return m_pi; }
-  bool get_imagQ() const { return m_imag; }
+  double last_omega() const { return m_core_omega; }
+  int rank() const { return m_rank; }
+  int parity() const { return m_pi; }
+  bool imagQ() const { return m_imag; }
+
+  //! Convergance target
+  double &eps_target() { return m_eps; }
+  //! Convergance target
+  double eps_target() const { return m_eps; }
+
+  //! Damping factor; 0 means no damping. Must have 0 <= eta < 1
+  double eta() const { return m_eta; }
+  //! Set/update damping factor; 0 means no damping. Must have 0 <= eta < 1
+  void set_eta(double eta) {
+    assert(eta >= 0.0 && eta < 1 && "Must have 0 <= eta < 1");
+    m_eta = eta;
+  }
 
   //! Returns RPA method
   virtual Method method() const = 0;

@@ -322,6 +322,19 @@ DiracSpinor::check_ortho(const std::vector<DiracSpinor> &a,
 }
 
 //==============================================================================
+void DiracSpinor::orthog(const DiracSpinor &rhs) {
+  if (rhs.kappa() != m_kappa)
+    return;
+  const auto k = *this * rhs;
+  const auto p0 = std::max(m_p0, rhs.m_p0);
+  const auto pi = std::min(m_pinf, rhs.m_pinf);
+  for (std::size_t i = p0; i < pi; ++i) {
+    m_f[i] -= k * rhs.m_f[i];
+    m_g[i] -= k * rhs.m_g[i];
+  }
+}
+
+//==============================================================================
 void DiracSpinor::orthonormaliseOrbitals(std::vector<DiracSpinor> &in_orbs,
                                          int num_its)
 // Note: this function is static

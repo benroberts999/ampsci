@@ -79,8 +79,8 @@ void tune_Rmag(const DiracSpinor &Fv, const double eps_target,
     if (rpa_t) {
       rpa_t->update_t0s(ht.get());
       rpa_t->solve_core(0.0, 50, false);
-      if (rpa_t->get_eps() > 1.0e-4) {
-        std::cout << "* WARNING: RPA didn't converge?: " << rpa_t->get_eps()
+      if (rpa_t->last_eps() > 1.0e-4) {
+        std::cout << "* WARNING: RPA didn't converge?: " << rpa_t->last_eps()
                   << "\n";
       }
     }
