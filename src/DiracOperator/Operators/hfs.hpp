@@ -311,7 +311,9 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
               << "! meaningless results\n";
   }
 
-  const auto g_or_Q = (k == 1) ? (mu / I_nuc) : input.get("Q", 1.0);
+  const auto g_or_Q = (k == 1) ? (mu / I_nuc) :
+                      (k == 2) ? input.get("Q", isotope.q ? *isotope.q : 1.0) :
+                                 input.get("Q", 1.0);
 
   enum class DistroType {
     point,

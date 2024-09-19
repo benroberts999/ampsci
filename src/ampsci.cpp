@@ -152,8 +152,9 @@ Wavefunction ampsci(const IO::InputBlock &input) {
        {"eps", "HF convergance goal [1.0e-13]"},
        {"method", "Method for mean-field approximation: HartreeFock, Hartree, "
                   "KohnSham, Local [HartreeFock]"},
-       {"Breit", "Scale for factor for Breit Hamiltonian. Usially 0.0 (no "
-                 "Breit) or 1.0 (full Breit), but can take any value. [0.0]"},
+       {"Breit", "Include Breit into HF? true/false, or scale factor. Scale "
+                 "factor for Breit Hamiltonian is usially 0.0 (no "
+                 "Breit) or 1.0 (full Breit), but can take any value. [false]"},
        {"QED",
         "Include QED? Three options: true, false, valence. If 'valencel, will "
         "include QED only into valence states, but not the core. Detailed QED "
@@ -164,7 +165,9 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto core = input.get({"HartreeFock"}, "core", "[]"s);
   const auto HF_method = input.get({"HartreeFock"}, "method", "HartreeFock"s);
   const auto eps_HF = input.get({"HartreeFock"}, "eps", 1.0e-13);
-  const auto x_Breit = input.get({"HartreeFock"}, "Breit", 0.0);
+  const auto tf_Breit = input.get({"HartreeFock"}, "Breit", false);
+  const auto x_Breit =
+      tf_Breit ? 1.0 : input.get({"HartreeFock"}, "Breit", 0.0);
   const auto valence = input.get({"HartreeFock"}, "valence", ""s);
 
   // Decide if to include QED into core+valence, just core, or not at all

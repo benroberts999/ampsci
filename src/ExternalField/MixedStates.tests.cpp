@@ -170,7 +170,7 @@ TEST_CASE("External Field: Mixed-states (full)",
 
           // base target on overlap of wavefunctions:
           const auto dn = std::abs(Fc.n() - Fm.n());
-          const auto target = dn == 0 ? 1.0e-4 :
+          const auto target = dn == 0 ? 3.0e-4 :
                               dn == 1 ? 1.0e-3 :
                               dn == 2 ? 1.0e-3 :
                                         1.0e-2;

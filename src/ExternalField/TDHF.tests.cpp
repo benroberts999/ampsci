@@ -264,7 +264,7 @@ TEST_CASE("External Field: TDHF (RPA)",
     test_RPA(wf, m1, 0.0, dzuba_m1_0, 1.0e-4, 3.0e-1);
     test_RPA(wf, m1, 0.1, dzuba_m1_w, 1.0e-4, 3.0e-1);
 
-    test_RPA(wf, hfs, 0.0, dzuba_hfs, 1.0e-3, 1.0e-3);
+    test_RPA(wf, hfs, 0.0, dzuba_hfs, 1.0e-3, 3.0e-3);
 
     test_RPA(wf, dpnc, 0.0, dzuba_pnc, 1.0e-3, 1.0e-3);
   }

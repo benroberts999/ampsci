@@ -164,38 +164,44 @@ TEST_CASE("Physics: Radiative Potential", "[RadPot][QED][integration]") {
     const auto r_N_au =
         std::sqrt(5.0 / 3.0) * 1.0 * wf.nucleus().r_rms() / PhysConst::aB_fm;
     // Rad pot, pointlike and step nucleus
-    const auto rp0 = QED::RadPot(wf.grid().r(), wf.Znuc(), 0.0, 15.0,
-                                 QED::RadPot::Scale{0.0, 1.0, 1.0, 1.0, 0.0},
-                                 std::vector{1.0}, false, false);
-    const auto rp = QED::RadPot(wf.grid().r(), wf.Znuc(), r_N_au, 15.0,
-                                QED::RadPot::Scale{0.0, 1.0, 1.0, 1.0, 0.0},
-                                std::vector{1.0}, false, false);
+    // const auto rp0 = QED::RadPot(wf.grid().r(), wf.Znuc(), 0.0, 15.0,
+    //                              QED::RadPot::Scale{0.0, 1.0, 1.0, 1.0, 0.0},
+    //                              std::vector{1.0}, false, false);
+    // const auto rp = QED::RadPot(wf.grid().r(), wf.Znuc(), r_N_au, 15.0,
+    //                             QED::RadPot::Scale{0.0, 1.0, 1.0, 1.0, 0.0},
+    //                             std::vector{1.0}, false, false);
 
-    // std::cout
-    //     << "                 mag   [expct], high  [expct], low   [expct]\n";
-    // const auto lam = [&](auto &exp, auto &RP, std::string name) {
-    //   // const auto hm = DiracOperator::Hrad({}, RP.Hmag(0));
-    //   // const auto hh = DiracOperator::Hrad(RP.Vh(0), {});
-    //   // const auto hl = DiracOperator::Hrad(RP.Vl(0), {});
-    //   const auto hm = DiracOperator::Vrad(RP);
-    //   const auto hh = DiracOperator::Vrad(RP);
-    //   const auto hl = DiracOperator::Vrad(RP);
-    //   const auto &Fv = wf.valence().at(0);
+    std::cout
+        << "                 mag   [expct], high  [expct], low   [expct]\n";
+    const auto lam = [&](auto &exp, double rN, std::string name) {
+      const auto hm =
+          DiracOperator::Vrad({wf.grid().r(), (double)wf.Znuc(), rN, 15.0,
+                               QED::RadPot::Scale{0.0, 0.0, 0.0, 1.0, 0.0},
+                               std::vector{1.0}, false, false});
+      const auto hh =
+          DiracOperator::Vrad({wf.grid().r(), (double)wf.Znuc(), rN, 15.0,
+                               QED::RadPot::Scale{0.0, 1.0, 0.0, 0.0, 0.0},
+                               std::vector{1.0}, false, false});
+      const auto hl =
+          DiracOperator::Vrad({wf.grid().r(), (double)wf.Znuc(), rN, 15.0,
+                               QED::RadPot::Scale{0.0, 0.0, 1.0, 0.0, 0.0},
+                               std::vector{1.0}, false, false});
+      const auto &Fv = wf.valence().at(0);
 
-    //   const auto m = hm.radialIntegral(Fv, Fv) * 1.0e5;
-    //   const auto h = hh.radialIntegral(Fv, Fv) * 1.0e5;
-    //   const auto l = hl.radialIntegral(Fv, Fv) * 1.0e5;
+      const auto m = hm.radialIntegral(Fv, Fv) * 1.0e5;
+      const auto h = hh.radialIntegral(Fv, Fv) * 1.0e5;
+      const auto l = hl.radialIntegral(Fv, Fv) * 1.0e5;
 
-    //   const auto eps = (h + m + l) / (exp[0] + exp[1] + exp[2]) - 1.0;
+      const auto eps = (h + m + l) / (exp[0] + exp[1] + exp[2]) - 1.0;
 
-    //   printf("%15s: %.3f [%.3f], %.3f [%.3f], %.3f [%.3f]\n", name.c_str(), m,
-    //          exp[0], h, exp[1], l, exp[2]);
+      printf("%15s: %.3f [%.3f], %.3f [%.3f], %.3f [%.3f]\n", name.c_str(), m,
+             exp[0], h, exp[1], l, exp[2]);
 
-    //   REQUIRE(std::abs(eps) < 1.0e-4);
-    // };
+      REQUIRE(std::abs(eps) < 1.0e-4);
+    };
 
-    // lam(pt, rp0, "point");
-    // lam(st, rp, "step");
+    lam(pt, 0.0, "point");
+    lam(st, r_N_au, "step");
   }
 }
 

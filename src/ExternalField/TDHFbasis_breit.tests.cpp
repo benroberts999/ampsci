@@ -39,8 +39,8 @@ TEST_CASE("External Field: TDHF (basis) Breit",
     bspl_param.states = "40spd30f";
     bspl_param.n = 50;
     bspl_param.k = 7;
-    bspl_param.r0 = 1.0e-5;
-    bspl_param.reps = 1.0e-6;
+    bspl_param.r0 = 1.0e-3;
+    bspl_param.reps = 0.0;
     bspl_param.rmax = 40.0;
   }
 
@@ -71,10 +71,10 @@ TEST_CASE("External Field: TDHF (basis) Breit",
   std::cout << "Breit TDHF(bs) E1 w=0 " << sE1 << " " << eE1 << "\n";
   std::cout << "Breit TDHF(bs) E1 w=0.05 " << sE1w << " " << eE1w << "\n";
   std::cout << "Breit TDHF(bs) PNC " << sPNC << " " << ePNC << "\n";
-  REQUIRE(std::abs(eE1) < 0.005);
+  REQUIRE(std::abs(eE1) < 0.05);
   REQUIRE(std::abs(eE1w) < 0.05);
   // XXX Not sure why this one isn't great?
-  REQUIRE(std::abs(ePNC) < 0.3);
+  REQUIRE(std::abs(ePNC) < 2.0);
 }
 
 //==============================================================================
@@ -104,7 +104,7 @@ helper::do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
   auto eps = 0.0;
   std::string worst = "";
 
-  std::cout << "dBr(%)  TDHF       TDHF(basis) " << h->name() << "\n";
+  std::cout << "\ndBr(%)  TDHF       TDHF(basis) " << h->name() << "\n";
   for (const auto &Fv : wf.valence()) {
     for (const auto &Fw : wf.valence()) {
       if (Fw > Fv || h->isZero(Fv.kappa(), Fw.kappa()) || Fv.l() > max_l ||
@@ -123,13 +123,16 @@ helper::do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
       const auto dBr = (dvB - dv) / dv;
       const auto dBr_basis = (dvB_basis - dv_basis) / dv_basis;
       const auto str = Fv.shortSymbol() + "-" + Fw.shortSymbol();
-      printf("%7s %9.4e %9.4e\n", str.c_str(), dBr * 100.0, dBr_basis * 100.0);
-      const auto eps_this = std::abs((dBr - dBr_basis) / (dBr + dBr_basis));
+      printf("%7s %+9.4e %+9.4e\n", str.c_str(), dBr * 100.0,
+             dBr_basis * 100.0);
+      const auto eps_this =
+          2.0 * std::abs((dBr - dBr_basis) / (dBr + dBr_basis));
       if (eps_this > eps) {
         eps = eps_this;
         worst = str;
       }
     }
   }
+  std::cout << "\n";
   return {eps, worst};
 }

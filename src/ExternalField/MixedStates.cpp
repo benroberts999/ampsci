@@ -37,8 +37,8 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   using namespace qip::overloads;
   assert(dF.kappa() == hFa.kappa());
 
-  const auto eta_damp = 0.5;
-  const int max_its = (eps_target < 1.0e-7) ? 100 : 30;
+  const auto eta_damp = 0.45;
+  const int max_its = (eps_target < 1.0e-8) ? 100 : 30;
 
   if (std::abs(dF * dF) == 0.0) {
     // If dF is not yet a solution, solve from scratch:
@@ -51,16 +51,16 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
 
   int its{0};
   double eps{};
-  for (;; its++) {
+  for (; its < max_its; its++) {
     // Include approximate exchange on LHS of equation (therefore also on RHS)
     // This makes v_local have correct long-range behaviour
     const auto vx = HF::vex_approx(dF, core);
     const auto v = vl + vx;
     auto rhs = (vx * dF) - HF::vexFa(dF, core) - hFa;
-    if (Sigma)
-      rhs -= (*Sigma)(dF);
     if (VBr)
       rhs -= VBr->VbrFa(dF, core);
+    if (Sigma)
+      rhs -= (*Sigma)(dF);
 
     DiracODE::solve_inhomog(dF, Fa.en() + omega, v, H_mag, alpha, rhs);
 
@@ -72,10 +72,9 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     dF.orthog(Fa);
 
     // Check convergence:
-    const auto dF2 = dF * dF;
-    eps = (dF - dF0).norm2() / dF2;
+    eps = 2.0 * (dF - dF0).norm2() / (dF + dF0).norm2();
 
-    if (eps < eps_target || its == max_its) {
+    if (eps < eps_target) {
       break;
     }
 
