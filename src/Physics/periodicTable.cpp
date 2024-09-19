@@ -33,6 +33,8 @@ void printData(const Nuclear::Isotope &nuc) {
               std::cout << "??";
   std::cout << ", mu = ";
   nuc.mu ? std::cout << *nuc.mu : std::cout << "??";
+  std::cout << ", Q = ";
+  nuc.q ? std::cout << *nuc.q : std::cout << "??";
 
   std::cout << ", I = ";
   nuc.I_N ? std::cout << *nuc.I_N : std::cout << "??";
