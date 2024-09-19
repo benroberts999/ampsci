@@ -57,6 +57,7 @@ class CorrelationPotential {
   int m_n_min_core_F;
   bool m_includeG;
   bool m_includeBreit;
+  int m_n_max_breit;
 
   std::optional<Goldstone> m_Gold{};
 
@@ -76,7 +77,8 @@ public:
   CorrelationPotential(const std::string &fname, const HF::HartreeFock *vHF,
                        const std::vector<DiracSpinor> &basis, double r0,
                        double rmax, std::size_t stride, int n_min_core,
-                       SigmaMethod method, bool include_g, bool include_Breit,
+                       SigmaMethod method, bool include_g = false,
+                       bool include_Breit = false, int n_max_breit = 0,
                        const FeynmanOptions &Foptions = {},
                        bool calculate_fk = true,
                        const std::vector<double> &fk = {},

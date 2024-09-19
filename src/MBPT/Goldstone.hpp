@@ -20,7 +20,6 @@ class Goldstone {
   using Basis = std::vector<DiracSpinor>;
   std::pair<Basis, Basis> m_basis;
   Coulomb::YkTable m_Yeh;
-  std::optional<HF::Breit> m_Br{};
 
   // Parameters of the sub-grid: initial/final points, stride
   std::size_t m_i0, m_stride, m_subgrid_points;
@@ -28,11 +27,15 @@ class Goldstone {
   int m_n_min_core;
   bool m_include_G;
 
+  std::optional<HF::Breit> m_Br{};
+  int m_max_n_breit;
+
 public:
   Goldstone(const std::vector<DiracSpinor> &basis,
             const std::vector<DiracSpinor> &core, std::size_t i0,
             std::size_t stride, std::size_t size, int n_min_core = 1,
-            bool include_G = false, const HF::Breit *Br = nullptr);
+            bool include_G = false, const HF::Breit *Br = nullptr,
+            int max_n_breit = -1);
 
   //! Calculate Direct part of correlation potential
   GMatrix Sigma_direct(int kappa_v, double en_v,
@@ -43,6 +46,11 @@ public:
   // nb: can be a little faster by combining w/ direct?
   GMatrix Sigma_exchange(int kappa_v, double en_v,
                          const std::vector<double> &fk = {}) const;
+
+  GMatrix Sigma_both(int kappa_v, double en_v,
+                     const std::vector<double> &fk = {},
+                     const std::vector<double> &etak = {},
+                     int n_max_core = 99) const;
 
   const std::pair<Basis, Basis> &basis() const { return m_basis; }
   const Coulomb::YkTable &Yeh() const { return m_Yeh; }

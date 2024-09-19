@@ -7,16 +7,16 @@ namespace MBPT {
 Goldstone::Goldstone(const std::vector<DiracSpinor> &basis,
                      const std::vector<DiracSpinor> &core, std::size_t i0,
                      std::size_t stride, std::size_t size, int n_min_core,
-                     bool include_G, const HF::Breit *Br)
+                     bool include_G, const HF::Breit *Br, int max_n_breit)
     : m_grid(basis.front().grid_sptr()),
       m_basis(DiracSpinor::split_by_core(basis, core, n_min_core)),
       m_Yeh(m_basis.second, m_basis.first),
       m_i0(i0),
-      // m_imax(m_grid->getIndex(subgrid.rmax)),
       m_stride(stride),
       m_subgrid_points(size),
       m_n_min_core(n_min_core),
-      m_include_G(include_G) {
+      m_include_G(include_G),
+      m_max_n_breit(max_n_breit > 0 ? max_n_breit : DiracSpinor::max_n(basis)) {
 
   if (Br != nullptr) {
     m_Br = *Br; // copy is OK, small
@@ -31,7 +31,8 @@ Goldstone::Goldstone(const std::vector<DiracSpinor> &basis,
       std::cout << "Including G parts of matrix\n";
     }
     if (m_Br) {
-      std::cout << "Including Breit inside matrix\n";
+      std::cout << "Including Breit inside matrix: up to n=" << m_max_n_breit
+                << "\n";
     }
     printf("Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, "
            "stride=%i]\n",
@@ -105,7 +106,7 @@ GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
           const auto factor = etak * fk / (f_kkjj * dele);
           Sd_an.add(Qkv, Qkv, factor);
 
-          if (m_Br) {
+          if (m_Br && m.n() <= m_max_n_breit && n.n() <= m_max_n_breit) {
             const auto Bkv = m_Br->Bkv_bcd(k, kappa_v, a, m, n);
             Sd_an.add(Bkv, Qkv, factor);
           }
@@ -120,19 +121,99 @@ GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
           const auto factor = etak * fk / (f_kkjj * dele);
           Sd_an.add(Qkv, Qkv, factor);
 
-          if (m_Br) {
+          if (m_Br && n.n() <= m_max_n_breit) {
             const auto Bkv = m_Br->Bkv_bcd(k, kappa_v, n, b, a);
             Sd_an.add(Bkv, Qkv, factor);
           }
-        } // b
-
-      } // k
+        }
+      }
 
 #pragma omp critical(sum_Sd)
       { Sd += Sd_an; }
+    }
+  }
 
-    } // n
-  }   // a
+  return Sd.drj_in_place();
+}
+
+//==============================================================================
+GMatrix Goldstone::Sigma_both(int kappa_v, double en_v,
+                              const std::vector<double> &fks,
+                              const std::vector<double> &etaks,
+                              int n_max_core) const {
+
+  const auto &[t_holes, t_excited] = m_basis;
+
+  // This is required by clang++14??
+  // "reference to local binding 'holes' declared in enclosing function"
+  const auto &holes = t_holes;
+  const auto &excited = t_excited;
+
+  const auto tjv = Angular::twoj_k(kappa_v);
+
+  GMatrix Sd{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
+
+  if (holes.empty() || excited.empty())
+    return Sd;
+
+#pragma omp parallel for collapse(2)
+  for (auto ia = 0ul; ia < holes.size(); ia++) {
+    for (auto in = 0ul; in < excited.size(); in++) {
+      const auto &a = holes[ia];
+      const auto &n = excited[in];
+      if (n_max_core > 0 && a.n() > n_max_core)
+        continue;
+
+      GMatrix Sd_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
+
+      const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, a);
+      for (int k = kmin_nb; k <= kmax_nb; k += 2) {
+
+        const auto f_kkjj = (2 * k + 1) * (tjv + 1);
+
+        // Effective screening parameter:
+        const auto fk = get_k(k, fks);     // screening
+        const auto etak = get_k(k, etaks); // hole-particle
+        if (fk == 0.0 || etak == 0.0)
+          continue;
+
+        // Diagram (a) [direct]
+        for (const auto &m : excited) {
+          if (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()))
+            continue;
+          const auto Qkv = m_Yeh.Qkv_bcd(k, kappa_v, a, m, n);
+          const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, a, m, n);
+          const auto dele = en_v + a.en() - m.en() - n.en();
+          const auto factor = etak * fk / (f_kkjj * dele);
+          Sd_an.add(Qkv, Qkv + Pkv, factor);
+
+          if (m_Br && m.n() <= m_max_n_breit && n.n() <= m_max_n_breit) {
+            const auto Bkv = m_Br->Bkv_bcd(k, kappa_v, a, m, n);
+            Sd_an.add(Bkv, Qkv + Pkv, factor);
+          }
+        }
+
+        // Diagram (c) [direct]
+        for (const auto &b : holes) {
+          if (!Angular::Ck_kk_SR(k, kappa_v, b.kappa()))
+            continue;
+          const auto Qkv = m_Yeh.Qkv_bcd(k, kappa_v, n, b, a);
+          const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, n, b, a);
+          const auto dele = en_v + n.en() - b.en() - a.en();
+          const auto factor = etak * fk / (f_kkjj * dele);
+          Sd_an.add(Qkv, Qkv + Pkv, factor);
+
+          if (m_Br && n.n() <= m_max_n_breit) {
+            const auto Bkv = m_Br->Bkv_bcd(k, kappa_v, n, b, a);
+            Sd_an.add(Bkv, Qkv + Pkv, factor);
+          }
+        }
+      }
+
+#pragma omp critical(sum_Sd)
+      { Sd += Sd_an; }
+    }
+  }
 
   return Sd.drj_in_place();
 }
@@ -190,7 +271,7 @@ GMatrix Goldstone::Sigma_exchange(int kappa_v, double en_v,
           const auto factor = fk / (f_kkjj * dele);
           Sx_an.add(Qkv, Pkv, factor);
 
-          if (m_Br) {
+          if (m_Br && m.n() <= m_max_n_breit && n.n() <= m_max_n_breit) {
             const auto Bkv = m_Br->Bkv_bcd(k, kappa_v, a, m, n);
             Sx_an.add(Bkv, Pkv, factor);
           }
@@ -208,21 +289,17 @@ GMatrix Goldstone::Sigma_exchange(int kappa_v, double en_v,
           const auto factor = fk / (f_kkjj * dele);
           Sx_an.add(Qkv, Pkv, factor);
 
-          if (m_Br) {
+          if (m_Br && n.n() <= m_max_n_breit) {
             const auto Bkv = m_Br->Bkv_bcd(k, kappa_v, n, b, a);
             Sx_an.add(Bkv, Pkv, factor);
           }
-        } // b
-
-      } // k
+        }
+      }
 
 #pragma omp critical(sum_Sx)
       { Sx += Sx_an; }
-
-    } // n
-  }   // a
-
-  // std::cin.get();
+    }
+  }
 
   return Sx.drj_in_place();
 }

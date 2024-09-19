@@ -274,7 +274,7 @@ public:
   void formSigma(int nmin_core = 1, int nmin_core_F = 1, double r0 = 1.0e-4,
                  double rmax = 30.0, int stride = 4, bool each_valence = false,
                  bool include_G = false, bool include_Breit = false,
-                 const std::vector<double> &lambdas = {},
+                 int n_max_breit = 0, const std::vector<double> &lambdas = {},
                  const std::vector<double> &fk = {},
                  const std::vector<double> &etak = {},
                  const std::string &in_fname = "",

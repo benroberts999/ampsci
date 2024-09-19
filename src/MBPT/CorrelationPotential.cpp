@@ -18,9 +18,9 @@ CorrelationPotential::CorrelationPotential(
     const std::string &fname, const HF::HartreeFock *vHF,
     const std::vector<DiracSpinor> &basis, double r0, double rmax,
     std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
-    bool include_Breit, const FeynmanOptions &Foptions, bool calculate_fk,
-    const std::vector<double> &fk, const std::vector<double> &etak,
-    std::optional<int> n_min_core_F)
+    bool include_Breit, int n_max_breit, const FeynmanOptions &Foptions,
+    bool calculate_fk, const std::vector<double> &fk,
+    const std::vector<double> &etak, std::optional<int> n_min_core_F)
     : m_HF(vHF),
       m_basis(basis), // dumb
       m_r0(r0),
@@ -33,6 +33,7 @@ CorrelationPotential::CorrelationPotential(
       m_n_min_core_F(n_min_core_F ? *n_min_core_F : n_min_core),
       m_includeG(include_g),
       m_includeBreit(include_Breit),
+      m_n_max_breit(n_max_breit),
       m_Foptions(Foptions),
       m_calculate_fk(calculate_fk),
       m_fk(fk),
@@ -98,7 +99,8 @@ CorrelationPotential::CorrelationPotential(
 
     // If didn't read, setup Goldstone/Feynman (create Yk, pol operator etc.)
     m_Gold = Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
-                       m_includeG, m_includeBreit ? m_HF->vBreit() : nullptr);
+                       m_includeG, m_includeBreit ? m_HF->vBreit() : nullptr,
+                       m_n_max_breit);
     if (m_method == SigmaMethod::Feynman) {
       setup_Feynman();
     }
@@ -260,29 +262,38 @@ CorrelationPotential::calculate_etak(double ev, const DiracSpinor &v) const {
 GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
                                           const DiracSpinor *Fv) {
 
+  // faster to calculate direct and exchange together; but then you lose info on the relative contributions
+  bool exchange_seperately = false;
+
   if (!m_Gold) {
-    m_Gold =
-        Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size, m_n_min_core,
-                  m_includeG, m_includeBreit ? m_HF->vBreit() : nullptr);
+    m_Gold = Goldstone(
+        m_basis, m_HF->core(), m_i0, m_stride, m_size, m_n_min_core, m_includeG,
+        m_includeBreit ? m_HF->vBreit() : nullptr, m_n_max_breit);
   }
 
-  const auto Sd = m_Gold->Sigma_direct(kappa, ev, m_fk, m_etak);
+  auto Sd = exchange_seperately ?
+                m_Gold->Sigma_direct(kappa, ev, m_fk, m_etak) :
+                m_Gold->Sigma_both(kappa, ev, m_fk, m_etak);
 
   double deD{0.0};
   if (Fv) {
     deD = (*Fv) * (Sd * *Fv);
-    fmt::print("  de({}) = {:.2f} + ", Fv->shortSymbol(),
+    fmt::print("  de({}) = {:.2f} ", Fv->shortSymbol(),
                deD * PhysConst::Hartree_invcm);
   }
 
-  const auto Sx = m_Gold->Sigma_exchange(kappa, ev, m_fk);
-
-  if (Fv) {
-    const auto deX = (*Fv) * (Sx * *Fv);
-    fmt::print("{:.2f} = {:.2f}\n", deX * PhysConst::Hartree_invcm,
-               (deD + deX) * PhysConst::Hartree_invcm);
+  if (exchange_seperately) {
+    const auto Sx = m_Gold->Sigma_exchange(kappa, ev, m_fk);
+    if (Fv) {
+      const auto deX = (*Fv) * (Sx * *Fv);
+      fmt::print("+ {:.2f} = {:.2f}\n", deX * PhysConst::Hartree_invcm,
+                 (deD + deX) * PhysConst::Hartree_invcm);
+    }
+    Sd += Sx;
+  } else {
+    std::cout << "\n" << std::flush;
   }
-  return Sd + Sx;
+  return Sd;
 }
 
 //==============================================================================

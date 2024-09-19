@@ -97,7 +97,7 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
     wfB.update_Vnuc(Nuclear::formPotential(nuc_b, wf.grid().r()));
 
     if (write) {
-      of << rB - r0 << " " << " " << dr2;
+      of << rB - r0 << " " << dr2;
     }
 
     if (core_relax)

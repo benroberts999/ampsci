@@ -336,7 +336,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
         "ratio, for logarithimg Im(w) grid [0.01, 1.5]"},
        {"include_G", "Inlcude lower g-part into Sigma [false]"},
        {"include_Breit",
-        "Inlcude Breit corrections into Sigma (only for 2nd order) [false]"}});
+        "Inlcude Breit corrections into Sigma (only for 2nd order) [false]"},
+       {"n_max_Breit",
+        "Maximum n for excited states to include in Breit "
+        "correction to Correlation potential [<=0, means entire basis]"}});
 
   const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
@@ -365,6 +368,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto include_G = input.get({"Correlations"}, "include_G", false);
   const auto include_Breit =
       input.get({"Correlations"}, "include_Breit", false);
+  const auto n_max_Breit = input.get({"Correlations"}, "n_max_Breit", -1);
   // force sigma_omre to be always -ve
   const auto sigma_omre = -std::abs(
       input.get({"Correlations"}, "real_omega", -0.33 * wf.energy_gap()));
@@ -411,9 +415,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   if (Sigma_ok && do_brueckner) {
     IO::ChronoTimer time("Sigma");
     wf.formSigma(n_min_core, n_min_core_F, sigma_rmin, sigma_rmax, sigma_stride,
-                 each_valence, include_G, include_Breit, lambda_k, fk, etak,
-                 sigma_read, sigma_write, sigma_Feynman, sigma_Screening,
-                 hole_particle, sigma_lmax, sigma_omre, w0, wratio, ek_Sig);
+                 each_valence, include_G, include_Breit, n_max_Breit, lambda_k,
+                 fk, etak, sigma_read, sigma_write, sigma_Feynman,
+                 sigma_Screening, hole_particle, sigma_lmax, sigma_omre, w0,
+                 wratio, ek_Sig);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

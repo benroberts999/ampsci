@@ -505,7 +505,7 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 //==============================================================================
 void Wavefunction::formSigma(
     int nmin_core, int nmin_core_F, double r0, double rmax, int stride,
-    bool each_valence, bool include_G, bool include_Breit,
+    bool each_valence, bool include_G, bool include_Breit, int n_max_breit,
     const std::vector<double> &lambdas, const std::vector<double> &fk,
     const std::vector<double> &etak, const std::string &in_fname,
     const std::string &out_fname, bool FeynmanQ, bool ScreeningQ,
@@ -547,7 +547,7 @@ void Wavefunction::formSigma(
 
   m_Sigma = MBPT::CorrelationPotential(
       ifname, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core, method,
-      include_G, include_Breit,
+      include_G, include_Breit, n_max_breit,
       MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
       fk, etak, nmin_core_F);
 
