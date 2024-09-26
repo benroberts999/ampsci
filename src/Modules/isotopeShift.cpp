@@ -133,7 +133,7 @@ void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
 
       // [ For physics see, e.g., Eq. 8 Phys. Rev. A 103, (2021) ]
       if (include_qfs) {
-        auto G2_matrix_element = 0.0f;
+        double G2_matrix_element = 0.0;
 
         const auto hFv =
             fis.reduced_rhs(Fv.kappa(), Fv) + dVfis.dV_rhs(Fv.kappa(), Fv);
