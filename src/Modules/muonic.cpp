@@ -1,4 +1,4 @@
-#include "Modules/muonPV.hpp"
+#include "Modules/muonic.hpp"
 #include "DiracODE/BoundState.hpp"
 #include "DiracODE/InhomogenousGreens.hpp"
 #include "DiracOperator/DiracOperator.hpp"
@@ -12,6 +12,256 @@
 #include "qip/Vector.hpp"
 
 namespace Module {
+
+void muon(const IO::InputBlock &input, const Wavefunction &wf) {
+
+  input.check(
+      {{"states", "States to calculate [4sp]"},
+       {"mass", "Mass of muon (in units of electron mass) [206.7682830]"},
+       {"N_steps", "Number of grid points to use for Muon solutions (is "
+                   "different from neutral case). [10000]"},
+       {"write_wf", "Write wavefunctions (f and g) to file [false]"},
+       {"Uehling", "Include Uehling potential [false]"},
+       {"Screening", "Account for electron screening (direct potental)? Uses "
+                     "direct potential from `outer` wavefunction [false]"},
+       {"operator", "To calculate matrix elements, specify an operator, e.g., "
+                    "E1, hfs (see ampsci -o)"},
+       {"options{}", "options specific to operator; blank by dflt"},
+       {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
+       {"off-diagonal",
+        "Calculate off-diagonal matrix elements (if non-zero) [true]"}});
+
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
+
+  const auto m_muon = input.get("mass", PhysConst::m_muon);
+
+  const auto write_wf = input.get("write_wf", false);
+  // nb: Uehling/screening not used in first few tests/checks
+  const auto Uehling = input.get("Uehling", false);
+  const auto elec_screening = input.get("Screening", false);
+
+  const auto states_str = input.get("states", std::string{"4sp"});
+
+  const auto rrms = wf.get_rrms();
+  const auto Z = wf.Znuc();
+  const auto A = wf.Anuc();
+
+  const auto states = AtomData::listOfStates_nk(states_str);
+
+  // Use a different radial grid for muonic atom
+  const double r0 = 1.0e-5 / Z / m_muon;
+  const double rmax = 2.0e5 / Z / m_muon;
+  const std::size_t n_steps = input.get("N_steps", 10000ul);
+  const double b = rmax / 10.0;
+
+  auto radial_grid = std::make_shared<const Grid>(
+      Grid{r0, rmax, n_steps, GridType::loglinear, b});
+  std::cout << "Muonic grid:\n" << radial_grid->gridParameters() << "\n";
+
+  std::cout << "\n"
+            << "Running for 'muon' with mass:\nM = " << m_muon
+            << " m_e = " << m_muon * PhysConst::m_e_MeV << " MeV\n";
+
+  //============================================================================
+
+  std::cout << "\n-------------------------\n"
+            << "First, do some checks to ensure muonic Dirac solver working\n";
+
+  std::cout << "Check pointlike Relativistic muon solutions:\n";
+  std::cout << "(Z = " << Z << ")\n";
+  std::cout << "(M = " << m_muon << ")\n\n";
+
+  std::cout << "        En            <r>           <1/r>\n";
+  const auto V0 = Nuclear::sphericalNuclearPotential(Z, 0.0, radial_grid->r());
+  double eps = 0.0;
+  for (const auto [n, kappa, x_en] : states) {
+
+    const double alpha = PhysConst::alpha;
+
+    // "exact"
+    const auto e_ex = m_muon * AtomData::diracen(Z, n, kappa, alpha);
+
+    // initial guess (force different from exact)
+    const auto e0 = 0.85 * e_ex;
+
+    const auto F =
+        DiracODE::boundState(n, kappa, e0, radial_grid, V0, {}, alpha, 1.0e-14,
+                             nullptr, nullptr, Z, m_muon);
+
+    if (F.eps() > 1.0e-9) {
+      std::cout << "# Warning: didn't converge\n";
+    }
+
+    const auto e = F.en();
+    const auto r_ev = F * (radial_grid->r() * F);
+    const auto invr_ev = F * (radial_grid->rpow(-1) * F);
+
+    const auto teps = std::abs(e / e_ex - 1.0);
+    eps = std::max(eps, teps);
+
+    fmt::print("{:4s}   {:.5e}   {:.5e}   {:.5e}  [{:.1e}]\n", F.shortSymbol(),
+               e, r_ev, invr_ev, eps);
+    fmt::print("exact: {:.5e}\n", e_ex);
+  }
+  std::cout << "Worst error: " << eps << "\n";
+
+  //============================================================================
+
+  using namespace qip::overloads;
+  std::cout << "\n---------------------------------------------\n";
+  std::cout << "Step 2: Muonic " << AtomData::atomicSymbol(Z) << "\n";
+  std::cout << "Z = " << Z << ", A=" << A << "\n";
+
+  fmt::print("M = {:.8f} m_e = {:.12f} MeV\n\n", m_muon,
+             m_muon * PhysConst::m_e_MeV);
+
+  // Nuclear radius, in atomic units:
+  const double Rn_au = std::sqrt(5.0 / 3) * rrms / PhysConst::aB_fm;
+
+  std::cout << wf.nucleus() << "\n";
+
+  if (Uehling) {
+    std::cout << "\nIncluding Uehling potential (w/ FNS)\n";
+  }
+  if (elec_screening && Z > 1) {
+    std::cout << "\nIncluding electron screening potential (V -> V+Vdir)\n";
+  }
+
+  const auto alpha = wf.alpha();
+
+  auto Vnuc = Nuclear::formPotential(wf.nucleus(), radial_grid->r());
+
+  if (Uehling) {
+    const auto V_ueh = [Z, Rn_au](double r) {
+      return FGRP::V_Uehling(Z, r, Rn_au);
+    };
+    Vnuc += qip::apply_to(V_ueh, radial_grid->r());
+  }
+  if (elec_screening && Z > 1) {
+    // Interpolate neutral direct potential onto muonic grid:
+    Vnuc += Interpolator::interpolate(wf.grid().r(), wf.vHF()->vdir(),
+                                      radial_grid->r());
+  }
+
+  std::cout << "Energies:\n";
+  std::cout << "nk    Rinf  eps    R_rms (a0)    E (au)            E "
+               "(keV)\n";
+
+  std::vector<DiracSpinor> muon_Fs;
+  for (const auto [n, kappa, x_en] : states) {
+    const auto e0 = m_muon * AtomData::diracen(Z, n, kappa, alpha);
+    const auto &Fnk = muon_Fs.emplace_back(
+        DiracODE::boundState(n, kappa, e0, radial_grid, Vnuc, {}, alpha,
+                             1.0e-14, nullptr, nullptr, Z, m_muon));
+
+    const auto R_rms =
+        std::sqrt(Fnk * (radial_grid->r() * radial_grid->r() * Fnk));
+
+    fmt::print("{:4s} {:5.2f}  {:5.0e}  {:.5e}  {:.9e}  {:.9e}\n",
+               Fnk.shortSymbol(), Fnk.rinf(), Fnk.eps(), R_rms, Fnk.en(),
+               Fnk.en() * PhysConst::Hartree_eV / 1.0e3);
+  }
+
+  //--------------------------------------------------------------------------
+  if (write_wf) {
+    std::cout << "\nWriting muonic wavefunctions to file\n";
+    std::ofstream ofile{fmt::format("muon_fg_{}.txt", Z)};
+    ofile << "R ";
+    for (const auto &Fn : muon_Fs) {
+      ofile << "f_{" << Fn.shortSymbol() << "} g_{" << Fn.shortSymbol() << "} ";
+    }
+    ofile << "\n";
+    for (auto i = 0ul; i < radial_grid->size(); ++i) {
+      ofile << radial_grid->r(i) << " ";
+      for (const auto &Fn : muon_Fs) {
+        ofile << Fn.f(i) << " " << Fn.g(i) << " ";
+      }
+      ofile << "\n";
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // Get input options:
+  const auto t_oper = input.get<std::string>("operator");
+  if (t_oper) {
+    const auto oper = *t_oper;
+    std::cout << "Matrix elements: " << oper << "\n";
+
+    // treat hyperfine operator differently: A constants instead of RME
+    const bool hf_AB =
+        qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
+    const bool diagonal = input.get("diagonal", true);
+    const bool off_diagonal = input.get("off-diagonal", true);
+
+    // Get optional 'options' for operator
+    const auto h_options =
+        input.getBlock("options").value_or(IO::InputBlock(oper, {}));
+
+    Wavefunction mu_wf(radial_grid, wf.nucleus());
+    const auto h = DiracOperator::generate(oper, h_options, mu_wf);
+
+    std::cout << "\n"
+              << "Matrix Elements - Operator: " << h->name() << "\n";
+    if (hf_AB && h->rank() % 2 != 0) {
+      std::cout << "Hyperfine A constants (magnetic type), K=" << h->rank()
+                << "\n";
+    } else if (hf_AB && h->rank() % 2 == 0) {
+      std::cout << "Hyperfine B constants (electric type), K=" << h->rank()
+                << "\n";
+    } else {
+      std::cout << "Reduced matrix elements\n";
+    }
+    std::cout << "Units: " << h->units() << "\n";
+
+    if (diagonal) {
+      std::cout << "\n";
+      for (const auto &m : muon_Fs) {
+        if (h->isZero(m, m))
+          continue;
+        const auto a = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                   h->rank(), m.kappa(), m.kappa()) :
+                               1.0;
+        const auto me = a * h->reducedME(m, m);
+        fmt::print("{:<4s} {:<4s} {:16.9e}\n", m.shortSymbol(), m.shortSymbol(),
+                   me);
+      }
+    }
+
+    if (off_diagonal) {
+      std::cout << "\n";
+      for (const auto &n : muon_Fs) {
+        for (const auto &m : muon_Fs) {
+          if (m.en() <= n.en() || h->isZero(m, n))
+            continue;
+          const auto a = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                     h->rank(), m.kappa(), n.kappa()) :
+                                 1.0;
+
+          if (h->freqDependantQ()) {
+            const auto omega = m.en() - n.en();
+            h->updateFrequency(omega);
+          }
+          const auto me = a * h->reducedME(m, n);
+          fmt::print("{:<4s} {:<4s} {:16.9e}\n", m.shortSymbol(),
+                     n.shortSymbol(), me);
+        }
+      }
+    }
+  }
+}
+
+//***************** */
+
+//============================================================================
+//============================================================================
+//============================================================================
+//============================================================================
+//============================================================================
+//============================================================================
+//============================================================================
 
 void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 

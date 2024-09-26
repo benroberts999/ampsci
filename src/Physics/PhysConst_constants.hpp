@@ -41,6 +41,11 @@ constexpr double m_e_kg = 9.1093837015e-31;
 constexpr double m_e_MeV = 0.51099895000;
 constexpr double m_e_GeV = m_e_MeV / 1000.0;
 
+//! muon mass in atomic units (m_mu/m_e)
+constexpr double m_muon = 206.7682827;
+//! tauon mass in atomic units (m_tau/m_e)
+constexpr double m_tau = 3477.23;
+
 // CODATA 2014: 1822.888 486 192(53)
 //! unified atomic mass unit; (nuclear mass unit, Dalton). CODATA 2014:
 //! 1822.888 486 192(53)
