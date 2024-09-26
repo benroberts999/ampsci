@@ -111,25 +111,26 @@ void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
 
     DiracOperator::fieldshift fis(delta_vnuc);
 
-    auto dVfis = use_TDHF ?
-                     ExternalField::TDHF(&fis, wf.vHF()) :
-                     ExternalField::TDHFbasis(&fis, wf.vHF(), wf.basis());
-
-    dVfis.solve_core(0.0, 100, false);
-
     // If including correlations, should have a spectrum for MBPT
     const auto &basis = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
+
+    auto dVfis = use_TDHF ?
+                     ExternalField::TDHF(&fis, wf.vHF()) :
+                     ExternalField::TDHFbasis(&fis, wf.vHF(), basis);
+
+    dVfis.solve_core(0.0, 100, false);
 
     fmt::print(stdout, "{:10.4f} {:11.7f} {:11.7f}", r_rms, delta_r2, delta_r4);
 
     for (std::size_t j = 0ul; j < wf.valence().size(); ++j) {
       const auto &Fv = wf.valence().at(j);
+      const auto k = fis.rme3js(Fv.twoj(), Fv.twoj()); // RME -> ME
 
       auto redME = fis.reducedME(Fv, Fv);
       auto dv = dVfis.dV(Fv, Fv);
 
       fmt::print(stdout, " {:15.6e}",
-                 (redME + dv) * PhysConst::Hartree_GHz / sqrt(Fv.twojp1()));
+                 (redME + dv) * PhysConst::Hartree_GHz * k);
 
       // [ For physics see, e.g., Eq. 8 Phys. Rev. A 103, (2021) ]
       if (include_qfs) {
@@ -154,8 +155,9 @@ void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
 
           G2_matrix_element = lhs * hFv;
         }
-        G2_datatotal.at(j).at(i) = G2_matrix_element * recip_delta_r2sq *
-                                   PhysConst::Hartree_GHz / Fv.twojp1();
+
+        G2_datatotal.at(j).at(i) = k * k * G2_matrix_element * recip_delta_r2sq *
+                                   PhysConst::Hartree_GHz;
       }
     }
 
@@ -164,7 +166,7 @@ void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
 
   if (include_qfs) {
     std::cout
-        << "\nQuadratic field shift:\n            G^2 (GHz)  Std. err. (GHz)\n";
+        << "\nQuadratic field shift:\n        G^2 (GHz/fm^4)  Std. err. (GHz/fm^4)\n";
     for (std::size_t i = 0ul; i < wf.valence().size(); ++i) {
       auto G2_data = G2_datatotal.at(i).data();
       auto mean = gsl_stats_mean(G2_data, 1, num_iter);
