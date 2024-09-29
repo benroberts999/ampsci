@@ -397,6 +397,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     h_options = *tmp_opt;
   }
 
+  // treat hyperfine operator differently: A constants instead of RME
+  const bool hf_AB =
+      qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
+
   // const auto h = generateOperator(oper, h_options, wf, true);
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
@@ -515,6 +519,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
       Output t_out;
 
+      const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                      h->rank(), v.kappa(), w.kappa()) :
+                                  1.0;
+
       // Option to use splines (or valence states) to compute Struc Rad (use
       // splines for legs)
       const auto ws = std::find(cbegin(wf.basis()), cend(wf.basis()), w);
@@ -544,10 +552,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       }
 
       // Zeroth-order MEs:
-      const auto twvs = h->reducedME(*ws, *vs); // splines here
-      const auto twv = h->reducedME(w, v);
-      const auto dvs = dV ? twvs + dV->dV(*wp, *vp) : 0.0;
-      const auto dv = dV ? twv + dV->dV(w, v) : 0.0;
+      const auto twvs = factor * h->reducedME(*ws, *vs); // splines here
+      const auto twv = factor * h->reducedME(w, v);
+      const auto dvs = dV ? twvs + factor * dV->dV(*wp, *vp) : 0.0;
+      const auto dv = dV ? twv + factor * dV->dV(w, v) : 0.0;
       printer("t(spl)", twvs, dvs);
       printer("t(val)", twv, dv);
 
@@ -559,24 +567,24 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       printer("SR(TB)", tb, tb_dv);
       // "Centre" SR term:
       const auto [c, c_dv] = sr.srC(h.get(), *wp, *vp, dV.get());
-      printer("SR(C)", c, c_dv);
+      printer("SR(C)", factor * c, factor * c_dv);
 
       std::cout << "========\n";
-      printer("SR", tb + c, tb_dv + c_dv);
+      printer("SR", factor * (tb + c), factor * (tb_dv + c_dv));
 
-      t_out.sr = tb + c;
-      t_out.srdv = tb_dv + c_dv;
+      t_out.sr = factor * (tb + c);
+      t_out.srdv = factor * (tb_dv + c_dv);
 
       // "Normalisation"
       const auto [n, n_dv] = sr.norm(h.get(), *wp, *vp, dV.get());
-      printer("Norm", n, n_dv);
+      printer("Norm", factor * n, factor * n_dv);
 
-      t_out.n = n;
-      t_out.ndv = n_dv;
+      t_out.n = factor * n;
+      t_out.ndv = factor * n_dv;
 
-      printer("Total", tb + c + n, tb_dv + c_dv + n_dv);
-      printer("as %", 100.0 * (tb + c + n) / twvs,
-              100.0 * (tb_dv + c_dv + n_dv) / dvs);
+      printer("Total", factor * (tb + c + n), factor * (tb_dv + c_dv + n_dv));
+      printer("as %", 100.0 * factor * (tb + c + n) / twvs,
+              100.0 * factor * (tb_dv + c_dv + n_dv) / dvs);
       out.push_back(t_out);
     }
   }
