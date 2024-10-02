@@ -147,7 +147,7 @@ private:
 
 public:
   //! Default constructor: name will be blank
-  InputBlock() {};
+  InputBlock(){};
 
   //! Construct from literal list of 'Options' (see Option struct)
   InputBlock(std::string_view name, std::initializer_list<Option> options = {})

@@ -42,7 +42,7 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
       h->updateFrequency(0.0);
     }
     if (each_freq && dV) {
-      if (dV->last_eps() > 1.0e-5)
+      if (dV->last_eps() > 1.0e-5 || std::isnan(dV->last_eps()))
         dV->clear();
       dV->solve_core(0.0);
     }
@@ -87,8 +87,9 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
           h->updateFrequency(ww);
         }
         if (each_freq && dV) {
-          if (dV->last_eps() > 1.0e-5)
+          if (dV->last_eps() > 1.0e-5 || std::isnan(dV->last_eps())) {
             dV->clear();
+          }
           dV->solve_core(ww);
         }
 

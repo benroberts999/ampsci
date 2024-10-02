@@ -305,7 +305,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           h->updateFrequency(ww);
         }
         if (eachFreqQ && rpa) {
-          if (rpa->last_eps() > 1.0e-5 || rpa_its == 1)
+          if (rpa->last_eps() > 1.0e-5 || rpa_its == 1 ||
+              std::isnan(rpa->last_eps()))
             rpa->clear();
           std::cout << " RPA(w) : ";
           rpa->solve_core(ww, rpa_its);
@@ -546,7 +547,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         h->updateFrequency(ww);
       }
       if (eachFreqQ && rpaQ) {
-        if (dV->last_eps() > 1.0e-3)
+        if (dV->last_eps() > 1.0e-3 || std::isnan(dV->last_eps()))
           dV->clear();
         dV->solve_core(std::abs(ww));
       }
