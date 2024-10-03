@@ -57,9 +57,66 @@ void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
 
 namespace Internal {
 //==============================================================================
-void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
-                   const DiracSpinor &Fzero, const double alpha,
-                   const DiracSpinor &Sr) {
+void GreenSolution(DiracSpinor &Fa, const DiracSpinor &wi,
+                   const DiracSpinor &w0, const double alpha,
+                   const DiracSpinor &s) {
+
+  // Wronskian: Should be independent of r
+  const auto pp = std::size_t(0.65 * double(wi.max_pt()));
+  auto w2 = (wi.f(pp) * w0.g(pp) - w0.f(pp) * wi.g(pp));
+  int f = 1;
+  for (auto pt = pp - 20; pt <= pp + 20; ++pt) {
+    ++f;
+    w2 += (wi.f(pt) * wi.g(pt) - wi.f(pt) * wi.g(pt));
+  }
+  w2 /= f;
+
+  const auto wr = [&](std::size_t i) {
+    const auto tmp = 0.5 * (w2 + wi.f(i) * wi.g(i) - wi.f(i) * wi.g(i));
+    return tmp == 0.0 ? w2 : tmp;
+  };
+
+  // save typing:
+  const auto &gr = Fa.grid();
+  const auto irmax = wi.max_pt();
+
+  // clear existing solution
+  Fa.max_pt() = gr.num_points();
+  Fa.min_pt() = 0;
+  Fa *= 0.0;
+  Fa.max_pt() = irmax;
+
+  const auto du = gr.du();
+  const auto num_points = gr.num_points();
+
+  // Quadrature integration weights:
+  const auto dr = [&](std::size_t i) {
+    return gr.drdu(i) * du;
+    if (i < NumCalc::Nquad)
+      return NumCalc::dq_inv * NumCalc::cq[i] * gr.drdu(i) * du;
+    if (i < num_points - NumCalc::Nquad)
+      return gr.drdu(i) * du;
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1] * gr.drdu(i) * du;
+  };
+
+  double A = 0.0;
+  double B = wi * s;
+
+  for (std::size_t i = 0; i < irmax; ++i) {
+    Fa.f(i) = (wi.f(i) * A + w0.f(i) * B) * (alpha / w2);
+    Fa.g(i) = (wi.g(i) * A + w0.g(i) * B) * (alpha / w2);
+    A += (w0.f(i) * s.f(i) + w0.g(i) * s.g(i)) * dr(i);
+    B -= (wi.f(i) * s.f(i) + wi.g(i) * s.g(i)) * dr(i);
+  }
+  std::cout << B << " " << A << " " << w0 * s << "\n";
+
+  // Fa *= (alpha / w2);
+}
+
+//==============================================================================
+void GreenSolution2(DiracSpinor &Fa, const DiracSpinor &Finf,
+                    const DiracSpinor &Fzero, const double alpha,
+                    const DiracSpinor &Sr) {
 
   // Wronskian: Should be independent of r
   const auto pp = std::size_t(0.65 * double(Finf.max_pt()));

@@ -61,5 +61,9 @@ void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
                    const DiracSpinor &Fzero, const double alpha,
                    const DiracSpinor &Sr);
 
+void GreenSolution2(DiracSpinor &Fa, const DiracSpinor &Finf,
+                    const DiracSpinor &Fzero, const double alpha,
+                    const DiracSpinor &Sr);
+
 } // namespace Internal
 } // namespace DiracODE
