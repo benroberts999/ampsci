@@ -147,8 +147,12 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   const auto vl = p_hf->vlocal(Angular::l_k(Fv.kappa()));
   const auto &Hmag = p_hf->Hmag(Angular::l_k(Fv.kappa()));
   // The l from X ? or from Fv ?
-  return s2 * ExternalField::solveMixedState(Fv, ww, vl, m_alpha, m_core, rhs,
-                                             1.0e-9, Sigma, p_VBr, Hmag);
+  auto dFv =
+      s2 * ExternalField::solveMixedState(Fv, ww, vl, m_alpha, m_core, rhs,
+                                          1.0e-9, Sigma, p_VBr, Hmag);
+
+  orthog_to_core_and(&dFv, Fv, m_core);
+  return dFv;
 }
 
 //==============================================================================
@@ -183,6 +187,23 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
     // The l from X ? or from Fv ?
     ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
                                    eps_ms, nullptr, p_VBr, Hmag);
+
+    orthog_to_core_and(&dF_beta, Fb, m_core);
+  }
+}
+
+//==============================================================================
+void TDHF::orthog_to_core_and(DiracSpinor *dF, const DiracSpinor &Fb,
+                              const std::vector<DiracSpinor> &core) const {
+
+  // Orthogonalise to entire core. Do Fb last, since it's the most important
+  for (const auto &Fc : core) {
+    if (Fc.kappa() == dF->kappa() && Fc != Fb) {
+      dF->orthog(Fc);
+    }
+  }
+  if (Fb.kappa() == dF->kappa()) {
+    dF->orthog(Fb);
   }
 }
 
@@ -232,6 +253,13 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
     } else {
       solve_ms_core(Ys[ib], Fb, hFbs, omega, dPsiType::Y, eps_ms);
       Ys[ib] = eta_damp * m_Y[ib] + (1.0 - eta_damp) * Ys[ib];
+    }
+
+    for (auto &dF_beta : Xs[ib]) {
+      orthog_to_core_and(&dF_beta, Fb, m_core);
+    }
+    for (auto &dF_beta : Ys[ib]) {
+      orthog_to_core_and(&dF_beta, Fb, m_core);
     }
 
     // find eps: of each orbital (just so I know which was the 'worst')

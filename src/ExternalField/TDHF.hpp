@@ -136,6 +136,9 @@ private:
                      const std::vector<DiracSpinor> &hFbs, const double omega,
                      dPsiType XorY, double eps_ms = 1.0e-9) const;
 
+  void orthog_to_core_and(DiracSpinor *dF, const DiracSpinor &Fb,
+                          const std::vector<DiracSpinor> &core) const;
+
 public:
   TDHF &operator=(const TDHF &) = delete;
   TDHF(const TDHF &) = default;
