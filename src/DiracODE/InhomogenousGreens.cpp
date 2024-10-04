@@ -64,34 +64,40 @@ void GreenSolution(DiracSpinor &Fa, const DiracSpinor &wi,
   // Wronskian: Should be independent of r
   const auto pp = std::size_t(0.65 * double(wi.max_pt()));
   auto w2 = (wi.f(pp) * w0.g(pp) - w0.f(pp) * wi.g(pp));
-  int f = 1;
+  int count = 1;
   for (auto pt = pp - 20; pt <= pp + 20; ++pt) {
-    ++f;
-    w2 += (wi.f(pt) * wi.g(pt) - wi.f(pt) * wi.g(pt));
+    ++count;
+    w2 += (wi.f(pt) * w0.g(pt) - w0.f(pt) * wi.g(pt));
   }
-  w2 /= f;
+  w2 /= count;
 
   const auto wr = [&](std::size_t i) {
-    const auto tmp = 0.5 * (w2 + wi.f(i) * wi.g(i) - wi.f(i) * wi.g(i));
+    const auto tmp = 0.5 * (w2 + wi.f(i) * w0.g(i) - w0.f(i) * wi.g(i));
     return tmp == 0.0 ? w2 : tmp;
   };
 
   // save typing:
   const auto &gr = Fa.grid();
-  const auto irmax = wi.max_pt();
+  const auto irmax = std::max(wi.max_pt(), Fa.max_pt());
+  // const auto irmax = gr.num_points();
+
+  // std::cout << wi.max_pt() << " " << gr.num_points() << "\n";
 
   // clear existing solution
-  Fa.max_pt() = gr.num_points();
   Fa.min_pt() = 0;
-  Fa *= 0.0;
   Fa.max_pt() = irmax;
+  Fa.zero_boundaries();
 
   const auto du = gr.du();
   const auto num_points = gr.num_points();
 
   // Quadrature integration weights:
   const auto dr = [&](std::size_t i) {
-    return gr.drdu(i) * du;
+    // return gr.drdu(i) * du;
+
+    // const auto sw = i % 2 == 0 ? 2.0 / 3 : 4.0 / 3;
+    // return gr.drdu(i) * du * sw;
+
     if (i < NumCalc::Nquad)
       return NumCalc::dq_inv * NumCalc::cq[i] * gr.drdu(i) * du;
     if (i < num_points - NumCalc::Nquad)
@@ -102,15 +108,18 @@ void GreenSolution(DiracSpinor &Fa, const DiracSpinor &wi,
   double A = 0.0;
   double B = wi * s;
 
+  // for (std::size_t i = 0; i < irmax; ++i) {
+  //   B += (wi.f(i) * s.f(i) + wi.g(i) * s.g(i)) * dr(i);
+  // }
+
   for (std::size_t i = 0; i < irmax; ++i) {
     Fa.f(i) = (wi.f(i) * A + w0.f(i) * B) * (alpha / w2);
     Fa.g(i) = (wi.g(i) * A + w0.g(i) * B) * (alpha / w2);
     A += (w0.f(i) * s.f(i) + w0.g(i) * s.g(i)) * dr(i);
     B -= (wi.f(i) * s.f(i) + wi.g(i) * s.g(i)) * dr(i);
   }
-  std::cout << B << " " << A << " " << w0 * s << "\n";
 
-  // Fa *= (alpha / w2);
+  // std::cout << "\n" << A << " " << w0 * s << " " << A - w0 * s << "\n";
 }
 
 //==============================================================================
@@ -148,14 +157,17 @@ void GreenSolution2(DiracSpinor &Fa, const DiracSpinor &Finf,
                                   Finf.max_pt());
   NumCalc::additivePIntegral<ztr>(Fa.f(), Finf.f(), Fzero.g(), Sr.g(), gr,
                                   Finf.max_pt());
-  NumCalc::additivePIntegral<rti>(Fa.f(), Fzero.f(), Finf.f(), Sr.f(), gr,
-                                  Finf.max_pt());
-  NumCalc::additivePIntegral<rti>(Fa.f(), Fzero.f(), Finf.g(), Sr.g(), gr,
-                                  Finf.max_pt());
+
   NumCalc::additivePIntegral<ztr>(Fa.g(), Finf.g(), Fzero.f(), Sr.f(), gr,
                                   Finf.max_pt());
   NumCalc::additivePIntegral<ztr>(Fa.g(), Finf.g(), Fzero.g(), Sr.g(), gr,
                                   Finf.max_pt());
+
+  NumCalc::additivePIntegral<rti>(Fa.f(), Fzero.f(), Finf.f(), Sr.f(), gr,
+                                  Finf.max_pt());
+  NumCalc::additivePIntegral<rti>(Fa.f(), Fzero.f(), Finf.g(), Sr.g(), gr,
+                                  Finf.max_pt());
+
   NumCalc::additivePIntegral<rti>(Fa.g(), Fzero.g(), Finf.f(), Sr.f(), gr,
                                   Finf.max_pt());
   NumCalc::additivePIntegral<rti>(Fa.g(), Fzero.g(), Finf.g(), Sr.g(), gr,
