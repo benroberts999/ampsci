@@ -1,6 +1,5 @@
 #include "GenerateOperator.hpp"
 #include "Operators/Ek.hpp"
-#include "Operators/FieldShift.hpp"
 #include "Operators/M1.hpp"
 #include "Operators/PNC.hpp"
 #include "Operators/QED.hpp"
@@ -8,6 +7,7 @@
 #include "Operators/hfs.hpp"
 #include "Operators/jls.hpp"
 #include "Operators/p.hpp"
+#include "Operators/FieldShift.hpp"
 
 namespace DiracOperator {
 
@@ -18,7 +18,7 @@ static const std::vector<std::pair<
     operator_list{{"E1", &generate_E1},     {"E1v", &generate_E1v},
                   {"E2", &generate_E2},     {"Ek", &generate_Ek},
                   {"M1", &generate_M1},     {"M1nr", &generate_M1nr},
-                  {"hfs", &generate_hfs},   {"F_fs", &generate_Ffs},
+                  {"hfs", &generate_hfs},   {"fieldshift", &generate_fieldshift},
                   {"r", &generate_r},       {"sigma_r", &generate_sigma_r},
                   {"pnc", &generate_pnc},   {"Vrad", &generate_Vrad},
                   {"MLVP", &generate_MLVP}, {"dr", &generate_dr},
