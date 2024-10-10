@@ -590,9 +590,22 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
   std::cout << "\n";
-  std::cout << "Structure Radiation + Normalisation of states.\n"
-               "Reduced matrix elements (au)\n"
-            << "            t0         SR         Norm       SR+N     ";
+
+  std::cout << "\n"
+            << "Structure Radiation + Normalisation of states: " << h->name()
+            << "\n";
+  if (hf_AB && h->rank() % 2 != 0) {
+    std::cout << "Hyperfine A constants (magnetic type), K=" << h->rank()
+              << "\n";
+  } else if (hf_AB && h->rank() % 2 == 0) {
+    std::cout << "Hyperfine B constants (electric type), K=" << h->rank()
+              << "\n";
+  } else {
+    std::cout << "Reduced matrix elements\n";
+  }
+  std::cout << "Units: " << h->units() << "\n\n";
+
+  std::cout << "            t0         SR         Norm       SR+N     ";
   if (rpaQ)
     std::cout << " |  t0+dV      SR+dV      Norm+dV";
   std::cout << "\n";
@@ -887,6 +900,224 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     me_calculator(J_odd_list, -1, J_odd_list, -1, false);
   }
 
+  std::cout << "\n";
+}
+
+//============================================================================
+void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
+  input.check(
+      {{"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
+       {"options{}", "options specific to operator (see ampsci -o 'operator')"},
+       {"rpa",
+        "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]"},
+       {"omega",
+        "Text or number. Freq. for RPA (and freq. dependent operators). Put "
+        "'each' to solve at correct frequency for each transition. [0.0]"},
+       {"printBoth", "print <a|h|b> and <b|h|a> [false]"},
+       {"use_basis",
+        "If true, will use basis states for valence states [false]"},
+       {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
+       {"off-diagonal",
+        "Calculate off-diagonal matrix elements (if non-zero) [true]"}});
+  //
+
+  const auto delta = input.get("delta", 1.0e-4);
+
+  std::cout << "Setup Correlation potentials to calculate derivative:\n";
+  const auto &Sigma0 = *wf.Sigma();
+  const auto &v0 = wf.hf_valence().front();
+
+  auto Sigma1 = *wf.Sigma();
+  Sigma1.clear();
+  Sigma1.formSigma(v0.kappa(), v0.en() + delta, v0.n(), &v0);
+
+  auto Sigma2 = Sigma1;
+  Sigma2.clear();
+
+  std::cout << "\nCalculate correlation potentials:\n";
+  for (const auto &v : wf.hf_valence()) {
+    Sigma1.formSigma(v.kappa(), v.en() + delta, v.n(), &v);
+    Sigma2.formSigma(v.kappa(), v.en() - delta, v.n(), &v);
+    const auto lambda = Sigma0.getLambda(v.kappa(), v.n());
+    std::cout << "Lambda = " << lambda << "\n\n";
+  }
+
+  //-------------------------------------------
+
+  const auto oper = input.get<std::string>("operator", "");
+  // Get optional 'options' for operator
+  auto h_options = IO::InputBlock(oper, {});
+  const auto tmp_opt = input.getBlock("options");
+  if (tmp_opt) {
+    h_options = *tmp_opt;
+  }
+
+  const auto h = DiracOperator::generate(oper, h_options, wf);
+
+  // treat hyperfine operator differently: A constants instead of RME
+  const bool hf_AB =
+      qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
+
+  const bool diagonal = input.get("diagonal", true);
+  const bool off_diagonal = input.get("off-diagonal", true);
+
+  std::cout << "\n"
+            << "Matrix Elements - Operator: " << h->name() << "\n";
+  if (hf_AB && h->rank() % 2 != 0) {
+    std::cout << "Hyperfine A constants (magnetic type), K=" << h->rank()
+              << "\n";
+  } else if (hf_AB && h->rank() % 2 == 0) {
+    std::cout << "Hyperfine B constants (electric type), K=" << h->rank()
+              << "\n";
+  } else {
+    std::cout << "Reduced matrix elements\n";
+  }
+  std::cout << "Units: " << h->units() << "\n";
+
+  const bool print_both = input.get("printBoth", false);
+  const auto use_basis =
+      wf.basis().empty() ? false : input.get("use_basis", false);
+  if (use_basis) {
+    std::cout << "Using basis (instead of valence) for matrix elements\n";
+  }
+
+  // RPA:
+  auto rpa_method_str = input.get("rpa", std::string("true"));
+  if (wf.core().empty())
+    rpa_method_str = "false";
+  auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
+                                     wf.basis(), wf.identity());
+
+  const auto rpaQ = rpa != nullptr;
+
+  const auto str_om = input.get<std::string>("omega", "_");
+  const bool eachFreqQ = qip::ci_compare(str_om, "each");
+  const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
+
+  if (h->freqDependantQ()) {
+    std::cout << "Frequency-dependent operator; at omega = ";
+    if (eachFreqQ)
+      std::cout << "each transition frequency\n";
+    else
+      std::cout << omega << "\n";
+  }
+
+  //-------------------------------------------
+
+  // ability to use spectrum instead of valence
+  std::vector<DiracSpinor> t_orbs;
+  if (use_basis) {
+    for (const auto &v : wf.hf_valence()) {
+      const auto t = std::find(wf.basis().cbegin(), wf.basis().cend(), v);
+      if (t != wf.basis().cend()) {
+        t_orbs.push_back(*t);
+      }
+    }
+  }
+  const auto &orbs = use_basis ? t_orbs : wf.hf_valence();
+
+  if (h->freqDependantQ() && !eachFreqQ) {
+    h->updateFrequency(omega);
+  }
+
+  if (rpa && !eachFreqQ) {
+    rpa->solve_core(omega);
+  }
+
+  std::stringstream os;
+
+  const auto sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel());
+
+  //----------------------------------------------------
+  // First, diagonal:
+  if (diagonal && h->parity() == 1) {
+
+    if (eachFreqQ && h->freqDependantQ()) {
+      h->updateFrequency(0.0);
+    }
+    if (eachFreqQ && rpa) {
+      rpa->solve_core(0.0);
+    }
+
+    for (const auto &v : orbs) {
+
+      if (h->isZero(v.kappa(), v.kappa()))
+        continue;
+
+      const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                      h->rank(), v.kappa(), v.kappa()) :
+                                  1.0;
+
+      const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
+
+      const auto &Sv1 = *Sigma1.getSigma(v.kappa(), v.n());
+      const auto &Sv2 = *Sigma2.getSigma(v.kappa(), v.n());
+      const auto dSv = lambda_v * v * ((Sv1 - Sv2) * v) / (2 * delta);
+
+      const auto h0 = factor * h->reducedME(v, v);
+      const auto dV = rpaQ ? factor * rpa->dV(v, v) : 0.0;
+
+      fmt::print(os, "{:4s} {:4s} {:+.5e} {:+.5e} {:+.5e} {:+.5e} {:+.5e}\n",
+                 v.shortSymbol(), v.shortSymbol(), h0, dV, dSv, dSv,
+                 (h0 + dV) * dSv);
+    }
+  }
+  // Then, off-diagonal:
+  if (off_diagonal && h->parity() == -1) {
+
+    for (std::size_t ib = 0; ib < orbs.size(); ib++) {
+      const auto &w = orbs.at(ib);
+      for (std::size_t ia = 0; ia < orbs.size(); ia++) {
+        const auto &v = orbs.at(ia);
+
+        if (v == w)
+          continue;
+        if (h->isZero(v.kappa(), w.kappa()))
+          continue;
+        // ensure even parity on left
+        if (!print_both && w.parity() == -1)
+          continue;
+
+        const auto ww = eachFreqQ ? std::abs(v.en() - w.en()) : 0.0;
+
+        if (eachFreqQ && h->freqDependantQ()) {
+          h->updateFrequency(ww);
+        }
+        if (eachFreqQ && rpa) {
+          if (rpa->last_eps() > 1.0e-5 || std::isnan(rpa->last_eps()))
+            rpa->clear();
+          std::cout << " RPA(w) : ";
+          rpa->solve_core(ww);
+        }
+
+        const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                        h->rank(), v.kappa(), w.kappa()) :
+                                    1.0;
+
+        const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
+        const auto lambda_w = Sigma0.getLambda(w.kappa(), w.n());
+
+        const auto &Sv1 = *Sigma1.getSigma(v.kappa(), v.n());
+        const auto &Sv2 = *Sigma2.getSigma(v.kappa(), v.n());
+        const auto &Sw1 = *Sigma1.getSigma(w.kappa(), w.n());
+        const auto &Sw2 = *Sigma2.getSigma(w.kappa(), w.n());
+        const auto dSv = lambda_v * v * ((Sv1 - Sv2) * v) / (2 * delta);
+        const auto dSw = lambda_w * w * ((Sw1 - Sw2) * w) / (2 * delta);
+
+        const auto h0 = factor * h->reducedME(v, w);
+        const auto dV = rpaQ ? factor * rpa->dV(v, w) : 0.0;
+
+        fmt::print(os, "{:4s} {:4s} {:+.5e} {:+.5e} {:+.5e} {:+.5e} {:+.5e}\n",
+                   v.shortSymbol(), w.shortSymbol(), h0, dV, dSv, dSw,
+                   0.5 * (h0 + dV) * (dSv + dSw));
+      }
+    }
+  }
+
+  std::cout
+      << "\na    b     t_ab         dv_ab        dΣ_a         dΣ_b         "
+         "Norm\n";
+  std::cout << os.str();
   std::cout << "\n";
 }
 

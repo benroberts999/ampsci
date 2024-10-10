@@ -59,6 +59,7 @@ private:
   Nuclear::Nucleus m_nucleus;
   // Valence (single-particle) orbitals
   std::vector<DiracSpinor> m_valence{};
+  std::vector<DiracSpinor> m_hf_valence{};
   // Basis, daigonalised over HF core. Used for MBPT
   std::vector<DiracSpinor> m_basis{};
   // Sprectrum: like basis, but includes Sigma (correlations).
@@ -109,6 +110,8 @@ public:
   //! Valence orbitals (HF or Brueckner orbitals)
   const std::vector<DiracSpinor> &valence() const { return m_valence; }
   std::vector<DiracSpinor> &valence() { return m_valence; }
+
+  const std::vector<DiracSpinor> &hf_valence() const { return m_hf_valence; }
 
   //! Basis, eigenstates of HF potential. Used for MBPT. Includes Breit and
   //! QED (if they are included), but not correlations
