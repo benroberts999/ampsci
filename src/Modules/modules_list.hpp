@@ -52,6 +52,7 @@ static const std::vector<ModuleInfo> module_list{
     {"CI_matrixElements", &CI_matrixElements,
      "Calculates matrix elements of any operator for CI wavefunctions"},
     {"thirdOrderME", &thirdOrderME, "Calculates Third-order matrix elements"},
+    {"normalisation", &normalisation, "normalisation"},
     {"lifetimes", &lifetimes, "Calculate radiative lifetimes (E1, E2, M1)"},
     {"polarisability", &polarisability, "Calculates static polarisabilities"},
     {"dynamicPolarisability", &dynamicPolarisability,

@@ -96,6 +96,8 @@ public:
 
   double getLambda(int kappa, int n = 0) const;
 
+  void clear() { m_Sigmas.clear(); }
+
   //! returns Spinor: Sigma|Fv>
   //! @details If Sigma for kappa_v doesn't exist, returns |0>.
   DiracSpinor SigmaFv(const DiracSpinor &Fv) const;
