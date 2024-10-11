@@ -94,8 +94,8 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
 
     tb += (t_ar * T_wrva * inv_era_pw) + (t_ra * B_wavr * inv_era_mw);
 
-    if (dV) {
-      const auto dVar = dV->dV(a, r);
+    {
+      const auto dVar = dV ? dV->dV(a, r) : 0.0;
       const auto tdv_ar = t_ar + dVar;
       const auto tdv_ra = h->symm_sign(a, r) * tdv_ar;
       dv += (tdv_ar * T_wrva * inv_era_pw) + (tdv_ra * B_wavr * inv_era_mw);
@@ -150,8 +150,8 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
     // nb: -ve
     c -= t_ba * C_wavb;
 
-    if (dV) {
-      const auto tdv_ba = t_ba + dV->dV(b, a);
+    {
+      const auto tdv_ba = t_ba + (dV ? dV->dV(b, a) : 0.0);
       dv -= tdv_ba * C_wavb;
     }
   }
@@ -168,8 +168,8 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
     // nb: -ve
     c -= t_mr * C_wrvm;
 
-    if (dV) {
-      const auto tdv_mr = t_mr + dV->dV(m, r);
+    {
+      const auto tdv_mr = t_mr + (dV ? dV->dV(m, r) : 0.0);
       dv -= tdv_mr * C_wrvm;
     }
   }
@@ -186,7 +186,7 @@ StructureRad::norm(const DiracOperator::TensorOperator *const h,
     return {0.0, 0.0};
 
   const auto t_wv = h->reducedME(w, v);
-  const auto tdv_wv = dV ? t_wv + dV->dV(w, v) : 0.0;
+  const auto tdv_wv = t_wv + (dV ? dV->dV(w, v) : 0.0);
 
   const auto nv = n1(v) + n2(v);
   const auto nw = w == v ? nv : n1(w) + n2(w);
