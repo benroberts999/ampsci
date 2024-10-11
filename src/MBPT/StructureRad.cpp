@@ -13,10 +13,12 @@ namespace MBPT {
 //==============================================================================
 StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
                            double en_core, std::pair<int, int> nminmax,
-                           const std::string &Qk_fname)
-    : m_use_Qk(!Qk_fname.empty()) {
-  // nb: en_core defined such that: Fa.en() < en_core ==> core state!
+                           const std::string &Qk_fname,
+                           const std::vector<double> &fk,
+                           const std::vector<double> &etak)
+    : m_use_Qk(!Qk_fname.empty()), m_fk(fk), m_etak(etak) {
 
+  // nb: en_core defined such that: Fa.en() < en_core ==> core state!
   // nb: this makes it faster..
   const auto [n_min, n_max] = nminmax;
   for (const auto &Fn : basis) {
@@ -28,23 +30,24 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
   }
   auto both = mCore;
   both.insert(both.end(), mExcited.begin(), mExcited.end());
-  mY.calculate(both);
 
   // nb: don't need mY if using QkTable.
   // However, require SixJTable!
+  mY.extend_angular(DiracSpinor::max_tj(both));
 
-  // std::string Qfname;
+  // Only calculate Yk values if not Qk table, or in order to calculate Qk
   if (m_use_Qk) {
     std::cout << "\nFill Qk table:\n";
     mQ = Coulomb::QkTable{};
     const auto ok = mQ->read(Qk_fname);
     if (!ok) {
+      mY.calculate(both);
       mQ->fill(both, mY);
       mQ->write(Qk_fname);
     }
+  } else {
+    mY.calculate(both);
   }
-
-  // set index lists, for faster
 }
 
 //==============================================================================
@@ -614,9 +617,12 @@ double StructureRad::dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
     if (Angular::zeroQ(q))
       continue;
 
-    const auto w = q + P(u, v, i, j, k);
+    // effective screening:
+    const auto fk = f_scr(u);
+    const auto ek = eta_hp(u); // to exchange as well?? XXX
 
-    t += q * w * ide2 / tup1;
+    const auto p = P(u, v, i, j, k);
+    t += fk * q * (ek * q + p) * ide2 / tup1;
   }
   return t / tjvp1;
 }
@@ -673,7 +679,6 @@ StructureRad::z_bo(const DiracOperator::TensorOperator *const h,
     const auto dV_wi = ftr * (dV ? dV->dV(w, i) : 0.0);
 
     const auto de_vi = v.en() - i.en();
-    // const auto sign = Angular::neg1pow_2(v.twoj() - i.twoj());
 
     const auto f_iv = h_wi / v.twojp1() / de_vi;
     const auto dv_iv = (h_wi + dV_wi) / v.twojp1() / de_vi;
@@ -686,14 +691,32 @@ StructureRad::z_bo(const DiracOperator::TensorOperator *const h,
           const auto [k0, km] = Coulomb::k_minmax_Q(i, m, a, b);
           for (auto k = k0; k <= km; k += 2) {
             const auto e_vmab = v.en() + m.en() - a.en() - b.en();
-            zBO_i += Q(k, i, m, a, b) * W(k, v, m, a, b) / e_vmab / (2 * k + 1);
+
+            // effective screening:
+            const auto fk = f_scr(k);
+            const auto ek = eta_hp(k); // to exchange as well?? XXX
+
+            const auto qi = Q(k, i, m, a, b);
+            const auto qv = Q(k, v, m, a, b);
+            const auto pv = P(k, v, m, a, b);
+
+            zBO_i += fk * qi * (ek * qv + pv) / e_vmab / (2 * k + 1);
           }
         }
         for (const auto &n : mExcited) {
           const auto [k0, km] = Coulomb::k_minmax_Q(i, a, n, m);
           for (auto k = k0; k <= km; k += 2) {
             const auto e_nmav = v.en() + a.en() - n.en() - m.en();
-            zBO_i += Q(k, i, a, n, m) * W(k, v, a, n, m) / e_nmav / (2 * k + 1);
+
+            // effective screening:
+            const auto fk = f_scr(k);
+            const auto ek = eta_hp(k); // to exchange as well?? XXX
+
+            const auto qi = Q(k, i, a, n, m);
+            const auto qv = Q(k, v, a, n, m);
+            const auto pv = P(k, v, a, n, m);
+
+            zBO_i += fk * qi * (ek * qv + pv) / e_nmav / (2 * k + 1);
           }
         }
       }

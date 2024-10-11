@@ -64,10 +64,14 @@ public:
   */
   StructureRad(const std::vector<DiracSpinor> &basis, double en_core,
                std::pair<int, int> nminmax = {0, 999},
-               const std::string &Qk_fname = "");
+               const std::string &Qk_fname = "",
+               const std::vector<double> &fk = {},
+               const std::vector<double> &etak = {});
 
 private:
   bool m_use_Qk;
+  std::vector<double> m_fk;
+  std::vector<double> m_etak;
   Coulomb::YkTable mY{};
   std::optional<Coulomb::QkTable> mQ{std::nullopt}; //?
   // nb: it seems conter-intuative, but this copy makes it FASTER!
@@ -111,6 +115,18 @@ public:
     const auto [c, dvc] = srC(h, w, v, dV);
     const auto [n, dvn] = norm(h, w, v, dV);
     return {tb + c + n, dvtb + dvc + dvn};
+  }
+
+  //! Effective screening factor for Coulomb lines
+  double f_scr(int k) const {
+    const auto sk = std::size_t(k);
+    return sk < m_fk.size() ? m_fk[sk] : 1.0;
+  }
+
+  //! Effective hole-particle factor for polarisation loops
+  double eta_hp(int k) const {
+    const auto sk = std::size_t(k);
+    return sk < m_etak.size() ? m_etak[sk] : 1.0;
   }
 
   //! Returns Brueckner orbital contribution to the, reduced ME: <w||h||v>_norm.
