@@ -70,7 +70,7 @@ public:
 
 private:
   bool m_use_Qk;
-  std::vector<double> m_fk;
+  std::vector<double> m_root_fk; // sqrt - add to both sides!
   std::vector<double> m_etak;
   Coulomb::YkTable mY{};
   std::optional<Coulomb::QkTable> mQ{std::nullopt}; //?
@@ -118,9 +118,9 @@ public:
   }
 
   //! Effective screening factor for Coulomb lines
-  double f_scr(int k) const {
+  double f_root_scr(int k) const {
     const auto sk = std::size_t(k);
-    return sk < m_fk.size() ? m_fk[sk] : 1.0;
+    return sk < m_root_fk.size() ? m_root_fk[sk] : 1.0;
   }
 
   //! Effective hole-particle factor for polarisation loops
@@ -186,17 +186,22 @@ private:
   //
   double Q(int k, const DiracSpinor &a, const DiracSpinor &b,
            const DiracSpinor &c, const DiracSpinor &d) const {
-    return m_use_Qk ? mQ->Q(k, a, b, c, d) : mY.Q(k, a, b, c, d);
+    // inlcudes effective Coulomb screening
+    const auto fk = f_root_scr(k);
+    return m_use_Qk ? fk * mQ->Q(k, a, b, c, d) : fk * mY.Q(k, a, b, c, d);
   }
 
   double P(int k, const DiracSpinor &a, const DiracSpinor &b,
            const DiracSpinor &c, const DiracSpinor &d) const {
-    return m_use_Qk ? mQ->P(k, a, b, c, d) : mY.P(k, a, b, c, d);
+    // inlcudes effective Coulomb screening
+    return m_use_Qk ? mQ->P2(k, a, b, c, d, mY.SixJ(), m_root_fk) :
+                      mY.P2(k, a, b, c, d, m_root_fk);
   }
 
   double W(int k, const DiracSpinor &a, const DiracSpinor &b,
            const DiracSpinor &c, const DiracSpinor &d) const {
-    return m_use_Qk ? mQ->W(k, a, b, c, d) : mY.W(k, a, b, c, d);
+    // inlcudes effective Coulomb screening
+    return Q(k, a, b, c, d) + P(k, a, b, c, d);
   }
 };
 

@@ -184,12 +184,12 @@ GMatrix Goldstone::Sigma_both(int kappa_v, double en_v,
           const auto Qkv = m_Yeh.Qkv_bcd(k, kappa_v, a, m, n);
           const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, a, m, n);
           const auto dele = en_v + a.en() - m.en() - n.en();
-          const auto factor = etak * fk / (f_kkjj * dele);
-          Sd_an.add(Qkv, Qkv + Pkv, factor);
+          const auto factor = fk / (f_kkjj * dele);
+          Sd_an.add(Qkv, etak * Qkv + Pkv, factor);
 
           if (m_Br && m.n() <= m_max_n_breit && n.n() <= m_max_n_breit) {
             const auto Bkv = m_Br->Bkv_bcd(k, kappa_v, a, m, n);
-            Sd_an.add(Bkv, Qkv + Pkv, factor);
+            Sd_an.add(Bkv, etak * Qkv + Pkv, factor);
           }
         }
 
@@ -200,12 +200,12 @@ GMatrix Goldstone::Sigma_both(int kappa_v, double en_v,
           const auto Qkv = m_Yeh.Qkv_bcd(k, kappa_v, n, b, a);
           const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, n, b, a);
           const auto dele = en_v + n.en() - b.en() - a.en();
-          const auto factor = etak * fk / (f_kkjj * dele);
-          Sd_an.add(Qkv, Qkv + Pkv, factor);
+          const auto factor = fk / (f_kkjj * dele);
+          Sd_an.add(Qkv, etak * Qkv + Pkv, factor);
 
           if (m_Br && n.n() <= m_max_n_breit) {
             const auto Bkv = m_Br->Bkv_bcd(k, kappa_v, n, b, a);
-            Sd_an.add(Bkv, Qkv + Pkv, factor);
+            Sd_an.add(Bkv, etak * Qkv + Pkv, factor);
           }
         }
       }

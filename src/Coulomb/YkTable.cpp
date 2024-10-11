@@ -165,6 +165,32 @@ double YkTable::P(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   return pk * (2 * k + 1);
 }
 
+//------------------------------------------------------------------------------
+double YkTable::P2(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   const DiracSpinor &Fc, const DiracSpinor &Fd,
+                   const std::vector<double> &fk) const {
+  // Pk = [k] Sum_l {a,c,k,b,d,l} Q^l_abdc
+
+  if (Angular::triangle(Fa.twoj(), Fc.twoj(), 2 * k) == 0)
+    return 0.0;
+  if (Angular::triangle(2 * k, Fb.twoj(), Fd.twoj()) == 0)
+    return 0.0;
+
+  double pk = 0.0;
+  const auto [l0, lI] = Coulomb::k_minmax_Q(Fa, Fb, Fd, Fc);
+  for (int l = l0; l <= lI; l += 2) {
+    const auto ylbc = get(l, Fb, Fc);
+    assert(ylbc != nullptr && "YkTable::P() called but don't have Y_bc");
+
+    const auto f_scr_l = (l < (int)fk.size()) ? fk[std::size_t(l)] : 1.0;
+    const auto Ql = Q(l, Fa, Fb, Fd, Fc);
+    const auto sj = m_6j.get(Fa, Fc, k, Fb, Fd, l);
+
+    pk += f_scr_l * Ql * sj;
+  }
+  return pk * (2 * k + 1);
+}
+
 //==============================================================================
 double YkTable::W(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {

@@ -21,6 +21,7 @@ void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
   for (const auto &block : input.blocks()) {
     if (block_is_module(block)) {
       runModule(block, wf);
+      std::cout << std::flush;
     }
   }
 }
@@ -31,7 +32,7 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
   const auto &in_name = module_input.name();
   std::cout << '\n';
   IO::print_line('-');
-  std::cout << "Module: " << in_name << "\n";
+  std::cout << "Module: " << in_name << "\n" << std::flush;
 
   // Loop through all available modules, run correct one
   for (const auto &[mod_name, mod_func, description] : module_list) {
@@ -62,7 +63,6 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
 //==============================================================================
 void list_modules() {
   for (auto &[name, func, description] : module_list) {
-    // fmt::print(" * {:23s} : {}\n", name, description);
     fmt::print(" * {}\n", name);
     if (!description.empty())
       fmt2::styled_print(fg(fmt::color::light_blue), "{}\n",

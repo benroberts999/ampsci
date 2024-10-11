@@ -383,7 +383,9 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         "Save time (10x) at cost of memory. Note: Using QkTable implies "
         "splineLegs=true"},
        {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
-       {"splineLegs", "Use splines for diagram legs (false dflt)"}});
+       {"splineLegs", "Use splines for diagram legs (false dflt)"},
+       {"fk", "list: Coulomb screening factors for each k"},
+       {"etak", "list: Hole-particle factors for each k"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -418,6 +420,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto spline_legs =
       Qk_file.empty() ? input.get("splineLegs", false) : true;
 
+  // effective screening factors (Coulomb)
+  const auto fk = input.get("fk", std::vector<double>{});
+  const auto etak = input.get("etak", std::vector<double>{});
+
   const auto print_both = input.get("printBoth", false);
   const auto only_diagonal = input.get("onlyDiagonal", false);
   // const auto rpaQ = input.get("rpa", true);
@@ -446,11 +452,27 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   std::cout << "\nStructure radiation and normalisation of states:\n";
+  std::cout << "h=" << h->name() << "\n";
   if (n_min > 1)
     std::cout << "Including from n = " << n_min << "\n";
   if (n_max < 999)
     std::cout << "Including to n = " << n_max << "\n";
-  std::cout << "h=" << h->name() << " (reduced ME)\n";
+
+  if (!fk.empty()) {
+    std::cout << "Including effective Coulomb screening, with: fk = ";
+    for (auto &f : fk) {
+      std::cout << f << ", ";
+    }
+    std::cout << "\n";
+  }
+  if (!etak.empty()) {
+    std::cout << "Including effective hole-particle interation, with: etak = ";
+    for (auto &f : etak) {
+      std::cout << f << ", ";
+    }
+    std::cout << "\n";
+  }
+
   std::cout << "Evaluated at ";
   if (eachFreqQ)
     std::cout << "each transition frequency\n";
@@ -464,6 +486,30 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Will read/write Qk integrals to file: " << Qk_file << "\n";
   } else {
     std::cout << "Will calculate Qk integrals on-the-fly\n";
+  }
+
+  // Check orthogonality of splines to valence
+  std::vector<std::string> v_warnings;
+  if (spline_legs) {
+    std::cout << "\nUsing splines for diagram legs. Check "
+                 "orthonormality:\n";
+    for (const auto &v : wf.hf_valence()) {
+      const auto bp = std::find(cbegin(wf.basis()), cend(wf.basis()), v);
+      if (bp == cend(wf.basis()))
+        continue;
+      const auto &b = *bp;
+      const auto eps1 = std::abs(v * b - 1.0);
+      const auto eps2 = std::abs(v.en() - b.en()) / std::abs(v.en());
+      const auto eps = std::max(eps1, eps2);
+
+      std::string warn = eps > 1.0e-2 ? "***" :
+                         eps > 1.0e-3 ? "**" :
+                         eps > 1.0e-4 ? "*" :
+                                        "";
+      fmt::print("{:4s} : |<v|v'>-1| = {:.1e},  dE = {:.1e}  {}\n",
+                 v.shortSymbol(), eps1, eps2, warn);
+      v_warnings.push_back(warn);
+    }
   }
 
   // Lambda to format the output
@@ -486,7 +532,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // ----------- ** Actual Calculations ** -----------
 
   // Construct SR object:
-  MBPT::StructureRad sr(wf.basis(), en_core, {n_min, n_max}, Qk_file);
+  MBPT::StructureRad sr(wf.basis(), en_core, {n_min, n_max}, Qk_file, fk, etak);
   std::cout << std::flush;
 
   struct Output {
@@ -923,6 +969,11 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto delta = input.get("delta", 1.0e-4);
 
+  if (!wf.Sigma()) {
+    std::cout << "Correlation potential required to run this module!\n";
+    return;
+  }
+
   std::cout << "Setup Correlation potentials to calculate derivative:\n";
   const auto &Sigma0 = *wf.Sigma();
   const auto &v0 = wf.hf_valence().front();
@@ -930,6 +981,12 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
   auto Sigma1 = *wf.Sigma();
   Sigma1.clear();
   Sigma1.formSigma(v0.kappa(), v0.en() + delta, v0.n(), &v0);
+
+  // MBPT::CorrelationPotential(
+  //       ifname, wf.vHF(), wf.basis(), 1.0e-3, 30.0, std::size_t(stride), nmin_core, method,
+  //       include_G, include_Breit, n_max_breit,
+  //       MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
+  //       fk, etak, nmin_core_F);
 
   auto Sigma2 = Sigma1;
   Sigma2.clear();
