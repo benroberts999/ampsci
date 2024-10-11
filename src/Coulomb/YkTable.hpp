@@ -80,6 +80,11 @@ public:
                          const DiracSpinor &Fb, const DiracSpinor &Fc,
                          const DiracSpinor &Fd) const;
 
+  [[nodiscard]] double P2(const int k, const DiracSpinor &Fa,
+                          const DiracSpinor &Fb, const DiracSpinor &Fc,
+                          const DiracSpinor &Fd,
+                          const std::vector<double> &fk = {}) const;
+
   //! Calculates Wk=Qk+Pk using the existing yk integrals. Note: Yk and Ck
   //! tables *must* include all required values, or behaviour not defined.
   [[nodiscard]] double W(const int k, const DiracSpinor &Fa,
