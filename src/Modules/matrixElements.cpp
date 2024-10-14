@@ -380,7 +380,9 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
        {"rpa", "true(=TDHF), false, TDHF, basis, diagram [true]"},
        {"omega", "freq. for RPA"},
        {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-       {"onlyDiagonal", "only <a|h|a> (dflt false)"},
+       {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
+       {"off-diagonal",
+        "Calculate off-diagonal matrix elements (if non-zero) [true]"},
        {"Qk_file",
         "true/false/filename - SR: filename for QkTable file. If blank will "
         "not use QkTable; if exists, will read it in; if doesn't exist, will "
@@ -397,6 +399,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.has_option("help")) {
     return;
   }
+
+  IO::ChronoTimer timerSR("structureRad");
 
   // Get input options:
   const auto oper = input.get<std::string>("operator", "E1");
@@ -440,7 +444,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto etak = input.get("etak", std::vector<double>{});
 
   const auto print_both = input.get("printBoth", false);
-  const auto only_diagonal = input.get("onlyDiagonal", false);
+
+  const auto diagonal = input.get("diagonal", true);
+  const auto off_diagonal = input.get("off-diagonal", true);
+
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto const_omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
@@ -562,13 +569,16 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
   for (const auto diag : {true, false}) {
 
+    if (!diagonal && diag)
+      continue;
+    if (!off_diagonal && !diag)
+      continue;
+
     for (std::size_t ib = 0; ib < wf.valence().size(); ib++) {
       const auto &v = wf.valence().at(ib);
       for (std::size_t ia = 0; ia < wf.valence().size(); ia++) {
         const auto &w = wf.valence().at(ia);
         if (h->isZero(w.kappa(), v.kappa()))
-          continue;
-        if (only_diagonal && v != w)
           continue;
         if (pi == -1) {
           if (!print_both && v.parity() == -1)
@@ -662,8 +672,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
                    "{:4s} {:4s} {:+.3e} {:+.3e} {:+.3e} {:+.3e} "
                    "{:+.3e}",
                    w.shortSymbol(), v.shortSymbol(), dvs, factor * (tb + c),
-                   factor * ((tb_dv - tb) + (c_dv - c)), factor * (n),
-                   factor * (n_dv - n));
+                   factor * (tb_dv + c_dv), factor * (n), factor * n_dv);
         if (!have_brueckner)
           fmt::print(os, " {:+.3e} {:+.3e}", factor * T_bo_dv, total);
         fmt::print(os, "\n");
@@ -687,12 +696,12 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "Units: " << h->units() << "\n\n";
 
-  std::cout << "           t0+dv      SR         dv(SR)    "
-               " Norm       dv(Norm)   ";
+  std::cout << "           t0+dV      SR0        SR+dV    "
+               "  Norm0      Norm+dV    ";
   if (!have_brueckner)
     std::cout << "BO         Total";
   std::cout << "\n";
-  std::cout << os.str() << "\n";
+  std::cout << os.str() << std::endl;
 
   return;
 }
@@ -720,6 +729,8 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.has_option("help")) {
     return;
   }
+
+  IO::ChronoTimer timer("normalisation");
 
   const auto delta = input.get("delta", 1.0e-4);
 
@@ -874,7 +885,7 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
   // Then, off-diagonal:
-  if (off_diagonal && h->parity() == -1) {
+  if (off_diagonal) {
 
     for (std::size_t ib = 0; ib < orbs.size(); ib++) {
       const auto &w = orbs.at(ib);
