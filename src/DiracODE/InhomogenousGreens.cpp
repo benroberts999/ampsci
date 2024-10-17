@@ -93,30 +93,48 @@ void GreenSolution(DiracSpinor &Fa, const DiracSpinor &wi,
 
   // Quadrature integration weights:
   const auto dr = [&](std::size_t i) {
-    // return gr.drdu(i) * du;
-
-    // const auto sw = i % 2 == 0 ? 2.0 / 3 : 4.0 / 3;
-    // return gr.drdu(i) * du * sw;
-
-    if (i < NumCalc::Nquad)
-      return NumCalc::dq_inv * NumCalc::cq[i] * gr.drdu(i) * du;
+    if (i < NumCalc::Nquad) {
+      return NumCalc::dq_inv * NumCalc::cq[i] * gr.drdu(i);
+    }
     if (i < num_points - NumCalc::Nquad)
-      return gr.drdu(i) * du;
-    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1] * gr.drdu(i) * du;
+      return gr.drdu(i);
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1] * gr.drdu(i);
   };
 
   double A = 0.0;
-  double B = wi * s;
+  // double B = wi * s / du;
 
+  double B = 0.0;
   // for (std::size_t i = 0; i < irmax; ++i) {
   //   B += (wi.f(i) * s.f(i) + wi.g(i) * s.g(i)) * dr(i);
   // }
 
-  for (std::size_t i = 0; i < irmax; ++i) {
-    Fa.f(i) = (wi.f(i) * A + w0.f(i) * B) * (alpha / w2);
-    Fa.g(i) = (wi.g(i) * A + w0.g(i) * B) * (alpha / w2);
-    A += (w0.f(i) * s.f(i) + w0.g(i) * s.g(i)) * dr(i);
-    B -= (wi.f(i) * s.f(i) + wi.g(i) * s.g(i)) * dr(i);
+  const auto xx = (alpha / w2) * du;
+
+  A += 0.5 * (w0.f(0) * s.f(0) + w0.g(0) * s.g(0)) * dr(0);
+  // B -= 0.5 * (wi.f(0) * s.f(0) + wi.g(0) * s.g(0)) * dr(0);
+
+  Fa.f(0) = (wi.f(0) * A) * xx;
+  Fa.g(0) = (wi.g(0) * A) * xx;
+
+  for (std::size_t i = 1; i < irmax; ++i) {
+    A += 0.5 *
+         ((w0.f(i - 1) * s.f(i - 1) + w0.g(i - 1) * s.g(i - 1)) * dr(i - 1) +
+          (w0.f(i) * s.f(i) + w0.g(i) * s.g(i)) * dr(i));
+
+    Fa.f(i) = (wi.f(i) * A) * xx;
+    Fa.g(i) = (wi.g(i) * A) * xx;
+  }
+
+  for (std::size_t ii = irmax - 1; ii >= 1; --ii) {
+    const auto i = ii - 1;
+
+    B += 0.5 *
+         ((wi.f(i + 1) * s.f(i + 1) + wi.g(i + 1) * s.g(i + 1)) * dr(i + 1) +
+          (wi.f(i) * s.f(i) + wi.g(i) * s.g(i)) * dr(i));
+
+    Fa.f(i) += (w0.f(i) * B) * xx;
+    Fa.g(i) += (w0.g(i) * B) * xx;
   }
 
   // std::cout << "\n" << A << " " << w0 * s << " " << A - w0 * s << "\n";
