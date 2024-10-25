@@ -12,6 +12,8 @@
 #include <cmath>
 #include <iostream>
 #include <vector>
+//
+#include "Physics/DiracHydrogen.hpp"
 
 namespace DiracODE {
 
@@ -362,20 +364,19 @@ void solve_Dirac_outwards(std::vector<double> &f, std::vector<double> &g,
                           const DiracDerivative &Hd, std::size_t t_pinf) {
 
   const auto &r = Hd.pgr->r();
-  // const auto &drduor = Hd.pgr->drduor();
   const auto du = Hd.pgr->du();
   const auto &v = *(Hd.v);
   const auto alpha = Hd.alpha;
   const auto ka = Hd.k;
   const auto Z_eff = (-1.0 * v[0] * r[0]);
-  const double az0 = Z_eff < 1.0 ? alpha : Z_eff * alpha;
+  const double az0 = Z_eff * alpha;
   const auto ka2 = (double)(ka * ka);
   const double ga0 = std::sqrt(ka2 - az0 * az0);
   const auto pinf = t_pinf == 0 ? f.size() : t_pinf;
 
   // initial wf values
 
-  // Set initial values:
+  // Set initial value:
   double f0{0.0}, g0{0.0};
   if (Hd.Fa0 && Hd.Fa0->f(0) != 0.0) {
     // If we have a previous solution, use that as initial point
@@ -384,7 +385,12 @@ void solve_Dirac_outwards(std::vector<double> &f, std::vector<double> &g,
   } else {
     // Otherwise, use H-like form for f and ratio of f/g
     // f0 is arbitrary, but it's nice to be the correct order-of-magnitude
+
     const auto g_f_ratio = (ka > 0) ? (ka + ga0) / az0 : az0 / (ka - ga0);
+
+    // const auto g_f_ratio =
+    //     DiracHydrogen::gfratio(r[0], ka, Z_eff, alpha, Hd.en, Hd.mass);
+
     f0 = 2.0 * std::pow(r[0], ga0);
     g0 = f0 * g_f_ratio;
   }

@@ -23,7 +23,7 @@ public:
                    double in_alpha = PhysConst::alpha,
                    double in_eps_target = 1.0e-14, double m = 1.0)
       : kappa(in_kappa),
-        Zeff(std::max(in_Zeff, 1.0)),
+        Zeff(in_Zeff),
         en(in_en),
         alpha(in_alpha),
         eps_target(in_eps_target),

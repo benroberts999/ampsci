@@ -44,4 +44,6 @@ double f(RaB r, PrincipalQN n, DiracQN k, Zeff z, AlphaFS a);
 //! Lower (small) radial component
 double g(RaB r, PrincipalQN n, DiracQN k, Zeff z, AlphaFS a);
 
+double gfratio(double r, int k, double z, double a, double e, double m = 1.0);
+
 } // namespace DiracHydrogen

@@ -22,21 +22,29 @@
 //! Unit tests for solving (local) Dirac equation ODE
 TEST_CASE("DiracODE: AsymptoticSpinor expansion", "[DiracODE][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "DiracODE: AsymptoticSpinor expansion\n";
+  std::cout << "DiracODE: AsymptoticSpinor expansion (large r)\n";
 
-  const auto r0{90.0};
-  const auto rmax{150.0};
-  const auto num_grid_points{5ul};
-  const auto b{10.0};
-  const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
-                                                 GridType::loglinear, b);
-  double worst = 0.0;
-  std::string s_worst{""};
-  for (auto z : {1.0, 2.0, 10.0}) {
-    for (auto n : {1, 2, 3, 4, 5, 6, 7}) {
-      for (auto kappa : {-1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6}) {
+  fmt::print("{:<3s} {:>2s} {:1s} {:1s} {:>5s}  {:16s}  {:17s}   {}\n", "z",
+             "k", "l", "n", "r", "f/g (asym)", "f/g (exact)", "eps");
 
-        const auto l = Angular::l_k(kappa);
+  for (auto z : {0.1, 0.5, 1.0, 10.0, 100.0, 150.0}) {
+    for (auto kappa : {-1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6}) {
+      const auto l = Angular::l_k(kappa);
+      double w_eps = -1.0;
+      int w_n{0};
+      double w_asym{0.0}, w_exact{0.0}, w_r{0.0};
+
+      if (z * PhysConst::alpha > 1.0 && std::abs(kappa) == 1)
+        continue;
+
+      const auto r0{10.0 / z};
+      const auto rmax{150.0 / z};
+      const auto num_grid_points{15ul};
+      const auto b{(rmax + r0) / 4};
+      const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
+                                                     GridType::loglinear, b);
+      for (auto n : {1, 2, 3, 4, 5, 6, 7}) {
+
         if (l >= n)
           continue;
 
@@ -44,29 +52,127 @@ TEST_CASE("DiracODE: AsymptoticSpinor expansion", "[DiracODE][unit]") {
         const auto F1s = DiracSpinor::exactHlike(n, kappa, grid, z);
         DiracODE::AsymptoticSpinor x{kappa, z, e};
         for (std::size_t i = 0; i < num_grid_points; ++i) {
-          auto r = grid->r(i);
-          auto [f, g] = x.fg(r);
-          auto f0 = F1s.f(i);
-          auto g0 = F1s.g(i);
-          if (g == 0.0 || f0 == 0.0 || g0 == 0.0)
+          const auto r = grid->r(i);
+          const auto [f, g] = x.fg(r);
+          const auto f0 = F1s.f(i);
+          const auto g0 = F1s.g(i);
+          if (g == 0.0 || f0 == 0.0 || g0 == 0.0) {
             continue;
+          }
 
-          auto ratio_asym = f / g;
-          auto ratio_exact = f0 / g0;
-          auto eps = std::abs(ratio_asym / ratio_exact - 1.0);
+          const auto ratio_asym = f / g;
+          const auto ratio_exact = f0 / g0;
+          const auto eps = std::abs(ratio_asym / ratio_exact - 1.0);
 
-          const auto eps_targ = l <= 2 ? 1.0e-9 : 1.0e-7;
+          if (eps > w_eps) {
+            w_eps = eps;
+            w_n = n;
+            w_asym = ratio_asym;
+            w_exact = ratio_exact;
+            w_r = r;
+          }
+
+          auto eps_targ = z > 99.0 ? 1.0e-10 :
+                          z > 9.0  ? 1.0e-8 :
+                          z > 0.9  ? 1.0e-7 :
+                                     1.0e-5;
+
+          if (l >= 5)
+            eps_targ *= 100;
+          if (l >= 5 && z < 1.0)
+            eps_targ *= 100;
 
           REQUIRE(eps < eps_targ);
-          if (eps > worst) {
-            worst = eps;
-            s_worst = fmt::format("Z={}, n={}, kappa={}, r={}", z, n, kappa, r);
+        }
+      }
+
+      // if (l >= 5)
+      fmt::print("{:3g} {:2} {:1} {:1} {:5.1f} {:+.10e} [{:+.10e}]  {:.1e}\n",
+                 z, kappa, l, w_n, w_r, w_asym, w_exact, w_eps);
+    }
+  }
+}
+
+//==============================================================================
+//! Unit tests for solving (local) Dirac equation ODE
+TEST_CASE("DiracODE: Low-r solution", "[DiracODE][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "DiracODE: Low-r solution (pointlike)\n";
+
+  // Set up radial grid:
+  const auto r0{1.0e-6};
+  const auto rmax{100.0}; // NB: rmax depends on Zeff
+  const auto num_grid_points{2000ul};
+  const auto b{10.0};
+  const auto grid = Grid(r0, rmax, num_grid_points, GridType::loglinear, b);
+
+  std::cout << " Zeff  k n ri r        (f/g)_r          [ Exact           ]  "
+               "eps     [targ]\n";
+  for (const auto Zeff : {0.01, 0.1, 0.5, 1.0, 2.0, 10.0, 50.0, 100.0}) {
+    for (auto kappa : {-1, 1, -2, 2, -3, 3, -4, 4, -5, 5, -6, 6}) {
+      double w_eps = -1.0;
+      int w_n{0};
+      std::size_t w_i{0};
+      double w_asym{0.0}, w_exact{0.0}, w_r{0.0};
+      for (auto n : {1, 2, 3, 4, 5, 6, 7}) {
+
+        const auto l = Angular::l_k(kappa);
+        if (l >= n)
+          continue;
+
+        const auto e = AtomData::diracen(Zeff, n, kappa, PhysConst::alpha);
+        const auto F1s = DiracSpinor::exactHlike(
+            n, kappa, std::make_shared<Grid>(grid), Zeff);
+
+        const auto v_nuc =
+            Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid.r());
+
+        DiracODE::Internal::DiracDerivative Hd(grid, v_nuc, kappa, e,
+                                               PhysConst::alpha);
+
+        std::size_t max_pt = 20;
+        std::vector<double> f(max_pt);
+        std::vector<double> g(max_pt);
+        solve_Dirac_outwards(f, g, Hd, max_pt);
+
+        for (std::size_t i = max_pt / 2; i < max_pt; ++i) {
+          const auto r = grid.r(i);
+          const auto f0 = F1s.f(i);
+          const auto g0 = F1s.g(i);
+
+          const auto ratio_asym = f[i] / g[i];
+          const auto ratio_exact = f0 / g0;
+          const auto eps = std::abs((ratio_asym - ratio_exact) / ratio_exact);
+
+          if (eps > w_eps) {
+            w_eps = eps;
+            w_n = n;
+            w_asym = ratio_asym;
+            w_exact = ratio_exact;
+            w_r = r;
+            w_i = i;
           }
         }
       }
+
+      const auto magnitude = std::abs(w_exact);
+      auto target = //magnitude * 1.0e-4;
+          magnitude > 1e2  ? 1.0e-6 :
+          magnitude > 1e1  ? 1.0e-5 :
+          magnitude > 1e0  ? 1.0e-4 :
+          magnitude > 1e-1 ? 1.0e-3 :
+          magnitude > 1e-2 ? 1.0e-2 :
+                             1.0e-1;
+      if (Zeff < 1.0)
+        target *= 6.0;
+
+      fmt::print(
+          "{:5g} {:2} {} {} {:.1e} {:+.10e} [{:+.10e}]  {:.0e} [{:.0e}]\n",
+          Zeff, kappa, w_n, w_i, w_r, w_asym, w_exact, w_eps, target);
+
+      REQUIRE(w_eps < target);
     }
   }
-  std::cout << s_worst << " : " << worst << "\n";
 }
 
 //==============================================================================
@@ -76,8 +182,8 @@ TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
   std::cout << "DiracODE: Adams-Moulton method\n";
 
   std::cout << "\nTest Hydrogen-like numerical solutions vs. exact Dirac:\n";
-  for (const auto Zeff : {1.0, 5.0, 10.0, 20.0, 50.0}) {
-    std::cout << "Z = " << Zeff << "\n";
+  for (const auto Zeff : {0.1, 1.0, 5.0, 10.0, 20.0, 50.0, 100.0}) {
+    std::cout << "\nZ = " << Zeff << "\n";
 
     // Set up radial grid:
     const auto r0{5.0e-7 / Zeff};
@@ -124,7 +230,8 @@ TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
     { // Check orthogonality of orbitals:
       const auto [eps, worst] = DiracSpinor::check_ortho(orbitals, orbitals);
       std::cout << "orth: " << worst << " " << eps << "\n";
-      CHECK(std::abs(eps) < 1.0e-10);
+      const auto orthog_targ = Zeff >= 1.0 ? 1.0e-10 : 1.0e-8;
+      CHECK(std::abs(eps) < orthog_targ);
     }
 
     { // Compare energy to exact (Dirac) value:
@@ -147,7 +254,8 @@ TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
 
       std::cout << "en vs. exact (eps): " << worst_F->shortSymbol() << " "
                 << eps << "\n";
-      CHECK(std::abs(eps) < 1.0e-9);
+      const auto en_targ = Zeff >= 1.0 ? 1.0e-9 : 1.0e-7;
+      CHECK(std::abs(eps) < en_targ);
     }
 
     { // Check radial integrals (r, r^2, 1/r, 1/r^2)
@@ -187,10 +295,15 @@ TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
       std::cout << "<r^2>: " << worst2.first << " " << worst2.second << "\n";
       std::cout << "<r^-1>: " << winv1.first << " " << winv1.second << "\n";
       std::cout << "<r^-2>: " << winv2.first << " " << winv2.second << "\n";
-      CHECK(std::abs(worst1.second) < 1.0e-9);
-      CHECK(std::abs(worst2.second) < 1.0e-9);
-      CHECK(std::abs(winv1.second) < 1.0e-9);
-      CHECK(std::abs(winv2.second) < 1.0e-9);
+
+      auto eps_targ = Zeff >= 1.0 ? 1.0e-9 : 1.0e-6;
+      if (Zeff >= 100) {
+        eps_targ *= 10.0;
+      }
+      CHECK(std::abs(worst1.second) < eps_targ);
+      CHECK(std::abs(worst2.second) < eps_targ);
+      CHECK(std::abs(winv1.second) < eps_targ);
+      CHECK(std::abs(winv2.second) < eps_targ);
     }
   }
 }

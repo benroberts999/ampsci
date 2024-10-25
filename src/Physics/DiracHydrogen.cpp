@@ -92,4 +92,27 @@ double g(RaB r, PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
   return -c1 * c2 * (d1 - d2);
 }
 
+double gfratio(double r, int k, double z, double a, double e, double m) {
+  using namespace Hidden;
+
+  const auto g = std::sqrt(double(k * k) - (a * a * z * z));
+  const auto a2 = a * a;
+  const auto absk = (double)std::abs(k);
+
+  const auto n =
+      ((z * (m + e * a2)) / std::sqrt(-(e * (2 * m + e * a2)))) - g + absk;
+
+  const auto xr = r * 2.0 * std::sqrt(-e * (2.0 + e * a2));
+  const auto kmn = double(absk) - n;
+  const auto c1_f = std::sqrt(1.0 + (a2 * e + m));
+  const auto nn = std::sqrt((n * n) - 2.0 * (n - absk) * (absk - g));
+  const auto d1 = (nn - double(k)) * H1f1(kmn, 2.0 * g + 1.0, xr);
+  const auto d2 = kmn * H1f1(kmn + 1.0, 2.0 * g + 1.0, xr);
+  const auto ff = c1_f * (d1 + d2);
+
+  const auto c1_g = std::sqrt(1.0 - (a2 * e + m));
+  const auto gg = c1_g * (d2 - d1);
+  return gg / ff;
+}
+
 } // namespace DiracHydrogen
