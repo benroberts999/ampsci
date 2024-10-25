@@ -107,6 +107,58 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
     REQUIRE(AtomData::guessCoreConfigStr(47) == "[Kr],4d10,5s1");
     REQUIRE(AtomData::guessCoreConfigStr(79) == "[Xe],4f14,5d10,6s1");
     REQUIRE(AtomData::guessCoreConfigStr(119) == "[Og],8s1");
+
+    REQUIRE(AtomData::z_previous_nobel(2) == 2);
+    REQUIRE(AtomData::z_previous_nobel(10) == 10);
+    REQUIRE(AtomData::z_previous_nobel(18) == 18);
+    REQUIRE(AtomData::z_previous_nobel(36) == 36);
+    REQUIRE(AtomData::z_previous_nobel(54) == 54);
+    REQUIRE(AtomData::z_previous_nobel(86) == 86);
+    REQUIRE(AtomData::z_previous_nobel(118) == 118);
+
+    REQUIRE(AtomData::z_previous_nobel(3) == 2);
+    REQUIRE(AtomData::z_previous_nobel(8) == 2);
+    REQUIRE(AtomData::z_previous_nobel(12) == 10);
+    REQUIRE(AtomData::z_previous_nobel(14) == 10);
+    REQUIRE(AtomData::z_previous_nobel(19) == 18);
+    REQUIRE(AtomData::z_previous_nobel(30) == 18);
+    REQUIRE(AtomData::z_previous_nobel(37) == 36);
+    REQUIRE(AtomData::z_previous_nobel(45) == 36);
+    REQUIRE(AtomData::z_previous_nobel(55) == 54);
+    REQUIRE(AtomData::z_previous_nobel(70) == 54);
+    REQUIRE(AtomData::z_previous_nobel(89) == 86);
+    REQUIRE(AtomData::z_previous_nobel(111) == 86);
+    REQUIRE(AtomData::z_previous_nobel(120) == 118);
+    REQUIRE(AtomData::z_previous_nobel(145) == 118);
+
+    REQUIRE(AtomData::z_previous_semifilled(2) == 2);
+    REQUIRE(AtomData::z_previous_semifilled(10) == 10);
+    REQUIRE(AtomData::z_previous_semifilled(18) == 18);
+    REQUIRE(AtomData::z_previous_semifilled(36) == 36);
+    REQUIRE(AtomData::z_previous_semifilled(54) == 54);
+    REQUIRE(AtomData::z_previous_semifilled(86) == 86);
+    REQUIRE(AtomData::z_previous_semifilled(30) == 30);
+    REQUIRE(AtomData::z_previous_semifilled(48) == 48);
+    REQUIRE(AtomData::z_previous_semifilled(80) == 80);
+    REQUIRE(AtomData::z_previous_semifilled(112) == 112);
+
+    REQUIRE(AtomData::z_previous_semifilled(3) == 2);
+    REQUIRE(AtomData::z_previous_semifilled(8) == 2);
+    REQUIRE(AtomData::z_previous_semifilled(12) == 10);
+    REQUIRE(AtomData::z_previous_semifilled(14) == 10);
+    REQUIRE(AtomData::z_previous_semifilled(19) == 18);
+    REQUIRE(AtomData::z_previous_semifilled(31) == 30);
+    REQUIRE(AtomData::z_previous_semifilled(37) == 36);
+    REQUIRE(AtomData::z_previous_semifilled(45) == 36);
+    REQUIRE(AtomData::z_previous_semifilled(52) == 48);
+    REQUIRE(AtomData::z_previous_semifilled(55) == 54);
+    REQUIRE(AtomData::z_previous_semifilled(70) == 54);
+    REQUIRE(AtomData::z_previous_semifilled(84) == 80);
+    REQUIRE(AtomData::z_previous_semifilled(89) == 86);
+    REQUIRE(AtomData::z_previous_semifilled(111) == 86);
+    REQUIRE(AtomData::z_previous_semifilled(113) == 112);
+    REQUIRE(AtomData::z_previous_semifilled(120) == 118);
+    REQUIRE(AtomData::z_previous_semifilled(145) == 118);
   }
 
   //===========================================

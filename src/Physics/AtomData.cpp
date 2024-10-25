@@ -466,6 +466,27 @@ std::vector<NonRelConfig> core_guess(const int total_core_electrons) {
 }
 
 //==============================================================================
+//! Returns the Z for the preceeding Nobel gas
+int z_previous_nobel(int z) {
+  const auto ng_list = {118, 86, 54, 36, 18, 10, 2};
+  for (const auto zng : ng_list) {
+    if (z >= zng)
+      return zng;
+  }
+  return 0;
+}
+
+//! Returns the Z for the preceeding semi-filled shell
+int z_previous_semifilled(int z) {
+  const auto ng_list = {118, 112, 86, 80, 54, 48, 36, 30, 18, 10, 2};
+  for (const auto zng : ng_list) {
+    if (z >= zng)
+      return zng;
+  }
+  return 0;
+}
+
+//==============================================================================
 std::vector<DiracConfig> listOfStates_nk(const std::string &in_list) {
   std::vector<DiracConfig> state_list;
 

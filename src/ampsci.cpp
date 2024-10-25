@@ -65,7 +65,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto atom_block = input.get_block("Atom");
 
   // Z is taken as a string, so can write "Cs" or "55"
-  const auto atom_Z = AtomData::atomic_Z(atom_block.get("Z", "H"s));
+  const auto atom_Z = AtomData::atomic_Z(atom_block.get("Z", "0"s));
   // A: is a "std::optional<int>" (if blank, nucleus will use default value)
   const auto atom_A = atom_block.get<int>("A");
 
@@ -128,8 +128,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       std::cout << "a/a0 = " << var_alpha
                 << " (a/a0)^2 = " << var_alpha * var_alpha << "\n";
     }
-    std::cout << wf.nucleus() << '\n'
-              << wf.grid().gridParameters() << '\n'
+    std::cout << wf.nucleus() << '\n';
+    std::cout << wf.grid().gridParameters() << '\n'
               << "========================================================\n";
   }
 
@@ -253,7 +253,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   wf.solve_valence(valence);
 
   // Output Hartree Fock energies:
-  if (!help_mode) {
+  if (!help_mode && wf.Znuc() != 0) {
     std::cout << '\n' << wf.atomicSymbol() << "-" << wf.Anuc() << '\n';
     wf.printCore();
     printf("E_c = %.6f\n\n", wf.coreEnergyHF());

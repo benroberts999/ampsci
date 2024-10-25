@@ -45,11 +45,17 @@ struct DiracConfig { // name OK? too short?
   int k;
   double en;
   DiracConfig(int in_n = 0, int in_k = 0, double in_en = 0)
-      : n(in_n), k(in_k), en(in_en){};
+      : n(in_n), k(in_k), en(in_en) {};
 };
 
 //==============================================================================
 //==============================================================================
+
+//! Returns the Z for the preceeding Nobel gas
+int z_previous_nobel(int z);
+
+//! Returns the Z for the preceeding semi-filled shell
+int z_previous_semifilled(int z);
 
 //! Looks up default A (most common) for given Z
 int defaultA(int Z);
