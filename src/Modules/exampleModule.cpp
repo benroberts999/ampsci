@@ -16,64 +16,89 @@ void exampleModule(const IO::InputBlock &, const Wavefunction &empty_wf) {
 
   std::stringstream outs, outp1, outp3;
 
-  // {1, 2, 3, 4, 11, 12, 19, 20, 37, 38, 55, 56, 87, 88, 119, 120}
   for (const auto Z :
-       {1, 3, 4, 11, 12, 19, 20, 37, 38, 55, 56, 87, 88, 119, 120}) {
+       {1,  2,  3,  4,  5,  6,  11, 12, 13, 14, 19, 20,  21,  22,  37,
+        38, 39, 40, 55, 56, 57, 58, 87, 88, 89, 90, 119, 120, 121, 122}) {
 
-    const auto num_core_el = AtomData::z_previous_semifilled(Z);
+    const auto num_core_el = Z == 2 ? 0 : AtomData::z_previous_semifilled(Z);
 
     const auto Zion = Z - num_core_el;
 
-    Wavefunction wf(grid.params(), Nuclear::form_nucleus(Z), var_alpha);
-    std::cout << wf.nucleus() << "\n";
+    auto nucleus = Nuclear::form_nucleus(Z);
+    Wavefunction wf(grid.params(), nucleus, var_alpha);
+
+    std::cout << "\n------------------------"
+                 "\n------------------------"
+                 "\n------------------------\n\n";
+    std::cout << wf.atom() << "\n";
+    std::cout << wf.nucleus() << "\n\n";
 
     wf.set_HF("HartreeFock", 0.0, AtomData::guessCoreConfigStr(num_core_el));
     wf.solve_core();
-    wf.solve_valence("8sp");
+
+    const auto n_val = DiracSpinor::max_n(wf.core()) + 2;
+    const auto val = std::to_string(n_val) + "sp";
+    std::cout << "Val " << val << "\n";
+
+    wf.solve_valence(val);
 
     // Now, include QED:
-    Wavefunction wfQ(grid.params(), Nuclear::form_nucleus(Z), var_alpha);
+    Wavefunction wfQ(grid.params(), nucleus, var_alpha);
     wfQ.set_HF("HartreeFock", 0.0, AtomData::guessCoreConfigStr(num_core_el));
     wfQ.radiativePotential(
         IO::InputBlock{"QED", "Ueh=1.0; SE_h=0; SE_l=0; SE_m=0.0;"}, false,
-        false);
+        true);
     wfQ.solve_core();
-    wfQ.solve_valence("8sp");
+    wfQ.solve_valence(val);
+
+    wf.printCore();
+    std::cout << "No QED:\n";
+    wf.printValence();
+    std::cout << "Vac Pol:\n";
+    wfQ.printValence();
 
     const auto h_hf = DiracOperator::generate(
-        "hfs", IO::InputBlock{"hfs", "mu=1.0; I=1.0; nuc_mag=Ball;"}, wf);
+        "hfs", IO::InputBlock{"hfs", "mu=1.0; I=1.0; nuc_mag=pointlike;"}, wf);
 
-    wf.formBasis(
-        SplineBasis::Parameters{"30spdfg", 40, 7, 1.0e-4, 0.0, 40.0, false});
-    wfQ.formBasis(
-        SplineBasis::Parameters{"30spdfg", 40, 7, 1.0e-4, 0.0, 40.0, false});
+    wf.formBasis(SplineBasis::Parameters{"40spdfg", 45, 9, 1.0e-4, 0.0,
+                                         45.0 / std::sqrt(Zion), false});
+    wfQ.formBasis(SplineBasis::Parameters{"40spdfg", 45, 9, 1.0e-4, 0.0,
+                                          45.0 / std::sqrt(Zion), false});
 
     ExternalField::TDHF dV0(h_hf.get(), wf.vHF());
     ExternalField::TDHF dVQ(h_hf.get(), wfQ.vHF());
 
-    dV0.set_eta(0.85);
-    dVQ.set_eta(0.85);
+    dV0.set_eta(0.90);
+    dVQ.set_eta(0.90);
 
     ExternalField::DiagramRPA rpa(h_hf.get(), wf.basis(), wf.vHF(), "");
     ExternalField::DiagramRPA rpaQ(h_hf.get(), wfQ.basis(), wfQ.vHF(), "");
     if (num_core_el != 0) {
-      dV0.solve_core(0.0);
-      dVQ.solve_core(0.0);
-      rpa.solve_core(0.0);
-      rpaQ.solve_core(0.0);
+      dV0.solve_core(0.0, 1);
+      dVQ.solve_core(0.0, 1);
+      rpa.solve_core(0.0, 1);
+      rpaQ.solve_core(0.0, 1);
     }
 
     for (const auto kappa : {-1, 1, -2}) {
 
-      const auto v0 =
-          *std::find_if(wf.valence().cbegin(), wf.valence().cend(),
-                        [kappa](const auto &F) { return F.kappa() == kappa; });
+      const auto pv0 =
+          std::find_if(wf.valence().cbegin(), wf.valence().cend(),
+                       [kappa](const auto &F) { return F.kappa() == kappa; });
+      if (pv0 == wf.valence().cend()) {
+        std::cout << __LINE__ << "\n";
+        continue;
+      }
+      auto v0 = *pv0;
 
       const auto vQ = *wfQ.getState(v0.n(), v0.kappa());
       assert(v0 == vQ);
 
       const auto me0 = h_hf->reducedME(v0, v0);
       const auto meQ = h_hf->reducedME(vQ, vQ);
+
+      const auto A = DiracOperator::Hyperfine::convert_RME_to_AB(1, v0.kappa(),
+                                                                 v0.kappa());
 
       auto dv0 = 0.0;
       auto dvQ = 0.0;
@@ -82,6 +107,7 @@ void exampleModule(const IO::InputBlock &, const Wavefunction &empty_wf) {
       if (num_core_el != 0) {
         dv0 = dV0.dV(v0, v0);
         dvQ = dVQ.dV(vQ, vQ);
+
         dvD0 = rpa.dV(v0, v0);
         dvDQ = rpaQ.dV(vQ, vQ);
       }
@@ -95,17 +121,21 @@ void exampleModule(const IO::InputBlock &, const Wavefunction &empty_wf) {
 
       auto &out = kappa == -1 ? outs : kappa == 1 ? outp1 : outp3;
 
-      fmt::print(
-          out,
-          "{:4s} {:3} {:4} {:11s} {:4s}  {:+.5e}  {:+.5e}  {:+.5e}  {:.0e}\n",
-          wf.atomicSymbol(), Z, Zion, wf.coreConfiguration_nice(),
-          v0.shortSymbol(), F_hf, F_tdhf, F_rpa, eps);
+      fmt::print(out,
+                 "{:4s} {:3} {:4} {:4s} {:4s} {:.3f}  {:+.5e}  {:+.5e}  "
+                 "{:+.5e}  {:+.5e}  {:+.5e} "
+                 " {:.0e}\n",
+                 wf.atomicSymbol(), Z, Zion, wf.coreConfiguration_nice(),
+                 v0.shortSymbol(), wf.get_rrms(), A * me0, A * (me0 + dvD0),
+                 F_hf, F_tdhf, F_rpa, eps);
     }
   }
   std::cout << "\n\n";
-  fmt::print(
-      "{:4s} {:3s} {:4s} {:11s} {:4s}   {:11s}   {:11s}   {:11s}  RPA_eps\n",
-      "Atom", "Z", "Zion", "Core", "val.", "F_hf", "F_tdhf", "F_diag");
+  fmt::print("{:4s} {:3s} {:4s} {:4s} {:4s} {:5s}   {:11s}   {:11s}   {:11s}   "
+             "{:11s}   {:11s}  "
+             "RPA_eps\n",
+             "Atom", "Z", "Zion", "Core", "val.", "Rrms", "A_hf", "A_rpa",
+             "F_hf", "F_tdhf", "F_diag");
   std::cout << outs.str();
   std::cout << "\n";
   std::cout << outp1.str();

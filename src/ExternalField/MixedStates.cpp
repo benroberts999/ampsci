@@ -37,8 +37,8 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   using namespace qip::overloads;
   assert(dF.kappa() == hFa.kappa());
 
-  const auto eta_damp = 0.45;
-  const int max_its = (eps_target < 1.0e-8) ? 128 : 64;
+  const auto eta_damp = 0.667;
+  const int max_its = (eps_target < 1.0e-8) ? 256 : 64;
 
   if (std::abs(dF * dF) == 0.0) {
     // If dF is not yet a solution, solve from scratch:

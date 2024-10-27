@@ -56,8 +56,10 @@ int defaultA(int Z)
   auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
   auto atom =
       std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
-  if (atom == periodic_table.end())
-    return 0;
+  if (atom == periodic_table.end()) {
+    // If not in the list, just guess
+    return int(2.5 * Z);
+  }
   return atom->A;
 }
 
