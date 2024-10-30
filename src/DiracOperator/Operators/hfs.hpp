@@ -305,7 +305,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
     fmt2::styled_print(fg(fmt::color::red), "\nError 246:\n");
     std::cout << "In hyperfine: invalid K=" << k << "! meaningless results\n";
   }
-  if (I_nuc <= 0) {
+  if (k == 1 && I_nuc <= 0) {
     fmt2::styled_print(fg(fmt::color::orange), "\nWarning 253:\n");
     std::cout << "In hyperfine: invalid I_nuc=" << I_nuc
               << "! meaningless results\n";

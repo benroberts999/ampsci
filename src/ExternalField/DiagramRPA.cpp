@@ -402,7 +402,7 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
   }
 
   if (print) {
-    fmt::print("RPA(D) {:s} (w={:.4f}): ", m_h->name(), omega);
+    fmt::print("RPAd {:s} (w={:.4f}): ", m_h->name(), omega);
     std::cout << std::flush;
   }
 

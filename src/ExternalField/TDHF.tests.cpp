@@ -1,4 +1,5 @@
 #include "TDHF.hpp"
+#include "DiagramRPA.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -335,6 +336,124 @@ TEST_CASE("External Field: TDHF (RPA) for hyperfine",
       std::cout << "\nTable I from PhysRevA.100.042506, for " << atom[i] << "-"
                 << A[i] << "\n";
       test_RPA2(wf, hfs, 0.0, test_data[i], 5.0e-4, 5.0e-3);
+    }
+  }
+}
+
+//==============================================================================
+//! Unit tests External Field (RPA equations using TDHF method)
+TEST_CASE("External Field: TDHF (RPA) vs Diagram",
+          "[ExternalField][TDHF][DiagramRPA][RPA][NEW][integration][memory]") {
+  {
+    IO::ChronoTimer t{"TDHF"};
+    std::cout << "-------------------------------------\n";
+    std::cout << "External Field: TDHF vs Diagram for RPA. Test of TDHF\n";
+
+    bool print = false;
+
+    // Atoms to calculate
+    // const auto atom =
+    // std::vector<std::string>{"Rb", "Sr", "Cs", "Ba", "Fr", "Ra"};
+    // const auto core = std::vector<std::string>{"[Kr]", "[Kr]", "[Xe]",
+    //                                            "[Xe]", "[Rn]", "[Rn]"};
+    const auto atom = std::vector<std::string>{"Rb", "Cs", "Ba", "Fr"};
+    const auto core = std::vector<std::string>{"[Kr]", "[Xe]", "[Xe]", "[Rn]"};
+
+    const auto valence =
+        std::vector<std::string>{"5sp4d", "6sp5d", "6sp5d", "7sp6d"};
+
+    // Operators to calculate
+    const auto operators =
+        std::vector<std::string>{"E1", "E2", "M1", "hfs", "hfs"};
+    const auto diagonal = std::vector<bool>{false, false, false, true, true};
+    const auto target = std::vector<double>{1e-5, 1e-6, 1e-5, 1e-3, 1e-2};
+
+    const auto options = std::vector<std::string>{
+        "", "", "", "nuc_mag = Ball; mu=1.0; I=1.0; print=false;",
+        "k=2; nuc_mag = Ball; Q=1.0; print=false;"};
+
+    for (std::size_t i = 0; i < atom.size(); ++i) {
+      if (atom[i] != "Fr")
+        continue;
+
+      // Create wavefunction object, solve HF for core+valence
+      Wavefunction wf({8000, 1.0e-7, 150.0, 20.0, "loglinear", -1.0},
+                      {atom[i], -1});
+      std::cout << "\n-------------------------------------\n";
+      std::cout << wf.atom() << "\n";
+
+      wf.solve_core("HartreeFock", 0.0, core[i], 1.0e-13, print);
+      wf.solve_valence(valence[i], print);
+      wf.formBasis(
+          SplineBasis::Parameters{"40spdfg", 45, 9, 1.0e-4, 0.0, 45.0, false},
+          print);
+
+      for (std::size_t j = 0; j < operators.size(); ++j) {
+        if (operators[j] != "hfs")
+          continue;
+
+        auto h = DiracOperator::generate(
+            operators[j], IO::InputBlock{operators[j], options[j]}, wf);
+
+        std::cout << "\nReduced matrix elements - " << wf.identity() << " - "
+                  << h->name() << ":\n\n";
+
+        auto tdhf = ExternalField::TDHF(h.get(), wf.vHF());
+        auto rpad =
+            ExternalField::DiagramRPA(h.get(), wf.basis(), wf.vHF(), "");
+
+        tdhf.solve_core(0.0, 1, print);
+        rpad.solve_core(0.0, 1, print);
+
+        // store first iteration:
+        const auto tdhf_1 = tdhf;
+        const auto rpad_1 = rpad;
+
+        tdhf.solve_core(0.0);
+        rpad.solve_core(0.0);
+
+        CHECK(tdhf.last_eps() < 1.0e-7);
+        CHECK(rpad.last_eps() < 1.0e-10);
+
+        double worst{0.0};
+        fmt::print("\nv   w    TDHF(1)      RPAD(1)     eps     TDHF        "
+                   " RPAD        eps\n");
+        for (const auto &v : wf.valence()) {
+          for (const auto &w : wf.valence()) {
+            if (v > w || h->isZero(v, w))
+              continue;
+            if (diagonal[j] != (v == w))
+              continue;
+
+            auto me = h->reducedME(v, w);
+            auto dv_tdhf_1 = me + tdhf_1.dV(v, w);
+            auto dv_tdhf = me + tdhf.dV(v, w);
+
+            auto dv_rpad_1 = me + rpad_1.dV(v, w);
+            auto dv_rpad = me + rpad.dV(v, w);
+
+            const auto rel_1 = 2.0 * std::abs((dv_tdhf_1 - dv_rpad_1) /
+                                              (dv_tdhf_1 + dv_rpad_1));
+            const auto rel = 2.0 * std::abs((dv_tdhf - dv_rpad) / //
+                                            (dv_tdhf + dv_rpad));
+
+            const auto del_1 = std::abs(dv_tdhf_1 - dv_rpad_1);
+            const auto del = std::abs(dv_tdhf - dv_rpad);
+
+            const auto eps_1 = std::min(rel_1, del_1);
+            const auto eps = std::min(rel, del);
+
+            worst = std::max(worst, eps);
+
+            fmt::print("{:3s} {:3s} {:12.5e} {:12.5e} {:.0e}  {:12.5e} "
+                       "{:12.5e} {:.0e}\n",
+                       v.shortSymbol(), w.shortSymbol(), dv_tdhf_1, dv_rpad_1,
+                       eps_1, dv_tdhf, dv_rpad, eps);
+          }
+        }
+        fmt::print("{:.2e}\n", worst);
+        CHECK(worst < target[j]);
+      }
     }
   }
 }
