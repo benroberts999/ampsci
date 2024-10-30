@@ -52,7 +52,7 @@ Parameters::Parameters(std::string istates, std::size_t in, std::size_t ik,
 //==============================================================================
 std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const Wavefunction &wf,
-                                    const bool correlationsQ)
+                                    const bool correlationsQ, bool print)
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
   const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl, positronQ,
@@ -62,13 +62,15 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
   const auto nklst = AtomData::listOfStates_singlen(states_str);
 
-  std::cout << "\nConstructing B-spline basis with N=" << n_spl
-            << ", k=" << k_spl << ". Storing: " << states_str << "\n";
-  std::cout << "Using "
-            << (basis_type == SplineType::Derevianko ?
-                    "Derevianko (Duel Kinetic Balance)" :
-                    "Johnson")
-            << " type splines.\n";
+  if (print) {
+    std::cout << "\nConstructing B-spline basis with N=" << n_spl
+              << ", k=" << k_spl << ". Storing: " << states_str << "\n";
+    std::cout << "Using "
+              << (basis_type == SplineType::Derevianko ?
+                      "Derevianko (Duel Kinetic Balance)" :
+                      "Johnson")
+              << " type splines.\n";
+  }
 
   for (const auto &nk : nklst) {
 
@@ -97,7 +99,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
     expand_basis_orbitals(&basis, &basis_positron, spl_basis, kappa, max_n,
                           e_values, e_vectors, wf);
-    if (!basis.empty() && kappa < 0) {
+    if (!basis.empty() && kappa < 0 && print) {
       printf("Spline cavity l=%i %1s: (%7.1e,%5.1f)aB.\n", l,
              AtomData::l_symbol(l).c_str(), r0_eff, rmax_spl);
       // printf("Spline cavity l=%i %1s: (%7.1e,%5.1f)aB.\n", l,

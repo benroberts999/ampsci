@@ -90,7 +90,8 @@ explicitely, unless you are trying to do something different to usual.
 */
 std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const Wavefunction &wf,
-                                    const bool correlationsQ = false);
+                                    const bool correlationsQ = false,
+                                    bool print = true);
 
 double check(const std::vector<DiracSpinor> &basis,
              const std::vector<DiracSpinor> &orbs, bool print_warning = true);

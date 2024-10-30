@@ -37,11 +37,23 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   using namespace qip::overloads;
   assert(dF.kappa() == hFa.kappa());
 
-  const auto eta_damp = 0.45;
-  const int max_its = (eps_target < 1.0e-8) ? 128 : 64;
+  const auto eta_damp = 0.65;
+  const int max_its = (eps_target < 1.0e-8) ? 256 : 64;
+
+  // if (std::abs(dF * dF) == 0.0) {
+  //   dF = solveMixedState_basis(Fa, hFa, omega, core, 100.0);
+  //   dF.orthog(Fa);
+  // }
+  // auto v0 = vl;
+  // for (std::size_t i = 0; i < Fa.grid().size(); ++i) {
+  //   auto &vi = v0[i];
+  //   if (vi > -1.0 / Fa.grid().r(i))
+  //     vi = -1.0 / Fa.grid().r(i);
+  // }
 
   if (std::abs(dF * dF) == 0.0) {
     // If dF is not yet a solution, solve from scratch:
+    // const auto vx0 = 0.5 * HF::vex_approx(Fa, core);
     DiracODE::solve_inhomog(dF, Fa.en() + omega, vl, H_mag, alpha, -1.0 * hFa);
     dF.orthog(Fa);
   }
@@ -63,6 +75,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
       rhs -= (*Sigma)(dF);
 
     DiracODE::solve_inhomog(dF, Fa.en() + omega, v, H_mag, alpha, rhs);
+    dF.orthog(Fa);
 
     // damp the solution
     if (its != 0)
@@ -110,13 +123,17 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
 //==============================================================================
 DiracSpinor solveMixedState_basis(const DiracSpinor &Fa, const DiracSpinor &hFa,
                                   double omega,
-                                  const std::vector<DiracSpinor> &basis) {
+                                  const std::vector<DiracSpinor> &basis,
+                                  double de_max) {
   DiracSpinor dFa = 0.0 * hFa;
 
   for (const auto &n : basis) {
     if (n == Fa || n.kappa() != hFa.kappa())
       continue;
-    dFa += ((n * hFa) / (Fa.en() - n.en() + omega)) * n;
+    const auto de = Fa.en() - n.en();
+    if (de_max != 0.0 && std::abs(de) > de_max)
+      continue;
+    dFa += ((n * hFa) / (de + omega)) * n;
   }
   return dFa;
 }

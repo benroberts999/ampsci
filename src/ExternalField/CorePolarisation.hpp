@@ -47,7 +47,7 @@ protected:
   int m_pi;
   bool m_imag;
 
-  double m_eta{0.4};
+  double m_eta{0.5};
   double m_eps{1.0e-10};
 
 public:

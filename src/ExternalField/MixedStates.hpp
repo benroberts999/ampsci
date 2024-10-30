@@ -73,6 +73,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
 //! Directly findes dF = \sum_n |n><n|hFa> / (ea - en + omega) - mainly for tests
 DiracSpinor solveMixedState_basis(const DiracSpinor &Fa, const DiracSpinor &hFa,
                                   double omega,
-                                  const std::vector<DiracSpinor> &basis);
+                                  const std::vector<DiracSpinor> &basis,
+                                  double de_max = 0.0);
 
 } // namespace ExternalField

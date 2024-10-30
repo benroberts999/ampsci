@@ -465,22 +465,25 @@ std::vector<double> Wavefunction::coreDensity() const {
 }
 
 //==============================================================================
-void Wavefunction::formBasis(const SplineBasis::Parameters &params) {
+void Wavefunction::formBasis(const SplineBasis::Parameters &params,
+                             bool print) {
   if (params.n > 0) {
-    IO::ChronoTimer t("Basis");
-    m_basis = SplineBasis::form_basis(params, *this, false);
+    m_basis = SplineBasis::form_basis(params, *this, false, print);
 
     if (params.orthogonalise) {
-      std::cout << "Forcing spectrum to be orthog to core:\n";
+      if (print)
+        std::cout << "Forcing spectrum to be orthog to core:\n";
       for (auto &Fb : m_basis) {
         Fb = DiracSpinor::orthonormaliseWrt(Fb, core());
       }
     }
 
-    std::cout << "Basis/core:\n";
-    SplineBasis::check(m_basis, core(), true);
-    std::cout << "Basis/valence:\n";
-    SplineBasis::check(m_basis, valence(), true);
+    if (print) {
+      std::cout << "Basis/core:\n";
+      SplineBasis::check(m_basis, core(), true);
+      std::cout << "Basis/valence:\n";
+      SplineBasis::check(m_basis, valence(), true);
+    }
   }
 }
 //------------------------------------------------------------------------------
