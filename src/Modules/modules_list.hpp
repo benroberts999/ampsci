@@ -7,7 +7,6 @@
 #include "Modules/VQE.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
-#include "Modules/isotopeShift.hpp"
 #include "Modules/ladder.hpp"
 #include "Modules/lifetimes.hpp"
 #include "Modules/matrixElements.hpp"
@@ -18,6 +17,7 @@
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
 #include "Modules/thirdOrder.hpp"
+#include "Modules/isotopeShift.hpp"
 
 #include <iostream>
 #include <string>
@@ -64,6 +64,10 @@ static const std::vector<ModuleInfo> module_list{
      "Calculates dynamic polarisabilities"},
     {"transitionPolarisability", &transitionPolarisability,
      "Calculates transition polarisabilities"},
+    {"structureRad", &structureRad,
+     "Calculates Struct. Rad + Normalisation corrections to MEs"},
+    {"isotopeShift", &isotopeShift,
+     "Calculates (field) isotope shift constants"},
     {"fieldShift", &fieldShift,
      "Calculates field-shift constants (isotope shift)"},
     {"fieldShift2", &fieldShift2,
