@@ -478,6 +478,44 @@ std::vector<T> operator/(std::vector<T> v, U x) {
   return v /= x;
 }
 
+// Provide scalar addition
+template <typename T, typename U>
+std::vector<T> &operator+=(std::vector<T> &v, U x) {
+  if (x != U{0}) {
+    for (auto &v_i : v) {
+      v_i += x;
+    }
+  }
+  return v;
+}
+template <typename T, typename U>
+std::vector<T> operator+(std::vector<T> v, U x) {
+  return v += x;
+}
+template <typename T, typename U>
+std::vector<T> operator+(U x, std::vector<T> v) {
+  return v += x;
+}
+// Provide scalar subtraction
+template <typename T, typename U>
+std::vector<T> &operator-=(std::vector<T> &v, U x) {
+  if (x != U{0}) {
+    for (auto &v_i : v) {
+      v_i -= x;
+    }
+  }
+  return v;
+}
+template <typename T, typename U>
+std::vector<T> operator-(std::vector<T> v, U x) {
+  return v -= x;
+}
+template <typename T, typename U>
+std::vector<T> operator-(U x, std::vector<T> v) {
+  v *= U{-1};
+  return v += x;
+}
+
 // Provide scalar devision, vector in denominator
 template <typename T, typename U>
 std::vector<T> operator/(U x, std::vector<T> v) {

@@ -109,6 +109,11 @@ TEST_CASE("qip::Vector", "[qip][Vector][unit]") {
     auto wz = w;
     wz += z;
     REQUIRE(wz == std::vector{2, 4, 3, 4, 5, 6});
+
+    REQUIRE(2 + z == std::vector{3, 4, 5, 6, 7, 8});
+    REQUIRE(z + 2 == std::vector{3, 4, 5, 6, 7, 8});
+    REQUIRE(z - 2 == std::vector{-1, 0, 1, 2, 3, 4});
+    REQUIRE(2 - z == -1 * z + 2);
   }
 
   //============================================================================

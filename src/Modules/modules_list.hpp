@@ -7,6 +7,7 @@
 #include "Modules/VQE.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
+#include "Modules/isotopeShift.hpp"
 #include "Modules/ladder.hpp"
 #include "Modules/lifetimes.hpp"
 #include "Modules/matrixElements.hpp"
@@ -17,12 +18,11 @@
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
 #include "Modules/thirdOrder.hpp"
-#include "Modules/isotopeShift.hpp"
-
 #include <iostream>
 #include <string>
 #include <tuple>
 #include <vector>
+
 class Wavefunction;
 namespace IO {
 class InputBlock;
@@ -86,7 +86,6 @@ static const std::vector<ModuleInfo> module_list{
     {"muon", &muon,
      "Calculating muonic wavefunctions, energies, matrix elements"},
     {"VQE", &VQE, "For testing/playing with VQE method"},
-
     {"exampleModule", &exampleModule, "A short description of the module"}};
 
 } // namespace Module
