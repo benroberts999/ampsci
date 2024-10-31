@@ -214,7 +214,7 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
   auto Ys = m_Y;
   std::vector<std::pair<double, std::string>> epss(m_core.size());
 
-  const auto eps_ms = std::abs(eta_damp) < 1.0e-6 ? 1.0e-9 : 1.0e-6;
+  const auto eps_ms = 1.0e-10;
 
   double DdF2 = 0.0;
   double dF2 = 0.0;
@@ -301,14 +301,19 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
 
     if ((it > 1 && eps.first < converge_targ) || count_worse > 5)
       break;
+    if (std::isnan(eps.first)) {
+      break;
+    }
   }
 
   if (print) {
     printf("%2i %.1e [%s]", it, eps.first, eps.second.c_str());
-    if (eps.first > 1.0e-6 && max_its > 1)
+    if (eps.first > 1.0e-8 && max_its > 1)
       std::cout << "  *";
+    if (eps.first > 1.0e-6 && max_its > 1)
+      std::cout << "*";
     if (eps.first > 1.0e-4 && max_its > 1)
-      std::cout << "**";
+      std::cout << "*";
     std::cout << "\n" << std::flush;
   }
 

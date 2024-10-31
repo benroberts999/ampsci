@@ -28,4 +28,6 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf);
 //! Calculates matrix elements for CI wavefunctions
 void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf);
 
+void normalisation(const IO::InputBlock &input, const Wavefunction &wf);
+
 } // namespace Module

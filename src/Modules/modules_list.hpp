@@ -10,7 +10,7 @@
 #include "Modules/ladder.hpp"
 #include "Modules/lifetimes.hpp"
 #include "Modules/matrixElements.hpp"
-#include "Modules/muonPV.hpp"
+#include "Modules/muonic.hpp"
 #include "Modules/pnc.hpp"
 #include "Modules/polarisability.hpp"
 #include "Modules/qed.hpp"
@@ -51,7 +51,13 @@ static const std::vector<ModuleInfo> module_list{
      "Calculates matrix elements of any operator"},
     {"CI_matrixElements", &CI_matrixElements,
      "Calculates matrix elements of any operator for CI wavefunctions"},
-    {"thirdOrderME", &thirdOrderME, "Calculates Third-order matrix elements"},
+    {"structureRad", &structureRad,
+     "Calculates structure radiation + normalisation corrections using "
+     "perturbation theory"},
+    {"normalisation", &normalisation,
+     "Calculates normalisation correction via derivative of Sigma"},
+    {"thirdOrderME", &thirdOrderME,
+     "Calculates Third-order matrix elements. Obsolete?"},
     {"lifetimes", &lifetimes, "Calculate radiative lifetimes (E1, E2, M1)"},
     {"polarisability", &polarisability, "Calculates static polarisabilities"},
     {"dynamicPolarisability", &dynamicPolarisability,
@@ -62,6 +68,10 @@ static const std::vector<ModuleInfo> module_list{
      "Calculates Struct. Rad + Normalisation corrections to MEs"},
     {"isotopeShift", &isotopeShift,
      "Calculates (field) isotope shift constants"},
+    {"fieldShift", &fieldShift,
+     "Calculates field-shift constants (isotope shift)"},
+    {"fieldShift2", &fieldShift2,
+     "Calculates field-shift constants (isotope shift)"},
     {"QED", &QED, "QED corrections to energies/matrix elements"},
     {"Breit", &Breit, "Breit corrections to energies"},
     {"ladder", &ladder, "Calculates ladder diagrams and energy corrections"},
@@ -73,6 +83,8 @@ static const std::vector<ModuleInfo> module_list{
      "Calculates Feynman electron screening factors"},
     {"pnc", &calculatePNC, "Calculates APV amplitudes"},
     {"muonPV", &muonPV, "For testing/playing with muonic PV"},
+    {"muon", &muon,
+     "Calculating muonic wavefunctions, energies, matrix elements"},
     {"VQE", &VQE, "For testing/playing with VQE method"},
 
     {"exampleModule", &exampleModule, "A short description of the module"}};

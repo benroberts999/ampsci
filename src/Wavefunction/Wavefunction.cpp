@@ -213,6 +213,7 @@ void Wavefunction::solve_valence(const std::string &in_valence_str,
       DiracODE::boundState(Fv, e0, vlocal(), {}, m_alpha, 1.0e-14);
     }
   }
+  m_hf_valence = m_valence;
 }
 
 //==============================================================================

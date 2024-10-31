@@ -8,6 +8,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/InputBlock.hpp"
+#include "MBPT/Sigma2.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Physics/NuclearPotentials.hpp"
@@ -305,7 +306,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           h->updateFrequency(ww);
         }
         if (eachFreqQ && rpa) {
-          if (rpa->last_eps() > 1.0e-5 || rpa_its == 1)
+          if (rpa->last_eps() > 1.0e-5 || rpa_its == 1 ||
+              std::isnan(rpa->last_eps()))
             rpa->clear();
           std::cout << " RPA(w) : ";
           rpa->solve_core(ww, rpa_its);
@@ -354,6 +356,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
+  std::cout << "\n" << h->name() << "\n";
   std::cout << "\n   a    b    w_ab        t0_ab";
   if (rpaQ)
     std::cout << "          +RPA ";
@@ -369,24 +372,35 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"operator", "e.g., E1, hfs"},
+      {{"", "Calculates structure radiation, normalisation of states, and "
+            "Brueckner orbital corrections to matrix elements using "
+            "perturbation theory"},
+       {"operator", "e.g., E1, hfs"},
        {"options{}", "options specific to operator; blank by dflt"},
-       {"rpa", "true(=TDHF), false, TDHF, basis, diagram [false]"},
+       {"rpa", "true(=TDHF), false, TDHF, basis, diagram [true]"},
        {"omega", "freq. for RPA"},
        {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
-       {"onlyDiagonal", "only <a|h|a> (dflt false)"},
+       {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
+       {"off-diagonal",
+        "Calculate off-diagonal matrix elements (if non-zero) [true]"},
        {"Qk_file",
         "true/false/filename - SR: filename for QkTable file. If blank will "
         "not use QkTable; if exists, will read it in; if doesn't exist, will "
         "create it and write to disk. If 'true' will use default filename. "
         "Save time (10x) at cost of memory. Note: Using QkTable implies "
-        "splineLegs=true"},
+        "legs=basis"},
        {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
-       {"splineLegs", "Use splines for diagram legs (false dflt)"}});
+       {"legs",
+        "Which states to use for diagram legs? hf/basis/spectrum/brueckner "
+        "[hf]"},
+       {"fk", "list: Coulomb screening factors for each k"},
+       {"etak", "list: Hole-particle factors for each k"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
   }
+
+  IO::ChronoTimer timerSR("structureRad");
 
   // Get input options:
   const auto oper = input.get<std::string>("operator", "E1");
@@ -396,6 +410,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   if (tmp_opt) {
     h_options = *tmp_opt;
   }
+
+  // treat hyperfine operator differently: A constants instead of RME
+  const bool hf_AB =
+      qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
 
   // const auto h = generateOperator(oper, h_options, wf, true);
   const auto h = DiracOperator::generate(oper, h_options, wf);
@@ -408,14 +426,28 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // note: Using QkFile is ~10x faster (not including time to construct QkTable)
   // - but requires large amount of memory. Trade-off
 
-  // Use spline states as diagram legs?
-  // nb: Using QkTable imples using splines for legs
-  const auto spline_legs =
-      Qk_file.empty() ? input.get("splineLegs", false) : true;
+  const auto legs_str =
+      Qk_file == "" ? input.get("legs", std::string{"hf"}) : "basis";
+
+  const auto &valence = qip::ci_wc_compare(legs_str, "basis") ? wf.basis() :
+                        qip::ci_wc_compare(legs_str, "spectrum") ?
+                                                                wf.spectrum() :
+                        qip::ci_wc_compare(legs_str, "bru*") ? wf.valence() :
+                                                               wf.hf_valence();
+
+  const auto have_brueckner =
+      wf.Sigma() && (qip::ci_wc_compare(legs_str, "spectrum") ||
+                     qip::ci_wc_compare(legs_str, "bru*"));
+
+  // effective screening factors (Coulomb)
+  const auto fk = input.get("fk", std::vector<double>{});
+  const auto etak = input.get("etak", std::vector<double>{});
 
   const auto print_both = input.get("printBoth", false);
-  const auto only_diagonal = input.get("onlyDiagonal", false);
-  // const auto rpaQ = input.get("rpa", true);
+
+  const auto diagonal = input.get("diagonal", true);
+  const auto off_diagonal = input.get("off-diagonal", true);
+
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto const_omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
@@ -430,7 +462,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     h->updateFrequency(const_omega);
 
   // RPA:
-  const auto rpa_method_str = input.get("rpa", std::string("false"));
+  const auto rpa_method_str = input.get("rpa", std::string("true"));
   auto dV = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
                                     wf.basis(), wf.identity());
 
@@ -441,32 +473,80 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   std::cout << "\nStructure radiation and normalisation of states:\n";
+  std::cout << "h=" << h->name() << "\n";
   if (n_min > 1)
     std::cout << "Including from n = " << n_min << "\n";
   if (n_max < 999)
     std::cout << "Including to n = " << n_max << "\n";
-  std::cout << "h=" << h->name() << " (reduced ME)\n";
+
+  if (!fk.empty()) {
+    std::cout << "Including effective Coulomb screening, with: fk = ";
+    for (auto &f : fk) {
+      std::cout << f << ", ";
+    }
+    std::cout << "\n";
+  }
+  if (!etak.empty()) {
+    std::cout << "Including effective hole-particle interation, with: etak = ";
+    for (auto &f : etak) {
+      std::cout << f << ", ";
+    }
+    std::cout << "\n";
+  }
+
   std::cout << "Evaluated at ";
   if (eachFreqQ)
     std::cout << "each transition frequency\n";
   else
     std::cout << "constant frequency: w = " << const_omega << "\n";
-  if (spline_legs)
-    std::cout << "Using splines for diagram legs (external states)\n";
+
+  if (qip::ci_wc_compare(legs_str, "basis"))
+    std::cout << "Using basis (splines) for diagram legs (external states)\n";
+  else if (qip::ci_wc_compare(legs_str, "spectrum"))
+    std::cout << "Using spectrum for diagram legs (external states)\n";
+  else if (qip::ci_wc_compare(legs_str, "bru*"))
+    std::cout
+        << "Using HF/Brueckner states for diagram legs (external states)\n";
   else
-    std::cout << "Using valence states for diagram legs (external states)\n";
+    std::cout << "Using HF valence states for diagram legs (external states)\n";
+
   if (!Qk_file.empty()) {
     std::cout << "Will read/write Qk integrals to file: " << Qk_file << "\n";
   } else {
     std::cout << "Will calculate Qk integrals on-the-fly\n";
   }
 
+  // Check orthogonality of splines to valence
+  std::vector<std::string> v_warnings;
+  if (qip::ci_wc_compare(legs_str, "basis") ||
+      qip::ci_wc_compare(legs_str, "spectrum")) {
+    std::cout << "\nUsing basis/spectrum for diagram legs: Check "
+                 "orthonormality:\n";
+
+    const auto &tmp_val =
+        qip::ci_wc_compare(legs_str, "basis") ? wf.hf_valence() : wf.valence();
+    for (const auto &v : tmp_val) {
+      const auto bp = std::find(cbegin(valence), cend(valence), v);
+      if (bp == cend(valence))
+        continue;
+      const auto &b = *bp;
+      const auto eps1 = std::abs(v * b - 1.0);
+      const auto eps2 = std::abs(v.en() - b.en()) / std::abs(v.en());
+      const auto eps = std::max(eps1, eps2);
+
+      std::string warn = eps > 1.0e-2 ? "***" :
+                         eps > 1.0e-3 ? "**" :
+                         eps > 1.0e-4 ? "*" :
+                                        "";
+      fmt::print("{:4s} : |<v|v'>-1| = {:.1e},  dE = {:.1e}  {}\n",
+                 v.shortSymbol(), eps1, eps2, warn);
+      v_warnings.push_back(warn);
+    }
+  }
+
   // Lambda to format the output
   const auto printer = [rpaQ](auto str, auto t, auto dv) {
-    if (rpaQ)
-      printf(" %6s: %12.5e  %12.5e\n", str, t, dv);
-    else
-      printf(" %6s: %12.5e\n", str, t);
+    fmt::print("{:6s}  {:12.5e} + {:12.5e} = {:12.5e}\n", str, t, dv - t, dv);
     std::cout << std::flush;
     // nb: the 'flush' is to force a cout flush; particularly when piping
     // output to a file, this wasn't happening soon enough
@@ -481,121 +561,386 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // ----------- ** Actual Calculations ** -----------
 
   // Construct SR object:
-  MBPT::StructureRad sr(wf.basis(), en_core, {n_min, n_max}, Qk_file);
+  MBPT::StructureRad sr(wf.basis(), en_core, {n_min, n_max}, Qk_file, fk, etak);
   std::cout << std::flush;
 
-  struct Output {
-    std::string ab{};
-    double t0{0.0};
-    double t0dv{0.0};
-    double sr{0.0};
-    double n{0.0};
-    double srdv{0.0};
-    double ndv{0.0};
-  };
-  std::vector<Output> out;
-
   const auto pi = h->parity();
+  std::stringstream os;
 
-  for (std::size_t ib = 0; ib < wf.valence().size(); ib++) {
-    const auto &v = wf.valence().at(ib);
-    for (std::size_t ia = 0; ia < wf.valence().size(); ia++) {
-      const auto &w = wf.valence().at(ia);
-      if (h->isZero(w.kappa(), v.kappa()))
-        continue;
-      if (only_diagonal && v != w)
-        continue;
-      if (pi == -1) {
-        if (!print_both && v.parity() == -1)
+  for (const auto diag : {true, false}) {
+
+    if (!diagonal && diag)
+      continue;
+    if (!off_diagonal && !diag)
+      continue;
+
+    for (std::size_t ib = 0; ib < wf.valence().size(); ib++) {
+      const auto &v = wf.valence().at(ib);
+      for (std::size_t ia = 0; ia < wf.valence().size(); ia++) {
+        const auto &w = wf.valence().at(ia);
+        if (h->isZero(w.kappa(), v.kappa()))
           continue;
-      } else {
-        if (!print_both && ib > ia)
+        if (pi == -1) {
+          if (!print_both && v.parity() == -1)
+            continue;
+        } else {
+          if (!print_both && ib > ia)
+            continue;
+        }
+        if (diag && v != w)
           continue;
+        if (!diag && v == w)
+          continue;
+
+        const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                        h->rank(), v.kappa(), w.kappa()) :
+                                    1.0;
+
+        // Option to use splines (or valence states) to compute Struc Rad (use
+        // splines for legs)
+        const auto ws = std::find(cbegin(valence), cend(valence), w);
+        const auto vs = std::find(cbegin(valence), cend(valence), v);
+
+        if ((ws == cend(valence) || vs == cend(valence))) {
+          std::cout << "Don't have requested spline for: " << w.symbol()
+                    << " or " << v.symbol() << "\n";
+          continue;
+        }
+
+        IO::ChronoTimer timer("time");
+
+        std::cout << "\n" << w << " - " << v << ":\n";
+
+        const auto ww = eachFreqQ ? std::abs(ws->en() - vs->en()) : const_omega;
+        if (eachFreqQ && h->freqDependantQ()) {
+          h->updateFrequency(ww);
+        }
+        if (eachFreqQ && rpaQ) {
+          if (dV->last_eps() > 1.0e-3 || std::isnan(dV->last_eps()))
+            dV->clear();
+          dV->solve_core(ww);
+        }
+
+        // Zeroth-order MEs:
+        const auto twvs = factor * h->reducedME(*ws, *vs); // splines here
+        const auto dvs = twvs + (dV ? factor * dV->dV(*ws, *vs) : 0.0);
+        printer("t0", twvs, dvs);
+
+        // "Top" + "Bottom" SR terms:
+        const auto [tb, tb_dv] = sr.srTB(h.get(), *ws, *vs, ww, dV.get());
+        printer("SR(TB)", factor * tb, factor * tb_dv);
+        // "Centre" SR term:
+        const auto [c, c_dv] = sr.srC(h.get(), *ws, *vs, dV.get());
+        printer("SR(C)", factor * c, factor * c_dv);
+
+        // "Normalisation"
+        const auto [n, n_dv] = sr.norm(h.get(), *ws, *vs, dV.get());
+        printer("Norm", factor * n, factor * n_dv);
+
+        double T_bo = 0.0, T_bo_dv = 0.0;
+        if (!have_brueckner) {
+          if (eachFreqQ && h->freqDependantQ()) {
+            const auto de2_a =
+                MBPT::Sigma_vw(*ws, *vs, sr.Yk(), sr.core(), sr.excited());
+            const auto de2_b =
+                MBPT::Sigma_vw(*ws, *vs, sr.Yk(), sr.core(), sr.excited());
+            const auto dw = de2_a - de2_b;
+
+            h->updateFrequency(ww + 0.005);
+            const auto h_plus = h->reducedME(*ws, *vs);
+            h->updateFrequency(ww - 0.005);
+            const auto h_minus = h->reducedME(*ws, *vs);
+            const auto d_h = (h_plus - h_minus) / 0.01;
+            const auto T_deriv = d_h * dw;
+            fmt::print("{:6s}  {:12.5e}\n", "Tderiv", factor * T_deriv);
+            h->updateFrequency(ww);
+            T_bo_dv += T_deriv;
+            T_bo += T_deriv;
+          }
+
+          auto [bo, dvbo] = sr.BO(h.get(), *ws, *vs, dV.get());
+          printer("BO", factor * (bo), factor * (dvbo));
+          T_bo_dv += dvbo;
+          T_bo += bo;
+        }
+
+        const auto total = dvs + factor * (tb_dv + c_dv + n_dv + T_bo_dv);
+
+        printer("Total", twvs + factor * (tb + c + n + T_bo), total);
+
+        fmt::print(os,
+                   "{:4s} {:4s} {:+.3e} {:+.3e} {:+.3e} {:+.3e} "
+                   "{:+.3e}",
+                   w.shortSymbol(), v.shortSymbol(), dvs, factor * (tb + c),
+                   factor * (tb_dv + c_dv), factor * (n), factor * n_dv);
+        if (!have_brueckner)
+          fmt::print(os, " {:+.3e} {:+.3e}", factor * T_bo_dv, total);
+        fmt::print(os, "\n");
       }
-
-      Output t_out;
-
-      // Option to use splines (or valence states) to compute Struc Rad (use
-      // splines for legs)
-      const auto ws = std::find(cbegin(wf.basis()), cend(wf.basis()), w);
-      const auto vs = std::find(cbegin(wf.basis()), cend(wf.basis()), v);
-      if (spline_legs && (ws == cend(wf.basis()) || vs == cend(wf.basis()))) {
-        std::cout << "Don't have requested spline for: " << w.symbol() << "-"
-                  << v.symbol() << "\n";
-        continue;
-      }
-      const auto *vp = spline_legs ? &*vs : &v;
-      const auto *wp = spline_legs ? &*ws : &w;
-
-      IO::ChronoTimer timer("time");
-
-      std::cout << "\n" << w << " - " << v << ":\n";
-      t_out.ab = w.shortSymbol() + " " + v.shortSymbol();
-
-      // const auto ww = eachFreqQ ? std::abs(wp->en() - vp->en()) : const_omega;
-      const auto ww = eachFreqQ ? wp->en() - vp->en() : const_omega;
-      if (eachFreqQ && h->freqDependantQ()) {
-        h->updateFrequency(ww);
-      }
-      if (eachFreqQ && rpaQ) {
-        if (dV->last_eps() > 1.0e-3)
-          dV->clear();
-        dV->solve_core(std::abs(ww));
-      }
-
-      // Zeroth-order MEs:
-      const auto twvs = h->reducedME(*ws, *vs); // splines here
-      const auto twv = h->reducedME(w, v);
-      const auto dvs = dV ? twvs + dV->dV(*wp, *vp) : 0.0;
-      const auto dv = dV ? twv + dV->dV(w, v) : 0.0;
-      printer("t(spl)", twvs, dvs);
-      printer("t(val)", twv, dv);
-
-      t_out.t0 = spline_legs ? twvs : twv;
-      t_out.t0dv = spline_legs ? dvs : dv;
-
-      // "Top" + "Bottom" SR terms:
-      const auto [tb, tb_dv] = sr.srTB(h.get(), *wp, *vp, ww, dV.get());
-      printer("SR(TB)", tb, tb_dv);
-      // "Centre" SR term:
-      const auto [c, c_dv] = sr.srC(h.get(), *wp, *vp, dV.get());
-      printer("SR(C)", c, c_dv);
-
-      std::cout << "========\n";
-      printer("SR", tb + c, tb_dv + c_dv);
-
-      t_out.sr = tb + c;
-      t_out.srdv = tb_dv + c_dv;
-
-      // "Normalisation"
-      const auto [n, n_dv] = sr.norm(h.get(), *wp, *vp, dV.get());
-      printer("Norm", n, n_dv);
-
-      t_out.n = n;
-      t_out.ndv = n_dv;
-
-      printer("Total", tb + c + n, tb_dv + c_dv + n_dv);
-      printer("as %", 100.0 * (tb + c + n) / twvs,
-              100.0 * (tb_dv + c_dv + n_dv) / dvs);
-      out.push_back(t_out);
     }
   }
+
   std::cout << "\n";
-  std::cout << "Structure Radiation + Normalisation of states.\n"
-               "Reduced matrix elements (au)\n"
-            << "            t0         SR         Norm       SR+N     ";
-  if (rpaQ)
-    std::cout << " |  t0+dV      SR+dV      Norm+dV";
-  std::cout << "\n";
-  for (auto &[ab, t0, t0dv, sr0, n, srdv, ndv] : out) {
-    printf(" %9s %10.3e %10.3e %10.3e %10.3e", ab.c_str(), t0, sr0, n, sr0 + n);
-    if (rpaQ) {
-      printf(" | %10.3e %10.3e %10.3e", t0dv, srdv, ndv);
-    }
-    std::cout << "\n";
+
+  std::cout << "\n"
+            << "Structure Radiation + Normalisation of states: " << h->name()
+            << "\n";
+  if (hf_AB && h->rank() % 2 != 0) {
+    std::cout << "Hyperfine A constants (magnetic type), K=" << h->rank()
+              << "\n";
+  } else if (hf_AB && h->rank() % 2 == 0) {
+    std::cout << "Hyperfine B constants (electric type), K=" << h->rank()
+              << "\n";
+  } else {
+    std::cout << "Reduced matrix elements\n";
   }
+  std::cout << "Units: " << h->units() << "\n\n";
+
+  std::cout << "           t0+dV      SR0        SR+dV    "
+               "  Norm0      Norm+dV    ";
+  if (!have_brueckner)
+    std::cout << "BO         Total";
+  std::cout << "\n";
+  std::cout << os.str() << std::endl;
 
   return;
+}
+
+//============================================================================
+void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
+  input.check(
+      {{"", "Calculates normalisation correction, via derivative of "
+            "Correlation potential. Uses correlation potential from main "
+            "wavefunction"},
+       {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
+       {"options{}", "options specific to operator (see ampsci -o 'operator')"},
+       {"rpa",
+        "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]"},
+       {"omega",
+        "Text or number. Freq. for RPA (and freq. dependent operators). Put "
+        "'each' to solve at correct frequency for each transition. [0.0]"},
+       {"printBoth", "print <a|h|b> and <b|h|a> [false]"},
+       {"use_basis",
+        "If true, will use basis states for valence states [false]"},
+       {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
+       {"off-diagonal",
+        "Calculate off-diagonal matrix elements (if non-zero) [true]"}});
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
+
+  IO::ChronoTimer timer("normalisation");
+
+  const auto delta = input.get("delta", 1.0e-4);
+
+  if (!wf.Sigma()) {
+    std::cout << "Correlation potential required to run this module!\n";
+    return;
+  }
+
+  std::cout << "Setup Correlation potentials to calculate derivative:\n";
+  const auto &Sigma0 = *wf.Sigma();
+  const auto &v0 = wf.hf_valence().front();
+
+  auto Sigma1 = *wf.Sigma();
+  Sigma1.clear();
+  Sigma1.formSigma(v0.kappa(), v0.en() + delta, v0.n(), &v0);
+
+  // MBPT::CorrelationPotential(
+  //       ifname, wf.vHF(), wf.basis(), 1.0e-3, 30.0, std::size_t(stride), nmin_core, method,
+  //       include_G, include_Breit, n_max_breit,
+  //       MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
+  //       fk, etak, nmin_core_F);
+
+  auto Sigma2 = Sigma1;
+  Sigma2.clear();
+
+  std::cout << "\nCalculate correlation potentials:\n";
+  for (const auto &v : wf.hf_valence()) {
+    Sigma1.formSigma(v.kappa(), v.en() + delta, v.n(), &v);
+    Sigma2.formSigma(v.kappa(), v.en() - delta, v.n(), &v);
+    const auto lambda = Sigma0.getLambda(v.kappa(), v.n());
+    std::cout << "Lambda = " << lambda << "\n\n";
+  }
+
+  //-------------------------------------------
+
+  const auto oper = input.get<std::string>("operator", "");
+  // Get optional 'options' for operator
+  auto h_options = IO::InputBlock(oper, {});
+  const auto tmp_opt = input.getBlock("options");
+  if (tmp_opt) {
+    h_options = *tmp_opt;
+  }
+
+  const auto h = DiracOperator::generate(oper, h_options, wf);
+
+  // treat hyperfine operator differently: A constants instead of RME
+  const bool hf_AB =
+      qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
+
+  const bool diagonal = input.get("diagonal", true);
+  const bool off_diagonal = input.get("off-diagonal", true);
+
+  std::cout << "\n"
+            << "Matrix Elements - Operator: " << h->name() << "\n";
+  if (hf_AB && h->rank() % 2 != 0) {
+    std::cout << "Hyperfine A constants (magnetic type), K=" << h->rank()
+              << "\n";
+  } else if (hf_AB && h->rank() % 2 == 0) {
+    std::cout << "Hyperfine B constants (electric type), K=" << h->rank()
+              << "\n";
+  } else {
+    std::cout << "Reduced matrix elements\n";
+  }
+  std::cout << "Units: " << h->units() << "\n";
+
+  const bool print_both = input.get("printBoth", false);
+  const auto use_basis =
+      wf.basis().empty() ? false : input.get("use_basis", false);
+  if (use_basis) {
+    std::cout << "Using basis (instead of valence) for matrix elements\n";
+  }
+
+  // RPA:
+  auto rpa_method_str = input.get("rpa", std::string("true"));
+  if (wf.core().empty())
+    rpa_method_str = "false";
+  auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
+                                     wf.basis(), wf.identity());
+
+  const auto rpaQ = rpa != nullptr;
+
+  const auto str_om = input.get<std::string>("omega", "_");
+  const bool eachFreqQ = qip::ci_compare(str_om, "each");
+  const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
+
+  if (h->freqDependantQ()) {
+    std::cout << "Frequency-dependent operator; at omega = ";
+    if (eachFreqQ)
+      std::cout << "each transition frequency\n";
+    else
+      std::cout << omega << "\n";
+  }
+
+  //-------------------------------------------
+
+  // ability to use spectrum instead of valence
+  std::vector<DiracSpinor> t_orbs;
+  if (use_basis) {
+    for (const auto &v : wf.hf_valence()) {
+      const auto t = std::find(wf.basis().cbegin(), wf.basis().cend(), v);
+      if (t != wf.basis().cend()) {
+        t_orbs.push_back(*t);
+      }
+    }
+  }
+  const auto &orbs = use_basis ? t_orbs : wf.hf_valence();
+
+  if (h->freqDependantQ() && !eachFreqQ) {
+    h->updateFrequency(omega);
+  }
+
+  if (rpa && !eachFreqQ) {
+    rpa->solve_core(omega);
+  }
+
+  std::stringstream os;
+
+  const auto sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel());
+
+  //----------------------------------------------------
+  // First, diagonal:
+  if (diagonal && h->parity() == 1) {
+
+    if (eachFreqQ && h->freqDependantQ()) {
+      h->updateFrequency(0.0);
+    }
+    if (eachFreqQ && rpa) {
+      rpa->solve_core(0.0);
+    }
+
+    for (const auto &v : orbs) {
+
+      if (h->isZero(v.kappa(), v.kappa()))
+        continue;
+
+      const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                      h->rank(), v.kappa(), v.kappa()) :
+                                  1.0;
+
+      const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
+
+      const auto &Sv1 = *Sigma1.getSigma(v.kappa(), v.n());
+      const auto &Sv2 = *Sigma2.getSigma(v.kappa(), v.n());
+      const auto dSv = lambda_v * v * ((Sv1 - Sv2) * v) / (2 * delta);
+
+      const auto h0 = factor * h->reducedME(v, v);
+      const auto dV = rpaQ ? factor * rpa->dV(v, v) : 0.0;
+
+      fmt::print(os, "{:4s} {:4s} {:+.5e} {:+.5e} {:+.5e} {:+.5e} {:+.5e}\n",
+                 v.shortSymbol(), v.shortSymbol(), h0, dV, dSv, dSv,
+                 (h0 + dV) * dSv);
+    }
+  }
+  // Then, off-diagonal:
+  if (off_diagonal) {
+
+    for (std::size_t ib = 0; ib < orbs.size(); ib++) {
+      const auto &w = orbs.at(ib);
+      for (std::size_t ia = 0; ia < orbs.size(); ia++) {
+        const auto &v = orbs.at(ia);
+
+        if (v == w)
+          continue;
+        if (h->isZero(v.kappa(), w.kappa()))
+          continue;
+        // ensure even parity on left
+        if (!print_both && w.parity() == -1)
+          continue;
+
+        const auto ww = eachFreqQ ? std::abs(v.en() - w.en()) : 0.0;
+
+        if (eachFreqQ && h->freqDependantQ()) {
+          h->updateFrequency(ww);
+        }
+        if (eachFreqQ && rpa) {
+          if (rpa->last_eps() > 1.0e-5 || std::isnan(rpa->last_eps()))
+            rpa->clear();
+          std::cout << " RPA(w) : ";
+          rpa->solve_core(ww);
+        }
+
+        const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+                                        h->rank(), v.kappa(), w.kappa()) :
+                                    1.0;
+
+        const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
+        const auto lambda_w = Sigma0.getLambda(w.kappa(), w.n());
+
+        const auto &Sv1 = *Sigma1.getSigma(v.kappa(), v.n());
+        const auto &Sv2 = *Sigma2.getSigma(v.kappa(), v.n());
+        const auto &Sw1 = *Sigma1.getSigma(w.kappa(), w.n());
+        const auto &Sw2 = *Sigma2.getSigma(w.kappa(), w.n());
+        const auto dSv = lambda_v * v * ((Sv1 - Sv2) * v) / (2 * delta);
+        const auto dSw = lambda_w * w * ((Sw1 - Sw2) * w) / (2 * delta);
+
+        const auto h0 = factor * h->reducedME(v, w);
+        const auto dV = rpaQ ? factor * rpa->dV(v, w) : 0.0;
+
+        fmt::print(os, "{:4s} {:4s} {:+.5e} {:+.5e} {:+.5e} {:+.5e} {:+.5e}\n",
+                   v.shortSymbol(), w.shortSymbol(), h0, dV, dSv, dSw,
+                   0.5 * (h0 + dV) * (dSv + dSw));
+      }
+    }
+  }
+
+  std::cout
+      << "\na    b     t_ab         dv_ab        dΣ_a         dΣ_b         "
+         "Norm\n";
+  std::cout << os.str();
+  std::cout << "\n";
 }
 
 //============================================================================

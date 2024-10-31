@@ -89,7 +89,7 @@ CorrelationPotential::CorrelationPotential(
         std::cout << "}\n";
       }
       if (!m_etak.empty()) {
-        std::cout << "Approx hole-particle in G: etak = {";
+        std::cout << "Approx hole-particle: etak = {";
         for (auto &tetak : m_etak) {
           printf("%.3f, ", tetak);
         }
@@ -242,12 +242,12 @@ CorrelationPotential::calculate_etak(double ev, const DiracSpinor &v) const {
   assert(m_Fy0 && m_FyH);
   std::vector<double> vetak;
   for (int k = 0; k <= 6; ++k) {
-    // slightly ineficient.. does Sd0 twice...
-    const auto Sd0 = m_Fy0->Sigma_direct(v.kappa(), ev, k);
-    const auto SdX = m_FyH->Sigma_direct(v.kappa(), ev, k);
+    // slightly ineficient.. does m_Fy, m_FyX twice...
+    // const auto Sd0 = m_Fy0->Sigma_direct(v.kappa(), ev, k);
+    // const auto SdX = m_FyH->Sigma_direct(v.kappa(), ev, k);
     // Include screening when calc eta:
-    // const auto Sd0 = m_FyX->Sigma_direct(v.kappa(), ev, k);
-    // const auto SdX = m_Fy->Sigma_direct(v.kappa(), ev, k);
+    const auto Sd0 = m_FyX->Sigma_direct(v.kappa(), ev, k);
+    const auto SdX = m_Fy->Sigma_direct(v.kappa(), ev, k);
     const auto de0 = v * (Sd0 * v);
     const auto deH = v * (SdX * v);
     const auto etak = de0 != 0.0 ? deH / de0 : 1.0;
