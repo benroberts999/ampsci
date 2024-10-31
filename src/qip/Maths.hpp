@@ -1,4 +1,5 @@
 #pragma once
+#include "Vector.hpp"
 #include <cmath>
 #include <type_traits>
 
@@ -85,7 +86,7 @@ T max_difference(T first, Args... rest) {
 //! (T). Returns double for inverse powers, T otherwise
 template <int n, typename T>
 constexpr auto pow(T x) {
-  static_assert(std::is_arithmetic_v<T>, "In pow(T x), T must be arithmetic");
+  using namespace qip::overloads;
   // Returns double for inverse powers, T otherwise
   if constexpr (n < 0) {
     return double(1.0) / pow<-n>(x);

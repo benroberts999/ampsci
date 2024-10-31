@@ -205,6 +205,15 @@ public:
   auto crend() const {
     return ConstStrideIterator(m_data - long(m_stride), -long(m_stride));
   }
+
+  //! Returns a copy of the array as a std::vector
+  std::vector<T> vector() {
+    std::vector<T> out;
+    for (std::size_t i = 0; i < m_size; ++i) {
+      out.push_back(m_data[i * m_stride]);
+    }
+    return out;
+  }
 };
 
 //==============================================================================
