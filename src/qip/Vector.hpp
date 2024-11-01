@@ -228,7 +228,7 @@ template <typename T>
 //! range will not be perfectly uniform, due to [first, ..., last] guarentee and
 //! rounding; also in this case same value may appear more than once if too-many
 //! steps are requested.
-template <typename T, typename N>
+template <typename T = double, typename N = std::size_t>
 std::vector<T> uniform_range(T first, T last, N number) {
   static_assert(std::is_arithmetic_v<T>,
                 "In uniform_range(T, T, N), T must be arithmetic");
@@ -257,7 +257,7 @@ std::vector<T> uniform_range(T first, T last, N number) {
 //! range will not be perfectly logarithmic, due to [first, ..., last] guarentee
 //! and rounding; also in this case same value may appear more than once if
 //! too-many steps are requested.
-template <typename T, typename N>
+template <typename T = double, typename N = std::size_t>
 std::vector<T> logarithmic_range(T first, T last, N number) {
   static_assert(std::is_arithmetic_v<T>,
                 "In logarithmic_range(T, T, N), T must be arithmetic");
@@ -287,7 +287,7 @@ std::vector<T> logarithmic_range(T first, T last, N number) {
 //! guarenteed to be the first and last points in the range. T must be floating
 //! point. Range is roughly logarithmic for values below 'b', and linear for
 //! values above b. Not tested for negative values.
-template <typename T, typename N>
+template <typename T = double, typename N = std::size_t>
 std::vector<T> loglinear_range(T first, T last, T b, N number) {
   static_assert(std::is_floating_point_v<T>,
                 "In loglinear_range(T, T, T, N), T must be floating point");

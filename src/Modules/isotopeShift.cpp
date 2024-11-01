@@ -19,23 +19,22 @@ namespace Module {
 void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"", "Calculates field shift using MBPT, including 2nd-order "
                     "(quadratic) field shift, via the TDHF/RPA(basis) method"},
-               {"num_iter", "Number of iterations to compute changes for [10]"},
-               {"QFS", "Calculate quadratic field shift [false]"},
-               {"use_TDHF", "Use TDHF method (rather than TDHF_basis) for RPA. "
-                            "Only for checks [true]"},
-               {"dr", "Change in rms charge radius [0.001]"}});
+               {"RPA", "Include RPA? true/Ffalse [true]"},
+               {"num_iter", "Number of iterations to compute changes for [20]"},
+               {"dr", "Smallest change in rms charge radius (fm) [0.0001]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
   }
 
+  using namespace qip::overloads;
+
   IO::ChronoTimer timer("isotopeShift");
 
-  const auto num_iter = input.get("num_iter", 10ul);
-  const auto include_qfs = input.get("QFS", true);
-  const auto delta_r = input.get<double>("dr", 0.001);
-  const auto use_TDHF = input.get<bool>("use_TDHF", true);
+  const auto num_iter = std::max(input.get("num_iter", 20ul), 2ul);
+  const auto delta_r = input.get("dr", 0.0001);
+  const auto rpaQ = input.get("RPA", true);
 
   // Initial (reference) nuclear parameters:
   const auto &nuc0 = wf.nucleus();
@@ -44,9 +43,12 @@ void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto r40 = DiracOperator::fieldshift::r4(wf.grid(), wf.nucleus());
 
   std::cout
-      << "\nCalculating first-order shift in valence state energies using "
-      << (use_TDHF ? "TDHF.\n" : "RPA (basis).\n")
-      << "dE^(1) = F d<r^2> + G^4 d<r^4>\n";
+      << "\nCalculating shift in valence state energies using.\n"
+      << "dE^(1) = F d<r^2> + G^2 d<r^2>^2 + G^4 d<r^4>\n"
+      << "[nb: E is binding energy (different sign from someother works)]\n";
+
+  // For second-order G^2 correction,
+  // See, e.g., Eq.(8) PhysRevA.103.L030801 (2021)
 
   std::cout << "\nInitial nuclear parameters:\n"
             << "r_rms_0 = " << r_rms0 << " fm, "
@@ -54,17 +56,24 @@ void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
             << "<r^4>_0 = " << r40 << " fm^4\n";
 
   // Grid for delta_rrms:
+  const auto gtype = GridType::logarithmic;
+  // const auto gtype = GridType::linear;
+  const auto range = gtype == GridType::logarithmic ?
+                         qip::logarithmic_range<double, std::size_t> :
+                         qip::uniform_range<double, std::size_t>;
+
   const auto max_dr = delta_r * int(num_iter) / 2.0;
-  const auto drs = qip::uniform_range(-max_dr, max_dr, num_iter);
+  const auto drs_t = range(delta_r, max_dr, num_iter / 2);
+  const auto drs = qip::merge(-1.0 * qip::reverse(drs_t), drs_t);
 
   // Arrays to store data for fitting:
   qip::Array F1_data(wf.valence().size(), num_iter);
   qip::Array G2_data(wf.valence().size(), num_iter);
 
   std::cout << "\ndE(1) (GHz)\n";
-  fmt::print("{:6s} {:9s} {:9s}", "r_rms", " d<r2>", " d<r4>");
+  fmt::print("{:6s} {:8s} {:8s}", "r_rms", " d<r2>", " d<r4>");
   for (const auto &Fv : wf.valence()) {
-    fmt::print("  {:11s}", Fv.shortSymbol());
+    fmt::print("  {:10s}", Fv.shortSymbol());
   }
   std::cout << std::endl;
   std::stringstream gout, gout2;
@@ -83,18 +92,16 @@ void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto delta_r2 = fis.dr2();
     const auto delta_r4 = fis.dr4();
 
-    // We should always use basis here, not spectrum:
-    // Note: have to use ptr (or ref) to use polymorphism
-    std::unique_ptr<ExternalField::TDHF> dVfis = nullptr;
-    dVfis = use_TDHF ? std::make_unique<ExternalField::TDHF>(&fis, wf.vHF()) :
-                       std::make_unique<ExternalField::TDHFbasis>(
-                           &fis, wf.vHF(), wf.basis());
+    // Always use TDHF now
+    ExternalField::TDHF dVfis(&fis, wf.vHF());
 
-    dVfis->solve_core(0.0, 100, false);
+    if (rpaQ)
+      dVfis.solve_core(0.0, 100, false);
 
-    fmt::print("{:6.4f} {:9.6f} {:9.6f}", r_rms, delta_r2, delta_r4);
-
-    fmt::print(gout, "{:6.4f} {:9.6f} {:9.6f}", r_rms, delta_r2,
+    fmt::print("{:6.4f} {:8.5f} {:8.5f}", r_rms, delta_r2, delta_r4);
+    fmt::print(gout, "{:6.4f} {:8.5f} {:8.2e}", r_rms, delta_r2,
+               delta_r2 * delta_r2);
+    fmt::print(gout2, "{:6.4f} {:8.5f} {:8.2e}", r_rms, delta_r2,
                delta_r2 * delta_r2);
 
     //-------------------------------------------------------
@@ -105,80 +112,88 @@ void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto k = fis.rme3js(Fv.twoj(), Fv.twoj()); // RME -> ME
 
       // First-order correction:
-      auto F_rme = fis.reducedME(Fv, Fv) + dVfis->dV(Fv, Fv);
+      auto F_rme = fis.reducedME(Fv, Fv) + dVfis.dV(Fv, Fv);
       const auto dE = F_rme * k * PhysConst::Hartree_GHz;
 
-      fmt::print(" {:12.5e}", dE);
+      fmt::print(" {:11.4e}", dE);
 
       F1_data(j, i) = dE;
 
       // Second-order G^2 correction:
-      // [ For physics see, e.g., Eq. 8 Phys. Rev. A 103, (2021) ]
-      if (include_qfs) {
+      {
 
+        // Use TDHF method:
         const auto hFv =
-            fis.reduced_rhs(Fv.kappa(), Fv) + dVfis->dV_rhs(Fv.kappa(), Fv);
+            fis.reduced_rhs(Fv.kappa(), Fv) + dVfis.dV_rhs(Fv.kappa(), Fv);
 
+        const auto dFv1 = dVfis.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::X,
+                                           Fv.kappa(), wf.Sigma());
+
+        // .. and using SOS method:
         // If including correlations, should have a spectrum for MBPT
         const auto &basis = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
-
-        const auto dFv1 = dVfis->solve_dPsi(Fv, 0.0, ExternalField::dPsiType::X,
-                                            Fv.kappa(), wf.Sigma());
-
         // Note: negative energy states are required here!!
         const auto dFv2 =
             ExternalField::solveMixedState_basis(Fv, hFv, 0.0, basis);
 
-        const auto G2_rme = fis.reducedME(Fv, dFv1) + dVfis->dV(Fv, dFv1);
-        const auto G2_rme2 = fis.reducedME(Fv, dFv2) + dVfis->dV(Fv, dFv2);
+        const auto G2_rme = fis.reducedME(Fv, dFv1) + dVfis.dV(Fv, dFv1);
+        const auto G2_rme2 = fis.reducedME(Fv, dFv2) + dVfis.dV(Fv, dFv2);
         const auto dE2 = G2_rme * k * k * PhysConst::Hartree_GHz;
 
+        // Just ude TDHF for the fit: more stable
         G2_data(j, i) = dE2;
 
-        fmt::print(gout, " {:12.5e}", G2_rme);
-        fmt::print(gout2, " {:12.5e}", G2_rme2);
+        fmt::print(gout, " {:11.4e}", G2_rme);
+        fmt::print(gout2, " {:11.4e}", G2_rme2);
       }
     }
-    if (dVfis->last_eps() > 1.0e-8)
+    if (dVfis.last_eps() > 1.0e-8)
       std::cout << " ***";
     std::cout << std::endl;
     fmt::print(gout, "\n");
     fmt::print(gout2, "\n");
   }
 
-  if (include_qfs) {
-    std::cout << "\ndE(2) (GHz)\n";
-    fmt::print("{:6s} {:9s} {:9s}", "r_rms", " d<r2>", " d<r2>^2");
+  // Print the G2 results below:
+  {
+    std::cout << "\ndE(2) (GHz) - TDHF method\n";
+    fmt::print("{:6s} {:8s} {:8s}", "r_rms", " d<r2>", " d<r2>^2");
     for (const auto &Fv : wf.valence()) {
-      fmt::print("  {:11s}", Fv.shortSymbol());
+      fmt::print("  {:10s}", Fv.shortSymbol());
     }
     std::cout << std::endl;
     std::cout << gout.str();
 
-    std::cout << "\ndE(2) (GHz) - using SOS method \n"
+    std::cout << "\ndE(2) (GHz) - SOS method\n"
                  " * note: Requires negative energy states!\n";
-    fmt::print("{:6s} {:9s} {:9s}", "r_rms", " d<r2>", " d<r2>^2");
+    fmt::print("{:6s} {:8s} {:8s}", "r_rms", " d<r2>", " d<r2>^2");
     for (const auto &Fv : wf.valence()) {
-      fmt::print("  {:11s}", Fv.shortSymbol());
+      fmt::print("  {:10s}", Fv.shortSymbol());
     }
     std::cout << std::endl;
     std::cout << gout2.str();
   }
 
-  using namespace qip::overloads;
-  auto dr2s = (r_rms0 + drs) * (r_rms0 + drs) - r20;
-  auto dr2s2 = dr2s * dr2s;
+  // Used for the linear fits:
+  const auto dr2s = (r_rms0 + drs) * (r_rms0 + drs) - r20;
+  const auto dr2s2 = dr2s * dr2s;
 
-  std::cout << "\nv     F (GHz/fm^2)  err       G2 (GHz/fm^4)  err\n";
+  std::cout << "\nv     F (GHz/fm^2)   err*       G2 (GHz/fm^4)   err\n";
+
+  // For the transitions:
+  std::stringstream out_trans;
+  std::optional<double> F0, G20;
+  std::string v0;
   for (auto i = 0ul; i < wf.valence().size(); ++i) {
     const auto &Fv = wf.valence().at(i);
     auto G2_data_v = G2_data.row(i);
     auto F1_data_v = F1_data.row(i);
 
-    [[maybe_unused]] double F, G, covF, covG, sumsq;
-
-    // Linear fit
+    // Linear fit, use GSL
+    // Not strictly necisary
     // https://www.gnu.org/software/gsl/doc/html/lls.html
+
+    double F{0.0}, G{0.0}, covF{0.0}, covG{0.0}, sumsq{0.0};
 
     gsl_fit_mul(dr2s.data(), 1, F1_data_v.data(), 1, dr2s.size(), &F, &covF,
                 &sumsq);
@@ -186,17 +201,34 @@ void isotopeShift(const IO::InputBlock &input, const Wavefunction &wf) {
     gsl_fit_mul(dr2s2.data(), 1, G2_data_v.data(), 1, dr2s2.size(), &G, &covG,
                 &sumsq);
 
-    fmt::print("{:4s} {:12.5e}   {:7.1e}  {:12.5e}    {:7.1e}\n",
+    fmt::print("{:4s} {:13.6e}   {:7.1e}   {:13.6e}    {:7.1e}\n",
                Fv.shortSymbol(), F, std::sqrt(covF), G, std::sqrt(covG));
+
+    // Store first F0, G0
+    if (!F0) {
+      F0 = F;
+      G20 = G;
+      v0 = Fv.shortSymbol();
+    }
+    fmt::print(out_trans, "{:4s} - {:4s} {:13.6e}   {:13.6e}\n",
+               Fv.shortSymbol(), v0, F - *F0, G - *G20);
   }
   std::cout << "\n";
+  std::cout << "(* err is just from the fit: "
+            << "it is a minimum numerical error only)\n";
+
+  std::cout << "\nTransitions:\n";
+  std::cout << "           F (GHz/fm^2)   G2 (GHz/fm^4)\n";
+  std::cout << out_trans.str() << "\n";
 }
 
 //==============================================================================
 void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"", "Calculates field shift: F = d(E)/d(<r^2>) by direct calculation"},
+      {{"", "Calculates field shift: F = d(E)/d(<r^2>) by direct calculation. "
+            "Note: copies the same correlation potential; this is OK, but not "
+            "exact (i.e., neglects the SR contribution)"},
        {"core_relaxation", "Include Core relaxation (equiv to RPA)? [true]"},
        {"print", "Print each step to screen? [true]"},
        {"write", "Write dE(r^2) to file? [false]"},
@@ -223,7 +255,9 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "Calculating field shift corrections for \n"
             << wf.atom() << ", " << wf.nucleus() << "\n"
-            << "By fitting de = F<dr^2> for small delta r\n";
+            << "By fitting de = F<dr^2> for small delta r\n"
+            << "Directly re-solves Hartree-Fock at each step\n"
+            << "(Note: does not re-calculate Sigma!)\n";
 
   wfB.copySigma(wf.Sigma());
   const auto core_string = wf.coreConfiguration();
@@ -315,6 +349,7 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\n";
 
   // Fit straight line to data
+  std::cout << "\nv     F (GHz/fm^2)   err*\n";
   for (auto i = 0ul; i < wfB.valence().size(); ++i) {
     const auto &Fv = wfB.valence().at(i);
     auto &data_v = data[i];
@@ -326,70 +361,15 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
     gsl_fit_mul(&data_v[0].first, 2, &data_v[0].second, 2, data_v.size(), &c1,
                 &cov11, &sumsq);
 
-    std::cout << Fv.symbol() << " "
-              << "F = " << c1 << " GHz/fm^2, sd = " << std::sqrt(sumsq) << "\n";
+    // std::cout << Fv.symbol() << " "
+    //           << "F = " << c1 << " GHz/fm^2, sd = " << std::sqrt(sumsq) << "\n";
+
+    fmt::print("{:4s} {:13.6e}   {:7.1e}\n", Fv.shortSymbol(), c1,
+               std::sqrt(cov11));
   }
-}
-
-//------------------------------------------------------------------------------
-void fieldShift2(const IO::InputBlock &input, const Wavefunction &wf) {
-
-  input.check(
-      {{"", "Calculates field shift via matrix element, including 2nd-order "
-            "Field shift via TDHF method"},
-       {"drrms", "Effective shift in r_rms in fm; must be small; answer "
-                 "should be independent? [0.0005]"},
-       {"rpa", "Include RPA (uses TDHF method)? [true]"},
-       {"use_basis", "Use basis (i.e., MBPT) for 2nd order term, rather than "
-                     "TDHF? [false]"}});
-
-  // If we are just requesting 'help', don't run module:
-  if (input.has_option("help")) {
-    return;
-  }
-
-  const auto drrms = input.get("drrms", 0.0005);
-  const auto rpa = input.get("rpa", true);
-  const auto use_basis = input.get("use_basis", false);
-
-  const auto nuc1 = wf.nucleus();
-  auto nuc2 = nuc1;
-  nuc2.set_rrms(nuc1.r_rms() + drrms);
-
-  DiracOperator::fieldshift Ffs(wf.grid(), nuc1, nuc2);
-  std::cout << "F1 should be in: " << Ffs.units() << "\n";
-  std::cout
-      << "\n* Note: second-order term unstable, and not properly checked!\n\n";
-
-  ExternalField::TDHF tdhf(&Ffs, wf.vHF());
-  if (rpa)
-    tdhf.solve_core(0.0);
-
   std::cout << "\n";
-
-  fmt::print("{:4s} {:13s}   {:13s}\n", "", "F1 (GHz/fm^2)", "F2 (MHz/fm^4)");
-  for (const auto &v : wf.valence()) {
-    const auto k = Ffs.rme3js(v.twoj(), v.twoj()); // RME to ME
-    const auto f1 = k * Ffs.reducedME(v, v);
-    const auto dv = k * tdhf.dV(v, v);
-
-    // If including correlations, should have a spectrum for MBPT
-    const auto &basis = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
-
-    const auto hFv = Ffs.reduced_rhs(v.kappa(), v) + tdhf.dV_rhs(v.kappa(), v);
-    const auto dFv =
-        use_basis ? ExternalField::solveMixedState_basis(v, hFv, 0.0, basis) :
-                    tdhf.solve_dPsi(v, 0.0, ExternalField::dPsiType::X,
-                                    v.kappa(), wf.Sigma());
-
-    // Two Three J's = (-1 * k * k)
-    const auto k_so = 2.0 * k * k / PhysConst::Hartree_GHz * 1.0e3;
-    const auto f_so = k_so * (Ffs.reducedME(v, dFv) + tdhf.dV(v, dFv));
-
-    // std::cout << v << " " << f1 + dv << " " << f_so << "\n";
-
-    fmt::print("{:4s} {:+13.5e}   {:+13.5e}\n", v.shortSymbol(), f1 + dv, f_so);
-  }
+  std::cout << "(* err is just from the fit: "
+            << "it is a minimum numerical error only)\n";
 }
 
 } // namespace Module
