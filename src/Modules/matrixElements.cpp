@@ -545,7 +545,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Lambda to format the output
-  const auto printer = [rpaQ](auto str, auto t, auto dv) {
+  const auto printer = [](auto str, auto t, auto dv) {
     fmt::print("{:6s}  {:12.5e} + {:12.5e} = {:12.5e}\n", str, t, dv - t, dv);
     std::cout << std::flush;
     // nb: the 'flush' is to force a cout flush; particularly when piping

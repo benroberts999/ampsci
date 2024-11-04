@@ -1,4 +1,5 @@
 #include "ampsci.hpp"
+#include "DiracODE/BoundState.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/InputBlock.hpp"
@@ -43,6 +44,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
        {"Correlations{}", "Options for MBPT and correlation corrections"},
        {"Spectrum{}",
         "Like basis, but includes correlations. Used for sum-over-states"},
+       {"Exotic{}",
+        "Option for including `exotic` (e.g., muonic) atom states."},
        {"CI{}", "Configuration Interaction"},
        {"Module::*{}", "Run any number of modules (* -> module name). `ampsci "
                        "-m` to see available modules"}});
@@ -468,7 +471,50 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   }
 
   //----------------------------------------------------------------------------
+  const auto exotic = input.getBlock("Exotic");
+  input.check(
+      {"Exotic"},
+      {{"",
+        "Option for including `exotic` (e.g., muonic) atom states.\n"
+        "Adds them to end of valence list; usually valence should be empty.\n"
+        "Includes screening. Use muon module as test"},
+       {"mass", "Mass (in au=m_e) of exotic leptons [M_muon = 206.7682827]"},
+       {"states", "Which states to calculate"}});
+  if (exotic && !exotic->has_option("help")) {
 
+    const auto states_str = exotic->get("states", std::string{""});
+    const auto states = AtomData::listOfStates_nk(states_str);
+
+    const auto mass = exotic->get("mass", PhysConst::m_muon);
+
+    std::cout << "\n---------------------------------------------\n";
+    std::cout << "Step 2: Exotic " << AtomData::atomicSymbol(wf.Znuc()) << "\n";
+    fmt::print("M = {:.8f} m_e = {:.12f} MeV\n\n", mass,
+               mass * PhysConst::m_e_MeV);
+
+    std::cout << "Energies:\n";
+    std::cout << "nk    Rinf  eps    R_rms (a0)    E (au)            E "
+                 "(keV)\n";
+    for (const auto [n, kappa, x_en] : states) {
+
+      // energy guess:
+      const auto e0 = mass * AtomData::diracen(wf.Znuc(), n, kappa, wf.alpha());
+
+      const auto Fnk = DiracODE::boundState(
+          n, kappa, e0, wf.grid_sptr(), wf.vlocal(), {}, wf.alpha(), 1.0e-14,
+          nullptr, nullptr, double(wf.Znuc()), mass);
+
+      const auto R_rms = std::sqrt(Fnk * (wf.grid().r() * wf.grid().r() * Fnk));
+
+      wf.valence().push_back(Fnk);
+
+      fmt::print("{:4s} {:5.2f}  {:5.0e}  {:.5e}  {:.9e}  {:.9e}\n",
+                 Fnk.shortSymbol(), Fnk.rinf(), Fnk.eps(), R_rms, Fnk.en(),
+                 Fnk.en() * PhysConst::Hartree_eV / 1.0e3);
+    }
+  }
+
+  //----------------------------------------------------------------------------
   const auto CI_in = input.getBlock("CI");
   if (CI_in) {
     wf.ConfigurationInteraction(*CI_in);
