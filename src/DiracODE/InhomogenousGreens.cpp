@@ -57,64 +57,85 @@ void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
 
 namespace Internal {
 //==============================================================================
-void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
-                   const DiracSpinor &Fzero, const double alpha,
-                   const DiracSpinor &Sr) {
+void GreenSolution(DiracSpinor &Fa, const DiracSpinor &wi,
+                   const DiracSpinor &w0, const double alpha,
+                   const DiracSpinor &s) {
+
+  /*
+      Calculates:
+      Fa(r) = (1/w) * ( ∫_0^r w0(x)s(x)dx + ∫_r^∞ wi(x)s(x)dx )
+  */
 
   // Wronskian: Should be independent of r
-  const auto pp = std::size_t(0.65 * double(Finf.max_pt()));
-  auto w2 = (Finf.f(pp) * Fzero.g(pp) - Fzero.f(pp) * Finf.g(pp));
-  int f = 1;
+  const auto pp = std::size_t(0.65 * double(wi.max_pt()));
+  auto w2 = (wi.f(pp) * w0.g(pp) - w0.f(pp) * wi.g(pp));
+  int count = 1;
   for (auto pt = pp - 20; pt <= pp + 20; ++pt) {
-    ++f;
-    w2 += (Finf.f(pt) * Fzero.g(pt) - Fzero.f(pt) * Finf.g(pt));
+    ++count;
+    w2 += (wi.f(pt) * w0.g(pt) - w0.f(pt) * wi.g(pt));
   }
-  w2 /= f;
+  w2 /= count;
 
-  // std::vector<double> invW2(Finf.f().size());
-  // for (std::size_t i = 0; i < Finf.max_pt(); ++i) {
-  //   auto w2_i = alpha / (Finf.f(i) * Fzero.g(i) - Fzero.f(i) * Finf.g(i));
-  //   auto w2_p = alpha / w2;
-  //   invW2[i] = (1.0 * w2_i + 5.0 * w2_p) / 6.0;
-  // }
+  // R-dependent wronskian
+  const auto wr = [&](std::size_t i) {
+    const auto tmp = 0.5 * (w2 + wi.f(i) * w0.g(i) - w0.f(i) * wi.g(i));
+    return tmp == 0.0 ? w2 : tmp;
+  };
 
   // save typing:
   const auto &gr = Fa.grid();
-  constexpr auto ztr = NumCalc::zero_to_r;
-  constexpr auto rti = NumCalc::r_to_inf;
+  const auto irmax = std::max(wi.max_pt(), Fa.max_pt());
 
-  Fa.max_pt() = gr.num_points();
-  Fa *= 0.0;
-  Fa.max_pt() = Finf.max_pt();
+  // clear existing solution
+  // (don't need to clear between [0,rmax], it is overwritten below)
+  Fa.min_pt() = 0;
+  Fa.max_pt() = irmax;
+  Fa.zero_boundaries();
 
-  NumCalc::additivePIntegral<ztr>(Fa.f(), Finf.f(), Fzero.f(), Sr.f(), gr,
-                                  Finf.max_pt());
-  NumCalc::additivePIntegral<ztr>(Fa.f(), Finf.f(), Fzero.g(), Sr.g(), gr,
-                                  Finf.max_pt());
-  NumCalc::additivePIntegral<rti>(Fa.f(), Fzero.f(), Finf.f(), Sr.f(), gr,
-                                  Finf.max_pt());
-  NumCalc::additivePIntegral<rti>(Fa.f(), Fzero.f(), Finf.g(), Sr.g(), gr,
-                                  Finf.max_pt());
-  NumCalc::additivePIntegral<ztr>(Fa.g(), Finf.g(), Fzero.f(), Sr.f(), gr,
-                                  Finf.max_pt());
-  NumCalc::additivePIntegral<ztr>(Fa.g(), Finf.g(), Fzero.g(), Sr.g(), gr,
-                                  Finf.max_pt());
-  NumCalc::additivePIntegral<rti>(Fa.g(), Fzero.g(), Finf.f(), Sr.f(), gr,
-                                  Finf.max_pt());
-  NumCalc::additivePIntegral<rti>(Fa.g(), Fzero.g(), Finf.g(), Sr.g(), gr,
-                                  Finf.max_pt());
-  Fa *= (alpha / w2);
+  const auto du = gr.du();
+  const auto num_points = gr.num_points();
 
-  // const auto R0 =
-  //     qip::add(qip::multiply(Fzero.f(), Sr.f), qip::multiply(Fzero.g(),
-  //     Sr.g));
-  // const auto Ri =
-  //     qip::add(qip::multiply(Finf.f(), Sr.f), qip::multiply(Finf.g(), Sr.g));
-  // NumCalc::additivePIntegral<ztr>(Fa.f(), Finf.f(), R0, gr, Finf.max_pt());
-  // NumCalc::additivePIntegral<rti>(Fa.f(), Fzero.f(), Ri, gr, Finf.max_pt());
-  // NumCalc::additivePIntegral<ztr>(Fa.g(), Finf.g(), R0, gr, Finf.max_pt());
-  // NumCalc::additivePIntegral<rti>(Fa.g(), Fzero.g(), Ri, gr, Finf.max_pt());
-  // Fa *= (alpha / w2);
+  // Quadrature integration weights:
+  const auto dr = [&](std::size_t i) {
+    if (i < NumCalc::Nquad) {
+      return NumCalc::dq_inv * NumCalc::cq[i] * gr.drdu(i);
+    }
+    if (i < num_points - NumCalc::Nquad)
+      return gr.drdu(i);
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1] * gr.drdu(i);
+  };
+
+  double A = 0.5 * (w0.f(0) * s.f(0) + w0.g(0) * s.g(0)) * dr(0);
+  double B = 0.0;
+
+  Fa.f(0) = (wi.f(0) * A);
+  Fa.g(0) = (wi.g(0) * A);
+
+  for (std::size_t i = 1; i < irmax; ++i) {
+    A += 0.5 *
+         ((w0.f(i - 1) * s.f(i - 1) + w0.g(i - 1) * s.g(i - 1)) * dr(i - 1) +
+          (w0.f(i) * s.f(i) + w0.g(i) * s.g(i)) * dr(i));
+
+    Fa.f(i) = wi.f(i) * A;
+    Fa.g(i) = wi.g(i) * A;
+  }
+
+  for (std::size_t ii = irmax - 1; ii >= 1; --ii) {
+    const auto i = ii - 1;
+
+    B += 0.5 *
+         ((wi.f(i + 1) * s.f(i + 1) + wi.g(i + 1) * s.g(i + 1)) * dr(i + 1) +
+          (wi.f(i) * s.f(i) + wi.g(i) * s.g(i)) * dr(i));
+
+    Fa.f(i) += w0.f(i) * B;
+    Fa.g(i) += w0.g(i) * B;
+  }
+
+  // Wronskian - Should be r=independant, but allow to be more general
+  for (std::size_t i = 0; i < irmax; ++i) {
+    Fa.f(i) *= alpha * du / wr(i);
+    Fa.g(i) *= alpha * du / wr(i);
+  }
 }
 
 } // namespace Internal
