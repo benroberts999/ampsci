@@ -4,6 +4,7 @@
 #include "HF/HartreeFock.hpp"
 #include "MBPT/RDMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
 #include <cassert>
 #include <memory>
@@ -63,12 +64,12 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
            int(m_subgrid_points), int(m_i0), int(m_stride));
   }
 
-  if (m_HF->vBreit()) {
-    // Breit was included into HF; we should not do this!
-    fmt2::warning();
-    std::cout << "\nTrying to calculate Sigma in Feynman method when Breit "
-                 "is included may result in incorrect results!\n";
-  }
+  // if (m_HF->vBreit()) {
+  //   // Breit was included into HF; we should not do this!
+  //   fmt2::warning();
+  //   std::cout << "\nTrying to calculate Sigma in Feynman method when Breit "
+  //                "is included may result in incorrect results!\n";
+  // }
 
   // work-around for polarisation issue
   check_min_n();
@@ -166,7 +167,7 @@ ComplexGMatrix Feynman::green_single(const DiracSpinor &ket,
 }
 
 //==============================================================================
-void Feynman::form_vx() {
+void Feynman::form_vx2() {
   // Vx = -|a>Q<a|
 
   m_Vx_kappa =
@@ -198,6 +199,47 @@ void Feynman::form_vx() {
 
       m_Vx_kappa[std::size_t(kapi)] += V_k.mult_elements_by(qk.dri()).real();
     }
+  }
+}
+
+void Feynman::form_vx() {
+  // Express Vx potential as a matrix, by writing
+  // Vx = Vx |n><n|
+  // For 'n', can use any basis: just choose H-like!
+  Wavefunction H1(m_grid, {"1", 0, "Ball"});
+  H1.set_HF("HartreeFock", 0.0, "[]");
+  H1.solve_core(false);
+
+  // Form spline basis:
+  const std::string states = "90spdfghi";
+  const int k = 9;
+  const int n_spl = 90;
+  const auto r0 = 1.0e-6;
+  const auto r0_eps = 0.0;
+  const auto rmax = 90.0;
+  const auto positronQ = true;
+  H1.formBasis({states, std::size_t(n_spl), k, r0, r0_eps, rmax, positronQ,
+                SplineBasis::SplineType::Derevianko},
+               false);
+
+  m_Vx_kappa =
+      std::vector<GMatrix>(std::size_t(m_max_ki + 1),
+                           {m_i0, m_stride, m_subgrid_points, false, m_grid});
+
+  for (const auto &n : H1.basis()) {
+    const auto kapi = n.k_index(); // kappa index:
+
+    auto vxn = m_HF->vexFa(n);
+    if (m_HF->vBreit()) {
+      vxn += m_HF->VBr(n);
+    }
+
+    m_Vx_kappa[std::size_t(kapi)].add(vxn, n, 1.0);
+  }
+
+  for (int kapi = 0; kapi <= m_max_ki; ++kapi) {
+    m_Vx_kappa[std::size_t(kapi)].dri_in_place();
+    m_Vx_kappa[std::size_t(kapi)].drj_in_place();
   }
 }
 
@@ -235,6 +277,11 @@ ComplexGMatrix Feynman::green_hf(int kappa, std::complex<double> en,
   // Get G0 (Green's function, without exchange):
   const auto g0 = construct_green_g0(x0, xI, w);
 
+  // const auto vx0 = m_HF->vexFa(x0);
+  // const auto vxI = m_HF->vexFa(xI);
+
+  // const auto vxg0 = construct_green_Vxg0(x0, xI, vx0, vxI, w).dri_in_place();
+
   // Include exchange (optionally, with hole-particle correction)
   auto Vx = get_Vx_kappa(kappa);
   if (Fc_hp != nullptr) {
@@ -248,16 +295,18 @@ ComplexGMatrix Feynman::green_hf(int kappa, std::complex<double> en,
     // G = [1 - G0*Vx]^{-1} * G0 = -[G0*Vx-1]^{-1} * G0
     // nb: much faster to invert _before_ make complex!
     // (but, only if imag. part is zero)
-    return -1.0 * ((g0 * Vx - 1.0).invert_in_place() * g0).complex();
+    return -1.0 * (g0 * ((Vx * g0 - 1.0).invert_in_place())).complex();
   }
 
   // G0 := G0(re{e}) - no exchange, only real part
   // G(e) = [1 + i*Im{e}*G0 - G0*Vx]^{-1} * G0
+  // G(e) = [1 + i*Im{e}*G0 - G0*Vx]^{-1} * G0
   // Note: differential dr is included in Vx (via Q)
   std::complex<double> iw{0.0, en.imag()};
-  return (iw * g0.complex().drj_in_place() - (g0 * Vx).complex() + 1.0)
-             .invert_in_place() *
-         g0.complex();
+  return g0.complex() *
+         (iw * g0.complex().dri_in_place() - (Vx * g0).complex() + 1.0)
+             //  (iw * g0.complex().dri_in_place() - (vxg0).complex() + 1.0)
+             .invert_in_place();
 }
 
 //==============================================================================
@@ -425,7 +474,33 @@ GMatrix Feynman::construct_green_g0(const DiracSpinor &x0,
       // g0I is symmetric
       g0I.ff(j, i) = g0I.ff(i, j);
     } // j
-  }   // i
+  } // i
+
+  return g0I;
+}
+
+//==============================================================================
+GMatrix Feynman::construct_green_Vxg0(const DiracSpinor &x0,
+                                      const DiracSpinor &xI,
+                                      const DiracSpinor &Vx0,
+                                      const DiracSpinor &VxI,
+                                      const double w) const {
+  // Takes sub-grid into account; ket,bra are on full grid, G on sub-grid
+  // G(r1,r2) = x0(rmin)*xI(imax)/w
+  GMatrix g0I(m_i0, m_stride, m_subgrid_points, false, m_grid);
+
+  const auto winv = 1.0 / w;
+
+  for (auto i = 0ul; i < m_subgrid_points; ++i) {
+    const auto si = g0I.index_to_fullgrid(i);
+    for (auto j = 0ul; j < m_subgrid_points; ++j) { // j <= i
+      const auto sj = g0I.index_to_fullgrid(j);
+      if (j <= i)
+        g0I.ff(i, j) = VxI.f(si) * x0.f(sj) * winv;
+      else
+        g0I.ff(i, j) = Vx0.f(si) * xI.f(sj) * winv;
+    } // j
+  } // i
 
   return g0I;
 }
@@ -453,7 +528,7 @@ ComplexGMatrix Feynman::construct_green_g0(const DiracSpinor &x0,
       // g0I is symmetric
       g0I.ff(j, i) = g0I.ff(i, j);
     } // j
-  }   // i
+  } // i
 
   return g0I;
 }
@@ -635,7 +710,9 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
         const auto C_gB_QPQ_dw = (c_ang_dw * mult_elements(gB, qpq_dw)).real();
 
 #pragma omp critical(sum_sigma_d)
-        { Sigma += C_gB_QPQ_dw; }
+        {
+          Sigma += C_gB_QPQ_dw;
+        }
       }
     }
   }

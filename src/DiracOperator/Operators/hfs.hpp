@@ -266,8 +266,9 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
        {"rrms",
         "nuclear (magnetic) rms radius, in Fermi (fm) (defult is charge rms)"},
        {"units", "Units for output (only for k=1,k=2). MHz or au [MHz]"},
-       {"nuc_mag", "Nuclear magnetisation: ball, point, shell, SingleParticle, "
-                   "or doublyOddSP [ball]"},
+       {"F", "F(r): Nuclear moment distribution: ball, point, shell, "
+             "SingleParticle, "
+             "or doublyOddSP [ball]"},
        {"printF", "Writes F(r) [nuc_mag] to a text file [false]"},
        {"print", "Write F(r) [nuc_mag] info to screen [true]"},
        {"", "The following are only for SingleParticle or doublyOddSP"},
@@ -329,6 +330,8 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // For compatability with old notation of 'F(r)' input option
   const auto Fr_str =
+      input.has_option("F") ?
+          input.get<std::string>("F", default_distribution) :
       input.has_option("nuc_mag") ?
           input.get<std::string>("nuc_mag", default_distribution) :
           input.get<std::string>("F(r)", default_distribution);

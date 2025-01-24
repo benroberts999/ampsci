@@ -277,7 +277,7 @@ public:
                           bool print);
 
   //! Calculates + populates basis [see BSplineBasis]
-  void formBasis(const SplineBasis::Parameters &params);
+  void formBasis(const SplineBasis::Parameters &params, bool print = true);
 
   //! Calculates + populates Spectrum [see BSplineBasis]
   void formSpectrum(const SplineBasis::Parameters &params);

@@ -136,6 +136,8 @@ private:
   void form_pa();
   // Forms HF exchange potential matrix
   void form_vx();
+  void form_vx2();
+
   // Sets up imaginary frequency grid
   Grid form_w_grid(double w0, double wratio) const;
   // Constructs the Q*Pi*Q Matrix along w grid, for each k
@@ -189,6 +191,10 @@ private:
                                     const DiracSpinor &xI,
                                     const DiracSpinor &IxI,
                                     const std::complex<double> w) const;
+
+  GMatrix construct_green_Vxg0(const DiracSpinor &x0, const DiracSpinor &xI,
+                               const DiracSpinor &Vx0, const DiracSpinor &VxI,
+                               const double w) const;
 
   // Calculates hole-particle potential (1-P)Vhp(1-P)
   GMatrix calculate_Vhp(int kappa, const DiracSpinor &Fc) const;
