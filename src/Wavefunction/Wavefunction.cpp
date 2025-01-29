@@ -782,3 +782,132 @@ void Wavefunction::ConfigurationInteraction(const IO::InputBlock &input) {
   m_CIwfs = CI::configuration_interaction(input, *this);
   std::cout << "\n";
 }
+
+//==============================================================================
+void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
+                                bool print) {
+
+  using namespace qip::overloads;
+
+  const auto states = AtomData::listOfStates_nk(in_exotic_str);
+
+  if (print) {
+    std::cout << "\n---------------------------------------------\n";
+    std::cout << "Exotic " << AtomData::atomicSymbol(this->Znuc()) << "\n";
+    fmt::print("M = {:.8f} m_e = {:.12f} MeV\n\n", mass,
+               mass * PhysConst::m_e_MeV);
+
+    std::cout << "Energies - without screening:\n";
+    std::cout << "nk    Rinf  eps    R_rms (a0)    E (au)            E "
+                 "(keV)\n";
+  }
+
+  std::optional<DiracSpinor> Fscreen;
+  for (const auto [n, kappa, x_en] : states) {
+
+    // initial energy guess:
+    const auto e0 =
+        mass * AtomData::diracen(this->Znuc(), n, kappa, this->alpha());
+
+    // nuclear potential (+QED). Note: only Uehling is really OK here.
+    const auto v0 = this->vnuc() + (this->vrad() ? this->vrad()->Vel() :
+                                                   std::vector<double>{});
+    const auto Fnk = DiracODE::boundState(
+        n, kappa, e0, this->grid_sptr(), v0, this->Hmag(), this->alpha(),
+        1.0e-14, nullptr, nullptr, double(this->Znuc()), mass);
+
+    const auto R_rms =
+        std::sqrt(Fnk * (this->grid().r() * this->grid().r() * Fnk));
+
+    this->valence().push_back(Fnk);
+
+    if (!Fscreen) {
+      Fscreen = Fnk;
+    }
+
+    if (print) {
+      fmt::print("{:4s} {:5.2f}  {:5.0e}  {:.5e}  {:.9e}  {:.9e}\n",
+                 Fnk.shortSymbol(), Fnk.rinf(), Fnk.eps(), R_rms, Fnk.en(),
+                 Fnk.en() * PhysConst::Hartree_eV / 1.0e3);
+    }
+  }
+
+  if (!this->core().empty() && Fscreen) {
+    // make a _copy_ of the Hartree-Fock object for doing muon+electron HF
+    // We include muon screening by temporarily updating Vnuc
+    // (Can't add it to the core, since we must exclude exchange!)
+    auto hf = *this->vHF();
+    auto Fmu = *Fscreen;
+
+    // Iterate screening of Hartree-Fock including muon
+    if (print) {
+      std::cout << "\nHartree-Fock for screening:\n";
+      std::cout << "(Including the exotic " << Fmu.shortSymbol()
+                << " state into direct part of HF)\n";
+      fmt::print("it {:8s}  {:8s}  {:8s}\n", "HF_core", "electron", "exotic");
+    }
+    for (int it = 1; it < 100; ++it) {
+      // Direct potential due to single muon:
+      const auto Vmu = Coulomb::yk_ab(0, Fmu, Fmu);
+      // Convenient: just add it to the nuclear potential:
+      // Note: modify the copy of HF only. Be careful
+      hf.vnuc() = this->vnuc() + Vmu;
+      const auto E0 = hf.calculateCoreEnergy();
+      const auto [elhf_eps, core_its, symbol] = hf.solve_core(false);
+      const auto E1 = hf.calculateCoreEnergy();
+      const auto eps_core = std::abs(E1 / E0 - 1.0);
+      const auto v =
+          hf.vdir() + this->vnuc() +
+          (this->vrad() ? this->vrad()->Vel() : std::vector<double>{});
+      const auto en0 = Fmu.en();
+      DiracODE::boundState(Fmu, en0, v, this->Hmag(), this->alpha(), 1.0e-14,
+                           nullptr, nullptr, double(this->Znuc()), mass);
+
+      const auto eps_mu = std::abs(Fmu.en() / en0 - 1.0);
+
+      if (print) {
+        fmt::print("{:<2} {:.1e}   {:.1e}   {:.1e}\n", it, elhf_eps, eps_core,
+                   eps_mu);
+      }
+      // check for convergance:
+      if (it > 2 && std::max(eps_mu, eps_core) < 1.0e-13)
+        break;
+    }
+
+    // Not really needed, but update HF in wavefunction:
+    // Remember to not include muon in Vnuc
+    hf.vnuc() = this->vnuc();
+    *this->vHF() = hf;
+
+    if (print) {
+      std::cout << "\nCore (including screening by exotic "
+                << Fscreen->shortSymbol() << "):\n";
+      this->printCore();
+      printf("E_c = %.6f\n\n", this->coreEnergyHF());
+    }
+
+    // Re-solve the muon states in the screened HF potential (just direct part)
+    if (print) {
+      std::cout << "Exotic energies - with screening:\n";
+      std::cout << "nk    Rinf  eps    R_rms (a0)    E (au)            E "
+                   "(keV)\n";
+    }
+    for (auto &Fnk : this->valence()) {
+
+      const auto v =
+          hf.vdir() + this->vnuc() +
+          (this->vrad() ? this->vrad()->Vel() : std::vector<double>{});
+      DiracODE::boundState(Fnk, Fnk.en(), this->vlocal(), this->Hmag(),
+                           this->alpha(), 1.0e-14, nullptr, nullptr,
+                           double(this->Znuc()), mass);
+
+      if (print) {
+        const auto R_rms =
+            std::sqrt(Fnk * (this->grid().r() * this->grid().r() * Fnk));
+        fmt::print("{:4s} {:5.2f}  {:5.0e}  {:.5e}  {:.9e}  {:.9e}\n",
+                   Fnk.shortSymbol(), Fnk.rinf(), Fnk.eps(), R_rms, Fnk.en(),
+                   Fnk.en() * PhysConst::Hartree_eV / 1.0e3);
+      }
+    }
+  }
+}

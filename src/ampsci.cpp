@@ -478,40 +478,19 @@ Wavefunction ampsci(const IO::InputBlock &input) {
         "Option for including `exotic` (e.g., muonic) atom states.\n"
         "Adds them to end of valence list; usually valence should be empty.\n"
         "Includes screening. Use muon module as test"},
-       {"mass", "Mass (in au=m_e) of exotic leptons [M_muon = 206.7682827]"},
-       {"states", "Which states to calculate"}});
+       {"mass", "Mass (in au=m_e) of exotic lepton [M_muon = 206.7682827]"},
+       {"mass_MeV", "Mass (in MeV) of exotic lepton [M_muon = 105.6583755 "
+                    "MeV]; will be overridden by the above au version"},
+       {"states", "Which states to calculate [1s]"}});
   if (exotic && !exotic->has_option("help")) {
 
-    const auto states_str = exotic->get("states", std::string{""});
-    const auto states = AtomData::listOfStates_nk(states_str);
+    const auto states_str = exotic->get("states", std::string{"1s"});
 
-    const auto mass = exotic->get("mass", PhysConst::m_muon);
+    const auto mass_MeV = exotic->get<double>("mass_MeV");
+    const auto mass = exotic->get(
+        "mass", mass_MeV ? *mass_MeV / PhysConst::m_e_MeV : PhysConst::m_muon);
 
-    std::cout << "\n---------------------------------------------\n";
-    std::cout << "Step 2: Exotic " << AtomData::atomicSymbol(wf.Znuc()) << "\n";
-    fmt::print("M = {:.8f} m_e = {:.12f} MeV\n\n", mass,
-               mass * PhysConst::m_e_MeV);
-
-    std::cout << "Energies:\n";
-    std::cout << "nk    Rinf  eps    R_rms (a0)    E (au)            E "
-                 "(keV)\n";
-    for (const auto [n, kappa, x_en] : states) {
-
-      // energy guess:
-      const auto e0 = mass * AtomData::diracen(wf.Znuc(), n, kappa, wf.alpha());
-
-      const auto Fnk = DiracODE::boundState(
-          n, kappa, e0, wf.grid_sptr(), wf.vlocal(), {}, wf.alpha(), 1.0e-14,
-          nullptr, nullptr, double(wf.Znuc()), mass);
-
-      const auto R_rms = std::sqrt(Fnk * (wf.grid().r() * wf.grid().r() * Fnk));
-
-      wf.valence().push_back(Fnk);
-
-      fmt::print("{:4s} {:5.2f}  {:5.0e}  {:.5e}  {:.9e}  {:.9e}\n",
-                 Fnk.shortSymbol(), Fnk.rinf(), Fnk.eps(), R_rms, Fnk.en(),
-                 Fnk.en() * PhysConst::Hartree_eV / 1.0e3);
-    }
+    wf.solve_exotic(states_str, mass, true);
   }
 
   //----------------------------------------------------------------------------

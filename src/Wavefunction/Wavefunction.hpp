@@ -250,6 +250,15 @@ public:
   void solve_valence(const std::string &in_valence_str = "",
                      const bool print = true);
 
+  //! @brief Solves for exotic atoms (e.g., muonic), including screening.
+  //! Resulting states are included in valence; the screening also updates core.
+  //! @details
+  //! Note: The exotic states are just added to the valence list, so they can be
+  //! used more simply with all the modules.
+  //! However, be careful; for example, RPA will now be meaningless!
+  void solve_exotic(const std::string &in_exotic_str,
+                    double mass = PhysConst::m_muon, bool print = true);
+
   //! Forms Bruckner valence orbitals: (H_hf + Sigma)|nk> = e|nk>. Replaces
   //! existing valence states
   void hartreeFockBrueckner(const bool print = true);
