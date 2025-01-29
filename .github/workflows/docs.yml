@@ -29,6 +29,7 @@ jobs:
         git checkout gh-pages
         git reset --hard origin/main
         cp ./doc/examples/Makefile ./ 
+        # Make changes for markdown between github and doxygen 
         for FILE in ./doc/*.md; do sed -i 's%(/doc/%(doc/%g' $FILE; done
         for FILE in ./doc/*.md; do sed -i 's%(/README%(README%g' $FILE; done
         for FILE in ./doc/*.md; do sed -i 's%(/src/%(https://github.com/benroberts999/ampsci/tree/main/src/%g' $FILE; done
@@ -36,6 +37,10 @@ jobs:
         for FILE in ./doc/tutorial*.md; do sed -i -e 's/\$\$~/\\f\[/g' $FILE; done
         for FILE in ./doc/tutorial*.md; do sed -i -e 's/~\$\$/\\f\]/g' $FILE; done
         for FILE in ./doc/tutorial*.md; do sed -i -e 's/\$/\\f\$/g' $FILE; done
+        # remove non-ascii characters
+        for FILE in ./src/*.h*; do tr -cd '\0-\177' < $FILE > temp && mv temp $FILE; done
+        for FILE in ./src/*/*.h*; do tr -cd '\0-\177' < $FILE > temp && mv temp $FILE; done
+        for FILE in ./src/*/*/*.h*; do tr -cd '\0-\177' < $FILE > temp && mv temp $FILE; done
         sed -i 's%tests-badge]]%tests-badge-v2]]%g' ./README.md
         sed -i 's%build-badge]]%build-badge-v2]]%g' ./README.md
         sed -i 's%macOS-badge]]%macOS-badge-v2]]%g' ./README.md
