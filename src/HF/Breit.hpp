@@ -103,6 +103,7 @@ public:
     return {std::max({1, k1, k3}), std::min(k2, k4)};
   }
 
+  // NOTE: This uses WAY too much memory. Can it be fixed??
   void fill_gb(const std::vector<DiracSpinor> &basis, int t_max_k = 99);
 
   //! Resturns scaling factor
@@ -124,29 +125,14 @@ public:
   double Bk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                  const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
-  //! Reduced Breit integral (analogue of Coulomb Q^k), faster version.
-  //! Can only use if fill_gb() has been called
-  double Bk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                   const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-
   //! Reduced exchange Breit integral (analogue of Coulomb P^k).
   double BPk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-
-  //! Reduced exchange Breit integral (analogue of Coulomb P^k), faster version.
-  //! Can only use if fill_gb() has been called
-  double BPk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                    const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
   //! Reduced anti-symmetrised Breit integral (analogue of Coulomb W^k).
   //! BWk_abcd = Bk_abcd + BPk_abcd
   double BWk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-
-  //! Reduced anti-symmetrised Breit integral (analogue of Coulomb W^k), faster.
-  //! Can only use if fill_gb() has been called.
-  double BWk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                    const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
   //! Bkv_bcd defined: B^k_abcd = <a|Bkv_bcd> (direct part)
   DiracSpinor Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
@@ -157,6 +143,20 @@ public:
   //! BWkv_bcd defined: W(B)^k_abcd = B^k_abcd + P(B)^k_abcd= <a|BWkv_bcd>
   DiracSpinor BWkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                        const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  //! Reduced Breit integral (analogue of Coulomb Q^k), faster version.
+  //! Can only use if fill_gb() has been called
+  double Bk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  //! Reduced exchange Breit integral (analogue of Coulomb P^k), faster version.
+  //! Can only use if fill_gb() has been called
+  double BPk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+  //! Reduced anti-symmetrised Breit integral (analogue of Coulomb W^k), faster.
+  //! Can only use if fill_gb() has been called.
+  double BWk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                    const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
   //! Hartree-Fock (one-particle) part of second-order Breit correction.
   //! With Breit-Coulomb Hartree-Fock, is included automatically.

@@ -359,6 +359,7 @@ Coulomb::WkTable calculate_Bk(const std::string &bk_filename,
   const auto existing = Bk.count();
   auto vBr = *pBr;              //copy, so we can fill two-particle 'bk'
   vBr.fill_gb(ci_basis, max_k); // very quick, and makes below *much* faster
+  //* nb: uses HUGE memory if basis is large; CI basis normally small enough
 
   const auto Bk_function = [&](int k, const DiracSpinor &v,
                                const DiracSpinor &w, const DiracSpinor &x,
