@@ -1,6 +1,7 @@
 #pragma once
 #include "DiracOperator/GenerateOperator.hpp"
 #include "DiracOperator/Operators/Ek.hpp"
+#include "DiracOperator/Operators/FieldShift.hpp"
 #include "DiracOperator/Operators/M1.hpp"
 #include "DiracOperator/Operators/PNC.hpp"
 #include "DiracOperator/Operators/QED.hpp"
@@ -9,5 +10,4 @@
 #include "DiracOperator/Operators/jL.hpp"
 #include "DiracOperator/Operators/jls.hpp"
 #include "DiracOperator/Operators/p.hpp"
-#include "DiracOperator/Operators/FieldShift.hpp"
 #include "DiracOperator/TensorOperator.hpp"

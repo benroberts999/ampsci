@@ -474,7 +474,7 @@ GMatrix Feynman::construct_green_g0(const DiracSpinor &x0,
       // g0I is symmetric
       g0I.ff(j, i) = g0I.ff(i, j);
     } // j
-  } // i
+  }   // i
 
   return g0I;
 }
@@ -500,7 +500,7 @@ GMatrix Feynman::construct_green_Vxg0(const DiracSpinor &x0,
       else
         g0I.ff(i, j) = Vx0.f(si) * xI.f(sj) * winv;
     } // j
-  } // i
+  }   // i
 
   return g0I;
 }
@@ -528,7 +528,7 @@ ComplexGMatrix Feynman::construct_green_g0(const DiracSpinor &x0,
       // g0I is symmetric
       g0I.ff(j, i) = g0I.ff(i, j);
     } // j
-  } // i
+  }   // i
 
   return g0I;
 }
@@ -710,9 +710,7 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
         const auto C_gB_QPQ_dw = (c_ang_dw * mult_elements(gB, qpq_dw)).real();
 
 #pragma omp critical(sum_sigma_d)
-        {
-          Sigma += C_gB_QPQ_dw;
-        }
+        { Sigma += C_gB_QPQ_dw; }
       }
     }
   }

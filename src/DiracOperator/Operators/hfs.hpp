@@ -269,15 +269,17 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
        {"F", "F(r): Nuclear moment distribution: ball, point, shell, "
              "SingleParticle, "
              "or doublyOddSP [ball]"},
-       {"printF", "Writes F(r) [nuc_mag] to a text file [false]"},
-       {"print", "Write F(r) [nuc_mag] info to screen [true]"},
-       {"", "The following are only for SingleParticle or doublyOddSP"},
+       {"F(r)", "Obselete; use 'F' from now - will be removed"},
+       {"nuc_mag", "Obselete; use 'F' from now - will be removed"},
+       {"printF", "Writes F(r) to a text file [false]"},
+       {"print", "Write F(r) info to screen [true]"},
+       {"", "The following are only for F=SingleParticle or doublyOddSP"},
        {"I", "Nuclear spin. Taken from nucleus"},
        {"parity", "Nulcear parity: +/-1"},
        {"l", "l for unpaired nucleon (automatically derived from I and "
              "parity; best to leave as default)"},
        {"gl", "=1 for proton, =0 for neutron"},
-       {"", "The following are only for doublyOddSP"},
+       {"", "The following are only used if F=doublyOddSP"},
        {"mu1", "mag moment of 'first' unpaired nucleon"},
        {"gl1", "gl of 'first' unpaired nucleon"},
        {"l1", "l of 'first' unpaired nucleon"},
