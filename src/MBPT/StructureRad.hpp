@@ -81,6 +81,7 @@ public:
   const std::vector<DiracSpinor> &core() const { return mCore; }
   const std::vector<DiracSpinor> &excited() const { return mExcited; }
 
+  //! Returns reference to Yk table. NOTE: may not be initialised!
   const Coulomb::YkTable &Yk() const { return mY; }
   const std::optional<Coulomb::QkTable> &Qk() const { return mQ; }
 
@@ -137,6 +138,9 @@ public:
      const DiracSpinor &v,
      const ExternalField::CorePolarisation *const dV = nullptr, double fw = 1.0,
      double fv = 1.0) const;
+
+  //! Calculates <v|Sigma|w>
+  double Sigma_vw(const DiracSpinor &v, const DiracSpinor &w) const;
 
   //! constructs an me table of {srn, srn+dv} for each pair or {a,b}
   Coulomb::meTable<std::pair<double, double>>

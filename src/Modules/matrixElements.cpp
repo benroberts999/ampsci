@@ -612,6 +612,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         std::cout << "\n" << w << " - " << v << ":\n";
 
         const auto ww = eachFreqQ ? std::abs(ws->en() - vs->en()) : const_omega;
+        const auto ww_s = eachFreqQ ? ws->en() - vs->en() : const_omega;
         if (eachFreqQ && h->freqDependantQ()) {
           h->updateFrequency(ww);
         }
@@ -639,20 +640,23 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
         double T_bo = 0.0, T_bo_dv = 0.0;
         if (!have_brueckner) {
-          if (eachFreqQ && h->freqDependantQ()) {
-            const auto de2_a =
-                MBPT::Sigma_vw(*ws, *vs, sr.Yk(), sr.core(), sr.excited());
-            const auto de2_b =
-                MBPT::Sigma_vw(*ws, *vs, sr.Yk(), sr.core(), sr.excited());
-            const auto dw = de2_a - de2_b;
-
-            h->updateFrequency(ww + 0.005);
+          if (eachFreqQ && h->freqDependantQ() && *ws != *vs) {
+            const auto de2_w = sr.Sigma_vw(*ws, *ws);
+            const auto de2_v = sr.Sigma_vw(*vs, *vs);
+            const auto dw = (de2_w - de2_v) * (ww_s / ww); //
+            // Make sign match that for ww used in operator etc.
+            const auto del = 0.05 * ww;
+            h->updateFrequency(ww + del);
+            // ignore frequency dependendence in RPA solution,
+            // but not in RPA matrix element?
             const auto h_plus = h->reducedME(*ws, *vs);
-            h->updateFrequency(ww - 0.005);
+            h->updateFrequency(ww - del);
             const auto h_minus = h->reducedME(*ws, *vs);
-            const auto d_h = (h_plus - h_minus) / 0.01;
+            const auto d_h = (h_plus - h_minus) / (2 * del);
             const auto T_deriv = d_h * dw;
-            fmt::print("{:6s}  {:12.5e}\n", "Tderiv", factor * T_deriv);
+            fmt::print(" {:6s} {:12.5e}\n", "d(ww)", dw);
+            fmt::print(" {:6s} {:12.5e}  (*added to BO)\n", "Tderiv",
+                       factor * T_deriv);
             h->updateFrequency(ww);
             T_bo_dv += T_deriv;
             T_bo += T_deriv;
@@ -746,12 +750,6 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
   auto Sigma1 = *wf.Sigma();
   Sigma1.clear();
   Sigma1.formSigma(v0.kappa(), v0.en() + delta, v0.n(), &v0);
-
-  // MBPT::CorrelationPotential(
-  //       ifname, wf.vHF(), wf.basis(), 1.0e-3, 30.0, std::size_t(stride), nmin_core, method,
-  //       include_G, include_Breit, n_max_breit,
-  //       MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
-  //       fk, etak, nmin_core_F);
 
   auto Sigma2 = Sigma1;
   Sigma2.clear();

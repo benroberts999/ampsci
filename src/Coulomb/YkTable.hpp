@@ -105,6 +105,9 @@ public:
   Pkv_bcd(const int k, int kappa, const DiracSpinor &Fb, const DiracSpinor &Fc,
           const DiracSpinor &Fd, const std::vector<double> &f2k = {}) const;
 
+  //! Checks if table is empty
+  bool empty() const { return m_Y.empty(); }
+
 private:
   // Allocates space for the Yk table, but does not calculate Yk. This is
   // because allocation cannot be done in parallel, but once allocation is done,

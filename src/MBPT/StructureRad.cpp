@@ -3,6 +3,7 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "ExternalField/CorePolarisation.hpp"
 #include "ExternalField/TDHF.hpp"
+#include "Sigma2.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Vector.hpp"
 #include "qip/omp.hpp"
@@ -761,6 +762,13 @@ StructureRad::BO(const DiracOperator::TensorOperator *const h,
   z1.first += fv * z2.first;
   z1.second += fv * z2.second;
   return z1;
+}
+
+//==============================================================================
+double StructureRad::Sigma_vw(const DiracSpinor &v,
+                              const DiracSpinor &w) const {
+  return m_use_Qk ? MBPT::Sigma_vw(v, w, *mQ, mCore, mExcited) :
+                    MBPT::Sigma_vw(v, w, mY, mCore, mExcited);
 }
 
 } // namespace MBPT
