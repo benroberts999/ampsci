@@ -1,5 +1,5 @@
 #include "Kionisation/Module_Kionisation.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "Kionisation/Kion_functions.hpp"

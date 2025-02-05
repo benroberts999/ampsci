@@ -1,4 +1,4 @@
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "HF/HartreeFock_test_data.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"

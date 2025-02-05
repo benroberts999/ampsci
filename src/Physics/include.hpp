@@ -1,6 +1,9 @@
 #pragma once
 #include "Physics/AtomData.hpp"
+#include "Physics/AtomData_PeriodicTable.hpp"
 #include "Physics/DiracHydrogen.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/UnitConv_conversions.hpp"
+#include "Physics/nuclear_data_table.hpp"
+#include "Physics/periodicTable.hpp"

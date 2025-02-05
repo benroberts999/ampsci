@@ -1,6 +1,6 @@
 #include "Modules/polarisability.hpp"
 #include "Coulomb/meTable.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"

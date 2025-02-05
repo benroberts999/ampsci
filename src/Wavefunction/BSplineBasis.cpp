@@ -1,5 +1,5 @@
 #include "BSplineBasis.hpp"
-#include "DiracOperator/DiracOperator.hpp" //for Drake-Gordon
+#include "DiracOperator/include.hpp" //for Drake-Gordon
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"

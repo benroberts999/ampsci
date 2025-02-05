@@ -1,5 +1,5 @@
 #include "Modules/HFAnomaly.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"

@@ -68,7 +68,7 @@ OBJS := $(subst $(SD),$(BD)/$(SUBBD),$(subst .cpp,.o,$(SRC_FILES)))
 ################################################################################
 # Link + build all final programs
 
-$(XD)/ampsci: $(BD)/$(SUBBD)/main.o $(BD)/$(SUBBD)/ampsci.o $(OBJS)
+$(XD)/ampsci: $(BD)/$(SUBBD)/main.o $(OBJS)
 	$(LINK)
 
 $(XD)/tests: $(OBJS) $(TEST_OBJS)
@@ -111,7 +111,14 @@ checkXdir:
 		false; \
 	fi
 
-.PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir remove_junk
+# Makes the includes
+includes:
+	./$(SD)/build_includes.sh
+	@echo "Running clang format (on includes)"
+	clang-format -i -verbose $(SD)/DiracOperator/Operators.hpp
+	find $(SD)/ -iname 'include.hpp' | xargs clang-format -i -verbose
+
+.PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir remove_junk includes pre_commit
 
 # Removes all compiled files: executables, objects, dependency files etc.
 # Also deletes junk
@@ -145,4 +152,13 @@ do_the_chicken_dance:
 
 # Runs clang format, and applies the changes to all c++ files
 clang_format:
-	clang-format -i src/*.cpp src/*/*.cpp src/*/*.hpp src/*/*.ipp
+	@echo "Running clang format (whole project)"
+	find $(SD)/ -iname '*.cpp' -o -iname '*.hpp' -o -iname '*.ipp' | xargs clang-format -i -verbose
+
+# Should be run before committing to dev
+pre_commit:
+	make includes
+	make clang_format
+	make ampsci tests
+	./tests [unit]
+	make remove_junk

@@ -1,6 +1,6 @@
 #pragma once
 #include "Coulomb/meTable.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "ExternalField/TDHF.hpp"
 #include <vector>
 

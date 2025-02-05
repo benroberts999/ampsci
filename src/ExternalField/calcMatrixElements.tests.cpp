@@ -1,5 +1,5 @@
 #include "calcMatrixElements.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "catch2/catch.hpp"

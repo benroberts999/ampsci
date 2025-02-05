@@ -1,7 +1,7 @@
-#include "DiracOperator.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
+#include "include.hpp"
 #include <utility>
 
 TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
