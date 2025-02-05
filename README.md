@@ -5,20 +5,23 @@
 [_ampsci_](https://ampsci.dev/)
 is a c++ program for high-precision atomic structure calculations of one and two valence atomic systems, developed and maintained by [Benjamin M. Roberts](https://broberts.io/), University of Queensland, Australia
 
-It solves the correlated Dirac equation using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method) to produce a set of atomic wavefunctions and energies.
-For two-valence systems, uses the CI+MBPT (Configuration Interaction with many-body perturbation theory) method.
-The method is fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, RPA for matrix elements, and structure radiation/renormalisation.
-QED is included via the Flambaum-Ginges radiative potential method.
-Can solve for continuum states with high energy, and calculate ionisation cross sections with large energy/momentum transfer.
-
 Designed to be fast, accurate, and easy to use.
-The "modules" system (see [doc/modules.md](doc/modules.md)) makes it simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
 
-* The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
+* Solves the correlated Dirac equation using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method) to produce a set of atomic wavefunctions and energies.
+* For two-valence systems, uses the CI+MBPT (Configuration Interaction with many-body perturbation theory) method.
+* Fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, RPA for matrix elements, and structure radiation/renormalisation.
+* QED is included via the Flambaum-Ginges radiative potential method.
+* Can solve for continuum states with high energy, and calculate ionisation cross sections with large energy/momentum transfer.
+* Can solve for exotic atoms (e.g., muonic atoms), including electron screening.
+* The "modules" system (see [doc/modules.md](doc/modules.md)) makes it simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
+
+The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
 * See [ampsci.dev/](https://ampsci.dev/) for full documentation
+* A basic step-by-step introduction is here: [doc/tutorial.md](doc/tutorial.md)
 * A full description of the physics methods and approximations, including references,
 is given in the physics documentation: [ampsci.pdf][man-url].
-* **Important:** this is a _pre-release_ version of the code: not fully tested or documented, and should not be used for publishable calculations (without consultation)
+
+**Important:** this is a _pre-release_ version of the code: not fully tested or documented, and should not be used for publishable calculations (without consultation)
 
 [![github][github-badge]](https://github.com/benroberts999/ampsci)
 [![doxygen][doxygen-badge]][docs-url]
@@ -52,6 +55,8 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 * The fastest way to get familiar with ampsci is to follow the tutorials
 * A basic step-by-step tutorial: [doc/tutorial.md](doc/tutorial.md)
 * More advanced tutorials follow: [doc/tutorial_advanced.md](doc/tutorial_advanced.md), [doc/tutorial_CI.md](doc/tutorial_CI.md)
+
+Much of ampsci documentation can be seen from the command line:
 * See which ampsci input options are available: `./ampsci -a`
   * See available input options for each input block by following with its name
   * e.g., `./ampsci -a HartreeFock`
@@ -71,8 +76,9 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 Full documentation available online: [ampsci.dev/](https://ampsci.dev/).
 Divided into sections:
 
- 1. Usage intructions, input options
+ 1. Compilation and basic usage
     * Compilation instructions (for linux/mac/windows): [doc/compilation.md](doc/compilation.md)
+    * Basic usage instructions: [doc/tutorial.md](doc/tutorial.md)
 
  2. Physics documentation: [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf)
     * Description of physics/methods used in the code
@@ -82,7 +88,7 @@ Divided into sections:
     * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated. See [doc/modules.md](doc/modules.md) for description
     * The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](doc/writing_modules.md) for details
 
- 4. Code documentation -- details on classes/functions in the code
+ 4. Full code documentation -- details on classes/functions in the code
     * Available online: [ampsci.dev/](https://ampsci.dev/)
     * This should only be required if you plan to edit the code or add new modules
 

@@ -3,9 +3,12 @@
 #include "Physics/AtomData_PeriodicTable.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "fmt/format.hpp"
 #include "qip/String.hpp"
 #include <algorithm>
+#include <cassert>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <vector>
 
@@ -72,11 +75,11 @@ void printConstants() //
   printf("aB      = %.12e m\n", PhysConst::aB_m);
   printf("        = %.8f fm\n", PhysConst::aB_fm);
   printf("        = %.12e c/MeV\n", PhysConst::aB_fm / PhysConst::hbarc_MeVfm);
-  printf("E_H     = %.12f eV\n", PhysConst::Hartree_eV);
+  printf("E_h     = %.12f eV\n", PhysConst::Hartree_eV);
   printf("        = %.12e Hz\n", PhysConst::Hartree_Hz);
   printf("        = %.8f /cm\n", PhysConst::Hartree_invcm);
-  printf("λ(E_H)  = %.8f nm\n", 1e9 * PhysConst::c_SI / PhysConst::Hartree_Hz);
-  printf("ℏ/E_H   = %.10e s\n", PhysConst::hbar_on_EH);
+  printf("λ(E_h)  = %.8f nm\n", 1e9 * PhysConst::c_SI / PhysConst::Hartree_Hz);
+  printf("ℏ/E_h   = %.10e s\n", PhysConst::hbar_on_EH);
   std::cout << "\n";
   return;
 }
@@ -128,6 +131,171 @@ void periodicTable(std::string z_str, std::string a_str) {
       std::cout << "\n";
       printData(nuc);
     }
+  }
+}
+
+//==============================================================================
+
+// Energy: au, cm^-1, Hz, nm, eV
+// Length: a0, aB, fm
+void convert_energies_au(double Eau) {
+
+  const auto Ecm = Eau * PhysConst::Hartree_invcm;
+  const auto EHz = Eau * PhysConst::Hartree_Hz;
+  const auto EeV = Eau * PhysConst::Hartree_eV;
+  const auto wl_nm = PhysConst::HartreeWL_nm / Eau;
+
+  fmt::print("  {:<20.15g} Eh\n", Eau);
+  fmt::print("  {:<20.15g} cm^-1\n", Ecm);
+  if (EHz < 1.0e3)
+    fmt::print("  {:<20.15g} Hz\n", EHz);
+  else if (EHz < 1.0e6)
+    fmt::print("  {:<20.15g} kHz\n", EHz * 1.0e-3);
+  else if (EHz < 1.0e9)
+    fmt::print("  {:<20.15g} MHz\n", EHz * 1.0e-6);
+  else if (EHz < 1.0e12)
+    fmt::print("  {:<20.15g} GHz\n", EHz * 1.0e-9);
+  else
+    fmt::print("  {:<20.15g} THz\n", EHz * 1.0e-12);
+
+  if (EeV < 1.0e3)
+    fmt::print("  {:<20.15g} eV\n", EeV);
+  else if (EeV < 1.0e6)
+    fmt::print("  {:<20.15g} keV\n", EeV * 1.0e-3);
+  else if (EeV < 1.0e9)
+    fmt::print("  {:<20.15g} MeV\n", EeV * 1.0e-6);
+  else if (EeV < 1.0e12)
+    fmt::print("  {:<20.15g} GeV\n", EeV * 1.0e-9);
+  else
+    fmt::print("  {:<20.15g} TeV\n", EeV * 1.0e-12);
+
+  fmt::print("  {:<20.15g} nm\n", wl_nm);
+}
+
+//==============================================================================
+void convert_length_au(double La0) {
+
+  const auto Em = La0 * PhysConst::aB_m;
+
+  fmt::print("  {:<20.15g} a0\n", La0);
+  fmt::print("  {:<20.15g} fm\n", Em * 1.0e15);
+  // always print fm, also others if better
+  if (Em > 1.0e-12) {
+    if (Em < 1.0e-9)
+      fmt::print("  {:<20.15g} pm\n", Em * 1.0e12);
+    else if (Em < 1.0e-6)
+      fmt::print("  {:<20.15g} nm\n", Em * 1.0e9);
+    else if (Em < 1.0e-3)
+      fmt::print("  {:<20.15g} um\n", Em * 1.0e6);
+    else if (Em > 1.0e-12)
+      fmt::print("  {:<20.15g} mm\n", Em * 1.0e3);
+  }
+  std::cout << "\n";
+
+  // in inverse eV^{-1};
+  const auto L_inv_MeV = (Em * 1.0e15) / PhysConst::hbarc_MeVfm;
+
+  // fmt::print("  {:<20.15g} MeV^-1\n", L_inv_MeV);
+
+  if (L_inv_MeV < 1.0e-3)
+    fmt::print("  {:<20.15g} TeV^-1\n", L_inv_MeV * 1.0e6);
+  else if (L_inv_MeV < 1.0e-0)
+    fmt::print("  {:<20.15g} GeV^-1\n", L_inv_MeV * 1.0e3);
+  else if (L_inv_MeV < 1.0e3)
+    fmt::print("  {:<20.15g} MeV^-1\n", L_inv_MeV);
+  else if (L_inv_MeV < 1.0e6)
+    fmt::print("  {:<20.15g} keV^-1\n", L_inv_MeV * 1e-3);
+  else
+    fmt::print("  {:<20.15g} eV^-1\n", L_inv_MeV * 1e-6);
+}
+
+//==============================================================================
+void conversions(double number, const std::string &unit) {
+  assert(unit.size() > 0);
+
+  fmt::print("{:<.15g} {} = \n", number, unit);
+
+  // this part: NOT case insensitive
+
+  if (!qip::ci_contains(unit, "^-1")) {
+    if (unit[0] == 'f')
+      number *= 1.0e-15;
+    if (unit[0] == 'p')
+      number *= 1.0e-12;
+    if (unit[0] == 'n')
+      number *= 1.0e-9;
+    if (unit[0] == 'u')
+      number *= 1.0e-6;
+    if (unit[0] == 'm' && unit.size() > 1)
+      number *= 1.0e-3;
+    if (unit[0] == 'k')
+      number *= 1.0e3;
+    if (unit[0] == 'M')
+      number *= 1.0e6;
+    if (unit[0] == 'G')
+      number *= 1.0e9;
+    if (unit[0] == 'T')
+      number *= 1.0e12;
+  } else {
+    if (unit[0] == 'f')
+      number /= 1.0e-15;
+    if (unit[0] == 'p')
+      number /= 1.0e-12;
+    if (unit[0] == 'n')
+      number /= 1.0e-9;
+    if (unit[0] == 'u')
+      number /= 1.0e-6;
+    if (unit[0] == 'm' && unit.size() > 1)
+      number /= 1.0e-3;
+    if (unit[0] == 'k')
+      number /= 1.0e3;
+    if (unit[0] == 'M')
+      number /= 1.0e6;
+    if (unit[0] == 'G')
+      number /= 1.0e9;
+    if (unit[0] == 'T')
+      number /= 1.0e12;
+  }
+
+  if (qip::ci_contains(unit, {"au", "a.u.", "Hartree", "Eh"})) {
+    return convert_energies_au(number);
+  }
+
+  if (qip::ci_contains(unit, "Ry")) {
+    return convert_energies_au(number / 2);
+  }
+
+  if (qip::ci_contains(unit, {"cm^-1", "/cm", "inversecm", "icm", "cm^{-1}"})) {
+    return convert_energies_au(number / PhysConst::Hartree_invcm);
+  }
+
+  if (qip::ci_contains(unit, "Hz")) {
+    return convert_energies_au(number / PhysConst::Hartree_Hz);
+  }
+
+  // Convert inverse energy to length:
+  if (qip::ci_contains(unit, std::vector<std::string>{"eV^-1", "eV^{-1}"})) {
+    number *= 1.0e6; //back to MeV:
+    return convert_length_au(number * PhysConst::hbarc_MeVfm /
+                             PhysConst::aB_fm);
+  }
+
+  //must come after the eV^-1
+  if (qip::ci_contains(unit, "eV")) {
+    return convert_energies_au(number / PhysConst::Hartree_eV);
+  }
+
+  // This must come _after_ inverse cm check
+  // interpret as wavelength (convert to energy), then as a length:
+  if ((unit.size() > 1 && unit[1] == 'm') || unit == "m") {
+    std::cout << "Wavelength:\n";
+    convert_energies_au(PhysConst::HartreeWL_nm / (1.0e9 * number));
+    std::cout << "\n";
+    convert_length_au((1.0e9 * number) / PhysConst::aB_nm);
+  }
+
+  if (qip::ci_contains(unit, std::vector<std::string>{"a0", "ab"})) {
+    return convert_length_au(number);
   }
 }
 

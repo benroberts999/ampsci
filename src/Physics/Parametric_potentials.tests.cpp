@@ -1,14 +1,14 @@
-#include "Physics/Parametric_potentials.hpp"
+#include "Parametric_potentials.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 
 //==============================================================================
 //==============================================================================
-//! Unit tests for Ginges/Flambaum Radiative potential method
-TEST_CASE("Physics: Parametric potentials", "[prm][unit]") {
+//! Unit tests for Parametric potentials
+TEST_CASE("Parametric potentials", "[prm][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "Physics: Parametric potentials\n";
+  std::cout << "Parametric potentials\n";
 
   // ensure no invalid numbers
   for (int z = 2; z < 137; ++z) {

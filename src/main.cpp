@@ -26,21 +26,13 @@ const std::string synopsis{"ampsci [InputFile]\n"
                            "ampsci [Atom] [Core] [Valence]\n"
                            "ampsci -a [InputBlock]\n"
                            "ampsci -m [Module]\n"
-                           "ampsci -o [Operator]\n"};
+                           "ampsci -o [Operator]\n"
+                           "ampsci -p [Atom] [Isotope]\n"
+                           "ampsci -c [value] [unit]\n"};
 
 const std::string description{
     "ampsci is a C++ program for high-precision atomic structure calculations "
     "of single-valence systems.\n"
-    "It solves the correlated Dirac equation using the Hartree-Fock + "
-    "correlation potential method (based on Dzuba-Flambaum-Sushkov method) to "
-    "produce a set of atomic wavefunctions and energies. The method is fully "
-    "relativistic, includes electron correlations, all-orders screening and "
-    "hole-particle interaction, finite-nuclear size, Breit interaction, "
-    "radiative QED effects, RPA for matrix elements, and structure "
-    "radiation/renormalisation. QED is included via the Flambaum-Ginges "
-    "radiative potential method.\n"
-    "Can solve for continuum states with very high and very low energy, and "
-    "calculate ionisation cross sections with large momentum transfer values.\n"
     "Full documentation (including of the physics methods) can be found "
     "online: https://ampsci.dev/"};
 
@@ -61,7 +53,7 @@ const std::vector<std::pair<std::string, std::string>> options{
      "./ampsci Cs [Xe] 6sd5d\n"
      "    - Runs ampsci for Cs using Hartree Fock with Xe-like core and "
      "valence states up to n=6 for s,p-states and n=5 for d-states\n"},
-    {"-a [BlockName] ..., --ampsci [BlockName] ...",
+    {"-a [BlockName] ..., --ampsci",
      "Prints list of available top-level ampsci options. BlockName is "
      "optional; if given it will print options for given ampsci Block. You may "
      "list any number of blocks (space separated).\nExamples:\n"
@@ -70,12 +62,28 @@ const std::vector<std::pair<std::string, std::string>> options{
      "./ampsci -a Atom HartreeFock\n"
      "    - Prints list of all available options in the 'Atom' and "
      "'HartreeFock' input blocks"},
-    {"-c, --constants", "Prints some handy physical constants"},
+    {"-c [value] [unit], --constants",
+     "Prints some handy physical constants, and does unit conversions.\n"
+     "Converts energies between: au (=Eh), eV, cm^-1, Hz, nm (wavelength)\n"
+     "Converts lengths between: a0, fm, eV^-1\n"
+     "Standard SI prefixes allowed: fempto (f) to Terra (T); use `u` for "
+     "micro.\n"
+     "Examples:\n"
+     "./ampsci -c 123.456 eV\n"
+     "    - Converts 123.456 eV to other energy units\n"
+     "./ampsci -c 27000 cm^-1\n"
+     "    - Converts 27000 cm^-1 to other energy units\n"
+     "./ampsci -c 4.561 fm\n"
+     "    - Converts 4.561 fm to other length units\n"
+     "./ampsci -c 1.05 um\n"
+     "    - Converts 1.05 micro-m to other length units\n"
+     "./ampsci -c 0.01 MeV^-1\n"
+     "    - Converts 0.01 MeV^-1 to other length units\n"},
     {"-h, --help, -?",
      "Prints help info, including some detail on input options"},
     {"-l, --libs, --libraries",
      "Prints version details for libaries used by ampsci"},
-    {"-m [ModuleName], --modules [ModuleName]",
+    {"-m [ModuleName], --modules",
      "Prints list of available Modules. ModuleName is optional; if given, "
      "will list avaiable options for that Module.\n"
      "Examples:\n"
@@ -83,7 +91,7 @@ const std::vector<std::pair<std::string, std::string>> options{
      "    - Prints list of available modules\n"
      "./ampsci -m MatrixElements\n"
      "    - Prints list of input options for the 'MatrixElements' module\n"},
-    {"-o [OperatorName], --operators [OperatorName]",
+    {"-o [OperatorName], --operators",
      "Prints list of available operators (for calculating matrix elements). "
      "OperatorName is optional; if given, will list avaiable options for that "
      "operator (most operators take no options).\n"
@@ -92,7 +100,7 @@ const std::vector<std::pair<std::string, std::string>> options{
      "    - Prints list of available operators\n"
      "./ampsci -o E1\n"
      "    - Prints list of input optins for the 'E1' operator\n"},
-    {"-p [Atom] [Isotope], --periodicTable [Atom] [Isotope]",
+    {"-p [Atom] [Isotope], --periodicTable",
      "Prints textual periodic table with electronic + nuclear information. "
      "Atom and Isotope are optional; if given, will print info for that "
      "isotope. Atom should be atomic symbol (eg Cs), or Z (55). If Isotope is "
@@ -158,28 +166,27 @@ int main(int argc, char *argv[]) {
   using namespace std::string_literals;
 
   // Parse input text into strings:
-  const std::string input_text = (argc > 1) ? argv[1] : "";
-  const std::string core_text = (argc > 2) ? argv[2] : "";
-  const std::string valence_text = (argc > 3) ? argv[3] : "";
+  const std::string in_text_1 = (argc > 1) ? argv[1] : "";
+  const std::string in_text_2 = (argc > 2) ? argv[2] : "";
+  const std::string in_text_3 = (argc > 3) ? argv[3] : "";
 
   // check for special commands
-  if (input_text == "") {
+  if (in_text_1 == "") {
     man::print_manual();
     return 0;
-  } else if (input_text == "-v" || input_text == "--version") {
+  } else if (in_text_1 == "-v" || in_text_1 == "--version") {
     std::cout << "AMPSCI v: " << version::version() << '\n';
     std::cout << "Libraries:\n" << version::libraries() << '\n';
     std::cout << "Compiled: " << version::compiled() << '\n';
     std::cout << man::author << "\n";
     return 0;
-  } else if (input_text == "-l" || input_text.substr(0, 5) == "--lib") {
+  } else if (in_text_1 == "-l" || in_text_1.substr(0, 5) == "--lib") {
     std::cout << "Libraries:\n" << version::libraries() << '\n';
     return 0;
-  } else if (input_text == "-h" || input_text == "--help" ||
-             input_text == "-?") {
+  } else if (in_text_1 == "-h" || in_text_1 == "--help" || in_text_1 == "-?") {
     man::print_manual();
     return 0;
-  } else if (input_text == "-m" || input_text == "--modules") {
+  } else if (in_text_1 == "-m" || in_text_1 == "--modules") {
     std::cout << "Available modules: \n";
     Module::list_modules();
     const std::string module_name = (argc > 2) ? argv[2] : "";
@@ -190,7 +197,7 @@ int main(int argc, char *argv[]) {
                         {});
     }
     return 0;
-  } else if (input_text == "-o" || input_text == "--operators") {
+  } else if (in_text_1 == "-o" || in_text_1 == "--operators") {
     std::cout << "Available operators: \n";
     DiracOperator::list_operators();
     const std::string op_name = (argc > 2) ? argv[2] : "";
@@ -199,7 +206,7 @@ int main(int argc, char *argv[]) {
       DiracOperator::generate(op_name, IO::InputBlock{op_name, {"help;"}}, wf);
     }
     return 0;
-  } else if (input_text == "-a" || input_text == "--ampsci") {
+  } else if (in_text_1 == "-a" || in_text_1 == "--ampsci") {
     auto temp_input = IO::InputBlock{"ampsci", {"help;"}};
     for (int i_in = 2; i_in < argc; ++i_in) {
       const std::string block_name = (argc > i_in) ? argv[i_in] : "";
@@ -209,19 +216,21 @@ int main(int argc, char *argv[]) {
     }
     ampsci(temp_input);
     return 0;
-  } else if (input_text == "-p" || input_text == "--periodicTable") {
+  } else if (in_text_1 == "-p" || in_text_1 == "--periodicTable") {
     std::string z_str = (argc > 2) ? argv[2] : "";
     std::string a_str = (argc > 3) ? argv[3] : "";
     AtomData::periodicTable(z_str, a_str);
     return 0;
-  } else if (input_text == "-e" || input_text == "--EasterEgg") {
+  } else if (in_text_1 == "-e" || in_text_1 == "--EasterEgg") {
     std::cout << EasterEgg::get_egg();
     return 0;
-  } else if (input_text == "-c" || input_text == "--constants") {
+  } else if (in_text_1 == "-c" || in_text_1 == "--constants") {
     AtomData::printConstants();
+    if (!in_text_2.empty() && !in_text_3.empty())
+      AtomData::conversions(std::stod(in_text_2), in_text_3);
     return 0;
-  } else if (!input_text.empty() && input_text.front() == '-') {
-    std::cout << "Unrecognised option: " << input_text << '\n';
+  } else if (!in_text_1.empty() && in_text_1.front() == '-') {
+    std::cout << "Unrecognised option: " << in_text_1 << '\n';
     man::print_manual();
     return 0;
   }
@@ -237,17 +246,17 @@ int main(int argc, char *argv[]) {
   // If we are not given a valid input text file, assume input is in form:
   // <At> <core> <valence> (e.g., "Cs [Xe] 6sp")
   // All optional, but must appear in order. ("Core" may be skipped for H)
-  const auto atom = AtomData::atomicSymbol(AtomData::atomic_Z(input_text));
+  const auto atom = AtomData::atomicSymbol(AtomData::atomic_Z(in_text_1));
   const auto core =
-      atom == "H" ? "" : (core_text == "" ? "[" + atom + "]" : core_text);
+      atom == "H" ? "" : (in_text_2 == "" ? "[" + atom + "]" : in_text_2);
   // allow core to be skipped for Hydrogen
-  const auto valence = (atom == "H" && argc == 3) ? core_text : valence_text;
+  const auto valence = (atom == "H" && argc == 3) ? in_text_2 : in_text_3;
   const std::string default_input = "Atom{Z=" + atom + ";}" +
                                     "HartreeFock { core = " + core +
                                     "; valence = " + valence + ";}";
 
   // nb: std::filesystem not available in g++-7 (getafix version)
-  const auto fstream = std::fstream(input_text);
+  const auto fstream = std::fstream(in_text_1);
   const auto input = fstream.good() ? IO::InputBlock("ampsci", fstream) :
                                       IO::InputBlock("ampsci", default_input);
 

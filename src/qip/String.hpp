@@ -87,6 +87,45 @@ inline char tolower(char ch) {
   return static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
 }
 
+inline std::string tolower(std::string t_string) {
+  for (auto &c : t_string) {
+    c = qip::tolower(c);
+  }
+  return t_string;
+}
+
+//==============================================================================
+//! Checks if the_string (arg1) constaints sub_string (arg2)
+inline bool contains(std::string_view the_string, std::string_view sub_string) {
+  return the_string.find(sub_string) != std::string::npos;
+}
+
+//! Checks if the_string (arg1) constaints sub_string (arg2), case insensitive
+inline bool ci_contains(const std::string &the_string,
+                        const std::string &sub_string) {
+  return tolower(the_string).find(tolower(sub_string)) != std::string::npos;
+}
+
+//! Checks if the_string (arg1) constaints any of the sub_strings (arg2)
+inline bool contains(const std::string &the_string,
+                     const std::vector<std::string> &sub_strings) {
+  for (const auto &substr : sub_strings) {
+    if (contains(the_string, substr))
+      return true;
+  }
+  return false;
+}
+
+//! Checks if the_string (arg1) constaints any of the sub_strings (arg2), case insensitive
+inline bool ci_contains(const std::string &the_string,
+                        const std::vector<std::string> &sub_strings) {
+  for (const auto &substr : sub_strings) {
+    if (ci_contains(the_string, substr))
+      return true;
+  }
+  return false;
+}
+
 //==============================================================================
 //! Case insensitive string compare. Essentially: LowerCase(s1)==LowerCase(s2)
 inline bool ci_compare(std::string_view s1, std::string_view s2) {

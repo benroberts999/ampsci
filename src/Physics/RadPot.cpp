@@ -193,11 +193,16 @@ RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
         "QED Radiative potential will be included if this block is present"},
        {"", "The following 5 are all doubles. Scale to include * potential; "
             "usually either 0.0 or 1.0, but can take any value:"},
-       {"Ueh", "  Uehling (vacuum pol). [1.0]"},
-       {"SE_h", "  self-energy high-freq electric. [1.0]"},
-       {"SE_l", "  self-energy low-freq electric. [1.0]"},
-       {"SE_m", "  self-energy magnetic. [1.0]"},
-       {"WK", "  Wickman-Kroll. [0.0]"},
+       {"Ueh", "  Uehling (vacuum polarisation). [1.0]"},
+       {"SE", "  Self-energy. [1.0]"},
+       {"", "  The following are for indevidual components of the self-energy "
+            "tern; will over-write the above:"},
+       {"SE_h", "    self-energy high-freq electric."},
+       {"SE_l", "    self-energy low-freq electric."},
+       {"SE_m", "    self-energy magnetic."},
+       {"", ""},
+       {"WK",
+        "  Wickman-Kroll (approximate form of higher-order vac. pol.). [0.0]"},
        {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
        {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
                     "typical [1.0]"},
@@ -208,9 +213,10 @@ RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
   }
 
   const auto x_Ueh = input.get("Ueh", 1.0);
-  const auto x_SEe_h = input.get("SE_h", 1.0);
-  const auto x_SEe_l = input.get("SE_l", 1.0);
-  const auto x_SEm = input.get("SE_m", 1.0);
+  const auto x_SE = input.get("SE", 1.0);
+  const auto x_SEe_h = input.get("SE_h", x_SE);
+  const auto x_SEe_l = input.get("SE_l", x_SE);
+  const auto x_SEm = input.get("SE_m", x_SE);
   const auto x_wk = input.get("WK", 0.0);
   const auto rcut = input.get("rcut", 5.0);
   const auto scale_rN = input.get("scale_rN", 1.0);

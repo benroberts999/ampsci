@@ -1,4 +1,4 @@
-#include "Physics/Parametric_potentials.hpp"
+#include "Parametric_potentials.hpp"
 #include <cmath>
 #include <iostream>
 #include <vector>

@@ -17,7 +17,7 @@ constexpr double Momentum_au_to_MeV =
 constexpr double Momentum_MeV_to_au = 1.0 / Momentum_au_to_MeV;
 
 //! mass: au -> GeV
-constexpr double Mass_au_to_GeV = PhysConst::m_e_MeV / 1000.;
+constexpr double Mass_au_to_GeV = PhysConst::m_e_MeV / 1000.0;
 //! mass: au -> MeV
 constexpr double Mass_au_to_MeV = PhysConst::m_e_MeV;
 //! mass: GeV -> au
@@ -32,7 +32,7 @@ constexpr double Velocity_au_to_cms =
     (PhysConst::c_SI / PhysConst::alpha) * 100.;
 //! velocity: cm/s -> cm/day
 constexpr double Velocity_au_to_cmday =
-    Velocity_au_to_cms * (24.0 * 60.0 * 60.);
+    Velocity_au_to_cms * (24.0 * 60.0 * 60.0);
 
 //! atomic mass: daltons -> kg
 constexpr double AtomicMass_u_to_kg = PhysConst::u_NMU * PhysConst::m_e_kg;

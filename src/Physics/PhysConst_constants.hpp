@@ -8,88 +8,88 @@
 //! https://physics.nist.gov/cuu/Constants/
 namespace PhysConst {
 
-// CODATA 2018: 1/alpha = 137.035999084(21)
-//! fine-structure constant
-constexpr double alpha = 1.0 / 137.035999084;
+//! c, speed of light: 299 792 458 m/s   [exact]
+constexpr double c_SI = 299792458.0;
+
+//! Planck constant h: 6.626 070 15 e-34 J.s [exact]
+constexpr double h_SI = (6.62607015e-34);
+
+//! hbar: 6.626 070 15 e-34 / (2 Pi) J.s [exact]
+constexpr double hbar_SI = h_SI / (2.0 * M_PI);
+
+//! Fundamental charge, Coulombs. 1.602 176 634 e-19 C [exact]
+constexpr double e_C = 1.602176634e-19;
+
+//! Fine-structure constant: alpha = 1/137.035 999 177(21) [CODATA 2022]
+constexpr double alpha = 1.0 / 137.035999177;
+
+//! electron g-factor: -2.002 319 304 360 92(36) [CODATA 2022]
+constexpr double g_e = -2.00231930436092;
+
+//! e/me: 1.758 820 008 38(55) e11 [CODATA 2022]
+constexpr double e_on_me_SI = 1.75882000838e11;
+
+//! electron mass, in SI (kg)
+constexpr double m_e_kg = e_C / e_on_me_SI;
+
+//! Proton mass, in atomic units (mp/me). CODATA 2022: 1836.152 673 426(32)
+constexpr double m_p = 1836.152673426;
+
+//! muon mass in atomic units (m_mu/m_e). Codata 2022: 206.768 2827(46)
+constexpr double m_muon = 206.7682827;
+
+//! tauon mass in atomic units (m_tau/m_e) 3477.23(23)
+constexpr double m_tau = 3477.23;
+
+//! unified atomic mass unit; (nuclear mass unit, Dalton): CODATA 2022: 1.660 539 068 92(52) x 10-27 kg
+constexpr double u_NMU_kg = 1.66053906892e-27;
+
+//! Bohr radius, in m. : hbar/(m_e*c*alpha)
+constexpr double aB_m = hbar_SI / (m_e_kg * c_SI * alpha);
+
+//! Hartree (atomic energy unit = 2Ry) in eV, 27.211 386 245 981(30) eV [CODATA 2022]
+constexpr double Hartree_eV = 27.211386245981;
+// nb: this one different from m*c^2*alpha^2 - probably because it measured better than alpha??
+
+//! Fermi weak constant, in GeV^-2: 1.166 3787(6) x 10-5 GeV-2 [CODATA 2022]
+constexpr double GF_GeV2 = 1.1663787e-5;
+
+//======================================================================
+//======================================================================
+
 constexpr double alpha2 = alpha * alpha;
 
 //! speed of light in a.u. (=1/alpha)
 constexpr double c = 1.0 / alpha;
 constexpr double c2 = c * c;
-//! speed of light, in m/s [CODATA 2018, exact]
-constexpr double c_SI = 299792458.0;
 
-//! hbar (reduced Planck constant), in SI (J.s)
-constexpr double hbar_SI = (6.62607015e-34) / (2.0 * M_PI); // exact
-
-//! Fundamental charge, Coulombs. 1.602176634 x 10-19 [exact]
-constexpr double e_C = 1.602176634e-19;
-
-//! CODATA 2018: hbar*c = 197.326 980 4... MeV fm
-// constexpr double hbarc_MeVfm = 197.3269804;
+//! hbar * c, in MeV.fm
 constexpr double hbarc_MeVfm = (hbar_SI * c_SI / e_C) * 1.0e9;
 
-// Mass (mp/me)
-// CODATA 2018: m_e = 9.109 383 7015(28) e-31
-// CODATA 2018: m_p = 1.672 621 923 69(51) x 10-27 kg
-// CODATA 2018: 1836.152 673 43(11)
-//! Proton mass, in atomic units (mp/me). CODATA 2018: 1836.152 673 43(11)
-constexpr double m_p = 1836.15267343;
-//! electron mass, in SI (kg). CODATA 2018: m_e = 9.109 383 7015(28) e-31
-constexpr double m_e_kg = 9.1093837015e-31;
-//! Electron mass (MeV/c^2); 2020 value 0.51099895000(15):
-constexpr double m_e_MeV = 0.51099895000;
-constexpr double m_e_GeV = m_e_MeV / 1000.0;
+//! Electron mass (MeV/c^2)
+constexpr double m_e_MeV = Hartree_eV * c2 / 1.0e6;
 
-//! muon mass in atomic units (m_mu/m_e)
-constexpr double m_muon = 206.7682827;
-//! tauon mass in atomic units (m_tau/m_e)
-constexpr double m_tau = 3477.23;
-
-// CODATA 2014: 1822.888 486 192(53)
-//! unified atomic mass unit; (nuclear mass unit, Dalton). CODATA 2014:
-//! 1822.888 486 192(53)
-constexpr double u_NMU = 1822.888486192;
+//! unified atomic mass unit; (nuclear mass unit, Dalton): au
+constexpr double u_NMU = u_NMU_kg / m_e_kg;
 
 // Length:
-// CODATA 2018: a_B = 0.529177210903(80)e-10 m
-//! Bohr radius, in m. CODATA 2018: a_B = 0.529177210903(80)e-10 m
-constexpr double aB_m = 0.529177210903e-10;
+
 constexpr double aB_cm = aB_m * (1.0e+2);
 constexpr double aB_fm = aB_m * (1.0e+15);
 constexpr double aB_nm = aB_m * (1.0e+9);
 
-//! hbar/E_H. wiki: 2.4188843265857(47)*10-17 s [wiki 2019]
-constexpr double hbar_on_EH = 2.4188843265857e-17;
-//! Atomic unit of time (in seconds) - hbar/E_H
-constexpr double time_s = hbar_on_EH;
+//! Hartree (atomic energy unit = 2Ry) in Hz.
+constexpr double Hartree_Hz = Hartree_eV * e_C / h_SI;
 
-// Energy:
-// CODATA 2018: E_H = 27.211 386 245 988(53) eV
-//                  = 6.579 683 920 502(13) x 10^15 Hz
-//! Hartree (atomic energy unit = 2Ry) in eV. CODATA 2018: E_H = 27.211 386 245
-//! 988(53) eV
-constexpr double Hartree_eV = 27.211386245988;
-constexpr double Hartree_Hz = 6.579683920502e+15;
 constexpr double Hartree_MHz = Hartree_Hz * (1.0e-6);
 constexpr double Hartree_GHz = Hartree_Hz * (1.0e-9);
-// wave-number (inverse cm):
+//! Hartree to cm^-1 conversion [wave-number, inverse cm]:
 constexpr double Hartree_invcm = 1.0 / (2.0 * M_PI * c * aB_cm);
-// wavelength (nm):
+//! Hartree to corresponding wavelength, in nm
 constexpr double HartreeWL_nm = 2.0 * M_PI * c * aB_m * (1.0e+9);
 
-//! Fermi weak constant (au). Times 10^{11}
-/*! Particle Data Group 2020:
- Gf = 1.1663787(6) e-5 (hbar*c)^3 GeV^-2
-    = 1.1663787(6) e-5 alpha (GeV/c^2)^-2 au
- me = 0.51099895000 e-3 GeV/c^2 = 1 au
- Gf = 2.222516(11) e-3 au
-*/
-constexpr double GFe11 = 2.222516e-3;
-constexpr double GF = GFe11 * (1.0e-11);
-
-//! electron g-factor. CODATA 2018: -2.002 319 304 362 56(35)
-constexpr double g_e = -2.00231930436256;
+//! hbar/E_H (atomic unit of time) (in seconds)
+constexpr double hbar_on_EH = hbar_SI / e_C / Hartree_eV;
 
 //! Bohr magneton (in SI-derived atomic units):
 constexpr double muB_SI = 0.5; //
@@ -106,5 +106,16 @@ constexpr double muN_CGS_MHz = Hartree_MHz * muB_CGS / m_p;
 constexpr double barn_m2 = 1.0e-28;
 constexpr double barn_au = barn_m2 / (aB_m * aB_m);
 constexpr double barn_MHz = barn_au * Hartree_MHz;
+
+//! Fermi weak constant (au).
+/*! Particle Data Group 2020:
+ Gf = 1.1663787(6) e-5 (hbar*c)^3 GeV^-2
+    = 1.1663787(6) e-5 alpha (GeV/c^2)^-2 au
+ me = 0.51099895000 e-3 GeV/c^2 = 1 au
+ Gf = 2.222516(11) e-3 au
+*/
+constexpr double GF = GF_GeV2 * alpha * m_e_MeV * m_e_MeV * 1e-6;
+//! Fermi weak constant * 10^11, in atomic units
+constexpr double GFe11 = GF * 1.0e11;
 
 } // namespace PhysConst

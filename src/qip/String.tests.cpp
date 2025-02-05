@@ -110,4 +110,21 @@ TEST_CASE("qip::String", "[qip][String][unit]") {
   REQUIRE(qip::wrap("hello\nworld hello world hello\nworld\nhello\nworld", 100,
                     "__") ==
           "__hello\n__world hello world hello\n__world\n__hello\n__world");
+
+  //===========================================
+  REQUIRE(qip::contains("abcdef", "abc"));
+  REQUIRE(qip::contains("abcdef", "cde"));
+  REQUIRE(qip::contains("abcdef", "ef"));
+  REQUIRE(!qip::contains("abcdef", "ce"));
+  REQUIRE(!qip::contains("abcdef", "cD"));
+
+  REQUIRE(qip::tolower("AbC") == std::string{"abc"});
+  std::string ben{"BenR"};
+  const auto ben2 = qip::tolower(ben);
+  REQUIRE(ben2 == "benr");
+
+  REQUIRE(qip::ci_contains("AbCdEf", "aBC"));
+  REQUIRE(qip::ci_contains("AbCdEf", "cde"));
+  REQUIRE(qip::ci_contains("AbCdEf", "eF"));
+  REQUIRE(!qip::ci_contains("AbCdEf", "ce"));
 }

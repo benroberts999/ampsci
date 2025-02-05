@@ -37,7 +37,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
        {"Nucleus{}", "Set nuclear parameters"},
        {"Grid{}", "Set radial grid/lattice parameters"},
        {"HartreeFock{}", "Options for solving atomic system"},
-       {"RadPot{}", "Inlcude QED radiative potential"},
+       {"RadPot{}",
+        "Options for the QED radiative potential (usually defaults suffice)"},
        {"ExtraPotential{}",
         "Include an extra effective potential. Rarely used."},
        {"Basis{}", "Basis of HF eigenstates used for MBPT"},
@@ -159,7 +160,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                  "factor for Breit Hamiltonian is usially 0.0 (no "
                  "Breit) or 1.0 (full Breit), but can take any value. [false]"},
        {"QED",
-        "Include QED? Three options: true, false, valence. If 'valencel, will "
+        "Include QED? Three options: true, false, valence. If 'valence, will "
         "include QED only into valence states, but not the core. Detailed QED "
         "options are set within the RadPot{} block - if that block is not set, "
         "defaults will be used. By default, this option is false, unless the "
@@ -229,8 +230,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       }
     } else {
       const auto rc = input.get({"ExtraPotential"}, "r_cut", 1.0);
-      std::cout << "Adding effective polarisation potential [-0.5 * a * (r^4 + "
-                   "rc^4)]: a="
+      std::cout << "Adding effective polarisation potential "
+                   "[-0.5 * a * (r^4 + rc^4)]: a="
                 << ep_scale << ", rc=" << rc << '\n';
       const auto a4 = rc * rc * rc * rc;
       auto dV = [=](auto r) { return -0.5 / (r * r * r * r + a4); };
