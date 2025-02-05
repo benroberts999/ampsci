@@ -2,7 +2,7 @@
 #include "Angular/Angular.hpp"
 #include "CI/CI.hpp"
 #include "Coulomb/Coulomb.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "IO/InputBlock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/Sigma2.hpp"

@@ -1,5 +1,5 @@
 #include "MixedStates.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/TDHFbasis.hpp"
 #include "IO/ChronoTimer.hpp"

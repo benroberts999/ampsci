@@ -1,5 +1,5 @@
 #include "Kion_functions.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/DiagramRPA0_jL.hpp"
 #include "HF/HartreeFock.hpp"

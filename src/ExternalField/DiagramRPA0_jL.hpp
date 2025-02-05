@@ -1,7 +1,7 @@
 #pragma once
 #include "CorePolarisation.hpp"
 #include "Coulomb/YkTable.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"

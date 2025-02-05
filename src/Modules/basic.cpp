@@ -1,5 +1,5 @@
 #include "basic.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/TDHFbasis.hpp"

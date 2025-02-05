@@ -1,5 +1,5 @@
 #include "lifetimes.hpp"
-#include "DiracOperator/DiracOperator.hpp" //For E1 operator
+#include "DiracOperator/include.hpp" //For E1 operator
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/calcMatrixElements.hpp"

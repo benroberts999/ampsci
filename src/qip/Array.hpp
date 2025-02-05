@@ -5,6 +5,7 @@
 #include <numeric>
 #include <vector>
 
+//! qip library: A collection of useful functions
 namespace qip {
 
 //==============================================================================

@@ -3,7 +3,7 @@
 #include "CI_Integrals.hpp"
 #include "CSF.hpp"
 #include "Coulomb/Coulomb.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "ExternalField/calcMatrixElements.hpp"
 #include "IO/InputBlock.hpp"
 #include "LinAlg/Matrix.hpp"

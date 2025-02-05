@@ -1,5 +1,5 @@
 #include "ExternalField/DiagramRPA.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"

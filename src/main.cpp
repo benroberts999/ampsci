@@ -4,7 +4,7 @@
 #include "Modules/modules_list.hpp"
 #include "Physics/periodicTable.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "ampsci.hpp"
+#include "ampsci/ampsci.hpp"
 #include "fmt/color.hpp"
 #include "qip/String.hpp"
 #include "qip/omp.hpp"

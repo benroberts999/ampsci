@@ -2,7 +2,7 @@
 #include "CI/CSF.hpp"
 #include "Coulomb/QkTable.hpp"
 #include "Coulomb/meTable.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/Sigma2.hpp"
 #include "Wavefunction/DiracSpinor.hpp"

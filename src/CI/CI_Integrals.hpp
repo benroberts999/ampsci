@@ -13,6 +13,7 @@ namespace HF {
 class Breit;
 }
 
+//! Functions and classes for Configuration Interaction calculations
 namespace CI {
 
 //! Calculates the anti-symmetrised Coulomb integral for 2-particle states:

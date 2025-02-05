@@ -68,7 +68,7 @@ OBJS := $(subst $(SD),$(BD)/$(SUBBD),$(subst .cpp,.o,$(SRC_FILES)))
 ################################################################################
 # Link + build all final programs
 
-$(XD)/ampsci: $(BD)/$(SUBBD)/main.o $(BD)/$(SUBBD)/ampsci.o $(OBJS)
+$(XD)/ampsci: $(BD)/$(SUBBD)/main.o $(OBJS)
 	$(LINK)
 
 $(XD)/tests: $(OBJS) $(TEST_OBJS)
@@ -111,7 +111,11 @@ checkXdir:
 		false; \
 	fi
 
-.PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir remove_junk
+# Makes the includes
+includes:
+	./src/build_includes.sh
+
+.PHONY: clean docs doxy do_the_chicken_dance GitInfo checkObj checkXdir remove_junk includes
 
 # Removes all compiled files: executables, objects, dependency files etc.
 # Also deletes junk

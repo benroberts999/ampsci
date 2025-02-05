@@ -1,5 +1,5 @@
 #include "HF/Breit.hpp"
-#include "DiracOperator/DiracOperator.hpp" //For E1 operator
+#include "DiracOperator/include.hpp" //For E1 operator
 #include "IO/InputBlock.hpp"
 #include "Modules/exampleModule.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion

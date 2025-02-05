@@ -1,7 +1,7 @@
 #include "Modules/muonic.hpp"
 #include "DiracODE/BoundState.hpp"
 #include "DiracODE/InhomogenousGreens.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "IO/InputBlock.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"

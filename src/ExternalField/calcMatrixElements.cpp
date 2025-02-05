@@ -1,7 +1,7 @@
 #include "calcMatrixElements.hpp"
 #include "CorePolarisation.hpp"
 #include "DiagramRPA.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "HF/HartreeFock.hpp"
 #include "TDHF.hpp"
 #include "TDHFbasis.hpp"

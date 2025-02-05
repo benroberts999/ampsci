@@ -1,5 +1,5 @@
 #include "StructureRad.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Random.hpp"

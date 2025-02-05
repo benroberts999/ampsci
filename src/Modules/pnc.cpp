@@ -1,6 +1,6 @@
 #include "pnc.hpp"
-#include "DiracOperator/DiracOperator.hpp"
 #include "DiracOperator/TensorOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "ExternalField/MixedStates.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "IO/InputBlock.hpp"

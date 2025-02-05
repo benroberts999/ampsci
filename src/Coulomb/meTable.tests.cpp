@@ -1,5 +1,5 @@
 #include "Coulomb/meTable.hpp"
-#include "DiracOperator/DiracOperator.hpp"
+#include "DiracOperator/include.hpp"
 #include "catch2/catch.hpp"
 #include <random>
 

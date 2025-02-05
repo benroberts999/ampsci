@@ -7,6 +7,7 @@
 #include <vector>
 class Grid;
 
+//! Functions and classes used to solve the Dirac equation.
 namespace DiracODE {
 
 //==============================================================================
