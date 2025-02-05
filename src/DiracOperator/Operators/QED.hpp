@@ -3,8 +3,8 @@
 #include "DiracOperator/Operators/hfs.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/InputBlock.hpp"
-#include "Physics/FGRadPot.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Potentials/FGRadPot.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Vector.hpp"
 #include <cmath>

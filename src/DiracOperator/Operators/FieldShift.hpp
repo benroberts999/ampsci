@@ -2,8 +2,8 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/InputBlock.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
-#include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Potentials/NuclearPotentials.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Vector.hpp" // qip::overloads
 

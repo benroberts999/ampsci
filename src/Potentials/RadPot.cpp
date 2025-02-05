@@ -1,8 +1,8 @@
 #include "RadPot.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Maths/Interpolator.hpp"
-#include "Physics/FGRadPot.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Potentials/FGRadPot.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <vector>

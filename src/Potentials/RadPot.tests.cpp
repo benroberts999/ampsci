@@ -1,4 +1,4 @@
-#include "Physics/RadPot.hpp"
+#include "Potentials/RadPot.hpp"
 #include "DiracOperator/DiracOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"

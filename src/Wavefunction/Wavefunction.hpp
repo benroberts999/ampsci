@@ -4,9 +4,9 @@
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
-#include "Physics/NuclearPotentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Physics/RadPot.hpp"
+#include "Potentials/NuclearPotentials.hpp"
+#include "Potentials/RadPot.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <iostream>

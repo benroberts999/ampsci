@@ -1,7 +1,7 @@
 #include "MBPT/RDMatrix.hpp"
 #include "DiracODE/DiracODE.hpp"
 #include "Maths/Grid.hpp"
-#include "Physics/NuclearPotentials.hpp"
+#include "Potentials/NuclearPotentials.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "catch2/catch.hpp"
 #include <algorithm>

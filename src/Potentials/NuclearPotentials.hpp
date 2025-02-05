@@ -1,6 +1,6 @@
 #pragma once
 #include "IO/InputBlock.hpp"
-#include "NuclearData.hpp" //for Isotope
+#include "Physics/NuclearData.hpp" //for Isotope
 #include <optional>
 #include <string>
 #include <vector>

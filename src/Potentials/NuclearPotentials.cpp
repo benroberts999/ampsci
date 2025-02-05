@@ -1,9 +1,8 @@
-#include "Physics/NuclearPotentials.hpp"
+#include "Potentials/NuclearPotentials.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
-#include "NuclearData.hpp" //for Isotope
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/PhysConst_constants.hpp"

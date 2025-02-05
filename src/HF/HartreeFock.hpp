@@ -1,9 +1,9 @@
 #pragma once
 #include "Coulomb/YkTable.hpp"
 #include "HF/Breit.hpp"
-#include "Physics/Parametric_potentials.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Physics/RadPot.hpp"
+#include "Potentials/Parametric_potentials.hpp"
+#include "Potentials/RadPot.hpp"
 #include <memory>
 #include <string>
 #include <vector>
