@@ -216,7 +216,8 @@ void Feynman::form_vx_basis() {
   const auto rmax = 90.0;
   const auto positronQ = true;
   H1.formBasis({states, std::size_t(n_spl), k, r0, r0_eps, rmax, positronQ,
-                SplineBasis::SplineType::Derevianko});
+                SplineBasis::SplineType::Derevianko},
+               false);
 
   m_Vx_kappa =
       std::vector<GMatrix>(std::size_t(m_max_ki + 1),

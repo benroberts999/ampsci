@@ -465,10 +465,11 @@ std::vector<double> Wavefunction::coreDensity() const {
 }
 
 //==============================================================================
-void Wavefunction::formBasis(const SplineBasis::Parameters &params) {
+void Wavefunction::formBasis(const SplineBasis::Parameters &params,
+                             bool print) {
   if (params.n > 0) {
     IO::ChronoTimer t("Basis");
-    m_basis = SplineBasis::form_basis(params, *this, false);
+    m_basis = SplineBasis::form_basis(params, *this, false, print);
 
     if (params.orthogonalise) {
       std::cout << "Forcing spectrum to be orthog to core:\n";
