@@ -135,7 +135,9 @@ private:
   // Forms core projection operators
   void form_pa();
   // Forms HF exchange potential matrix
-  void form_vx();
+  void form_vx_basis();
+  void form_vx_matrix();
+
   // Sets up imaginary frequency grid
   Grid form_w_grid(double w0, double wratio) const;
   // Constructs the Q*Pi*Q Matrix along w grid, for each k
