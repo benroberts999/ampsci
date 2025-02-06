@@ -4,6 +4,7 @@
 #include "HF/HartreeFock.hpp"
 #include "MBPT/RDMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
 #include <cassert>
 #include <memory>
@@ -63,20 +64,13 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
            int(m_subgrid_points), int(m_i0), int(m_stride));
   }
 
-  if (m_HF->vBreit()) {
-    // Breit was included into HF; we should not do this!
-    fmt2::warning();
-    std::cout << "\nTrying to calculate Sigma in Feynman method when Breit "
-                 "is included may result in incorrect results!\n";
-  }
-
   // work-around for polarisation issue
   check_min_n();
   // Construct qk, and dri/drj
   form_qk();
   // Construct pa, Vx
   form_pa();
-  form_vx();
+  form_vx_basis();
   // Construct polarisation operator
   form_qpiq();
 }
@@ -166,7 +160,7 @@ ComplexGMatrix Feynman::green_single(const DiracSpinor &ket,
 }
 
 //==============================================================================
-void Feynman::form_vx() {
+void Feynman::form_vx_matrix() {
   // Vx = -|a>Q<a|
 
   m_Vx_kappa =
@@ -198,6 +192,50 @@ void Feynman::form_vx() {
 
       m_Vx_kappa[std::size_t(kapi)] += V_k.mult_elements_by(qk.dri()).real();
     }
+  }
+}
+
+//==============================================================================
+void Feynman::form_vx_basis() {
+  // Express Vx potential as a matrix, by writing
+  // Vx = Vx |n><n|
+  // For 'n', can use any basis: just choose H-like!
+  Wavefunction H1(m_grid, {"1", 0, "Ball"});
+  H1.set_HF("HartreeFock", 0.0, "[]");
+  H1.solve_core(false);
+
+  // Form spline basis:
+  const auto max_l = Angular::lFromIndex(m_max_ki);
+  // Get states e.g., "spdfghi"
+  const std::string states =
+      AtomData::spectroscopic_notation.substr(0, std::size_t(max_l) + 1);
+  const int k = 9;
+  const int n_spl = 95;
+  const auto r0 = 1.0e-4;
+  const auto r0_eps = 0.0;
+  const auto rmax = 90.0;
+  const auto positronQ = true;
+  H1.formBasis({states, std::size_t(n_spl), k, r0, r0_eps, rmax, positronQ,
+                SplineBasis::SplineType::Derevianko});
+
+  m_Vx_kappa =
+      std::vector<GMatrix>(std::size_t(m_max_ki + 1),
+                           {m_i0, m_stride, m_subgrid_points, false, m_grid});
+
+  // Vx = Vx|n><n|
+  for (const auto &n : H1.basis()) {
+
+    const auto vxn =
+        m_HF->vBreit() ? m_HF->vexFa(n) + m_HF->VBr(n) : m_HF->vexFa(n);
+
+    const auto kapi = n.k_index(); // kappa index:
+    m_Vx_kappa[std::size_t(kapi)].add(vxn, n, 1.0);
+  }
+
+  // Include integration measure into Vx for convenience
+  for (int kapi = 0; kapi <= m_max_ki; ++kapi) {
+    m_Vx_kappa[std::size_t(kapi)].dri_in_place();
+    m_Vx_kappa[std::size_t(kapi)].drj_in_place();
   }
 }
 
@@ -246,18 +284,20 @@ ComplexGMatrix Feynman::green_hf(int kappa, std::complex<double> en,
 
   if (en.imag() == 0.0) {
     // G = [1 - G0*Vx]^{-1} * G0 = -[G0*Vx-1]^{-1} * G0
+    //   = -G0 * [Vx*G0-1]^{-1}
     // nb: much faster to invert _before_ make complex!
     // (but, only if imag. part is zero)
-    return -1.0 * ((g0 * Vx - 1.0).invert_in_place() * g0).complex();
+    return -1.0 * (g0 * ((Vx * g0 - 1.0).invert_in_place())).complex();
   }
 
   // G0 := G0(re{e}) - no exchange, only real part
   // G(e) = [1 + i*Im{e}*G0 - G0*Vx]^{-1} * G0
+  // G(e) = G0 * [1 + i*Im{e}*G0 - Vx*G0]^{-1}
   // Note: differential dr is included in Vx (via Q)
   std::complex<double> iw{0.0, en.imag()};
-  return (iw * g0.complex().drj_in_place() - (g0 * Vx).complex() + 1.0)
-             .invert_in_place() *
-         g0.complex();
+  return g0.complex() *
+         (iw * g0.complex().dri_in_place() - (Vx * g0).complex() + 1.0)
+             .invert_in_place();
 }
 
 //==============================================================================
@@ -302,7 +342,7 @@ ComplexGMatrix Feynman::green_hf_v2(int kappa, std::complex<double> en,
   }
 
   // Include exchange using Dyson:
-  return -1.0 * ((g0 * Vx.complex() - 1.0).invert_in_place() * g0);
+  return -1.0 * g0 * ((Vx.complex() * g0 - 1.0).invert_in_place());
 }
 
 //==============================================================================
@@ -424,8 +464,8 @@ GMatrix Feynman::construct_green_g0(const DiracSpinor &x0,
       g0I.ff(i, j) = x0.f(sj) * xI.f(si) * winv;
       // g0I is symmetric
       g0I.ff(j, i) = g0I.ff(i, j);
-    } // j
-  }   // i
+    }
+  }
 
   return g0I;
 }
@@ -452,8 +492,8 @@ ComplexGMatrix Feynman::construct_green_g0(const DiracSpinor &x0,
           (x0.f(sj) + I * Ix0.f(sj)) * (xI.f(si) + I * IxI.f(si)) * winv;
       // g0I is symmetric
       g0I.ff(j, i) = g0I.ff(i, j);
-    } // j
-  }   // i
+    }
+  }
 
   return g0I;
 }
