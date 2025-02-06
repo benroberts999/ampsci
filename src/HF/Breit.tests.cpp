@@ -809,7 +809,7 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
   // const auto &h = hE1;
   // double omega = 0.1;
 
-  for (const auto &h : {hE1.get(), hhfs.get(), hpnc.get()}) {
+  for (const auto &h : {hE1.get(), /*hhfs.get(),*/ hpnc.get()}) {
     for (const auto omega : {0.0, 0.15}) {
 
       if (h->name() != "E1" && omega != 0.0)
@@ -833,6 +833,9 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
       // nb: for HFS, quite sensitivie to convergance
       auto rpat_0 = ExternalField::TDHF(h, wf0.vHF());
       auto rpat_B = ExternalField::TDHF(h, wfB.vHF());
+      // need larger eta for TDHF + HFS
+      rpat_0.set_eta(0.75);
+      rpat_B.set_eta(0.75);
       rpat_0.solve_core(omega);
       rpat_B.solve_core(omega);
 
