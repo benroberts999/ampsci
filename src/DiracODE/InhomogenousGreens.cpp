@@ -1,9 +1,9 @@
 #include "InhomogenousGreens.hpp"
 #include "BoundState.hpp"
-#include "DiracODE.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "include.hpp"
 #include "qip/Vector.hpp"
 #include <vector>
 /*

@@ -3,7 +3,7 @@
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
-#include "LinAlg/LinAlg.hpp"
+#include "LinAlg/include.hpp"
 #include "Maths/BSpline.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"

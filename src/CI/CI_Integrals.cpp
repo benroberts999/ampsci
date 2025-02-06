@@ -1,6 +1,6 @@
 #include "CI_Integrals.hpp"
 #include "CSF.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/include.hpp"
 #include "HF/Breit.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/CorrelationPotential.hpp"

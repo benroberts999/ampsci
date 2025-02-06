@@ -1,5 +1,5 @@
 #include "Modules/matrixElements.hpp"
-#include "CI/CI.hpp"
+#include "CI/include.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"

@@ -1,6 +1,6 @@
-#include "DiracODE/DiracODE.hpp"
-#include "Angular/Angular.hpp"
+#include "Angular/include.hpp"
 #include "DiracODE/AsymptoticSpinor.hpp"
+#include "DiracODE/include.hpp"
 #include "DiracOperator/include.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"

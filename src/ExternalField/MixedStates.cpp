@@ -1,5 +1,5 @@
 #include "MixedStates.hpp"
-#include "DiracODE/DiracODE.hpp"
+#include "DiracODE/include.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "MBPT/CorrelationPotential.hpp"

@@ -1,6 +1,6 @@
 #include "MBPT/Feynman.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
-#include "DiracODE/DiracODE.hpp"
+#include "DiracODE/include.hpp"
 #include "HF/HartreeFock.hpp"
 #include "MBPT/RDMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"

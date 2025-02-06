@@ -1,6 +1,6 @@
 #pragma once
 #include "IO/InputBlock.hpp"
-#include "LinAlg/LinAlg.hpp"
+#include "LinAlg/include.hpp"
 #include <memory>
 #include <string>
 #include <utility>

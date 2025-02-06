@@ -1,5 +1,5 @@
 #pragma once
-#include "Angular/Angular.hpp"
+#include "Angular/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <optional>
 #include <vector>

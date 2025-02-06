@@ -1,5 +1,5 @@
 #pragma once
-#include "LinAlg/LinAlg.hpp"
+#include "LinAlg/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <array>
 #include <utility>

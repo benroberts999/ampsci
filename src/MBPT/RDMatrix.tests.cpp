@@ -1,5 +1,5 @@
 #include "MBPT/RDMatrix.hpp"
-#include "DiracODE/DiracODE.hpp"
+#include "DiracODE/include.hpp"
 #include "Maths/Grid.hpp"
 #include "Potentials/NuclearPotentials.hpp"
 #include "Wavefunction/DiracSpinor.hpp"

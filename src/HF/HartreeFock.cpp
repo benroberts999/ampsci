@@ -2,7 +2,7 @@
 #include "Angular/Wigner369j.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
-#include "DiracODE/DiracODE.hpp"
+#include "DiracODE/include.hpp"
 #include "HF/Breit.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"

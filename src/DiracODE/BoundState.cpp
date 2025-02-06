@@ -1,6 +1,6 @@
 #include "DiracODE/BoundState.hpp"
 #include "DiracODE/AsymptoticSpinor.hpp"
-#include "LinAlg/LinAlg.hpp"
+#include "LinAlg/include.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"

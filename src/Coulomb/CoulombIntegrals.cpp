@@ -1,5 +1,5 @@
 #include "CoulombIntegrals.hpp"
-#include "Angular/Angular.hpp"
+#include "Angular/include.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"

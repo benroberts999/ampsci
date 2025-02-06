@@ -1,6 +1,6 @@
 #include "DiracODE/ContinuumState.hpp"
 #include "DiracODE/BoundState.hpp"
-#include "DiracODE/DiracODE.hpp"
+#include "DiracODE/include.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "fmt/color.hpp"

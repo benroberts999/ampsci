@@ -153,7 +153,8 @@ do_the_chicken_dance:
 # Runs clang format, and applies the changes to all c++ files
 clang_format:
 	@echo "Running clang format (whole project)"
-	find $(SD)/ -iname '*.cpp' -o -iname '*.hpp' -o -iname '*.ipp' | xargs clang-format -i -verbose
+	find $(SD)/ \( -iname '*.cpp' -o -iname '*.hpp' -o -iname '*.ipp' \) ! -iname 'catch.hpp' | xargs clang-format -i -verbose
+
 
 # Should be run before committing to dev
 pre_commit:

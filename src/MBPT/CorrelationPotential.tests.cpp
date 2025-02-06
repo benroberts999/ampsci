@@ -1,5 +1,5 @@
 #include "CorrelationPotential.hpp"
-#include "DiracODE/DiracODE.hpp"
+#include "DiracODE/include.hpp"
 #include "Feynman.hpp"
 #include "Goldstone.hpp"
 #include "Maths/Grid.hpp"

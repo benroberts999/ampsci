@@ -1,6 +1,6 @@
 #pragma once
-#include "Angular/Angular.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/include.hpp"
+#include "Coulomb/include.hpp"
 #include "MBPT/RDMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 

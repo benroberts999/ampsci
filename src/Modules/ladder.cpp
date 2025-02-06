@@ -1,6 +1,6 @@
 #include "Modules/ladder.hpp"
-#include "Angular/Angular.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/include.hpp"
+#include "Coulomb/include.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/Ladder.hpp"

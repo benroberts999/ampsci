@@ -1,5 +1,5 @@
 #pragma once
-#include "LinAlg/LinAlg.hpp"
+#include "LinAlg/include.hpp"
 #include "qip/Vector.hpp"
 #include <gsl/gsl_bspline.h>
 #include <gsl/gsl_version.h>

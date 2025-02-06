@@ -1,7 +1,7 @@
 #include "Modules/VQE.hpp"
-#include "Angular/Angular.hpp"
-#include "CI/CI.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/include.hpp"
+#include "CI/include.hpp"
+#include "Coulomb/include.hpp"
 #include "DiracOperator/include.hpp"
 #include "IO/InputBlock.hpp"
 #include "LinAlg/Matrix.hpp"
@@ -309,7 +309,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
                            (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
                                 "_" + std::to_string(max_k_Coulomb) :
                                 "") +
-                           ".sk";
+                           ".sk.abf";
 
   Coulomb::LkTable Sk;
   if (include_Sigma2) {

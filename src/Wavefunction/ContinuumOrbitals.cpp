@@ -1,6 +1,6 @@
 #include "Wavefunction/ContinuumOrbitals.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
-#include "DiracODE/DiracODE.hpp"
+#include "DiracODE/include.hpp"
 #include "HF/HartreeFock.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/PhysConst_constants.hpp"

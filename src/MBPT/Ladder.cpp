@@ -1,6 +1,6 @@
 #include "Ladder.hpp"
-#include "Angular/Angular.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/include.hpp"
+#include "Coulomb/include.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Widgets.hpp"

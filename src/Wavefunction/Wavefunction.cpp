@@ -1,6 +1,6 @@
 #include "Wavefunction/Wavefunction.hpp"
-#include "CI/CI.hpp"
-#include "DiracODE/DiracODE.hpp"
+#include "CI/include.hpp"
+#include "DiracODE/include.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //just for enum..

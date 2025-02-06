@@ -1,6 +1,6 @@
 #include "Sigma2.hpp"
-#include "Angular/Angular.hpp"
-#include "Coulomb/Coulomb.hpp"
+#include "Angular/include.hpp"
+#include "Coulomb/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 
 namespace MBPT {

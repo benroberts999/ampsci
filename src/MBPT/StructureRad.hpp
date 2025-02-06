@@ -1,5 +1,5 @@
 #pragma once
-#include "Coulomb/Coulomb.hpp"
+#include "Coulomb/include.hpp"
 #include "Coulomb/meTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"

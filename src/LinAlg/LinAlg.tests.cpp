@@ -1,5 +1,5 @@
-#include "LinAlg.hpp"
 #include "catch2/catch.hpp"
+#include "include.hpp"
 #include <algorithm>
 #include <complex>
 #include <numeric>
