@@ -239,7 +239,7 @@ generate_MLVP(const IO::InputBlock &input, const Wavefunction &wf) {
         "correction to Uehling loop. If not given, taken from wavefunction."},
        {"hfs_options{}",
         "Options for hyperfine operator that sits inside the MLVP operator. "
-        "Note: should use pointlike F(r)! [see `ampsci -o hfs`]."}});
+        " [see `ampsci -o hfs`]."}});
   if (input.has_option("help")) {
     return nullptr;
   }
@@ -247,11 +247,6 @@ generate_MLVP(const IO::InputBlock &input, const Wavefunction &wf) {
   // 1. generate regular hfs operator
   const auto t_options = input.getBlock("hfs_options");
   auto oper_options = t_options ? *t_options : IO::InputBlock{};
-
-  if (!oper_options.get("nuc_mag")) {
-    // Typically, default is Ball. But in our case, should be pointlike
-    oper_options.add(IO::Option{"nuc_mag", "pointlike"});
-  }
 
   // 2. MLVP
   const auto rN_fm =
