@@ -33,7 +33,9 @@ ifneq ($(UseOpenMP),yes)
 endif
 endif
 
-SUBBD=$(Build)/$(OMP_BDIR)/$(word 1,$(CXX))
+# Put built objects in sub-directory based on compiler and OMP seeting
+# This is mainly for testing: faster re-compiles when switching settings!
+SUBBD=$(Build)/$(notdir $(word 1, $(CXX)))/$(OMP_BDIR)
 
 # Auto rule for all cpp files
 $(BD)/$(SUBBD)/%.o: $(SD)/%.cpp
@@ -51,7 +53,7 @@ $(BD)/$(SUBBD)/version/version.o: $(SD)/version/version.cpp force
 -include $(BD)/$(SUBBD)/*.d $(BD)/$(SUBBD)/*/*.d
 
 ################################################################################
-# List all objects in sub-directories (i.e., that don't conatin a main())
+# List all objects in sub-directories (i.e., that don't conatain a main())
 # Automatically create list of target objects based on string matching.
 # All main() files are: src/*.cpp
 # All non-main files are: src/sub-dir/*cpp
@@ -69,6 +71,7 @@ OBJS := $(subst $(SD),$(BD)/$(SUBBD),$(subst .cpp,.o,$(SRC_FILES)))
 # Link + build all final programs
 
 $(XD)/ampsci: $(BD)/$(SUBBD)/main.o $(OBJS)
+	@echo $(BD)/$(SUBBD)/main.o $(OBJS) > $(BD)/objects.txt
 	$(LINK)
 
 $(XD)/tests: $(OBJS) $(TEST_OBJS)
@@ -124,7 +127,7 @@ includes:
 # Also deletes junk
 clean:
 	rm -f -v $(ALLEXES)
-	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*.gc* $(BD)/*/
+	rm -rf -v $(BD)/*.o $(BD)/*.d $(BD)/*.gc* $(BD)/*.txt $(BD)/*/
 	rm -f -v *deleteme*
 
 # Deletes junk outputs (e.g. '*deleteme') created by test suits
