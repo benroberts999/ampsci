@@ -169,7 +169,7 @@ void convert_energies_au(double Eau) {
   else
     fmt::print("  {:<20.15g} TeV\n", EeV * 1.0e-12);
 
-  fmt::print("  {:<20.15g} nm\n", wl_nm);
+  fmt::print("  {:<20.15g} nm  (equivilant wavelength)\n", wl_nm);
 }
 
 //==============================================================================
@@ -190,34 +190,32 @@ void convert_length_au(double La0) {
     else if (Em > 1.0e-12)
       fmt::print("  {:<20.15g} mm\n", Em * 1.0e3);
   }
-  std::cout << "\n";
 
   // in inverse eV^{-1};
+  // ℏc=1 relativistic units
   const auto L_inv_MeV = (Em * 1.0e15) / PhysConst::hbarc_MeVfm;
-
-  // fmt::print("  {:<20.15g} MeV^-1\n", L_inv_MeV);
-
   if (L_inv_MeV < 1.0e-3)
-    fmt::print("  {:<20.15g} TeV^-1\n", L_inv_MeV * 1.0e6);
+    fmt::print("  {:<20.15g} TeV^-1  (ℏc=1)\n", L_inv_MeV * 1.0e6);
   else if (L_inv_MeV < 1.0e-0)
-    fmt::print("  {:<20.15g} GeV^-1\n", L_inv_MeV * 1.0e3);
+    fmt::print("  {:<20.15g} GeV^-1  (ℏc=1)\n", L_inv_MeV * 1.0e3);
   else if (L_inv_MeV < 1.0e3)
-    fmt::print("  {:<20.15g} MeV^-1\n", L_inv_MeV);
+    fmt::print("  {:<20.15g} MeV^-1  (ℏc=1)\n", L_inv_MeV);
   else if (L_inv_MeV < 1.0e6)
-    fmt::print("  {:<20.15g} keV^-1\n", L_inv_MeV * 1e-3);
+    fmt::print("  {:<20.15g} keV^-1  (ℏc=1)\n", L_inv_MeV * 1e-3);
   else
-    fmt::print("  {:<20.15g} eV^-1\n", L_inv_MeV * 1e-6);
+    fmt::print("  {:<20.15g} eV^-1  (ℏc=1)\n", L_inv_MeV * 1e-6);
 }
 
 //==============================================================================
 void conversions(double number, const std::string &unit) {
   assert(unit.size() > 0);
 
+  std::cout << "----------------------------\n";
   fmt::print("{:<.15g} {} = \n", number, unit);
 
   // this part: NOT case insensitive
 
-  if (!qip::ci_contains(unit, "^-1")) {
+  if (!qip::ci_contains(unit, "-1")) {
     if (unit[0] == 'f')
       number *= 1.0e-15;
     if (unit[0] == 'p')
@@ -275,6 +273,7 @@ void conversions(double number, const std::string &unit) {
 
   // Convert inverse energy to length:
   if (qip::ci_contains(unit, std::vector<std::string>{"eV^-1", "eV^{-1}"})) {
+    std::cout << "\nInterpret as length (ℏc=1):\n";
     number *= 1.0e6; //back to MeV:
     return convert_length_au(number * PhysConst::hbarc_MeVfm /
                              PhysConst::aB_fm);
@@ -288,10 +287,11 @@ void conversions(double number, const std::string &unit) {
   // This must come _after_ inverse cm check
   // interpret as wavelength (convert to energy), then as a length:
   if ((unit.size() > 1 && unit[1] == 'm') || unit == "m") {
-    std::cout << "Wavelength:\n";
-    convert_energies_au(PhysConst::HartreeWL_nm / (1.0e9 * number));
-    std::cout << "\n";
+    std::cout << "\nInterpret as length:\n";
     convert_length_au((1.0e9 * number) / PhysConst::aB_nm);
+    std::cout << "\n";
+    std::cout << "Interpret as wavelength (equivilant energy):\n";
+    convert_energies_au(PhysConst::HartreeWL_nm / (1.0e9 * number));
   }
 
   if (qip::ci_contains(unit, std::vector<std::string>{"a0", "ab"})) {
