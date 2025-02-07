@@ -362,7 +362,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       "hfs", hfs_options ? *hfs_options : IO::InputBlock{}, wf);
 
   // Build pointlike HFS operator
-  IO::InputBlock h0_options{"h0", "nuc_mag=pointlike;"};
+  IO::InputBlock h0_options{"h0", "F = pointlike;"};
   // Ensure same parameters as other operator
   if (hfs_options) {
     if (hfs_options->has_option("mu"))
