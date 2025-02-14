@@ -121,6 +121,15 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   const auto imag = m_h->imaginaryQ();
 
   auto rhs = m_h->reduced_rhs(kappa_x, Fv);
+
+  // for (const auto &c : m_core) {
+  //   // if (!m_h->isZero(c, Fv))
+  //   if (c.kappa() == rhs.kappa()) {
+  //     const auto hcv = m_h->reducedME(c, Fv);
+  //     rhs -= hcv * c;
+  //   }
+  // }
+
   if (imag && conj)
     rhs *= -1;
 
@@ -173,10 +182,23 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
     const auto &hFb = hFbs[ibeta];
     const auto s = (imag && conj) ? -1.0 : 1.0;
     auto rhs = s * hFb + dV_rhs(kappa_beta, Fb, conj);
-    if (kappa_beta == Fb.kappa() && !imag) {
-      const auto de = Fb * rhs;
-      rhs -= de * Fb;
+
+    // if (rhs.kappa() != Fb.kappa())
+    {
+      for (const auto &a : m_core) {
+        if (a.kappa() == rhs.kappa()) {
+          const auto hab = m_h->reducedME(a, Fb);
+          const auto dVab = dV(a, Fb, conj);
+          // XXX ??
+          rhs -= (s * hab + dVab) * a;
+        }
+      }
     }
+
+    // if (kappa_beta == Fb.kappa() && !imag) {
+    //   const auto de = Fb * rhs;
+    //   rhs -= de * Fb;
+    // }
 
     const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
     const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
@@ -194,7 +216,15 @@ std::vector<std::vector<DiracSpinor>> TDHF::form_hFcore() const {
     hFcore.reserve(m_X[ic].size()); // each h projection
     for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
       const auto &Xx = m_X[ic][beta];
-      hFcore[ic].push_back(m_h->reduced_rhs(Xx.kappa(), Fc));
+      // hFcore[ic].push_back(m_h->reduced_rhs(Xx.kappa(), Fc));
+      auto &hFc = hFcore[ic].emplace_back(m_h->reduced_rhs(Xx.kappa(), Fc));
+
+      // for (const auto &a : m_core) {
+      //   if (a.kappa() == hFc.kappa()) {
+      //     const auto hac = m_h->reducedME(a, Fc);
+      //     hFc -= hac * a;
+      //   }
+      // }
     }
   }
   return hFcore;
