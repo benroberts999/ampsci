@@ -540,10 +540,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     // js_wf["g"] = "gg...ggg";
   }
 
-  std::cout << "\n\n\n";
-  std::cout << "::BEGINJSON::\n";
-  std::cout << std::setw(2) << js << "\n";
-  std::cout << "::ENDJSON::\n";
+  // std::cout << "\n\n\n";
+  // std::cout << "::BEGINJSON::\n";
+  // std::cout << std::setw(2) << js << "\n";
+  // std::cout << "::ENDJSON::\n";
 
   std::ofstream o("ampsci_output.json");
   o << std::setw(4) << js << std::endl;

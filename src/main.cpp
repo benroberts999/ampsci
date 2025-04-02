@@ -117,8 +117,9 @@ const std::vector<std::pair<std::string, std::string>> options{
      "./ampsci -p Cs all\n"
      "    - Prints a text periodic table, with atomic information for all "
      "(available) Cs iotopes\n"},
-    {"-v, --version", "Prints ampsci version (and git commit) details"}
-    //
+    {"-s [input options as string], --string",
+     "Takes input options as a string, using same format as input file\n"},
+    {"-v, --version", "Prints ampsci version (and git commit) details"} //
 };
 
 //! Prints 'man page' style info
@@ -229,6 +230,8 @@ int main(int argc, char *argv[]) {
     if (!in_text_2.empty() && !in_text_3.empty())
       AtomData::conversions(std::stod(in_text_2), in_text_3);
     return 0;
+  } else if (in_text_1 == "-s" || in_text_1 == "--string") {
+    std::cout << "Reading input from command-line string\n";
   } else if (!in_text_1.empty() && in_text_1.front() == '-') {
     std::cout << "Unrecognised option: " << in_text_1 << '\n';
     man::print_manual();
@@ -251,9 +254,13 @@ int main(int argc, char *argv[]) {
       atom == "H" ? "" : (in_text_2 == "" ? "[" + atom + "]" : in_text_2);
   // allow core to be skipped for Hydrogen
   const auto valence = (atom == "H" && argc == 3) ? in_text_2 : in_text_3;
-  const std::string default_input = "Atom{Z=" + atom + ";}" +
-                                    "HartreeFock { core = " + core +
-                                    "; valence = " + valence + ";}";
+  std::string default_input = "Atom{Z=" + atom + ";}" +
+                              "HartreeFock { core = " + core +
+                              "; valence = " + valence + ";}";
+
+  if (in_text_1 == "-s" || in_text_1 == "--string") {
+    default_input = in_text_2;
+  }
 
   // nb: std::filesystem not available in g++-7 (getafix version)
   const auto fstream = std::fstream(in_text_1);
