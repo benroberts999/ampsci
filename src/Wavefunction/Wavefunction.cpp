@@ -812,9 +812,11 @@ void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
     // nuclear potential (+QED). Note: only Uehling is really OK here.
     const auto v0 = this->vnuc() + (this->vrad() ? this->vrad()->Vel() :
                                                    std::vector<double>{});
-    const auto Fnk = DiracODE::boundState(
+    auto Fnk = DiracODE::boundState(
         n, kappa, e0, this->grid_sptr(), v0, this->Hmag(), this->alpha(),
         1.0e-14, nullptr, nullptr, double(this->Znuc()), mass);
+
+    Fnk.exotic() = true;
 
     const auto R_rms =
         std::sqrt(Fnk * (this->grid().r() * this->grid().r() * Fnk));

@@ -9,6 +9,7 @@
 #include "Modules/runModules.hpp"
 #include "Physics/include.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "json/json.hpp"
 
 Wavefunction ampsci(const IO::InputBlock &input) {
   IO::ChronoTimer timer("\nampsci");
@@ -502,6 +503,50 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   // run each of the modules with the calculated wavefunctions
   Module::runModules(input, wf);
+
+  using json = nlohmann::json;
+  json js;
+
+  js["radial"]["r"] = wf.grid().r();
+  js["radial"]["dr"] = wf.grid().drdu() * wf.grid().du();
+  // js["radial"]["r"] = "rrr....rrrr";
+  // js["radial"]["dr"] = "dr......dr";
+
+  js["nucleus"]["Z"] = wf.Znuc();
+  js["nucleus"]["A"] = wf.Anuc();
+  js["nucleus"]["r_rms"] = wf.get_rrms();
+  js["nucleus"]["mu"] = Nuclear::find_mu(wf.Znuc(), wf.Anuc());
+
+  const auto I_nuc = Nuclear::find_spin(wf.Znuc(), wf.Anuc());
+  const auto pi = Nuclear::find_parity(wf.Znuc(), wf.Anuc());
+  const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
+  auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
+  js["nucleus"]["I"] = I_nuc;
+  js["nucleus"]["parity"] = pi;
+  js["nucleus"]["L"] = l;
+
+  for (const auto &v : wf.valence()) {
+
+    auto &js_wf = v.exotic() ? js["muon"][v.shortSymbol()] :
+                               js["electron"][v.shortSymbol()];
+    js_wf["n"] = v.n();
+    js_wf["kappa"] = v.kappa();
+    js_wf["j"] = 0.5 * v.twoj();
+    js_wf["l"] = v.l();
+    js_wf["en"] = v.en();
+    js_wf["f"] = v.f();
+    js_wf["g"] = v.g();
+    // js_wf["f"] = "ff...fff";
+    // js_wf["g"] = "gg...ggg";
+  }
+
+  std::cout << "\n\n\n";
+  std::cout << "::BEGINJSON::\n";
+  std::cout << std::setw(2) << js << "\n";
+  std::cout << "::ENDJSON::\n";
+
+  std::ofstream o("ampsci_output.json");
+  o << std::setw(4) << js << std::endl;
 
   return wf;
 }
