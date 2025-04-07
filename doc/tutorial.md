@@ -84,7 +84,7 @@ Input is a plain text file that consists of sets of 'Blocks' and 'Options'.
 * Generally, each Block will have a set of Options that may be set
 * Nearly all are optional - leave them blank and a default value will be used
 * Blocks may be nested inside other Blocks
-* White-space is ignored, as are ' and " characters
+* White-space is ignored, as are ''' and '"' characters
 * You may use C++-style line '//' and block '/**/' comments
 
 Firstly, we can use the code to tell us which input options are available using the `-a` (or `--ampsci`) command-line option:
