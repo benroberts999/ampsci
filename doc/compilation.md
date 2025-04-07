@@ -1,6 +1,6 @@
 # Compilation
 
-:::: Compilation instructions for Linux, Mac, and Windows
+brief Compilation instructions for Linux, Mac, and Windows
 
 * Easiest method is to use provided shell scripts `install-dependencies.sh` (which installs the required packages/compilers), and `setup.sh` (which compiles ampsci)
   * These might not work on all systems, meaning a manual setup will be required.
