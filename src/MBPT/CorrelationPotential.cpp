@@ -20,7 +20,7 @@ CorrelationPotential::CorrelationPotential(
     std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
     bool include_Breit, const FeynmanOptions &Foptions, bool calculate_fk,
     const std::vector<double> &fk, const std::vector<double> &etak,
-    std::optional<int> n_min_core_F)
+    std::optional<int> n_min_core_F, bool Breit_Green)
     : m_HF(vHF),
       m_basis(basis), // dumb
       m_r0(r0),
@@ -36,7 +36,8 @@ CorrelationPotential::CorrelationPotential(
       m_Foptions(Foptions),
       m_calculate_fk(calculate_fk),
       m_fk(fk),
-      m_etak(etak) {
+      m_etak(etak),
+      m_breit_green(Breit_Green) {
 
   std::cout << "\nConstruct Correlation Potential\n";
 
@@ -184,13 +185,14 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
         m_Gold->Sigma_direct(kappa, ev, vfk, vetak, m_n_min_core_F - 1);
     // Feynman only has ff, goldstone may have g parts
     Sd.ff() += tmp.ff();
-  }
+  } /*
   if (m_includeG) {
-    // If 'Includeing G', calculate using Goldstone technique
+    // If 'Including G', calculate using Goldstone technique
     auto Sd2 = m_Gold->Sigma_direct(kappa, ev, vfk, vetak);
     Sd2.ff() = Sd.ff();
     Sd = Sd2;
   }
+    */
 
   double deD{0.0};
   if (Fv) {
@@ -295,7 +297,8 @@ void CorrelationPotential::setup_Feynman() {
   }
 
   if (!m_Fy) {
-    m_Fy = Feynman(m_HF, m_i0, m_stride, m_size, m_Foptions, m_n_min_core_F);
+    m_Fy = Feynman(m_HF, m_i0, m_stride, m_size, m_Foptions, m_n_min_core_F,
+                   true, m_basis, m_breit_green);
   }
 
   if (m_calculate_fk && !m_Fy0) {
@@ -319,14 +322,14 @@ void CorrelationPotential::setup_Feynman() {
     t_FoptionsH.hole_particle = HoleParticle::include;
 
     if (m_Fy->screening()) {
-      m_Fy0 =
-          Feynman(m_HF, m_i0, t_stride, t_size, t_Foptions0, t_n_min, false);
-      m_FyX =
-          Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsX, t_n_min, false);
+      m_Fy0 = Feynman(m_HF, m_i0, t_stride, t_size, t_Foptions0, t_n_min, false,
+                      m_basis, m_breit_green);
+      m_FyX = Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsX, t_n_min, false,
+                      m_basis, m_breit_green);
     }
     if (m_includeG && m_Fy->hole_particle()) { // only need eta for 'g'
-      m_FyH =
-          Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsH, t_n_min, false);
+      m_FyH = Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsH, t_n_min, false,
+                      m_basis, m_breit_green);
     }
   }
 }

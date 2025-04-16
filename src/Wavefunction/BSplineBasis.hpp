@@ -86,7 +86,7 @@ struct Parameters {
   discards them.
 
 Note: This function calls the below functions, they rarely need to be called
-explicitely, unless you are trying to do something different to usual.
+explicitly, unless you are trying to do something different to usual.
 */
 std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const Wavefunction &wf,

@@ -30,7 +30,7 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto Br = HF::Breit{};
 
-  // To separate Gaus/Retardation parts
+  // To separate Gaunt/Retardation parts
   auto G = HF::Breit{};
   auto R = HF::Breit{};
   G.update_scale(1.0, 1.0, 1.0, 0.0, 0.0);

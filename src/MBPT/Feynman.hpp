@@ -36,6 +36,8 @@ class Feynman {
 
   // Pointer to HF potential, and HF core
   const HF::HartreeFock *m_HF;
+  // Feynman class objects will have access to basis for inclusion of Breit into Green's function
+  std::vector<DiracSpinor> m_basis;
   // Pointer to shared radial grid (full grid)
   std::shared_ptr<const Grid> m_grid;
   // Parameters of the sub-grid: initial/final points, stride
@@ -62,6 +64,8 @@ class Feynman {
   bool m_screen_Coulomb;
   // _only_ include screening correction in Q*Pi*Q => Q*Pi*[X-1]*Q
   bool m_only_screen;
+  // include Breit into the Green's function
+  bool m_breit_green;
 
   // Coulomb operator; include right integration measure
   // q_ij := (r>^k/r<^{k+1}) * dr_j
@@ -73,7 +77,7 @@ class Feynman {
 
   // Core projection operators (one for each core state)
   std::vector<ComplexGMatrix> m_pa{};
-  // Hartree-Fock Exchange matrix (one for each happa)
+  // Hartree-Fock Exchange matrix (one for each kappa)
   std::vector<GMatrix> m_Vx_kappa{};
 
   // Effective Q*Pi*Q operator: for each imaginary omega, and each k
@@ -93,7 +97,8 @@ public:
   //! ** Currently have issue: polarising deep n leads to failure?
   Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
           std::size_t size, const FeynmanOptions &options, int n_min_core,
-          bool verbose = true);
+          bool verbose = true, const std::vector<DiracSpinor> &in_basis = {},
+          bool breit_green = false);
 
   bool screening() const { return m_screen_Coulomb; }
   bool hole_particle() const { return m_hole_particle; }
@@ -114,6 +119,10 @@ public:
   //! Polarisation operator pi^k(w), for multipolarity k
   ComplexGMatrix polarisation_k(int k, std::complex<double> omega,
                                 bool hole_particle) const;
+
+  // MY attempt at making the polarisation operator that actually has the correct spinor space structure
+  ComplexGMatrix polarisation_k_new(int k, std::complex<double> omega,
+                                    bool hole_particle) const;
 
   //! Calculate Direct part of correlation potential
   GMatrix Sigma_direct(int kappa_v, double en_v,
@@ -136,6 +145,7 @@ private:
   void form_pa();
   // Forms HF exchange potential matrix
   void form_vx();
+  void form_vx_old();
   // Sets up imaginary frequency grid
   Grid form_w_grid(double w0, double wratio) const;
   // Constructs the Q*Pi*Q Matrix along w grid, for each k
@@ -181,6 +191,10 @@ private:
   // Green's function
   GMatrix construct_green_g0(const DiracSpinor &x0, const DiracSpinor &xI,
                              const double w) const;
+
+  // calculates local Green's function with all four spinor components
+  GMatrix construct_green_g0_new(const DiracSpinor &x0, const DiracSpinor &xI,
+                                 const double w) const;
 
   // Given Dirac solutions regular at 0 (x0 + i*Ix0) and infinity (xI + i*IxI),
   // forms "local" Green's function (complex).

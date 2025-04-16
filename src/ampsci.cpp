@@ -289,54 +289,69 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   // This is a mess - will re-do correlations part
   const auto Sigma_ok = input.check(
       {"Correlations"},
-      {{"", "Options for inclusion of correlations (correlation potential "
+      {{"", "Options for inclusion of correlations (correlation "
+            "potential "
             "method)."},
        {"n_min_core", "Minimum core n to polarise [1]"},
-       {"n_min_core_F",
-        "Minimum core n to polarise in Feynman method. By default, same as "
-        "n_min_core. If n_min_core_F>n_min_core, code will use Goldstone "
-        "method for lowest ns"},
-       {"each_valence",
-        "Construct seperate Sigma for each valence state? [false]"},
-       {"fitTo_cm", "List of binding energies (in cm^-1) to scale Sigma for. "
+       {"n_min_core_F", "Minimum core n to polarise in Feynman method. By "
+                        "default, same as "
+                        "n_min_core. If n_min_core_F>n_min_core, code will use "
+                        "Goldstone "
+                        "method for lowest ns"},
+       {"each_valence", "Construct seperate Sigma for each "
+                        "valence state? [false]"},
+       {"fitTo_cm", "List of binding energies (in cm^-1) to "
+                    "scale Sigma for. "
                     "Must be in same order as valence states"},
-       {"lambda_kappa",
-        "Scaling factors for Sigma. Must be in same order as valence states"},
-       {"read", "Filename to read in Sigma. Set read=false to not read in. By "
+       {"lambda_kappa", "Scaling factors for Sigma. Must be in "
+                        "same order as valence states"},
+       {"read", "Filename to read in Sigma. Set read=false to "
+                "not read in. By "
                 "default, will be, e.g., CsI.sig2 or CsI.sigf."},
-       {"write", "Filename to write Sigma to. Set write=false to not write. By "
+       {"write", "Filename to write Sigma to. Set write=false "
+                 "to not write. By "
                  "default same as read"},
        {"rmin", "minimum radius to calculate sigma for [1.0e-4]"},
        {"rmax", "maximum radius to calculate sigma for [30.0]"},
-       {"stride", "Only calculate Sigma every <stride> points. Default such "
+       {"stride", "Only calculate Sigma every <stride> points. Default "
+                  "such "
                   "that there are 150 points between (1e-4, 30)"},
        {"ek{}", "Block: Explicit list of energies to solve for. e.g., "
-                "ek{6s+=-0.127; 7s+=-0.552;}. Blank => HF energies. Takes "
+                "ek{6s+=-0.127; 7s+=-0.552;}. Blank => HF energies. "
+                "Takes "
                 "precidence over each_valence. [blank]"},
        {"all_order", "Use all-orders method (implies Feynman=true; "
                      "screening=true; holeParticle=true;) [false]"},
        {"Feynman", "Use Feynman method [false]"},
-       {"fk",
-        "List of doubles. Screening factors for effective all-order "
-        "exchange. In Feynman method, used in exchange only (and G-part); "
-        "Goldstone, used direct also. If blank, will calculate them from "
-        "scratch. []"},
-       {"eta", "List of doubles. Hole-Particle factors. In Feynman method, "
-               "used only for G part; Goldstone, used in direct also. []"},
+       {"BreitGreen",
+        "Include Breit into the Feynman Green's function "
+        "[false]"}, // this is me trying to add an extra input parameter into the ampsci input option so that I can control if Breit is added to the Green's function or not
+       {"fk", "List of doubles. Screening factors for effective "
+              "all-order "
+              "exchange. In Feynman method, used in exchange "
+              "only (and G-part); "
+              "Goldstone, used direct also. If blank, will "
+              "calculate them from "
+              "scratch. []"},
+       {"eta", "List of doubles. Hole-Particle factors. In "
+               "Feynman method, "
+               "used only for G part; Goldstone, used in direct "
+               "also. []"},
        {"screening", "Include all-orders screening. Only applicable for "
                      "Feynman method [false]"},
-       {"holeParticle",
-        "Include all-orders hole-particle interaction. Only applicable for "
-        "Feynman method [false]"},
-       {"lmax", "Maximum l used for internal lines in Feynman method [6]"},
+       {"holeParticle", "Include all-orders hole-particle "
+                        "interaction. Only applicable for "
+                        "Feynman method [false]"},
+       {"lmax", "Maximum l used for internal lines in Feynman "
+                "method [6]"},
        {"real_omega", "Real part of frequency used in contour integral. By "
                       "Default, ~1/3 of the core/valence energy gap"},
-       {"imag_omega",
-        "Pair of comma-separated doubles: w0, wratio. Initial point, and "
-        "ratio, for logarithimg Im(w) grid [0.01, 1.5]"},
+       {"imag_omega", "Pair of comma-separated doubles: w0, wratio. Initial "
+                      "point, and "
+                      "ratio, for logarithimg Im(w) grid [0.01, 1.5]"},
        {"include_G", "Inlcude lower g-part into Sigma [false]"},
-       {"include_Breit",
-        "Inlcude Breit corrections into Sigma (only for 2nd order) [false]"}});
+       {"include_Breit", "Inlcude Breit corrections into Sigma "
+                         "(only for 2nd order) [false]"}});
 
   const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
@@ -357,6 +372,9 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   // Feynman method:
   const auto all_order = input.get({"Correlations"}, "all_order", false);
   const auto sigma_Feynman = input.get({"Correlations"}, "Feynman", all_order);
+  const auto sigma_Feynman_Breit = input.get(
+      {"Correlations"}, "BreitGreen",
+      false); // will not include Breit into the Green's function by default
   const auto sigma_Screening =
       input.get({"Correlations"}, "screening", all_order);
   const auto hole_particle =
@@ -413,7 +431,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     wf.formSigma(n_min_core, n_min_core_F, sigma_rmin, sigma_rmax, sigma_stride,
                  each_valence, include_G, include_Breit, lambda_k, fk, etak,
                  sigma_read, sigma_write, sigma_Feynman, sigma_Screening,
-                 hole_particle, sigma_lmax, sigma_omre, w0, wratio, ek_Sig);
+                 hole_particle, sigma_lmax, sigma_omre, w0, wratio, ek_Sig,
+                 sigma_Feynman_Breit); // i have done stuff here
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

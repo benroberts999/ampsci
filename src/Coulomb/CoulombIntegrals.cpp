@@ -294,6 +294,69 @@ void gk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 }
 
 //==============================================================================
+
+// frequency-dependent Breit integrals which i call g^k_{ab}(r,w) and h^k_{ab}(r,w) for X_{ij} and Y_{ij}, respectively
+void gk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                 std::vector<double> &g0, std::vector<double> &ginf,
+                 const std::size_t maxi, const double w) {
+
+  auto fgfg = [&](std::size_t i) {
+    return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
+  };
+
+  if (k == 0)
+    yk_ijk_gen_impl<0>(k, fgfg, Fa.grid(), g0, ginf, maxi);
+  else if (k == 1)
+    yk_ijk_gen_impl<1>(k, fgfg, Fa.grid(), g0, ginf, maxi);
+  else if (k == 2)
+    yk_ijk_gen_impl<2>(k, fgfg, Fa.grid(), g0, ginf, maxi);
+  else if (k == 3)
+    yk_ijk_gen_impl<3>(k, fgfg, Fa.grid(), g0, ginf, maxi);
+  else if (k == 4)
+    yk_ijk_gen_impl<4>(k, fgfg, Fa.grid(), g0, ginf, maxi);
+  else if (k == 5)
+    yk_ijk_gen_impl<5>(k, fgfg, Fa.grid(), g0, ginf, maxi);
+  else if (k == 6)
+    yk_ijk_gen_impl<6>(k, fgfg, Fa.grid(), g0, ginf, maxi);
+  else if (k == 7)
+    yk_ijk_gen_impl<7>(k, fgfg, Fa.grid(), g0, ginf, maxi);
+  else if (k == 8)
+    yk_ijk_gen_impl<8>(k, fgfg, Fa.grid(), g0, ginf, maxi);
+  else
+    yk_ijk_gen_impl<-1>(k, fgfg, Fa.grid(), g0, ginf, maxi);
+}
+
+void hk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                 std::vector<double> &b0, std::vector<double> &binf,
+                 std::size_t maxi, const double w) {
+
+  auto fgfg = [&](std::size_t i) {
+    return (Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i));
+  };
+
+  if (k == 0)
+    yk_ijk_gen_impl<0>(k, fgfg, Fa.grid(), b0, binf, maxi);
+  else if (k == 1)
+    yk_ijk_gen_impl<1>(k, fgfg, Fa.grid(), b0, binf, maxi);
+  else if (k == 2)
+    yk_ijk_gen_impl<2>(k, fgfg, Fa.grid(), b0, binf, maxi);
+  else if (k == 3)
+    yk_ijk_gen_impl<3>(k, fgfg, Fa.grid(), b0, binf, maxi);
+  else if (k == 4)
+    yk_ijk_gen_impl<4>(k, fgfg, Fa.grid(), b0, binf, maxi);
+  else if (k == 5)
+    yk_ijk_gen_impl<5>(k, fgfg, Fa.grid(), b0, binf, maxi);
+  else if (k == 6)
+    yk_ijk_gen_impl<6>(k, fgfg, Fa.grid(), b0, binf, maxi);
+  else if (k == 7)
+    yk_ijk_gen_impl<7>(k, fgfg, Fa.grid(), b0, binf, maxi);
+  else if (k == 8)
+    yk_ijk_gen_impl<8>(k, fgfg, Fa.grid(), b0, binf, maxi);
+  else
+    yk_ijk_gen_impl<-1>(k, fgfg, Fa.grid(), b0, binf, maxi);
+}
+
+//==============================================================================
 //==============================================================================
 
 //==============================================================================
