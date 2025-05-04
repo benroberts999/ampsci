@@ -49,6 +49,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
        //  {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
+       {"RPA_in_SR", "SR: Include RPA in Struc Rad + Norm [false]"},
        {"Qk_file",
         "true/false/filename - SR: filename for QkTable file. If blank will "
         "not use QkTable; if exists, will read it in; if doesn't exist, will "
@@ -217,6 +218,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
     const auto max_n_SR = input.get("max_n_SR", 9);
+    const auto rpa_in_SR = input.get("RPA_in_SR", false);
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
         Qk_file_t != "false" ?
@@ -227,22 +229,34 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
               << " SR in diagrams\n";
     std::cout << "Calculating SR+N for terms up to n=" << max_n_SR
               << " in the sum-over-states\n";
+    if (rpa_in_SR) {
+      std::cout << "Including RPA in SR+N\n";
+    } else {
+      std::cout << "Not including RPA in SR+N\n";
+    }
 
     const auto sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(),
                                        {n_min, n_max}, Qk_file);
 
     Coulomb::meTable srn{};
     {
-      IO::ChronoTimer t2("Build meTable");
+      const auto max_n_in_core = DiracSpinor::max_n(wf.core());
+
+      IO::ChronoTimer t2("Build SR meTable");
       std::cout << "Building table of SR matrix elements.." << std::flush;
       // Always store in order: <Spectrum|d|Valence>
       for (const auto &Fn : spectrum) {
         for (const auto &Fv : wf.valence()) {
-          if (he1.isZero(Fn, Fv) || Fn.n() > max_n_SR ||
-              wf.isInCore(Fn.n(), Fn.kappa()))
+          if (he1.isZero(Fn, Fv) || Fn.n() > max_n_SR) {
             continue;
-          // Calculates SR+Norm (ignores freq. dependence and RPA)
-          srn.add(Fn, Fv, sr.srn(&he1, Fn, Fv).first);
+          }
+          if (wf.isInCore(Fn.n(), Fn, kappa()) && Fn.n() < max_n_in_core) {
+            // only include SR for upper-most core state
+            continue;
+          }
+          srn.add(Fn, Fv,
+                  rpa_in_SR ? sr.srn(&he1, Fn, Fv, omega, &dVE1).second :
+                              sr.srn(&he1, Fn, Fv, omega).first);
         }
       }
       std::cout << " Done.\n" << std::flush;
@@ -305,6 +319,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
        {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
+       {"RPA_in_SR", "SR: Include RPA in Struc Rad + Norm [false]"},
        {"Qk_file",
         "true/false/filename - SR: filename for QkTable file. If blank will "
         "not use QkTable; if exists, will read it in; if doesn't exist, will "
@@ -434,6 +449,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
 
   std::optional<MBPT::StructureRad> sr{std::nullopt};
   const auto max_n_SR = input.get("max_n_SR", 9);
+  const auto rpa_in_SR = input.get("RPA_in_SR", false);
   if (StrucRadQ) {
     const auto n_min_core = input.get("n_min_core", 1);
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
@@ -447,6 +463,11 @@ void dynamicPolarisability(const IO::InputBlock &input,
               << " in diagrams\n";
     std::cout << "Calculating SR+N for terms up to n=" << max_n_SR
               << " in the sum-over-states\n";
+    if (rpa_in_SR) {
+      std::cout << "Including RPA in SR+N\n";
+    } else {
+      std::cout << "Not including RPA in SR+N\n";
+    }
   }
 
   // build tables of matrix elements;
@@ -478,7 +499,10 @@ void dynamicPolarisability(const IO::InputBlock &input,
         }
         // Adds SR+Norm! (ignores freq. dependence)
         if (sr && Fn.n() <= max_n_SR) {
-          me += sr->srn(&he1, Fn, Fv).first;
+          const auto del_sr = rpa_in_SR ?
+                                  sr->srn(&he1, Fn, Fv, 0.0, dVE1).second :
+                                  sr->srn(&he1, Fn, Fv).first;
+          me += del_sr;
         }
         metab.add(Fn, Fv, me); // *
       }
