@@ -275,11 +275,29 @@ public:
   //! Returns maximum kappa_index found in {orbs}
   static int max_kindex(const std::vector<DiracSpinor> &orbs);
 
+  //! Splits orbitals into two groups (i.e., core, excited) by energy
+  //! @details
+  //! - The first group contains orbitals with energy < energy
+  //! - The second group contains orbitals with energy > energy
+  //! - The first group is also limited to have n >= n_min_core (i.e., exclude
+  //! deep core states)
   static std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
   split_by_energy(const std::vector<DiracSpinor> &orbitals, double energy,
                   int n_min_core = 1);
 
+  //! Splits orbitals into two groups (i.e., core, excited).
+  //! @details
+  //! - The first group contains orbitals with {n,kappa} in the given "core"
+  //! - The second group contains all of the rest
+  //! - The first group is also limited to have n >= n_min_core (i.e., exclude
+  //! deep core states)
   static std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
   split_by_core(const std::vector<DiracSpinor> &orbitals,
                 const std::vector<DiracSpinor> &core, int n_min_core = 1);
+
+  //! Takes a subset of an input basis (by copy), according to subset_string
+  //! @details
+  //! - Includes only states matching the subset_string
+  static std::vector<DiracSpinor> subset(const std::vector<DiracSpinor> &basis,
+                                         const std::string &subset_string);
 };

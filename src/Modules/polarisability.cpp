@@ -30,7 +30,10 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "Atomic polarisabilities, 𝛼, at single frequency\n";
 
   input.check(
-      {{"rpa", "Include RPA? [true]"},
+      {{"states",
+        "Which states to calculate? (e.g., '7sp6d'). Must be a subset of "
+        "valence. By default, all valence states are calculated."},
+       {"rpa", "Include RPA? [true]"},
        {"omega", "frequency (for single w) [0.0]"},
        {"tensor", "Also calculate tensor alpha_2(w) (as well as a0) [false]"},
        {"drop_continuum", "Discard states from the spectrum with e>0 - these "
@@ -46,7 +49,6 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
        {"SRN", "SR: include SR+Norm correction [false]"},
        {"n_minmax", "list; min,max n for core/excited basis states to include "
                     "in Structure radiation: [1,inf]"},
-       //  {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
        {"RPA_in_SR", "SR: Include RPA in Struc Rad + Norm [false]"},
@@ -60,6 +62,11 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.has_option("help")) {
     return;
   }
+
+  // Find the subset of valence states to calculate
+  const auto v_string =
+      input.get("states", DiracSpinor::state_config(wf.valence()));
+  const auto valence = DiracSpinor::subset(wf.valence(), v_string);
 
   const auto omega = input.get("omega", 0.0);
   const auto rpaQ = input.get("rpa", true);
@@ -100,10 +107,13 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Separate spectrum into core/valence parts
   const auto eFemi = wf.FermiLevel();
-  const auto spectrum_core =
-      qip::select_if(spectrum, [=](const auto &f) { return f.en() < eFemi; });
-  const auto spectrum_excited =
-      qip::select_if(spectrum, [=](const auto &f) { return f.en() > eFemi; });
+  const auto [spectrum_core, spectrum_excited] =
+      DiracSpinor::split_by_energy(spectrum, eFemi);
+
+  // const auto spectrum_core =
+  //     qip::select_if(spectrum, [=](const auto &f) { return f.en() < eFemi; });
+  // const auto spectrum_excited =
+  //     qip::select_if(spectrum, [=](const auto &f) { return f.en() > eFemi; });
 
   // calculate core contribution (single omega):
   const auto ac_sos_0 =
@@ -188,11 +198,11 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Valence contributions and total polarisabilities (single omega)
-  if (!wf.valence().empty()) {
+  if (!valence.empty()) {
     std::cout << "\nValence states (at w=" << omega
               << ") [includes core contribution]:\n";
     std::cout << "         SOS           MS             eps\n";
-    for (auto &Fv : wf.valence()) {
+    for (auto &Fv : valence) {
       const auto av_sos = alphaD::valence_sos(Fv, spectrum, he1, &dVE1, omega);
       const auto av_ms = alphaD::valence_tdhf(Fv, he1, dVE1, omega, wf.Sigma());
       const auto epsv = std::abs(2.0 * (ac_sos + av_sos - ac_ms - av_ms) /
@@ -202,10 +212,10 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-  if (do_tensor && !wf.valence().empty()) {
+  if (do_tensor && !valence.empty()) {
     std::cout << "\nTensor polarasability alpha_2 (at w=" << omega << "):\n";
     std::cout << "         SOS\n";
-    for (auto &Fv : wf.valence()) {
+    for (auto &Fv : valence) {
       const auto a2_sos = alphaD::tensor2_sos(Fv, spectrum, he1, &dVE1, omega);
       printf("%4s :  %12.5e\n", Fv.shortSymbol().c_str(), a2_sos);
     }
@@ -246,11 +256,11 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "Building table of SR matrix elements.." << std::flush;
       // Always store in order: <Spectrum|d|Valence>
       for (const auto &Fn : spectrum) {
-        for (const auto &Fv : wf.valence()) {
+        for (const auto &Fv : valence) {
           if (he1.isZero(Fn, Fv) || Fn.n() > max_n_SR) {
             continue;
           }
-          if (wf.isInCore(Fn.n(), Fn, kappa()) && Fn.n() < max_n_in_core) {
+          if (wf.isInCore(Fn.n(), Fn.kappa()) && Fn.n() < max_n_in_core) {
             // only include SR for upper-most core state
             continue;
           }
@@ -263,7 +273,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     std::vector<std::tuple<std::string, double, double>> sr_summary;
-    for (const auto &Fv : wf.valence()) {
+    for (const auto &Fv : valence) {
       const auto [srn_v, srn_2] =
           alphaD::valence_SRN(Fv, spectrum, he1, &dVE1, omega, do_tensor, srn);
       sr_summary.push_back({Fv.shortSymbol(), srn_v, srn_2});
@@ -500,7 +510,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
         // Adds SR+Norm! (ignores freq. dependence)
         if (sr && Fn.n() <= max_n_SR) {
           const auto del_sr = rpa_in_SR ?
-                                  sr->srn(&he1, Fn, Fv, 0.0, dVE1).second :
+                                  sr->srn(&he1, Fn, Fv, 0.0, &dVE1).second :
                                   sr->srn(&he1, Fn, Fv).first;
           me += del_sr;
         }

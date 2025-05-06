@@ -469,3 +469,32 @@ DiracSpinor::split_by_core(const std::vector<DiracSpinor> &orbitals,
   }
   return out;
 }
+
+//==============================================================================
+std::vector<DiracSpinor>
+DiracSpinor::subset(const std::vector<DiracSpinor> &basis,
+                    const std::string &subset_string) {
+
+  // Form 'subset' from {a} in 'basis', if:
+  //    a _is_ in subset_string AND
+  //    a _is not_ in exclude_string
+
+  std::vector<DiracSpinor> subset;
+  const auto nmaxk_list = AtomData::n_kappa_list(subset_string);
+
+  for (const auto &a : basis) {
+
+    // Check if a is present in 'subset_string'
+    const auto nk =
+        std::find_if(nmaxk_list.cbegin(), nmaxk_list.cend(),
+                     [&a](const auto &tnk) { return a.kappa() == tnk.second; });
+    if (nk == nmaxk_list.cend())
+      continue;
+    // nk is now max n, for given kappa {max_n, kappa}
+    if (a.n() > nk->first)
+      continue;
+
+    subset.push_back(a);
+  }
+  return subset;
+}
