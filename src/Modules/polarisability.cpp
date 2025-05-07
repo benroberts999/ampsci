@@ -300,7 +300,10 @@ void dynamicPolarisability(const IO::InputBlock &input,
   std::cout << "Calculate atomic dynamic polarisabilities\n";
 
   input.check(
-      {{"tensor", "Do tensor polarisability a2(w) (as well as a0) [false]"},
+      {{"states",
+        "Which states to calculate? (e.g., '7sp6d'). Must be a subset of "
+        "valence. By default, all valence states are calculated."},
+       {"tensor", "Do tensor polarisability a2(w) (as well as a0) [false]"},
        {"rpa", "Include RPA? [true]"},
        {"core_omega",
         "Frequency-dependent core? If true, core part evaluated at each "
@@ -340,6 +343,10 @@ void dynamicPolarisability(const IO::InputBlock &input,
   if (input.has_option("help")) {
     return;
   }
+
+  const auto v_string =
+      input.get("states", DiracSpinor::state_config(wf.valence()));
+  const auto states = DiracSpinor::subset(wf.valence(), v_string);
 
   const auto do_tensor = input.get("tensor", false);
   const auto rpaQ = input.get("rpa", true);
@@ -500,7 +507,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
         metab.add(Fn, Fc, me); // *
       }
       // valence part:
-      for (const auto &Fv : wf.valence()) {
+      for (const auto &Fv : states) {
         if (he1.isZero(Fn, Fv))
           continue;
         auto me = he1.reducedME(Fn, Fv);
@@ -538,7 +545,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
 
   // Calculate dynamic polarisability and write to screen+file
   std::string title = "w(au)      lamda(nm) core     ";
-  for (auto &Fv : wf.valence()) {
+  for (auto &Fv : states) {
     title += (" "s + Fv.shortSymbol() + "      "s);
   }
   if (rpaQ && rpa_omegaQ) {
@@ -582,11 +589,11 @@ void dynamicPolarisability(const IO::InputBlock &input,
     ofile << ww << " " << lambda << " " << ac << " ";
     // no core contrib to a2, but write zero so columns align
     o2file << ww << " " << lambda << " " << 0.0 << " ";
-    std::vector<double> avs(wf.valence().size());
-    std::vector<double> a2s(wf.valence().size());
+    std::vector<double> avs(states.size());
+    std::vector<double> a2s(states.size());
 #pragma omp parallel for if (method == "MS")
-    for (auto iv = 0ul; iv < wf.valence().size(); ++iv) {
-      const auto &Fv = wf.valence().at(iv);
+    for (auto iv = 0ul; iv < states.size(); ++iv) {
+      const auto &Fv = states.at(iv);
       const auto av =
           method == "MS" ?
               ac + alphaD::valence_tdhf(Fv, he1, dVE1, ww, wf.Sigma()) :
