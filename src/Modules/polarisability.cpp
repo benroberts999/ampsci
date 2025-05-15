@@ -30,7 +30,10 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "Atomic polarisabilities, 𝛼, at single frequency\n";
 
   input.check(
-      {{"rpa", "Include RPA? [true]"},
+      {{"states",
+        "Which states to calculate? (e.g., '7sp6d'). Must be a subset of "
+        "valence. By default, all valence states are calculated."},
+       {"rpa", "Include RPA? [true]"},
        {"omega", "frequency (for single w) [0.0]"},
        {"tensor", "Also calculate tensor alpha_2(w) (as well as a0) [false]"},
        {"drop_continuum", "Discard states from the spectrum with e>0 - these "
@@ -46,9 +49,9 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
        {"SRN", "SR: include SR+Norm correction [false]"},
        {"n_minmax", "list; min,max n for core/excited basis states to include "
                     "in Structure radiation: [1,inf]"},
-       //  {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
+       {"RPA_in_SR", "SR: Include RPA in Struc Rad + Norm [false]"},
        {"Qk_file",
         "true/false/filename - SR: filename for QkTable file. If blank will "
         "not use QkTable; if exists, will read it in; if doesn't exist, will "
@@ -59,6 +62,11 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.has_option("help")) {
     return;
   }
+
+  // Find the subset of valence states to calculate
+  const auto v_string =
+      input.get("states", DiracSpinor::state_config(wf.valence()));
+  const auto valence = DiracSpinor::subset(wf.valence(), v_string);
 
   const auto omega = input.get("omega", 0.0);
   const auto rpaQ = input.get("rpa", true);
@@ -99,10 +107,13 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Separate spectrum into core/valence parts
   const auto eFemi = wf.FermiLevel();
-  const auto spectrum_core =
-      qip::select_if(spectrum, [=](const auto &f) { return f.en() < eFemi; });
-  const auto spectrum_excited =
-      qip::select_if(spectrum, [=](const auto &f) { return f.en() > eFemi; });
+  const auto [spectrum_core, spectrum_excited] =
+      DiracSpinor::split_by_energy(spectrum, eFemi);
+
+  // const auto spectrum_core =
+  //     qip::select_if(spectrum, [=](const auto &f) { return f.en() < eFemi; });
+  // const auto spectrum_excited =
+  //     qip::select_if(spectrum, [=](const auto &f) { return f.en() > eFemi; });
 
   // calculate core contribution (single omega):
   const auto ac_sos_0 =
@@ -187,11 +198,11 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Valence contributions and total polarisabilities (single omega)
-  if (!wf.valence().empty()) {
+  if (!valence.empty()) {
     std::cout << "\nValence states (at w=" << omega
               << ") [includes core contribution]:\n";
     std::cout << "         SOS           MS             eps\n";
-    for (auto &Fv : wf.valence()) {
+    for (auto &Fv : valence) {
       const auto av_sos = alphaD::valence_sos(Fv, spectrum, he1, &dVE1, omega);
       const auto av_ms = alphaD::valence_tdhf(Fv, he1, dVE1, omega, wf.Sigma());
       const auto epsv = std::abs(2.0 * (ac_sos + av_sos - ac_ms - av_ms) /
@@ -201,10 +212,10 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-  if (do_tensor && !wf.valence().empty()) {
+  if (do_tensor && !valence.empty()) {
     std::cout << "\nTensor polarasability alpha_2 (at w=" << omega << "):\n";
     std::cout << "         SOS\n";
-    for (auto &Fv : wf.valence()) {
+    for (auto &Fv : valence) {
       const auto a2_sos = alphaD::tensor2_sos(Fv, spectrum, he1, &dVE1, omega);
       printf("%4s :  %12.5e\n", Fv.shortSymbol().c_str(), a2_sos);
     }
@@ -217,6 +228,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
     const auto max_n_SR = input.get("max_n_SR", 9);
+    const auto rpa_in_SR = input.get("RPA_in_SR", false);
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
         Qk_file_t != "false" ?
@@ -227,29 +239,41 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
               << " SR in diagrams\n";
     std::cout << "Calculating SR+N for terms up to n=" << max_n_SR
               << " in the sum-over-states\n";
+    if (rpa_in_SR) {
+      std::cout << "Including RPA in SR+N\n";
+    } else {
+      std::cout << "Not including RPA in SR+N\n";
+    }
 
     const auto sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(),
                                        {n_min, n_max}, Qk_file);
 
     Coulomb::meTable srn{};
     {
-      IO::ChronoTimer t2("Build meTable");
+      const auto max_n_in_core = DiracSpinor::max_n(wf.core());
+
+      IO::ChronoTimer t2("Build SR meTable");
       std::cout << "Building table of SR matrix elements.." << std::flush;
       // Always store in order: <Spectrum|d|Valence>
       for (const auto &Fn : spectrum) {
-        for (const auto &Fv : wf.valence()) {
-          if (he1.isZero(Fn, Fv) || Fn.n() > max_n_SR ||
-              wf.isInCore(Fn.n(), Fn.kappa()))
+        for (const auto &Fv : valence) {
+          if (he1.isZero(Fn, Fv) || Fn.n() > max_n_SR) {
             continue;
-          // Calculates SR+Norm (ignores freq. dependence and RPA)
-          srn.add(Fn, Fv, sr.srn(&he1, Fn, Fv).first);
+          }
+          if (wf.isInCore(Fn.n(), Fn.kappa()) && Fn.n() < max_n_in_core) {
+            // only include SR for upper-most core state
+            continue;
+          }
+          srn.add(Fn, Fv,
+                  rpa_in_SR ? sr.srn(&he1, Fn, Fv, omega, &dVE1).second :
+                              sr.srn(&he1, Fn, Fv, omega).first);
         }
       }
       std::cout << " Done.\n" << std::flush;
     }
 
     std::vector<std::tuple<std::string, double, double>> sr_summary;
-    for (const auto &Fv : wf.valence()) {
+    for (const auto &Fv : valence) {
       const auto [srn_v, srn_2] =
           alphaD::valence_SRN(Fv, spectrum, he1, &dVE1, omega, do_tensor, srn);
       sr_summary.push_back({Fv.shortSymbol(), srn_v, srn_2});
@@ -276,7 +300,10 @@ void dynamicPolarisability(const IO::InputBlock &input,
   std::cout << "Calculate atomic dynamic polarisabilities\n";
 
   input.check(
-      {{"tensor", "Do tensor polarisability a2(w) (as well as a0) [false]"},
+      {{"states",
+        "Which states to calculate? (e.g., '7sp6d'). Must be a subset of "
+        "valence. By default, all valence states are calculated."},
+       {"tensor", "Do tensor polarisability a2(w) (as well as a0) [false]"},
        {"rpa", "Include RPA? [true]"},
        {"core_omega",
         "Frequency-dependent core? If true, core part evaluated at each "
@@ -305,6 +332,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
        {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
        {"max_n_SR",
         "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
+       {"RPA_in_SR", "SR: Include RPA in Struc Rad + Norm [false]"},
        {"Qk_file",
         "true/false/filename - SR: filename for QkTable file. If blank will "
         "not use QkTable; if exists, will read it in; if doesn't exist, will "
@@ -315,6 +343,10 @@ void dynamicPolarisability(const IO::InputBlock &input,
   if (input.has_option("help")) {
     return;
   }
+
+  const auto v_string =
+      input.get("states", DiracSpinor::state_config(wf.valence()));
+  const auto states = DiracSpinor::subset(wf.valence(), v_string);
 
   const auto do_tensor = input.get("tensor", false);
   const auto rpaQ = input.get("rpa", true);
@@ -434,6 +466,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
 
   std::optional<MBPT::StructureRad> sr{std::nullopt};
   const auto max_n_SR = input.get("max_n_SR", 9);
+  const auto rpa_in_SR = input.get("RPA_in_SR", false);
   if (StrucRadQ) {
     const auto n_min_core = input.get("n_min_core", 1);
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
@@ -447,6 +480,11 @@ void dynamicPolarisability(const IO::InputBlock &input,
               << " in diagrams\n";
     std::cout << "Calculating SR+N for terms up to n=" << max_n_SR
               << " in the sum-over-states\n";
+    if (rpa_in_SR) {
+      std::cout << "Including RPA in SR+N\n";
+    } else {
+      std::cout << "Not including RPA in SR+N\n";
+    }
   }
 
   // build tables of matrix elements;
@@ -469,7 +507,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
         metab.add(Fn, Fc, me); // *
       }
       // valence part:
-      for (const auto &Fv : wf.valence()) {
+      for (const auto &Fv : states) {
         if (he1.isZero(Fn, Fv))
           continue;
         auto me = he1.reducedME(Fn, Fv);
@@ -478,7 +516,10 @@ void dynamicPolarisability(const IO::InputBlock &input,
         }
         // Adds SR+Norm! (ignores freq. dependence)
         if (sr && Fn.n() <= max_n_SR) {
-          me += sr->srn(&he1, Fn, Fv).first;
+          const auto del_sr = rpa_in_SR ?
+                                  sr->srn(&he1, Fn, Fv, 0.0, &dVE1).second :
+                                  sr->srn(&he1, Fn, Fv).first;
+          me += del_sr;
         }
         metab.add(Fn, Fv, me); // *
       }
@@ -504,7 +545,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
 
   // Calculate dynamic polarisability and write to screen+file
   std::string title = "w(au)      lamda(nm) core     ";
-  for (auto &Fv : wf.valence()) {
+  for (auto &Fv : states) {
     title += (" "s + Fv.shortSymbol() + "      "s);
   }
   if (rpaQ && rpa_omegaQ) {
@@ -548,11 +589,11 @@ void dynamicPolarisability(const IO::InputBlock &input,
     ofile << ww << " " << lambda << " " << ac << " ";
     // no core contrib to a2, but write zero so columns align
     o2file << ww << " " << lambda << " " << 0.0 << " ";
-    std::vector<double> avs(wf.valence().size());
-    std::vector<double> a2s(wf.valence().size());
+    std::vector<double> avs(states.size());
+    std::vector<double> a2s(states.size());
 #pragma omp parallel for if (method == "MS")
-    for (auto iv = 0ul; iv < wf.valence().size(); ++iv) {
-      const auto &Fv = wf.valence().at(iv);
+    for (auto iv = 0ul; iv < states.size(); ++iv) {
+      const auto &Fv = states.at(iv);
       const auto av =
           method == "MS" ?
               ac + alphaD::valence_tdhf(Fv, he1, dVE1, ww, wf.Sigma()) :

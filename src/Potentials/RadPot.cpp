@@ -1,6 +1,7 @@
 #include "RadPot.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Maths/Interpolator.hpp"
+#include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Potentials/FGRadPot.hpp"
 #include "qip/Vector.hpp"
@@ -61,7 +62,8 @@ bool RadPot::read_write(const std::vector<double> &r, IO::FRW::RoW rw) {
     label += "w";
   if (m_rN == 0.0)
     label += "_pt";
-  const auto fname = std::to_string(int(m_Z + 0.1)) + label + ".qed.abf";
+  const auto fname =
+      AtomData::atomicSymbol(int(m_Z + 0.001)) + label + ".qed.abf";
 
   const auto readQ = rw == IO::FRW::read;
 
