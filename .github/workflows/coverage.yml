@@ -33,4 +33,4 @@ jobs:
       run: ./src/tests/lcov.sh
     - name: Upload coverage to Codecov
       continue-on-error: true
-      uses: codecov/codecov-action@v2
+      uses: codecov/codecov-action@v4
