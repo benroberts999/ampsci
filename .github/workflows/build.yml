@@ -1,8 +1,9 @@
-name: Build (linux)
+name: Build Latest (linux) - g++-13 and clang++-15
 
 on:
   push:
-    branches: [ "main", "dev", "TestWorkflows" ]
+    # branches: [ "main", "dev" ]
+    branches: [ "TestWorkflows" ]
   pull_request:
     branches: [ "main", "dev" ]
 

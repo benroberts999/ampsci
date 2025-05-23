@@ -2,7 +2,8 @@ name: Build (MacOS)
 
 on:
   push:
-    branches: [ "main", "dev", "TestWorkflows" ]
+    branches: [ "main", "dev" ]
+    # branches: [ "TestWorkflows" ]
   pull_request:
     branches: [ "main", "dev" ]
 
