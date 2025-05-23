@@ -2,7 +2,10 @@ name: Docs
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
+    # branches: [ "TestWorkflows" ]
+  pull_request:
+    branches: [ "main", "dev" ]
 
 jobs:
   docs:
@@ -20,33 +23,55 @@ jobs:
         sudo apt-get install -y doxygen
         sudo apt-get install -y texlive-latex-extra --fix-missing
         sudo apt-get install -y wget
-    
-    - name: Build the documentation
+
+    # Step 3: Prepare documentation files
+    # This step modifies Markdown files and source files to make them compatible with Doxygen
+    - name: "Prepare documentation files"
       run: |
-        git config --global user.name "github-actions[bot]"
-        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
-        git fetch
-        git checkout gh-pages
-        git reset --hard origin/main
-        cp ./doc/examples/Makefile ./ 
-        # Make changes for markdown between github and doxygen 
-        for FILE in ./doc/*.md; do sed -i 's%(/doc/%(doc/%g' $FILE; done
-        for FILE in ./doc/*.md; do sed -i 's%(/README%(README%g' $FILE; done
-        for FILE in ./doc/*.md; do sed -i 's%(/src/%(https://github.com/benroberts999/ampsci/tree/main/src/%g' $FILE; done
-        for FILE in ./doc/*.md; do sed -i 's%::::%\brief%g' $FILE; done
-        for FILE in ./doc/tutorial*.md; do sed -i -e 's/\$\$~/\\f\[/g' $FILE; done
-        for FILE in ./doc/tutorial*.md; do sed -i -e 's/~\$\$/\\f\]/g' $FILE; done
-        for FILE in ./doc/tutorial*.md; do sed -i -e 's/\$/\\f\$/g' $FILE; done
-        # remove non-ascii characters
-        for FILE in ./src/*.h*; do tr -cd '\0-\177' < $FILE > temp && mv temp $FILE; done
-        for FILE in ./src/*/*.h*; do tr -cd '\0-\177' < $FILE > temp && mv temp $FILE; done
-        for FILE in ./src/*/*/*.h*; do tr -cd '\0-\177' < $FILE > temp && mv temp $FILE; done
+        # Copy the Makefile to the working directory
+        cp ./doc/examples/Makefile ./
+
+        # Adjust Markdown links for compatibility between GitHub and Doxygen
+        for FILE in ./doc/*.md; do
+          # Fix relative links to /doc/
+          sed -i 's%(/doc/%(doc/%g' $FILE
+          # Fix README links
+          sed -i 's%(/README%(README%g' $FILE
+          # Convert src links to GitHub URLs
+          sed -i 's%(/src/%(https://github.com/benroberts999/ampsci/tree/main/src/%g' $FILE
+          # Replace custom tags with Doxygen-compatible tags
+          sed -i 's%::::%\brief%g' $FILE
+        done
+
+        # Adjust LaTeX math delimiters for Doxygen
+        for FILE in ./doc/tutorial*.md; do
+          # Replace $$~ with \f[
+          sed -i -e 's/\$\$~/\\f\[/g' $FILE
+          # Replace ~$$ with \f]
+          sed -i -e 's/~\$\$/\\f\]/g' $FILE
+          # Replace $ with \f$
+          sed -i -e 's/\$/\\f\$/g' $FILE
+        done
+
+        # Remove non-ASCII characters from header files
+        for FILE in ./src/*.h* ./src/*/*.h* ./src/*/*/*.h*; do
+          tr -cd '\0-\177' < $FILE > temp && mv temp $FILE
+        done
+
+        # Update badges in README.md
         sed -i 's%tests-badge]]%tests-badge-v2]]%g' ./README.md
         sed -i 's%build-badge]]%build-badge-v2]]%g' ./README.md
         sed -i 's%macOS-badge]]%macOS-badge-v2]]%g' ./README.md
         sed -i 's%cov-badge]]%cov-badge-v2]]%g' ./README.md
+
+        # Clean up old documentation artifacts
         rm -rf ./docs/form_*.png
         rm -rf ./docs/formula.repository
+
+    # Step 4: Build the documentation
+    # This step runs the Makefile to generate the documentation using Doxygen
+    - name: "Build the documentation"
+      run: |
         make doxy
         wget https://cdn.mathjax.org/mathjax/latest/MathJax.js -O ./docs/MathJax.js
         echo ampsci.dev > ./docs/CNAME
@@ -55,8 +80,15 @@ jobs:
         wget https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml/badge.svg -O ./docs/macOS-badge.svg
         wget https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg -O ./docs/cov-badge.svg
 
-    - name: Commit+push documentation to gh-pages
+    # Step 5: Commit and push documentation to gh-pages
+    - name: "Commit+push documentation to gh-pages"
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: |
+        git config --global user.name "github-actions[bot]"
+        git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
+        git fetch
+        git checkout gh-pages
+        git reset --hard origin/main
         git add .
         git add docs/* -f
         git commit -a -m "Make documentation [GH Actions]"

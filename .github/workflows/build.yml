@@ -1,82 +1,88 @@
-name: Build (linux)
+name: Build Latest (linux) - g++-13 and clang++-15
 
 on:
   push:
     branches: [ "main", "dev" ]
+    # branches: [ "TestWorkflows" ]
   pull_request:
     branches: [ "main", "dev" ]
 
 jobs:
-  # This is too unstable - GitHub actions keeps changing the oldest version
-  # build_oldest:
-  #   # runs-on: ubuntu-20.04 # no longer supported
-  #   runs-on: ubuntu-22.04
-
-  #   steps:
-  #   - uses: actions/checkout@v4
-
-  #   - name: "Install dependencies"
-  #     run: |
-  #       set -x
-  #       sudo apt-get update -y
-  #       sudo apt-get install -y make 
-  #       sudo apt-get install -y g++-7 
-  #       sudo apt-get install -y clang-6.0 
-  #       sudo apt-get install -y liblapack-dev 
-  #       sudo apt-get install -y libblas-dev 
-  #       sudo apt-get install -y libgsl-dev 
-
-  #   - name: setup
-  #     run: cp ./doc/examples/Makefile ./
-
-  #   - name: Build ampsci (g++ v:7 - oldest supported gcc)
-  #     run: make clean && make CXX=g++-7 UseOpenMP=no
-
-  #   - name: Run ampsci (g++)
-  #     run: ./ampsci Cs
-
-  #   - name: Build ampsci (clang++ v:6, - oldest supported clang)
-  #     run: make clean && make CXX=clang++-6.0 UseOpenMP=no
-
-  #   - name: Run ampsci (clang++)
-  #     run: ./ampsci Cs [Xe] 6sp
-
   build_latest:
-    # runs-on: ubuntu-22.04
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        compiler: [g++-13, clang++-15]  # Test with both g++ and clang++
+        openmp: [yes, no]               # Test with and without OpenMP support
 
     steps:
+    # Step 1: Check out the repository code
     - uses: actions/checkout@v4
 
+    # Step 2: Install dependencies
     - name: "Install dependencies"
       run: |
         set -x
         sudo apt-get update -y
-        sudo apt-get install -y make 
-        sudo apt-get install -y g++-13
-        sudo apt-get install -y clang-15
-        sudo apt-get install -y liblapack-dev 
-        sudo apt-get install -y libblas-dev 
-        sudo apt-get install -y libgsl-dev 
-        sudo apt-get install -y libomp-dev
+        # Install build tools and compilers based on the matrix
+        if [ "${{ matrix.compiler }}" = "g++-13" ]; then
+          sudo apt-get install -y g++-13
+        elif [ "${{ matrix.compiler }}" = "clang++-15" ]; then
+          sudo apt-get install -y clang-15
+          if [ "${{ matrix.openmp }}" = "yes" ]; then
+            sudo apt-get install -y libomp-15-dev
+          fi
+        fi
+        # Install scientific libraries
+        sudo apt-get install -y make liblapack-dev libblas-dev libgsl-dev
 
-    - name: setup
-      run: cp ./doc/examples/Makefile ./ && cp ./doc/examples/ampsci.in ./ampsci.in
+    # Step 3: Set up the environment
+    - name: "Set up environment"
+      run: |
+        cp ./doc/examples/Makefile ./
+        cp ./doc/examples/ampsci.in ./ampsci.in
 
-    - name: Build ampsci (g++ v:13)
-      run: make clean && make CXX=g++-13 UseOpenMP=yes
+    # Step 4: Build the project using the matrix configuration
+    - name: "Build ampsci"
+      run: |
+        make clean && make CXX=${{ matrix.compiler }} Build=dev UseOpenMP=${{ matrix.openmp }} ampsci tests
+        ./ampsci -v
+        ./ampsci Cs [Xe] 7sp
+        ./tests [unit]
+        make clean && make CXX=${{ matrix.compiler }} Build=release UseOpenMP=${{ matrix.openmp }}
+        ./ampsci -v
+        ./ampsci Cs [Xe] 7sp
 
-    - name: Run ampsci (g++)
-      run: ./ampsci ampsci.in
+    # Step 5: Run with input file ampsci.in (only for g++ with OpenMP)
+    - name: "Run with ampsci.in"
+      if: ${{ matrix.compiler == 'g++-13' && matrix.openmp == 'yes' }}
+      run: |
+        ./ampsci ampsci.in
 
-    - name: Run unit tests (g++)
-      run: make CXX=g++-13 UseOpenMP=yes tests && ./tests [unit]
+  # Build using the "quickstart" scripts
+  build_with_quickstart_scripts:
+    runs-on: ubuntu-latest
 
-    - name: Build ampsci (clang++ v:15)
-      run: make clean && make CXX=clang++-15 UseOpenMP=no
+    steps:
+    # Step 1: Check out the repository code
+    - uses: actions/checkout@v4
 
-    - name: Run ampsci (clang++)
-      run: ./ampsci ampsci.in
+    # Step 2: Install dependencies using the script
+    - name: "Install dependencies"
+      run: |
+        chmod +x ./install-dependencies.sh
+        sudo ./install-dependencies.sh --yes
 
-    - name: Run unit tests (g++)
-      run: make CXX=clang++-15 UseOpenMP=no tests && ./tests [unit]
+    # Step 3: Set up the environment using the script
+    - name: "Set up environment"
+      run: |
+        chmod +x ./setup.sh
+        ./setup.sh --yes
+
+    # Step 4: Build the project
+    - name: "Build ampsci"
+      run: |
+        make clean && make
+        ./ampsci
+        ./ampsci Cs [Xe] 7sp
+        ./ampsci -v

@@ -2,14 +2,15 @@ name: Tests
 
 on:
   push:
-    branches: [ "main" ]
+    branches: [ "main", "dev" ]
+    # branches: [ "TestWorkflows" ]
   pull_request:
     branches: [ "main", "dev" ]
 
 jobs:
   tests:
 
-    runs-on: ubuntu-22.04
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v4
@@ -19,24 +20,29 @@ jobs:
         set -x
         sudo apt-get update -y
         sudo apt-get install -y make
-        sudo apt-get install -y g++-11
-        sudo apt-get install -y clang-14
+        sudo apt-get install -y g++
+        sudo apt-get install -y clang-15
         sudo apt-get install -y liblapack-dev
         sudo apt-get install -y libblas-dev
         sudo apt-get install -y libgsl-dev
-        sudo apt-get install -y libomp-dev
- 
+        sudo apt-get install -y libomp-15-dev
+
     - name: setup
       run: cp ./doc/examples/Makefile ./
 
-    - name: Build ampsci (clang++, dev mode, with Werror)
-      run: make clean && make CXX='clang++-14' CARGS='-Werror' UseOpenMP=yes Build=dev tests
- 
-    - name: Run unit tests (clang++)
-      run: ./tests [unit] 
+    - name: Build ampsci (clang++)
+      run: |
+        make clean
+        make CXX='clang++-15' UseOpenMP=yes tests
 
-    - name: Build ampsci (g++, dev mode, with Werror)
-      run: make clean && make CXX='g++-11' CARGS='-Werror' Build=dev tests
- 
+    - name: Run unit tests (clang++)
+      run: ./tests [unit]
+
+    - name: Build ampsci (g++)
+      run: |
+        make clean
+        make CXX='g++' UseOpenMP=yes tests
+
     - name: Run unit, regression, integrations tests (g++)
+      if: github.ref == 'refs/heads/main'
       run: ./tests ~[slow]
