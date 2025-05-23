@@ -16,6 +16,7 @@ Designed to be fast, accurate, and easy to use.
 * The "modules" system (see [doc/modules.md](doc/modules.md)) makes it simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
 
 The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
+
 * See [ampsci.dev/](https://ampsci.dev/) for full documentation
 * A basic step-by-step introduction is here: [doc/tutorial.md](doc/tutorial.md)
 * A full description of the physics methods and approximations, including references,
@@ -57,6 +58,7 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 * More advanced tutorials follow: [doc/tutorial_advanced.md](doc/tutorial_advanced.md), [doc/tutorial_CI.md](doc/tutorial_CI.md)
 
 Much of ampsci documentation can be seen from the command line:
+
 * See which ampsci input options are available: `./ampsci -a`
   * See available input options for each input block by following with its name
   * e.g., `./ampsci -a HartreeFock`

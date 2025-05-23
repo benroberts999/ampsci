@@ -3,67 +3,49 @@ name: Build (MacOS)
 on:
   push:
     branches: [ "main", "dev" ]
+    # branches: [ "TestWorkflows" ]
   pull_request:
     branches: [ "main", "dev" ]
 
 jobs:
   build:
 
-    runs-on: macOS-latest
+    runs-on: macos-latest
 
     steps:
     - uses: actions/checkout@v4
-    - name: "Install dependencies (Homebrew)"
-      continue-on-error: true
-      run: |
-        /bin/bash -c "$(curl -fsSL https://raw.githubusercontent.com/Homebrew/install/HEAD/install.sh)"
-        set -x
-        # brew install gcc
-        brew install gsl
-        # sudo xcode-select --install
-        # sudo xcode-select --switch /Library/Developer/CommandLineTools/
-        brew install llvm
 
-    - name: setup
+    - name: "Install dependencies (Use Homebrew)"
+      # continue-on-error: true
       run: |
         set -x
-        cp ./doc/examples/Makefile ./ && cp ./doc/examples/ampsci.in ./ampsci.in
+        chmod +x ./install-dependencies.sh
+        ./install-dependencies.sh --yes
 
-# This currently fails:
-# GCC failing with update to Xcode? Known issue?
-# see: https://stackoverflow.com/questions/73714336/xcode-update-to-version-2395-ld-compile-problem-occurs-computedatomcount-m
-
-    - name: Build ampsci (g++ v:12, with openMP)
-      continue-on-error: true
-      run: | 
-        set -x
-        which g++-12
-        g++-12 -v
-        make clean && make CXX=g++-12 OPT=-O3 UseOpenMP=yes PathForGSL=/usr/local/opt/gnu-scientific-library
-    - name: Run ampsci (g++)
-      continue-on-error: true
-      run: ./ampsci ampsci.in
-
-# Fails with '/Library/Developer/CommandLineTools/usr/bin/clang++' (cannot find headers)...not sure why
-# Also Suuper slow with this if any optimisations enabled...?
-    - name: Build ampsci (apple clang++, no openMP)
-      continue-on-error: true
-      run: | 
-        set -x
-        which c++
-        c++ -v
-        make clean && make CXX=c++ OPT=-O0 UseOpenMP=no PathForGSL=/usr/local/opt/gnu-scientific-library
-#     - name: Run ampsci (apple clang++)
-#       run: ./ampsci ampsci.in
-
-#     # This is suuuuuper slow (same on my laptop)
-#     # Compiles in ~3 mins with O0, but exe takes ages with optimisations.
-    - name: Build ampsci (LLVM clang++, with openMP)
-      continue-on-error: true
+    - name: "Run using setup.sh (latest g++ with openMP)"
       run: |
         set -x
-        which /usr/local/opt/llvm/bin/clang++
-        /usr/local/opt/llvm/bin/clang++ -v
-        make clean && make CXX=/usr/local/opt/llvm/bin/clang++ OPT=-O0 UseOpenMP=yes PathForGSL=/usr/local/opt/gnu-scientific-library
-#     - name: Run ampsci (clang++)
-#       run: ./ampsci ampsci.in
+        chmod +x ./setup.sh
+        ./setup.sh --yes
+        ./ampsci -v
+        ./ampsci Cs [Xe] 7sp
+
+    - name: "Run unit tests"
+      run: |
+        make tests
+        ./tests \[unit\]
+
+    - name: "Run in dev mode, with tests"
+      run: |
+        set -x
+        make Build=dev ampsci tests
+        ./ampsci Cs [Xe] 7sp
+        ./tests \[unit\]
+
+    - name: "Run using standard Apple Clang (CLT), no openMP"
+      run: |
+        set -x
+        make clean && make CXX=clang++ UseOpenMP=no ampsci tests
+        ./ampsci -v
+        ./ampsci Cs [Xe] 7sp
+        ./tests \[unit\]

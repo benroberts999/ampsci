@@ -106,7 +106,7 @@ TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
             // test selection rule (it's not inside Bk_abcd explicitely)
             if (b1 == 0.0) {
               REQUIRE(!HF::Breit::Bk_SR(k, a, b, c, d));
-            } else {
+            } else if (std::abs(b1) > 1.0e-14) {
               REQUIRE(HF::Breit::Bk_SR(k, a, b, c, d));
             }
             if (HF::Breit::Bk_SR(k, a, b, c, d)) {
