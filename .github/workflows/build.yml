@@ -24,16 +24,17 @@ jobs:
       run: |
         set -x
         sudo apt-get update -y
-        # Install build tools and compilers
-        sudo apt-get install -y make 
-        sudo apt-get install -y g++-13
-        sudo apt-get install -y clang-15
+        # Install build tools and compilers based on the matrix
+        if [ "${{ matrix.compiler }}" = "g++-13" ]; then
+          sudo apt-get install -y g++-13
+        elif [ "${{ matrix.compiler }}" = "clang++-15" ]; then
+          sudo apt-get install -y clang-15
+          if [ "${{ matrix.openmp }}" = "yes" ]; then
+            sudo apt-get install -y libomp-15-dev
+          fi
+        fi
         # Install scientific libraries
-        sudo apt-get install -y liblapack-dev
-        sudo apt-get install -y libblas-dev
-        sudo apt-get install -y libgsl-dev
-        # OMP: must match clang version
-        sudo apt-get install -y libomp-15-dev
+        sudo apt-get install -y make liblapack-dev libblas-dev libgsl-dev
 
     # Step 3: Set up the environment
     - name: "Set up environment"
@@ -43,8 +44,45 @@ jobs:
 
     # Step 4: Build the project using the matrix configuration
     - name: "Build ampsci"
-      run: make clean && make CXX=${{ matrix.compiler }} UseOpenMP=${{ matrix.openmp }}
+      run: |
+        make clean && make CXX=${{ matrix.compiler }} Build=dev UseOpenMP=${{ matrix.openmp }} ampsci tests
+        ./ampsci -v
+        ./ampsci Cs [Xe] 7sp
+        ./tests [unit]
+        make clean && make CXX=${{ matrix.compiler }} Build=release UseOpenMP=${{ matrix.openmp }}
+        ./ampsci -v
+        ./ampsci Cs [Xe] 7sp
 
-    # Step 5: Run the project with the input file
-    - name: "Run ampsci"
-      run: ./ampsci ampsci.in
+    # Step 5: Run with input file ampsci.in (only for g++ with OpenMP)
+    - name: "Run with ampsci.in"
+      if: ${{ matrix.compiler == 'g++-13' && matrix.openmp == 'yes' }}
+      run: |
+        ./ampsci ampsci.in
+
+  # Build using the "quickstart" scripts
+  build_with_quickstart_scripts:
+    runs-on: ubuntu-latest
+
+    steps:
+    # Step 1: Check out the repository code
+    - uses: actions/checkout@v4
+
+    # Step 2: Install dependencies using the script
+    - name: "Install dependencies"
+      run: |
+        chmod +x ./install-dependencies.sh
+        sudo ./install-dependencies.sh --yes
+
+    # Step 3: Set up the environment using the script
+    - name: "Set up environment"
+      run: |
+        chmod +x ./setup.sh
+        ./setup.sh --yes
+
+    # Step 4: Build the project
+    - name: "Build ampsci"
+      run: |
+        make clean && make
+        ./ampsci
+        ./ampsci Cs [Xe] 7sp
+        ./ampsci -v

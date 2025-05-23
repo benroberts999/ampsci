@@ -2,8 +2,8 @@ name: Build Earliest (linux) - g++-7 and clang++-6
 
 on:
   push:
-    # branches: [ "main", "dev" ]
-    branches: [ "TestWorkflows" ]
+    branches: [ "main", "dev" ]
+    # branches: [ "TestWorkflows" ]
   pull_request:
     branches: [ "main", "dev" ]
 
@@ -24,9 +24,8 @@ jobs:
           apt-get update -y && \
           apt-get install -y make liblapack-dev libblas-dev libgsl-dev && \
           cp ./doc/examples/Makefile ./ && \
-          cp ./doc/examples/ampsci.in ./ampsci.in && \
           make CXX=g++ UseOpenMP=yes && \
-          ./ampsci ampsci.in
+          ./ampsci -v
         "
 
     # Step 3: Build and run using clang++-6 in Docker
@@ -42,7 +41,6 @@ jobs:
           apt-get update -y && \
           apt-get install -y clang-6.0 make liblapack-dev libblas-dev libgsl-dev && \
           cp ./doc/examples/Makefile ./ && \
-          cp ./doc/examples/ampsci.in ./ampsci.in && \
-          make clean && make CXX=clang++-6.0 UseOpenMP=no && \
-          ./ampsci ampsci.in
+          make CXX=clang++-6.0 UseOpenMP=no && \
+          ./ampsci -v
         "
