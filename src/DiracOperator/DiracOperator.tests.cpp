@@ -1,3 +1,4 @@
+#include "GenerateOperator.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
@@ -17,6 +18,24 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     int kappa = Angular::kappaFromIndex(ik);
     int n = Angular::l_k(kappa) + 1;
     orbs.push_back(DiracSpinor::exactHlike(n, kappa, wf.grid_sptr(), 1.0));
+  }
+
+  //--------------------------------------------------------------------
+  SECTION("Radial_int_rhs") {
+    for (const auto &[name, generator] : DiracOperator::operator_list) {
+      const auto h = generator({}, wf);
+      for (const auto &a : orbs) {
+        for (const auto &b : orbs) {
+          if (h->isZero(a, b))
+            continue;
+          // For most operators, these are exactly the same (one implemented in terms of the other)
+          auto r1 = a * h->radial_rhs(a.kappa(), b);
+          auto r2 = h->radialIntegral(a, b);
+          std::cout << a << " " << b << " | " << r1 << " " << r2 << "\n";
+          REQUIRE(r1 == Approx(r2).margin(1.0e-15));
+        }
+      }
+    }
   }
 
   //--------------------------------------------------------------------
