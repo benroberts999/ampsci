@@ -51,6 +51,29 @@ TEST_CASE("qip::Maths", "[qip][Maths][unit]") {
   REQUIRE(qip::pow(0.0, 3) == Approx(0));
   REQUIRE(qip::pow(2.0, 0) == Approx(1));
 
+  REQUIRE(qip::factorial(0) == 1);
+  REQUIRE(qip::factorial(0ul) == 1ul);
+  REQUIRE(qip::factorial(1) == 1);
+  REQUIRE(qip::factorial(3) == 6);
+  REQUIRE(qip::factorial(5) == 120);
+  REQUIRE(qip::factorial(8) == 40320);
+  REQUIRE(qip::factorial(12) == 479001600);
+  REQUIRE(qip::factorial(12u) == 479001600u);
+  REQUIRE(qip::factorial(12l) == 479001600l);
+  REQUIRE(qip::factorial(20ul) == 2432902008176640000ul);
+
+  // This demonstrates the overflow!
+  REQUIRE(qip::factorial(21ul) == 51090942171709440000ul);
+  REQUIRE(qip::factorial(21ul) == 14197454024290336768ul);
+
+  REQUIRE(qip::double_factorial(0) == 1);
+  REQUIRE(qip::double_factorial(0ul) == 1ul);
+  REQUIRE(qip::double_factorial(1) == 1);
+  REQUIRE(qip::double_factorial(2) == 2);
+  REQUIRE(qip::double_factorial(5) == 15);
+  REQUIRE(qip::double_factorial(15) == 2027025);
+  REQUIRE(qip::double_factorial(20ul) == 3715891200ul);
+
   REQUIRE(qip::sign(-0) == 0);
   REQUIRE(qip::sign(0) == 0);
   REQUIRE(qip::sign(1) == 1);
