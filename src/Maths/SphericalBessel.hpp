@@ -17,47 +17,36 @@ namespace SphericalBessel {
 template <typename T>
 T JL(const int L, const T x) {
 
-  // Very low x expansion
-  if (std::abs(x) < (T)1.0e-8) {
-    if (L == 0)
-      return 1.0;
-    else
-      return 0.0;
-  }
-
   // Low x expansion for first few Ls. Accurate to ~ 10^9
-  if (std::fabs(x) < 0.1) {
-    if (L == 0)
-      return 1.0 - 0.166666667 * (x * x) + 0.00833333333 * qip::pow<4>(x);
-    if (L == 1)
-      return 0.333333333 * x - 0.0333333333 * (x * x * x) +
-             0.00119047619 * qip::pow<5>(x);
-    if (L == 2)
-      return 0.0666666667 * (x * x) - 0.00476190476 * qip::pow<4>(x) +
-             0.000132275132 * qip::pow<6>(x);
-    if (L == 3)
-      return 0.00952380952 * (x * x * x) - 0.000529100529 * qip::pow<5>(x) +
-             0.000012025012 * qip::pow<7>(x);
-    if (L == 4)
-      return 0.00105820106 * qip::pow<4>(x) - 0.0000481000481 * qip::pow<6>(x) +
-             9.25000925e-7 * qip::pow<8>(x);
+  if (std::abs(x) < 0.1) {
+    if (L == 0) {
+      const T x2 = x * x;
+      const T x4 = x2 * x2;
+      return 1.0 - 0.166666667 * x2 + 0.00833333333 * x4;
+    } else if (L == 1) {
+      const T x2 = x * x;
+      const T x3 = x2 * x;
+      const T x5 = x3 * x2;
+      return 0.333333333 * x - 0.0333333333 * x3 + 0.00119047619 * x5;
+    } else if (L == 2) {
+      const T x2 = x * x;
+      const T x4 = x2 * x2;
+      const T x6 = x4 * x2;
+      return 0.0666666667 * x2 - 0.00476190476 * x4 + 0.000132275132 * x6;
+    } else if (L == 3) {
+      const T x2 = x * x;
+      const T x3 = x2 * x;
+      const T x5 = x3 * x2;
+      const T x7 = x5 * x2;
+      return 0.00952380952 * x3 - 0.000529100529 * x5 + 0.000012025012 * x7;
+    } else if (L == 4) {
+      const T x2 = x * x;
+      const T x4 = x2 * x2;
+      const T x6 = x4 * x2;
+      const T x8 = x4 * x4;
+      return 0.00105820106 * x4 - 0.0000481000481 * x6 + 9.25000925e-7 * x8;
+    }
   }
-
-  // Explicit formalas for first few L's
-  if (L == 0)
-    return std::sin(x) / x;
-  if (L == 1)
-    return std::sin(x) / (x * x) - std::cos(x) / x;
-  if (L == 2)
-    return (3.0 / (x * x) - 1.0) * std::sin(x) / x -
-           3.0 * std::cos(x) / (x * x);
-  if (L == 3)
-    return (15.0 / (x * x * x) - 6.0 / x) * std::sin(x) / x -
-           (15.0 / (x * x) - 1.0) * std::cos(x) / x;
-  if (L == 4)
-    return 5.0 * (-21.0 + 2.0 * x * x) * std::cos(x) / qip::pow<4>(x) +
-           (105.0 - 45.0 * x * x + qip::pow<4>(x)) * std::sin(x) /
-               (qip::pow<5>(x));
 
   // If none of above apply, use GSL to calc. accurately
   return (T)gsl_sf_bessel_jl(L, (double)x);
@@ -87,9 +76,18 @@ std::vector<T> fillBesselVec_kr(const int l, const double k,
   std::vector<T> Jl_vec;
   Jl_vec.reserve(rvec.size());
   for (const auto &r : rvec) {
-    Jl_vec.push_back(exactGSL_JL(l, k * r));
+    Jl_vec.push_back(JL(l, k * r));
   }
   return Jl_vec;
+}
+
+template <typename T>
+void fillBesselVec_kr(int l, double k, const std::vector<T> &r,
+                      std::vector<T> *jl) {
+  jl->resize(r.size());
+  for (std::size_t i = 0; i < r.size(); ++i) {
+    (*jl)[i] = JL(l, k * r[i]);
+  }
 }
 
 } // namespace SphericalBessel
