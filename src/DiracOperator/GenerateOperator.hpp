@@ -18,6 +18,7 @@ static const std::vector<std::pair<
                   {"E2", &generate_E2},
                   {"Ek", &generate_Ek},
                   {"Ek_omega", &generate_Ek_omega},
+                  {"Mk_omega", &generate_Mk_omega},
                   {"M1", &generate_M1},
                   {"M1nr", &generate_M1nr},
                   {"hfs", &generate_hfs},
