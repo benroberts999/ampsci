@@ -1,4 +1,5 @@
 #pragma once
+#include "DiracOperator/Operators/EM_multipole.hpp"
 #include "DiracOperator/Operators/Ek.hpp"
 #include "DiracOperator/Operators/FieldShift.hpp"
 #include "DiracOperator/Operators/M1.hpp"
