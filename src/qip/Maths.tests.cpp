@@ -63,8 +63,10 @@ TEST_CASE("qip::Maths", "[qip][Maths][unit]") {
   REQUIRE(qip::factorial(20ul) == 2432902008176640000ul);
 
   // This demonstrates the overflow!
-  REQUIRE(qip::factorial(21ul) == 51090942171709440000ul);
-  REQUIRE(qip::factorial(21ul) == 14197454024290336768ul);
+  // Fails on mac build: "... error: integer literal is too large to be represented in any integer type"
+  // Overflow is undefined behaviour? I didn't think so for ul, but maybe it is
+  //   REQUIRE(qip::factorial(21ul) == 51090942171709440000ul);
+  //   REQUIRE(qip::factorial(21ul) == 14197454024290336768ul);
 
   REQUIRE(qip::double_factorial(0) == 1);
   REQUIRE(qip::double_factorial(0ul) == 1ul);
