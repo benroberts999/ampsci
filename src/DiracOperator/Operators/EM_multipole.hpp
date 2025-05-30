@@ -112,20 +112,18 @@ private:
 };
 
 //==============================================================================
-//! Magnetic multipole transition operator
+//! @brief Magnetic multipole operator, including frequency-dependence.
 class Mk_omega final : public TensorOperator {
 public:
   Mk_omega(const Grid &gr, int K, double alpha, double omega,
            bool transition_form)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, +0.0,
-                       {}, 0, Realness::real, true),
-        m_r(gr.r()),
-        m_K(K),
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 0.0,
+                       gr.r(), 0, Realness::real, true),
         m_alpha(alpha),
+        m_K(K),
         m_transition_form(transition_form) {
     updateFrequency(omega);
   }
-
   std::string name() const override final {
     return m_transition_form ? std::string("t^M_") + std::to_string(m_K) :
                                std::string("M(") + std::to_string(m_K) + ")";
@@ -135,30 +133,67 @@ public:
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return -(ka + kb) * Angular::Ck_kk(m_K, -ka, kb) / (m_K + 1);
+    return -m_constant * (ka + kb) * Angular::Ck_kk(m_K, -ka, kb) / (m_K + 1);
   }
-  double angularCff(int, int) const override final { return 0.0; }
-  double angularCgg(int, int) const override final { return 0.0; }
-  double angularCfg(int, int) const override final { return 1.0; }
-  double angularCgf(int, int) const override final { return 1.0; }
+
+  //--------------
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final {
+
+    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
+    dF.min_pt() = Fb.min_pt();
+    dF.max_pt() = Fb.max_pt();
+
+    if (isZero(kappa_a, Fb.kappa()) || (kappa_a == -Fb.kappa())) {
+      dF.min_pt() = 0;
+      dF.max_pt() = 0;
+      return dF;
+    }
+
+    for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+      dF.f(i) = j1[i] * Fb.g(i);
+      dF.g(i) = j1[i] * Fb.f(i);
+    }
+    return dF;
+  }
+
+  //--------------
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final {
+
+    if (isZero(Fa.kappa(), Fb.kappa()) || (Fa.kappa() == -Fb.kappa())) {
+      return 0.0;
+    }
+
+    const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+    const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+
+    const auto &drdu = Fb.grid().drdu();
+
+    const auto fg = NumCalc::integrate(1.0, pi, pf, j1, Fa.f(), Fb.g(), drdu);
+    const auto gf = NumCalc::integrate(1.0, pi, pf, j1, Fa.g(), Fb.f(), drdu);
+
+    return (fg + gf) * Fb.grid().du();
+  }
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
     const auto q = std::abs(m_alpha * omega);
-    // should be 1 for "transition" operator,
-    // otherwise factor for the "moment" form
+
+    // should be 1 for "transition" operator, otherwise factor for the "moment" form
     m_constant = m_transition_form ?
                      1.0 :
                      (2.0 / m_alpha) * qip::double_factorial(2 * m_K + 1) /
                          qip::pow(q, m_K);
-    SphericalBessel::fillBesselVec_kr(m_K, q, m_r, &m_vec);
+
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &j1);
   }
 
 private:
-  std::vector<double> m_r; // store radial vector (copy)
-  int m_K;
   double m_alpha;
+  int m_K;
   bool m_transition_form = true;
+  std::vector<double> j1{};
 };
 
 //------------------------------------------------------------------------------
