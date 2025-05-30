@@ -23,6 +23,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
   //--------------------------------------------------------------------
   SECTION("Radial_int_rhs") {
     for (const auto &[name, generator] : DiracOperator::operator_list) {
+      std::cout << name << "\n";
       const auto h = generator({}, wf);
       for (const auto &a : orbs) {
         for (const auto &b : orbs) {
@@ -31,7 +32,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
           // For most operators, these are exactly the same (one implemented in terms of the other)
           auto r1 = a * h->radial_rhs(a.kappa(), b);
           auto r2 = h->radialIntegral(a, b);
-          std::cout << a << " " << b << " | " << r1 << " " << r2 << "\n";
+          // std::cout << a << " " << b << " | " << r1 << " " << r2 << "\n";
           REQUIRE(r1 == Approx(r2).margin(1.0e-15));
         }
       }
