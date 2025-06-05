@@ -72,7 +72,7 @@ fi
 
 # If didn't find specific version, try just g++ or clang++
 if [ $found_compiler == 0 ]; then
-  if [ -x "$(command -v "gx++")" ]; then
+  if [ -x "$(command -v "g++")" ]; then
     echo "Compiler Found:" "$(command -v "g++")"
     found_compiler=1
     cxx="g++"
@@ -95,7 +95,7 @@ if [ $found_compiler == 0 ]; then
     echo "Run: brew install gcc"
   fi
   echo "Or proceed with manual compilation for other compilers"
-  exit
+  exit 1
 fi
 
 # Locate GSL libraries:
@@ -113,7 +113,7 @@ else
   elif [ ${machine} == 'Mac' ]; then
     echo "Run: brew install gsl"
   fi
-  exit
+  exit 1
 fi
 
 # Attempt to compile ampsci

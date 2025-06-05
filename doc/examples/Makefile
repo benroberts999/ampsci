@@ -26,44 +26,34 @@ XD=.
 ## Some common places include '/opt/gsl/2.1/gnu'
 ## Intel Mac: '/usr/local/opt/gnu-scientific-library', 
 ## M1/M2 mac: '/opt/homebrew/Cellar/gsl/2.7.1/'
-
 PathForGSL=
 
 ################################################################################
-# By default, uses -lblas (set =blas). For openblas, set =openblas.
-# On some systems, openblas is available
-BLASLIB=blas
+# Set GSL and LAPACK/BLAS library flags. These are typical, but sometimes differ
+LIBS=-lgsl -lgslcblas -llapack -lblas
+
+# Friday:
+# LIBS=-lgsl -lgslcblas -lopenblas
+# Bunya:
+# LIBS=-lgsl -lgslcblas -llapack -lopenblas -lgfortran 
 
 ################################################################################
 # OpenMP library to use. -fopenmp default for GCC, -fopenmp=libomp for clang
 # libomp for clang++X requires package libomp-X-dev (e.g., X=15)
+# Ignored if UseOpenMP is not 'yes' or 'true'
 OMPLIB=-fopenmp
 # OMPLIB=-fopenmp=libomp
 
 ################################################################################
-## If compiler cannot find correct libraries/headers, add the paths here.
-## (Adds to -I and -L on compile and link; don't include the "-L" or "-I" here)
-## Usually, these will be blank.
-ExtraInclude=
-ExtraLink=
-ExtraFlags=
-## Required on bunya:
-#ExtraFlags=-lgfortran 
-
-# To use openmp with the llvm version clang++ on mac:
-#ExtraInclude=/usr/local/opt/llvm/include/
-#ExtraLink=/usr/local/opt/llvm/lib/
-
-################################################################################
 # Use these to pass in any other compiler/linker arguments
-# Any other arguments
+# (Rarely needed)
 CARGS=
 LARGS=
 
 ################################################################################
 ## None of the below options should need changing
 ################################################################################
-## Set directories for source files (SD), and output object files (OD)
+## Set directories for source files (SD), and output built object files (BD)
 SD=./src
 BD=./build
 
