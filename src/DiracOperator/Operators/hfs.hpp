@@ -340,12 +340,12 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto distro_type =
       (qip::ci_wc_compare(Fr_str, "point*") || qip::ci_compare(Fr_str, "1")) ?
           DistroType::point :
-      qip::ci_compare(Fr_str, "ball")       ? DistroType::ball :
-      qip::ci_compare(Fr_str, "shell")      ? DistroType::shell :
-      qip::ci_wc_compare(Fr_str, "Single*") ? DistroType::SingleParticle :
-      qip::ci_compare(Fr_str, "doublyOdd*") ? DistroType::doublyOddSP :
-      qip::ci_compare(Fr_str, "spu")        ? DistroType::spu :
-                                              DistroType::Error;
+      qip::ci_compare(Fr_str, "ball")          ? DistroType::ball :
+      qip::ci_compare(Fr_str, "shell")         ? DistroType::shell :
+      qip::ci_wc_compare(Fr_str, "Single*")    ? DistroType::SingleParticle :
+      qip::ci_wc_compare(Fr_str, "doublyOdd*") ? DistroType::doublyOddSP :
+      qip::ci_compare(Fr_str, "spu")           ? DistroType::spu :
+                                                 DistroType::Error;
   if (distro_type == DistroType::Error) {
     fmt2::styled_print(fg(fmt::color::red), "\nError 271:\n");
     std::cout << "\nIn hyperfine. Unkown F(r) - " << Fr_str << "\n";
