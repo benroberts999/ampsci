@@ -64,7 +64,9 @@ Wavefunction ampsci(const IO::InputBlock &input) {
         "(c->infinity => alpha->0), or calculate sensitivity to "
         "variation of alpha. [1.0]"},
        {"run_label", "Optional label for output identity - for distinguishing "
-                     "outputs with different parameters"}});
+                     "outputs with different parameters"},
+       {"json_out", "Write (partial) wavefunction details to json file? "
+                    "true/false [false]"}});
 
   const auto atom_block = input.get_block("Atom");
 
@@ -498,6 +500,12 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto CI_in = input.getBlock("CI");
   if (CI_in) {
     wf.ConfigurationInteraction(*CI_in);
+  }
+
+  const auto json_out = input.get({"Atom"}, "json_out", false);
+  if (json_out) {
+    const std::string json_out_name = wf.identity() + ".json";
+    wf.output_to_json(json_out_name);
   }
 
   // run each of the modules with the calculated wavefunctions

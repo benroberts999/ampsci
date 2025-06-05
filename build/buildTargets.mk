@@ -118,7 +118,7 @@ do_the_chicken_dance:
 	@echo 'Why would I do that?'
 
 # Runs clang format on the entire project
-CLANG_FORMAT_EXCLUDES := $(SD)/fmt $(SD)/catch2
+CLANG_FORMAT_EXCLUDES := $(SD)/fmt $(SD)/catch2 $(SD)/json
 clang_format:
 	@echo "Running clang format (whole project)"
 	find $(SD)/ \( $(foreach dir,$(CLANG_FORMAT_EXCLUDES),-path "$(dir)" -o ) -false \) -prune -o \( -iname '*.cpp' -o -iname '*.hpp' -o -iname '*.ipp' \) -print | xargs -r clang-format -i -verbose

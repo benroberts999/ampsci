@@ -77,6 +77,9 @@ private:
   int m_kappa_index;
   Index m_nkappa_index;
 
+  // flag for regular electron, or "exotic"
+  bool m_exotic{false};
+
 public:
   //! Principal quantum number, n
   int n() const { return m_n; }
@@ -99,6 +102,11 @@ public:
   std::string symbol(bool gnuplot = false) const;
   //! e.g., 6p_1/2 => 6p-, 6p_3/2 => 6p+
   std::string shortSymbol() const;
+
+  //! Checks if spinor is for "exotic" lepton, or regular electron
+  bool &exotic() { return m_exotic; }
+  //! Checks if spinor is for "exotic" lepton, or regular electron
+  bool exotic() const { return m_exotic; }
 
   //! Changes 'kappa' angular quantum number. Use with caution!
   void set_new_kappa(int new_kappa);

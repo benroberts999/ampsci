@@ -812,9 +812,11 @@ void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
     // nuclear potential (+QED). Note: only Uehling is really OK here.
     const auto v0 = this->vnuc() + (this->vrad() ? this->vrad()->Vel() :
                                                    std::vector<double>{});
-    const auto Fnk = DiracODE::boundState(
+    auto Fnk = DiracODE::boundState(
         n, kappa, e0, this->grid_sptr(), v0, this->Hmag(), this->alpha(),
         1.0e-14, nullptr, nullptr, double(this->Znuc()), mass);
+
+    Fnk.exotic() = true;
 
     const auto R_rms =
         std::sqrt(Fnk * (this->grid().r() * this->grid().r() * Fnk));
@@ -910,4 +912,111 @@ void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
       }
     }
   }
+}
+
+//==============================================================================
+nlohmann::json Wavefunction::output_to_json(const std::string &out_name) {
+
+  using namespace qip::overloads;
+  nlohmann::json js;
+
+  js["metadata"] = {
+      {"description",
+       "This JSON object contains atomic structure data including radial grid, "
+       "nuclear properties, and wavefunctions."},
+
+      {"radial",
+       {{"r", "Array of radial grid points [a.u.]"},
+        {"dr", "Step size between radial points [a.u.]"}}},
+
+      {"nucleus",
+       {{"Z", "Atomic number"},
+        {"A", "Mass number"},
+        {"r_rms", "RMS charge radius [fm]"},
+        {"mu", "Nuclear magnetic moment (from lookup table, based on A)"},
+        {"I", "Nuclear spin (based on A)"},
+        {"parity", "Nuclear parity (+1 or -1), based on A"},
+        {"L", "Orbital angular momentum, based on I and parity"}}},
+
+      {"wavefunctions",
+       {{"core", "Core wavefunctions"},
+        {"valence", "Valence electronic wavefunctions"},
+        {"muon", "Valence muonic wavefunctions"},
+        {"note",
+         "Each of 'core', 'valence', and 'muon' contains a 'list' of orbital "
+         "labels (e.g., '2s+'), and corresponding entries/orbtials keyed by "
+         "those labels. Each entry has the fields listed in 'orbital_fields'."},
+        {"example", "To get the 3p_1/2 core energy: "
+                    "json['wavefunctions']['core']['3p-']['en'] (use double "
+                    "quotes in real JSON)"},
+        {"orbital_fields",
+         {{"n", "Principal quantum number"},
+          {"kappa", "Dirac angular quantum number (κ)"},
+          {"2j", "Twice the total angular momentum (integer)"},
+          {"j", "Total angular momentum (j = 2j / 2)"},
+          {"l", "Orbital angular momentum"},
+          {"en", "Orbital energy [a.u.]"},
+          {"f", "Upper radial component values (array over r)"},
+          {"g", "Lower radial component values (array over r)"}}}}}};
+
+  js["radial"]["r"] = grid().r();
+  js["radial"]["dr"] = grid().drdu() * grid().du();
+
+  js["nucleus"]["Z"] = Znuc();
+  js["nucleus"]["A"] = Anuc();
+  js["nucleus"]["r_rms"] = get_rrms();
+  js["nucleus"]["mu"] = Nuclear::find_mu(Znuc(), Anuc());
+
+  const auto I_nuc = Nuclear::find_spin(Znuc(), Anuc());
+  const auto pi = Nuclear::find_parity(Znuc(), Anuc());
+  const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
+  auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
+  js["nucleus"]["I"] = I_nuc;
+  js["nucleus"]["parity"] = pi;
+  js["nucleus"]["L"] = l;
+
+  using namespace std::string_literals;
+
+  auto &js_wfs = js["wavefunctions"];
+
+  // Store list of orbital symbols, for ease of retrieval:
+  js_wfs["core"]["list"] = nlohmann::json::array();
+  js_wfs["valence"]["list"] = nlohmann::json::array();
+  js_wfs["muon"]["list"] = nlohmann::json::array();
+
+  for (const auto &list : {"core"s, "valence"s}) {
+    const auto &orbitals = list == "core" ? core() : valence();
+
+    for (const auto &v : orbitals) {
+
+      // append to the lists:
+      if (list == "core") {
+        js_wfs["core"]["list"].push_back(v.shortSymbol());
+      } else if (v.exotic()) {
+        js_wfs["muon"]["list"].push_back(v.shortSymbol());
+      } else {
+        js_wfs["valence"]["list"].push_back(v.shortSymbol());
+      }
+
+      auto &js_wf = list == "core" ? js_wfs["core"][v.shortSymbol()] :
+                    v.exotic()     ? js_wfs["muon"][v.shortSymbol()] :
+                                     js_wfs["valence"][v.shortSymbol()];
+
+      js_wf["n"] = v.n();
+      js_wf["kappa"] = v.kappa();
+      js_wf["2j"] = v.twoj();
+      js_wf["j"] = 0.5 * v.twoj();
+      js_wf["l"] = v.l();
+      js_wf["en"] = v.en();
+      js_wf["f"] = v.f();
+      js_wf["g"] = v.g();
+    }
+  }
+
+  if (!out_name.empty()) {
+    std::ofstream o(out_name);
+    o << std::setw(4) << js << std::endl;
+  }
+
+  return js;
 }
