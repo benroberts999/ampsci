@@ -9,6 +9,7 @@
 #include "Potentials/RadPot.hpp"
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "json/json.hpp"
 #include <iostream>
 #include <memory>
 #include <numeric>
@@ -329,7 +330,13 @@ public:
 
   double Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
+  //! Runs the CI+MBPT routines; stores wavefunctions
   void ConfigurationInteraction(const IO::InputBlock &input);
+
+  //! Writes wavefunction information to json file;
+  //! if out_name given, will print to that file
+  nlohmann::json
+  output_to_json(const std::string &out_name = "ampsci_output.json");
 
 private:
   double H0ab_impl(const DiracSpinor &Fa, std::vector<double> dga,
