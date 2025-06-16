@@ -193,7 +193,9 @@ void BW_screening_factor(const Wavefunction &wf,
 }
 
 //==============================================================================
-void fit(std::vector<double> &xd, std::vector<double> &yd, std::size_t terms) {
+std::array<double, 3> fit(std::vector<double> &xd, std::vector<double> &yd,
+                          std::size_t terms) {
+  std::array<double, 3> out;
   gsl_matrix *X, *cov;
   gsl_vector *y, *w, *c;
   const auto n = xd.size();
@@ -220,14 +222,18 @@ void fit(std::vector<double> &xd, std::vector<double> &yd, std::size_t terms) {
 
   auto C = [&](std::size_t i) { return gsl_vector_get(c, i); };
 
-  fmt::print("K{}(Rm) = ", 2 * terms);
-  for (std::size_t j = 0; j < terms; ++j) {
-    const auto p = 2 * (j + 1);
-    fmt::print("{:+.3e} *Rm**{}", C(j), p);
-    if (j + 1 != terms)
-      std::cout << " ";
-  }
-  std::cout << "\n";
+  out[0] = C(0);
+  out[1] = C(1);
+  out[2] = C(2);
+
+  // fmt::print("K{}(Rm) = ", 2 * terms);
+  // for (std::size_t j = 0; j < terms; ++j) {
+  //   const auto p = 2 * (j + 1);
+  //   fmt::print("{:+.3e} *Rm**{}", C(j), p);
+  //   if (j + 1 != terms)
+  //     std::cout << " ";
+  // }
+  // std::cout << "\n";
   // std::cout << "#         [";
   fmt::print("k{} = [", 2 * terms);
   for (std::size_t j = 0; j < terms; ++j) {
@@ -243,11 +249,13 @@ void fit(std::vector<double> &xd, std::vector<double> &yd, std::size_t terms) {
   gsl_vector_free(w);
   gsl_vector_free(c);
   gsl_matrix_free(cov);
+  return out;
 }
 
 //==============================================================================
-void b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
-               int max_power) {
+std::pair<std::array<double, 3>, std::array<double, 3>>
+b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
+          int max_power) {
 
   std::cout << "\nb moments: " << v << "\n";
 
@@ -291,15 +299,20 @@ void b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
                               grid.drdu());
   };
 
-  std::ofstream of("KS_" + iso + "_" + v.shortSymbol() + ".txt");
-  std::ofstream of2("KL_" + iso + "_" + v.shortSymbol() + ".txt");
+  std::ofstream of;
+  std::ofstream of2;
+  if (!iso.empty()) {
+    // Only write output if input string given
+    of.open("KS_" + iso + "_" + v.shortSymbol() + ".txt");
+    of2.open("KL_" + iso + "_" + v.shortSymbol() + ".txt");
+  }
+
   std::vector<double> xd;
   std::vector<double> yd;
   std::vector<double> zd;
-  // for (auto rm : R_pts) {
+
   for (std::size_t i_rm = 10; i_rm < i0; ++i_rm) {
     const auto rm = grid.r(i_rm);
-    // const auto rm = ri + i * dr;
     const auto rm3 = rm * rm * rm;
     const auto F_rm = fg_rm(i_rm) / fg_inf;
     const auto F_r3_rm = (fg_rm(i_rm) - fg_r3_rm(i_rm) / rm3) / fg_inf;
@@ -312,13 +325,18 @@ void b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
 
   const int max_terms = max_power / 2;
 
-  std::cout << "\nKS(R):\n";
-  for (int i = 1; i <= max_terms; ++i)
-    fit(xd, yd, std::size_t(i));
+  const auto Ks = fit(xd, yd, std::size_t(max_terms));
+  const auto Kl = fit(xd, zd, std::size_t(max_terms));
 
-  std::cout << "\nKL(R):\n";
-  for (int i = 1; i <= max_terms; ++i)
-    fit(xd, zd, std::size_t(i));
+  return {Ks, Kl};
+
+  // std::cout << "\nKS(R):\n";
+  // for (int i = 1; i <= max_terms; ++i)
+  //   fit(xd, yd, std::size_t(i));
+
+  // std::cout << "\nKL(R):\n";
+  // for (int i = 1; i <= max_terms; ++i)
+  //   fit(xd, zd, std::size_t(i));
 }
 
 //==============================================================================
@@ -665,6 +683,130 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
   //
+}
+
+//==============================================================================
+void b_plot(const IO::InputBlock &input, const Wavefunction &wf) {
+  //
+
+  input.check({
+      {"r1", "minimum r_rms in fm [0.5*rrms]"},
+      {"r2", "maximum r_rms in fm [1.5*rrms]"},
+      {"t", "skin thickness [2.3]"},
+      {"num_steps", "Number of steps along (r1,r2) [100]"},
+  });
+  if (input.has_option("help")) {
+    return;
+  }
+
+  const auto r0 = wf.get_rrms();
+
+  const auto r1 = input.get("r1", 0.5 * r0);
+  const auto r2 = input.get("r2", 1.5 * r0);
+  const auto t = input.get("t", wf.nucleus().t());
+
+  const auto num_steps = input.get("num_steps", 100);
+
+  const auto core_str = wf.coreConfiguration_nice();
+  const auto valence_str = DiracSpinor::state_config(wf.valence());
+  const auto grid = wf.grid_sptr();
+  auto nucleus = wf.nucleus();
+
+  // For grid uncertainty
+  const std::size_t small_points =
+      std::max(2000ul, std::size_t(0.2 * (double)grid->num_points()));
+  const double small_r0 = std::min(1.0e-6, 10.0 * grid->r0());
+
+  const auto small_grid1 = std::make_shared<const Grid>(Grid(
+      grid->r0(), grid->rmax(), small_points, grid->type(), grid->loglin_b()));
+
+  const auto small_grid2 = std::make_shared<const Grid>(Grid(
+      small_r0, grid->rmax(), small_points, grid->type(), grid->loglin_b()));
+
+  using Data = std::vector<std::array<double, 3>>;
+
+  std::vector<double> rs;
+  Data KSs, KLs, dKSs, dKLs;
+
+  const auto dr = (r2 - r1) / (num_steps - 1);
+  for (int ii = 0; ii < num_steps; ++ii) {
+
+    double r_rms = r1 + ii * dr;
+
+    nucleus.set_rrms(r_rms);
+    nucleus.t() = t;
+
+    const auto R0 = std::sqrt(5.0 / 3) * r_rms;
+
+    Wavefunction wf_t(grid, nucleus);
+    Wavefunction wf_s(small_grid1, nucleus);
+    Wavefunction wf_s2(small_grid2, nucleus);
+
+    std::cout << "\n--------------------------\n\n";
+    std::cout << wf_t.nucleus() << "\n";
+
+    wf_t.solve_core("HartreeFock", 0.0, core_str, 1.0e-13, true);
+    wf_t.solve_valence(valence_str);
+    wf_t.printValence();
+    const auto &v = wf_t.valence().front();
+
+    wf_s.solve_core("HartreeFock", 0.0, core_str, 1.0e-13, true);
+    wf_s.solve_valence(valence_str);
+    wf_s.printValence();
+    const auto &v_s = wf_s.valence().front();
+
+    wf_s2.solve_core("HartreeFock", 0.0, core_str, 1.0e-13, true);
+    wf_s2.solve_valence(valence_str);
+    wf_s2.printValence();
+    const auto &v_s2 = wf_s2.valence().front();
+
+    std::cout << "\nMain:\n";
+    const auto [KS, KL] = b_moments("", v, R0, 20);
+
+    rs.push_back(r_rms);
+    KSs.push_back(KS);
+    KLs.push_back(KL);
+
+    // Bunch: for uncertainty
+    std::cout << "\nFewer terms:\n";
+    const auto [KS1, KL1] = b_moments("", v, R0, 14);
+
+    std::cout << "\nSmaller grid (same r0):\n";         // This dominates!
+    const auto [KS2, KL2] = b_moments("", v_s, R0, 20); // small grid
+
+    std::cout << "\nSmaller grid (larger r0):\n";
+    const auto [KS5, KL5] = b_moments("", v_s2, R0, 20); // small grid
+
+    // different maximum fit radii
+    std::cout << "\nFit to 0.9R:\n";
+    const auto [KS3, KL3] = b_moments("", v, 0.9 * R0, 20);
+    std::cout << "\nFit to 1.1R:\n";
+    const auto [KS4, KL4] = b_moments("", v, 1.1 * R0, 20);
+
+    // uncerainty:
+    auto KSx = KS; // just for array shape
+    auto KLx = KL;
+    for (std::size_t i = 0; i < KSx.size(); ++i) {
+      KSx[i] = std::abs(0.5 * qip::max_difference(KS[i], KS1[i], KS2[i], KS3[i],
+                                                  KS4[i], KS5[i]));
+      KLx[i] = std::abs(0.5 * qip::max_difference(KL[i], KL1[i], KL2[i], KL3[i],
+                                                  KL4[i], KL5[i]));
+    }
+    dKSs.push_back(KSx);
+    dKLs.push_back(KLx);
+  }
+
+  std::cout << "\n\n";
+  for (std::size_t i = 0; i < std::size_t(num_steps); ++i) {
+    fmt::print("{:.6f} {:+.6e} {:+.6e} {:+.6e} {:+.2e} {:+.2e} {:+.2e} {:+.6e} "
+               "{:+.6e} {:+.6e} {:+.2e} {:+.2e} {:+.2e}\n",
+               rs[i],                              //
+               KSs[i][0], KSs[i][1], KSs[i][2],    //
+               dKSs[i][0], dKSs[i][1], dKSs[i][2], //
+               KLs[i][0], KLs[i][1], KLs[i][2],    //
+               dKLs[i][0], dKLs[i][1], dKLs[i][2]);
+  }
+  std::cout << "\n";
 }
 
 } // namespace Module

@@ -130,6 +130,13 @@ includes:
 	clang-format -i -verbose $(SD)/DiracOperator/Operators.hpp
 	find $(SD)/ -iname 'include.hpp' | xargs clang-format -i -verbose
 
+license-year:
+	@year=$$(date +%Y); \
+	sed -i.bak -E "s/(Copyright \(c\) )([0-9]{4})(–[0-9]{4})?/\1\2–$${year}/" LICENSE; \
+	rm -f LICENSE.bak; \
+	echo "Updated license year to $${year}"
+
+
 pre_commit:
 	make includes
 	make clang_format

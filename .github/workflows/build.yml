@@ -1,4 +1,5 @@
-name: Build Latest (linux) - g++-13 and clang++-15
+name: Build (linux)
+# Build Latest (linux) - g++-13 and clang++-15
 
 on:
   push:

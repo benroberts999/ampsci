@@ -116,7 +116,8 @@ Divided into sections:
 [docs-url]: https://ampsci.dev/
 [manual-badge]: https://img.shields.io/badge/physics%20docs-ampsci.pdf-blue
 [man-url]: https://ampsci.dev/ampsci.pdf
-[cov-badge]: https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg?token=3M5MH5QXLL
+<!-- [cov-badge]: https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg?token=3M5MH5QXLL -->
+[cov-badge]: https://img.shields.io/codecov/c/github/benroberts999/ampsci?token=3M5MH5QXLL
 [cov-url]: https://codecov.io/gh/benroberts999/ampsci
 [c++-badge]: https://img.shields.io/badge/c++-17-blue
 [github-badge]: https://img.shields.io/badge/Code%20available:-GitHub-blueviolet?style=flat&logo=github&logoColor=white

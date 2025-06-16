@@ -80,12 +80,15 @@ static const std::vector<ModuleInfo> module_list{
     {"continuum", &continuum, "Compute and use continuum wavefunctions"},
     {"HFAnomaly", &HFAnomaly,
      "Calculates Bohr-Weisskopf effect and hyperfine anomaly"},
+    {"b_plot", &b_plot,
+     "Calculates HFAnomaly b moments, as a function of r_rms"},
     {"screeningFactors", &screeningFactors,
      "Calculates Feynman electron screening factors"},
     {"pnc", &calculatePNC, "Calculates APV amplitudes"},
     {"muonPV", &muonPV, "For testing/playing with muonic PV"},
     {"muon", &muon,
-     "Calculating muonic wavefunctions, energies, matrix elements"},
+     "Calculating muonic wavefunctions, energies, matrix elements - somewhat "
+     "obsolete after introduction of Exotic{} into ampsci main"},
     {"VQE", &VQE, "For testing/playing with VQE method"},
     {"exampleModule", &exampleModule, "A short description of the module"}};
 

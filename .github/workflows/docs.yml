@@ -68,17 +68,20 @@ jobs:
         rm -rf ./docs/form_*.png
         rm -rf ./docs/formula.repository
 
-    # Step 4: Build the documentation
-    # This step runs the Makefile to generate the documentation using Doxygen
+    # Step 4a: Build the documentation
     - name: "Build the documentation"
+      run: make doxy
+
+    # Step 4b: Fetch badges and extras (can fail)
+    - name: "Download images and badges"
+      continue-on-error: true
       run: |
-        make doxy
-        wget https://cdn.mathjax.org/mathjax/latest/MathJax.js -O ./docs/MathJax.js
+        wget https://cdn.mathjax.org/mathjax/latest/MathJax.js -O ./docs/MathJax.js || true
         echo ampsci.dev > ./docs/CNAME
-        wget https://github.com/benroberts999/ampsci/actions/workflows/tests.yml/badge.svg -O ./docs/tests-badge.svg
-        wget https://github.com/benroberts999/ampsci/actions/workflows/build.yml/badge.svg -O ./docs/build-badge.svg
-        wget https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml/badge.svg -O ./docs/macOS-badge.svg
-        wget https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg -O ./docs/cov-badge.svg
+        wget https://github.com/benroberts999/ampsci/actions/workflows/tests.yml/badge.svg -O ./docs/tests-badge.svg || true
+        wget https://github.com/benroberts999/ampsci/actions/workflows/build.yml/badge.svg -O ./docs/build-badge.svg || true
+        wget https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml/badge.svg -O ./docs/macOS-badge.svg || true
+        wget https://img.shields.io/codecov/c/github/benroberts999/ampsci?token=3M5MH5QXLL -O ./docs/cov-badge.svg || true
 
     # Step 5: Commit and push documentation to gh-pages
     - name: "Commit+push documentation to gh-pages"
