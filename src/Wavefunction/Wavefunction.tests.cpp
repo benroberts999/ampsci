@@ -18,7 +18,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0, "0");
   wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-4);
-  wf.formBasis({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0, false});
+  wf.formBasis({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0});
   wf.solve_valence(val_str);
 
   wf.printCore();
@@ -109,7 +109,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   wf.formSigma(2, 2, 1.0e-3, 15.0, 8, false, false, false, 0, {}, {}, {},
                "false", "false");
   wf.hartreeFockBrueckner(true);
-  wf.formSpectrum({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0, false});
+  wf.formSpectrum({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0});
   wf.printValence();
   //
   // wf.SOEnergyShift();

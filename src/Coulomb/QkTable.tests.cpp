@@ -320,7 +320,7 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
   Wavefunction wf({1000, 1.0e-5, 50.0, 10.0, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("HartreeFock", 0.0, "[Ne]");
-  wf.formBasis({"12spdfg", 30, 7, 1.0e-3, 1.0e-3, 30.0, false});
+  wf.formBasis({"12spdfg", 30, 7, 1.0e-3, 1.0e-3, 30.0});
 
   // Form the Coulomb lookup tables:
 
@@ -518,7 +518,7 @@ TEST_CASE("Coulomb: Qk Table - performance",
   Wavefunction wf({1600, 1.0e-6, 120.0, 40.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("Local", 0.0, "[Xe]");
-  wf.formBasis({"10spdfghi", 30, 7, 1.0e-3, 1.0e-3, 30.0, false});
+  wf.formBasis({"10spdfghi", 30, 7, 1.0e-3, 1.0e-3, 30.0});
   const auto &basis = wf.basis();
   // wf.printCore();
   // wf.printBasis(basis);

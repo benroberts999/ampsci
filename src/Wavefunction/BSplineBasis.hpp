@@ -55,8 +55,8 @@ inline auto parseSplineType(std::string_view type) {
 
 struct Parameters {
   Parameters() {}
-  Parameters(std::string states, std::size_t n, std::size_t k, double r0,
-             double reps, double rmax, bool positronQ,
+  Parameters(const std::string &states, std::size_t n, std::size_t k, double r0,
+             double reps, double rmax, const std::string &positron = "",
              SplineType itype = SplineType::Derevianko,
              bool in_orthogonalise = false);
   Parameters(IO::InputBlock input);
@@ -64,7 +64,7 @@ struct Parameters {
   std::string states{};
   std::size_t n{}, k{};
   double r0{}, reps{}, rmax{};
-  bool positronQ{false};
+  std::string positron{};
   SplineType type{SplineType::Derevianko};
   bool orthogonalise{false};
 };
@@ -120,7 +120,7 @@ void add_NotreDameBoundary(LinAlg::Matrix<double> *Aij, const int kappa,
 void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            std::vector<DiracSpinor> *basis_positron,
                            const std::vector<DiracSpinor> &spl_basis,
-                           const int kappa, const int max_n,
+                           const int kappa, const int max_n, int max_n_positron,
                            const LinAlg::Vector<double> &e_values,
                            const LinAlg::Matrix<double> &e_vectors,
                            const Wavefunction &wf);

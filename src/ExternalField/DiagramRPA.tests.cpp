@@ -21,7 +21,7 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
   wf.solve_core("Local", 0.0, "[Ar]");
   wf.solve_valence("4sp");
   // nb: use very small basis. Don't care about numerical results, just that eveything is working correctly.
-  wf.formBasis({"10spd", 20, 7, 1.0e-3, 1.0e-3, 40.0, false});
+  wf.formBasis({"10spd", 20, 7, 1.0e-3, 1.0e-3, 40.0});
 
   auto dE1 = DiracOperator::E1(wf.grid());
 
@@ -74,8 +74,7 @@ TEST_CASE("External Field: Diagram RPA",
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("HartreeFock", 0.0, "[Xe]");
   wf.solve_valence("6sp5d4f");
-  // wf.formBasis({"40spdfgh", 60, 9, 1.0e-4, 1.0e-3, 40.0, false});
-  wf.formBasis({"30spd20f", 60, 9, 1.0e-4, 1.0e-3, 40.0, false});
+  wf.formBasis({"30spd20f", 60, 9, 1.0e-4, 1.0e-3, 40.0});
 
   auto sorter = [](auto x, auto y) { return x.first < y.first; };
   auto compr = [](const auto &x, const auto &y) {

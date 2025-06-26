@@ -270,18 +270,20 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   //----------------------------------------------------------------------------
 
   // Construct B-spline basis:
-  input.check({"Basis"},
-              {{"number", "Number of splines used in expansion [30]"},
-               {"order", "order of splines ~7-9 [7]"},
-               {"r0", "minimum cavity radius (first internal knot) [1.0e-4]"},
-               {"r0_eps", "Select cavity radius r0 for each l by position "
-                          "where |psi(r0)/psi_max| falls below r0_eps [0.0]"},
-               {"rmax", "maximum cavity radius [40.0]"},
-               {"states", "states to keep (e.g., 30spdf20ghi)"},
-               {"orthogonalise", "Force orthogonal to core [false]"},
-               {"print", "Print all spline energies (for testing) [false]"},
-               {"positron", "Include -ve energy states [false]]"},
-               {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
+  input.check(
+      {"Basis"},
+      {{"number", "Number of splines used in expansion [30]"},
+       {"order", "order of splines ~7-9 [7]"},
+       {"r0", "minimum cavity radius (first internal knot) [1.0e-4]"},
+       {"r0_eps", "Select cavity radius r0 for each l by position "
+                  "where |psi(r0)/psi_max| falls below r0_eps [0.0]"},
+       {"rmax", "maximum cavity radius [40.0]"},
+       {"states", "states to keep (e.g., 30spdf20ghi)"},
+       {"orthogonalise", "Force orthogonal to core [false]"},
+       {"print", "Print all spline energies (for testing) [false]"},
+       {"positron",
+        "Basis string for negative energy states (same format as states). []"},
+       {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
 
   const auto basis_input = input.getBlock("Basis");
   if (basis_input) {
@@ -448,21 +450,22 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   //----------------------------------------------------------------------------
 
   // Construct B-spline Spectrum:
-  input.check({"Spectrum"},
-              {{"", "Options for 'spectrum', Spectrum is the same as 'Basis', "
-                    "but includes correlations. Spectrum is used for "
-                    "sum-over-states (while basis is used for MBPT)."},
-               {"number", "Number of splines used in expansion"},
-               {"order", "order of splines ~7-9"},
-               {"r0", "minimum cavity radius"},
-               {"r0_eps", "Select cavity radius r0 for each l by position "
-                          "where |psi(r0)/psi_max| falls below r0_eps"},
-               {"rmax", "maximum cavity radius"},
-               {"states", "states to keep (e.g., 30spdf20ghi)"},
-               {"orthogonalise", "Force orthogonal to valence [false]"},
-               {"print", "Print all spline energies (for testing)"},
-               {"positron", "Include -ve energy states (true/false)"},
-               {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
+  input.check(
+      {"Spectrum"},
+      {{"", "Options for 'spectrum', Spectrum is the same as 'Basis', "
+            "but includes correlations. Spectrum is used for "
+            "sum-over-states (while basis is used for MBPT)."},
+       {"number", "Number of splines used in expansion"},
+       {"order", "order of splines ~7-9"},
+       {"r0", "minimum cavity radius"},
+       {"r0_eps", "Select cavity radius r0 for each l by position "
+                  "where |psi(r0)/psi_max| falls below r0_eps"},
+       {"rmax", "maximum cavity radius"},
+       {"states", "states to keep (e.g., 30spdf20ghi)"},
+       {"orthogonalise", "Force orthogonal to valence [false]"},
+       {"print", "Print all spline energies (for testing)"},
+       {"positron", "Basis string (as states) to include -ve energy states"},
+       {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
 
   const auto spectrum_in = input.getBlock("Spectrum");
   if (spectrum_in && !spectrum_in->has_option("help")) {

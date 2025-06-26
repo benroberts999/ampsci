@@ -19,11 +19,6 @@
 
 namespace SplineBasis {
 
-// plot
-// for [i=2:6] "Cs_core.txt" u 1:i every :::0::0 w l lc i lw 2 t
-// columnheader(i), for [i=2:6] "Cs_basis.txt" u 1:i every :::0::0 w l dt 0 lc i
-// notitle
-
 //==============================================================================
 Parameters::Parameters(IO::InputBlock input)
     : states(input.get<std::string>("states", "")),
@@ -32,20 +27,21 @@ Parameters::Parameters(IO::InputBlock input)
       r0(input.get("r0", 1.0e-4)),
       reps(input.get("r0_eps", 0.0)),
       rmax(input.get("rmax", 40.0)),
-      positronQ(input.get("positron", false)),
+      positron(input.get("positron", std::string{""})),
       type(parseSplineType(input.get<std::string>("type", "Derevianko"))),
       orthogonalise(input.get("orthogonalise", false)) {}
 
-Parameters::Parameters(std::string istates, std::size_t in, std::size_t ik,
-                       double ir0, double ireps, double irmax, bool ipositronQ,
-                       SplineType itype, bool iorthogonalise)
+Parameters::Parameters(const std::string &istates, std::size_t in,
+                       std::size_t ik, double ir0, double ireps, double irmax,
+                       const std::string &ipositron, SplineType itype,
+                       bool iorthogonalise)
     : states(istates),
       n(in),
       k(ik),
       r0(ir0),
       reps(ireps),
       rmax(irmax),
-      positronQ(ipositronQ),
+      positron(ipositron),
       type(itype),
       orthogonalise(iorthogonalise) {}
 
@@ -55,15 +51,30 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const bool correlationsQ)
 // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 {
-  const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl, positronQ,
-               basis_type, ortho] = params;
-  std::vector<DiracSpinor> basis;
-  std::vector<DiracSpinor> basis_positron;
+  const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl,
+               tmp_positron_str, basis_type, ortho] = params;
+
+  // Not required, but helpful to be back compatible
+  const std::string positron_str =
+      tmp_positron_str == "false" ? "" :
+      tmp_positron_str == "true"  ? states_str :
+                                    tmp_positron_str;
 
   const auto nklst = AtomData::listOfStates_singlen(states_str);
+  const auto nklst_positron = AtomData::listOfStates_singlen(positron_str);
+
+  std::vector<DiracSpinor> basis;
+  std::vector<DiracSpinor> basis_positron;
+  const auto positronQ = !positron_str.empty();
 
   std::cout << "\nConstructing B-spline basis with N=" << n_spl
-            << ", k=" << k_spl << ". Storing: " << states_str << "\n";
+            << ", k=" << k_spl
+            << ".\n"
+               "Storing: "
+            << states_str << " electron states\n";
+  if (!positron_str.empty()) {
+    std::cout << "and    : " << positron_str << " -ve energy states\n";
+  }
   std::cout << "Using "
             << (basis_type == SplineType::Derevianko ?
                     "Derevianko (Duel Kinetic Balance)" :
@@ -76,7 +87,12 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     const auto kappa = nk.k;
     const auto k = k_spl;
 
-    // Chose larger r0 depending on core density:
+    // Find the corresponding entry in nklst2 with same kappa
+    auto it = std::find_if(nklst_positron.begin(), nklst_positron.end(),
+                           [kappa](const auto &nk2) { return nk2.k == kappa; });
+    const auto max_n_positron = (it != nklst_positron.end()) ? it->n : 0;
+
+    // Choose larger r0 depending on core density:
     const auto l = Angular::l_k(kappa);
     const auto l_tmp = std::min(l, DiracSpinor::max_l(wf.core()));
 
@@ -96,7 +112,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     const auto [e_values, e_vectors] = LinAlg::symmhEigensystem(Aij, Sij);
 
     expand_basis_orbitals(&basis, &basis_positron, spl_basis, kappa, max_n,
-                          e_values, e_vectors, wf);
+                          max_n_positron, e_values, e_vectors, wf);
     if (!basis.empty() && kappa < 0) {
       printf("Spline cavity l=%i %1s: (%7.1e,%5.1f)aB.\n", l,
              AtomData::l_symbol(l).c_str(), r0_eff, rmax_spl);
@@ -111,22 +127,22 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       basis.push_back(Fp);
   }
 
-  for (auto &Fp : basis) {
-    auto l = Fp.l();
-    if (l == 0)
-      continue;
-    auto comp = [=](const auto &Fa) { return Fa.l() == l - 1; };
-    auto prev = std::find_if(basis.begin(), basis.end(), comp);
-    if (prev == basis.end())
-      continue;
-    auto nmc2 = -1.0 / (wf.alpha() * wf.alpha());
-    if (Fp.en() < prev->en() && Fp.en() > nmc2) {
-      // XXX Better: count nodes? ['Spurious node at large r?']
-      std::cout << "WARNING: "
-                << "Spurious state?? " << Fp.symbol() << " " << Fp.en() << "\n";
-      // Fp *= 0.0;
-    }
-  }
+  // for (auto &Fp : basis) {
+  //   auto l = Fp.l();
+  //   if (l == 0)
+  //     continue;
+  //   auto comp = [=](const auto &Fa) { return Fa.l() == l - 1; };
+  //   auto prev = std::find_if(basis.begin(), basis.end(), comp);
+  //   if (prev == basis.end())
+  //     continue;
+  //   auto nmc2 = -1.0 / (wf.alpha() * wf.alpha());
+  //   if (Fp.en() < prev->en() && Fp.en() > nmc2) {
+  //     // XXX Better: count nodes? ['Spurious node at large r?']
+  //     std::cout << "WARNING: "
+  //               << "Spurious state?? " << Fp.symbol() << " " << Fp.en() << "\n";
+  //     // Fp *= 0.0;
+  //   }
+  // }
 
   return basis;
 }
@@ -205,7 +221,8 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 
   // double r00 = 0.9 * r0_spl;
   // double r00 = std::min(0.1 * r0_spl, 1.1 * rgrid->r(0));
-  double r00 = std::exp(0.5 * (std::log(r0_spl) + std::log(rgrid->r(0))));
+  // double r00 = std::exp(0.5 * (std::log(r0_spl) + std::log(rgrid->r(0))));
+  // double r00 = rgrid->r(0);
 
   if (type == SplineType::Johnson) {
     imin = 0;
@@ -213,7 +230,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
     imax = n_spl;
     lambda_DKB = 0.0;
     // r00 *= 0.0;
-    r00 = 0.02 * r0_spl; // seems to  be best 5.0e-5
+    // r00 = 0.02 * r0_spl; // seems to  be best 5.0e-5
     // nb: it is Breit causing issue; works best with r00=0, but that ruins
     // Breit
   }
@@ -230,8 +247,8 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 
   for (auto ir = 0ul; ir < rgrid->num_points(); ++ir) {
     const auto r = rgrid->r(ir);
-    if (r < r00)
-      continue;
+    // if (r < r00)
+    //   continue;
     auto [i0, bij] = bspl.get_nonzero(r, 2);
     for (auto i = 0ul; i < bspl.K(); ++i) {
 
@@ -357,7 +374,7 @@ void add_NotreDameBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
 void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            std::vector<DiracSpinor> *basis_positron,
                            const std::vector<DiracSpinor> &spl_basis,
-                           const int kappa, const int max_n,
+                           const int kappa, const int max_n, int max_n_positron,
                            const LinAlg::Vector<double> &e_values,
                            const LinAlg::Matrix<double> &e_vectors,
                            const Wavefunction &wf)
@@ -378,7 +395,7 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     positive_energy ? ++pqn : --pqn_pstrn;
 
     if ((positive_energy && pqn > max_n) ||
-        (!positive_energy && pqn_pstrn < -max_n))
+        (!positive_energy && pqn_pstrn < -max_n_positron))
       continue;
 
     auto &Fi =
@@ -389,10 +406,25 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       Fi += pvec[ib] * spl_basis[ib];
     }
-    const auto low_r = 0.3 / wf.Znuc();
-    if (Fi.f(wf.grid().getIndex(low_r)) < 0.0)
-      Fi *= -1.0;
+    // Check positive at low r:
+    {
+      const auto low_r = 0.3 / wf.Znuc();
+      const auto low_i = wf.grid().getIndex(low_r);
+      double fsum = Fi.f(low_i);
+      // for (std::size_t ii = 0; ii < std::max(30ul, low_i); ++ii) {
+      //   fsum += Fi.f(ii);
+      // }
+      if (fsum < 0.0) {
+        Fi *= -1.0;
+      }
+    }
     // std::cout << Fi.symbol() << " " << Fi * Fi << "\n";
+    const auto Fnorm = Fi * Fi;
+    if (std::abs(Fnorm - 1) > 1.0e-4) {
+      std::cout << "Warning: Possible spurious state: " << Fi.shortSymbol()
+                << " e=" << Fi.en() << ", Norm=" << Fnorm << " (" << Fnorm - 1.0
+                << ")\n";
+    }
     // Note: they are not even roughly normalised...I think they should be??
     Fi.normalise();
 

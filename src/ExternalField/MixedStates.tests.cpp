@@ -104,7 +104,7 @@ TEST_CASE("External Field: Mixed-states (full)",
     bspl_param.r0 = 1.0e-5;
     bspl_param.reps = 0.0;
     bspl_param.rmax = 75.0;
-    bspl_param.positronQ = false;
+    bspl_param.positron = "";
   }
 
   wf.formBasis(bspl_param);

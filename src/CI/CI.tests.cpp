@@ -14,8 +14,7 @@ TEST_CASE("CI: Configuration Interaction, unit tests", "[CI][unit]") {
   Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
                   {"He", -1, "pointlike"}, 1.0);
   wf.solve_core("HartreeFock", 0.0, "[]", 1.0e-5);
-  wf.formBasis(
-      SplineBasis::Parameters("6spd", 20, 6, 1.0e-2, 1.0e-2, 20.0, false));
+  wf.formBasis(SplineBasis::Parameters("6spd", 20, 6, 1.0e-2, 1.0e-2, 20.0));
 
   std::string qk_filename = "deleteme_" + qip::random_string(6) + ".qk.abf";
 

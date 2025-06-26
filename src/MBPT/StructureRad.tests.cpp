@@ -17,7 +17,7 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
   Wavefunction wf({200, 1.0e-2, 30.0, 10.0, "loglinear", -1.0},
                   {"Li", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("Local", 0.0, "[He]");
-  wf.formBasis({"5spdf", 20, 5, 1.0e-2, 1.0e-2, 20.0, false});
+  wf.formBasis({"5spdf", 20, 5, 1.0e-2, 1.0e-2, 20.0});
 
   const auto h = DiracOperator::E1(wf.grid());
 
@@ -80,7 +80,7 @@ TEST_CASE("MBPT: Structure Rad + Norm",
                     {"Na", -1, "Fermi"}, 1.0);
     wf.solve_core("HartreeFock", 0.0, "[Ne]");
     wf.solve_valence("4s3p");
-    wf.formBasis({"20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0, false});
+    wf.formBasis({"20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0});
 
     // Find core/valence energy: allows distingush core/valence states
     const auto en_core = wf.FermiLevel();
@@ -154,7 +154,7 @@ TEST_CASE("MBPT: Structure Rad + Norm",
                     {"Cs", -1, "Fermi"}, 1.0);
     wf.solve_core("HartreeFock", 0.0, "[Xe]");
     wf.solve_valence("7s6p");
-    wf.formBasis({"20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0, false});
+    wf.formBasis({"20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0});
     // Note: We use a very small basis, so the test can run in reasonable time
     // However, we get pretty good comparison to Johnson, so this is fine!
 

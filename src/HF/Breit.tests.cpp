@@ -497,11 +497,11 @@ TEST_CASE("Breit", "[Breit][integration]") {
     }
 
     // Then, calculate Sigma(2), compare those
-    wf.formBasis({"30spdfghi", 40, 7, 1.0e-4, 1.0e-4, 40.0, false});
+    wf.formBasis({"30spdfghi", 40, 7, 1.0e-4, 1.0e-4, 40.0});
     wf.formSigma(3, 3, 3.0e-4, 30.0, 25 /*stride*/, false, false, false, 0, {},
                  {}, {}, "false", "false");
 
-    wf0.formBasis({"30spdfghi", 40, 7, 1.0e-4, 1.0e-4, 40.0, false});
+    wf0.formBasis({"30spdfghi", 40, 7, 1.0e-4, 1.0e-4, 40.0});
     wf0.formSigma(3, 3, 3.0e-4, 30.0, 25 /*stride*/, false, false, false, 0, {},
                   {}, {}, "false", "false");
 
@@ -562,13 +562,13 @@ TEST_CASE("Breit: RPA Corrections",
                    {"Cs", -1, "Fermi", -1.0, -1.0});
   wf0.solve_core("HartreeFock", 0.0, "[Xe]");
   wf0.solve_valence("7sp5d");
-  wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 1.0e-6, 40.0, false});
+  wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 1.0e-6, 40.0});
 
   // With Breit:
   auto wfB = wf0;
   wfB.solve_core("HartreeFock", 1.0, "[Xe]");
   wfB.solve_valence("7sp5d");
-  wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 1.0e-6, 40.0, false});
+  wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 1.0e-6, 40.0});
 
   // Format: "a", "b", Breit correction to <a|h|b>, Breit corr. to <a|h+dV|b>,
   // Derev. PRA 65 012106 (2001)
@@ -689,13 +689,13 @@ TEST_CASE("Breit: RPA Corrections - for HFS",
                    {"Cs", -1, "Fermi", -1.0, -1.0});
   wf0.solve_core("HartreeFock", 0.0, "[Xe]");
   wf0.solve_valence("7sp5d");
-  wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0, false});
+  wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0});
 
   // With Breit:
   auto wfB = wf0;
   wfB.solve_core("HartreeFock", 1.0, "[Xe]");
   wfB.solve_valence("7sp5d");
-  wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0, false});
+  wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0});
 
   // Format: "a", "b", Breit correction to <a|h|b>, Breit corr. to <a|h+dV|b>,
   // Derev. PRA 65 012106 (2001)
@@ -794,13 +794,13 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
                    {"Cs", -1, "Fermi", -1.0, -1.0});
   wf0.solve_core("HartreeFock", 0.0, "[Xe]");
   wf0.solve_valence("6sp5d");
-  wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0, false});
+  wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0});
 
   // With Breit:
   auto wfB = wf0;
   wfB.solve_core("HartreeFock", 1.0, "[Xe]");
   wfB.solve_valence("6sp5d");
-  wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0, false});
+  wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0});
 
   auto hE1 = DiracOperator::generate_E1({}, wf0);
   auto hhfs = DiracOperator::generate_hfs({}, wf0);

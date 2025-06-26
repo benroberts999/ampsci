@@ -37,8 +37,8 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
   const auto r0 = 1.0e-3;
   const auto r0_eps = 1.0e-3;
   const auto rmax = 75.0;
-  const auto positronQ = false;
-  wf.formBasis({states, std::size_t(n_spl), k, r0, r0_eps, rmax, positronQ,
+  const std::string positron = "";
+  wf.formBasis({states, std::size_t(n_spl), k, r0, r0_eps, rmax, positron,
                 SplineBasis::SplineType::Derevianko});
 
   std::cout << "Test B-spline\n";
@@ -64,7 +64,7 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
   }
 
   std::cout << "\nBigger basis, for sum rules:\n";
-  wf.formBasis({"spdf", 70, 9, 0.0, 0.0, rmax, true,
+  wf.formBasis({"spdf", 70, 9, 0.0, 0.0, rmax, "spdf",
                 SplineBasis::SplineType::Derevianko});
 
   std::cout << "\nTKR sum rule, including positron states:\n";
@@ -134,9 +134,9 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
             const auto r0 = 1.0e-4;
             const auto r0_eps = 1.0e-3;
             const auto rmax = 75.0;
-            const auto positronQ = false;
+            const std::string positron = "";
             const auto basis = SplineBasis::form_basis(
-                {states, std::size_t(n), k, r0, r0_eps, rmax, positronQ, type},
+                {states, std::size_t(n), k, r0, r0_eps, rmax, positron, type},
                 wf);
 
             // Check orthonormality <a|b>:
@@ -219,7 +219,7 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
       const auto rmax = 60.0; // need large rmax, to match to large nl HF
       const int nspl = 75;    // need large n due to large rmax
       const int kspl = 7;
-      wf.formBasis({states, nspl, kspl, r0, r0eps, rmax, false,
+      wf.formBasis({states, nspl, kspl, r0, r0eps, rmax, "",
                     SplineBasis::SplineType::Derevianko});
 
       // Hyperfine operator: Pointlike, g=1
@@ -270,7 +270,7 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
     std::size_t nspl = 40;
     std::size_t kspl = 9;
     const auto basis =
-        SplineBasis::form_basis({states, nspl, kspl, 1.0e-3, 0.0, 50.0, true,
+        SplineBasis::form_basis({states, nspl, kspl, 1.0e-3, 0.0, 50.0, states,
                                  SplineBasis::SplineType::Derevianko},
                                 wf);
 
@@ -331,7 +331,7 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
     std::size_t nspl = 50;
     std::size_t kspl = 9;
     const auto basis =
-        SplineBasis::form_basis({states, nspl, kspl, 1.0e-4, 0.0, 50.0, true,
+        SplineBasis::form_basis({states, nspl, kspl, 1.0e-4, 0.0, 50.0, states,
                                  SplineBasis::SplineType::Derevianko},
                                 wf);
 

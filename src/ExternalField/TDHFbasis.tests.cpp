@@ -20,7 +20,7 @@ TEST_CASE("External Field: TDHFbasis - basic unit tests",
   wf.solve_core("HartreeFock", 0.0, "[Ne]");
   wf.solve_valence("3sp");
   // nb: use very small basis. Don't care about numerical results, just that eveything is working correctly.
-  wf.formBasis({"10sp8d", 20, 7, 1.0e-3, 1.0e-3, 30.0, false});
+  wf.formBasis({"10sp8d", 20, 7, 1.0e-3, 1.0e-3, 30.0});
 
   auto dE1 = DiracOperator::E1(wf.grid());
 
