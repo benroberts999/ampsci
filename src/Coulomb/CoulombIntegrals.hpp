@@ -4,6 +4,7 @@
 #include <optional>
 #include <vector>
 
+//! Functions (+classes) for computing Coulomb integrals
 namespace Coulomb {
 
 //! Calculates Hartree Screening functions \f$y^k_{ab}(r)\f$
@@ -24,6 +25,29 @@ void bk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 void gk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
            std::vector<double> &g0, std::vector<double> &ginf,
            const std::size_t maxi = 0);
+
+//! Frequency-dependent Breit g^k_{ab}(r,w) function: (0,r) and (r,inf) part stored sepperately (in/out)
+void gk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                 std::vector<double> &g0, std::vector<double> &ginf,
+                 const std::size_t maxi = 0, const double w = 0.0);
+
+//! Frequency-dependent Breit h^k_{ab}(r,w) function: (0,r) + (r,inf) part stored together (in/out)
+void hk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                 std::vector<double> &g0, std::vector<double> &ginf,
+                 const std::size_t maxi = 0, const double w = 0.0);
+
+//! Frequency-dependent Breit v^k_{ab}(r,w): the first and the second terms are stored separately
+void vk_ab_freqw(const int k, const DiracSpinor &Fi, const DiracSpinor &Fj,
+                 const Grid &gr, std::vector<double> &v1,
+                 std::vector<double> &v2, std::vector<double> &v3,
+                 std::vector<double> &v4, std::size_t maxi, const double w);
+
+template <int k, typename Function>
+static inline void yk_ijk_gen_impl_freq(const int l, const Function &ff,
+                                        const Grid &gr, std::vector<double> &v0,
+                                        std::vector<double> &vi,
+                                        const std::size_t maxi,
+                                        const double w); // for testing purposes
 
 //==============================================================================
 

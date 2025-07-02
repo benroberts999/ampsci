@@ -43,7 +43,7 @@ T JL(const int L, const T x) {
              9.25000925e-7 * qip::pow<8>(x);
   }
 
-  // Explicit formalas for first few L's
+  // Explicit formulas for first few L's
   if (L == 0)
     return std::sin(x) / x;
   if (L == 1)
@@ -69,6 +69,24 @@ T exactGSL_JL(int L, T x) {
   return (T)gsl_sf_bessel_jl(L, (double)x);
 }
 
+//! Used for frequency-dependent Breit - more generic formula that can be used to evaluate spherical Bessel function of first kind for negative orders
+template <typename T>
+T exactGSL_JL_alt(int L, T x) {
+  return (T)(sqrt(M_PI / (2 * x)) * gsl_sf_bessel_Jnu(L + 1.0 / 2, (double)x));
+}
+
+//! Spherical Bessel functions of second kind
+template <typename T>
+T exactGSL_YL(int L, T x) {
+  return (T)gsl_sf_bessel_yl(L, (double)x);
+}
+
+//! Used for frequency-dependent Breit - more generic formula that can be used to evaluate spherical Bessel function of second kind for negative orders
+template <typename T>
+T exactGSL_YL_alt(int L, T x) {
+  return (T)(sqrt(M_PI / (2 * x)) * gsl_sf_bessel_Ynu(L + 1.0 / 2, (double)x));
+}
+
 //==============================================================================
 //! Creates a vector of Jl(r) for given r
 template <typename T>
@@ -88,6 +106,39 @@ std::vector<T> fillBesselVec_kr(const int l, const double k,
   Jl_vec.reserve(rvec.size());
   for (const auto &r : rvec) {
     Jl_vec.push_back(exactGSL_JL(l, k * r));
+  }
+  return Jl_vec;
+}
+
+template <typename T>
+std::vector<T> fillBesselVec_kr_alt(const int l, const double k,
+                                    const std::vector<T> &rvec) {
+  std::vector<T> Jl_vec;
+  Jl_vec.reserve(rvec.size());
+  for (const auto &r : rvec) {
+    Jl_vec.push_back(exactGSL_JL_alt(l, k * r));
+  }
+  return Jl_vec;
+}
+
+template <typename T>
+std::vector<T> fillSecondBesselVec_kr(const int l, const double w,
+                                      const std::vector<T> &rvec) {
+  std::vector<T> Yl_vec;
+  Yl_vec.reserve(rvec.size());
+  for (const auto &r : rvec) {
+    Yl_vec.push_back(exactGSL_YL(l, w * r));
+  }
+  return Yl_vec;
+}
+
+template <typename T>
+std::vector<T> fillSecondBesselVec_kr_alt(const int l, const double k,
+                                          const std::vector<T> &rvec) {
+  std::vector<T> Jl_vec;
+  Jl_vec.reserve(rvec.size());
+  for (const auto &r : rvec) {
+    Jl_vec.push_back(exactGSL_YL_alt(l, k * r));
   }
   return Jl_vec;
 }

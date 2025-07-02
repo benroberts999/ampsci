@@ -18,7 +18,7 @@ namespace MBPT {
 
 @details
 
-RDMatrix is a 4*4 matrix in spinor space {ff, fg, gf, gg} - the g blocks are
+RDMatrix is a 2*2 matrix in spinor space {ff, fg, gf, gg} - the g blocks are
 small and are optional. Each block is an N*N radial matrix, where N is a subset
 of the number of points along the full radial grid. May store doubles or complex
 doubles.
@@ -59,12 +59,14 @@ public:
       : m_i0(i0),
         m_stride(stride),
         m_size(size),
-        m_g_size(incl_g ? size : 0),
+        //m_g_size(incl_g ? size : 0),
+        m_g_size(true ? size : 0),
         m_ff(m_size),
         m_fg(m_g_size),
         m_gf(m_g_size),
         m_gg(m_g_size),
-        m_incl_g(incl_g),
+        //m_incl_g(incl_g),
+        m_incl_g(true),
         m_rgrid(rgrid) {
     //------------------
     // create vector of r on sub-grid, used to interpolate values onto full
@@ -382,7 +384,7 @@ public:
         const auto sj = index_to_fullgrid(j);
         m_ff[i][j] += k * ket.f(si) * bra.f(sj);
       } // j
-    }   // i
+    } // i
 
     if (m_incl_g) {
       for (auto i = 0ul; i < m_size; ++i) {
@@ -394,7 +396,7 @@ public:
           m_gf[i][j] += k * ket.g(si) * bra.f(sj); // symmetric, transpose?
           m_gg[i][j] += k * ket.g(si) * bra.g(sj);
         } // j
-      }   // i
+      } // i
     }
   }
 

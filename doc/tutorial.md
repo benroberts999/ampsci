@@ -112,7 +112,7 @@ ampsci{
   Grid{}
   // Options for solving atomic system
   HartreeFock{}
-  // Inlcude QED radiative potential
+  // Include QED radiative potential
   RadPot{}
   // Include an extra effective potential. Rarely used.
   ExtraPotential{}

@@ -297,7 +297,8 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
     const auto &dsi = d_basis[i];
     const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core());
     const auto SigmaSi = sigmaQ ? (*wf.Sigma())(si) : 0.0 * si;
-    const auto BreitSi = VBr ? VBr->VbrFa(si, wf.core()) : 0.0 * si;
+    const auto BreitSi = VBr ? VBr->VbrFa(si, wf.core()) :
+                               0.0 * si; // something important potentially?
 
     for (auto j = 0ul; j <= i; j++) {
       const auto &sj = spl_basis[j];
@@ -309,12 +310,15 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
       // 0.25 * aij_2); Actually, seems
       // more stable to calculate derivs..
       // auto aij = wf.Hab(sj, si);
-      if (!excl_exch)
+      if (!excl_exch) { // including exchange into the basis
         aij += (sj * VexSi);
-      if (sigmaQ)
+      }
+      if (sigmaQ) {
         aij += (sj * SigmaSi);
-      if (VBr)
+      }
+      if (VBr) { // currently this will include breit into the spline basis if Breit is specified as non-zero in HF options in input file? could comment out to have the feynman method not include Breit when we specify it in the hartree-fock options
         aij += sj * BreitSi;
+      }
 
       Aij[i][j] = aij;
       Sij[i][j] = sj * si;

@@ -233,7 +233,8 @@ public:
   //! equations)
   void set_HF(const std::string &method = "HartreeFock",
               const double x_Breit = 0.0, const std::string &in_core = "",
-              double eps_HF = 1.0e-13, bool print = true);
+              double eps_HF = 1.0e-13, bool print = true,
+              bool freq_Breit = false);
 
   //! Performs hartree-Fock procedure for core
   void solve_core(bool print = true);
@@ -282,7 +283,8 @@ public:
                  bool ScreeningQ = false, bool holeParticleQ = false,
                  int lmax = 6, double omre = -0.2, double w0 = 0.01,
                  double wratio = 1.5,
-                 const std::optional<IO::InputBlock> &ek = std::nullopt);
+                 const std::optional<IO::InputBlock> &ek = std::nullopt,
+                 bool Breit_Green = false);
 
   // void correlations(const IO::InputBlock &input);
 
