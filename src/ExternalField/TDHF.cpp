@@ -299,7 +299,9 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
       }
     }
 
-    if ((it > 1 && eps.first < converge_targ) || count_worse > 5)
+    if (it > 1 && eps.first < converge_targ)
+      break;
+    if (count_worse > 5 && eps.first < 1.0e4 * converge_targ)
       break;
     if (std::isnan(eps.first)) {
       break;
