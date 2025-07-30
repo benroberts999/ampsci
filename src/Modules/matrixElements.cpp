@@ -39,6 +39,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
         "Text or number. Freq. for RPA (and freq. dependent operators). Put "
         "'each' to solve at correct frequency for each transition. [0.0]"},
        {"printBoth", "print <a|h|b> and <b|h|a> [false]"},
+       {"include_core", "If true, includes core states in calculation. Will "
+                        "use HF core, unless use_spectrum is true [false]"},
        {"use_spectrum",
         "If true (and spectrum available), will use spectrum for valence "
         "states [false]"},
@@ -113,8 +115,12 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "Units: " << h->units() << "\n";
 
   const bool print_both = input.get("printBoth", false);
+  const auto include_core = input.get("include_core", false);
   const auto use_spectrum =
       wf.spectrum().empty() ? false : input.get("use_spectrum", false);
+  if (include_core) {
+    std::cout << "Including core-state matrix elements\n";
+  }
   if (use_spectrum) {
     std::cout << "Using Spectrum (instead of valence) for matrix elements\n";
   }
@@ -182,17 +188,34 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto pi = h->parity();
 
-  // ability to use spectrum instead of valence
-  std::vector<DiracSpinor> t_orbs;
+  // ability to use spectrum instead of valence, and optionally include core
+  std::vector<DiracSpinor> orbs;
+
+  // Add core states to list (either from HF or from spectrum):
+  if (include_core) {
+    if (use_spectrum) {
+      for (const auto &a : wf.core()) {
+        const auto t =
+            std::find(wf.spectrum().cbegin(), wf.spectrum().cend(), a);
+        if (t != wf.spectrum().cend()) {
+          orbs.push_back(*t);
+        }
+      }
+    } else {
+      orbs.insert(orbs.end(), wf.core().begin(), wf.core().end());
+    }
+  }
+  // add valcence states:
   if (use_spectrum) {
     for (const auto &v : wf.valence()) {
       const auto t = std::find(wf.spectrum().cbegin(), wf.spectrum().cend(), v);
       if (t != wf.spectrum().cend()) {
-        t_orbs.push_back(*t);
+        orbs.push_back(*t);
       }
     }
+  } else {
+    orbs.insert(orbs.end(), wf.valence().begin(), wf.valence().end());
   }
-  const auto &orbs = use_spectrum ? t_orbs : wf.valence();
 
   if (h->freqDependantQ() && !eachFreqQ) {
     h->updateFrequency(omega);
@@ -390,6 +413,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         "Save time (10x) at cost of memory. Note: Using QkTable implies "
         "legs=basis"},
        {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
+       {"include_core", "If true, includes core states in calculation. Will "
+                        "use HF core, unless legs=spectrum [false]"},
        {"legs",
         "Which states to use for diagram legs? hf/basis/spectrum/brueckner "
         "[hf]"},
@@ -426,14 +451,42 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // note: Using QkFile is ~10x faster (not including time to construct QkTable)
   // - but requires large amount of memory. Trade-off
 
+  const auto include_core = input.get("include_core", false);
+  if (include_core) {
+    std::cout << "Including core-state matrix elements\n";
+  }
+
   const auto legs_str =
       Qk_file == "" ? input.get("legs", std::string{"hf"}) : "basis";
 
-  const auto &valence = qip::ci_wc_compare(legs_str, "basis") ? wf.basis() :
-                        qip::ci_wc_compare(legs_str, "spectrum") ?
-                                                                wf.spectrum() :
-                        qip::ci_wc_compare(legs_str, "bru*") ? wf.valence() :
-                                                               wf.hf_valence();
+  std::vector<DiracSpinor> orbs;
+  // Add core states to list (either from HF or from spectrum):
+  if (include_core) {
+    if (qip::ci_wc_compare(legs_str, "spectrum")) {
+      for (const auto &a : wf.core()) {
+        const auto t =
+            std::find(wf.spectrum().cbegin(), wf.spectrum().cend(), a);
+        if (t != wf.spectrum().cend()) {
+          orbs.push_back(*t);
+        }
+      }
+    } else {
+      orbs.insert(orbs.end(), wf.core().begin(), wf.core().end());
+    }
+  }
+
+  const auto &orbs2 = qip::ci_wc_compare(legs_str, "basis")    ? wf.basis() :
+                      qip::ci_wc_compare(legs_str, "spectrum") ? wf.spectrum() :
+                      qip::ci_wc_compare(legs_str, "bru*")     ? wf.valence() :
+                                                                 wf.hf_valence();
+
+  // add valcence states:
+  for (const auto &v : wf.valence()) {
+    const auto t = std::find(orbs2.cbegin(), orbs2.cend(), v);
+    if (t != orbs2.cend()) {
+      orbs.push_back(*t);
+    }
+  }
 
   const auto have_brueckner =
       wf.Sigma() && (qip::ci_wc_compare(legs_str, "spectrum") ||
@@ -500,6 +553,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   else
     std::cout << "constant frequency: w = " << const_omega << "\n";
 
+  if (include_core)
+    std::cout << "Including core states\n";
   if (qip::ci_wc_compare(legs_str, "basis"))
     std::cout << "Using basis (splines) for diagram legs (external states)\n";
   else if (qip::ci_wc_compare(legs_str, "spectrum"))
@@ -526,8 +581,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto &tmp_val =
         qip::ci_wc_compare(legs_str, "basis") ? wf.hf_valence() : wf.valence();
     for (const auto &v : tmp_val) {
-      const auto bp = std::find(cbegin(valence), cend(valence), v);
-      if (bp == cend(valence))
+      const auto bp = std::find(cbegin(orbs), cend(orbs), v);
+      if (bp == cend(orbs))
         continue;
       const auto &b = *bp;
       const auto eps1 = std::abs(v * b - 1.0);
@@ -574,10 +629,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     if (!off_diagonal && !diag)
       continue;
 
-    for (std::size_t ib = 0; ib < wf.valence().size(); ib++) {
-      const auto &v = wf.valence().at(ib);
-      for (std::size_t ia = 0; ia < wf.valence().size(); ia++) {
-        const auto &w = wf.valence().at(ia);
+    for (std::size_t ib = 0; ib < orbs.size(); ib++) {
+      const auto &v = orbs.at(ib);
+      for (std::size_t ia = 0; ia < orbs.size(); ia++) {
+        const auto &w = orbs.at(ia);
         if (h->isZero(w.kappa(), v.kappa()))
           continue;
         if (pi == -1) {
@@ -598,10 +653,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
         // Option to use splines (or valence states) to compute Struc Rad (use
         // splines for legs)
-        const auto ws = std::find(cbegin(valence), cend(valence), w);
-        const auto vs = std::find(cbegin(valence), cend(valence), v);
+        const auto ws = std::find(cbegin(orbs), cend(orbs), w);
+        const auto vs = std::find(cbegin(orbs), cend(orbs), v);
 
-        if ((ws == cend(valence) || vs == cend(valence))) {
+        if ((ws == cend(orbs) || vs == cend(orbs))) {
           std::cout << "Don't have requested spline for: " << w.symbol()
                     << " or " << v.symbol() << "\n";
           continue;
