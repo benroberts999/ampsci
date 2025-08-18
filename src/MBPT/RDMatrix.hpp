@@ -59,14 +59,14 @@ public:
       : m_i0(i0),
         m_stride(stride),
         m_size(size),
-        //m_g_size(incl_g ? size : 0),
-        m_g_size(true ? size : 0),
+        m_g_size(incl_g ? size : 0),
+        // m_g_size(true ? size : 0),
         m_ff(m_size),
         m_fg(m_g_size),
         m_gf(m_g_size),
         m_gg(m_g_size),
-        //m_incl_g(incl_g),
-        m_incl_g(true),
+        m_incl_g(incl_g),
+        // m_incl_g(true),
         m_rgrid(rgrid) {
     //------------------
     // create vector of r on sub-grid, used to interpolate values onto full
@@ -424,7 +424,7 @@ public:
           const auto j_f = index_to_fullgrid(j);
           f[i] += m_fg(i, j) * Fn.g(j_f); // * drdu[j_f] * s_du;
           g[i] += (m_gf(i, j) * Fn.f(j_f) + m_gg(i, j) * Fn.g(j_f)); // *
-              // drdu[j_f] * s_du;
+          // drdu[j_f] * s_du;
         }
       }
     }

@@ -326,9 +326,6 @@ Wavefunction ampsci(const IO::InputBlock &input) {
        {"all_order", "Use all-orders method (implies Feynman=true; "
                      "screening=true; holeParticle=true;) [false]"},
        {"Feynman", "Use Feynman method [false]"},
-       {"BreitGreen",
-        "Include Breit into the Feynman Green's function "
-        "[false]"}, // this is me trying to add an extra input parameter into the ampsci input option so that I can control if Breit is added to the Green's function or not
        {"fk", "List of doubles. Screening factors for effective "
               "all-order "
               "exchange. In Feynman method, used in exchange "
@@ -375,9 +372,6 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   // Feynman method:
   const auto all_order = input.get({"Correlations"}, "all_order", false);
   const auto sigma_Feynman = input.get({"Correlations"}, "Feynman", all_order);
-  const auto sigma_Feynman_Breit = input.get(
-      {"Correlations"}, "BreitGreen",
-      false); // will not include Breit into the Green's function by default
   const auto sigma_Screening =
       input.get({"Correlations"}, "screening", all_order);
   const auto hole_particle =
@@ -434,8 +428,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     wf.formSigma(n_min_core, n_min_core_F, sigma_rmin, sigma_rmax, sigma_stride,
                  each_valence, include_G, include_Breit, lambda_k, fk, etak,
                  sigma_read, sigma_write, sigma_Feynman, sigma_Screening,
-                 hole_particle, sigma_lmax, sigma_omre, w0, wratio, ek_Sig,
-                 sigma_Feynman_Breit); // i have done stuff here
+                 hole_particle, sigma_lmax, sigma_omre, w0, wratio, ek_Sig);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

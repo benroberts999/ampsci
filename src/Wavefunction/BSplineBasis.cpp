@@ -338,6 +338,76 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   return A_and_S;
 }
 
+std::pair<LinAlg::Matrix<double>, LinAlg::Matrix<double>>
+fill_Hamiltonian_matrix_freq_breit(const std::vector<DiracSpinor> &spl_basis,
+                                   const std::vector<DiracSpinor> &d_basis,
+                                   const Wavefunction &wf,
+                                   const bool correlationsQ, SplineType type) {
+
+  const auto n_spl = spl_basis.size();
+
+  auto A_and_S = std::make_pair(LinAlg::Matrix<double>{n_spl, n_spl},
+                                LinAlg::Matrix<double>{n_spl, n_spl});
+  // auto &[Aij, Sij] = A_and_S; //XXX error w/ clang? Why?
+  auto &Aij = A_and_S.first;
+  auto &Sij = A_and_S.second;
+
+  const auto excl_exch = wf.vHF() ? wf.vHF()->excludeExchangeQ() : true;
+  const auto sigmaQ = wf.Sigma() != nullptr && correlationsQ;
+  const auto VBr = wf.vHF() ? wf.vHF()->vBreit() : nullptr;
+
+  // extracts a vector of the basis core orbitals and the basis excited orbitals : need the core basis orbitals for frequency-dependent Breit
+  auto [basis_core, basis_excited] =
+      DiracSpinor::split_by_core(spl_basis, wf.core());
+
+#pragma omp parallel for
+  for (auto i = 0ul; i < Aij.rows(); i++) {
+    const auto &si = spl_basis[i];
+    const auto &dsi = d_basis[i];
+    const auto VexSi = excl_exch ? 0.0 * si : HF::vexFa(si, wf.core());
+    const auto SigmaSi = sigmaQ ? (*wf.Sigma())(si) : 0.0 * si;
+    const auto BreitSi =
+        VBr ? VBr->VbrFa_freqw_hermitian(si, wf.core(), spl_basis) :
+              0.0 * si; // something important potentially?
+
+    for (auto j = 0ul; j <= i; j++) {
+      const auto &sj = spl_basis[j];
+      const auto &dsj = d_basis[j];
+
+      auto aij = wf.H0ab(sj, dsj, si, dsi);
+      // const auto aij_2 = wf.Hab(sj,
+      // si); auto aij = (0.75 * aij_1 +
+      // 0.25 * aij_2); Actually, seems
+      // more stable to calculate derivs..
+      // auto aij = wf.Hab(sj, si);
+      if (!excl_exch) { // including exchange into the basis
+        aij += (sj * VexSi);
+      }
+      if (sigmaQ) {
+        aij += (sj * SigmaSi);
+      }
+      if (VBr) { // currently this will include breit into the spline basis if Breit is specified as non-zero in HF options in input file? could comment out to have the feynman method not include Breit when we specify it in the hartree-fock options
+        aij += sj * BreitSi;
+      }
+
+      Aij[i][j] = aij;
+      Sij[i][j] = sj * si;
+    }
+  }
+  // Fill second - half of symmetric matrix
+  for (auto i = 0ul; i < Aij.rows(); i++) {
+    for (auto j = i + 1; j < Aij.cols(); j++) {
+      Aij[i][j] = Aij[j][i];
+      Sij[i][j] = Sij[j][i];
+    }
+  }
+  // Note: This is work-around, since Breit seems not to be 100% symmetric!
+  if (type == SplineType::Johnson)
+    add_NotreDameBoundary(&Aij, spl_basis.front().kappa(), wf.alpha());
+
+  return A_and_S;
+}
+
 //==============================================================================
 void add_NotreDameBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
                            const double alpha) {

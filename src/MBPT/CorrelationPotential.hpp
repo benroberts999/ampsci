@@ -12,7 +12,7 @@
 
 namespace MBPT {
 
-struct SigmaData { 
+struct SigmaData {
   int kappa;
   double en;
   RDMatrix<double> Sigma;
@@ -57,7 +57,6 @@ class CorrelationPotential {
   int m_n_min_core_F;
   bool m_includeG;
   bool m_includeBreit;
-  bool m_breit_green;
 
   std::optional<Goldstone> m_Gold{};
 
@@ -82,8 +81,7 @@ public:
                        bool calculate_fk = true,
                        const std::vector<double> &fk = {},
                        const std::vector<double> &etak = {},
-                       std::optional<int> n_min_core_F = {},
-                       bool Breit_Green = false);
+                       std::optional<int> n_min_core_F = {});
 
   // // not thread safe!
   // void formSigma(int kappa, double en, int n = 0) {}

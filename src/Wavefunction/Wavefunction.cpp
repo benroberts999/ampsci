@@ -510,7 +510,7 @@ void Wavefunction::formSigma(
     const std::vector<double> &etak, const std::string &in_fname,
     const std::string &out_fname, bool FeynmanQ, bool ScreeningQ,
     bool holeParticleQ, int lmax, double omre, double w0, double wratio,
-    const std::optional<IO::InputBlock> &ek, bool Breit_Green) {
+    const std::optional<IO::InputBlock> &ek) {
   if (m_valence.empty())
     return;
   std::cout << "\nIncluding correlation potential:\n" << std::flush;
@@ -524,9 +524,6 @@ void Wavefunction::formSigma(
     ext += "h";
   if (include_Breit && m_HF->vBreit() && !FeynmanQ)
     ext += "b";
-  if (FeynmanQ && Breit_Green)
-    ext +=
-        "brgr"; // will add brgr to the extension if we specify we want Breit in the Green's function. in the code so long as we specify feynman=true and GreenBreit = true in the input file
 
   ext += ".abf";
 
@@ -552,7 +549,7 @@ void Wavefunction::formSigma(
       ifname, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core, method,
       include_G, include_Breit,
       MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
-      fk, etak, nmin_core_F, Breit_Green);
+      fk, etak, nmin_core_F);
 
   std::cout << "\n";
 

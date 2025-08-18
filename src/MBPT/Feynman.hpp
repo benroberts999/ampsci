@@ -1,6 +1,7 @@
 #pragma once
 #include "HF/HartreeFock.hpp"
 #include "MBPT/RDMatrix.hpp"
+#include "MBPT/RMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <memory>
@@ -51,6 +52,8 @@ class Feynman {
   int m_max_k;
   // Lowest n to polarise in polarisation operator
   int m_min_core_n;
+  // Include relativistic components of the correlation potential?
+  bool m_include_G;
   // real part of frequency for integration
   double m_omre;
   // Stores imaginary frequency grid (setup post-construction)
@@ -70,6 +73,7 @@ class Feynman {
   // Coulomb operator; include right integration measure
   // q_ij := (r>^k/r<^{k+1}) * dr_j
   std::vector<ComplexGMatrix> m_qk{};
+  std::vector<RMatrix<std::complex<double>>> m_qk_spinless{};
   // Left integration measure:
   ComplexGMatrix m_dri;
   // Right integration measure:
@@ -82,6 +86,9 @@ class Feynman {
 
   // Effective Q*Pi*Q operator: for each imaginary omega, and each k
   std::vector<std::vector<ComplexGMatrix>> m_qpiq_wk{};
+
+  // Effective spinless Q*Pi*Q operator: for each imaginary omega, and each k
+  std::vector<std::vector<RMatrix<std::complex<double>>>> m_qpiq_wk_spinless{};
 
   // For now, just for testing: switch between complex green methods
   bool m_Complex_green_method = false;
@@ -97,8 +104,8 @@ public:
   //! ** Currently have issue: polarising deep n leads to failure?
   Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
           std::size_t size, const FeynmanOptions &options, int n_min_core,
-          bool verbose = true, const std::vector<DiracSpinor> &in_basis = {},
-          bool breit_green = false);
+          bool include_G, bool verbose = true,
+          const std::vector<DiracSpinor> &in_basis = {});
 
   bool screening() const { return m_screen_Coulomb; }
   bool hole_particle() const { return m_hole_particle; }
@@ -124,12 +131,22 @@ public:
   ComplexGMatrix polarisation_k_new(int k, std::complex<double> omega,
                                     bool hole_particle) const;
 
+  // polarisation operator that does not have spin indices (just a coordinate matrix)
+  RMatrix<std::complex<double>>
+  polarisation_k_spinless(int k, std::complex<double> omega,
+                          bool hole_particle) const;
+
   //! Calculate Direct part of correlation potential
   GMatrix Sigma_direct(int kappa_v, double en_v,
                        std::optional<int> k = {}) const;
 
   //! Returns (reference to) q^k (radial) matrix. Note: includes drj
   const ComplexGMatrix &get_qk(int k) const { return m_qk.at(std::size_t(k)); }
+
+  //! Returns (reference to) q^k (radial) matrix - this is for the version of the code where q^k does not have spinor indices
+  const RMatrix<std::complex<double>> &get_qk_spinless(int k) const {
+    return m_qk_spinless.at(std::size_t(k));
+  }
 
   //! Returns (ref to) radial exchange matrix Vx_kappa. Nb: includes dri*drj
   const GMatrix &get_Vx_kappa(int kappa) const {
@@ -141,6 +158,8 @@ private:
   void check_min_n();
   // forms Qk matrices, as well as dri, drj
   void form_qk();
+  // forms Qk as a coordinate matrix (no spinor indices), as well as dri, drj
+  void form_qk_new();
   // Forms core projection operators
   void form_pa();
   // Forms HF exchange potential matrix
@@ -154,6 +173,10 @@ private:
   // Screening factor X = [1 + i qk*pik]^-1
   ComplexGMatrix X_screen(const ComplexGMatrix &pik,
                           const ComplexGMatrix &qk) const;
+
+  RMatrix<std::complex<double>>
+  X_screen_spinless(const RMatrix<std::complex<double>> &pik,
+                    const RMatrix<std::complex<double>> &qdri) const;
 
   // Forms single "Green's function" contribution f*|ket><bra|
   // (f is usually 1/(e-en))

@@ -283,8 +283,7 @@ public:
                  bool ScreeningQ = false, bool holeParticleQ = false,
                  int lmax = 6, double omre = -0.2, double w0 = 0.01,
                  double wratio = 1.5,
-                 const std::optional<IO::InputBlock> &ek = std::nullopt,
-                 bool Breit_Green = false);
+                 const std::optional<IO::InputBlock> &ek = std::nullopt);
 
   // void correlations(const IO::InputBlock &input);
 

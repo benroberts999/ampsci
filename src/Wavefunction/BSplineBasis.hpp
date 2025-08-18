@@ -93,7 +93,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const bool correlationsQ = false);
 
 double check(const std::vector<DiracSpinor> &basis,
-             const std::vector<DiracSpinor> &orbs, bool print_warning = true);
+             const std::vector<DiracSpinor> &orbs, bool print_warning);
 
 //! Forms the underlying spline basis (which is not kept)
 std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
@@ -103,14 +103,21 @@ form_spline_basis(const int kappa, const std::size_t n_states,
                   const double alpha,
                   SplineType itype = SplineType::Derevianko);
 
-//! Calculates  + reyurns the Hamiltonian \f$H_{ij}\f$ (and \f$S_{ij}\f$)
-//! matrices
+//! Calculates  + reyurns the Hamiltonian \f$H_{ij}\f$ (and \f$S_{ij}\f$) matrices
 std::pair<LinAlg::Matrix<double>, LinAlg::Matrix<double>>
 fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const std::vector<DiracSpinor> &d_basis,
                         const Wavefunction &wf,
                         const bool correlationsQ = false,
                         SplineType itype = SplineType::Derevianko);
+
+// test function that fills the Hamiltonian matrix for the frequency-dependent Breit interaction
+std::pair<LinAlg::Matrix<double>, LinAlg::Matrix<double>>
+fill_Hamiltonian_matrix_freq_breit(const std::vector<DiracSpinor> &spl_basis,
+                                   const std::vector<DiracSpinor> &d_basis,
+                                   const Wavefunction &wf,
+                                   const bool correlationsQ = false,
+                                   SplineType itype = SplineType::Derevianko);
 
 void add_NotreDameBoundary(LinAlg::Matrix<double> *Aij, const int kappa,
                            const double alpha);
