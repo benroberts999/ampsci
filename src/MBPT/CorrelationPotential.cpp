@@ -20,7 +20,7 @@ CorrelationPotential::CorrelationPotential(
     std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
     bool include_Breit, const FeynmanOptions &Foptions, bool calculate_fk,
     const std::vector<double> &fk, const std::vector<double> &etak,
-    std::optional<int> n_min_core_F, bool Breit_Green)
+    std::optional<int> n_min_core_F)
     : m_HF(vHF),
       m_basis(basis), // dumb
       m_r0(r0),
@@ -36,8 +36,7 @@ CorrelationPotential::CorrelationPotential(
       m_Foptions(Foptions),
       m_calculate_fk(calculate_fk),
       m_fk(fk),
-      m_etak(etak),
-      m_breit_green(Breit_Green) {
+      m_etak(etak) {
 
   std::cout << "\nConstruct Correlation Potential\n";
 
@@ -298,7 +297,7 @@ void CorrelationPotential::setup_Feynman() {
 
   if (!m_Fy) {
     m_Fy = Feynman(m_HF, m_i0, m_stride, m_size, m_Foptions, m_n_min_core_F,
-                   true, m_basis, m_breit_green);
+                   m_includeG, true, m_basis);
   }
 
   if (m_calculate_fk && !m_Fy0) {
@@ -322,14 +321,14 @@ void CorrelationPotential::setup_Feynman() {
     t_FoptionsH.hole_particle = HoleParticle::include;
 
     if (m_Fy->screening()) {
-      m_Fy0 = Feynman(m_HF, m_i0, t_stride, t_size, t_Foptions0, t_n_min, false,
-                      m_basis, m_breit_green);
-      m_FyX = Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsX, t_n_min, false,
-                      m_basis, m_breit_green);
+      m_Fy0 = Feynman(m_HF, m_i0, t_stride, t_size, t_Foptions0, t_n_min,
+                      m_includeG, false, m_basis);
+      m_FyX = Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsX, t_n_min,
+                      m_includeG, false, m_basis);
     }
     if (m_includeG && m_Fy->hole_particle()) { // only need eta for 'g'
-      m_FyH = Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsH, t_n_min, false,
-                      m_basis, m_breit_green);
+      m_FyH = Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsH, t_n_min,
+                      m_includeG, false, m_basis);
     }
   }
 }

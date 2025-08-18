@@ -47,6 +47,45 @@ private:
 
 } // namespace Breit_gb
 
+namespace Breit_gh_freqdep {
+
+struct single_k_mop_freq {
+  // Class to hold the frequency-dependent Breit-Coulomb integrals, for single k
+public:
+  single_k_mop_freq() {}
+  single_k_mop_freq(const DiracSpinor &Fi, const DiracSpinor &Fj, int k,
+                    const double w) {
+    calculate(Fi, Fj, k, w);
+  }
+
+  void calculate(const DiracSpinor &Fi, const DiracSpinor &Fj, int k,
+                 const double w);
+  std::vector<double> g0_minus_freqw{}, gi_minus_freqw{};
+  std::vector<double> g0_plus_freqw{}, gi_plus_freqw{};
+  std::vector<double> h0_minus_freqw{}, hi_minus_freqw{};
+  std::vector<double> h0_plus_freqw{}, hi_plus_freqw{};
+  std::vector<double> v1_freqw{}, v2_freqw{}, v3_freqw{}, v4_freqw{};
+};
+
+struct single_k_n_freq {
+  // Class to hold the Breit-Coulomb integrals, for single k
+public:
+  single_k_n_freq() {}
+  single_k_n_freq(const DiracSpinor &Fi, const DiracSpinor &Fj, int k,
+                  const double w) {
+    calculate(Fi, Fj, k, w);
+  }
+
+  void calculate(const DiracSpinor &Fi, const DiracSpinor &Fj, int k,
+                 const double w);
+  std::vector<double> g{};
+
+private:
+  std::vector<double> gi{};
+};
+
+} // namespace Breit_gh_freqdep
+
 //==============================================================================
 //! Breit (Hartree-Fock Breit) interaction potential
 class Breit {
@@ -112,6 +151,16 @@ public:
   DiracSpinor VbrFa(const DiracSpinor &Fa,
                     const std::vector<DiracSpinor> &core) const;
 
+  //! (hopefully) calculates VBr(w)Fa for frequency-dependent Breit
+  DiracSpinor VbrFa_freqw(const DiracSpinor &Fa,
+                          const std::vector<DiracSpinor> &core) const;
+
+  // calculates the action of frequency-dependent Breit operator on single-particle orbital using the expression that seems to actually be hermitian but which requires the use of a basis
+  DiracSpinor
+  VbrFa_freqw_hermitian(const DiracSpinor &Fa,
+                        const std::vector<DiracSpinor> &core,
+                        const std::vector<DiracSpinor> &basis) const;
+
   //! dV_b*Fa, dV_b is the RPA correction arising due to Fb -> Fb + dFb
   //! @details
   //! K is multipolarity of RPA operator, Fb is core state, with Xbeta and Ybeta
@@ -123,6 +172,14 @@ public:
   //! Reduced Breit integral (analogue of Coulomb Q^k).
   double Bk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                  const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  //! Reduced frequency-dependent Breit integral evaluated at energy, Ea - Ec
+  double Bk_abcd_eac_freqw(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                           const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  //! Reduced frequency-dependent Breit integral evaluated at energy, Eb - Ed
+  double Bk_abcd_ebd_freqw(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                           const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
   //! Reduced Breit integral (analogue of Coulomb Q^k), faster version.
   //! Can only use if fill_gb() has been called
@@ -151,6 +208,12 @@ public:
   //! Bkv_bcd defined: B^k_abcd = <a|Bkv_bcd> (direct part)
   DiracSpinor Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                       const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  // Calculates (m^k(w) + n^k(w) + o^k(w) + p^k(w))Fi(r) -- frequency-dependent Breit
+  DiracSpinor Bkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
+                            const DiracSpinor &Fc, const DiracSpinor &Fd,
+                            const double w) const;
+
   //! BPkv_bcd defined: P(B)^k_abcd = <a|BPkv_bcd> (exchange part)
   DiracSpinor BPkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                        const DiracSpinor &Fc, const DiracSpinor &Fd) const;

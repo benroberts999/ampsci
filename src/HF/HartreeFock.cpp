@@ -58,7 +58,8 @@ HartreeFock::HartreeFock(std::shared_ptr<const Grid> grid,
                          std::vector<DiracSpinor> core,
                          std::optional<QED::RadPot> vrad, double alpha,
                          Method method, double x_Breit, double in_eps,
-                         Parametric::Type potential, double H_g, double d_t)
+                         bool freqBreit, Parametric::Type potential, double H_g,
+                         double d_t)
     : m_rgrid(grid),
       m_core(std::move(core)),
       m_vnuc(std::move(vnuc)),
@@ -68,6 +69,7 @@ HartreeFock::HartreeFock(std::shared_ptr<const Grid> grid,
       m_alpha(alpha),
       m_method(method),
       m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
+      m_freqBreit(freqBreit),
       m_vdir(m_rgrid->num_points(), 0.0),
       m_Yab() {
   set_parametric_potential(true, potential, H_g, d_t);
@@ -398,6 +400,17 @@ EpsIts HartreeFock::hartree_fock_core() {
   const auto f_core_tmp = double(Ncore - 1) / double(Ncore);
   const auto f_core = 0.5 * (1.0 + f_core_tmp);
 
+  // ---------------------- MY CODE FOR INCLUDING FREQUENCY-DEPENDENT BREIT
+  // Need a complete basis for frequency-dependent HF Breit operator so use hydrogen wave functions
+  // initialises the hydrogen wave function object
+  // Wavefunction wfH(m_rgrid, {"1", 0, "Ball"});
+  // wfH.set_HF();
+  // wfH.solve_core(false);
+  // // // forms the hydrogen wavefunction basis; NOTE: the last boolean option is for including the negative energy states in the basis
+  // wfH.formBasis(
+  //     SplineBasis::Parameters("90spdfghi", 90, 9, 1e-4, 0.0, 90.0, true));
+  // const auto Hydrogen_basis = wfH.basis();
+
   // Arrays for the exchange tern Vex*Fa
   // Store vdir0 and core0 (initial) - used for energy guess
   const auto vd0 = m_vdir;
@@ -445,14 +458,20 @@ EpsIts HartreeFock::hartree_fock_core() {
           Fzero.en() +
           (Fzero * (VxFa + (m_vdir - vd0) * Fa) - Fa * Vx0Fa) / (Fa * Fzero);
 
-      // non-local part of potential, (v0 + Vx()*Fa
+      // non-local part of potential, (v0 + Vx)*Fa
       auto v_nonlocal = v0 * Fa + VxFa;
 
       if (m_VBr) {
         // Add Breit to v_nonlocal, and energy guess
-        const auto VbrFa = m_VBr->VbrFa(Fa, core_prev);
-        en += (Fzero * VbrFa) / (Fa * Fzero);
-        v_nonlocal += VbrFa;
+        if (m_freqBreit == true) {
+          const auto VbrFa = m_VBr->VbrFa_freqw(Fa, core_prev);
+          en += (Fzero * VbrFa) / (Fa * Fzero);
+          v_nonlocal += VbrFa;
+        } else {
+          const auto VbrFa = m_VBr->VbrFa(Fa, core_prev);
+          en += (Fzero * VbrFa) / (Fa * Fzero);
+          v_nonlocal += VbrFa;
+        }
       }
 
       // Solve HF Dirac equation for core state
@@ -537,6 +556,17 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
                                std::optional<int> prev_its) const {
   using namespace qip::overloads;
 
+  // ---------------------- MY CODE FOR INCLUDING FREQUENCY-DEPENDENT BREIT
+  // Need a complete basis for frequency-dependent HF Breit operator so use hydrogen wave functions
+  // initialises the hydrogen wave function object
+  // Wavefunction wfH(m_rgrid, {"1", 0, "Ball"});
+  // wfH.set_HF();
+  // wfH.solve_core(false);
+  // // // forms the hydrogen wavefunction basis; NOTE: the last boolean option is for including the negative energy states in the basis
+  // wfH.formBasis(
+  //     SplineBasis::Parameters("90spdfghi", 90, 9, 1e-4, 0.0, 90.0, true));
+  // const auto Hydrogen_basis = wfH.basis();
+
   if (m_core.empty())
     return local_valence(Fa);
 
@@ -561,7 +591,11 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
 
     auto VxFa = vexFa(Fa);
     if (m_VBr) {
-      VxFa += m_VBr->VbrFa(Fa, m_core);
+      if (m_freqBreit == true) {
+        VxFa += m_VBr->VbrFa_freqw(Fa, m_core);
+      } else {
+        VxFa += m_VBr->VbrFa(Fa, m_core);
+      }
     }
     if (Sigma) {
       const auto f = prev_its && it < 15 ? it / 15.0 : 1.0;
@@ -916,8 +950,8 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         for (std::size_t i = 0; i < irmax; i++) {
           vex_a[i] += Labk * (*vabk)[i] * v_Fab[i];
         } // r
-      }   // k
-    }     // b
+      } // k
+    } // b
   }
 
   // now, do a=b, ONLY if a is in the core!
@@ -940,7 +974,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         vex_a[i] += -Labk * (*vaak)[i] * x_tjap1;
       }
     } // k
-  }   // if a in core
+  } // if a in core
 }
 
 //------------------------------------------------------------------------------
@@ -999,8 +1033,8 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
           continue;
         vex[i] += tjs2 * vabk[i] * v_Fab[i];
       } // r
-    }   // k
-  }     // b
+    } // k
+  } // b
 
   return vex;
 }
@@ -1135,7 +1169,11 @@ void HartreeFock::hf_orbital_green(
     {
       auto VnlF_tilde = ::HF::vexFa(dFa, static_core, k_max);
       if (tVBr)
-        VnlF_tilde += tVBr->VbrFa(dFa, static_core);
+        if (m_freqBreit == true) {
+          VnlF_tilde += tVBr->VbrFa_freqw(dFa, static_core);
+        } else {
+          VnlF_tilde += tVBr->VbrFa(dFa, static_core);
+        }
       if (Sigma)
         VnlF_tilde += (*Sigma)(dFa);
       if (!dv0.empty())
