@@ -441,11 +441,11 @@ void Wavefunction::printBasis(const std::vector<DiracSpinor> &the_basis) const {
       // found HF state
       const auto eps =
           2.0 * (phi.en() - hf_phi->en()) / (phi.en() + hf_phi->en());
-      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f  %13.7f  %6.0e\n", i,
+      printf("%-2i %7s %2i  %5.0e %5.1f %18.7f  %13.7f  %6.0e\n", i,
              phi.symbol().c_str(), phi.kappa(), phi.r0(), phi.rinf(), phi.en(),
              hf_phi->en(), eps);
     } else {
-      printf("%2i) %7s %2i  %5.0e %5.1f %18.7f\n", i, phi.symbol().c_str(),
+      printf("%-2i %7s %2i  %5.0e %5.1f %18.7f\n", i, phi.symbol().c_str(),
              phi.kappa(), phi.r0(), phi.rinf(), phi.en());
     }
     ++i;
@@ -512,8 +512,8 @@ void Wavefunction::formSigma(
     const std::string &out_fname, bool FeynmanQ, bool ScreeningQ,
     bool holeParticleQ, int lmax, double omre, double w0, double wratio,
     const std::optional<IO::InputBlock> &ek) {
-  if (m_valence.empty())
-    return;
+  // if (m_valence.empty())
+  //   return;
   std::cout << "\nIncluding correlation potential:\n" << std::flush;
 
   std::string ext = FeynmanQ ? ".sf" : ".s2";
@@ -558,33 +558,30 @@ void Wavefunction::formSigma(
     each_valence = false;
 
   // This is for each valence state.... otherwise, just do for lowest??
-  if (!m_valence.empty()) {
-    if (each_valence) {
-      // calculate sigma for each valence state:
-      for (const auto &Fv : m_valence) {
-        m_Sigma->formSigma(Fv.kappa(), Fv.en(), Fv.n(), &Fv);
-      }
-    } else if (!ek && m_Sigma->empty()) {
-      // calculate sigma for lowest n valence state of each kappa:
-      const auto max_ki = DiracSpinor::max_kindex(m_valence);
-      for (int ki = 0; ki <= max_ki; ++ki) {
-        auto Fv = std::find_if(cbegin(m_valence), cend(m_valence),
-                               [ki](auto f) { return f.k_index() == ki; });
-        if (Fv != cend(m_valence))
-          m_Sigma->formSigma(Fv->kappa(), Fv->en(), Fv->n(), &*Fv);
-      }
-    } else if (ek && m_Sigma->empty()) {
-      // solve at specific energies:
-      for (auto &[state, en] : ek->options()) {
-        auto [n, k] = AtomData::parse_symbol(state);
-
-        auto Fv = std::find_if(cbegin(m_valence), cend(m_valence),
-                               [ki = k](auto f) { return f.k_index() == ki; });
-        if (Fv != cend(m_valence)) {
-          m_Sigma->formSigma(k, std::stod(en), n, &*Fv);
-        } else {
-          m_Sigma->formSigma(k, std::stod(en), n);
-        }
+  if (each_valence) {
+    // calculate sigma for each valence state:
+    for (const auto &Fv : m_valence) {
+      m_Sigma->formSigma(Fv.kappa(), Fv.en(), Fv.n(), &Fv);
+    }
+  } else if (!ek && m_Sigma->empty()) {
+    // calculate sigma for lowest n valence state of each kappa:
+    const auto max_ki = DiracSpinor::max_kindex(m_valence);
+    for (int ki = 0; ki <= max_ki; ++ki) {
+      auto Fv = std::find_if(cbegin(m_valence), cend(m_valence),
+                             [ki](auto f) { return f.k_index() == ki; });
+      if (Fv != cend(m_valence))
+        m_Sigma->formSigma(Fv->kappa(), Fv->en(), Fv->n(), &*Fv);
+    }
+  } else if (ek && m_Sigma->empty()) {
+    // solve at specific energies:
+    for (auto &[state, en] : ek->options()) {
+      auto [n, k] = AtomData::parse_symbol(state);
+      auto Fv = std::find_if(cbegin(m_valence), cend(m_valence),
+                             [kt = k](auto f) { return f.kappa() == kt; });
+      if (Fv != cend(m_valence)) {
+        m_Sigma->formSigma(k, std::stod(en), n, &*Fv);
+      } else {
+        m_Sigma->formSigma(k, std::stod(en), n);
       }
     }
   }
