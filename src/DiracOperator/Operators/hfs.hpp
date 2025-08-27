@@ -218,23 +218,28 @@ public:
         magnetic(k % 2 != 0),
         cfg(magnetic ? 1.0 : 0.0),
         cff(magnetic ? 0.0 : 1.0),
-        mMHzQ(MHzQ) {}
+        mMHzQ(MHzQ),
+        m_unit(set_units()) {}
 
   std::string name() const override final {
     return "hfs" + std::to_string(k) + "";
   }
-  std::string units() const override final {
-    return (k <= 2 && mMHzQ) ? "MHz" : "au";
+  std::string units() const override final { return mMHzQ ? "MHz" : "au"; }
+
+  double set_units() {
+    // Assumes nuclear moment in muN*b^(k-1)/2 for magnetic,
+    // and b^k/2 for electric
+    const auto b_power = (k % 2 == 0) ? int(std::sqrt(k / 2) + 0.0001) :
+                                        int(std::sqrt((k - 1) / 2) + 0.0001);
+    const auto barns = std::pow(PhysConst::barn_au, b_power);
+    const auto factor = magnetic ? PhysConst::muN_CGS * barns : barns;
+    const auto unit = mMHzQ ? factor * PhysConst::Hartree_MHz : factor;
+    return unit;
   }
 
   double angularF(const int ka, const int kb) const override final {
-    // inludes unit: Assumes g in nuc. magneton units, and/or Q in barns
-    // This only for k=1 (mag dipole) and k=2 E. quad.
-    const auto unit = (mMHzQ && k == 1) ? PhysConst::muN_CGS_MHz :
-                      (mMHzQ && k == 2) ? PhysConst::barn_MHz :
-                                          1.0;
-    return magnetic ? -(ka + kb) * Angular::Ck_kk(k, -ka, kb) * unit :
-                      -Angular::Ck_kk(k, ka, kb) * unit;
+    return magnetic ? -(ka + kb) * Angular::Ck_kk(k, -ka, kb) * m_unit :
+                      -Angular::Ck_kk(k, ka, kb) * m_unit;
   }
 
   double angularCff(int, int) const override final { return cff; }
@@ -248,6 +253,7 @@ private:
   double cfg;
   double cff;
   bool mMHzQ;
+  double m_unit;
 };
 
 //==============================================================================
@@ -260,18 +266,17 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
       {{"", "Most following will be taken from the default nucleus if "
             "not explicitely given"},
        {"mu", "Magnetic moment in mu_N"},
-       {"Q", "Nuclear quadrupole moment, in barns. Also used as overall "
-             "constant for any higher-order moments [1.0]"},
+       {"Q",
+        "Generalised nuclear moment. Will override mu. Units: assumed to be in "
+        "muN*b^(k-1)/2 for magnetic and b^k/2 for electric (b=barns)."},
        {"k", "Multipolarity. 1=mag. dipole, 2=elec. quad, etc. [1]"},
        {"rrms",
         "nuclear (magnetic) rms radius, in Fermi (fm) (defult is charge rms)"},
-       {"units", "Units for output (only for k=1,k=2). MHz or au [MHz]"},
+       {"units", "Units for output. MHz or au [MHz]"},
        {"F", "F(r): Nuclear moment distribution: ball, point, shell, "
              "SingleParticle, or doublyOddSP [ball]"},
-       {"F(r)", "Obselete; use 'F' from now - will be removed"},
-       {"nuc_mag", "Obselete; use 'F' from now - will be removed"},
        {"printF", "Writes F(r) to a text file [false]"},
-       {"print", "Write F(r) info to screen [true]"},
+       {"print", "Write F(r) etc. info to screen [true]"},
        {"", "The following are only for F=SingleParticle or doublyOddSP"},
        {"I", "Nuclear spin. Taken from nucleus"},
        {"parity", "Nulcear parity: +/-1"},
@@ -358,23 +363,25 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto r_nucau = r_nucfm / PhysConst::aB_fm;
 
   if (print) {
+    using namespace std::string_literals;
+
     std::cout << "\nHyperfine structure: " << wf.atom() << "\n";
     std::cout << "K=" << k << " ("
-              << (k == 1     ? "magnetic dipole" :
-                  k == 2     ? "electric quadrupole" :
-                  k % 2 == 0 ? "electric multipole" :
-                               "magnetic multipole")
-              << ")\n";
+              << ((k % 2 == 0) ? "E"s : "M"s) + std::to_string(k) << ")\n";
+
     std::cout << "Using " << Fr_str << " nuclear distro for F(r)\n"
               << "w/ r_N = " << r_nucfm << "fm = " << r_nucau
               << "au  (r_rms=" << r_rmsfm << "fm)\n";
     std::cout << "Points inside nucleus: " << wf.grid().getIndex(r_nucau)
               << "\n";
     if (k == 1) {
-      std::cout << "mu = " << mu << ", I = " << I_nuc << ", g = " << g_or_Q
-                << "\n";
+      std::cout << "mu = " << mu << " mu_N [I = " << I_nuc << ", g = " << g_or_Q
+                << "]\n";
     } else {
-      std::cout << "Q = " << g_or_Q << "\n";
+      std::cout << "Q = " << g_or_Q << " "
+                << (k % 2 == 0 ? "b^" + std::to_string(k / 2) :
+                                 "mu_N*b^" + std::to_string((k - 1) / 2))
+                << "\n";
     }
   }
 
