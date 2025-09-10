@@ -1,9 +1,9 @@
-name: Build Earliest (linux) - g++-7 and clang++-6
+name: Build Earliest (linux) - g++-7 
+#and clang++-6
 
 on:
   push:
     branches: [ "main", "dev" ]
-    # branches: [ "TestWorkflows" ]
   pull_request:
     branches: [ "main", "dev" ]
 
@@ -12,35 +12,37 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
-    # Step 1: Check out the repository code
-    - uses: actions/checkout@v4
+      # Step 1: Checkout repository code
+      - uses: actions/checkout@v4
 
-    # Step 2: Build and run using g++-7 in Docker
-    - name: "Build and run using g++-7 in Docker"
-      run: |
-        set -x
-        docker pull gcc:7
-        docker run --rm -v $PWD:/workspace -w /workspace gcc:7 bash -c "
-          apt-get update -y && \
-          apt-get install -y make liblapack-dev libblas-dev libgsl-dev && \
-          cp ./doc/examples/Makefile ./ && \
-          make CXX=g++ UseOpenMP=yes && \
-          ./ampsci -v
-        "
+      # Step 2: Build and run using g++-7 in Docker
+      - name: "Build and run using g++-7 in Docker"
+        run: |
+          set -x
+          docker pull gcc:7
+          docker run --rm -v $PWD:/workspace -w /workspace gcc:7 bash -c "
+            # Redirect Buster repositories to archive.debian.org
+            sed -i 's|deb.debian.org|archive.debian.org|g' /etc/apt/sources.list
+            sed -i 's|security.debian.org|archive.debian.org|g' /etc/apt/sources.list
+            # Disable Valid-Until checks (archive repos often fail this)
+            echo 'Acquire::Check-Valid-Until \"false\";' > /etc/apt/apt.conf.d/99disable-check-valid-until
+            # Update and install packages
+            apt-get update -y && \
+            apt-get install -y make liblapack-dev libblas-dev libgsl-dev && \
+            cp ./doc/examples/Makefile ./ && \
+            make CXX=g++ UseOpenMP=yes && \
+            ./ampsci -v
+          "
 
-    # Step 3: Build and run using clang++-6 in Docker
-    - name: "Build and run using clang++-6 in Docker"
-      run: |
-        set -x
-        docker pull ubuntu:bionic
-        docker run --rm -v $PWD:/workspace -w /workspace ubuntu:bionic bash -c "
-          apt-get update -y && \
-          apt-get install -y wget gnupg software-properties-common && \
-          wget -O - https://apt.llvm.org/llvm-snapshot.gpg.key | apt-key add - && \
-          echo 'deb http://apt.llvm.org/bionic/ llvm-toolchain-bionic-6.0 main' | tee -a /etc/apt/sources.list && \
-          apt-get update -y && \
-          apt-get install -y clang-6.0 make liblapack-dev libblas-dev libgsl-dev && \
-          cp ./doc/examples/Makefile ./ && \
-          make CXX=clang++-6.0 UseOpenMP=no && \
-          ./ampsci -v
-        "
+      # # Step 3: Build and run using clang++-6 in Docker
+      # - name: "Build and run using clang++-6 in Docker"
+      #   run: |
+      #     set -x
+      #     docker pull llvm/clang:6
+      #     docker run --rm -v $PWD:/workspace -w /workspace llvm/clang:6 bash -c "
+      #       apt-get update -y && \
+      #       apt-get install -y make liblapack-dev libblas-dev libgsl-dev && \
+      #       cp ./doc/examples/Makefile ./ && \
+      #       make CXX=clang++-6 UseOpenMP=no && \
+      #       ./ampsci -v
+      #     "
