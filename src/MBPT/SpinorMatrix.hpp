@@ -7,30 +7,28 @@
 #include <iostream>
 #include <type_traits>
 
-// XXX NOTE: with multiplication defined as int... identity is NOT 1!
-
 namespace MBPT {
 
-/*! Defines RDMatrix, Radial Dirac (Spinor) matrix. Designed to store
+/*! Defines SpinorMatrix, Radial Dirac Spinor matrix. Designed to store
   Greens-function like operators: |Fa><Fb| (where Fa, Fb are radial Dirac
   spinors), as a radial matrix. The matrix is stored on a sub-grid (between r0
   and rmax), with a specified stride.
 
 @details
 
-RDMatrix is a 4*4 matrix in spinor space {ff, fg, gf, gg} - the g blocks are
+SpinorMatrix is a 2*2 matrix in spinor space {ff, fg, gf, gg} - the g blocks are
 small and are optional. Each block is an N*N radial matrix, where N is a subset
 of the number of points along the full radial grid. May store doubles or complex
 doubles.
 
-   RDMatrix = {ff fg}
-              {gf gg}
-   RDMatrix * F = {ff fg} * (f)
-                  {gf gg}   (g)
-                = (ff(r,r')*f(r') + fg(r,r')*g(r'))
-                  (gf(r,r')*f(r') + gg(r,r')*g(r'))
+   SpinorMatrix = {ff fg}
+                  {gf gg}
+   SpinorMatrix * F = {ff fg} * (f)
+                      {gf gg}   (g)
+                    = (ff(r,r')*f(r') + fg(r,r')*g(r'))
+                      (gf(r,r')*f(r') + gg(r,r')*g(r'))
 
-Note: Careful to distinguish RDMatrix multiplication/integration:
+Note: Careful to distinguish SpinorMatrix multiplication/integration:
   G1 * G2 = Int G1(ra,rb)*G2(rb,rc)
           = Sum_j G1(i,j)*G2(j,k)
 
@@ -41,7 +39,7 @@ G1.drj() * G2 = Int G1(ra,rb)*G2(rb,rc)*dr_b
 While almost always symmetric, this doesn't assume that.
 */
 template <typename T>
-class RDMatrix {
+class SpinorMatrix {
 
   std::size_t m_i0, m_stride;
   std::size_t m_size;
@@ -54,8 +52,8 @@ class RDMatrix {
 public:
   //============================================================================
 
-  RDMatrix(std::size_t i0, std::size_t stride, std::size_t size, bool incl_g,
-           std::shared_ptr<const Grid> rgrid)
+  SpinorMatrix(std::size_t i0, std::size_t stride, std::size_t size,
+               bool incl_g, std::shared_ptr<const Grid> rgrid)
       : m_i0(i0),
         m_stride(stride),
         m_size(size),
@@ -116,23 +114,9 @@ public:
     m_gg.zero();
   }
 
-  // Makes 1
-  [[deprecated]] void make_identity() {
-    m_ff.make_identity();
-    m_fg.make_identity();
-    m_gf.make_identity();
-    m_gg.make_identity();
-  }
-
-  // only for transition, kill!
-  [[deprecated]] RDMatrix<T> &plusIdent(T a = T{1.0}) {
-    (*this) += a;
-    return *this;
-  }
-
   //============================================================================
   //! Matrix adition +,-
-  RDMatrix<T> &operator+=(const RDMatrix<T> &rhs) {
+  SpinorMatrix<T> &operator+=(const SpinorMatrix<T> &rhs) {
     m_ff += rhs.m_ff;
     m_fg += rhs.m_fg;
     m_gf += rhs.m_gf;
@@ -140,7 +124,7 @@ public:
     return *this;
   }
   //! Matrix adition +,-
-  RDMatrix<T> &operator-=(const RDMatrix<T> &rhs) {
+  SpinorMatrix<T> &operator-=(const SpinorMatrix<T> &rhs) {
     m_ff -= rhs.m_ff;
     m_fg -= rhs.m_fg;
     m_gf -= rhs.m_gf;
@@ -148,7 +132,7 @@ public:
     return *this;
   }
   //! Scalar multiplication
-  RDMatrix<T> &operator*=(const T x) {
+  SpinorMatrix<T> &operator*=(const T x) {
     m_ff *= x;
     m_fg *= x;
     m_gf *= x;
@@ -157,39 +141,40 @@ public:
   }
 
   //! Matrix adition +,-
-  [[nodiscard]] friend RDMatrix<T> operator+(RDMatrix<T> lhs,
-                                             const RDMatrix<T> &rhs) {
+  [[nodiscard]] friend SpinorMatrix<T> operator+(SpinorMatrix<T> lhs,
+                                                 const SpinorMatrix<T> &rhs) {
     return (lhs += rhs);
   }
   //! Matrix adition +,-
-  [[nodiscard]] friend RDMatrix<T> operator-(RDMatrix<T> lhs,
-                                             const RDMatrix<T> &rhs) {
+  [[nodiscard]] friend SpinorMatrix<T> operator-(SpinorMatrix<T> lhs,
+                                                 const SpinorMatrix<T> &rhs) {
     return (lhs -= rhs);
   }
   //! Scalar multiplication
-  [[nodiscard]] friend RDMatrix<T> operator*(const T x, RDMatrix<T> rhs) {
+  [[nodiscard]] friend SpinorMatrix<T> operator*(const T x,
+                                                 SpinorMatrix<T> rhs) {
     return (rhs *= x);
   }
 
   //! Adition of identity: Matrix<T> += T : T assumed to be *Identity!
-  RDMatrix<T> &operator+=(T aI) {
+  SpinorMatrix<T> &operator+=(T aI) {
     m_ff += aI;
     m_gg += aI;
     return *this;
   }
   //! Adition of identity: Matrix<T> -= T : T assumed to be *Identity!
-  RDMatrix<T> &operator-=(T aI) {
+  SpinorMatrix<T> &operator-=(T aI) {
     m_ff -= aI;
     m_gg -= aI;
     return *this;
   }
 
   //! Adition of identity: Matrix<T> + T : T assumed to be *Identity!
-  [[nodiscard]] friend RDMatrix<T> operator+(RDMatrix<T> M, T aI) {
+  [[nodiscard]] friend SpinorMatrix<T> operator+(SpinorMatrix<T> M, T aI) {
     return (M += aI);
   }
   //! Adition of identity: Matrix<T> - T : T assumed to be *Identity!
-  [[nodiscard]] friend RDMatrix<T> operator-(RDMatrix<T> M, T aI) {
+  [[nodiscard]] friend SpinorMatrix<T> operator-(SpinorMatrix<T> M, T aI) {
     return (M -= aI);
   }
 
@@ -197,10 +182,10 @@ public:
 
   //! Matrix multplication: C=A*B := Cij = \sum_k Aik*Bkj.
   //! Note: integration measure not included: call .drj() first to include it!
-  [[nodiscard]] friend RDMatrix<T> operator*(const RDMatrix<T> &a,
-                                             const RDMatrix<T> &b) {
+  [[nodiscard]] friend SpinorMatrix<T> operator*(const SpinorMatrix<T> &a,
+                                                 const SpinorMatrix<T> &b) {
 
-    RDMatrix<T> out(a.m_i0, a.m_stride, a.m_size, a.m_incl_g, a.m_rgrid);
+    SpinorMatrix<T> out(a.m_i0, a.m_stride, a.m_size, a.m_incl_g, a.m_rgrid);
 
     // FF = FF*FF + FG*GF
     // FG = FF*FG + FG*GG
@@ -218,7 +203,7 @@ public:
 
   //============================================================================
   //! Multiply elements (in place): Gij -> Gij*Bij
-  RDMatrix<T> &mult_elements_by(const RDMatrix<T> &rhs) {
+  SpinorMatrix<T> &mult_elements_by(const SpinorMatrix<T> &rhs) {
     m_ff.mult_elements_by(rhs.ff());
     m_fg.mult_elements_by(rhs.fg());
     m_gf.mult_elements_by(rhs.gf());
@@ -226,8 +211,8 @@ public:
     return *this;
   }
   //! Multiply elements (new matrix): Gij = Aij*Bij
-  [[nodiscard]] friend RDMatrix<T> mult_elements(RDMatrix<T> lhs,
-                                                 const RDMatrix<T> &rhs) {
+  [[nodiscard]] friend SpinorMatrix<T>
+  mult_elements(SpinorMatrix<T> lhs, const SpinorMatrix<T> &rhs) {
     lhs.mult_elements_by(rhs);
     return lhs;
   }
@@ -235,7 +220,7 @@ public:
   //============================================================================
 
   //! Returns conjugate of matrix
-  [[nodiscard]] RDMatrix<T> conj() const {
+  [[nodiscard]] SpinorMatrix<T> conj() const {
     auto out = *this;
     out.ff().conj_in_place();
     out.fg().conj_in_place();
@@ -245,8 +230,8 @@ public:
   }
   //! Returns real part of complex matrix (changes type; returns a real
   //! matrix)
-  [[nodiscard]] RDMatrix<double> real() const {
-    RDMatrix<double> out(m_i0, m_stride, m_size, m_incl_g, m_rgrid);
+  [[nodiscard]] SpinorMatrix<double> real() const {
+    SpinorMatrix<double> out(m_i0, m_stride, m_size, m_incl_g, m_rgrid);
     out.ff() = m_ff.real();
     out.fg() = m_fg.real();
     out.gf() = m_gf.real();
@@ -254,8 +239,8 @@ public:
     return out;
   }
   //! Returns imag part of complex matrix (changes type; returns a real matrix)
-  [[nodiscard]] RDMatrix<double> imag() const {
-    RDMatrix<double> out(m_i0, m_stride, m_size, m_incl_g, m_rgrid);
+  [[nodiscard]] SpinorMatrix<double> imag() const {
+    SpinorMatrix<double> out(m_i0, m_stride, m_size, m_incl_g, m_rgrid);
     out.ff() = m_ff.imag();
     out.fg() = m_fg.imag();
     out.gf() = m_gf.imag();
@@ -264,9 +249,9 @@ public:
   }
   //! Converts a real to complex matrix (changes type; returns a complex
   //! matrix)
-  [[nodiscard]] RDMatrix<std::complex<double>> complex() const {
-    RDMatrix<std::complex<double>> out(m_i0, m_stride, m_size, m_incl_g,
-                                       m_rgrid);
+  [[nodiscard]] SpinorMatrix<std::complex<double>> complex() const {
+    SpinorMatrix<std::complex<double>> out(m_i0, m_stride, m_size, m_incl_g,
+                                           m_rgrid);
     out.ff() = m_ff.complex();
     out.fg() = m_fg.complex();
     out.gf() = m_gf.complex();
@@ -276,7 +261,7 @@ public:
 
   //============================================================================
   //! Inversion (in place)
-  RDMatrix<T> &invert_in_place() {
+  SpinorMatrix<T> &invert_in_place() {
     m_ff.invert_in_place();
     if (m_incl_g) {
       const auto &ai = m_ff; // already inverted
@@ -294,14 +279,14 @@ public:
     return *this;
   }
   //! Returns inverse of matrix; original matrix unchanged
-  [[nodiscard]] RDMatrix<T> inverse() const {
+  [[nodiscard]] SpinorMatrix<T> inverse() const {
     auto out = *this; //
     return out.invert_in_place();
   }
 
   //============================================================================
   //! Multiplies by drj: Q_ij -> Q_ij*dr_j, in place
-  RDMatrix<T> &drj_in_place() {
+  SpinorMatrix<T> &drj_in_place() {
     const auto dus = m_rgrid->du() * double(m_stride);
     for (auto i = 0ul; i < m_size; ++i) {
       for (auto j = 0ul; j < m_size; ++j) {
@@ -324,7 +309,7 @@ public:
     return *this;
   }
   //! Multiplies by dri: Q_ij -> Q_ij*dr_i, in place
-  RDMatrix<T> &dri_in_place() {
+  SpinorMatrix<T> &dri_in_place() {
     const auto dus = m_rgrid->du() * double(m_stride);
     for (auto i = 0ul; i < m_size; ++i) {
       const auto si = index_to_fullgrid(i);
@@ -347,12 +332,12 @@ public:
     return *this;
   }
   //! Multiplies by drj: Q_ij -> Q_ij*dr_j. Returns new matrix (orig unchanged)
-  RDMatrix<T> drj() const {
+  SpinorMatrix<T> drj() const {
     auto out = *this;
     return out.drj_in_place();
   }
   //! Multiplies by dri: Q_ij -> Q_ij*dr_i. Returns new matrix (orig unchanged)
-  RDMatrix<T> dri() const {
+  SpinorMatrix<T> dri() const {
     auto out = *this;
     return out.dri_in_place();
   }
@@ -381,8 +366,8 @@ public:
       for (auto j = 0ul; j < m_size; ++j) {
         const auto sj = index_to_fullgrid(j);
         m_ff[i][j] += k * ket.f(si) * bra.f(sj);
-      } // j
-    }   // i
+      }
+    }
 
     if (m_incl_g) {
       for (auto i = 0ul; i < m_size; ++i) {
@@ -393,13 +378,13 @@ public:
           m_fg[i][j] += k * ket.f(si) * bra.g(sj);
           m_gf[i][j] += k * ket.g(si) * bra.f(sj); // symmetric, transpose?
           m_gg[i][j] += k * ket.g(si) * bra.g(sj);
-        } // j
-      }   // i
+        }
+      }
     }
   }
 
   //============================================================================
-  //! Action of RDMatrix operator on DiracSpinor. Inludes Integration:
+  //! Action of SpinorMatrix operator on DiracSpinor. Inludes Integration:
   //! G*F = Int[G(r,r')*F(r') dr'] = sum_j G_ij*F_j*drdu_j*du
   DiracSpinor operator*(const DiracSpinor &Fn) const {
 
@@ -422,7 +407,7 @@ public:
           const auto j_f = index_to_fullgrid(j);
           f[i] += m_fg(i, j) * Fn.g(j_f); // * drdu[j_f] * s_du;
           g[i] += (m_gf(i, j) * Fn.f(j_f) + m_gg(i, j) * Fn.g(j_f)); // *
-              // drdu[j_f] * s_du;
+          // drdu[j_f] * s_du;
         }
       }
     }
@@ -438,7 +423,7 @@ public:
 
   //============================================================================
   // For testing only:
-  friend std::ostream &operator<<(std::ostream &os, const RDMatrix<T> &a) {
+  friend std::ostream &operator<<(std::ostream &os, const SpinorMatrix<T> &a) {
     os << "FF:\n";
     os << a.m_ff;
     if (a.m_incl_g) {
@@ -455,14 +440,14 @@ public:
 
 //! Checks if two matrix's are equal (to within parts in 10^12)
 template <typename T>
-bool equal(const RDMatrix<T> &lhs, const RDMatrix<T> &rhs) {
+bool equal(const SpinorMatrix<T> &lhs, const SpinorMatrix<T> &rhs) {
   return equal(lhs.ff(), rhs.ff()) && equal(lhs.fg(), rhs.fg()) &&
          equal(lhs.gf(), rhs.gf()) && equal(lhs.gg(), rhs.gg());
 }
 
 //! returns maximum element (by abs)
 template <typename T>
-double max_element(const RDMatrix<T> &a) {
+double max_element(const SpinorMatrix<T> &a) {
   double xff = 0.0, xfg = 0.0, xgf = 0.0, xgg = 0.0;
   for (auto i = 0ul; i < a.size(); ++i) {
     for (auto j = 0ul; j < a.size(); ++j) {
@@ -483,7 +468,7 @@ double max_element(const RDMatrix<T> &a) {
 
 //! returns maximum difference (abs) between two matrixs
 template <typename T>
-double max_delta(const RDMatrix<T> &a, const RDMatrix<T> &b) {
+double max_delta(const SpinorMatrix<T> &a, const SpinorMatrix<T> &b) {
   double xff = 0.0, xfg = 0.0, xgf = 0.0, xgg = 0.0;
   for (auto i = 0ul; i < a.size(); ++i) {
     for (auto j = 0ul; j < a.size(); ++j) {
@@ -505,7 +490,7 @@ double max_delta(const RDMatrix<T> &a, const RDMatrix<T> &b) {
 //! returns maximum relative diference [aij-bij/(aij+bij)] (abs) between two
 //! matrices
 template <typename T>
-double max_epsilon(const RDMatrix<T> &a, const RDMatrix<T> &b) {
+double max_epsilon(const SpinorMatrix<T> &a, const SpinorMatrix<T> &b) {
   double xff = 0.0, xfg = 0.0, xgf = 0.0, xgg = 0.0;
   for (auto i = 0ul; i < a.size(); ++i) {
     for (auto j = 0ul; j < a.size(); ++j) {
@@ -533,8 +518,8 @@ double max_epsilon(const RDMatrix<T> &a, const RDMatrix<T> &b) {
 }
 
 //==============================================================================
-using GMatrix = RDMatrix<double>;
-using ComplexGMatrix = RDMatrix<std::complex<double>>;
+using GMatrix = SpinorMatrix<double>;
+using ComplexGMatrix = SpinorMatrix<std::complex<double>>;
 using ComplexDouble = std::complex<double>;
 
 } // namespace MBPT

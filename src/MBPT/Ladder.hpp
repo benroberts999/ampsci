@@ -1,7 +1,7 @@
 #pragma once
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
-#include "MBPT/RDMatrix.hpp"
+#include "MBPT/SpinorMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 
 namespace MBPT {

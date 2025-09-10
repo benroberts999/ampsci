@@ -1,4 +1,4 @@
-#include "MBPT/RDMatrix.hpp"
+#include "MBPT/SpinorMatrix.hpp"
 #include "DiracODE/include.hpp"
 #include "Maths/Grid.hpp"
 #include "Potentials/NuclearPotentials.hpp"
@@ -10,9 +10,9 @@
 #include <numeric>
 
 //==============================================================================
-TEST_CASE("MBPT: RDMatrix", "[MBPT][RDMatrix][unit]") {
+TEST_CASE("MBPT: SpinorMatrix", "[MBPT][SpinorMatrix][unit]") {
   std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: RDMatrix, [MBPT]\n";
+  std::cout << "MBPT: SpinorMatrix, [MBPT]\n";
 
   // Set up radial grid:
   const auto r0{1.0e-7};
@@ -46,7 +46,7 @@ TEST_CASE("MBPT: RDMatrix", "[MBPT][RDMatrix][unit]") {
     const std::size_t stride = 5;
     const std::size_t size = 150;
     // => max point is 850
-    MBPT::RDMatrix<double> m(i0, stride, size, include_g, grid);
+    MBPT::SpinorMatrix<double> m(i0, stride, size, include_g, grid);
 
     // Construct Green function, G(e) = |a><a|/(e-e_a)
     double e = -0.1;
@@ -143,7 +143,7 @@ TEST_CASE("MBPT: RDMatrix", "[MBPT][RDMatrix][unit]") {
     const std::size_t i0 = 100;
     const std::size_t stride = 5;
     const std::size_t size = 150;
-    MBPT::RDMatrix<double> m(i0, stride, size, include_g, grid);
+    MBPT::SpinorMatrix<double> m(i0, stride, size, include_g, grid);
 
     // Construct Green function, G(e) = |a><a|/(e-e_a)
     const double e = -0.1;
@@ -203,7 +203,8 @@ TEST_CASE("MBPT: RDMatrix", "[MBPT][RDMatrix][unit]") {
     const std::size_t i0 = 100;
     const std::size_t stride = 5;
     const std::size_t size = 150;
-    MBPT::RDMatrix<std::complex<double>> m(i0, stride, size, include_g, grid);
+    MBPT::SpinorMatrix<std::complex<double>> m(i0, stride, size, include_g,
+                                               grid);
 
     // Construct Green function, G(e) = |a><a|/(e-e_a)
     const double e = -0.1;
@@ -286,7 +287,7 @@ TEST_CASE("MBPT: RDMatrix", "[MBPT][RDMatrix][unit]") {
     const std::size_t i0 = 0;
     const std::size_t stride = 1;
     const std::size_t size = grid->num_points();
-    MBPT::RDMatrix<double> m(i0, stride, size, include_g, grid);
+    MBPT::SpinorMatrix<double> m(i0, stride, size, include_g, grid);
 
     // Construct Green function, G(e) = |a><a|/(e-e_a)
     const double e = -0.1;

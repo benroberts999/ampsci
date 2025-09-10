@@ -2,7 +2,7 @@
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracODE/include.hpp"
 #include "HF/HartreeFock.hpp"
-#include "MBPT/RDMatrix.hpp"
+#include "MBPT/SpinorMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "fmt/color.hpp"
 #include <cassert>
@@ -424,8 +424,8 @@ GMatrix Feynman::construct_green_g0(const DiracSpinor &x0,
       g0I.ff(i, j) = x0.f(sj) * xI.f(si) * winv;
       // g0I is symmetric
       g0I.ff(j, i) = g0I.ff(i, j);
-    } // j
-  }   // i
+    }
+  }
 
   return g0I;
 }

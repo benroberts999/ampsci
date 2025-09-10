@@ -1,6 +1,6 @@
 #pragma once
 #include "HF/HartreeFock.hpp"
-#include "MBPT/RDMatrix.hpp"
+#include "MBPT/SpinorMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <memory>

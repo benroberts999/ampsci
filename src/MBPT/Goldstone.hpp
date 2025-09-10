@@ -2,7 +2,7 @@
 #include "Coulomb/YkTable.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
-#include "MBPT/RDMatrix.hpp"
+#include "MBPT/SpinorMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <memory>

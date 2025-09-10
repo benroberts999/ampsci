@@ -3,7 +3,7 @@
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
-#include "MBPT/RDMatrix.hpp"
+#include "MBPT/SpinorMatrix.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "fmt/format.hpp"

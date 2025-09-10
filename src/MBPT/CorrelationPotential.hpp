@@ -5,7 +5,7 @@
 #include "IO/FRW_fileReadWrite.hpp"
 #include "MBPT/Feynman.hpp"
 #include "MBPT/Goldstone.hpp"
-#include "MBPT/RDMatrix.hpp"
+#include "MBPT/SpinorMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <optional>
 #include <vector>
@@ -15,7 +15,7 @@ namespace MBPT {
 struct SigmaData {
   int kappa;
   double en;
-  RDMatrix<double> Sigma;
+  SpinorMatrix<double> Sigma;
   int n{0};
   double lambda{1.0};
 };
