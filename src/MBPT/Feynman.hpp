@@ -65,31 +65,21 @@ class Feynman {
   bool m_screen_Coulomb;
   // _only_ include screening correction in Q*Pi*Q => Q*Pi*[X-1]*Q
   bool m_only_screen;
-  // include Breit into the Green's function
-  // bool m_breit_green;
 
   // Coulomb operator; include right integration measure
   // q_ij := (r>^k/r<^{k+1}) * dr_j
-  std::vector<ComplexGMatrix> m_qk{};
-  std::vector<RadialMatrix<std::complex<double>>> m_qk_spinless{};
-  // Left integration measure:
-  // ComplexGMatrix m_dri;
-  // // // Right integration measure:
-  // ComplexGMatrix m_drj;
+  std::vector<ComplexRMatrix> m_qk{};
 
   // Core projection operators (one for each core state)
   std::vector<ComplexGMatrix> m_pa{};
   // Hartree-Fock Exchange matrix (one for each kappa)
   std::vector<GMatrix> m_Vx_kappa{};
 
-  // Effective Q*Pi*Q operator: for each imaginary omega, and each k
-  std::vector<std::vector<ComplexGMatrix>> m_qpiq_wk{};
-
   // Effective spinless Q*Pi*Q operator: for each imaginary omega, and each k
-  std::vector<std::vector<RadialMatrix<std::complex<double>>>>
-      m_qpiq_wk_spinless{};
+  LinAlg::Matrix<ComplexRMatrix> m_qpiq_wk{};
 
   // For now, just for testing: switch between complex green methods
+  // This is broken, not sure what changed
   bool m_Complex_green_method = false;
 
 public:
@@ -119,32 +109,18 @@ public:
 
   //! Calculates Green's function for kappa, and complex energy
   ComplexGMatrix green(int kappa, std::complex<double> en,
-                       GreenStates states) const;
+                       GreenStates states = GreenStates::both) const;
 
   //! Polarisation operator pi^k(w), for multipolarity k
-  ComplexGMatrix polarisation_k(int k, std::complex<double> omega,
+  ComplexRMatrix polarisation_k(int k, std::complex<double> omega,
                                 bool hole_particle) const;
-
-  // MY attempt at making the polarisation operator that actually has the correct spinor space structure
-  ComplexGMatrix polarisation_k_new(int k, std::complex<double> omega,
-                                    bool hole_particle) const;
-
-  // polarisation operator that does not have spin indices (just a coordinate matrix)
-  RadialMatrix<std::complex<double>>
-  polarisation_k_spinless(int k, std::complex<double> omega,
-                          bool hole_particle) const;
 
   //! Calculate Direct part of correlation potential
   GMatrix Sigma_direct(int kappa_v, double en_v,
                        std::optional<int> k = {}) const;
 
-  //! Returns (reference to) q^k (radial) matrix. Note: includes drj
-  const ComplexGMatrix &get_qk(int k) const { return m_qk.at(std::size_t(k)); }
-
-  //! Returns (reference to) q^k (radial) matrix - this is for the version of the code where q^k does not have spinor indices
-  const RadialMatrix<std::complex<double>> &get_qk_spinless(int k) const {
-    return m_qk_spinless.at(std::size_t(k));
-  }
+  //! Returns (reference to) q^k (radial) matrix. Note: includes drj? No?
+  const ComplexRMatrix &get_qk(int k) const { return m_qk.at(std::size_t(k)); }
 
   //! Returns (ref to) radial exchange matrix Vx_kappa. Nb: includes dri*drj
   const GMatrix &get_Vx_kappa(int kappa) const {
@@ -152,29 +128,20 @@ public:
   }
 
 private:
-  // hack: checks if n_min_core is OK, updates if not
-  // void check_min_n();
   // forms Qk matrices, as well as dri, drj
   void form_qk();
-  // forms Qk as a coordinate matrix (no spinor indices), as well as dri, drj
-  void form_qk_new();
   // Forms core projection operators
   void form_pa();
   // Forms HF exchange potential matrix
   void form_vx();
-  void form_vx_old();
   // Sets up imaginary frequency grid
   Grid form_w_grid(double w0, double wratio) const;
   // Constructs the Q*Pi*Q Matrix along w grid, for each k
   void form_qpiq();
 
   // Screening factor X = [1 + i qk*pik]^-1
-  ComplexGMatrix X_screen(const ComplexGMatrix &pik,
-                          const ComplexGMatrix &qk) const;
-
-  RadialMatrix<std::complex<double>>
-  X_screen_spinless(const RadialMatrix<std::complex<double>> &pik,
-                    const RadialMatrix<std::complex<double>> &qdri) const;
+  ComplexRMatrix X_screen(const ComplexRMatrix &pik,
+                          const ComplexRMatrix &qdri) const;
 
   // Forms single "Green's function" contribution f*|ket><bra|
   // (f is usually 1/(e-en))
@@ -209,13 +176,9 @@ private:
                                         int kappa) const;
 
   // Given Dirac solutions regular at 0 (x0) and infinity (xI), forms "local"
-  // Green's function
+  // Green's function, with all four spinor components
   GMatrix construct_green_g0(const DiracSpinor &x0, const DiracSpinor &xI,
                              const double w) const;
-
-  // calculates local Green's function with all four spinor components
-  GMatrix construct_green_g0_new(const DiracSpinor &x0, const DiracSpinor &xI,
-                                 const double w) const;
 
   // Given Dirac solutions regular at 0 (x0 + i*Ix0) and infinity (xI + i*IxI),
   // forms "local" Green's function (complex).

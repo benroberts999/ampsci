@@ -58,7 +58,7 @@ struct Parameters {
   Parameters(const std::string &states, std::size_t n, std::size_t k, double r0,
              double reps, double rmax, const std::string &positron = "",
              SplineType itype = SplineType::Derevianko,
-             bool in_orthogonalise = false);
+             bool in_orthogonalise = false, bool in_verbose = true);
   Parameters(IO::InputBlock input);
 
   std::string states{};
@@ -67,6 +67,7 @@ struct Parameters {
   std::string positron{};
   SplineType type{SplineType::Derevianko};
   bool orthogonalise{false};
+  bool verbose{true};
 };
 
 //! @brief Forms + returns the basis orbitals (expanded in terms of splines)

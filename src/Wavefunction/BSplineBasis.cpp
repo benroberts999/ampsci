@@ -29,12 +29,13 @@ Parameters::Parameters(IO::InputBlock input)
       rmax(input.get("rmax", 40.0)),
       positron(input.get("positron", std::string{""})),
       type(parseSplineType(input.get<std::string>("type", "Derevianko"))),
-      orthogonalise(input.get("orthogonalise", false)) {}
+      orthogonalise(input.get("orthogonalise", false)),
+      verbose(input.get("verbose", true)) {}
 
 Parameters::Parameters(const std::string &istates, std::size_t in,
                        std::size_t ik, double ir0, double ireps, double irmax,
                        const std::string &ipositron, SplineType itype,
-                       bool iorthogonalise)
+                       bool iorthogonalise, bool iverbose)
     : states(istates),
       n(in),
       k(ik),
@@ -43,16 +44,17 @@ Parameters::Parameters(const std::string &istates, std::size_t in,
       rmax(irmax),
       positron(ipositron),
       type(itype),
-      orthogonalise(iorthogonalise) {}
+      orthogonalise(iorthogonalise),
+      verbose(iverbose) {}
 
 //==============================================================================
 std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const Wavefunction &wf,
-                                    const bool correlationsQ)
-// Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
-{
+                                    const bool correlationsQ) {
+  // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
+
   const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl,
-               tmp_positron_str, basis_type, ortho] = params;
+               tmp_positron_str, basis_type, ortho, verbose] = params;
 
   // Not required, but helpful to be back compatible
   const std::string positron_str =
@@ -67,19 +69,21 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
   std::vector<DiracSpinor> basis_positron;
   const auto positronQ = !positron_str.empty();
 
-  std::cout << "\nConstructing B-spline basis with N=" << n_spl
-            << ", k=" << k_spl
-            << ".\n"
-               "Storing: "
-            << states_str << " electron states\n";
-  if (!positron_str.empty()) {
-    std::cout << "and    : " << positron_str << " -ve energy states\n";
+  if (verbose) {
+    std::cout << "\nConstructing B-spline basis with N=" << n_spl
+              << ", k=" << k_spl
+              << ".\n"
+                 "Storing: "
+              << states_str << " electron states\n";
+    if (!positron_str.empty()) {
+      std::cout << "and    : " << positron_str << " -ve energy states\n";
+    }
+    std::cout << "Using "
+              << (basis_type == SplineType::Derevianko ?
+                      "Derevianko (Duel Kinetic Balance)" :
+                      "Johnson")
+              << " type splines.\n";
   }
-  std::cout << "Using "
-            << (basis_type == SplineType::Derevianko ?
-                    "Derevianko (Duel Kinetic Balance)" :
-                    "Johnson")
-            << " type splines.\n";
 
   for (const auto &nk : nklst) {
 
@@ -113,11 +117,9 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
     expand_basis_orbitals(&basis, &basis_positron, spl_basis, kappa, max_n,
                           max_n_positron, e_values, e_vectors, wf);
-    if (!basis.empty() && kappa < 0) {
+    if (!basis.empty() && kappa < 0 && verbose) {
       printf("Spline cavity l=%i %1s: (%7.1e,%5.1f)aB.\n", l,
              AtomData::l_symbol(l).c_str(), r0_eff, rmax_spl);
-      // printf("Spline cavity l=%i %1s: (%7.1e,%5.1f)aB.\n", l,
-      //        AtomData::l_symbol(l).c_str(), r0_eff, basis.front().rinf());
     }
   }
 
@@ -127,26 +129,10 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       basis.push_back(Fp);
   }
 
-  // for (auto &Fp : basis) {
-  //   auto l = Fp.l();
-  //   if (l == 0)
-  //     continue;
-  //   auto comp = [=](const auto &Fa) { return Fa.l() == l - 1; };
-  //   auto prev = std::find_if(basis.begin(), basis.end(), comp);
-  //   if (prev == basis.end())
-  //     continue;
-  //   auto nmc2 = -1.0 / (wf.alpha() * wf.alpha());
-  //   if (Fp.en() < prev->en() && Fp.en() > nmc2) {
-  //     // XXX Better: count nodes? ['Spurious node at large r?']
-  //     std::cout << "WARNING: "
-  //               << "Spurious state?? " << Fp.symbol() << " " << Fp.en() << "\n";
-  //     // Fp *= 0.0;
-  //   }
-  // }
-
   return basis;
 }
 
+//==============================================================================
 double check(const std::vector<DiracSpinor> &basis,
              const std::vector<DiracSpinor> &orbs, bool print_warning) {
   // Compare basis states to core/valence states
@@ -157,7 +143,6 @@ double check(const std::vector<DiracSpinor> &basis,
     return 0.0;
 
   std::string wrong_sign_list = "";
-  // std::cout << "Basis/" << (orbs == &wf.core() ? "core" : "valence") << ":\n";
   double worst_dN = 0.0;
   double worst_dE = 0.0;
   std::string wFN, wFE;
@@ -209,30 +194,19 @@ std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
 form_spline_basis(const int kappa, const std::size_t n_states,
                   const std::size_t k_spl, const double r0_spl,
                   const double rmax_spl, std::shared_ptr<const Grid> rgrid,
-                  const double alpha, SplineType type)
-// Forms the "base" basis of B-splines (DKB/Reno Method)
-{
+                  const double alpha, SplineType type) {
+  // Forms the "base" basis of B-splines (DKB/Reno Method)
 
-  //
   auto imin = static_cast<std::size_t>(std::abs(kappa));
   auto n_spl = n_states + imin + 1; // subtract l (n_min)?
   auto imax = n_spl - 1;
   auto lambda_DKB = 1.0; // include kinetic balance term
-
-  // double r00 = 0.9 * r0_spl;
-  // double r00 = std::min(0.1 * r0_spl, 1.1 * rgrid->r(0));
-  // double r00 = std::exp(0.5 * (std::log(r0_spl) + std::log(rgrid->r(0))));
-  // double r00 = rgrid->r(0);
 
   if (type == SplineType::Johnson) {
     imin = 0;
     n_spl = n_states + imin;
     imax = n_spl;
     lambda_DKB = 0.0;
-    // r00 *= 0.0;
-    // r00 = 0.02 * r0_spl; // seems to  be best 5.0e-5
-    // nb: it is Breit causing issue; works best with r00=0, but that ruins
-    // Breit
   }
 
   // uses sepperate B-splines for each partial wave! OK?
@@ -247,8 +221,6 @@ form_spline_basis(const int kappa, const std::size_t n_states,
 
   for (auto ir = 0ul; ir < rgrid->num_points(); ++ir) {
     const auto r = rgrid->r(ir);
-    // if (r < r00)
-    //   continue;
     auto [i0, bij] = bspl.get_nonzero(r, 2);
     for (auto i = 0ul; i < bspl.K(); ++i) {
 
@@ -295,7 +267,6 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const std::vector<DiracSpinor> &d_basis,
                         const Wavefunction &wf, const bool correlationsQ,
                         SplineType type) {
-
   const auto n_spl = spl_basis.size();
 
   auto A_and_S = std::make_pair(LinAlg::Matrix<double>{n_spl, n_spl},
@@ -321,11 +292,6 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
       const auto &dsj = d_basis[j];
 
       auto aij = wf.H0ab(sj, dsj, si, dsi);
-      // const auto aij_2 = wf.Hab(sj,
-      // si); auto aij = (0.75 * aij_1 +
-      // 0.25 * aij_2); Actually, seems
-      // more stable to calculate derivs..
-      // auto aij = wf.Hab(sj, si);
       if (!excl_exch)
         aij += (sj * VexSi);
       if (sigmaQ)
@@ -381,7 +347,6 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
 // Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
 // coeficient found from diagonalising the Hamiltonian over Bsplns
 {
-
   auto l = Angular::l_k(kappa);
   auto min_n = l + 1;
 
@@ -411,14 +376,10 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
       const auto low_r = 0.3 / wf.Znuc();
       const auto low_i = wf.grid().getIndex(low_r);
       double fsum = Fi.f(low_i);
-      // for (std::size_t ii = 0; ii < std::max(30ul, low_i); ++ii) {
-      //   fsum += Fi.f(ii);
-      // }
       if (fsum < 0.0) {
         Fi *= -1.0;
       }
     }
-    // std::cout << Fi.symbol() << " " << Fi * Fi << "\n";
     const auto Fnorm = Fi * Fi;
     if (std::abs(Fnorm - 1) > 1.0e-4) {
       std::cout << "Warning: Possible spurious state: " << Fi.shortSymbol()
@@ -453,7 +414,6 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
 //==============================================================================
 std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
                                 const std::vector<double> &r, bool print) {
-
   std::vector<double> result;
   if (basis.empty())
     return result;

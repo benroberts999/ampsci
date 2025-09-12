@@ -389,12 +389,14 @@ void Wavefunction::printCore() const
     return;
 
   std::cout
-      << "     state  k   Rinf its   eps         En (au)        En (/cm)\n";
+      << "   state   r_rms  Rinf it    eps          En (au)         En (/cm)\n";
   int i = 0;
   for (const auto &phi : core()) {
-    printf("%-2i %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", i++,
-           phi.symbol().c_str(), phi.kappa(), phi.rinf(), phi.its(), phi.eps(),
-           phi.en(), phi.en() * PhysConst::Hartree_invcm);
+    const auto r = std::sqrt(phi * (phi.grid().rpow(2) * phi));
+    // const auto r = phi * (phi.grid().r() * phi);
+    fmt::print("{:<2} {:4}  {:6.1e} {:5.1f} {:2}  {:5.0e} {:16.9f} {:16.3f}",
+               i++, phi.shortSymbol(), r, phi.rinf(), phi.its(), phi.eps(),
+               phi.en(), phi.en() * PhysConst::Hartree_invcm);
     if (phi.occ_frac() < 1.0) {
       printf("     [%4.2f]\n", phi.occ_frac());
     } else {
@@ -417,15 +419,15 @@ void Wavefunction::printValence(
       std::min_element(tmp_orbs.begin(), tmp_orbs.end(), DiracSpinor::comp_en);
   const auto e0 = (min_it == tmp_orbs.end()) ? 0.0 : min_it->en();
 
-  std::cout
-      << "     state  "
-      << "k   Rinf its   eps         En (au)        En (/cm)   En (/cm)\n";
+  std::cout << "   state"
+            << "  Rinf  its    eps        En (au)       En (/cm)   En (/cm)\n";
   int i = 0;
   for (const auto &phi : tmp_orbs) {
-    printf("%-2i %7s %2i  %5.1f %2i  %5.0e %15.9f %15.3f", i++,
-           phi.symbol().c_str(), phi.kappa(), phi.rinf(), phi.its(), phi.eps(),
-           phi.en(), phi.en() * PhysConst::Hartree_invcm);
-    printf(" %10.2f\n", (phi.en() - e0) * PhysConst::Hartree_invcm);
+    fmt::print("{:<2} {:4}  {:5.1f}  {:2}   {:5.0e} {:14.9f} {:14.3f} "
+               "{:10.2f}\n",
+               i++, phi.shortSymbol(), phi.rinf(), phi.its(), phi.eps(),
+               phi.en(), phi.en() * PhysConst::Hartree_invcm,
+               (phi.en() - e0) * PhysConst::Hartree_invcm);
   }
 }
 
@@ -467,26 +469,26 @@ std::vector<double> Wavefunction::coreDensity() const {
 //==============================================================================
 void Wavefunction::formBasis(const SplineBasis::Parameters &params) {
   if (params.n > 0) {
-    IO::ChronoTimer t("Basis");
     m_basis = SplineBasis::form_basis(params, *this, false);
 
     if (params.orthogonalise) {
-      std::cout << "Forcing spectrum to be orthog to core:\n";
+      std::cout << "Forcing basis to be orthog to core:\n";
       for (auto &Fb : m_basis) {
         Fb = DiracSpinor::orthonormaliseWrt(Fb, core());
       }
     }
 
-    std::cout << "Basis/core:\n";
-    SplineBasis::check(m_basis, core(), true);
-    std::cout << "Basis/valence:\n";
-    SplineBasis::check(m_basis, valence(), true);
+    if (params.verbose) {
+      std::cout << "Basis/core:\n";
+      SplineBasis::check(m_basis, core(), true);
+      std::cout << "Basis/valence:\n";
+      SplineBasis::check(m_basis, valence(), true);
+    }
   }
 }
 //------------------------------------------------------------------------------
 void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
   if (params.n > 0) {
-    IO::ChronoTimer t("Spectrum");
     m_spectrum = SplineBasis::form_basis(params, *this, true);
   }
 
@@ -512,8 +514,9 @@ void Wavefunction::formSigma(
     const std::string &out_fname, bool FeynmanQ, bool ScreeningQ,
     bool hole_particleQ, int lmax, double omre, double w0, double wratio,
     const std::optional<IO::InputBlock> &ek) {
-  // if (m_valence.empty())
-  //   return;
+  if (core().empty() || !m_HF)
+    return;
+
   std::cout << "\nIncluding correlation potential:\n" << std::flush;
 
   std::string ext = FeynmanQ ? ".sf" : ".s2";
@@ -536,10 +539,6 @@ void Wavefunction::formSigma(
 
   MBPT::Screening screening =
       ScreeningQ ? MBPT::Screening::include : MBPT::Screening::exclude;
-
-  // XXX Update to allow all k
-  // MBPT::HoleParticle hp = hole_particleQ ? MBPT::HoleParticle::include_k0 :
-  //                                         MBPT::HoleParticle::exclude;
 
   MBPT::HoleParticle hp = hole_particleQ ? MBPT::HoleParticle::include :
                                            MBPT::HoleParticle::exclude;

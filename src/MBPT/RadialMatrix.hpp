@@ -4,8 +4,10 @@
 #include "Maths/Interpolator.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <cassert>
+#include <complex>
 #include <iostream>
 #include <type_traits>
+#include <vector>
 
 namespace MBPT {
 
@@ -327,5 +329,6 @@ double max_epsilon(const RadialMatrix<T> &a, const RadialMatrix<T> &b) {
 //==============================================================================
 
 using RMatrix = RadialMatrix<double>;
+using ComplexRMatrix = RadialMatrix<std::complex<double>>;
 
 } // namespace MBPT

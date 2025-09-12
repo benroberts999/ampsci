@@ -22,7 +22,7 @@ CorrelationPotential::CorrelationPotential(
     bool calculate_fk, const std::vector<double> &fk,
     const std::vector<double> &etak)
     : m_HF(vHF),
-      m_basis(basis), // dumb
+      m_basis(basis),
       m_r0(r0),
       m_rmax(rmax),
       m_stride(stride),
@@ -54,9 +54,6 @@ CorrelationPotential::CorrelationPotential(
       }
       if (m_calculate_fk && m_Foptions.screening == Screening::include) {
         std::cout << "Calculating f_k from scratch for exchange screening\n";
-        // if (m_includeG) {
-        //   std::cout << "Calculating eta_k from scratch for G hole-particle\n";
-        // }
       } else {
         if (!m_fk.empty()) {
           std::cout << "Exchange screening with: fk = {";
@@ -65,13 +62,6 @@ CorrelationPotential::CorrelationPotential(
           }
           std::cout << "}\n";
         }
-        // if (m_includeG && !m_etak.empty()) {
-        //   std::cout << "Approx hole-particle in G: etak = {";
-        //   for (auto &tetak : m_etak) {
-        //     printf("%.3f, ", tetak);
-        //   }
-        //   std::cout << "}\n";
-        // }
       }
     }
 
@@ -126,7 +116,8 @@ void CorrelationPotential::formSigma(int kappa, double ev, int n,
   }
   if (Fv) {
     assert(Fv->kappa() == kappa);
-    fmt::print("Form Σ for {} at e = {:.4f}\n", Fv->shortSymbol(), ev);
+    fmt::print("Form Σ for {} at e = {:.4f} au = = {:.2f} /cm\n",
+               Fv->shortSymbol(), ev, ev * PhysConst::Hartree_invcm);
   } else {
     fmt::print("Form Σ for kappa={} at e = {:.4f}\n", kappa, ev);
   }
@@ -150,48 +141,22 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
 
   // Calculate screening factors:
   if (m_calculate_fk && m_Fy->screening()) {
-    assert(Fv != nullptr && "Cannot calculate fk without having Fv");
+    assert(Fv != nullptr && "Cannot calculate fk without Fv");
     vfk = calculate_fk(ev, *Fv);
     std::cout << "  fk   = {";
     for (auto &e : vfk) {
       printf("%.3f, ", e);
     }
     std::cout << "}\n";
-    // if (m_includeG) {
-    //   vetak = calculate_etak(ev, *Fv);
-    //   std::cout << "  etak = {";
-    //   for (auto &e : vetak) {
-    //     printf("%.3f, ", e);
-    //   }
-    //   std::cout << "}\n";
-    // }
     // If not stored, store first screening factors
     if (m_fk.empty()) {
       m_fk = vfk;
     }
-    // if (m_etak.empty()) {
-    //   m_etak = vetak;
-    // }
   } else {
     vfk = m_fk;
-    // vetak = m_etak;
   }
 
   auto Sd = m_Fy->Sigma_direct(kappa, ev);
-  // if (m_n_min_core_F > m_n_min_core) {
-  //   // Go from m_n_min_core to m_n_min_core_F using Goldstone method
-  //   // Don't screen? vetak may not be calculated..
-  //   const auto tmp =
-  //       m_Gold->Sigma_direct(kappa, ev, vfk, vetak, m_n_min_core_F - 1);
-  //   // Feynman only has ff, goldstone may have g parts
-  //   Sd.ff() += tmp.ff();
-  // }
-  // if (m_includeG) {
-  //   // If 'Includeing G', calculate using Goldstone technique
-  //   auto Sd2 = m_Gold->Sigma_direct(kappa, ev, vfk, vetak);
-  //   Sd2.ff() = Sd.ff();
-  //   Sd = Sd2;
-  // }
 
   double deD{0.0};
   if (Fv) {
@@ -208,12 +173,7 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
                (deD + deX) * PhysConst::Hartree_invcm);
   }
 
-  std::cout << Sd.size() << " " << Sx.size() << std::endl;
-  std::cout << Sd.includes_g() << " " << Sx.includes_g() << std::endl;
-
   return Sd + Sx;
-
-  //
 }
 
 //==============================================================================
@@ -221,19 +181,35 @@ std::vector<double>
 CorrelationPotential::calculate_fk(double ev, const DiracSpinor &v) const {
 
   assert(m_Fy0 && m_FyX);
+
+  // "Clamp" screening factors: don't allow |fk| to be too large
+  // Occurs very rarely when diagram is very small;
+  // Division is numerically unstable, but overall diagram is insignificant
+  const auto max_fk = 10.0;
+  assert(max_fk > 1.0 && "max_fk must be >1, otherwise meaningless.");
+  // flag for printing clamping warning
+  int N_clamped = 0;
+
   std::vector<double> vfk;
   for (int k = 0; k <= 8; ++k) {
     const auto Sd0 = m_Fy0->Sigma_direct(v.kappa(), ev, k);
     const auto SdX = m_FyX->Sigma_direct(v.kappa(), ev, k);
-    // include hp when calculate fk: (ensure m_FyH exists!)
-    // const auto Sd0 = m_FyH->Sigma_direct(v.kappa(), ev, k);
-    // const auto SdX = m_Fy->Sigma_direct(v.kappa(), ev, k);
     const auto de0 = v * (Sd0 * v);
     const auto deX = v * (SdX * v);
-    const auto fk = de0 != 0.0 ? deX / de0 : 1.0;
+    auto fk = de0 != 0.0 ? deX / de0 : 1.0;
+
+    // clamp fk:
+    if (std::abs(fk) > max_fk) {
+      N_clamped++;
+      fk = std::copysign(max_fk, fk);
+    }
+
     vfk.push_back(fk);
-    if (std::abs(fk - 1.0) < 0.01 || de0 == 0.0)
-      break;
+  }
+
+  if (N_clamped > 0) {
+    fmt::print("  (* Warning: clamped {} screening factor to |fk|<={})\n",
+               N_clamped, max_fk);
   }
   return vfk;
 }
@@ -244,9 +220,6 @@ CorrelationPotential::calculate_etak(double ev, const DiracSpinor &v) const {
   assert(m_Fy0 && m_FyH);
   std::vector<double> vetak;
   for (int k = 0; k <= 6; ++k) {
-    // slightly ineficient.. does m_Fy, m_FyX twice...
-    // const auto Sd0 = m_Fy0->Sigma_direct(v.kappa(), ev, k);
-    // const auto SdX = m_FyH->Sigma_direct(v.kappa(), ev, k);
     // Include screening when calc eta:
     const auto Sd0 = m_FyX->Sigma_direct(v.kappa(), ev, k);
     const auto SdX = m_Fy->Sigma_direct(v.kappa(), ev, k);
@@ -264,7 +237,8 @@ CorrelationPotential::calculate_etak(double ev, const DiracSpinor &v) const {
 GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
                                           const DiracSpinor *Fv) {
 
-  // faster to calculate direct and exchange together; but then you lose info on the relative contributions
+  // faster to calculate direct and exchange together;
+  // ...but then you lose info on the relative contributions
   bool exchange_seperately = false;
 
   if (!m_Gold) {
@@ -302,7 +276,7 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
 void CorrelationPotential::setup_Feynman() {
 
   if (!m_Gold) {
-    // Also need Goldstone for Feynman
+    // Also need Goldstone for Feynman (exchange)
     m_Gold = Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size,
                        m_n_min_core, m_includeG);
   }
@@ -314,34 +288,29 @@ void CorrelationPotential::setup_Feynman() {
 
   if (m_calculate_fk && !m_Fy0) {
 
-    auto t_n_min = m_Fy->n_min();
-
-    const auto t_stride = std::size_t(1.0 * double(m_stride)); // ?
+    // Allow slightly larger stride for calculating effective screening
+    const auto stride_scale = 1.0;
+    const auto t_stride = std::size_t(stride_scale * double(m_stride));
     const auto t_size = (m_HF->grid().getIndex(m_rmax) - m_i0) / t_stride + 1;
 
     auto t_Foptions0{m_Foptions};
     auto t_FoptionsX{m_Foptions};
-    // auto t_FoptionsH{m_Foptions};
-
-    t_Foptions0.screening = Screening::exclude;
-    t_Foptions0.hole_particle = HoleParticle::exclude;
-
-    t_FoptionsX.screening = Screening::include;
-    t_FoptionsX.hole_particle = HoleParticle::exclude;
-
-    // t_FoptionsH.screening = Screening::exclude;
-    // t_FoptionsH.hole_particle = HoleParticle::include;
 
     if (m_Fy->screening()) {
-      m_Fy0 = Feynman(m_HF, m_i0, t_stride, t_size, t_Foptions0, t_n_min,
-                      m_includeG);
-      m_FyX = Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsX, t_n_min,
-                      m_includeG);
+      // Fy with no screening (+no hp)
+      t_Foptions0.screening = Screening::exclude;
+      t_Foptions0.hole_particle = HoleParticle::exclude;
+      m_Fy0 = Feynman(m_HF, m_i0, t_stride, t_size, t_Foptions0, m_n_min_core,
+                      m_includeG, false);
+
+      // Fy with screening (but no hp)
+      t_FoptionsX.screening = Screening::include;
+      t_FoptionsX.hole_particle = HoleParticle::exclude;
+      m_FyX = m_Fy->hole_particle() ?
+                  Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsX,
+                          m_n_min_core, m_includeG, false) :
+                  m_Fy;
     }
-    // if (m_includeG && m_Fy->hole_particle()) { // only need eta for 'g'
-    //   m_FyH =
-    //       Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsH, t_n_min, false);
-    // }
   }
 }
 
@@ -358,11 +327,7 @@ const SigmaData *CorrelationPotential::get(int kappa, int n) const {
     const auto it = std::find_if(
         m_Sigmas.cbegin(), m_Sigmas.cend(),
         [kappa, n](const auto &s) { return s.kappa == kappa && s.n == n; });
-    // If not found, look (recursively) for closest n
-    // if (it == m_Sigmas.cend()) {
-    //   std::cout << "\n***" << it->kappa << " " << it->n << " " << it->en
-    //             << "\n";
-    // }
+    // If not found, look (recursively) for next lowest n
     return it != m_Sigmas.cend() ? &(*it) : get(kappa, n - 1);
   }
 }
@@ -434,21 +399,6 @@ void CorrelationPotential::print_subGrid() const {
 }
 
 //==============================================================================
-// void CorrelationPotential::print_info() const {
-//   print_subGrid();
-//   if (!m_Sigmas.empty())
-//     std::cout << "Have Sigma for:\n";
-//   for (const auto &Sig : m_Sigmas) {
-//     std::cout << Sig.n << " " << AtomData::kappa_symbol(Sig.kappa)
-//               << " en=" << Sig.en;
-//     if (Sig.lambda != 1.0) {
-//       std::cout << " (lambda=" << Sig.lambda << ")";
-//     }
-//     std::cout << "\n";
-//   }
-// }
-
-//==============================================================================
 bool CorrelationPotential::read_write(const std::string &fname,
                                       IO::FRW::RoW rw) {
 
@@ -486,13 +436,6 @@ bool CorrelationPotential::read_write(const std::string &fname,
       }
     }
   }
-
-  // XXXX Add method and basis data, fk etc.
-  // // read/write basis config:
-  // std::string basis_config =
-  //     (rw == IO::FRW::write) ? DiracSpinor::state_config(m_excited) : "";
-  // rw_binary(iofs, rw, basis_config);
-  // // XXX Add info on method! (or, different filename!)
 
   // Sub-grid:
   rw_binary(iofs, rw, m_r0, m_rmax, m_stride, m_i0, m_size, m_includeG);
