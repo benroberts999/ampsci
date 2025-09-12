@@ -498,11 +498,11 @@ TEST_CASE("Breit", "[Breit][integration]") {
 
     // Then, calculate Sigma(2), compare those
     wf.formBasis({"30spdfghi", 40, 7, 1.0e-4, 1.0e-4, 40.0});
-    wf.formSigma(3, 3, 3.0e-4, 30.0, 25 /*stride*/, false, false, false, 0, {},
-                 {}, {}, "false", "false");
+    wf.formSigma(3, 3.0e-4, 30.0, 25 /*stride*/, false, false, false, 0, {}, {},
+                 {}, "false", "false");
 
     wf0.formBasis({"30spdfghi", 40, 7, 1.0e-4, 1.0e-4, 40.0});
-    wf0.formSigma(3, 3, 3.0e-4, 30.0, 25 /*stride*/, false, false, false, 0, {},
+    wf0.formSigma(3, 3.0e-4, 30.0, 25 /*stride*/, false, false, false, 0, {},
                   {}, {}, "false", "false");
 
     wf.hartreeFockBrueckner();

@@ -505,12 +505,12 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 
 //==============================================================================
 void Wavefunction::formSigma(
-    int nmin_core, int nmin_core_F, double r0, double rmax, int stride,
-    bool each_valence, bool include_G, bool include_Breit, int n_max_breit,
+    int nmin_core, double r0, double rmax, int stride, bool each_valence,
+    bool include_G, bool include_Breit, int n_max_breit,
     const std::vector<double> &lambdas, const std::vector<double> &fk,
     const std::vector<double> &etak, const std::string &in_fname,
     const std::string &out_fname, bool FeynmanQ, bool ScreeningQ,
-    bool holeParticleQ, int lmax, double omre, double w0, double wratio,
+    bool hole_particleQ, int lmax, double omre, double w0, double wratio,
     const std::optional<IO::InputBlock> &ek) {
   // if (m_valence.empty())
   //   return;
@@ -521,7 +521,7 @@ void Wavefunction::formSigma(
     ext += "g";
   if (FeynmanQ && ScreeningQ)
     ext += "s";
-  if (FeynmanQ && holeParticleQ)
+  if (FeynmanQ && hole_particleQ)
     ext += "h";
   if (include_Breit && m_HF->vBreit() && !FeynmanQ)
     ext += "b";
@@ -538,11 +538,11 @@ void Wavefunction::formSigma(
       ScreeningQ ? MBPT::Screening::include : MBPT::Screening::exclude;
 
   // XXX Update to allow all k
-  // MBPT::HoleParticle hp = holeParticleQ ? MBPT::HoleParticle::include_k0 :
+  // MBPT::HoleParticle hp = hole_particleQ ? MBPT::HoleParticle::include_k0 :
   //                                         MBPT::HoleParticle::exclude;
 
-  MBPT::HoleParticle hp =
-      holeParticleQ ? MBPT::HoleParticle::include : MBPT::HoleParticle::exclude;
+  MBPT::HoleParticle hp = hole_particleQ ? MBPT::HoleParticle::include :
+                                           MBPT::HoleParticle::exclude;
 
   bool calculate_fk = FeynmanQ && fk.empty();
 
@@ -550,7 +550,7 @@ void Wavefunction::formSigma(
       ifname, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core, method,
       include_G, include_Breit, n_max_breit,
       MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
-      fk, etak, nmin_core_F);
+      fk, etak);
 
   std::cout << "\n";
 

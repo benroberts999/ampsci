@@ -12,6 +12,8 @@ namespace MBPT {
 /*! 
 Radial matrix: stored on a sub-grid (defined by i0, stride, size).
 
+XXX Should actually just derive/specialise SpinorMatrix!!
+
 @details
  - i0 : the first grid-point included in subgrid
  - stride: stride between grid-points used in subgrid
@@ -54,11 +56,12 @@ public:
 
   //============================================================================
   //! direct access to matrix elements
-  T &operator()(std::size_t i, std::size_t j) { return m_Rmatrix(i, j); }
 
-  const T operator()(std::size_t i, std::size_t j) const {
-    return m_Rmatrix(i, j);
-  }
+  T &at(std::size_t i, std::size_t j) { return m_Rmatrix(i, j); }
+  T at(std::size_t i, std::size_t j) const { return m_Rmatrix(i, j); }
+
+  T &operator()(std::size_t i, std::size_t j) { return at(i, j); }
+  T operator()(std::size_t i, std::size_t j) const { return at(i, j); }
 
   //! direct access to radial matrix
   const LinAlg::Matrix<T> &Rmatrix() const { return m_Rmatrix; }
@@ -322,5 +325,7 @@ double max_epsilon(const RadialMatrix<T> &a, const RadialMatrix<T> &b) {
 }
 
 //==============================================================================
+
+using RMatrix = RadialMatrix<double>;
 
 } // namespace MBPT

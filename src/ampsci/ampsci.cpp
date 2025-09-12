@@ -303,10 +303,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       {{"", "Options for inclusion of correlations (correlation potential "
             "method)."},
        {"n_min_core", "Minimum core n to polarise [1]"},
-       {"n_min_core_F",
-        "Minimum core n to polarise in Feynman method. By default, same as "
-        "n_min_core. If n_min_core_F>n_min_core, code will use Goldstone "
-        "method for lowest ns"},
+       //  {"n_min_core_F",
+       //   "Minimum core n to polarise in Feynman method. By default, same as "
+       //   "n_min_core. If n_min_core_F>n_min_core, code will use Goldstone "
+       //   "method for lowest ns"},
        {"each_valence",
         "Construct seperate Sigma for each valence state? [false]"},
        {"fitTo_cm", "List of binding energies (in cm^-1) to scale Sigma for. "
@@ -325,7 +325,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                 "ek{6s+=-0.127; 7s+=-0.552;}. Blank => HF energies. Takes "
                 "precidence over each_valence. [blank]"},
        {"all_order", "Use all-orders method (implies Feynman=true; "
-                     "screening=true; holeParticle=true;) [false]"},
+                     "screening=true; hole_particle=true;) [false]"},
        {"Feynman", "Use Feynman method [false]"},
        {"fk",
         "List of doubles. Screening factors for effective all-order "
@@ -336,7 +336,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                "used only for G part; Goldstone, used in direct also. []"},
        {"screening", "Include all-orders screening. Only applicable for "
                      "Feynman method [false]"},
-       {"holeParticle",
+       {"hole_particle",
         "Include all-orders hole-particle interaction. Only applicable for "
         "Feynman method [false]"},
        {"lmax", "Maximum l used for internal lines in Feynman method [6]"},
@@ -354,8 +354,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
-  const auto n_min_core_F =
-      input.get({"Correlations"}, "n_min_core_F", n_min_core);
+  // const auto n_min_core_F =
+  //     input.get({"Correlations"}, "n_min_core_F", n_min_core);
   const auto sigma_rmin = input.get({"Correlations"}, "rmin", 1.0e-4);
   const auto sigma_rmax = input.get({"Correlations"}, "rmax", 30.0);
   const auto each_valence = input.get({"Correlations"}, "each_valence", false);
@@ -374,7 +374,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto sigma_Screening =
       input.get({"Correlations"}, "screening", all_order);
   const auto hole_particle =
-      input.get({"Correlations"}, "holeParticle", all_order);
+      input.get({"Correlations"}, "hole_particle", all_order);
   const auto sigma_lmax = input.get({"Correlations"}, "lmax", 6);
   const auto include_G = input.get({"Correlations"}, "include_G", false);
   const auto include_Breit =
@@ -425,11 +425,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   // Form correlation potential:
   if (Sigma_ok && do_brueckner) {
     IO::ChronoTimer time("Sigma");
-    wf.formSigma(n_min_core, n_min_core_F, sigma_rmin, sigma_rmax, sigma_stride,
-                 each_valence, include_G, include_Breit, n_max_Breit, lambda_k,
-                 fk, etak, sigma_read, sigma_write, sigma_Feynman,
-                 sigma_Screening, hole_particle, sigma_lmax, sigma_omre, w0,
-                 wratio, ek_Sig);
+    wf.formSigma(n_min_core, sigma_rmin, sigma_rmax, sigma_stride, each_valence,
+                 include_G, include_Breit, n_max_Breit, lambda_k, fk, etak,
+                 sigma_read, sigma_write, sigma_Feynman, sigma_Screening,
+                 hole_particle, sigma_lmax, sigma_omre, w0, wratio, ek_Sig);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)
