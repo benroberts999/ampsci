@@ -47,6 +47,10 @@ public:
   Matrix(std::size_t rows, std::size_t cols)
       : m_rows(rows), m_cols(cols), m_data(rows * cols) {}
 
+  //! Initialise a matrix rows*cols, filled with 'value'
+  Matrix(std::size_t rows, std::size_t cols, const T &value)
+      : m_rows(rows), m_cols(cols), m_data(rows * cols, value) {}
+
   //! Initialise a blank square matrix dimension*dimension, filled with 0
   // excplicit, since don't alow flot->int converions
   explicit Matrix(std::size_t dimension)
@@ -81,6 +85,21 @@ public:
       : m_rows(rows), m_cols(cols), m_data{v} {
     assert(m_data.size() == rows * cols &&
            "initializer_list must be rows*cols");
+  }
+
+  //============================================================================
+  //! Resizes matrix to new dimension; all values reset to default
+  void resize(std::size_t rows, std::size_t cols) {
+    m_rows = rows;
+    m_cols = cols;
+    m_data.assign(rows * cols, T{});
+  }
+
+  //! Resizes matrix to new dimension; all values reset to 'value'
+  void resize(std::size_t rows, std::size_t cols, const T &value) {
+    m_rows = rows;
+    m_cols = cols;
+    m_data.assign(rows * cols, value);
   }
 
   //============================================================================
