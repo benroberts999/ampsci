@@ -347,9 +347,9 @@ Wavefunction ampsci(const IO::InputBlock &input) {
         "ratio, for logarithimg Im(w) grid [0.01, 1.5]"},
        {"include_G", "Inlcude lower g-part into Sigma [false]"},
        {"include_Breit",
-        "Inlcude Breit corrections into Sigma (only for 2nd order) [false]"},
+        "Inlcude two-body Breit corrections into Sigma [false]"},
        {"n_max_Breit",
-        "Maximum n for excited states to include in Breit "
+        "Maximum n for excited states to include in two-body Breit "
         "correction to Correlation potential [<=0, means entire basis]"}});
 
   const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;

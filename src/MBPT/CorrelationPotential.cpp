@@ -18,7 +18,7 @@ CorrelationPotential::CorrelationPotential(
     const std::string &fname, const HF::HartreeFock *vHF,
     const std::vector<DiracSpinor> &basis, double r0, double rmax,
     std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
-    bool include_Breit, int n_max_breit, const FeynmanOptions &Foptions,
+    bool include_Breit_b2, int n_max_breit, const FeynmanOptions &Foptions,
     bool calculate_fk, const std::vector<double> &fk,
     const std::vector<double> &etak)
     : m_HF(vHF),
@@ -31,7 +31,7 @@ CorrelationPotential::CorrelationPotential(
       m_method(method),
       m_n_min_core(n_min_core),
       m_includeG(include_g),
-      m_includeBreit(include_Breit),
+      m_includeBreit_b2(include_Breit_b2),
       m_n_max_breit(n_max_breit),
       m_Foptions(Foptions),
       m_calculate_fk(calculate_fk),
@@ -49,9 +49,6 @@ CorrelationPotential::CorrelationPotential(
     if (m_method == SigmaMethod::Feynman) {
       std::cout << "Using Feynman method for direct diagrams, Goldstone "
                    "for exchange\n";
-      if (m_includeG) {
-        std::cout << "Including G parts of matrix\n";
-      }
       if (m_calculate_fk && m_Foptions.screening == Screening::include) {
         std::cout << "Calculating f_k from scratch for exchange screening\n";
       } else {
@@ -67,9 +64,6 @@ CorrelationPotential::CorrelationPotential(
 
     if (m_method == SigmaMethod::Goldstone) {
       std::cout << "Using Goldstone method for direct/exchnage\n";
-      if (m_includeG) {
-        std::cout << "Including G parts of matrix\n";
-      }
       if (!m_fk.empty()) {
         std::cout << "Approximate screening with: fk = {";
         for (auto &tfk : m_fk) {
@@ -86,10 +80,21 @@ CorrelationPotential::CorrelationPotential(
       }
     }
 
+    if (m_includeG) {
+      std::cout << "Including G parts of matrix\n";
+    }
+    if (m_HF->vBreit()) {
+      std::cout << "Including one-body Breit (via basis/Green's function)\n";
+    }
+    if (m_HF->vBreit() && m_includeBreit_b2) {
+      std::cout << "Including two-body Breit [B2] correction: up to n="
+                << m_n_max_breit << ", using Goldstone\n";
+    }
+
     // If didn't read, setup Goldstone/Feynman (create Yk, pol operator etc.)
-    m_Gold = Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
-                       m_includeG, m_includeBreit ? m_HF->vBreit() : nullptr,
-                       m_n_max_breit);
+    m_Gold =
+        Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
+                  m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
     if (m_method == SigmaMethod::Feynman) {
       setup_Feynman();
     }
@@ -116,7 +121,7 @@ void CorrelationPotential::formSigma(int kappa, double ev, int n,
   }
   if (Fv) {
     assert(Fv->kappa() == kappa);
-    fmt::print("Form Σ for {} at e = {:.4f} au = = {:.2f} /cm\n",
+    fmt::print("Form Σ for {} at e = {:.4f} au = {:.2f} /cm\n",
                Fv->shortSymbol(), ev, ev * PhysConst::Hartree_invcm);
   } else {
     fmt::print("Form Σ for kappa={} at e = {:.4f}\n", kappa, ev);
@@ -137,7 +142,6 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
   }
 
   std::vector<double> vfk;
-  // std::vector<double> vetak;
 
   // Calculate screening factors:
   if (m_calculate_fk && m_Fy->screening()) {
@@ -171,6 +175,19 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     const auto deX = (*Fv) * (Sx * *Fv);
     fmt::print("{:.2f} = {:.2f}\n", deX * PhysConst::Hartree_invcm,
                (deD + deX) * PhysConst::Hartree_invcm);
+  }
+
+  if (m_includeBreit_b2) {
+    // nb: do some extra work to calculate it seperately (Qk and Pk)..
+    // But, since selection rules are different, it's better this way
+    fmt::print("  de[B2]  = ");
+    std::cout << std::flush;
+    const auto dS =
+        m_Gold->dSigma_Breit2(kappa, ev, m_fk, m_etak, 99, m_n_max_breit);
+    const auto deB2 = (*Fv) * (dS * *Fv);
+    fmt::print("{:.2f}\n", deB2 * PhysConst::Hartree_invcm);
+    std::cout << std::flush;
+    Sd += dS;
   }
 
   return Sd + Sx;
@@ -239,12 +256,12 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
 
   // faster to calculate direct and exchange together;
   // ...but then you lose info on the relative contributions
-  bool exchange_seperately = false;
+  bool exchange_seperately = true;
 
   if (!m_Gold) {
-    m_Gold = Goldstone(
-        m_basis, m_HF->core(), m_i0, m_stride, m_size, m_n_min_core, m_includeG,
-        m_includeBreit ? m_HF->vBreit() : nullptr, m_n_max_breit);
+    m_Gold =
+        Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size, m_n_min_core,
+                  m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
   }
 
   auto Sd = exchange_seperately ?
@@ -269,6 +286,20 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
   } else {
     std::cout << "\n" << std::flush;
   }
+
+  if (m_includeBreit_b2) {
+    // nb: do some extra work to calculate it seperately (Qk and Pk)..
+    // But, since selection rules are different, it's better this way
+    fmt::print("  de[B2]  = ");
+    std::cout << std::flush;
+    const auto dS =
+        m_Gold->dSigma_Breit2(kappa, ev, m_fk, m_etak, 99, m_n_max_breit);
+    const auto deB2 = (*Fv) * (dS * *Fv);
+    fmt::print("{:.2f}\n", deB2 * PhysConst::Hartree_invcm);
+    std::cout << std::flush;
+    Sd += dS;
+  }
+
   return Sd;
 }
 

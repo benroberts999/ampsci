@@ -508,7 +508,7 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 //==============================================================================
 void Wavefunction::formSigma(
     int nmin_core, double r0, double rmax, int stride, bool each_valence,
-    bool include_G, bool include_Breit, int n_max_breit,
+    bool include_G, bool include_Breit_b2, int n_max_breit,
     const std::vector<double> &lambdas, const std::vector<double> &fk,
     const std::vector<double> &etak, const std::string &in_fname,
     const std::string &out_fname, bool FeynmanQ, bool ScreeningQ,
@@ -526,8 +526,10 @@ void Wavefunction::formSigma(
     ext += "s";
   if (FeynmanQ && hole_particleQ)
     ext += "h";
-  if (include_Breit && m_HF->vBreit() && !FeynmanQ)
-    ext += "b";
+  if (m_HF->vBreit())
+    ext += "b1";
+  if (include_Breit_b2 && m_HF->vBreit())
+    ext += "2";
 
   ext += ".abf";
 
@@ -547,7 +549,7 @@ void Wavefunction::formSigma(
 
   m_Sigma = MBPT::CorrelationPotential(
       ifname, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core, method,
-      include_G, include_Breit, n_max_breit,
+      include_G, include_Breit_b2, n_max_breit,
       MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
       fk, etak);
 
