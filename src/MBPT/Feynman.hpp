@@ -16,7 +16,7 @@ namespace MBPT {
 enum class HoleParticle { exclude, include, include_k0 };
 
 //! Options for including Screening
-enum class Screening { exclude, include, only };
+enum class Screening { exclude, include };
 
 struct FeynmanOptions {
   Screening screening{Screening::exclude};
@@ -63,8 +63,6 @@ class Feynman {
   bool m_include_higher_order_hp;
   // Include screening correction to Coulomb line in Q*Pi*Q => Q*Pi*X*Q
   bool m_screen_Coulomb;
-  // _only_ include screening correction in Q*Pi*Q => Q*Pi*[X-1]*Q
-  bool m_only_screen;
 
   // Coulomb operator; include right integration measure
   // q_ij := (r>^k/r<^{k+1}) * dr_j

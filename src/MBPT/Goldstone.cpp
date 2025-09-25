@@ -26,13 +26,6 @@ Goldstone::Goldstone(const std::vector<DiracSpinor> &basis,
     std::cout << "\nGoldstone diagrams:\n";
     std::cout << "Basis: " << DiracSpinor::state_config(basis) << "\n";
     fmt::print("Including n ≥ {} in internal hole states\n", n_min_core);
-    if (m_include_G) {
-      std::cout << "Including G parts of matrix\n";
-    }
-    printf("Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, "
-           "stride=%i]\n",
-           m_grid->r(m_i0), m_grid->r(m_i0 + m_stride * (m_subgrid_points - 1)),
-           int(m_subgrid_points), int(m_i0), int(m_stride));
   }
 }
 
@@ -114,7 +107,7 @@ GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
       }
 
 #pragma omp critical(sum_Sd)
-      { Sd += Sd_an; }
+      Sd += Sd_an;
     }
   }
 
@@ -190,7 +183,7 @@ GMatrix Goldstone::Sigma_both(int kappa_v, double en_v,
       }
 
 #pragma omp critical(sum_Sd)
-      { Sd += Sd_an; }
+      Sd += Sd_an;
     }
   }
 
@@ -262,7 +255,7 @@ GMatrix Goldstone::Sigma_exchange(int kappa_v, double en_v,
       }
 
 #pragma omp critical(sum_Sx)
-      { Sx += Sx_an; }
+      Sx += Sx_an;
     }
   }
 
@@ -356,7 +349,7 @@ GMatrix Goldstone::dSigma_Breit2(int kappa_v, double en_v,
       }
 
 #pragma omp critical(sum_Sd)
-      { Sd += Sd_an; }
+      Sd += Sd_an;
     }
   }
 

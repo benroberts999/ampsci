@@ -388,17 +388,15 @@ void Wavefunction::printCore() const
   if (Ncore() < 1)
     return;
 
-  std::cout
-      << "   state   r_rms  Rinf it    eps          En (au)         En (/cm)\n";
+  std::cout << "#  nk   r_rms  Rinf    eps          En (au)         En (/cm)\n";
   int i = 0;
-  for (const auto &phi : core()) {
-    const auto r = std::sqrt(phi * (phi.grid().rpow(2) * phi));
-    // const auto r = phi * (phi.grid().r() * phi);
-    fmt::print("{:<2} {:4}  {:6.1e} {:5.1f} {:2}  {:5.0e} {:16.9f} {:16.3f}",
-               i++, phi.shortSymbol(), r, phi.rinf(), phi.its(), phi.eps(),
-               phi.en(), phi.en() * PhysConst::Hartree_invcm);
-    if (phi.occ_frac() < 1.0) {
-      printf("     [%4.2f]\n", phi.occ_frac());
+  for (const auto &Fc : core()) {
+    const auto r = std::sqrt(Fc * (Fc.grid().rpow(2) * Fc));
+    fmt::print("{:<2} {:4} {:5.2f} {:5.1f}  {:5.0e} {:16.9f} {:16.3f}", i++,
+               Fc.shortSymbol(), r, Fc.rinf(), Fc.eps(), Fc.en(),
+               Fc.en() * PhysConst::Hartree_invcm);
+    if (Fc.occ_frac() < 1.0) {
+      fmt::print("     [{:4.2f}]\n", Fc.occ_frac());
     } else {
       std::cout << "\n";
     }
@@ -419,15 +417,16 @@ void Wavefunction::printValence(
       std::min_element(tmp_orbs.begin(), tmp_orbs.end(), DiracSpinor::comp_en);
   const auto e0 = (min_it == tmp_orbs.end()) ? 0.0 : min_it->en();
 
-  std::cout << "   state"
-            << "  Rinf  its    eps        En (au)       En (/cm)   En (/cm)\n";
+  std::cout << "#  nk    r_rms   Rinf    eps        En (au)       En (/cm)     "
+               "  En (/cm)\n";
   int i = 0;
-  for (const auto &phi : tmp_orbs) {
-    fmt::print("{:<2} {:4}  {:5.1f}  {:2}   {:5.0e} {:14.9f} {:14.3f} "
-               "{:10.2f}\n",
-               i++, phi.shortSymbol(), phi.rinf(), phi.its(), phi.eps(),
-               phi.en(), phi.en() * PhysConst::Hartree_invcm,
-               (phi.en() - e0) * PhysConst::Hartree_invcm);
+  for (const auto &Fc : tmp_orbs) {
+    const auto r = std::sqrt(Fc * (Fc.grid().rpow(2) * Fc));
+    fmt::print(
+        "{:<2} {:4}  {:5.2f}  {:5.1f}  {:5.0e} {:14.9f} {:14.3f} {:14.3f}\n",
+        i++, Fc.shortSymbol(), r, Fc.rinf(), Fc.eps(), Fc.en(),
+        Fc.en() * PhysConst::Hartree_invcm,
+        (Fc.en() - e0) * PhysConst::Hartree_invcm);
   }
 }
 

@@ -22,7 +22,6 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
     : m_HF(vHF),
       m_grid(vHF->grid_sptr()),
       m_i0(i0),
-      // m_imax(imax),
       m_stride(stride),
       m_subgrid_points(size),
       m_max_ki_core(2 * DiracSpinor::max_l(m_HF->core())),
@@ -36,8 +35,7 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
                       options.hole_particle == HoleParticle::include_k0),
       m_include_higher_order_hp(options.hole_particle !=
                                 HoleParticle::include_k0),
-      m_screen_Coulomb(options.screening == Screening::include),
-      m_only_screen(options.screening == Screening::only) {
+      m_screen_Coulomb(options.screening == Screening::include) {
 
   if (verbose) {
     std::cout << "\nFeynman diagrams:\n";
@@ -45,10 +43,6 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
     fmt::print("Including n ≥ {} in polarisation loops\n", m_min_core_n);
     if (m_screen_Coulomb) {
       std::cout << "Including all-orders Coulomb screening\n";
-    }
-    if (m_only_screen) {
-      std::cout << "Only including high-orders Coulomb screening (2nd "
-                   "order not included!)\n";
     }
     if (m_hole_particle) {
       std::cout << "Including hole-particle interaction: "
@@ -58,11 +52,6 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
     std::cout << "Re(w) = " << m_omre << "\n";
     std::cout << "Im(w) : " << m_wgrid.gridParameters();
     printf(", r=%.2f\n", m_wgrid.r(1) / m_wgrid.r(0));
-
-    printf("Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, "
-           "stride=%i]\n",
-           m_grid->r(m_i0), m_grid->r(m_i0 + m_stride * (m_subgrid_points - 1)),
-           int(m_subgrid_points), int(m_i0), int(m_stride));
   }
 
   // Construct qk, and dri/drj
@@ -638,19 +627,9 @@ void Feynman::form_qpiq() {
       const auto qdri = q.dri();      // has drj, and dri
       const auto pi = polarisation_k(int(k), omega, m_hole_particle);
 
-      if (m_screen_Coulomb && !m_only_screen) {
+      if (m_screen_Coulomb) {
         const auto X = X_screen(pi, qdri);
         m_qpiq_wk[iw][k] = q * pi * X * qdri;
-      } else if (m_only_screen) {
-        // _only_ includes screening (and hp) corrections, not 2nd order part
-        // i.e., this will give dSigma, where Sigma = Sigma_2 + dSigma
-        const auto X = X_screen(pi, qdri);
-        if (m_hole_particle) {
-          const auto pi0 = polarisation_k(int(k), omega, false);
-          m_qpiq_wk[iw][k] = q * (pi * X - pi0) * qdri;
-        } else {
-          m_qpiq_wk[iw][k] = q * pi * (X - 1.0) * qdri;
-        }
       } else {
         m_qpiq_wk[iw][k] = q * pi * qdri;
       }

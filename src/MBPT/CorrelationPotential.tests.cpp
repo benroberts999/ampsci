@@ -123,18 +123,6 @@ TEST_CASE("MBPT: Feynman, unit tests", "[MBPT][Feynman][unit]") {
                       lmax, omre, w0, wratio},
                      n_min_core, false);
 
-  // "Only screening": i.e., just screening correction, no 2nd order (no hp)
-  MBPT::Feynman FyS_only(wf.vHF(), i0, stride, size,
-                         {MBPT::Screening::only, MBPT::HoleParticle::exclude,
-                          lmax, omre, w0, wratio},
-                         n_min_core, false);
-
-  // "Only screening + hp": i.e., just screening + hp corrections, no 2nd order
-  MBPT::Feynman FyHS_only(wf.vHF(), i0, stride, size,
-                          {MBPT::Screening::only, MBPT::HoleParticle::include,
-                           lmax, omre, w0, wratio},
-                          n_min_core, false);
-
   // expected data
   const std::vector expected_de{-0.0049, -0.0015, -0.0015};
   const std::vector expected_sc_ratio{0.85, 0.90, 0.90};
@@ -161,26 +149,6 @@ TEST_CASE("MBPT: Feynman, unit tests", "[MBPT][Feynman][unit]") {
 
     // Test hole-particle: ratio of all-orders to screening
     REQUIRE(deao / des == Approx(expected_hp_ratio[i]).epsilon(epsilon));
-
-    // Test the "only screening" methods (i.e., corrections only)
-    const auto Sd_Sonly = FyS_only.Sigma_direct(v.kappa(), v.en());
-    const auto Sd_HSonly = FyHS_only.Sigma_direct(v.kappa(), v.en());
-
-    // Only screening (no hp)
-    const auto des_only = v * (Sd_Sonly * v);
-    // Only screening (with hp)
-    const auto deshp_only = v * (Sd_HSonly * v);
-
-    // std::cout << de0 << " " << des << " " << des_only << " "
-    // << de0 + des_only - des << "\n";
-
-    // nb: had to change epsilon here: indicates issue!?
-    // Used to be exact!?? I think there's issue!
-
-    // Screening only is equal to screening correction (without hp):
-    REQUIRE(des_only == Approx(des - de0).epsilon(epsilon));
-    // Screening only is equal to screening correction (with hp):
-    REQUIRE(deshp_only == Approx(deao - de0).epsilon(epsilon));
   }
   std::cout << "\n";
 }

@@ -91,6 +91,11 @@ CorrelationPotential::CorrelationPotential(
                 << m_n_max_breit << ", using Goldstone\n";
     }
 
+    printf("Sigma sub-grid: r=(%.1e, %.1f)aB with %i points. [i0=%i, "
+           "stride=%i]\n",
+           vHF->grid().r(m_i0), vHF->grid().r(m_i0 + m_stride * (m_size - 1)),
+           int(m_size), int(m_i0), int(m_stride));
+
     // If didn't read, setup Goldstone/Feynman (create Yk, pol operator etc.)
     m_Gold =
         Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
@@ -160,13 +165,18 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     vfk = m_fk;
   }
 
+  if (Fv) {
+    fmt::print("  de({}) = ", Fv->shortSymbol());
+    std::cout << std::flush;
+  }
+
   auto Sd = m_Fy->Sigma_direct(kappa, ev);
 
   double deD{0.0};
   if (Fv) {
     deD = (*Fv) * (Sd * *Fv);
-    fmt::print("  de({}) = {:.2f} + ", Fv->shortSymbol(),
-               deD * PhysConst::Hartree_invcm);
+    fmt::print("{:.2f} + ", deD * PhysConst::Hartree_invcm);
+    std::cout << std::flush;
   }
 
   const auto Sx = m_Gold->Sigma_exchange(kappa, ev, vfk);
@@ -175,6 +185,7 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     const auto deX = (*Fv) * (Sx * *Fv);
     fmt::print("{:.2f} = {:.2f}\n", deX * PhysConst::Hartree_invcm,
                (deD + deX) * PhysConst::Hartree_invcm);
+    std::cout << std::flush;
   }
 
   if (m_includeBreit_b2) {

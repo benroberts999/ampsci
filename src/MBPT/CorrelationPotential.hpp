@@ -28,20 +28,6 @@ struct rgrid_params {
   std::size_t stride{4};
 };
 
-// method:
-/*
-
-  - Goldstone/Feynman
-    - Screening
-    - hp
-  - Include g?
-
-  - Effective screening: input, or calculate?
-    - If given, use, else: calculate
-
-
-*/
-
 //==============================================================================
 
 class CorrelationPotential {
