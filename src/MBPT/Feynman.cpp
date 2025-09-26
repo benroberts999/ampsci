@@ -829,4 +829,135 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
   return Sigma;
 }
 
+double L_ang(int u, int l, int ki, int kj, int kk, int kl) {
+
+  const auto tji = Angular::twoj_k(ki);
+  const auto tjj = Angular::twoj_k(kj);
+  const auto tjk = Angular::twoj_k(kk);
+  const auto tjl = Angular::twoj_k(kl);
+  const auto sjs = Angular::sixj_2(tji, tjk, 2 * u, tjj, tjl, 2 * l);
+
+  // const auto Cuik = Angular::Ck_kk(u, ki, kk);
+  // const auto Cujl = Angular::Ck_kk(u, kj, kl);
+  // const auto Clil = Angular::Ck_kk(l, ki, kl);
+  // const auto Cljk = Angular::Ck_kk(l, kj, kk);
+
+  const auto s = Angular::neg1pow(u + l);
+  const auto f = (2 * u + 1) / (tji + 1);
+
+  return f * s * sjs; // * Cuik * Cujl * Clil * Cljk;
+}
+
+//==============================================================================
+GMatrix Feynman::Sigma_exchange(int kv, double env) const {
+  // If in_k is set, only calculate for single k
+  // Used both for testing, and for calculating f_k factors
+
+  GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  constexpr std::complex<double> I{0.0, 1.0};
+  const auto num_kappas = std::size_t(m_max_ki + 1);
+
+#pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
+    initializer(omp_priv = GMatrix(omp_orig))
+
+  std::cout << "\n";
+  for (auto iA = 0ul; iA < num_kappas; ++iA) {
+    for (auto iw1 = 0ul; iw1 < m_wgrid.num_points(); iw1++) {
+
+      std::cout << iA + 1 << "/" << num_kappas << "      " << iw1 + 1 << "/"
+                << m_wgrid.num_points() << "     " << "\r" << std::flush;
+
+      for (int s1 : {-1, 1}) {
+
+        const auto omega1 = std::complex{0.5 * m_omre, s1 * m_wgrid(iw1)};
+        const auto kA = Angular::kappaFromIndex(int(iA));
+        const auto gA = green(kA, env + omega1);
+
+#pragma omp parallel for collapse(2) reduction(+ : Sigma)
+        for (auto iw2 = 0ul; iw2 < m_wgrid.num_points(); iw2++) {
+          for (auto iB = 0ul; iB < num_kappas; ++iB) {
+            for (int s2 : {-1, 1}) {
+
+              const auto omega2 = std::complex{0.5 * m_omre, s2 * m_wgrid(iw2)};
+              const auto kB = Angular::kappaFromIndex(int(iB));
+              const auto gB = green(kB, env + omega1 + omega2);
+
+              for (auto iC = 0ul; iC < num_kappas; ++iC) {
+
+                // Simpson's rule, with F(0)=0
+                const auto weight1 = iw1 % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+                const auto weight2 = iw2 % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+
+                const auto dw1 = I * (weight1 * s1 * m_wgrid.drdu(iw1));
+                const auto dw2 = I * (weight2 * s2 * m_wgrid.drdu(iw2));
+
+                const auto kC = Angular::kappaFromIndex(int(iC));
+
+                const auto [l0, lm] = Angular::kminmax_Ck(kv, kC);
+                if (lm < l0)
+                  continue;
+
+                const auto gC = green(kC, env + omega2);
+
+                for (auto l = l0; l <= std::min(lm, m_max_k); l += 2) {
+
+                  const auto ClvC = Angular::Ck_kk(l, kv, kC);
+                  const auto ClBA = Angular::Ck_kk(l, kB, kA);
+                  if (ClBA == 0)
+                    continue;
+
+                  const auto &qlt = get_qk(int(l)); // has drj, and dri
+                  const auto ql = qlt.dri();        // has drj, and dri
+
+                  const auto [k0, km] = Angular::kminmax_Ck(kv, kA);
+                  for (auto k = k0; k <= std::min(km, m_max_k); k += 2) {
+                    const auto CkvA = Angular::Ck_kk(k, kv, kA);
+                    const auto CkBC = Angular::Ck_kk(k, kB, kC);
+                    if (CkBC == 0)
+                      continue;
+
+                    const auto &qk = get_qk(int(k)); // has drj
+
+                    const auto sjs = L_ang(k, l, kv, kB, kA, kC);
+
+                    const auto c_ang_dw =
+                        dw1 * dw2 * ClvC * ClBA * CkvA * CkBC * sjs;
+
+                    if (sjs == 0)
+                      continue;
+
+                    GMatrix C_gB_QPQ_dw(m_i0, m_stride, m_subgrid_points,
+                                        m_include_G, m_grid);
+
+                    for (std::size_t a = 0; a < m_subgrid_points; ++a) {
+                      for (std::size_t i = 0; i < m_subgrid_points; ++i) {
+                        auto tmp0 = c_ang_dw * gA.ff(a, i);
+                        for (std::size_t j = 0; j < m_subgrid_points; ++j) {
+                          auto tmp1 = tmp0 * qk(a, j) * gB.ff(i, j);
+                          for (std::size_t b = 0; b < m_subgrid_points; ++b) {
+                            C_gB_QPQ_dw.ff(a, b) +=
+                                (tmp1 * ql(i, b) * gC.ff(j, b)).real();
+                          }
+                        }
+                      }
+                    }
+
+                    Sigma += C_gB_QPQ_dw;
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  std::cout << "\n";
+
+  Sigma *= (m_wgrid.du() * m_wgrid.du() / (4 * M_PI * M_PI));
+
+  return Sigma;
+}
+
 } // namespace MBPT

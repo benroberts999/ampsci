@@ -171,20 +171,39 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     std::cout << std::flush;
   }
 
+  auto Sd_G = m_Gold->Sigma_direct(kappa, ev);
+  const auto Sx = m_Gold->Sigma_exchange(kappa, ev, vfk);
+
+  if (Fv) {
+    const auto deD = (*Fv) * (Sd_G * *Fv);
+    fmt::print("{:.4e} + ", deD * PhysConst::Hartree_invcm);
+    std::cout << std::flush;
+    const auto deX = (*Fv) * (Sx * *Fv);
+    fmt::print("{:.4e} = {:.4e}\n", deX * PhysConst::Hartree_invcm,
+               (deD + deX) * PhysConst::Hartree_invcm);
+    std::cout << std::flush;
+  }
+
+  if (Fv) {
+    fmt::print("  de({}) = ", Fv->shortSymbol());
+    std::cout << std::flush;
+  }
+
   auto Sd = m_Fy->Sigma_direct(kappa, ev);
 
   double deD{0.0};
   if (Fv) {
     deD = (*Fv) * (Sd * *Fv);
-    fmt::print("{:.2f} + ", deD * PhysConst::Hartree_invcm);
+    fmt::print("{:.4e} + ", deD * PhysConst::Hartree_invcm);
     std::cout << std::flush;
   }
 
-  const auto Sx = m_Gold->Sigma_exchange(kappa, ev, vfk);
+  const auto Sx_F = m_Fy->Sigma_exchange(kappa, ev);
 
   if (Fv) {
-    const auto deX = (*Fv) * (Sx * *Fv);
-    fmt::print("{:.2f} = {:.2f}\n", deX * PhysConst::Hartree_invcm,
+
+    const auto deX = (*Fv) * (Sx_F * *Fv);
+    fmt::print("{:.4e} = {:.4e}\n", deX * PhysConst::Hartree_invcm,
                (deD + deX) * PhysConst::Hartree_invcm);
     std::cout << std::flush;
   }
