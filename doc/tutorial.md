@@ -7,6 +7,7 @@ This assumes you already have ampsci compiled.
 * See [doc/compilation.md](/doc/compilation.md) for compilation instructions
 * See [doc/tutorial_advanced.md](/doc/tutorial_advanced.md) for a more advanced tutorial, including correlation corrections
 * and [doc/tutorial_CI.md](/doc/tutorial_CI.md) for tutorial on Configuration Interaction (+MBPT) calculations for two-valence systems
+* and [doc/tutorial_Exotic.md](/doc/tutorial_Exotic.md) for tutorial on calculations for 'Exotic' (e.g., muonic) atoms
 * There are several examples in [doc/examples/](/doc/examples/) - also try running those, and comparing the output to the expected output
 
 ## Contents
