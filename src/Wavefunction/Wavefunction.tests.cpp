@@ -106,8 +106,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
   //============================================================================
 
-  wf.formSigma(2, 1.0e-3, 15.0, 8, false, false, false, 0, {}, {}, {}, "false",
-               "false");
+  wf.formSigma(2, 1.0e-3, 15.0, 8, false, false, false, 0, {}, {}, {}, false);
   wf.hartreeFockBrueckner(true);
   wf.formSpectrum({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0});
   wf.printValence();

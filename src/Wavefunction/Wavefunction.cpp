@@ -505,14 +505,16 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 }
 
 //==============================================================================
-void Wavefunction::formSigma(
-    int nmin_core, double r0, double rmax, int stride, bool each_valence,
-    bool include_G, bool include_Breit_b2, int n_max_breit,
-    const std::vector<double> &lambdas, const std::vector<double> &fk,
-    const std::vector<double> &etak, const std::string &in_fname,
-    const std::string &out_fname, bool FeynmanQ, bool ScreeningQ,
-    bool hole_particleQ, int lmax, double omre, double w0, double wratio,
-    const std::optional<IO::InputBlock> &ek) {
+void Wavefunction::formSigma(int nmin_core, double r0, double rmax, int stride,
+                             bool each_valence, bool include_G,
+                             bool include_Breit_b2, int n_max_breit,
+                             const std::vector<double> &lambdas,
+                             const std::vector<double> &fk,
+                             const std::vector<double> &etak, bool read_write,
+                             const std::string &in_fname, bool FeynmanQ,
+                             bool ScreeningQ, bool hole_particleQ, int lmax,
+                             double omre, double w0, double wratio,
+                             const std::optional<IO::InputBlock> &ek) {
   if (core().empty() || !m_HF)
     return;
 
@@ -529,11 +531,10 @@ void Wavefunction::formSigma(
     ext += "b1";
   if (include_Breit_b2 && m_HF->vBreit())
     ext += "2";
-
   ext += ".abf";
 
-  const auto ifname = in_fname == "" ? identity() + ext : in_fname + ext;
-  const auto ofname = out_fname == "" ? identity() + ext : out_fname + ext;
+  const auto file_name =
+      read_write ? (in_fname == "" ? identity() + ext : in_fname + ext) : "";
 
   const auto method =
       FeynmanQ ? MBPT::SigmaMethod::Feynman : MBPT::SigmaMethod::Goldstone;
@@ -547,8 +548,8 @@ void Wavefunction::formSigma(
   bool calculate_fk = FeynmanQ && fk.empty();
 
   m_Sigma = MBPT::CorrelationPotential(
-      ifname, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core, method,
-      include_G, include_Breit_b2, n_max_breit,
+      file_name, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core,
+      method, include_G, include_Breit_b2, n_max_breit,
       MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
       fk, etak);
 
@@ -594,8 +595,8 @@ void Wavefunction::formSigma(
     m_Sigma->print_scaling();
   }
 
-  if (out_fname != "false")
-    m_Sigma->write(ofname);
+  if (file_name != "")
+    m_Sigma->write(file_name);
 }
 
 //==============================================================================

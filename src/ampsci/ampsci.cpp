@@ -313,10 +313,12 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                     "Must be in same order as valence states"},
        {"lambda_kappa",
         "Scaling factors for Sigma. Must be in same order as valence states"},
-       {"read", "Filename to read in Sigma. Set read=false to not read in. By "
-                "default, will be, e.g., CsI.sig2 or CsI.sigf."},
-       {"write", "Filename to write Sigma to. Set write=false to not write. By "
-                 "default same as read"},
+       {"read", "Read/write correlation potential to disk [true]"},
+       {"filename",
+        "Filename prefix (i.e., not including extension) to "
+        "read/write correlation matrix to/from. "
+        "Normally, this option should remain unset. By default it will be "
+        "<identity>.sigX.abf, where X details parameters of Sigma."},
        {"rmin", "minimum radius to calculate sigma for [1.0e-4]"},
        {"rmax", "maximum radius to calculate sigma for [30.0]"},
        {"stride", "Only calculate Sigma every <stride> points. Default such "
@@ -403,13 +405,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   // e.g., ek{6s+=-0.127, 7s+=-0.552;}
   const auto ek_Sig = input.getBlock({"Correlations"}, "ek");
 
-  // Read/write Sigma to file:
-  auto sigma_write = input.get({"Correlations"}, "write", ""s);
-  // By default,  try to  read  from  write  file  (if it exists)
-  const auto sigma_read = input.get({"Correlations"}, "read", sigma_write);
-  // don't  write to default filename when reading from another file
-  if (sigma_read != "" && sigma_write == "")
-    sigma_write = "false";
+  const auto sigma_readwrite = input.get({"Correlations"}, "read", true);
+  const auto sigma_filename = input.get({"Correlations"}, "filename", ""s);
 
   // To fit Sigma to energies:
   // (nb: energies given in cm^-1, convert to au on input)
@@ -427,8 +424,9 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     IO::ChronoTimer time("Sigma");
     wf.formSigma(n_min_core, sigma_rmin, sigma_rmax, sigma_stride, each_valence,
                  include_G, include_Breit, n_max_Breit, lambda_k, fk, etak,
-                 sigma_read, sigma_write, sigma_Feynman, sigma_Screening,
-                 hole_particle, sigma_lmax, sigma_omre, w0, wratio, ek_Sig);
+                 sigma_readwrite, sigma_filename, sigma_Feynman,
+                 sigma_Screening, hole_particle, sigma_lmax, sigma_omre, w0,
+                 wratio, ek_Sig);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)
