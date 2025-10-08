@@ -1,4 +1,5 @@
 #pragma once
+#include "DiracOperator/TensorOperator.hpp"
 #include "HF/HartreeFock.hpp"
 #include "MBPT/RadialMatrix.hpp"
 #include "MBPT/SpinorMatrix.hpp"
@@ -75,6 +76,7 @@ class Feynman {
 
   // Effective spinless Q*Pi*Q operator: for each imaginary omega, and each k
   LinAlg::Matrix<ComplexRMatrix> m_qpiq_wk{};
+  LinAlg::Matrix<ComplexRMatrix> m_qpiq_wk2{};
 
   // For now, just for testing: switch between complex green methods
   // This is broken, not sure what changed
@@ -116,6 +118,9 @@ public:
   //! Calculate Direct part of correlation potential
   GMatrix Sigma_direct(int kappa_v, double en_v,
                        std::optional<int> k = {}) const;
+
+  GMatrix dSigma_01(int kv, int kw, double env,
+                    DiracOperator::TensorOperator *h) const;
 
   //! Returns (reference to) q^k (radial) matrix. Note: includes drj? No?
   const ComplexRMatrix &get_qk(int k) const { return m_qk.at(std::size_t(k)); }

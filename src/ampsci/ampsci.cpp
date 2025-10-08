@@ -9,6 +9,8 @@
 #include "Modules/runModules.hpp"
 #include "Physics/include.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+//
+#include "MBPT/StructureRad.hpp"
 
 Wavefunction ampsci(const IO::InputBlock &input) {
   IO::ChronoTimer timer("\nampsci");
@@ -512,6 +514,25 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   // run each of the modules with the calculated wavefunctions
   Module::runModules(input, wf);
+
+  auto E1 = DiracOperator::E1(wf.grid());
+  wf.Sigma()->setup_Feynman();
+  auto Fy = wf.Sigma()->get_Fy();
+
+  auto sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {3, 999});
+
+  for (const auto &v : wf.valence()) {
+    for (const auto &w : wf.valence()) {
+      std::cout << v << " " << w << " .. " << std::flush;
+      const auto dSigma = Fy.dSigma_01(v.kappa(), w.kappa(), w.en(), &E1);
+      std::cout << " ..\n" << std::flush;
+      const auto dh = v * (dSigma * w);
+      std::cout << "dh = " << dh << std::endl;
+
+      const auto dh2 = sr.srC(&E1, v, w);
+      std::cout << "dh2 = " << dh2.first << std::endl;
+    }
+  }
 
   return wf;
 }

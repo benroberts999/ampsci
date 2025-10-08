@@ -618,10 +618,14 @@ void Feynman::form_qpiq() {
   m_qpiq_wk.resize(num_ws, num_ks,
                    ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
 
+  m_qpiq_wk2.resize(num_ws, num_ks,
+                    ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
+
 #pragma omp parallel for collapse(2)
   for (auto iw = 0ul; iw < num_ws; ++iw) {
     for (auto k = 0ul; k < num_ks; ++k) {
       const auto omega = std::complex<double>{m_omre, m_wgrid.r(iw)};
+      const auto omega2 = std::complex<double>{m_omre, -m_wgrid.r(iw)};
 
       const auto &q = get_qk(int(k)); // has drj
       const auto qdri = q.dri();      // has drj, and dri
@@ -632,6 +636,9 @@ void Feynman::form_qpiq() {
         m_qpiq_wk[iw][k] = q * pi * X * qdri;
       } else {
         m_qpiq_wk[iw][k] = q * pi * qdri;
+
+        const auto pi2 = polarisation_k(int(k), omega2, m_hole_particle);
+        m_qpiq_wk2[iw][k] = q * pi2 * qdri;
       }
     }
   }
@@ -667,16 +674,19 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
   for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
     for (auto iB = 0ul; iB < num_kappas; ++iB) {
 
-      const auto omega = std::complex{m_omre, m_wgrid(iw)};
+      const auto omega1 = std::complex{m_omre, m_wgrid(iw)};
+      const auto omega2 = std::complex{m_omre, -m_wgrid(iw)};
 
       // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
       const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
 
       // I, since dw is on imag. grid; 2 from symmetric +/- w
       const auto dw = I * weight * m_wgrid.drdu(iw);
+      // const auto dw2 = -I * weight * m_wgrid.drdu(iw);
 
       const auto kB = Angular::kappaFromIndex(int(iB));
-      const auto gB = green(kB, env + omega);
+      const auto gB1 = green(kB, env + omega1);
+      const auto gB2 = green(kB, env + omega2);
 
       for (auto k = 0ul; int(k) <= m_max_k; k++) {
 
@@ -689,6 +699,7 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
           continue;
 
         const auto &qpq_dw = m_qpiq_wk[iw][k].Rmatrix();
+        const auto &qpq_dw2 = m_qpiq_wk2[iw][k].Rmatrix();
 
         const auto c_ang_dw =
             dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
@@ -698,11 +709,25 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
         GMatrix C_gB_QPQ_dw(m_i0, m_stride, m_subgrid_points, m_include_G,
                             m_grid);
 
-        C_gB_QPQ_dw.ff() = (c_ang_dw * mult_elements(gB.ff(), qpq_dw)).real();
+        C_gB_QPQ_dw.ff() = (c_ang_dw * mult_elements(gB1.ff(), qpq_dw)).real();
         if (m_include_G) {
-          C_gB_QPQ_dw.fg() = (c_ang_dw * mult_elements(gB.fg(), qpq_dw)).real();
-          C_gB_QPQ_dw.gf() = (c_ang_dw * mult_elements(gB.gf(), qpq_dw)).real();
-          C_gB_QPQ_dw.gg() = (c_ang_dw * mult_elements(gB.gg(), qpq_dw)).real();
+          C_gB_QPQ_dw.fg() =
+              (c_ang_dw * mult_elements(gB1.fg(), qpq_dw)).real();
+          C_gB_QPQ_dw.gf() =
+              (c_ang_dw * mult_elements(gB1.gf(), qpq_dw)).real();
+          C_gB_QPQ_dw.gg() =
+              (c_ang_dw * mult_elements(gB1.gg(), qpq_dw)).real();
+        }
+
+        C_gB_QPQ_dw.ff() +=
+            (c_ang_dw * mult_elements(gB2.ff(), qpq_dw2)).real();
+        if (m_include_G) {
+          C_gB_QPQ_dw.fg() +=
+              (c_ang_dw * mult_elements(gB2.fg(), qpq_dw2)).real();
+          C_gB_QPQ_dw.gf() +=
+              (c_ang_dw * mult_elements(gB2.gf(), qpq_dw2)).real();
+          C_gB_QPQ_dw.gg() +=
+              (c_ang_dw * mult_elements(gB2.gg(), qpq_dw2)).real();
         }
 
         // #pragma omp critical(sum_sigma_d)
@@ -713,6 +738,159 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
 
   // Extra 2 from symmetric + / -w
   // 2*du/(2pi) = du / pi
+  Sigma *= (m_wgrid.du() / 2.0 / M_PI);
+
+  return Sigma;
+}
+
+//==============================================================================
+GMatrix Feynman::dSigma_01(int kv, int kw, double env,
+                           DiracOperator::TensorOperator *h) const {
+  // If in_k is set, only calculate for single k
+  // Used both for testing, and for calculating f_k factors
+
+  constexpr std::complex<double> I{0.0, 1.0};
+  const auto num_kappas = std::size_t(m_max_ki + 1);
+
+  std::cout << __LINE__ << std::endl;
+
+  //-------------
+  Wavefunction wfH(m_grid, {"1", 0, "Ball"});
+  wfH.set_HF();
+  wfH.solve_core(false);
+
+  const auto r0 = std::max(1.0e-4, 3.0 * m_grid->r0());
+  const auto rmax = std::min(90.0, 0.9 * m_grid->rmax());
+  const int max_n = 90;
+  const auto max_l =
+      std::max(Angular::lFromIndex(m_max_ki), DiracSpinor::max_l(m_HF->core()));
+  const auto l_string =
+      AtomData::spectroscopic_notation.substr(0, std::size_t(max_l));
+  const auto basis_string = std::to_string(max_n) + l_string;
+
+  wfH.formBasis(SplineBasis::Parameters(
+      basis_string, 90, 9, r0, 0.0, rmax, basis_string,
+      SplineBasis::SplineType::Derevianko, false, false));
+
+  LinAlg::Matrix<ComplexGMatrix> hk(
+      num_kappas, num_kappas, {m_i0, m_stride, m_subgrid_points, true, m_grid});
+
+#pragma omp parallel for collapse(2)
+  for (const auto &Fi : wfH.basis()) {
+    for (const auto &Fj : wfH.basis()) {
+      const auto ki = std::size_t(Fi.k_index());
+      const auto kj = std::size_t(Fj.k_index());
+      if (h->isZero(Fi.kappa(), Fj.kappa()))
+        continue;
+      auto hij = h->reducedME(Fi, Fj);
+#pragma omp critical
+      hk[ki][kj].add(Fi, Fj, hij);
+    }
+  }
+
+  std::cout << __LINE__ << std::endl;
+
+  for (auto ik = 0ul; ik < num_kappas; ++ik) {
+    for (auto jk = 0ul; jk < num_kappas; ++jk) {
+      // if (h->imaginaryQ()) {
+      //   hk[ik][jk] *= I;
+      // }
+      hk[ik][jk].dri_in_place();
+      hk[ik][jk].drj_in_place();
+    }
+  }
+  std::cout << __LINE__ << std::endl;
+  //-------------
+
+  const auto tjv = Angular::twoj_k(kv);
+  const auto tjw = Angular::twoj_k(kw);
+  const auto k = h->rank();
+
+  GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+// Tell OpenMP how to reduce GMatrix
+// (critical seems to work just as well; this is not bottleneck)
+#pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
+    initializer(omp_priv = GMatrix(omp_orig))
+
+#pragma omp parallel for collapse(2) reduction(+ : Sigma)
+  for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
+    for (auto iB = 0ul; iB < num_kappas; ++iB) {
+
+      const auto omega1 = std::complex{m_omre, m_wgrid(iw)};
+      const auto omega2 = std::complex{m_omre, -m_wgrid(iw)};
+
+      // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
+      const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+
+      // I, since dw is on imag. grid; 2 from symmetric +/- w
+      const auto dw = I * weight * m_wgrid.drdu(iw);
+
+      const auto kB = Angular::kappaFromIndex(int(iB));
+      const auto tjB = Angular::twoj_k(kB);
+      const auto gB1 = green(kB, env + omega1);
+      const auto gB2 = green(kB, env + omega2);
+
+      for (auto iA = 0ul; iA < num_kappas; ++iA) {
+
+        const auto kA = Angular::kappaFromIndex(int(iA));
+        const auto tjA = Angular::twoj_k(kA);
+        const auto gA1 = green(kA, env + omega1);
+        const auto gA2 = green(kA, env + omega2);
+
+        for (auto u = 0ul; int(u) <= m_max_k; u++) {
+
+          const auto ck_vA = Angular::Ck_kk(int(u), kv, kA);
+          if (ck_vA == 0.0)
+            continue;
+          const auto ck_Bw = Angular::Ck_kk(int(u), kB, kw);
+          if (ck_Bw == 0.0)
+            continue;
+
+          const auto &qpq_dw1 = m_qpiq_wk[iw][u].Rmatrix();
+          const auto &qpq_dw2 = m_qpiq_wk2[iw][u].Rmatrix();
+
+          const auto svw = Angular::neg1pow_2(tjv + tjw);
+          const auto suk = Angular::neg1pow(int(u) + k);
+          const auto sjs =
+              Angular::sixj_2(tjv, tjw, 2 * k, tjB, tjA, 2 * int(u));
+          if (sjs == 0.0)
+            continue;
+
+          const auto c_ang_dw = dw * (ck_vA * ck_Bw * svw * suk * sjs);
+
+          GMatrix C_gB_QPQ_dw(m_i0, m_stride, m_subgrid_points, m_include_G,
+                              m_grid);
+
+          const auto dg1 = gA1 * hk[iA][iB] * gB1;
+          const auto dg2 = gA2 * hk[iA][iB] * gB2;
+
+          C_gB_QPQ_dw.ff() =
+              (c_ang_dw * mult_elements(gB1.ff(), qpq_dw1)).real();
+          // C_gB_QPQ_dw.fg() =
+          //     (c_ang_dw * mult_elements(gB1.fg(), qpq_dw1)).real();
+          // C_gB_QPQ_dw.gf() =
+          //     (c_ang_dw * mult_elements(gB1.gf(), qpq_dw1)).real();
+          // C_gB_QPQ_dw.gg() =
+          //     (c_ang_dw * mult_elements(gB1.gg(), qpq_dw1)).real();
+
+          C_gB_QPQ_dw.ff() =
+              (c_ang_dw * mult_elements(gB2.ff(), qpq_dw2)).real();
+          // C_gB_QPQ_dw.fg() =
+          //     (c_ang_dw * mult_elements(gB2.fg(), qpq_dw2)).real();
+          // C_gB_QPQ_dw.gf() =
+          //     (c_ang_dw * mult_elements(gB2.gf(), qpq_dw2)).real();
+          // C_gB_QPQ_dw.gg() =
+          //     (c_ang_dw * mult_elements(gB2.gg(), qpq_dw2)).real();
+
+          Sigma += C_gB_QPQ_dw;
+        }
+      }
+    }
+  }
+
+  std::cout << __LINE__ << std::endl;
+
   Sigma *= (m_wgrid.du() / M_PI);
 
   return Sigma;

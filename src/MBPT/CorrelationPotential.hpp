@@ -105,9 +105,12 @@ public:
 
   void write(const std::string &fname) { read_write(fname, IO::FRW::write); }
 
+  Feynman &get_Fy() { return *m_Fy; }
+  void setup_Feynman();
+
 private:
   bool read_write(const std::string &fname, IO::FRW::RoW rw);
-  void setup_Feynman();
+
   std::vector<double> calculate_fk(double ev, const DiracSpinor &v) const;
   std::vector<double> calculate_etak(double ev, const DiracSpinor &v) const;
   const SigmaData *get(int kappa, int n = 0) const;

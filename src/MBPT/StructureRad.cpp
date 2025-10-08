@@ -146,7 +146,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
     const auto &b = mCore[ib];
 
     const auto t_ba = h->reducedME(b, a);
-    const auto C_wavb = c1(k, w, a, v, b) + c2(k, w, a, v, b);
+    const auto C_wavb = c1(k, w, a, v, b) /*+ c2(k, w, a, v, b)*/;
 
     // nb: -ve
     c -= t_ba * C_wavb;
@@ -164,7 +164,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
     const auto &r = mExcited[ir];
 
     const auto t_mr = h->reducedME(m, r);
-    const auto C_wrvm = d2(k, w, r, v, m) + d1(k, w, r, v, m);
+    const auto C_wrvm = /*d2(k, w, r, v, m) +*/ d1(k, w, r, v, m);
 
     // nb: -ve
     c -= t_mr * C_wrvm;
@@ -463,8 +463,10 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
         const auto su = Angular::neg1pow(u);
         const auto f = 2.0 * u + 1.0;
 
-        const auto wu1 = W(u, w, n, a, b);
-        const auto wu2 = W(u, v, n, c, b);
+        // const auto wu1 = W(u, w, n, a, b);
+        // const auto wu2 = W(u, v, n, c, b);
+        const auto wu1 = Q(u, w, n, a, b);
+        const auto wu2 = Q(u, v, n, c, b);
 
         t += eta * su * sj * wu1 * wu2 * invde / f;
       }
@@ -556,8 +558,10 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
         const auto eta = eta_hp(u);
 
-        const auto wu1 = W(u, w, a, r, n);
-        const auto wu2 = W(u, v, a, m, n);
+        // const auto wu1 = W(u, w, a, r, n);
+        // const auto wu2 = W(u, v, a, m, n);
+        const auto wu1 = Q(u, w, a, r, n);
+        const auto wu2 = Q(u, v, a, m, n);
         const auto fsu = Angular::neg1pow(u) / (2.0 * u + 1.0);
 
         t += eta * fsu * sj * wu1 * wu2 * invde;
