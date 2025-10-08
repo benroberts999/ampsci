@@ -659,7 +659,6 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
   const auto num_kappas = std::size_t(m_max_ki + 1);
 
 // Tell OpenMP how to reduce GMatrix
-// (critical seems to work just as well; this is not bottleneck)
 #pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
     initializer(omp_priv = GMatrix(omp_orig))
 
@@ -676,7 +675,10 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
       const auto dw = I * weight * m_wgrid.drdu(iw);
 
       const auto kB = Angular::kappaFromIndex(int(iB));
-      const auto gB = green(kB, env + omega);
+
+      // Silly, but ig gB includes G, then so will gB_QPQ
+      const auto gB = m_include_G ? green(kB, env + omega) :
+                                    green(kB, env + omega).drop_g();
 
       for (auto k = 0ul; int(k) <= m_max_k; k++) {
 
@@ -688,31 +690,17 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
         if (ck_vB == 0.0)
           continue;
 
-        const auto &qpq_dw = m_qpiq_wk[iw][k].Rmatrix();
+        const auto &qpq_dw = m_qpiq_wk[iw][k];
 
         const auto c_ang_dw =
             dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
-        // constructs correlation potential by just doing element-wise
-        // multiplication. Fine to do since QPQ is diagonal in spinor space
 
-        GMatrix C_gB_QPQ_dw(m_i0, m_stride, m_subgrid_points, m_include_G,
-                            m_grid);
-
-        C_gB_QPQ_dw.ff() = (c_ang_dw * mult_elements(gB.ff(), qpq_dw)).real();
-        if (m_include_G) {
-          C_gB_QPQ_dw.fg() = (c_ang_dw * mult_elements(gB.fg(), qpq_dw)).real();
-          C_gB_QPQ_dw.gf() = (c_ang_dw * mult_elements(gB.gf(), qpq_dw)).real();
-          C_gB_QPQ_dw.gg() = (c_ang_dw * mult_elements(gB.gg(), qpq_dw)).real();
-        }
-
-        // #pragma omp critical(sum_sigma_d)
-        Sigma += C_gB_QPQ_dw;
+        Sigma += (c_ang_dw * mult_elements(gB, qpq_dw)).real();
       }
     }
   }
 
   // Extra 2 from symmetric + / -w
-  // 2*du/(2pi) = du / pi
   Sigma *= (m_wgrid.du() / M_PI);
 
   return Sigma;

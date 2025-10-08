@@ -2,6 +2,7 @@
 #include "LinAlg/Matrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp"
+#include "RadialMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <cassert>
 #include <iostream>
@@ -115,6 +116,27 @@ public:
   }
 
   //============================================================================
+  //! Kills g parts of spinor matrix, in place!
+  SpinorMatrix<T> &drop_g() {
+    m_g_size = 0;
+    m_incl_g = false;
+    m_fg.resize(0, 0);
+    m_gf.resize(0, 0);
+    m_gg.resize(0, 0);
+    return *this;
+  }
+
+  //! Creates g parts of spinor matrix - will have value 0
+  SpinorMatrix<T> &create_g() {
+    m_g_size = m_size;
+    m_incl_g = true;
+    m_fg.resize(m_size, m_size);
+    m_gf.resize(m_size, m_size);
+    m_gg.resize(m_size, m_size);
+    return *this;
+  }
+
+  //============================================================================
   //! Matrix adition +,-
   SpinorMatrix<T> &operator+=(const SpinorMatrix<T> &rhs) {
     m_ff += rhs.m_ff;
@@ -192,7 +214,7 @@ public:
     // GF = GF*FF + GG*GF
     // GG = GF*FG + GG*GG
     out.ff() = a.ff() * b.ff();
-    if (a.m_incl_g) {
+    if (a.m_incl_g && b.m_incl_g) {
       out.ff() += a.fg() * b.gf();
       out.fg() = a.ff() * b.fg() + a.fg() * b.gg();
       out.gf() = a.gf() * b.ff() + a.gg() * b.gf();
@@ -203,16 +225,46 @@ public:
 
   //============================================================================
   //! Multiply elements (in place): Gij -> Gij*Bij
-  SpinorMatrix<T> &mult_elements_by(const SpinorMatrix<T> &rhs) {
+  [[deprecated]] SpinorMatrix<T> &mult_elements_by(const SpinorMatrix<T> &rhs) {
     m_ff.mult_elements_by(rhs.ff());
-    m_fg.mult_elements_by(rhs.fg());
-    m_gf.mult_elements_by(rhs.gf());
-    m_gg.mult_elements_by(rhs.gg());
+    if (this->m_incl_g) {
+      // && rhs.m_incl_g
+      // I WANT an error if matrices not identical!?
+      m_fg.mult_elements_by(rhs.fg());
+      m_gf.mult_elements_by(rhs.gf());
+      m_gg.mult_elements_by(rhs.gg());
+    }
     return *this;
   }
   //! Multiply elements (new matrix): Gij = Aij*Bij
-  [[nodiscard]] friend SpinorMatrix<T>
+  [[deprecated]] [[nodiscard]] friend SpinorMatrix<T>
   mult_elements(SpinorMatrix<T> lhs, const SpinorMatrix<T> &rhs) {
+    lhs.mult_elements_by(rhs);
+    return lhs;
+  }
+
+  //============================================================================
+  //! Multiply elements (in place): Gij -> Gij*Bij
+  SpinorMatrix<T> &mult_elements_by(const RadialMatrix<T> &rhs) {
+    m_ff.mult_elements_by(rhs.Rmatrix());
+    if (this->m_incl_g) {
+      m_fg.mult_elements_by(rhs.Rmatrix());
+      m_gf.mult_elements_by(rhs.Rmatrix());
+      m_gg.mult_elements_by(rhs.Rmatrix());
+    }
+    return *this;
+  }
+
+  //! Multiply elements (new matrix): Gij = Aij*Bij
+  [[nodiscard]] friend SpinorMatrix<T>
+  mult_elements(SpinorMatrix<T> lhs, const RadialMatrix<T> &rhs) {
+    lhs.mult_elements_by(rhs);
+    return lhs;
+  }
+
+  //! Multiply elements (new matrix): Gij = Aij*Bij
+  [[nodiscard]] friend SpinorMatrix<T> mult_elements(const RadialMatrix<T> &rhs,
+                                                     SpinorMatrix<T> lhs) {
     lhs.mult_elements_by(rhs);
     return lhs;
   }
