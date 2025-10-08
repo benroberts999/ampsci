@@ -36,7 +36,8 @@ CorrelationPotential::CorrelationPotential(
       m_Foptions(Foptions),
       m_calculate_fk(calculate_fk),
       m_fk(fk),
-      m_etak(etak) {
+      m_etak(etak),
+      m_fname(fname) {
 
   std::cout << "\nConstruct Correlation Potential\n";
 
@@ -325,7 +326,7 @@ void CorrelationPotential::setup_Feynman() {
 
   if (!m_Fy) {
     m_Fy = Feynman(m_HF, m_i0, m_stride, m_size, m_Foptions, m_n_min_core,
-                   m_includeG);
+                   m_includeG, true, m_fname);
   }
 
   if (m_calculate_fk && !m_Fy0) {
@@ -343,14 +344,14 @@ void CorrelationPotential::setup_Feynman() {
       t_Foptions0.screening = Screening::exclude;
       t_Foptions0.hole_particle = HoleParticle::exclude;
       m_Fy0 = Feynman(m_HF, m_i0, t_stride, t_size, t_Foptions0, m_n_min_core,
-                      m_includeG, false);
+                      m_includeG, false, m_fname);
 
       // Fy with screening (but no hp)
       t_FoptionsX.screening = Screening::include;
       t_FoptionsX.hole_particle = HoleParticle::exclude;
       m_FyX = m_Fy->hole_particle() ?
                   Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsX,
-                          m_n_min_core, m_includeG, false) :
+                          m_n_min_core, m_includeG, false, m_fname) :
                   m_Fy;
     }
   }

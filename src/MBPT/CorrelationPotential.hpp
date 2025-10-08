@@ -59,6 +59,8 @@ class CorrelationPotential {
   std::optional<Feynman> m_FyX{};
   std::optional<Feynman> m_FyH{};
 
+  std::string m_fname{};
+
 public:
   CorrelationPotential(const std::string &fname, const HF::HartreeFock *vHF,
                        const std::vector<DiracSpinor> &basis, double r0,

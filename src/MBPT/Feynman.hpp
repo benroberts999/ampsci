@@ -91,7 +91,7 @@ public:
   //! ** Currently have issue: polarising deep n leads to failure?
   Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
           std::size_t size, const FeynmanOptions &options, int n_min_core,
-          bool include_G, bool verbose = true);
+          bool include_G, bool verbose = true, const std::string &ident = "");
 
   bool screening() const { return m_screen_Coulomb; }
   bool hole_particle() const { return m_hole_particle; }
@@ -136,6 +136,8 @@ private:
   Grid form_w_grid(double w0, double wratio) const;
   // Constructs the Q*Pi*Q Matrix along w grid, for each k
   void form_qpiq();
+
+  bool readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname);
 
   // Screening factor X = [1 + i qk*pik]^-1
   ComplexRMatrix X_screen(const ComplexRMatrix &pik,

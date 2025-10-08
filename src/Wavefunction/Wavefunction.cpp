@@ -564,7 +564,7 @@ void Wavefunction::formSigma(int nmin_core, double r0, double rmax, int stride,
     for (const auto &Fv : m_valence) {
       m_Sigma->formSigma(Fv.kappa(), Fv.en(), Fv.n(), &Fv);
     }
-  } else if (!ek && m_Sigma->empty()) {
+  } else if (!ek /*&& m_Sigma->empty()*/) {
     // calculate sigma for lowest n valence state of each kappa:
     const auto max_ki = DiracSpinor::max_kindex(m_valence);
     for (int ki = 0; ki <= max_ki; ++ki) {
@@ -573,7 +573,7 @@ void Wavefunction::formSigma(int nmin_core, double r0, double rmax, int stride,
       if (Fv != cend(m_valence))
         m_Sigma->formSigma(Fv->kappa(), Fv->en(), Fv->n(), &*Fv);
     }
-  } else if (ek && m_Sigma->empty()) {
+  } else if (ek /*&& m_Sigma->empty()*/) {
     // solve at specific energies:
     for (auto &[state, en] : ek->options()) {
       auto [n, k] = AtomData::parse_symbol(state);

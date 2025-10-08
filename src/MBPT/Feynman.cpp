@@ -3,6 +3,7 @@
 #include "DiracODE/include.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "MBPT/RadialMatrix.hpp"
 #include "MBPT/SpinorMatrix.hpp"
 #include "Potentials/NuclearPotentials.hpp"
@@ -18,7 +19,8 @@ namespace MBPT {
 //==============================================================================
 Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
                  std::size_t size, const FeynmanOptions &options,
-                 int n_min_core, bool include_G, bool verbose)
+                 int n_min_core, bool include_G, bool verbose,
+                 const std::string &ident)
     : m_HF(vHF),
       m_grid(vHF->grid_sptr()),
       m_i0(i0),
@@ -59,8 +61,25 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
   // Construct pa, Vx
   form_pa();
   form_vx();
+
   // Construct polarisation operator
-  form_qpiq();
+  std::string prefix = ident.substr(0, ident.find('.'));
+
+  if (prefix == "" || prefix == "false") {
+    // Don't try to read
+    form_qpiq();
+  } else {
+    std::string qpqname = prefix + ".qpq" + (m_hole_particle ? "h" : "") +
+                          (m_screen_Coulomb ? "s" : "") +
+                          (m_HF->vBreit() == nullptr ? "" : "b") +
+                          std::to_string(m_min_core_n) + ".abf";
+    const auto readOK = readwrite_qpiq(IO::FRW::read, qpqname);
+    if (!readOK) {
+      form_qpiq();
+      const auto readOK2 = readwrite_qpiq(IO::FRW::write, qpqname);
+      assert(readOK2);
+    }
+  }
 }
 
 //==============================================================================
@@ -600,6 +619,110 @@ Grid Feynman::form_w_grid(double w0, double wratio) const {
   const auto wmax = w0 * std::pow(wratio, int(wsteps - 1));
 
   return Grid(w0, wmax, wsteps, GridType::logarithmic);
+}
+
+//==============================================================================
+bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) {
+
+  const auto readQ = rw == IO::FRW::read;
+
+  if (!readQ && fname == "")
+    return false;
+
+  if (readQ && !IO::FRW::file_exists(fname))
+    return false;
+
+  // For comparing floats:
+  constexpr double eps = 1.0e-10;
+  auto fequal = [eps](double a, double b) { return std::abs(a - b) <= eps; };
+
+  std::fstream iofs;
+  IO::FRW::open_binary(iofs, fname, rw);
+
+  // Check screening / hole-particle (should be different filename)
+  bool t_hp{m_hole_particle}, t_sc{m_screen_Coulomb},
+      t_hohp{m_include_higher_order_hp}, t_cgm{m_Complex_green_method};
+  rw_binary(iofs, rw, t_hp, t_sc, t_hohp, t_cgm);
+  if (t_hp != m_hole_particle || t_sc != m_screen_Coulomb ||
+      t_hohp != m_include_higher_order_hp || t_cgm != m_Complex_green_method)
+    return false;
+
+  // Other parameters that make a difference
+  int t_max_ki{m_max_ki}, t_min_core_n{m_min_core_n},
+      t_max_ki_core{m_max_ki_core};
+  rw_binary(iofs, rw, t_max_ki, t_min_core_n, t_max_ki_core);
+  if (t_max_ki != m_max_ki || t_min_core_n != m_min_core_n ||
+      t_max_ki_core != m_max_ki_core)
+    return false;
+
+  // Check HartreeFock things
+  const bool BreitQ = m_HF->vBreit() != nullptr;
+  bool t_Breit{BreitQ};
+  double t_alpha{m_HF->alpha()};
+  int t_num_core_e{m_HF->num_core_electrons()};
+  rw_binary(iofs, rw, t_Breit, t_alpha, t_num_core_e);
+  if (t_Breit != BreitQ || !fequal(t_alpha, m_HF->alpha()) ||
+      t_num_core_e != m_HF->num_core_electrons())
+    return false;
+
+  // Check subgrid:
+  std::size_t t_i0{m_i0}, t_stride{m_stride},
+      t_subgrid_points{m_subgrid_points}, t_size(m_grid->size());
+  rw_binary(iofs, rw, t_i0, t_stride, t_subgrid_points);
+  if (t_i0 != m_i0 || t_stride != m_stride ||
+      t_subgrid_points != m_subgrid_points || t_size != m_grid->size())
+    return false;
+
+  // Check regular grid:
+  double t_r0{m_grid->r0()}, t_rmax{m_grid->rmax()},
+      t_loglin{m_grid->loglin_b()}, t_du{m_grid->du()};
+  rw_binary(iofs, rw, t_r0, t_rmax, t_loglin, t_du);
+  if (!fequal(t_r0, m_grid->r0()) || !fequal(t_rmax, m_grid->rmax()) ||
+      !fequal(t_loglin, m_grid->loglin_b()) || !fequal(t_du, m_grid->du()))
+    return false;
+
+  double t_wr0{m_wgrid.r0()}, t_wrmax{m_wgrid.rmax()},
+      t_wloglin{m_wgrid.loglin_b()}, t_wdu{m_wgrid.du()};
+  std::size_t twsize{m_wgrid.num_points()};
+  rw_binary(iofs, rw, t_wr0, t_wrmax, t_wloglin, t_wdu, twsize);
+
+  if (!fequal(t_wr0, m_wgrid.r0()) || !fequal(t_wrmax, m_wgrid.rmax()) ||
+      !fequal(t_wloglin, m_wgrid.loglin_b()) || !fequal(t_wdu, m_wgrid.du()) ||
+      twsize != m_wgrid.num_points())
+    return false;
+
+  int t_max_k{m_max_k};
+  double t_omre{m_omre};
+  rw_binary(iofs, rw, t_max_k, t_omre);
+  if (t_max_k != m_max_k || !fequal(t_omre, m_omre))
+    return false;
+
+  // Now, do actual read/write of data:
+
+  const auto num_ks = std::size_t(m_max_k + 1);
+  const auto num_ws = m_wgrid.num_points();
+  if (readQ) {
+    m_qpiq_wk.resize(num_ws, num_ks,
+                     ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
+  }
+
+  for (auto iw = 0ul; iw < num_ws; ++iw) {
+    for (auto k = 0ul; k < num_ks; ++k) {
+      for (std::size_t i = 0; i < m_subgrid_points; ++i) {
+        for (std::size_t j = 0; j < m_subgrid_points; ++j) {
+          double re = m_qpiq_wk[iw][k](i, j).real();
+          double im = m_qpiq_wk[iw][k](i, j).imag();
+          rw_binary(iofs, rw, re, im);
+          if (readQ)
+            m_qpiq_wk[iw][k](i, j) = {re, im};
+        }
+      }
+    }
+  }
+
+  const auto rw_str = !readQ ? "Written QPQ to " : "Read QPQ from ";
+  std::cout << rw_str << "file: " << fname << "\n";
+  return true;
 }
 
 //==============================================================================
