@@ -15,6 +15,8 @@
 #include <cassert>
 #include <iostream>
 #include <memory>
+//
+#include "Wavefunction/ContinuumOrbitals.hpp"
 
 static const std::string Kionisation_description_text{R"(
 This module calculates atomic ionisation factors.
@@ -56,6 +58,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
         "List (2). Minimum, maximum momentum transfer (q), in MeV [0.01,0.01]"},
        {"q_steps", "Number of steps along q grid (logarithmic grid) [1]"},
        {"max_L", "Maximum multipolarity used in exp(iqr) expansion [6]"},
+       {"ec_cut", "Cut-off (in au) for continuum energy. [1000.0]"},
        {"label", "optional extra label for output files"},
        {"method", "'hf' (relativistic Hartree-Fock), "
                   "'rpa0' (lowst-order RPA), "
@@ -111,6 +114,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_L = input.get("max_L", 6);
   const auto label = input.get("label", std::string{""});
 
+  const auto ec_cut = input.get("ec_cut", 1000.0);
+
   fmt::print(
       "Momentum: [{:.3f}, {:.3f}] MeV = [{:.1f}, {:.1f}] au, in {} steps\n",
       qmin_MeV, qmax_MeV, qmin_au, qmax_au, q_steps);
@@ -120,7 +125,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   const Grid qgrid({q_steps, qmin_au, qmax_au, 0, GridType::logarithmic});
 
   // Check to see if grid is reasonable for maximum energy:
-  Kion::check_radial_grid(Emax_au, qmax_au, wf.grid());
+  Kion::check_radial_grid(std::min(ec_cut, Emax_au), qmax_au, wf.grid());
 
   //----------------------------------------------------------------------------
   // Read in and parse options:
@@ -438,7 +443,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << Fnk << ", " << std::flush;
       const auto K_nk = Kion::calculateK_nk(
           wf.vHF(), Fnk, max_L, Egrid, jl.get(), force_rescale, hole_particle,
-          force_orthog, use_Zeff_cont, use_rpa0, wf.basis());
+          force_orthog, use_Zeff_cont, use_rpa0, wf.basis(), ec_cut);
       if (write_each_state) {
         const auto oname_nk = oname + "_" + Fnk.shortSymbol();
         std::cout << "Written to file: " << oname_nk << "\n";
@@ -454,6 +459,124 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
                       num_output_digits, units);
 
   std::cout << '\n';
+}
+
+//==============================================================================
+void photo(const IO::InputBlock &input, const Wavefunction &wf) {
+  IO::ChronoTimer timer("photo");
+
+  input.check({
+      {"E_range",
+       "List (2). Minimum, maximum energy transfer (dE), in eV [10, 100]"},
+      {"E_steps", "Numer of steps along dE grid (logarithmic grid) [1]"},
+      {"oname", "oname"},
+      {"ec_cut", "Cut-off (in au) for continuum energy. [100.0]"},
+  });
+  if (input.has_option("help")) {
+    return;
+  }
+
+  auto [Emin_eV, Emax_eV] = input.get("E_range", std::array{10.0, 100.0});
+  auto E_steps = input.get<std::size_t>("E_steps", 1);
+  if (E_steps <= 1) {
+    E_steps = 1;
+    Emax_eV = Emin_eV;
+  }
+  const auto Emin_au = Emin_eV / PhysConst::Hartree_eV;
+  const auto Emax_au =
+      Emax_eV < Emin_eV ? Emin_au : Emax_eV / PhysConst::Hartree_eV;
+
+  std::cout << "\nSummary of inputs:\n";
+  fmt::print(
+      "Energy  : [{:.1f}, {:.1f}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
+      Emin_eV, Emax_eV, Emin_au, Emax_au, E_steps);
+  const auto ec_cut = input.get("ec_cut", 100.0);
+
+  const auto max_L = input.get("max_L", 6);
+  const auto label = input.get("label", std::string{""});
+
+  // Set up the E and q grids
+  const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
+
+  int k = 1;
+
+  const auto E1 = DiracOperator::E1(wf.grid());
+
+  auto oname = input.get("oname", std::string{"out.txt"});
+  std::ofstream out_file(oname);
+
+  int count = 0;
+  for (const auto omega : Egrid.r()) {
+    std::cout << count++ << " " << omega << " " << omega * PhysConst::Hartree_eV
+              << "\n";
+
+    const auto Ksigma = 4.0 * M_PI * M_PI * wf.alpha() * PhysConst::aB_cm *
+                        PhysConst::aB_cm * omega;
+
+    const auto Ek =
+        DiracOperator::Ekv_omega(wf.grid(), k, wf.alpha(), omega, true);
+
+    const auto EkL =
+        DiracOperator::Ek_omega(wf.grid(), k, wf.alpha(), omega, true);
+
+    const auto Mk =
+        DiracOperator::Mk_omega(wf.grid(), k, wf.alpha(), omega, true);
+
+    const auto E1v = DiracOperator::E1v(wf.alpha(), omega);
+    const auto M1 = DiracOperator::M1(wf.grid(), wf.alpha(), omega);
+
+    double Q_E = 0.0;
+    double Q_El = 0.0;
+    double Q_E1 = 0.0;
+    double Q_E1v = 0.0;
+    double Q_M = 0.0;
+    double Q_M1 = 0.0;
+
+#pragma omp parallel for reduction(+ : Q_E, Q_El, Q_E1, Q_E1v, Q_M, Q_M1)
+    for (const auto &Fa : wf.core()) {
+      const auto ec = omega + Fa.en();
+      if (ec < 0.0)
+        continue;
+      const auto ec_t = std::min(ec, ec_cut);
+
+      const int l = Fa.l();
+      const int lc_max = l + k + 1;
+      const int lc_min = std::max(l - k - 1, 0);
+
+      ContinuumOrbitals cntm(wf.vHF());
+      bool force_rescale = false;
+      bool subtract_self = true;
+      bool orthog = true;
+      cntm.solveContinuumHF(ec_t, lc_min, lc_max, &Fa, force_rescale,
+                            subtract_self, orthog);
+
+      for (const auto &Fe : cntm.orbitals) {
+
+        const auto rme_E = Ek.reducedME(Fe, Fa);
+        const auto rme_El = EkL.reducedME(Fe, Fa);
+        const auto rme_E1 = E1.reducedME(Fe, Fa);
+        const auto rme_E1v = E1.reducedME(Fe, Fa);
+        const auto rme_M = Mk.reducedME(Fe, Fa);
+        const auto rme_M1 = M1.reducedME(Fe, Fa);
+
+        const auto f_mp = 1.0 / (wf.alpha() * omega) / (wf.alpha() * omega);
+        const auto f_1 = 1.0 / 3.0;
+
+        Q_E += f_mp * rme_E * rme_E;
+        Q_El += f_mp * rme_El * rme_El;
+        Q_E1 += f_1 * rme_E1 * rme_E1;
+        Q_E1v += f_1 * rme_E1v * rme_E1v;
+        Q_M += f_mp * rme_M * rme_M;
+        Q_M1 += f_1 * rme_M1 * rme_M1;
+      }
+    }
+    // std::cout << "\n";
+
+    out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E * Ksigma
+             << " " << Q_El * Ksigma << " " << Q_E1 * Ksigma << " "
+             << Q_E1v * Ksigma << " " << Q_M * Ksigma << " " << Q_M1 * Ksigma
+             << "\n";
+  }
 }
 
 } // namespace Module

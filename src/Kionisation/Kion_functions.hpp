@@ -46,7 +46,8 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
               const Grid &Egrid, const DiracOperator::jL *jl,
               bool force_rescale, bool hole_particle, bool force_orthog,
               bool zeff_cont, bool use_rpa0 = false,
-              const std::vector<DiracSpinor> &basis = {});
+              const std::vector<DiracSpinor> &basis = {},
+              double ec_cut = 1000.0);
 
 //! Calculates ionisation factor K(E,q), for all core states, in RPA approximation.
 //! Uses all-orders RPA, so is quite slow (RPA must be solved for each L and q)
