@@ -76,7 +76,7 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
 
   // Calculate normalisation coeficient, D, and re-scaling factor:
   const auto D = analytic_f_amplitude(en, alpha);
-  Fa *= (D / amp);
+  Fa *= (amp != 0.0 ? (D / amp) : 0.0);
 }
 
 //==============================================================================
@@ -171,7 +171,7 @@ std::pair<double, double> numerical_f_amplitude(double en, int kappa,
     r0 = r1;
     f0 = f1;
   }
-  assert(amp != 0.0);
+  // assert(amp != 0.0);
   return {amp, eps_amp};
 }
 

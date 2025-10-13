@@ -24,7 +24,7 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
               const Grid &Egrid, const DiracOperator::jL *jl,
               bool force_rescale, bool hole_particle, bool force_orthog,
               bool zeff_cont, bool use_rpa0,
-              const std::vector<DiracSpinor> &basis) {
+              const std::vector<DiracSpinor> &basis, double ec_cut) {
   assert(vHF != nullptr && "Hartree-Fock potential must not be null");
 
   const auto &qgrid = jl->q_grid();
@@ -74,7 +74,7 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
     const auto dE = Egrid(idE);
 
     // Convert energy deposition to contimuum state energy:
-    double ec = dE + Fnk.en();
+    double ec = std::min(dE + Fnk.en(), ec_cut);
     if (ec <= 0.0)
       continue;
 

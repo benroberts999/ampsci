@@ -11,4 +11,6 @@ namespace Module {
 //! core states, where E is deposited energy: E = |E_a| + e
 void Kionisation(const IO::InputBlock &input, const Wavefunction &wf);
 
+void photo(const IO::InputBlock &input, const Wavefunction &wf);
+
 } // namespace Module
