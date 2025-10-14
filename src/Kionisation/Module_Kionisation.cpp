@@ -471,6 +471,10 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       {"E_steps", "Numer of steps along dE grid (logarithmic grid) [1]"},
       {"oname", "oname"},
       {"ec_cut", "Cut-off (in au) for continuum energy. [100.0]"},
+      {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
+      {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
+                        "hole-particle interaction) [true]"},
+      {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
   });
   if (input.has_option("help")) {
     return;
@@ -494,6 +498,10 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto max_L = input.get("max_L", 6);
   const auto label = input.get("label", std::string{""});
+
+  const auto force_orthog = input.get("force_orthog", true);
+  const auto force_rescale = input.get("force_rescale", false);
+  const auto hole_particle = input.get("hole_particle", true);
 
   // Set up the E and q grids
   const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
@@ -532,8 +540,20 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     double Q_M = 0.0;
     double Q_M1 = 0.0;
 
+    // First, loop through and just find list of what we shall do.
+    // THEN parellelise over that!
+
+    std::vector<std::size_t> iclist;
+    for (std::size_t i = 0; i < wf.core().size(); ++i) {
+      const auto ec = omega + wf.core()[i].en();
+      if (ec < 0.0)
+        continue;
+      iclist.push_back(i);
+    }
+
 #pragma omp parallel for reduction(+ : Q_E, Q_El, Q_E1, Q_E1v, Q_M, Q_M1)
-    for (const auto &Fa : wf.core()) {
+    for (const auto ic : iclist) {
+      const auto &Fa = wf.core()[ic];
       const auto ec = omega + Fa.en();
       if (ec < 0.0)
         continue;
@@ -544,18 +564,15 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       const int lc_min = std::max(l - k - 1, 0);
 
       ContinuumOrbitals cntm(wf.vHF());
-      bool force_rescale = false;
-      bool subtract_self = true;
-      bool orthog = true;
       cntm.solveContinuumHF(ec_t, lc_min, lc_max, &Fa, force_rescale,
-                            subtract_self, orthog);
+                            hole_particle, force_orthog);
 
       for (const auto &Fe : cntm.orbitals) {
 
         const auto rme_E = Ek.reducedME(Fe, Fa);
         const auto rme_El = EkL.reducedME(Fe, Fa);
         const auto rme_E1 = E1.reducedME(Fe, Fa);
-        const auto rme_E1v = E1.reducedME(Fe, Fa);
+        const auto rme_E1v = E1v.reducedME(Fe, Fa);
         const auto rme_M = Mk.reducedME(Fe, Fa);
         const auto rme_M1 = M1.reducedME(Fe, Fa);
 

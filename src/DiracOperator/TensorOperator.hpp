@@ -118,7 +118,7 @@ protected:
         opC(RorI),
         m_freqDependantQ(freq_dep),
         m_constant(constant),
-        m_vec(inv){};
+        m_vec(inv) {};
 
 public:
   virtual ~TensorOperator() = default;
@@ -156,7 +156,7 @@ public:
   }
 
   //! Update frequency for frequency-dependant operators.
-  virtual void updateFrequency(const double){};
+  virtual void updateFrequency(const double) {};
 
   //! Permanently re-scales the operator by constant, lambda
   void scale(double lambda);
@@ -286,5 +286,41 @@ protected:
   double virtual angularCfg(int, int) const override final { return 0.0; }
   double virtual angularCgf(int, int) const override final { return 0.0; }
 };
+
+//******************************************************************************
+// Helper functions: Useful for several operators
+//******************************************************************************
+
+//! Pab function: Int[ (fa*gb + pm*ga*fb) * t(r) , dr]. pm = +/-1 (usually)
+/*! @details
+Note: does not know selection rules, so only evaluate if non-zero
+*/
+double Pab(double pm, const std::vector<double> &t, const DiracSpinor &Fa,
+           const DiracSpinor &Fb);
+
+//! Rab function: Int[ (fa*fb + pm*ga*gb) * t(r) , dr]. pm = +/-1 (usually)
+/*! @details
+Note: does not know selection rules, so only evaluate if non-zero
+*/
+double Rab(double pm, const std::vector<double> &t, const DiracSpinor &Fa,
+           const DiracSpinor &Fb);
+
+//! Pab_rhs function: dF_ab += A * t(r) * (g, pm*f) , pm=+/-1 (usually).
+//! NOTE: uses +=, so can combine. Ensure empty to begin.
+/*! @details
+Note: does not know selection rules, so only evaluate if non-zero.
+Should have Fa*Pab_rhs = A * Pab.
+*/
+void Pab_rhs(double pm, const std::vector<double> &t, DiracSpinor *dF,
+             const DiracSpinor &Fb, double A = 1.0);
+
+//! Rab_rhs function: dF_ab += A * t(r) * (f, pm*g) , pm=+/-1 (usually).
+//! NOTE: uses +=, so can combine. Ensure empty to begin.
+/*! @details
+Note: does not know selection rules, so only evaluate if non-zero.
+Should have Fa*Rab_rhs = A * Rab.
+*/
+void Rab_rhs(double pm, const std::vector<double> &t, DiracSpinor *dF,
+             const DiracSpinor &Fb, double A = 1.0);
 
 } // namespace DiracOperator

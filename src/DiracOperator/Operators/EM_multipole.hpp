@@ -17,7 +17,7 @@ class Ek_omega final : public TensorOperator {
 public:
   Ek_omega(const Grid &gr, int K, double alpha, double omega,
            bool transition_form)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 0.0,
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_alpha(alpha),
         m_K(K),
@@ -106,7 +106,7 @@ public:
   }
 
 private:
-  double m_alpha; // (including var-alpha)
+  double m_alpha;
   int m_K;
   bool m_transition_form = true;
   std::vector<double> j1{};
@@ -175,29 +175,37 @@ public:
       return 0.0;
     }
 
-    const auto c1 = double(Fa.kappa() - Fb.kappa()) / (m_K + 1);
-    const auto c2 = -double(m_K);
-    const auto c3 = c1 * (m_K + 1);
+    const auto K = double(m_K);
+    const auto a = double(Fa.kappa() - Fb.kappa()) / (K + 1.0);
+    double cExp = std::sqrt(2.0 * K + 1.0);
+    double cc = 1.0; // Johnson
+    // double cc = std::sqrt((K + 1) / K); // Ben
 
-    const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
-    const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+    const auto Pp1 = Pab(+1, j1_on_qr, Fa, Fb);
+    const auto Pp2 = Pab(+1, j2, Fa, Fb);
+    const auto Pm1 = Pab(-1, j1_on_qr, Fa, Fb);
 
-    const auto &drdu = Fb.grid().drdu();
+    return cc * cExp * (K * Pm1 - a * ((K + 1.0) * Pp1 - Pp2));
 
-    const auto same = &Fa == &Fb;
+    // const auto c1 = double(Fa.kappa() - Fb.kappa()) / (m_K + 1);
+    // const auto c2 = -double(m_K);
+    // const auto c3 = c1 * (m_K + 1);
 
-    const auto fg1 =
-        NumCalc::integrate(1.0, pi, pf, j1_on_qr, Fa.f(), Fb.g(), drdu);
-    const auto fg2 = NumCalc::integrate(1.0, pi, pf, j2, Fa.f(), Fb.g(), drdu);
+    // const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+    // const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
 
-    const auto gf1 =
-        same ? fg1 :
-               NumCalc::integrate(1.0, pi, pf, j1_on_qr, Fa.g(), Fb.f(), drdu);
-    const auto gf2 =
-        same ? fg2 : NumCalc::integrate(1.0, pi, pf, j2, Fa.g(), Fb.f(), drdu);
+    // const auto &drdu = Fb.grid().drdu();
 
-    return ((c3 + c2) * fg1 + (c3 - c2) * gf1 - c1 * (fg2 + gf2)) *
-           Fb.grid().du();
+    // const auto fg1 =
+    //     NumCalc::integrate(1.0, pi, pf, j1_on_qr, Fa.f(), Fb.g(), drdu);
+    // const auto fg2 = NumCalc::integrate(1.0, pi, pf, j2, Fa.f(), Fb.g(), drdu);
+
+    // const auto gf1 =
+    //     NumCalc::integrate(1.0, pi, pf, j1_on_qr, Fa.g(), Fb.f(), drdu);
+    // const auto gf2 = NumCalc::integrate(1.0, pi, pf, j2, Fa.g(), Fb.f(), drdu);
+
+    // return ((c3 + c2) * fg1 + (c3 - c2) * gf1 - c1 * (fg2 + gf2)) *
+    //        Fb.grid().du();
   }
 
   void update_q(double q) { updateFrequency(q / m_alpha); }

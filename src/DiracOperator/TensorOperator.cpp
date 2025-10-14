@@ -185,4 +185,52 @@ double TensorOperator::radialIntegral(const DiracSpinor &Fa,
   return m_constant * gr.du() * (Rff + Rfg + Rgf + Rgg);
 }
 
+//******************************************************************************
+// Helper functions: Useful for several operators
+//******************************************************************************
+
+// Pab function: Int[ (fa*gb + pm*ga*fb) * t(r) , dr]. pm = +/-1 (usually)
+double Pab(double pm, const std::vector<double> &t, const DiracSpinor &Fa,
+           const DiracSpinor &Fb) {
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto &drdu = Fb.grid().drdu();
+  const auto fg = NumCalc::integrate(1.0, pi, pf, t, Fa.f(), Fb.g(), drdu);
+  const auto gf = &Fa == &Fb ?
+                      fg :
+                      NumCalc::integrate(1.0, pi, pf, t, Fa.g(), Fb.f(), drdu);
+  return (fg + pm * gf) * Fb.grid().du();
+}
+
+// Rab function: Int[ (fa*fb + pm*ga*gb) * t(r) , dr]. pm = +/-1 (usually)
+double Rab(double pm, const std::vector<double> &t, const DiracSpinor &Fa,
+           const DiracSpinor &Fb) {
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto &drdu = Fb.grid().drdu();
+  const auto ff = NumCalc::integrate(1.0, pi, pf, t, Fa.f(), Fb.f(), drdu);
+  const auto gg = NumCalc::integrate(1.0, pi, pf, t, Fa.g(), Fb.g(), drdu);
+  return (ff + pm * gg) * Fb.grid().du();
+}
+
+// Pab_rhs function: dF_ab += t(r) * (g, pm*f) - note, uses +=, so can combine.
+// Ensure empty to begin.
+void Pab_rhs(double pm, const std::vector<double> &t, DiracSpinor *dF,
+             const DiracSpinor &Fb, double a) {
+  for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+    dF->f(i) += a * t[i] * Fb.g(i);
+    dF->g(i) += a * pm * t[i] * Fb.f(i);
+  }
+}
+
+// Rab_rhs function: dF_ab += t(r) * (f, pm*g) - note, uses +=, so can combine.
+// Ensure empty to begin.
+void Rab_rhs(double pm, const std::vector<double> &t, DiracSpinor *dF,
+             const DiracSpinor &Fb, double a) {
+  for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+    dF->f(i) += a * t[i] * Fb.g(i);
+    dF->g(i) += a * pm * t[i] * Fb.f(i);
+  }
+}
+
 } // namespace DiracOperator
