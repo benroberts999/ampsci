@@ -16,6 +16,7 @@
 #include <iostream>
 #include <memory>
 //
+#include "ExternalField/DiagramRPA.hpp"
 #include "Wavefunction/ContinuumOrbitals.hpp"
 
 static const std::string Kionisation_description_text{R"(
@@ -513,6 +514,10 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   auto oname = input.get("oname", std::string{"out.txt"});
   std::ofstream out_file(oname);
 
+  auto Ek = DiracOperator::Ekv_omega(wf.grid(), k, wf.alpha(), 0.0, true);
+  ExternalField::DiagramRPA dV0(&Ek, wf.basis(), wf.vHF(), wf.identity());
+  ExternalField::DiagramRPA dV(&Ek, wf.basis(), wf.vHF(), wf.identity());
+
   int count = 0;
   for (const auto omega : Egrid.r()) {
     std::cout << count++ << " " << omega << " " << omega * PhysConst::Hartree_eV
@@ -521,8 +526,10 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto Ksigma = 4.0 * M_PI * M_PI * wf.alpha() * PhysConst::aB_cm *
                         PhysConst::aB_cm * omega;
 
-    const auto Ek =
-        DiracOperator::Ekv_omega(wf.grid(), k, wf.alpha(), omega, true);
+    Ek.updateFrequency(omega);
+    dV0.update_t0s(&Ek); // required??
+    dV.solve_core(0.0);
+    // dV.solve_core(omega);
 
     const auto EkL =
         DiracOperator::Ek_omega(wf.grid(), k, wf.alpha(), omega, true);
@@ -537,7 +544,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     double Q_El = 0.0;
     double Q_E1 = 0.0;
     double Q_E1v = 0.0;
-    double Q_M = 0.0;
+    double Q_E_rpa = 0.0;
     double Q_M1 = 0.0;
 
     // First, loop through and just find list of what we shall do.
@@ -551,7 +558,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       iclist.push_back(i);
     }
 
-#pragma omp parallel for reduction(+ : Q_E, Q_El, Q_E1, Q_E1v, Q_M, Q_M1)
+#pragma omp parallel for reduction(+ : Q_E, Q_El, Q_E1, Q_E1v, Q_E_rpa, Q_M1)
     for (const auto ic : iclist) {
       const auto &Fa = wf.core()[ic];
       const auto ec = omega + Fa.en();
@@ -570,11 +577,12 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       for (const auto &Fe : cntm.orbitals) {
 
         const auto rme_E = Ek.reducedME(Fe, Fa);
+        const auto rme_E_r = rme_E + dV.dV(Fe, Fa);
         const auto rme_El = EkL.reducedME(Fe, Fa);
         const auto rme_E1 = E1.reducedME(Fe, Fa);
         const auto rme_E1v = E1v.reducedME(Fe, Fa);
-        const auto rme_M = Mk.reducedME(Fe, Fa);
-        const auto rme_M1 = M1.reducedME(Fe, Fa);
+        // const auto rme_M = Mk.reducedME(Fe, Fa);
+        // const auto rme_M1 = M1.reducedME(Fe, Fa);
 
         const auto f_mp = 1.0 / (wf.alpha() * omega) / (wf.alpha() * omega);
         const auto f_1 = 1.0 / 3.0;
@@ -583,16 +591,17 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
         Q_El += f_mp * rme_El * rme_El;
         Q_E1 += f_1 * rme_E1 * rme_E1;
         Q_E1v += f_1 * rme_E1v * rme_E1v;
-        Q_M += f_mp * rme_M * rme_M;
-        Q_M1 += f_1 * rme_M1 * rme_M1;
+        Q_E_rpa += f_mp * rme_E_r * rme_E_r;
+        // Q_M += f_mp * rme_M * rme_M;
+        // Q_M1 += f_1 * rme_M1 * rme_M1;
       }
     }
     // std::cout << "\n";
 
     out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E * Ksigma
              << " " << Q_El * Ksigma << " " << Q_E1 * Ksigma << " "
-             << Q_E1v * Ksigma << " " << Q_M * Ksigma << " " << Q_M1 * Ksigma
-             << "\n";
+             << Q_E1v * Ksigma << " " << Q_E_rpa * Ksigma << " "
+             << Q_M1 * Ksigma << "\n";
   }
 }
 
