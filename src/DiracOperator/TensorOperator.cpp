@@ -12,11 +12,8 @@
 namespace DiracOperator {
 
 //==============================================================================
-bool TensorOperator::isZero(const int ka, int kb) const {
+bool TensorOperator::isZero(int ka, int kb) const {
   // checks m_rank and m_parity
-
-  // if (m_rank < std::abs(Angular::twoj_k(ka) - Angular::twoj_k(kb)) / 2)
-  //   return true;
 
   if (Angular::triangle(Angular::twoj_k(ka), Angular::twoj_k(kb), 2 * m_rank) ==
       0)
@@ -27,8 +24,6 @@ bool TensorOperator::isZero(const int ka, int kb) const {
     return true;
 
   return false;
-  // can remove this??
-  // return (angularF(ka, kb) == 0);
 }
 
 bool TensorOperator::isZero(const DiracSpinor &Fa,
@@ -37,7 +32,7 @@ bool TensorOperator::isZero(const DiracSpinor &Fa,
 }
 
 //==============================================================================
-double TensorOperator::rme3js(const int twoja, const int twojb, int two_mb,
+double TensorOperator::rme3js(int twoja, int twojb, int two_mb,
                               int two_q) const {
   // rme3js = (-1)^{ja-ma} (ja, k, jb,\ -ma, q, mb)
   const auto two_ma = two_mb + two_q; // -ma + mb + q = 0;
@@ -47,21 +42,24 @@ double TensorOperator::rme3js(const int twoja, const int twojb, int two_mb,
          Angular::threej_2(twoja, 2 * m_rank, twojb, -two_ma, two_q, two_mb);
 }
 
-DiracSpinor TensorOperator::reduced_rhs(const int ka,
-                                        const DiracSpinor &Fb) const {
-  return angularF(ka, Fb.kappa()) * radial_rhs(ka, Fb);
+DiracSpinor TensorOperator::reduced_rhs(int ka, const DiracSpinor &Fb,
+                                        Conjugate conj) const {
+  const auto s = conj_sign(conj);
+  const auto factor = s * angularF(ka, Fb.kappa());
+  return factor * radial_rhs(ka, Fb);
 }
 
-DiracSpinor TensorOperator::reduced_lhs(const int ka,
-                                        const DiracSpinor &Fb) const {
+DiracSpinor TensorOperator::reduced_lhs(int ka, const DiracSpinor &Fb) const {
   const int s = imaginaryQ() ? -1 : 1;
   const auto x = Angular::evenQ_2(Angular::twoj_k(ka) - Fb.twoj()) ? s : -s;
   return (x * angularF(ka, Fb.kappa())) * radial_rhs(ka, Fb);
 }
 
-double TensorOperator::reducedME(const DiracSpinor &Fa,
-                                 const DiracSpinor &Fb) const {
-  return angularF(Fa.kappa(), Fb.kappa()) * radialIntegral(Fa, Fb);
+double TensorOperator::reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                                 Conjugate conj) const {
+  const auto s = conj_sign(conj);
+  const auto factor = s * angularF(Fa.kappa(), Fb.kappa());
+  return factor * radialIntegral(Fa, Fb);
 }
 
 double TensorOperator::fullME(const DiracSpinor &Fa, const DiracSpinor &Fb,

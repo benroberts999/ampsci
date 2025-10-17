@@ -14,87 +14,9 @@
 //! Dirac Operators: General + derived
 namespace DiracOperator {
 
+enum class Conjugate { yes, no };
 enum class Parity { even, odd, blank };
-enum class Realness { real, imaginary, blank };
-
-//==============================================================================
-//! 4x4 Integer matrix (for Gamma/Pauli). Can be real or imag. Not mixed.
-struct IntM4x4
-// 4x4 Integer matrix.
-// Notation for elements:
-//  (e00  e01)
-//  (e10  e11)
-{
-  IntM4x4(int in00, int in01, int in10, int in11)
-      : e00(in00), e01(in01), e10(in10), e11(in11) {}
-
-  const int e00, e01, e10, e11;
-};
-
-//==============================================================================
-class SpinorMatrix
-// 2x2 matrix that acts in radial spinor space.
-// Notation for elements:
-//  (ff  fg)
-//  (gf  gg)
-{
-  double ff{0.0}, fg{0.0}, gf{0.0}, gg{0.0};
-
-public:
-  // SpinorMatrix() = default;
-  constexpr SpinorMatrix(double iff, double ifg, double igf, double igg)
-      : ff(iff), fg(ifg), gf(igf), gg(igg) {}
-  constexpr SpinorMatrix() {}
-
-  constexpr SpinorMatrix &operator+=(const SpinorMatrix &rhs) {
-    ff += rhs.ff;
-    fg += rhs.fg;
-    gf += rhs.gf;
-    gg += rhs.gg;
-    return *this;
-  }
-  constexpr SpinorMatrix &operator-=(const SpinorMatrix &rhs) {
-    ff -= rhs.ff;
-    fg -= rhs.fg;
-    gf -= rhs.gf;
-    gg -= rhs.gg;
-    return *this;
-  }
-  friend SpinorMatrix operator+(SpinorMatrix lhs, const SpinorMatrix &rhs) {
-    return lhs += rhs;
-  }
-  friend SpinorMatrix operator-(SpinorMatrix lhs, const SpinorMatrix &rhs) {
-    return lhs -= rhs;
-  }
-  constexpr SpinorMatrix &operator*=(double x) {
-    ff *= x;
-    fg *= x;
-    gf *= x;
-    gg *= x;
-    return *this;
-  }
-  friend SpinorMatrix operator*(SpinorMatrix lhs, double x) { return lhs *= x; }
-  friend SpinorMatrix operator*(double x, SpinorMatrix rhs) { return rhs *= x; }
-
-  DiracSpinor act(const DiracSpinor &Fa) const {
-    using namespace qip::overloads;
-    auto mFa = Fa;
-    // mFa.f() = ff * Fa.f() + fg * Fa.g();
-    // mFa.g() = gf * Fa.f() + gg * Fa.g();
-
-    // since we start with a copy:
-    if (ff != 1.0)
-      mFa.f() *= ff;
-    if (fg != 0.0)
-      mFa.f() += fg * Fa.g();
-    if (gg != 1.0)
-      mFa.g() *= gg;
-    if (gf != 0.0)
-      mFa.g() += gf * Fa.f();
-    return mFa;
-  }
-  DiracSpinor operator*(const DiracSpinor &Fa) const { return act(Fa); }
-};
+enum class Realness { real, imaginary };
 
 //==============================================================================
 //! @brief General operator (virtual base class); operators derive from this.
@@ -115,10 +37,10 @@ protected:
       : m_rank(rank_k),
         m_parity(pi),
         m_diff_order(diff_order),
-        opC(RorI),
+        m_realness(RorI),
         m_freqDependantQ(freq_dep),
         m_constant(constant),
-        m_vec(inv){};
+        m_vec(inv) {};
 
 public:
   virtual ~TensorOperator() = default;
@@ -127,7 +49,7 @@ protected:
   int m_rank;
   Parity m_parity;
   int m_diff_order;
-  Realness opC;
+  Realness m_realness;
   bool m_freqDependantQ{false};
 
 protected:
@@ -140,7 +62,7 @@ public:
 
 public:
   //! If matrix element <a|h|b> is zero, returns true
-  bool isZero(const int ka, int kb) const;
+  bool isZero(int ka, int kb) const;
   bool isZero(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   bool selectrion_rule(int twoJA, int piA, int twoJB, int piB) const {
@@ -150,13 +72,11 @@ public:
     if (Angular::triangle(twoJA, twoJB, 2 * m_rank) == 0)
       return false;
 
-    // if (2 * m_rank < std::abs(twoJA - twoJB))
-    //   return false;
     return (m_parity == Parity::even) == (piA == piB);
   }
 
   //! Update frequency for frequency-dependant operators.
-  virtual void updateFrequency(const double){};
+  virtual void updateFrequency(double) { return; };
 
   //! Permanently re-scales the operator by constant, lambda
   void scale(double lambda);
@@ -168,7 +88,7 @@ public:
   int get_d_order() const { return m_diff_order; }
 
   //! returns true if operator is imaginary (has imag MEs)
-  bool imaginaryQ() const { return (opC == Realness::imaginary); }
+  bool imaginaryQ() const { return (m_realness == Realness::imaginary); }
   int rank() const { return m_rank; }
   //! returns parity, as integer (+1 or -1)
   int parity() const { return (m_parity == Parity::even) ? 1 : -1; }
@@ -178,6 +98,11 @@ public:
     const auto sra_i = imaginaryQ() ? -1 : 1;
     const auto sra = Angular::neg1pow_2(Fa.twoj() - Fb.twoj());
     return sra_i * sra;
+  }
+
+  //! Sign imparted by conjugation. -1 if both conjugated and imaginary
+  int conj_sign(Conjugate conj = Conjugate::yes) const {
+    return conj == Conjugate::yes && m_realness == Realness::imaginary ? -1 : 1;
   }
 
   //! Returns "name" of operator (e.g., 'E1')
@@ -196,10 +121,9 @@ public:
 public:
   //! @brief angularF: links radiation integral to RME.
   //! RME = <a||h||b> = angularF(a,b) * radial_int(a,b)
-  virtual double angularF(const int, const int) const = 0;
+  virtual double angularF(int, int) const = 0;
   //! radial_int = Fa * radial_rhs(a, Fb) (a needed for angular factor)
-  virtual DiracSpinor radial_rhs(const int kappa_a,
-                                 const DiracSpinor &Fb) const;
+  virtual DiracSpinor radial_rhs(int kappa_a, const DiracSpinor &Fb) const;
 
   //! Defined via <a||h||b> = angularF(a,b) * radialIntegral(a,b)
   //! (Note: if radial_rhs is overridden, then radialIntegral must also be_
@@ -207,17 +131,18 @@ public:
                                 const DiracSpinor &Fb) const;
 
   //! ME = rme3js * RME
-  double rme3js(const int twoja, const int twojb, int two_mb = 1,
-                int two_q = 0) const;
+  double rme3js(int twoja, int twojb, int two_mb = 1, int two_q = 0) const;
 
   //! <a||h||b> = Fa * reduced_rhs(a, Fb) (a needed for angular factor)
-  DiracSpinor reduced_rhs(const int ka, const DiracSpinor &Fb) const;
+  DiracSpinor reduced_rhs(int ka, const DiracSpinor &Fb,
+                          Conjugate conj = Conjugate::no) const;
 
   //! <b||h||a>  = Fa * reduced_lhs(a, Fb) (a needed for angular factor)
-  DiracSpinor reduced_lhs(const int ka, const DiracSpinor &Fb) const;
+  DiracSpinor reduced_lhs(int ka, const DiracSpinor &Fb) const;
 
   //! The reduced matrix element
-  double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
+  double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                   Conjugate conj = Conjugate::no) const;
 
   //! Returns "full" matrix element, for optional (ma, mb, q) [taken as int 2*].
   //! If not specified, returns z-component (q=0), with ma=mb=min(ja,jb)
@@ -234,13 +159,13 @@ class ScalarOperator : public TensorOperator {
 public:
   ScalarOperator(Parity pi, double in_coef,
                  const std::vector<double> &in_v = {},
-                 const IntM4x4 &in_g = {1, 0, 0, 1}, int in_diff = 0,
+                 const std::array<int, 4> &in_g = {1, 0, 0, 1}, int in_diff = 0,
                  Realness rori = Realness::real)
       : TensorOperator(0, pi, in_coef, in_v, in_diff, rori),
-        c_ff(in_g.e00),
-        c_fg(in_g.e01),
-        c_gf(in_g.e10),
-        c_gg(in_g.e11) {}
+        c_ff(in_g[0]),
+        c_fg(in_g[1]),
+        c_gf(in_g[2]),
+        c_gg(in_g[3]) {}
 
   ScalarOperator(const std::vector<double> &in_v)
       : TensorOperator(0, Parity::even, 1.0, in_v, 0),
