@@ -106,23 +106,22 @@ TDHF::solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
   return dFvs;
 }
 //==============================================================================
-DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
-                             dPsiType XorY, const int kappa_x,
+DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, double omega, dPsiType XorY,
+                             int kappa_x,
                              const MBPT::CorrelationPotential *const Sigma,
                              StateType st, bool incl_dV) const {
   // Solves (H + Sigma - e - w)X = -(h + dV - de)Psi
   // or     (H + Sigma - e + w)Y = -(h^dag + dV^dag - de)Psi
 
   const auto ww = XorY == dPsiType::X ? omega : -omega;
-  auto conj = XorY == dPsiType::Y;
+
+  auto conj = DiracOperator::apply_conj(XorY == dPsiType::Y);
   if (omega < 0.0)
-    conj = !conj;
+    conj = DiracOperator::swap_conj(conj);
 
   const auto imag = m_h->imaginaryQ();
 
-  auto rhs = m_h->reduced_rhs(kappa_x, Fv);
-  if (imag && conj)
-    rhs *= -1;
+  auto rhs = m_h->reduced_rhs(kappa_x, Fv, conj);
 
   if (incl_dV)
     rhs += dV_rhs(kappa_x, Fv, conj);
@@ -136,11 +135,12 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   // Do we want |Y> or <Y| ?
   auto s2 = 1;
   if (st == StateType::bra) {
-    // "left-hand-side" : "reduced" ket, so has factor (+ confugate)
+    // "left-hand-side" : "reduced" ket, so has factor (+ conjugate)
     const auto sj =
         Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_x)) ? 1 : -1;
     // if conj, extra * => +1
-    const auto si = imag && !conj ? -1 : 1;
+    // const auto si = imag && !conj ? -1 : 1;
+    const auto si = m_h->conj_sign(swap_conj(conj));
     s2 = sj * si;
   }
 
@@ -160,9 +160,9 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
   // or     (H - e + w)Y = -(h^dag + dV^dag - de)Psi
 
   const auto ww = XorY == dPsiType::X ? omega : -omega;
-  auto conj = XorY == dPsiType::Y;
+  auto conj = DiracOperator::apply_conj(XorY == dPsiType::Y);
   if (omega < 0.0)
-    conj = !conj;
+    conj = DiracOperator::swap_conj(conj);
 
   const auto imag = m_h->imaginaryQ();
   for (auto ibeta = 0ul; ibeta < dFb.size(); ibeta++) {
@@ -171,7 +171,8 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
     const int kappa_beta = dF_beta.kappa();
 
     const auto &hFb = hFbs[ibeta];
-    const auto s = (imag && conj) ? -1.0 : 1.0;
+    // const auto s = (imag && conj) ? -1.0 : 1.0;
+    const auto s = m_h->conj_sign(conj);
     auto rhs = s * hFb + dV_rhs(kappa_beta, Fb, conj);
     if (kappa_beta == Fb.kappa() && !imag) {
       const auto de = Fb * rhs;
@@ -326,27 +327,26 @@ void TDHF::solve_core(const double omega, int max_its, const bool print) {
 }
 
 //==============================================================================
-// does it matter if a or b is in the core?
-double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj) const {
-  const auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful. OK?
-  return s * Fn * dV_rhs(Fn.kappa(), Fm, conj);
+double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm,
+                Conjugate conj) const {
+  return Fn * dV_rhs(Fn.kappa(), Fm, conj);
 }
 
 //==============================================================================
-double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
-  const auto conj = Fm.en() > Fn.en();
-  return dV(Fn, Fm, conj);
+double TDHF::dV(const DiracSpinor &Ff, const DiracSpinor &Fi) const {
+  const auto conj = DiracOperator::apply_conj(Fi.en() > Ff.en());
+  return dV(Ff, Fi, conj);
 }
 
 //==============================================================================
 DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
-                         bool conj) const {
+                         Conjugate conj) const {
 
   auto dVFa = DiracSpinor(0, kappa_n, Fa.grid_sptr());
   dVFa.max_pt() = Fa.max_pt();
 
-  const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
-  const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
+  const auto ChiType = is_conjQ(conj) ? dPsiType::Y : dPsiType::X;
+  const auto EtaType = is_conjQ(conj) ? dPsiType::X : dPsiType::Y;
 
   const auto k = m_h->rank();
   const auto tkp1 = double(2 * k + 1);
@@ -379,7 +379,8 @@ DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
     }
   }
 
-  dVFa *= (1.0 / tkp1);
+  const auto s = double(m_h->conj_sign(conj));
+  dVFa *= (s / tkp1);
 
   return dVFa;
 }

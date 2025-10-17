@@ -23,6 +23,10 @@ using namespace Pnc;
 void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
+  std::cout
+      << "\n\nNOTE: This module has not been re-checked after changes to "
+         "TDHF/Operator - Checek carefully before trusting results!!!\n\n\n";
+
   input.check({{"t", ""},
                {"c", ""},
                {"transition", ""},
@@ -154,6 +158,10 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                   const std::vector<DiracSpinor> &spectrum,
                                   int main_n, double en_core, bool print) {
 
+  std::cout
+      << "\n\nNOTE: This module has not been re-checked after changes to "
+         "TDHF/Operator - Checek carefully before trusting results!!!\n\n\n";
+
   if (print) {
     std::cout << "Sum-over-states method.\n";
     std::cout << "<" << Fa.shortSymbol() << "|" << he1->name() << "|n><n|"
@@ -162,7 +170,7 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
               << he1->name() << "|" << Fb.shortSymbol() << ">/dE\n";
   }
 
-  const bool conj = Fa.en() < Fb.en() ? true : false;
+  const auto conj = DiracOperator::apply_conj(Fa.en() < Fb.en());
 
   // Print each core+tail term (for testing)
   const auto print_all = false;
@@ -270,6 +278,10 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
   // Note: calling with e1 and pnc swapped is valid! (and a good consistancy
   // check!)
 
+  std::cout
+      << "\n\nNOTE: This module has not been re-checked after changes to "
+         "TDHF/Operator - Checek carefully before trusting results!!!\n\n\n";
+
   if (print) {
     std::cout << "TDHF (Solving-equations) method. hw: " << hpnc->name()
               << "\n";
@@ -281,7 +293,8 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
   // z-comp defined as min(a,b)
   const auto twom = std::min(tja, tjb);
 
-  const bool conj = Fa.en() < Fb.en() ? true : false;
+  // const bool conj = Fa.en() < Fb.en() ? true : false;
+  const auto conj = DiracOperator::apply_conj(Fa.en() < Fb.en());
 
   // Allow swapping the 'pnc' and 'E1' operators:
   // note: MUST be this, not RPA w

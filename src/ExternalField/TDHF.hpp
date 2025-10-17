@@ -1,11 +1,9 @@
 #pragma once
 #include "CorePolarisation.hpp"
+#include "DiracOperator/TensorOperator.hpp"
 #include <string>
 #include <vector>
 class DiracSpinor;
-namespace DiracOperator {
-class TensorOperator;
-}
 namespace MBPT {
 class CorrelationPotential;
 }
@@ -16,6 +14,8 @@ class Breit;
 } // namespace HF
 
 namespace ExternalField {
+using DiracOperator::Conjugate;
+using DiracOperator::TensorOperator;
 
 //! Uses time-dependent Hartree-Fock method to include core-polarisation
 //! (RPA) corrections to matrix elements of some external field operator.
@@ -78,7 +78,7 @@ public:
 
   //! Calculate reduced matrix element <a||dV||b> or <a||dV*||b>.
   //! Will exclude orbital 'Fexcl' from sum over core (for tests only)
-  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, Conjugate conj) const;
 
   //! As above, but automatically determines if 'conjugate' version
   //! required (Based on sign of [en_a-en_b])
@@ -88,7 +88,7 @@ public:
   //! Returns "reduced partial matrix element RHS": dV||Fb}.
   //! Note: Fa * dV_rhs(..) equiv to dV(..)
   DiracSpinor dV_rhs(const int kappa_n, const DiracSpinor &Fm,
-                     bool conj = false) const;
+                     Conjugate conj = Conjugate::no) const;
 
   //! Returns const ref to dPsi orbitals for given core orbital Fc
   const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &Fc,
@@ -111,10 +111,10 @@ public:
    st takes values: StateType::ket or StateType::bra
   */
   DiracSpinor
-  solve_dPsi(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-             const int kappa_beta,
+  solve_dPsi(const DiracSpinor &Fv, double omega, dPsiType XorY, int kappa_beta,
              const MBPT::CorrelationPotential *const Sigma = nullptr,
              StateType st = StateType::ket, bool incl_dV = true) const;
+
   //! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
   std::vector<DiracSpinor>
   solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,

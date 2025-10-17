@@ -18,6 +18,19 @@ enum class Conjugate { yes, no };
 enum class Parity { even, odd, blank };
 enum class Realness { real, imaginary };
 
+//! Swaps conjuagte option: yes<->no
+inline Conjugate swap_conj(Conjugate conj) {
+  return conj == Conjugate::no ? Conjugate::yes : Conjugate::no;
+}
+
+//! Dagger? Returns true iff conjugate = yes
+inline bool is_conjQ(Conjugate conj) { return conj == Conjugate::yes; }
+
+//! Returns Conjugate::yes if conj = true
+inline Conjugate apply_conj(bool conj) {
+  return conj ? Conjugate::yes : Conjugate::no;
+}
+
 //==============================================================================
 //! @brief General operator (virtual base class); operators derive from this.
 //! @details

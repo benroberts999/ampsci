@@ -22,12 +22,14 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
                                  StateType st, bool incl_dV) const {
 
   const auto ww = XorY == dPsiType::X ? omega : -omega;
-  auto conj = XorY == dPsiType::Y;
+  // auto conj = XorY == dPsiType::Y;
+  // if (omega < 0.0)
+  //   conj = !conj; //?
+  auto conj = DiracOperator::apply_conj(XorY == dPsiType::Y);
   if (omega < 0.0)
-    conj = !conj; //?
+    conj = DiracOperator::swap_conj(conj);
 
-  const auto imag = m_h->imaginaryQ();
-  const auto s = (imag && conj) ? -1 : 1;
+  const auto s = m_h->conj_sign(conj);
 
   auto s2 = 1;
   if (st == StateType::bra) {
@@ -35,7 +37,8 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
     const auto sj =
         Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_beta)) ? 1 : -1;
     // if conj, extra * => +1
-    const auto si = imag && !conj ? -1 : 1;
+    // const auto si = imag && !conj ? -1 : 1;
+    const auto si = m_h->conj_sign(swap_conj(conj));
     s2 = sj * si;
   }
 
