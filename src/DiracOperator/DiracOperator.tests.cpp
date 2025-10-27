@@ -90,6 +90,27 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       const auto hkab = hk1->reducedME(Fa, Fb);
       REQUIRE(std::abs(hkab - me) < 1.0e-4);
     }
+
+    std::cout << "Length vs. velocity vs. i*alpha\n";
+    auto h_e1v = DiracOperator::generate("E1v", {}, wf);
+    auto h_ial = DiracOperator::generate("ialpha", {}, wf);
+    for (const auto &a : orbs) {
+      for (const auto &b : orbs) {
+        if (h_e1v->isZero(a, b))
+          continue;
+        const auto omega = a.en() - b.en();
+        h_e1v->updateFrequency(omega);
+        const auto me1 = h->reducedME(a, b);
+        const auto me2 = h_e1v->reducedME(a, b);
+        const auto me3 = h_ial->reducedME(a, b) / (-1 * wf.alpha() * omega);
+
+        REQUIRE(me1 == Approx(me2).epsilon(1.0e-9));
+        REQUIRE(me3 == Approx(me2));
+
+        std::cout << a << "-" << b << ": " << me1 << " " << me2 << " " << me3
+                  << "\n";
+      }
+    }
   }
 
   //--------------------------------------------------------------------

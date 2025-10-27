@@ -16,6 +16,7 @@ static const std::vector<std::pair<
     operator_list{{"E1", &generate_E1},
                   {"E1v", &generate_E1v},
                   {"E2", &generate_E2},
+                  {"ialpha", &generate_ialpha},
                   {"Ek", &generate_Ek},
                   {"Ek_omega", &generate_Ek_omega},
                   {"Mk_omega", &generate_Mk_omega},

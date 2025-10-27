@@ -326,14 +326,14 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                      ww_s);
 
         if (eachFreqQ && h->freqDependantQ()) {
-          h->updateFrequency(ww);
+          h->updateFrequency(ww_s);
         }
         if (eachFreqQ && rpa) {
           if (rpa->last_eps() > 1.0e-5 || rpa_its == 1 ||
               std::isnan(rpa->last_eps()))
             rpa->clear();
           std::cout << " RPA(w) : ";
-          rpa->solve_core(ww, rpa_its);
+          rpa->solve_core(ww_s, rpa_its);
         }
 
         const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
