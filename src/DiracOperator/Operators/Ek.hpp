@@ -73,19 +73,25 @@ public:
   std::string name() const override final { return "E1v"; }
   std::string units() const override final { return "|e|aB"; }
 
-  double angularF(const int, const int) const override final { return 1.0; }
+  double angularF(const int ka, const int kb) const override final {
+    // return 1;
+    return Angular::Ck_kk(1, ka, kb);
+  }
 
   double angularCff(int, int) const override final { return 0; }
   double angularCgg(int, int) const override final { return 0; }
   double angularCfg(int ka, int kb) const override final {
-    return Angular::S_kk(ka, -kb);
+    // return Angular::S_kk(ka, -kb);
+    return ka - kb - 1;
   }
   double angularCgf(int ka, int kb) const override final {
-    return -Angular::S_kk(-ka, kb);
+    // return -Angular::S_kk(-ka, kb);
+    return ka - kb + 1;
   }
 
   void updateFrequency(const double omega) override final {
-    m_constant = std::abs(omega) > 1.0e-10 ? -2.0 / (m_alpha * omega) : 1.0;
+    // m_constant = std::abs(omega) > 1.0e-10 ? -2.0 / (m_alpha * omega) : 1.0;
+    m_constant = std::abs(omega) > 1.0e-10 ? -1.0 / (m_alpha * omega) : -1.0;
   }
 
 private:
