@@ -527,8 +527,8 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
                         PhysConst::aB_cm * omega;
 
     Ek.updateFrequency(omega);
-    dV0.update_t0s(&Ek); // required??
-    dV.solve_core(0.0);
+    // dV0.update_t0s(&Ek); // required??
+    // dV.solve_core(0.0);
     // dV.solve_core(omega);
 
     const auto EkL =
@@ -540,12 +540,13 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto E1v = DiracOperator::E1v(wf.alpha(), omega);
     const auto M1 = DiracOperator::M1(wf.grid(), wf.alpha(), omega);
 
+    const auto ialpha = DiracOperator::ialpha();
+
     double Q_E = 0.0;
     double Q_El = 0.0;
     double Q_E1 = 0.0;
     double Q_E1v = 0.0;
-    double Q_E_rpa = 0.0;
-    double Q_M1 = 0.0;
+    double Q_ialpha = 0.0;
 
     // First, loop through and just find list of what we shall do.
     // THEN parellelise over that!
@@ -558,7 +559,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       iclist.push_back(i);
     }
 
-#pragma omp parallel for reduction(+ : Q_E, Q_El, Q_E1, Q_E1v, Q_E_rpa, Q_M1)
+#pragma omp parallel for reduction(+ : Q_E, Q_El, Q_E1, Q_E1v, Q_ialpha)
     for (const auto ic : iclist) {
       const auto &Fa = wf.core()[ic];
       const auto ec = omega + Fa.en();
@@ -576,32 +577,30 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
       for (const auto &Fe : cntm.orbitals) {
 
-        const auto rme_E = Ek.reducedME(Fe, Fa);
-        const auto rme_E_r = rme_E + dV.dV(Fe, Fa);
-        const auto rme_El = EkL.reducedME(Fe, Fa);
-        const auto rme_E1 = E1.reducedME(Fe, Fa);
-        const auto rme_E1v = E1v.reducedME(Fe, Fa);
-        // const auto rme_M = Mk.reducedME(Fe, Fa);
-        // const auto rme_M1 = M1.reducedME(Fe, Fa);
-
         const auto f_mp = 1.0 / (wf.alpha() * omega) / (wf.alpha() * omega);
-        const auto f_1 = 1.0 / 3.0;
+        const auto f_1o3 = 1.0 / 3.0;
 
-        Q_E += f_mp * rme_E * rme_E;
-        Q_El += f_mp * rme_El * rme_El;
-        Q_E1 += f_1 * rme_E1 * rme_E1;
-        Q_E1v += f_1 * rme_E1v * rme_E1v;
-        Q_E_rpa += f_mp * rme_E_r * rme_E_r;
-        // Q_M += f_mp * rme_M * rme_M;
-        // Q_M1 += f_1 * rme_M1 * rme_M1;
+        const auto rme_E1 = E1.reducedME(Fe, Fa);
+        Q_E1 += f_1o3 * rme_E1 * rme_E1;
+
+        const auto rme_E1v = E1v.reducedME(Fe, Fa);
+        Q_E1v += f_1o3 * rme_E1v * rme_E1v;
+
+        const auto rme_ialpha = ialpha.reducedME(Fe, Fa);
+        Q_ialpha += f_mp * f_1o3 * rme_ialpha * rme_ialpha;
+
+        const auto rme_E = Ek.reducedME(Fe, Fa);
+        Q_E += f_mp * rme_E * rme_E * 3.0;
+
+        const auto rme_El = EkL.reducedME(Fe, Fa);
+        Q_El += f_mp * rme_El * rme_El * 3.0;
       }
     }
     // std::cout << "\n";
 
     out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E * Ksigma
              << " " << Q_El * Ksigma << " " << Q_E1 * Ksigma << " "
-             << Q_E1v * Ksigma << " " << Q_E_rpa * Ksigma << " "
-             << Q_M1 * Ksigma << "\n";
+             << Q_E1v * Ksigma << " " << Q_ialpha * Ksigma << "\n";
   }
 }
 

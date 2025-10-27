@@ -233,4 +233,24 @@ void Rab_rhs(double pm, const std::vector<double> &t, DiracSpinor *dF,
   }
 }
 
+// Vab function: Int[ (fa*gb ) * t(r) , dr].
+double Vab(const std::vector<double> &t, const DiracSpinor &Fa,
+           const DiracSpinor &Fb) {
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto &drdu = Fb.grid().drdu();
+  const auto fg = NumCalc::integrate(1.0, pi, pf, t, Fa.f(), Fb.g(), drdu);
+  return fg * Fb.grid().du();
+}
+
+// Wab function: Int[ (ga*fb ) * t(r) , dr].
+double Wab(const std::vector<double> &t, const DiracSpinor &Fa,
+           const DiracSpinor &Fb) {
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto &drdu = Fb.grid().drdu();
+  const auto fg = NumCalc::integrate(1.0, pi, pf, t, Fa.g(), Fb.f(), drdu);
+  return fg * Fb.grid().du();
+}
+
 } // namespace DiracOperator

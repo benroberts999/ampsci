@@ -323,4 +323,11 @@ Should have Fa*Rab_rhs = A * Rab.
 void Rab_rhs(double pm, const std::vector<double> &t, DiracSpinor *dF,
              const DiracSpinor &Fb, double A = 1.0);
 
+//! Vab function: Int[ (fa*gb ) * t(r) , dr].
+double Vab(const std::vector<double> &t, const DiracSpinor &Fa,
+           const DiracSpinor &Fb);
+//! Wab function: Int[ (ga*fb ) * t(r) , dr].
+double Wab(const std::vector<double> &t, const DiracSpinor &Fa,
+           const DiracSpinor &Fb);
+
 } // namespace DiracOperator
