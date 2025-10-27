@@ -99,6 +99,26 @@ private:
 };
 
 //==============================================================================
+//! @brief i\vec{\alpha} matrix element: propto Electric dipole operator.
+//! i factored so that ME is real
+class ialpha final : public TensorOperator {
+public:
+  ialpha() : TensorOperator(1, Parity::odd, 1.0, {}, 0, Realness::real, true) {}
+
+  std::string name() const override final { return "i*alpha"; }
+  std::string units() const override final { return "au"; }
+
+  double angularF(const int ka, const int kb) const override final {
+    return Angular::Ck_kk(1, ka, kb);
+  }
+
+  double angularCff(int, int) const override final { return 0; }
+  double angularCgg(int, int) const override final { return 0; }
+  double angularCfg(int ka, int kb) const override final { return ka - kb - 1; }
+  double angularCgf(int ka, int kb) const override final { return ka - kb + 1; }
+};
+
+//==============================================================================
 
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_sigma_r(const IO::InputBlock &input, const Wavefunction &wf) {
@@ -138,6 +158,16 @@ generate_E2(const IO::InputBlock &input, const Wavefunction &wf) {
     return nullptr;
   }
   return std::make_unique<Ek>(wf.grid(), 2);
+}
+
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_ialpha(const IO::InputBlock &input, const Wavefunction &) {
+  using namespace DiracOperator;
+  input.check({{"no options", ""}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
+  return std::make_unique<ialpha>();
 }
 
 //------------------------------------------------------------------------------
