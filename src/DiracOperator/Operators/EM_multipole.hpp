@@ -44,9 +44,15 @@ public:
     DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
     dF.min_pt() = Fb.min_pt();
     dF.max_pt() = Fb.max_pt();
+    if (isZero(kappa_a, Fb.kappa())) {
+      dF.min_pt() = 0;
+      dF.max_pt() = 0;
+      return dF;
+    }
 
-    const auto c1 = double(kappa_a - Fb.kappa()) / (m_K + 1);
-    const auto cx = std::sqrt((m_K + 1.0) / m_K);
+    const auto K = double(m_K);
+    const auto c1 = double(kappa_a - Fb.kappa()) / (K + 1.0);
+    const auto cx = std::sqrt((K + 1.0) / K);
     Rab_rhs(+1, j1, &dF, Fb, cx);
     Pab_rhs(+1, j2, &dF, Fb, -c1 * cx);
     Pab_rhs(-1, j2, &dF, Fb, -cx);
@@ -61,8 +67,9 @@ public:
       return 0.0;
     }
 
-    const auto cc = double(Fa.kappa() - Fb.kappa()) / (m_K + 1);
-    const auto cx = std::sqrt((m_K + 1.0) / m_K);
+    const auto K = double(m_K);
+    const auto cc = double(Fa.kappa() - Fb.kappa()) / (K + 1.0);
+    const auto cx = std::sqrt((K + 1.0) / K);
 
     return cx * (Rab(+1, j1, Fa, Fb) - (cc + 1.0) * Vab(j2, Fa, Fb) +
                  (1.0 - cc) * Wab(j2, Fa, Fb));
@@ -140,7 +147,8 @@ public:
 
     const auto K = double(m_K);
     const auto dk = double(kappa_a - Fb.kappa());
-    double cx = std::sqrt((K + 1) / K);
+    assert(m_K != 0); // should already be discounted!
+    const auto cx = std::sqrt((K + 1.0) / K);
 
     Pab_rhs(+1, j1_on_qr, &dF, Fb, cx * dk);
     Pab_rhs(+1, j2, &dF, Fb, -cx * dk / (K + 1.0));
@@ -158,8 +166,8 @@ public:
     }
 
     const auto K = double(m_K);
-    double cx = std::sqrt((K + 1) / K);
-
+    assert(m_K != 0); // should already be discounted!
+    const auto cx = std::sqrt((K + 1.0) / K);
     const auto dk = double(Fa.kappa() - Fb.kappa());
 
     const auto Pp1 = Pab(+1, j1_on_qr, Fa, Fb);
@@ -326,6 +334,7 @@ public:
 
     const auto K = double(m_K);
     const auto sk = double(kappa_a + Fb.kappa());
+    assert(m_K != 0); // should already be discounted!
     const auto ck = sk / std::sqrt(K * (K + 1.0));
 
     Pab_rhs(+1, j1, &dF, Fb, -ck);
@@ -342,6 +351,7 @@ public:
 
     const auto K = double(m_K);
     const auto sk = double(Fa.kappa() + Fb.kappa());
+    assert(m_K != 0); // should already be discounted!
     const auto ck = sk / std::sqrt(K * (K + 1.0));
 
     return -ck * Pab(+1, j1, Fa, Fb);
@@ -372,7 +382,7 @@ private:
 };
 
 //==============================================================================
-//! @brief Scalar (temporal) multipole operator, V-form, including frequency-dependence.
+//! @brief Temporal component of vector multipole operator, V-form, including frequency-dependence.
 class Vk_omega final : public TensorOperator {
 public:
   Vk_omega(const Grid &gr, int K, double alpha, double omega)
@@ -405,14 +415,6 @@ public:
       return dF;
     }
 
-    // const auto c0 = double(m_K);
-    // const auto cc = std::sqrt(c0 / (2 * c0 + 1) / (c0 + 1));
-
-    // for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
-    //   dF.f(i) = cc * jk[i] * Fb.f(i);
-    //   dF.g(i) = cc * jk[i] * Fb.g(i);
-    // }
-    // return dF;
     Rab_rhs(+1, jk, &dF, Fb);
     return dF;
   }
@@ -425,19 +427,75 @@ public:
       return 0.0;
     }
 
-    // const auto c0 = double(m_K);
-    // const auto cc = std::sqrt(c0 / (2 * c0 + 1) / (c0 + 1));
-
-    // const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
-    // const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
-
-    // const auto &drdu = Fb.grid().drdu();
-
-    // const auto ff = NumCalc::integrate(1.0, pi, pf, jk, Fa.f(), Fb.f(), drdu);
-    // const auto gg = NumCalc::integrate(1.0, pi, pf, jk, Fa.g(), Fb.g(), drdu);
-
-    // return cc * (ff + gg) * Fb.grid().du();
     return Rab(+1, jk, Fa, Fb);
+  }
+
+  //! nb: q = alpha*omega!
+  void update_q(double q) { updateFrequency(q / m_alpha); }
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    const auto q = std::abs(m_alpha * omega);
+    m_q = q;
+    m_constant = 1.0;
+
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jk);
+  }
+
+private:
+  double m_alpha; // (including var-alpha)
+  int m_K;
+  double m_q{0.0};
+  std::vector<double> jk{};
+};
+
+//==============================================================================
+//! @brief Scalar multipole operator, e^{iqr}gamma^0, including frequency-dependence.
+class Sk_omega final : public TensorOperator {
+public:
+  Sk_omega(const Grid &gr, int K, double alpha, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 0.0,
+                       gr.r(), 0, Realness::real, true),
+        m_alpha(alpha),
+        m_K(K) {
+    updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("tv^S_") + std::to_string(m_K);
+  }
+  std::string units() const override final { return std::string(""); }
+
+  double angularF(const int ka, const int kb) const override final {
+    return m_constant * Angular::Ck_kk(m_K, ka, kb);
+  }
+
+  //--------------
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final {
+
+    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
+    dF.min_pt() = Fb.min_pt();
+    dF.max_pt() = Fb.max_pt();
+
+    if (isZero(kappa_a, Fb.kappa())) {
+      dF.min_pt() = 0;
+      dF.max_pt() = 0;
+      return dF;
+    }
+
+    Rab_rhs(-1, jk, &dF, Fb);
+    return dF;
+  }
+
+  //--------------
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final {
+
+    if (isZero(Fa.kappa(), Fb.kappa())) {
+      return 0.0;
+    }
+
+    return Rab(-1, jk, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
@@ -484,9 +542,29 @@ generate_Ek_omega(const IO::InputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Mk_omega(const IO::InputBlock &input, const Wavefunction &wf) {
+generate_Ekv_omega(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"},
+               {"omega", "Frequency: nb: q = alpha*omega [0.001]"},
+               {"transition_form",
+                "Use transition form (true), or moment form (fasle). nb: use "
+                "moment form to compare to E1/E2 etc, transition form for "
+                "alpha*e^{iqr} expansion [true]"}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
+  const auto k = input.get("k", 1);
+  const auto omega = input.get("omega", 0.001);
+  const auto transition_form = input.get("transition_form", true);
+  return std::make_unique<Ekv_omega>(wf.grid(), k, wf.alpha(), omega,
+                                     transition_form);
+}
+
+//------------------------------------------------------------------------------
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_Mk_omega(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check({{"k", "Rank: k=1 for M1, =2 for M2 etc. [1]"},
                {"omega", "Frequency: nb: q = alpha*omega [0]"},
                {"transition_form",
                 "Use transition form (true), or moment form (fasle). nb: use "
@@ -504,22 +582,44 @@ generate_Mk_omega(const IO::InputBlock &input, const Wavefunction &wf) {
 
 //------------------------------------------------------------------------------
 inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Ekv_omega(const IO::InputBlock &input, const Wavefunction &wf) {
+generate_Lk_omega(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
-  input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"},
-               {"omega", "Frequency: nb: q = alpha*omega [0.001]"},
-               {"transition_form",
-                "Use transition form (true), or moment form (fasle). nb: use "
-                "moment form to compare to E1/E2 etc, transition form for "
-                "alpha*e^{iqr} expansion [true]"}});
+  input.check(
+      {{"k", "Rank [1]"}, {"omega", "Frequency: nb: q = alpha*omega [0]"}});
   if (input.has_option("help")) {
     return nullptr;
   }
   const auto k = input.get("k", 1);
-  const auto omega = input.get("omega", 0.001);
-  const auto transition_form = input.get("transition_form", true);
-  return std::make_unique<Ekv_omega>(wf.grid(), k, wf.alpha(), omega,
-                                     transition_form);
+  const auto omega = input.get("omega", 0.0);
+  return std::make_unique<Lk_omega>(wf.grid(), k, wf.alpha(), omega);
+}
+
+//------------------------------------------------------------------------------
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_Vk_omega(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check(
+      {{"k", "Rank [1]"}, {"omega", "Frequency: nb: q = alpha*omega [0]"}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
+  const auto k = input.get("k", 1);
+  const auto omega = input.get("omega", 0.0);
+  return std::make_unique<Vk_omega>(wf.grid(), k, wf.alpha(), omega);
+}
+
+//------------------------------------------------------------------------------
+inline std::unique_ptr<DiracOperator::TensorOperator>
+generate_Sk_omega(const IO::InputBlock &input, const Wavefunction &wf) {
+  using namespace DiracOperator;
+  input.check(
+      {{"k", "Rank [1]"}, {"omega", "Frequency: nb: q = alpha*omega [0]"}});
+  if (input.has_option("help")) {
+    return nullptr;
+  }
+  const auto k = input.get("k", 1);
+  const auto omega = input.get("omega", 0.0);
+  return std::make_unique<Sk_omega>(wf.grid(), k, wf.alpha(), omega);
 }
 
 } // namespace DiracOperator

@@ -228,8 +228,8 @@ void Pab_rhs(double pm, const std::vector<double> &t, DiracSpinor *dF,
 void Rab_rhs(double pm, const std::vector<double> &t, DiracSpinor *dF,
              const DiracSpinor &Fb, double a) {
   for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
-    dF->f(i) += a * t[i] * Fb.g(i);
-    dF->g(i) += a * pm * t[i] * Fb.f(i);
+    dF->f(i) += a * t[i] * Fb.f(i);
+    dF->g(i) += a * pm * t[i] * Fb.g(i);
   }
 }
 

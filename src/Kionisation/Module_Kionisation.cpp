@@ -497,7 +497,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       Emin_eV, Emax_eV, Emin_au, Emax_au, E_steps);
   const auto ec_cut = input.get("ec_cut", 100.0);
 
-  const auto max_L = input.get("max_L", 6);
+  const auto K = input.get("K", 1);
   const auto label = input.get("label", std::string{""});
 
   const auto force_orthog = input.get("force_orthog", true);
@@ -507,7 +507,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   // Set up the E and q grids
   const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
 
-  int k = 1;
+  int k = K;
 
   const auto E1 = DiracOperator::E1(wf.grid());
 
@@ -589,11 +589,13 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto rme_ialpha = ialpha.reducedME(Fe, Fa);
         Q_ialpha += f_mp * f_1o3 * rme_ialpha * rme_ialpha;
 
+        const auto tkp1 = 2.0 * k + 1.0;
+        const auto pol_av = 1.0 / 2.0;
         const auto rme_E = Ek.reducedME(Fe, Fa);
-        Q_E += f_mp * rme_E * rme_E * 3.0;
+        Q_E += f_mp * rme_E * rme_E * tkp1 * pol_av;
 
         const auto rme_El = EkL.reducedME(Fe, Fa);
-        Q_El += f_mp * rme_El * rme_El * 3.0;
+        Q_El += f_mp * rme_El * rme_El * tkp1 * pol_av;
       }
     }
     // std::cout << "\n";
