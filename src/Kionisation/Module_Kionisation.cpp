@@ -514,7 +514,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   auto oname = input.get("oname", std::string{"out.txt"});
   std::ofstream out_file(oname);
 
-  auto Ek = DiracOperator::Ekv_omega(wf.grid(), k, wf.alpha(), 0.0, true);
+  auto Ek = DiracOperator::Ek_w(wf.grid(), k, wf.alpha(), 0.0, true);
   ExternalField::DiagramRPA dV0(&Ek, wf.basis(), wf.vHF(), wf.identity());
   ExternalField::DiagramRPA dV(&Ek, wf.basis(), wf.vHF(), wf.identity());
 
@@ -532,10 +532,9 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     // dV.solve_core(omega);
 
     const auto EkL =
-        DiracOperator::Ek_omega(wf.grid(), k, wf.alpha(), omega, true);
+        DiracOperator::Ek_w_L(wf.grid(), k, wf.alpha(), omega, true);
 
-    const auto Mk =
-        DiracOperator::Mk_omega(wf.grid(), k, wf.alpha(), omega, true);
+    const auto Mk = DiracOperator::Mk_w(wf.grid(), k, wf.alpha(), omega, true);
 
     const auto E1v = DiracOperator::E1v(wf.alpha(), omega);
     const auto M1 = DiracOperator::M1(wf.grid(), wf.alpha(), omega);
@@ -603,6 +602,126 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E * Ksigma
              << " " << Q_El * Ksigma << " " << Q_E1 * Ksigma << " "
              << Q_E1v * Ksigma << " " << Q_ialpha * Ksigma << "\n";
+  }
+}
+
+//==============================================================================
+void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
+  IO::ChronoTimer timer("photo");
+
+  input.check({
+      {"E_range",
+       "List (2). Minimum, maximum energy transfer (dE), in eV [10, 100]"},
+      {"E_steps", "Numer of steps along dE grid (logarithmic grid) [1]"},
+      {"oname", "oname"},
+      {"qc", "qc"},
+      {"K_minmax", "List (2). Minimum, maximum K [0, 5]"},
+      {"ec_cut", "Cut-off (in au) for continuum energy. [100.0]"},
+      {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
+      {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
+                        "hole-particle interaction) [true]"},
+      {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
+  });
+  if (input.has_option("help")) {
+    return;
+  }
+
+  auto [Emin_eV, Emax_eV] = input.get("E_range", std::array{10.0, 100.0});
+  auto E_steps = input.get<std::size_t>("E_steps", 1);
+  if (E_steps <= 1) {
+    E_steps = 1;
+    Emax_eV = Emin_eV;
+  }
+  const auto Emin_au = Emin_eV / PhysConst::Hartree_eV;
+  const auto Emax_au =
+      Emax_eV < Emin_eV ? Emin_au : Emax_eV / PhysConst::Hartree_eV;
+
+  std::cout << "\nSummary of inputs:\n";
+  fmt::print(
+      "Energy  : [{:.1f}, {:.1f}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
+      Emin_eV, Emax_eV, Emin_au, Emax_au, E_steps);
+  const auto ec_cut = input.get("ec_cut", 100.0);
+
+  const auto qc_in =
+      input.get("qc", 1) / UnitConv::Momentum_au_to_MeV * PhysConst::c;
+  const auto [Kmin, Kmax] = input.get("K_minmax", std::array{0, 5});
+  const auto label = input.get("label", std::string{""});
+
+  const auto force_orthog = input.get("force_orthog", true);
+  const auto force_rescale = input.get("force_rescale", false);
+  const auto hole_particle = input.get("hole_particle", true);
+
+  // Set up the E and q grids
+  const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
+
+  auto oname = input.get("oname", std::string{"out.txt"});
+  std::ofstream out_file(oname);
+
+  int count = 0;
+  for (const auto omega : Egrid.r()) {
+    // std::cout << count++ << " " << omega << " " << omega * PhysConst::Hartree_eV
+    // << ": ";
+    fmt::print("{:2d} {:6.3f} {:6.2f}: ", count++, omega,
+               omega * PhysConst::Hartree_eV);
+
+    // const auto Ksigma = 4.0 * M_PI * M_PI * wf.alpha() * PhysConst::aB_cm *
+    // PhysConst::aB_cm * omega;
+
+    const auto qc = qc_in;
+
+    // First, loop through and just find list of what we shall do.
+    // THEN parellelise over that!
+    std::vector<std::size_t> iclist;
+    for (std::size_t i = 0; i < wf.core().size(); ++i) {
+      const auto ec = omega + wf.core().at(i).en();
+      if (ec < 0.0) {
+        continue;
+      }
+      iclist.push_back(i);
+    }
+
+    double Q_V = 0.0;
+    double Q_E = 0.0;
+    double Q_M = 0.0;
+    double Q_L = 0.0;
+
+    for (int k = Kmin; k <= Kmax; ++k) {
+      std::cout << k << ", ";
+
+      auto Vk = DiracOperator::Vk_w(wf.grid(), k, wf.alpha(), qc);
+      auto Ek = DiracOperator::Ek_w(wf.grid(), k, wf.alpha(), qc);
+      auto Mk = DiracOperator::Mk_w(wf.grid(), k, wf.alpha(), qc);
+      auto Lk = DiracOperator::Lk_w(wf.grid(), k, wf.alpha(), qc);
+
+#pragma omp parallel for reduction(+ : Q_V, Q_E, Q_M, Q_L)
+      for (const auto ic : iclist) {
+        const auto &Fa = wf.core()[ic];
+        const auto ec = omega + Fa.en();
+        if (ec < 0.0)
+          continue;
+        const auto ec_t = std::min(ec, ec_cut);
+
+        const int l = Fa.l();
+        const int lc_max = l + k + 1;
+        const int lc_min = std::max(l - k - 1, 0);
+
+        ContinuumOrbitals cntm(wf.vHF());
+        cntm.solveContinuumHF(ec_t, lc_min, lc_max, &Fa, force_rescale,
+                              hole_particle, force_orthog);
+
+        for (const auto &Fe : cntm.orbitals) {
+          Q_V += qip::pow(Vk.reducedME(Fe, Fa), 2);
+          Q_E += qip::pow(Ek.reducedME(Fe, Fa), 2);
+          Q_M += qip::pow(Mk.reducedME(Fe, Fa), 2);
+          Q_L += qip::pow(Lk.reducedME(Fe, Fa), 2);
+        }
+      }
+    }
+    std::cout << "\n";
+
+    out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_V << " "
+             << Q_E + Q_M + Q_L << " " << Q_E << " " << Q_M << " " << Q_L
+             << "\n";
   }
 }
 
