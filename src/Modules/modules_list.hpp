@@ -78,6 +78,8 @@ static const std::vector<ModuleInfo> module_list{
     {"ladder", &ladder, "Calculates ladder diagrams and energy corrections"},
     {"Kionisation", &Kionisation, "Calculate atomic ionisation form-factors"},
     {"photo", &photo, "Calculate atomic photo-ionisation form-factors"},
+    {"formFactors", &formFactors,
+     "Calculate general atomic ionisation form-factors"},
     {"continuum", &continuum, "Compute and use continuum wavefunctions"},
     {"HFAnomaly", &HFAnomaly,
      "Calculates Bohr-Weisskopf effect and hyperfine anomaly"},
