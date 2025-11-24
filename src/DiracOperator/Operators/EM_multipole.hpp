@@ -6,10 +6,12 @@
 
 namespace DiracOperator {
 
+// NOTE: These are quite ineficiant - calculate jK from scratch each time
+// Better to give an option to use a lookup table!
+
 //==============================================================================
 //! @brief Electric multipole operator, alpha.t^1, L-form.
 /*! @details
-- Used, e.g., to check validity of dipole approximation for high frequencies.
 - in terms of j(q*r), where q = alpha*omega
 - If transition_form is true, will use the "t" (transition form); if false, will use the "moment" form. Nb: E1, E2 etc. is the "moment" form, but alpha exp(iqr) goes to transition form - see Eq. (6.129) in Johnson for factors!
 - Note: tk (transition) version, different convention to Johnson. Moment version the same!
@@ -103,7 +105,6 @@ private:
 //==============================================================================
 //! @brief Electric multipole operator, V-form, including frequency-dependence.
 /*! @details
-- Used, e.g., to check validity of dipole approximation for high frequencies.
 - in terms of j(q*r), where q = alpha*omega
 - If transition_form is true, will use the "t" (transition form); if false, will use the "moment" form. Nb: E1, E2 etc. is the "moment" form, but alpha exp(iqr) goes to transition form - see Eq. (6.129) in Johnson for factors!
 - Note: tk (transition) version, different convention to Johnson. Moment version the same!
@@ -315,7 +316,7 @@ public:
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return -m_constant * (ka + kb) * Angular::Ck_kk(m_K, -ka, kb) / (m_K + 1);
+    return m_constant * Angular::Ck_kk(m_K, -ka, kb);
   }
 
   //--------------
@@ -384,9 +385,9 @@ private:
 
 //==============================================================================
 //! @brief Temporal component of vector multipole operator, V-form, including frequency-dependence.
-class Vk_w final : public TensorOperator {
+class Phik_w final : public TensorOperator {
 public:
-  Vk_w(const Grid &gr, int K, double alpha, double omega)
+  Phik_w(const Grid &gr, int K, double alpha, double omega)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 0.0,
                        gr.r(), 0, Realness::real, true),
         m_alpha(alpha),
@@ -520,6 +521,457 @@ private:
 
 //==============================================================================
 //==============================================================================
+// Gamma^5 versions!
+
+//==============================================================================
+//! @brief Electric multipole operator, V-form, including frequency-dependence.
+
+class E5k_w final : public TensorOperator {
+public:
+  E5k_w(const Grid &gr, int K, double alpha, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 0.0,
+                       gr.r(), 0, Realness::real),
+        m_alpha(alpha),
+        m_K(K) {
+    updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("tv^E5_") + std::to_string(m_K);
+  }
+  std::string units() const override final { return std::string(""); }
+
+  double angularF(const int ka, const int kb) const override final {
+    return m_constant * Angular::Ck_kk(m_K, ka, -kb);
+  }
+
+  //--------------
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final {
+
+    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
+    dF.min_pt() = Fb.min_pt();
+    dF.max_pt() = Fb.max_pt();
+
+    if (isZero(kappa_a, Fb.kappa()) || m_K == 0) {
+      dF.min_pt() = 0;
+      dF.max_pt() = 0;
+      return dF;
+    }
+
+    const auto K = double(m_K);
+    const auto dk = double(kappa_a + Fb.kappa());
+    assert(m_K != 0); // should already be discounted!
+    const auto cx = std::sqrt((K + 1.0) / K);
+
+    Rab_rhs(-1, j1_on_qr, &dF, Fb, cx * dk);
+    Rab_rhs(-1, j2, &dF, Fb, -cx * dk / (K + 1.0));
+    Rab_rhs(+1, j1_on_qr, &dF, Fb, -cx * K);
+
+    return dF;
+  }
+
+  //--------------
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final {
+
+    if (isZero(Fa.kappa(), Fb.kappa()) || m_K == 0) {
+      return 0.0;
+    }
+
+    const auto K = double(m_K);
+    assert(m_K != 0); // should already be discounted!
+    const auto cx = std::sqrt((K + 1.0) / K);
+    const auto dk = double(Fa.kappa() + Fb.kappa());
+
+    const auto Pp1 = Rab(-1, j1_on_qr, Fa, Fb);
+    const auto Pp2 = Rab(-1, j2, Fa, Fb);
+    const auto Pm1 = Rab(+1, j1_on_qr, Fa, Fb);
+
+    return cx * (dk * (Pp1 - Pp2 / (K + 1)) - K * Pm1);
+  }
+
+  //! nb: q = alpha*omega!
+  void update_q(double q) { updateFrequency(q / m_alpha); }
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    const auto q = std::abs(m_alpha * omega);
+    m_q = q;
+
+    // should be 1 for "transition" operator, otherwise factor for the "moment" form
+    m_constant = 1.0;
+
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &j1_on_qr);
+    SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &j2);
+    for (std::size_t i = 0; i < m_vec.size(); ++i) {
+      j1_on_qr[i] /= (q * m_vec[i]);
+    }
+  }
+
+private:
+  double m_alpha; // (including var-alpha)
+  int m_K;
+  double m_q{0.0};
+  std::vector<double> j1_on_qr{};
+  std::vector<double> j2{};
+};
+
+//==============================================================================
+//! @brief Longitudanal multipole operator, V-form, including frequency-dependence.
+class L5k_w final : public TensorOperator {
+public:
+  L5k_w(const Grid &gr, int K, double alpha, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 0.0,
+                       gr.r(), 0, Realness::real, true),
+        m_alpha(alpha),
+        m_K(K) {
+    updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("tv^5L_") + std::to_string(m_K);
+  }
+  std::string units() const override final { return std::string(""); }
+
+  double angularF(const int ka, const int kb) const override final {
+    return m_constant * Angular::Ck_kk(m_K, ka, -kb);
+  }
+
+  //--------------
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final {
+
+    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
+    dF.min_pt() = Fb.min_pt();
+    dF.max_pt() = Fb.max_pt();
+
+    if (isZero(kappa_a, Fb.kappa())) {
+      dF.min_pt() = 0;
+      dF.max_pt() = 0;
+      return dF;
+    }
+
+    const auto K = double(m_K);
+    const auto dk = double(kappa_a + Fb.kappa());
+
+    Rab_rhs(-1, j1_on_qr, &dF, Fb, -dk);
+    Rab_rhs(+1, j1_on_qr, &dF, Fb, K);
+    Rab_rhs(+1, j2, &dF, Fb, -1.0);
+    return dF;
+  }
+
+  //--------------
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final {
+
+    if (isZero(Fa.kappa(), Fb.kappa())) {
+      return 0.0;
+    }
+
+    const auto K = double(m_K);
+    const auto dk = double(Fa.kappa() + Fb.kappa());
+
+    return -dk * Rab(-1, j1_on_qr, Fa, Fb) + K * Rab(+1, j1_on_qr, Fa, Fb) -
+           Rab(+1, j2, Fa, Fb);
+  }
+
+  //! nb: q = alpha*omega!
+  void update_q(double q) { updateFrequency(q / m_alpha); }
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    const auto q = std::abs(m_alpha * omega);
+    m_q = q;
+
+    // should be 1 for "transition" operator, otherwise factor for the "moment" form
+    m_constant = 1.0;
+
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &j1_on_qr);
+    SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &j2);
+    for (std::size_t i = 0; i < m_vec.size(); ++i) {
+      j1_on_qr[i] /= (q * m_vec[i]);
+    }
+  }
+
+private:
+  double m_alpha; // (including var-alpha)
+  int m_K;
+  double m_q{0.0};
+  std::vector<double> j1_on_qr{};
+  std::vector<double> j2{};
+};
+
+//==============================================================================
+//! @brief Magnetic multipole operator, including frequency-dependence.
+class M5k_w final : public TensorOperator {
+public:
+  M5k_w(const Grid &gr, int K, double alpha, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 0.0,
+                       gr.r(), 0, Realness::real, true),
+        m_alpha(alpha),
+        m_K(K) {
+    updateFrequency(omega);
+  }
+
+  std::string name() const override final {
+    return std::string("t^5M_") + std::to_string(m_K);
+  }
+
+  std::string units() const override final { return std::string(""); }
+
+  double angularF(const int ka, const int kb) const override final {
+    return m_constant * Angular::Ck_kk(m_K, ka, kb);
+  }
+
+  //--------------
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final {
+
+    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
+    dF.min_pt() = Fb.min_pt();
+    dF.max_pt() = Fb.max_pt();
+
+    if (isZero(kappa_a, Fb.kappa()) || (kappa_a == -Fb.kappa()) || m_K == 0) {
+      dF.min_pt() = 0;
+      dF.max_pt() = 0;
+      return dF;
+    }
+
+    const auto K = double(m_K);
+    const auto sk = double(kappa_a - Fb.kappa());
+    assert(m_K != 0); // should already be discounted!
+    const auto ck = sk / std::sqrt(K * (K + 1.0));
+
+    Rab_rhs(-1, j1, &dF, Fb, -ck);
+    return dF;
+  }
+
+  //--------------
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final {
+
+    if (isZero(Fa.kappa(), Fb.kappa()) || (Fa.kappa() == -Fb.kappa()) ||
+        m_K == 0) {
+      return 0.0;
+    }
+
+    const auto K = double(m_K);
+    const auto sk = double(Fa.kappa() - Fb.kappa());
+    assert(m_K != 0); // should already be discounted!
+    const auto ck = sk / std::sqrt(K * (K + 1.0));
+
+    return -ck * Rab(-1, j1, Fa, Fb);
+  }
+
+  //! nb: q = alpha*omega!
+  void update_q(double q) { updateFrequency(q / m_alpha); }
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    const auto q = std::abs(m_alpha * omega);
+
+    // should be 1 for "transition" operator, otherwise factor for the "moment" form
+    m_constant = 1.0;
+
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &j1);
+  }
+
+private:
+  double m_alpha;
+  int m_K;
+  std::vector<double> j1{};
+};
+
+//==============================================================================
+//! @brief Temporal component of vector multipole operator, V-form, including frequency-dependence.
+class Phi5k_w final : public TensorOperator {
+public:
+  Phi5k_w(const Grid &gr, int K, double alpha, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 0.0,
+                       gr.r(), 0, Realness::real, true),
+        m_alpha(alpha),
+        m_K(K) {
+    updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("t^5_") + std::to_string(m_K);
+  }
+  std::string units() const override final { return std::string(""); }
+
+  double angularF(const int ka, const int kb) const override final {
+    return m_constant * Angular::Ck_kk(m_K, ka, -kb);
+  }
+
+  //--------------
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final {
+
+    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
+    dF.min_pt() = Fb.min_pt();
+    dF.max_pt() = Fb.max_pt();
+
+    if (isZero(kappa_a, Fb.kappa())) {
+      dF.min_pt() = 0;
+      dF.max_pt() = 0;
+      return dF;
+    }
+
+    Pab_rhs(-1, jk, &dF, Fb);
+    return dF;
+  }
+
+  //--------------
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final {
+
+    if (isZero(Fa.kappa(), Fb.kappa())) {
+      return 0.0;
+    }
+
+    return Pab(-1, jk, Fa, Fb);
+  }
+
+  //! nb: q = alpha*omega!
+  void update_q(double q) { updateFrequency(q / m_alpha); }
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    const auto q = std::abs(m_alpha * omega);
+    m_q = q;
+    m_constant = 1.0;
+
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jk);
+  }
+
+private:
+  double m_alpha; // (including var-alpha)
+  int m_K;
+  double m_q{0.0};
+  std::vector<double> jk{};
+};
+
+//==============================================================================
+//! @brief Pseudoscalar multipole operator, e^{iqr}gamma^0gamma^5, including frequency-dependence.
+class S5k_w final : public TensorOperator {
+public:
+  S5k_w(const Grid &gr, int K, double alpha, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 0.0,
+                       gr.r(), 0, Realness::real, true),
+        m_alpha(alpha),
+        m_K(K) {
+    updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("tv^5S_") + std::to_string(m_K);
+  }
+  std::string units() const override final { return std::string(""); }
+
+  double angularF(const int ka, const int kb) const override final {
+    return m_constant * Angular::Ck_kk(m_K, ka, -kb);
+  }
+
+  //--------------
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final {
+
+    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
+    dF.min_pt() = Fb.min_pt();
+    dF.max_pt() = Fb.max_pt();
+
+    if (isZero(kappa_a, Fb.kappa())) {
+      dF.min_pt() = 0;
+      dF.max_pt() = 0;
+      return dF;
+    }
+
+    Pab_rhs(+1, jk, &dF, Fb);
+    return dF;
+  }
+
+  //--------------
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final {
+
+    if (isZero(Fa.kappa(), Fb.kappa())) {
+      return 0.0;
+    }
+
+    return Pab(+1, jk, Fa, Fb);
+  }
+
+  //! nb: q = alpha*omega!
+  void update_q(double q) { updateFrequency(q / m_alpha); }
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    const auto q = std::abs(m_alpha * omega);
+    m_q = q;
+    m_constant = 1.0;
+
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jk);
+  }
+
+private:
+  double m_alpha; // (including var-alpha)
+  int m_K;
+  double m_q{0.0};
+  std::vector<double> jk{};
+};
+//==============================================================================
+
+namespace multipole {
+
+//! Scalar(pseudoscalar) multipole operator. Note: q/omega not set
+inline std::unique_ptr<DiracOperator::TensorOperator>
+S_K(const Grid &grid, int k, bool gamma5 = false) {
+  if (gamma5)
+    return std::make_unique<S5k_w>(grid, k, PhysConst::alpha, 0.0);
+  return std::make_unique<Sk_w>(grid, k, PhysConst::alpha, 0.0);
+}
+
+//! Temporal part of vector(pseudovector) multipole operator. Note: q/omega not set
+inline std::unique_ptr<DiracOperator::TensorOperator>
+Phi_K(const Grid &grid, int k, bool gamma5 = false) {
+  if (gamma5)
+    return std::make_unique<Phi5k_w>(grid, k, PhysConst::alpha, 0.0);
+  return std::make_unique<Phik_w>(grid, k, PhysConst::alpha, 0.0);
+}
+
+//! Spatial part of vector(pseudovector) multipole operator. Note: q/omega not set
+inline std::unique_ptr<DiracOperator::TensorOperator>
+V_sigma_K(const Grid &grid, int sigma, int k, bool gamma5 = false) {
+
+  switch (sigma) {
+
+    // "Electric"
+  case +1:
+    if (gamma5)
+      return std::make_unique<E5k_w>(grid, k, PhysConst::alpha, 0.0);
+    else
+      return std::make_unique<Ek_w>(grid, k, PhysConst::alpha, 0.0);
+
+    // "Longitudanal"
+  case -1:
+    if (gamma5)
+      return std::make_unique<L5k_w>(grid, k, PhysConst::alpha, 0.0);
+    else
+      return std::make_unique<Lk_w>(grid, k, PhysConst::alpha, 0.0);
+
+    // "Magnetic"
+  case 0:
+    if (gamma5)
+      return std::make_unique<M5k_w>(grid, k, PhysConst::alpha, 0.0);
+    else
+      return std::make_unique<Mk_w>(grid, k, PhysConst::alpha, 0.0);
+  }
+
+  assert(false && "make_op: sigma must be -1, 0, or +1");
+  return {}; // never reached when assertions are enabled
+}
+
+} // namespace multipole
+
+//==============================================================================
+//==============================================================================
 
 //------------------------------------------------------------------------------
 inline std::unique_ptr<DiracOperator::TensorOperator>
@@ -606,7 +1058,7 @@ generate_Vk_w(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   const auto k = input.get("k", 1);
   const auto omega = input.get("omega", 0.0);
-  return std::make_unique<Vk_w>(wf.grid(), k, wf.alpha(), omega);
+  return std::make_unique<Phik_w>(wf.grid(), k, wf.alpha(), omega);
 }
 
 //------------------------------------------------------------------------------
