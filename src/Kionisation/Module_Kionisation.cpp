@@ -688,7 +688,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     for (int k = Kmin; k <= Kmax; ++k) {
       std::cout << k << ", ";
 
-      auto Vk = DiracOperator::Vk_w(wf.grid(), k, wf.alpha(), qc);
+      auto Vk = DiracOperator::Phik_w(wf.grid(), k, wf.alpha(), qc);
       auto Ek = DiracOperator::Ek_w(wf.grid(), k, wf.alpha(), qc);
       auto Mk = DiracOperator::Mk_w(wf.grid(), k, wf.alpha(), qc);
       auto Lk = DiracOperator::Lk_w(wf.grid(), k, wf.alpha(), qc);
