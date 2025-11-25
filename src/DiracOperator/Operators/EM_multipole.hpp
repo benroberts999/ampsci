@@ -563,9 +563,9 @@ public:
     assert(m_K != 0); // should already be discounted!
     const auto cx = std::sqrt((K + 1.0) / K);
 
-    Pab_rhs(-1, j1_on_qr, &dF, Fb, cx * dk);
-    Pab_rhs(-1, j2, &dF, Fb, -cx * dk / (K + 1.0));
-    Pab_rhs(+1, j1_on_qr, &dF, Fb, -cx * K);
+    Rab_rhs(-1, j1_on_qr, &dF, Fb, cx * dk);
+    Rab_rhs(-1, j2, &dF, Fb, -cx * dk / (K + 1.0));
+    Rab_rhs(+1, j1_on_qr, &dF, Fb, -cx * K);
 
     return dF;
   }
@@ -583,9 +583,9 @@ public:
     const auto cx = std::sqrt((K + 1.0) / K);
     const auto dk = double(Fa.kappa() + Fb.kappa());
 
-    const auto Pp1 = Pab(-1, j1_on_qr, Fa, Fb);
-    const auto Pp2 = Pab(-1, j2, Fa, Fb);
-    const auto Pm1 = Pab(+1, j1_on_qr, Fa, Fb);
+    const auto Pp1 = Rab(-1, j1_on_qr, Fa, Fb);
+    const auto Pp2 = Rab(-1, j2, Fa, Fb);
+    const auto Pm1 = Rab(+1, j1_on_qr, Fa, Fb);
 
     return cx * (dk * (Pp1 - Pp2 / (K + 1)) - K * Pm1);
   }
@@ -653,9 +653,9 @@ public:
     const auto K = double(m_K);
     const auto dk = double(kappa_a + Fb.kappa());
 
-    Pab_rhs(-1, j1_on_qr, &dF, Fb, -dk);
-    Pab_rhs(+1, j1_on_qr, &dF, Fb, K);
-    Pab_rhs(+1, j2, &dF, Fb, -1.0);
+    Rab_rhs(-1, j1_on_qr, &dF, Fb, -dk);
+    Rab_rhs(+1, j1_on_qr, &dF, Fb, K);
+    Rab_rhs(+1, j2, &dF, Fb, -1.0);
     return dF;
   }
 
@@ -670,8 +670,8 @@ public:
     const auto K = double(m_K);
     const auto dk = double(Fa.kappa() + Fb.kappa());
 
-    return -dk * Pab(-1, j1_on_qr, Fa, Fb) + K * Pab(+1, j1_on_qr, Fa, Fb) -
-           Pab(+1, j2, Fa, Fb);
+    return -dk * Rab(-1, j1_on_qr, Fa, Fb) + K * Rab(+1, j1_on_qr, Fa, Fb) -
+           Rab(+1, j2, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
@@ -741,7 +741,7 @@ public:
     assert(m_K != 0); // should already be discounted!
     const auto ck = sk / std::sqrt(K * (K + 1.0));
 
-    Pab_rhs(-1, j1, &dF, Fb, -ck);
+    Rab_rhs(-1, j1, &dF, Fb, -ck);
     return dF;
   }
 
@@ -759,7 +759,7 @@ public:
     assert(m_K != 0); // should already be discounted!
     const auto ck = sk / std::sqrt(K * (K + 1.0));
 
-    return -ck * Pab(-1, j1, Fa, Fb);
+    return -ck * Rab(-1, j1, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
@@ -815,7 +815,7 @@ public:
       return dF;
     }
 
-    Rab_rhs(-1, jk, &dF, Fb);
+    Pab_rhs(-1, jk, &dF, Fb);
     return dF;
   }
 
@@ -827,7 +827,7 @@ public:
       return 0.0;
     }
 
-    return Rab(-1, jk, Fa, Fb);
+    return Pab(-1, jk, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
@@ -850,7 +850,7 @@ private:
 };
 
 //==============================================================================
-//! @brief Scalar multipole operator, e^{iqr}gamma^0, including frequency-dependence.
+//! @brief Pseudoscalar multipole operator, e^{iqr}gamma^0gamma^5, including frequency-dependence.
 class S5k_w final : public TensorOperator {
 public:
   S5k_w(const Grid &gr, int K, double alpha, double omega)
@@ -883,7 +883,7 @@ public:
       return dF;
     }
 
-    Rab_rhs(+1, jk, &dF, Fb);
+    Pab_rhs(+1, jk, &dF, Fb);
     return dF;
   }
 
@@ -895,7 +895,7 @@ public:
       return 0.0;
     }
 
-    return Rab(+1, jk, Fa, Fb);
+    return Pab(+1, jk, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
