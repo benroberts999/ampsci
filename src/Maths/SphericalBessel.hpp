@@ -14,37 +14,52 @@
 namespace SphericalBessel {
 
 //==============================================================================
+//! Spherical Bessel function.
+//! For x<0.1 and K<=7, uses expansion accurate to delta~1e-15, eps~1e-3
 template <typename T>
 T JL(const int L, const T x) {
 
-  // Low x expansion for first few Ls. Accurate to ~ 10^9
+  // Low x expansion for first few Ls. Accurate to better than ~ 1e-15
   if (std::abs(x) < 0.1) {
     if (L == 0) {
       const T x2 = x * x;
       const T x4 = x2 * x2;
-      return 1.0 - 0.166666667 * x2 + 0.00833333333 * x4;
+      return 1.0 - 0.166666666666667 * x2 + 0.0083333333333333 * x4;
     } else if (L == 1) {
       const T x2 = x * x;
       const T x3 = x2 * x;
       const T x5 = x3 * x2;
-      return 0.333333333 * x - 0.0333333333 * x3 + 0.00119047619 * x5;
+      return 0.333333333333 * x - 0.0333333333333 * x3 + 0.001190476190 * x5;
     } else if (L == 2) {
       const T x2 = x * x;
       const T x4 = x2 * x2;
       const T x6 = x4 * x2;
-      return 0.0666666667 * x2 - 0.00476190476 * x4 + 0.000132275132 * x6;
+      return 0.06666666667 * x2 - 0.004761904762 * x4 + 0.0001322751323 * x6;
     } else if (L == 3) {
       const T x2 = x * x;
       const T x3 = x2 * x;
       const T x5 = x3 * x2;
       const T x7 = x5 * x2;
-      return 0.00952380952 * x3 - 0.000529100529 * x5 + 0.000012025012 * x7;
+      return 0.009523809524 * x3 - 0.0005291005291 * x5 + 0.00001202501203 * x7;
     } else if (L == 4) {
       const T x2 = x * x;
       const T x4 = x2 * x2;
       const T x6 = x4 * x2;
-      const T x8 = x4 * x4;
-      return 0.00105820106 * x4 - 0.0000481000481 * x6 + 9.25000925e-7 * x8;
+      return 0.001058201058 * x4 - 0.00004810004810 * x6;
+    } else if (L == 5) {
+      const T x2 = x * x;
+      const T x3 = x2 * x;
+      const T x5 = x3 * x2;
+      const T x7 = x5 * x2;
+      return 0.00009620009620 * x5 - 3.700003700e-6 * x7;
+    } else if (L == 6) {
+      const T x2 = x * x;
+      const T x6 = x2 * x2 * x2;
+      return 7.400007400e-6 * x6;
+    } else if (L == 7) {
+      const T x2 = x * x;
+      const T x7 = x2 * x2 * x2 * x;
+      return 4.933338267e-7 * x7;
     }
   }
 
@@ -85,6 +100,7 @@ template <typename T>
 void fillBesselVec_kr(int l, double k, const std::vector<T> &r,
                       std::vector<T> *jl) {
   jl->resize(r.size());
+#pragma omp parallel for
   for (std::size_t i = 0; i < r.size(); ++i) {
     (*jl)[i] = JL(l, k * r[i]);
   }
