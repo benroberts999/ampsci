@@ -10,8 +10,8 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
 #include "fmt/ostream.hpp"
+#include "qip/Maths.hpp"
 #include "qip/Methods.hpp"
-#include "qip/String.hpp"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -468,10 +468,11 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check({
       {"E_range",
-       "List (2). Minimum, maximum energy transfer (dE), in eV [10, 100]"},
-      {"E_steps", "Numer of steps along dE grid (logarithmic grid) [1]"},
+       "List (2). Minimum, maximum energy transfer (dE), in eV [10, 1000]"},
+      {"E_steps", "Numer of steps along dE grid (logarithmic grid) [50]"},
       {"oname", "oname"},
-      {"ec_cut", "Cut-off (in au) for continuum energy. [100.0]"},
+      {"ec_cut", "Cut-off (in au) for continuum energy. [inf]"},
+      {"K_minmax", "List (2). Minimum, maximum K [1, 1]"},
       {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
       {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
                         "hole-particle interaction) [true]"},
@@ -481,127 +482,138 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
-  auto [Emin_eV, Emax_eV] = input.get("E_range", std::array{10.0, 100.0});
-  auto E_steps = input.get<std::size_t>("E_steps", 1);
+  // Set up energy grid:
+  auto [Emin_eV, Emax_eV] = input.get("E_range", std::array{10.0, 1000.0});
+  auto E_steps = input.get<std::size_t>("E_steps", 50);
   if (E_steps <= 1) {
     E_steps = 1;
     Emax_eV = Emin_eV;
   }
+  // Convert to atomic units for calculations:
   const auto Emin_au = Emin_eV / PhysConst::Hartree_eV;
   const auto Emax_au =
       Emax_eV < Emin_eV ? Emin_au : Emax_eV / PhysConst::Hartree_eV;
+  const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
+
+  // "cut-off"/ceiling energy for continuum. Bad idea?
+  const auto ec_cut = input.get("ec_cut", 1 / 0.0);
+
+  std::cout << "\nCore ionisation energies, in MeV\n";
+  for (const auto &Fc : wf.core()) {
+    fmt::print("{:3} : {:.4e}\n", Fc.shortSymbol(),
+               -1 * Fc.en() * PhysConst::Hartree_eV / 1.0e6);
+  }
+  std::cout << "\n";
 
   std::cout << "\nSummary of inputs:\n";
   fmt::print(
       "Energy  : [{:.1f}, {:.1f}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
       Emin_eV, Emax_eV, Emin_au, Emax_au, E_steps);
-  const auto ec_cut = input.get("ec_cut", 100.0);
 
-  const auto K = input.get("K", 1);
+  const auto [Kmin, Kmax] = input.get("K_minmax", std::array{1, 1});
   const auto label = input.get("label", std::string{""});
 
   const auto force_orthog = input.get("force_orthog", true);
   const auto force_rescale = input.get("force_rescale", false);
   const auto hole_particle = input.get("hole_particle", true);
 
-  // Set up the E and q grids
-  const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
-
-  int k = K;
-
-  const auto E1 = DiracOperator::E1(wf.grid());
-
   auto oname = input.get("oname", std::string{"out.txt"});
   std::ofstream out_file(oname);
 
-  auto Ek = DiracOperator::Ek_w(wf.grid(), k, wf.alpha(), 0.0, true);
-  ExternalField::DiagramRPA dV0(&Ek, wf.basis(), wf.vHF(), wf.identity());
-  ExternalField::DiagramRPA dV(&Ek, wf.basis(), wf.vHF(), wf.identity());
+  // "full" dipole operator
+  const auto E1 = DiracOperator::E1(wf.grid());
+
+  auto M1nr = DiracOperator::M1nr();
 
   int count = 0;
   for (const auto omega : Egrid.r()) {
     std::cout << count++ << " " << omega << " " << omega * PhysConst::Hartree_eV
               << "\n";
 
-    const auto Ksigma = 4.0 * M_PI * M_PI * wf.alpha() * PhysConst::aB_cm *
-                        PhysConst::aB_cm * omega;
+    const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
+                        PhysConst::aB_cm * PhysConst::aB_cm * omega;
 
-    Ek.updateFrequency(omega);
-    // dV0.update_t0s(&Ek); // required??
-    // dV.solve_core(0.0);
-    // dV.solve_core(omega);
+    double Q_E1 = 0.0;
+    double Q_M1 = 0.0;
+    double Q_M1_nr = 0.0;
 
-    const auto EkL =
-        DiracOperator::Ek_w_L(wf.grid(), k, wf.alpha(), omega, true);
-
-    const auto Mk = DiracOperator::Mk_w(wf.grid(), k, wf.alpha(), omega, true);
-
-    const auto E1v = DiracOperator::E1v(wf.alpha(), omega);
-    const auto M1 = DiracOperator::M1(wf.grid(), wf.alpha(), omega);
-
-    const auto ialpha = DiracOperator::ialpha();
+    double Q_E2 = 0.0; // just Ek at K=2
 
     double Q_E = 0.0;
-    double Q_El = 0.0;
-    double Q_E1 = 0.0;
-    double Q_E1v = 0.0;
-    double Q_ialpha = 0.0;
+    double Q_M = 0.0;
+    double Q_E_len = 0.0;
 
-    // First, loop through and just find list of what we shall do.
-    // THEN parellelise over that!
+    for (int k = Kmin; k <= Kmax; ++k) {
 
-    std::vector<std::size_t> iclist;
-    for (std::size_t i = 0; i < wf.core().size(); ++i) {
-      const auto ec = omega + wf.core()[i].en();
-      if (ec < 0.0)
-        continue;
-      iclist.push_back(i);
-    }
+      // Electric, magnetic parts
+      const auto Ek = DiracOperator::Ek_w(wf.grid(), k, omega);
+      const auto Mk = DiracOperator::Mk_w(wf.grid(), k, omega);
+      // Magnetic dipole
+      const auto M1 = DiracOperator::M1(wf.grid(), PhysConst::alpha, omega);
+      // "Length" form - for tests only
+      const auto Ek_len = DiracOperator::Ek_w_L(wf.grid(), k, omega);
 
-#pragma omp parallel for reduction(+ : Q_E, Q_El, Q_E1, Q_E1v, Q_ialpha)
-    for (const auto ic : iclist) {
-      const auto &Fa = wf.core()[ic];
-      const auto ec = omega + Fa.en();
-      if (ec < 0.0)
-        continue;
-      const auto ec_t = std::min(ec, ec_cut);
+      // First, loop through and just find list of what we shall do.
+      // THEN parellelise over that!
 
-      const int l = Fa.l();
-      const int lc_max = l + k + 1;
-      const int lc_min = std::max(l - k - 1, 0);
+      std::vector<std::size_t> iclist;
+      for (std::size_t i = 0; i < wf.core().size(); ++i) {
+        const auto ec = omega + wf.core()[i].en();
+        if (ec < 0.0)
+          continue;
+        iclist.push_back(i);
+      }
 
-      ContinuumOrbitals cntm(wf.vHF());
-      cntm.solveContinuumHF(ec_t, lc_min, lc_max, &Fa, force_rescale,
-                            hole_particle, force_orthog);
+#pragma omp parallel for reduction(+ : Q_E1, Q_M1, Q_M1_nr, Q_E2, Q_E, Q_M,    \
+                                       Q_E_len)
+      for (const auto ic : iclist) {
+        const auto &Fa = wf.core()[ic];
+        const auto ec = omega + Fa.en();
+        if (ec < 0.0)
+          continue;
+        const auto ec_t = std::min(ec, ec_cut);
 
-      for (const auto &Fe : cntm.orbitals) {
+        const int l = Fa.l();
+        const int lc_max = l + k + 1;
+        const int lc_min = std::max(l - k - 1, 0);
 
-        const auto f_mp = 1.0 / (wf.alpha() * omega) / (wf.alpha() * omega);
-        const auto f_1o3 = 1.0 / 3.0;
+        ContinuumOrbitals cntm(wf.vHF());
+        cntm.solveContinuumHF(ec_t, lc_min, lc_max, &Fa, force_rescale,
+                              hole_particle, force_orthog);
 
-        const auto rme_E1 = E1.reducedME(Fe, Fa);
-        Q_E1 += f_1o3 * rme_E1 * rme_E1;
+        for (const auto &Fe : cntm.orbitals) {
 
-        const auto rme_E1v = E1v.reducedME(Fe, Fa);
-        Q_E1v += f_1o3 * rme_E1v * rme_E1v;
+          const auto tkp1 = 2.0 * k + 1.0;
+          const auto pol_av = 1.0 / 2.0;
+          const auto f_Q =
+              tkp1 * pol_av / qip::pow(PhysConst::alpha * omega, 2);
 
-        const auto rme_ialpha = ialpha.reducedME(Fe, Fa);
-        Q_ialpha += f_mp * f_1o3 * rme_ialpha * rme_ialpha;
+          // check!
+          const auto f_Q_E1 = 1.0 / 3.0;
+          const auto f_Q_M1 = 1.0 / 3.0 * qip::pow(PhysConst::muB_CGS, 2);
 
-        const auto tkp1 = 2.0 * k + 1.0;
-        const auto pol_av = 1.0 / 2.0;
-        const auto rme_E = Ek.reducedME(Fe, Fa);
-        Q_E += f_mp * rme_E * rme_E * tkp1 * pol_av;
+          if (k == 1) {
+            Q_E1 += f_Q_E1 * qip::pow(E1.reducedME(Fe, Fa), 2);
+            Q_M1 += f_Q_M1 * qip::pow(M1.reducedME(Fe, Fa), 2);
+            Q_M1_nr += f_Q_M1 * qip::pow(M1nr.reducedME(Fe, Fa), 2);
+          }
+          if (k == 2) {
+            // test with "actual" E2 as well!
+            Q_E2 += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
+          }
 
-        const auto rme_El = EkL.reducedME(Fe, Fa);
-        Q_El += f_mp * rme_El * rme_El * tkp1 * pol_av;
+          Q_E += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
+          Q_M += f_Q * qip::pow(Mk.reducedME(Fe, Fa), 2);
+
+          Q_E_len += f_Q * qip::pow(Ek_len.reducedME(Fe, Fa), 2);
+        }
       }
     }
-    // std::cout << "\n";
 
-    out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E * Ksigma
-             << " " << Q_El * Ksigma << " " << Q_E1 * Ksigma << " "
-             << Q_E1v * Ksigma << " " << Q_ialpha * Ksigma << "\n";
+    out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E1 * Ksigma
+             << " " << Q_M1 * Ksigma << " " << Q_M1_nr * Ksigma << " "
+             << Q_E * Ksigma << " " << Q_E_len * Ksigma << " " << Q_M * Ksigma
+             << " " << (Q_E + Q_M) * Ksigma << "\n";
   }
 }
 
@@ -688,15 +700,15 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
     for (int k = Kmin; k <= Kmax; ++k) {
 
-      auto Phik = DiracOperator::Phik_w(wf.grid(), k, wf.alpha(), qc);
-      auto Ek = DiracOperator::Ek_w(wf.grid(), k, wf.alpha(), qc);
-      auto Mk = DiracOperator::Mk_w(wf.grid(), k, wf.alpha(), qc);
-      auto Lk = DiracOperator::Lk_w(wf.grid(), k, wf.alpha(), qc);
+      auto Phik = DiracOperator::Phik_w(wf.grid(), k, qc);
+      auto Ek = DiracOperator::Ek_w(wf.grid(), k, qc);
+      auto Mk = DiracOperator::Mk_w(wf.grid(), k, qc);
+      auto Lk = DiracOperator::Lk_w(wf.grid(), k, qc);
 
-      auto Phi5k = DiracOperator::Phi5k_w(wf.grid(), k, wf.alpha(), qc);
-      auto E5k = DiracOperator::E5k_w(wf.grid(), k, wf.alpha(), qc);
-      auto M5k = DiracOperator::M5k_w(wf.grid(), k, wf.alpha(), qc);
-      auto L5k = DiracOperator::L5k_w(wf.grid(), k, wf.alpha(), qc);
+      auto Phi5k = DiracOperator::Phi5k_w(wf.grid(), k, qc);
+      auto E5k = DiracOperator::E5k_w(wf.grid(), k, qc);
+      auto M5k = DiracOperator::M5k_w(wf.grid(), k, qc);
+      auto L5k = DiracOperator::L5k_w(wf.grid(), k, qc);
 
 #pragma omp parallel for reduction(+ : Q_Phi, Q_E, Q_M, Q_L, Q_Phi5, Q_E5,     \
                                        Q_M5, Q_L5)
