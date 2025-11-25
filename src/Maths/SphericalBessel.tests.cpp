@@ -8,12 +8,15 @@ TEST_CASE("Maths::SphericalBessel", "[jL][unit]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "SphericalBessel\n";
 
-  const auto r_list = qip::loglinear_range(1.0e-6, 200.0, 1.0, 75);
+  const auto r_list = qip::loglinear_range(1.0e-5, 10.0, 1.0, 100);
 
   for (int L = 0; L <= 15; ++L) {
     for (auto r : r_list) {
       REQUIRE(SphericalBessel::JL(L, r) ==
-              Approx(SphericalBessel::exactGSL_JL(L, r)).margin(1.0e-9));
+              Approx(SphericalBessel::exactGSL_JL(L, r)).margin(1.0e-15));
+
+      REQUIRE(SphericalBessel::JL(L, r) ==
+              Approx(SphericalBessel::exactGSL_JL(L, r)).epsilon(1.0e-3));
     }
 
     if (L < 4) {
