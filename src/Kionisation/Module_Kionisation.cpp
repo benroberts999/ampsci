@@ -470,6 +470,8 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       {"E_range",
        "List (2). Minimum, maximum energy transfer (dE), in eV [10, 1000]"},
       {"E_steps", "Numer of steps along dE grid (logarithmic grid) [50]"},
+      {"E_extra", "Numer of extra E steps to add in -15% range on either side"
+                  " of each threshold. If <2, will add no new points [0]"},
       {"oname", "oname"},
       {"ec_cut", "Cut-off (in au) for continuum energy. [inf]"},
       {"K_minmax", "List (2). Minimum, maximum K [1, 1]"},
@@ -485,6 +487,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   // Set up energy grid:
   auto [Emin_eV, Emax_eV] = input.get("E_range", std::array{10.0, 1000.0});
   auto E_steps = input.get<std::size_t>("E_steps", 50);
+  auto E_extra = input.get<std::size_t>("E_extra", 0);
   if (E_steps <= 1) {
     E_steps = 1;
     Emax_eV = Emin_eV;
@@ -493,22 +496,44 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto Emin_au = Emin_eV / PhysConst::Hartree_eV;
   const auto Emax_au =
       Emax_eV < Emin_eV ? Emin_au : Emax_eV / PhysConst::Hartree_eV;
-  const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
 
-  // "cut-off"/ceiling energy for continuum. Bad idea?
-  const auto ec_cut = input.get("ec_cut", 1 / 0.0);
+  // const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
+  // auto energies = Egrid.r();
+
+  // Instead of using "grid" - specificly add extra points around
+  auto energies = qip::logarithmic_range(Emin_au, Emax_au, E_steps);
 
   std::cout << "\nCore ionisation energies, in MeV\n";
   for (const auto &Fc : wf.core()) {
     fmt::print("{:3} : {:.4e}\n", Fc.shortSymbol(),
                -1 * Fc.en() * PhysConst::Hartree_eV / 1.0e6);
+
+    // Add extra energy steps around each threshold:
+    if (E_extra > 1) {
+      const auto extra1 =
+          qip::uniform_range(-0.85 * Fc.en(), -0.999 * Fc.en(), E_extra);
+      const auto e0 = 0.01; // smallest energy can calculate well for cntm
+      const auto extra2 =
+          qip::uniform_range(-Fc.en() + e0, 1.15 * (-Fc.en() + e0), E_extra);
+      energies = qip::merge(energies, extra1, extra2);
+    }
   }
   std::cout << "\n";
 
+  // If added extra points, sort list:
+  if (E_extra > 1) {
+    std::sort(energies.begin(), energies.end());
+  }
+
+  // "cut-off"/ceiling energy for continuum. Bad idea?
+  const auto ec_cut = input.get("ec_cut", 1 / 0.0);
+
   std::cout << "\nSummary of inputs:\n";
   fmt::print(
-      "Energy  : [{:.1f}, {:.1f}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
-      Emin_eV, Emax_eV, Emin_au, Emax_au, E_steps);
+      "Energy  : [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n\n",
+      energies.front() * PhysConst::Hartree_eV,
+      energies.back() * PhysConst::Hartree_eV, energies.front(),
+      energies.back(), energies.size());
 
   const auto [Kmin, Kmax] = input.get("K_minmax", std::array{1, 1});
   const auto label = input.get("label", std::string{""});
@@ -522,26 +547,45 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // "full" dipole operator
   const auto E1 = DiracOperator::E1(wf.grid());
+  const auto E2 = DiracOperator::Ek(wf.grid(), 2);
 
   auto M1nr = DiracOperator::M1nr();
 
+  // Note: This is parallelised very ineficiently.
+  // Could be improved quite a bit probably..
+  // Also: perhaps faster to use jL lookup table? Maybe not the bottleneck
+
   int count = 0;
-  for (const auto omega : Egrid.r()) {
-    std::cout << count++ << " " << omega << " " << omega * PhysConst::Hartree_eV
-              << "\n";
+  for (const auto omega : energies) {
+
+    // First, loop through and just find list of what we shall do.
+    // THEN parellelise over that!
+    std::vector<std::size_t> iclist;
+    for (std::size_t i = 0; i < wf.core().size(); ++i) {
+      const auto ec = omega + wf.core()[i].en();
+      if (ec < 0.0)
+        continue;
+      iclist.push_back(i);
+    }
+
+    fmt::print("{:3} {:9.2f} eV ; {:3} shells accessible\n", count++,
+               omega * PhysConst::Hartree_eV, iclist.size());
 
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
                         PhysConst::aB_cm * PhysConst::aB_cm * omega;
 
-    double Q_E1 = 0.0;
-    double Q_M1 = 0.0;
-    double Q_M1_nr = 0.0;
+    double Q_E1 = 0.0;    // Regular (length) E1 operator
+    double Q_M1 = 0.0;    // "Regular" M1
+    double Q_M1_nr = 0.0; // Non-relativistic M1 operator
+    double Q_Mk1 = 0.0;   // Mk at k=1
 
-    double Q_E2 = 0.0; // just Ek at K=2
+    double Q_Ek2 = 0.0; // Ek at K=2
+    double Q_E2 = 0.0;  // Regular E2 (length)
 
-    double Q_E = 0.0;
-    double Q_M = 0.0;
-    double Q_E_len = 0.0;
+    double Q_E = 0.0; // Full electric multipole
+    double Q_M = 0.0; // Full magnetic multipole
+
+    double Q_E_len = 0.0; // Full electric multipole (length form)
 
     for (int k = Kmin; k <= Kmax; ++k) {
 
@@ -553,19 +597,8 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       // "Length" form - for tests only
       const auto Ek_len = DiracOperator::Ek_w_L(wf.grid(), k, omega);
 
-      // First, loop through and just find list of what we shall do.
-      // THEN parellelise over that!
-
-      std::vector<std::size_t> iclist;
-      for (std::size_t i = 0; i < wf.core().size(); ++i) {
-        const auto ec = omega + wf.core()[i].en();
-        if (ec < 0.0)
-          continue;
-        iclist.push_back(i);
-      }
-
-#pragma omp parallel for reduction(+ : Q_E1, Q_M1, Q_M1_nr, Q_E2, Q_E, Q_M,    \
-                                       Q_E_len)
+#pragma omp parallel for reduction(+ : Q_E1, Q_M1, Q_Mk1, Q_M1_nr, Q_Ek2,      \
+                                       Q_E2, Q_E, Q_M, Q_E_len)
       for (const auto ic : iclist) {
         const auto &Fa = wf.core()[ic];
         const auto ec = omega + Fa.en();
@@ -583,6 +616,8 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
         for (const auto &Fe : cntm.orbitals) {
 
+          const auto q = PhysConst::alpha * omega;
+
           const auto tkp1 = 2.0 * k + 1.0;
           const auto pol_av = 1.0 / 2.0;
           const auto f_Q =
@@ -595,11 +630,14 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
           if (k == 1) {
             Q_E1 += f_Q_E1 * qip::pow(E1.reducedME(Fe, Fa), 2);
             Q_M1 += f_Q_M1 * qip::pow(M1.reducedME(Fe, Fa), 2);
+            Q_Mk1 += f_Q * qip::pow(Mk.reducedME(Fe, Fa), 2);
             Q_M1_nr += f_Q_M1 * qip::pow(M1nr.reducedME(Fe, Fa), 2);
           }
           if (k == 2) {
             // test with "actual" E2 as well!
-            Q_E2 += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
+            Q_Ek2 += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
+
+            Q_E2 += f_Q_E1 * qip::pow(E2.reducedME(Fe, Fa), 2) / 20 * q * q;
           }
 
           Q_E += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
@@ -613,7 +651,8 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E1 * Ksigma
              << " " << Q_M1 * Ksigma << " " << Q_M1_nr * Ksigma << " "
              << Q_E * Ksigma << " " << Q_E_len * Ksigma << " " << Q_M * Ksigma
-             << " " << (Q_E + Q_M) * Ksigma << "\n";
+             << " " << (Q_E + Q_M) * Ksigma << " " << Q_E2 * Ksigma << " "
+             << Q_Ek2 * Ksigma << " " << Q_Mk1 * Ksigma << "\n";
   }
 }
 
