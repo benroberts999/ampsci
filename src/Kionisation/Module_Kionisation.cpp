@@ -470,8 +470,12 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       {"E_range",
        "List (2). Minimum, maximum energy transfer (dE), in eV [10, 1000]"},
       {"E_steps", "Numer of steps along dE grid (logarithmic grid) [50]"},
-      {"E_extra", "Numer of extra E steps to add in -15% range on either side"
-                  " of each threshold. If <2, will add no new points [0]"},
+      {"E_threshold",
+       "Numer of extra E steps to add in -15% range on either side"
+       " of each threshold. If <2, will add no new points [0]"},
+      {"E_extra", "List (comma separated) extra energies (in eV) to add 10 "
+                  "points around. Useful for specific regions we want more "
+                  "resolution in."},
       {"oname", "oname"},
       {"ec_cut", "Cut-off (in au) for continuum energy. [inf]"},
       {"K_minmax", "List (2). Minimum, maximum K [1, 1]"},
@@ -487,7 +491,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   // Set up energy grid:
   auto [Emin_eV, Emax_eV] = input.get("E_range", std::array{10.0, 1000.0});
   auto E_steps = input.get<std::size_t>("E_steps", 50);
-  auto E_extra = input.get<std::size_t>("E_extra", 0);
+  auto E_threshold = input.get<std::size_t>("E_threshold", 0);
   if (E_steps <= 1) {
     E_steps = 1;
     Emax_eV = Emin_eV;
@@ -507,21 +511,36 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   for (const auto &Fc : wf.core()) {
     fmt::print("{:3} : {:.4e}\n", Fc.shortSymbol(),
                -1 * Fc.en() * PhysConst::Hartree_eV / 1.0e6);
-
-    // Add extra energy steps around each threshold:
-    if (E_extra > 1) {
-      const auto extra1 =
-          qip::uniform_range(-0.85 * Fc.en(), -0.999 * Fc.en(), E_extra);
-      const auto e0 = 0.01; // smallest energy can calculate well for cntm
-      const auto extra2 =
-          qip::uniform_range(-Fc.en() + e0, 1.15 * (-Fc.en() + e0), E_extra);
-      energies = qip::merge(energies, extra1, extra2);
-    }
   }
   std::cout << "\n";
 
+  // Add extra energy points near thresholds:
+  if (E_threshold > 1) {
+    for (const auto &Fc : wf.core()) {
+
+      // just below thresholds:
+      const auto extra1 =
+          qip::uniform_range(-0.85 * Fc.en(), -0.999 * Fc.en(), E_threshold);
+
+      // Just above thresholds (note: careful, since hard to solve
+      // Dirac equation for cntm states with very small energy)
+      const auto e0 = 0.01; // smallest energy can calculate well for cntm
+      const auto extra2 = qip::uniform_range(
+          -Fc.en() + e0, 1.15 * (-Fc.en() + e0), E_threshold);
+      energies = qip::merge(energies, extra1, extra2);
+    }
+  }
+
+  // Add extra points around specific energies
+  const auto E_extra = input.get("E_extra", std::vector<double>{});
+  for (const auto &Em_eV : E_extra) {
+    const auto Em = Em_eV / PhysConst::Hartree_eV;
+    const auto extra3 = qip::uniform_range(0.8 * Em, 1.2 * Em, 10);
+    energies = qip::merge(energies, extra3);
+  }
+
   // If added extra points, sort list:
-  if (E_extra > 1) {
+  if (E_threshold > 1 || E_extra.size() > 0) {
     std::sort(energies.begin(), energies.end());
   }
 
