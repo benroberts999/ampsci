@@ -5,6 +5,7 @@
 #include "Modules/Breit.hpp"
 #include "Modules/HFAnomaly.hpp"
 #include "Modules/basic.hpp"
+#include "Modules/dcp.hpp"
 #include "Modules/exampleModule.hpp"
 #include "Modules/isotopeShift.hpp"
 #include "Modules/ladder.hpp"
@@ -90,6 +91,7 @@ static const std::vector<ModuleInfo> module_list{
   {"muon", &muon,
    "Calculating muonic wavefunctions, energies, matrix elements - somewhat "
    "obsolete after introduction of Exotic{} into ampsci main"},
+  {"dcp", &dcp, "Module for testing dcp calculations"},
   {"exampleModule", &exampleModule, "A short description of the module"}};
 
 } // namespace Module
