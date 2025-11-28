@@ -18,6 +18,8 @@
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
 #include "Modules/thirdOrder.hpp"
+#include "Modules/DCPdiagrams.hpp"
+
 #include <iostream>
 #include <string>
 #include <tuple>
@@ -87,6 +89,7 @@ static const std::vector<ModuleInfo> module_list{
     {"muon", &muon,
      "Calculating muonic wavefunctions, energies, matrix elements"},
     {"VQE", &VQE, "For testing/playing with VQE method"},
-    {"exampleModule", &exampleModule, "A short description of the module"}};
+    {"exampleModule", &exampleModule, "A short description of the module"},
+  {"DCPdiagrams", &DCPdiagrams,"DCP diagrams"}};
 
 } // namespace Module
