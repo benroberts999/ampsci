@@ -14,6 +14,29 @@
 
 namespace Angular {
 
+//=============================================================================
+// If given an integer (k), returns 2*k
+// If given a DiracSpinor, F, returns 2*j [F.twoj()]
+template <class A>
+int twojk(const A &a) {
+  if constexpr (std::is_same_v<A, DiracSpinor>) {
+    return a.twoj();
+  } else if constexpr (std::is_same_v<A, int>) {
+    return 2 * a;
+  } else {
+    static_assert(std::is_same_v<A, std::size_t>);
+    return 2 * static_cast<int>(a);
+  }
+}
+
+//! "Magic" 6j, for integers and DiracSpinors. Pass int (for k), or DiracSpinor for j.
+//! e.g.: (F,F,k,F,F,k) -> {j,j,k,j,j,k}. Do NOT *2! Do NOT pass j or 2j directly!
+template <class A, class B, class C, class D, class E, class F>
+double SixJ(const A &a, const B &b, const C &c, const D &d, const E &e,
+            const F &f) {
+  return sixj_2(twojk(a), twojk(b), twojk(c), twojk(d), twojk(e), twojk(f));
+}
+
 //==============================================================================
 
 //! Lookup table for Wigner 6J symbols.
@@ -210,19 +233,6 @@ private:
       return normal_order_level2(f, a, e, c, d, b);
     }
     assert(false && "Fatal error 193: unreachable");
-  }
-
-  //----------------------------------------------------------------------------
-  // If given an integer (k), returns 2*k
-  // If given a DiracSpinor, F, returns 2*j [F.twoj()]
-  template <class A>
-  static int twojk(const A &a) {
-    if constexpr (std::is_same_v<A, DiracSpinor>) {
-      return a.twoj();
-    } else {
-      static_assert(std::is_same_v<A, int>);
-      return 2 * a;
-    }
   }
 };
 
