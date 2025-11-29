@@ -447,6 +447,10 @@ double UnitTest::sj_compare_DiracSpinor(const Angular::SixJTable &sjt,
                                                   c.twoj(), d.twoj(), 2 * l);
               const auto sj2 = sjt.get(a, b, k, c, d, l);
 
+              const auto sj3 = Angular::SixJ(a, b, k, c, d, l);
+
+              REQUIRE(sj3 == Approx(sj1));
+
               // Compare, find worst offender:
               const auto del = std::abs(sj1 - sj2);
               if (del > max_del) {
