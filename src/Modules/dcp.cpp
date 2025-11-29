@@ -7,8 +7,8 @@
 
 //==============================================================================
 double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
-          int kt, int ks, const Coulomb::meTable<double> &t_me,
-          const Coulomb::meTable<double> &s_me,
+          int kt, int ks, const Coulomb::meTable<double> &T,
+          const Coulomb::meTable<double> &S,
           const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited) {
 
@@ -21,15 +21,10 @@ double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
       const auto &m = excited[im];
       const auto &n = excited[in];
 
-      const auto sj_ts_OK =
-          Angular::sixjTriads(2 * kt, 2 * ks, 2 * K, m.twoj(), n.twoj(), {});
-      const auto sj_st_OK =
-          Angular::sixjTriads(2 * ks, 2 * kt, 2 * K, m.twoj(), n.twoj(), {});
-
       const auto Wk_ok = Coulomb::Qk_abcd_SR(K, w, m, v, n) ||
                          Coulomb::Pk_abcd_SR(K, w, m, v, n);
 
-      if ((sj_ts_OK || sj_st_OK) && Wk_ok)
+      if (Wk_ok)
         mn_index.push_back({im, in});
     }
   }
@@ -40,37 +35,31 @@ double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
     const auto &m = excited[im];
     const auto &n = excited[in];
 
-    const auto tjn = n.twoj();
-    const auto tjm = m.twoj();
-
-    const auto ss = Angular::neg1pow_2(w.twoj() + tjm);
+    const auto s_wm = Angular::neg1pow_2(w.twoj() + m.twoj());
     const auto Wmwvn = Coulomb::Wk_abcd(K, w, m, v, n);
 
     for (const auto &a : core) {
 
-      const auto sj_ts =
-          Angular::sixj_2(2 * kt, 2 * ks, 2 * K, tjm, tjn, a.twoj());
+      const auto sj_ts = Angular::SixJ(kt, ks, K, m, n, a);
 
       // C1_ts:
       if (sj_ts != 0.0) {
-        const auto Tna = t_me.getv(n, a);
-        const auto Sam = s_me.getv(a, m);
+        const auto Tna = T.getv(n, a);
+        const auto Sam = S.getv(a, m);
         const auto de_ts =
             (a.en() - n.en() + omega) * (a.en() - m.en() - omega);
-        const auto s_ts = ss * Angular::neg1pow(kt + ks);
+        const auto s_ts = s_wm * Angular::neg1pow(kt + ks);
         Ak += Tna * Sam * Wmwvn / de_ts * s_ts * sj_ts;
       }
 
-      const auto sj_st =
-          kt == ks ? sj_ts :
-                     Angular::sixj_2(2 * ks, 2 * kt, 2 * K, tjm, tjn, a.twoj());
+      const auto sj_st = kt == ks ? sj_ts : Angular::SixJ(ks, kt, K, m, n, a);
 
       // C1_st:
       if (sj_st != 0.0) {
-        const auto Sna = s_me.getv(n, a);
-        const auto Tam = t_me.getv(a, m);
+        const auto Sna = S.getv(n, a);
+        const auto Tam = T.getv(a, m);
         const auto de_st = (a.en() - n.en()) * (a.en() - m.en() - omega);
-        const auto s_st = ss * Angular::neg1pow(K);
+        const auto s_st = s_wm * Angular::neg1pow(K);
         Ak += Sna * Tam * Wmwvn / de_st * s_st * sj_st;
       }
     }
@@ -80,8 +69,8 @@ double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
 //==============================================================================
 double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
-          int kt, int ks, const Coulomb::meTable<double> &t_me,
-          const Coulomb::meTable<double> &s_me,
+          int kt, int ks, const Coulomb::meTable<double> &T,
+          const Coulomb::meTable<double> &S,
           const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited) {
 
@@ -93,10 +82,8 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
   for (const auto &a : core) {
     for (const auto &b : core) {
       //
-      const auto tja = a.twoj();
-      const auto tjb = b.twoj();
 
-      const auto s_wa = Angular::neg1pow_2(w.twoj() + tja);
+      const auto s_wa = Angular::neg1pow_2(w.twoj() + a.twoj());
       const auto Wwavb = Coulomb::Wk_abcd(K, w, a, v, b);
       if (Wwavb == 0.0)
         continue;
@@ -105,10 +92,9 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
         // C2_ts
         {
-          const auto sjs_ts =
-              Angular::sixj_2(2 * kt, 2 * ks, 2 * K, tjb, tja, n.twoj());
-          const auto Tna = t_me.getv(n, a);
-          const auto Sbn = s_me.getv(b, n);
+          const auto sjs_ts = Angular::SixJ(kt, ks, K, b, a, n);
+          const auto Tna = T.getv(n, a);
+          const auto Sbn = S.getv(b, n);
           const auto de_ts =
               (a.en() - n.en() + omega) * (b.en() - n.en() - omega);
           Ak += s_wa * sK * sjs_ts * Tna * Sbn * Wwavb / de_ts;
@@ -116,10 +102,9 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
         // C2_st
         {
-          const auto sjs_st =
-              Angular::sixj_2(2 * ks, 2 * kt, 2 * K, tjb, tja, n.twoj());
-          const auto Sna = s_me.getv(n, a);
-          const auto Tbn = t_me.getv(b, n);
+          const auto sjs_st = Angular::SixJ(ks, kt, K, b, a, n);
+          const auto Sna = S.getv(n, a);
+          const auto Tbn = T.getv(b, n);
           const auto de_st = (a.en() - n.en()) * (b.en() - n.en() - omega);
           Ak += s_wa * sts * sjs_st * Sna * Tbn * Wwavb / de_st;
         }
@@ -131,8 +116,8 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
 //==============================================================================
 double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
-           int kt, int ks, const Coulomb::meTable<double> &t_me,
-           const Coulomb::meTable<double> &s_me,
+           int kt, int ks, const Coulomb::meTable<double> &T,
+           const Coulomb::meTable<double> &S,
            const std::vector<DiracSpinor> &core,
            const std::vector<DiracSpinor> &excited) {
 
@@ -146,33 +131,29 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
   for (const auto &a : core) {
     for (const auto &n : excited) {
       //
-      const auto tja = a.twoj();
-      const auto tjn = n.twoj();
 
       const auto Wmavn = Coulomb::Wk_abcd(K, w, a, v, n);
       if (Wmavn == 0.0)
         continue;
 
       // R1:
-      const auto s_wa = Angular::neg1pow_2(w.twoj() + tja);
+      const auto s_wa = Angular::neg1pow_2(w.twoj() + a.twoj());
       for (const auto &m : excited) {
 
         //R1_ts
         {
-          const auto sjs =
-              Angular::sixj_2(2 * kt, 2 * ks, 2 * K, tjn, tja, m.twoj());
-          const auto Tma = t_me.getv(m, a);
-          const auto Snm = s_me.getv(n, m);
+          const auto sjs = Angular::SixJ(kt, ks, K, n, a, m);
+          const auto Tma = T.getv(m, a);
+          const auto Snm = S.getv(n, m);
           const auto de_ts = (a.en() - m.en() + omega) * (a.en() - n.en());
           Ak += s_wa * sK * sjs * Tma * Snm * Wmavn / de_ts;
         }
 
         //R1_st
         {
-          const auto sjs =
-              Angular::sixj_2(2 * ks, 2 * kt, 2 * K, tjn, tja, m.twoj());
-          const auto Sma = s_me.getv(m, a);
-          const auto Tnm = t_me.getv(n, m);
+          const auto sjs = Angular::SixJ(ks, kt, K, n, a, m);
+          const auto Sma = S.getv(m, a);
+          const auto Tnm = T.getv(n, m);
           const auto de_st = (a.en() - m.en()) * (a.en() - n.en() + omega);
           Ak += s_wa * sts * sjs * Sma * Tnm * Wmavn / de_st;
         }
@@ -184,20 +165,18 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
         //R2_ts
         {
-          const auto sjs =
-              Angular::sixj_2(2 * kt, 2 * ks, 2 * K, tja, tjn, b.twoj());
-          const auto Tnb = t_me.getv(n, b);
-          const auto Sba = s_me.getv(b, a);
+          const auto sjs = Angular::SixJ(kt, ks, K, a, n, b);
+          const auto Tnb = T.getv(n, b);
+          const auto Sba = S.getv(b, a);
           const auto de_ts = (b.en() - n.en() + omega) * (a.en() - n.en());
           Ak -= s_wb * sts * sjs * Tnb * Sba * Wmavn / de_ts;
         }
 
         //R2_st
         {
-          const auto sjs =
-              Angular::sixj_2(2 * ks, 2 * kt, 2 * K, tja, tjn, b.twoj());
-          const auto Snb = s_me.getv(n, b);
-          const auto Tba = t_me.getv(b, a);
+          const auto sjs = Angular::SixJ(ks, kt, K, a, n, b);
+          const auto Snb = S.getv(n, b);
+          const auto Tba = T.getv(b, a);
           const auto de_ts = (b.en() - n.en()) * (a.en() - n.en() + omega);
           Ak -= s_wb * sK * sjs * Snb * Tba * Wmavn / de_ts;
         }
@@ -209,8 +188,8 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
 //==============================================================================
 double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
-           int kt, int ks, const Coulomb::meTable<double> &t_me,
-           const Coulomb::meTable<double> &s_me,
+           int kt, int ks, const Coulomb::meTable<double> &T,
+           const Coulomb::meTable<double> &S,
            const std::vector<DiracSpinor> &core,
            const std::vector<DiracSpinor> &excited) {
 
@@ -224,10 +203,8 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
   for (const auto &a : core) {
     for (const auto &n : excited) {
       //
-      const auto tja = a.twoj();
-      const auto tjn = n.twoj();
 
-      const auto s_wn = Angular::neg1pow_2(w.twoj() + tjn);
+      const auto s_wn = Angular::neg1pow_2(w.twoj() + n.twoj());
 
       const auto Wmnva = Coulomb::Wk_abcd(K, w, n, v, a);
       if (Wmnva == 0.0)
@@ -238,20 +215,18 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
         //L1_ts
         {
-          const auto sjs =
-              Angular::sixj_2(2 * kt, 2 * ks, 2 * K, tja, tjn, m.twoj());
-          const auto Tmn = t_me.getv(m, n);
-          const auto Sam = s_me.getv(a, m);
+          const auto sjs = Angular::SixJ(kt, ks, K, a, n, m);
+          const auto Tmn = T.getv(m, n);
+          const auto Sam = S.getv(a, m);
           const auto de_ts = (a.en() - n.en() - omega) * (a.en() - m.en());
           Ak += s_wn * sK * sjs * Tmn * Sam * Wmnva / de_ts;
         }
 
         //L1_st
         {
-          const auto sjs =
-              Angular::sixj_2(2 * ks, 2 * kt, 2 * K, tja, tjn, m.twoj());
-          const auto Smn = s_me.getv(m, n);
-          const auto Tam = t_me.getv(a, m);
+          const auto sjs = Angular::SixJ(ks, kt, K, a, n, m);
+          const auto Smn = S.getv(m, n);
+          const auto Tam = T.getv(a, m);
           const auto de_st =
               (a.en() - n.en() - omega) * (a.en() - m.en() - omega);
           Ak += s_wn * sts * sjs * Smn * Tam * Wmnva / de_st;
@@ -263,20 +238,18 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
         //L2_ts
         {
-          const auto sjs =
-              Angular::sixj_2(2 * kt, 2 * ks, 2 * K, tjn, tja, b.twoj());
-          const auto Tab = t_me.getv(a, b);
-          const auto Sbn = s_me.getv(b, n);
+          const auto sjs = Angular::SixJ(kt, ks, K, n, a, b);
+          const auto Tab = T.getv(a, b);
+          const auto Sbn = S.getv(b, n);
           const auto de_ts = (a.en() - n.en() - omega) * (b.en() - n.en());
           Ak -= s_wn * sts * sjs * Tab * Sbn * Wmnva / de_ts;
         }
 
         //R2_st
         {
-          const auto sjs =
-              Angular::sixj_2(2 * ks, 2 * kt, 2 * K, tjn, tja, b.twoj());
-          const auto Sab = s_me.getv(a, b);
-          const auto Tbn = t_me.getv(b, n);
+          const auto sjs = Angular::SixJ(ks, kt, K, n, a, b);
+          const auto Sab = S.getv(a, b);
+          const auto Tbn = T.getv(b, n);
           const auto de_st =
               (a.en() - n.en() - omega) * (b.en() - n.en() - omega);
           Ak -= s_wn * sK * sjs * Sab * Tbn * Wmnva / de_st;
@@ -400,7 +373,7 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "beta: " << AK / ss << "\n";
   }
 
-  if (K == 1 && s->name() == "pnc") {
+  if (K == 1 && s->name() == "pnc-nsi") {
     std::cout << "Epnc: " << AK * z_comp << "\n";
   }
 
