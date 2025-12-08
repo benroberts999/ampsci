@@ -3,6 +3,7 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "ExternalField/CorePolarisation.hpp"
 #include "ExternalField/TDHF.hpp"
+#include "ExternalField/calcMatrixElements.hpp"
 #include "Sigma2.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Vector.hpp"
@@ -34,12 +35,12 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
       mExcited.push_back(Fn);
     }
   }
-  auto both = mCore;
-  both.insert(both.end(), mExcited.begin(), mExcited.end());
+  mBasis = mCore;
+  mBasis.insert(mBasis.end(), mExcited.begin(), mExcited.end());
 
   // nb: don't need mY if using QkTable.
   // However, require SixJTable!
-  mY.extend_angular(DiracSpinor::max_tj(both));
+  mY.extend_angular(DiracSpinor::max_tj(mBasis));
 
   // Only calculate Yk values if not Qk table, or in order to calculate Qk
   if (m_use_Qk) {
@@ -47,13 +48,21 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
     mQ = Coulomb::QkTable{};
     const auto ok = mQ->read(Qk_fname);
     if (!ok) {
-      mY.calculate(both);
-      mQ->fill(both, mY);
+      mY.calculate(mBasis);
+      mQ->fill(mBasis, mY);
       mQ->write(Qk_fname);
     }
   } else {
-    mY.calculate(both);
+    mY.calculate(mBasis);
   }
+}
+
+//==============================================================================
+void StructureRad::fill_table(const DiracOperator::TensorOperator *const h,
+                              const ExternalField::CorePolarisation *const dV,
+                              double omega) {
+  //
+  m_tab = ExternalField::me_table(mBasis, h, dV, nullptr, omega);
 }
 
 //==============================================================================

@@ -75,7 +75,8 @@ private:
   Coulomb::YkTable mY{};
   std::optional<Coulomb::QkTable> mQ{std::nullopt}; //?
   // nb: it seems conter-intuative, but this copy makes it FASTER!
-  std::vector<DiracSpinor> mCore{}, mExcited{};
+  std::vector<DiracSpinor> mBasis{}, mCore{}, mExcited{};
+  Coulomb::meTable<double> m_tab{};
 
 public:
   const std::vector<DiracSpinor> &core() const { return mCore; }
@@ -84,6 +85,19 @@ public:
   //! Returns reference to Yk table. NOTE: may not be initialised!
   const Coulomb::YkTable &Yk() const { return mY; }
   const std::optional<Coulomb::QkTable> &Qk() const { return mQ; }
+
+  //! Fill a meTable inside the SR class. Must be performed prior to using
+  void fill_table(const DiracOperator::TensorOperator *const h,
+                  const ExternalField::CorePolarisation *const dV = nullptr,
+                  double omega = 0.0);
+
+  //! Copy an existing meTable into SR class
+  void fill_table(const Coulomb::meTable<double> &hab) { m_tab = hab; };
+
+  //! Move existing meTable into SR class
+  void fill_table(Coulomb::meTable<double> &&hab) { m_tab = std::move(hab); };
+
+  const Coulomb::meTable<double> &hab_table() const { return m_tab; }
 
   //! Returns sum of Top+Bottom (SR) diagrams, reduced ME: <w||T+B||v>. Returns
   //! a pair: {TB, TB+dV}: second includes RPA (if dV given)
