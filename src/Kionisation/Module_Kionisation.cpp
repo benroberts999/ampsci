@@ -732,7 +732,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   auto oname = input.get("oname", std::string{"out.txt"});
   std::ofstream out_file(oname);
   out_file << "# omega_MeV  Q_Phi  Q_V  Q_E  Q_M  Q_L  Q_Phi5  Q_V5  Q_E5  "
-              "Q_M5  Q_L5\n";
+              "Q_M5  Q_L5 Q_E5_nr Q_M5_nr Q_L5_nr\n";
 
   int count = 0;
   for (const auto omega : Egrid.r()) {
@@ -755,6 +755,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
     double Q_Phi = 0.0, Q_E = 0.0, Q_M = 0.0, Q_L = 0.0;
     double Q_Phi5 = 0.0, Q_E5 = 0.0, Q_M5 = 0.0, Q_L5 = 0.0;
+    double Q_E5_nr = 0.0, Q_M5_nr = 0.0, Q_L5_nr = 0.0;
 
     for (int k = Kmin; k <= Kmax; ++k) {
 
@@ -768,8 +769,12 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       auto M5k = DiracOperator::M5k_w(wf.grid(), k, qc);
       auto L5k = DiracOperator::L5k_w(wf.grid(), k, qc);
 
+      auto E5k_nr = DiracOperator::E5k_w_nr(wf.grid(), k, qc);
+      auto M5k_nr = DiracOperator::M5k_w_nr(wf.grid(), k, qc);
+      auto L5k_nr = DiracOperator::L5k_w_nr(wf.grid(), k, qc);
+
 #pragma omp parallel for reduction(+ : Q_Phi, Q_E, Q_M, Q_L, Q_Phi5, Q_E5,     \
-                                       Q_M5, Q_L5)
+                                       Q_M5, Q_L5, Q_E5_nr, Q_M5_nr, Q_L5_nr)
       for (const auto ic : iclist) {
         const auto &Fa = wf.core()[ic];
         const auto ec = omega + Fa.en();
@@ -799,7 +804,15 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
           Q_E5 += tkp1 * qip::pow(E5k.reducedME(Fe, Fa), 2);
           Q_M5 += tkp1 * qip::pow(M5k.reducedME(Fe, Fa), 2);
           Q_L5 += tkp1 * qip::pow(L5k.reducedME(Fe, Fa), 2);
+
+          // For qr << 1 limit (just for pseudo-vector case)
+          if (k == 1) {
+            Q_E5_nr += tkp1 * qip::pow(E5k_nr.reducedME(Fe, Fa), 2);
+            Q_M5_nr += tkp1 * qip::pow(M5k_nr.reducedME(Fe, Fa), 2);
+            Q_L5_nr += tkp1 * qip::pow(L5k_nr.reducedME(Fe, Fa), 2);
+          }
         }
+
       }
     }
 
@@ -807,7 +820,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_Phi << " "
              << Q_E + Q_M + Q_L << " " << Q_E << " " << Q_M << " " << Q_L << " "
              << Q_Phi5 << " " << Q_E5 + Q_M5 + Q_L5 << " " << Q_E5 << " "
-             << Q_M5 << " " << Q_L5 << "\n";
+             << Q_M5 << " " << Q_L5 << " " << Q_E5_nr << " " << Q_M5_nr << " " << Q_L5_nr << "\n";
   }
 }
 
