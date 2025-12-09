@@ -153,9 +153,10 @@ public:
     const auto dk = double(kappa_a - Fb.kappa());
     assert(m_K != 0); // should already be discounted!
     const auto cx = std::sqrt((K + 1.0) / K);
-
-    Pab_rhs(+1, jK_on_qr, &dF, Fb, cx * dk);
-    Pab_rhs(+1, jKp1, &dF, Fb, -cx * dk / (K + 1.0));
+    if (dk != 0.0) {
+      Pab_rhs(+1, jK_on_qr, &dF, Fb, cx * dk);
+      Pab_rhs(+1, jKp1, &dF, Fb, -cx * dk / (K + 1.0));
+    }
     Pab_rhs(-1, jK_on_qr, &dF, Fb, -cx * K);
 
     return dF;
@@ -261,8 +262,10 @@ public:
     const auto K = double(m_K);
     const auto dk = double(kappa_a - Fb.kappa());
 
-    Pab_rhs(+1, jK_on_qr, &dF, Fb, -dk);
-    Pab_rhs(-1, jK_on_qr, &dF, Fb, K);
+    if (dk != 0.0)
+      Pab_rhs(+1, jK_on_qr, &dF, Fb, -dk);
+    if (K != 0.0)
+      Pab_rhs(-1, jK_on_qr, &dF, Fb, K);
     Pab_rhs(-1, jKp1, &dF, Fb, -1.0);
     return dF;
   }
@@ -1036,7 +1039,8 @@ namespace multipole {
 //! Convert from "transition form" to "moment form"
 inline double moment_factor(int K, double omega) {
   const auto q = std::abs(PhysConst::alpha * omega);
-  return qip::double_factorial(2 * K + 1) / qip::pow(q, K) *
+  // -1 for electric, +1 for magnetic?
+  return -1.0 * qip::double_factorial(2 * K + 1) / qip::pow(q, K) *
          std::sqrt(K / (K + 1.0));
 }
 

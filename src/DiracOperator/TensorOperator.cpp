@@ -192,6 +192,8 @@ double TensorOperator::radialIntegral(const DiracSpinor &Fa,
 // Pab function: Int[ (fa*gb + pm*ga*fb) * t(r) , dr]. pm = +/-1 (usually)
 double Pab(double pm, const std::vector<double> &t, const DiracSpinor &Fa,
            const DiracSpinor &Fb) {
+  if (pm == -1 && &Fa == &Fb)
+    return 0.0;
   const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
   const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
   const auto &drdu = Fb.grid().drdu();
