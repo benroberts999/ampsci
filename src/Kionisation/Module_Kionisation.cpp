@@ -731,8 +731,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   auto oname = input.get("oname", std::string{"out.txt"});
   std::ofstream out_file(oname);
-  out_file << "# omega_MeV  Q_Phi  Q_V  Q_E  Q_M  Q_L  Q_Phi5  Q_V5  Q_E5  "
-              "Q_M5  Q_L5 Q_E5_nr Q_M5_nr Q_L5_nr\n";
+  out_file << "# omega_MeV Q_S Q_Phi  Q_V  Q_E  Q_M  Q_L Q_S5 Q_Phi5  Q_V5  Q_E5  "
+              "Q_M5  Q_L5 Q_E5_nr Q_M5_nr Q_L5_nr Q_Phi5_nr Q_S5_nr\n";
 
   int count = 0;
   for (const auto omega : Egrid.r()) {
@@ -753,28 +753,32 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                iclist.size());
     std::cout << std::flush;
 
-    double Q_Phi = 0.0, Q_E = 0.0, Q_M = 0.0, Q_L = 0.0;
-    double Q_Phi5 = 0.0, Q_E5 = 0.0, Q_M5 = 0.0, Q_L5 = 0.0;
+    double Q_S = 0.0, Q_Phi = 0.0, Q_E = 0.0, Q_M = 0.0, Q_L = 0.0;
+    double Q_S5 = 0.0, Q_Phi5 = 0.0, Q_E5 = 0.0, Q_M5 = 0.0, Q_L5 = 0.0;
     double Q_E5_nr = 0.0, Q_M5_nr = 0.0, Q_L5_nr = 0.0;
+    double Q_S5_nr = 0.0, Q_Phi5_nr = 0.0;
 
     for (int k = Kmin; k <= Kmax; ++k) {
 
+      auto Sk = DiracOperator::Sk_w(wf.grid(), k, qc);
       auto Phik = DiracOperator::Phik_w(wf.grid(), k, qc);
       auto Ek = DiracOperator::Ek_w(wf.grid(), k, qc);
       auto Mk = DiracOperator::Mk_w(wf.grid(), k, qc);
       auto Lk = DiracOperator::Lk_w(wf.grid(), k, qc);
 
+      auto S5k = DiracOperator::S5k_w(wf.grid(), k, qc);
       auto Phi5k = DiracOperator::Phi5k_w(wf.grid(), k, qc);
       auto E5k = DiracOperator::E5k_w(wf.grid(), k, qc);
       auto M5k = DiracOperator::M5k_w(wf.grid(), k, qc);
       auto L5k = DiracOperator::L5k_w(wf.grid(), k, qc);
 
+      auto Phi5k_nr = DiracOperator::Phi5k_w_nr(wf.grid(), k, qc);
       auto E5k_nr = DiracOperator::E5k_w_nr(wf.grid(), k, qc);
       auto M5k_nr = DiracOperator::M5k_w_nr(wf.grid(), k, qc);
       auto L5k_nr = DiracOperator::L5k_w_nr(wf.grid(), k, qc);
 
-#pragma omp parallel for reduction(+ : Q_Phi, Q_E, Q_M, Q_L, Q_Phi5, Q_E5,     \
-                                       Q_M5, Q_L5, Q_E5_nr, Q_M5_nr, Q_L5_nr)
+#pragma omp parallel for reduction(+ : Q_S, Q_Phi, Q_E, Q_M, Q_L, Q_S5, Q_Phi5, Q_E5,     \
+                                       Q_M5, Q_L5, Q_E5_nr, Q_M5_nr, Q_L5_nr, Q_Phi5_nr, Q_S5_nr)
       for (const auto ic : iclist) {
         const auto &Fa = wf.core()[ic];
         const auto ec = omega + Fa.en();
@@ -793,6 +797,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto tkp1 = 2.0 * k + 1.0;
 
         for (const auto &Fe : cntm.orbitals) {
+          
+          // Scalar operators
+          Q_S += tkp1 * qip::pow(Sk.reducedME(Fe, Fa), 2);
+
           // Vector operators
           Q_Phi += tkp1 * qip::pow(Phik.reducedME(Fe, Fa), 2);
           Q_E += tkp1 * qip::pow(Ek.reducedME(Fe, Fa), 2);
@@ -800,6 +808,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
           Q_L += tkp1 * qip::pow(Lk.reducedME(Fe, Fa), 2);
 
           // Axial (γ^5) operators
+          Q_S5 += tkp1 * qip::pow(S5k.reducedME(Fe, Fa), 2);
           Q_Phi5 += tkp1 * qip::pow(Phi5k.reducedME(Fe, Fa), 2);
           Q_E5 += tkp1 * qip::pow(E5k.reducedME(Fe, Fa), 2);
           Q_M5 += tkp1 * qip::pow(M5k.reducedME(Fe, Fa), 2);
@@ -807,6 +816,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
           // For qr << 1 limit (just for pseudo-vector case)
           if (k == 1) {
+            Q_S5_nr += tkp1 * qip::pow(S5k.reducedME(Fe, Fa), 2);
+            Q_Phi5_nr += tkp1 * qip::pow(Phi5k_nr.reducedME(Fe, Fa), 2);
             Q_E5_nr += tkp1 * qip::pow(E5k_nr.reducedME(Fe, Fa), 2);
             Q_M5_nr += tkp1 * qip::pow(M5k_nr.reducedME(Fe, Fa), 2);
             Q_L5_nr += tkp1 * qip::pow(L5k_nr.reducedME(Fe, Fa), 2);
@@ -817,10 +828,11 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     // Example output format:
-    out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_Phi << " "
+    out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_S << " " << Q_Phi << " "
              << Q_E + Q_M + Q_L << " " << Q_E << " " << Q_M << " " << Q_L << " "
-             << Q_Phi5 << " " << Q_E5 + Q_M5 + Q_L5 << " " << Q_E5 << " "
-             << Q_M5 << " " << Q_L5 << " " << Q_E5_nr << " " << Q_M5_nr << " " << Q_L5_nr << "\n";
+             << Q_S5 << " " << Q_Phi5 << " " << Q_E5 + Q_M5 + Q_L5 << " " << Q_E5 << " "
+             << Q_M5 << " " << Q_L5 << " " << Q_E5_nr << " " << Q_M5_nr << " " 
+             << Q_L5_nr << " " << Q_Phi5_nr << " " << Q_S5_nr << "\n";
   }
 }
 

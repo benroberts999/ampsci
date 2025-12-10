@@ -825,7 +825,7 @@ private:
 };
 
 //==============================================================================
-//! @brief Magnetic multipole operator, in small qr
+//! @brief Magnetic multipole operator, in small qr limit
 class M5k_w_nr final : public TensorOperator {
 public:
   M5k_w_nr(const Grid &gr, int K, double omega)
@@ -957,6 +957,67 @@ private:
   int m_K;
   std::vector<double> jk{};
 };
+
+//==============================================================================
+//! @brief Temporal component of vector multipole operator, in small qr limit
+class Phi5k_w_nr final : public TensorOperator {
+public:
+  Phi5k_w_nr(const Grid &gr, int K, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                       gr.r(), 0, Realness::real, true),
+        m_K(K) {
+    updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("t^5_") + std::to_string(m_K);
+  }
+  std::string units() const override final { return std::string(""); }
+
+  double angularF(const int ka, const int kb) const override final {
+    return Angular::Ck_kk(1, ka, -kb);
+  }
+
+  //--------------
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final {
+
+    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
+    dF.min_pt() = Fb.min_pt();
+    dF.max_pt() = Fb.max_pt();
+
+    if (isZero(kappa_a, Fb.kappa())) {
+      dF.min_pt() = 0;
+      dF.max_pt() = 0;
+      return dF;
+    }
+
+    Pab_rhs(-1, jk, &dF, Fb);
+    return dF;
+  }
+
+  //--------------
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final {
+
+    if (isZero(Fa.kappa(), Fb.kappa())) {
+      return 0.0;
+    }
+
+    return Pab(-1, jk, Fa, Fb);
+  }
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    const auto q = std::abs(PhysConst::alpha * omega);
+
+    SphericalBessel::fillBesselVec_kr(1, q, m_vec, &jk);
+    }
+
+private:
+  int m_K;
+  std::vector<double> jk{};
+};
+
 
 //==============================================================================
 //! @brief Pseudoscalar multipole operator, ~ $e^{iqr}\gamma^0\gamma^5$
