@@ -24,12 +24,13 @@ namespace DiracOperator {
 class Ek_w_L final : public TensorOperator {
 public:
   Ek_w_L(const Grid &gr, int K, double omega,
-         SphericalBessel::JL_table *jl = nullptr)
+         const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
   std::string name() const override final {
     return std::string("t^E_") + std::to_string(m_K);
@@ -94,7 +95,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jK{};
   std::vector<double> jKp1{};
 
@@ -112,7 +113,7 @@ public:
     (transition/vector convention). Radial dependence uses spherical
     Bessel functions j_L(q*r) and derived combinations like j_L(q*r)/(q*r)
     where needed; q = alpha * omega.
-  - The constructor takes an optional `SphericalBessel::JL_table *jl` to
+  - The constructor takes an optional `const SphericalBessel::JL_table *jl` to
     enable lookup from a precomputed table for improved performance.
   - Use this class for electric transition matrix elements in the
     vector representation.
@@ -120,12 +121,13 @@ public:
 class Ek_w final : public TensorOperator {
 public:
   Ek_w(const Grid &gr, int K, double omega,
-       SphericalBessel::JL_table *jl = nullptr)
+       const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
   std::string name() const override final {
     return std::string("tv^E_") + std::to_string(m_K);
@@ -203,7 +205,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jK_on_qr{};
   std::vector<double> jKp1{};
 
@@ -220,7 +222,7 @@ public:
   - Implements the longitudinal (scalar-like) component of the vector
     multipole operator. Radial dependence uses spherical Bessel functions
     j_L(q*r) and, when required, the combination j_L(q*r)/(q*r).
-  - Supports an optional `SphericalBessel::JL_table *jl` in the constructor
+  - Supports an optional `const SphericalBessel::JL_table *jl` in the constructor
     to use precomputed Bessel vectors; otherwise Bessels are computed
     on-the-fly using `SphericalBessel::fillBesselVec_kr`.
   - Use this operator for the longitudinal contribution to vector
@@ -229,12 +231,13 @@ public:
 class Lk_w final : public TensorOperator {
 public:
   Lk_w(const Grid &gr, int K, double omega,
-       SphericalBessel::JL_table *jl = nullptr)
+       const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
   std::string name() const override final {
     return std::string("tv^L_") + std::to_string(m_K);
@@ -306,7 +309,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jK_on_qr{};
   std::vector<double> jKp1{};
 
@@ -322,19 +325,20 @@ public:
   @details
   - Implements the magnetic multipole operator. The radial dependence is
     expressed via spherical Bessel functions j_L(q*r) with q = alpha * omega.
-  - Supports an optional `SphericalBessel::JL_table *jl` for lookup-table
+  - Supports an optional `const SphericalBessel::JL_table *jl` for lookup-table
     acceleration; falls back to on-the-fly evaluation when `jl==nullptr`.
   - Use this for magnetic transition matrix elements.
 */
 class Mk_w final : public TensorOperator {
 public:
   Mk_w(const Grid &gr, int K, double omega,
-       SphericalBessel::JL_table *jl = nullptr)
+       const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
 
   std::string name() const override final {
@@ -398,7 +402,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jK{};
 
 public:
@@ -413,7 +417,7 @@ public:
   @details
   - Implements the time-like (temporal) component of the vector multipole
     operator with explicit frequency dependence via j_L(q*r).
-  - Constructor accepts optional `SphericalBessel::JL_table *jl` to use
+  - Constructor accepts optional `const SphericalBessel::JL_table *jl` to use
     precomputed Bessel vectors; otherwise Bessels are computed at runtime.
   - This operator contributes to charge/longitudinal matrix elements in the
     multipole decomposition.
@@ -421,12 +425,13 @@ public:
 class Phik_w final : public TensorOperator {
 public:
   Phik_w(const Grid &gr, int K, double omega,
-         SphericalBessel::JL_table *jl = nullptr)
+         const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
   std::string name() const override final {
     return std::string("tv^V_") + std::to_string(m_K);
@@ -479,7 +484,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jk{};
 
 public:
@@ -495,7 +500,7 @@ public:
   - Implements the scalar multipole operator whose radial factor is
     e^{i q r} (represented via spherical Bessel functions j_L(q*r)). The
     operator includes the gamma^0 Dirac matrix structure.
-  - Supports an optional `SphericalBessel::JL_table *jl` to obtain precomputed
+  - Supports an optional `const SphericalBessel::JL_table *jl` to obtain precomputed
     j_L vectors; otherwise vectors are computed on demand.
   - Useful for scalar contributions in multipole expansions and transition
     amplitudes involving the temporal scalar piece.
@@ -503,12 +508,13 @@ public:
 class Sk_w final : public TensorOperator {
 public:
   Sk_w(const Grid &gr, int K, double omega,
-       SphericalBessel::JL_table *jl = nullptr)
+       const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
   std::string name() const override final {
     return std::string("tv^S_") + std::to_string(m_K);
@@ -561,7 +567,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jk{};
 
 public:
@@ -583,18 +589,19 @@ public:
     angular part.
   - Radial functions use spherical Bessel combinations j_L(q*r) or
     j_L(q*r)/(q*r) with q = alpha * omega.
-  - Accepts an optional `SphericalBessel::JL_table *jl` to use precomputed
+  - Accepts an optional `const SphericalBessel::JL_table *jl` to use precomputed
     Bessel vectors; otherwise computes them on demand.
 */
 class E5k_w final : public TensorOperator {
 public:
   E5k_w(const Grid &gr, int K, double omega,
-        SphericalBessel::JL_table *jl = nullptr)
+        const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                        gr.r(), 0, Realness::real),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
   std::string name() const override final {
     return std::string("tv^E5_") + std::to_string(m_K);
@@ -672,7 +679,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jK_on_qr{};
   std::vector<double> jKp1{};
 
@@ -688,18 +695,19 @@ public:
   @details
   - Gamma^5 variant of the longitudinal multipole operator. Works like
     `Lk_w` but with the gamma^5 Dirac structure applied to the angular part.
-  - Supports optional `SphericalBessel::JL_table *jl` for lookup-table
+  - Supports optional `const SphericalBessel::JL_table *jl` for lookup-table
     acceleration; otherwise uses on-the-fly Bessel evaluation.
 */
 class L5k_w final : public TensorOperator {
 public:
   L5k_w(const Grid &gr, int K, double omega,
-        SphericalBessel::JL_table *jl = nullptr)
+        const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
   std::string name() const override final {
     return std::string("tv^5L_") + std::to_string(m_K);
@@ -769,7 +777,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jK_on_qr{};
   std::vector<double> jKp1{};
 
@@ -786,17 +794,18 @@ public:
   - Gamma^5 variant of the magnetic multipole operator. Analogous to
     `Mk_w` but with the gamma^5 Dirac structure applied where appropriate.
   - Uses spherical Bessel functions j_L(q*r) for radial dependence and
-    accepts an optional `SphericalBessel::JL_table *jl`.
+    accepts an optional `const SphericalBessel::JL_table *jl`.
 */
 class M5k_w final : public TensorOperator {
 public:
   M5k_w(const Grid &gr, int K, double omega,
-        SphericalBessel::JL_table *jl = nullptr)
+        const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
 
   std::string name() const override final {
@@ -862,7 +871,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jK{};
 
 public:
@@ -879,17 +888,18 @@ public:
     multipole operator. Functions like `Phik_w` but with gamma^5 applied to
     the appropriate spin-angular structure.
   - Radial dependence uses j_L(q*r) and the constructor accepts an
-    optional `SphericalBessel::JL_table *jl`.
+    optional `const SphericalBessel::JL_table *jl`.
 */
 class Phi5k_w final : public TensorOperator {
 public:
   Phi5k_w(const Grid &gr, int K, double omega,
-          SphericalBessel::JL_table *jl = nullptr)
+          const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
   std::string name() const override final {
     return std::string("t^5_") + std::to_string(m_K);
@@ -942,7 +952,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jk{};
 
 public:
@@ -957,18 +967,19 @@ public:
   @details
   - Implements the pseudoscalar multipole operator ~ e^{i q r} gamma^0 gamma^5.
   - Radial dependence is provided via spherical Bessel functions j_L(q*r).
-  - Supports an optional `SphericalBessel::JL_table *jl` for precomputed
+  - Supports an optional `const SphericalBessel::JL_table *jl` for precomputed
     Bessel lookup; otherwise computes on demand.
 */
 class S5k_w final : public TensorOperator {
 public:
   S5k_w(const Grid &gr, int K, double omega,
-        SphericalBessel::JL_table *jl = nullptr)
+        const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
         m_jl(jl) {
-    updateFrequency(omega);
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
   std::string name() const override final {
     return std::string("tv^5S_") + std::to_string(m_K);
@@ -1021,7 +1032,7 @@ public:
 
 private:
   int m_K;
-  SphericalBessel::JL_table *m_jl{nullptr};
+  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jk{};
 
 public:
@@ -1047,7 +1058,7 @@ inline double moment_factor(int K, double omega) {
 //! Scalar(pseudoscalar) multipole operator. Note: q/omega not set
 inline std::unique_ptr<DiracOperator::TensorOperator>
 S_K(const Grid &grid, int k, bool gamma5 = false,
-    SphericalBessel::JL_table *jl = nullptr) {
+    const SphericalBessel::JL_table *jl = nullptr) {
   if (gamma5)
     return std::make_unique<S5k_w>(grid, k, 1.0e-4, jl);
   return std::make_unique<Sk_w>(grid, k, 1.0e-4, jl);
@@ -1056,7 +1067,7 @@ S_K(const Grid &grid, int k, bool gamma5 = false,
 //! Temporal part of vector(pseudovector) multipole operator. Note: q/omega not set
 inline std::unique_ptr<DiracOperator::TensorOperator>
 Phi_K(const Grid &grid, int k, bool gamma5 = false,
-      SphericalBessel::JL_table *jl = nullptr) {
+      const SphericalBessel::JL_table *jl = nullptr) {
   if (gamma5)
     return std::make_unique<Phi5k_w>(grid, k, 1.0e-4, jl);
   return std::make_unique<Phik_w>(grid, k, 1.0e-4, jl);
@@ -1065,7 +1076,7 @@ Phi_K(const Grid &grid, int k, bool gamma5 = false,
 //! Spatial part of vector(pseudovector) multipole operator. Note: q/omega not set
 inline std::unique_ptr<DiracOperator::TensorOperator>
 V_sigma_K(const Grid &grid, int sigma, int k, bool gamma5 = false,
-          SphericalBessel::JL_table *jl = nullptr) {
+          const SphericalBessel::JL_table *jl = nullptr) {
 
   switch (sigma) {
 

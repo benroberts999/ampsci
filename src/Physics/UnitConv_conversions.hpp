@@ -16,6 +16,11 @@ constexpr double Momentum_au_to_MeV =
 //! momentum: MeV -> au
 constexpr double Momentum_MeV_to_au = 1.0 / Momentum_au_to_MeV;
 
+//! momentum: au -> eV: [hbar*q] = [hbar/a0] = (m_e*c*alpha) = E_H/c*alpha
+constexpr double Momentum_au_to_eV = PhysConst::Hartree_eV / PhysConst::alpha;
+//! momentum: eV -> au
+constexpr double Momentum_eV_to_au = 1.0 / Momentum_au_to_eV;
+
 //! mass: au -> GeV
 constexpr double Mass_au_to_GeV = PhysConst::m_e_MeV / 1000.0;
 //! mass: au -> MeV
