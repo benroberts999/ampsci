@@ -51,6 +51,20 @@ std::string parseMethod(const Method &in_method) {
   assert(false);
 }
 
+std::string parseMethod_short(const Method &in_method) {
+  if (in_method == Method::HartreeFock)
+    return "HF";
+  if (in_method == Method::ApproxHF)
+    return "aHF";
+  if (in_method == Method::Hartree)
+    return "H";
+  if (in_method == Method::KohnSham)
+    return "KS";
+  if (in_method == Method::Local)
+    return "L";
+  assert(false);
+}
+
 //==============================================================================
 //==============================================================================
 HartreeFock::HartreeFock(std::shared_ptr<const Grid> grid,
@@ -916,8 +930,8 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         for (std::size_t i = 0; i < irmax; i++) {
           vex_a[i] += Labk * (*vabk)[i] * v_Fab[i];
         } // r
-      }   // k
-    }     // b
+      } // k
+    } // b
   }
 
   // now, do a=b, ONLY if a is in the core!
@@ -940,7 +954,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         vex_a[i] += -Labk * (*vaak)[i] * x_tjap1;
       }
     } // k
-  }   // if a in core
+  } // if a in core
 }
 
 //------------------------------------------------------------------------------
@@ -999,8 +1013,8 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
           continue;
         vex[i] += tjs2 * vabk[i] * v_Fab[i];
       } // r
-    }   // k
-  }     // b
+    } // k
+  } // b
 
   return vex;
 }

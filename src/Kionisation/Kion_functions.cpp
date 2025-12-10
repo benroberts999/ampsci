@@ -372,20 +372,17 @@ void write_to_file_xyz(const LinAlg::Matrix<double> &K, const Grid &E_grid,
   assert(K.cols() == q_grid.num_points());
   std::ofstream out_file(filename + "_xyz.txt");
 
-  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_keV;
+  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
   const auto unit_q =
-      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_MeV;
+      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
 
   out_file << "# Kion output data file: " << filename << " - xyz format\n";
   fmt::print(out_file, "# Units: ");
 
   if (units == Units::Atomic) {
     fmt::print(out_file, "Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
-    fmt::print(out_file, "#   E_H = m_e (c*alpha)^2 = ~0.027 keV\n");
-    fmt::print(out_file, "#   1/a0 = m_e*c*alpha/hbar = E_H / "
-                         "(c*alpha*hbar) = ~0.0037 MeV\n");
   } else if (units == Units::Particle) {
-    fmt::print(out_file, "Particle units. [q] = MeV, [E] = keV, [K] = 1\n");
+    fmt::print(out_file, "Particle units. [q] = eV, [E] = eV, [K] = 1\n");
   } else {
     std::cout << "units error\n";
   }
@@ -409,23 +406,22 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K, const Grid &E_grid,
   assert(K.cols() == q_grid.num_points());
   std::ofstream out_file(filename + "_mat.txt");
 
-  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_keV;
+  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
   const auto unit_q =
-      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_MeV;
+      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
 
   out_file << "# Kion output data file: " << filename << " - matrix format\n";
-  fmt::print(out_file, "# Units: ");
 
   if (units == Units::Atomic) {
-    fmt::print(out_file, "Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
-    fmt::print(out_file, "#   E_H = m_e (c*alpha)^2 = ~0.027 keV\n");
-    fmt::print(out_file, "#   1/a0 = m_e*c*alpha/hbar = E_H / "
-                         "(c*alpha*hbar) = ~0.0037 MeV\n");
+    fmt::print(out_file,
+               "# Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
   } else if (units == Units::Particle) {
-    fmt::print(out_file, "Particle units. [q] = MeV, [E] = keV, [K] = 1\n");
+    fmt::print(out_file, "# Particle units. [q] = eV, [E] = eV, [K] = 1\n");
   } else {
     std::cout << "units error\n";
   }
+  fmt::print(out_file, "# E_H = m_e (c*α)^2 = ~27.21 eV\n");
+  fmt::print(out_file, "# 1/a0 = m_e*c*α/hbar = E_H / (c*α*hbar) = ~3729 eV\n");
 
   out_file << "\n# E values:\n";
   for (auto E : E_grid) {
@@ -455,20 +451,18 @@ void write_to_file_gnuplot(const LinAlg::Matrix<double> &K, const Grid &E_grid,
   assert(K.cols() == q_grid.num_points());
   std::ofstream out_file(filename + "_gnu.txt");
 
-  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_keV;
+  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
   const auto unit_q =
-      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_MeV;
+      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
 
-  out_file << "# Kion output data file: " << filename << " - gnuplot format\n";
-  fmt::print(out_file, "# Units: ");
+  out_file << "# Kion output data file: " << filename
+           << " - gnuplot format - function of q for various E values\n";
 
   if (units == Units::Atomic) {
-    fmt::print(out_file, "Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
-    fmt::print(out_file, "#   E_H = m_e (c*alpha)^2 = ~0.027 keV\n");
-    fmt::print(out_file, "#   1/a0 = m_e*c*alpha/hbar = E_H / "
-                         "(c*alpha*hbar) = ~0.0037 MeV\n");
+    fmt::print(out_file,
+               "# Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
   } else if (units == Units::Particle) {
-    fmt::print(out_file, "Particle units. [q] = MeV, [E] = keV, [K] = 1\n");
+    fmt::print(out_file, "# Particle units. [q] = eV, [E] = eV, [K] = 1\n");
   } else {
     std::cout << "units error\n";
   }
@@ -477,17 +471,64 @@ void write_to_file_gnuplot(const LinAlg::Matrix<double> &K, const Grid &E_grid,
                        "# Each column is new E; each row is new q.\n"
                        "# First column is q values; first row is E values.\n");
 
-  fmt::print(out_file, "{:{}s} ", "q\\E", num_digits + 7);
+  fmt::print(out_file, "q ");
   for (const auto &E : E_grid) {
-    fmt::print(out_file, "{:+.{}e} ", E * unit_E, num_digits);
+    const auto unit = units == Units::Atomic ? "E_H" : "eV";
+    fmt::print(out_file, "\"E = {:.3g} {}\" ", E * unit_E, unit);
   }
   out_file << "\n";
 
   // nb: write out is 'transposed' order from array: this is to make plotting easier
   for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
-    fmt::print(out_file, "{:+.{}e} ", q_grid(iq) * unit_q, num_digits);
+    fmt::print(out_file, "{:.{}e} ", q_grid(iq) * unit_q, num_digits);
     for (std::size_t iE = 0; iE < E_grid.num_points(); ++iE) {
-      fmt::print(out_file, "{:+.{}e} ", K(iE, iq), num_digits);
+      fmt::print(out_file, "{:.{}e} ", K(iE, iq), num_digits);
+    }
+    fmt::print(out_file, "\n");
+  }
+}
+
+//==============================================================================
+void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
+                             const Grid &E_grid, const Grid &q_grid,
+                             const std::string &filename, int num_digits,
+                             Units units) {
+  // optional format argument?
+  assert(K.rows() == E_grid.num_points());
+  assert(K.cols() == q_grid.num_points());
+  std::ofstream out_file(filename + "_gnu_E.txt");
+
+  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
+  const auto unit_q =
+      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
+
+  out_file << "# Kion output data file: " << filename
+           << " - gnuplot format - function of E for various q values\n";
+
+  if (units == Units::Atomic) {
+    fmt::print(out_file,
+               "# Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
+  } else if (units == Units::Particle) {
+    fmt::print(out_file, "# Particle units. [q] = eV, [E] = eV, [K] = 1\n");
+  } else {
+    std::cout << "units error\n";
+  }
+
+  fmt::print(out_file, "# K_ion(E,q).\n"
+                       "# Each column is new q; each row is new E.\n"
+                       "# First column is E values; first row is q values.\n");
+
+  fmt::print(out_file, "E ");
+  for (const auto &q : q_grid) {
+    const auto unit = units == Units::Atomic ? "a0^{-1}" : "eV";
+    fmt::print(out_file, "\"q = {:.3g} {}\" ", q * unit_q, unit);
+  }
+  out_file << "\n";
+
+  for (std::size_t iE = 0; iE < E_grid.num_points(); ++iE) {
+    fmt::print(out_file, "{:.{}e} ", E_grid(iE) * unit_E, num_digits);
+    for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
+      fmt::print(out_file, "{:.{}e} ", K(iE, iq), num_digits);
     }
     fmt::print(out_file, "\n");
   }
@@ -504,18 +545,15 @@ void write_approxTable_to_file(const LinAlg::Matrix<double> &K,
   std::ofstream out_file(filename + "_approxTable.txt");
 
   const auto unit_q =
-      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_MeV;
+      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
 
   out_file << "# Kion Approximate Tables output data file: " << filename
            << "\n";
   fmt::print(out_file, "# Units: ");
   if (units == Units::Atomic) {
     fmt::print(out_file, "Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
-    fmt::print(out_file, "#   E_H = m_e (c*alpha)^2 = ~0.027 keV\n");
-    fmt::print(out_file, "#   1/a0 = m_e*c*alpha/hbar = E_H / "
-                         "(c*alpha*hbar) = ~0.0037 MeV\n");
   } else if (units == Units::Particle) {
-    fmt::print(out_file, "Particle units. [q] = MeV, [E] = keV, [K] = 1\n");
+    fmt::print(out_file, "Particle units. [q] = eV, [E] = eV, [K] = 1\n");
   } else {
     std::cout << "units error\n";
   }
@@ -548,11 +586,12 @@ void write_to_file(const std::vector<OutputFormat> &formats,
   for (const auto &format : formats) {
     if (format == OutputFormat::gnuplot)
       write_to_file_gnuplot(K, E_grid, q_grid, filename, num_digits, units);
+    if (format == OutputFormat::gnuplot_E)
+      write_to_file_gnuplot_E(K, E_grid, q_grid, filename, num_digits, units);
     if (format == OutputFormat::matrix)
-      write_to_file_matrix(K, E_grid, q_grid, filename, num_digits,
-                           Units::Atomic);
+      write_to_file_matrix(K, E_grid, q_grid, filename, num_digits, units);
     if (format == OutputFormat::xyz)
-      write_to_file_xyz(K, E_grid, q_grid, filename, num_digits, Units::Atomic);
+      write_to_file_xyz(K, E_grid, q_grid, filename, num_digits, units);
   }
 }
 

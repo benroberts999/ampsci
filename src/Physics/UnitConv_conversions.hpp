@@ -7,6 +7,12 @@ namespace UnitConv {
 constexpr double Energy_au_to_keV = PhysConst::Hartree_eV / 1.0e3;
 //! energy: keV -> au
 constexpr double Energy_keV_to_au = 1.0 / Energy_au_to_keV;
+
+//! energy: au -> keV
+constexpr double Energy_au_to_eV = PhysConst::Hartree_eV;
+//! energy: keV -> au
+constexpr double Energy_eV_to_au = 1.0 / Energy_au_to_eV;
+
 //! energy: cm^-1 -> au
 constexpr double Energy_invcm_to_au = 1.0 / PhysConst::Hartree_invcm;
 

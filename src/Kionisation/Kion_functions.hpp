@@ -26,7 +26,7 @@ xyz: For easy 2D interpolation. list formmated with each row 'E q K(E,q)'
 gnuplot: For easy plotting. Each column is new E.
 matrix: Outputs entire matrix in table form. E and q grids printed prior.
 */
-enum class OutputFormat { gnuplot, matrix, xyz, Error };
+enum class OutputFormat { gnuplot, gnuplot_E, matrix, xyz, Error };
 
 //! Units used in output file
 /*!
@@ -93,15 +93,26 @@ void write_to_file_xyz(const LinAlg::Matrix<double> &K, const Grid &E_grid,
                        const Grid &q_grid, const std::string &filename,
                        int num_digits = 5, Units units = Units::Particle);
 
-//! Writes ouput file in 'gnuplot' form: for easy plotting
+//! Writes ouput file in 'gnuplot' form: for easy plotting as function of q
 /*! @details
 gnuplot: For easy plotting. Each column is new E.
 First column is q values.
-First row is E values (use will `t columnheader(i)`)
+First row is E values (use with `t columnheader(i)`)
 */
 void write_to_file_gnuplot(const LinAlg::Matrix<double> &K, const Grid &E_grid,
                            const Grid &q_grid, const std::string &filename,
                            int num_digits = 5, Units units = Units::Particle);
+
+//! Writes ouput file in 'gnuplot' form: for easy plotting as function of E.
+/*! @details
+gnuplot: For easy plotting. Each column is new q.
+First column is E values.
+First row is q values (use with `t columnheader(i)`)
+*/
+void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
+                             const Grid &E_grid, const Grid &q_grid,
+                             const std::string &filename, int num_digits = 5,
+                             Units units = Units::Particle);
 
 //! Writes to file: formats is a vector of formats, will write to each listed format
 void write_to_file(const std::vector<OutputFormat> &formats,

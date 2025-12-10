@@ -129,10 +129,12 @@ public:
             const std::vector<double> &r) {
     m_q = q;
     m_J_L_q.resize(std::size_t(max_L + 1), q.size());
+#pragma omp parallel for collapse(2)
     for (auto L = 0; L <= max_L; ++L) {
       for (auto iq = 0ul; iq < m_J_L_q.cols(); ++iq) {
         const auto tq = q[iq];
-        m_J_L_q[std::size_t(L)][iq] = fillBesselVec_kr(L, tq, r);
+        // m_J_L_q[std::size_t(L)][iq] = fillBesselVec_kr(L, tq, r);
+        m_J_L_q[std::size_t(L)][iq] = std::move(fillBesselVec_kr(L, tq, r));
       }
     }
   }

@@ -10,7 +10,7 @@
 #include <string>
 #include <vector>
 
-TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole]") {
+TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
   std::cout << "\n----------------------------------------\n";
   std::cout << "EM_multipole\n";
 
