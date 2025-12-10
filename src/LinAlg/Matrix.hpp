@@ -129,11 +129,18 @@ public:
     assert(row_i < m_rows && col_j < m_cols);
     return m_data[row_i * m_cols + col_j];
   }
-  //! As above, but const
+  //! const () index access (with range checking). (i,j) ith row, jth col
   T at(std::size_t row_i, std::size_t col_j) const {
     assert(row_i < m_rows && col_j < m_cols);
     return m_data[row_i * m_cols + col_j];
   }
+
+  //! const ref () index access (with range checking). (i,j) ith row, jth col
+  const T &atc(std::size_t row_i, std::size_t col_j) const {
+    assert(row_i < m_rows && col_j < m_cols);
+    return m_data[row_i * m_cols + col_j];
+  }
+
   //! () index access (with range checking). (i,j) returns ith row, jth col
   T &operator()(std::size_t i, std::size_t j) { return at(i, j); }
   //! As above, but const

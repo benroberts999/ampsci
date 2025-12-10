@@ -42,6 +42,7 @@ enum class Method { HartreeFock, ApproxHF, Hartree, KohnSham, Local };
 //! @brief Convers string (name) of method (HartreeFock, Hartree etc.) to enum
 Method parseMethod(const std::string &in_method);
 std::string parseMethod(const Method &in_method);
+std::string parseMethod_short(const Method &in_method);
 
 //==============================================================================
 //! Forms approx (localised) exchange potential, from scratch
