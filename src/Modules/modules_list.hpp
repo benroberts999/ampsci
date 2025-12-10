@@ -78,6 +78,8 @@ static const std::vector<ModuleInfo> module_list{
     {"ladder", &ladder, "Calculates ladder diagrams and energy corrections"},
     {"Kionisation", &Kionisation, "Calculate atomic ionisation form-factors"},
     {"photo", &photo, "Calculate atomic photo-ionisation form-factors"},
+    {"formFactorsMatrix", &formFactorsMatrix,
+     "Calculate general atomic ionisation form-factors as a function of both momentum and energy, outputted as a matrix"},
     {"formFactors", &formFactors,
      "Calculate general atomic ionisation form-factors"},
     {"continuum", &continuum, "Compute and use continuum wavefunctions"},

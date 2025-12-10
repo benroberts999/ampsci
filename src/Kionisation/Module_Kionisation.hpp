@@ -13,6 +13,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf);
 
 void photo(const IO::InputBlock &input, const Wavefunction &wf);
 
+void formFactorsMatrix(const IO::InputBlock &input, const Wavefunction &wf);
+
 void formFactors(const IO::InputBlock &input, const Wavefunction &wf);
 
 } // namespace Module

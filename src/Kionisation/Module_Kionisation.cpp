@@ -676,8 +676,217 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 }
 
 //==============================================================================
+void formFactorsMatrix(const IO::InputBlock &input, const Wavefunction &wf) {
+  IO::ChronoTimer timer("formFactorsMatrix");
+
+  input.check({
+      {"E_range",
+       "List (2). Minimum, maximum energy transfer (dE), in eV [10, 100]"},
+      {"E_steps", "Numer of steps along dE grid (logarithmic grid) [1]"},
+      {"oname", "oname"},
+      //{"q", "Momentum exchange, in MeV (hbar=c=1)"},
+      {"q_range",
+        "List (2). Minimum, maximum momentum transfer (q), in MeV [0.01,0.01]"},
+      {"q_steps", "Number of steps along q grid (logarithmic grid) [1]"},
+      {"K_minmax", "List (2). Minimum, maximum K [0, 5]"},
+      // {"ec_cut", "Cut-off (in au) for continuum energy. [100.0]"},
+      {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
+      {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
+                        "hole-particle interaction) [true]"},
+      {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
+  });
+  if (input.has_option("help")) {
+    return;
+  }
+
+  auto [Emin_eV, Emax_eV] = input.get("E_range", std::array{10.0, 100.0});
+  auto E_steps = input.get<std::size_t>("E_steps", 1);
+  if (E_steps <= 1) {
+    E_steps = 1;
+    Emax_eV = Emin_eV;
+  }
+  const auto Emin_au = Emin_eV / PhysConst::Hartree_eV;
+  const auto Emax_au =
+      Emax_eV < Emin_eV ? Emin_au : Emax_eV / PhysConst::Hartree_eV;
+
+  std::cout << "\nSummary of inputs:\n";
+  fmt::print(
+      "Energy  : [{:.1f}, {:.1f}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
+      Emin_eV, Emax_eV, Emin_au, Emax_au, E_steps);
+  // const auto ec_cut = input.get("ec_cut", 100.0);
+
+  auto [qmin_MeV, qmax_MeV] = input.get("q_range", std::array{0.01, 0.01});
+  auto q_steps = input.get<std::size_t>("q_steps", 1);
+  if (q_steps <= 1) {
+    q_steps = 1;
+    qmax_MeV = qmin_MeV;
+  }
+
+  //const auto q_MeV = input.get("q", 1.0);
+  // const auto qc = (q_MeV / UnitConv::Momentum_au_to_MeV) * PhysConst::c;
+
+  //std::cout << "q (MeV): " << q_MeV << "\n";
+  //std::cout << "q (au): " << qc / PhysConst::c << "\n";
+  //std::cout << "qc (au): " << qc * PhysConst::c << "\n";
+
+  const auto [Kmin, Kmax] = input.get("K_minmax", std::array{0, 5});
+  const auto label = input.get("label", std::string{""});
+
+  const auto force_orthog = input.get("force_orthog", true);
+  const auto force_rescale = input.get("force_rescale", false);
+  const auto hole_particle = input.get("hole_particle", true);
+
+  const auto qmin_au = qmin_MeV * UnitConv::Momentum_MeV_to_au;
+  const auto qmax_au = qmax_MeV * UnitConv::Momentum_MeV_to_au;
+
+  // Set up the E and q grids
+  const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
+  const Grid qgrid({q_steps, qmin_au, qmax_au, 0, GridType::logarithmic});
+
+  auto oname = input.get("oname", std::string{"out.txt"});
+  std::ofstream out_file(oname);
+  //out_file << "# omega_MeV Q_S Q_Phi  Q_V  Q_E  Q_M  Q_L Q_S5 Q_Phi5  Q_V5  Q_E5  "
+  //            "Q_M5  Q_L5 Q_E5_nr Q_M5_nr Q_L5_nr Q_Phi5_nr Q_S5_nr\n";
+
+  out_file << "# Qv E> " << Egrid.r()[0];
+  for (int i = 0; i < (Egrid.r().size()-1); i++){
+    out_file << " " << Egrid.r()[i+1];
+  }
+  out_file << "\n";
+
+  int count = 0; // Don't touch this, apart of Ben's code
+
+
+  for (const auto q : qgrid.r()){
+
+    const auto qc = q * PhysConst::c;
+
+    std::vector<double> QEs(E_steps-1,0);
+
+    int Ecounter = 0;
+   
+    for (const auto omega : Egrid.r()) {
+
+    // First, loop through and just find list of what we shall do.
+    // THEN parellelise over that!
+    std::vector<std::size_t> iclist;
+    for (std::size_t i = 0; i < wf.core().size(); ++i) {
+      const auto ec = omega + wf.core().at(i).en();
+      if (ec < 0.0) {
+        continue;
+      }
+      iclist.push_back(i);
+    }
+
+    fmt::print("{:>2}/{:<2} {:6.3f} {:6.2f} {:2}: \n", count++,
+               Egrid.num_points(), omega, omega * PhysConst::Hartree_eV,
+               iclist.size());
+    std::cout << std::flush;
+
+    double Q_S = 0.0, Q_Phi = 0.0, Q_E = 0.0, Q_M = 0.0, Q_L = 0.0;
+    double Q_S5 = 0.0, Q_Phi5 = 0.0, Q_E5 = 0.0, Q_M5 = 0.0, Q_L5 = 0.0;
+    double Q_E5_nr = 0.0, Q_M5_nr = 0.0, Q_L5_nr = 0.0;
+    double Q_S5_nr = 0.0, Q_Phi5_nr = 0.0;
+
+    for (int k = Kmin; k <= Kmax; ++k) {
+
+      auto Sk = DiracOperator::Sk_w(wf.grid(), k, qc);
+      auto Phik = DiracOperator::Phik_w(wf.grid(), k, qc);
+      auto Ek = DiracOperator::Ek_w(wf.grid(), k, qc);
+      auto Mk = DiracOperator::Mk_w(wf.grid(), k, qc);
+      auto Lk = DiracOperator::Lk_w(wf.grid(), k, qc);
+
+      auto S5k = DiracOperator::S5k_w(wf.grid(), k, qc);
+      auto Phi5k = DiracOperator::Phi5k_w(wf.grid(), k, qc);
+      auto E5k = DiracOperator::E5k_w(wf.grid(), k, qc);
+      auto M5k = DiracOperator::M5k_w(wf.grid(), k, qc);
+      auto L5k = DiracOperator::L5k_w(wf.grid(), k, qc);
+
+      auto Phi5k_nr = DiracOperator::Phi5k_w_nr(wf.grid(), k, qc);
+      auto E5k_nr = DiracOperator::E5k_w_nr(wf.grid(), k, qc);
+      auto M5k_nr = DiracOperator::M5k_w_nr(wf.grid(), k, qc);
+      auto L5k_nr = DiracOperator::L5k_w_nr(wf.grid(), k, qc);
+
+#pragma omp parallel for reduction(+ : Q_S, Q_Phi, Q_E, Q_M, Q_L, Q_S5, Q_Phi5, Q_E5,     \
+                                       Q_M5, Q_L5, Q_E5_nr, Q_M5_nr, Q_L5_nr, Q_Phi5_nr, Q_S5_nr)
+      for (const auto ic : iclist) {
+        const auto &Fa = wf.core()[ic];
+        const auto ec = omega + Fa.en();
+        if (ec < 0.0)
+          continue;
+        const auto ec_t = ec; //std::min(ec, ec_cut);
+
+        const int l = Fa.l();
+        const int lc_max = l + k + 1;
+        const int lc_min = std::max(l - k - 1, 0);
+
+        ContinuumOrbitals cntm(wf.vHF());
+        cntm.solveContinuumHF(ec_t, lc_min, lc_max, &Fa, force_rescale,
+                              hole_particle, force_orthog);
+
+        const auto tkp1 = 2.0 * k + 1.0;
+
+        for (const auto &Fe : cntm.orbitals) {
+          
+          // Scalar operators
+          Q_S += tkp1 * qip::pow(Sk.reducedME(Fe, Fa), 2);
+
+          // Vector operators
+          Q_Phi += tkp1 * qip::pow(Phik.reducedME(Fe, Fa), 2);
+          Q_E += tkp1 * qip::pow(Ek.reducedME(Fe, Fa), 2);
+          Q_M += tkp1 * qip::pow(Mk.reducedME(Fe, Fa), 2);
+          Q_L += tkp1 * qip::pow(Lk.reducedME(Fe, Fa), 2);
+
+          // Axial (γ^5) operators
+          Q_S5 += tkp1 * qip::pow(S5k.reducedME(Fe, Fa), 2);
+          Q_Phi5 += tkp1 * qip::pow(Phi5k.reducedME(Fe, Fa), 2);
+          Q_E5 += tkp1 * qip::pow(E5k.reducedME(Fe, Fa), 2);
+          Q_M5 += tkp1 * qip::pow(M5k.reducedME(Fe, Fa), 2);
+          Q_L5 += tkp1 * qip::pow(L5k.reducedME(Fe, Fa), 2);
+
+          // For qr << 1 limit (just for pseudo-vector case)
+          if (k == 1) {
+            Q_S5_nr += tkp1 * qip::pow(S5k.reducedME(Fe, Fa), 2);
+            Q_Phi5_nr += tkp1 * qip::pow(Phi5k_nr.reducedME(Fe, Fa), 2);
+            Q_E5_nr += tkp1 * qip::pow(E5k_nr.reducedME(Fe, Fa), 2);
+            Q_M5_nr += tkp1 * qip::pow(M5k_nr.reducedME(Fe, Fa), 2);
+            Q_L5_nr += tkp1 * qip::pow(L5k_nr.reducedME(Fe, Fa), 2);
+          }
+        }
+
+      }
+    }
+
+    // Example output format:
+    // out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_S << " " << Q_Phi << " "
+    //          << Q_E + Q_M + Q_L << " " << Q_E << " " << Q_M << " " << Q_L << " "
+    //          << Q_S5 << " " << Q_Phi5 << " " << Q_E5 + Q_M5 + Q_L5 << " " << Q_E5 << " "
+    //          << Q_M5 << " " << Q_L5 << " " << Q_E5_nr << " " << Q_M5_nr << " " 
+    //          << Q_L5_nr << " " << Q_Phi5_nr << " " << Q_S5_nr << "\n";
+
+    QEs[Ecounter] = Q_S;
+
+    Ecounter += 1;
+
+    } // End E loop
+
+    out_file << q / UnitConv::Momentum_MeV_to_au;
+
+    // Loop for the values in QEs
+
+    for (int i = 0; i < (QEs.size()) ; i++){
+      out_file << " " << QEs[i];
+    }
+
+    out_file << "\n";
+
+  } // End q loop
+}
+
+
+//==============================================================================
 void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
-  IO::ChronoTimer timer("photo");
+  IO::ChronoTimer timer("formFactors");
 
   input.check({
       {"E_range",
