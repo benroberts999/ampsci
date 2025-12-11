@@ -592,7 +592,12 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
                         PhysConst::aB_cm * PhysConst::aB_cm * omega;
-
+    
+    // Temporal/Scalar operators
+    double Q_S = 0.0, Q_S5 = 0.0;
+    double Q_Phi = 0.0, Q_Phi5 = 0.0;
+    
+    // Vector operators (Non-relativistic cases used for testing)
     double Q_E1 = 0.0;    // Regular (length) E1 operator
     double Q_M1 = 0.0;    // "Regular" M1
     double Q_M1_nr = 0.0; // Non-relativistic M1 operator
@@ -608,6 +613,12 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
     for (int k = Kmin; k <= Kmax; ++k) {
 
+      // Scalar parts
+      auto Sk = DiracOperator::Sk_w(wf.grid(), k, omega);
+      auto S5k = DiracOperator::S5k_w(wf.grid(), k, omega);
+      auto Phik = DiracOperator::Phik_w(wf.grid(), k, omega);
+      auto Phi5k = DiracOperator::Phi5k_w(wf.grid(), k, omega);
+
       // Electric, magnetic parts
       const auto Ek = DiracOperator::Ek_w(wf.grid(), k, omega);
       const auto Mk = DiracOperator::Mk_w(wf.grid(), k, omega);
@@ -617,7 +628,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto Ek_len = DiracOperator::Ek_w_L(wf.grid(), k, omega);
 
 #pragma omp parallel for reduction(+ : Q_E1, Q_M1, Q_Mk1, Q_M1_nr, Q_Ek2,      \
-                                       Q_E2, Q_E, Q_M, Q_E_len)
+                                       Q_E2, Q_E, Q_M, Q_E_len, Q_S, Q_S5, Q_Phi, Q_Phi5)
       for (const auto ic : iclist) {
         const auto &Fa = wf.core()[ic];
         const auto ec = omega + Fa.en();
@@ -646,6 +657,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
           const auto f_Q_E1 = 1.0 / 3.0;
           const auto f_Q_M1 = 1.0 / 3.0 * qip::pow(PhysConst::muB_CGS, 2);
 
+          // Non-relativistic limits:
           if (k == 1) {
             Q_E1 += f_Q_E1 * qip::pow(E1.reducedME(Fe, Fa), 2);
             Q_M1 += f_Q_M1 * qip::pow(M1.reducedME(Fe, Fa), 2);
@@ -659,6 +671,13 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
             Q_E2 += f_Q_E1 * qip::pow(E2.reducedME(Fe, Fa), 2) / 20 * q * q;
           }
 
+          // Scalar components
+          Q_S += f_Q * qip::pow(Sk.reducedME(Fe, Fa), 2);
+          Q_S5 += f_Q * qip::pow(S5k.reducedME(Fe, Fa), 2);
+          Q_Phi += f_Q * qip::pow(Phik.reducedME(Fe, Fa), 2);
+          Q_Phi5 += f_Q * qip::pow(Phi5k.reducedME(Fe, Fa), 2);
+
+          // Vector components
           Q_E += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
           Q_M += f_Q * qip::pow(Mk.reducedME(Fe, Fa), 2);
 
@@ -748,9 +767,9 @@ void formFactorsMatrix(const IO::InputBlock &input, const Wavefunction &wf) {
   //out_file << "# omega_MeV Q_S Q_Phi  Q_V  Q_E  Q_M  Q_L Q_S5 Q_Phi5  Q_V5  Q_E5  "
   //            "Q_M5  Q_L5 Q_E5_nr Q_M5_nr Q_L5_nr Q_Phi5_nr Q_S5_nr\n";
 
-  out_file << "# Qv E> " << Egrid.r()[0];
+  out_file << "QE " << Egrid.r()[0] * UnitConv::Energy_au_to_keV / 1000.0;
   for (int i = 0; i < (Egrid.r().size()-1); i++){
-    out_file << " " << Egrid.r()[i+1];
+    out_file << " " << Egrid.r()[i+1] * UnitConv::Energy_au_to_keV / 1000.0; // Energy in MeV
   }
   out_file << "\n";
 
@@ -874,7 +893,7 @@ void formFactorsMatrix(const IO::InputBlock &input, const Wavefunction &wf) {
 
     // Loop for the values in QEs
 
-    for (int i = 0; i < (QEs.size()) ; i++){
+    for (int i = 0; i < (QEs.size()+1) ; i++){
       out_file << " " << QEs[i];
     }
 
@@ -891,7 +910,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({
       {"E_range",
        "List (2). Minimum, maximum energy transfer (dE), in eV [10, 100]"},
-      {"E_steps", "Numer of steps along dE grid (logarithmic grid) [1]"},
+      {"E_steps", "Number of steps along dE grid (logarithmic grid) [1]"},
       {"oname", "oname"},
       {"q", "Momentum exchange, in MeV (hbar=c=1)"},
       {"K_minmax", "List (2). Minimum, maximum K [0, 5]"},
