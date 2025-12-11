@@ -12,55 +12,38 @@ double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited) {
 
-  // First, find wich {m,n} pairs contribute.
-  // Then only include these in the loop.
-  // Slightly more efficient parallelisation...probs not work it
-  std::vector<std::pair<std::size_t, std::size_t>> mn_index;
-  for (std::size_t im = 0; im < excited.size(); im++) {
-    for (std::size_t in = 0; in < excited.size(); in++) {
-      const auto &m = excited[im];
-      const auto &n = excited[in];
-
-      const auto Wk_ok = Coulomb::Qk_abcd_SR(K, w, m, v, n) ||
-                         Coulomb::Pk_abcd_SR(K, w, m, v, n);
-
-      if (Wk_ok)
-        mn_index.push_back({im, in});
-    }
-  }
-
   double Ak = 0.0;
-#pragma omp parallel for reduction(+ : Ak)
-  for (const auto &[im, in] : mn_index) {
-    const auto &m = excited[im];
-    const auto &n = excited[in];
+#pragma omp parallel for reduction(+ : Ak) collapse(2)
+  for (const auto &m : excited) {
+    for (const auto &n : excited) {
 
-    const auto s_wm = Angular::neg1pow_2(w.twoj() + m.twoj());
-    const auto Wmwvn = Coulomb::Wk_abcd(K, w, m, v, n);
+      const auto s_wm = Angular::neg1pow_2(w.twoj() + m.twoj());
+      const auto Wmwvn = Coulomb::Wk_abcd(K, w, m, v, n);
+      if (Wmwvn == 0.0)
+        continue;
 
-    for (const auto &a : core) {
+      for (const auto &a : core) {
 
-      const auto sj_ts = Angular::SixJ(kt, ks, K, m, n, a);
+        // C1_ts:
+        const auto sj_ts = Angular::SixJ(kt, ks, K, m, n, a);
+        if (sj_ts != 0.0) {
+          const auto Tna = T.getv(n, a);
+          const auto Sam = S.getv(a, m);
+          const auto de_ts =
+              (a.en() - n.en() + omega) * (a.en() - m.en() - omega);
+          const auto s_ts = s_wm * Angular::neg1pow(kt + ks);
+          Ak += Tna * Sam * Wmwvn / de_ts * s_ts * sj_ts;
+        }
 
-      // C1_ts:
-      if (sj_ts != 0.0) {
-        const auto Tna = T.getv(n, a);
-        const auto Sam = S.getv(a, m);
-        const auto de_ts =
-            (a.en() - n.en() + omega) * (a.en() - m.en() - omega);
-        const auto s_ts = s_wm * Angular::neg1pow(kt + ks);
-        Ak += Tna * Sam * Wmwvn / de_ts * s_ts * sj_ts;
-      }
-
-      const auto sj_st = kt == ks ? sj_ts : Angular::SixJ(ks, kt, K, m, n, a);
-
-      // C1_st:
-      if (sj_st != 0.0) {
-        const auto Sna = S.getv(n, a);
-        const auto Tam = T.getv(a, m);
-        const auto de_st = (a.en() - n.en()) * (a.en() - m.en() - omega);
-        const auto s_st = s_wm * Angular::neg1pow(K);
-        Ak += Sna * Tam * Wmwvn / de_st * s_st * sj_st;
+        // C1_st:
+        const auto sj_st = ks == kt ? sj_ts : Angular::SixJ(ks, kt, K, m, n, a);
+        if (sj_st != 0.0) {
+          const auto Sna = S.getv(n, a);
+          const auto Tam = T.getv(a, m);
+          const auto de_st = (a.en() - n.en()) * (a.en() - m.en() - omega);
+          const auto s_st = s_wm * Angular::neg1pow(K);
+          Ak += Sna * Tam * Wmwvn / de_st * s_st * sj_st;
+        }
       }
     }
   }
@@ -81,7 +64,6 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 #pragma omp parallel for reduction(+ : Ak) collapse(2)
   for (const auto &a : core) {
     for (const auto &b : core) {
-      //
 
       const auto s_wa = Angular::neg1pow_2(w.twoj() + a.twoj());
       const auto Wwavb = Coulomb::Wk_abcd(K, w, a, v, b);
@@ -91,22 +73,22 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
       for (const auto &n : excited) {
 
         // C2_ts
-        {
-          const auto sjs_ts = Angular::SixJ(kt, ks, K, b, a, n);
+        const auto sj_ts = Angular::SixJ(kt, ks, K, b, a, n);
+        if (sj_ts != 0.0) {
           const auto Tna = T.getv(n, a);
           const auto Sbn = S.getv(b, n);
           const auto de_ts =
               (a.en() - n.en() + omega) * (b.en() - n.en() - omega);
-          Ak += s_wa * sK * sjs_ts * Tna * Sbn * Wwavb / de_ts;
+          Ak += s_wa * sK * sj_ts * Tna * Sbn * Wwavb / de_ts;
         }
 
         // C2_st
-        {
-          const auto sjs_st = Angular::SixJ(ks, kt, K, b, a, n);
+        const auto sj_st = ks == kt ? sj_ts : Angular::SixJ(ks, kt, K, b, a, n);
+        if (sj_st != 0.0) {
           const auto Sna = S.getv(n, a);
           const auto Tbn = T.getv(b, n);
           const auto de_st = (a.en() - n.en()) * (b.en() - n.en() - omega);
-          Ak += s_wa * sts * sjs_st * Sna * Tbn * Wwavb / de_st;
+          Ak += s_wa * sts * sj_st * Sna * Tbn * Wwavb / de_st;
         }
       }
     }
@@ -130,10 +112,9 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 #pragma omp parallel for reduction(+ : Ak) collapse(2)
   for (const auto &a : core) {
     for (const auto &n : excited) {
-      //
 
-      const auto Wmavn = Coulomb::Wk_abcd(K, w, a, v, n);
-      if (Wmavn == 0.0)
+      const auto Wwavn = Coulomb::Wk_abcd(K, w, a, v, n);
+      if (Wwavn == 0.0)
         continue;
 
       // R1:
@@ -141,21 +122,21 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
       for (const auto &m : excited) {
 
         //R1_ts
-        {
-          const auto sjs = Angular::SixJ(kt, ks, K, n, a, m);
+        const auto sj_ts = Angular::SixJ(kt, ks, K, n, a, m);
+        if (sj_ts != 0.0) {
           const auto Tma = T.getv(m, a);
           const auto Snm = S.getv(n, m);
           const auto de_ts = (a.en() - m.en() + omega) * (a.en() - n.en());
-          Ak += s_wa * sK * sjs * Tma * Snm * Wmavn / de_ts;
+          Ak += s_wa * sK * sj_ts * Tma * Snm * Wwavn / de_ts;
         }
 
         //R1_st
-        {
-          const auto sjs = Angular::SixJ(ks, kt, K, n, a, m);
+        const auto sj_st = ks == kt ? sj_ts : Angular::SixJ(ks, kt, K, n, a, m);
+        if (sj_st != 0.0) {
           const auto Sma = S.getv(m, a);
           const auto Tnm = T.getv(n, m);
           const auto de_st = (a.en() - m.en()) * (a.en() - n.en() + omega);
-          Ak += s_wa * sts * sjs * Sma * Tnm * Wmavn / de_st;
+          Ak += s_wa * sts * sj_st * Sma * Tnm * Wwavn / de_st;
         }
       }
 
@@ -164,21 +145,21 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         const auto s_wb = Angular::neg1pow_2(w.twoj() + b.twoj());
 
         //R2_ts
-        {
-          const auto sjs = Angular::SixJ(kt, ks, K, a, n, b);
+        const auto sj_ts = Angular::SixJ(kt, ks, K, a, n, b);
+        if (sj_ts != 0.0) {
           const auto Tnb = T.getv(n, b);
           const auto Sba = S.getv(b, a);
           const auto de_ts = (b.en() - n.en() + omega) * (a.en() - n.en());
-          Ak -= s_wb * sts * sjs * Tnb * Sba * Wmavn / de_ts;
+          Ak -= s_wb * sts * sj_ts * Tnb * Sba * Wwavn / de_ts;
         }
 
         //R2_st
-        {
-          const auto sjs = Angular::SixJ(ks, kt, K, a, n, b);
+        const auto sj_st = ks == kt ? sj_ts : Angular::SixJ(ks, kt, K, a, n, b);
+        if (sj_st != 0.0) {
           const auto Snb = S.getv(n, b);
           const auto Tba = T.getv(b, a);
-          const auto de_ts = (b.en() - n.en()) * (a.en() - n.en() + omega);
-          Ak -= s_wb * sK * sjs * Snb * Tba * Wmavn / de_ts;
+          const auto de_st = (b.en() - n.en()) * (a.en() - n.en() + omega);
+          Ak -= s_wb * sK * sj_st * Snb * Tba * Wwavn / de_st;
         }
       }
     }
@@ -202,34 +183,32 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 #pragma omp parallel for reduction(+ : Ak) collapse(2)
   for (const auto &a : core) {
     for (const auto &n : excited) {
-      //
 
       const auto s_wn = Angular::neg1pow_2(w.twoj() + n.twoj());
-
-      const auto Wmnva = Coulomb::Wk_abcd(K, w, n, v, a);
-      if (Wmnva == 0.0)
+      const auto Wwnva = Coulomb::Wk_abcd(K, w, n, v, a);
+      if (Wwnva == 0.0)
         continue;
 
       // L1:
       for (const auto &m : excited) {
 
         //L1_ts
-        {
-          const auto sjs = Angular::SixJ(kt, ks, K, a, n, m);
+        const auto sj_ts = Angular::SixJ(kt, ks, K, a, n, m);
+        if (sj_ts != 0.0) {
           const auto Tmn = T.getv(m, n);
           const auto Sam = S.getv(a, m);
           const auto de_ts = (a.en() - n.en() - omega) * (a.en() - m.en());
-          Ak += s_wn * sK * sjs * Tmn * Sam * Wmnva / de_ts;
+          Ak += s_wn * sK * sj_ts * Tmn * Sam * Wwnva / de_ts;
         }
 
         //L1_st
-        {
-          const auto sjs = Angular::SixJ(ks, kt, K, a, n, m);
+        const auto sj_st = ks == kt ? sj_ts : Angular::SixJ(ks, kt, K, a, n, m);
+        if (sj_st != 0.0) {
           const auto Smn = S.getv(m, n);
           const auto Tam = T.getv(a, m);
           const auto de_st =
               (a.en() - n.en() - omega) * (a.en() - m.en() - omega);
-          Ak += s_wn * sts * sjs * Smn * Tam * Wmnva / de_st;
+          Ak += s_wn * sts * sj_st * Smn * Tam * Wwnva / de_st;
         }
       }
 
@@ -237,22 +216,22 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
       for (const auto &b : core) {
 
         //L2_ts
-        {
-          const auto sjs = Angular::SixJ(kt, ks, K, n, a, b);
+        const auto sj_ts = Angular::SixJ(kt, ks, K, n, a, b);
+        if (sj_ts != 0.0) {
           const auto Tab = T.getv(a, b);
           const auto Sbn = S.getv(b, n);
           const auto de_ts = (a.en() - n.en() - omega) * (b.en() - n.en());
-          Ak -= s_wn * sts * sjs * Tab * Sbn * Wmnva / de_ts;
+          Ak -= s_wn * sts * sj_ts * Tab * Sbn * Wwnva / de_ts;
         }
 
-        //R2_st
-        {
-          const auto sjs = Angular::SixJ(ks, kt, K, n, a, b);
+        //L2_st
+        const auto sj_st = ks == kt ? sj_ts : Angular::SixJ(ks, kt, K, n, a, b);
+        if (sj_st != 0.0) {
           const auto Sab = S.getv(a, b);
           const auto Tbn = T.getv(b, n);
           const auto de_st =
               (a.en() - n.en() - omega) * (b.en() - n.en() - omega);
-          Ak -= s_wn * sK * sjs * Sab * Tbn * Wmnva / de_st;
+          Ak -= s_wn * sK * sj_st * Sab * Tbn * Wwnva / de_st;
         }
       }
     }
@@ -296,6 +275,9 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   // Transition frequency (omega)
   const auto omega_default = w.en() - v.en();
   const auto omega = input.get("omega", omega_default);
+
+  std::cout << "E_w - E_v = " << omega_default << "\n";
+  std::cout << "omega     = " << omega << "\n";
 
   // Get required operators:
   // t is time-dependent, s is static
