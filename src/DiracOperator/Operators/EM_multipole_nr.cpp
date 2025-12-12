@@ -8,18 +8,12 @@ namespace DiracOperator {
 
 //==============================================================================
 //! @brief Electric multipole operator, in small qr limit
-
-class E5k_w_nr final : public TensorOperator {
+class E5_nr final : public TensorOperator {
 public:
-  E5k_w_nr(const Grid &gr, int K, double omega)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real),
-        m_K(K) {
-    updateFrequency(omega);
+  E5_nr(const Grid &gr, double)
+      : TensorOperator(1, Parity::even, 1.0, gr.r(), 0, Realness::real, false) {
   }
-  std::string name() const override final {
-    return std::string("tv^E5_") + std::to_string(m_K);
-  }
+  std::string name() const override final { return std::string("tv^E5_nr"); }
   std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
@@ -34,21 +28,16 @@ public:
     dF.min_pt() = Fb.min_pt();
     dF.max_pt() = Fb.max_pt();
 
-    if (isZero(kappa_a, Fb.kappa()) || m_K == 0) {
+    if (isZero(kappa_a, Fb.kappa()) || (kappa_a + Fb.kappa() == 1)) {
       dF.min_pt() = 0;
       dF.max_pt() = 0;
       return dF;
     }
 
-    const auto K = double(m_K);
+    const auto cx = std::sqrt(2.0) / 3.0;
     const auto dk = double(kappa_a + Fb.kappa());
-    assert(m_K != 0); // should already be discounted!
-    const auto cx = std::sqrt((K + 1.0) / K);
 
-    Rab_rhs(-1, j1_on_qr, &dF, Fb, cx * dk);
-    Rab_rhs(-1, j2, &dF, Fb, -cx * dk / (K + 1.0));
-    Rab_rhs(+1, j1_on_qr, &dF, Fb, -cx * K);
-
+    Rab_rhs(-1, &dF, Fb, cx * (dk - 1.0));
     return dF;
   }
 
@@ -56,49 +45,25 @@ public:
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final {
 
-    if (isZero(Fa.kappa(), Fb.kappa()) || m_K == 0) {
+    if (isZero(Fa.kappa(), Fb.kappa()) || Fa.kappa() + Fb.kappa() == 1) {
       return 0.0;
     }
 
-    //const auto K = double(m_K);
-    assert(m_K != 0); // should already be discounted!
     const auto cx = std::sqrt(2.0) / 3.0;
     const auto dk = double(Fa.kappa() + Fb.kappa());
-    std::vector<double> ones(Fa.grid().size(), 1);
 
-    return cx * (dk * Rab(-1, ones, Fa, Fb) - Rab(+1, ones, Fa, Fb));
+    return cx * (dk - 1.0) * Rab(-1, Fa, Fb);
   }
-
-  //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &j1_on_qr);
-    SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &j2);
-    for (std::size_t i = 0; i < m_vec.size(); ++i) {
-      j1_on_qr[i] /= (q * m_vec[i]);
-    }
-  }
-
-private:
-  int m_K;
-  std::vector<double> j1_on_qr{};
-  std::vector<double> j2{};
 };
 
 //==============================================================================
 //! @brief Longitudanal multipole operator, in small qr limit
-class L5k_w_nr final : public TensorOperator {
+class L5_nr final : public TensorOperator {
 public:
-  L5k_w_nr(const Grid &gr, int K, double omega)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K) {
-    updateFrequency(omega);
+  L5_nr(const Grid &gr, double)
+      : TensorOperator(1, Parity::even, 1.0, gr.r(), 0, Realness::real, false) {
   }
-  std::string name() const override final {
-    return std::string("tv^5L_") + std::to_string(m_K);
-  }
+  std::string name() const override final { return std::string("tv^5L_nr"); }
   std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
@@ -113,18 +78,15 @@ public:
     dF.min_pt() = Fb.min_pt();
     dF.max_pt() = Fb.max_pt();
 
-    if (isZero(kappa_a, Fb.kappa())) {
+    if (isZero(kappa_a, Fb.kappa()) || (kappa_a + Fb.kappa() == 1)) {
       dF.min_pt() = 0;
       dF.max_pt() = 0;
       return dF;
     }
 
-    const auto K = double(m_K);
     const auto dk = double(kappa_a + Fb.kappa());
+    Rab_rhs(-1, &dF, Fb, -(1.0 / 3.0) * (dk - 1.0));
 
-    Rab_rhs(-1, j1_on_qr, &dF, Fb, -dk);
-    Rab_rhs(+1, j1_on_qr, &dF, Fb, K);
-    Rab_rhs(+1, j2, &dF, Fb, -1.0);
     return dF;
   }
 
@@ -132,49 +94,26 @@ public:
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final {
 
-    if (isZero(Fa.kappa(), Fb.kappa())) {
+    if (isZero(Fa.kappa(), Fb.kappa()) || Fa.kappa() + Fb.kappa() == 1) {
       return 0.0;
     }
 
-    const auto K = double(m_K);
     const auto dk = double(Fa.kappa() + Fb.kappa());
-    std::vector<double> ones(Fa.grid().size(), 1);
 
-    return -(1.0 / 3.0) *
-           (dk * Rab(-1, ones, Fa, Fb) - Rab(+1, ones, Fa, Fb)); // sigma = -1
+    return -(1.0 / 3.0) * (dk - 1.0) * Rab(-1, Fa, Fb);
   }
-
-  //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &j1_on_qr);
-    SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &j2);
-    for (std::size_t i = 0; i < m_vec.size(); ++i) {
-      j1_on_qr[i] /= (q * m_vec[i]);
-    }
-  }
-
-private:
-  int m_K;
-  std::vector<double> j1_on_qr{};
-  std::vector<double> j2{};
 };
 
 //==============================================================================
 //! @brief Magnetic multipole operator, in small qr limit
-class M5k_w_nr final : public TensorOperator {
+class M5_w_nr final : public TensorOperator {
 public:
-  M5k_w_nr(const Grid &gr, int K, double omega)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K) {
+  M5_w_nr(const Grid &gr, double omega)
+      : TensorOperator(1, Parity::odd, 1.0, gr.r(), 0, Realness::real, true) {
     updateFrequency(omega);
   }
 
-  std::string name() const override final {
-    return std::string("t^5M_") + std::to_string(m_K);
-  }
+  std::string name() const override final { return std::string("t^5M_nr"); }
 
   std::string units() const override final { return std::string(""); }
 
@@ -190,18 +129,16 @@ public:
     dF.min_pt() = Fb.min_pt();
     dF.max_pt() = Fb.max_pt();
 
-    if (isZero(kappa_a, Fb.kappa()) || (kappa_a == -Fb.kappa()) || m_K == 0) {
+    if (isZero(kappa_a, Fb.kappa()) || (kappa_a == -Fb.kappa())) {
       dF.min_pt() = 0;
       dF.max_pt() = 0;
       return dF;
     }
 
-    const auto K = double(m_K);
     const auto sk = double(kappa_a - Fb.kappa());
-    assert(m_K != 0); // should already be discounted!
-    const auto ck = sk / std::sqrt(K * (K + 1.0));
+    const auto ck = -(m_q / std::sqrt(2.0) / 3.0) * sk;
 
-    Rab_rhs(-1, j1, &dF, Fb, -ck);
+    Rab_rhs(-1, m_vec, &dF, Fb, ck);
     return dF;
   }
 
@@ -209,29 +146,21 @@ public:
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final {
 
-    if (isZero(Fa.kappa(), Fb.kappa()) || (Fa.kappa() == -Fb.kappa()) ||
-        m_K == 0) {
+    if (isZero(Fa.kappa(), Fb.kappa()) || (Fa.kappa() == -Fb.kappa())) {
       return 0.0;
     }
 
-    const auto K = double(m_K);
     const auto sk = double(Fa.kappa() - Fb.kappa());
-    assert(m_K != 0); // should already be discounted!
-    //const auto ck = sk / std::sqrt(K * (K + 1.0));
-
-    return -(1.0 / std::sqrt(2.0)) * sk * Rab(-1, j1, Fa, Fb); // sigma = 0
+    return -(m_q / std::sqrt(2.0) / 3.0) * sk * Rab(-1, m_vec, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &j1);
+    const auto m_q = std::abs(PhysConst::alpha * omega);
   }
 
 private:
-  int m_K;
-  std::vector<double> j1{};
+  double m_q;
 };
 
 //==============================================================================
@@ -301,18 +230,21 @@ namespace multipole {
 
 // For the small qr limit
 inline std::unique_ptr<DiracOperator::TensorOperator>
-V5_sigma_nr(const Grid &grid, int k, int sigma) {
+V5_sigma_nr(const Grid &grid, int sigma) {
 
   switch (sigma) {
 
   case +1:
-    return std::make_unique<E5k_w_nr>(grid, 1, 1.0e-4);
+    return std::make_unique<E5_nr>(grid);
 
   case -1:
-    return std::make_unique<L5k_w_nr>(grid, 1, 1.0e-4);
+    return std::make_unique<L5_nr>(grid);
 
   case 0:
-    return std::make_unique<M5k_w_nr>(grid, 1, 1.0e-4);
+    return std::make_unique<M5_w_nr>(grid, 1.0e-4);
+
+  default:
+    return nullptr;
   }
 }
 

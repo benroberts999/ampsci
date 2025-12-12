@@ -330,4 +330,20 @@ double Vab(const std::vector<double> &t, const DiracSpinor &Fa,
 double Wab(const std::vector<double> &t, const DiracSpinor &Fa,
            const DiracSpinor &Fb);
 
+// Same - for constant t(r)=c
+
+//! Pab[1] function: Int[ (fa*gb + pm*ga*fb) , dr]. pm = +/-1 (usually)
+double Pab(double pm, const DiracSpinor &Fa, const DiracSpinor &Fb);
+
+//! Rab[1] function: Int[ (fa*fb + pm*ga*gb) , dr] = Int[ (pm-1)*ga*gb) , dr].
+//! NOTE: assumes NOT diagonal, using orthogonality condition.
+double Rab(double pm, const DiracSpinor &Fa, const DiracSpinor &Fb);
+
+//! Pab_rhs[1] function: dF_ab += A  * (g, pm*f) , pm=+/-1 (usually).
+void Pab_rhs(double pm, DiracSpinor *dF, const DiracSpinor &Fb, double A = 1.0);
+
+//! Rab_rhs[1] function: dF_ab += A * (f, pm*g)  = dF_ab += A * (0, (pm-1)*g).
+//! NOTE: assumes NOT diagonal, using orthogonality condition.
+void Rab_rhs(double pm, DiracSpinor *dF, const DiracSpinor &Fb, double A = 1.0);
+
 } // namespace DiracOperator

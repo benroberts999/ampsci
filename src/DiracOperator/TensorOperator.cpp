@@ -255,4 +255,53 @@ double Wab(const std::vector<double> &t, const DiracSpinor &Fa,
   return fg * Fb.grid().du();
 }
 
+//******************************************************************************
+// Versions for constant t(r) = c
+
+// Pab function: Int[ (fa*gb + pm*ga*fb) , dr]. pm = +/-1 (usually)
+double Pab(double pm, const DiracSpinor &Fa, const DiracSpinor &Fb) {
+  if (pm == -1 && &Fa == &Fb)
+    return 0.0;
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto &drdu = Fb.grid().drdu();
+  const auto fg = NumCalc::integrate(1.0, pi, pf, Fa.f(), Fb.g(), drdu);
+  const auto gf =
+      &Fa == &Fb ? fg : NumCalc::integrate(1.0, pi, pf, Fa.g(), Fb.f(), drdu);
+  return (fg + pm * gf) * Fb.grid().du();
+}
+
+// Rab function: Int[ (fa*fb + pm*ga*gb) , dr]. pm = +/-1 (usually)
+double Rab(double pm, const DiracSpinor &Fa, const DiracSpinor &Fb) {
+  if (pm == 1.0)
+    return 0.0;
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto &drdu = Fb.grid().drdu();
+  // Use orthogonality of Fa and Fb:
+  // (ff + a*gg) = (ff + gg + [a-1]*gg) = [a-1]*gg
+  const auto gg = NumCalc::integrate(1.0, pi, pf, Fa.g(), Fb.g(), drdu);
+  return (pm - 1.0) * gg * Fb.grid().du();
+}
+
+// Pab_rhs function: dF_ab += t(r) * (g, pm*f) - note, uses +=, so can combine.
+// Ensure empty to begin.
+void Pab_rhs(double pm, DiracSpinor *dF, const DiracSpinor &Fb, double a) {
+  for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+    dF->f(i) += a * Fb.g(i);
+    dF->g(i) += a * pm * Fb.f(i);
+  }
+}
+
+// Rab_rhs function: dF_ab += t(r) * (f, pm*g) - note, uses +=, so can combine.
+// Ensure empty to begin.
+void Rab_rhs(double pm, DiracSpinor *dF, const DiracSpinor &Fb, double a) {
+  // Use orthogonality of Fa and Fb:
+  // (ff + a*gg) = (ff + gg + [a-1]*gg) = [a-1]*gg
+  for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+    dF->f(i) += 0.0;
+    dF->g(i) += a * (pm - 1.0) * Fb.g(i);
+  }
+}
+
 } // namespace DiracOperator
