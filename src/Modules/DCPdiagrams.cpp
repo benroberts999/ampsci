@@ -156,7 +156,7 @@ double A1(const int K, const int k1, const int k2,
         auto tjm = Angular::twoj_k(km);
         int ka = a.kappa();
         auto tja = Angular::twoj_k(ka);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tja, tjn, tjm);
+        double sixj = Angular::sixj_2(2 * k2, 2 * k1, 2 * K, tjm, tjn, tja);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, n, v, m);
@@ -215,7 +215,7 @@ double A2(const int K, const int k1, const int k2,
         auto tjm = Angular::twoj_k(km);
         int kb = b.kappa();
         auto tjb = Angular::twoj_k(kb);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tjm, tjb, tja);
+        double sixj = Angular::sixj_2(2 * k1, 2 * k2, 2 * K, tjb, tja, tjm);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, a, v, b);
@@ -227,6 +227,7 @@ double A2(const int K, const int k1, const int k2,
     }
   }
   A2 = -1 * (1 / (sqrt(2 * K + 1))) * pow(-1, K) * A2;
+  std::cout << pow(-1, K) << "\n\n\n";
   return A2;
 }
 
@@ -273,7 +274,7 @@ double A3(const int K, const int k1, const int k2,
         auto tjm = Angular::twoj_k(km);
         int ka = a.kappa();
         auto tja = Angular::twoj_k(ka);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tja, tjb, tjm);
+        double sixj = Angular::sixj_2(2 * k2, 2 * k1, 2 * K, tjm, tjb, tja);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, b, v, m);
@@ -331,7 +332,7 @@ double A4(const int K, const int k1, const int k2,
         auto tjm = Angular::twoj_k(km);
         int kn = n.kappa();
         auto tjn = Angular::twoj_k(kn);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tjm, tjn, tja);
+        double sixj = Angular::sixj_2(2 * k1, 2 * k2, 2 * K, tjn, tja, tjm);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, a, v, n);
@@ -390,7 +391,7 @@ double A5(const int K, const int k1, const int k2,
         auto tja = Angular::twoj_k(ka);
         int kb = b.kappa();
         auto tjb = Angular::twoj_k(kb);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tjb, tjm, tja);
+        double sixj = Angular::sixj_2(2 * k2, 2 * k1, 2 * K, tja, tjm, tjb);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, m, v, a);
@@ -448,7 +449,7 @@ double A6(const int K, const int k1, const int k2,
         auto tja = Angular::twoj_k(ka);
         int kn = n.kappa();
         auto tjn = Angular::twoj_k(kn);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tjn, tja, tjm);
+        double sixj = Angular::sixj_2(2 * k1, 2 * k2, 2 * K, tja, tjm, tjn);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, m, v, a);
@@ -506,7 +507,7 @@ double A7(const int K, const int k1, const int k2,
         auto tjm = Angular::twoj_k(km);
         int ka = a.kappa();
         auto tja = Angular::twoj_k(ka);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tja, tjm, tjn);
+        double sixj = Angular::sixj_2(2 * k1, 2 * k2, 2 * K, tjm, tjn, tja);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, n, v, m);
@@ -564,7 +565,7 @@ double A8(const int K, const int k1, const int k2,
         auto tjm = Angular::twoj_k(km);
         int kb = b.kappa();
         auto tjb = Angular::twoj_k(kb);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tjm, tja, tjb);
+        double sixj = Angular::sixj_2(2 * k2, 2 * k1, 2 * K, tjb, tja, tjm);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, a, v, b);
@@ -622,7 +623,7 @@ double A9(const int K, const int k1, const int k2,
         auto tjm = Angular::twoj_k(km);
         int ka = a.kappa();
         auto tja = Angular::twoj_k(ka);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tja, tjm, tjb);
+        double sixj = Angular::sixj_2(2 * k1, 2 * k2, 2 * K, tjm, tjb, tja);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, b, v, m);
@@ -679,7 +680,7 @@ double A10(const int K, const int k1, const int k2,
         auto tjm = Angular::twoj_k(km);
         int kn = n.kappa();
         auto tjn = Angular::twoj_k(kn);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tjm, tja, tjn);
+        double sixj = Angular::sixj_2(2 * k2, 2 * k1, 2 * K, tjn, tja, tjm);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, a, v, n);
@@ -738,7 +739,7 @@ double A11(const int K, const int k1, const int k2,
         auto tja = Angular::twoj_k(ka);
         int kb = b.kappa();
         auto tjb = Angular::twoj_k(kb);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tjb, tja, tjm);
+        double sixj = Angular::sixj_2(2 * k1, 2 * k2, 2 * K, tja, tjm, tjb);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, m, v, a);
@@ -797,7 +798,7 @@ double A12(const int K, const int k1, const int k2,
         auto tja = Angular::twoj_k(ka);
         int kn = n.kappa();
         auto tjn = Angular::twoj_k(kn);
-        double sixj = Angular::sixj_2(2 * K, 2 * k1, 2 * k2, tjn, tjm, tja);
+        double sixj = Angular::sixj_2(2 * k2, 2 * k1, 2 * K, tja, tjm, tjn);
 
         //W^k
         double Wk = Coulomb::Wk_abcd(K, w, m, v, a);
@@ -941,6 +942,12 @@ double delta_A_KQ(const int K, const int k1, const int k2,
 
   double sum = A1_eval + A2_eval + A3_eval + A4_eval + A5_eval + A6_eval +
                A7_eval + A8_eval + A9_eval + A10_eval + A11_eval + A12_eval;
+  std::cout << "Ak is..." << sum << "\n\n\n";
+  std::cout << "C1 is..." << A1_eval + A7_eval << "\n\n\n";
+  std::cout << "C2 is..." << A2_eval + A8_eval << "\n\n\n";
+  std::cout << "R is..." << A3_eval + A4_eval + A9_eval + A10_eval << "\n\n\n";
+  std::cout << "L is..." << A5_eval + A6_eval + A11_eval + A12_eval << "\n\n\n";
+
   return sum;
 }
 
@@ -1040,7 +1047,7 @@ void DCPdiagrams(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto &Fv = *pv;
   const auto &Fw = *pw;
 
-  const auto omega_default = std::abs(Fv.en() - Fw.en());
+  const auto omega_default = Fw.en() - Fv.en();
   std::cout << omega_default << "\n\n\n";
 
   // To compute static dipole corrections we have omega=0;
