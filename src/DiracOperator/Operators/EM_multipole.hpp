@@ -5,6 +5,9 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Maths.hpp"
 
+// include the 'low qr' form here, simply for convenience
+#include "EM_multipole_lowqr.hpp"
+
 namespace DiracOperator {
 
 //==============================================================================
