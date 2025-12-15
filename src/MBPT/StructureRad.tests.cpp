@@ -22,6 +22,7 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
   const auto h = DiracOperator::E1(wf.grid());
 
   MBPT::StructureRad srn(wf.basis(), wf.FermiLevel());
+  srn.fill_table(&h);
 
   // test srn_table
   const auto tab = srn.srn_table(&h, srn.core(), srn.excited());
@@ -33,13 +34,12 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
       const auto tab_ba = tab.get(b, a);
       REQUIRE(tab_ab != nullptr);
       REQUIRE(tab_ba != nullptr);
-      const auto [srab, xab] = *tab_ab;
-      const auto [srba, xba] = *tab_ba;
-      REQUIRE(std::abs(srab - h.symm_sign(a, b) * srba) < 1.0e-10);
+      const auto srab = *tab_ab;
+      const auto srba = *tab_ba;
+      REQUIRE(srab == Approx(h.symm_sign(a, b) * srba));
 
-      const auto srn0 = srn.srTB(&h, a, b).first + srn.srC(&h, a, b).first +
-                        srn.norm(&h, a, b).first;
-      REQUIRE(std::abs(srab - srn0) < 1.0e-10);
+      const auto srn0 = srn.srTB(a, b) + srn.srC(a, b) + srn.norm(&h, a, b);
+      REQUIRE(srab == Approx(srn0));
     }
   }
 
@@ -48,22 +48,55 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
   const auto fname = "deleteme_" + rand_str + ".qk.abf";
   MBPT::StructureRad srn2(wf.basis(), wf.FermiLevel(), {0, 999}, fname);
   MBPT::StructureRad srn3(wf.basis(), wf.FermiLevel(), {0, 999}, fname);
+  srn2.fill_table(srn.hab_table(), h.rank());
+  auto table = srn.hab_table();
+  srn3.fill_table(std::move(table), h.rank());
+  auto srn4 = srn;
   for (const auto &a : wf.basis()) {
     for (const auto &b : wf.basis()) {
       if (a < b && !h.isZero(a, b)) {
-        const auto srC0 = srn.srC(&h, a, b).first;
-        const auto srC2 = srn2.srC(&h, a, b).first;
-        const auto srC3 = srn3.srC(&h, a, b).first;
-        REQUIRE(std::abs(srC0 - srC2) < 1.0e-10);
-        REQUIRE(std::abs(srC0 - srC3) < 1.0e-10);
+        // snr calculates Qk on the fly
+        const auto srC0 = srn.srC(a, b);
+        const auto srC0_2 = srn.srC(b, a);
+        const auto srC2 = srn2.srC(a, b);
+        const auto srC3 = srn3.srC(a, b);
+        const auto srC4 = srn4.srC(a, b);
+        REQUIRE(std::abs(srC0_2) == Approx(std::abs(srC0)));
+        REQUIRE(srC0 == Approx(srC2).epsilon(1.0e-10));
+        REQUIRE(srC3 == Approx(srC2));
+        REQUIRE(srC4 == Approx(srC2));
 
-        const auto srTB2 = srn2.srTB(&h, a, b).first;
-        const auto srTB3 = srn3.srTB(&h, a, b).first;
-        REQUIRE(std::abs(srTB2 - srTB3) < 1.0e-14);
+        const auto srTB0 = srn.srTB(a, b);
+        const auto srTB2 = srn2.srTB(a, b);
+        const auto srTB3 = srn3.srTB(a, b);
+        const auto srTB4 = srn4.srTB(a, b);
+        REQUIRE(srTB0 == Approx(srTB2).epsilon(1.0e-10));
+        REQUIRE(srTB3 == Approx(srTB2));
+        REQUIRE(srTB4 == Approx(srTB2));
 
-        const auto srN2 = srn2.norm(&h, a, b).first;
-        const auto srN3 = srn3.norm(&h, a, b).first;
-        REQUIRE(std::abs(srN2 - srN3) < 1.0e-14);
+        const auto srN0 = srn.norm(&h, a, b);
+        const auto srN2 = srn2.norm(&h, a, b);
+        const auto srN3 = srn3.norm(&h, a, b);
+        const auto srN4 = srn4.norm(&h, a, b);
+        REQUIRE(srN0 == Approx(srN2).epsilon(1.0e-10));
+        REQUIRE(srN3 == Approx(srN2));
+        REQUIRE(srN4 == Approx(srN2));
+
+        const auto boN0 = srn.BO(&h, a, b);
+        const auto boN2 = srn2.BO(&h, a, b);
+        const auto boN3 = srn3.BO(&h, a, b);
+        const auto boN4 = srn4.BO(&h, a, b);
+        REQUIRE(boN0 == Approx(boN2).epsilon(1.0e-10));
+        REQUIRE(boN3 == Approx(boN2));
+        REQUIRE(boN4 == Approx(boN2));
+
+        const auto svN0 = srn.Sigma_vw(a, b);
+        const auto svN2 = srn2.Sigma_vw(a, b);
+        const auto svN3 = srn3.Sigma_vw(a, b);
+        const auto svN4 = srn4.Sigma_vw(a, b);
+        REQUIRE(svN0 == Approx(svN2).epsilon(1.0e-10));
+        REQUIRE(svN3 == Approx(svN2));
+        REQUIRE(svN4 == Approx(svN2));
       }
     }
   }
@@ -90,6 +123,7 @@ TEST_CASE("MBPT: Structure Rad + Norm",
     int nmin = 1;
     int nmax = 99;
     MBPT::StructureRad sr(wf.basis(), en_core, {nmin, nmax});
+    sr.fill_table(&h);
 
     // Expected data, from: Johnson et al, At.Dat.Nuc.Dat.Tables 64, 279 (1996),
     // Table E (Na)
@@ -122,9 +156,9 @@ TEST_CASE("MBPT: Structure Rad + Norm",
 
       // My calculations:
       const auto t0 = h.reducedME(*ws, *vs); // splines here?
-      const auto [tb, dv1] = sr.srTB(&h, *ws, *vs, 0.0);
-      const auto [c, dv2] = sr.srC(&h, *ws, *vs);
-      const auto [n, dv3] = sr.norm(&h, *ws, *vs);
+      const auto tb = sr.srTB(*ws, *vs, 0.0);
+      const auto c = sr.srC(*ws, *vs);
+      const auto n = sr.norm(&h, *ws, *vs);
 
       // output table as we go:
       std::cout << "<" << w_str << "||" << v_str << ">: ";
@@ -197,9 +231,9 @@ TEST_CASE("MBPT: Structure Rad + Norm",
 
       // My calculations:
       const auto t0 = h.reducedME(*ws, *vs); // splines here?
-      const auto [tb, dv1] = sr.srTB(&h, *ws, *vs, 0.0);
-      const auto [c, dv2] = sr.srC(&h, *ws, *vs);
-      const auto [n, dv3] = sr.norm(&h, *ws, *vs);
+      const auto tb = sr.srTB(*ws, *vs, 0.0);
+      const auto c = sr.srC(*ws, *vs);
+      const auto n = sr.norm(&h, *ws, *vs);
 
       // output table as we go:
       std::cout << "<" << w_str << "||" << v_str << ">: ";

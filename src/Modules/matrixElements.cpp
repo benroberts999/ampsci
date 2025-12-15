@@ -65,7 +65,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
         "create it and write to disk. If 'true' will use default filename. "
         "Save time (10x) at cost of memory. Note: Using QkTable "
         "implies splines used for diagram legs"},
-       {"n_minmax", "list; min,max n for core/excited: [1,inf]"}});
+       {"n_minmax", "list; min,max n for core/excited: [1,inf]"},
+       {"rpa", "Inlcude RPA in internal SR+Norm; default is to use if included "
+               "above"}});
 
   const auto t_rpa_input = input.getBlock("rpa_options");
   auto rpa_input = t_rpa_input ? *t_rpa_input : IO::InputBlock{"rpa_options"};
@@ -167,6 +169,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
             Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
             "";
 
+    const auto sr_rpa = SR_input.get("rpa", rpaQ);
+
     std::cout
         << "\nIncluding Structure radiation and normalisation of states:\n";
     if (n_min > 1)
@@ -184,6 +188,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
     sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max},
                             Qk_file);
+    sr->fill_table(h.get(), sr_rpa ? rpa.get() : nullptr);
   }
 
   const auto pi = h->parity();

@@ -85,12 +85,17 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
                                 nullptr;
 
   // Optionally include SR+N
-  if (do_SRN)
+  if (do_SRN) {
     std::cout << "\nIncluding SR+Norm:\n";
+    std::cout << "WARNING: only includes SR+Norm for E1 for now!\n";
+  }
   auto SRN = do_SRN ? std::make_unique<MBPT::StructureRad>(
                           wf.basis(), wf.FermiLevel(),
                           std::pair{n_min_max.at(0), n_min_max.at(1)}, Qkfile) :
                       nullptr;
+  if (do_SRN) {
+    SRN->fill_table(&e1);
+  }
 
   // Find ground state (so we don't print it)
   const auto ground_state = std::min_element(
@@ -100,7 +105,7 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // 1. Calculate required matrix elements
   std::vector<MEdata> e1s, e2s, m1s;
-  Coulomb::meTable<std::pair<double, double>> SRNe1s, SRNe2s, SRNm1s;
+  Coulomb::meTable<double> SRNe1s;
   if (do_E1) {
     e1s = calcMatrixElements(wf.valence(), &e1, dVe1.get(), 0.0, true);
     if (SRN)
@@ -114,15 +119,13 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << each;
       auto srn = SRNe1s.get(each.a, each.b);
       if (srn)
-        printf(" %11.4e", srn->first);
+        printf(" %11.4e", *srn);
       std::cout << "\n";
     }
     std::cout << "\n";
   }
   if (do_E2) {
     e2s = calcMatrixElements(wf.valence(), &e2, dVe2.get(), 0.0, true);
-    if (SRN)
-      SRNe2s = SRN->srn_table(&e2, wf.valence());
     std::cout << "\nE2 reduced matrix elements:\n";
     std::cout << MEdata::title(rpaQ) << " ";
     if (SRN)
@@ -130,17 +133,14 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\n";
     for (const auto &each : e2s) {
       std::cout << each;
-      auto srn = SRNe2s.get(each.a, each.b);
-      if (srn)
-        printf(" %11.4e", srn->first);
       std::cout << "\n";
     }
     std::cout << "\n";
   }
   if (do_M1) {
     m1s = calcMatrixElements(wf.valence(), &m1, dVm1.get(), 0.0, true);
-    if (SRN)
-      SRNm1s = SRN->srn_table(&m1, wf.valence());
+    // if (SRN)
+    //   SRNm1s = SRN->srn_table(&m1, wf.valence());
     std::cout << "\nM1 reduced matrix elements:\n";
     std::cout << MEdata::title(rpaQ) << " ";
     if (SRN)
@@ -148,9 +148,9 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\n";
     for (const auto &each : m1s) {
       std::cout << each;
-      auto srn = SRNm1s.get(each.a, each.b);
-      if (srn)
-        printf(" %11.4e", srn->first);
+      // auto srn = SRNm1s.get(each.a, each.b);
+      // if (srn)
+      //   printf(" %11.4e", *srn);
       std::cout << "\n";
     }
     std::cout << "\n";
@@ -204,7 +204,7 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
       if (e1_data != e1s.end()) {
         const auto &[a, b, w, d, dv] = *e1_data;
         const auto t_srn = SRNe1s.get(a, b);
-        const auto srn = t_srn ? t_srn->first : 0.0;
+        const auto srn = t_srn ? *t_srn : 0.0;
         const auto ge1_vf = gamma_E1(d + dv + srn, w, gi);
         printf("  %.4e", ge1_vf);
         G_E1 += ge1_vf;
@@ -213,9 +213,9 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
       }
       if (e2_data != e2s.end()) {
         const auto &[a, b, w, d, dv] = *e2_data;
-        const auto t_srn = SRNe2s.get(a, b);
-        const auto srn = t_srn ? t_srn->first : 0.0;
-        const auto ge1_vf = gamma_E2(d + dv + srn, w, gi);
+        // const auto t_srn = SRNe2s.get(a, b);
+        // const auto srn = t_srn ? *t_srn : 0.0;
+        const auto ge1_vf = gamma_E2(d + dv, w, gi);
         printf("  %.4e", ge1_vf);
         G_E2 += ge1_vf;
       } else if (do_E2) {
@@ -223,9 +223,9 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
       }
       if (m1_data != m1s.end()) {
         const auto &[a, b, w, d, dv] = *m1_data;
-        const auto t_srn = SRNm1s.get(a, b);
-        const auto srn = t_srn ? t_srn->first : 0.0;
-        const auto ge1_vf = gamma_M1(d + dv + srn, w, gi);
+        // const auto t_srn = SRNm1s.get(a, b);
+        // const auto srn = t_srn ? *t_srn : 0.0;
+        const auto ge1_vf = gamma_M1(d + dv, w, gi);
         printf("  %.4e", ge1_vf);
         G_M1 += ge1_vf;
       } else if (do_M1) {
