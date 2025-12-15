@@ -210,6 +210,12 @@ public:
   double rme3js(const int twoja, const int twojb, int two_mb = 1,
                 int two_q = 0) const;
 
+  //! ME = rme3js * RME
+  double rme3js(const DiracSpinor &Fa, const DiracSpinor &Fb, int two_mb = 1,
+                int two_q = 0) const {
+    return rme3js(Fa.twoj(), Fb.twoj(), two_mb, two_q);
+  }
+
   //! <a||h||b> = Fa * reduced_rhs(a, Fb) (a needed for angular factor)
   DiracSpinor reduced_rhs(const int ka, const DiracSpinor &Fb) const;
 
