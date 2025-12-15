@@ -1,5 +1,6 @@
 #include "Coulomb/meTable.hpp"
 #include "DiracOperator/include.hpp"
+#include "ExternalField/calcMatrixElements.hpp"
 #include "catch2/catch.hpp"
 #include <random>
 
@@ -39,6 +40,8 @@ TEST_CASE("Coulomb: meTable", "[Coulomb][meTable][unit]") {
     }
   }
 
+  Coulomb::meTable<double> met2 = ExternalField::me_table(orbs, &h);
+
   // Now, loop through and check, only for a>=b:
   for (const auto &a : orbs) {
     for (const auto &b : orbs) {
@@ -49,9 +52,19 @@ TEST_CASE("Coulomb: meTable", "[Coulomb][meTable][unit]") {
       if (h.isZero(a, b)) {
         REQUIRE(!met.contains(a, b));
         REQUIRE(!met.contains(b, a));
+        REQUIRE(!met2.contains(b, a));
+        REQUIRE(met.getv(a, b) == 0.0);
+        REQUIRE(met2.getv(b, a) == 0.0);
       } else {
         REQUIRE(std::abs(dab - *met.get(a, b)) < 1.0e-12);
         REQUIRE(std::abs(dba - *met.get(b, a)) < 1.0e-12);
+
+        REQUIRE(std::abs(dab - met.getv(a, b)) < 1.0e-12);
+        REQUIRE(std::abs(dba - met.getv(b, a)) < 1.0e-12);
+
+        REQUIRE(met2.getv(a, b) == Approx(met.getv(a, b)));
+        REQUIRE(met2.getv(b, a) == Approx(met.getv(b, a)));
+        REQUIRE(met2.getv(b, a) == Approx(dba));
 
         REQUIRE(*met.get(a, b) ==
                 Approx(*met.get(a.shortSymbol(), b.shortSymbol())));
