@@ -142,7 +142,7 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
       // R2 (note -ve sign cf R1):
       for (const auto &b : core) {
-        const auto s_wb = Angular::neg1pow_2(w.twoj() + b.twoj());
+        // const auto s_wa = Angular::neg1pow_2(w.twoj() + a.twoj());
 
         //R2_ts
         const auto sj_ts = Angular::SixJ(kt, ks, K, a, n, b);
@@ -150,7 +150,7 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const auto Tnb = T.getv(n, b);
           const auto Sba = S.getv(b, a);
           const auto de_ts = (b.en() - n.en() + omega) * (a.en() - n.en());
-          Ak -= s_wb * sts * sj_ts * Tnb * Sba * Wwavn / de_ts;
+          Ak -= s_wa * sts * sj_ts * Tnb * Sba * Wwavn / de_ts;
         }
 
         //R2_st
@@ -159,7 +159,7 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const auto Snb = S.getv(n, b);
           const auto Tba = T.getv(b, a);
           const auto de_st = (b.en() - n.en()) * (a.en() - n.en() + omega);
-          Ak -= s_wb * sK * sj_st * Snb * Tba * Wwavn / de_st;
+          Ak -= s_wa * sK * sj_st * Snb * Tba * Wwavn / de_st;
         }
       }
     }
