@@ -272,6 +272,9 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto v = *i_ptr;
   const auto w = *f_ptr;
 
+  std::cout << "\n";
+  std::cout << v << " -> " << w << " : <" << w << "|D|" << v << ">\n";
+
   // Transition frequency (omega)
   const auto omega_default = w.en() - v.en();
   const auto omega = input.get("omega", omega_default);
@@ -290,6 +293,15 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto kt = t->rank();
 
   const int K = input.get("K", -1);
+
+  const auto [kmin, kmax] = std::array{std::abs(ks - kt), std::abs(ks + kt)};
+  if (K < kmin || K > kmax) {
+    std::cout << "\nFail 299.\n"
+                 "K = "
+              << K << " outside possible range: [" << kmin << ", " << kmax
+              << "]\n";
+    return;
+  }
 
   // Solve RPA; if required
   auto dVt = ExternalField::TDHF(t.get(), wf.vHF());
@@ -327,10 +339,8 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto AK_n = C_ts * Twn * Snv / de_ts + C_st * Swn * Tnv / de_st;
     AK += AK_n;
 
-    const auto cz_ts =
-        t->rme3js(w.twoj(), n.twoj(), tm) * s->rme3js(n.twoj(), v.twoj(), tm);
-    const auto cz_st =
-        s->rme3js(w.twoj(), n.twoj(), tm) * t->rme3js(n.twoj(), v.twoj(), tm);
+    const auto cz_ts = t->rme3js(w, n, tm) * s->rme3js(n, v, tm);
+    const auto cz_st = s->rme3js(w, n, tm) * t->rme3js(n, v, tm);
 
     const auto Az_n = cz_ts * Twn * Snv / de_ts + cz_st * Swn * Tnv / de_st;
     A_zz += Az_n;
