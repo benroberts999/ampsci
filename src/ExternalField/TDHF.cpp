@@ -121,8 +121,9 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   const auto imag = m_h->imaginaryQ();
 
   auto rhs = m_h->reduced_rhs(kappa_x, Fv);
-  if (imag && conj)
-    rhs *= -1;
+  // if (imag && conj)
+  //   rhs *= -1;
+  /// XXX Think this ^ shouldn't be here. Haven't checked though!
 
   if (incl_dV)
     rhs += dV_rhs(kappa_x, Fv, conj);
