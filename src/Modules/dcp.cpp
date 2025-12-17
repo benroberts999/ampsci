@@ -29,8 +29,7 @@ double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_ts != 0.0) {
           const auto Tna = T.getv(n, a);
           const auto Sam = S.getv(a, m);
-          const auto de_ts =
-              (a.en() - n.en() + omega) * (a.en() - m.en() - omega);
+          const auto de_ts = (a.en() - n.en() + omega) * (a.en() - m.en());
           const auto s_ts = s_wm * Angular::neg1pow(kt + ks);
           Ak += Tna * Sam * Wmwvn / de_ts * s_ts * sj_ts;
         }
@@ -77,8 +76,7 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_ts != 0.0) {
           const auto Tna = T.getv(n, a);
           const auto Sbn = S.getv(b, n);
-          const auto de_ts =
-              (a.en() - n.en() + omega) * (b.en() - n.en() - omega);
+          const auto de_ts = (a.en() - n.en() + omega) * (b.en() - n.en());
           Ak += s_wa * sK * sj_ts * Tna * Sbn * Wwavb / de_ts;
         }
 
@@ -126,7 +124,8 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_ts != 0.0) {
           const auto Tma = T.getv(m, a);
           const auto Snm = S.getv(n, m);
-          const auto de_ts = (a.en() - m.en() + omega) * (a.en() - n.en());
+          const auto de_ts =
+              (a.en() - m.en() + omega) * (a.en() - n.en() + omega);
           Ak += s_wa * sK * sj_ts * Tma * Snm * Wwavn / de_ts;
         }
 
@@ -142,14 +141,14 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
       // R2 (note -ve sign cf R1):
       for (const auto &b : core) {
-        // const auto s_wa = Angular::neg1pow_2(w.twoj() + a.twoj());
 
         //R2_ts
         const auto sj_ts = Angular::SixJ(kt, ks, K, a, n, b);
         if (sj_ts != 0.0) {
           const auto Tnb = T.getv(n, b);
           const auto Sba = S.getv(b, a);
-          const auto de_ts = (b.en() - n.en() + omega) * (a.en() - n.en());
+          const auto de_ts =
+              (b.en() - n.en() + omega) * (a.en() - n.en() + omega);
           Ak -= s_wa * sts * sj_ts * Tnb * Sba * Wwavn / de_ts;
         }
 
