@@ -13,7 +13,28 @@ namespace ExternalField {
 TDHFbasis::TDHFbasis(const DiracOperator::TensorOperator *const h,
                      const HF::HartreeFock *const hf,
                      const std::vector<DiracSpinor> &basis)
-    : TDHF(h, hf), m_basis(basis) {}
+    : TDHF(h, hf) {
+
+  // m_basis = basis;
+  // return;
+
+  // find maximum n for each kappa in core:
+  const auto max_ki_core = DiracSpinor::max_kindex(hf->core());
+  std::vector<int> max_n_ka_core;
+  for (int ki = 0; ki <= max_ki_core; ++ki) {
+    max_n_ka_core.push_back(
+        DiracSpinor::max_n(hf->core(), Angular::kappaFromIndex(ki)));
+  }
+
+  // only include excited states in spectrum?
+  for (const auto &n : basis) {
+    const auto ki = std::size_t(n.k_index());
+    const auto n_core = ki < max_n_ka_core.size() ? max_n_ka_core.at(ki) : 0;
+    if (n.n() > n_core) {
+      m_basis.push_back(n);
+    }
+  }
+}
 
 //==============================================================================
 DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
@@ -91,7 +112,8 @@ TDHFbasis::form_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
 void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
 
   const auto converge_targ = m_eps;
-  const auto eta_damp = m_eta;
+  const auto eta_damp = 1.0e-5 * m_eta;
+  const auto ww = std::abs(omega);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
 
@@ -102,7 +124,7 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
   std::string s_worst;
 
   if (print) {
-    printf("TDHFb %s (w=%.3f): ", m_h->name().c_str(), omega);
+    printf("TDHFb %s (w=%.3f): ", m_h->name().c_str(), ww);
     std::cout << std::flush;
   }
 
@@ -125,13 +147,13 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
 
       auto &Xx = tmp_X[ic][beta];
       Xx *= a_damp;
-      Xx += (1.0 - a_damp) * form_dPsi(Fc, omega, dPsiType::X, Xx.kappa(),
-                                       m_basis, StateType::ket);
+      Xx += (1.0 - a_damp) *
+            form_dPsi(Fc, ww, dPsiType::X, Xx.kappa(), m_basis, StateType::ket);
 
       if (!staticQ) {
         auto &Yx = tmp_Y[ic][beta];
         Yx *= a_damp;
-        Yx += (1.0 - a_damp) * form_dPsi(Fc, omega, dPsiType::Y, Xx.kappa(),
+        Yx += (1.0 - a_damp) * form_dPsi(Fc, ww, dPsiType::Y, Xx.kappa(),
                                          m_basis, StateType::ket);
       } else {
         const auto s = m_h->imaginaryQ() ? -1 : 1;
@@ -171,7 +193,7 @@ void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
   std::cout << std::flush;
   m_core_eps = eps;
   m_core_its = it;
-  m_core_omega = omega;
+  m_core_omega = ww; //?
 }
 
 } // namespace ExternalField
