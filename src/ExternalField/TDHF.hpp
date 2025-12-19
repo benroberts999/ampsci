@@ -67,7 +67,7 @@ public:
      to get first-order correction [note: no damping is used for first
      itteration]. If print=true, will write progress to screen.
   */
-  virtual void solve_core(const double omega, int max_its = 100,
+  virtual void solve_core(double omega, int max_its = 100,
                           const bool print = true) override;
 
   //! Returns RPA method

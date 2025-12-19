@@ -322,7 +322,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
             continue;
         }
 
-        const auto ww = eachFreqQ ? std::abs(a.en() - b.en()) : 0.0;
+        // const auto ww = eachFreqQ ? std::abs(a.en() - b.en()) : 0.0;
         const auto ww_s = a.en() - b.en();
 
         if (sr)
@@ -332,14 +332,14 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                      ww_s);
 
         if (eachFreqQ && h->freqDependantQ()) {
-          h->updateFrequency(ww);
+          h->updateFrequency(ww_s);
         }
         if (eachFreqQ && rpa) {
           if (rpa->last_eps() > 1.0e-5 || rpa_its == 1 ||
               std::isnan(rpa->last_eps()))
             rpa->clear();
           std::cout << " RPA(w) : ";
-          rpa->solve_core(ww, rpa_its);
+          rpa->solve_core(ww_s, rpa_its);
         }
 
         const auto factor = momentsQ ?
@@ -363,7 +363,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           fmt::print("\n");
           fmt::print("    SR0 : ");
           std::cout << std::flush;
-          const auto [tb, dvtb] = sr->srTB(h.get(), a, b, ww, rpa.get());
+          const auto [tb, dvtb] = sr->srTB(h.get(), a, b, ww_s, rpa.get());
           fmt::print("{:15.8e} + ", factor * tb);
           std::cout << std::flush;
           const auto [c, dvc] = sr->srC(h.get(), a, b, rpa.get());

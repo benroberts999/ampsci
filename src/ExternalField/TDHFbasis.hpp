@@ -27,7 +27,7 @@ public:
             const std::vector<DiracSpinor> &basis);
 
 private:
-  const std::vector<DiracSpinor> m_basis; // store copy?
+  std::vector<DiracSpinor> m_basis{}; // store copy?
 
 public:
   //! @brief Solves TDHF equations self-consistantly for core electrons at
@@ -71,7 +71,7 @@ public:
                                       bool incl_dV = true) const;
 
 public:
-  TDHFbasis &operator=(const TDHFbasis &) = delete;
+  TDHFbasis &operator=(const TDHFbasis &) = default;
   TDHFbasis(const TDHFbasis &) = default;
   ~TDHFbasis() = default;
 };

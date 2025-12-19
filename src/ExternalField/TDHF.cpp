@@ -271,9 +271,10 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
 }
 
 //==============================================================================
-void TDHF::solve_core(const double omega, int max_its, const bool print) {
+void TDHF::solve_core(double omega, int max_its, const bool print) {
   const double converge_targ = m_eps;
   const auto eta_damp = m_eta;
+  omega = std::abs(omega);
 
   if (print) {
     printf("TDHF %s (w=%.4f): ", m_h->name().c_str(), omega);

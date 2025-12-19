@@ -343,11 +343,11 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
 
   // const auto Vbr = p_hf->vBreit(); // a pointer, may be null
 
-  if (Fv.en() > Fw.en()) {
-    const auto sj = ((Fv.twoj() - Fw.twoj()) % 4 == 0) ? 1 : -1;
-    const auto si = m_imag ? -1 : 1;
-    return (sj * si) * dV_diagram(Fv, Fw);
-  }
+  // if (Fv.en() > Fw.en()) {
+  //   const auto sj = ((Fv.twoj() - Fw.twoj()) % 4 == 0) ? 1 : -1;
+  //   const auto si = m_imag ? -1 : 1;
+  //   return (sj * si) * dV_diagram(Fv, Fw);
+  // }
 
   const auto orderOK = true;
   const auto &Fi = orderOK ? Fv : Fw;
@@ -385,10 +385,11 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
 void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
 
   const auto eps_targ = m_eps;
-  const auto a_damp = m_eta;
+  const auto a_damp = 0.5; //m_eta;
   const auto b_damp = 1.0 - a_damp;
 
-  m_core_omega = std::abs(omega);
+  // m_core_omega = std::abs(omega);
+  m_core_omega = omega;
 
   if (holes.empty() || excited.empty())
     return;
@@ -398,7 +399,7 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
   }
 
   if (print) {
-    fmt::print("RPA(D) {:s} (w={:.4f}): ", m_h->name(), omega);
+    fmt::print("RPA(D) {:s} (w={:.4f}): ", m_h->name(), m_core_omega);
     std::cout << std::flush;
   }
 

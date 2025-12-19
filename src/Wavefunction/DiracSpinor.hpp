@@ -280,6 +280,8 @@ public:
   static int max_l(const std::vector<DiracSpinor> &orbs);
   //! Returns maximum n found in {orbs}
   static int max_n(const std::vector<DiracSpinor> &orbs);
+  //! Returns maximum n found in {orbs}, for given kappa
+  static int max_n(const std::vector<DiracSpinor> &orbs, int kappa);
   //! Returns maximum kappa_index found in {orbs}
   static int max_kindex(const std::vector<DiracSpinor> &orbs);
 
