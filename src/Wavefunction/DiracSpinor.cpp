@@ -278,6 +278,18 @@ int DiracSpinor::max_n(const std::vector<DiracSpinor> &orbs) {
   return orbs.empty() ? 0 :
                         std::max_element(cbegin(orbs), cend(orbs), comp_n)->n();
 }
+
+//static
+int DiracSpinor::max_n(const std::vector<DiracSpinor> &orbs, int kappa) {
+  int maxn = 0;
+  for (const auto &a : orbs) {
+    if (a.kappa() == kappa) {
+      maxn = std::max(maxn, a.n());
+    }
+  }
+  return maxn;
+}
+
 // static
 int DiracSpinor::max_kindex(const std::vector<DiracSpinor> &orbs) {
   return orbs.empty() ?

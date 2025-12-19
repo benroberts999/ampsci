@@ -332,7 +332,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
             continue;
         }
 
-        const auto ww = eachFreqQ ? std::abs(a.en() - b.en()) : 0.0;
+        // const auto ww = eachFreqQ ? std::abs(a.en() - b.en()) : 0.0;
         const auto ww_s = a.en() - b.en();
 
         if (sr)
@@ -370,7 +370,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           fmt::print("\n");
           fmt::print("    SR0 : ");
           std::cout << std::flush;
-          const auto [tb, dvtb] = sr->srTB(h.get(), a, b, ww, rpa.get());
+          const auto [tb, dvtb] = sr->srTB(h.get(), a, b, ww_s, rpa.get());
           fmt::print("{:15.8e} + ", factor * tb);
           std::cout << std::flush;
           const auto [c, dvc] = sr->srC(h.get(), a, b, rpa.get());
