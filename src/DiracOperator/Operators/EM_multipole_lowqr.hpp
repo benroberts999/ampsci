@@ -156,11 +156,11 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
-    const auto m_q = std::abs(PhysConst::alpha * omega);
+    m_q = std::abs(PhysConst::alpha * omega);
   }
 
 private:
-  double m_q;
+  double m_q{0.0};
 };
 
 //==============================================================================
@@ -235,10 +235,10 @@ V5_sigma_nr(const Grid &grid, int sigma) {
   switch (sigma) {
 
   case +1:
-    return std::make_unique<E5_nr>(grid);
+    return std::make_unique<E5_nr>(grid, 0.0);
 
   case -1:
-    return std::make_unique<L5_nr>(grid);
+    return std::make_unique<L5_nr>(grid, 0.0);
 
   case 0:
     return std::make_unique<M5_w_nr>(grid, 1.0e-4);
