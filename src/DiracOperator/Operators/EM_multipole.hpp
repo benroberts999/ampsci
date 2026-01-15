@@ -4,6 +4,7 @@
 #include "Maths/SphericalBessel.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Maths.hpp"
+#include "Angular/Wigner369j.hpp"
 
 namespace DiracOperator {
 
@@ -551,7 +552,7 @@ public:
       return 0.0;
     }
 
-    return Rab(-1, jk, Fa, Fb);
+    return Yab(jk, Fa, Fb); // Rab(-1, jk, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
@@ -987,6 +988,12 @@ public:
   std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
+
+    // if (ka == -kb)
+    //   return std::sqrt(Angular::twoj_k(ka) + 1);
+    // else
+    //   return 0.0;
+
     return Angular::Ck_kk(m_K, ka, -kb);
   }
 
@@ -1016,12 +1023,16 @@ public:
       return 0.0;
     }
 
-    return Pab(+1, jk, Fa, Fb);
+    std::vector<double> j0(Fa.grid().size(),1);
+    return Pab(+1, jk, Fa, Fb); // change to j1=qr/3
   }
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
     const auto q = std::abs(PhysConst::alpha * omega);
+    using namespace qip::overloads;
+    j1 = (m_vec * q)/3.0;
+    j2 = ((m_vec * q)*(m_vec * q))/15.0;
 
     if (m_jl) {
       jk = m_jl->jL_nearest(m_K, q);
@@ -1034,6 +1045,8 @@ private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> jk{};
+  std::vector<double> j1{};
+  std::vector<double> j2{};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)

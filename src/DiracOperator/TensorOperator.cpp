@@ -255,6 +255,41 @@ double Wab(const std::vector<double> &t, const DiracSpinor &Fa,
   return fg * Fb.grid().du();
 }
 
+// Xab function: Int[ (fa*fb ) * t(r) , dr].
+
+double Xab(const std::vector<double> &t, const DiracSpinor &Fa,
+  const DiracSpinor &Fb) {
+
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+
+  const auto &drdu = Fb.grid().drdu();
+
+  const auto ff = NumCalc::integrate(1.0, pi, pf, t, Fa.f(), Fb.f(), drdu);
+
+return ff * Fb.grid().du();
+
+}
+
+// Yab function: Int[ (fa*fb ) * t(r) , dr].
+
+double Yab(const std::vector<double> &t, const DiracSpinor &Fa,
+  const DiracSpinor &Fb) {
+
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+
+  const auto &drdu = Fb.grid().drdu();
+
+  const auto gg = NumCalc::integrate(1.0, pi, pf, t, Fa.g(), Fb.g(), drdu);
+
+return -2*gg * Fb.grid().du();
+
+}
+
+
 //******************************************************************************
 // Versions for constant t(r) = c
 

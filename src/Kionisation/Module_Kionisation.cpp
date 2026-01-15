@@ -15,9 +15,11 @@
 #include <cassert>
 #include <iostream>
 #include <memory>
+#include "Maths/SphericalBessel.hpp"
 //
 #include "ExternalField/DiagramRPA.hpp"
 #include "Wavefunction/ContinuumOrbitals.hpp"
+#include "DiracOperator/Operators/EM_multipole_nr.hpp"
 
 static const std::string Kionisation_description_text{R"(
 This module calculates atomic ionisation factors.
@@ -847,7 +849,11 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       Q_M5(E_steps, q_steps),   // Axial: magnetic
       Q_L5(E_steps, q_steps),   // Axial: longitudinal
       Q_S(E_steps, q_steps),    // Scalar
-      Q_S5(E_steps, q_steps);   // Pseudo-scalar
+      Q_S5(E_steps, q_steps),   // Pseudo-scalar
+      Q_E5_nr(E_steps, q_steps),    // Axial: electric (NR limit)
+      Q_M5_nr(E_steps, q_steps),    // Axial: magnetic (NR limit)
+      Q_L5_nr(E_steps, q_steps);    // Axial: longitudinal (NR Limit)
+
 
   //-------------------------------------------------------------------------
   std::cout << "\nCalculating ionisation factors:\n";
@@ -894,6 +900,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
           const auto Sk = DiracOperator::Sk_w(wf.grid(), k, qc, &jK_tab);
           const auto S5k = DiracOperator::S5k_w(wf.grid(), k, qc, &jK_tab);
 
+          const auto E5k_nr = DiracOperator::E5_nr(wf.grid(), qc);
+          const auto M5k_nr = DiracOperator::M5_nr(wf.grid(), qc);
+          const auto L5k_nr = DiracOperator::L5_nr(wf.grid(), qc);
+
           for (const auto &Fe : cntm.orbitals) {
             // Vector operators
             if (vectorQ) {
@@ -909,6 +919,12 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
               Q_E5(iE, iq) += tkp1_x * qip::pow(E5k.reducedME(Fe, Fa), 2);
               Q_M5(iE, iq) += tkp1_x * qip::pow(M5k.reducedME(Fe, Fa), 2);
               Q_L5(iE, iq) += tkp1_x * qip::pow(L5k.reducedME(Fe, Fa), 2);
+
+              if (k == 1){
+                Q_E5_nr(iE, iq) += tkp1_x * qip::pow(E5k.reducedME(Fe, Fa), 2);
+                Q_M5_nr(iE, iq) += tkp1_x * qip::pow(M5k.reducedME(Fe, Fa), 2);
+                Q_L5_nr(iE, iq) += tkp1_x * qip::pow(L5k.reducedME(Fe, Fa), 2);
+              }
             }
 
             // Scalar and Pseudoscalar
@@ -1012,6 +1028,12 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       Kion::write_to_file(output_formats, Q_M5, Egrid, qgrid, prefix + "V5^m",
                           8, units);
       Kion::write_to_file(output_formats, Q_L5, Egrid, qgrid, prefix + "V5^l",
+                          8, units);
+      Kion::write_to_file(output_formats, Q_E5_nr, Egrid, qgrid, prefix + "V5^e_nr",
+                          8, units);
+      Kion::write_to_file(output_formats, Q_M5_nr, Egrid, qgrid, prefix + "V5^m_nr",
+                          8, units);
+      Kion::write_to_file(output_formats, Q_L5_nr, Egrid, qgrid, prefix + "V5^l_nr",
                           8, units);
     }
   }

@@ -330,6 +330,14 @@ double Vab(const std::vector<double> &t, const DiracSpinor &Fa,
 double Wab(const std::vector<double> &t, const DiracSpinor &Fa,
            const DiracSpinor &Fb);
 
+//! Xab function: Int[ (fa*fb ) * t(r) , dr].
+double Xab(const std::vector<double> &t, const DiracSpinor &Fa,
+  const DiracSpinor &Fb);
+
+//! Yab function: Int[-2* (ga*gb ) * t(r) , dr].
+double Yab(const std::vector<double> &t, const DiracSpinor &Fa,
+  const DiracSpinor &Fb);
+
 // Same - for constant t(r)=c
 
 //! Pab[1] function: Int[ (fa*gb + pm*ga*fb) , dr]. pm = +/-1 (usually)
