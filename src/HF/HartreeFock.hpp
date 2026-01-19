@@ -133,6 +133,10 @@ public:
                     std::optional<double> eta = std::nullopt,
                     std::optional<int> prev_its = std::nullopt) const;
 
+  //! Solves HF equation (+ Sigma) for single valence state, alternative method
+  EpsIts hf_valence_Green(DiracSpinor &Fa,
+                          const MBPT::CorrelationPotential *const Sigma) const;
+
   //! Calculates the HF core energy (not including Breit?)
   double calculateCoreEnergy() const;
 

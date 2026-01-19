@@ -590,12 +590,17 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
     return {eps, it, Fa.shortSymbol()};
 
   // if it didn't converge, try again with larger eta (damp)
-  Fa = F_orig;
-  return hf_valence(Fa, Sigma, 0.85, it);
+  // Fa = F_orig;
+  // return hf_valence(Fa, Sigma, 0.85, it);
+
+  // Try again with alternate method
+  Fa = 0.75 * F_orig + 0.25 * Fa;
+  Fa.normalise();
+  Fa.en() = 0.75 * F_orig.en() + 0.25 * Fa.en();
+  return hf_valence_Green(Fa, Sigma);
 }
 
 //==============================================================================
-/*
 EpsIts HartreeFock::hf_valence_Green(
     DiracSpinor &Fa, const MBPT::CorrelationPotential *const Sigma) const {
 
@@ -645,7 +650,6 @@ EpsIts HartreeFock::hf_valence_Green(
 
   return {eps, it, Fa.shortSymbol()};
 }
-*/
 
 //==============================================================================
 
@@ -916,8 +920,8 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         for (std::size_t i = 0; i < irmax; i++) {
           vex_a[i] += Labk * (*vabk)[i] * v_Fab[i];
         } // r
-      }   // k
-    }     // b
+      } // k
+    } // b
   }
 
   // now, do a=b, ONLY if a is in the core!
@@ -940,7 +944,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         vex_a[i] += -Labk * (*vaak)[i] * x_tjap1;
       }
     } // k
-  }   // if a in core
+  } // if a in core
 }
 
 //------------------------------------------------------------------------------
@@ -999,8 +1003,8 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
           continue;
         vex[i] += tjs2 * vabk[i] * v_Fab[i];
       } // r
-    }   // k
-  }     // b
+    } // k
+  } // b
 
   return vex;
 }
