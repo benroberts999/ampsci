@@ -379,14 +379,14 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // even parity:
   for (const auto J : J_even_list) {
-    CI::run_CI(ci_sp_basis, int(std::round(2 * J)), +1, num_solutions, h1, qk,
-               {}, Sk, include_Sigma2);
+    CI::run_CI(ci_sp_basis, int(std::round(2 * J)), +1, num_solutions, {}, h1,
+               qk, {}, Sk, include_Sigma2);
   }
 
   // odd parity:
   for (const auto J : J_odd_list) {
-    CI::run_CI(ci_sp_basis, int(std::round(2 * J)), -1, num_solutions, h1, qk,
-               {}, Sk, include_Sigma2);
+    CI::run_CI(ci_sp_basis, int(std::round(2 * J)), -1, num_solutions, {}, h1,
+               qk, {}, Sk, include_Sigma2);
   }
 }
 

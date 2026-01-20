@@ -2,6 +2,7 @@
 #include "LinAlg/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <array>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -83,8 +84,9 @@ public:
   //! Solves the CI equation for Hamiltonian matrix Hci;
   //! finds first num_solutions solutions.
   //! Doesn't set the Config info: have to call update_config_info() manually.
-  //! @details If num_solutions=0 (or not given), will calculate _all_ solutions
-  void solve(const LinAlg::Matrix<double> &Hci, int num_solutions = 0);
+  //! @details If num_solutions<=0 (or not given), will calculate _all_ solutions
+  void solve(const LinAlg::Matrix<double> &Hci, int num_solutions = 0,
+             std::optional<double> all_below = {});
 
   //! You must manuall update the config. info for each solution (if required)
   void update_config_info(std::size_t i, const ConfigInfo &info);

@@ -34,6 +34,8 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
        {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
        {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
        {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
+       {"all_below", "Finds all solutions for requested J^π below given "
+                     "eigenvalue (in cm^-1, negative). Will override above."},
        {"sigma1", "Include one-body MBPT correlations? [false]"},
        {"sigma2", "Include two-body MBPT correlations? [false]"},
        {"cis2_basis",
@@ -303,6 +305,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   const auto J_even_list = input.get("J+", J_list);
   const auto J_odd_list = input.get("J-", J_list);
   const auto num_solutions = input.get("num_solutions", 5);
+  const auto all_below = input.get<double>("all_below");
   const auto ci_input = input.get("ci_input", std::string{""});
   const auto sort_output = input.get("sort_output", false);
   const auto parallel_ci = input.get("parallel_ci", true);
@@ -325,8 +328,8 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
               std::pair{2 * J_odd_list.at(i - J_even_list.size()), -1};
 
       auto &output_stream = parallel_ci ? os.at(i) : std::cout;
-      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_solutions, h1, qk, Bk,
-                            Sk, include_Sigma2, output_stream);
+      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_solutions, all_below, h1,
+                            qk, Bk, Sk, include_Sigma2, output_stream);
     }
 
     // If doing in parallel, output detailed output at end
@@ -340,13 +343,15 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   // Find minimum (ground-state) energy (for level comparison)
   // Assumes levels for each J/Pi are sorted (they always are)
-  const auto e0 = !levels.empty() ?
-                      std::min_element(levels.cbegin(), levels.cend(),
-                                       [](const auto &a, const auto &b) {
-                                         return a.energy(0) < b.energy(0);
-                                       })
-                          ->energy(0) :
-                      0.0;
+  double e0 = 0.0;
+  for (const auto &lvl : levels) {
+    if (lvl.num_solutions() == 0)
+      continue;
+    const auto e = lvl.energy(0);
+    if (e < e0) {
+      e0 = e;
+    }
+  }
 
   // This is just for screen output:
   // Sort output in pair {energy, output_string}, so we can optionally sort
@@ -397,10 +402,10 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 //==============================================================================
 //==============================================================================
 PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
-              int num_solutions, const Coulomb::meTable<double> &h1,
-              const Coulomb::QkTable &qk, const Coulomb::WkTable &Bk,
-              const Coulomb::LkTable &Sk, bool include_Sigma2,
-              std::ostream &outstream) {
+              int num_solutions, std::optional<double> all_below,
+              const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+              const Coulomb::WkTable &Bk, const Coulomb::LkTable &Sk,
+              bool include_Sigma2, std::ostream &outstream) {
 
   auto printJ = [](int twoj) {
     return twoj % 2 == 0 ? std::to_string(twoj / 2) :
@@ -436,29 +441,41 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
 
   //----------------------------------------------------------------------------
 
-  fmt::print(outstream, "Find first {} solutions\n", num_solutions);
+  if (all_below) {
+    fmt::print(outstream, "Finding all solutions below {} cm^-1\n", *all_below);
+  } else if (num_solutions > 0) {
+    fmt::print(outstream, "Find first {} solutions\n", num_solutions);
+  } else {
+    fmt::print(outstream, "Finding all solutions\n", num_solutions);
+  }
+
   {
     IO::ChronoTimer t2("");
-    psi.solve(Hci, num_solutions);
-    outstream << "Eigenvalues: T = " << t2.reading_str() << "\n";
+    psi.solve(Hci, num_solutions, all_below);
+    outstream << psi.num_solutions() << " eigenvalues: T = " << t2.reading_str()
+              << "\n\n";
   }
-  const auto E0 = psi.energy(0);
+  const auto E0 = psi.num_solutions() > 0 ? psi.energy(0) : 0.0;
 
   // For calculating g-factors
   DiracOperator::M1 m1{ci_sp_basis.front().grid(), PhysConst::alpha, 0.0};
   // only actually need to do this once..
   const auto m1_tab = ExternalField::me_table(ci_sp_basis, &m1);
 
-  for (std::size_t i = 0; i < N_CSFs && int(i) < num_solutions; ++i) {
+  // Print details of each solution, unless we find all:
+  const auto print_details = all_below || num_solutions > 0;
+  const double minimum_percentage = 5.0; // min % to print
+
+  for (std::size_t i = 0; i < N_CSFs && i < psi.num_solutions(); ++i) {
 
     const auto pi = parity == 1 ? '+' : '-';
-    fmt::print(outstream,
-               "{} {} {:<2}  {:+11.8f} au  {:+11.2f} cm^-1  {:11.2f} cm^-1\n",
-               twoJ / 2, pi, i, psi.energy(i),
-               psi.energy(i) * PhysConst::Hartree_invcm,
-               (psi.energy(i) - E0) * PhysConst::Hartree_invcm);
+    if (print_details)
+      fmt::print(outstream,
+                 "{} {} {:<2}  {:+11.8f} au  {:+11.2f} cm^-1  {:11.2f} cm^-1\n",
+                 twoJ / 2, pi, i, psi.energy(i),
+                 psi.energy(i) * PhysConst::Hartree_invcm,
+                 (psi.energy(i) - E0) * PhysConst::Hartree_invcm);
 
-    const double minimum_percentage = 1.0; // min % to print
     // l's of the leading configuration (for gJ)
     int l1{-1}, l2{-1};
     std::size_t max_j = 0;
@@ -471,7 +488,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
         l1 = Angular::nkindex_to_l(psi.CSF(j).state(0));
         l2 = Angular::nkindex_to_l(psi.CSF(j).state(1));
       }
-      if (cj > minimum_percentage) {
+      if (cj > minimum_percentage && print_details) {
         fmt::print(outstream, "   {:<6s} {:5.3f}%\n", psi.CSF(j).config(true),
                    cj);
       }
@@ -493,9 +510,11 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     // Determine Term Symbol, from g-factor
     const auto [S, L] = CI::Term_S_L(l1, l2, twoJ, gJ);
 
-    outstream << "   --------------\n";
-    if (twoJ != 0) {
-      outstream << "   gJ = " << gJ << "\n";
+    if (print_details) {
+      outstream << "   --------------\n";
+      if (twoJ != 0) {
+        outstream << "   gJ = " << gJ << "\n";
+      }
     }
 
     // maximum relativistic config, into non-relativistic notation:
@@ -510,12 +529,13 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     }
     // * technically, might not be maximum non-rel config.. realistically, fine
 
-    fmt::print(outstream, "   {:<6s} {}\n", config,
-               Term_Symbol(twoJ, L, 2 * S, parity));
+    if (print_details) {
+      fmt::print(outstream, "   {:<6s} {}\n", config,
+                 Term_Symbol(twoJ, L, 2 * S, parity));
+      outstream << "\n";
+    }
 
     psi.update_config_info(i, {config, pc, gJ, 1.0 * L, 2.0 * S});
-
-    outstream << "\n";
   }
 
   return psi;

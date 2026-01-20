@@ -18,6 +18,12 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A);
 template <typename T>
 std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number);
 
+//! Solves Av=ev for all eigenvals of symmetric matrix A below 'all_below'.
+//! Returns {N,e,V}: N is number of solutions
+template <typename T>
+std::tuple<int, Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A,
+                                                            double all_below);
+
 //! Solves Av = eBv for eigenvalues e and eigenvectors v of symmetric/Hermetian
 //! matrix pair A,B. Returns [e,v], where v(i,j) is the jth element of the ith
 //! eigenvector corresponding to ith eigenvalue, e(i). e is always real.

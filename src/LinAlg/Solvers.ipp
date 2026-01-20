@@ -21,6 +21,11 @@ void zhegv_(int *, char *, char *, int *, complex_double *, int *,
 void dsyevx_(char *, char *, char *, int *, double *, int *, double *, double *,
              int *, int *, double *, int *, double *, double *, int *, double *,
              int *, int *, int *, int *);
+
+void dsyevr_(char *jobz, char *range, char *uplo, int *n, double *a, int *lda,
+             double *vl, double *vu, int *il, int *iu, double *abstol, int *m,
+             double *w, double *z, int *ldz, int *isuppz, double *work,
+             int *lwork, int *iwork, int *liwork, int *info);
 }
 
 namespace LinAlg {
@@ -117,10 +122,12 @@ template <typename T>
 std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number) {
   assert(A.rows() == A.cols());
   assert(number < (int)A.rows());
+  static_assert(std::is_same_v<T, double>,
+                "This overload uses dsyevx_ (real symmetric). "
+                "For complex Hermitian use zheevx/cheevx?");
 
   // E. values of Hermetian complex matrix are _real_
-  auto eigen_vv = std::make_pair(Vector<double>(A.rows()),
-                                 Matrix<T>(std::size_t(A.rows())));
+  auto eigen_vv = std::make_pair(Vector<double>(A.rows()), Matrix<T>(A.rows()));
   auto &[e_values, e_vectors] = eigen_vv;
 
   int dim = (int)A.rows();
@@ -148,6 +155,72 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number) {
   if (info != 0) {
     std::cerr << "\nError 135: symmhEigensystem " << info << " " << dim << " "
               << std::endl;
+  }
+
+  return eigen_vv;
+}
+
+//============================================================================*
+template <typename T>
+std::tuple<int, Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A,
+                                                            double all_below) {
+  static_assert(std::is_same_v<T, double>,
+                "This overload uses dsyevr (real symmetric). "
+                "For complex Hermitian use zheevr/cheevr.");
+
+  assert(A.rows() == A.cols());
+  int n = static_cast<int>(A.rows());
+
+  // Return containers (same idea as your code: values size n, vectors n x n)
+  auto eigen_vv =
+      std::make_tuple(int{0}, Vector<double>(A.rows()), Matrix<T>(A.rows()));
+  auto &[num_solutions, e_values, e_vectors] = eigen_vv;
+
+  char jobz{'V'};  // eigenvectors
+  char range{'V'}; // value range
+  char uplo{'U'};
+
+  // dsyevr uses (vl,vu]; pick vl very negative so we get everything <= all_below
+  // Avoid +/-inf: many Fortran ABIs dislike it.
+  double vl = -std::numeric_limits<double>::max();
+  double vu = all_below;
+
+  int il{0}, iu{0};       // unused for RANGE='V'
+  double abstol{1.0e-12}; // your choice; could also use DLAMCH("S")
+  num_solutions = 0;
+  int info{0};
+
+  // Required by dsyevr
+  std::vector<int> isuppz(std::size_t(2 * std::max(1, n)));
+
+  // Workspace query
+  int lwork{-1}, liwork{-1};
+  double work_query{0.0};
+  int iwork_query{0};
+
+  dsyevr_(&jobz, &range, &uplo, &n, A.data(), &n, &vl, &vu, &il, &iu, &abstol,
+          &num_solutions, e_values.data(), e_vectors.data(), &n, isuppz.data(),
+          &work_query, &lwork, &iwork_query, &liwork, &info);
+
+  if (info != 0) {
+    std::cerr << "\nError: symmhEigensystem dsyevr(work query) info=" << info
+              << " n=" << n << "\n";
+    return eigen_vv;
+  }
+
+  lwork = static_cast<int>(work_query);
+  liwork = iwork_query;
+  std::vector<double> work(std::size_t(std::max(1, lwork)));
+  std::vector<int> iwork(std::size_t(std::max(1, liwork)));
+
+  // Actual call
+  dsyevr_(&jobz, &range, &uplo, &n, A.data(), &n, &vl, &vu, &il, &iu, &abstol,
+          &num_solutions, e_values.data(), e_vectors.data(), &n, isuppz.data(),
+          work.data(), &lwork, iwork.data(), &liwork, &info);
+
+  if (info != 0) {
+    std::cerr << "\nError: symmhEigensystem dsyevr info=" << info << " n=" << n
+              << " m=" << num_solutions << "\n";
   }
 
   return eigen_vv;

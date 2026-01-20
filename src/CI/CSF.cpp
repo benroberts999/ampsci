@@ -1,6 +1,7 @@
 #include "CSF.hpp"
 #include "Angular/include.hpp"
 #include "Physics/AtomData.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -124,11 +125,18 @@ std::vector<CSF2> form_CSFs(int twoJ, int parity,
 // Solves the CI equation for Hamiltonian matrix Hci;
 // finds first num_solutions solutions.
 // Doesn't set the Config info: have to call update_config_info() manually.
-void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions) {
+void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions,
+                   std::optional<double> all_below) {
   assert(Hci.rows() == Hci.cols());
   assert(Hci.rows() == m_CSFs.size());
 
-  if (num_solutions <= 0 || num_solutions >= int(m_CSFs.size())) {
+  if (all_below) {
+    const auto [t_num, t_evals, t_evecs] =
+        LinAlg::symmhEigensystem(Hci, *all_below / PhysConst::Hartree_invcm);
+    m_num_solutions = std::size_t(t_num);
+    m_Solution.first = std::move(t_evals);
+    m_Solution.second = std::move(t_evecs);
+  } else if (num_solutions <= 0 || num_solutions >= int(m_CSFs.size())) {
     m_Solution = LinAlg::symmhEigensystem(Hci);
     m_num_solutions = m_CSFs.size();
   } else {
@@ -141,7 +149,7 @@ void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions) {
   }
 }
 
-// You must manuall update the config. info for each solution (if required)
+// You must manually update the config. info for each solution (if required)
 void PsiJPi::update_config_info(std::size_t i, const ConfigInfo &info) {
   assert(m_Info.size() == m_num_solutions);
   m_Info.at(i) = info;
