@@ -142,9 +142,27 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number) {
   int m{0};
   int info{0};
 
-  std::vector<T> work(8 * A.rows());
-  std::vector<int> iwork(5 * A.rows());
-  std::vector<int> ifail(A.rows());
+  // std::vector<T> work(8 * A.rows());
+  // std::vector<int> iwork(5 * A.rows());
+  // std::vector<int> ifail(A.rows());
+
+  // ---- Workspace query (DSYEVX)
+  int lwork = -1;
+  double work_query = 0.0;
+  std::vector<int> iwork(5 * A.rows()); // DSYEVX requires at least 5*N
+  std::vector<int> ifail(A.rows());     // size N
+  dsyevx_(&jobz, &range, &uplo, &dim, A.data(), &dim, &vl, &vu, &il, &iu,
+          &abstol, &m, e_values.data(), e_vectors.data(), &dim, &work_query,
+          &lwork, iwork.data(), ifail.data(), &info);
+
+  if (info != 0) {
+    std::cerr << "\nError: dsyevx workspace query info=" << info << "\n";
+  }
+
+  // ---- Allocate optimal WORK
+
+  lwork = static_cast<int>(work_query);
+  std::vector<double> work(std::size_t(std::max(1, lwork)));
   int workspace_size = (int)work.size();
 
   // For double (symmetric real) matrix
