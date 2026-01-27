@@ -395,10 +395,10 @@ V5_sigma_nr(const Grid &grid, int sigma) {
   switch (sigma) {
 
   case +1:
-    return std::make_unique<E5_nr>(grid);
+    return std::make_unique<E5_nr>(grid, 1.0e-4);
 
   case -1:
-    return std::make_unique<L5_nr>(grid);
+    return std::make_unique<L5_nr>(grid, 1.0e-4);
 
   case 0:
     return std::make_unique<M5_nr>(grid, 1.0e-4);
@@ -427,8 +427,8 @@ generate_E_w_nr(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto omega = input.get("omega", 1.0e-4);
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
-    return std::make_unique<E5_nr>(wf.grid(), k, omega);
-  return std::make_unique<E_nr>(wf.grid(), k, omega);
+    return std::make_unique<E5_nr>(wf.grid(), omega);
+  return std::make_unique<E_nr>(wf.grid(), omega);
 }
 
 //------------------------------------------------------------------------------
@@ -445,8 +445,8 @@ generate_M_w_nr(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto omega = input.get("omega", 1.0e-4);
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
-    return std::make_unique<M5_nr>(wf.grid(), k, omega);
-  return std::make_unique<M_nr>(wf.grid(), k, omega);
+    return std::make_unique<M5_nr>(wf.grid(), omega);
+  return std::make_unique<M_nr>(wf.grid(), omega);
 }
 
 //------------------------------------------------------------------------------
@@ -463,8 +463,8 @@ generate_L_w_nr(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto omega = input.get("omega", 1.0e-4);
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
-    return std::make_unique<L5_nr>(wf.grid(), k, omega);
-  return std::make_unique<L_nr>(wf.grid(), k, omega);
+    return std::make_unique<L5_nr>(wf.grid(), omega);
+  return std::make_unique<L_nr>(wf.grid(), omega);
 }
 
 } // namespace DiracOperator
