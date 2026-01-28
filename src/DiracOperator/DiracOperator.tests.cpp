@@ -194,14 +194,14 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
     // test data generated with "old" mu = 2.582025
     const IO::InputBlock options{""};
-    auto h0 = DiracOperator::generate(
-        "hfs", {"hfs", "nuc_mag=pointlike; mu=2.582025;"}, wf);
-    auto hB = DiracOperator::generate(
-        "hfs", {"hfs", "nuc_mag=Ball; mu=2.582025;"}, wf);
+    auto h0 = DiracOperator::generate("hfs",
+                                      {"hfs", "F=pointlike; mu=2.582025;"}, wf);
+    auto hB =
+        DiracOperator::generate("hfs", {"hfs", "F=Ball; mu=2.582025;"}, wf);
     auto hS = DiracOperator::generate(
-        "hfs", {"hfs", "nuc_mag=SingleParticle; mu=2.582025;"}, wf);
+        "hfs", {"hfs", "F=SingleParticle; mu=2.582025;"}, wf);
     auto h0_au = DiracOperator::generate(
-        "hfs", {"hfs", "nuc_mag=pointlike; units=au; mu=2.582025;"}, wf);
+        "hfs", {"hfs", "F=pointlike; units=au; mu=2.582025;"}, wf);
 
     REQUIRE(h0->get_d_order() == 0);
     REQUIRE(h0->imaginaryQ() == false);
@@ -220,7 +220,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       const auto A0 = h0->reducedME(Fa, Fb);
       const auto AB = hB->reducedME(Fa, Fb);
       const auto AS = hS->reducedME(Fa, Fb);
-      const auto A0_2 = h0_au->reducedME(Fa, Fb) * PhysConst::muN_CGS_MHz;
+      const auto A0_2 = h0_au->reducedME(Fa, Fb) * PhysConst::Hartree_MHz;
       const auto BW = (AS - A0) / A0;
       REQUIRE(std::abs(A0 - a0) < 1.0e-6);
       REQUIRE(std::abs(AB - ab) < 1.0e-6);

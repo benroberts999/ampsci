@@ -47,6 +47,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
        {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
        {"off-diagonal",
         "Calculate off-diagonal matrix elements (if non-zero) [true]"},
+       {"moments",
+        "true/false - calculate moments, or reduced matrix elements. Default "
+        "is false, except for hyperfine operators"},
        {"StructureRadiation{}",
         "Options for Structure Radiation and normalisation (details below)"}});
 
@@ -94,7 +97,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
-  // treat hyperfine operator differently: A constants instead of RME
+  // treat hyperfine operator differently: constants instead of RME
   const bool hf_AB =
       qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
 
@@ -103,12 +106,14 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\n"
             << "Matrix Elements - Operator: " << h->name() << "\n";
-  if (hf_AB && h->rank() % 2 != 0) {
-    std::cout << "Hyperfine A constants (magnetic type), K=" << h->rank()
-              << "\n";
-  } else if (hf_AB && h->rank() % 2 == 0) {
-    std::cout << "Hyperfine B constants (electric type), K=" << h->rank()
-              << "\n";
+
+  // Calculate moments, or reduced matrix elements
+  const auto momentsQ = input.get("moments", hf_AB);
+
+  if (momentsQ && h->rank() % 2 != 0) {
+    std::cout << "Hyperfine constants (magnetic type), K=" << h->rank() << "\n";
+  } else if (momentsQ && h->rank() % 2 == 0) {
+    std::cout << "Hyperfine constants (electric type), K=" << h->rank() << "\n";
   } else {
     std::cout << "Reduced matrix elements\n";
   }
@@ -246,9 +251,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       if (h->isZero(a.kappa(), a.kappa()))
         continue;
 
-      const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                      h->rank(), a.kappa(), a.kappa()) :
-                                  1.0;
+      const auto factor = momentsQ ?
+                              DiracOperator::Hyperfine::convert_RME_to_AB(
+                                  h->rank(), a.kappa(), a.kappa()) :
+                              1.0;
 
       const auto hab = h->reducedME(a, a);
       const auto dv = rpa ? rpa->dV(a, a) : 0.0;
@@ -336,9 +342,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           rpa->solve_core(ww, rpa_its);
         }
 
-        const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                        h->rank(), a.kappa(), b.kappa()) :
-                                    1.0;
+        const auto factor = momentsQ ?
+                                DiracOperator::Hyperfine::convert_RME_to_AB(
+                                    h->rank(), a.kappa(), b.kappa()) :
+                                1.0;
 
         const auto hab = h->reducedME(a, b);
         const auto dv = rpa ? rpa->dV(a, b) : 0.0;
@@ -406,6 +413,9 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
        {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
        {"off-diagonal",
         "Calculate off-diagonal matrix elements (if non-zero) [true]"},
+       {"moments",
+        "true/false - calculate moments, or reduced matrix elements. Default "
+        "is false, except for hyperfine operators"},
        {"Qk_file",
         "true/false/filename - SR: filename for QkTable file. If blank will "
         "not use QkTable; if exists, will read it in; if doesn't exist, will "
@@ -436,7 +446,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     h_options = *tmp_opt;
   }
 
-  // treat hyperfine operator differently: A constants instead of RME
+  // treat hyperfine operator differently: constants instead of RME
   const bool hf_AB =
       qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
 
@@ -504,6 +514,20 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto const_omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
+
+  // Calculate moments, or reduced matrix elements
+  const auto momentsQ = input.get("moments", hf_AB);
+
+  std::cout << "\n"
+            << "Operator: " << h->name() << "\n";
+  if (momentsQ && h->rank() % 2 != 0) {
+    std::cout << "Hyperfine constants (magnetic type), K=" << h->rank() << "\n";
+  } else if (momentsQ && h->rank() % 2 == 0) {
+    std::cout << "Hyperfine constants (electric type), K=" << h->rank() << "\n";
+  } else {
+    std::cout << "Reduced matrix elements\n";
+  }
+  std::cout << "Units: " << h->units() << "\n";
 
   // min/max n (for core/excited basis)
   const auto n_minmax = input.get("n_minmax", std::vector{1, 999});
@@ -647,9 +671,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         if (!diag && v == w)
           continue;
 
-        const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                        h->rank(), v.kappa(), w.kappa()) :
-                                    1.0;
+        const auto factor = momentsQ ?
+                                DiracOperator::Hyperfine::convert_RME_to_AB(
+                                    h->rank(), v.kappa(), w.kappa()) :
+                                1.0;
 
         // Option to use splines (or valence states) to compute Struc Rad (use
         // splines for legs)
@@ -744,12 +769,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\n"
             << "Structure Radiation + Normalisation of states: " << h->name()
             << "\n";
-  if (hf_AB && h->rank() % 2 != 0) {
-    std::cout << "Hyperfine A constants (magnetic type), K=" << h->rank()
-              << "\n";
-  } else if (hf_AB && h->rank() % 2 == 0) {
-    std::cout << "Hyperfine B constants (electric type), K=" << h->rank()
-              << "\n";
+  if (momentsQ && h->rank() % 2 != 0) {
+    std::cout << "Hyperfine constants (magnetic type), K=" << h->rank() << "\n";
+  } else if (momentsQ && h->rank() % 2 == 0) {
+    std::cout << "Hyperfine constants (electric type), K=" << h->rank() << "\n";
   } else {
     std::cout << "Reduced matrix elements\n";
   }
@@ -783,7 +806,10 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
         "If true, will use basis states for valence states [false]"},
        {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
        {"off-diagonal",
-        "Calculate off-diagonal matrix elements (if non-zero) [true]"}});
+        "Calculate off-diagonal matrix elements (if non-zero) [true]"},
+       {"moments",
+        "true/false - calculate moments, or reduced matrix elements. Default "
+        "is false, except for hyperfine operators"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -829,21 +855,22 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
-  // treat hyperfine operator differently: A constants instead of RME
+  // treat hyperfine operator differently: constants instead of RME
   const bool hf_AB =
       qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
 
   const bool diagonal = input.get("diagonal", true);
   const bool off_diagonal = input.get("off-diagonal", true);
 
+  // Calculate moments, or reduced matrix elements
+  const auto momentsQ = input.get("moments", hf_AB);
+
   std::cout << "\n"
             << "Matrix Elements - Operator: " << h->name() << "\n";
-  if (hf_AB && h->rank() % 2 != 0) {
-    std::cout << "Hyperfine A constants (magnetic type), K=" << h->rank()
-              << "\n";
-  } else if (hf_AB && h->rank() % 2 == 0) {
-    std::cout << "Hyperfine B constants (electric type), K=" << h->rank()
-              << "\n";
+  if (momentsQ && h->rank() % 2 != 0) {
+    std::cout << "Hyperfine constants (magnetic type), K=" << h->rank() << "\n";
+  } else if (momentsQ && h->rank() % 2 == 0) {
+    std::cout << "Hyperfine constants (electric type), K=" << h->rank() << "\n";
   } else {
     std::cout << "Reduced matrix elements\n";
   }
@@ -919,9 +946,10 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
       if (h->isZero(v.kappa(), v.kappa()))
         continue;
 
-      const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                      h->rank(), v.kappa(), v.kappa()) :
-                                  1.0;
+      const auto factor = momentsQ ?
+                              DiracOperator::Hyperfine::convert_RME_to_AB(
+                                  h->rank(), v.kappa(), v.kappa()) :
+                              1.0;
 
       const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
 
@@ -965,9 +993,10 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
           rpa->solve_core(ww);
         }
 
-        const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                        h->rank(), v.kappa(), w.kappa()) :
-                                    1.0;
+        const auto factor = momentsQ ?
+                                DiracOperator::Hyperfine::convert_RME_to_AB(
+                                    h->rank(), v.kappa(), w.kappa()) :
+                                1.0;
 
         const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
         const auto lambda_w = Sigma0.getLambda(w.kappa(), w.n());
@@ -1020,6 +1049,9 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
        {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
        {"off-diagonal",
         "Calculate off-diagonal matrix elements (if non-zero) [true]"},
+       {"moments",
+        "true/false - calculate moments, or reduced matrix elements. Default "
+        "is false, except for hyperfine operators"},
        {"StructureRadiation{}",
         "Options for Structure Radiation and normalisation (details below)"}});
 
@@ -1071,14 +1103,15 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << omega << "\n";
   }
 
+  // Calculate moments, or reduced matrix elements
+  const auto momentsQ = input.get("moments", hf_AB);
+
   std::cout << "\n"
             << "CI Matrix Elements -  Operator: " << h->name() << "\n";
-  if (hf_AB && h->rank() % 2 != 0) {
-    std::cout << "Hyperfine A constants (magnetic type), K=" << h->rank()
-              << "\n";
-  } else if (hf_AB && h->rank() % 2 == 0) {
-    std::cout << "Hyperfine B constants (electric type), K=" << h->rank()
-              << "\n";
+  if (momentsQ && h->rank() % 2 != 0) {
+    std::cout << "Hyperfine constants (magnetic type), K=" << h->rank() << "\n";
+  } else if (momentsQ && h->rank() % 2 == 0) {
+    std::cout << "Hyperfine constants (electric type), K=" << h->rank() << "\n";
   } else {
     std::cout << "Reduced matrix elements\n";
   }
@@ -1181,9 +1214,10 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "..done\n" << std::flush;
     }
 
-    const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB_2J(
-                                    h->rank(), wfA.twoJ(), wfB.twoJ()) :
-                                1.0;
+    const auto factor = momentsQ ?
+                            DiracOperator::Hyperfine::convert_RME_to_AB_2J(
+                                h->rank(), wfA.twoJ(), wfB.twoJ()) :
+                            1.0;
 
     const auto me = factor * CI::ReducedME(wfA, iA, wfB, iB, me_tab, h->rank(),
                                            h->parity());

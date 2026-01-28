@@ -164,10 +164,36 @@ inline auto doublyOddSP_F(double mut, double It, double mu1, double I1,
 //------------------------------------------------------------------------------
 //! Converts reduced matrix element to A/B coeficients (takes k, 2J, 2J)
 inline double convert_RME_to_AB_2J(int k, int tja, int tjb) {
+  // first, get stretched state:
   const auto tjz = std::min(tja, tjb); // arbitrary choice
   const auto s = Angular::neg1pow_2(tja - tjb);
   const auto tjs = Angular::threej_2(tja, 2 * k, tjb, -tjz, 0, tjz);
-  const auto f = k % 2 == 0 ? 2.0 : 1 / (0.5 * tjz);
+  // then: moment-specific factor
+  // const auto f = k % 2 == 0 ? 2.0 : 1 / (0.5 * tjz);
+  const auto f = [&]() {
+    switch (k) {
+    case 1: {
+      // A: RME includes (μ/I)  ⇒  A = (1/J) <T1^e>_J (μ/I)
+      const double J = 0.5 * tjz;
+      return 1.0 / J;
+    }
+    case 2:
+      // B: Q = 2 <T2^n>  ⇒  B = 2 Q <T2^e>_J
+      return 2.0;
+    case 3:
+      // C: Ω = - <T3^n>  ⇒  C = -Ω <T3^e>_J
+      return -1.0;
+    case 4:
+      // D: Π = <T4^n> (standard)  ⇒  D = Π <T4^e>_J
+      return 1.0; // ???
+
+    default:
+      std::cout << "Warning: k=" << k
+                << " has no standard A/B/C/D hyperfine-constant definition; "
+                   "using f=1\n";
+      return 1.0; // ???
+    }
+  }();
   return s * f * tjs;
 }
 
@@ -203,8 +229,8 @@ inline std::vector<double> RadialFunc(int k, double rN, const Grid &rgrid,
 } // namespace Hyperfine
 
 //==============================================================================
-//! Units: Assumes g in nuc. magneton units (magnetic), and Q in barns
-//! (electric), and rN is atomic units
+//! Units: Assumes nuclear moment in units of powers of nuclear magnetons and/or
+//! barns - muN*b^(k-1)/2 for magnetic, and b^k/2 for electric
 class hfs final : public TensorOperator {
   // see Xiao, ..., Derevianko, Phys. Rev. A 102, 022810 (2020).
   using Func_R2_R = std::function<double(double, double)>;
@@ -218,23 +244,29 @@ public:
         magnetic(k % 2 != 0),
         cfg(magnetic ? 1.0 : 0.0),
         cff(magnetic ? 0.0 : 1.0),
-        mMHzQ(MHzQ) {}
+        mMHzQ(MHzQ) {
+
+    const auto power = magnetic ? (k - 1) / 2 : k / 2;
+
+    // Assumes nuclear moment in muN*b^(k-1)/2 for magnetic,
+    // and b^k/2 for electric
+    const auto unit_au =
+        magnetic ? PhysConst::muN_CGS * std::pow(PhysConst::barn_au, power) :
+                   std::pow(PhysConst::barn_au, power);
+    m_unit = mMHzQ ? unit_au * PhysConst::Hartree_MHz : unit_au;
+  }
 
   std::string name() const override final {
     return "hfs" + std::to_string(k) + "";
   }
-  std::string units() const override final {
-    return (k <= 2 && mMHzQ) ? "MHz" : "au";
-  }
+  std::string units() const override final { return mMHzQ ? "MHz" : "au"; }
 
   double angularF(const int ka, const int kb) const override final {
     // inludes unit: Assumes g in nuc. magneton units, and/or Q in barns
     // This only for k=1 (mag dipole) and k=2 E. quad.
-    const auto unit = (mMHzQ && k == 1) ? PhysConst::muN_CGS_MHz :
-                      (mMHzQ && k == 2) ? PhysConst::barn_MHz :
-                                          1.0;
-    return magnetic ? -(ka + kb) * Angular::Ck_kk(k, -ka, kb) * unit :
-                      -Angular::Ck_kk(k, ka, kb) * unit;
+
+    return magnetic ? -(ka + kb) * Angular::Ck_kk(k, -ka, kb) * m_unit :
+                      -Angular::Ck_kk(k, ka, kb) * m_unit;
   }
 
   double angularCff(int, int) const override final { return cff; }
@@ -248,6 +280,7 @@ private:
   double cfg;
   double cff;
   bool mMHzQ;
+  double m_unit{1.0};
 };
 
 //==============================================================================
@@ -294,23 +327,28 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto nuc = wf.nucleus();
   const auto isotope = Nuclear::findIsotopeData(nuc.z(), nuc.a());
-  const auto mu = input.get("mu", isotope.mu ? *isotope.mu : 0.0);
-  const auto I_nuc = input.get("I", isotope.I_N ? *isotope.I_N : 0.0);
+  auto mu = input.get("mu", isotope.mu ? *isotope.mu : 1.0);
+  auto I_nuc = input.get("I", isotope.I_N ? *isotope.I_N : 1.0);
   const auto print = input.get("print", true);
   const auto k = input.get("k", 1);
 
   const auto use_MHz =
-      (k <= 2 &&
-       qip::ci_compare(input.get<std::string>("units", "MHz"), "MHz"));
+      qip::ci_compare(input.get<std::string>("units", "MHz"), "MHz");
 
   if (k <= 0) {
     fmt2::styled_print(fg(fmt::color::red), "\nError 246:\n");
     std::cout << "In hyperfine: invalid K=" << k << "! meaningless results\n";
   }
-  if (I_nuc <= 0) {
+  if (I_nuc <= 0 && k == 1) {
     fmt2::styled_print(fg(fmt::color::orange), "\nWarning 253:\n");
     std::cout << "In hyperfine: invalid I_nuc=" << I_nuc
-              << "! meaningless results\n";
+              << "! meaningless results\nSetting I=1\n";
+    I_nuc = 1;
+  }
+  if (mu == 0.0 && k == 1) {
+    fmt2::styled_print(fg(fmt::color::orange), "\nWarning 352:\n");
+    std::cout << "Setting mu=1\n";
+    mu = 1;
   }
 
   const auto g_or_Q = (k == 1) ? (mu / I_nuc) :
