@@ -223,9 +223,11 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       if (h->isZero(a.kappa(), a.kappa()))
         continue;
 
-      const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                      h->rank(), a.kappa(), a.kappa()) :
-                                  1.0;
+      //const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+      //      h->rank(), a.kappa(), a.kappa()) :
+      // 1.0;
+
+      const auto factor = 1.0;
 
       const auto hab = h->reducedME(a, a);
       const auto dv = rpa ? rpa->dV(a, a) : 0.0;
@@ -313,9 +315,11 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           rpa->solve_core(ww, rpa_its);
         }
 
-        const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                        h->rank(), a.kappa(), b.kappa()) :
-                                    1.0;
+        //const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+        //      h->rank(), a.kappa(), a.kappa()) :
+        // 1.0;
+
+        const auto factor = 1.0;
 
         const auto hab = h->reducedME(a, b);
         const auto dv = rpa ? rpa->dV(a, b) : 0.0;
@@ -864,9 +868,11 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
       if (h->isZero(v.kappa(), v.kappa()))
         continue;
 
-      const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                      h->rank(), v.kappa(), v.kappa()) :
-                                  1.0;
+      //const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+      //           h->rank(), v.kappa(), v.kappa()) :
+      //  1.0;
+
+      const auto factor = 1.0;
 
       const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
 
@@ -910,9 +916,11 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
           rpa->solve_core(ww);
         }
 
-        const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                        h->rank(), v.kappa(), w.kappa()) :
-                                    1.0;
+        //const auto factor = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
+        //        h->rank(), v.kappa(), w.kappa()) :
+        //    1.0;
+
+        const auto factor = 1.0;
 
         const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
         const auto lambda_w = Sigma0.getLambda(w.kappa(), w.n());

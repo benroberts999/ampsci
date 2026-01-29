@@ -3,10 +3,12 @@
 // (Modules don't _need_ to be in Modules/ directory
 #include "Kionisation/Module_Kionisation.hpp"
 #include "Modules/Breit.hpp"
+#include "Modules/DCPdiagrams.hpp"
 #include "Modules/HFAnomaly.hpp"
 #include "Modules/VQE.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
+#include "Modules/hf_pert_weak.hpp"
 #include "Modules/isotopeShift.hpp"
 #include "Modules/ladder.hpp"
 #include "Modules/lifetimes.hpp"
@@ -18,7 +20,6 @@
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
 #include "Modules/thirdOrder.hpp"
-#include "Modules/DCPdiagrams.hpp"
 
 #include <iostream>
 #include <string>
@@ -90,6 +91,7 @@ static const std::vector<ModuleInfo> module_list{
      "Calculating muonic wavefunctions, energies, matrix elements"},
     {"VQE", &VQE, "For testing/playing with VQE method"},
     {"exampleModule", &exampleModule, "A short description of the module"},
-  {"DCPdiagrams", &DCPdiagrams,"DCP diagrams"}};
+    {"DCPdiagrams", &DCPdiagrams, "DCP diagrams"},
+    {"hf_pert_weak", &hf_pert_weak, "for anapole moment "}};
 
 } // namespace Module
