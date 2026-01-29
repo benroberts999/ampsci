@@ -669,7 +669,7 @@ double valence_sos(const DiracSpinor &Fv,
   return f * alpha_v;
 }
 
-//------------------------------------------------------------------------------
+//---------------------------------------------------------------------------------
 double transition_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                       const std::vector<DiracSpinor> &spectrum,
                       const DiracOperator::E1 &he1,
@@ -690,7 +690,7 @@ double transition_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
   return alpha_ss;
 }
 
-//------------------------------------------------------------------------------
+//-----------------------------------------------------------------------------------
 double beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
                 const std::vector<DiracSpinor> &spectrum,
                 const DiracOperator::E1 &he1,
