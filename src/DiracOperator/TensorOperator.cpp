@@ -272,7 +272,7 @@ return ff * Fb.grid().du();
 
 }
 
-// Yab function: Int[ (fa*fb ) * t(r) , dr].
+// Yab function: Int[ -2 (ga*gb ) * t(r) , dr].
 
 double Yab(const std::vector<double> &t, const DiracSpinor &Fa,
   const DiracSpinor &Fb) {
@@ -337,6 +337,23 @@ void Rab_rhs(double pm, DiracSpinor *dF, const DiracSpinor &Fb, double a) {
     dF->f(i) += 0.0;
     dF->g(i) += a * (pm - 1.0) * Fb.g(i);
   }
+}
+
+// Yab function: Int[ (fa*fb )  dr].
+
+double Yab(const DiracSpinor &Fa,
+  const DiracSpinor &Fb) {
+
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+
+  const auto &drdu = Fb.grid().drdu();
+
+  const auto gg = NumCalc::integrate(1.0, pi, pf, Fa.g(), Fb.g(), drdu);
+
+return -2*gg * Fb.grid().du();
+
 }
 
 } // namespace DiracOperator

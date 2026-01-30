@@ -850,9 +850,16 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       Q_L5(E_steps, q_steps),   // Axial: longitudinal
       Q_S(E_steps, q_steps),    // Scalar
       Q_S5(E_steps, q_steps),   // Pseudo-scalar
+      Q_Phi_nr(E_steps, q_steps),   // Vector: temporal (NR limit)
+      Q_E_nr(E_steps, q_steps),    // Vector: electric (NR limit)
+      Q_M_nr(E_steps, q_steps),    // Vector: magnetic (NR limit)
+      Q_L_nr(E_steps, q_steps),    // Vector: longitudinal (NR Limit)
+      Q_Phi5_nr(E_steps, q_steps),   // Axial: temporal (NR limit)
       Q_E5_nr(E_steps, q_steps),    // Axial: electric (NR limit)
       Q_M5_nr(E_steps, q_steps),    // Axial: magnetic (NR limit)
-      Q_L5_nr(E_steps, q_steps);    // Axial: longitudinal (NR Limit)
+      Q_L5_nr(E_steps, q_steps),   // Axial: longitudinal (NR Limit)
+      Q_S_nr(E_steps, q_steps),     // Scalar (NR limit)
+      Q_S5_nr(E_steps, q_steps);     // Pseudo-Scalar (NR limit)
 
 
   //-------------------------------------------------------------------------
@@ -900,9 +907,19 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
           const auto Sk = DiracOperator::Sk_w(wf.grid(), k, qc, &jK_tab);
           const auto S5k = DiracOperator::S5k_w(wf.grid(), k, qc, &jK_tab);
 
+          const auto Phik_nr = DiracOperator::Phi_nr(wf.grid(), k, qc);
+          const auto Phi5k_nr = DiracOperator::Phi5_nr(wf.grid(), k, qc);
+
+          const auto Ek_nr = DiracOperator::E_nr(wf.grid(), qc);
+          const auto Mk_nr = DiracOperator::M_nr(wf.grid(), qc);
+          const auto Lk_nr = DiracOperator::L_nr(wf.grid(), qc);
+
           const auto E5k_nr = DiracOperator::E5_nr(wf.grid(), qc);
           const auto M5k_nr = DiracOperator::M5_nr(wf.grid(), qc);
-          const auto L5k_nr = DiracOperator::L5_nr(wf.grid(), qc);
+          const auto L5k_nr = DiracOperator::L5_nr(wf.grid(), k, qc);
+
+          const auto Sk_nr = DiracOperator::S_nr(wf.grid(), k, qc);
+          const auto S5k_nr = DiracOperator::S5_nr(wf.grid(), k, qc);
 
           for (const auto &Fe : cntm.orbitals) {
             // Vector operators
@@ -911,6 +928,19 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
               Q_E(iE, iq) += tkp1_x * qip::pow(Ek.reducedME(Fe, Fa), 2);
               Q_M(iE, iq) += tkp1_x * qip::pow(Mk.reducedME(Fe, Fa), 2);
               Q_L(iE, iq) += tkp1_x * qip::pow(Lk.reducedME(Fe, Fa), 2);
+
+              if (k == 0) {
+                // Small qr / 'dipole' limit
+                Q_Phi_nr(iE, iq) += tkp1_x * qip::pow(Phik_nr.reducedME(Fe, Fa), 2);
+              }
+
+              if (k == 1) {
+                // Small qr / 'dipole' limit
+                Q_Phi_nr(iE, iq) += tkp1_x * qip::pow(Phik_nr.reducedME(Fe, Fa), 2);
+                Q_E_nr(iE, iq) += tkp1_x * qip::pow(Ek_nr.reducedME(Fe, Fa), 2);
+                Q_M_nr(iE, iq) += tkp1_x * qip::pow(Mk_nr.reducedME(Fe, Fa), 2);
+                Q_L_nr(iE, iq) += tkp1_x * qip::pow(Lk_nr.reducedME(Fe, Fa), 2);
+              }
             }
 
             // Axial (γ^5) operators
@@ -920,18 +950,45 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
               Q_M5(iE, iq) += tkp1_x * qip::pow(M5k.reducedME(Fe, Fa), 2);
               Q_L5(iE, iq) += tkp1_x * qip::pow(L5k.reducedME(Fe, Fa), 2);
 
+              if (k == 0){
+                Q_Phi5_nr(iE, iq) += tkp1_x * qip::pow(Phi5k_nr.reducedME(Fe, Fa), 2);
+                Q_L5_nr(iE, iq) += tkp1_x * qip::pow(L5k_nr.reducedME(Fe, Fa), 2);
+              }
+
               if (k == 1){
-                Q_E5_nr(iE, iq) += tkp1_x * qip::pow(E5k.reducedME(Fe, Fa), 2);
-                Q_M5_nr(iE, iq) += tkp1_x * qip::pow(M5k.reducedME(Fe, Fa), 2);
-                Q_L5_nr(iE, iq) += tkp1_x * qip::pow(L5k.reducedME(Fe, Fa), 2);
+                // Small qr / 'dipole' limit
+                Q_Phi5_nr(iE, iq) += tkp1_x * qip::pow(Phi5k_nr.reducedME(Fe, Fa), 2);
+                Q_E5_nr(iE, iq) += tkp1_x * qip::pow(E5k_nr.reducedME(Fe, Fa), 2);
+                Q_M5_nr(iE, iq) += tkp1_x * qip::pow(M5k_nr.reducedME(Fe, Fa), 2);
+                Q_L5_nr(iE, iq) += tkp1_x * qip::pow(L5k_nr.reducedME(Fe, Fa), 2);
               }
             }
 
             // Scalar and Pseudoscalar
-            if (scalarQ)
+            if (scalarQ){
               Q_S(iE, iq) += tkp1_x * qip::pow(Sk.reducedME(Fe, Fa), 2);
-            if (pseudoscalarQ)
+
+              if (k == 1){
+                Q_S_nr(iE, iq) += tkp1_x * qip::pow(Sk_nr.reducedME(Fe, Fa), 2);
+              }
+
+              if (k == 0){
+                Q_S_nr(iE, iq) += tkp1_x * qip::pow(Sk_nr.reducedME(Fe, Fa), 2);
+              }
+            }
+
+            if (pseudoscalarQ){
               Q_S5(iE, iq) += tkp1_x * qip::pow(S5k.reducedME(Fe, Fa), 2);
+
+              if (k == 1){
+                Q_S5_nr(iE, iq) += tkp1_x * qip::pow(S5k_nr.reducedME(Fe, Fa), 2);
+              }
+
+              if (k == 0){
+                Q_S5_nr(iE, iq) += tkp1_x * qip::pow(S5k_nr.reducedME(Fe, Fa), 2);
+              }
+
+            }
           }
         }
       }
@@ -1015,6 +1072,14 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                           units);
       Kion::write_to_file(output_formats, Q_L, Egrid, qgrid, prefix + "V^l", 8,
                           units);
+      Kion::write_to_file(output_formats, Q_E_nr, Egrid, qgrid, prefix + "V^e_nr", 8,
+                          units);
+      Kion::write_to_file(output_formats, Q_M_nr, Egrid, qgrid, prefix + "V^m_nr", 8,
+                          units);
+      Kion::write_to_file(output_formats, Q_L_nr, Egrid, qgrid, prefix + "V^l_nr", 8,
+                          units);
+      Kion::write_to_file(output_formats, Q_Phi_nr, Egrid, qgrid, prefix + "Phi_nr", 8,
+                        units);
     }
   }
   if (axialQ) {
@@ -1035,14 +1100,20 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                           8, units);
       Kion::write_to_file(output_formats, Q_L5_nr, Egrid, qgrid, prefix + "V5^l_nr",
                           8, units);
+      Kion::write_to_file(output_formats, Q_Phi5_nr, Egrid, qgrid, prefix + "Phi5_nr", 8,
+                        units);
     }
   }
   if (scalarQ) {
     Kion::write_to_file(output_formats, Q_S, Egrid, qgrid, prefix + "S", 8,
                         units);
+    Kion::write_to_file(output_formats, Q_S_nr, Egrid, qgrid, prefix + "S_nr", 8,
+                        units);
   }
   if (pseudoscalarQ) {
     Kion::write_to_file(output_formats, Q_S5, Egrid, qgrid, prefix + "S5", 8,
+                        units);
+    Kion::write_to_file(output_formats, Q_S5_nr, Egrid, qgrid, prefix + "S5_nr", 8,
                         units);
   }
 }

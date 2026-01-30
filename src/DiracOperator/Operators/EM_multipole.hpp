@@ -552,7 +552,7 @@ public:
       return 0.0;
     }
 
-    return Yab(jk, Fa, Fb); // Rab(-1, jk, Fa, Fb);
+    return Rab(-1, jk, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!

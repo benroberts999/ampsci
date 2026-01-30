@@ -354,4 +354,7 @@ void Pab_rhs(double pm, DiracSpinor *dF, const DiracSpinor &Fb, double A = 1.0);
 //! NOTE: assumes NOT diagonal, using orthogonality condition.
 void Rab_rhs(double pm, DiracSpinor *dF, const DiracSpinor &Fb, double A = 1.0);
 
+//! Yab[1] function: Int[-2* (ga*gb ) , dr].
+double Yab(const DiracSpinor &Fa, const DiracSpinor &Fb);
+
 } // namespace DiracOperator
