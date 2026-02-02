@@ -15,9 +15,9 @@ namespace Hyperfine {
 using Func_R2_R = std::function<double(double, double)>; // save typing
 
 //! Spherical ball F(r): (r/rN)^3 for r<rN, 1 for r>rN
-inline auto sphericalBall_F() -> Func_R2_R {
+inline auto sphericalBall_F(int k = 1) -> Func_R2_R {
   return [=](double r, double rN) {
-    return (r > rN) ? 1.0 : (r * r * r) / (rN * rN * rN);
+    return (r > rN) ? 1.0 : std::pow(r / rN, 2 * k + 1);
   };
 }
 
@@ -417,9 +417,9 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // default is BALL:
-  auto Fr = Hyperfine::sphericalBall_F();
+  auto Fr = Hyperfine::sphericalBall_F(k);
   if (distro_type == DistroType::ball) {
-    Fr = Hyperfine::sphericalBall_F();
+    Fr = Hyperfine::sphericalBall_F(k);
   } else if (distro_type == DistroType::shell) {
     Fr = Hyperfine::sphericalShell_F();
   } else if (distro_type == DistroType::SingleParticle) {
