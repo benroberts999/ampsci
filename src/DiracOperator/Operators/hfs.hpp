@@ -186,18 +186,18 @@ inline double convert_RME_to_AB_2J(int k, int tja, int tjb) {
   const auto f = [&]() {
     switch (k) {
     case 1: {
-      // A: RME includes (μ/I)  ⇒  A = (1/J) <T1^e>_J (μ/I)
+      // A: RME includes (/I)    A = (1/J) <T1^e>_J (/I)
       const double J = 0.5 * tjz;
       return 1.0 / J;
     }
     case 2:
-      // B: Q = 2 <T2^n>  ⇒  B = 2 Q <T2^e>_J
+      // B: Q = 2 <T2^n>    B = 2 Q <T2^e>_J
       return 2.0;
     case 3:
-      // C: Ω = - <T3^n>  ⇒  C = -Ω <T3^e>_J
+      // C:  = - <T3^n>    C = - <T3^e>_J
       return -1.0;
     case 4:
-      // D: Π = <T4^n> (standard)  ⇒  D = Π <T4^e>_J
+      // D:  = <T4^n> (standard)    D =  <T4^e>_J
       return 1.0; // ???
 
     default:
