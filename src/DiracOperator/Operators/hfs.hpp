@@ -9,11 +9,24 @@
 namespace DiracOperator {
 
 //==============================================================================
-
 //! Functions for F(r) [nuclear magnetisation distribution] and similar
 namespace Hyperfine {
+
 using Func_R2_R = std::function<double(double, double)>; // save typing
 
+//==============================================================================
+//! Takes in F(r) and k, and forms hyperfine radial function: F(r,rN)/r^{k+1}
+inline std::vector<double> RadialFunc(int k, double rN, const Grid &rgrid,
+                                      const Func_R2_R &hfs_F) {
+  std::vector<double> rfunc;
+  rfunc.reserve(rgrid.num_points());
+  for (const auto r : rgrid) {
+    rfunc.push_back(hfs_F(r, rN) / std::pow(r, k + 1));
+  }
+  return rfunc;
+}
+
+//==============================================================================
 //! Spherical ball F(r): (r/rN)^3 for r<rN, 1 for r>rN
 inline auto sphericalBall_F(int k = 1) -> Func_R2_R {
   return [=](double r, double rN) {
@@ -215,19 +228,10 @@ inline double hfsB(const TensorOperator *h, const DiracSpinor &Fa) {
          PhysConst::barn_MHz;
 }
 
-//==============================================================================
-//! Takes in F(r) and k, and forms hyperfine radial function: F(r,rN)/r^{k+1}
-inline std::vector<double> RadialFunc(int k, double rN, const Grid &rgrid,
-                                      const Func_R2_R &hfs_F) {
-  std::vector<double> rfunc;
-  rfunc.reserve(rgrid.num_points());
-  for (const auto r : rgrid)
-    rfunc.push_back(hfs_F(r, rN) / pow(r, k + 1));
-  return rfunc;
-}
-
 } // namespace Hyperfine
 
+//==============================================================================
+//==============================================================================
 //==============================================================================
 //! Units: Assumes nuclear moment in units of powers of nuclear magnetons and/or
 //! barns - muN*b^(k-1)/2 for magnetic, and b^k/2 for electric
@@ -239,7 +243,7 @@ public:
   hfs(int in_k, double in_GQ, double rN_au, const Grid &rgrid,
       const Func_R2_R &hfs_F = Hyperfine::pointlike_F(), bool MHzQ = true)
       : TensorOperator(in_k, Parity::even, in_GQ,
-                       Hyperfine::RadialFunc(in_k, rN_au, rgrid, hfs_F), 0),
+                       Hyperfine::RadialFunc(in_k, rN_au, rgrid, hfs_F)),
         k(in_k),
         magnetic(k % 2 != 0),
         cfg(magnetic ? 1.0 : 0.0),
@@ -262,10 +266,8 @@ public:
   std::string units() const override final { return mMHzQ ? "MHz" : "au"; }
 
   double angularF(const int ka, const int kb) const override final {
-    // inludes unit: Assumes g in nuc. magneton units, and/or Q in barns
-    // This only for k=1 (mag dipole) and k=2 E. quad.
-
-    return magnetic ? -(ka + kb) * Angular::Ck_kk(k, -ka, kb) * m_unit :
+    return magnetic ? -double(ka + kb) / double(k) *
+                          Angular::Ck_kk(k, -ka, kb) * m_unit :
                       -Angular::Ck_kk(k, ka, kb) * m_unit;
   }
 
