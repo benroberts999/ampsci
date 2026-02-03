@@ -697,7 +697,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
        {"oname", "oname"},
        {"operators", "List, comma separated. Any of 'V' (vector), 'A' "
                      "(axial/pseudo-vector), 'S' "
-                     "(scalar), 'P' (pseudoscalar)"},
+                     "(scalar), 'P' (pseudoscalar), 'C' (cross-terms)"},
        {"K_minmax", "List (2). Minimum, maximum K [0, 5]"},
        {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
        {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
@@ -777,7 +777,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // Which operators to calculate
   // Case insensitive, and only check first letter
   const auto operators = input.get("operators", std::vector<std::string>{"V"});
-  bool vectorQ{false}, axialQ{false}, scalarQ{false}, pseudoscalarQ{false};
+  bool vectorQ{false}, axialQ{false}, scalarQ{false}, pseudoscalarQ{false}, crossQ{false};
   for (auto &w : operators) {
     if (!w.empty()) {
       switch (std::tolower(w[0])) {
@@ -793,13 +793,16 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       case 'p':
         pseudoscalarQ = true;
         break;
+      case 'c':
+        crossQ = true;
+      break;
       }
     }
   }
   fmt::print("\nComputing operators: "
              "{}{}{}{}\n",
              vectorQ ? "Vector; " : "", axialQ ? "Axial; " : "",
-             scalarQ ? "Scalar; " : "", pseudoscalarQ ? "Pseudoscalar; " : "");
+             scalarQ ? "Scalar; " : "", pseudoscalarQ ? "Pseudoscalar; " : "", crossQ ? "Cross-term; " : "");
 
   const auto [Kmin, Kmax] = input.get("K_minmax", std::array{0, 5});
   fmt::print("\nIncluding K = {} - {}\n", Kmin, Kmax);
@@ -817,7 +820,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                  "interaction)\n";
   }
   if (force_orthog) {
-    std::cout << "Explicitely enforcing orthogonality between bound and "
+    std::cout << "Explicitly enforcing orthogonality between bound and "
                  "continuum states\n";
   }
   if (!force_rescale && !hole_particle &&
@@ -850,6 +853,13 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       Q_L5(E_steps, q_steps),   // Axial: longitudinal
       Q_S(E_steps, q_steps),    // Scalar
       Q_S5(E_steps, q_steps),   // Pseudo-scalar
+
+      // Cross terms
+      Q_Z(E_steps, q_steps),
+      Q_X(E_steps, q_steps),
+      Q_Y(E_steps, q_steps),
+
+      // Checking NR limits
       Q_Phi_nr(E_steps, q_steps),   // Vector: temporal (NR limit)
       Q_E_nr(E_steps, q_steps),    // Vector: electric (NR limit)
       Q_M_nr(E_steps, q_steps),    // Vector: magnetic (NR limit)
@@ -989,6 +999,15 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
               }
 
             }
+
+            if (crossQ){
+
+              Q_Z(iE, iq) += tkp1_x * (E5k.reducedME(Fe, Fa)*Mk.reducedME(Fe, Fa) - Ek.reducedME(Fe, Fa)*M5k.reducedME(Fe, Fa));
+              Q_X(iE, iq) += tkp1_x * Phik.reducedME(Fe, Fa)*Lk.reducedME(Fe, Fa);
+              Q_Y(iE, iq) += tkp1_x * Phi5k.reducedME(Fe, Fa)*L5k.reducedME(Fe, Fa);
+
+            }
+
           }
         }
       }
@@ -1114,6 +1133,15 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     Kion::write_to_file(output_formats, Q_S5, Egrid, qgrid, prefix + "S5", 8,
                         units);
     Kion::write_to_file(output_formats, Q_S5_nr, Egrid, qgrid, prefix + "S5_nr", 8,
+                        units);
+  }
+
+  if (crossQ) {
+    Kion::write_to_file(output_formats, Q_Z, Egrid, qgrid, prefix + "Z", 8,
+                        units);
+    Kion::write_to_file(output_formats, Q_X, Egrid, qgrid, prefix + "X", 8,
+                        units);
+    Kion::write_to_file(output_formats, Q_Y, Egrid, qgrid, prefix + "Y", 8,
                         units);
   }
 }

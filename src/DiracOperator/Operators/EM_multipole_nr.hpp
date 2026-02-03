@@ -468,7 +468,7 @@ public:
 
     if (m_K == 0){
       // Using q = alpha * omega
-      return Pab(-1, Fa, Fb); //- m_q * Rab(+1, m_vec, Fa, Fb); 
+      return - PhysConst::alpha * (Fb.en() - Fa.en()) * Rab(+1, m_vec, Fa, Fb);  //Pab(-1, Fa, Fb); //
     }
 
     if (m_K == 1){
@@ -614,8 +614,8 @@ public:
     }
 
     if (m_K == 0){
-      //return PhysConst::alpha * m_q * m_q * Rab(+1, m_vec, Fa, Fb);
-      return Pab(+1, Fa, Fb);
+      return pow(PhysConst::alpha,3) * pow((Fb.en() - Fa.en()),2) * Rab(+1, m_vec, Fa, Fb);
+      //return Pab(+1, Fa, Fb);
     }
 
     if (m_K == 1){
