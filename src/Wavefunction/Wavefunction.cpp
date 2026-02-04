@@ -645,7 +645,7 @@ void Wavefunction::fitSigma_hfBrueckner(
         break;
       const auto r = (e_exp - en_l) / (en_l - en_0);
       const auto new_lambda = lambda * (1.0 + a_damp * r);
-      lambda = std::clamp(new_lambda, 0.5, 1.5);
+      lambda = std::clamp(new_lambda, 0.25, 2.5);
     }
     printf("%4s | %8.1f, %8.1f [%8.1f] : ", Fv.shortSymbol().c_str(),
            en_0 * PhysConst::Hartree_invcm, e_Sig1 * PhysConst::Hartree_invcm,

@@ -38,7 +38,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   assert(dF.kappa() == hFa.kappa());
 
   const auto eta_damp = 0.45;
-  const int max_its = (eps_target < 1.0e-8) ? 128 : 64;
+  const int max_its = (eps_target < 1.0e-8) ? 256 : 128;
 
   if (std::abs(dF * dF) == 0.0) {
     // If dF is not yet a solution, solve from scratch:
@@ -72,7 +72,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     dF.orthog(Fa);
 
     // Check convergence:
-    eps = 2.0 * (dF - dF0).norm2() / (dF + dF0).norm2();
+    eps = std::sqrt((dF - dF0).norm2() / dF0.norm2());
 
     if (eps < eps_target) {
       break;
