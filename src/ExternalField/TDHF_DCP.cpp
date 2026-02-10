@@ -19,15 +19,18 @@
 namespace ExternalField {
 
 //==============================================================================
-TDHF_DCP::TDHF_DCP(const DiracOperator::TensorOperator *const h1,
-                   const DiracOperator::TensorOperator *const h2, int K,
+TDHF_DCP::TDHF_DCP(const ExternalField::TDHF *const S,
+                   const ExternalField::TDHF *const T, int K,
                    const HF::HartreeFock *const hf)
-    : CorePolarisation(K, h1->parity() * h2->parity(),
-                       h1->imaginaryQ() xor h2->imaginaryQ()),
+    : CorePolarisation(
+          K, S->get_operator()->parity() * T->get_operator()->parity(),
+          S->get_operator()->parity() xor T->get_operator()->parity()),
       p_hf((assert(hf != nullptr), hf)),
       m_core(hf->core()),
       m_alpha(hf->alpha()),
-      p_VBr(hf->vBreit()) {
+      p_VBr(hf->vBreit()),
+      m_S(S),
+      m_T(T) {
   initialise_dPsi();
 }
 
@@ -112,17 +115,23 @@ DiracSpinor TDHF_DCP::solve_dPsi(const DiracSpinor &Fv, const double omega,
                                  dPsiType XorY, const int kappa_x,
                                  const MBPT::CorrelationPotential *const Sigma,
                                  StateType st, bool incl_dV) const {
-  // Solves (H + Sigma - e - w)X = -(h + dV - de)Psi
-  // or     (H + Sigma - e + w)Y = -(h^dag + dV^dag - de)Psi
+  // Solves (H + Sigma - e - w)dX = -(s + dVs)X-(t + dVt)dPsi-dVstPsi+(de_st)Psi
+  //(H + Sigma - e - w)dY = -(s^dag + dVs^dag)Y-(t^dag + dVt^dag)dPsi-dVstdag Psi+(de_st)Psi
 
   const auto ww = XorY == dPsiType::X ? omega : -omega;
   auto conj = XorY == dPsiType::Y;
   if (omega < 0.0)
     conj = !conj;
 
-  const auto imag = m_h->imaginaryQ();
+  const auto imag = m_imag;
 
-  auto rhs = m_h->reduced_rhs(kappa_x, Fv);
+  const auto s = m_S->get_operator();
+  const auto t = m_T->get_operator();
+  //getting states
+  const auto &X_s = m_S->get_dPsis(Fv, XorY);
+  const auto &X_t = m_T->get_dPsis(Fv, XorY);
+
+  auto rhs = s->reduced_rhs(kappa_x, Fv);
   if (imag && conj)
     rhs *= -1;
 

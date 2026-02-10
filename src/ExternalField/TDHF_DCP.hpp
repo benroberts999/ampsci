@@ -1,5 +1,6 @@
 #pragma once
 #include "CorePolarisation.hpp"
+#include "TDHF.hpp"
 #include <string>
 #include <vector>
 class DiracSpinor;
@@ -56,10 +57,14 @@ protected:
   const double m_alpha;
   const HF::Breit *const p_VBr;
 
+  //store pointer to TDHF objects
+  const ExternalField::TDHF *m_S;
+  const ExternalField::TDHF *m_T;
+
 public:
   //! Contruct TDHF operator: takes pointer to operator and to HF object
-  TDHF_DCP(const DiracOperator::TensorOperator *const h1,
-           const DiracOperator::TensorOperator *const h2, int K,
+  TDHF_DCP(const ExternalField::TDHF *const S,
+           const ExternalField::TDHF *const T, int K,
            const HF::HartreeFock *const hf);
 
   //! Solves TDHF equations self-consistantly for core electrons at frequency
