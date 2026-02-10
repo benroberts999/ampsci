@@ -4,6 +4,7 @@
 #include "Kionisation/Module_Kionisation.hpp"
 #include "Modules/Breit.hpp"
 #include "Modules/HFAnomaly.hpp"
+#include "Modules/TDHF_DCP_tests.hpp"
 #include "Modules/VQE.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
@@ -90,6 +91,7 @@ static const std::vector<ModuleInfo> module_list{
      "Calculating muonic wavefunctions, energies, matrix elements - somewhat "
      "obsolete after introduction of Exotic{} into ampsci main"},
     {"VQE", &VQE, "For testing/playing with VQE method"},
-    {"exampleModule", &exampleModule, "A short description of the module"}};
+    {"exampleModule", &exampleModule, "A short description of the module"},
+    {"TDHF_DCP_tests", &TDHF_DCP_tests, "A short description of the module"}};
 
 } // namespace Module
