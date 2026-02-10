@@ -192,6 +192,8 @@ public:
     m_eta = eta;
   }
 
+  const DiracOperator::TensorOperator *get_operator() const { return m_h; }
+
   //! Returns RPA method
   virtual Method method() const = 0;
 
