@@ -14,6 +14,11 @@ void TDHF_DCP_tests(const IO::InputBlock &input, const Wavefunction &wf) {
   ExternalField::TDHF S(&d, wf.vHF());
   ExternalField::TDHF T(&d, wf.vHF());
   ExternalField::TDHF_DCP ddcp(&S, &T, 2, wf.vHF());
+  std::cout << __LINE__ << std::endl;
+
+  S.solve_core(0.0);
+
+  T.solve_core(0.0);
 
   ddcp.solve_core(0.0);
 

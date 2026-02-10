@@ -31,6 +31,7 @@ TDHF_DCP::TDHF_DCP(const ExternalField::TDHF *const S,
       p_VBr(hf->vBreit()),
       m_S(S),
       m_T(T) {
+
   initialise_dPsi();
 }
 
@@ -101,12 +102,14 @@ std::vector<DiracSpinor> TDHF_DCP::solve_dPsis(const DiracSpinor &Fv,
                                                const double omega,
                                                dPsiType XorY) const {
   std::vector<DiracSpinor> dFvs;
+
   const auto tjmin = std::max(1, Fv.twoj() - 2 * m_rank);
   const auto tjmax = Fv.twoj() + 2 * m_rank;
   for (int tjbeta = tjmin; tjbeta <= tjmax; tjbeta += 2) {
     const auto kappa = Angular::kappa_twojpi(tjbeta, Fv.parity() * m_pi);
     dFvs.push_back(solve_dPsi(Fv, omega, XorY, kappa));
   }
+
   return dFvs;
 }
 //==============================================================================
@@ -184,7 +187,7 @@ std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega,
 
   double DdF2 = 0.0;
   double dF2 = 0.0;
-#pragma omp parallel for reduction(+ : DdF2) reduction(+ : dF2)
+  //#pragma omp parallel for reduction(+ : DdF2) reduction(+ : dF2)
   for (auto ib = 0ul; ib < m_core.size(); ib++) {
     const auto &Fb = m_core.at(ib);
 
@@ -192,12 +195,12 @@ std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega,
 
     // solve for dF, and damp
     Xs[ib] = solve_dPsis(Fb, omega, dPsiType::X);
-    Xs[ib] = eta_damp * m_X[ib] + (1.0 - eta_damp) * Xs[ib];
+    //Xs[ib] = eta_damp * m_X[ib] + (1.0 - eta_damp) * Xs[ib];
     if (staticQ) {
       Ys[ib] = s * Xs[ib];
     } else {
       Ys[ib] = solve_dPsis(Fb, omega, dPsiType::Y);
-      Ys[ib] = eta_damp * m_Y[ib] + (1.0 - eta_damp) * Ys[ib];
+      //Ys[ib] = eta_damp * m_Y[ib] + (1.0 - eta_damp) * Ys[ib];
     }
 
     // find eps: of each orbital (just so I know which was the 'worst')
@@ -208,6 +211,7 @@ std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega,
       const auto &oldX = m_X[ib][ibeta];
 
       const auto t_DdF2 = (Xx - oldX).norm2();
+      std::cout << ib << " " << ibeta << " " << t_DdF2 << "\n";
       const auto t_dF2 = 0.5 * (Xx + oldX).norm2();
       DdF2 += t_DdF2;
       dF2 += t_dF2;
@@ -237,15 +241,18 @@ std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega,
 
 //==============================================================================
 void TDHF_DCP::solve_core(const double omega, int max_its, const bool print) {
+
   const double converge_targ = m_eps;
   const auto eta_damp = m_eta;
 
   if (print) {
-    printf("TDHF_DCP %s (w=%.4f): ", m_h->name().c_str(), omega);
+    const auto name =
+        m_S->get_operator()->name() + "+" + m_T->get_operator()->name();
+    printf("TDHF_DCP %s (w=%.4f): ", name.c_str(), omega);
     std::cout << std::flush;
   }
 
-  m_hFcore = form_hFcore();
+  //m_hFcore = form_hFcore();
 
   std::pair<double, std::string> eps{};
   double best_eps{1.0};
