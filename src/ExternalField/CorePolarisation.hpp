@@ -38,6 +38,9 @@ protected:
   CorePolarisation(const DiracOperator::TensorOperator *const h)
       : m_h(h), m_rank(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {}
 
+  CorePolarisation(int K, int Parity, bool imaginary)
+      : m_h(nullptr), m_rank(K), m_pi(Parity), m_imag(imaginary) {}
+
 protected:
   const DiracOperator::TensorOperator *m_h;
   double m_core_eps{1.0};

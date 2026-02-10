@@ -19,9 +19,11 @@
 namespace ExternalField {
 
 //==============================================================================
-TDHF_DCP::TDHF_DCP(const DiracOperator::TensorOperator *const h,
+TDHF_DCP::TDHF_DCP(const DiracOperator::TensorOperator *const h1,
+                   const DiracOperator::TensorOperator *const h2, int K,
                    const HF::HartreeFock *const hf)
-    : CorePolarisation((assert(h != nullptr), h)),
+    : CorePolarisation(K, h1->parity() * h2->parity(),
+                       h1->imaginaryQ() xor h2->imaginaryQ()),
       p_hf((assert(hf != nullptr), hf)),
       m_core(hf->core()),
       m_alpha(hf->alpha()),
@@ -32,7 +34,7 @@ TDHF_DCP::TDHF_DCP(const DiracOperator::TensorOperator *const h,
 //==============================================================================
 void TDHF_DCP::initialise_dPsi() {
   // Initialise dPsi vectors, accounting for selection rules
-  constexpr bool print = false;
+  constexpr bool print = true;
   m_X.resize(m_core.size());
   for (auto ic = 0u; ic < m_core.size(); ic++) {
     const auto &Fc = m_core[ic];
