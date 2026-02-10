@@ -97,24 +97,21 @@ const DiracSpinor &TDHF_DCP::get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
 }
 
 //==============================================================================
-std::vector<DiracSpinor>
-TDHF_DCP::solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-                      const MBPT::CorrelationPotential *const Sigma,
-                      StateType st, bool incl_dV) const {
+std::vector<DiracSpinor> TDHF_DCP::solve_dPsis(const DiracSpinor &Fv,
+                                               const double omega,
+                                               dPsiType XorY) const {
   std::vector<DiracSpinor> dFvs;
   const auto tjmin = std::max(1, Fv.twoj() - 2 * m_rank);
   const auto tjmax = Fv.twoj() + 2 * m_rank;
   for (int tjbeta = tjmin; tjbeta <= tjmax; tjbeta += 2) {
     const auto kappa = Angular::kappa_twojpi(tjbeta, Fv.parity() * m_pi);
-    dFvs.push_back(solve_dPsi(Fv, omega, XorY, kappa, Sigma, st, incl_dV));
+    dFvs.push_back(solve_dPsi(Fv, omega, XorY, kappa));
   }
   return dFvs;
 }
 //==============================================================================
-DiracSpinor TDHF_DCP::solve_dPsi(const DiracSpinor &Fv, const double omega,
-                                 dPsiType XorY, const int kappa_x,
-                                 const MBPT::CorrelationPotential *const Sigma,
-                                 StateType st, bool incl_dV) const {
+DiracSpinor TDHF_DCP::solve_dPsi(const DiracSpinor &Fa, const double omega,
+                                 dPsiType XorY, const int kappa_x) const {
   // Solves (H + Sigma - e - w)dX = -(s + dVs)X-(t + dVt)dPsi-dVstPsi+(de_st)Psi
   //(H + Sigma - e - w)dY = -(s^dag + dVs^dag)Y-(t^dag + dVt^dag)dPsi-dVstdag Psi+(de_st)Psi
 
@@ -128,75 +125,32 @@ DiracSpinor TDHF_DCP::solve_dPsi(const DiracSpinor &Fv, const double omega,
   const auto s = m_S->get_operator();
   const auto t = m_T->get_operator();
   //getting states
-  const auto &X_s = m_S->get_dPsis(Fv, XorY);
-  const auto &X_t = m_T->get_dPsis(Fv, XorY);
+  const auto &X_s = m_S->get_dPsis(Fa, XorY);
+  const auto &X_t = m_T->get_dPsis(Fa, XorY);
+  DiracSpinor rhs{0, kappa_x, Fa.grid_sptr()};
+  //auto rhs = s->reduced_rhs(kappa_x, Fv);
+  for (const auto &XA : X_s) {
+    const auto angular_factor = 1.0; //change this
 
-  auto rhs = s->reduced_rhs(kappa_x, Fv);
-  if (imag && conj)
-    rhs *= -1;
-
-  if (incl_dV)
-    rhs += dV_rhs(kappa_x, Fv, conj);
-  if (kappa_x == Fv.kappa() && !imag) {
-    auto de = m_h->reducedME(Fv, Fv);
-    if (incl_dV)
-      de += dV(Fv, Fv, conj);
-    rhs -= de * Fv;
+    rhs += angular_factor * s->reduced_rhs(kappa_x, XA);
+    rhs += angular_factor * m_S->dV_rhs(kappa_x, XA);
   }
 
-  // Do we want |Y> or <Y| ?
-  auto s2 = 1;
-  if (st == StateType::bra) {
-    // "left-hand-side" : "reduced" ket, so has factor (+ confugate)
-    const auto sj =
-        Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_x)) ? 1 : -1;
-    // if conj, extra * => +1
-    const auto si = imag && !conj ? -1 : 1;
-    s2 = sj * si;
+  for (const auto &XA : X_t) {
+    const auto angular_factor = 1.0; //change this
+
+    rhs += angular_factor * t->reduced_rhs(kappa_x, XA);
+    rhs += angular_factor * m_T->dV_rhs(kappa_x, XA);
   }
 
-  const auto vl = p_hf->vlocal(Angular::l_k(Fv.kappa()));
-  const auto &Hmag = p_hf->Hmag(Angular::l_k(Fv.kappa()));
+  const auto vl = p_hf->vlocal(Angular::l_k(Fa.kappa()));
+  const auto &Hmag = p_hf->Hmag(Angular::l_k(Fa.kappa()));
   // The l from X ? or from Fv ?
-  return s2 * ExternalField::solveMixedState(Fv, ww, vl, m_alpha, m_core, rhs,
-                                             1.0e-9, Sigma, p_VBr, Hmag);
+  return ExternalField::solveMixedState(Fa, ww, vl, m_alpha, m_core, rhs,
+                                        1.0e-9, nullptr, p_VBr, Hmag);
 }
 
 //==============================================================================
-void TDHF_DCP::solve_ms_core(std::vector<DiracSpinor> &dFb,
-                             const DiracSpinor &Fb,
-                             const std::vector<DiracSpinor> &hFbs,
-                             const double omega, dPsiType XorY,
-                             double eps_ms) const {
-  // Solves (H - e - w)Xb = -(h + dV - de)Psi
-  // or     (H - e + w)Y = -(h^dag + dV^dag - de)Psi
-
-  const auto ww = XorY == dPsiType::X ? omega : -omega;
-  auto conj = XorY == dPsiType::Y;
-  if (omega < 0.0)
-    conj = !conj;
-
-  const auto imag = m_h->imaginaryQ();
-  for (auto ibeta = 0ul; ibeta < dFb.size(); ibeta++) {
-
-    auto &dF_beta = dFb[ibeta];
-    const int kappa_beta = dF_beta.kappa();
-
-    const auto &hFb = hFbs[ibeta];
-    const auto s = (imag && conj) ? -1.0 : 1.0;
-    auto rhs = s * hFb + dV_rhs(kappa_beta, Fb, conj);
-    if (kappa_beta == Fb.kappa() && !imag) {
-      const auto de = Fb * rhs;
-      rhs -= de * Fb;
-    }
-
-    const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
-    const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
-    // The l from X ? or from Fv ?
-    ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
-                                   eps_ms, nullptr, p_VBr, Hmag);
-  }
-}
 
 //==============================================================================
 std::vector<std::vector<DiracSpinor>> TDHF_DCP::form_hFcore() const {
@@ -237,12 +191,12 @@ std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega,
     const auto &hFbs = m_hFcore[ib];
 
     // solve for dF, and damp
-    solve_ms_core(Xs[ib], Fb, hFbs, omega, dPsiType::X, eps_ms);
+    Xs[ib] = solve_dPsis(Fb, omega, dPsiType::X);
     Xs[ib] = eta_damp * m_X[ib] + (1.0 - eta_damp) * Xs[ib];
     if (staticQ) {
       Ys[ib] = s * Xs[ib];
     } else {
-      solve_ms_core(Ys[ib], Fb, hFbs, omega, dPsiType::Y, eps_ms);
+      Ys[ib] = solve_dPsis(Fb, omega, dPsiType::Y);
       Ys[ib] = eta_damp * m_Y[ib] + (1.0 - eta_damp) * Ys[ib];
     }
 

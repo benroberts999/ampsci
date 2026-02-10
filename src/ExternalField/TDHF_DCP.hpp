@@ -116,16 +116,11 @@ public:
    XorY takes values: dPsiType::X or dPsiType::Y.
    st takes values: StateType::ket or StateType::bra
   */
-  DiracSpinor
-  solve_dPsi(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-             const int kappa_beta,
-             const MBPT::CorrelationPotential *const Sigma = nullptr,
-             StateType st = StateType::ket, bool incl_dV = true) const;
+  DiracSpinor solve_dPsi(const DiracSpinor &Fa, const double omega,
+                         dPsiType XorY, const int kappa_beta) const;
   //! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
-  std::vector<DiracSpinor>
-  solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
-              const MBPT::CorrelationPotential *const Sigma = nullptr,
-              StateType st = StateType::ket, bool incl_dV = true) const;
+  std::vector<DiracSpinor> solve_dPsis(const DiracSpinor &Fv,
+                                       const double omega, dPsiType XorY) const;
 
   // //! Writes dPsi (f-component) to textfile
   // void print(const std::string &ofname = "dPsi.txt") const;
@@ -137,10 +132,6 @@ private:
   std::pair<double, std::string> tdhf_core_it(double omega, double eta_damp);
   // Forms set of h*Fc for all core orbitals and all projections
   std::vector<std::vector<DiracSpinor>> form_hFcore() const;
-  // Solves the MS equations for all projections, single core state
-  void solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
-                     const std::vector<DiracSpinor> &hFbs, const double omega,
-                     dPsiType XorY, double eps_ms = 1.0e-9) const;
 
 public:
   TDHF_DCP &operator=(const TDHF_DCP &) = delete;
