@@ -58,7 +58,8 @@ protected:
 
 public:
   //! Contruct TDHF operator: takes pointer to operator and to HF object
-  TDHF_DCP(const DiracOperator::TensorOperator *const h,
+  TDHF_DCP(const DiracOperator::TensorOperator *const h1,
+           const DiracOperator::TensorOperator *const h2, int K,
            const HF::HartreeFock *const hf);
 
   //! Solves TDHF equations self-consistantly for core electrons at frequency
