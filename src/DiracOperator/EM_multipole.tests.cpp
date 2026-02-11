@@ -39,9 +39,9 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
   const int max_L = 3;
   SphericalBessel::JL_table jl_table(max_L + 1, qvec, rvec);
 
-  // Operators to test: name and whether Ek_w_L should be skipped for gamma5
-  const std::vector<std::string> op_names{"Ek_w", "Mk_w", "Lk_w",
-                                          "Vk_w", "Sk_w", "Ek_w_L"};
+  // Operators to test: name and whether VEk_Len should be skipped for gamma5
+  const std::vector<std::string> op_names{"VEk", "VMk", "VLk",
+                                          "Vk_w", "Sk", "VEk_Len"};
 
   // lambda to generate operator using "helper" functions
   auto use_helper_function =
@@ -50,18 +50,18 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
               nullptr) -> std::unique_ptr<DiracOperator::TensorOperator> {
     using namespace DiracOperator;
     // Use multipole helpers when they map naturally to the operator.
-    if (name == "Ek_w")
+    if (name == "VEk")
       return multipole::V_sigma_K(wf.grid(), +1, k, gamma5, jl);
-    if (name == "Mk_w")
+    if (name == "VMk")
       return multipole::V_sigma_K(wf.grid(), 0, k, gamma5, jl);
-    if (name == "Lk_w")
+    if (name == "VLk")
       return multipole::V_sigma_K(wf.grid(), -1, k, gamma5, jl);
     if (name == "Vk_w")
       return multipole::Phi_K(wf.grid(), k, gamma5, jl);
-    if (name == "Sk_w")
+    if (name == "Sk")
       return multipole::S_K(wf.grid(), k, gamma5, jl);
-    if (name == "Ek_w_L" && !gamma5)
-      return std::make_unique<DiracOperator::Ek_w_L>(wf.grid(), k, 1.0e-6, jl);
+    if (name == "VEk_Len" && !gamma5)
+      return std::make_unique<DiracOperator::VEk_Len>(wf.grid(), k, 1.0e-6, jl);
     return std::unique_ptr<DiracOperator::TensorOperator>(nullptr);
   };
 
@@ -71,7 +71,7 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
     for (int k = 0; k <= max_L; ++k) {
       for (double omega : omegas) {
         for (bool gamma5 : {false, true}) {
-          if (name == "Ek_w_L" && gamma5)
+          if (name == "VEk_Len" && gamma5)
             continue;
 
           // Version one: using 'generate'
@@ -132,13 +132,13 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
     // converts "transition" operators to "moment" form
     const auto ff = DiracOperator::multipole::moment_factor(1, omega);
 
-    auto E1_w = use_helper_function("Ek_w_L", 1, false);
+    auto E1_w = use_helper_function("VEk_Len", 1, false);
     E1_w->updateFrequency(omega);
 
-    auto E1v_w = use_helper_function("Ek_w", 1, false);
+    auto E1v_w = use_helper_function("VEk", 1, false);
     E1v_w->updateFrequency(omega);
 
-    auto M1_w = use_helper_function("Mk_w", 1, false);
+    auto M1_w = use_helper_function("VMk", 1, false);
     M1_w->updateFrequency(omega);
 
     const auto eps = omega * 1.0e-3;

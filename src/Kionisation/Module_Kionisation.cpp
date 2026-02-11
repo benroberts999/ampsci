@@ -609,12 +609,12 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     for (int k = Kmin; k <= Kmax; ++k) {
 
       // Electric, magnetic parts
-      const auto Ek = DiracOperator::Ek_w(wf.grid(), k, omega);
-      const auto Mk = DiracOperator::Mk_w(wf.grid(), k, omega);
+      const auto Ek = DiracOperator::VEk(wf.grid(), k, omega);
+      const auto Mk = DiracOperator::VMk(wf.grid(), k, omega);
       // Magnetic dipole
       const auto M1 = DiracOperator::M1(wf.grid(), PhysConst::alpha, omega);
       // "Length" form - for tests only
-      const auto Ek_len = DiracOperator::Ek_w_L(wf.grid(), k, omega);
+      const auto Ek_len = DiracOperator::VEk_Len(wf.grid(), k, omega);
 
 #pragma omp parallel for reduction(+ : Q_E1, Q_M1, Q_Mk1, Q_M1_nr, Q_Ek2,      \
                                        Q_E2, Q_E, Q_M, Q_E_len)
@@ -881,17 +881,17 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
           // Use qc for as expected for "omega" in operators
           const auto qc = qgrid.at(iq) * PhysConst::c;
 
-          const auto Phik = DiracOperator::Phik_w(wf.grid(), k, qc, &jK_tab);
-          const auto Ek = DiracOperator::Ek_w(wf.grid(), k, qc, &jK_tab);
-          const auto Mk = DiracOperator::Mk_w(wf.grid(), k, qc, &jK_tab);
-          const auto Lk = DiracOperator::Lk_w(wf.grid(), k, qc, &jK_tab);
+          const auto Phik = DiracOperator::Phik(wf.grid(), k, qc, &jK_tab);
+          const auto Ek = DiracOperator::VEk(wf.grid(), k, qc, &jK_tab);
+          const auto Mk = DiracOperator::VMk(wf.grid(), k, qc, &jK_tab);
+          const auto Lk = DiracOperator::VLk(wf.grid(), k, qc, &jK_tab);
 
           const auto Phi5k = DiracOperator::Phi5k_w(wf.grid(), k, qc, &jK_tab);
           const auto E5k = DiracOperator::E5k_w(wf.grid(), k, qc, &jK_tab);
           const auto M5k = DiracOperator::M5k_w(wf.grid(), k, qc, &jK_tab);
           const auto L5k = DiracOperator::L5k_w(wf.grid(), k, qc, &jK_tab);
 
-          const auto Sk = DiracOperator::Sk_w(wf.grid(), k, qc, &jK_tab);
+          const auto Sk = DiracOperator::Sk(wf.grid(), k, qc, &jK_tab);
           const auto S5k = DiracOperator::S5k_w(wf.grid(), k, qc, &jK_tab);
 
           for (const auto &Fe : cntm.orbitals) {

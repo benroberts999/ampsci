@@ -11,9 +11,10 @@
 namespace DiracOperator {
 
 //==============================================================================
-//! @brief Electric multipole (transition) operator, L-form (t^E_L).
+//! @brief Vector electric multipole (transition) operator, Length-form: ($T^{(+1),{\rm Len}}_K$).
 /*!
   @details
+  - nb: q = alpha*omega, so "omega" = c*q
   - Electric multipole operator in the L-form (transition form
     convention): t^E_L. The radial dependence is expressed in terms of
     spherical Bessel functions j_L(q*r) with q = alpha * omega.
@@ -24,10 +25,10 @@ namespace DiracOperator {
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class Ek_w_L final : public TensorOperator {
+class VEk_Len final : public TensorOperator {
 public:
-  Ek_w_L(const Grid &gr, int K, double omega,
-         const SphericalBessel::JL_table *jl = nullptr)
+  VEk_Len(const Grid &gr, int K, double omega,
+          const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::imaginary, true),
         m_K(K),
@@ -36,7 +37,7 @@ public:
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("t^E(Len)_") + std::to_string(m_K);
+    return std::string("V^E(Len)_") + std::to_string(m_K);
   }
 
   double angularF(const int ka, const int kb) const override final {
@@ -109,14 +110,15 @@ private:
 
 public:
   // Default shallow copy semantics
-  Ek_w_L(const Ek_w_L &) = default;
-  Ek_w_L &operator=(const Ek_w_L &) = default;
+  VEk_Len(const VEk_Len &) = default;
+  VEk_Len &operator=(const VEk_Len &) = default;
 };
 
 //==============================================================================
-//! @brief Electric multipole (V-form) operator: $T^{(+1)}_K(q)$
+//! @brief Vector electric multipole (V-form) operator: $V^E_K = T^{(+1)}_K(q)$
 /*!
   @details
+  - nb: q = alpha*omega, so "omega" = c*q
   - Vector (spatial) electric multipole operator used in the V-form
     (transition convention). Radial dependence uses spherical
     Bessel functions j_L(q*r) and derived combinations like j_L(q*r)/(q*r)
@@ -126,10 +128,10 @@ public:
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class Ek_w final : public TensorOperator {
+class VEk final : public TensorOperator {
 public:
-  Ek_w(const Grid &gr, int K, double omega,
-       const SphericalBessel::JL_table *jl = nullptr)
+  VEk(const Grid &gr, int K, double omega,
+      const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::imaginary, true),
         m_K(K),
@@ -138,7 +140,7 @@ public:
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("t^E_") + std::to_string(m_K);
+    return std::string("V^E_") + std::to_string(m_K);
   }
 
   double angularF(const int ka, const int kb) const override final {
@@ -222,14 +224,15 @@ private:
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
-  Ek_w(const Ek_w &) = default;
-  Ek_w &operator=(const Ek_w &) = default;
+  VEk(const VEk &) = default;
+  VEk &operator=(const VEk &) = default;
 };
 
 //==============================================================================
-//! @brief Longitudinal multipole operator (V-form): $T^{(-1)}_K(q)$
+//! @brief Vector longitudinal multipole operator (V-form): $V^L_K = T^{(-1)}_K(q)$
 /*!
   @details
+  - nb: q = alpha*omega, so "omega" = c*q
   - Implements the longitudinal (scalar-like) component of the vector
     multipole operator. Radial dependence uses spherical Bessel functions
     j_L(q*r) and, when required, the combination j_L(q*r)/(q*r).
@@ -238,10 +241,10 @@ public:
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class Lk_w final : public TensorOperator {
+class VLk final : public TensorOperator {
 public:
-  Lk_w(const Grid &gr, int K, double omega,
-       const SphericalBessel::JL_table *jl = nullptr)
+  VLk(const Grid &gr, int K, double omega,
+      const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::imaginary, true),
         m_K(K),
@@ -250,7 +253,7 @@ public:
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("t^L_") + std::to_string(m_K);
+    return std::string("V^L_") + std::to_string(m_K);
   }
 
   double angularF(const int ka, const int kb) const override final {
@@ -327,14 +330,15 @@ private:
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
-  Lk_w(const Lk_w &) = default;
-  Lk_w &operator=(const Lk_w &) = default;
+  VLk(const VLk &) = default;
+  VLk &operator=(const VLk &) = default;
 };
 
 //==============================================================================
-//! @brief Magnetic multipole operator: $T^{(0)}_K(q)$
+//! @brief Vector magnetic multipole operator: $V^M_K = T^{(0)}_K(q)$
 /*!
   @details
+  - nb: q = alpha*omega, so "omega" = c*q
   - Implements the magnetic multipole operator. The radial dependence is
     expressed via spherical Bessel functions j_L(q*r) with q = alpha * omega.
   - The constructor takes an optional `const SphericalBessel::JL_table *jl` to
@@ -342,10 +346,10 @@ public:
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class Mk_w final : public TensorOperator {
+class VMk final : public TensorOperator {
 public:
-  Mk_w(const Grid &gr, int K, double omega,
-       const SphericalBessel::JL_table *jl = nullptr)
+  VMk(const Grid &gr, int K, double omega,
+      const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                        gr.r(), 0, Realness::imaginary, true),
         m_K(K),
@@ -355,7 +359,7 @@ public:
   }
 
   std::string name() const override final {
-    return std::string("t^M_") + std::to_string(m_K);
+    return std::string("V^M_") + std::to_string(m_K);
   }
 
   double angularF(const int ka, const int kb) const override final {
@@ -424,14 +428,15 @@ private:
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
-  Mk_w(const Mk_w &) = default;
-  Mk_w &operator=(const Mk_w &) = default;
+  VMk(const VMk &) = default;
+  VMk &operator=(const VMk &) = default;
 };
 
 //==============================================================================
-//! @brief Temporal component of the vector multipole operator: $t^K(q)$
+//! @brief Temporal component of the vector multipole operator: $\Phi_K = t^K(q)$
 /*!
   @details
+  - nb: q = alpha*omega, so "omega" = c*q
   - Implements the time-like (temporal) component of the vector multipole
     operator with explicit frequency dependence via j_L(q*r).
   - The constructor takes an optional `const SphericalBessel::JL_table *jl` to
@@ -439,10 +444,10 @@ public:
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class Phik_w final : public TensorOperator {
+class Phik final : public TensorOperator {
 public:
-  Phik_w(const Grid &gr, int K, double omega,
-         const SphericalBessel::JL_table *jl = nullptr)
+  Phik(const Grid &gr, int K, double omega,
+       const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
@@ -451,7 +456,7 @@ public:
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("t^V_") + std::to_string(m_K);
+    return std::string("Phi_") + std::to_string(m_K);
   }
 
   double angularF(const int ka, const int kb) const override final {
@@ -509,14 +514,15 @@ private:
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
-  Phik_w(const Phik_w &) = default;
-  Phik_w &operator=(const Phik_w &) = default;
+  Phik(const Phik &) = default;
+  Phik &operator=(const Phik &) = default;
 };
 
 //==============================================================================
-//! @brief Scalar multipole operator: $t^K(q)\gamma^0$
+//! @brief Scalar multipole operator: $S_K = t^K(q)\gamma^0$
 /*!
   @details
+  - nb: q = alpha*omega, so "omega" = c*q
   - Implements the scalar multipole operator whose radial factor is
     e^{i q r} (represented via spherical Bessel functions j_L(q*r)). The
     operator includes the gamma^0 Dirac matrix structure.
@@ -525,10 +531,10 @@ public:
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class Sk_w final : public TensorOperator {
+class Sk final : public TensorOperator {
 public:
-  Sk_w(const Grid &gr, int K, double omega,
-       const SphericalBessel::JL_table *jl = nullptr)
+  Sk(const Grid &gr, int K, double omega,
+     const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
@@ -595,8 +601,8 @@ private:
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
-  Sk_w(const Sk_w &) = default;
-  Sk_w &operator=(const Sk_w &) = default;
+  Sk(const Sk &) = default;
+  Sk &operator=(const Sk &) = default;
 };
 
 //==============================================================================
@@ -608,7 +614,7 @@ public:
 /*!
   @details
   - Gamma^5 variant of the electric multipole (vector) operator. Functions
-    analogously to `Ek_w` but with the gamma^5 Dirac structure applied to the
+    analogously to `VEk` but with the gamma^5 Dirac structure applied to the
     angular part.
   - Radial functions use spherical Bessel combinations j_L(q*r) or
     j_L(q*r)/(q*r) with q = alpha * omega.
@@ -713,7 +719,7 @@ public:
 /*!
   @details
   - Gamma^5 variant of the longitudinal multipole operator. Works like
-    `Lk_w` but with the gamma^5 Dirac structure applied to the angular part.
+    `VLk` but with the gamma^5 Dirac structure applied to the angular part.
   - Supports optional `const SphericalBessel::JL_table *jl` for lookup-table
     acceleration; otherwise uses on-the-fly Bessel evaluation.
 */
@@ -807,7 +813,7 @@ public:
 /*!
   @details
   - Gamma^5 variant of the magnetic multipole operator. Analogous to
-    `Mk_w` but with the gamma^5 Dirac structure applied where appropriate.
+    `VMk` but with the gamma^5 Dirac structure applied where appropriate.
   - Uses spherical Bessel functions j_L(q*r) for radial dependence and
     accepts an optional `const SphericalBessel::JL_table *jl`.
 */
@@ -898,7 +904,7 @@ public:
 /*!
   @details
   - Gamma^5 variant of the temporal (time-like) component of the vector
-    multipole operator. Functions like `Phik_w` but with gamma^5 applied to
+    multipole operator. Functions like `Phik` but with gamma^5 applied to
     the appropriate spin-angular structure.
   - Radial dependence uses j_L(q*r) and the constructor accepts an
     optional `const SphericalBessel::JL_table *jl`.
@@ -1072,7 +1078,7 @@ S_K(const Grid &grid, int k, bool gamma5 = false,
     const SphericalBessel::JL_table *jl = nullptr) {
   if (gamma5)
     return std::make_unique<S5k_w>(grid, k, 1.0e-4, jl);
-  return std::make_unique<Sk_w>(grid, k, 1.0e-4, jl);
+  return std::make_unique<Sk>(grid, k, 1.0e-4, jl);
 }
 
 //! Temporal part of vector(pseudovector) multipole operator. Note: q/omega not set
@@ -1081,7 +1087,7 @@ Phi_K(const Grid &grid, int k, bool gamma5 = false,
       const SphericalBessel::JL_table *jl = nullptr) {
   if (gamma5)
     return std::make_unique<Phi5k_w>(grid, k, 1.0e-4, jl);
-  return std::make_unique<Phik_w>(grid, k, 1.0e-4, jl);
+  return std::make_unique<Phik>(grid, k, 1.0e-4, jl);
 }
 
 //! Spatial part of vector(pseudovector) multipole operator. Note: q/omega not set
@@ -1096,21 +1102,21 @@ V_sigma_K(const Grid &grid, int sigma, int k, bool gamma5 = false,
     if (gamma5)
       return std::make_unique<E5k_w>(grid, k, 1.0e-4, jl);
     else
-      return std::make_unique<Ek_w>(grid, k, 1.0e-4, jl);
+      return std::make_unique<VEk>(grid, k, 1.0e-4, jl);
 
     // "Longitudanal"
   case -1:
     if (gamma5)
       return std::make_unique<L5k_w>(grid, k, 1.0e-4, jl);
     else
-      return std::make_unique<Lk_w>(grid, k, 1.0e-4, jl);
+      return std::make_unique<VLk>(grid, k, 1.0e-4, jl);
 
     // "Magnetic"
   case 0:
     if (gamma5)
       return std::make_unique<M5k_w>(grid, k, 1.0e-4, jl);
     else
-      return std::make_unique<Mk_w>(grid, k, 1.0e-4, jl);
+      return std::make_unique<VMk>(grid, k, 1.0e-4, jl);
   }
 
   assert(false && "make_op: sigma must be -1, 0, or +1");
@@ -1133,7 +1139,7 @@ generate_Ek_w_L(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   const auto k = input.get("k", 1);
   const auto omega = input.get("omega", 1.0e-4);
-  return std::make_unique<Ek_w_L>(wf.grid(), k, omega);
+  return std::make_unique<VEk_Len>(wf.grid(), k, omega);
 }
 
 //------------------------------------------------------------------------------
@@ -1151,7 +1157,7 @@ generate_Ek_w(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
     return std::make_unique<E5k_w>(wf.grid(), k, omega);
-  return std::make_unique<Ek_w>(wf.grid(), k, omega);
+  return std::make_unique<VEk>(wf.grid(), k, omega);
 }
 
 //------------------------------------------------------------------------------
@@ -1169,7 +1175,7 @@ generate_Mk_w(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
     return std::make_unique<M5k_w>(wf.grid(), k, omega);
-  return std::make_unique<Mk_w>(wf.grid(), k, omega);
+  return std::make_unique<VMk>(wf.grid(), k, omega);
 }
 
 //------------------------------------------------------------------------------
@@ -1187,7 +1193,7 @@ generate_Lk_w(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
     return std::make_unique<L5k_w>(wf.grid(), k, omega);
-  return std::make_unique<Lk_w>(wf.grid(), k, omega);
+  return std::make_unique<VLk>(wf.grid(), k, omega);
 }
 
 //------------------------------------------------------------------------------
@@ -1205,7 +1211,7 @@ generate_Vk_w(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
     return std::make_unique<Phi5k_w>(wf.grid(), k, omega);
-  return std::make_unique<Phik_w>(wf.grid(), k, omega);
+  return std::make_unique<Phik>(wf.grid(), k, omega);
 }
 
 //------------------------------------------------------------------------------
@@ -1223,7 +1229,7 @@ generate_Sk_w(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
     return std::make_unique<S5k_w>(wf.grid(), k, omega);
-  return std::make_unique<Sk_w>(wf.grid(), k, omega);
+  return std::make_unique<Sk>(wf.grid(), k, omega);
 }
 
 } // namespace DiracOperator
