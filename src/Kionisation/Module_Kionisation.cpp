@@ -924,7 +924,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
           const auto Mk_nr = DiracOperator::M_nr(wf.grid(), qc);
           const auto Lk_nr = DiracOperator::L_nr(wf.grid(), qc);
 
-          const auto E5k_nr = DiracOperator::E5_nr(wf.grid(), qc);
+          const auto E5k_nr = DiracOperator::E5_nr(wf.grid(), k, qc);
           const auto M5k_nr = DiracOperator::M5_nr(wf.grid(), qc);
           const auto L5k_nr = DiracOperator::L5_nr(wf.grid(), k, qc);
 
@@ -971,6 +971,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                 Q_E5_nr(iE, iq) += tkp1_x * qip::pow(E5k_nr.reducedME(Fe, Fa), 2);
                 Q_M5_nr(iE, iq) += tkp1_x * qip::pow(M5k_nr.reducedME(Fe, Fa), 2);
                 Q_L5_nr(iE, iq) += tkp1_x * qip::pow(L5k_nr.reducedME(Fe, Fa), 2);
+              }
+
+              if (k == 2){
+                Q_E5_nr(iE, iq) += tkp1_x * qip::pow(E5k_nr.reducedME(Fe, Fa), 2);
               }
             }
 
