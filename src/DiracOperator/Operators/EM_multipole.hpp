@@ -14,31 +14,30 @@ namespace DiracOperator {
 //! @brief Electric multipole (transition) operator, L-form (t^E_L).
 /*!
   @details
-  - Implements the electric multipole operator in the L-form (transition form
+  - Electric multipole operator in the L-form (transition form
     convention): t^E_L. The radial dependence is expressed in terms of
     spherical Bessel functions j_L(q*r) with q = alpha * omega.
   - The operator supports using either on-the-fly Bessel evaluation or a
     precomputed `SphericalBessel::JL_table` supplied via the constructor
     (pointer `jl`). When `jl` is non-null the table is used to look up the
     closest j_L(q) vector for performance.
-  - Behavior matches previous conventions; moment-form conversion is handled
-    in the separate helper `moment_factor` if needed.
+  - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
+    - you should ensure the lookup table is close enough, or this can lead to errors.
 */
 class Ek_w_L final : public TensorOperator {
 public:
   Ek_w_L(const Grid &gr, int K, double omega,
          const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::real, true),
+                       gr.r(), 0, Realness::imaginary, true),
         m_K(K),
         m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("t^E_") + std::to_string(m_K);
+    return std::string("t^E(Len)_") + std::to_string(m_K);
   }
-  std::string units() const override final { return std::string("1"); }
 
   double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_K, ka, kb);
@@ -60,9 +59,9 @@ public:
     const auto K = double(m_K);
     const auto c1 = double(kappa_a - Fb.kappa()) / (K + 1.0);
     const auto cx = std::sqrt((K + 1.0) / K);
-    Rab_rhs(+1, jK, &dF, Fb, cx);
-    Pab_rhs(+1, jKp1, &dF, Fb, -c1 * cx);
-    Pab_rhs(-1, jKp1, &dF, Fb, -cx);
+    Rab_rhs(+1, *p_jK, &dF, Fb, cx);
+    Pab_rhs(+1, *p_jKp1, &dF, Fb, -c1 * cx);
+    Pab_rhs(-1, *p_jKp1, &dF, Fb, -cx);
     return dF;
   }
 
@@ -78,8 +77,8 @@ public:
     const auto cc = double(Fa.kappa() - Fb.kappa()) / (K + 1.0);
     const auto cx = std::sqrt((K + 1.0) / K);
 
-    return cx * (Rab(+1, jK, Fa, Fb) - (cc + 1.0) * Vab(jKp1, Fa, Fb) +
-                 (1.0 - cc) * Wab(jKp1, Fa, Fb));
+    return cx * (Rab(+1, *p_jK, Fa, Fb) - (cc + 1.0) * Vab(*p_jKp1, Fa, Fb) +
+                 (1.0 - cc) * Wab(*p_jKp1, Fa, Fb));
   }
 
   //! nb: q = alpha*omega!
@@ -87,20 +86,26 @@ public:
     const auto q = std::abs(PhysConst::alpha * omega);
 
     if (m_jl) {
-      // nb: may not be exact!
-      jK = m_jl->jL_nearest(m_K, q);
-      jKp1 = m_jl->jL_nearest(m_K + 1, q);
+      // nb: may not be exact! Ensure lookup table is dense enough!
+      p_jK = &m_jl->jL_nearest(m_K, q);
+      p_jKp1 = &m_jl->jL_nearest(m_K + 1, q);
     } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK);
-      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &jKp1);
+      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
+      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &m_jKp1);
+      p_jK = &m_jK;
+      p_jKp1 = &m_jKp1;
     }
   }
 
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jK{};
-  std::vector<double> jKp1{};
+
+  // This is to avoid copy if not required:
+  std::vector<double> m_jK{};
+  std::vector<double> m_jKp1{};
+  const std::vector<double> *p_jK{nullptr};
+  const std::vector<double> *p_jKp1{nullptr};
 
 public:
   // Default shallow copy semantics
@@ -109,31 +114,31 @@ public:
 };
 
 //==============================================================================
-//! @brief Electric multipole (V-form) operator with frequency dependence.
+//! @brief Electric multipole (V-form) operator: $T^{(+1)}_K(q)$
 /*!
   @details
   - Vector (spatial) electric multipole operator used in the V-form
-    (transition/vector convention). Radial dependence uses spherical
+    (transition convention). Radial dependence uses spherical
     Bessel functions j_L(q*r) and derived combinations like j_L(q*r)/(q*r)
     where needed; q = alpha * omega.
   - The constructor takes an optional `const SphericalBessel::JL_table *jl` to
     enable lookup from a precomputed table for improved performance.
-  - Use this class for electric transition matrix elements in the
-    vector representation.
+  - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
+    - you should ensure the lookup table is close enough, or this can lead to errors.
 */
 class Ek_w final : public TensorOperator {
 public:
   Ek_w(const Grid &gr, int K, double omega,
        const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::real, true),
+                       gr.r(), 0, Realness::imaginary, true),
         m_K(K),
         m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("tv^E_") + std::to_string(m_K);
+    return std::string("t^E_") + std::to_string(m_K);
   }
 
   double angularF(const int ka, const int kb) const override final {
@@ -159,10 +164,10 @@ public:
     assert(m_K != 0); // should already be discounted!
     const auto cx = std::sqrt((K + 1.0) / K);
     if (dk != 0.0) {
-      Pab_rhs(+1, jK_on_qr, &dF, Fb, cx * dk);
-      Pab_rhs(+1, jKp1, &dF, Fb, -cx * dk / (K + 1.0));
+      Pab_rhs(+1, *p_jK_on_qr, &dF, Fb, cx * dk);
+      Pab_rhs(+1, *p_jKp1, &dF, Fb, -cx * dk / (K + 1.0));
     }
-    Pab_rhs(-1, jK_on_qr, &dF, Fb, -cx * K);
+    Pab_rhs(-1, *p_jK_on_qr, &dF, Fb, -cx * K);
 
     return dF;
   }
@@ -180,9 +185,9 @@ public:
     const auto cx = std::sqrt((K + 1.0) / K);
     const auto dk = double(Fa.kappa() - Fb.kappa());
 
-    const auto Pp1 = Pab(+1, jK_on_qr, Fa, Fb);
-    const auto Pp2 = Pab(+1, jKp1, Fa, Fb);
-    const auto Pm1 = Pab(-1, jK_on_qr, Fa, Fb);
+    const auto Pp1 = Pab(+1, *p_jK_on_qr, Fa, Fb);
+    const auto Pp2 = Pab(+1, *p_jKp1, Fa, Fb);
+    const auto Pm1 = Pab(-1, *p_jK_on_qr, Fa, Fb);
 
     return cx * (dk * (Pp1 - Pp2 / (K + 1)) - K * Pm1);
   }
@@ -192,25 +197,28 @@ public:
     const auto q = std::abs(PhysConst::alpha * omega);
 
     if (m_jl) {
-      jK_on_qr = m_jl->jL_nearest(m_K, q);
-      jKp1 = m_jl->jL_nearest(m_K + 1, q);
-      for (std::size_t i = 0; i < m_vec.size(); ++i) {
-        jK_on_qr[i] /= (q * m_vec[i]);
-      }
+      // nb: may not be exact! Ensure lookup table is dense enough!
+      p_jK_on_qr = &m_jl->jL_on_qr_nearest(m_K, q);
+      p_jKp1 = &m_jl->jL_nearest(m_K + 1, q);
     } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK_on_qr);
-      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &jKp1);
-      for (std::size_t i = 0; i < m_vec.size(); ++i) {
-        jK_on_qr[i] /= (q * m_vec[i]);
-      }
+      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK_on_qr);
+      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &m_jKp1);
+      using namespace qip::overloads;
+      m_jK_on_qr /= (q * m_vec);
+      p_jK_on_qr = &m_jK_on_qr;
+      p_jKp1 = &m_jKp1;
     }
   }
 
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jK_on_qr{};
-  std::vector<double> jKp1{};
+
+  // This is to avoid copy if not required:
+  std::vector<double> m_jK_on_qr{};
+  std::vector<double> m_jKp1{};
+  const std::vector<double> *p_jK_on_qr{nullptr};
+  const std::vector<double> *p_jKp1{nullptr};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
@@ -219,33 +227,31 @@ public:
 };
 
 //==============================================================================
-//! @brief Longitudinal multipole operator (V-form) with frequency dependence.
+//! @brief Longitudinal multipole operator (V-form): $T^{(-1)}_K(q)$
 /*!
   @details
   - Implements the longitudinal (scalar-like) component of the vector
     multipole operator. Radial dependence uses spherical Bessel functions
     j_L(q*r) and, when required, the combination j_L(q*r)/(q*r).
-  - Supports an optional `const SphericalBessel::JL_table *jl` in the constructor
-    to use precomputed Bessel vectors; otherwise Bessels are computed
-    on-the-fly using `SphericalBessel::fillBesselVec_kr`.
-  - Use this operator for the longitudinal contribution to vector
-    multipole matrix elements (frequency-dependent).
+  - The constructor takes an optional `const SphericalBessel::JL_table *jl` to
+    enable lookup from a precomputed table for improved performance.
+  - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
+    - you should ensure the lookup table is close enough, or this can lead to errors.
 */
 class Lk_w final : public TensorOperator {
 public:
   Lk_w(const Grid &gr, int K, double omega,
        const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::real, true),
+                       gr.r(), 0, Realness::imaginary, true),
         m_K(K),
         m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("tv^L_") + std::to_string(m_K);
+    return std::string("t^L_") + std::to_string(m_K);
   }
-  std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_K, ka, kb);
@@ -269,10 +275,10 @@ public:
     const auto dk = double(kappa_a - Fb.kappa());
 
     if (dk != 0.0)
-      Pab_rhs(+1, jK_on_qr, &dF, Fb, -dk);
+      Pab_rhs(+1, *p_jK_on_qr, &dF, Fb, -dk);
     if (K != 0.0)
-      Pab_rhs(-1, jK_on_qr, &dF, Fb, K);
-    Pab_rhs(-1, jKp1, &dF, Fb, -1.0);
+      Pab_rhs(-1, *p_jK_on_qr, &dF, Fb, K);
+    Pab_rhs(-1, *p_jKp1, &dF, Fb, -1.0);
     return dF;
   }
 
@@ -287,8 +293,8 @@ public:
     const auto K = double(m_K);
     const auto dk = double(Fa.kappa() - Fb.kappa());
 
-    return -dk * Pab(+1, jK_on_qr, Fa, Fb) + K * Pab(-1, jK_on_qr, Fa, Fb) -
-           Pab(-1, jKp1, Fa, Fb);
+    return -dk * Pab(+1, *p_jK_on_qr, Fa, Fb) +
+           K * Pab(-1, *p_jK_on_qr, Fa, Fb) - Pab(-1, *p_jKp1, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
@@ -296,25 +302,28 @@ public:
     const auto q = std::abs(PhysConst::alpha * omega);
 
     if (m_jl) {
-      jK_on_qr = m_jl->jL_nearest(m_K, q);
-      jKp1 = m_jl->jL_nearest(m_K + 1, q);
-      for (std::size_t i = 0; i < m_vec.size(); ++i) {
-        jK_on_qr[i] /= (q * m_vec[i]);
-      }
+      // nb: may not be exact! Ensure lookup table is dense enough!
+      p_jK_on_qr = &m_jl->jL_on_qr_nearest(m_K, q);
+      p_jKp1 = &m_jl->jL_nearest(m_K + 1, q);
     } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK_on_qr);
-      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &jKp1);
-      for (std::size_t i = 0; i < m_vec.size(); ++i) {
-        jK_on_qr[i] /= (q * m_vec[i]);
-      }
+      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK_on_qr);
+      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &m_jKp1);
+      using namespace qip::overloads;
+      m_jK_on_qr /= (q * m_vec);
+      p_jK_on_qr = &m_jK_on_qr;
+      p_jKp1 = &m_jKp1;
     }
   }
 
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jK_on_qr{};
-  std::vector<double> jKp1{};
+
+  // This is to avoid copy if not required:
+  std::vector<double> m_jK_on_qr{};
+  std::vector<double> m_jKp1{};
+  const std::vector<double> *p_jK_on_qr{nullptr};
+  const std::vector<double> *p_jKp1{nullptr};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
@@ -323,21 +332,22 @@ public:
 };
 
 //==============================================================================
-//! @brief Magnetic multipole operator (t^M_L) with frequency dependence.
+//! @brief Magnetic multipole operator: $T^{(0)}_K(q)$
 /*!
   @details
   - Implements the magnetic multipole operator. The radial dependence is
     expressed via spherical Bessel functions j_L(q*r) with q = alpha * omega.
-  - Supports an optional `const SphericalBessel::JL_table *jl` for lookup-table
-    acceleration; falls back to on-the-fly evaluation when `jl==nullptr`.
-  - Use this for magnetic transition matrix elements.
+  - The constructor takes an optional `const SphericalBessel::JL_table *jl` to
+    enable lookup from a precomputed table for improved performance.
+  - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
+    - you should ensure the lookup table is close enough, or this can lead to errors.
 */
 class Mk_w final : public TensorOperator {
 public:
   Mk_w(const Grid &gr, int K, double omega,
        const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real, true),
+                       gr.r(), 0, Realness::imaginary, true),
         m_K(K),
         m_jl(jl) {
     if (omega != 0.0)
@@ -371,7 +381,7 @@ public:
     assert(m_K != 0); // should already be discounted!
     const auto ck = sk / std::sqrt(K * (K + 1.0));
 
-    Pab_rhs(+1, jK, &dF, Fb, -ck);
+    Pab_rhs(+1, *p_jK, &dF, Fb, -ck);
     return dF;
   }
 
@@ -389,24 +399,28 @@ public:
     assert(m_K != 0); // should already be discounted!
     const auto ck = sk / std::sqrt(K * (K + 1.0));
 
-    return -ck * Pab(+1, jK, Fa, Fb);
+    return -ck * Pab(+1, *p_jK, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
     const auto q = std::abs(PhysConst::alpha * omega);
-
     if (m_jl) {
-      jK = m_jl->jL_nearest(m_K, q);
+      // nb: may not be exact! Ensure lookup table is dense enough!
+      p_jK = &m_jl->jL_nearest(m_K, q);
     } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK);
+      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
+      p_jK = &m_jK;
     }
   }
 
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jK{};
+
+  // This is to avoid copy if not required:
+  std::vector<double> m_jK{};
+  const std::vector<double> *p_jK{nullptr};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
@@ -415,15 +429,15 @@ public:
 };
 
 //==============================================================================
-//! @brief Temporal component of the vector multipole operator (Phi).
+//! @brief Temporal component of the vector multipole operator: $t^K(q)$
 /*!
   @details
   - Implements the time-like (temporal) component of the vector multipole
     operator with explicit frequency dependence via j_L(q*r).
-  - Constructor accepts optional `const SphericalBessel::JL_table *jl` to use
-    precomputed Bessel vectors; otherwise Bessels are computed at runtime.
-  - This operator contributes to charge/longitudinal matrix elements in the
-    multipole decomposition.
+  - The constructor takes an optional `const SphericalBessel::JL_table *jl` to
+    enable lookup from a precomputed table for improved performance.
+  - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
+    - you should ensure the lookup table is close enough, or this can lead to errors.
 */
 class Phik_w final : public TensorOperator {
 public:
@@ -437,9 +451,8 @@ public:
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("tv^V_") + std::to_string(m_K);
+    return std::string("t^V_") + std::to_string(m_K);
   }
-  std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_K, ka, kb);
@@ -459,7 +472,7 @@ public:
       return dF;
     }
 
-    Rab_rhs(+1, jk, &dF, Fb);
+    Rab_rhs(+1, *p_jK, &dF, Fb);
     return dF;
   }
 
@@ -471,24 +484,28 @@ public:
       return 0.0;
     }
 
-    return Rab(+1, jk, Fa, Fb);
+    return Rab(+1, *p_jK, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
     const auto q = std::abs(PhysConst::alpha * omega);
-
     if (m_jl) {
-      jk = m_jl->jL_nearest(m_K, q);
+      // nb: may not be exact! Ensure lookup table is dense enough!
+      p_jK = &m_jl->jL_nearest(m_K, q);
     } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jk);
+      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
+      p_jK = &m_jK;
     }
   }
 
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jk{};
+
+  // This is to avoid copy if not required:
+  std::vector<double> m_jK{};
+  const std::vector<double> *p_jK{nullptr};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
@@ -497,16 +514,16 @@ public:
 };
 
 //==============================================================================
-//! @brief Scalar multipole operator (e^{i q r} gamma^0), frequency-dependent.
+//! @brief Scalar multipole operator: $t^K(q)\gamma^0$
 /*!
   @details
   - Implements the scalar multipole operator whose radial factor is
     e^{i q r} (represented via spherical Bessel functions j_L(q*r)). The
     operator includes the gamma^0 Dirac matrix structure.
-  - Supports an optional `const SphericalBessel::JL_table *jl` to obtain precomputed
-    j_L vectors; otherwise vectors are computed on demand.
-  - Useful for scalar contributions in multipole expansions and transition
-    amplitudes involving the temporal scalar piece.
+  - The constructor takes an optional `const SphericalBessel::JL_table *jl` to
+    enable lookup from a precomputed table for improved performance.
+  - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
+    - you should ensure the lookup table is close enough, or this can lead to errors.
 */
 class Sk_w final : public TensorOperator {
 public:
@@ -520,9 +537,8 @@ public:
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("tv^S_") + std::to_string(m_K);
+    return std::string("t^S_") + std::to_string(m_K);
   }
-  std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_K, ka, kb);
@@ -542,7 +558,7 @@ public:
       return dF;
     }
 
-    Rab_rhs(-1, jk, &dF, Fb);
+    Rab_rhs(-1, *p_jK, &dF, Fb);
     return dF;
   }
 
@@ -554,24 +570,28 @@ public:
       return 0.0;
     }
 
-    return Rab(-1, jk, Fa, Fb);
+    return Rab(-1, *p_jK, Fa, Fb);
   }
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
     const auto q = std::abs(PhysConst::alpha * omega);
-
     if (m_jl) {
-      jk = m_jl->jL_nearest(m_K, q);
+      // nb: may not be exact! Ensure lookup table is dense enough!
+      p_jK = &m_jl->jL_nearest(m_K, q);
     } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jk);
+      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
+      p_jK = &m_jK;
     }
   }
 
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jk{};
+
+  // This is to avoid copy if not required:
+  std::vector<double> m_jK{};
+  const std::vector<double> *p_jK{nullptr};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
@@ -609,7 +629,6 @@ public:
   std::string name() const override final {
     return std::string("tv^E5_") + std::to_string(m_K);
   }
-  std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_K, ka, -kb);
@@ -666,11 +685,8 @@ public:
     const auto q = std::abs(PhysConst::alpha * omega);
 
     if (m_jl) {
-      jK_on_qr = m_jl->jL_nearest(m_K, q);
+      jK_on_qr = m_jl->jL_on_qr_nearest(m_K, q);
       jKp1 = m_jl->jL_nearest(m_K + 1, q);
-      for (std::size_t i = 0; i < m_vec.size(); ++i) {
-        jK_on_qr[i] /= (q * m_vec[i]);
-      }
     } else {
       SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK_on_qr);
       SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &jKp1);
@@ -715,7 +731,6 @@ public:
   std::string name() const override final {
     return std::string("tv^5L_") + std::to_string(m_K);
   }
-  std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_K, ka, -kb);
@@ -764,11 +779,8 @@ public:
     const auto q = std::abs(PhysConst::alpha * omega);
 
     if (m_jl) {
-      jK_on_qr = m_jl->jL_nearest(m_K, q);
+      jK_on_qr = m_jl->jL_on_qr_nearest(m_K, q);
       jKp1 = m_jl->jL_nearest(m_K + 1, q);
-      for (std::size_t i = 0; i < m_vec.size(); ++i) {
-        jK_on_qr[i] /= (q * m_vec[i]);
-      }
     } else {
       SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK_on_qr);
       SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &jKp1);
@@ -814,8 +826,6 @@ public:
   std::string name() const override final {
     return std::string("t^5M_") + std::to_string(m_K);
   }
-
-  std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_K, ka, kb);
@@ -907,7 +917,6 @@ public:
   std::string name() const override final {
     return std::string("t^5_") + std::to_string(m_K);
   }
-  std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_K, ka, -kb);
@@ -987,7 +996,6 @@ public:
   std::string name() const override final {
     return std::string("tv^5S_") + std::to_string(m_K);
   }
-  std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_K, ka, -kb);

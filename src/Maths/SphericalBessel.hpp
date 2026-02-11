@@ -129,12 +129,17 @@ public:
             const std::vector<double> &r) {
     m_q = q;
     m_J_L_q.resize(std::size_t(max_L + 1), q.size());
+    m_J_L_q_on_qr.resize(std::size_t(max_L + 1), q.size());
+    using namespace qip::overloads;
 #pragma omp parallel for collapse(2)
     for (auto L = 0; L <= max_L; ++L) {
       for (auto iq = 0ul; iq < m_J_L_q.cols(); ++iq) {
         const auto tq = q[iq];
-        // m_J_L_q[std::size_t(L)][iq] = fillBesselVec_kr(L, tq, r);
-        m_J_L_q[std::size_t(L)][iq] = std::move(fillBesselVec_kr(L, tq, r));
+        // Fill jL(qr)
+        m_J_L_q[std::size_t(L)][iq] = fillBesselVec_kr(L, tq, r);
+        // Store jL(qr)/qr
+        m_J_L_q_on_qr[std::size_t(L)][iq] =
+            m_J_L_q[std::size_t(L)][iq] / (tq * r);
       }
     }
   }
@@ -142,7 +147,7 @@ public:
   //----------------------------------------------------------------------------
   //! Direct access to jL(q*r) for specific q grid index
   const std::vector<double> &at(std::size_t L, std::size_t iq) const {
-    return m_J_L_q.atc(std::size_t(L), iq);
+    return m_J_L_q.atc(L, iq);
   }
 
   //----------------------------------------------------------------------------
@@ -172,6 +177,26 @@ public:
     const auto iq = (q - m_q[i] < m_q[i + 1] - q) ? i : i + 1;
 
     return m_J_L_q.atc(std::size_t(L), iq);
+  }
+
+  //----------------------------------------------------------------------------
+  //! Returns jL(q_i*r)/(q_i*r) for the grid point q_i nearest to the requested q.
+  const std::vector<double> &jL_on_qr_nearest(int L, double q) const {
+
+    // Clamp
+    if (q <= m_q.front())
+      return m_J_L_q_on_qr.atc(std::size_t(L), 0);
+    if (q >= m_q.back())
+      return m_J_L_q_on_qr.atc(std::size_t(L), m_q.size() - 1);
+
+    // Find i such that m_q[i] <= q < m_q[i+1]
+    const auto it = std::lower_bound(m_q.begin() + 1, m_q.end() - 1, q);
+    const auto i = std::size_t(std::distance(m_q.begin(), it)) - 1;
+
+    // Pick nearest
+    const auto iq = (q - m_q[i] < m_q[i + 1] - q) ? i : i + 1;
+
+    return m_J_L_q_on_qr.atc(std::size_t(L), iq);
   }
 
   //----------------------------------------------------------------------------
@@ -207,6 +232,7 @@ public:
   //----------------------------------------------------------------------------
 private:
   LinAlg::Matrix<std::vector<double>> m_J_L_q{};
+  LinAlg::Matrix<std::vector<double>> m_J_L_q_on_qr{};
   std::vector<double> m_q{};
 };
 
