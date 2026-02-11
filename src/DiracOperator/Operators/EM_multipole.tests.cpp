@@ -1,4 +1,4 @@
-#include "GenerateOperator.hpp"
+#include "DiracOperator/GenerateOperator.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/SphericalBessel.hpp"
 #include "Physics/PhysConst_constants.hpp"
