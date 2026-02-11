@@ -40,8 +40,8 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
   SphericalBessel::JL_table jl_table(max_L + 1, qvec, rvec);
 
   // Operators to test: name and whether VEk_Len should be skipped for gamma5
-  const std::vector<std::string> op_names{"VEk", "VMk", "VLk",
-                                          "Vk_w", "Sk", "VEk_Len"};
+  const std::vector<std::string> op_names{"VEk",  "VMk", "VLk",
+                                          "Vk_w", "Sk",  "VEk_Len"};
 
   // lambda to generate operator using "helper" functions
   auto use_helper_function =

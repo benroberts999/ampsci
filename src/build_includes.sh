@@ -1,59 +1,54 @@
-#!/bin/bash
+#!/usr/bin/env bash
+set -euo pipefail
 
-## This file automatically builds all the 'top level' include.hpp files
-## It creates one such file for every top-level subdirectory in ./src/
+SRC_DIR="src"
 
-printf "Building include files:\n"
+# Process directories deepest first
+mapfile -t dirs < <(
+  find "$SRC_DIR" -type d -print |
+  awk '{ print length, $0 }' |
+  sort -nr |
+  cut -d" " -f2-
+)
 
-SRC="src/"
+for dir in "${dirs[@]}"; do
+  out="$dir/include.hpp"
 
-# Define the top-level include file
-top_include="${SRC}include.hpp"
+  # Headers in THIS directory only (not recursive), excluding include.hpp
+  mapfile -t headers < <(
+    find "$dir" -maxdepth 1 -type f -name '*.hpp' ! -name 'include.hpp' -print | sort
+  )
 
-# Start with #pragma once in the top-level file
-printf "#pragma once\n" > "$top_include"
+  # Immediate child directories that already have include.hpp
+  mapfile -t children < <(
+    find "$dir" -mindepth 1 -maxdepth 1 -type d \
+      -exec test -f "{}/include.hpp" \; -print | sort
+  )
 
-# Special case: Dirac Operator:
-search_dir="${SRC}DiracOperator/Operators"
-output_file="${SRC}DiracOperator/Operators.hpp"
+  # If no headers AND no child includes → skip
+  if [ ${#headers[@]} -eq 0 ] && [ ${#children[@]} -eq 0 ]; then
+    # Remove stale include.hpp if it exists
+    [ -f "$out" ] && rm -f "$out"
+    continue
+  fi
 
-# Create or overwrite the output file with the pragma directive
-printf "#pragma once\n" > "$output_file"
-# Loop through all .hpp files in the directory
-for header in "$search_dir"/*.hpp; do
-    # Get the relative path from '${SRC}' to the file
-    rel_header="${header#${SRC}}"
-    # Add an #include for each header file with the full relative path
-    printf "#include \"%s\"\n" "$rel_header" >> "$output_file"
+  {
+    echo "#pragma once"
+
+    # Include headers in this directory
+    for h in "${headers[@]}"; do
+      rel="${h#"$SRC_DIR/"}"
+      echo "#include \"${rel}\""
+    done
+
+    # Include child include.hpp files
+    for c in "${children[@]}"; do
+      rel="${c#"$SRC_DIR/"}/include.hpp"
+      echo "#include \"${rel}\""
+    done
+  } > "$out"
+
+  echo "Wrote $out"
 done
 
-# Loop through all directories inside ${SRC}
-for d in ${SRC}*/ ; do
-    # Remove only "${SRC}" but keep the subdirectory name
-    rel_dir="${d#${SRC}}"        # e.g., "subdir1/"
-    rel_dir="${rel_dir%/}"       # Remove trailing slash -> "subdir1"
-    
-    t_filename="${d}include.hpp"  # Full path for the subdir include file
-    rel_t_filename="${rel_dir}/include.hpp"  # Relative path for use in #include
-
-    # Check if the directory contains any .hpp files
-    if compgen -G "${d}*.hpp" > /dev/null; then
-        # Create or overwrite include.hpp with the pragma directive
-        printf "#pragma once\n" > "$t_filename"
-        printf "$t_filename\n"
-
-        # Loop through all .hpp files in the directory
-        for header in "${d}"*.hpp; do
-            filename=$(basename "$header")
-
-            # Skip "include.hpp"
-            if [[ "$filename" != "include.hpp" ]]; then
-                printf "#include \"%s/%s\"\n" "$rel_dir" "$filename" >> "$t_filename"
-            fi
-        done
-
-        # Add this include file to the top-level include file
-        printf "#include \"%s\"\n" "$rel_t_filename" >> "$top_include"
-    fi
-done
-printf "$top_include\n"
+echo "Done."

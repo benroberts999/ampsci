@@ -129,9 +129,14 @@ void print_manual() {
   fmt2::styled_print(fmt::emphasis::bold, "NAME\n");
   fmt::print(qip::wrap(name, wrap_at, tab + tab));
 
+  std::cout << "\n";
+  std::cout << "AMPSCI v: " << version::version() << '\n';
+  std::cout << "Libraries:\n" << version::libraries() << '\n';
+  std::cout << "Compiled: " << version::compiled() << '\n';
+
   std::cout << "\n\n";
 
-  fmt2::styled_print(fmt::emphasis::bold, "SYNPOSIS\n");
+  fmt2::styled_print(fmt::emphasis::bold, "SYNOPSIS\n");
   fmt::print(qip::wrap(synopsis, wrap_at, tab + tab));
 
   std::cout << "\n\n";

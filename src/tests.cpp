@@ -11,6 +11,7 @@ int main(int argc, char *argv[]) {
 
   std::cout << "ampsci tests (Catch2):\n";
   std::cout << "AMPSCI v: " << version::version() << '\n';
+  std::cout << "Libraries:\n" << version::libraries() << '\n';
   std::cout << "Compiled: " << version::compiled() << '\n';
 
   int result = Catch::Session().run(argc, argv);

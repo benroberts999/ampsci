@@ -1,6 +1,6 @@
 #pragma once
 #include "IO/InputBlock.hpp"
-#include "Operators.hpp"
+#include "Operators/include.hpp"
 #include "TensorOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <memory>

@@ -1,9 +1,6 @@
 /*
 !src/
 src/*~
-!build/
-build/*
-!build/*.mk
 !doc/
 doc/*
 !doc/*.md
@@ -20,4 +17,5 @@ doc/tex/*
 !.github/
 !.gitignore
 !*.md
+!install-dependencies.sh
 !setup.sh
