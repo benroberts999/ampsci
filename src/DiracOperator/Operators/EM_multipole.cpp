@@ -339,15 +339,23 @@ DiracSpinor AEk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   }
 
   const auto K = double(m_K);
-  const auto dk = double(kappa_a + Fb.kappa());
+  const auto dk_int = kappa_a + Fb.kappa();
+  const auto dk = double(dk_int);
   assert(m_K != 0); // should already be discounted!
   const auto cx = std::sqrt((K + 1.0) / K);
 
-  Rab_rhs(-1, *p_jK_on_qr, &dF, Fb, cx * dk);
   Rab_rhs(-1, *p_jKp1, &dF, Fb, -cx * dk / (K + 1.0));
-  Rab_rhs(+1, *p_jK_on_qr, &dF, Fb, -cx * K);
 
-  return dF;
+  if (dk_int == m_K) {
+    // FF terms cancel!
+    // R^- - R^+ = -2G
+    Gab_rhs(*p_jK_on_qr, &dF, Fb, -2.0 * cx * dk);
+    return dF;
+  } else {
+    Rab_rhs(-1, *p_jK_on_qr, &dF, Fb, cx * dk);
+    Rab_rhs(+1, *p_jK_on_qr, &dF, Fb, -cx * K);
+    return dF;
+  }
 }
 
 //------------------------------------------------------------------------------
@@ -360,13 +368,24 @@ double AEk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   const auto K = double(m_K);
   assert(m_K != 0); // should already be discounted!
   const auto cx = std::sqrt((K + 1.0) / K);
-  const auto dk = double(Fa.kappa() + Fb.kappa());
 
-  const auto Pp1 = Rab(-1, *p_jK_on_qr, Fa, Fb);
-  const auto Pp2 = Rab(-1, *p_jKp1, Fa, Fb);
-  const auto Pm1 = Rab(+1, *p_jK_on_qr, Fa, Fb);
+  const auto dk_int = Fa.kappa() + Fb.kappa();
+  const auto dk = double(dk_int);
 
-  return cx * (dk * (Pp1 - Pp2 / (K + 1)) - K * Pm1);
+  const auto Rmp1 = Rab(-1, *p_jKp1, Fa, Fb) / (K + 1);
+
+  if (dk_int == m_K) {
+    // FF terms cancel!
+    // R^- - R^+ = -2G
+    // Always? Or only same kappa?
+    const auto GG = Gab(*p_jK_on_qr, Fa, Fb);
+    return cx * dk * (-2.0 * GG - Rmp1);
+  }
+
+  const auto Rm1 = Rab(-1, *p_jK_on_qr, Fa, Fb);
+  const auto Rp1 = Rab(+1, *p_jK_on_qr, Fa, Fb);
+
+  return cx * (dk * Rm1 - K * Rp1 - dk * Rmp1);
 }
 
 //------------------------------------------------------------------------------
@@ -451,7 +470,7 @@ DiracSpinor AMk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   dF.min_pt() = Fb.min_pt();
   dF.max_pt() = Fb.max_pt();
 
-  if (isZero(kappa_a, Fb.kappa()) || (kappa_a == -Fb.kappa()) || m_K == 0) {
+  if (isZero(kappa_a, Fb.kappa()) || (kappa_a == Fb.kappa()) || m_K == 0) {
     dF.min_pt() = 0;
     dF.max_pt() = 0;
     return dF;
@@ -469,13 +488,14 @@ DiracSpinor AMk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
 //------------------------------------------------------------------------------
 double AMk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
-  if (isZero(Fa.kappa(), Fb.kappa()) || (Fa.kappa() == -Fb.kappa()) ||
-      m_K == 0) {
+  if (isZero(Fa.kappa(), Fb.kappa()) || m_K == 0) {
     return 0.0;
   }
 
   const auto K = double(m_K);
   const auto sk = double(Fa.kappa() - Fb.kappa());
+  if (sk == 0.0)
+    return 0.0;
   assert(m_K != 0); // should already be discounted!
   const auto ck = sk / std::sqrt(K * (K + 1.0));
 

@@ -82,7 +82,8 @@ std::vector<T> fillBesselVec(const int l, const std::vector<T> &xvec) {
   std::vector<T> Jl_vec;
   Jl_vec.reserve(xvec.size());
   for (const auto &x : xvec) {
-    Jl_vec.push_back(exactGSL_JL(l, x));
+    // Jl_vec.push_back(exactGSL_JL(l, x));
+    Jl_vec.push_back(JL(l, x));
   }
   return Jl_vec;
 }

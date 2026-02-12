@@ -629,9 +629,13 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check({
+      {"",
+       "Note: This function cannot use the Spherical Bessel looup table. If "
+       "require efficiency for large number of q values, construct directly"},
       {"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"},
       {"omega", "Frequency: nb: q := alpha*omega [1.0e-4]"},
       {"type", "V,A,S,P (Vector, Axial, Scalar, Pseudoscalar) [V]"},
+      {"low_q", "bool. Use low-q formulas (K=0 and 1 only, no L-form) [false]"},
       {"component", "E,M,L,T (electric, magnetic, longitudanel, temporal). "
                     "Temporal is forced if type = S or P. [E]"},
       {"form", "L,V (Length, Velocity); only for electric vector [L]"},
@@ -641,6 +645,8 @@ generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   const auto k = input.get("k", 1);
   const auto omega = input.get("omega", 1.0e-4);
+
+  const auto low_q = input.get("low_q", false);
 
   using namespace std::string_literals;
   const auto type = input.get("type", "V"s);
@@ -661,6 +667,36 @@ generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
 
   if (LengthForm && !(Electric && Vector)) {
     std::cout << "Fail; Length form only valid for Electric Vector\n";
+  }
+
+  if (low_q) {
+    if (Electric && Vector)
+      return std::make_unique<VEk_lowq>(wf.grid(), k, omega);
+    if (Electric && AxialVector)
+      return std::make_unique<AEk_lowq>(wf.grid(), k, omega);
+
+    // Longitudinal
+    if (Longitudinal && Vector)
+      return std::make_unique<VLk_lowq>(wf.grid(), k, omega);
+    if (Longitudinal && AxialVector)
+      return std::make_unique<ALk_lowq>(wf.grid(), k, omega);
+
+    // Magnetic
+    if (Magnetic && Vector)
+      return std::make_unique<VMk_lowq>(wf.grid(), k, omega);
+    if (Magnetic && AxialVector)
+      return std::make_unique<AMk_lowq>(wf.grid(), k, omega);
+
+    // Temporal
+    if (Temporal && Vector)
+      return std::make_unique<Phik_lowq>(wf.grid(), k, omega);
+    if (Temporal && AxialVector)
+      return std::make_unique<Phi5k_lowq>(wf.grid(), k, omega);
+
+    if (Scalar)
+      return std::make_unique<Sk_lowq>(wf.grid(), k, omega);
+    if (PseudoScalar)
+      return std::make_unique<S5k_lowq>(wf.grid(), k, omega);
   }
 
   // Electric:

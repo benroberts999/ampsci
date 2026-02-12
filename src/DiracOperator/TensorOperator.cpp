@@ -255,6 +255,40 @@ double Wab(const std::vector<double> &t, const DiracSpinor &Fa,
   return fg * Fb.grid().du();
 }
 
+double Gab(const std::vector<double> &t, const DiracSpinor &Fa,
+           const DiracSpinor &Fb) {
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto &drdu = Fb.grid().drdu();
+  const auto gg = NumCalc::integrate(1.0, pi, pf, t, Fa.g(), Fb.g(), drdu);
+  return gg * Fb.grid().du();
+}
+
+void Gab_rhs(const std::vector<double> &t, DiracSpinor *dF,
+             const DiracSpinor &Fb, double a) {
+  for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+    // dF->f(i) += a * t[i] * Fb.f(i);
+    dF->g(i) += a * t[i] * Fb.g(i);
+  }
+}
+
+//******************************************************************************
+double Gab(const DiracSpinor &Fa, const DiracSpinor &Fb) {
+  const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
+  const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
+  const auto &drdu = Fb.grid().drdu();
+  const auto gg = NumCalc::integrate(1.0, pi, pf, Fa.g(), Fb.g(), drdu);
+  return gg * Fb.grid().du();
+}
+
+// Gab_rhs function (constant version): dF_ab += g - note, uses +=, so can combine.
+// Ensure empty to begin.
+void Gab_rhs(DiracSpinor *dF, const DiracSpinor &Fb, double a) {
+  for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+    dF->g(i) += a * Fb.g(i);
+  }
+}
+
 //******************************************************************************
 // Versions for constant t(r) = c
 
@@ -271,17 +305,24 @@ double Pab(double pm, const DiracSpinor &Fa, const DiracSpinor &Fb) {
   return (fg + pm * gf) * Fb.grid().du();
 }
 
-// Rab function: Int[ (fa*fb + pm*ga*gb) , dr]. pm = +/-1 (usually)
 double Rab(double pm, const DiracSpinor &Fa, const DiracSpinor &Fb) {
-  if (pm == 1.0)
-    return 0.0;
+
   const auto pi = std::max(Fa.min_pt(), Fb.min_pt());
   const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
   const auto &drdu = Fb.grid().drdu();
-  // Use orthogonality of Fa and Fb:
-  // (ff + a*gg) = (ff + gg + [a-1]*gg) = [a-1]*gg
+
+  // NO! That;s what G is for!
+  // ONLY if kappa_a = kappa_b!!!
+  // // Use orthogonality of Fa and Fb:
+  // // (ff + a*gg) = (ff + gg + [a-1]*gg) = [a-1]*gg
+  // if (pm == 1.0)
+  // return 0.0;
+  // const auto gg = NumCalc::integrate(1.0, pi, pf, Fa.g(), Fb.g(), drdu);
+  // return (pm - 1.0) * gg * Fb.grid().du();
+
+  const auto ff = NumCalc::integrate(1.0, pi, pf, Fa.f(), Fb.f(), drdu);
   const auto gg = NumCalc::integrate(1.0, pi, pf, Fa.g(), Fb.g(), drdu);
-  return (pm - 1.0) * gg * Fb.grid().du();
+  return (ff + pm * gg) * Fb.grid().du();
 }
 
 // Pab_rhs function: dF_ab += t(r) * (g, pm*f) - note, uses +=, so can combine.
@@ -296,11 +337,19 @@ void Pab_rhs(double pm, DiracSpinor *dF, const DiracSpinor &Fb, double a) {
 // Rab_rhs function: dF_ab += t(r) * (f, pm*g) - note, uses +=, so can combine.
 // Ensure empty to begin.
 void Rab_rhs(double pm, DiracSpinor *dF, const DiracSpinor &Fb, double a) {
+
+  // NO! That;s what G is for!
+  // ONLY if kappa_a = kappa_b!!!
   // Use orthogonality of Fa and Fb:
   // (ff + a*gg) = (ff + gg + [a-1]*gg) = [a-1]*gg
+  // for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
+  //   dF->f(i) += 0.0;
+  //   dF->g(i) += a * (pm - 1.0) * Fb.g(i);
+  // }
+
   for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
-    dF->f(i) += 0.0;
-    dF->g(i) += a * (pm - 1.0) * Fb.g(i);
+    dF->f(i) += a * Fb.f(i);
+    dF->g(i) += a * pm * Fb.g(i);
   }
 }
 

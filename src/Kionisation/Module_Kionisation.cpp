@@ -692,7 +692,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
        {"q_range", "List (2). Minimum, maximum momentum transfer (q), in eV "
                    "(hbar=c=1). For reference, 1/a0 ~ 3730 eV. [1.0e4, 1.0e7]"},
        {"q_steps", "Numer of steps along q grid (logarithmic) [1]"},
-       {"oname", "oname"},
+       {"label", "Extra label for output file (not usually nedded)"},
        {"operators", "List, comma separated. Any of 'V' (vector), 'A' "
                      "(axial/pseudo-vector), 'S' "
                      "(scalar), 'P' (pseudoscalar)"},
@@ -705,7 +705,6 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
         "List: Format for output. List any of: gnuplot, gnuplot_E, xyz, "
         "matrix (comma-separated). gnuplot is for easy plotting as function of "
         "q, gnuplot_E is for easy plotting as function of E [gnuplot]"},
-       {"print_all", "Print all spatial parts (E, M, L) seperately? [false]"},
        {"units",
         "Units for 'gnuplot' output: Particle (keV/MeV) or Atomic (E_H,1/a0). "
         "Only affects _gnu output format, all _mat and _xyz are "
@@ -867,8 +866,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       assert(ec > 0.0);
 
       const int l = Fa.l();
-      const int lc_max = l + Kmax;
-      const int lc_min = std::max(l - Kmax, 0);
+      // XXX Check this!
+      const int lc_max = l + Kmax + 1;
+      const int lc_min = std::max(l - Kmax - 1, 0);
 
       ContinuumOrbitals cntm(wf.vHF());
       cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale,
@@ -927,8 +927,6 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Output format:
 
-  const auto print_all = input.get("print_all", false);
-
   const auto toutput =
       input.get<std::vector<std::string>>("output_format", {"gnuplot"});
   // Use vector, since allow outputting in multiple formats
@@ -983,36 +981,42 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       HF::parseMethod_short(wf.vHF()->method()) + (hole_particle ? "_hp" : "") +
       (force_orthog ? "_orth" : "") + (force_rescale ? "_rescale" : "");
 
+  const auto label = input.get("label", std::string{""});
+
   std::string prefix = wf.identity() + "_" + method + "_" +
-                       std::to_string(Kmin) + "-" + std::to_string(Kmax) + "_";
+                       std::to_string(Kmin) + "-" + std::to_string(Kmax) + "_" +
+                       (low_q ? "lowq_" : "") +
+                       (label == "" ? "" : label + "_");
 
   std::cout << "\nWriting to files: " << prefix << "...\n";
   if (vectorQ) {
-    Kion::write_to_file(output_formats, Q_Phi, Egrid, qgrid, prefix + "Phi", 8,
+    Kion::write_to_file(output_formats, Q_Phi, Egrid, qgrid, prefix + "V0", 8,
                         units);
-    Kion::write_to_file(output_formats, Q_E + Q_M + Q_L, Egrid, qgrid,
-                        prefix + "V", 8, units);
-    if (print_all) {
-      Kion::write_to_file(output_formats, Q_E, Egrid, qgrid, prefix + "V^e", 8,
+    // Kion::write_to_file(output_formats, Q_E + Q_M + Q_L, Egrid, qgrid,
+    // prefix + "V", 8, units);
+    // if (print_all)
+    {
+      Kion::write_to_file(output_formats, Q_E, Egrid, qgrid, prefix + "VE", 8,
                           units);
-      Kion::write_to_file(output_formats, Q_M, Egrid, qgrid, prefix + "V^m", 8,
+      Kion::write_to_file(output_formats, Q_M, Egrid, qgrid, prefix + "VM", 8,
                           units);
-      Kion::write_to_file(output_formats, Q_L, Egrid, qgrid, prefix + "V^l", 8,
+      Kion::write_to_file(output_formats, Q_L, Egrid, qgrid, prefix + "VL", 8,
                           units);
     }
   }
   if (axialQ) {
-    Kion::write_to_file(output_formats, Q_Phi5, Egrid, qgrid, prefix + "Phi5",
-                        8, units);
-    Kion::write_to_file(output_formats, Q_E5 + Q_M5 + Q_L5, Egrid, qgrid,
-                        prefix + "V5", 8, units);
-    if (print_all) {
-      Kion::write_to_file(output_formats, Q_E5, Egrid, qgrid, prefix + "V5^e",
-                          8, units);
-      Kion::write_to_file(output_formats, Q_M5, Egrid, qgrid, prefix + "V5^m",
-                          8, units);
-      Kion::write_to_file(output_formats, Q_L5, Egrid, qgrid, prefix + "V5^l",
-                          8, units);
+    Kion::write_to_file(output_formats, Q_Phi5, Egrid, qgrid, prefix + "A0", 8,
+                        units);
+    // Kion::write_to_file(output_formats, Q_E5 + Q_M5 + Q_L5, Egrid, qgrid,
+    // prefix + "V5", 8, units);
+    // if (print_all)
+    {
+      Kion::write_to_file(output_formats, Q_E5, Egrid, qgrid, prefix + "AE", 8,
+                          units);
+      Kion::write_to_file(output_formats, Q_M5, Egrid, qgrid, prefix + "AM", 8,
+                          units);
+      Kion::write_to_file(output_formats, Q_L5, Egrid, qgrid, prefix + "AL", 8,
+                          units);
     }
   }
   if (scalarQ) {
@@ -1020,7 +1024,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                         units);
   }
   if (pseudoscalarQ) {
-    Kion::write_to_file(output_formats, Q_S5, Egrid, qgrid, prefix + "S5", 8,
+    Kion::write_to_file(output_formats, Q_S5, Egrid, qgrid, prefix + "P", 8,
                         units);
   }
 }
