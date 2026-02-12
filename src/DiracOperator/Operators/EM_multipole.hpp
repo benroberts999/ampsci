@@ -693,106 +693,75 @@ V_sigma_K(const Grid &grid, int sigma, int k, bool gamma5 = false,
 
 //------------------------------------------------------------------------------
 inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Ek_w_L(const IO::InputBlock &input, const Wavefunction &wf) {
+generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
-  input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"},
-               {"omega", "Frequency: nb: q = alpha*omega [1.0e-4]"}});
+  input.check({
+      {"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"},
+      {"omega", "Frequency: nb: q := alpha*omega [1.0e-4]"},
+      {"type", "V,A,S,P (Vector, Axial, Scalar, Pseudoscalar) [V]"},
+      {"component", "E,M,L,T (electric, magnetic, longitudanel, temporal). "
+                    "Temporal is forced if type = S or P. [E]"},
+      {"form", "L,V (Length, Velocity); only for electric vector [L]"},
+  });
   if (input.has_option("help")) {
     return nullptr;
   }
   const auto k = input.get("k", 1);
   const auto omega = input.get("omega", 1.0e-4);
-  return std::make_unique<VEk_Len>(wf.grid(), k, omega);
-}
 
-//------------------------------------------------------------------------------
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Ek_w(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"},
-               {"omega", "Frequency: nb: q = alpha*omega [1.0e-4]"},
-               {"gamma5", "Use gamma^5 variant: true/false [false]"}});
-  if (input.has_option("help")) {
-    return nullptr;
+  using namespace std::string_literals;
+  const auto type = input.get("type", "V"s);
+  const auto component = input.get("comp*", "E"s);
+  const auto form = input.get("form", "V"s);
+
+  const bool Vector = qip::ci_wc_compare(type, "V*");
+  const bool AxialVector = qip::ci_wc_compare(type, "A*");
+  const bool Scalar = qip::ci_wc_compare(type, "S*");
+  const bool PseudoScalar = qip::ci_wc_compare(type, "P*");
+
+  const bool Electric = qip::ci_wc_compare(component, "E*");
+  const bool Magnetic = qip::ci_wc_compare(component, "M*");
+  const bool Longitudinal = qip::ci_wc_compare(component, "L*");
+  const bool Temporal = qip::ci_wc_compare(component, "T*");
+
+  const bool LengthForm = qip::ci_wc_compare(form, "L*");
+
+  if (LengthForm && !(Electric && Vector)) {
+    std::cout << "Fail; Length form only valid for Electric Vector\n";
   }
-  const auto k = input.get("k", 1);
-  const auto omega = input.get("omega", 1.0e-4);
-  const auto gamma5 = input.get("gamma5", false);
-  if (gamma5)
+
+  // Electric:
+  if (Electric && LengthForm && Vector)
+    return std::make_unique<VEk_Len>(wf.grid(), k, omega);
+  if (Electric && Vector)
+    return std::make_unique<VEk>(wf.grid(), k, omega);
+  if (Electric && AxialVector)
     return std::make_unique<AEk>(wf.grid(), k, omega);
-  return std::make_unique<VEk>(wf.grid(), k, omega);
-}
 
-//------------------------------------------------------------------------------
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Mk_w(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"k", "Rank: k=1 for M1, =2 for M2 etc. [1]"},
-               {"omega", "Frequency: nb: q = alpha*omega [1.0e-4]"},
-               {"gamma5", "Use gamma^5 variant: true/false [false]"}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  const auto k = input.get("k", 1);
-  const auto omega = input.get("omega", 1.0e-4);
-  const auto gamma5 = input.get("gamma5", false);
-  if (gamma5)
-    return std::make_unique<AMk>(wf.grid(), k, omega);
-  return std::make_unique<VMk>(wf.grid(), k, omega);
-}
-
-//------------------------------------------------------------------------------
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Lk_w(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"k", "Rank [1]"},
-               {"omega", "Frequency: nb: q = alpha*omega [1.0e-4]"},
-               {"gamma5", "Use gamma^5 variant: true/false [false]"}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  const auto k = input.get("k", 1);
-  const auto omega = input.get("omega", 1.0e-4);
-  const auto gamma5 = input.get("gamma5", false);
-  if (gamma5)
+  // Longitudinal
+  if (Longitudinal && Vector)
+    return std::make_unique<VLk>(wf.grid(), k, omega);
+  if (Longitudinal && AxialVector)
     return std::make_unique<ALk>(wf.grid(), k, omega);
-  return std::make_unique<VLk>(wf.grid(), k, omega);
-}
 
-//------------------------------------------------------------------------------
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Vk_w(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"k", "Rank [1]"},
-               {"omega", "Frequency: nb: q = alpha*omega [1.0e-4]"},
-               {"gamma5", "Use gamma^5 variant: true/false [false]"}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  const auto k = input.get("k", 1);
-  const auto omega = input.get("omega", 1.0e-4);
-  const auto gamma5 = input.get("gamma5", false);
-  if (gamma5)
+  // Magnetic
+  if (Magnetic && Vector)
+    return std::make_unique<VMk>(wf.grid(), k, omega);
+  if (Magnetic && AxialVector)
+    return std::make_unique<AMk>(wf.grid(), k, omega);
+
+  // Temporal
+  if (Temporal && Vector)
+    return std::make_unique<Phik>(wf.grid(), k, omega);
+  if (Temporal && AxialVector)
     return std::make_unique<Phi5k>(wf.grid(), k, omega);
-  return std::make_unique<Phik>(wf.grid(), k, omega);
-}
 
-//------------------------------------------------------------------------------
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Sk_w(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"k", "Rank [1]"},
-               {"omega", "Frequency: nb: q = alpha*omega [1.0e-4]"},
-               {"gamma5", "Use gamma^5 variant: true/false [false]"}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  const auto k = input.get("k", 1);
-  const auto omega = input.get("omega", 1.0e-4);
-  const auto gamma5 = input.get("gamma5", false);
-  if (gamma5)
+  if (Scalar)
+    return std::make_unique<Sk>(wf.grid(), k, omega);
+  if (PseudoScalar)
     return std::make_unique<S5k>(wf.grid(), k, omega);
-  return std::make_unique<Sk>(wf.grid(), k, omega);
+
+  return nullptr;
 }
 
 } // namespace DiracOperator

@@ -43,28 +43,6 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
   const std::vector<std::string> op_names{"VEk",  "VMk", "VLk",
                                           "Vk_w", "Sk",  "VEk_Len"};
 
-  // lambda to generate operator using "helper" functions
-  // auto use_helper_function =
-  //     [&](const std::string &name, int k, bool gamma5,
-  //         SphericalBessel::JL_table *jl =
-  //             nullptr) -> std::unique_ptr<DiracOperator::TensorOperator> {
-  //   using namespace DiracOperator;
-  //   // Use multipole helpers when they map naturally to the operator.
-  //   if (name == "VEk")
-  //     return multipole::V_sigma_K(wf.grid(), +1, k, gamma5, jl);
-  //   if (name == "VMk")
-  //     return multipole::V_sigma_K(wf.grid(), 0, k, gamma5, jl);
-  //   if (name == "VLk")
-  //     return multipole::V_sigma_K(wf.grid(), -1, k, gamma5, jl);
-  //   if (name == "Vk_w")
-  //     return multipole::Phi_K(wf.grid(), k, gamma5, jl);
-  //   if (name == "Sk")
-  //     return multipole::S_K(wf.grid(), k, gamma5, jl);
-  //   if (name == "VEk_Len" && !gamma5)
-  //     return std::make_unique<DiracOperator::VEk_Len>(wf.grid(), k, 1.0e-6, jl);
-  //   return std::unique_ptr<DiracOperator::TensorOperator>(nullptr);
-  // };
-
   auto use_helper_function =
       [&](const std::string &name, int k, bool gamma5,
           SphericalBessel::JL_table *jl =
