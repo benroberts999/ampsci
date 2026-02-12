@@ -47,57 +47,13 @@ public:
   //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
-  //                         {
-
-  //   DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
-  //   dF.min_pt() = Fb.min_pt();
-  //   dF.max_pt() = Fb.max_pt();
-  //   if (isZero(kappa_a, Fb.kappa()) || m_K == 0) {
-  //     dF.min_pt() = 0;
-  //     dF.max_pt() = 0;
-  //     return dF;
-  //   }
-
-  //   const auto K = double(m_K);
-  //   const auto c1 = double(kappa_a - Fb.kappa()) / (K + 1.0);
-  //   const auto cx = std::sqrt((K + 1.0) / K);
-  //   Rab_rhs(+1, *p_jK, &dF, Fb, cx);
-  //   Pab_rhs(+1, *p_jKp1, &dF, Fb, -c1 * cx);
-  //   Pab_rhs(-1, *p_jKp1, &dF, Fb, -cx);
-  //   return dF;
-  // }
 
   //--------------
   double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa()) || m_K == 0) {
-      return 0.0;
-    }
-
-    const auto K = double(m_K);
-    const auto cc = double(Fa.kappa() - Fb.kappa()) / (K + 1.0);
-    const auto cx = std::sqrt((K + 1.0) / K);
-
-    return cx * (Rab(+1, *p_jK, Fa, Fb) - (cc + 1.0) * Vab(*p_jKp1, Fa, Fb) +
-                 (1.0 - cc) * Wab(*p_jKp1, Fa, Fb));
-  }
+                        const DiracSpinor &Fb) const override final;
 
   //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    if (m_jl) {
-      // nb: may not be exact! Ensure lookup table is dense enough!
-      p_jK = &m_jl->jL_nearest(m_K, q);
-      p_jKp1 = &m_jl->jL_nearest(m_K + 1, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
-      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &m_jKp1);
-      p_jK = &m_jK;
-      p_jKp1 = &m_jKp1;
-    }
-  }
+  void updateFrequency(const double omega) override final;
 
 private:
   int m_K;
@@ -154,41 +110,10 @@ public:
 
   //--------------
   double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa()) || m_K == 0) {
-      return 0.0;
-    }
-
-    const auto K = double(m_K);
-    assert(m_K != 0); // should already be discounted!
-    const auto cx = std::sqrt((K + 1.0) / K);
-    const auto dk = double(Fa.kappa() - Fb.kappa());
-
-    const auto Pp1 = Pab(+1, *p_jK_on_qr, Fa, Fb);
-    const auto Pp2 = Pab(+1, *p_jKp1, Fa, Fb);
-    const auto Pm1 = Pab(-1, *p_jK_on_qr, Fa, Fb);
-
-    return cx * (dk * (Pp1 - Pp2 / (K + 1)) - K * Pm1);
-  }
+                        const DiracSpinor &Fb) const override final;
 
   //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    if (m_jl) {
-      // nb: may not be exact! Ensure lookup table is dense enough!
-      p_jK_on_qr = &m_jl->jL_on_qr_nearest(m_K, q);
-      p_jKp1 = &m_jl->jL_nearest(m_K + 1, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK_on_qr);
-      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &m_jKp1);
-      using namespace qip::overloads;
-      m_jK_on_qr /= (q * m_vec);
-      p_jK_on_qr = &m_jK_on_qr;
-      p_jKp1 = &m_jKp1;
-    }
-  }
+  void updateFrequency(const double omega) override final;
 
 private:
   int m_K;
@@ -244,36 +169,10 @@ public:
 
   //--------------
   double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa())) {
-      return 0.0;
-    }
-
-    const auto K = double(m_K);
-    const auto dk = double(Fa.kappa() - Fb.kappa());
-
-    return -dk * Pab(+1, *p_jK_on_qr, Fa, Fb) +
-           K * Pab(-1, *p_jK_on_qr, Fa, Fb) - Pab(-1, *p_jKp1, Fa, Fb);
-  }
+                        const DiracSpinor &Fb) const override final;
 
   //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    if (m_jl) {
-      // nb: may not be exact! Ensure lookup table is dense enough!
-      p_jK_on_qr = &m_jl->jL_on_qr_nearest(m_K, q);
-      p_jKp1 = &m_jl->jL_nearest(m_K + 1, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK_on_qr);
-      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &m_jKp1);
-      using namespace qip::overloads;
-      m_jK_on_qr /= (q * m_vec);
-      p_jK_on_qr = &m_jK_on_qr;
-      p_jKp1 = &m_jKp1;
-    }
-  }
+  void updateFrequency(const double omega) override final;
 
 private:
   int m_K;
@@ -329,32 +228,10 @@ public:
 
   //--------------
   double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa()) || (Fa.kappa() == -Fb.kappa()) ||
-        m_K == 0) {
-      return 0.0;
-    }
-
-    const auto K = double(m_K);
-    const auto sk = double(Fa.kappa() + Fb.kappa());
-    assert(m_K != 0); // should already be discounted!
-    const auto ck = sk / std::sqrt(K * (K + 1.0));
-
-    return -ck * Pab(+1, *p_jK, Fa, Fb);
-  }
+                        const DiracSpinor &Fb) const override final;
 
   //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-    if (m_jl) {
-      // nb: may not be exact! Ensure lookup table is dense enough!
-      p_jK = &m_jl->jL_nearest(m_K, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
-      p_jK = &m_jK;
-    }
-  }
+  void updateFrequency(const double omega) override final;
 
 private:
   int m_K;
@@ -407,26 +284,10 @@ public:
 
   //--------------
   double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa())) {
-      return 0.0;
-    }
-
-    return Rab(+1, *p_jK, Fa, Fb);
-  }
+                        const DiracSpinor &Fb) const override final;
 
   //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-    if (m_jl) {
-      // nb: may not be exact! Ensure lookup table is dense enough!
-      p_jK = &m_jl->jL_nearest(m_K, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
-      p_jK = &m_jK;
-    }
-  }
+  void updateFrequency(const double omega) override final;
 
 private:
   int m_K;
@@ -480,26 +341,10 @@ public:
 
   //--------------
   double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa())) {
-      return 0.0;
-    }
-
-    return Rab(-1, *p_jK, Fa, Fb);
-  }
+                        const DiracSpinor &Fb) const override final;
 
   //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-    if (m_jl) {
-      // nb: may not be exact! Ensure lookup table is dense enough!
-      p_jK = &m_jl->jL_nearest(m_K, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
-      p_jK = &m_jK;
-    }
-  }
+  void updateFrequency(const double omega) override final;
 
 private:
   int m_K;
@@ -520,7 +365,7 @@ public:
 // Gamma^5 versions!
 
 //==============================================================================
-//! @brief Electric multipole operator (gamma5 variant), V-form, frequency-dependent.
+//! @brief Axial electric multipole operator: $A^E_K = T^{(+1)}_K(q)\gamma^5$
 /*!
   @details
   - Gamma^5 variant of the electric multipole (vector) operator. Functions
@@ -531,10 +376,10 @@ public:
   - Accepts an optional `const SphericalBessel::JL_table *jl` to use precomputed
     Bessel vectors; otherwise computes them on demand.
 */
-class E5k_w final : public TensorOperator {
+class AEk final : public TensorOperator {
 public:
-  E5k_w(const Grid &gr, int K, double omega,
-        const SphericalBessel::JL_table *jl = nullptr)
+  AEk(const Grid &gr, int K, double omega,
+      const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                        gr.r(), 0, Realness::real),
         m_K(K),
@@ -543,7 +388,7 @@ public:
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("tv^E5_") + std::to_string(m_K);
+    return std::string("T^E5_") + std::to_string(m_K);
   }
 
   double angularF(const int ka, const int kb) const override final {
@@ -556,39 +401,10 @@ public:
 
   //--------------
   double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa()) || m_K == 0) {
-      return 0.0;
-    }
-
-    const auto K = double(m_K);
-    assert(m_K != 0); // should already be discounted!
-    const auto cx = std::sqrt((K + 1.0) / K);
-    const auto dk = double(Fa.kappa() + Fb.kappa());
-
-    const auto Pp1 = Rab(-1, jK_on_qr, Fa, Fb);
-    const auto Pp2 = Rab(-1, jKp1, Fa, Fb);
-    const auto Pm1 = Rab(+1, jK_on_qr, Fa, Fb);
-
-    return cx * (dk * (Pp1 - Pp2 / (K + 1)) - K * Pm1);
-  }
+                        const DiracSpinor &Fb) const override final;
 
   //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    if (m_jl) {
-      jK_on_qr = m_jl->jL_on_qr_nearest(m_K, q);
-      jKp1 = m_jl->jL_nearest(m_K + 1, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK_on_qr);
-      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &jKp1);
-      for (std::size_t i = 0; i < m_vec.size(); ++i) {
-        jK_on_qr[i] /= (q * m_vec[i]);
-      }
-    }
-  }
+  void updateFrequency(const double omega) override final;
 
 private:
   int m_K;
@@ -598,12 +414,12 @@ private:
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
-  E5k_w(const E5k_w &) = default;
-  E5k_w &operator=(const E5k_w &) = default;
+  AEk(const AEk &) = default;
+  AEk &operator=(const AEk &) = default;
 };
 
 //==============================================================================
-//! @brief Longitudinal multipole operator (gamma5 variant), V-form.
+//! @brief Axial longitudinal multipole operator: $A^L_K = T^{(-1)}_K(q)\gamma^5$
 /*!
   @details
   - Gamma^5 variant of the longitudinal multipole operator. Works like
@@ -611,10 +427,10 @@ public:
   - Supports optional `const SphericalBessel::JL_table *jl` for lookup-table
     acceleration; otherwise uses on-the-fly Bessel evaluation.
 */
-class L5k_w final : public TensorOperator {
+class ALk final : public TensorOperator {
 public:
-  L5k_w(const Grid &gr, int K, double omega,
-        const SphericalBessel::JL_table *jl = nullptr)
+  ALk(const Grid &gr, int K, double omega,
+      const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
@@ -623,7 +439,7 @@ public:
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("tv^5L_") + std::to_string(m_K);
+    return std::string("T^L5_") + std::to_string(m_K);
   }
 
   double angularF(const int ka, const int kb) const override final {
@@ -636,34 +452,10 @@ public:
 
   //--------------
   double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa())) {
-      return 0.0;
-    }
-
-    const auto K = double(m_K);
-    const auto dk = double(Fa.kappa() + Fb.kappa());
-
-    return -dk * Rab(-1, jK_on_qr, Fa, Fb) + K * Rab(+1, jK_on_qr, Fa, Fb) -
-           Rab(+1, jKp1, Fa, Fb);
-  }
+                        const DiracSpinor &Fb) const override final;
 
   //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    if (m_jl) {
-      jK_on_qr = m_jl->jL_on_qr_nearest(m_K, q);
-      jKp1 = m_jl->jL_nearest(m_K + 1, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK_on_qr);
-      SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &jKp1);
-      for (std::size_t i = 0; i < m_vec.size(); ++i) {
-        jK_on_qr[i] /= (q * m_vec[i]);
-      }
-    }
-  }
+  void updateFrequency(const double omega) override final;
 
 private:
   int m_K;
@@ -673,12 +465,12 @@ private:
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
-  L5k_w(const L5k_w &) = default;
-  L5k_w &operator=(const L5k_w &) = default;
+  ALk(const ALk &) = default;
+  ALk &operator=(const ALk &) = default;
 };
 
 //==============================================================================
-//! @brief Magnetic multipole operator (gamma5 variant), frequency-dependent.
+//! @brief Axial magnetic multipole operator: $A^M_K = T^{(0)}_K(q)\gamma^5$
 /*!
   @details
   - Gamma^5 variant of the magnetic multipole operator. Analogous to
@@ -686,10 +478,10 @@ public:
   - Uses spherical Bessel functions j_L(q*r) for radial dependence and
     accepts an optional `const SphericalBessel::JL_table *jl`.
 */
-class M5k_w final : public TensorOperator {
+class AMk final : public TensorOperator {
 public:
-  M5k_w(const Grid &gr, int K, double omega,
-        const SphericalBessel::JL_table *jl = nullptr)
+  AMk(const Grid &gr, int K, double omega,
+      const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
         m_K(K),
@@ -699,7 +491,7 @@ public:
   }
 
   std::string name() const override final {
-    return std::string("t^5M_") + std::to_string(m_K);
+    return std::string("T^M5_") + std::to_string(m_K);
   }
 
   double angularF(const int ka, const int kb) const override final {
@@ -712,31 +504,10 @@ public:
 
   //--------------
   double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa()) || (Fa.kappa() == -Fb.kappa()) ||
-        m_K == 0) {
-      return 0.0;
-    }
-
-    const auto K = double(m_K);
-    const auto sk = double(Fa.kappa() - Fb.kappa());
-    assert(m_K != 0); // should already be discounted!
-    const auto ck = sk / std::sqrt(K * (K + 1.0));
-
-    return -ck * Rab(-1, jK, Fa, Fb);
-  }
+                        const DiracSpinor &Fb) const override final;
 
   //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    if (m_jl) {
-      jK = m_jl->jL_nearest(m_K, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK);
-    }
-  }
+  void updateFrequency(const double omega) override final;
 
 private:
   int m_K;
@@ -745,12 +516,12 @@ private:
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
-  M5k_w(const M5k_w &) = default;
-  M5k_w &operator=(const M5k_w &) = default;
+  AMk(const AMk &) = default;
+  AMk &operator=(const AMk &) = default;
 };
 
 //==============================================================================
-//! @brief Temporal component of vector multipole operator (gamma5 variant).
+//! @brief Temporal component of the axial vector multipole operator: $\Theta_K = \Phi^5_K = t^K(q)\gamma^5$
 /*!
   @details
   - Gamma^5 variant of the temporal (time-like) component of the vector
@@ -759,74 +530,9 @@ public:
   - Radial dependence uses j_L(q*r) and the constructor accepts an
     optional `const SphericalBessel::JL_table *jl`.
 */
-class Phi5k_w final : public TensorOperator {
+class Phi5k final : public TensorOperator {
 public:
-  Phi5k_w(const Grid &gr, int K, double omega,
-          const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K),
-        m_jl(jl) {
-    if (omega != 0.0)
-      updateFrequency(omega);
-  }
-  std::string name() const override final {
-    return std::string("t^5_") + std::to_string(m_K);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, -kb);
-  }
-
-  //--------------
-  DiracSpinor radial_rhs(const int kappa_a,
-                         const DiracSpinor &Fb) const override final;
-
-  //--------------
-  double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa())) {
-      return 0.0;
-    }
-
-    return Pab(-1, jk, Fa, Fb);
-  }
-
-  //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    if (m_jl) {
-      jk = m_jl->jL_nearest(m_K, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jk);
-    }
-  }
-
-private:
-  int m_K;
-  const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jk{};
-
-public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  Phi5k_w(const Phi5k_w &) = default;
-  Phi5k_w &operator=(const Phi5k_w &) = default;
-};
-
-//==============================================================================
-//! @brief Pseudoscalar multipole operator (gamma5 scalar), frequency-dependent.
-/*!
-  @details
-  - Implements the pseudoscalar multipole operator ~ e^{i q r} gamma^0 gamma^5.
-  - Radial dependence is provided via spherical Bessel functions j_L(q*r).
-  - Supports an optional `const SphericalBessel::JL_table *jl` for precomputed
-    Bessel lookup; otherwise computes on demand.
-*/
-class S5k_w final : public TensorOperator {
-public:
-  S5k_w(const Grid &gr, int K, double omega,
+  Phi5k(const Grid &gr, int K, double omega,
         const SphericalBessel::JL_table *jl = nullptr)
       : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                        gr.r(), 0, Realness::real, true),
@@ -836,7 +542,7 @@ public:
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("tv^5S_") + std::to_string(m_K);
+    return std::string("Phi5_") + std::to_string(m_K);
   }
 
   double angularF(const int ka, const int kb) const override final {
@@ -849,25 +555,10 @@ public:
 
   //--------------
   double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa())) {
-      return 0.0;
-    }
-
-    return Pab(+1, jk, Fa, Fb);
-  }
+                        const DiracSpinor &Fb) const override final;
 
   //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    if (m_jl) {
-      jk = m_jl->jL_nearest(m_K, q);
-    } else {
-      SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jk);
-    }
-  }
+  void updateFrequency(const double omega) override final;
 
 private:
   int m_K;
@@ -876,8 +567,58 @@ private:
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
-  S5k_w(const S5k_w &) = default;
-  S5k_w &operator=(const S5k_w &) = default;
+  Phi5k(const Phi5k &) = default;
+  Phi5k &operator=(const Phi5k &) = default;
+};
+
+//==============================================================================
+//! @brief Pseudoscalar multipole operator: $P_K = S^5_K = t^K(q)(i\gamma^0\gamma^5)$
+/*!
+  @details
+  - Implements the pseudoscalar multipole operator ~ e^{i q r} i gamma^0 gamma^5.
+  - Radial dependence is provided via spherical Bessel functions j_L(q*r).
+  - Supports an optional `const SphericalBessel::JL_table *jl` for precomputed
+    Bessel lookup; otherwise computes on demand.
+*/
+class S5k final : public TensorOperator {
+public:
+  S5k(const Grid &gr, int K, double omega,
+      const SphericalBessel::JL_table *jl = nullptr)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                       gr.r(), 0, Realness::real, true),
+        m_K(K),
+        m_jl(jl) {
+    if (omega != 0.0)
+      updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("S5_") + std::to_string(m_K);
+  }
+
+  double angularF(const int ka, const int kb) const override final {
+    return Angular::Ck_kk(m_K, ka, -kb);
+  }
+
+  //--------------
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final;
+
+  //--------------
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final;
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final;
+
+private:
+  int m_K;
+  const SphericalBessel::JL_table *m_jl{nullptr};
+  std::vector<double> jk{};
+
+public:
+  // Default shallow copy semantics (pointer member is shallow-copied)
+  S5k(const S5k &) = default;
+  S5k &operator=(const S5k &) = default;
 };
 
 //==============================================================================
@@ -886,31 +627,31 @@ public:
 //! Helper functions for the multipole operators
 namespace multipole {
 
-//! Convert from "transition form" to "moment form"
+//! Convert from "transition form" to "moment form" [check sign?]
 inline double moment_factor(int K, double omega) {
   const auto q = std::abs(PhysConst::alpha * omega);
-  // -1 for electric, +1 for magnetic?
-  return -1.0 * qip::double_factorial(2 * K + 1) / qip::pow(q, K) *
+  // sign?
+  return qip::double_factorial(2 * K + 1) / qip::pow(q, K) *
          std::sqrt(K / (K + 1.0));
 }
 
-//! Scalar(pseudoscalar) multipole operator. Note: q/omega not set
-inline std::unique_ptr<DiracOperator::TensorOperator>
-S_K(const Grid &grid, int k, bool gamma5 = false,
-    const SphericalBessel::JL_table *jl = nullptr) {
-  if (gamma5)
-    return std::make_unique<S5k_w>(grid, k, 1.0e-4, jl);
-  return std::make_unique<Sk>(grid, k, 1.0e-4, jl);
-}
+// //! Scalar(pseudoscalar) multipole operator. Note: q/omega not set
+// inline std::unique_ptr<DiracOperator::TensorOperator>
+// S_K(const Grid &grid, int k, bool gamma5 = false,
+//     const SphericalBessel::JL_table *jl = nullptr) {
+//   if (gamma5)
+//     return std::make_unique<S5k>(grid, k, 1.0e-4, jl);
+//   return std::make_unique<Sk>(grid, k, 1.0e-4, jl);
+// }
 
-//! Temporal part of vector(pseudovector) multipole operator. Note: q/omega not set
-inline std::unique_ptr<DiracOperator::TensorOperator>
-Phi_K(const Grid &grid, int k, bool gamma5 = false,
-      const SphericalBessel::JL_table *jl = nullptr) {
-  if (gamma5)
-    return std::make_unique<Phi5k_w>(grid, k, 1.0e-4, jl);
-  return std::make_unique<Phik>(grid, k, 1.0e-4, jl);
-}
+// //! Temporal part of vector(pseudovector) multipole operator. Note: q/omega not set
+// inline std::unique_ptr<DiracOperator::TensorOperator>
+// Phi_K(const Grid &grid, int k, bool gamma5 = false,
+//       const SphericalBessel::JL_table *jl = nullptr) {
+//   if (gamma5)
+//     return std::make_unique<Phi5k>(grid, k, 1.0e-4, jl);
+//   return std::make_unique<Phik>(grid, k, 1.0e-4, jl);
+// }
 
 //! Spatial part of vector(pseudovector) multipole operator. Note: q/omega not set
 inline std::unique_ptr<DiracOperator::TensorOperator>
@@ -922,21 +663,21 @@ V_sigma_K(const Grid &grid, int sigma, int k, bool gamma5 = false,
     // "Electric"
   case +1:
     if (gamma5)
-      return std::make_unique<E5k_w>(grid, k, 1.0e-4, jl);
+      return std::make_unique<AEk>(grid, k, 1.0e-4, jl);
     else
       return std::make_unique<VEk>(grid, k, 1.0e-4, jl);
 
     // "Longitudanal"
   case -1:
     if (gamma5)
-      return std::make_unique<L5k_w>(grid, k, 1.0e-4, jl);
+      return std::make_unique<ALk>(grid, k, 1.0e-4, jl);
     else
       return std::make_unique<VLk>(grid, k, 1.0e-4, jl);
 
     // "Magnetic"
   case 0:
     if (gamma5)
-      return std::make_unique<M5k_w>(grid, k, 1.0e-4, jl);
+      return std::make_unique<AMk>(grid, k, 1.0e-4, jl);
     else
       return std::make_unique<VMk>(grid, k, 1.0e-4, jl);
   }
@@ -978,7 +719,7 @@ generate_Ek_w(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto omega = input.get("omega", 1.0e-4);
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
-    return std::make_unique<E5k_w>(wf.grid(), k, omega);
+    return std::make_unique<AEk>(wf.grid(), k, omega);
   return std::make_unique<VEk>(wf.grid(), k, omega);
 }
 
@@ -996,7 +737,7 @@ generate_Mk_w(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto omega = input.get("omega", 1.0e-4);
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
-    return std::make_unique<M5k_w>(wf.grid(), k, omega);
+    return std::make_unique<AMk>(wf.grid(), k, omega);
   return std::make_unique<VMk>(wf.grid(), k, omega);
 }
 
@@ -1014,7 +755,7 @@ generate_Lk_w(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto omega = input.get("omega", 1.0e-4);
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
-    return std::make_unique<L5k_w>(wf.grid(), k, omega);
+    return std::make_unique<ALk>(wf.grid(), k, omega);
   return std::make_unique<VLk>(wf.grid(), k, omega);
 }
 
@@ -1032,7 +773,7 @@ generate_Vk_w(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto omega = input.get("omega", 1.0e-4);
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
-    return std::make_unique<Phi5k_w>(wf.grid(), k, omega);
+    return std::make_unique<Phi5k>(wf.grid(), k, omega);
   return std::make_unique<Phik>(wf.grid(), k, omega);
 }
 
@@ -1050,7 +791,7 @@ generate_Sk_w(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto omega = input.get("omega", 1.0e-4);
   const auto gamma5 = input.get("gamma5", false);
   if (gamma5)
-    return std::make_unique<S5k_w>(wf.grid(), k, omega);
+    return std::make_unique<S5k>(wf.grid(), k, omega);
   return std::make_unique<Sk>(wf.grid(), k, omega);
 }
 

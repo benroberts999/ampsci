@@ -3,7 +3,7 @@
 namespace DiracOperator {
 
 //==============================================================================
-// VEk_Len::radial_rhs
+// VEk_Len
 //==============================================================================
 
 DiracSpinor VEk_Len::radial_rhs(const int kappa_a,
@@ -27,8 +27,40 @@ DiracSpinor VEk_Len::radial_rhs(const int kappa_a,
   return dF;
 }
 
+//------------------------------------------------------------------------------
+double VEk_Len::radialIntegral(const DiracSpinor &Fa,
+                               const DiracSpinor &Fb) const {
+
+  if (isZero(Fa.kappa(), Fb.kappa()) || m_K == 0) {
+    return 0.0;
+  }
+
+  const auto K = double(m_K);
+  const auto cc = double(Fa.kappa() - Fb.kappa()) / (K + 1.0);
+  const auto cx = std::sqrt((K + 1.0) / K);
+
+  return cx * (Rab(+1, *p_jK, Fa, Fb) - (cc + 1.0) * Vab(*p_jKp1, Fa, Fb) +
+               (1.0 - cc) * Wab(*p_jKp1, Fa, Fb));
+}
+
+//------------------------------------------------------------------------------
+void VEk_Len::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+
+  if (m_jl) {
+    // nb: may not be exact! Ensure lookup table is dense enough!
+    p_jK = &m_jl->jL_nearest(m_K, q);
+    p_jKp1 = &m_jl->jL_nearest(m_K + 1, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
+    SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &m_jKp1);
+    p_jK = &m_jK;
+    p_jKp1 = &m_jKp1;
+  }
+}
+
 //==============================================================================
-// VEk::radial_rhs
+// VEk
 //==============================================================================
 
 DiracSpinor VEk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
@@ -56,8 +88,45 @@ DiracSpinor VEk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   return dF;
 }
 
+//------------------------------------------------------------------------------
+double VEk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+
+  if (isZero(Fa.kappa(), Fb.kappa()) || m_K == 0) {
+    return 0.0;
+  }
+
+  const auto K = double(m_K);
+  assert(m_K != 0); // should already be discounted!
+  const auto cx = std::sqrt((K + 1.0) / K);
+  const auto dk = double(Fa.kappa() - Fb.kappa());
+
+  const auto Pp1 = Pab(+1, *p_jK_on_qr, Fa, Fb);
+  const auto Pp2 = Pab(+1, *p_jKp1, Fa, Fb);
+  const auto Pm1 = Pab(-1, *p_jK_on_qr, Fa, Fb);
+
+  return cx * (dk * (Pp1 - Pp2 / (K + 1)) - K * Pm1);
+}
+
+//------------------------------------------------------------------------------
+void VEk::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+
+  if (m_jl) {
+    // nb: may not be exact! Ensure lookup table is dense enough!
+    p_jK_on_qr = &m_jl->jL_on_qr_nearest(m_K, q);
+    p_jKp1 = &m_jl->jL_nearest(m_K + 1, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK_on_qr);
+    SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &m_jKp1);
+    using namespace qip::overloads;
+    m_jK_on_qr /= (q * m_vec);
+    p_jK_on_qr = &m_jK_on_qr;
+    p_jKp1 = &m_jKp1;
+  }
+}
+
 //==============================================================================
-// VLk::radial_rhs
+// VLk
 //==============================================================================
 
 DiracSpinor VLk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
@@ -83,8 +152,40 @@ DiracSpinor VLk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   return dF;
 }
 
+//------------------------------------------------------------------------------
+double VLk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+
+  if (isZero(Fa.kappa(), Fb.kappa())) {
+    return 0.0;
+  }
+
+  const auto K = double(m_K);
+  const auto dk = double(Fa.kappa() - Fb.kappa());
+
+  return -dk * Pab(+1, *p_jK_on_qr, Fa, Fb) + K * Pab(-1, *p_jK_on_qr, Fa, Fb) -
+         Pab(-1, *p_jKp1, Fa, Fb);
+}
+
+//------------------------------------------------------------------------------
+void VLk::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+
+  if (m_jl) {
+    // nb: may not be exact! Ensure lookup table is dense enough!
+    p_jK_on_qr = &m_jl->jL_on_qr_nearest(m_K, q);
+    p_jKp1 = &m_jl->jL_nearest(m_K + 1, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK_on_qr);
+    SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &m_jKp1);
+    using namespace qip::overloads;
+    m_jK_on_qr /= (q * m_vec);
+    p_jK_on_qr = &m_jK_on_qr;
+    p_jKp1 = &m_jKp1;
+  }
+}
+
 //==============================================================================
-// VMk::radial_rhs
+// VMk
 //==============================================================================
 
 DiracSpinor VMk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
@@ -108,6 +209,34 @@ DiracSpinor VMk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   return dF;
 }
 
+//------------------------------------------------------------------------------
+double VMk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+
+  if (isZero(Fa.kappa(), Fb.kappa()) || (Fa.kappa() == -Fb.kappa()) ||
+      m_K == 0) {
+    return 0.0;
+  }
+
+  const auto K = double(m_K);
+  const auto sk = double(Fa.kappa() + Fb.kappa());
+  assert(m_K != 0); // should already be discounted!
+  const auto ck = sk / std::sqrt(K * (K + 1.0));
+
+  return -ck * Pab(+1, *p_jK, Fa, Fb);
+}
+
+//------------------------------------------------------------------------------
+void VMk::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+  if (m_jl) {
+    // nb: may not be exact! Ensure lookup table is dense enough!
+    p_jK = &m_jl->jL_nearest(m_K, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
+    p_jK = &m_jK;
+  }
+}
+
 //==============================================================================
 // Phik::radial_rhs
 //==============================================================================
@@ -126,6 +255,29 @@ DiracSpinor Phik::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
 
   Rab_rhs(+1, *p_jK, &dF, Fb);
   return dF;
+}
+
+//------------------------------------------------------------------------------
+double Phik::radialIntegral(const DiracSpinor &Fa,
+                            const DiracSpinor &Fb) const {
+
+  if (isZero(Fa.kappa(), Fb.kappa())) {
+    return 0.0;
+  }
+
+  return Rab(+1, *p_jK, Fa, Fb);
+}
+
+//------------------------------------------------------------------------------
+void Phik::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+  if (m_jl) {
+    // nb: may not be exact! Ensure lookup table is dense enough!
+    p_jK = &m_jl->jL_nearest(m_K, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
+    p_jK = &m_jK;
+  }
 }
 
 //==============================================================================
@@ -148,11 +300,33 @@ DiracSpinor Sk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   return dF;
 }
 
+//------------------------------------------------------------------------------
+double Sk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+
+  if (isZero(Fa.kappa(), Fb.kappa())) {
+    return 0.0;
+  }
+
+  return Rab(-1, *p_jK, Fa, Fb);
+}
+
+//------------------------------------------------------------------------------
+void Sk::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+  if (m_jl) {
+    // nb: may not be exact! Ensure lookup table is dense enough!
+    p_jK = &m_jl->jL_nearest(m_K, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &m_jK);
+    p_jK = &m_jK;
+  }
+}
+
 //==============================================================================
-// E5k_w::radial_rhs
+// AEk::radial_rhs
 //==============================================================================
 
-DiracSpinor E5k_w::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
+DiracSpinor AEk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
 
   DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
   dF.min_pt() = Fb.min_pt();
@@ -176,11 +350,43 @@ DiracSpinor E5k_w::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   return dF;
 }
 
-//==============================================================================
-// L5k_w::radial_rhs
-//==============================================================================
+//------------------------------------------------------------------------------
+double AEk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
-DiracSpinor L5k_w::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
+  if (isZero(Fa.kappa(), Fb.kappa()) || m_K == 0) {
+    return 0.0;
+  }
+
+  const auto K = double(m_K);
+  assert(m_K != 0); // should already be discounted!
+  const auto cx = std::sqrt((K + 1.0) / K);
+  const auto dk = double(Fa.kappa() + Fb.kappa());
+
+  const auto Pp1 = Rab(-1, jK_on_qr, Fa, Fb);
+  const auto Pp2 = Rab(-1, jKp1, Fa, Fb);
+  const auto Pm1 = Rab(+1, jK_on_qr, Fa, Fb);
+
+  return cx * (dk * (Pp1 - Pp2 / (K + 1)) - K * Pm1);
+}
+
+//------------------------------------------------------------------------------
+void AEk::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+
+  if (m_jl) {
+    jK_on_qr = m_jl->jL_on_qr_nearest(m_K, q);
+    jKp1 = m_jl->jL_nearest(m_K + 1, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK_on_qr);
+    SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &jKp1);
+    for (std::size_t i = 0; i < m_vec.size(); ++i) {
+      jK_on_qr[i] /= (q * m_vec[i]);
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+DiracSpinor ALk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
 
   DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
   dF.min_pt() = Fb.min_pt();
@@ -201,11 +407,41 @@ DiracSpinor L5k_w::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   return dF;
 }
 
+//------------------------------------------------------------------------------
+double ALk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+
+  if (isZero(Fa.kappa(), Fb.kappa())) {
+    return 0.0;
+  }
+
+  const auto K = double(m_K);
+  const auto dk = double(Fa.kappa() + Fb.kappa());
+
+  return -dk * Rab(-1, jK_on_qr, Fa, Fb) + K * Rab(+1, jK_on_qr, Fa, Fb) -
+         Rab(+1, jKp1, Fa, Fb);
+}
+
+//------------------------------------------------------------------------------
+void ALk::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+
+  if (m_jl) {
+    jK_on_qr = m_jl->jL_on_qr_nearest(m_K, q);
+    jKp1 = m_jl->jL_nearest(m_K + 1, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK_on_qr);
+    SphericalBessel::fillBesselVec_kr(m_K + 1, q, m_vec, &jKp1);
+    for (std::size_t i = 0; i < m_vec.size(); ++i) {
+      jK_on_qr[i] /= (q * m_vec[i]);
+    }
+  }
+}
+
 //==============================================================================
-// M5k_w::radial_rhs
+// AMk::radial_rhs
 //==============================================================================
 
-DiracSpinor M5k_w::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
+DiracSpinor AMk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
 
   DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
   dF.min_pt() = Fb.min_pt();
@@ -226,12 +462,38 @@ DiracSpinor M5k_w::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   return dF;
 }
 
+//------------------------------------------------------------------------------
+double AMk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+
+  if (isZero(Fa.kappa(), Fb.kappa()) || (Fa.kappa() == -Fb.kappa()) ||
+      m_K == 0) {
+    return 0.0;
+  }
+
+  const auto K = double(m_K);
+  const auto sk = double(Fa.kappa() - Fb.kappa());
+  assert(m_K != 0); // should already be discounted!
+  const auto ck = sk / std::sqrt(K * (K + 1.0));
+
+  return -ck * Rab(-1, jK, Fa, Fb);
+}
+
+//------------------------------------------------------------------------------
+void AMk::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+
+  if (m_jl) {
+    jK = m_jl->jL_nearest(m_K, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jK);
+  }
+}
+
 //==============================================================================
-// Phi5k_w::radial_rhs
+// Phi5k::radial_rhs
 //==============================================================================
 
-DiracSpinor Phi5k_w::radial_rhs(const int kappa_a,
-                                const DiracSpinor &Fb) const {
+DiracSpinor Phi5k::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
 
   DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
   dF.min_pt() = Fb.min_pt();
@@ -247,11 +509,33 @@ DiracSpinor Phi5k_w::radial_rhs(const int kappa_a,
   return dF;
 }
 
+//------------------------------------------------------------------------------
+double Phi5k::radialIntegral(const DiracSpinor &Fa,
+                             const DiracSpinor &Fb) const {
+
+  if (isZero(Fa.kappa(), Fb.kappa())) {
+    return 0.0;
+  }
+
+  return Pab(-1, jk, Fa, Fb);
+}
+
+//------------------------------------------------------------------------------
+void Phi5k::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+
+  if (m_jl) {
+    jk = m_jl->jL_nearest(m_K, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jk);
+  }
+}
+
 //==============================================================================
-// S5k_w::radial_rhs
+// S5k::radial_rhs
 //==============================================================================
 
-DiracSpinor S5k_w::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
+DiracSpinor S5k::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
 
   DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
   dF.min_pt() = Fb.min_pt();
@@ -265,6 +549,28 @@ DiracSpinor S5k_w::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
 
   Pab_rhs(+1, jk, &dF, Fb);
   return dF;
+}
+
+//------------------------------------------------------------------------------
+double S5k::radialIntegral(const DiracSpinor &Fa,
+                             const DiracSpinor &Fb) const {
+
+  if (isZero(Fa.kappa(), Fb.kappa())) {
+    return 0.0;
+  }
+
+  return Pab(+1, jk, Fa, Fb);
+}
+
+//------------------------------------------------------------------------------
+void S5k::updateFrequency(const double omega) {
+  const auto q = std::abs(PhysConst::alpha * omega);
+
+  if (m_jl) {
+    jk = m_jl->jL_nearest(m_K, q);
+  } else {
+    SphericalBessel::fillBesselVec_kr(m_K, q, m_vec, &jk);
+  }
 }
 
 } // namespace DiracOperator

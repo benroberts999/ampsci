@@ -44,25 +44,67 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
                                           "Vk_w", "Sk",  "VEk_Len"};
 
   // lambda to generate operator using "helper" functions
+  // auto use_helper_function =
+  //     [&](const std::string &name, int k, bool gamma5,
+  //         SphericalBessel::JL_table *jl =
+  //             nullptr) -> std::unique_ptr<DiracOperator::TensorOperator> {
+  //   using namespace DiracOperator;
+  //   // Use multipole helpers when they map naturally to the operator.
+  //   if (name == "VEk")
+  //     return multipole::V_sigma_K(wf.grid(), +1, k, gamma5, jl);
+  //   if (name == "VMk")
+  //     return multipole::V_sigma_K(wf.grid(), 0, k, gamma5, jl);
+  //   if (name == "VLk")
+  //     return multipole::V_sigma_K(wf.grid(), -1, k, gamma5, jl);
+  //   if (name == "Vk_w")
+  //     return multipole::Phi_K(wf.grid(), k, gamma5, jl);
+  //   if (name == "Sk")
+  //     return multipole::S_K(wf.grid(), k, gamma5, jl);
+  //   if (name == "VEk_Len" && !gamma5)
+  //     return std::make_unique<DiracOperator::VEk_Len>(wf.grid(), k, 1.0e-6, jl);
+  //   return std::unique_ptr<DiracOperator::TensorOperator>(nullptr);
+  // };
+
   auto use_helper_function =
       [&](const std::string &name, int k, bool gamma5,
           SphericalBessel::JL_table *jl =
               nullptr) -> std::unique_ptr<DiracOperator::TensorOperator> {
     using namespace DiracOperator;
-    // Use multipole helpers when they map naturally to the operator.
-    if (name == "VEk")
-      return multipole::V_sigma_K(wf.grid(), +1, k, gamma5, jl);
-    if (name == "VMk")
-      return multipole::V_sigma_K(wf.grid(), 0, k, gamma5, jl);
-    if (name == "VLk")
-      return multipole::V_sigma_K(wf.grid(), -1, k, gamma5, jl);
-    if (name == "Vk_w")
-      return multipole::Phi_K(wf.grid(), k, gamma5, jl);
-    if (name == "Sk")
-      return multipole::S_K(wf.grid(), k, gamma5, jl);
+
+    if (name == "VEk") {
+      if (gamma5)
+        return std::make_unique<AEk>(wf.grid(), k, 1.0e-4, jl);
+      else
+        return std::make_unique<VEk>(wf.grid(), k, 1.0e-4, jl);
+    }
+    if (name == "VMk") {
+      if (gamma5)
+        return std::make_unique<AMk>(wf.grid(), k, 1.0e-4, jl);
+      else
+        return std::make_unique<VMk>(wf.grid(), k, 1.0e-4, jl);
+    }
+    if (name == "VLk") {
+      if (gamma5)
+        return std::make_unique<ALk>(wf.grid(), k, 1.0e-4, jl);
+      else
+        return std::make_unique<VLk>(wf.grid(), k, 1.0e-4, jl);
+    }
+    if (name == "Vk_w") {
+      if (gamma5)
+        return std::make_unique<Phi5k>(wf.grid(), k, 1.0e-4, jl);
+      else
+        return std::make_unique<Phik>(wf.grid(), k, 1.0e-4, jl);
+    }
+    if (name == "Sk") {
+      if (gamma5)
+        return std::make_unique<S5k>(wf.grid(), k, 1.0e-4, jl);
+      else
+        return std::make_unique<Sk>(wf.grid(), k, 1.0e-4, jl);
+    }
     if (name == "VEk_Len" && !gamma5)
-      return std::make_unique<DiracOperator::VEk_Len>(wf.grid(), k, 1.0e-6, jl);
-    return std::unique_ptr<DiracOperator::TensorOperator>(nullptr);
+      return std::make_unique<VEk_Len>(wf.grid(), k, 1.0e-6, jl);
+
+    return nullptr;
   };
 
   // 1) For each operator, check that radial_rhs reduced product equals radialIntegral
@@ -132,29 +174,30 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
     // converts "transition" operators to "moment" form
     const auto ff = DiracOperator::multipole::moment_factor(1, omega);
 
-    auto E1_w = use_helper_function("VEk_Len", 1, false);
-    E1_w->updateFrequency(omega);
+    auto E1_w = DiracOperator::VEk_Len(wf.grid(), 1, 0.0, nullptr);
+    E1_w.updateFrequency(omega);
 
-    auto E1v_w = use_helper_function("VEk", 1, false);
-    E1v_w->updateFrequency(omega);
+    auto E1v_w = DiracOperator::VEk(wf.grid(), 1, 0.0, nullptr);
+    E1v_w.updateFrequency(omega);
 
-    auto M1_w = use_helper_function("VMk", 1, false);
-    M1_w->updateFrequency(omega);
+    auto M1_w = DiracOperator::VMk(wf.grid(), 1, 0.0, nullptr);
+    M1_w.updateFrequency(omega);
 
     const auto eps = omega * 1.0e-3;
 
     for (const auto &a : orbs) {
       for (const auto &b : orbs) {
         // Compare reduced matrix elements with table-backed versions
+
+        // nb: extra sign, because E1 defined as -|e|r, rather than |e|r
         REQUIRE(E1.reducedME(a, b) ==
-                Approx(ff * E1_w->reducedME(a, b)).epsilon(eps));
+                Approx(-ff * E1_w.reducedME(a, b)).epsilon(eps));
 
         REQUIRE(E1v.reducedME(a, b) ==
-                Approx(ff * E1v_w->reducedME(a, b)).epsilon(eps));
+                Approx(-ff * E1v_w.reducedME(a, b)).epsilon(eps));
 
-        // negative? factored i out?
-        REQUIRE(-1 * M1.reducedME(a, b) * PhysConst::muB_CGS ==
-                Approx(ff * M1_w->reducedME(a, b)).epsilon(eps));
+        REQUIRE(M1.reducedME(a, b) * PhysConst::muB_CGS ==
+                Approx(ff * M1_w.reducedME(a, b)).epsilon(eps));
       }
     }
   }

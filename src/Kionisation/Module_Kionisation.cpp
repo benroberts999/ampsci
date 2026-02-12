@@ -886,13 +886,13 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
           const auto Mk = DiracOperator::VMk(wf.grid(), k, qc, &jK_tab);
           const auto Lk = DiracOperator::VLk(wf.grid(), k, qc, &jK_tab);
 
-          const auto Phi5k = DiracOperator::Phi5k_w(wf.grid(), k, qc, &jK_tab);
-          const auto E5k = DiracOperator::E5k_w(wf.grid(), k, qc, &jK_tab);
-          const auto M5k = DiracOperator::M5k_w(wf.grid(), k, qc, &jK_tab);
-          const auto L5k = DiracOperator::L5k_w(wf.grid(), k, qc, &jK_tab);
+          const auto Phi5k = DiracOperator::Phi5k(wf.grid(), k, qc, &jK_tab);
+          const auto E5k = DiracOperator::AEk(wf.grid(), k, qc, &jK_tab);
+          const auto M5k = DiracOperator::AMk(wf.grid(), k, qc, &jK_tab);
+          const auto L5k = DiracOperator::ALk(wf.grid(), k, qc, &jK_tab);
 
           const auto Sk = DiracOperator::Sk(wf.grid(), k, qc, &jK_tab);
-          const auto S5k = DiracOperator::S5k_w(wf.grid(), k, qc, &jK_tab);
+          const auto S5k = DiracOperator::S5k(wf.grid(), k, qc, &jK_tab);
 
           for (const auto &Fe : cntm.orbitals) {
             // Vector operators
