@@ -22,7 +22,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
   //--------------------------------------------------------------------
   SECTION("Radial_int_rhs") {
-    for (const auto &[name, generator] : DiracOperator::operator_list) {
+    for (const auto &[name, generator, desc] : DiracOperator::operator_list) {
       std::cout << name << "\n";
       const auto h = generator({}, wf);
       for (const auto &a : orbs) {
