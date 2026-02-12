@@ -409,8 +409,10 @@ public:
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jK_on_qr{};
-  std::vector<double> jKp1{};
+  std::vector<double> m_jK_on_qr{};
+  std::vector<double> m_jKp1{};
+  const std::vector<double> *p_jK_on_qr{nullptr};
+  const std::vector<double> *p_jKp1{nullptr};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
@@ -460,8 +462,10 @@ public:
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jK_on_qr{};
-  std::vector<double> jKp1{};
+  std::vector<double> m_jK_on_qr{};
+  std::vector<double> m_jKp1{};
+  const std::vector<double> *p_jK_on_qr{nullptr};
+  const std::vector<double> *p_jKp1{nullptr};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
@@ -512,7 +516,8 @@ public:
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jK{};
+  std::vector<double> m_jK{};
+  const std::vector<double> *p_jK{nullptr};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
@@ -563,7 +568,8 @@ public:
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jk{};
+  std::vector<double> m_jK{};
+  const std::vector<double> *p_jK{nullptr};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
@@ -613,7 +619,8 @@ public:
 private:
   int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
-  std::vector<double> jk{};
+  std::vector<double> m_jK{};
+  const std::vector<double> *p_jK{nullptr};
 
 public:
   // Default shallow copy semantics (pointer member is shallow-copied)
@@ -634,24 +641,6 @@ inline double moment_factor(int K, double omega) {
   return qip::double_factorial(2 * K + 1) / qip::pow(q, K) *
          std::sqrt(K / (K + 1.0));
 }
-
-// //! Scalar(pseudoscalar) multipole operator. Note: q/omega not set
-// inline std::unique_ptr<DiracOperator::TensorOperator>
-// S_K(const Grid &grid, int k, bool gamma5 = false,
-//     const SphericalBessel::JL_table *jl = nullptr) {
-//   if (gamma5)
-//     return std::make_unique<S5k>(grid, k, 1.0e-4, jl);
-//   return std::make_unique<Sk>(grid, k, 1.0e-4, jl);
-// }
-
-// //! Temporal part of vector(pseudovector) multipole operator. Note: q/omega not set
-// inline std::unique_ptr<DiracOperator::TensorOperator>
-// Phi_K(const Grid &grid, int k, bool gamma5 = false,
-//       const SphericalBessel::JL_table *jl = nullptr) {
-//   if (gamma5)
-//     return std::make_unique<Phi5k>(grid, k, 1.0e-4, jl);
-//   return std::make_unique<Phik>(grid, k, 1.0e-4, jl);
-// }
 
 //! Spatial part of vector(pseudovector) multipole operator. Note: q/omega not set
 inline std::unique_ptr<DiracOperator::TensorOperator>
@@ -711,7 +700,7 @@ generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
 
   using namespace std::string_literals;
   const auto type = input.get("type", "V"s);
-  const auto component = input.get("comp*", "E"s);
+  const auto component = input.get("component", "E"s);
   const auto form = input.get("form", "V"s);
 
   const bool Vector = qip::ci_wc_compare(type, "V*");
@@ -761,7 +750,8 @@ generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
   if (PseudoScalar)
     return std::make_unique<S5k>(wf.grid(), k, omega);
 
-  return nullptr;
+  std::cout << "Fail; Invalid Combination\n";
+  return std::make_unique<NullOperator>();
 }
 
 } // namespace DiracOperator

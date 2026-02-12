@@ -40,49 +40,45 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
   SphericalBessel::JL_table jl_table(max_L + 1, qvec, rvec);
 
   // Operators to test: name and whether VEk_Len should be skipped for gamma5
-  const std::vector<std::string> op_names{"VEk",  "VMk", "VLk",
-                                          "Vk_w", "Sk",  "VEk_Len"};
+  const std::vector<std::string> op_names{
+      "VE_Len", "VE", "VM", "VL", "VT", "AE", "AM", "AL", "AT", "S", "P"};
 
   auto use_helper_function =
-      [&](const std::string &name, int k, bool gamma5,
+      [&](const std::string &name, int k,
           SphericalBessel::JL_table *jl =
               nullptr) -> std::unique_ptr<DiracOperator::TensorOperator> {
     using namespace DiracOperator;
 
-    if (name == "VEk") {
-      if (gamma5)
-        return std::make_unique<AEk>(wf.grid(), k, 1.0e-4, jl);
-      else
-        return std::make_unique<VEk>(wf.grid(), k, 1.0e-4, jl);
-    }
-    if (name == "VMk") {
-      if (gamma5)
-        return std::make_unique<AMk>(wf.grid(), k, 1.0e-4, jl);
-      else
-        return std::make_unique<VMk>(wf.grid(), k, 1.0e-4, jl);
-    }
-    if (name == "VLk") {
-      if (gamma5)
-        return std::make_unique<ALk>(wf.grid(), k, 1.0e-4, jl);
-      else
-        return std::make_unique<VLk>(wf.grid(), k, 1.0e-4, jl);
-    }
-    if (name == "Vk_w") {
-      if (gamma5)
-        return std::make_unique<Phi5k>(wf.grid(), k, 1.0e-4, jl);
-      else
-        return std::make_unique<Phik>(wf.grid(), k, 1.0e-4, jl);
-    }
-    if (name == "Sk") {
-      if (gamma5)
-        return std::make_unique<S5k>(wf.grid(), k, 1.0e-4, jl);
-      else
-        return std::make_unique<Sk>(wf.grid(), k, 1.0e-4, jl);
-    }
-    if (name == "VEk_Len" && !gamma5)
+    // Vector
+    if (name == "VE")
+      return std::make_unique<VEk>(wf.grid(), k, 1.0e-4, jl);
+    if (name == "VM")
+      return std::make_unique<VMk>(wf.grid(), k, 1.0e-4, jl);
+    if (name == "VL")
+      return std::make_unique<VLk>(wf.grid(), k, 1.0e-4, jl);
+    if (name == "VT")
+      return std::make_unique<Phik>(wf.grid(), k, 1.0e-4, jl);
+    if (name == "VE_Len")
       return std::make_unique<VEk_Len>(wf.grid(), k, 1.0e-6, jl);
 
-    return nullptr;
+    // Axial
+    if (name == "AE")
+      return std::make_unique<AEk>(wf.grid(), k, 1.0e-4, jl);
+    if (name == "AM")
+      return std::make_unique<AMk>(wf.grid(), k, 1.0e-4, jl);
+    if (name == "AL")
+      return std::make_unique<ALk>(wf.grid(), k, 1.0e-4, jl);
+    if (name == "AT")
+      return std::make_unique<Phi5k>(wf.grid(), k, 1.0e-4, jl);
+
+    // Scalar / pseudoscalar
+    if (name == "S")
+      return std::make_unique<Sk>(wf.grid(), k, 1.0e-4, jl);
+    if (name == "P")
+      return std::make_unique<S5k>(wf.grid(), k, 1.0e-4, jl);
+
+    std::cout << "Error: unknown operator name '" << name << "'\n";
+    return std::make_unique<NullOperator>();
   };
 
   // 1) For each operator, check that radial_rhs reduced product equals radialIntegral
@@ -90,52 +86,67 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
     std::cout << name << "\n";
     for (int k = 0; k <= max_L; ++k) {
       for (double omega : omegas) {
-        for (bool gamma5 : {false, true}) {
-          if (name == "VEk_Len" && gamma5)
-            continue;
 
-          // Version one: using 'generate'
-          std::string opts = std::string("k=") + std::to_string(k) +
-                             "; omega=" + std::to_string(omega) + "; ";
-          if (gamma5)
-            opts += std::string("gamma5=true;");
-          auto h = DiracOperator::generate(name, {"", opts}, wf);
+        // Version one: using 'generate'
+        std::string opts = std::string("k=") + std::to_string(k) +
+                           "; omega=" + std::to_string(omega) + "; ";
 
-          //using "helper" functions
-          auto h_3 = use_helper_function(name, k, gamma5);
-          h_3->updateFrequency(omega);
+        const auto op_type = std::string(1, name.at(0));
+        const auto component =
+            name.size() > 1 ? std::string(1, name.at(1)) : "";
+        const auto form = name.size() > 3 ? std::string(1, name.at(3)) : "";
 
-          // Using Bessel loolup table
-          auto h_4 = use_helper_function(name, k, gamma5, &jl_table);
-          h_4->updateFrequency(omega);
+        opts += "type=" + op_type + ";";
+        opts += "component=" + component + ";";
+        opts += "form=" + form + ";";
 
-          for (const auto &a : orbs) {
-            for (const auto &b : orbs) {
+        auto h = DiracOperator::generate("Multipole", {"", opts}, wf);
 
-              const auto rme = h->reducedME(a, b);
-              const auto rad_int = h->radialIntegral(a, b);
-              const auto C_ang = h->angularF(a.kappa(), b.kappa());
-              const auto rme_2 = a * h->reduced_rhs(a.kappa(), b);
+        //using "helper" functions
+        auto h_3 = use_helper_function(name, k);
+        h_3->updateFrequency(omega);
 
-              const auto rme_3 = h_3->reducedME(a, b);
-              const auto rme_4 = h_4->reducedME(a, b);
+        // Using Bessel loolup table
+        auto h_4 = use_helper_function(name, k, &jl_table);
+        h_4->updateFrequency(omega);
 
-              // 1. test redME vs rad
-              REQUIRE(rad_int * C_ang == Approx(rme));
+        for (const auto &a : orbs) {
+          for (const auto &b : orbs) {
 
-              // 2. test red_lhs vs. redME
-              if (rme != 0.0)
-                REQUIRE(rme_2 == Approx(rme));
-              else
-                REQUIRE(rme_2 == Approx(rme).margin(1.0e-17));
+            const auto rme = h->reducedME(a, b);
+            const auto rad_int = h->radialIntegral(a, b);
+            const auto C_ang = h->angularF(a.kappa(), b.kappa());
+            const auto rme_2 = a * h->reduced_rhs(a.kappa(), b);
 
-              // 3. test 'directly constructed version (helper function)
-              // (includes test of update omega)
-              REQUIRE(rme_3 == Approx(rme));
+            const auto rme_3 = h_3->reducedME(a, b);
+            const auto rme_4 = h_4->reducedME(a, b);
 
-              // 4. Test the Bessel table version
-              REQUIRE(rme_4 == Approx(rme));
+            if (h->isZero(a, b)) {
+              REQUIRE(rme == 0.0);
+              REQUIRE(rad_int == 0.0);
+              continue;
             }
+
+            // if (!h->isZero(a, b) && k > 0) {
+            // REQUIRE(rme != 0.0);
+            // No, sometimes zero if (ka-kb)=0 or similar..
+            // }
+
+            // 1. test redME vs rad
+            REQUIRE(rad_int * C_ang == Approx(rme));
+
+            // 2. test red_lhs vs. redME
+            if (rme != 0.0)
+              REQUIRE(rme_2 == Approx(rme));
+            else
+              REQUIRE(rme_2 == Approx(rme).margin(1.0e-17));
+
+            // 3. test 'directly constructed version (helper function)
+            // (includes test of update omega)
+            REQUIRE(rme_3 == Approx(rme));
+
+            // 4. Test the Bessel table version
+            REQUIRE(rme_4 == Approx(rme));
           }
         }
       }
