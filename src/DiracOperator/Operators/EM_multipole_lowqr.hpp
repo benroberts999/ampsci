@@ -5,187 +5,28 @@
 #include "qip/Maths.hpp"
 
 namespace DiracOperator {
-
 //==============================================================================
-//! @brief Electric multipole operator, in small qr limit
-class E5_nr final : public TensorOperator {
+//! Low qr form of Temporal component of the vector multipole operator: $\Phi_K = t^K(q)$
+class Phik_lowq final : public TensorOperator {
 public:
-  E5_nr(const Grid &gr, double)
-      : TensorOperator(1, Parity::even, 1.0, gr.r(), 0, Realness::real, false) {
-  }
-  std::string name() const override final { return std::string("tv^E5_nr"); }
-  std::string units() const override final { return std::string(""); }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(1, ka, -kb);
-  }
-
-  //--------------
-  DiracSpinor radial_rhs(const int kappa_a,
-                         const DiracSpinor &Fb) const override final {
-
-    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
-    dF.min_pt() = Fb.min_pt();
-    dF.max_pt() = Fb.max_pt();
-
-    if (isZero(kappa_a, Fb.kappa()) || (kappa_a + Fb.kappa() == 1)) {
-      dF.min_pt() = 0;
-      dF.max_pt() = 0;
-      return dF;
-    }
-
-    const auto cx = std::sqrt(2.0) / 3.0;
-    const auto dk = double(kappa_a + Fb.kappa());
-
-    Rab_rhs(-1, &dF, Fb, cx * (dk - 1.0));
-    return dF;
-  }
-
-  //--------------
-  double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa()) || Fa.kappa() + Fb.kappa() == 1) {
-      return 0.0;
-    }
-
-    const auto cx = std::sqrt(2.0) / 3.0;
-    const auto dk = double(Fa.kappa() + Fb.kappa());
-
-    return cx * (dk - 1.0) * Rab(-1, Fa, Fb);
-  }
-};
-
-//==============================================================================
-//! @brief Longitudanal multipole operator, in small qr limit
-class L5_nr final : public TensorOperator {
-public:
-  L5_nr(const Grid &gr, double)
-      : TensorOperator(1, Parity::even, 1.0, gr.r(), 0, Realness::real, false) {
-  }
-  std::string name() const override final { return std::string("tv^5L_nr"); }
-  std::string units() const override final { return std::string(""); }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(1, ka, -kb);
-  }
-
-  //--------------
-  DiracSpinor radial_rhs(const int kappa_a,
-                         const DiracSpinor &Fb) const override final {
-
-    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
-    dF.min_pt() = Fb.min_pt();
-    dF.max_pt() = Fb.max_pt();
-
-    if (isZero(kappa_a, Fb.kappa()) || (kappa_a + Fb.kappa() == 1)) {
-      dF.min_pt() = 0;
-      dF.max_pt() = 0;
-      return dF;
-    }
-
-    const auto dk = double(kappa_a + Fb.kappa());
-    Rab_rhs(-1, &dF, Fb, -(1.0 / 3.0) * (dk - 1.0));
-
-    return dF;
-  }
-
-  //--------------
-  double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa()) || Fa.kappa() + Fb.kappa() == 1) {
-      return 0.0;
-    }
-
-    const auto dk = double(Fa.kappa() + Fb.kappa());
-
-    return -(1.0 / 3.0) * (dk - 1.0) * Rab(-1, Fa, Fb);
-  }
-};
-
-//==============================================================================
-//! @brief Magnetic multipole operator, in small qr limit
-class M5_w_nr final : public TensorOperator {
-public:
-  M5_w_nr(const Grid &gr, double omega)
-      : TensorOperator(1, Parity::odd, 1.0, gr.r(), 0, Realness::real, true) {
-    updateFrequency(omega);
-  }
-
-  std::string name() const override final { return std::string("t^5M_nr"); }
-
-  std::string units() const override final { return std::string(""); }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(1, ka, kb);
-  }
-
-  //--------------
-  DiracSpinor radial_rhs(const int kappa_a,
-                         const DiracSpinor &Fb) const override final {
-
-    DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
-    dF.min_pt() = Fb.min_pt();
-    dF.max_pt() = Fb.max_pt();
-
-    if (isZero(kappa_a, Fb.kappa()) || (kappa_a == -Fb.kappa())) {
-      dF.min_pt() = 0;
-      dF.max_pt() = 0;
-      return dF;
-    }
-
-    const auto sk = double(kappa_a - Fb.kappa());
-    const auto ck = -(m_q / std::sqrt(2.0) / 3.0) * sk;
-
-    Rab_rhs(-1, m_vec, &dF, Fb, ck);
-    return dF;
-  }
-
-  //--------------
-  double radialIntegral(const DiracSpinor &Fa,
-                        const DiracSpinor &Fb) const override final {
-
-    if (isZero(Fa.kappa(), Fb.kappa()) || (Fa.kappa() == -Fb.kappa())) {
-      return 0.0;
-    }
-
-    const auto sk = double(Fa.kappa() - Fb.kappa());
-    return -(m_q / std::sqrt(2.0) / 3.0) * sk * Rab(-1, m_vec, Fa, Fb);
-  }
-
-  //! nb: q = alpha*omega!
-  void updateFrequency(const double omega) override final {
-    m_q = std::abs(PhysConst::alpha * omega);
-  }
-
-private:
-  double m_q{0.0};
-};
-
-//==============================================================================
-//! @brief Temporal component of vector multipole operator, in small qr limit
-class Phi5k_w_nr final : public TensorOperator {
-public:
-  Phi5k_w_nr(const Grid &gr, int K, double omega)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+  Phik_lowq(const Grid &gr, int K, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                        gr.r(), 0, Realness::real, true),
-        m_K(K) {
-    updateFrequency(omega);
+        m_K(K),
+        m_r2(gr.rpow(2)) {
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("t^5_") + std::to_string(m_K);
+    return std::string("Phi_k_lowq") + std::to_string(m_K);
   }
-  std::string units() const override final { return std::string(""); }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(1, ka, -kb);
+    return Angular::Ck_kk(m_K, ka, kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final {
-
     DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
     dF.min_pt() = Fb.min_pt();
     dF.max_pt() = Fb.max_pt();
@@ -196,11 +37,15 @@ public:
       return dF;
     }
 
-    Pab_rhs(-1, jk, &dF, Fb);
+    if (m_K == 0) {
+      Rab_rhs(+1, m_r2, &dF, Fb, -(m_q * m_q / 6.0));
+    } else if (m_K == 1) {
+      Rab_rhs(+1, m_vec, &dF, Fb, (m_q / 3.0));
+    }
+
     return dF;
   }
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final {
 
@@ -208,46 +53,240 @@ public:
       return 0.0;
     }
 
-    return Pab(-1, jk, Fa, Fb);
+    if (m_K == 0) {
+      return -(m_q * m_q / 6.0) * Rab(+1, m_r2, Fa, Fb);
+    }
+    if (m_K == 1) {
+      return (m_q / 3.0) * Rab(+1, m_vec, Fa, Fb);
+    }
+
+    return 0.0;
   }
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
-    const auto q = std::abs(PhysConst::alpha * omega);
-
-    SphericalBessel::fillBesselVec_kr(1, q, m_vec, &jk);
+    m_q = std::abs(PhysConst::alpha * omega);
   }
 
 private:
   int m_K;
-  std::vector<double> jk{};
+  double m_q{};
+  std::vector<double> m_r2;
 };
 
 //==============================================================================
-
-//! Helper functions for the multipole operators
-namespace multipole {
-
-// For the small qr limit
-inline std::unique_ptr<DiracOperator::TensorOperator>
-V5_sigma_nr(const Grid &grid, int sigma) {
-
-  switch (sigma) {
-
-  case +1:
-    return std::make_unique<E5_nr>(grid, 0.0);
-
-  case -1:
-    return std::make_unique<L5_nr>(grid, 0.0);
-
-  case 0:
-    return std::make_unique<M5_w_nr>(grid, 1.0e-4);
-
-  default:
-    return nullptr;
+//! @brief Low qr form of Scalar multipole operator: $S_K = t^K(q)\gamma^0$
+class Sk_lowq final : public TensorOperator {
+public:
+  Sk_lowq(const Grid &gr, int K, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                       gr.r(), 0, Realness::real, true),
+        m_K(K) {
+    if (omega != 0.0)
+      updateFrequency(omega);
   }
-}
+  std::string name() const override final {
+    return std::string("t^S_k_lowq") + std::to_string(m_K);
+  }
 
-} // namespace multipole
+  double angularF(const int ka, const int kb) const override final {
+    return Angular::Ck_kk(m_K, ka, kb);
+  }
+
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final;
+
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final;
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    m_q = std::abs(PhysConst::alpha * omega);
+  }
+
+private:
+  int m_K;
+  double m_q{};
+};
+
+//==============================================================================
+//==============================================================================
+// Gamma^5 versions!
+
+//==============================================================================
+//! @brief Low qr form of Axial electric multipole operator: $A^E_K = T^{(+1)}_K(q)\gamma^5$
+class AEk_lowq final : public TensorOperator {
+public:
+  AEk_lowq(const Grid &gr, int K, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                       gr.r(), 0, Realness::real),
+        m_K(K) {
+    if (omega != 0.0)
+      updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("T^E5_k_lowq") + std::to_string(m_K);
+  }
+
+  double angularF(const int ka, const int kb) const override final {
+    return Angular::Ck_kk(m_K, ka, -kb);
+  }
+
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final;
+
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final;
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    m_q = std::abs(PhysConst::alpha * omega);
+  }
+
+private:
+  int m_K;
+  double m_q{};
+};
+
+//==============================================================================
+//! @brief Low qr form of Axial longitudinal multipole operator: $A^L_K = T^{(-1)}_K(q)\gamma^5$
+class ALk_lowq final : public TensorOperator {
+public:
+  ALk_lowq(const Grid &gr, int K, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                       gr.r(), 0, Realness::real, true),
+        m_K(K) {
+    if (omega != 0.0)
+      updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("T^L5_k_lowq") + std::to_string(m_K);
+  }
+
+  double angularF(const int ka, const int kb) const override final {
+    return Angular::Ck_kk(m_K, ka, -kb);
+  }
+
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final;
+
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final;
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    m_q = std::abs(PhysConst::alpha * omega);
+  }
+
+private:
+  int m_K;
+  double m_q{};
+};
+
+//==============================================================================
+//! @brief Low qr form of Axial magnetic multipole operator: $A^M_K = T^{(0)}_K(q)\gamma^5$
+class AMk_lowq final : public TensorOperator {
+public:
+  AMk_lowq(const Grid &gr, int K, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                       gr.r(), 0, Realness::real, true),
+        m_K(K) {
+    if (omega != 0.0)
+      updateFrequency(omega);
+  }
+
+  std::string name() const override final {
+    return std::string("T^M5_k_lowq") + std::to_string(m_K);
+  }
+
+  double angularF(const int ka, const int kb) const override final {
+    return Angular::Ck_kk(m_K, ka, kb);
+  }
+
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final;
+
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final;
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    m_q = std::abs(PhysConst::alpha * omega);
+  }
+
+private:
+  int m_K;
+  double m_q{};
+};
+
+//==============================================================================
+//! @brief Low qr form of Temporal component of the axial vector multipole operator: $\Theta_K = \Phi^5_K = t^K(q)\gamma^5$
+class Phi5k_lowq final : public TensorOperator {
+public:
+  Phi5k_lowq(const Grid &gr, int K, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                       gr.r(), 0, Realness::real, true),
+        m_K(K) {
+    if (omega != 0.0)
+      updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("Phi5_k_lowq") + std::to_string(m_K);
+  }
+
+  double angularF(const int ka, const int kb) const override final {
+    return Angular::Ck_kk(m_K, ka, -kb);
+  }
+
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final;
+
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final;
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    m_q = std::abs(PhysConst::alpha * omega);
+  }
+
+private:
+  int m_K;
+  double m_q{};
+};
+
+//==============================================================================
+//! @brief Low qr form of Pseudoscalar multipole operator: $P_K = S^5_K = t^K(q)(i\gamma^0\gamma^5)$
+class S5k_lowq final : public TensorOperator {
+public:
+  S5k_lowq(const Grid &gr, int K, double omega)
+      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                       gr.r(), 0, Realness::real, true),
+        m_K(K) {
+    if (omega != 0.0)
+      updateFrequency(omega);
+  }
+  std::string name() const override final {
+    return std::string("S5_k_lowq") + std::to_string(m_K);
+  }
+
+  double angularF(const int ka, const int kb) const override final {
+    return Angular::Ck_kk(m_K, ka, -kb);
+  }
+
+  DiracSpinor radial_rhs(const int kappa_a,
+                         const DiracSpinor &Fb) const override final;
+
+  double radialIntegral(const DiracSpinor &Fa,
+                        const DiracSpinor &Fb) const override final;
+
+  //! nb: q = alpha*omega!
+  void updateFrequency(const double omega) override final {
+    m_q = std::abs(PhysConst::alpha * omega);
+  }
+
+private:
+  int m_K;
+  double m_q{};
+};
 
 } // namespace DiracOperator

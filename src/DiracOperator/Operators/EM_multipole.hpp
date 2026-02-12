@@ -44,11 +44,9 @@ public:
     return Angular::Ck_kk(m_K, ka, kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -104,11 +102,9 @@ public:
     return Angular::Ck_kk(m_K, ka, kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -163,11 +159,9 @@ public:
     return Angular::Ck_kk(m_K, ka, kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -222,11 +216,9 @@ public:
     return Angular::Ck_kk(m_K, -ka, kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -278,11 +270,9 @@ public:
     return Angular::Ck_kk(m_K, ka, kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -335,11 +325,9 @@ public:
     return Angular::Ck_kk(m_K, ka, kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -395,11 +383,9 @@ public:
     return Angular::Ck_kk(m_K, ka, -kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -448,11 +434,9 @@ public:
     return Angular::Ck_kk(m_K, ka, -kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -502,11 +486,9 @@ public:
     return Angular::Ck_kk(m_K, ka, kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -554,11 +536,9 @@ public:
     return Angular::Ck_kk(m_K, ka, -kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -605,11 +585,9 @@ public:
     return Angular::Ck_kk(m_K, ka, -kb);
   }
 
-  //--------------
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
-  //--------------
   double radialIntegral(const DiracSpinor &Fa,
                         const DiracSpinor &Fb) const override final;
 
@@ -642,45 +620,11 @@ inline double moment_factor(int K, double omega) {
          std::sqrt(K / (K + 1.0));
 }
 
-//! Spatial part of vector(pseudovector) multipole operator. Note: q/omega not set
-inline std::unique_ptr<DiracOperator::TensorOperator>
-V_sigma_K(const Grid &grid, int sigma, int k, bool gamma5 = false,
-          const SphericalBessel::JL_table *jl = nullptr) {
-
-  switch (sigma) {
-
-    // "Electric"
-  case +1:
-    if (gamma5)
-      return std::make_unique<AEk>(grid, k, 1.0e-4, jl);
-    else
-      return std::make_unique<VEk>(grid, k, 1.0e-4, jl);
-
-    // "Longitudanal"
-  case -1:
-    if (gamma5)
-      return std::make_unique<ALk>(grid, k, 1.0e-4, jl);
-    else
-      return std::make_unique<VLk>(grid, k, 1.0e-4, jl);
-
-    // "Magnetic"
-  case 0:
-    if (gamma5)
-      return std::make_unique<AMk>(grid, k, 1.0e-4, jl);
-    else
-      return std::make_unique<VMk>(grid, k, 1.0e-4, jl);
-  }
-
-  assert(false && "make_op: sigma must be -1, 0, or +1");
-  return {}; // never reached when assertions are enabled
-}
-
 } // namespace multipole
 
 //==============================================================================
 //==============================================================================
 
-//------------------------------------------------------------------------------
 inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
