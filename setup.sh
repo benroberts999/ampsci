@@ -48,7 +48,7 @@ while [[ $gccver -ge $min_gcc_ver ]]; do
     echo "Compiler Found:" $(command which "g++-"${gccver})
     found_compiler=1
     cxx=$(command which "g++-"${gccver})
-    sed -i '' -e "s@CXX=.*@CXX=${cxx}@g" Makefile 2> /dev/null
+    sed -i '' -e "s@^CXX.*@CXX ?= ${cxx}@g" Makefile 2> /dev/null
     break
   fi
   ((gccver--))
@@ -63,7 +63,7 @@ if [ $found_compiler == 0 ]; then
       found_compiler=1
       is_clang=1
       cxx=$(command which "clang++-"${clangver})
-      sed -i '' -e "s@CXX=.*@CXX=${cxx}@g" Makefile 2> /dev/null
+      sed -i '' -e "s@^CXX.*@CXX ?= ${cxx}@g" Makefile 2> /dev/null
       break
     fi
     ((clangver--))
@@ -76,13 +76,13 @@ if [ $found_compiler == 0 ]; then
     echo "Compiler Found:" "$(command -v "g++")"
     found_compiler=1
     cxx="g++"
-    sed -i '' -e "s@CXX=.*@CXX=${cxx}@g" Makefile 2> /dev/null
+    sed -i '' -e "s@^CXX.*@CXX ?= ${cxx}@g" Makefile 2> /dev/null
   elif [ -x "$(command -v "clang++")" ]; then
     echo "Compiler Found:" "$(command -v "clang++")"
     found_compiler=1
     is_clang=1
     cxx="clang++"
-    sed -i '' -e "s@CXX=.*@CXX=${cxx}@g" Makefile 2> /dev/null
+    sed -i '' -e "s@^CXX.*@CXX ?= ${cxx}@g" Makefile 2> /dev/null
   fi
 fi
 
@@ -104,7 +104,7 @@ if [ -x "$(command -v "gsl-config")" ]; then
   gslpath=$(gsl-config --prefix)
   echo "GSL found version:" $gslver
   echo "GSL Libraries found:" $gslpath
-  sed -i '' -e "s@PathForGSL=.*@PathForGSL=${gslpath}@g" Makefile 2> /dev/null
+  sed -i '' -e "s@^GSL_PATH.*@GSL_PATH ?= ${gslpath}@g" Makefile 2> /dev/null
 else
   echo "GSL libraries not installed"
   echo "Run: install-dependencies.sh, or"
@@ -115,6 +115,24 @@ else
   fi
   exit 1
 fi
+
+# Check openMP support (only rough)
+ompflag=""
+# Try common OpenMP flags (order matters)
+for flag in "-fopenmp" "-fopenmp=libomp" "-fopenmp=libgomp"; do
+  if echo "int main(){return 0;}" | "$cxx" $flag -x c++ - -o /dev/null >/dev/null 2>&1; then
+    ompflag="$flag"
+    break
+  fi
+done
+if [ -n "$ompflag" ]; then
+  echo "OpenMP supported with: $ompflag"
+  sed -i.bak "s@^OMPLIB.*@OMPLIB ?= ${ompflag}@" Makefile && rm -f Makefile.bak
+else
+  echo "OpenMP not supported"
+  sed -i.bak "s@^OMPLIB.*@OMPLIB ?=@" Makefile && rm -f Makefile.bak
+fi
+
 
 # Attempt to compile ampsci
 echo ''

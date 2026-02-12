@@ -63,7 +63,7 @@ This is for ubuntu/linux - for other systems, see below
 * Seems to work best with the homebrew version of gcc. Install as: `brew install gcc`
 * Note: you may need to change the compiler from `g++` to `g++-9` (or similar), or update your environment variables, since calling g++ on mac actually calls clang++ by default
 * You might have to tell the compiler how to link to the GSL library; in Makefile:
-  * PathForGSL=/usr/local/opt/gnu-scientific-library
+  * GSL_PATH=/usr/local/opt/gnu-scientific-library
 * Then compile by running _make_ from the ampsci directory
 * Use openMP for parellelisation when using clang++ on mac:
   * If using g++, should work as per normal
@@ -78,7 +78,7 @@ This is for ubuntu/linux - for other systems, see below
 ## Compilation: MacOS (M1/M2/apple silicon chip)
 
 * Mostly the same as above, but some of the libraries are installed to different directories by default. In particular:
-* PathForGSL=/opt/homebrew/Cellar/gsl/2.7
+* GSL_PATH=/opt/homebrew/Cellar/gsl/2.7
 
 ## Compilation: Windows
 
@@ -121,7 +121,7 @@ ExtraFlags=-lgfortran
 
 * Could not find required GSL libraries. Either they are not installed, or you need to link to them
 * 1) Ensure GSL is installed (see above for instructions)
-* 2) If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _PathForGSL_ option in Makefile. Common examples:
+* 1) If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _PathForGSL_ option in Makefile. Common examples:
   * _PathForGSL=/opt/gsl/2.1/gnu_ # For UQ's getafix cluster
   * _PathForGSL=/usr/local/opt/gnu-scientific-library_ # For my macbook
   * Note: the exact path may differ for you, depending on where GSL was installed

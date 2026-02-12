@@ -4,8 +4,8 @@ for file in $(find src -name '*.cpp' -or -name '*.hpp'); do
   while true; do
     echo ""
     echo "clang tidy:"
-    PathForGSL=/usr/local/opt/gnu-scientific-library
-    clang-tidy $file -extra-arg=-std=c++17 -checks=clang-analyzer-*,openmp-*,performance-*,portability-*,clang-analyzer-* -- -I./src/ -I$PathForGSL/include/
+    GSL_PATH=/usr/local/opt/gnu-scientific-library
+    clang-tidy $file -extra-arg=-std=c++17 -checks=clang-analyzer-*,openmp-*,performance-*,portability-*,clang-analyzer-* -- -I./src/ -I$GSL_PATH/include/
 # modernize-*, cppcoreguidelines-*,readability-*,llvm-*,
     echo "done"
   #

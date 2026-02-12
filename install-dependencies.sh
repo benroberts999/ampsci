@@ -35,7 +35,7 @@ if [ ${machine} == 'Linux' ]; then
   fi
   set -x
   apt-get update &&
-  apt-get install --yes make g++ liblapack-dev libblas-dev libgsl-dev libomp-dev
+  apt-get install --yes make g++ liblapack-dev libblas-dev libgsl-dev
 elif [ ${machine} == 'Mac' ]; then
   # check if homebrew is installed:
   which -s brew
