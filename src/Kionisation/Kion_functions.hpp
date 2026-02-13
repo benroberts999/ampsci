@@ -81,17 +81,19 @@ convert_K_nk_approx_to_std(const LinAlg::Matrix<double> &Kaprx,
 matrix : Outputs entire matrix in table form. E and q grids printed prior.
 In K[E,q] form: each column is different q
 */
-void write_to_file_matrix(const LinAlg::Matrix<double> &K, const Grid &E_grid,
-                          const Grid &q_grid, const std::string &filename,
-                          int num_digits = 5, Units units = Units::Particle);
+void write_to_file_matrix(const LinAlg::Matrix<double> &K,
+                          const std::vector<double> &E_grid, const Grid &q_grid,
+                          const std::string &filename, int num_digits = 5,
+                          Units units = Units::Particle);
 
 //! Writes ouput file in 'xyz' form: for easy 2D interpolation
 /*! @details
 xyz: For easy 2D interpolation. list formmated with each row 'E q K(E,q)'
 */
-void write_to_file_xyz(const LinAlg::Matrix<double> &K, const Grid &E_grid,
-                       const Grid &q_grid, const std::string &filename,
-                       int num_digits = 5, Units units = Units::Particle);
+void write_to_file_xyz(const LinAlg::Matrix<double> &K,
+                       const std::vector<double> &E_grid, const Grid &q_grid,
+                       const std::string &filename, int num_digits = 5,
+                       Units units = Units::Particle);
 
 //! Writes ouput file in 'gnuplot' form: for easy plotting as function of q
 /*! @details
@@ -99,7 +101,8 @@ gnuplot: For easy plotting. Each column is new E.
 First column is q values.
 First row is E values (use with `t columnheader(i)`)
 */
-void write_to_file_gnuplot(const LinAlg::Matrix<double> &K, const Grid &E_grid,
+void write_to_file_gnuplot(const LinAlg::Matrix<double> &K,
+                           const std::vector<double> &E_grid,
                            const Grid &q_grid, const std::string &filename,
                            int num_digits = 5, Units units = Units::Particle);
 
@@ -110,15 +113,16 @@ First column is E values.
 First row is q values (use with `t columnheader(i)`)
 */
 void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
-                             const Grid &E_grid, const Grid &q_grid,
-                             const std::string &filename, int num_digits = 5,
-                             Units units = Units::Particle);
+                             const std::vector<double> &E_grid,
+                             const Grid &q_grid, const std::string &filename,
+                             int num_digits = 5, Units units = Units::Particle);
 
 //! Writes to file: formats is a vector of formats, will write to each listed format
 void write_to_file(const std::vector<OutputFormat> &formats,
-                   const LinAlg::Matrix<double> &K, const Grid &E_grid,
-                   const Grid &q_grid, const std::string &filename,
-                   int num_digits = 5, Units units = Units::Particle);
+                   const LinAlg::Matrix<double> &K,
+                   const std::vector<double> &E_grid, const Grid &q_grid,
+                   const std::string &filename, int num_digits = 5,
+                   Units units = Units::Particle);
 
 //! Writes the 'approximate tables' to file. Each column is a new state, K_nk(q)
 void write_approxTable_to_file(const LinAlg::Matrix<double> &K,

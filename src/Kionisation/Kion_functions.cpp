@@ -364,11 +364,12 @@ bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid) {
 }
 
 //==============================================================================
-void write_to_file_xyz(const LinAlg::Matrix<double> &K, const Grid &E_grid,
-                       const Grid &q_grid, const std::string &filename,
-                       int num_digits, Units units) {
+void write_to_file_xyz(const LinAlg::Matrix<double> &K,
+                       const std::vector<double> &E_grid, const Grid &q_grid,
+                       const std::string &filename, int num_digits,
+                       Units units) {
   // optional format argument?
-  assert(K.rows() == E_grid.num_points());
+  assert(K.rows() == E_grid.size());
   assert(K.cols() == q_grid.num_points());
   std::ofstream out_file(filename + "_xyz.txt");
 
@@ -388,21 +389,22 @@ void write_to_file_xyz(const LinAlg::Matrix<double> &K, const Grid &E_grid,
   }
 
   fmt::print(out_file, "# E           q            K\n");
-  for (std::size_t iE = 0; iE < E_grid.num_points(); ++iE) {
+  for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
     for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
-      fmt::print(out_file, "{:+.{}e} {:+.{}e} {:+.{}e}\n", E_grid(iE) * unit_E,
-                 num_digits, q_grid(iq) * unit_q, num_digits, K(iE, iq),
-                 num_digits);
+      fmt::print(out_file, "{:+.{}e} {:+.{}e} {:+.{}e}\n",
+                 E_grid.at(iE) * unit_E, num_digits, q_grid(iq) * unit_q,
+                 num_digits, K(iE, iq), num_digits);
     }
   }
 }
 
 //==============================================================================
-void write_to_file_matrix(const LinAlg::Matrix<double> &K, const Grid &E_grid,
-                          const Grid &q_grid, const std::string &filename,
-                          int num_digits, Units units) {
+void write_to_file_matrix(const LinAlg::Matrix<double> &K,
+                          const std::vector<double> &E_grid, const Grid &q_grid,
+                          const std::string &filename, int num_digits,
+                          Units units) {
   // optional format argument?
-  assert(K.rows() == E_grid.num_points());
+  assert(K.rows() == E_grid.size());
   assert(K.cols() == q_grid.num_points());
   std::ofstream out_file(filename + "_mat.txt");
 
@@ -434,7 +436,7 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K, const Grid &E_grid,
   out_file << "\n\n";
 
   out_file << "# K values K(E,q). Each new row is new E, each col is new q\n";
-  for (std::size_t iE = 0; iE < E_grid.num_points(); ++iE) {
+  for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
     for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
       fmt::print(out_file, "{:+.{}e} ", K(iE, iq), num_digits);
     }
@@ -443,11 +445,12 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K, const Grid &E_grid,
 }
 
 //==============================================================================
-void write_to_file_gnuplot(const LinAlg::Matrix<double> &K, const Grid &E_grid,
+void write_to_file_gnuplot(const LinAlg::Matrix<double> &K,
+                           const std::vector<double> &E_grid,
                            const Grid &q_grid, const std::string &filename,
                            int num_digits, Units units) {
   // optional format argument?
-  assert(K.rows() == E_grid.num_points());
+  assert(K.rows() == E_grid.size());
   assert(K.cols() == q_grid.num_points());
   std::ofstream out_file(filename + "_gnu.txt");
 
@@ -481,7 +484,7 @@ void write_to_file_gnuplot(const LinAlg::Matrix<double> &K, const Grid &E_grid,
   // nb: write out is 'transposed' order from array: this is to make plotting easier
   for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
     fmt::print(out_file, "{:.{}e} ", q_grid(iq) * unit_q, num_digits);
-    for (std::size_t iE = 0; iE < E_grid.num_points(); ++iE) {
+    for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
       fmt::print(out_file, "{:.{}e} ", K(iE, iq), num_digits);
     }
     fmt::print(out_file, "\n");
@@ -490,11 +493,11 @@ void write_to_file_gnuplot(const LinAlg::Matrix<double> &K, const Grid &E_grid,
 
 //==============================================================================
 void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
-                             const Grid &E_grid, const Grid &q_grid,
-                             const std::string &filename, int num_digits,
-                             Units units) {
+                             const std::vector<double> &E_grid,
+                             const Grid &q_grid, const std::string &filename,
+                             int num_digits, Units units) {
   // optional format argument?
-  assert(K.rows() == E_grid.num_points());
+  assert(K.rows() == E_grid.size());
   assert(K.cols() == q_grid.num_points());
   std::ofstream out_file(filename + "_gnu_E.txt");
 
@@ -525,8 +528,8 @@ void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
   }
   out_file << "\n";
 
-  for (std::size_t iE = 0; iE < E_grid.num_points(); ++iE) {
-    fmt::print(out_file, "{:.{}e} ", E_grid(iE) * unit_E, num_digits);
+  for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
+    fmt::print(out_file, "{:.{}e} ", E_grid.at(iE) * unit_E, num_digits);
     for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
       fmt::print(out_file, "{:.{}e} ", K(iE, iq), num_digits);
     }
@@ -579,9 +582,9 @@ void write_approxTable_to_file(const LinAlg::Matrix<double> &K,
 
 //==============================================================================
 void write_to_file(const std::vector<OutputFormat> &formats,
-                   const LinAlg::Matrix<double> &K, const Grid &E_grid,
-                   const Grid &q_grid, const std::string &filename,
-                   int num_digits, Units units) {
+                   const LinAlg::Matrix<double> &K,
+                   const std::vector<double> &E_grid, const Grid &q_grid,
+                   const std::string &filename, int num_digits, Units units) {
   // Update: Always use atomic units for mat and xyz
   for (const auto &format : formats) {
     if (format == OutputFormat::gnuplot)

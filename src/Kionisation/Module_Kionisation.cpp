@@ -417,8 +417,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       if (write_each_state && Fc_accessible) {
         const auto oname_nk = oname + "_" + Fnk.shortSymbol();
         std::cout << "Written to file: " << oname_nk << "\n";
-        Kion::write_to_file(output_formats, Knks.at(ic), Egrid, qgrid, oname_nk,
-                            num_output_digits, units);
+        Kion::write_to_file(output_formats, Knks.at(ic), Egrid.r(), qgrid,
+                            oname_nk, num_output_digits, units);
       }
       Kion += Knks.at(ic);
     }
@@ -448,7 +448,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       if (write_each_state) {
         const auto oname_nk = oname + "_" + Fnk.shortSymbol();
         std::cout << "Written to file: " << oname_nk << "\n";
-        Kion::write_to_file(output_formats, K_nk, Egrid, qgrid, oname_nk,
+        Kion::write_to_file(output_formats, K_nk, Egrid.r(), qgrid, oname_nk,
                             num_output_digits, units);
       }
       Kion += K_nk;
@@ -456,7 +456,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   std::cout << "\nWritten to file: " << oname << "\n";
-  Kion::write_to_file(output_formats, Kion, Egrid, qgrid, oname,
+  Kion::write_to_file(output_formats, Kion, Egrid.r(), qgrid, oname,
                       num_output_digits, units);
 
   std::cout << '\n';
@@ -683,6 +683,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       {{"E_range",
         "List (2). Minimum, maximum energy transfer (dE), in eV [10.0, 1.0e4]"},
        {"E_steps", "Numer of steps along dE grid (logarithmic) [1]"},
+       {"E_set", "List: set of E values (in eV) - overrides above"},
        {"q_range", "List (2). Minimum, maximum momentum transfer (q), in eV "
                    "(hbar=c=1). For reference, 1/a0 ~ 3730 eV. [1.0e4, 1.0e7]"},
        {"q_steps", "Numer of steps along q grid (logarithmic) [1]"},
@@ -715,9 +716,23 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     E_steps = 1;
     Emax_eV = Emin_eV;
   }
+
+  const auto E_set_eV = input.get("E_set", std::vector<double>{});
+  if (!E_set_eV.empty()) {
+    // override above
+    Emin_eV = E_set_eV.front();
+    Emax_eV = E_set_eV.back();
+    E_steps = E_set_eV.size();
+  }
+
   // Convert to atomic units (from keV):
   const auto Emin_au = Emin_eV / PhysConst::Hartree_eV;
   const auto Emax_au = Emax_eV / PhysConst::Hartree_eV;
+
+  const Grid Egrid_t({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
+  using namespace qip::overloads;
+  const auto Egrid =
+      E_set_eV.empty() ? Egrid_t.r() : E_set_eV / PhysConst::Hartree_eV;
 
   //----------------------------------------------------------------------------
 
@@ -751,8 +766,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto q_min = qmin_eV * UnitConv::Momentum_eV_to_au;
   const auto q_max = qmax_eV * UnitConv::Momentum_eV_to_au;
 
-  // Set up the E and q grids
-  const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
+  // Set up the q grid
   const Grid qgrid({q_steps, q_min, q_max, 0, GridType::logarithmic});
 
   // Check to see if grid is reasonable for maximum energy:
@@ -769,15 +783,27 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // Which operators to calculate
   // Case insensitive, and only check first letter
   const auto operators = input.get("operators", std::vector<std::string>{"V"});
+
   bool vectorQ{false}, axialQ{false}, scalarQ{false}, pseudoscalarQ{false};
+
+  // Interference terms:
+  // vector-vector spatial-temporal interference: auto-include with vector
+  bool XvvQ{false};
+  // axial-axial spatial-temporal interference: auto-include with axial
+  bool YaaQ{false};
+  // axial-vector spatial interference: auto-include if axial and vector
+  bool ZvaQ{false};
+
   for (auto &w : operators) {
     if (!w.empty()) {
       switch (std::tolower(w[0])) {
       case 'v':
         vectorQ = true;
+        XvvQ = true;
         break;
       case 'a':
         axialQ = true;
+        YaaQ = true;
         break;
       case 's':
         scalarQ = true;
@@ -788,10 +814,22 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
   }
+  // automatically include if doing both
+  ZvaQ = (vectorQ && axialQ);
+
   fmt::print("\nComputing operators: "
              "{}{}{}{}\n",
              vectorQ ? "Vector; " : "", axialQ ? "Axial; " : "",
              scalarQ ? "Scalar; " : "", pseudoscalarQ ? "Pseudoscalar; " : "");
+  if (XvvQ) {
+    std::cout << "  and spatial-temporal vector interference term X\n";
+  }
+  if (YaaQ) {
+    std::cout << "  and spatial-temporal axial interference term Y\n";
+  }
+  if (ZvaQ) {
+    std::cout << "  and spatial vector-axial interference term Z\n";
+  }
 
   const auto low_q = input.get("low_q", false);
   if (low_q)
@@ -845,7 +883,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       Q_M5(E_steps, q_steps),   // Axial: magnetic
       Q_L5(E_steps, q_steps),   // Axial: longitudinal
       Q_S(E_steps, q_steps),    // Scalar
-      Q_S5(E_steps, q_steps);   // Pseudo-scalar
+      Q_S5(E_steps, q_steps),   // Pseudo-scalar
+      Q_X(E_steps, q_steps),    // v-v interference
+      Q_Y(E_steps, q_steps),    // a-a interference
+      Q_Z(E_steps, q_steps);    // v-a interference
 
   //-------------------------------------------------------------------------
   std::cout << "\nCalculating ionisation factors:\n";
@@ -906,20 +947,58 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
               wf.grid(), k, qc, 'P', 'T', low_q, &jK_tab);
 
           for (const auto &Fe : cntm.orbitals) {
+
+            const auto E5 = axialQ ? E5k->reducedME(Fe, Fa) : 0.0;
+            const auto M = vectorQ ? Mk->reducedME(Fe, Fa) : 0.0;
+
+            const auto E = axialQ ? Ek->reducedME(Fe, Fa) : 0.0;
+            const auto M5 = vectorQ ? M5k->reducedME(Fe, Fa) : 0.0;
+
+            const auto t = vectorQ ? Phik->reducedME(Fe, Fa) : 0.0;
+            const auto t5 = axialQ ? Phi5k->reducedME(Fe, Fa) : 0.0;
+
+            const auto L = vectorQ ? Lk->reducedME(Fe, Fa) : 0.0;
+            const auto L5 = axialQ ? L5k->reducedME(Fe, Fa) : 0.0;
+
             // Vector operators
             if (vectorQ) {
-              Q_Phi(iE, iq) += tkp1_x * qip::pow(Phik->reducedME(Fe, Fa), 2);
-              Q_E(iE, iq) += tkp1_x * qip::pow(Ek->reducedME(Fe, Fa), 2);
-              Q_M(iE, iq) += tkp1_x * qip::pow(Mk->reducedME(Fe, Fa), 2);
-              Q_L(iE, iq) += tkp1_x * qip::pow(Lk->reducedME(Fe, Fa), 2);
+              Q_Phi(iE, iq) += tkp1_x * qip::pow(t, 2);
+              Q_E(iE, iq) += tkp1_x * qip::pow(E, 2);
+              Q_M(iE, iq) += tkp1_x * qip::pow(M, 2);
+              Q_L(iE, iq) += tkp1_x * qip::pow(L, 2);
+            }
+            // Vector Interference:
+            if (XvvQ) {
+              Q_X(iE, iq) += tkp1_x * t * L;
             }
 
             // Axial (γ^5) operators
             if (axialQ) {
-              Q_Phi5(iE, iq) += tkp1_x * qip::pow(Phi5k->reducedME(Fe, Fa), 2);
-              Q_E5(iE, iq) += tkp1_x * qip::pow(E5k->reducedME(Fe, Fa), 2);
-              Q_M5(iE, iq) += tkp1_x * qip::pow(M5k->reducedME(Fe, Fa), 2);
-              Q_L5(iE, iq) += tkp1_x * qip::pow(L5k->reducedME(Fe, Fa), 2);
+              Q_Phi5(iE, iq) += tkp1_x * qip::pow(t5, 2);
+              Q_E5(iE, iq) += tkp1_x * qip::pow(E5, 2);
+              Q_M5(iE, iq) += tkp1_x * qip::pow(M5, 2);
+              Q_L5(iE, iq) += tkp1_x * qip::pow(L5, 2);
+            }
+            // Axial Interference:
+            if (YaaQ) {
+              Q_Y(iE, iq) += tkp1_x * t5 * L5;
+            }
+
+            // Vector-Axial Spatial Interference:
+            if (ZvaQ) {
+              Q_Z(iE, iq) += tkp1_x * (E5 * M - E * M5);
+              // if (E5 != 0.0 || M != 0.0) {
+              //   // if (E5 != 0.0 && M == 0.0)
+              //   //   std::cout << "E\n";
+              //   // if (E5 == 0.0 && M != 0.0)
+              //   //   std::cout << "M\n";
+              //   // if (E5 != 0.0 && M != 0.0)
+              //   //   std::cout << "Z\n";
+              //   // if (E5 * M == E * M5)
+              //   //   std::cout << "Z\n";
+              //   if (E5 * M != E * M5)
+              //     std::cout << "Z\n";
+              // }
             }
 
             // Scalar and Pseudoscalar
@@ -1003,33 +1082,41 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   if (vectorQ) {
     Kion::write_to_file(output_formats, Q_Phi, Egrid, qgrid, prefix + "V0", 8,
                         units);
-    // Kion::write_to_file(output_formats, Q_E + Q_M + Q_L, Egrid, qgrid,
-    // prefix + "V", 8, units);
-    // if (print_all)
-    {
-      Kion::write_to_file(output_formats, Q_E, Egrid, qgrid, prefix + "VE", 8,
-                          units);
-      Kion::write_to_file(output_formats, Q_M, Egrid, qgrid, prefix + "VM", 8,
-                          units);
-      Kion::write_to_file(output_formats, Q_L, Egrid, qgrid, prefix + "VL", 8,
-                          units);
-    }
+    Kion::write_to_file(output_formats, Q_E, Egrid, qgrid, prefix + "VE", 8,
+                        units);
+    Kion::write_to_file(output_formats, Q_M, Egrid, qgrid, prefix + "VM", 8,
+                        units);
+    Kion::write_to_file(output_formats, Q_L, Egrid, qgrid, prefix + "VL", 8,
+                        units);
+    Kion::write_to_file(output_formats, Q_E + Q_M, Egrid, qgrid,
+                        prefix + "Vperp", 8, units);
   }
   if (axialQ) {
     Kion::write_to_file(output_formats, Q_Phi5, Egrid, qgrid, prefix + "A0", 8,
                         units);
-    // Kion::write_to_file(output_formats, Q_E5 + Q_M5 + Q_L5, Egrid, qgrid,
-    // prefix + "V5", 8, units);
-    // if (print_all)
-    {
-      Kion::write_to_file(output_formats, Q_E5, Egrid, qgrid, prefix + "AE", 8,
-                          units);
-      Kion::write_to_file(output_formats, Q_M5, Egrid, qgrid, prefix + "AM", 8,
-                          units);
-      Kion::write_to_file(output_formats, Q_L5, Egrid, qgrid, prefix + "AL", 8,
-                          units);
-    }
+    Kion::write_to_file(output_formats, Q_E5, Egrid, qgrid, prefix + "AE", 8,
+                        units);
+    Kion::write_to_file(output_formats, Q_M5, Egrid, qgrid, prefix + "AM", 8,
+                        units);
+    Kion::write_to_file(output_formats, Q_L5, Egrid, qgrid, prefix + "AL", 8,
+                        units);
+    Kion::write_to_file(output_formats, Q_E5 + Q_M5, Egrid, qgrid,
+                        prefix + "Aperp", 8, units);
   }
+
+  if (XvvQ) {
+    Kion::write_to_file(output_formats, Q_X, Egrid, qgrid, prefix + "X", 8,
+                        units);
+  }
+  if (YaaQ) {
+    Kion::write_to_file(output_formats, Q_Y, Egrid, qgrid, prefix + "Y", 8,
+                        units);
+  }
+  if (ZvaQ) {
+    Kion::write_to_file(output_formats, Q_Z, Egrid, qgrid, prefix + "Z", 8,
+                        units);
+  }
+
   if (scalarQ) {
     Kion::write_to_file(output_formats, Q_S, Egrid, qgrid, prefix + "S", 8,
                         units);
