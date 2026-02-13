@@ -601,4 +601,108 @@ void S5k::updateFrequency(const double omega) {
   }
 }
 
+//------------------------------------------------------------------------------
+// Factory for relativistic multipole operators.
+std::unique_ptr<DiracOperator::TensorOperator>
+MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,
+                  bool low_q, const SphericalBessel::JL_table *jl) {
+
+  // normalise to upper case
+  type = static_cast<char>(std::toupper(static_cast<unsigned char>(type)));
+  comp = static_cast<char>(std::toupper(static_cast<unsigned char>(comp)));
+
+  const bool Vector = (type == 'V');
+  const bool AxialVector = (type == 'A');
+  const bool Scalar = (type == 'S');
+  const bool PseudoScalar = (type == 'P');
+
+  const bool Electric = (comp == 'E');
+  const bool Magnetic = (comp == 'M');
+  const bool Longitudinal = (comp == 'L');
+  // nb: don't confuse with transverse!!
+  const bool Temporal = (comp == 'T' || comp == '0');
+
+  // basic validation
+  if (!(Vector || AxialVector || Scalar || PseudoScalar)) {
+    std::cout << "make_tensor_op: invalid type '" << type
+              << "' (expected V,A,S,P)\n";
+    return nullptr;
+  }
+
+  // For V/A we require a valid component; for S/P we ignore comp but still validate if given.
+  if ((Vector || AxialVector) &&
+      !(Electric || Magnetic || Longitudinal || Temporal)) {
+    std::cout << "make_tensor_op: invalid component '" << comp << "' for type "
+              << type << " (expected T,E,M,L)\n";
+    return nullptr;
+  }
+  if ((Scalar || PseudoScalar) &&
+      !(Electric || Magnetic || Longitudinal || Temporal)) {
+    // If user passed junk comp for S/P, complain (helps catch typos)
+    std::cout << "make_tensor_op: invalid component '" << comp << "' for type "
+              << type
+              << " (S/P ignore component, but you gave an invalid one; "
+                 "expected T,E,M,L)\n";
+    return nullptr;
+  }
+
+  // -------- low-q branch --------
+  if (low_q && Electric && Vector)
+    return std::make_unique<VEk_lowq>(grid, k, omega);
+  if (low_q && Electric && AxialVector)
+    return std::make_unique<AEk_lowq>(grid, k, omega);
+
+  if (low_q && Longitudinal && Vector)
+    return std::make_unique<VLk_lowq>(grid, k, omega);
+  if (low_q && Longitudinal && AxialVector)
+    return std::make_unique<ALk_lowq>(grid, k, omega);
+
+  if (low_q && Magnetic && Vector)
+    return std::make_unique<VMk_lowq>(grid, k, omega);
+  if (low_q && Magnetic && AxialVector)
+    return std::make_unique<AMk_lowq>(grid, k, omega);
+
+  if (low_q && Temporal && Vector)
+    return std::make_unique<Phik_lowq>(grid, k, omega);
+  if (low_q && Temporal && AxialVector)
+    return std::make_unique<Phi5k_lowq>(grid, k, omega);
+
+  if (low_q && Scalar)
+    return std::make_unique<Sk_lowq>(grid, k, omega);
+  if (low_q && PseudoScalar)
+    return std::make_unique<S5k_lowq>(grid, k, omega);
+
+  // -------- normal-q branch --------
+
+  if (Electric && Vector)
+    return std::make_unique<VEk>(grid, k, omega, jl);
+  if (Electric && AxialVector)
+    return std::make_unique<AEk>(grid, k, omega, jl);
+
+  if (Longitudinal && Vector)
+    return std::make_unique<VLk>(grid, k, omega, jl);
+  if (Longitudinal && AxialVector)
+    return std::make_unique<ALk>(grid, k, omega, jl);
+
+  if (Magnetic && Vector)
+    return std::make_unique<VMk>(grid, k, omega, jl);
+  if (Magnetic && AxialVector)
+    return std::make_unique<AMk>(grid, k, omega, jl);
+
+  if (Temporal && Vector)
+    return std::make_unique<Phik>(grid, k, omega, jl);
+  if (Temporal && AxialVector)
+    return std::make_unique<Phi5k>(grid, k, omega, jl);
+
+  if (Scalar)
+    return std::make_unique<Sk>(grid, k, omega, jl);
+  if (PseudoScalar)
+    return std::make_unique<S5k>(grid, k, omega, jl);
+
+  // Should be unreachable if validation above is correct
+  std::cout << "make_tensor_op: no operator matched (type=" << type
+            << ", comp=" << comp << ", low_q=" << low_q << ")\n";
+  return nullptr;
+}
+
 } // namespace DiracOperator

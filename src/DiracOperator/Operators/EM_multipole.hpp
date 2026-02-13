@@ -734,4 +734,49 @@ generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
   return std::make_unique<NullOperator>();
 }
 
+//------------------------------------------------------------------------------
+//! @brief Factory for relativistic multipole operators.
+/*!
+ * @details 
+ * Constructs and returns a specific multipole operator derived from
+ * DiracOperator::TensorOperator, based on the requested Lorentz structure,
+ * multipole component, and momentum-transfer regime.
+ *
+ * The operator corresponds to a spherical multipole of rank @p k with
+ * frequency/energy transfer @p omega. The type and component determine
+ * the Lorentz structure and spatial character of the interaction.
+ *
+ * @param grid   Radial grid on which the operator acts.
+ * @param k      Multipole rank (total angular momentum of the operator).
+ * @param omega  Energy (frequency) transfer.
+ * @param type   Interaction type:
+ *               - 'V' : Vector
+ *               - 'A' : Axial-vector
+ *               - 'S' : Scalar
+ *               - 'P' : Pseudoscalar
+ * @param comp   Multipole component (for V/A types):
+ *               - 'E' : Electric
+ *               - 'M' : Magnetic
+ *               - 'L' : Longitudinal
+ *               - 'T' : Temporal [caution - NOT transverse!]
+ *               (Ignored for scalar and pseudoscalar operators.)
+ * @param low_q  If true, construct the low-momentum (long-wavelength)
+ *               approximation of the operator.
+ * @param jl     Optional pointer to a precomputed spherical Bessel table.
+ *               If provided, radial Bessel functions are taken from this
+ *               table to avoid recomputation. If nullptr, they are generated
+ *               internally as needed.
+ *
+ * @return A std::unique_ptr to the requested TensorOperator.
+ *
+ * @note Length-form electric operators (if implemented separately) are
+ *       only valid for vector-electric ('V','E') combinations.
+ *
+ * @warning Invalid combinations of @p type and @p comp may result in
+ *          a nullptr being returned.
+ */
+std::unique_ptr<DiracOperator::TensorOperator>
+MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,
+                  bool low_q, const SphericalBessel::JL_table *jl = nullptr);
+
 } // namespace DiracOperator

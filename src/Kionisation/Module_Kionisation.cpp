@@ -683,12 +683,6 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       {{"E_range",
         "List (2). Minimum, maximum energy transfer (dE), in eV [10.0, 1.0e4]"},
        {"E_steps", "Numer of steps along dE grid (logarithmic) [1]"},
-       // {"E_threshold",
-       //  "Numer of extra E steps to add in -15% range on either side"
-       //  " of each threshold. If <2, will add no new points [0]"},
-       // {"E_extra", "List (comma separated) extra energies (in eV) to add 10 "
-       //             "points around. Useful for specific regions we want more "
-       //             "resolution in."},
        {"q_range", "List (2). Minimum, maximum momentum transfer (q), in eV "
                    "(hbar=c=1). For reference, 1/a0 ~ 3730 eV. [1.0e4, 1.0e7]"},
        {"q_steps", "Numer of steps along q grid (logarithmic) [1]"},
@@ -697,6 +691,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                      "(axial/pseudo-vector), 'S' "
                      "(scalar), 'P' (pseudoscalar)"},
        {"K_minmax", "List (2). Minimum, maximum K [0, 5]"},
+       {"low_q", "Explicitly use low-q form of operators [false]"},
        {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
        {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
                          "hole-particle interaction) [true]"},
@@ -798,6 +793,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
              vectorQ ? "Vector; " : "", axialQ ? "Axial; " : "",
              scalarQ ? "Scalar; " : "", pseudoscalarQ ? "Pseudoscalar; " : "");
 
+  const auto low_q = input.get("low_q", false);
+  if (low_q)
+    std::cout << "Explicitely using low-q form of operators\n";
+
   const auto [Kmin, Kmax] = input.get("K_minmax", std::array{0, 5});
   fmt::print("\nIncluding K = {} - {}\n", Kmin, Kmax);
 
@@ -881,41 +880,53 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
           // Use qc for as expected for "omega" in operators
           const auto qc = qgrid.at(iq) * PhysConst::c;
 
-          const auto Phik = DiracOperator::Phik(wf.grid(), k, qc, &jK_tab);
-          const auto Ek = DiracOperator::VEk(wf.grid(), k, qc, &jK_tab);
-          const auto Mk = DiracOperator::VMk(wf.grid(), k, qc, &jK_tab);
-          const auto Lk = DiracOperator::VLk(wf.grid(), k, qc, &jK_tab);
+          const auto Phik = DiracOperator::MultipoleOperator(
+              wf.grid(), k, qc, 'V', 'T', low_q, &jK_tab);
+          const auto Ek = DiracOperator::MultipoleOperator(
+              wf.grid(), k, qc, 'V', 'E', low_q, &jK_tab);
+          const auto Mk = DiracOperator::MultipoleOperator(
+              wf.grid(), k, qc, 'V', 'M', low_q, &jK_tab);
+          const auto Lk = DiracOperator::MultipoleOperator(
+              wf.grid(), k, qc, 'V', 'L', low_q, &jK_tab);
 
-          const auto Phi5k = DiracOperator::Phi5k(wf.grid(), k, qc, &jK_tab);
-          const auto E5k = DiracOperator::AEk(wf.grid(), k, qc, &jK_tab);
-          const auto M5k = DiracOperator::AMk(wf.grid(), k, qc, &jK_tab);
-          const auto L5k = DiracOperator::ALk(wf.grid(), k, qc, &jK_tab);
+          // Axial (gamma^5) versions
+          const auto Phi5k = DiracOperator::MultipoleOperator(
+              wf.grid(), k, qc, 'A', 'T', low_q, &jK_tab);
+          const auto E5k = DiracOperator::MultipoleOperator(
+              wf.grid(), k, qc, 'A', 'E', low_q, &jK_tab);
+          const auto M5k = DiracOperator::MultipoleOperator(
+              wf.grid(), k, qc, 'A', 'M', low_q, &jK_tab);
+          const auto L5k = DiracOperator::MultipoleOperator(
+              wf.grid(), k, qc, 'A', 'L', low_q, &jK_tab);
 
-          const auto Sk = DiracOperator::Sk(wf.grid(), k, qc, &jK_tab);
-          const auto S5k = DiracOperator::S5k(wf.grid(), k, qc, &jK_tab);
+          // Scalar and pseudoscalar
+          const auto Sk = DiracOperator::MultipoleOperator(
+              wf.grid(), k, qc, 'S', 'T', low_q, &jK_tab);
+          const auto S5k = DiracOperator::MultipoleOperator(
+              wf.grid(), k, qc, 'P', 'T', low_q, &jK_tab);
 
           for (const auto &Fe : cntm.orbitals) {
             // Vector operators
             if (vectorQ) {
-              Q_Phi(iE, iq) += tkp1_x * qip::pow(Phik.reducedME(Fe, Fa), 2);
-              Q_E(iE, iq) += tkp1_x * qip::pow(Ek.reducedME(Fe, Fa), 2);
-              Q_M(iE, iq) += tkp1_x * qip::pow(Mk.reducedME(Fe, Fa), 2);
-              Q_L(iE, iq) += tkp1_x * qip::pow(Lk.reducedME(Fe, Fa), 2);
+              Q_Phi(iE, iq) += tkp1_x * qip::pow(Phik->reducedME(Fe, Fa), 2);
+              Q_E(iE, iq) += tkp1_x * qip::pow(Ek->reducedME(Fe, Fa), 2);
+              Q_M(iE, iq) += tkp1_x * qip::pow(Mk->reducedME(Fe, Fa), 2);
+              Q_L(iE, iq) += tkp1_x * qip::pow(Lk->reducedME(Fe, Fa), 2);
             }
 
             // Axial (γ^5) operators
             if (axialQ) {
-              Q_Phi5(iE, iq) += tkp1_x * qip::pow(Phi5k.reducedME(Fe, Fa), 2);
-              Q_E5(iE, iq) += tkp1_x * qip::pow(E5k.reducedME(Fe, Fa), 2);
-              Q_M5(iE, iq) += tkp1_x * qip::pow(M5k.reducedME(Fe, Fa), 2);
-              Q_L5(iE, iq) += tkp1_x * qip::pow(L5k.reducedME(Fe, Fa), 2);
+              Q_Phi5(iE, iq) += tkp1_x * qip::pow(Phi5k->reducedME(Fe, Fa), 2);
+              Q_E5(iE, iq) += tkp1_x * qip::pow(E5k->reducedME(Fe, Fa), 2);
+              Q_M5(iE, iq) += tkp1_x * qip::pow(M5k->reducedME(Fe, Fa), 2);
+              Q_L5(iE, iq) += tkp1_x * qip::pow(L5k->reducedME(Fe, Fa), 2);
             }
 
             // Scalar and Pseudoscalar
             if (scalarQ)
-              Q_S(iE, iq) += tkp1_x * qip::pow(Sk.reducedME(Fe, Fa), 2);
+              Q_S(iE, iq) += tkp1_x * qip::pow(Sk->reducedME(Fe, Fa), 2);
             if (pseudoscalarQ)
-              Q_S5(iE, iq) += tkp1_x * qip::pow(S5k.reducedME(Fe, Fa), 2);
+              Q_S5(iE, iq) += tkp1_x * qip::pow(S5k->reducedME(Fe, Fa), 2);
           }
         }
       }
