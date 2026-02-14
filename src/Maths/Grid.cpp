@@ -12,25 +12,25 @@
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
                                double inrmax, double inb,
                                const std::string &str_type, double indu)
-    : num_points(innum_points == 0 ?
-                     Grid::calc_num_points_from_du(inr0, inrmax, indu,
-                                                   parseType(str_type), inb) :
-                     innum_points),
-      r0(inr0),
-      rmax(inrmax),
-      b(inb),
-      type(parseType(str_type)) {}
+  : num_points(innum_points == 0 ?
+                 Grid::calc_num_points_from_du(inr0, inrmax, indu,
+                                               parseType(str_type), inb) :
+                 innum_points),
+    r0(inr0),
+    rmax(inrmax),
+    b(inb),
+    type(parseType(str_type)) {}
 // indu is optional. Only used if innum_points = 0
 GridParameters::GridParameters(std::size_t innum_points, double inr0,
                                double inrmax, double inb, GridType intype,
                                double indu)
-    : num_points(innum_points == 0 ? Grid::calc_num_points_from_du(
-                                         inr0, inrmax, indu, intype, inb) :
-                                     innum_points),
-      r0(inr0),
-      rmax(inrmax),
-      b(inb),
-      type(intype) {}
+  : num_points(innum_points == 0 ? Grid::calc_num_points_from_du(
+                                     inr0, inrmax, indu, intype, inb) :
+                                   innum_points),
+    r0(inr0),
+    rmax(inrmax),
+    b(inb),
+    type(intype) {}
 //------------------------------------------------------------------------------
 GridType GridParameters::parseType(const std::string &str_type) {
   if (str_type == "loglinear")
@@ -59,18 +59,18 @@ std::string GridParameters::parseType(GridType type) {
 
 //==============================================================================
 Grid::Grid(const GridParameters &in)
-    : Grid(in.r0, in.rmax, in.num_points, in.type, in.b) {}
+  : Grid(in.r0, in.rmax, in.num_points, in.type, in.b) {}
 //------------------------------------------------------------------------------
 Grid::Grid(double in_r0, double in_rmax, std::size_t in_num_points,
            GridType in_gridtype, double in_b)
-    : m_r0(in_r0),
-      m_du(calc_du_from_num_points(in_r0, in_rmax, in_num_points, in_gridtype,
-                                   in_b)),
-      gridtype(in_gridtype),
-      m_b(gridtype == GridType::loglinear ? in_b : 0.0),
-      m_r(form_r(gridtype, m_r0, in_num_points, m_du, m_b)),
-      m_drduor(form_drduor(gridtype, m_r, m_b)),
-      m_drdu(form_drdu(gridtype, m_r, m_drduor)) {}
+  : m_r0(in_r0),
+    m_du(calc_du_from_num_points(in_r0, in_rmax, in_num_points, in_gridtype,
+                                 in_b)),
+    gridtype(in_gridtype),
+    m_b(gridtype == GridType::loglinear ? in_b : 0.0),
+    m_r(form_r(gridtype, m_r0, in_num_points, m_du, m_b)),
+    m_drduor(form_drduor(gridtype, m_r, m_b)),
+    m_drdu(form_drdu(gridtype, m_r, m_drduor)) {}
 
 //==============================================================================
 std::size_t Grid::getIndex(double x, bool require_nearest) const
@@ -138,7 +138,7 @@ void Grid::extend_to(double new_rmax) {
   // Number of points total grid should have, and number of points needed for
   // 'extra' part of grid:
   const auto total_points =
-      calc_num_points_from_du(r0(), new_rmax, du(), gridtype, m_b);
+    calc_num_points_from_du(r0(), new_rmax, du(), gridtype, m_b);
   const auto new_points = total_points - num_points() + 1;
 
   // Form the 'extra' part of the grid (from old max to new max)

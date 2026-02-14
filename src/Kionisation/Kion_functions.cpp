@@ -35,7 +35,7 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
   std::unique_ptr<ExternalField::DiagramRPA0_jL> rpa{nullptr};
   if (use_rpa0)
     rpa =
-        std::make_unique<ExternalField::DiagramRPA0_jL>(jl, basis, vHF, max_L);
+      std::make_unique<ExternalField::DiagramRPA0_jL>(jl, basis, vHF, max_L);
 
   if (std::abs(Fnk.en()) > Egrid.r().back()) {
     return Knk_Eq;
@@ -58,14 +58,14 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
 
   // Find first energy grid point for which Fnk is accessible:
   const auto idE_first_accessible = std::size_t(std::distance(
-      Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
-                                  [&](auto e) { return e > -Fnk.en(); })));
+    Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
+                                [&](auto e) { return e > -Fnk.en(); })));
   const auto num_accessible_E_steps = Egrid.num_points() - idE_first_accessible;
 
   // decide what to parallelise over:
   const bool parallelise_E =
-      num_accessible_E_steps >
-      std::min(qsteps, (std::size_t)omp_get_max_threads());
+    num_accessible_E_steps >
+    std::min(qsteps, (std::size_t)omp_get_max_threads());
 
   (void)parallelise_E; //suppress unused variable warning clang, when no OMP
 #pragma omp parallel for if (parallelise_E)
@@ -124,10 +124,10 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
 
 //==============================================================================
 std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
-    const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &core, int max_L,
-    const Grid &Egrid, DiracOperator::jL *jl, bool force_rescale,
-    bool hole_particle, bool force_orthog,
-    const std::vector<DiracSpinor> &basis, const std::string &atom) {
+  const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &core, int max_L,
+  const Grid &Egrid, DiracOperator::jL *jl, bool force_rescale,
+  bool hole_particle, bool force_orthog, const std::vector<DiracSpinor> &basis,
+  const std::string &atom) {
   assert(vHF != nullptr && "Hartree-Fock potential must not be null");
 
   const auto &qgrid = jl->q_grid();
@@ -136,14 +136,14 @@ std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
   const int max_rpa_its = 128;
 
   std::vector<LinAlg::Matrix<double>> K_nk_Eq(
-      core.size(), {Egrid.num_points(), qgrid.num_points()});
+    core.size(), {Egrid.num_points(), qgrid.num_points()});
 
   // Find index of first accessible core state:
   const auto Emax = Egrid.back();
   const auto i_first_accessible_nk = std::size_t(std::distance(
-      core.begin(), std::find_if(core.begin(), core.end(), [Emax](auto &Fc) {
-        return std::abs(Fc.en()) < Emax;
-      })));
+    core.begin(), std::find_if(core.begin(), core.end(), [Emax](auto &Fc) {
+      return std::abs(Fc.en()) < Emax;
+    })));
 
   // This could be done more efficiently, but this seems fine.
   // Don't need to run RPA for large number of q anyway
@@ -170,7 +170,7 @@ std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
           if (ec <= 0.0)
             continue;
           const auto [lc_max, lc_min] =
-              std::pair{Fnk.l() + max_L, std::max(Fnk.l() - max_L, 0)};
+            std::pair{Fnk.l() + max_L, std::max(Fnk.l() - max_L, 0)};
           const double x_ocf = Fnk.occ_frac();
           ContinuumOrbitals cntm(vHF);
           cntm.solveContinuumHF(ec, lc_min, lc_max, &Fnk, force_rescale,
@@ -213,7 +213,7 @@ calculateK_nk_approx(const HF::HartreeFock *vHF,
   std::unique_ptr<ExternalField::DiagramRPA0_jL> rpa;
   if (use_rpa)
     rpa =
-        std::make_unique<ExternalField::DiagramRPA0_jL>(jl, basis, vHF, max_L);
+      std::make_unique<ExternalField::DiagramRPA0_jL>(jl, basis, vHF, max_L);
 
   // Definition of matrix element:
   // matrix element defined such that:
@@ -337,15 +337,15 @@ bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid) {
   if (dr > dr_target) {
     fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
     fmt::print(
-        "Grid may not be dense enough for continuum state with e={:.2f}\n",
-        Emax_au);
+      "Grid may not be dense enough for continuum state with e={:.2f}\n",
+      Emax_au);
     fmt::print("Have dr~{:.3f} at large r, but need dr~{:.3f}\n", dr,
                dr_target);
 
     // For given b, find required num_points:
     const auto n_target =
-        Grid::calc_num_points_from_du(rgrid.r0(), rgrid.rmax(), 0.9 * dr_target,
-                                      GridType::loglinear, rgrid.loglin_b());
+      Grid::calc_num_points_from_du(rgrid.r0(), rgrid.rmax(), 0.9 * dr_target,
+                                    GridType::loglinear, rgrid.loglin_b());
     // For given num_points, find required b [by solving: du(b)-du_targ = 0]
     const auto f = [&](double b) {
       return Grid::calc_du_from_num_points(rgrid.r0(), rgrid.rmax(),
@@ -354,7 +354,7 @@ bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid) {
              0.9 * dr_target;
     };
     const auto [b_target, db] =
-        qip::Newtons(f, 1.0, {0.05, 100.0}, 1.0e-1, 0.01);
+      qip::Newtons(f, 1.0, {0.05, 100.0}, 1.0e-1, 0.01);
     fmt::print("Try increasing num_points to {}; or decreasing b to {:.2f}\n",
                n_target, b_target);
     std::cout << "(Program will continue, but results may be inaccurate)\n\n";
@@ -375,7 +375,7 @@ void write_to_file_xyz(const LinAlg::Matrix<double> &K,
 
   const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
   const auto unit_q =
-      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
+    units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
 
   out_file << "# Kion output data file: " << filename << " - xyz format\n";
   fmt::print(out_file, "# Units: ");
@@ -410,7 +410,7 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K,
 
   const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
   const auto unit_q =
-      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
+    units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
 
   out_file << "# Kion output data file: " << filename << " - matrix format\n";
 
@@ -456,7 +456,7 @@ void write_to_file_gnuplot(const LinAlg::Matrix<double> &K,
 
   const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
   const auto unit_q =
-      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
+    units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
 
   out_file << "# Kion output data file: " << filename
            << " - gnuplot format - function of q for various E values\n";
@@ -503,7 +503,7 @@ void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
 
   const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
   const auto unit_q =
-      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
+    units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
 
   out_file << "# Kion output data file: " << filename
            << " - gnuplot format - function of E for various q values\n";
@@ -548,7 +548,7 @@ void write_approxTable_to_file(const LinAlg::Matrix<double> &K,
   std::ofstream out_file(filename + "_approxTable.txt");
 
   const auto unit_q =
-      units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
+    units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
 
   out_file << "# Kion Approximate Tables output data file: " << filename
            << "\n";

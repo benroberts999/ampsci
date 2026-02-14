@@ -33,10 +33,10 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
   if (dr0 > dr0_target) {
     fmt2::styled_print(fg(fmt::color::red), "\nERROR 104: ");
     fmt::print(
-        "Grid not dense enough for continuum state with e={:.2f} (kappa={}); \n"
-        "Try increasing points (to ~ du < {:.3f})\n"
-        "Writing zeros to Spinor for this state.\n",
-        en, Fa.kappa(), dr0_target);
+      "Grid not dense enough for continuum state with e={:.2f} (kappa={}); \n"
+      "Try increasing points (to ~ du < {:.3f})\n"
+      "Writing zeros to Spinor for this state.\n",
+      en, Fa.kappa(), dr0_target);
     Fa *= 0.0;
     return;
   }
@@ -69,7 +69,7 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
 
   // Find large-r amplitude:
   const auto [amp, eps_amp] = numerical_f_amplitude(
-      en, Fa.kappa(), alpha, Zeff, f_final, g_final, r_final, dr);
+    en, Fa.kappa(), alpha, Zeff, f_final, g_final, r_final, dr);
 
   Fa.max_pt() = num_points;
   Fa.eps() = eps_amp;
@@ -148,11 +148,11 @@ std::pair<double, double> numerical_f_amplitude(double en, int kappa,
 
       const auto amp_fit = fitQuadratic(rm1, r0, r1, fm1, f0, f1);
       const auto eps_amp_fit =
-          std::abs(2.0 * (amp_fit - amp) / (amp_fit + amp));
+        std::abs(2.0 * (amp_fit - amp) / (amp_fit + amp));
       amp = amp_fit;
 
       const auto eps_amp_max =
-          std::abs(2.0 * (amp_fit - amp_maxf) / (amp_fit + amp_maxf));
+        std::abs(2.0 * (amp_fit - amp_maxf) / (amp_fit + amp_maxf));
 
       const auto eps_amp_best = std::min({eps_amp_fit, eps_amp_max});
       const auto eps_amp_worst = std::max({eps_amp_fit, eps_amp_max});
@@ -205,7 +205,7 @@ double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
   const auto Ad = x3 * (x2 * (x2 - x3) * y1 + x1 * (-x1 + x3) * y2) +
                   x1 * (x1 - x2) * x2 * y3;
   const auto Bd =
-      x3 * x3 * (y1 - y2) + x1 * x1 * (y2 - y3) + x2 * x2 * (-y1 + y3);
+    x3 * x3 * (y1 - y2) + x1 * x1 * (y2 - y3) + x2 * x2 * (-y1 + y3);
   const auto Cd = x3 * (-y1 + y2) + x2 * (y1 - y3) + x1 * (-y2 + y3);
   auto y0 = (Ad / d) - Bd * Bd / (4.0 * Cd * d);
 

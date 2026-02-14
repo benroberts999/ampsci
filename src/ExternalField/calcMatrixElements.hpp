@@ -80,12 +80,10 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
 
 //! Fills me_table with MEs.
 //! Required to set omega for freq. dependent operators initially
-inline Coulomb::meTable<double>
-me_table(const std::vector<DiracSpinor> &a_orbs,
-         const DiracOperator::TensorOperator *h,
-         const CorePolarisation *dV = nullptr,
-         const MBPT::StructureRad *srn = nullptr,
-         std::optional<double> omega = {}) {
+inline Coulomb::meTable<double> me_table(
+  const std::vector<DiracSpinor> &a_orbs,
+  const DiracOperator::TensorOperator *h, const CorePolarisation *dV = nullptr,
+  const MBPT::StructureRad *srn = nullptr, std::optional<double> omega = {}) {
   return me_table(a_orbs, a_orbs, h, dV, srn, omega);
 }
 

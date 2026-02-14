@@ -54,8 +54,8 @@ TEST_CASE("External Field: Mixed-states (unit)",
           const auto hFc = h->reduced_rhs(Fm.kappa(), Fc);
           auto imag = h->imaginaryQ();
           auto de = Fc.kappa() == Fm.kappa() && !imag ? Fc * hFc : 0.0;
-          const auto &dF = ExternalField::solveMixedState(
-              Fc, omega, hFc - de * Fc, wf.vHF());
+          const auto &dF =
+            ExternalField::solveMixedState(Fc, omega, hFc - de * Fc, wf.vHF());
 
           auto hmc2 = (Fm * dF) * (Fc.en() - Fm.en() + omega);
           auto eps = std::abs((hmc1 - hmc2) / hmc1);
@@ -142,11 +142,11 @@ TEST_CASE("External Field: Mixed-states (full)",
 
         // Solves: (H - e - de)*dF = -h * F
         const auto &dF_t =
-            ExternalField::solveMixedState(Fc, omega, hFc - de * Fc, wf.vHF());
+          ExternalField::solveMixedState(Fc, omega, hFc - de * Fc, wf.vHF());
 
         // Directly finds: dF = \sum_n |n><n||h|c> / (ec - en + w)
         const auto &dF_b =
-            ExternalField::solveMixedState_basis(Fc, hFc, omega, wf.basis());
+          ExternalField::solveMixedState_basis(Fc, hFc, omega, wf.basis());
 
         auto h0 = Fm * hFc;
         auto h1 = (Fm * dF_t) * (Fc.en() - Fm.en() + omega);
@@ -157,12 +157,12 @@ TEST_CASE("External Field: Mixed-states (full)",
           // Should be zero exactly from sum-over-state method - isn't, because
           // states aren't exactly orthogonal. Should diverge in TDHF case?
           fmt::print(
-              "{:3s} {:3s} {:11.4e} {:^11s} {:^11s} |  {:11.4e}  {:11.4e}\n",
-              Fc.shortSymbol(), Fm.shortSymbol(), h0, "-----", "-----",
-              Fm * dF_t, Fm * dF_b);
+            "{:3s} {:3s} {:11.4e} {:^11s} {:^11s} |  {:11.4e}  {:11.4e}\n",
+            Fc.shortSymbol(), Fm.shortSymbol(), h0, "-----", "-----", Fm * dF_t,
+            Fm * dF_b);
         } else {
           const auto eps =
-              0.5 * (std::abs(h1 / h0 - 1.0) + std::abs(h2 / h0 - 1.0));
+            0.5 * (std::abs(h1 / h0 - 1.0) + std::abs(h2 / h0 - 1.0));
           fmt::print("{:3s} {:3s} {:11.4e} {:11.4e} {:11.4e} |  {:11.4e}  "
                      "{:11.4e}  {:.0e}\n",
                      Fc.shortSymbol(), Fm.shortSymbol(), h0, h1, h2, Fm * dF_t,

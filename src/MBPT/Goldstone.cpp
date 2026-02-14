@@ -8,14 +8,14 @@ Goldstone::Goldstone(const std::vector<DiracSpinor> &basis,
                      const std::vector<DiracSpinor> &core, std::size_t i0,
                      std::size_t stride, std::size_t size, int n_min_core,
                      bool include_G, const HF::Breit *Br)
-    : m_grid(basis.front().grid_sptr()),
-      m_basis(DiracSpinor::split_by_core(basis, core, n_min_core)),
-      m_Yeh(m_basis.second, m_basis.first),
-      m_i0(i0),
-      m_stride(stride),
-      m_subgrid_points(size),
-      m_n_min_core(n_min_core),
-      m_include_G(include_G) {
+  : m_grid(basis.front().grid_sptr()),
+    m_basis(DiracSpinor::split_by_core(basis, core, n_min_core)),
+    m_Yeh(m_basis.second, m_basis.first),
+    m_i0(i0),
+    m_stride(stride),
+    m_subgrid_points(size),
+    m_n_min_core(n_min_core),
+    m_include_G(include_G) {
 
   if (Br != nullptr) {
     m_Br = *Br; // copy is OK, small

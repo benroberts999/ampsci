@@ -28,15 +28,12 @@ void boundState(DiracSpinor &Fa, const double en0, const std::vector<double> &v,
                 const DiracSpinor *const Fa0 = nullptr, double zion = 1,
                 double mass = 1.0);
 
-inline DiracSpinor boundState(int n, int kappa, const double en0,
-                              const std::shared_ptr<const Grid> &gr,
-                              const std::vector<double> &v,
-                              const std::vector<double> &H_off_diag = {},
-                              const double alpha = PhysConst::alpha,
-                              double eps = 1.0e-14,
-                              const DiracSpinor *const VxFa = nullptr,
-                              const DiracSpinor *const Fa0 = nullptr,
-                              double zion = 1, double mass = 1.0) {
+inline DiracSpinor boundState(
+  int n, int kappa, const double en0, const std::shared_ptr<const Grid> &gr,
+  const std::vector<double> &v, const std::vector<double> &H_off_diag = {},
+  const double alpha = PhysConst::alpha, double eps = 1.0e-14,
+  const DiracSpinor *const VxFa = nullptr,
+  const DiracSpinor *const Fa0 = nullptr, double zion = 1, double mass = 1.0) {
   DiracSpinor Fnk = DiracSpinor(n, kappa, gr);
   boundState(Fnk, en0, v, H_off_diag, alpha, eps, VxFa, Fa0, zion, mass);
   return Fnk;
@@ -88,8 +85,8 @@ constexpr auto weight = [](std::size_t i) {
 };
 
 static_assert(
-    Param::K_Adams >= 1 && Param::K_Adams <= AdamsMoulton::K_max,
-    "\nFAIL in DiracODE: parameter K_Adams must be between 5 and 8\n");
+  Param::K_Adams >= 1 && Param::K_Adams <= AdamsMoulton::K_max,
+  "\nFAIL in DiracODE: parameter K_Adams must be between 5 and 8\n");
 
 } // namespace Param
 

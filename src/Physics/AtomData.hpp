@@ -18,7 +18,7 @@ struct NonRelConfig : qip::Comparison<NonRelConfig>,
   int num;
 
   constexpr NonRelConfig(int in_n = 0, int in_l = -1, int in_num = 0)
-      : n(in_n), l(in_l), num(in_num) {}
+    : n(in_n), l(in_l), num(in_num) {}
 
   //! Returns symbol (e.g., 1s2 or 5p3)
   std::string symbol() const;
@@ -45,7 +45,7 @@ struct DiracConfig { // name OK? too short?
   int k;
   double en;
   DiracConfig(int in_n = 0, int in_k = 0, double in_en = 0)
-      : n(in_n), k(in_k), en(in_en){};
+    : n(in_n), k(in_k), en(in_en){};
 };
 
 //==============================================================================

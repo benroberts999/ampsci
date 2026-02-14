@@ -55,7 +55,7 @@ public:
   //! first non-zero knot. kd = { logarithmic, linear, loglinear }
   BSpline(std::size_t n, std::size_t k, double x0, double xmax,
           KnotDistro kd = KnotDistro::logarithmic)
-      : m_K(k), m_N(n), m_xmax(xmax) {
+    : m_K(k), m_N(n), m_xmax(xmax) {
     assert(m_N > m_K && "Require N>K for B-splines");
     assert(xmax > x0 && x0 > 0.0 && xmax > 0.0 && "xmax>x0 and both positive");
 
@@ -199,12 +199,12 @@ private:
     // Knots are the same as breakpoints, but the first (0) and last (xmax)
     // points are repeated K times
     auto breaks = (kd == KnotDistro::logarithmic) ?
-                      qip::logarithmic_range(x0, xmax, n_break - 1) :
+                    qip::logarithmic_range(x0, xmax, n_break - 1) :
                   (kd == KnotDistro::linear) ?
-                      qip::uniform_range(x0, xmax, n_break - 1) :
+                    qip::uniform_range(x0, xmax, n_break - 1) :
                   (kd == KnotDistro::loglinear) ?
-                      qip::loglinear_range(x0, xmax, 0.5 * xmax, n_break - 1) :
-                      std::vector<double>{};
+                    qip::loglinear_range(x0, xmax, 0.5 * xmax, n_break - 1) :
+                    std::vector<double>{};
 
     breaks.insert(breaks.begin(), 0.0);
 

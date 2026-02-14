@@ -62,9 +62,11 @@ public:
   */
   RadPot(const std::vector<double> &r, double Z, double rN = 0.0,
          double rcut = 0.0, Scale f = {1.0, 1.0, 1.0, 1.0, 0.0}, Xl xl = {},
-         bool tprint = true, bool do_readwrite = true);
+         bool tprint = true, bool do_readwrite = true,
+         const std::string &label = "");
 
-  bool read_write(const std::vector<double> &r, IO::FRW::RoW rw);
+  bool read_write(const std::vector<double> &r, IO::FRW::RoW rw,
+                  const std::string &label_x = "");
 
   void form_potentials(const std::vector<double> &r);
 
@@ -95,8 +97,8 @@ std::vector<double> RadPot::fill(Func f, const std::vector<double> &r) {
 
   // index for r cut-off
   const auto icut = std::size_t(std::distance(
-      begin(r),
-      std::find_if(begin(r), end(r), [rcut](auto ri) { return ri > rcut; })));
+    begin(r),
+    std::find_if(begin(r), end(r), [rcut](auto ri) { return ri > rcut; })));
 
 #pragma omp parallel for
   for (auto i = 0ul; i < icut; ++i) {
@@ -115,10 +117,10 @@ std::vector<double> RadPot::fill(Func f, const std::vector<double> &r,
 
   // index for r cut-off
   const auto icut =
-      std::size_t(std::distance(
-          begin(r), std::find_if(begin(r), end(r),
-                                 [rcut](auto ri) { return ri > rcut; }))) /
-      stride;
+    std::size_t(std::distance(
+      begin(r),
+      std::find_if(begin(r), end(r), [rcut](auto ri) { return ri > rcut; }))) /
+    stride;
 
   std::vector<double> tv, tr;
   tv.resize(icut);

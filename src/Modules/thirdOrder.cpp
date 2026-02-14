@@ -18,38 +18,38 @@ namespace Module {
 void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"", "Calculates third-order matrix elements, entirely using the basis. "
-            "Includes RPA, `Brueckner' orbital, SR+Norm, and optionally "
-            "T_deriv contributions. Good for cases where orthogonality of the "
-            "basis is crucial, e.g., M1."},
-       {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
-       {"options{}", "options specific to operator (see ampsci -o 'operator')"},
-       {"rpa", "True/false (always uses diagram method) [true]"},
-       {"scale",
-        "Scaling factors for BO contributions, comma-sepparated list. "
-        "There must be one factor for each valence state, in the same order as "
-        "the valence states. Note: these are NOT the same as lambda_kappa in "
-        "Correlations; this is scaling for MBPT(2) energy correction."},
-       {"fitTo_cm",
-        "Experimental energies, in inverse cm, to fit BO to. Autmatically "
-        "works out, and overrides 'scale'. Comma-sepparated list, one per "
-        "valence state, in same order."},
-       {"omega",
-        "Text or number. Freq. for RPA (and freq. dependent operators). Put "
-        "'each' to solve at correct frequency for each transition. [0.0]"},
-       {"Tderiv", "Include T_deriv term. Only used if omega=each, and "
-                  "frequency-dependent operator. [true]"},
-       {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
-       {"off-diagonal",
-        "Calculate off-diagonal matrix elements (if non-zero) [true]"},
-       {"printBoth", "print <a|h|b> and <b|h|a> (mostly for checks) [false]"},
-       {"Qk_file",
-        "true/false/filename - filename for QkTable file. If blank will "
-        "not use QkTable; if exists, will read it in; if doesn't exist, will "
-        "create it and write to disk. If 'true' will use default filename. "
-        "Save time (10x) at cost of memory."},
-       {"n_minmax", "list; min,max n for core/excited in internal diagram "
-                    "lines for BO and SR (all used in RPA): [1,inf]"}});
+    {{"", "Calculates third-order matrix elements, entirely using the basis. "
+          "Includes RPA, `Brueckner' orbital, SR+Norm, and optionally "
+          "T_deriv contributions. Good for cases where orthogonality of the "
+          "basis is crucial, e.g., M1."},
+     {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
+     {"options{}", "options specific to operator (see ampsci -o 'operator')"},
+     {"rpa", "True/false (always uses diagram method) [true]"},
+     {"scale",
+      "Scaling factors for BO contributions, comma-sepparated list. "
+      "There must be one factor for each valence state, in the same order as "
+      "the valence states. Note: these are NOT the same as lambda_kappa in "
+      "Correlations; this is scaling for MBPT(2) energy correction."},
+     {"fitTo_cm",
+      "Experimental energies, in inverse cm, to fit BO to. Autmatically "
+      "works out, and overrides 'scale'. Comma-sepparated list, one per "
+      "valence state, in same order."},
+     {"omega",
+      "Text or number. Freq. for RPA (and freq. dependent operators). Put "
+      "'each' to solve at correct frequency for each transition. [0.0]"},
+     {"Tderiv", "Include T_deriv term. Only used if omega=each, and "
+                "frequency-dependent operator. [true]"},
+     {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
+     {"off-diagonal",
+      "Calculate off-diagonal matrix elements (if non-zero) [true]"},
+     {"printBoth", "print <a|h|b> and <b|h|a> (mostly for checks) [false]"},
+     {"Qk_file",
+      "true/false/filename - filename for QkTable file. If blank will "
+      "not use QkTable; if exists, will read it in; if doesn't exist, will "
+      "create it and write to disk. If 'true' will use default filename. "
+      "Save time (10x) at cost of memory."},
+     {"n_minmax", "list; min,max n for core/excited in internal diagram "
+                  "lines for BO and SR (all used in RPA): [1,inf]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -71,7 +71,7 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // treat hyperfine operator differently: A constants instead of RME
   const bool hf_AB =
-      qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
+    qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
 
   const bool diagonal = input.get("diagonal", true);
   const bool off_diagonal = input.get("off-diagonal", true);
@@ -89,12 +89,12 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
   const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
   std::string Qk_file =
-      Qk_file_t != "false" ?
-          Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
-          "";
+    Qk_file_t != "false" ?
+      Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
+      "";
 
   std::cout
-      << "\nIncluding Structure radiation, normalisation of states and BO:\n";
+    << "\nIncluding Structure radiation, normalisation of states and BO:\n";
   if (n_min > 1)
     std::cout << "Including from n = " << n_min << "\n";
   if (n_max < 999)
@@ -107,7 +107,7 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << std::flush;
 
   auto sr =
-      MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
+    MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
 
   // Optional re-scaling of BO part:
   std::map<std::string, double> scale_factors;
@@ -212,7 +212,7 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
         continue;
 
       const auto ff = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                  h->rank(), a.kappa(), b.kappa()) :
+                                h->rank(), a.kappa(), b.kappa()) :
                               1.0;
 
       const auto h0 = h->reducedME(a, b);
@@ -288,7 +288,7 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
           continue;
 
         const auto ff = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                    h->rank(), a.kappa(), b.kappa()) :
+                                  h->rank(), a.kappa(), b.kappa()) :
                                 1.0;
 
         const auto h0 = h->reducedME(a, b);
@@ -308,9 +308,9 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
         if (eachFreqQ && h->freqDependantQ() && do_Tderiv) {
           std::cout << "   T_deriv (added to BO):\n";
           const auto de2_a =
-              MBPT::Sigma_vw(a, a, sr.Yk(), sr.core(), sr.excited());
+            MBPT::Sigma_vw(a, a, sr.Yk(), sr.core(), sr.excited());
           const auto de2_b =
-              MBPT::Sigma_vw(b, b, sr.Yk(), sr.core(), sr.excited());
+            MBPT::Sigma_vw(b, b, sr.Yk(), sr.core(), sr.excited());
           const auto dw = de2_a - de2_b;
           std::cout << "        da(2): " << de2_a << "\n";
           std::cout << "        db(2): " << de2_b << "\n";

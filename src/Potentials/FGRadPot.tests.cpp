@@ -16,7 +16,7 @@ TEST_CASE("Radiative Potential (functions)", "[RadPot][QED][unit]") {
     // Compare Uehling integral (J function) to Mathematica
     const double rN = 1.0e-5;
     const auto r_list =
-        std::vector{1.0e-7, 1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3, 1.0e-2};
+      std::vector{1.0e-7, 1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3, 1.0e-2};
     const auto expected = std::vector{0.1705223366, 1.699101548, 10.65108690,
                                       5.825117247,  1.748103780, 0.02520380190};
     std::vector<double> res;
@@ -33,10 +33,10 @@ TEST_CASE("Radiative Potential (functions)", "[RadPot][QED][unit]") {
     // Compare Mag integral (J function) to Mathematica
     const double rN = 1.0e-5;
     const auto r_list =
-        std::vector{1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3, 1.0e-2, 0.1};
+      std::vector{1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3, 1.0e-2, 0.1};
     const auto expected =
-        std::vector{-2.441802648e-8, -0.00001909634519, -0.001578897130,
-                    -0.07268613382,  -0.8494339412,     -1.000000000};
+      std::vector{-2.441802648e-8, -0.00001909634519, -0.001578897130,
+                  -0.07268613382,  -0.8494339412,     -1.000000000};
     std::vector<double> res;
     for (auto r : r_list) {
       res.push_back(FGRP::t_integral(FGRP::Magnetic::J_mag_gsl, {r, rN}));
@@ -53,10 +53,10 @@ TEST_CASE("Radiative Potential (functions)", "[RadPot][QED][unit]") {
     const double z = 55.0;
     const double rN = 1.0e-4;
     const auto r_list =
-        std::vector{1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3, 1.0e-2, 0.1};
+      std::vector{1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3, 1.0e-2, 0.1};
     const auto expected =
-        std::vector{0.995883787662840, 0.995856739485738, 0.993424136749548,
-                    0.946383897482915, 0.576945209193922, 0.00408677930550273};
+      std::vector{0.995883787662840, 0.995856739485738, 0.993424136749548,
+                  0.946383897482915, 0.576945209193922, 0.00408677930550273};
     std::vector<double> res;
     for (auto r : r_list) {
       res.push_back(FGRP::SE::F_SEl(z, r, rN));
@@ -74,10 +74,10 @@ TEST_CASE("Radiative Potential (functions)", "[RadPot][QED][unit]") {
     const double z = 55.0;
     const double rN = 1.0e-5;
     const auto r_list =
-        std::vector{1.0e-7, 1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3, 1.0e-2};
+      std::vector{1.0e-7, 1.0e-6, 1.0e-5, 1.0e-4, 1.0e-3, 1.0e-2};
     const auto expected =
-        std::vector{0.0552394653230691, 0.551391255370585, 4.63893363508357,
-                    10.3617772959789,   3.70455183897125,  0.0350009486189897};
+      std::vector{0.0552394653230691, 0.551391255370585, 4.63893363508357,
+                  10.3617772959789,   3.70455183897125,  0.0350009486189897};
     std::vector<double> res;
     for (auto r : r_list) {
       double x = FGRP::t_integral(FGRP::SE::J_SE_gsl, {r, rN, z});

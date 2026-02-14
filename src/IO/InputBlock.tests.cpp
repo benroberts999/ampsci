@@ -75,7 +75,7 @@ void run_tests(const IO::InputBlock &ib) {
                     {"Extra_not_in_list{}", ""}}));
 
   std::cout
-      << "Note: following warning message is expected as part of tests:\n";
+    << "Note: following warning message is expected as part of tests:\n";
   REQUIRE_FALSE(ib.check({{"k1", ""},
                           {"k2", ""},
                           {"k3", ""},
@@ -88,7 +88,7 @@ void run_tests(const IO::InputBlock &ib) {
                           {"bool2", ""}}));
 
   std::cout
-      << "Note: following warning message is expected as part of tests:\n";
+    << "Note: following warning message is expected as part of tests:\n";
   REQUIRE_FALSE(ib.check({{"k1", ""},
                           {"k2", ""},
                           {"k3", ""},

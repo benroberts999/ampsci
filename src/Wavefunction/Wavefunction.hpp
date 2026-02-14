@@ -201,6 +201,9 @@ public:
   //! Atomic symbol, including core ionisation degree and run_label
   std::string identity() const;
 
+  //! Atomic symbol, including core ionisation degree and run_label
+  const std::string &run_label() const { return m_run_label; };
+
   //! 0 for neutral, 1 for singly-ionised etc.
   int ion_degree(int num_val) const { return Zion() - num_val; }
 

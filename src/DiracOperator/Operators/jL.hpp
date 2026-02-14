@@ -21,22 +21,22 @@ public:
   //! Contruction takes radial grid, a q grid, and a maximum L. Fills lookup table
   jL(const Grid &r_grid, const Grid &q_grid, std::size_t max_l,
      bool subtract_one = false)
-      : TensorOperator(-1, Parity::blank),
-        m_max_l(max_l),
-        m_j_lq_r(m_max_l + 1, q_grid.num_points()),
-        m_r_grid(&r_grid),
-        m_q_grid(&q_grid),
-        m_subtract_one(subtract_one) {
+    : TensorOperator(-1, Parity::blank),
+      m_max_l(max_l),
+      m_j_lq_r(m_max_l + 1, q_grid.num_points()),
+      m_r_grid(&r_grid),
+      m_q_grid(&q_grid),
+      m_subtract_one(subtract_one) {
     fill_table();
   }
   //! Constructing from existing operator: copies JL table - faster. Can copy from a jL of different type (g0,g5 etc)
   jL(const jL &other)
-      : TensorOperator(-1, Parity::blank),
-        m_max_l(other.m_max_l),
-        m_j_lq_r(other.m_j_lq_r),
-        m_r_grid(other.m_r_grid),
-        m_q_grid(other.m_q_grid),
-        m_subtract_one(other.m_subtract_one) {}
+    : TensorOperator(-1, Parity::blank),
+      m_max_l(other.m_max_l),
+      m_j_lq_r(other.m_j_lq_r),
+      m_r_grid(other.m_r_grid),
+      m_q_grid(other.m_q_grid),
+      m_subtract_one(other.m_subtract_one) {}
 
   // jL(const jL &) = default;
   jL &operator=(const jL &) = delete;
@@ -56,7 +56,7 @@ private:
 #pragma omp parallel for
       for (std::size_t iq = 0; iq < m_q_grid->num_points(); ++iq) {
         m_j_lq_r.at(l, iq) = SphericalBessel::fillBesselVec_kr(
-            int(l), m_q_grid->r(iq), m_r_grid->r());
+          int(l), m_q_grid->r(iq), m_r_grid->r());
       }
     }
     std::cout << "done.\n";
@@ -189,11 +189,11 @@ public:
       }
     } else {
       Rf = cff == 0.0 ?
-               0.0 :
-               NumCalc::integrate(1.0, 0, max, a.f(), b.f(), jlqr, gr.drdu());
+             0.0 :
+             NumCalc::integrate(1.0, 0, max, a.f(), b.f(), jlqr, gr.drdu());
       Rg = cgg == 0.0 ?
-               0.0 :
-               NumCalc::integrate(1.0, 0, max, a.g(), b.g(), jlqr, gr.drdu());
+             0.0 :
+             NumCalc::integrate(1.0, 0, max, a.g(), b.g(), jlqr, gr.drdu());
     }
     const auto Rfg = cfg == 0.0 ? 0.0 :
                                   NumCalc::integrate(1.0, 0, max, a.f(), b.g(),
@@ -212,7 +212,7 @@ public:
   bool is_zero(const DiracSpinor &a, const DiracSpinor &b,
                std::size_t L) const {
     const auto kb =
-        angularCfg(a.kappa(), b.kappa()) == 0.0 ? b.kappa() : -b.kappa();
+      angularCfg(a.kappa(), b.kappa()) == 0.0 ? b.kappa() : -b.kappa();
     return !Angular::Ck_kk_SR(int(L), a.kappa(), kb);
   }
 
@@ -235,7 +235,7 @@ class g0jL : public jL {
 public:
   g0jL(const Grid &r_grid, const Grid &q_grid, std::size_t max_l,
        bool subtract_one = false)
-      : jL(r_grid, q_grid, max_l, subtract_one) {}
+    : jL(r_grid, q_grid, max_l, subtract_one) {}
   g0jL(const jL &other) : jL(other) {}
 
 public:
@@ -252,7 +252,7 @@ public:
 class ig5jL : public jL {
 public:
   ig5jL(const Grid &r_grid, const Grid &q_grid, std::size_t max_l)
-      : jL(r_grid, q_grid, max_l, false) {}
+    : jL(r_grid, q_grid, max_l, false) {}
   ig5jL(const jL &other) : jL(other) {}
 
 public:
@@ -282,7 +282,7 @@ public:
 class ig0g5jL : public jL {
 public:
   ig0g5jL(const Grid &r_grid, const Grid &q_grid, std::size_t max_l)
-      : jL(r_grid, q_grid, max_l, false) {}
+    : jL(r_grid, q_grid, max_l, false) {}
   ig0g5jL(const jL &other) : jL(other) {}
 
 public:

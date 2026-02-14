@@ -97,12 +97,10 @@ double check(const std::vector<DiracSpinor> &basis,
              const std::vector<DiracSpinor> &orbs, bool print_warning = true);
 
 //! Forms the underlying spline basis (which is not kept)
-std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
-form_spline_basis(const int kappa, const std::size_t n_states,
-                  const std::size_t k_spl, const double r0_spl,
-                  const double rmax_spl, std::shared_ptr<const Grid> rgrid,
-                  const double alpha,
-                  SplineType itype = SplineType::Derevianko);
+std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> form_spline_basis(
+  const int kappa, const std::size_t n_states, const std::size_t k_spl,
+  const double r0_spl, const double rmax_spl, std::shared_ptr<const Grid> rgrid,
+  const double alpha, SplineType itype = SplineType::Derevianko);
 
 //! Calculates  + reyurns the Hamiltonian \f$H_{ij}\f$ (and \f$S_{ij}\f$)
 //! matrices

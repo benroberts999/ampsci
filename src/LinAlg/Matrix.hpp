@@ -45,21 +45,21 @@ public:
 
   //! Initialise a blank matrix rows*cols, filled with 0
   Matrix(std::size_t rows, std::size_t cols)
-      : m_rows(rows), m_cols(cols), m_data(rows * cols) {}
+    : m_rows(rows), m_cols(cols), m_data(rows * cols) {}
 
   //! Initialise a matrix rows*cols, filled with 'value'
   Matrix(std::size_t rows, std::size_t cols, const T &value)
-      : m_rows(rows), m_cols(cols), m_data(rows * cols, value) {}
+    : m_rows(rows), m_cols(cols), m_data(rows * cols, value) {}
 
   //! Initialise a blank square matrix dimension*dimension, filled with 0
   // excplicit, since don't alow flot->int converions
   explicit Matrix(std::size_t dimension)
-      : m_rows(dimension), m_cols(dimension), m_data(dimension * dimension) {}
+    : m_rows(dimension), m_cols(dimension), m_data(dimension * dimension) {}
 
   //! Initialise a matrix from initialiser list. {{},{},{}}. Each row must be
   //! same length
   Matrix(std::initializer_list<std::initializer_list<T>> ll)
-      : m_rows(ll.size()), m_cols(ll.begin()->size()), m_data{} {
+    : m_rows(ll.size()), m_cols(ll.begin()->size()), m_data{} {
     // way to avoid copy?
     m_data.reserve(m_rows * m_cols);
     for (auto &l : ll) {
@@ -69,20 +69,20 @@ public:
 
   //! Initialise a matrix from single initialiser list. {...}.
   Matrix(std::size_t rows, std::size_t cols, std::initializer_list<T> l)
-      : m_rows(rows), m_cols(cols), m_data{l} {
+    : m_rows(rows), m_cols(cols), m_data{l} {
     assert(m_data.size() == rows * cols &&
            "initializer_list must be rows*cols");
   }
 
   //! Initialise a matrix from single initialiser list. {...}.
   Matrix(std::size_t rows, std::size_t cols, std::vector<T> &&v)
-      : m_rows(rows), m_cols(cols), m_data{std::forward<std::vector<T>>(v)} {
+    : m_rows(rows), m_cols(cols), m_data{std::forward<std::vector<T>>(v)} {
     assert(m_data.size() == rows * cols &&
            "initializer_list must be rows*cols");
   }
   //! Initialise a matrix from single initialiser list. {...}.
   Matrix(std::size_t rows, std::size_t cols, const std::vector<T> &v)
-      : m_rows(rows), m_cols(cols), m_data{v} {
+    : m_rows(rows), m_cols(cols), m_data{v} {
     assert(m_data.size() == rows * cols &&
            "initializer_list must be rows*cols");
   }

@@ -292,9 +292,9 @@ double CoulombTable<S>::g(const DiracSpinor &a, const DiracSpinor &b,
     // }
 
     const auto tjs1 =
-        Angular::threej_2(a.twoj(), 2 * k, c.twoj(), -tma, -twoq, tmc);
+      Angular::threej_2(a.twoj(), 2 * k, c.twoj(), -tma, -twoq, tmc);
     const auto tjs2 =
-        Angular::threej_2(b.twoj(), 2 * k, d.twoj(), -tmb, twoq, tmd);
+      Angular::threej_2(b.twoj(), 2 * k, d.twoj(), -tmb, twoq, tmd);
     const auto s = Angular::neg1pow_2(2 * k + tmb - tma + twoq);
     g += s * tjs1 * tjs2 * Q(k, a, b, c, d);
   }
@@ -474,10 +474,10 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   */
 
   const auto tmp_max_k =
-      std::size_t(std::max(DiracSpinor::max_tj(basis), 1) - 1);
+    std::size_t(std::max(DiracSpinor::max_tj(basis), 1) - 1);
 
   const auto max_k =
-      (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
+    (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
 
   if (m_data.size() < max_k + 1)
     m_data.resize(max_k + 1);
@@ -595,10 +595,10 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
   */
 
   const auto tmp_max_k =
-      std::size_t(std::max(DiracSpinor::max_tj(basis), 1) - 1);
+    std::size_t(std::max(DiracSpinor::max_tj(basis), 1) - 1);
 
   const auto max_k =
-      (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
+    (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
 
   if (m_data.size() < max_k + 1)
     m_data.resize(max_k + 1);
@@ -733,7 +733,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   // May have different parity rule, so don't -1 here
 
   const auto max_k =
-      (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
+    (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));
 
   if (m_data.size() < max_k + 1)
     m_data.resize(max_k + 1);

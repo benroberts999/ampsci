@@ -36,8 +36,8 @@ TEST_CASE("MBPT: Goldstone, unit tests", "[MBPT][Goldstone][unit]") {
   const auto size = (wf.grid().getIndex(rmax) - i0) / stride + 1;
 
   // Construct Goldtone diagrams (second-order only)
-  MBPT::Goldstone Gs = MBPT::Goldstone(wf.basis(), wf.core(), i0, stride, size,
-                                       n_min_core, false);
+  MBPT::Goldstone Gs =
+    MBPT::Goldstone(wf.basis(), wf.core(), i0, stride, size, n_min_core, false);
 
   // Test the "parameter" getters
   REQUIRE(Gs.stride() == stride);
@@ -49,8 +49,8 @@ TEST_CASE("MBPT: Goldstone, unit tests", "[MBPT][Goldstone][unit]") {
 
   for (auto &v : wf.valence()) {
 
-    auto Sigma = Gs.Sigma_direct(v.kappa(), v.en()) +
-                 Gs.Sigma_exchange(v.kappa(), v.en());
+    auto Sigma =
+      Gs.Sigma_direct(v.kappa(), v.en()) + Gs.Sigma_exchange(v.kappa(), v.en());
 
     auto de0 = MBPT::Sigma_vw(v, v, Yeh, holes, excited);
 
@@ -172,8 +172,8 @@ TEST_CASE("MBPT: CorrelationPotential", "[MBPT][CorrelationPotential][unit]") {
   const int n_min_core = 2;
 
   auto SigmaG = MBPT::CorrelationPotential(
-      "", wf.vHF(), wf.basis(), r0, rmax, stride, n_min_core,
-      MBPT::SigmaMethod::Goldstone, false, false);
+    "", wf.vHF(), wf.basis(), r0, rmax, stride, n_min_core,
+    MBPT::SigmaMethod::Goldstone, false, false);
 
   REQUIRE(SigmaG.empty());
 
@@ -190,8 +190,8 @@ TEST_CASE("MBPT: CorrelationPotential", "[MBPT][CorrelationPotential][unit]") {
 
   // read in:
   auto SigmaG2 = MBPT::CorrelationPotential(
-      file_name, wf.vHF(), wf.basis(), r0, rmax, stride, n_min_core,
-      MBPT::SigmaMethod::Goldstone, false, false);
+    file_name, wf.vHF(), wf.basis(), r0, rmax, stride, n_min_core,
+    MBPT::SigmaMethod::Goldstone, false, false);
 
   SigmaG2.print_subGrid();
 
@@ -252,8 +252,8 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
     {
       // K. Beloy and A. Derevianko, Comput. Phys. Commun. 179, 310 (2008).
       const auto partial_KBAD =
-          std::vector{-0.0000130, -0.0020027, -0.0105623, -0.0039347,
-                      -0.0007563, -0.0002737, -0.0001182};
+        std::vector{-0.0000130, -0.0020027, -0.0105623, -0.0039347,
+                    -0.0007563, -0.0002737, -0.0001182};
       // const auto total_KBAD = -0.0176609;
       const auto error = 0.0000002; // allow ony difference of 1.5 in last digit
 
@@ -263,7 +263,7 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
       // wf.formSigma(1, false);
       // Coulomb::YkTable yk(wf.basis()); // this is a *huge* basis!
       const auto [holes, excited] =
-          DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
+        DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
       Coulomb::YkTable yk(holes, excited);
       // const auto Sigma = wf.Sigma();
       std::cout << "cf Table 2 from Beloy, Derevianko, Comput.Phys.Commun. "
@@ -287,7 +287,7 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
     { // "smaller" basis set (not exactly same as Derev)
       wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0});
       const auto [holes, excited] =
-          DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
+        DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
       Coulomb::YkTable yk(holes, excited);
       // wf.formSigma(1, false);
       // const auto Sigma = wf.Sigma();
@@ -318,8 +318,8 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
   { // Compare Dzuba, using up to l=6 for splines
     std::cout << "Test Sigma(2) Brueckner, for Cs:\n";
     auto dzuba_i = std::vector{
-        -0.02013813, -0.00410942, -0.00792483, -0.00702407, -0.00220878,
-        -0.00199737, -0.01551449, -0.01466935, -0.00035253, -0.00035234};
+      -0.02013813, -0.00410942, -0.00792483, -0.00702407, -0.00220878,
+      -0.00199737, -0.01551449, -0.01466935, -0.00035253, -0.00035234};
     std::sort(begin(dzuba_i), end(dzuba_i)); // sort: don't depend on order
 
     Wavefunction wf({2000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
@@ -405,7 +405,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
   { // Compare Dzuba, using up to l=6 for splines
     std::cout << "Test Sigma(2) Brueckner, for Fr:\n";
     auto dzuba_i =
-        std::vector{-0.0245075, -0.0098094, -0.0069442, -0.0153430, -0.0133382};
+      std::vector{-0.0245075, -0.0098094, -0.0069442, -0.0153430, -0.0133382};
     std::sort(begin(dzuba_i), end(dzuba_i)); // sort: don't depend on order
 
     Wavefunction wf({2000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
@@ -448,8 +448,8 @@ TEST_CASE("MBPT: Correlation Potential: SigmaAO",
 
   { // Compare Dzuba, All-order sigma
     auto dzuba_i =
-        std::vector{-0.14332871, -0.05844404, -0.09244689, -0.08985968,
-                    -0.04392404, -0.04309476, -0.07812666, -0.07759564};
+      std::vector{-0.14332871, -0.05844404, -0.09244689, -0.08985968,
+                  -0.04392404, -0.04309476, -0.07812666, -0.07759564};
     std::sort(begin(dzuba_i), end(dzuba_i)); // sort: don't depend on order
 
     Wavefunction wf({4000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
@@ -462,7 +462,7 @@ TEST_CASE("MBPT: Correlation Potential: SigmaAO",
     const auto rmin = 1.0e-4;
     const auto rmax = 30.0;
     const auto stride =
-        int(wf.grid().getIndex(30.0) - wf.grid().getIndex(1.0e-4)) / 150;
+      int(wf.grid().getIndex(30.0) - wf.grid().getIndex(1.0e-4)) / 150;
 
     const auto omre = -std::abs(0.33 * wf.energy_gap());
     const double w0 = 0.01;
@@ -510,7 +510,7 @@ TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][CI][unit]") {
   wf.formBasis({"5spdf", 20, 5, 1.0e-2, 1.0e-2, 20.0});
 
   const auto &[core, excited] =
-      MBPT::split_basis(wf.basis(), wf.FermiLevel(), 2);
+    MBPT::split_basis(wf.basis(), wf.FermiLevel(), 2);
   const auto mbpt_basis = qip::merge(core, excited);
 
   int kmax = 4;
@@ -535,18 +535,14 @@ TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][CI][unit]") {
                                              SixJ, MBPT::Denominators::BW);
 
             const double sk3 =
-                MBPT::InternalSigma::S_Sigma2_ab(k, v, w, x, y, qk, core,
-                                                 excited, SixJ,
-                                                 MBPT::Denominators::BW) +
-                MBPT::InternalSigma::S_Sigma2_c1(k, v, w, x, y, qk, core,
-                                                 excited, SixJ,
-                                                 MBPT::Denominators::BW) +
-                MBPT::InternalSigma::S_Sigma2_c2(k, v, w, x, y, qk, core,
-                                                 excited, SixJ,
-                                                 MBPT::Denominators::BW) +
-                MBPT::InternalSigma::S_Sigma2_d(k, v, w, x, y, qk, core,
-                                                excited, SixJ,
-                                                MBPT::Denominators::BW);
+              MBPT::InternalSigma::S_Sigma2_ab(k, v, w, x, y, qk, core, excited,
+                                               SixJ, MBPT::Denominators::BW) +
+              MBPT::InternalSigma::S_Sigma2_c1(k, v, w, x, y, qk, core, excited,
+                                               SixJ, MBPT::Denominators::BW) +
+              MBPT::InternalSigma::S_Sigma2_c2(k, v, w, x, y, qk, core, excited,
+                                               SixJ, MBPT::Denominators::BW) +
+              MBPT::InternalSigma::S_Sigma2_d(k, v, w, x, y, qk, core, excited,
+                                              SixJ, MBPT::Denominators::BW);
 
             // tests symmetry:
             REQUIRE(sk2 == Approx(sk1));

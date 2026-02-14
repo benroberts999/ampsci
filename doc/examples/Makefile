@@ -4,7 +4,7 @@
 ################################################################################
 
 ## Which compiler: (g++, clang++)
-CXX ?= g++
+CXX = g++
 
 ## Build mode (changes warnings + optimisation level): release/dev/debug
 MODE ?= release

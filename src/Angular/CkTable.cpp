@@ -39,7 +39,7 @@ void CkTable::fill(const int in_max_twoj) {
         auto tja = 2 * jia + 1;
         auto tjb = 2 * jib + 1;
         m_3j_k_a_b[k][jia].push_back(
-            Angular::special_threej_2(tja, tjb, 2 * k));
+          Angular::special_threej_2(tja, tjb, 2 * k));
       }
     }
   }

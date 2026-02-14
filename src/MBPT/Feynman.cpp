@@ -21,23 +21,23 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
                  std::size_t size, const FeynmanOptions &options,
                  int n_min_core, bool include_G, bool verbose,
                  const std::string &ident)
-    : m_HF(vHF),
-      m_grid(vHF->grid_sptr()),
-      m_i0(i0),
-      m_stride(stride),
-      m_subgrid_points(size),
-      m_max_ki_core(2 * DiracSpinor::max_l(m_HF->core())),
-      m_max_ki(std::max(2 * options.max_l_internal, m_max_ki_core)),
-      m_max_k(std::max(m_max_ki_core + 1, m_max_ki + 1)),
-      m_min_core_n(n_min_core),
-      m_include_G(include_G),
-      m_omre(options.omre),
-      m_wgrid(form_w_grid(options.w0, options.w_ratio)),
-      m_hole_particle(options.hole_particle == HoleParticle::include ||
-                      options.hole_particle == HoleParticle::include_k0),
-      m_include_higher_order_hp(options.hole_particle !=
-                                HoleParticle::include_k0),
-      m_screen_Coulomb(options.screening == Screening::include) {
+  : m_HF(vHF),
+    m_grid(vHF->grid_sptr()),
+    m_i0(i0),
+    m_stride(stride),
+    m_subgrid_points(size),
+    m_max_ki_core(2 * DiracSpinor::max_l(m_HF->core())),
+    m_max_ki(std::max(2 * options.max_l_internal, m_max_ki_core)),
+    m_max_k(std::max(m_max_ki_core + 1, m_max_ki + 1)),
+    m_min_core_n(n_min_core),
+    m_include_G(include_G),
+    m_omre(options.omre),
+    m_wgrid(form_w_grid(options.w0, options.w_ratio)),
+    m_hole_particle(options.hole_particle == HoleParticle::include ||
+                    options.hole_particle == HoleParticle::include_k0),
+    m_include_higher_order_hp(options.hole_particle !=
+                              HoleParticle::include_k0),
+    m_screen_Coulomb(options.screening == Screening::include) {
 
   if (verbose) {
     std::cout << "\nFeynman diagrams:\n";
@@ -98,7 +98,7 @@ void Feynman::form_qk() {
 
   // radial coulomb operator without spin indices
   m_qk = std::vector<ComplexRMatrix>(
-      size, {m_i0, m_stride, m_subgrid_points, m_HF->grid_sptr()});
+    size, {m_i0, m_stride, m_subgrid_points, m_HF->grid_sptr()});
 
   for (auto i = 0ul; i < m_subgrid_points; ++i) {
     const auto fi = m_qk.front().index_to_fullgrid(i);
@@ -143,8 +143,8 @@ ComplexGMatrix Feynman::green_single(const DiracSpinor &ket,
 void Feynman::form_vx() {
 
   m_Vx_kappa =
-      std::vector<GMatrix>(std::size_t(m_max_ki + 1),
-                           {m_i0, m_stride, m_subgrid_points, true, m_grid});
+    std::vector<GMatrix>(std::size_t(m_max_ki + 1),
+                         {m_i0, m_stride, m_subgrid_points, true, m_grid});
 
   // Use basic H-like basis to express matrices in coordinate/orbital space
   // initialises the hydrogen wave function object
@@ -156,14 +156,14 @@ void Feynman::form_vx() {
   const auto rmax = std::min(90.0, 0.9 * m_grid->rmax());
   const int max_n = 90;
   const auto max_l =
-      std::max(Angular::lFromIndex(m_max_ki), DiracSpinor::max_l(m_HF->core()));
+    std::max(Angular::lFromIndex(m_max_ki), DiracSpinor::max_l(m_HF->core()));
   const auto l_string =
-      AtomData::spectroscopic_notation.substr(0, std::size_t(max_l));
+    AtomData::spectroscopic_notation.substr(0, std::size_t(max_l));
   const auto basis_string = std::to_string(max_n) + l_string;
 
-  wfH.formBasis(SplineBasis::Parameters(
-      basis_string, 90, 9, r0, 0.0, rmax, basis_string,
-      SplineBasis::SplineType::Derevianko, false, false));
+  wfH.formBasis(
+    SplineBasis::Parameters(basis_string, 90, 9, r0, 0.0, rmax, basis_string,
+                            SplineBasis::SplineType::Derevianko, false, false));
 
   // constructs the exchange matrix as:
   // V(r1,r2) = \sum_n [Vx*F_n](r1) F_n^†(r2)
@@ -279,7 +279,7 @@ ComplexGMatrix Feynman::green_hf(int kappa, std::complex<double> en,
   std::complex<double> iw{0.0, en.imag()};
   return g0.complex() *
          ((iw * g0.complex().dri_in_place() + 1.0 - (Vx * g0).complex())
-              .invert_in_place());
+            .invert_in_place());
 }
 
 //==============================================================================
@@ -515,7 +515,7 @@ ComplexGMatrix Feynman::construct_green_g0(const DiracSpinor &x0,
       // Large-large
       // g0I.ff(i, j) = xIf * x0f * winv;
       g0I.ff(i, j) =
-          (x0.f(sj) + I * Ix0.f(sj)) * (xI.f(si) + I * IxI.f(si)) * winv;
+        (x0.f(sj) + I * Ix0.f(sj)) * (xI.f(si) + I * IxI.f(si)) * winv;
       g0I.ff(j, i) = std::conj(g0I.ff(i, j)); //?
 
       // Large-small
@@ -613,7 +613,7 @@ Grid Feynman::form_w_grid(double w0, double wratio) const {
 
   // Solve wmax < w0 * ratio^{N-1} for N
   const std::size_t wsteps =
-      std::size_t(std::log(wratio * wmax_t / w0) / std::log(wratio)) + 1;
+    std::size_t(std::log(wratio * wmax_t / w0) / std::log(wratio)) + 1;
 
   // actual w0, to keep w_ratio exact
   const auto wmax = w0 * std::pow(wratio, int(wsteps - 1));
@@ -634,14 +634,14 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) {
 
   // For comparing floats:
   constexpr double eps = 1.0e-10;
-  auto fequal = [eps](double a, double b) { return std::abs(a - b) <= eps; };
+  auto fequal = [](double a, double b) { return std::abs(a - b) <= eps; };
 
   std::fstream iofs;
   IO::FRW::open_binary(iofs, fname, rw);
 
   // Check screening / hole-particle (should be different filename)
   bool t_hp{m_hole_particle}, t_sc{m_screen_Coulomb},
-      t_hohp{m_include_higher_order_hp}, t_cgm{m_Complex_green_method};
+    t_hohp{m_include_higher_order_hp}, t_cgm{m_Complex_green_method};
   rw_binary(iofs, rw, t_hp, t_sc, t_hohp, t_cgm);
   if (t_hp != m_hole_particle || t_sc != m_screen_Coulomb ||
       t_hohp != m_include_higher_order_hp || t_cgm != m_Complex_green_method)
@@ -649,7 +649,7 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) {
 
   // Other parameters that make a difference
   int t_max_ki{m_max_ki}, t_min_core_n{m_min_core_n},
-      t_max_ki_core{m_max_ki_core};
+    t_max_ki_core{m_max_ki_core};
   rw_binary(iofs, rw, t_max_ki, t_min_core_n, t_max_ki_core);
   if (t_max_ki != m_max_ki || t_min_core_n != m_min_core_n ||
       t_max_ki_core != m_max_ki_core)
@@ -667,7 +667,7 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) {
 
   // Check subgrid:
   std::size_t t_i0{m_i0}, t_stride{m_stride},
-      t_subgrid_points{m_subgrid_points}, t_size(m_grid->size());
+    t_subgrid_points{m_subgrid_points}, t_size(m_grid->size());
   rw_binary(iofs, rw, t_i0, t_stride, t_subgrid_points);
   if (t_i0 != m_i0 || t_stride != m_stride ||
       t_subgrid_points != m_subgrid_points || t_size != m_grid->size())
@@ -675,14 +675,14 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) {
 
   // Check regular grid:
   double t_r0{m_grid->r0()}, t_rmax{m_grid->rmax()},
-      t_loglin{m_grid->loglin_b()}, t_du{m_grid->du()};
+    t_loglin{m_grid->loglin_b()}, t_du{m_grid->du()};
   rw_binary(iofs, rw, t_r0, t_rmax, t_loglin, t_du);
   if (!fequal(t_r0, m_grid->r0()) || !fequal(t_rmax, m_grid->rmax()) ||
       !fequal(t_loglin, m_grid->loglin_b()) || !fequal(t_du, m_grid->du()))
     return false;
 
   double t_wr0{m_wgrid.r0()}, t_wrmax{m_wgrid.rmax()},
-      t_wloglin{m_wgrid.loglin_b()}, t_wdu{m_wgrid.du()};
+    t_wloglin{m_wgrid.loglin_b()}, t_wdu{m_wgrid.du()};
   std::size_t twsize{m_wgrid.num_points()};
   rw_binary(iofs, rw, t_wr0, t_wrmax, t_wloglin, t_wdu, twsize);
 
@@ -783,7 +783,7 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
 
 // Tell OpenMP how to reduce GMatrix
 #pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
-    initializer(omp_priv = GMatrix(omp_orig))
+  initializer(omp_priv = omp_orig)
 
 #pragma omp parallel for collapse(2) reduction(+ : Sigma)
   for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
@@ -800,8 +800,8 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
       const auto kB = Angular::kappaFromIndex(int(iB));
 
       // Silly, but ig gB includes G, then so will gB_QPQ
-      const auto gB = m_include_G ? green(kB, env + omega) :
-                                    green(kB, env + omega).drop_g();
+      const auto gB =
+        m_include_G ? green(kB, env + omega) : green(kB, env + omega).drop_g();
 
       for (auto k = 0ul; int(k) <= m_max_k; k++) {
 
@@ -816,7 +816,7 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
         const auto &qpq_dw = m_qpiq_wk[iw][k];
 
         const auto c_ang_dw =
-            dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
+          dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
 
         Sigma += (c_ang_dw * mult_elements(gB, qpq_dw)).real();
       }

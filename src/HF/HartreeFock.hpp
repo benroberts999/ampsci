@@ -244,11 +244,11 @@ private:
   // Core is input so can call in a thread-safe way! (with a 'old_core' copy)
   // Only used in dE from dF
   void hf_orbital_green(
-      DiracSpinor &Fa, double en, const std::vector<double> &vl,
-      const std::vector<double> &H_mag, const DiracSpinor &VxF,
-      const std::vector<DiracSpinor> &static_core,
-      const std::vector<double> &dv0 = {}, const HF::Breit *const VBr = nullptr,
-      const MBPT::CorrelationPotential *const Sigma = nullptr) const;
+    DiracSpinor &Fa, double en, const std::vector<double> &vl,
+    const std::vector<double> &H_mag, const DiracSpinor &VxF,
+    const std::vector<DiracSpinor> &static_core,
+    const std::vector<double> &dv0 = {}, const HF::Breit *const VBr = nullptr,
+    const MBPT::CorrelationPotential *const Sigma = nullptr) const;
 
   // Calc's Vex*Fa, for Fa in the core. Fa must be in the core
   void vex_Fa_core(const DiracSpinor &Fa, DiracSpinor &vexFa) const;

@@ -53,9 +53,8 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
       Wavefunction wf({points, r0, rmax, b, grid_type},
                       {Atom, A, nucleus_type, r_rms});
 
-      const auto h =
-          DiracOperator::hfs(1, 1.0 / 0.5, 0.0, wf.grid(),
-                             DiracOperator::Hyperfine::pointlike_F());
+      const auto h = DiracOperator::hfs(
+        1, 1.0 / 0.5, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
       const auto d = DiracOperator::E1(wf.grid());
 
       std::cout << "\n" << wf.atom() << "\n";
@@ -197,10 +196,10 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
   double wHFSsp_eps{0.0};
   double wHFSdf_eps{0.0};
 
-  auto Cs_data = *std::find_if(
-      UnitTest::HF_test_data::regression_test_data.begin(),
-      UnitTest::HF_test_data::regression_test_data.end(),
-      [](auto &d) { return std::get<0>(d) == std::string("Cs"); });
+  auto Cs_data =
+    *std::find_if(UnitTest::HF_test_data::regression_test_data.begin(),
+                  UnitTest::HF_test_data::regression_test_data.end(),
+                  [](auto &d) { return std::get<0>(d) == std::string("Cs"); });
 
   const auto &[Atom, Core, Valence, EnergyData, E1Data, HFSData] = Cs_data;
 
@@ -266,11 +265,11 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
   HF::Breit Vbr{1.0};
   // generated with large # points.
   const auto breit_data = std::vector{
-      std::tuple{"6s+", 1.333977079113e-04}, {"7s+", 3.660284833750e-05},
-      {"6p-", 6.839614663249e-05},           {"7p-", 2.450254202039e-05},
-      {"6p+", 4.938700048099e-05},           {"7p+", 1.785296077599e-05},
-      {"5d-", 5.683556145298e-05},           {"5d+", 4.292583833884e-05},
-      {"4f-", 1.023721519428e-08},           {"4f+", 6.291692462117e-09}};
+    std::tuple{"6s+", 1.333977079113e-04}, {"7s+", 3.660284833750e-05},
+    {"6p-", 6.839614663249e-05},           {"7p-", 2.450254202039e-05},
+    {"6p+", 4.938700048099e-05},           {"7p+", 1.785296077599e-05},
+    {"5d-", 5.683556145298e-05},           {"5d+", 4.292583833884e-05},
+    {"4f-", 1.023721519428e-08},           {"4f+", 6.291692462117e-09}};
   REQUIRE(Vbr.scale_factor() == 1.0);
   for (auto &[state, de_t] : breit_data) {
     const auto &Fv = *wf.getState(state);

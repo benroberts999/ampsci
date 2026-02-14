@@ -14,7 +14,7 @@ jobs:
     strategy:
       matrix:
         compiler: [g++-13, clang++-15]  # Test with both g++ and clang++
-        openmp: [yes, no]               # Test with and without OpenMP support
+        openmp: [-fopenmp, '']               # Test with and without OpenMP support
 
     steps:
     # Step 1: Check out the repository code
@@ -30,7 +30,7 @@ jobs:
           sudo apt-get install -y g++-13
         elif [ "${{ matrix.compiler }}" = "clang++-15" ]; then
           sudo apt-get install -y clang-15
-          if [ "${{ matrix.openmp }}" = "yes" ]; then
+          if [ "${{ matrix.openmp }}" = "-fopenmp" ]; then
             sudo apt-get install -y libomp-15-dev
           fi
         fi
@@ -46,17 +46,17 @@ jobs:
     # Step 4: Build the project using the matrix configuration
     - name: "Build ampsci"
       run: |
-        make clean && make CXX=${{ matrix.compiler }} Build=dev UseOpenMP=${{ matrix.openmp }} ampsci tests
+        make clean && make CXX=${{ matrix.compiler }} Build=dev OMPLIB=${{ matrix.openmp }} ampsci tests
         ./ampsci -v
         ./ampsci Cs [Xe] 7sp
         ./tests [unit]
-        make clean && make CXX=${{ matrix.compiler }} Build=release UseOpenMP=${{ matrix.openmp }}
+        make clean && make CXX=${{ matrix.compiler }} Build=release OMPLIB=${{ matrix.openmp }}
         ./ampsci -v
         ./ampsci Cs [Xe] 7sp
 
     # Step 5: Run with input file ampsci.in (only for g++ with OpenMP)
     - name: "Run with ampsci.in"
-      if: ${{ matrix.compiler == 'g++-13' && matrix.openmp == 'yes' }}
+      if: ${{ matrix.compiler == 'g++-13' && matrix.openmp == '-fopenmp' }}
       run: |
         ./ampsci ampsci.in
 

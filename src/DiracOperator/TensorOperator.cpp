@@ -74,8 +74,8 @@ double TensorOperator::fullME(const DiracSpinor &Fa, const DiracSpinor &Fb,
   const auto tqq = two_q ? *two_q : 0;
 
   const auto sign = Angular::neg1pow_2(Fa.twoj() - tma);
-  const auto factor = sign * Angular::threej_2(Fa.twoj(), 2 * m_rank, Fb.twoj(),
-                                               -tma, tqq, tmb);
+  const auto factor =
+    sign * Angular::threej_2(Fa.twoj(), 2 * m_rank, Fb.twoj(), -tma, tqq, tmb);
 
   return factor * reducedME(Fa, Fb);
 }
@@ -101,13 +101,13 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
   }
 
   const auto &df =
-      (m_diff_order == 0) ?
-          Fb.f() :
-          NumCalc::derivative(Fb.f(), gr.drdu(), gr.du(), m_diff_order);
+    (m_diff_order == 0) ?
+      Fb.f() :
+      NumCalc::derivative(Fb.f(), gr.drdu(), gr.du(), m_diff_order);
   const auto &dg =
-      (m_diff_order == 0) ?
-          Fb.g() :
-          NumCalc::derivative(Fb.g(), gr.drdu(), gr.du(), m_diff_order);
+    (m_diff_order == 0) ?
+      Fb.g() :
+      NumCalc::derivative(Fb.g(), gr.drdu(), gr.du(), m_diff_order);
 
   const auto cff = angularCff(kappa_a, Fb.kappa());
   const auto cgg = angularCgg(kappa_a, Fb.kappa());
@@ -144,13 +144,13 @@ double TensorOperator::radialIntegral(const DiracSpinor &Fa,
   const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
 
   const auto &df =
-      (m_diff_order == 0) ?
-          Fb.f() :
-          NumCalc::derivative(Fb.f(), gr.drdu(), gr.du(), m_diff_order);
+    (m_diff_order == 0) ?
+      Fb.f() :
+      NumCalc::derivative(Fb.f(), gr.drdu(), gr.du(), m_diff_order);
   const auto &dg =
-      (m_diff_order == 0) ?
-          Fb.g() :
-          NumCalc::derivative(Fb.g(), gr.drdu(), gr.du(), m_diff_order);
+    (m_diff_order == 0) ?
+      Fb.g() :
+      NumCalc::derivative(Fb.g(), gr.drdu(), gr.du(), m_diff_order);
 
   const auto cff = angularCff(kappa_a, Fb.kappa());
   const auto cgg = angularCgg(kappa_a, Fb.kappa());
@@ -158,29 +158,29 @@ double TensorOperator::radialIntegral(const DiracSpinor &Fa,
   const auto cgf = angularCgf(kappa_a, Fb.kappa());
 
   const auto Rff =
-      cff == 0.0 ?
-          0.0 :
-      m_vec.empty() ?
-          cff * NumCalc::integrate(1.0, p0, pf, Fa.f(), df, gr.drdu()) :
-          cff * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.f(), df, gr.drdu());
+    cff == 0.0 ?
+      0.0 :
+    m_vec.empty() ?
+      cff * NumCalc::integrate(1.0, p0, pf, Fa.f(), df, gr.drdu()) :
+      cff * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.f(), df, gr.drdu());
   const auto Rfg =
-      cfg == 0.0 ?
-          0.0 :
-      m_vec.empty() ?
-          cfg * NumCalc::integrate(1.0, p0, pf, Fa.f(), dg, gr.drdu()) :
-          cfg * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.f(), dg, gr.drdu());
+    cfg == 0.0 ?
+      0.0 :
+    m_vec.empty() ?
+      cfg * NumCalc::integrate(1.0, p0, pf, Fa.f(), dg, gr.drdu()) :
+      cfg * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.f(), dg, gr.drdu());
   const auto Rgf =
-      cgf == 0.0 ?
-          0.0 :
-      m_vec.empty() ?
-          cgf * NumCalc::integrate(1.0, p0, pf, Fa.g(), df, gr.drdu()) :
-          cgf * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.g(), df, gr.drdu());
+    cgf == 0.0 ?
+      0.0 :
+    m_vec.empty() ?
+      cgf * NumCalc::integrate(1.0, p0, pf, Fa.g(), df, gr.drdu()) :
+      cgf * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.g(), df, gr.drdu());
   const auto Rgg =
-      cgg == 0.0 ?
-          0.0 :
-      m_vec.empty() ?
-          cgg * NumCalc::integrate(1.0, p0, pf, Fa.g(), dg, gr.drdu()) :
-          cgg * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.g(), dg, gr.drdu());
+    cgg == 0.0 ?
+      0.0 :
+    m_vec.empty() ?
+      cgg * NumCalc::integrate(1.0, p0, pf, Fa.g(), dg, gr.drdu()) :
+      cgg * NumCalc::integrate(1.0, p0, pf, m_vec, Fa.g(), dg, gr.drdu());
 
   return m_constant * gr.du() * (Rff + Rfg + Rgf + Rgg);
 }
@@ -198,9 +198,8 @@ double Pab(double pm, const std::vector<double> &t, const DiracSpinor &Fa,
   const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
   const auto &drdu = Fb.grid().drdu();
   const auto fg = NumCalc::integrate(1.0, pi, pf, t, Fa.f(), Fb.g(), drdu);
-  const auto gf = &Fa == &Fb ?
-                      fg :
-                      NumCalc::integrate(1.0, pi, pf, t, Fa.g(), Fb.f(), drdu);
+  const auto gf =
+    &Fa == &Fb ? fg : NumCalc::integrate(1.0, pi, pf, t, Fa.g(), Fb.f(), drdu);
   return (fg + pm * gf) * Fb.grid().du();
 }
 
@@ -301,7 +300,7 @@ double Pab(double pm, const DiracSpinor &Fa, const DiracSpinor &Fb) {
   const auto &drdu = Fb.grid().drdu();
   const auto fg = NumCalc::integrate(1.0, pi, pf, Fa.f(), Fb.g(), drdu);
   const auto gf =
-      &Fa == &Fb ? fg : NumCalc::integrate(1.0, pi, pf, Fa.g(), Fb.f(), drdu);
+    &Fa == &Fb ? fg : NumCalc::integrate(1.0, pi, pf, Fa.g(), Fb.f(), drdu);
   return (fg + pm * gf) * Fb.grid().du();
 }
 

@@ -19,21 +19,21 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nLadder Module:\n\n";
 
   input.check(
-      {{"min", "lowest core n to include [0]"},
-       {"max", "maximum excited n to include [99]"},
-       {"max_l", "maximum excited l to include [99]"},
-       {"max_k", "maximum k to include in Qk [99]"},
-       {"include_L4", "Inlcude 4th Ladder diagram [false]"},
-       {"fk", "List of doubles. Effective screening factors. Used to "
-              "calculate Lk. []"},
-       {"eta", "List of doubles. Effective hp factors. Only used to "
-               "print energy shift. []"},
-       {"Qfile", "filename to read/write Qk integrals"},
-       {"form_Q", "Form or read Qk? (if have lk already, dont' need!) [true]"},
-       {"Lfile", "filename to read/write Qk integrals"},
-       {"progbar", "Print progress bar? [true]"},
-       {"max_it", "Max # iterations [15]"},
-       {"eps_target", "Target for convergance [1.0e-4]"}});
+    {{"min", "lowest core n to include [0]"},
+     {"max", "maximum excited n to include [99]"},
+     {"max_l", "maximum excited l to include [99]"},
+     {"max_k", "maximum k to include in Qk [99]"},
+     {"include_L4", "Inlcude 4th Ladder diagram [false]"},
+     {"fk", "List of doubles. Effective screening factors. Used to "
+            "calculate Lk. []"},
+     {"eta", "List of doubles. Effective hp factors. Only used to "
+             "print energy shift. []"},
+     {"Qfile", "filename to read/write Qk integrals"},
+     {"form_Q", "Form or read Qk? (if have lk already, dont' need!) [true]"},
+     {"Lfile", "filename to read/write Qk integrals"},
+     {"progbar", "Print progress bar? [true]"},
+     {"max_it", "Max # iterations [15]"},
+     {"eps_target", "Target for convergance [1.0e-4]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -207,7 +207,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     for (std::size_t i = 0; i < valence.size(); ++i) {
       // XXX include eta here?
       const auto de_v =
-          MBPT::de_valence(valence[i], qk, lk, core, excited, fk, etak);
+        MBPT::de_valence(valence[i], qk, lk, core, excited, fk, etak);
       const auto eps_v = std::abs((de_v - de_0[i]) / de_v);
       de_0[i] = de_v;
       std::cout << "de_l(" << valence[i].shortSymbol() << ") : ";
@@ -305,9 +305,9 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
     for (int k = k0; k <= kI; k += 2) {
       auto gkmnab = qk.Q(k, m, n, a, b);
       auto lkmnab =
-          MBPT::Lkmnij(k, m, n, a, b, qk, core, excited, include_L4, sj);
+        MBPT::Lkmnij(k, m, n, a, b, qk, core, excited, include_L4, sj);
       auto lknmba =
-          MBPT::Lkmnij(k, n, m, b, a, qk, core, excited, include_L4, sj);
+        MBPT::Lkmnij(k, n, m, b, a, qk, core, excited, include_L4, sj);
 
       auto lkmnab_tab = lk ? lk->Q(k, m, n, a, b) : 0.0;
       auto lknmba_tab = lk ? lk->Q(k, n, m, b, a) : 0.0;
@@ -334,8 +334,8 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
   std::cout << s1 << "\n";
   std::cout << s2 << "\n";
   std::cout
-      << "nb: Lk_mnab is calc'd directly, Lk_mnab(T) is from table - so "
-         "won't be the same if more than 1 iteration has been perormed.\n";
+    << "nb: Lk_mnab is calc'd directly, Lk_mnab(T) is from table - so "
+       "won't be the same if more than 1 iteration has been perormed.\n";
 }
 
 } // namespace Module

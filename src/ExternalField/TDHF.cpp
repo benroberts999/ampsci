@@ -21,11 +21,11 @@ namespace ExternalField {
 //==============================================================================
 TDHF::TDHF(const DiracOperator::TensorOperator *const h,
            const HF::HartreeFock *const hf)
-    : CorePolarisation((assert(h != nullptr), h)),
-      p_hf((assert(hf != nullptr), hf)),
-      m_core(hf->core()),
-      m_alpha(hf->alpha()),
-      p_VBr(hf->vBreit()) {
+  : CorePolarisation((assert(h != nullptr), h)),
+    p_hf((assert(hf != nullptr), hf)),
+    m_core(hf->core()),
+    m_alpha(hf->alpha()),
+    p_VBr(hf->vBreit()) {
   initialise_dPsi();
 }
 
@@ -78,7 +78,7 @@ const std::vector<DiracSpinor> &TDHF::get_dPsis(const DiracSpinor &Fc,
                                                 dPsiType XorY) const {
 
   const auto index = static_cast<std::size_t>(
-      std::find(m_core.cbegin(), m_core.cend(), Fc) - m_core.cbegin());
+    std::find(m_core.cbegin(), m_core.cend(), Fc) - m_core.cbegin());
   assert(index < m_X.size());
   return XorY == dPsiType::X ? m_X[index] : m_Y[index];
 }
@@ -138,7 +138,7 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   if (st == StateType::bra) {
     // "left-hand-side" : "reduced" ket, so has factor (+ confugate)
     const auto sj =
-        Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_x)) ? 1 : -1;
+      Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_x)) ? 1 : -1;
     // if conj, extra * => +1
     const auto si = imag && !conj ? -1 : 1;
     s2 = sj * si;
@@ -261,7 +261,7 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
     return a.first < b.first;
   };
   const auto worst_orbital =
-      *std::max_element(epss.begin(), epss.end(), comp_first);
+    *std::max_element(epss.begin(), epss.end(), comp_first);
 
   m_X = std::move(Xs);
   m_Y = std::move(Ys);

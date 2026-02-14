@@ -277,8 +277,8 @@ TEST_CASE("Complex", "[AdamsMoulton][unit]") {
 
   // Define the DerivativeMatrix for the Bessel equation
   struct ComplexDerivative
-      : AdamsMoulton::DerivativeMatrix<std::complex<double>,
-                                       std::complex<double>> {
+    : AdamsMoulton::DerivativeMatrix<std::complex<double>,
+                                     std::complex<double>> {
     std::complex<double> a(std::complex<double>) const final { return 0.0; }
     std::complex<double> b(std::complex<double>) const final { return 1.0; }
     std::complex<double> c(std::complex<double>) const final { return -1.0i; }

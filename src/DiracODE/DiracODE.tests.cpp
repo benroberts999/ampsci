@@ -121,11 +121,11 @@ TEST_CASE("DiracODE: Low-r solution", "[DiracODE][unit]") {
           continue;
 
         const auto e = AtomData::diracen(Zeff, n, kappa, PhysConst::alpha);
-        const auto F1s = DiracSpinor::exactHlike(
-            n, kappa, std::make_shared<Grid>(grid), Zeff);
+        const auto F1s =
+          DiracSpinor::exactHlike(n, kappa, std::make_shared<Grid>(grid), Zeff);
 
         const auto v_nuc =
-            Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid.r());
+          Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid.r());
 
         DiracODE::Internal::DiracDerivative Hd(grid, v_nuc, kappa, e,
                                                PhysConst::alpha);
@@ -157,18 +157,18 @@ TEST_CASE("DiracODE: Low-r solution", "[DiracODE][unit]") {
 
       const auto magnitude = std::abs(w_exact);
       auto target = //magnitude * 1.0e-4;
-          magnitude > 1e2  ? 1.0e-6 :
-          magnitude > 1e1  ? 1.0e-5 :
-          magnitude > 1e0  ? 1.0e-4 :
-          magnitude > 1e-1 ? 1.0e-3 :
-          magnitude > 1e-2 ? 1.0e-2 :
-                             1.0e-1;
+        magnitude > 1e2  ? 1.0e-6 :
+        magnitude > 1e1  ? 1.0e-5 :
+        magnitude > 1e0  ? 1.0e-4 :
+        magnitude > 1e-1 ? 1.0e-3 :
+        magnitude > 1e-2 ? 1.0e-2 :
+                           1.0e-1;
       if (Zeff < 1.0)
         target *= 6.0;
 
       fmt::print(
-          "{:5g} {:2} {} {} {:.1e} {:+.10e} [{:+.10e}]  {:.0e} [{:.0e}]\n",
-          Zeff, kappa, w_n, w_i, w_r, w_asym, w_exact, w_eps, target);
+        "{:5g} {:2} {} {} {:.1e} {:+.10e} [{:+.10e}]  {:.0e} [{:.0e}]\n", Zeff,
+        kappa, w_n, w_i, w_r, w_asym, w_exact, w_eps, target);
 
       REQUIRE(w_eps < target);
     }
@@ -220,7 +220,7 @@ TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
         return Fa.eps() < Fb.eps();
       };
       const auto worst_F =
-          std::max_element(cbegin(orbitals), cend(orbitals), comp_eps);
+        std::max_element(cbegin(orbitals), cend(orbitals), comp_eps);
 
       std::cout << "converge: " << worst_F->shortSymbol() << " "
                 << worst_F->eps() << "\n";
@@ -237,16 +237,16 @@ TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
     { // Compare energy to exact (Dirac) value:
       auto comp_eps_en = [Zeff](const auto &Fa, const auto &Fb) {
         const auto exact_a =
-            AtomData::diracen(Zeff, Fa.n(), Fa.kappa(), PhysConst::alpha);
+          AtomData::diracen(Zeff, Fa.n(), Fa.kappa(), PhysConst::alpha);
         const auto exact_b =
-            AtomData::diracen(Zeff, Fb.n(), Fb.kappa(), PhysConst::alpha);
+          AtomData::diracen(Zeff, Fb.n(), Fb.kappa(), PhysConst::alpha);
         const auto eps_a = std::abs((Fa.en() - exact_a) / exact_a);
         const auto eps_b = std::abs((Fb.en() - exact_b) / exact_b);
         return eps_a < eps_b;
       };
 
       const auto worst_F =
-          std::max_element(cbegin(orbitals), cend(orbitals), comp_eps_en);
+        std::max_element(cbegin(orbitals), cend(orbitals), comp_eps_en);
 
       const auto exact = AtomData::diracen(Zeff, worst_F->n(), worst_F->kappa(),
                                            PhysConst::alpha);
@@ -274,7 +274,7 @@ TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
         std::pair<std::string, double> worst{"", 0.0};
         for (const auto &Fa : orbitals) {
           const auto Fexact =
-              DiracSpinor::exactHlike(Fa.n(), Fa.kappa(), grid, Zeff);
+            DiracSpinor::exactHlike(Fa.n(), Fa.kappa(), grid, Zeff);
           const auto aoa = o.radialIntegral(Fa, Fa);
           const auto AoA = o.radialIntegral(Fexact, Fexact);
           const auto eps = std::abs((aoa - AoA) / AoA);
@@ -605,7 +605,7 @@ TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit][!mayfail]") {
     //     DiracSpinor::exactHlike(n, kappa, grid, z, 1.0e-10 * PhysConst::alpha);
     // Above fails on M1 mac, leads to 'nan'. Probably alpha is too small
     const auto F1s =
-        DiracSpinor::exactHlike(n, kappa, grid, z, 1.0e-8 * PhysConst::alpha);
+      DiracSpinor::exactHlike(n, kappa, grid, z, 1.0e-8 * PhysConst::alpha);
 
     auto v1 = Fe * (grid->r() * F1s);
     auto v3 = Fe * (grid->rpow(-1) * F1s);

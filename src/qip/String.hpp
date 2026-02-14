@@ -130,8 +130,8 @@ inline bool ci_contains(const std::string &the_string,
 //! Case insensitive string compare. Essentially: LowerCase(s1)==LowerCase(s2)
 inline bool ci_compare(std::string_view s1, std::string_view s2) {
   return std::equal(
-      s1.cbegin(), s1.cend(), s2.cbegin(), s2.cend(),
-      [](char c1, char c2) { return qip::tolower(c1) == qip::tolower(c2); });
+    s1.cbegin(), s1.cend(), s2.cbegin(), s2.cend(),
+    [](char c1, char c2) { return qip::tolower(c1) == qip::tolower(c2); });
 }
 
 //! Compares two strings, s1 and s2. s2 may contain ONE wildcard ('*') which
@@ -168,7 +168,7 @@ inline auto Levenstein(std::string_view a, std::string_view b) {
     return d_t[ia * (b.size() + 1) + ib];
   };
   std::function<size_t(size_t, size_t)> LevensteinInt =
-      [&](size_t ia, size_t ib) -> size_t {
+    [&](size_t ia, size_t ib) -> size_t {
     if (d(ia, ib) != size_t(-1))
       return d(ia, ib);
     size_t dist = 0;
@@ -196,7 +196,7 @@ inline auto ci_Levenstein(std::string_view a, std::string_view b) {
     return d_t[ia * (b.size() + 1) + ib];
   };
   std::function<size_t(size_t, size_t)> LevensteinInt =
-      [&](size_t ia, size_t ib) -> size_t {
+    [&](size_t ia, size_t ib) -> size_t {
     if (d(ia, ib) != size_t(-1))
       return d(ia, ib);
     size_t dist = 0;

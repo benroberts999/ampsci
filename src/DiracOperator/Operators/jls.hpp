@@ -37,7 +37,7 @@ public:
       return 0.0;
     const auto sign = Angular::neg1pow_2(tjb + 2 * lb - 1);
     const auto fact =
-        std::sqrt(double((tja + 1) * (tjb + 1) * (2 * la + 1) * la * (la + 1)));
+      std::sqrt(double((tja + 1) * (tjb + 1) * (2 * la + 1) * la * (la + 1)));
     const auto sjs = Angular::sixj_2(tjb, tja, 2, 2 * lb, 2 * lb, 1);
     return sign * fact * sjs;
   }

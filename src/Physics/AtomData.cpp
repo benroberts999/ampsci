@@ -55,7 +55,7 @@ int defaultA(int Z)
 {
   auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
   auto atom =
-      std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
+    std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
   if (atom == periodic_table.end())
     return 0;
   return atom->A;
@@ -64,7 +64,7 @@ int defaultA(int Z)
 std::string atomicSymbol(int Z) {
   auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
   auto atom =
-      std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
+    std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
   if (atom == periodic_table.end())
     return std::to_string(Z);
   return atom->symbol;
@@ -73,7 +73,7 @@ std::string atomicSymbol(int Z) {
 std::string atomicName(int Z) {
   auto match_Z = [Z](const Element &atom) { return atom.Z == Z; };
   auto atom =
-      std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
+    std::find_if(periodic_table.begin(), periodic_table.end(), match_Z);
   if (atom == periodic_table.end())
     return std::string("E") + std::to_string(Z);
   return atom->name;
@@ -91,7 +91,7 @@ int atomic_Z(const std::string &at) {
            qip::ci_compare(atom.name, at);
   };
   const auto atom =
-      std::find_if(periodic_table.begin(), periodic_table.end(), match_At);
+    std::find_if(periodic_table.begin(), periodic_table.end(), match_At);
   if (atom != periodic_table.end())
     return atom->Z;
 
@@ -148,16 +148,16 @@ int symbol_to_l(std::string_view l_str) {
 std::pair<int, int> parse_symbol(std::string_view symbol) {
 
   const auto l_ptr =
-      std::find_if(symbol.begin(), symbol.end(),
-                   [](const char &c) { return !std::isdigit(c); });
+    std::find_if(symbol.begin(), symbol.end(),
+                 [](const char &c) { return !std::isdigit(c); });
   const auto l_pos = std::size_t(l_ptr - symbol.begin());
 
   const auto n = (qip::string_is_integer(symbol.substr(0, l_pos - 0))) ?
-                     std::stoi(std::string(symbol.substr(0, l_pos - 0))) :
-                     0;
+                   std::stoi(std::string(symbol.substr(0, l_pos - 0))) :
+                   0;
 
   const auto l =
-      (l_pos < symbol.size()) ? symbol_to_l(symbol.substr(l_pos, 1)) : -1;
+    (l_pos < symbol.size()) ? symbol_to_l(symbol.substr(l_pos, 1)) : -1;
 
   int kappa = l == 0 ? -1 : 0; // allow '6s' instead of '6s+'
   if (l >= 0 && l_pos + 1 < symbol.size()) {
@@ -165,7 +165,7 @@ std::pair<int, int> parse_symbol(std::string_view symbol) {
     if (pm[0] == '_') {
       // long-form symbol, 6p_1/2
       const auto slash_ptr = std::find_if(
-          pm.begin(), pm.end(), [](const char &c) { return c == '/'; });
+        pm.begin(), pm.end(), [](const char &c) { return c == '/'; });
       const auto slash_pos = std::size_t(slash_ptr - pm.begin());
       const auto tj = std::stoi(std::string(pm.substr(1, slash_pos - 0)));
       if (tj != 0)
@@ -188,7 +188,7 @@ std::string coreConfig(const std::string &in_ng) {
   using StringPair = std::pair<std::string, std::string>;
   auto match_ng = [&](const StringPair &ng) { return ng.first == in_ng; };
   auto ng_config =
-      std::find_if(nobelGasses.begin(), nobelGasses.end(), match_ng);
+    std::find_if(nobelGasses.begin(), nobelGasses.end(), match_ng);
   if (ng_config == nobelGasses.end())
     return in_ng;
   return ng_config->second;
@@ -331,7 +331,7 @@ NonRelConfig term_parser(std::string_view term) {
 
   // find position of 'l'
   const auto l_ptr = std::find_if(
-      term.begin(), term.end(), [](const char &c) { return !std::isdigit(c); });
+    term.begin(), term.end(), [](const char &c) { return !std::isdigit(c); });
   const auto l_position = std::size_t(l_ptr - term.begin());
   // Extract n, num, and l:
   int n{0}, num{-1}, l{-1};
@@ -431,7 +431,7 @@ std::string guessCoreConfigStr(const int total_core_electrons) {
   static const std::vector<int> nobel_gas_list = {118, 86, 54, 36,
                                                   18,  10, 2,  0};
   static const std::vector<std::string> ng_symb_list = {
-      "[Og]", "[Rn]", "[Xe]", "[Kr]", "[Ar]", "[Ne]", "[He]", "[]"};
+    "[Og]", "[Rn]", "[Xe]", "[Kr]", "[Ar]", "[Ne]", "[He]", "[]"};
 
   std::string output_config = "";
   auto index = 0u;

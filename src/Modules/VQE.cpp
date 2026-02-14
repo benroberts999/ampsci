@@ -27,38 +27,38 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Check input options:
   input.check(
-      {{"ci_basis",
-        "Basis used for CI expansion; must be a sub-set of full ampsci basis "
-        "[default: 10spdf]"},
-       {"J", "List of total angular momentum J for CI solutions (comma "
-             "separated). Must be integers (two-electron only). [0]"},
-       {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
-       {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
-       {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
-       {"sigma1", "Include one-body MBPT correlations? [false]"},
-       {"sigma2", "Include two-body MBPT correlations? [false]"},
-       {"cis2_basis",
-        "The subset of ci_basis for which the two-body MBPT corrections are "
-        "calculated. Must be a subset of ci_basis. If existing sk file has "
-        "more integrals, they will be used. [default: Nspdf, where N is "
-        "maximum n for core + 3]"},
-       {"s1_basis",
-        "Basis used for the one-body MBPT diagrams (Sigma^1). These are the "
-        "most important, so in general the default (all basis states) should "
-        "be used. Must be a subset of full ampsci basis. [default: full "
-        "basis]"},
-       {"s2_basis",
-        "Basis used for internal lines of the two-body MBPT diagrams "
-        "(Sigma^2). Must be a subset of s1_basis. [default: s1_basis]"},
-       {"n_min_core", "Minimum n for core to be included in MBPT [1]"},
-       {"max_k",
-        "Maximum k (multipolarity) to include when calculating new "
-        "Coulomb integrals. Higher k often contribute negligably. Note: if qk "
-        "file already has higher-k terms, they will be included. Set negative "
-        "(or very large) to include all k. [6]"},
-       {"write_integrals",
-        "Writes orbitals, CSFs, CI matrix, and 1 and 2 particle "
-        "integrals to plain text file [true]"}});
+    {{"ci_basis",
+      "Basis used for CI expansion; must be a sub-set of full ampsci basis "
+      "[default: 10spdf]"},
+     {"J", "List of total angular momentum J for CI solutions (comma "
+           "separated). Must be integers (two-electron only). [0]"},
+     {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
+     {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
+     {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
+     {"sigma1", "Include one-body MBPT correlations? [false]"},
+     {"sigma2", "Include two-body MBPT correlations? [false]"},
+     {"cis2_basis",
+      "The subset of ci_basis for which the two-body MBPT corrections are "
+      "calculated. Must be a subset of ci_basis. If existing sk file has "
+      "more integrals, they will be used. [default: Nspdf, where N is "
+      "maximum n for core + 3]"},
+     {"s1_basis",
+      "Basis used for the one-body MBPT diagrams (Sigma^1). These are the "
+      "most important, so in general the default (all basis states) should "
+      "be used. Must be a subset of full ampsci basis. [default: full "
+      "basis]"},
+     {"s2_basis",
+      "Basis used for internal lines of the two-body MBPT diagrams "
+      "(Sigma^2). Must be a subset of s1_basis. [default: s1_basis]"},
+     {"n_min_core", "Minimum n for core to be included in MBPT [1]"},
+     {"max_k",
+      "Maximum k (multipolarity) to include when calculating new "
+      "Coulomb integrals. Higher k often contribute negligably. Note: if qk "
+      "file already has higher-k terms, they will be included. Set negative "
+      "(or very large) to include all k. [6]"},
+     {"write_integrals",
+      "Writes orbitals, CSFs, CI matrix, and 1 and 2 particle "
+      "integrals to plain text file [true]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -76,7 +76,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Select from wf.basis() [MBPT basis], those which match input 'basis_string'
   const std::vector<DiracSpinor> ci_sp_basis =
-      CI::basis_subset(wf.basis(), basis_string, wf.coreConfiguration());
+    CI::basis_subset(wf.basis(), basis_string, wf.coreConfiguration());
 
   // Print info re: basis to screen:
   std::cout << "\nUsing " << DiracSpinor::state_config(ci_sp_basis) << " = "
@@ -114,12 +114,11 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   // s1 and s2 MBPT basis
   const auto s1_basis_string = input.get("s1_basis");
   const auto &s1_basis = s1_basis_string ?
-                             CI::basis_subset(wf.basis(), *s1_basis_string) :
-                             wf.basis();
+                           CI::basis_subset(wf.basis(), *s1_basis_string) :
+                           wf.basis();
   const auto s2_basis_string = input.get("s2_basis");
-  const auto &s2_basis = s2_basis_string ?
-                             CI::basis_subset(wf.basis(), *s2_basis_string) :
-                             s1_basis;
+  const auto &s2_basis =
+    s2_basis_string ? CI::basis_subset(wf.basis(), *s2_basis_string) : s1_basis;
 
   // Ensure s2_basis is subset of s1_basis
   assert(s2_basis.size() <= s1_basis.size() &&
@@ -128,14 +127,14 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   // Split basis' into core/excited (for MBPT evaluations)
   const auto n_min_core = input.get("n_min_core", 1);
   const auto [core_s1, excited_s1] =
-      MBPT::split_basis(s1_basis, wf.FermiLevel(), n_min_core);
+    MBPT::split_basis(s1_basis, wf.FermiLevel(), n_min_core);
   const auto [core_s2, excited_s2] =
-      MBPT::split_basis(s2_basis, wf.FermiLevel(), n_min_core);
+    MBPT::split_basis(s2_basis, wf.FermiLevel(), n_min_core);
 
   // S2 corrections are included only for this subset of the CI basis:
   const auto Ncore = DiracSpinor::max_n(wf.core()) + 3;
   const auto cis2_basis_string =
-      input.get("cis2_basis", std::to_string(Ncore) + "spdf");
+    input.get("cis2_basis", std::to_string(Ncore) + "spdf");
   const auto &cis2_basis = CI::basis_subset(ci_sp_basis, cis2_basis_string);
 
   //----------------------------------------------------------------------------
@@ -202,13 +201,12 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
       // i.e., no Q_vwxy, Q_vabc, or Q_abcd
       // Note: we *do* need Q_vwxy for the CI part (but with smaller basis)
       const auto select_Q_sigma =
-          [eF = wf.FermiLevel()](int, const DiracSpinor &s,
-                                 const DiracSpinor &t, const DiracSpinor &u,
-                                 const DiracSpinor &v) {
-            // Only calculate Coulomb integrals with 1 or 2 electrons in the core
-            auto num = MBPT::number_below_Fermi(s, t, u, v, eF);
-            return num == 1 || num == 2;
-          };
+        [eF = wf.FermiLevel()](int, const DiracSpinor &s, const DiracSpinor &t,
+                               const DiracSpinor &u, const DiracSpinor &v) {
+          // Only calculate Coulomb integrals with 1 or 2 electrons in the core
+          auto num = MBPT::number_below_Fermi(s, t, u, v, eF);
+          return num == 1 || num == 2;
+        };
 
       // Then, add those required for Sigma_1 (unless we have matrix!)
       if (include_Sigma1 /*&& !wf.Sigma()*/) {
@@ -247,18 +245,18 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Create lookup table for one-particle matrix elements, h1
   const auto h1 =
-      /* 
+    /* 
           wf.Sigma() ?
           CI::calculate_h1_table(ci_sp_basis, *wf.Sigma(), include_Sigma1) :
      */
-      CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
-                             include_Sigma1);
+    CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
+                           include_Sigma1);
 
   //----------------------------------------------------------------------------
 
   // print all single-body integrals to file:
   std::string one_file =
-      wf.identity() + "_h1_" + DiracSpinor::state_config(ci_sp_basis) + ".txt";
+    wf.identity() + "_h1_" + DiracSpinor::state_config(ci_sp_basis) + ".txt";
   if (write_integrals) {
     std::cout << "Writing one-particle (h1) integrals to file: " << one_file
               << "\n";
@@ -293,8 +291,8 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   // Writes g integrals to text file
   // Modify this to include Sigma_2!
   if (write_integrals) {
-    std::string g_file = wf.identity() + "_h2_" +
-                         DiracSpinor::state_config(ci_sp_basis) + ".txt";
+    std::string g_file =
+      wf.identity() + "_h2_" + DiracSpinor::state_config(ci_sp_basis) + ".txt";
 
     std::cout << "Writing two-particle (h2 = g_vwxy) integrals to file: "
               << g_file << "\n";
@@ -307,8 +305,8 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto Sk_filename = wf.identity() + "_" + std::to_string(n_min_core) +
                            "_" + DiracSpinor::state_config(excited_s2) +
                            (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
-                                "_" + std::to_string(max_k_Coulomb) :
-                                "") +
+                              "_" + std::to_string(max_k_Coulomb) :
+                              "") +
                            ".sk.abf";
 
   Coulomb::LkTable Sk;
@@ -325,7 +323,7 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
   if (include_Sigma2 && write_integrals) {
     std::string s_file =
-        wf.identity() + "_s2_" + DiracSpinor::state_config(cis2_basis) + ".txt";
+      wf.identity() + "_s2_" + DiracSpinor::state_config(cis2_basis) + ".txt";
 
     std::cout << "Writing two-particle correlation corrections (s2 = S_vwxy) "
                  "integrals to file: "
@@ -352,8 +350,8 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
       // Construct the CI matrix:
       const auto Hci = include_Sigma2 ?
-                           CI::construct_Hci(psi, h1, qk, nullptr, &Sk) :
-                           CI::construct_Hci(psi, h1, qk);
+                         CI::construct_Hci(psi, h1, qk, nullptr, &Sk) :
+                         CI::construct_Hci(psi, h1, qk);
       write_H(Hci, csf_file);
       std::cout << "\n";
     }
@@ -367,8 +365,8 @@ void VQE(const IO::InputBlock &input, const Wavefunction &wf) {
 
       // Construct the CI matrix:
       const auto Hci = include_Sigma2 ?
-                           CI::construct_Hci(psi, h1, qk, nullptr, &Sk) :
-                           CI::construct_Hci(psi, h1, qk);
+                         CI::construct_Hci(psi, h1, qk, nullptr, &Sk) :
+                         CI::construct_Hci(psi, h1, qk);
       write_H(Hci, csf_file);
       std::cout << "\n";
     }

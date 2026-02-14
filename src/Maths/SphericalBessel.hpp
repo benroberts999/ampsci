@@ -133,14 +133,13 @@ public:
     m_J_L_q_on_qr.resize(std::size_t(max_L + 1), q.size());
     using namespace qip::overloads;
 #pragma omp parallel for collapse(2)
-    for (auto L = 0; L <= max_L; ++L) {
+    for (auto L = 0ul; L <= std::size_t(max_L); ++L) {
       for (auto iq = 0ul; iq < m_J_L_q.cols(); ++iq) {
         const auto tq = q[iq];
         // Fill jL(qr)
-        m_J_L_q[std::size_t(L)][iq] = fillBesselVec_kr(L, tq, r);
+        m_J_L_q[L][iq] = fillBesselVec_kr(int(L), tq, r);
         // Store jL(qr)/qr
-        m_J_L_q_on_qr[std::size_t(L)][iq] =
-            m_J_L_q[std::size_t(L)][iq] / (tq * r);
+        m_J_L_q_on_qr[L][iq] = m_J_L_q[L][iq] / (tq * r);
       }
     }
   }

@@ -96,7 +96,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   const auto rho = wf.coreDensity();
   REQUIRE(rho.size() == num_points);
   const auto number_in_core_from_rho =
-      NumCalc::integrate(wf.grid().du(), 0, 0, rho, wf.grid().drdu());
+    NumCalc::integrate(wf.grid().du(), 0, 0, rho, wf.grid().drdu());
   REQUIRE(std::abs(number_in_core_from_rho - wf.Ncore()) < 1.0e-6);
 
   //============================================================================
@@ -192,7 +192,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   for (auto &v : hlike.valence()) {
     REQUIRE(v.en() ==
             Approx(AtomData::diracen(1.0, v.n(), v.kappa(), hlike.alpha()))
-                .epsilon(1.0e-9));
+              .epsilon(1.0e-9));
   }
 
   std::cout << "\nH-like test, non-relativistic limit:\n";
@@ -210,10 +210,10 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
     REQUIRE(v.en() !=
             Approx(AtomData::diracen(1.0, v.n(), v.kappa(), hlike.alpha()))
-                .epsilon(1.0e-9));
+              .epsilon(1.0e-9));
     REQUIRE(v.en() ==
             Approx(AtomData::diracen(1.0, v.n(), v.kappa(), hlike_nr.alpha()))
-                .epsilon(1.0e-9));
+              .epsilon(1.0e-9));
   }
 }
 

@@ -50,7 +50,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
   double l1 = 0.0;
   const double tkp1 = 2.0 * k + 1.0;
   const auto s_mnij1 =
-      Angular::neg1pow_2(2 + m.twoj() + n.twoj() + i.twoj() + j.twoj());
+    Angular::neg1pow_2(2 + m.twoj() + n.twoj() + i.twoj() + j.twoj());
 
   //  6j(r) Triads: {m,i,k}, {k,l,u}, {i,l,r}, {u,r,m}
   //  6j(s) Triads: {n,b,k}, {k,l,u}, {b,l,s}, {u,s,n}
@@ -95,7 +95,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto L_lrsij = Lk ? Lk->Q(l, r, s, i, j) : 0.0;
 
           l1 +=
-              (s_rs * sj_r * sj_s) * Q_umnrs * (Q_lrsij + L_lrsij) * inv_e_ijrs;
+            (s_rs * sj_r * sj_s) * Q_umnrs * (Q_lrsij + L_lrsij) * inv_e_ijrs;
         }
       }
     }
@@ -126,7 +126,7 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   double l4 = 0.0;
   const double tkp1 = 2.0 * k + 1.0;
   const auto s_mnij1 =
-      Angular::neg1pow_2(2 + m.twoj() + n.twoj() + i.twoj() + j.twoj());
+    Angular::neg1pow_2(2 + m.twoj() + n.twoj() + i.twoj() + j.twoj());
 
   //  6j(r) Triads: {m,i,k}, {k,u,l}, {i,u,c}, {l,c,m}
   //  6j(s) Triads: {n,b,k}, {k,u,l}, {b,u,d}, {l,d,n}
@@ -166,7 +166,7 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto L_lmncd = Lk ? Lk->Q(l, m, n, c, d) : 0.0;
 
           l4 +=
-              (s_cd * sj_c * sj_d) * Q_ucdij * (Q_lmncd + L_lmncd) * inv_e_cdmn;
+            (s_cd * sj_c * sj_d) * Q_ucdij * (Q_lmncd + L_lmncd) * inv_e_cdmn;
         }
       }
     }
@@ -198,7 +198,7 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
   double l2 = 0.0;
   const double tkp1 = 2.0 * k + 1.0;
   const auto s_mnijk =
-      Angular::neg1pow_2(2 * k + m.twoj() + n.twoj() + i.twoj() + j.twoj());
+    Angular::neg1pow_2(2 * k + m.twoj() + n.twoj() + i.twoj() + j.twoj());
 
 #pragma omp parallel for reduction(+ : l2)
   for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {

@@ -52,35 +52,35 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer("Kionisation");
 
   input.check(
-      {{"E_range",
-        "List (2). Minimum, maximum energy transfer (dE), in keV [0.1,0.1]"},
-       {"E_steps", "Numer of steps along dE grid (logarithmic grid) [1]"},
-       {"q_range",
-        "List (2). Minimum, maximum momentum transfer (q), in MeV [0.01,0.01]"},
-       {"q_steps", "Number of steps along q grid (logarithmic grid) [1]"},
-       {"max_L", "Maximum multipolarity used in exp(iqr) expansion [6]"},
-       {"ec_cut", "Cut-off (in au) for continuum energy. [1000.0]"},
-       {"label", "optional extra label for output files"},
-       {"method", "'hf' (relativistic Hartree-Fock), "
-                  "'rpa0' (lowst-order RPA), "
-                  "'rpa' (all-orders RPA), "
-                  "'zeff' (Z_eff for continuum), "
-                  "'approx' (step function). [hf]"},
-       {"subtract_1", "Replace e^(iqr) -> e^(iqr)-1 [false]"},
-       {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
-       {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
-                         "hole-particle interaction) [true]"},
-       {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
-       {"coupling", "Vector, Scalar (g0), Pseudovector (g5), Pseudoscalar "
-                    "(g0g5) [Vector]"},
-       {"output_format", "List: Format for output. List any of: gnuplot, xyz, "
-                         "matrix (comma-separated). [gnuplot]"},
-       {"each_state", "bool. If true, will output K(E,q) for each "
-                      "(accessible) core-state [false]"},
-       {"units",
-        "Units for 'gnuplot' output: Particle (keV/MeV) or Atomic (E_H,1/a0). "
-        "Only affects _gnu output format, all _mat and _xyz are "
-        "always in atomic units. [Particle]"}});
+    {{"E_range",
+      "List (2). Minimum, maximum energy transfer (dE), in keV [0.1,0.1]"},
+     {"E_steps", "Numer of steps along dE grid (logarithmic grid) [1]"},
+     {"q_range",
+      "List (2). Minimum, maximum momentum transfer (q), in MeV [0.01,0.01]"},
+     {"q_steps", "Number of steps along q grid (logarithmic grid) [1]"},
+     {"max_L", "Maximum multipolarity used in exp(iqr) expansion [6]"},
+     {"ec_cut", "Cut-off (in au) for continuum energy. [1000.0]"},
+     {"label", "optional extra label for output files"},
+     {"method", "'hf' (relativistic Hartree-Fock), "
+                "'rpa0' (lowst-order RPA), "
+                "'rpa' (all-orders RPA), "
+                "'zeff' (Z_eff for continuum), "
+                "'approx' (step function). [hf]"},
+     {"subtract_1", "Replace e^(iqr) -> e^(iqr)-1 [false]"},
+     {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
+     {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
+                       "hole-particle interaction) [true]"},
+     {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
+     {"coupling", "Vector, Scalar (g0), Pseudovector (g5), Pseudoscalar "
+                  "(g0g5) [Vector]"},
+     {"output_format", "List: Format for output. List any of: gnuplot, xyz, "
+                       "matrix (comma-separated). [gnuplot]"},
+     {"each_state", "bool. If true, will output K(E,q) for each "
+                    "(accessible) core-state [false]"},
+     {"units",
+      "Units for 'gnuplot' output: Particle (keV/MeV) or Atomic (E_H,1/a0). "
+      "Only affects _gnu output format, all _mat and _xyz are "
+      "always in atomic units. [Particle]"}});
   if (input.has_option("help")) {
     std::cout << Kionisation_description_text;
     return;
@@ -97,12 +97,12 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   const auto Emin_au = Emin_keV * UnitConv::Energy_keV_to_au;
   const auto Emax_au =
-      Emax_keV < Emin_keV ? Emin_au : Emax_keV * UnitConv::Energy_keV_to_au;
+    Emax_keV < Emin_keV ? Emin_au : Emax_keV * UnitConv::Energy_keV_to_au;
 
   std::cout << "\nSummary of inputs:\n";
   fmt::print(
-      "Energy  : [{:.2f}, {:.2f}] keV  = [{:.1f}, {:.1f}] au, in {} steps\n",
-      Emin_keV, Emax_keV, Emin_au, Emax_au, E_steps);
+    "Energy  : [{:.2f}, {:.2f}] keV  = [{:.1f}, {:.1f}] au, in {} steps\n",
+    Emin_keV, Emax_keV, Emin_au, Emax_au, E_steps);
 
   auto [qmin_MeV, qmax_MeV] = input.get("q_range", std::array{0.01, 0.01});
   auto q_steps = input.get<std::size_t>("q_steps", 1);
@@ -118,8 +118,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto ec_cut = input.get("ec_cut", 1000.0);
 
   fmt::print(
-      "Momentum: [{:.3f}, {:.3f}] MeV = [{:.1f}, {:.1f}] au, in {} steps\n",
-      qmin_MeV, qmax_MeV, qmin_au, qmax_au, q_steps);
+    "Momentum: [{:.3f}, {:.3f}] MeV = [{:.1f}, {:.1f}] au, in {} steps\n",
+    qmin_MeV, qmax_MeV, qmin_au, qmax_au, q_steps);
 
   // Set up the E and q grids
   const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
@@ -184,9 +184,9 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto subtract_1 = input.get("subtract_1", false);
   const auto force_orthog = input.get("force_orthog", true);
   const auto force_rescale =
-      use_Zeff_cont ? false : input.get("force_rescale", false);
+    use_Zeff_cont ? false : input.get("force_rescale", false);
   const auto hole_particle =
-      use_Zeff_cont ? false : input.get("hole_particle", true);
+    use_Zeff_cont ? false : input.get("hole_particle", true);
 
   // Summarise input options
   std::cout << "\nOptions:\n";
@@ -206,8 +206,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   if (use_Zeff_cont) {
     std::cout
-        << "Using Z_eff model for continuum; hole_particle and force_rescale "
-           "have no effect. Caution: this should only be used for tests\n";
+      << "Using Z_eff model for continuum; hole_particle and force_rescale "
+         "have no effect. Caution: this should only be used for tests\n";
   }
 
   // Perform checks, print possible warnings
@@ -224,8 +224,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   if (!force_rescale && !hole_particle && !use_Zeff_cont && wf.Zion() == 0) {
     fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
     fmt::print(
-        "Long-range behaviour of V(r) may be incorrect. Suggest to either "
-        "force rescaling, or include hole-particle interaction.\n");
+      "Long-range behaviour of V(r) may be incorrect. Suggest to either "
+      "force rescaling, or include hole-particle interaction.\n");
   }
   if (force_rescale && hole_particle) {
     fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
@@ -259,11 +259,11 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   // DM-electron couplings
   const auto tcoupling = input.get<std::string>("coupling", "vector");
   const auto coupling =
-      ci_compare(tcoupling, "vector")       ? Kion::Coupling::Vector :
-      ci_compare(tcoupling, "scalar")       ? Kion::Coupling::Scalar :
-      ci_compare(tcoupling, "pseudovector") ? Kion::Coupling::PseudoVector :
-      ci_compare(tcoupling, "pseudoscalar") ? Kion::Coupling::PseudoScalar :
-                                              Kion::Coupling::Error;
+    ci_compare(tcoupling, "vector")       ? Kion::Coupling::Vector :
+    ci_compare(tcoupling, "scalar")       ? Kion::Coupling::Scalar :
+    ci_compare(tcoupling, "pseudovector") ? Kion::Coupling::PseudoVector :
+    ci_compare(tcoupling, "pseudoscalar") ? Kion::Coupling::PseudoScalar :
+                                            Kion::Coupling::Error;
   if (coupling == Kion::Coupling::Error) {
     fmt2::styled_print(fg(fmt::color::red), "\nError 212: ");
     fmt::print("Coupling option: `{}' unknown. Options are: vector, scalar, "
@@ -296,7 +296,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   // Create output file-name template
 
   const std::string rpa_text =
-      (use_rpa0 ? "rpa0_" : "rpa_") + DiracSpinor::state_config(wf.basis());
+    (use_rpa0 ? "rpa0_" : "rpa_") + DiracSpinor::state_config(wf.basis());
 
   const auto hf_text = wf.vHF() == nullptr                           ? "??" :
                        wf.vHF()->method() == HF::Method::HartreeFock ? "hf" :
@@ -314,15 +314,15 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
                                                                    "???";
 
   const std::string coupling_text =
-      coupling == Kion::Coupling::Vector       ? "v" :
-      coupling == Kion::Coupling::Scalar       ? "s" :
-      coupling == Kion::Coupling::PseudoVector ? "pv" :
-      coupling == Kion::Coupling::PseudoScalar ? "ps" :
-                                                 "???";
+    coupling == Kion::Coupling::Vector       ? "v" :
+    coupling == Kion::Coupling::Scalar       ? "s" :
+    coupling == Kion::Coupling::PseudoVector ? "pv" :
+    coupling == Kion::Coupling::PseudoScalar ? "ps" :
+                                               "???";
 
   // doesn't include suffix
   std::string oname =
-      "K_" + wf.identity() + wf.ion_symbol(0) + "_" + method_text + "_";
+    "K_" + wf.identity() + wf.ion_symbol(0) + "_" + method_text + "_";
   if (wf.Zion() != 0)
     oname += fmt::format("{}+_", wf.Zion());
   oname += coupling_text + "_";
@@ -347,21 +347,21 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool write_each_state = input.get("each_state", false);
 
   const auto toutput =
-      input.get<std::vector<std::string>>("output_format", {"gnuplot"});
+    input.get<std::vector<std::string>>("output_format", {"gnuplot"});
   // Use vector, since allow outputting in multiple formats
   std::vector<Kion::OutputFormat> output_formats;
   for (auto &each : toutput) {
     const auto output =
-        ci_wc_compare(each, "gnu*") ? Kion::OutputFormat::gnuplot :
-        ci_wc_compare(each, "xyz")  ? Kion::OutputFormat::xyz :
-        ci_wc_compare(each, "mat*") ? Kion::OutputFormat::matrix :
-                                      Kion::OutputFormat::Error;
+      ci_wc_compare(each, "gnu*") ? Kion::OutputFormat::gnuplot :
+      ci_wc_compare(each, "xyz")  ? Kion::OutputFormat::xyz :
+      ci_wc_compare(each, "mat*") ? Kion::OutputFormat::matrix :
+                                    Kion::OutputFormat::Error;
     if (output == Kion::OutputFormat::Error) {
       fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
       fmt::print(
-          "Output Format option: `{}' unknown. Options are: gnuplot, xyz, "
-          "matrix\n",
-          each);
+        "Output Format option: `{}' unknown. Options are: gnuplot, xyz, "
+        "matrix\n",
+        each);
     } else {
       // only add if not already in list
       if (std::find(output_formats.begin(), output_formats.end(), output) ==
@@ -406,8 +406,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
 
     /// XXX print each nk
     const auto Knks = Kion::calculateK_nk_rpa(
-        wf.vHF(), wf.core(), max_L, Egrid, jl.get(), force_rescale,
-        hole_particle, force_orthog, wf.basis(), wf.identity());
+      wf.vHF(), wf.core(), max_L, Egrid, jl.get(), force_rescale, hole_particle,
+      force_orthog, wf.basis(), wf.identity());
 
     assert(Knks.size() == wf.core().size());
 
@@ -427,8 +427,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
 
     std::cout << "Using   : approx (step-function) method\n";
     const auto K_approx = Kion::calculateK_nk_approx(
-        wf.vHF(), wf.core(), max_L, jl.get(), force_rescale, hole_particle,
-        force_orthog, use_Zeff_cont, use_rpa0, wf.basis());
+      wf.vHF(), wf.core(), max_L, jl.get(), force_rescale, hole_particle,
+      force_orthog, use_Zeff_cont, use_rpa0, wf.basis());
     Kion::write_approxTable_to_file(K_approx, wf.core(), qgrid, oname,
                                     num_output_digits, units);
     // convert to "standard" form, for easy comparison
@@ -443,8 +443,8 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
         continue;
       std::cout << Fnk << ", " << std::flush;
       const auto K_nk = Kion::calculateK_nk(
-          wf.vHF(), Fnk, max_L, Egrid, jl.get(), force_rescale, hole_particle,
-          force_orthog, use_Zeff_cont, use_rpa0, wf.basis(), ec_cut);
+        wf.vHF(), Fnk, max_L, Egrid, jl.get(), force_rescale, hole_particle,
+        force_orthog, use_Zeff_cont, use_rpa0, wf.basis(), ec_cut);
       if (write_each_state) {
         const auto oname_nk = oname + "_" + Fnk.shortSymbol();
         std::cout << "Written to file: " << oname_nk << "\n";
@@ -467,22 +467,21 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer("photo");
 
   input.check({
-      {"E_range",
-       "List (2). Minimum, maximum energy transfer (dE), in eV [10, 1000]"},
-      {"E_steps", "Numer of steps along dE grid (logarithmic grid) [50]"},
-      {"E_threshold",
-       "Numer of extra E steps to add in -15% range on either side"
-       " of each threshold. If <2, will add no new points [0]"},
-      {"E_extra", "List (comma separated) extra energies (in eV) to add 10 "
-                  "points around. Useful for specific regions we want more "
-                  "resolution in."},
-      {"oname", "oname"},
-      {"ec_cut", "Cut-off (in au) for continuum energy. [inf]"},
-      {"K_minmax", "List (2). Minimum, maximum K [1, 1]"},
-      {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
-      {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
-                        "hole-particle interaction) [true]"},
-      {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
+    {"E_range",
+     "List (2). Minimum, maximum energy transfer (dE), in eV [10, 1000]"},
+    {"E_steps", "Numer of steps along dE grid (logarithmic grid) [50]"},
+    {"E_threshold", "Numer of extra E steps to add in -15% range on either side"
+                    " of each threshold. If <2, will add no new points [0]"},
+    {"E_extra", "List (comma separated) extra energies (in eV) to add 10 "
+                "points around. Useful for specific regions we want more "
+                "resolution in."},
+    {"oname", "oname"},
+    {"ec_cut", "Cut-off (in au) for continuum energy. [inf]"},
+    {"K_minmax", "List (2). Minimum, maximum K [1, 1]"},
+    {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
+    {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
+                      "hole-particle interaction) [true]"},
+    {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
   });
   if (input.has_option("help")) {
     return;
@@ -499,7 +498,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   // Convert to atomic units for calculations:
   const auto Emin_au = Emin_eV / PhysConst::Hartree_eV;
   const auto Emax_au =
-      Emax_eV < Emin_eV ? Emin_au : Emax_eV / PhysConst::Hartree_eV;
+    Emax_eV < Emin_eV ? Emin_au : Emax_eV / PhysConst::Hartree_eV;
 
   // const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
   // auto energies = Egrid.r();
@@ -520,13 +519,13 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
       // just below thresholds:
       const auto extra1 =
-          qip::uniform_range(-0.85 * Fc.en(), -0.999 * Fc.en(), E_threshold);
+        qip::uniform_range(-0.85 * Fc.en(), -0.999 * Fc.en(), E_threshold);
 
       // Just above thresholds (note: careful, since hard to solve
       // Dirac equation for cntm states with very small energy)
       const auto e0 = 0.01; // smallest energy can calculate well for cntm
-      const auto extra2 = qip::uniform_range(
-          -Fc.en() + e0, 1.15 * (-Fc.en() + e0), E_threshold);
+      const auto extra2 =
+        qip::uniform_range(-Fc.en() + e0, 1.15 * (-Fc.en() + e0), E_threshold);
       energies = qip::merge(energies, extra1, extra2);
     }
   }
@@ -549,10 +548,10 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nSummary of inputs:\n";
   fmt::print(
-      "Energy  : [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n\n",
-      energies.front() * PhysConst::Hartree_eV,
-      energies.back() * PhysConst::Hartree_eV, energies.front(),
-      energies.back(), energies.size());
+    "Energy  : [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n\n",
+    energies.front() * PhysConst::Hartree_eV,
+    energies.back() * PhysConst::Hartree_eV, energies.front(), energies.back(),
+    energies.size());
 
   const auto [Kmin, Kmax] = input.get("K_minmax", std::array{1, 1});
   const auto label = input.get("label", std::string{""});
@@ -579,16 +578,20 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
     // First, loop through and just find list of what we shall do.
     // THEN parellelise over that!
-    std::vector<std::size_t> iclist;
+    std::size_t i_first_acc_core{wf.core().size()};
+    int num_accessible_core = 0;
     for (std::size_t i = 0; i < wf.core().size(); ++i) {
       const auto ec = omega + wf.core()[i].en();
-      if (ec < 0.0)
-        continue;
-      iclist.push_back(i);
+      if (ec > 0.0) {
+        if (i < i_first_acc_core) {
+          i_first_acc_core = i;
+        }
+        num_accessible_core++;
+      }
     }
 
     fmt::print("{:3} {:9.2f} eV ; {:3} shells accessible\n", count++,
-               omega * PhysConst::Hartree_eV, iclist.size());
+               omega * PhysConst::Hartree_eV, num_accessible_core);
 
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
                         PhysConst::aB_cm * PhysConst::aB_cm * omega;
@@ -617,8 +620,8 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto Ek_len = DiracOperator::VEk_Len(wf.grid(), k, omega);
 
 #pragma omp parallel for reduction(+ : Q_E1, Q_M1, Q_Mk1, Q_M1_nr, Q_Ek2,      \
-                                       Q_E2, Q_E, Q_M, Q_E_len)
-      for (const auto ic : iclist) {
+                                     Q_E2, Q_E, Q_M, Q_E_len)
+      for (std::size_t ic = i_first_acc_core; ic < wf.core().size(); ++ic) {
         const auto &Fa = wf.core()[ic];
         const auto ec = omega + Fa.en();
         if (ec < 0.0)
@@ -640,7 +643,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
           const auto tkp1 = 2.0 * k + 1.0;
           const auto pol_av = 1.0 / 2.0;
           const auto f_Q =
-              tkp1 * pol_av / qip::pow(PhysConst::alpha * omega, 2);
+            tkp1 * pol_av / qip::pow(PhysConst::alpha * omega, 2);
 
           // check!
           const auto f_Q_E1 = 1.0 / 3.0;
@@ -680,31 +683,31 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer("formFactors");
 
   input.check(
-      {{"E_range",
-        "List (2). Minimum, maximum energy transfer (dE), in eV [10.0, 1.0e4]"},
-       {"E_steps", "Numer of steps along dE grid (logarithmic) [1]"},
-       {"E_set", "List: set of E values (in eV) - overrides above"},
-       {"q_range", "List (2). Minimum, maximum momentum transfer (q), in eV "
-                   "(hbar=c=1). For reference, 1/a0 ~ 3730 eV. [1.0e4, 1.0e7]"},
-       {"q_steps", "Numer of steps along q grid (logarithmic) [1]"},
-       {"label", "Extra label for output file (not usually nedded)"},
-       {"operators", "List, comma separated. Any of 'V' (vector), 'A' "
-                     "(axial/pseudo-vector), 'S' "
-                     "(scalar), 'P' (pseudoscalar)"},
-       {"K_minmax", "List (2). Minimum, maximum K [0, 5]"},
-       {"low_q", "Explicitly use low-q form of operators [false]"},
-       {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
-       {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
-                         "hole-particle interaction) [true]"},
-       {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
-       {"output_format",
-        "List: Format for output. List any of: gnuplot, gnuplot_E, xyz, "
-        "matrix (comma-separated). gnuplot is for easy plotting as function of "
-        "q, gnuplot_E is for easy plotting as function of E [gnuplot]"},
-       {"units",
-        "Units for 'gnuplot' output: Particle (keV/MeV) or Atomic (E_H,1/a0). "
-        "Only affects _gnu output format, all _mat and _xyz are "
-        "always in atomic units. [Particle]"}});
+    {{"E_range",
+      "List (2). Minimum, maximum energy transfer (dE), in eV [10.0, 1.0e4]"},
+     {"E_steps", "Numer of steps along dE grid (logarithmic) [1]"},
+     {"E_set", "List: set of E values (in eV) - overrides above"},
+     {"q_range", "List (2). Minimum, maximum momentum transfer (q), in eV "
+                 "(hbar=c=1). For reference, 1/a0 ~ 3730 eV. [1.0e4, 1.0e7]"},
+     {"q_steps", "Numer of steps along q grid (logarithmic) [1]"},
+     {"label", "Extra label for output file (not usually nedded)"},
+     {"operators", "List, comma separated. Any of 'V' (vector), 'A' "
+                   "(axial/pseudo-vector), 'S' "
+                   "(scalar), 'P' (pseudoscalar)"},
+     {"K_minmax", "List (2). Minimum, maximum K [0, 5]"},
+     {"low_q", "Explicitly use low-q form of operators [false]"},
+     {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
+     {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
+                       "hole-particle interaction) [true]"},
+     {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
+     {"output_format",
+      "List: Format for output. List any of: gnuplot, gnuplot_E, xyz, "
+      "matrix (comma-separated). gnuplot is for easy plotting as function of "
+      "q, gnuplot_E is for easy plotting as function of E [gnuplot]"},
+     {"units",
+      "Units for 'gnuplot' output: Particle (keV/MeV) or Atomic (E_H,1/a0). "
+      "Only affects _gnu output format, all _mat and _xyz are "
+      "always in atomic units. [Particle]"}});
   if (input.has_option("help")) {
     return;
   }
@@ -732,7 +735,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   const Grid Egrid_t({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
   using namespace qip::overloads;
   const auto Egrid =
-      E_set_eV.empty() ? Egrid_t.r() : E_set_eV / PhysConst::Hartree_eV;
+    E_set_eV.empty() ? Egrid_t.r() : E_set_eV / PhysConst::Hartree_eV;
 
   //----------------------------------------------------------------------------
 
@@ -774,11 +777,11 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nEnergy/Momentum exchange grids:\n";
   fmt::print(
-      "Energy  : [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
-      Emin_eV, Emax_eV, Emin_au, Emax_au, E_steps);
+    "Energy  : [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
+    Emin_eV, Emax_eV, Emin_au, Emax_au, E_steps);
   fmt::print(
-      "Momentum: [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
-      qmin_eV, qmax_eV, q_min, q_max, q_steps);
+    "Momentum: [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
+    qmin_eV, qmax_eV, q_min, q_max, q_steps);
 
   // Which operators to calculate
   // Case insensitive, and only check first letter
@@ -858,8 +861,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       wf.vHF()->method() == HF::Method::HartreeFock) {
     fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
     fmt::print(
-        "Long-range behaviour of V(r) may be incorrect. Suggest to either "
-        "force rescaling, or include hole-particle interaction.\n");
+      "Long-range behaviour of V(r) may be incorrect. Suggest to either "
+      "force rescaling, or include hole-particle interaction.\n");
   }
   if (force_rescale && hole_particle) {
     fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
@@ -873,20 +876,20 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   const SphericalBessel::JL_table jK_tab(Kmax + 1, qgrid.r(), wf.grid().r());
   std::cout << "..done\n" << std::flush;
 
-  LinAlg::Matrix<double>        // Matrices for each V(E,q) form factor
-      Q_Phi(E_steps, q_steps),  // Vector: temporal
-      Q_E(E_steps, q_steps),    // Vector: electric
-      Q_M(E_steps, q_steps),    // Vector: magnetic
-      Q_L(E_steps, q_steps),    // Vector: longitudinal
-      Q_Phi5(E_steps, q_steps), // Axial: temporal
-      Q_E5(E_steps, q_steps),   // Axial: electric
-      Q_M5(E_steps, q_steps),   // Axial: magnetic
-      Q_L5(E_steps, q_steps),   // Axial: longitudinal
-      Q_S(E_steps, q_steps),    // Scalar
-      Q_S5(E_steps, q_steps),   // Pseudo-scalar
-      Q_X(E_steps, q_steps),    // v-v interference
-      Q_Y(E_steps, q_steps),    // a-a interference
-      Q_Z(E_steps, q_steps);    // v-a interference
+  LinAlg::Matrix<double>      // Matrices for each V(E,q) form factor
+    Q_Phi(E_steps, q_steps),  // Vector: temporal
+    Q_E(E_steps, q_steps),    // Vector: electric
+    Q_M(E_steps, q_steps),    // Vector: magnetic
+    Q_L(E_steps, q_steps),    // Vector: longitudinal
+    Q_Phi5(E_steps, q_steps), // Axial: temporal
+    Q_E5(E_steps, q_steps),   // Axial: electric
+    Q_M5(E_steps, q_steps),   // Axial: magnetic
+    Q_L5(E_steps, q_steps),   // Axial: longitudinal
+    Q_S(E_steps, q_steps),    // Scalar
+    Q_S5(E_steps, q_steps),   // Pseudo-scalar
+    Q_X(E_steps, q_steps),    // v-v interference
+    Q_Y(E_steps, q_steps),    // a-a interference
+    Q_Z(E_steps, q_steps);    // v-a interference
 
   //-------------------------------------------------------------------------
   std::cout << "\nCalculating ionisation factors:\n";
@@ -895,8 +898,12 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
     // First lowest energy able to ionise Fa:
     const auto idE_0 = std::size_t(std::distance(
-        Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
-                                    [&Fa](auto e) { return e > -Fa.en(); })));
+      Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
+                                  [&Fa](auto e) { return e > -Fa.en(); })));
+
+    // OpenMP with clang seems to fail with Kmax, Kmin, which are from bindings
+    // This is surely a bug
+    const auto Kmax2{Kmax}, Kmin2{Kmin};
 
 #pragma omp parallel for
     for (std::size_t iE = idE_0; iE < Egrid.size(); ++iE) {
@@ -907,44 +914,44 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
       const int l = Fa.l();
       // XXX Check this!
-      const int lc_max = l + Kmax + 1;
-      const int lc_min = std::max(l - Kmax - 1, 0);
+      const int lc_max = l + Kmax2 + 1;
+      const int lc_min = std::max(l - Kmax2 - 1, 0);
 
       ContinuumOrbitals cntm(wf.vHF());
       cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale,
                             hole_particle, force_orthog);
 
       for (std::size_t iq = 0; iq < qgrid.size(); ++iq) {
-        for (int k = Kmin; k <= Kmax; ++k) {
+        for (int k = Kmin2; k <= Kmax2; ++k) {
 
           const auto tkp1_x = (2.0 * k + 1.0) * Fa.occ_frac();
           // Use qc for as expected for "omega" in operators
           const auto qc = qgrid.at(iq) * PhysConst::c;
 
           const auto Phik = DiracOperator::MultipoleOperator(
-              wf.grid(), k, qc, 'V', 'T', low_q, &jK_tab);
+            wf.grid(), k, qc, 'V', 'T', low_q, &jK_tab);
           const auto Ek = DiracOperator::MultipoleOperator(
-              wf.grid(), k, qc, 'V', 'E', low_q, &jK_tab);
+            wf.grid(), k, qc, 'V', 'E', low_q, &jK_tab);
           const auto Mk = DiracOperator::MultipoleOperator(
-              wf.grid(), k, qc, 'V', 'M', low_q, &jK_tab);
+            wf.grid(), k, qc, 'V', 'M', low_q, &jK_tab);
           const auto Lk = DiracOperator::MultipoleOperator(
-              wf.grid(), k, qc, 'V', 'L', low_q, &jK_tab);
+            wf.grid(), k, qc, 'V', 'L', low_q, &jK_tab);
 
           // Axial (gamma^5) versions
           const auto Phi5k = DiracOperator::MultipoleOperator(
-              wf.grid(), k, qc, 'A', 'T', low_q, &jK_tab);
+            wf.grid(), k, qc, 'A', 'T', low_q, &jK_tab);
           const auto E5k = DiracOperator::MultipoleOperator(
-              wf.grid(), k, qc, 'A', 'E', low_q, &jK_tab);
+            wf.grid(), k, qc, 'A', 'E', low_q, &jK_tab);
           const auto M5k = DiracOperator::MultipoleOperator(
-              wf.grid(), k, qc, 'A', 'M', low_q, &jK_tab);
+            wf.grid(), k, qc, 'A', 'M', low_q, &jK_tab);
           const auto L5k = DiracOperator::MultipoleOperator(
-              wf.grid(), k, qc, 'A', 'L', low_q, &jK_tab);
+            wf.grid(), k, qc, 'A', 'L', low_q, &jK_tab);
 
           // Scalar and pseudoscalar
           const auto Sk = DiracOperator::MultipoleOperator(
-              wf.grid(), k, qc, 'S', 'T', low_q, &jK_tab);
+            wf.grid(), k, qc, 'S', 'T', low_q, &jK_tab);
           const auto S5k = DiracOperator::MultipoleOperator(
-              wf.grid(), k, qc, 'P', 'T', low_q, &jK_tab);
+            wf.grid(), k, qc, 'P', 'T', low_q, &jK_tab);
 
           for (const auto &Fe : cntm.orbitals) {
 
@@ -1018,23 +1025,23 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // Output format:
 
   const auto toutput =
-      input.get<std::vector<std::string>>("output_format", {"gnuplot"});
+    input.get<std::vector<std::string>>("output_format", {"gnuplot"});
   // Use vector, since allow outputting in multiple formats
   std::vector<Kion::OutputFormat> output_formats;
   using namespace qip;
   for (auto &each : toutput) {
     const auto output =
-        ci_wc_compare(each, "gnuplot") ? Kion::OutputFormat::gnuplot :
-        ci_wc_compare(each, "gnu*_E")  ? Kion::OutputFormat::gnuplot_E :
-        ci_wc_compare(each, "xyz")     ? Kion::OutputFormat::xyz :
-        ci_wc_compare(each, "mat*")    ? Kion::OutputFormat::matrix :
-                                         Kion::OutputFormat::Error;
+      ci_wc_compare(each, "gnuplot") ? Kion::OutputFormat::gnuplot :
+      ci_wc_compare(each, "gnu*_E")  ? Kion::OutputFormat::gnuplot_E :
+      ci_wc_compare(each, "xyz")     ? Kion::OutputFormat::xyz :
+      ci_wc_compare(each, "mat*")    ? Kion::OutputFormat::matrix :
+                                       Kion::OutputFormat::Error;
     if (output == Kion::OutputFormat::Error) {
       fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
       fmt::print(
-          "Output Format option: `{}' unknown. Options are: gnuplot, xyz, "
-          "matrix\n",
-          each);
+        "Output Format option: `{}' unknown. Options are: gnuplot, xyz, "
+        "matrix\n",
+        each);
     } else {
       // only add if not already in list
       if (std::find(output_formats.begin(), output_formats.end(), output) ==
@@ -1068,8 +1075,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   //----------------------------------------------------------------------------
 
   const auto method =
-      HF::parseMethod_short(wf.vHF()->method()) + (hole_particle ? "_hp" : "") +
-      (force_orthog ? "_orth" : "") + (force_rescale ? "_rescale" : "");
+    HF::parseMethod_short(wf.vHF()->method()) + (hole_particle ? "_hp" : "") +
+    (force_orthog ? "_orth" : "") + (force_rescale ? "_rescale" : "");
 
   const auto label = input.get("label", std::string{""});
 

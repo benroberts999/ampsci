@@ -25,11 +25,11 @@ private:
 
 public:
   RadialF(const Grid &rgrid, const std::function<double(double)> &f)
-      : ScalarOperator(Parity::even, 1.0, fillVec(rgrid, f)) {}
+    : ScalarOperator(Parity::even, 1.0, fillVec(rgrid, f)) {}
   RadialF(const Grid &rgrid, const double n)
-      : ScalarOperator(Parity::even, 1.0, fillVec(rgrid, [n](double r) {
-                         return std::pow(r, n);
-                       })) {}
+    : ScalarOperator(Parity::even, 1.0,
+                     fillVec(rgrid, [n](double r) { return std::pow(r, n); })) {
+  }
   std::string name() const override final { return "RadialFunction"; }
   std::string units() const override final { return "au"; }
 };
@@ -39,8 +39,7 @@ class dr final : public ScalarOperator {
 
 public:
   dr()
-      : ScalarOperator(Parity::even, 1.0, {}, {1, 0, 0, 1}, 1, Realness::real) {
-  }
+    : ScalarOperator(Parity::even, 1.0, {}, {1, 0, 0, 1}, 1, Realness::real) {}
   std::string name() const override final { return "dr"; }
   std::string units() const override final { return "au"; }
 };

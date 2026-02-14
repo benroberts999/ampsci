@@ -71,15 +71,15 @@ enum class Method {
 
 //! Maps from enum 'Interpolator::Method' to gsl_interp_type
 static const std::map<Method, const gsl_interp_type *> interp_method{
-    {Method::linear, gsl_interp_linear},
-    {Method::polynomial, gsl_interp_polynomial},
-    {Method::cspline, gsl_interp_cspline},
-    {Method::cspline_periodic, gsl_interp_cspline_periodic},
-    {Method::akima, gsl_interp_akima},
-    {Method::akima_periodic, gsl_interp_akima_periodic}
+  {Method::linear, gsl_interp_linear},
+  {Method::polynomial, gsl_interp_polynomial},
+  {Method::cspline, gsl_interp_cspline},
+  {Method::cspline_periodic, gsl_interp_cspline_periodic},
+  {Method::akima, gsl_interp_akima},
+  {Method::akima_periodic, gsl_interp_akima_periodic}
 #ifndef GSL_VERSION_1
-    ,
-    {Method::steffen, gsl_interp_steffen}
+  ,
+  {Method::steffen, gsl_interp_steffen}
 #endif
 };
 
@@ -108,10 +108,10 @@ public:
   //! x_in and y_in
   Interp(const std::vector<double> &x, const std::vector<double> &y,
          Method method = Method::cspline)
-      : acc(gsl_interp_accel_alloc()),
-        spline(gsl_spline_alloc(interp_method.at(method), x.size())),
-        x0(x.front()),
-        xmax(x.back()) {
+    : acc(gsl_interp_accel_alloc()),
+      spline(gsl_spline_alloc(interp_method.at(method), x.size())),
+      x0(x.front()),
+      xmax(x.back()) {
     assert(x.size() == y.size() &&
            "In Interp, input vectors x and y must have same size");
     assert(x.size() >= gsl_interp_type_min_size(interp_method.at(method)) &&

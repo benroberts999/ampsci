@@ -72,20 +72,19 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
   auto s3 = AtomData::configs_to_string(AtomData::core_parser("[Ho]"));
   REQUIRE(AtomData::niceCoreOutput(s3) == "[Xe],6s2,4f11");
   REQUIRE(AtomData::niceCoreOutput(
-              "1s2,2s2,2p6,3s2,3p6,4s2,3d10,4p6,5s2,4d10,5p6,6s1") ==
-          "[Xe],6s1");
+            "1s2,2s2,2p6,3s2,3p6,4s2,3d10,4p6,5s2,4d10,5p6,6s1") == "[Xe],6s1");
   REQUIRE(AtomData::niceCoreOutput(
-              "1s2,2s2,2p6,3s2,3p6,4s2,3d10,4p6,5s2,4d10,5p6,6s2,4f14,"
-              "5d10,6p6,6d1,7s1") == "[Rn],6d1,7s1");
+            "1s2,2s2,2p6,3s2,3p6,4s2,3d10,4p6,5s2,4d10,5p6,6s2,4f14,"
+            "5d10,6p6,6d1,7s1") == "[Rn],6d1,7s1");
   REQUIRE(AtomData::niceCoreOutput(
-              "4s2,3d10,4p6,5s2,4d10,5p6,4f14,5d10,6s1,1s2,2s2,2p6,3s2,3p6") ==
+            "4s2,3d10,4p6,5s2,4d10,5p6,4f14,5d10,6s1,1s2,2s2,2p6,3s2,3p6") ==
           "[Xe],4f14,5d10,6s1");
 
   //===========================================
   {
     const auto core_string = "[Ne],7p1,6d7";
     const auto expected_symbols =
-        std::vector{"1s2", "2s2", "2p6", "7p1", "6d7"};
+      std::vector{"1s2", "2s2", "2p6", "7p1", "6d7"};
     const auto core_list = AtomData::core_parser(core_string);
     const auto core_list2 = AtomData::state_parser("1s2,2s2,2p6,7p1,6d7");
     REQUIRE(expected_symbols.size() == core_list.size());
@@ -114,10 +113,10 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
   {
     const std::string states = "4sp3d";
     const std::vector full_list =
-        std::vector{std::pair{1, -1}, {2, -1}, {3, -1}, {4, -1}, //
-                    {2, 1},           {3, 1},  {4, 1},           //
-                    {2, -2},          {3, -2}, {4, -2},          //
-                    {3, 2},           {3, -3}};
+      std::vector{std::pair{1, -1}, {2, -1}, {3, -1}, {4, -1}, //
+                  {2, 1},           {3, 1},  {4, 1},           //
+                  {2, -2},          {3, -2}, {4, -2},          //
+                  {3, 2},           {3, -3}};
     // Generates a list of DiracConfig from string: full list
     const auto out_list = AtomData::listOfStates_nk(states);
     REQUIRE(out_list.size() == full_list.size());
@@ -127,7 +126,7 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
     }
 
     const std::vector single_list =
-        std::vector{std::pair{4, -1}, {4, 1}, {4, -2}, {3, 2}, {3, -3}};
+      std::vector{std::pair{4, -1}, {4, 1}, {4, -2}, {3, 2}, {3, -3}};
     // Generates a list of DiracConfig from string: just max n for each kappa
     const auto out_single = AtomData::listOfStates_singlen(states);
     REQUIRE(out_single.size() == single_list.size());

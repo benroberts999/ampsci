@@ -79,7 +79,7 @@ Orbitals defined:
     t_pinf = Internal::findPracticalInfinity(t_en, v, rgrid.r(), Param::cALR);
 
     const std::size_t t_ctp =
-        Internal::findClassicalTurningPoint(t_en, v, t_pinf, Param::d_ctp);
+      Internal::findClassicalTurningPoint(t_en, v, t_pinf, Param::d_ctp);
     const auto ctp = (1 * t_pinf + 4 * t_ctp) / 5;
 
     // Find solution (f,g) to DE for given energy:
@@ -156,7 +156,7 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
   if (en != 0.0)
     Fa.en() = en;
   const auto pinf =
-      Internal::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
+    Internal::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
   Internal::DiracDerivative Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag, VxFa,
                                Fa0, zion, mass);
   Internal::solve_Dirac_outwards(Fa.f(), Fa.g(), Hd, pinf);
@@ -177,7 +177,7 @@ void regularAtInfinity(DiracSpinor &Fa, const double en,
   if (en < 0)
     Fa.en() = en;
   const auto pinf =
-      Internal::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
+    Internal::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR);
   Internal::DiracDerivative Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag, VxFa,
                                Fa0, zion, mass);
   Internal::solve_Dirac_inwards(Fa.f(), Fa.g(), Hd, 0, pinf, mass);
@@ -234,7 +234,7 @@ double smallEnergyChangePT(const double en, const double anorm,
   for (std::size_t i = 1; i <= d_ctp; i++) {
     const auto w = Param::weight(i);
     p_del_q +=
-        0.5 * (f[ctp + i] * dg[d_ctp + i] + f[ctp - i] * dg[d_ctp - i]) * w;
+      0.5 * (f[ctp + i] * dg[d_ctp + i] + f[ctp - i] * dg[d_ctp - i]) * w;
     denom += w;
   }
 
@@ -333,7 +333,7 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
   for (std::size_t i = 1; i <= d_ctp; i++) {
     auto w = Param::weight(i);
     rescale +=
-        0.5 * (f[ctp + i] / f_in[ctp + i] + f[ctp - i] / f_in[ctp - i]) * w;
+      0.5 * (f[ctp + i] / f_in[ctp + i] + f[ctp - i] / f_in[ctp - i]) * w;
     denom += w;
   }
   rescale /= denom;
@@ -348,7 +348,7 @@ void joinInOutSolutions(std::vector<double> &f, std::vector<double> &g,
   for (std::size_t i = ctp - d_ctp; i <= ctp + d_ctp; i++) {
     //"Mesh" in the intermediate region, using weighted av.
     const auto b =
-        (i - ctp > 0) ? 1.0 - Param::weight(i - ctp) : Param::weight(i - ctp);
+      (i - ctp > 0) ? 1.0 - Param::weight(i - ctp) : Param::weight(i - ctp);
     const auto a = 1.0 - b;
     f[i] = a * f[i] + b * f_in[i] * rescale;
     g[i] = a * g[i] + b * g_in[i] * rescale;
@@ -457,7 +457,7 @@ void solve_Dirac_inwards(std::vector<double> &f, std::vector<double> &g,
     const auto i0 = ode.last_t();
     const auto f0 = ode.last_f();
     const auto Xscl =
-        (Hd.VxFa && Hd.Fa0->f(i0) != 0.0) ? f0 / Hd.Fa0->f(i0) : 0.0;
+      (Hd.VxFa && Hd.Fa0->f(i0) != 0.0) ? f0 / Hd.Fa0->f(i0) : 0.0;
     ode.S_scale = Xscl;
     // nb: what if pinf is very different between current and previous soln?
   }
@@ -482,21 +482,21 @@ void solve_Dirac_inwards(std::vector<double> &f, std::vector<double> &g,
 
 //==============================================================================
 DiracDerivative::DiracDerivative(
-    const Grid &in_grid, const std::vector<double> &in_v, const int in_k,
-    const double in_en, const double in_alpha,
-    const std::vector<double> &V_off_diag, const DiracSpinor *const iVxFa,
-    const DiracSpinor *const iFa0, double izion, double in_mass)
-    : pgr(&in_grid),
-      v(&in_v),
-      Hmag(V_off_diag.empty() ? nullptr : &V_off_diag),
-      VxFa(iVxFa),
-      Fa0(iFa0),
-      zion(izion),
-      k(in_k),
-      en(in_en),
-      alpha(in_alpha),
-      cc(1.0 / in_alpha),
-      mass(in_mass) {}
+  const Grid &in_grid, const std::vector<double> &in_v, const int in_k,
+  const double in_en, const double in_alpha,
+  const std::vector<double> &V_off_diag, const DiracSpinor *const iVxFa,
+  const DiracSpinor *const iFa0, double izion, double in_mass)
+  : pgr(&in_grid),
+    v(&in_v),
+    Hmag(V_off_diag.empty() ? nullptr : &V_off_diag),
+    VxFa(iVxFa),
+    Fa0(iFa0),
+    zion(izion),
+    k(in_k),
+    en(in_en),
+    alpha(in_alpha),
+    cc(1.0 / in_alpha),
+    mass(in_mass) {}
 
 double DiracDerivative::a(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];

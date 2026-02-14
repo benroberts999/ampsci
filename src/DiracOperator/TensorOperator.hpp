@@ -26,7 +26,7 @@ struct IntM4x4
 //  (e10  e11)
 {
   IntM4x4(int in00, int in01, int in10, int in11)
-      : e00(in00), e01(in01), e10(in10), e11(in11) {}
+    : e00(in00), e01(in01), e10(in10), e11(in11) {}
 
   const int e00, e01, e10, e11;
 };
@@ -43,7 +43,7 @@ class SpinorMatrix
 public:
   // SpinorMatrix() = default;
   constexpr SpinorMatrix(double iff, double ifg, double igf, double igg)
-      : ff(iff), fg(ifg), gf(igf), gg(igg) {}
+    : ff(iff), fg(ifg), gf(igf), gg(igg) {}
   constexpr SpinorMatrix() {}
 
   constexpr SpinorMatrix &operator+=(const SpinorMatrix &rhs) {
@@ -112,13 +112,13 @@ protected:
   TensorOperator(int rank_k, Parity pi, double constant = 1.0,
                  const std::vector<double> &inv = {}, int diff_order = 0,
                  Realness RorI = Realness::real, bool freq_dep = false)
-      : m_rank(rank_k),
-        m_parity(pi),
-        m_diff_order(diff_order),
-        opC(RorI),
-        m_freqDependantQ(freq_dep),
-        m_constant(constant),
-        m_vec(inv) {};
+    : m_rank(rank_k),
+      m_parity(pi),
+      m_diff_order(diff_order),
+      opC(RorI),
+      m_freqDependantQ(freq_dep),
+      m_constant(constant),
+      m_vec(inv){};
 
 public:
   virtual ~TensorOperator() = default;
@@ -156,7 +156,7 @@ public:
   }
 
   //! Update frequency for frequency-dependant operators.
-  virtual void updateFrequency(const double) {};
+  virtual void updateFrequency(const double){};
 
   //! Permanently re-scales the operator by constant, lambda
   void scale(double lambda);
@@ -236,25 +236,25 @@ public:
                  const std::vector<double> &in_v = {},
                  const IntM4x4 &in_g = {1, 0, 0, 1}, int in_diff = 0,
                  Realness rori = Realness::real)
-      : TensorOperator(0, pi, in_coef, in_v, in_diff, rori),
-        c_ff(in_g.e00),
-        c_fg(in_g.e01),
-        c_gf(in_g.e10),
-        c_gg(in_g.e11) {}
+    : TensorOperator(0, pi, in_coef, in_v, in_diff, rori),
+      c_ff(in_g.e00),
+      c_fg(in_g.e01),
+      c_gf(in_g.e10),
+      c_gg(in_g.e11) {}
 
   ScalarOperator(const std::vector<double> &in_v)
-      : TensorOperator(0, Parity::even, 1.0, in_v, 0),
-        c_ff(1.0),
-        c_fg(0.0),
-        c_gf(0.0),
-        c_gg(1.0) {}
+    : TensorOperator(0, Parity::even, 1.0, in_v, 0),
+      c_ff(1.0),
+      c_fg(0.0),
+      c_gf(0.0),
+      c_gg(1.0) {}
 
   ScalarOperator(double in_coef, const std::vector<double> &in_v = {})
-      : TensorOperator(0, Parity::even, in_coef, in_v, 0),
-        c_ff(1.0),
-        c_fg(0.0),
-        c_gf(0.0),
-        c_gg(1.0) {}
+    : TensorOperator(0, Parity::even, in_coef, in_v, 0),
+      c_ff(1.0),
+      c_fg(0.0),
+      c_gf(0.0),
+      c_gg(1.0) {}
 
 public:
   virtual double angularF(const int ka, const int kb) const override {

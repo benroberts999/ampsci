@@ -10,7 +10,7 @@ for cxx in ${compilers_list[@]}; do
   if [ -x "$(command -v "$cxx")" ]; then
     echo $cxx
     # make clean
-    make Build=dev CXX=$cxx' -Werror' UseOpenMP=no
+    make Build=dev CXX=$cxx' -Werror' OMPLIB=
   fi
 done
 
@@ -18,7 +18,7 @@ for cxx in ${compilers_list_omp[@]}; do
   if [ -x "$(command -v "$cxx")" ]; then
     echo $cxx
     # make clean
-    make Build=dev CXX=$cxx' -Werror' UseOpenMP=yes
+    make Build=dev CXX=$cxx' -Werror' OMPLIB=-fopenmp
   fi
 done
 

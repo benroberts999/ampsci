@@ -47,8 +47,8 @@ private:
   static_assert(std::is_arithmetic_v<BaseT>,
                 "StrongType only available for arithmetic types");
   static_assert(
-      std::is_enum_v<decltype(enumV)>,
-      "StrongType must be instantiated with scoped enum (enum class)");
+    std::is_enum_v<decltype(enumV)>,
+    "StrongType must be instantiated with scoped enum (enum class)");
   using StrongT = StrongType<enumV, BaseT>; // type alias
 
 public:

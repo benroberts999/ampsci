@@ -30,7 +30,7 @@ void regularAtOrigin_C(DiracSpinor &FaR, DiracSpinor &FaI,
     FaI.en() = en.imag();
   }
   const auto pinf =
-      Internal::findPracticalInfinity(en.real(), v, gr.r(), Param::cALR);
+    Internal::findPracticalInfinity(en.real(), v, gr.r(), Param::cALR);
   Internal::CDiracDerivative Hd(gr, v, FaR.kappa(), en, alpha, H_mag);
 
   std::vector<std::complex<double>> f(gr.num_points()), g(gr.num_points());
@@ -63,7 +63,7 @@ void regularAtInfinity_C(DiracSpinor &FaR, DiracSpinor &FaI,
     FaI.en() = en.imag();
   }
   const auto pinf =
-      Internal::findPracticalInfinity(en.real(), v, gr.r(), Param::cALR);
+    Internal::findPracticalInfinity(en.real(), v, gr.r(), Param::cALR);
   Internal::CDiracDerivative Hd(gr, v, FaR.kappa(), en, alpha, H_mag);
 
   std::vector<std::complex<double>> f(gr.num_points()), g(gr.num_points());
@@ -116,7 +116,7 @@ void solve_Dirac_outwards_C(std::vector<std::complex<double>> &f,
   }
 
   AdamsMoulton::ODESolver2D<Param::K_Adams, std::size_t, std::complex<double>>
-      ode{du, &Hd};
+    ode{du, &Hd};
 
   ode.solve_initial_K(0, f0, g0);
   for (std::size_t i = 0; i < ode.K_steps(); ++i) {
@@ -159,7 +159,7 @@ void solve_Dirac_inwards_C(std::vector<std::complex<double>> &f,
 
   // XXX Perhaps this can be updated? Depends only weakly on energy I think
   const auto Rasym =
-      AsymptoticSpinor{ka, Zeff, en.real(), alpha, Param::nx_eps};
+    AsymptoticSpinor{ka, Zeff, en.real(), alpha, Param::nx_eps};
 
   // nb: can use AsymptoticWavefunction for more r values?
   for (std::size_t i0 = pinf - 1, i = 0; i < ode.K_steps(); ++i) {
@@ -197,13 +197,13 @@ CDiracDerivative::CDiracDerivative(const Grid &in_grid,
                                    const std::complex<double> in_en,
                                    const double in_alpha,
                                    const std::vector<double> &V_off_diag)
-    : pgr(&in_grid),
-      v(&in_v),
-      Hmag(V_off_diag.empty() ? nullptr : &V_off_diag),
-      k(in_k),
-      en(in_en),
-      alpha(in_alpha),
-      cc(1.0 / in_alpha) {}
+  : pgr(&in_grid),
+    v(&in_v),
+    Hmag(V_off_diag.empty() ? nullptr : &V_off_diag),
+    k(in_k),
+    en(in_en),
+    alpha(in_alpha),
+    cc(1.0 / in_alpha) {}
 
 std::complex<double> CDiracDerivative::a(std::size_t i) const {
   const auto h_mag = (Hmag == nullptr) ? 0.0 : (*Hmag)[i];

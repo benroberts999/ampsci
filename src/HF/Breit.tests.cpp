@@ -31,7 +31,7 @@ TEST_CASE("Breit (local)", "[Breit][unit]") {
   // energies:
   // expected generated with 10,000 pts
   const auto expected =
-      std::vector{1.446617548413e-04, 9.357310567545e-05, 6.905846245113e-05};
+    std::vector{1.446617548413e-04, 9.357310567545e-05, 6.905846245113e-05};
   std::size_t count = 0;
   for (const auto &Fv : wf.valence()) {
     auto de = Fv * Vb.VbrFa(Fv, wf.core());
@@ -51,7 +51,7 @@ TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
   std::cout << "Breit: Bk formulas\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
-      GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
   const double zeff = 1.0;
   const int lmax = 6;
 
@@ -120,7 +120,7 @@ TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
             }
 
             const auto [k3, k4] =
-                HF::Breit::k_minmax_tj(a.twoj(), b.twoj(), c.twoj(), d.twoj());
+              HF::Breit::k_minmax_tj(a.twoj(), b.twoj(), c.twoj(), d.twoj());
             REQUIRE((k1 == k3 && k2 == k4));
 
             const auto b6 = Br.Bk_abcd(k, c, b, a, d);
@@ -226,7 +226,7 @@ TEST_CASE("Breit (HF)", "[Breit][integration]") {
   const HF::Breit Vb(1.0);
 
   const auto expected_B1 = std::vector{
-      std::pair{"4s", 1.880e-4}, {"4p-", 7.015e-5}, {"4p+", 5.140e-5}};
+    std::pair{"4s", 1.880e-4}, {"4p-", 7.015e-5}, {"4p+", 5.140e-5}};
 
   std::cout << "\nBreit correction to Cu:\n"
                "cf Table 8.6 of Atomic Structure Theory, W. R. Johnson\n";
@@ -385,7 +385,7 @@ TEST_CASE("Breit", "[Breit][integration]") {
     std::sort(begin(e1_VD_RPA), end(e1_VD_RPA), sort_by_first);
 
     std::cout
-        << "\nBreit corrections to E1 matrix elements, cf expected (Dzuba)\n";
+      << "\nBreit corrections to E1 matrix elements, cf expected (Dzuba)\n";
 
     // Solve TDHF with Breit (for RPA)
     const auto h{DiracOperator::E1(wf.grid())};
@@ -426,13 +426,13 @@ TEST_CASE("Breit", "[Breit][integration]") {
       std::cout << e1_me_HF[i].first << ": ";
 
       const auto eps =
-          std::min(std::abs((e1_me_RPA[i].second - e1_VD_RPA[i].second) /
-                            e1_VD_RPA[i].second),
-                   std::abs(e1_me_RPA[i].second - e1_VD_RPA[i].second));
+        std::min(std::abs((e1_me_RPA[i].second - e1_VD_RPA[i].second) /
+                          e1_VD_RPA[i].second),
+                 std::abs(e1_me_RPA[i].second - e1_VD_RPA[i].second));
       const auto eps0 =
-          std::min(std::abs((e1_me_HF[i].second - e1_VD_HF[i].second) /
-                            e1_VD_HF[i].second),
-                   std::abs(e1_me_HF[i].second - e1_VD_HF[i].second));
+        std::min(std::abs((e1_me_HF[i].second - e1_VD_HF[i].second) /
+                          e1_VD_HF[i].second),
+                 std::abs(e1_me_HF[i].second - e1_VD_HF[i].second));
 
       printf("%9.6f [%9.6f] ; %9.6f [%9.6f] : %.1e\n", e1_me_HF[i].second,
              e1_VD_HF[i].second, e1_me_RPA[i].second, e1_VD_RPA[i].second,
@@ -463,8 +463,8 @@ TEST_CASE("Breit", "[Breit][integration]") {
     // Breit corrections to energies (at HF and Sigma(2)), cf. Derevianko [in
     // cm]
     const auto de0 =
-        datav{{"6s+", 3.2}, {"7s+", 1.1}, {"6p-", 7.5},   {"7p-", 2.7},
-              {"6p+", 2.9}, {"7p+", 1.0}, {"5d-", -10.2}, {"5d+", -11.8}};
+      datav{{"6s+", 3.2}, {"7s+", 1.1}, {"6p-", 7.5},   {"7p-", 2.7},
+            {"6p+", 2.9}, {"7p+", 1.0}, {"5d-", -10.2}, {"5d+", -11.8}};
     const auto de2 = datav{{"6s+", -2.6}, /*{"7s+", -0.26},*/ {"6p-", 7.1},
                            {"7p-", 2.5},  {"6p+", 0.84},
                            {"7p+", 0.38}, {"5d-", -22.0},
@@ -473,10 +473,10 @@ TEST_CASE("Breit", "[Breit][integration]") {
     // My values (as a regression test, and Derevianko not necisarily
     // better..) nb: if this one fails, not neccisarily an issue, BUT should
     // be checked!
-    const auto de2_me = datav{{"6s+", -2.878612320},  {"7s+", 0.085538550},
-                              {"6p-", 7.305198685},   {"7p-", 2.571275498},
-                              {"6p+", 0.571894669},   {"7p+", 0.434694080},
-                              {"5d-", -25.752413108}, {"5d+", -30.679223816}};
+    const auto de2_me =
+      datav{{"6s+", -2.878612320},  {"7s+", 0.085538550},  {"6p-", 7.305198685},
+            {"7p-", 2.571275498},   {"6p+", 0.571894669},  {"7p+", 0.434694080},
+            {"5d-", -25.752413108}, {"5d+", -30.679223816}};
 
     // First, compare the HF energies
     std::cout << "\nBreit corrections to HF energies \ncf. "
@@ -651,7 +651,7 @@ TEST_CASE("Breit: RPA Corrections",
       // Express Breit corrections as percentage, relative to HF0 value
       const auto Breit_hf = 100.0 * (hab_B - hab_0) / hab_0;
       const auto Breit_tfhf =
-          (h->name() == "hfs1") ? 0.0 : 100.0 * (TDHF_ab_B - TDHF_ab_0) / hab_0;
+        (h->name() == "hfs1") ? 0.0 : 100.0 * (TDHF_ab_B - TDHF_ab_0) / hab_0;
       const auto Breit_rpad = 100.0 * (RPAD_ab_B - RPAD_ab_0) / hab_0;
       const auto Breit_rpab = 100.0 * (RPAB_ab_B - RPAB_ab_0) / hab_0;
 
@@ -820,7 +820,7 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
       const auto eps_target = h->name() == "E1" ? 1.0e-2 : 999.0;
 
       std::cout
-          << "\nSolve RPA; using diagram/TDHF method, with/without Breit:\n";
+        << "\nSolve RPA; using diagram/TDHF method, with/without Breit:\n";
       std::cout << "For " << h->name() << ", omega = " << omega << "\n";
 
       // RPA, using diagram method:
@@ -842,7 +842,7 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
       std::cout << "\nRelative Breit corrections to " << h->name()
                 << " matrix elements\n";
       std::cout
-          << "          HF            RPA(D)     TDHF          delta  eps\n";
+        << "          HF            RPA(D)     TDHF          delta  eps\n";
 
       // bool passed = true;
       for (const auto &a0 : wf0.valence()) {

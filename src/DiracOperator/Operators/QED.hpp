@@ -16,7 +16,7 @@ namespace DiracOperator {
 class Vrad final : public ScalarOperator {
 public:
   Vrad(QED::RadPot rad_pot)
-      : ScalarOperator(Parity::even, 1.0), m_Vrad(std::move(rad_pot)) {}
+    : ScalarOperator(Parity::even, 1.0), m_Vrad(std::move(rad_pot)) {}
   std::string name() const override final { return "Vrad"; }
   std::string units() const override final { return "au"; }
 
@@ -49,17 +49,17 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_Vrad(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check(
-      {{{"Ueh", "  Uehling (vacuum pol). [1.0]"},
-        {"SE_h", "  self-energy high-freq electric. [1.0]"},
-        {"SE_l", "  self-energy low-freq electric. [1.0]"},
-        {"SE_m", "  self-energy magnetic. [1.0]"},
-        {"WK", "  Wickman-Kroll. [0.0]"},
-        {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
-        {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
-                     "typical [1.0]"},
-        {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
-                    "1,0,1 => include for s and d, but not for p [1.0]"},
-        {"readwrite", "Read/write potential? [true]"}}});
+    {{{"Ueh", "  Uehling (vacuum pol). [1.0]"},
+      {"SE_h", "  self-energy high-freq electric. [1.0]"},
+      {"SE_l", "  self-energy low-freq electric. [1.0]"},
+      {"SE_m", "  self-energy magnetic. [1.0]"},
+      {"WK", "  Wickman-Kroll. [0.0]"},
+      {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
+      {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
+                   "typical [1.0]"},
+      {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
+                  "1,0,1 => include for s and d, but not for p [1.0]"},
+      {"readwrite", "Read/write potential? [true]"}}});
   if (input.has_option("help")) {
     return nullptr;
   }
@@ -75,11 +75,11 @@ generate_Vrad(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto readwrite = input.get("readwrite", true);
 
   const auto r_N_au =
-      std::sqrt(5.0 / 3.0) * scale_rN * wf.nucleus().r_rms() / PhysConst::aB_fm;
+    std::sqrt(5.0 / 3.0) * scale_rN * wf.nucleus().r_rms() / PhysConst::aB_fm;
 
   auto qed = QED::RadPot(wf.grid().r(), wf.Znuc(), r_N_au, rcut,
                          {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, x_spd, true,
-                         readwrite);
+                         readwrite, wf.run_label());
 
   return std::make_unique<Vrad>(std::move(qed));
 }
@@ -105,12 +105,12 @@ class VertexQED final : public TensorOperator {
 public: // constructor
   VertexQED(const TensorOperator *const h0, const Grid &rgrid, double a = 1.0,
             double b = 1.0)
-      : TensorOperator(
-            h0->rank(), h0->parity() == 1 ? Parity::even : Parity::odd,
-            h0->getc(), vertex_func(rgrid, a, b, h0->getv()), h0->get_d_order(),
-            h0->imaginaryQ() ? Realness::imaginary : Realness::real,
-            h0->freqDependantQ()),
-        m_h0(h0) {}
+    : TensorOperator(h0->rank(), h0->parity() == 1 ? Parity::even : Parity::odd,
+                     h0->getc(), vertex_func(rgrid, a, b, h0->getv()),
+                     h0->get_d_order(),
+                     h0->imaginaryQ() ? Realness::imaginary : Realness::real,
+                     h0->freqDependantQ()),
+      m_h0(h0) {}
 
   std::string name() const override final {
     return m_h0->name() + "_vertexQED";
@@ -176,12 +176,12 @@ class MLVP final : public TensorOperator {
 public:
   //! rN is nuclear (charge) radius, in atomic units
   MLVP(const DiracOperator::hfs *const h0, const Grid &rgrid, double rN)
-      : TensorOperator(
-            h0->rank(), h0->parity() == 1 ? Parity::even : Parity::odd,
-            h0->getc(), MLVP_func(rgrid, rN, h0->getv()), h0->get_d_order(),
-            h0->imaginaryQ() ? Realness::imaginary : Realness::real,
-            h0->freqDependantQ()),
-        m_h0(*h0) {}
+    : TensorOperator(h0->rank(), h0->parity() == 1 ? Parity::even : Parity::odd,
+                     h0->getc(), MLVP_func(rgrid, rN, h0->getv()),
+                     h0->get_d_order(),
+                     h0->imaginaryQ() ? Realness::imaginary : Realness::real,
+                     h0->freqDependantQ()),
+      m_h0(*h0) {}
 
   std::string name() const override final { return "MLVP"; }
   std::string units() const override final { return m_h0.units(); }
@@ -234,12 +234,12 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_MLVP(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check(
-      {{"rN",
-        "Nuclear radius (in fm), for finite-nuclear size "
-        "correction to Uehling loop. If not given, taken from wavefunction."},
-       {"hfs_options{}",
-        "Options for hyperfine operator that sits inside the MLVP operator. "
-        " [see `ampsci -o hfs`]."}});
+    {{"rN",
+      "Nuclear radius (in fm), for finite-nuclear size "
+      "correction to Uehling loop. If not given, taken from wavefunction."},
+     {"hfs_options{}",
+      "Options for hyperfine operator that sits inside the MLVP operator. "
+      " [see `ampsci -o hfs`]."}});
   if (input.has_option("help")) {
     return nullptr;
   }
@@ -250,7 +250,7 @@ generate_MLVP(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // 2. MLVP
   const auto rN_fm =
-      input.get("rN", std::sqrt(5.0 / 3.0) * wf.nucleus().r_rms());
+    input.get("rN", std::sqrt(5.0 / 3.0) * wf.nucleus().r_rms());
 
   if (oper_options.get("print", true)) {
     std::cout << "\nGenerate MLVP operator for hfs, with parameters:\n";

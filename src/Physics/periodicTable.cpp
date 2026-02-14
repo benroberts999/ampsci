@@ -16,12 +16,12 @@ namespace AtomData {
 
 void instructions() {
   std::cout
-      << "Usage example:\n"
-         "Cs         Info for Cs with default A\n"
-         "55         Same as above\n"
-         "Cs 137     Info for Cs-137\n"
-         "Cs all     Info for all available Cs isotopes\n"
-         "(Note: numbers come from online database, and should be checked)\n";
+    << "Usage example:\n"
+       "Cs         Info for Cs with default A\n"
+       "55         Same as above\n"
+       "Cs 137     Info for Cs-137\n"
+       "Cs all     Info for all available Cs isotopes\n"
+       "(Note: numbers come from online database, and should be checked)\n";
 }
 
 void printData(const Nuclear::Isotope &nuc) {

@@ -18,7 +18,7 @@ constexpr double Energy_invcm_to_au = 1.0 / PhysConst::Hartree_invcm;
 
 //! momentum: au -> MeV: [hbar*q] = [hbar/a0] = (m_e*c*alpha) = E_H/c*alpha
 constexpr double Momentum_au_to_MeV =
-    PhysConst::Hartree_eV / PhysConst::alpha / 1.0e6;
+  PhysConst::Hartree_eV / PhysConst::alpha / 1.0e6;
 //! momentum: MeV -> au
 constexpr double Momentum_MeV_to_au = 1.0 / Momentum_au_to_MeV;
 
@@ -40,10 +40,10 @@ constexpr double Mass_MeV_to_au = 1.0 / Mass_au_to_MeV;
 constexpr double Velocity_au_to_kms = (PhysConst::c_SI / PhysConst::c) / 1.0e3;
 //! velocity: au -> cm/s
 constexpr double Velocity_au_to_cms =
-    (PhysConst::c_SI / PhysConst::alpha) * 100.;
+  (PhysConst::c_SI / PhysConst::alpha) * 100.;
 //! velocity: cm/s -> cm/day
 constexpr double Velocity_au_to_cmday =
-    Velocity_au_to_cms * (24.0 * 60.0 * 60.0);
+  Velocity_au_to_cms * (24.0 * 60.0 * 60.0);
 
 //! atomic mass: daltons -> kg
 constexpr double AtomicMass_u_to_kg = PhysConst::u_NMU * PhysConst::m_e_kg;

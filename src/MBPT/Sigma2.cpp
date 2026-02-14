@@ -25,8 +25,8 @@ split_basis(const std::vector<DiracSpinor> &basis, double E_Fermi,
 //==============================================================================
 double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited) {
   const auto v_bar = std::find_if(
-      excited.cbegin(), excited.cend(),
-      [kappa_v](const DiracSpinor &n) { return n.kappa() == kappa_v; });
+    excited.cbegin(), excited.cend(),
+    [kappa_v](const DiracSpinor &n) { return n.kappa() == kappa_v; });
   assert(v_bar != excited.cend());
   return v_bar->en();
 }
@@ -98,14 +98,11 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
 //==============================================================================
 //==============================================================================
 //==============================================================================
-double InternalSigma::S_Sigma2_ab(int k, const DiracSpinor &v,
-                                  const DiracSpinor &w, const DiracSpinor &x,
-                                  const DiracSpinor &y,
-                                  const Coulomb::QkTable &qk,
-                                  const std::vector<DiracSpinor> &core,
-                                  const std::vector<DiracSpinor> &excited,
-                                  const Angular::SixJTable &SixJ,
-                                  Denominators denominators) {
+double InternalSigma::S_Sigma2_ab(
+  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
+  const DiracSpinor &y, const Coulomb::QkTable &qk,
+  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
+  const Angular::SixJTable &SixJ, Denominators denominators) {
 
   // overall selectrion rule tested outside
 
@@ -124,9 +121,9 @@ double InternalSigma::S_Sigma2_ab(int k, const DiracSpinor &v,
 
   // const auto de_xv = x.en() - v.en();
   const auto de_xv = denominators == Denominators::BW ?
-                         0.0 :
-                         //  0.5 * (x0 - v0 + y0 - w0) :
-                         0.5 * (x.en() - v.en() + y.en() - w.en());
+                       0.0 :
+                       //  0.5 * (x0 - v0 + y0 - w0) :
+                       0.5 * (x.en() - v.en() + y.en() - w.en());
 
   double sum = 0.0;
   for (const auto &a : core) {
@@ -160,20 +157,17 @@ double InternalSigma::S_Sigma2_ab(int k, const DiracSpinor &v,
 }
 
 //==============================================================================
-double InternalSigma::S_Sigma2_c1(int k, const DiracSpinor &v,
-                                  const DiracSpinor &w, const DiracSpinor &x,
-                                  const DiracSpinor &y,
-                                  const Coulomb::QkTable &qk,
-                                  const std::vector<DiracSpinor> &core,
-                                  const std::vector<DiracSpinor> &excited,
-                                  const Angular::SixJTable &SixJ,
-                                  Denominators denominators) {
+double InternalSigma::S_Sigma2_c1(
+  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
+  const DiracSpinor &y, const Coulomb::QkTable &qk,
+  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
+  const Angular::SixJTable &SixJ, Denominators denominators) {
 
   // overall selectrion rule tested outside
 
   const auto f =
-      Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
-      (2.0 * k + 1.0);
+    Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
+    (2.0 * k + 1.0);
 
   // const auto v0 = e_bar(v.kappa(), excited);
   // const auto w0 = e_bar(w.kappa(), excited);
@@ -182,9 +176,9 @@ double InternalSigma::S_Sigma2_c1(int k, const DiracSpinor &v,
 
   // const auto de_yv = y.en() - v.en();
   const auto de_yv = denominators == Denominators::BW ?
-                         //  0.5 * (y0 - v0 + x0 - w0) :
-                         0.0 :
-                         0.5 * (y.en() - v.en() + x.en() - w.en());
+                       //  0.5 * (y0 - v0 + x0 - w0) :
+                       0.0 :
+                       0.5 * (y.en() - v.en() + x.en() - w.en());
 
   double sum = 0.0;
   for (const auto &a : core) {
@@ -222,14 +216,11 @@ double InternalSigma::S_Sigma2_c1(int k, const DiracSpinor &v,
 }
 
 //==============================================================================
-double InternalSigma::S_Sigma2_c2(int k, const DiracSpinor &v,
-                                  const DiracSpinor &w, const DiracSpinor &x,
-                                  const DiracSpinor &y,
-                                  const Coulomb::QkTable &qk,
-                                  const std::vector<DiracSpinor> &core,
-                                  const std::vector<DiracSpinor> &excited,
-                                  const Angular::SixJTable &SixJ,
-                                  Denominators denominators) {
+double InternalSigma::S_Sigma2_c2(
+  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
+  const DiracSpinor &y, const Coulomb::QkTable &qk,
+  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
+  const Angular::SixJTable &SixJ, Denominators denominators) {
 
   // overall selectrion rule tested outside
 
@@ -239,13 +230,13 @@ double InternalSigma::S_Sigma2_c2(int k, const DiracSpinor &v,
   // const auto y0 = e_bar(y.kappa(), excited);
 
   const auto f =
-      Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
-      (2.0 * k + 1.0);
+    Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
+    (2.0 * k + 1.0);
 
   const auto de_yv = denominators == Denominators::BW ?
-                         0.0 :
-                         //  0.5 * (x0 - w0 + y0 - v0) :
-                         0.5 * (x.en() - w.en() + y.en() - v.en());
+                       0.0 :
+                       //  0.5 * (x0 - w0 + y0 - v0) :
+                       0.5 * (x.en() - w.en() + y.en() - v.en());
 
   double sum = 0.0;
   for (const auto &a : core) {
@@ -284,14 +275,11 @@ double InternalSigma::S_Sigma2_c2(int k, const DiracSpinor &v,
 }
 
 //==============================================================================
-double InternalSigma::S_Sigma2_d(int k, const DiracSpinor &v,
-                                 const DiracSpinor &w, const DiracSpinor &x,
-                                 const DiracSpinor &y,
-                                 const Coulomb::QkTable &qk,
-                                 const std::vector<DiracSpinor> &core,
-                                 const std::vector<DiracSpinor> &excited,
-                                 const Angular::SixJTable &SixJ,
-                                 Denominators denominators) {
+double InternalSigma::S_Sigma2_d(
+  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
+  const DiracSpinor &y, const Coulomb::QkTable &qk,
+  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
+  const Angular::SixJTable &SixJ, Denominators denominators) {
 
   const auto f = Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj()) *
                  (2.0 * k + 1.0);
@@ -303,8 +291,8 @@ double InternalSigma::S_Sigma2_d(int k, const DiracSpinor &v,
 
   // symmetrised..
   const auto de_vw = denominators == Denominators::BW ?
-                         -0.5 * (vbar + wbar + xbar + ybar) :
-                         -0.5 * (v.en() + w.en() + x.en() + y.en());
+                       -0.5 * (vbar + wbar + xbar + ybar) :
+                       -0.5 * (v.en() + w.en() + x.en() + y.en());
 
   double sum = 0.0;
   for (const auto &a : core) {

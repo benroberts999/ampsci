@@ -50,13 +50,13 @@ TEST_CASE("qip::Methods", "[qip][Methods][unit]") {
     REQUIRE(error < 2.0 * dx0);
 
     const auto [x01, dx01] = qip::Newtons(
-        y_x3, initial_guess, {initial_guess + 100.0, initial_guess + 200.0},
-        delta_target);
+      y_x3, initial_guess, {initial_guess + 100.0, initial_guess + 200.0},
+      delta_target);
     REQUIRE(x01 == Approx(initial_guess + 100.0));
 
     const auto [x02, dx02] = qip::Newtons(
-        y_x3, initial_guess, {initial_guess - 200.0, initial_guess - 100.0},
-        delta_target);
+      y_x3, initial_guess, {initial_guess - 200.0, initial_guess - 100.0},
+      delta_target);
     REQUIRE(x02 == Approx(initial_guess - 100.0));
 
     {

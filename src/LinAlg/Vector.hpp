@@ -20,7 +20,7 @@ public:
 
   //! Initialise from std::vector using move()
   Vector(std::vector<T> &&v)
-      : Matrix<T>(v.size(), 1, std::forward<std::vector<T>>(v)) {}
+    : Matrix<T>(v.size(), 1, std::forward<std::vector<T>>(v)) {}
 
   //! Initialise from std::vector by copy
   Vector(const std::vector<T> &v) : Matrix<T>(v.size(), 1, v) {}

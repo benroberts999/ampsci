@@ -65,12 +65,12 @@ Nucleus::Nucleus(int tz, int ta, const std::string &str_type, double trrms,
                  double tt, double in_beta,
                  const std::vector<double> &in_params,
                  const std::string &custom_pot_file_name)
-    : m_iso(findIsotopeData(tz, ta < 0 ? AtomData::defaultA(tz) : ta)),
-      m_type(parseType(str_type)),
-      m_t(tt),
-      m_beta(in_beta),
-      m_custom_pot_file_name(custom_pot_file_name),
-      m_params(in_params) {
+  : m_iso(findIsotopeData(tz, ta < 0 ? AtomData::defaultA(tz) : ta)),
+    m_type(parseType(str_type)),
+    m_t(tt),
+    m_beta(in_beta),
+    m_custom_pot_file_name(custom_pot_file_name),
+    m_params(in_params) {
 
   if (m_type != ChargeDistro::Fermi)
     m_t = 0.0;
@@ -98,8 +98,8 @@ Nucleus::Nucleus(const std::string &z_str, int in_a,
                  const std::string &str_type, double in_rrms, double in_t,
                  double in_beta, const std::vector<double> &in_params,
                  const std::string &custom_pot_file_name)
-    : Nucleus(AtomData::atomic_Z(z_str), in_a, str_type, in_rrms, in_t, in_beta,
-              in_params, custom_pot_file_name) {}
+  : Nucleus(AtomData::atomic_Z(z_str), in_a, str_type, in_rrms, in_t, in_beta,
+            in_params, custom_pot_file_name) {}
 
 //==============================================================================
 std::ostream &operator<<(std::ostream &ostr, const Nucleus &n) {
@@ -155,26 +155,26 @@ Nucleus form_nucleus(int Z, std::optional<int> tA, IO::InputBlock input) {
   // Nucleus: Get + setup nuclear parameters
 
   input.check(
-      {{"", "Options for nuclear potential (finite nuclear size). All "
-            "are optional. Default is a Fermi-like nucleus, with "
-            "parameters chosen according to isotope (see Atom{A;})"},
-       {"rrms", "Root-mean-square charge radius, in fm. If not given, will use "
-                "default for given Z and A."},
-       {"c", "Half-density radius, in fm. ( If c and rrms are defined, c will "
-             "over-ride rms). Default depends on Z and A."},
-       {"type", "Fermi, spherical, point-like, Gaussian [Fermi], custom"},
-       {"t", "Nuclear skin thickness, in fm [2.3]"},
-       {"beta", "Intrinsic nuclear quadrupole deformation parameter \u03b2 "
-                "(Currently only for Fermi potential) [0.0]"},
-       {"input_file", "Read potential from given file of the form (r v(r)) "
-                      "(space delimetered, in atomic units) - will be "
-                      "interpolated onto atomic grid. Note: potential will be "
-                      "extrapolated to larger R, assuming ~1/R, but "
-                      "will NOT be extrapolated to smaller R. So, ensure "
-                      "smallest required {r V(r)} is given"},
-       {"parameters",
-        "List of comma separated real numbers. Not currently unused, but may "
-        "be used in future for more complicated nuclear distros."}});
+    {{"", "Options for nuclear potential (finite nuclear size). All "
+          "are optional. Default is a Fermi-like nucleus, with "
+          "parameters chosen according to isotope (see Atom{A;})"},
+     {"rrms", "Root-mean-square charge radius, in fm. If not given, will use "
+              "default for given Z and A."},
+     {"c", "Half-density radius, in fm. ( If c and rrms are defined, c will "
+           "over-ride rms). Default depends on Z and A."},
+     {"type", "Fermi, spherical, point-like, Gaussian [Fermi], custom"},
+     {"t", "Nuclear skin thickness, in fm [2.3]"},
+     {"beta", "Intrinsic nuclear quadrupole deformation parameter \u03b2 "
+              "(Currently only for Fermi potential) [0.0]"},
+     {"input_file", "Read potential from given file of the form (r v(r)) "
+                    "(space delimetered, in atomic units) - will be "
+                    "interpolated onto atomic grid. Note: potential will be "
+                    "extrapolated to larger R, assuming ~1/R, but "
+                    "will NOT be extrapolated to smaller R. So, ensure "
+                    "smallest required {r V(r)} is given"},
+     {"parameters",
+      "List of comma separated real numbers. Not currently unused, but may "
+      "be used in future for more complicated nuclear distros."}});
 
   using namespace std::string_literals;
   // Set nuclear type if given
@@ -243,7 +243,7 @@ std::vector<double> sphericalNuclearPotential(double Z, double rnuc,
   const double rn3 = rn2 * rN;
   for (auto r : rgrid) {
     const double temp_v =
-        (r < rN) ? Z * (r * r - 3.0 * rn2) / (2.0 * rn3) : -Z / r;
+      (r < rN) ? Z * (r * r - 3.0 * rn2) / (2.0 * rn3) : -Z / r;
     vnuc.push_back(temp_v);
   }
 
@@ -341,9 +341,8 @@ std::vector<double> fermiNuclearDensity_tcN(double t, double c, double Z_norm,
 
   // Find rho0, normalisation constant + re-scale (normalise rho)
   const double volume_integral =
-      NumCalc::integrate(grid.du(), 0, 0, grid.r(), grid.r(), rho,
-                         grid.drdu()) *
-      4.0 * M_PI;
+    NumCalc::integrate(grid.du(), 0, 0, grid.r(), grid.r(), rho, grid.drdu()) *
+    4.0 * M_PI;
 
   const double rho0 = Z_norm / volume_integral;
 
@@ -363,14 +362,14 @@ std::vector<double> formPotential(const Nucleus &nuc,
   // const auto params = nuc.params(); // not used as yet
 
   const auto nucleus_type =
-      r_rms > 0.0 ? nuc.type() : Nuclear::ChargeDistro::point;
+    r_rms > 0.0 ? nuc.type() : Nuclear::ChargeDistro::point;
 
   switch (nucleus_type) {
 
   case Nuclear::ChargeDistro::Fermi: {
     const auto chdr = Nuclear::c_hdr_formula_rrms_t(r_rms, t);
     const auto t_eff =
-        (nuc.beta() != 0.0) ? deformation_effective_t(chdr, t, nuc.beta()) : t;
+      (nuc.beta() != 0.0) ? deformation_effective_t(chdr, t, nuc.beta()) : t;
     return Nuclear::fermiNuclearPotential(z, t_eff, chdr, r);
   }
 

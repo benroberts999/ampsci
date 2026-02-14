@@ -23,14 +23,14 @@ static_assert(sizeof(nkIndex) == sizeof(DiracSpinor::Index));
 //! Function type for calculating Coulomb(-like) integrals.
 //! Takes k and 4 DiracSpinors, returns a double
 using CoulombFunction =
-    std::function<double(int, const DiracSpinor &a, const DiracSpinor &b,
-                         const DiracSpinor &c, const DiracSpinor &d)>;
+  std::function<double(int, const DiracSpinor &a, const DiracSpinor &b,
+                       const DiracSpinor &c, const DiracSpinor &d)>;
 
 //! Function type for determining Coulomb(-like) integral selection rules.
 //! Takes k and 4 DiracSpinors, returns a true if integral is allowed.
 using SelectionRules =
-    std::function<bool(int, const DiracSpinor &a, const DiracSpinor &b,
-                       const DiracSpinor &c, const DiracSpinor &d)>;
+  std::function<bool(int, const DiracSpinor &a, const DiracSpinor &b,
+                     const DiracSpinor &c, const DiracSpinor &d)>;
 
 //==============================================================================
 /*!

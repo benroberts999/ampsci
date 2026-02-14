@@ -80,7 +80,7 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
   const auto bmax = std::min({Fa.max_pt(), Fb.max_pt(), num_points});
   // nb bmax may be num_points
   const auto rbmax =
-      bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
+    bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
   Bx = Bx * powk(r[bmax - 1] / rbmax) + ff(bmax - 1);
   vabk[bmax - 1] += Bx * du;
   for (auto i = bmax - 1; i >= 1; --i) {
@@ -166,7 +166,7 @@ static inline void yk_ijk_gen_impl(const int l, const Function &ff,
     vi[i] = 0.0;
   }
   const auto rbmax =
-      bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
+    bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
   Bx = Bx * powk(r[bmax - 1] / rbmax) + ff(bmax - 1);
   vi[bmax - 1] += Bx * du;
   for (auto i = bmax - 1; i >= 1; --i) {
@@ -310,9 +310,9 @@ double Rk_abcd(const DiracSpinor &Fa, const DiracSpinor &Fc,
   const auto i0 = std::max(Fa.min_pt(), Fc.min_pt());
   const auto imax = std::min(Fa.max_pt(), Fc.max_pt());
   const auto Rff =
-      NumCalc::integrate(1.0, i0, imax, Fa.f(), Fc.f(), yk_bd, drdu);
+    NumCalc::integrate(1.0, i0, imax, Fa.f(), Fc.f(), yk_bd, drdu);
   const auto Rgg =
-      NumCalc::integrate(1.0, i0, imax, Fa.g(), Fc.g(), yk_bd, drdu);
+    NumCalc::integrate(1.0, i0, imax, Fa.g(), Fc.g(), yk_bd, drdu);
   return (Rff + Rgg) * Fa.grid().du();
 }
 
@@ -430,8 +430,8 @@ double Pk_abcd(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   // W^k_abcd = Q^k_abcd + sum_l [k] 6j * Q^l_abdc
 
   const auto tkp1 = 2 * k + 1;
-  const auto min_twol = std::max(std::abs(Fd.twoj() - Fa.twoj()),
-                                 std::abs(Fc.twoj() - Fb.twoj()));
+  const auto min_twol =
+    std::max(std::abs(Fd.twoj() - Fa.twoj()), std::abs(Fc.twoj() - Fb.twoj()));
   const auto max_twol = std::min(Fd.twoj() + Fa.twoj(), Fc.twoj() + Fb.twoj());
   double sum = 0.0;
   for (int tl = min_twol; tl <= max_twol; tl += 2) {
@@ -453,14 +453,14 @@ DiracSpinor Pkv_bcd(const int k, int kappa_a, const DiracSpinor &Fb,
   const auto tkp1 = 2 * k + 1;
   const auto tja = Angular::twoj_k(kappa_a);
   const auto min_twol =
-      std::max(std::abs(Fd.twoj() - tja), std::abs(Fc.twoj() - Fb.twoj()));
+    std::max(std::abs(Fd.twoj() - tja), std::abs(Fc.twoj() - Fb.twoj()));
   const auto max_twol = std::min(Fd.twoj() + tja, Fc.twoj() + Fb.twoj());
   for (int tl = min_twol; tl <= max_twol; tl += 2) {
     if (!Angular::Ck_kk_SR(tl / 2, Fb.kappa(), Fc.kappa()) ||
         !Angular::Ck_kk_SR(tl / 2, kappa_a, Fd.kappa()))
       continue;
     const auto sixj =
-        Angular::sixj_2(Fc.twoj(), tja, 2 * k, Fd.twoj(), Fb.twoj(), tl);
+      Angular::sixj_2(Fc.twoj(), tja, 2 * k, Fd.twoj(), Fb.twoj(), tl);
     if (sixj == 0)
       continue;
     out += sixj * Qkv_bcd(tl / 2, kappa_a, Fb, Fd, Fc);
@@ -504,9 +504,9 @@ double g_abcd(const DiracSpinor &a, const DiracSpinor &b, const DiracSpinor &c,
     if (std::abs(twoq) > 2 * k)
       continue;
     const auto A =
-        Angular::neg1pow_2(twoq) *
-        Angular::Ck_kk_mmq(k, a.kappa(), c.kappa(), tma, tmc, -twoq) *
-        Angular::Ck_kk_mmq(k, b.kappa(), d.kappa(), tmb, tmd, twoq);
+      Angular::neg1pow_2(twoq) *
+      Angular::Ck_kk_mmq(k, a.kappa(), c.kappa(), tma, tmc, -twoq) *
+      Angular::Ck_kk_mmq(k, b.kappa(), d.kappa(), tmb, tmd, twoq);
     if (A != 0.0) {
       g += A * Rk_abcd(k, a, b, c, d);
     }

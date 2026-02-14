@@ -56,11 +56,11 @@ TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
 
   // list in form: {kappa_index, kappa, l, 2j}
   const std::vector<std::tuple<int, int, int, int>> test_data{
-      {0, -1, 0, 1},   {1, 1, 1, 1},   {2, -2, 1, 3},   {3, 2, 2, 3},
-      {4, -3, 2, 5},   {5, 3, 3, 5},   {6, -4, 3, 7},   {7, 4, 4, 7},
-      {8, -5, 4, 9},   {9, 5, 5, 9},   {10, -6, 5, 11}, {11, 6, 6, 11},
-      {12, -7, 6, 13}, {13, 7, 7, 13}, {14, -8, 7, 15}, {15, 8, 8, 15},
-      {16, -9, 8, 17}, {17, 9, 9, 17}};
+    {0, -1, 0, 1},   {1, 1, 1, 1},   {2, -2, 1, 3},   {3, 2, 2, 3},
+    {4, -3, 2, 5},   {5, 3, 3, 5},   {6, -4, 3, 7},   {7, 4, 4, 7},
+    {8, -5, 4, 9},   {9, 5, 5, 9},   {10, -6, 5, 11}, {11, 6, 6, 11},
+    {12, -7, 6, 13}, {13, 7, 7, 13}, {14, -8, 7, 15}, {15, 8, 8, 15},
+    {16, -9, 8, 17}, {17, 9, 9, 17}};
 
   for (const auto &[ki, k, l, tj] : test_data) {
     REQUIRE(Angular::l_k(k) == l);
@@ -348,9 +348,9 @@ double UnitTest::ck_compare_direct(const Angular::CkTable &Ck,
 
         const auto tc1 = Ck.get_tildeCkab(k, ka, kb);
         const auto tc2 =
-            Angular::parity(Angular::l_k(ka), Angular::l_k(kb), k) *
-            Angular::threej_2(tja, tjb, 2 * k, -1, 1, 0) *
-            std::sqrt((tja + 1) * (tjb + 1));
+          Angular::parity(Angular::l_k(ka), Angular::l_k(kb), k) *
+          Angular::threej_2(tja, tjb, 2 * k, -1, 1, 0) *
+          std::sqrt((tja + 1) * (tjb + 1));
 
         const auto tj1 = Ck.get_3jkab(k, ka, kb);
         const auto tj2 = Angular::threej_2(tja, tjb, 2 * k, -1, 1, 0);
@@ -358,7 +358,7 @@ double UnitTest::ck_compare_direct(const Angular::CkTable &Ck,
 
         const auto l1 = Ck.get_Lambdakab(k, ka, kb);
         const auto l2 =
-            tj1 * tj1 * Angular::parity(Angular::l_k(ka), Angular::l_k(kb), k);
+          tj1 * tj1 * Angular::parity(Angular::l_k(ka), Angular::l_k(kb), k);
 
         max = qip::max_abs(max, c1 - c2, c1_m - c1, c2 - c3, tc1 - tc2,
                            tj1 - tj2, tj2 - tj3, l1 - l2);
@@ -440,7 +440,7 @@ double UnitTest::sj_compare_DiracSpinor(const Angular::SixJTable &sjt,
         for (const auto &d : basis) {
           // add 5, ensure our table is not missing any non-zero
           const auto tjmax =
-              std::max({a.twoj(), b.twoj(), c.twoj(), d.twoj()}) + 5;
+            std::max({a.twoj(), b.twoj(), c.twoj(), d.twoj()}) + 5;
           for (int k = 0; k <= tjmax; ++k) {
             for (int l = 0; l <= tjmax; ++l) {
               const auto sj1 = gsl_sf_coupling_6j(a.twoj(), b.twoj(), 2 * k,
@@ -499,7 +499,7 @@ double UnitTest::speedup_6jt(const Angular::SixJTable &sjt,
         for (const auto &c : basis) {
           for (const auto &d : basis) {
             const auto tjmax =
-                std::max({a.twoj(), b.twoj(), c.twoj(), d.twoj()});
+              std::max({a.twoj(), b.twoj(), c.twoj(), d.twoj()});
             for (int k = 0; k <= tjmax; ++k) {
               for (int l = 0; l <= tjmax; ++l) {
                 sum1 += sjt.get(a, b, k, c, d, l);
@@ -526,7 +526,7 @@ double UnitTest::speedup_6jt(const Angular::SixJTable &sjt,
         for (const auto &c : basis) {
           for (const auto &d : basis) {
             const auto tjmax =
-                std::max({a.twoj(), b.twoj(), c.twoj(), d.twoj()});
+              std::max({a.twoj(), b.twoj(), c.twoj(), d.twoj()});
             for (int k = 0; k <= tjmax; ++k) {
               for (int l = 0; l <= tjmax; ++l) {
                 sum2 += gsl_sf_coupling_6j(a.twoj(), b.twoj(), 2 * k, c.twoj(),

@@ -37,11 +37,11 @@ public:
 
   RadialMatrix(std::size_t i0, std::size_t stride, std::size_t size,
                std::shared_ptr<const Grid> rgrid)
-      : m_i0(i0),
-        m_stride(stride),
-        m_size(size),
-        m_Rmatrix(m_size),
-        m_rgrid(rgrid) {
+    : m_i0(i0),
+      m_stride(stride),
+      m_size(size),
+      m_Rmatrix(m_size),
+      m_rgrid(rgrid) {
     //------------------
     // create vector of r on sub-grid, used to interpolate values onto full
     const auto &r = m_rgrid->r();

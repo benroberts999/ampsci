@@ -41,12 +41,12 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
 
   // Operators to test: name and whether VEk_Len should be skipped for gamma5
   const std::vector<std::string> op_names{
-      "VE_Len", "VE", "VM", "VL", "VT", "AE", "AM", "AL", "AT", "S", "P"};
+    "VE_Len", "VE", "VM", "VL", "VT", "AE", "AM", "AL", "AT", "S", "P"};
 
   auto use_helper_function =
-      [&](const std::string &name, bool low_q, int k,
-          SphericalBessel::JL_table *jl =
-              nullptr) -> std::unique_ptr<DiracOperator::TensorOperator> {
+    [&](const std::string &name, bool low_q, int k,
+        SphericalBessel::JL_table *jl =
+          nullptr) -> std::unique_ptr<DiracOperator::TensorOperator> {
     using namespace DiracOperator;
 
     if (low_q) {
@@ -128,7 +128,7 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
 
           const auto op_type = std::string(1, name.at(0));
           const auto component =
-              name.size() > 1 ? std::string(1, name.at(1)) : "";
+            name.size() > 1 ? std::string(1, name.at(1)) : "";
           const auto form = name.size() > 3 ? std::string(1, name.at(3)) : "";
 
           opts += "type=" + op_type + ";";

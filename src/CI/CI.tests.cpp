@@ -23,9 +23,9 @@ TEST_CASE("CI: Configuration Interaction, unit tests", "[CI][unit]") {
                                    "J + = 0, 1;"
                                    "J - = 0, 1;"
                                    "qk_file = " +
-                                       qk_filename +
-                                       ";"
-                                       "num_solutions = 2;"};
+                                     qk_filename +
+                                     ";"
+                                     "num_solutions = 2;"};
 
   const auto CIWFs = CI::configuration_interaction(input, wf);
 
@@ -37,7 +37,7 @@ TEST_CASE("CI: Configuration Interaction, unit tests", "[CI][unit]") {
                      {-2.13100411, -2.05532175},
                      {-2.13100096, -2.12092003}};
   std::vector gj{
-      std::vector{0.0, 0.0}, {1.9999, 1.9999}, {0.0, 0.0}, {1.5, 1.0}};
+    std::vector{0.0, 0.0}, {1.9999, 1.9999}, {0.0, 0.0}, {1.5, 1.0}};
 
   for (std::size_t i = 0; i < CIWFs.size(); ++i) {
     const auto &ci_wf = CIWFs.at(i);

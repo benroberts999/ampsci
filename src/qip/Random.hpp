@@ -9,7 +9,7 @@ inline std::string random_string(std::size_t length) {
   std::string out;
   out.reserve(length);
   const std::string chars{
-      "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"};
+    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz"};
   std::uniform_int_distribution<std::size_t> rint(0, chars.size() - 1);
   std::random_device rd;
   std::mt19937 gen(rd());

@@ -80,21 +80,21 @@ inline void print_line(const char c = '*', const int num = 80) {
 //==============================================================================
 inline std::string time_date() {
   const auto now =
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   char buffer[30];
   std::strftime(buffer, 30, "%F %T", localtime(&now));
   return buffer;
 }
 inline std::string date() {
   const auto now =
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   char buffer[30];
   std::strftime(buffer, 30, "%F", localtime(&now));
   return buffer;
 }
 inline std::string time() {
   const auto now =
-      std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
   char buffer[30];
   std::strftime(buffer, 30, "%T", localtime(&now));
   return buffer;
@@ -151,11 +151,11 @@ public:
 
   //! Construct from literal list of 'Options' (see Option struct)
   InputBlock(std::string_view name, std::initializer_list<Option> options = {})
-      : m_name(name), m_options(options) {}
+    : m_name(name), m_options(options) {}
 
   //! Construct from a string with the correct Block{option=value;} format
   InputBlock(std::string_view name, const std::string &string_input)
-      : m_name(name) {
+    : m_name(name) {
     add(string_input);
   }
 
@@ -314,8 +314,8 @@ void InputBlock::add(const std::vector<Option> &options) {
 void InputBlock::add(const std::string &string, bool merge) {
 
   add_blocks_from_string(
-      removeQuoteMarks(removeSpaces(expandIncludes(removeComments(string)))),
-      merge);
+    removeQuoteMarks(removeSpaces(expandIncludes(removeComments(string)))),
+    merge);
 }
 
 //==============================================================================
@@ -508,8 +508,8 @@ void InputBlock::print(std::ostream &os, int depth) const {
 
 //==============================================================================
 bool InputBlock::checkBlock(
-    const std::vector<std::pair<std::string, std::string>> &list,
-    bool print) const {
+  const std::vector<std::pair<std::string, std::string>> &list,
+  bool print) const {
   // Check each option NOT each sub block!
   // For each input option stored, see if it is allowed
   // "allowed" means appears in list
@@ -520,7 +520,7 @@ bool InputBlock::checkBlock(
       return qip::ci_wc_compare(l.first, option.key);
     };
     const auto bad_option =
-        !std::any_of(list.cbegin(), list.cend(), is_optionQ);
+      !std::any_of(list.cbegin(), list.cend(), is_optionQ);
     const auto help = qip::ci_wc_compare("help", option.key) ? true : false;
     if (help)
       print = true;
@@ -592,9 +592,9 @@ bool InputBlock::checkBlock(
 
 //! Check one of the sub-blocks
 bool InputBlock::check(
-    std::initializer_list<std::string> blocks,
-    const std::vector<std::pair<std::string, std::string>> &list,
-    bool print) const {
+  std::initializer_list<std::string> blocks,
+  const std::vector<std::pair<std::string, std::string>> &list,
+  bool print) const {
   // Find key in nested blocks
   const InputBlock *pB = this;
   for (const auto &block : blocks) {
@@ -641,8 +641,8 @@ void InputBlock::add_blocks_from_string(std::string_view string, bool merge) {
       while (depth_count != 0) {
         if (next_start > string.length())
           break;
-        const auto next_end = std::min(string.find('{', next_start),
-                                       string.find('}', next_start));
+        const auto next_end =
+          std::min(string.find('{', next_start), string.find('}', next_start));
         if (next_end > string.length())
           break;
 
@@ -728,7 +728,7 @@ inline std::string expandIncludes(std::string str) {
        ipos = str.find(include_text)) {
     const auto start = std::min(str.find('"', ipos), str.find('<', ipos));
     const auto end =
-        std::min(str.find('"', start + 1), str.find('>', start + 1));
+      std::min(str.find('"', start + 1), str.find('>', start + 1));
     const auto fname = str.substr(start + 1, end - start - 1);
     str.erase(ipos, end - ipos + 1);
     std::ifstream ifile(fname);

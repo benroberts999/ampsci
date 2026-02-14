@@ -33,7 +33,7 @@ jobs:
     - name: Build ampsci (clang++)
       run: |
         make clean
-        make CXX='clang++-15' UseOpenMP=yes tests
+        make CXX='clang++-15' OMPLIB=-fopenmp tests
 
     - name: Run unit tests (clang++)
       run: ./tests [unit]
@@ -41,7 +41,7 @@ jobs:
     - name: Build ampsci (g++)
       run: |
         make clean
-        make CXX='g++' UseOpenMP=yes tests
+        make CXX='g++' OMPLIB=-fopenmp tests
 
     - name: Run unit, regression, integrations tests (g++)
       if: github.ref == 'refs/heads/main'

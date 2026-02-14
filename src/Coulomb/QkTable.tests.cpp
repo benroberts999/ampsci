@@ -17,7 +17,7 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
   std::cout << "Coulomb: Qk Table\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
-      GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
   const double zeff = 1.0;
   const int lmax = 6;
 
@@ -127,7 +127,7 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
 
   // Arbitrary Fermi level:
   const auto e_Fermi =
-      0.5 * (orbs.at(orbs.size() / 2).en() + orbs.at(orbs.size() / 2 + 1).en());
+    0.5 * (orbs.at(orbs.size() / 2).en() + orbs.at(orbs.size() / 2 + 1).en());
   const auto [core, excited] = MBPT::split_basis(orbs, e_Fermi);
 
   const auto selection_func = [eF = e_Fermi](int k, auto &a, auto &b, auto &c,
@@ -179,7 +179,7 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
           for (int k = 0; k <= 8; ++k) {
             if ((k + a.l() + b.l() + c.l() + d.l()) % 2 == 0) {
               const auto expected =
-                  double(k) + a.en() + b.en() + c.en() + d.en();
+                double(k) + a.en() + b.en() + c.en() + d.en();
               REQUIRE(qk_custom.Q(k, a, b, c, d) == Approx(expected));
             } else {
               REQUIRE(qk_custom.Q(k, a, b, c, d) == 0.0);
@@ -432,10 +432,10 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
             const auto i_dabc = qk.NormalOrder(d, a, b, c);
             const auto i_dcba = qk.NormalOrder(d, c, b, a);
             // If all are the same, max = min
-            const auto i_max = std::max({i_abcd, i_adcb, i_badc, i_bcda, i_cbad,
-                                         i_cdab, i_dabc, i_dcba});
-            const auto i_min = std::min({i_abcd, i_adcb, i_badc, i_bcda, i_cbad,
-                                         i_cdab, i_dabc, i_dcba});
+            const auto i_max = std::max(
+              {i_abcd, i_adcb, i_badc, i_bcda, i_cbad, i_cdab, i_dabc, i_dcba});
+            const auto i_min = std::min(
+              {i_abcd, i_adcb, i_badc, i_bcda, i_cbad, i_cdab, i_dabc, i_dcba});
             if (i_max != i_min)
               Qk_NormalOrder_ok = false;
             if (i_max != i_min) {

@@ -21,12 +21,12 @@ private:
 public:
   fieldshift(const Grid &rgrid, const Nuclear::Nucleus &nuc1,
              const Nuclear::Nucleus &nuc2, double scale = 1.0)
-      : ScalarOperator(
-            Parity::even, scale,
-            qip::overloads::operator-(Nuclear::formPotential(nuc2, rgrid.r()),
-                                      Nuclear::formPotential(nuc1, rgrid.r()))),
-        m_dr2(nuc2.r_rms() * nuc2.r_rms() - nuc1.r_rms() * nuc1.r_rms()),
-        m_dr4(r4(rgrid, nuc2) - r4(rgrid, nuc1)) {}
+    : ScalarOperator(
+        Parity::even, scale,
+        qip::overloads::operator-(Nuclear::formPotential(nuc2, rgrid.r()),
+                                  Nuclear::formPotential(nuc1, rgrid.r()))),
+      m_dr2(nuc2.r_rms() * nuc2.r_rms() - nuc1.r_rms() * nuc1.r_rms()),
+      m_dr4(r4(rgrid, nuc2) - r4(rgrid, nuc1)) {}
 
   std::string name() const override { return std::string("Field shift"); }
   std::string units() const override { return "au"; }
@@ -47,8 +47,8 @@ public:
 
     constexpr auto abfm4factor = 4.0 * M_PI * qip::pow<4>(PhysConst::aB_fm);
     const auto rho = Nuclear::fermiNuclearDensity_tcN(
-        Nuclear::deformation_effective_t(nuc.c(), nuc.t(), nuc.beta()), nuc.c(),
-        nuc.z(), grid);
+      Nuclear::deformation_effective_t(nuc.c(), nuc.t(), nuc.beta()), nuc.c(),
+      nuc.z(), grid);
     const auto rpow6 = grid.rpow(6);
 
     return NumCalc::integrate(grid.du(), 0.0, 0.0, rpow6, rho, grid.drdu()) *
@@ -60,8 +60,8 @@ public:
 
     constexpr auto abfm2factor = 4.0 * M_PI * qip::pow<2>(PhysConst::aB_fm);
     const auto rho = Nuclear::fermiNuclearDensity_tcN(
-        Nuclear::deformation_effective_t(nuc.c(), nuc.t(), nuc.beta()), nuc.c(),
-        nuc.z(), grid);
+      Nuclear::deformation_effective_t(nuc.c(), nuc.t(), nuc.beta()), nuc.c(),
+      nuc.z(), grid);
     const auto rpow4 = grid.rpow(4);
 
     return NumCalc::integrate(grid.du(), 0.0, 0.0, rpow4, rho, grid.drdu()) *
@@ -73,14 +73,14 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_fieldshift(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check(
-      {{"", "Field shift operator."},
-       {"drrms",
-        "Change in nuclear rms charge radius (fm); must not be zero [0.01]"},
-       {"scale_factor", "Scale factor [1.0]"},
-       {"", "The following are normally not set:"},
-       {"dt", "Change in skin-thickness t (fm) [0.0]"},
-       {"dbeta", "Change in quadrupole deformation parameter, beta [0.0]"},
-       {"print", "Print details? [true]"}});
+    {{"", "Field shift operator."},
+     {"drrms",
+      "Change in nuclear rms charge radius (fm); must not be zero [0.01]"},
+     {"scale_factor", "Scale factor [1.0]"},
+     {"", "The following are normally not set:"},
+     {"dt", "Change in skin-thickness t (fm) [0.0]"},
+     {"dbeta", "Change in quadrupole deformation parameter, beta [0.0]"},
+     {"print", "Print details? [true]"}});
   if (input.has_option("help")) {
     return nullptr;
   }

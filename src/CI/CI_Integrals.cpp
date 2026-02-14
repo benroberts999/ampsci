@@ -240,8 +240,8 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
 
     // Find lowest valence state of this kappa; for Sigma energy
     const auto vp = std::find_if(
-        ci_basis.cbegin(), ci_basis.cend(),
-        [kappa = v.kappa()](const auto &n) { return n.kappa() == kappa; });
+      ci_basis.cbegin(), ci_basis.cend(),
+      [kappa = v.kappa()](const auto &n) { return n.kappa() == kappa; });
     auto ev = vp->en();
 
     for (const auto &w : ci_basis) {
@@ -252,10 +252,10 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
       const auto h0_vw = v == w ? v.en() : 0.0;
 
       // Can use Sigma matrix instead: all-orders?
-      const auto Sigma_vw = include_Sigma1 ?
-                                MBPT::Sigma_vw(v, w, qk, s1_basis_core,
-                                               s1_basis_excited, 99, ev) :
-                                0.0;
+      const auto Sigma_vw =
+        include_Sigma1 ?
+          MBPT::Sigma_vw(v, w, qk, s1_basis_core, s1_basis_excited, 99, ev) :
+          0.0;
 
       h1.add(v, w, h0_vw + Sigma_vw);
       // Add symmetric partner:
@@ -361,11 +361,9 @@ Coulomb::WkTable calculate_Bk(const std::string &bk_filename,
   vBr.fill_gb(ci_basis, max_k); // very quick, and makes below *much* faster
   //* nb: uses HUGE memory if basis is large; CI basis normally small enough
 
-  const auto Bk_function = [&](int k, const DiracSpinor &v,
-                               const DiracSpinor &w, const DiracSpinor &x,
-                               const DiracSpinor &y) {
-    return vBr.Bk_abcd_2(k, v, w, x, y);
-  };
+  const auto Bk_function =
+    [&](int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
+        const DiracSpinor &y) { return vBr.Bk_abcd_2(k, v, w, x, y); };
 
   Bk.fill(ci_basis, Bk_function, HF::Breit::Bk_SR, max_k, false);
 
@@ -404,8 +402,8 @@ std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
 
     // Check if a is present in 'subset_string'
     const auto nk =
-        std::find_if(nmaxk_list.cbegin(), nmaxk_list.cend(),
-                     [&a](const auto &tnk) { return a.kappa() == tnk.second; });
+      std::find_if(nmaxk_list.cbegin(), nmaxk_list.cend(),
+                   [&a](const auto &tnk) { return a.kappa() == tnk.second; });
     if (nk == nmaxk_list.cend())
       continue;
     // nk is now max n, for given kappa {max_n, kappa}
@@ -414,9 +412,8 @@ std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
 
     // assume only filled shells in frozen core
     const auto core = std::find_if(
-        core_list.cbegin(), core_list.cend(), [&a](const auto &tcore) {
-          return a.n() == tcore.n && a.l() == tcore.l;
-        });
+      core_list.cbegin(), core_list.cend(),
+      [&a](const auto &tcore) { return a.n() == tcore.n && a.l() == tcore.l; });
 
     if (core != core_list.cend())
       continue;
@@ -542,7 +539,7 @@ std::pair<int, int> Term_S_L(int l1, int l2, int twoJ, double gJ_target) {
 
       if (twoJ != 0) {
         const auto gJNR = 1.5 + (tS * (tS + 1.0) - tL * (tL + 1.0)) /
-                                    (twoJ * (0.5 * twoJ + 1.0));
+                                  (twoJ * (0.5 * twoJ + 1.0));
         if (std::abs(gJ_target - gJNR) < best_del) {
           best_del = std::abs(gJ_target - gJNR);
           L = tL;
@@ -558,10 +555,10 @@ std::pair<int, int> Term_S_L(int l1, int l2, int twoJ, double gJ_target) {
 //==============================================================================
 std::string Term_Symbol(int two_J, int L, int two_S, int parity) {
   return two_J % 2 == 0 ?
-             fmt::format("{}^{}{}_{}", two_S + 1, AtomData::L_symbol(L),
-                         parity == 1 ? "" : "°", two_J / 2) :
-             fmt::format("{}^{}{}_{}/2", two_S + 1, AtomData::L_symbol(L),
-                         parity == 1 ? "" : "°", two_J);
+           fmt::format("{}^{}{}_{}", two_S + 1, AtomData::L_symbol(L),
+                       parity == 1 ? "" : "°", two_J / 2) :
+           fmt::format("{}^{}{}_{}/2", two_S + 1, AtomData::L_symbol(L),
+                       parity == 1 ? "" : "°", two_J);
 }
 
 std::string Term_Symbol(int L, int two_S, int parity) {

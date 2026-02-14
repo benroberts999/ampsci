@@ -89,7 +89,7 @@ double t_integral(double (*f)(double, void *), std::vector<double> params,
   double result{0.0};
   double abs_err{0.0};
   gsl_integration_workspace *gsl_int_wrk =
-      gsl_integration_workspace_alloc(max_num_subintvls + 1);
+    gsl_integration_workspace_alloc(max_num_subintvls + 1);
 
   double rel_err_targ = rel_err_lim;
   while (rel_err_targ < 1.0) {
@@ -267,7 +267,7 @@ double SE::J_SE_gsl(double t, void *p) {
   // Note: this is the numerically unstable part:
   // Both sides cancel down to roughly std::exp(-x)
   const auto eGminusI =
-      std::exp(-x) * Uehling::G_Ueh(xn, x) - SE::I2(Z, r, rN, t);
+    std::exp(-x) * Uehling::G_Ueh(xn, x) - SE::I2(Z, r, rN, t);
 
   return SE::I1(Z, t) * eGminusI;
 }
@@ -299,7 +299,7 @@ double Q_MLVP(double r, double rN) {
   double result{0.0};
   double abs_err{0.0};
   gsl_integration_workspace *gsl_int_wrk =
-      gsl_integration_workspace_alloc(max_num_subintvls + 1);
+    gsl_integration_workspace_alloc(max_num_subintvls + 1);
   gsl_integration_qagiu(&f_gsl, 1.0, abs_err_lim, rel_err_lim,
                         max_num_subintvls, gsl_int_wrk, &result, &abs_err);
   gsl_integration_workspace_free(gsl_int_wrk);

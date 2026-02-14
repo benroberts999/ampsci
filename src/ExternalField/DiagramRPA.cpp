@@ -21,7 +21,7 @@ namespace ExternalField {
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const std::vector<DiracSpinor> &basis,
                        const HF::HartreeFock *in_hf, const std::string &atom)
-    : CorePolarisation(h), p_hf(in_hf) {
+  : CorePolarisation(h), p_hf(in_hf) {
 
   if (p_hf == nullptr || h == nullptr) {
     std::cout << "\nFAIL:25 in DiagramRPA - hf cannot be null\n" << std::flush;
@@ -67,7 +67,7 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
 //==============================================================================
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const DiagramRPA *const drpa)
-    : CorePolarisation(h), p_hf(drpa->p_hf) {
+  : CorePolarisation(h), p_hf(drpa->p_hf) {
 
   if (m_rank != drpa->m_rank || m_pi != drpa->m_pi) {
     std::cerr << "\nFAIL21 in DiagramRPA: Cannot use 'eat' constructor for "
@@ -107,7 +107,7 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
 
   if (readQ)
     std::cout
-        << "\nNote: still uses Basis for summation (only reads in W matrix)\n";
+      << "\nNote: still uses Basis for summation (only reads in W matrix)\n";
 
   std::fstream iofs;
   IO::FRW::open_binary(iofs, fname, rw);
@@ -139,10 +139,10 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
       if (readQ) {
         if (Fn.n() != n || Fn.kappa() != k) {
           std::cout
-              << "\nCannot read from " << fname << ". Basis mis-match (read "
-              << n << "," << k << "; expected " << Fn.n() << "," << Fn.kappa()
-              << ").\n"
-              << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
+            << "\nCannot read from " << fname << ". Basis mis-match (read " << n
+            << "," << k << "; expected " << Fn.n() << "," << Fn.kappa()
+            << ").\n"
+            << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
           return false;
         }
       }
@@ -429,9 +429,9 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
         for (std::size_t ib = 0; ib < holes.size(); ib++) {
           const auto &Fb = holes[ib];
           const auto s1 =
-              ((Fb.twoj() - Fa.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
+            ((Fb.twoj() - Fa.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
           const auto s3 =
-              ((Fb.twoj() - Fm.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
+            ((Fb.twoj() - Fm.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
           for (std::size_t in = 0; in < excited.size(); in++) {
             const auto &Fn = excited[in];
 
@@ -456,11 +456,11 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
         // Update core-excited matrix elements, including damping
         const auto prev = tam[ia][im];
         tam[ia][im] =
-            a_damp * tam[ia][im] + b_damp * (t0am[ia][im] + f * sum_am);
+          a_damp * tam[ia][im] + b_damp * (t0am[ia][im] + f * sum_am);
         tma[im][ia] =
-            a_damp * tma[im][ia] + b_damp * (t0ma[im][ia] + f * sum_ma);
+          a_damp * tma[im][ia] + b_damp * (t0ma[im][ia] + f * sum_ma);
         const auto delta =
-            2.0 * std::abs((tam[ia][im] - prev) / (prev + tam[ia][im]));
+          2.0 * std::abs((tam[ia][im] - prev) / (prev + tam[ia][im]));
 
         if (delta > eps_worst_a) {
           eps_worst_a = delta;
@@ -471,8 +471,8 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
     }
 
     const auto teps =
-        *std::max_element(cbegin(eps_m), cend(eps_m),
-                          [](auto &a, auto &b) { return a.first < b.first; });
+      *std::max_element(cbegin(eps_m), cend(eps_m),
+                        [](auto &a, auto &b) { return a.first < b.first; });
     eps = teps.first;
     s_worst = teps.second;
     if (eps < eps_targ)

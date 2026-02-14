@@ -31,7 +31,7 @@ void BW_effect(const std::vector<DiracSpinor> &valence,
   std::cout << "\n";
   for (const auto &Fv : valence) {
     const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_AB(
-        h0->rank(), Fv.kappa(), Fv.kappa());
+      h0->rank(), Fv.kappa(), Fv.kappa());
     const auto A0 = h0->reducedME(Fv, Fv) * rme_to_A;
     const auto dA0 = rpa0 ? rpa0->dV(Fv, Fv) * rme_to_A : 0.0;
     const auto A = h->reducedME(Fv, Fv) * rme_to_A;
@@ -86,11 +86,11 @@ void tune_Rmag(const DiracSpinor &Fv, const double eps_target,
     }
 
     const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_AB(
-        h0->rank(), Fv.kappa(), Fv.kappa());
+      h0->rank(), Fv.kappa(), Fv.kappa());
     const auto A =
-        (ht->reducedME(Fv, Fv) + (rpa_t ? rpa_t->dV(Fv, Fv) : 0.0)) * rme_to_A;
+      (ht->reducedME(Fv, Fv) + (rpa_t ? rpa_t->dV(Fv, Fv) : 0.0)) * rme_to_A;
     const auto A0 =
-        (h0->reducedME(Fv, Fv) + (rpa0 ? rpa0->dV(Fv, Fv) : 0.0)) * rme_to_A;
+      (h0->reducedME(Fv, Fv) + (rpa0 ? rpa0->dV(Fv, Fv) : 0.0)) * rme_to_A;
 
     const auto eps = 100.0 * (A - A0) / A0;
     const auto delta = eps - eps_target;
@@ -102,7 +102,7 @@ void tune_Rmag(const DiracSpinor &Fv, const double eps_target,
   std::cout << "Rm_rms eps(%)  [delta]\n";
   // Use Newtons method to do fit"
   const auto [rrms_fitted, error] = qip::Newtons(
-      delta_eps, t_rrms0, {0.75 * t_rrms0, 1.5 * t_rrms0}, 1.0e-3, 0.05, 100);
+    delta_eps, t_rrms0, {0.75 * t_rrms0, 1.5 * t_rrms0}, 1.0e-3, 0.05, 100);
 
   // to determine error function: d(eps)/d(rrms):
   const auto err_factor = 1.002;
@@ -130,7 +130,7 @@ void BW_screening_factor(const Wavefunction &wf,
   std::cout << "\nCalculate H-like wavefunctions (for screening):\n";
   const auto grid_params = wf.grid().params();
   auto wfH =
-      Wavefunction(grid_params, wf.nucleus(), wf.alpha() / PhysConst::alpha);
+    Wavefunction(grid_params, wf.nucleus(), wf.alpha() / PhysConst::alpha);
   std::cout << wfH.grid().gridParameters() << "\n";
   wfH.solve_valence("1s2p");
   wfH.printValence();
@@ -145,7 +145,7 @@ void BW_screening_factor(const Wavefunction &wf,
       continue;
 
     const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_AB(
-        h0->rank(), Fv.kappa(), Fv.kappa());
+      h0->rank(), Fv.kappa(), Fv.kappa());
 
     const auto A0 = h0->reducedME(Fv, Fv) * rme_to_A;
     const auto A = h->reducedME(Fv, Fv) * rme_to_A;
@@ -176,9 +176,9 @@ void BW_screening_factor(const Wavefunction &wf,
   const auto F2p = *wfH.getState(2, 1);
 
   const auto rme_to_A_s =
-      DiracOperator::Hyperfine::convert_RME_to_AB(h0->rank(), -1, -1);
+    DiracOperator::Hyperfine::convert_RME_to_AB(h0->rank(), -1, -1);
   const auto rme_to_A_p =
-      DiracOperator::Hyperfine::convert_RME_to_AB(h0->rank(), 1, 1);
+    DiracOperator::Hyperfine::convert_RME_to_AB(h0->rank(), 1, 1);
 
   const auto A01s = h0->reducedME(F1s, F1s) * rme_to_A_s;
   const auto A1s = h->reducedME(F1s, F1s) * rme_to_A_s;
@@ -282,7 +282,7 @@ b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
   //           << ") steps\n";
 
   const auto fg_inf =
-      NumCalc::integrate(1.0, 0, v.max_pt(), v.f(), v.g(), r2inv, grid.drdu());
+    NumCalc::integrate(1.0, 0, v.max_pt(), v.f(), v.g(), r2inv, grid.drdu());
 
   const auto fg_rm = [&v, &grid, &r2inv](std::size_t i_rm) {
     // const auto im = grid.getIndex(rm, true);
@@ -344,31 +344,30 @@ b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"hfs_options{}", "Options for HFS operator (see -o hfs)"},
-       {"rpa", "Include RPA (diagram method)? [false]"},
-       {"screening", "Calculate screening parameters (x and eta) [false]"},
-       {"b_power", "Maximum power for which to caculate b moments in "
-                   "KS(R),KL(R) expansion. Must be >=2 to calculate any [0]"},
-       {"b_max_ratio_Rnuc",
-        "Maximum radius to include in fit for b (as ratio of R_nuc) [1]"},
-       {"eps_target",
-        "Tune magnetic radius to match experimental BW effect "
-        "(eps). Two inputs, comma separated: state (in 'short "
-        "symbol' form), and eps (in %). E.g.: '6s+, -0.05' [optional]"},
-       {"A2", "Second isotope (for differential anomaly) [optional]"},
-       {"Nucleus2{}", "Nuclear (charge) parameters for isotope 2 (see -a "
-                      "Nucleus); uses default for A2 if blank. [optional]"},
-       {"hfs2_options{}",
-        "Options for HFS operator for isotope 2 (see -o hfs)"},
-       {"1D2_target",
-        "Fits magnetic radius for both nuclei to reproduce given target for "
-        "differential hyperfine anomaly (1D2). Two inputs, comma separated: "
-        "state (in 'short symbol' form), and 1D2 (in %). E.g.: '6s+, 0.5' "
-        "[optional]"},
-       {"min_max_steps",
-        "List: For 1D2_target only: minimum and maximum magnetic "
-        "radii, as a fraction of charge radius, and number of "
-        "steps in the fit. Default=[0.9,1.5,10]"}});
+    {{"hfs_options{}", "Options for HFS operator (see -o hfs)"},
+     {"rpa", "Include RPA (diagram method)? [false]"},
+     {"screening", "Calculate screening parameters (x and eta) [false]"},
+     {"b_power", "Maximum power for which to caculate b moments in "
+                 "KS(R),KL(R) expansion. Must be >=2 to calculate any [0]"},
+     {"b_max_ratio_Rnuc",
+      "Maximum radius to include in fit for b (as ratio of R_nuc) [1]"},
+     {"eps_target",
+      "Tune magnetic radius to match experimental BW effect "
+      "(eps). Two inputs, comma separated: state (in 'short "
+      "symbol' form), and eps (in %). E.g.: '6s+, -0.05' [optional]"},
+     {"A2", "Second isotope (for differential anomaly) [optional]"},
+     {"Nucleus2{}", "Nuclear (charge) parameters for isotope 2 (see -a "
+                    "Nucleus); uses default for A2 if blank. [optional]"},
+     {"hfs2_options{}", "Options for HFS operator for isotope 2 (see -o hfs)"},
+     {"1D2_target",
+      "Fits magnetic radius for both nuclei to reproduce given target for "
+      "differential hyperfine anomaly (1D2). Two inputs, comma separated: "
+      "state (in 'short symbol' form), and 1D2 (in %). E.g.: '6s+, 0.5' "
+      "[optional]"},
+     {"min_max_steps",
+      "List: For 1D2_target only: minimum and maximum magnetic "
+      "radii, as a fraction of charge radius, and number of "
+      "steps in the fit. Default=[0.9,1.5,10]"}});
   if (input.has_option("help")) {
     return;
   }
@@ -377,7 +376,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Generate hyperfine operator (including BW effect from input)
   const auto h = DiracOperator::generate(
-      "hfs", hfs_options ? *hfs_options : IO::InputBlock{}, wf);
+    "hfs", hfs_options ? *hfs_options : IO::InputBlock{}, wf);
 
   // Build pointlike HFS operator
   IO::InputBlock h0_options{"h0", "F = pointlike;"};
@@ -440,7 +439,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\n-------------------------------\n";
     std::cout << "Tuning Rmag to reproduce Bohr-Weiskopf effect:\n";
     const auto [a, eps_s] =
-        *input.get<std::array<std::string, 2>>("eps_target");
+      *input.get<std::array<std::string, 2>>("eps_target");
     // fails if eps_s invalid 'double':
     const auto eps_target = eps_s == "" ? 0.0 : std::stod(eps_s);
     const auto pFv = wf.getState(a);
@@ -519,8 +518,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
                  "same accross isotopes! Test by swapping A1 and A2\n";
 
     auto hfs2_options = input.getBlock("hfs2_options") ?
-                            *input.getBlock("hfs2_options") :
-                            IO::InputBlock{};
+                          *input.getBlock("hfs2_options") :
+                          IO::InputBlock{};
 
     // Generate hyperfine operator (including BW effect from input)
     std::cout << "\nIsotope 2:";
@@ -568,7 +567,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
                "1D2_RPA(%)");
     for (const auto &Fv : wf.valence()) {
       const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_AB(
-          h0->rank(), Fv.kappa(), Fv.kappa());
+        h0->rank(), Fv.kappa(), Fv.kappa());
 
       const auto Ahf1 = (h->reducedME(Fv, Fv) + (rpa ? rpa->dV(Fv, Fv) : 0.0)) *
                         rme_to_A / h->getc();
@@ -577,8 +576,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto Fv2 = *wf2.getState(Fv.n(), Fv.kappa());
 
       const auto Ahf2 =
-          (h2->reducedME(Fv2, Fv2) + (rpa2 ? rpa2->dV(Fv2, Fv2) : 0.0)) *
-          rme_to_A / h2->getc();
+        (h2->reducedME(Fv2, Fv2) + (rpa2 ? rpa2->dV(Fv2, Fv2) : 0.0)) *
+        rme_to_A / h2->getc();
       const auto A0hf2 = h2->reducedME(Fv2, Fv2) * rme_to_A / h2->getc();
 
       const auto D12 = 100.0 * (Ahf1 / Ahf2 - 1.0);
@@ -599,7 +598,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "Tune magnetic radii of both isotopes to match 1D2:\n";
 
       const auto [a, str_1D2] =
-          *input.get<std::array<std::string, 2>>("1D2_target");
+        *input.get<std::array<std::string, 2>>("1D2_target");
       // fails if eps_s invalid 'double':
       const auto target_1D2 = str_1D2 == "" ? 0.0 : std::stod(str_1D2);
       const auto pFv = wf.getState(a);
@@ -612,7 +611,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto &Fv2 = *wf2.getState(a);
 
       const auto min_max_steps =
-          input.get<std::vector<double>>("min_max_steps", {0.9, 1.5, 10});
+        input.get<std::vector<double>>("min_max_steps", {0.9, 1.5, 10});
       const int num_steps = int(min_max_steps.at(2));
       const double r1_i = min_max_steps.at(0) * wf.get_rrms();
       const double r1_f = min_max_steps.at(1) * wf.get_rrms();
@@ -636,20 +635,20 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
           if (rpa1) {
             rpa1->update_t0s(h1.get());
           } else {
-            rpa1 = std::make_unique<ExternalField::DiagramRPA>(h1.get(),
-                                                               rpa.get());
-            rpa22 = std::make_unique<ExternalField::DiagramRPA>(h1.get(),
-                                                                rpa1.get());
+            rpa1 =
+              std::make_unique<ExternalField::DiagramRPA>(h1.get(), rpa.get());
+            rpa22 =
+              std::make_unique<ExternalField::DiagramRPA>(h1.get(), rpa1.get());
           }
           rpa1->solve_core(0.0, 40, false);
         }
 
         const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_AB(
-            h0->rank(), Fv1.kappa(), Fv1.kappa());
+          h0->rank(), Fv1.kappa(), Fv1.kappa());
 
         const auto A1 =
-            (h1->reducedME(Fv1, Fv1) + (rpa1 ? rpa1->dV(Fv1, Fv1) : 0.0)) *
-            rme_to_A / h1->getc();
+          (h1->reducedME(Fv1, Fv1) + (rpa1 ? rpa1->dV(Fv1, Fv1) : 0.0)) *
+          rme_to_A / h1->getc();
 
         // double r2 = r1;
         double hf_1D2 = -1.0;
@@ -665,15 +664,15 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
           }
 
           const auto A22 =
-              (h22->reducedME(Fv2, Fv2) + (rpa22 ? rpa22->dV(Fv2, Fv2) : 0.0)) *
-              rme_to_A / h22->getc();
+            (h22->reducedME(Fv2, Fv2) + (rpa22 ? rpa22->dV(Fv2, Fv2) : 0.0)) *
+            rme_to_A / h22->getc();
           hf_1D2 = 100.0 * (A1 / A22 - 1.0);
           return hf_1D2 - target_1D2;
         };
 
         const auto r2_0 = /*(r1 / wf.get_rrms())**/ wf2.get_rrms();
         const auto [r2_fitted, error] = qip::Newtons(
-            delta_1D2, r2_0, {0.5 * r2_0, 2.0 * r2_0}, 1.0e-5, 0.001, 150);
+          delta_1D2, r2_0, {0.5 * r2_0, 2.0 * r2_0}, 1.0e-5, 0.001, 150);
 
         const auto D12_error = std::abs(hf_1D2 / target_1D2 - 1.0);
         const auto flag = D12_error > 0.01 ? "***" : "";
@@ -690,10 +689,10 @@ void b_plot(const IO::InputBlock &input, const Wavefunction &wf) {
   //
 
   input.check({
-      {"r1", "minimum r_rms in fm [0.5*rrms]"},
-      {"r2", "maximum r_rms in fm [1.5*rrms]"},
-      {"t", "skin thickness [2.3]"},
-      {"num_steps", "Number of steps along (r1,r2) [100]"},
+    {"r1", "minimum r_rms in fm [0.5*rrms]"},
+    {"r2", "maximum r_rms in fm [1.5*rrms]"},
+    {"t", "skin thickness [2.3]"},
+    {"num_steps", "Number of steps along (r1,r2) [100]"},
   });
   if (input.has_option("help")) {
     return;
@@ -714,14 +713,14 @@ void b_plot(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // For grid uncertainty
   const std::size_t small_points =
-      std::max(2000ul, std::size_t(0.2 * (double)grid->num_points()));
+    std::max(2000ul, std::size_t(0.2 * (double)grid->num_points()));
   const double small_r0 = std::min(1.0e-6, 10.0 * grid->r0());
 
   const auto small_grid1 = std::make_shared<const Grid>(Grid(
-      grid->r0(), grid->rmax(), small_points, grid->type(), grid->loglin_b()));
+    grid->r0(), grid->rmax(), small_points, grid->type(), grid->loglin_b()));
 
-  const auto small_grid2 = std::make_shared<const Grid>(Grid(
-      small_r0, grid->rmax(), small_points, grid->type(), grid->loglin_b()));
+  const auto small_grid2 = std::make_shared<const Grid>(
+    Grid(small_r0, grid->rmax(), small_points, grid->type(), grid->loglin_b()));
 
   using Data = std::vector<std::array<double, 3>>;
 

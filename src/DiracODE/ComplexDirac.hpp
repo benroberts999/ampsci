@@ -27,7 +27,7 @@ namespace Internal {
 //==============================================================================
 //! Matrix which defines Dirac derivative: (dF/dr) = D*F
 struct CDiracDerivative
-    : AdamsMoulton::DerivativeMatrix<std::size_t, std::complex<double>> {
+  : AdamsMoulton::DerivativeMatrix<std::size_t, std::complex<double>> {
 
   CDiracDerivative(const Grid &in_grid, const std::vector<double> &in_v,
                    const int in_k, const std::complex<double> in_en,

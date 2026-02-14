@@ -38,15 +38,15 @@ std::pair<double, double> numerical_f_amplitude(double en, int kappa,
 
 //! Derivative function for H-like; valid for continuum states at large r
 struct DiracContinuumDerivative
-    : AdamsMoulton::DerivativeMatrix<double, double> {
+  : AdamsMoulton::DerivativeMatrix<double, double> {
 
   DiracContinuumDerivative(double in_Zeff, const int in_kappa,
                            const double in_en, const double in_alpha)
-      : Zeff(in_Zeff),
-        kappa(in_kappa),
-        en(in_en),
-        alpha(in_alpha),
-        cc(1.0 / alpha) {}
+    : Zeff(in_Zeff),
+      kappa(in_kappa),
+      en(in_en),
+      alpha(in_alpha),
+      cc(1.0 / alpha) {}
 
   double Zeff = 1.0;
   int kappa;

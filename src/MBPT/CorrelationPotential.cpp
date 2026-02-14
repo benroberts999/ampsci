@@ -15,29 +15,29 @@ namespace MBPT {
 
 //==============================================================================
 CorrelationPotential::CorrelationPotential(
-    const std::string &fname, const HF::HartreeFock *vHF,
-    const std::vector<DiracSpinor> &basis, double r0, double rmax,
-    std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
-    bool include_Breit_b2, int n_max_breit, const FeynmanOptions &Foptions,
-    bool calculate_fk, const std::vector<double> &fk,
-    const std::vector<double> &etak)
-    : m_HF(vHF),
-      m_basis(basis),
-      m_r0(r0),
-      m_rmax(rmax),
-      m_stride(stride),
-      m_i0(m_HF->grid().getIndex(r0)),
-      m_size((m_HF->grid().getIndex(rmax) - m_i0) / m_stride + 1),
-      m_method(method),
-      m_n_min_core(n_min_core),
-      m_includeG(include_g),
-      m_includeBreit_b2(include_Breit_b2),
-      m_n_max_breit(n_max_breit),
-      m_Foptions(Foptions),
-      m_calculate_fk(calculate_fk),
-      m_fk(fk),
-      m_etak(etak),
-      m_fname(fname) {
+  const std::string &fname, const HF::HartreeFock *vHF,
+  const std::vector<DiracSpinor> &basis, double r0, double rmax,
+  std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
+  bool include_Breit_b2, int n_max_breit, const FeynmanOptions &Foptions,
+  bool calculate_fk, const std::vector<double> &fk,
+  const std::vector<double> &etak)
+  : m_HF(vHF),
+    m_basis(basis),
+    m_r0(r0),
+    m_rmax(rmax),
+    m_stride(stride),
+    m_i0(m_HF->grid().getIndex(r0)),
+    m_size((m_HF->grid().getIndex(rmax) - m_i0) / m_stride + 1),
+    m_method(method),
+    m_n_min_core(n_min_core),
+    m_includeG(include_g),
+    m_includeBreit_b2(include_Breit_b2),
+    m_n_max_breit(n_max_breit),
+    m_Foptions(Foptions),
+    m_calculate_fk(calculate_fk),
+    m_fk(fk),
+    m_etak(etak),
+    m_fname(fname) {
 
   std::cout << "\nConstruct Correlation Potential\n";
 
@@ -99,8 +99,8 @@ CorrelationPotential::CorrelationPotential(
 
     // If didn't read, setup Goldstone/Feynman (create Yk, pol operator etc.)
     m_Gold =
-        Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
-                  m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
+      Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
+                m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
     if (m_method == SigmaMethod::Feynman) {
       setup_Feynman();
     }
@@ -113,10 +113,10 @@ void CorrelationPotential::formSigma(int kappa, double ev, int n,
 
   // 1. check if exists. If so, do nothing.
 
-  const auto it = std::find_if(
-      m_Sigmas.cbegin(), m_Sigmas.cend(), [kappa, n](const auto &s) {
-        return s.kappa == kappa && (s.n == n || n <= 0);
-      });
+  const auto it =
+    std::find_if(m_Sigmas.cbegin(), m_Sigmas.cend(), [kappa, n](const auto &s) {
+      return s.kappa == kappa && (s.n == n || n <= 0);
+    });
   if (it != m_Sigmas.cend()) {
     // have sigma already!
     // print deets!
@@ -195,7 +195,7 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     fmt::print("  de[B2]  = ");
     std::cout << std::flush;
     const auto dS =
-        m_Gold->dSigma_Breit2(kappa, ev, m_fk, m_etak, 99, m_n_max_breit);
+      m_Gold->dSigma_Breit2(kappa, ev, m_fk, m_etak, 99, m_n_max_breit);
     const auto deB2 = (*Fv) * (dS * *Fv);
     fmt::print("{:.2f}\n", deB2 * PhysConst::Hartree_invcm);
     std::cout << std::flush;
@@ -272,13 +272,13 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
 
   if (!m_Gold) {
     m_Gold =
-        Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size, m_n_min_core,
-                  m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
+      Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size, m_n_min_core,
+                m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
   }
 
   auto Sd = exchange_seperately ?
-                m_Gold->Sigma_direct(kappa, ev, m_fk, m_etak) :
-                m_Gold->Sigma_both(kappa, ev, m_fk, m_etak);
+              m_Gold->Sigma_direct(kappa, ev, m_fk, m_etak) :
+              m_Gold->Sigma_both(kappa, ev, m_fk, m_etak);
 
   double deD{0.0};
   if (Fv) {
@@ -305,7 +305,7 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
     fmt::print("  de[B2]  = ");
     std::cout << std::flush;
     const auto dS =
-        m_Gold->dSigma_Breit2(kappa, ev, m_fk, m_etak, 99, m_n_max_breit);
+      m_Gold->dSigma_Breit2(kappa, ev, m_fk, m_etak, 99, m_n_max_breit);
     const auto deB2 = (*Fv) * (dS * *Fv);
     fmt::print("{:.2f}\n", deB2 * PhysConst::Hartree_invcm);
     std::cout << std::flush;
@@ -350,9 +350,9 @@ void CorrelationPotential::setup_Feynman() {
       t_FoptionsX.screening = Screening::include;
       t_FoptionsX.hole_particle = HoleParticle::exclude;
       m_FyX = m_Fy->hole_particle() ?
-                  Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsX,
-                          m_n_min_core, m_includeG, false, m_fname) :
-                  m_Fy;
+                Feynman(m_HF, m_i0, t_stride, t_size, t_FoptionsX, m_n_min_core,
+                        m_includeG, false, m_fname) :
+                m_Fy;
     }
   }
 }
@@ -362,14 +362,14 @@ const SigmaData *CorrelationPotential::get(int kappa, int n) const {
   if (n <= 0) {
     // returns FIRST sigma that has correct kappa, order matters!
     const auto it =
-        std::find_if(m_Sigmas.cbegin(), m_Sigmas.cend(),
-                     [kappa](const auto &s) { return s.kappa == kappa; });
+      std::find_if(m_Sigmas.cbegin(), m_Sigmas.cend(),
+                   [kappa](const auto &s) { return s.kappa == kappa; });
     return it != m_Sigmas.cend() ? &(*it) : nullptr;
   } else {
     // Find first Sigma that matches kappa _and_ n
     const auto it = std::find_if(
-        m_Sigmas.cbegin(), m_Sigmas.cend(),
-        [kappa, n](const auto &s) { return s.kappa == kappa && s.n == n; });
+      m_Sigmas.cbegin(), m_Sigmas.cend(),
+      [kappa, n](const auto &s) { return s.kappa == kappa && s.n == n; });
     // If not found, look (recursively) for next lowest n
     return it != m_Sigmas.cend() ? &(*it) : get(kappa, n - 1);
   }
@@ -449,7 +449,7 @@ bool CorrelationPotential::read_write(const std::string &fname,
     return false;
 
   const auto rw_str =
-      rw == IO::FRW::write ? "\nWriting to " : "\nReading from ";
+    rw == IO::FRW::write ? "\nWriting to " : "\nReading from ";
   std::cout << rw_str << "Sigma file: " << fname << " ... " << std::flush;
 
   std::fstream iofs;
@@ -491,9 +491,8 @@ bool CorrelationPotential::read_write(const std::string &fname,
 
     if (rw == IO::FRW::read) {
       m_Sigmas.push_back(
-          {0, 0.0,
-           GMatrix{m_i0, m_stride, m_size, m_includeG, m_HF->grid_sptr()}, 0,
-           1.0}); // don't read/write lamba
+        {0, 0.0, GMatrix{m_i0, m_stride, m_size, m_includeG, m_HF->grid_sptr()},
+         0, 1.0}); // don't read/write lamba
     }
     auto &Sig = m_Sigmas.at(iS);
     rw_binary(iofs, rw, Sig.kappa, Sig.en, Sig.n);

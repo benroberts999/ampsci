@@ -3,6 +3,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "include.hpp"
+#include "qip/Random.hpp"
 #include <utility>
 
 TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
@@ -11,7 +12,8 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
   // for dumb reason, generateOperator takes in wf...
   Wavefunction wf({2000, 1.0e-6, 300.0, 50.0, "loglinear"},
-                  {"Cs", 133, "Fermi"});
+                  {"Cs", 133, "Fermi"}, 1.0,
+                  "deleteme_" + qip::random_string(4));
 
   auto &orbs = wf.valence();
   for (int ik = 0; ik <= Angular::indexFromKappa(2); ik++) {
@@ -204,25 +206,25 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                                     {"3d-", "3d-", 1.0769837860e+00}};
 
     const auto dataBW_SP =
-        std::vector{std::tuple{"1s+", "1s+", -9.1760577658e-05},
-                    {"1s+", "3d-", -3.0880838988e-09},
-                    {"2p-", "2p-", -4.3123067284e-09},
-                    {"2p-", "2p+", -3.1267423824e-09},
-                    {"2p+", "2p-", -3.1267423824e-09},
-                    {"2p+", "2p+", -8.7967510637e-15},
-                    {"3d-", "1s+", -3.0880838988e-09},
-                    {"3d-", "3d-", -0.0000000000e+00}};
+      std::vector{std::tuple{"1s+", "1s+", -9.1760577658e-05},
+                  {"1s+", "3d-", -3.0880838988e-09},
+                  {"2p-", "2p-", -4.3123067284e-09},
+                  {"2p-", "2p+", -3.1267423824e-09},
+                  {"2p+", "2p-", -3.1267423824e-09},
+                  {"2p+", "2p+", -8.7967510637e-15},
+                  {"3d-", "1s+", -3.0880838988e-09},
+                  {"3d-", "3d-", -0.0000000000e+00}};
 
     // test data generated with "old" mu = 2.582025
     const IO::InputBlock options{""};
-    auto h0 = DiracOperator::generate("hfs",
-                                      {"hfs", "F=pointlike; mu=2.582025;"}, wf);
+    auto h0 =
+      DiracOperator::generate("hfs", {"hfs", "F=pointlike; mu=2.582025;"}, wf);
     auto hB =
-        DiracOperator::generate("hfs", {"hfs", "F=Ball; mu=2.582025;"}, wf);
+      DiracOperator::generate("hfs", {"hfs", "F=Ball; mu=2.582025;"}, wf);
     auto hS = DiracOperator::generate(
-        "hfs", {"hfs", "F=SingleParticle; mu=2.582025;"}, wf);
+      "hfs", {"hfs", "F=SingleParticle; mu=2.582025;"}, wf);
     auto h0_au = DiracOperator::generate(
-        "hfs", {"hfs", "F=pointlike; units=au; mu=2.582025;"}, wf);
+      "hfs", {"hfs", "F=pointlike; units=au; mu=2.582025;"}, wf);
 
     REQUIRE(h0->get_d_order() == 0);
     REQUIRE(h0->imaginaryQ() == false);
@@ -265,7 +267,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
     const IO::InputBlock options{""};
     auto h = DiracOperator::generate(
-        "hfs", {"hfs", "k=2; nuc_mag=pointlike; Q=1.0; "}, wf);
+      "hfs", {"hfs", "k=2; nuc_mag=pointlike; Q=1.0; "}, wf);
 
     REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
@@ -324,7 +326,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
     const IO::InputBlock options{""};
     auto h =
-        DiracOperator::generate("pnc", {"pnc", "c=5.67073; t=2.3; N=-1;"}, wf);
+      DiracOperator::generate("pnc", {"pnc", "c=5.67073; t=2.3; N=-1;"}, wf);
 
     REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == true);
@@ -369,8 +371,8 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     wf2.solve_core("HartreeFock", 0.0, "[He]");
     wf2.solve_valence("2sp");
 
-    const auto test_data = std::vector{
-        std::pair{"2s+", 0.0}, {"2p-", -0.04163}, {"2p+", -0.04162}};
+    const auto test_data =
+      std::vector{std::pair{"2s+", 0.0}, {"2p-", -0.04163}, {"2p+", -0.04162}};
 
     const auto p = DiracOperator::generate("p", {}, wf);
     for (const auto &[state, expected] : test_data) {
@@ -397,10 +399,9 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                                   {"2p+", "2p+", 6.3439374927e-08},
                                   {"3d-", "3d-", -6.9277166579e-09}};
 
-    // Uehling only (fast)
     auto h = DiracOperator::generate(
-        "Vrad",
-        {"Vrad", "readwrite=false; Ueh=1.0; SE_h=1.0; SE_l=1.0; SE_m=1.0"}, wf);
+      "Vrad",
+      {"Vrad", "readwrite=false; Ueh=1.0; SE_h=1.0; SE_l=1.0; SE_m=1.0"}, wf);
 
     REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
@@ -462,7 +463,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
         REQUIRE(jl.rank() == int(l));
         REQUIRE(jl.L() == l);
         const auto jl2 =
-            SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
+          SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
 
         for (const auto &a : wf.valence()) {
           for (const auto &b : wf.valence()) {
@@ -504,7 +505,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
         REQUIRE(ig0g5jL.L() == l);
 
         const auto J_L =
-            SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
+          SphericalBessel::fillBesselVec_kr(int(l), q, wf.grid().r());
 
         for (const auto &a : wf.valence()) {
           for (const auto &b : wf.valence()) {
@@ -517,27 +518,27 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
             const auto &gr = wf.grid();
             const auto Rf =
-                NumCalc::integrate(gr.du(), 0, 0, a.f(), b.f(), J_L, gr.drdu());
+              NumCalc::integrate(gr.du(), 0, 0, a.f(), b.f(), J_L, gr.drdu());
             const auto Rg =
-                NumCalc::integrate(gr.du(), 0, 0, a.g(), b.g(), J_L, gr.drdu());
+              NumCalc::integrate(gr.du(), 0, 0, a.g(), b.g(), J_L, gr.drdu());
             const auto Rfg =
-                NumCalc::integrate(gr.du(), 0, 0, a.f(), b.g(), J_L, gr.drdu());
+              NumCalc::integrate(gr.du(), 0, 0, a.f(), b.g(), J_L, gr.drdu());
             const auto Rgf =
-                NumCalc::integrate(gr.du(), 0, 0, a.g(), b.f(), J_L, gr.drdu());
+              NumCalc::integrate(gr.du(), 0, 0, a.g(), b.f(), J_L, gr.drdu());
 
             const auto rme2_g0 =
-                C(a.kappa(), b.kappa(), l) * (Rf * Rf - 2 * Rf * Rg + Rg * Rg);
+              C(a.kappa(), b.kappa(), l) * (Rf * Rf - 2 * Rf * Rg + Rg * Rg);
             const auto rme2_g0g5 = D(a.kappa(), b.kappa(), l) *
                                    (Rfg * Rfg + 2 * Rfg * Rgf + Rgf * Rgf);
             const auto rme2_g5 = D(a.kappa(), b.kappa(), l) *
                                  (Rfg * Rfg - 2 * Rfg * Rgf + Rgf * Rgf);
 
             const auto rme1_g0 =
-                double(2 * l + 1) * std::pow(g0jl.reducedME(a, b), 2);
+              double(2 * l + 1) * std::pow(g0jl.reducedME(a, b), 2);
             const auto rme1_g0g5 =
-                double(2 * l + 1) * std::pow(ig0g5jL.reducedME(a, b), 2);
+              double(2 * l + 1) * std::pow(ig0g5jL.reducedME(a, b), 2);
             const auto rme1_g5 =
-                double(2 * l + 1) * std::pow(ig5jL.reducedME(a, b), 2);
+              double(2 * l + 1) * std::pow(ig5jL.reducedME(a, b), 2);
 
             // use 'margin' here, since some MEs are zero (don't skip, since some have different selection rules)
 

@@ -30,7 +30,7 @@ jobs:
             apt-get update -y && \
             apt-get install -y make liblapack-dev libblas-dev libgsl-dev && \
             cp ./doc/examples/Makefile ./ && \
-            make CXX=g++ UseOpenMP=yes && \
+            make CXX=g++ OMPLIB=-fopenmp && \
             ./ampsci -v
           "
 
@@ -43,6 +43,6 @@ jobs:
       #       apt-get update -y && \
       #       apt-get install -y make liblapack-dev libblas-dev libgsl-dev && \
       #       cp ./doc/examples/Makefile ./ && \
-      #       make CXX=clang++-6 UseOpenMP=no && \
+      #       make CXX=clang++-6 OMPLIB= && \
       #       ./ampsci -v
       #     "

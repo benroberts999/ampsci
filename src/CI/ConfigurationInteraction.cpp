@@ -26,59 +26,59 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   // Check input options:
   input.check(
-      {{"ci_basis",
-        "Basis used for CI expansion; must be a sub-set of full ampsci basis "
-        "[default: 10spdf]"},
-       {"J", "List of total angular momentum J for CI solutions (comma "
-             "separated). Must be integers (two-electron only). []"},
-       {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
-       {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
-       {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
-       {"all_below", "Finds all solutions for requested J^π below given "
-                     "eigenvalue (in cm^-1, negative). Will override above."},
-       {"sigma1", "Include one-body MBPT correlations? [false]"},
-       {"sigma2", "Include two-body MBPT correlations? [false]"},
-       {"cis2_basis",
-        "The subset of ci_basis for which the two-body MBPT corrections are "
-        "calculated. Must be a subset of ci_basis. If existing sk file has "
-        "more integrals, they will be used. [default: Nspdf, where N is "
-        "maximum n for core + 3]"},
-       {"s1_basis",
-        "Basis used for the one-body MBPT diagrams (Sigma^1). These are the "
-        "most important, so in general the default (all basis states) should "
-        "be used. Must be a subset of full ampsci basis. [default: full "
-        "basis]\n"
-        " - Note: if CorrelationPotential is available, it will be used "
-        "instead of calculating the Sigma_1 integrals"},
-       {"s2_basis",
-        "Basis used for internal lines of the two-body MBPT diagrams "
-        "(Sigma^2). Must be a subset of s1_basis. [default: s1_basis]"},
-       {"n_min_core", "Minimum n for core to be included in MBPT [1]"},
-       {"max_k",
-        "Maximum k (multipolarity) to include when calculating new "
-        "Coulomb integrals. Higher k often contribute negligably. Note: if qk "
-        "file already has higher-k terms, they will be included. Set negative "
-        "(or very large) to include all k. [8]"},
-       {"qk_file",
-        "Filename for storing two-body Coulomb integrals. By default, is "
-        "At.qk, where At is atomic symbol."},
-       {"sk_file",
-        "Filename for storing two-body Sigma_2 integrals. By default, is "
-        "At_n_b_k.sk, where At is atomic symbol, n is n_min_core, b is "
-        "cis2_basis, k is max_k."},
-       {"no_new_integrals",
-        "Usually false. If set to true, ampsci will not calculate any new "
-        "Coulomb or Sigma_2 integrals, even if they are implied by the above "
-        "settings. This saves time when we know all required integrals already "
-        "exist, since the code doesn't need to check. [true]"},
-       {"exclude_wrong_parity_box",
-        "Excludes the Sigma_2 box corrections that "
-        "have 'wrong' parity when calculating Sigma2 matrix elements. Note: If "
-        "existing sk file already has these, they will be included [false]"},
-       {"sort_output", "Sort output by energy? Default is to sort by J and Pi "
-                       "first. [false]"},
-       {"parallel_ci", "Run CI in parallel (solve each J/Pi in parallel). "
-                       "Faster, uses slightly more memory [true]"}});
+    {{"ci_basis",
+      "Basis used for CI expansion; must be a sub-set of full ampsci basis "
+      "[default: 10spdf]"},
+     {"J", "List of total angular momentum J for CI solutions (comma "
+           "separated). Must be integers (two-electron only). []"},
+     {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
+     {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
+     {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
+     {"all_below", "Finds all solutions for requested J^π below given "
+                   "eigenvalue (in cm^-1, negative). Will override above."},
+     {"sigma1", "Include one-body MBPT correlations? [false]"},
+     {"sigma2", "Include two-body MBPT correlations? [false]"},
+     {"cis2_basis",
+      "The subset of ci_basis for which the two-body MBPT corrections are "
+      "calculated. Must be a subset of ci_basis. If existing sk file has "
+      "more integrals, they will be used. [default: Nspdf, where N is "
+      "maximum n for core + 3]"},
+     {"s1_basis",
+      "Basis used for the one-body MBPT diagrams (Sigma^1). These are the "
+      "most important, so in general the default (all basis states) should "
+      "be used. Must be a subset of full ampsci basis. [default: full "
+      "basis]\n"
+      " - Note: if CorrelationPotential is available, it will be used "
+      "instead of calculating the Sigma_1 integrals"},
+     {"s2_basis",
+      "Basis used for internal lines of the two-body MBPT diagrams "
+      "(Sigma^2). Must be a subset of s1_basis. [default: s1_basis]"},
+     {"n_min_core", "Minimum n for core to be included in MBPT [1]"},
+     {"max_k",
+      "Maximum k (multipolarity) to include when calculating new "
+      "Coulomb integrals. Higher k often contribute negligably. Note: if qk "
+      "file already has higher-k terms, they will be included. Set negative "
+      "(or very large) to include all k. [8]"},
+     {"qk_file",
+      "Filename for storing two-body Coulomb integrals. By default, is "
+      "At.qk, where At is atomic symbol."},
+     {"sk_file",
+      "Filename for storing two-body Sigma_2 integrals. By default, is "
+      "At_n_b_k.sk, where At is atomic symbol, n is n_min_core, b is "
+      "cis2_basis, k is max_k."},
+     {"no_new_integrals",
+      "Usually false. If set to true, ampsci will not calculate any new "
+      "Coulomb or Sigma_2 integrals, even if they are implied by the above "
+      "settings. This saves time when we know all required integrals already "
+      "exist, since the code doesn't need to check. [true]"},
+     {"exclude_wrong_parity_box",
+      "Excludes the Sigma_2 box corrections that "
+      "have 'wrong' parity when calculating Sigma2 matrix elements. Note: If "
+      "existing sk file already has these, they will be included [false]"},
+     {"sort_output", "Sort output by energy? Default is to sort by J and Pi "
+                     "first. [false]"},
+     {"parallel_ci", "Run CI in parallel (solve each J/Pi in parallel). "
+                     "Faster, uses slightly more memory [true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -95,7 +95,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   // Select from wf.basis() [MBPT basis], those which match input 'basis_string'
   // exclude those in coreConfiguration
   const std::vector<DiracSpinor> ci_sp_basis =
-      CI::basis_subset(wf.basis(), basis_string, wf.coreConfiguration());
+    CI::basis_subset(wf.basis(), basis_string, wf.coreConfiguration());
 
   // Print info re: basis to screen:
   std::cout << "\nUsing " << DiracSpinor::state_config(ci_sp_basis) << " = "
@@ -110,18 +110,17 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   const auto include_Sigma2 = input.get("sigma2", false);
   const auto max_k_Coulomb = input.get("max_k", 8);
   const auto exclude_wrong_parity_box =
-      input.get("exclude_wrong_parity_box", false);
+    input.get("exclude_wrong_parity_box", false);
   const auto include_MBPT = include_Sigma1 || include_Sigma2;
 
   // s1 and s2 MBPT basis
   const auto s1_basis_string = input.get("s1_basis");
   const auto &s1_basis = s1_basis_string ?
-                             CI::basis_subset(wf.basis(), *s1_basis_string) :
-                             wf.basis();
+                           CI::basis_subset(wf.basis(), *s1_basis_string) :
+                           wf.basis();
   const auto s2_basis_string = input.get("s2_basis");
-  const auto &s2_basis = s2_basis_string ?
-                             CI::basis_subset(wf.basis(), *s2_basis_string) :
-                             s1_basis;
+  const auto &s2_basis =
+    s2_basis_string ? CI::basis_subset(wf.basis(), *s2_basis_string) : s1_basis;
 
   // Ensure s2_basis is subset of s1_basis
   assert(s2_basis.size() <= s1_basis.size() &&
@@ -130,14 +129,14 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   // Split basis' into core/excited (for MBPT evaluations)
   const auto n_min_core = input.get("n_min_core", 1);
   const auto [core_s1, excited_s1] =
-      MBPT::split_basis(s1_basis, wf.FermiLevel(), n_min_core);
+    MBPT::split_basis(s1_basis, wf.FermiLevel(), n_min_core);
   const auto [core_s2, excited_s2] =
-      MBPT::split_basis(s2_basis, wf.FermiLevel(), n_min_core);
+    MBPT::split_basis(s2_basis, wf.FermiLevel(), n_min_core);
 
   // S2 corrections are included only for this subset of the CI basis:
   const auto Ncore = DiracSpinor::max_n(wf.core()) + 3;
   const auto cis2_basis_string =
-      input.get("cis2_basis", std::to_string(Ncore) + "spdf");
+    input.get("cis2_basis", std::to_string(Ncore) + "spdf");
   const auto &cis2_basis = CI::basis_subset(ci_sp_basis, cis2_basis_string);
 
   //----------------------------------------------------------------------------
@@ -170,7 +169,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
                 << DiracSpinor::state_config(cis2_basis) << "\n";
       if (exclude_wrong_parity_box) {
         std::cout
-            << "Excluding the Σ_2 diagrams that have the 'wrong' parity\n";
+          << "Excluding the Σ_2 diagrams that have the 'wrong' parity\n";
         std::cout << "(Unless they were already calculated in sk file)\n";
       }
     }
@@ -212,13 +211,12 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
       // i.e., no Q_vwxy, Q_vabc, or Q_abcd
       // Note: we *do* need Q_vwxy for the CI part (but with smaller basis)
       const auto select_Q_sigma =
-          [eF = wf.FermiLevel()](int, const DiracSpinor &s,
-                                 const DiracSpinor &t, const DiracSpinor &u,
-                                 const DiracSpinor &v) {
-            // Only calculate Coulomb integrals with 1 or 2 electrons in the core
-            auto num = MBPT::number_below_Fermi(s, t, u, v, eF);
-            return num == 1 || num == 2;
-          };
+        [eF = wf.FermiLevel()](int, const DiracSpinor &s, const DiracSpinor &t,
+                               const DiracSpinor &u, const DiracSpinor &v) {
+          // Only calculate Coulomb integrals with 1 or 2 electrons in the core
+          auto num = MBPT::number_below_Fermi(s, t, u, v, eF);
+          return num == 1 || num == 2;
+        };
 
       // Then, add those required for Sigma_1 (unless we have matrix!)
       if (include_Sigma1 && !wf.Sigma()) {
@@ -270,10 +268,10 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   // Create lookup table for one-particle matrix elements, h1
   const auto h1 =
-      wf.Sigma() ?
-          CI::calculate_h1_table(ci_sp_basis, *wf.Sigma(), include_Sigma1) :
-          CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
-                                 include_Sigma1);
+    wf.Sigma() ?
+      CI::calculate_h1_table(ci_sp_basis, *wf.Sigma(), include_Sigma1) :
+      CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
+                             include_Sigma1);
 
   //----------------------------------------------------------------------------
   // Calculate MBPT corrections to two-body Coulomb integrals
@@ -283,12 +281,12 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
     // Here, write basis info into filename, since these are _internal_ lines!
     const auto Sk_filename =
-        input.get("sk_file", wf.identity() + "_" + std::to_string(n_min_core) +
-                                 "_" + DiracSpinor::state_config(excited_s2) +
-                                 (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
-                                      "_" + std::to_string(max_k_Coulomb) :
-                                      "") +
-                                 ".sk.abf");
+      input.get("sk_file", wf.identity() + "_" + std::to_string(n_min_core) +
+                             "_" + DiracSpinor::state_config(excited_s2) +
+                             (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
+                                "_" + std::to_string(max_k_Coulomb) :
+                                "") +
+                             ".sk.abf");
 
     std::cout << "Calculate two-body MBPT integrals: Σ^k_abcd\n";
 
@@ -323,9 +321,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 #pragma omp parallel for if (parallel_ci)
     for (std::size_t i = 0; i < n_Js; ++i) {
       const auto [twoj, pi] =
-          i < J_even_list.size() ?
-              std::pair{2 * J_even_list.at(i), +1} :
-              std::pair{2 * J_odd_list.at(i - J_even_list.size()), -1};
+        i < J_even_list.size() ?
+          std::pair{2 * J_even_list.at(i), +1} :
+          std::pair{2 * J_odd_list.at(i - J_even_list.size()), -1};
 
       auto &output_stream = parallel_ci ? os.at(i) : std::cout;
       levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_solutions, all_below, h1,
@@ -365,12 +363,12 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
       const auto itwoS = (int)std::round(twoS);
 
       auto out_string = fmt::format(
-          "{:<2} {:+2} {:>2}  {:<6s} {:2.0f}  {:<3s}  {:+12.8f}  {:+12.2f} "
-          "{:12.2f}",
-          Psi_Jpi.twoJ() / 2, Psi_Jpi.parity(), i, config, pc * 100.0,
-          Term_Symbol(iL, itwoS, Psi_Jpi.parity()), Psi_Jpi.energy(i),
-          Psi_Jpi.energy(i) * PhysConst::Hartree_invcm,
-          (Psi_Jpi.energy(i) - e0) * PhysConst::Hartree_invcm);
+        "{:<2} {:+2} {:>2}  {:<6s} {:2.0f}  {:<3s}  {:+12.8f}  {:+12.2f} "
+        "{:12.2f}",
+        Psi_Jpi.twoJ() / 2, Psi_Jpi.parity(), i, config, pc * 100.0,
+        Term_Symbol(iL, itwoS, Psi_Jpi.parity()), Psi_Jpi.energy(i),
+        Psi_Jpi.energy(i) * PhysConst::Hartree_invcm,
+        (Psi_Jpi.energy(i) - e0) * PhysConst::Hartree_invcm);
       if (gJ != 0.0) {
         out_string += fmt::format("  {:.4f}", gJ);
       }
@@ -389,8 +387,8 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     std::cout << "d(α^2) = " << wf.dalpha2() << "\n";
   }
   std::cout
-      << "J   π  #  conf.  %   Term   Energy(au)   Energy(/cm)   Level(/cm) "
-         " gJ\n";
+    << "J   π  #  conf.  %   Term   Energy(au)   Energy(/cm)   Level(/cm) "
+       " gJ\n";
   for (const auto &[E, output] : E_output) {
     std::cout << output << "\n";
   }
@@ -500,8 +498,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     // And: <JJ|L + 2*S|JJ> = 3js * <A||L+2S||A> (W.E. Theorem)
     // const auto m1AA_NR = CI::ReducedME(psi.coefs(i), psi.CSFs(), twoJ, &m1);
     const auto m1AA_R =
-        CI::ReducedME(psi.coefs(i), psi.CSFs(), twoJ, psi.coefs(i), psi.CSFs(),
-                      twoJ, m1_tab, m1.rank(), m1.parity());
+      CI::ReducedME(psi.coefs(i), psi.CSFs(), twoJ, psi.coefs(i), psi.CSFs(),
+                    twoJ, m1_tab, m1.rank(), m1.parity());
     const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
 
     // Calculate g-factors, for line identification. Only defined for J!=0

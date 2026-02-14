@@ -151,7 +151,7 @@ private:
 
 public:
   ArrayView(T *data, std::size_t size, std::size_t stride = 1)
-      : m_size(size), m_stride(stride), m_data(data) {}
+    : m_size(size), m_stride(stride), m_data(data) {}
 
   std::size_t size() const { return m_size; }
 
@@ -197,7 +197,7 @@ public:
   }
   auto crbegin() const {
     return ConstStrideIterator(
-        m_data + long(m_size * m_stride) - long(m_stride), -long(m_stride));
+      m_data + long(m_size * m_stride) - long(m_stride), -long(m_stride));
   }
 
   auto rend() {
@@ -258,7 +258,7 @@ auto NDrange(std::size_t first, Args... rest) {
   constexpr std::size_t N = sizeof...(rest) + 1;
 
   const std::array<std::size_t, N> maxValues = {
-      first, static_cast<std::size_t>(rest)...};
+    first, static_cast<std::size_t>(rest)...};
 
   std::vector<std::array<std::size_t, N>> result;
   result.reserve(product(first, static_cast<std::size_t>(rest)...));
@@ -418,12 +418,12 @@ std::vector<std::size_t> Array<T>::calc_cumulative_size() const {
 template <typename T>
 template <typename... Args>
 Array<T>::Array(std::size_t first, Args... rest)
-    : m_sizes({first, static_cast<std::size_t>(rest)...}),
-      m_Ndim(m_sizes.size()),
-      m_cumulative_sizes(calc_cumulative_size()),
-      m_total_size(std::accumulate(m_sizes.cbegin(), m_sizes.cend(), 1ul,
-                                   std::multiplies<std::size_t>())),
-      m_data(m_total_size) {}
+  : m_sizes({first, static_cast<std::size_t>(rest)...}),
+    m_Ndim(m_sizes.size()),
+    m_cumulative_sizes(calc_cumulative_size()),
+    m_total_size(std::accumulate(m_sizes.cbegin(), m_sizes.cend(), 1ul,
+                                 std::multiplies<std::size_t>())),
+    m_data(m_total_size) {}
 
 template <typename T>
 template <typename... Args>

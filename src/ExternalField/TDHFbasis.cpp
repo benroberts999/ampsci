@@ -13,7 +13,7 @@ namespace ExternalField {
 TDHFbasis::TDHFbasis(const DiracOperator::TensorOperator *const h,
                      const HF::HartreeFock *const hf,
                      const std::vector<DiracSpinor> &basis)
-    : TDHF(h, hf), m_basis(basis) {}
+  : TDHF(h, hf), m_basis(basis) {}
 
 //==============================================================================
 DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
@@ -33,7 +33,7 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
   if (st == StateType::bra) {
     // "left-hand-side" : "reduced" ket, so has factor (+ conjugate)
     const auto sj =
-        Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_beta)) ? 1 : -1;
+      Angular::evenQ_2(Fv.twoj() - Angular::twoj_k(kappa_beta)) ? 1 : -1;
     // if conj, extra * => +1
     const auto si = imag && !conj ? -1 : 1;
     s2 = sj * si;
@@ -52,8 +52,8 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
     // const auto hnc = s2 * (s * m_h->reducedME(Fn, Fv) + s * dV(Fn, Fv,
     // conj));
     const auto hnc = incl_dV ?
-                         s2 * s * (m_h->reducedME(Fn, Fv) + dV(Fn, Fv, conj)) :
-                         s2 * s * m_h->reducedME(Fn, Fv);
+                       s2 * s * (m_h->reducedME(Fn, Fv) + dV(Fn, Fv, conj)) :
+                       s2 * s * m_h->reducedME(Fn, Fv);
     Xx += (hnc / (Fv.en() - Fn.en() + ww)) * Fn;
   }
 

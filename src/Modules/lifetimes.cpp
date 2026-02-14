@@ -39,16 +39,16 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
                "have been included in the valence list for accurate results.\n";
 
   input.check(
-      {{"E1", "Include E1 transitions? [true]"},
-       {"E2", "Include E2 transitions? [false]"},
-       {"M1", "Include M1 transitions? [false]"},
-       {"rpa", "Include RPA? [true]"},
-       {"SRN", "Include SR+Norm correction? [false]"},
-       {"Qk_file", "Qk filename (for SR+N). If blank, will calculate "
-                   "from scratch, ortherwise will read/write to Qkfile. "
-                   "Note: QkFile assumes spline-legs! [blank]"},
-       {"n_minmax", "List: minimum core n, maximum excited n to "
-                    "include for SR+N [2,30]"}});
+    {{"E1", "Include E1 transitions? [true]"},
+     {"E2", "Include E2 transitions? [false]"},
+     {"M1", "Include M1 transitions? [false]"},
+     {"rpa", "Include RPA? [true]"},
+     {"SRN", "Include SR+Norm correction? [false]"},
+     {"Qk_file", "Qk filename (for SR+N). If blank, will calculate "
+                 "from scratch, ortherwise will read/write to Qkfile. "
+                 "Note: QkFile assumes spline-legs! [blank]"},
+     {"n_minmax", "List: minimum core n, maximum excited n to "
+                  "include for SR+N [2,30]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -77,24 +77,26 @@ void lifetimes(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace ExternalField;
   auto dVe1 = (do_E1 && rpaQ) ? std::make_unique<TDHF>(&e1, wf.vHF()) : nullptr;
   // nb: we use DiagramRPA method for E2 and M1
-  auto dVe2 = (do_E2 && rpaQ) ? std::make_unique<DiagramRPA>(
-                                    &e2, wf.basis(), wf.vHF(), wf.identity()) :
-                                nullptr;
-  auto dVm1 = (do_M1 && rpaQ) ? std::make_unique<DiagramRPA>(
-                                    &m1, wf.basis(), wf.vHF(), wf.identity()) :
-                                nullptr;
+  auto dVe2 =
+    (do_E2 && rpaQ) ?
+      std::make_unique<DiagramRPA>(&e2, wf.basis(), wf.vHF(), wf.identity()) :
+      nullptr;
+  auto dVm1 =
+    (do_M1 && rpaQ) ?
+      std::make_unique<DiagramRPA>(&m1, wf.basis(), wf.vHF(), wf.identity()) :
+      nullptr;
 
   // Optionally include SR+N
   if (do_SRN)
     std::cout << "\nIncluding SR+Norm:\n";
   auto SRN = do_SRN ? std::make_unique<MBPT::StructureRad>(
-                          wf.basis(), wf.FermiLevel(),
-                          std::pair{n_min_max.at(0), n_min_max.at(1)}, Qkfile) :
+                        wf.basis(), wf.FermiLevel(),
+                        std::pair{n_min_max.at(0), n_min_max.at(1)}, Qkfile) :
                       nullptr;
 
   // Find ground state (so we don't print it)
   const auto ground_state = std::min_element(
-      wf.valence().cbegin(), wf.valence().cend(), DiracSpinor::comp_en);
+    wf.valence().cbegin(), wf.valence().cend(), DiracSpinor::comp_en);
   if (ground_state == wf.valence().cend())
     return;
 

@@ -41,21 +41,19 @@ bool check_radial_grid(double Emax, double qmax, const Grid &rgrid);
 //! Calculates ionisation factor K(E,q) for given core state, Fnk, using
 //! standard method. Stored as matrix. use_rpa0 is flag for including
 //! lowest-order RPA (i.e., with zero iterations)
-LinAlg::Matrix<double>
-calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
-              const Grid &Egrid, const DiracOperator::jL *jl,
-              bool force_rescale, bool hole_particle, bool force_orthog,
-              bool zeff_cont, bool use_rpa0 = false,
-              const std::vector<DiracSpinor> &basis = {},
-              double ec_cut = 1000.0);
+LinAlg::Matrix<double> calculateK_nk(
+  const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
+  const Grid &Egrid, const DiracOperator::jL *jl, bool force_rescale,
+  bool hole_particle, bool force_orthog, bool zeff_cont, bool use_rpa0 = false,
+  const std::vector<DiracSpinor> &basis = {}, double ec_cut = 1000.0);
 
 //! Calculates ionisation factor K(E,q), for all core states, in RPA approximation.
 //! Uses all-orders RPA, so is quite slow (RPA must be solved for each L and q)
 std::vector<LinAlg::Matrix<double>> calculateK_nk_rpa(
-    const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &core, int max_L,
-    const Grid &Egrid, DiracOperator::jL *jl, bool force_rescale,
-    bool hole_particle, bool force_orthog,
-    const std::vector<DiracSpinor> &basis, const std::string &atom);
+  const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &core, int max_L,
+  const Grid &Egrid, DiracOperator::jL *jl, bool force_rescale,
+  bool hole_particle, bool force_orthog, const std::vector<DiracSpinor> &basis,
+  const std::string &atom);
 
 //! Calculates approxinate ionisation factor K_nk(q) for each core state.
 //! Stores in matrix K[nk,q].

@@ -85,12 +85,12 @@ TEST_CASE("Coulomb: quad integrate", "[Coulomb][unit]") {
     // numerical integration (on grid):
     const auto intll = NumCalc::integrate(grll.du(), 0, 0, vll, grll.drdu());
     const auto intlog =
-        NumCalc::integrate(grlog.du(), 0, 0, vlog, grlog.drdu());
+      NumCalc::integrate(grlog.du(), 0, 0, vlog, grlog.drdu());
 
     // Account for possibility r0, rmax slightly different:
     const auto exactll = Intfunc(grll.r().back()) - Intfunc(grll.r().front());
     const auto exactlog =
-        Intfunc(grlog.r().back()) - Intfunc(grlog.r().front());
+      Intfunc(grlog.r().back()) - Intfunc(grlog.r().front());
 
     const auto error1 = std::abs((intll - exactll) / exactll);
     const auto eps1 = 1.0e-13;
@@ -108,7 +108,7 @@ TEST_CASE("Coulomb: yk,Rk formulas", "[Coulomb][unit]") {
   std::cout << "Coulomb: yk,Rk formulas\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
-      GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
   const double zeff = 1.0;
   const int lmax = 6;
 
@@ -275,7 +275,7 @@ TEST_CASE("Coulomb: yk,Rk formulas", "[Coulomb][unit]") {
             const auto pk1 = Coulomb::Pk_abcd(k, Fa, Fb, Fc, Fd);
             const auto pk2 = Fa * Coulomb::Pkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
             const auto eps_p =
-                pk2 == 0.0 ? std::abs(pk1 - pk2) : std::abs((pk1 - pk2) / pk2);
+              pk2 == 0.0 ? std::abs(pk1 - pk2) : std::abs((pk1 - pk2) / pk2);
             REQUIRE(eps_p < 1.0e-10);
 
             // P^k_abcd = \sum_l [k] 6j * Q^l_abdc
@@ -287,7 +287,7 @@ TEST_CASE("Coulomb: yk,Rk formulas", "[Coulomb][unit]") {
                      Coulomb::Qk_abcd(l, Fa, Fb, Fd, Fc);
             }
             const auto eps_p3 =
-                pk2 == 0.0 ? std::abs(pk1 - pk3) : std::abs((pk1 - pk3) / pk3);
+              pk2 == 0.0 ? std::abs(pk1 - pk3) : std::abs((pk1 - pk3) / pk3);
             REQUIRE(eps_p3 < 1.0e-10);
 
             // test W:
@@ -296,11 +296,11 @@ TEST_CASE("Coulomb: yk,Rk formulas", "[Coulomb][unit]") {
             const auto wk2 = Fa * Coulomb::Wkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
             const auto wk3 = qk + pk1;
             const auto eps_w = std::abs(wk) < 1.0e-8 ?
-                                   std::abs(wk2 - wk) :
-                                   std::abs((wk2 - wk) / wk);
+                                 std::abs(wk2 - wk) :
+                                 std::abs((wk2 - wk) / wk);
             const auto eps_w3 = std::abs(wk) < 1.0e-8 ?
-                                    std::abs(wk3 - wk) :
-                                    std::abs((wk3 - wk) / wk);
+                                  std::abs(wk3 - wk) :
+                                  std::abs((wk3 - wk) / wk);
             REQUIRE(eps_w < 1.0e-10);
             REQUIRE(eps_w3 < 1.0e-10);
           }
@@ -379,7 +379,7 @@ TEST_CASE("Coulomb: yk tables", "[Coulomb][yktable][unit]") {
   std::cout << "Coulomb: yk tables\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
-      GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
   const double zeff = 1.0;
   const int lmax = 6;
 
@@ -393,7 +393,7 @@ TEST_CASE("Coulomb: yk tables", "[Coulomb][yktable][unit]") {
     }
     aorbs.push_back(DiracSpinor::exactHlike(n_min, -l - 1, radial_grid, zeff));
     borbs.push_back(
-        DiracSpinor::exactHlike(n_min + 1, -l - 1, radial_grid, zeff));
+      DiracSpinor::exactHlike(n_min + 1, -l - 1, radial_grid, zeff));
   }
 
   // test same orbs case:
@@ -473,12 +473,12 @@ TEST_CASE("Coulomb: yk tables", "[Coulomb][yktable][unit]") {
               auto p1 = yaa.P(k, Fa, Fb, Fc, Fd);
               auto p2 = Coulomb::Pk_abcd(k, Fa, Fb, Fc, Fd);
               auto eps =
-                  p2 == 0.0 ? std::abs(p1 - p2) : std::abs((p1 - p2) / p2);
+                p2 == 0.0 ? std::abs(p1 - p2) : std::abs((p1 - p2) / p2);
               REQUIRE(eps < 1.0e-10);
 
               auto p3 = Fa * Coulomb::Pkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
               auto eps3 =
-                  p2 == 0.0 ? std::abs(p3 - p2) : std::abs((p3 - p2) / p2);
+                p2 == 0.0 ? std::abs(p3 - p2) : std::abs((p3 - p2) / p2);
               REQUIRE(eps3 < 1.0e-10);
               // test W
               // nb: sometimes W "non-zero" but extremely small. OK?
@@ -587,7 +587,7 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
     // test Q
     const auto maxtj = std::max_element(wf.basis().cbegin(), wf.basis().cend(),
                                         DiracSpinor::comp_j)
-                           ->twoj();
+                         ->twoj();
     const auto &Ck = Yij.Ck();
     const Angular::SixJTable sj(2 * maxtj);
 
@@ -609,21 +609,21 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
                 const auto Q3 = Fa * Yij.Qkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
 
                 const auto Q4 =
-                    Angular::neg1pow_2(2 * k + Fa.twoj() + Fb.twoj() + 2) *
-                    Ck(k, Fa.kappa(), Fc.kappa()) *
-                    Ck(k, Fb.kappa(), Fd.kappa()) *
-                    Coulomb::Rk_abcd(k, Fa, Fb, Fc, Fd);
+                  Angular::neg1pow_2(2 * k + Fa.twoj() + Fb.twoj() + 2) *
+                  Ck(k, Fa.kappa(), Fc.kappa()) *
+                  Ck(k, Fb.kappa(), Fd.kappa()) *
+                  Coulomb::Rk_abcd(k, Fa, Fb, Fc, Fd);
 
                 // test the 'Qk' version, including k_minmax_Q
                 const auto [kmin, kmax] = Coulomb::k_minmax_Q(Fa, Fb, Fc, Fd);
                 // This k_min should have correct parity rule too
                 const auto Q5 =
-                    (k >= kmin && k <= kmax && (kmin % 2 == k % 2)) ?
-                        Yij.Q(k, Fa, Fb, Fc, Fd) :
-                        0.0;
+                  (k >= kmin && k <= kmax && (kmin % 2 == k % 2)) ?
+                    Yij.Q(k, Fa, Fb, Fc, Fd) :
+                    0.0;
 
                 const auto delQ =
-                    std::abs(qip::max_difference(Q1, Q2, Q3, Q4, Q5));
+                  std::abs(qip::max_difference(Q1, Q2, Q3, Q4, Q5));
                 if (delQ > worstQ)
                   worstQ = delQ;
               }
@@ -644,7 +644,7 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
               const auto [kminP, kmaxP] = Coulomb::k_minmax_P(Fa, Fb, Fc, Fd);
               // This k_min CANNOT contain correct parity rule
               const auto P5 =
-                  (k >= kminP && k <= kmaxP) ? Yij.P(k, Fa, Fb, Fc, Fd) : 0.0;
+                (k >= kminP && k <= kmaxP) ? Yij.P(k, Fa, Fb, Fc, Fd) : 0.0;
 
               const auto delP = std::abs(qip::max_difference(P1, P2, P4, P5));
               if (delP > worstP)
@@ -658,7 +658,7 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
               const auto [kmin, kmax] = Coulomb::k_minmax_W(Fa, Fb, Fc, Fd);
               // This k_min CANNOT contain correct parity rule
               const auto W5 =
-                  (k >= kmin && k <= kmax) ? Yij.W(k, Fa, Fb, Fc, Fd) : 0.0;
+                (k >= kmin && k <= kmax) ? Yij.W(k, Fa, Fb, Fc, Fd) : 0.0;
 
               const auto delW = std::abs(qip::max_difference(W1, W2, W5));
               if (delW > worstW)
@@ -685,8 +685,8 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
                   auto sj1 = Angular::sixj_2(Fa.twoj(), Fb.twoj(), Fc.twoj(),
                                              Fd.twoj(), 2 * k, 2 * l);
                   auto sj2 = Coulomb::sixjTriads(Fa, Fb, Fc, Fd, k, l) ?
-                                 Coulomb::sixj(Fa, Fb, Fc, Fd, k, l) :
-                                 0.0;
+                               Coulomb::sixj(Fa, Fb, Fc, Fd, k, l) :
+                               0.0;
                   if (std::abs(sj1 - sj2) > worst)
                     worst = std::abs(sj1 - sj2);
                 }
@@ -786,7 +786,7 @@ UnitTest::check_ykab(const std::vector<DiracSpinor> &orbs, int max_del_n) {
         const auto y4 = UnitTest::yk_naive(k, Fa, Fb); // slow
 
         const auto max =
-            *std::max_element(cbegin(y4), cend(y4), qip::less_abs{});
+          *std::max_element(cbegin(y4), cend(y4), qip::less_abs{});
         const auto del = std::abs(qip::compare(y2, y4).first / max);
 
         if (del > worst[std::size_t(k)])

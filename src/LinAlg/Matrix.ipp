@@ -11,7 +11,7 @@ class View {
 
 public:
   View(T *data, std::size_t start, std::size_t size, std::size_t stride)
-      : m_size(size), m_stride(stride), m_data(data + long(start)) {}
+    : m_size(size), m_stride(stride), m_data(data + long(start)) {}
 
   std::size_t size() const { return m_size; }
 
@@ -48,7 +48,7 @@ public:
 template <typename T>
 T Matrix<T>::determinant() const {
   static_assert(std::is_same_v<T, double> ||
-                    std::is_same_v<T, std::complex<double>>,
+                  std::is_same_v<T, std::complex<double>>,
                 "Determinant only works for double");
 
   assert(rows() == cols() && "Determinant only defined for square matrix");
@@ -76,8 +76,8 @@ T Matrix<T>::determinant() const {
 template <typename T>
 Matrix<T> &Matrix<T>::invert_in_place() {
   static_assert(
-      std::is_same_v<T, double> || std::is_same_v<T, std::complex<double>>,
-      "invert only works for Matrix<double> or Matrix<complex<double>>");
+    std::is_same_v<T, double> || std::is_same_v<T, std::complex<double>>,
+    "invert only works for Matrix<double> or Matrix<complex<double>>");
 
   assert(rows() == cols() && "Inverse only defined for square matrix");
   int sLU = 0;
@@ -315,10 +315,10 @@ auto Matrix<T>::as_gsl_view() {
   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
     // reinterpret_cast OK: cppreference.com/w/cpp/numeric/complex
     return gsl_matrix_complex_view_array(
-        reinterpret_cast<double *>(m_data.data()), m_rows, m_cols);
+      reinterpret_cast<double *>(m_data.data()), m_rows, m_cols);
   } else if constexpr (std::is_same_v<T, std::complex<float>>) {
     return gsl_matrix_complex_float_view_array(
-        reinterpret_cast<float *>(m_data.data()), m_rows, m_cols);
+      reinterpret_cast<float *>(m_data.data()), m_rows, m_cols);
   } else {
     assert(false && "as_gsl_view() only available for double/float (or complex "
                     "double/float)");
@@ -333,10 +333,10 @@ auto Matrix<T>::as_gsl_view() const {
     return gsl_matrix_float_const_view_array(m_data.data(), m_rows, m_cols);
   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
     return gsl_matrix_complex_const_view_array(
-        reinterpret_cast<const double *>(m_data.data()), m_rows, m_cols);
+      reinterpret_cast<const double *>(m_data.data()), m_rows, m_cols);
   } else if constexpr (std::is_same_v<T, std::complex<float>>) {
     return gsl_matrix_complex_float_const_view_array(
-        reinterpret_cast<const float *>(m_data.data()), m_rows, m_cols);
+      reinterpret_cast<const float *>(m_data.data()), m_rows, m_cols);
   } else {
     assert(false && "as_gsl_view() only for available double/float (or complex "
                     "double/float)");

@@ -16,25 +16,25 @@
 //==============================================================================
 DiracSpinor::DiracSpinor(int in_n, int in_k,
                          std::shared_ptr<const Grid> in_rgrid)
-    : m_rgrid(in_rgrid),
-      m_n(in_n),
-      m_kappa(in_k),
-      m_f(std::vector<double>(m_rgrid ? m_rgrid->num_points() : 0, 0.0)),
-      m_g(m_f),
-      m_pinf(m_rgrid ? m_rgrid->num_points() : 0),
-      m_twoj(Angular::twoj_k(in_k)),
-      m_l(Angular::l_k(in_k)),
-      m_parity(Angular::parity_k(in_k)),
-      m_kappa_index(Angular::indexFromKappa(in_k)),
-      m_nkappa_index(static_cast<Index>(Angular::nk_to_index(in_n, in_k))) {}
+  : m_rgrid(in_rgrid),
+    m_n(in_n),
+    m_kappa(in_k),
+    m_f(std::vector<double>(m_rgrid ? m_rgrid->num_points() : 0, 0.0)),
+    m_g(m_f),
+    m_pinf(m_rgrid ? m_rgrid->num_points() : 0),
+    m_twoj(Angular::twoj_k(in_k)),
+    m_l(Angular::l_k(in_k)),
+    m_parity(Angular::parity_k(in_k)),
+    m_kappa_index(Angular::indexFromKappa(in_k)),
+    m_nkappa_index(static_cast<Index>(Angular::nk_to_index(in_n, in_k))) {}
 
 //==============================================================================
 std::string DiracSpinor::symbol(bool gnuplot) const {
   // Readable symbol (s_1/2, p_{3/2} etc.).
   // gnuplot-firndly '{}' braces optional.
   std::string ostring1 = (m_n != 0) ?
-                             std::to_string(m_n) + AtomData::l_symbol(m_l) :
-                             AtomData::l_symbol(m_l);
+                           std::to_string(m_n) + AtomData::l_symbol(m_l) :
+                           AtomData::l_symbol(m_l);
   std::string ostring2 = gnuplot ? "_{" + std::to_string(m_twoj) + "/2}" :
                                    "_" + std::to_string(m_twoj) + "/2";
   return ostring1 + ostring2;
@@ -107,8 +107,8 @@ std::pair<double, double> DiracSpinor::r0pinfratio() const {
   auto max_abs_compare = [](double a, double b) {
     return std::fabs(a) < std::fabs(b);
   };
-  const auto max_pos = std::max_element(m_f.begin(), m_f.begin() + long(m_pinf),
-                                        max_abs_compare);
+  const auto max_pos =
+    std::max_element(m_f.begin(), m_f.begin() + long(m_pinf), max_abs_compare);
   const auto r0_ratio = m_f[m_p0] / *max_pos;
   const auto pinf_ratio = m_f[m_pinf - 1] / *max_pos;
   return std::make_pair(r0_ratio, pinf_ratio);
@@ -237,7 +237,7 @@ std::string DiracSpinor::state_config(const std::vector<DiracSpinor> &orbs) {
 
   // find max l
   const auto maxl =
-      std::max_element(orbs.cbegin(), orbs.cend(), DiracSpinor::comp_l)->l();
+    std::max_element(orbs.cbegin(), orbs.cend(), DiracSpinor::comp_l)->l();
 
   // for each l, count num, add to string
   int prev_max_n = 0;
@@ -247,7 +247,7 @@ std::string DiracSpinor::state_config(const std::vector<DiracSpinor> &orbs) {
       return (Fn.l() == l && Fn.n() > max_n) ? Fn.n() : max_n;
     };
     const auto max_n =
-        std::accumulate(orbs.cbegin(), orbs.cend(), 0, find_max_n_given_l);
+      std::accumulate(orbs.cbegin(), orbs.cend(), 0, find_max_n_given_l);
 
     // format 'state string' into required notation:
     if (max_n == prev_max_n && max_n != 0)
@@ -265,8 +265,8 @@ std::string DiracSpinor::state_config(const std::vector<DiracSpinor> &orbs) {
 // static
 int DiracSpinor::max_tj(const std::vector<DiracSpinor> &orbs) {
   return orbs.empty() ?
-             0 :
-             std::max_element(cbegin(orbs), cend(orbs), comp_j)->twoj();
+           0 :
+           std::max_element(cbegin(orbs), cend(orbs), comp_j)->twoj();
 }
 // static
 int DiracSpinor::max_l(const std::vector<DiracSpinor> &orbs) {
@@ -281,8 +281,8 @@ int DiracSpinor::max_n(const std::vector<DiracSpinor> &orbs) {
 // static
 int DiracSpinor::max_kindex(const std::vector<DiracSpinor> &orbs) {
   return orbs.empty() ?
-             0 :
-             std::max_element(cbegin(orbs), cend(orbs), comp_ki)->k_index();
+           0 :
+           std::max_element(cbegin(orbs), cend(orbs), comp_ki)->k_index();
 }
 
 // static
@@ -310,7 +310,7 @@ DiracSpinor::check_ortho(const std::vector<DiracSpinor> &a,
       if (Fb.kappa() != Fa.kappa())
         continue;
       const auto del =
-          Fa == Fb ? std::abs(std::abs(Fa * Fb) - 1.0) : std::abs(Fa * Fb);
+        Fa == Fb ? std::abs(std::abs(Fa * Fb) - 1.0) : std::abs(Fa * Fb);
       // nb: sometimes sign of Fb is wrong. Perhaps this is an issue??
       if (del > worst_del) {
         worst_del = del;
@@ -486,8 +486,8 @@ DiracSpinor::subset(const std::vector<DiracSpinor> &basis,
 
     // Check if a is present in 'subset_string'
     const auto nk =
-        std::find_if(nmaxk_list.cbegin(), nmaxk_list.cend(),
-                     [&a](const auto &tnk) { return a.kappa() == tnk.second; });
+      std::find_if(nmaxk_list.cbegin(), nmaxk_list.cend(),
+                   [&a](const auto &tnk) { return a.kappa() == tnk.second; });
     if (nk == nmaxk_list.cend())
       continue;
     // nk is now max n, for given kappa {max_n, kappa}

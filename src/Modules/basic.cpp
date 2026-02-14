@@ -30,13 +30,13 @@ namespace Module {
 void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"E1", "Calculate E1 matrix elements. Test of large-r, but large "
-              "output. [false]"},
-       {"scale_rN", "Scale-factor for nuclear radius in hyperfine operator. "
-                    "Uses Ball model, with rN given by charge radius. Set to "
-                    "zero for pointlike. [1.0]"},
-       {"sum_rules", "Do TKR and DG sum rules - only accurate if -ve energy "
-                     "states included [false]"}});
+    {{"E1", "Calculate E1 matrix elements. Test of large-r, but large "
+            "output. [false]"},
+     {"scale_rN", "Scale-factor for nuclear radius in hyperfine operator. "
+                  "Uses Ball model, with rN given by charge radius. Set to "
+                  "zero for pointlike. [1.0]"},
+     {"sum_rules", "Do TKR and DG sum rules - only accurate if -ve energy "
+                   "states included [false]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -129,7 +129,7 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
       if (!n)
         continue;
       const auto A_const =
-          DiracOperator::Hyperfine::convert_RME_to_AB(1, a.kappa(), a.kappa());
+        DiracOperator::Hyperfine::convert_RME_to_AB(1, a.kappa(), a.kappa());
       const auto Aa = hfs.reducedME(a, a) * A_const;
       const auto An = hfs.reducedME(*n, *n) * A_const;
       const auto eps = Aa / An - 1.0;
@@ -142,23 +142,23 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
   // Test with Basis
   if (!wf.basis().empty()) {
     std::cout
-        << "\n----------------------------------------------------------\n";
+      << "\n----------------------------------------------------------\n";
     std::cout << "Basis:\n";
 
     std::cout
-        << "\n----------------------------------------------------------\n";
+      << "\n----------------------------------------------------------\n";
     std::cout << "Orthonormality: <a_HF|a_basis>, and worst <a_HF|b_basis>:\n";
     std::cout << "\nOrhtonromality: Basis vs core HF orbitals:\n";
     comp_ortho(wf.core(), wf.basis());
     std::cout << "\nOrhtonromality: Basis vs valence HF orbitals:\n";
     if (wf.Sigma()) {
       std::cout
-          << "Note: Bruckner valence orbitals, not expected to be equal:\n";
+        << "Note: Bruckner valence orbitals, not expected to be equal:\n";
     }
     comp_ortho(wf.valence(), wf.basis());
 
     std::cout
-        << "\n----------------------------------------------------------\n";
+      << "\n----------------------------------------------------------\n";
     std::cout << "Energies and <r> expectation values:\n";
 
     std::cout << "\nBasis vs core HF orbitals:\n";
@@ -166,13 +166,13 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\nBasis vs valence HF orbitals:\n";
     if (wf.Sigma()) {
       std::cout
-          << "Note: Bruckner valence orbitals, not expected to be equal:\n";
+        << "Note: Bruckner valence orbitals, not expected to be equal:\n";
     }
     comp_energies(wf.valence(), wf.basis());
 
     if (do_E1) {
       std::cout
-          << "\n----------------------------------------------------------\n";
+        << "\n----------------------------------------------------------\n";
       std::cout << "E1 reduced ME (large r test):\n";
 
       std::cout << "\nE1: Basis vs core HF orbitals:\n";
@@ -180,13 +180,13 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "\nE1: Basis vs valence HF orbitals:\n";
       if (wf.Sigma()) {
         std::cout
-            << "Note: Bruckner valence orbitals, not expected to be equal:\n";
+          << "Note: Bruckner valence orbitals, not expected to be equal:\n";
       }
       comp_E1(wf.valence(), wf.basis());
     }
 
     std::cout
-        << "\n----------------------------------------------------------\n";
+      << "\n----------------------------------------------------------\n";
     std::cout << "Hyperfine A (ball model, g=1) (small r test):\n";
     std::cout << "rN = " << rN_fm << " fm\n";
 
@@ -195,13 +195,13 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\nHFS: Basis vs valence HF orbitals:\n";
     if (wf.Sigma()) {
       std::cout
-          << "Note: Bruckner valence orbitals, not expected to be equal:\n";
+        << "Note: Bruckner valence orbitals, not expected to be equal:\n";
     }
     comp_HFS(wf.valence(), wf.basis());
 
     if (sum_rules) {
       std::cout
-          << "\n----------------------------------------------------------\n";
+        << "\n----------------------------------------------------------\n";
       std::cout << "Sum rules:\n";
       std::cout << "(Only work if -ve energy states are included!)\n";
 
@@ -219,30 +219,30 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
 
   if (!wf.spectrum().empty()) {
     std::cout
-        << "\n----------------------------------------------------------\n";
+      << "\n----------------------------------------------------------\n";
     std::cout << "----------------------------------------------------------\n";
     std::cout << "Spectrum:\n";
 
     std::cout
-        << "\n----------------------------------------------------------\n";
+      << "\n----------------------------------------------------------\n";
     std::cout << "Orthonormality: <a_HF|a_spect>, and worst <a_HF|b_spect>:\n";
     std::cout << "\nOrhtonromality: Spectrum vs core HF orbitals:\n";
     if (wf.Sigma()) {
       std::cout
-          << "Note: Correlations in spectrum, not expected to be equal:\n";
+        << "Note: Correlations in spectrum, not expected to be equal:\n";
     }
     comp_ortho(wf.core(), wf.spectrum());
     std::cout << "\nOrhtonromality: Spectrum vs valence HF orbitals:\n";
     comp_ortho(wf.valence(), wf.spectrum());
 
     std::cout
-        << "\n----------------------------------------------------------\n";
+      << "\n----------------------------------------------------------\n";
     std::cout << "Energies and <r> expectation values:\n";
 
     std::cout << "\nEnergies: Spectrum vs core HF orbitals:\n";
     if (wf.Sigma()) {
       std::cout
-          << "Note: Correlations in spectrum, not expected to be equal:\n";
+        << "Note: Correlations in spectrum, not expected to be equal:\n";
     }
     comp_energies(wf.core(), wf.spectrum());
     std::cout << "\nEnergies: Spectrum vs valence HF orbitals:\n";
@@ -250,13 +250,13 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
 
     if (do_E1) {
       std::cout
-          << "\n----------------------------------------------------------\n";
+        << "\n----------------------------------------------------------\n";
       std::cout << "E1 reduced ME (large r test):\n";
 
       std::cout << "\nE1: Spectrum vs core HF orbitals:\n";
       if (wf.Sigma()) {
         std::cout
-            << "Note: Correlations in spectrum, not expected to be equal:\n";
+          << "Note: Correlations in spectrum, not expected to be equal:\n";
       }
       comp_E1(wf.core(), wf.spectrum());
       std::cout << "\nE1: Spectrum vs valence HF orbitals:\n";
@@ -264,14 +264,14 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     std::cout
-        << "\n----------------------------------------------------------\n";
+      << "\n----------------------------------------------------------\n";
     std::cout << "Hyperfine A (ball model, g=1) (small r test):\n";
     std::cout << "rN = " << rN_fm << " fm\n";
 
     std::cout << "\nHFS: Spectrum vs core HF orbitals:\n";
     if (wf.Sigma()) {
       std::cout
-          << "Note: Correlations in spectrum, not expected to be equal:\n";
+        << "Note: Correlations in spectrum, not expected to be equal:\n";
     }
     comp_HFS(wf.core(), wf.spectrum());
     std::cout << "\nHFS: Spectrum vs valence HF orbitals:\n";
@@ -279,7 +279,7 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
 
     if (sum_rules) {
       std::cout
-          << "\n----------------------------------------------------------\n";
+        << "\n----------------------------------------------------------\n";
       std::cout << "Sum rules:\n";
       std::cout << "(Only work if -ve energy states are included!)\n";
 
@@ -367,16 +367,16 @@ void writeOrbitals(const IO::InputBlock &input, const Wavefunction &wf) {
 void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"energy", "List. energy for cntm states (>0) [0.5]"},
-       {"max_l", "maximum l. Will calculate orbital for each energy and each l "
-                 "(and j) [0]"},
-       {"filename",
-        "filename to output continuum orbitals. If blank, will not write"},
-       {"operator",
-        "Operator to calculate matrix elements (e.g., E1) [blank by default]"},
-       {"options", "options specific to operator [blank by default]"},
-       {"rpa", "Include RPA (TDHF for now)? [false]"},
-       {"omega", "Frequency for RPA [0.0]"}});
+    {{"energy", "List. energy for cntm states (>0) [0.5]"},
+     {"max_l", "maximum l. Will calculate orbital for each energy and each l "
+               "(and j) [0]"},
+     {"filename",
+      "filename to output continuum orbitals. If blank, will not write"},
+     {"operator",
+      "Operator to calculate matrix elements (e.g., E1) [blank by default]"},
+     {"options", "options specific to operator [blank by default]"},
+     {"rpa", "Include RPA (TDHF for now)? [false]"},
+     {"omega", "Frequency for RPA [0.0]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -427,7 +427,7 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
     // Get optional 'options' for operator
     const auto h_options = input.getBlock("options");
     const auto h = DiracOperator::generate(
-        oper, h_options ? *h_options : IO::InputBlock{}, wf);
+      oper, h_options ? *h_options : IO::InputBlock{}, wf);
 
     std::cout << "\nMatrix elements of " << h->name() << "\n";
 
@@ -440,10 +440,10 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto p_rpa = rpaQ ? &rpa : nullptr;
 
     const auto mes_c = ExternalField::calcMatrixElements(
-        wf.core(), cntm.orbitals, h.get(), p_rpa, omega, eachFreqQ);
+      wf.core(), cntm.orbitals, h.get(), p_rpa, omega, eachFreqQ);
 
     const auto mes_v = ExternalField::calcMatrixElements(
-        wf.valence(), cntm.orbitals, h.get(), p_rpa, omega, eachFreqQ);
+      wf.valence(), cntm.orbitals, h.get(), p_rpa, omega, eachFreqQ);
 
     std::cout << (rpaQ ? ExternalField::MEdata::title() :
                          ExternalField::MEdata::title_noRPA())
@@ -494,9 +494,9 @@ void tests(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace Tests;
 
   input.check(
-      {{"orthonormal", "Checks orthonormalityies [true]"},
-       {"Hamiltonian", "Compare eigen energies to Hamiltonian matrix elements"},
-       {"boundaries", "Check boundaries: f(r0)/f_max, f(rmax)/fmax"}});
+    {{"orthonormal", "Checks orthonormalityies [true]"},
+     {"Hamiltonian", "Compare eigen energies to Hamiltonian matrix elements"},
+     {"boundaries", "Check boundaries: f(r0)/f_max, f(rmax)/fmax"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;

@@ -52,11 +52,11 @@ static const std::string omp_version = XSTRING(OMP_VERSION);
 
 std::string version() {
   return git_revision.empty() ?
-             ampsci_version :
+           ampsci_version :
          git_modified.empty() ?
-             ampsci_version + " [" + git_branch + "/" + git_revision + "]" :
-             ampsci_version + " [" + git_branch + "/" + git_revision + "]*\n" +
-                 " *(Modified: " + git_modified + ")";
+           ampsci_version + " [" + git_branch + "/" + git_revision + "]" :
+           ampsci_version + " [" + git_branch + "/" + git_revision + "]*\n" +
+             " *(Modified: " + git_modified + ")";
 }
 
 std::string compiled() { return cxx_version + " " + compiled_time; }

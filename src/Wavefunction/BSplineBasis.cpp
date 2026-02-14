@@ -21,31 +21,31 @@ namespace SplineBasis {
 
 //==============================================================================
 Parameters::Parameters(IO::InputBlock input)
-    : states(input.get<std::string>("states", "")),
-      n(input.get("number", 30ul)),
-      k(input.get("order", 7ul)),
-      r0(input.get("r0", 1.0e-4)),
-      reps(input.get("r0_eps", 0.0)),
-      rmax(input.get("rmax", 40.0)),
-      positron(input.get("positron", std::string{""})),
-      type(parseSplineType(input.get<std::string>("type", "Derevianko"))),
-      orthogonalise(input.get("orthogonalise", false)),
-      verbose(input.get("verbose", true)) {}
+  : states(input.get<std::string>("states", "")),
+    n(input.get("number", 30ul)),
+    k(input.get("order", 7ul)),
+    r0(input.get("r0", 1.0e-4)),
+    reps(input.get("r0_eps", 0.0)),
+    rmax(input.get("rmax", 40.0)),
+    positron(input.get("positron", std::string{""})),
+    type(parseSplineType(input.get<std::string>("type", "Derevianko"))),
+    orthogonalise(input.get("orthogonalise", false)),
+    verbose(input.get("verbose", true)) {}
 
 Parameters::Parameters(const std::string &istates, std::size_t in,
                        std::size_t ik, double ir0, double ireps, double irmax,
                        const std::string &ipositron, SplineType itype,
                        bool iorthogonalise, bool iverbose)
-    : states(istates),
-      n(in),
-      k(ik),
-      r0(ir0),
-      reps(ireps),
-      rmax(irmax),
-      positron(ipositron),
-      type(itype),
-      orthogonalise(iorthogonalise),
-      verbose(iverbose) {}
+  : states(istates),
+    n(in),
+    k(ik),
+    r0(ir0),
+    reps(ireps),
+    rmax(irmax),
+    positron(ipositron),
+    type(itype),
+    orthogonalise(iorthogonalise),
+    verbose(iverbose) {}
 
 //==============================================================================
 std::vector<DiracSpinor> form_basis(const Parameters &params,
@@ -58,9 +58,9 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
   // Not required, but helpful to be back compatible
   const std::string positron_str =
-      tmp_positron_str == "false" ? "" :
-      tmp_positron_str == "true"  ? states_str :
-                                    tmp_positron_str;
+    tmp_positron_str == "false" ? "" :
+    tmp_positron_str == "true"  ? states_str :
+                                  tmp_positron_str;
 
   const auto nklst = AtomData::listOfStates_singlen(states_str);
   const auto nklst_positron = AtomData::listOfStates_singlen(positron_str);
@@ -80,8 +80,8 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     }
     std::cout << "Using "
               << (basis_type == SplineType::Derevianko ?
-                      "Derevianko (Duel Kinetic Balance)" :
-                      "Johnson")
+                    "Derevianko (Duel Kinetic Balance)" :
+                    "Johnson")
               << " type splines.\n";
   }
 
@@ -108,8 +108,8 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
       r0_eff = wf.grid().r(0);
 
     const auto [spl_basis, d_basis] =
-        form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl, wf.grid_sptr(),
-                          wf.alpha(), basis_type);
+      form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl, wf.grid_sptr(),
+                        wf.alpha(), basis_type);
 
     auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, d_basis, wf,
                                               correlationsQ, basis_type);
@@ -235,11 +235,11 @@ form_spline_basis(const int kappa, const std::size_t n_states,
       // First "f-like" set
       Sn1.f(ir) = bij[i][0];
       Sn1.g(ir) =
-          lambda_DKB * 0.5 * alpha * (bij[i][1] + (kappa / r) * bij[i][0]);
+        lambda_DKB * 0.5 * alpha * (bij[i][1] + (kappa / r) * bij[i][0]);
       // second "g-like"
       auto &Sn2 = basis.at(nB + n_states - imin);
       Sn2.f(ir) =
-          lambda_DKB * 0.5 * alpha * (bij[i][1] - (kappa / r) * bij[i][0]);
+        lambda_DKB * 0.5 * alpha * (bij[i][1] - (kappa / r) * bij[i][0]);
       Sn2.g(ir) = bij[i][0];
 
       // Set the spline derivatives
@@ -247,13 +247,13 @@ form_spline_basis(const int kappa, const std::size_t n_states,
       // First "f-like" set
       dSn1.f(ir) = bij[i][1];
       dSn1.g(ir) =
-          lambda_DKB * 0.5 * alpha *
-          (bij[i][2] + (kappa / r) * bij[i][1] - (kappa / r / r) * bij[i][0]);
+        lambda_DKB * 0.5 * alpha *
+        (bij[i][2] + (kappa / r) * bij[i][1] - (kappa / r / r) * bij[i][0]);
       // second "g-like"
       auto &dSn2 = d_basis.at(nB + n_states - imin);
       dSn2.f(ir) =
-          lambda_DKB * 0.5 * alpha *
-          (bij[i][2] - (kappa / r) * bij[i][1] + (kappa / r / r) * bij[i][0]);
+        lambda_DKB * 0.5 * alpha *
+        (bij[i][2] - (kappa / r) * bij[i][1] + (kappa / r / r) * bij[i][0]);
       dSn2.g(ir) = bij[i][1];
     }
   }
@@ -363,10 +363,9 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
         (!positive_energy && pqn_pstrn < -max_n_positron))
       continue;
 
-    auto &Fi =
-        (positive_energy) ?
-            basis->emplace_back(pqn, kappa, wf.grid_sptr()) :
-            basis_positron->emplace_back(pqn_pstrn, kappa, wf.grid_sptr());
+    auto &Fi = (positive_energy) ?
+                 basis->emplace_back(pqn, kappa, wf.grid_sptr()) :
+                 basis_positron->emplace_back(pqn_pstrn, kappa, wf.grid_sptr());
     Fi.en() = en;
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       Fi += pvec[ib] * spl_basis[ib];
@@ -420,7 +419,7 @@ std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
 
   const auto &Fa = basis.front();
   const auto max_l =
-      std::max_element(cbegin(basis), cend(basis), DiracSpinor::comp_l)->l();
+    std::max_element(cbegin(basis), cend(basis), DiracSpinor::comp_l)->l();
   result.reserve(std::size_t(max_l + 1));
 
   for (int l = 0; l <= max_l; l++) {
@@ -463,10 +462,10 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
     return result;
 
   const auto max_ki =
-      std::max_element(cbegin(basis), cend(basis), DiracSpinor::comp_ki)
-          ->k_index();
+    std::max_element(cbegin(basis), cend(basis), DiracSpinor::comp_ki)
+      ->k_index();
   const auto max_l =
-      std::max_element(cbegin(basis), cend(basis), DiracSpinor::comp_l)->l();
+    std::max_element(cbegin(basis), cend(basis), DiracSpinor::comp_l)->l();
 
   for (int ki = 0; ki <= max_ki; ki++) {
     const auto kappa = Angular::kappaFromIndex(ki);

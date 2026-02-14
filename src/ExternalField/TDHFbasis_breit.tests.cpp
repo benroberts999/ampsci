@@ -60,7 +60,7 @@ TEST_CASE("External Field: TDHF (basis) Breit",
 
   const auto hE1 = DiracOperator::E1(wf.grid());
   const auto hPNC =
-      DiracOperator::PNCnsi(wf.nucleus().c(), wf.nucleus().t(), wf.grid());
+    DiracOperator::PNCnsi(wf.nucleus().c(), wf.nucleus().t(), wf.grid());
 
   using namespace helper;
   const auto [eE1, sE1] = do_dV_breit_basis(wf, wfB, &hE1, 0.0);
@@ -126,7 +126,7 @@ helper::do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
       printf("%7s %+9.4e %+9.4e\n", str.c_str(), dBr * 100.0,
              dBr_basis * 100.0);
       const auto eps_this =
-          2.0 * std::abs((dBr - dBr_basis) / (dBr + dBr_basis));
+        2.0 * std::abs((dBr - dBr_basis) / (dBr + dBr_basis));
       if (eps_this > eps) {
         eps = eps_this;
         worst = str;

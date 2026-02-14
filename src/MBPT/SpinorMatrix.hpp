@@ -55,16 +55,16 @@ public:
 
   SpinorMatrix(std::size_t i0, std::size_t stride, std::size_t size,
                bool incl_g, std::shared_ptr<const Grid> rgrid)
-      : m_i0(i0),
-        m_stride(stride),
-        m_size(size),
-        m_g_size(incl_g ? size : 0),
-        m_ff(m_size),
-        m_fg(m_g_size),
-        m_gf(m_g_size),
-        m_gg(m_g_size),
-        m_incl_g(incl_g),
-        m_rgrid(rgrid) {
+    : m_i0(i0),
+      m_stride(stride),
+      m_size(size),
+      m_g_size(incl_g ? size : 0),
+      m_ff(m_size),
+      m_fg(m_g_size),
+      m_gf(m_g_size),
+      m_gg(m_g_size),
+      m_incl_g(incl_g),
+      m_rgrid(rgrid) {
     //------------------
     // create vector of r on sub-grid, used to interpolate values onto full
     const auto &r = m_rgrid->r();
@@ -547,16 +547,16 @@ double max_epsilon(const SpinorMatrix<T> &a, const SpinorMatrix<T> &b) {
   for (auto i = 0ul; i < a.size(); ++i) {
     for (auto j = 0ul; j < a.size(); ++j) {
       const auto eps_ff =
-          std::abs((a.ff(i, j) - b.ff(i, j)) / (a.ff(i, j) + b.ff(i, j)));
+        std::abs((a.ff(i, j) - b.ff(i, j)) / (a.ff(i, j) + b.ff(i, j)));
       if (eps_ff > xff)
         xff = eps_ff;
       if (a.g_size() != 0) {
         const auto eps_fg =
-            std::abs((a.fg(i, j) - b.fg(i, j)) / (a.fg(i, j) + b.fg(i, j)));
+          std::abs((a.fg(i, j) - b.fg(i, j)) / (a.fg(i, j) + b.fg(i, j)));
         const auto eps_gf =
-            std::abs((a.gf(i, j) - b.gf(i, j)) / (a.gf(i, j) + b.gf(i, j)));
+          std::abs((a.gf(i, j) - b.gf(i, j)) / (a.gf(i, j) + b.gf(i, j)));
         const auto eps_gg =
-            std::abs((a.gg(i, j) - b.gg(i, j)) / (a.gg(i, j) + b.gg(i, j)));
+          std::abs((a.gg(i, j) - b.gg(i, j)) / (a.gg(i, j) + b.gg(i, j)));
         if (eps_ff > xfg)
           xfg = eps_fg;
         if (eps_gf > xgf)

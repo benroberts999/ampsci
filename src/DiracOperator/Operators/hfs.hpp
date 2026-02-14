@@ -63,10 +63,10 @@ inline auto VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl,
     std::cout << "SingleParticle using: gl=" << g_l << ", gs=" << g_s
               << ", l=" << l_pn << ", gI=" << gI << " (I=" << I_nuc << ")\n";
   const double factor =
-      (two_I == two_l + 1) ?
-          g_s * (1 - two_I) / (4.0 * (two_I + 2)) + g_l * 0.5 * (two_I - 1) :
-          g_s * (3 + two_I) / (4.0 * (two_I + 2)) +
-              g_l * 0.5 * two_I * (two_I + 3) / (two_I + 2);
+    (two_I == two_l + 1) ?
+      g_s * (1 - two_I) / (4.0 * (two_I + 2)) + g_l * 0.5 * (two_I - 1) :
+      g_s * (3 + two_I) / (4.0 * (two_I + 2)) +
+        g_l * 0.5 * two_I * (two_I + 3) / (two_I + 2);
   if (two_I != two_l + 1 && two_I != two_l - 1) {
     std::cerr << "\nFAIL:59 in Hyperfine (VolotkaSP_F):\n "
                  "we must have I = l +/- 1/2, but we have: I,l = "
@@ -76,7 +76,7 @@ inline auto VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl,
   return [=](double r, double rN) {
     return (r > rN) ? 1.0 :
                       ((r * r * r) / (rN * rN * rN)) *
-                          (1.0 - (3.0 / mu) * std::log(r / rN) * factor);
+                        (1.0 - (3.0 / mu) * std::log(r / rN) * factor);
   };
 }
 
@@ -117,7 +117,7 @@ inline auto uSP(double mu, double I_nuc, double l_pn, int gl, double n,
 
   // normalisation
   const auto u02 =
-      1.0 / NumCalc::num_integrate(r2u2, 0.0, R, 100, NumCalc::linear);
+    1.0 / NumCalc::num_integrate(r2u2, 0.0, R, 100, NumCalc::linear);
 
   const auto F0r = [=](double r) {
     const auto f = [=](double x) { return u02 * r2u2(x); };
@@ -136,13 +136,13 @@ inline auto uSP(double mu, double I_nuc, double l_pn, int gl, double n,
   const auto twoI_m1 = 2.0 * I_nuc - 1.0;
 
   double f1 = (two_I == two_l + 1) ?
-                  0.5 * g_s + (I_nuc - 0.5) * g_l :
-                  -I_nuc / two_Ip1 * g_s + I_nuc * twoI_p3 / two_Ip1 * g_l;
+                0.5 * g_s + (I_nuc - 0.5) * g_l :
+                -I_nuc / two_Ip1 * g_s + I_nuc * twoI_p3 / two_Ip1 * g_l;
 
   double f2 =
-      (two_I == two_l + 1) ?
-          -twoI_m1 / (4.0 * two_Ip1) * g_s + (I_nuc - 0.5) * g_l :
-          twoI_p3 / (4.0 * two_Ip1) * g_s + I_nuc * twoI_p3 / two_Ip1 * g_l;
+    (two_I == two_l + 1) ?
+      -twoI_m1 / (4.0 * two_Ip1) * g_s + (I_nuc - 0.5) * g_l :
+      twoI_p3 / (4.0 * two_Ip1) * g_s + I_nuc * twoI_p3 / two_Ip1 * g_l;
 
   return [=](double r, double rN) {
     return (r > rN) ? 1.0 : (1.0 / mu) * (f1 * F0r(r) + f2 * FrR(r));
@@ -242,21 +242,21 @@ class hfs final : public TensorOperator {
 public:
   hfs(int in_k, double in_GQ, double rN_au, const Grid &rgrid,
       const Func_R2_R &hfs_F = Hyperfine::pointlike_F(), bool MHzQ = true)
-      : TensorOperator(in_k, Parity::even, in_GQ,
-                       Hyperfine::RadialFunc(in_k, rN_au, rgrid, hfs_F)),
-        k(in_k),
-        magnetic(k % 2 != 0),
-        cfg(magnetic ? 1.0 : 0.0),
-        cff(magnetic ? 0.0 : 1.0),
-        mMHzQ(MHzQ) {
+    : TensorOperator(in_k, Parity::even, in_GQ,
+                     Hyperfine::RadialFunc(in_k, rN_au, rgrid, hfs_F)),
+      k(in_k),
+      magnetic(k % 2 != 0),
+      cfg(magnetic ? 1.0 : 0.0),
+      cff(magnetic ? 0.0 : 1.0),
+      mMHzQ(MHzQ) {
 
     const auto power = magnetic ? (k - 1) / 2 : k / 2;
 
     // Assumes nuclear moment in muN*b^(k-1)/2 for magnetic,
     // and b^k/2 for electric
     const auto unit_au =
-        magnetic ? PhysConst::muN_CGS * std::pow(PhysConst::barn_au, power) :
-                   std::pow(PhysConst::barn_au, power);
+      magnetic ? PhysConst::muN_CGS * std::pow(PhysConst::barn_au, power) :
+                 std::pow(PhysConst::barn_au, power);
     m_unit = mMHzQ ? unit_au * PhysConst::Hartree_MHz : unit_au;
   }
 
@@ -267,7 +267,7 @@ public:
 
   double angularF(const int ka, const int kb) const override final {
     return magnetic ? -double(ka + kb) / double(k) *
-                          Angular::Ck_kk(k, -ka, kb) * m_unit :
+                        Angular::Ck_kk(k, -ka, kb) * m_unit :
                       -Angular::Ck_kk(k, ka, kb) * m_unit;
   }
 
@@ -292,37 +292,37 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
 
   input.check(
-      {{"", "Most following will be taken from the default nucleus if "
-            "not explicitely given"},
-       {"mu", "Magnetic moment in mu_N"},
-       {"Q", "Nuclear quadrupole moment, in barns. Also used as overall "
-             "constant for any higher-order moments [1.0]"},
-       {"k", "Multipolarity. 1=mag. dipole, 2=elec. quad, etc. [1]"},
-       {"rrms",
-        "nuclear (magnetic) rms radius, in Fermi (fm) (defult is charge rms)"},
-       {"units", "Units for output (only for k=1,k=2). MHz or au [MHz]"},
-       {"F", "F(r): Nuclear moment distribution: ball, point, shell, "
-             "SingleParticle, or doublyOddSP [ball]"},
-       {"F(r)", "Obselete; use 'F' from now - will be removed"},
-       {"nuc_mag", "Obselete; use 'F' from now - will be removed"},
-       {"printF", "Writes F(r) to a text file [false]"},
-       {"print", "Write F(r) info to screen [true]"},
-       {"", "The following are only for F=SingleParticle or doublyOddSP"},
-       {"I", "Nuclear spin. Taken from nucleus"},
-       {"parity", "Nulcear parity: +/-1"},
-       {"l", "l for unpaired nucleon (automatically derived from I and "
-             "parity; best to leave as default)"},
-       {"gl", "=1 for proton, =0 for neutron"},
-       {"", "The following are only used if F=doublyOddSP"},
-       {"mu1", "mag moment of 'first' unpaired nucleon"},
-       {"gl1", "gl of 'first' unpaired nucleon"},
-       {"l1", "l of 'first' unpaired nucleon"},
-       {"l2", "l of 'second' unpaired nucleon"},
-       {"I1", "total spin (J) of 'first' unpaired nucleon"},
-       {"I2", "total spin (J) of 'second' unpaired nucleon"},
-       {"", "The following are only for u(r) function"},
-       {"u", "u1 or u2 : u1(r) = (R-r)^n, u2(r) = r^n [u1]"},
-       {"n", "n that appears above. Should be between 0 and 2 [0]"}});
+    {{"", "Most following will be taken from the default nucleus if "
+          "not explicitely given"},
+     {"mu", "Magnetic moment in mu_N"},
+     {"Q", "Nuclear quadrupole moment, in barns. Also used as overall "
+           "constant for any higher-order moments [1.0]"},
+     {"k", "Multipolarity. 1=mag. dipole, 2=elec. quad, etc. [1]"},
+     {"rrms",
+      "nuclear (magnetic) rms radius, in Fermi (fm) (defult is charge rms)"},
+     {"units", "Units for output (only for k=1,k=2). MHz or au [MHz]"},
+     {"F", "F(r): Nuclear moment distribution: ball, point, shell, "
+           "SingleParticle, or doublyOddSP [ball]"},
+     {"F(r)", "Obselete; use 'F' from now - will be removed"},
+     {"nuc_mag", "Obselete; use 'F' from now - will be removed"},
+     {"printF", "Writes F(r) to a text file [false]"},
+     {"print", "Write F(r) info to screen [true]"},
+     {"", "The following are only for F=SingleParticle or doublyOddSP"},
+     {"I", "Nuclear spin. Taken from nucleus"},
+     {"parity", "Nulcear parity: +/-1"},
+     {"l", "l for unpaired nucleon (automatically derived from I and "
+           "parity; best to leave as default)"},
+     {"gl", "=1 for proton, =0 for neutron"},
+     {"", "The following are only used if F=doublyOddSP"},
+     {"mu1", "mag moment of 'first' unpaired nucleon"},
+     {"gl1", "gl of 'first' unpaired nucleon"},
+     {"l1", "l of 'first' unpaired nucleon"},
+     {"l2", "l of 'second' unpaired nucleon"},
+     {"I1", "total spin (J) of 'first' unpaired nucleon"},
+     {"I2", "total spin (J) of 'second' unpaired nucleon"},
+     {"", "The following are only for u(r) function"},
+     {"u", "u1 or u2 : u1(r) = (R-r)^n, u2(r) = r^n [u1]"},
+     {"n", "n that appears above. Should be between 0 and 2 [0]"}});
   if (input.has_option("help")) {
     return nullptr;
   }
@@ -335,7 +335,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto k = input.get("k", 1);
 
   const auto use_MHz =
-      qip::ci_compare(input.get<std::string>("units", "MHz"), "MHz");
+    qip::ci_compare(input.get<std::string>("units", "MHz"), "MHz");
 
   if (k <= 0) {
     fmt2::styled_print(fg(fmt::color::red), "\nError 246:\n");
@@ -371,21 +371,21 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // For compatability with old notation of 'F(r)' input option
   const auto Fr_str =
-      input.has_option("F") ?
-          input.get<std::string>("F", default_distribution) :
-      input.has_option("nuc_mag") ?
-          input.get<std::string>("nuc_mag", default_distribution) :
-          input.get<std::string>("F(r)", default_distribution);
+    input.has_option("F") ?
+      input.get<std::string>("F", default_distribution) :
+    input.has_option("nuc_mag") ?
+      input.get<std::string>("nuc_mag", default_distribution) :
+      input.get<std::string>("F(r)", default_distribution);
 
   const auto distro_type =
-      (qip::ci_wc_compare(Fr_str, "point*") || qip::ci_compare(Fr_str, "1")) ?
-          DistroType::point :
-      qip::ci_compare(Fr_str, "ball")          ? DistroType::ball :
-      qip::ci_compare(Fr_str, "shell")         ? DistroType::shell :
-      qip::ci_wc_compare(Fr_str, "Single*")    ? DistroType::SingleParticle :
-      qip::ci_wc_compare(Fr_str, "doublyOdd*") ? DistroType::doublyOddSP :
-      qip::ci_compare(Fr_str, "spu")           ? DistroType::spu :
-                                                 DistroType::Error;
+    (qip::ci_wc_compare(Fr_str, "point*") || qip::ci_compare(Fr_str, "1")) ?
+      DistroType::point :
+    qip::ci_compare(Fr_str, "ball")          ? DistroType::ball :
+    qip::ci_compare(Fr_str, "shell")         ? DistroType::shell :
+    qip::ci_wc_compare(Fr_str, "Single*")    ? DistroType::SingleParticle :
+    qip::ci_wc_compare(Fr_str, "doublyOdd*") ? DistroType::doublyOddSP :
+    qip::ci_compare(Fr_str, "spu")           ? DistroType::spu :
+                                               DistroType::Error;
   if (distro_type == DistroType::Error) {
     fmt2::styled_print(fg(fmt::color::red), "\nError 271:\n");
     std::cout << "\nIn hyperfine. Unkown F(r) - " << Fr_str << "\n";
@@ -393,7 +393,7 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   const auto r_rmsfm =
-      distro_type == DistroType::point ? 0.0 : input.get("rrms", nuc.r_rms());
+    distro_type == DistroType::point ? 0.0 : input.get("rrms", nuc.r_rms());
   const auto r_nucfm = std::sqrt(5.0 / 3) * r_rmsfm;
   const auto r_nucau = r_nucfm / PhysConst::aB_fm;
 

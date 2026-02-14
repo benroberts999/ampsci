@@ -22,7 +22,7 @@ TEST_CASE("Parametric potentials", "[prm][unit]") {
   }
 
   const auto radial_grid = std::make_shared<const Grid>(
-      GridParameters{500, 1.0e-6, 75.0, 50.0, GridType::loglinear});
+    GridParameters{500, 1.0e-6, 75.0, 50.0, GridType::loglinear});
   const double zeff = 15.0;
   const int lmax = 3;
 
@@ -41,13 +41,13 @@ TEST_CASE("Parametric potentials", "[prm][unit]") {
 
   // geneated with 5000 pts
   const auto aga0s =
-      std::vector{35.851733939957235, 23.857128488699516, 23.806698412657056,
-                  15.520681948768228, 15.508963307396499, 10.439854223306053,
-                  10.436137600652057};
+    std::vector{35.851733939957235, 23.857128488699516, 23.806698412657056,
+                15.520681948768228, 15.508963307396499, 10.439854223306053,
+                10.436137600652057};
   const auto ata0s =
-      std::vector{30.913482805598647, 23.504270400835946, 23.468519915732003,
-                  16.557099169686712, 16.546379062750177, 11.415329473402792,
-                  11.411383617964162};
+    std::vector{30.913482805598647, 23.504270400835946, 23.468519915732003,
+                16.557099169686712, 16.546379062750177, 11.415329473402792,
+                11.411383617964162};
   std::size_t count = 0;
   for (const auto &Fa : orbs) {
     auto aga = Fa * (vg * Fa);

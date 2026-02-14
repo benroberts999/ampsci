@@ -14,8 +14,8 @@ namespace NumCalc {
 // Quadrature integration order [1,13], only odd
 constexpr std::size_t Nquad = 13;
 static_assert(
-    Nquad >= 1 && Nquad <= 13 && Nquad % 2 != 0,
-    "\nFAIL10 in NumCalc: Nquad must be in [1,13], and must be odd\n");
+  Nquad >= 1 && Nquad <= 13 && Nquad % 2 != 0,
+  "\nFAIL10 in NumCalc: Nquad must be in [1,13], and must be odd\n");
 
 // instantiate coefs for correct Nquad order:
 constexpr QintCoefs<Nquad> quintcoef;
@@ -46,7 +46,7 @@ inline double integrate(const double dt, std::size_t beg, std::size_t end,
   double Rint_ends = qip::inner_product_sub(beg, Nquad, cq, f1, rest...);
 
   const double Rint_mid =
-      qip::inner_product_sub(start_mid, end_mid, f1, rest...);
+    qip::inner_product_sub(start_mid, end_mid, f1, rest...);
 
   for (auto i = end_mid; i < end; ++i) {
     Rint_ends += cq[end_mid + Nquad - i - 1] * qip::multiply_at(i, f1, rest...);
@@ -72,11 +72,11 @@ inline std::vector<T> derivative(const std::vector<T> &f,
 
   df[0] = (f[1] - f[0]) / (dt * drdt[0]);
   df[num_points - 1] =
-      (f[num_points - 1] - f[num_points - 2]) / (dt * drdt[num_points - 1]);
+    (f[num_points - 1] - f[num_points - 2]) / (dt * drdt[num_points - 1]);
 
   df[1] = (f[2] - f[0]) / (2 * dt * drdt[1]);
   df[num_points - 2] =
-      (f[num_points - 1] - f[num_points - 3]) / (2 * dt * drdt[num_points - 2]);
+    (f[num_points - 1] - f[num_points - 3]) / (2 * dt * drdt[num_points - 2]);
 
   df[2] = (f[0] - 8 * f[1] + 8 * f[3] - f[4]) / (12 * dt * drdt[2]);
   df[num_points - 3] = (f[num_points - 5] - 8 * f[num_points - 4] +
@@ -86,9 +86,9 @@ inline std::vector<T> derivative(const std::vector<T> &f,
   df[3] = (-1 * f[0] + 9 * f[1] - 45 * f[2] + 45 * f[4] - 9 * f[5] + 1 * f[6]) /
           (60 * dt * drdt[3]);
   df[num_points - 4] =
-      (-1 * f[num_points - 7] + 9 * f[num_points - 6] - 45 * f[num_points - 5] +
-       45 * f[num_points - 3] - 9 * f[num_points - 2] + 1 * f[num_points - 1]) /
-      (60 * dt * drdt[num_points - 4]);
+    (-1 * f[num_points - 7] + 9 * f[num_points - 6] - 45 * f[num_points - 5] +
+     45 * f[num_points - 3] - 9 * f[num_points - 2] + 1 * f[num_points - 1]) /
+    (60 * dt * drdt[num_points - 4]);
 
   for (std::size_t i = 4; i < (num_points - 4); i++) {
     df[i] = ((1.0 / 8) * f[i - 4] - (4.0 / 3) * f[i - 3] + 7 * f[i - 2] -
@@ -173,7 +173,7 @@ inline void additivePIntegral(std::vector<Real> &answer,
   }
   if (int(fin) < max)
     answer[fin] +=
-        0.5 * f[fin] * g[fin] * gr.drdu()[fin] * gr.du(); // * Wquad(fin);
+      0.5 * f[fin] * g[fin] * gr.drdu()[fin] * gr.du(); // * Wquad(fin);
 }
 
 //------------------------------------------------------------------------------
@@ -215,9 +215,9 @@ inline double num_integrate(const std::function<double(double)> &f, double a,
                                      std::log(b / a) / double(n_pts - 1);
 
   std::function<double(long unsigned)> x =
-      (type == linear) ? linx(a, dt) : logx(a, dt);
+    (type == linear) ? linx(a, dt) : logx(a, dt);
   std::function<double(long unsigned)> dxdt =
-      (type == linear) ? one() : logx(a, dt);
+    (type == linear) ? one() : logx(a, dt);
 
   double Rint_s = 0.0;
   for (long unsigned i = 0; i < Nquad; i++) {

@@ -100,7 +100,7 @@ double gfratio(double r, int k, double z, double a, double e, double m) {
   const auto absk = (double)std::abs(k);
 
   const auto n =
-      ((z * (m + e * a2)) / std::sqrt(-(e * (2 * m + e * a2)))) - g + absk;
+    ((z * (m + e * a2)) / std::sqrt(-(e * (2 * m + e * a2)))) - g + absk;
 
   const auto xr = r * 2.0 * std::sqrt(-e * (2.0 + e * a2));
   const auto kmn = double(absk) - n;

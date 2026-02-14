@@ -83,7 +83,7 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
 
   const auto have_mop = (Ckac != 0.0) && (Ckbd != 0.0);
   const auto have_n =
-      (Dkac != 0.0) && (Dkbd != 0.0) && (ka + kc != 0) && (kb + kd != 0);
+    (Dkac != 0.0) && (Dkbd != 0.0) && (ka + kc != 0) && (kb + kd != 0);
 
   // nb: never have both MOP _and_ N ! different parity rule for each k!
   assert(!(have_mop && have_n));
@@ -105,7 +105,7 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
     const auto c_m1 = m_M * (k + 1) / double(2 * k + 3);
     const auto c_m2 = m_M * k / double(2 * k - 1);
     const auto c_o1 =
-        -m_O * (k + 1) * (k + 1) / double((2 * k + 1) * (2 * k + 3));
+      -m_O * (k + 1) * (k + 1) / double((2 * k + 1) * (2 * k + 3));
     const auto c_o2 = -m_O * k * k / double((2 * k + 1) * (2 * k - 1));
     const auto c_p0 = -m_P * k * (k + 1) / double(2 * (2 * k + 1));
 
@@ -194,7 +194,7 @@ double Breit::Bk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 
   const auto have_mop = (Ckac != 0.0) && (Ckbd != 0.0);
   const auto have_n =
-      (Dkac != 0.0) && (Dkbd != 0.0) && (ka + kc != 0) && (kb + kd != 0);
+    (Dkac != 0.0) && (Dkbd != 0.0) && (ka + kc != 0) && (kb + kd != 0);
 
   // nb: never have both MOP _and_ N ! different parity rule for each k!
   assert(!(have_mop && have_n));
@@ -218,7 +218,7 @@ double Breit::Bk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
     const auto c_m1 = m_M * (k + 1) / double(2 * k + 3);
     const auto c_m2 = m_M * k / double(2 * k - 1);
     const auto c_o1 =
-        -m_O * (k + 1) * (k + 1) / double((2 * k + 1) * (2 * k + 3));
+      -m_O * (k + 1) * (k + 1) / double((2 * k + 1) * (2 * k + 3));
     const auto c_o2 = -m_O * k * k / double((2 * k + 1) * (2 * k - 1));
     const auto c_p0 = -m_P * k * (k + 1) / double(2 * (2 * k + 1));
 
@@ -430,7 +430,7 @@ void single_k_mop::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
     return;
 
   const auto maxi =
-      std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points()}); // ok?
+    std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points()}); // ok?
 
   // g^{k+1}, g^{k-1}, b^{k+1}, b^{k-1} used in m, o, p
   assert(k != 0);
@@ -453,7 +453,7 @@ void single_k_n::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
   if (!Angular::Ck_kk_SR(k, -Fi.kappa(), Fj.kappa()))
     return;
   const auto maxi =
-      std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points()}); // ok?
+    std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points()}); // ok?
   assert(k != 0);
   Coulomb::gk_ab(k, Fi, Fj, g, gi, maxi);
   using namespace qip::overloads;

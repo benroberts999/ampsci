@@ -180,38 +180,37 @@ Program will not compile (static_asser) is [0] is requested.
 Note: assumes that the kth element corresponds to k-order AM method.
 */
 static constexpr auto ADAMS_data = std::tuple{
-    AdamsB<0>{1, {}, 0}, // invalid entry, but want index to match order
-    AdamsB<1>{2, {1}, 1},
-    AdamsB<2>{12, {-1, 8}, 5},
-    AdamsB<3>{24, {1, -5, 19}, 9},
-    AdamsB<4>{720, {-19, 106, -264, 646}, 251},
-    AdamsB<5>{1440, {27, -173, 482, -798, 1427}, 475},
-    AdamsB<6>{60480, {-863, 6312, -20211, 37504, -46461, 65112}, 19087},
-    AdamsB<7>{
-        120960, {1375, -11351, 41499, -88547, 123133, -121797, 139849}, 36799},
-    AdamsB<8>{3628800,
-              {-33953, 312874, -1291214, 3146338, -5033120, 5595358, -4604594,
-               4467094},
-              1070017},
-    AdamsB<9>{7257600,
-              {57281, -583435, 2687864, -7394032, 13510082, -17283646, 16002320,
-               -11271304, 9449717},
-              2082753},
-    AdamsB<10>{479001600,
-               {-3250433, 36284876, -184776195, 567450984, -1170597042,
-                1710774528, -1823311566, 1446205080, -890175549, 656185652},
-               134211265},
-    AdamsB<11>{958003200,
-               {5675265, -68928781, 384709327, -1305971115, 3007739418,
-                -4963166514, 6043521486, -5519460582, 3828828885, -2092490673,
-                1374799219},
-               262747265},
-    AdamsB<12>{2615348736000,
-               {-13695779093, 179842822566, -1092096992268, 4063327863170,
-                -10344711794985, 19058185652796, -26204344465152,
-                27345870698436, -21847538039895, 13465774256510, -6616420957428,
-                3917551216986},
-               703604254357}};
+  AdamsB<0>{1, {}, 0}, // invalid entry, but want index to match order
+  AdamsB<1>{2, {1}, 1},
+  AdamsB<2>{12, {-1, 8}, 5},
+  AdamsB<3>{24, {1, -5, 19}, 9},
+  AdamsB<4>{720, {-19, 106, -264, 646}, 251},
+  AdamsB<5>{1440, {27, -173, 482, -798, 1427}, 475},
+  AdamsB<6>{60480, {-863, 6312, -20211, 37504, -46461, 65112}, 19087},
+  AdamsB<7>{
+    120960, {1375, -11351, 41499, -88547, 123133, -121797, 139849}, 36799},
+  AdamsB<8>{
+    3628800,
+    {-33953, 312874, -1291214, 3146338, -5033120, 5595358, -4604594, 4467094},
+    1070017},
+  AdamsB<9>{7257600,
+            {57281, -583435, 2687864, -7394032, 13510082, -17283646, 16002320,
+             -11271304, 9449717},
+            2082753},
+  AdamsB<10>{479001600,
+             {-3250433, 36284876, -184776195, 567450984, -1170597042,
+              1710774528, -1823311566, 1446205080, -890175549, 656185652},
+             134211265},
+  AdamsB<11>{958003200,
+             {5675265, -68928781, 384709327, -1305971115, 3007739418,
+              -4963166514, 6043521486, -5519460582, 3828828885, -2092490673,
+              1374799219},
+             262747265},
+  AdamsB<12>{2615348736000,
+             {-13695779093, 179842822566, -1092096992268, 4063327863170,
+              -10344711794985, 19058185652796, -26204344465152, 27345870698436,
+              -21847538039895, 13465774256510, -6616420957428, 3917551216986},
+             703604254357}};
 
 } // namespace helper
 
@@ -220,7 +219,7 @@ static constexpr auto ADAMS_data = std::tuple{
 //! Stores maximum K (order of AM method) for which we have coefficients
 //! implemented.
 static constexpr std::size_t K_max =
-    std::tuple_size_v<decltype(helper::ADAMS_data)> - 1;
+  std::tuple_size_v<decltype(helper::ADAMS_data)> - 1;
 
 //==============================================================================
 
@@ -248,8 +247,8 @@ private:
   static constexpr std::array<double, K> make_ak() {
     const auto &am = std::get<K>(helper::ADAMS_data);
     static_assert(
-        am.bk.size() == K,
-        "Kth Entry in ADAMS_data must correspond to K-order AM method");
+      am.bk.size() == K,
+      "Kth Entry in ADAMS_data must correspond to K-order AM method");
     std::array<double, K> tak{};
     for (std::size_t i = 0; i < K; ++i) {
       tak.at(i) = double(am.bk.at(i)) / double(am.denom);
@@ -439,11 +438,11 @@ class ODESolver2D {
                 "Order (K) requested for Adams method too "
                 "large. Adams coefficients are implemented up to K_max-1 only");
   static_assert(
-      is_complex_v<Y> || std::is_floating_point_v<Y>,
-      "Template parameter Y (function values and dt) must be floating point "
-      "or complex");
+    is_complex_v<Y> || std::is_floating_point_v<Y>,
+    "Template parameter Y (function values and dt) must be floating point "
+    "or complex");
   static_assert(is_complex_v<Y> || std::is_floating_point_v<Y> ||
-                    std::is_integral_v<T>,
+                  std::is_integral_v<T>,
                 "Template parameter T (derivative matrix argument) must be "
                 "floating point, complex, or integral");
 
@@ -542,7 +541,7 @@ public:
     const auto a0 = m_dt * static_cast<Y>(am.aK);
     const auto a02 = a0 * a0;
     const auto det_inv =
-        Y{1.0} / (Y{1.0} - (a02 * (b * c - a * d) + a0 * (a + d)));
+      Y{1.0} / (Y{1.0} - (a02 * (b * c - a * d) + a0 * (a + d)));
     const auto fi = (sf - a0 * (d * sf - b * sg)) * det_inv;
     const auto gi = (sg - a0 * (-c * sf + a * sg)) * det_inv;
 
@@ -621,7 +620,7 @@ private:
       const auto c = m_D->c(t_next);
       const auto d = m_D->d(t_next);
       const auto det_inv =
-          Y{1.0} / (Y{1.0} - (a02 * (b * c - a * d) + a0 * (a + d)));
+        Y{1.0} / (Y{1.0} - (a02 * (b * c - a * d) + a0 * (a + d)));
       const auto fi = (sf - a0 * (d * sf - b * sg)) * det_inv;
       const auto gi = (sg - a0 * (-c * sf + a * sg)) * det_inv;
       // Sets new values:

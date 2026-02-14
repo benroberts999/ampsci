@@ -75,8 +75,8 @@ void write_CoulombIntegrals(const std::string &fname,
 
           // Selection rules, for g/s
           const auto [k0, k1] = std::is_same_v<Integrals, Coulomb::QkTable> ?
-                                    Coulomb::k_minmax_Q(a, b, c, d) :
-                                    MBPT::k_minmax_S(a, b, c, d);
+                                  Coulomb::k_minmax_Q(a, b, c, d) :
+                                  MBPT::k_minmax_S(a, b, c, d);
           if (k1 < k0)
             continue;
 
@@ -90,13 +90,13 @@ void write_CoulombIntegrals(const std::string &fname,
                     continue;
 
                   const auto ia =
-                      (uint16_t)orbital_map.at(nkm{a.n(), a.kappa(), tma});
+                    (uint16_t)orbital_map.at(nkm{a.n(), a.kappa(), tma});
                   const auto ib =
-                      (uint16_t)orbital_map.at(nkm{b.n(), b.kappa(), tmb});
+                    (uint16_t)orbital_map.at(nkm{b.n(), b.kappa(), tmb});
                   const auto ic =
-                      (uint16_t)orbital_map.at(nkm{c.n(), c.kappa(), tmc});
+                    (uint16_t)orbital_map.at(nkm{c.n(), c.kappa(), tmc});
                   const auto id =
-                      (uint16_t)orbital_map.at(nkm{d.n(), d.kappa(), tmd});
+                    (uint16_t)orbital_map.at(nkm{d.n(), d.kappa(), tmd});
 
                   // Equivilant integrals:
                   // abcd = badc = cdab = dcba for g

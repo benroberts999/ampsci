@@ -36,7 +36,7 @@ class CorePolarisation {
 
 protected:
   CorePolarisation(const DiracOperator::TensorOperator *const h)
-      : m_h(h), m_rank(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {}
+    : m_h(h), m_rank(h->rank()), m_pi(h->parity()), m_imag(h->imaginaryQ()) {}
 
 protected:
   const DiracOperator::TensorOperator *m_h;

@@ -22,7 +22,7 @@ public:
   DiagramRPA0_jL(const DiracOperator::TensorOperator *const h,
                  const std::vector<DiracSpinor> &basis,
                  const HF::HartreeFock *in_hf, int max_l)
-      : CorePolarisation(h), p_hf(in_hf) {
+    : CorePolarisation(h), p_hf(in_hf) {
 
     if (p_hf == nullptr || h == nullptr) {
       std::cout << "\nFAIL:25 in DiagramRPA0_jL - hf cannot be null\n"

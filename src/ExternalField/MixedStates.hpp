@@ -36,14 +36,12 @@ eps_target is convergance goal for solving the inhomogenous dif.
 equation.
 Can optionally include Sigma (correlations), Breit, and Magnetic part of QED radiative potential (electric part should be included in vl).
 */
-DiracSpinor
-solveMixedState(const DiracSpinor &Fa, double omega,
-                const std::vector<double> &vl, double alpha,
-                const std::vector<DiracSpinor> &core, const DiracSpinor &Fs,
-                double eps_target = 1.0e-9,
-                const MBPT::CorrelationPotential *const Sigma = nullptr,
-                const HF::Breit *const VBr = nullptr,
-                const std::vector<double> &H_mag = {});
+DiracSpinor solveMixedState(
+  const DiracSpinor &Fa, double omega, const std::vector<double> &vl,
+  double alpha, const std::vector<DiracSpinor> &core, const DiracSpinor &Fs,
+  double eps_target = 1.0e-9,
+  const MBPT::CorrelationPotential *const Sigma = nullptr,
+  const HF::Breit *const VBr = nullptr, const std::vector<double> &H_mag = {});
 
 //! Solves Mixed States (TDHF) equation, inhomogenous equation, staring from existing approximate solition, dF.
 /*! @details

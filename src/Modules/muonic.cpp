@@ -16,20 +16,20 @@ namespace Module {
 void muon(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"states", "States to calculate [4sp]"},
-       {"mass", "Mass of muon (in units of electron mass) [206.7682830]"},
-       {"N_steps", "Number of grid points to use for Muon solutions (is "
-                   "different from neutral case). [10000]"},
-       {"write_wf", "Write wavefunctions (f and g) to file [false]"},
-       {"Uehling", "Include Uehling potential [false]"},
-       {"Screening", "Account for electron screening (direct potental)? Uses "
-                     "direct potential from `outer` wavefunction [false]"},
-       {"operator", "To calculate matrix elements, specify an operator, e.g., "
-                    "E1, hfs (see ampsci -o)"},
-       {"options{}", "options specific to operator; blank by dflt"},
-       {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
-       {"off-diagonal",
-        "Calculate off-diagonal matrix elements (if non-zero) [true]"}});
+    {{"states", "States to calculate [4sp]"},
+     {"mass", "Mass of muon (in units of electron mass) [206.7682830]"},
+     {"N_steps", "Number of grid points to use for Muon solutions (is "
+                 "different from neutral case). [10000]"},
+     {"write_wf", "Write wavefunctions (f and g) to file [false]"},
+     {"Uehling", "Include Uehling potential [false]"},
+     {"Screening", "Account for electron screening (direct potental)? Uses "
+                   "direct potential from `outer` wavefunction [false]"},
+     {"operator", "To calculate matrix elements, specify an operator, e.g., "
+                  "E1, hfs (see ampsci -o)"},
+     {"options{}", "options specific to operator; blank by dflt"},
+     {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
+     {"off-diagonal",
+      "Calculate off-diagonal matrix elements (if non-zero) [true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -58,7 +58,7 @@ void muon(const IO::InputBlock &input, const Wavefunction &wf) {
   const double b = rmax / 10.0;
 
   auto radial_grid = std::make_shared<const Grid>(
-      Grid{r0, rmax, n_steps, GridType::loglinear, b});
+    Grid{r0, rmax, n_steps, GridType::loglinear, b});
   std::cout << "Muonic grid:\n" << radial_grid->gridParameters() << "\n";
 
   std::cout << "\n"
@@ -88,8 +88,8 @@ void muon(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto e0 = 0.85 * e_ex;
 
     const auto F =
-        DiracODE::boundState(n, kappa, e0, radial_grid, V0, {}, alpha, 1.0e-14,
-                             nullptr, nullptr, Z, m_muon);
+      DiracODE::boundState(n, kappa, e0, radial_grid, V0, {}, alpha, 1.0e-14,
+                           nullptr, nullptr, Z, m_muon);
 
     if (F.eps() > 1.0e-9) {
       std::cout << "# Warning: didn't converge\n";
@@ -154,11 +154,11 @@ void muon(const IO::InputBlock &input, const Wavefunction &wf) {
   for (const auto [n, kappa, x_en] : states) {
     const auto e0 = m_muon * AtomData::diracen(Z, n, kappa, alpha);
     const auto &Fnk = muon_Fs.emplace_back(
-        DiracODE::boundState(n, kappa, e0, radial_grid, Vnuc, {}, alpha,
-                             1.0e-14, nullptr, nullptr, Z, m_muon));
+      DiracODE::boundState(n, kappa, e0, radial_grid, Vnuc, {}, alpha, 1.0e-14,
+                           nullptr, nullptr, Z, m_muon));
 
     const auto R_rms =
-        std::sqrt(Fnk * (radial_grid->r() * radial_grid->r() * Fnk));
+      std::sqrt(Fnk * (radial_grid->r() * radial_grid->r() * Fnk));
 
     fmt::print("{:4s} {:5.2f}  {:5.0e}  {:.5e}  {:.9e}  {:.9e}\n",
                Fnk.shortSymbol(), Fnk.rinf(), Fnk.eps(), R_rms, Fnk.en(),
@@ -192,13 +192,13 @@ void muon(const IO::InputBlock &input, const Wavefunction &wf) {
 
     // treat hyperfine operator differently: A constants instead of RME
     const bool hf_AB =
-        qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
+      qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
     const bool diagonal = input.get("diagonal", true);
     const bool off_diagonal = input.get("off-diagonal", true);
 
     // Get optional 'options' for operator
     const auto h_options =
-        input.getBlock("options").value_or(IO::InputBlock(oper, {}));
+      input.getBlock("options").value_or(IO::InputBlock(oper, {}));
 
     Wavefunction mu_wf(radial_grid, wf.nucleus());
     const auto h = DiracOperator::generate(oper, h_options, mu_wf);
@@ -222,7 +222,7 @@ void muon(const IO::InputBlock &input, const Wavefunction &wf) {
         if (h->isZero(m, m))
           continue;
         const auto a = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                   h->rank(), m.kappa(), m.kappa()) :
+                                 h->rank(), m.kappa(), m.kappa()) :
                                1.0;
         const auto me = a * h->reducedME(m, m);
         fmt::print("{:<4s} {:<4s} {:16.9e}\n", m.shortSymbol(), m.shortSymbol(),
@@ -237,7 +237,7 @@ void muon(const IO::InputBlock &input, const Wavefunction &wf) {
           if (m.en() <= n.en() || h->isZero(m, n))
             continue;
           const auto a = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                     h->rank(), m.kappa(), n.kappa()) :
+                                   h->rank(), m.kappa(), n.kappa()) :
                                  1.0;
 
           if (h->freqDependantQ()) {
@@ -266,17 +266,16 @@ void muon(const IO::InputBlock &input, const Wavefunction &wf) {
 void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"states", "States to calculate [4sp]"},
-       {"t", "t: skin thickness parameter in fm [2.3]"},
-       {"type", "Nuclear density type: Fermi/ball/Gaussian/pointlike [Fermi]"},
-       {"mass", "Mass of muon (in units of electron mass) [206.7682830]"},
-       {"N_steps", "Number of grid points to use for Muon solutions (is "
-                   "different from neutral case). [10000]"},
-       {"write_wf", "Write wavefunctions (f and g) to file [false]"},
-       {"Uehling", "Include Uehling potential [false]"},
-       {"Screening",
-        "Account for electron screening (direct potental)? [false]"},
-       {"Z_scaling", "Perform basic 1s-2s calculations for Z=1-99 [true]"}});
+    {{"states", "States to calculate [4sp]"},
+     {"t", "t: skin thickness parameter in fm [2.3]"},
+     {"type", "Nuclear density type: Fermi/ball/Gaussian/pointlike [Fermi]"},
+     {"mass", "Mass of muon (in units of electron mass) [206.7682830]"},
+     {"N_steps", "Number of grid points to use for Muon solutions (is "
+                 "different from neutral case). [10000]"},
+     {"write_wf", "Write wavefunctions (f and g) to file [false]"},
+     {"Uehling", "Include Uehling potential [false]"},
+     {"Screening", "Account for electron screening (direct potental)? [false]"},
+     {"Z_scaling", "Perform basic 1s-2s calculations for Z=1-99 [true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -307,7 +306,7 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
   const double b = rmax / 10.0;
 
   auto radial_grid = std::make_shared<const Grid>(
-      Grid{r0, rmax, n_steps, GridType::loglinear, b});
+    Grid{r0, rmax, n_steps, GridType::loglinear, b});
   std::cout << "Muonic grid:\n" << radial_grid->gridParameters() << "\n";
 
   std::cout << "\n"
@@ -333,8 +332,8 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     double en0 = 0.85 * e_ex;                      // initial guess
     const double alpha0 = 1.0e-16 * PhysConst::alpha;
     const auto F =
-        DiracODE::boundState(n, kappa, en0, radial_grid, V0, {}, alpha0,
-                             1.0e-14, nullptr, nullptr, Z, m_muon);
+      DiracODE::boundState(n, kappa, en0, radial_grid, V0, {}, alpha0, 1.0e-14,
+                           nullptr, nullptr, Z, m_muon);
     if (F.eps() > 1.0e-9) {
       std::cout << "# Warning: didn't converge\n";
     }
@@ -347,8 +346,8 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto invr_ex = m_muon * Z / (n * n);
 
     const auto teps =
-        std::max({std::abs(e / e_ex - 1.0), std::abs(r_ev / r_ex - 1.0),
-                  std::abs(invr_ev / invr_ex - 1.0)});
+      std::max({std::abs(e / e_ex - 1.0), std::abs(r_ev / r_ex - 1.0),
+                std::abs(invr_ev / invr_ex - 1.0)});
     eps = std::max(eps, teps);
 
     fmt::print("{:4s}   {:.5e}   {:.5e}   {:.5e}  [{:.1e}]\n", F.shortSymbol(),
@@ -375,8 +374,8 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto e0 = 0.85 * e_ex;
 
     const auto F =
-        DiracODE::boundState(n, kappa, e0, radial_grid, V0, {}, alpha, 1.0e-14,
-                             nullptr, nullptr, Z, m_muon);
+      DiracODE::boundState(n, kappa, e0, radial_grid, V0, {}, alpha, 1.0e-14,
+                           nullptr, nullptr, Z, m_muon);
 
     if (F.eps() > 1.0e-9) {
       std::cout << "# Warning: didn't converge\n";
@@ -422,7 +421,7 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto alpha = wf.alpha();
 
     auto Vnuc = Nuclear::formPotential(
-        Nuclear::Nucleus(Z, A, nuc_type, rrms, t), radial_grid->r());
+      Nuclear::Nucleus(Z, A, nuc_type, rrms, t), radial_grid->r());
 
     if (Uehling) {
       const auto V_ueh = [Z, Rn_au](double r) {
@@ -444,11 +443,11 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
     for (const auto [n, kappa, x_en] : states) {
       const auto e0 = m_muon * AtomData::diracen(Z, n, kappa, alpha);
       const auto &Fnk = muon_Fs.emplace_back(
-          DiracODE::boundState(n, kappa, e0, radial_grid, Vnuc, {}, alpha,
-                               1.0e-14, nullptr, nullptr, Z, m_muon));
+        DiracODE::boundState(n, kappa, e0, radial_grid, Vnuc, {}, alpha,
+                             1.0e-14, nullptr, nullptr, Z, m_muon));
 
       const auto R_rms =
-          std::sqrt(Fnk * (radial_grid->r() * radial_grid->r() * Fnk));
+        std::sqrt(Fnk * (radial_grid->r() * radial_grid->r() * Fnk));
 
       fmt::print("{:4s} {:5.2f}  {:5.0e}  {:.5e}  {:.9e}  {:.9e}\n",
                  Fnk.shortSymbol(), Fnk.rinf(), Fnk.eps(), R_rms, Fnk.en(),
@@ -522,11 +521,11 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto hFb = hw.radial_rhs(kappa_n, Fb);          // h|Fb
 
       const auto dFa_dag =
-          DiracODE::solve_inhomog(kappa_n, Fa.en(), Vnuc, {}, alpha,
-                                  -1 * hFa_dag, nullptr, nullptr, Z, m_muon);
+        DiracODE::solve_inhomog(kappa_n, Fa.en(), Vnuc, {}, alpha, -1 * hFa_dag,
+                                nullptr, nullptr, Z, m_muon);
       const auto dFb =
-          DiracODE::solve_inhomog(kappa_n, Fb.en(), Vnuc, {}, alpha, -1 * hFb,
-                                  nullptr, nullptr, Z, m_muon);
+        DiracODE::solve_inhomog(kappa_n, Fb.en(), Vnuc, {}, alpha, -1 * hFb,
+                                nullptr, nullptr, Z, m_muon);
 
       // angular factors (for dipole z component)
       const auto Angular_d_a = d.rme3js(Fa.twoj(), dFb.twoj());
@@ -538,10 +537,10 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 
       // Main term (from mixed states, by forcing orthogonality):
       const auto pnc_main_MS_a =
-          Angular_d_a * d.reducedME(Fa, (dFb * F2p) * F2p);
+        Angular_d_a * d.reducedME(Fa, (dFb * F2p) * F2p);
 
       const auto pnc_main_MS_b =
-          Angular_d_b * d.reducedME((dFa_dag * F2p) * F2p, Fb);
+        Angular_d_b * d.reducedME((dFa_dag * F2p) * F2p, Fb);
 
       // // Numerical test:
       // // Main term (direct calculation):
@@ -638,11 +637,11 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       const double tb = trmax / 10.0;
 
       auto t_grid = std::make_shared<const Grid>(
-          Grid{tr0, trmax, tn_steps, GridType::loglinear, tb});
+        Grid{tr0, trmax, tn_steps, GridType::loglinear, tb});
 
       // Form nuclear potential:
       auto t_Vnuc = Nuclear::formPotential(
-          Nuclear::Nucleus(t_Z, t_A, nuc_type, t_rrms, t), t_grid->r());
+        Nuclear::Nucleus(t_Z, t_A, nuc_type, t_rrms, t), t_grid->r());
 
       // nb: Also option to include Uehling?
       if (Uehling) {
@@ -661,7 +660,7 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 
       // Weak and dipole operators
       const auto hw =
-          DiracOperator::PNCnsi(t_c, t, *t_grid, t_N, "i(Qw/N)e-11");
+        DiracOperator::PNCnsi(t_c, t, *t_grid, t_N, "i(Qw/N)e-11");
       const auto d = DiracOperator::E1(*t_grid);
       // "Special" weak operator: constant rho(r), assumed to be larger than wavefunction
       const auto hw0 = DiracOperator::PNCnsi_const(t_Rn_au, t_N, "i(Qw/N)e-11");
@@ -676,16 +675,16 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 
       // Get single-particle muonic wavefunctions
       const auto Fa =
-          DiracODE::boundState(1, -1, ea0, t_grid, t_Vnuc, {}, alpha, 1.0e-14,
-                               nullptr, nullptr, t_Z, m_muon);
+        DiracODE::boundState(1, -1, ea0, t_grid, t_Vnuc, {}, alpha, 1.0e-14,
+                             nullptr, nullptr, t_Z, m_muon);
 
       const auto Fb =
-          DiracODE::boundState(2, -1, es0, t_grid, t_Vnuc, {}, alpha, 1.0e-14,
-                               nullptr, nullptr, t_Z, m_muon);
+        DiracODE::boundState(2, -1, es0, t_grid, t_Vnuc, {}, alpha, 1.0e-14,
+                             nullptr, nullptr, t_Z, m_muon);
 
       const auto Fp =
-          DiracODE::boundState(2, 1, ep0, t_grid, t_Vnuc, {}, alpha, 1.0e-14,
-                               nullptr, nullptr, t_Z, m_muon);
+        DiracODE::boundState(2, 1, ep0, t_grid, t_Vnuc, {}, alpha, 1.0e-14,
+                             nullptr, nullptr, t_Z, m_muon);
 
       // Check bound state solution is OK
       const auto teps = std::max(Fb.eps(), Fp.eps());
@@ -720,14 +719,14 @@ void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto Rn = std::sqrt(5.0 / 3) * t_rrms / PhysConst::aB_fm;
       const auto iRn = t_grid->getIndex(Rn);
       auto fraction =
-          NumCalc::integrate(t_grid->du(), 0, iRn,
-                             Fa.f() * Fa.f() + Fa.g() * Fa.g(), t_grid->drdu());
+        NumCalc::integrate(t_grid->du(), 0, iRn,
+                           Fa.f() * Fa.f() + Fa.g() * Fa.g(), t_grid->drdu());
 
       fmt::print(
-          "{:<2} {:<3} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} "
-          "{:.2e} {:.2e}\n",
-          t_Z, t_N, Fa.en(), t_rrms, rev_p * PhysConst::aB_fm, fraction, dE_bn,
-          d_ap, h_pb, h0_pb, sr_bp, pnc);
+        "{:<2} {:<3} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} {:.2e} "
+        "{:.2e} {:.2e}\n",
+        t_Z, t_N, Fa.en(), t_rrms, rev_p * PhysConst::aB_fm, fraction, dE_bn,
+        d_ap, h_pb, h0_pb, sr_bp, pnc);
     }
   }
 }

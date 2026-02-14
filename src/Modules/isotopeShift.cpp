@@ -45,9 +45,9 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto r40 = DiracOperator::fieldshift::r4(wf.grid(), wf.nucleus());
 
   std::cout
-      << "\nCalculating shift in valence state energies using.\n"
-      << "dE^(1) = F d<r^2> + G^2 d<r^2>^2 + G^4 d<r^4>\n"
-      << "[nb: E is binding energy (different sign from someother works)]\n";
+    << "\nCalculating shift in valence state energies using.\n"
+    << "dE^(1) = F d<r^2> + G^2 d<r^2>^2 + G^4 d<r^4>\n"
+    << "[nb: E is binding energy (different sign from someother works)]\n";
 
   // For second-order G^2 correction,
   // See, e.g., Eq.(8) PhysRevA.103.L030801 (2021)
@@ -61,8 +61,8 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto gtype = GridType::logarithmic;
   // const auto gtype = GridType::linear;
   const auto range = gtype == GridType::logarithmic ?
-                         qip::logarithmic_range<double, std::size_t> :
-                         qip::uniform_range<double, std::size_t>;
+                       qip::logarithmic_range<double, std::size_t> :
+                       qip::uniform_range<double, std::size_t>;
 
   // Even grids on both sides of delta_r = 0
   const auto max_dr = delta_r * int(num_steps_tmp) / 2.0;
@@ -139,7 +139,7 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
 
         // Use TDHF method:
         const auto hFv =
-            fis.reduced_rhs(Fv.kappa(), Fv) + dVfis.dV_rhs(Fv.kappa(), Fv);
+          fis.reduced_rhs(Fv.kappa(), Fv) + dVfis.dV_rhs(Fv.kappa(), Fv);
 
         const auto dFv1 = dVfis.solve_dPsi(Fv, 0.0, ExternalField::dPsiType::X,
                                            Fv.kappa(), wf.Sigma());
@@ -149,7 +149,7 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto &basis = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
         // Note: negative energy states are required here!!
         const auto dFv2 =
-            ExternalField::solveMixedState_basis(Fv, hFv, 0.0, basis);
+          ExternalField::solveMixedState_basis(Fv, hFv, 0.0, basis);
 
         const auto G2_rme = fis.reducedME(Fv, dFv1) + dVfis.dV(Fv, dFv1);
         const auto G2_rme2 = fis.reducedME(Fv, dFv2) + dVfis.dV(Fv, dFv2);
@@ -329,8 +329,8 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   std::cout
-      << "\nTransitions :  Omega (GHz)     F2 (GHz/Fm^2)   G2 (GHz/fm^4)   "
-         "G4 (GHz/fm^4)\n";
+    << "\nTransitions :  Omega (GHz)     F2 (GHz/Fm^2)   G2 (GHz/fm^4)   "
+       "G4 (GHz/fm^4)\n";
   std::cout << out_trans_4.str() << "\n";
 }
 
@@ -338,15 +338,15 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
 void fieldShift_direct(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-      {{"", "Calculates field shift: F = d(E)/d(<r^2>) by direct calculation. "
-            "Note: copies the same correlation potential; this is OK, but not "
-            "exact (i.e., neglects the SR contribution)"},
-       {"core_relaxation", "Include Core relaxation (equiv to RPA)? [true]"},
-       {"print", "Print each step to screen? [true]"},
-       {"write", "Write dE(r^2) to file? [false]"},
-       {"minmax_delta", "Minimum relative shift in r [1.0e-5, 1.0e-3]"},
-       {"num_steps", "Number of steps for fit (for each sign)? [5]"},
-       {"grid", "Logarithmic or linear grid for dr2 [logarithmic]"}});
+    {{"", "Calculates field shift: F = d(E)/d(<r^2>) by direct calculation. "
+          "Note: copies the same correlation potential; this is OK, but not "
+          "exact (i.e., neglects the SR contribution)"},
+     {"core_relaxation", "Include Core relaxation (equiv to RPA)? [true]"},
+     {"print", "Print each step to screen? [true]"},
+     {"write", "Write dE(r^2) to file? [false]"},
+     {"minmax_delta", "Minimum relative shift in r [1.0e-5, 1.0e-3]"},
+     {"num_steps", "Number of steps for fit (for each sign)? [5]"},
+     {"grid", "Logarithmic or linear grid for dr2 [logarithmic]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -357,7 +357,7 @@ void fieldShift_direct(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto write = input.get("write", false);
 
   const auto [min_d, max_d] =
-      input.get("minmax_delta", std::array{1.0e-5, 1.0e-3});
+    input.get("minmax_delta", std::array{1.0e-5, 1.0e-3});
 
   const auto num_steps = input.get<unsigned long>("num_steps", 5);
 
@@ -396,13 +396,13 @@ void fieldShift_direct(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   const auto gtype = qip::ci_wc_compare(grid_type, "log*") ?
-                         GridType::logarithmic :
-                         GridType::linear;
+                       GridType::logarithmic :
+                       GridType::linear;
 
   const auto drs_t =
-      gtype == GridType::logarithmic ?
-          qip::logarithmic_range(r0 * min_d, r0 * max_d, num_steps) :
-          qip::uniform_range(r0 * min_d, r0 * max_d, num_steps);
+    gtype == GridType::logarithmic ?
+      qip::logarithmic_range(r0 * min_d, r0 * max_d, num_steps) :
+      qip::uniform_range(r0 * min_d, r0 * max_d, num_steps);
   using namespace qip::overloads;
   const auto drs = qip::merge(-1.0 * qip::reverse(drs_t), drs_t);
 

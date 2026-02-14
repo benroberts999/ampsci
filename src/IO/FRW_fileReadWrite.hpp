@@ -25,10 +25,10 @@ stringstreamVectorIntoTuple(const std::vector<std::string> &,
                             std::tuple<Tp...> &) {}
 
 template <std::size_t I = 0, typename... Tp>
-    inline typename std::enable_if <
-    I<sizeof...(Tp), void>::type
-    stringstreamVectorIntoTuple(const std::vector<std::string> &lst,
-                                std::tuple<Tp...> &t) {
+  inline typename std::enable_if <
+  I<sizeof...(Tp), void>::type
+  stringstreamVectorIntoTuple(const std::vector<std::string> &lst,
+                              std::tuple<Tp...> &t) {
   if (I > lst.size())
     std::cerr << "\nFAIL 34 in FRW: list shorter than tuple\n";
   std::stringstream(lst[I]) >> std::get<I>(t);

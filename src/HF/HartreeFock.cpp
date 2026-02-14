@@ -73,17 +73,17 @@ HartreeFock::HartreeFock(std::shared_ptr<const Grid> grid,
                          std::optional<QED::RadPot> vrad, double alpha,
                          Method method, double x_Breit, double in_eps,
                          Parametric::Type potential, double H_g, double d_t)
-    : m_rgrid(grid),
-      m_core(std::move(core)),
-      m_vnuc(std::move(vnuc)),
-      m_vrad(std::move(vrad)),
-      m_VBr(x_Breit == 0.0 ? std::optional<HF::Breit>{} :
-                             std::optional<HF::Breit>(x_Breit)),
-      m_alpha(alpha),
-      m_method(method),
-      m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
-      m_vdir(m_rgrid->num_points(), 0.0),
-      m_Yab() {
+  : m_rgrid(grid),
+    m_core(std::move(core)),
+    m_vnuc(std::move(vnuc)),
+    m_vrad(std::move(vrad)),
+    m_VBr(x_Breit == 0.0 ? std::optional<HF::Breit>{} :
+                           std::optional<HF::Breit>(x_Breit)),
+    m_alpha(alpha),
+    m_method(method),
+    m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
+    m_vdir(m_rgrid->num_points(), 0.0),
+    m_Yab() {
   set_parametric_potential(true, potential, H_g, d_t);
 }
 
@@ -156,8 +156,8 @@ EpsIts HartreeFock::solve_core(bool print) {
 
 //==============================================================================
 void HartreeFock::solve_valence(
-    std::vector<DiracSpinor> *valence, const bool print,
-    const MBPT::CorrelationPotential *const Sigma) const {
+  std::vector<DiracSpinor> *valence, const bool print,
+  const MBPT::CorrelationPotential *const Sigma) const {
 
   if (valence == nullptr || valence->empty())
     return;
@@ -342,7 +342,7 @@ EpsIts HartreeFock::hf_approx_core(const double eps_target_HF) {
       const double en_old = Fa.en();
       // Guess energy correction [speeds up boundState()]
       const double dEa =
-          Fa * ((m_vdir - vdir_old + vex_core[i] - vex_old[i]) * Fa);
+        Fa * ((m_vdir - vdir_old + vex_core[i] - vex_old[i]) * Fa);
       const double en_guess = (en_old < -dEa) ? en_old + dEa : en_old;
       // Solve Dirac equation:
       const auto v = vlocal(Fa.l()) + vex_core[i];
@@ -456,8 +456,8 @@ EpsIts HartreeFock::hartree_fock_core() {
 
       // Energy guess for next it (very sensitive to this!)
       auto en =
-          Fzero.en() +
-          (Fzero * (VxFa + (m_vdir - vd0) * Fa) - Fa * Vx0Fa) / (Fa * Fzero);
+        Fzero.en() +
+        (Fzero * (VxFa + (m_vdir - vd0) * Fa) - Fa * Vx0Fa) / (Fa * Fzero);
 
       // non-local part of potential, (v0 + Vx()*Fa
       auto v_nonlocal = v0 * Fa + VxFa;
@@ -616,7 +616,7 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
 
 //==============================================================================
 EpsIts HartreeFock::hf_valence_Green(
-    DiracSpinor &Fa, const MBPT::CorrelationPotential *const Sigma) const {
+  DiracSpinor &Fa, const MBPT::CorrelationPotential *const Sigma) const {
 
   if (m_core.empty())
     return local_valence(Fa);
@@ -727,8 +727,8 @@ DiracSpinor HartreeFock::VBr(const DiracSpinor &Fv) const {
 //==============================================================================
 int HartreeFock::num_core_electrons() const {
   return std::accumulate(
-      m_core.cbegin(), m_core.cend(), 0,
-      [](int n, const auto &Fa) { return n + Fa.num_electrons(); });
+    m_core.cbegin(), m_core.cend(), 0,
+    [](int n, const auto &Fa) { return n + Fa.num_electrons(); });
 }
 
 //==============================================================================
@@ -745,7 +745,7 @@ void HartreeFock::update_vdir(ReScale re_scale)
   // Rescale so that V_nuc + Vdir = -1/r at large r
   // (Only done in initial approx., before exchange)
   const double scale =
-      re_scale == ReScale::yes ? (1.0 - 1.0 / num_core_electrons()) : 1.0;
+    re_scale == ReScale::yes ? (1.0 - 1.0 / num_core_electrons()) : 1.0;
 
   for (const auto &Fb : m_core) {
     const double f_sf = scale * Fb.twojp1() * Fb.occ_frac();
@@ -763,7 +763,7 @@ void HartreeFock::update_vdir(ReScale re_scale)
 void HartreeFock::add_KohnSham_vdir_addition() {
 
   const auto f =
-      -(2.0 / 3.0) * std::pow(81.0 / (32.0 * M_PI * M_PI), 1.0 / 3.0);
+    -(2.0 / 3.0) * std::pow(81.0 / (32.0 * M_PI * M_PI), 1.0 / 3.0);
 
   std::vector<double> rho(m_rgrid->num_points());
   for (const auto &Fc : m_core) {
@@ -830,13 +830,13 @@ void HartreeFock::set_parametric_potential(bool print,
   }
 
   m_vdir = (potential == Parametric::Type::Green) ?
-               Parametric::GreenPotential(z, m_rgrid->r(), H_g, d_t) :
-               Parametric::TietzPotential(z, m_rgrid->r(), H_g, d_t);
+             Parametric::GreenPotential(z, m_rgrid->r(), H_g, d_t) :
+             Parametric::TietzPotential(z, m_rgrid->r(), H_g, d_t);
 }
 
 //==============================================================================
 void HartreeFock::form_approx_vex_core(
-    std::vector<std::vector<double>> &vex) const
+  std::vector<std::vector<double>> &vex) const
 // Forms the 2D "approximate" exchange potential for each core state, a.
 // NOTE: Must call form_vabk_core first!
 // Doesn't calculate, assumes m_arr_v_abk_r array exists + is up-to-date
@@ -898,7 +898,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
     return (std::abs(a) < std::abs(b));
   };
   const auto max =
-      std::abs(*std::max_element(Fa.f().begin(), Fa.f().end(), max_abs));
+    std::abs(*std::max_element(Fa.f().begin(), Fa.f().end(), max_abs));
   const auto cut_off = 0.003 * max;
 
   if (!excludeExchangeQ()) {
@@ -978,7 +978,7 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
     return (std::abs(a) < std::abs(b));
   };
   const auto max =
-      std::abs(*std::max_element(Fa.f().begin(), Fa.f().end(), max_abs));
+    std::abs(*std::max_element(Fa.f().begin(), Fa.f().end(), max_abs));
   const auto cut_off = lambda_cut * max;
 
   for (const auto &Fb : core) {
@@ -1105,11 +1105,11 @@ std::vector<double> HartreeFock::Hmag(int l) const {
 
 //==============================================================================
 void HartreeFock::hf_orbital_green(
-    DiracSpinor &Fa, double en0, const std::vector<double> &vl,
-    const std::vector<double> &H_mag, const DiracSpinor &VnlFa0,
-    const std::vector<DiracSpinor> &static_core, const std::vector<double> &dv0,
-    const HF::Breit *const tVBr,
-    const MBPT::CorrelationPotential *const Sigma) const
+  DiracSpinor &Fa, double en0, const std::vector<double> &vl,
+  const std::vector<double> &H_mag, const DiracSpinor &VnlFa0,
+  const std::vector<DiracSpinor> &static_core, const std::vector<double> &dv0,
+  const HF::Breit *const tVBr,
+  const MBPT::CorrelationPotential *const Sigma) const
 // Solves HF equation for given state, using non-local Green's method for
 // inhomogeneous ODE (used for hartree_fock_core()).
 // Solve Dirac Equation (Eigenvalue):

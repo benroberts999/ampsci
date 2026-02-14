@@ -45,7 +45,7 @@ jobs:
     - name: "Run using standard Apple Clang (CLT), no openMP"
       run: |
         set -x
-        make clean && make CXX=clang++ UseOpenMP=no ampsci tests
+        make clean && make CXX=clang++ OMPLIB= ampsci tests
         ./ampsci -v
         ./ampsci Cs [Xe] 7sp
         ./tests \[unit\]

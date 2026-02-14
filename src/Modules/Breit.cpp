@@ -24,7 +24,7 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
 
   if (wf.Sigma()) {
     std::cout
-        << "Error: This module assumes Sigma is not included (due to basis).\n";
+      << "Error: This module assumes Sigma is not included (due to basis).\n";
     return;
   }
 
@@ -38,9 +38,9 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto eFermi = wf.FermiLevel();
   const auto holes =
-      qip::select_if(wf.basis(), [=](auto &a) { return a.en() < eFermi; });
+    qip::select_if(wf.basis(), [=](auto &a) { return a.en() < eFermi; });
   const auto excited =
-      qip::select_if(wf.basis(), [=](auto &a) { return a.en() > eFermi; });
+    qip::select_if(wf.basis(), [=](auto &a) { return a.en() > eFermi; });
 
   std::cout << "\n";
 
@@ -55,11 +55,11 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   std::cout
-      << "\nde(1)    = <v|Vbr|v> - first-order Breit correction\n"
-         "de(2,Z1) - HF (one-particle) part of second-order Breit correction.\n"
-         "de(2,Z2) - Sigma (two-particle) part of second-order Breit "
-         "correction.\n"
-         "de(2) = de(2,Z1) + de(2,Z2).\n";
+    << "\nde(1)    = <v|Vbr|v> - first-order Breit correction\n"
+       "de(2,Z1) - HF (one-particle) part of second-order Breit correction.\n"
+       "de(2,Z2) - Sigma (two-particle) part of second-order Breit "
+       "correction.\n"
+       "de(2) = de(2,Z1) + de(2,Z2).\n";
 
   if (!wf.valence().empty()) {
     std::cout << "\nValence energy corrections (without relaxation):\n";

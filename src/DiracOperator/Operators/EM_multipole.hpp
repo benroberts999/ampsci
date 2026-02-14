@@ -29,10 +29,10 @@ class VEk_Len final : public TensorOperator {
 public:
   VEk_Len(const Grid &gr, int K, double omega,
           const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::imaginary, true),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                     gr.r(), 0, Realness::imaginary, true),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -87,10 +87,10 @@ class VEk final : public TensorOperator {
 public:
   VEk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::imaginary, true),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                     gr.r(), 0, Realness::imaginary, true),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -144,10 +144,10 @@ class VLk final : public TensorOperator {
 public:
   VLk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::imaginary, true),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                     gr.r(), 0, Realness::imaginary, true),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -200,10 +200,10 @@ class VMk final : public TensorOperator {
 public:
   VMk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::imaginary, true),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                     gr.r(), 0, Realness::imaginary, true),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -255,10 +255,10 @@ class Phik final : public TensorOperator {
 public:
   Phik(const Grid &gr, int K, double omega,
        const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -310,10 +310,10 @@ class Sk final : public TensorOperator {
 public:
   Sk(const Grid &gr, int K, double omega,
      const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -368,10 +368,10 @@ class AEk final : public TensorOperator {
 public:
   AEk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                     gr.r(), 0, Realness::real),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -419,10 +419,10 @@ class ALk final : public TensorOperator {
 public:
   ALk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -470,10 +470,10 @@ class AMk final : public TensorOperator {
 public:
   AMk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -521,10 +521,10 @@ class Phi5k final : public TensorOperator {
 public:
   Phi5k(const Grid &gr, int K, double omega,
         const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -570,10 +570,10 @@ class S5k final : public TensorOperator {
 public:
   S5k(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K),
-        m_jl(jl) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K),
+      m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -629,16 +629,15 @@ inline std::unique_ptr<DiracOperator::TensorOperator>
 generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace DiracOperator;
   input.check({
-      {"",
-       "Note: This function cannot use the Spherical Bessel looup table. If "
-       "require efficiency for large number of q values, construct directly"},
-      {"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"},
-      {"omega", "Frequency: nb: q := alpha*omega [1.0e-4]"},
-      {"type", "V,A,S,P (Vector, Axial, Scalar, Pseudoscalar) [V]"},
-      {"low_q", "bool. Use low-q formulas (K=0 and 1 only, no L-form) [false]"},
-      {"component", "E,M,L,T (electric, magnetic, longitudanel, temporal). "
-                    "Temporal is forced if type = S or P. [E]"},
-      {"form", "L,V (Length, Velocity); only for electric vector [L]"},
+    {"", "Note: This function cannot use the Spherical Bessel looup table. If "
+         "require efficiency for large number of q values, construct directly"},
+    {"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"},
+    {"omega", "Frequency: nb: q := alpha*omega [1.0e-4]"},
+    {"type", "V,A,S,P (Vector, Axial, Scalar, Pseudoscalar) [V]"},
+    {"low_q", "bool. Use low-q formulas (K=0 and 1 only, no L-form) [false]"},
+    {"component", "E,M,L,T (electric, magnetic, longitudanel, temporal). "
+                  "Temporal is forced if type = S or P. [E]"},
+    {"form", "L,V (Length, Velocity); only for electric vector [L]"},
   });
   if (input.has_option("help")) {
     return nullptr;

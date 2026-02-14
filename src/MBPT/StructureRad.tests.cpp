@@ -96,11 +96,11 @@ TEST_CASE("MBPT: Structure Rad + Norm",
     // Data in form: {a, b, SR/t0, NS/t0}
     using sp = std::tuple<std::string, std::string, double, double>;
     const auto expected = std::vector<sp>{
-        {"3p-", "3s+", 0.0030 / 3.6906, -0.0050 / 3.6906},
-        {"3p+", "3s+", 0.0043 / 5.2188, -0.0070 / 5.2188},
-        //{"3p-", "4s+", -0.0010 / 3.6004, -0.0021 / 3.6004},
-        {"3p+", "4s+", -0.0014 / 5.1012, -0.0029 / 5.1012}
-        // Skip this just in interest of time
+      {"3p-", "3s+", 0.0030 / 3.6906, -0.0050 / 3.6906},
+      {"3p+", "3s+", 0.0043 / 5.2188, -0.0070 / 5.2188},
+      //{"3p-", "4s+", -0.0010 / 3.6004, -0.0021 / 3.6004},
+      {"3p+", "4s+", -0.0014 / 5.1012, -0.0029 / 5.1012}
+      // Skip this just in interest of time
     };
 
     std::cout << "Structure Radiation + Norm of states;\ncf Johnson et al, "
@@ -113,11 +113,11 @@ TEST_CASE("MBPT: Structure Rad + Norm",
 
       // find the right basis states for SR/N "legs"
       const auto ws = std::find_if(
-          cbegin(wf.basis()), cend(wf.basis()),
-          [&sym = w_str](auto &a) { return a.shortSymbol() == sym; });
+        cbegin(wf.basis()), cend(wf.basis()),
+        [&sym = w_str](auto &a) { return a.shortSymbol() == sym; });
       const auto vs = std::find_if(
-          cbegin(wf.basis()), cend(wf.basis()),
-          [&sym = v_str](auto &a) { return a.shortSymbol() == sym; });
+        cbegin(wf.basis()), cend(wf.basis()),
+        [&sym = v_str](auto &a) { return a.shortSymbol() == sym; });
       assert(ws != cend(wf.basis()) && vs != cend(wf.basis()));
 
       // My calculations:
@@ -171,11 +171,11 @@ TEST_CASE("MBPT: Structure Rad + Norm",
     // Data in form: {a, b, SR/t0, NS/t0}
     using sp = std::tuple<std::string, std::string, double, double>;
     const auto expected = std::vector<sp>{
-        {"6p-", "6s+", 0.0445 / 5.2777, -0.0508 / 5.2777},
-        {"6p+", "6s+", 0.0593 / 7.4265, -0.0694 / 7.4265},
-        //{"6p-", "7s+", -0.0120 / 4.4135, -0.0198 / 4.4135},
-        {"6p+", "7s+", -0.0153 / 6.6716, -0.0281 / 6.6716}
-        // Skip this one just in interest of time
+      {"6p-", "6s+", 0.0445 / 5.2777, -0.0508 / 5.2777},
+      {"6p+", "6s+", 0.0593 / 7.4265, -0.0694 / 7.4265},
+      //{"6p-", "7s+", -0.0120 / 4.4135, -0.0198 / 4.4135},
+      {"6p+", "7s+", -0.0153 / 6.6716, -0.0281 / 6.6716}
+      // Skip this one just in interest of time
     };
 
     std::cout << "Structure Radiation + Norm of states;\ncf Johnson et al, "
@@ -188,11 +188,11 @@ TEST_CASE("MBPT: Structure Rad + Norm",
 
       // this time, use valence states:
       const auto ws = std::find_if(
-          cbegin(wf.valence()), cend(wf.valence()),
-          [&sym = w_str](auto &a) { return a.shortSymbol() == sym; });
+        cbegin(wf.valence()), cend(wf.valence()),
+        [&sym = w_str](auto &a) { return a.shortSymbol() == sym; });
       const auto vs = std::find_if(
-          cbegin(wf.valence()), cend(wf.valence()),
-          [&sym = v_str](auto &a) { return a.shortSymbol() == sym; });
+        cbegin(wf.valence()), cend(wf.valence()),
+        [&sym = v_str](auto &a) { return a.shortSymbol() == sym; });
       assert(ws != cend(wf.valence()) && vs != cend(wf.valence()));
 
       // My calculations:

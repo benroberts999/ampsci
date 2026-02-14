@@ -123,7 +123,7 @@ TEST_CASE("LinAlg: operators<int>", "[LinAlg][unit]") {
   REQUIRE(LinAlg::equal(a + 2 * a, 3 * a));
   REQUIRE(LinAlg::equal(a - 2 * a, -1 * a));
   REQUIRE(
-      LinAlg::equal(4 * a / 2, 2 * a)); // careful with int devision, as always
+    LinAlg::equal(4 * a / 2, 2 * a)); // careful with int devision, as always
 
   auto b = a;
   const auto b2 = a;
@@ -164,7 +164,7 @@ TEST_CASE("LinAlg: operators<float>", "[LinAlg][unit]") {
 
   LinAlg::Matrix<float> c{{1.0f, 2.0f, 3.0f}, {4.0f, 5.0f, 6.0f}};
   REQUIRE(
-      LinAlg::equal(c.transpose(), {{1.0f, 4.0f}, {2.0f, 5.0f}, {3.0f, 6.0f}}));
+    LinAlg::equal(c.transpose(), {{1.0f, 4.0f}, {2.0f, 5.0f}, {3.0f, 6.0f}}));
 
   const auto c_tr = c.transpose();
   REQUIRE(LinAlg::equal(c_tr, c.transpose()));
@@ -186,8 +186,8 @@ TEST_CASE("LinAlg: operators<complex<double>>", "[LinAlg][unit]") {
   REQUIRE(LinAlg::equal(a - 0.5 * a, 0.5 * a));
   REQUIRE(LinAlg::equal(a / 4.5, (1.0 / 4.5) * a));
 
-  REQUIRE(LinAlg::equal(a * (4.0 + 3.0i), {{9.0 + 0.5i, 2.5 + 17.5i},
-                                           {3.5 + 24.5i, 31.5 - 4.5i}}));
+  REQUIRE(LinAlg::equal(
+    a * (4.0 + 3.0i), {{9.0 + 0.5i, 2.5 + 17.5i}, {3.5 + 24.5i, 31.5 - 4.5i}}));
 
   auto b = a;
   const auto b2 = a;
@@ -207,15 +207,15 @@ TEST_CASE("LinAlg: operators<complex<double>>", "[LinAlg][unit]") {
 
   auto a_tr = a.transpose();
   REQUIRE(
-      LinAlg::equal(a_tr, {{1.5 - 1.i, 3.5 + 3.5i}, {2.5 + 2.5i, 4.5 - 4.5i}}));
+    LinAlg::equal(a_tr, {{1.5 - 1.i, 3.5 + 3.5i}, {2.5 + 2.5i, 4.5 - 4.5i}}));
   const auto ca_tr = a_tr;
   REQUIRE(LinAlg::equal(ca_tr, a.transpose()));
 
   REQUIRE(
-      LinAlg::equal(a.inverse(), {{0.167743874943634 + 0.143393957613107i,
-                                   0.0796633097850594 - 0.0931910416353525i},
-                                  {0.111528633699083 - 0.130467458289493i,
-                                   0.0386291898391703 + 0.0491507590560649i}}));
+    LinAlg::equal(a.inverse(), {{0.167743874943634 + 0.143393957613107i,
+                                 0.0796633097850594 - 0.0931910416353525i},
+                                {0.111528633699083 - 0.130467458289493i,
+                                 0.0386291898391703 + 0.0491507590560649i}}));
   const auto ca_inv = a.inverse();
   REQUIRE(LinAlg::equal(ca_inv, a.inverse()));
 
@@ -264,7 +264,7 @@ TEST_CASE("LinAlg: operators<complex<float>>", "[LinAlg][unit]") {
 
   auto a_tr = a.transpose();
   REQUIRE(LinAlg::equal(
-      a_tr, {{1.5f - 1.if, 3.5f + 3.5if}, {2.5f + 2.5if, 4.5f - 4.5if}}));
+    a_tr, {{1.5f - 1.if, 3.5f + 3.5if}, {2.5f + 2.5if, 4.5f - 4.5if}}));
   const auto ca_tr = a_tr;
 
   REQUIRE(LinAlg::equal(ca_tr, a.transpose()));
@@ -308,11 +308,10 @@ TEST_CASE("LinAlg: ...", "[LinAlg][unit]") {
                           {6.1f, 0.4f, 2.5f, 5.7f, 1.0f}};
 
   REQUIRE(LinAlg::equal(
-      a * b,
-      LinAlg::Matrix<float>{{-10.4f, -51.37f, -23.77f, -1.88f, -54.4f},
-                            {111.1f, 62.3f, 35.4f, 100.0f, -10.0f},
-                            {59.7f, -5.85f, 24.01f, 57.52f, -18.4f},
-                            {192.2f, 1100.15f, 70.11f, 113.22f, 54.6f}}));
+    a * b, LinAlg::Matrix<float>{{-10.4f, -51.37f, -23.77f, -1.88f, -54.4f},
+                                 {111.1f, 62.3f, 35.4f, 100.0f, -10.0f},
+                                 {59.7f, -5.85f, 24.01f, 57.52f, -18.4f},
+                                 {192.2f, 1100.15f, 70.11f, 113.22f, 54.6f}}));
 
   const auto a2 = a;
   const auto b2 = b;
@@ -322,17 +321,17 @@ TEST_CASE("LinAlg: matrix multiplication<complex<double>>", "[LinAlg][unit]") {
   // Test matrix multiplication, with complex double, const and non-const
   using namespace std::complex_literals;
   LinAlg::Matrix a{
-      {-1.0 + 2.0i + 2.0i, 6.5 + 1.0i, 0.1 + 2.0i, 1.0 + 2.0i, -4.0 + 6.0i},
-      {0.5 + 3.0i, 3.0 - 2.0i, 0.5 + 2.0i, 2.0 - 2.0i, 14.0 + 4.0i},
-      {0.1 + 4.0i, 0.5 + 2.0i, -1.0 + 3.0i, 3.0 + 2.0i, 8.0 - 2.0i},
-      {14.1 + 5.0i, 0.5 - 2.0i, 1.0 + 4.0i, 7.0 - 2.0i, 9.0 + 1.0i}};
+    {-1.0 + 2.0i + 2.0i, 6.5 + 1.0i, 0.1 + 2.0i, 1.0 + 2.0i, -4.0 + 6.0i},
+    {0.5 + 3.0i, 3.0 - 2.0i, 0.5 + 2.0i, 2.0 - 2.0i, 14.0 + 4.0i},
+    {0.1 + 4.0i, 0.5 + 2.0i, -1.0 + 3.0i, 3.0 + 2.0i, 8.0 - 2.0i},
+    {14.1 + 5.0i, 0.5 - 2.0i, 1.0 + 4.0i, 7.0 - 2.0i, 9.0 + 1.0i}};
 
   LinAlg::Matrix b{
-      {6.0 + 1.0i, 77.0 + 6.0i, 2.1 - 1.0i, 1.7 + 2.0i, 6.0 + 1.0i},
-      {2.0 + 2.0i, 4.1 + 7.0i, -2.2 - 2.0i, 2.7 + 2.0i, -6.0 + 1.0i},
-      {9.0 + 3.0i, 15.8 + 8.0i, 2.3 - 3.0i, 3.7 + 2.0i, 6.0 + 1.0i},
-      {6.1 + 4.0i, -1.0 + 9.0i, 2.4 - 4.0i, 4.7 + 2.0i, -6.0 + 1.0i},
-      {6.1 + 5.0i, 0.4 + 0.0i, 2.5 - 5.0i, 5.7 + 2.0i, 1.0 + 1.0i}};
+    {6.0 + 1.0i, 77.0 + 6.0i, 2.1 - 1.0i, 1.7 + 2.0i, 6.0 + 1.0i},
+    {2.0 + 2.0i, 4.1 + 7.0i, -2.2 - 2.0i, 2.7 + 2.0i, -6.0 + 1.0i},
+    {9.0 + 3.0i, 15.8 + 8.0i, 2.3 - 3.0i, 3.7 + 2.0i, 6.0 + 1.0i},
+    {6.1 + 4.0i, -1.0 + 9.0i, 2.4 - 4.0i, 4.7 + 2.0i, -6.0 + 1.0i},
+    {6.1 + 5.0i, 0.4 + 0.0i, 2.5 - 5.0i, 5.7 + 2.0i, 1.0 + 1.0i}};
 
   REQUIRE(LinAlg::equal(a * b, {{-60.4 + 89.1i, -116.37 + 393.4i, 26.23 + 34.3i,
                                  -31.88 + 65.7i, -69.4 + 26.6i},
@@ -351,28 +350,28 @@ TEST_CASE("LinAlg: matrix multiplication<complex<float>>", "[LinAlg][unit]") {
   // Test matrix multiplication, with complex float, const and non-const
   using namespace std::complex_literals;
   LinAlg::Matrix<std::complex<float>> a{
-      {-1.0f + 2.0if + 2.0if, 6.5f + 1.0if, 0.1f + 2.0if, 1.0f + 2.0if,
-       -4.0f + 6.0if},
-      {0.5f + 3.0if, 3.0f - 2.0if, 0.5f + 2.0if, 2.0f - 2.0if, 14.0f + 4.0if},
-      {0.1f + 4.0if, 0.5f + 2.0if, -1.0f + 3.0if, 3.0f + 2.0if, 8.0f - 2.0if},
-      {14.1f + 5.0if, 0.5f - 2.0if, 1.0f + 4.0if, 7.0f - 2.0if, 9.0f + 1.0if}};
+    {-1.0f + 2.0if + 2.0if, 6.5f + 1.0if, 0.1f + 2.0if, 1.0f + 2.0if,
+     -4.0f + 6.0if},
+    {0.5f + 3.0if, 3.0f - 2.0if, 0.5f + 2.0if, 2.0f - 2.0if, 14.0f + 4.0if},
+    {0.1f + 4.0if, 0.5f + 2.0if, -1.0f + 3.0if, 3.0f + 2.0if, 8.0f - 2.0if},
+    {14.1f + 5.0if, 0.5f - 2.0if, 1.0f + 4.0if, 7.0f - 2.0if, 9.0f + 1.0if}};
 
   LinAlg::Matrix b{
-      {6.0f + 1.0if, 77.0f + 6.0if, 2.1f - 1.0if, 1.7f + 2.0if, 6.0f + 1.0if},
-      {2.0f + 2.0if, 4.1f + 7.0if, -2.2f - 2.0if, 2.7f + 2.0if, -6.0f + 1.0if},
-      {9.0f + 3.0if, 15.8f + 8.0if, 2.3f - 3.0if, 3.7f + 2.0if, 6.0f + 1.0if},
-      {6.1f + 4.0if, -1.0f + 9.0if, 2.4f - 4.0if, 4.7f + 2.0if, -6.0f + 1.0if},
-      {6.1f + 5.0if, 0.4f + 0.0if, 2.5f - 5.0if, 5.7f + 2.0if, 1.0f + 1.0if}};
+    {6.0f + 1.0if, 77.0f + 6.0if, 2.1f - 1.0if, 1.7f + 2.0if, 6.0f + 1.0if},
+    {2.0f + 2.0if, 4.1f + 7.0if, -2.2f - 2.0if, 2.7f + 2.0if, -6.0f + 1.0if},
+    {9.0f + 3.0if, 15.8f + 8.0if, 2.3f - 3.0if, 3.7f + 2.0if, 6.0f + 1.0if},
+    {6.1f + 4.0if, -1.0f + 9.0if, 2.4f - 4.0if, 4.7f + 2.0if, -6.0f + 1.0if},
+    {6.1f + 5.0if, 0.4f + 0.0if, 2.5f - 5.0if, 5.7f + 2.0if, 1.0f + 1.0if}};
 
-  REQUIRE(LinAlg::equal(a * b,
-                        {{-60.4f + 89.1if, -116.37f + 393.4if, 26.23f + 34.3if,
-                          -31.88f + 65.7if, -69.4f + 26.6if},
-                         {94.1f + 130.2if, 60.3f + 304.if, 52.4f - 65.5if,
-                          90.0f + 60.5if, -15.0f + 78.if},
-                         {44.7f + 105.1if, -85.85f + 383.9if, 39.01f - 39.4if,
-                          39.52f + 42.5if, -27.4f + 26.6if},
-                         {182.2f + 147.if, 1070.15f + 601.5if, 80.11f - 69.3if,
-                          101.22f + 77.4if, 48.6f + 110.6if}}));
+  REQUIRE(
+    LinAlg::equal(a * b, {{-60.4f + 89.1if, -116.37f + 393.4if, 26.23f + 34.3if,
+                           -31.88f + 65.7if, -69.4f + 26.6if},
+                          {94.1f + 130.2if, 60.3f + 304.if, 52.4f - 65.5if,
+                           90.0f + 60.5if, -15.0f + 78.if},
+                          {44.7f + 105.1if, -85.85f + 383.9if, 39.01f - 39.4if,
+                           39.52f + 42.5if, -27.4f + 26.6if},
+                          {182.2f + 147.if, 1070.15f + 601.5if, 80.11f - 69.3if,
+                           101.22f + 77.4if, 48.6f + 110.6if}}));
 
   const auto a2 = a;
   const auto b2 = b;
@@ -402,7 +401,7 @@ TEST_CASE("LinAlg: matrix-vector<complex<double>>", "[LinAlg][unit]") {
                                          {3.0 + 1.0i, 4.0 - 1.0i}};
   const auto b = A * x;
   REQUIRE(LinAlg::equal(
-      b, LinAlg::Vector<std::complex<double>>{-1.0 + 4.0i, -1.0 + 16.0i}));
+    b, LinAlg::Vector<std::complex<double>>{-1.0 + 4.0i, -1.0 + 16.0i}));
   REQUIRE(std::abs(x * b - (-40.0 - 16.0i)) < 1.0e-15);
 
   LinAlg::Vector<std::complex<double>> xdag = x.conj();
@@ -420,7 +419,7 @@ TEST_CASE("LinAlg: matrix-vector<complex<float>>", "[LinAlg][unit]") {
                                               {3.0f + 1.0if, 4.0f - 1.0if}};
   const auto b = A * x;
   REQUIRE(LinAlg::equal(
-      b, LinAlg::Vector<std::complex<float>>{-1.0f + 4.0if, -1.0f + 16.0if}));
+    b, LinAlg::Vector<std::complex<float>>{-1.0f + 4.0if, -1.0f + 16.0if}));
   REQUIRE(std::abs(x * b - (-40.0f - 16.0if)) < 1.0e-6f);
 }
 
@@ -485,14 +484,13 @@ TEST_CASE("LinAlg: eigensystems <double>", "[LinAlg][unit]") {
   const LinAlg::Matrix A{{1.0, -1.0}, {-1.0, 2.0}};
   const auto [e, v] = symmhEigensystem(A);
   REQUIRE(
-      LinAlg::equal(e, LinAlg::Vector{0.381966011250105, 2.61803398874989}));
+    LinAlg::equal(e, LinAlg::Vector{0.381966011250105, 2.61803398874989}));
 
-  REQUIRE((LinAlg::equal(
-               v, LinAlg::Matrix{{0.850650808352040, 0.525731112119133},
-                                 {-0.525731112119133, 0.850650808352040}}) ||
-           LinAlg::equal(
-               v, LinAlg::Matrix{{-0.850650808352040, -0.525731112119133},
-                                 {-0.525731112119133, 0.850650808352040}})));
+  REQUIRE((
+    LinAlg::equal(v, LinAlg::Matrix{{0.850650808352040, 0.525731112119133},
+                                    {-0.525731112119133, 0.850650808352040}}) ||
+    LinAlg::equal(v, LinAlg::Matrix{{-0.850650808352040, -0.525731112119133},
+                                    {-0.525731112119133, 0.850650808352040}})));
 }
 
 TEST_CASE("LinAlg: eigensystems <complex<double>>", "[LinAlg][unit]") {
@@ -505,11 +503,11 @@ TEST_CASE("LinAlg: eigensystems <complex<double>>", "[LinAlg][unit]") {
 
   REQUIRE((LinAlg::equal(v,
                          LinAlg::Matrix<std::complex<double>>{
-                             {0.382683432365090, 0.923879532511287i},
-                             {0.923879532511287, -0.382683432365090i}}) ||
+                           {0.382683432365090, 0.923879532511287i},
+                           {0.923879532511287, -0.382683432365090i}}) ||
            LinAlg::equal(v, LinAlg::Matrix<std::complex<double>>{
-                                {-0.382683432365090i, -0.923879532511287},
-                                {-0.923879532511287i, 0.382683432365090}})));
+                              {-0.382683432365090i, -0.923879532511287},
+                              {-0.923879532511287i, 0.382683432365090}})));
 }
 
 TEST_CASE("LinAlg: eigensystems <complex<double>> 2", "[LinAlg][unit]") {
@@ -518,8 +516,8 @@ TEST_CASE("LinAlg: eigensystems <complex<double>> 2", "[LinAlg][unit]") {
                          {14.272 - 9.21i, 4. + 0.i, 21. - 0.21i},
                          {0.11 - 16.21i, 21. + 0.21i, 1.22 + 0.i}};
   const auto [e, v] = symmhEigensystem(A);
-  REQUIRE(LinAlg::equal(e, LinAlg::Vector{-21.1352313820589, 9.58605091059717,
-                                          52.0231804714617}));
+  REQUIRE(LinAlg::equal(
+    e, LinAlg::Vector{-21.1352313820589, 9.58605091059717, 52.0231804714617}));
 }
 
 // Generalised Eigensystems (symmetric/Hermetian)
@@ -528,13 +526,13 @@ TEST_CASE("LinAlg: Generalised eigensystems <double>", "[LinAlg][unit]") {
   const LinAlg::Matrix B{{1.0, 0.1}, {0.1, 1.0}};
   const auto [e, v] = symmhEigensystem(A, B);
   REQUIRE(
-      LinAlg::equal(e, LinAlg::Vector{0.350508678167508, 2.88181455415572}));
+    LinAlg::equal(e, LinAlg::Vector{0.350508678167508, 2.88181455415572}));
 
-  REQUIRE((LinAlg::equal(
-               v, LinAlg::Matrix{{0.847046341910562, 0.531519044490351},
-                                 {-0.564870314672654, 0.825179694128265}}) ||
-           LinAlg::equal(
-               v, LinAlg::Matrix{{-0.811306782295598, -0.5090925777940842},
+  REQUIRE((
+    LinAlg::equal(v, LinAlg::Matrix{{0.847046341910562, 0.531519044490351},
+                                    {-0.564870314672654, 0.825179694128265}}) ||
+    LinAlg::equal(v,
+                  LinAlg::Matrix{{-0.811306782295598, -0.5090925777940842},
                                  {-0.593196691749182, 0.8665597251984343}})));
 }
 
@@ -547,7 +545,7 @@ TEST_CASE("LinAlg: Generalised eigensystems <complex<double>>",
                                                {0.5 - 0.1i, 1.0}};
   const auto [e, v] = symmhEigensystem(A, B);
   REQUIRE(LinAlg::equal(
-      e, LinAlg::Vector<double>{-1.238601401177898, 2.45481761739411}));
+    e, LinAlg::Vector<double>{-1.238601401177898, 2.45481761739411}));
 
   // Check Av = eBv => Av - eBv = 0
   std::complex<double> sum = 0;
@@ -571,8 +569,8 @@ TEST_CASE("LinAlg: non-symmetric eigensystems <double>", "[LinAlg][unit]") {
   REQUIRE(LinAlg::equal(e.real(),
                         LinAlg::Vector{0.267949192431123, 3.73205080756888}));
   REQUIRE(LinAlg::equal(
-      v.real(), LinAlg::Matrix{{-0.806898221355073, -0.590690494568872},
-                               {0.343723769333440, -0.939070801588044}}));
+    v.real(), LinAlg::Matrix{{-0.806898221355073, -0.590690494568872},
+                             {0.343723769333440, -0.939070801588044}}));
 }
 
 //==============================================================================
@@ -581,7 +579,7 @@ TEST_CASE("LinAlg: Row and Column Views", "[LinAlg][unit]") {
   std::cout << "LinAlg: Row and Column Views\n";
 
   const LinAlg::Matrix<double> a{
-      {1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, {7.0, 8.0, 9.0}};
+    {1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, {7.0, 8.0, 9.0}};
 
   for (std::size_t i = 0; i < a.rows(); ++i) {
     auto row = a.row_view(i);
@@ -627,9 +625,9 @@ TEST_CASE("LinAlg: Row and Column Views, complex", "[LinAlg][unit]") {
 
   using namespace std::complex_literals;
   const LinAlg::Matrix<std::complex<double>> a{
-      {1.0 + 1.0i, 2.0 + 9.0i, 3.0 - 7.6i},
-      {4.0 + 3.0i, 5.0 - 1.0i, 6.0 + 0.5i},
-      {7.0 + 7.0i, 8.0 - 2.0i, 9.0 + 0.1i}};
+    {1.0 + 1.0i, 2.0 + 9.0i, 3.0 - 7.6i},
+    {4.0 + 3.0i, 5.0 - 1.0i, 6.0 + 0.5i},
+    {7.0 + 7.0i, 8.0 - 2.0i, 9.0 + 0.1i}};
 
   for (std::size_t i = 0; i < a.rows(); ++i) {
     auto row = a.row_view(i);

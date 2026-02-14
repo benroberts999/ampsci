@@ -50,7 +50,7 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
            qip::ci_Levenstein(s2.name, in_name);
   };
   const auto guess =
-      std::min_element(module_list.cbegin(), module_list.cend(), compare_sc);
+    std::min_element(module_list.cbegin(), module_list.cend(), compare_sc);
   if (guess != module_list.cend()) {
     std::cout << "\nDid you mean: " << guess->name << " ?\n";
   }

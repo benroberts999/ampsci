@@ -24,30 +24,32 @@ double RadPot::Xl::operator()(int l) const {
 
 //==============================================================================
 RadPot::RadPot()
-    : m_Z(0),
-      m_rN(0.0),
-      m_rcut(0.0),
-      m_f({0.0, 0.0, 0.0, 0.0, 0.0}),
-      m_xl{},
-      print(true) {}
+  : m_Z(0),
+    m_rN(0.0),
+    m_rcut(0.0),
+    m_f({0.0, 0.0, 0.0, 0.0, 0.0}),
+    m_xl{},
+    print(true) {}
 
 //==============================================================================
 RadPot::RadPot(const std::vector<double> &r, double Z, double rN, double rcut,
-               Scale f, Xl xl, bool tprint, bool do_readwrite)
-    : m_Z(Z), m_rN(rN), m_rcut(rcut), m_f(f), m_xl(xl), print(tprint) {
+               Scale f, Xl xl, bool tprint, bool do_readwrite,
+               const std::string &label)
+  : m_Z(Z), m_rN(rN), m_rcut(rcut), m_f(f), m_xl(xl), print(tprint) {
 
   bool read_ok = false;
   if (do_readwrite)
-    read_ok = read_write(r, IO::FRW::RoW::read);
+    read_ok = read_write(r, IO::FRW::RoW::read, label);
   if (!read_ok) {
     form_potentials(r);
     if (do_readwrite)
-      read_write(r, IO::FRW::RoW::write);
+      read_write(r, IO::FRW::RoW::write, label);
   }
 }
 
 //==============================================================================
-bool RadPot::read_write(const std::vector<double> &r, IO::FRW::RoW rw) {
+bool RadPot::read_write(const std::vector<double> &r, IO::FRW::RoW rw,
+                        const std::string &label_x) {
 
   std::string label = "_";
   if (m_f.u != 0.0)
@@ -62,8 +64,8 @@ bool RadPot::read_write(const std::vector<double> &r, IO::FRW::RoW rw) {
     label += "w";
   if (m_rN == 0.0)
     label += "_pt";
-  const auto fname =
-      AtomData::atomicSymbol(int(m_Z + 0.001)) + label + ".qed.abf";
+  const auto fname = AtomData::atomicSymbol(int(m_Z + 0.001)) + label +
+                     (label_x == "" ? "" : "_" + label_x) + ".qed.abf";
 
   const auto readQ = rw == IO::FRW::read;
 
@@ -90,7 +92,7 @@ bool RadPot::read_write(const std::vector<double> &r, IO::FRW::RoW rw) {
   rw_binary(iofs, rw, mVu, mVh, mVl, mHm, mVwk);
 
   const auto grid_same =
-      (r.size() == t_r.size() && (qip::compare_eps(r, t_r).first < 1.0e-3));
+    (r.size() == t_r.size() && (qip::compare_eps(r, t_r).first < 1.0e-3));
 
   if (readQ && !grid_same) {
     std::cout << "Interpolating QED rad-pot onto current grid.\n";
@@ -191,25 +193,24 @@ RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
                        bool do_readwrite) {
 
   input.check(
-      {{"",
-        "QED Radiative potential will be included if this block is present"},
-       {"", "The following 5 are all doubles. Scale to include * potential; "
-            "usually either 0.0 or 1.0, but can take any value:"},
-       {"Ueh", "  Uehling (vacuum polarisation). [1.0]"},
-       {"SE", "  Self-energy. [1.0]"},
-       {"", "  The following are for indevidual components of the self-energy "
-            "tern; will over-write the above:"},
-       {"SE_h", "    self-energy high-freq electric."},
-       {"SE_l", "    self-energy low-freq electric."},
-       {"SE_m", "    self-energy magnetic."},
-       {"", ""},
-       {"WK",
-        "  Wickman-Kroll (approximate form of higher-order vac. pol.). [0.0]"},
-       {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
-       {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
-                    "typical [1.0]"},
-       {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
-                   "1,0,1 => include for s and d, but not for p [1.0]"}});
+    {{"", "QED Radiative potential will be included if this block is present"},
+     {"", "The following 5 are all doubles. Scale to include * potential; "
+          "usually either 0.0 or 1.0, but can take any value:"},
+     {"Ueh", "  Uehling (vacuum polarisation). [1.0]"},
+     {"SE", "  Self-energy. [1.0]"},
+     {"", "  The following are for indevidual components of the self-energy "
+          "tern; will over-write the above:"},
+     {"SE_h", "    self-energy high-freq electric."},
+     {"SE_l", "    self-energy low-freq electric."},
+     {"SE_m", "    self-energy magnetic."},
+     {"", ""},
+     {"WK",
+      "  Wickman-Kroll (approximate form of higher-order vac. pol.). [0.0]"},
+     {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
+     {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
+                  "typical [1.0]"},
+     {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
+                 "1,0,1 => include for s and d, but not for p [1.0]"}});
   if (input.has_option("help")) {
     return {};
   }

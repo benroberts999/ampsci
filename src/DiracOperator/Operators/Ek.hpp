@@ -15,9 +15,9 @@ namespace DiracOperator {
 class Ek : public TensorOperator {
 public:
   Ek(const Grid &gr, const int k)
-      : TensorOperator(k, Angular::evenQ(k) ? Parity::even : Parity::odd, -1.0,
-                       gr.rpow(k), 0),
-        m_k(k) {}
+    : TensorOperator(k, Angular::evenQ(k) ? Parity::even : Parity::odd, -1.0,
+                     gr.rpow(k), 0),
+      m_k(k) {}
   double angularF(const int ka, const int kb) const override final {
     return Angular::Ck_kk(m_k, ka, kb);
   }
@@ -66,8 +66,8 @@ class E1v final : public TensorOperator
 {
 public:
   E1v(const double alpha, const double omega = 0.0)
-      : TensorOperator(1, Parity::odd, -0.0, {}, 0, Realness::real, true),
-        m_alpha(alpha) {
+    : TensorOperator(1, Parity::odd, -0.0, {}, 0, Realness::real, true),
+      m_alpha(alpha) {
     updateFrequency(omega);
   }
   std::string name() const override final { return "E1v"; }

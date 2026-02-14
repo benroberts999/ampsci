@@ -77,7 +77,7 @@ public:
   //! Construct containter for CI solutions.
   //! Constructs the CSFs, but doesn't solve system; have to call solve().
   PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis)
-      : m_twoj(twoJ), m_pi(pi), m_CSFs(form_CSFs(twoJ, pi, cisp_basis)) {}
+    : m_twoj(twoJ), m_pi(pi), m_CSFs(form_CSFs(twoJ, pi, cisp_basis)) {}
 
   PsiJPi() {}
 

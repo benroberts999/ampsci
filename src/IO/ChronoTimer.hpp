@@ -56,7 +56,7 @@ private:
 
 //==============================================================================
 inline ChronoTimer::ChronoTimer(std::string_view in_name)
-    : name(in_name), running(false), total_time_ms(0) {
+  : name(in_name), running(false), total_time_ms(0) {
   start();
 }
 //==============================================================================
@@ -108,11 +108,11 @@ inline double ChronoTimer::lap_reading_ms() const
     return 0;
 
   std::chrono::high_resolution_clock::time_point tcurrent =
-      std::chrono::high_resolution_clock::now();
+    std::chrono::high_resolution_clock::now();
 
   auto duration =
-      std::chrono::duration_cast<std::chrono::microseconds>(tcurrent - tstart)
-          .count();
+    std::chrono::duration_cast<std::chrono::microseconds>(tcurrent - tstart)
+      .count();
 
   return ((double)duration) * 1.0e-3;
 }

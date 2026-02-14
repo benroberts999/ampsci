@@ -32,8 +32,8 @@ std::vector<T> merge(std::vector<T> first, const std::vector<T> &second,
 template <typename T>
 auto compare(const std::vector<T> &first, const std::vector<T> &second) {
   static_assert(
-      std::is_arithmetic_v<T>,
-      "In compare(std::vector<T>, std::vector<T>), T must be arithmetic");
+    std::is_arithmetic_v<T>,
+    "In compare(std::vector<T>, std::vector<T>), T must be arithmetic");
   assert(first.size() == second.size()); //?
 
   auto it1 = first.cbegin();
@@ -81,8 +81,8 @@ auto compare(const std::vector<T> &first, const std::vector<U> &second,
 template <typename T>
 auto compare_eps(const std::vector<T> &first, const std::vector<T> &second) {
   static_assert(
-      std::is_floating_point_v<T>,
-      "In compare_eps(std::vector<T>, std::vector<T>), T must be floating pt");
+    std::is_floating_point_v<T>,
+    "In compare_eps(std::vector<T>, std::vector<T>), T must be floating pt");
   assert(first.size() == second.size()); //?
 
   auto it1 = first.cbegin();
@@ -272,7 +272,7 @@ std::vector<T> logarithmic_range(T first, T last, N number) {
   if (number <= 1)
     return range;
   const auto log_ratio =
-      std::log(static_cast<double>(last) / static_cast<double>(first));
+    std::log(static_cast<double>(last) / static_cast<double>(first));
   for (N i = 1; i < number - 1; ++i) {
     const auto eps = static_cast<double>(i) / static_cast<double>(number - 1);
     const auto value = static_cast<double>(first) * std::exp(log_ratio * eps);
@@ -299,8 +299,8 @@ std::vector<T> loglinear_range(T first, T last, T b, N number) {
   std::vector<T> range;
   range.reserve(static_cast<std::size_t>(number));
 
-  const auto du = (last - first + b * std::log(last / first)) /
-                  (static_cast<T>(number - 1));
+  const auto du =
+    (last - first + b * std::log(last / first)) / (static_cast<T>(number - 1));
 
   auto next_r = [b](auto u1, auto r_guess) {
     // Solve eq. u = r + b ln(r) to find r

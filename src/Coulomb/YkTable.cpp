@@ -18,7 +18,7 @@ void YkTable::calculate(const std::vector<DiracSpinor> &a_orbs,
   // do not use this to 'extend' the Yab table
 
   const auto max_2j =
-      std::max(DiracSpinor::max_tj(a_orbs), DiracSpinor::max_tj(b_orbs));
+    std::max(DiracSpinor::max_tj(a_orbs), DiracSpinor::max_tj(b_orbs));
 
   m_Ck.fill(max_2j);
   m_6j.fill(max_2j);
@@ -84,8 +84,8 @@ uint32_t YkTable::ab_key(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   // symmetric: define F1=min(Fa,Fb), F2=max(Fa,Fb)
   static_assert(sizeof(uint32_t) == 2 * sizeof(uint16_t), "32=2*16");
   const std::array<uint16_t, 2> key_array{
-      static_cast<uint16_t>(std::min(Fa.nk_index(), Fb.nk_index())),
-      static_cast<uint16_t>(std::max(Fa.nk_index(), Fb.nk_index())) //
+    static_cast<uint16_t>(std::min(Fa.nk_index(), Fb.nk_index())),
+    static_cast<uint16_t>(std::max(Fa.nk_index(), Fb.nk_index())) //
   };
   uint32_t tkey;
   std::memcpy(&tkey, &key_array, sizeof(uint32_t));

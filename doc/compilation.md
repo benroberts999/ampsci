@@ -112,7 +112,7 @@ ExtraFlags=-lgfortran
 * **error: could not find <omp.h>**
 
 * openmp (used for parallelisation) is not working. See above for some possible solutions.
-* Quick fix: change '_UseOpenMP=yes_' to '_UseOpenMP=no_' in Makefile
+* Quick fix: change '_OMPLIB=-fopenmp_' to '_OMPLIB=_' in Makefile
 
 ### GSL Errors
 

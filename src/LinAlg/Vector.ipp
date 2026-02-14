@@ -84,10 +84,10 @@ auto Vector<T>::as_gsl_view() {
     return gsl_vector_float_view_array(this->data(), size);
   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
     return gsl_vector_complex_view_array(
-        reinterpret_cast<double *>(this->data()), size);
+      reinterpret_cast<double *>(this->data()), size);
   } else if constexpr (std::is_same_v<T, std::complex<float>>) {
     return gsl_vector_complex_float_view_array(
-        reinterpret_cast<float *>(this->data()), size);
+      reinterpret_cast<float *>(this->data()), size);
   } else {
     assert(false &&
            "as_gsl_view only for double/float (or complex double/float)");
@@ -103,10 +103,10 @@ auto Vector<T>::as_gsl_view() const {
     return gsl_vector_float_const_view_array(this->data(), size);
   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
     return gsl_vector_complex_const_view_array(
-        reinterpret_cast<const double *>(this->data()), size);
+      reinterpret_cast<const double *>(this->data()), size);
   } else if constexpr (std::is_same_v<T, std::complex<float>>) {
     return gsl_vector_complex_float_const_view_array(
-        reinterpret_cast<const float *>(this->data()), size);
+      reinterpret_cast<const float *>(this->data()), size);
   } else {
     assert(false &&
            "as_gsl_view only for double/float (or complex double/float)");

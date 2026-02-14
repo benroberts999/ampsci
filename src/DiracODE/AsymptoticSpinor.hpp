@@ -22,21 +22,21 @@ public:
   AsymptoticSpinor(int in_kappa, double in_Zeff, double in_en,
                    double in_alpha = PhysConst::alpha,
                    double in_eps_target = 1.0e-14, double m = 1.0)
-      : kappa(in_kappa),
-        Zeff(in_Zeff),
-        en(in_en),
-        alpha(in_alpha),
-        eps_target(in_eps_target),
-        kappa2(double(kappa * kappa)),
-        alpha2(alpha * alpha),
-        c(1.0 / alpha),
-        c2(c * c),
-        lambda(std::sqrt(-en * (2.0 + en * alpha2 / m))),
-        sigma((m + en * alpha2) * (Zeff / lambda)),
-        Ren(en + m * c2),
-        m_mass(m),
-        bx(make_bx()),
-        ax(make_ax()) {
+    : kappa(in_kappa),
+      Zeff(in_Zeff),
+      en(in_en),
+      alpha(in_alpha),
+      eps_target(in_eps_target),
+      kappa2(double(kappa * kappa)),
+      alpha2(alpha * alpha),
+      c(1.0 / alpha),
+      c2(c * c),
+      lambda(std::sqrt(-en * (2.0 + en * alpha2 / m))),
+      sigma((m + en * alpha2) * (Zeff / lambda)),
+      Ren(en + m * c2),
+      m_mass(m),
+      bx(make_bx()),
+      ax(make_ax()) {
     // assert(en < 0.0 && "Must have en<0 in AsymptoticSpinor");
   }
 
@@ -75,7 +75,7 @@ public:
       fs += (ax[k] / rk);
       gs += (bx[k] / rk);
       const auto eps =
-          std::max(std::abs(ax[k] / fs), std::abs(bx[k] / gs)) / rk;
+        std::max(std::abs(ax[k] / fs), std::abs(bx[k] / gs)) / rk;
       if (eps < eps_target) {
         break;
       }
@@ -103,9 +103,9 @@ private:
     std::array<double, Nx> tax;
     const auto RenAlpha2 = 1.0 + en * alpha2;
     for (std::size_t i = 0; i < Nx; i++) {
-      tax[i] = (kappa + (double(i + 1) - sigma) * RenAlpha2 -
-                Zeff * lambda * alpha2) *
-               (bx[i] * c) / (double(i + 1) * lambda);
+      tax[i] =
+        (kappa + (double(i + 1) - sigma) * RenAlpha2 - Zeff * lambda * alpha2) *
+        (bx[i] * c) / (double(i + 1) * lambda);
     }
     return tax;
   }

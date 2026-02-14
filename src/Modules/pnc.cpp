@@ -38,7 +38,7 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // input: nuc parameters for rho:
   const auto c_dflt =
-      Nuclear::c_hdr_formula_rrms_t(Nuclear::find_rrms(wf.Znuc(), wf.Anuc()));
+    Nuclear::c_hdr_formula_rrms_t(Nuclear::find_rrms(wf.Znuc(), wf.Anuc()));
   const auto t = input.get("t", Nuclear::default_t);
   const auto c = input.get("c", c_dflt);
 
@@ -51,9 +51,9 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto Fb_vec = input.get<std::vector<std::string>>("transition", {});
   const auto Fb_ok = (Fb_vec.size() >= 2);
   const auto [na, ka] =
-      Fb_ok ? AtomData::parse_symbol(Fb_vec[0]) : std::pair{0, 0};
+    Fb_ok ? AtomData::parse_symbol(Fb_vec[0]) : std::pair{0, 0};
   const auto [nb, kb] =
-      Fb_ok ? AtomData::parse_symbol(Fb_vec[1]) : std::pair{0, 0};
+    Fb_ok ? AtomData::parse_symbol(Fb_vec[1]) : std::pair{0, 0};
 
   const auto pA = wf.getState(na, ka);
   const auto pB = wf.getState(nb, kb);
@@ -81,11 +81,11 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Find core/valence energy: allows distingush core/valence states
   const auto ec_max =
-      std::max_element(cbegin(wf.core()), cend(wf.core()), DiracSpinor::comp_en)
-          ->en();
+    std::max_element(cbegin(wf.core()), cend(wf.core()), DiracSpinor::comp_en)
+      ->en();
   const auto ev_min = std::min_element(cbegin(wf.valence()), cend(wf.valence()),
                                        DiracSpinor::comp_en)
-                          ->en();
+                        ->en();
   const auto en_core = 0.5 * (ev_min + ec_max);
 
   // TDHF (nb: need object even if not doing RPA)
@@ -117,26 +117,26 @@ void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
   // Solving equations method (E1 amplitude, PNC perturbed)
   std::cout << "\n";
   const auto [se_d1, se_d2] =
-      pnc_tdhf(Fa, Fb, &hpnc, &dVpnc, &he1, &dVE1, wf.Sigma(), wf.spectrum(),
-               main_n, en_core, true);
+    pnc_tdhf(Fa, Fb, &hpnc, &dVpnc, &he1, &dVE1, wf.Sigma(), wf.spectrum(),
+             main_n, en_core, true);
 
   // Solving equations method (PNC amplitude, E1 perturbed)
   std::cout << "\n";
   const auto [se_h1, se_h2] =
-      pnc_tdhf(Fa, Fb, &he1, &dVE1, &hpnc, &dVpnc, wf.Sigma(), wf.spectrum(),
-               main_n, en_core, true);
+    pnc_tdhf(Fa, Fb, &he1, &dVE1, &hpnc, &dVpnc, wf.Sigma(), wf.spectrum(),
+             main_n, en_core, true);
 
   // Calculate relative difference (numerical accuracy)
   const auto eps_sos1 = std::abs((sos1 - se_d1) / (sos1 + se_d1));
   const auto eps_sos2 = std::abs((sos2 - se_d2) / (sos2 + se_d2));
   const auto eps_sos =
-      std::abs((sos1 + sos2 - se_d1 - se_d2) / (sos1 + sos2 + se_d1 + se_d2));
+    std::abs((sos1 + sos2 - se_d1 - se_d2) / (sos1 + sos2 + se_d1 + se_d2));
 
   // note: for SEs, the terms appear swapped.. (just order changes, sign same)
   const auto eps_se1 = std::abs((se_h1 - se_d2) / (se_h1 + se_d2));
   const auto eps_se2 = std::abs((se_h1 - se_d2) / (se_h1 + se_d2));
-  const auto eps_se = std::abs((se_h1 + se_h2 - se_d1 - se_d2) /
-                               (se_h1 + se_h2 + se_d1 + se_d2));
+  const auto eps_se =
+    std::abs((se_h1 + se_h2 - se_d1 - se_d2) / (se_h1 + se_h2 + se_d1 + se_d2));
   printf("\neps(sos/SEs): %.0e, %.0e  %.1e\n", eps_sos1, eps_sos2, eps_sos);
   printf("eps(SEs)    : %.0e, %.0e  %.1e\n", eps_se1, eps_se2, eps_se);
 }
@@ -301,12 +301,12 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
   double pnc1 = 0.0, pnc2 = 0.0;
   for (auto &xb : XB) {
     const auto c10 =
-        he1->rme3js(tja, xb.twoj(), twom) * hpnc->rme3js(xb.twoj(), tjb, twom);
+      he1->rme3js(tja, xb.twoj(), twom) * hpnc->rme3js(xb.twoj(), tjb, twom);
     pnc1 += c10 * (he1->reducedME(Fa, xb) + dVE1->dV(Fa, xb, conj));
   }
   for (auto &ya : YA) {
     const auto c01 =
-        hpnc->rme3js(tja, ya.twoj(), twom) * he1->rme3js(ya.twoj(), tjb, twom);
+      hpnc->rme3js(tja, ya.twoj(), twom) * he1->rme3js(ya.twoj(), tjb, twom);
     pnc2 += c01 * (he1->reducedME(ya, Fb) + dVE1->dV(ya, Fb, conj));
   }
 
@@ -316,7 +316,7 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
   for (const auto &xb : XB) {
     // check if zero, skip
     const auto c10 =
-        he1->rme3js(tja, xb.twoj(), twom) * hpnc->rme3js(xb.twoj(), tjb, twom);
+      he1->rme3js(tja, xb.twoj(), twom) * hpnc->rme3js(xb.twoj(), tjb, twom);
     // Force orthogonal to core (leaving main+tail):
     const auto x_mt = orthog_to_core(xb, spectrum, en_core);
     const auto mt = c10 * (he1->reducedME(Fa, x_mt) + dVE1->dV(Fa, x_mt, conj));
@@ -328,7 +328,7 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
   }
   for (const auto &ya : YA) {
     const auto c01 =
-        hpnc->rme3js(tja, ya.twoj(), twom) * he1->rme3js(ya.twoj(), tjb, twom);
+      hpnc->rme3js(tja, ya.twoj(), twom) * he1->rme3js(ya.twoj(), tjb, twom);
     // Force orthogonal to core (leaving main+tail):
     const auto y_mt = orthog_to_core(ya, spectrum, en_core);
     const auto mt = c01 * (he1->reducedME(y_mt, Fb) + dVE1->dV(y_mt, Fb, conj));

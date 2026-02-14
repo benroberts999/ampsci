@@ -20,7 +20,7 @@ TEST_CASE("External Field: calcMatrixElements", "[ExternalField][unit]") {
   // rpa.solve_core(0.0);
 
   const auto mes =
-      ExternalField::calcMatrixElements(wf.valence(), &dE1, &rpa, 0.0, false);
+    ExternalField::calcMatrixElements(wf.valence(), &dE1, &rpa, 0.0, false);
 
   for (auto &me : mes) {
     std::cout << me << "\n";

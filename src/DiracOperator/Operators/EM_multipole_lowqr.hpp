@@ -10,9 +10,9 @@ namespace DiracOperator {
 class VEk_lowq final : public TensorOperator {
 public:
   VEk_lowq(const Grid &, int K, double)
-      : TensorOperator(1, Parity::odd, -std::sqrt(2.0) / 3.0, {}, 0,
-                       Realness::imaginary, false),
-        m_K(K) {}
+    : TensorOperator(1, Parity::odd, -std::sqrt(2.0) / 3.0, {}, 0,
+                     Realness::imaginary, false),
+      m_K(K) {}
 
   std::string name() const override final {
     return std::string("V_lowq^E_") + std::to_string(m_rank);
@@ -39,9 +39,8 @@ private:
 class VMk_lowq final : public TensorOperator {
 public:
   VMk_lowq(const Grid &gr, int K, double omega)
-      : TensorOperator(1, Parity::even, 0, gr.r(), 0, Realness::imaginary,
-                       true),
-        m_K(K) {
+    : TensorOperator(1, Parity::even, 0, gr.r(), 0, Realness::imaginary, true),
+      m_K(K) {
     updateFrequency(omega);
   }
 
@@ -77,9 +76,9 @@ private:
 class VLk_lowq final : public TensorOperator {
 public:
   VLk_lowq(const Grid &, int K, double)
-      : TensorOperator(1, Parity::odd, 1.0 / 3.0, {}, 0, Realness::imaginary,
-                       false),
-        m_K(K) {}
+    : TensorOperator(1, Parity::odd, 1.0 / 3.0, {}, 0, Realness::imaginary,
+                     false),
+      m_K(K) {}
 
   std::string name() const override final {
     return std::string("V_lowq^E_") + std::to_string(m_rank);
@@ -107,10 +106,10 @@ private:
 class Phik_lowq final : public TensorOperator {
 public:
   Phik_lowq(const Grid &gr, int K, double omega)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K),
-        m_r2(gr.rpow(2)) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K),
+      m_r2(gr.rpow(2)) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -176,9 +175,9 @@ private:
 class Sk_lowq final : public TensorOperator {
 public:
   Sk_lowq(const Grid &gr, int K, double omega)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -248,9 +247,9 @@ private:
 class AEk_lowq final : public TensorOperator {
 public:
   AEk_lowq(const Grid &gr, int K, double omega)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real),
-        m_K(K) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                     gr.r(), 0, Realness::real),
+      m_K(K) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -358,9 +357,9 @@ private:
 class ALk_lowq final : public TensorOperator {
 public:
   ALk_lowq(const Grid &gr, int K, double omega)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -444,9 +443,9 @@ private:
 class AMk_lowq final : public TensorOperator {
 public:
   AMk_lowq(const Grid &gr, int K, double omega)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -523,10 +522,10 @@ class Phi5k_lowq final : public TensorOperator {
 public:
   Phi5k_lowq(const Grid &gr, int K, double omega,
              double alpha = PhysConst::alpha)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K),
-        m_alpha(alpha) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K),
+      m_alpha(alpha) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -602,10 +601,10 @@ private:
 class S5k_lowq final : public TensorOperator {
 public:
   S5k_lowq(const Grid &gr, int K, double omega, double alpha = PhysConst::alpha)
-      : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                       gr.r(), 0, Realness::real, true),
-        m_K(K),
-        m_alpha(alpha) {
+    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                     gr.r(), 0, Realness::real, true),
+      m_K(K),
+      m_alpha(alpha) {
     if (omega != 0.0)
       updateFrequency(omega);
   }

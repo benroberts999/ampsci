@@ -13,10 +13,10 @@
 #include <vector>
 //==============================================================================
 ContinuumOrbitals::ContinuumOrbitals(const Wavefunction &wf)
-    : rgrid(wf.grid_sptr()), p_hf(wf.vHF()), alpha(wf.alpha()) {}
+  : rgrid(wf.grid_sptr()), p_hf(wf.vHF()), alpha(wf.alpha()) {}
 
 ContinuumOrbitals::ContinuumOrbitals(const HF::HartreeFock *hf)
-    : rgrid(hf->grid_sptr()), p_hf(hf), alpha(hf->alpha()) {}
+  : rgrid(hf->grid_sptr()), p_hf(hf), alpha(hf->alpha()) {}
 
 //==============================================================================
 double ContinuumOrbitals::check_orthog(bool print) const {

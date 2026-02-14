@@ -104,9 +104,9 @@ public:
     const auto [na, ka] = AtomData::parse_symbol(a);
     const auto [nb, kb] = AtomData::parse_symbol(b);
     const auto a_index =
-        static_cast<Coulomb::nkIndex>(Angular::nk_to_index(na, ka));
+      static_cast<Coulomb::nkIndex>(Angular::nk_to_index(na, ka));
     const auto b_index =
-        static_cast<Coulomb::nkIndex>(Angular::nk_to_index(nb, kb));
+      static_cast<Coulomb::nkIndex>(Angular::nk_to_index(nb, kb));
     const auto map_it = m_data.find(FormIndex(a_index, b_index));
     return (map_it == m_data.cend()) ? nullptr : &(map_it->second);
   }

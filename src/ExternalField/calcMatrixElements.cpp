@@ -98,7 +98,7 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
 
         const auto w = Fa.en() - Fb.en();
         res.emplace_back(
-            MEdata{Fa.shortSymbol(), Fb.shortSymbol(), w, hab, dv});
+          MEdata{Fa.shortSymbol(), Fb.shortSymbol(), w, hab, dv});
       }
     }
   }
@@ -174,8 +174,8 @@ make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
   if (rpa_method == ExternalField::Method::Error) {
     fmt2::styled_print(fg(fmt::color::red), "\nError 148: ");
     fmt::print(
-        "RPA method {} not found - check spelling? Defaulting to NO rpa\n",
-        method);
+      "RPA method {} not found - check spelling? Defaulting to NO rpa\n",
+      method);
     rpa_method = ExternalField::Method::none;
   }
   const auto rpaQ = rpa_method != ExternalField::Method::none;

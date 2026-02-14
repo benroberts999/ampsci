@@ -10,9 +10,9 @@ namespace CI {
 
 //==============================================================================
 CSF2::CSF2(const DiracSpinor &a, const DiracSpinor &b)
-    : m_parity(a.parity() * b.parity()),
-      states(a <= b ? std::array{a.nk_index(), b.nk_index()} :
-                      std::array{b.nk_index(), a.nk_index()}) {}
+  : m_parity(a.parity() * b.parity()),
+    states(a <= b ? std::array{a.nk_index(), b.nk_index()} :
+                    std::array{b.nk_index(), a.nk_index()}) {}
 
 DiracSpinor::Index CSF2::state(std::size_t i) const { return states.at(i); }
 
@@ -132,7 +132,7 @@ void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions,
 
   if (all_below) {
     const auto [t_num, t_evals, t_evecs] =
-        LinAlg::symmhEigensystem(Hci, *all_below / PhysConst::Hartree_invcm);
+      LinAlg::symmhEigensystem(Hci, *all_below / PhysConst::Hartree_invcm);
     m_num_solutions = std::size_t(t_num);
     m_Solution.first = std::move(t_evals);
     m_Solution.second = std::move(t_evecs);

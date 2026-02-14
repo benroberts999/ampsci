@@ -21,17 +21,17 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Check input options for spelling mistakes etc.:
   input.check(
-      {{"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
-       {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
-                    "typical [1.0]"},
-       {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
-                   "1,0,1 => include for s and d, but not for p [1.0]"},
-       {"core_QED",
-        "Inlcude QED into core (or only valence) - AKA relaxation? [true]"},
-       {"use_cm", "Use cm^-1 for energy corrections (otherwise au) [false]"},
-       {"MatrixElements{}", "For "
-                            "QED corrects to MEs. Input block; takes mostly "
-                            "same inputs an Module::MatrixElements."}});
+    {{"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
+     {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
+                  "typical [1.0]"},
+     {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
+                 "1,0,1 => include for s and d, but not for p [1.0]"},
+     {"core_QED",
+      "Inlcude QED into core (or only valence) - AKA relaxation? [true]"},
+     {"use_cm", "Use cm^-1 for energy corrections (otherwise au) [false]"},
+     {"MatrixElements{}", "For "
+                          "QED corrects to MEs. Input block; takes mostly "
+                          "same inputs an Module::MatrixElements."}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -50,8 +50,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // in the basis/Green's function that was used to construct Sigma.
   if (wf.Sigma() != nullptr) {
     std::cout
-        << "\nNote: QED corrections not included into correlations\n"
-        << "This is probably fine, but should be confirmed independently\n";
+      << "\nNote: QED corrections not included into correlations\n"
+      << "This is probably fine, but should be confirmed independently\n";
   }
 
   const bool use_cm = input.get("use_cm", false);
@@ -67,7 +67,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto rcut = input.get("rcut", 5.0);
   const auto scale_rn = input.get("scale_rN", 1.0);
   const auto r_N_au =
-      std::sqrt(5.0 / 3.0) * wf.nucleus().r_rms() * scale_rn / PhysConst::aB_fm;
+    std::sqrt(5.0 / 3.0) * wf.nucleus().r_rms() * scale_rn / PhysConst::aB_fm;
   const auto x_spd = input.get("scale_l", std::vector{1.0});
   bool include_qed_core = input.get("core_QED", true);
 
@@ -137,7 +137,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     wf_t.printCore();
   } else {
     std::cout
-        << "\nIncluding QED radiative potential into valence states only\n";
+      << "\nIncluding QED radiative potential into valence states only\n";
   }
 
   // We clear the valence wavefunctions, and re-solve them from scratch.
@@ -246,7 +246,7 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // Get optional 'options' for operator
   const auto tmp_opt = me_input->getBlock("options");
   const auto h =
-      DiracOperator::generate(oper, tmp_opt ? *tmp_opt : IO::InputBlock{}, wf);
+    DiracOperator::generate(oper, tmp_opt ? *tmp_opt : IO::InputBlock{}, wf);
 
   const auto rpaQ = me_input->get("rpa", true);
   const auto omega = me_input->get("omega", 0.0);
@@ -282,27 +282,27 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "Uehling:\n";
   const auto meu =
-      calcMatrixElements(wf_u.valence(), h.get(), dVu.get(), omega);
+    calcMatrixElements(wf_u.valence(), h.get(), dVu.get(), omega);
 
   std::cout << "Self-energy (high-frequency):\n";
   const auto meh =
-      calcMatrixElements(wf_h.valence(), h.get(), dVh.get(), omega);
+    calcMatrixElements(wf_h.valence(), h.get(), dVh.get(), omega);
 
   std::cout << "Self-energy (low-frequency):\n";
   const auto mel =
-      calcMatrixElements(wf_l.valence(), h.get(), dVl.get(), omega);
+    calcMatrixElements(wf_l.valence(), h.get(), dVl.get(), omega);
 
   std::cout << "Self-energy (magnetic):\n";
   const auto mem =
-      calcMatrixElements(wf_m.valence(), h.get(), dVm.get(), omega);
+    calcMatrixElements(wf_m.valence(), h.get(), dVm.get(), omega);
 
   std::cout << "Wichmann-Kroll:\n";
   const auto mew =
-      calcMatrixElements(wf_w.valence(), h.get(), dVw.get(), omega);
+    calcMatrixElements(wf_w.valence(), h.get(), dVw.get(), omega);
 
   std::cout << "Total radiative potential:\n";
   const auto met =
-      calcMatrixElements(wf_t.valence(), h.get(), dVt.get(), omega);
+    calcMatrixElements(wf_t.valence(), h.get(), dVt.get(), omega);
 
   // Print matrix elements, without QED:
   std::cout << "\nReduced matrix elements (" << h->name() << "), no QED:\n";
@@ -344,8 +344,8 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     // QED corrections to MEs:
     std::cout << "\nQED corrections to matrix elements (with RPA), in au\n";
     std::cout
-        << "States     Uehl       SE(h)      SE(l)      SE(m)      WK     "
-           "    Total\n";
+      << "States     Uehl       SE(h)      SE(l)      SE(m)      WK     "
+         "    Total\n";
     for (std::size_t i = 0; i < me0.size(); ++i) {
       const auto [a, b, ww, hab, dv] = me0.at(i);
       printf("%4s %4s ", a.c_str(), b.c_str());

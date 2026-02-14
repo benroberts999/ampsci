@@ -11,7 +11,7 @@ TEST_CASE("Coulomb: meTable", "[Coulomb][meTable][unit]") {
   std::cout << "Coulomb: meTable\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
-      GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
   const double zeff = 1.0;
   const int lmax = 6;
 

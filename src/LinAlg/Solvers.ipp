@@ -35,7 +35,7 @@ namespace LinAlg {
 template <typename T>
 Vector<T> solve_Axeqb(Matrix<T> Am, const Vector<T> &b) {
   static_assert(std::is_same_v<T, double> ||
-                    std::is_same_v<T, std::complex<double>>,
+                  std::is_same_v<T, std::complex<double>>,
                 "solve_Axeqb only available for Matrix<double> or "
                 "Matrix<complex<double>>");
   assert(Am.rows() == b.size());
@@ -48,7 +48,7 @@ Vector<T> solve_Axeqb(Matrix<T> Am, const Vector<T> &b) {
 
   int sLU = 0;
   gsl_permutation *Am_perm =
-      gsl_permutation_alloc(std::max(Am.rows(), Am.cols()));
+    gsl_permutation_alloc(std::max(Am.rows(), Am.cols()));
   if constexpr (std::is_same_v<T, double>) {
     gsl_linalg_LU_decomp(&Am_gsl.matrix, Am_perm, &sLU);
     gsl_linalg_LU_solve(&Am_gsl.matrix, Am_perm, &b_gsl.vector, &x_gsl.vector);
@@ -95,7 +95,7 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A) {
     // For complex double (Hermetian) matrix
     std::vector<double> Rwork(3 * e_vectors.rows() - 2ul);
     complex_double *evec_ptr =
-        reinterpret_cast<complex_double *>(e_vectors.data());
+      reinterpret_cast<complex_double *>(e_vectors.data());
     complex_double *work_ptr = reinterpret_cast<complex_double *>(work.data());
     zheev_(&jobz, &uplo, &dim, evec_ptr, &dim, e_values.data(), work_ptr,
            &workspace_size, Rwork.data(), &info);
@@ -191,7 +191,7 @@ std::tuple<int, Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A,
 
   // Return containers (same idea as your code: values size n, vectors n x n)
   auto eigen_vv =
-      std::make_tuple(int{0}, Vector<double>(A.rows()), Matrix<T>(A.rows()));
+    std::make_tuple(int{0}, Vector<double>(A.rows()), Matrix<T>(A.rows()));
   auto &[num_solutions, e_values, e_vectors] = eigen_vv;
 
   char jobz{'V'};  // eigenvectors
@@ -281,7 +281,7 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A,
     // For complex double (Hermetian) matrix
     std::vector<double> Rwork(3 * e_vectors.rows() - 2ul);
     complex_double *evec_ptr =
-        reinterpret_cast<complex_double *>(e_vectors.data());
+      reinterpret_cast<complex_double *>(e_vectors.data());
     complex_double *Bmat_ptr = reinterpret_cast<complex_double *>(B.data());
     complex_double *work_ptr = reinterpret_cast<complex_double *>(work.data());
     zhegv_(&itype, &jobz, &uplo, &dim, evec_ptr, &dim, Bmat_ptr, &dim,

@@ -28,17 +28,17 @@
 Wavefunction::Wavefunction(const GridParameters &gridparams,
                            const Nuclear::Nucleus &t_nucleus, double var_alpha,
                            const std::string &run_label)
-    : Wavefunction(std::make_shared<const Grid>(gridparams), t_nucleus,
-                   var_alpha, run_label) {}
+  : Wavefunction(std::make_shared<const Grid>(gridparams), t_nucleus, var_alpha,
+                 run_label) {}
 
 Wavefunction::Wavefunction(std::shared_ptr<const Grid> in_grid,
                            const Nuclear::Nucleus &t_nucleus, double var_alpha,
                            const std::string &run_label)
-    : rgrid(std::move(in_grid)),
-      m_alpha(PhysConst::alpha * var_alpha),
-      m_run_label(run_label),
-      m_nucleus(t_nucleus),
-      m_vnuc(Nuclear::formPotential(m_nucleus, rgrid->r())) {}
+  : rgrid(std::move(in_grid)),
+    m_alpha(PhysConst::alpha * var_alpha),
+    m_run_label(run_label),
+    m_nucleus(t_nucleus),
+    m_vnuc(Nuclear::formPotential(m_nucleus, rgrid->r())) {}
 
 //==============================================================================
 std::vector<DiracSpinor>
@@ -138,9 +138,9 @@ void Wavefunction::set_HF(const std::string &method, const double x_Breit,
       std::cout << "Using approximate HF Method (approx Exchange)\n";
     else if (method == "KohnSham") {
       std::cout
-          << "Using Kohn-Sham Method.\n"
-          << "Note: You should include first valence state into the core:\n"
-             "Kohn-Sham is NOT a V^N-1 method!\n";
+        << "Using Kohn-Sham Method.\n"
+        << "Note: You should include first valence state into the core:\n"
+           "Kohn-Sham is NOT a V^N-1 method!\n";
     } else if (method == "Local") {
       std::cout << "Using local potential\n";
     } else if (method != "HartreeFock") {
@@ -188,8 +188,8 @@ void Wavefunction::solve_valence(const std::string &in_valence_str,
   const auto explicite_val_list = false;
   // (m_HF && m_HF->method() == HF::Method::KohnSham);
   const auto val_lst = explicite_val_list ?
-                           AtomData::listOfStates_singlen(in_valence_str) :
-                           AtomData::listOfStates_nk(in_valence_str);
+                         AtomData::listOfStates_singlen(in_valence_str) :
+                         AtomData::listOfStates_nk(in_valence_str);
 
   // 1. populate valence states
   for (const auto &[n, k, en] : val_lst) {
@@ -225,7 +225,7 @@ void Wavefunction::radiativePotential(QED::RadPot::Scale scale, double rcut,
     return;
 
   const auto r_N_au =
-      std::sqrt(5.0 / 3.0) * scale_rN * m_nucleus.r_rms() / PhysConst::aB_fm;
+    std::sqrt(5.0 / 3.0) * scale_rN * m_nucleus.r_rms() / PhysConst::aB_fm;
 
   auto qed = QED::RadPot(rgrid->r(), Znuc(), r_N_au, rcut, scale, x_spd, print,
                          do_readwrite);
@@ -244,7 +244,7 @@ void Wavefunction::radiativePotential(const IO::InputBlock &qed_input,
 
   //re-scale happends inside ConstructRadPot
   const auto r_N_au =
-      std::sqrt(5.0 / 3.0) * m_nucleus.r_rms() / PhysConst::aB_fm;
+    std::sqrt(5.0 / 3.0) * m_nucleus.r_rms() / PhysConst::aB_fm;
 
   auto qed = QED::ConstructRadPot(rgrid->r(), Znuc(), r_N_au, qed_input, print,
                                   do_readwrite);
@@ -317,15 +317,15 @@ const DiracSpinor *Wavefunction::getState(std::string_view state) const {
 double Wavefunction::FermiLevel() const {
   // Find core/valence energy: allows distingush core/valence states
   const auto ec_max =
-      core().empty() ?
-          0.0 :
-          std::max_element(cbegin(core()), cend(core()), DiracSpinor::comp_en)
-              ->en();
-  const auto ev_min = m_valence.empty() ?
-                          0.0 :
-                          std::min_element(cbegin(m_valence), cend(m_valence),
-                                           DiracSpinor::comp_en)
-                              ->en();
+    core().empty() ?
+      0.0 :
+      std::max_element(cbegin(core()), cend(core()), DiracSpinor::comp_en)
+        ->en();
+  const auto ev_min =
+    m_valence.empty() ?
+      0.0 :
+      std::min_element(cbegin(m_valence), cend(m_valence), DiracSpinor::comp_en)
+        ->en();
   // return 0.5 * (ev_min + ec_max);
   if (core().empty()) {
     return 1.1 * ev_min;
@@ -336,10 +336,10 @@ double Wavefunction::FermiLevel() const {
 double Wavefunction::energy_gap() const {
 
   const auto c =
-      std::max_element(cbegin(core()), cend(core()), DiracSpinor::comp_en);
+    std::max_element(cbegin(core()), cend(core()), DiracSpinor::comp_en);
 
-  const auto v = std::min_element(cbegin(m_valence), cend(m_valence),
-                                  DiracSpinor::comp_en);
+  const auto v =
+    std::min_element(cbegin(m_valence), cend(m_valence), DiracSpinor::comp_en);
   if (c != cend(core()) && v != cend(m_valence))
     return v->en() - c->en();
   return 0.0;
@@ -405,7 +405,7 @@ void Wavefunction::printCore() const
 
 //==============================================================================
 void Wavefunction::printValence(
-    const std::vector<DiracSpinor> &in_orbitals) const {
+  const std::vector<DiracSpinor> &in_orbitals) const {
   const auto &tmp_orbs = (in_orbitals.empty()) ? m_valence : in_orbitals;
   if (tmp_orbs.empty())
     return;
@@ -414,7 +414,7 @@ void Wavefunction::printValence(
 
   // Find lowest valence energy:
   const auto min_it =
-      std::min_element(tmp_orbs.begin(), tmp_orbs.end(), DiracSpinor::comp_en);
+    std::min_element(tmp_orbs.begin(), tmp_orbs.end(), DiracSpinor::comp_en);
   const auto e0 = (min_it == tmp_orbs.end()) ? 0.0 : min_it->en();
 
   std::cout << "#  nk    r_rms   Rinf    eps        En (au)       En (/cm)     "
@@ -423,17 +423,17 @@ void Wavefunction::printValence(
   for (const auto &Fc : tmp_orbs) {
     const auto r = std::sqrt(Fc * (Fc.grid().rpow(2) * Fc));
     fmt::print(
-        "{:<2} {:4}  {:5.2f}  {:5.1f}  {:5.0e} {:14.9f} {:14.3f} {:14.3f}\n",
-        i++, Fc.shortSymbol(), r, Fc.rinf(), Fc.eps(), Fc.en(),
-        Fc.en() * PhysConst::Hartree_invcm,
-        (Fc.en() - e0) * PhysConst::Hartree_invcm);
+      "{:<2} {:4}  {:5.2f}  {:5.1f}  {:5.0e} {:14.9f} {:14.3f} {:14.3f}\n", i++,
+      Fc.shortSymbol(), r, Fc.rinf(), Fc.eps(), Fc.en(),
+      Fc.en() * PhysConst::Hartree_invcm,
+      (Fc.en() - e0) * PhysConst::Hartree_invcm);
   }
 }
 
 //==============================================================================
 void Wavefunction::printBasis(const std::vector<DiracSpinor> &the_basis) const {
   std::cout
-      << "     State   k  R0     Rinf          En(Basis)         En(HF)\n";
+    << "     State   k  R0     Rinf          En(Basis)         En(HF)\n";
   int i = 0;
   for (const auto &phi : the_basis) {
 
@@ -441,7 +441,7 @@ void Wavefunction::printBasis(const std::vector<DiracSpinor> &the_basis) const {
     if (hf_phi != nullptr) {
       // found HF state
       const auto eps =
-          2.0 * (phi.en() - hf_phi->en()) / (phi.en() + hf_phi->en());
+        2.0 * (phi.en() - hf_phi->en()) / (phi.en() + hf_phi->en());
       printf("%-2i %7s %2i  %5.0e %5.1f %18.7f  %13.7f  %6.0e\n", i,
              phi.symbol().c_str(), phi.kappa(), phi.r0(), phi.rinf(), phi.en(),
              hf_phi->en(), eps);
@@ -505,16 +505,13 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
 }
 
 //==============================================================================
-void Wavefunction::formSigma(int nmin_core, double r0, double rmax, int stride,
-                             bool each_valence, bool include_G,
-                             bool include_Breit_b2, int n_max_breit,
-                             const std::vector<double> &lambdas,
-                             const std::vector<double> &fk,
-                             const std::vector<double> &etak, bool read_write,
-                             const std::string &in_fname, bool FeynmanQ,
-                             bool ScreeningQ, bool hole_particleQ, int lmax,
-                             double omre, double w0, double wratio,
-                             const std::optional<IO::InputBlock> &ek) {
+void Wavefunction::formSigma(
+  int nmin_core, double r0, double rmax, int stride, bool each_valence,
+  bool include_G, bool include_Breit_b2, int n_max_breit,
+  const std::vector<double> &lambdas, const std::vector<double> &fk,
+  const std::vector<double> &etak, bool read_write, const std::string &in_fname,
+  bool FeynmanQ, bool ScreeningQ, bool hole_particleQ, int lmax, double omre,
+  double w0, double wratio, const std::optional<IO::InputBlock> &ek) {
   if (core().empty() || !m_HF)
     return;
 
@@ -534,24 +531,24 @@ void Wavefunction::formSigma(int nmin_core, double r0, double rmax, int stride,
   ext += ".abf";
 
   const auto file_name =
-      read_write ? (in_fname == "" ? identity() + ext : in_fname + ext) : "";
+    read_write ? (in_fname == "" ? identity() + ext : in_fname + ext) : "";
 
   const auto method =
-      FeynmanQ ? MBPT::SigmaMethod::Feynman : MBPT::SigmaMethod::Goldstone;
+    FeynmanQ ? MBPT::SigmaMethod::Feynman : MBPT::SigmaMethod::Goldstone;
 
   MBPT::Screening screening =
-      ScreeningQ ? MBPT::Screening::include : MBPT::Screening::exclude;
+    ScreeningQ ? MBPT::Screening::include : MBPT::Screening::exclude;
 
-  MBPT::HoleParticle hp = hole_particleQ ? MBPT::HoleParticle::include :
-                                           MBPT::HoleParticle::exclude;
+  MBPT::HoleParticle hp =
+    hole_particleQ ? MBPT::HoleParticle::include : MBPT::HoleParticle::exclude;
 
   bool calculate_fk = FeynmanQ && fk.empty();
 
   m_Sigma = MBPT::CorrelationPotential(
-      file_name, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core,
-      method, include_G, include_Breit_b2, n_max_breit,
-      MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
-      fk, etak);
+    file_name, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core,
+    method, include_G, include_Breit_b2, n_max_breit,
+    MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
+    fk, etak);
 
   std::cout << "\n";
 
@@ -611,7 +608,7 @@ void Wavefunction::hartreeFockBrueckner(const bool print) {
 
 //==============================================================================
 void Wavefunction::fitSigma_hfBrueckner(
-    const std::string &, const std::vector<double> &fit_energies) {
+  const std::string &, const std::vector<double> &fit_energies) {
   std::cout << "Fitting Sigma for lowest valence states:\n" << std::flush;
 
   const auto max_its = 30;
@@ -690,7 +687,7 @@ std::string Wavefunction::identity() const {
                          vrad()                           ? "q" :
                                                             "";
   const std::string va2 =
-      dalpha2() > 1.0e-5 ? fmt::format("_{:1.4g}", 1.0 + dalpha2()) : "";
+    dalpha2() > 1.0e-5 ? fmt::format("_{:1.4g}", 1.0 + dalpha2()) : "";
   return atomicSymbol() + std::to_string(Zion()) + bq + va2 + lab;
 }
 
@@ -719,8 +716,7 @@ double Wavefunction::H0ab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   const auto the_same = &Fa == &Fb;
   const auto dga = NumCalc::derivative(Fa.g(), rgrid->drdu(), rgrid->du(), 1);
   const auto dgb =
-      the_same ? dga :
-                 NumCalc::derivative(Fb.g(), rgrid->drdu(), rgrid->du(), 1);
+    the_same ? dga : NumCalc::derivative(Fb.g(), rgrid->drdu(), rgrid->du(), 1);
   return H0ab_impl(Fa, dga, Fb, dgb);
 }
 
@@ -763,10 +759,10 @@ double Wavefunction::H0ab_impl(const DiracSpinor &Fa, std::vector<double> dga,
   const auto &Hmaga = Hmag(Fa.l());
 
   const auto H_mag =
-      Hmaga.empty() ?
-          0.0 :
-          NumCalc::integrate(1.0, min, max, Fa.f(), Fb.g(), Hmaga, drdu) +
-              NumCalc::integrate(1.0, min, max, Fa.g(), Fb.f(), Hmaga, drdu);
+    Hmaga.empty() ?
+      0.0 :
+      NumCalc::integrate(1.0, min, max, Fa.f(), Fb.g(), Hmaga, drdu) +
+        NumCalc::integrate(1.0, min, max, Fa.g(), Fb.f(), Hmaga, drdu);
   const auto c = 1.0 / m_alpha;
 
   return (Vab - H_mag - c * (D1m2 + 2.0 * c * Sab)) * Fa.grid().du();
@@ -805,19 +801,19 @@ void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
 
     // initial energy guess:
     const auto e0 =
-        mass * AtomData::diracen(this->Znuc(), n, kappa, this->alpha());
+      mass * AtomData::diracen(this->Znuc(), n, kappa, this->alpha());
 
     // nuclear potential (+QED). Note: only Uehling is really OK here.
     const auto v0 = this->vnuc() + (this->vrad() ? this->vrad()->Vel() :
                                                    std::vector<double>{});
     auto Fnk = DiracODE::boundState(
-        n, kappa, e0, this->grid_sptr(), v0, this->Hmag(), this->alpha(),
-        1.0e-14, nullptr, nullptr, double(this->Znuc()), mass);
+      n, kappa, e0, this->grid_sptr(), v0, this->Hmag(), this->alpha(), 1.0e-14,
+      nullptr, nullptr, double(this->Znuc()), mass);
 
     Fnk.exotic() = true;
 
     const auto R_rms =
-        std::sqrt(Fnk * (this->grid().r() * this->grid().r() * Fnk));
+      std::sqrt(Fnk * (this->grid().r() * this->grid().r() * Fnk));
 
     this->valence().push_back(Fnk);
 
@@ -857,8 +853,8 @@ void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
       const auto E1 = hf.calculateCoreEnergy();
       const auto eps_core = std::abs(E1 / E0 - 1.0);
       const auto v =
-          hf.vdir() + this->vnuc() +
-          (this->vrad() ? this->vrad()->Vel() : std::vector<double>{});
+        hf.vdir() + this->vnuc() +
+        (this->vrad() ? this->vrad()->Vel() : std::vector<double>{});
       const auto en0 = Fmu.en();
       DiracODE::boundState(Fmu, en0, v, this->Hmag(), this->alpha(), 1.0e-14,
                            nullptr, nullptr, double(this->Znuc()), mass);
@@ -895,15 +891,15 @@ void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
     for (auto &Fnk : this->valence()) {
 
       const auto v =
-          hf.vdir() + this->vnuc() +
-          (this->vrad() ? this->vrad()->Vel() : std::vector<double>{});
+        hf.vdir() + this->vnuc() +
+        (this->vrad() ? this->vrad()->Vel() : std::vector<double>{});
       DiracODE::boundState(Fnk, Fnk.en(), this->vlocal(), this->Hmag(),
                            this->alpha(), 1.0e-14, nullptr, nullptr,
                            double(this->Znuc()), mass);
 
       if (print) {
         const auto R_rms =
-            std::sqrt(Fnk * (this->grid().r() * this->grid().r() * Fnk));
+          std::sqrt(Fnk * (this->grid().r() * this->grid().r() * Fnk));
         fmt::print("{:4s} {:5.2f}  {:5.0e}  {:.5e}  {:.9e}  {:.9e}\n",
                    Fnk.shortSymbol(), Fnk.rinf(), Fnk.eps(), R_rms, Fnk.en(),
                    Fnk.en() * PhysConst::Hartree_eV / 1.0e3);
@@ -919,43 +915,43 @@ nlohmann::json Wavefunction::output_to_json(const std::string &out_name) {
   nlohmann::json js;
 
   js["metadata"] = {
-      {"description",
-       "This JSON object contains atomic structure data including radial grid, "
-       "nuclear properties, and wavefunctions."},
+    {"description",
+     "This JSON object contains atomic structure data including radial grid, "
+     "nuclear properties, and wavefunctions."},
 
-      {"radial",
-       {{"r", "Array of radial grid points [a.u.]"},
-        {"dr", "Step size between radial points [a.u.]"}}},
+    {"radial",
+     {{"r", "Array of radial grid points [a.u.]"},
+      {"dr", "Step size between radial points [a.u.]"}}},
 
-      {"nucleus",
-       {{"Z", "Atomic number"},
-        {"A", "Mass number"},
-        {"r_rms", "RMS charge radius [fm]"},
-        {"mu", "Nuclear magnetic moment (from lookup table, based on A)"},
-        {"I", "Nuclear spin (based on A)"},
-        {"parity", "Nuclear parity (+1 or -1), based on A"},
-        {"L", "Orbital angular momentum, based on I and parity"}}},
+    {"nucleus",
+     {{"Z", "Atomic number"},
+      {"A", "Mass number"},
+      {"r_rms", "RMS charge radius [fm]"},
+      {"mu", "Nuclear magnetic moment (from lookup table, based on A)"},
+      {"I", "Nuclear spin (based on A)"},
+      {"parity", "Nuclear parity (+1 or -1), based on A"},
+      {"L", "Orbital angular momentum, based on I and parity"}}},
 
-      {"wavefunctions",
-       {{"core", "Core wavefunctions"},
-        {"valence", "Valence electronic wavefunctions"},
-        {"muon", "Valence muonic wavefunctions"},
-        {"note",
-         "Each of 'core', 'valence', and 'muon' contains a 'list' of orbital "
-         "labels (e.g., '2s+'), and corresponding entries/orbtials keyed by "
-         "those labels. Each entry has the fields listed in 'orbital_fields'."},
-        {"example", "To get the 3p_1/2 core energy: "
-                    "json['wavefunctions']['core']['3p-']['en'] (use double "
-                    "quotes in real JSON)"},
-        {"orbital_fields",
-         {{"n", "Principal quantum number"},
-          {"kappa", "Dirac angular quantum number (κ)"},
-          {"2j", "Twice the total angular momentum (integer)"},
-          {"j", "Total angular momentum (j = 2j / 2)"},
-          {"l", "Orbital angular momentum"},
-          {"en", "Orbital energy [a.u.]"},
-          {"f", "Upper radial component values (array over r)"},
-          {"g", "Lower radial component values (array over r)"}}}}}};
+    {"wavefunctions",
+     {{"core", "Core wavefunctions"},
+      {"valence", "Valence electronic wavefunctions"},
+      {"muon", "Valence muonic wavefunctions"},
+      {"note",
+       "Each of 'core', 'valence', and 'muon' contains a 'list' of orbital "
+       "labels (e.g., '2s+'), and corresponding entries/orbtials keyed by "
+       "those labels. Each entry has the fields listed in 'orbital_fields'."},
+      {"example", "To get the 3p_1/2 core energy: "
+                  "json['wavefunctions']['core']['3p-']['en'] (use double "
+                  "quotes in real JSON)"},
+      {"orbital_fields",
+       {{"n", "Principal quantum number"},
+        {"kappa", "Dirac angular quantum number (κ)"},
+        {"2j", "Twice the total angular momentum (integer)"},
+        {"j", "Total angular momentum (j = 2j / 2)"},
+        {"l", "Orbital angular momentum"},
+        {"en", "Orbital energy [a.u.]"},
+        {"f", "Upper radial component values (array over r)"},
+        {"g", "Lower radial component values (array over r)"}}}}}};
 
   js["radial"]["r"] = grid().r();
   js["radial"]["dr"] = grid().drdu() * grid().du();

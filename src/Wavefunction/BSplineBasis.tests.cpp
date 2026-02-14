@@ -76,7 +76,7 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
   std::cout << "\nDrake-Gordon sum rule, including positron states:\n";
   for (int n = 0; n <= 2; ++n) {
     const auto &dgs =
-        SplineBasis::sumrule_DG(n, wf.basis(), wf.grid(), wf.alpha(), true);
+      SplineBasis::sumrule_DG(n, wf.basis(), wf.grid(), wf.alpha(), true);
     for (auto &dg : dgs) {
       REQUIRE(std::abs(dg) < 1.0e-7);
     }
@@ -85,7 +85,7 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
   std::cout << "\nCompleteness (wrt <r>):\n";
   for (auto &v : wf.valence()) {
     const auto [e1, e2] =
-        SplineBasis::r_completeness(v, wf.basis(), wf.grid(), true);
+      SplineBasis::r_completeness(v, wf.basis(), wf.grid(), true);
     if (v.l() <= 2) {
       REQUIRE(e1 < 1.0e-10);
       REQUIRE(e1 < 1.0e-9);
@@ -136,15 +136,15 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
             const auto rmax = 75.0;
             const std::string positron = "";
             const auto basis = SplineBasis::form_basis(
-                {states, std::size_t(n), k, r0, r0_eps, rmax, positron, type},
-                wf);
+              {states, std::size_t(n), k, r0, r0_eps, rmax, positron, type},
+              wf);
 
             // Check orthonormality <a|b>:
             const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
             const auto [eps1, str1] =
-                DiracSpinor::check_ortho(basis, wf.core());
+              DiracSpinor::check_ortho(basis, wf.core());
             const auto [eps2, str2] =
-                DiracSpinor::check_ortho(basis, wf.valence());
+              DiracSpinor::check_ortho(basis, wf.valence());
 
             // Find basis states corresponding to core/valence to compare
             // energies Note: Need large cavity and large basis for this
@@ -224,7 +224,7 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
 
       // Hyperfine operator: Pointlike, g=1
       const auto h = DiracOperator::hfs(
-          1, 1.0, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
+        1, 1.0, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
 
       // Calculate A with HF and spline states, compare for each l:
       std::vector<std::vector<double>> hfs(4); // s,p,d,f
@@ -242,7 +242,7 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
       }
       for (std::size_t l = 0; l < hfs.size(); l++) {
         const auto eps =
-            *std::max_element(cbegin(hfs[l]), cend(hfs[l]), qip::less_abs{});
+          *std::max_element(cbegin(hfs[l]), cend(hfs[l]), qip::less_abs{});
 
         std::string name = "spl";
         if (f_Br != 0.0)
@@ -270,12 +270,12 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
     std::size_t nspl = 40;
     std::size_t kspl = 9;
     const auto basis =
-        SplineBasis::form_basis({states, nspl, kspl, 1.0e-3, 0.0, 50.0, states,
-                                 SplineBasis::SplineType::Derevianko},
-                                wf);
+      SplineBasis::form_basis({states, nspl, kspl, 1.0e-3, 0.0, 50.0, states,
+                               SplineBasis::SplineType::Derevianko},
+                              wf);
 
     const std::string label =
-        "Z=2 [50] " + std::to_string(nspl) + "/" + std::to_string(kspl);
+      "Z=2 [50] " + std::to_string(nspl) + "/" + std::to_string(kspl);
 
     const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
     // pass &= qip::check_value(&obuff, label + " orth ", eps, 0.0, 1.0e-12);
@@ -284,14 +284,14 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
       const auto tkr = SplineBasis::sumrule_TKR(basis, wf.grid().r(), false);
 
       const auto worst =
-          std::max_element(cbegin(tkr), cend(tkr), qip::less_abs{});
+        std::max_element(cbegin(tkr), cend(tkr), qip::less_abs{});
       const auto best =
-          std::min_element(cbegin(tkr), cend(tkr), qip::less_abs{});
+        std::min_element(cbegin(tkr), cend(tkr), qip::less_abs{});
 
       const auto blabel =
-          label + " TKR(b) l=" + std::to_string(int(best - begin(tkr)));
+        label + " TKR(b) l=" + std::to_string(int(best - begin(tkr)));
       const auto wlabel =
-          label + " TKR(w) l=" + std::to_string(int(worst - begin(tkr)));
+        label + " TKR(w) l=" + std::to_string(int(worst - begin(tkr)));
 
       // pass &= qip::check_value(&obuff, blabel, *best, 0.0, 4.0e-8);
       // pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 1.0e-7);
@@ -301,18 +301,18 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
 
     for (int nDG = 0; nDG <= 2; ++nDG) {
       const auto dg =
-          SplineBasis::sumrule_DG(nDG, basis, wf.grid(), wf.alpha(), false);
+        SplineBasis::sumrule_DG(nDG, basis, wf.grid(), wf.alpha(), false);
 
       const auto worst =
-          std::max_element(cbegin(dg), cend(dg), qip::less_abs{});
+        std::max_element(cbegin(dg), cend(dg), qip::less_abs{});
       const auto best = std::min_element(cbegin(dg), cend(dg), qip::less_abs{});
 
       const auto kib = Angular::kappaFromIndex(int(best - begin(dg)));
       const auto kiw = Angular::kappaFromIndex(int(worst - begin(dg)));
       const auto blabel =
-          label + " DG" + std::to_string(nDG) + "(b) k=" + std::to_string(kib);
+        label + " DG" + std::to_string(nDG) + "(b) k=" + std::to_string(kib);
       const auto wlabel =
-          label + " DG" + std::to_string(nDG) + "(w) k=" + std::to_string(kiw);
+        label + " DG" + std::to_string(nDG) + "(w) k=" + std::to_string(kiw);
 
       // pass &= qip::check_value(&obuff, blabel, *best, 0.0, 1.0e-9);
       // pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 1.0e-7);
@@ -331,12 +331,12 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
     std::size_t nspl = 50;
     std::size_t kspl = 9;
     const auto basis =
-        SplineBasis::form_basis({states, nspl, kspl, 1.0e-4, 0.0, 50.0, states,
-                                 SplineBasis::SplineType::Derevianko},
-                                wf);
+      SplineBasis::form_basis({states, nspl, kspl, 1.0e-4, 0.0, 50.0, states,
+                               SplineBasis::SplineType::Derevianko},
+                              wf);
 
     const std::string label =
-        "Local [50] " + std::to_string(nspl) + "/" + std::to_string(kspl);
+      "Local [50] " + std::to_string(nspl) + "/" + std::to_string(kspl);
 
     const auto [eps, str] = DiracSpinor::check_ortho(basis, basis);
     // pass &= qip::check_value(&obuff, label + " orth ", eps, 0.0, 1.0e-12);
@@ -344,18 +344,18 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
 
     for (int nDG = 0; nDG <= 2; nDG += 2) {
       const auto dg =
-          SplineBasis::sumrule_DG(nDG, basis, wf.grid(), wf.alpha(), false);
+        SplineBasis::sumrule_DG(nDG, basis, wf.grid(), wf.alpha(), false);
 
       const auto worst =
-          std::max_element(cbegin(dg), cend(dg), qip::less_abs{});
+        std::max_element(cbegin(dg), cend(dg), qip::less_abs{});
       const auto best = std::min_element(cbegin(dg), cend(dg), qip::less_abs{});
 
       const auto kib = Angular::kappaFromIndex(int(best - begin(dg)));
       const auto kiw = Angular::kappaFromIndex(int(worst - begin(dg)));
       const auto blabel =
-          label + " DG" + std::to_string(nDG) + "(b) k=" + std::to_string(kib);
+        label + " DG" + std::to_string(nDG) + "(b) k=" + std::to_string(kib);
       const auto wlabel =
-          label + " DG" + std::to_string(nDG) + "(w) k=" + std::to_string(kiw);
+        label + " DG" + std::to_string(nDG) + "(w) k=" + std::to_string(kiw);
 
       // pass &= qip::check_value(&obuff, blabel, *best, 0.0, 1.0e-9);
       // pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 2.0e-6);
