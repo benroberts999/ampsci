@@ -147,7 +147,7 @@ private:
 
 public:
   //! Default constructor: name will be blank
-  InputBlock(){};
+  InputBlock() {};
 
   //! Construct from literal list of 'Options' (see Option struct)
   InputBlock(std::string_view name, std::initializer_list<Option> options = {})
@@ -575,12 +575,13 @@ bool InputBlock::checkBlock(
     std::cout << "{\n";
     std::for_each(list.cbegin(), list.cend(), [](const auto &s) {
       const auto option_is_block = s.first.back() == '}';
-      if (!s.second.empty()) {
-        fmt2::styled_print(fg(fmt::color::light_blue), "{}\n",
-                           qip::wrap(s.second, 80, "  // "));
-      }
+      const auto leading_spaces = s.first.empty() ? ""s : "  ";
       if (!s.first.empty()) {
         std::cout << "  " << s.first << (option_is_block ? "\n" : ";\n");
+      }
+      if (!s.second.empty()) {
+        fmt2::styled_print(fg(fmt::color::light_blue), "{}\n",
+                           qip::wrap(s.second, 60, leading_spaces + "  // "));
       } else {
         std::cout << "\n";
       }
