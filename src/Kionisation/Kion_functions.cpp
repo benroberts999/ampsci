@@ -74,8 +74,8 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
     const auto dE = Egrid(idE);
 
     // Convert energy deposition to contimuum state energy:
-    double ec = std::min(dE + Fnk.en(), ec_cut);
-    if (ec <= 0.0)
+    double ec = dE + Fnk.en();
+    if (ec <= 0.0 || ec > ec_cut)
       continue;
 
     const int l = Fnk.l();
@@ -365,17 +365,21 @@ bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid) {
 
 //==============================================================================
 void write_to_file_xyz(const LinAlg::Matrix<double> &K,
-                       const std::vector<double> &E_grid, const Grid &q_grid,
+                       const std::vector<double> &E_grid,
+                       const std::vector<double> &q_grid,
                        const std::string &filename, int num_digits,
                        Units units) {
   // optional format argument?
   assert(K.rows() == E_grid.size());
-  assert(K.cols() == q_grid.num_points());
+  assert(K.cols() == q_grid.size());
   std::ofstream out_file(filename + "_xyz.txt");
+  std::cout << "  -  " << filename + "_xyz.txt\n";
 
   const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
   const auto unit_q =
     units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
+
+  const auto Unit_str = units == Units::Atomic ? "E_H" : "eV";
 
   out_file << "# Kion output data file: " << filename << " - xyz format\n";
   fmt::print(out_file, "# Units: ");
@@ -387,25 +391,108 @@ void write_to_file_xyz(const LinAlg::Matrix<double> &K,
   } else {
     std::cout << "units error\n";
   }
+  fmt::print(out_file, "# nb: E_H = m_e (c*α)^2 = ~27.21 eV\n");
+  fmt::print(out_file,
+             "# nb: 1/a0 = m_e*c*α/hbar = E_H / (c*α*hbar) = ~3729 eV\n");
 
   fmt::print(out_file, "# E           q            K\n");
   for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
-    for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
+    for (std::size_t iq = 0; iq < q_grid.size(); ++iq) {
       fmt::print(out_file, "{:+.{}e} {:+.{}e} {:+.{}e}\n",
-                 E_grid.at(iE) * unit_E, num_digits, q_grid(iq) * unit_q,
+                 E_grid.at(iE) * unit_E, num_digits, q_grid.at(iq) * unit_q,
                  num_digits, K(iE, iq), num_digits);
+    }
+    if (q_grid.size() > 1 && iE + 1 < E_grid.size()) {
+      out_file << "\n";
+      fmt::print(out_file, "# E = {:.2e} {}\n", E_grid.at(iE) * unit_E,
+                 Unit_str);
+    }
+  }
+}
+
+//==============================================================================
+void write_to_file_xyz_set(const std::vector<double> &E_grid,
+                           const std::vector<double> &q_grid,
+                           const std::string &filename, int num_digits,
+                           Units units, const LinAlg::Matrix<double> &K_T,
+                           const LinAlg::Matrix<double> &K_E,
+                           const LinAlg::Matrix<double> &K_M,
+                           const LinAlg::Matrix<double> &K_L,
+                           const LinAlg::Matrix<double> &K_X) {
+  // optional format argument?
+  // assert(K.rows() == E_grid.size()); XXX
+  // assert(K.cols() == q_grid.size());
+
+  std::ofstream out_file(filename + "_xyz.txt");
+  std::cout << "  -  " << filename + "_xyz.txt\n";
+
+  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
+  const auto unit_q =
+    units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
+
+  const auto Unit_str = units == Units::Atomic ? "E_H" : "eV";
+
+  out_file << "# Kion output data file: " << filename << " - xyz format\n";
+  fmt::print(out_file, "# Units: ");
+
+  if (units == Units::Atomic) {
+    fmt::print(out_file, "Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
+  } else if (units == Units::Particle) {
+    fmt::print(out_file, "Particle units. [q] = eV, [E] = eV, [K] = 1\n");
+  } else {
+    std::cout << "units error\n";
+  }
+  fmt::print(out_file, "# nb: E_H = m_e (c*α)^2 = ~27.21 eV\n");
+  fmt::print(out_file,
+             "# nb: 1/a0 = m_e*c*α/hbar = E_H / (c*α*hbar) = ~3729 eV\n");
+
+  fmt::print(out_file, "# E   q   ");
+  if (!K_T.empty())
+    out_file << "K_T   ";
+  if (!K_T.empty())
+    out_file << "K_E   ";
+  if (!K_T.empty())
+    out_file << "K_M   ";
+  if (!K_T.empty())
+    out_file << "K_L   ";
+  if (!K_T.empty())
+    out_file << "K_cross";
+  out_file << "\n";
+
+  for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
+    for (std::size_t iq = 0; iq < q_grid.size(); ++iq) {
+      fmt::print(out_file, "{:+.{}e} {:+.{}e} ", E_grid.at(iE) * unit_E,
+                 num_digits, q_grid.at(iq) * unit_q, num_digits);
+
+      if (!K_T.empty())
+        fmt::print(out_file, "{:+.{}e} ", K_T(iE, iq), num_digits);
+      if (!K_T.empty())
+        fmt::print(out_file, "{:+.{}e} ", K_E(iE, iq), num_digits);
+      if (!K_T.empty())
+        fmt::print(out_file, "{:+.{}e} ", K_M(iE, iq), num_digits);
+      if (!K_T.empty())
+        fmt::print(out_file, "{:+.{}e} ", K_L(iE, iq), num_digits);
+      if (!K_T.empty())
+        fmt::print(out_file, "{:+.{}e} ", K_X(iE, iq), num_digits);
+      out_file << "\n";
+    }
+    if (q_grid.size() > 1 && iE + 1 < E_grid.size()) {
+      out_file << "\n";
+      fmt::print(out_file, "# E = {:.2e} {}\n", E_grid.at(iE + 1) * unit_E,
+                 Unit_str);
     }
   }
 }
 
 //==============================================================================
 void write_to_file_matrix(const LinAlg::Matrix<double> &K,
-                          const std::vector<double> &E_grid, const Grid &q_grid,
+                          const std::vector<double> &E_grid,
+                          const std::vector<double> &q_grid,
                           const std::string &filename, int num_digits,
                           Units units) {
   // optional format argument?
   assert(K.rows() == E_grid.size());
-  assert(K.cols() == q_grid.num_points());
+  assert(K.cols() == q_grid.size());
   std::ofstream out_file(filename + "_mat.txt");
 
   const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
@@ -437,7 +524,7 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K,
 
   out_file << "# K values K(E,q). Each new row is new E, each col is new q\n";
   for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
-    for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
+    for (std::size_t iq = 0; iq < q_grid.size(); ++iq) {
       fmt::print(out_file, "{:+.{}e} ", K(iE, iq), num_digits);
     }
     out_file << '\n';
@@ -447,11 +534,12 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K,
 //==============================================================================
 void write_to_file_gnuplot(const LinAlg::Matrix<double> &K,
                            const std::vector<double> &E_grid,
-                           const Grid &q_grid, const std::string &filename,
-                           int num_digits, Units units) {
+                           const std::vector<double> &q_grid,
+                           const std::string &filename, int num_digits,
+                           Units units) {
   // optional format argument?
   assert(K.rows() == E_grid.size());
-  assert(K.cols() == q_grid.num_points());
+  assert(K.cols() == q_grid.size());
   std::ofstream out_file(filename + "_gnu.txt");
 
   const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
@@ -482,8 +570,8 @@ void write_to_file_gnuplot(const LinAlg::Matrix<double> &K,
   out_file << "\n";
 
   // nb: write out is 'transposed' order from array: this is to make plotting easier
-  for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
-    fmt::print(out_file, "{:.{}e} ", q_grid(iq) * unit_q, num_digits);
+  for (std::size_t iq = 0; iq < q_grid.size(); ++iq) {
+    fmt::print(out_file, "{:.{}e} ", q_grid.at(iq) * unit_q, num_digits);
     for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
       fmt::print(out_file, "{:.{}e} ", K(iE, iq), num_digits);
     }
@@ -494,11 +582,12 @@ void write_to_file_gnuplot(const LinAlg::Matrix<double> &K,
 //==============================================================================
 void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
                              const std::vector<double> &E_grid,
-                             const Grid &q_grid, const std::string &filename,
-                             int num_digits, Units units) {
+                             const std::vector<double> &q_grid,
+                             const std::string &filename, int num_digits,
+                             Units units) {
   // optional format argument?
   assert(K.rows() == E_grid.size());
-  assert(K.cols() == q_grid.num_points());
+  assert(K.cols() == q_grid.size());
   std::ofstream out_file(filename + "_gnu_E.txt");
 
   const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
@@ -530,7 +619,7 @@ void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
 
   for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
     fmt::print(out_file, "{:.{}e} ", E_grid.at(iE) * unit_E, num_digits);
-    for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
+    for (std::size_t iq = 0; iq < q_grid.size(); ++iq) {
       fmt::print(out_file, "{:.{}e} ", K(iE, iq), num_digits);
     }
     fmt::print(out_file, "\n");
@@ -540,11 +629,12 @@ void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
 //==============================================================================
 void write_approxTable_to_file(const LinAlg::Matrix<double> &K,
                                const std::vector<DiracSpinor> &core,
-                               const Grid &q_grid, const std::string &filename,
-                               int num_digits, Units units) {
+                               const std::vector<double> &q_grid,
+                               const std::string &filename, int num_digits,
+                               Units units) {
 
   assert(K.rows() == core.size());
-  assert(K.cols() == q_grid.num_points());
+  assert(K.cols() == q_grid.size());
   std::ofstream out_file(filename + "_approxTable.txt");
 
   const auto unit_q =
@@ -571,8 +661,8 @@ void write_approxTable_to_file(const LinAlg::Matrix<double> &K,
   }
   out_file << "\n";
 
-  for (std::size_t iq = 0; iq < q_grid.num_points(); ++iq) {
-    fmt::print(out_file, "{:+.{}e} ", q_grid(iq) * unit_q, num_digits);
+  for (std::size_t iq = 0; iq < q_grid.size(); ++iq) {
+    fmt::print(out_file, "{:+.{}e} ", q_grid.at(iq) * unit_q, num_digits);
     for (std::size_t ink = 0; ink < core.size(); ++ink) {
       fmt::print(out_file, "{:+.{}e} ", K(ink, iq), num_digits);
     }
@@ -583,7 +673,8 @@ void write_approxTable_to_file(const LinAlg::Matrix<double> &K,
 //==============================================================================
 void write_to_file(const std::vector<OutputFormat> &formats,
                    const LinAlg::Matrix<double> &K,
-                   const std::vector<double> &E_grid, const Grid &q_grid,
+                   const std::vector<double> &E_grid,
+                   const std::vector<double> &q_grid,
                    const std::string &filename, int num_digits, Units units) {
   // Update: Always use atomic units for mat and xyz
   for (const auto &format : formats) {
