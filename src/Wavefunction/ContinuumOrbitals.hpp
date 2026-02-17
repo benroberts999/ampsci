@@ -40,10 +40,10 @@ public:
   std::vector<DiracSpinor> orbitals{};
 
 private:
-  void IncludeExchange(DiracSpinor &Fe, const DiracSpinor *psi,
+  void IncludeExchange(DiracSpinor &F_cntm, const DiracSpinor *F_i,
                        bool force_orthog, const std::vector<double> &vc);
 
-  std::shared_ptr<const Grid> rgrid;
+  std::shared_ptr<const Grid> p_rgrid;
   const HF::HartreeFock *p_hf;
-  double alpha;
+  double m_alpha;
 };
