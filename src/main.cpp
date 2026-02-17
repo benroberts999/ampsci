@@ -193,23 +193,25 @@ int main(int argc, char *argv[]) {
     man::print_manual();
     return 0;
   } else if (in_text_1 == "-m" || in_text_1 == "--modules") {
-    std::cout << "Available modules: \n";
-    Module::list_modules();
     const std::string module_name = (argc > 2) ? argv[2] : "";
     if (!module_name.empty()) {
       // run the module, with option 'help' set. This will trigger the helper
       // to print the details for the available options in that module
       Module::runModule(IO::InputBlock{"Module::"s + module_name, {"help;"}},
                         {});
+    } else {
+      std::cout << "Available modules: \n";
+      Module::list_modules();
     }
     return 0;
   } else if (in_text_1 == "-o" || in_text_1 == "--operators") {
-    std::cout << "Available operators: \n";
-    DiracOperator::list_operators();
     const std::string op_name = (argc > 2) ? argv[2] : "";
     if (!op_name.empty()) {
       Wavefunction wf{{1, 1.0, 1.0}, {1, 1}};
       DiracOperator::generate(op_name, IO::InputBlock{op_name, {"help;"}}, wf);
+    } else {
+      std::cout << "Available operators: \n";
+      DiracOperator::list_operators();
     }
     return 0;
   } else if (in_text_1 == "-a" || in_text_1 == "--ampsci") {
