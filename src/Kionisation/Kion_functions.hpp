@@ -31,7 +31,7 @@ enum class OutputFormat { gnuplot, gnuplot_E, matrix, xyz, Error };
 //! Units used in output file
 /*!
  Atomic: [q] = [1/a_0], [E] = Hartree; \n
- Particle: [q] = MeV, [E] = keV;
+ Particle: [q] = eV, [E] = eV;
 */
 enum class Units { Atomic, Particle, Error };
 
@@ -80,7 +80,8 @@ matrix : Outputs entire matrix in table form. E and q grids printed prior.
 In K[E,q] form: each column is different q
 */
 void write_to_file_matrix(const LinAlg::Matrix<double> &K,
-                          const std::vector<double> &E_grid, const Grid &q_grid,
+                          const std::vector<double> &E_grid,
+                          const std::vector<double> &q_grid,
                           const std::string &filename, int num_digits = 5,
                           Units units = Units::Particle);
 
@@ -89,9 +90,20 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K,
 xyz: For easy 2D interpolation. list formmated with each row 'E q K(E,q)'
 */
 void write_to_file_xyz(const LinAlg::Matrix<double> &K,
-                       const std::vector<double> &E_grid, const Grid &q_grid,
+                       const std::vector<double> &E_grid,
+                       const std::vector<double> &q_grid,
                        const std::string &filename, int num_digits = 5,
                        Units units = Units::Particle);
+
+//! Order is important!
+void write_to_file_xyz_set(const std::vector<double> &E_grid,
+                           const std::vector<double> &q_grid,
+                           const std::string &filename, int num_digits,
+                           Units units, const LinAlg::Matrix<double> &K_T = {},
+                           const LinAlg::Matrix<double> &K_E = {},
+                           const LinAlg::Matrix<double> &K_M = {},
+                           const LinAlg::Matrix<double> &K_L = {},
+                           const LinAlg::Matrix<double> &K_X = {});
 
 //! Writes ouput file in 'gnuplot' form: for easy plotting as function of q
 /*! @details
@@ -101,8 +113,9 @@ First row is E values (use with `t columnheader(i)`)
 */
 void write_to_file_gnuplot(const LinAlg::Matrix<double> &K,
                            const std::vector<double> &E_grid,
-                           const Grid &q_grid, const std::string &filename,
-                           int num_digits = 5, Units units = Units::Particle);
+                           const std::vector<double> &q_grid,
+                           const std::string &filename, int num_digits = 5,
+                           Units units = Units::Particle);
 
 //! Writes ouput file in 'gnuplot' form: for easy plotting as function of E.
 /*! @details
@@ -112,20 +125,23 @@ First row is q values (use with `t columnheader(i)`)
 */
 void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
                              const std::vector<double> &E_grid,
-                             const Grid &q_grid, const std::string &filename,
-                             int num_digits = 5, Units units = Units::Particle);
+                             const std::vector<double> &q_grid,
+                             const std::string &filename, int num_digits = 5,
+                             Units units = Units::Particle);
 
 //! Writes to file: formats is a vector of formats, will write to each listed format
 void write_to_file(const std::vector<OutputFormat> &formats,
                    const LinAlg::Matrix<double> &K,
-                   const std::vector<double> &E_grid, const Grid &q_grid,
+                   const std::vector<double> &E_grid,
+                   const std::vector<double> &q_grid,
                    const std::string &filename, int num_digits = 5,
                    Units units = Units::Particle);
 
 //! Writes the 'approximate tables' to file. Each column is a new state, K_nk(q)
 void write_approxTable_to_file(const LinAlg::Matrix<double> &K,
                                const std::vector<DiracSpinor> &core,
-                               const Grid &q_grid, const std::string &filename,
-                               int num_digits, Units units);
+                               const std::vector<double> &q_grid,
+                               const std::string &filename, int num_digits,
+                               Units units);
 
 } // namespace Kion

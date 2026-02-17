@@ -111,6 +111,9 @@ public:
   //! Return rows*columns [total array size]
   std::size_t size() const { return m_data.size(); }
 
+  //! Bool - is empty? (same as size==0)
+  bool empty() const { return m_data.empty(); }
+
   //! Returns pointer to first element. Note: for std::complex<T>, this is a
   //! pointer to complex<T>, not T
   T *data() { return m_data.data(); }

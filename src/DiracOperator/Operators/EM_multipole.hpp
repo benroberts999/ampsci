@@ -754,11 +754,13 @@ generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
  *               - 'A' : Axial-vector
  *               - 'S' : Scalar
  *               - 'P' : Pseudoscalar
+ *               - '0' : return nullptr (no operator)
  * @param comp   Multipole component (for V/A types):
  *               - 'E' : Electric
  *               - 'M' : Magnetic
  *               - 'L' : Longitudinal
  *               - 'T' : Temporal [caution - NOT transverse!]
+ *               - '0' : return nullptr (no operator)
  *               (Ignored for scalar and pseudoscalar operators.)
  * @param low_q  If true, construct the low-momentum (long-wavelength)
  *               approximation of the operator.

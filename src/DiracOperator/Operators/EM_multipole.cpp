@@ -607,10 +607,16 @@ std::unique_ptr<DiracOperator::TensorOperator>
 MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,
                   bool low_q, const SphericalBessel::JL_table *jl) {
 
+  // quick exit if requsting no operator:
+  if (comp == '0' || type == '0') {
+    return nullptr;
+  }
+
   // normalise to upper case
   type = static_cast<char>(std::toupper(static_cast<unsigned char>(type)));
   comp = static_cast<char>(std::toupper(static_cast<unsigned char>(comp)));
 
+  // define bools - only for convenience
   const bool Vector = (type == 'V');
   const bool AxialVector = (type == 'A');
   const bool Scalar = (type == 'S');
@@ -620,7 +626,7 @@ MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,
   const bool Magnetic = (comp == 'M');
   const bool Longitudinal = (comp == 'L');
   // nb: don't confuse with transverse!!
-  const bool Temporal = (comp == 'T' || comp == '0');
+  const bool Temporal = (comp == 'T');
 
   // basic validation
   if (!(Vector || AxialVector || Scalar || PseudoScalar)) {
