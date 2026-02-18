@@ -114,6 +114,14 @@ inline std::pair<int, int> index_to_nk(int index) {
   return {n, Angular::kappaFromIndex(kappa_index)};
 }
 
+inline std::pair<int, int> nkindex_to_n_kindex(int index) {
+  // Better way? isqrt?
+  const auto n = 1 + int(std::sqrt(index + 0.01));
+  // int n = 1 + int_sqrt(index);
+  const auto kappa_index = index - states_below_n(n);
+  return {n, kappa_index};
+}
+
 //! Returns kappa, given nk_index
 inline int nkindex_to_kappa(int index) {
   // Better way? isqrt?

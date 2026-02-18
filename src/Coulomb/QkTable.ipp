@@ -2,6 +2,7 @@
 #include "CoulombIntegrals.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include "Physics/AtomData.hpp"
 #include "QkTable.hpp"
 #include <algorithm>
 #include <cassert>
@@ -860,11 +861,19 @@ void CoulombTable<S>::write(const std::string &fname) const {
 //==============================================================================
 template <Symmetry S>
 bool CoulombTable<S>::read(const std::string &fname) {
+  IO::ChronoTimer t("read");
   if (fname == "false")
     return false;
+
+  std::cout << "Reading: " << fname << "\n" << std::flush;
   std::fstream f;
   const auto rw = IO::FRW::read;
   IO::FRW::open_binary(f, fname, rw);
+
+  // store max_n for each l: allows us to reconstruct the basis string
+  // This adds noticable overhead, but is useful
+  std::vector<int> max_n_l;
+  constexpr bool count_orbs = true;
 
   if (!f.good())
     return false;
@@ -884,9 +893,38 @@ bool CoulombTable<S>::read(const std::string &fname) {
       Real value;
       rw_binary(f, rw, key, value);
       Q_k[key] = value;
+
+      // determine basis string (max n for each l)
+      if constexpr (count_orbs) {
+        const auto indexes = UnFormIndex(key);
+        for (const auto index : indexes) {
+          const auto [n, ki] = Angular::nkindex_to_n_kindex(int(index));
+          const auto l = std::size_t(Angular::lFromIndex(ki));
+          if (max_n_l.size() < l + 1)
+            max_n_l.resize(l + 1);
+          if (n > max_n_l.at(l))
+            max_n_l.at(l) = n;
+        }
+      }
     }
   }
-  std::cout << "Read " << count() << " integrals from file: " << fname << "\n"
+
+  // convert list to basis string (max n for each l)
+  int last_n = 0;
+  int l = 0;
+  std::string basis_str;
+  for (const auto &n : max_n_l) {
+    if (n != last_n)
+      basis_str += std::to_string(n);
+    basis_str += AtomData::l_symbol(l);
+    last_n = n;
+    l++;
+  }
+  if (!basis_str.empty())
+    basis_str = "[" + basis_str + "] ";
+
+  std::cout << "Read " << count() << " integrals " << basis_str
+            << "from file: " << fname << "\n"
             << std::flush;
   return true;
 }
