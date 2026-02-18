@@ -3,6 +3,7 @@
 // (Modules don't _need_ to be in Modules/ directory
 #include "Kionisation/Module_Kionisation.hpp"
 #include "Modules/Breit.hpp"
+#include "Modules/CI_Pol.hpp"
 #include "Modules/HFAnomaly.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/dcp.hpp"
@@ -82,6 +83,7 @@ static const std::vector<ModuleInfo> module_list{
   {"pnc", &calculatePNC, "Calculates APV amplitudes"},
   {"muonPV", &muonPV, "For testing/playing with muonic PV"},
   {"dcp", &dcp, "Module for testing dcp calculations"},
+  {"CI_Pol", &CI_Pol, "2 valence pol"},
   {"exampleModule", &exampleModule, "A short description of the module"}};
 
 } // namespace Module
