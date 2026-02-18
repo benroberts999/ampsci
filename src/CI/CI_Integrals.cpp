@@ -351,34 +351,40 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
 Coulomb::WkTable calculate_Bk(const std::string &bk_filename,
                               const HF::Breit *const pBr,
                               const std::vector<DiracSpinor> &ci_basis,
-                              int max_k) {
+                              int max_k, bool no_new_integrals) {
   // Breit table
   Coulomb::WkTable Bk;
 
   Bk.read(bk_filename);
   const auto existing = Bk.count();
-  auto vBr = *pBr;              //copy, so we can fill two-particle 'bk'
-  vBr.fill_gb(ci_basis, max_k); // very quick, and makes below *much* faster
-  //* nb: uses HUGE memory if basis is large; CI basis normally small enough
 
-  const auto Bk_function =
-    [&](int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
-        const DiracSpinor &y) { return vBr.Bk_abcd_2(k, v, w, x, y); };
+  if (!no_new_integrals) {
 
-  Bk.fill(ci_basis, Bk_function, HF::Breit::Bk_SR, max_k, false);
+    auto vBr = *pBr;              // copy, so we can fill two-particle 'bk'
+    vBr.fill_gb(ci_basis, max_k); // very quick, and makes below *much* faster
+    //* nb: uses HUGE memory if basis is large; CI basis normally small enough
 
-  // print summary
-  Bk.summary();
+    const auto Bk_function = [&](int k, const DiracSpinor &v,
+                                 const DiracSpinor &w, const DiracSpinor &x,
+                                 const DiracSpinor &y) {
+      return vBr.Bk_abcd_2(k, v, w, x, y);
+    };
 
-  // If we calculated new integrals, write to disk
-  const auto total = Bk.count();
-  assert(total >= existing);
-  const auto new_integrals = total - existing;
-  std::cout << "Calculated " << new_integrals << " new Breit integrals\n";
-  if (new_integrals > 0) {
-    Bk.write(bk_filename);
+    Bk.fill(ci_basis, Bk_function, HF::Breit::Bk_SR, max_k, false);
+
+    // print summary
+    Bk.summary();
+
+    // If we calculated new integrals, write to disk
+    const auto total = Bk.count();
+    assert(total >= existing);
+    const auto new_integrals = total - existing;
+    std::cout << "Calculated " << new_integrals << " new Breit integrals\n";
+    if (new_integrals > 0) {
+      Bk.write(bk_filename);
+    }
+    std::cout << "\n" << std::flush;
   }
-  std::cout << "\n" << std::flush;
 
   return Bk;
 }

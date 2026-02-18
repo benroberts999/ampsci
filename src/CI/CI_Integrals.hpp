@@ -49,18 +49,21 @@ double Breit_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
 
 //! Calculates table of single-particle matrix elements of one-body Hamiltonian.
 //! Note: assumes basis are Hartree-Fock eigenstates!
+[[nodiscard]]
 Coulomb::meTable<double>
 calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
                    const std::vector<DiracSpinor> &s1_basis_core,
                    const std::vector<DiracSpinor> &s1_basis_excited,
                    const Coulomb::QkTable &qk, bool include_Sigma1);
 
+[[nodiscard]]
 Coulomb::meTable<double>
 calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
                    const MBPT::CorrelationPotential &Sigma,
                    bool include_Sigma1);
 
 //! Calculates table of single-particle matrix elements of two-body Sigma_2 operator.
+[[nodiscard]]
 Coulomb::LkTable calculate_Sk(const std::string &filename,
                               const std::vector<DiracSpinor> &cis2_basis,
                               const std::vector<DiracSpinor> &s2_basis_core,
@@ -70,13 +73,15 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
                               bool no_new_integrals = false);
 
 //! Calculates table of single-particle matrix elements of two-body Breit operator.
+[[nodiscard]]
 Coulomb::WkTable calculate_Bk(const std::string &bk_filename,
                               const HF::Breit *const pBr,
                               const std::vector<DiracSpinor> &ci_basis,
-                              int max_k);
+                              int max_k, bool no_new_integralsQ = false);
 
 //! Takes a subset of input basis according to subset_string.
 //! Only states *not* included in frozen_core_string are included.
+[[nodiscard]]
 std::vector<DiracSpinor>
 basis_subset(const std::vector<DiracSpinor> &basis,
              const std::string &subset_string,

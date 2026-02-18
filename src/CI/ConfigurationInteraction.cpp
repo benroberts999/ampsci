@@ -28,31 +28,41 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   input.check(
     {{"ci_basis",
       "Basis used for CI expansion; must be a sub-set of full ampsci basis "
-      "[default: 10spdf]"},
+      "[default: 20spdf]"},
      {"J", "List of total angular momentum J for CI solutions (comma "
            "separated). Must be integers (two-electron only). []"},
      {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
      {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
      {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
-     {"all_below", "Finds all solutions for requested J^π below given "
-                   "eigenvalue (in cm^-1, negative). Will override above."},
      {"sigma1", "Include one-body MBPT correlations? [false]"},
      {"sigma2", "Include two-body MBPT correlations? [false]"},
+     {"Brueckner", "Use Brueckner (spectrum) states for CI basis? Must have "
+                   "Spectrum and sigma1. [false]"},
      {"cis2_basis",
       "The subset of ci_basis for which the two-body MBPT corrections are "
       "calculated. Must be a subset of ci_basis. If existing sk file has "
       "more integrals, they will be used. [default: Nspdf, where N is "
       "maximum n for core + 3]"},
+     {"Breit2", "Include two-body Breit? Default is true if Breit included in "
+                "HF. Ignored if Breit not included in HF. [true]"},
+     {"Breit_basis",
+      "Subset of ci_basis used to include two-body Breit "
+      "corrections into CI matrix. Large basis is slow, uses "
+      "huge memory, and makes small contribution. [default: Nspdf, where N is "
+      "maximum n for core + 6]"},
      {"s1_basis",
-      "Basis used for the one-body MBPT diagrams (Sigma^1). These are the "
+      "Usually should be left as default. Basis used for the one-body MBPT "
+      "diagrams (Sigma^1) internal lines. These are the "
       "most important, so in general the default (all basis states) should "
       "be used. Must be a subset of full ampsci basis. [default: full "
       "basis]\n"
       " - Note: if CorrelationPotential is available, it will be used "
       "instead of calculating the Sigma_1 integrals"},
      {"s2_basis",
-      "Basis used for internal lines of the two-body MBPT diagrams "
-      "(Sigma^2). Must be a subset of s1_basis. [default: s1_basis]"},
+      "Usually should be left blank. Basis used for internal lines of the "
+      "two-body MBPT diagrams "
+      "(Sigma^2) internal lines. Must be a subset of s1_basis. [default: "
+      "s1_basis]"},
      {"n_min_core", "Minimum n for core to be included in MBPT [1]"},
      {"max_k",
       "Maximum k (multipolarity) to include when calculating new "
@@ -61,11 +71,14 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
       "(or very large) to include all k. [8]"},
      {"qk_file",
       "Filename for storing two-body Coulomb integrals. By default, is "
-      "At.qk, where At is atomic symbol."},
+      "~ At.qk, where At is atomic symbol + 'identity'."},
      {"sk_file",
       "Filename for storing two-body Sigma_2 integrals. By default, is "
       "At_n_b_k.sk, where At is atomic symbol, n is n_min_core, b is "
       "cis2_basis, k is max_k."},
+     {"bk_file",
+      "Filename for storing two-body Breit integrals. By default, is "
+      "~ At.bk, where At is atomic symbol + 'identity'."},
      {"no_new_integrals",
       "Usually false. If set to true, ampsci will not calculate any new "
       "Coulomb or Sigma_2 integrals, even if they are implied by the above "
@@ -80,9 +93,12 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
      {"parallel_ci", "Run CI in parallel (solve each J/Pi in parallel). "
                      "Faster, uses slightly more memory [true]"}});
 
+  // construct first, for RVO
+  std::vector<PsiJPi> levels;
+
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
-    return {};
+    return levels;
   }
 
   //----------------------------------------------------------------------------
@@ -90,24 +106,56 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   std::cout << "\nConstruct single-particle basis:\n";
 
   // Determine the sub-set of basis to use in CI:
-  const auto basis_string = input.get("ci_basis", std::string{"10spdf"});
+  const auto basis_string = input.get("ci_basis", std::string{"20spdf"});
+  // options to include MBPT
+  const auto include_Sigma1 = input.get("sigma1", false);
+  const auto include_Sigma2 = input.get("sigma2", false);
 
-  // Select from wf.basis() [MBPT basis], those which match input 'basis_string'
+  // Use Breuckner states for MBPT
+  // nb: currently also use these Bruckner states in place of the "core"
+  // I think this is the best option, due to orthogonality
+  // These are not eigenstates of the V^HF potential used in the core
+  // However, we don't explicitely use this for <v|h1|w>
+  // We assume eignestates, so <v|h1|w> = E_w \delta_vw
+  // (When not using Brueckner there is also <v|Sigma1|w>, which is not diag)
+  // Perhaps a slight inconsistancy when including RPA into matrix elements?
+  const auto Brueckner_raw = input.get("Brueckner", false);
+  const auto Brueckner =
+    Brueckner_raw && include_Sigma1 && !wf.spectrum().empty();
+
+  const auto &t_basis = Brueckner ? wf.spectrum() : wf.basis();
+
+  // maximum n present in core: used for default basis
+  const auto N_max_core = DiracSpinor::max_n(wf.core());
+
+  // Select from basis those which match input 'basis_string'
   // exclude those in coreConfiguration
   const std::vector<DiracSpinor> ci_sp_basis =
-    CI::basis_subset(wf.basis(), basis_string, wf.coreConfiguration());
+    CI::basis_subset(t_basis, basis_string, wf.coreConfiguration());
 
   // Print info re: basis to screen:
   std::cout << "\nUsing " << DiracSpinor::state_config(ci_sp_basis) << " = "
             << ci_sp_basis.size() << " orbitals in CI expansion\n";
 
+  if (Brueckner) {
+    std::cout
+      << "CI + MBPT + Brueckner method: using Brueckner states for CI basis\n";
+  }
+  if (Brueckner_raw && !Brueckner) {
+    fmt2::warning();
+    std::cout << "Requested Brueckner method, but conditions (Spectrum and "
+                 "Sigma1) not met\n";
+  }
+
+  // aditional output string for br method:
+  using namespace std::string_literals;
+  const auto br_string = Brueckner ? "_bru"s : "";
+
   //----------------------------------------------------------------------------
 
   // Determine different basis subsets
 
-  // check if including MBPT corrections
-  const auto include_Sigma1 = input.get("sigma1", false);
-  const auto include_Sigma2 = input.get("sigma2", false);
+  // Details of MBPT
   const auto max_k_Coulomb = input.get("max_k", 8);
   const auto exclude_wrong_parity_box =
     input.get("exclude_wrong_parity_box", false);
@@ -115,12 +163,11 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   // s1 and s2 MBPT basis
   const auto s1_basis_string = input.get("s1_basis");
-  const auto &s1_basis = s1_basis_string ?
-                           CI::basis_subset(wf.basis(), *s1_basis_string) :
-                           wf.basis();
+  const auto &s1_basis =
+    s1_basis_string ? CI::basis_subset(t_basis, *s1_basis_string) : t_basis;
   const auto s2_basis_string = input.get("s2_basis");
   const auto &s2_basis =
-    s2_basis_string ? CI::basis_subset(wf.basis(), *s2_basis_string) : s1_basis;
+    s2_basis_string ? CI::basis_subset(t_basis, *s2_basis_string) : s1_basis;
 
   // Ensure s2_basis is subset of s1_basis
   assert(s2_basis.size() <= s1_basis.size() &&
@@ -134,10 +181,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     MBPT::split_basis(s2_basis, wf.FermiLevel(), n_min_core);
 
   // S2 corrections are included only for this subset of the CI basis:
-  const auto Ncore = DiracSpinor::max_n(wf.core()) + 3;
   const auto cis2_basis_string =
-    input.get("cis2_basis", std::to_string(Ncore) + "spdf");
-  const auto &cis2_basis = CI::basis_subset(ci_sp_basis, cis2_basis_string);
+    input.get("cis2_basis", std::to_string(N_max_core + 3) + "spdf");
+  const auto cis2_basis = CI::basis_subset(ci_sp_basis, cis2_basis_string);
 
   //----------------------------------------------------------------------------
 
@@ -183,17 +229,19 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   // Often, we don't need to calculate new integrals.
   // It takes time to check if we need to, so faster to skip if we already
   // know all integrals exist.
-  const auto no_new_integrals = input.get("no_new_integrals", false);
+  const auto no_new_integralsQ = input.get("no_new_integrals", false);
   {
     std::cout << "Calculate two-body Coulomb integrals: Q^k_abcd\n";
+    std::cout << std::flush;
 
-    const auto qk_filename = input.get("qk_file", wf.identity() + ".qk.abf");
+    const auto qk_filename =
+      input.get("qk_file", wf.identity() + br_string + ".qk.abf");
 
     // Try to read from disk (may already have calculated Qk)
     qk.read(qk_filename);
     const auto existing = qk.count();
 
-    if (!no_new_integrals) {
+    if (!no_new_integralsQ) {
       // Try to limit number of Coulomb integrals we calculate
       // use whole basis (these are used inside Sigma_2)
       // If not including MBPT, only need to caculate smaller set of integrals
@@ -238,6 +286,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
       // print summary
       qk.summary();
+      std::cout << std::flush;
 
       // If we calculated new integrals, write to disk
       const auto total = qk.count();
@@ -253,25 +302,50 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   //----------------------------------------------------------------------------
 
-  // Creat Breit table (only for CI, not MBPT part)
-  Coulomb::WkTable Bk;
-  if (wf.vHF()->vBreit()) {
-    std::cout << "Calculate two-body Breit integrals: B^k_abcd\n";
-
-    const auto bk_filename = input.get("qk_file", wf.identity() + ".bk");
-
-    CI::calculate_Bk(bk_filename, wf.vHF()->vBreit(), ci_sp_basis,
-                     max_k_Coulomb);
-  }
-
-  //----------------------------------------------------------------------------
-
   // Create lookup table for one-particle matrix elements, h1
+  // nb: if Brueckner, Sigma1 already accounted for!
+  std::cout << "Calculate one-body integrals.\n";
+  std::cout << std::flush;
   const auto h1 =
+    Brueckner ?
+      CI::calculate_h1_table(ci_sp_basis, {}, {}, {}, false) :
     wf.Sigma() ?
       CI::calculate_h1_table(ci_sp_basis, *wf.Sigma(), include_Sigma1) :
       CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
                              include_Sigma1);
+
+  //----------------------------------------------------------------------------
+  // Breit and QED
+
+  if (wf.vHF()->Vrad()) {
+    std::cout << "Including QED via HF\n";
+  }
+  if (wf.vHF()->vBreit()) {
+    std::cout << "Including one-body Breit via HF\n";
+  }
+  std::cout << std::flush;
+
+  // Creat Breit table (only for CI, not MBPT part)
+  Coulomb::WkTable Bk;
+  const auto Breit2 = input.get("Breit2", true);
+  if (wf.vHF()->vBreit() && Breit2) {
+
+    // use a subset of basis for Breit?
+    const auto Breit_basis_string =
+      input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf");
+    const auto Breit_basis = CI::basis_subset(ci_sp_basis, Breit_basis_string);
+
+    std::cout
+      << "\nCalculate + include two-body Breit integrals for CI: B^k_abcd\n";
+    std::cout << "For: " << DiracSpinor::state_config(Breit_basis) << "\n";
+    std::cout << std::flush;
+
+    const auto bk_filename =
+      input.get("bk_file", wf.identity() + br_string + ".bk");
+
+    Bk = CI::calculate_Bk(bk_filename, wf.vHF()->vBreit(), Breit_basis,
+                          max_k_Coulomb, no_new_integralsQ);
+  }
 
   //----------------------------------------------------------------------------
   // Calculate MBPT corrections to two-body Coulomb integrals
@@ -286,16 +360,17 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
                              (max_k_Coulomb >= 0 && max_k_Coulomb < 50 ?
                                 "_" + std::to_string(max_k_Coulomb) :
                                 "") +
-                             ".sk.abf");
+                             br_string + ".sk.abf");
 
-    std::cout << "Calculate two-body MBPT integrals: Σ^k_abcd\n";
+    std::cout << "\nCalculate two-body MBPT integrals: Σ^k_abcd\n";
 
     std::cout << "For: " << DiracSpinor::state_config(cis2_basis) << ", using "
               << DiracSpinor::state_config(excited_s2) << "\n";
+    std::cout << std::flush;
 
     Sk = CI::calculate_Sk(Sk_filename, cis2_basis, core_s2, excited_s2, qk,
                           max_k_Coulomb, exclude_wrong_parity_box,
-                          no_new_integrals);
+                          no_new_integralsQ);
   }
 
   //----------------------------------------------------------------------------
@@ -310,11 +385,12 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   const auto n_Js = J_even_list.size() + J_odd_list.size();
 
-  std::vector<PsiJPi> levels(n_Js);
+  levels.resize(n_Js);
   std::vector<std::ostringstream> os(n_Js); // for parallel output
 
-  if (parallel_ci)
-    fmt::print("Running CI for {} J/pi's in parallel\n", n_Js);
+  fmt::print("Running CI for {} J/pi's {}\n", n_Js,
+             parallel_ci ? "in parallel" : "");
+  std::cout << std::flush;
 
   {
     IO::ChronoTimer t2("CI Eigenvalues");
@@ -334,6 +410,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     if (parallel_ci) {
       for (const auto &out : os)
         std::cout << out.str();
+      std::cout << std::flush;
     }
   }
 
@@ -374,6 +451,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
       }
       E_output.emplace_back(Psi_Jpi.energy(i), out_string);
     }
+    std::cout << std::flush;
   }
 
   // optionally, sort by energy
@@ -392,6 +470,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   for (const auto &[E, output] : E_output) {
     std::cout << output << "\n";
   }
+  std::cout << std::flush;
 
   return levels;
 }
@@ -464,6 +543,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   const auto print_details = all_below || num_solutions > 0;
   const double minimum_percentage = 5.0; // min % to print
 
+  // XXX nb: sometimes get's non-rel config wrong! (not a big issue)
   for (std::size_t i = 0; i < N_CSFs && i < psi.num_solutions(); ++i) {
 
     const auto pi = parity == 1 ? '+' : '-';
