@@ -102,7 +102,8 @@ private:
 };
 
 //==============================================================================
-//! Low qr form of Temporal component of the vector multipole operator: $\Phi_K = t^K(q)$
+//! Low qr form of Temporal component of the vector multipole operator:
+//! \f$ \Phi_K = t^K(q)\f$
 class Phik_lowq final : public TensorOperator {
 public:
   Phik_lowq(const Grid &gr, int K, double omega)
@@ -171,7 +172,7 @@ private:
 };
 
 //==============================================================================
-//! @brief Low qr form of Scalar multipole operator: $S_K = t^K(q)\gamma^0$
+//! @brief Low qr form of Scalar multipole operator: \f$ S_K = t^K(q)\gamma^0\f$
 class Sk_lowq final : public TensorOperator {
 public:
   Sk_lowq(const Grid &gr, int K, double omega)
@@ -243,7 +244,7 @@ private:
 // Gamma^5 versions!
 
 //==============================================================================
-//! @brief Low qr form of Axial electric multipole operator: $A^E_K = T^{(+1)}_K(q)\gamma^5$
+//! @brief Low qr form of Axial electric multipole operator: \f$ A^E_K = T^{(+1)}_K(q)\gamma^5\f$
 class AEk_lowq final : public TensorOperator {
 public:
   AEk_lowq(const Grid &gr, int K, double omega)
@@ -353,7 +354,7 @@ private:
 };
 
 //==============================================================================
-//! @brief Low qr form of Axial longitudinal multipole operator: $A^L_K = T^{(-1)}_K(q)\gamma^5$
+//! @brief Low qr form of Axial longitudinal multipole operator: \f$ A^L_K = T^{(-1)}_K(q)\gamma^5\f$
 class ALk_lowq final : public TensorOperator {
 public:
   ALk_lowq(const Grid &gr, int K, double omega)
@@ -439,7 +440,7 @@ private:
 };
 
 //==============================================================================
-//! @brief Low qr form of Axial magnetic multipole operator: $A^M_K = T^{(0)}_K(q)\gamma^5$
+//! @brief Low qr form of Axial magnetic multipole operator: \f$ A^M_K = T^{(0)}_K(q)\gamma^5\f$
 class AMk_lowq final : public TensorOperator {
 public:
   AMk_lowq(const Grid &gr, int K, double omega)
@@ -516,7 +517,7 @@ private:
 };
 
 //==============================================================================
-//! @brief Low qr form of Temporal component of the axial vector multipole operator: $\Theta_K = \Phi^5_K = t^K(q)\gamma^5$.
+//! @brief Low qr form of Temporal component of the axial vector multipole operator: \f$ \Theta_K = \Phi^5_K = t^K(q)\gamma^5\f$ .
 //! NOTE: If K=0, omega should be (ea-eb); for K=1 should be q = alpha*omega!
 class Phi5k_lowq final : public TensorOperator {
 public:
@@ -596,7 +597,8 @@ private:
 };
 
 //==============================================================================
-//! @brief Low qr form of Pseudoscalar multipole operator: $P_K = S^5_K = t^K(q)(i\gamma^0\gamma^5)$
+//! @brief Low qr form of Pseudoscalar multipole operator:
+//! \f$ P_K = S^5_K = t^K(q)(i\gamma^0\gamma^5)\f$
 //! NOTE: If K=0, omega should be (ea-eb); for K=1 should be q = alpha*omega!
 class S5k_lowq final : public TensorOperator {
 public:

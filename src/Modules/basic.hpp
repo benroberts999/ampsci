@@ -10,7 +10,7 @@ namespace Module {
 //! Module: writes orbitals to text file (gnuplot format)
 void writeOrbitals(const IO::InputBlock &input, const Wavefunction &wf);
 
-//! @brief A range of run-time tests (orthonorm, <H>, sum rules etc.) -- see
+//! @brief A range of run-time tests (orthonorm, \f$langle H\rangle\f$, sum rules etc.) -- see
 //! input options
 //! @details Note: These are run-time tests to ensure input params were OK, not
 //! unit tests! (see unitTests.cpp for unit tests)

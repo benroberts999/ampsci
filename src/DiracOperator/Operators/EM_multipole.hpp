@@ -11,7 +11,7 @@
 namespace DiracOperator {
 
 //==============================================================================
-//! @brief Vector electric multipole (transition) operator, Length-form: ($T^{(+1),{\rm Len}}_K$).
+//! @brief Vector electric multipole (transition) operator, Length-form: ( \f$ T^{(+1),{\rm Len}}_K \f$ ).
 /*!
   @details
   - nb: q = alpha*omega, so "omega" = c*q
@@ -70,7 +70,7 @@ public:
 };
 
 //==============================================================================
-//! @brief Vector electric multipole (V-form) operator: $V^E_K = T^{(+1)}_K(q)$
+//! @brief Vector electric multipole (V-form) operator: \f$ V^E_K = T^{(+1)}_K(q) \f$
 /*!
   @details
   - nb: q = alpha*omega, so "omega" = c*q
@@ -128,7 +128,7 @@ public:
 };
 
 //==============================================================================
-//! @brief Vector longitudinal multipole operator (V-form): $V^L_K = T^{(-1)}_K(q)$
+//! @brief Vector longitudinal multipole operator (V-form): \f$ V^L_K = T^{(-1)}_K(q) \f$
 /*!
   @details
   - nb: q = alpha*omega, so "omega" = c*q
@@ -185,7 +185,7 @@ public:
 };
 
 //==============================================================================
-//! @brief Vector magnetic multipole operator: $V^M_K = T^{(0)}_K(q)$
+//! @brief Vector magnetic multipole operator: \f$ V^M_K = T^{(0)}_K(q) \f$
 /*!
   @details
   - nb: q = alpha*omega, so "omega" = c*q
@@ -240,7 +240,7 @@ public:
 };
 
 //==============================================================================
-//! @brief Temporal component of the vector multipole operator: $\Phi_K = t^K(q)$
+//! @brief Temporal component of the vector multipole operator: \f$ \Phi_K = t^K(q) \f$
 /*!
   @details
   - nb: q = alpha*omega, so "omega" = c*q
@@ -294,7 +294,7 @@ public:
 };
 
 //==============================================================================
-//! @brief Scalar multipole operator: $S_K = t^K(q)\gamma^0$
+//! @brief Scalar multipole operator: \f$ S_K = t^K(q)\gamma^0 \f$
 /*!
   @details
   - nb: q = alpha*omega, so "omega" = c*q
@@ -353,7 +353,7 @@ public:
 // Gamma^5 versions!
 
 //==============================================================================
-//! @brief Axial electric multipole operator: $A^E_K = T^{(+1)}_K(q)\gamma^5$
+//! @brief Axial electric multipole operator: \f$ A^E_K = T^{(+1)}_K(q)\gamma^5 \f$
 /*!
   @details
   - Gamma^5 variant of the electric multipole (vector) operator. Functions
@@ -407,7 +407,7 @@ public:
 };
 
 //==============================================================================
-//! @brief Axial longitudinal multipole operator: $A^L_K = T^{(-1)}_K(q)\gamma^5$
+//! @brief Axial longitudinal multipole operator: \f$ A^L_K = T^{(-1)}_K(q)\gamma^5 \f$
 /*!
   @details
   - Gamma^5 variant of the longitudinal multipole operator. Works like
@@ -458,7 +458,7 @@ public:
 };
 
 //==============================================================================
-//! @brief Axial magnetic multipole operator: $A^M_K = T^{(0)}_K(q)\gamma^5$
+//! @brief Axial magnetic multipole operator: \f$ A^M_K = T^{(0)}_K(q)\gamma^5 \f$
 /*!
   @details
   - Gamma^5 variant of the magnetic multipole operator. Analogous to
@@ -508,7 +508,7 @@ public:
 };
 
 //==============================================================================
-//! @brief Temporal component of the axial vector multipole operator: $\Theta_K = \Phi^5_K = t^K(q)\gamma^5$
+//! @brief Temporal component of the axial vector multipole operator: \f$ \Theta_K = \Phi^5_K = t^K(q)\gamma^5 \f$
 /*!
   @details
   - Gamma^5 variant of the temporal (time-like) component of the vector
@@ -558,7 +558,8 @@ public:
 };
 
 //==============================================================================
-//! @brief Pseudoscalar multipole operator: $P_K = S^5_K = t^K(q)(i\gamma^0\gamma^5)$
+//! @brief Pseudoscalar multipole operator:
+//! \f$ P_K = S^5_K = t^K(q)(i\gamma^0\gamma^5) \f$
 /*!
   @details
   - Implements the pseudoscalar multipole operator ~ e^{i q r} i gamma^0 gamma^5.

@@ -409,7 +409,7 @@ std::vector<T> reverse(std::vector<T> in) {
 }
 
 //==============================================================================
-//! Mean: xbar = \sum_i x_i / N
+//! Mean: \f$ \bar x = \sum_i x_i / N \f$
 template <typename T>
 T mean(std::vector<T> vec) {
   T sum{0};
@@ -419,7 +419,8 @@ T mean(std::vector<T> vec) {
   return sum / T(vec.size());
 }
 
-//! Variance: \sum_i (x_i-xbar)^2 / (N-dof)
+//! Variance using two-pass method: \f$ \sum_i (x_i-xbar)^2 / (N-dof) \f$.
+//! dof is degrees of freedom; for sample variance dof = 1.
 template <typename T>
 T variance(std::vector<T> vec, std::size_t dof = 0) {
   assert(dof < vec.size());

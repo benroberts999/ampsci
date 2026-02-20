@@ -201,7 +201,7 @@ public:
   Matrix<T> &invert_in_place();
 
   //! Returns inverse of the matrix. Leaves original matrix intact. Uses GSL;
-  //! via LU decomposition. Only works for double/complex<double>
+  //! via LU decomposition. Only works for `double/complex<double>`
   [[nodiscard]] Matrix<T> inverse() const;
   //! Returns transpose of matrix
   [[nodiscard]] Matrix<T> transpose() const;

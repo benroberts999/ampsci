@@ -1,0 +1,79 @@
+
+/* Core palette + typography */
+:root {
+  --primary-color: #1f6feb;            /* light blue accent */
+  --primary-dark-color: #2d5891;
+  --page-background-color: #ffffff;
+  --page-foreground-color: #0b1220;
+
+  --separator-color: #e6eefc;
+  --side-nav-background: #dfebf7;      /* very light blue wash */
+  --code-background: #edeef4;          /* GitHub-ish code bg */
+  --border-radius: 8px;
+
+  --font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+
+  /*Change height of search box*/
+  --searchbar-height: 25px;
+
+  --side-nav-fixed-width: 270px;
+}
+
+
+
+/* Top bar / title area: white with subtle border (GSL vibe) */
+#titlearea {
+  background: #dfebf7;
+  border-bottom: 1px solid var(--separator-color);
+}
+
+#projectname {
+  font-weight: 650;
+}
+
+
+
+/* Sidebar */
+/* #side-nav, #nav-tree {
+  background: var(--side-nav-background);
+} */
+#nav-tree .selected {
+  background: rgba(31, 111, 235, 0.10);
+  border-left: 1px solid var(--primary-color);
+}
+
+/* Links */
+a, a:visited {
+  color: var(--primary-color);
+}
+a:hover {
+  color: var(--primary-dark-color);
+  text-decoration: underline;
+}
+
+/* Content cards / boxes (make doxygen boxes less “heavy”) */
+.memitem, .memproto, .memdoc, .fragment, .contents {
+  border-radius: var(--border-radius);
+}
+.memproto {
+  border: 1px solid var(--separator-color);
+  background: #ffffff;
+}
+.memdoc {
+  border: 1px solid var(--separator-color);
+  border-top: 0;
+}
+
+/* Code blocks */
+div.fragment, pre.fragment, code, .line {
+  background: var(--code-background) !important;
+}
+
+/* Hide duplicate API entries in sidebar (keep accessible via Full API page) */
+/* #side-nav a[href$="namespaces.html"],
+#side-nav a[href$="annotated.html"],
+#side-nav a[href$="classes.html"],
+#side-nav a[href$="classindex.html"],
+#side-nav a[href$="hierarchy.html"] {
+  display: none !important;
+} */

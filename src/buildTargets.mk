@@ -71,11 +71,11 @@ docs:
 ## Builds code documentation using doxygen, if available
 doxy:
 	doxygen ./doc/doxygen/Doxyfile
-	( cd ./doc/latex && make )
-	cp ./doc/latex/refman.pdf ./doc/documentation.pdf
-	make docs
-	cp ./doc/ampsci.pdf ./docs/ampsci.pdf 2>/dev/null || :
-	( cd ./doc/latex && make clean)
+# 	( cd ./doc/latex && make )
+# 	cp ./doc/latex/refman.pdf ./doc/documentation.pdf
+# 	make docs
+# 	cp ./doc/ampsci.pdf ./docs/ampsci.pdf 2>/dev/null || :
+# 	( cd ./doc/latex && make clean)
 
 do_the_chicken_dance:
 	@echo 'Why would I do that?'

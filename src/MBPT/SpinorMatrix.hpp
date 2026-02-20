@@ -202,8 +202,8 @@ public:
 
   //============================================================================
 
-  //! Matrix multplication: C=A*B := Cij = \sum_k Aik*Bkj.
-  //! Note: integration measure not included: call .drj() first to include it!
+  //! Matrix multplication: \f$ C=A\times B \equiv C_{ij} = \sum_k A_{ik}\,B_{kj}. \f$
+  //! Note: integration measure not automatically included: call .drj() first to include it!
   [[nodiscard]] friend SpinorMatrix<T> operator*(const SpinorMatrix<T> &a,
                                                  const SpinorMatrix<T> &b) {
 

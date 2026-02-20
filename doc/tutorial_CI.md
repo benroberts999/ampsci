@@ -16,12 +16,12 @@ This assumes you already have ampsci compiled and have a basic understanding of 
 
 For an $M$-valence atomic system, the effective Hamiltonian is
 
-$$~
+$$
     H_{\rm CI} = H_{\rm CI}^1 + H_{\rm CI}^2 =
     \sum_i^M \left(h^{\rm HF}(r_i) + \Sigma^1(r_i)\right)
     +\sum_{i < j}\left(r^{-1}_{ij}
     +\Sigma^2(r_i,r_j)\right),
-~$$
+$$
 
 where $h^{\rm HF}$ is one-particle the Hartree-Fock Hamiltonian (with HF potential due to the $N-M$ core electrons), $\Sigma^1$ accounts for the core-valence correlations, and $\Sigma^2$ accounts for the screening of the valence-valence Coulomb interaction by the core electrons.
 
@@ -29,17 +29,17 @@ The CI routines in ampsci are only for two-valence systems: $M=2$.
 
 In the CI method, approximate valence-space wavefunctions, $\Psi$, are expanded over $M$-particle wavefunctions called Configuration-State Functions (CSFs), $\psi_I$:
 
-$$~
+$$
     \left|{\Psi,J^\pi J_z}\right\rangle = \sum_I c_I  \left|{I,J^\pi J_z}\right\rangle.
-~$$
+$$
 
 The CSFs are combinations of Slater-determinants formed from single-particle eigenfunctions.
 The CSFs are eigenfunctions of $J^2$, $J_z$, and parity ($\pi$).
 For each $J^\pi$ symmetry, the energies and wavefunctions (expansion coefficients) are found by solving the Schr\"odinger equation, which for a finite set of $N_{CSF}$ CSFs, is cast to an $N_{CSF}^2$ eigenvalue problem:
 
-$$~
+$$
     \sum_J c_J\left\langle{I}\right|H_{\rm eff}\left|{J}\right\rangle = E c_I,
-~$$
+$$
 
 For the single-particle basis, we use eigenfunctions of the same $h^{\rm HF}$ Hamiltonian from the CI Hamiltonian. This is known as the $V^{N-M}$ approximation, with simplifies the MBPT part of the calculation, and is very accurate for two-valence systems.
 
