@@ -63,7 +63,7 @@ public:
                         StateType st = StateType::ket,
                         bool incl_dV = true) const;
 
-  //! Forms \delta Psi_v for valence state Fv for all kappas (see form_dPsi)
+  //! Forms \f$ [\delta \psi_v]_\kappa \f$ for valence state \f$\psi_v\f$, for all allowed \f$\kappas\f$ (see solve_dPsi)
   std::vector<DiracSpinor> form_dPsis(const DiracSpinor &Fv, const double omega,
                                       dPsiType XorY,
                                       const std::vector<DiracSpinor> &spectrum,

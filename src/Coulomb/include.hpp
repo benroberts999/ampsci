@@ -1,3 +1,4 @@
+// Auto-generated ampsci include file
 #pragma once
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/QkTable.hpp"

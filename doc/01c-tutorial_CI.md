@@ -1,10 +1,11 @@
-# Advanced Tutorial: CI+MBPT
+\page tutorial_ci Advanced Tutorial: CI+MBPT
 
-:::: Advanced ampsci tutorial: CI+MBPT for two-valence atoms
+\brief CI+MBPT calculations for two-valence atoms
 
 This assumes you already have ampsci compiled and have a basic understanding of how to run and use it.
 
-* See [doc/tutorial.md](/doc/tutorial.md) for the basic tutorial
+* See [Compilation](\ref compilation) for compilation instructions
+* See [Basic Tutorial](\ref tutorial_basic) for getting started if unfamiliar
 * See [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full description of the physics
 
 ## Contents
@@ -14,34 +15,34 @@ This assumes you already have ampsci compiled and have a basic understanding of 
 
 ## CI+MBPT overview: Configuration Interaction with Many-Body Perturbation Theory <a name="cimbpt"></a>
 
-For an $M$-valence atomic system, the effective Hamiltonian is
+For an \f$M\f$-valence atomic system, the effective Hamiltonian is
 
-$$
+\f[
     H_{\rm CI} = H_{\rm CI}^1 + H_{\rm CI}^2 =
     \sum_i^M \left(h^{\rm HF}(r_i) + \Sigma^1(r_i)\right)
     +\sum_{i < j}\left(r^{-1}_{ij}
     +\Sigma^2(r_i,r_j)\right),
-$$
+\f]
 
-where $h^{\rm HF}$ is one-particle the Hartree-Fock Hamiltonian (with HF potential due to the $N-M$ core electrons), $\Sigma^1$ accounts for the core-valence correlations, and $\Sigma^2$ accounts for the screening of the valence-valence Coulomb interaction by the core electrons.
+where \f$h^{\rm HF}\f$ is one-particle the Hartree-Fock Hamiltonian (with HF potential due to the \f$N-M\f$ core electrons), \f$\Sigma^1\f$ accounts for the core-valence correlations, and \f$\Sigma^2\f$ accounts for the screening of the valence-valence Coulomb interaction by the core electrons.
 
-The CI routines in ampsci are only for two-valence systems: $M=2$.
+The CI routines in ampsci are only for two-valence systems: \f$M=2\f$.
 
-In the CI method, approximate valence-space wavefunctions, $\Psi$, are expanded over $M$-particle wavefunctions called Configuration-State Functions (CSFs), $\psi_I$:
+In the CI method, approximate valence-space wavefunctions, \f$\Psi\f$, are expanded over \f$M\f$-particle wavefunctions called Configuration-State Functions (CSFs), \f$\psi_I\f$:
 
-$$
+\f[
     \left|{\Psi,J^\pi J_z}\right\rangle = \sum_I c_I  \left|{I,J^\pi J_z}\right\rangle.
-$$
+\f]
 
 The CSFs are combinations of Slater-determinants formed from single-particle eigenfunctions.
-The CSFs are eigenfunctions of $J^2$, $J_z$, and parity ($\pi$).
-For each $J^\pi$ symmetry, the energies and wavefunctions (expansion coefficients) are found by solving the Schr\"odinger equation, which for a finite set of $N_{CSF}$ CSFs, is cast to an $N_{CSF}^2$ eigenvalue problem:
+The CSFs are eigenfunctions of \f$J^2\f$, \f$J_z\f$, and parity (\f$\pi\f$).
+For each \f$J^\pi\f$ symmetry, the energies and wavefunctions (expansion coefficients) are found by solving the Schr\"odinger equation, which for a finite set of \f$N_{CSF}\f$ CSFs, is cast to an \f$N_{CSF}^2\f$ eigenvalue problem:
 
-$$
+\f[
     \sum_J c_J\left\langle{I}\right|H_{\rm eff}\left|{J}\right\rangle = E c_I,
-$$
+\f]
 
-For the single-particle basis, we use eigenfunctions of the same $h^{\rm HF}$ Hamiltonian from the CI Hamiltonian. This is known as the $V^{N-M}$ approximation, with simplifies the MBPT part of the calculation, and is very accurate for two-valence systems.
+For the single-particle basis, we use eigenfunctions of the same \f$h^{\rm HF}\f$ Hamiltonian from the CI Hamiltonian. This is known as the \f$V^{N-M}\f$ approximation, with simplifies the MBPT part of the calculation, and is very accurate for two-valence systems.
 
 -----------
 
@@ -114,7 +115,7 @@ For a simple example, we'll consider neutral Mg.
 
 The first part of the input file will be familiar from previous examples.
 We don't need valence states in Hartree-Fock, so, this can be left blank.
-We don't include the two valence states in the core, hence use $V^{N-2}$ approximation.
+We don't include the two valence states in the core, hence use \f$V^{N-2}\f$ approximation.
 
 ```java
 Atom {
@@ -145,8 +146,8 @@ CI{
 }
 ```
 
-The `ci_basis` options means we will use two-particle CSFs formed from combinations of single-particle basis states up to $n=20$ for $s$, $p$, $d$, and $f$ states.
-We will find the lowest 3 solutions for each $J^\pi$ symmetry up to $J=2$.
+The `ci_basis` options means we will use two-particle CSFs formed from combinations of single-particle basis states up to \f$n=20\f$ for \f$s\f$, \f$p\f$, \f$d\f$, and \f$f\f$ states.
+We will find the lowest 3 solutions for each \f$J^\pi\f$ symmetry up to \f$J=2\f$.
 
 The first part of the output:
 
@@ -168,7 +169,7 @@ The first part of the output:
   Writing 15896631 integrals to file: Mg2.qk..
 ```
 
-The code pre-computes all the two-body Coulomb integrals $Q^k_{ijkl}$.
+The code pre-computes all the two-body Coulomb integrals \f$Q^k_{ijkl}\f$.
 This uses a significant memory footprint, but makes the subsequent calculations much faster.
 It only calculates the required integrals. Even though our total basis was up to `30spdfghi`, we only used `20spdf` in the CI expansion (the remaining basis states will be used for MBPT in the next example).
 
@@ -213,9 +214,9 @@ The output for each symmetry will look something like this:
     3s4d   1^D_2
 ```
 
-After each line, the code will list all CSFs that contribute to the solution at above the 1% level (i.e., with $c_I^2>0.01$).
-The code also calculates the $g$-factor (without RPAd), which are useful for level identification.
-The term symbol (${}^{2S+1}L_J$ e.g., 1^D_2) and leading configuration are given -- the term symbol is 'guessed' based on the g-factor. It is not well defined relativistically, so should be seen as indicative only.
+After each line, the code will list all CSFs that contribute to the solution at above the 1% level (i.e., with \f$c_I^2>0.01\f$).
+The code also calculates the \f$g\f$-factor (without RPAd), which are useful for level identification.
+The term symbol (\f${}^{2S+1}L_J\f$ e.g., 1^D_2) and leading configuration are given -- the term symbol is 'guessed' based on the g-factor. It is not well defined relativistically, so should be seen as indicative only.
 
 The final output shows a summary of the calculation:
 
@@ -244,28 +245,28 @@ The final output shows a summary of the calculation:
 Where `conf` is the leading configuration (in non-relativistic notation), and the `%` column shows the combined constructions from each relativistic configuration with the same non-relativistic configuration
 (e.g., `3s3d` may have contributions from `3s3d-` and `3s3d+`).
 
-| Level  |             | AMPSCI  | Exp.    | $\Delta$ |
+| Level  |             | AMPSCI  | Exp.    | \f$\Delta\f$ |
 |--------|-------------|---------|---------|----------|
-| $3s^2$ | ${}^1S_0$   | -179539 | -182939 | -1.9%   |
-| $3s4s$ | ${}^1S_0$   | 42665   | 43503   | -1.9%   |
-| $3s6s$ | ${}^1S_0$   | 51644   | 52556   | -1.7%   |
-| $3s4s$ | ${}^3S_1$   | 40403   | 41197   | -1.9%   |
-| $3s3d$ | ${}^3D_1$   | 46971   | 47957   | -2.1%   |
-| $3s5s$ | ${}^3S_1$   | 50973   | 51873   | -1.7%   |
-| $3s3d$ | ${}^1D_2$   | 45121   | 46403   | -2.8%   |
-| $3s3d$ | ${}^3D_2$   | 46971   | 47957   | -2.1%   |
-| $3s4d$ | ${}^1D_2$   | 52038   | 53135   | -2.1%   |
-| $3s3p$ | ${}^3P^o_0$ | 20908   | 21850   | -4.3%   |
-| $3s4p$ | ${}^3P^o_0$ | 46917   | 47841   | -1.9%   |
-| $3s6p$ | ${}^3P^o_0$ | 53311   | 54249   | -1.7%   |
-| $3s3p$ | ${}^3P^o_1$ | 20928   | 21870   | -4.3%   |
-| $3s3p$ | ${}^1P^o_1$ | 34491   | 35051   | -1.6%   |
-| $3s4p$ | ${}^3P^o_1$ | 46920   | 47844   | -1.9%   |
-| $3s3p$ | ${}^3P^o_2$ | 20969   | 21911   | -4.3%   |
-| $3s4p$ | ${}^3P^o_2$ | 46927   | 47851   | -1.9%   |
-| $3s6p$ | ${}^3P^o_2$ | 53315   | 54253   | -1.7%   |
+| \f$3s^2\f$ | \f${}^1S_0\f$   | -179539 | -182939 | -1.9%   |
+| \f$3s4s\f$ | \f${}^1S_0\f$   | 42665   | 43503   | -1.9%   |
+| \f$3s6s\f$ | \f${}^1S_0\f$   | 51644   | 52556   | -1.7%   |
+| \f$3s4s\f$ | \f${}^3S_1\f$   | 40403   | 41197   | -1.9%   |
+| \f$3s3d\f$ | \f${}^3D_1\f$   | 46971   | 47957   | -2.1%   |
+| \f$3s5s\f$ | \f${}^3S_1\f$   | 50973   | 51873   | -1.7%   |
+| \f$3s3d\f$ | \f${}^1D_2\f$   | 45121   | 46403   | -2.8%   |
+| \f$3s3d\f$ | \f${}^3D_2\f$   | 46971   | 47957   | -2.1%   |
+| \f$3s4d\f$ | \f${}^1D_2\f$   | 52038   | 53135   | -2.1%   |
+| \f$3s3p\f$ | \f${}^3P^o_0\f$ | 20908   | 21850   | -4.3%   |
+| \f$3s4p\f$ | \f${}^3P^o_0\f$ | 46917   | 47841   | -1.9%   |
+| \f$3s6p\f$ | \f${}^3P^o_0\f$ | 53311   | 54249   | -1.7%   |
+| \f$3s3p\f$ | \f${}^3P^o_1\f$ | 20928   | 21870   | -4.3%   |
+| \f$3s3p\f$ | \f${}^1P^o_1\f$ | 34491   | 35051   | -1.6%   |
+| \f$3s4p\f$ | \f${}^3P^o_1\f$ | 46920   | 47844   | -1.9%   |
+| \f$3s3p\f$ | \f${}^3P^o_2\f$ | 20969   | 21911   | -4.3%   |
+| \f$3s4p\f$ | \f${}^3P^o_2\f$ | 46927   | 47851   | -1.9%   |
+| \f$3s6p\f$ | \f${}^3P^o_2\f$ | 53315   | 54253   | -1.7%   |
 
-The table shows the results of the calculation, and comparison to experimental excitation energies, in units of ${\rm cm}^{-1}$ (for the ground state, the ionisation potential is instead shown).
+The table shows the results of the calculation, and comparison to experimental excitation energies, in units of \f${\rm cm}^{-1}\f$ (for the ground state, the ionisation potential is instead shown).
 The agreement is at the ~few % level.
 
 -----------
@@ -287,9 +288,9 @@ CI{
 ```
 
 This will use the full basis (from `Basis{}`) for the MBPT part. In this case, it was `30spdfghi`.
-(Different subsets of the full basis can be used for the internal lines of the $\Sigma^1$ and $\Sigma^2$ diagrams using the `s1_basis` and `s2_basis` options, respectively).
+(Different subsets of the full basis can be used for the internal lines of the \f$\Sigma^1\f$ and \f$\Sigma^2\f$ diagrams using the `s1_basis` and `s2_basis` options, respectively).
 
-The code will now calculate more $Q^k$ Coulomb integrals, since they are required in the MBPT calculations. It will read in the existing file (if there is one), so it doesn't need to start from scratch, and only calculate the missing integrals:
+The code will now calculate more \f$Q^k\f$ Coulomb integrals, since they are required in the MBPT calculations. It will read in the existing file (if there is one), so it doesn't need to start from scratch, and only calculate the missing integrals:
 
 ```text
   Calculate two-body Coulomb integrals: Q^k_abcd
@@ -314,10 +315,10 @@ The code will now calculate more $Q^k$ Coulomb integrals, since they are require
 ```
 
 This uses close to 5Gb of memory, so may already be difficulty on some laptops.
-Then, is will calculate the matrix elements of the two-body $\Sigma^2$ operator.
+Then, is will calculate the matrix elements of the two-body \f$\Sigma^2\f$ operator.
 This is the slow part of the calculation.
-Fortunately, the $\Sigma^2$ correction is rather small, and good accuracy can be obtained by only including matrix elements between the lowest few valence-space basis states.
-By default, it will include up to $n=n_{\rm core}+3$, where $n_{\rm core}$ is the largest $n$ in the core, for each $l$ in the `ci_basis`.
+Fortunately, the \f$\Sigma^2\f$ correction is rather small, and good accuracy can be obtained by only including matrix elements between the lowest few valence-space basis states.
+By default, it will include up to \f$n=n_{\rm core}+3\f$, where \f$n_{\rm core}\f$ is the largest \f$n\f$ in the core, for each \f$l\f$ in the `ci_basis`.
 This can be controlled manually with the `cis2_basis` option.
 
 ```text
@@ -342,30 +343,30 @@ This can be controlled manually with the `cis2_basis` option.
   Writing 130278 integrals to file: Mg2_1_30spdfghi_8.sk..
 ```
 
-The `For: 5spdf, using 30spdfghi` means the external lines in $\Sigma_{ijkl}$ include up to `5spdf`, while the internal lines use the full `30spdfghi` basis.
+The `For: 5spdf, using 30spdfghi` means the external lines in \f$\Sigma_{ijkl}\f$ include up to `5spdf`, while the internal lines use the full `30spdfghi` basis.
 
 This leads to a significant improvement in the accuracy:
 
-| Level  |             | AMPSCI  | Exp.    | $\Delta$ |
+| Level  |             | AMPSCI  | Exp.    | \f$\Delta\f$ |
 |--------|-------------|---------|---------|----------|
-| $3s^2$ | ${}^1S_0$   | -182804 | -182939 | -0.07%   |
-| $3s4s$ | ${}^1S_0$   | 43490   | 43503   | -0.03%   |
-| $3s6s$ | ${}^1S_0$   | 52526   | 52556   | -0.06%   |
-| $3s4s$ | ${}^3S_1$   | 41208   | 41197   | 0.03%    |
-| $3s3d$ | ${}^3D_1$   | 47957   | 47957   | 0.00%    |
-| $3s5s$ | ${}^3S_1$   | 51875   | 51873   | 0.00%    |
-| $3s3d$ | ${}^1D_2$   | 46385   | 46403   | -0.04%   |
-| $3s3d$ | ${}^3D_2$   | 47960   | 47957   | 0.01%    |
-| $3s4d$ | ${}^1D_2$   | 53113   | 53135   | -0.04%   |
-| $3s3p$ | ${}^3P^o_0$ | 21822   | 21850   | -0.13%   |
-| $3s4p$ | ${}^3P^o_0$ | 47837   | 47841   | -0.01%   |
-| $3s6p$ | ${}^3P^o_0$ | 54271   | 54249   | 0.04%    |
-| $3s3p$ | ${}^3P^o_1$ | 21844   | 21870   | -0.12%   |
-| $3s3p$ | ${}^1P^o_1$ | 35090   | 35051   | 0.11%    |
-| $3s4p$ | ${}^3P^o_1$ | 47840   | 47844   | -0.01%   |
-| $3s3p$ | ${}^3P^o_2$ | 21876   | 21911   | -0.16%   |
-| $3s4p$ | ${}^3P^o_2$ | 47845   | 47851   | -0.01%   |
-| $3s6p$ | ${}^3P^o_2$ | 54272   | 54253   | 0.03%    |
+| \f$3s^2\f$ | \f${}^1S_0\f$   | -182804 | -182939 | -0.07%   |
+| \f$3s4s\f$ | \f${}^1S_0\f$   | 43490   | 43503   | -0.03%   |
+| \f$3s6s\f$ | \f${}^1S_0\f$   | 52526   | 52556   | -0.06%   |
+| \f$3s4s\f$ | \f${}^3S_1\f$   | 41208   | 41197   | 0.03%    |
+| \f$3s3d\f$ | \f${}^3D_1\f$   | 47957   | 47957   | 0.00%    |
+| \f$3s5s\f$ | \f${}^3S_1\f$   | 51875   | 51873   | 0.00%    |
+| \f$3s3d\f$ | \f${}^1D_2\f$   | 46385   | 46403   | -0.04%   |
+| \f$3s3d\f$ | \f${}^3D_2\f$   | 47960   | 47957   | 0.01%    |
+| \f$3s4d\f$ | \f${}^1D_2\f$   | 53113   | 53135   | -0.04%   |
+| \f$3s3p\f$ | \f${}^3P^o_0\f$ | 21822   | 21850   | -0.13%   |
+| \f$3s4p\f$ | \f${}^3P^o_0\f$ | 47837   | 47841   | -0.01%   |
+| \f$3s6p\f$ | \f${}^3P^o_0\f$ | 54271   | 54249   | 0.04%    |
+| \f$3s3p\f$ | \f${}^3P^o_1\f$ | 21844   | 21870   | -0.12%   |
+| \f$3s3p\f$ | \f${}^1P^o_1\f$ | 35090   | 35051   | 0.11%    |
+| \f$3s4p\f$ | \f${}^3P^o_1\f$ | 47840   | 47844   | -0.01%   |
+| \f$3s3p\f$ | \f${}^3P^o_2\f$ | 21876   | 21911   | -0.16%   |
+| \f$3s4p\f$ | \f${}^3P^o_2\f$ | 47845   | 47851   | -0.01%   |
+| \f$3s6p\f$ | \f${}^3P^o_2\f$ | 54272   | 54253   | 0.03%    |
 
 The discrepancies are now at the level of 0.1% or below.
 
@@ -433,4 +434,4 @@ The output is something like:
 
 (this is for a reduced set of levels).
 
-This implies the lifetime of the first ${}^1P^o_1$ level is 2.12 ns, in excellent agreement with experiment.
+This implies the lifetime of the first \f${}^1P^o_1\f$ level is 2.12 ns, in excellent agreement with experiment.

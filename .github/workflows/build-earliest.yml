@@ -29,7 +29,7 @@ jobs:
             # Update and install packages
             apt-get update -y && \
             apt-get install -y make liblapack-dev libblas-dev libgsl-dev && \
-            cp ./doc/examples/Makefile ./ && \
+            cp ./doc/Makefile ./ && \
             make CXX=g++ OMPLIB=-fopenmp && \
             ./ampsci -v
           "
@@ -42,7 +42,7 @@ jobs:
       #     docker run --rm -v $PWD:/workspace -w /workspace llvm/clang:6 bash -c "
       #       apt-get update -y && \
       #       apt-get install -y make liblapack-dev libblas-dev libgsl-dev && \
-      #       cp ./doc/examples/Makefile ./ && \
+      #       cp ./doc/Makefile ./ && \
       #       make CXX=clang++-6 OMPLIB= && \
       #       ./ampsci -v
       #     "

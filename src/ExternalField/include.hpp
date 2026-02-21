@@ -1,3 +1,4 @@
+// Auto-generated ampsci include file
 #pragma once
 #include "ExternalField/CorePolarisation.hpp"
 #include "ExternalField/DiagramRPA.hpp"

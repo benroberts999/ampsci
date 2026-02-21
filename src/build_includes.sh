@@ -1,4 +1,10 @@
 #!/usr/bin/env bash
+
+## This script recursivly builds an include.hpp file in each sub directory inside src
+## This inlcude.hpp includes all .hpp files in that directory, and any include.hpp files in
+## any immediate sub-directories.
+## Therefore including dir/include.hpp will always provide access to everything inside dir/
+
 set -euo pipefail
 
 SRC_DIR="src"
@@ -33,6 +39,7 @@ for dir in "${dirs[@]}"; do
   fi
 
   {
+    echo "// Auto-generated ampsci include file"
     echo "#pragma once"
 
     # Include headers in this directory

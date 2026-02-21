@@ -2,7 +2,7 @@ name: Docs
 
 on:
   push:
-    branches: [ "main", "dev" ]
+    branches: [ "main", "dev", "UpdateDocs" ]
     # branches: [ "TestWorkflows" ]
   pull_request:
     branches: [ "main", "dev" ]
@@ -33,32 +33,32 @@ jobs:
         git config --global user.email "41898282+github-actions[bot]@users.noreply.github.com"
         git fetch
         git checkout gh-pages
-        git reset --hard origin/main
+        git reset --hard origin/${GITHUB_REF_NAME}
 
         # Copy the Makefile to the working directory
-        cp ./doc/examples/Makefile ./
+        cp ./doc/Makefile ./
 
         # Adjust Markdown links for compatibility between GitHub and Doxygen
-        for FILE in ./doc/*.md; do
-          # Fix relative links to /doc/
-          sed -i 's%(/doc/%(doc/%g' $FILE
-          # Fix README links
-          sed -i 's%(/README%(README%g' $FILE
-          # Convert src links to GitHub URLs
-          sed -i 's%(/src/%(https://github.com/benroberts999/ampsci/tree/main/src/%g' $FILE
-          # Replace custom tags with Doxygen-compatible tags
-          sed -i 's%::::%\brief%g' $FILE
-        done
+        # for FILE in ./doc/*.md; do
+        #   # Fix relative links to /doc/
+        #   sed -i 's%(/doc/%(doc/%g' $FILE
+        #   # Fix README links
+        #   sed -i 's%(/README%(README%g' $FILE
+        #   # Convert src links to GitHub URLs
+        #   sed -i 's%(/src/%(https://github.com/benroberts999/ampsci/tree/main/src/%g' $FILE
+        #   # Replace custom tags with Doxygen-compatible tags
+        #   sed -i 's%::::%\brief%g' $FILE
+        # done
 
-        # Adjust LaTeX math delimiters for Doxygen
-        for FILE in ./doc/tutorial*.md; do
-          # Replace $$~ with \f[
-          sed -i -e 's/\$\$~/\\f\[/g' $FILE
-          # Replace ~$$ with \f]
-          sed -i -e 's/~\$\$/\\f\]/g' $FILE
-          # Replace $ with \f$
-          sed -i -e 's/\$/\\f\$/g' $FILE
-        done
+        # # Adjust LaTeX math delimiters for Doxygen
+        # for FILE in ./doc/tutorial*.md; do
+        #   # Replace $$~ with \f[
+        #   sed -i -e 's/\$\$~/\\f\[/g' $FILE
+        #   # Replace ~$$ with \f]
+        #   sed -i -e 's/~\$\$/\\f\]/g' $FILE
+        #   # Replace $ with \f$
+        #   sed -i -e 's/\$/\\f\$/g' $FILE
+        # done
 
         # Remove non-ASCII characters from header files
         for FILE in ./src/*.h* ./src/*/*.h* ./src/*/*/*.h*; do
@@ -77,14 +77,19 @@ jobs:
 
     # Step 4a: Build the documentation
     - name: "Build the documentation"
-      run: make doxy
+      run: |
+        make docs
+        rm -rf ./docs/*
+        cp -r ./doc/html/ ./docs/
+        touch ./.nojekyll
+        touch ./docs/.nojekyll
 
     # Step 4b: Fetch badges and extras (can fail)
     - name: "Download images and badges"
       continue-on-error: true
       run: |
-        wget https://cdn.mathjax.org/mathjax/latest/MathJax.js -O ./docs/MathJax.js || true
         echo ampsci.dev > ./docs/CNAME
+        echo nojekyll > ./docs/.nojekyll
         wget https://github.com/benroberts999/ampsci/actions/workflows/tests.yml/badge.svg -O ./docs/tests-badge.svg || true
         wget https://github.com/benroberts999/ampsci/actions/workflows/build.yml/badge.svg -O ./docs/build-badge.svg || true
         wget https://github.com/benroberts999/ampsci/actions/workflows/macOS.yml/badge.svg -O ./docs/macOS-badge.svg || true
@@ -92,9 +97,11 @@ jobs:
 
     # Step 5: Commit and push documentation to gh-pages
     - name: "Commit+push documentation to gh-pages"
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && ( github.ref == 'refs/heads/main' || github.ref == 'refs/heads/UpdateDocs')
       run: |
         git add .
-        git add docs/* -f
+        git add ./.nojekyll -f
+        git add ./docs/* -f
+        git add ./docs/.nojekyll -f
         git commit -a -m "Make documentation [GH Actions]"
         git push origin gh-pages -f

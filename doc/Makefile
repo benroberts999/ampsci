@@ -1,4 +1,5 @@
 ################################################################################
+# Example makefile for ampsci. Copy to working directory, and rename to "Makefile"
 # Current options are set up for standard linux
 # You may need to tweak the options
 ################################################################################

@@ -99,11 +99,11 @@ struct is_complex<std::complex<T>> : std::true_type {};
 //! User-defined type-trait: Checks whether T is a std::complex type
 /*! @details
   For example:
-  static_assert(!is_complex_v<double>);
-  static_assert(!is_complex_v<float>);
-  static_assert(is_complex_v<std::complex<double>>);
-  static_assert(is_complex_v<std::complex<float>>);
-  static_assert(is_complex<std::complex<float>>::value);
+  `static_assert(!is_complex_v<double>);`
+  `static_assert(!is_complex_v<float>);`
+  `static_assert(is_complex_v<std::complex<double>>);`
+  `static_assert(is_complex_v<std::complex<float>>);`
+  `static_assert(is_complex<std::complex<float>>::value);`
 */
 template <typename T>
 constexpr bool is_complex_v = is_complex<T>::value;

@@ -32,7 +32,7 @@ if [ ${machine} == "UNKNOWN:${unameOut}" ]; then
 fi
 
 # Copy across example Makefile and input file (if not already there)
-cp -n ./doc/examples/Makefile ./
+cp ./doc/Makefile ./
 cp -n ./doc/examples/ampsci.in ./ampsci.in
 
 # Minimum versions of compilers:

@@ -1,3 +1,4 @@
+// Auto-generated ampsci include file
 #pragma once
 #include "DiracODE/AdamsMoulton.hpp"
 #include "DiracODE/AsymptoticSpinor.hpp"

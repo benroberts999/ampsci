@@ -68,7 +68,8 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      double eps_target = 1.0e-9,
                      const MBPT::CorrelationPotential *const Sigma = nullptr);
 
-//! Directly findes dF = \sum_n |n><n|hFa> / (ea - en + omega) - mainly for tests
+//! Directly defines dF via explicit sum over basis: mainly for tests.
+//! \f$ \delta F = \sum_n |n\rangle\langle n|h|Fa\rangle / (e_a - e_n + \omega) \f$
 DiracSpinor solveMixedState_basis(const DiracSpinor &Fa, const DiracSpinor &hFa,
                                   double omega,
                                   const std::vector<DiracSpinor> &basis);

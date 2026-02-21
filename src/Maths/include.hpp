@@ -1,3 +1,4 @@
+// Auto-generated ampsci include file
 #pragma once
 #include "Maths/BSpline.hpp"
 #include "Maths/Grid.hpp"

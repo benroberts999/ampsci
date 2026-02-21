@@ -1,3 +1,4 @@
+// Auto-generated ampsci include file
 #pragma once
 #include "Physics/AtomData.hpp"
 #include "Physics/AtomData_PeriodicTable.hpp"

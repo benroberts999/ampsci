@@ -37,7 +37,7 @@ jobs:
     # This step prepares the environment by copying necessary files and setting permissions
     - name: setup
       continue-on-error: true
-      run: cp ./doc/examples/Makefile ./ && chmod +x ./src/tests/lcov.sh 
+      run: cp ./doc/Makefile ./ && chmod +x ./src/tests/lcov.sh 
 
     # Step 3: Build the project and generate coverage report
     # This step compiles the project and uses LCOV to generate a coverage report

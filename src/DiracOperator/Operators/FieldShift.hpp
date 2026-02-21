@@ -31,7 +31,7 @@ public:
   std::string name() const override { return std::string("Field shift"); }
   std::string units() const override { return "au"; }
 
-  //! \delta <r^2> (in fm^2)
+  //! \f$\delta <r^2>\f$ (in fm^2)
   double dr2() const { return m_dr2; }
   //! \delta <r^4> (in fm^2)
   double dr4() const { return m_dr4; }

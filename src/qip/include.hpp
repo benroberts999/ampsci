@@ -1,3 +1,4 @@
+// Auto-generated ampsci include file
 #pragma once
 #include "qip/Array.hpp"
 #include "qip/Maths.hpp"

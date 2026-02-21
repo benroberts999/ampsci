@@ -4,7 +4,6 @@ name: Build (linux)
 on:
   push:
     branches: [ "main", "dev" ]
-    # branches: [ "TestWorkflows" ]
   pull_request:
     branches: [ "main", "dev" ]
 
@@ -40,7 +39,7 @@ jobs:
     # Step 3: Set up the environment
     - name: "Set up environment"
       run: |
-        cp ./doc/examples/Makefile ./
+        cp ./doc/Makefile ./
         cp ./doc/examples/ampsci.in ./ampsci.in
 
     # Step 4: Build the project using the matrix configuration

@@ -1,3 +1,4 @@
+// Auto-generated ampsci include file
 #pragma once
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"

@@ -3,7 +3,7 @@
   <!-- Navigation index tabs for HTML output -->
   <navindex>
     <tab type="mainpage" visible="yes" title="Home"/>
-    <tab type="pages" visible="yes" title="Usage and Compilation" intro="Basic usage and compilation instructions"/>
+    <tab type="pages" visible="yes" title="Usage and Tutorials" intro=""/>
     <tab type="namespaces" visible="yes" title="Full API">
       <tab type="namespacelist" visible="yes" title="Namespaces" intro="Namespaces"/>
       <tab type="classlist" visible="yes" title="Classes" intro=""/>

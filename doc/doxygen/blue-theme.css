@@ -1,6 +1,6 @@
 
 /* Core palette + typography */
-:root {
+html {
   --primary-color: #1f6feb;            /* light blue accent */
   --primary-dark-color: #2d5891;
   --page-background-color: #ffffff;
@@ -19,8 +19,6 @@
   --side-nav-fixed-width: 270px;
 }
 
-
-
 /* Top bar / title area: white with subtle border (GSL vibe) */
 #titlearea {
   background: #dfebf7;
@@ -30,8 +28,6 @@
 #projectname {
   font-weight: 650;
 }
-
-
 
 /* Sidebar */
 /* #side-nav, #nav-tree {
@@ -77,3 +73,4 @@ div.fragment, pre.fragment, code, .line {
 #side-nav a[href$="hierarchy.html"] {
   display: none !important;
 } */
+

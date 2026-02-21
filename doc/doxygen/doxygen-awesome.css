@@ -168,7 +168,7 @@ html {
     }
 }
 
- @media (prefers-color-scheme: dark) {
+  @media (prefers-color-scheme: dark) {
     html:not(.light-mode) {
         color-scheme: dark;
 
@@ -227,10 +227,10 @@ html {
         --fragment-linenumber-background: #35393c;
         --fragment-linenumber-border: #1f1f1f;
     }
-}
+} 
 
 /* dark mode variables are defined twice, to support both the dark-mode without and with doxygen-awesome-darkmode-toggle.js */
- html.dark-mode {
+html.dark-mode {
     color-scheme: dark;
 
     --primary-color: #1982d2;
@@ -287,7 +287,7 @@ html {
     --fragment-linenumber-color: #cccccc;
     --fragment-linenumber-background: #35393c;
     --fragment-linenumber-border: #1f1f1f;
-}
+} 
 
 body {
     color: var(--page-foreground-color);
@@ -3018,3 +3018,16 @@ html.dark-mode .bordered_image object[type="image/svg+xml"] /* doxygen 1.9.3 */ 
 .primary-button:hover {
     background: var(--primary-dark-color);
 }
+
+/* Top bar / title area: white with subtle border (GSL vibe) */
+#titlearea {
+  background: #dfebf7;
+  border-bottom: 1px solid var(--separator-color);
+}
+
+#projectname {
+  font-weight: 650;
+}
+
+
+

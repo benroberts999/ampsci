@@ -1,3 +1,4 @@
+// Auto-generated ampsci include file
 #pragma once
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/Feynman.hpp"

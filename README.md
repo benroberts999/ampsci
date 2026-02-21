@@ -18,7 +18,7 @@ Designed to be fast, accurate, and easy to use.
 The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
 
 * See [ampsci.dev/](https://ampsci.dev/) for full documentation
-* A basic step-by-step introduction is here: [doc/tutorial.md](doc/tutorial.md)
+  * Includes basic step-by-step introduction and tutorials
 * A full description of the physics methods and approximations, including references,
 is given in the physics documentation: [ampsci.pdf][man-url].
 
@@ -37,6 +37,8 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 
 ## Compilation and usage
 
+* Full documentation: [ampsci.dev/](https://ampsci.dev/)
+
 ### Quick start
 
 * The `setup.sh` bash script should compile and build ampsci (uses Make)
@@ -48,14 +50,12 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 * If there are issue with compilation
   * See full compilation instructions: [doc/compilation.md](doc/compilation.md)
 * Check out the example input files to get running:
-  * [_doc/examples/ampsci.in_](doc/examples/ampsci.in) -- an example/template input file
-  * More: in [_doc/examples/_](doc/examples/) there are several example input files, along with the expected output; use these to test if everything is working
+  * `doc/examples/ampsci.in` -- an example/template input file
+  * More: in `doc/examples/` there are several example input files, along with the expected output; use these to test if everything is working
 
 ### Tutorials/examples
 
-* The fastest way to get familiar with ampsci is to follow the tutorials
-* A basic step-by-step tutorial: [doc/tutorial.md](doc/tutorial.md)
-* More advanced tutorials follow: [doc/tutorial_advanced.md](doc/tutorial_advanced.md), [doc/tutorial_CI.md](doc/tutorial_CI.md)
+* The fastest way to get familiar with ampsci is to follow the tutorials at [ampsci.dev/](https://ampsci.dev/)
 
 Much of ampsci documentation can be seen from the command line:
 
@@ -72,27 +72,6 @@ Much of ampsci documentation can be seen from the command line:
 ### Looking for atomic ionisation form-factors for dark-matter-electron scattering?
 
 * See `Kionisation` module (`./ampsci -m Kionisation`)
-
-### Documentation
-
-Full documentation available online: [ampsci.dev/](https://ampsci.dev/).
-Divided into sections:
-
- 1. Compilation and basic usage
-    * Compilation instructions (for linux/mac/windows): [doc/compilation.md](doc/compilation.md)
-    * Basic usage instructions: [doc/tutorial.md](doc/tutorial.md)
-
- 2. Physics documentation: [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf)
-    * Description of physics/methods used in the code
-    * Includes many references to the works where the methods implemented here were developed.
-
- 3. Modules
-    * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated. See [doc/modules.md](doc/modules.md) for description
-    * The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](doc/writing_modules.md) for details
-
- 4. Full code documentation -- details on classes/functions in the code
-    * Available online: [ampsci.dev/](https://ampsci.dev/)
-    * This should only be required if you plan to edit the code or add new modules
 
 --------------------------------------------------------------------------------
 
@@ -116,7 +95,6 @@ Divided into sections:
 [docs-url]: https://ampsci.dev/
 [manual-badge]: https://img.shields.io/badge/physics%20docs-ampsci.pdf-blue
 [man-url]: https://ampsci.dev/ampsci.pdf
-<!-- [cov-badge]: https://codecov.io/gh/benroberts999/ampsci/branch/main/graph/badge.svg?token=3M5MH5QXLL -->
 [cov-badge]: https://img.shields.io/codecov/c/github/benroberts999/ampsci?token=3M5MH5QXLL
 [cov-url]: https://codecov.io/gh/benroberts999/ampsci
 [c++-badge]: https://img.shields.io/badge/c++-17-blue

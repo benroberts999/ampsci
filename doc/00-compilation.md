@@ -1,15 +1,18 @@
-# Compilation
+\page compilation Compilation
 
-:::: Compilation instructions for Linux, Mac, and Windows
+\brief Compilation instructions for Linux, Mac, and Windows
+
+# Getting started
 
 * Easiest method is to use provided shell scripts `install-dependencies.sh` (which installs the required packages/compilers), and `setup.sh` (which compiles ampsci)
   * These might not work on all systems, meaning a manual setup will be required.
 * You can also compile using the provided Makefile:
-* Copy "doc/examples/Makefile" from doc/ directory to the working directory
-  * `cp ./doc/examples/Makefile ./`
+* Copy "doc/Makefile" from doc/ directory to the working directory
+  * `cp ./doc/Makefile ./`
 * All programs compiled using the Makefile (run `make`)
 * The file _Makefile_ has some basic compilation options. It's currently set up to work on most linux systems; you may need to change a few options for others (see below)
 * Tested with g++ and clang++ on linux and mac
+
 
 ## Dependencies / Requirements
 
@@ -29,15 +32,15 @@
 This is for ubuntu/linux - for other systems, see below
 
 * Get the code from [GitHub](https://github.com/benroberts999/ampsci), using git:
-  * `sudo apt install git`
+  * ```shell sudo apt install git```
   * `git clone git@github.com:benroberts999/ampsci.git`
   * or `git clone https://github.com/benroberts999/ampsci.git`
 * Or, direct download (without using git, not recommended):
   * <https://github.com/benroberts999/ampsci/archive/refs/heads/main.zip>
 * Install dependencies
-  * `sudo apt install g++ liblapack-dev libblas-dev libgsl-dev make libomp-dev`
+  * `sudo apt install g++ liblapack-dev libblas-dev libgsl-dev make`
 * Prepare the Makefile (already setup for ubuntu, you may need minor adjustments, see below)
-  * `cp ./doc/examples/Makefile ./`
+  * `cp ./doc/Makefile ./`
 * Compile ampsci using all default options:  
   * `make`
 * Run the first example program
@@ -87,6 +90,8 @@ This is for ubuntu/linux - for other systems, see below
 * Then, the compilation + use can proceed as per Linux above.
 
 --------------------------------------------------------------------------------
+
+# Basic troubleshooting
 
 ## Common Compilation errors
 

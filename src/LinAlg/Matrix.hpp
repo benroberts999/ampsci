@@ -193,11 +193,11 @@ public:
   //============================================================================
 
   //! Returns the determinant. Uses GSL; via LU decomposition. Only works for
-  //! double/complex<double>
+  //! `double/complex<double>`
   [[nodiscard]] T determinant() const;
 
   //! Inverts the matrix, in place. Uses GSL; via LU decomposition. Only works
-  //! for double/complex<double>.
+  //! for `double/complex<double>.`
   Matrix<T> &invert_in_place();
 
   //! Returns inverse of the matrix. Leaves original matrix intact. Uses GSL;

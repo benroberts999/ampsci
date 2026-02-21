@@ -61,7 +61,7 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
 }
 
 //==============================================================================
-//! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
+// Forms \f$ [\delta \psi_v]_\kappa \f$ for valence state \f$\psi_v\f$, for all allowed \f$\kappas\f$ (see solve_dPsi)
 std::vector<DiracSpinor>
 TDHFbasis::form_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
                       const std::vector<DiracSpinor> &spectrum, StateType st,

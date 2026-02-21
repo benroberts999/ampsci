@@ -1,4 +1,14 @@
-# Exotic: tutorial
+\page tutorial_exotic Exotic atoms
+
+\brief Calculations for exotic atoms (e.g., muonic)
+
+
+This assumes you already have ampsci compiled and have a basic understanding of how to run and use it.
+
+* See [Compilation](\ref compilation) for compilation instructions
+* See [Basic Tutorial](\ref tutorial_basic) for getting started if unfamiliar
+
+## Starting point:
 
 At a minimum, you must set the `Atom`, `Grid` and `Exotic` blocks:
 

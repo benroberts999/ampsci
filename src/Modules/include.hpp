@@ -1,3 +1,4 @@
+// Auto-generated ampsci include file
 #pragma once
 #include "Modules/Breit.hpp"
 #include "Modules/HFAnomaly.hpp"

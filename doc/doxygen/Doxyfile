@@ -136,7 +136,7 @@ ABBREVIATE_BRIEF       = "The $name class" \
 # description.
 # The default value is: NO.
 
-ALWAYS_DETAILED_SEC    = NO
+ALWAYS_DETAILED_SEC    = YES
 
 # If the INLINE_INHERITED_MEMB tag is set to YES, doxygen will show all
 # inherited members of a class in the documentation of that class as if those
@@ -1088,7 +1088,7 @@ GENERATE_HTML          = YES
 # The default directory is: html.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_OUTPUT            = ../docs/
+HTML_OUTPUT            = ./html/
 
 # The HTML_FILE_EXTENSION tag can be used to specify the file extension for each
 # generated HTML page (for example: .htm, .php, .asp).
@@ -1162,7 +1162,10 @@ HTML_EXTRA_STYLESHEET = ./doc/doxygen/doxygen-awesome.css \
 # files will be copied as-is; there are no commands or markers available.
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
-HTML_EXTRA_FILES       = ./doc/doxygen/doxygen-awesome-fragment-copy-button.js
+HTML_EXTRA_FILES       = ./doc/doxygen/doxygen-awesome-fragment-copy-button.js \
+                        ./doc/doxygen/MathJax.js \
+                        ./doc/doxygen/.nojekyll
+
 
 # The HTML_COLORSTYLE_HUE tag controls the color of the HTML output. Doxygen
 # will adjust the colors in the style sheet and background images according to
@@ -1174,6 +1177,8 @@ HTML_EXTRA_FILES       = ./doc/doxygen/doxygen-awesome-fragment-copy-button.js
 # This tag requires that the tag GENERATE_HTML is set to YES.
 
 HTML_COLORSTYLE_HUE    = 220
+
+HTML_COLORSTYLE        = LIGHT
 
 # The HTML_COLORSTYLE_SAT tag controls the purity (or saturation) of the colors
 # in the HTML output. For a value of 0 the output will use grayscales only. A
@@ -1520,8 +1525,8 @@ MATHJAX_FORMAT         = HTML-CSS
 # The default value is: http://cdn.mathjax.org/mathjax/latest.
 # This tag requires that the tag USE_MATHJAX is set to YES.
 
-MATHJAX_RELPATH        = http://cdn.mathjax.org/mathjax/latest
-# MATHJAX_RELPATH        = .
+# MATHJAX_RELPATH        = http://cdn.mathjax.org/mathjax/latest
+MATHJAX_RELPATH        = .
 
 # The MATHJAX_EXTENSIONS tag can be used to specify one or more MathJax
 # extension names that should be enabled during MathJax rendering. For example

@@ -62,20 +62,14 @@ clean:
 remove_junk:
 	rm -f -v *deleteme*
 
-## Builds the ampsci.pdf (physics) docs
+## Builds the ampsci.pdf docs using tex, and the html using doxygen, if available
 docs:
-	( cd ./doc/tex && make )
-	cp ./doc/tex/ampsci.pdf ./doc/ampsci.pdf
+	( cd ./doc/tex && make 2>/dev/null || : )
+	cp ./doc/tex/ampsci.pdf ./doc/ampsci.pdf 2>/dev/null || :
 	( cd ./doc/tex && make clean)
-
-## Builds code documentation using doxygen, if available
-doxy:
-	doxygen ./doc/doxygen/Doxyfile
-# 	( cd ./doc/latex && make )
-# 	cp ./doc/latex/refman.pdf ./doc/documentation.pdf
-# 	make docs
-# 	cp ./doc/ampsci.pdf ./docs/ampsci.pdf 2>/dev/null || :
-# 	( cd ./doc/latex && make clean)
+	doxygen ./doc/doxygen/Doxyfile 2>/dev/null && \
+		cp ./doc/doxygen/ampsci.html ./doc/ampsci-documentation.html 2>/dev/null || :
+	cp ./doc/tex/ampsci.pdf ./doc/html/ampsci.pdf 2>/dev/null || :
 
 do_the_chicken_dance:
 	@echo 'Why would I do that?'

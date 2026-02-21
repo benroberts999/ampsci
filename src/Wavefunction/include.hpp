@@ -1,3 +1,4 @@
+// Auto-generated ampsci include file
 #pragma once
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/ContinuumOrbitals.hpp"
