@@ -1,0 +1,26 @@
+var namespaceCI =
+[
+    [ "ConfigInfo", "namespaceCI.html#structCI_1_1ConfigInfo", null ],
+    [ "CSF2", "classCI_1_1CSF2.html", "classCI_1_1CSF2" ],
+    [ "PsiJPi", "classCI_1_1PsiJPi.html", "classCI_1_1PsiJPi" ],
+    [ "CSF2_Coulomb", "namespaceCI.html#af15e37f15c4f3550e3f4dca5d8699984", null ],
+    [ "CSF2_Sigma2", "namespaceCI.html#ae828428b73385044d153491b7f13fb10", null ],
+    [ "CSF2_Breit", "namespaceCI.html#a07ad81e2b155a901933d80ba083489fa", null ],
+    [ "Sigma2_AB", "namespaceCI.html#a3acb30237bbc67658b58e94fb92aedc6", null ],
+    [ "Breit_AB", "namespaceCI.html#a5f75d1870c3f257d75a67b0cf0831894", null ],
+    [ "Hab", "namespaceCI.html#aac50c800cc35209bf0f31d842a6310ca", null ],
+    [ "calculate_h1_table", "namespaceCI.html#a118dfd55cee2a0a9008987cb4b2b7d3d", null ],
+    [ "calculate_Sk", "namespaceCI.html#ade53d007bd6ef9e4c0c162f793a0f8ac", null ],
+    [ "calculate_Bk", "namespaceCI.html#acf870c5130147561063a4d74f6a71b67", null ],
+    [ "basis_subset", "namespaceCI.html#ae34cb6c6e57f3e2ba6f3243a92702db9", null ],
+    [ "ReducedME", "namespaceCI.html#ab68acdfde85eb7a710169274b45cfb74", null ],
+    [ "RME_CSF2", "namespaceCI.html#a69a69fbe4bf9bfbef03e1e004d0820db", null ],
+    [ "Term_S_L", "namespaceCI.html#aa71079036143e05c16e704f1274fb1af", null ],
+    [ "Term_Symbol", "namespaceCI.html#a6fa2c0c3b9e7ffb0a5ce88f34dbf0327", null ],
+    [ "Term_Symbol", "namespaceCI.html#a65a06a87e2c3c2e947f313ba793dbbcc", null ],
+    [ "construct_Hci", "namespaceCI.html#a45f84b4402143c2d30637dd8274eb3b2", null ],
+    [ "ReducedME", "namespaceCI.html#a798fefa76c4f470c12fd2f187d3a34b7", null ],
+    [ "configuration_interaction", "namespaceCI.html#aca16de053b8738b8c373213e32e0b04c", null ],
+    [ "run_CI", "namespaceCI.html#a72cf00fc5479a44de7860a6bd1de24e6", null ],
+    [ "form_CSFs", "namespaceCI.html#ae8e59ad9f9bbbcc32c75746d485625b1", null ]
+];
