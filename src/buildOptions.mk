@@ -63,17 +63,19 @@ endif
 ## Include, compiler, and linker flags
 
 INCLUDES = -I$(SRC)
+
+# Common one: GSL (other library includes may be added to CXXFLAGS and LDLIBS)
 ifneq ($(GSL_PATH),)
   INCLUDES += -I$(GSL_PATH)/include/
-  LIBS += -L$(GSL_PATH)/lib/
+  LDLIBS += -L$(GSL_PATH)/lib/
 endif
 
 CXXFLAGS = $(CXXSTD) $(OPT) $(OMPLIB) $(WARN) $(INCLUDES)
 LDFLAGS = $(OMPLIB)
 
 # Compile and link commands
-COMPILE = $(CXX) $(CARGS) -MMD -MP -c -o $@ $< $(CXXFLAGS)
-LINK = $(CXX) $(LARGS) -o $@ $^ $(LDFLAGS) $(LIBS)
+COMPILE = $(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $< 
+LINK = $(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 ################################################################################
 ## Git info for version details

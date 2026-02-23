@@ -24,7 +24,8 @@ const std::string author{"Benjamin M. Roberts (https://broberts.io/), "
 
 const std::string synopsis{"ampsci [InputFile]\n"
                            "ampsci [Atom] [Core] [Valence]\n"
-                           "ampsci -a [InputBlock]\n"
+                           "ampsci -s \"[Input String]\"\n"
+                           "ampsci -i [InputBlock]\n"
                            "ampsci -m [Module]\n"
                            "ampsci -o [Operator]\n"
                            "ampsci -p [Atom] [Isotope]\n"
@@ -39,7 +40,7 @@ const std::string description{
 const std::vector<std::pair<std::string, std::string>> options{
   {"[InputFile]",
    "Runs ampsci taking options specified in file 'InputFile'. "
-   "See documentation (or option -a) for input file format.\n"
+   "See documentation (or option -i) for input file format.\n"
    "Example:\n"
    "./ampsci input.in\n"
    "    - Runs ampsci taking input options from file 'input.in'"},
@@ -53,13 +54,13 @@ const std::vector<std::pair<std::string, std::string>> options{
    "./ampsci Cs [Xe] 6sd5d\n"
    "    - Runs ampsci for Cs using Hartree Fock with Xe-like core and "
    "valence states up to n=6 for s,p-states and n=5 for d-states\n"},
-  {"-a [BlockName] ..., --ampsci",
+  {"-i [BlockName] ..., --input",
    "Prints list of available top-level ampsci options. BlockName is "
    "optional; if given it will print options for given ampsci Block. You may "
    "list any number of blocks (space separated).\nExamples:\n"
-   "./ampsci -a\n"
+   "./ampsci -i\n"
    "    - Prints list of all available top-level ampsci options\n"
-   "./ampsci -a Atom HartreeFock\n"
+   "./ampsci -i Atom HartreeFock\n"
    "    - Prints list of all available options in the 'Atom' and "
    "'HartreeFock' input blocks"},
   {"-c [value] [unit], --constants",
@@ -124,15 +125,16 @@ const std::vector<std::pair<std::string, std::string>> options{
 
 //! Prints 'man page' style info
 void print_manual() {
+
+  std::cout << "AMPSCI v: " << version::version() << '\n';
+  std::cout << "Libraries:\n" << version::libraries() << '\n';
+  std::cout << "Compiled: " << version::compiled() << '\n';
+  std::cout << "\n";
+
   const int wrap_at = 80;
   std::string tab = "    ";
   fmt2::styled_print(fmt::emphasis::bold, "NAME\n");
   fmt::print(qip::wrap(name, wrap_at, tab + tab));
-
-  std::cout << "\n";
-  std::cout << "AMPSCI v: " << version::version() << '\n';
-  std::cout << "Libraries:\n" << version::libraries() << '\n';
-  std::cout << "Compiled: " << version::compiled() << '\n';
 
   std::cout << "\n\n";
 
@@ -214,7 +216,8 @@ int main(int argc, char *argv[]) {
       DiracOperator::list_operators();
     }
     return 0;
-  } else if (in_text_1 == "-a" || in_text_1 == "--ampsci") {
+  } else if (in_text_1 == "-a" || in_text_1 == "--ampsci" ||
+             in_text_1 == "-i" || in_text_1 == "--input") {
     auto temp_input = IO::InputBlock{"ampsci", {"help;"}};
     for (int i_in = 2; i_in < argc; ++i_in) {
       const std::string block_name = (argc > i_in) ? argv[i_in] : "";

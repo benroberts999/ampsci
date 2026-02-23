@@ -16,7 +16,9 @@ html {
   /*Change height of search box*/
   --searchbar-height: 25px;
 
-  --side-nav-fixed-width: 270px;
+  --side-nav-fixed-width: 285px;
+
+  --content-maxwidth: 850px;
 }
 
 /* Top bar / title area: white with subtle border (GSL vibe) */
@@ -74,3 +76,13 @@ div.fragment, pre.fragment, code, .line {
   display: none !important;
 } */
 
+
+/* Doxygen "fragment" blocks with per-line <div class="line"> */
+
+/* Allow shell blocks with non-copyable green $*/
+.shell-block div.fragment div.line::before {
+  content: "$ ";
+  color: #30894b;   /* light green */
+  opacity: 0.85;
+  user-select: none;
+}

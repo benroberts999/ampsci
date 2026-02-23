@@ -4,7 +4,7 @@
 
 This assumes you already have ampsci compiled.
 
-* See [Compilation](\ref compilation) for compilation instructions
+* See [Getting Started](\ref getting_started) for basic compilation instructions
 
 ## Contents
 
@@ -13,7 +13,6 @@ This assumes you already have ampsci compiled.
 * [Setting up the input file](#input)
   * [Example: running calculation using input file](#example)
 * [Output format](#output)
-* [Modules: using the wavefunctions](#modules)
 
 ## Getting started <a name="start"></a>
 
@@ -61,7 +60,7 @@ For example, the following should all produce the same result. They will calcula
 ./ampsci Cs [Xe],6s1
 ```
 
-* The format for the "core" configuration copies that used by NIST in their periodic table. A nice copy can be downloaded from [here](https://www.nist.gov/image/periodic-table).
+* The format for the "core" configuration copies that used by NIST in their periodic table. A nice copy can be downloaded from [nist.gov/pml/periodic-table-elements](https://www.nist.gov/pml/periodic-table-elements).
 * Usually the term in the brackets `[]` is a noble gas, but in ampsci you can put any atom (the core configuration for non-noble-gas atoms is guessed based on simple filling rules, and is sometimes not correct, so always check the output!).
 
 The next few cases will calculate Hartree-Fock for Cs, using the \f$V^{N-1}\f$ approximation, including valence states up to \f$n=7\f$ for \f$s\f$ and \f$p\f$ states, and \f$n=5\f$ for \f$d\f$ states:
@@ -84,10 +83,10 @@ Input is a plain text file that consists of sets of 'Blocks' and 'Options'.
 * White-space is ignored, as are ''' and '"' characters
 * You may use C++-style line '//' and block '/**/' comments
 
-Firstly, we can use the code to tell us which input options are available using the `-a` (or `--ampsci`) command-line option:
+Firstly, we can use the code to tell us which input options are available using the `-i` (or `--ampsci`) command-line option:
 
 ```bash
-./ampsci -a
+./ampsci -i
 ```
 
 This will print the list of available top-level "Input Blocks".
@@ -98,7 +97,7 @@ The output will look something like this:
 ampsci{
   // These are the top-level ampsci input blocks and options. Default values are
   // given in square brackets following the description: [default_value]. Blocks
-  // end with '{}', options end with ';'. run `ampsci -a BlockName` (for any of
+  // end with '{}', options end with ';'. run `ampsci -i BlockName` (for any of
   // the following blocks) to see all the options available for that block.
 
   // Which atom to run for
@@ -133,7 +132,7 @@ In each of these blocks, we can specify certain options; most have default value
 We can also ask the code to tell us which options are available for each block, for example:
 
 ```bash
-./ampsci -a Atom
+./ampsci -i Atom
 ```
 
 The output will list all options for the `Atom{}` block:
@@ -164,7 +163,7 @@ This is also in the correct format for the input file, so we can copy+paste into
 We can list more than one block name for this. For example, try:
 
 ```bash
-./ampsci -a Grid HartreeFock
+./ampsci -i Grid HartreeFock
 ```
 
 which will give something like:
@@ -255,7 +254,7 @@ Since we did not specify a grid `type` the default (log-linear) will be used (se
 
 Finally, in the `HartreeFock{}` block, we specify that we wish to solve Hartree-Fock equations for Cs with a Xe-like core, and consider valence states up to \f$n=5\f$ for \f$s,p\f$-states, and \f$n=5\f$ for \f$d\f$-states.
 Since a Xenon-like core has 1 fewer electrons than neutral Cs, this is a \f$V^{N-1}\f$ calculation.
-Note that the format for the core configuration copies that used by NIST in their periodic table. A nice copy can be downloaded from [here](https://www.nist.gov/image/periodic-table).
+Note that the format for the core configuration copies that used by NIST in their periodic table. A nice copy can be downloaded from [nist.gov/pml/periodic-table-elements](https://www.nist.gov/pml/periodic-table-elements).
 
 You may also use the built-in periodic table to see the possible ground-state electron configuration:
 
@@ -352,7 +351,7 @@ A nice way to do this is by `piping` the output through the unix `tee` program:
 e.g.,
 
 ```bash
-./ampsci example.in |tee -a example.out
+./ampsci example.in |tee -i example.out
 ```
 
 * Runs ampsci using input options in file "example.in".
@@ -438,116 +437,8 @@ Valence: CsI
 * Finally, we have the output for the valence states
 * Most of these are the same as above, except there is an extra column, which gives the excitation energies (in \f${\rm cm}^{-1}\f$) relative to the lowest valence state (useful for comparing with [NIST database](https://physics.nist.gov/PhysRefData/ASD/levels_form.html))
 
-To do more complicated calculations, including constructing complete set of basis orbitals, and including core-valence correlations, see:
+-----
 
-* [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full physics description of what the code can do
-
--------------------------------------------------------
-
-## Modules: using the wavefunctions <a name="modules"></a>
-
-The general usage of the code is to first use the main blocks to construct the
-atomic wavefunction and basis states, then to add as many 'Module::' blocks as
-required. Each module is a separate routine that will take the calculated
-wavefunction and compute any desired property (e.g., matrix elements). The code
-is designed such that anyone can write a new Module (See [doc/writing_modules.md](doc/writing_modules.md))
-
-Above, we ran ampsci, which calculated the atomic wavefunctions and printed their energies to screen.
-If we want to actually _do_ anything with the wavefunctions, we have to run one or more **modules**.
-We do this by adding a module block to the input file, which has the form `Module::ModuleName{}`
-
-Here, we will just consider a simple example. For further detail:
-
-* See [doc/modules.md](doc/modules.md) for details of currently avalable modules
-* The code is designed so that you can easily create your own modules. See [doc/writing_modules.md](doc/writing_modules.md) for details
-
-We can see a list of all available modules with the `-m` command-line option
-
-```bash
-./ampsci -m
-```
-
-Many are listed. Here we will consider the simple/common example of `matrixElements` module, which (unsurprisingly) calculates matrix elements.
-
-To see the available options for this block, list the block name after `-m` on the command-line:
-
-```bash
-./ampsci -m matrixElements
-```
-
-which prints:
-
-```java
-// Available Module::matrixElements options/blocks
-Module::matrixElements{
-  // e.g., E1, hfs (see ampsci -o for available operators)
-  operator;
-  // options specific to operator (see ampsci -o 'operator')
-  options{}
-  // Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]
-  rpa;
-  // Text or number. Freq. for RPA (and freq. dependent operators). Put 'each'
-  // to solve at correct frequency for each transition. [0.0]
-  omega;
-  // What to calculate: rme (reduced ME), A (hyperfine A/B coeficient). Default
-  // is rme, except when operator=hfs, in which case default is A
-  what;
-  // print <a|h|b> and <b|h|a> [false]
-  printBoth;
-  // If true (and spectrum available), will use spectrum for valence states AND
-  // for RPA (if diagram method), AND for SR+N [false]
-  use_spectrum;
-  // Calculate diagonal matrix elements (if non-zero) [true]
-  diagonal;
-  // Calculate off-diagonal matrix elements (if non-zero) [true]
-  off-diagonal;
-  // Options for Structure Radiation and normalisation (details below)
-  StructureRadiation{}
-}
-
-
-// Available StructureRadiation options/blocks
-StructureRadiation{
-  // If this block is included, SR + Normalisation corrections will be included
-
-  // filename for QkTable file. If blank will not use QkTable; if exists, will
-  // read it in; if doesn't exist, will create it and write to disk. Save time
-  // (10x) at cost of memory. Note: Using QkTable implies splines used for
-  // diagram legs
-  Qk_file;
-  // list; min,max n for core/excited: [1,inf]
-  n_minmax;
-}
-```
-
-The first option, `operator` is which operator we want to calculate matrix elements of.
-You can see a list of operators with the `-o` command-line option:
-
-```bash
-./ampsci -o
-```
-
-The second option, which is a sub-input-block, `options` is the set of options for the given operator. Most operators have no extra options, so this can be left blank. Some (e.g., hyperfine operator `hfs` have many available options). Like above, you can see the available options by further passing the operator name after `-o`. For example:
-
-```bash
-./ampsci -o hfs
-```
-
-Here we will consider the simpler `E1` operator.
-To our above `example.in` file, we can add the following block (note we may add as many Module:: blocks as we like, they will all be run one-by-one in order):
-
-```java
-// example.in
-// ... above input options ...
-Module::Matrixelements{
-  operator = E1;
-  rpa = true;
-  omega = 0.0;
-}
-```
-
-The `omega = 0.0;` option means we have solved RPA equations for each transition at zero frequency. It is also possible to automatically solve RPA for each transition frequency by setting: `omega = each;`.
-See [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for description of RPA.
-
-The output format will depend on the specific module.
-In this case, we are shown the extent to which the RPA (/TDHF) equations converged, and then the valued of the reduced matrix elements are printed (at the Hartree-Fock, first-order core-polarisation, and all-orders RPA levels)
+* See [MBPT and Correlations](\ref tutorial_mbpt) for tutorial for more advanced calculations
+* See [Modules](\ref tutorial_modules) for tutorial on using the wavefunctions (e.g., calculating matrix elements)
+* See physics documentation: [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full physics description of the employed methods

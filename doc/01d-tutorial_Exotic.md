@@ -2,13 +2,12 @@
 
 \brief Calculations for exotic atoms (e.g., muonic)
 
-
 This assumes you already have ampsci compiled and have a basic understanding of how to run and use it.
 
 * See [Compilation](\ref compilation) for compilation instructions
 * See [Basic Tutorial](\ref tutorial_basic) for getting started if unfamiliar
 
-## Starting point:
+## Starting point
 
 At a minimum, you must set the `Atom`, `Grid` and `Exotic` blocks:
 
@@ -35,8 +34,8 @@ The optional `Nucleus` block allows you to set nuclear charge distribution param
 
 Note:
 
-- Use `ampsci -a` to see a list of available input blocks
-- And, for example, `ampsci -a Exotic` to see list of options for 'Exotic' block
+* Use `ampsci -i` to see a list of available input blocks
+* And, for example, `ampsci -i Exotic` to see list of options for 'Exotic' block
 
 With the above options in text file `input_file.in`, run as:
 `./ampsci input_file.in`
@@ -68,11 +67,11 @@ nk    Rinf  eps    R_rms (a0)    E (au)            E (keV)
 3p+   0.13  2e-16  1.17161e-03  -3.492090173e+04  -9.502461450e+02
 ```
 
-- nk is state (+/- means j+/-1/2),  p- = p_1/2, p+=p_3/2 etc.
-- Rinf radius where wavefunction effectively goes to zero. Should be smaller than rmax from the Grid.
-- eps - convergence parameter for solcing eigenvalue problem. Check carefully - should be very small number <~10^-11
-- R_rms - the rms radius for this state. Helpful for determining reasonable grid parameters
-- E - binding energy, in atomic units (Hartree) and keV
+* nk is state (+/- means j+/-1/2),  p- = p_1/2, p+=p_3/2 etc.
+* Rinf radius where wavefunction effectively goes to zero. Should be smaller than rmax from the Grid.
+* eps - convergence parameter for solcing eigenvalue problem. Check carefully - should be very small number <~10^-11
+* R_rms - the rms radius for this state. Helpful for determining reasonable grid parameters
+* E - binding energy, in atomic units (Hartree) and keV
 
 Hint: use `ampsci -c` from command line to get useful unit conversions.
 Even better: try these out for actual conversions:
@@ -84,8 +83,8 @@ Even better: try these out for actual conversions:
 Very important to choose a Grid that actually works.
 In the end, you should always check that making small changes to the grid does not impact the result.
 
-- The first way to make sure Grid is OK is to check 'Rinf' (that your wavefunctions all fit inside the grid radius).
-- More importantly, check 'eps':
+* The first way to make sure Grid is OK is to check 'Rinf' (that your wavefunctions all fit inside the grid radius).
+* More importantly, check 'eps':
 
 For example, with this Grid:
 
@@ -187,8 +186,8 @@ So, small, but noticable impact.
 
 ## Matrix elements, hyperfine structure, anomaly
 
-- Use `ampsci -o` to get the list of available operators
-- And, for example, `ampsci -o hfs` to see all options for the hfs operator
+* Use `ampsci -o` to get the list of available operators
+* And, for example, `ampsci -o hfs` to see all options for the hfs operator
 
 Can simple calculate matrix elements of any operator:
 

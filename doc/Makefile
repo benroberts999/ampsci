@@ -30,13 +30,13 @@ GSL_PATH ?=
 
 ################################################################################
 ## Set GSL and LAPACK/BLAS library flags. These are typical, but sometimes differ
-LIBS ?= -lgsl -lgslcblas -llapack -lblas
+LDLIBS ?= -lgsl -lgslcblas -llapack -lblas
 
 ## Friday:
-# LIBS ?= -lgsl -lgslcblas -lopenblas
+# LDLIBS ?= -lgsl -lgslcblas -lopenblas
 
 ## Bunya:
-# LIBS ?= -lgsl -lgslcblas -llapack -lopenblas -lgfortran 
+# LDLIBS ?= -lgsl -lgslcblas -llapack -lopenblas -lgfortran 
 
 ################################################################################
 ## OpenMP library to use. Comment out or leave blank for no OpenMP
@@ -47,8 +47,8 @@ OMPLIB ?= -fopenmp
 
 ################################################################################
 # Use these to pass in any other compiler/linker arguments (Rarely needed)
-CARGS ?=
-LARGS ?=
+CXXFLAGS +=
+LDFLAGS +=
 
 ################################################################################
 ## The following must be inlcuded

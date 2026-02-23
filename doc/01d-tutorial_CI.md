@@ -1,4 +1,4 @@
-\page tutorial_ci Advanced Tutorial: CI+MBPT
+\page tutorial_ci Two-valence atoms: CI+MBPT
 
 \brief CI+MBPT calculations for two-valence atoms
 
@@ -44,13 +44,13 @@ For each \f$J^\pi\f$ symmetry, the energies and wavefunctions (expansion coeffic
 
 For the single-particle basis, we use eigenfunctions of the same \f$h^{\rm HF}\f$ Hamiltonian from the CI Hamiltonian. This is known as the \f$V^{N-M}\f$ approximation, with simplifies the MBPT part of the calculation, and is very accurate for two-valence systems.
 
------------
+-----
 
 ## Basic CI example <a name="basic"></a>
 
-As always, we check the available input options: `./ampsci -a CI`
+As always, we check the available input options: `./ampsci -i CI`
 
-`./ampsci -a CI`
+`./ampsci -i CI`
 
 ```java
 // Available CI options/blocks
@@ -188,7 +188,7 @@ The output for each symmetry will look something like this:
     3s+4d+ 9.997%
     3p-3p+ 13.492%
     3p+^2  6.672%
-    --------------
+    -----
     gJ = 0.999992
     3s3d   1^D_2
 
@@ -197,7 +197,7 @@ The output for each symmetry will look something like this:
     3s+4d- 22.333%
     3s+3d+ 24.246%
     3s+4d+ 14.846%
-    --------------
+    -----
     gJ = 1.16666
     3s3d   3^D_2
 
@@ -209,7 +209,7 @@ The output for each symmetry will look something like this:
     3s+5d+ 24.122%
     3p-3p+ 8.217%
     3p+^2  3.988%
-    --------------
+    -----
     gJ = 0.999999
     3s4d   1^D_2
 ```
@@ -246,7 +246,7 @@ Where `conf` is the leading configuration (in non-relativistic notation), and th
 (e.g., `3s3d` may have contributions from `3s3d-` and `3s3d+`).
 
 | Level  |             | AMPSCI  | Exp.    | \f$\Delta\f$ |
-|--------|-------------|---------|---------|----------|
+|-----|-----|-----|-----|-----|
 | \f$3s^2\f$ | \f${}^1S_0\f$   | -179539 | -182939 | -1.9%   |
 | \f$3s4s\f$ | \f${}^1S_0\f$   | 42665   | 43503   | -1.9%   |
 | \f$3s6s\f$ | \f${}^1S_0\f$   | 51644   | 52556   | -1.7%   |
@@ -269,7 +269,7 @@ Where `conf` is the leading configuration (in non-relativistic notation), and th
 The table shows the results of the calculation, and comparison to experimental excitation energies, in units of \f${\rm cm}^{-1}\f$ (for the ground state, the ionisation potential is instead shown).
 The agreement is at the ~few % level.
 
------------
+-----
 
 ## CI+MBPT example <a name="basic"></a>
 
@@ -348,7 +348,7 @@ The `For: 5spdf, using 30spdfghi` means the external lines in \f$\Sigma_{ijkl}\f
 This leads to a significant improvement in the accuracy:
 
 | Level  |             | AMPSCI  | Exp.    | \f$\Delta\f$ |
-|--------|-------------|---------|---------|----------|
+|-----|-----|-----|-----|-----|
 | \f$3s^2\f$ | \f${}^1S_0\f$   | -182804 | -182939 | -0.07%   |
 | \f$3s4s\f$ | \f${}^1S_0\f$   | 43490   | 43503   | -0.03%   |
 | \f$3s6s\f$ | \f${}^1S_0\f$   | 52526   | 52556   | -0.06%   |
@@ -372,7 +372,7 @@ The discrepancies are now at the level of 0.1% or below.
 
 On my pc, this entire calculation took less than two minutes.
 
------------
+-----
 
 ## Matrix elements <a name="matrix"></a>
 
@@ -435,3 +435,7 @@ The output is something like:
 (this is for a reduced set of levels).
 
 This implies the lifetime of the first \f${}^1P^o_1\f$ level is 2.12 ns, in excellent agreement with experiment.
+
+-----
+
+* See physics documentation: [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full physics description of the employed methods

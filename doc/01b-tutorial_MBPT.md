@@ -1,4 +1,4 @@
-\page tutorial_mbpt Advanced Tutorial: MBPT
+\page tutorial_mbpt MBPT and Correlations
 
 \brief MBPT and correlation corrections
 
@@ -52,12 +52,12 @@ We focus on case of single-valence systems, and start with so-called \f$V^{N-1}\
 
 First, Hartree-Fock equations are solved self-consistently for all core electrons, then the valence states are found in the Frozen Hartree-Fock potential due to the core.
 
-------
+-----
 
 As always, begin by checking the available options:
 
 ```bash
- ./ampsci -a HartreeFock
+ ./ampsci -i HartreeFock
 ```
 
 ```java
@@ -142,7 +142,7 @@ Cs-133 (Z=55, A=133)
 r_rms = 4.8041, c = 5.67073, mu = 2.5778, I = 3.5, parity = 1
 ```
 
----------------
+-----
 
 Besides Hartree-Fock, other methods are available:
 
@@ -162,7 +162,7 @@ HartreeFock{
 }
 ```
 
----------------
+-----
 
 ### Nuclear Potential <a name="nuclear"></a>
 
@@ -218,7 +218,7 @@ Nucleus{
 }
 ```
 
---------------
+-----
 
 ### Breit <a name="breit"></a>
 
@@ -252,7 +252,7 @@ This setting is a scaling factor; i.e., setting `Breit = 0.5;` will add effectiv
 **Note:** it's very important when including Breit effects along with correlations that the Breit Hamiltonian is included in the Dirac equation when forming the basis used to construct the correlation potential! This is to ensure basis is orthogonal to the Hartree-Fock core states
 At the moment, there is no way to include the Breit effect into the Hartree-Fock Green's function; as a result, we cannot include Breit at the level of all-order correlations (see below).
 
----------------
+-----
 
 ### Radiative QED <a name="qed"></a>
 
@@ -308,8 +308,8 @@ RadPot{
 e.g., `scale_l = 0,1,0;` will include \f$V_{\rm rad}\f$ for p states, but not s or d states.
 * `scale_rN;` Re-scales the effective nuclear radius; used to test finite-nuclear size effects on \f$V_{\rm rad}\f$. =1 means normal, =0 means assume point-like nucleus (when calculating \f$V_{\rm rad}\f$).
 
------------
----------------
+-----
+-----
 
 ## Constructing a basis <a name="basis"></a>
 
@@ -438,7 +438,7 @@ Spectrum{
 }
 ```
 
------------
+-----
 
 ## MBPT: second-order correlations <a name="secondorder"></a>
 
@@ -472,7 +472,7 @@ We then solve the Hartree-Fock equation, including the correlation potential. Th
   [h_{\rm HF} +  \Sigma(\varepsilon)]\phi^{\rm Br} = \varepsilon^{\rm Br}\phi^{\rm Br}
 \f]
 
-There are quite a few options available for Correlation corrections (see `ampsci -a Correlations`) -- we will focus on the most important here.
+There are quite a few options available for Correlation corrections (see `ampsci -i Correlations`) -- we will focus on the most important here.
 
 ```java
 Correlations{
@@ -533,7 +533,7 @@ Correlations{
 
 Will use the correlation potential for \f$\kappa=-1\f$ and \f$\varepsilon = -0.127\f$ for the \f$6s\f$ state, and \f$\kappa=+1\f$ and \f$\varepsilon = -0.127\f$ for the \f$6p_{1/2}\f$ state.
 
------------
+-----
 
 ## MBPT: all-order correlations <a name="allorders"></a>
 
@@ -576,8 +576,8 @@ The potential that simultaneously describes the occupied core and excited states
 where \f$P_{\rm core}\f$ is the operator of projection onto the core, and \f$V_{\rm self}\f$ is the self-interaction part of the Hartree-Fock potential for the outgoing electron.
 Therefore, hole-particle interaction is accounted for by using this potential when forming the polarisation operator.
 
-To include all-orders correlations, the `Feynman`, `screening`, and `holeParticle` options in the `Correlations{}` block should be set to `true`.
-Alternativel, just set `AllOrder=true;`
+To include all-orders correlations, the `Feynman`, `screening`, and `hole_particle` options in the `Correlations{}` block should be set to `true`.
+Alternativel, just set `all_order=true;`
 
 ```java
 Correlations{
@@ -585,7 +585,7 @@ Correlations{
   each_valence = true;
   Feynman = true;
   screening = true;
-  holeParticle = true;
+  hole_particle = true;
 }
 ```
 
@@ -595,52 +595,14 @@ equivilant to:
 Correlations{
   n_min_core = 3;
   each_valence = true;
-  AllOrder = true;
+  all_order = true;
 }
 ```
 
 More options are available, though they rarely need to be changed from the default.
 See [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full details.
 
+-----
 
------------
-
-## MBPT for matrix elements: Core Polarisation/RPA <a name="rpa"></a>
-
-Core polarisation (RPA) is included in the matrix elements.
-
-The best method to use is TDHF, which is numerically stable, and includes contribution from negative energy states automatically.
-
------------
-
-## MBPT for matrix elements: Structure Radiation <a name="sructrad"></a>
-
-To improve tha accuracy of matrix elements, structure radiation and normalisation corrections should be included.
-There is an option to do this in the MatrixElements module.
-There is also a `Module::StructureRad` module, which gives some finer control.
-
-```java
-// Available Module::matrixElements options/blocks
-Module::matrixElements{
-  //.... same as before
-
-  // Options for Structure Radiation and normalisation (details below)
-  StructureRadiation{}
-}
-
-
-// Available StructureRadiation options/blocks
-StructureRadiation{
-  // If this block is included, SR + Normalisation corrections will be included
-
-  // filename for QkTable file. If blank will not use QkTable; if exists, will
-  // read it in; if doesn't exist, will create it and write to disk. Save time
-  // (10x) at cost of memory. Note: Using QkTable implies splines used for
-  // diagram legs
-  Qk_file;
-  // list; min,max n for core/excited: [1,inf]
-  n_minmax;
-}
-```
-
-If a Qk filename is given, program will first calculate all required Q^k Coulomb integrals before calculating structure radiation. This speeds up the calculation, at a great memory cost.
+* See [Modules](\ref tutorial_modules) for tutorial on using the wavefunctions (e.g., calculating matrix elements)
+* See physics documentation: [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full physics description of the employed methods

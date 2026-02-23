@@ -2,10 +2,10 @@
 
 \brief Descpription of modules system: available modules and options
 
-- The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
-- Any number of _modules_ can be run by adding `Module::moduleName{}' blocks.
-- The code is designed so that you can easily create your own modules:
-   - \subpage modules_custom - \copybrief modules_custom
+* The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
+* Any number of _modules_ can be run by adding `Module::moduleName{}' blocks.
+* The code is designed so that you can easily create your own modules:
+  * \subpage modules_custom - \copybrief modules_custom
 
 ## Getting started with modules
 
@@ -65,10 +65,10 @@ Available modules:
 
 You can also get most of this information directly from the command-line:
 
-- `./ampsci -m  <ModuleName>`
-  - Prints list of available Modules (same as --modules)
-  - ModuleName is optional. If given, will list available options for that Module
-  - Note the output is in the same format as required by the input file - you can copy+paste this into your input file.
+* `./ampsci -m  <ModuleName>`
+  * Prints list of available Modules (same as --modules)
+  * ModuleName is optional. If given, will list available options for that Module
+  * Note the output is in the same format as required by the input file - you can copy+paste this into your input file.
 
 ```sh
 ./ampsci -m MatrixElements

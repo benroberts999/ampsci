@@ -59,9 +59,9 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 
 Much of ampsci documentation can be seen from the command line:
 
-* See which ampsci input options are available: `./ampsci -a`
+* See which ampsci input options are available: `./ampsci -i`
   * See available input options for each input block by following with its name
-  * e.g., `./ampsci -a HartreeFock`
+  * e.g., `./ampsci -i HartreeFock`
 * Check which Modules are aviable: `./ampsci -m`
   * See available input options for each module by following with its name
   * e.g., `./ampsci -m MatrixElements`

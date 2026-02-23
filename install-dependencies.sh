@@ -59,5 +59,3 @@ else
   echo 'Unsupported system for setup - requires manual setup'
   exit
 fi
-
-

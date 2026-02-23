@@ -48,7 +48,7 @@ while [[ $gccver -ge $min_gcc_ver ]]; do
     echo "Compiler Found:" $(command which "g++-"${gccver})
     found_compiler=1
     cxx=$(command which "g++-"${gccver})
-    sed -i '' -e "s@^CXX.*@CXX = ${cxx}@g" Makefile 2> /dev/null
+    sed -i '' -e "s@^CXX[[:space:]]*=.*@CXX = ${cxx}@g" Makefile 2> /dev/null
     break
   fi
   ((gccver--))
@@ -63,7 +63,7 @@ if [ $found_compiler == 0 ]; then
       found_compiler=1
       is_clang=1
       cxx=$(command which "clang++-"${clangver})
-      sed -i '' -e "s@^CXX.*@CXX = ${cxx}@g" Makefile 2> /dev/null
+      sed -i '' -e "s@^CXX[[:space:]]*=.*@CXX = ${cxx}@g" Makefile 2> /dev/null
       break
     fi
     ((clangver--))
@@ -76,13 +76,13 @@ if [ $found_compiler == 0 ]; then
     echo "Compiler Found:" "$(command -v "g++")"
     found_compiler=1
     cxx="g++"
-    sed -i '' -e "s@^CXX.*@CXX = ${cxx}@g" Makefile 2> /dev/null
+    sed -i '' -e "s@^CXX[[:space:]]*=.*@CXX = ${cxx}@g" Makefile 2> /dev/null
   elif [ -x "$(command -v "clang++")" ]; then
     echo "Compiler Found:" "$(command -v "clang++")"
     found_compiler=1
     is_clang=1
     cxx="clang++"
-    sed -i '' -e "s@^CXX.*@CXX = ${cxx}@g" Makefile 2> /dev/null
+    sed -i '' -e "s@^CXX[[:space:]]*=.*@CXX = ${cxx}@g" Makefile 2> /dev/null
   fi
 fi
 

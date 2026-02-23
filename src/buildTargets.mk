@@ -10,7 +10,7 @@ $(info   Compiler      : $(CXXPATH) [$(CXXVERSION)])
 $(info   CXXSTD        : $(CXXSTD))
 $(info   Optimisation  : $(OPT))
 $(info   OpenMP        : $(if $(OMPLIB),$(OMPLIB),disabled))
-$(info   Libraries     : $(LIBS))
+$(info   Libraries     : $(LDLIBS))
 $(info   Build dir     : $(BUILD_DIR))
 $(info   git revision  : $(GITBRANCH)/$(GITREVISION))
 $(if $(strip $(GITMODIFIED)),$(info   Modified      : $(GITMODIFIED)))
@@ -66,7 +66,7 @@ remove_junk:
 docs:
 	( cd ./doc/tex && make 2>/dev/null || : )
 	cp ./doc/tex/ampsci.pdf ./doc/ampsci.pdf 2>/dev/null || :
-	( cd ./doc/tex && make clean)
+	cp ./LICENSE ./doc/LICENSE.md
 	doxygen ./doc/doxygen/Doxyfile 2>/dev/null && \
 		cp ./doc/doxygen/ampsci.html ./doc/ampsci-documentation.html 2>/dev/null || :
 	cp ./doc/tex/ampsci.pdf ./doc/html/ampsci.pdf 2>/dev/null || :

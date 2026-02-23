@@ -17,11 +17,11 @@ HartreeFock {
 Grid {
   r0 = 1e-6;
   rmax = 120.0;
-  num_points = 4000;
+  num_points = 2000;
 }
 
 // Run some basic tests (orthogonality)
-Module::Tests {}
+// Module::Tests {}
 
 //E1 matrix elements, including RPA (TDHF method, solved at w=0)
 Module::matrixElements {
@@ -30,12 +30,12 @@ Module::matrixElements {
   omega = 0.0;
 }
 
-//Hyperfine matrix elements, including RPA (diagram method); only print diagonal matrix elements. Note: hfs will print hyperfine A constants.
+//Hyperfine matrix elements, including RPA; only print diagonal matrix elements. Note: hfs will print hyperfine A constants.
 // Use a point-like magnetisation distro; and lookup the default mu,I
 Module::matrixElements {
   operator = hfs;
   off-diagonal = false;
   options{
-      nuc_mag = pointlike;
+      F = pointlike;
   }
 }
