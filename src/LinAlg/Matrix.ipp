@@ -283,26 +283,194 @@ template <typename T>
   assert(a.cols() == b.rows() &&
          "Matrices a and b must have correct dimension for multiplication");
   Matrix<T> product(a.rows(), b.cols());
-  const auto a_gsl = a.as_gsl_view();
-  const auto b_gsl = b.as_gsl_view();
-  auto product_gsl = product.as_gsl_view();
-  if constexpr (std::is_same_v<T, double>) {
-    gsl_blas_dgemm(CblasNoTrans, CblasNoTrans, 1.0, &a_gsl.matrix,
-                   &b_gsl.matrix, 0.0, &product_gsl.matrix);
-  } else if constexpr (std::is_same_v<T, float>) {
-    gsl_blas_sgemm(CblasNoTrans, CblasNoTrans, 1.0f, &a_gsl.matrix,
-                   &b_gsl.matrix, 0.0f, &product_gsl.matrix);
-  } else if constexpr (std::is_same_v<T, std::complex<double>>) {
-    gsl_blas_zgemm(CblasNoTrans, CblasNoTrans, GSL_COMPLEX_ONE, &a_gsl.matrix,
-                   &b_gsl.matrix, GSL_COMPLEX_ZERO, &product_gsl.matrix);
-  } else if constexpr (std::is_same_v<T, std::complex<float>>) {
-    const gsl_complex_float one{1.0f, 0.0f};
-    const gsl_complex_float zero{0.0f, 0.0f};
-    gsl_blas_cgemm(CblasNoTrans, CblasNoTrans, one, &a_gsl.matrix,
-                   &b_gsl.matrix, zero, &product_gsl.matrix);
-  }
+
+  GEMM(a, b, &product);
 
   return product;
+}
+
+//==============================================================================
+
+// // Matrix multiplication C = A*B. C is overwritten with product, and must be correct size already
+// template <typename T>
+// void GEMM(const Matrix<T> &a, const Matrix<T> &b, Matrix<T> *c, bool trans_A,
+//            bool trans_B) {
+//   //
+//   assert(a.cols() == b.rows() &&
+//          "Matrices a and b must have correct dimension for multiplication");
+//   assert(c->rows() == a.rows() && c->cols() == b.cols() &&
+//          "Matrices c (output) must have correct dimension for multiplication "
+//          "of a and b");
+
+//   const auto a_gsl = a.as_gsl_view();
+//   const auto b_gsl = b.as_gsl_view();
+//   auto c_gsl = c->as_gsl_view();
+
+//   const auto a_trans = trans_A ? CblasTrans : CblasNoTrans;
+//   const auto b_trans = trans_B ? CblasTrans : CblasNoTrans;
+
+//   if constexpr (std::is_same_v<T, double>) {
+//     gsl_blas_dgemm(a_trans, b_trans, 1.0, &a_gsl.matrix, &b_gsl.matrix, 0.0,
+//                    &c_gsl.matrix);
+//   } else if constexpr (std::is_same_v<T, float>) {
+//     gsl_blas_sgemm(a_trans, b_trans, 1.0f, &a_gsl.matrix, &b_gsl.matrix, 0.0f,
+//                    &c_gsl.matrix);
+//   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
+//     gsl_blas_zgemm(a_trans, b_trans, GSL_COMPLEX_ONE, &a_gsl.matrix,
+//                    &b_gsl.matrix, GSL_COMPLEX_ZERO, &c_gsl.matrix);
+//   } else if constexpr (std::is_same_v<T, std::complex<float>>) {
+//     const gsl_complex_float one{1.0f, 0.0f};
+//     const gsl_complex_float zero{0.0f, 0.0f};
+//     gsl_blas_cgemm(a_trans, b_trans, one, &a_gsl.matrix, &b_gsl.matrix, zero,
+//                    &c_gsl.matrix);
+//   }
+// }
+
+//==============================================================================
+inline CBLAS_TRANSPOSE to_cblas_trans(bool trans) {
+  return trans ? CblasTrans : CblasNoTrans;
+}
+
+//------------------------------------------------------------------------------
+template <typename T>
+void GEMM(const Matrix<T> &a, const Matrix<T> &b, Matrix<T> *c, bool trans_A,
+          bool trans_B) {
+  assert(c);
+
+  const auto ta = to_cblas_trans(trans_A);
+  const auto tb = to_cblas_trans(trans_B);
+
+  // Effective dimensions:
+  // op(A): (trans_A ? a.cols x a.rows : a.rows x a.cols)
+  // op(B): (trans_B ? b.cols x b.rows : b.rows x b.cols)
+  const int A_rows = static_cast<int>(trans_A ? a.cols() : a.rows());
+  const int A_cols = static_cast<int>(trans_A ? a.rows() : a.cols());
+  const int B_rows = static_cast<int>(trans_B ? b.cols() : b.rows());
+  const int B_cols = static_cast<int>(trans_B ? b.rows() : b.cols());
+
+  // GEMM sizes: C = op(A) * op(B), where
+  // M = rows(op(A)), N = cols(op(B)), K = cols(op(A)) = rows(op(B))
+  const int M = A_rows;
+  const int N = B_cols;
+  const int K = A_cols;
+
+  assert(A_cols == B_rows && "op(A) cols must equal op(B) rows");
+  assert(static_cast<int>(c->rows()) == M && static_cast<int>(c->cols()) == N &&
+         "Output matrix c must be sized MxN");
+
+  // Row-major leading dimensions:
+  // lda = number of columns in A's *storage* (i.e., a.cols()) regardless of trans
+  // same for b, c
+  const int lda = static_cast<int>(a.cols());
+  const int ldb = static_cast<int>(b.cols());
+  const int ldc = static_cast<int>(c->cols());
+
+  if constexpr (std::is_same_v<T, double>) {
+    cblas_dgemm(CblasRowMajor, ta, tb, M, N, K, 1.0, a.data(), lda, b.data(),
+                ldb, 0.0, c->data(), ldc);
+
+  } else if constexpr (std::is_same_v<T, float>) {
+    cblas_sgemm(CblasRowMajor, ta, tb, M, N, K, 1.0f, a.data(), lda, b.data(),
+                ldb, 0.0f, c->data(), ldc);
+
+  } else if constexpr (std::is_same_v<T, std::complex<double>>) {
+    const std::complex<double> alpha{1.0, 0.0};
+    const std::complex<double> beta{0.0, 0.0};
+    cblas_zgemm(CblasRowMajor, ta, tb, M, N, K, &alpha, a.data(), lda, b.data(),
+                ldb, &beta, c->data(), ldc);
+
+  } else if constexpr (std::is_same_v<T, std::complex<float>>) {
+    const std::complex<float> alpha{1.0f, 0.0f};
+    const std::complex<float> beta{0.0f, 0.0f};
+    cblas_cgemm(CblasRowMajor, ta, tb, M, N, K, &alpha, a.data(), lda, b.data(),
+                ldb, &beta, c->data(), ldc);
+
+  } else {
+    static_assert(!sizeof(T), "GEMM: unsupported scalar type");
+  }
+}
+
+//==============================================================================
+// M_ab = A_ai B_aj C_ij D_ib E_jb, using BLAS
+template <typename T>
+void PENTA_GEMM(const Matrix<T> &A, const Matrix<T> &B, const Matrix<T> &C,
+                const Matrix<T> &D, const Matrix<T> &E, Matrix<T> *pM) {
+  //
+  const auto N = A.rows(); // assume all square
+  assert(A.cols() == A.rows() && "Must be square");
+
+  Matrix<T> X(N, N);
+  Matrix<T> Y(N, N);
+  auto &M = *pM;
+
+  // M_ab = A_ai B_aj C_ij D_ib E_jb
+  //      = A_ai B_aj X(i)_jb D_ib
+  //      = A_ai Y(i)_ab D_ib
+  // X(i)_jb = C_ij * E_j2;
+  // Y(i)_aj = B_ij * X(i)_jb
+
+  for (std::size_t i = 0; i < N; ++i) {
+    for (std::size_t j = 0; j < N; ++j) {
+      const auto cij = C[i][j];
+      for (std::size_t b = 0; b < N; ++b) {
+        X[j][b] = cij * E[j][b];
+      }
+    }
+    GEMM(B, X, &Y);
+    for (std::size_t a = 0; a < N; ++a) {
+      for (std::size_t b = 0; b < N; ++b) {
+        M[a][b] += A[a][i] * Y[a][b] * D[i][b];
+      }
+    }
+  }
+}
+
+// M_ab = A_ai B_aj C_ij D_ib E_jb
+template <typename T, bool PARALLEL>
+void PENTA(const Matrix<T> &A, const Matrix<T> &B, const Matrix<T> &C,
+           const Matrix<T> &D, const Matrix<T> &E, Matrix<T> *pM) {
+  //
+  const auto N = A.rows(); // assume all square
+  assert(A.cols() == A.rows() && "Must be square");
+
+  auto &M = *pM;
+
+  // M_ab = A_ai B_aj C_ij D_ib E_jb
+  if constexpr (PARALLEL) {
+
+#pragma omp parallel for collapse(2)
+    for (std::size_t a = 0; a < N; ++a) {
+      for (std::size_t b = 0; b < N; ++b) {
+        const T *Ba = &B[a][0];
+        T Mab = T(0);
+        for (std::size_t i = 0; i < N; ++i) {
+          const auto AaiDib = A[a][i] * D[i][b];
+          const T *Ci = &C[i][0];
+          for (std::size_t j = 0; j < N; ++j) {
+            Mab += AaiDib * Ba[j] * Ci[j] * E[j][b];
+          }
+        }
+        M[a][b] = Mab;
+      }
+    }
+
+  } else {
+
+    for (std::size_t a = 0; a < N; ++a) {
+      const T *Ba = &B[a][0];
+      for (std::size_t b = 0; b < N; ++b) {
+        T Mab = T(0);
+        for (std::size_t i = 0; i < N; ++i) {
+          const auto AaiDib = A[a][i] * D[i][b];
+          const T *Ci = &C[i][0];
+          for (std::size_t j = 0; j < N; ++j) {
+            Mab += AaiDib * Ba[j] * Ci[j] * E[j][b];
+          }
+        }
+        M[a][b] = Mab;
+      }
+    }
+  }
 }
 
 //==============================================================================
