@@ -293,6 +293,111 @@ public:
 //==============================================================================
 //==============================================================================
 
+//! Matrix multiplication C = A*B. C is overwritten with product, and must be correct size already
+/*! @details Wrapper for BLAS gemm functions:
+*/
+template <typename T>
+void GEMM(const Matrix<T> &a, const Matrix<T> &b, Matrix<T> *c,
+          bool trans_A = false, bool trans_B = false);
+
+//------------------------------------------------------------------------------
+
+//! 5-matrix contraction for N*N matrices: M_ab = A_ai B_aj C_ij D_ib E_jb, with BLAS
+/*!
+  @details
+  All input matrices are assumed square with the same dimension N.
+  The contraction sums over indices i and j:
+  \f[
+    M_{ab} = \sum_{i,j} A_{ai}\,B_{aj}\,C_{ij}\,D_{ib}\,E_{jb}.
+  \f]
+
+  This implementation evaluates the contraction by looping over the
+  shared index i and using a BLAS GEMM for the inner j-summation:
+  \f[
+    X^{(i)}_{jb} = C_{ij}\,E_{jb}, \qquad
+    Y^{(i)}_{ab} = \sum_j B_{aj}\,X^{(i)}_{jb},
+  \f]
+  followed by the accumulation
+  \f[
+    M_{ab} \mathrel{+}= A_{ai}\,Y^{(i)}_{ab}\,D_{ib}.
+  \f]
+
+  Thus each i-iteration performs one dense matrix multiplication
+  (B * X^{(i)}) via BLAS, while the remaining operations are
+  elementwise scalings and accumulations.
+
+  The routine allocates temporary work matrices X and Y of size N×N
+  (reused across i) and writes the result into @p M, which must be
+  preallocated and is overwritten on entry (i.e., initialised to zero).
+
+  @note
+  ~20% faster than Naiive implementation, BUT not easily parallelisable.
+
+  @tparam T  Scalar type (float, double, std::complex<...>)
+  @param A,B,C,D,E  Input N×N matrices
+  @param[out] M     Output N×N matrix receiving the contraction. Must be previously sized
+*/
+template <typename T>
+void PENTA_GEMM(const Matrix<T> &A, const Matrix<T> &B, const Matrix<T> &C,
+                const Matrix<T> &D, const Matrix<T> &E, Matrix<T> *M);
+
+//! M_ab = A_ai B_aj C_ij D_ib E_jb. Assuming all square matrices. Uses blas.
+/*!
+  @details
+  Calls:
+  \ref PENTA_GEMM(const Matrix<T>&, const Matrix<T>&,
+                  const Matrix<T>&, const Matrix<T>&,
+                  const Matrix<T>&, Matrix<T>*).
+*/
+template <typename T>
+Matrix<T> PENTA_GEMM(const Matrix<T> &A, const Matrix<T> &B, const Matrix<T> &C,
+                     const Matrix<T> &D, const Matrix<T> &E) {
+  Matrix<T> M(A.rows(), A.cols());
+  PENTA_GEMM<T>(A, B, C, D, E, &M);
+  return M;
+}
+
+//-----------
+
+//! 5-matrix contraction for N*N matrices: M_ab = A_ai B_aj C_ij D_ib E_jb, without BLAS, but with optional OpenMP parallelisation
+/*! @details
+  Computes the tensor contraction
+  \f[
+    M_{ab} = \sum_{i,j} A_{ai}\,B_{aj}\,C_{ij}\,D_{ib}\,E_{jb},
+  \f]
+  assuming all input matrices are square with the same dimension.
+
+  This implementation uses explicit nested loops (no BLAS).
+  If @tparam PARALLEL is true, OpenMP pragmas are enabled to
+  parallelise the outer loops.
+
+  For a BLAS-accelerated implementation, see
+  \ref PENTA_GEMM(const Matrix<T>&, const Matrix<T>&,
+                  const Matrix<T>&, const Matrix<T>&,
+                  const Matrix<T>&, Matrix<T>*).
+  
+  Usually, this version will be significantly faster than the BLAS one.
+  However, if it iself is being called in a parallel region, the BLAS one will be faster.
+
+  @tparam T         Scalar type: double, float, std::complex
+  @tparam PARALLEL  Enable OpenMP parallelisation when true (compile-time)
+  @param A,B,C,D,E  Input N×N matrices
+  @param[out] M     Output N×N matrix receiving the contraction. Must be previously sized
+*/
+template <typename T, bool PARALLEL = false>
+void PENTA(const Matrix<T> &A, const Matrix<T> &B, const Matrix<T> &C,
+           const Matrix<T> &D, const Matrix<T> &E, Matrix<T> *M);
+
+//! 5-index contraction for N*N matrices: M_ab = A_ai B_aj C_ij D_ib E_jb, without BLAS, but with optional OpenMP parallelisation
+//! @details calls above
+template <typename T, bool PARALLEL = false>
+Matrix<T> PENTA(const Matrix<T> &A, const Matrix<T> &B, const Matrix<T> &C,
+                const Matrix<T> &D, const Matrix<T> &E) {
+  Matrix<T> M(A.rows(), A.cols());
+  PENTA<T, PARALLEL>(A, B, C, D, E, &M);
+  return M;
+}
+
 //==============================================================================
 //==============================================================================
 //==============================================================================

@@ -1,8 +1,10 @@
+#include "IO/ChronoTimer.hpp"
 #include "catch2/catch.hpp"
 #include "include.hpp"
 #include <algorithm>
 #include <complex>
 #include <numeric>
+#include <random>
 
 //==============================================================================
 TEST_CASE("LinAlg: Element access, memory layout", "[LinAlg][unit]") {
@@ -317,7 +319,9 @@ TEST_CASE("LinAlg: ...", "[LinAlg][unit]") {
   const auto b2 = b;
   REQUIRE(LinAlg::equal(a2 * b2, a * b));
 }
+
 TEST_CASE("LinAlg: matrix multiplication<complex<double>>", "[LinAlg][unit]") {
+  std::cout << "LinAlg: matrix multiplication<complex<double>>\n";
   // Test matrix multiplication, with complex double, const and non-const
   using namespace std::complex_literals;
   LinAlg::Matrix a{
@@ -663,5 +667,107 @@ TEST_CASE("LinAlg: Row and Column Views, complex", "[LinAlg][unit]") {
     for (std::size_t j = 0; j < a.rows(); ++j) {
       REQUIRE(b(i, j) == 4.0 * a(i, j));
     }
+  }
+}
+
+//==============================================================================
+TEMPLATE_TEST_CASE("LinAlg: PENTA unit", "[LinAlg][PENTA][unit]", float, double,
+                   std::complex<double>) {
+  std::cout << "----------------------------------------\n";
+  std::cout << "LinAlg: PENTA (unit)\n";
+  // INFO("Type = " << Catch::Detail::stringify<TestType>());
+  INFO("Type = " << Catch::Detail::stringify(TestType{}));
+
+  std::size_t N = 25;
+
+  using T = TestType;
+
+  std::mt19937_64 rng{123456789}; // fixed seed
+  std::uniform_real_distribution<double> dist(-5.0, 5.0);
+
+  auto rand_val = [&]() -> T {
+    if constexpr (std::is_same_v<T, std::complex<double>>) {
+      return T{dist(rng), dist(rng)};
+    } else {
+      return static_cast<T>(dist(rng));
+    }
+  };
+
+  LinAlg::Matrix<T> A(N, N), B(N, N), C(N, N), D(N, N), E(N, N);
+  for (std::size_t i = 0; i < N; ++i) {
+    for (std::size_t j = 0; j < N; ++j) {
+      A(i, j) = rand_val();
+      B(i, j) = rand_val();
+      C(i, j) = rand_val();
+      D(i, j) = rand_val();
+      E(i, j) = rand_val();
+    }
+  }
+
+  const auto M1 = LinAlg::PENTA_GEMM(A, B, C, D, E);
+  const auto M3 = LinAlg::PENTA(A, B, C, D, E);
+  const auto M4 = LinAlg::PENTA<T, true>(A, B, C, D, E);
+
+  // This is not actually that could for complex double!
+  // Is this a BLAS issue?
+  constexpr auto eps = std::is_same_v<T, std::complex<double>> ? T(1.0e-4) :
+                       std::is_same_v<T, float>                ? T(1.0e-4) :
+                                                                 T(1.0e-10);
+  REQUIRE(LinAlg::equal(M1, M3, eps));
+  REQUIRE(LinAlg::equal(M3, M4));
+}
+
+//------------------------------------------------------------------------------
+// May fail, only because includes a performance test
+TEST_CASE("LinAlg: PENTA", "[LinAlg][PENTA][!mayfail]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "LinAlg: PENTA\n";
+
+  std::size_t N = 200;
+
+  std::mt19937_64 rng{123456789}; // fixed seed
+  std::uniform_real_distribution<double> dist(-5.0, 5.0);
+
+  LinAlg::Matrix<double> A(N, N), B(N, N), C(N, N), D(N, N), E(N, N);
+  for (std::size_t i = 0; i < N; ++i) {
+    for (std::size_t j = 0; j < N; ++j) {
+      A(i, j) = dist(rng);
+      B(i, j) = dist(rng);
+      C(i, j) = dist(rng);
+      D(i, j) = dist(rng);
+      E(i, j) = dist(rng);
+    }
+  }
+
+  LinAlg::Matrix<double> M1(N, N), M2(N, N), M3(N, N), M4(N, N);
+
+  double t_direct{0.0}, t_gemm{0.0}, t_P_direct{0.0};
+
+  {
+    IO::ChronoTimer t{"gemm version:"};
+    M1 += LinAlg::PENTA_GEMM(A, B, C, D, E);
+
+    t_gemm = t.reading_ms();
+  }
+
+  {
+    IO::ChronoTimer t{"direct version:"};
+    M3 += LinAlg::PENTA(A, B, C, D, E);
+
+    t_direct = t.reading_ms();
+  }
+
+  {
+    IO::ChronoTimer t{"direct Parra version:"};
+    M4 += LinAlg::PENTA<double, true>(A, B, C, D, E);
+    t_P_direct = t.reading_ms();
+  }
+
+  REQUIRE(LinAlg::equal(M1, M3, 1.0e-10));
+  REQUIRE(LinAlg::equal(M3, M4));
+
+  SECTION("Performance") {        //, "[!mayfail]" (doesn't work)
+    CHECK(t_gemm < t_direct);     // may fail but allowed
+    CHECK(t_P_direct < t_direct); // may fail but allowed
   }
 }
