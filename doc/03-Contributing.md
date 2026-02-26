@@ -1,0 +1,5 @@
+\cond HIDDEN
+
+# Contributing
+
+\endcond
