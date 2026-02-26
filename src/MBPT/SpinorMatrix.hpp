@@ -100,6 +100,32 @@ public:
   LinAlg::Matrix<T> &gf() { return m_gf; }
   LinAlg::Matrix<T> &gg() { return m_gg; }
 
+  LinAlg::Matrix<T> &sp(std::size_t mu, std::size_t nu) {
+    assert(mu < 2 && nu < 2);
+    if (mu == 0 && nu == 0)
+      return m_ff;
+    if (mu == 0 && nu == 1)
+      return m_fg;
+    if (mu == 1 && nu == 0)
+      return m_gf;
+    if (mu == 1 && nu == 1)
+      return m_gg;
+    assert(false);
+  }
+
+  const LinAlg::Matrix<T> &sp(std::size_t mu, std::size_t nu) const {
+    assert(mu < 2 && nu < 2);
+    if (mu == 0 && nu == 0)
+      return m_ff;
+    if (mu == 0 && nu == 1)
+      return m_fg;
+    if (mu == 1 && nu == 0)
+      return m_gf;
+    if (mu == 1 && nu == 1)
+      return m_gg;
+    assert(false);
+  }
+
   std::size_t size() const { return m_size; }
   std::size_t g_size() const { return m_g_size; }
   bool includes_g() const { return m_g_size == m_size; };
