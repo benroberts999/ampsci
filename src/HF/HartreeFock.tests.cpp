@@ -2,6 +2,7 @@
 #include "HF/HartreeFock_test_data.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "ampsci/ampsci.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Vector.hpp"
@@ -570,5 +571,44 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
     // pass &= qip::check_value(&obuff, "HF hfs Fr", qip::min_abs(es, ep), 0.0,
     //                          3.0e-4);
     REQUIRE(qip::min_abs(es, ep) < 3.0e-4);
+  }
+}
+
+//============================================================================
+TEST_CASE("HartreeFock - Sigma2 - InIII Converge",
+          "[HF][HartreeFock][Correlations][unit]") {
+  std::cout << "\n----------------------------------------\n";
+  std::cout << "HartreeFock - Sigma2 - In Converge\n";
+  // This is just a test case that failed to converge before an update
+
+  const auto input_string = std::string{R"(
+    Atom {
+      Z = In;
+    }
+    HartreeFock {
+      core = [Kr], 4d10;
+      valence = 5sp;
+    }
+    Grid {
+      r0 = 1.0e-5;
+      rmax = 75.0;
+      num_points = 1000;
+    }
+    Basis {
+      number = 30;
+      order = 7;
+      rmax = 40.0;
+      states = 25spdfg;
+    }
+    Correlations {
+      n_min_core = 3;
+      each_valence = false;
+    }
+  )"};
+
+  // require all valence states converge
+  const auto wf = ampsci(IO::InputBlock{"", input_string});
+  for (const auto &v : wf.valence()) {
+    REQUIRE(v.eps() < 1.0e-9);
   }
 }
