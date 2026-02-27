@@ -171,20 +171,23 @@ void HartreeFock::solve_valence(
     std::cout << std::flush;
   }
 
-#pragma omp parallel for
+  // XXX Is there a race condition here??
+  // #pragma omp parallel for
   for (std::size_t i = 0; i < valence->size(); i++) {
-    auto &Fa = (*valence)[i];
+    auto &Fa = valence->at(i);
     const auto en0 = Fa.en();
     if (m_method == Method::HartreeFock) {
 
-      eis[i] = hf_valence(Fa, Sigma);
+      eis.at(i) = hf_valence(Fa, Sigma);
 
     } else {
 
-      eis[i] = local_valence(Fa);
+      eis.at(i) = local_valence(Fa);
     }
     deltas.at(i) = Fa.en() - en0;
   }
+
+  assert(valence->size() == eis.size());
 
   const auto worst = std::max_element(eis.cbegin(), eis.cend());
   const auto best = std::min_element(eis.cbegin(), eis.cend());
@@ -600,18 +603,23 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
   if (prev_its)
     it += *prev_its;
 
+  // prev_its checks if this already 2nd attempt - don't get stuck in loop
   if (eps < 10.0 * eps_target || prev_its)
     return {eps, it, Fa.shortSymbol()};
 
-  // if it didn't converge, try again with larger eta (damp)
-  // Fa = F_orig;
-  // return hf_valence(Fa, Sigma, 0.85, it);
+  // if eps very bad, try alternative method
+  if (eps > 1.0e-8) {
+    // Try again with alternate method
+    const auto eta_2 = eps > 1.0e-5 ? 0.75 : 0.25;
+    Fa = eta_2 * F_orig + (1.0 - eta_2) * Fa;
+    Fa.normalise();
+    Fa.en() = eta_2 * F_orig.en() + (1.0 - eta_2) * Fa.en();
+    return hf_valence_Green(Fa, Sigma);
+  }
 
-  // Try again with alternate method
-  Fa = 0.75 * F_orig + 0.25 * Fa;
-  Fa.normalise();
-  Fa.en() = 0.75 * F_orig.en() + 0.25 * Fa.en();
-  return hf_valence_Green(Fa, Sigma);
+  // Otherwise, if it didn't converge, try again with larger eta (damp)
+  Fa = std::move(F_orig);
+  return hf_valence(Fa, Sigma, 0.5 * (eta_damp + 1.0), it);
 }
 
 //==============================================================================
@@ -922,7 +930,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         const auto fac_top = Fa.f(i) * Fb.f(i) + Fa.g(i) * Fb.g(i);
         const auto fac_bot = Fa.f(i) * Fa.f(i) + Fa.g(i) * Fa.g(i);
         v_Fab[i] = -x_tjbp1 * fac_top / fac_bot;
-      } // r
+      }
       for (int k = kmin; k <= kmax; k++) {
         const auto Labk = m_Yab.Ck().get_Lambdakab(k, Fa.kappa(), Fb.kappa());
         if (Labk == 0)
@@ -933,9 +941,9 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
           continue;
         for (std::size_t i = 0; i < irmax; i++) {
           vex_a[i] += Labk * (*vabk)[i] * v_Fab[i];
-        } // r
-      }   // k
-    }     // b
+        }
+      }
+    }
   }
 
   // now, do a=b, ONLY if a is in the core!
@@ -958,7 +966,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         vex_a[i] += -Labk * (*vaak)[i] * x_tjap1;
       }
     } // k
-  }   // if a in core
+  } // if a in core
 }
 
 //------------------------------------------------------------------------------
@@ -1000,7 +1008,7 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
       const auto fac_top = Fa.f(i) * Fb.f(i) + Fa.g(i) * Fb.g(i);
       const auto fac_bot = Fa.f(i) * Fa.f(i) + Fa.g(i) * Fa.g(i);
       v_Fab[i] = -x_tjbp1 * fac_top / fac_bot;
-    } // r
+    }
 
     for (int k = kmin; k <= kmax; k++) {
       const auto parity = Angular::parity(la, lb, k);
@@ -1016,9 +1024,9 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
         if (v_Fab[i] == 0)
           continue;
         vex[i] += tjs2 * vabk[i] * v_Fab[i];
-      } // r
-    }   // k
-  }     // b
+      }
+    }
+  }
 
   return vex;
 }

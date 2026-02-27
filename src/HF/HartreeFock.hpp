@@ -25,7 +25,7 @@ struct EpsIts {
   int its{0};
   std::string symbol{};
   friend bool operator<(const EpsIts &l, const EpsIts &r) {
-    return l.eps < r.eps;
+    return std::abs(l.eps) < std::abs(r.eps);
   }
 };
 
