@@ -76,8 +76,9 @@ jobs:
     # Step 3: Set up the environment using the script
     - name: "Set up environment"
       run: |
-        chmod +x ./setup.sh
-        ./setup.sh --yes
+        chmod +x ./configure.sh
+        ./configure.sh --yes
+        make
 
     # Step 4: Build the project
     - name: "Build ampsci"

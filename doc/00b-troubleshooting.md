@@ -14,11 +14,11 @@ If running 'make' doesn't compile the code, or you get a "nothing to be done" or
 * ```make: *** No rule to make target '/main.o', needed by 'ampsci'.  Stop.```
 
 you might be using an out-of-date Makefile.
-Either re-run `setup.sh` or manually re-copy the updated makefile:
+Either re-run `configure.sh` or manually re-copy the updated makefile:
 
 <div class="shell-block">
 ```shell
-./setup.sh
+./configure.sh
 ```
 </div>
 or

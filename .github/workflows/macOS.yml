@@ -22,11 +22,12 @@ jobs:
         chmod +x ./install-dependencies.sh
         ./install-dependencies.sh --yes
 
-    - name: "Run using setup.sh (latest g++ with openMP)"
+    - name: "Run using configure.sh (latest g++ with openMP)"
       run: |
         set -x
-        chmod +x ./setup.sh
-        ./setup.sh --yes
+        chmod +x ./configure.sh
+        ./configure.sh --yes
+        make
         ./ampsci -v
         ./ampsci Cs [Xe] 7sp
 

@@ -88,7 +88,7 @@ MODE ?= release
 * Path to the GSL libraries. This can be left blank the majority of the time. On some systems if GSL is not found natively, or if the incorrect labrary is being found, you might need to specify it
   * e.g., on newer M1/M2 macs, you may need `/opt/homebrew/Cellar/gsl/2.7.1/`
   * intel mac: `/usr/local/opt/gnu-scientific-library`
-  * the `setup.sh` script should have done this for you
+  * the `configure.sh` script should have done this for you
 
 ```make
 ## Path to the GSL library. Usually, this can be left blank. 

@@ -1,13 +1,13 @@
 #!/bin/bash
 
 echo ''
-echo 'This will attempt to compile ampsci using the default options.'
+echo 'This will create a Makefile to compile ampsci using the default options.'
 echo 'You may need to update some options in the Makefile, depending on your system.'
 echo 'You may need to run install-dependencies.sh first, to install dependencies.'
 echo ''
 
 if [[ "$1" != "--yes" ]]; then
-  read -r -p "This script will compile programs. Do you wish to continue? [y/N] " response
+  read -r -p "This script may overwrite existing Makefile. Do you wish to continue? [y/N] " response
   if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
   then
     echo ""
@@ -136,19 +136,8 @@ fi
 
 # Attempt to compile ampsci
 echo ''
-echo "Attempt to compile ampsci:"
+echo "Makefile has been configured"
+echo "Attempt to compile ampsci using Make:"
+echo "$ make"
 echo ''
 
-make
-if [ $? -eq 0 ]; then
-  echo ''
-  echo "ampsci succesfully compiled"
-else
-  echo ''
-  echo "ampsci compilation failed"
-  echo "Check: "
-  echo "  - LAPACK/BLAS installed and linking"
-  echo "  - blas libraries (blas vs openblas), openmp (set to false)"
-  echo "  - openmp"
-  echo ""
-fi

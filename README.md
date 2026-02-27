@@ -41,7 +41,7 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 
 ### Quick start
 
-* The `setup.sh` bash script should compile and build ampsci (uses Make)
+* The `configure.sh` bash script should compile and build ampsci (uses Make)
   * It uses only defaults, and may not work on all systems.
     See documentation for full guide to compilation.
   * It assumes dependencies have already been installed. If not, see next:

@@ -68,11 +68,12 @@ The following simple method should work for most cases. More detailed compilatio
 ```
 </div>
 
-* Then, run `setup.sh` which will set up the Makefile and do the initial compilation
+* Then, run `configure.sh` which will set up the Makefile
 
 <div class="shell-block">
 ```shell
-./setup.sh
+./configure.sh
+make
 ```
 </div>
 

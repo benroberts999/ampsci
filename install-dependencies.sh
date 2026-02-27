@@ -2,7 +2,7 @@
 
 echo ''
 echo 'This will attempt to install all ampsci dependencies.'
-echo 'After this, run setup.sh to compile ampsci with default options.'
+echo 'After this, run configure.sh to compile ampsci with default options.'
 echo 'You may need to update some options in the Makefile, depending on your system.'
 echo ''
 

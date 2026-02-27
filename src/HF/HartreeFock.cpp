@@ -965,8 +965,8 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
         // Of course, cutting is fine. But WHY FAIL??
         vex_a[i] += -Labk * (*vaak)[i] * x_tjap1;
       }
-    } // k
-  } // if a in core
+    }
+  }
 }
 
 //------------------------------------------------------------------------------

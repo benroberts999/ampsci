@@ -19,4 +19,4 @@ doc/tex/*
 !.gitignore
 !*.md
 !install-dependencies.sh
-!setup.sh
+!configure.sh
