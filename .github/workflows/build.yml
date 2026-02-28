@@ -38,9 +38,7 @@ jobs:
 
     # Step 3: Set up the environment
     - name: "Set up environment"
-      run: |
-        cp ./doc/Makefile ./
-        cp ./doc/examples/ampsci.in ./ampsci.in
+      run: ./configure.sh --yes
 
     # Step 4: Build the project using the matrix configuration
     - name: "Build ampsci"
@@ -48,7 +46,6 @@ jobs:
         make clean && make CXX=${{ matrix.compiler }} Build=dev OMPLIB=${{ matrix.openmp }} ampsci tests
         ./ampsci -v
         ./ampsci Cs [Xe] 7sp
-        ./tests [unit]
         make clean && make CXX=${{ matrix.compiler }} Build=release OMPLIB=${{ matrix.openmp }}
         ./ampsci -v
         ./ampsci Cs [Xe] 7sp

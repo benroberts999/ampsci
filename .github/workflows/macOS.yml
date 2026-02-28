@@ -36,12 +36,11 @@ jobs:
         make tests
         ./tests \[unit\]
 
-    - name: "Run in dev mode, with tests"
+    - name: "Run in dev mode"
       run: |
         set -x
         make Build=dev ampsci tests
         ./ampsci Cs [Xe] 7sp
-        ./tests \[unit\]
 
     - name: "Run using standard Apple Clang (CLT), no openMP"
       run: |

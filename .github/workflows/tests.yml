@@ -28,7 +28,7 @@ jobs:
         sudo apt-get install -y libomp-15-dev
 
     - name: setup
-      run: cp ./doc/Makefile ./
+      run: ./configure.sh --yes
 
     - name: Build ampsci (clang++)
       run: |
@@ -43,6 +43,11 @@ jobs:
         make clean
         make CXX='g++' OMPLIB=-fopenmp tests
 
-    - name: Run unit, regression, integrations tests (g++)
+    - name: Run tests on g++ (all except slow)
       if: github.ref == 'refs/heads/main'
-      run: ./tests ~[slow]
+      run: ./tests "~[slow]"
+
+    - name: Run unit tests only (g++)
+      if: github.ref != 'refs/heads/main'
+      run: ./tests "[unit]"
+

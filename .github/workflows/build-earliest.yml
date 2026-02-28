@@ -29,7 +29,7 @@ jobs:
             # Update and install packages
             apt-get update -y && \
             apt-get install -y make liblapack-dev libblas-dev libgsl-dev && \
-            cp ./doc/Makefile ./ && \
+            ./configure.sh --yes && \
             make CXX=g++ OMPLIB=-fopenmp && \
             ./ampsci -v
           "

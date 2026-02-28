@@ -31,7 +31,7 @@ BASE_WARN = -Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow -W
 
 GCC_WARN = -Wsuggest-override -Wnon-virtual-dtor -Wcast-align -Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches -Wuseless-cast -Wformat
 
-CLANG_WARN = -Wheader-hygiene -Wno-unused-function
+CLANG_WARN = -Wheader-hygiene -Wno-unused-function -Wno-invalid-utf8 -Wno-c2y-extensions
 
 ## nb: must check for clang++ first, since 'clang++' contains 'g++'!
 WARN = $(BASE_WARN)
@@ -70,8 +70,8 @@ ifneq ($(GSL_PATH),)
   LDLIBS += -L$(GSL_PATH)/lib/
 endif
 
-CXXFLAGS = $(CXXSTD) $(OPT) $(OMPLIB) $(WARN) $(INCLUDES)
-LDFLAGS = $(OMPLIB)
+CXXFLAGS += $(CXXSTD) $(OPT) $(OMPLIB) $(WARN) $(INCLUDES)
+LDFLAGS += $(OMPLIB)
 
 # Compile and link commands
 COMPILE = $(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $< 
