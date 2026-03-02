@@ -663,7 +663,7 @@ template <typename Period> FMT_CONSTEXPR inline const char *get_units() {
   if (std::is_same<Period, std::nano>::value)
     return "ns";
   if (std::is_same<Period, std::micro>::value)
-    return "µs";
+    return "s";
   if (std::is_same<Period, std::milli>::value)
     return "ms";
   if (std::is_same<Period, std::centi>::value)
@@ -697,7 +697,7 @@ template <typename Period> FMT_CONSTEXPR inline const char *get_units() {
 
 enum class numeric_system {
   standard,
-  // Alternative numeric system, e.g. 十二 instead of 12 in ja_JP locale.
+  // Alternative numeric system, e.g.  instead of 12 in ja_JP locale.
   alternative
 };
 

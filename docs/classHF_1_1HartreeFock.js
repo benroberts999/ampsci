@@ -1,0 +1,28 @@
+var classHF_1_1HartreeFock =
+[
+    [ "HartreeFock", "classHF_1_1HartreeFock.html#a9ce128564cd5b53053d5d040f45aeb1e", null ],
+    [ "solve_core", "classHF_1_1HartreeFock.html#af6a06a96c661c9d075abbb3d87705bb5", null ],
+    [ "solve_valence", "classHF_1_1HartreeFock.html#ae935c2f2b763861be0391790ba28df73", null ],
+    [ "hf_valence", "classHF_1_1HartreeFock.html#acb50b62e1b4a4958f11ae00f17606a47", null ],
+    [ "hf_valence_Green", "classHF_1_1HartreeFock.html#a8b8cb0ff8290e93a082641ef6775593d", null ],
+    [ "calculateCoreEnergy", "classHF_1_1HartreeFock.html#a252b2f63cdcb89d1e7372a3cd27cd1f7", null ],
+    [ "vexFa", "classHF_1_1HartreeFock.html#ab02117a1fd9b3c70e6acba5f97fc2d3f", null ],
+    [ "VBr", "classHF_1_1HartreeFock.html#aee82c1b6a1cb08d5f46e30abc90cd55e", null ],
+    [ "grid", "classHF_1_1HartreeFock.html#a099b03f8921e20c89628ed2e27a21b42", null ],
+    [ "grid_sptr", "classHF_1_1HartreeFock.html#af98cef4c543f9d6e1919884b5d140a3a", null ],
+    [ "vdir", "classHF_1_1HartreeFock.html#ae0d7d4223a0e6ca0245f5150f5487a75", null ],
+    [ "vnuc", "classHF_1_1HartreeFock.html#a0723792d0f52542ab4752210e18a31ca", null ],
+    [ "Hrad_el", "classHF_1_1HartreeFock.html#a1b314776189866c3a3be3e1f318c8941", null ],
+    [ "Hmag", "classHF_1_1HartreeFock.html#a97c3c0aa219b974ff916c2b4e5422174", null ],
+    [ "vlocal", "classHF_1_1HartreeFock.html#affaed35ef48643227fdebee039b03a92", null ],
+    [ "method", "classHF_1_1HartreeFock.html#aa061bfa46ad6f718117e843908719cf9", null ],
+    [ "zion", "classHF_1_1HartreeFock.html#a63b3f5042634c97bc31b84cabf2779ce", null ],
+    [ "excludeExchangeQ", "classHF_1_1HartreeFock.html#addf451a38799ca599b7620c75d850a97", null ],
+    [ "core", "classHF_1_1HartreeFock.html#af7ea171a4c04e2f51abdef1435c92c04", null ],
+    [ "alpha", "classHF_1_1HartreeFock.html#a956891259224bceb5bcafe511810ddb4", null ],
+    [ "set_Vrad", "classHF_1_1HartreeFock.html#a824e3c0f0be00721a68929fb717e300d", null ],
+    [ "Vrad", "classHF_1_1HartreeFock.html#afbd2dd7d0377f9e01d3346f92bc3ccba", null ],
+    [ "vBreit", "classHF_1_1HartreeFock.html#adde67dd20017663dd62ba875c07df699", null ],
+    [ "x_Breit", "classHF_1_1HartreeFock.html#a153f87cea415cb7270627ad24220d750", null ],
+    [ "num_core_electrons", "classHF_1_1HartreeFock.html#ae2a4fd4dbd26e10904853f352fb45a84", null ]
+];
