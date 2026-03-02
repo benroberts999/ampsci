@@ -477,6 +477,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
                 "resolution in."},
     {"oname", "oname"},
     {"ec_cut", "Cut-off (in au) for continuum energy. [inf]"},
+    {"method", "'hf' (relativistic Hartree-Fock), 'rpa' (all-orders RPA) [HF]"},
     {"K_minmax", "List (2). Minimum, maximum K [1, 1]"},
     {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
     {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
@@ -558,6 +559,24 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto [Kmin, Kmax] = input.get("K_minmax", std::array{1, 1});
   const auto label = input.get("label", std::string{""});
 
+  // Method (HF or RPA)
+  const auto method_calc = input.get("method", std::vector<std::string>{"HF"});
+  bool HF{false}, rpa{false};
+  for (auto &w : method_calc) {
+    if (!w.empty()) {
+      switch (std::tolower(w[0])) {
+      case 'h':
+        HF = true;
+        break;
+      case 'r':
+        rpa = true;
+        break;
+      }
+    }
+  }
+
+  fmt::print("\nMethod: {}{}\n", HF ? "HF; " : "", rpa ? "HF + RPA " : "");
+
   const auto force_orthog = input.get("force_orthog", true);
   const auto force_rescale = input.get("force_rescale", false);
   const auto hole_particle = input.get("hole_particle", true);
@@ -630,6 +649,17 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       // "Length" form - for tests only
       const auto Ek_len = DiracOperator::VEk_Len(wf.grid(), k, omega);
 
+      using namespace ExternalField;
+      std::unique_ptr<DiagramRPA>Phik_rpa,Ek_rpa,Mk_rpa,Lk_rpa;
+      if (rpa == true){
+        // Constructing RPA operators
+        Phik_rpa = std::make_unique<DiagramRPA>(&Phik, wf.basis(), wf.vHF(), wf.identity());
+        Ek_rpa = std::make_unique<DiagramRPA>(&Ek, wf.basis(), wf.vHF(), wf.identity());
+        Mk_rpa = std::make_unique<DiagramRPA>(&Mk, wf.basis(), wf.vHF(), wf.identity());
+        Lk_rpa = std::make_unique<DiagramRPA>(&Lk, wf.basis(), wf.vHF(), wf.identity());
+      }
+
+
 #pragma omp parallel for reduction(+ : Q_E1, Q_M1, Q_Mk1, Q_M1_nr, Q_Ek2,      \
                                      Q_E2, Q_E, Q_M, Q_L, Q_E_len, Q_X)
       for (std::size_t ic = i_first_acc_core; ic < wf.core().size(); ++ic) {
@@ -664,43 +694,73 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
           const auto f_Q_E1 = 1.0 / 3.0;
           const auto f_Q_M1 = 1.0 / 3.0 * qip::pow(PhysConst::muB_CGS, 2);
 
-          if (k == 1) {
-            Q_E1 += f_Q_E1 * qip::pow(E1.reducedME(Fe, Fa), 2);
-            Q_M1 += f_Q_M1 * qip::pow(M1.reducedME(Fe, Fa), 2);
-            Q_Mk1 += f_Q * qip::pow(Mk.reducedME(Fe, Fa), 2);
-            Q_M1_nr += f_Q_M1 * qip::pow(M1nr.reducedME(Fe, Fa), 2);
-          }
-          if (k == 2) {
-            // test with "actual" E2 as well!
-            Q_Ek2 += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
+          if (rpa == false){
 
-            Q_E2 += f_Q_E1 * qip::pow(E2.reducedME(Fe, Fa), 2) / 20 * q * q;
+            if (k == 1) {
+              Q_E1 += f_Q_E1 * qip::pow(E1.reducedME(Fe, Fa), 2);
+              Q_M1 += f_Q_M1 * qip::pow(M1.reducedME(Fe, Fa), 2);
+              Q_Mk1 += f_Q * qip::pow(Mk.reducedME(Fe, Fa), 2);
+              Q_M1_nr += f_Q_M1 * qip::pow(M1nr.reducedME(Fe, Fa), 2);
+            }
+            if (k == 2) {
+              // test with "actual" E2 as well!
+              Q_Ek2 += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
+
+              Q_E2 += f_Q_E1 * qip::pow(E2.reducedME(Fe, Fa), 2) / 20 * q * q;
+            }
+
+            if (dark_photon == true){
+              Q_E += f_Q_dp * qip::pow(Ek.reducedME(Fe, Fa), 2);
+              Q_M += f_Q_dp * qip::pow(Mk.reducedME(Fe, Fa), 2);
+              Q_L += f_Q_dp * qip::pow(Lk.reducedME(Fe,Fa),2);
+              Q_V0 += f_Q_dp * qip::pow(Phik.reducedME(Fe,Fa),2);
+              Q_X += f_Q_dp * Phik.reducedME(Fe,Fa) * Lk.reducedME(Fe,Fa);
+            }
+
+            if (dark_photon == false){
+              Q_E += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
+              Q_M += f_Q * qip::pow(Mk.reducedME(Fe, Fa), 2);
+            }
+
+            Q_E_len += f_Q * qip::pow(Ek_len.reducedME(Fe, Fa), 2);
           }
 
-          if (dark_photon == true){
-            Q_E += f_Q_dp * qip::pow(Ek.reducedME(Fe, Fa), 2);
-            Q_M += f_Q_dp * qip::pow(Mk.reducedME(Fe, Fa), 2);
-            Q_L += f_Q_dp * qip::pow(Lk.reducedME(Fe,Fa),2);
-            Q_V0 += f_Q_dp * qip::pow(Phik.reducedME(Fe,Fa),2);
-            Q_X += f_Q_dp * Phik.reducedME(Fe,Fa) * Lk.reducedME(Fe,Fa);
-          }
+          if (rpa == true){
 
-          if (dark_photon == false){
-            Q_E += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
-            Q_M += f_Q * qip::pow(Mk.reducedME(Fe, Fa), 2);
-          }
+            auto Ek_corr = Ek_rpa->dV(Fe, Fa);
+            auto Mk_corr = Mk_rpa->dV(Fe,Fa);
 
-          Q_E_len += f_Q * qip::pow(Ek_len.reducedME(Fe, Fa), 2);
+            if (dark_photon == true){
+
+              auto Lk_corr = Lk_rpa->dV(Fe,Fa);
+              auto Phik_corr = Phik_rpa->dV(Fe,Fa);
+
+              Q_E += f_Q_dp * qip::pow(Ek.reducedME(Fe, Fa) + Ek_corr, 2);
+              Q_M += f_Q_dp * qip::pow(Mk.reducedME(Fe, Fa) + Mk_corr, 2);
+              Q_L += f_Q_dp * qip::pow(Lk.reducedME(Fe,Fa) + Lk_corr,2);
+              Q_V0 += f_Q_dp * qip::pow(Phik.reducedME(Fe,Fa) + Phik_corr,2);
+              Q_X += f_Q_dp * (Phik.reducedME(Fe,Fa) + Phik_corr) * (Lk.reducedME(Fe,Fa) + Lk_corr);
+            }
+
+            if (dark_photon == false){
+              Q_E += f_Q * qip::pow(Ek.reducedME(Fe, Fa) + Ek_corr, 2);
+              Q_M += f_Q * qip::pow(Mk.reducedME(Fe, Fa) + Mk_corr, 2);
+            }
+
+            Q_E_len += f_Q * qip::pow(Ek_len.reducedME(Fe, Fa), 2);
+          }
         }
       }
     }
 
     if (dark_photon == false){
-      out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E1 * Ksigma
-              << " " << Q_M1 * Ksigma << " " << Q_M1_nr * Ksigma << " "
-              << Q_E * Ksigma << " " << Q_E_len * Ksigma << " " << Q_M * Ksigma
-              << " " << (Q_E + Q_M) * Ksigma << " " << Q_E2 * Ksigma << " "
-              << Q_Ek2 * Ksigma << " " << Q_Mk1 * Ksigma << "\n";
+      // out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E1 * Ksigma
+      //         << " " << Q_M1 * Ksigma << " " << Q_M1_nr * Ksigma << " "
+      //         << Q_E * Ksigma << " " << Q_E_len * Ksigma << " " << Q_M * Ksigma
+      //         << " " << (Q_E + Q_M) * Ksigma << " " << Q_E2 * Ksigma << " "
+      //         << Q_Ek2 * Ksigma << " " << Q_Mk1 * Ksigma << "\n";
+
+      out_file << omega * PhysConst::Hartree_eV / 1e6 <<" " << (Q_E + Q_M) * Ksigma << "\n";
     }
 
     if (dark_photon == true){
