@@ -878,12 +878,12 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
     std::cout << iC << "/" << num_kappas << "\n";
     const auto kC = Angular::kappaFromIndex(int(iC));
 
-#pragma omp parallel for collapse(2) reduction(+ : Sigma)
+    #pragma omp parallel for collapse(2) reduction(+ : Sigma)
     // Frequency integral
     for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
       for (int s2 : {-1, 1}) {
         // m_omre - is the gap
-        const auto omega = std::complex{-1 * m_omre, s2 * m_wgrid(iw)};
+        const auto omega = std::complex{m_omre, s2 * m_wgrid(iw)};
         // Simpson's rule, with F(0)=0
         const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
         const auto dw = -I * (weight * s2 * m_wgrid.drdu(iw));
@@ -902,10 +902,10 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
             for (auto l = l0; l <= std::min(lm, m_max_k); l += 2) {
               const auto ClvC = Angular::Ck_kk(l, kv, kC);
               const auto ClBA = Angular::Ck_kk(l, kB, kA);
-              // if (ClBA == 0)
-              //   continue;
+              if (ClBA == 0)
+                continue;
 
-              const auto &qlt = get_qk(int(l)); // has drj, and dri
+              const auto &qlt = get_qk(int(l)); // has drj
               const auto ql = qlt.dri();        // has drj, and dri
               const auto [k0, km] = Angular::kminmax_Ck(kv, kA);
 
