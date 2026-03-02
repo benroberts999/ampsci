@@ -117,6 +117,12 @@ public:
   GMatrix Sigma_direct(int kappa_v, double en_v,
                        std::optional<int> k = {}) const;
 
+  GMatrix Sigma_exchange(int kappa_v, double en_v) const;
+
+  ComplexGMatrix rad_exchange_integrals(ComplexGMatrix A, ComplexRMatrix B,
+                                        ComplexGMatrix C, ComplexRMatrix D,
+                                        ComplexGMatrix E) const;
+
   //! Returns (reference to) q^k (radial) matrix. Note: includes drj? No?
   const ComplexRMatrix &get_qk(int k) const { return m_qk.at(std::size_t(k)); }
 

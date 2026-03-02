@@ -829,18 +829,34 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
   return Sigma;
 }
 
-ComplexGMatrix rad_exchange_integrals(ComplexGMatrix A, ComplexGMatrix B,
-                                      ComplexGMatrix C, ComplexGMatrix D,
-                                      ComplexGMatrix E) {
-  ComplexRMatrix M(m_i0, m_stride, m_subgrid_points, m_grid);
+double L_ang(int u, int l, int ki, int kj, int kk, int kl) {
+  const auto tji = Angular::twoj_k(ki);
+  const auto tjj = Angular::twoj_k(kj);
+  const auto tjk = Angular::twoj_k(kk);
+  const auto tjl = Angular::twoj_k(kl);
+  const auto sjs = Angular::sixj_2(tji, tjk, 2 * u, tjj, tjl, 2 * l);
+
+  const auto s = Angular::neg1pow(u + l);
+  const double f = (2 * u + 1) / (tji + 1);
+
+  return f * s * sjs;
+}
+
+ComplexGMatrix Feynman::rad_exchange_integrals(ComplexGMatrix A,
+                                               ComplexRMatrix B,
+                                               ComplexGMatrix C,
+                                               ComplexRMatrix D,
+                                               ComplexGMatrix E) const {
+  ComplexGMatrix M(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
 
   // M_ab = A_ai B_aj C_ij D_ib E_jb
   // This function does the spinor multpication. The spinors are A_ai, C_ij, E_jb
-  for (auto a = 0; a < 2; a++) {
-    for (auto b = 0; a < 2; a++) {
-      for (auto c = 0; c < 2; a++) {
-        for (auto d = 0; d < 2) {
-          M.sp(a, d) += PENTA_GEMM(A.sp(a, b), B, C.sp(b, c), D, E.sp(c, d));
+  for (auto a = 0ul; a < 2; a++) {
+    for (auto d = 0ul; d < 2; d++) {
+      for (auto b = 0ul; b < 2; b++) {
+        for (auto c = 0ul; c < 2; c++) {
+          M.sp(a, d) += PENTA_GEMM(A.sp(a, b), B.Rmatrix(), C.sp(b, c),
+                                   D.Rmatrix(), E.sp(c, d));
         }
       }
     }
@@ -849,56 +865,48 @@ ComplexGMatrix rad_exchange_integrals(ComplexGMatrix A, ComplexGMatrix B,
 }
 
 GMatrix Feynman::Sigma_exchange(int kv, double env) const {
-  // If in_k is set, only calculate for single k
-  // Used both for testing, and for calculating f_k factors
-
   GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
-
+  const auto &core = m_HF->core();
   constexpr std::complex<double> I{0.0, 1.0};
   const auto num_kappas = std::size_t(m_max_ki + 1);
 
 #pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
   initializer(omp_priv = GMatrix(omp_orig))
-
   std::cout << "\n";
-  // summ over kappas
-  for (auto iA = 0ul; iA < num_kappas; ++iA) {
-    std::cout << iA << "/" << num_kappas << "\n";
-    const auto kA = Angular::kappaFromIndex(int(iA));
+  // summ over kC
+  for (auto iC = 0ul; iC < num_kappas; ++iC) {
+    std::cout << iC << "/" << num_kappas << "\n";
+    const auto kC = Angular::kappaFromIndex(int(iC));
 
-#pragma omp parallel for collapse(3) reduction(+ : Sigma)
-    // frequency integral
+#pragma omp parallel for collapse(2) reduction(+ : Sigma)
+    // Frequency integral
     for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
-      for (auto iB = 0ul; iB < num_kappas; ++iB) {
-        for (int s2 : {-1, 1}) {
-          const auto omega = std::complex{0.5 * m_omre, s2 * m_wgrid(iw)};
+      for (int s2 : {-1, 1}) {
+        // m_omre - is the gap
+        const auto omega = std::complex{-1 * m_omre, s2 * m_wgrid(iw)};
+        // Simpson's rule, with F(0)=0
+        const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+        const auto dw = -I * (weight * s2 * m_wgrid.drdu(iw));
+        const auto gC = green(kC, env + omega);
+
+        // Sum over kappa_A, kapp_B
+        for (auto iB = 0ul; iB < num_kappas; ++iB) {
           const auto kB = Angular::kappaFromIndex(int(iB));
-          // kappa sum
-          for (auto iC = 0ul; iC < num_kappas; ++iC) {
-            // Simpson's rule, with F(0)=0
-            // const auto weight1 = iw1 % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
-            const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
-
-            // const auto dw1 = I * (weight1 * s1 * m_wgrid.drdu(iw1));
-            const auto dw = I * (weight * s2 * m_wgrid.drdu(iw));
-            const auto kC = Angular::kappaFromIndex(int(iC));
-
+          for (auto iA = 0ul; iA < num_kappas; ++iA) {
+            const auto kA = Angular::kappaFromIndex(int(iA));
             // Avoid uneccesary calcs
             const auto [l0, lm] = Angular::kminmax_Ck(kv, kC);
             if (lm < l0)
               continue;
 
-            const auto gC = green(kC, env + omega);
-
             for (auto l = l0; l <= std::min(lm, m_max_k); l += 2) {
               const auto ClvC = Angular::Ck_kk(l, kv, kC);
               const auto ClBA = Angular::Ck_kk(l, kB, kA);
-              if (ClBA == 0)
-                continue;
+              // if (ClBA == 0)
+              //   continue;
 
               const auto &qlt = get_qk(int(l)); // has drj, and dri
               const auto ql = qlt.dri();        // has drj, and dri
-
               const auto [k0, km] = Angular::kminmax_Ck(kv, kA);
 
               for (auto k = k0; k <= std::min(km, m_max_k); k += 2) {
@@ -909,32 +917,39 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
                 const auto CkvA = Angular::Ck_kk(k, kv, kA);
                 const auto CkBC = Angular::Ck_kk(k, kB, kC);
 
-                if (CkBC == 0)
+                if (CkBC == 0 or CkvA == 0)
                   continue;
 
                 const auto &qk = get_qk(int(k)); // has drj
+
                 const auto ic_ang_dw = I * dw * ClvC * ClBA * CkvA * CkBC * sjs;
 
-                GMatrix C_QGQ_gC_dw(m_i0, m_stride, m_subgrid_points,
-                                    m_include_G, m_grid);
-
-                const auto gC = green(kC, env + omega);
+                if (std::abs(ic_ang_dw) == 0)
+                  continue;
 
                 for (auto ia = 0ul; ia < core.size(); ++ia) {
-                  if ((Fa.kappa() != kA) and Fa.kappa() != kB)
-                    continue;
-                  const auto &Fa = core[ia];
-                  const auto ea_plus_w = std::complex<double>{Fa.en()} + omega;
-                  const auto ea_minus_w = std::complex<double>{Fa.en()} - omega;
-                  Pa = m_pa[ia]; // must filter this properly
-                  ComplexGMatrix Gx_p_kB = green_excited(kB, ea_plus_w);
-                  ComplexGMatrix Gx_m_kA = green_excited(kA, ea_minus_w);
-                  C_QGQ_gC_dw =
-                    ic_ang_dw * rad_exchange_integrals(P, qk, Gx_p_kB ql, gC) +
-                    ic_ang_dw * rad_exchange_integrals(Gx_m_kA, qk, P, ql, gC);
+                  const auto &Fa = core[ia]; // nearly redudant
+                  const auto &Pa = m_pa[ia];
+                  const auto ea = std::complex<double>{Fa.en()};
+
+                  if (Fa.n() < m_min_core_n)
+                    continue; // enforce summation of selected core states
+
+                  if (Fa.kappa() == kA) {
+                    const auto ea_plus_w = ea + omega;
+                    ComplexGMatrix Gx_p_kB = green_excited(kB, ea_plus_w);
+                    Sigma += (ic_ang_dw *
+                              rad_exchange_integrals(Pa, ql, Gx_p_kB, qk, gC))
+                               .real();
+                  }
+                  if (Fa.kappa() == kB) {
+                    const auto ea_minus_w = ea - omega;
+                    ComplexGMatrix Gx_m_kA = green_excited(kA, ea_minus_w);
+                    Sigma += (ic_ang_dw *
+                              rad_exchange_integrals(Gx_m_kA, ql, Pa, qk, gC))
+                               .real();
+                  }
                 }
-                //  gA(a, i)* qk(a, j) * gB(i, j) * ql(i, b) * gC(j, b
-                Sigma += C_QGQ_gC_dw;
               }
             }
           }
