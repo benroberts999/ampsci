@@ -43,22 +43,14 @@ Available modules:
      QED corrections to energies/matrix elements
  * Breit
      Breit corrections to energies
- * ladder
-     Calculates ladder diagrams and energy corrections
  * Kionisation
      Calculate atomic ionisation form-factors
  * continuum
      Compute and use continuum wavefunctions
  * HFAnomaly
      Calculates Bohr-Weisskopf effect and hyperfine anomaly
- * screeningFactors
-     Calculates Feynman electron screening factors
  * pnc
      Calculates APV amplitudes
- * muonPV
-     For testing/playing with muonic PV
- * VQE
-     For testing/playing with VQE method
  * exampleModule
      A short description of the module
 ```

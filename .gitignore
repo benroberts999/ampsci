@@ -5,6 +5,7 @@ src/*~
 doc/*
 !doc/*.md
 !doc/doxygen
+!doc/img
 !doc/tex
 doc/tex/*
 !doc/tex/*.tex

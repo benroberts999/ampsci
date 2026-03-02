@@ -1,5 +1,3 @@
-\cond HIDDEN
-
 # git tips
 
 * Mostly for
@@ -29,5 +27,3 @@ git bisect run bash -lc '
   ./tests <specific test>
 '
 ```
-
-\endcond

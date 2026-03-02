@@ -70,6 +70,11 @@ docs:
 	doxygen ./doc/doxygen/Doxyfile 2>/dev/null && \
 		cp ./doc/doxygen/ampsci.html ./doc/ampsci-documentation.html 2>/dev/null || :
 	cp ./doc/tex/ampsci.pdf ./doc/html/ampsci.pdf 2>/dev/null || :
+	cp -r ./doc/img ./doc/html/ 2>/dev/null || true
+	cp ./doc/doxygen/search.js ./doc/html/search/search.js
+	echo "<script id=\"searchdata\" type=\"text/xmldata\">" >> ./doc/html/search.html
+	cat ./doc/searchdata.xml >> ./doc/html/search.html
+	echo "</script>" >> ./doc/html/search.html
 
 do_the_chicken_dance:
 	@echo 'Why would I do that?'
