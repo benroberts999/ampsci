@@ -43,7 +43,8 @@ CorrelationPotential::CorrelationPotential(
 
   // attempt to read in Sigma file:
   // (Just contains Sigma matrix, nothing else)
-  const bool read_ok = read_write(fname, IO::FRW::read);
+  // const bool read_ok = read_write(fname, IO::FRW::read);
+  const bool read_ok = false;
 
   if (!read_ok) {
 
@@ -180,11 +181,12 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     std::cout << std::flush;
   }
 
-  const auto Sx = m_Gold->Sigma_exchange(kappa, ev, vfk);
+  // const auto Sx = m_Gold->Sigma_exchange(kappa, ev, vfk);
+  const auto Sx = m_Fy->Sigma_exchange(kappa, ev);
 
   if (Fv) {
     const auto deX = (*Fv) * (Sx * *Fv);
-    fmt::print("{:.2f} = {:.2f}\n", deX * PhysConst::Hartree_invcm,
+    fmt::print("{} = {:.4f}\n", deX * PhysConst::Hartree_invcm,
                (deD + deX) * PhysConst::Hartree_invcm);
     std::cout << std::flush;
   }
