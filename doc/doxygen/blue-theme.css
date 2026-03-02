@@ -86,3 +86,8 @@ div.fragment, pre.fragment, code, .line {
   opacity: 0.85;
   user-select: none;
 }
+
+/* Makes arrows always visible */
+#nav-tree .arrow {
+    opacity: 1 !important;
+}
