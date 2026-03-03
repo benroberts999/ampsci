@@ -969,8 +969,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
                                   [&Fa](auto e) { return e > -Fa.en(); })));
 
-    // OpenMP with clang++ seems to fail with Kmax, Kmin, which are from bindings
-    // This is surely a bug in the clang compiler
+    // OpenMP with clang++ seems to fail with Kmax, Kmin,
+    // which are "local bindings" from structured bindings.
+    // This is surely a bug in the clang compiler; this workaround is fine.
     const auto Kmax2{Kmax}, Kmin2{Kmin};
 
 #pragma omp parallel for
@@ -980,7 +981,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto ec = omega + Fa.en();
       assert(ec > 0.0);
 
-      // XXX Check this!
+      // l_min = j_min - 1/2
+      //       = j - K_max - 1/2
+      //       = (2j - 2*Kmax - 1) / 2    -  nb: 2j is always odd!
       const auto lc_min = std::max((Fa.twoj() - 2 * Kmax2 - 1) / 2, 0);
       const auto lc_max = (Fa.twoj() + 2 * Kmax2 + 1) / 2;
 
