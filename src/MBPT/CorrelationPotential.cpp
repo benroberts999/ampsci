@@ -43,18 +43,25 @@ CorrelationPotential::CorrelationPotential(
 
   // attempt to read in Sigma file:
   // (Just contains Sigma matrix, nothing else)
-  // const bool read_ok = read_write(fname, IO::FRW::read);
-  const bool read_ok = false;
+  const bool read_ok = read_write(fname, IO::FRW::read);
+
+  // XXX Temporary: Do Feynman exchange if using Feynman
+  m_Feyn_exchange = m_method == SigmaMethod::Feynman;
+  if (m_Feyn_exchange) {
+    m_calculate_fk = false;
+  }
 
   if (!read_ok) {
 
     if (m_method == SigmaMethod::Feynman) {
-      std::cout << "Using Feynman method for direct diagrams, Goldstone "
-                   "for exchange\n";
+      std::cout << "Using Feynman method for ";
+      std::cout << (m_Feyn_exchange ?
+                      "direct and exchnage diagrams\n" :
+                      "direct diagrams, Goldstone for exchange\n");
       if (m_calculate_fk && m_Foptions.screening == Screening::include) {
         std::cout << "Calculating f_k from scratch for exchange screening\n";
       } else {
-        if (!m_fk.empty()) {
+        if (!m_fk.empty() && !m_Feyn_exchange) {
           std::cout << "Exchange screening with: fk = {";
           for (auto &tfk : m_fk) {
             printf("%.3f, ", tfk);
@@ -181,12 +188,12 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     std::cout << std::flush;
   }
 
-  // const auto Sx = m_Gold->Sigma_exchange(kappa, ev, vfk);
+  // const auto Sx = m_Gold->Sigma_exchange(kappa, ev);
   const auto Sx = m_Fy->Sigma_exchange(kappa, ev);
 
   if (Fv) {
     const auto deX = (*Fv) * (Sx * *Fv);
-    fmt::print("{} = {:.4f}\n", deX * PhysConst::Hartree_invcm,
+    fmt::print("{:.2f} = {:.2f}\n", deX * PhysConst::Hartree_invcm,
                (deD + deX) * PhysConst::Hartree_invcm);
     std::cout << std::flush;
   }
@@ -320,7 +327,7 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
 //==============================================================================
 void CorrelationPotential::setup_Feynman() {
 
-  if (!m_Gold) {
+  if (!m_Gold && !m_Feyn_exchange) {
     // Also need Goldstone for Feynman (exchange)
     m_Gold = Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size,
                        m_n_min_core, m_includeG);

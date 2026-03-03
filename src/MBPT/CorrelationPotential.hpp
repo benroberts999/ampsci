@@ -45,6 +45,9 @@ class CorrelationPotential {
   bool m_includeBreit_b2;
   int m_n_max_breit;
 
+  // temporary! Fix later XXX
+  bool m_Feyn_exchange{false};
+
   std::optional<Goldstone> m_Gold{};
 
   FeynmanOptions m_Foptions;
