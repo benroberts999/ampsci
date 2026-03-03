@@ -70,6 +70,7 @@ docs:
 	doxygen ./doc/doxygen/Doxyfile 2>/dev/null && \
 		cp ./doc/doxygen/ampsci.html ./doc/ampsci-documentation.html 2>/dev/null || :
 	cp ./doc/tex/ampsci.pdf ./doc/html/ampsci.pdf 2>/dev/null || :
+	cp -r ./doc/img ./doc/html/ 2>/dev/null || true
 
 do_the_chicken_dance:
 	@echo 'Why would I do that?'

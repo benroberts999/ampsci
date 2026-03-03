@@ -16,3 +16,5 @@ This assumes you already have ampsci compiled.
 * \subpage tutorial_ci - \copybrief tutorial_ci
 
 * \subpage tutorial_exotic - \copybrief tutorial_exotic
+
+* \subpage tutorial_json - \copybrief tutorial_json
