@@ -872,6 +872,7 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
   return Sigma;
 }
 
+//==============================================================================
 double L_ang(int u, int l, int ki, int kj, int kk, int kl) {
   const auto tji = Angular::twoj_k(ki);
   const auto tjj = Angular::twoj_k(kj);
@@ -879,21 +880,28 @@ double L_ang(int u, int l, int ki, int kj, int kk, int kl) {
   const auto tjl = Angular::twoj_k(kl);
   const auto sjs = Angular::sixj_2(tji, tjk, 2 * u, tjj, tjl, 2 * l);
 
-  const auto s = Angular::neg1pow(u + l);
-  const double f = (2 * u + 1) / (tji + 1);
+  const auto s = Angular::neg1pow(u + l + 1);
+  // const double f = (2 * u + 1) / (tji + 1);
 
-  return f * s * sjs;
+  return s * sjs;
 }
 
+//==============================================================================
+// M_12 = A_1i B_1j C_ij D_i2 E_j2
 ComplexGMatrix Feynman::rad_exchange_integrals(ComplexGMatrix A,
                                                ComplexRMatrix B,
                                                ComplexGMatrix C,
                                                ComplexRMatrix D,
                                                ComplexGMatrix E) const {
+
   ComplexGMatrix M(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  LinAlg::PENTA_GEMM(A.ff(), B.Rmatrix(), C.ff(), D.Rmatrix(), E.ff(), &M.ff());
+  return M;
 
   // M_ab = A_ai B_aj C_ij D_ib E_jb
   // This function does the spinor multpication. The spinors are A_ai, C_ij, E_jb
+  // ComplexGMatrix M(m_i0, m_stride, m_subgrid_points, true, m_grid);
   for (auto a = 0ul; a < 2; a++) {
     for (auto d = 0ul; d < 2; d++) {
       for (auto b = 0ul; b < 2; b++) {
@@ -907,100 +915,119 @@ ComplexGMatrix Feynman::rad_exchange_integrals(ComplexGMatrix A,
   return M;
 }
 
+//==============================================================================
 GMatrix Feynman::Sigma_exchange(int kv, double env) const {
+
   GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
   const auto &core = m_HF->core();
   constexpr std::complex<double> I{0.0, 1.0};
   const auto num_kappas = std::size_t(m_max_ki + 1);
 
+  // XXX
+  double fudge_factor = -1.5; /// ..... ?
+
 #pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
-  initializer(omp_priv = GMatrix(omp_orig))
-  std::cout << "\n";
-  // summ over kC
-  for (auto iC = 0ul; iC < num_kappas; ++iC) {
-    std::cout << iC << "/" << num_kappas << "\n";
-    const auto kC = Angular::kappaFromIndex(int(iC));
+  initializer(omp_priv = omp_orig)
 
-    #pragma omp parallel for collapse(2) reduction(+ : Sigma)
-    // Frequency integral
-    for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
-      for (int s2 : {-1, 1}) {
-        // m_omre - is the gap
-        const auto omega = std::complex{m_omre, s2 * m_wgrid(iw)};
-        // Simpson's rule, with F(0)=0
-        const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
-        const auto dw = -I * (weight * s2 * m_wgrid.drdu(iw));
-        const auto gC = green(kC, env + omega);
+#pragma omp parallel for reduction(+ : Sigma)
+  for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
+    for (auto iC = 0ul; iC < num_kappas; ++iC) {
+      const auto kC = Angular::kappaFromIndex(int(iC));
 
-        // Sum over kappa_A, kapp_B
-        for (auto iB = 0ul; iB < num_kappas; ++iB) {
-          const auto kB = Angular::kappaFromIndex(int(iB));
-          for (auto iA = 0ul; iA < num_kappas; ++iA) {
-            const auto kA = Angular::kappaFromIndex(int(iA));
-            // Avoid uneccesary calcs
-            const auto [l0, lm] = Angular::kminmax_Ck(kv, kC);
-            if (lm < l0)
+      // Avoid uneccesary calcs: C^l_vC common to both diagrams
+      auto [l0, lm] = Angular::kminmax_Ck(kv, kC);
+      lm = std::min(lm, m_max_k);
+      if (lm < l0)
+        continue;
+
+      // m_omre - is the gap
+      const auto omega = std::complex{m_omre, m_wgrid(iw)};
+
+      // Simpson's rule, with F(0)=0
+      const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+      const auto dw = weight * m_wgrid.drdu(iw);
+
+      // "outer" Green's function, G^C_j2
+      const auto gC = green(kC, env + omega);
+
+      for (auto ia = 0ul; ia < core.size(); ++ia) {
+        const auto &Fa = core[ia]; // nearly redudant
+        if (Fa.n() < m_min_core_n)
+          continue;
+
+        const auto &Pa = m_pa[ia];
+        const auto ea = std::complex<double>{Fa.en()};
+        const auto ka = Fa.kappa();
+
+        // Sum over kappa_A
+        for (auto iA = 0ul; iA < num_kappas; ++iA) {
+          const auto kA = Angular::kappaFromIndex(int(iA));
+
+          const auto k0 = 0;
+          const auto km = m_max_k;
+
+          // seems it should be faster to calc g^A(e_a +/- w) here
+          // In practice, slower??
+
+          for (auto l = l0; l <= lm; l++) {
+            const auto ClvC = Angular::Ck_kk(l, kv, kC); // never 0
+            const auto ClaA = Angular::Ck_kk(l, ka, kA);
+            if (ClaA == 0.0)
               continue;
+            const auto ClAa = Angular::Ck_kk(l, kA, ka); // just phase different
 
-            for (auto l = l0; l <= std::min(lm, m_max_k); l += 2) {
-              const auto ClvC = Angular::Ck_kk(l, kv, kC);
-              const auto ClBA = Angular::Ck_kk(l, kB, kA);
-              if (ClBA == 0)
+            const auto &qlt = get_qk(l); // has drj
+            auto ql = qlt.dri();         // has drj, and dri
+
+            if (m_screen_Coulomb) {
+              ql += -I * m_qpiq_wk.at(iw, std::size_t(l));
+            }
+            // If include this, must also do screening for other!
+            const auto hp = m_hole_particle ? &Fa : nullptr;
+
+            // cannot use +=2 here!
+            for (auto k = k0; k <= km; k++) {
+              const auto &qk = get_qk(int(k)); // has drj
+              const auto Ckva = Angular::Ck_kk(k, kv, ka);
+              const auto CkvA = Angular::Ck_kk(k, kv, kA);
+              if (Ckva == 0.0 && CkvA == 0.0)
                 continue;
 
-              const auto &qlt = get_qk(int(l)); // has drj
-              const auto ql = qlt.dri();        // has drj, and dri
-              const auto [k0, km] = Angular::kminmax_Ck(kv, kA);
+              const auto CkAC = Angular::Ck_kk(k, kA, kC);
+              const auto CkaC = Angular::Ck_kk(k, ka, kC);
+              if (CkAC == 0.0 && CkaC == 0.0)
+                continue;
 
-              for (auto k = k0; k <= std::min(km, m_max_k); k += 2) {
-                const auto sjs = L_ang(k, l, kv, kB, kA, kC);
-                if (sjs == 0)
-                  continue;
+              const auto sjs_1 = L_ang(k, l, kv, kA, ka, kC);
+              const auto sjs_2 = L_ang(k, l, kv, ka, kA, kC);
+              if (sjs_1 == 0.0 && sjs_2 == 0.0)
+                continue;
 
-                const auto CkvA = Angular::Ck_kk(k, kv, kA);
-                const auto CkBC = Angular::Ck_kk(k, kB, kC);
+              const auto ang1_dw = Ckva * CkAC * ClvC * ClaA * sjs_1 * dw;
+              const auto ang2_dw = CkvA * CkaC * ClvC * ClAa * sjs_2 * dw;
 
-                if (CkBC == 0 or CkvA == 0)
-                  continue;
-
-                const auto &qk = get_qk(int(k)); // has drj
-
-                const auto ic_ang_dw = I * dw * ClvC * ClBA * CkvA * CkBC * sjs;
-
-                if (std::abs(ic_ang_dw) == 0)
-                  continue;
-
-                for (auto ia = 0ul; ia < core.size(); ++ia) {
-                  const auto &Fa = core[ia]; // nearly redudant
-                  const auto &Pa = m_pa[ia];
-                  const auto ea = std::complex<double>{Fa.en()};
-
-                  if (Fa.n() < m_min_core_n)
-                    continue; // enforce summation of selected core states
-
-                  if (Fa.kappa() == kA) {
-                    const auto ea_plus_w = ea + omega;
-                    ComplexGMatrix Gx_p_kB = green_excited(kB, ea_plus_w);
-                    Sigma += (ic_ang_dw *
-                              rad_exchange_integrals(Pa, ql, Gx_p_kB, qk, gC))
-                               .real();
-                  }
-                  if (Fa.kappa() == kB) {
-                    const auto ea_minus_w = ea - omega;
-                    ComplexGMatrix Gx_m_kA = green_excited(kA, ea_minus_w);
-                    Sigma += (ic_ang_dw *
-                              rad_exchange_integrals(Gx_m_kA, ql, Pa, qk, gC))
-                               .real();
-                  }
-                }
+              // // For some reason calculating these here is faster?
+              ComplexGMatrix Gx_A_sum =
+                ComplexGMatrix(m_i0, m_stride, m_subgrid_points, true, m_grid);
+              if (ang1_dw != 0.0) {
+                Gx_A_sum += ang1_dw * green_excited(kA, ea + omega, hp);
               }
+              if (ang2_dw != 0.0) {
+                Gx_A_sum += ang2_dw * green_excited(kA, ea - omega, hp);
+              }
+
+              Sigma += rad_exchange_integrals(Pa, qk, Gx_A_sum, ql, gC).real();
             }
           }
         }
       }
     }
   }
-  Sigma *= (m_wgrid.du() / (2 * M_PI));
+
+  //
+  Sigma *=
+    fudge_factor * (m_wgrid.du() / M_PI / double(Angular::twoj_k(kv) + 1));
   return Sigma;
 }
 
