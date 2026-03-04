@@ -28,10 +28,10 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 [![doxygen][doxygen-badge]][docs-url]
 [![manual][manual-badge]][man-url]
 
-[![tests][tests-badge]][tests-url]
-[![build][build-badge]][build-url]
-[![macOS][macOS-badge]][macOS-url]
-[![cov][cov-badge]][cov-url]
+[![tests][tests-badge-v2]][tests-url]
+[![build][build-badge-v2]][build-url]
+[![macOS][macOS-badge-v2]][macOS-url]
+[![cov][cov-badge-v2]][cov-url]
 
 --------------------------------------------------------------------------------
 
