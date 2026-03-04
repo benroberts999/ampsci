@@ -66,34 +66,54 @@ make clang_format
 ## Documenting
 
 * All new functions/classes should be documented using Doxygen-style comments
-* Usually, functions and parameters should be names so that their meaning is obvious. If not, add the description to the `details`
-* The `breif` first line should be ~1 line, use no special symbols, and succinctly state what the function/class does; this is what gets shown to users in IDE/editor on hover
-* The
-  * e.g.,
+* Usually, functions and parameters should be names so that their meaning is obvious.
+  * If additional explanation is needed, add it in the `@details` section.
+* The `@brief` line should be about one sentence. Avoid special symbols and
+  succinctly describe what the function or class does.  
+  * This text is what appears in IDE/editor tooltips when hovering over the symbol.
+
+Example:
 
 ```cpp
-
-//! Takes an x and calculates something with it
+//! Compute y = mx + b
 /*!
   @details
-  A more detailed description, that may contain LaTeX (using '\f' that doxygen expectes)
-  \f[ 
-    y = mx + b 
+  A more detailed description that may contain LaTeX.
+
+  \f[
+    y = mx + b
   \f]
+
   or \f$ y = mx + b \f$ for inline equations.
-   - detailed description of input x, what it is, what it must be
-   - detailed description of what output expected
+
+  @param x Input value.
+  @return Value of the linear function.
+  @warning May explode if poked
 */
 double my_new_function(double x);
 ```
+
+### Common Doxygen commands
+
+| Command | Purpose |
+|-------|-------|
+| `@brief` | Short summary of the function/class |
+| `@details` | Longer description |
+| `@param name` | Describe a function parameter |
+| `@tparam name` | Describe a template parameter |
+| `@return` | Describe the return value |
+| `@note` | Additional information |
+| `@warning` | Important warning for users |
+| `@see` | Reference related functions or classes |
+| `@ref` | Link to another documented symbol |
 
 ## Testing
 
 * Where possible, add new unit/integration tests for new functionality.
   * Tests are strongly encouraged for core library changes.
   * Tests are not required for standalone modules.
-  * Code uses `Catch2` style tests - easiest way is to copy existing tests
-  * All tests must be in file that ends with
+  * Code uses `Catch2` style tests - easiest way is to copy existing tests, or see example below
+  * All tests must be in a cpp file that ends with
     * `.tests.cpp`
     * This ensures they are compiled correctly into the right executable
 * More importantly, ensure existing tests pass before submitting a pull request.
@@ -126,3 +146,66 @@ make tests
 ./tests
 ```
 </div>
+
+### Writing tests using Catch2
+
+* Try to write **small, focused tests** that check a single behaviour.
+* Give tests **clear descriptive names** so failures are easy to understand.
+* Use `REQUIRE` for conditions that must hold; use `CHECK` when later checks should still run.
+* Try to test **edge cases** as well as normal inputs (e.g. zero, limits, invalid values).
+* Keep tests **deterministic and fast**, avoiding randomness unless explicitly controlled.
+
+```cpp
+TEST_CASE("a name for the test", "[tag]") {
+    // test body
+}
+```
+
+* The **test name** should clearly describe the behaviour being tested.
+  * Write names as **short sentences describing expected behaviour**, not implementation details.
+* **Tags** (the strings in `[...]`) group related tests so they can be run selectively.
+  * A test may have **multiple tags**, e.g. `[math][fast]`.
+
+Common tags used in this project:
+
+* `[unit]` — tests a small component and runs very quickly.
+* `[integration]` — checks numerical accuracy and interaction between parts of the code.
+* `[slow]` — long-running tests (≈1 minute or more).
+
+* If a test is checking numerical accuracy and how the code interfaces with the rest of ampsci, mark it '[integration]'
+* If a test is for one small component and runs very quickly, mark it `[unit]`
+* If a test is slow (>~1 min), mark it as `[slow]`
+* Then, give at least one tag for the catagory being tested, e.g. `[MBPT]`
+  * usually, this will match the directory the file is in
+  * May often have multiple tags, e.g., `[MBPT][RPA][Basis]`
+
+Example:
+
+```cpp
+#include "catch2/catch.hpp"
+#include "math/square.hpp" // simple example
+
+TEST_CASE("square computes correct values", "[math][unit]") {
+    REQUIRE(square(2) == 4);
+    REQUIRE(square(-2) == 4);
+    REQUIRE(square(3) == 9);
+}
+
+TEST_CASE("example showing Approx for floating point", "[math][unit]") {
+
+    const double y = square(2.0);
+
+    // Default tolerance (~machine precision)
+    REQUIRE(y == Catch::Approx(4.0));
+
+    // Relative tolerance (epsilon)
+    REQUIRE(y == Catch::Approx(4.0).epsilon(1e-12));
+
+    // Absolute tolerance (delta)
+    REQUIRE(y == Catch::Approx(4.0).margin(1e-10));
+}
+
+TEST_CASE("square handles zero input", "[math][unit]") {
+    CHECK(square(0.0) == 0.0);
+}
+```
