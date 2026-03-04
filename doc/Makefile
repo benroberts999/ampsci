@@ -30,7 +30,7 @@ GSL_PATH ?=
 
 ################################################################################
 ## Set GSL and LAPACK/BLAS library flags. These are typical, but sometimes differ
-LDLIBS ?= -lgsl -lgslcblas -llapack -lblas
+LDLIBS ?= -lgsl -llapack -lblas
 
 ## Friday:
 # LDLIBS ?= -lgsl -lgslcblas -lopenblas
