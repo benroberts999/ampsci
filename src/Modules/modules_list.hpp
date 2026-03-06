@@ -4,6 +4,7 @@
 #include "Kionisation/Module_Kionisation.hpp"
 #include "Modules/Breit.hpp"
 #include "Modules/HFAnomaly.hpp"
+#include "Modules/StructRad.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/dcp.hpp"
 #include "Modules/exampleModule.hpp"
@@ -82,6 +83,8 @@ static const std::vector<ModuleInfo> module_list{
   {"pnc", &calculatePNC, "Calculates APV amplitudes"},
   {"muonPV", &muonPV, "For testing/playing with muonic PV"},
   {"dcp", &dcp, "Module for testing dcp calculations"},
+  {"StructRad", &StructRad,
+   "For testing/playing with third order structural radiation"},
   {"exampleModule", &exampleModule, "A short description of the module"}};
 
 } // namespace Module
