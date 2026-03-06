@@ -4,6 +4,7 @@
 #include "Kionisation/Module_Kionisation.hpp"
 #include "Modules/Breit.hpp"
 #include "Modules/HFAnomaly.hpp"
+#include "Modules/StructRad.hpp"
 #include "Modules/VQE.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
@@ -18,6 +19,7 @@
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
 #include "Modules/thirdOrder.hpp"
+
 #include <iostream>
 #include <string>
 #include <tuple>
@@ -92,6 +94,8 @@ static const std::vector<ModuleInfo> module_list{
    "Calculating muonic wavefunctions, energies, matrix elements - somewhat "
    "obsolete after introduction of Exotic{} into ampsci main"},
   {"VQE", &VQE, "For testing/playing with VQE method"},
+  {"StructRad", &StructRad,
+   "For testing/playing with third order structural radiation"},
   {"exampleModule", &exampleModule, "A short description of the module"}};
 
 } // namespace Module
