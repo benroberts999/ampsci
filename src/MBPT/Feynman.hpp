@@ -120,6 +120,11 @@ public:
   ComplexRMatrix polarisation_k(int k, std::complex<double> omega,
                                 bool hole_particle) const;
 
+  //! Polarisation operator pi^k(w;Omega), for multipolarity k
+  ComplexRMatrix perturbed_polarisation_k(int k, std::complex<double> omega,
+                                          std::complex<double> Omega,
+                                          bool hole_particle) const;
+
   //! Calculate Direct part of correlation potential
   GMatrix Sigma_direct(int kappa_v, double en_v,
                        std::optional<int> k = {}) const;
@@ -129,6 +134,11 @@ public:
   ComplexGMatrix rad_exchange_integrals(ComplexGMatrix A, ComplexRMatrix B,
                                         ComplexGMatrix C, ComplexRMatrix D,
                                         ComplexGMatrix E) const;
+
+  GMatrix Sigma_SR_direct(int kv, double env, int kw, double Omega) const;
+  GMatrix Sigma_SR_direct2(int kv, double env, int kw, double Omega) const;
+
+  ComplexGMatrix perturbed_greens(ComplexGMatrix gA, ComplexGMatrix gB) const;
 
   //! Returns (reference to) q^k (radial) matrix. Note: includes drj? No?
   const ComplexRMatrix &get_qk(int k) const { return m_qk.at(std::size_t(k)); }
@@ -149,6 +159,7 @@ private:
   Grid form_w_grid(double w0, double wratio) const;
   // Constructs the Q*Pi*Q Matrix along w grid, for each k
   void form_qpiq();
+  void form_q_dpi_q();
 
   bool readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname);
 

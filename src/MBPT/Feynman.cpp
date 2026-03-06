@@ -1031,4 +1031,310 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
   return Sigma;
 }
 
+// ========================Structral Radiation===========================================
+
+ComplexGMatrix Feynman::perturbed_greens(ComplexGMatrix gA,
+                                         ComplexGMatrix gB) const {
+
+  ComplexGMatrix dG(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  std::size_t smax = 2;
+
+  if (!m_include_G) {
+    smax = 1;
+  }
+
+  // std::cout << __LINE__ << ":" << __FILE__ << std::endl;
+
+  for (auto i = 0ul; i < m_subgrid_points; ++i) {
+    for (auto j = 0ul; j < m_subgrid_points; ++j) {
+      for (auto k = 0ul; k < m_subgrid_points; ++k) {
+        for (auto a = 0ul; a < smax; a++) {
+          for (auto b = 0ul; b < smax; b++) {
+            for (auto c = 0ul; c < smax; c++) {
+              // get r(k)
+              // const auto irk = gA.index_to_fullgrid(k);
+              const auto rk = gA.r(k);
+              dG.sp(a, b)(i, j) += gA.sp(a, c)(i, k) * rk * gB.sp(c, b)(k, j);
+            }
+          }
+        }
+      }
+    }
+  }
+  // std::cout << __LINE__ << std::endl;
+  return dG;
+}
+
+double L_ang_dSR(int kw, int kv, int kB, int kA, int k) {
+
+  // const auto sjs = Angular::sixj_2(kw, K, kv, kB, k, kA);
+  // const auto phases = std::pow(-1, k + K + kB + kA);
+
+  const auto K = 1; //rank of operator
+
+  const auto tj_w = Angular::twoj_k(kw);
+  const auto tj_v = Angular::twoj_k(kv);
+  const auto tj_B = Angular::twoj_k(kB);
+  const auto tj_A = Angular::twoj_k(kA);
+
+  const auto sjs = Angular::sixj_2(tj_w, 2 * K, tj_v, tj_B, 2 * k, tj_A);
+
+  const auto s = Angular::neg1pow(tj_A + tj_B + k + K);
+  // const double f = (2 * u + 1) / (tji + 1);
+
+  return s * sjs / double(tj_v + 1);
+}
+
+GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
+                                 double Omega) const {
+
+  // Coded for dipole operator, Omega-> external field
+
+  GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  constexpr std::complex<double> I{0.0, 1.0};
+  const auto num_kappas = std::size_t(m_max_ki + 1);
+
+// Tell OpenMP how to reduce GMatrix
+#pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
+  initializer(omp_priv = omp_orig)
+
+#pragma omp parallel for collapse(2) reduction(+ : Sigma)
+  for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
+    for (auto iB = 0ul; iB < num_kappas; ++iB) {
+      for (auto iA = 0ul; iA < num_kappas; ++iA) {
+        const auto kB = Angular::kappaFromIndex(int(iB));
+        const auto kA = Angular::kappaFromIndex(int(iA));
+
+        const auto omega = std::complex{m_omre, m_wgrid(iw)};
+        // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
+        const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+        // I, since dw is on imag. grid; 2 from symmetric +/- w
+        const auto dw = I * weight * m_wgrid.drdu(iw);
+
+        // Silly, but ig gB includes G, then so will gB_QPQ
+        const auto gB = m_include_G ? green(kB, env + omega) :
+                                      green(kB, env + omega).drop_g();
+        const auto gA = m_include_G ? green(kA, env + omega + Omega) :
+                                      green(kA, env + omega + Omega).drop_g();
+
+        const auto dG_AB = perturbed_greens(gA, gB);
+
+        for (auto k = 0ul; int(k) <= m_max_k; k++) {
+
+          // For doing single k (tests and for fk factors)
+          // if (in_k && *in_k != int(k))
+          // continue;
+
+          const auto h_AB = Angular::Ck_kk(int(k), kA, kB);
+          if (h_AB == 0.0)
+            continue;
+
+          const auto ck_vB = Angular::Ck_kk(int(k), kB, kv);
+          const auto ck_wA = Angular::Ck_kk(int(k), kw, kA);
+
+          if (ck_vB == 0.0 or ck_wA == 0.0)
+            continue;
+
+          const auto &qpq_dw = m_qpiq_wk[iw][k];
+
+          // //! 6j symbol {j1 j2 j3 \\ j4 j5 j6} - [takes 2*j as int]
+          // inline double sixj_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
+          //                      int two_j6)
+          // const auto K = 1; //rank of operator
+          // conversions
+
+          const auto LAng = L_ang_dSR(kw, kv, kB, kA, int(k));
+
+          if (LAng == 0.0)
+            continue;
+
+          const auto c_ang_dw =
+            LAng * h_AB * dw * ck_vB * ck_wA / double(Angular::twoj_k(kv) + 1);
+
+          Sigma += (c_ang_dw * mult_elements(dG_AB, qpq_dw)).real();
+        }
+      }
+    }
+  }
+  // Extra 2 from symmetric +/-w
+  Sigma *= (m_wgrid.du() / M_PI);
+
+  return Sigma;
+}
+
+// ================WORK IN PROGRESS================================
+
+ComplexRMatrix Feynman::perturbed_polarisation_k(int k,
+                                                 std::complex<double> omega,
+                                                 std::complex<double> Omega,
+                                                 bool hole_particle) const {
+
+  // polarisation operator is ~ Fa^† * [Gex(ea + w) + Gex(ea - w)] * Fa
+
+  ComplexRMatrix dpi_k(m_i0, m_stride, m_subgrid_points, m_grid);
+
+  const auto Iunit = std::complex<double>{0.0, 1.0};
+  const auto &core = m_HF->core();
+
+  // core state summation
+  for (auto ia = 0ul; ia < core.size(); ++ia) {
+    const auto &Fa = core[ia];
+    if (Fa.n() < m_min_core_n)
+      continue;
+    const auto ea = std::complex<double>{Fa.en()};
+    // not m_hole_particle, as need both for "screen only"
+    const auto *Fa_hp = hole_particle ? &Fa : nullptr;
+    for (int iA = 0; iA <= m_max_ki; ++iA) {
+      const auto kA = Angular::kappaFromIndex(iA);
+      const auto Pa = m_pa[ia];
+      for (int iB = 0; iB <= m_max_ki; ++iB) {
+        const auto kB = Angular::kappaFromIndex(iB);
+        for (int iC = 0; iC <= m_max_ki; ++iC) {
+          const auto ck_an = Angular::Ck_kk(k, Fa.kappa(), kA);
+
+          if (ck_an == 0.0)
+            continue;
+          const double c_ang = ck_an * ck_an / double(2 * kA + 1);
+
+          const auto kC = Angular::kappaFromIndex(iC);
+          const auto gA = green_excited(kA, ea + omega, Fa_hp);
+          const auto gB = green_excited(kC, ea + omega, Fa_hp);
+          const auto gC = green_excited(kC, ea + omega, Fa_hp);
+
+          const auto dG_1 = perturbed_greens(gA, gC);
+          const auto dPi_1 = dG_1; //mult_elements(Pa, dG_1);
+          dpi_k += c_ang * dPi_1.tr();
+        }
+      }
+
+      // loop over coordinate indices.
+      // pi is symmetric in r1, r2 so is there more efficient way to do this
+      // so that I don't loop over all ri, rj?
+      // pi ~ Fa^†(r1)[Gex(r1,r2,ea-w) + Gex(r1,r2,ea+w)]Fa(r2)
+      // for (auto i = 0ul; i < m_subgrid_points; ++i) {
+      //   const auto si = Gx_pm.index_to_fullgrid(i);
+      //   for (auto j = 0ul; j <= i; ++j) {
+      //     const auto sj = Gx_pm.index_to_fullgrid(j);
+      //     pi_k(i, j) += c_ang * (Fa.f(si) * Gx_pm.ff(i, j) * Fa.f(sj) +
+      //                            Fa.g(si) * Gx_pm.gf(i, j) * Fa.f(sj) +
+      //                            Fa.f(si) * Gx_pm.fg(i, j) * Fa.g(sj) +
+      //                            Fa.g(si) * Gx_pm.gg(i, j) * Fa.g(sj));
+      //   }
+      // }
+
+      // const auto Gex_om = green_excited(kn, ea + omega - Omega, Fa_hp);
+      // const auto Gex = green_excited(kn, ea + omega, Fa_hp);
+
+      // pi_k(i, j) = c_ang * 1;
+    }
+  }
+
+  // // Fill symmetric lower half:
+  // for (auto i = 0ul; i < m_subgrid_points; ++i) {
+  //   for (auto j = 0ul; j <= i; ++j) {
+  //     dpi_k(j, i) = dpi_k(i, j);
+  //   }
+  // }
+
+  dpi_k *= Iunit;
+  return dpi_k;
+}
+
+void Feynman::form_q_dpi_q() {
+  std::cout << "Forming QPQ(w,k)";
+  if (m_hole_particle || m_screen_Coulomb) {
+    std::cout << " (w/ " << (m_screen_Coulomb ? "scr" : "")
+              << (m_hole_particle && m_screen_Coulomb ? " + " : "")
+              << (m_hole_particle ? "hp" : "") << ")";
+  }
+  std::cout << " .. " << std::flush;
+
+  const auto num_ks = std::size_t(m_max_k + 1);
+  const auto num_ws = m_wgrid.num_points();
+
+  m_qpiq_wk.resize(num_ws, num_ks,
+                   ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
+
+#pragma omp parallel for collapse(2)
+  for (auto iw = 0ul; iw < num_ws; ++iw) {
+    for (auto k = 0ul; k < num_ks; ++k) {
+      const auto omega = std::complex<double>{m_omre, m_wgrid.r(iw)};
+
+      const auto &q = get_qk(int(k)); // has drj
+      const auto qdri = q.dri();      // has drj, and dri
+      const auto pi = polarisation_k(int(k), omega, m_hole_particle);
+
+      if (m_screen_Coulomb) {
+        const auto X = X_screen(pi, qdri);
+        m_qpiq_wk[iw][k] = q * pi * X * qdri;
+      } else {
+        m_qpiq_wk[iw][k] = q * pi * qdri;
+      }
+    }
+  }
+
+  std::cout << " done\n" << std::flush;
+}
+
+GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw,
+                                  double Omega) const {
+  // If in_k is set, only calculate for single k
+  // Used both for testing, and for calculating f_k factors
+
+  GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  constexpr std::complex<double> I{0.0, 1.0};
+  const auto num_kappas = std::size_t(m_max_ki + 1);
+
+// Tell OpenMP how to reduce GMatrix
+#pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
+  initializer(omp_priv = omp_orig)
+
+#pragma omp parallel for collapse(2) reduction(+ : Sigma)
+  for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
+    for (auto iB = 0ul; iB < num_kappas; ++iB) {
+
+      const auto omega = std::complex{m_omre, m_wgrid(iw)};
+
+      // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
+      const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+
+      // I, since dw is on imag. grid; 2 from symmetric +/- w
+      const auto dw = I * weight * m_wgrid.drdu(iw);
+
+      const auto kB = Angular::kappaFromIndex(int(iB));
+
+      // Silly, but ig gB includes G, then so will gB_QPQ
+      const auto gB =
+        m_include_G ? green(kB, env + omega) : green(kB, env + omega).drop_g();
+
+      for (auto k = 0ul; int(k) <= m_max_k; k++) {
+
+        // For doing single k (tests and for fk factors)
+        // if (in_k && *in_k != int(k))
+        //   continue;
+
+        const auto ck_vB = Angular::Ck_kk(int(k), kv, kB);
+        if (ck_vB == 0.0)
+          continue;
+
+        const auto &qpq_dw = m_qpiq_wk[iw][k]; // Make this m_q_dp_iq_wk
+
+        const auto c_ang_dw =
+          dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
+
+        Sigma += (c_ang_dw * gB).real();
+        // mult_elements(gB, qpq_dw)).real();
+      }
+    }
+  }
+
+  // Extra 2 from symmetric + / -w
+  Sigma *= (m_wgrid.du() / M_PI);
+
+  return Sigma;
+}
+
 } // namespace MBPT
