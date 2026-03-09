@@ -27,8 +27,8 @@ void styled_print(const fmt::text_style &ts, const Args &...args) {
   fmt::print(enable_fmt_text_style ? ts : fmt::text_style(), args...);
 }
 
-inline void warning() { styled_print(fg(fmt::color::orange), "\nWARNING\n"); }
-inline void error() { styled_print(fg(fmt::color::red), "\nERROR\n"); }
-inline void fail() { styled_print(fg(fmt::color::red), "\nFAIL\n"); }
+inline void warning() { styled_print(fg(fmt::color::orange), "WARNING"); }
+inline void error() { styled_print(fg(fmt::color::red), "ERROR"); }
+inline void fail() { styled_print(fg(fmt::color::red), "FAIL"); }
 
 } // namespace fmt2

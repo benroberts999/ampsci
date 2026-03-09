@@ -50,7 +50,7 @@ TEST_CASE("qip::String", "[qip][String][unit]") {
   REQUIRE(qip::Levenstein("ben", "ben") == 0);
   REQUIRE(qip::ci_Levenstein("ben", "BEN") == 0);
   REQUIRE(*qip::closest_match("wrote", list) == "writes");
-  REQUIRE(*qip::ci_closest_match("WrIt", list) == "writes");
+  REQUIRE(qip::ci_closest_match("WrIt", list) == "writes");
   REQUIRE(*qip::closest_match("ben", list) == "ben");
   REQUIRE(*qip::closest_match("bon", list) == "ben");
   REQUIRE(*qip::closest_match("a", list) == "a");

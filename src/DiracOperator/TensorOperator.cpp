@@ -1,8 +1,10 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "DiracOperator/Operators/hfs.hpp"
+#include "IO/InputBlock.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/String.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -17,7 +19,7 @@ bool TensorOperator::isZero(const int ka, int kb) const {
   // checks m_rank and m_parity
 
   // if (m_rank < std::abs(Angular::twoj_k(ka) - Angular::twoj_k(kb)) / 2)
-  //   return true;
+  //  return true;
 
   if (Angular::triangle(Angular::twoj_k(ka), Angular::twoj_k(kb), 2 * m_rank) ==
       0)
@@ -87,6 +89,7 @@ double TensorOperator::matel_factor(MatrixElementType type, int twoJa,
   assert(twoJa > 0 && twoJb > 0); // guard against kappa - not perfect
 
   switch (type) {
+  case MatrixElementType::Error: // default to reduced
   case MatrixElementType::Reduced:
     return 1.0;
 
@@ -362,14 +365,89 @@ void Rab_rhs(double pm, DiracSpinor *dF, const DiracSpinor &Fb, double a) {
   // Use orthogonality of Fa and Fb:
   // (ff + a*gg) = (ff + gg + [a-1]*gg) = [a-1]*gg
   // for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
-  //   dF->f(i) += 0.0;
-  //   dF->g(i) += a * (pm - 1.0) * Fb.g(i);
+  //  dF->f(i) += 0.0;
+  //  dF->g(i) += a * (pm - 1.0) * Fb.g(i);
   // }
 
   for (auto i = Fb.min_pt(); i < Fb.max_pt(); i++) {
     dF->f(i) += a * Fb.f(i);
     dF->g(i) += a * pm * Fb.g(i);
   }
+}
+
+//******************************************************************************
+
+// Convert string to Parity
+Parity parse_Parity(const std::string &s) {
+  if (qip::ci_compare(s, "even"))
+    return Parity::even;
+  if (qip::ci_compare(s, "odd"))
+    return Parity::odd;
+  IO::unkown_option(s, {"even", "odd"});
+  return Parity::Error;
+}
+
+// Convert Parity to string
+std::string parse_Parity(Parity p) {
+  switch (p) {
+  case Parity::even:
+    return "even";
+  case Parity::odd:
+    return "odd";
+  case Parity::Error:
+    break;
+  }
+  return "Error";
+}
+
+// Convert string to Realness
+Realness parse_Realness(const std::string &s) {
+  if (qip::ci_compare(s, "real"))
+    return Realness::real;
+  if (qip::ci_wc_compare(s, "imag*"))
+    return Realness::imaginary;
+  IO::unkown_option(s, {"real", "imaginary"});
+  return Realness::Error;
+}
+
+// Convert Realness to string
+std::string parse_Realness(Realness r) {
+  switch (r) {
+  case Realness::real:
+    return "real";
+  case Realness::imaginary:
+    return "imaginary";
+  case Realness::Error:
+    break;
+  }
+  return "Error";
+}
+
+// Convert string to MatrixElementType
+MatrixElementType parse_MatrixElementType(const std::string &s) {
+  if (qip::ci_compare(s, "Reduced"))
+    return MatrixElementType::Reduced;
+  if (qip::ci_compare(s, "Stretched"))
+    return MatrixElementType::Stretched;
+  if (qip::ci_wc_compare(s, "HF*"))
+    return MatrixElementType::HFConstant;
+  IO::unkown_option(s, {"Reduced", "Stretched", "HFConstant"});
+  return MatrixElementType::Error;
+}
+
+// Convert MatrixElementType to string
+std::string parse_MatrixElementType(MatrixElementType t) {
+  switch (t) {
+  case MatrixElementType::Reduced:
+    return "Reduced";
+  case MatrixElementType::Stretched:
+    return "Stretched";
+  case MatrixElementType::HFConstant:
+    return "HFConstant";
+  case MatrixElementType::Error:
+    break;
+  }
+  return "Error";
 }
 
 } // namespace DiracOperator

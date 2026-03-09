@@ -25,7 +25,7 @@ generate(std::string_view operator_name, const IO::InputBlock &input,
     return out;
   }();
   std::cout << "Did you mean: "
-            << *qip::ci_closest_match(operator_name, name_list) << " ?\n ";
+            << qip::ci_closest_match(operator_name, name_list) << " ?\n ";
 
   std::cout << "Currently available operators:\n";
   for (const auto &[name, generator, desc] : operator_list) {

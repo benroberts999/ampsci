@@ -143,7 +143,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   }
   if (Brueckner_raw && !Brueckner) {
     fmt2::warning();
-    std::cout << "Requested Brueckner method, but conditions (Spectrum and "
+    std::cout << ": Requested Brueckner method, but conditions (Spectrum and "
                  "Sigma1) not met\n";
   }
 

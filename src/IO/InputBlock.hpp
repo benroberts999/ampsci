@@ -14,6 +14,17 @@
 #include <vector>
 
 namespace IO {
+
+//! Prints unkown option warning, with suggested alternative
+inline void unkown_option(std::string_view test_string,
+                          const std::vector<std::string> &list) {
+  fmt2::warning();
+  std::cout << ": Unknown option: " << test_string << "\n";
+  if (!list.empty())
+    std::cout << "Did you mean: " << qip::ci_closest_match(test_string, list)
+              << " ?\n ";
+}
+
 //==============================================================================
 //! Removes all white space (space, tab, newline), except for those in quotes
 inline std::string removeSpaces(std::string str);

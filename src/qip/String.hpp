@@ -1,4 +1,5 @@
 #pragma once
+#include "fmt/color.hpp"
 #include <algorithm>
 #include <cctype>
 #include <cctype> //char from string
@@ -227,13 +228,15 @@ inline auto closest_match(std::string_view test_string,
 
 //! Finds the closest match (case insensitive) in list to test_string (return
 //! iterator)
-inline auto ci_closest_match(std::string_view test_string,
-                             const std::vector<std::string> &list) {
+inline std::string_view ci_closest_match(std::string_view test_string,
+                                         const std::vector<std::string> &list) {
   auto compare = [&test_string](const auto &s1, const auto &s2) {
     return qip::ci_Levenstein(s1, test_string) <
            qip::ci_Levenstein(s2, test_string);
   };
-  return std::min_element(list.cbegin(), list.cend(), compare);
+  using namespace std::string_literals;
+  return list.empty() ? ""s :
+                        *std::min_element(list.cbegin(), list.cend(), compare);
 }
 
 //==============================================================================

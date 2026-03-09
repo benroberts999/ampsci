@@ -15,10 +15,10 @@
 namespace DiracOperator {
 
 //! Parity of operator
-enum class Parity { even, odd, blank };
+enum class Parity { even, odd, Error };
 
 //! Realness of matrix element; impacts symmetry only
-enum class Realness { real, imaginary, blank };
+enum class Realness { real, imaginary, Error };
 
 //! Type of matrix element returned
 /*! @details
@@ -30,7 +30,25 @@ enum class Realness { real, imaginary, blank };
 
   For off-diagonal, j:=min(ja,jb)
 */
-enum class MatrixElementType { Reduced, Stretched, HFConstant };
+enum class MatrixElementType { Reduced, Stretched, HFConstant, Error };
+
+//! Convert string to Parity
+Parity parse_Parity(const std::string &s);
+
+//! Convert Parity to string
+std::string parse_Parity(Parity p);
+
+//! Convert string to Realness
+Realness parse_Realness(const std::string &s);
+
+//! Convert Realness to string
+std::string parse_Realness(Realness r);
+
+//! Convert string to MatrixElementType
+MatrixElementType parse_MatrixElementType(const std::string &s);
+
+//! Convert MatrixElementType to string
+std::string parse_MatrixElementType(MatrixElementType t);
 
 //==============================================================================
 //! @brief General operator (virtual base class); operators derive from this.

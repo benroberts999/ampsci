@@ -35,9 +35,9 @@ ChargeDistro parseType(const std::string &str_type) {
 
   // spelling suggestions:
   std::cout << "Did you mean: "
-            << *qip::ci_closest_match(str_type,
-                                      {"Fermi", "spherical", "ball",
-                                       "pointlike", "Gaussian", "custom"})
+            << qip::ci_closest_match(str_type,
+                                     {"Fermi", "spherical", "ball", "pointlike",
+                                      "Gaussian", "custom"})
             << " ?\n ";
   std::cout << "Options are: Fermi, spherical (or ball, uniform), pointlike, "
                "Gaussian, or custom (requires readable input file)\n\n";

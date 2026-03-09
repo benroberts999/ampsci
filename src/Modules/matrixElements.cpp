@@ -47,9 +47,11 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
      {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
      {"off-diagonal",
       "Calculate off-diagonal matrix elements (if non-zero) [true]"},
-     {"moments",
-      "true/false - calculate moments, or reduced matrix elements. Default "
-      "is false, except for hyperfine operators"},
+     {"what",
+      "What to calculate? Options are: Reduced (reduced matric elements), "
+      "Stetched (stretched states, with j=m= [j=min(ja,jb) for off-diagonal]), "
+      "or HFConstant for (hyperfine A,B,etc. constants). Default is Reduced, "
+      "except for hyperfine operator, for which it is HFConstant"},
      {"StructureRadiation{}",
       "Options for Structure Radiation and normalisation (details below)"}});
 
@@ -98,7 +100,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
   // treat hyperfine operator differently: constants instead of RME
-  const bool hf_AB =
+  const bool is_hyperfine =
     qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
 
   const bool diagonal = input.get("diagonal", true);
@@ -107,18 +109,29 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\n"
             << "Matrix Elements - Operator: " << h->name() << "\n";
 
-  // Calculate moments, or reduced matrix elements
-  const auto momentsQ = input.get("moments", hf_AB);
+  // Determine "what" to calculate:
+  const auto what_str =
+    input.get<std::string>("what", is_hyperfine ? "HFConstant" : "Reduced");
+  const auto matel_type = DiracOperator::parse_MatrixElementType(what_str);
 
-  if (momentsQ && h->rank() % 2 != 0) {
-    std::cout << "Hyperfine constants (magnetic type), K=" << h->rank() << "\n";
-  } else if (momentsQ && h->rank() % 2 == 0) {
-    std::cout << "Hyperfine constants (electric type), K=" << h->rank() << "\n";
-  } else {
+  if (matel_type == DiracOperator::MatrixElementType::Reduced) {
     std::cout << "Reduced matrix elements\n";
+  } else if (matel_type == DiracOperator::MatrixElementType::HFConstant) {
+    const auto EM = h->rank() % 2 == 0 ? "E" : "M";
+    const std::string str = "ABCDEFGHIJKLMNOP";
+    const auto sk = std::size_t(h->rank());
+    const auto sym = sk < str.size() ? str.at(sk) : ' ';
+    std::cout << "Hyperfine " << sym << " constants (" << EM << h->rank()
+              << ")\n";
+  } else if (matel_type == DiracOperator::MatrixElementType::Stretched) {
+    std::cout << "Stretched states with m=J [J=min(j_a,j_b) for off-diag]\n";
+  } else {
+    fmt2::warning();
+    std::cout << " - Unkown matrix element type?\n";
   }
   std::cout << "Units: " << h->units() << "\n";
 
+  // Determine which states to calculate for:
   const bool print_both = input.get("printBoth", false);
   const auto include_core = input.get("include_core", false);
   const auto use_spectrum =
@@ -138,7 +151,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                                      wf.basis(), wf.identity());
 
   const auto rpa_eps = rpa_input.get("eps", 1.0e-10);
-  const auto rpa_its = rpa_input.get("max_iterations", 100);
+  const auto rpa_its = rpa_input.get("max_iterations", 128);
   const auto rpa_eta = rpa_input.get("eta", 0.4);
   if (rpa) {
     rpa->set_eta(rpa_eta);
@@ -251,10 +264,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       if (h->isZero(a.kappa(), a.kappa()))
         continue;
 
-      const auto factor =
-        momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
-                     h->rank(), a.kappa(), a.kappa()) :
-                   1.0;
+      const auto factor = h->matel_factor(matel_type, a, a);
 
       const auto hab = h->reducedME(a, a);
       const auto dv = rpa ? rpa->dV(a, a) : 0.0;
@@ -342,10 +352,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           rpa->solve_core(ww_s, rpa_its);
         }
 
-        const auto factor =
-          momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
-                       h->rank(), a.kappa(), b.kappa()) :
-                     1.0;
+        const auto factor = h->matel_factor(matel_type, a, b);
 
         const auto hab = h->reducedME(a, b);
         const auto dv = rpa ? rpa->dV(a, b) : 0.0;
@@ -413,9 +420,11 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
      {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
      {"off-diagonal",
       "Calculate off-diagonal matrix elements (if non-zero) [true]"},
-     {"moments",
-      "true/false - calculate moments, or reduced matrix elements. Default "
-      "is false, except for hyperfine operators"},
+     {"what",
+      "What to calculate? Options are: Reduced (reduced matric elements), "
+      "Stetched (stretched states, with j=m= [j=min(ja,jb) for off-diagonal]), "
+      "or HFConstant for (hyperfine A,B,etc. constants). Default is Reduced, "
+      "except for hyperfine operator, for which it is HFConstant"},
      {"Qk_file",
       "true/false/filename - SR: filename for QkTable file. If blank will "
       "not use QkTable; if exists, will read it in; if doesn't exist, will "
@@ -447,7 +456,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // treat hyperfine operator differently: constants instead of RME
-  const bool hf_AB =
+  const bool is_hyperfine =
     qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
 
   // const auto h = generateOperator(oper, h_options, wf, true);
@@ -515,17 +524,25 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool eachFreqQ = str_om == "each" || str_om == "Each";
   const auto const_omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
 
-  // Calculate moments, or reduced matrix elements
-  const auto momentsQ = input.get("moments", hf_AB);
+  // Determine "what" to calculate:
+  const auto what_str =
+    input.get<std::string>("what", is_hyperfine ? "HFConstant" : "Reduced");
+  const auto matel_type = DiracOperator::parse_MatrixElementType(what_str);
 
-  std::cout << "\n"
-            << "Operator: " << h->name() << "\n";
-  if (momentsQ && h->rank() % 2 != 0) {
-    std::cout << "Hyperfine constants (magnetic type), K=" << h->rank() << "\n";
-  } else if (momentsQ && h->rank() % 2 == 0) {
-    std::cout << "Hyperfine constants (electric type), K=" << h->rank() << "\n";
-  } else {
+  if (matel_type == DiracOperator::MatrixElementType::Reduced) {
     std::cout << "Reduced matrix elements\n";
+  } else if (matel_type == DiracOperator::MatrixElementType::HFConstant) {
+    const auto EM = h->rank() % 2 == 0 ? "E" : "M";
+    const std::string str = "ABCDEFGHIJKLMNOP";
+    const auto sk = std::size_t(h->rank());
+    const auto sym = sk < str.size() ? str.at(sk) : ' ';
+    std::cout << "Hyperfine " << sym << " constants (" << EM << h->rank()
+              << ")\n";
+  } else if (matel_type == DiracOperator::MatrixElementType::Stretched) {
+    std::cout << "Stretched states with m=J [J=min(j_a,j_b) for off-diag]\n";
+  } else {
+    fmt2::warning();
+    std::cout << " - Unkown matrix element type?\n";
   }
   std::cout << "Units: " << h->units() << "\n";
 
@@ -671,10 +688,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         if (!diag && v == w)
           continue;
 
-        const auto factor =
-          momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
-                       h->rank(), v.kappa(), w.kappa()) :
-                     1.0;
+        const auto factor = h->matel_factor(matel_type, v, w);
 
         // Option to use splines (or valence states) to compute Struc Rad (use
         // splines for legs)
@@ -769,12 +783,16 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\n"
             << "Structure Radiation + Normalisation of states: " << h->name()
             << "\n";
-  if (momentsQ && h->rank() % 2 != 0) {
-    std::cout << "Hyperfine constants (magnetic type), K=" << h->rank() << "\n";
-  } else if (momentsQ && h->rank() % 2 == 0) {
-    std::cout << "Hyperfine constants (electric type), K=" << h->rank() << "\n";
-  } else {
+  if (matel_type == DiracOperator::MatrixElementType::Reduced) {
     std::cout << "Reduced matrix elements\n";
+  } else if (matel_type == DiracOperator::MatrixElementType::HFConstant) {
+    const auto EM = h->rank() % 2 == 0 ? "E" : "M";
+    std::cout << "Hyperfine constants " << EM << h->rank() << "\n";
+  } else if (matel_type == DiracOperator::MatrixElementType::Stretched) {
+    std::cout << "Stretched states with m=J [J=min(j_a,j_b) for off-diag]\n";
+  } else {
+    fmt2::warning();
+    std::cout << " - Unkown matrix element type?\n";
   }
   std::cout << "Units: " << h->units() << "\n\n";
 
@@ -806,9 +824,11 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
      {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
      {"off-diagonal",
       "Calculate off-diagonal matrix elements (if non-zero) [true]"},
-     {"moments",
-      "true/false - calculate moments, or reduced matrix elements. Default "
-      "is false, except for hyperfine operators"}});
+     {"what",
+      "What to calculate? Options are: Reduced (reduced matric elements), "
+      "Stetched (stretched states, with j=m= [j=min(ja,jb) for off-diagonal]), "
+      "or HFConstant for (hyperfine A,B,etc. constants). Default is Reduced, "
+      "except for hyperfine operator, for which it is HFConstant"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -855,23 +875,27 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
   // treat hyperfine operator differently: constants instead of RME
-  const bool hf_AB =
+  const bool is_hyperfine =
     qip::ci_compare(oper, "hfs") || qip::ci_compare(oper, "MLVP");
 
   const bool diagonal = input.get("diagonal", true);
   const bool off_diagonal = input.get("off-diagonal", true);
 
-  // Calculate moments, or reduced matrix elements
-  const auto momentsQ = input.get("moments", hf_AB);
+  // Determine "what" to calculate:
+  const auto what_str =
+    input.get<std::string>("what", is_hyperfine ? "HFConstant" : "Reduced");
+  const auto matel_type = DiracOperator::parse_MatrixElementType(what_str);
 
-  std::cout << "\n"
-            << "Matrix Elements - Operator: " << h->name() << "\n";
-  if (momentsQ && h->rank() % 2 != 0) {
-    std::cout << "Hyperfine constants (magnetic type), K=" << h->rank() << "\n";
-  } else if (momentsQ && h->rank() % 2 == 0) {
-    std::cout << "Hyperfine constants (electric type), K=" << h->rank() << "\n";
-  } else {
+  if (matel_type == DiracOperator::MatrixElementType::Reduced) {
     std::cout << "Reduced matrix elements\n";
+  } else if (matel_type == DiracOperator::MatrixElementType::HFConstant) {
+    const auto EM = h->rank() % 2 == 0 ? "E" : "M";
+    std::cout << "Hyperfine constants " << EM << h->rank() << "\n";
+  } else if (matel_type == DiracOperator::MatrixElementType::Stretched) {
+    std::cout << "Stretched states with m=J [J=min(j_a,j_b) for off-diag]\n";
+  } else {
+    fmt2::warning();
+    std::cout << " - Unkown matrix element type?\n";
   }
   std::cout << "Units: " << h->units() << "\n";
 
@@ -945,10 +969,7 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
       if (h->isZero(v.kappa(), v.kappa()))
         continue;
 
-      const auto factor =
-        momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
-                     h->rank(), v.kappa(), v.kappa()) :
-                   1.0;
+      const auto factor = h->matel_factor(matel_type, v, v);
 
       const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
 
@@ -992,10 +1013,7 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
           rpa->solve_core(ww);
         }
 
-        const auto factor =
-          momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
-                       h->rank(), v.kappa(), w.kappa()) :
-                     1.0;
+        const auto factor = h->matel_factor(matel_type, v, w);
 
         const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
         const auto lambda_w = Sigma0.getLambda(w.kappa(), w.n());
@@ -1048,9 +1066,11 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
      {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
      {"off-diagonal",
       "Calculate off-diagonal matrix elements (if non-zero) [true]"},
-     {"moments",
-      "true/false - calculate moments, or reduced matrix elements. Default "
-      "is false, except for hyperfine operators"},
+     {"what",
+      "What to calculate? Options are: Reduced (reduced matric elements), "
+      "Stetched (stretched states, with j=m= [j=min(ja,jb) for off-diagonal]), "
+      "or HFConstant for (hyperfine A,B,etc. constants). Default is Reduced, "
+      "except for hyperfine operator, for which it is HFConstant"},
      {"StructureRadiation{}",
       "Options for Structure Radiation and normalisation (details below)"}});
 
@@ -1089,7 +1109,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
-  const bool hf_AB = oper == "hfs";
+  const bool is_hyperfine = oper == "hfs";
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = qip::ci_compare(str_om, "each");
   const auto omega = eachFreqQ ? 0.0 : input.get("omega", 0.0);
@@ -1102,17 +1122,21 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << omega << "\n";
   }
 
-  // Calculate moments, or reduced matrix elements
-  const auto momentsQ = input.get("moments", hf_AB);
+  // Determine "what" to calculate:
+  const auto what_str =
+    input.get<std::string>("what", is_hyperfine ? "HFConstant" : "Reduced");
+  const auto matel_type = DiracOperator::parse_MatrixElementType(what_str);
 
-  std::cout << "\n"
-            << "CI Matrix Elements -  Operator: " << h->name() << "\n";
-  if (momentsQ && h->rank() % 2 != 0) {
-    std::cout << "Hyperfine constants (magnetic type), K=" << h->rank() << "\n";
-  } else if (momentsQ && h->rank() % 2 == 0) {
-    std::cout << "Hyperfine constants (electric type), K=" << h->rank() << "\n";
-  } else {
+  if (matel_type == DiracOperator::MatrixElementType::Reduced) {
     std::cout << "Reduced matrix elements\n";
+  } else if (matel_type == DiracOperator::MatrixElementType::HFConstant) {
+    const auto EM = h->rank() % 2 == 0 ? "E" : "M";
+    std::cout << "Hyperfine constants " << EM << h->rank() << "\n";
+  } else if (matel_type == DiracOperator::MatrixElementType::Stretched) {
+    std::cout << "Stretched states with m=J [J=min(j_a,j_b) for off-diag]\n";
+  } else {
+    fmt2::warning();
+    std::cout << " - Unkown matrix element type?\n";
   }
   std::cout << "Units: " << h->units() << "\n";
 
@@ -1213,10 +1237,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "..done\n" << std::flush;
     }
 
-    const auto factor =
-      momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant_2J(
-                   h->rank(), wfA.twoJ(), wfB.twoJ()) :
-                 1.0;
+    const auto factor = h->matel_factor(matel_type, wfA.twoJ(), wfB.twoJ());
 
     const auto me =
       factor * CI::ReducedME(wfA, iA, wfB, iB, me_tab, h->rank(), h->parity());
