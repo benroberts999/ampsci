@@ -1,5 +1,6 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "Angular/Wigner369j.hpp"
+#include "DiracOperator/Operators/hfs.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
@@ -78,6 +79,25 @@ double TensorOperator::fullME(const DiracSpinor &Fa, const DiracSpinor &Fb,
     sign * Angular::threej_2(Fa.twoj(), 2 * m_rank, Fb.twoj(), -tma, tqq, tmb);
 
   return factor * reducedME(Fa, Fb);
+}
+
+//==============================================================================
+double TensorOperator::matel_factor(MatrixElementType type, int twoJa,
+                                    int twoJb) const {
+  assert(twoJa > 0 && twoJb > 0); // guard against kappa - not perfect
+
+  switch (type) {
+  case MatrixElementType::Reduced:
+    return 1.0;
+
+  case MatrixElementType::HFConstant:
+    return Hyperfine::convert_RME_to_HFSconstant_2J(m_rank, twoJa, twoJb);
+
+  case MatrixElementType::Stretched:
+    return rme3js(twoJa, twoJb, std::min(twoJa, twoJb));
+  }
+
+  assert(false);
 }
 
 //==============================================================================

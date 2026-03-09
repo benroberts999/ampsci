@@ -120,7 +120,7 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto rN_au = rN_fm / PhysConst::aB_fm;
 
   DiracOperator::hfs hfs(1, 1.0, rN_au, wf.grid(),
-                         DiracOperator::Hyperfine::sphericalBall_F());
+                         DiracOperator::Hyperfine::sphericalBall_F(1));
   auto comp_HFS = [&](const std::vector<DiracSpinor> &orbitals,
                       const std::vector<DiracSpinor> &basis) {
     for (auto &a : orbitals) {
@@ -128,8 +128,8 @@ void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto n = DiracSpinor::find(a.n(), a.kappa(), basis);
       if (!n)
         continue;
-      const auto A_const =
-        DiracOperator::Hyperfine::convert_RME_to_AB(1, a.kappa(), a.kappa());
+      const auto A_const = DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+        1, a.kappa(), a.kappa());
       const auto Aa = hfs.reducedME(a, a) * A_const;
       const auto An = hfs.reducedME(*n, *n) * A_const;
       const auto eps = Aa / An - 1.0;

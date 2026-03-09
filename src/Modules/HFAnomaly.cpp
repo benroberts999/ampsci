@@ -30,7 +30,7 @@ void BW_effect(const std::vector<DiracSpinor> &valence,
   fmt::print("  {:11s} {:11s}  {:6s}", "A0_RPA", "A_RPA", "eBW(%)");
   std::cout << "\n";
   for (const auto &Fv : valence) {
-    const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_AB(
+    const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
       h0->rank(), Fv.kappa(), Fv.kappa());
     const auto A0 = h0->reducedME(Fv, Fv) * rme_to_A;
     const auto dA0 = rpa0 ? rpa0->dV(Fv, Fv) * rme_to_A : 0.0;
@@ -85,7 +85,7 @@ void tune_Rmag(const DiracSpinor &Fv, const double eps_target,
       }
     }
 
-    const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_AB(
+    const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
       h0->rank(), Fv.kappa(), Fv.kappa());
     const auto A =
       (ht->reducedME(Fv, Fv) + (rpa_t ? rpa_t->dV(Fv, Fv) : 0.0)) * rme_to_A;
@@ -144,7 +144,7 @@ void BW_screening_factor(const Wavefunction &wf,
     if (Fv.twoj() > 1)
       continue;
 
-    const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_AB(
+    const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
       h0->rank(), Fv.kappa(), Fv.kappa());
 
     const auto A0 = h0->reducedME(Fv, Fv) * rme_to_A;
@@ -176,9 +176,9 @@ void BW_screening_factor(const Wavefunction &wf,
   const auto F2p = *wfH.getState(2, 1);
 
   const auto rme_to_A_s =
-    DiracOperator::Hyperfine::convert_RME_to_AB(h0->rank(), -1, -1);
+    DiracOperator::Hyperfine::convert_RME_to_HFSconstant(h0->rank(), -1, -1);
   const auto rme_to_A_p =
-    DiracOperator::Hyperfine::convert_RME_to_AB(h0->rank(), 1, 1);
+    DiracOperator::Hyperfine::convert_RME_to_HFSconstant(h0->rank(), 1, 1);
 
   const auto A01s = h0->reducedME(F1s, F1s) * rme_to_A_s;
   const auto A1s = h->reducedME(F1s, F1s) * rme_to_A_s;
@@ -566,8 +566,9 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
                "A1_HF/g", "A2_HF/g", "1D2_HF(%)", "A1_RPA/g", "A2_RPA/g",
                "1D2_RPA(%)");
     for (const auto &Fv : wf.valence()) {
-      const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_AB(
-        h0->rank(), Fv.kappa(), Fv.kappa());
+      const auto rme_to_A =
+        DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+          h0->rank(), Fv.kappa(), Fv.kappa());
 
       const auto Ahf1 = (h->reducedME(Fv, Fv) + (rpa ? rpa->dV(Fv, Fv) : 0.0)) *
                         rme_to_A / h->getc();
@@ -643,8 +644,9 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
           rpa1->solve_core(0.0, 40, false);
         }
 
-        const auto rme_to_A = DiracOperator::Hyperfine::convert_RME_to_AB(
-          h0->rank(), Fv1.kappa(), Fv1.kappa());
+        const auto rme_to_A =
+          DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+            h0->rank(), Fv1.kappa(), Fv1.kappa());
 
         const auto A1 =
           (h1->reducedME(Fv1, Fv1) + (rpa1 ? rpa1->dV(Fv1, Fv1) : 0.0)) *

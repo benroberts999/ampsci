@@ -14,87 +14,23 @@
 //! Dirac Operators: General + derived
 namespace DiracOperator {
 
+//! Parity of operator
 enum class Parity { even, odd, blank };
+
+//! Realness of matrix element; impacts symmetry only
 enum class Realness { real, imaginary, blank };
 
-//==============================================================================
-//! 4x4 Integer matrix (for Gamma/Pauli). Can be real or imag. Not mixed.
-struct IntM4x4
-// 4x4 Integer matrix.
-// Notation for elements:
-//  (e00  e01)
-//  (e10  e11)
-{
-  IntM4x4(int in00, int in01, int in10, int in11)
-    : e00(in00), e01(in01), e10(in10), e11(in11) {}
+//! Type of matrix element returned
+/*! @details
+ Specifies which form of matrix element is used or returned.
 
-  const int e00, e01, e10, e11;
-};
+  @value Reduced    : Reduced matrix element
+  @value Stretched  : Matrix element for stretched states (m = j)
+  @value HFConstant : Hyperfine (A,B,C...) constant
 
-//==============================================================================
-class SpinorMatrix
-// 2x2 matrix that acts in radial spinor space.
-// Notation for elements:
-//  (ff  fg)
-//  (gf  gg)
-{
-  double ff{0.0}, fg{0.0}, gf{0.0}, gg{0.0};
-
-public:
-  // SpinorMatrix() = default;
-  constexpr SpinorMatrix(double iff, double ifg, double igf, double igg)
-    : ff(iff), fg(ifg), gf(igf), gg(igg) {}
-  constexpr SpinorMatrix() {}
-
-  constexpr SpinorMatrix &operator+=(const SpinorMatrix &rhs) {
-    ff += rhs.ff;
-    fg += rhs.fg;
-    gf += rhs.gf;
-    gg += rhs.gg;
-    return *this;
-  }
-  constexpr SpinorMatrix &operator-=(const SpinorMatrix &rhs) {
-    ff -= rhs.ff;
-    fg -= rhs.fg;
-    gf -= rhs.gf;
-    gg -= rhs.gg;
-    return *this;
-  }
-  friend SpinorMatrix operator+(SpinorMatrix lhs, const SpinorMatrix &rhs) {
-    return lhs += rhs;
-  }
-  friend SpinorMatrix operator-(SpinorMatrix lhs, const SpinorMatrix &rhs) {
-    return lhs -= rhs;
-  }
-  constexpr SpinorMatrix &operator*=(double x) {
-    ff *= x;
-    fg *= x;
-    gf *= x;
-    gg *= x;
-    return *this;
-  }
-  friend SpinorMatrix operator*(SpinorMatrix lhs, double x) { return lhs *= x; }
-  friend SpinorMatrix operator*(double x, SpinorMatrix rhs) { return rhs *= x; }
-
-  DiracSpinor act(const DiracSpinor &Fa) const {
-    using namespace qip::overloads;
-    auto mFa = Fa;
-    // mFa.f() = ff * Fa.f() + fg * Fa.g();
-    // mFa.g() = gf * Fa.f() + gg * Fa.g();
-
-    // since we start with a copy:
-    if (ff != 1.0)
-      mFa.f() *= ff;
-    if (fg != 0.0)
-      mFa.f() += fg * Fa.g();
-    if (gg != 1.0)
-      mFa.g() *= gg;
-    if (gf != 0.0)
-      mFa.g() += gf * Fa.f();
-    return mFa;
-  }
-  DiracSpinor operator*(const DiracSpinor &Fa) const { return act(Fa); }
-};
+  For off-diagonal, j:=min(ja,jb)
+*/
+enum class MatrixElementType { Reduced, Stretched, HFConstant };
 
 //==============================================================================
 //! @brief General operator (virtual base class); operators derive from this.
@@ -163,13 +99,18 @@ public:
 
   //! Returns a const ref to vector v
   const std::vector<double> &getv() const { return m_vec; }
+
   //! Returns a const ref to constant c
   double getc() const { return m_constant; }
+
   int get_d_order() const { return m_diff_order; }
 
   //! returns true if operator is imaginary (has imag MEs)
   bool imaginaryQ() const { return (opC == Realness::imaginary); }
+
+  //! Rank k of operator
   int rank() const { return m_rank; }
+
   //! returns parity, as integer (+1 or -1)
   int parity() const { return (m_parity == Parity::even) ? 1 : -1; }
 
@@ -225,6 +166,14 @@ public:
                 std::optional<int> two_ma = std::nullopt,
                 std::optional<int> two_mb = std::nullopt,
                 std::optional<int> two_q = std::nullopt) const;
+
+  //! Converts reduced matrix element to different "type" (MatrixElementType)
+  double matel_factor(MatrixElementType type, int twoJa, int twoJb) const;
+
+  double matel_factor(MatrixElementType type, const DiracSpinor &Fa,
+                      const DiracSpinor &Fb) const {
+    return matel_factor(type, Fa.twoj(), Fb.twoj());
+  }
 };
 
 //============================================================================
@@ -234,22 +183,15 @@ class ScalarOperator : public TensorOperator {
 public:
   ScalarOperator(Parity pi, double in_coef,
                  const std::vector<double> &in_v = {},
-                 const IntM4x4 &in_g = {1, 0, 0, 1}, int in_diff = 0,
+                 const std::array<int, 4> &in_g = {1, 0, 0, 1}, int in_diff = 0,
                  Realness rori = Realness::real)
     : TensorOperator(0, pi, in_coef, in_v, in_diff, rori),
-      c_ff(in_g.e00),
-      c_fg(in_g.e01),
-      c_gf(in_g.e10),
-      c_gg(in_g.e11) {}
+      c_ff(in_g[0]),
+      c_fg(in_g[1]),
+      c_gf(in_g[2]),
+      c_gg(in_g[3]) {}
 
-  ScalarOperator(const std::vector<double> &in_v)
-    : TensorOperator(0, Parity::even, 1.0, in_v, 0),
-      c_ff(1.0),
-      c_fg(0.0),
-      c_gf(0.0),
-      c_gg(1.0) {}
-
-  ScalarOperator(double in_coef, const std::vector<double> &in_v = {})
+  ScalarOperator(const std::vector<double> &in_v = {}, double in_coef = 1.0)
     : TensorOperator(0, Parity::even, in_coef, in_v, 0),
       c_ff(1.0),
       c_fg(0.0),

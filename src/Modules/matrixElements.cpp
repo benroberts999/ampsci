@@ -251,10 +251,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       if (h->isZero(a.kappa(), a.kappa()))
         continue;
 
-      const auto factor = momentsQ ?
-                            DiracOperator::Hyperfine::convert_RME_to_AB(
-                              h->rank(), a.kappa(), a.kappa()) :
-                            1.0;
+      const auto factor =
+        momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+                     h->rank(), a.kappa(), a.kappa()) :
+                   1.0;
 
       const auto hab = h->reducedME(a, a);
       const auto dv = rpa ? rpa->dV(a, a) : 0.0;
@@ -342,10 +342,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           rpa->solve_core(ww_s, rpa_its);
         }
 
-        const auto factor = momentsQ ?
-                              DiracOperator::Hyperfine::convert_RME_to_AB(
-                                h->rank(), a.kappa(), b.kappa()) :
-                              1.0;
+        const auto factor =
+          momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+                       h->rank(), a.kappa(), b.kappa()) :
+                     1.0;
 
         const auto hab = h->reducedME(a, b);
         const auto dv = rpa ? rpa->dV(a, b) : 0.0;
@@ -671,10 +671,10 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         if (!diag && v == w)
           continue;
 
-        const auto factor = momentsQ ?
-                              DiracOperator::Hyperfine::convert_RME_to_AB(
-                                h->rank(), v.kappa(), w.kappa()) :
-                              1.0;
+        const auto factor =
+          momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+                       h->rank(), v.kappa(), w.kappa()) :
+                     1.0;
 
         // Option to use splines (or valence states) to compute Struc Rad (use
         // splines for legs)
@@ -945,10 +945,10 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
       if (h->isZero(v.kappa(), v.kappa()))
         continue;
 
-      const auto factor = momentsQ ?
-                            DiracOperator::Hyperfine::convert_RME_to_AB(
-                              h->rank(), v.kappa(), v.kappa()) :
-                            1.0;
+      const auto factor =
+        momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+                     h->rank(), v.kappa(), v.kappa()) :
+                   1.0;
 
       const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
 
@@ -992,10 +992,10 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
           rpa->solve_core(ww);
         }
 
-        const auto factor = momentsQ ?
-                              DiracOperator::Hyperfine::convert_RME_to_AB(
-                                h->rank(), v.kappa(), w.kappa()) :
-                              1.0;
+        const auto factor =
+          momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+                       h->rank(), v.kappa(), w.kappa()) :
+                     1.0;
 
         const auto lambda_v = Sigma0.getLambda(v.kappa(), v.n());
         const auto lambda_w = Sigma0.getLambda(w.kappa(), w.n());
@@ -1213,10 +1213,10 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "..done\n" << std::flush;
     }
 
-    const auto factor = momentsQ ?
-                          DiracOperator::Hyperfine::convert_RME_to_AB_2J(
-                            h->rank(), wfA.twoJ(), wfB.twoJ()) :
-                          1.0;
+    const auto factor =
+      momentsQ ? DiracOperator::Hyperfine::convert_RME_to_HFSconstant_2J(
+                   h->rank(), wfA.twoJ(), wfB.twoJ()) :
+                 1.0;
 
     const auto me =
       factor * CI::ReducedME(wfA, iA, wfB, iB, me_tab, h->rank(), h->parity());

@@ -211,9 +211,10 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
       if (h->isZero(a.kappa(), b.kappa()))
         continue;
 
-      const auto ff = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                h->rank(), a.kappa(), b.kappa()) :
-                              1.0;
+      const auto ff = hf_AB ?
+                        DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+                          h->rank(), a.kappa(), b.kappa()) :
+                        1.0;
 
       const auto h0 = h->reducedME(a, b);
       const auto dv = rpa ? rpa->dV(a, b) : 0.0;
@@ -287,9 +288,10 @@ void thirdOrderME(const IO::InputBlock &input, const Wavefunction &wf) {
         if (h->isZero(a.kappa(), b.kappa()))
           continue;
 
-        const auto ff = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                  h->rank(), a.kappa(), b.kappa()) :
-                                1.0;
+        const auto ff = hf_AB ?
+                          DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+                            h->rank(), a.kappa(), b.kappa()) :
+                          1.0;
 
         const auto h0 = h->reducedME(a, b);
         const auto dv = rpa ? rpa->dV(a, b) : 0.0;

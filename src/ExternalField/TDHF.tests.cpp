@@ -162,10 +162,10 @@ void test_RPA(const Wavefunction &wf, DiracOperator::TensorOperator &h,
     const auto &Fa = *wf.getState(a);
     const auto &Fb = *wf.getState(b);
 
-    const auto f =
-      h.name() == "hfs1" ?
-        DiracOperator::Hyperfine::convert_RME_to_AB(1, Fa.kappa(), Fb.kappa()) :
-        1.0;
+    const auto f = h.name() == "hfs1" ?
+                     DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+                       1, Fa.kappa(), Fb.kappa()) :
+                     1.0;
     const auto hab = f * h.reducedME(Fa, Fb);
     const auto dv = f * dV.dV(Fa, Fb);
 
@@ -207,8 +207,8 @@ void test_RPA2(const Wavefunction &wf, DiracOperator::TensorOperator &h,
     const auto &Fa = *wf.getState(a);
     const auto &Fb = *wf.getState(b);
 
-    const auto f =
-      DiracOperator::Hyperfine::convert_RME_to_AB(1, Fa.kappa(), Fb.kappa());
+    const auto f = DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+      1, Fa.kappa(), Fb.kappa());
     const auto hab = f * h.reducedME(Fa, Fb);
     const auto dv = f * dV.dV(Fa, Fb);
 

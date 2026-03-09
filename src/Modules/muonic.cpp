@@ -221,9 +221,10 @@ void muon(const IO::InputBlock &input, const Wavefunction &wf) {
       for (const auto &m : muon_Fs) {
         if (h->isZero(m, m))
           continue;
-        const auto a = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                 h->rank(), m.kappa(), m.kappa()) :
-                               1.0;
+        const auto a = hf_AB ?
+                         DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+                           h->rank(), m.kappa(), m.kappa()) :
+                         1.0;
         const auto me = a * h->reducedME(m, m);
         fmt::print("{:<4s} {:<4s} {:16.9e}\n", m.shortSymbol(), m.shortSymbol(),
                    me);
@@ -236,9 +237,10 @@ void muon(const IO::InputBlock &input, const Wavefunction &wf) {
         for (const auto &m : muon_Fs) {
           if (m.en() <= n.en() || h->isZero(m, n))
             continue;
-          const auto a = hf_AB ? DiracOperator::Hyperfine::convert_RME_to_AB(
-                                   h->rank(), m.kappa(), n.kappa()) :
-                                 1.0;
+          const auto a = hf_AB ?
+                           DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+                             h->rank(), m.kappa(), n.kappa()) :
+                           1.0;
 
           if (h->freqDependantQ()) {
             const auto omega = m.en() - n.en();

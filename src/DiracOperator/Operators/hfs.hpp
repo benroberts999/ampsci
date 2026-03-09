@@ -9,241 +9,232 @@
 namespace DiracOperator {
 
 //==============================================================================
-//! Functions for F(r) [nuclear magnetisation distribution] and similar
+//! Auxillary Functions for hyperfine operatrs; F(r) [nuclear distribution] and similar
 namespace Hyperfine {
 
-using Func_R2_R = std::function<double(double, double)>; // save typing
+//! Type for radial function F(r,rN) (type alias to save typing)
+/*! @details
+ - F(r,rN) contains only finite nuclear size correction, not HFS radial function.
+ - F(r,rN) -> 1 for r > rN
+ - r and rN always in atomic units
+*/
+using RadialFunction = std::function<double(double r, double r_Nuc)>;
 
 //==============================================================================
-//! Takes in F(r) and k, and forms hyperfine radial function: F(r,rN)/r^{k+1}
-inline std::vector<double> RadialFunc(int k, double rN, const Grid &rgrid,
-                                      const Func_R2_R &hfs_F) {
-  std::vector<double> rfunc;
-  rfunc.reserve(rgrid.num_points());
-  for (const auto r : rgrid) {
-    rfunc.push_back(hfs_F(r, rN) / std::pow(r, k + 1));
-  }
-  return rfunc;
-}
+//! Forms the hyperfine radial function: F(r,rN)/r^{k+1}
+/*! @details
+Forms the radial part of the hyperfine operator:
+
+\f[
+  t^k_{\rm radial}[r_i] = \frac{F(r_i,r_N)}{r_i^{k+1}}
+\f]
+
+ @param k     Multipole rank (1 = M1, 2 = E2, ...)
+ @param rN    Nuclear radius (a.u.); passed to F(r,r_N)
+ @param r     Radial grid (a.u.)
+ @param hfs_F Finite nuclear magnetisation function \(F(r,r_N)\)
+ @return Radial values of \(t^k(r)\)
+
+ Notes:
+ - Angular factors and signs are handled elsewhere.
+ - \(F(r,r_N)\) contains only the finite nuclear-size correction.
+ - Default \(F\) corresponds to the spherical-ball model.
+ - \(F(r,r_N) \to 1\) for \(r > r_N\).
+  
+*/
+std::vector<double> tk_radial(int k, double rN, const std::vector<double> &r,
+                              const RadialFunction &hfs_F);
 
 //==============================================================================
-//! Spherical ball F(r): (r/rN)^3 for r<rN, 1 for r>rN
-inline auto sphericalBall_F(int k = 1) -> Func_R2_R {
-  return [=](double r, double rN) {
-    return (r > rN) ? 1.0 : std::pow(r / rN, 2 * k + 1);
-  };
-}
+//! Spherical ball model for F(r,rN) [default]. Uniformly distributed point k-poles.
+/*! @details
+Based on a simple multipole expansion, assuming nucleus is made up from 
+uniformly distributed point k-poles. Note: not everyone seems to define this 
+the same way!
+
+\f[
+  F(r,r_N) = 
+  \begin{cases}
+    (r/r_N)^{2k+1} & r<r_N \\
+    1 & r>r_N \\
+  \end{cases}
+\f]
+*/
+RadialFunction sphericalBall_F(int k);
 
 //! Spherical shell F(r): 0 for r<rN, 1 for r>rN
-inline auto sphericalShell_F() -> Func_R2_R {
-  return [=](double r, double rN) { return (r > rN) ? 1.0 : 0.0; };
-}
+RadialFunction sphericalShell_F();
 
 //! Pointlike F(r): 1
-inline auto pointlike_F() -> Func_R2_R {
-  return [=](double, double) { return 1.0; };
-}
+RadialFunction pointlike_F();
 
-//------------------------------------------------------------------------------
-//! 'Volotka' single-particle model: see Phys. Rev. Lett. 125, 063002 (2020)
-inline auto VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl,
-                        bool print = true) -> Func_R2_R
-// Function that returns generates + returns F_BW Bohr-Weiskopf
-// gl = 1 for proton, =0 for neutron. Double allowed for testing..
-// mu is in units of Nuclear Magneton!
-{
-  const auto two_I = int(2 * I_nuc + 0.0001);
-  const auto two_l = int(2 * l_pn + 0.0001);
-  const auto g_l = double(gl); // just safety
-  const auto gI = mu / I_nuc;
+//! Volotka single-particle nuclear model: F(r,rN)
+/*! @details 
+Calculates the Bohr–Weisskopf magnetisation distribution using the `Volotka' 
+single-particle model of Phys. Rev. Lett. 125, 063002 (2020).
+Returns a RadialFunction F(r,r_N).
+F goes to 1 as r_N->0, and F=1 for r>rN.
+Assumes radial nuclear density is a step function.
+ 
+ @param mu     Nuclear magnetic moment (in nuclear magnetons)
+ @param I_nuc  Nuclear spin
+ @param l_pn   Orbital angular momentum of valence nucleon
+ @param gl     Orbital g-factor (1 = proton, 0 = neutron)
+ @param print  Print model details
+ 
+ @return Radial function \f$ F_{\mathrm{BW}}(r, r_N) \f$
+*/
+RadialFunction VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl,
+                           bool print = true);
 
-  const auto K = (l_pn * (l_pn + 1.0) - (3. / 4.)) / (I_nuc * (I_nuc + 1.0));
-  const double g_s = (2.0 * gI - g_l * (K + 1.0)) / (1.0 - K);
-  if (print)
-    std::cout << "SingleParticle using: gl=" << g_l << ", gs=" << g_s
-              << ", l=" << l_pn << ", gI=" << gI << " (I=" << I_nuc << ")\n";
-  const double factor =
-    (two_I == two_l + 1) ?
-      g_s * (1 - two_I) / (4.0 * (two_I + 2)) + g_l * 0.5 * (two_I - 1) :
-      g_s * (3 + two_I) / (4.0 * (two_I + 2)) +
-        g_l * 0.5 * two_I * (two_I + 3) / (two_I + 2);
-  if (two_I != two_l + 1 && two_I != two_l - 1) {
-    std::cerr << "\nFAIL:59 in Hyperfine (VolotkaSP_F):\n "
-                 "we must have I = l +/- 1/2, but we have: I,l = "
-              << I_nuc << "," << l_pn << "\n";
-    return [](double, double) { return 0.0; };
-  }
-  return [=](double r, double rN) {
-    return (r > rN) ? 1.0 :
-                      ((r * r * r) / (rN * rN * rN)) *
-                        (1.0 - (3.0 / mu) * std::log(r / rN) * factor);
-  };
-}
+//! Elizarov single-particle magnetisation model [extended Volotka]
+/*! @details
+Returns the radial magnetisation function F(r,r_N) for the model of
+Elizarov, A. A. et al., Opt. Spectrosc. 100, 361 (2006).
+Uses nuclear radial density u(r), with:
 
-//------------------------------------------------------------------------------
-//! Elizarov et al., Optics and Spectroscopy (2006): u(r) = u0(R-r)^n
-inline auto uSP(double mu, double I_nuc, double l_pn, int gl, double n,
-                double R, bool u_option, bool print = true) -> Func_R2_R {
-  const auto two_I = int(2 * I_nuc + 0.0001);
-  const auto two_l = int(2 * l_pn + 0.0001);
-  const auto g_l = double(gl); // just safety
-  const auto gI = mu / I_nuc;
+\f[
+  u(r) = 
+    \begin{cases}
+      u_0 (R-r)^n & \text{u1(r)} \\
+      u_0 r^n & \text{u2(r)}
+    \end{cases}
+\f]
 
-  const auto K = (l_pn * (l_pn + 1.0) - (3. / 4.)) / (I_nuc * (I_nuc + 1.0));
-  const double g_s = (2.0 * gI - g_l * (K + 1.0)) / (1.0 - K);
-  if (print) {
-    std::cout << "uSP using: gl=" << g_l << ", gs=" << g_s << ", l=" << l_pn
-              << ", gI=" << gI << " (I=" << I_nuc << ")\n";
-    if (u_option) {
-      std::cout << "u(r) = u1(r) = u0 (R-r)^n ";
-    } else {
-      std::cout << "u(r) = u2(r) = u0 r^n ";
-    }
-    std::cout << "with n = " << n << "\n";
-  }
-  if (two_I != two_l + 1 && two_I != two_l - 1) {
-    std::cerr << "\nFAIL:59 in Hyperfine (uSP):\n "
-                 "we must have I = l +/- 1/2, but we have: I,l = "
-              << I_nuc << "," << l_pn << "\n";
-    return [](double, double) { return 0.0; };
-  }
+n=0 should correspond to Volotka model.
 
-  // nb: in theory, can read u(r) in from file!
-  // r^2 * u(r)^2
-  const auto r2u2 = [=](double r) {
-    return u_option ? r * r * std::pow(R - r, 2.0 * n) :
-                      r * r * std::pow(r, 2.0 * n);
-  };
+  @param mu     Nuclear magnetic moment (in nuclear magnetons)
+  @param I_nuc  Nuclear spin
+  @param l_pn   Orbital angular momentum of valence nucleon
+  @param gl     Orbital g-factor (1 = proton, 0 = neutron)
+  @param n      Power in usually 0,1,2, but can be anything. 0 => Volotka
+  @param R      Nuclear radius
+  @param u_option Selects returned radial form: true means u1(r)
+  @param print  Print model details
+  @return Radial magnetisation function
+  @warning Does normalisation by numerical integration; may be unstable. 
+  Check that returns to Volotka as n->0
+*/
+RadialFunction uSP(double mu, double I_nuc, double l_pn, int gl, double n,
+                   double R, bool u_option, bool print = true);
 
-  // normalisation
-  const auto u02 =
-    1.0 / NumCalc::num_integrate(r2u2, 0.0, R, 100, NumCalc::linear);
+//! Volotka single-particle model for doubly-odd nuclei
+/*! @details
+From: Phys. Rev. Lett. 125, 063002 (2020).
 
-  const auto F0r = [=](double r) {
-    const auto f = [=](double x) { return u02 * r2u2(x); };
-    return NumCalc::num_integrate(f, 0.0, r, 100, NumCalc::linear);
-  };
+Total magnetisation:
+\f[
+  g F(r) = 0.5 \left[ g1 F1(r) + g2 F2(r) + (g1 F1(r) - g2 F2(r)) K \right]
+\f]
 
-  const auto FrR = [=](double r) {
-    const auto f = [=](double x) {
-      return u02 * r2u2(x) * r * r * r / x / x / x;
-    };
-    return NumCalc::num_integrate(f, r, R, 100, NumCalc::linear);
-  };
+with
 
-  const auto two_Ip1 = 2.0 * (I_nuc + 1.0);
-  const auto twoI_p3 = 2.0 * I_nuc + 3.0;
-  const auto twoI_m1 = 2.0 * I_nuc - 1.0;
+\f[
+  K = \frac{[ I1(I1+1) - I2(I2+1) ]}{[ I(I+1) ]}
+\f]
 
-  double f1 = (two_I == two_l + 1) ?
-                0.5 * g_s + (I_nuc - 0.5) * g_l :
-                -I_nuc / two_Ip1 * g_s + I_nuc * twoI_p3 / two_Ip1 * g_l;
+Returns F(r) (i.e., divided by total g).
 
-  double f2 =
-    (two_I == two_l + 1) ?
-      -twoI_m1 / (4.0 * two_Ip1) * g_s + (I_nuc - 0.5) * g_l :
-      twoI_p3 / (4.0 * two_Ip1) * g_s + I_nuc * twoI_p3 / two_Ip1 * g_l;
+g2 is obtained from
+g = 0.5 [ g1 + g2 + (g1 - g2) K ].
 
-  return [=](double r, double rN) {
-    return (r > rN) ? 1.0 : (1.0 / mu) * (f1 * F0r(r) + f2 * FrR(r));
-  };
-}
+  @note F1, F2 are the Volotka single-particle functions (see VolotkaSP_F).
 
-//------------------------------------------------------------------------------
-//! 'Volotka' SP model, for doubly-odd nuclei: Phys. Rev. Lett. 125, 063002 (2020)
-inline auto doublyOddSP_F(double mut, double It, double mu1, double I1,
-                          double l1, int gl1, double I2, double l2,
-                          bool print = true) -> Func_R2_R
-// F(r) * g = 0.5 [ g1F1 + g2F2 + (g1F1 - g2F2) * K]
-// K = [I1(I1+1) - I2(I2+1)] / [I(I+1)]
-// return F(r) [divide by g]
-// VolotkaSP_F(mu, I, l, g_l); //gl is 1 or 0
-// g2 : from: g = 0.5 [ g1 + g2 + (g1 - g2) * K]
-{
-  const auto K = (I1 * (I1 + 1.0) - I2 * (I2 + 1.0)) / (It * (It + 1.0));
-  const auto gt = mut / It;
-  const auto g1 = mu1 / I1;
-  const auto g2 = (g1 * (K + 1.0) - 2.0 * gt) / (K - 1.0);
-  const auto mu2 = g2 * I2;
-  const auto gl2 = (gl1 == 0) ? 1 : 0;
-  const auto F1 = VolotkaSP_F(mu1, I1, l1, gl1, print);
-  const auto F2 = VolotkaSP_F(mu2, I2, l2, gl2, print);
-  return [=](double r, double rN) {
-    return (0.5 / gt) * (g1 * F1(r, rN) + g2 * F2(r, rN) +
-                         K * (g1 * F1(r, rN) - g2 * F2(r, rN)));
-  };
-}
+  @param mut  Total nuclear magnetic moment (in nuclear magnetons)
+  @param It   Total nuclear spin
+  @param mu1  Magnetic moment of nucleon 1
+  @param I1   Spin of nucleon 1
+  @param l1   Orbital angular momentum of nucleon 1
+  @param gl1  Orbital g-factor of nucleon 1 (1 = proton, 0 = neutron)
+  @param I2   Spin of nucleon 2
+  @param l2   Orbital angular momentum of nucleon 2
+  @param print Print model details
+
+  @return Radial function F(r)
+*/
+RadialFunction doublyOddSP_F(double mut, double It, double mu1, double I1,
+                             double l1, int gl1, double I2, double l2,
+                             bool print = true);
 
 //------------------------------------------------------------------------------
 //! Converts reduced matrix element to A/B coeficients (takes k, 2J, 2J)
-inline double convert_RME_to_AB_2J(int k, int tja, int tjb) {
-  // first, get stretched state:
-  const auto tjz = std::min(tja, tjb); // arbitrary choice
-  const auto s = Angular::neg1pow_2(tja - tjb);
-  const auto tjs = Angular::threej_2(tja, 2 * k, tjb, -tjz, 0, tjz);
-  // then: moment-specific factor
-  // const auto f = k % 2 == 0 ? 2.0 : 1 / (0.5 * tjz);
-  const auto f = [&]() {
-    switch (k) {
-    case 1: {
-      // A: RME includes (μ/I)  ⇒  A = (1/J) <T1^e>_J (μ/I)
-      const double J = 0.5 * tjz;
-      return 1.0 / J;
-    }
-    case 2:
-      // B: Q = 2 <T2^n>  ⇒  B = 2 Q <T2^e>_J
-      return 2.0;
-    case 3:
-      // C: Ω = - <T3^n>  ⇒  C = -Ω <T3^e>_J
-      return -1.0;
-    case 4:
-      // D: Π = <T4^n> (standard)  ⇒  D = Π <T4^e>_J
-      return 1.0; // ???
-
-    default:
-      std::cout << "Warning: k=" << k
-                << " has no standard A/B/C/D hyperfine-constant definition; "
-                   "using f=1\n";
-      return 1.0; // ???
-    }
-  }();
-  return s * f * tjs;
-}
+double convert_RME_to_HFSconstant_2J(int k, int tja, int tjb);
 
 //! Converts reduced matrix element to A/B coeficients (takes k, kappa, kappa)
-inline double convert_RME_to_AB(int k, int ka, int kb) {
-  const auto tja = Angular::twoj_k(ka);
-  const auto tjb = Angular::twoj_k(kb);
-  return convert_RME_to_AB_2J(k, tja, tjb);
-}
-
-inline double hfsA(const TensorOperator *h, const DiracSpinor &Fa) {
-  auto Raa = h->radialIntegral(Fa, Fa); //?
-  return Raa * Fa.kappa() / (Fa.jjp1()) * PhysConst::muN_CGS_MHz;
-}
-
-inline double hfsB(const TensorOperator *h, const DiracSpinor &Fa) {
-  auto Raa = h->radialIntegral(Fa, Fa); //?
-  return Raa * double(Fa.twoj() - 1) / double(Fa.twoj() + 2) *
-         PhysConst::barn_MHz;
-}
+double convert_RME_to_HFSconstant(int k, int ka, int kb);
 
 } // namespace Hyperfine
 
 //==============================================================================
 //==============================================================================
 //==============================================================================
-//! Units: Assumes nuclear moment in units of powers of nuclear magnetons and/or
-//! barns - muN*b^(k-1)/2 for magnetic, and b^k/2 for electric
+
+//! Generalised hyperfine-structure operator, including relevant nuclear moment
+/*! @details
+
+Implements the nuclear multipole hyperfine operator of rank @p k using a
+specified finite-nucleus radial model.
+
+By default, includes the nuclear moment, and relevant factors.
+Input parameter @p GQ is the g-factor (k=1) or nuclear moment (k>1), 
+in units of nuclear magnetons * barns^power.
+
+That is, it calculates:
+
+\f[
+   GQ * t^k
+\f]
+
+with:
+
+\f[
+    t^k = 
+    \frac{-1}{r^{k+1}}\,F(r)
+    \begin{cases}
+      C^k & \text{electric (even k)} \\
+      \sqrt{\frac{k+1}{k}}
+        \mathbf{\alpha}\!\cdot\!\mathbf{C}^{(0)}_k 
+        & \text{magnetic (odd k)}
+    \end{cases}
+\f]
+
+where F(r) is nuclear k-pole distribution (=1 for pointlike).
+
+Convert to hyperfine constant by taking stretched state, and multiply by:
+
+\f[
+  M = 
+  \begin{cases}
+    1/J      &  k = 1 \\
+    2        &  k = 2 \\
+    -1       &  k = 3 \\
+    1        &  k \geq 4 \\
+  \end{cases}
+\f]
+
+This factor (including the steched 3j symbol) is returned by @c Hyperfine::convert_RME_to_HFSconstant()
+
+Units: 
+- Assumes nuclear moments in units of:
+- magnetic moments: @f$\mu_N\, b^{(k-1)/2}@f$
+- electric moments: @f$b^{k/2}@f$
+- Matrix element are in MHz by default, otherwise in atomic units.
+
+Here \f$ \mu_N \f$ is the nuclear magneton and \f$ b \f$ is the barn.
+
+See, e.g., Xiao et al., Phys. Rev. A 102, 022810 (2020).
+
+The radial part is constructed from @c Hyperfine::tk_radial().
+*/
 class hfs final : public TensorOperator {
-  // see Xiao, ..., Derevianko, Phys. Rev. A 102, 022810 (2020).
-  using Func_R2_R = std::function<double(double, double)>;
+  using RadialFunction = std::function<double(double, double)>;
 
 public:
-  hfs(int in_k, double in_GQ, double rN_au, const Grid &rgrid,
-      const Func_R2_R &hfs_F = Hyperfine::pointlike_F(), bool MHzQ = true)
-    : TensorOperator(in_k, Parity::even, in_GQ,
-                     Hyperfine::RadialFunc(in_k, rN_au, rgrid, hfs_F)),
+  //! k: rank, g/Q: g-factor or moment,
+  hfs(int in_k, double GQ, double rN_au, const Grid &rgrid,
+      const RadialFunction &hfs_F = Hyperfine::pointlike_F(), bool MHzQ = true)
+    : TensorOperator(in_k, Parity::even, GQ,
+                     Hyperfine::tk_radial(in_k, rN_au, rgrid.r(), hfs_F)),
       k(in_k),
       magnetic(k % 2 != 0),
       cfg(magnetic ? 1.0 : 0.0),
@@ -267,7 +258,7 @@ public:
 
   double angularF(const int ka, const int kb) const override final {
     return magnetic ? -double(ka + kb) / double(k) *
-                        Angular::Ck_kk(k, -ka, kb) * m_unit :
+                        Angular::Ck_kk(k, ka, -kb) * m_unit :
                       -Angular::Ck_kk(k, ka, kb) * m_unit;
   }
 

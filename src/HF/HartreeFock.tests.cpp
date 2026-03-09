@@ -9,6 +9,12 @@
 #include <string>
 #include <tuple>
 
+inline double hfsA(const DiracOperator::TensorOperator *h,
+                   const DiracSpinor &Fa) {
+  auto Raa = h->radialIntegral(Fa, Fa);
+  return Raa * Fa.kappa() / (Fa.jjp1()) * PhysConst::muN_CGS_MHz;
+}
+
 //! Unit tests for Hartree Fock equations
 TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
   std::cout << "\n----------------------------------------\n";
@@ -101,7 +107,7 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
       for (const auto &[fv, Ahfs] : HFSData) {
         const auto &Fv = *wf.getState(fv);
         // const auto Ahfs_me = h.hfsA(Fv);
-        const auto Ahfs_me = DiracOperator::Hyperfine::hfsA(&h, Fv);
+        const auto Ahfs_me = hfsA(&h, Fv);
         const auto eps = std::abs((Ahfs_me - Ahfs) / Ahfs);
         printf("HFS:%3s %11.5e [%11.5e] %.1e\n", fv, Ahfs_me, Ahfs, eps);
         if (Fv.l() <= 1 && eps > wHFSsp_eps) {
@@ -245,7 +251,7 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
   for (const auto &[fv, Ahfs] : HFSData) {
     const auto &Fv = *wf.getState(fv);
     // const auto Ahfs_me = h.hfsA(Fv);
-    const auto Ahfs_me = DiracOperator::Hyperfine::hfsA(&h, Fv);
+    const auto Ahfs_me = hfsA(&h, Fv);
     const auto eps = std::abs((Ahfs_me - Ahfs) / Ahfs);
     printf("HFS:%3s %11.5e [%11.5e] %.1e\n", fv, Ahfs_me, Ahfs, eps);
     if (Fv.l() <= 1 && eps > wHFSsp_eps) {
@@ -480,9 +486,9 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence()) {
       if (Fv.kappa() == -1) {
-        sme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
+        sme.push_back(hfsA(&h, Fv));
       } else if (Fv.kappa() == 1) {
-        pme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
+        pme.push_back(hfsA(&h, Fv));
       }
     }
 
@@ -518,9 +524,9 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence()) {
       if (Fv.kappa() == -1)
-        sme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
+        sme.push_back(hfsA(&h, Fv));
       else if (Fv.kappa() == 1)
-        pme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
+        pme.push_back(hfsA(&h, Fv));
     }
     std::cout << "Cs\n";
     assert(p.size() == s.size());
@@ -553,9 +559,9 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
     std::vector<double> sme, pme;
     for (const auto &Fv : wf.valence()) {
       if (Fv.kappa() == -1)
-        sme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
+        sme.push_back(hfsA(&h, Fv));
       else if (Fv.kappa() == 1)
-        pme.push_back(DiracOperator::Hyperfine::hfsA(&h, Fv));
+        pme.push_back(hfsA(&h, Fv));
     }
 
     std::cout << "Fr\n";

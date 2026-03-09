@@ -168,8 +168,8 @@ TEST_CASE("External Field: Diagram RPA",
     rpa.solve_core(0.0);
     std::vector<sp> e1me;
     for (const auto &Fv : wf.valence()) {
-      const auto a =
-        DiracOperator::Hyperfine::convert_RME_to_AB(1, Fv.kappa(), Fv.kappa());
+      const auto a = DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
+        1, Fv.kappa(), Fv.kappa());
 
       e1me.emplace_back(Fv.shortSymbol(),
                         a * (h.reducedME(Fv, Fv) + rpa.dV(Fv, Fv)));

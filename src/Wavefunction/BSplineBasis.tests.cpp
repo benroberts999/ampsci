@@ -14,6 +14,12 @@
   - "Fix" by just loosening tollerences here
 */
 
+inline double hfsA(const DiracOperator::TensorOperator *h,
+                   const DiracSpinor &Fa) {
+  auto Raa = h->radialIntegral(Fa, Fa);
+  return Raa * Fa.kappa() / (Fa.jjp1()) * PhysConst::muN_CGS_MHz;
+}
+
 //==============================================================================
 TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
   std::cout << "\n----------------------------------------\n";
@@ -48,8 +54,8 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
     std::cout << Fb << "\n";
     printf("En : %11.4e [%11.4e] %.1e\n", Fb.en(), Fn.en(), eps);
     REQUIRE(eps < 1.0e-4);
-    const auto a = DiracOperator::Hyperfine::hfsA(&hA, Fn);
-    const auto ab = DiracOperator::Hyperfine::hfsA(&hA, Fb);
+    const auto a = hfsA(&hA, Fn);
+    const auto ab = hfsA(&hA, Fb);
     const auto eps_a = std::abs((ab - a) / a);
     printf("HFS: %11.4e [%11.4e] %.1e\n", ab, a, eps_a);
     REQUIRE(eps_a < 1.0e-2);
@@ -232,8 +238,8 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
       for (const auto &orbs : {wf.core(), wf.valence()}) { //*
         for (const auto &Fv : orbs) {
           const auto pFb = std::find(cbegin(wf.basis()), cend(wf.basis()), Fv);
-          const auto Ahf = DiracOperator::Hyperfine::hfsA(&h, Fv);
-          const auto Aspl = DiracOperator::Hyperfine::hfsA(&h, *pFb);
+          const auto Ahf = hfsA(&h, Fv);
+          const auto Aspl = hfsA(&h, *pFb);
           const auto eps = (Ahf - Aspl) / Ahf;
           std::cout << Fv.symbol() << " " << Ahf << " " << Aspl << " " << eps
                     << "\n";
