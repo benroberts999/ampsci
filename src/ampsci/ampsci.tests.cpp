@@ -200,9 +200,7 @@ TEST_CASE("ampsci - Integration Tests",
   fmt2::styled_print(fg(fmt::color::blue),
                      "\nCompare Hyperfine A constants:\n");
   std::map<std::string, double> A_exp{
-    {"6s+", 2298.1579425},
-    {"6p-", 291.9135},
-    {"6p+", 50.28163},
+    {"6s+", 2298.1579425}, {"6p-", 291.9135}, {"6p+", 50.28163},
     // {"5d-", 48.78},
     // {"5d+", -21.24}
   };

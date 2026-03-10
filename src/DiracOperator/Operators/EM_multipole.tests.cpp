@@ -11,8 +11,6 @@
 #include <vector>
 
 TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "EM_multipole\n";
 
   // Construct a wavefunction similar to other tests
   Wavefunction wf({100, 1.0e-4, 50.0, 1.0, "loglinear"}, {"Cs", 133, "Fermi"});

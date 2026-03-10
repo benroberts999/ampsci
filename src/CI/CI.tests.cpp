@@ -8,7 +8,6 @@
 //==============================================================================
 TEST_CASE("CI: Configuration Interaction, unit tests", "[CI][unit]") {
 
-  std::cout << "\n----------------------------------------\n";
   std::cout << "CI, unit tests (not meant to be accurate)\n";
 
   Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},

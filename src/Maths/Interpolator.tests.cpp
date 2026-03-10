@@ -5,8 +5,6 @@
 #include <vector>
 
 TEST_CASE("Maths::Interpolator", "[interpolator][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Interpolator\n";
 
   const auto func = [](double x) {
     return std::exp(-x * x / 2) * std::sin(3.0 * x) / std::sqrt(2.0 * M_PI);

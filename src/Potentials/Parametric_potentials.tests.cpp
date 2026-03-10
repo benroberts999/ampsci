@@ -7,8 +7,6 @@
 //==============================================================================
 //! Unit tests for Parametric potentials
 TEST_CASE("Parametric potentials", "[prm][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Parametric potentials\n";
 
   // ensure no invalid numbers
   for (int z = 2; z < 137; ++z) {

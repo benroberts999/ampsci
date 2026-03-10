@@ -11,8 +11,6 @@
 
 //==============================================================================
 TEST_CASE("MBPT: RadialMatrix", "[MBPT][RadialMatrix][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: RadialMatrix, [MBPT]\n";
 
   // Set up radial grid:
   const auto r0{1.0e-7};

@@ -4,8 +4,6 @@
 #include <vector>
 
 TEST_CASE("qip::Methods", "[qip][Methods][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "qip::Methods\n";
 
   {
     const auto y_x2 = [](auto x) { return x * x; };

@@ -4,10 +4,6 @@
 #include <iostream>
 
 TEST_CASE("qip::Vector", "[qip][Vector][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "qip::Vector\n";
-
-  //--------------------------------
 
   const std::vector a{1, 2, 3, 4, 5, 6};
   const std::vector b{1, 2, 4, 4, 5, 6};

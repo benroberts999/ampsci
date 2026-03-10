@@ -13,8 +13,6 @@
 //==============================================================================
 TEST_CASE("External Field: Mixed-states (unit)",
           "[ExternalField][MixedStates][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "External Field: Mixed-states (unit)\n";
 
   // Create wavefunction object
   Wavefunction wf({1200, 1.0e-5, 80.0, 20.0, "loglinear", -1.0},
@@ -87,8 +85,6 @@ TEST_CASE("External Field: Mixed-states (unit)",
 //==============================================================================
 TEST_CASE("External Field: Mixed-states (full)",
           "[ExternalField][MixedStates][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "External Field: Mixed-states - full\n";
 
   // Create wavefunction object
   Wavefunction wf({4000, 1.0e-6, 90.0, 20.0, "loglinear", -1.0},

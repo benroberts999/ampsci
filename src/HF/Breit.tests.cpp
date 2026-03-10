@@ -15,8 +15,6 @@
 
 //! Unit tests for Breit
 TEST_CASE("Breit (local)", "[Breit][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Breit (local)\n";
 
   // solve HF (local) without breit. Calc Breit seperately:
   Wavefunction wf({750, 1.0e-4, 120.0, 40.0, "loglinear", -1.0},
@@ -47,7 +45,7 @@ TEST_CASE("Breit (local)", "[Breit][unit]") {
 
 //==============================================================================
 TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
-  std::cout << "\n----------------------------------------\n";
+
   std::cout << "Breit: Bk formulas\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
@@ -214,7 +212,7 @@ TEST_CASE("Breit: Bk formulas", "[Breit][unit]") {
 
 //==============================================================================
 TEST_CASE("Breit (HF)", "[Breit][integration]") {
-  std::cout << "\n----------------------------------------\n";
+
   std::cout << "Breit (HF) [lowest-order only]\n";
 
   // solve HF (local) without breit. Calc Breit seperately:
@@ -244,7 +242,7 @@ TEST_CASE("Breit (HF)", "[Breit][integration]") {
 //==============================================================================
 //! integration tests for Breit
 TEST_CASE("Breit", "[Breit][integration][!mayfail]") {
-  std::cout << "\n----------------------------------------\n";
+
   std::cout << "Breit\n";
 
   // Solve Hartree-Fock, including Breit
@@ -556,7 +554,7 @@ TEST_CASE("Breit", "[Breit][integration][!mayfail]") {
 // Tests for Diragram RPA (integration/regression)
 TEST_CASE("Breit: RPA Corrections",
           "[ExternalField][DiagramRPA][RPA][TDHF][Breit][integration]") {
-  std::cout << "\n----------------------------------------\n";
+
   std::cout << "Breit: RPA Corrections\n";
 
   // No Breit:
@@ -683,8 +681,6 @@ TEST_CASE("Breit: RPA Corrections",
 // Tests for Diragram RPA (integration/regression)
 TEST_CASE("Breit: RPA Corrections - for HFS",
           "[ExternalField][DiagramRPA][Breit][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Breit: RPA Corrections - for HFS\n";
 
   // No Breit:
   Wavefunction wf0({1000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
@@ -785,8 +781,6 @@ TEST_CASE("Breit: RPA Corrections - for HFS",
 // Tests for Diragram RPA (integration/regression)
 TEST_CASE("Breit: RPA TDHF vs Diagram",
           "[ExternalField][DiagramRPA][Breit][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Breit: RPA TDHF vs Diagram\n";
 
   // NB: This is not so much a test as an example...
   // Probably, TDHF method is just better (so long as it converges!)

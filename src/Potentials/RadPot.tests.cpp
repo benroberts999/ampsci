@@ -38,8 +38,6 @@ void FGRadPot();
 //==============================================================================
 //! Unit tests for Ginges/Flambaum Radiative potential method
 TEST_CASE("Physics: Radiative Potential", "[RadPot][QED][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Physics: Radiative Potential\n";
 
   // Run unit tests (tests integrals vs Mathematica)
   helper::FGRadPot();

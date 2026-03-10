@@ -13,8 +13,6 @@
 
 //==============================================================================
 TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: Qk Table\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
     GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
@@ -312,8 +310,6 @@ TEST_CASE("Coulomb: Q,W,N k Table", "[Coulomb][QkTable][unit]") {
 //==============================================================================
 //==============================================================================
 TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: Qk Table - with WF\n";
 
   using namespace Coulomb;
 
@@ -511,8 +507,6 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
 //==============================================================================
 TEST_CASE("Coulomb: Qk Table - performance",
           "[Coulomb][QkTable][performance][!mayfail]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: Qk Table - performance\n";
 
   // Use more realistic orbitals (have rmax, which makes 'Direct' calc faster)
   Wavefunction wf({1600, 1.0e-6, 120.0, 40.0, "loglinear", -1.0},

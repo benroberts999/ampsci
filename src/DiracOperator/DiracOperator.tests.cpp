@@ -7,8 +7,6 @@
 #include <utility>
 
 TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "DiracOperator\n";
 
   // for dumb reason, generateOperator takes in wf...
   Wavefunction wf({2000, 1.0e-6, 300.0, 50.0, "loglinear"},
@@ -34,7 +32,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
           // For most operators, these are exactly the same (one implemented in terms of the other)
           auto r1 = a * h->radial_rhs(a.kappa(), b);
           auto r2 = h->radialIntegral(a, b);
-          // std::cout << a << " " << b << " | " << r1 << " " << r2 << "\n";
           REQUIRE(r1 == Approx(r2).margin(1.0e-15));
         }
       }
@@ -459,7 +456,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       for (auto &q : qgrid.r()) {
         jl.set_L_q(l, q);
         jl_2.set_L_q(l, q);
-        // std::cout << l << " " << q << "\n";
         REQUIRE(jl.rank() == int(l));
         REQUIRE(jl.L() == l);
         const auto jl2 =

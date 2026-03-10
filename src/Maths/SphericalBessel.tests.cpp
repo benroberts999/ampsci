@@ -5,8 +5,6 @@
 #include <vector>
 
 TEST_CASE("Maths::SphericalBessel", "[jL][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "SphericalBessel\n";
 
   const auto r_list = qip::loglinear_range(1.0e-5, 10.0, 1.0, 100);
 
@@ -33,8 +31,6 @@ TEST_CASE("Maths::SphericalBessel", "[jL][unit]") {
 
 //==============================================================================
 TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "SphericalBessel: JL_table\n";
 
   const std::vector<double> r = qip::logarithmic_range(1.0e-5, 100.0, 20);
   // dense q grid, for interp etc.

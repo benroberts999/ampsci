@@ -44,10 +44,9 @@ jobs:
         make CXX='g++' OMPLIB=-fopenmp tests
 
     - name: Run tests on g++ (all except slow)
-      if: github.ref == 'refs/heads/main'
+      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
       run: ./tests "~[slow]"
 
     - name: Run unit tests only (g++)
-      if: github.ref != 'refs/heads/main'
+      if: github.event_name != 'push' || github.ref != 'refs/heads/main'
       run: ./tests "[unit]"
-

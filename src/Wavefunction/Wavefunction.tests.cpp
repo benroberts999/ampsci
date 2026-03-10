@@ -5,8 +5,6 @@
 #include "catch2/catch.hpp"
 
 TEST_CASE("Wavefunction", "[wf][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Wavefunction\n";
 
   const unsigned long num_points = 500; // need no numerical
   const auto r0 = 1.0e-5;
@@ -219,7 +217,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
 //==============================================================================
 TEST_CASE("Wavefunction - continuum", "[wf][cntm][unit]") {
-  std::cout << "\n----------------------------------------\n";
+
   std::cout << "Wavefunction - continuum\n";
 
   {

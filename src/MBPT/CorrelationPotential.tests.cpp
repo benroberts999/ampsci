@@ -17,7 +17,6 @@
 //==============================================================================
 TEST_CASE("MBPT: Goldstone, unit tests", "[MBPT][Goldstone][unit]") {
 
-  std::cout << "\n----------------------------------------\n";
   std::cout << "Goldstone diagram, unit tests (not meant to be accurate)\n";
 
   Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
@@ -64,7 +63,6 @@ TEST_CASE("MBPT: Goldstone, unit tests", "[MBPT][Goldstone][unit]") {
 //==============================================================================
 TEST_CASE("MBPT: Feynman, unit tests", "[MBPT][Feynman][unit]") {
 
-  std::cout << "\n----------------------------------------\n";
   std::cout << "Feynman diagram, unit tests (not meant to be accurate)\n";
 
   Wavefunction wf({1000, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
@@ -156,9 +154,6 @@ TEST_CASE("MBPT: Feynman, unit tests", "[MBPT][Feynman][unit]") {
 //==============================================================================
 TEST_CASE("MBPT: CorrelationPotential", "[MBPT][CorrelationPotential][unit]") {
 
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: CorrelationPotential\n";
-
   Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
                   {"Na", -1, "Fermi"}, 1.0);
   wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-5);
@@ -238,8 +233,6 @@ TEST_CASE("MBPT: CorrelationPotential", "[MBPT][CorrelationPotential][unit]") {
 //==============================================================================
 //! Unit tests for second-order MBPT energy correction
 TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: 2nd Order de\n";
 
   { // Compare with  K. Beloy and A. Derevianko,
     // Comput. Phys. Commun. 179, 310 (2008).
@@ -304,10 +297,7 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
 //! Tests for second-order correlation potential
 TEST_CASE("MBPT: Correlation Potential: Sigma2",
           "[MBPT][Sigma2][slow][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: Correlation Potential: Sigma2, [MBPT][Sigma2][slow]\n";
 
-  std::cout << "\n";
   //----------------------------------------------------------------------------
   // Test Sigma:
   // Cs:
@@ -443,8 +433,6 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
 //! Unit tests for all-orders correlation potential
 TEST_CASE("MBPT: Correlation Potential: SigmaAO",
           "[MBPT][SigmaAO][slow][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: Correlation Potential: SigmaAO, [MBPT][SigmaAO][slow]\n";
 
   { // Compare Dzuba, All-order sigma
     auto dzuba_i =
@@ -497,9 +485,6 @@ TEST_CASE("MBPT: Correlation Potential: SigmaAO",
 
 //==============================================================================
 TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][CI][unit]") {
-
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "MBPT: Sigma2 (unit)\n";
 
   // note: does not test formulas: just checks class is working correctly.
   // Not meant to be accurate!

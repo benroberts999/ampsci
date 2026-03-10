@@ -21,8 +21,8 @@
 //==============================================================================
 //! Unit tests for solving (local) Dirac equation ODE
 TEST_CASE("DiracODE: AsymptoticSpinor expansion", "[DiracODE][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "DiracODE: AsymptoticSpinor expansion (large r)\n";
+
+  std::cout << "AsymptoticSpinor expansion (large r)\n";
 
   fmt::print("{:<3s} {:>2s} {:1s} {:1s} {:>5s}  {:16s}  {:17s}   {}\n", "z",
              "k", "l", "n", "r", "f/g (asym)", "f/g (exact)", "eps");
@@ -96,8 +96,8 @@ TEST_CASE("DiracODE: AsymptoticSpinor expansion", "[DiracODE][unit]") {
 //==============================================================================
 //! Unit tests for solving (local) Dirac equation ODE
 TEST_CASE("DiracODE: Low-r solution", "[DiracODE][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "DiracODE: Low-r solution (pointlike)\n";
+
+  std::cout << "Low-r solution (pointlike)\n";
 
   // Set up radial grid:
   const auto r0{1.0e-6};
@@ -178,7 +178,7 @@ TEST_CASE("DiracODE: Low-r solution", "[DiracODE][unit]") {
 //==============================================================================
 //! Unit tests for solving (local) Dirac equation ODE
 TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
-  std::cout << "\n----------------------------------------\n";
+
   std::cout << "DiracODE: Adams-Moulton method\n";
 
   std::cout << "\nTest Hydrogen-like numerical solutions vs. exact Dirac:\n";
@@ -311,8 +311,6 @@ TEST_CASE("DiracODE: Adams-Moulton method", "[DiracODE][unit]") {
 //==============================================================================
 // Test inhomogenous (Green's) method:
 TEST_CASE("DiracODE: inhomogenous (Green's) method", "[DiracODE][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "DiracODE: inhomogenous (Green's) method\n";
 
   const double Zeff = 5.0;
 
@@ -456,8 +454,6 @@ TEST_CASE("DiracODE: inhomogenous (Green's) method", "[DiracODE][unit]") {
 
 //==============================================================================
 TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit][!mayfail]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "DiracODE: continuum\n";
 
   // ?? Fails sometimes on macos, with nan??
 

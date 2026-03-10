@@ -8,8 +8,6 @@
 
 //==============================================================================
 TEST_CASE("LinAlg: Element access, memory layout", "[LinAlg][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "LinAlg: Element access, memory layout\n";
 
   LinAlg::Matrix<double> a{{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}};
   LinAlg::Matrix<double> a2(2, 3);
@@ -296,7 +294,7 @@ TEST_CASE("LinAlg: matrix multiplication<double>", "[LinAlg][unit]") {
   const auto b2 = b;
   REQUIRE(LinAlg::equal(a2 * b2, a * b));
 }
-TEST_CASE("LinAlg: ...", "[LinAlg][unit]") {
+TEST_CASE("LinAlg: matrix multiplication<float>", "[LinAlg][unit]") {
   // Test matrix multiplication, with float, const and non-const
   LinAlg::Matrix<float> a{{-1.0f, 6.5f, 0.1f, 1.0f, -4.0f},
                           {0.5f, 3.0f, 0.5f, 2.0f, 14.0f},
@@ -321,7 +319,6 @@ TEST_CASE("LinAlg: ...", "[LinAlg][unit]") {
 }
 
 TEST_CASE("LinAlg: matrix multiplication<complex<double>>", "[LinAlg][unit]") {
-  std::cout << "LinAlg: matrix multiplication<complex<double>>\n";
   // Test matrix multiplication, with complex double, const and non-const
   using namespace std::complex_literals;
   LinAlg::Matrix a{
@@ -579,8 +576,6 @@ TEST_CASE("LinAlg: non-symmetric eigensystems <double>", "[LinAlg][unit]") {
 
 //==============================================================================
 TEST_CASE("LinAlg: Row and Column Views", "[LinAlg][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "LinAlg: Row and Column Views\n";
 
   const LinAlg::Matrix<double> a{
     {1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}, {7.0, 8.0, 9.0}};
@@ -624,8 +619,6 @@ TEST_CASE("LinAlg: Row and Column Views", "[LinAlg][unit]") {
 
 //==============================================================================
 TEST_CASE("LinAlg: Row and Column Views, complex", "[LinAlg][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "LinAlg: Row and Column Views, complex\n";
 
   using namespace std::complex_literals;
   const LinAlg::Matrix<std::complex<double>> a{
@@ -673,9 +666,7 @@ TEST_CASE("LinAlg: Row and Column Views, complex", "[LinAlg][unit]") {
 //==============================================================================
 TEMPLATE_TEST_CASE("LinAlg: PENTA unit", "[LinAlg][PENTA][unit]", float, double,
                    std::complex<double>) {
-  std::cout << "----------------------------------------\n";
-  std::cout << "LinAlg: PENTA (unit)\n";
-  // INFO("Type = " << Catch::Detail::stringify<TestType>());
+
   INFO("Type = " << Catch::Detail::stringify(TestType{}));
 
   std::size_t N = 25;
@@ -720,8 +711,6 @@ TEMPLATE_TEST_CASE("LinAlg: PENTA unit", "[LinAlg][PENTA][unit]", float, double,
 //------------------------------------------------------------------------------
 // May fail, only because includes a performance test
 TEST_CASE("LinAlg: PENTA", "[LinAlg][PENTA][!mayfail]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "LinAlg: PENTA\n";
 
   std::size_t N = 200;
 

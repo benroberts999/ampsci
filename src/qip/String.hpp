@@ -228,8 +228,8 @@ inline auto closest_match(std::string_view test_string,
 
 //! Finds the closest match (case insensitive) in list to test_string (return
 //! iterator)
-inline std::string_view ci_closest_match(std::string_view test_string,
-                                         const std::vector<std::string> &list) {
+inline std::string ci_closest_match(const std::string_view test_string,
+                                    const std::vector<std::string> &list) {
   auto compare = [&test_string](const auto &s1, const auto &s2) {
     return qip::ci_Levenstein(s1, test_string) <
            qip::ci_Levenstein(s2, test_string);

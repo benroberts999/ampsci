@@ -4,8 +4,6 @@
 #include <string>
 
 TEST_CASE("qip::Random", "[qip][Random][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "qip::Random\n";
 
   const auto s1 = qip::random_string(6);
   REQUIRE(s1.size() == 6);

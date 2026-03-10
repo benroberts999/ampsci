@@ -4,8 +4,6 @@
 #include <vector>
 
 TEST_CASE("Maths::Grid", "[Grid][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Grid\n";
 
   for (const auto &gr_type :
        {GridType::loglinear, GridType::logarithmic, GridType::linear}) {

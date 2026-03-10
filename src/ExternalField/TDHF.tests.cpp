@@ -12,8 +12,6 @@
 // Tests for TDHF (basic unit)
 TEST_CASE("External Field: TDHF - basic unit tests",
           "[ExternalField][TDHF][RPA][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "External Field: TDHF - basic unit tests\n";
 
   Wavefunction wf({800, 1.0e-4, 100.0, 20.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
@@ -235,8 +233,6 @@ TEST_CASE("External Field: TDHF (RPA)",
           "[ExternalField][TDHF][RPA][HFS][integration]") {
   {
     IO::ChronoTimer t{"TDHF"};
-    std::cout << "-------------------------------------\n";
-    std::cout << "External Field: TDHF (RPA)\n";
 
     // Create wavefunction object, solve HF for core+valence
     Wavefunction wf({6000, 1.0e-6, 175.0, 20.0, "loglinear", -1.0},
@@ -307,8 +303,6 @@ TEST_CASE("External Field: TDHF (RPA) for hyperfine",
           "[ExternalField][TDHF][RPA][HFS2][integration]") {
   {
     IO::ChronoTimer t{"TDHF"};
-    std::cout << "-------------------------------------\n";
-    std::cout << "External Field: TDHF (RPA) for hyperfine\n";
 
     // XXX These are not perfect, and should be improved!
 

@@ -3,9 +3,6 @@ name: Docs
 on:
   push:
     branches: [ "main", "dev", "UpdateDocs" ]
-    # branches: [ "TestWorkflows" ]
-  pull_request:
-    branches: [ "main", "dev" ]
 
 jobs:
   docs:

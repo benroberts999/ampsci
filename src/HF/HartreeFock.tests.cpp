@@ -17,8 +17,6 @@ inline double hfsA(const DiracOperator::TensorOperator *h,
 
 //! Unit tests for Hartree Fock equations
 TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "HartreeFock\n";
 
   //============================================================================
 
@@ -175,8 +173,6 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
 // tests part
 //============================================================================
 TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "HartreeFock - just Cs\n";
 
   //============================================================================
 
@@ -291,7 +287,7 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
 //============================================================================
 TEST_CASE("HartreeFock - KS Core-Hartree and ApproxHF",
           "[HF][HartreeFock][unit]") {
-  std::cout << "\n----------------------------------------\n";
+
   std::cout << "HartreeFock - KS Core-Hartree and ApproxHF\n";
 
   // Grid parameters (etc.):
@@ -457,8 +453,6 @@ TEST_CASE("HartreeFock - KS Core-Hartree and ApproxHF",
 
 //============================================================================
 TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "HartreeFock - Hyperfine\n";
 
   //----------------------------------------------------------------------------
   //----------------------------------------------------------------------------
@@ -583,8 +577,7 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
 //============================================================================
 TEST_CASE("HartreeFock - Sigma2 - InIII Converge",
           "[HF][HartreeFock][Correlations][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "HartreeFock - Sigma2 - In Converge\n";
+
   // This is just a test case that failed to converge before an update
 
   const auto input_string = std::string{R"(

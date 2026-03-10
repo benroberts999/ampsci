@@ -7,8 +7,6 @@
 #include <vector>
 
 TEST_CASE("External Field: calcMatrixElements", "[ExternalField][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "External Field: TDHF - calcMatrixElements\n";
 
   Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
                   {"Li", -1, "Fermi", -1.0, -1.0}, 1.0);

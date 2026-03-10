@@ -54,8 +54,6 @@ inline double check_Rkabcd(const std::vector<DiracSpinor> &orbs,
 //==============================================================================
 //! First, test quadrature integration method:
 TEST_CASE("Coulomb: quad integrate", "[Coulomb][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: quad integrate\n";
 
   // Define a wavefunction-like function, func,
   auto func = [](double x) {
@@ -104,8 +102,6 @@ TEST_CASE("Coulomb: quad integrate", "[Coulomb][unit]") {
 
 //==============================================================================
 TEST_CASE("Coulomb: yk,Rk formulas", "[Coulomb][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: yk,Rk formulas\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
     GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
@@ -375,8 +371,6 @@ TEST_CASE("Coulomb: yk,Rk formulas", "[Coulomb][unit]") {
 
 //==============================================================================
 TEST_CASE("Coulomb: yk tables", "[Coulomb][yktable][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: yk tables\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
     GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
@@ -519,8 +513,6 @@ TEST_CASE("Coulomb: yk tables", "[Coulomb][yktable][unit]") {
 //! Unit tests for Coulomb integrals (y^k_ab, R^k_abcd, lookup tables etc).
 //! Also: tests some 6J table things
 TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: formulas\n";
 
   // Test the Coulomb formulas
   // Don't need dense grid, and use a local potential (Hartree)

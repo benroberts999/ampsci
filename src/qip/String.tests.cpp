@@ -5,8 +5,6 @@
 #include <vector>
 
 TEST_CASE("qip::String", "[qip][String][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "qip::String\n";
 
   REQUIRE(qip::wildcard_compare("helloben", "helloben") == true);
   REQUIRE(qip::wildcard_compare("helloben", "*ben") == true);

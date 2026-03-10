@@ -22,8 +22,6 @@ inline double hfsA(const DiracOperator::TensorOperator *h,
 
 //==============================================================================
 TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Wavefunction: BSpline-basis unit\n";
 
   // Create wavefunction object, solve HF for core + valence
   Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear"},
@@ -105,8 +103,6 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
 //==============================================================================
 //! Unit tests for B-Spline basis (finite basis of relativistic orbitals)
 TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Wavefunction: BSpline-basis\n";
 
   //============================================================================
   // Check vs. Hartree-Fock (energies/ortho)

@@ -13,8 +13,6 @@
 // Tests for Diragram RPA (basic unit)
 TEST_CASE("External Field: Diagram RPA - basic unit tests",
           "[ExternalField][DiagramRPA][RPA][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "External Field: Diagram RPA - basic unit tests\n";
 
   Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
                   {"K", -1, "Fermi", -1.0, -1.0}, 1.0);
@@ -67,8 +65,6 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
 // Tests for Diragram RPA (integration/regression)
 TEST_CASE("External Field: Diagram RPA",
           "[ExternalField][DiagramRPA][RPA][integration]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "External Field: Diagram RPA\n";
 
   Wavefunction wf({3500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);

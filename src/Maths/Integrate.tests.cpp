@@ -4,8 +4,6 @@
 #include <vector>
 
 TEST_CASE("NumCalc_quadIntegrate", "[num_integrate][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "NumCalc_quadIntegrate\n";
 
   REQUIRE(NumCalc::num_integrate([](double) { return 1.0; }, 0.0, 10.0, 100,
                                  NumCalc::linear) == 10.0);

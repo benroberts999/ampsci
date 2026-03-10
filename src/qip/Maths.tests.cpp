@@ -4,8 +4,6 @@
 #include <vector>
 
 TEST_CASE("qip::Maths", "[qip][Maths][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "qip::Maths\n";
 
   const std::vector v_ints{1, -4, 3, -10, 0, 99, -100};
   REQUIRE(*std::min_element(cbegin(v_ints), cend(v_ints), qip::less_abs{}) ==

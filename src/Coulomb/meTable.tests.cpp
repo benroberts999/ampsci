@@ -7,8 +7,6 @@
 
 //==============================================================================
 TEST_CASE("Coulomb: meTable", "[Coulomb][meTable][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: meTable\n";
 
   const auto radial_grid = std::make_shared<const Grid>(
     GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
@@ -122,8 +120,6 @@ TEST_CASE("Coulomb: meTable", "[Coulomb][meTable][unit]") {
 
 //============================================================================
 TEST_CASE("Coulomb: meTable<vector>", "[Coulomb][meTable][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Coulomb: meTable<vector>\n";
 
   // build set of blank orbitals, one n for each kappa up to l=lmax
   const int lmax = 6;

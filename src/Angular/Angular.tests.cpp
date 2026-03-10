@@ -51,8 +51,6 @@ double speedup_6jt(const Angular::SixJTable &sjt,
 
 //------------------------------------------------------------------------------
 TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Angular: Winger369j functions\n";
 
   // list in form: {kappa_index, kappa, l, 2j}
   const std::vector<std::tuple<int, int, int, int>> test_data{
@@ -231,8 +229,6 @@ TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
 //! Unit tests for angular functions/classes (threeJ symbols, lookup
 //! tables etc)
 TEST_CASE("Angular: Ck tables", "[Angular][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Angular: Ck tables\n";
 
   // Maximum value of 2*j (for initial run)
   const int max2j_1 = 5;
@@ -274,8 +270,6 @@ TEST_CASE("Angular: Ck tables", "[Angular][unit]") {
 //------------------------------------------------------------------------------
 //! Unit tests for 6J symbol lookup tables
 TEST_CASE("Angular: 6j tables", "[Angular][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Angular: 6j tables\n";
 
   // 6j tables - all symbols. This is the slow paer
   {
@@ -304,8 +298,6 @@ TEST_CASE("Angular: 6j tables", "[Angular][unit]") {
 //------------------------------------------------------------------------------
 TEST_CASE("Angular: 6j tables - performance",
           "[Angular][!mayfail][performance]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Angular: 6j tables - performance\n";
 
   const auto l_max = 6;
   std::vector<DiracSpinor> basis = UnitTest::dummy_basis(l_max);

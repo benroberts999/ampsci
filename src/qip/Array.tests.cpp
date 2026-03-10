@@ -8,8 +8,6 @@
 #include <vector>
 
 TEST_CASE("qip::ArrayView", "[qip][Array][ArrayView][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "qip::ArrayView\n";
 
   // Tests arrayview, which tests stride iterator
 
@@ -173,8 +171,6 @@ TEST_CASE("qip::ArrayView", "[qip][Array][ArrayView][unit]") {
 //==============================================================================
 
 TEST_CASE("qip::Array", "[qip][Array][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "qip::Array\n";
 
   qip::Array<int> IntArray(4, 2, 3);
 

@@ -9,8 +9,6 @@
 #include <vector>
 
 TEST_CASE("Radiative Potential (functions)", "[RadPot][QED][unit]") {
-  std::cout << "\n----------------------------------------\n";
-  std::cout << "Radiative Potential (functions)\n";
 
   {
     // Compare Uehling integral (J function) to Mathematica
