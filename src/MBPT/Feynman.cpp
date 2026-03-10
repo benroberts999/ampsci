@@ -1080,7 +1080,7 @@ double L_ang_dSR(int kw, int kv, int kB, int kA, int k) {
 
   const auto sjs = Angular::sixj_2(tj_w, 2 * K, tj_v, tj_B, 2 * k, tj_A);
 
-  const auto s = Angular::neg1pow(tj_A + tj_B + k + K);
+  const auto s = Angular::neg1pow_2(tj_A + tj_B + k * 2 + K * 2);
   // const double f = (2 * u + 1) / (tji + 1);
 
   return s * sjs / double(tj_v + 1);
@@ -1166,175 +1166,234 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
 
 // ================WORK IN PROGRESS================================
 
-ComplexRMatrix Feynman::perturbed_polarisation_k(int k,
-                                                 std::complex<double> omega,
-                                                 std::complex<double> Omega,
-                                                 bool hole_particle) const {
+// ComplexRMatrix Feynman::perturbed_polarisation_k(int k,
+//                                                  std::complex<double> omega,
+//                                                  std::complex<double> Omega,
+//                                                  bool hole_particle) const {
 
-  // polarisation operator is ~ Fa^† * [Gex(ea + w) + Gex(ea - w)] * Fa
+//   // polarisation operator is ~ Fa^† * [Gex(ea + w) + Gex(ea - w)] * Fa
 
-  ComplexRMatrix dpi_k(m_i0, m_stride, m_subgrid_points, m_grid);
+//   ComplexRMatrix dpi_k(m_i0, m_stride, m_subgrid_points, m_grid);
 
-  const auto Iunit = std::complex<double>{0.0, 1.0};
-  const auto &core = m_HF->core();
+//   const auto Iunit = std::complex<double>{0.0, 1.0};
+//   const auto &core = m_HF->core();
 
-  // core state summation
-  for (auto ia = 0ul; ia < core.size(); ++ia) {
-    const auto &Fa = core[ia];
-    if (Fa.n() < m_min_core_n)
-      continue;
-    const auto ea = std::complex<double>{Fa.en()};
-    // not m_hole_particle, as need both for "screen only"
-    const auto *Fa_hp = hole_particle ? &Fa : nullptr;
-    for (int iA = 0; iA <= m_max_ki; ++iA) {
-      const auto kA = Angular::kappaFromIndex(iA);
-      const auto Pa = m_pa[ia];
-      for (int iB = 0; iB <= m_max_ki; ++iB) {
-        const auto kB = Angular::kappaFromIndex(iB);
-        for (int iC = 0; iC <= m_max_ki; ++iC) {
-          const auto ck_an = Angular::Ck_kk(k, Fa.kappa(), kA);
+//   // core state summation
+//   for (auto ia = 0ul; ia < core.size(); ++ia) {
+//     const auto &Fa = core[ia];
+//     if (Fa.n() < m_min_core_n)
+//       continue;
+//     const auto ea = std::complex<double>{Fa.en()};
+//     // not m_hole_particle, as need both for "screen only"
+//     const auto *Fa_hp = hole_particle ? &Fa : nullptr;
+//     for (int iA = 0; iA <= m_max_ki; ++iA) { // TURN THIS INTO A CORE STATE SUM
+//       const auto kA = Angular::kappaFromIndex(iA);
+//       const auto Pa = m_pa[ia];
+//       for (int iB = 0; iB <= m_max_ki; ++iB) {
+//         const auto kB = Angular::kappaFromIndex(iB);
+//         for (int iC = 0; iC <= m_max_ki; ++iC) {
+//           const auto ck_an = Angular::Ck_kk(k, Fa.kappa(), kA);
+//           const auto kC = Angular::kappaFromIndex(iC);
 
-          if (ck_an == 0.0)
-            continue;
-          const double c_ang = ck_an * ck_an / double(2 * kA + 1);
+//           if (ck_an == 0.0)
+//             continue;
 
-          const auto kC = Angular::kappaFromIndex(iC);
-          const auto gA = green_excited(kA, ea + omega, Fa_hp);
-          const auto gB = green_excited(kC, ea + omega, Fa_hp);
-          const auto gC = green_excited(kC, ea + omega, Fa_hp);
+//           // ======= PGG BLOCK ======
+//           const double c_ang_pgg = ck_an * ck_an / double(2 * kA + 1);
 
-          const auto dG_1 = perturbed_greens(gA, gC);
-          const auto dPi_1 = dG_1; //mult_elements(Pa, dG_1);
-          dpi_k += c_ang * dPi_1.tr();
-        }
-      }
+//           const auto gB = green_excited(kC, ea + omega, Fa_hp);
+//           const auto gC = green_excited(kC, ea + omega, Fa_hp);
 
-      // loop over coordinate indices.
-      // pi is symmetric in r1, r2 so is there more efficient way to do this
-      // so that I don't loop over all ri, rj?
-      // pi ~ Fa^†(r1)[Gex(r1,r2,ea-w) + Gex(r1,r2,ea+w)]Fa(r2)
-      // for (auto i = 0ul; i < m_subgrid_points; ++i) {
-      //   const auto si = Gx_pm.index_to_fullgrid(i);
-      //   for (auto j = 0ul; j <= i; ++j) {
-      //     const auto sj = Gx_pm.index_to_fullgrid(j);
-      //     pi_k(i, j) += c_ang * (Fa.f(si) * Gx_pm.ff(i, j) * Fa.f(sj) +
-      //                            Fa.g(si) * Gx_pm.gf(i, j) * Fa.f(sj) +
-      //                            Fa.f(si) * Gx_pm.fg(i, j) * Fa.g(sj) +
-      //                            Fa.g(si) * Gx_pm.gg(i, j) * Fa.g(sj));
-      //   }
-      // }
+//           const auto dG_BC1 = perturbed_greens(gB, gC);
+//           const auto dG_BC2 = perturbed_greens(gB, gC);
+//           const auto dG_BC3 = perturbed_greens(gB, gC);
 
-      // const auto Gex_om = green_excited(kn, ea + omega - Omega, Fa_hp);
-      // const auto Gex = green_excited(kn, ea + omega, Fa_hp);
+//           // const auto dPi_1 = mult_elements(Pa, dG_BC + dG_BC + dG_BC);
 
-      // pi_k(i, j) = c_ang * 1;
-    }
-  }
+//           // dpi_k += c_ang_pgg * dPi_1.tr();
 
-  // // Fill symmetric lower half:
-  // for (auto i = 0ul; i < m_subgrid_points; ++i) {
-  //   for (auto j = 0ul; j <= i; ++j) {
-  //     dpi_k(j, i) = dpi_k(i, j);
-  //   }
-  // }
+//           // // ======= GPG BLOCK ======
+//           // const double c_ang_gpg = ck_an * ck_an / double(2 * kA + 1);
+//           // const auto gA = green_excited(kA, ea + omega, Fa_hp);
+//           // const auto gB = green_excited(kC, ea + omega, Fa_hp);
+//           // const auto gC = green_excited(kC, ea + omega, Fa_hp);
+//           // const auto PaG_C = perturbed_greens(Pa, gC);
+//           // const auto dPi_AC = dG_AC; //mult_elements(Pa, dG_1);
+//           // dpi_k += c_ang_gpg * dPi_AC.tr();
+//           // // ======= GGP BLOCK ======
+//           // const double c_ang_ggp = ck_an * ck_an / double(2 * kA + 1);
+//           // const auto gA = green_excited(kA, ea + omega, Fa_hp);
+//           // const auto gB = green_excited(kC, ea + omega, Fa_hp);
+//           // const auto gC = green_excited(kC, ea + omega, Fa_hp);
+//           // const auto dG_AB = perturbed_greens(gA, gC);
+//           // const auto dPi_AB = dG_AB; //mult_elements(Pa, dG_1);
+//           // dpi_k += c_ang_ggp * dPi_1.tr();
+//         }
+//       }
+//     }
+//   }
+//   dpi_k *= Iunit;
+//   return dpi_k;
+// }
 
-  dpi_k *= Iunit;
-  return dpi_k;
-}
+// ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
+//                                                   std::complex<double> omega,
+//                                                   double Omega,
+//                                                   bool hole_particle) const {
 
-void Feynman::form_q_dpi_q() {
-  std::cout << "Forming QPQ(w,k)";
-  if (m_hole_particle || m_screen_Coulomb) {
-    std::cout << " (w/ " << (m_screen_Coulomb ? "scr" : "")
-              << (m_hole_particle && m_screen_Coulomb ? " + " : "")
-              << (m_hole_particle ? "hp" : "") << ")";
-  }
-  std::cout << " .. " << std::flush;
+//   // modifiedPolarisation operator is Tr G_12(omega + Omega) dG_21(omega + en) d_omega
+//   ComplexRMatrix dpi_k(m_i0, m_stride, m_subgrid_points, m_grid);
 
-  const auto num_ks = std::size_t(m_max_k + 1);
-  const auto num_ws = m_wgrid.num_points();
+//   // Generalised arguments for the trip. prop. int.
+//   const auto alpha = Omega;
+//   const auto beta = omega + Omega;
+//   const auto gamma = omega;
+//   const auto D_ab = alpha - beta;
+//   const auto D_bc = beta - gamma;
+//   const auto D_ac = alpha - beta;
 
-  m_qpiq_wk.resize(num_ws, num_ks,
-                   ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
+//   // auto green1 = core ? green_core : green_excited;
 
-#pragma omp parallel for collapse(2)
-  for (auto iw = 0ul; iw < num_ws; ++iw) {
-    for (auto k = 0ul; k < num_ks; ++k) {
-      const auto omega = std::complex<double>{m_omre, m_wgrid.r(iw)};
+//   const auto Iunit = std::complex<double>{0.0, 1.0};
+//   const auto &core = m_HF->core();
+//   // const auto ck_an = Angular::Ck_kk(k, Fa.kappa(), kA);
 
-      const auto &q = get_qk(int(k)); // has drj
-      const auto qdri = q.dri();      // has drj, and dri
-      const auto pi = polarisation_k(int(k), omega, m_hole_particle);
+//   // core state summation
+//   for (auto ia = 0ul; ia < core.size(); ++ia) {
+//     const auto &Fa = core[ia];
+//     if (Fa.n() < m_min_core_n)
+//       continue;
+//     const auto &Pa = m_pa[ia];
 
-      if (m_screen_Coulomb) {
-        const auto X = X_screen(pi, qdri);
-        m_qpiq_wk[iw][k] = q * pi * X * qdri;
-      } else {
-        m_qpiq_wk[iw][k] = q * pi * qdri;
-      }
-    }
-  }
+//     const auto ea = std::complex<double>{Fa.en()};
+//     // not m_hole_particle, as need both for "screen only"
+//     const auto *Fa_hp = hole_particle ? &Fa : nullptr;
+//     for (int iB = 0; iB <= m_max_ki; ++iB) {
+//       const auto kB = Angular::kappaFromIndex(iB);
+//       for (int iC = 0; iC <= m_max_ki; ++iC) {
+//         const auto kC = Angular::kappaFromIndex(iC);
 
-  std::cout << " done\n" << std::flush;
-}
+//         // Gex^B(beta - alpha) Gex^C (gamma-alpha)) h P^A
+//         const auto h_Ca = Angular::Ck_kk(k, kC, Fa.kappa());
+//         const auto c_ang_ggp = 1.0 * h_Ca;
+//         if (c_ang_ggp != 0.0) {
+//           const auto gex_B_ba = green_excited(kB, ea - D_ab, Fa_hp);
+//           const auto gex_C_ca = green_excited(kC, ea - D_ac, Fa_hp);
+//           const auto gcor_B_ba = green_core(kB, ea - D_ab);
+//           const auto gcor_C_ca = green_core(kB, ea - D_ac);
 
-GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw,
-                                  double Omega) const {
-  // If in_k is set, only calculate for single k
-  // Used both for testing, and for calculating f_k factors
+//           const auto dG_gexC_h_Pa = perturbed_greens(gex_C_ca, Pa);
+//           const auto dG_gcorC_h_Pa = perturbed_greens(gcor_C_ca, Pa);
 
-  GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+//           const auto dPi1 = mult_elements(gex_B_ba, dG_gexC_h_Pa) +
+//                             mult_elements(gex_B_ba, dG_gcorC_h_Pa) +
+//                             mult_elements(gcor_B_ba, dG_gexC_h_Pa);
+//           dpi_k += c_ang_ggp * dPi1.tr();
+//         }
 
-  constexpr std::complex<double> I{0.0, 1.0};
-  const auto num_kappas = std::size_t(m_max_ki + 1);
+//         // Gex^B(alpha-beta) P^A h Gex^C(gamma-beta)
+//         const auto h_aC = Angular::Ck_kk(k, Fa.kappa(), kC);
+//         const auto Ck_Ca = Angular::Ck_kk(k, kC, Fa.kappa());
+//         const auto Cl_BC = Angular::Ck_kk(l, kB, kC);
+//         const auto c_ang_gpg = 1.0 * h_aC * Cl_BC * Ck_Ca;
+//         if (c_ang_gpg != 0) {
+//           const auto gex_B_ab = green_excited(kB, ea + D_ab, Fa_hp);
+//           const auto gex_C_cb = green_excited(kC, ea - D_bc, Fa_hp);
+//           const auto gcor_B_ab = green_core(kB, ea + D_ab);
+//           const auto gcor_C_cb = green_core(kB, ea - D_bc);
 
-// Tell OpenMP how to reduce GMatrix
-#pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
-  initializer(omp_priv = omp_orig)
+//           const auto dG_Pa_h_gexC = perturbed_greens(Pa, gex_C_cb);
+//           const auto dG_Pa_h_gcorC = perturbed_greens(Pa, gcor_C_cb);
 
-#pragma omp parallel for collapse(2) reduction(+ : Sigma)
-  for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
-    for (auto iB = 0ul; iB < num_kappas; ++iB) {
+//           const auto dPi2 = mult_elements(gex_B_ab, dG_Pa_h_gexC) +
+//                             mult_elements(gex_B_ab, dG_Pa_h_gcorC) +
+//                             mult_elements(gcor_B_ab, dG_Pa_h_gexC);
+//           dpi_k += c_ang_gpg * dPi2.tr();
+//         }
+//         //  P^A Gex^B(alpha-gamma) h Gex^C(beta-gamma)
+//         const auto h_BC = Angular::Ck_kk(k, kB, kC);
+//         const auto c_ang_pgg = 1.0 * h_BC;
+//         if (c_ang_pgg != 0) {
+//           const auto gex_B_ac = green_excited(kB, ea + D_ac, Fa_hp);
+//           const auto gex_C_bc = green_excited(kC, ea + D_bc, Fa_hp);
+//           const auto gcor_B_ac = green_core(kB, ea + D_ac);
+//           const auto gcor_C_bc = green_core(kB, ea + D_bc);
 
-      const auto omega = std::complex{m_omre, m_wgrid(iw)};
+//           const auto dG_gexB_h_gexC = perturbed_greens(gex_B_ac, gex_C_bc);
+//           const auto dG_gexB_h_gcorC = perturbed_greens(gex_B_ac, gcor_C_bc);
+//           const auto dG_gcorB_h_gexC = perturbed_greens(gcor_B_ac, gex_C_bc);
 
-      // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
-      const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+//           const auto dPi3 = mult_elements(Pa, dG_gexB_h_gexC + dG_gexB_h_gcorC +
+//                                                 dG_gcorB_h_gexC);
+//           dpi_k += c_ang_pgg * dPi3.tr();
+//         }
+//       }
+//     }
+//   }
+//   dpi_k *= Iunit;
+//   return dpi_k;
+// }
 
-      // I, since dw is on imag. grid; 2 from symmetric +/- w
-      const auto dw = I * weight * m_wgrid.drdu(iw);
+// GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw,
+//                                   double Omega) const {
+//   // If in_k is set, only calculate for single k
+//   // Used both for testing, and for calculating f_k factors
 
-      const auto kB = Angular::kappaFromIndex(int(iB));
+//   GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
 
-      // Silly, but ig gB includes G, then so will gB_QPQ
-      const auto gB =
-        m_include_G ? green(kB, env + omega) : green(kB, env + omega).drop_g();
+//   constexpr std::complex<double> I{0.0, 1.0};
+//   const auto num_kappas = std::size_t(m_max_ki + 1);
 
-      for (auto k = 0ul; int(k) <= m_max_k; k++) {
+// // Tell OpenMP how to reduce GMatrix
+// #pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
+//   initializer(omp_priv = omp_orig)
 
-        // For doing single k (tests and for fk factors)
-        // if (in_k && *in_k != int(k))
-        //   continue;
+// #pragma omp parallel for collapse(2) reduction(+ : Sigma)
+//   for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
+//     for (auto iB = 0ul; iB < num_kappas; ++iB) {
 
-        const auto ck_vB = Angular::Ck_kk(int(k), kv, kB);
-        if (ck_vB == 0.0)
-          continue;
+//       const auto omega = std::complex{m_omre, m_wgrid(iw)};
 
-        const auto &qpq_dw = m_qpiq_wk[iw][k]; // Make this m_q_dp_iq_wk
+//       // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
+//       const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
 
-        const auto c_ang_dw =
-          dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
+//       // I, since dw is on imag. grid; 2 from symmetric +/- w
+//       const auto dw = I * weight * m_wgrid.drdu(iw);
 
-        Sigma += (c_ang_dw * gB).real();
-        // mult_elements(gB, qpq_dw)).real();
-      }
-    }
-  }
+//       const auto kB = Angular::kappaFromIndex(int(iB));
 
-  // Extra 2 from symmetric + / -w
-  Sigma *= (m_wgrid.du() / M_PI);
+//       // Silly, but ig gB includes G, then so will gB_QPQ
+//       const auto gB =
+//         m_include_G ? green(kB, env + omega) : green(kB, env + omega).drop_g();
 
-  return Sigma;
-}
+//       for (auto k = 0ul; int(k) <= m_max_k; k++) {
+//         for (auto l = 0ul; int(l) <= m_max_k; l++) {
+
+//           // For doing single k (tests and for fk factors)
+//           // if (in_k && *in_k != int(k))
+//           //   continue;
+
+//           const auto ck_vB = Angular::Ck_kk(int(k), kv, kB);
+//           if (ck_vB == 0.0)
+//             continue;
+
+//           const auto qpq_dw = perturbed_polarisation_kl(int(k), int(l), omega,
+//                                                         Omega, m_hole_particle);
+
+//           const auto c_ang_dw =
+//             dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
+
+//           Sigma += (c_ang_dw * gB).real();
+//           // mult_elements(gB, qpq_dw)).real();
+//         }
+//       }
+//     }
+//   }
+
+//   // Extra 2 from symmetric + / -w
+//   Sigma *= (m_wgrid.du() / M_PI);
+
+//   return Sigma;
+// }
 
 } // namespace MBPT
