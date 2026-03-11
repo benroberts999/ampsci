@@ -9,28 +9,43 @@
 namespace Module {
 
 void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
-  // This is an example module, designed to help you write new modules
+  input.check({
+    {"stride", "stride [8]"},
+    {"n_min_core", "Minimum core state [5]"},
+    {"rmax", "Maximum r value [30]"},
+    {"r0", "Minimum r value, [1e-3]"},
+    {"includeG", "include lower g component [false]"},
+    {"screening", "Coulomb screening [false]"},
+  });
 
-  // In this example, we will solve a new wavefunction, assuming a different
-  // nuclear charge distribution, and see the difference in the energies and E1
-  // matrix elements this produces.
-
-  // Read in some optional input options: A, rms, and type
-  // "checkBlock" is optional, but helps prevent errors on input options:
-
-  // Use the same Grid and alpha, but different nuclear parameters (except Z)
-
+  // If we are just requesting 'help', don't run module:
+  if (input.has_option("help")) {
+    return;
+  }
   const auto hE1 = DiracOperator::E1(wf.grid());
-  const auto i0 = wf.grid().getIndex(1e-3);
-  const auto imax = wf.grid().getIndex(30.0);
-  const auto gsize = 60;
-  const std::size_t stride = (imax - i0) / gsize;
-  const auto m_n_min_core = 5;
-  const bool m_includeG = false;
-  const auto Fyn = MBPT::Feynman(wf.vHF(), i0, stride, gsize, {}, m_n_min_core,
-                                 m_includeG, true, "tempqpq");
-  std::cout << "Grid size: " << gsize << ", " << "Stride: " << stride << "\n";
+  auto r0 = input.get("r0", 1e-3);
+  auto rmax = input.get("rmax", 30.0);
+  const auto i0 = wf.grid().getIndex(r0);
+  const auto imax = wf.grid().getIndex(rmax);
+  const std::size_t stride = input.get("stride", 8);
+  const auto n_min_core = input.get("n_min_core", 5);
+  const bool includeG = input.get("includeG", false);
+  const auto gsize = (imax - i0) / stride;
+  const auto screening = input.get("screening", false);
+  const auto options =
+    MBPT::FeynmanOptions{.screening = MBPT::Screening::include,
+                         .hole_particle = MBPT::HoleParticle::include};
 
+  const auto Fyn = (screening) ?
+                     MBPT::Feynman(wf.vHF(), i0, stride, gsize, options,
+                                   n_min_core, includeG, true, "tempqpq1") :
+                     MBPT::Feynman(wf.vHF(), i0, stride, gsize, {}, n_min_core,
+                                   includeG, true, "tempqpq1");
+
+  std::cout << "Grid size: " << gsize << ", "
+            << "Stride: " << stride << "\n";
+  std::cout << "Coulomb Screening: " << screening << ", Include G:" << includeG
+            << "\n";
   // 2) Loop through each pair of valence states, calc E1 matrix elements:
   for (auto a = 0ul; a < wf.valence().size(); ++a) {
     const auto &Fa = wf.valence()[a];
@@ -44,10 +59,10 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
       const auto Omega = Fa.en() - Fb.en();
 
       const auto Sd =
-        Fyn.Sigma_SR_direct(Fa.kappa(), Fa.en(), Fb.kappa(), Omega);
+        Fyn.Sigma_SR_direct(Fa.kappa(), Fb.en(), Fb.kappa(), Omega);
       const auto e_AB = (Fa) * (Sd * Fb);
 
-      std::cout << "Re <" << Fa.shortSymbol() << "|" << Fb.shortSymbol()
+      std::cout << "Re <" << Fa.shortSymbol() << "|d|" << Fb.shortSymbol()
                 << "> = " << e_AB << "\n";
     }
   }
