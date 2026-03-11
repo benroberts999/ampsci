@@ -99,7 +99,7 @@ includes:
 ## Updates Licence year
 license-year:
 	@year=$$(date +%Y); \
-	sed -i.bak -E "s/(Copyright \(c\) )([0-9]{4})(–[0-9]{4})?/\1\2–$${year}/" LICENSE; \
+	sed -i.bak -E "s/(Copyright \(c\) )([0-9]{4})(-[0-9]{4})?/\1\2-$${year}/" LICENSE; \
 	rm -f LICENSE.bak; \
 	echo "Updated license year to $${year}"
 
