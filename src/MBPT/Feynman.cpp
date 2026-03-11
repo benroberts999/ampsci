@@ -809,14 +809,14 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
         if (in_k && *in_k != int(k))
           continue;
 
-        const auto ck_vB = Angular::Ck_kk(int(k), kv, kB);
-        if (ck_vB == 0.0)
+        const auto ck_Bw = Angular::Ck_kk(int(k), kv, kB);
+        if (ck_Bw == 0.0)
           continue;
 
         const auto &qpq_dw = m_qpiq_wk[iw][k];
 
         const auto c_ang_dw =
-          dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
+          dw * ck_Bw * ck_Bw / double(Angular::twoj_k(kv) + 1);
 
         Sigma += (c_ang_dw * mult_elements(gB, qpq_dw)).real();
       }
@@ -828,5 +828,530 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
 
   return Sigma;
 }
+
+//==============================================================================
+double L_ang(int u, int l, int ki, int kj, int kk, int kl) {
+  const auto tji = Angular::twoj_k(ki);
+  const auto tjj = Angular::twoj_k(kj);
+  const auto tjk = Angular::twoj_k(kk);
+  const auto tjl = Angular::twoj_k(kl);
+  const auto sjs = Angular::sixj_2(tji, tjk, 2 * u, tjj, tjl, 2 * l);
+
+  const auto s = Angular::neg1pow(u + l + 1);
+  // const double f = (2 * u + 1) / (tji + 1);
+
+  return s * sjs;
+}
+
+//==============================================================================
+// M_12 = A_1i B_1j C_ij D_i2 E_j2
+ComplexGMatrix Feynman::rad_exchange_integrals(ComplexGMatrix A,
+                                               ComplexRMatrix B,
+                                               ComplexGMatrix C,
+                                               ComplexRMatrix D,
+                                               ComplexGMatrix E) const {
+
+  ComplexGMatrix M(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  LinAlg::PENTA_GEMM(A.ff(), B.Rmatrix(), C.ff(), D.Rmatrix(), E.ff(), &M.ff());
+  return M;
+
+  // M_ab = A_ai B_aj C_ij D_ib E_jb
+  // This function does the spinor multpication. The spinors are A_ai, C_ij, E_jb
+  // ComplexGMatrix M(m_i0, m_stride, m_subgrid_points, true, m_grid);
+  for (auto a = 0ul; a < 2; a++) {
+    for (auto d = 0ul; d < 2; d++) {
+      for (auto b = 0ul; b < 2; b++) {
+        for (auto c = 0ul; c < 2; c++) {
+          M.sp(a, d) += PENTA_GEMM(A.sp(a, b), B.Rmatrix(), C.sp(b, c),
+                                   D.Rmatrix(), E.sp(c, d));
+        }
+      }
+    }
+  }
+  return M;
+}
+
+//==============================================================================
+GMatrix Feynman::Sigma_exchange(int kv, double env) const {
+
+  GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  const auto &core = m_HF->core();
+  constexpr std::complex<double> I{0.0, 1.0};
+  const auto num_kappas = std::size_t(m_max_ki + 1);
+
+  // XXX
+  double fudge_factor = -1.5; /// ..... ?
+
+#pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
+  initializer(omp_priv = omp_orig)
+
+#pragma omp parallel for reduction(+ : Sigma)
+  for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
+    for (auto iC = 0ul; iC < num_kappas; ++iC) {
+      const auto kC = Angular::kappaFromIndex(int(iC));
+
+      // Avoid uneccesary calcs: C^l_vC common to both diagrams
+      auto [l0, lm] = Angular::kminmax_Ck(kv, kC);
+      lm = std::min(lm, m_max_k);
+      if (lm < l0)
+        continue;
+
+      // m_omre - is the gap
+      const auto omega = std::complex{m_omre, m_wgrid(iw)};
+
+      // Simpson's rule, with F(0)=0
+      const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+      const auto dw = weight * m_wgrid.drdu(iw);
+
+      // "outer" Green's function, G^C_j2
+      const auto gC = green(kC, env + omega);
+
+      for (auto ia = 0ul; ia < core.size(); ++ia) {
+        const auto &Fa = core[ia]; // nearly redudant
+        if (Fa.n() < m_min_core_n)
+          continue;
+
+        const auto &Pa = m_pa[ia];
+        const auto ea = std::complex<double>{Fa.en()};
+        const auto ka = Fa.kappa();
+
+        // Sum over kappa_A
+        for (auto iA = 0ul; iA < num_kappas; ++iA) {
+          const auto kA = Angular::kappaFromIndex(int(iA));
+
+          const auto k0 = 0;
+          const auto km = m_max_k;
+
+          // seems it should be faster to calc g^A(e_a +/- w) here
+          // In practice, slower??
+
+          for (auto l = l0; l <= lm; l++) {
+            const auto ClvC = Angular::Ck_kk(l, kv, kC); // never 0
+            const auto ClaA = Angular::Ck_kk(l, ka, kA);
+            if (ClaA == 0.0)
+              continue;
+            const auto ClAa = Angular::Ck_kk(l, kA, ka); // just phase different
+
+            const auto &qlt = get_qk(l); // has drj
+            auto ql = qlt.dri();         // has drj, and dri
+
+            if (m_screen_Coulomb) {
+              ql += -I * m_qpiq_wk.at(iw, std::size_t(l));
+            }
+            // If include this, must also do screening for other!
+            const auto hp = m_hole_particle ? &Fa : nullptr;
+
+            // cannot use +=2 here!
+            for (auto k = k0; k <= km; k++) {
+              const auto &qk = get_qk(int(k)); // has drj
+              const auto Ckva = Angular::Ck_kk(k, kv, ka);
+              const auto CkvA = Angular::Ck_kk(k, kv, kA);
+              if (Ckva == 0.0 && CkvA == 0.0)
+                continue;
+
+              const auto CkAC = Angular::Ck_kk(k, kA, kC);
+              const auto CkaC = Angular::Ck_kk(k, ka, kC);
+              if (CkAC == 0.0 && CkaC == 0.0)
+                continue;
+
+              const auto sjs_1 = L_ang(k, l, kv, kA, ka, kC);
+              const auto sjs_2 = L_ang(k, l, kv, ka, kA, kC);
+              if (sjs_1 == 0.0 && sjs_2 == 0.0)
+                continue;
+
+              const auto ang1_dw = Ckva * CkAC * ClvC * ClaA * sjs_1 * dw;
+              const auto ang2_dw = CkvA * CkaC * ClvC * ClAa * sjs_2 * dw;
+
+              // // For some reason calculating these here is faster?
+              ComplexGMatrix Gx_A_sum =
+                ComplexGMatrix(m_i0, m_stride, m_subgrid_points, true, m_grid);
+              if (ang1_dw != 0.0) {
+                Gx_A_sum += ang1_dw * green_excited(kA, ea + omega, hp);
+              }
+              if (ang2_dw != 0.0) {
+                Gx_A_sum += ang2_dw * green_excited(kA, ea - omega, hp);
+              }
+
+              Sigma += rad_exchange_integrals(Pa, qk, Gx_A_sum, ql, gC).real();
+            }
+          }
+        }
+      }
+    }
+  }
+
+  //
+  Sigma *=
+    fudge_factor * (m_wgrid.du() / M_PI / double(Angular::twoj_k(kv) + 1));
+  return Sigma;
+}
+
+// ========================Structral Radiation===========================================
+
+ComplexGMatrix Feynman::perturbed_greens(ComplexGMatrix gA,
+                                         ComplexGMatrix gB) const {
+
+  ComplexGMatrix dG(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  std::size_t smax = 2;
+
+  if (!m_include_G) {
+    smax = 1;
+  }
+
+  // std::cout << __LINE__ << ":" << __FILE__ << std::endl;
+
+  for (auto i = 0ul; i < m_subgrid_points; ++i) {
+    for (auto j = 0ul; j < m_subgrid_points; ++j) {
+      for (auto k = 0ul; k < m_subgrid_points; ++k) {
+        for (auto a = 0ul; a < smax; a++) {
+          for (auto b = 0ul; b < smax; b++) {
+            for (auto c = 0ul; c < smax; c++) {
+              // get r(k)
+              // const auto irk = gA.index_to_fullgrid(k);
+              const auto rk = gA.r(k);
+              dG.sp(a, b)(i, j) += gA.sp(a, c)(i, k) * rk * gB.sp(c, b)(k, j);
+            }
+          }
+        }
+      }
+    }
+  }
+  // std::cout << __LINE__ << std::endl;
+  return dG;
+}
+
+double L_ang_dSR(int kw, int kv, int kB, int kA, int k) {
+
+  // const auto sjs = Angular::sixj_2(kw, K, kv, kB, k, kA);
+  // const auto phases = std::pow(-1, k + K + kB + kA);
+
+  const auto K = 1; //rank of operator
+
+  const auto tj_w = Angular::twoj_k(kw);
+  const auto tj_v = Angular::twoj_k(kv);
+  const auto tj_B = Angular::twoj_k(kB);
+  const auto tj_A = Angular::twoj_k(kA);
+
+  const auto sjs = Angular::sixj_2(tj_w, 2 * K, tj_v, tj_B, 2 * k, tj_A);
+
+  const auto s = Angular::neg1pow_2(tj_A + tj_B + k * 2 + K * 2);
+  // const double f = (2 * u + 1) / (tji + 1);
+
+  return s * sjs;
+
+  // return s * sjs;
+}
+
+GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
+                                 double Omega) const {
+  //<v|Sigma(env)|w > = <v|gA pi gB| w >
+  // Coded for dipole operator, Omega-> external field
+
+  GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+  constexpr std::complex<double> I{0.0, 1.0};
+  const auto num_kappas = std::size_t(m_max_ki + 1);
+
+// Tell OpenMP how to reduce GMatrix
+#pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
+  initializer(omp_priv = omp_orig)
+
+#pragma omp parallel for collapse(2) reduction(+ : Sigma)
+  for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
+    for (auto iB = 0ul; iB < num_kappas; ++iB) {
+      const auto kB = Angular::kappaFromIndex(int(iB));
+      for (auto iA = 0ul; iA < num_kappas; ++iA) {
+        const auto kA = Angular::kappaFromIndex(int(iA));
+
+        const auto omega = std::complex{m_omre, m_wgrid(iw)};
+        // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
+        const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+        // I, since dw is on imag. grid; 2 from symmetric +/- w
+        const auto dw = I * weight * m_wgrid.drdu(iw);
+
+        const auto gB = m_include_G ? green(kB, env + omega) :
+                                      green(kB, env + omega).drop_g();
+        const auto gA = m_include_G ? green(kA, env + omega + Omega) :
+                                      green(kA, env + omega + Omega).drop_g();
+
+        const auto dG_AB = perturbed_greens(gA, gB);
+
+        for (auto k = 0ul; int(k) <= m_max_k; k++) {
+
+          // For doing single k (tests and for fk factors)
+          // if (in_k && *in_k != int(k))
+          // continue;
+
+          const auto h_AB = Angular::Ck_kk(int(1), kA, kB);
+          if (h_AB == 0.0)
+            continue;
+
+          const auto ck_Bw = Angular::Ck_kk(int(k), kB, kw);
+          const auto ck_vA = Angular::Ck_kk(int(k), kv, kA);
+
+          if (ck_Bw == 0.0 or ck_vA == 0.0)
+            continue;
+
+          const auto &qpq_dw = m_qpiq_wk[iw][k];
+
+          // //! 6j symbol {j1 j2 j3 \\ j4 j5 j6} - [takes 2*j as int]
+          // inline double sixj_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
+          //                      int two_j6)
+          // const auto K = 1; //rank of operator
+          // conversions
+
+          const auto LAng = L_ang_dSR(kv, kw, kB, kA, int(k));
+
+          if (LAng == 0.0)
+            continue;
+
+          const auto c_ang_dw = LAng * h_AB * dw * ck_Bw *
+                                ck_vA; // / double(Angular::twoj_k(kv) + 1);
+
+          Sigma += (c_ang_dw * mult_elements(dG_AB, qpq_dw)).real();
+        }
+      }
+    }
+  }
+  // Extra 2 from symmetric +/-w
+  Sigma *= (m_wgrid.du() / M_PI);
+
+  return Sigma;
+}
+
+// ================WORK IN PROGRESS================================
+
+// ComplexRMatrix Feynman::perturbed_polarisation_k(int k,
+//                                                  std::complex<double> omega,
+//                                                  std::complex<double> Omega,
+//                                                  bool hole_particle) const {
+
+//   // polarisation operator is ~ Fa^† * [Gex(ea + w) + Gex(ea - w)] * Fa
+
+//   ComplexRMatrix dpi_k(m_i0, m_stride, m_subgrid_points, m_grid);
+
+//   const auto Iunit = std::complex<double>{0.0, 1.0};
+//   const auto &core = m_HF->core();
+
+//   // core state summation
+//   for (auto ia = 0ul; ia < core.size(); ++ia) {
+//     const auto &Fa = core[ia];
+//     if (Fa.n() < m_min_core_n)
+//       continue;
+//     const auto ea = std::complex<double>{Fa.en()};
+//     // not m_hole_particle, as need both for "screen only"
+//     const auto *Fa_hp = hole_particle ? &Fa : nullptr;
+//     for (int iA = 0; iA <= m_max_ki; ++iA) { // TURN THIS INTO A CORE STATE SUM
+//       const auto kA = Angular::kappaFromIndex(iA);
+//       const auto Pa = m_pa[ia];
+//       for (int iB = 0; iB <= m_max_ki; ++iB) {
+//         const auto kB = Angular::kappaFromIndex(iB);
+//         for (int iC = 0; iC <= m_max_ki; ++iC) {
+//           const auto ck_an = Angular::Ck_kk(k, Fa.kappa(), kA);
+//           const auto kC = Angular::kappaFromIndex(iC);
+
+//           if (ck_an == 0.0)
+//             continue;
+
+//           // ======= PGG BLOCK ======
+//           const double c_ang_pgg = ck_an * ck_an / double(2 * kA + 1);
+
+//           const auto gB = green_excited(kC, ea + omega, Fa_hp);
+//           const auto gC = green_excited(kC, ea + omega, Fa_hp);
+
+//           const auto dG_BC1 = perturbed_greens(gB, gC);
+//           const auto dG_BC2 = perturbed_greens(gB, gC);
+//           const auto dG_BC3 = perturbed_greens(gB, gC);
+
+//           // const auto dPi_1 = mult_elements(Pa, dG_BC + dG_BC + dG_BC);
+
+//           // dpi_k += c_ang_pgg * dPi_1.tr();
+
+//           // // ======= GPG BLOCK ======
+//           // const double c_ang_gpg = ck_an * ck_an / double(2 * kA + 1);
+//           // const auto gA = green_excited(kA, ea + omega, Fa_hp);
+//           // const auto gB = green_excited(kC, ea + omega, Fa_hp);
+//           // const auto gC = green_excited(kC, ea + omega, Fa_hp);
+//           // const auto PaG_C = perturbed_greens(Pa, gC);
+//           // const auto dPi_AC = dG_AC; //mult_elements(Pa, dG_1);
+//           // dpi_k += c_ang_gpg * dPi_AC.tr();
+//           // // ======= GGP BLOCK ======
+//           // const double c_ang_ggp = ck_an * ck_an / double(2 * kA + 1);
+//           // const auto gA = green_excited(kA, ea + omega, Fa_hp);
+//           // const auto gB = green_excited(kC, ea + omega, Fa_hp);
+//           // const auto gC = green_excited(kC, ea + omega, Fa_hp);
+//           // const auto dG_AB = perturbed_greens(gA, gC);
+//           // const auto dPi_AB = dG_AB; //mult_elements(Pa, dG_1);
+//           // dpi_k += c_ang_ggp * dPi_1.tr();
+//         }
+//       }
+//     }
+//   }
+//   dpi_k *= Iunit;
+//   return dpi_k;
+// }
+
+// ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
+//                                                   std::complex<double> omega,
+//                                                   double Omega,
+//                                                   bool hole_particle) const {
+
+//   // modifiedPolarisation operator is Tr G_12(omega + Omega) dG_21(omega + en) d_omega
+//   ComplexRMatrix dpi_k(m_i0, m_stride, m_subgrid_points, m_grid);
+
+//   // Generalised arguments for the trip. prop. int.
+//   const auto alpha = Omega;
+//   const auto beta = omega + Omega;
+//   const auto gamma = omega;
+//   const auto D_ab = alpha - beta;
+//   const auto D_bc = beta - gamma;
+//   const auto D_ac = alpha - beta;
+
+//   // auto green1 = core ? green_core : green_excited;
+
+//   const auto Iunit = std::complex<double>{0.0, 1.0};
+//   const auto &core = m_HF->core();
+//   // const auto ck_an = Angular::Ck_kk(k, Fa.kappa(), kA);
+
+//   // core state summation
+//   for (auto ia = 0ul; ia < core.size(); ++ia) {
+//     const auto &Fa = core[ia];
+//     if (Fa.n() < m_min_core_n)
+//       continue;
+//     const auto &Pa = m_pa[ia];
+
+//     const auto ea = std::complex<double>{Fa.en()};
+//     // not m_hole_particle, as need both for "screen only"
+//     const auto *Fa_hp = hole_particle ? &Fa : nullptr;
+//     for (int iB = 0; iB <= m_max_ki; ++iB) {
+//       const auto kB = Angular::kappaFromIndex(iB);
+//       for (int iC = 0; iC <= m_max_ki; ++iC) {
+//         const auto kC = Angular::kappaFromIndex(iC);
+
+//         // Gex^B(beta - alpha) Gex^C (gamma-alpha)) h P^A
+//         const auto h_Ca = Angular::Ck_kk(k, kC, Fa.kappa());
+//         const auto c_ang_ggp = 1.0 * h_Ca;
+//         if (c_ang_ggp != 0.0) {
+//           const auto gex_B_ba = green_excited(kB, ea - D_ab, Fa_hp);
+//           const auto gex_C_ca = green_excited(kC, ea - D_ac, Fa_hp);
+//           const auto gcor_B_ba = green_core(kB, ea - D_ab);
+//           const auto gcor_C_ca = green_core(kB, ea - D_ac);
+
+//           const auto dG_gexC_h_Pa = perturbed_greens(gex_C_ca, Pa);
+//           const auto dG_gcorC_h_Pa = perturbed_greens(gcor_C_ca, Pa);
+
+//           const auto dPi1 = mult_elements(gex_B_ba, dG_gexC_h_Pa) +
+//                             mult_elements(gex_B_ba, dG_gcorC_h_Pa) +
+//                             mult_elements(gcor_B_ba, dG_gexC_h_Pa);
+//           dpi_k += c_ang_ggp * dPi1.tr();
+//         }
+
+//         // Gex^B(alpha-beta) P^A h Gex^C(gamma-beta)
+//         const auto h_aC = Angular::Ck_kk(k, Fa.kappa(), kC);
+//         const auto Ck_Ca = Angular::Ck_kk(k, kC, Fa.kappa());
+//         const auto Cl_BC = Angular::Ck_kk(l, kB, kC);
+//         const auto c_ang_gpg = 1.0 * h_aC * Cl_BC * Ck_Ca;
+//         if (c_ang_gpg != 0) {
+//           const auto gex_B_ab = green_excited(kB, ea + D_ab, Fa_hp);
+//           const auto gex_C_cb = green_excited(kC, ea - D_bc, Fa_hp);
+//           const auto gcor_B_ab = green_core(kB, ea + D_ab);
+//           const auto gcor_C_cb = green_core(kB, ea - D_bc);
+
+//           const auto dG_Pa_h_gexC = perturbed_greens(Pa, gex_C_cb);
+//           const auto dG_Pa_h_gcorC = perturbed_greens(Pa, gcor_C_cb);
+
+//           const auto dPi2 = mult_elements(gex_B_ab, dG_Pa_h_gexC) +
+//                             mult_elements(gex_B_ab, dG_Pa_h_gcorC) +
+//                             mult_elements(gcor_B_ab, dG_Pa_h_gexC);
+//           dpi_k += c_ang_gpg * dPi2.tr();
+//         }
+//         //  P^A Gex^B(alpha-gamma) h Gex^C(beta-gamma)
+//         const auto h_BC = Angular::Ck_kk(k, kB, kC);
+//         const auto c_ang_pgg = 1.0 * h_BC;
+//         if (c_ang_pgg != 0) {
+//           const auto gex_B_ac = green_excited(kB, ea + D_ac, Fa_hp);
+//           const auto gex_C_bc = green_excited(kC, ea + D_bc, Fa_hp);
+//           const auto gcor_B_ac = green_core(kB, ea + D_ac);
+//           const auto gcor_C_bc = green_core(kB, ea + D_bc);
+
+//           const auto dG_gexB_h_gexC = perturbed_greens(gex_B_ac, gex_C_bc);
+//           const auto dG_gexB_h_gcorC = perturbed_greens(gex_B_ac, gcor_C_bc);
+//           const auto dG_gcorB_h_gexC = perturbed_greens(gcor_B_ac, gex_C_bc);
+
+//           const auto dPi3 = mult_elements(Pa, dG_gexB_h_gexC + dG_gexB_h_gcorC +
+//                                                 dG_gcorB_h_gexC);
+//           dpi_k += c_ang_pgg * dPi3.tr();
+//         }
+//       }
+//     }
+//   }
+//   dpi_k *= Iunit;
+//   return dpi_k;
+// }
+
+// GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw,
+//                                   double Omega) const {
+//   // If in_k is set, only calculate for single k
+//   // Used both for testing, and for calculating f_k factors
+
+//   GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
+
+//   constexpr std::complex<double> I{0.0, 1.0};
+//   const auto num_kappas = std::size_t(m_max_ki + 1);
+
+// // Tell OpenMP how to reduce GMatrix
+// #pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
+//   initializer(omp_priv = omp_orig)
+
+// #pragma omp parallel for collapse(2) reduction(+ : Sigma)
+//   for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
+//     for (auto iB = 0ul; iB < num_kappas; ++iB) {
+
+//       const auto omega = std::complex{m_omre, m_wgrid(iw)};
+
+//       // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
+//       const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+
+//       // I, since dw is on imag. grid; 2 from symmetric +/- w
+//       const auto dw = I * weight * m_wgrid.drdu(iw);
+
+//       const auto kB = Angular::kappaFromIndex(int(iB));
+
+//       // Silly, but ig gB includes G, then so will gB_QPQ
+//       const auto gB =
+//         m_include_G ? green(kB, env + omega) : green(kB, env + omega).drop_g();
+
+//       for (auto k = 0ul; int(k) <= m_max_k; k++) {
+//         for (auto l = 0ul; int(l) <= m_max_k; l++) {
+
+//           // For doing single k (tests and for fk factors)
+//           // if (in_k && *in_k != int(k))
+//           //   continue;
+
+//           const auto ck_vB = Angular::Ck_kk(int(k), kv, kB);
+//           if (ck_vB == 0.0)
+//             continue;
+
+//           const auto qpq_dw = perturbed_polarisation_kl(int(k), int(l), omega,
+//                                                         Omega, m_hole_particle);
+
+//           const auto c_ang_dw =
+//             dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
+
+//           Sigma += (c_ang_dw * gB).real();
+//           // mult_elements(gB, qpq_dw)).real();
+//         }
+//       }
+//     }
+//   }
+
+//   // Extra 2 from symmetric + / -w
+//   Sigma *= (m_wgrid.du() / M_PI);
+
+//   return Sigma;
+// }
 
 } // namespace MBPT

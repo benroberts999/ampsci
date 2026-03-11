@@ -100,6 +100,12 @@ public:
   LinAlg::Matrix<T> &gf() { return m_gf; }
   LinAlg::Matrix<T> &gg() { return m_gg; }
 
+  // Trace of spinor matrix
+  RadialMatrix<T> tr() const {
+    RadialMatrix<T> t_tr(m_i0, m_stride, m_size, m_rgrid);
+    t_tr.Rmatrix() = m_ff + m_gg;
+    return t_tr;
+  }
   LinAlg::Matrix<T> &sp(std::size_t mu, std::size_t nu) {
     assert(mu < 2 && nu < 2);
     if (mu == 0 && nu == 0)
@@ -131,6 +137,9 @@ public:
   bool includes_g() const { return m_g_size == m_size; };
   std::size_t i0() const { return m_i0; }
   std::size_t stride() const { return m_stride; }
+
+  //! returns r at position sub_i along sub grid
+  double r(std::size_t sub_i) const { return sub_r.at(sub_i); }
 
   //============================================================================
   //! Sets all matrix elements to zero
@@ -251,7 +260,8 @@ public:
 
   //============================================================================
   //! Multiply elements (in place): Gij -> Gij*Bij
-  [[deprecated]] SpinorMatrix<T> &mult_elements_by(const SpinorMatrix<T> &rhs) {
+  // [[deprecated]]
+  SpinorMatrix<T> &mult_elements_by(const SpinorMatrix<T> &rhs) {
     m_ff.mult_elements_by(rhs.ff());
     if (this->m_incl_g) {
       // && rhs.m_incl_g
@@ -263,7 +273,8 @@ public:
     return *this;
   }
   //! Multiply elements (new matrix): Gij = Aij*Bij
-  [[deprecated]] [[nodiscard]] friend SpinorMatrix<T>
+  // [[deprecated]]
+  [[nodiscard]] friend SpinorMatrix<T>
   mult_elements(SpinorMatrix<T> lhs, const SpinorMatrix<T> &rhs) {
     lhs.mult_elements_by(rhs);
     return lhs;
