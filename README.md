@@ -13,12 +13,14 @@ Designed to be fast, accurate, and easy to use.
 * QED is included via the Flambaum-Ginges radiative potential method.
 * Can solve for continuum states with high energy, and calculate ionisation cross sections with large energy/momentum transfer.
 * Can solve for exotic atoms (e.g., muonic atoms), including electron screening.
-* The "modules" system (see [doc/modules.md](doc/modules.md)) makes it simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
+* The "modules" system see [ampsci.dev/modules](https://ampsci.dev/modules.html)) makes it relatively simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
+* You can also write wavefunction output to disk in a JSON format, which can be read in to python, for example
 
 The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
 
 * See [ampsci.dev/](https://ampsci.dev/) for full documentation
   * Includes basic step-by-step introduction and tutorials
+  * [ampsci.dev/tutorials](https://ampsci.dev/tutorials.html)
 * A full description of the physics methods and approximations, including references,
 is given in the physics documentation: [ampsci.pdf][man-url].
 

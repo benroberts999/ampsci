@@ -86,7 +86,7 @@ double TensorOperator::fullME(const DiracSpinor &Fa, const DiracSpinor &Fb,
 //==============================================================================
 double TensorOperator::matel_factor(MatrixElementType type, int twoJa,
                                     int twoJb) const {
-  assert(twoJa > 0 && twoJb > 0); // guard against kappa - not perfect
+  assert(twoJa >= 0 && twoJb >= 0); // guard against kappa - not perfect
 
   switch (type) {
   case MatrixElementType::Error: // default to reduced

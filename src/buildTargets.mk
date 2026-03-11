@@ -89,7 +89,7 @@ clang_format:
 
 ## Makes the include.hpp files, and runs clang format on them
 includes:
-	./$(SRC)/build_includes.sh
+	./$(SRC)/tools/build_includes.sh
 	@echo "Running clang format (on includes)"
 	find $(SRC)/ -iname 'include.hpp' | xargs clang-format -i -verbose
 

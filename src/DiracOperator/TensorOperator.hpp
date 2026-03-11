@@ -89,7 +89,7 @@ protected:
       opC(RorI),
       m_freqDependantQ(freq_dep),
       m_constant(constant),
-      m_vec(vec) {};
+      m_vec(vec){};
 
 public:
   virtual ~TensorOperator() = default;
@@ -127,7 +127,7 @@ public:
   }
 
   //! Update frequency for frequency-dependant operators.
-  virtual void updateFrequency(const double) {};
+  virtual void updateFrequency(const double){};
 
   //! Permanently re-scales the operator by constant, lambda
   void scale(double lambda);

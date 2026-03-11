@@ -94,6 +94,8 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
       "existing sk file already has these, they will be included [false]"},
      {"sort_output", "Sort output by energy? Default is to sort by J and Pi "
                      "first. [false]"},
+     {"print_details", "Condition to print details of each CI solution "
+                       "(otherwise just prints summary) [true]"},
      {"parallel_ci", "Run CI in parallel (solve each J/Pi in parallel). "
                      "Faster, uses slightly more memory [true]"}});
 
@@ -386,6 +388,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   const auto ci_input = input.get("ci_input", std::string{""});
   const auto sort_output = input.get("sort_output", false);
   const auto parallel_ci = input.get("parallel_ci", true);
+  const auto print_details = input.get("print_details", true);
 
   const auto n_Js = J_even_list.size() + J_odd_list.size();
 
@@ -406,8 +409,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
           std::pair{2 * J_odd_list.at(i - J_even_list.size()), -1};
 
       auto &output_stream = parallel_ci ? os.at(i) : std::cout;
-      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_solutions, all_below_cm,
-                            h1, qk, Bk, Sk, include_Sigma2, output_stream);
+      levels.at(i) =
+        run_CI(ci_sp_basis, twoj, pi, num_solutions, all_below_cm, h1, qk, Bk,
+               Sk, include_Sigma2, print_details, output_stream);
     }
 
     // If doing in parallel, output detailed output at end
@@ -486,7 +490,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_solutions, std::optional<double> all_below_cm,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
               const Coulomb::WkTable &Bk, const Coulomb::LkTable &Sk,
-              bool include_Sigma2, std::ostream &outstream) {
+              bool include_Sigma2, bool print_details,
+              std::ostream &outstream) {
 
   auto printJ = [](int twoj) {
     return twoj % 2 == 0 ? std::to_string(twoj / 2) :
@@ -545,7 +550,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   const auto m1_tab = ExternalField::me_table(ci_sp_basis, &m1);
 
   // Print details of each solution, unless we find all:
-  const auto print_details = all_below_cm || num_solutions > 0;
+  const auto print_details_tmp = all_below_cm || num_solutions > 0;
+  print_details = print_details && print_details_tmp;
   const double minimum_percentage = 5.0; // min % to print
 
   // XXX nb: sometimes get's non-rel config wrong! (not a big issue)

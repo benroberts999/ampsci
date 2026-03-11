@@ -4,7 +4,6 @@
 #include "Kionisation/Module_Kionisation.hpp"
 #include "Modules/Breit.hpp"
 #include "Modules/HFAnomaly.hpp"
-#include "Modules/VQE.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
 #include "Modules/isotopeShift.hpp"
@@ -91,7 +90,6 @@ static const std::vector<ModuleInfo> module_list{
   {"muon", &muon,
    "Calculating muonic wavefunctions, energies, matrix elements - somewhat "
    "obsolete after introduction of Exotic{} into ampsci main"},
-  {"VQE", &VQE, "For testing/playing with VQE method"},
   {"exampleModule", &exampleModule, "A short description of the module"}};
 
 } // namespace Module

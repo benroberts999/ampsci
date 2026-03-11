@@ -1,5 +1,6 @@
 #!/bin/bash
-make clean && make CXX='g++-11' CARGS='--coverage -g' LARGS='--coverage -g' Build=dev tests &&
+# make clean &&
+make CXX="g++-11 --coverage -g" MODE=dev tests &&
 rm -f ./coverage.info &&
 lcov --gcov-tool gcov-11 --zerocounters --directory . &&
 ./tests [unit] &&
@@ -10,6 +11,7 @@ lcov --gcov-tool gcov-11 --capture --directory . --output-file coverage.info &&
 lcov --gcov-tool gcov-11 --remove coverage.info \
   '*/catch2/*' \
   '*/fmt/*' \
+  '*/json/*' \
   '/*.tests*' \
   '*/version/*' \
   '/usr/*' \
@@ -19,6 +21,8 @@ lcov --gcov-tool gcov-11 --remove coverage.info \
   '*/DiracODE/ComplexDirac.*' \
   '*/MBPT/Ladder.*' \
   '*/qip/Widgets.*' \
+  '*/main.cpp' \
+  '*/tests.cpp' \
 --output-file coverage.info &&
 lcov --list coverage.info |tee -a cov-info.txt
 

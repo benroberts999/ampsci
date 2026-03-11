@@ -11,24 +11,16 @@
 
 Get a list of available modules: `./ampsci -m`
 
-Output will look something like this:
+Output will look something like this (example):
 
 ```txt
 Available modules: 
- * Tests
-     Some basic wavefunction numerical tests
- * testBasis
-     Tests of basis and spectrum
  * WriteOrbitals
      Write orbitals to disk for plotting
  * matrixElements
      Calculates matrix elements of any operator
  * CI_matrixElements
      Calculates matrix elements of any operator for CI wavefunctions
- * thirdOrderME
-     Calculates Third-order matrix elements
- * lifetimes
-     Calculate radiative lifetimes (E1, E2, M1)
  * polarisability
      Calculates static polarisabilities
  * dynamicPolarisability
@@ -45,12 +37,6 @@ Available modules:
      Breit corrections to energies
  * Kionisation
      Calculate atomic ionisation form-factors
- * continuum
-     Compute and use continuum wavefunctions
- * HFAnomaly
-     Calculates Bohr-Weisskopf effect and hyperfine anomaly
- * pnc
-     Calculates APV amplitudes
  * exampleModule
      A short description of the module
 ```

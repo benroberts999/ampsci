@@ -119,6 +119,7 @@ double my_new_function(double x);
 * More importantly, ensure existing tests pass before submitting a pull request.
   * In dev mode, `tests` will be compiled by default
   * Otherwise, compile the tests executable
+* Running tests will produce junk output files. These all have `deleteme` in their filenames, so can be cleared easily. The Makefile has a target for this: `make remove_junk`
 
 <div class="shell-block">
 ```bash
@@ -147,6 +148,14 @@ make tests
 ```
 </div>
 
+Then, remove the junk output files:
+
+<div class="shell-block">
+```bash
+make remove_junk
+```
+</div>
+
 ### Writing tests using Catch2
 
 * Try to write **small, focused tests** that check a single behaviour.
@@ -154,6 +163,17 @@ make tests
 * Use `REQUIRE` for conditions that must hold; use `CHECK` when later checks should still run.
 * Try to test **edge cases** as well as normal inputs (e.g. zero, limits, invalid values).
 * Keep tests **deterministic and fast**, avoiding randomness unless explicitly controlled.
+* **NOTE** ampsci often produces output files. This is annoying when running many tests; it also can "damage" the integrity of the tests, since sometimes these files are read in too!
+  * As a general rule, unless you are testing the read/write, we should attempt to not write data files during tests
+  * If they must be written: (a) including a random string and the phrase `deleteme` in the output filename.
+  * This can usually be achieved by adding this string to the "run label"
+    * The random string stops this file from being read in by a subsequent test if that's not what we want, and `deleteme` makes it easy to clear all files using a sript
+
+```cpp
+const auto label = "deleteme_" + qip::random_string(4);
+```
+
+Examples:
 
 ```cpp
 TEST_CASE("a name for the test", "[tag]") {
