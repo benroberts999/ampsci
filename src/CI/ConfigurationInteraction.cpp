@@ -34,6 +34,10 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
      {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
      {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
      {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
+     {"all_below_cm",
+      "Find all CI solutions for energies below this threshold, "
+      "in inverse cm. Note that this is the total energy, not the "
+      "excitation energy. If set, num_solutions is ignored."},
      {"sigma1", "Include one-body MBPT correlations? [false]"},
      {"sigma2", "Include two-body MBPT correlations? [false]"},
      {"Brueckner", "Use Brueckner (spectrum) states for CI basis? Must have "
@@ -378,7 +382,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   const auto J_even_list = input.get("J+", J_list);
   const auto J_odd_list = input.get("J-", J_list);
   const auto num_solutions = input.get("num_solutions", 5);
-  const auto all_below = input.get<double>("all_below");
+  const auto all_below_cm = input.get<double>("all_below_cm");
   const auto ci_input = input.get("ci_input", std::string{""});
   const auto sort_output = input.get("sort_output", false);
   const auto parallel_ci = input.get("parallel_ci", true);
@@ -402,8 +406,8 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
           std::pair{2 * J_odd_list.at(i - J_even_list.size()), -1};
 
       auto &output_stream = parallel_ci ? os.at(i) : std::cout;
-      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_solutions, all_below, h1,
-                            qk, Bk, Sk, include_Sigma2, output_stream);
+      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_solutions, all_below_cm,
+                            h1, qk, Bk, Sk, include_Sigma2, output_stream);
     }
 
     // If doing in parallel, output detailed output at end
@@ -479,7 +483,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 //==============================================================================
 //==============================================================================
 PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
-              int num_solutions, std::optional<double> all_below,
+              int num_solutions, std::optional<double> all_below_cm,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
               const Coulomb::WkTable &Bk, const Coulomb::LkTable &Sk,
               bool include_Sigma2, std::ostream &outstream) {
@@ -518,8 +522,9 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
 
   //----------------------------------------------------------------------------
 
-  if (all_below) {
-    fmt::print(outstream, "Finding all solutions below {} cm^-1\n", *all_below);
+  if (all_below_cm) {
+    fmt::print(outstream, "Finding all solutions below {} cm^-1\n",
+               *all_below_cm);
   } else if (num_solutions > 0) {
     fmt::print(outstream, "Find first {} solutions\n", num_solutions);
   } else {
@@ -528,7 +533,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
 
   {
     IO::ChronoTimer t2("");
-    psi.solve(Hci, num_solutions, all_below);
+    psi.solve(Hci, num_solutions, all_below_cm);
     outstream << psi.num_solutions() << " eigenvalues: T = " << t2.reading_str()
               << "\n\n";
   }
@@ -540,7 +545,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   const auto m1_tab = ExternalField::me_table(ci_sp_basis, &m1);
 
   // Print details of each solution, unless we find all:
-  const auto print_details = all_below || num_solutions > 0;
+  const auto print_details = all_below_cm || num_solutions > 0;
   const double minimum_percentage = 5.0; // min % to print
 
   // XXX nb: sometimes get's non-rel config wrong! (not a big issue)

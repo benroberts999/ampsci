@@ -126,13 +126,14 @@ std::vector<CSF2> form_CSFs(int twoJ, int parity,
 // finds first num_solutions solutions.
 // Doesn't set the Config info: have to call update_config_info() manually.
 void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions,
-                   std::optional<double> all_below) {
+                   std::optional<double> all_below_cm) {
   assert(Hci.rows() == Hci.cols());
   assert(Hci.rows() == m_CSFs.size());
 
-  if (all_below) {
+  if (all_below_cm) {
+    const auto all_below_au = *all_below_cm / PhysConst::Hartree_invcm;
     const auto [t_num, t_evals, t_evecs] =
-      LinAlg::symmhEigensystem(Hci, *all_below / PhysConst::Hartree_invcm);
+      LinAlg::symmhEigensystem(Hci, all_below_au);
     m_num_solutions = std::size_t(t_num);
     m_Solution.first = std::move(t_evals);
     m_Solution.second = std::move(t_evecs);
