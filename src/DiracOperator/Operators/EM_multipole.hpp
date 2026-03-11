@@ -774,7 +774,7 @@ generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
  
   @warning Invalid combinations of @p type and @p comp may result in
            a nullptr being returned.
- */
+*/
 std::unique_ptr<DiracOperator::TensorOperator>
 MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,
                   bool low_q, const SphericalBessel::JL_table *jl = nullptr);
