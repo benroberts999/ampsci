@@ -809,14 +809,14 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
         if (in_k && *in_k != int(k))
           continue;
 
-        const auto ck_vB = Angular::Ck_kk(int(k), kv, kB);
-        if (ck_vB == 0.0)
+        const auto ck_Bw = Angular::Ck_kk(int(k), kv, kB);
+        if (ck_Bw == 0.0)
           continue;
 
         const auto &qpq_dw = m_qpiq_wk[iw][k];
 
         const auto c_ang_dw =
-          dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
+          dw * ck_Bw * ck_Bw / double(Angular::twoj_k(kv) + 1);
 
         Sigma += (c_ang_dw * mult_elements(gB, qpq_dw)).real();
       }
@@ -1040,12 +1040,14 @@ double L_ang_dSR(int kw, int kv, int kB, int kA, int k) {
   const auto s = Angular::neg1pow_2(tj_A + tj_B + k * 2 + K * 2);
   // const double f = (2 * u + 1) / (tji + 1);
 
-  return s * sjs / double(tj_v + 1);
+  return s * sjs;
+
+  // return s * sjs;
 }
 
 GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
                                  double Omega) const {
-
+  //<v|Sigma(env)|w > = <v|gA pi gB| w >
   // Coded for dipole operator, Omega-> external field
 
   GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
@@ -1060,8 +1062,8 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
 #pragma omp parallel for collapse(2) reduction(+ : Sigma)
   for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
     for (auto iB = 0ul; iB < num_kappas; ++iB) {
+      const auto kB = Angular::kappaFromIndex(int(iB));
       for (auto iA = 0ul; iA < num_kappas; ++iA) {
-        const auto kB = Angular::kappaFromIndex(int(iB));
         const auto kA = Angular::kappaFromIndex(int(iA));
 
         const auto omega = std::complex{m_omre, m_wgrid(iw)};
@@ -1070,7 +1072,6 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
         // I, since dw is on imag. grid; 2 from symmetric +/- w
         const auto dw = I * weight * m_wgrid.drdu(iw);
 
-        // Silly, but ig gB includes G, then so will gB_QPQ
         const auto gB = m_include_G ? green(kB, env + omega) :
                                       green(kB, env + omega).drop_g();
         const auto gA = m_include_G ? green(kA, env + omega + Omega) :
@@ -1084,14 +1085,14 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
           // if (in_k && *in_k != int(k))
           // continue;
 
-          const auto h_AB = Angular::Ck_kk(int(k), kA, kB);
+          const auto h_AB = Angular::Ck_kk(int(1), kA, kB);
           if (h_AB == 0.0)
             continue;
 
-          const auto ck_vB = Angular::Ck_kk(int(k), kB, kv);
-          const auto ck_wA = Angular::Ck_kk(int(k), kw, kA);
+          const auto ck_Bw = Angular::Ck_kk(int(k), kB, kw);
+          const auto ck_vA = Angular::Ck_kk(int(k), kv, kA);
 
-          if (ck_vB == 0.0 or ck_wA == 0.0)
+          if (ck_Bw == 0.0 or ck_vA == 0.0)
             continue;
 
           const auto &qpq_dw = m_qpiq_wk[iw][k];
@@ -1102,13 +1103,13 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
           // const auto K = 1; //rank of operator
           // conversions
 
-          const auto LAng = L_ang_dSR(kw, kv, kB, kA, int(k));
+          const auto LAng = L_ang_dSR(kv, kw, kB, kA, int(k));
 
           if (LAng == 0.0)
             continue;
 
-          const auto c_ang_dw =
-            LAng * h_AB * dw * ck_vB * ck_wA / double(Angular::twoj_k(kv) + 1);
+          const auto c_ang_dw = LAng * h_AB * dw * ck_Bw *
+                                ck_vA; // / double(Angular::twoj_k(kv) + 1);
 
           Sigma += (c_ang_dw * mult_elements(dG_AB, qpq_dw)).real();
         }
