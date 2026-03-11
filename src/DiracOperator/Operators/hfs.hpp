@@ -10,6 +10,7 @@ namespace DiracOperator {
 
 //==============================================================================
 //! Auxillary Functions for hyperfine operatrs; F(r) [nuclear distribution] and similar
+//! @details See \ref DiracOperator::hfs for operator
 namespace Hyperfine {
 
 //! Type for radial function F(r,rN) (type alias to save typing)
@@ -21,26 +22,23 @@ namespace Hyperfine {
 using RadialFunction = std::function<double(double r, double r_Nuc)>;
 
 //==============================================================================
-//! Forms the hyperfine radial function: F(r,rN)/r^{k+1}
-/*! @details
-Forms the radial part of the hyperfine operator:
-
-\f[
-  t^k_{\rm radial}[r_i] = \frac{F(r_i,r_N)}{r_i^{k+1}}
-\f]
+/*! Forms the hyperfine radial function: F(r,rN)/r^{k+1}
+  @details
+  \f[
+    t^k_{\rm radial}[r_i] = \frac{F(r_i,r_N)}{r_i^{k+1}}
+  \f]
 
  @param k     Multipole rank (1 = M1, 2 = E2, ...)
  @param rN    Nuclear radius (a.u.); passed to F(r,r_N)
  @param r     Radial grid (a.u.)
- @param hfs_F Finite nuclear magnetisation function \(F(r,r_N)\)
- @return Radial values of \(t^k(r)\)
+ @param hfs_F Finite nuclear magnetisation function F(r,r_N)
+ @return      Radial values of t^k(r)
 
- Notes:
+ @note
  - Angular factors and signs are handled elsewhere.
- - \(F(r,r_N)\) contains only the finite nuclear-size correction.
- - Default \(F\) corresponds to the spherical-ball model.
- - \(F(r,r_N) \to 1\) for \(r > r_N\).
-  
+ - F(r,r_N) contains only the finite nuclear-size correction.
+ - Default F corresponds to the spherical-ball model.
+ - F(r,r_N) -> 1 for r > r_N.
 */
 std::vector<double> tk_radial(int k, double rN, const std::vector<double> &r,
                               const RadialFunction &hfs_F);
@@ -120,25 +118,26 @@ RadialFunction uSP(double mu, double I_nuc, double l_pn, int gl, double n,
 
 //! Volotka single-particle model for doubly-odd nuclei
 /*! @details
-From: Phys. Rev. Lett. 125, 063002 (2020).
+  From: [Phys. Rev. Lett. 125, 063002 (2020).](http://arxiv.org/abs/2001.01907)
 
-Total magnetisation:
-\f[
-  g F(r) = 0.5 \left[ g1 F1(r) + g2 F2(r) + (g1 F1(r) - g2 F2(r)) K \right]
-\f]
+  Total magnetisation:
+  \f[
+    g F(r) = 0.5 \left[ g_1 F_1(r) + g_2 F_2(r) 
+                        + (g_1 F_1(r) - g_2 F_2(r)) K \right]
+  \f]
 
-with
+  with
 
-\f[
-  K = \frac{[ I1(I1+1) - I2(I2+1) ]}{[ I(I+1) ]}
-\f]
+  \f[
+    K = \frac{[ I_1(I_1+1) - I_2(I_2+1) ]}{[ I(I+1) ]}
+  \f]
 
-Returns F(r) (i.e., divided by total g).
+  Returns F(r) (i.e., divided by total g).
 
-g2 is obtained from
-g = 0.5 [ g1 + g2 + (g1 - g2) K ].
+  g2 is obtained from
+  g = 0.5 [ g1 + g2 + (g1 - g2) K ].
 
-  @note F1, F2 are the Volotka single-particle functions (see VolotkaSP_F).
+  @note F1, F2 are the Volotka single-particle functions (see \ref VolotkaSP_F).
 
   @param mut  Total nuclear magnetic moment (in nuclear magnetons)
   @param It   Total nuclear spin
@@ -212,7 +211,7 @@ Convert to hyperfine constant by taking stretched state, and multiply by:
   \end{cases}
 \f]
 
-This factor (including the steched 3j symbol) is returned by @c Hyperfine::convert_RME_to_HFSconstant()
+This factor (including the steched 3j symbol) is returned by \ref Hyperfine::convert_RME_to_HFSconstant()
 
 Units: 
 - Assumes nuclear moments in units of:
@@ -222,15 +221,29 @@ Units:
 
 Here \f$ \mu_N \f$ is the nuclear magneton and \f$ b \f$ is the barn.
 
-See, e.g., Xiao et al., Phys. Rev. A 102, 022810 (2020).
+See, e.g., Xiao _et al._, [Phys. Rev. A 102, 022810 (2020).](http://arxiv.org/abs/2007.06798)
 
-The radial part is constructed from @c Hyperfine::tk_radial().
+The radial part is constructed from \ref Hyperfine::tk_radial().
 */
 class hfs final : public TensorOperator {
   using RadialFunction = std::function<double(double, double)>;
 
 public:
-  //! k: rank, g/Q: g-factor or moment,
+  //! @brief Constructs hyperfine operator of multipolarity k.
+  /*! @details
+    Initialises the hyperfine interaction operator.
+
+    @param in_k     Tensor rank k (multipolarity) of the hyperfine interaction 
+                    (e.g., 1,2,3,... for M1, E2, M3,... etc.)
+    @param GQ       Nuclear g-factor for k=1, general moment for k>1
+    @param rN_au    Nuclear radius (a.u.), used for finite-size magnetisation models.
+    @param rgrid    Radial grid used to define the radial functions.
+    @param hfs_F    Radial magnetisation distribution function
+                    (see @ref DiracOperator::Hyperfine).
+    @param MHzQ     If true outputs in MHz units; otherwise in atomic units.
+
+    @see See also: \ref DiracOperator::Hyperfine
+  */
   hfs(int in_k, double GQ, double rN_au, const Grid &rgrid,
       const RadialFunction &hfs_F = Hyperfine::pointlike_F(), bool MHzQ = true)
     : TensorOperator(in_k, Parity::even, GQ,

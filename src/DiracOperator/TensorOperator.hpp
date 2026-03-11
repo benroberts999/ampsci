@@ -52,19 +52,36 @@ std::string parse_MatrixElementType(MatrixElementType t);
 
 //==============================================================================
 //! @brief General operator (virtual base class); operators derive from this.
-//! @details
-//! k is rank, c is multiplicative constant, d_order is derivative order,
-//! pi is parity, may be Parity::even or ::odd.
-//! RorI may be Realness::real or Realness::imaginary.
-//! Note: You may not construct a TensorOperator. Instead, you must construct
-//! one of the derived 'operators' (there are some general ones); see
-//! operators.hpp for list of operators. Operators work by overrideing the
-//! angularCxx() functions and angularF().
-//! c, v, and Cxx are included in radial integral.
+/*! @details
+  - k is rank, c is multiplicative constant, d_order is derivative order,
+  - pi is parity, may be Parity::even or ::odd.
+  - RorI may be Realness::real or Realness::imaginary.
+  - Note: You may not construct a TensorOperator. Instead, you must construct
+    one of the derived 'operators' (there are some general ones); see
+    operators.hpp for list of operators. Operators work by overrideing the
+    angularCxx() functions and angularF().
+  - c, v, and Cxx are included in radial integral.
+*/
 class TensorOperator {
 protected:
+  //! @brief Constructs a tensor operator description.
+  /*! @details
+    Initialises the basic properties of a tensor operator.
+
+    @param rank_k     Tensor rank k of the operator.
+    @param pi         Parity of the operator (Parity::even or Parity::odd).
+    @param constant   Multiplicative constant c, included in the radial integral.
+    @param vec        Overall v=f(r) radial function, as std::vector array
+    @param RorI       Specifies whether the matrix element is real or imaginary
+                      (Realness::real or Realness::imaginary).
+    @param freq_dep   Indicates whether the operator depends on frequency
+                      (e.g., dynamic external fields).
+
+    @note TensorOperator is a virtual base class and may not be constructed
+    directly. It is intended to be initialised by derived operator classes.
+  */
   TensorOperator(int rank_k, Parity pi, double constant = 1.0,
-                 const std::vector<double> &inv = {}, int diff_order = 0,
+                 const std::vector<double> &vec = {}, int diff_order = 0,
                  Realness RorI = Realness::real, bool freq_dep = false)
     : m_rank(rank_k),
       m_parity(pi),
@@ -72,7 +89,7 @@ protected:
       opC(RorI),
       m_freqDependantQ(freq_dep),
       m_constant(constant),
-      m_vec(inv){};
+      m_vec(vec) {};
 
 public:
   virtual ~TensorOperator() = default;
@@ -110,7 +127,7 @@ public:
   }
 
   //! Update frequency for frequency-dependant operators.
-  virtual void updateFrequency(const double){};
+  virtual void updateFrequency(const double) {};
 
   //! Permanently re-scales the operator by constant, lambda
   void scale(double lambda);
@@ -147,21 +164,89 @@ public:
 public:
   // These are needed for radial integrals
   // Usually just constants, but can also be functions of kappa
+
+  //! Angular factor for f_a*f_b part of radial integral
+  /*! @details 
+    - Often constant, though sometimes depends on \f$\kappa_a,\kappa_b\f$
+    \f[
+      \int_0^\infty v(r)\left(
+        C_{ff}f_a(r)f_b(r) + 
+        C_{fg}f_a(r)g_b(r) + 
+        C_{gf}g_a(r)f_b(r) + 
+        C_{gg}g_a(r)g_b(r)
+      \right)\,{\rm d}r
+    \f]
+  */
   virtual double angularCff(int /*k_a*/, int /*k_b*/) const { return 1.0; }
+  //! Angular factor for g_a*g_b part of radial integral
   virtual double angularCgg(int, int) const { return 1.0; }
+  //! Angular factor for f_a*g_b part of radial integral
   virtual double angularCfg(int, int) const { return 0.0; }
+  //! Angular factor for g_a*f_b part of radial integral
   virtual double angularCgf(int, int) const { return 0.0; }
 
 public:
   //! @brief angularF: links radiation integral to RME.
   //! RME = <a||h||b> = angularF(a,b) * radial_int(a,b)
   virtual double angularF(const int, const int) const = 0;
+
   //! radial_int = Fa * radial_rhs(a, Fb) (a needed for angular factor)
+  /*! @details
+  
+  By default, is defined as:
+
+    \f[
+      \delta F_{\rm b} = 
+      C_{\rm overall}\,v(r)
+      \begin{pmatrix}
+        C_{ff}f_b(r) + C_{fg}g_b(r) \\
+        C_{gf}f_b(r) + C_{gg}g_b(r)
+      \end{pmatrix}
+    \f]
+
+    \f$ C_{f/g} \f$ are angular coeficients - see \ref TensorOperator::angularCff
+
+    See also: \ref TensorOperator::radial_rhs
+  */
   virtual DiracSpinor radial_rhs(const int kappa_a,
                                  const DiracSpinor &Fb) const;
 
-  //! Defined via <a||h||b> = angularF(a,b) * radialIntegral(a,b)
-  //! (Note: if radial_rhs is overridden, then radialIntegral must also be_
+  //! Radial part of integral R_ab = (Fa|t|Fb).
+  /*! @details
+
+    <a||t||b> = angularF(a,b) * radialIntegral(a,b)
+
+    The 'radial'  integral \f$R_{ab}\f$ for operator \f$t\f$ is defined as
+    \f[
+      \langle a ||t|| b \rangle \equiv R_{ab} * A_{ab}
+    \f]
+
+    where \f$A_{ab}\f$ is TensorOperator::angularF()
+
+    By default, is implemented as:
+    \f[
+      R = \int_0^\infty F_a\cdot\delta F_{\rm b} \,{\rm d}r
+    \f]
+
+    where \f$ \delta F_{\rm b} \f$ is defined in \ref TensorOperator::radial_rhs
+
+    So, if \ref TensorOperator::radial_rhs is defined normally, we have:
+    \f[
+      C_{\rm overall}\int_0^\infty v(r)\left(
+        C_{ff}f_a(r)f_b(r) + 
+        C_{fg}f_a(r)g_b(r) + 
+        C_{gf}g_a(r)f_b(r) + 
+        C_{gg}g_a(r)g_b(r)
+      \right)\,{\rm d}r
+    \f]
+
+    \f$ C_{f/g} \f$ are angular coeficients - see \ref TensorOperator::angularCff
+
+    @warning
+    - This is defined for the "standard" case, which doesn't always suit
+    - \ref TensorOperator::radial_rhs may be overridden for special cases
+    - If radial_rhs is overridden, then radialIntegral must also be_
+  */
   virtual double radialIntegral(const DiracSpinor &Fa,
                                 const DiracSpinor &Fb) const;
 
