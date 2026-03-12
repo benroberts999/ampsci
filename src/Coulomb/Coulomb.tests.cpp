@@ -568,7 +568,7 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
     // kappa:
     std::vector<DiracSpinor> torbs;
     for (int kappa_index = 0;; ++kappa_index) {
-      auto k = Angular::kappaFromIndex(kappa_index);
+      auto k = Angular::kindex_to_kappa(kappa_index);
       auto phi = std::find_if(cbegin(wf.basis()), cend(wf.basis()),
                               [k](auto x) { return x.kappa() == k; });
       if (phi == cend(wf.basis()))
@@ -657,10 +657,10 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
                 worstW = delW;
 
             } // k
-          }   // d
-        }     // c
-      }       // b
-    }         // a
+          } // d
+        } // c
+      } // b
+    } // a
     REQUIRE(std::abs(worstQ) < 5.0e-13);
     REQUIRE(std::abs(worstP) < 5.0e-14);
     REQUIRE(std::abs(worstW) < 5.0e-14);

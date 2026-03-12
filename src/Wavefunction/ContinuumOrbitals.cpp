@@ -84,7 +84,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
   // loop through each kappa state
   for (int k_i = 0; true; ++k_i) {
-    const auto kappa = Angular::kappaFromIndex(k_i);
+    const auto kappa = Angular::kindex_to_kappa(k_i);
     const auto l = Angular::l_k(kappa);
     if (l < min_l)
       continue;
@@ -171,7 +171,7 @@ int ContinuumOrbitals::solveContinuumZeff(double ec, int min_l, int max_l,
 
   // loop through each kappa state
   for (int k_i = 0; true; ++k_i) {
-    const auto kappa = Angular::kappaFromIndex(k_i);
+    const auto kappa = Angular::kindex_to_kappa(k_i);
     const auto l = Angular::l_k(kappa);
     if (l < min_l)
       continue;

@@ -12,7 +12,7 @@ void CkTable::fill(const int in_max_twoj) {
   const int in_max_K = in_max_twoj;
 
   // auto max_jindex = (in_max_twoj - 1) / 2;
-  auto max_jindex = Angular::jindex(in_max_twoj);
+  auto max_jindex = Angular::twoj_to_jindex(in_max_twoj);
   if (max_jindex <= m_max_jindex_sofar)
     return;
 
@@ -50,8 +50,8 @@ void CkTable::fill(const int in_max_twoj) {
 
 //==============================================================================
 double CkTable::get_tildeCkab_mutable(int k, int ka, int kb) {
-  auto jia = jindex_kappa(ka);
-  auto jib = jindex_kappa(kb);
+  auto jia = kappa_to_jindex(ka);
+  auto jib = kappa_to_jindex(kb);
   // parity:
   auto pi_ok = Angular::evenQ(Angular::l_k(ka) + Angular::l_k(kb) + k);
   if (!pi_ok)
@@ -59,14 +59,14 @@ double CkTable::get_tildeCkab_mutable(int k, int ka, int kb) {
 
   auto maxji = std::max(jia, jib);
   if (maxji > m_max_jindex_sofar || k > m_max_k_sofar)
-    fill(std::max(k, twoj(maxji)) + 1); // XXX Hack? Why need +1 ??
+    fill(std::max(k, jindex_to_twoj(maxji)) + 1); // XXX Hack? Why need +1 ??
   return (jia > jib) ? m_3j_k_a_b[k][jia][jib] * m_Rjab_a_b[jia][jib] :
                        m_3j_k_a_b[k][jib][jia] * m_Rjab_a_b[jib][jia];
 }
 
 double CkTable::get_tildeCkab(int k, int ka, int kb) const {
-  auto jia = jindex_kappa(ka);
-  auto jib = jindex_kappa(kb);
+  auto jia = kappa_to_jindex(ka);
+  auto jib = kappa_to_jindex(kb);
   // parity:
   auto pi_ok = Angular::evenQ(Angular::l_k(ka) + Angular::l_k(kb) + k);
   if (!pi_ok)
@@ -100,17 +100,17 @@ double CkTable::get_Ckab(int k, int ka, int kb) const {
 
 //==============================================================================
 double CkTable::get_3jkab_mutable(int k, int ka, int kb) {
-  auto jia = jindex_kappa(ka);
-  auto jib = jindex_kappa(kb);
+  auto jia = kappa_to_jindex(ka);
+  auto jib = kappa_to_jindex(kb);
   auto maxji = std::max(jia, jib);
   if (maxji > m_max_jindex_sofar || k > m_max_k_sofar)
-    fill(std::max(k, twoj(maxji)));
+    fill(std::max(k, jindex_to_twoj(maxji)));
   return (jia > jib) ? m_3j_k_a_b[k][jia][jib] : m_3j_k_a_b[k][jib][jia];
 }
 
 double CkTable::get_3jkab(int k, int ka, int kb) const {
-  auto jia = jindex_kappa(ka);
-  auto jib = jindex_kappa(kb);
+  auto jia = kappa_to_jindex(ka);
+  auto jib = kappa_to_jindex(kb);
   assert(std::max(jia, jib) <= m_max_jindex_sofar);
   assert(k <= m_max_k_sofar);
   return (jia > jib) ? m_3j_k_a_b[k][jia][jib] : m_3j_k_a_b[k][jib][jia];

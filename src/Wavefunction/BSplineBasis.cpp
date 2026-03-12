@@ -468,7 +468,7 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
     std::max_element(cbegin(basis), cend(basis), DiracSpinor::comp_l)->l();
 
   for (int ki = 0; ki <= max_ki; ki++) {
-    const auto kappa = Angular::kappaFromIndex(ki);
+    const auto kappa = Angular::kindex_to_kappa(ki);
     auto find_ka = [=](const auto &Fn) { return Fn.kappa() == kappa; };
     const auto &Fa = *std::find_if(basis.begin(), basis.end(), find_ka);
     // need to have l_n = la+1 terms, or sum doesn't work:

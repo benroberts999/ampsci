@@ -309,8 +309,8 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
         std::max_element(cbegin(dg), cend(dg), qip::less_abs{});
       const auto best = std::min_element(cbegin(dg), cend(dg), qip::less_abs{});
 
-      const auto kib = Angular::kappaFromIndex(int(best - begin(dg)));
-      const auto kiw = Angular::kappaFromIndex(int(worst - begin(dg)));
+      const auto kib = Angular::kindex_to_kappa(int(best - begin(dg)));
+      const auto kiw = Angular::kindex_to_kappa(int(worst - begin(dg)));
       const auto blabel =
         label + " DG" + std::to_string(nDG) + "(b) k=" + std::to_string(kib);
       const auto wlabel =
@@ -352,8 +352,8 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
         std::max_element(cbegin(dg), cend(dg), qip::less_abs{});
       const auto best = std::min_element(cbegin(dg), cend(dg), qip::less_abs{});
 
-      const auto kib = Angular::kappaFromIndex(int(best - begin(dg)));
-      const auto kiw = Angular::kappaFromIndex(int(worst - begin(dg)));
+      const auto kib = Angular::kindex_to_kappa(int(best - begin(dg)));
+      const auto kiw = Angular::kindex_to_kappa(int(worst - begin(dg)));
       const auto blabel =
         label + " DG" + std::to_string(nDG) + "(b) k=" + std::to_string(kib);
       const auto wlabel =

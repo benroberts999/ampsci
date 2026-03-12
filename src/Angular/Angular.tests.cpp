@@ -10,6 +10,8 @@
 #include <gsl/gsl_version.h>
 #include <string>
 #include <utility>
+//
+#include "fmt/format.hpp"
 
 // This should make code work with old versions of GSL
 // This is for a work-around for what appears to be a bug in GSL v1:
@@ -74,10 +76,10 @@ TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
     REQUIRE(!Angular::zeroQ(1.0e-9));
     REQUIRE(!Angular::zeroQ(-1.0e-9));
 
-    REQUIRE(Angular::indexFromKappa(k) == ki);
-    REQUIRE(Angular::kappaFromIndex(ki) == k);
-    REQUIRE(Angular::twojFromIndex(ki) == tj);
-    REQUIRE(Angular::lFromIndex(ki) == l);
+    REQUIRE(Angular::kappa_to_kindex(k) == ki);
+    REQUIRE(Angular::kindex_to_kappa(ki) == k);
+    REQUIRE(Angular::kindex_to_twoj(ki) == tj);
+    REQUIRE(Angular::kindex_to_l(ki) == l);
   }
 
   //===========================================
@@ -317,15 +319,15 @@ double UnitTest::ck_compare_direct(const Angular::CkTable &Ck,
   double max = 0.0;
 
   for (int kia = 0;; ++kia) {
-    const auto tja = Angular::twojFromIndex(kia);
+    const auto tja = Angular::kindex_to_twoj(kia);
     if (tja > max2j)
       break;
-    const auto ka = Angular::kappaFromIndex(kia);
+    const auto ka = Angular::kindex_to_kappa(kia);
     for (int kib = 0;; ++kib) {
-      const auto tjb = Angular::twojFromIndex(kib);
+      const auto tjb = Angular::kindex_to_twoj(kib);
       if (tjb > max2j)
         break;
-      const auto kb = Angular::kappaFromIndex(kib);
+      const auto kb = Angular::kindex_to_kappa(kib);
 
       // loop through all k multipolarities:
       for (int k = 0; k <= max2j; ++k) {
@@ -544,4 +546,51 @@ double UnitTest::speedup_6jt(const Angular::SixJTable &sjt,
             << "\n";
   std::cout << t2 / t1 << "x speedup\n";
   return t2 / t1;
+}
+
+TEST_CASE("Angular: Ben", "[ben]") {
+
+  std::cout << std::numeric_limits<int>::max() << "\n";
+
+  const auto max_int = std::numeric_limits<int>::max();
+  const auto max_uint16 = std::numeric_limits<uint16_t>::max();
+
+  bool a{false}, b{false};
+
+  const auto lmax = 20; // practical limit
+
+  int max_n_int{0};
+  uint16_t max_n_uint16{0};
+
+  for (int n = 1; n < std::numeric_limits<int>::max(); ++n) {
+    for (int l = 0; l < std::min(n, lmax); ++l) {
+      for (int tj : {2 * l - 1, 2 * l + 1}) {
+        if (tj < 0)
+          continue;
+        const auto kappa = Angular::kappa_twojl(tj, l);
+        const auto index = Angular::nk_to_index(n, kappa);
+
+        if (!a && index >= max_int) {
+          fmt::print("max n/k int:    {:4} {:4} {:4}\n", n, kappa, index);
+          max_n_int = n;
+          a = true;
+        }
+
+        if (!b && index >= max_uint16) {
+          fmt::print("max n/k uint16: {:4} {:4} {:4}\n", n, kappa, index);
+          max_n_uint16 = n;
+          b = true;
+        }
+
+        if (a && b)
+          break;
+      }
+      if (a && b)
+        break;
+    }
+    if (a && b)
+      break;
+  }
+  REQUIRE(max_n_int > 46341);
+  REQUIRE(max_n_uint16 > 256);
 }

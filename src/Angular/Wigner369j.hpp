@@ -1,40 +1,41 @@
 #pragma once
 #include <algorithm> //std::min!
 #include <cmath>
+#include <cstdint>
 #include <gsl/gsl_sf_coupling.h>
 #include <optional>
 #include <utility>
 
 /*!
-@brief
-Angular provides functions and classes for calculating and storing angular
-factors (3,6,9-J symbols etc.)
+  @brief
+  Angular provides functions and classes for calculating and storing angular
+  factors (3,6,9-J symbols etc.)
 
-@details
-Provides functions to:
- - Calculate wigner 3,6,9-J symbols + Clebsh-Gordon coefs etc..
- - Also provied look-up tables, which are faster than calculating symbols
-on-the-fly
- - Wrapper functions to calculate wigner 3,6,9-J symbols.
- - Uses GSL:
-https://www.gnu.org/software/gsl/doc/html/specfunc.html?highlight=3j#coupling-coefficients
+  @details
+  Provides functions to:
+  - Calculate wigner 3,6,9-J symbols + Clebsh-Gordon coefs etc..
+  - Also provied look-up tables, which are faster than calculating symbols
+  on-the-fly
+  - Wrapper functions to calculate wigner 3,6,9-J symbols.
+  - Uses GSL:
+  https://www.gnu.org/software/gsl/doc/html/specfunc.html?highlight=3j#coupling-coefficients
 
-The general equations are defined:
-\f{align}{
-    \frac{1}{r_{12}} &= \sum_{kq} \frac{r_<^k}{r_>^{k+1}}(-1)^q
-                        C^k_{-q}(\hat{n}_1)C^k_{q}(\hat{n}_2)\\
-    C^k_{q} &\equiv \sqrt{\frac{4\pi}{2k+1}} Y_{kq}(\hat{n}),
-\f}
-and
-\f{align}{
-  C^k_{ab} &\equiv \langle{\kappa_a}||C^k||{\kappa_b}\rangle 
-            \equiv  (-1)^{j_a+1/2} \widetilde C^k_{ab} ,\\
-            &=  (-1)^{j_a+1/2}\sqrt{[j_a][j_b]}
-            \begin{pmatrix}
-              {j_a} & {j_b} & {k} \\ {-1/2} & {1/2} &{0}
-            \end{pmatrix}
-            \pi(l_a+l_b+k). 
-\f}
+  The general equations are defined:
+  \f{align}{
+      \frac{1}{r_{12}} &= \sum_{kq} \frac{r_<^k}{r_>^{k+1}}(-1)^q
+                          C^k_{-q}(\hat{n}_1)C^k_{q}(\hat{n}_2)\\
+      C^k_{q} &\equiv \sqrt{\frac{4\pi}{2k+1}} Y_{kq}(\hat{n}),
+  \f}
+  and
+  \f{align}{
+    C^k_{ab} &\equiv \langle{\kappa_a}||C^k||{\kappa_b}\rangle 
+              \equiv  (-1)^{j_a+1/2} \widetilde C^k_{ab} ,\\
+              &=  (-1)^{j_a+1/2}\sqrt{[j_a][j_b]}
+              \begin{pmatrix}
+                {j_a} & {j_b} & {k} \\ {-1/2} & {1/2} &{0}
+              \end{pmatrix}
+              \pi(l_a+l_b+k). 
+  \f}
 */
 namespace Angular {
 
@@ -73,80 +74,145 @@ inline constexpr bool zeroQ(double x, double eps = 1.0e-10) {
 /*! @details
  Kappa Index:
  For easy array access, define 1-to-1 index for each kappa:
- kappa: -1  1 -2  2 -3  3 -4  4 ...
- index:  0  1  2  3  4  5  6  7 ...
- kappa(i) = (-1,i+1)*(int(i/2)+1)
+
+  | kappa | -1 | 1 | -2 | 2 | -3 | 3 | -4 | 4 | ... |
+  |-------|----|---|----|---|----|---|----|---|-----|
+  | index | 0  | 1 | 2  | 3 | 4  | 5 | 6  | 7 | ... |
+ 
+  \f[
+    i_k(\kappa)=
+    \begin{cases}
+      -2\kappa-2, & \kappa<0, \\
+      2\kappa-1,  & \kappa>0 .
+    \end{cases}
+  \f]
+
+  \f[
+    \kappa(i_k)=
+    \begin{cases}
+      -\left(\frac{i_k}{2}+1\right), & i_k\ \text{even},\\
+      \frac{i_k+1}{2}, & i_k\ \text{odd}.
+    \end{cases}
+  \f]
 */
-constexpr int indexFromKappa(int ka) {
+constexpr std::uint64_t kappa_to_kindex(int ka) {
   return (ka < 0) ? -2 * ka - 2 : 2 * ka - 1;
 }
+
 //! Returns kappa, given kappa_index
-constexpr int kappaFromIndex(int i) {
+//! @details see \ref Angular::kappa_to_kindex()
+constexpr int kindex_to_kappa(std::uint64_t i) {
   return (i % 2 == 0) ? -(i + 2) / 2 : (i + 1) / 2;
 }
+
 //! returns 2j, given kappa_index
-constexpr int twojFromIndex(int i) { return (i % 2 == 0) ? i + 1 : i; }
+//! @details see \ref Angular::kappa_to_kindex()
+constexpr int kindex_to_twoj(std::uint64_t i) {
+  return (i % 2 == 0) ? i + 1 : i;
+}
+
 //! returns l, given kappa_index
-constexpr int lFromIndex(int i) { return (i % 2 == 0) ? i / 2 : (i + 1) / 2; }
+//! @details see \ref Angular::kappa_to_kindex()
+constexpr int kindex_to_l(std::uint64_t i) {
+  return (i % 2 == 0) ? i / 2 : (i + 1) / 2;
+}
 
 //==============================================================================
-//! Returns number of possible states _below_ given n
-constexpr int states_below_n(int n) { return n * n - 2 * n + 1; }
+//! Returns number of possible states _below_ given n (i.e., n' < n)
+/*! @details
 
-//! return nk_index given {n, kappa}: nk_index(n,k) := n^2 - 2n + 1 +
-//! kappa_index
-/*! @details   nk_index:
- For easy array access, define 1-to-1 index for each {n, kappa}:
- nk_index(n,k) := n^2 - 2n + 1 + kappa_index.
- nb: n^2 - 2n + 1 = states_below_n - number of possible states with n'<n.
- Note: ONLY valid for n >= 1 (i.e., cannot be used for general basis states)
+  This could be made more "compact" with a maximum l.
+  In practice, we go to large n, but never very large l.
+
+  @warning
+   - n must be >1 (no non-standard states)
+
+  Cannot overflow; converts to std::uint64_t.
 */
-constexpr int nk_to_index(int n, int k) {
-  return states_below_n(n) + Angular::indexFromKappa(k);
+constexpr std::uint64_t states_below_n(int n) {
+  const std::uint64_t nn = n;
+  return nn * nn - 2 * nn + 1;
 }
 
-//! return {n, kappa} given nk_index:
-inline std::pair<int, int> index_to_nk(int index) {
-  // Better way? isqrt?
-  const auto n = 1 + int(std::sqrt(index + 0.01));
-  // int n = 1 + int_sqrt(index);
-  const auto kappa_index = index - states_below_n(n);
-  return {n, Angular::kappaFromIndex(kappa_index)};
+//! @brief Returns nk_index, given {n, kappa}
+/*! @details
+  For convenient array access we define a one-to-one mapping between the pair
+  \f$(n,\kappa)\f$ and a non-negative index:
+
+  \f[
+    i_{nk}(n,\kappa) = (n-1)^2 + i_k(\kappa),
+  \f]
+
+  where \f$i_k(\kappa)\f$ is the kappa index defined by \ref Angular::kappa_to_kindex()
+
+  Equivalently,
+
+  \f[
+    i_{nk}(n,\kappa) = n^2 - 2n + 1 + i_k(\kappa).
+  \f]
+
+  Since
+
+  \f[
+    n^2 - 2n + 1 = (n-1)^2 = \texttt{states\_below\_n}(n),
+  \f]
+  
+  this counts the number of states with principal quantum number \f$n' < n\f$,
+  plus the index within the \f$n\f$ shell.
+
+  @note This indexing is only valid for physical bound-state quantum numbers, n >= 1,
+  and cannot in general be used for arbitrary basis states.
+
+  @warning To safely convert the returned index (`uint64_t`) to `int`, one must
+  have `n <= 46340`.
+
+  @warning To safely convert the returned index to \ref Coulomb::nkIndex
+  (`uint16_t`), one must have `n <= 256`.
+*/
+constexpr std::uint64_t nk_to_index(int n, int k) {
+  return states_below_n(n) + Angular::kappa_to_kindex(k);
 }
 
-inline std::pair<int, int> nkindex_to_n_kindex(int index) {
+//! Returns {n, kappa} given nk_index
+//! @details Inverse of \ref Angular::nk_to_index().
+inline std::pair<int, int> index_to_nk(std::uint64_t nk_index) {
   // Better way? isqrt?
-  const auto n = 1 + int(std::sqrt(index + 0.01));
-  // int n = 1 + int_sqrt(index);
-  const auto kappa_index = index - states_below_n(n);
+  const auto n = 1 + int(std::sqrt(nk_index));
+  const auto kappa_index = nk_index - states_below_n(n);
+  return {n, Angular::kindex_to_kappa(kappa_index)};
+}
+
+//! Returns {n, kappa_index} given nk_index
+//! @details Inverse of \ref Angular::nk_to_index().
+inline std::pair<int, std::uint64_t>
+nkindex_to_n_kindex(std::uint64_t nk_index) {
+  const auto n = 1 + int(std::sqrt(nk_index));
+  const auto kappa_index = nk_index - states_below_n(n);
   return {n, kappa_index};
 }
 
 //! Returns kappa, given nk_index
-inline int nkindex_to_kappa(int index) {
-  // Better way? isqrt?
-  const auto n = 1 + int(std::sqrt(index + 0.01));
-  // int n = 1 + int_sqrt(index);
-  const auto kappa_index = index - states_below_n(n);
-  return kappaFromIndex(kappa_index);
+//! @details See \ref Angular::nk_to_index().
+inline int nkindex_to_kappa(std::uint64_t nk_index) {
+  const auto n = 1 + int(std::sqrt(nk_index));
+  const auto kappa_index = nk_index - states_below_n(n);
+  return kindex_to_kappa(kappa_index);
 }
 
 //! Returns 2*j, given nk_index
-inline int nkindex_to_twoj(int index) {
-  // Better way? isqrt?
-  const auto n = 1 + int(std::sqrt(index + 0.01));
-  // int n = 1 + int_sqrt(index);
-  const auto kappa_index = index - states_below_n(n);
-  return twojFromIndex(kappa_index);
+//! @details See \ref Angular::nk_to_index().
+inline int nkindex_to_twoj(std::uint64_t nk_index) {
+  const auto n = 1 + int(std::sqrt(nk_index));
+  const auto kappa_index = nk_index - states_below_n(n);
+  return kindex_to_twoj(kappa_index);
 }
 
 //! Returns l, given nk_index
-inline int nkindex_to_l(int index) {
-  // Better way? isqrt?
-  const auto n = 1 + int(std::sqrt(index + 0.01));
-  // int n = 1 + int_sqrt(index);
-  const auto kappa_index = index - states_below_n(n);
-  return l_k(kappaFromIndex(kappa_index));
+//! @details See \ref Angular::nk_to_index().
+inline int nkindex_to_l(std::uint64_t nk_index) {
+  const auto n = 1 + int(std::sqrt(nk_index + 0.01));
+  const auto kappa_index = nk_index - states_below_n(n);
+  return l_k(kindex_to_kappa(kappa_index));
 }
 
 //==============================================================================
