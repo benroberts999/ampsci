@@ -352,20 +352,24 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
 
   const auto neg_mc2 = -1.0 / (wf.alpha() * wf.alpha());
   auto pqn = min_n - 1;
-  auto pqn_pstrn = -min_n + 1;
+  auto pqn_pstrn = min_n - 1;
+  const auto pstrn_offset_n = int(spl_basis.size()); //??
   for (auto i = 0ul; i < e_values.rows(); i++) {
     const auto &en = e_values[i];
     const auto &pvec = e_vectors[i];
     const auto positive_energy = en > neg_mc2;
-    positive_energy ? ++pqn : --pqn_pstrn;
+    // positive_energy ? ++pqn : --pqn_pstrn;
+    positive_energy ? ++pqn : ++pqn_pstrn;
 
     if ((positive_energy && pqn > max_n) ||
-        (!positive_energy && pqn_pstrn < -max_n_positron))
+        // (!positive_energy && pqn_pstrn < -max_n_positron))
+        (!positive_energy && pqn_pstrn > max_n_positron))
       continue;
 
     auto &Fi = (positive_energy) ?
                  basis->emplace_back(pqn, kappa, wf.grid_sptr()) :
-                 basis_positron->emplace_back(pqn_pstrn, kappa, wf.grid_sptr());
+                 basis_positron->emplace_back(pqn_pstrn + pstrn_offset_n, kappa,
+                                              wf.grid_sptr());
     Fi.en() = en;
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       Fi += pvec[ib] * spl_basis[ib];
@@ -380,12 +384,12 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
       }
     }
     const auto Fnorm = Fi * Fi;
-    if (std::abs(Fnorm - 1) > 1.0e-4) {
-      std::cout << "Warning: Possible spurious state: " << Fi.shortSymbol()
+    if (std::abs(Fnorm - 1) > 1.0e-6) {
+      fmt2::warning();
+      std::cout << " - Possible spurious state: " << Fi.shortSymbol()
                 << " e=" << Fi.en() << ", Norm=" << Fnorm << " (" << Fnorm - 1.0
                 << ")\n";
     }
-    // Note: they are not even roughly normalised...I think they should be??
     Fi.normalise();
 
     // find first non-zero point
