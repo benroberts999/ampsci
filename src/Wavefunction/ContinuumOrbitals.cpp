@@ -96,7 +96,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     // solve initial, without exchange term
     DiracODE::solveContinuum(Fc, ec, vc, alpha);
     // Then, include exchange correction:
-    if (p_hf != nullptr && !p_hf->excludeExchangeQ()) {
+    if (p_hf != nullptr && !p_hf->is_localQ()) {
       IncludeExchange(Fc, Fi, force_orthog_Fi, vc);
     }
 

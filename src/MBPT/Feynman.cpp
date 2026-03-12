@@ -142,6 +142,10 @@ ComplexGMatrix Feynman::green_single(const DiracSpinor &ket,
 // new test way to form the radial exchange potential coordinate matrix using change of basis formula -- the complete basis that is used is the hydrogenic wave functions
 void Feynman::form_vx() {
 
+  const auto localQ = m_HF->is_localQ();
+  if (localQ)
+    return;
+
   m_Vx_kappa =
     std::vector<GMatrix>(std::size_t(m_max_ki + 1),
                          {m_i0, m_stride, m_subgrid_points, true, m_grid});
@@ -231,7 +235,12 @@ ComplexGMatrix Feynman::green(int kappa, std::complex<double> en,
   } else if (states == GreenStates::excited) {
     return green_excited(kappa, en);
   }
-  return m_Complex_green_method ? green_hf_v2(kappa, en) : green_hf(kappa, en);
+  return green_hf(kappa, en);
+}
+
+//==============================================================================
+ComplexGMatrix Feynman::green_v2(int kappa, std::complex<double> en) const {
+  return green_hf_v2(kappa, en);
 }
 
 //==============================================================================
@@ -256,6 +265,16 @@ ComplexGMatrix Feynman::green_hf(int kappa, std::complex<double> en,
 
   // Get G0 (Green's function, without exchange):
   const auto g0 = construct_green_g0(x0, xI, w);
+
+  // Don't include exchange if local!
+  const auto localQ = m_HF->is_localQ();
+  if (localQ) {
+    if (en.imag() == 0.0)
+      return g0.complex();
+    std::complex<double> iw{0.0, en.imag()};
+    return g0.complex() *
+           ((iw * g0.complex().dri_in_place() + 1.0).invert_in_place());
+  }
 
   // Include exchange (optionally, with hole-particle correction)
   auto Vx = get_Vx_kappa(kappa);
@@ -318,6 +337,12 @@ ComplexGMatrix Feynman::green_hf_v2(int kappa, std::complex<double> en,
   // XXX Must be checked
   const auto g0 = construct_green_g0(x0, Ix0, xI, IxI, w);
 
+  // Don't include exchange if local!
+  const auto localQ = m_HF->is_localQ();
+  if (localQ) {
+    return g0;
+  }
+
   // Include exchange (optionally, with hole-particle correction)
   auto Vx = get_Vx_kappa(kappa);
   if (Fc_hp != nullptr) {
@@ -327,6 +352,20 @@ ComplexGMatrix Feynman::green_hf_v2(int kappa, std::complex<double> en,
 
   // Include exchange using Dyson:
   return -1.0 * ((g0 * Vx.complex() - 1.0).invert_in_place() * g0);
+}
+
+//==============================================================================
+ComplexGMatrix
+Feynman::green_basis(int kappa, std::complex<double> en,
+                     const std::vector<DiracSpinor> &basis) const {
+  ComplexGMatrix Gmat(m_i0, m_stride, m_subgrid_points, true, m_grid);
+  for (const auto &n : basis) {
+    if (n.kappa() != kappa)
+      continue;
+    const auto inv_de = 1.0 / (en - std::complex<double>{n.en()});
+    Gmat.add(n, n, inv_de);
+  }
+  return Gmat;
 }
 
 //==============================================================================

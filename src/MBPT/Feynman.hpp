@@ -109,6 +109,13 @@ public:
   ComplexGMatrix green(int kappa, std::complex<double> en,
                        GreenStates states = GreenStates::both) const;
 
+  //! Sovles Complex Dirac equation
+  ComplexGMatrix green_v2(int kappa, std::complex<double> en) const;
+
+  // Uses explicit basis
+  ComplexGMatrix green_basis(int kappa, std::complex<double> en,
+                             const std::vector<DiracSpinor> &basis) const;
+
   //! Polarisation operator pi^k(w), for multipolarity k
   ComplexRMatrix polarisation_k(int k, std::complex<double> omega,
                                 bool hole_particle) const;
