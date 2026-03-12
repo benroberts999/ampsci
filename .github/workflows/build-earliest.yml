@@ -13,7 +13,7 @@ jobs:
 
     steps:
       # Step 1: Checkout repository code
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
       # Step 2: Build and run using g++-7 in Docker
       - name: "Build and run using g++-7 in Docker"

@@ -13,7 +13,7 @@ jobs:
     runs-on: macos-latest
 
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     - name: "Install dependencies (Use Homebrew)"
       # continue-on-error: true
@@ -39,7 +39,7 @@ jobs:
     - name: "Run in dev mode"
       run: |
         set -x
-        make Build=dev ampsci tests
+        make MODE=dev ampsci tests
         ./ampsci Cs [Xe] 7sp
 
     - name: "Run using standard Apple Clang (CLT), no openMP"

@@ -17,7 +17,7 @@ jobs:
 
     steps:
     # Step 1: Check out the repository code
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     # Step 2: Install dependencies
     - name: "Install dependencies"
@@ -43,10 +43,10 @@ jobs:
     # Step 4: Build the project using the matrix configuration
     - name: "Build ampsci"
       run: |
-        make clean && make CXX=${{ matrix.compiler }} Build=dev OMPLIB=${{ matrix.openmp }} ampsci tests
+        make clean && make CXX=${{ matrix.compiler }} MODE=dev OMPLIB=${{ matrix.openmp }} ampsci tests
         ./ampsci -v
         ./ampsci Cs [Xe] 7sp
-        make clean && make CXX=${{ matrix.compiler }} Build=release OMPLIB=${{ matrix.openmp }}
+        make clean && make CXX=${{ matrix.compiler }} MODE=release OMPLIB=${{ matrix.openmp }}
         ./ampsci -v
         ./ampsci Cs [Xe] 7sp
 
@@ -62,7 +62,7 @@ jobs:
 
     steps:
     # Step 1: Check out the repository code
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     # Step 2: Install dependencies using the script
     - name: "Install dependencies"

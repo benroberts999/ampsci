@@ -4,7 +4,6 @@ on:
   push:
     branches: [ "main", "dev" ]
 
-
 jobs:
   coverage:
 
@@ -12,14 +11,12 @@ jobs:
     # This will have to be updated with GitHub updates its runners
     runs-on: ubuntu-22.04
 
-
     steps:
-    - uses: actions/checkout@v4
+    - uses: actions/checkout@v5
 
     # Step 1: Install required dependencies
     # This step installs all the necessary tools, compilers, and libraries
     - name: "Install dependencies"
-      continue-on-error: true
       run: |
         set -x
         sudo apt-get update -y
@@ -28,18 +25,22 @@ jobs:
         sudo apt-get install -y liblapack-dev
         sudo apt-get install -y libblas-dev
         sudo apt-get install -y libgsl-dev
-        sudo apt-get install -y libomp-dev
         sudo apt-get install -y lcov
 
     # Step 2: Set up the environment
     # This step prepares the environment by copying necessary files and setting permissions
-    - name: setup
-      continue-on-error: true
-      run: cp ./doc/Makefile ./ && chmod +x ./src/tools/lcov.sh 
+    - name: Setup
+      run: |
+        ./configure.sh --yes
+        chmod +x ./src/tools/lcov.sh
 
     # Step 3: Build the project and generate coverage report
-    # This step compiles the project and uses LCOV to generate a coverage report
-    - name: Build ampsci & use LCOV to prepare report
+    - name: Build and Coverage (dry-run on dev)
+      if: github.ref == 'refs/heads/dev'
+      run: ./src/tools/lcov.sh --dry-run
+
+    - name: Build and Coverage (main)
+      if: github.ref == 'refs/heads/main'
       continue-on-error: true
       run: ./src/tools/lcov.sh
 
@@ -47,5 +48,12 @@ jobs:
     # This step uploads the coverage report to Codecov for visualization
     - name: Upload coverage to Codecov
       continue-on-error: true
-      if: github.event_name == 'push' && github.ref == 'refs/heads/main'
-      uses: codecov/codecov-action@v4
+      if: github.ref == 'refs/heads/main' && hashFiles('coverage.info') != ''
+      uses: codecov/codecov-action@v5
+      with:
+        files: ./coverage.info
+        disable_search: true
+        plugins: noop
+        fail_ci_if_error: true
+        verbose: true
+        token: ${{ secrets.CODECOV_TOKEN }}
