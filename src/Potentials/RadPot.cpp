@@ -190,7 +190,7 @@ std::vector<double> RadPot::Vh(int l) const {
 //==============================================================================
 RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
                        const IO::InputBlock &input, bool print,
-                       bool do_readwrite) {
+                       bool do_readwrite, const std::string &label) {
 
   input.check(
     {{"", "QED Radiative potential will be included if this block is present"},
@@ -227,7 +227,7 @@ RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
 
   return RadPot(r, Z_eff, scale_rN * rN_au, rcut,
                 {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, x_spd, print,
-                do_readwrite);
+                do_readwrite, label);
 }
 
 } // namespace QED

@@ -43,9 +43,9 @@ class Feynman {
   std::size_t m_i0, m_stride, m_subgrid_points;
 
   // maximum kappa_index appearing in the core
-  int m_max_ki_core;
+  std::size_t m_max_ki_core;
   // maximum kappa index to include for internal lines
-  int m_max_ki;
+  std::size_t m_max_ki;
   // maximum multipolarity, k
   int m_max_k;
   // Lowest n to polarise in polarisation operator
@@ -103,7 +103,7 @@ public:
   double omre() const { return m_omre; }
   double w0() const { return m_wgrid.r0(); }
   double wratio() const { return m_wgrid.r(1) / m_wgrid.r(0); }
-  int lmax() const { return Angular::lFromIndex(m_max_ki); }
+  int lmax() const { return Angular::kindex_to_l(m_max_ki); }
 
   //! Calculates Green's function for kappa, and complex energy
   ComplexGMatrix green(int kappa, std::complex<double> en,
@@ -129,7 +129,7 @@ public:
 
   //! Returns (ref to) radial exchange matrix Vx_kappa. Nb: includes dri*drj
   const GMatrix &get_Vx_kappa(int kappa) const {
-    return m_Vx_kappa.at(std::size_t(Angular::indexFromKappa(kappa)));
+    return m_Vx_kappa.at(Angular::kappa_to_kindex(kappa));
   }
 
 private:

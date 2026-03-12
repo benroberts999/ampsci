@@ -25,7 +25,7 @@ DiracSpinor::DiracSpinor(int in_n, int in_k,
     m_twoj(Angular::twoj_k(in_k)),
     m_l(Angular::l_k(in_k)),
     m_parity(Angular::parity_k(in_k)),
-    m_kappa_index(Angular::indexFromKappa(in_k)),
+    m_kappa_index(Angular::kappa_to_kindex(in_k)),
     m_nkappa_index(static_cast<Index>(Angular::nk_to_index(in_n, in_k))) {}
 
 //==============================================================================
@@ -57,7 +57,7 @@ void DiracSpinor::set_new_kappa(int new_kappa) {
   m_twoj = Angular::twoj_k(new_kappa);
   m_l = Angular::l_k(new_kappa);
   m_parity = Angular::parity_k(new_kappa);
-  m_kappa_index = Angular::indexFromKappa(new_kappa);
+  m_kappa_index = Angular::kappa_to_kindex(new_kappa);
   m_nkappa_index = static_cast<Index>(Angular::nk_to_index(m_n, new_kappa));
 }
 
@@ -291,7 +291,7 @@ int DiracSpinor::max_n(const std::vector<DiracSpinor> &orbs, int kappa) {
 }
 
 // static
-int DiracSpinor::max_kindex(const std::vector<DiracSpinor> &orbs) {
+std::size_t DiracSpinor::max_kindex(const std::vector<DiracSpinor> &orbs) {
   return orbs.empty() ?
            0 :
            std::max_element(cbegin(orbs), cend(orbs), comp_ki)->k_index();

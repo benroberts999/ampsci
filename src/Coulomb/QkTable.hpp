@@ -13,9 +13,13 @@ namespace Coulomb {
 enum class Symmetry { Qk, Wk, Lk, none };
 //! Data type used to store integrals
 using Real = double;
-//! index type for set of 4 orbitals {nk,nk,nk,nk} -> nk4Index
+
+//! index type for set of 4 orbitals {nk,nk,nk,nk} -> nk4Index [max n: 256]
+//! @details @warning Requires 0<n<256, see \ref Angular::nk_to_index
 using nk4Index = uint64_t;
-//! index type for each {nk} (orbital)
+
+//! index type for each {nk} (orbital) [max n: 256]
+//! @details @warning Requires 0<n<256, see \ref Angular::nk_to_index
 using nkIndex = uint16_t;
 
 static_assert(sizeof(nkIndex) == sizeof(DiracSpinor::Index));
@@ -52,6 +56,9 @@ question.
  {abcd} = badc = cdab = dcba
  Lk symmetry:
  {abcd} = badc
+
+ @warning 
+ Requires 0<n<256, see \ref Angular::nk_to_index
 */
 template <Symmetry S>
 class CoulombTable {

@@ -75,7 +75,7 @@ private:
   int m_twoj;
   int m_l;
   int m_parity;
-  int m_kappa_index;
+  std::size_t m_kappa_index;
   Index m_nkappa_index;
 
   // flag for regular electron, or "exotic"
@@ -96,7 +96,7 @@ public:
   //! (-1)^l, returns +/- 1
   int parity() const { return m_parity; }
   //! kappa index (see AtomData)
-  int k_index() const { return m_kappa_index; }
+  std::size_t k_index() const { return m_kappa_index; }
   //! (n,kappa) index (see AtomData)
   Index nk_index() const { return m_nkappa_index; }
   //! Single-electron term symbol (e.g., 6s_1/2). Gnuplot=true => 6s_{1/2}
@@ -284,7 +284,7 @@ public:
   //! Returns maximum n found in {orbs}, for given kappa
   static int max_n(const std::vector<DiracSpinor> &orbs, int kappa);
   //! Returns maximum kappa_index found in {orbs}
-  static int max_kindex(const std::vector<DiracSpinor> &orbs);
+  static std::size_t max_kindex(const std::vector<DiracSpinor> &orbs);
 
   //! Returns maximum Energy found in {orbs}
   static double max_En(const std::vector<DiracSpinor> &orbs);

@@ -291,12 +291,10 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
         std::min_element(cbegin(tkr), cend(tkr), qip::less_abs{});
 
       const auto blabel =
-        label + " TKR(b) l=" + std::to_string(int(best - begin(tkr)));
+        label + " TKR(b) l=" + std::to_string(std::size_t(best - begin(tkr)));
       const auto wlabel =
-        label + " TKR(w) l=" + std::to_string(int(worst - begin(tkr)));
+        label + " TKR(w) l=" + std::to_string(std::size_t(worst - begin(tkr)));
 
-      // pass &= qip::check_value(&obuff, blabel, *best, 0.0, 4.0e-8);
-      // pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 1.0e-7);
       REQUIRE(std::abs(*best) < 4.0e-8);
       REQUIRE(std::abs(*worst) < 1.0e-7);
     }
@@ -309,15 +307,13 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
         std::max_element(cbegin(dg), cend(dg), qip::less_abs{});
       const auto best = std::min_element(cbegin(dg), cend(dg), qip::less_abs{});
 
-      const auto kib = Angular::kappaFromIndex(int(best - begin(dg)));
-      const auto kiw = Angular::kappaFromIndex(int(worst - begin(dg)));
+      const auto kib = Angular::kindex_to_kappa(std::size_t(best - begin(dg)));
+      const auto kiw = Angular::kindex_to_kappa(std::size_t(worst - begin(dg)));
       const auto blabel =
         label + " DG" + std::to_string(nDG) + "(b) k=" + std::to_string(kib);
       const auto wlabel =
         label + " DG" + std::to_string(nDG) + "(w) k=" + std::to_string(kiw);
 
-      // pass &= qip::check_value(&obuff, blabel, *best, 0.0, 1.0e-9);
-      // pass &= qip::check_value(&obuff, wlabel, *worst, 0.0, 1.0e-7);
       REQUIRE(std::abs(*best) < 1.0e-9);
       REQUIRE(std::abs(*worst) < 1.0e-7);
     }
@@ -352,8 +348,8 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
         std::max_element(cbegin(dg), cend(dg), qip::less_abs{});
       const auto best = std::min_element(cbegin(dg), cend(dg), qip::less_abs{});
 
-      const auto kib = Angular::kappaFromIndex(int(best - begin(dg)));
-      const auto kiw = Angular::kappaFromIndex(int(worst - begin(dg)));
+      const auto kib = Angular::kindex_to_kappa(std::size_t(best - begin(dg)));
+      const auto kiw = Angular::kindex_to_kappa(std::size_t(worst - begin(dg)));
       const auto blabel =
         label + " DG" + std::to_string(nDG) + "(b) k=" + std::to_string(kib);
       const auto wlabel =

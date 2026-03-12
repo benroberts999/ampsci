@@ -247,7 +247,7 @@ void Wavefunction::radiativePotential(const IO::InputBlock &qed_input,
     std::sqrt(5.0 / 3.0) * m_nucleus.r_rms() / PhysConst::aB_fm;
 
   auto qed = QED::ConstructRadPot(rgrid->r(), Znuc(), r_N_au, qed_input, print,
-                                  do_readwrite);
+                                  do_readwrite, this->run_label());
 
   // If HF already exists, update it to include new qed!
   if (m_HF) {
@@ -564,7 +564,7 @@ void Wavefunction::formSigma(
   } else if (!ek /*&& m_Sigma->empty()*/) {
     // calculate sigma for lowest n valence state of each kappa:
     const auto max_ki = DiracSpinor::max_kindex(m_valence);
-    for (int ki = 0; ki <= max_ki; ++ki) {
+    for (auto ki = 0ul; ki <= max_ki; ++ki) {
       auto Fv = std::find_if(cbegin(m_valence), cend(m_valence),
                              [ki](auto f) { return f.k_index() == ki; });
       if (Fv != cend(m_valence))

@@ -3,6 +3,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "catch2/catch.hpp"
+#include "fmt/format.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
@@ -53,7 +54,7 @@ double speedup_6jt(const Angular::SixJTable &sjt,
 TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
 
   // list in form: {kappa_index, kappa, l, 2j}
-  const std::vector<std::tuple<int, int, int, int>> test_data{
+  const std::vector<std::tuple<std::size_t, int, int, int>> test_data{
     {0, -1, 0, 1},   {1, 1, 1, 1},   {2, -2, 1, 3},   {3, 2, 2, 3},
     {4, -3, 2, 5},   {5, 3, 3, 5},   {6, -4, 3, 7},   {7, 4, 4, 7},
     {8, -5, 4, 9},   {9, 5, 5, 9},   {10, -6, 5, 11}, {11, 6, 6, 11},
@@ -74,10 +75,10 @@ TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
     REQUIRE(!Angular::zeroQ(1.0e-9));
     REQUIRE(!Angular::zeroQ(-1.0e-9));
 
-    REQUIRE(Angular::indexFromKappa(k) == ki);
-    REQUIRE(Angular::kappaFromIndex(ki) == k);
-    REQUIRE(Angular::twojFromIndex(ki) == tj);
-    REQUIRE(Angular::lFromIndex(ki) == l);
+    REQUIRE(Angular::kappa_to_kindex(k) == ki);
+    REQUIRE(Angular::kindex_to_kappa(ki) == k);
+    REQUIRE(Angular::kindex_to_twoj(ki) == tj);
+    REQUIRE(Angular::kindex_to_l(ki) == l);
   }
 
   //===========================================
@@ -87,7 +88,7 @@ TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
   REQUIRE(Angular::states_below_n(4) == 9);
   REQUIRE(Angular::states_below_n(5) == 16);
 
-  int index = 0;
+  auto index = 0ul;
   for (int n = 1; n < 15; ++n) {
     for (int l = 0; l < n; ++l) {
       const int k1 = l;
@@ -316,16 +317,16 @@ double UnitTest::ck_compare_direct(const Angular::CkTable &Ck,
   const auto max2j = Ck.max_tj();
   double max = 0.0;
 
-  for (int kia = 0;; ++kia) {
-    const auto tja = Angular::twojFromIndex(kia);
+  for (auto kia = 0ul;; ++kia) {
+    const auto tja = Angular::kindex_to_twoj(kia);
     if (tja > max2j)
       break;
-    const auto ka = Angular::kappaFromIndex(kia);
-    for (int kib = 0;; ++kib) {
-      const auto tjb = Angular::twojFromIndex(kib);
+    const auto ka = Angular::kindex_to_kappa(kia);
+    for (auto kib = 0ul;; ++kib) {
+      const auto tjb = Angular::kindex_to_twoj(kib);
       if (tjb > max2j)
         break;
-      const auto kb = Angular::kappaFromIndex(kib);
+      const auto kb = Angular::kindex_to_kappa(kib);
 
       // loop through all k multipolarities:
       for (int k = 0; k <= max2j; ++k) {
@@ -548,4 +549,51 @@ double UnitTest::speedup_6jt(const Angular::SixJTable &sjt,
             << "\n";
   std::cout << t2 / t1 << "x speedup\n";
   return t2 / t1;
+}
+
+TEST_CASE("Angular: Ben", "[ben]") {
+
+  std::cout << std::numeric_limits<int>::max() << "\n";
+
+  const auto max_int = std::numeric_limits<int>::max();
+  const auto max_uint16 = std::numeric_limits<uint16_t>::max();
+
+  bool a{false}, b{false};
+
+  const auto lmax = 20; // practical limit
+
+  int max_n_int{0};
+  uint16_t max_n_uint16{0};
+
+  for (int n = 1; n < std::numeric_limits<int>::max(); ++n) {
+    for (int l = 0; l < std::min(n, lmax); ++l) {
+      for (int tj : {2 * l - 1, 2 * l + 1}) {
+        if (tj < 0)
+          continue;
+        const auto kappa = Angular::kappa_twojl(tj, l);
+        const auto index = Angular::nk_to_index(n, kappa);
+
+        if (!a && index >= max_int) {
+          fmt::print("max n/k int:    {:4} {:4} {:4}\n", n, kappa, index);
+          max_n_int = n;
+          a = true;
+        }
+
+        if (!b && index >= max_uint16) {
+          fmt::print("max n/k uint16: {:4} {:4} {:4}\n", n, kappa, index);
+          max_n_uint16 = uint16_t(n);
+          b = true;
+        }
+
+        if (a && b)
+          break;
+      }
+      if (a && b)
+        break;
+    }
+    if (a && b)
+      break;
+  }
+  REQUIRE(max_n_int > 46341);
+  REQUIRE(max_n_uint16 > 256);
 }

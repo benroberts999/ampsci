@@ -26,9 +26,9 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
     m_i0(i0),
     m_stride(stride),
     m_subgrid_points(size),
-    m_max_ki_core(2 * DiracSpinor::max_l(m_HF->core())),
-    m_max_ki(std::max(2 * options.max_l_internal, m_max_ki_core)),
-    m_max_k(std::max(m_max_ki_core + 1, m_max_ki + 1)),
+    m_max_ki_core(std::size_t(2 * DiracSpinor::max_l(m_HF->core()))),
+    m_max_ki(std::max(std::size_t(2 * options.max_l_internal), m_max_ki_core)),
+    m_max_k(int(std::max(m_max_ki_core + 1, m_max_ki + 1))),
     m_min_core_n(n_min_core),
     m_include_G(include_G),
     m_omre(options.omre),
@@ -41,7 +41,7 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
 
   if (verbose) {
     std::cout << "\nFeynman diagrams:\n";
-    fmt::print("lmax = {} (internal lines)\n", Angular::lFromIndex(m_max_ki));
+    fmt::print("lmax = {} (internal lines)\n", Angular::kindex_to_l(m_max_ki));
     fmt::print("Including n ≥ {} in polarisation loops\n", m_min_core_n);
     if (m_screen_Coulomb) {
       std::cout << "Including all-orders Coulomb screening\n";
@@ -146,9 +146,8 @@ void Feynman::form_vx() {
   if (localQ)
     return;
 
-  m_Vx_kappa =
-    std::vector<GMatrix>(std::size_t(m_max_ki + 1),
-                         {m_i0, m_stride, m_subgrid_points, true, m_grid});
+  m_Vx_kappa = std::vector<GMatrix>(
+    m_max_ki + 1, {m_i0, m_stride, m_subgrid_points, true, m_grid});
 
   // Use basic H-like basis to express matrices in coordinate/orbital space
   // initialises the hydrogen wave function object
@@ -160,7 +159,7 @@ void Feynman::form_vx() {
   const auto rmax = std::min(90.0, 0.9 * m_grid->rmax());
   const int max_n = 90;
   const auto max_l =
-    std::max(Angular::lFromIndex(m_max_ki), DiracSpinor::max_l(m_HF->core()));
+    std::max(Angular::kindex_to_l(m_max_ki), DiracSpinor::max_l(m_HF->core()));
   const auto l_string =
     AtomData::spectroscopic_notation.substr(0, std::size_t(max_l));
   const auto basis_string = std::to_string(max_n) + l_string;
@@ -178,7 +177,7 @@ void Feynman::form_vx() {
       VxFn += m_HF->VBr(Fn);
     }
 
-    m_Vx_kappa[std::size_t(Fn.k_index())].add(VxFn, Fn, 1.0);
+    m_Vx_kappa[Fn.k_index()].add(VxFn, Fn, 1.0);
   }
 
   // includes both integration measures
@@ -200,7 +199,7 @@ void Feynman::form_vx() {
 
 //   for (int kapi = 0; kapi <= m_max_ki; ++kapi) {
 
-//     const auto kappa = Angular::kappaFromIndex(kapi);
+//     const auto kappa = Angular::kindex_to_kappa(kapi);
 //     const auto twojp1 = Angular::twoj_k(kappa) + 1;
 
 //     for (int k = 0; k <= m_max_k; ++k) {
@@ -595,8 +594,8 @@ ComplexRMatrix Feynman::polarisation_k(int k, std::complex<double> omega,
     // not m_hole_particle, as need both for "screen only"
     const auto *Fa_hp = hole_particle ? &Fa : nullptr;
 
-    for (int in = 0; in <= m_max_ki; ++in) {
-      const auto kn = Angular::kappaFromIndex(in);
+    for (auto in = 0ul; in <= m_max_ki; ++in) {
+      const auto kn = Angular::kindex_to_kappa(in);
       const auto ck_an = Angular::Ck_kk(k, Fa.kappa(), kn);
       if (ck_an == 0.0)
         continue;
@@ -687,8 +686,8 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) {
     return false;
 
   // Other parameters that make a difference
-  int t_max_ki{m_max_ki}, t_min_core_n{m_min_core_n},
-    t_max_ki_core{m_max_ki_core};
+  std::size_t t_max_ki{m_max_ki}, t_max_ki_core{m_max_ki_core};
+  int t_min_core_n{m_min_core_n};
   rw_binary(iofs, rw, t_max_ki, t_min_core_n, t_max_ki_core);
   if (t_max_ki != m_max_ki || t_min_core_n != m_min_core_n ||
       t_max_ki_core != m_max_ki_core)
@@ -818,7 +817,7 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
   GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
 
   constexpr std::complex<double> I{0.0, 1.0};
-  const auto num_kappas = std::size_t(m_max_ki + 1);
+  const auto num_kappas = m_max_ki + 1;
 
 // Tell OpenMP how to reduce GMatrix
 #pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
@@ -836,7 +835,7 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
       // I, since dw is on imag. grid; 2 from symmetric +/- w
       const auto dw = I * weight * m_wgrid.drdu(iw);
 
-      const auto kB = Angular::kappaFromIndex(int(iB));
+      const auto kB = Angular::kindex_to_kappa(iB);
 
       // Silly, but ig gB includes G, then so will gB_QPQ
       const auto gB =

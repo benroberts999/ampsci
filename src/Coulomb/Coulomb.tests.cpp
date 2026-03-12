@@ -567,8 +567,8 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
     // Contruct a vector of DiracSpinors, with just single spinor of each
     // kappa:
     std::vector<DiracSpinor> torbs;
-    for (int kappa_index = 0;; ++kappa_index) {
-      auto k = Angular::kappaFromIndex(kappa_index);
+    for (auto kappa_index = 0ul;; ++kappa_index) {
+      auto k = Angular::kindex_to_kappa(kappa_index);
       auto phi = std::find_if(cbegin(wf.basis()), cend(wf.basis()),
                               [k](auto x) { return x.kappa() == k; });
       if (phi == cend(wf.basis()))

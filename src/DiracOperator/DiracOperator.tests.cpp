@@ -14,8 +14,8 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                   "deleteme_" + qip::random_string(4));
 
   auto &orbs = wf.valence();
-  for (int ik = 0; ik <= Angular::indexFromKappa(2); ik++) {
-    int kappa = Angular::kappaFromIndex(ik);
+  for (auto ik = 0ul; ik <= Angular::kappa_to_kindex(2); ik++) {
+    int kappa = Angular::kindex_to_kappa(ik);
     int n = Angular::l_k(kappa) + 1;
     orbs.push_back(DiracSpinor::exactHlike(n, kappa, wf.grid_sptr(), 1.0));
   }

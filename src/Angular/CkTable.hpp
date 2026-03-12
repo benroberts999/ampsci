@@ -9,11 +9,11 @@ namespace Angular {
 //==============================================================================
 // "Helper" functions
 //! Converts jindex to 2*j [helper function]
-constexpr int twoj(int jindex) { return 2 * jindex + 1; }
+constexpr int jindex_to_twoj(int jindex) { return 2 * jindex + 1; }
 //! Converts 2*j to jindex {1/2, 3/2, 5/2} -> {0, 1, 2} [helper function]
-constexpr int jindex(int twoj) { return (twoj - 1) / 2; }
+constexpr int twoj_to_jindex(int twoj) { return (twoj - 1) / 2; }
 //! Converts kappa to jindex {-1, 1, -2} -> {0, 0, 1} [helper function]
-constexpr int jindex_kappa(int ka) { return (ka > 0) ? ka - 1 : -ka - 1; }
+constexpr int kappa_to_jindex(int ka) { return (ka > 0) ? ka - 1 : -ka - 1; }
 
 //==============================================================================
 /*!
@@ -75,7 +75,7 @@ public:
   double get_Lambdakab(int k, int ka, int kb) const;
 
   //! Maximum value for 2j currently stored in tables
-  int max_tj() const { return twoj(m_max_jindex_sofar); }
+  int max_tj() const { return jindex_to_twoj(m_max_jindex_sofar); }
   //! Maximum value for k currently stored in tables
   int max_k() const { return m_max_k_sofar; }
 
