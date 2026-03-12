@@ -994,32 +994,24 @@ ComplexGMatrix Feynman::perturbed_greens(ComplexGMatrix gA,
                                          ComplexGMatrix gB) const {
 
   ComplexGMatrix dG(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
-
-  std::size_t smax = 2;
-
-  if (!m_include_G) {
-    smax = 1;
-  }
-
-  // std::cout << __LINE__ << ":" << __FILE__ << std::endl;
-
-  for (auto i = 0ul; i < m_subgrid_points; ++i) {
-    for (auto j = 0ul; j < m_subgrid_points; ++j) {
-      for (auto k = 0ul; k < m_subgrid_points; ++k) {
+  std::size_t smax = m_include_G ? 2 : 1;
+  for (auto k = 0ul; k < m_subgrid_points; ++k) {
+    const auto rk_dr = gA.r(k) * gA.dr(k);
+    for (auto i = 0ul; i < m_subgrid_points; ++i) {
+      for (auto j = 0ul; j < m_subgrid_points; ++j) {
         for (auto a = 0ul; a < smax; a++) {
           for (auto b = 0ul; b < smax; b++) {
             for (auto c = 0ul; c < smax; c++) {
               // get r(k)
               // const auto irk = gA.index_to_fullgrid(k);
-              const auto rk = gA.r(k);
-              dG.sp(a, b)(i, j) += gA.sp(a, c)(i, k) * rk * gB.sp(c, b)(k, j);
+              dG.sp(a, b)(i, j) +=
+                gA.sp(a, c)(i, k) * rk_dr * gB.sp(c, b)(k, j);
             }
           }
         }
       }
     }
   }
-  // std::cout << __LINE__ << std::endl;
   return dG;
 }
 
@@ -1047,8 +1039,9 @@ double L_ang_dSR(int kw, int kv, int kB, int kA, int k) {
 
 GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
                                  double Omega) const {
+  // Coded for dipole operator,
+  // kappa_v, en, kappa_w, Omega-> external field
   //<v|Sigma(env)|w > = <v|gA pi gB| w >
-  // Coded for dipole operator, Omega-> external field
 
   GMatrix Sigma(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
 
@@ -1065,17 +1058,17 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
       const auto kB = Angular::kappaFromIndex(int(iB));
       for (auto iA = 0ul; iA < num_kappas; ++iA) {
         const auto kA = Angular::kappaFromIndex(int(iA));
-
+        // for (auto s : {-1.0, 1.0}) {
         const auto omega = std::complex{m_omre, m_wgrid(iw)};
+
         // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
         const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
         // I, since dw is on imag. grid; 2 from symmetric +/- w
         const auto dw = I * weight * m_wgrid.drdu(iw);
-
-        const auto gB = m_include_G ? green(kB, env + omega) :
-                                      green(kB, env + omega).drop_g();
         const auto gA = m_include_G ? green(kA, env + omega + Omega) :
                                       green(kA, env + omega + Omega).drop_g();
+        const auto gB = m_include_G ? green(kB, env + omega) :
+                                      green(kB, env + omega).drop_g();
 
         const auto dG_AB = perturbed_greens(gA, gB);
 
@@ -1085,7 +1078,8 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
           // if (in_k && *in_k != int(k))
           // continue;
 
-          const auto h_AB = Angular::Ck_kk(int(1), kA, kB);
+          // - 1 for dipole constant factor
+          const auto h_AB = -1 * Angular::Ck_kk(int(1), kA, kB);
           if (h_AB == 0.0)
             continue;
 
@@ -1097,12 +1091,6 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
 
           const auto &qpq_dw = m_qpiq_wk[iw][k];
 
-          // //! 6j symbol {j1 j2 j3 \\ j4 j5 j6} - [takes 2*j as int]
-          // inline double sixj_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
-          //                      int two_j6)
-          // const auto K = 1; //rank of operator
-          // conversions
-
           const auto LAng = L_ang_dSR(kv, kw, kB, kA, int(k));
 
           if (LAng == 0.0)
@@ -1112,12 +1100,13 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw,
                                 ck_vA; // / double(Angular::twoj_k(kv) + 1);
 
           Sigma += (c_ang_dw * mult_elements(dG_AB, qpq_dw)).real();
+          // }
         }
       }
     }
   }
   // Extra 2 from symmetric +/-w
-  Sigma *= (m_wgrid.du() / M_PI);
+  Sigma *= (m_wgrid.du() / (M_PI));
 
   return Sigma;
 }
