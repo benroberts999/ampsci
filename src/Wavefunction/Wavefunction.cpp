@@ -696,7 +696,7 @@ double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
   auto H0 = H0ab(Fa, Fb);
 
-  const auto excl_exch = vHF() ? vHF()->excludeExchangeQ() : true;
+  const auto excl_exch = vHF() ? vHF()->is_localQ() : true;
   const auto sigmaQ = Sigma() != nullptr;
   const auto VBr = vHF() ? vHF()->vBreit() : nullptr;
 

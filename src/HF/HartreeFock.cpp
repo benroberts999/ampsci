@@ -521,7 +521,7 @@ EpsIts HartreeFock::local_valence(DiracSpinor &Fa) const {
     DiracODE::boundState(Fa, Fa.en(), vl, Hmagl, m_alpha, 1.0e-15);
   }
 
-  if (excludeExchangeQ()) {
+  if (is_localQ()) {
     return {0.0, 0, Fa.shortSymbol()};
   }
 
@@ -897,7 +897,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
   vex_a.resize(m_rgrid->num_points());
 
   // don't subtract self-potential term for Hartree {match Core-Hartree}
-  if (excludeExchangeQ())
+  if (is_localQ())
     return;
 
   const auto twoj_a = Fa.twoj();
@@ -909,7 +909,7 @@ void HartreeFock::form_approx_vex_core_a(const DiracSpinor &Fa,
     std::abs(*std::max_element(Fa.f().begin(), Fa.f().end(), max_abs));
   const auto cut_off = 0.003 * max;
 
-  if (!excludeExchangeQ()) {
+  if (!is_localQ()) {
     for (const auto &Fb : m_core) {
       // b!=a
       if (Fb == Fa)
@@ -1042,7 +1042,7 @@ void HartreeFock::vex_Fa_core(const DiracSpinor &Fa, DiracSpinor &VxFa) const
   VxFa.g() *= 0.0;
   VxFa.max_pt() = 0; // updated below
 
-  if (excludeExchangeQ())
+  if (is_localQ())
     return;
 
   for (const auto &Fb : m_core) {

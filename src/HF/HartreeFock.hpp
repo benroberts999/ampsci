@@ -182,7 +182,7 @@ public:
   double zion() const;
 
   //! Returns true if exchange not included
-  bool excludeExchangeQ() const {
+  bool is_localQ() const {
     return m_core.empty() ||
            !(m_method == Method::HartreeFock || m_method == Method::ApproxHF);
   }

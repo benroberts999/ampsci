@@ -275,7 +275,7 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   auto &Aij = A_and_S.first;
   auto &Sij = A_and_S.second;
 
-  const auto excl_exch = wf.vHF() ? wf.vHF()->excludeExchangeQ() : true;
+  const auto excl_exch = wf.vHF() ? wf.vHF()->is_localQ() : true;
   const auto sigmaQ = wf.Sigma() != nullptr && correlationsQ;
   const auto VBr = wf.vHF() ? wf.vHF()->vBreit() : nullptr;
 
