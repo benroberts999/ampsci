@@ -20,7 +20,7 @@ namespace MBPT {
 Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
                  std::size_t size, const FeynmanOptions &options,
                  int n_min_core, bool include_G, bool verbose,
-                 const std::string &ident)
+                 const std::string &ident, bool construct_qpq)
   : m_HF(vHF),
     m_grid(vHF->grid_sptr()),
     m_i0(i0),
@@ -62,24 +62,8 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
   form_pa();
   form_vx();
 
-  // Construct polarisation operator
-  std::string prefix = ident.substr(0, ident.find('.'));
-
-  if (prefix == "" || prefix == "false") {
-    // Don't try to read
-    form_qpiq();
-  } else {
-    std::string qpqname = prefix + ".qpq" + (m_hole_particle ? "h" : "") +
-                          (m_screen_Coulomb ? "s" : "") +
-                          (m_HF->vBreit() == nullptr ? "" : "b") +
-                          std::to_string(m_min_core_n) + ".abf";
-    const auto readOK = readwrite_qpiq(IO::FRW::read, qpqname);
-    if (!readOK) {
-      form_qpiq();
-      const auto readOK2 = readwrite_qpiq(IO::FRW::write, qpqname);
-      assert(readOK2);
-    }
-  }
+  if (construct_qpq)
+    construct_qpiq(ident);
 }
 
 //==============================================================================
@@ -762,6 +746,28 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) {
   const auto rw_str = !readQ ? "Written QPQ to " : "Read QPQ from ";
   std::cout << rw_str << "file: " << fname << "\n";
   return true;
+}
+
+//==============================================================================
+void Feynman::construct_qpiq(const std::string &identity) {
+  // Construct polarisation operator
+  std::string prefix = identity.substr(0, identity.find('.'));
+
+  if (prefix == "" || prefix == "false") {
+    // Don't try to read
+    form_qpiq();
+  } else {
+    std::string qpqname = prefix + ".qpq" + (m_hole_particle ? "h" : "") +
+                          (m_screen_Coulomb ? "s" : "") +
+                          (m_HF->vBreit() == nullptr ? "" : "b") +
+                          std::to_string(m_min_core_n) + ".abf";
+    const auto readOK = readwrite_qpiq(IO::FRW::read, qpqname);
+    if (!readOK) {
+      form_qpiq();
+      const auto readOK2 = readwrite_qpiq(IO::FRW::write, qpqname);
+      assert(readOK2);
+    }
+  }
 }
 
 //==============================================================================

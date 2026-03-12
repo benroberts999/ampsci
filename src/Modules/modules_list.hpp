@@ -3,6 +3,7 @@
 // (Modules don't _need_ to be in Modules/ directory
 #include "Kionisation/Module_Kionisation.hpp"
 #include "Modules/Breit.hpp"
+#include "Modules/GreenQED.hpp"
 #include "Modules/HFAnomaly.hpp"
 #include "Modules/basic.hpp"
 #include "Modules/exampleModule.hpp"
@@ -90,6 +91,7 @@ static const std::vector<ModuleInfo> module_list{
   {"muon", &muon,
    "Calculating muonic wavefunctions, energies, matrix elements - somewhat "
    "obsolete after introduction of Exotic{} into ampsci main"},
+  {"GreenQED", &GreenQED, "For testing Feynman Green's function"},
   {"exampleModule", &exampleModule, "A short description of the module"}};
 
 } // namespace Module

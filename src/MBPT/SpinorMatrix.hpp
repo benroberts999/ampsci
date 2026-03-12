@@ -462,39 +462,100 @@ public:
   }
 
   //============================================================================
-  //! Action of SpinorMatrix operator on DiracSpinor. Inludes Integration:
-  //! G*F = Int[G(r,r')*F(r') dr'] = sum_j G_ij*F_j*drdu_j*du
-  DiracSpinor operator*(const DiracSpinor &Fn) const {
+  //! Action of (radial) SpinorMatrix operator on DiracSpinor. Does not include dr
+  /*! @details
+    - Assumes that the SpinorMatrix already includes the integration measure
+    - If real matrix, returns a (radial) spinor
+    - If complex matrix, returns pair: G*F = {re(GF), im(GF)}
+
+  */
+  auto operator*(const DiracSpinor &Fn) const {
+
+    static_assert(std::is_same_v<T, double> ||
+                    std::is_same_v<T, std::complex<double>>,
+                  "SpinorMatrix<T>: unsupported T");
+
+    if constexpr (std::is_same_v<T, double>) {
+      return act_real(Fn);
+    } else if constexpr (std::is_same_v<T, std::complex<double>>) {
+      return act_complex(Fn);
+    }
+  }
+
+  //============================================================================
+  DiracSpinor act_real(const DiracSpinor &Fn) const {
 
     const auto &r = Fn.grid().r();
-    // const auto &drdu = Fn.grid().drdu();
-    // const double s_du = double(m_stride) * Fn.grid().du();
+    DiracSpinor out = DiracSpinor(0, Fn.kappa(), Fn.grid_sptr());
 
-    // include dr?? No, not by default?
     std::vector<double> f(m_size), g;
     for (auto i = 0ul; i < m_size; ++i) {
       for (auto j = 0ul; j < m_size; ++j) {
         const auto j_f = index_to_fullgrid(j);
-        f[i] += m_ff(i, j) * Fn.f(j_f); // * drdu[j_f] * s_du;
+        f[i] += m_ff(i, j) * Fn.f(j_f);
       }
     }
+
     if (m_incl_g) {
       g.resize(m_size);
       for (auto i = 0ul; i < m_size; ++i) {
         for (auto j = 0ul; j < m_size; ++j) {
           const auto j_f = index_to_fullgrid(j);
-          f[i] += m_fg(i, j) * Fn.g(j_f); // * drdu[j_f] * s_du;
-          g[i] += (m_gf(i, j) * Fn.f(j_f) + m_gg(i, j) * Fn.g(j_f)); // *
-          // drdu[j_f] * s_du;
+          f[i] += m_fg(i, j) * Fn.g(j_f);
+          g[i] += (m_gf(i, j) * Fn.f(j_f) + m_gg(i, j) * Fn.g(j_f));
         }
       }
     }
 
-    DiracSpinor out = Fn * 0.0;
     // Interpolate from sub-grid to full grid
     out.f() = Interpolator::interpolate(sub_r, f, r);
     if (m_incl_g) {
       out.g() = Interpolator::interpolate(sub_r, g, r);
+    }
+    return out;
+  }
+
+  //============================================================================
+  std::pair<DiracSpinor, DiracSpinor> act_complex(const DiracSpinor &Fn) const {
+
+    std::pair<DiracSpinor, DiracSpinor> out{
+      DiracSpinor(0, Fn.kappa(), Fn.grid_sptr()),
+      DiracSpinor(0, Fn.kappa(), Fn.grid_sptr())};
+    auto &[re_out, im_out] = out;
+
+    std::vector<double> fr(m_size), fi(m_size), gr, gi;
+    for (auto i = 0ul; i < m_size; ++i) {
+      for (auto j = 0ul; j < m_size; ++j) {
+        const auto j_f = index_to_fullgrid(j);
+        fr[i] += m_ff(i, j).real() * Fn.f(j_f);
+        fi[i] += m_ff(i, j).imag() * Fn.f(j_f);
+      }
+    }
+
+    if (m_incl_g) {
+      gr.resize(m_size);
+      gi.resize(m_size);
+      for (auto i = 0ul; i < m_size; ++i) {
+        for (auto j = 0ul; j < m_size; ++j) {
+          const auto j_f = index_to_fullgrid(j);
+          fr[i] += m_fg(i, j).real() * Fn.g(j_f);
+          gr[i] +=
+            (m_gf(i, j).real() * Fn.f(j_f) + m_gg(i, j).real() * Fn.g(j_f));
+
+          fi[i] += m_fg(i, j).imag() * Fn.g(j_f);
+          gi[i] +=
+            (m_gf(i, j).imag() * Fn.f(j_f) + m_gg(i, j).imag() * Fn.g(j_f));
+        }
+      }
+    }
+
+    // Interpolate from sub-grid to full grid
+    const auto &r = Fn.grid().r();
+    re_out.f() = Interpolator::interpolate(sub_r, fr, r);
+    im_out.f() = Interpolator::interpolate(sub_r, fi, r);
+    if (m_incl_g) {
+      re_out.g() = Interpolator::interpolate(sub_r, gr, r);
+      im_out.g() = Interpolator::interpolate(sub_r, gi, r);
     }
     return out;
   }

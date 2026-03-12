@@ -91,7 +91,8 @@ public:
   //! ** Currently have issue: polarising deep n leads to failure?
   Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
           std::size_t size, const FeynmanOptions &options, int n_min_core,
-          bool include_G, bool verbose = true, const std::string &ident = "");
+          bool include_G, bool verbose = true, const std::string &ident = "",
+          bool construct_qpq = true);
 
   bool screening() const { return m_screen_Coulomb; }
   bool hole_particle() const { return m_hole_particle; }
@@ -131,6 +132,9 @@ public:
   const GMatrix &get_Vx_kappa(int kappa) const {
     return m_Vx_kappa.at(std::size_t(Angular::indexFromKappa(kappa)));
   }
+
+  //! Reads qpq from disk if available, or forms it
+  void construct_qpiq(const std::string &identity);
 
 private:
   // forms Qk matrices, as well as dri, drj
