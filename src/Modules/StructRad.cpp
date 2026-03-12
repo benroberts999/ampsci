@@ -24,7 +24,7 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   const auto hE1 = DiracOperator::E1(wf.grid());
   auto r0 = input.get("r0", 1e-3);
-  auto rmax = input.get("rmax", 30.0);
+  auto rmax = input.get("rmax", 90.0);
   const auto i0 = wf.grid().getIndex(r0);
   const auto imax = wf.grid().getIndex(rmax);
   const std::size_t stride = input.get("stride", 8);
@@ -43,7 +43,7 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
                                    includeG, true, "tempqpq1");
 
   std::cout << "Grid size: " << gsize << ", "
-            << "Stride: " << stride << "\n";
+            << "Stride: " << stride << ", Rmax: " << rmax << "\n";
   std::cout << "Coulomb Screening: " << screening << ", Include G:" << includeG
             << "\n";
   // 2) Loop through each pair of valence states, calc E1 matrix elements:
