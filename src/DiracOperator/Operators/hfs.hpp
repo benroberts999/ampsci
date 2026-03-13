@@ -68,7 +68,7 @@ RadialFunction pointlike_F();
 
 //! Volotka single-particle nuclear model: F(r,rN)
 /*! @details 
-Calculates the Bohr–Weisskopf magnetisation distribution using the `Volotka' 
+Calculates the BohrWeisskopf magnetisation distribution using the `Volotka' 
 single-particle model of Phys. Rev. Lett. 125, 063002 (2020).
 Returns a RadialFunction F(r,r_N).
 F goes to 1 as r_N->0, and F=1 for r>rN.
