@@ -391,21 +391,34 @@ std::vector<double> formPotential(const Nucleus &nuc,
   case Nuclear::ChargeDistro::custom: {
     auto [R_in, V_in] = IO::FRW::readFile_xy_PoV(nuc.custom_pot_file());
 
-    if (R_in.size() == V_in.size() && R_in.size() > 1) {
-
-      if (R_in.back() < r.back()) {
-        // Allow extrapolation to larger R, which is generally safe
-        // Do this by adding one final point
-        // V(Rmax) = V(Rin_max) * Rin_max / Rmax
-        const auto vnew = V_in.back() * R_in.back() / r.back();
-        R_in.push_back(r.back());
-        V_in.push_back(vnew);
-      }
-      return Interpolator::interpolate(R_in, V_in, r);
-    } else {
-      std::cout << "\nError 391: Bad file - invalid custom nuclear potential.";
+    if (R_in.size() != V_in.size() || R_in.size() <= 2) {
+      fmt2::fail();
+      std::cout
+        << "\nError 391: Bad file - invalid custom nuclear potential.\n";
       std::abort();
     }
+
+    // Parameters from input file:
+    const auto Rmax = R_in.back();
+    const auto Zeff = -Rmax * V_in.back();
+    std::cout << "\nZeff from input nuclear pot. file: " << Zeff << "\n";
+
+    // Find subset of r for which R is given
+    const auto it = std::upper_bound(r.begin(), r.end(), Rmax);
+    const auto i_Rmax = std::size_t(std::distance(r.begin(), it));
+    const std::vector<double> sub_r(r.begin(), it);
+    assert(sub_r.size() <= r.size());
+
+    // interpolate up to maximum R in input file:
+    auto v = Interpolator::interpolate(R_in, V_in, sub_r);
+
+    // Then assume goes like ~-Z_eff/r afterwards
+    for (std::size_t i = i_Rmax; i < r.size(); ++i) {
+      v.push_back(-Zeff / r[i]);
+    }
+    assert(v.size() == r.size());
+
+    return v;
   }
 
   default: {
