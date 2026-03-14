@@ -292,8 +292,9 @@ public:
   //! - The first group is also limited to have n >= n_min_core (i.e., exclude
   //! deep core states)
   static std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
-  split_by_energy(const std::vector<DiracSpinor> &orbitals, double energy,
-                  int n_min_core = 1);
+  split_by_energy(const std::vector<DiracSpinor> &orbitals, double Fermi_energy,
+                  int n_min_core = 1, int n_max_excited = 9999,
+                  bool positrons_are_excited = true);
 
   //! Splits orbitals into two groups (i.e., core, excited).
   //! @details

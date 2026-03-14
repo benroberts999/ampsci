@@ -447,16 +447,24 @@ DiracSpinor DiracSpinor::exactHlike(int n, int kappa,
 //==============================================================================
 std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
 DiracSpinor::split_by_energy(const std::vector<DiracSpinor> &orbitals,
-                             double energy, int n_min_core) {
+                             double Fermi_energy, int n_min_core,
+                             int n_max_excited, bool positrons_are_excited) {
+
   std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> out;
+
+  // nb: doesn't account for variation of alpha..
+  const auto neg_mc2 = positrons_are_excited ?
+                         -1.0 * PhysConst::c2 :
+                         -std::numeric_limits<double>::infinity();
+
   auto &[below, above] = out;
   for (const auto &n : orbitals) {
-    if (n.en() <= energy) {
-      if (n.n() >= n_min_core) {
+    if (n.en() <= Fermi_energy && n.en() > neg_mc2) {
+      if (n.n() >= n_min_core)
         below.push_back(n);
-      }
     } else {
-      above.push_back(n);
+      if (n.n() <= n_max_excited)
+        above.push_back(n);
     }
   }
   return out;
