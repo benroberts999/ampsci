@@ -3,6 +3,7 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "ExternalField/CorePolarisation.hpp"
 #include "ExternalField/TDHF.hpp"
+#include "ExternalField/calcMatrixElements.hpp"
 #include "Sigma2.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Vector.hpp"
@@ -22,7 +23,8 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
                            const std::vector<double> &etak)
   : m_use_Qk(!Qk_fname.empty()),
     m_root_fk(qip::apply_to(vroot, fk)),
-    m_etak(etak) {
+    m_etak(etak),
+    mBasis(basis) {
 
   // nb: en_core defined such that: Fa.en() < en_core ==> core state!
   // nb: this makes it faster..
@@ -34,12 +36,10 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
       mExcited.push_back(Fn);
     }
   }
-  auto both = mCore;
-  both.insert(both.end(), mExcited.begin(), mExcited.end());
 
   // nb: don't need mY if using QkTable.
   // However, require SixJTable!
-  mY.extend_angular(DiracSpinor::max_tj(both));
+  mY.extend_angular(DiracSpinor::max_tj(mBasis));
 
   // Only calculate Yk values if not Qk table, or in order to calculate Qk
   if (m_use_Qk) {
@@ -47,13 +47,22 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
     mQ = Coulomb::QkTable{};
     const auto ok = mQ->read(Qk_fname);
     if (!ok) {
-      mY.calculate(both);
-      mQ->fill(both, mY);
+      mY.calculate(mBasis);
+      mQ->fill(mBasis, mY);
       mQ->write(Qk_fname);
     }
   } else {
-    mY.calculate(both);
+    mY.calculate(mBasis);
   }
+}
+
+//==============================================================================
+void StructureRad::solve_core(
+  const DiracOperator::TensorOperator *const h,
+  const ExternalField::CorePolarisation *const dV = nullptr) {
+
+  // Require all: core-core, core-excited, excited-excited
+  mTab = ExternalField::me_table(mBasis, h, dV);
 }
 
 //==============================================================================
@@ -63,6 +72,8 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
                    const ExternalField::CorePolarisation *const dV) const {
   if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
+
+  assert(!mTab.empty());
 
   const auto k = h->rank();
 
@@ -87,7 +98,7 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
     const auto inv_era_pw = 1.0 / (r.en() - a.en() + omega);
     const auto inv_era_mw = 1.0 / (r.en() - a.en() - omega);
 
-    const auto t_ar = h->reducedME(a, r);
+    const auto t_ar = mTab.getv(a, r);
     const auto t_ra = h->symm_sign(a, r) * t_ar;
 
     const auto T_wrva = t1234(k, w, r, v, a);
@@ -111,6 +122,7 @@ std::pair<double, double>
 StructureRad::srC(const DiracOperator::TensorOperator *const h,
                   const DiracSpinor &w, const DiracSpinor &v,
                   const ExternalField::CorePolarisation *const dV) const {
+  assert(!mTab.empty());
   if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 
@@ -145,7 +157,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
     const auto &a = mCore[ia];
     const auto &b = mCore[ib];
 
-    const auto t_ba = h->reducedME(b, a);
+    const auto t_ba = mTab.getv(b, a);
     const auto C_wavb = c1(k, w, a, v, b) + c2(k, w, a, v, b);
 
     // nb: -ve
@@ -163,7 +175,7 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
     const auto &m = mExcited[im];
     const auto &r = mExcited[ir];
 
-    const auto t_mr = h->reducedME(m, r);
+    const auto t_mr = mTab.getv(m, r);
     const auto C_wrvm = d2(k, w, r, v, m) + d1(k, w, r, v, m);
 
     // nb: -ve
@@ -186,8 +198,8 @@ StructureRad::norm(const DiracOperator::TensorOperator *const h,
   if (h->isZero(w.kappa(), v.kappa()))
     return {0.0, 0.0};
 
-  const auto t_wv = h->reducedME(w, v);
-  const auto tdv_wv = t_wv + (dV ? dV->dV(w, v) : 0.0);
+  const auto t_wv = h->reducedME(w, v) + (dV ? dV->dV(w, v) : 0.0);
+  const auto tdv_wv = 0.0;
 
   const auto nv = n1(v) + n2(v);
   const auto nw = w == v ? nv : n1(w) + n2(w);
@@ -694,7 +706,7 @@ StructureRad::z_bo(const DiracOperator::TensorOperator *const h,
     const auto &i = *i_ptr[ii];
 
     const auto ftr = transpose ? h->symm_sign(w, i) : 1.0;
-    const auto h_wi = ftr * h->reducedME(w, i);
+    const auto h_wi = ftr * mTab.getv(w, i);
     const auto dV_wi = ftr * (dV ? dV->dV(w, i) : 0.0);
 
     const auto de_vi = v.en() - i.en();

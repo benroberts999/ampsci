@@ -70,12 +70,13 @@ public:
 
 private:
   bool m_use_Qk;
-  std::vector<double> m_root_fk; // sqrt - add to both sides!
-  std::vector<double> m_etak;
+  std::vector<double> m_root_fk{}; // sqrt - add to both sides!
+  std::vector<double> m_etak{};
   Coulomb::YkTable mY{};
   std::optional<Coulomb::QkTable> mQ{std::nullopt}; //?
   // nb: it seems conter-intuative, but this copy makes it FASTER!
-  std::vector<DiracSpinor> mCore{}, mExcited{};
+  std::vector<DiracSpinor> mCore{}, mExcited{}, mBasis{};
+  Coulomb::meTable<double> mTab{};
 
 public:
   const std::vector<DiracSpinor> &core() const { return mCore; }
@@ -84,6 +85,9 @@ public:
   //! Returns reference to Yk table. NOTE: may not be initialised!
   const Coulomb::YkTable &Yk() const { return mY; }
   const std::optional<Coulomb::QkTable> &Qk() const { return mQ; }
+
+  void solve_core(const DiracOperator::TensorOperator *const h,
+                  const ExternalField::CorePolarisation *const dV = nullptr);
 
   //! Returns sum of Top+Bottom (SR) diagrams, reduced ME: <w||T+B||v>. Returns
   //! a pair: {TB, TB+dV}: second includes RPA (if dV given)
