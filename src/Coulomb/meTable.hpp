@@ -59,6 +59,9 @@ public:
     return m_data.find(FormIndex(a, b)) != m_data.cend();
   }
 
+  //! Returns true in the meTable is empty
+  [[nodiscard]] bool empty() const { return m_data.empty(); }
+
   //! Gets pointer to const requested element. If element not present,
   //! returns nullptr
   [[nodiscard]] const T *get(const DiracSpinor &a, const DiracSpinor &b) const {
@@ -89,13 +92,13 @@ public:
   //! returns zero (or default constructed T)
   [[nodiscard]] T getv(const DiracSpinor &a, const DiracSpinor &b) const {
     const auto ptr = get(a, b);
-    return ptr ? *ptr : T{};
+    return ptr ? *ptr : T{0};
   }
   //! Gets value of requested element. If element not present,
   //! returns zero (or default constructed T)
   [[nodiscard]] T getv(DiracSpinor::Index a, DiracSpinor::Index b) const {
     const auto ptr = get(a, b);
-    return ptr ? *ptr : T{};
+    return ptr ? *ptr : T{0};
   }
 
   //! Gets pointer to const requested element. If element not present,
