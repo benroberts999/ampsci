@@ -76,11 +76,15 @@ private:
   std::optional<Coulomb::QkTable> mQ{std::nullopt}; //?
   // nb: it seems conter-intuative, but this copy makes it FASTER!
   std::vector<DiracSpinor> mCore{}, mExcited{}, mBasis{};
+
   Coulomb::meTable<double> mTab{};
+  int m_K{-1};
 
 public:
   const std::vector<DiracSpinor> &core() const { return mCore; }
   const std::vector<DiracSpinor> &excited() const { return mExcited; }
+  const std::vector<DiracSpinor> &basis() const { return mBasis; }
+  const Coulomb::meTable<double> &me_Table() const { return mTab; }
 
   //! Returns reference to Yk table. NOTE: may not be initialised!
   const Coulomb::YkTable &Yk() const { return mY; }

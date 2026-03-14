@@ -12,17 +12,26 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
   // note: does not test formulas: just checks class is working correctly.
   //  Other (integration) tests below check correctness/accuracy of formulas
 
-  Wavefunction wf({200, 1.0e-2, 30.0, 10.0, "loglinear", -1.0},
-                  {"Li", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("Local", 0.0, "[He]");
-  wf.formBasis({"5spdf", 20, 5, 1.0e-2, 1.0e-2, 20.0});
+  Wavefunction wf({400, 1.0e-3, 30.0, 10.0, "loglinear", -1.0},
+                  {"B", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("Local", 0.0, "[He],2s2");
+  wf.formBasis({"5sp4df", 60, 5, 1.0e-2, 1.0e-2, 20.0});
 
   const auto h = DiracOperator::E1(wf.grid());
 
   MBPT::StructureRad srn(wf.basis(), wf.FermiLevel());
 
-  // test srn_table
+  REQUIRE(srn.core().size() == wf.core().size());
+  REQUIRE(srn.excited().size() == wf.basis().size() - wf.core().size());
+  REQUIRE(srn.basis().size() == wf.basis().size());
+
+  REQUIRE(srn.me_Table().empty());
+  srn.solve_core(&h);
+  REQUIRE(!srn.me_Table().empty());
+
+  // test srn_table and me_table
   const auto tab = srn.srn_table(&h, srn.core(), srn.excited());
+  const auto &me_tab = srn.me_Table();
   for (const auto &a : srn.core()) {
     for (const auto &b : srn.excited()) {
       if (h.isZero(a, b))
@@ -38,14 +47,25 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
       const auto srn0 = srn.srTB(&h, a, b).first + srn.srC(&h, a, b).first +
                         srn.norm(&h, a, b).first;
       REQUIRE(std::abs(srab - srn0) < 1.0e-10);
+
+      // test underlying meTable was filled correctly
+      const auto me_ab_tab = me_tab.getv(a, b);
+      const auto me_ab_cal = h.reducedME(a, b);
+      REQUIRE(me_ab_tab == Approx(me_ab_cal));
     }
   }
 
   // TEST SRN read-write using Qk_file
   const auto rand_str = qip::random_string(6);
   const auto fname = "deleteme_" + rand_str + ".qk.abf";
+  // Create Qk file:
   MBPT::StructureRad srn2(wf.basis(), wf.FermiLevel(), {0, 999}, fname);
+  // Read in QK file:
   MBPT::StructureRad srn3(wf.basis(), wf.FermiLevel(), {0, 999}, fname);
+  srn2.solve_core(&h);
+  srn3.solve_core(&h);
+  // Copy existing
+  const auto srn4 = srn3;
   for (const auto &a : wf.basis()) {
     for (const auto &b : wf.basis()) {
       if (a < b && !h.isZero(a, b)) {
@@ -62,6 +82,12 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
         const auto srN2 = srn2.norm(&h, a, b).first;
         const auto srN3 = srn3.norm(&h, a, b).first;
         REQUIRE(std::abs(srN2 - srN3) < 1.0e-14);
+
+        const auto srn_tot = srn2.srn(&h, a, b).first;
+        REQUIRE(srn_tot == Approx(srC2 + srTB2 + srN2));
+
+        const auto srn_tot4 = srn4.srn(&h, a, b).first;
+        REQUIRE(srn_tot == Approx(srn_tot4));
       }
     }
   }
@@ -76,7 +102,9 @@ TEST_CASE("MBPT: Structure Rad + Norm",
                     {"Na", -1, "Fermi"}, 1.0);
     wf.solve_core("HartreeFock", 0.0, "[Ne]");
     wf.solve_valence("4s3p");
-    wf.formBasis({"20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0});
+    wf.formBasis(SplineBasis::Parameters{
+      "20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0, "",
+      SplineBasis::SplineType::Derevianko, false, false});
 
     // Find core/valence energy: allows distingush core/valence states
     const auto en_core = wf.FermiLevel();
@@ -86,6 +114,7 @@ TEST_CASE("MBPT: Structure Rad + Norm",
     int nmin = 1;
     int nmax = 99;
     MBPT::StructureRad sr(wf.basis(), en_core, {nmin, nmax});
+    sr.solve_core(&h);
 
     // Expected data, from: Johnson et al, At.Dat.Nuc.Dat.Tables 64, 279 (1996),
     // Table E (Na)
@@ -150,7 +179,8 @@ TEST_CASE("MBPT: Structure Rad + Norm",
                     {"Cs", -1, "Fermi"}, 1.0);
     wf.solve_core("HartreeFock", 0.0, "[Xe]");
     wf.solve_valence("7s6p");
-    wf.formBasis({"20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0});
+    wf.formBasis({"20spdfgh", 30, 9, 1.0e-4, 1.0e-6, 60.0, "",
+                  SplineBasis::SplineType::Derevianko, false, false});
     // Note: We use a very small basis, so the test can run in reasonable time
     // However, we get pretty good comparison to Johnson, so this is fine!
 
@@ -161,6 +191,7 @@ TEST_CASE("MBPT: Structure Rad + Norm",
 
     // Only include core states above+including n=3
     MBPT::StructureRad sr(wf.basis(), en_core, {3, 99});
+    sr.solve_core(&h);
 
     // Expected data, from: Johnson et al, At.Dat.Nuc.Dat.Tables 64, 279 (1996),
     // Table J (Cs)

@@ -23,19 +23,19 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
                            const std::vector<double> &etak)
   : m_use_Qk(!Qk_fname.empty()),
     m_root_fk(qip::apply_to(vroot, fk)),
-    m_etak(etak),
-    mBasis(basis) {
+    m_etak(etak) {
 
   // nb: en_core defined such that: Fa.en() < en_core ==> core state!
   // nb: this makes it faster..
   const auto [n_min, n_max] = nminmax;
-  for (const auto &Fn : basis) {
-    if (Fn.en() < en_core && Fn.n() >= n_min) {
-      mCore.push_back(Fn);
-    } else if (Fn.en() > en_core && Fn.n() <= n_max) {
-      mExcited.push_back(Fn);
-    }
-  }
+  auto [c_tmp, e_tmp] =
+    DiracSpinor::split_by_energy(basis, en_core, n_min, n_max);
+  mCore = std::move(c_tmp);
+  mExcited = std::move(e_tmp);
+
+  // Full basis (don't using basis, since n min/max)
+  mBasis = mCore;
+  mBasis.insert(mBasis.end(), mExcited.begin(), mExcited.end());
 
   // nb: don't need mY if using QkTable.
   // However, require SixJTable!
@@ -43,53 +43,55 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
 
   // Only calculate Yk values if not Qk table, or in order to calculate Qk
   if (m_use_Qk) {
+    std::cout << "Using Qk Coulomb table\n";
     std::cout << "\nFill Qk table:\n";
     mQ = Coulomb::QkTable{};
-    const auto ok = mQ->read(Qk_fname);
-    if (!ok) {
+    const auto read_ok = mQ->read(Qk_fname);
+    if (!read_ok) {
       mY.calculate(mBasis);
       mQ->fill(mBasis, mY);
       mQ->write(Qk_fname);
     }
   } else {
+    std::cout << "Using Yk Coulomb table\n";
     mY.calculate(mBasis);
   }
 }
 
 //==============================================================================
-void StructureRad::solve_core(
-  const DiracOperator::TensorOperator *const h,
-  const ExternalField::CorePolarisation *const dV = nullptr) {
+void StructureRad::solve_core(const DiracOperator::TensorOperator *const h,
+                              const ExternalField::CorePolarisation *const dV) {
 
   // Require all: core-core, core-excited, excited-excited
   mTab = ExternalField::me_table(mBasis, h, dV);
+  m_K = h->rank();
 }
 
 //==============================================================================
 std::pair<double, double>
-StructureRad::srTB(const DiracOperator::TensorOperator *const h,
+StructureRad::srTB(const DiracOperator::TensorOperator *const,
                    const DiracSpinor &w, const DiracSpinor &v, double omega,
-                   const ExternalField::CorePolarisation *const dV) const {
-  if (h->isZero(w.kappa(), v.kappa()))
+                   const ExternalField::CorePolarisation *const) const {
+  assert(!mTab.empty());
+  assert(m_K >= 0);
+
+  // no SR correction to zero matrix element
+  if (!mTab.contains(w, v))
     return {0.0, 0.0};
 
-  assert(!mTab.empty());
-
-  const auto k = h->rank();
-
+  // Actually faster?
   std::vector<std::pair<std::size_t, std::size_t>> index_ra;
   for (auto ir = 0ul; ir < mExcited.size(); ++ir) {
     const auto &r = mExcited[ir];
     for (auto ia = 0ul; ia < mCore.size(); ++ia) {
       const auto &a = mCore[ia];
-      if (h->isZero(a.kappa(), r.kappa()))
-        continue;
-      index_ra.emplace_back(ir, ia);
+      if (mTab.contains(a, r))
+        index_ra.emplace_back(ir, ia);
     }
   }
 
-  double tb{0.0}, dv{0.0};
-#pragma omp parallel for reduction(+ : tb) reduction(+ : dv)
+  double tb{0.0};
+#pragma omp parallel for reduction(+ : tb)
   for (std::size_t i = 0; i < index_ra.size(); ++i) {
     const auto [ir, ia] = index_ra[i];
     const auto &r = mExcited[ir];
@@ -99,43 +101,36 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const h,
     const auto inv_era_mw = 1.0 / (r.en() - a.en() - omega);
 
     const auto t_ar = mTab.getv(a, r);
-    const auto t_ra = h->symm_sign(a, r) * t_ar;
+    const auto t_ra = mTab.getv(r, a);
 
-    const auto T_wrva = t1234(k, w, r, v, a);
-    const auto B_wavr = v == w ? T_wrva : b1234(k, w, a, v, r);
+    const auto T_wrva = t1234(m_K, w, r, v, a);
+    const auto B_wavr = v == w ? T_wrva : b1234(m_K, w, a, v, r);
 
     tb += (t_ar * T_wrva * inv_era_pw) + (t_ra * B_wavr * inv_era_mw);
-
-    {
-      const auto dVar = dV ? dV->dV(a, r) : 0.0;
-      const auto tdv_ar = t_ar + dVar;
-      const auto tdv_ra = h->symm_sign(a, r) * tdv_ar;
-      dv += (tdv_ar * T_wrva * inv_era_pw) + (tdv_ra * B_wavr * inv_era_mw);
-    }
   }
 
-  return {tb, dv};
+  return {tb, 0.0};
 }
 
 //==============================================================================
 std::pair<double, double>
-StructureRad::srC(const DiracOperator::TensorOperator *const h,
+StructureRad::srC(const DiracOperator::TensorOperator *const,
                   const DiracSpinor &w, const DiracSpinor &v,
-                  const ExternalField::CorePolarisation *const dV) const {
+                  const ExternalField::CorePolarisation *const) const {
   assert(!mTab.empty());
-  if (h->isZero(w.kappa(), v.kappa()))
-    return {0.0, 0.0};
+  assert(m_K >= 0);
 
-  const auto k = h->rank();
+  // no SR correction to zero matrix element
+  if (!mTab.contains(w, v))
+    return {0.0, 0.0};
 
   std::vector<std::pair<std::size_t, std::size_t>> index_ab;
   for (auto ia = 0ul; ia < mCore.size(); ++ia) {
     const auto &a = mCore[ia];
     for (auto ib = 0ul; ib < mCore.size(); ++ib) {
       const auto &b = mCore[ib];
-      if (h->isZero(a.kappa(), b.kappa()))
-        continue;
-      index_ab.emplace_back(ia, ib);
+      if (mTab.contains(a, b))
+        index_ab.emplace_back(ia, ib);
     }
   }
 
@@ -144,50 +139,39 @@ StructureRad::srC(const DiracOperator::TensorOperator *const h,
     const auto &m = mExcited[im];
     for (auto ir = 0ul; ir < mExcited.size(); ++ir) {
       const auto &r = mExcited[ir];
-      if (h->isZero(m.kappa(), r.kappa()))
-        continue;
-      index_mr.emplace_back(im, ir);
+      if (mTab.contains(m, r))
+        index_mr.emplace_back(im, ir);
     }
   }
 
-  double c{0.0}, dv{0.0};
-#pragma omp parallel for reduction(- : c) reduction(- : dv)
+  double c{0.0};
+#pragma omp parallel for reduction(- : c)
   for (std::size_t i = 0; i < index_ab.size(); ++i) {
     const auto [ia, ib] = index_ab[i];
     const auto &a = mCore[ia];
     const auto &b = mCore[ib];
 
     const auto t_ba = mTab.getv(b, a);
-    const auto C_wavb = c1(k, w, a, v, b) + c2(k, w, a, v, b);
+    const auto C_wavb = c1(m_K, w, a, v, b) + c2(m_K, w, a, v, b);
 
     // nb: -ve
     c -= t_ba * C_wavb;
-
-    {
-      const auto tdv_ba = t_ba + (dV ? dV->dV(b, a) : 0.0);
-      dv -= tdv_ba * C_wavb;
-    }
   }
 
-#pragma omp parallel for reduction(- : c) reduction(- : dv)
+#pragma omp parallel for reduction(- : c)
   for (std::size_t i = 0; i < index_mr.size(); ++i) {
     const auto [im, ir] = index_mr[i];
     const auto &m = mExcited[im];
     const auto &r = mExcited[ir];
 
     const auto t_mr = mTab.getv(m, r);
-    const auto C_wrvm = d2(k, w, r, v, m) + d1(k, w, r, v, m);
+    const auto C_wrvm = d2(m_K, w, r, v, m) + d1(m_K, w, r, v, m);
 
     // nb: -ve
     c -= t_mr * C_wrvm;
-
-    {
-      const auto tdv_mr = t_mr + (dV ? dV->dV(m, r) : 0.0);
-      dv -= tdv_mr * C_wrvm;
-    }
   }
 
-  return {c, dv};
+  return {c, 0.0};
 }
 
 //==============================================================================
@@ -199,12 +183,11 @@ StructureRad::norm(const DiracOperator::TensorOperator *const h,
     return {0.0, 0.0};
 
   const auto t_wv = h->reducedME(w, v) + (dV ? dV->dV(w, v) : 0.0);
-  const auto tdv_wv = 0.0;
 
   const auto nv = n1(v) + n2(v);
   const auto nw = w == v ? nv : n1(w) + n2(w);
 
-  return {-0.5 * t_wv * (nv + nw), -0.5 * tdv_wv * (nv + nw)};
+  return {-0.5 * t_wv * (nv + nw), 0.0};
 }
 
 //==============================================================================
@@ -267,6 +250,7 @@ double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(v.twoj() + r.twoj() + 2 * k);
+  const auto &SixJ = mY.SixJ();
 
   for (const auto &a : mCore) {
     for (const auto &b : mCore) {
@@ -287,13 +271,10 @@ double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
         for (int u = minU; u <= maxU; ++u) {
 
-          // const auto sj1 = mY.SixJ().get_2(w, v, k, l, u, b);
-          const auto sj1 =
-            mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, 2 * l, 2 * u, b.twoj());
+          const auto sj1 = SixJ.get(w, v, k, l, u, b);
           if (sj1 == 0.0)
             continue;
-          const auto sj2 =
-            mY.SixJ().get_2(r.twoj(), c.twoj(), 2 * k, 2 * l, 2 * u, a.twoj());
+          const auto sj2 = SixJ.get(r, c, k, l, u, a);
           if (sj2 == 0.0)
             continue;
 
@@ -318,6 +299,7 @@ double StructureRad::t2(const int k, const DiracSpinor &w, const DiracSpinor &r,
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(w.twoj() - c.twoj() + 2 * k);
+  const auto &SixJ = mY.SixJ();
 
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
@@ -330,8 +312,7 @@ double StructureRad::t2(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
 
-        const auto sj =
-          mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, r.twoj(), c.twoj(), 2 * u);
+        const auto sj = SixJ.get(w, v, k, r, c, u);
         if (Angular::zeroQ(sj))
           continue;
 
@@ -359,6 +340,7 @@ double StructureRad::t3(const int k, const DiracSpinor &w, const DiracSpinor &r,
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(w.twoj() - c.twoj() + 2 * k);
+  const auto &SixJ = mY.SixJ();
 
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
@@ -371,13 +353,12 @@ double StructureRad::t3(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
 
-        const auto sj =
-          mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, r.twoj(), c.twoj(), 2 * u);
+        const auto sj = SixJ.get(w, v, k, r, c, u);
         if (Angular::zeroQ(sj))
           continue;
 
         const auto su = Angular::neg1pow(u);
-        const auto f = (2 * u + 1);
+        const auto f = (2.0 * u + 1.0);
 
         const auto eta = eta_hp(u);
 
@@ -400,6 +381,7 @@ double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(v.twoj() + r.twoj() + 2 * k);
+  const auto &SixJ = mY.SixJ();
 
   for (const auto &n : mExcited) {
     for (const auto &m : mExcited) {
@@ -421,12 +403,10 @@ double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
         for (int l = minL; l <= maxL; ++l) {
 
-          const auto sj1 =
-            mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, 2 * l, 2 * u, n.twoj());
+          const auto sj1 = SixJ.get(w, v, k, l, u, n);
           if (Angular::zeroQ(sj1))
             continue;
-          const auto sj2 =
-            mY.SixJ().get_2(r.twoj(), c.twoj(), 2 * k, 2 * l, 2 * u, m.twoj());
+          const auto sj2 = SixJ.get(r, c, k, l, u, m);
           if (Angular::zeroQ(sj2))
             continue;
 
@@ -447,6 +427,7 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(w.twoj() - c.twoj() + 2 * k);
+  const auto &SixJ = mY.SixJ();
 
   for (const auto &b : mCore) {
     for (const auto &n : mExcited) {
@@ -465,9 +446,8 @@ double StructureRad::c1(const int k, const DiracSpinor &w, const DiracSpinor &a,
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
 
-        const auto sj =
-          mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, c.twoj(), a.twoj(), 2 * u);
-        if (sj == 0.0)
+        const auto sj = SixJ.get(w, v, k, c, a, u);
+        if (Angular::zeroQ(sj))
           continue;
 
         const auto eta = eta_hp(u);
@@ -491,6 +471,7 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(v.twoj() + a.twoj() + 2 * k);
+  const auto &SixJ = mY.SixJ();
 
   for (const auto &m : mExcited) {
     for (const auto &n : mExcited) {
@@ -517,14 +498,12 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
 
         for (int l = minL; l <= maxL; ++l) {
 
-          const auto sj1 =
-            mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, 2 * u, 2 * l, n.twoj());
-          if (sj1 == 0.0)
+          const auto sj1 = SixJ.get(w, v, k, u, l, n);
+          if (Angular::zeroQ(sj1))
             continue;
 
-          const auto sj2 =
-            mY.SixJ().get_2(c.twoj(), a.twoj(), 2 * k, 2 * l, 2 * u, m.twoj());
-          if (sj2 == 0.0)
+          const auto sj2 = SixJ.get(c, a, k, l, u, m);
+          if (Angular::zeroQ(sj2))
             continue;
 
           const auto wl = W(l, w, a, n, m);
@@ -543,6 +522,7 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(w.twoj() - m.twoj() + 2 * k);
+  const auto &SixJ = mY.SixJ();
 
   for (const auto &a : mCore) {
     for (const auto &n : mExcited) {
@@ -561,9 +541,8 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto maxU = std::min(maxU1, maxU2);
       for (int u = minU; u <= maxU; ++u) {
 
-        const auto sj =
-          mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, m.twoj(), r.twoj(), 2 * u);
-        if (sj == 0.0)
+        const auto sj = SixJ.get(w, v, k, m, r, u);
+        if (Angular::zeroQ(sj))
           continue;
 
         const auto eta = eta_hp(u);
@@ -585,6 +564,7 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
   double t = 0.0;
 
   const auto s = Angular::neg1pow_2(v.twoj() + r.twoj() + 2 * k);
+  const auto &SixJ = mY.SixJ();
 
   for (const auto &a : mCore) {
     for (const auto &b : mCore) {
@@ -611,13 +591,11 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
         for (int l = minL; l <= maxL; ++l) {
 
-          const auto sj1 =
-            mY.SixJ().get_2(w.twoj(), v.twoj(), 2 * k, 2 * u, 2 * l, a.twoj());
-          if (sj1 == 0.0)
+          const auto sj1 = SixJ.get(w, v, k, u, l, a);
+          if (Angular::zeroQ(sj1))
             continue;
-          const auto sj2 =
-            mY.SixJ().get_2(m.twoj(), r.twoj(), 2 * k, 2 * l, 2 * u, b.twoj());
-          if (sj2 == 0.0)
+          const auto sj2 = SixJ.get(m, r, k, l, u, b);
+          if (Angular::zeroQ(sj2))
             continue;
 
           const auto wl = W(l, w, r, a, b);

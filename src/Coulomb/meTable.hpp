@@ -92,13 +92,13 @@ public:
   //! returns zero (or default constructed T)
   [[nodiscard]] T getv(const DiracSpinor &a, const DiracSpinor &b) const {
     const auto ptr = get(a, b);
-    return ptr ? *ptr : T{0};
+    return ptr ? *ptr : T{};
   }
   //! Gets value of requested element. If element not present,
   //! returns zero (or default constructed T)
   [[nodiscard]] T getv(DiracSpinor::Index a, DiracSpinor::Index b) const {
     const auto ptr = get(a, b);
-    return ptr ? *ptr : T{0};
+    return ptr ? *ptr : T{};
   }
 
   //! Gets pointer to const requested element. If element not present,
