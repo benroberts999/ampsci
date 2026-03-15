@@ -29,48 +29,30 @@ namespace Module {
 
 //==============================================================================
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
-  input.check(
-    {{"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
-     {"options{}", "options specific to operator (see ampsci -o 'operator')"},
-     {"rpa",
-      "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]"},
-     {"rpa_options{}", "Block: some further options for RPA"},
-     {"omega",
-      "Text or number. Freq. for RPA (and freq. dependent operators). Put "
-      "'each' to solve at correct frequency for each transition. [0.0]"},
-     {"printBoth", "print <a|h|b> and <b|h|a> [false]"},
-     {"include_core", "If true, includes core states in calculation. Will "
-                      "use HF core, unless use_spectrum is true [false]"},
-     {"use_spectrum",
-      "If true (and spectrum available), will use spectrum for valence "
-      "states [false]"},
-     {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
-     {"off-diagonal",
-      "Calculate off-diagonal matrix elements (if non-zero) [true]"},
-     {"what",
-      "What to calculate? Options are: Reduced (reduced matric elements), "
-      "Stetched (stretched states, with j=m= [j=min(ja,jb) for off-diagonal]), "
-      "or HFConstant for (hyperfine A,B,etc. constants). Default is Reduced, "
-      "except for hyperfine operator, for which it is HFConstant"},
-     {"StructureRadiation{}",
-      "Options for Structure Radiation and normalisation (details below)"}});
-
-  const auto t_SR_input = input.getBlock("StructureRadiation");
-  auto SR_input =
-    t_SR_input ? *t_SR_input : IO::InputBlock{"StructureRadiation"};
-  if (input.has_option("help")) {
-    SR_input.add("help;");
-  }
-  SR_input.check(
-    {{"", "If this block is included, SR + Normalisation "
-          "corrections will be included"},
-     {"Qk_file",
-      "true/false/filename - SR: filename for QkTable file. If blank will "
-      "not use QkTable; if exists, will read it in; if doesn't exist, will "
-      "create it and write to disk. If 'true' will use default filename. "
-      "Save time (10x) at cost of memory. Note: Using QkTable "
-      "implies splines used for diagram legs"},
-     {"n_minmax", "list; min,max n for core/excited: [1,inf]"}});
+  input.check({
+    {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
+    {"options{}", "options specific to operator (see ampsci -o 'operator')"},
+    {"rpa",
+     "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]"},
+    {"rpa_options{}", "Block: some further options for RPA"},
+    {"omega",
+     "Text or number. Freq. for RPA (and freq. dependent operators). Put "
+     "'each' to solve at correct frequency for each transition. [0.0]"},
+    {"printBoth", "print <a|h|b> and <b|h|a> [false]"},
+    {"include_core", "If true, includes core states in calculation. Will "
+                     "use HF core, unless use_spectrum is true [false]"},
+    {"use_spectrum",
+     "If true (and spectrum available), will use spectrum for valence "
+     "states [false]"},
+    {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
+    {"off-diagonal",
+     "Calculate off-diagonal matrix elements (if non-zero) [true]"},
+    {"what",
+     "What to calculate? Options are: Reduced (reduced matric elements), "
+     "Stetched (stretched states, with j=m= [j=min(ja,jb) for off-diagonal]), "
+     "or HFConstant for (hyperfine A,B,etc. constants). Default is Reduced, "
+     "except for hyperfine operator, for which it is HFConstant"},
+  });
 
   const auto t_rpa_input = input.getBlock("rpa_options");
   auto rpa_input = t_rpa_input ? *t_rpa_input : IO::InputBlock{"rpa_options"};
@@ -172,38 +154,6 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << omega << "\n";
   }
 
-  // For SR+N
-  std::optional<MBPT::StructureRad> sr;
-  if (t_SR_input) {
-    // min/max n (for core/excited basis)
-    const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
-    const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
-    const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
-    const auto Qk_file_t = SR_input.get("Qk_file", std::string{"false"});
-    std::string Qk_file =
-      Qk_file_t != "false" ?
-        Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
-        "";
-
-    std::cout
-      << "\nIncluding Structure radiation and normalisation of states:\n";
-    if (n_min > 1)
-      std::cout << "Including from n = " << n_min << "\n";
-    if (n_max < 999)
-      std::cout << "Including to n = " << n_max << "\n";
-    if (!Qk_file.empty()) {
-      std::cout
-        << "Will read/write Qk integrals to file: " << Qk_file
-        << "\n  -- Note: means spline/basis states used for spline legs\n";
-    } else {
-      std::cout << "Will calculate Qk integrals on-the-fly\n";
-    }
-    std::cout << std::flush;
-
-    sr =
-      MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
-  }
-
   const auto pi = h->parity();
 
   // ability to use spectrum instead of valence, and optionally include core
@@ -268,7 +218,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
       const auto hab = h->reducedME(a, a);
       const auto dv = rpa ? rpa->dV(a, a) : 0.0;
-      const auto sub_tot = factor * (hab + dv);
+      // const auto sub_tot = factor * (hab + dv);
 
       const auto ww = 0.0;
 
@@ -276,32 +226,6 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                  a.shortSymbol(), ww, factor * hab);
       if (dv != 0.0) {
         fmt::print(os, "  {:13.6e}", factor * (hab + dv));
-      }
-      if (sr) {
-        fmt::print("\n{}", a.shortSymbol());
-        fmt::print("  ME : {:15.8e}", factor * hab);
-        if (rpa)
-          fmt::print(" + {:15.8e} = {:15.8e}", factor * dv, sub_tot);
-        fmt::print("\n");
-        fmt::print("    SR0 : ");
-        std::cout << std::flush;
-        const auto [tb, dvtb] = sr->srTB(h.get(), a, a, 0.0, rpa.get());
-        fmt::print("{:15.8e} + ", factor * tb);
-        std::cout << std::flush;
-        const auto [c, dvc] = sr->srC(h.get(), a, a, rpa.get());
-        fmt::print("{:15.8e} + ", factor * c);
-        std::cout << std::flush;
-        const auto [n, dvn] = sr->norm(h.get(), a, a, rpa.get());
-        const auto sr0 = (tb + c + n) * factor;
-        fmt::print("{:15.8e} = {:15.8e}\n", factor * n, sr0);
-        std::cout << std::flush;
-        const auto sr_rpa = rpa ? (dvtb + dvc + dvn) * factor : sr0;
-        if (rpa)
-          fmt::print(" SR+RPA : {:15.8e} + {:15.8e} + {:15.8e} = {:15.8e}\n",
-                     factor * dvtb, factor * dvc, factor * dvn, sr_rpa);
-        fmt::print("  Total : {:15.8e}\n", sub_tot + sr_rpa);
-        std::cout << std::flush;
-        fmt::print(os, "  {:13.6e}", sub_tot + sr_rpa);
       }
 
       fmt::print(os, "\n");
@@ -311,7 +235,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   //----------------------------------------------------
   // Then, off-diagonal:
   if (off_diagonal) {
-    if ((eachFreqQ && rpa) && !sr)
+    if (eachFreqQ && rpa)
       std::cout << "\n";
     for (std::size_t ib = 0; ib < orbs.size(); ib++) {
       const auto &b = orbs.at(ib);
@@ -332,12 +256,10 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
             continue;
         }
 
-        const auto ww = eachFreqQ ? std::abs(a.en() - b.en()) : 0.0;
+        // const auto ww = eachFreqQ ? std::abs(a.en() - b.en()) : 0.0;
         const auto ww_s = a.en() - b.en();
 
-        if (sr)
-          std::cout << "\n";
-        if ((eachFreqQ && rpa) || sr)
+        if (eachFreqQ && rpa)
           fmt::print("{} - {} : w = {:.8f}\n", a.shortSymbol(), b.shortSymbol(),
                      ww_s);
 
@@ -356,37 +278,12 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
         const auto hab = h->reducedME(a, b);
         const auto dv = rpa ? rpa->dV(a, b) : 0.0;
-        const auto sub_tot = factor * (hab + dv);
+        // const auto sub_tot = factor * (hab + dv);
 
         fmt::print(os, " {:4s} {:4s}  {:10.7f}  {:13.6e}", a.shortSymbol(),
                    b.shortSymbol(), ww_s, factor * hab);
         if (dv != 0.0) {
           fmt::print(os, "  {:13.6e}", factor * (hab + dv));
-        }
-        if (sr) {
-          fmt::print("     ME : {:15.8e}", factor * hab);
-          if (rpa)
-            fmt::print(" + {:15.8e} = {:15.8e}", factor * dv, sub_tot);
-          fmt::print("\n");
-          fmt::print("    SR0 : ");
-          std::cout << std::flush;
-          const auto [tb, dvtb] = sr->srTB(h.get(), a, b, ww, rpa.get());
-          fmt::print("{:15.8e} + ", factor * tb);
-          std::cout << std::flush;
-          const auto [c, dvc] = sr->srC(h.get(), a, b, rpa.get());
-          fmt::print("{:15.8e} + ", factor * c);
-          std::cout << std::flush;
-          const auto [n, dvn] = sr->norm(h.get(), a, b, rpa.get());
-          const auto sr0 = (tb + c + n) * factor;
-          std::cout << std::flush;
-          fmt::print("{:15.8e} = {:15.8e}\n", factor * n, sr0);
-          const auto sr_rpa = rpa ? (dvtb + dvc + dvn) * factor : sr0;
-          if (rpa)
-            fmt::print(" SR+RPA : {:15.8e} + {:15.8e} + {:15.8e} = {:15.8e}\n",
-                       factor * dvtb, factor * dvc, factor * dvn, sr_rpa);
-          fmt::print("  Total : {:15.8e}\n", sub_tot + sr_rpa);
-          std::cout << std::flush;
-          fmt::print(os, "  {:13.6e}", sub_tot + sr_rpa);
         }
         fmt::print(os, "\n");
       }
@@ -397,8 +294,6 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\n   a    b    w_ab        t0_ab";
   if (rpaQ)
     std::cout << "          +RPA ";
-  if (sr)
-    std::cout << "          +SRN";
   std::cout << "\n";
   std::cout << os.str();
   std::cout << "\n";
@@ -415,7 +310,9 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
      {"operator", "e.g., E1, hfs"},
      {"options{}", "options specific to operator; blank by dflt"},
      {"rpa", "true(=TDHF), false, TDHF, basis, diagram [true]"},
-     {"omega", "freq. for RPA"},
+     {"omega",
+      "Text or number. Freq. for RPA (and freq. dependent operators). Put "
+      "'each' to solve at correct frequency for each transition. [0.0]"},
      {"printBoth", "print <a|h|b> and <b|h|a> (dflt false)"},
      {"diagonal", "Calculate diagonal matrix elements (if non-zero) [true]"},
      {"off-diagonal",
@@ -661,8 +558,15 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << std::flush;
 
   const auto pi = h->parity();
-  std::stringstream os;
 
+  if (rpaQ && diagonal && pi == 1 && eachFreqQ) {
+    h->updateFrequency(0.0);
+    dV->solve_core(0.0);
+  }
+
+  sr.solve_core(h.get(), dV.get());
+
+  std::stringstream os;
   for (const auto diag : {true, false}) {
 
     if (!diagonal && diag)
@@ -707,13 +611,16 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
         const auto ww = eachFreqQ ? std::abs(ws->en() - vs->en()) : const_omega;
         const auto ww_s = eachFreqQ ? ws->en() - vs->en() : const_omega;
-        if (eachFreqQ && h->freqDependantQ()) {
+        if (eachFreqQ && h->freqDependantQ() && !diag) {
           h->updateFrequency(ww);
         }
-        if (eachFreqQ && rpaQ) {
+        if (eachFreqQ && rpaQ && !diag) {
           if (dV->last_eps() > 1.0e-3 || std::isnan(dV->last_eps()))
             dV->clear();
           dV->solve_core(ww);
+        }
+        if (eachFreqQ && (h->freqDependantQ() || rpaQ) && !diag) {
+          sr.solve_core(h.get(), dV.get());
         }
 
         // Zeroth-order MEs:
@@ -721,16 +628,13 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto dvs = twvs + (dV ? factor * dV->dV(*ws, *vs) : 0.0);
         printer("t0", twvs, dvs);
 
-        // "Top" + "Bottom" SR terms:
-        const auto [tb, tb_dv] = sr.srTB(h.get(), *ws, *vs, ww, dV.get());
-        printer("SR(TB)", factor * tb, factor * tb_dv);
-        // "Centre" SR term:
-        const auto [c, c_dv] = sr.srC(h.get(), *ws, *vs, dV.get());
-        printer("SR(C)", factor * c, factor * c_dv);
+        // "Top" + "Bottom" + Centre SR terms:
+        const auto TBC = sr.SR(*ws, *vs, ww);
+        printer("SR", factor * TBC, 0.0);
 
         // "Normalisation"
-        const auto [n, n_dv] = sr.norm(h.get(), *ws, *vs, dV.get());
-        printer("Norm", factor * n, factor * n_dv);
+        const auto norm = sr.norm(*ws, *vs, h.get(), dV.get());
+        printer("Norm", factor * norm, 0.0);
 
         double T_bo = 0.0, T_bo_dv = 0.0;
         if (!have_brueckner) {
@@ -752,27 +656,20 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
             fmt::print(" {:6s} {:12.5e}  (*added to BO)\n", "Tderiv",
                        factor * T_deriv);
             h->updateFrequency(ww);
-            T_bo_dv += T_deriv;
             T_bo += T_deriv;
           }
 
-          auto [bo, dvbo] = sr.BO(h.get(), *ws, *vs, dV.get());
-          printer("BO", factor * (bo), factor * (dvbo));
-          T_bo_dv += dvbo;
+          auto bo = sr.BO(*ws, *vs);
+          printer("BO", factor * bo, 0.0);
           T_bo += bo;
         }
 
-        const auto total = dvs + factor * (tb_dv + c_dv + n_dv + T_bo_dv);
+        printer("Total", twvs + factor * (TBC + norm + T_bo), 0.0);
 
-        printer("Total", twvs + factor * (tb + c + n + T_bo), total);
-
-        fmt::print(os,
-                   "{:4s} {:4s} {:+.3e} {:+.3e} {:+.3e} {:+.3e} "
-                   "{:+.3e}",
-                   w.shortSymbol(), v.shortSymbol(), dvs, factor * (tb + c),
-                   factor * (tb_dv + c_dv), factor * (n), factor * n_dv);
+        fmt::print(os, "{:4s} {:4s} {:+.3e} {:+.3e} {:+.3e}", w.shortSymbol(),
+                   v.shortSymbol(), dvs, factor * TBC, factor * norm);
         if (!have_brueckner)
-          fmt::print(os, " {:+.3e} {:+.3e}", factor * T_bo_dv, total);
+          fmt::print(os, " {:+.3e}", factor * T_bo_dv);
         fmt::print(os, "\n");
       }
     }
@@ -796,8 +693,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "Units: " << h->units() << "\n\n";
 
-  std::cout << "           t0+dV      SR0        SR+dV    "
-               "  Norm0      Norm+dV    ";
+  std::cout << "           SR         Norm      ";
   if (!have_brueckner)
     std::cout << "BO         Total";
   std::cout << "\n";
@@ -826,7 +722,8 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
       "Calculate off-diagonal matrix elements (if non-zero) [true]"},
      {"what",
       "What to calculate? Options are: Reduced (reduced matric elements), "
-      "Stetched (stretched states, with j=m= [j=min(ja,jb) for off-diagonal]), "
+      "Stetched (stretched states, with j=m= [j=min(ja,jb) for "
+      "off-diagonal]), "
       "or HFConstant for (hyperfine A,B,etc. constants). Default is Reduced, "
       "except for hyperfine operator, for which it is HFConstant"}});
   // If we are just requesting 'help', don't run module:
@@ -1068,7 +965,8 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       "Calculate off-diagonal matrix elements (if non-zero) [true]"},
      {"what",
       "What to calculate? Options are: Reduced (reduced matric elements), "
-      "Stetched (stretched states, with j=m= [j=min(ja,jb) for off-diagonal]), "
+      "Stetched (stretched states, with j=m= [j=min(ja,jb) for "
+      "off-diagonal]), "
       "or HFConstant for (hyperfine A,B,etc. constants). Default is Reduced, "
       "except for hyperfine operator, for which it is HFConstant"},
      {"StructureRadiation{}",
@@ -1203,6 +1101,9 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Solving RPA at fixed frequency: w=" << omega << "\n";
     rpa->solve_core(omega, 300);
   }
+  if (sr && !eachFreqQ && (rpa || h->freqDependantQ())) {
+    sr->solve_core(h.get(), rpa.get());
+  }
   if (eachFreqQ && rpa) {
     std::cout << "Solving RPA at each frequency\n";
   }
@@ -1222,13 +1123,16 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   auto calc_me = [&](const CI::PsiJPi &wfA, std::size_t iA,
                      const CI::PsiJPi &wfB, std::size_t iB) {
-    const auto t_omega = std::abs(wfA.energy(iA) - wfB.energy(iB));
+    const auto t_omega = wfA.energy(iA) - wfB.energy(iB); // abs?
 
     if (eachFreqQ && h->freqDependantQ()) {
       h->updateFrequency(t_omega);
     }
     if (eachFreqQ && rpa) {
       rpa->solve_core(t_omega, 100, false);
+    }
+    if (sr && eachFreqQ && (rpa || h->freqDependantQ())) {
+      sr->solve_core(h.get(), rpa.get());
     }
     if (eachFreqQ && h->freqDependantQ()) {
       std::cout << "Re-Calculate matrix element table.." << std::flush;

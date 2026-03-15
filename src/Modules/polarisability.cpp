@@ -226,7 +226,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
     const auto max_n_SR = input.get("max_n_SR", 9);
-    const auto rpa_in_SR = input.get("RPA_in_SR", false);
+    const auto rpa_in_SR = rpaQ && input.get("RPA_in_SR", false);
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
       Qk_file_t != "false" ?
@@ -243,8 +243,9 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "Not including RPA in SR+N\n";
     }
 
-    const auto sr =
+    auto sr =
       MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
+    sr.solve_core(&he1, rpa_in_SR ? &dVE1 : nullptr);
 
     Coulomb::meTable srn{};
     {
@@ -263,8 +264,7 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
             continue;
           }
           srn.add(Fn, Fv,
-                  rpa_in_SR ? sr.srn(&he1, Fn, Fv, omega, &dVE1).second :
-                              sr.srn(&he1, Fn, Fv, omega).first);
+                  sr.srn(Fn, Fv, &he1, rpa_in_SR ? &dVE1 : nullptr, omega));
         }
       }
       std::cout << " Done.\n" << std::flush;
@@ -464,7 +464,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
 
   std::optional<MBPT::StructureRad> sr{std::nullopt};
   const auto max_n_SR = input.get("max_n_SR", 9);
-  const auto rpa_in_SR = input.get("RPA_in_SR", false);
+  const auto rpa_in_SR = rpaQ && input.get("RPA_in_SR", false);
   if (StrucRadQ) {
     const auto n_min_core = input.get("n_min_core", 1);
     const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
@@ -483,6 +483,8 @@ void dynamicPolarisability(const IO::InputBlock &input,
     } else {
       std::cout << "Not including RPA in SR+N\n";
     }
+    std::cout << std::flush;
+    sr->solve_core(&he1, rpa_in_SR ? &dVE1 : nullptr);
   }
 
   // build tables of matrix elements;
@@ -514,9 +516,8 @@ void dynamicPolarisability(const IO::InputBlock &input,
         }
         // Adds SR+Norm! (ignores freq. dependence)
         if (sr && Fn.n() <= max_n_SR) {
-          const auto del_sr = rpa_in_SR ?
-                                sr->srn(&he1, Fn, Fv, 0.0, &dVE1).second :
-                                sr->srn(&he1, Fn, Fv).first;
+          const auto del_sr =
+            sr->srn(Fn, Fv, &he1, rpa_in_SR ? &dVE1 : nullptr, 0.0);
           me += del_sr;
         }
         metab.add(Fn, Fv, me); // *
@@ -651,9 +652,9 @@ void transitionPolarisability(const IO::InputBlock &input,
      {"orthogonalise",
       "Re-orthogonalise spectrum (only if replace_w_valence=true) [false]"},
      {"SRN", "SR: include SR+Norm correction [false]"},
+     {"rpa_in_SR", "Include RPA in SR [false]"},
      {"n_minmax", "list; min,max n for core/excited basis states to include "
                   "in Structure radiation: [1,inf]"},
-     //  {"n_min_core", "SR: Minimum n to include in SR+N [1]"},
      {"max_n_SR",
       "SR: Maximum n to include in the sum-over-states for SR+N [9]"},
      {"Qk_file",
@@ -690,6 +691,7 @@ void transitionPolarisability(const IO::InputBlock &input,
   const auto omega = input.get("omega", omega_default);
   const auto rpaQ = input.get("rpa", true);
   const auto srnQ = input.get("SRN", false);
+  const auto rpa_in_SRQ = rpaQ && input.get("rpa_in_SR", false);
 
   const auto alpha_text =
     " 𝛼(" + Fv.shortSymbol() + ", " + Fw.shortSymbol() + ")";
@@ -817,8 +819,9 @@ void transitionPolarisability(const IO::InputBlock &input,
     std::cout << "Calculating SR+N for terms up to n=" << max_n_SR
               << " in the sum-over-states\n";
 
-    const auto sr =
+    auto sr =
       MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
+    sr.solve_core(&he1, rpa_in_SRQ ? &dVE1 : nullptr);
 
     Coulomb::meTable srn{};
     {
@@ -832,7 +835,8 @@ void transitionPolarisability(const IO::InputBlock &input,
               wf.isInCore(Fn.n(), Fn.kappa()))
             continue;
           // Calculates SR+Norm (ignores freq. dependence and RPA)
-          srn.add(Fn, Fa, sr.srn(&he1, Fn, Fa).first);
+          // XXX Norm - include SR??
+          srn.add(Fn, Fa, sr.srn(Fn, Fa, &he1, rpa_in_SRQ ? &dVE1 : nullptr));
         }
       }
       std::cout << " Done.\n" << std::flush;
