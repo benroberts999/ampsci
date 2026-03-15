@@ -256,12 +256,11 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
             continue;
         }
 
-        // const auto ww = eachFreqQ ? std::abs(a.en() - b.en()) : 0.0;
         const auto ww_s = a.en() - b.en();
 
         if (eachFreqQ && rpa)
-          fmt::print("{} - {} : w = {:.8f}\n", a.shortSymbol(), b.shortSymbol(),
-                     ww_s);
+          fmt::print("<{}||t||{}> : w = {:.8f}\n", a.shortSymbol(),
+                     b.shortSymbol(), ww_s);
 
         if (eachFreqQ && h->freqDependantQ()) {
           h->updateFrequency(ww_s);
@@ -537,14 +536,6 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-  // Lambda to format the output
-  const auto printer = [](auto str, auto t, auto dv) {
-    fmt::print("{:6s}  {:12.5e} + {:12.5e} = {:12.5e}\n", str, t, dv - t, dv);
-    std::cout << std::flush;
-    // nb: the 'flush' is to force a cout flush; particularly when piping
-    // output to a file, this wasn't happening soon enough
-  };
-
   if (wf.core().empty() || wf.valence().empty() || wf.basis().empty())
     return;
 
@@ -592,7 +583,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         if (!diag && v == w)
           continue;
 
-        const auto factor = h->matel_factor(matel_type, v, w);
+        const auto factor = h->matel_factor(matel_type, w, v);
 
         // Option to use splines (or valence states) to compute Struc Rad (use
         // splines for legs)
@@ -607,75 +598,93 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
         IO::ChronoTimer timer("time");
 
-        std::cout << "\n" << w << " - " << v << ":\n";
-
-        const auto ww = eachFreqQ ? std::abs(ws->en() - vs->en()) : const_omega;
         const auto ww_s = eachFreqQ ? ws->en() - vs->en() : const_omega;
+        std::cout << "\n<" << w << "||t||" << v << ">: " << ww_s << "\n";
+
+        // const auto ww = eachFreqQ ? std::abs(ws->en() - vs->en()) : const_omega;
+
         if (eachFreqQ && h->freqDependantQ() && !diag) {
-          h->updateFrequency(ww);
+          h->updateFrequency(ww_s);
         }
         if (eachFreqQ && rpaQ && !diag) {
           if (dV->last_eps() > 1.0e-3 || std::isnan(dV->last_eps()))
             dV->clear();
-          dV->solve_core(ww);
+          dV->solve_core(ww_s);
         }
         if (eachFreqQ && (h->freqDependantQ() || rpaQ) && !diag) {
           sr.solve_core(h.get(), dV.get());
         }
 
         // Zeroth-order MEs:
-        const auto twvs = factor * h->reducedME(*ws, *vs); // splines here
-        const auto dvs = twvs + (dV ? factor * dV->dV(*ws, *vs) : 0.0);
-        printer("t0", twvs, dvs);
+        const auto twvs = h->reducedME(*ws, *vs); // splines here
+        const auto dvs = dV ? dV->dV(*ws, *vs) : 0.0;
+
+        // const auto hab = h->reducedME(a, b);
+        // const auto dv = rpa ? rpa->dV(a, b) : 0.0;
+
+        fmt::print("{:8s}  {:12.5e}\n", "t0", factor * twvs);
+        dV ? fmt::print("{:8s}  {:12.5e}\n", "RPA", factor * dvs) : void();
+        dV ? fmt::print("{:8s}  {:12.5e}\n", "RPA", factor * (twvs + dvs)) :
+             void();
+        std::cout << std::flush;
 
         // "Top" + "Bottom" + Centre SR terms:
-        const auto TBC = sr.SR(*ws, *vs, ww);
-        printer("SR", factor * TBC, 0.0);
+        const auto TBC = sr.SR(*ws, *vs, ww_s);
+        fmt::print("{:8s}  {:12.5e}\n", "SR", factor * TBC);
+        std::cout << std::flush;
 
         // "Normalisation"
-        const auto norm = sr.norm(*ws, *vs, h.get(), dV.get());
-        printer("Norm", factor * norm, 0.0);
+        const auto f_norm_w = sr.f_norm(*ws);
+        const auto f_norm_v = sr.f_norm(*vs);
+        const auto norm = factor * (f_norm_w + f_norm_v) * (twvs + dvs);
+        fmt::print("{:8s}  {:12.5e}\n", "Norm(0)",
+                   factor * (f_norm_w + f_norm_v) * (twvs + dvs));
+        fmt::print("{:8s}  {:12.5e}\n", "Norm(SR)",
+                   factor * (f_norm_w + f_norm_v) * (twvs + dvs + TBC));
+        std::cout << std::flush;
 
-        double T_bo = 0.0, T_bo_dv = 0.0;
+        double T_bo = 0.0;
         if (!have_brueckner) {
+
+          auto bo = sr.BO(*ws, *vs);
+          fmt::print("{:8s}  {:12.5e}\n", "BO", factor * bo);
+
+          double T_deriv = 0.0;
           if (eachFreqQ && h->freqDependantQ() && *ws != *vs) {
             const auto de2_w = sr.Sigma_vw(*ws, *ws);
             const auto de2_v = sr.Sigma_vw(*vs, *vs);
-            const auto dw = (de2_w - de2_v) * (ww_s / ww); //
+            const auto dw = (de2_w - de2_v) * (ww_s / std::abs(ww_s)); //
             // Make sign match that for ww used in operator etc.
-            const auto del = 0.05 * ww;
-            h->updateFrequency(ww + del);
+            const auto del = 0.05 * std::abs(ww_s);
+            h->updateFrequency(ww_s + del);
             // ignore frequency dependendence in RPA solution,
             // but not in RPA matrix element?
             const auto h_plus = h->reducedME(*ws, *vs);
-            h->updateFrequency(ww - del);
+            h->updateFrequency(ww_s - del);
             const auto h_minus = h->reducedME(*ws, *vs);
             const auto d_h = (h_plus - h_minus) / (2 * del);
-            const auto T_deriv = d_h * dw;
-            fmt::print(" {:6s} {:12.5e}\n", "d(ww)", dw);
-            fmt::print(" {:6s} {:12.5e}  (*added to BO)\n", "Tderiv",
-                       factor * T_deriv);
-            h->updateFrequency(ww);
-            T_bo += T_deriv;
+            T_deriv = d_h * dw;
+            // fmt::print(" + {:5s} {:12.5e}\n", "d(ww)", dw);
+            fmt::print("+ {:7s} {:12.5e}\n", "Tderiv", factor * T_deriv);
+            h->updateFrequency(ww_s);
           }
 
-          auto bo = sr.BO(*ws, *vs);
-          printer("BO", factor * bo, 0.0);
-          T_bo += bo;
+          T_bo = bo + T_deriv;
         }
 
-        printer("Total", twvs + factor * (TBC + norm + T_bo), 0.0);
+        fmt::print("{:8s}  {:12.5e}\n", "Total",
+                   factor * (twvs + dvs + TBC + norm + T_bo));
 
-        fmt::print(os, "{:4s} {:4s} {:+.3e} {:+.3e} {:+.3e}", w.shortSymbol(),
-                   v.shortSymbol(), dvs, factor * TBC, factor * norm);
+        fmt::print(os, "{:4s} {:4s} {:+.4e}  {:+.4e}  {:+.4e}", w.shortSymbol(),
+                   v.shortSymbol(), factor * (twvs + dvs), factor * TBC,
+                   factor * norm);
         if (!have_brueckner)
-          fmt::print(os, " {:+.3e}", factor * T_bo_dv);
+          fmt::print(os, "  {:+.4e}", factor * T_bo);
+        fmt::print(os, "  {:+.4e}", factor * (twvs + dvs + TBC + T_bo + norm));
         fmt::print(os, "\n");
       }
     }
   }
-
-  std::cout << "\n";
 
   std::cout << "\n"
             << "Structure Radiation + Normalisation of states: " << h->name()
@@ -693,9 +702,9 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "Units: " << h->units() << "\n\n";
 
-  std::cout << "           SR         Norm      ";
+  std::cout << "           T1           SR           Norm         ";
   if (!have_brueckner)
-    std::cout << "BO         Total";
+    std::cout << "BO           Total";
   std::cout << "\n";
   std::cout << os.str() << std::endl;
 
@@ -898,7 +907,7 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
         if (!print_both && w.parity() == -1)
           continue;
 
-        const auto ww = eachFreqQ ? std::abs(v.en() - w.en()) : 0.0;
+        const auto ww = eachFreqQ ? (v.en() - w.en()) : 0.0;
 
         if (eachFreqQ && h->freqDependantQ()) {
           h->updateFrequency(ww);
