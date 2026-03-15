@@ -20,7 +20,8 @@ namespace ExternalField {
 //==============================================================================
 DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const std::vector<DiracSpinor> &basis,
-                       const HF::HartreeFock *in_hf, const std::string &atom)
+                       const HF::HartreeFock *in_hf, const std::string &atom,
+                       bool print)
   : CorePolarisation(h), p_hf(in_hf) {
 
   if (p_hf == nullptr || h == nullptr) {
@@ -54,12 +55,14 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
     // m_Br->fill_gb(basis);
   }
 
+  bool do_read_write = atom != "" && atom != "false";
+
   // Attempt to read W's from a file:
-  const auto read_ok = read_write(fname, IO::FRW::read);
+  const auto read_ok = do_read_write ? read_write(fname, IO::FRW::read) : false;
   if (!read_ok) {
     // If not, calc W's, and write to file
-    fill_W_matrix(h);
-    if (!holes.empty() && !excited.empty() && atom != "")
+    fill_W_matrix(h, print);
+    if (!holes.empty() && !excited.empty() && do_read_write)
       read_write(fname, IO::FRW::write);
   }
 }
@@ -157,7 +160,8 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
 }
 
 //==============================================================================
-void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
+void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h,
+                               bool print) {
   if (holes.empty() || excited.empty()) {
     std::cout << "\nWARNING 64 in DiagramRPA: no basis! RPA will be zero\n";
     return;
@@ -170,9 +174,10 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
   // const auto Vbr = p_hf->vBreit(); // a pointer, may be null
 
   // RPA: store W Coulomb integrals (used only for Core RPA its)
-  std::cout << "Filling RPA Diagram matrix ("
-            << DiracSpinor::state_config(holes) << "/"
-            << DiracSpinor::state_config(excited) << ") .. " << std::flush;
+  if (print)
+    std::cout << "Filling RPA Diagram matrix ("
+              << DiracSpinor::state_config(holes) << "/"
+              << DiracSpinor::state_config(excited) << ") .. " << std::flush;
   Wanmb.resize(holes.size());
   Wabmn.resize(holes.size());
   // First set: only use Yhe and Yee
@@ -219,7 +224,8 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
 
   Wmnab.resize(excited.size());
   Wmban.resize(excited.size());
-  std::cout << "." << std::flush;
+  if (print)
+    std::cout << "." << std::flush;
   {
     // Only use Yhe and Yhh here:
     // const Coulomb::YkTable Yhh(holes);
@@ -264,7 +270,8 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h) {
       }
     }
   }
-  std::cout << " done.\n" << std::flush;
+  if (print)
+    std::cout << " done.\n" << std::flush;
 }
 
 //==============================================================================

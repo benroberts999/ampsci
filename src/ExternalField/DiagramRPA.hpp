@@ -45,7 +45,8 @@ public:
   //! Normal constructor: needs core to split basis: only uses basis.
   DiagramRPA(const DiracOperator::TensorOperator *const h,
              const std::vector<DiracSpinor> &basis,
-             const HF::HartreeFock *in_hf, const std::string &atom = "Atom");
+             const HF::HartreeFock *in_hf, const std::string &atom = "",
+             bool print = true);
 
   //! Second constructor: copies over W matrices (depend only on k/pi)
   DiagramRPA(const DiracOperator::TensorOperator *const h,
@@ -86,7 +87,7 @@ private:
   // Note: doesn't depend on grid!
   bool read_write(const std::string &fname, IO::FRW::RoW rw);
 
-  void fill_W_matrix(const DiracOperator::TensorOperator *const h);
+  void fill_W_matrix(const DiracOperator::TensorOperator *const h, bool print);
   void setup_ts(const DiracOperator::TensorOperator *const h);
 
 public:
