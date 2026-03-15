@@ -71,16 +71,14 @@ void StructureRad::solve_core(const DiracOperator::TensorOperator *const h,
 }
 
 //==============================================================================
-std::pair<double, double>
-StructureRad::srTB(const DiracOperator::TensorOperator *const,
-                   const DiracSpinor &w, const DiracSpinor &v, double omega,
-                   const ExternalField::CorePolarisation *const) const {
+double StructureRad::srTB(const DiracSpinor &w, const DiracSpinor &v,
+                          double omega) const {
   assert(!mTab.empty());
   assert(m_K >= 0);
 
   // no SR correction to zero matrix element
   if (!mTab.contains(w, v))
-    return {0.0, 0.0};
+    return 0.0;
 
   // Actually faster?
   std::vector<std::pair<std::size_t, std::size_t>> index_ra;
@@ -112,20 +110,17 @@ StructureRad::srTB(const DiracOperator::TensorOperator *const,
     tb += (t_ar * T_wrva * inv_era_pw) + (t_ra * B_wavr * inv_era_mw);
   }
 
-  return {tb, 0.0};
+  return tb;
 }
 
 //==============================================================================
-std::pair<double, double>
-StructureRad::srC(const DiracOperator::TensorOperator *const,
-                  const DiracSpinor &w, const DiracSpinor &v,
-                  const ExternalField::CorePolarisation *const) const {
+double StructureRad::srC(const DiracSpinor &w, const DiracSpinor &v) const {
   assert(!mTab.empty());
   assert(m_K >= 0);
 
   // no SR correction to zero matrix element
   if (!mTab.contains(w, v))
-    return {0.0, 0.0};
+    return 0.0;
 
   std::vector<std::pair<std::size_t, std::size_t>> index_ab;
   for (auto ia = 0ul; ia < mCore.size(); ++ia) {
@@ -174,42 +169,42 @@ StructureRad::srC(const DiracOperator::TensorOperator *const,
     c -= t_mr * C_wrvm;
   }
 
-  return {c, 0.0};
+  return c;
 }
 
 //==============================================================================
-std::pair<double, double>
-StructureRad::norm(const DiracOperator::TensorOperator *const h,
-                   const DiracSpinor &w, const DiracSpinor &v,
+double
+StructureRad::norm(const DiracSpinor &w, const DiracSpinor &v,
+                   const DiracOperator::TensorOperator *const h,
                    const ExternalField::CorePolarisation *const dV) const {
   if (h->isZero(w.kappa(), v.kappa()))
-    return {0.0, 0.0};
+    return 0.0;
 
   const auto t_wv = h->reducedME(w, v) + (dV ? dV->dV(w, v) : 0.0);
 
-  const auto nv = n1(v) + n2(v);
-  const auto nw = w == v ? nv : n1(w) + n2(w);
+  const auto f_nv = f_norm(v);
+  const auto f_nw = w == v ? f_nv : f_norm(w);
 
-  return {-0.5 * t_wv * (nv + nw), 0.0};
+  return t_wv * (f_nv + f_nw);
 }
 
 //==============================================================================
-Coulomb::meTable<std::pair<double, double>>
+Coulomb::meTable<double>
 StructureRad::srn_table(const DiracOperator::TensorOperator *const h,
                         const std::vector<DiracSpinor> &as,
                         const std::vector<DiracSpinor> &tbs, double omega,
                         const ExternalField::CorePolarisation *const dV) const {
   const auto &bs = tbs.empty() ? as : tbs;
 
-  Coulomb::meTable<std::pair<double, double>> tab;
+  Coulomb::meTable<double> tab;
 
   // First, fill with zeros. Must be done in serial
   for (const auto &a : as) {
     for (const auto &b : bs) {
       if (h->isZero(a, b))
         continue;
-      tab.add(a, b, {0.0, 0.0});
-      tab.add(b, a, {0.0, 0.0});
+      tab.add(a, b, 0.0);
+      tab.add(b, a, 0.0);
     }
   }
 
@@ -222,10 +217,10 @@ StructureRad::srn_table(const DiracOperator::TensorOperator *const h,
         continue; //?
       auto el_ab = tab.get(a, b);
       assert(el_ab != nullptr);
-      if (el_ab->first == 0.0) {
-        *el_ab = srn(h, a, b, omega, dV);
+      if (*el_ab == 0.0) {
+        *el_ab = srn(a, b, h, dV, omega);
         const auto s = h->symm_sign(a, b);
-        *tab.get(b, a) = {s * el_ab->first, s * el_ab->second};
+        *tab.get(b, a) = s * *el_ab;
       }
     }
   }
@@ -665,11 +660,8 @@ double StructureRad::n2(const DiracSpinor &v) const {
 }
 
 //==============================================================================
-std::pair<double, double>
-StructureRad::z_bo(const DiracOperator::TensorOperator *const,
-                   const DiracSpinor &w, const DiracSpinor &v, bool transpose,
-                   const ExternalField::CorePolarisation *const) const {
-  //
+double StructureRad::z_bo(const DiracSpinor &w, const DiracSpinor &v,
+                          bool transpose) const {
 
   double zBO = 0.0;
 
@@ -691,7 +683,6 @@ StructureRad::z_bo(const DiracOperator::TensorOperator *const,
     const auto h_wi = transpose ? mTab.getv(i, w) : mTab.getv(w, i);
 
     const auto de_vi = v.en() - i.en();
-
     const auto f_iv = h_wi / v.twojp1() / de_vi;
 
     double zBO_i = 0.0;
@@ -734,25 +725,18 @@ StructureRad::z_bo(const DiracOperator::TensorOperator *const,
     zBO += zBO_i * f_iv;
   }
 
-  return {zBO, 0.0};
+  return zBO;
 }
 
 //==============================================================================
-std::pair<double, double>
-StructureRad::BO(const DiracOperator::TensorOperator *const h,
-                 const DiracSpinor &w, const DiracSpinor &v,
-                 const ExternalField::CorePolarisation *const dV, double fw,
-                 double fv) const {
+double StructureRad::BO(const DiracSpinor &w, const DiracSpinor &v, double fw,
+                        double fv) const {
 
-  auto z1 = z_bo(h, w, v, false, dV);
-  const auto z2 = v == w ? z1 : z_bo(h, v, w, true, dV);
+  const auto z1 = z_bo(w, v, false);
+  const auto z2 = v == w ? z1 : z_bo(v, w, true);
 
-  z1.first *= fw;
-  z1.second *= fw;
-
-  z1.first += fv * z2.first;
-  z1.second += fv * z2.second;
-  return z1;
+  // check fw/fv order?
+  return z1 * fw + z2 * fv;
 }
 
 //==============================================================================

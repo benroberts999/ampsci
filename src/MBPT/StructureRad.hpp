@@ -137,45 +137,30 @@ public:
   void solve_core(const DiracOperator::TensorOperator *const h,
                   const ExternalField::CorePolarisation *const dV = nullptr);
 
-  //! Returns sum of Top+Bottom (SR) diagrams, reduced ME: <w||T+B||v>. Returns
-  //! a pair: {TB, TB+dV}: second includes RPA (if dV given)
-  std::pair<double, double>
-  srTB(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-       const DiracSpinor &v, double omega = 0.0,
-       const ExternalField::CorePolarisation *const dV = nullptr) const;
-
-  //! Returns Centre (SR) diagrams, reduced ME: <w||C||v>. Returns
-  //! a pair: {C, C+dV}: second includes RPA (if dV given)
-  std::pair<double, double>
-  srC(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-      const DiracSpinor &v,
-      const ExternalField::CorePolarisation *const dV = nullptr) const;
-
-  //! Reduced matrix element of structure radiation **only**. Does not include norm?
-  double reducedME(const DiracOperator::TensorOperator *const h,
-                   const DiracSpinor &w, const DiracSpinor &v,
-                   const ExternalField::CorePolarisation *const dV,
-                   double omega) const {
-    return srTB(h, w, v, omega, dV).first + srC(h, w, v, dV).first;
+  //! Reduced matrix element of structure radiation <w||h_sr||v>
+  double SR(const DiracSpinor &w, const DiracSpinor &v,
+            double omega = 0.0) const {
+    return srTB(w, v, omega) + srC(w, v);
   }
 
-  //! Returns Normalisation of states, reduced ME: <w||h||v>_norm. Returns
-  //! a pair: {N, N+dV}: second includes RPA (if dV given).
-  std::pair<double, double>
-  norm(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-       const DiracSpinor &v,
-       const ExternalField::CorePolarisation *const dV = nullptr) const;
+  //! Returns Normalisation of states, reduced ME: <w||h||v>_norm.
+  double norm(const DiracSpinor &w, const DiracSpinor &v,
+              const DiracOperator::TensorOperator *const h,
+              const ExternalField::CorePolarisation *const dV = nullptr) const;
 
-  //! Returns sum of SR+Norm diagrams, reduced ME: <w||T+B+C+N||v>. Returns
-  //! a pair: {SRN, SRN+dV}: second includes RPA (if dV given)
-  std::pair<double, double>
-  srn(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-      const DiracSpinor &v, double omega = 0.0,
-      const ExternalField::CorePolarisation *const dV = nullptr) const {
-    const auto [tb, dvtb] = srTB(h, w, v, omega, dV);
-    const auto [c, dvc] = srC(h, w, v, dV);
-    const auto [n, dvn] = norm(h, w, v, dV);
-    return {tb + c + n, dvtb + dvc + dvn};
+  //! Normalisation factor; defined: <w||h||v>_norm = <w||h||v>(f_v + f_w)
+  double f_norm(const DiracSpinor &v) const { return -0.5 * (n1(v) + n2(v)); }
+
+  //! Returns sum of SR+Norm diagrams, reduced ME: <w||T+B+C+N||v>.
+  //! @note Must call solve_core() first! h and dV used for norm() only
+  double srn(const DiracSpinor &w, const DiracSpinor &v,
+             const DiracOperator::TensorOperator *const h,
+             const ExternalField::CorePolarisation *const dV = nullptr,
+             double omega = 0.0) const {
+    const auto tb = srTB(w, v, omega);
+    const auto c = srC(w, v);
+    const auto n = norm(w, v, h, dV);
+    return tb + c + n;
   }
 
   //! Effective screening factor for Coulomb lines
@@ -193,23 +178,27 @@ public:
   //! Returns Brueckner orbital contribution to the, reduced ME: <w||h||v>_norm.
   //! Returns a pair: {N, N+dV}: second includes RPA (if dV given).
   //! @details from 10.1006/adnd.1996.0024
-  std::pair<double, double>
-  BO(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-     const DiracSpinor &v,
-     const ExternalField::CorePolarisation *const dV = nullptr, double fw = 1.0,
-     double fv = 1.0) const;
+  double BO(const DiracSpinor &w, const DiracSpinor &v, double fw = 1.0,
+            double fv = 1.0) const;
 
   //! Calculates <v|Sigma|w>
   double Sigma_vw(const DiracSpinor &v, const DiracSpinor &w) const;
 
   //! constructs an me table of {srn, srn+dv} for each pair or {a,b}
-  Coulomb::meTable<std::pair<double, double>>
+  Coulomb::meTable<double>
   srn_table(const DiracOperator::TensorOperator *const h,
             const std::vector<DiracSpinor> &as,
             const std::vector<DiracSpinor> &tbs = {}, double omega = 0.0,
             const ExternalField::CorePolarisation *const dV = nullptr) const;
 
 private:
+  //! Returns sum of Top+Bottom (SR) diagrams, reduced ME: <w||T+B||v>.
+  double srTB(const DiracSpinor &w, const DiracSpinor &v,
+              double omega = 0.0) const;
+
+  //! Returns Centre (SR) diagrams, reduced ME: <w||C||v>. No explicit omega dependence
+  double srC(const DiracSpinor &w, const DiracSpinor &v) const;
+
   // "Top" diagrams
   double t1234(int k, const DiracSpinor &w, const DiracSpinor &r,
                const DiracSpinor &v, const DiracSpinor &c) const;
@@ -242,10 +231,8 @@ private:
   double dSigma_dE(const DiracSpinor &v, const DiracSpinor &i,
                    const DiracSpinor &j, const DiracSpinor &k) const;
 
-  std::pair<double, double>
-  z_bo(const DiracOperator::TensorOperator *const h, const DiracSpinor &w,
-       const DiracSpinor &v, bool transpose = false,
-       const ExternalField::CorePolarisation *const dV = nullptr) const;
+  double z_bo(const DiracSpinor &w, const DiracSpinor &v,
+              bool transpose = false) const;
 
   //
   double Q(int k, const DiracSpinor &a, const DiracSpinor &b,
