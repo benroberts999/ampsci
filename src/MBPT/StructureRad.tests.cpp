@@ -55,15 +55,14 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
         const auto tab_ba = tab.get(b, a);
         REQUIRE(tab_ab != nullptr);
         REQUIRE(tab_ba != nullptr);
-        const auto [srab, xab] = *tab_ab;
-        const auto [srba, xba] = *tab_ba;
+        const auto srab = *tab_ab;
+        const auto srba = *tab_ba;
 
         const auto relative_sign = h->symm_sign(a, b);
         REQUIRE(srab == Approx(srba * relative_sign));
 
         // test srn():
-        const auto srn0 = srn.srTB(h, a, b).first + srn.srC(h, a, b).first +
-                          srn.norm(h, a, b).first;
+        const auto srn0 = srn.SR(a, b) + srn.norm(a, b, h);
         REQUIRE(srab == Approx(srn0));
 
         // test underlying meTable was filled correctly
@@ -92,25 +91,21 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
       for (const auto &b : srn.excited()) {
         if (a < b && !h->isZero(a, b)) {
           // test all three versions (direct Yk, direct Qk, read-in Qk)
-          const auto srC0 = srn.srC(h, a, b).first;
-          const auto srC2 = srn2.srC(h, a, b).first;
-          const auto srC3 = srn3.srC(h, a, b).first;
+          const auto srC0 = srn.SR(a, b);
+          const auto srC2 = srn2.SR(a, b);
+          const auto srC3 = srn3.SR(a, b);
           REQUIRE(srC0 == Approx(srC2));
           REQUIRE(srC0 == Approx(srC3));
 
-          const auto srTB2 = srn2.srTB(h, a, b).first;
-          const auto srTB3 = srn3.srTB(h, a, b).first;
-          REQUIRE(srTB2 == Approx(srTB3));
-
-          const auto srN2 = srn2.norm(h, a, b).first;
-          const auto srN3 = srn3.norm(h, a, b).first;
+          const auto srN2 = srn2.norm(a, b, h);
+          const auto srN3 = srn3.norm(a, b, h);
           REQUIRE(srN2 == Approx(srN3));
 
-          const auto srn_tot = srn2.srn(h, a, b).first;
-          REQUIRE(srn_tot == Approx(srC2 + srTB2 + srN2));
+          const auto srn_tot = srn2.srn(a, b, h);
+          REQUIRE(srn_tot == Approx(srC2 + srN2));
 
           // test copy-constructor version mathces
-          const auto srn_tot4 = srn4.srn(h, a, b).first;
+          const auto srn_tot4 = srn4.srn(a, b, h);
           REQUIRE(srn_tot == Approx(srn_tot4));
         }
       }
@@ -183,9 +178,9 @@ TEST_CASE("MBPT: Structure Rad + Norm",
       const double omega = 0.0; //w.en() - v.en();
 
       const auto z1 = s * z1_tmp;
-      const auto bo = s * srn.BO(&h, w, v).first;
-      const auto sr = s * srn.reducedME(nullptr, w, v, nullptr, omega);
-      const auto norm = s * srn.norm(&h, w, v, nullptr).first;
+      const auto bo = s * srn.BO(w, v);
+      const auto sr = s * srn.SR(w, v, omega);
+      const auto norm = s * srn.norm(w, v, &h, nullptr);
 
       fmt::print("{:3} {:3} :  {:+.4f}  {:+.4f}  {:+.4f}  {:+.4f}\n",
                  w.shortSymbol(), v.shortSymbol(), z1, bo, sr, norm);
@@ -262,9 +257,9 @@ TEST_CASE("MBPT: Structure Rad + Norm HFS",
     const auto hf = hfs.reducedME(v, v) * rme_to_A;
     const auto rpa = dV.dV(v, v) * rme_to_A;
 
-    const auto bo = srn.BO(nullptr, v, v).first * rme_to_A;
-    const auto sr = srn.reducedME(nullptr, v, v, nullptr, 0.0) * rme_to_A;
-    const auto norm = srn.norm(&hfs, v, v, &dV).first * rme_to_A;
+    const auto bo = srn.BO(v, v) * rme_to_A;
+    const auto sr = srn.SR(v, v) * rme_to_A;
+    const auto norm = srn.norm(v, v, &hfs, &dV) * rme_to_A;
 
     fmt::print("{:3} :  {:+7.2f}  {:+6.2f}  {:+6.2f}  {:+5.2f}  {:+5.2f}\n",
                v.shortSymbol(), hf, rpa, bo, sr, norm);
