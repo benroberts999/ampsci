@@ -5,6 +5,7 @@
 #include "ampsci/ampsci.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Maths.hpp"
+#include "qip/Random.hpp"
 #include "qip/Vector.hpp"
 #include <string>
 #include <tuple>
@@ -579,10 +580,12 @@ TEST_CASE("HartreeFock - Sigma2 - InIII Converge",
           "[HF][HartreeFock][Correlations][unit]") {
 
   // This is just a test case that failed to converge before an update
+  std::string run_label = "deleteme_" + qip::random_string(3);
 
   const auto input_string = std::string{R"(
     Atom {
       Z = In;
+      run_label = )" + run_label + R"(;
     }
     HartreeFock {
       core = [Kr], 4d10;

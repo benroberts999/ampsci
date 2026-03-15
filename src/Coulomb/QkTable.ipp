@@ -4,6 +4,7 @@
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Physics/AtomData.hpp"
 #include "QkTable.hpp"
+#include "fmt/format.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstring> // for memcpy
@@ -18,7 +19,7 @@ void CoulombTable<S>::summary() const {
   int k = 0;
   auto total = 0ul;
   for (auto &qk : m_data) {
-    std::cout << "k = " << k << ": " << qk.size() << "\n";
+    fmt::print("k = {:2}: {}\n", k, qk.size());
     // << " [" << qk.bucket_count()<< "]\n";
     total += qk.size();
     ++k;

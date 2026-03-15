@@ -62,13 +62,20 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
         REQUIRE(srab == Approx(srba * relative_sign));
 
         // test srn():
-        const auto srn0 = srn.SR(a, b) + srn.norm(a, b, h);
+        const auto norm = srn.norm(a, b, h);
+        const auto srn0 = srn.SR(a, b) + norm;
         REQUIRE(srab == Approx(srn0));
 
         // test underlying meTable was filled correctly
         const auto me_ab_tab = me_tab.getv(a, b);
         const auto me_ab_cal = h->reducedME(a, b);
         REQUIRE(me_ab_tab == Approx(me_ab_cal));
+
+        // Test norm direct vs. fia factors
+        const auto f_norm_a = srn.f_norm(a);
+        const auto f_norm_b = srn.f_norm(b);
+        const auto norm2 = (f_norm_a + f_norm_b) * (me_ab_tab);
+        REQUIRE(norm == Approx(norm2));
       }
     }
 
