@@ -666,12 +666,12 @@ double StructureRad::n2(const DiracSpinor &v) const {
 
 //==============================================================================
 std::pair<double, double>
-StructureRad::z_bo(const DiracOperator::TensorOperator *const h,
+StructureRad::z_bo(const DiracOperator::TensorOperator *const,
                    const DiracSpinor &w, const DiracSpinor &v, bool transpose,
-                   const ExternalField::CorePolarisation *const dV) const {
+                   const ExternalField::CorePolarisation *const) const {
   //
 
-  double zBO = 0.0, zBO_dv = 0.0;
+  double zBO = 0.0;
 
   std::vector<const DiracSpinor *> i_ptr;
   for (const auto &t_basis : {&mCore, &mExcited}) {
@@ -682,18 +682,17 @@ StructureRad::z_bo(const DiracOperator::TensorOperator *const h,
     }
   }
 
-#pragma omp parallel for reduction(+ : zBO) reduction(+ : zBO_dv)
+#pragma omp parallel for reduction(+ : zBO)
   for (std::size_t ii = 0; ii < i_ptr.size(); ++ii) {
     const auto &i = *i_ptr[ii];
 
-    const auto ftr = transpose ? h->symm_sign(w, i) : 1.0;
-    const auto h_wi = ftr * mTab.getv(w, i);
-    const auto dV_wi = ftr * (dV ? dV->dV(w, i) : 0.0);
+    // const auto ftr = transpose ? h->symm_sign(w, i) : 1.0;
+    // const auto h_wi = ftr * mTab.getv(w, i);
+    const auto h_wi = transpose ? mTab.getv(i, w) : mTab.getv(w, i);
 
     const auto de_vi = v.en() - i.en();
 
     const auto f_iv = h_wi / v.twojp1() / de_vi;
-    const auto dv_iv = (h_wi + dV_wi) / v.twojp1() / de_vi;
 
     double zBO_i = 0.0;
 
@@ -733,10 +732,9 @@ StructureRad::z_bo(const DiracOperator::TensorOperator *const h,
     }
 
     zBO += zBO_i * f_iv;
-    zBO_dv += zBO_i * dv_iv;
   }
 
-  return {zBO, zBO_dv};
+  return {zBO, 0.0};
 }
 
 //==============================================================================
