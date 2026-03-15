@@ -9,7 +9,6 @@
 #include "Modules/exampleModule.hpp"
 #include "Modules/isotopeShift.hpp"
 #include "Modules/ladder.hpp"
-#include "Modules/lifetimes.hpp"
 #include "Modules/matrixElements.hpp"
 #include "Modules/muonic.hpp"
 #include "Modules/pnc.hpp"
@@ -17,7 +16,6 @@
 #include "Modules/qed.hpp"
 #include "Modules/runModules.hpp"
 #include "Modules/screeningFactors.hpp"
-#include "Modules/thirdOrder.hpp"
 #include <iostream>
 #include <string>
 #include <tuple>
@@ -56,16 +54,11 @@ static const std::vector<ModuleInfo> module_list{
    "perturbation theory"},
   {"normalisation", &normalisation,
    "Calculates normalisation correction via derivative of Sigma"},
-  {"thirdOrderME", &thirdOrderME,
-   "Calculates Third-order matrix elements. Obsolete?"},
-  {"lifetimes", &lifetimes, "Calculate radiative lifetimes (E1, E2, M1)"},
   {"polarisability", &polarisability, "Calculates static polarisabilities"},
   {"dynamicPolarisability", &dynamicPolarisability,
    "Calculates dynamic polarisabilities"},
   {"transitionPolarisability", &transitionPolarisability,
    "Calculates transition polarisabilities"},
-  {"structureRad", &structureRad,
-   "Calculates Struct. Rad + Normalisation corrections to MEs"},
   {"isotopeShift", &fieldShift,
    "soft link to `fieldShift` for back compatability"},
   {"fieldShift", &fieldShift,
@@ -88,9 +81,6 @@ static const std::vector<ModuleInfo> module_list{
    "Calculates Feynman electron screening factors"},
   {"pnc", &calculatePNC, "Calculates APV amplitudes"},
   {"muonPV", &muonPV, "For testing/playing with muonic PV"},
-  {"muon", &muon,
-   "Calculating muonic wavefunctions, energies, matrix elements - somewhat "
-   "obsolete after introduction of Exotic{} into ampsci main"},
   {"dcp", &dcp, "Module for testing dcp calculations"},
   {"exampleModule", &exampleModule, "A short description of the module"}};
 
