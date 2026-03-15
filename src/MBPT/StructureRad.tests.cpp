@@ -10,16 +10,19 @@
 TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
 
   // note: does not test formulas: just checks class is working correctly.
-  //  Other (integration) tests below check correctness/accuracy of formulas
+  // Other (integration) tests below check correctness/accuracy of formulas
 
   Wavefunction wf({400, 1.0e-3, 30.0, 10.0, "loglinear", -1.0},
                   {"B", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("Local", 0.0, "[He],2s2");
-  wf.formBasis({"5sp4df", 60, 5, 1.0e-2, 1.0e-2, 20.0});
+  wf.solve_core("Local", 0.0, "[He],2s2", 1.0e-12, false);
+  SplineBasis::Parameters params{"5sp4df", 60, 5, 1.0e-2, 1.0e-2, 20.0};
+  params.verbose = false;
+  wf.formBasis(params);
 
   const auto h = DiracOperator::E1(wf.grid());
 
-  MBPT::StructureRad srn(wf.basis(), wf.FermiLevel());
+  MBPT::StructureRad srn(wf.basis(), wf.FermiLevel(), {0, 999}, "", {}, {},
+                         true);
 
   REQUIRE(srn.core().size() == wf.core().size());
   REQUIRE(srn.excited().size() == wf.basis().size() - wf.core().size());
@@ -30,6 +33,7 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
   REQUIRE(!srn.me_Table().empty());
 
   // test srn_table and me_table
+  std::cout << "\nTest SRN and meTable\n";
   const auto tab = srn.srn_table(&h, srn.core(), srn.excited());
   const auto &me_tab = srn.me_Table();
   for (const auto &a : srn.core()) {
@@ -55,13 +59,16 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
     }
   }
 
+  std::cout << "\nTest SRN: Qk vs Yk table, including read/write and copy\n";
   // TEST SRN read-write using Qk_file
   const auto rand_str = qip::random_string(6);
   const auto fname = "deleteme_" + rand_str + ".qk.abf";
   // Create Qk file:
-  MBPT::StructureRad srn2(wf.basis(), wf.FermiLevel(), {0, 999}, fname);
+  MBPT::StructureRad srn2(wf.basis(), wf.FermiLevel(), {0, 999}, fname, {}, {},
+                          false);
   // Read in QK file:
-  MBPT::StructureRad srn3(wf.basis(), wf.FermiLevel(), {0, 999}, fname);
+  MBPT::StructureRad srn3(wf.basis(), wf.FermiLevel(), {0, 999}, fname,
+                          {1.0, 1.0, 1.0}, {1.0, 1.0, 1.0});
   srn2.solve_core(&h);
   srn3.solve_core(&h);
   // Copy existing
@@ -72,16 +79,16 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
         const auto srC0 = srn.srC(&h, a, b).first;
         const auto srC2 = srn2.srC(&h, a, b).first;
         const auto srC3 = srn3.srC(&h, a, b).first;
-        REQUIRE(std::abs(srC0 - srC2) < 1.0e-10);
-        REQUIRE(std::abs(srC0 - srC3) < 1.0e-10);
+        REQUIRE(srC0 == Approx(srC2));
+        REQUIRE(srC0 == Approx(srC3));
 
         const auto srTB2 = srn2.srTB(&h, a, b).first;
         const auto srTB3 = srn3.srTB(&h, a, b).first;
-        REQUIRE(std::abs(srTB2 - srTB3) < 1.0e-14);
+        REQUIRE(srTB2 == Approx(srTB3));
 
         const auto srN2 = srn2.norm(&h, a, b).first;
         const auto srN3 = srn3.norm(&h, a, b).first;
-        REQUIRE(std::abs(srN2 - srN3) < 1.0e-14);
+        REQUIRE(srN2 == Approx(srN3));
 
         const auto srn_tot = srn2.srn(&h, a, b).first;
         REQUIRE(srn_tot == Approx(srC2 + srTB2 + srN2));

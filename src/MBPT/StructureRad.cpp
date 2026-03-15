@@ -20,7 +20,7 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
                            double en_core, std::pair<int, int> nminmax,
                            const std::string &Qk_fname,
                            const std::vector<double> &fk,
-                           const std::vector<double> &etak)
+                           const std::vector<double> &etak, bool verbose)
   : m_use_Qk(!Qk_fname.empty()),
     m_root_fk(qip::apply_to(vroot, fk)),
     m_etak(etak) {
@@ -43,17 +43,20 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
 
   // Only calculate Yk values if not Qk table, or in order to calculate Qk
   if (m_use_Qk) {
-    std::cout << "Using Qk Coulomb table\n";
-    std::cout << "\nFill Qk table:\n";
+    if (verbose) {
+      std::cout << "Using Qk Coulomb table\n";
+      std::cout << "\nFill Qk table:\n";
+    }
     mQ = Coulomb::QkTable{};
     const auto read_ok = mQ->read(Qk_fname);
     if (!read_ok) {
       mY.calculate(mBasis);
-      mQ->fill(mBasis, mY);
+      mQ->fill(mBasis, mY, -1, verbose);
       mQ->write(Qk_fname);
     }
   } else {
-    std::cout << "Using Yk Coulomb table\n";
+    if (verbose)
+      std::cout << "Using Yk Coulomb table\n";
     mY.calculate(mBasis);
   }
 }
