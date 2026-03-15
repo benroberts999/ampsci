@@ -44,19 +44,19 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
   // Only calculate Yk values if not Qk table, or in order to calculate Qk
   if (m_use_Qk) {
     if (verbose) {
-      std::cout << "Using Qk Coulomb table\n";
-      std::cout << "\nFill Qk table:\n";
+      std::cout << "\nUsing Qk Coulomb table for Struc. Rad.\n";
     }
     mQ = Coulomb::QkTable{};
-    const auto read_ok = mQ->read(Qk_fname);
+    const auto read_ok = mQ->read(Qk_fname, verbose);
     if (!read_ok) {
+      std::cout << "Fill Qk table:\n";
       mY.calculate(mBasis);
       mQ->fill(mBasis, mY, -1, verbose);
-      mQ->write(Qk_fname);
+      mQ->write(Qk_fname, verbose);
     }
   } else {
     if (verbose)
-      std::cout << "Using Yk Coulomb table\n";
+      std::cout << "\nUsing Yk Coulomb table for Struc. Rad.\n";
     mY.calculate(mBasis);
   }
 }

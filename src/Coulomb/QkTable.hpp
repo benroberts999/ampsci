@@ -189,7 +189,7 @@ public:
   //! Writes coulomb integrals to disk
   void write(const std::string &fname, bool verbose = true) const;
   //! Reads coulomb integrals to disk. Returns false if none read in
-  bool read(const std::string &fname);
+  bool read(const std::string &fname, bool verbose = true);
 
   //! Directly gets one of the stored elements, given normal-ordered nk4Index
   double *get(int k, nk4Index index);
