@@ -187,7 +187,7 @@ public:
   }
 
   //! Writes coulomb integrals to disk
-  void write(const std::string &fname) const;
+  void write(const std::string &fname, bool verbose = true) const;
   //! Reads coulomb integrals to disk. Returns false if none read in
   bool read(const std::string &fname);
 

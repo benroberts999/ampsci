@@ -836,11 +836,12 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
 
 //==============================================================================
 template <Symmetry S>
-void CoulombTable<S>::write(const std::string &fname) const {
+void CoulombTable<S>::write(const std::string &fname, bool verbose) const {
   if (fname == "false")
     return;
-  std::cout << "Writing " << count() << " integrals to file: " << fname << ".."
-            << std::flush;
+  if (verbose)
+    std::cout << "Writing " << count() << " integrals to file: " << fname
+              << ".." << std::flush;
   std::fstream f;
   const auto rw = IO::FRW::write;
   IO::FRW::open_binary(f, fname, rw);
@@ -855,7 +856,8 @@ void CoulombTable<S>::write(const std::string &fname) const {
       rw_binary(f, rw, key_copy, value);
     }
   }
-  std::cout << "\n" << std::flush;
+  if (verbose)
+    std::cout << "\n" << std::flush;
 }
 
 //==============================================================================
