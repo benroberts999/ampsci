@@ -14,16 +14,16 @@ namespace Coulomb {
 //==============================================================================
 template <Symmetry S>
 void CoulombTable<S>::summary() const {
-  std::cout << "Summary: \n";
+  std::cout << "Stored non-zero Coulomb integrals: \n";
   int k = 0;
   auto total = 0ul;
   for (auto &qk : m_data) {
-    std::cout << "k=" << k << ": " << qk.size() << " [" << qk.bucket_count()
-              << "]\n";
+    std::cout << "k = " << k << ": " << qk.size() << "\n";
+    // << " [" << qk.bucket_count()<< "]\n";
     total += qk.size();
     ++k;
   }
-  std::cout << "Total: " << total << " non-zero integrals\n";
+  std::cout << "Total: " << total << "\n";
 }
 
 template <Symmetry S>
@@ -484,7 +484,6 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     m_data.resize(max_k + 1);
 
   // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space
-  t.start();
   std::vector<std::size_t> count_non_zero_k(max_k + 1);
 #pragma omp parallel for
   for (auto k = 0ul; k <= max_k; ++k) {
@@ -506,17 +505,12 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  if (print)
-    std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
 
   // 2) Reserve space in each sub-map
-  t.start();
 #pragma omp parallel for
   for (auto ik = 0ul; ik <= max_k; ++ik) {
     m_data[ik].reserve(count_non_zero_k[ik]);
   }
-  if (print)
-    std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
 
   // 3) Create space in map (set each element to zero).
   t.start();
@@ -540,7 +534,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     }
   }
   if (print)
-    std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
+    std::cout << "Construct empty table: " << t.lap_reading_str() << std::endl;
 
   // 4) Fill the pre-constructed map with values, in parallel. Since we are
   // not adding any new elements to map, and since we are guarenteed to only
@@ -567,7 +561,6 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
                 // This saves some time, but surprisingly little!
                 *ptr = yk.Q(k, a, b, c, d);
               }
-              // update(k, a, b, c, d, yk.Q(k, a, b, c, d));
             }
           }
         }
@@ -605,7 +598,6 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
     m_data.resize(max_k + 1);
 
   // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space
-  t.start();
   std::vector<std::size_t> count_non_zero_k(max_k + 1);
 #pragma omp parallel for
   for (auto k = 0ul; k <= max_k; ++k) {
@@ -628,17 +620,12 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  if (print)
-    std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
 
   // 2) Reserve space in each sub-map
-  t.start();
 #pragma omp parallel for
   for (auto ik = 0ul; ik <= max_k; ++ik) {
     m_data[ik].reserve(count_non_zero_k[ik]);
   }
-  if (print)
-    std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
 
   // 3) Create space in map (set each element to zero).
   t.start();
@@ -664,7 +651,7 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
     }
   }
   if (print)
-    std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
+    std::cout << "Construct empty table: " << t.lap_reading_str() << std::endl;
 
   // 4) Fill the pre-constructed map with values, in parallel. Since we are
   // not adding any new elements to map, and since we are guarenteed to only
@@ -740,7 +727,6 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     m_data.resize(max_k + 1);
 
   // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space
-  t.start();
   std::vector<std::size_t> count_non_zero_k(max_k + 1);
 #pragma omp parallel for
   for (auto k = 0ul; k <= max_k; ++k) {
@@ -760,17 +746,12 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  if (print)
-    std::cout << "Count non-zero: " << t.lap_reading_str() << std::endl;
 
   // 2) Reserve space in each sub-map
-  t.start();
 #pragma omp parallel for
   for (auto ik = 0ul; ik <= max_k; ++ik) {
     m_data[ik].reserve(count_non_zero_k[ik]);
   }
-  if (print)
-    std::cout << "Reserve: " << t.lap_reading_str() << std::endl;
 
   // 3) Create space in map (set each element to zero).
   t.start();
@@ -792,7 +773,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     }
   }
   if (print)
-    std::cout << "Fill w/ zeros: " << t.lap_reading_str() << std::endl;
+    std::cout << "Construct empty table: " << t.lap_reading_str() << std::endl;
 
   // 4) Fill the pre-constructed map with values, in parallel. Since we are
   // not adding any new elements to map, and since we are guarenteed to only
@@ -819,7 +800,6 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
                   // only calculate if not already in table
                   *ptr = Fk(k, a, b, c, d);
                 }
-                // update(k, a, b, c, d, Fk(k, a, b, c, d));
               }
             }
           }
@@ -852,7 +832,7 @@ void CoulombTable<S>::write(const std::string &fname, bool verbose) const {
     auto size_k = Q_k.size();
     rw_binary(f, rw, size_k);
     for (auto [key, value] : Q_k) {
-      auto key_copy = key; // have no pass non-const reference!
+      auto key_copy = key; // have to pass non-const reference!
       rw_binary(f, rw, key_copy, value);
     }
   }
@@ -862,12 +842,10 @@ void CoulombTable<S>::write(const std::string &fname, bool verbose) const {
 
 //==============================================================================
 template <Symmetry S>
-bool CoulombTable<S>::read(const std::string &fname) {
-  IO::ChronoTimer t("read");
-  if (fname == "false")
+bool CoulombTable<S>::read(const std::string &fname, bool verbose) {
+  if (fname == "false" || fname.empty())
     return false;
 
-  std::cout << "Reading: " << fname << "\n" << std::flush;
   std::fstream f;
   const auto rw = IO::FRW::read;
   IO::FRW::open_binary(f, fname, rw);
@@ -879,6 +857,9 @@ bool CoulombTable<S>::read(const std::string &fname) {
 
   if (!f.good())
     return false;
+
+  if (verbose)
+    std::cout << "Reading: " << fname << "\n" << std::flush;
 
   std::size_t size{0};
   rw_binary(f, rw, size);
@@ -911,23 +892,26 @@ bool CoulombTable<S>::read(const std::string &fname) {
     }
   }
 
-  // convert list to basis string (max n for each l)
-  int last_n = 0;
-  int l = 0;
-  std::string basis_str;
-  for (const auto &n : max_n_l) {
-    if (n != last_n)
-      basis_str += std::to_string(n);
-    basis_str += AtomData::l_symbol(l);
-    last_n = n;
-    l++;
-  }
-  if (!basis_str.empty())
-    basis_str = "[" + basis_str + "] ";
+  if (verbose) {
+    // convert list to basis string (max n for each l)
+    int last_n = 0;
+    int l = 0;
+    std::string basis_str;
+    for (const auto &n : max_n_l) {
+      if (n != last_n)
+        basis_str += std::to_string(n);
+      basis_str += AtomData::l_symbol(l);
+      last_n = n;
+      l++;
+    }
+    if (!basis_str.empty())
+      basis_str = "[" + basis_str + "] ";
 
-  std::cout << "Read " << count() << " integrals " << basis_str
-            << "from file: " << fname << "\n"
-            << std::flush;
+    std::cout << "Read " << count() << " integrals " << basis_str
+              << "from file: " << fname << "\n"
+              << std::flush;
+  }
+
   return true;
 }
 
