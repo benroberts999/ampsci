@@ -70,7 +70,8 @@ BLASLIB?=blas
 # Linking + Compiling:
 
 CXXFLAGS= $(CXXSTD) $(OPT) $(OMP) $(WARN) -I$(SD)
-LIBS=-lgsl -lgslcblas -llapack -l$(BLASLIB)
+#LIBS=-lgsl -lgslcblas -llapack -l$(BLASLIB)
+LIBS=-lgsl -lgslcblas -l$(BLASLIB)
 
 # GSL location (if different from assumed default)
 ifneq ($(PathForGSL),)

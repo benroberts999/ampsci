@@ -262,10 +262,6 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
              std::vector<double> &v3, std::vector<double> &v4,
              const std::size_t maxi, const double w) {
 
-  bool cut_off = w <= PhysConst::alpha;
-  // bool cut_off = true;
-  // bool cut_off = false;
-
   const auto du = gr.du();
   const auto num_points = gr.num_points();
   v1.resize(num_points); // for safety
@@ -294,13 +290,20 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
   };
 
   const auto &r = gr.r();
+  // // fills vector with spherical Bessel functions of first kind j_k(\alpha*\omega*r)
+  // const auto jkpluswr = SphericalBessel::fillBesselVec_kr_alt(l + 1, w, r);
+  // const auto jkminuswr = SphericalBessel::fillBesselVec_kr_alt(l - 1, w, r);
+
+  // // fills vector with spherical Bessel functions of second kind y_k(\alpha*\omega*r)
+  // const auto ykpluswr =
+  //     SphericalBessel::fillSecondBesselVec_kr_alt(l + 1, w, r);
+  // const auto ykminuswr =
+  //     SphericalBessel::fillSecondBesselVec_kr_alt(l - 1, w, r);
 
   auto jkwr = [](const int &l, const double &w, const double &r) {
-    // return SphericalBessel::exactGSL_JL_alt(l, w * r);
     return SphericalBessel::exactGSL_JL_alt(l, w * r);
   };
   auto ykwr = [](const int &l, const double &w, const double &r) {
-    // return SphericalBessel::exactGSL_YL(l, w * r);
     return SphericalBessel::exactGSL_YL_alt(l, w * r);
   };
 
@@ -313,6 +316,8 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
   const double wsd2 = w * w / 2.0;
   const double wcubed = w * w * w;
   const double odw2 = 1.0 / (w * w);
+
+  double A3 = 0.0;
 
   // performs numerical integrals for v1 and v2
   v1[0] = 0.0;

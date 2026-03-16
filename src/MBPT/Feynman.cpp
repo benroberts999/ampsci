@@ -165,6 +165,23 @@ void Feynman::form_qk() {
   m_dri.gg() = m_drj.gg().transpose();
 }
 
+// // mutliplies q (as only a coordinate matrix) by dri in place
+// LinAlg::Matrix<std::complex<double>>
+// q_dri_in_place(LinAlg::Matrix<std::complex<double>>,
+//                std::size_t &subgrid_points, std::size_t &stride, std::shared_ptr<const Grid>, ) {
+
+//   LinAlg::Matrix<std::complex<double>> qdri(subgrid_points, subgrid_points);
+
+//   const auto dus = rgrid->du() * double(stride);
+//   for (auto i = 0ul; i < m_size; ++i) {
+//     const auto si = index_to_fullgrid(i);
+//     const auto dr = m_rgrid->drdu(si) * dus;
+//     for (auto j = 0ul; j < m_size; ++j) {
+//       m_ff[i][j] *= dr;
+//     }
+//   }
+// }
+
 //==============================================================================
 void Feynman::form_pa() {
   // Fill core |a><a|
