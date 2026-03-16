@@ -262,6 +262,8 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
              std::vector<double> &v3, std::vector<double> &v4,
              const std::size_t maxi, const double w) {
 
+  const double cut_off = PhysConst::alpha2;
+
   const auto du = gr.du();
   const auto num_points = gr.num_points();
   v1.resize(num_points); // for safety
@@ -290,15 +292,6 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
   };
 
   const auto &r = gr.r();
-  // // fills vector with spherical Bessel functions of first kind j_k(\alpha*\omega*r)
-  // const auto jkpluswr = SphericalBessel::fillBesselVec_kr_alt(l + 1, w, r);
-  // const auto jkminuswr = SphericalBessel::fillBesselVec_kr_alt(l - 1, w, r);
-
-  // // fills vector with spherical Bessel functions of second kind y_k(\alpha*\omega*r)
-  // const auto ykpluswr =
-  //     SphericalBessel::fillSecondBesselVec_kr_alt(l + 1, w, r);
-  // const auto ykminuswr =
-  //     SphericalBessel::fillSecondBesselVec_kr_alt(l - 1, w, r);
 
   auto jkwr = [](const int &l, const double &w, const double &r) {
     return SphericalBessel::exactGSL_JL_alt(l, w * r);
