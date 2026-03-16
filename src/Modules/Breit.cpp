@@ -44,18 +44,35 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\n";
 
+  double e0_total = 0.0;
+  double eg_total = 0.0;
+  double er_total = 0.0;
+  double ew_total = 0.0;
+
   std::cout << "Core energy corrections (without relaxation):\n";
-  std::cout << "      E(HF)       Gaunt    Ret.    Total  \n";
+  std::cout << "      E(HF)       Gaunt    Ret.    Total    Br(w)  \n";
   for (const auto &a : wf.core()) {
     auto e0 = a.en();
     auto eg = a * G.VbrFa(a, wf.core());
     auto er = a * R.VbrFa(a, wf.core());
-    printf("%4s %10.4f %7.4f %7.4f  %7.4f\n", a.shortSymbol().c_str(), e0, eg,
-           er, eg + er);
+    auto ew = a * Br.VbrFa_freqw(a, wf.core());
+
+    e0_total += e0;
+    eg_total += eg;
+    er_total += er;
+    ew_total += ew;
+
+    printf("%4s %10.4f %7.4f %7.4f %7.4f %7.4f\n", a.shortSymbol().c_str(), e0,
+           eg, er, eg + er, ew);
   }
+
+  printf("%4s %10.4f %7.4f %7.4f %7.4f %7.7f\n", "Total", e0_total, eg_total,
+         er_total, eg_total + er_total, ew_total);
 
   std::cout
       << "\nde(1)    = <v|Vbr|v> - first-order Breit correction\n"
+         "de(1;w) = <v|VBr(w)|v> - first-order frequency-dependent Breit "
+         "correction \n"
          "de(2,Z1) - HF (one-particle) part of second-order Breit correction.\n"
          "de(2,Z2) - Sigma (two-particle) part of second-order Breit "
          "correction.\n"
@@ -63,17 +80,19 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
 
   if (!wf.valence().empty()) {
     std::cout << "\nValence energy corrections (without relaxation):\n";
-    std::cout << "      E(HF)     de(1)      de(2,Z1)   de(2,Z2)   de(2)      "
+    std::cout << "      E(HF)     de(1)      de(1;w)      de(2,Z1)   de(2,Z2)  "
+                 " de(2)      "
                  "Total\n";
   }
   for (const auto &v : wf.valence()) {
     auto e0 = v.en();
     auto de0 = v * Br.VbrFa(v, wf.core());
+    auto de0w = v * Br.VbrFa_freqw(v, wf.core());
     auto deHF = Br.de2_HF(v, holes, excited);
     auto de2 = Br.de2(v, holes, excited);
     // std::cout << v << " " << de0 << " " << deHF + de2 << "\n";
-    printf("%4s %9.6f %10.3e %10.3e %10.3e %10.3e %10.3e\n",
-           v.shortSymbol().c_str(), e0, de0, deHF, de2, deHF + de2,
+    printf("%4s %9.6f %10.3g %10.8g %10.3g %10.3g %10.3g %10.3g\n",
+           v.shortSymbol().c_str(), e0, de0, de0w, deHF, de2, deHF + de2,
            de0 + deHF + de2);
   }
 

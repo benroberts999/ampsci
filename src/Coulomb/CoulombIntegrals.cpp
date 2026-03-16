@@ -262,6 +262,10 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
              std::vector<double> &v3, std::vector<double> &v4,
              const std::size_t maxi, const double w) {
 
+  bool cut_off = w <= PhysConst::alpha;
+  // bool cut_off = true;
+  // bool cut_off = false;
+
   const auto du = gr.du();
   const auto num_points = gr.num_points();
   v1.resize(num_points); // for safety
@@ -290,59 +294,60 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
   };
 
   const auto &r = gr.r();
-  // // fills vector with spherical Bessel functions of first kind j_k(\alpha*\omega*r)
-  // const auto jkpluswr = SphericalBessel::fillBesselVec_kr_alt(l + 1, w, r);
-  // const auto jkminuswr = SphericalBessel::fillBesselVec_kr_alt(l - 1, w, r);
-
-  // // fills vector with spherical Bessel functions of second kind y_k(\alpha*\omega*r)
-  // const auto ykpluswr =
-  //     SphericalBessel::fillSecondBesselVec_kr_alt(l + 1, w, r);
-  // const auto ykminuswr =
-  //     SphericalBessel::fillSecondBesselVec_kr_alt(l - 1, w, r);
 
   auto jkwr = [](const int &l, const double &w, const double &r) {
+    // return SphericalBessel::exactGSL_JL_alt(l, w * r);
     return SphericalBessel::exactGSL_JL_alt(l, w * r);
   };
   auto ykwr = [](const int &l, const double &w, const double &r) {
+    // return SphericalBessel::exactGSL_YL(l, w * r);
     return SphericalBessel::exactGSL_YL_alt(l, w * r);
   };
 
   // values to keep running track of numerical integrals
   double A1 = 0.0;
   double A2 = 0.0;
+  double C1 = 0.0;
   double A3 = 0.0;
+
+  const double wsd2 = w * w / 2.0;
+  const double wcubed = w * w * w;
+  const double odw2 = 1.0 / (w * w);
 
   // performs numerical integrals for v1 and v2
   v1[0] = 0.0;
   v2[0] = 0.0;
   for (std::size_t i = 1; i < irmax; ++i) {
-    // first term in first part of v
-    //A1 = A1 + jkminuswr[i - 1] * Pkbd[i - 1] * weights(i - 1) * gr.drdu(i - 1);
-    A1 = A1 + jkwr(k - 1, w, r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
-                  gr.drdu(i - 1);
-    //A1 = 0.0;
 
-    // second term in first part of v
     double ratio = r[i - 1] / r[i];
-    // A2 = (A2 + Pkbd[i - 1] * weights(i - 1) * gr.drduor(i - 1) /
-    //                (r[i - 1] * r[i - 1])) *
-    //      pow(ratio, k + 2);
 
-    A2 = A2 + pow(r[i - 1], double(k - 1)) * Pkbd[i - 1] * weights(i - 1) *
-                  gr.drdu(i - 1);
-    //A2 = 0.0;
+    //! This term numerically unstable for small omega
+    if (cut_off) {
+      A1 = (A1 + Pkbd[i - 1] * weights(i - 1) * gr.drduor(i - 1)) * powk(ratio);
+      A2 = (A2 + Pkbd[i - 1] * weights(i - 1) * gr.drduor(i - 1)) *
+           powk(ratio) * ratio * ratio;
+      C1 = (C1 + Pkbd[i - 1] * weights(i - 1) * r[i - 1] * gr.drdu(i - 1)) *
+           powk(ratio);
+      v1[i] = (A1 - A2 + wsd2 * C1) * du;
+    } else {
+      // first term in first part of v
+      A1 = A1 + jkwr(k - 1, w, r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
+                    gr.drdu(i - 1);
 
-    //v1[i] = w * ykpluswr[i] * A1 + ((2.0 * k + 1.0) / (w * w)) * A2;
-    //v1[i] = w * ykpluswr[i] * A1 + ((2.0 * k + 1.0) / (w * w)) * (1.0 / pow(r[i], double(k + 2))) * A2;
-    v1[i] = w * ykwr(k + 1, w, r[i]) * A1 +
-            ((2.0 * k + 1.0) / (w * w)) * (1.0 / pow(r[i], double(k + 2))) * A2;
-    v1[i] = -2.0 * v1[i] * du;
+      // second term in first part of v
+      A2 = (A2 + Pkbd[i - 1] * weights(i - 1) * gr.drduor(i - 1) * 1.0 /
+                     (r[i - 1] * r[i - 1])) *
+           powk(ratio) * ratio * ratio;
+
+      // v1[i] = w * ykwr(k + 1, w, r[i]) * A1 + ((2.0 * k + 1.0) / (w * w)) * A2;
+      v1[i] = wcubed * ykwr(k + 1, w, r[i]) * A1 + (2.0 * k + 1.0) * A2;
+      // v1[i] = -2.0 * v1[i] * du;
+      v1[i] = -2.0 * odw2 * v1[i] * du;
+    }
 
     // integral for second term in v
-    //A3 = A3 + jkpluswr[i - 1] * Qkbd[i - 1] * weights(i - 1) * gr.drdu(i - 1);
     A3 = A3 + jkwr(k + 1, w, r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
                   gr.drdu(i - 1);
-    //v2[i] = -2.0 * w * ykminuswr[i] * A3 * du;
     v2[i] = -2.0 * w * ykwr(k - 1, w, r[i]) * A3 * du;
   }
 
@@ -353,6 +358,7 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
 
   double B1 = 0.0;
   double B2 = 0.0;
+  double D1 = 0.0;
   double B3 = 0.0;
 
   // nb bmax may be num_points
@@ -365,43 +371,58 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
       bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
 
   // calculating screening functions at end point
-  //B1 = B1 + ykpluswr[bmax - 1] * Qkbd[bmax - 1] * gr.drdu(bmax - 1);
-  B1 = B1 + ykwr(k + 1, w, r[bmax - 1]) * Qkbd[bmax - 1] * gr.drdu(bmax - 1);
-  B2 = B2 + ((2.0 * k + 1.0) / (w * w)) * (1.0 / pow(r[bmax - 1], k + 2)) *
-                Qkbd[bmax - 1] * gr.drdu(bmax - 1);
+  if (cut_off) {
+    // B1 = Qkbd[bmax - 1] * weights(bmax - 1) * gr.drduor(bmax - 1);
+    // B2 = Qkbd[bmax - 1] * weights(bmax - 1) * gr.drduor(bmax - 1);
+    B1 = Qkbd[bmax - 1];
+    B2 = Qkbd[bmax - 1];
+    D1 = Qkbd[bmax - 1] * weights(bmax - 1) * r[bmax - 1] * gr.drdu(bmax - 1);
+    v3[bmax - 1] = (B1 - B2 + wsd2 * D1) * du;
+  } else {
+    B1 = B1 + ykwr(k + 1, w, r[bmax - 1]) * Qkbd[bmax - 1] * gr.drdu(bmax - 1);
+    B2 = B2 + (pow(r[bmax - 1], k - 1) / pow(r[bmax - 1], k + 2)) *
+                  Qkbd[bmax - 1] * gr.drdu(bmax - 1);
+    v3[bmax - 1] = -2.0 * w * jkwr(k - 1, w, r[bmax - 1]) * B1 * du -
+                   2.0 * ((2.0 * k + 1.0) / (w * w)) * B2 * du;
+  }
 
-  //v3[bmax - 1] = -2.0 * w * jkminuswr[bmax - 1] * B1 * du + pow(r[bmax - 1], k - 1) * B2 * du;
-  v3[bmax - 1] = -2.0 * w * jkwr(k - 1, w, r[bmax - 1]) * B1 * du +
-                 pow(r[bmax - 1], k - 1) * B2 * du;
-
-  //B3 = B3 + ykminuswr[bmax - 1] * Pkbd[bmax - 1] * gr.drdu(bmax - 1);
   B3 = B3 + ykwr(k - 1, w, r[bmax - 1]) * Pkbd[bmax - 1] * gr.drdu(bmax - 1);
 
-  //v4[bmax - 1] = -2.0 * w * jkpluswr[bmax - 1] * B3 * du;
   v4[bmax - 1] = -2.0 * w * jkwr(k + 1, w, r[bmax - 1]) * B3 * du;
 
   for (auto i = bmax - 1; i >= 1; i--) {
-    // j_{k-1}(wr1)y_{k+1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
-    //B1 = B1 + ykpluswr[i - 1] * Qkbd[i - 1] * weights(i - 1) * gr.drdu(i - 1);
-    B1 = B1 + ykwr(k + 1, w, r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
-                  gr.drdu(i - 1);
 
-    //B1 = 0.0;
+    double ratio = r[i - 1] / r[i];
 
-    // r2^{k-1}/r1^{k+2} term in integral that is integrated from r1 <= r2 <=infty
-    B2 = B2 + ((2.0 * k + 1.0) / (w * w)) * (1.0 / pow(r[i - 1], k + 2)) *
-                  Qkbd[i - 1] * weights(i - 1) * gr.drdu(i - 1);
-    //B2 = 0.0;
+    if (cut_off) {
+      B1 = B1 * powk(ratio) * (1.0 / ratio) +
+           Qkbd[i - 1] * weights(i - 1) * gr.drduor(i - 1);
+      B2 = B2 * powk(ratio) * ratio +
+           Qkbd[i - 1] * weights(i - 1) * gr.drduor(i - 1);
+      D1 = D1 * powk(ratio) * ratio +
+           Qkbd[i - 1] * weights(i - 1) * r[i - 1] * gr.drdu(i - 1);
+      v3[i - 1] = (B1 - B2 + wsd2 * D1) * du;
+    } else {
+      // j_{k-1}(wr1)y_{k+1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
+      B1 = B1 + ykwr(k + 1, w, r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
+                    gr.drdu(i - 1);
 
-    //v3[i - 1] = -2.0 * w * jkminuswr[i - 1] * B1 * du - 2.0 * pow(r[i - 1], k - 1) * B2 * du;
-    v3[i - 1] = -2.0 * w * jkwr(k - 1, w, r[i - 1]) * B1 * du -
-                2.0 * pow(r[i - 1], k - 1) * B2 * du;
+      // r2^{k-1}/r1^{k+2} term in integral that is integrated from r1 <= r2 <=infty
+      B2 = powk(ratio) * (1.0 / ratio) * B2 + Qkbd[i - 1] * weights(i - 1) *
+                                                  gr.drduor(i - 1) /
+                                                  (r[i - 1] * r[i - 1]);
+
+      // v3[i - 1] =
+      //     w * jkwr(k - 1, w, r[i - 1]) * B1 + ((2.0 * k + 1.0) / (w * w)) * B2;
+      v3[i - 1] = wcubed * jkwr(k - 1, w, r[i - 1]) * B1 + (2.0 * k + 1.0) * B2;
+
+      // v3[i - 1] = -2.0 * v3[i - 1] * du;
+      v3[i - 1] = -2.0 * odw2 * v3[i - 1] * du;
+    }
 
     // j_{k+1}(wr1)y_{k-1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
-    //B3 = B3 + ykminuswr[i - 1] * Pkbd[i - 1] * weights(i - 1) * gr.drdu(i - 1);
     B3 = B3 + ykwr(k - 1, w, r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
                   gr.drdu(i - 1);
-    //v4[i - 1] = -2.0 * w * jkpluswr[i - 1] * B3 * du;
     v4[i - 1] = -2.0 * w * jkwr(k + 1, w, r[i - 1]) * B3 * du;
   }
 }

@@ -150,7 +150,7 @@ public:
   //============================================================================
   //! Multiply coordinate elements (in place): Gij -> Gij*Bij
   RMatrix<T> &mult_elements_by(const RMatrix<T> &rhs) {
-    m_Rmatrix.mult_elements_by(rhs.ff());
+    m_Rmatrix.mult_elements_by(rhs);
     return *this;
   }
   //! Multiply elements (new matrix): Gij = Aij*Bij
@@ -348,7 +348,7 @@ double max_element(const RMatrix<T> &a) {
   double xmax = 0.0;
   for (auto i = 0ul; i < a.size(); ++i) {
     for (auto j = 0ul; j < a.size(); ++j) {
-      if (std::abs(a.ff(i, j)) > xmax) {
+      if (std::abs(a(i, j)) > xmax) {
         xmax = std::abs(a.m_Rmatrix(i, j));
       }
     }

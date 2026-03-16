@@ -167,9 +167,9 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto HFcore = wf.core();
 
-  const auto Fa = HFcore[16];
+  const auto Fa = HFcore[15];
   const auto Fb = HFcore[3];
-  int k = 6;
+  int k = 3;
 
   const auto num_points = Fa.grid().num_points();
 
@@ -293,7 +293,7 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   std::vector<double> v3;
   std::vector<double> v4;
 
-  w = PhysConst::alpha2;
+  w = 0.001;
 
   Coulomb::vk_ab_freqw(k, Fa, Fb, Fa.grid(), v1, v2, v3, v4, maxi, w);
 
@@ -302,19 +302,35 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   std::vector<double> v3_exact(num_points, 0.0);
   std::vector<double> v4_exact(num_points, 0.0);
 
+  //! For static Breit integrals
+  std::vector<double> v1_static(num_points, 0.0);
+  std::vector<double> v3_static(num_points, 0.0);
+
   const auto &r = Fa.grid().r();
   // fills vector with spherical Bessel functions of first kind j_k(\alpha*\omega*r)
-  const auto jkpluswr = SphericalBessel::fillBesselVec_kr(k + 1, w, r);
-  const auto jkminuswr = SphericalBessel::fillBesselVec_kr(k - 1, w, r);
+  const auto jkpluswr = SphericalBessel::fillBesselVec_kr_alt(k + 1, w, r);
+  const auto jkminuswr = SphericalBessel::fillBesselVec_kr_alt(k - 1, w, r);
 
   // fills vector with spherical Bessel functions of second kind y_k(\alpha*\omega*r)
-  const auto ykpluswr = SphericalBessel::fillSecondBesselVec_kr(k + 1, w, r);
+  const auto ykpluswr =
+      SphericalBessel::fillSecondBesselVec_kr_alt(k + 1, w, r);
   const auto ykminuswr = SphericalBessel::fillSecondBesselVec_kr(k - 1, w, r);
 
-  double A1 = 0.0, A2 = 0.0, A3 = 0.0;
+  double A1 = 0.0, A2 = 0.0, A3 = 0.0; // frequency Breit
+  double Ax1 = 0.0, Ax2 = 0.0;         // static Breit
 
-  for (int i = 1; i < irmax; i++) {
-    for (int j = 0; j <= i - 1; j++) {
+  for (int n = 1; n < irmax; n++) {
+
+    //! static Breit integrals
+    double ratio = r[n - 1] / r[n];
+
+    Ax1 = (Ax1 + Pkbd[n - 1] * weights(n - 1) * Fa.grid().drduor(n - 1)) *
+          pow(ratio, k);
+    Ax2 = (Ax2 + Pkbd[n - 1] * weights(n - 1) * Fa.grid().drduor(n - 1)) *
+          pow(ratio, k) * ratio * ratio;
+    v1_static[n] = (Ax1 - Ax2) * Fa.grid().du();
+
+    for (int j = 0; j <= n - 1; j++) {
       // v1_exact[i] += -2.0 * w * ykpluswr[i] * jkminuswr[j] * Pkbd[j] *
       //                    weights(j) * Fa.grid().drdu(j) * Fa.grid().du() -
       //                2.0 * ((2 * k + 1.0) / (w * w)) *
@@ -322,59 +338,125 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
       //                    weights(j) * Fa.grid().drdu(j) * Fa.grid().du();
 
       //=================== for testing purposes just split up into first and second terms
-
-      v1_exact[i] += -2.0 * w * ykpluswr[i] * jkminuswr[j] * Pkbd[j] *
+      // first term in v integral that goes up to r1 [i.e. the sum of the two terms that need to meticulously cancel at small omega]
+      v1_exact[n] += -2.0 * w * ykpluswr[n] * jkminuswr[j] * Pkbd[j] *
                      weights(j) * Fa.grid().drdu(j) * Fa.grid().du();
-      v1_exact[i] += -2.0 * ((2 * k + 1.0) / (w * w)) *
-                     (pow(r[j], k - 1) / pow(r[i], k + 2)) * Pkbd[j] *
+      v1_exact[n] += -2.0 * ((2 * k + 1.0) / (w * w)) *
+                     (pow(r[j], k - 1) / pow(r[n], k + 2)) * Pkbd[j] *
                      weights(j) * Fa.grid().drdu(j) * Fa.grid().du();
 
-      v2_exact[i] +=
-          ykminuswr[i] * jkpluswr[j] * Qkbd[j] * weights(j) * Fa.grid().drdu(j);
+      // second term in v integral that goes up to r1 [i.e. wj_{k+1}(wr_<)y_{k-1}(wr_>)Q^k_{bd}(r_<)]
+      v2_exact[n] +=
+          ykminuswr[n] * jkpluswr[j] * Qkbd[j] * weights(j) * Fa.grid().drdu(j);
     }
     // v1_exact[i] = 2.0 * w * v1_exact[i] * Fa.grid().du();
     // v1_exact[i] = ((2.0 * (2 * k + 1.0)) / w * w) * v1_exact[i] *
     //               Fa.grid().du() * (1.0 / pow(r[i], k + 1));
     //v1_exact[i] = -2.0 * v1_exact[i] * Fa.grid().du();
-    v2_exact[i] = -2.0 * w * v2_exact[i] * Fa.grid().du();
+    v2_exact[n] = -2.0 * w * v2_exact[n] * Fa.grid().du();
   }
 
-  // std::cout << "Comparing the v integrals that go up to r1:" << std::endl;
-  // for (int i = 0; i < (int)irmax / 4; i++) {
-  //   std::cout << Fa.grid()(4 * i) << "   "
-  //             << (v1_exact[4 * i] - v1[4 * i]) / v1_exact[4 * i] << "          "
-  //             << (v2_exact[4 * i] - v2[4 * i]) / v2_exact[4 * i] << std::endl;
-  // }
+  std::cout << "Comparing the v integrals that go up to r1:" << std::endl;
+  std::cout
+      << "r             Exact           Single loop trick        Static Breit"
+      << std::endl;
+  for (int i = 0; i < (int)irmax / 4; i++) {
+    // std::cout << Fa.grid()(4 * i) << "   "
+    //           << (v1_exact[4 * i] - v1[4 * i]) / v1_exact[4 * i] << "          "
+    //           << (v2_exact[4 * i] - v2[4 * i]) / v2_exact[4 * i] << std::endl;
+
+    std::cout << Fa.grid()(4 * i) << "   " << v1_exact[4 * i] << "          "
+              << v1[4 * i] << "           " << v1_static[4 * i] << std::endl;
+  }
 
   double B1 = 0.0, B2 = 0.0, B3 = 0.0;
+  double Bx1 = 0.0, Bx2 = 0.0;
 
-  for (int i = 1; i < irmax; i++) {
-    for (int j = i; j <= irmax; j++) {
+  for (int n = 1; n < irmax; n++) {
+    for (int j = n; j < irmax; j++) {
       // first term
-      v3_exact[i] += -2.0 * w * ykpluswr[j] * jkminuswr[i] * Qkbd[j] *
+      v3_exact[n] += -2.0 * w * ykpluswr[j] * jkminuswr[n] * Qkbd[j] *
                      weights(j) * Fa.grid().drdu(j) * Fa.grid().du();
 
       //second term
-      v3_exact[i] += -2.0 * ((2 * k + 1.0) / (w * w)) *
-                     (pow(r[i], k - 1) / pow(r[j], k + 2)) * Qkbd[j] *
+      v3_exact[n] += -2.0 * ((2 * k + 1.0) / (w * w)) *
+                     (pow(r[n], k - 1) / pow(r[j], k + 2)) * Qkbd[j] *
                      weights(j) * Fa.grid().drdu(j) * Fa.grid().du();
 
-      v4_exact[i] +=
-          ykminuswr[j] * jkpluswr[i] * Pkbd[j] * weights(j) * Fa.grid().drdu(j);
+      v4_exact[n] +=
+          ykminuswr[j] * jkpluswr[n] * Pkbd[j] * weights(j) * Fa.grid().drdu(j);
     }
     // v1_exact[i] = 2.0 * w * v1_exact[i] * Fa.grid().du();
     // v1_exact[i] = ((2.0 * (2 * k + 1.0)) / w * w) * v1_exact[i] *
     //               Fa.grid().du() * (1.0 / pow(r[i], k + 1));
     //v1_exact[i] = -2.0 * v1_exact[i] * Fa.grid().du();
-    v4_exact[i] = -2.0 * w * v4_exact[i] * Fa.grid().du();
+    v4_exact[n] = -2.0 * w * v4_exact[n] * Fa.grid().du();
   }
 
-  // std::cout << "Comparing the v integrals that go up to infinity:" << std::endl;
-  // for (int i = 0; i < (int)irmax / 4; i++) {
-  //   std::cout << Fa.grid()(4 * i) << "   "
-  //             << (v3_exact[4 * i] - v3[4 * i]) / v3_exact[4 * i] << "          "
-  //             << (v4_exact[4 * i] - v4[4 * i]) / v4_exact[4 * i] << std::endl;
-  // }
+  //! Ben's static Breit integrals
+  std::vector<double> g0_km1_Ben;
+  std::vector<double> ginf_km1_Ben;
+  std::vector<double> b0_km1_Ben;
+  std::vector<double> binf_km1_Ben;
+
+  std::vector<double> g0_kp1_Ben;
+  std::vector<double> ginf_kp1_Ben;
+  std::vector<double> b0_kp1_Ben;
+  std::vector<double> binf_kp1_Ben;
+
+  Coulomb::gk_ab(k - 1, Fa, Fb, g0_km1_Ben, ginf_km1_Ben, maxi);
+  Coulomb::bk_ab(k - 1, Fa, Fb, b0_km1_Ben, binf_km1_Ben, maxi);
+  Coulomb::gk_ab(k + 1, Fa, Fb, g0_kp1_Ben, ginf_kp1_Ben, maxi);
+  Coulomb::bk_ab(k + 1, Fa, Fb, b0_kp1_Ben, binf_kp1_Ben, maxi);
+
+  // Bx1 = Qkbd[irmax - 1] * weights(irmax - 1) * Fa.grid().drduor(irmax - 1);
+  // Bx2 = Qkbd[irmax - 1] * weights(irmax - 1) * Fa.grid().drduor(irmax - 1);
+
+  Bx1 = Qkbd[irmax - 1];
+  Bx2 = Qkbd[irmax - 1];
+  v3_static[irmax - 1] = (Bx1 - Bx2) * Fa.grid().du();
+
+  for (int n = irmax - 1; n >= 1; n--) {
+    //! static Breit integrals
+    Bx1 = Bx1 * pow(r[n - 1] / r[n], k - 1) +
+          Qkbd[n - 1] * weights(n - 1) * Fa.grid().drduor(n - 1);
+    Bx2 = Bx2 * pow(r[n - 1] / r[n], k + 1) +
+          Qkbd[n - 1] * weights(n - 1) * Fa.grid().drduor(n - 1);
+    v3_static[n - 1] = (Bx1 - Bx2) * Fa.grid().du();
+  }
+
+  std::cout << std::endl
+            << "Comparing the v integrals that go up to infinity:" << std::endl;
+  std::cout << "r             Exact           Single loop trick        My "
+               "static Breit          Ben's static Breit"
+            << std::endl;
+  for (int i = 0; i < (int)irmax / 4; i++) {
+    // std::cout << Fa.grid()(4 * i) << "   "
+    //           << (v3_exact[4 * i] - v3[4 * i]) / v3_exact[4 * i] << "          "
+    //           << (v4_exact[4 * i] - v4[4 * i]) / v4_exact[4 * i] << std::endl;
+
+    std::cout << Fa.grid()(4 * i) << "   " << v3_exact[4 * i] << "          "
+              << v3[4 * i] << "           " << v3_static[4 * i] << "           "
+              << (Fa.kappa() - Fb.kappa()) / (k + 1.0) *
+                         (ginf_km1_Ben[4 * i] - ginf_kp1_Ben[4 * i]) +
+                     binf_km1_Ben[4 * i] - binf_kp1_Ben[4 * i]
+              << std::endl;
+  }
+
+  std::cout << Fa.grid()(irmax - 2) << "   " << v3_exact[irmax - 2]
+            << "          " << v3[irmax - 2] << "           "
+            << v3_static[irmax - 2] << "           "
+            << (Fa.kappa() - Fb.kappa()) / (k + 1.0) *
+                       (ginf_km1_Ben[irmax - 2] - ginf_kp1_Ben[irmax - 2]) +
+                   binf_km1_Ben[irmax - 2] - binf_kp1_Ben[irmax - 2]
+            << std::endl;
+  std::cout << Fa.grid()(irmax - 1) << "   " << v3_exact[irmax - 1]
+            << "          " << v3[irmax - 1] << "           "
+            << v3_static[irmax - 1] << "           "
+            << (Fa.kappa() - Fb.kappa()) / (k + 1.0) *
+                       (ginf_km1_Ben[irmax - 1] - ginf_kp1_Ben[irmax - 1]) +
+                   binf_km1_Ben[irmax - 1] - binf_kp1_Ben[irmax - 1]
+            << std::endl;
 
   // std::vector<double> energies;
   // for (const auto &Fb : HFcore) {
@@ -479,17 +561,140 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //======================== COMPARING MATRIX ELEMENTS IN w->0 LIMIT
 
-  DiracSpinor Fi = HFcore[12];
-  DiracSpinor Fj = HFcore[3];
-  DiracSpinor Fk = HFcore[3];
-  DiracSpinor Fl = HFcore[12];
-  k = 3;
+  DiracSpinor Fi = HFcore[7];
+  DiracSpinor Fj = HFcore[12];
+  DiracSpinor Fk = HFcore[12];
+  DiracSpinor Fl = HFcore[7];
+  k = 1;
   const auto br = HF::Breit(1.0);
 
-  std::cout << "Frequency-independent Breit integral: "
-            << br.Bk_abcd(k, Fi, Fj, Fk, Fl) << std::endl;
-  std::cout << "Frequency-dependent Breit integral: "
-            << br.Bk_abcd_eac_freqw(k, Fi, Fj, Fk, Fl) << std::endl;
+  // std::cout << "Frequency-independent Breit integral: "
+  //           << br.Bk_abcd(k, Fi, Fj, Fk, Fl) << std::endl;
+  // std::cout << "Frequency-dependent Breit integral: "
+  //           << br.Bk_abcd_eac_freqw(k, Fi, Fj, Fk, Fl) << std::endl;
+
+  //======================== TRYING TO SEE WHERE THE EXACT AND APPROXIMATE EXPRESSIONS FOR BESSEL FUNCTIONS DIVERGE
+
+  int l = 2;          // order of spherical Bessel function I am interested in
+  double omega = 0.1; // frequency
+  std::vector<double>
+      exact_Jkm1; // exact spherical Bessel function, j_{k-1}(wr)
+  std::vector<double>
+      exact_Ykp1; // exact spherical Bessel function of second kind, y_{k+1}(wr)
+
+  exact_Jkm1.reserve(r.size());
+  exact_Ykp1.reserve(r.size());
+
+  for (const auto &x : r) {
+    exact_Jkm1.push_back(SphericalBessel::exactGSL_JL(l - 1, omega * x));
+    exact_Ykp1.push_back(SphericalBessel::exactGSL_YL(l + 1, omega * x));
+  }
+  auto approx_Jkm1 = SphericalBessel::fillBesselVec_kr_alt(
+      l - 1, omega, r); // approx. spherical Bessel function, j_{k-1}(wr)
+  auto approx_Ykp1 = SphericalBessel::fillSecondBesselVec_kr_alt(
+      l + 1, omega,
+      r); // approx. spherical Bessel function of second kind, y_{k+1}(wr)
+
+  std::vector<double>
+      freq_dep_exact_int; // integral for frequency-dependent expression with exact Bessel funcs
+  std::vector<double>
+      freq_dep_approx_int; // integral for frequency-dependent expression with approx Bessel funcs
+  std::vector<double>
+      freq_indep_int; // integral for frequency-independent expression
+
+  freq_dep_exact_int.reserve(r.size());
+  freq_dep_approx_int.reserve(r.size());
+  freq_indep_int.reserve(r.size());
+
+  double A1_indep = 0.0;
+  double A2_indep = 0.0;
+
+  double A1_freq_exact = 0.0;
+  double A2_freq_exact = 0.0;
+
+  double A1_freq_approx = 0.0;
+  double A2_freq_approx = 0.0;
+
+  freq_dep_exact_int[0] = 0.0;
+  freq_dep_approx_int[0] = 0.0;
+  freq_indep_int[0] = 0.0;
+
+  // std::cout << r[0] << " " << freq_indep_int[0] << " " << freq_dep_exact_int[0]
+  //           << " " << freq_dep_approx_int[0] << std::endl;
+
+  // for (std::size_t i = 1; i < irmax; ++i) {
+  //   A1_freq_exact = A1_freq_exact +
+  //                   exact_Jkm1[i - 1] * weights(i - 1) * Fa.grid().drdu(i - 1);
+  //   A1_freq_approx = A1_freq_approx + approx_Jkm1[i - 1] * weights(i - 1) *
+  //                                         Fa.grid().drdu(i - 1);
+
+  //   double ratio = r[i - 1] / r[i];
+
+  //   // A2_freq_exact = A2_freq_exact + pow(r[i - 1], double(k - 1)) *
+  //   //                                     weights(i - 1) * Fa.grid().drdu(i - 1);
+  //   A2_freq_exact = (A2_freq_exact + weights(i - 1) * Fa.grid().drduor(i - 1) *
+  //                                        (1.0 / (r[i - 1] * r[i - 1]))) *
+  //                   pow(ratio, double(l + 2));
+  //   A2_freq_approx = A2_freq_exact;
+
+  //   freq_dep_exact_int[i] = omega * exact_Ykp1[i] * A1_freq_exact +
+  //                           ((2.0 * l + 1.0) / (omega * omega)) * A2_freq_exact;
+
+  //   freq_dep_approx_int[i] =
+  //       omega * approx_Ykp1[i] * A1_freq_approx +
+  //       ((2.0 * l + 1.0) / (omega * omega)) * A2_freq_approx;
+
+  //   freq_dep_exact_int[i] = freq_dep_exact_int[i] * Fa.grid().du();
+  //   freq_dep_approx_int[i] = freq_dep_approx_int[i] * Fa.grid().du();
+
+  //   const auto rat = r[i - 1] / r[i];
+  //   A1_indep = (A1_indep + weights(i - 1) * Fa.grid().drduor(i - 1)) *
+  //              std::pow(rat, l + 2);
+  //   A2_indep = (A2_indep + weights(i - 1) * Fa.grid().drduor(i - 1)) *
+  //              std::pow(rat, l);
+  //   freq_indep_int[i] = 0.5 * (A1_indep - A2_indep) * Fa.grid().du();
+
+  //   if (i % 10 == 0) {
+  //     std::cout << r[i] << " " << freq_indep_int[i] << " "
+  //               << freq_dep_exact_int[i] << " " << freq_dep_approx_int[i]
+  //               << std::endl;
+  //   }
+  // }
+
+  //======================== TESTING MY ANALYTIC FORMULAS FOR BESSEL FUNCTIONS AGAINST GSL BESSEL FUNCTIONS
+
+  // std::ofstream file("Y_7_test.txt"); //!!!!!!!!!!!!!!
+
+  // file << "r" << "        " << "Analytic formula" << "     "
+  //      << "small x expansion" << "      " << "GSL Bessel function" << std::endl;
+
+  // for (int i = 0; i < Fa.grid().num_points(); i++) {
+  //   auto x = Fa.grid().r(i);
+  //   if (i % 1 == 0) {
+  //     file << x << "     "
+  //          << 7.0 *
+  //                     (4.0 * qip::pow<6>(x) + 8910.0 * x * x -
+  //                      450.0 * qip::pow<4>(x) - 19305.0) *
+  //                     std::cos(x) / qip::pow<8>(x) +
+  //                 (qip::pow<6>(x) + 17325.0 * x * x - 378.0 * qip::pow<4>(x) -
+  //                  135135.0) *
+  //                     std::sin(x) / qip::pow<7>(x)
+  //          << "     "
+  //          << -135135.0 / qip::pow<8>(x) - 5197.5 / qip::pow<6>(x) -
+  //                 118.125 / qip::pow<4>(x) - 2.1875 / (x * x) - 0.0390625 -
+  //                 0.00078125 * x * x - 0.0000217013888 * qip::pow<4>(x) -
+  //                 0.00000155009920 * qip::pow<6>(x) +
+  //                 0.0000000968812004 * qip::pow<8>(x)
+  //          << "     "
+  //          << (sqrt(M_PI / (2.0 * x)) *
+  //              gsl_sf_bessel_Ynu(7 + 1.0 / 2, (double)x))
+  //          << std::endl;
+  //   }
+  // }
+
+  // file.close();
+
+  // std::cout << PhysConst::alpha << std::endl;
 }
 
 // =================================================================================================================== //

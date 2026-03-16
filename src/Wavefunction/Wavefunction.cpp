@@ -175,9 +175,11 @@ void Wavefunction::solve_core(const std::string &method, const double x_Breit,
 
 //==============================================================================
 double Wavefunction::coreEnergyHF() const {
+  std::cout << __LINE__ << std::endl;
   if (!m_HF) {
     return 0.0;
   }
+  std::cout << __LINE__ << std::endl;
   return m_HF->calculateCoreEnergy();
 }
 

@@ -693,6 +693,14 @@ double HartreeFock::calculateCoreEnergy() const {
     e0 += num_a * a.en();
   }
 
+  HF::Breit Breit(1.0);
+
+  auto G = HF::Breit{};
+  auto R = HF::Breit{};
+  G.update_scale(1.0, 1.0, 1.0, 0.0, 0.0);
+  R.update_scale(1.0, 0.0, 0.0, 1.0, 1.0);
+  double de_Br{0.0}, de_G{0.0}, de_R{0.0};
+
   double edir = 0.0;
   for (const auto &a : m_core) {
     for (const auto &b : m_core) {
@@ -702,6 +710,10 @@ double HartreeFock::calculateCoreEnergy() const {
       const auto num_a = a.twojp1() * a.occ_frac();
       const auto num_b = b.twojp1() * b.occ_frac();
       edir += sym * num_a * num_b * m_Yab.R(0, a, b, a, b);
+
+      de_Br += sym * num_a * num_b * Breit.Bk_abcd(0, a, b, a, b);
+      de_G += sym * num_a * num_b * G.Bk_abcd(0, a, b, a, b);
+      de_R += sym * num_a * num_b * R.Bk_abcd(0, a, b, a, b);
     }
   }
 
@@ -715,15 +727,25 @@ double HartreeFock::calculateCoreEnergy() const {
       for (auto k = kmin; k <= kmax; k += 2) {
         const auto x_a = (a == b && k == 0) ? 1.0 : a.occ_frac();
         const auto x_b = (a == b && k == 0) ? 1.0 : b.occ_frac();
-        const auto ck = m_Yab.Ck()(k, a.kappa(), b.kappa());
-        ex -= sym * x_a * x_b * ck * ck * m_Yab.R(k, a, b, b, a);
+        // const auto ck = m_Yab.Ck()(k, a.kappa(), b.kappa());
+        ex -= sym * x_a * x_b * m_Yab.Q(k, a, b, b, a);
+        de_Br -= sym * x_a * x_b * Breit.Bk_abcd(k, a, b, b, a);
+        de_G -= sym * x_a * x_b * G.Bk_abcd(k, a, b, b, a);
+        de_R -= sym * x_a * x_b * R.Bk_abcd(k, a, b, b, a);
       }
     }
   }
 
+  std::cout << "\n\n"
+            << (e0 - 0.5 * (edir + ex)) * 2 << " " << de_Br * 2 << " "
+            << de_G * 2 << " " << de_R * 2 << "\n"
+            << std::flush;
+
+  // std::cout << Breit.dV_Br()
+
   return e0 - 0.5 * (edir + ex);
 
-  return Etot;
+  // return Etot;
 }
 
 //==============================================================================
