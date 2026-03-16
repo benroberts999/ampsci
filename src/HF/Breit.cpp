@@ -207,8 +207,8 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
     for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       const auto v0 = d_bd_k * (gbk.g0_minus[i] - gbk.g0_plus[i]) -
                       gbk.b0_minus[i] + gbk.b0_plus[i];
-      //out.f(i) += cf3 * v0 * Fc.g(i);
-      //out.g(i) += cg3 * v0 * Fc.f(i);
+      out.f(i) += cf3 * v0 * Fc.g(i);
+      out.g(i) += cg3 * v0 * Fc.f(i);
     }
 
     // "P2" (w/Y) part:
@@ -217,8 +217,8 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
     for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
       const auto w0 = d_bd_kp1 * (gbk.gi_minus[i] - gbk.gi_plus[i]) +
                       gbk.bi_minus[i] - gbk.bi_plus[i];
-      //out.f(i) += cf4 * w0 * Fc.g(i);
-      //out.g(i) += cg4 * w0 * Fc.f(i);
+      out.f(i) += cf4 * w0 * Fc.g(i);
+      out.g(i) += cg4 * w0 * Fc.f(i);
     }
   }
 
@@ -317,7 +317,7 @@ DiracSpinor Breit::Bkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
       out.g(i) += cg2 * t0 * Fc.f(i);
     }
 
-    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS TERM IS A PROBLEM !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    //! Problem term - seems to be fixed with use of cutoff in the integral functions
     // "P1" (v/X) part:
     const auto cf3 = factor * c_p0 * (d_ac_kp1 + 1.0);
     const auto cg3 = factor * c_p0 * (d_ac_kp1 - 1.0);

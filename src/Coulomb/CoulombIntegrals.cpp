@@ -310,8 +310,6 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
   const double wcubed = w * w * w;
   const double odw2 = 1.0 / (w * w);
 
-  double A3 = 0.0;
-
   // performs numerical integrals for v1 and v2
   v1[0] = 0.0;
   v2[0] = 0.0;
