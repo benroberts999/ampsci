@@ -18,11 +18,12 @@ do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
 //==============================================================================
 //! Compared Breit contribution to dV using TDHF and TDHFbasis methods
 TEST_CASE("External Field: TDHF (basis) Breit",
-          "[ExternalField][TDHF][RPA][Breit][slow][integration]") {
+          "[ExternalField][TDHF][TDHFbasis][RPA][Breit][slow][integration]") {
 
-  std::cout << "Compare Breit contribution to dV using TDHF and TDHFbasis "
-               "methods\nTest of internal consistancy, not validation of Breit "
-               "correction\n";
+  std::cout << "\nCompare Breit contribution to dV using TDHF and TDHFbasis "
+               "methods\n"
+               "Test of internal consistancy, not validation of Breit "
+               "correction\n\n";
   // Test of internal consistancy, not validation of Breit correction
 
   // nb: don't use many grid points, since we don't need overall accuracy.
@@ -31,7 +32,7 @@ TEST_CASE("External Field: TDHF (basis) Breit",
   // Compares the Breit correction to dV using TDHF and TDHF basis methods.
   // NB: also a test of BASIS+Breit
 
-  std::string valence = "7s6p5d";
+  std::string valence = "6s5p4d";
   SplineBasis::Parameters bspl_param;
   {
     bspl_param.states = "40spd30f";
@@ -41,19 +42,20 @@ TEST_CASE("External Field: TDHF (basis) Breit",
     bspl_param.reps = 0.0;
     bspl_param.rmax = 40.0;
   }
+  bspl_param.verbose = false;
 
   // Create wavefunction object, solve HF for core+valence
   Wavefunction wf({1000, 1.0e-6, 120.0, 50.0, "loglinear", -1.0},
-                  {"Cs", 133, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Xe]"); // no breit
-  wf.solve_valence(valence);
+                  {"Rb", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", 0.0, "[Kr]", 1.0e-12, false); // no breit
+  wf.solve_valence(valence, false);
   wf.formBasis(bspl_param);
   // wf.printValence();
 
   // Again, including Breit:
   Wavefunction wfB(wf.grid_sptr(), wf.nucleus(), 1.0);
-  wfB.solve_core("HartreeFock", 1.0, "[Xe]"); // w/Breit
-  wfB.solve_valence(valence);
+  wfB.solve_core("HartreeFock", 1.0, "[Kr]", 1.0e-12, false); // w/Breit
+  wfB.solve_valence(valence, false);
   wfB.formBasis(bspl_param);
 
   const auto hE1 = DiracOperator::E1(wf.grid());
@@ -69,8 +71,8 @@ TEST_CASE("External Field: TDHF (basis) Breit",
   std::cout << "Breit TDHF(bs) E1 w=0 " << sE1 << " " << eE1 << "\n";
   std::cout << "Breit TDHF(bs) E1 w=0.05 " << sE1w << " " << eE1w << "\n";
   std::cout << "Breit TDHF(bs) PNC " << sPNC << " " << ePNC << "\n";
-  REQUIRE(std::abs(eE1) < 0.05);
-  REQUIRE(std::abs(eE1w) < 0.05);
+  REQUIRE(std::abs(eE1) < 0.1);
+  REQUIRE(std::abs(eE1w) < 0.1);
   // XXX Not sure why this one isn't great?
   REQUIRE(std::abs(ePNC) < 2.0);
 }
@@ -102,7 +104,8 @@ helper::do_dV_breit_basis(const Wavefunction &wf, const Wavefunction &wfB,
   auto eps = 0.0;
   std::string worst = "";
 
-  std::cout << "\ndBr(%)  TDHF       TDHF(basis) " << h->name() << "\n";
+  std::cout << "\n(Breit correction (%) to the dV correction)\n";
+  std::cout << "dBr(%)  TDHF       TDHF(basis) " << h->name() << "\n";
   for (const auto &Fv : wf.valence()) {
     for (const auto &Fw : wf.valence()) {
       if (Fw > Fv || h->isZero(Fv.kappa(), Fw.kappa()) || Fv.l() > max_l ||

@@ -43,27 +43,62 @@ public:
   //! Returns RPA method
   virtual Method method() const override final { return Method::basis; }
 
-  //! Forms \delta Psi_v for valence state Fv (including core pol.) - 1 kappa
-  //! @details
-  //!  Solves
-  //! \f[ (H + \Sigma - \epsilon - \omega)X = -(h + \delta V
-  //! - \delta\epsilon)\psi \f]
-  //! or
-  //! \f[ (H + \Sigma - \epsilon + \omega)Y = -(h^\dagger + \delta V^\dagger
-  //!   - \delta\epsilon)Psi\f]
-  //! Returns \f$ \chi_\beta \f$ for given kappa_beta, where
-  //! \f[ X_{j,m} = (-1)^{j_\beta-m}tjs(j,k,j;-m,0,m)\chi_j \f]
-  //! XorY takes values: dPsiType::X or dPsiType::Y.
-  //! st takes values: StateType::ket or StateType::bra.
-  //! Solves by expanding over basis. To include correlations, use basis with
-  //! correlations.
+  //!
+  /*! @brief
+    Forms dF_v for valence state Fv (including core pol.): single kappa
+    
+    @details
+    Solves
+    \f[ (H + \Sigma - \epsilon - \omega)X 
+      = -(h + \delta V - \delta\epsilon)\psi 
+    \f]
+    or
+    \f[ 
+      (H + \Sigma - \epsilon + \omega)Y 
+        = -(h^\dagger + \delta V^\dagger - \delta\epsilon)\Psi 
+    \f]
+
+    Returns \f$ \chi_\beta \f$ for given kappa_beta, where
+    \f[ 
+      X_{j,m} = (-1)^{j_\beta-m}tjs(j,k,j;-m,0,m)\chi_j 
+    \f]
+
+    XorY takes values: dPsiType::X or dPsiType::Y.
+    st takes values: StateType::ket or StateType::bra.
+
+    Solves by expanding over basis. 
+    
+    @note To include correlations, use basis with
+    correlations. 
+    
+    @note To exclude excitations to occupied states, remove from basis.
+  */
   DiracSpinor form_dPsi(const DiracSpinor &Fv, const double omega,
                         dPsiType XorY, const int kappa_beta,
                         const std::vector<DiracSpinor> &spectrum,
                         StateType st = StateType::ket,
                         bool incl_dV = true) const;
 
-  //! Forms \f$ [\delta \psi_v]_\kappa \f$ for valence state \f$\psi_v\f$, for all allowed \f$\kappas\f$ (see solve_dPsi)
+  /*! @brief 
+    Forms the perturbed wavefunctions dF_v for a valence state for 
+    all allowed kappa channels.
+
+    @details
+    Solves the inhomogeneous equation for the perturbed wavefunction
+    \f$\delta\psi_v\f$ of the valence state \f$\psi_v\f$ at frequency
+    \f$\omega\f$. The solutions \f$[\delta\psi_v]_\kappa\f$ are returned
+    for all allowed \f$\kappa\f$ values (see solve_dPsi).
+
+    The calculation uses the supplied single-particle spectrum and may
+    include the induced potential \f$\delta V\f$ if `incl_dV` is true.
+
+    @param Fv       Valence state \f$\psi_v\f$.
+    @param omega    Perturbation frequency \f$\omega\f$.
+    @param XorY     Selects the X or Y TDHF solution.
+    @param spectrum Single-particle spectrum used to construct the solution.
+    @param st       Specifies bra or ket convention.
+    @param incl_dV  Include the induced potential \f$\delta V\f$ if true.
+  */
   std::vector<DiracSpinor> form_dPsis(const DiracSpinor &Fv, const double omega,
                                       dPsiType XorY,
                                       const std::vector<DiracSpinor> &spectrum,

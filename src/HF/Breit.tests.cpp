@@ -857,8 +857,11 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
           const auto RPAD_ab_0 = hab_0 + rpad_0.dV(a0, b0);
           const auto RPAD_ab_B = hab_B + rpad_B.dV(aB, bB);
 
-          const auto RPAt_ab_0 = hab_0 + rpat_0.dV(a0, b0);
-          const auto RPAt_ab_B = hab_B + rpat_B.dV(aB, bB);
+          // nb: "false" here means don't automatically calculate
+          // dV^dag for "emmission" type.
+          // Annoying that they work differently.. but they are different methods
+          const auto RPAt_ab_0 = hab_0 + rpat_0.dV(a0, b0, false);
+          const auto RPAt_ab_B = hab_B + rpat_B.dV(aB, bB, false);
 
           // Express Breit corrections as percentage, relative to HF0 value
           const auto Breit_hf = (hab_B - hab_0) / hab_0;

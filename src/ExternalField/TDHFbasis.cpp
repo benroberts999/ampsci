@@ -15,25 +15,26 @@ TDHFbasis::TDHFbasis(const DiracOperator::TensorOperator *const h,
                      const std::vector<DiracSpinor> &basis)
   : TDHF(h, hf) {
 
-  // m_basis = basis;
+  // Let user make this choice on construction
+  m_basis = basis;
   // return;
 
-  // find maximum n for each kappa in core:
-  const auto max_ki_core = DiracSpinor::max_kindex(hf->core());
-  std::vector<int> max_n_ka_core;
-  for (int ki = 0; ki <= max_ki_core; ++ki) {
-    max_n_ka_core.push_back(
-      DiracSpinor::max_n(hf->core(), Angular::kappaFromIndex(ki)));
-  }
+  // // find maximum n for each kappa in core:
+  // const auto max_ki_core = DiracSpinor::max_kindex(hf->core());
+  // std::vector<int> max_n_ka_core;
+  // for (int ki = 0; ki <= max_ki_core; ++ki) {
+  //   max_n_ka_core.push_back(
+  //     DiracSpinor::max_n(hf->core(), Angular::kappaFromIndex(ki)));
+  // }
 
-  // only include excited states in spectrum?
-  for (const auto &n : basis) {
-    const auto ki = std::size_t(n.k_index());
-    const auto n_core = ki < max_n_ka_core.size() ? max_n_ka_core.at(ki) : 0;
-    if (n.n() > n_core) {
-      m_basis.push_back(n);
-    }
-  }
+  // // only include excited states in spectrum?
+  // for (const auto &n : basis) {
+  //   const auto ki = std::size_t(n.k_index());
+  //   const auto n_core = ki < max_n_ka_core.size() ? max_n_ka_core.at(ki) : 0;
+  //   if (n.n() > n_core) {
+  //     m_basis.push_back(n);
+  //   }
+  // }
 }
 
 //==============================================================================

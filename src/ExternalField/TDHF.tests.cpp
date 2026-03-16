@@ -2,6 +2,7 @@
 #include "DiracOperator/include.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "calcMatrixElements.hpp"
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
 #include "qip/Vector.hpp"
@@ -9,55 +10,67 @@
 #include <string>
 
 //==============================================================================
-// Tests for TDHF (basic unit)
-TEST_CASE("External Field: TDHF - basic unit tests",
+TEST_CASE("External Field: TDHF basic unit tests 2",
           "[ExternalField][TDHF][RPA][unit]") {
 
-  Wavefunction wf({800, 1.0e-4, 100.0, 20.0, "loglinear", -1.0},
-                  {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Xe]");
-  wf.solve_valence("6sp");
+  Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
+                  {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-10, false);
+  wf.solve_valence("3sp", false);
+  // nb: use very small basis.
+  // Don't care about numerical results, just that eveything is working correctly.
+  SplineBasis::Parameters params{"10sp8d", 20, 7, 1.0e-3, 1.0e-3, 30.0};
+  params.verbose = false;
+  wf.formBasis(params);
 
   auto dE1 = DiracOperator::E1(wf.grid());
 
-  auto F6s = wf.getState("6s");
-  auto F6p = wf.getState("6p-");
+  auto rpa = ExternalField::TDHF(&dE1, wf.vHF());
+  auto rpa2 = ExternalField::make_rpa("TDHF", &dE1, wf.vHF(), true, {}, "");
+
+  rpa.solve_core(0.0, 25);
+  rpa2->solve_core(0.0, 25);
+
+  for (const auto &v : wf.valence()) {
+    for (const auto &w : wf.valence()) {
+
+      const auto dv_0 = rpa.dV(v, w);
+      const auto dv_1 = rpa.dV(w, v) * dE1.symm_sign(v, w);
+
+      const auto dv_2 = rpa2->dV(v, w);
+
+      if (!dE1.isZero(v, w))
+        REQUIRE(dv_0 != 0.0);
+      REQUIRE(dv_0 == Approx(dv_1));
+      REQUIRE(dv_0 == Approx(dv_2));
+    }
+  }
+
+  for (const auto &Fc : wf.core()) {
+    auto dPsis1 = rpa.solve_dPsis(Fc, 0.0, ExternalField::dPsiType::X);
+    auto dPsis2 = rpa.get_dPsis(Fc, ExternalField::dPsiType::X);
+    REQUIRE(dPsis1.size() == dPsis2.size());
+    REQUIRE(dPsis1.size() != 0);
+    for (std::size_t i = 0; i < dPsis1.size(); ++i) {
+      // only perfectly true if converged perfectly
+      REQUIRE(dPsis1.at(i).norm2() ==
+              Approx(dPsis2.at(i).norm2()).epsilon(1.0e-4));
+
+      const auto kappa = dPsis1.at(i).kappa();
+      auto dPsi1 = rpa.solve_dPsi(Fc, 0.0, ExternalField::dPsiType::X, kappa);
+      const auto &dPsi2 = rpa.get_dPsi_x(Fc, ExternalField::dPsiType::X, kappa);
+      REQUIRE(dPsi1.norm2() == Approx(dPsis2.at(i).norm2()).epsilon(1.0e-4));
+      REQUIRE(dPsi2.norm2() == Approx(dPsis2.at(i).norm2()).epsilon(1.0e-4));
+    }
+  }
+
+  auto F6s = wf.getState("3s");
+  auto F6p = wf.getState("3p-");
   REQUIRE(F6s != nullptr);
   REQUIRE(F6p != nullptr);
 
-  auto rpa = ExternalField::TDHF(&dE1, wf.vHF());
-  rpa.solve_core(0.0, 30);
-
-  const auto dv_0 = rpa.dV(*F6s, *F6p);
-  std::cout << *F6s << "-" << *F6p << ": " << dv_0 << "\n";
-  REQUIRE(dv_0 != 0.0);
-
-  // // Doing 1 iteration shuold be equiv to first-order dV
-  // auto rpa1 = ExternalField::TDHF(&dE1, wf.vHF());
-  // rpa1.solve_core(0.0, 1);
-
-  const auto &Fc = wf.core().back();
-  auto dPsis1 = rpa.solve_dPsis(Fc, 0.0, ExternalField::dPsiType::X);
-  const auto &dPsis2 = rpa.get_dPsis(Fc, ExternalField::dPsiType::X);
-  // should both be first-order:
-  // const auto &dPsis02 = rpa1.get_dPsis(Fc, ExternalField::dPsiType::X);
-  REQUIRE(dPsis1.size() == dPsis2.size());
-  REQUIRE(dPsis1.size() != 0);
-  for (std::size_t i = 0; i < dPsis1.size(); ++i) {
-    // only true if TDHF converged!
-    REQUIRE(dPsis1.at(i).norm2() ==
-            Approx(dPsis2.at(i).norm2()).epsilon(1.0e-2));
-    const auto kappa = dPsis1.at(i).kappa();
-    auto dPsi1 = rpa.solve_dPsi(Fc, 0.0, ExternalField::dPsiType::X, kappa);
-    const auto &dPsi2 = rpa.get_dPsi_x(Fc, ExternalField::dPsiType::X, kappa);
-    REQUIRE(dPsi1.norm2() == Approx(dPsis2.at(i).norm2()).epsilon(1.0e-2));
-    REQUIRE(dPsi2.norm2() == Approx(dPsis2.at(i).norm2()).epsilon(1.0e-2));
-  }
-
-  // should be zero after clearing:
   rpa.clear();
   const auto dv_00 = rpa.dV(*F6s, *F6p);
-  std::cout << *F6s << "-" << *F6p << ": " << dv_00 << "\n";
   REQUIRE(dv_00 == 0.0);
 }
 

@@ -102,7 +102,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto EM = h->rank() % 2 == 0 ? "E" : "M";
     const std::string str = "ABCDEFGHIJKLMNOP";
     const auto sk = std::size_t(h->rank());
-    const auto sym = sk < str.size() ? str.at(sk) : ' ';
+    const auto sym = sk < str.size() ? str.at(sk - 1) : ' ';
     std::cout << "Hyperfine " << sym << " constants (" << EM << h->rank()
               << ")\n";
   } else if (matel_type == DiracOperator::MatrixElementType::Stretched) {
@@ -431,7 +431,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto EM = h->rank() % 2 == 0 ? "E" : "M";
     const std::string str = "ABCDEFGHIJKLMNOP";
     const auto sk = std::size_t(h->rank());
-    const auto sym = sk < str.size() ? str.at(sk) : ' ';
+    const auto sym = sk < str.size() ? str.at(sk - 1) : ' ';
     std::cout << "Hyperfine " << sym << " constants (" << EM << h->rank()
               << ")\n";
   } else if (matel_type == DiracOperator::MatrixElementType::Stretched) {
