@@ -8,6 +8,7 @@
 #include <algorithm>
 #include <cassert>
 #include <cstring> // for memcpy
+#include <numeric>
 #include <string_view>
 
 namespace Coulomb {
@@ -452,6 +453,80 @@ CoulombTable<S>::UnFormIndex(const nk4Index &index) const {
 }
 
 //==============================================================================
+template <Symmetry S>
+std::array<std::size_t, 4>
+CoulombTable<S>::count_non_zero_integrals(const std::vector<DiracSpinor> &basis,
+                                          std::size_t k_cutoff,
+                                          double eF) const {
+  static_assert(S == Symmetry::Qk);
+
+  const auto tmp_max_k =
+    std::size_t(std::max(DiracSpinor::max_tj(basis), 1) - 1);
+  const auto max_k =
+    (k_cutoff <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cutoff));
+
+  std::vector<std::size_t> count_non_zero_k_tot(max_k + 1);
+  std::vector<std::size_t> count_non_zero_k_Excited(max_k + 1);
+  std::vector<std::size_t> count_non_zero_k_MBPT(max_k + 1);
+
+  const auto select_Q_Excited = [eF](int, const DiracSpinor &s,
+                                     const DiracSpinor &t, const DiracSpinor &u,
+                                     const DiracSpinor &v) {
+    auto num = Coulomb::number_below_Fermi(s, t, u, v, eF);
+    return num == 0;
+  };
+
+  const auto select_Q_MBPT = [eF](int, const DiracSpinor &s,
+                                  const DiracSpinor &t, const DiracSpinor &u,
+                                  const DiracSpinor &v) {
+    auto num = Coulomb::number_below_Fermi(s, t, u, v, eF);
+    return num == 1 || num == 2;
+  };
+
+#pragma omp parallel for
+  for (auto k = 0ul; k <= max_k; ++k) {
+    const auto ik = static_cast<int>(k);
+    for (const auto &a : basis) {
+      for (const auto &b : basis) {
+        for (const auto &c : basis) {
+          if (!Angular::Ck_kk_SR(ik, a.kappa(), c.kappa()))
+            continue;
+          for (const auto &d : basis) {
+            // due to symmetry, only calculate each 'unique' integral once
+            if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
+              if (Angular::Ck_kk_SR(ik, b.kappa(), d.kappa())) {
+                ++count_non_zero_k_tot[k];
+                if (eF != 0.0) {
+                  if (select_Q_Excited(0, a, b, c, d)) {
+                    ++count_non_zero_k_Excited[k];
+                  }
+                  if (select_Q_MBPT(0, a, b, c, d)) {
+                    ++count_non_zero_k_MBPT[k];
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+  // return count_non_zero_k;
+
+  const auto count_non_zero_tot = std::accumulate(
+    count_non_zero_k_tot.begin(), count_non_zero_k_tot.end(), 0ul);
+
+  const auto count_non_zero_Excited = std::accumulate(
+    count_non_zero_k_Excited.begin(), count_non_zero_k_Excited.end(), 0ul);
+
+  const auto count_non_zero_MBPT = std::accumulate(
+    count_non_zero_k_MBPT.begin(), count_non_zero_k_MBPT.end(), 0ul);
+
+  return {count_non_zero_tot, count_non_zero_Excited, count_non_zero_MBPT,
+          max_k};
+}
+
+//==============================================================================
 //==============================================================================
 template <Symmetry S>
 void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
@@ -484,7 +559,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   if (m_data.size() < max_k + 1)
     m_data.resize(max_k + 1);
 
-  // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space
+  // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space=
   std::vector<std::size_t> count_non_zero_k(max_k + 1);
 #pragma omp parallel for
   for (auto k = 0ul; k <= max_k; ++k) {

@@ -125,7 +125,7 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const auto Tma = T.getv(m, a);
           const auto Snm = S.getv(n, m);
           const auto de_ts =
-              (a.en() - m.en() + omega) * (a.en() - n.en() + omega);
+            (a.en() - m.en() + omega) * (a.en() - n.en() + omega);
           Ak += s_wa * sK * sj_ts * Tma * Snm * Wwavn / de_ts;
         }
 
@@ -148,7 +148,7 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const auto Tnb = T.getv(n, b);
           const auto Sba = S.getv(b, a);
           const auto de_ts =
-              (b.en() - n.en() + omega) * (a.en() - n.en() + omega);
+            (b.en() - n.en() + omega) * (a.en() - n.en() + omega);
           Ak -= s_wa * sts * sj_ts * Tnb * Sba * Wwavn / de_ts;
         }
 
@@ -206,7 +206,7 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const auto Smn = S.getv(m, n);
           const auto Tam = T.getv(a, m);
           const auto de_st =
-              (a.en() - n.en() - omega) * (a.en() - m.en() - omega);
+            (a.en() - n.en() - omega) * (a.en() - m.en() - omega);
           Ak += s_wn * sts * sj_st * Smn * Tam * Wwnva / de_st;
         }
       }
@@ -229,7 +229,7 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const auto Sab = S.getv(a, b);
           const auto Tbn = T.getv(b, n);
           const auto de_st =
-              (a.en() - n.en() - omega) * (b.en() - n.en() - omega);
+            (a.en() - n.en() - omega) * (b.en() - n.en() - omega);
           Ak -= s_wn * sK * sj_st * Sab * Tbn * Wwnva / de_st;
         }
       }
@@ -326,14 +326,14 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto de_ts = v.en() - n.en();
 
     const auto C_ts =
-        C_K(K, kt, ks, w.twoj(), n.twoj(), v.twoj()) * Angular::neg1pow(K);
+      C_K(K, kt, ks, w.twoj(), n.twoj(), v.twoj()) * Angular::neg1pow(K);
 
     const auto Swn = s->reducedME(w, n) + dVs.dV(w, n);
     const auto Tnv = t->reducedME(n, v) + dVt.dV(n, v);
     const auto de_st = w.en() - n.en();
 
-    const auto C_st = C_K(K, ks, kt, w.twoj(), n.twoj(), v.twoj()) *
-                      Angular::neg1pow(kt + ks);
+    const auto C_st =
+      C_K(K, ks, kt, w.twoj(), n.twoj(), v.twoj()) * Angular::neg1pow(kt + ks);
 
     const auto AK_n = C_ts * Twn * Snv / de_ts + C_st * Swn * Tnv / de_st;
     AK += AK_n;
@@ -369,27 +369,27 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   const auto [core, excited] =
-      DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
+    DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
 
   std::cout << "\nCalculating DCP:\n";
   std::cout << "Filling tables.." << std::flush;
   const auto t_ce =
-      ExternalField::me_table(wf.basis(), t.get(), rpaQ ? &dVt : nullptr);
+    ExternalField::me_table(wf.basis(), t.get(), rpaQ ? &dVt : nullptr);
   const auto s_ce =
-      ExternalField::me_table(wf.basis(), s.get(), rpaQ ? &dVs : nullptr);
+    ExternalField::me_table(wf.basis(), s.get(), rpaQ ? &dVs : nullptr);
   std::cout << "..done\n" << std::flush;
 
   double cc1 =
-      C1(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
+    C1(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
 
   double cc2 =
-      C2(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
+    C2(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
 
   double cr12 =
-      R12(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
+    R12(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
 
   double cl12 =
-      L12(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
+    L12(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
 
   const auto delta_AK = cc1 + cc2 + cr12 + cl12;
 

@@ -1,4 +1,5 @@
 
+#include "Coulomb/QkTable.hpp"
 #include "DiracOperator/GenerateOperator.hpp"
 #include "IO/InputBlock.hpp"
 #include "Modules/modules_list.hpp"
@@ -16,20 +17,25 @@
 //! Man page info
 namespace man {
 
-const std::string name{"ampsci - Atomic Many-body Perturbation theory in the "
-                       "Screened Coulomb Interaction."};
+const std::string name{
+  "ampsci \n"
+  "Atomic Many-body Perturbation theory in the Screened Coulomb Interaction."};
 
-const std::string author{"Benjamin M. Roberts (https://broberts.io/), "
+const std::string author{"Benjamin M. Roberts (https://broberts.io/), \n"
                          "University of Queensland, Australia."};
 
-const std::string synopsis{"ampsci [InputFile]\n"
-                           "ampsci [Atom] [Core] [Valence]\n"
-                           "ampsci -s \"[Input String]\"\n"
-                           "ampsci -i [InputBlock]\n"
-                           "ampsci -m [Module]\n"
-                           "ampsci -o [Operator]\n"
-                           "ampsci -p [Atom] [Isotope]\n"
-                           "ampsci -c [value] [unit]\n"};
+const std::string synopsis{
+  "ampsci [InputFile]               | Run with input file\n"
+  "ampsci [Atom] <Core> <Valence>   | Basic Hartree-Fock run\n"
+  "ampsci -s [InputString]          | Run with input string\n"
+  "ampsci -i <InputBlock>           | Query input options\n"
+  "ampsci -m <Module>               | Query module options\n"
+  "ampsci -o <Operator>             | Query operator options\n"
+  "ampsci -p <Atom> <Isotope>       | Periodic table, isotope info\n"
+  "ampsci -c <value> <unit>         | Unit conversions\n"
+  "ampsci -z [Basis] <core> <kmax>  | Check memory requirements\n"
+  "ampsci -v                        | Ampsci version information\n"
+  "ampsci -h                        | Detailed help information\n"};
 
 const std::string description{
   "ampsci is a C++ program for high-precision atomic structure calculations "
@@ -120,11 +126,14 @@ const std::vector<std::pair<std::string, std::string>> options{
    "(available) Cs iotopes\n"},
   {"-s [input options as string], --string",
    "Takes input options as a string, using same format as input file\n"},
+  {"-z [basis_string] <core_string> <max_k>, --estimate-size",
+   "Takes a basis string (e.g., 20spdf) and optional multipolarity cut-off "
+   "max_k, and estimates memory required\n"},
   {"-v, --version", "Prints ampsci version (and git commit) details"} //
 };
 
 //! Prints 'man page' style info
-void print_manual() {
+void print_manual(bool details = true) {
 
   std::cout << "AMPSCI v: " << version::version() << '\n';
   std::cout << "Libraries:\n" << version::libraries() << '\n';
@@ -140,23 +149,27 @@ void print_manual() {
 
   fmt2::styled_print(fmt::emphasis::bold, "SYNOPSIS\n");
   fmt::print(qip::wrap(synopsis, wrap_at, tab + tab));
+  std::cout << "\n";
 
-  std::cout << "\n\n";
-
-  fmt2::styled_print(fmt::emphasis::bold, "DESCRIPTION\n");
-  fmt::print(qip::wrap(description, wrap_at, tab + tab));
-
-  std::cout << "\n\n";
-
-  fmt2::styled_print(fmt::emphasis::bold, "OPTIONS\n");
-  for (const auto &[option, text] : options) {
-    fmt2::styled_print(fg(fmt::color::steel_blue),
-                       qip::wrap(option, wrap_at, tab + tab));
+  if (details) {
     std::cout << "\n";
-    fmt::print(qip::wrap(text, wrap_at, tab + tab + tab));
+
+    fmt2::styled_print(fmt::emphasis::bold, "DESCRIPTION\n");
+    fmt::print(qip::wrap(description, wrap_at, tab + tab));
+
     std::cout << "\n\n";
+
+    fmt2::styled_print(fmt::emphasis::bold, "OPTIONS\n");
+    for (const auto &[option, text] : options) {
+      fmt2::styled_print(fg(fmt::color::steel_blue),
+                         qip::wrap(option, wrap_at, tab + tab));
+      std::cout << "\n";
+      fmt::print(qip::wrap(text, wrap_at, tab + tab + tab));
+      std::cout << "\n";
+    }
   }
 
+  std::cout << "\n";
   fmt2::styled_print(fmt::emphasis::bold, "AUTHOR\n");
   fmt::print(qip::wrap(author, wrap_at, tab + tab));
 
@@ -180,7 +193,7 @@ int main(int argc, char *argv[]) {
 
   // check for special commands
   if (in_text_1 == "") {
-    man::print_manual();
+    man::print_manual(false);
     return 0;
   } else if (in_text_1 == "-v" || in_text_1 == "--version") {
     std::cout << "AMPSCI v: " << version::version() << '\n';
@@ -192,7 +205,7 @@ int main(int argc, char *argv[]) {
     std::cout << "Libraries:\n" << version::libraries() << '\n';
     return 0;
   } else if (in_text_1 == "-h" || in_text_1 == "--help" || in_text_1 == "-?") {
-    man::print_manual();
+    man::print_manual(true);
     return 0;
   } else if (in_text_1 == "-m" || in_text_1 == "--modules") {
     const std::string module_name = (argc > 2) ? argv[2] : "";
@@ -227,24 +240,36 @@ int main(int argc, char *argv[]) {
     }
     ampsci(temp_input);
     return 0;
+
   } else if (in_text_1 == "-p" || in_text_1 == "--periodicTable") {
     std::string z_str = (argc > 2) ? argv[2] : "";
     std::string a_str = (argc > 3) ? argv[3] : "";
     AtomData::periodicTable(z_str, a_str);
     return 0;
+
   } else if (in_text_1 == "-e" || in_text_1 == "--EasterEgg") {
     std::cout << EasterEgg::get_egg();
     return 0;
+
   } else if (in_text_1 == "-c" || in_text_1 == "--constants") {
     AtomData::printConstants();
     if (!in_text_2.empty() && !in_text_3.empty())
       AtomData::conversions(std::stod(in_text_2), in_text_3);
     return 0;
+
   } else if (in_text_1 == "-s" || in_text_1 == "--string") {
     std::cout << "Reading input from command-line string\n";
+
+  } else if (in_text_1 == "-z" || in_text_1 == "--estimate-size") {
+    std::string basis_string = (argc > 2) ? argv[2] : "20spdf";
+    std::string core_string = (argc > 3) ? argv[3] : "";
+    int k_max = (argc > 4) ? std::stoi(argv[4]) : 999;
+    Coulomb::estimate_memory_usage(basis_string, core_string, k_max);
+    return 0;
+
   } else if (!in_text_1.empty() && in_text_1.front() == '-') {
     std::cout << "Unrecognised option: " << in_text_1 << '\n';
-    man::print_manual();
+    man::print_manual(false);
     return 0;
   }
 

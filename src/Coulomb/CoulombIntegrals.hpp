@@ -143,6 +143,13 @@ std::pair<int, int> k_minmax_W(const DiracSpinor &a, const DiracSpinor &b,
 
 //==============================================================================
 
+//! Returns number of orbitals that are below Fermi level. Used for Qk selection
+int number_below_Fermi(const DiracSpinor &i, const DiracSpinor &j,
+                       const DiracSpinor &k, const DiracSpinor &l,
+                       double eFermi);
+
+//==============================================================================
+
 template <class A>
 static int twojk(const A &a) {
   if constexpr (std::is_same_v<A, DiracSpinor>) {

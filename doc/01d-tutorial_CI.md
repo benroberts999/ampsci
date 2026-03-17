@@ -343,34 +343,95 @@ This can be controlled manually with the `cis2_basis` option.
   Writing 130278 integrals to file: Mg2_1_30spdfghi_8.sk..
 ```
 
-The `For: 5spdf, using 30spdfghi` means the external lines in \f$\Sigma_{ijkl}\f$ include up to `5spdf`, while the internal lines use the full `30spdfghi` basis.
+The `For: 5spdf, using 30spdfghi` means the external lines in \f$\Sigma_{ijkl}\f$ include up to `5spdf`, while the internal lines use the full `30spdfghi` basis. This is usually the bottle-neck; these integrals take a very long time to compute, though typically make only a modest difference to the calculations.
 
-This leads to a significant improvement in the accuracy:
+The combined MBPT corrections lead to a significant improvement in the accuracy:
 
-| Level  |             | AMPSCI  | Exp.    | \f$\Delta\f$ |
-|-----|-----|-----|-----|-----|
-| \f$3s^2\f$ | \f${}^1S_0\f$   | -182804 | -182939 | -0.07%   |
-| \f$3s4s\f$ | \f${}^1S_0\f$   | 43490   | 43503   | -0.03%   |
-| \f$3s6s\f$ | \f${}^1S_0\f$   | 52526   | 52556   | -0.06%   |
-| \f$3s4s\f$ | \f${}^3S_1\f$   | 41208   | 41197   | 0.03%    |
-| \f$3s3d\f$ | \f${}^3D_1\f$   | 47957   | 47957   | 0.00%    |
-| \f$3s5s\f$ | \f${}^3S_1\f$   | 51875   | 51873   | 0.00%    |
-| \f$3s3d\f$ | \f${}^1D_2\f$   | 46385   | 46403   | -0.04%   |
-| \f$3s3d\f$ | \f${}^3D_2\f$   | 47960   | 47957   | 0.01%    |
-| \f$3s4d\f$ | \f${}^1D_2\f$   | 53113   | 53135   | -0.04%   |
-| \f$3s3p\f$ | \f${}^3P^o_0\f$ | 21822   | 21850   | -0.13%   |
-| \f$3s4p\f$ | \f${}^3P^o_0\f$ | 47837   | 47841   | -0.01%   |
-| \f$3s6p\f$ | \f${}^3P^o_0\f$ | 54271   | 54249   | 0.04%    |
-| \f$3s3p\f$ | \f${}^3P^o_1\f$ | 21844   | 21870   | -0.12%   |
-| \f$3s3p\f$ | \f${}^1P^o_1\f$ | 35090   | 35051   | 0.11%    |
-| \f$3s4p\f$ | \f${}^3P^o_1\f$ | 47840   | 47844   | -0.01%   |
-| \f$3s3p\f$ | \f${}^3P^o_2\f$ | 21876   | 21911   | -0.16%   |
-| \f$3s4p\f$ | \f${}^3P^o_2\f$ | 47845   | 47851   | -0.01%   |
-| \f$3s6p\f$ | \f${}^3P^o_2\f$ | 54272   | 54253   | 0.03%    |
+| Level      |                 | AMPSCI  | Exp.    | \f$\Delta\f$ |
+|------------|-----------------|---------|---------|--------------|
+| \f$3s^2\f$ | \f${}^1S_0\f$   | -182804 | -182939 | -0.07%       |
+| \f$3s4s\f$ | \f${}^1S_0\f$   | 43490   | 43503   | -0.03%       |
+| \f$3s6s\f$ | \f${}^1S_0\f$   | 52526   | 52556   | -0.06%       |
+| \f$3s4s\f$ | \f${}^3S_1\f$   | 41208   | 41197   |  0.03%       |
+| \f$3s3d\f$ | \f${}^3D_1\f$   | 47957   | 47957   |  0.00%       |
+| \f$3s5s\f$ | \f${}^3S_1\f$   | 51875   | 51873   |  0.00%       |
+| \f$3s3d\f$ | \f${}^1D_2\f$   | 46385   | 46403   | -0.04%       |
+| \f$3s3d\f$ | \f${}^3D_2\f$   | 47960   | 47957   |  0.01%       |
+| \f$3s4d\f$ | \f${}^1D_2\f$   | 53113   | 53135   | -0.04%       |
+| \f$3s3p\f$ | \f${}^3P^o_0\f$ | 21822   | 21850   | -0.13%       |
+| \f$3s4p\f$ | \f${}^3P^o_0\f$ | 47837   | 47841   | -0.01%       |
+| \f$3s6p\f$ | \f${}^3P^o_0\f$ | 54271   | 54249   |  0.04%       |
+| \f$3s3p\f$ | \f${}^3P^o_1\f$ | 21844   | 21870   | -0.12%       |
+| \f$3s3p\f$ | \f${}^1P^o_1\f$ | 35090   | 35051   |  0.11%       |
+| \f$3s4p\f$ | \f${}^3P^o_1\f$ | 47840   | 47844   | -0.01%       |
+| \f$3s3p\f$ | \f${}^3P^o_2\f$ | 21876   | 21911   | -0.16%       |
+| \f$3s4p\f$ | \f${}^3P^o_2\f$ | 47845   | 47851   | -0.01%       |
+| \f$3s6p\f$ | \f${}^3P^o_2\f$ | 54272   | 54253   |  0.03%       |
 
 The discrepancies are now at the level of 0.1% or below.
 
-On my pc, this entire calculation took less than two minutes.
+On my PC, this entire calculation took less than two minutes.
+
+### Memory usage
+
+For two-valence CI, the memory bottleneck is calculating the two-body Coulomb (\f$Q^k\f$) integrals; the time bottleneck is usually calculating the two-body Correlation.
+
+You can estimate the memory required using the `ampsci -z` command-line option.
+In the above example, we used:
+
+* `20spdf` for CI
+* `30spdfghi` for MBPT, with a multipolarity cut-off of 7 (default)
+
+The CI calculation requires only excited-excited Coulomb integrals, while the MBPT only requires Coulomb integrals involving 1 or 2 core states.
+
+We can therefore check the memory requirements by running:
+<div class="shell-block">
+```bash
+./ampsci -z 20spdf [Ne]
+./ampsci -z 30spdfghi [Ne] 7
+```
+</div>
+
+Should return something like:
+
+```text
+Estimating memory usage (nb: may be very rough)
+For basis         : 20spdf
+Total orbitals    : 128
+Orbitals in core  : 4
+Counting integrals...
+With maximum k    : 6
+Total integrals   : 17488761
+Excited-only      : 15896631
+Core-Excited      : 1590740
+Estimated Qk size :
+All possible Qk   : 1 Gb  [SR]
+Excited-only      : 1 Gb  [CI]
+Core-Excited      : 0 Gb  (1 or 2 core states allowed)  [MBPT]
+```
+
+and
+
+```text
+Estimating memory usage (nb: may be very rough)
+For basis         : 30spdfghi
+Total orbitals    : 348
+Orbitals in core  : 4
+Counting integrals...
+With maximum k    : 7
+Total integrals   : 1234351841
+Excited-only      : 1204586189
+Core-Excited      : 29763502
+Estimated Qk size :
+All possible Qk   : 45 Gb  [SR]
+Excited-only      : 44 Gb  [CI]
+Core-Excited      : 1 Gb  (1 or 2 core states allowed)  [MBPT]
+```
+
+Combining, we see that we should require 15896631 for the CI part, and 29763502 for MBPT.
+This exactly matched the calculated Qk integral summaries we saw above.
+In this case, the total memory requirement is very small (~2 Gb).
+Notice, however, if we had tried to run CI with the full MBPT basis, we would have required nearly 50Gb!
 
 -----
 

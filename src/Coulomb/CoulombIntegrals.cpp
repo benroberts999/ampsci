@@ -516,6 +516,22 @@ double g_abcd(const DiracSpinor &a, const DiracSpinor &b, const DiracSpinor &c,
 }
 
 //==============================================================================
+int number_below_Fermi(const DiracSpinor &i, const DiracSpinor &j,
+                       const DiracSpinor &k, const DiracSpinor &l,
+                       double eFermi) {
+  int num_core = 0;
+  if (i.en() < eFermi)
+    ++num_core;
+  if (j.en() < eFermi)
+    ++num_core;
+  if (k.en() < eFermi)
+    ++num_core;
+  if (l.en() < eFermi)
+    ++num_core;
+  return num_core;
+}
+
+//==============================================================================
 std::pair<int, int> k_minmax_Ck(const DiracSpinor &a, const DiracSpinor &b) {
   // return k_minmax_tj(a.twoj(), b.twoj());
   auto minmax = k_minmax_tj(a.twoj(), b.twoj());

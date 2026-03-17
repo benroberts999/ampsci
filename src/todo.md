@@ -10,6 +10,12 @@
   * fk screening
   * etak hp
 
+## Structure rad / Coulomb integrals
+
+* Reads Qk file and uses it, even if it doesn't match required basis
+* May particularly be dangerous if done after a CI calculation
+  * CI only calculates Qk for 1 or 2 core states, SR requires 3
+
 ## TDHF
 
 * Also: check correctness in general case (#33)

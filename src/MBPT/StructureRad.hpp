@@ -85,7 +85,7 @@ public:
   */
   StructureRad(const std::vector<DiracSpinor> &basis, double en_core,
                std::pair<int, int> nminmax = {0, 999},
-               const std::string &Qk_fname = "",
+               const std::string &Qk_fname = "", int k_cut = 99,
                const std::vector<double> &fk = {},
                const std::vector<double> &etak = {}, bool verbose = true);
 
@@ -96,6 +96,7 @@ private:
   std::vector<double> m_root_fk;
   // effective hole-particle
   std::vector<double> m_etak;
+  int m_k_cut;
 
   Coulomb::YkTable mY{};
   std::optional<Coulomb::QkTable> mQ{std::nullopt};

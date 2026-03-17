@@ -18,12 +18,13 @@ const auto vroot = [](auto x) { return std::sqrt(x); };
 //==============================================================================
 StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
                            double en_core, std::pair<int, int> nminmax,
-                           const std::string &Qk_fname,
+                           const std::string &Qk_fname, int k_cut,
                            const std::vector<double> &fk,
                            const std::vector<double> &etak, bool verbose)
   : m_use_Qk(!Qk_fname.empty()),
     m_root_fk(qip::apply_to(vroot, fk)),
-    m_etak(etak) {
+    m_etak(etak),
+    m_k_cut(k_cut) {
 
   // nb: en_core defined such that: Fa.en() < en_core ==> core state!
   // nb: this makes it faster..
@@ -41,6 +42,17 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
   // However, require SixJTable!
   mY.extend_angular(DiracSpinor::max_tj(mBasis));
 
+  // We only require Qk integrals that have 0,1,2,3 core obitals
+  // i.e., none that have 4.
+  // (we also know 1 of the 4 orbitals must be valence..but harder)
+  const auto select_Q_SR =
+    [eF = en_core](int, const DiracSpinor &s, const DiracSpinor &t,
+                   const DiracSpinor &u, const DiracSpinor &v) {
+      // Only calculate Coulomb integrals with <4 electrons in the core
+      auto num = Coulomb::number_below_Fermi(s, t, u, v, eF);
+      return num < 4;
+    };
+
   // Only calculate Yk values if not Qk table, or in order to calculate Qk
   if (m_use_Qk) {
     if (verbose) {
@@ -49,9 +61,10 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
     mQ = Coulomb::QkTable{};
     const auto read_ok = mQ->read(Qk_fname, verbose);
     if (!read_ok) {
-      std::cout << "Fill Qk table:\n";
+      std::cout << "Fill Qk table:\n" << std::flush;
       mY.calculate(mBasis);
-      mQ->fill(mBasis, mY, -1, verbose);
+      // mQ->fill(mBasis, mY, k_cut, verbose);
+      mQ->fill_if(mBasis, mY, select_Q_SR, k_cut, verbose);
       mQ->write(Qk_fname, verbose);
     }
   } else {
@@ -256,8 +269,11 @@ double StructureRad::t1(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto sab = Angular::neg1pow_2(b.twoj() + a.twoj());
       const auto inv_e_rwab = 1.0 / (r.en() + w.en() - a.en() - b.en());
 
-      const auto [minU, maxU] = Coulomb::k_minmax_W(w, r, b, a);
-      const auto [minL, maxL] = Coulomb::k_minmax_Q(v, a, b, c);
+      auto [minU, maxU] = Coulomb::k_minmax_W(w, r, b, a);
+      auto [minL, maxL] = Coulomb::k_minmax_Q(v, a, b, c);
+      maxU = std::min(maxU, m_k_cut);
+      maxL = std::min(maxL, m_k_cut);
+
       if (minU > maxU)
         continue;
       for (int l = minL; l <= maxL; l += 2) {
@@ -387,8 +403,11 @@ double StructureRad::t4(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto snm = Angular::neg1pow_2(n.twoj() + m.twoj());
       const auto inv_e_nmcv = 1.0 / (n.en() + m.en() - c.en() - v.en());
 
-      const auto [minU, maxU] = Coulomb::k_minmax_Q(w, r, n, m);
-      const auto [minL, maxL] = Coulomb::k_minmax_W(n, m, v, c);
+      auto [minU, maxU] = Coulomb::k_minmax_Q(w, r, n, m);
+      auto [minL, maxL] = Coulomb::k_minmax_W(n, m, v, c);
+      maxU = std::min(maxU, m_k_cut);
+      maxL = std::min(maxL, m_k_cut);
+
       if (minL > maxL)
         continue;
       for (int u = minU; u <= maxU; u += 2) {
@@ -484,8 +503,11 @@ double StructureRad::c2(const int k, const DiracSpinor &w, const DiracSpinor &a,
       const auto invde = 1.0 / (e_mnaw * e_nmcv);
       const auto smn = Angular::neg1pow_2(m.twoj() + n.twoj());
 
-      const auto [minU, maxU] = Coulomb::k_minmax_Q(v, m, n, c);
-      const auto [minL, maxL] = Coulomb::k_minmax_W(w, a, n, m);
+      auto [minU, maxU] = Coulomb::k_minmax_Q(v, m, n, c);
+      auto [minL, maxL] = Coulomb::k_minmax_W(w, a, n, m);
+      maxU = std::min(maxU, m_k_cut);
+      maxL = std::min(maxL, m_k_cut);
+
       if (minL > maxL)
         continue;
       for (int u = minU; u <= maxU; u += 2) {
@@ -535,8 +557,10 @@ double StructureRad::d1(const int k, const DiracSpinor &w, const DiracSpinor &r,
 
       const auto [minU1, maxU1] = Coulomb::k_minmax_W(w, a, r, n);
       const auto [minU2, maxU2] = Coulomb::k_minmax_W(v, a, m, n);
-      const auto minU = std::max(minU1, minU2);
-      const auto maxU = std::min(maxU1, maxU2);
+      auto minU = std::max(minU1, minU2);
+      auto maxU = std::min(maxU1, maxU2);
+      maxU = std::min(maxU, m_k_cut);
+
       for (int u = minU; u <= maxU; ++u) {
 
         const auto sj = SixJ.get(w, v, k, m, r, u);
@@ -578,8 +602,11 @@ double StructureRad::d2(const int k, const DiracSpinor &w, const DiracSpinor &r,
       const auto e_rwba = r.en() + w.en() - b.en() - a.en();
       const auto invde = 1.0 / (e_mvab * e_rwba);
 
-      const auto [minU, maxU] = Coulomb::k_minmax_Q(v, b, a, m);
-      const auto [minL, maxL] = Coulomb::k_minmax_W(w, r, a, b);
+      auto [minU, maxU] = Coulomb::k_minmax_Q(v, b, a, m);
+      auto [minL, maxL] = Coulomb::k_minmax_W(w, r, a, b);
+      maxU = std::min(maxU, m_k_cut);
+      maxL = std::min(maxL, m_k_cut);
+
       if (minL > maxL)
         continue;
       for (int u = minU; u <= maxU; u += 2) {
@@ -690,7 +717,8 @@ double StructureRad::z_bo(const DiracSpinor &w, const DiracSpinor &v,
     for (const auto &m : mExcited) {
       for (const auto &a : mCore) {
         for (const auto &b : mCore) {
-          const auto [k0, km] = Coulomb::k_minmax_Q(i, m, a, b);
+          auto [k0, km] = Coulomb::k_minmax_Q(i, m, a, b);
+          km = std::min(km, m_k_cut);
           for (auto k = k0; k <= km; k += 2) {
             const auto e_vmab = v.en() + m.en() - a.en() - b.en();
 
@@ -705,7 +733,8 @@ double StructureRad::z_bo(const DiracSpinor &w, const DiracSpinor &v,
           }
         }
         for (const auto &n : mExcited) {
-          const auto [k0, km] = Coulomb::k_minmax_Q(i, a, n, m);
+          auto [k0, km] = Coulomb::k_minmax_Q(i, a, n, m);
+          km = std::min(km, m_k_cut);
           for (auto k = k0; k <= km; k += 2) {
             const auto e_nmav = v.en() + a.en() - n.en() - m.en();
 

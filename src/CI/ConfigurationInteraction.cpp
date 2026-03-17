@@ -268,7 +268,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
         [eF = wf.FermiLevel()](int, const DiracSpinor &s, const DiracSpinor &t,
                                const DiracSpinor &u, const DiracSpinor &v) {
           // Only calculate Coulomb integrals with 1 or 2 electrons in the core
-          auto num = MBPT::number_below_Fermi(s, t, u, v, eF);
+          auto num = Coulomb::number_below_Fermi(s, t, u, v, eF);
           return num == 1 || num == 2;
         };
 

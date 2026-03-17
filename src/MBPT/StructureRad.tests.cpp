@@ -21,7 +21,7 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
   params.verbose = false;
   wf.formBasis(params);
 
-  MBPT::StructureRad srn(wf.basis(), wf.FermiLevel(), {0, 999}, "", {}, {},
+  MBPT::StructureRad srn(wf.basis(), wf.FermiLevel(), {0, 999}, "", 99, {}, {},
                          true);
 
   REQUIRE(srn.core().size() == wf.core().size());
@@ -85,10 +85,10 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
 
     // Create Qk file:
     auto print = h == &h1; // only once
-    MBPT::StructureRad srn2(wf.basis(), wf.FermiLevel(), {0, 999}, QK_fname, {},
-                            {}, print);
+    MBPT::StructureRad srn2(wf.basis(), wf.FermiLevel(), {0, 999}, QK_fname, 99,
+                            {}, {}, print);
     // Read in QK file:
-    MBPT::StructureRad srn3(wf.basis(), wf.FermiLevel(), {0, 999}, QK_fname,
+    MBPT::StructureRad srn3(wf.basis(), wf.FermiLevel(), {0, 999}, QK_fname, 99,
                             {1.0, 1.0, 1.0}, {1.0, 1.0, 1.0}, print);
     srn2.solve_core(h);
     srn3.solve_core(h);
@@ -244,7 +244,7 @@ TEST_CASE("MBPT: Structure Rad + Norm HFS",
   dV.solve_core(0.0, 100, false);
 
   // I assume they didn't include 'fitting' for BO, though they may have:
-  MBPT::StructureRad srn(wf.basis(), wf.FermiLevel(), {3, 99}, "", {}, {},
+  MBPT::StructureRad srn(wf.basis(), wf.FermiLevel(), {3, 99}, "", 99, {}, {},
                          false);
   srn.solve_core(&hfs, &dV);
 

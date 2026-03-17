@@ -198,3 +198,25 @@ StructureRadiation{
 ```
 
 If a Qk filename is given, program will first calculate all required Q^k Coulomb integrals before calculating structure radiation. This speeds up the calculation, at a great memory cost.
+
+Note: this can take a significant amount of memory.
+You can estimate the memory required using the `ampsci -z` command-line option.
+For example, if using a basis of `30spdfg` for Structure Radiation,
+
+<div class="shell-block">
+```bash
+./ampsci -z 30spdfg
+```
+</div>
+
+Should return something like:
+
+```text
+Estimating memory usage (nb: may be very rough)
+For basis         : 30spdfg
+Total orbitals    : 250
+Counting integrals...
+With maximum k    : 8
+Total integrals   : 391523054
+Estimated Qk size : 14 Gb
+```

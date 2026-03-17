@@ -328,6 +328,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
       "Save time (10x) at cost of memory. Note: Using QkTable implies "
       "legs=basis"},
      {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
+     {"k_cut",
+      "Maximum multipolarity k to include in Coulomb Qk. Default: all"},
      {"include_core", "If true, includes core states in calculation. Will "
                       "use HF core, unless legs=spectrum [false]"},
      {"legs",
@@ -366,6 +368,11 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // note: Using QkFile is ~10x faster (not including time to construct QkTable)
   // - but requires large amount of memory. Trade-off
 
+  const auto k_cut = input.get("k_cut", 99);
+  if (k_cut < 99) {
+    std::cout << "Cutting Qk integrals at k = " << k_cut << "\n";
+  }
+
   const auto include_core = input.get("include_core", false);
   if (include_core) {
     std::cout << "Including core-state matrix elements\n";
@@ -392,8 +399,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto &orbs2 = qip::ci_wc_compare(legs_str, "basis")    ? wf.basis() :
                       qip::ci_wc_compare(legs_str, "spectrum") ? wf.spectrum() :
-                      qip::ci_wc_compare(legs_str, "bru*") ? wf.valence() :
-                                                             wf.hf_valence();
+                      qip::ci_wc_compare(legs_str, "bru*")     ? wf.valence() :
+                                                                 wf.hf_valence();
 
   // add valcence states:
   for (const auto &v : wf.valence()) {
@@ -545,7 +552,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // ----------- ** Actual Calculations ** -----------
 
   // Construct SR object:
-  MBPT::StructureRad sr(wf.basis(), en_core, {n_min, n_max}, Qk_file, fk, etak);
+  MBPT::StructureRad sr(wf.basis(), en_core, {n_min, n_max}, Qk_file, k_cut, fk,
+                        etak);
   std::cout << std::flush;
 
   const auto pi = h->parity();

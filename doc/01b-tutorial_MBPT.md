@@ -19,8 +19,8 @@ This assumes you already have ampsci compiled and have a basic understanding of 
   * [Spectrum](#spectrum)
 * [MBPT: second-order correlations](#secondorder)
 * [MBPT: all-order correlations](#allorders)
-* [MBPT for matrix elements: Core Polarisation/RPA](#rpa)
-* [MBPT for matrix elements: Structure Radiation](#sructrad)
+<!-- * [MBPT for matrix elements: Core Polarisation/RPA](#rpa)
+* [MBPT for matrix elements: Structure Radiation](#sructrad) -->
 
 ## Starting approximation <a name="begin"></a>
 
@@ -110,27 +110,6 @@ or
 which will give:
 
 ```text
-  H                                                                  He 
-  1                                                                   2 
- Li  Be   B                                           C   N   O   F  Ne 
-  3   4   5                                           6   7   8   9  10 
- Na  Mg  Al                                          Si   P   S  Cl  Ar 
- 11  12  13                                          14  15  16  17  18 
-  K  Ca  Sc  Ti   V  Cr  Mn  Fe  Co  Ni  Cu  Zn  Ga  Ge  As  Se  Br  Kr 
- 19  20  21  22  23  24  25  26  27  28  29  30  31  32  33  34  35  36 
- Rb  Sr   Y  Zr  Nb  Mo  Tc  Ru  Rh  Pd  Ag  Cd  In  Sn  Sb  Te   I  Xe 
- 37  38  39  40  41  42  43  44  45  46  47  48  49  50  51  52  53  54 
- Cs  Ba  *   Hf  Ta   W  Re  Os  Ir  Pt  Au  Hg  Tl  Pb  Bi  Po  At  Rn 
- 55  56      72  73  74  75  76  77  78  79  80  81  82  83  84  85  86 
- Fr  Ra  *   Rf  Db  Sg  Bh  Hs  Mt  Ds  Rg  Cn  Nh  Fl  Mc  Lv  Ts  Og 
- 87  88     104 105 106 107 108 109 110 111 112 113 114 115 116 117 118 
-
-      *  La  Ce  Pr  Nd  Pm  Sm  Eu  Gd  Tb  Dy  Ho  Er  Tm  Yb  Lu 
-         57  58  59  60  61  62  63  64  65  66  67  68  69  70  71 
-      *  Ac  Th  Pa   U  Np  Pu  Am  Cm  Bk  Cf  Es  Fm  Md  No  Lr 
-         89  90  91  92  93  94  95  96  97  98  99 100 101 102 103 
-
-
 Cs,  cesium.
 Z = 55;  A = 133 (default)
 
@@ -237,7 +216,7 @@ where, in the limit of zero frequency, the two-particle Breit Hamiltonian is
   h^B_{ij} = - \frac{\vec{\alpha_i}\cdot\vec{\alpha_j} + (\vec{\alpha_i}\cdot\hat{n_{ij}})(\vec{\alpha_j}\cdot\hat{n_{ij}})}{2\, r_{ij}}.
 \f]
 
-This can be included at the Hartree-Fock level with the `HartreeFock{Breit = 1.0;}` setting.
+This can be included at the Hartree-Fock level with the `HartreeFock{Breit = true;}` setting.
 
 ```java
 HartreeFock{
@@ -247,7 +226,7 @@ HartreeFock{
 }
 ```
 
-This setting is a scaling factor; i.e., setting `Breit = 0.5;` will add effective factor of 0.5 in front of \f$h^B\f$. Typically, only 0 or 1 is set; other values are useful for checking for non-physical non-linear-in-Breit effects.
+This setting is a scaling factor; i.e., setting `Breit = 0.5;` will add effective factor of 0.5 in front of \f$h^B\f$. Typically, only 0 or 1 is set; other values are useful for checking for non-physical non-linear-in-Breit effects. Setting to `true` is equivilant to setting to 1.0;
 
 **Note:** it's very important when including Breit effects along with correlations that the Breit Hamiltonian is included in the Dirac equation when forming the basis used to construct the correlation potential! This is to ensure basis is orthogonal to the Hartree-Fock core states
 At the moment, there is no way to include the Breit effect into the Hartree-Fock Green's function; as a result, we cannot include Breit at the level of all-order correlations (see below).

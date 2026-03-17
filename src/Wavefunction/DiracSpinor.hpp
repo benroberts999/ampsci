@@ -285,6 +285,11 @@ public:
   //! Returns maximum kappa_index found in {orbs}
   static int max_kindex(const std::vector<DiracSpinor> &orbs);
 
+  //! Returns maximum Energy found in {orbs}
+  static double max_En(const std::vector<DiracSpinor> &orbs);
+  //! Returns maximum Energy found in {orbs}
+  static double min_En(const std::vector<DiracSpinor> &orbs);
+
   //! Splits orbitals into two groups (i.e., core, excited) by energy
   //! @details
   //! - The first group contains orbitals with energy < energy

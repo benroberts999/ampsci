@@ -39,22 +39,6 @@ bool Sk_vwxy_SR(int k, const DiracSpinor &v, const DiracSpinor &w,
 }
 
 //==============================================================================
-int number_below_Fermi(const DiracSpinor &i, const DiracSpinor &j,
-                       const DiracSpinor &k, const DiracSpinor &l,
-                       double eFermi) {
-  int num_core = 0;
-  if (i.en() < eFermi)
-    ++num_core;
-  if (j.en() < eFermi)
-    ++num_core;
-  if (k.en() < eFermi)
-    ++num_core;
-  if (l.en() < eFermi)
-    ++num_core;
-  return num_core;
-}
-
-//==============================================================================
 std::pair<int, int> k_minmax_S(const DiracSpinor &v, const DiracSpinor &w,
                                const DiracSpinor &x, const DiracSpinor &y) {
 

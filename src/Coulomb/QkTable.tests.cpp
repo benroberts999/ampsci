@@ -130,7 +130,7 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
 
   const auto selection_func = [eF = e_Fermi](int k, auto &a, auto &b, auto &c,
                                              auto &d) {
-    const auto num = MBPT::number_below_Fermi(a, b, c, d, eF);
+    const auto num = Coulomb::number_below_Fermi(a, b, c, d, eF);
     return num == 2 && k <= 6;
   };
 

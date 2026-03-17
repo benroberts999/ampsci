@@ -119,13 +119,25 @@ public:
     // nb: possible to be empty if size > 0... (but doesn't matter..)
   }
 
+  /*! Counts number of non-zero Coulomb integrals, accounting for symmetry
+   @details
+
+   @note Specifically assumes Qk selection rules, and therefore only works for Qk.
+
+   In theory, easily updated for general symmetry/selection rules, 
+   but this is usually the bottle-neck!
+  */
+  std::array<std::size_t, 4>
+  count_non_zero_integrals(const std::vector<DiracSpinor> &basis,
+                           std::size_t max_k = 99, double eF = 0.0) const;
+
   //! Retrieve a stored Q. If not present, returns 0. (Returns exactly as
   //! stored in table.)
   Real Q(int k, const DiracSpinor &a, const DiracSpinor &b,
          const DiracSpinor &c, const DiracSpinor &d) const;
+
   //! Retrieve a stored Q. If not present, returns 0. (Returns exactly as
   //! stored in table.)
-
   Real Q(int k, nkIndex a, nkIndex b, nkIndex c, nkIndex d) const;
   //! Retrieve a stored Q. If not present, returns 0. (Returns exactly as
   //! stored in table.)
@@ -224,6 +236,16 @@ using WkTable = CoulombTable<Symmetry::Wk>;
 using LkTable = CoulombTable<Symmetry::Lk>;
 //! Stores Coulomb(-like) integrals, assuming no symmetry
 using NkTable = CoulombTable<Symmetry::none>;
+
+//==============================================================================
+//==============================================================================
+//==============================================================================
+void estimate_memory_usage(const std::string &basis_string,
+                           const std::string &core_string, int k_cut = 999);
+
+//! Estimate memory required for a Qk table
+double estimate_memory_GB(std::size_t number_of_integrals,
+                          double efficiency = 0.65);
 
 } // namespace Coulomb
 

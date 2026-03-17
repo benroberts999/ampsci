@@ -311,6 +311,18 @@ const DiracSpinor *DiracSpinor::find(int n, int k,
   return nullptr;
 }
 
+double DiracSpinor::max_En(const std::vector<DiracSpinor> &orbs) {
+  return orbs.empty() ?
+           0.0 :
+           std::max_element(cbegin(orbs), cend(orbs), comp_en)->en();
+}
+
+double DiracSpinor::min_En(const std::vector<DiracSpinor> &orbs) {
+  return orbs.empty() ?
+           0.0 :
+           std::min_element(cbegin(orbs), cend(orbs), comp_en)->en();
+}
+
 //==============================================================================
 std::pair<double, std::string>
 DiracSpinor::check_ortho(const std::vector<DiracSpinor> &a,
