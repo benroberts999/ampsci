@@ -58,12 +58,16 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
       const auto Omega = Fa.en() - Fb.en();
 
-      const auto Sd =
+      const auto Sd1 =
         Fyn.Sigma_SR_direct(Fa.kappa(), Fb.en(), Fb.kappa(), Omega);
-      const auto e_AB = (Fa) * (Sd * Fb);
+      const auto Sd2 =
+        Fyn.Sigma_SR_direct2(Fa.kappa(), Fb.en(), Fb.kappa(), Omega);
+      // const auto Sd = Sd1 + Sd2;
+      const auto e_AB = (Fa) * (Sd1 * Fb);
+      const auto e_AB2 = (Fa) * (Sd2 * Fb);
 
       std::cout << "Re <" << Fa.shortSymbol() << "|d|" << Fb.shortSymbol()
-                << "> = " << e_AB << "\n";
+                << "> = " << e_AB << "," << e_AB2 << "\n";
     }
   }
 }

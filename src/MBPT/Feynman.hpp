@@ -113,11 +113,11 @@ public:
   ComplexRMatrix polarisation_k(int k, std::complex<double> omega,
                                 bool hole_particle) const;
 
-  // //! Polarisation operator pi^k(w;Omega), for multipolarity k
-  // ComplexRMatrix perturbed_polarisation_kl(int k, int l,
-  //                                          std::complex<double> omega,
-  //                                          std::complex<double> Omega,
-  //                                          bool hole_particle) const;
+  //! Polarisation operator pi^k(w;Omega), for multipolarity k
+  ComplexRMatrix perturbed_polarisation_kl(int k, int l,
+                                           std::complex<double> omega,
+                                           double Omega,
+                                           bool hole_particle) const;
 
   //! Calculate Direct part of correlation potential
   GMatrix Sigma_direct(int kappa_v, double en_v,
