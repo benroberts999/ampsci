@@ -1,5 +1,10 @@
 #!/bin/bash
 
+# This program runs lcov on the unit tests
+# produces a "coverage" report
+# Is quite slow (tests are very slow with lcov flags)
+# Has a --dry-run option, which runs for just a few very quick tests
+
 set -euo pipefail
 
 DRY_RUN=false

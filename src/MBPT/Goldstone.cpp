@@ -8,7 +8,10 @@ Goldstone::Goldstone(const std::vector<DiracSpinor> &basis,
                      const std::vector<DiracSpinor> &core, std::size_t i0,
                      std::size_t stride, std::size_t size, int n_min_core,
                      bool include_G, const HF::Breit *Br)
-  : m_grid(basis.front().grid_sptr()),
+  : m_grid([&]() {
+      assert(!basis.empty() && "Cannot construct Goldstone with empty basis");
+      return basis.front().grid_sptr();
+    }()),
     m_basis(DiracSpinor::split_by_core(basis, core, n_min_core)),
     m_Yeh(m_basis.second, m_basis.first),
     m_i0(i0),
