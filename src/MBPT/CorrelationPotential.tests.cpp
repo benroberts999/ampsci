@@ -61,7 +61,7 @@ TEST_CASE("MBPT: Goldstone, unit tests", "[MBPT][Goldstone][unit]") {
 }
 
 //==============================================================================
-TEST_CASE("MBPT: Feynman, unit tests", "[MBPT][Feynman][unit]") {
+TEST_CASE("MBPT: Feynman unit tests", "[MBPT][Feynman][unit]") {
 
   std::cout << "Feynman diagram, unit tests (not meant to be accurate)\n";
 
@@ -73,7 +73,7 @@ TEST_CASE("MBPT: Feynman, unit tests", "[MBPT][Feynman][unit]") {
   // These parameters are not meant to be accurate
   const double r0{1.0e-3};
   const double rmax{30.0};
-  const std::size_t stride = 6;
+  const std::size_t stride = 8;
   const auto omre = -0.33 * wf.energy_gap();
   const int lmax = 2;
   const double w0{0.1};

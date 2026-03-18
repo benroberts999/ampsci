@@ -42,16 +42,21 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
   // However, require SixJTable!
   mY.extend_angular(DiracSpinor::max_tj(mBasis));
 
-  // We only require Qk integrals that have 0,1,2,3 core obitals
-  // i.e., none that have 4.
-  // (we also know 1 of the 4 orbitals must be valence..but harder)
-  const auto select_Q_SR =
-    [eF = en_core](int, const DiracSpinor &s, const DiracSpinor &t,
-                   const DiracSpinor &u, const DiracSpinor &v) {
-      // Only calculate Coulomb integrals with <4 electrons in the core
-      auto num = Coulomb::number_below_Fermi(s, t, u, v, eF);
-      return num < 4;
-    };
+  // // Selection function: limit which Qk we require
+  // // We only require Qk integrals that have 0,1,2,3 core obitals
+  // // i.e., none that have 4.
+  // // (we also know 1 of the 4 orbitals must be valence..but harder)
+  // // NOTE: If we even have a core state in place of the external leg
+  // // then we actually _do_ require integrals with all four legs.
+  // // Given that excluding these makes a very small difference to Qk
+  // // best to just include them all!
+  // const auto select_Q_SR =
+  //   [eF = en_core](int, const DiracSpinor &s, const DiracSpinor &t,
+  //                  const DiracSpinor &u, const DiracSpinor &v) {
+  //     // Only calculate Coulomb integrals with <4 electrons in the core
+  //     auto num = Coulomb::number_below_Fermi(s, t, u, v, eF);
+  //     return num < 4;
+  //   };
 
   // Only calculate Yk values if not Qk table, or in order to calculate Qk
   if (m_use_Qk) {
@@ -63,8 +68,8 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
     if (!read_ok) {
       std::cout << "Fill Qk table:\n" << std::flush;
       mY.calculate(mBasis);
-      // mQ->fill(mBasis, mY, k_cut, verbose);
-      mQ->fill_if(mBasis, mY, select_Q_SR, k_cut, verbose);
+      mQ->fill(mBasis, mY, k_cut, verbose);
+      // mQ->fill_if(mBasis, mY, select_Q_SR, k_cut, verbose);
       mQ->write(Qk_fname, verbose);
     }
   } else {

@@ -9,7 +9,7 @@
 #include <string>
 
 //==============================================================================
-TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
+TEST_CASE("MBPT: Structure Rad + Norm basic", "[StrucRad][MBPT][unit]") {
 
   // note: does not test formulas: just checks class is working correctly.
   // Other (integration) tests below check correctness/accuracy of formulas
@@ -102,7 +102,7 @@ TEST_CASE("MBPT: Structure Rad + Norm, basic", "[StrucRad][MBPT][unit]") {
           const auto srC2 = srn2.SR(a, b);
           const auto srC3 = srn3.SR(a, b);
           REQUIRE(srC0 == Approx(srC2));
-          REQUIRE(srC0 == Approx(srC3));
+          REQUIRE(srC2 == Approx(srC3));
 
           const auto srN2 = srn2.norm(a, b, h);
           const auto srN3 = srn3.norm(a, b, h);

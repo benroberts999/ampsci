@@ -228,7 +228,7 @@ void Wavefunction::radiativePotential(QED::RadPot::Scale scale, double rcut,
     std::sqrt(5.0 / 3.0) * scale_rN * m_nucleus.r_rms() / PhysConst::aB_fm;
 
   auto qed = QED::RadPot(rgrid->r(), Znuc(), r_N_au, rcut, scale, x_spd, print,
-                         do_readwrite);
+                         do_readwrite, this->run_label());
 
   // If HF already exists, update it to include new qed!
   if (m_HF) {
