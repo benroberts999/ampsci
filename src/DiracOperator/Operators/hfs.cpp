@@ -188,13 +188,12 @@ double convert_RME_to_HFSconstant_2J(int k, int tja, int tjb) {
       return -1.0;
     case 4:
       // D: Π = <T4^n> (standard) ⇒ D = Π <T4^e>_J
-      return 1.0; // ???
+      return 1.0;
 
     default:
-      std::cout << "Warning: k=" << k
-                << " has no standard A/B/C/D hyperfine-constant definition; "
-                   "using f=1\n";
-      return 1.0; // ???
+      // Note: k>4 has no standard A/B/C/D hyperfine-constant definition;
+      // using f=1
+      return 1.0;
     }
   }();
   return s * f * tjs;

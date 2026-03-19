@@ -240,7 +240,8 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       const auto A0 = h0->reducedME(Fa, Fb);
       const auto AB = hB->reducedME(Fa, Fb);
       const auto AS = hS->reducedME(Fa, Fb);
-      const auto A0_2 = h0_au->reducedME(Fa, Fb) * PhysConst::Hartree_MHz;
+      const auto A0_2 =
+        h0_au->reducedME(Fa, Fb) * PhysConst::Hartree_MHz * PhysConst::muN_CGS;
       const auto BW = (AS - A0) / A0;
       REQUIRE(std::abs(A0 - a0) < 1.0e-6);
       REQUIRE(std::abs(AB - ab) < 1.0e-6);
@@ -266,6 +267,9 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     auto h = DiracOperator::generate(
       "hfs", {"hfs", "k=2; nuc_mag=pointlike; Q=1.0; "}, wf);
 
+    auto h2 = DiracOperator::generate(
+      "hfs", {"hfs", "k=2; nuc_mag=pointlike; Q=1.0; units = au;"}, wf);
+
     REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 2);
@@ -277,7 +281,36 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       const auto &Fa = *wf.getState(a);
       const auto &Fb = *wf.getState(b);
       const auto hab = h->reducedME(Fa, Fb);
+      const auto hab_2 =
+        h2->reducedME(Fa, Fb) * PhysConst::Hartree_MHz * PhysConst::barn_au;
       REQUIRE(std::abs(hab - me) < 1.0e-6);
+      REQUIRE(hab == Approx(hab_2));
+    }
+  }
+
+  //--------------------------------------------------------------------
+  SECTION("hfs(3)") {
+    std::cout << "hfs(3)\n";
+
+    const IO::InputBlock options{""};
+    auto h = DiracOperator::generate(
+      "hfs", {"hfs", "k=3; nuc_mag=pointlike; Q=1.0; "}, wf);
+
+    auto h2 = DiracOperator::generate(
+      "hfs", {"hfs", "k=3; nuc_mag=pointlike; Q=1.0; units = au;"}, wf);
+
+    REQUIRE(h->get_d_order() == 0);
+    REQUIRE(h->imaginaryQ() == false);
+    REQUIRE(h->rank() == 3);
+    REQUIRE(h->parity() == 1);
+    REQUIRE(h->name() == "hfs3");
+    REQUIRE(!h->units().empty());
+
+    for (auto &v : wf.valence()) {
+      const auto hab = h->reducedME(v, v);
+      const auto hab_2 = h2->reducedME(v, v) * PhysConst::Hartree_MHz *
+                         PhysConst::muN_CGS * PhysConst::barn_au;
+      REQUIRE(hab == Approx(hab_2));
     }
   }
 

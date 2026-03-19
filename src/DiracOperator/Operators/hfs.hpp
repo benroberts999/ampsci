@@ -177,6 +177,7 @@ specified finite-nucleus radial model.
 By default, includes the nuclear moment, and relevant factors.
 Input parameter @p GQ is the g-factor (k=1) or nuclear moment (k>1), 
 in units of nuclear magnetons * barns^power.
+If 'units' set to 'au', usually should set mu=I=Q=1 then to get raw t^k matrix elements.
 
 That is, it calculates:
 
@@ -240,7 +241,7 @@ public:
     @param rgrid    Radial grid used to define the radial functions.
     @param hfs_F    Radial magnetisation distribution function
                     (see @ref DiracOperator::Hyperfine).
-    @param MHzQ     If true outputs in MHz units; otherwise in atomic units.
+    @param MHzQ     If true outputs in MHz units (assuming input g etc. in muN.barns); otherwise in raw atomic units (pure t^k matrix elements).
 
     @see See also: \ref DiracOperator::Hyperfine
   */
@@ -261,7 +262,7 @@ public:
     const auto unit_au =
       magnetic ? PhysConst::muN_CGS * std::pow(PhysConst::barn_au, power) :
                  std::pow(PhysConst::barn_au, power);
-    m_unit = mMHzQ ? unit_au * PhysConst::Hartree_MHz : unit_au;
+    m_unit = mMHzQ ? unit_au * PhysConst::Hartree_MHz : 1.0;
   }
 
   std::string name() const override final {
@@ -304,7 +305,9 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
      {"k", "Multipolarity. 1=mag. dipole, 2=elec. quad, etc. [1]"},
      {"rrms",
       "nuclear (magnetic) rms radius, in Fermi (fm) (defult is charge rms)"},
-     {"units", "Units for output (only for k=1,k=2). MHz or au [MHz]"},
+     {"units", "Units for output (only for k=1,k=2). MHz or au. For MHz, "
+               "assumes nuclear moments g/Q are in mu_N*barns^p. For atomic "
+               "units, best to set g=Q=1 to get raw t^k matrix elements [MHz]"},
      {"F", "F(r): Nuclear moment distribution: ball, point, shell, "
            "SingleParticle, or doublyOddSP [ball]"},
      {"F(r)", "Obselete; use 'F' from now - will be removed"},
