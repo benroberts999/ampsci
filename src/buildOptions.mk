@@ -31,7 +31,8 @@ BASE_WARN = -Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow -W
 
 GCC_WARN = -Wsuggest-override -Wnon-virtual-dtor -Wcast-align -Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches -Wuseless-cast -Wformat
 
-CLANG_WARN = -Wheader-hygiene -Wno-unused-function -Wno-invalid-utf8 -Wno-c2x-extensions
+CLANG_WARN = -Wheader-hygiene -Wno-unused-function
+# -Wno-invalid-utf8 -Wno-c2x-extensions
 
 ## nb: must check for clang++ first, since 'clang++' contains 'g++'!
 WARN = $(BASE_WARN)

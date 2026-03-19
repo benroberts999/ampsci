@@ -18,24 +18,24 @@
 namespace man {
 
 const std::string name{
-  "ampsci \n"
+  "ampsci: "
   "Atomic Many-body Perturbation theory in the Screened Coulomb Interaction."};
 
-const std::string author{"Benjamin M. Roberts (https://broberts.io/), \n"
+const std::string author{"Benjamin M. Roberts (https://broberts.io/), "
                          "University of Queensland, Australia."};
 
 const std::string synopsis{
-  "ampsci [InputFile]               | Run with input file\n"
-  "ampsci [Atom] <Core> <Valence>   | Basic Hartree-Fock run\n"
-  "ampsci -s [InputString]          | Run with input string\n"
-  "ampsci -i <InputBlock>           | Query input options\n"
-  "ampsci -m <Module>               | Query module options\n"
-  "ampsci -o <Operator>             | Query operator options\n"
-  "ampsci -p <Atom> <Isotope>       | Periodic table, isotope info\n"
-  "ampsci -c <value> <unit>         | Unit conversions\n"
-  "ampsci -z [Basis] <core> <kmax>  | Check memory requirements\n"
-  "ampsci -v                        | Ampsci version information\n"
-  "ampsci -h                        | Detailed help information\n"};
+  "ampsci [InputFile]                | Run with input file\n"
+  "ampsci [Atom] <Core> <Valence>    | Basic Hartree-Fock run\n"
+  "ampsci -s [InputString]           | Run with input string\n"
+  "ampsci -i <InputBlock>            | Query input options\n"
+  "ampsci -m <Module>                | Query module options\n"
+  "ampsci -o <Operator>              | Query operator options\n"
+  "ampsci -p <Atom> <Isotope>        | Periodic table, isotope info\n"
+  "ampsci -c <value> <unit>          | Unit conversions\n"
+  "ampsci -z [Basis] <core> <kmax>   | Check memory requirements\n"
+  "ampsci -v                         | Ampsci version information\n"
+  "ampsci -h                         | Detailed help information\n"};
 
 const std::string description{
   "ampsci is a C++ program for high-precision atomic structure calculations "

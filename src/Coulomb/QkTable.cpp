@@ -23,7 +23,7 @@ void estimate_memory_usage(const std::string &basis_string,
   std::size_t orbital_count{0};
   std::vector<DiracSpinor> orbs;
   std::vector<DiracSpinor> core;
-  for (const auto [n_max, kappa] : nk_list) {
+  for (const auto &[n_max, kappa] : nk_list) {
     auto l = Angular::l_k(kappa);
     int n_min = l + 1;
     for (int n = n_min; n <= n_max; ++n) {

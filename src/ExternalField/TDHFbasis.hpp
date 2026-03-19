@@ -106,7 +106,7 @@ public:
                                       bool incl_dV = true) const;
 
 public:
-  TDHFbasis &operator=(const TDHFbasis &) = default;
+  TDHFbasis &operator=(const TDHFbasis &) = delete;
   TDHFbasis(const TDHFbasis &) = default;
   ~TDHFbasis() = default;
 };

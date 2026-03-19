@@ -14,8 +14,10 @@ double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
   double Ak = 0.0;
 #pragma omp parallel for reduction(+ : Ak) collapse(2)
-  for (const auto &m : excited) {
-    for (const auto &n : excited) {
+  for (std::size_t im = 0; im < excited.size(); ++im) {
+    for (std::size_t in = 0; in < excited.size(); ++in) {
+      const auto &m = excited[im];
+      const auto &n = excited[in];
 
       const auto s_wm = Angular::neg1pow_2(w.twoj() + m.twoj());
       const auto Wmwvn = Coulomb::Wk_abcd(K, w, m, v, n);
@@ -61,8 +63,10 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
   double Ak = 0.0;
 #pragma omp parallel for reduction(+ : Ak) collapse(2)
-  for (const auto &a : core) {
-    for (const auto &b : core) {
+  for (std::size_t ia = 0; ia < core.size(); ++ia) {
+    for (std::size_t ib = 0; ib < core.size(); ++ib) {
+      const auto &a = core[ia];
+      const auto &b = core[ib];
 
       const auto s_wa = Angular::neg1pow_2(w.twoj() + a.twoj());
       const auto Wwavb = Coulomb::Wk_abcd(K, w, a, v, b);
@@ -108,8 +112,10 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 
   double Ak = 0.0;
 #pragma omp parallel for reduction(+ : Ak) collapse(2)
-  for (const auto &a : core) {
-    for (const auto &n : excited) {
+  for (std::size_t ia = 0; ia < core.size(); ++ia) {
+    for (std::size_t in = 0; in < excited.size(); ++in) {
+      const auto &a = core[ia];
+      const auto &n = excited[in];
 
       const auto Wwavn = Coulomb::Wk_abcd(K, w, a, v, n);
       if (Wwavn == 0.0)
