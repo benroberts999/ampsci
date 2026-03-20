@@ -27,12 +27,25 @@ GSL_PATH:= $(strip $(GSL_PATH))
 ################################################################################
 ## Compiler warning flags (set base, then append per-compiler)
 
-BASE_WARN = -Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow -Weffc++ -Wsign-conversion -Wno-psabi
+BASE_WARN = \
+  -Wall -Wextra -Wpedantic \
+  -Wdouble-promotion -Wconversion -Wsign-conversion -Wsign-compare \
+  -Wshadow -Wunused-parameter -Weffc++ \
+  -Wzero-as-null-pointer-constant -Wnonnull -Wdeprecated -Wno-psabi \
+  -Wimplicit-fallthrough -Wvla
 
-GCC_WARN = -Wsuggest-override -Wnon-virtual-dtor -Wcast-align -Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches -Wuseless-cast -Wformat
+# add soon:  -Wold-style-cast -Wswitch-enum  -Wswitch-default
 
-CLANG_WARN = -Wheader-hygiene -Wno-unused-function
-# -Wno-invalid-utf8 -Wno-c2x-extensions
+GCC_WARN = \
+  -Wsuggest-override -Wnon-virtual-dtor -Woverloaded-virtual \
+  -Wduplicated-cond -Wduplicated-branches \
+  -Wcast-align -Wuseless-cast -Wformat \
+  -Wpessimizing-move -Wstrict-aliasing -Wmaybe-uninitialized -Wlogical-op
+
+CLANG_WARN = \
+  -Wheader-hygiene -Wno-unused-function \
+  -Wno-unknown-warning-option \
+  -Wno-invalid-utf8 -Wno-c2x-extensions -Wno-c2y-extensions
 
 ## nb: must check for clang++ first, since 'clang++' contains 'g++'!
 WARN = $(BASE_WARN)
@@ -46,13 +59,13 @@ endif
 ## Build-mode switches:
 
 ifeq ($(MODE),release)
-  WARN = -w -Wno-psabi
-  CARGS += -g0 -DNDEBUG -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF
+  WARN = -w
+  EXTRA_CXXFLAGS += -g0 -DNDEBUG -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF
 endif
 ifeq ($(MODE),debug)
   OMPLIB=
   OPT = -O0
-  CARGS += -g3 -fno-omit-frame-pointer
+  EXTRA_CXXFLAGS += -g3 -fno-omit-frame-pointer
 endif
 
 # suppress unknown OpenMP pragmas when OpenMP is not enabled.
@@ -68,14 +81,14 @@ INCLUDES = -I$(SRC)
 # Common one: GSL (other library includes may be added to CXXFLAGS and LDLIBS)
 ifneq ($(GSL_PATH),)
   INCLUDES += -I$(GSL_PATH)/include/
-  LDLIBS += -L$(GSL_PATH)/lib/
+  LDFLAGS += -L$(GSL_PATH)/lib/
 endif
 
-CXXFLAGS += $(CXXSTD) $(OPT) $(OMPLIB) $(WARN) $(INCLUDES)
+CXXFLAGS += $(CXXSTD) $(OPT) $(OMPLIB) $(WARN) $(INCLUDES) $(EXTRA_CXXFLAGS)
 LDFLAGS += $(OMPLIB)
 
 # Compile and link commands
-COMPILE = $(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $< 
+COMPILE = $(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 LINK = $(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 
 ################################################################################
@@ -85,7 +98,7 @@ LINK = $(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
 NOW := $(shell date +%Y-%m-%d' '%H:%M' '%Z 2>/dev/null)
 GITREVISION := $(shell git rev-parse --short HEAD 2>/dev/null)
 GITBRANCH   := $(shell git rev-parse --abbrev-ref HEAD 2>/dev/null)
-GITMODIFIED := $(shell git status -s 2>/dev/null)
+GITMODIFIED := $(shell git diff --name-only HEAD 2>/dev/null)
 CXXVERSION  := $(shell $(CXX) --version 2>/dev/null | sed -n '1p' | sed 's/(/[/; s/)/]/')
 CXXPATH := $(shell which $(word 1,$(CXX)) 2>/dev/null)
 

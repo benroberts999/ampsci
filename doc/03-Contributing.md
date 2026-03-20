@@ -51,9 +51,8 @@ git rebase dev
 * Consistent formatting minimises unnecessary git diffs and improves readability.
 * Rather than doing this by hand, it is enforced by a tool [**clang-format**](https://clang.llvm.org/docs/ClangFormat.html), which automatically formats the code
 * Install the tool:
-  * `sudo apt install clang-format` and/or `brew install clang-format`
-  * Or the extension in VsCode
-* It's recommended to set up the VSCode extension to format the code automatically.
+  * Linux: `sudo apt install clang-format`
+  * macOS: `brew install clang-format`
 * A style file, which defines the style rules, is provided in the repository `src/.clang-format`.
 * The makefile also has a target to directly run clang-format, which is a good idea before committing:
 
@@ -62,6 +61,34 @@ git rebase dev
 make clang_format
 ```
 </div>
+
+### VSCode
+
+The VSCode C/C++ extension ships its own bundled clang-format binary, which may differ in version from the system-installed one and produce inconsistent formatting.
+To avoid this, configure VSCode to use the system clang-format via `.vscode/settings.json` (this file is not tracked by git — VSCode may have already created it, otherwise create it in the project directoty).
+
+First, find the path to your clang-format binary:
+
+<div class="shell-block">
+```bash
+which clang-format
+```
+</div>
+
+Common locations:
+* Linux: `/usr/bin/clang-format`
+* macOS (Homebrew): `/opt/homebrew/bin/clang-format`
+
+Then add the following to `.vscode/settings.json`:
+
+```json
+{
+  "C_Cpp.clang_format_path": "/PATH_TO_CLANG_FORMAT/clang-format",
+  "editor.formatOnSave": true
+}
+```
+
+Replace `PATH_TO_CLANG_FORMAT` with the path returned from `which clang-format`
 
 ## Documenting
 

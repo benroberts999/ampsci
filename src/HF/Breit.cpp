@@ -44,13 +44,13 @@ void Breit::fill_gb(const std::vector<DiracSpinor> &basis, int t_max_k) {
   }
 
 #pragma omp parallel for collapse(3)
-  for (int k = 1; k <= max_k; ++k) {
+  for (std::size_t k = 1; k <= std::size_t(max_k); ++k) {
     for (std::size_t ia = 0; ia < basis.size(); ++ia) {
       for (std::size_t ib = 0; ib < basis.size(); ++ib) {
         const auto &a = basis.at(ia);
         const auto &b = basis.at(ib);
-        m_gb.at(std::size_t(k)).update(a, b, Breit_gb::single_k_mop(a, b, k));
-        m_gb_N.at(std::size_t(k)).update(a, b, Breit_gb::single_k_n(a, b, k));
+        m_gb.at(k).update(a, b, Breit_gb::single_k_mop(a, b, int(k)));
+        m_gb_N.at(k).update(a, b, Breit_gb::single_k_n(a, b, int(k)));
       }
     }
   }

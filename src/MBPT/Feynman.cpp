@@ -10,6 +10,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
+#include "qip/omp.hpp"
 #include <cassert>
 #include <memory>
 #include <vector>
@@ -819,13 +820,13 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
   constexpr std::complex<double> I{0.0, 1.0};
   const auto num_kappas = m_max_ki + 1;
 
-// Tell OpenMP how to reduce GMatrix
-#pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
-  initializer(omp_priv = omp_orig)
+  std::vector<GMatrix> Sigma_ts(std::size_t(omp_get_max_threads()), Sigma);
 
-#pragma omp parallel for collapse(2) reduction(+ : Sigma)
+#pragma omp parallel for collapse(2)
   for (auto iw = 0ul; iw < m_wgrid.num_points(); iw++) {
     for (auto iB = 0ul; iB < num_kappas; ++iB) {
+
+      auto &Sigma_t = Sigma_ts[std::size_t(omp_get_thread_num())];
 
       const auto omega = std::complex{m_omre, m_wgrid(iw)};
 
@@ -856,9 +857,13 @@ GMatrix Feynman::Sigma_direct(int kv, double env,
         const auto c_ang_dw =
           dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
 
-        Sigma += (c_ang_dw * mult_elements(gB, qpq_dw)).real();
+        Sigma_t += (c_ang_dw * mult_elements(gB, qpq_dw)).real();
       }
     }
+  }
+
+  for (const auto &Sigma_t : Sigma_ts) {
+    Sigma += Sigma_t;
   }
 
   // Extra 2 from symmetric + / -w

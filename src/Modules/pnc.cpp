@@ -221,7 +221,7 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
   }
 
   const auto printer = [](const char *str, double p1, double p2) {
-    if (p1 != 0.0 || p1 != 0.0)
+    if (p1 != 0.0 || p2 != 0.0)
       printf("%5s: %11.6f + %11.6f = %11.6f\n", str, p1, p2, p1 + p2);
   };
   if (print) {
