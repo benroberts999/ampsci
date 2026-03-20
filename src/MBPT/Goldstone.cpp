@@ -1,5 +1,6 @@
 #include "Goldstone.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
+#include "qip/omp.hpp"
 
 namespace MBPT {
 
@@ -67,6 +68,8 @@ GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
   if (holes.empty() || excited.empty())
     return Sd;
 
+  std::vector<GMatrix> Sd_ts(std::size_t(omp_get_max_threads()), Sd);
+
 #pragma omp parallel for collapse(2)
   for (auto ia = 0ul; ia < holes.size(); ia++) {
     for (auto in = 0ul; in < excited.size(); in++) {
@@ -75,7 +78,8 @@ GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
       if (n_max_core > 0 && a.n() > n_max_core)
         continue;
 
-      GMatrix Sd_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
+      // GMatrix Sd_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
+      auto &Sd_t = Sd_ts[std::size_t(omp_get_thread_num())];
 
       const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, a);
       for (int k = kmin_nb; k <= kmax_nb; k += 2) {
@@ -95,7 +99,7 @@ GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
           const auto Qkv = m_Yeh.Qkv_bcd(k, kappa_v, a, m, n);
           const auto dele = en_v + a.en() - m.en() - n.en();
           const auto factor = etak * fk / (f_kkjj * dele);
-          Sd_an.add(Qkv, Qkv, factor);
+          Sd_t.add(Qkv, Qkv, factor);
         }
 
         // Diagram (c) [direct]
@@ -105,13 +109,14 @@ GMatrix Goldstone::Sigma_direct(int kappa_v, double en_v,
           const auto Qkv = m_Yeh.Qkv_bcd(k, kappa_v, n, b, a);
           const auto dele = en_v + n.en() - b.en() - a.en();
           const auto factor = etak * fk / (f_kkjj * dele);
-          Sd_an.add(Qkv, Qkv, factor);
+          Sd_t.add(Qkv, Qkv, factor);
         }
       }
-
-#pragma omp critical(sum_Sd)
-      Sd += Sd_an;
     }
+  }
+
+  for (const auto &Sd_t : Sd_ts) {
+    Sd += Sd_t;
   }
 
   return Sd.drj_in_place();
@@ -140,6 +145,8 @@ GMatrix Goldstone::Sigma_both(int kappa_v, double en_v,
   if (holes.empty() || excited.empty())
     return Sd;
 
+  std::vector<GMatrix> Sd_ts(std::size_t(omp_get_max_threads()), Sd);
+
 #pragma omp parallel for collapse(2)
   for (auto ia = 0ul; ia < holes.size(); ia++) {
     for (auto in = 0ul; in < excited.size(); in++) {
@@ -148,7 +155,8 @@ GMatrix Goldstone::Sigma_both(int kappa_v, double en_v,
       if (n_max_core > 0 && a.n() > n_max_core)
         continue;
 
-      GMatrix Sd_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
+      // GMatrix Sd_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
+      auto &Sd_t = Sd_ts[std::size_t(omp_get_thread_num())];
 
       const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, a);
       // const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_tj(n.twoj(), a.twoj());
@@ -170,7 +178,7 @@ GMatrix Goldstone::Sigma_both(int kappa_v, double en_v,
           const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, a, m, n);
           const auto dele = en_v + a.en() - m.en() - n.en();
           const auto factor = fk / (f_kkjj * dele);
-          Sd_an.add(Qkv, etak * Qkv + Pkv, factor);
+          Sd_t.add(Qkv, etak * Qkv + Pkv, factor);
         }
 
         // Diagram (c+d) [direct + exchange]
@@ -181,13 +189,14 @@ GMatrix Goldstone::Sigma_both(int kappa_v, double en_v,
           const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, n, b, a);
           const auto dele = en_v + n.en() - b.en() - a.en();
           const auto factor = fk / (f_kkjj * dele);
-          Sd_an.add(Qkv, etak * Qkv + Pkv, factor);
+          Sd_t.add(Qkv, etak * Qkv + Pkv, factor);
         }
       }
-
-#pragma omp critical(sum_Sd)
-      Sd += Sd_an;
     }
+  }
+
+  for (const auto &Sd_t : Sd_ts) {
+    Sd += Sd_t;
   }
 
   return Sd.drj_in_place();
@@ -216,13 +225,16 @@ GMatrix Goldstone::Sigma_exchange(int kappa_v, double en_v,
   if (holes.empty() || excited.empty())
     return Sx;
 
+  std::vector<GMatrix> Sx_ts(std::size_t(omp_get_max_threads()), Sx);
+
 #pragma omp parallel for collapse(2)
   for (auto ia = 0ul; ia < holes.size(); ia++) {
     for (auto in = 0ul; in < excited.size(); in++) {
       const auto &a = holes[ia];
       const auto &n = excited[in];
 
-      GMatrix Sx_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
+      // GMatrix Sx_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
+      auto &Sx_t = Sx_ts[std::size_t(omp_get_thread_num())];
 
       const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, a);
       for (int k = kmin_nb; k <= kmax_nb; k += 2) {
@@ -242,7 +254,7 @@ GMatrix Goldstone::Sigma_exchange(int kappa_v, double en_v,
           const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, a, m, n);
           const auto dele = en_v + a.en() - m.en() - n.en();
           const auto factor = fk / (f_kkjj * dele);
-          Sx_an.add(Qkv, Pkv, factor);
+          Sx_t.add(Qkv, Pkv, factor);
         }
 
         // Diagram (d) [exchange]
@@ -253,13 +265,14 @@ GMatrix Goldstone::Sigma_exchange(int kappa_v, double en_v,
           const auto Pkv = m_Yeh.Pkv_bcd(k, kappa_v, n, b, a);
           const auto dele = en_v + n.en() - b.en() - a.en();
           const auto factor = fk / (f_kkjj * dele);
-          Sx_an.add(Qkv, Pkv, factor);
+          Sx_t.add(Qkv, Pkv, factor);
         }
       }
-
-#pragma omp critical(sum_Sx)
-      Sx += Sx_an;
     }
+  }
+
+  for (const auto &Sx_t : Sx_ts) {
+    Sx += Sx_t;
   }
 
   return Sx.drj_in_place();
@@ -291,6 +304,8 @@ GMatrix Goldstone::dSigma_Breit2(int kappa_v, double en_v,
   if (holes.empty() || excited.empty() || !m_Br)
     return Sd;
 
+  std::vector<GMatrix> Sd_ts(std::size_t(omp_get_max_threads()), Sd);
+
 #pragma omp parallel for collapse(2)
   for (auto ia = 0ul; ia < holes.size(); ia++) {
     for (auto in = 0ul; in < excited.size(); in++) {
@@ -301,7 +316,8 @@ GMatrix Goldstone::dSigma_Breit2(int kappa_v, double en_v,
       if (n.n() > max_n_breit)
         continue;
 
-      GMatrix Sd_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
+      // GMatrix Sd_an{m_i0, m_stride, m_subgrid_points, m_include_G, m_grid};
+      auto &Sd_t = Sd_ts[std::size_t(omp_get_thread_num())];
 
       const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_tj(n.twoj(), a.twoj());
       for (int k = kmin_nb; k <= kmax_nb; k += 1) {
@@ -332,7 +348,7 @@ GMatrix Goldstone::dSigma_Breit2(int kappa_v, double en_v,
 
           const auto Bkv = m_Br->Bkv_bcd(k, kappa_v, a, m, n);
           // factor of 2: correct each side of symmetric diagram
-          Sd_an.add(Bkv, etak * Qkv + Pkv, 2.0 * factor);
+          Sd_t.add(Bkv, etak * Qkv + Pkv, 2.0 * factor);
         }
 
         for (const auto &b : holes) {
@@ -347,13 +363,14 @@ GMatrix Goldstone::dSigma_Breit2(int kappa_v, double en_v,
           const auto dele = en_v + n.en() - b.en() - a.en();
           const auto factor = fk / (f_kkjj * dele);
           const auto Bkv = m_Br->Bkv_bcd(k, kappa_v, n, b, a);
-          Sd_an.add(Bkv, etak * Qkv + Pkv, 2.0 * factor);
+          Sd_t.add(Bkv, etak * Qkv + Pkv, 2.0 * factor);
         }
       }
-
-#pragma omp critical(sum_Sd)
-      Sd += Sd_an;
     }
+  }
+
+  for (const auto &Sd_t : Sd_ts) {
+    Sd += Sd_t;
   }
 
   return Sd.drj_in_place();

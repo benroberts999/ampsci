@@ -957,7 +957,7 @@ bool CoulombTable<S>::read(const std::string &fname, bool verbose) {
       if constexpr (count_orbs) {
         const auto indexes = UnFormIndex(key);
         for (const auto index : indexes) {
-          const auto [n, ki] = Angular::nkindex_to_n_kindex(int(index));
+          const auto [n, ki] = Angular::nkindex_to_n_kindex(index);
           const auto l = std::size_t(Angular::kindex_to_l(ki));
           if (max_n_l.size() < l + 1)
             max_n_l.resize(l + 1);

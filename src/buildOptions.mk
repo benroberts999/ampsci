@@ -27,11 +27,13 @@ GSL_PATH:= $(strip $(GSL_PATH))
 ################################################################################
 ## Compiler warning flags (set base, then append per-compiler)
 
-BASE_WARN = -Wall -Wpedantic -Wextra -Wdouble-promotion -Wconversion -Wshadow -Weffc++ -Wsign-conversion -Wno-psabi
+BASE_WARN = -Wall -Wextra -Wpedantic -Wdouble-promotion -Wconversion -Wsign-conversion -Wsign-compare -Wshadow -Wunused-parameter -Weffc++ -Wzero-as-null-pointer-constant -Wnonnull -Wdeprecated -Wno-psabi
 
-GCC_WARN = -Wsuggest-override -Wnon-virtual-dtor -Wcast-align -Woverloaded-virtual -Wduplicated-cond -Wduplicated-branches -Wuseless-cast -Wformat
+# add soon:  -Wold-style-cast -Wswitch-enum  -Wswitch-default
 
-CLANG_WARN = -Wheader-hygiene -Wno-unused-function
+GCC_WARN = -Wsuggest-override -Wnon-virtual-dtor -Woverloaded-virtual -Wduplicated-cond -Wcast-align -Wuseless-cast  -Wduplicated-branches  -Wformat -Wpessimizing-move -Wstrict-aliasing -Wmaybe-uninitialized  -Wlogical-op
+
+CLANG_WARN = -Wheader-hygiene -Wno-unused-function -Wnull-dereference
 # -Wno-invalid-utf8 -Wno-c2x-extensions
 
 ## nb: must check for clang++ first, since 'clang++' contains 'g++'!

@@ -84,8 +84,11 @@ CLANG_FORMAT_EXCLUDES := $(SRC)/fmt $(SRC)/catch2 $(SRC)/json
 
 ## Run clang format on entire project
 clang_format:
-	@echo "Running clang format (whole project)"
-	find $(SRC)/ \( $(foreach dir,$(CLANG_FORMAT_EXCLUDES),-path "$(dir)" -o ) -false \) -prune -o \( -iname '*.cpp' -o -iname '*.hpp' -o -iname '*.ipp' \) -print | xargs -r clang-format -i -verbose
+	@echo "Running clang-format (whole project)"
+	@find $(SRC) \
+	  $(foreach dir,$(CLANG_FORMAT_EXCLUDES), -path "$(dir)" -prune -o) \
+	  -type f \( -iname '*.cpp' -o -iname '*.hpp' -o -iname '*.ipp' \) -print \
+	  | xargs -r clang-format -i -verbose
 
 ## Makes the include.hpp files, and runs clang format on them
 includes:

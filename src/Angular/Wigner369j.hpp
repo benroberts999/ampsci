@@ -96,7 +96,7 @@ inline constexpr bool zeroQ(double x, double eps = 1.0e-10) {
   \f]
 */
 constexpr std::uint64_t kappa_to_kindex(int ka) {
-  return (ka < 0) ? std::size_t(-2 * ka - 2) : std::size_t(2 * ka - 1);
+  return (ka < 0) ? std::uint64_t(-2 * ka - 2) : std::uint64_t(2 * ka - 1);
 }
 
 //! Returns kappa, given kappa_index

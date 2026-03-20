@@ -122,8 +122,8 @@ public:
 
   static std::pair<std::string, std::string> index_to_symbols(nk2Index index) {
     const auto [a, b] = unFormIndex(index);
-    const auto [na, ka] = Angular::index_to_nk(int(a));
-    const auto [nb, kb] = Angular::index_to_nk(int(b));
+    const auto [na, ka] = Angular::index_to_nk(a);
+    const auto [nb, kb] = Angular::index_to_nk(b);
     return {AtomData::shortSymbol(na, ka), AtomData::shortSymbol(nb, kb)};
   }
 

@@ -93,6 +93,10 @@ protected:
 
 public:
   virtual ~TensorOperator() = default;
+  TensorOperator(const TensorOperator &) = default;
+  TensorOperator &operator=(const TensorOperator &) = default;
+  TensorOperator(TensorOperator &&) = default;
+  TensorOperator &operator=(TensorOperator &&) = default;
 
 protected:
   int m_rank;
