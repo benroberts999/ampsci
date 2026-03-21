@@ -53,6 +53,41 @@ void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
 
 //==============================================================================
 
+//! @brief Solves inhomogeneous Dirac equation for continuum energies (en > 0)
+/*! @details
+As solve_inhomog, but for en > 0. Uses the real principal-value Green's
+function with regularAtOrigin (\f$f_{\rm reg}\f$) and irregularAtOrigin
+(\f$f_{\rm irr}\f$) as the two homogeneous solutions:
+\f[
+  \chi(r) = \frac{\alpha}{W}\left[
+    f_{\rm irr}(r)\int_0^r f_{\rm reg}\cdot S\,dr'
+    + f_{\rm reg}(r)\int_r^\infty f_{\rm irr}\cdot S\,dr'
+  \right]
+\f]
+where \f$W\f$ is the Wronskian. Since \f$S\f$ is a localised core orbital,
+both integrals converge and \f$\chi\f$ is real (Johnson's method).
+Integration is limited to source.max_pt(), avoiding the oscillatory large-r region.
+*/
+DiracSpinor solve_inhomog_continuum(const int kappa, const double en,
+                                    const std::vector<double> &v,
+                                    const std::vector<double> &H_mag,
+                                    const double alpha,
+                                    const DiracSpinor &source,
+                                    const DiracSpinor *const VxFa = nullptr,
+                                    const DiracSpinor *const Fa0 = nullptr,
+                                    double zion = 1, double mass = 1.0);
+
+//! @brief As above. Overload: accepts/overwrites Fa; kappa taken from Fa.
+void solve_inhomog_continuum(DiracSpinor &Fa, const double en,
+                             const std::vector<double> &v,
+                             const std::vector<double> &H_mag,
+                             const double alpha, const DiracSpinor &source,
+                             const DiracSpinor *const VxFa = nullptr,
+                             const DiracSpinor *const Fa0 = nullptr,
+                             double zion = 1, double mass = 1.0);
+
+//==============================================================================
+
 namespace Internal {
 
 // Takes solution regular at infinity (Finf), and that regular at zero (Fzero),

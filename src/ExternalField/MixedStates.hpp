@@ -68,6 +68,52 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      double eps_target = 1.0e-9,
                      const MBPT::CorrelationPotential *const Sigma = nullptr);
 
+//! @brief Solves the continuum mixed-states (TDHF) equation for en > 0
+/*! @details
+Solves the inhomogeneous Dirac equation for the RPA response of a core
+orbital \f$\phi_a\f$ to an external perturbation at photoionisation
+frequency \f$\omega\f$:
+\f[
+  (H_{\rm HF} - \epsilon_a - \omega)\,\chi_a = -F_S,
+  \qquad \epsilon_a + \omega > 0
+\f]
+Uses the real principal-value Green's function (Johnson's method), so that
+\f$\chi_a\f$ is real. Exchange is included iteratively as in solveMixedState.
+No orthogonalisation is applied (\f$\chi_a\f$ is in the continuum and is
+naturally orthogonal to bound core orbitals). Convergence is measured via
+\f$\langle F_S|\chi_a\rangle\f$ to avoid the oscillatory large-r behaviour.
+*/
+DiracSpinor solveMixedState_continuum(
+  const DiracSpinor &Fa, double omega, const std::vector<double> &vl,
+  double alpha, const std::vector<DiracSpinor> &core, const DiracSpinor &Fs,
+  double eps_target = 1.0e-9,
+  const MBPT::CorrelationPotential *const Sigma = nullptr,
+  const HF::Breit *const VBr = nullptr, const std::vector<double> &H_mag = {});
+
+//! @brief As above, updating existing dF in-place (faster if dF is already approximate)
+void solveMixedState_continuum(
+  DiracSpinor &dF, const DiracSpinor &Fa, double omega,
+  const std::vector<double> &vl, double alpha,
+  const std::vector<DiracSpinor> &core, const DiracSpinor &Fs,
+  double eps_target = 1.0e-9,
+  const MBPT::CorrelationPotential *const Sigma = nullptr,
+  const HF::Breit *const VBr = nullptr, const std::vector<double> &H_mag = {});
+
+//! @brief Solves continuum mixed-states equation. Overload; takes hf object.
+DiracSpinor
+solveMixedState_continuum(const DiracSpinor &Fa, double omega,
+                          const DiracSpinor &Fs,
+                          const HF::HartreeFock *const hf,
+                          double eps_target = 1.0e-9,
+                          const MBPT::CorrelationPotential *const Sigma = nullptr);
+
+//! @brief Solves continuum mixed-states equation. Overload; takes hf object.
+void solveMixedState_continuum(DiracSpinor &dF, const DiracSpinor &Fa,
+                               double omega, const DiracSpinor &Fs,
+                               const HF::HartreeFock *const hf,
+                               double eps_target = 1.0e-9,
+                               const MBPT::CorrelationPotential *const Sigma = nullptr);
+
 //! Directly defines dF via explicit sum over basis: mainly for tests.
 //! \f$ \delta F = \sum_n |n\rangle\langle n|h|Fa\rangle / (e_a - e_n + \omega) \f$
 DiracSpinor solveMixedState_basis(const DiracSpinor &Fa, const DiracSpinor &hFa,

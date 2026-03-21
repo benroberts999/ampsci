@@ -47,6 +47,25 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
                      const DiracSpinor *const Fa0 = nullptr, double zion = 1,
                      double mass = 1.0);
 
+//! @brief Solves DE with irregular boundary conditions at the origin
+/*! @details
+Returns the second, linearly independent solution to the homogeneous Dirac
+equation. Used together with regularAtOrigin in the continuum Green's function
+(see solve_inhomog_continuum). Small-\f$r\f$ behaviour:
+\f[
+  f(r) \sim r^{-\gamma_0},\qquad
+  \frac{g}{f}\bigg|_{r\to 0} = \frac{\kappa - \gamma_0}{\alpha Z}
+\f]
+where \f$\gamma_0 = \sqrt{\kappa^2 - (Z\alpha)^2}\f$.
+For en > 0 (continuum), integrates to the full grid (no practical infinity).
+*/
+void irregularAtOrigin(DiracSpinor &Fa, const double en,
+                       const std::vector<double> &v,
+                       const std::vector<double> &H_off_diag, const double alpha,
+                       const DiracSpinor *const VxFa = nullptr,
+                       const DiracSpinor *const Fa0 = nullptr, double zion = 1,
+                       double mass = 1.0);
+
 //! For given energy en, solves (local) DE with correct boundary conditions at infinity
 void regularAtInfinity(DiracSpinor &Fa, const double en,
                        const std::vector<double> &v,

@@ -167,6 +167,56 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
 }
 
 //==============================================================================
+void irregularAtOrigin(DiracSpinor &Fa, const double en,
+                       const std::vector<double> &v,
+                       const std::vector<double> &H_mag, const double alpha,
+                       const DiracSpinor *const VxFa,
+                       const DiracSpinor *const Fa0, double zion, double mass) {
+
+  const auto &gr = Fa.grid();
+  if (en != 0.0)
+    Fa.en() = en;
+  // For en > 0 (continuum) there is no practical infinity; integrate full grid
+  const auto pinf =
+    (en < 0.0)
+      ? Internal::findPracticalInfinity(Fa.en(), v, gr.r(), Param::cALR)
+      : gr.num_points();
+
+  Internal::DiracDerivative Hd(gr, v, Fa.kappa(), Fa.en(), alpha, H_mag, VxFa,
+                               Fa0, zion, mass);
+
+  // Irregular small-r boundary condition: f ~ r^{-gamma0}
+  // (compare regularAtOrigin: f ~ r^{+gamma0}, g/f = (ka+ga0)/az0)
+  const auto &r = gr.r();
+  const auto ka = Fa.kappa();
+  const auto Z_eff = -v[0] * r[0];
+  const double az0 = Z_eff * alpha;
+  const double ga0 = std::sqrt(double(ka * ka) - az0 * az0);
+  const auto g_f_ratio = (ka > 0) ? (ka - ga0) / az0 : az0 / (ka + ga0);
+  const double f0 = 2.0 * std::pow(r[0], -ga0);
+  const double g0 = f0 * g_f_ratio;
+
+  auto &f = Fa.f();
+  auto &g = Fa.g();
+  AdamsMoulton::ODESolver2D<Param::K_Adams, std::size_t, double> ode{gr.du(),
+                                                                      &Hd};
+  ode.solve_initial_K(0, f0, g0);
+  for (std::size_t i = 0; i < ode.K_steps(); ++i) {
+    f.at(i) = ode.f.at(i);
+    g.at(i) = ode.g.at(i);
+  }
+  for (std::size_t i = ode.K_steps(); i < pinf; ++i) {
+    ode.drive(i);
+    f.at(i) = ode.last_f();
+    g.at(i) = ode.last_g();
+  }
+  Fa.min_pt() = 0;
+  Fa.max_pt() = pinf;
+  // for safety: make sure zerod! (I may re-use existing orbitals!)
+  Fa.zero_boundaries();
+}
+
+//==============================================================================
 void regularAtInfinity(DiracSpinor &Fa, const double en,
                        const std::vector<double> &v,
                        const std::vector<double> &H_mag, const double alpha,

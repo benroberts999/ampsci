@@ -55,6 +55,40 @@ void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
   Internal::GreenSolution(Fa, Finf, Fzero, alpha, source);
 }
 
+//==============================================================================
+DiracSpinor
+solve_inhomog_continuum(const int kappa, const double en,
+                        const std::vector<double> &v,
+                        const std::vector<double> &H_mag, const double alpha,
+                        const DiracSpinor &source,
+                        const DiracSpinor *const VxFa,
+                        const DiracSpinor *const Fa0, double zion, double mass) {
+  auto Fa = DiracSpinor(0, kappa, source.grid_sptr());
+  solve_inhomog_continuum(Fa, en, v, H_mag, alpha, source, VxFa, Fa0, zion,
+                          mass);
+  return Fa;
+}
+
+//==============================================================================
+void solve_inhomog_continuum(DiracSpinor &Fa, const double en,
+                             const std::vector<double> &v,
+                             const std::vector<double> &H_mag,
+                             const double alpha, const DiracSpinor &source,
+                             const DiracSpinor *const VxFa,
+                             const DiracSpinor *const Fa0, double zion,
+                             double mass) {
+  auto Fzero = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
+  auto Finf = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
+  regularAtOrigin(Fzero, en, v, H_mag, alpha, VxFa, Fa0, zion, mass);
+  irregularAtOrigin(Finf, en, v, H_mag, alpha, VxFa, Fa0, zion, mass);
+  // Limit to source range: source is a localised core orbital, so integrals
+  // vanish beyond its max_pt. Avoids the oscillatory large-r tail of Finf.
+  Finf.max_pt() = source.max_pt();
+  Fa.en() = en;
+  Internal::GreenSolution(Fa, Finf, Fzero, alpha, source);
+}
+
+//==============================================================================
 namespace Internal {
 //==============================================================================
 void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
