@@ -35,24 +35,19 @@
 * On mac: use _homebrew_ to install gsl: _brew install gsl_
 * _homebrew_ is a package manager; install from [https://brew.sh/](https://brew.sh/)
 * Seems to work best with the homebrew version of gcc. Install as: `brew install gcc`
-* Note: you may need to change the compiler from `g++` to `g++-9` (or similar), or update your environment variables, since calling g++ on mac actually calls clang++ by default
+* Note: you may need to change the compiler from `g++` to `g++-15` (or similar), or update your environment variables, since calling g++ on mac actually calls clang++ by default
 * You might have to tell the compiler how to link to the GSL library; in Makefile:
   * `GSL_PATH=/usr/local/opt/gnu-scientific-library`
+  * Exact path may differ: use `brew --prefix gsl`
 * Then compile by running _make_ from the ampsci directory
-* Use openMP for parellelisation when using clang++ on mac:
-  * If using g++, should work as per normal
-  * To use openMP with clang, seem to require the llvm version
-  * _brew install llvm_
-  * Then, in the Makefile, set (exact paths may be different for you):
-    * `CXX = /usr/local/opt/llvm/bin/clang++`
-    * `CARGS += -I/usr/local/opt/llvm/include/`
-    * `LARGS += -l/usr/local/opt/llvm/lib/`
-  * This seems fragile
+* See below for using
 
 ## Compilation: MacOS (M1/M2/apple silicon chip)
 
 * Mostly the same as above, but some of the libraries are installed to different directories by default. In particular:
-* `GSL_PATH=/opt/homebrew/Cellar/gsl/2.7`
+  * `GSL_PATH=/opt/homebrew/Cellar/gsl/2.7`
+  * Exact path may differ: use `brew --prefix gsl`
+* See below for using OpenMP
 
 ## Compilation: Windows
 
@@ -118,6 +113,26 @@ OMPLIB ?= -fopenmp
 
 ```make
 # Use these to pass in any other compiler/linker arguments (Rarely needed)
-CARGS ?=
-LARGS ?=
+CXXFLAGS ?=
+LDFLAGS ?=
 ```
+
+### Using OpenMP with clang on mac
+
+Use openMP for parellelisation when using clang++ on mac:
+* If using g++, should work as per normal
+  * On Mac, `g++` links to Apple clang - so you need to call exact compiler explicitely, 
+  * e.g., `CXX = g++-15`
+* To use openMP with clang, best option is to use the llvm version of clang (not the default Apple clang)
+* _brew install llvm_
+* Then, in the Makefile, set (exact paths may be different for you):
+  * `CXX = /PATH_TO_LLVM/bin/clang++`
+  * `CXXFLAGS += -I/PATH_TO_LLVM/include/`
+  * `LDFLAGS += -L/PATH_TO_LLVM/lib/`
+  * Find paths with `brew --prefix llvm` from command line
+* Not recommended, but possible to get OpenMP working with Apple clang:
+  * `OMPLIB ?= -Xpreprocessor -fopenmp`
+  * `CXXFLAGS += -I/usr/local/opt/libomp/include`
+  * `LDFLAGS += -L/usr/local/opt/libomp/lib`
+  * `LDLIBS ?= -lgsl -llapack -lblas -lomp`
+  * Paths may vary: use `brew --prefix libomp`

@@ -1,13 +1,14 @@
 ################################################################################
-# Example makefile for ampsci. Copy to working directory, and rename to "Makefile"
-# Current options are set up for standard linux
-# You may need to tweak the options
+# Example makefile for ampsci. Copy to working directory.
+# Currently set up for standard linux; you may need to tweak options.
+# The configure.sh script will (attempt to) do this for you.
 ################################################################################
 
 ## Which compiler: (g++, clang++)
 CXX = g++
 
 ## Build mode (changes warnings + optimisation level): release/dev/debug
+## Change to dev if you plan to edit the code
 MODE ?= release
 
 ## Speed up compilation by doing in parallel
@@ -21,16 +22,12 @@ OPT ?= -O3
 ## Exact path will depend on where GSL has been installed. 
 GSL_PATH ?=
 
-## Other common place:
-# GSL_PATH ?= /opt/gsl/2.1/gnu
-## Intel Mac: 
-# GSL_PATH ?= /usr/local/opt/gnu-scientific-library
-## M1/M2 Mac: 
-# GSL_PATH ?= /opt/homebrew/Cellar/gsl/2.7.1/
+## Ubuntu/Linux: usually fine to leave blank
+## Mac: use `brew --prefix gsl` to find path
 
 ################################################################################
 ## Set GSL and LAPACK/BLAS library flags. These are typical, but sometimes differ
-LDLIBS ?= -lgsl -llapack -lblas
+LDLIBS ?= -lgsl -lgslcblas -llapack -lblas
 
 ## Friday:
 # LDLIBS ?= -lgsl -lgslcblas -lopenblas
@@ -41,9 +38,6 @@ LDLIBS ?= -lgsl -llapack -lblas
 ################################################################################
 ## OpenMP library to use. Comment out or leave blank for no OpenMP
 OMPLIB ?= -fopenmp
-
-## Usually '-fopenmp' default for GCC, -fopenmp=libomp for clang
-# OMPLIB ?= -fopenmp=libomp
 
 ################################################################################
 # Use these to pass in any other compiler/linker arguments (Rarely needed)

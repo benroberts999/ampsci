@@ -52,7 +52,7 @@ $(BUILD_DIR)/version/version.o: $(SRC)/version/version.cpp force | $(BUILD_DIR)
 ################################################################################
 ## Convenience targets:
 
-.PHONY: all full clean remove_junk docs doxy clang_format pre_commit includes force do_the_chicken_dance
+.PHONY: all full clean remove_junk docs clang_format pre_commit includes license-year force do_the_chicken_dance
 
 clean:
 	rm -fv $(ALLEXES)
@@ -64,7 +64,7 @@ remove_junk:
 
 ## Builds the ampsci.pdf docs using tex, and the html using doxygen, if available
 docs:
-	( cd ./doc/tex && make 2>/dev/null || : )
+	( cd ./doc/tex && $(MAKE) 2>/dev/null || : )
 	cp ./doc/tex/ampsci.pdf ./doc/ampsci.pdf 2>/dev/null || :
 	cp ./LICENSE ./doc/LICENSE.md
 	doxygen ./doc/doxygen/Doxyfile 2>/dev/null && \
@@ -89,6 +89,7 @@ clang_format:
 
 ## Makes the include.hpp files, and runs clang format on them
 includes:
+	$(MAKE) license-year
 	./$(SRC)/tools/build_includes.sh
 	@echo "Running clang format (on includes)"
 	find $(SRC)/ -iname 'include.hpp' | xargs clang-format -i -verbose
@@ -102,9 +103,9 @@ license-year:
 
 ## All things should be done before major commits
 pre_commit:
-	make includes
-	make clang_format
-	make license-year
-	make ampsci tests
+	$(MAKE) includes
+	$(MAKE) clang_format
+	$(MAKE) license-year
+	$(MAKE) ampsci tests
 	./test [unit]
 	rm -f -v *deleteme*

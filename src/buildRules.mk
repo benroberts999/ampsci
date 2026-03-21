@@ -30,7 +30,7 @@ LIB_OBJS  := $(LIB_SRCS:%.cpp=$(BUILD_DIR)/%.o)
 TEST_OBJS := $(TEST_SRCS:%.cpp=$(BUILD_DIR)/%.o)
 
 ################################################################################
-## Dependencues
+## Dependencies
 
 ## Dependency files (auto generated)
 DEPS      := $(MAIN_OBJS:.o=.d) $(LIB_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
@@ -39,7 +39,7 @@ DEPS      := $(MAIN_OBJS:.o=.d) $(LIB_OBJS:.o=.d) $(TEST_OBJS:.o=.d)
 -include $(DEPS)
 
 ################################################################################
-## Rules for compiliation:
+## Rules for compilation:
 
 ## Ensure build directory exists
 $(BUILD_DIR):
