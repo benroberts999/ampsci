@@ -83,6 +83,76 @@ TEST_CASE("External Field: Mixed-states (unit)",
 }
 
 //==============================================================================
+//! Unit tests for solveMixedState_continuum:
+//! Mirrors the solveMixedState unit test, but with omega chosen so that
+//! ea + omega > 0 (continuum energy). Tests the exact relation:
+//!   <Fm|X> * (ea + omega - em) = h->reducedME(Fm, Fa)
+TEST_CASE("External Field: solveMixedState_continuum",
+          "[ExternalField][MixedStates][cntmRPA][unit]") {
+
+  Wavefunction wf({1200, 1.0e-5, 80.0, 20.0, "loglinear", -1.0},
+                  {"Rb", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", 0.0, "[Kr]");
+
+  std::cout
+    << "\nTest solveMixedState_continuum: (H-ea-w)Xa = -hFa, ea+w > 0\n"
+    << "Check: <Fm|Xa> * (ea+w - em) = h->reducedME(Fm,Fa)\n";
+
+  // E1 is always off-diagonal in kappa, so no de correction needed
+  auto h = DiracOperator::generate("E1", {}, wf);
+
+  std::string worst{""};
+  double weps{0.0};
+
+  fmt::print("\n{:4s} {:4s}  {:>12s}  {:>12s}  eps\n", "Fa", "Fm", "lhs",
+             "rhs");
+
+  for (const auto &Fa : wf.core()) {
+    // Choose omega so ea + omega > 0 (well above threshold)
+    const double omega = std::abs(Fa.en()) * 2.0;
+
+    for (const auto &Fm_ref : wf.core()) {
+      if (h->isZero(Fm_ref, Fa))
+        continue;
+      if (std::abs(Fm_ref.n() - Fa.n()) > 1)
+        continue; // limit scope: nearby states have largest overlap
+
+      // kappa of continuum state determined by operator + Fa
+      const auto kappa_c = Fm_ref.kappa();
+      const auto hFa = h->reduced_rhs(kappa_c, Fa);
+      if (std::abs(hFa * hFa) < 1.0e-10)
+        continue;
+
+      const auto Xa =
+        ExternalField::solveMixedState_continuum(Fa, omega, hFa, wf.vHF());
+
+      // Test against all core states with matching kappa
+      for (const auto &Fm : wf.core()) {
+        if (Fm.kappa() != kappa_c)
+          continue;
+
+        const auto lhs = (Fm * Xa) * (Fa.en() + omega - Fm.en());
+        const auto rhs = h->reducedME(Fm, Fa);
+        if (std::abs(rhs) < 1.0e-5)
+          continue;
+
+        const auto eps = std::abs(lhs - rhs) / std::abs(rhs);
+        printf("%4s %4s  %12.4e  %12.4e  %.0e\n", Fa.shortSymbol().c_str(),
+               Fm.shortSymbol().c_str(), lhs, rhs, eps);
+
+        if (eps > weps) {
+          weps = eps;
+          worst = Fa.shortSymbol() + "|" + Fm.shortSymbol();
+        }
+      }
+    }
+  }
+
+  std::cout << "worst: " << worst << " " << fmt::format("{:.1e}", weps) << "\n";
+  REQUIRE(weps < 1.0e-3);
+}
+
+//==============================================================================
 TEST_CASE("External Field: Mixed-states (full)",
           "[ExternalField][MixedStates][integration]") {
 

@@ -81,11 +81,27 @@ void solve_inhomog_continuum(DiracSpinor &Fa, const double en,
   auto Finf = DiracSpinor(Fa.n(), Fa.kappa(), Fa.grid_sptr());
   regularAtOrigin(Fzero, en, v, H_mag, alpha, VxFa, Fa0, zion, mass);
   irregularAtOrigin(Finf, en, v, H_mag, alpha, VxFa, Fa0, zion, mass);
+
+  // Compute Wronskian at near-origin points (past the Adams-Moulton bootstrap
+  // phase, K_Adams+1 .. K_Adams+6). This avoids the large-r regime where the
+  // irregular solution picks up numerical contamination from the growing regular
+  // component, which grows as |kappa| increases.
+  const auto pp0 = std::size_t(Internal::Param::K_Adams + 1);
+  const auto pp1 = std::min(std::size_t(Internal::Param::K_Adams + 6), source.max_pt());
+  double w2 = 0.0;
+  int nw = 0;
+  for (auto pt = pp0; pt < pp1; ++pt) {
+    w2 += Finf.f(pt) * Fzero.g(pt) - Fzero.f(pt) * Finf.g(pt);
+    ++nw;
+  }
+  if (nw > 0)
+    w2 /= nw;
+
   // Limit to source range: source is a localised core orbital, so integrals
   // vanish beyond its max_pt. Avoids the oscillatory large-r tail of Finf.
   Finf.max_pt() = source.max_pt();
   Fa.en() = en;
-  Internal::GreenSolution(Fa, Finf, Fzero, alpha, source);
+  Internal::GreenSolution(Fa, Finf, Fzero, alpha, source, w2);
 }
 
 //==============================================================================
@@ -93,17 +109,20 @@ namespace Internal {
 //==============================================================================
 void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
                    const DiracSpinor &Fzero, const double alpha,
-                   const DiracSpinor &Sr) {
+                   const DiracSpinor &Sr, double w2_override) {
 
-  // Wronskian: Should be independent of r
-  const auto pp = std::size_t(0.65 * double(Finf.max_pt()));
-  auto w2 = (Finf.f(pp) * Fzero.g(pp) - Fzero.f(pp) * Finf.g(pp));
-  int f = 1;
-  for (auto pt = pp - 20; pt <= pp + 20; ++pt) {
-    ++f;
-    w2 += (Finf.f(pt) * Fzero.g(pt) - Fzero.f(pt) * Finf.g(pt));
+  double w2 = w2_override;
+  if (w2 == 0.0) {
+    // Wronskian: Should be independent of r
+    const auto pp = std::size_t(0.65 * double(Finf.max_pt()));
+    w2 = (Finf.f(pp) * Fzero.g(pp) - Fzero.f(pp) * Finf.g(pp));
+    int f = 1;
+    for (auto pt = pp - 20; pt <= pp + 20; ++pt) {
+      ++f;
+      w2 += (Finf.f(pt) * Fzero.g(pt) - Fzero.f(pt) * Finf.g(pt));
+    }
+    w2 /= f;
   }
-  w2 /= f;
 
   // std::vector<double> invW2(Finf.f().size());
   // for (std::size_t i = 0; i < Finf.max_pt(); ++i) {

@@ -453,6 +453,141 @@ TEST_CASE("DiracODE: inhomogenous (Green's) method", "[DiracODE][unit]") {
 }
 
 //==============================================================================
+//! Unit tests for irregularAtOrigin: Wronskian constancy and small-r power law
+TEST_CASE("DiracODE: irregularAtOrigin", "[DiracODE][cntmRPA][unit]") {
+
+  std::cout << "\nirregularAtOrigin: Wronskian constancy and small-r power\n";
+  std::cout << "W = f_reg*g_irr - f_irr*g_reg should be constant (Abel's thm)\n";
+
+  const auto r0{1.0e-7};
+  const auto rmax{50.0};
+  const auto num_grid_points{2000ul};
+  const auto b{5.0};
+  const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
+                                                 GridType::loglinear, b);
+
+  fmt::print("{:5s} {:3s}  {:>12s}  {:>12s}\n", "Z", "k", "Wrons_eps",
+             "pow_eps");
+
+  for (const auto Zeff : {1.0, 5.0, 20.0, 55.0}) {
+    const auto v_nuc =
+      Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r());
+    const double en_c = 0.5; // positive continuum energy
+
+    for (const auto kappa : {-1, 1, -2, 2, -3, 3}) {
+      // skip if gamma0 would be imaginary (large Z, small kappa)
+      const double az0 = Zeff * PhysConst::alpha;
+      const double ga0 = double(kappa * kappa) - az0 * az0;
+      if (ga0 <= 0.0)
+        continue;
+
+      auto Freg = DiracSpinor(0, kappa, grid);
+      auto Firr = DiracSpinor(0, kappa, grid);
+      DiracODE::regularAtOrigin(Freg, en_c, v_nuc, {}, PhysConst::alpha);
+      DiracODE::irregularAtOrigin(Firr, en_c, v_nuc, {}, PhysConst::alpha);
+
+      // Test 1: Wronskian W = f_irr*g_reg - f_reg*g_irr should be constant.
+      // Evaluate in the near-origin regime, past the Adams-Moulton bootstrap
+      // phase (K_Adams=7 steps) and inside the power-law region where the
+      // irregular solution is numerically reliable.
+      // Avoid the large-r regime where the irregular solution picks up
+      // numerical contamination from the growing regular component.
+      constexpr std::size_t K = 7; // = K_Adams
+      std::vector<double> Wv;
+      for (auto i = K + 1; i < K + 20; ++i)
+        Wv.push_back(Firr.f(i) * Freg.g(i) - Freg.f(i) * Firr.g(i));
+      const auto W0 = Wv.front();
+      double wrons_eps = 0.0;
+      for (const auto w : Wv)
+        wrons_eps = std::max(wrons_eps, std::abs((w - W0) / W0));
+
+      // Test 2: small-r power law f_irr ~ r^{-gamma0}.
+      // Check ratio of consecutive f values at the first few grid points
+      const double gamma0 = std::sqrt(ga0);
+      double pow_eps = 0.0;
+      for (std::size_t i = 1; i < 5; ++i) {
+        const auto ratio_num = Firr.f(i) / Firr.f(i - 1);
+        const auto ratio_exact =
+          std::pow(grid->r(i) / grid->r(i - 1), -gamma0);
+        pow_eps = std::max(pow_eps, std::abs(ratio_num / ratio_exact - 1.0));
+      }
+
+      fmt::print("{:5g} {:3}  {:12.3e}  {:12.3e}\n", Zeff, kappa, wrons_eps,
+                 pow_eps);
+
+      CHECK(wrons_eps < 1.0e-4);
+      CHECK(pow_eps < 1.0e-3);
+    }
+  }
+}
+
+//==============================================================================
+//! Unit tests for solve_inhomog_continuum:
+//! Tests exact relation <Fm|X> = <Fm|vp*Fa> / (ec - em)
+//! for bound eigenstates Fa, Fm and continuum solution X at energy ec > 0
+TEST_CASE("DiracODE: solve_inhomog_continuum", "[DiracODE][cntmRPA][unit]") {
+
+  const double Zeff = 5.0;
+
+  const auto r0{1.0e-7};
+  const auto rmax{100.0};
+  const auto num_grid_points{2000ul};
+  const auto b{10.0};
+  const auto grid = std::make_shared<const Grid>(r0, rmax, num_grid_points,
+                                                 GridType::loglinear, b);
+  const auto v_nuc =
+    Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r());
+
+  // Bound states to use as source and test functions
+  std::vector<DiracSpinor> orbitals;
+  for (const auto &[n, k, en] : AtomData::listOfStates_nk("5spdf")) {
+    auto &Fa = orbitals.emplace_back(n, k, grid);
+    DiracODE::boundState(Fa, -(Zeff * Zeff) / (2.0 * n * n), v_nuc, {},
+                         PhysConst::alpha, 1.0e-15);
+  }
+
+  // Local perturbation potential (decaying, like a short-range correction)
+  std::vector<double> vp;
+  for (const auto r : grid->r())
+    vp.push_back(-0.3 / (r * r * r * r + 1.0));
+
+  std::cout
+    << "\nsolve_inhomog_continuum: (H-ec)X = -vp*Fa, ec > 0\n"
+    << "Exact relation: <Fm|X> = <Fm|vp*Fa> / (ec - em)  [Fa,Fm same kappa]\n";
+  fmt::print("{:4s} {:4s}  {:>12s}  {:>12s}  eps\n", "Fa", "Fm", "<Fm|X>",
+             "exact");
+
+  double max_eps = 0.0;
+  const double ec = 0.5; // continuum energy
+
+  for (const auto &Fa : orbitals) {
+    const auto vp_Fa = vp * Fa; // source spinor (same kappa as Fa)
+    const auto X = DiracODE::solve_inhomog_continuum(
+      Fa.kappa(), ec, v_nuc, {}, PhysConst::alpha, -1.0 * vp_Fa);
+
+    for (const auto &Fm : orbitals) {
+      if (Fm.kappa() != Fa.kappa())
+        continue;
+      if (std::abs(ec - Fm.en()) < 0.1) // avoid near-resonance
+        continue;
+
+      const auto lhs = Fm * X;
+      const auto rhs = (Fm * vp_Fa) / (ec - Fm.en());
+      if (std::abs(rhs) < 1.0e-10)
+        continue;
+
+      const auto eps = std::abs(lhs - rhs) / std::abs(rhs);
+      printf("%4s %4s  %12.4e  %12.4e  %.0e\n", Fa.shortSymbol().c_str(),
+             Fm.shortSymbol().c_str(), lhs, rhs, eps);
+
+      max_eps = std::max(max_eps, eps);
+    }
+  }
+
+  REQUIRE(max_eps < 1.0e-5);
+}
+
+//==============================================================================
 TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit][!mayfail]") {
 
   // ?? Fails sometimes on macos, with nan??

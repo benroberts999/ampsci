@@ -92,9 +92,10 @@ namespace Internal {
 
 // Takes solution regular at infinity (Finf), and that regular at zero (Fzero),
 // and the inhomogenous source term, Sr, to find particular solution, Fa.
+// If w2_override != 0, uses it as the Wronskian instead of computing internally.
 void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
                    const DiracSpinor &Fzero, const double alpha,
-                   const DiracSpinor &Sr);
+                   const DiracSpinor &Sr, double w2_override = 0.0);
 
 } // namespace Internal
 } // namespace DiracODE
