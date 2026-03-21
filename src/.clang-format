@@ -17,7 +17,8 @@ AllowShortLoopsOnASingleLine: false
 AlwaysBreakAfterDefinitionReturnType: None
 AlwaysBreakAfterReturnType: None
 AlwaysBreakBeforeMultilineStrings: false
-AlwaysBreakTemplateDeclarations: true
+# v9+: bool true -> Yes (maps to Yes/MultiLine/No enum)
+AlwaysBreakTemplateDeclarations: Yes
 BinPackArguments: true
 BinPackParameters: true
 BraceWrapping:
@@ -38,9 +39,10 @@ BraceWrapping:
   SplitEmptyNamespace: true
 BreakBeforeBinaryOperators: None
 BreakBeforeBraces: Attach
-BreakBeforeInheritanceComma: false
+# v9+: BreakBeforeInheritanceComma replaced by BreakInheritanceList
+BreakInheritanceList: BeforeColon
 BreakBeforeTernaryOperators: false
-BreakConstructorInitializersBeforeComma: false
+# BreakConstructorInitializersBeforeComma deprecated; BreakConstructorInitializers covers this
 BreakConstructorInitializers: BeforeColon
 BreakAfterJavaFieldAnnotations: false
 BreakStringLiterals: true
@@ -91,7 +93,8 @@ PenaltyExcessCharacter: 1000000
 PenaltyReturnTypeOnItsOwnLine: 60
 PointerAlignment: Right
 ReflowComments:  false
-SortIncludes:    true
+# v13+: bool true -> CaseSensitive enum
+SortIncludes:    CaseSensitive
 SortUsingDeclarations: true
 SpaceAfterCStyleCast: false
 SpaceAfterTemplateKeyword: true
@@ -104,7 +107,8 @@ SpacesInContainerLiterals: true
 SpacesInCStyleCastParentheses: false
 SpacesInParentheses: false
 SpacesInSquareBrackets: false
-Standard:        Cpp11
+# Cpp11 alias still works but c++17 is explicit and modern
+Standard:        c++17
 TabWidth:        2
 UseTab:          Never
 ...

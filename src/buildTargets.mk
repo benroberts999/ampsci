@@ -79,14 +79,11 @@ docs:
 do_the_chicken_dance:
 	@echo 'Why would I do that?'
 
-## Don't run clang format on external libraries
-CLANG_FORMAT_EXCLUDES := $(SRC)/fmt $(SRC)/catch2 $(SRC)/json
-
 ## Run clang format on entire project
+## External libraries (fmt, catch2, json) are excluded via their own .clang-format files
 clang_format:
 	@echo "Running clang-format (whole project)"
 	@find $(SRC) \
-	  $(foreach dir,$(CLANG_FORMAT_EXCLUDES), -path "$(dir)" -prune -o) \
 	  -type f \( -iname '*.cpp' -o -iname '*.hpp' -o -iname '*.ipp' \) -print \
 	  | xargs -r clang-format -i -verbose
 
