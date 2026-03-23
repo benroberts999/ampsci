@@ -992,7 +992,7 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
   for (const auto &Fb : core) {
     const auto tjb = Fb.twoj();
     const auto lb = Fb.l();
-    const double x_tjbp1 = (tjb + 1) * Fb.occ_frac(); // when in core??
+    double x_tjbp1 = (tjb + 1) * Fb.occ_frac(); // when in core??
     const auto irmax = std::min(Fa.max_pt(), Fb.max_pt());
     const int kmin = std::abs(tja - tjb) / 2;
     int kmax = (tja + tjb) / 2;
@@ -1067,7 +1067,7 @@ void HartreeFock::vex_Fa_core(const DiracSpinor &Fa, DiracSpinor &VxFa) const
 
 // -----------------------------------------------------------------------------
 DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
-                  int k_cut)
+                  int k_cut, const DiracSpinor *subtract_one)
 // Free Function
 // calculates V_ex Fa (returns new Dirac Spinor)
 // Fa can be any orbital (Calculates coulomb integrals here!)
@@ -1079,13 +1079,17 @@ DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
 
   for (const auto &Fb : core) {
     VxFa.max_pt() = std::max(VxFa.max_pt(), Fb.max_pt());
+    // Subtract 1/(2j+1) of Fb's exchange if it is the ionised orbital
+    const auto sub = (subtract_one != nullptr && Fb == *subtract_one) ?
+                       1.0 / Fb.twojp1() :
+                       0.0;
 
     const auto [kmin, kmax] = Angular::kminmax_Ck(Fa.kappa(), Fb.kappa());
     for (int k = kmin; k <= std::min(kmax, k_cut); k += 2) {
       const auto xb = (Fa == Fb && k == 0) ? 1.0 : Fb.occ_frac();
       const auto ckab = Angular::Ck_kk(k, Fa.kappa(), Fb.kappa());
       Coulomb::yk_ab(k, Fb, Fa, vabk, Fb.max_pt());
-      const auto c2x = ckab * ckab * xb;
+      const auto c2x = ckab * ckab * (xb - sub);
       using namespace qip::overloads;
       // VxFa -= (c2x * vabk) * Fb;
       for (auto i = 0u; i < Fb.max_pt(); i++) {

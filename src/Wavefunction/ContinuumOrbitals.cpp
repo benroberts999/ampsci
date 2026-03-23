@@ -132,13 +132,14 @@ void ContinuumOrbitals::IncludeExchange(DiracSpinor &Fc, const DiracSpinor *Fi,
   const double conv_target = 1.0e-6;
 
   for (int it = 0; it <= max_its; ++it) {
+    // Subtract 1/(2j+1) of Fi's exchange: removes ionised electron's contribution
     const auto vx0 = HF::vex_approx(Fc, p_hf->core());
     const auto vl = qip::add(vc, vx0);
 
     // Copy old solution (needed by DiracODE)
     const auto Fc0 = Fc;
     if (p_hf->method() == HF::Method::HartreeFock) {
-      auto VxFc = HF::vexFa(Fc, p_hf->core()) - vx0 * Fc;
+      auto VxFc = HF::vexFa(Fc, p_hf->core(), 99, Fi) - vx0 * Fc;
       DiracODE::solveContinuum(Fc, Fc.en(), vl, m_alpha, &VxFc, &Fc0);
     } else {
       DiracODE::solveContinuum(Fc, Fc.en(), vl, m_alpha);

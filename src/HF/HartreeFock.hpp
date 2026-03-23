@@ -56,9 +56,11 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
 //! @brief Calculates V_exch * Fa, for any orbital Fa (calculates Coulomb
 //! integral from scratch).
 //! @details  k_cut is max multipolarity to sum over for exchange term [can
-//! limit to ~1 (e.g.) for speed when high accuracy is not required]
+//! limit to ~1 (e.g.) for speed when high accuracy is not required].
+//! If subtract_one is set, reduces that orbital's exchange contribution by
+//! 1/(2j+1), equivalent to removing one electron from that subshell.
 DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
-                  int k_cut = 99);
+                  int k_cut = 99, const DiracSpinor *subtract_one = nullptr);
 
 //==============================================================================
 //==============================================================================
