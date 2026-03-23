@@ -20,7 +20,7 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
   const auto num_points = gr.num_points();
   Fa.max_pt() = num_points;
 
-  // Rough expression for wavelenth at large r
+  // Rough expression for wavelength at large r
   // nb: sin(kr + \eta * log(kr)), so not exactly constant
   const double approx_wavelength = 2.0 * M_PI / std::sqrt(2.0 * Fa.en());
 
@@ -47,12 +47,12 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
 
   // Now, normalise the solution.
   // Keep solving ODE outwards, on linearly-spaced grid
-  // Use "H-like" derivative: assume exchange etc. negligable here
+  // Use "H-like" derivative: assume exchange etc. negligible here
   // Calculate running:
   //    - wavelength
   //    - amplitude
   // Until they stabilise; find amplitude in this region
-  // Re-scale wavefunction so tha large-r amplitude matches analytic expression
+  // Re-scale wavefunction so that large-r amplitude matches analytic expression
 
   // Step-size for large-r solution: Uses linear grid
   // Require at least 40 points per wavelength (20 per half-wave)
@@ -71,10 +71,9 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
   const auto [amp, eps_amp] = numerical_f_amplitude(
     en, Fa.kappa(), alpha, Zeff, f_final, g_final, r_final, dr);
 
-  Fa.max_pt() = num_points;
   Fa.eps() = eps_amp;
 
-  // Calculate normalisation coeficient, D, and re-scaling factor:
+  // Calculate normalisation coefficient, D, and re-scaling factor:
   const auto D = analytic_f_amplitude(en, alpha);
   Fa *= (amp != 0.0 ? (D / amp) : 0.0);
 }
@@ -85,13 +84,9 @@ std::pair<double, double> numerical_f_amplitude(double en, int kappa,
                                                 double f_final, double g_final,
                                                 double r_final, double dr) {
 
-  // Now, normalise the solution.
-  // Keep solving ODE outwards, on linearly-spaced grid
-  // Use "H-like" derivative: assume exchange etc. negligable here
-  // Calculate running:
-  //    - wavelength
-  //    - amplitude
-  // Until they stabilise; find amplitude in this region
+  // Continue solving on a linearly-spaced grid using an H-like potential
+  // (exchange negligible at large r). Track wavelength and amplitude
+  // half-cycle by half-cycle until both converge.
 
   // Set-up H-like solver for linearly-spaced grid
   DiracContinuumDerivative Heff(Zeff, kappa, en, alpha);
@@ -99,79 +94,102 @@ std::pair<double, double> numerical_f_amplitude(double en, int kappa,
   // start from existing final position:
   ode.solve_initial_K(r_final, f_final, g_final);
 
-  // convergence targets, for amplitude and wavelength
+  // Convergence targets for amplitude and wavelength
   const double eps_target_amp = 1.0e-7;
   const double eps_target_lambda = 2.0e-5;
 
-  // amplitude:
-  double amp = 0.0;
+  // Asymptotic form of the large component:
+  //   f(r) → D * sin(k*r + η*log(2kr) + δ_κ)
+  // where k = sqrt(en*(en+2/α²)) and η = -Z*α/(k*α²) is the Coulomb parameter.
+  // At large r, both the wavelength λ = 2π/k and envelope amplitude D converge
+  // to constants.
+  //
+  // Strategy: track λ and max|f| half-cycle by half-cycle.
+  //   Node positions r_i satisfy k*r_i + ... = i*π  ⟹  r_{i+1} - r_i ≈ λ/2
+  //   ⟹  λ_i = 2*(r_{i+1} - r_i)
+  //   A_i = max|f| between node i and node i+1 (one half-period)
+  // Converged when both λ and A change by < eps between consecutive half-cycles.
+
+  // Wavelength tracking.
+  // We need two consecutive node positions to form λ = 2*(r_{i+1} - r_i),
+  // and a third to compute eps_lambda = |λ_{i+1} - λ_i| / <λ>.
+  // n_nodes counts crossings seen so far; λ and eps_lambda are valid only
+  // once n_nodes >= 2 (third crossing).
+  int n_nodes = 0;
+  double r_node_prv = 0.0; // position of most-recently seen node
+  double lambda = 0.0;     // most recent half-cycle estimate of λ
+  double eps_lambda = 1.0; // |Δλ/λ| between successive half-cycles
+
+  // Per-half-cycle amplitude tracking.
+  // A half-cycle is the interval between two consecutive nodes.
+  // amp_this_half = running max|f| in the current half-cycle (resets at each node)
+  // amp_prev_half = max|f| in the completed half-cycle before the latest node
+  // eps_amp       = |A_this - A_prev| / ½(A_this + A_prev)
+  //
+  // The half-cycle max is accurate to O(dr/λ)² ≈ 0.06% at 40 pts/wavelength,
+  // which is more than sufficient for normalisation purposes.
+  double amp_this_half = std::abs(ode.last_f()); // include starting point
+  double amp_prev_half = 0.0;
   double eps_amp = 1.0;
-  double amp_maxf = 0.0;
 
-  // wavelength
-  double lambda = 0.0;
-  double eps_lambda = 1.0;
-  double r_node_0 = 0.0;
-
-  // previous points:
-  double rm1 = 0.0;
-  double fm1 = 0.0;
   double r0 = ode.last_t();
   double f0 = ode.last_f();
 
-  // Reasonable guess at fully asymptotic region:
-  // (Only reaches max_r if amp/wavelength don't converge)
-  const double max_r = 5000.0 / std::sqrt(2 * en);
+  // Fallback limit: a fully asymptotic region is expected within O(1000)
+  // de Broglie wavelengths of the grid boundary.
+  const double max_r = 5000.0 / std::sqrt(2.0 * en);
 
   while (ode.last_t() < max_r) {
     ode.drive();
-    const auto r1 = ode.last_t();
-    const auto f1 = ode.last_f();
+    const double r1 = ode.last_t();
+    const double f1 = ode.last_f();
 
-    // Update wavelength:
+    // Track running half-cycle amplitude
+    amp_this_half = std::max(amp_this_half, std::abs(f1));
+
+    // Node crossing: f changes sign between r0 and r1
     if (f1 * f0 < 0.0) {
-      // linear interp: find rx (position of node)
-      const double r_node_1 = (r1 * f0 - r0 * f1) / (f0 - f1);
-      const double lambda1 = 2.0 * (r_node_1 - r_node_0);
-      eps_lambda = std::abs(2.0 * (lambda1 - lambda) / (lambda1 + lambda));
-      lambda = lambda1;
-      r_node_0 = r_node_1;
-    }
+      // Linear interpolation for the node position r_node where f(r_node) = 0:
+      //   f(r) ≈ f0 + (f1-f0)/(r1-r0) * (r - r0) = 0
+      //   ⟹  r_node = (r1*f0 - r0*f1) / (f0 - f1)
+      const double r_node = (r1 * f0 - r0 * f1) / (f0 - f1);
 
-    // find amplitude via maximum point:
-    if (std::abs(f1) > amp_maxf) {
-      amp_maxf = std::abs(f1);
-    }
+      if (n_nodes >= 1) {
+        // λ_i = 2*(r_node_i - r_node_{i-1})  [distance between adjacent nodes = λ/2]
+        const double lambda1 = 2.0 * (r_node - r_node_prv);
 
-    // find amplitude by fitting around maximum:
-    if (std::abs(f1) < std::abs(f0) && std::abs(f0) > std::abs(fm1)) {
+        if (n_nodes >= 2) {
+          // Third and later nodes: proper relative-change convergence check.
+          // eps_λ = |λ_new - λ_old| / ½(λ_new + λ_old)
+          eps_lambda = std::abs(2.0 * (lambda1 - lambda) / (lambda1 + lambda));
+        }
+        // (On the second node, lambda was not yet set; just initialise it.)
+        lambda = lambda1;
 
-      const auto amp_fit = fitQuadratic(rm1, r0, r1, fm1, f0, f1);
-      const auto eps_amp_fit =
-        std::abs(2.0 * (amp_fit - amp) / (amp_fit + amp));
-      amp = amp_fit;
-
-      const auto eps_amp_max =
-        std::abs(2.0 * (amp_fit - amp_maxf) / (amp_fit + amp_maxf));
-
-      const auto eps_amp_best = std::min({eps_amp_fit, eps_amp_max});
-      const auto eps_amp_worst = std::max({eps_amp_fit, eps_amp_max});
-      eps_amp = eps_amp_worst;
-
-      if (eps_amp_best < eps_target_amp &&
-          eps_amp_worst < 100.0 * eps_target_amp &&
-          eps_lambda < eps_target_lambda) {
-        amp = std::max(amp_fit, amp_maxf);
-        break;
+        // Half-cycle amplitude convergence:
+        //   eps_A = |A_this - A_prev| / ½(A_this + A_prev)
+        if (amp_prev_half > 0.0) {
+          eps_amp = std::abs(2.0 * (amp_this_half - amp_prev_half) /
+                             (amp_this_half + amp_prev_half));
+          if (eps_amp < eps_target_amp && eps_lambda < eps_target_lambda)
+            break;
+        }
       }
+
+      n_nodes++;
+      r_node_prv = r_node;
+      amp_prev_half = amp_this_half;
+      amp_this_half = 0.0; // reset for the next half-cycle
     }
-    // update "previous" values
-    rm1 = r0;
-    fm1 = f0;
+
     r0 = r1;
     f0 = f1;
   }
-  // assert(amp != 0.0);
+
+  // At break, amp_this_half is the just-completed half-cycle; amp_prev_half
+  // is the one before it. Both have converged — use the most recent.
+  // If the loop ran to max_r without converging, take whichever is larger.
+  const double amp = std::max(amp_prev_half, amp_this_half);
   return {amp, eps_amp};
 }
 
@@ -187,39 +205,45 @@ double analytic_f_amplitude(double en, double alpha) {
 
 //==============================================================================
 double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
-                    double y3)
-// Takes in three points, and fits them to a quadratic function.
-// Returns y-value for vertex of quadratic.
-// Used for finding the amplitude of a sine/cosine function, given thee
-// points. i.e., will return amplitude of since function. Note: the given 3
-// points _MUST_ be close to maximum, otherwise, fit wont work
-{
-  if (y1 < 0)
-    y1 = std::abs(y1);
-  if (y2 < 0)
-    y2 = std::abs(y2);
-  if (y3 < 0)
-    y3 = std::abs(y3);
+                    double y3) {
 
-  const auto d = (x1 - x2) * (x1 - x3) * (x2 - x3);
-  const auto Ad = x3 * (x2 * (x2 - x3) * y1 + x1 * (-x1 + x3) * y2) +
-                  x1 * (x1 - x2) * x2 * y3;
-  const auto Bd =
-    x3 * x3 * (y1 - y2) + x1 * x1 * (y2 - y3) + x2 * x2 * (-y1 + y3);
-  const auto Cd = x3 * (-y1 + y2) + x2 * (y1 - y3) + x1 * (-y2 + y3);
-  auto y0 = (Ad / d) - Bd * Bd / (4.0 * Cd * d);
+  // Fit p(x) = A*x² + B*x + C through three points and return the vertex
+  // amplitude y* = C - B²/(4A).
+  //
+  // Previously used by numerical_f_amplitude to refine the per-half-cycle peak
+  // estimate: given the grid point with the largest |f| and its two neighbours,
+  // the quadratic vertex corrects for the O(dr/λ)² discretisation bias.
+  // Replaced by the plain half-cycle max, which is already accurate to
+  // O(dr/λ)² ≈ 0.06% at 40 pts/wavelength and sufficient for normalisation;
+  // the quadratic refinement added complexity without measurable benefit.
+  //
+  // The y inputs are taken as |y| — sign doesn't matter for the envelope.
+  // Coefficients via Lagrange, writing d = (x1-x2)(x1-x3)(x2-x3):
+  //   A·d ≡ Cd = x3*(y2-y1) + x2*(y1-y3) + x1*(y3-y2)
+  //   B·d ≡ Bd = x3²*(y1-y2) + x1²*(y2-y3) + x2²*(y3-y1)
+  //   C·d ≡ Ad = x3*x2*(x2-x3)*y1 + x1*x3*(x3-x1)*y2 + x1*x2*(x1-x2)*y3
+  //   y*  = C - B²/(4A) = Ad/d - Bd²/(4·Cd·d)
+  //
+  // A < 0 (downward parabola, genuine maximum) iff Cd·d < 0.
+  // If A ≥ 0 the points don't bracket a peak; return the largest input value.
 
-  // Find largest input y:
-  const auto ymax = std::max({y1, y2, y3});
-  // if (y1 > ymax)
-  //   ymax = y1;
-  // if (y3 > ymax)
-  //   ymax = y3;
+  y1 = std::abs(y1);
+  y2 = std::abs(y2);
+  y3 = std::abs(y3);
 
-  if (ymax > y0)
-    y0 = ymax; // y0 can't be less than (y1,y2,y3)
+  const double d = (x1 - x2) * (x1 - x3) * (x2 - x3);
+  const double Ad =
+    x3 * (x2 * (x2 - x3) * y1 + x1 * (x3 - x1) * y2) + x1 * (x1 - x2) * x2 * y3;
+  const double Bd =
+    x3 * x3 * (y1 - y2) + x1 * x1 * (y2 - y3) + x2 * x2 * (y3 - y1);
+  const double Cd = x3 * (y2 - y1) + x2 * (y1 - y3) + x1 * (y3 - y2); // = A·d
 
-  return y0;
+  // Guard: only trust the vertex when the parabola opens downward (A < 0)
+  const double ymax = std::max({y1, y2, y3});
+  if (Cd * d >= 0.0)
+    return ymax;
+
+  return Ad / d - Bd * Bd / (4.0 * Cd * d);
 }
 
 } // namespace DiracODE
