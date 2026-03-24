@@ -27,16 +27,16 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
   // The solution on the radial grid must be reasonable at large r
   // We ensure there is at least N (N=10) points per wavelength in this region
   // If not, solution unstable; write zeros and return.
-  const int N_ppw = 10;
+  const int N_ppw = 15;
   const auto dr0 = gr.drdu().back() * gr.du();
   const double dr0_target = approx_wavelength / N_ppw;
   if (dr0 > dr0_target) {
-    fmt2::styled_print(fg(fmt::color::red), "\nERROR 104: ");
-    fmt::print(
-      "Grid not dense enough for continuum state with e={:.2f} (kappa={}); \n"
-      "Try increasing points (to ~ du < {:.3f})\n"
-      "Writing zeros to Spinor for this state.\n",
-      en, Fa.kappa(), dr0_target);
+    // fmt2::styled_print(fg(fmt::color::red), "\nERROR 104: ");
+    // fmt::print(
+    //   "Grid not dense enough for continuum state with e={:.2f} (kappa={}); \n"
+    //   "Try increasing points (to ~ du < {:.3f})\n"
+    //   "Writing zeros to Spinor for this state.\n",
+    //   en, Fa.kappa(), dr0_target);
     Fa *= 0.0;
     return;
   }

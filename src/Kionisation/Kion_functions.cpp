@@ -317,48 +317,61 @@ bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid) {
   }
 
   // *Very* rough estimate of good aximum q range
-  const auto i = rgrid.getIndex(1.0);
-  const auto dr_q = rgrid.drdu(i) * rgrid.du();
-  const auto qmax_targ = 1.5 * 2.0 * M_PI / (3.0 * dr_q);
-  fmt::print("\nVery rough guess at maximum safe q: {:.0f} au = {:.2f} MeV\n",
-             qmax_targ, qmax_targ * UnitConv::Momentum_au_to_MeV);
-  if (qmax_au > qmax_targ) {
-    fmt::print("Warning: Grid may not be dense enough for highest q\n\n");
+  if (qmax_au != 0.0) {
+    const auto i = rgrid.getIndex(1.0);
+    const auto dr_q = rgrid.drdu(i) * rgrid.du();
+    const auto qmax_targ = 1.5 * 2.0 * M_PI / (3.0 * dr_q);
+    fmt::print("\nVery rough guess at maximum safe q: {:.0f} au = {:.2f} MeV\n",
+               qmax_targ, qmax_targ * UnitConv::Momentum_au_to_MeV);
+    if (qmax_au > qmax_targ) {
+      fmt::print("Warning: Grid may not be dense enough for highest q\n\n");
+      const auto du_target =
+        (1.5 * 2.0 * M_PI / (3.0 * qmax_au)) / rgrid.drdu(i);
+      const auto n_target =
+        Grid::calc_num_points_from_du(rgrid.r0(), rgrid.rmax(), 0.9 * du_target,
+                                      GridType::loglinear, rgrid.loglin_b());
+      fmt::print("Reduce qmax to {:.2e} MeV; or increase points to {}\n",
+                 qmax_targ * UnitConv::Momentum_au_to_MeV, n_target);
+      std::cout << "(Program will continue, but results may be inaccurate)\n\n";
+      return false;
+    }
   }
 
-  // Check if grid dense enough. If not, offers advice
-  const double approx_wavelength = 2.0 * M_PI / std::sqrt(2.0 * Emax_au);
-  const auto dr = rgrid.du(); //rough
-  const int N_ppw = 15;
-  const double dr_target = approx_wavelength / N_ppw;
-  fmt::print("Approx continuum wavelength for max E: {:.3f}.\n"
-             "Approx dr at large r: {:.4f}\n",
-             approx_wavelength, dr);
-  if (dr > dr_target) {
-    fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
-    fmt::print(
-      "Grid may not be dense enough for continuum state with e={:.2f}\n",
-      Emax_au);
-    fmt::print("Have dr~{:.3f} at large r, but need dr~{:.3f}\n", dr,
-               dr_target);
+  if (Emax_au != 0.0) {
+    // Check if grid dense enough. If not, offers advice
+    const double approx_wavelength = 2.0 * M_PI / std::sqrt(2.0 * Emax_au);
+    const auto dr = rgrid.du(); //rough
+    const int N_ppw = 15;
+    const double dr_target = approx_wavelength / N_ppw;
+    fmt::print("Approx continuum wavelength for max E: {:.2e}.\n"
+               "Approx dr at large r: {:.2e}. Ratio: {:.2f}\n",
+               approx_wavelength, dr, approx_wavelength / dr);
+    if (dr > dr_target) {
+      fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
+      fmt::print(
+        "Grid may not be dense enough for continuum state with e={:.2e}\n",
+        Emax_au);
+      fmt::print("Have dr~{:.3e} at large r, but need dr~{:.3e}\n", dr,
+                 dr_target);
 
-    // For given b, find required num_points:
-    const auto n_target =
-      Grid::calc_num_points_from_du(rgrid.r0(), rgrid.rmax(), 0.9 * dr_target,
-                                    GridType::loglinear, rgrid.loglin_b());
-    // For given num_points, find required b [by solving: du(b)-du_targ = 0]
-    const auto f = [&](double b) {
-      return Grid::calc_du_from_num_points(rgrid.r0(), rgrid.rmax(),
-                                           rgrid.num_points(),
-                                           GridType::loglinear, b) -
-             0.9 * dr_target;
-    };
-    const auto [b_target, db] =
-      qip::Newtons(f, 1.0, {0.05, 100.0}, 1.0e-1, 0.01);
-    fmt::print("Try increasing num_points to {}; or decreasing b to {:.2f}\n",
-               n_target, b_target);
-    std::cout << "(Program will continue, but results may be inaccurate)\n\n";
-    return false;
+      // For given b, find required num_points:
+      const auto n_target =
+        Grid::calc_num_points_from_du(rgrid.r0(), rgrid.rmax(), 0.9 * dr_target,
+                                      GridType::loglinear, rgrid.loglin_b());
+      // For given num_points, find required b [by solving: du(b)-du_targ = 0]
+      const auto f = [&](double b) {
+        return Grid::calc_du_from_num_points(rgrid.r0(), rgrid.rmax(),
+                                             rgrid.num_points(),
+                                             GridType::loglinear, b) -
+               0.9 * dr_target;
+      };
+      const auto [b_target, db] =
+        qip::Newtons(f, 1.0, {0.05, 100.0}, 1.0e-1, 0.01);
+      fmt::print("Try increasing num_points to {}; or decreasing b to {:.2f}\n",
+                 n_target, b_target);
+      std::cout << "(Program will continue, but results may be inaccurate)\n\n";
+      return false;
+    }
   }
   return true;
 }

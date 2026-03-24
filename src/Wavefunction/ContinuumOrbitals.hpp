@@ -50,18 +50,20 @@ public:
   //! Precomputes V_hp_core[a] = V_hp|a> and Vhp_ba[b,a] = <b|V_hp|a> for same-kappa core pairs.
   //! Results written via output pointers V_hp_core and Vhp_ba.
   static void hp_precompute(const std::vector<DiracSpinor> &core, int kappa,
-                            const DiracSpinor *Fi, const std::vector<double> &vdir_0,
+                            const DiracSpinor *Fi,
+                            const std::vector<double> &vdir_0,
                             std::vector<DiracSpinor> *V_hp_core,
                             std::vector<double> *Vhp_ba);
 
   //! Returns the Hermitian projection correction:
   //!   Pc V_hp|Fc> + V_hp Pc|Fc> - Pc V_hp Pc|Fc>
   //! where Pc projects onto same-kappa core states.
-  static DiracSpinor add_hp_projection(const DiracSpinor &Fc, const DiracSpinor *Fi,
-                                       const std::vector<double> &vdir_0,
-                                       const std::vector<DiracSpinor> &core,
-                                       const std::vector<DiracSpinor> &V_hp_core,
-                                       const std::vector<double> &Vhp_ba);
+  static DiracSpinor
+  add_hp_projection(const DiracSpinor &Fc, const DiracSpinor *Fi,
+                    const std::vector<double> &vdir_0,
+                    const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &V_hp_core,
+                    const std::vector<double> &Vhp_ba);
 
 private:
   void IncludeExchange(DiracSpinor *F_cntm, const DiracSpinor *F_i,

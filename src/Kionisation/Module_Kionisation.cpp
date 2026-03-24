@@ -487,12 +487,14 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   // Instead of using "grid" - specificly add extra points around
   auto energies = qip::logarithmic_range(Emin_au, Emax_au, E_steps);
 
-  std::cout << "\nCore ionisation energies, in keV\n";
+  std::cout << "\nCore ionisation energies, in eV\n";
   for (const auto &Fc : wf.core()) {
-    fmt::print("{:3} : {:.4e}\n", Fc.shortSymbol(),
-               -1 * Fc.en() * PhysConst::Hartree_eV / 1.0e3);
+    fmt::print("{:3} : {:.4e}  {}\n", Fc.shortSymbol(),
+               -1 * Fc.en() * PhysConst::Hartree_eV, Fc.num_electrons());
   }
   std::cout << "\n";
+
+  Kion::check_radial_grid(Emax_au, 0, wf.grid());
 
   // Add extra energy points near thresholds:
   if (E_threshold > 1) {
