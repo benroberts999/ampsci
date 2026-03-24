@@ -20,22 +20,6 @@
 #include "Wavefunction/ContinuumOrbitals.hpp"
 
 static const std::string Kionisation_description_text{R"(
-This module calculates atomic ionisation factors.
-Some further detail is given here.
-
-Method:
-  - 'hf' is the standard choice, calculated continuum wavefunctions in 
-    Hartree-Fock potential of bound states. "hole_particle" option, which is 
-    true by default, corrects the Hartree-Fock potential to account for missing 
-    ionised electron.
-  - RPA means include core-polarisation (many-body) corrections.
-    'RPA0' will include only lowest-order RPA corrections, and is quite fast
-    'RPA' will include all-orders rpa. This is slow, since the RPA equations
-    need to be iterated for each L and q seperately. Therefore, it is advised 
-    only to use full RPA for a small subset of E/q grids.
-  - Other methods (Zeff etc.) are mainly used for tests, and to compare with 
-    other less accurate codes. These are not accurate methods to use.
-
 Output format:
   - xyz:      For easy 2D interpolation. Each row is in form: 'E q K(E,q)'
   - gnuplot:  For easy plotting. Each column is new E
@@ -62,10 +46,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
      {"ec_cut", "Cut-off (in au) for continuum energy. [1000.0]"},
      {"label", "optional extra label for output files"},
      {"method", "'hf' (relativistic Hartree-Fock), "
-                "'rpa0' (lowst-order RPA), "
-                "'rpa' (all-orders RPA), "
-                "'zeff' (Z_eff for continuum), "
-                "'approx' (step function). [hf]"},
+                "'zeff' (Z_eff for continuum)"},
      {"subtract_1", "Replace e^(iqr) -> e^(iqr)-1 [false]"},
      {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
      {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
@@ -506,10 +487,10 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   // Instead of using "grid" - specificly add extra points around
   auto energies = qip::logarithmic_range(Emin_au, Emax_au, E_steps);
 
-  std::cout << "\nCore ionisation energies, in MeV\n";
+  std::cout << "\nCore ionisation energies, in keV\n";
   for (const auto &Fc : wf.core()) {
     fmt::print("{:3} : {:.4e}\n", Fc.shortSymbol(),
-               -1 * Fc.en() * PhysConst::Hartree_eV / 1.0e6);
+               -1 * Fc.en() * PhysConst::Hartree_eV / 1.0e3);
   }
   std::cout << "\n";
 
@@ -562,6 +543,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
   auto oname = input.get("oname", std::string{"out.txt"});
   std::ofstream out_file(oname);
+  out_file << "E(eV) E1 M1 M1_nr E E_len M Total E2 Ek2 Mk1\n";
 
   // "full" dipole operator
   const auto E1 = DiracOperator::E1(wf.grid());
@@ -670,10 +652,10 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
 
-    out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E1 * Ksigma
-             << " " << Q_M1 * Ksigma << " " << Q_M1_nr * Ksigma << " "
-             << Q_E * Ksigma << " " << Q_E_len * Ksigma << " " << Q_M * Ksigma
-             << " " << (Q_E + Q_M) * Ksigma << " " << Q_E2 * Ksigma << " "
+    out_file << omega * PhysConst::Hartree_eV << " " << Q_E1 * Ksigma << " "
+             << Q_M1 * Ksigma << " " << Q_M1_nr * Ksigma << " " << Q_E * Ksigma
+             << " " << Q_E_len * Ksigma << " " << Q_M * Ksigma << " "
+             << (Q_E + Q_M) * Ksigma << " " << Q_E2 * Ksigma << " "
              << Q_Ek2 * Ksigma << " " << Q_Mk1 * Ksigma << "\n";
   }
 }
