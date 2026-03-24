@@ -235,13 +235,15 @@ TEST_CASE("Wavefunction - continuum", "[wf][cntm][unit]") {
     ContinuumOrbitals cntm(wf);
 
     cntm.solveContinuumHF(0.1, 0, 1, nullptr, false, false, false);
+    std::cout << "V^N-1: no rescale, no hp, no orthog\n";
     const auto eps = cntm.check_orthog(true);
     REQUIRE(std::abs(eps) < 1.0e-4);
 
     cntm.clear();
-    cntm.solveContinuumHF(0.1, 0, 1, nullptr, true, false, false);
+    cntm.solveContinuumHF(0.1, 0, 1, &wf.core().front(), false, true, false);
+    std::cout << "V^N-1: no rescale, include 1s hp, no orthog\n";
     const auto epsX = cntm.check_orthog(true);
-    REQUIRE(std::abs(epsX) < 1.0e-4);
+    REQUIRE(std::abs(epsX) < 1.0e-3);
 
     REQUIRE(cntm.orbitals.size() != 0);
     cntm.clear();
@@ -249,9 +251,11 @@ TEST_CASE("Wavefunction - continuum", "[wf][cntm][unit]") {
 
     cntm.solveContinuumHF(0.1, 0, 0, &wf.core().front(), false, true, true);
     cntm.check_orthog(true);
-    auto ortho = std::abs(wf.core().front() * cntm.orbitals.front());
-    std::cout << ortho << "\n";
-    REQUIRE(std::abs(ortho) < 1.0e-15);
+    std::cout << "V^N-1: no rescale, include 1s hp, force orthog\n";
+    const auto eps_core = cntm.check_orthog(true);
+    auto ortho1s = std::abs(wf.core().front() * cntm.orbitals.front());
+    REQUIRE(std::abs(eps_core) < 1.0e-9);
+    REQUIRE(std::abs(ortho1s) < 1.0e-15);
   }
 
   {
@@ -269,26 +273,33 @@ TEST_CASE("Wavefunction - continuum", "[wf][cntm][unit]") {
     ContinuumOrbitals cntm(wf);
 
     cntm.solveContinuumHF(0.1, 0, 1, nullptr, false, false, false);
-    std::cout << "Raw V^N:\n:";
+    std::cout << "V^N: no rescale, no hp, no orthog\n";
     const auto eps = cntm.check_orthog(true);
     CHECK(std::abs(eps) < 1.0e-4);
 
     cntm.clear();
     cntm.solveContinuumHF(0.1, 0, 1, nullptr, true, false, true);
-    std::cout << "Rescale + orthog:\n";
+    std::cout << "V^N: rescale, no hp, force orthog\n";
     const auto epsX = cntm.check_orthog(true);
-    CHECK(std::abs(epsX) < 1.0e-4);
+    CHECK(std::abs(epsX) < 1.0e-5);
 
-    // REQUIRE(cntm.orbitals.size() != 0);
     cntm.clear();
-    REQUIRE(cntm.orbitals.size() == 0);
 
-    cntm.solveContinuumHF(0.1, 0, 0, &wf.core().front(), false, true, true);
-    std::cout << "Subtract self + orthog:\n";
-    cntm.check_orthog(true);
+    cntm.solveContinuumHF(0.1, 0, 1, &wf.core().front(), false, true, false);
+    std::cout << "V^N: no rescale, + hp, no force orthog\n";
+    auto eps_core1 = cntm.check_orthog(true);
     auto ortho = std::abs(wf.core().front() * cntm.orbitals.front());
-    std::cout << ortho << "\n";
-    CHECK(std::abs(ortho) < 1.0e-15);
+    CHECK(std::abs(ortho) < 1.0e-3);
+    CHECK(std::abs(eps_core1) < 1.0e-3);
+
+    cntm.clear();
+
+    cntm.solveContinuumHF(0.1, 0, 1, &wf.core().front(), false, true, true);
+    std::cout << "V^N: no rescale, + hp, + force orthog\n";
+    const auto eps_core = cntm.check_orthog(true);
+    auto ortho1 = std::abs(wf.core().front() * cntm.orbitals.front());
+    CHECK(std::abs(ortho1) < 1.0e-15);
+    CHECK(std::abs(eps_core) < 1.0e-12);
   }
 
   {

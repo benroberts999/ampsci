@@ -56,9 +56,14 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
   using namespace qip::overloads;
   auto vc = p_hf->vlocal();
+  // vdir_0 = y^0_{Fi,Fi}: direct self-interaction of ionised orbital.
+  // Captured here so it can also be passed to IncludeExchange for the
+  // Hermitian projection correction (1-Pc)V_0(1-Pc).
+  std::vector<double> vdir_0;
   if ((Fi != nullptr) && subtract_self && self_consistant) {
     // Subtract off the self-interaction direct part: V-self(r) = y^0_ii(r)
-    vc -= Coulomb::yk_ab(0, *Fi, *Fi);
+    vdir_0 = Coulomb::yk_ab(0, *Fi, *Fi);
+    vc -= vdir_0;
   }
 
   // We may wish to do this to test things, but not for final calculations:
@@ -97,7 +102,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     DiracODE::solveContinuum(Fc, ec, vc, m_alpha);
     // Then, include exchange correction:
     if (p_hf != nullptr && !p_hf->is_localQ()) {
-      IncludeExchange(Fc, Fi, force_orthog_Fi, vc);
+      IncludeExchange(&Fc, Fi, vc, vdir_0);
     }
   }
 
@@ -105,8 +110,9 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   if (orthog_core) {
     for (auto &Fc : orbitals) {
       for (const auto &Fa : p_hf->core()) {
-        if (Fa.kappa() == Fc.kappa())
-          Fc -= (Fc * Fa) * Fa;
+        Fc.orthog(Fa);
+        // if (Fa.kappa() == Fc.kappa())
+        // Fc -= (Fc * Fa) * Fa;
       }
     }
   }
@@ -114,9 +120,10 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
   // Force orthogonality to specific state
   if (force_orthog_Fi && Fi != nullptr) {
     for (auto &Fc : orbitals) {
-      if (Fi->kappa() == Fc.kappa()) {
-        Fc -= (*Fi * Fc) * *Fi;
-      }
+      Fc.orthog(*Fi);
+      // if (Fi->kappa() == Fc.kappa()) {
+      //   Fc -= (*Fi * Fc) * *Fi;
+      // }
     }
   }
 
@@ -124,42 +131,138 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 }
 
 //******************************************************************************
-void ContinuumOrbitals::IncludeExchange(DiracSpinor &Fc, const DiracSpinor *Fi,
-                                        bool force_orthog_Fi,
-                                        const std::vector<double> &vc) {
-  // Include exchange (Hartree Fock)
+// V_hp|Fa> = (1/(2j_i+1)) vex(Fa,Fi) + y^0_{ii}·Fa
+DiracSpinor ContinuumOrbitals::hp_apply_V0(const DiracSpinor &Fa,
+                                           const DiracSpinor *Fi,
+                                           const std::vector<double> &vdir_0) {
+  auto Vhp =
+    (1.0 / Fi->twojp1()) * HF::vexFa(Fa, std::vector<DiracSpinor>{*Fi});
+  if (!vdir_0.empty())
+    Vhp += vdir_0 * Fa;
+  return Vhp;
+}
+
+//******************************************************************************
+// V_hp_core[a] = V_hp|a>,  Vhp_ba[b,a] = <b|V_hp|a>  for same-kappa core pairs.
+void ContinuumOrbitals::hp_precompute(const std::vector<DiracSpinor> &core,
+                                      int kappa, const DiracSpinor *Fi,
+                                      const std::vector<double> &vdir_0,
+                                      std::vector<DiracSpinor> *V_hp_core,
+                                      std::vector<double> *Vhp_ba) {
+  for (const auto &Fa : core) {
+    if (Fa.kappa() == kappa) {
+      V_hp_core->push_back(hp_apply_V0(Fa, Fi, vdir_0));
+    }
+  }
+  const auto NK = V_hp_core->size();
+  Vhp_ba->assign(NK * NK, 0.0);
+  // ib_kc: index into the same-kappa subspace (matches V_hp_core ordering)
+  std::size_t ib_kc = 0;
+  for (const auto &Fb : core) {
+    if (Fb.kappa() != kappa) {
+      continue;
+    }
+    for (std::size_t ia = 0; ia < NK; ++ia) {
+      (*Vhp_ba)[ib_kc * NK + ia] = Fb * (*V_hp_core)[ia];
+    }
+    ++ib_kc;
+  }
+}
+
+//******************************************************************************
+// Returns Pc V_hp|Fc> + V_hp Pc|Fc> - Pc V_hp Pc|Fc>
+// where Pc projects onto same-kappa core states.
+DiracSpinor ContinuumOrbitals::add_hp_projection(
+  const DiracSpinor &Fc, const DiracSpinor *Fi,
+  const std::vector<double> &vdir_0, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &V_hp_core,
+  const std::vector<double> &Vhp_ba) {
+
+  const auto NK = V_hp_core.size();
+  if (NK == 0)
+    return 0.0 * Fc;
+
+  const auto V_hp_Fc = hp_apply_V0(Fc, Fi, vdir_0);
+  auto proj = 0.0 * V_hp_Fc;
+
+  // ia_kc, ib_kc: indices into the same-kappa subspace (match V_hp_core / M ordering)
+  std::size_t ia_kc = 0;
+  for (const auto &Fa : core) {
+    if (Fa.kappa() != Fc.kappa()) {
+      continue;
+    }
+    // <a|c>
+    const double ov_ac = Fa * Fc;
+    // <a|V_hp|c>
+    const double ov_aVc = Fa * V_hp_Fc;
+    // Pc V_hp |c>
+    proj += ov_aVc * Fa;
+    // V_hp Pc |c>
+    proj += ov_ac * V_hp_core[ia_kc];
+    // ib_kc: index for core states that have kappa=kappa_c only
+    std::size_t ib_kc = 0;
+    for (const auto &Fb : core) {
+      if (Fb.kappa() != Fc.kappa()) {
+        continue;
+      }
+      // -Pc V_hp Pc |c>
+      proj -= (ov_ac * Vhp_ba[ib_kc * NK + ia_kc]) * Fb;
+      ++ib_kc;
+    }
+    ++ia_kc;
+  }
+  return proj;
+}
+
+//******************************************************************************
+void ContinuumOrbitals::IncludeExchange(DiracSpinor *Fc, const DiracSpinor *Fi,
+                                        const std::vector<double> &vc,
+                                        const std::vector<double> &vdir_0) {
+  // Solves the HF exchange problem for the continuum state Fc, using the
+  // Hermitian V^{N-1} potential:
+  //   V = V^N - (1-Pc)V_hp(1-Pc)
+  // where V_hp is the hole-particle potential (direct + exchange of the ionised
+  // orbital Fi), and Pc projects onto the same-kappa core states.
+  // The symmetric form guarantees that core eigenstates remain eigenstates of
+  // H, so continuum states are naturally orthogonal to the core.
+
   const int max_its = 50;
   const double conv_target = 1.0e-6;
 
+  const bool do_proj =
+    (Fi != nullptr) && (p_hf->method() == HF::Method::HartreeFock);
+
+  // Precompute V_hp|a> and M[b,a] = <b|V_hp|a> for same-kappa core pairs.
+  // -V_hp already in: vc (direct) and vexFa subtract_one (exchange).
+  // Each iteration adds: Pc V_hp|Fc> + V_hp Pc|Fc> - Pc V_hp Pc|Fc>
+  // upgrading V^N - V_hp → V^N - (1-Pc) V_hp (1-Pc).
+  std::vector<DiracSpinor> V_hp_core;
+  std::vector<double> Vhp_ba;
+  if (do_proj)
+    hp_precompute(p_hf->core(), Fc->kappa(), Fi, vdir_0, &V_hp_core, &Vhp_ba);
+
   for (int it = 0; it <= max_its; ++it) {
-    // Subtract 1/(2j+1) of Fi's exchange: removes ionised electron's contribution
-    const auto vx0 = HF::vex_approx(Fc, p_hf->core());
+    const auto vx0 = HF::vex_approx(*Fc, p_hf->core());
     const auto vl = qip::add(vc, vx0);
+    const auto Fc0 = *Fc;
 
-    // Copy old solution (needed by DiracODE)
-    const auto Fc0 = Fc;
     if (p_hf->method() == HF::Method::HartreeFock) {
-      auto VxFc = HF::vexFa(Fc, p_hf->core(), 99, Fi) - vx0 * Fc;
-      DiracODE::solveContinuum(Fc, Fc.en(), vl, m_alpha, &VxFc, &Fc0);
+      auto VxFc = HF::vexFa(*Fc, p_hf->core(), 99, Fi) - vx0 * *Fc;
+      if (do_proj)
+        VxFc +=
+          add_hp_projection(*Fc, Fi, vdir_0, p_hf->core(), V_hp_core, Vhp_ba);
+      DiracODE::solveContinuum(*Fc, Fc->en(), vl, m_alpha, &VxFc, &Fc0);
     } else {
-      DiracODE::solveContinuum(Fc, Fc.en(), vl, m_alpha);
+      DiracODE::solveContinuum(*Fc, Fc->en(), vl, m_alpha);
     }
 
-    // check convergance:
-    const auto eps = ((Fc0 - Fc) * (Fc0 - Fc)) / (Fc * Fc);
-    if (eps < conv_target || it == max_its) {
+    const auto delta = Fc0 - *Fc;
+    const auto eps = (delta * delta) / (*Fc * *Fc);
+    if (eps < conv_target || it == max_its)
       break;
-    }
 
-    // Damp the orbital
-    // Fc = 0.5 * (Fc + Fc0);
-    Fc += Fc0;
-    Fc *= 0.5;
-
-    // Force orthogonality to Fi (ionised state) (at each HF step)
-    if (force_orthog_Fi && Fi && Fi->kappa() == Fc.kappa()) {
-      Fc -= (*Fi * Fc) * *Fi;
-    }
+    *Fc += Fc0;
+    *Fc *= 0.5;
   }
 }
 
