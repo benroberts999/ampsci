@@ -24,45 +24,37 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        bool print)
   : CorePolarisation(h), p_hf(in_hf) {
 
-  if (p_hf == nullptr || h == nullptr) {
-    std::cout << "\nFAIL:25 in DiagramRPA - hf cannot be null\n" << std::flush;
-  }
+  assert(p_hf != nullptr && "Hartree-Fock cannot be null in DiagramRPA");
+  assert(h != nullptr && "Operator cannot be null in DiagramRPA");
 
-  // Set up basis:
-  const auto &core = p_hf->core();
-  for (const auto &Fi : basis) {
-    const bool inCore = std::find(cbegin(core), cend(core), Fi) != cend(core);
-    if (inCore) {
-      holes.push_back(Fi);
-    } else {
-      excited.push_back(Fi);
-    }
-  }
-
-  // Calc t0 (and setup t) [RPA MEs for hole-excited]
-  setup_ts(h);
-
-  const auto basis_string = DiracSpinor::state_config(basis);
-
-  const auto fname = atom + "_" + std::to_string(m_rank) +
-                     (m_pi == 1 ? "+" : "-") + "_" + basis_string + ".rpad.abf";
+  // Set up basis (split core-excited):
+  const int n_min_core = 1;
+  auto [t_holes, t_excited] =
+    DiracSpinor::split_by_core(basis, p_hf->core(), n_min_core);
+  m_holes = std::move(t_holes);
+  m_excited = std::move(t_excited);
 
   // Setup faster Breit
   if (p_hf->vBreit() != nullptr) {
     m_Br = *p_hf->vBreit();
-    // nb: This uses HUGE amount of memory, leads to ~2x speedup
+
+    // nb: This [fill_gb()] uses HUGE amount of memory, leads to ~2x speedup
     // Decided not worth the speedup
     // m_Br->fill_gb(basis);
   }
 
-  bool do_read_write = atom != "" && atom != "false";
+  // filename for W^k (Coulmb integrals) output
+  const auto basis_string = DiracSpinor::state_config(basis);
+  const auto fname = atom + "_" + std::to_string(m_rank) +
+                     (m_pi == 1 ? "+" : "-") + "_" + basis_string + ".rpad.abf";
+  const auto do_read_write = atom != "" && atom != "false";
 
   // Attempt to read W's from a file:
   const auto read_ok = do_read_write ? read_write(fname, IO::FRW::read) : false;
   if (!read_ok) {
     // If not, calc W's, and write to file
     fill_W_matrix(h, print);
-    if (!holes.empty() && !excited.empty() && do_read_write)
+    if (!m_holes.empty() && !m_excited.empty() && do_read_write)
       read_write(fname, IO::FRW::write);
   }
 }
@@ -72,24 +64,20 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
                        const DiagramRPA *const drpa)
   : CorePolarisation(h), p_hf(drpa->p_hf) {
 
-  if (m_rank != drpa->m_rank || m_pi != drpa->m_pi) {
-    std::cerr << "\nFAIL21 in DiagramRPA: Cannot use 'eat' constructor for "
-                 "different rank/parity operators!\n";
-    std::abort();
-  }
+  assert(m_rank == drpa->m_rank &&
+         "If constructing a DiagramRPA from another, must have same rank");
+  assert(m_pi == drpa->m_pi &&
+         "If constructing a DiagramRPA from another, must have same parity");
 
   // Set up basis:
-  holes = drpa->holes;
-  excited = drpa->excited;
-
-  setup_ts(h);
+  m_holes = drpa->m_holes;
+  m_excited = drpa->m_excited;
 
   // "eat" W matrices from other rpa
-  Wanmb = drpa->Wanmb;
-  Wabmn = drpa->Wabmn;
-  Wmnab = drpa->Wmnab;
-  Wmban = drpa->Wmban;
-  // m_qk = drpa->m_qk;
+  m_Wanmb = drpa->m_Wanmb;
+  m_Wabmn = drpa->m_Wabmn;
+  m_Wmnab = drpa->m_Wmnab;
+  m_Wmban = drpa->m_Wmban;
 }
 
 //==============================================================================
@@ -105,8 +93,8 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
 
   const auto rw_str = !readQ ? "Writing to " : "Reading from ";
   std::cout << rw_str << "RPA(diagram) file: " << fname << " ("
-            << DiracSpinor::state_config(holes) << "/"
-            << DiracSpinor::state_config(excited) << ") ... " << std::flush;
+            << DiracSpinor::state_config(m_holes) << "/"
+            << DiracSpinor::state_config(m_excited) << ") ... " << std::flush;
 
   if (readQ)
     std::cout
@@ -115,26 +103,26 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
   std::fstream iofs;
   IO::FRW::open_binary(iofs, fname, rw);
 
-  if (holes.empty() || excited.empty()) {
+  if (m_holes.empty() || m_excited.empty()) {
     return false;
   }
 
   // Note: Basis states must match exactly (since use their index across arrays)
   // Check if same. If not, print status and calc W from scratch
 
-  std::size_t hs = holes.size(), es = excited.size();
+  std::size_t hs = m_holes.size(), es = m_excited.size();
   rw_binary(iofs, rw, hs, es);
   if (readQ) {
-    if (hs != holes.size() || es != excited.size()) {
+    if (hs != m_holes.size() || es != m_excited.size()) {
       std::cout << "\nCannot read from " << fname << ". Basis mis-match (read "
-                << hs << "," << es << "; expected " << holes.size() << ","
-                << excited.size() << ").\n"
+                << hs << "," << es << "; expected " << m_holes.size() << ","
+                << m_excited.size() << ").\n"
                 << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
       return false;
     }
   }
 
-  for (const auto porbs : {&holes, &excited}) {
+  for (const auto porbs : {&m_holes, &m_excited}) {
     for (const auto &Fn : *porbs) {
       int n = Fn.n();
       int k = Fn.kappa();
@@ -153,7 +141,7 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
   }
 
   // read/write Ws:
-  rw_binary(iofs, rw, Wanmb, Wabmn, Wmnab, Wmban);
+  rw_binary(iofs, rw, m_Wanmb, m_Wabmn, m_Wmnab, m_Wmban);
   std::cout << "done.\n";
 
   return true;
@@ -162,45 +150,45 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
 //==============================================================================
 void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h,
                                bool print) {
-  if (holes.empty() || excited.empty()) {
+  if (m_holes.empty() || m_excited.empty()) {
     std::cout << "\nWARNING 64 in DiagramRPA: no basis! RPA will be zero\n";
     return;
   }
 
-  Coulomb::YkTable Yhe(holes, excited);
-  Yhe.calculate(excited);
-  Yhe.calculate(holes);
+  Coulomb::YkTable Yhe(m_holes, m_excited);
+  Yhe.calculate(m_excited);
+  Yhe.calculate(m_holes);
 
   // const auto Vbr = p_hf->vBreit(); // a pointer, may be null
 
   // RPA: store W Coulomb integrals (used only for Core RPA its)
   if (print)
     std::cout << "Filling RPA Diagram matrix ("
-              << DiracSpinor::state_config(holes) << "/"
-              << DiracSpinor::state_config(excited) << ") .. " << std::flush;
-  Wanmb.resize(holes.size());
-  Wabmn.resize(holes.size());
+              << DiracSpinor::state_config(m_holes) << "/"
+              << DiracSpinor::state_config(m_excited) << ") .. " << std::flush;
+  m_Wanmb.resize(m_holes.size());
+  m_Wabmn.resize(m_holes.size());
   // First set: only use Yhe and Yee
   {
     const auto &Yee = Yhe;
 #pragma omp parallel for
-    for (std::size_t i = 0; i < holes.size(); i++) {
-      const auto &Fa = holes[i];
-      auto &Wa_nmb = Wanmb[i];
-      auto &Wa_bmn = Wabmn[i];
-      Wa_nmb.reserve(excited.size());
-      Wa_bmn.reserve(excited.size());
-      for (const auto &Fn : excited) {
+    for (std::size_t i = 0; i < m_holes.size(); i++) {
+      const auto &Fa = m_holes[i];
+      auto &Wa_nmb = m_Wanmb[i];
+      auto &Wa_bmn = m_Wabmn[i];
+      Wa_nmb.reserve(m_excited.size());
+      Wa_bmn.reserve(m_excited.size());
+      for (const auto &Fn : m_excited) {
         auto &Wan_mb = Wa_nmb.emplace_back();
         auto &Wab_mn = Wa_bmn.emplace_back();
-        Wan_mb.reserve(excited.size());
-        Wab_mn.reserve(excited.size());
-        for (const auto &Fm : excited) {
+        Wan_mb.reserve(m_excited.size());
+        Wab_mn.reserve(m_excited.size());
+        for (const auto &Fm : m_excited) {
           auto &Wanm_b = Wan_mb.emplace_back();
           auto &Wabm_n = Wab_mn.emplace_back();
-          Wanm_b.reserve(holes.size());
-          Wabm_n.reserve(holes.size());
-          for (const auto &Fb : holes) {
+          Wanm_b.reserve(m_holes.size());
+          Wabm_n.reserve(m_holes.size());
+          for (const auto &Fb : m_holes) {
             if (h->isZero(Fb.kappa(), Fn.kappa())) {
               Wanm_b.emplace_back(0.0);
               Wabm_n.emplace_back(0.0);
@@ -222,8 +210,8 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h,
     }
   }
 
-  Wmnab.resize(excited.size());
-  Wmban.resize(excited.size());
+  m_Wmnab.resize(m_excited.size());
+  m_Wmban.resize(m_excited.size());
   if (print)
     std::cout << "." << std::flush;
   {
@@ -231,23 +219,23 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h,
     // const Coulomb::YkTable Yhh(holes);
     const auto &Yhh = Yhe;
 #pragma omp parallel for
-    for (std::size_t i = 0; i < excited.size(); i++) {
-      const auto &Fm = excited[i];
-      auto &Wa_nmb = Wmnab[i];
-      auto &Wa_bmn = Wmban[i];
-      Wa_nmb.reserve(excited.size());
-      Wa_bmn.reserve(excited.size());
-      for (const auto &Fn : excited) {
+    for (std::size_t i = 0; i < m_excited.size(); i++) {
+      const auto &Fm = m_excited[i];
+      auto &Wa_nmb = m_Wmnab[i];
+      auto &Wa_bmn = m_Wmban[i];
+      Wa_nmb.reserve(m_excited.size());
+      Wa_bmn.reserve(m_excited.size());
+      for (const auto &Fn : m_excited) {
         auto &Wan_mb = Wa_nmb.emplace_back();
         auto &Wab_mn = Wa_bmn.emplace_back();
-        Wan_mb.reserve(holes.size());
-        Wab_mn.reserve(holes.size());
-        for (const auto &Fa : holes) {
+        Wan_mb.reserve(m_holes.size());
+        Wab_mn.reserve(m_holes.size());
+        for (const auto &Fa : m_holes) {
           auto &Wanm_b = Wan_mb.emplace_back();
           auto &Wabm_n = Wab_mn.emplace_back();
-          Wanm_b.reserve(holes.size());
-          Wabm_n.reserve(holes.size());
-          for (const auto &Fb : holes) {
+          Wanm_b.reserve(m_holes.size());
+          Wabm_n.reserve(m_holes.size());
+          for (const auto &Fb : m_holes) {
             if (h->isZero(Fb.kappa(), Fn.kappa())) {
               // do I need to store the zero's? Or can I skip them below?
               // skipping is dangerous, mis-match of indexes
@@ -276,37 +264,37 @@ void DiagramRPA::fill_W_matrix(const DiracOperator::TensorOperator *const h,
 
 //==============================================================================
 void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
-  if (holes.empty() || excited.empty())
+  if (m_holes.empty() || m_excited.empty())
     return;
 
-  t0am.clear();
-  t0ma.clear();
+  m_t0am.clear();
+  m_t0ma.clear();
 
-  t0am.reserve(holes.size());
-  t0ma.reserve(excited.size());
+  m_t0am.reserve(m_holes.size());
+  m_t0ma.reserve(m_excited.size());
   // Calc t0 (and setup t)
-  for (const auto &Fa : holes) {
+  for (const auto &Fa : m_holes) {
     std::vector<double> t0a_m;
-    t0a_m.reserve(excited.size());
-    for (const auto &Fm : excited) {
+    t0a_m.reserve(m_excited.size());
+    for (const auto &Fm : m_excited) {
       t0a_m.push_back(h->reducedME(Fa, Fm));
     }
-    t0am.push_back(t0a_m);
+    m_t0am.push_back(t0a_m);
   }
-  for (const auto &Fm : excited) {
+  for (const auto &Fm : m_excited) {
     std::vector<double> t0m_a;
-    t0m_a.reserve(holes.size());
-    for (const auto &Fa : holes) {
+    t0m_a.reserve(m_holes.size());
+    for (const auto &Fa : m_holes) {
       t0m_a.push_back(h->reducedME(Fm, Fa));
     }
-    t0ma.push_back(t0m_a);
+    m_t0ma.push_back(t0m_a);
   }
   clear();
 }
 //==============================================================================
 void DiagramRPA::clear() {
-  tam = t0am;
-  tma = t0ma;
+  m_tam = m_t0am;
+  m_tma = m_t0ma;
 }
 
 //==============================================================================
@@ -317,20 +305,20 @@ void DiagramRPA::update_t0s(const DiracOperator::TensorOperator *const h) {
     assert(h->imaginaryQ() == m_imag && "Imaginarity must match in update_t0s");
     m_h = h;
   }
-  assert(t0am.size() == holes.size());
-  assert(t0ma.size() == excited.size());
-  if (holes.size() > 0) {
-    assert(t0am.at(0).size() == excited.size());
+  assert(m_t0am.size() == m_holes.size());
+  assert(m_t0ma.size() == m_excited.size());
+  if (m_holes.size() > 0) {
+    assert(m_t0am.at(0).size() == m_excited.size());
   }
-  if (excited.size() > 0) {
-    assert(t0ma.at(0).size() == holes.size());
+  if (m_excited.size() > 0) {
+    assert(m_t0ma.at(0).size() == m_holes.size());
   }
-  for (std::size_t ia = 0; ia < holes.size(); ++ia) {
-    const auto &Fa = holes[ia];
-    for (std::size_t im = 0; im < excited.size(); ++im) {
-      const auto &Fm = excited[im];
-      t0am[ia][im] = m_h->reducedME(Fa, Fm);
-      t0ma[im][ia] = m_h->symm_sign(Fa, Fm) * t0am[ia][im];
+  for (std::size_t ia = 0; ia < m_holes.size(); ++ia) {
+    const auto &Fa = m_holes[ia];
+    for (std::size_t im = 0; im < m_excited.size(); ++im) {
+      const auto &Fm = m_excited[im];
+      m_t0am[ia][im] = m_h->reducedME(Fa, Fm);
+      m_t0ma[im][ia] = m_h->symm_sign(Fa, Fm) * m_t0am[ia][im];
     }
   }
   clear();
@@ -338,23 +326,9 @@ void DiagramRPA::update_t0s(const DiracOperator::TensorOperator *const h) {
 
 //==============================================================================
 double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
-  return dV_diagram(Fw, Fv);
-}
 
-//==============================================================================
-double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
-                              const DiracSpinor &Fv) const {
-
-  if (holes.empty() || excited.empty())
+  if (m_holes.empty() || m_excited.empty())
     return 0.0;
-
-  // const auto Vbr = p_hf->vBreit(); // a pointer, may be null
-
-  // if (Fv.en() > Fw.en()) {
-  //   const auto sj = ((Fv.twoj() - Fw.twoj()) % 4 == 0) ? 1 : -1;
-  //   const auto si = m_imag ? -1 : 1;
-  //   return (sj * si) * dV_diagram(Fv, Fw);
-  // }
 
   const auto orderOK = true;
   const auto &Fi = orderOK ? Fv : Fw;
@@ -363,14 +337,14 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
 
   const auto f = (1.0 / (2 * m_rank + 1));
 
-  std::vector<double> sum_a(holes.size());
+  std::vector<double> sum_a(m_holes.size());
 #pragma omp parallel for
-  for (std::size_t ia = 0; ia < holes.size(); ia++) {
-    const auto &Fa = holes[ia];
+  for (std::size_t ia = 0; ia < m_holes.size(); ia++) {
+    const auto &Fa = m_holes[ia];
     const auto s1 = ((Fa.twoj() - Ff.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
-    for (std::size_t im = 0; im < excited.size(); im++) {
-      const auto &Fm = excited[im];
-      if (t0am[ia][im] == 0.0)
+    for (std::size_t im = 0; im < m_excited.size(); im++) {
+      const auto &Fm = m_excited[im];
+      if (m_t0am[ia][im] == 0.0)
         continue;
       const auto s2 = ((Fa.twoj() - Fm.twoj()) % 4 == 0) ? 1 : -1;
       // Calculate Wk from scratch here: Fi/Ff may be valence.
@@ -378,8 +352,8 @@ double DiagramRPA::dV_diagram(const DiracSpinor &Fw,
                          (m_Br ? m_Br->BWk_abcd(m_rank, Ff, Fm, Fi, Fa) : 0.0);
       const auto Wwavm = Coulomb::Wk_abcd(m_rank, Ff, Fa, Fi, Fm) +
                          (m_Br ? m_Br->BWk_abcd(m_rank, Ff, Fa, Fi, Fm) : 0.0);
-      const auto ttam = tam[ia][im];
-      const auto ttma = tma[im][ia];
+      const auto ttam = m_tam[ia][im];
+      const auto ttma = m_tma[im][ia];
       const auto A = ttam * Wwmva / (Fa.en() - Fm.en() - ww);
       const auto B = Wwavm * ttma / (Fa.en() - Fm.en() + ww);
       sum_a[ia] += s1 * (A + s2 * B);
@@ -395,15 +369,12 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
   const auto a_damp = 0.5; //m_eta;
   const auto b_damp = 1.0 - a_damp;
 
-  // m_core_omega = std::abs(omega);
   m_core_omega = omega;
 
-  if (holes.empty() || excited.empty())
+  if (m_holes.empty() || m_excited.empty())
     return;
 
-  if (m_h->freqDependantQ()) {
-    setup_ts(m_h);
-  }
+  setup_ts(m_h);
 
   if (print) {
     fmt::print("RPA(D) {:s} (w={:.4f}): ", m_h->name(), m_core_omega);
@@ -417,31 +388,31 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
 
   for (; it < max_its; it++) {
 
-    std::vector<std::pair<double, std::string>> eps_m(excited.size());
+    std::vector<std::pair<double, std::string>> eps_m(m_excited.size());
     // Use these internally - should be values from previous iteration!
-    const auto Tnb = tma;
-    const auto Tbn = tam;
+    const auto Tnb = m_tma;
+    const auto Tbn = m_tam;
 
 #pragma omp parallel for
-    for (std::size_t im = 0; im < excited.size(); im++) {
-      const auto &Fm = excited[im];
+    for (std::size_t im = 0; im < m_excited.size(); im++) {
+      const auto &Fm = m_excited[im];
 
       double eps_worst_a = 0.0;
       std::string t_worst;
-      for (std::size_t ia = 0; ia < holes.size(); ia++) {
-        const auto &Fa = holes[ia];
+      for (std::size_t ia = 0; ia < m_holes.size(); ia++) {
+        const auto &Fa = m_holes[ia];
 
         double sum_am = 0.0;
         double sum_ma = 0.0;
 
-        for (std::size_t ib = 0; ib < holes.size(); ib++) {
-          const auto &Fb = holes[ib];
+        for (std::size_t ib = 0; ib < m_holes.size(); ib++) {
+          const auto &Fb = m_holes[ib];
           const auto s1 =
             ((Fb.twoj() - Fa.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
           const auto s3 =
             ((Fb.twoj() - Fm.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
-          for (std::size_t in = 0; in < excited.size(); in++) {
-            const auto &Fn = excited[in];
+          for (std::size_t in = 0; in < m_excited.size(); in++) {
+            const auto &Fn = m_excited[in];
 
             const auto tbn = Tbn[ib][in];
             if (tbn == 0.0)
@@ -451,10 +422,10 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
             const auto s2 = ((Fb.twoj() - Fn.twoj()) % 4 == 0) ? 1 : -1;
             const auto stdep = s2 * tnb / (Fb.en() - Fn.en() + m_core_omega);
             {
-              const auto A = tdem * Wanmb[ia][in][im][ib];
-              const auto B = stdep * Wabmn[ia][in][im][ib];
-              const auto C = tdem * Wmnab[im][in][ia][ib];
-              const auto D = stdep * Wmban[im][in][ia][ib];
+              const auto A = tdem * m_Wanmb[ia][in][im][ib];
+              const auto B = stdep * m_Wabmn[ia][in][im][ib];
+              const auto C = tdem * m_Wmnab[im][in][ia][ib];
+              const auto D = stdep * m_Wmban[im][in][ia][ib];
               sum_am += s1 * (A + B);
               sum_ma += s3 * (C + D);
             }
@@ -462,13 +433,13 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
         }
 
         // Update core-excited matrix elements, including damping
-        const auto prev = tam[ia][im];
-        tam[ia][im] =
-          a_damp * tam[ia][im] + b_damp * (t0am[ia][im] + f * sum_am);
-        tma[im][ia] =
-          a_damp * tma[im][ia] + b_damp * (t0ma[im][ia] + f * sum_ma);
+        const auto prev = m_tam[ia][im];
+        m_tam[ia][im] =
+          a_damp * m_tam[ia][im] + b_damp * (m_t0am[ia][im] + f * sum_am);
+        m_tma[im][ia] =
+          a_damp * m_tma[im][ia] + b_damp * (m_t0ma[im][ia] + f * sum_ma);
         const auto delta =
-          2.0 * std::abs((tam[ia][im] - prev) / (prev + tam[ia][im]));
+          2.0 * std::abs((m_tam[ia][im] - prev) / (prev + m_tam[ia][im]));
 
         if (delta > eps_worst_a) {
           eps_worst_a = delta;
