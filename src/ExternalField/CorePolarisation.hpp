@@ -1,6 +1,7 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
 #include "qip/String.hpp"
+#include <cassert>
 #include <string>
 #include <vector>
 class DiracSpinor;
@@ -81,11 +82,20 @@ public:
   virtual void solve_core(const double omega, int max_its = 100,
                           const bool print = true) = 0;
 
-  //! @brief Clears the dPsi orbitals (sets to zero)
+  //! @brief Clears the internal state back to pre solve_core()
   virtual void clear() = 0;
 
   //! @brief Calculate reduced matrix element <n||dV||m>
   virtual double dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const = 0;
+
+  //! @brief Calculates reduced right-hand-side, projected onto kappa: [dV|phi_m]_kappa
+  virtual DiracSpinor dV_rhs(int kappa, const DiracSpinor &Fm) const {
+    // XXX Remove this implementation (make pure virtual) once j_L killed
+    (void)kappa;
+    (void)Fm;
+    assert(false && "This should be made pure virtual");
+    return Fm;
+  }
 
 public:
   CorePolarisation &operator=(const CorePolarisation &) = delete;

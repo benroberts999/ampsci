@@ -341,8 +341,7 @@ double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
 }
 
 //==============================================================================
-DiracSpinor TDHF::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
-                         bool conj) const {
+DiracSpinor TDHF::dV_rhs(int kappa_n, const DiracSpinor &Fa, bool conj) const {
 
   auto dVFa = DiracSpinor(0, kappa_n, Fa.grid_sptr());
   dVFa.max_pt() = Fa.max_pt();
