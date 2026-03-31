@@ -19,6 +19,6 @@
 #include "ampsci/include.hpp"
 #include "catch2/include.hpp"
 #include "fmt/include.hpp"
+#include "json/include.hpp"
 #include "qip/include.hpp"
 #include "version/include.hpp"
-#include "json/include.hpp"

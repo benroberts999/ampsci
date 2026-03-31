@@ -51,10 +51,11 @@ git rebase dev
 * Consistent formatting minimises unnecessary git diffs and improves readability.
 * Rather than doing this by hand, it is enforced by a tool [**clang-format**](https://clang.llvm.org/docs/ClangFormat.html), which automatically formats the code
 * Install the tool:
-  * Linux: `sudo apt install clang-format`
-  * macOS: `brew install clang-format`
+  * Linux: `sudo apt install clang-format-14`
+  * macOS: `brew install clang-format-14`
 * A style file, which defines the style rules, is provided in the repository `src/.clang-format`.
-* The makefile also has a target to directly run clang-format, which is a good idea before committing:
+  * Due to differences in the formatting between different clang-format versions, it's preferred to use clang-format-14 (this is old version, and we will shift up soon). If you don't have access to clang-format-14, best to just skip, or else risk introducing many small formatting diffs
+* The makefile also has a target to directly run clang-format (forces version 14), which is a good idea before committing:
 
 <div class="shell-block">
 ```bash

@@ -81,11 +81,13 @@ do_the_chicken_dance:
 
 ## Run clang format on entire project
 ## External libraries (fmt, catch2, json) are excluded via their own .clang-format files
+## Force specific clang-format version to avoid many small diffs
+CLANG_FORMAT := clang-format-14
 clang_format:
 	@echo "Running clang-format (whole project)"
 	@find $(SRC) \
 	  -type f \( -iname '*.cpp' -o -iname '*.hpp' -o -iname '*.ipp' \) -print \
-	  | xargs -r clang-format -i -verbose
+	  | xargs -r $(CLANG_FORMAT) -i -verbose
 
 ## Makes the include.hpp files, and runs clang format on them
 includes:
