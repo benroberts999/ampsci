@@ -110,10 +110,10 @@ TDHFbasis::form_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
 }
 
 //==============================================================================
-void TDHFbasis::solve_core(const double omega, int max_its, const bool print) {
+void TDHFbasis::solve_core(double omega, int max_its, bool print) {
 
   const auto converge_targ = m_eps;
-  const auto eta_damp = 1.0e-5 * m_eta;
+  const auto eta_damp = /*1.0e-5 **/ m_eta;
   const auto ww = std::abs(omega);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;

@@ -78,6 +78,8 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   m_Wabmn = drpa->m_Wabmn;
   m_Wmnab = drpa->m_Wmnab;
   m_Wmban = drpa->m_Wmban;
+
+  update_t0s(h);
 }
 
 //==============================================================================
@@ -289,7 +291,8 @@ void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
     }
     m_t0ma.push_back(t0m_a);
   }
-  clear();
+  m_tam = m_t0am;
+  m_tma = m_t0ma;
 }
 //==============================================================================
 void DiagramRPA::clear() {
@@ -305,6 +308,13 @@ void DiagramRPA::update_t0s(const DiracOperator::TensorOperator *const h) {
     assert(h->imaginaryQ() == m_imag && "Imaginarity must match in update_t0s");
     m_h = h;
   }
+
+  // on first call, t0 are empty. Just fill them
+  if (m_t0am.empty() || m_tam.empty()) {
+    setup_ts(h);
+    return;
+  }
+
   assert(m_t0am.size() == m_holes.size());
   assert(m_t0ma.size() == m_excited.size());
   if (m_holes.size() > 0) {
@@ -321,13 +331,15 @@ void DiagramRPA::update_t0s(const DiracOperator::TensorOperator *const h) {
       m_t0ma[im][ia] = m_h->symm_sign(Fa, Fm) * m_t0am[ia][im];
     }
   }
-  clear();
+  // Don't update Ts (faster convergance)
+  // m_tam = m_t0am;
+  // m_tma = m_t0ma;
 }
 
 //==============================================================================
 double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
 
-  if (m_holes.empty() || m_excited.empty())
+  if (m_holes.empty() || m_excited.empty() || m_tam.empty() || m_t0am.empty())
     return 0.0;
 
   const auto orderOK = true;
@@ -359,14 +371,15 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
       sum_a[ia] += s1 * (A + s2 * B);
     }
   }
+
   return f * std::accumulate(begin(sum_a), end(sum_a), 0.0);
 }
 
 //==============================================================================
-void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
+void DiagramRPA::solve_core(double omega, int max_its, bool print) {
 
   const auto eps_targ = m_eps;
-  const auto a_damp = 0.5; //m_eta;
+  const auto a_damp = m_eta; // ? or always 0.5
   const auto b_damp = 1.0 - a_damp;
 
   m_core_omega = omega;
@@ -374,19 +387,26 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
   if (m_holes.empty() || m_excited.empty())
     return;
 
-  setup_ts(m_h);
-
   if (print) {
     fmt::print("RPA(D) {:s} (w={:.4f}): ", m_h->name(), m_core_omega);
     std::cout << std::flush;
   }
 
-  int it = 1;
-  auto eps = 0.0;
+  // Start at 2:
+  int its_performed = 0;
+  auto eps = 1.0;
   std::string s_worst;
   const auto f = (1.0 / (2 * m_rank + 1));
 
-  for (; it < max_its; it++) {
+  // Assurs that dV=0 if max_its=0
+  // 1 iteration is just setup_ts()
+  if (max_its != 0) {
+    ++its_performed;
+    update_t0s(m_h);
+  }
+
+  for (int it = 2; it <= max_its; it++) {
+    ++its_performed;
 
     std::vector<std::pair<double, std::string>> eps_m(m_excited.size());
     // Use these internally - should be values from previous iteration!
@@ -459,12 +479,12 @@ void DiagramRPA::solve_core(const double omega, int max_its, const bool print) {
   }
 
   if (print) {
-    printf("%2i %.1e [%s]\n", it, eps, s_worst.c_str());
+    printf("%2i %.1e [%s]\n", its_performed, eps, s_worst.c_str());
     std::cout << std::flush;
   }
 
   m_core_eps = eps;
-  m_core_its = it;
+  m_core_its = its_performed;
 }
 
 } // namespace ExternalField

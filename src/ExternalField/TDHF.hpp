@@ -68,7 +68,7 @@ public:
      itteration]. If print=true, will write progress to screen.
   */
   virtual void solve_core(double omega, int max_its = 100,
-                          const bool print = true) override;
+                          bool print = true) override;
 
   //! Returns RPA method
   virtual Method method() const override { return Method::TDHF; }

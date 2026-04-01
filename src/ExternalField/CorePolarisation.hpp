@@ -79,8 +79,8 @@ public:
   virtual Method method() const = 0;
 
   //! Solve RPA equations (for whichever method) for core.
-  virtual void solve_core(const double omega, int max_its = 100,
-                          const bool print = true) = 0;
+  virtual void solve_core(double omega, int max_its = 100,
+                          bool print = true) = 0;
 
   //! @brief Clears the internal state back to pre solve_core()
   virtual void clear() = 0;
