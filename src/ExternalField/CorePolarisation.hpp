@@ -17,10 +17,12 @@ enum class Method { TDHF, basis, diagram, none, Error };
 inline Method ParseMethod(std::string_view str) {
   return qip::ci_compare(str, "TDHF")       ? Method::TDHF :
          qip::ci_compare(str, "true")       ? Method::TDHF :
+         qip::ci_compare(str, "default")    ? Method::TDHF :
          qip::ci_compare(str, "basis")      ? Method::basis :
          qip::ci_compare(str, "tdhf_basis") ? Method::basis :
          qip::ci_compare(str, "tdhfbasis")  ? Method::basis :
          qip::ci_compare(str, "diagram")    ? Method::diagram :
+         qip::ci_compare(str, "diagramRPA") ? Method::diagram :
          qip::ci_compare(str, "rpad")       ? Method::diagram :
          qip::ci_compare(str, "rpa(d)")     ? Method::diagram :
          qip::ci_compare(str, "none")       ? Method::none :
@@ -89,10 +91,12 @@ public:
   virtual double dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const = 0;
 
   //! @brief Calculates reduced right-hand-side, projected onto kappa: [dV|phi_m]_kappa
-  virtual DiracSpinor dV_rhs(int kappa, const DiracSpinor &Fm) const {
+  virtual DiracSpinor dV_rhs(int kappa, const DiracSpinor &Fm,
+                             bool conj = false) const {
     // XXX Remove this implementation (make pure virtual) once j_L killed
     (void)kappa;
     (void)Fm;
+    (void)conj;
     assert(false && "This should be made pure virtual");
     return Fm;
   }

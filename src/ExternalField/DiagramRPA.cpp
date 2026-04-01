@@ -10,6 +10,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/omp.hpp"
 #include <algorithm>
 #include <numeric>
 #include <string>
@@ -342,9 +343,14 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
   if (m_holes.empty() || m_excited.empty() || m_tam.empty() || m_t0am.empty())
     return 0.0;
 
-  const auto orderOK = true;
-  const auto &Fi = orderOK ? Fv : Fw;
-  const auto &Ff = orderOK ? Fw : Fv;
+  // can base this on sign of omega?
+  // But then lose ability to explicitely check Hermicity..?
+  const auto omega_eff = Fw.en() - Fv.en();
+  // if the signs of the omegas don't match, then we should do "conj"
+  const auto conjugate = m_core_omega * omega_eff < 0.0;
+  // XXX NB: This will break some tests! XXX
+  const auto &Fi = conjugate ? Fw : Fv;
+  const auto &Ff = conjugate ? Fv : Fw;
   const auto ww = m_core_omega;
 
   const auto f = (1.0 / (2 * m_rank + 1));
@@ -353,7 +359,7 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
 #pragma omp parallel for
   for (std::size_t ia = 0; ia < m_holes.size(); ia++) {
     const auto &Fa = m_holes[ia];
-    const auto s1 = ((Fa.twoj() - Ff.twoj() + 2 * m_rank) % 4 == 0) ? 1 : -1;
+    const auto s1 = Angular::neg1pow_2(Fa.twoj() - Ff.twoj() + 2 * m_rank);
     for (std::size_t im = 0; im < m_excited.size(); im++) {
       const auto &Fm = m_excited[im];
       if (m_t0am[ia][im] == 0.0)
@@ -373,6 +379,68 @@ double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
   }
 
   return f * std::accumulate(begin(sum_a), end(sum_a), 0.0);
+}
+
+//==============================================================================
+DiracSpinor DiagramRPA::dV_rhs(int kappa, const DiracSpinor &Fi,
+                               bool conj) const {
+  DiracSpinor dVFm(0, kappa, Fi.grid_sptr());
+  dVFm.max_pt() = Fi.max_pt();
+  if (m_holes.empty() || m_excited.empty() || m_tam.empty() || m_t0am.empty())
+    return dVFm;
+
+  const auto tjw = Angular::twoj_k(kappa);
+  const auto ww = m_core_omega;
+  // Correct way to account for conj?
+  const auto s_conj = conj ? m_h->symm_sign(dVFm, Fi) : 1.0;
+  const auto f = s_conj * (1.0 / (2.0 * m_rank + 1.0));
+
+  // Find non-zero index pairs: more efficient //isation
+  std::vector<std::array<std::size_t, 2>> am_indexes;
+  for (std::size_t ia = 0; ia < m_holes.size(); ia++) {
+    for (std::size_t im = 0; im < m_excited.size(); im++) {
+      if (m_t0am[ia][im] != 0.0)
+        am_indexes.emplace_back(std::array{ia, im});
+    }
+  }
+
+  // manual reduction over whichever size is the smaller:
+  const auto threads_reduce =
+    std::size_t(omp_get_max_threads()) < am_indexes.size();
+  const auto num_omp_reduction =
+    threads_reduce ? std::size_t(omp_get_max_threads()) : am_indexes.size();
+  const auto index_omp = [threads_reduce](std::size_t i) {
+    return threads_reduce ? std::size_t(omp_get_thread_num()) : i;
+  };
+
+  std::vector<DiracSpinor> dVFms(num_omp_reduction, dVFm);
+#pragma omp parallel for
+  for (std::size_t i = 0; i < am_indexes.size(); ++i) {
+    const auto [ia, im] = am_indexes[i];
+
+    auto &dVFm_i = dVFms[index_omp(i)];
+    const auto &Fa = m_holes[ia];
+    const auto &Fm = m_excited[im];
+
+    // ? Is this correct? Also change ww or Wk? ???
+    const auto Tam = conj ? m_tma[im][ia] : m_tam[ia][im];
+    const auto Tma = conj ? m_tam[ia][im] : m_tma[im][ia];
+
+    const auto s1 = Angular::neg1pow_2(Fa.twoj() - tjw + 2 * m_rank);
+    const auto s2 = Angular::neg1pow_2(Fa.twoj() - Fm.twoj());
+    const auto c_ttam = s1 * f * Tam / (Fa.en() - Fm.en() - ww);
+    const auto c_ttma = s1 * s2 * f * Tma / (Fa.en() - Fm.en() + ww);
+
+    dVFm_i += c_ttam * Coulomb::Wkv_bcd(m_rank, kappa, Fm, Fi, Fa);
+    dVFm_i += c_ttma * Coulomb::Wkv_bcd(m_rank, kappa, Fa, Fi, Fm);
+
+    if (m_Br) {
+      dVFm_i += c_ttam * m_Br->BWkv_bcd(m_rank, kappa, Fm, Fi, Fa);
+      dVFm_i += c_ttma * m_Br->BWkv_bcd(m_rank, kappa, Fa, Fi, Fm);
+    }
+  }
+
+  return std::accumulate(begin(dVFms), end(dVFms), dVFm);
 }
 
 //==============================================================================

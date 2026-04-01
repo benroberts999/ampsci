@@ -16,10 +16,12 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
 
   Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
                   {"K", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("Local", 0.0, "[Ar]");
-  wf.solve_valence("4sp");
+  wf.solve_core("Local", 0.0, "[Ar]", 1.0e-10, false);
+  wf.solve_valence("4sp", false);
   // nb: use very small basis. Don't care about numerical results, just that eveything is working correctly.
-  wf.formBasis({"10spd", 20, 7, 1.0e-3, 1.0e-3, 40.0});
+  SplineBasis::Parameters params{"10spd", 20, 7, 1.0e-3, 1.0e-3, 40.0};
+  params.verbose = false;
+  wf.formBasis(params);
 
   auto dE1 = DiracOperator::E1(wf.grid());
 
@@ -28,37 +30,53 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
   REQUIRE(F6s != nullptr);
   REQUIRE(F6p != nullptr);
 
-  const auto file_name = "deleteme_" + qip::random_string(4);
+  const auto file_name = "deleteme_" + qip::random_string(3);
   auto rpa = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.vHF(), file_name);
-  rpa.solve_core(0.0, 20);
+
+  // before solve_core, should be valid, but return 0.0
+  const auto dv_00 = rpa.dV(*F6s, *F6p);
+  REQUIRE(dv_00 == 0.0);
+
+  rpa.solve_core(0.0, 5);
 
   const auto dv_0 = rpa.dV(*F6s, *F6p);
-  std::cout << *F6s << "-" << *F6p << ": " << dv_0 << "\n";
   REQUIRE(dv_0 != 0.0);
-  // doesn't work with small grid/basis/its etc
-  // REQUIRE(std::abs(dv_0) < std::abs(dv1_0));
 
   // This should read W matrix from file, but not calculate t's
   // Grabbing t's from other rpa - should yield exact same result!
   auto rpa2 = ExternalField::DiagramRPA(&dE1, wf.basis(), wf.vHF(), file_name);
-  rpa2.grab_tam(&rpa);
-  // const auto dv1_2 = rpa2.dV1(*F6s, *F6p);
-  const auto dv_2 = rpa2.dV(*F6s, *F6p);
-  std::cout << *F6s << "-" << *F6p << ": " << dv_2 << "\n";
 
+  // const auto dv1_2 = rpa2.dV1(*F6s, *F6p);
+  const auto dv_20 = rpa2.dV(*F6s, *F6p);
+  REQUIRE(dv_20 == 0.0);
+  rpa2.solve_core(0.0, 5, false);
+  const auto dv_2 = rpa2.dV(*F6s, *F6p);
   REQUIRE(dv_2 == Approx(dv_0));
 
   auto rpa3 = ExternalField::DiagramRPA(&dE1, &rpa);
-  // const auto dv1_3 = rpa3.dV1(*F6s, *F6p);
-
-  // can get lowest-rder _before_ solving core:
-  // REQUIRE(dv1_3 == Approx(dv1_0));
 
   // but need to solve_core (or 'grab_tam') to get RPA:
-  rpa3.solve_core(0.0);
+  rpa3.solve_core(0.0, 5, false);
   const auto dv_3 = rpa3.dV(*F6s, *F6p);
-  std::cout << *F6s << "-" << *F6p << ": " << dv_3 << "\n";
-  REQUIRE(dv_3 == Approx(dv_0).epsilon(1.0e-2));
+  REQUIRE(dv_3 == Approx(dv_0));
+
+  // dV_rhs(Fa) should return a DiracSpinor with the requested kappa
+  for (int kappa : {-1, 1, -2, 2, -3}) {
+    REQUIRE(rpa.dV_rhs(kappa, *F6s).kappa() == kappa);
+    REQUIRE(rpa.dV_rhs(kappa, *F6p).kappa() == kappa);
+  }
+
+  // Fb * dV_rhs(kappa_b, Fa) should equal dV(Fb, Fa)
+  {
+    const auto dv_ps = rpa.dV(*F6p, *F6s);
+    const auto dv_sp = rpa.dV(*F6s, *F6p);
+    const auto rhs_ps = *F6p * rpa.dV_rhs(F6p->kappa(), *F6s);
+    const auto rhs_sp = *F6s * rpa.dV_rhs(F6s->kappa(), *F6p);
+    std::cout << "dV(p,s)=" << dv_ps << " Fp*dV_rhs(kp,s)=" << rhs_ps << "\n";
+    std::cout << "dV(s,p)=" << dv_sp << " Fs*dV_rhs(ks,p)=" << rhs_sp << "\n";
+    REQUIRE(rhs_ps == Approx(dv_ps).epsilon(1.0e-6));
+    REQUIRE(rhs_sp == Approx(dv_sp).epsilon(1.0e-6));
+  }
 }
 
 //==============================================================================

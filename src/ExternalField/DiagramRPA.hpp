@@ -155,6 +155,10 @@ public:
   */
   double dV(const DiracSpinor &Fa, const DiracSpinor &Fb) const override final;
 
+  //! @brief Calculates reduced right-hand-side, projected onto kappa: [dV|phi_m]_kappa
+  DiracSpinor dV_rhs(int kappa, const DiracSpinor &Fm,
+                     bool conj = false) const final;
+
   //! @brief Resets the RPA matrix elements to their unperturbed (zeroth-order) values
   /*! @details
     Clears the \f$ t_{am} \f$ and \f$ t_{ma} \f$ matrices (which encode the
@@ -176,13 +180,6 @@ public:
   void update_t0s(const DiracOperator::TensorOperator *const h = nullptr);
 
   //! @brief Copies converged RPA matrix elements from another DiagramRPA instance
-  /*! @details
-    Copies the \f$ t_{am} \f$ and \f$ t_{ma} \f$ matrices from @p drpa into
-    this object.  When two operators are sufficiently similar this seeds
-    solve_core() with a good initial guess, potentially reducing the number of
-    iterations needed to reach convergence.
-    @param drpa  Source DiagramRPA instance whose RPA matrix elements are copied
-  */
   [[deprecated]]
   void grab_tam(const DiagramRPA *const drpa) {
     m_t0am = drpa->m_t0am;

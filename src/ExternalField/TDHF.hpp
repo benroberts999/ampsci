@@ -87,11 +87,8 @@ public:
 
   //! Returns "reduced partial matrix element RHS": dV||Fb}.
   //! Note: Fa * dV_rhs(..) equiv to dV(..)
-  DiracSpinor dV_rhs(int kappa_n, const DiracSpinor &Fm, bool conj) const;
-
-  DiracSpinor dV_rhs(int kappa_n, const DiracSpinor &Fm) const final {
-    return dV_rhs(kappa_n, Fm, false);
-  }
+  DiracSpinor dV_rhs(int kappa_n, const DiracSpinor &Fm,
+                     bool conj = false) const override;
 
   //! Returns const ref to dPsi orbitals for given core orbital Fc
   const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &Fc,
