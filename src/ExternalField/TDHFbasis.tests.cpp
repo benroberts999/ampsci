@@ -14,13 +14,13 @@
 TEST_CASE("External Field: TDHFbasis - basic unit tests",
           "[ExternalField][TDHFbasis][RPA][unit]") {
 
-  Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
+  Wavefunction wf({350, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-10, false);
   wf.solve_valence("3sp", false);
   // nb: use very small basis.
   // Don't care about numerical results, just that eveything is working correctly.
-  SplineBasis::Parameters params{"10sp8d", 20, 7, 1.0e-3, 1.0e-3, 30.0};
+  SplineBasis::Parameters params{"9sp8d", 20, 7, 1.0e-3, 1.0e-3, 30.0};
   params.verbose = false;
   wf.formBasis(params);
 
@@ -30,8 +30,8 @@ TEST_CASE("External Field: TDHFbasis - basic unit tests",
   auto rpa2 =
     ExternalField::make_rpa("basis", &dE1, wf.vHF(), true, wf.basis(), "");
 
-  rpa.solve_core(0.0, 15);
-  rpa2->solve_core(0.0, 15);
+  rpa.solve_core(0.0, 18);
+  rpa2->solve_core(0.0, 18);
 
   for (const auto &v : wf.valence()) {
     for (const auto &w : wf.valence()) {
@@ -63,6 +63,22 @@ TEST_CASE("External Field: TDHFbasis - basic unit tests",
   auto F6p = wf.getState("3p-");
   REQUIRE(F6s != nullptr);
   REQUIRE(F6p != nullptr);
+
+  // dV_rhs(Fa) should return a DiracSpinor with the requested kappa
+  for (int kappa : {-1, 1, -2, 2, -3}) {
+    REQUIRE(rpa.dV_rhs(kappa, *F6s).kappa() == kappa);
+    REQUIRE(rpa.dV_rhs(kappa, *F6p).kappa() == kappa);
+  }
+
+  // Fb * dV_rhs(kappa_b, Fa) should equal dV(Fb, Fa)
+  {
+    const auto dv_ps = rpa.dV(*F6p, *F6s);
+    const auto dv_sp = rpa.dV(*F6s, *F6p);
+    const auto rhs_ps = *F6p * rpa.dV_rhs(F6p->kappa(), *F6s);
+    const auto rhs_sp = *F6s * rpa.dV_rhs(F6s->kappa(), *F6p);
+    REQUIRE(rhs_ps == Approx(dv_ps));
+    REQUIRE(rhs_sp == Approx(dv_sp));
+  }
 
   rpa.clear();
   const auto dv_00 = rpa.dV(*F6s, *F6p);
@@ -121,9 +137,7 @@ TEST_CASE("External Field: TDHFbasis (RPA)",
       for (const auto &w : wf.valence()) {
         if (h->isZero(v, w))
           continue;
-        // False: prevent calculateing dV^dag for v>w ?
-        // Because Basis inherits from TDHF, which distingushes dV and dV^dag
-        const auto dv_basis = Basis.dV(v, w, false);
+        const auto dv_basis = Basis.dV(v, w);
         const auto dv_diagram = Diagram.dV(v, w);
         const auto eps = std::abs((dv_basis - dv_diagram) / dv_diagram);
         fmt::print("{:3} {:3}  {:+.4e}  [{:+.4e}]   ({:.0e})\n",

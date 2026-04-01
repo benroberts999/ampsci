@@ -112,8 +112,13 @@ TDHFbasis::form_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
 //==============================================================================
 void TDHFbasis::solve_core(double omega, int max_its, bool print) {
 
-  const auto converge_targ = m_eps;
-  const auto eta_damp = /*1.0e-5 **/ m_eta;
+  assert(m_h->rank() == m_rank && "Rank must match in solve_core");
+  assert(m_h->parity() == m_pi && "Parity must match in solve_core");
+  assert(m_h->imaginaryQ() == m_imag && "Imaginarity must match in solve_core");
+
+  const auto converge_targ = 1.0e-5 * m_eps;
+  const auto eta_damp = m_eta; // used to be 1e-5??
+  // seems to converge worse with large eta?
   const auto ww = std::abs(omega);
 
   const bool staticQ = std::abs(omega) < 1.0e-10;
@@ -139,7 +144,7 @@ void TDHFbasis::solve_core(double omega, int max_its, bool print) {
 
   int it = 0;
   for (; it < max_its; it++) {
-    const auto a_damp = (it == 0) ? 0.0 : eta_damp;
+    const auto a_damp = (it <= 1) ? 0.0 : eta_damp;
 
 #pragma omp parallel for
     for (auto i = 0ul; i < indexs.size(); i++) {
@@ -180,7 +185,7 @@ void TDHFbasis::solve_core(double omega, int max_its, bool print) {
         }
       }
     }
-    eps = eps_top / eps_bottom;
+    eps = eps_top / eps_bottom / (1.0 - a_damp);
 
     m_X = tmp_X;
     m_Y = tmp_Y;

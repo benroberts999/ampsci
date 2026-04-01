@@ -110,7 +110,6 @@ public:
              bool print = true);
 
   //! @brief Constructs DiagramRPA by reusing W matrices from an existing instance
-  [[deprecated]]
   DiagramRPA(const DiracOperator::TensorOperator *const h,
              const DiagramRPA *const drpa);
 
@@ -155,6 +154,8 @@ public:
   */
   double dV(const DiracSpinor &Fa, const DiracSpinor &Fb) const override final;
 
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
+
   //! @brief Calculates reduced right-hand-side, projected onto kappa: [dV|phi_m]_kappa
   DiracSpinor dV_rhs(int kappa, const DiracSpinor &Fm,
                      bool conj = false) const final;
@@ -179,21 +180,12 @@ public:
   */
   void update_t0s(const DiracOperator::TensorOperator *const h = nullptr);
 
-  //! @brief Copies converged RPA matrix elements from another DiagramRPA instance
-  [[deprecated]]
-  void grab_tam(const DiagramRPA *const drpa) {
-    m_t0am = drpa->m_t0am;
-    m_t0ma = drpa->m_t0ma;
-    m_tam = drpa->m_tam;
-    m_tma = drpa->m_tma;
-  }
-
 private:
   // Note: only writes W (depends on k/pi, and basis). Do not write t's, since
   // they depend on operator. This makes it very fast when making small changes
   // to operator (don't need to re-calc W)
   // Note: doesn't depend on grid!
-  bool read_write(const std::string &fname, IO::FRW::RoW rw);
+  bool read_write(const std::string &fname, IO::FRW::RoW rw, bool print = true);
 
   // Calculates all required W^k integrals (uses rank, parity of h)
   void fill_W_matrix(const DiracOperator::TensorOperator *const h, bool print);

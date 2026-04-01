@@ -51,12 +51,13 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
   const auto do_read_write = atom != "" && atom != "false";
 
   // Attempt to read W's from a file:
-  const auto read_ok = do_read_write ? read_write(fname, IO::FRW::read) : false;
+  const auto read_ok =
+    do_read_write ? read_write(fname, IO::FRW::read, print) : false;
   if (!read_ok) {
     // If not, calc W's, and write to file
     fill_W_matrix(h, print);
     if (!m_holes.empty() && !m_excited.empty() && do_read_write)
-      read_write(fname, IO::FRW::write);
+      read_write(fname, IO::FRW::write, print);
   }
 }
 
@@ -84,7 +85,8 @@ DiagramRPA::DiagramRPA(const DiracOperator::TensorOperator *const h,
 }
 
 //==============================================================================
-bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
+bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw,
+                            bool print) {
   // Note: only writes W (depends on k/pi, and basis). Do not write t's, since
   // they depend on operator. This makes it very fast when making small changes
   // to operator (don't need to re-calc W)
@@ -94,12 +96,14 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
   if (readQ && !IO::FRW::file_exists(fname))
     return false;
 
-  const auto rw_str = !readQ ? "Writing to " : "Reading from ";
-  std::cout << rw_str << "RPA(diagram) file: " << fname << " ("
-            << DiracSpinor::state_config(m_holes) << "/"
-            << DiracSpinor::state_config(m_excited) << ") ... " << std::flush;
+  if (print) {
+    const auto rw_str = !readQ ? "Writing to " : "Reading from ";
+    std::cout << rw_str << "RPA(diagram) file: " << fname << " ("
+              << DiracSpinor::state_config(m_holes) << "/"
+              << DiracSpinor::state_config(m_excited) << ") ... " << std::flush;
+  }
 
-  if (readQ)
+  if (readQ && print)
     std::cout
       << "\nNote: still uses Basis for summation (only reads in W matrix)\n";
 
@@ -117,10 +121,13 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
   rw_binary(iofs, rw, hs, es);
   if (readQ) {
     if (hs != m_holes.size() || es != m_excited.size()) {
-      std::cout << "\nCannot read from " << fname << ". Basis mis-match (read "
-                << hs << "," << es << "; expected " << m_holes.size() << ","
-                << m_excited.size() << ").\n"
-                << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
+      if (print) {
+        std::cout
+          << "\nCannot read from " << fname << ". Basis mis-match (read " << hs
+          << "," << es << "; expected " << m_holes.size() << ","
+          << m_excited.size() << ").\n"
+          << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
+      }
       return false;
     }
   }
@@ -132,11 +139,13 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
       rw_binary(iofs, rw, n, k);
       if (readQ) {
         if (Fn.n() != n || Fn.kappa() != k) {
-          std::cout
-            << "\nCannot read from " << fname << ". Basis mis-match (read " << n
-            << "," << k << "; expected " << Fn.n() << "," << Fn.kappa()
-            << ").\n"
-            << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
+          if (print) {
+            std::cout
+              << "\nCannot read from " << fname << ". Basis mis-match (read "
+              << n << "," << k << "; expected " << Fn.n() << "," << Fn.kappa()
+              << ").\n"
+              << "Will recalculate rpa_Diagram matrix, and overwrite file.\n";
+          }
           return false;
         }
       }
@@ -145,7 +154,9 @@ bool DiagramRPA::read_write(const std::string &fname, IO::FRW::RoW rw) {
 
   // read/write Ws:
   rw_binary(iofs, rw, m_Wanmb, m_Wabmn, m_Wmnab, m_Wmban);
-  std::cout << "done.\n";
+  if (print) {
+    std::cout << "done.\n";
+  }
 
   return true;
 }
@@ -339,21 +350,34 @@ void DiagramRPA::update_t0s(const DiracOperator::TensorOperator *const h) {
 
 //==============================================================================
 double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
-
-  if (m_holes.empty() || m_excited.empty() || m_tam.empty() || m_t0am.empty())
-    return 0.0;
-
   // can base this on sign of omega?
   // But then lose ability to explicitely check Hermicity..?
   const auto omega_eff = Fw.en() - Fv.en();
   // if the signs of the omegas don't match, then we should do "conj"
   const auto conjugate = m_core_omega * omega_eff < 0.0;
   // XXX NB: This will break some tests! XXX
+  return dV(Fw, Fv, conjugate);
+}
+
+//==============================================================================
+double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv,
+                      bool conjugate) const {
+
+  if (m_holes.empty() || m_excited.empty() || m_tam.empty() || m_t0am.empty())
+    return 0.0;
+
+  // // can base this on sign of omega?
+  // // But then lose ability to explicitely check Hermicity..?
+  // const auto omega_eff = Fw.en() - Fv.en();
+  // // if the signs of the omegas don't match, then we should do "conj"
+  // const auto conjugate = m_core_omega * omega_eff < 0.0;
+  // // XXX NB: This will break some tests! XXX
   const auto &Fi = conjugate ? Fw : Fv;
   const auto &Ff = conjugate ? Fv : Fw;
+  const auto s_conj = conjugate ? m_h->symm_sign(Fv, Fw) : 1.0;
   const auto ww = m_core_omega;
 
-  const auto f = (1.0 / (2 * m_rank + 1));
+  const auto f = (s_conj * 1.0 / (2 * m_rank + 1));
 
   std::vector<double> sum_a(m_holes.size());
 #pragma omp parallel for
@@ -390,10 +414,8 @@ DiracSpinor DiagramRPA::dV_rhs(int kappa, const DiracSpinor &Fi,
     return dVFm;
 
   const auto tjw = Angular::twoj_k(kappa);
-  const auto ww = m_core_omega;
-  // Correct way to account for conj?
-  const auto s_conj = conj ? m_h->symm_sign(dVFm, Fi) : 1.0;
-  const auto f = s_conj * (1.0 / (2.0 * m_rank + 1.0));
+  const auto ww = conj ? -m_core_omega : m_core_omega;
+  const auto f = 1.0 / (2.0 * m_rank + 1.0);
 
   // Find non-zero index pairs: more efficient //isation
   std::vector<std::array<std::size_t, 2>> am_indexes;
@@ -422,9 +444,10 @@ DiracSpinor DiagramRPA::dV_rhs(int kappa, const DiracSpinor &Fi,
     const auto &Fa = m_holes[ia];
     const auto &Fm = m_excited[im];
 
-    // ? Is this correct? Also change ww or Wk? ???
-    const auto Tam = conj ? m_tma[im][ia] : m_tam[ia][im];
-    const auto Tma = conj ? m_tam[ia][im] : m_tma[im][ia];
+    // Correct for conj
+    const auto ss = conj ? m_h->symm_sign(Fa, Fm) : 1.0;
+    const auto Tam = conj ? ss * m_tma[im][ia] : m_tam[ia][im];
+    const auto Tma = conj ? ss * m_tam[ia][im] : m_tma[im][ia];
 
     const auto s1 = Angular::neg1pow_2(Fa.twoj() - tjw + 2 * m_rank);
     const auto s2 = Angular::neg1pow_2(Fa.twoj() - Fm.twoj());
@@ -445,6 +468,10 @@ DiracSpinor DiagramRPA::dV_rhs(int kappa, const DiracSpinor &Fi,
 
 //==============================================================================
 void DiagramRPA::solve_core(double omega, int max_its, bool print) {
+
+  assert(m_h->rank() == m_rank && "Rank must match in solve_core");
+  assert(m_h->parity() == m_pi && "Parity must match in solve_core");
+  assert(m_h->imaginaryQ() == m_imag && "Imaginarity must match in solve_core");
 
   const auto eps_targ = m_eps;
   const auto a_damp = m_eta; // ? or always 0.5

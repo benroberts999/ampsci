@@ -272,6 +272,11 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
 
 //==============================================================================
 void TDHF::solve_core(double omega, int max_its, bool print) {
+
+  assert(m_h->rank() == m_rank && "Rank must match in solve_core");
+  assert(m_h->parity() == m_pi && "Parity must match in solve_core");
+  assert(m_h->imaginaryQ() == m_imag && "Imaginarity must match in solve_core");
+
   const double converge_targ = m_eps;
   const auto eta_damp = m_eta;
   omega = std::abs(omega);

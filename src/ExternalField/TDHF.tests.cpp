@@ -10,7 +10,7 @@
 #include <string>
 
 //==============================================================================
-TEST_CASE("External Field: TDHF basic unit tests 2",
+TEST_CASE("External Field: TDHF basic unit tests",
           "[ExternalField][TDHF][RPA][unit]") {
 
   Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
@@ -68,6 +68,22 @@ TEST_CASE("External Field: TDHF basic unit tests 2",
   auto F6p = wf.getState("3p-");
   REQUIRE(F6s != nullptr);
   REQUIRE(F6p != nullptr);
+
+  // dV_rhs(Fa) should return a DiracSpinor with the requested kappa
+  for (int kappa : {-1, 1, -2, 2, -3}) {
+    REQUIRE(rpa.dV_rhs(kappa, *F6s).kappa() == kappa);
+    REQUIRE(rpa.dV_rhs(kappa, *F6p).kappa() == kappa);
+  }
+
+  // Fb * dV_rhs(kappa_b, Fa) should equal dV(Fb, Fa)
+  {
+    const auto dv_ps = rpa.dV(*F6p, *F6s);
+    const auto dv_sp = rpa.dV(*F6s, *F6p);
+    const auto rhs_ps = *F6p * rpa.dV_rhs(F6p->kappa(), *F6s);
+    const auto rhs_sp = *F6s * rpa.dV_rhs(F6s->kappa(), *F6p);
+    REQUIRE(rhs_ps == Approx(dv_ps));
+    REQUIRE(rhs_sp == Approx(dv_sp));
+  }
 
   rpa.clear();
   const auto dv_00 = rpa.dV(*F6s, *F6p);
