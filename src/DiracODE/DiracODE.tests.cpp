@@ -629,3 +629,89 @@ TEST_CASE("DiracODE: continuum", "[DiracODE][cntm][unit][!mayfail]") {
   }
   std::cout << worst << "\n";
 }
+
+//==============================================================================
+TEST_CASE("DiracODE: exotic atoms - unit", "[Exotic][unit]") {
+  // Simple convergence check: DiracODE::boundState converges for exotic
+  // (muonic-like) atoms with non-unit mass, for both m=1 and m=m_muon
+
+  const double Z = 1.0;
+  const double alpha = PhysConst::alpha;
+
+  for (const double mass : {1.0, PhysConst::m_muon}) {
+    const double r0 = 1.0e-5 / Z / mass;
+    const double rmax = 1.0e2 / Z / mass;
+    const double b = rmax / 10.0;
+
+    auto grid = std::make_shared<const Grid>(
+      Grid{r0, rmax, 1000ul, GridType::loglinear, b});
+
+    const auto V0 = Nuclear::sphericalNuclearPotential(Z, 0.0, grid->r());
+
+    for (const auto [n, kappa, x_en] : AtomData::listOfStates_nk("2sp")) {
+      const auto e_excat = mass * AtomData::diracen(Z, n, kappa, alpha);
+      const auto e0 = 0.85 * e_excat;
+      const auto F = DiracODE::boundState(n, kappa, e0, grid, V0, {}, alpha,
+                                          1.0e-14, nullptr, nullptr, Z, mass);
+      REQUIRE(F.eps() < 1.0e-12);
+      REQUIRE(F.en() == Approx(e_excat).epsilon(1.0e-9));
+    }
+  }
+}
+
+//==============================================================================
+TEST_CASE("DiracODE: exotic atoms - numerical", "[Exotic]") {
+  // Numerical test: energies for pointlike H-like atom match the analytic
+  // Dirac formula E = m * diracen(Z, n, kappa, alpha) for a range of Z and
+  // masses from m=1 (electron) up to m=m_muon.
+
+  const double alpha = PhysConst::alpha;
+
+  const std::vector<int> Zs = {1, 10, 50, 100};
+  const std::vector<double> masses = {0.1, 10.0, PhysConst::m_muon, 500.0};
+
+  int count = 0;
+  for (const int Z : Zs) {
+    for (const double mass : masses) {
+      fmt::print("\nZ = {:3}, mass = {:.4f} au = {:.4f} MeV\n", Z, mass,
+                 mass * PhysConst::m_e_MeV);
+
+      const double r0 = std::max(1.0e-5 / Z / mass, 1.0e-9);
+      const double rmax = std::max(200.0 / Z / mass, 1.0);
+      const double b = rmax / 10.0;
+      std::cout << "Grid: [" << r0 << ", " << rmax << "] au\n";
+
+      auto grid = std::make_shared<const Grid>(
+        Grid{r0, rmax, 5000ul, GridType::loglinear, b});
+
+      const auto V0 = Nuclear::sphericalNuclearPotential(Z, 0.0, grid->r());
+
+      fmt::print("{:6s}  {:>15s}  Rinf    (conv )  [{:>15s}]  {:<8s}\n",
+                 "state", "E (au)", "expected", "eps");
+      for (const auto [n, kappa, x_en] : AtomData::listOfStates_nk("2sp3d4f")) {
+        const auto e_exact = mass * AtomData::diracen(Z, n, kappa, alpha);
+        const auto e0 = e_exact;
+
+        const auto F = DiracODE::boundState(n, kappa, e0, grid, V0, {}, alpha,
+                                            1.0e-14, nullptr, nullptr, Z, mass);
+
+        const auto rel_err = std::abs(F.en() / e_exact - 1.0);
+        std::string warning = F.eps() > 1.0e-9 ? "**" : "";
+        fmt::print("{:6s}  {:15.8e}  {:.1e} ({:.0e})  [{:15.8e}]  {:.1e}  {}\n",
+                   F.shortSymbol(), F.en(), F.rinf(), F.eps(), e_exact, rel_err,
+                   warning);
+        if (F.eps() > 1.0e-9)
+          ++count;
+
+        // If Dirac Eq. converged, ensure energy matches to high degree
+        const auto target = mass > 1.0 ? 1.0e-10 : 1.0e-6;
+        if (F.eps() < 1.0e-9)
+          REQUIRE(F.en() == Approx(e_exact).epsilon(target));
+      }
+    }
+  }
+  std::cout << "\nNot converged: " << count << "\n";
+  REQUIRE(count < 20);
+  std::cout << "(It's OK if not all converged, so long as we noticed with conv "
+               "parameter)\n";
+}

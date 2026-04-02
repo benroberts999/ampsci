@@ -63,7 +63,7 @@ public:
     // There appears to by typo in Eq. (2.171)
 
     const double A_large = std::sqrt(1.0 + 0.5 * en * alpha2 / m_mass);
-    const double A_small = std::sqrt(-0.5 * en) * alpha;
+    const double A_small = std::sqrt(-0.5 * en / m_mass) * alpha;
 
     const double rfac = 2.0 * std::pow(r, sigma) * std::exp(-lambda * r);
     double fs = 1.0;
@@ -80,8 +80,10 @@ public:
         break;
       }
     }
+    // here: typo in Johnson, or not? Both work
     return {rfac * (A_large * fs + A_small * gs),
             rfac * (A_large * gs - A_small * fs)};
+    // -rfac * (A_large * fs - A_small * gs)};
   }
 
 private:
