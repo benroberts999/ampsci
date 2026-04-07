@@ -29,6 +29,10 @@ namespace LinAlg {
 template <typename T>
 class View;
 
+//! Provides a non-owning view onto a Matrix (read/write, but no resize)
+template <typename T>
+class Matrix_view;
+
 //==============================================================================
 //! Matrix class; row-major
 template <typename T = double>
@@ -178,6 +182,15 @@ public:
   //! Returns an immutable 'View' of a column
   [[nodiscard]] View<const T> column_view(std::size_t col) const {
     return View<const T>(this->data(), col, m_rows, m_rows);
+  }
+
+  //! Returns a mutable view of the entire matrix (no ownership, no resize)
+  [[nodiscard]] Matrix_view<T> matrix_view() {
+    return Matrix_view<T>(m_data.data(), m_rows, m_cols);
+  }
+  //! Returns an immutable view of the entire matrix (no ownership, no resize)
+  [[nodiscard]] Matrix_view<const T> matrix_view() const {
+    return Matrix_view<const T>(m_data.data(), m_rows, m_cols);
   }
 
   //============================================================================

@@ -318,6 +318,57 @@ TEST_CASE("LinAlg: matrix multiplication<float>", "[LinAlg][unit]") {
   REQUIRE(LinAlg::equal(a2 * b2, a * b));
 }
 
+//==============================================================================
+TEST_CASE("LinAlg: Matrix_view", "[LinAlg][unit]") {
+  LinAlg::Matrix<double> m{{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}};
+
+  SECTION("view shares data with original matrix") {
+    auto v = m.matrix_view();
+    REQUIRE(&v[0][0] == &m[0][0]);
+
+    LinAlg::Matrix_view<double> v2 = m;
+    LinAlg::Matrix_view<const double> v2c = m;
+    REQUIRE(&v2[0][0] == &m[0][0]);
+    REQUIRE(&v2c[0][0] == &m[0][0]);
+  }
+
+  SECTION("element access () [] at() all agree") {
+    auto v = m.matrix_view();
+    for (std::size_t i = 0; i < m.rows(); ++i)
+      for (std::size_t j = 0; j < m.cols(); ++j) {
+        REQUIRE(v(i, j) == m(i, j));
+        REQUIRE(v[i][j] == m(i, j));
+        REQUIRE(v.at(i, j) == m(i, j));
+      }
+  }
+
+  SECTION("mutation through view is visible in original") {
+    auto v = m.matrix_view();
+    v(0, 0) = 99.0;
+    REQUIRE(m(0, 0) == 99.0);
+  }
+
+  SECTION("const view from const matrix is read-only") {
+    const LinAlg::Matrix<double> cm{{1.0, 2.0}, {3.0, 4.0}};
+    auto cv = cm.matrix_view(); // Matrix_view<const double>
+    REQUIRE(cv(0, 0) == 1.0);
+    REQUIRE(cv.at(1, 1) == 4.0);
+    REQUIRE(cv.rows() == 2);
+    REQUIRE(cv.cols() == 2);
+    LinAlg::Matrix_view<const double> cv2 = cm;
+    REQUIRE(&cv2[0][0] == &cm[0][0]);
+  }
+
+  SECTION("rows, cols, size, empty") {
+    auto v = m.matrix_view();
+    REQUIRE(v.rows() == m.rows());
+    REQUIRE(v.cols() == m.cols());
+    REQUIRE(v.size() == m.size());
+    REQUIRE(!v.empty());
+  }
+}
+
+//==============================================================================
 TEST_CASE("LinAlg: matrix multiplication<complex<double>>", "[LinAlg][unit]") {
   // Test matrix multiplication, with complex double, const and non-const
   using namespace std::complex_literals;
