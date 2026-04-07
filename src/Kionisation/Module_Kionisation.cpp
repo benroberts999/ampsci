@@ -25,15 +25,16 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   IO::ChronoTimer timer("Kionisation");
 
   input.check(
-    {{"", R"(Calculates atomic ionisation factors.
-Specifically, it calculates the temporal part of the form factor.
-This module is superceded by the newer formFactors() module, 
-which calculates more gereral form factors.
-Output format:
-  - xyz:      For easy 2D interpolation. Each row is in form: 'E q K(E,q)'
-  - gnuplot:  For easy plotting. Each column is new E, each row a new q
-  - matrix:   Outputs entire matrix in table form, with E and q grids 
-              printed prior. This is form expected by 'dmex' program)"},
+    {{"", "Calculates atomic ionisation factors, K.\n"
+          "Specifically, it calculates the temporal part of the form factor."
+          "This module is superceded by the newer 'formFactors' module, "
+          "which calculates more gereral form factors."
+          "The temporal component of those should match that from here.\n"
+          "Output formats:\n"
+          "  - xyz:      Standard output. Each row is in form: 'E q K(E,q)'\n"
+          "  - matrix:   Outputs entire K matrix in table form, with E and q "
+          "grids printed prior. Legacy. This is form expected by 'dmex'"
+          "program. 'dmex' program also expects output in Atomic units.\n"},
      {"E_range",
       "List (2). Minimum, maximum energy transfer (dE), in keV [0.1,0.1]"},
      {"E_steps", "Numer of steps along dE grid (logarithmic grid) [1]"},
@@ -42,22 +43,21 @@ Output format:
      {"q_steps", "Number of steps along q grid (logarithmic grid) [1]"},
      {"max_L", "Maximum multipolarity used in exp(iqr) expansion [6]"},
      {"ec_cut", "Cut-off (in au) for continuum energy. [inf]"},
+     {"Zeff_bound", "Use Zeff for bound state [false]"},
+     {"Zeff_cont", "Use Zeff for continuum state. False by default, unless "
+                   "Zeff_bound=true, in which case true by default. [false]"},
      {"label", "optional extra label for output files"},
      {"subtract_1", "Replace e^(iqr) -> e^(iqr)-1 [false]"},
      {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
      {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
                        "hole-particle interaction) [true]"},
      {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
-     {"coupling", "Vector, Scalar (g0), Pseudovector (g5), Pseudoscalar "
+     {"coupling", "Vector (1), Scalar (g0), Pseudovector (g5), Pseudoscalar "
                   "(g0g5) [Vector]"},
-     {"output_format", "List: Format for output. List any of: gnuplot, xyz, "
-                       "matrix (comma-separated). [gnuplot]"},
-     {"each_state", "bool. If true, will output K(E,q) for each "
-                    "(accessible) core-state [false]"},
-     {"units",
-      "Units for 'gnuplot' output: Particle (eV) or Atomic (E_H,1/a0). "
-      "Only affects _gnu output format, all _mat and _xyz are "
-      "always in atomic units. [Particle]"}});
+     {"each_state", "bool. If true, will output K(E,q) seperately for each "
+                    "(accessible) bound state [false]"},
+     {"units", "Units for output: Particle (eV) or Atomic (E_H,1/a0). Use "
+               "atomic units for old dmex program. [Particle]"}});
 
   // Don't run module if requesting help:
   if (input.has_option("help")) {
@@ -180,19 +180,29 @@ Output format:
 
   //----------------------------------------------------------------------------
 
-  // DM-electron couplings
+  // DM-electron couplings (allow common variations)
   using qip::ci_compare;
   const auto tcoupling = input.get<std::string>("coupling", "vector");
   const auto coupling =
     ci_compare(tcoupling, "vector")       ? Kion::Coupling::Vector :
+    ci_compare(tcoupling, "v")            ? Kion::Coupling::Vector :
+    ci_compare(tcoupling, "1")            ? Kion::Coupling::Vector :
     ci_compare(tcoupling, "scalar")       ? Kion::Coupling::Scalar :
-    ci_compare(tcoupling, "pseudovector") ? Kion::Coupling::PseudoVector :
+    ci_compare(tcoupling, "s")            ? Kion::Coupling::Scalar :
+    ci_compare(tcoupling, "g0")           ? Kion::Coupling::Scalar :
+    ci_compare(tcoupling, "pseudovector") ? Kion::Coupling::AxialVector :
+    ci_compare(tcoupling, "axial")        ? Kion::Coupling::AxialVector :
+    ci_compare(tcoupling, "axialvector")  ? Kion::Coupling::AxialVector :
+    ci_compare(tcoupling, "a")            ? Kion::Coupling::AxialVector :
+    ci_compare(tcoupling, "g5")           ? Kion::Coupling::AxialVector :
     ci_compare(tcoupling, "pseudoscalar") ? Kion::Coupling::PseudoScalar :
+    ci_compare(tcoupling, "p")            ? Kion::Coupling::PseudoScalar :
+    ci_compare(tcoupling, "g0g5")         ? Kion::Coupling::PseudoScalar :
                                             Kion::Coupling::Error;
   if (coupling == Kion::Coupling::Error) {
     fmt2::styled_print(fg(fmt::color::red), "\nError 212: ");
     fmt::print("Coupling option: `{}' unknown. Options are: vector, scalar, "
-               "pseudovector, pseudoscalar\n",
+               "axialvector, pseudoscalar\n",
                tcoupling);
     return;
   }
@@ -206,7 +216,7 @@ Output format:
   } else if (coupling == Kion::Coupling::Scalar) {
     jl = std::make_unique<DiracOperator::g0jL>(wf.grid(), qgrid,
                                                std::size_t(max_L), subtract_1);
-  } else if (coupling == Kion::Coupling::PseudoVector) {
+  } else if (coupling == Kion::Coupling::AxialVector) {
     jl = std::make_unique<DiracOperator::ig5jL>(wf.grid(), qgrid,
                                                 std::size_t(max_L));
   } else if (coupling == Kion::Coupling::PseudoScalar) {
@@ -216,27 +226,33 @@ Output format:
   assert(jl != nullptr && "Error in coupling type");
   std::cout << "Operator: " << jl->name() << "\n";
 
+  // For testing: Use H-like with Z-eff for bound and/or continuum:
+  const bool use_Zeff_bound = input.get("Zeff_bound", false);
+  if (use_Zeff_bound) {
+    std::cout << "Using Zeff for bound wavefunction\n";
+  }
+  const bool use_Zeff_cont = input.get("Zeff_cont", use_Zeff_bound);
+  if (use_Zeff_cont) {
+    std::cout << "Using Zeff for continuum wavefunction\n";
+  }
+
   //----------------------------------------------------------------------------
 
   // Create output file-name template
 
-  const auto hf_text = wf.vHF() == nullptr                           ? "??" :
-                       wf.vHF()->method() == HF::Method::HartreeFock ? "hf" :
-                       wf.vHF()->method() == HF::Method::Hartree     ? "ha" :
-                       wf.vHF()->method() == HF::Method::KohnSham    ? "ks" :
-                       wf.vHF()->method() == HF::Method::ApproxHF    ? "ahf" :
-                       wf.vHF()->method() == HF::Method::Local       ? "loc" :
-                                                                       "??";
+  const auto hf_text =
+    use_Zeff_bound ? "Zeff" : HF::parseMethod_short(wf.vHF()->method());
 
   const std::string coupling_text =
     coupling == Kion::Coupling::Vector       ? "v" :
     coupling == Kion::Coupling::Scalar       ? "s" :
-    coupling == Kion::Coupling::PseudoVector ? "pv" :
-    coupling == Kion::Coupling::PseudoScalar ? "ps" :
+    coupling == Kion::Coupling::AxialVector  ? "a" :
+    coupling == Kion::Coupling::PseudoScalar ? "p" :
                                                "???";
 
   // doesn't include suffix
-  std::string oname = "K_" + wf.identity() + "_" + hf_text + "_";
+  std::string oname =
+    "K_" + wf.atomicSymbol() + "_" + hf_text + "_" + coupling_text + "_";
   oname += fmt::format("{}_", max_L);
   if (force_rescale)
     oname += "rescale_";
@@ -246,6 +262,8 @@ Output format:
     oname += "orth_";
   if (subtract_1)
     oname += "sub1_";
+  if (use_Zeff_cont)
+    oname += "Zeffcont_";
   if (label != "")
     oname += label + "_";
   if (oname.back() == '_')
@@ -254,42 +272,13 @@ Output format:
   //----------------------------------------------------------------------------
 
   // Output format:
-
   const bool write_each_state = input.get("each_state", false);
 
-  const auto toutput =
-    input.get<std::vector<std::string>>("output_format", {"gnuplot"});
-  // Use vector, since allow outputting in multiple formats
-  std::vector<Kion::OutputFormat> output_formats;
-  using qip::ci_wc_compare;
-  for (auto &each : toutput) {
-    const auto output =
-      ci_wc_compare(each, "gnu*") ? Kion::OutputFormat::gnuplot :
-      ci_wc_compare(each, "xyz")  ? Kion::OutputFormat::xyz :
-      ci_wc_compare(each, "mat*") ? Kion::OutputFormat::matrix :
-                                    Kion::OutputFormat::Error;
-    if (output == Kion::OutputFormat::Error) {
-      fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
-      fmt::print(
-        "Output Format option: `{}' unknown. Options are: gnuplot, xyz, "
-        "matrix\n",
-        each);
-    } else {
-      // only add if not already in list
-      if (std::find(output_formats.begin(), output_formats.end(), output) ==
-          output_formats.end())
-        output_formats.push_back(output);
-    }
-  }
-  if (output_formats.empty()) {
-    fmt2::styled_print(fg(fmt::color::red), "\nFail 300: ");
-    fmt::print("No output formats? No output will be generated!\n");
-    return;
-  }
-
-  // Units (only for gnuplot-style):
+  // Units:
   const auto tunits = input.get<std::string>("units", "Particle");
-  auto units = ci_compare(tunits, "particle") ? Kion::Units::Particle :
+  auto units = ci_compare(tunits, "eV")       ? Kion::Units::Particle :
+               ci_compare(tunits, "particle") ? Kion::Units::Particle :
+               ci_compare(tunits, "au")       ? Kion::Units::Atomic :
                ci_compare(tunits, "atomic")   ? Kion::Units::Atomic :
                                                 Kion::Units::Error;
   if (units == Kion::Units::Error) {
@@ -299,9 +288,7 @@ Output format:
                tunits);
     units = Kion::Units::Atomic;
   }
-  std::cout << "_gnu output file (if requested) will use: " << tunits
-            << " units\n";
-  std::cout << "(_mat and _xyz output files always use atomic units)\n";
+  std::cout << "Will use: " << tunits << " units\n";
 
   //----------------------------------------------------------------------------
 
@@ -311,29 +298,35 @@ Output format:
   // Kion stored K(dE, q)
   LinAlg::Matrix<double> Kion(Egrid.num_points(), qgrid.num_points());
 
-  // Old option (for testing only): Use H-like with Z-eff for continuum:
-  const bool use_Zeff_cont = false;
-
   for (const auto &Fnk : wf.core()) {
     const auto accessible = std::abs(Fnk.en()) < Emax_au;
     if (!accessible)
       continue;
     std::cout << Fnk << ", " << std::flush;
-    const auto K_nk =
-      Kion::calculateK_nk(wf.vHF(), Fnk, max_L, Egrid, jl.get(), force_rescale,
-                          hole_particle, force_orthog, use_Zeff_cont, ec_cut);
+
+    const auto K_nk = Kion::calculateK_nk(
+      wf.vHF(), Fnk, max_L, Egrid, jl.get(), force_rescale, hole_particle,
+      force_orthog, use_Zeff_cont, use_Zeff_bound, ec_cut);
     if (write_each_state) {
       const auto oname_nk = oname + "_" + Fnk.shortSymbol();
       std::cout << "Written to file: " << oname_nk << "\n";
-      Kion::write_to_file(output_formats, K_nk, Egrid.r(), qgrid.r(), oname_nk,
-                          num_output_digits, units);
+      write_to_file_xyz(oname_nk + "_xyz.txt", Egrid.r(), qgrid.r(), {"K"},
+                        {tcoupling + " (temporal)"}, {K_nk}, units,
+                        num_output_digits);
+      // Old format: kept for legacy:
+      write_to_file_matrix(K_nk, Egrid.r(), qgrid.r(), oname_nk + "_mat.txt",
+                           num_output_digits, units);
     }
     Kion += K_nk;
   }
 
   std::cout << "\nWritten to file: " << oname << "\n";
-  Kion::write_to_file(output_formats, Kion, Egrid.r(), qgrid.r(), oname,
-                      num_output_digits, units);
+  write_to_file_xyz(oname + "_xyz.txt", Egrid.r(), qgrid.r(), {"K"},
+                    {tcoupling + " (temporal)"}, {Kion}, units,
+                    num_output_digits);
+  // Old format: kept for legacy:
+  write_to_file_matrix(Kion, Egrid.r(), qgrid.r(), oname + "_mat.txt",
+                       num_output_digits, units);
 
   std::cout << '\n';
 }
@@ -565,49 +558,67 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check(
     {{"",
       "Calculates generalised atomic ionisation (scattering) form factors.\n"
-      "See paper <> for precise definitions.\n"
+      "See paper <arXiv:xxxx.xxxxx> for details.\n"
       "These depend on energy exchange, E, and momentum exchange q. Be careful "
-      "to distinguish between energy exchange, E, and final-state energy e_f\n"
-      "One output file for each form factor will be generated (e.g., electric "
-      "component of the vector amplitude, 'VE')\n"
-      "Output file will be in the 'XYZ' format:\n"
-      "    E1 q1 K(E1,q1)\n"
-      "    E1 q2 K(E1,q2)\n"
-      "    ....          \n"
-      "    E1 qM K(E1,qM)\n"
-      "    E2 q1 K(E2,q1)\n"
-      "    ....          \n"
-      "    EN qM K(E1,q1)\n"
-      "q and E are given in eV; factors K are dimensionless\n\n"},
-     {"E_range",
-      "List (2). Minimum, maximum energy transfer (dE), in eV [10.0, 1.0e4]"},
+      "to distinguish between energy exchange, E, and final-state energy e_f.\n"
+      "Output file will be in the 'XYZ' format, with each requested "
+      "formfactor in new column (with header)\n"
+      "    E1 q1 K1(E1,q1) K2(E1,q1) ... KN(E1,q1)\n"
+      "    E1 q2 K1(E1,q2) ...\n"
+      "    ....               \n"
+      "    E1 qM K1(E1,qM) ...\n"
+      "    E2 q1 K1(E2,q1) ...\n"
+      "    ....               \n"
+      "    EN qM K1(E1,q1) ... KN(E1,q1)\n"
+      "q and E are given in eV; factors K are dimensionless.\n"
+      "Output filename will be in form, e.g., "
+      "Xe0_method_kmin-kmax_VASP.txt\n\n"},
+     {"E_range", "List (2), comma separated. Minimum, maximum energy transfer "
+                 "(E), in eV [10.0, 1.0e4]"},
      {"E_steps", "Numer of steps along dE grid (logarithmic) [1]"},
      {"E_set", "List: set of specific E values to calculate for (in eV) - "
-               "Will override the above if set"},
+               "Will override E_range/E_set if set"},
      {"q_range", "List (2). Minimum, maximum momentum transfer (q), in eV "
                  "(hbar=c=1). For reference, 1/a0 ~ 3730 eV. [1.0e4, 1.0e7]"},
      {"q_steps", "Numer of steps along q grid (logarithmic) [1]"},
+     {"q_set", "List: set of specific q values to calculate for (in eV) - "
+               "Will override q_range/q_set if set"},
+     {"diagonal",
+      "true/false. If true, forces momentum exchange to be equal (in hbar=c=1 "
+      "units) to energy exchange (e.g., for absorption of massless particle). "
+      "Overrides q_steps/q_range/q_set if true. [false]"},
      {"label", "Extra label appended to output file name (not usually nedded)"},
      {"operators",
-      "List, comma separated. Which factors to calculate. Any of:\n"
-      "   - 'V' (vector), \n"
-      "   - 'A' (axial-vector), \n"
-      "   - 'S' (scalar), \n"
-      "   - 'P' (pseudoscalar).\n"
-      "If V (e.g.), output will include: temporal V0, electric VE, magnetic "
-      "VM, longitudanal L, and 'transverse' (sum of E+M). "
+      "String. Which factors to calculate. Any combination of:\n"
+      "   'V' (vector), \n"
+      "   'A' (axial-vector), \n"
+      "   'S' (scalar), \n"
+      "   'P' (pseudoscalar).\n"
+      "If 'V' (e.g.), output will include: temporal V0, electric VE, magnetic "
+      "VM, longitudinal VL, and cross X terms."
       "Cross-terms X,Y,Z will be calculated automatically depending on input."},
      {"temporal_only", "If only non-relativistic scattering is required, save "
                        "time by not calculating the spatial terms. [false]"},
      {"K_minmax", "List (2). Minimum, maximum multipolarity K [0, 6]"},
+     {"lc_minmax", "List (2). Minimum and maximum orbital quantum number l to "
+                   "include in continuum states. By "
+                   "default, will include all allowed values (limitted by "
+                   "K_max). This should usually be left blank"},
+     {"each_state",
+      "true/false. If true, will output a separate K file for each "
+      "(accessible) bound state. Output file will have same name as total, but "
+      "with short-form orbital label appended (i.e., 3p-=3p_1/2, "
+      "3p+=3p_3/2). [false]"},
      {"low_q", "Explicitly use low-q form of operators. These are only valid "
-               "at low q, and should be used only for numerical tests [false]"},
+               "at low q only, and are used for numerical tests. (nb: All are "
+               "zero for K>2.) [false]"},
      {"force_rescale", "Rescale atomic potential V(r) at large r when solving "
                        "continuum orbitals. Should be false for local "
                        "potentials or if hole-particle is included. [false]"},
      {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
                        "hole-particle interaction) [true]"},
-     {"force_orthog", "Force orthogonality of the continuum orbitals [true]"}});
+     {"force_orthog",
+      "Enforce orthogonality of the continuum orbitals [true]"}});
   if (input.has_option("help")) {
     return;
   }
@@ -642,11 +653,21 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   //----------------------------------------------------------------------------
 
   // Momentum-transfer range (in eV)
+  const auto diagonal_Eq = input.get("diagonal", false);
   auto [qmin_eV, qmax_eV] = input.get("q_range", std::array{1.0, 1.0e4});
-  auto q_steps = input.get<std::size_t>("q_steps", 1);
+  auto q_steps = diagonal_Eq ? 1 : input.get<std::size_t>("q_steps", 1);
   if (q_steps <= 1 || qmax_eV <= qmin_eV) {
     q_steps = 1;
     qmax_eV = qmin_eV;
+  }
+
+  // Option for specific set of momentum exchange
+  const auto q_set_eV = input.get("q_set", std::vector<double>{});
+  if (!q_set_eV.empty() && !diagonal_Eq) {
+    // override above
+    qmin_eV = q_set_eV.front();
+    qmax_eV = q_set_eV.back();
+    q_steps = q_set_eV.size();
   }
 
   // Convert momentum from keV to atomic units.
@@ -656,17 +677,28 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // Set up the q grid
   const auto qgrid = qip::logarithmic_range(q_min, q_max, q_steps);
 
+  const auto alpha_ratio = wf.alpha() / PhysConst::alpha;
+  if (std::abs(alpha_ratio - 1) > 0.001) {
+    fmt::print("\nEffective speed of light: c_eff = {} c\n", 1.0 / alpha_ratio);
+    fmt::print("(dα^2 = {})", wf.dalpha2());
+  }
+
   std::cout << "\nEnergy/Momentum exchange grids:\n";
   fmt::print(
     "Energy  : [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
     Emin_eV, Emax_eV, Emin_au, Emax_au, E_steps);
-  fmt::print(
-    "Momentum: [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
-    qmin_eV, qmax_eV, q_min, q_max, q_steps);
+  if (diagonal_Eq) {
+    std::cout << "Fixing momentum exchange equal to energy exchange: qc = E\n";
+  } else {
+    fmt::print(
+      "Momentum: [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n",
+      qmin_eV, qmax_eV, q_min, q_max, q_steps);
+  }
 
   //----------------------------------------------------------------------------
 
-  // Check to see if grid is reasonable for maximum energy/momentum:
+  // Check to see if grid is reasonable for maximum energy/momentum.
+  // Just prints warning to screen if not the case
   Kion::check_radial_grid(Emax_au, q_max, wf.grid());
 
   //----------------------------------------------------------------------------
@@ -674,26 +706,28 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // Print core information for convenience:
   // This assumes core is in energy order; always true but not guarenteed.
   // Has no impact on result, just what is printed.
-  std::cout << "\nCore orbitals:\n";
-  std::cout << "        E(au)      E(eV)  N_el\n";
+  std::cout << "\nBound orbitals:\n";
+  //           "1s+  -1 0 1/2  -1277.26  -34755.94     2"
+  std::cout << "state  κ l   j       E(au)      E(eV)  N_el\n";
   bool reached_accessible = false;
-  if (std::abs(wf.core().front().en()) > Emax_au) {
-    std::cout << "------- Inaccessible ---------\n";
-  }
   for (const auto &Fnk : wf.core()) {
     if (std::abs(Fnk.en()) <= Emax_au && !reached_accessible) {
       reached_accessible = true;
-      std::cout << "-------- Accessible ----------\n";
+      std::cout << "-------------------------------------------\n";
     }
-    fmt::print("{:3s}  {:8.2f}  {:9.2f}     {}\n", Fnk.shortSymbol(), Fnk.en(),
+    fmt::print("{:3s}   {:+2} {:1} {:1}/2   {:9.3f}  {:9.2f}     {}\n",
+               Fnk.shortSymbol(), Fnk.kappa(), Fnk.l(), Fnk.twoj(), Fnk.en(),
                Fnk.en() * UnitConv::Energy_au_to_eV, Fnk.num_electrons());
   }
+
+  const auto each_state = input.get("each_state", false);
+  // if (each_state)
 
   //----------------------------------------------------------------------------
 
   // Which operators to calculate
   // Case insensitive, and only check first letter
-  const auto operators = input.get("operators", std::vector<std::string>{"V"});
+  const auto operators = input.get("operators", std::string{"V"});
   const auto temporal_only = input.get("temporal_only", false);
   const auto spatialQ = !temporal_only;
 
@@ -707,26 +741,25 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // axial-vector spatial interference: auto-include if axial and vector
   bool ZvaQ{false};
 
+  // Check all characters in input string for v,a,s,p [case insensitive]
   for (auto &w : operators) {
-    if (!w.empty()) {
-      switch (std::tolower(w[0])) {
-      case 'v':
-        vectorQ = true;
-        if (spatialQ)
-          XvvQ = true;
-        break;
-      case 'a':
-        axialQ = true;
-        if (spatialQ)
-          YaaQ = true;
-        break;
-      case 's':
-        scalarQ = true;
-        break;
-      case 'p':
-        pseudoscalarQ = true;
-        break;
-      }
+    switch (std::tolower(w)) {
+    case 'v':
+      vectorQ = true;
+      if (spatialQ)
+        XvvQ = true;
+      break;
+    case 'a':
+      axialQ = true;
+      if (spatialQ)
+        YaaQ = true;
+      break;
+    case 's':
+      scalarQ = true;
+      break;
+    case 'p':
+      pseudoscalarQ = true;
+      break;
     }
   }
   // automatically include if doing both
@@ -737,13 +770,13 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
              vectorQ ? "Vector; " : "", axialQ ? "Axial; " : "",
              scalarQ ? "Scalar; " : "", pseudoscalarQ ? "Pseudoscalar; " : "");
   if (XvvQ) {
-    std::cout << "  and spatial-temporal vector interference term X\n";
+    std::cout << "- and spatial-temporal vector interference term X\n";
   }
   if (YaaQ) {
-    std::cout << "  and spatial-temporal axial interference term Y\n";
+    std::cout << "- and spatial-temporal axial interference term Y\n";
   }
   if (ZvaQ) {
-    std::cout << "  and spatial vector-axial interference term Z\n";
+    std::cout << "- and spatial vector-axial interference term Z\n";
   }
   if (!spatialQ) {
     std::cout << "Only calculating temporal parts (non-relativistic)\n";
@@ -751,10 +784,19 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto low_q = input.get("low_q", false);
   if (low_q)
-    std::cout << "Explicitely using low-q form of operators\n";
+    std::cout << "\nExplicitely using low-q form of operators.\n"
+                 "Valid only for q << 1/a0 ~ 1e-3 MeV\n\n";
 
+  // Multipolarity:
   const auto [Kmin, Kmax] = input.get("K_minmax", std::array{0, 6});
   fmt::print("\nIncluding K = {} - {}\n", Kmin, Kmax);
+
+  // Optional:
+  const auto lc_minmax = input.get<std::array<int, 2>>("lc_minmax");
+  if (lc_minmax) {
+    fmt::print("Limitting continuum state orbital L to: {} <= L <= {}\n",
+               lc_minmax->at(0), lc_minmax->at(1));
+  }
 
   // Method for continuum states:
   const auto force_orthog = input.get("force_orthog", true);
@@ -775,7 +817,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   if (!force_rescale && !hole_particle &&
       wf.vHF()->method() == HF::Method::HartreeFock) {
     fmt::print("\n"
-               "Warning: Long-range behaviour of V(r) may be incorrect. "
+               "Warning: Long-range behaviour of V(r) may be incorrect.\n"
                "Suggest to either force rescaling, or include hole-particle "
                "interaction.\n");
   }
@@ -788,183 +830,44 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "\n";
 
-  // Spherical Bessel lookup table
+  // Spherical Bessel lookup table.
+  // Each operator stores a pointer to this table.
   std::cout << "Filling jL spherical Bessel table.." << std::flush;
   const SphericalBessel::JL_table jK_tab(Kmax + 1, qgrid, wf.grid().r());
   std::cout << "..done\n" << std::flush;
 
-  LinAlg::Matrix<double> // Matrices for each V(E,q) form factor
-    K_T,                 // Vector: temporal
-    K_E,                 // Vector: electric
-    K_M,                 // Vector: magnetic
-    K_L,                 // Vector: longitudinal
-    K_T5,                // Axial: temporal
-    K_E5,                // Axial: electric
-    K_M5,                // Axial: magnetic
-    K_L5,                // Axial: longitudinal
-    K_S,                 // Scalar
-    K_S5,                // Pseudo-scalar
-    K_X,                 // v-v interference
-    K_X5,                // a-a interference
-    K_Z;                 // v-a interference
+  // Matrices for each K(E,q) form factor
+  // These will be empty (size==0), unless we calculate for relevant operator
+  // nb: Order matters, so that output file columns match expected.
+  // Always:
+  // Vector (V_T, V_E, V_M, V_L, X),
+  // Axial (A_T, A_E, A_M, A_L, Y),
+  // Scalar (S),
+  // Pseudoscalar (P)
+  std::array<LinAlg::Matrix<double>, 13> K_factors;
 
-  //Set size of arrays - but only if we will use them:
-  if (vectorQ) {
-    K_T.resize(E_steps, q_steps);
-    if (spatialQ) {
-      K_E.resize(E_steps, q_steps);
-      K_M.resize(E_steps, q_steps);
-      K_L.resize(E_steps, q_steps);
-      K_X.resize(E_steps, q_steps);
-    }
-  }
-
-  if (axialQ) {
-    K_T5.resize(E_steps, q_steps);
-    if (spatialQ) {
-      K_E5.resize(E_steps, q_steps);
-      K_M5.resize(E_steps, q_steps);
-      K_L5.resize(E_steps, q_steps);
-      K_X5.resize(E_steps, q_steps);
-    }
-  }
-
-  if (vectorQ && axialQ && spatialQ) {
-    K_Z.resize(E_steps, q_steps);
-  }
-
-  if (scalarQ) {
-    K_S.resize(E_steps, q_steps);
-  }
-  if (pseudoscalarQ) {
-    K_S5.resize(E_steps, q_steps);
-  }
-
-  //-------------------------------------------------------------------------
-  std::cout << "\nCalculating ionisation factors:\n";
-  for (const auto &Fa : wf.core()) {
-    std::cout << Fa << ", " << std::flush;
-
-    // First lowest energy able to ionise Fa:
-    const auto idE_0 = std::size_t(std::distance(
-      Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
-                                  [&Fa](auto e) { return e > -Fa.en(); })));
-
-    // OpenMP with clang++ seems to fail with Kmax, Kmin,
-    // which are "local bindings" from structured bindings.
-    // This is surely a bug in the clang compiler; this workaround is fine.
-    const auto Kmax2{Kmax}, Kmin2{Kmin};
-
-#pragma omp parallel for
-    for (std::size_t iE = idE_0; iE < Egrid.size(); ++iE) {
-      const auto omega = Egrid.at(iE);
-
-      const auto ec = omega + Fa.en();
-      assert(ec > 0.0);
-
-      // l_min = j_min - 1/2
-      //       = j - K_max - 1/2
-      //       = (2j - 2*Kmax - 1) / 2    -  nb: 2j is always odd!
-      const auto lc_min = std::max((Fa.twoj() - 2 * Kmax2 - 1) / 2, 0);
-      const auto lc_max = (Fa.twoj() + 2 * Kmax2 + 1) / 2;
-
-      ContinuumOrbitals cntm(wf.vHF());
-      cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale,
-                            hole_particle, force_orthog);
-
-      for (std::size_t iq = 0; iq < qgrid.size(); ++iq) {
-        for (int k = Kmin2; k <= Kmax2; ++k) {
-
-          const auto tkp1_x = (2.0 * k + 1.0) * Fa.occ_frac();
-          // Use qc for as expected for "omega" in operators
-          const auto qc = qgrid.at(iq) * PhysConst::c;
-
-          // Vector terms:
-          const auto Phik = DiracOperator::MultipoleOperator(
-            wf.grid(), k, qc, 'V', 'T', low_q, &jK_tab);
-          const auto Ek = DiracOperator::MultipoleOperator(
-            wf.grid(), k, qc, 'V', 'E', low_q, &jK_tab);
-          const auto Mk = DiracOperator::MultipoleOperator(
-            wf.grid(), k, qc, 'V', 'M', low_q, &jK_tab);
-          const auto Lk = DiracOperator::MultipoleOperator(
-            wf.grid(), k, qc, 'V', 'L', low_q, &jK_tab);
-
-          // Axial (gamma^5) versions
-          const auto Phi5k = DiracOperator::MultipoleOperator(
-            wf.grid(), k, qc, 'A', 'T', low_q, &jK_tab);
-          const auto E5k = DiracOperator::MultipoleOperator(
-            wf.grid(), k, qc, 'A', 'E', low_q, &jK_tab);
-          const auto M5k = DiracOperator::MultipoleOperator(
-            wf.grid(), k, qc, 'A', 'M', low_q, &jK_tab);
-          const auto L5k = DiracOperator::MultipoleOperator(
-            wf.grid(), k, qc, 'A', 'L', low_q, &jK_tab);
-
-          // Scalar and pseudoscalar
-          const auto Sk = DiracOperator::MultipoleOperator(
-            wf.grid(), k, qc, 'S', 'T', low_q, &jK_tab);
-          const auto S5k = DiracOperator::MultipoleOperator(
-            wf.grid(), k, qc, 'P', 'T', low_q, &jK_tab);
-
-          for (const auto &Fe : cntm.orbitals) {
-
-            const auto t = vectorQ ? Phik->reducedME(Fe, Fa) : 0.0;
-            const auto t5 = axialQ ? Phi5k->reducedME(Fe, Fa) : 0.0;
-
-            const auto E = axialQ && spatialQ ? Ek->reducedME(Fe, Fa) : 0.0;
-            const auto M = vectorQ && spatialQ ? Mk->reducedME(Fe, Fa) : 0.0;
-            const auto L = vectorQ ? Lk->reducedME(Fe, Fa) : 0.0;
-
-            const auto E5 = axialQ && spatialQ ? E5k->reducedME(Fe, Fa) : 0.0;
-            const auto M5 = vectorQ && spatialQ ? M5k->reducedME(Fe, Fa) : 0.0;
-            const auto L5 = axialQ && spatialQ ? L5k->reducedME(Fe, Fa) : 0.0;
-
-            // Vector operators
-            if (vectorQ) {
-              K_T(iE, iq) += tkp1_x * qip::pow(t, 2);
-              if (spatialQ) {
-                K_E(iE, iq) += tkp1_x * qip::pow(E, 2);
-                K_M(iE, iq) += tkp1_x * qip::pow(M, 2);
-                K_L(iE, iq) += tkp1_x * qip::pow(L, 2);
-              }
-            }
-            // Vector Interference:
-            if (XvvQ) {
-              K_X(iE, iq) += tkp1_x * t * L;
-            }
-
-            // Axial (γ^5) operators
-            if (axialQ) {
-              K_T5(iE, iq) += tkp1_x * qip::pow(t5, 2);
-              if (spatialQ) {
-                K_E5(iE, iq) += tkp1_x * qip::pow(E5, 2);
-                K_M5(iE, iq) += tkp1_x * qip::pow(M5, 2);
-                K_L5(iE, iq) += tkp1_x * qip::pow(L5, 2);
-              }
-            }
-
-            // Axial Interference:
-            if (YaaQ) {
-              K_X5(iE, iq) += tkp1_x * t5 * L5;
-            }
-
-            // Vector-Axial Spatial Interference:
-            if (ZvaQ) {
-              K_Z(iE, iq) += tkp1_x * (E5 * M - E * M5);
-            }
-
-            // Scalar and Pseudoscalar
-            if (scalarQ)
-              K_S(iE, iq) += tkp1_x * qip::pow(Sk->reducedME(Fe, Fa), 2);
-            if (pseudoscalarQ)
-              K_S5(iE, iq) += tkp1_x * qip::pow(S5k->reducedME(Fe, Fa), 2);
-          }
-        }
-      }
-    }
-  }
-  std::cout << "\ndone\n\n";
+  // Note: important that these are in the same order at the form-factor arrays
+  // Always: Vector, Axial, Scalar, Pseudoscalar
+  const auto titles =
+    std::vector<std::string>{"V_T", "V_E", "V_M", "V_L", "X", "A_T", "A_E",
+                             "A_M", "A_L", "Y",   "Z",   "S", "P"};
+  const auto descriptions =
+    std::vector<std::string>{"Vector (temporal)",
+                             "Vector (electric)",
+                             "Vector (magnetic)",
+                             "Vector (longitudinal)",
+                             "Vector (spatial-temporal cross term)",
+                             "Axial (temporal)",
+                             "Axial (electric)",
+                             "Axial (magnetic)",
+                             "Axial (longitudinal)",
+                             "Axial (spatial-temporal cross term)",
+                             "Vector-Axial interference",
+                             "Scalar",
+                             "Pseudoscalar"};
 
   //----------------------------------------------------------------------------
+  // Output format: Filename and descriptions:
 
   // Output file name: depends on approximation, options
   const auto method = HF::parseMethod_short(wf.vHF()->method()) +
@@ -972,34 +875,85 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                       (hole_particle ? "_hp" : "") +
                       (force_orthog ? "_orth" : "");
 
+  const auto units = Kion::Units::Particle;
+  const int num_digits = 6;
+
+  // optional extra label
   const auto label = input.get("label", std::string{""});
 
-  const std::string prefix = wf.identity() + "_" + method + "_" +
-                             std::to_string(Kmin) + "-" + std::to_string(Kmax) +
-                             "_" + (low_q ? "lowq_" : "") +
-                             (label == "" ? "" : label + "_");
+  std::string ofname_prefix =
+    wf.identity() + "_"                                       //
+    + method + "_"                                            //
+    + std::to_string(Kmin) + "-" + std::to_string(Kmax) + "_" //
+    + (lc_minmax ? std::to_string(lc_minmax->at(0)) + "-" +
+                     std::to_string(lc_minmax->at(1)) + "_" :
+                   "")       //
+    + (low_q ? "lowq_" : "") //
+    + (label == "" ? "" : label + "_");
 
-  const auto units = Kion::Units::Particle;
+  if (vectorQ)
+    ofname_prefix += "V";
+  if (axialQ)
+    ofname_prefix += "A";
+  if (scalarQ)
+    ofname_prefix += "S";
+  if (pseudoscalarQ)
+    ofname_prefix += "P";
 
-  std::cout << "\nWriting to files: " << prefix << "...\n";
+  //-------------------------------------------------------------------------
+  std::cout << "\nCalculating ionisation factors:\n";
 
-  if (vectorQ) {
-    Kion::write_to_file_xyz_set(Egrid, qgrid, prefix + "V", 8, units, K_T, K_E,
-                                K_M, K_L, K_X);
+  for (const auto &Fa : wf.core()) {
+
+    // Find min/max allowed l for continuum states
+    // l_min = j_min - 1/2
+    //       = j - K_max - 1/2
+    //       = (2j - 2*Kmax - 1) / 2
+    // nb: 2j is always odd! And allow for either parity.
+    const auto lc_min_tmp = std::max((Fa.twoj() - 2 * Kmax - 1) / 2, 0);
+    const auto lc_max_tmp = (Fa.twoj() + 2 * Kmax + 1) / 2;
+    const auto lc_min =
+      lc_minmax ? std::max(lc_min_tmp, lc_minmax->at(0)) : lc_min_tmp;
+    const auto lc_max =
+      lc_minmax ? std::min(lc_max_tmp, lc_minmax->at(1)) : lc_max_tmp;
+
+    std::cout << Fa << " -> " << AtomData::l_symbol(lc_min) << " - "
+              << AtomData::l_symbol(lc_max) << "\n"
+              << std::flush;
+
+    // Form factors for specific bound state, Fa:
+    const auto K_factors_nk = Kion::calculate_formFactors_nk(
+      wf, Fa, lc_min, lc_max, Kmin, Kmax, Egrid, qgrid, diagonal_Eq,
+      force_rescale, hole_particle, force_orthog, low_q, jK_tab, vectorQ,
+      spatialQ, axialQ, XvvQ, YaaQ, ZvaQ, scalarQ, pseudoscalarQ);
+
+    assert(K_factors_nk.size() == K_factors.size());
+
+    // Optionally: write K factor for each bound state to disk
+    if (each_state) {
+      Kion::write_to_file_xyz_13(
+        ofname_prefix + "." + Fa.shortSymbol() + ".txt", Egrid, qgrid, titles,
+        descriptions, K_factors_nk, units, num_digits, diagonal_Eq);
+    }
+
+    for (std::size_t i = 0; i < K_factors.size(); ++i) {
+      if (K_factors_nk[i].empty())
+        continue;
+      if (K_factors[i].empty()) {
+        // resize if first non-zero nk
+        K_factors[i].resize(E_steps, q_steps);
+      }
+      K_factors[i] += K_factors_nk[i];
+    }
   }
-  if (axialQ) {
-    Kion::write_to_file_xyz_set(Egrid, qgrid, prefix + "A", 8, units, K_T5,
-                                K_E5, K_M5, K_L5, K_X5);
-  }
-  if (ZvaQ) {
-    Kion::write_to_file_xyz(K_Z, Egrid, qgrid, prefix + "Z", 8, units);
-  }
-  if (scalarQ) {
-    Kion::write_to_file_xyz(K_S, Egrid, qgrid, prefix + "S", 8, units);
-  }
-  if (pseudoscalarQ) {
-    Kion::write_to_file_xyz(K_S5, Egrid, qgrid, prefix + "P", 8, units);
-  }
+  std::cout << "done\n\n";
+
+  //----------------------------------------
+
+  // Write total (summed) form factor to disc
+  Kion::write_to_file_xyz_13(ofname_prefix + ".txt", Egrid, qgrid, titles,
+                             descriptions, K_factors, units, num_digits,
+                             diagonal_Eq);
 }
 
 } // namespace Module

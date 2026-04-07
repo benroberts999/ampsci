@@ -10,37 +10,34 @@ namespace DiracOperator {
 class VEk_lowq final : public TensorOperator {
 public:
   VEk_lowq(const Grid &, int K, double)
-    : TensorOperator(1, Parity::odd, -std::sqrt(2.0) / 3.0, {}, 0,
-                     Realness::imaginary, false),
-      m_K(K) {}
+    : TensorOperator(K, Parity::odd, -std::sqrt(2.0) / 3.0, {}, 0,
+                     Realness::imaginary, false) {}
 
   std::string name() const override final {
     return std::string("V_lowq^E_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(1, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
+
+  void updateFrequency(const double) override final { return; }
 
   double angularCff(int, int) const override final { return 0; }
   double angularCgg(int, int) const override final { return 0; }
   double angularCfg(int ka, int kb) const override final {
-    return m_K == 1 ? ka - kb - 1 : 0.0;
+    return m_rank == 1 ? ka - kb - 1 : 0.0;
   }
   double angularCgf(int ka, int kb) const override final {
-    return m_K == 1 ? ka - kb + 1 : 0.0;
+    return m_rank == 1 ? ka - kb + 1 : 0.0;
   }
-
-private:
-  int m_K;
 };
 
 //! Low qr form of Vector magnetic. Only for K=1 (zero otherwise)
 class VMk_lowq final : public TensorOperator {
 public:
   VMk_lowq(const Grid &gr, int K, double omega)
-    : TensorOperator(1, Parity::even, 0, gr.r(), 0, Realness::imaginary, true),
-      m_K(K) {
+    : TensorOperator(K, Parity::even, 0, gr.r(), 0, Realness::imaginary, true) {
     updateFrequency(omega);
   }
 
@@ -49,16 +46,16 @@ public:
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return (ka + kb) * Angular::Ck_kk(1, ka, -kb);
+    return (ka + kb) * Angular::Ck_kk(m_rank, ka, -kb);
   }
 
   double angularCff(int, int) const override final { return 0; }
   double angularCgg(int, int) const override final { return 0; }
   double angularCfg(int, int) const override final {
-    return m_K == 1 ? 1.0 : 0.0;
+    return m_rank == 1 ? 1.0 : 0.0;
   }
   double angularCgf(int, int) const override final {
-    return m_K == 1 ? 1.0 : 0.0;
+    return m_rank == 1 ? 1.0 : 0.0;
   }
 
   //! nb: q = alpha*omega!
@@ -68,37 +65,34 @@ public:
   }
 
 private:
-  int m_K;
   double m_q{};
 };
 
-//! Low qr form of Vector longitudanal
+//! Low qr form of Vector longitudinal
 class VLk_lowq final : public TensorOperator {
 public:
   VLk_lowq(const Grid &, int K, double)
-    : TensorOperator(1, Parity::odd, 1.0 / 3.0, {}, 0, Realness::imaginary,
-                     false),
-      m_K(K) {}
+    : TensorOperator(K, Parity::odd, 1.0 / 3.0, {}, 0, Realness::imaginary,
+                     false) {}
 
   std::string name() const override final {
     return std::string("V_lowq^E_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(1, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
+
+  void updateFrequency(const double) override final { return; }
 
   double angularCff(int, int) const override final { return 0; }
   double angularCgg(int, int) const override final { return 0; }
   double angularCfg(int ka, int kb) const override final {
-    return m_K == 1 ? ka - kb - 1 : 0.0;
+    return m_rank == 1 ? ka - kb - 1 : 0.0;
   }
   double angularCgf(int ka, int kb) const override final {
-    return m_K == 1 ? ka - kb + 1 : 0.0;
+    return m_rank == 1 ? ka - kb + 1 : 0.0;
   }
-
-private:
-  int m_K;
 };
 
 //==============================================================================
@@ -109,17 +103,16 @@ public:
   Phik_lowq(const Grid &gr, int K, double omega)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                      gr.r(), 0, Realness::real, true),
-      m_K(K),
       m_r2(gr.rpow(2)) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("Phi_lowq_") + std::to_string(m_K);
+    return std::string("Phi_lowq_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -134,9 +127,9 @@ public:
       return dF;
     }
 
-    if (m_K == 0) {
+    if (m_rank == 0) {
       Rab_rhs(+1, m_r2, &dF, Fb, -(m_q * m_q / 6.0));
-    } else if (m_K == 1) {
+    } else if (m_rank == 1) {
       Rab_rhs(+1, m_vec, &dF, Fb, (m_q / 3.0));
     }
 
@@ -150,10 +143,10 @@ public:
       return 0.0;
     }
 
-    if (m_K == 0) {
+    if (m_rank == 0) {
       return -(m_q * m_q / 6.0) * Rab(+1, m_r2, Fa, Fb);
     }
-    if (m_K == 1) {
+    if (m_rank == 1) {
       return (m_q / 3.0) * Rab(+1, m_vec, Fa, Fb);
     }
 
@@ -166,7 +159,6 @@ public:
   }
 
 private:
-  int m_K;
   double m_q{};
   std::vector<double> m_r2;
 };
@@ -177,17 +169,16 @@ class Sk_lowq final : public TensorOperator {
 public:
   Sk_lowq(const Grid &gr, int K, double omega)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::real, true),
-      m_K(K) {
+                     gr.r(), 0, Realness::real, true) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("t^S_k_lowq") + std::to_string(m_K);
+    return std::string("t^S_k_lowq") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -202,9 +193,9 @@ public:
       return dF;
     }
 
-    if (m_K == 0) {
+    if (m_rank == 0) {
       Gab_rhs(&dF, Fb, -2.0);
-    } else if (m_K == 1) {
+    } else if (m_rank == 1) {
       Rab_rhs(-1, m_vec, &dF, Fb, (m_q / 3.0));
     }
 
@@ -218,11 +209,11 @@ public:
       return 0.0;
     }
 
-    if (m_K == 0) {
+    if (m_rank == 0) {
       return -2.0 * Gab(Fa, Fb);
     }
 
-    if (m_K == 1) {
+    if (m_rank == 1) {
       return (m_q / 3.0) * Rab(-1, m_vec, Fa, Fb);
     }
 
@@ -235,7 +226,6 @@ public:
   }
 
 private:
-  int m_K;
   double m_q{};
 };
 
@@ -249,17 +239,16 @@ class AEk_lowq final : public TensorOperator {
 public:
   AEk_lowq(const Grid &gr, int K, double omega)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::real),
-      m_K(K) {
+                     gr.r(), 0, Realness::real) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("T^E5_lowq_") + std::to_string(m_K);
+    return std::string("T^E5_lowq_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, -kb);
+    return Angular::Ck_kk(m_rank, ka, -kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -278,7 +267,7 @@ public:
     const auto dk_int = kappa_a + Fb.kappa();
     const auto same_kap = kappa_a == Fb.kappa();
 
-    if (m_K == 1) {
+    if (m_rank == 1) {
       const double cx = std::sqrt(2.0) / 3.0;
 
       if (same_kap || dk_int == 1) {
@@ -289,7 +278,7 @@ public:
       }
     }
 
-    if (m_K == 2) {
+    if (m_rank == 2) {
       const auto cx2 = (1.0 / 15.0) * std::sqrt(3.0 / 2.0);
 
       if (dk_int == 2) {
@@ -317,7 +306,7 @@ public:
 
     const auto same_kap = Fa.kappa() == Fb.kappa();
 
-    if (m_K == 1) {
+    if (m_rank == 1) {
       const auto cx = std::sqrt(2.0);
 
       if (same_kap || dk_int == 1) {
@@ -328,7 +317,7 @@ public:
       return cx * (dk * Rm1 - Rp1) / 3.0;
     }
 
-    if (m_K == 2) {
+    if (m_rank == 2) {
       const auto cx2 = (1.0 / 15.0) * std::sqrt(3.0 / 2.0);
 
       if (dk_int == 2) {
@@ -349,7 +338,6 @@ public:
   }
 
 private:
-  int m_K;
   double m_q{};
 };
 
@@ -359,17 +347,16 @@ class ALk_lowq final : public TensorOperator {
 public:
   ALk_lowq(const Grid &gr, int K, double omega)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::real, true),
-      m_K(K) {
+                     gr.r(), 0, Realness::real, true) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("T^L5_k_lowq") + std::to_string(m_K);
+    return std::string("T^L5_k_lowq") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, -kb);
+    return Angular::Ck_kk(m_rank, ka, -kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -384,9 +371,9 @@ public:
       return dF;
     }
 
-    if (m_K == 0) {
+    if (m_rank == 0) {
       Rab_rhs(+1, m_vec, &dF, Fb, -(m_q / 3.0));
-    } else if (m_K == 1) {
+    } else if (m_rank == 1) {
       const auto dk_int = kappa_a + Fb.kappa();
       const auto dk = double(dk_int);
       const auto same_kap = kappa_a == Fb.kappa();
@@ -412,10 +399,10 @@ public:
       return 0.0;
     }
 
-    if (m_K == 0) {
+    if (m_rank == 0) {
       return -(m_q / 3.0) * Rab(+1, m_vec, Fa, Fb);
     }
-    if (m_K == 1) {
+    if (m_rank == 1) {
 
       const auto dk_int = Fa.kappa() + Fb.kappa();
       const auto dk = double(dk_int);
@@ -435,7 +422,6 @@ public:
   }
 
 private:
-  int m_K;
   double m_q{};
 };
 
@@ -445,18 +431,17 @@ class AMk_lowq final : public TensorOperator {
 public:
   AMk_lowq(const Grid &gr, int K, double omega)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::real, true),
-      m_K(K) {
+                     gr.r(), 0, Realness::real, true) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
 
   std::string name() const override final {
-    return std::string("T^M5_k_lowq_1") + std::to_string(m_K);
+    return std::string("T^M5_k_lowq_1") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -472,11 +457,11 @@ public:
     }
 
     const auto sk = double(kappa_a - Fb.kappa());
-    if (m_K == 1) {
+    if (m_rank == 1) {
       Rab_rhs(-1, m_vec, &dF, Fb, -(m_q / (std::sqrt(2.0) * 3.0)) * sk);
     }
 
-    if (m_K == 2) {
+    if (m_rank == 2) {
       using namespace qip::overloads;
       const auto c = -(m_q * m_q / (std::sqrt(6.0) * 15.0)) * sk;
       Rab_rhs(-1, m_vec * m_vec, &dF, Fb, c);
@@ -494,11 +479,11 @@ public:
 
     const auto sk = double(Fa.kappa() - Fb.kappa());
 
-    if (m_K == 1) {
+    if (m_rank == 1) {
       const auto ck = sk / std::sqrt(2.0);
       return -ck * m_q * Rab(-1, m_vec, Fa, Fb) / 3.0;
     }
-    if (m_K == 2) {
+    if (m_rank == 2) {
       using namespace qip::overloads;
       return -(m_q * m_q / (std::sqrt(6.0) * 15.0)) * sk *
              Rab(-1, m_vec * m_vec, Fa, Fb);
@@ -512,7 +497,6 @@ public:
   }
 
 private:
-  int m_K;
   double m_q{};
 };
 
@@ -525,17 +509,16 @@ public:
              double alpha = PhysConst::alpha)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                      gr.r(), 0, Realness::real, true),
-      m_K(K),
       m_alpha(alpha) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("Phi5_lowq_") + std::to_string(m_K);
+    return std::string("Phi5_lowq_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, -kb);
+    return Angular::Ck_kk(m_rank, ka, -kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -548,13 +531,13 @@ public:
       return dF;
     }
 
-    if (m_K == 0) {
+    if (m_rank == 0) {
       // XXX q here is via _frequency_, not momentum
       const auto w_ab = m_q / m_alpha;
       const auto f_rel = 1.0 / (1.0 + m_alpha * m_alpha * kappa_a * w_ab);
       const auto c = -m_alpha * w_ab * f_rel;
       Rab_rhs(+1, m_vec, &dF, Fb, c);
-    } else if (m_K == 1) {
+    } else if (m_rank == 1) {
       // XXX q here is _momentum_, not frequency
       Pab_rhs(-1, m_vec, &dF, Fb, (m_q / 3.0));
     }
@@ -569,7 +552,7 @@ public:
       return 0.0;
     }
 
-    if (m_K == 0) {
+    if (m_rank == 0) {
       // XXX q here is via _frequency_, not momentum
       const auto w_ab = Fa.en() - Fb.en();
       const auto f_rel = 1.0 / (1.0 + m_alpha * m_alpha * Fa.kappa() * w_ab);
@@ -577,7 +560,7 @@ public:
       //Pab(-1, Fa, Fb); //
     }
 
-    if (m_K == 1) {
+    if (m_rank == 1) {
       // XXX q here is _momentum_, not frequency
       return (m_q / 3.0) * Pab(-1, m_vec, Fa, Fb);
     }
@@ -591,7 +574,6 @@ public:
   }
 
 private:
-  int m_K;
   double m_alpha;
   double m_q{};
 };
@@ -605,17 +587,16 @@ public:
   S5k_lowq(const Grid &gr, int K, double omega, double alpha = PhysConst::alpha)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                      gr.r(), 0, Realness::real, true),
-      m_K(K),
       m_alpha(alpha) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("S5_k_lowq") + std::to_string(m_K);
+    return std::string("S5_k_lowq") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, -kb);
+    return Angular::Ck_kk(m_rank, ka, -kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -628,7 +609,7 @@ public:
       return dF;
     }
 
-    if (m_K == 0) {
+    if (m_rank == 0) {
       // XXX Need to think about how to do omega here nicely
       // return dF;
       // XXX omega_ab factored out!! XXX
@@ -639,7 +620,7 @@ public:
       const auto c = 0.5 * m_alpha * m_alpha * m_alpha * wab2 * f_rel;
 
       Rab_rhs(+1, m_vec, &dF, Fb, c);
-    } else if (m_K == 1) {
+    } else if (m_rank == 1) {
       Pab_rhs(+1, m_vec, &dF, Fb, -(m_q / 3.0));
     }
 
@@ -653,7 +634,7 @@ public:
       return 0.0;
     }
 
-    if (m_K == 0) {
+    if (m_rank == 0) {
 
       // XXX q here is via _frequency_, not momentum
       const auto w_ab = Fa.en() - Fb.en();
@@ -664,7 +645,7 @@ public:
              f_rel;
     }
 
-    if (m_K == 1) {
+    if (m_rank == 1) {
       return -(m_q / 3.0) * Pab(+1, m_vec, Fa, Fb);
     }
 
@@ -677,7 +658,6 @@ public:
   }
 
 private:
-  int m_K;
   double m_alpha;
   double m_q{};
 };

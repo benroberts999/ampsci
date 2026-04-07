@@ -31,17 +31,16 @@ public:
           const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                      gr.r(), 0, Realness::imaginary, true),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("V^E(Len)_") + std::to_string(m_K);
+    return std::string("V^E(Len)_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -54,7 +53,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
 
   // This is to avoid copy if not required:
@@ -89,17 +87,16 @@ public:
       const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                      gr.r(), 0, Realness::imaginary, true),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("V^E_") + std::to_string(m_K);
+    return std::string("V^E_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -112,7 +109,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
 
   // This is to avoid copy if not required:
@@ -146,17 +142,16 @@ public:
       const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                      gr.r(), 0, Realness::imaginary, true),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("V^L_") + std::to_string(m_K);
+    return std::string("V^L_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -169,7 +164,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
 
   // This is to avoid copy if not required:
@@ -202,18 +196,17 @@ public:
       const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                      gr.r(), 0, Realness::imaginary, true),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
 
   std::string name() const override final {
-    return std::string("V^M_") + std::to_string(m_K);
+    return std::string("V^M_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, -ka, kb);
+    return Angular::Ck_kk(m_rank, -ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -226,7 +219,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
 
   // This is to avoid copy if not required:
@@ -257,17 +249,16 @@ public:
        const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                      gr.r(), 0, Realness::real, true),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("Phi_") + std::to_string(m_K);
+    return std::string("Phi_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -280,7 +271,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
 
   // This is to avoid copy if not required:
@@ -312,17 +302,16 @@ public:
      const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                      gr.r(), 0, Realness::real, true),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("t^S_") + std::to_string(m_K);
+    return std::string("t^S_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -335,7 +324,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
 
   // This is to avoid copy if not required:
@@ -370,17 +358,16 @@ public:
       const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                      gr.r(), 0, Realness::real),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("T^E5_") + std::to_string(m_K);
+    return std::string("T^E5_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, -kb);
+    return Angular::Ck_kk(m_rank, ka, -kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -393,7 +380,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK_on_qr{};
   std::vector<double> m_jKp1{};
@@ -421,17 +407,16 @@ public:
       const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                      gr.r(), 0, Realness::real, true),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("T^L5_") + std::to_string(m_K);
+    return std::string("T^L5_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, -kb);
+    return Angular::Ck_kk(m_rank, ka, -kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -444,7 +429,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK_on_qr{};
   std::vector<double> m_jKp1{};
@@ -472,18 +456,17 @@ public:
       const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                      gr.r(), 0, Realness::real, true),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
 
   std::string name() const override final {
-    return std::string("T^M5_") + std::to_string(m_K);
+    return std::string("T^M5_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, kb);
+    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -496,7 +479,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK{};
   const std::vector<double> *p_jK{nullptr};
@@ -508,9 +490,11 @@ public:
 };
 
 //==============================================================================
-//! @brief Temporal component of the axial vector multipole operator: \f$ \Theta_K = \Phi^5_K = t^K(q)\gamma^5 \f$
+//! @brief Temporal component of the axial vector multipole operator
 /*!
   @details
+  \f$ \Theta_K = \Phi^5_K = t^K(q)\gamma^5 \f$
+
   - Gamma^5 variant of the temporal (time-like) component of the vector
     multipole operator. Functions like `Phik` but with gamma^5 applied to
     the appropriate spin-angular structure.
@@ -523,17 +507,16 @@ public:
         const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                      gr.r(), 0, Realness::real, true),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("Phi5_") + std::to_string(m_K);
+    return std::string("Phi5_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, -kb);
+    return Angular::Ck_kk(m_rank, ka, -kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -546,7 +529,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK{};
   const std::vector<double> *p_jK{nullptr};
@@ -558,12 +540,14 @@ public:
 };
 
 //==============================================================================
-//! @brief Pseudoscalar multipole operator:
-//! \f$ P_K = S^5_K = t^K(q)(i\gamma^0\gamma^5) \f$
 /*!
+  @brief Pseudoscalar multipole operator: t^k (i g^0 g^5)
   @details
-  - Implements the pseudoscalar multipole operator ~ e^{i q r} i gamma^0 gamma^5.
-  - Radial dependence is provided via spherical Bessel functions j_L(q*r).
+
+  \f[ P_K = S^5_K = t^K(q)(i\gamma^0\gamma^5) \f]
+
+  - Implements the pseudoscalar multipole operator ~ \f$ e^{i q r} i \gamma^0 \gamma^5. \f$
+  - Radial dependence is provided via spherical Bessel functions \f$ j_L(q*r). \f$
   - Supports an optional `const SphericalBessel::JL_table *jl` for precomputed
     Bessel lookup; otherwise computes on demand.
 */
@@ -573,17 +557,16 @@ public:
       const SphericalBessel::JL_table *jl = nullptr)
     : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
                      gr.r(), 0, Realness::real, true),
-      m_K(K),
       m_jl(jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
   std::string name() const override final {
-    return std::string("S5_") + std::to_string(m_K);
+    return std::string("S5_") + std::to_string(m_rank);
   }
 
   double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_K, ka, -kb);
+    return Angular::Ck_kk(m_rank, ka, -kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -596,7 +579,6 @@ public:
   void updateFrequency(const double omega) override final;
 
 private:
-  int m_K;
   const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK{};
   const std::vector<double> *p_jK{nullptr};
@@ -613,10 +595,9 @@ public:
 //! Helper functions for the multipole operators
 namespace multipole {
 
-//! Convert from "transition form" to "moment form" [check sign?]
+//! Convert from "transition form" to "moment form"
 inline double moment_factor(int K, double omega) {
   const auto q = std::abs(PhysConst::alpha * omega);
-  // sign?
   return qip::double_factorial(2 * K + 1) / qip::pow(q, K) *
          std::sqrt(K / (K + 1.0));
 }
@@ -735,17 +716,37 @@ generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
 }
 
 //------------------------------------------------------------------------------
-//! @brief Factory for relativistic multipole operators.
 /*!
- @details 
- Constructs and returns a specific multipole operator derived from
- DiracOperator::TensorOperator, based on the requested Lorentz structure,
- multipole component, and momentum-transfer regime.
- 
- The operator corresponds to a spherical multipole of rank @p k with
- frequency/energy transfer @p omega. The type and component determine
- the Lorentz structure and spatial character of the interaction.
- 
+  @brief Factory for relativistic multipole operators.
+  @details 
+  Constructs and returns a specific multipole operator derived from
+  DiracOperator::TensorOperator, based on the requested Lorentz structure,
+  multipole component, and momentum-transfer regime.
+
+  These are the \f$ t^K_Q \tilde\gamma \f$, \f$ T^{(\sigma)}_{KQ} \tilde\gamma \f$
+  operators from the vector expansion:
+
+  \f[
+  \begin{align}
+    e^{i\vec{q}\cdot\vec{r}} 
+      &= \sqrt{4\pi}\sum_{KQ}\sqrt{[K]} \, 
+        i^K \, {Y^*_{KQ}}{(\hat q)} \, t^K_Q(q,r),\\
+    \vec{\alpha} \, e^{i\vec{q}\cdot\vec{r}}
+      & = \sqrt{4\pi} \sum_{KQ\sigma} \sqrt{[K]} \, i^{K-\sigma} \, 
+            \vec{Y}_{KQ}^{(\sigma)*}(\hat{{q}}) \, 
+            T^{(\sigma)}_{KQ}.
+  \end{align}  
+  \f]
+
+  The operator corresponds to a spherical multipole of rank @p k with
+  frequency/energy transfer @p omega. The type and component determine
+  the Lorentz structure and spatial character of the interaction.
+
+  These are "frequency"-dependent operators, via momentum transfer, q.
+  For electromagnetic interactions, \f$ \omega = q c\f$.
+  The "updateFrequency()" function expects these units, so even when momentum
+  transfer is not equal to energy exchange, we should pass \f$ qc \f$ to this function.
+
   @param grid   Radial grid on which the operator acts.
   @param k      Multipole rank (total angular momentum of the operator).
   @param omega  Energy (frequency) transfer.
@@ -766,14 +767,14 @@ generate_Multipole(const IO::InputBlock &input, const Wavefunction &wf) {
                 If provided, radial Bessel functions are taken from this
                 table to avoid recomputation. If nullptr, they are generated
                 internally as needed.
- 
+
   @return A std::unique_ptr to the requested TensorOperator.
- 
+
   @note Length-form electric operators (if implemented separately) are
         only valid for vector-electric ('V','E') combinations.
- 
+
   @warning Invalid combinations of @p type and @p comp may result in
-           a nullptr being returned.
+            a nullptr being returned.
 */
 std::unique_ptr<DiracOperator::TensorOperator>
 MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,

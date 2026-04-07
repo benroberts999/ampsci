@@ -10,6 +10,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
 #include "fmt/ostream.hpp"
+#include "qip/Maths.hpp"
 #include "qip/Methods.hpp"
 #include "qip/omp.hpp"
 #include <iostream>
@@ -22,7 +23,7 @@ LinAlg::Matrix<double>
 calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
               const Grid &Egrid, const DiracOperator::jL *jl,
               bool force_rescale, bool hole_particle, bool force_orthog,
-              bool zeff_cont, double ec_cut) {
+              bool zeff_cont, bool zeff_bound, double ec_cut) {
   assert(vHF != nullptr && "Hartree-Fock potential must not be null");
   assert(jl != nullptr && "jl operator must not be null");
 
@@ -34,6 +35,23 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
   if (std::abs(Fnk.en()) > Egrid.r().back()) {
     return Knk_Eq;
   }
+
+  // Same Zeff as used by DarkARC (eqn B35 of arxiv:1912.08204):
+  // Zeff = sqrt{I_{njl} eV / 13.6 eV} * n
+  // au: Zeff = sqrt{2 * I_{njl}} * n
+  // const double Zeff = std::sqrt(-2.0 * Fnk.en()) * Fnk.n();
+
+  const double Zeff = std::sqrt(-2.0 * Fnk.en()) * Fnk.n();
+  if (zeff_cont || zeff_bound) {
+    std::cout << Fnk << " E = " << Fnk.en() << ", Zeff = " << Zeff << "\n";
+  }
+  // nb: Fnk_zeff will have not exact right energy; use HF energy
+  // This is either real state, or Zeff version.
+  // Use this when calculating matrix elements (but not energies)
+  const auto &Fnk_t =
+    zeff_bound ? DiracSpinor::exactHlike(Fnk.n(), Fnk.kappa(), Fnk.grid_sptr(),
+                                         Zeff, vHF->alpha()) :
+                 Fnk;
 
   // Definition of matrix element:
   // matrix element defined such that:
@@ -71,13 +89,9 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
     // create cntm object [survives locally only]
     ContinuumOrbitals cntm(vHF);
     if (zeff_cont) {
-      // Same Zeff as used by DarkARC (eqn B35 of arxiv:1912.08204):
-      // Zeff = sqrt{I_{njl} eV / 13.6 eV} * n
-      // au: Zeff = sqrt{2 * I_{njl}} * n
-      const double Zeff = std::sqrt(-2.0 * Fnk.en()) * Fnk.n();
-      cntm.solveContinuumZeff(ec, lc_min, lc_max, Zeff, &Fnk, force_orthog);
+      cntm.solveContinuumZeff(ec, lc_min, lc_max, Zeff, &Fnk_t, force_orthog);
     } else {
-      cntm.solveContinuumHF(ec, lc_min, lc_max, &Fnk, force_rescale,
+      cntm.solveContinuumHF(ec, lc_min, lc_max, &Fnk_t, force_rescale,
                             hole_particle, force_orthog);
     }
 
@@ -87,16 +101,187 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
     for (std::size_t iq = 0; iq < qsteps; iq++) {
       for (std::size_t L = 0; L <= std::size_t(max_L); L++) {
         for (const auto &Fe : cntm.orbitals) {
-          if (jl->is_zero(Fe, Fnk, L))
+          if (jl->is_zero(Fe, Fnk_t, L))
             continue;
           const auto q = jl->q_grid().r(iq);
-          const auto me = jl->rme(Fe, Fnk, L, q);
+          const auto me = jl->rme(Fe, Fnk_t, L, q);
           Knk_Eq(idE, iq) += double(2 * L + 1) * me * me * x_ocf;
         }
       }
     }
   }
   return Knk_Eq;
+}
+
+//==============================================================================
+std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
+  const Wavefunction &wf, const DiracSpinor &Fa, int lc_min, int lc_max,
+  int Kmin, int Kmax, const std::vector<double> &Egrid,
+  const std::vector<double> &qgrid, bool diagonal_Eq, bool force_rescale,
+  bool hole_particle, bool force_orthog, bool low_q,
+  const SphericalBessel::JL_table &jK_tab, bool vectorQ, bool spatialQ,
+  bool axialQ, bool XvvQ, bool YaaQ, bool ZvaQ, bool scalarQ,
+  bool pseudoscalarQ) {
+
+  const auto E_steps = Egrid.size();
+  const auto q_steps = qgrid.size();
+
+  // Factors for specific bound state, Fa
+  std::array<LinAlg::Matrix<double>, 13> K_factors;
+  auto &K_VT = K_factors[0];  // Vector: temporal
+  auto &K_VE = K_factors[1];  // Vector: electric
+  auto &K_VM = K_factors[2];  // Vector: magnetic
+  auto &K_VL = K_factors[3];  // Vector: longitudinal
+  auto &K_X = K_factors[4];   // Vector: v-v cross
+  auto &K_T5 = K_factors[5];  // Axial: temporal
+  auto &K_E5 = K_factors[6];  // Axial: electric
+  auto &K_M5 = K_factors[7];  // Axial: magnetic
+  auto &K_L5 = K_factors[8];  // Axial: longitudinal
+  auto &K_X5 = K_factors[9];  // Axial: a-a cross
+  auto &K_Z = K_factors[10];  // Vector-Axial interference
+  auto &K_S = K_factors[11];  // Scalar
+  auto &K_S5 = K_factors[12]; // Pseudo-scalar
+
+  if (vectorQ) {
+    K_VT.resize(E_steps, q_steps);
+    if (spatialQ) {
+      K_VE.resize(E_steps, q_steps);
+      K_VM.resize(E_steps, q_steps);
+      K_VL.resize(E_steps, q_steps);
+      K_X.resize(E_steps, q_steps);
+    }
+  }
+  if (axialQ) {
+    K_T5.resize(E_steps, q_steps);
+    if (spatialQ) {
+      K_E5.resize(E_steps, q_steps);
+      K_M5.resize(E_steps, q_steps);
+      K_L5.resize(E_steps, q_steps);
+      K_X5.resize(E_steps, q_steps);
+    }
+  }
+  if (vectorQ && axialQ && spatialQ) {
+    K_Z.resize(E_steps, q_steps);
+  }
+  if (scalarQ) {
+    K_S.resize(E_steps, q_steps);
+  }
+  if (pseudoscalarQ) {
+    K_S5.resize(E_steps, q_steps);
+  }
+
+  const auto idE_0 = std::size_t(std::distance(
+    Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
+                                [&Fa](auto e) { return e > -Fa.en(); })));
+
+  if (diagonal_Eq)
+    assert(qgrid.size() == 1);
+
+#pragma omp parallel for
+  for (std::size_t iE = idE_0; iE < Egrid.size(); ++iE) {
+    const auto omega = Egrid.at(iE);
+
+    const auto ec = omega + Fa.en();
+    assert(ec > 0.0);
+
+    ContinuumOrbitals cntm(wf.vHF());
+    cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale, hole_particle,
+                          force_orthog);
+
+    for (std::size_t iq = 0; iq < qgrid.size(); ++iq) {
+
+      // Use qc as expected for "omega" in operators (just units)
+      const auto qc = diagonal_Eq ? Egrid.at(iE) : qgrid.at(iq) * PhysConst::c;
+
+      for (int k = Kmin; k <= Kmax; ++k) {
+
+        const auto tkp1_x = (2.0 * k + 1.0) * Fa.occ_frac();
+
+        // Vector terms:
+        const auto Phik = DiracOperator::MultipoleOperator(
+          wf.grid(), k, qc, 'V', 'T', low_q, &jK_tab);
+        const auto Ek = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'V',
+                                                         'E', low_q, &jK_tab);
+        const auto Mk = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'V',
+                                                         'M', low_q, &jK_tab);
+        const auto Lk = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'V',
+                                                         'L', low_q, &jK_tab);
+
+        // Axial (gamma^5) versions
+        const auto Phi5k = DiracOperator::MultipoleOperator(
+          wf.grid(), k, qc, 'A', 'T', low_q, &jK_tab);
+        const auto E5k = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'A',
+                                                          'E', low_q, &jK_tab);
+        const auto M5k = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'A',
+                                                          'M', low_q, &jK_tab);
+        const auto L5k = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'A',
+                                                          'L', low_q, &jK_tab);
+
+        // Scalar and pseudoscalar
+        const auto Sk = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'S',
+                                                         'T', low_q, &jK_tab);
+        const auto S5k = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'P',
+                                                          'T', low_q, &jK_tab);
+
+        for (const auto &Fe : cntm.orbitals) {
+
+          const auto t = vectorQ ? Phik->reducedME(Fe, Fa) : 0.0;
+          const auto E = vectorQ && spatialQ ? Ek->reducedME(Fe, Fa) : 0.0;
+          const auto M = vectorQ && spatialQ ? Mk->reducedME(Fe, Fa) : 0.0;
+          const auto L = vectorQ && spatialQ ? Lk->reducedME(Fe, Fa) : 0.0;
+
+          const auto t5 = axialQ ? Phi5k->reducedME(Fe, Fa) : 0.0;
+          const auto E5 = axialQ && spatialQ ? E5k->reducedME(Fe, Fa) : 0.0;
+          const auto M5 = axialQ && spatialQ ? M5k->reducedME(Fe, Fa) : 0.0;
+          const auto L5 = axialQ && spatialQ ? L5k->reducedME(Fe, Fa) : 0.0;
+
+          // Vector operators
+          if (vectorQ) {
+            K_VT(iE, iq) += tkp1_x * qip::pow(t, 2);
+            if (spatialQ) {
+              K_VE(iE, iq) += tkp1_x * qip::pow(E, 2);
+              K_VM(iE, iq) += tkp1_x * qip::pow(M, 2);
+              K_VL(iE, iq) += tkp1_x * qip::pow(L, 2);
+            }
+          }
+          // Vector Interference:
+          if (XvvQ) {
+            K_X(iE, iq) += tkp1_x * t * L;
+          }
+
+          // Axial (γ^5) operators
+          if (axialQ) {
+            K_T5(iE, iq) += tkp1_x * qip::pow(t5, 2);
+            if (spatialQ) {
+              K_E5(iE, iq) += tkp1_x * qip::pow(E5, 2);
+              K_M5(iE, iq) += tkp1_x * qip::pow(M5, 2);
+              K_L5(iE, iq) += tkp1_x * qip::pow(L5, 2);
+            }
+          }
+
+          // Axial Interference:
+          if (YaaQ) {
+            K_X5(iE, iq) += tkp1_x * t5 * L5;
+          }
+
+          // Vector-Axial Spatial Interference:
+          if (ZvaQ) {
+            K_Z(iE, iq) += tkp1_x * (E5 * M - E * M5);
+          }
+
+          // Scalar and Pseudoscalar
+          if (scalarQ) {
+            K_S(iE, iq) += tkp1_x * qip::pow(Sk->reducedME(Fe, Fa), 2);
+          }
+          if (pseudoscalarQ) {
+            K_S5(iE, iq) += tkp1_x * qip::pow(S5k->reducedME(Fe, Fa), 2);
+          }
+        }
+      }
+    }
+  }
+
+  return K_factors;
 }
 
 //==============================================================================
@@ -157,26 +342,43 @@ bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid) {
 }
 
 //==============================================================================
-void write_to_file_xyz(const LinAlg::Matrix<double> &K,
+void write_to_file_xyz(const std::string &filename,
                        const std::vector<double> &E_grid,
                        const std::vector<double> &q_grid,
-                       const std::string &filename, int num_digits,
-                       Units units) {
-  // optional format argument?
-  assert(K.rows() == E_grid.size());
-  assert(K.cols() == q_grid.size());
-  std::ofstream out_file(filename + "_xyz.txt");
-  std::cout << "  -  " << filename + "_xyz.txt\n";
+                       const std::vector<std::string> &titles,
+                       const std::vector<std::string> &descriptions,
+                       std::vector<LinAlg::Matrix_view<const double>> factors,
+                       Units units, int num_digits, bool diagonal) {
+
+  assert(titles.size() == factors.size() && "Each factor must have a title");
+
+  std::ofstream out_file(filename);
+
+  // Just write to screen:
+  fmt::print("Writing factors to file: {}\n", filename);
+  fmt::print("Using {} units for E/q (K dimensionless)\n",
+             units == Units::Atomic ? "atomic" : "eV");
+
+  // check array sizes:
+  for (const auto &K : factors) {
+    if (K.size() == 0)
+      continue;
+    assert(K.rows() == E_grid.size() && "Factors: rows must match energy grid");
+    assert(K.cols() == q_grid.size() &&
+           "Factors: cols must match momentum grid");
+  }
+
+  // Require num_digits be between 3 and 16:
+  num_digits = std::clamp(num_digits, 3, 16);
 
   const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
   const auto unit_q =
     units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
+  const auto unit_str = units == Units::Particle ? "eV" : "au";
 
-  const auto Unit_str = units == Units::Atomic ? "E_H" : "eV";
-
-  out_file << "# Kion output data file: " << filename << " - xyz format\n";
+  out_file << "# ampsci Kion form factors output data file: " << filename
+           << " - xyz format\n";
   fmt::print(out_file, "# Units: ");
-
   if (units == Units::Atomic) {
     fmt::print(out_file, "Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
   } else if (units == Units::Particle) {
@@ -188,94 +390,81 @@ void write_to_file_xyz(const LinAlg::Matrix<double> &K,
   fmt::print(out_file,
              "# nb: 1/a0 = m_e*c*α/hbar = E_H / (c*α*hbar) = ~3729 eV\n");
 
-  fmt::print(out_file, "# E           q            K\n");
+  // Map short column headers to useful descriptions
+  out_file << "# Columns:\n";
+  fmt::print(out_file, "# {:<4} : {} in {}\n", "E", "Energy exchange",
+             unit_str);
+  fmt::print(out_file, "# {:<4} : {} in {}\n", "q", "Momentum transfer",
+             unit_str);
+  for (std::size_t i = 0; i < factors.size(); ++i) {
+    if (factors.at(i).size() == 0)
+      continue;
+    fmt::print(out_file, "# {:<4} : {}\n", titles[i], descriptions[i]);
+  }
+  out_file << "################################################################"
+              "################\n";
+
+  // Add titles (column headers)
+  const auto width = 7 + num_digits;
+  fmt::print(out_file, "{:<{}}  ", "E", width);
+  fmt::print(out_file, "{:<{}} ", "q", width);
+  for (std::size_t i = 0; i < factors.size(); ++i) {
+    if (factors.at(i).size() == 0)
+      continue;
+    fmt::print(out_file, "{:<{}} ", titles[i], width);
+  }
+  out_file << "\n";
+
+  // fmt::print(out_file, "{:<{}} {:<{}.{}f}", str, n, value, n, m);
   for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
+    const auto E = E_grid.at(iE) * unit_E;
     for (std::size_t iq = 0; iq < q_grid.size(); ++iq) {
-      fmt::print(out_file, "{:+.{}e} {:+.{}e} {:+.{}e}\n",
-                 E_grid.at(iE) * unit_E, num_digits, q_grid.at(iq) * unit_q,
-                 num_digits, K(iE, iq), num_digits);
+      const auto q = diagonal ? E_grid.at(iE) * PhysConst::alpha * unit_q :
+                                q_grid.at(iq) * unit_q;
+      fmt::print(out_file, "{:+{}.{}e} ", E, width, num_digits);
+      fmt::print(out_file, "{:+{}.{}e} ", q, width, num_digits);
+      for (const auto &K : factors) {
+        if (K.size() == 0)
+          continue;
+        fmt::print(out_file, "{:+{}.{}e} ", K(iE, iq), width, num_digits);
+      }
+      out_file << "\n";
     }
+    // Print new line between each new energy (so long as >1 q).
+    // This makes gnuplot happy, and doesn't impact pyplot
     if (q_grid.size() > 1 && iE + 1 < E_grid.size()) {
       out_file << "\n";
-      fmt::print(out_file, "# E = {:.2e} {}\n", E_grid.at(iE) * unit_E,
-                 Unit_str);
     }
   }
 }
 
 //==============================================================================
-void write_to_file_xyz_set(const std::vector<double> &E_grid,
-                           const std::vector<double> &q_grid,
-                           const std::string &filename, int num_digits,
-                           Units units, const LinAlg::Matrix<double> &K_T,
-                           const LinAlg::Matrix<double> &K_E,
-                           const LinAlg::Matrix<double> &K_M,
-                           const LinAlg::Matrix<double> &K_L,
-                           const LinAlg::Matrix<double> &K_X) {
-  // optional format argument?
-  // assert(K.rows() == E_grid.size()); XXX
-  // assert(K.cols() == q_grid.size());
+void write_to_file_xyz_13(
+  const std::string &filename, const std::vector<double> &E_grid,
+  const std::vector<double> &q_grid, const std::vector<std::string> &titles,
+  const std::vector<std::string> &descriptions,
+  const std::array<LinAlg::Matrix<double>, 13> K_factors, Units units,
+  int num_digits, bool diagonal) {
 
-  std::ofstream out_file(filename + "_xyz.txt");
-  std::cout << "  -  " << filename + "_xyz.txt\n";
+  const auto &K_VT = K_factors[0];  // Vector: temporal
+  const auto &K_VE = K_factors[1];  // Vector: electric
+  const auto &K_VM = K_factors[2];  // Vector: magnetic
+  const auto &K_VL = K_factors[3];  // Vector: longitudinal
+  const auto &K_X = K_factors[4];   // Vector: v-v cross
+  const auto &K_T5 = K_factors[5];  // Axial: temporal
+  const auto &K_E5 = K_factors[6];  // Axial: electric
+  const auto &K_M5 = K_factors[7];  // Axial: magnetic
+  const auto &K_L5 = K_factors[8];  // Axial: longitudinal
+  const auto &K_X5 = K_factors[9];  // Axial: a-a cross
+  const auto &K_Z = K_factors[10];  // Vector-Axial interference
+  const auto &K_S = K_factors[11];  // Scalar
+  const auto &K_S5 = K_factors[12]; // Pseudo-scalar
 
-  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
-  const auto unit_q =
-    units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
+  std::vector<LinAlg::Matrix_view<const double>> factors{
+    K_VT, K_VE, K_VM, K_VL, K_X, K_T5, K_E5, K_M5, K_L5, K_X5, K_Z, K_S, K_S5};
 
-  const auto Unit_str = units == Units::Atomic ? "E_H" : "eV";
-
-  out_file << "# Kion output data file: " << filename << " - xyz format\n";
-  fmt::print(out_file, "# Units: ");
-
-  if (units == Units::Atomic) {
-    fmt::print(out_file, "Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
-  } else if (units == Units::Particle) {
-    fmt::print(out_file, "Particle units. [q] = eV, [E] = eV, [K] = 1\n");
-  } else {
-    std::cout << "units error\n";
-  }
-  fmt::print(out_file, "# nb: E_H = m_e (c*α)^2 = ~27.21 eV\n");
-  fmt::print(out_file,
-             "# nb: 1/a0 = m_e*c*α/hbar = E_H / (c*α*hbar) = ~3729 eV\n");
-
-  fmt::print(out_file, "# Column headers:\n");
-  fmt::print(out_file, "E   q   ");
-  if (!K_T.empty())
-    out_file << "K_T   ";
-  if (!K_E.empty())
-    out_file << "K_E   ";
-  if (!K_M.empty())
-    out_file << "K_M   ";
-  if (!K_L.empty())
-    out_file << "K_L   ";
-  if (!K_X.empty())
-    out_file << "K_cross";
-  out_file << "\n";
-
-  for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
-    for (std::size_t iq = 0; iq < q_grid.size(); ++iq) {
-      fmt::print(out_file, "{:+.{}e} {:+.{}e} ", E_grid.at(iE) * unit_E,
-                 num_digits, q_grid.at(iq) * unit_q, num_digits);
-
-      if (!K_T.empty())
-        fmt::print(out_file, "{:+.{}e} ", K_T(iE, iq), num_digits);
-      if (!K_E.empty())
-        fmt::print(out_file, "{:+.{}e} ", K_E(iE, iq), num_digits);
-      if (!K_M.empty())
-        fmt::print(out_file, "{:+.{}e} ", K_M(iE, iq), num_digits);
-      if (!K_L.empty())
-        fmt::print(out_file, "{:+.{}e} ", K_L(iE, iq), num_digits);
-      if (!K_X.empty())
-        fmt::print(out_file, "{:+.{}e} ", K_X(iE, iq), num_digits);
-      out_file << "\n";
-    }
-    if (q_grid.size() > 1 && iE + 1 < E_grid.size()) {
-      out_file << "\n";
-      fmt::print(out_file, "# E = {:.2e} {}\n", E_grid.at(iE + 1) * unit_E,
-                 Unit_str);
-    }
-  }
+  return write_to_file_xyz(filename, E_grid, q_grid, titles, descriptions,
+                           factors, units, num_digits, diagonal);
 }
 
 //==============================================================================
@@ -287,7 +476,7 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K,
   // optional format argument?
   assert(K.rows() == E_grid.size());
   assert(K.cols() == q_grid.size());
-  std::ofstream out_file(filename + "_mat.txt");
+  std::ofstream out_file(filename);
 
   const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
   const auto unit_q =
@@ -322,120 +511,6 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K,
       fmt::print(out_file, "{:+.{}e} ", K(iE, iq), num_digits);
     }
     out_file << '\n';
-  }
-}
-
-//==============================================================================
-void write_to_file_gnuplot(const LinAlg::Matrix<double> &K,
-                           const std::vector<double> &E_grid,
-                           const std::vector<double> &q_grid,
-                           const std::string &filename, int num_digits,
-                           Units units) {
-  // optional format argument?
-  assert(K.rows() == E_grid.size());
-  assert(K.cols() == q_grid.size());
-  std::ofstream out_file(filename + "_gnu.txt");
-
-  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
-  const auto unit_q =
-    units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
-
-  out_file << "# Kion output data file: " << filename
-           << " - gnuplot format - function of q for various E values\n";
-
-  if (units == Units::Atomic) {
-    fmt::print(out_file,
-               "# Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
-  } else if (units == Units::Particle) {
-    fmt::print(out_file, "# Particle units. [q] = eV, [E] = eV, [K] = 1\n");
-  } else {
-    std::cout << "units error\n";
-  }
-
-  fmt::print(out_file, "# K_ion(E,q).\n"
-                       "# Each column is new E; each row is new q.\n"
-                       "# First column is q values; first row is E values.\n");
-
-  fmt::print(out_file, "q ");
-  for (const auto &E : E_grid) {
-    const auto unit = units == Units::Atomic ? "E_H" : "eV";
-    fmt::print(out_file, "\"E = {:.3g} {}\" ", E * unit_E, unit);
-  }
-  out_file << "\n";
-
-  // nb: write out is 'transposed' order from array: this is to make plotting easier
-  for (std::size_t iq = 0; iq < q_grid.size(); ++iq) {
-    fmt::print(out_file, "{:.{}e} ", q_grid.at(iq) * unit_q, num_digits);
-    for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
-      fmt::print(out_file, "{:.{}e} ", K(iE, iq), num_digits);
-    }
-    fmt::print(out_file, "\n");
-  }
-}
-
-//==============================================================================
-void write_to_file_gnuplot_E(const LinAlg::Matrix<double> &K,
-                             const std::vector<double> &E_grid,
-                             const std::vector<double> &q_grid,
-                             const std::string &filename, int num_digits,
-                             Units units) {
-  // optional format argument?
-  assert(K.rows() == E_grid.size());
-  assert(K.cols() == q_grid.size());
-  std::ofstream out_file(filename + "_gnu_E.txt");
-
-  const auto unit_E = units == Units::Atomic ? 1.0 : UnitConv::Energy_au_to_eV;
-  const auto unit_q =
-    units == Units::Atomic ? 1.0 : UnitConv::Momentum_au_to_eV;
-
-  out_file << "# Kion output data file: " << filename
-           << " - gnuplot format - function of E for various q values\n";
-
-  if (units == Units::Atomic) {
-    fmt::print(out_file,
-               "# Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
-  } else if (units == Units::Particle) {
-    fmt::print(out_file, "# Particle units. [q] = eV, [E] = eV, [K] = 1\n");
-  } else {
-    std::cout << "units error\n";
-  }
-
-  fmt::print(out_file, "# K_ion(E,q).\n"
-                       "# Each column is new q; each row is new E.\n"
-                       "# First column is E values; first row is q values.\n");
-
-  fmt::print(out_file, "E ");
-  for (const auto &q : q_grid) {
-    const auto unit = units == Units::Atomic ? "a0^{-1}" : "eV";
-    fmt::print(out_file, "\"q = {:.3g} {}\" ", q * unit_q, unit);
-  }
-  out_file << "\n";
-
-  for (std::size_t iE = 0; iE < E_grid.size(); ++iE) {
-    fmt::print(out_file, "{:.{}e} ", E_grid.at(iE) * unit_E, num_digits);
-    for (std::size_t iq = 0; iq < q_grid.size(); ++iq) {
-      fmt::print(out_file, "{:.{}e} ", K(iE, iq), num_digits);
-    }
-    fmt::print(out_file, "\n");
-  }
-}
-
-//==============================================================================
-void write_to_file(const std::vector<OutputFormat> &formats,
-                   const LinAlg::Matrix<double> &K,
-                   const std::vector<double> &E_grid,
-                   const std::vector<double> &q_grid,
-                   const std::string &filename, int num_digits, Units units) {
-  // Update: Always use atomic units for mat and xyz
-  for (const auto &format : formats) {
-    if (format == OutputFormat::gnuplot)
-      write_to_file_gnuplot(K, E_grid, q_grid, filename, num_digits, units);
-    if (format == OutputFormat::gnuplot_E)
-      write_to_file_gnuplot_E(K, E_grid, q_grid, filename, num_digits, units);
-    if (format == OutputFormat::matrix)
-      write_to_file_matrix(K, E_grid, q_grid, filename, num_digits, units);
-    if (format == OutputFormat::xyz)
-      write_to_file_xyz(K, E_grid, q_grid, filename, num_digits, units);
   }
 }
 
