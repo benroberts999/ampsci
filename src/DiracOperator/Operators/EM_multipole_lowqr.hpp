@@ -23,6 +23,12 @@ public:
 
   void updateFrequency(const double) override final { return; }
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
+  }
+
   double angularCff(int, int) const override final { return 0; }
   double angularCgg(int, int) const override final { return 0; }
   double angularCfg(int ka, int kb) const override final {
@@ -64,6 +70,12 @@ public:
     m_constant = -m_q / (3.0 * std::sqrt(2.0));
   }
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
+  }
+
 private:
   double m_q{};
 };
@@ -84,6 +96,12 @@ public:
   }
 
   void updateFrequency(const double) override final { return; }
+
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
+  }
 
   double angularCff(int, int) const override final { return 0; }
   double angularCgg(int, int) const override final { return 0; }
@@ -158,6 +176,12 @@ public:
     m_q = std::abs(PhysConst::alpha * omega);
   }
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
+  }
+
 private:
   double m_q{};
   std::vector<double> m_r2;
@@ -223,6 +247,12 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
     m_q = std::abs(PhysConst::alpha * omega);
+  }
+
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
   }
 
 private:
@@ -337,6 +367,12 @@ public:
     m_q = std::abs(PhysConst::alpha * omega);
   }
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
+  }
+
 private:
   double m_q{};
 };
@@ -421,6 +457,12 @@ public:
     m_q = std::abs(PhysConst::alpha * omega);
   }
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
+  }
+
 private:
   double m_q{};
 };
@@ -494,6 +536,12 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
     m_q = std::abs(PhysConst::alpha * omega);
+  }
+
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
   }
 
 private:
@@ -571,6 +619,12 @@ public:
   //! NOTE: If K=0, omega should be (ea-eb); for K=1 should be q = alpha*omega!
   void updateFrequency(const double omega) override final {
     m_q = PhysConst::alpha * omega;
+  }
+
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
   }
 
 private:
@@ -655,6 +709,12 @@ public:
   //! NOTE: If K=0, omega should be (ea-eb); for K=1 should be q = alpha*omega!
   void updateFrequency(const double omega) override final {
     m_q = m_alpha * omega;
+  }
+
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
   }
 
 private:

@@ -89,7 +89,20 @@ protected:
       opC(RorI),
       m_freqDependantQ(freq_dep),
       m_constant(constant),
-      m_vec(vec){};
+      m_vec(vec) {};
+
+public:
+  //! Used to pass generic parameters to update() function
+  /*! @details
+   Override in derived class, then use as:
+
+   auto const* params = dynamic_cast<const Params*>(&p);
+
+   Rarely used.
+  */
+  struct Params {
+    virtual ~Params() = default;
+  };
 
 public:
   virtual ~TensorOperator() = default;
@@ -115,7 +128,7 @@ public:
 
 public:
   //! If matrix element <a|h|b> is zero, returns true
-  bool isZero(const int ka, int kb) const;
+  bool isZero(int ka, int kb) const;
   bool isZero(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   bool selectrion_rule(int twoJA, int piA, int twoJB, int piB) const {
@@ -125,13 +138,25 @@ public:
     if (Angular::triangle(twoJA, twoJB, 2 * m_rank) == 0)
       return false;
 
-    // if (2 * m_rank < std::abs(twoJA - twoJB))
-    //   return false;
     return (m_parity == Parity::even) == (piA == piB);
   }
 
   //! Update frequency for frequency-dependant operators.
-  virtual void updateFrequency(const double){};
+  virtual void updateFrequency(const double) {
+    std::cout << "Must reimplement updateFrequency()\n";
+    std::cout << this->name() << "\n";
+    std::abort();
+  };
+
+  //! Updates the rank of operator (rarely used). Generally also updates parity
+  /*!
+    @note: Will usually have to call updateFrequency() after this!
+  */
+  virtual void updateRank(int) {
+    std::cout << "Must reimplement updateRank() is needed\n";
+    std::cout << this->name() << "\n";
+    std::abort();
+  }
 
   //! Permanently re-scales the operator by constant, lambda
   void scale(double lambda);
@@ -255,8 +280,7 @@ public:
                                 const DiracSpinor &Fb) const;
 
   //! ME = rme3js * RME
-  double rme3js(const int twoja, const int twojb, int two_mb = 1,
-                int two_q = 0) const;
+  double rme3js(int twoja, int twojb, int two_mb = 1, int two_q = 0) const;
 
   //! ME = rme3js * RME
   double rme3js(const DiracSpinor &Fa, const DiracSpinor &Fb, int two_mb = 1,

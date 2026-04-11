@@ -52,6 +52,12 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
+  }
+
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};
 
@@ -108,6 +114,12 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
+  }
+
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};
 
@@ -162,6 +174,12 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
+
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
+  }
 
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};
@@ -218,6 +236,12 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
+  }
+
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};
 
@@ -269,6 +293,12 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
+
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
+  }
 
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};
@@ -322,6 +352,12 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
+
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
+  }
 
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};
@@ -379,6 +415,12 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
+  }
+
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK_on_qr{};
@@ -427,6 +469,12 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
+
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
+  }
 
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};
@@ -478,6 +526,12 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
+  }
+
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK{};
@@ -528,6 +582,12 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
+  }
+
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK{};
@@ -577,6 +637,12 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
+
+  //! Updates rank (and parity). @note Must also call updateFrequency() after.
+  void updateRank(int new_K) override final {
+    m_rank = new_K;
+    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
+  }
 
 private:
   const SphericalBessel::JL_table *m_jl{nullptr};

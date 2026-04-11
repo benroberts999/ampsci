@@ -15,11 +15,8 @@
 namespace DiracOperator {
 
 //==============================================================================
-bool TensorOperator::isZero(const int ka, int kb) const {
+bool TensorOperator::isZero(int ka, int kb) const {
   // checks m_rank and m_parity
-
-  // if (m_rank < std::abs(Angular::twoj_k(ka) - Angular::twoj_k(kb)) / 2)
-  //  return true;
 
   if (Angular::triangle(Angular::twoj_k(ka), Angular::twoj_k(kb), 2 * m_rank) ==
       0)
@@ -40,7 +37,7 @@ bool TensorOperator::isZero(const DiracSpinor &Fa,
 }
 
 //==============================================================================
-double TensorOperator::rme3js(const int twoja, const int twojb, int two_mb,
+double TensorOperator::rme3js(int twoja, int twojb, int two_mb,
                               int two_q) const {
   // rme3js = (-1)^{ja-ma} (ja, k, jb,\ -ma, q, mb)
   const auto two_ma = two_mb + two_q; // -ma + mb + q = 0;

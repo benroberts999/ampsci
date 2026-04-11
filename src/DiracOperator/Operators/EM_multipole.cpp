@@ -642,15 +642,6 @@ MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,
               << type << " (expected T,E,M,L)\n";
     return nullptr;
   }
-  if ((Scalar || PseudoScalar) &&
-      !(Electric || Magnetic || Longitudinal || Temporal)) {
-    // If user passed junk comp for S/P, complain (helps catch typos)
-    std::cout << "make_tensor_op: invalid component '" << comp << "' for type "
-              << type
-              << " (S/P ignore component, but you gave an invalid one; "
-                 "expected T,E,M,L)\n";
-    return nullptr;
-  }
 
   // -------- low-q branch --------
   if (low_q && Electric && Vector)

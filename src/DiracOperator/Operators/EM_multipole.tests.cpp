@@ -202,6 +202,7 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
   }
 
   // small qr limit: electric and magnetic only
+
   // Add others when we can
   for (const auto omega : {1.0e-6, 1.0e-5}) {
     DiracOperator::E1 E1(wf.grid());
@@ -235,6 +236,75 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
 
         REQUIRE(M1.reducedME(a, b) * PhysConst::muB_CGS ==
                 Approx(ff * M1_w.reducedME(a, b)).epsilon(eps));
+      }
+    }
+  }
+}
+
+//==============================================================================
+TEST_CASE("EM_multipole updateRank", "[DiracOperator][unit][EM_multipole]") {
+
+  Wavefunction wf({75, 1.0e-4, 50.0, 1.0, "loglinear"}, {"Cs", 133, "Fermi"});
+
+  auto &orbs = wf.valence();
+  for (auto ik = 0ul; ik <= 5; ik++) {
+    int kappa = Angular::kindex_to_kappa(ik);
+    int n = Angular::l_k(kappa) + 1;
+    orbs.push_back(DiracSpinor::exactHlike(n, kappa, wf.grid_sptr(), 1.0));
+  }
+
+  // type/component pairs covering all Lorentz structures
+  struct OpSpec {
+    char type;
+    char comp;
+  };
+  const std::vector<OpSpec> ops = {
+    {'V', 'E'}, {'V', 'M'}, {'V', 'L'}, {'V', 'T'}, {'A', 'E'},
+    {'A', 'M'}, {'A', 'L'}, {'A', 'T'}, {'S', 'T'}, {'P', '_'},
+  };
+
+  const std::vector<int> Ks = {1, 2, 5};
+  const std::vector<double> omegas = {1.0e-3, 1.0, 10.0};
+
+  for (const auto &spec : ops) {
+
+    // Single polymorphic operator constructed once at K=Ks[0], omega=omegas[0];
+    // updated via updateRank + updateFrequency for each subsequent (k, omega).
+    auto op_update = DiracOperator::MultipoleOperator(
+      wf.grid(), 0, 0.0, spec.type, spec.comp, false);
+    std::cout << spec.type << " " << spec.comp << std::endl;
+    // std::cout << op_update->name() << "\n";
+    REQUIRE(op_update != nullptr);
+
+    for (int k : Ks) {
+      for (double omega : omegas) {
+
+        // Fresh operator constructed directly for this (k, omega)
+        const auto op_fresh = DiracOperator::MultipoleOperator(
+          wf.grid(), k, omega, spec.type, spec.comp, false);
+        REQUIRE(op_fresh != nullptr);
+
+        // Update the persistent operator to the same (k, omega)
+        op_update->updateRank(k);
+        op_update->updateFrequency(omega);
+
+        for (const auto &a : orbs) {
+          for (const auto &b : orbs) {
+
+            if (!op_fresh->isZero(a, b)) {
+              REQUIRE(!op_update->isZero(a, b));
+            }
+            if (op_fresh->isZero(a, b)) {
+              REQUIRE(op_update->isZero(a, b));
+              continue;
+            }
+
+            const auto rme_fresh = op_fresh->reducedME(a, b);
+            const auto rme_update = op_update->reducedME(a, b);
+
+            REQUIRE(rme_update == Approx(rme_fresh));
+          }
+        }
       }
     }
   }
