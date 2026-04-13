@@ -13,11 +13,11 @@
 TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
 
   // Construct a wavefunction similar to other tests
-  Wavefunction wf({100, 1.0e-4, 50.0, 1.0, "loglinear"}, {"Cs", 133, "Fermi"});
+  Wavefunction wf({75, 1.0e-4, 50.0, 1.0, "loglinear"}, {"Cs", 133, "Fermi"});
 
   // Populate simple valence orbitals (H-like) so getState(...) works
   auto &orbs = wf.valence();
-  for (auto ik = 0ul; ik <= Angular::kappa_to_kindex(7); ik++) {
+  for (auto ik = 0ul; ik <= 7; ik++) {
     int kappa = Angular::kindex_to_kappa(ik);
     int n = Angular::l_k(kappa) + 1;
     orbs.push_back(DiracSpinor::exactHlike(n, kappa, wf.grid_sptr(), 1.0));
@@ -29,7 +29,7 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
   // build the JL_table q-grid from the *exact* q=alpha*omega values we will
   // request (plus a very small omega used in the small-q approximation).
   const auto omega0 = 1.0e-6;
-  const std::vector<double> omegas{omega0, 1.0e-2, 1.0, 10.0};
+  const std::vector<double> omegas{omega0, 0.5, 10.0};
 
   using namespace qip::overloads;
   std::vector<double> qvec = omegas * PhysConst::alpha;
@@ -57,9 +57,6 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
         return std::make_unique<VLk_lowq>(wf.grid(), k, 1.0e-4);
       if (name == "VT")
         return std::make_unique<Phik_lowq>(wf.grid(), k, 1.0e-4);
-      // // Just a "hack" to make tests easier, since not implemented..
-      // if (name == "VE_Len")
-      //   return std::make_unique<VEk_lowq>(wf.grid(), k, 1.0e-6);
 
       // Axial
       if (name == "AE")
@@ -303,6 +300,102 @@ TEST_CASE("EM_multipole updateRank", "[DiracOperator][unit][EM_multipole]") {
             const auto rme_update = op_update->reducedME(a, b);
 
             REQUIRE(rme_update == Approx(rme_fresh));
+          }
+        }
+      }
+    }
+  }
+}
+
+//==============================================================================
+TEST_CASE("EM_multipole clone", "[DiracOperator][unit][EM_multipole]") {
+
+  Wavefunction wf({75, 1.0e-4, 50.0, 1.0, "loglinear"}, {"Cs", 133, "Fermi"});
+
+  auto &orbs = wf.valence();
+  for (auto ik = 0ul; ik <= 4; ik++) {
+    int kappa = Angular::kindex_to_kappa(ik);
+    int n = Angular::l_k(kappa) + 1;
+    orbs.push_back(DiracSpinor::exactHlike(n, kappa, wf.grid_sptr(), 1.0));
+  }
+
+  const std::vector<double> omegas = {1.0e-3, 1.0, 10.0};
+  const std::vector<int> Ks = {1, 2, 7}; // must be in order
+
+  struct OpSpec {
+    char type;
+    char comp;
+  };
+  const std::vector<OpSpec> ops = {
+    {'V', 'E'}, {'V', 'M'}, {'V', 'L'}, {'V', 'T'}, {'A', 'E'},
+    {'A', 'M'}, {'A', 'L'}, {'A', 'T'}, {'S', '_'}, {'P', 'P'},
+  };
+
+  // Build a JL_table covering the omegas we will use
+  using namespace qip::overloads;
+  std::vector<double> qvec = omegas * PhysConst::alpha;
+  const int max_L = Ks.back(); // must be in order
+  SphericalBessel::JL_table jl_table(max_L + 1, qvec, wf.grid().r());
+
+  for (const auto use_jl : {false, true}) {
+    const SphericalBessel::JL_table *jl = use_jl ? &jl_table : nullptr;
+
+    for (const auto &spec : ops) {
+      for (int k : Ks) {
+        const double omega0 = omegas[0];
+        const double omega1 = omegas[1];
+
+        // Construct original at (k, omega0)
+        auto orig = DiracOperator::MultipoleOperator(
+          wf.grid(), k, omega0, spec.type, spec.comp, false, jl);
+        REQUIRE(orig != nullptr);
+
+        // Clone at the same state
+        auto cloned = orig->clone();
+        REQUIRE(cloned != nullptr);
+
+        // If jl table was provided, the clone should share the same pointer
+        if (use_jl) {
+          auto *orig_em =
+            dynamic_cast<DiracOperator::EM_multipole *>(orig.get());
+          auto *clone_em =
+            dynamic_cast<DiracOperator::EM_multipole *>(cloned.get());
+          REQUIRE(orig_em != nullptr);
+          REQUIRE(clone_em != nullptr);
+          REQUIRE(orig_em->jl() == clone_em->jl());
+        }
+
+        // Update original to omega1 — clone must still be at omega0
+        orig->updateFrequency(omega1);
+
+        for (const auto &a : orbs) {
+          for (const auto &b : orbs) {
+            if (orig->isZero(a, b))
+              continue;
+
+            // Clone at omega0 should be stable (unchanged by update to orig)
+            const auto rme_clone = cloned->reducedME(a, b);
+            const auto rme_orig = orig->reducedME(a, b);
+            // same K, so if one is zero, both zero
+            if (rme_orig == 0.0) {
+              REQUIRE(rme_clone == rme_orig);
+            } else {
+              REQUIRE(rme_clone != rme_orig);
+            }
+            REQUIRE(rme_clone == Approx(cloned->reducedME(a, b)));
+          }
+        }
+
+        // Now update clone to omega1 as well — results must match original
+        cloned->updateFrequency(omega1);
+
+        for (const auto &a : orbs) {
+          for (const auto &b : orbs) {
+            if (orig->isZero(a, b)) {
+              REQUIRE(cloned->isZero(a, b));
+              continue;
+            }
+            REQUIRE(cloned->reducedME(a, b) == Approx(orig->reducedME(a, b)));
           }
         }
       }

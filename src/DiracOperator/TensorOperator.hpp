@@ -8,6 +8,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Vector.hpp"
 #include <cmath>
+#include <memory>
 #include <string>
 #include <vector>
 
@@ -89,7 +90,7 @@ protected:
       opC(RorI),
       m_freqDependantQ(freq_dep),
       m_constant(constant),
-      m_vec(vec) {};
+      m_vec(vec){};
 
 public:
   //! Used to pass generic parameters to update() function
@@ -218,6 +219,9 @@ public:
   //! @brief angularF: links radiation integral to RME.
   //! RME = <a||h||b> = angularF(a,b) * radial_int(a,b)
   virtual double angularF(const int, const int) const = 0;
+
+  //! Returns a polymorphic copy at the current state, or nullptr if not supported.
+  virtual std::unique_ptr<TensorOperator> clone() const { return nullptr; }
 
   //! radial_int = Fa * radial_rhs(a, Fb) (a needed for angular factor)
   /*! @details

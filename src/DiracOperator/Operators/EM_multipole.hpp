@@ -1,4 +1,5 @@
 #pragma once
+#include "DiracOperator/Operators/EM_multipole_base.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/InputBlock.hpp"
 #include "Maths/SphericalBessel.hpp"
@@ -6,6 +7,7 @@
 #include "qip/Maths.hpp"
 
 // include the 'low qr' form here, simply for convenience
+// (EM_multipole_lowqr.hpp already includes EM_multipole_base.hpp)
 #include "EM_multipole_lowqr.hpp"
 
 namespace DiracOperator {
@@ -25,24 +27,16 @@ namespace DiracOperator {
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class VEk_Len final : public TensorOperator {
+class VEk_Len final : public EM_multipole {
 public:
   VEk_Len(const Grid &gr, int K, double omega,
           const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::imaginary, true),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                   gr.r(), Realness::imaginary, true, &gr, 'V', 'E', false, jl,
+                   'L') {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("V^E(Len)_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
@@ -52,25 +46,29 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
-
-  // This is to avoid copy if not required:
   std::vector<double> m_jK{};
   std::vector<double> m_jKp1{};
   const std::vector<double> *p_jK{nullptr};
   const std::vector<double> *p_jKp1{nullptr};
 
 public:
-  // Default shallow copy semantics
-  VEk_Len(const VEk_Len &) = default;
-  VEk_Len &operator=(const VEk_Len &) = default;
+  VEk_Len(const VEk_Len &other)
+    : EM_multipole(other),
+      m_jK(other.m_jK),
+      m_jKp1(other.m_jKp1),
+      p_jK(other.p_jK == &other.m_jK ? &m_jK : other.p_jK),
+      p_jKp1(other.p_jKp1 == &other.m_jKp1 ? &m_jKp1 : other.p_jKp1) {}
+  VEk_Len &operator=(const VEk_Len &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK = other.m_jK;
+      m_jKp1 = other.m_jKp1;
+      p_jK = other.p_jK == &other.m_jK ? &m_jK : other.p_jK;
+      p_jKp1 = other.p_jKp1 == &other.m_jKp1 ? &m_jKp1 : other.p_jKp1;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================
@@ -87,24 +85,16 @@ public:
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class VEk final : public TensorOperator {
+class VEk final : public EM_multipole {
 public:
   VEk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::imaginary, true),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                   gr.r(), Realness::imaginary, true, &gr, 'V', 'E', false,
+                   jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("V^E_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
@@ -114,25 +104,31 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
-
-  // This is to avoid copy if not required:
   std::vector<double> m_jK_on_qr{};
   std::vector<double> m_jKp1{};
   const std::vector<double> *p_jK_on_qr{nullptr};
   const std::vector<double> *p_jKp1{nullptr};
 
 public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  VEk(const VEk &) = default;
-  VEk &operator=(const VEk &) = default;
+  VEk(const VEk &other)
+    : EM_multipole(other),
+      m_jK_on_qr(other.m_jK_on_qr),
+      m_jKp1(other.m_jKp1),
+      p_jK_on_qr(other.p_jK_on_qr == &other.m_jK_on_qr ? &m_jK_on_qr :
+                                                         other.p_jK_on_qr),
+      p_jKp1(other.p_jKp1 == &other.m_jKp1 ? &m_jKp1 : other.p_jKp1) {}
+  VEk &operator=(const VEk &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK_on_qr = other.m_jK_on_qr;
+      m_jKp1 = other.m_jKp1;
+      p_jK_on_qr =
+        other.p_jK_on_qr == &other.m_jK_on_qr ? &m_jK_on_qr : other.p_jK_on_qr;
+      p_jKp1 = other.p_jKp1 == &other.m_jKp1 ? &m_jKp1 : other.p_jKp1;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================
@@ -148,24 +144,16 @@ public:
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class VLk final : public TensorOperator {
+class VLk final : public EM_multipole {
 public:
   VLk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::imaginary, true),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                   gr.r(), Realness::imaginary, true, &gr, 'V', 'L', false,
+                   jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("V^L_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
@@ -175,25 +163,31 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
-
-  // This is to avoid copy if not required:
   std::vector<double> m_jK_on_qr{};
   std::vector<double> m_jKp1{};
   const std::vector<double> *p_jK_on_qr{nullptr};
   const std::vector<double> *p_jKp1{nullptr};
 
 public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  VLk(const VLk &) = default;
-  VLk &operator=(const VLk &) = default;
+  VLk(const VLk &other)
+    : EM_multipole(other),
+      m_jK_on_qr(other.m_jK_on_qr),
+      m_jKp1(other.m_jKp1),
+      p_jK_on_qr(other.p_jK_on_qr == &other.m_jK_on_qr ? &m_jK_on_qr :
+                                                         other.p_jK_on_qr),
+      p_jKp1(other.p_jKp1 == &other.m_jKp1 ? &m_jKp1 : other.p_jKp1) {}
+  VLk &operator=(const VLk &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK_on_qr = other.m_jK_on_qr;
+      m_jKp1 = other.m_jKp1;
+      p_jK_on_qr =
+        other.p_jK_on_qr == &other.m_jK_on_qr ? &m_jK_on_qr : other.p_jK_on_qr;
+      p_jKp1 = other.p_jKp1 == &other.m_jKp1 ? &m_jKp1 : other.p_jKp1;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================
@@ -208,23 +202,15 @@ public:
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class VMk final : public TensorOperator {
+class VMk final : public EM_multipole {
 public:
   VMk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::imaginary, true),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                   gr.r(), Realness::imaginary, true, &gr, 'V', 'M', false,
+                   jl) {
     if (omega != 0.0)
       updateFrequency(omega);
-  }
-
-  std::string name() const override final {
-    return std::string("V^M_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, -ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -236,23 +222,23 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
-
-  // This is to avoid copy if not required:
   std::vector<double> m_jK{};
   const std::vector<double> *p_jK{nullptr};
 
 public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  VMk(const VMk &) = default;
-  VMk &operator=(const VMk &) = default;
+  VMk(const VMk &other)
+    : EM_multipole(other),
+      m_jK(other.m_jK),
+      p_jK(other.p_jK == &other.m_jK ? &m_jK : other.p_jK) {}
+  VMk &operator=(const VMk &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK = other.m_jK;
+      p_jK = other.p_jK == &other.m_jK ? &m_jK : other.p_jK;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================
@@ -267,24 +253,15 @@ public:
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class Phik final : public TensorOperator {
+class Phik final : public EM_multipole {
 public:
   Phik(const Grid &gr, int K, double omega,
        const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::real, true),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'V', 'T', false, jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("Phi_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
@@ -294,23 +271,23 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
-
-  // This is to avoid copy if not required:
   std::vector<double> m_jK{};
   const std::vector<double> *p_jK{nullptr};
 
 public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  Phik(const Phik &) = default;
-  Phik &operator=(const Phik &) = default;
+  Phik(const Phik &other)
+    : EM_multipole(other),
+      m_jK(other.m_jK),
+      p_jK(other.p_jK == &other.m_jK ? &m_jK : other.p_jK) {}
+  Phik &operator=(const Phik &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK = other.m_jK;
+      p_jK = other.p_jK == &other.m_jK ? &m_jK : other.p_jK;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================
@@ -326,24 +303,15 @@ public:
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
 */
-class Sk final : public TensorOperator {
+class Sk final : public EM_multipole {
 public:
   Sk(const Grid &gr, int K, double omega,
      const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::real, true),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'S', 'T', false, jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("t^S_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
@@ -353,23 +321,23 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
-
-  // This is to avoid copy if not required:
   std::vector<double> m_jK{};
   const std::vector<double> *p_jK{nullptr};
 
 public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  Sk(const Sk &) = default;
-  Sk &operator=(const Sk &) = default;
+  Sk(const Sk &other)
+    : EM_multipole(other),
+      m_jK(other.m_jK),
+      p_jK(other.p_jK == &other.m_jK ? &m_jK : other.p_jK) {}
+  Sk &operator=(const Sk &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK = other.m_jK;
+      p_jK = other.p_jK == &other.m_jK ? &m_jK : other.p_jK;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================
@@ -388,24 +356,15 @@ public:
   - Accepts an optional `const SphericalBessel::JL_table *jl` to use precomputed
     Bessel vectors; otherwise computes them on demand.
 */
-class AEk final : public TensorOperator {
+class AEk final : public EM_multipole {
 public:
   AEk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::real),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                   gr.r(), Realness::real, false, &gr, 'A', 'E', false, jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("T^E5_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, -kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
@@ -415,23 +374,31 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK_on_qr{};
   std::vector<double> m_jKp1{};
   const std::vector<double> *p_jK_on_qr{nullptr};
   const std::vector<double> *p_jKp1{nullptr};
 
 public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  AEk(const AEk &) = default;
-  AEk &operator=(const AEk &) = default;
+  AEk(const AEk &other)
+    : EM_multipole(other),
+      m_jK_on_qr(other.m_jK_on_qr),
+      m_jKp1(other.m_jKp1),
+      p_jK_on_qr(other.p_jK_on_qr == &other.m_jK_on_qr ? &m_jK_on_qr :
+                                                         other.p_jK_on_qr),
+      p_jKp1(other.p_jKp1 == &other.m_jKp1 ? &m_jKp1 : other.p_jKp1) {}
+  AEk &operator=(const AEk &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK_on_qr = other.m_jK_on_qr;
+      m_jKp1 = other.m_jKp1;
+      p_jK_on_qr =
+        other.p_jK_on_qr == &other.m_jK_on_qr ? &m_jK_on_qr : other.p_jK_on_qr;
+      p_jKp1 = other.p_jKp1 == &other.m_jKp1 ? &m_jKp1 : other.p_jKp1;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================
@@ -443,24 +410,15 @@ public:
   - Supports optional `const SphericalBessel::JL_table *jl` for lookup-table
     acceleration; otherwise uses on-the-fly Bessel evaluation.
 */
-class ALk final : public TensorOperator {
+class ALk final : public EM_multipole {
 public:
   ALk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::real, true),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'A', 'L', false, jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("T^L5_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, -kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
@@ -470,23 +428,31 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK_on_qr{};
   std::vector<double> m_jKp1{};
   const std::vector<double> *p_jK_on_qr{nullptr};
   const std::vector<double> *p_jKp1{nullptr};
 
 public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  ALk(const ALk &) = default;
-  ALk &operator=(const ALk &) = default;
+  ALk(const ALk &other)
+    : EM_multipole(other),
+      m_jK_on_qr(other.m_jK_on_qr),
+      m_jKp1(other.m_jKp1),
+      p_jK_on_qr(other.p_jK_on_qr == &other.m_jK_on_qr ? &m_jK_on_qr :
+                                                         other.p_jK_on_qr),
+      p_jKp1(other.p_jKp1 == &other.m_jKp1 ? &m_jKp1 : other.p_jKp1) {}
+  ALk &operator=(const ALk &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK_on_qr = other.m_jK_on_qr;
+      m_jKp1 = other.m_jKp1;
+      p_jK_on_qr =
+        other.p_jK_on_qr == &other.m_jK_on_qr ? &m_jK_on_qr : other.p_jK_on_qr;
+      p_jKp1 = other.p_jKp1 == &other.m_jKp1 ? &m_jKp1 : other.p_jKp1;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================
@@ -498,23 +464,14 @@ public:
   - Uses spherical Bessel functions j_L(q*r) for radial dependence and
     accepts an optional `const SphericalBessel::JL_table *jl`.
 */
-class AMk final : public TensorOperator {
+class AMk final : public EM_multipole {
 public:
   AMk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::real, true),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'A', 'M', false, jl) {
     if (omega != 0.0)
       updateFrequency(omega);
-  }
-
-  std::string name() const override final {
-    return std::string("T^M5_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -526,21 +483,23 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK{};
   const std::vector<double> *p_jK{nullptr};
 
 public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  AMk(const AMk &) = default;
-  AMk &operator=(const AMk &) = default;
+  AMk(const AMk &other)
+    : EM_multipole(other),
+      m_jK(other.m_jK),
+      p_jK(other.p_jK == &other.m_jK ? &m_jK : other.p_jK) {}
+  AMk &operator=(const AMk &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK = other.m_jK;
+      p_jK = other.p_jK == &other.m_jK ? &m_jK : other.p_jK;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================
@@ -555,24 +514,15 @@ public:
   - Radial dependence uses j_L(q*r) and the constructor accepts an
     optional `const SphericalBessel::JL_table *jl`.
 */
-class Phi5k final : public TensorOperator {
+class Phi5k final : public EM_multipole {
 public:
   Phi5k(const Grid &gr, int K, double omega,
         const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::real, true),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'A', 'T', false, jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("Phi5_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, -kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
@@ -582,21 +532,23 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK{};
   const std::vector<double> *p_jK{nullptr};
 
 public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  Phi5k(const Phi5k &) = default;
-  Phi5k &operator=(const Phi5k &) = default;
+  Phi5k(const Phi5k &other)
+    : EM_multipole(other),
+      m_jK(other.m_jK),
+      p_jK(other.p_jK == &other.m_jK ? &m_jK : other.p_jK) {}
+  Phi5k &operator=(const Phi5k &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK = other.m_jK;
+      p_jK = other.p_jK == &other.m_jK ? &m_jK : other.p_jK;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================
@@ -611,24 +563,15 @@ public:
   - Supports an optional `const SphericalBessel::JL_table *jl` for precomputed
     Bessel lookup; otherwise computes on demand.
 */
-class S5k final : public TensorOperator {
+class S5k final : public EM_multipole {
 public:
   S5k(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::real, true),
-      m_jl(jl) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'P', 'T', false, jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("S5_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, -kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final;
 
@@ -638,21 +581,23 @@ public:
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final;
 
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
-  }
-
 private:
-  const SphericalBessel::JL_table *m_jl{nullptr};
   std::vector<double> m_jK{};
   const std::vector<double> *p_jK{nullptr};
 
 public:
-  // Default shallow copy semantics (pointer member is shallow-copied)
-  S5k(const S5k &) = default;
-  S5k &operator=(const S5k &) = default;
+  S5k(const S5k &other)
+    : EM_multipole(other),
+      m_jK(other.m_jK),
+      p_jK(other.p_jK == &other.m_jK ? &m_jK : other.p_jK) {}
+  S5k &operator=(const S5k &other) {
+    if (this != &other) {
+      EM_multipole::operator=(other);
+      m_jK = other.m_jK;
+      p_jK = other.p_jK == &other.m_jK ? &m_jK : other.p_jK;
+    }
+    return *this;
+  }
 };
 
 //==============================================================================

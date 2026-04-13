@@ -1,5 +1,5 @@
 #pragma once
-#include "DiracOperator/TensorOperator.hpp"
+#include "DiracOperator/Operators/EM_multipole_base.hpp"
 #include "IO/InputBlock.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Maths.hpp"
@@ -7,27 +7,13 @@
 namespace DiracOperator {
 
 //! Low qr form of Vector electric. Only for K=1 (zero otherwise)
-class VEk_lowq final : public TensorOperator {
+class VEk_lowq final : public EM_multipole {
 public:
-  VEk_lowq(const Grid &, int K, double)
-    : TensorOperator(K, Parity::odd, -std::sqrt(2.0) / 3.0, {}, 0,
-                     Realness::imaginary, false) {}
-
-  std::string name() const override final {
-    return std::string("V_lowq^E_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
-  }
+  VEk_lowq(const Grid &gr, int K, double)
+    : EM_multipole(K, Parity::odd, -std::sqrt(2.0) / 3.0, {},
+                   Realness::imaginary, false, &gr, 'V', 'E', true) {}
 
   void updateFrequency(const double) override final { return; }
-
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
-  }
 
   double angularCff(int, int) const override final { return 0; }
   double angularCgg(int, int) const override final { return 0; }
@@ -40,17 +26,15 @@ public:
 };
 
 //! Low qr form of Vector magnetic. Only for K=1 (zero otherwise)
-class VMk_lowq final : public TensorOperator {
+class VMk_lowq final : public EM_multipole {
 public:
   VMk_lowq(const Grid &gr, int K, double omega)
-    : TensorOperator(K, Parity::even, 0, gr.r(), 0, Realness::imaginary, true) {
+    : EM_multipole(K, Parity::even, 0, gr.r(), Realness::imaginary, true, &gr,
+                   'V', 'M', true) {
     updateFrequency(omega);
   }
 
-  std::string name() const override final {
-    return std::string("V_lowq^E_") + std::to_string(m_rank);
-  }
-
+  //! @note VMk_lowq angular factor has an extra (ka+kb) prefactor vs. the base.
   double angularF(const int ka, const int kb) const override final {
     return (ka + kb) * Angular::Ck_kk(m_rank, ka, -kb);
   }
@@ -66,14 +50,9 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
+    m_omega = omega;
     m_q = std::abs(PhysConst::alpha * omega);
     m_constant = -m_q / (3.0 * std::sqrt(2.0));
-  }
-
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
   }
 
 private:
@@ -81,27 +60,13 @@ private:
 };
 
 //! Low qr form of Vector longitudinal
-class VLk_lowq final : public TensorOperator {
+class VLk_lowq final : public EM_multipole {
 public:
-  VLk_lowq(const Grid &, int K, double)
-    : TensorOperator(K, Parity::odd, 1.0 / 3.0, {}, 0, Realness::imaginary,
-                     false) {}
-
-  std::string name() const override final {
-    return std::string("V_lowq^E_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
-  }
+  VLk_lowq(const Grid &gr, int K, double)
+    : EM_multipole(K, Parity::odd, 1.0 / 3.0, {}, Realness::imaginary, false,
+                   &gr, 'V', 'L', true) {}
 
   void updateFrequency(const double) override final { return; }
-
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
-  }
 
   double angularCff(int, int) const override final { return 0; }
   double angularCgg(int, int) const override final { return 0; }
@@ -116,23 +81,15 @@ public:
 //==============================================================================
 //! Low qr form of Temporal component of the vector multipole operator:
 //! \f$ \Phi_K = t^K(q)\f$
-class Phik_lowq final : public TensorOperator {
+class Phik_lowq final : public EM_multipole {
 public:
   Phik_lowq(const Grid &gr, int K, double omega)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::real, true),
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'V', 'T', true),
       m_r2(gr.rpow(2)) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("Phi_lowq_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final {
     DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
@@ -173,13 +130,8 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
+    m_omega = omega;
     m_q = std::abs(PhysConst::alpha * omega);
-  }
-
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
   }
 
 private:
@@ -189,22 +141,14 @@ private:
 
 //==============================================================================
 //! @brief Low qr form of Scalar multipole operator: \f$ S_K = t^K(q)\gamma^0\f$
-class Sk_lowq final : public TensorOperator {
+class Sk_lowq final : public EM_multipole {
 public:
   Sk_lowq(const Grid &gr, int K, double omega)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::real, true) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'S', 'T', true) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("t^S_k_lowq") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final {
     DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
@@ -246,13 +190,8 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
+    m_omega = omega;
     m_q = std::abs(PhysConst::alpha * omega);
-  }
-
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
   }
 
 private:
@@ -265,22 +204,14 @@ private:
 
 //==============================================================================
 //! @brief Low qr form of Axial electric multipole operator: \f$ A^E_K = T^{(+1)}_K(q)\gamma^5\f$
-class AEk_lowq final : public TensorOperator {
+class AEk_lowq final : public EM_multipole {
 public:
   AEk_lowq(const Grid &gr, int K, double omega)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::real) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                   gr.r(), Realness::real, false, &gr, 'A', 'E', true) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("T^E5_lowq_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, -kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final {
     DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
@@ -364,13 +295,8 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
+    m_omega = omega;
     m_q = std::abs(PhysConst::alpha * omega);
-  }
-
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
   }
 
 private:
@@ -379,22 +305,14 @@ private:
 
 //==============================================================================
 //! @brief Low qr form of Axial longitudinal multipole operator: \f$ A^L_K = T^{(-1)}_K(q)\gamma^5\f$
-class ALk_lowq final : public TensorOperator {
+class ALk_lowq final : public EM_multipole {
 public:
   ALk_lowq(const Grid &gr, int K, double omega)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::real, true) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'A', 'L', true) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("T^L5_k_lowq") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, -kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final {
     DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
@@ -454,13 +372,8 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
+    m_omega = omega;
     m_q = std::abs(PhysConst::alpha * omega);
-  }
-
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
   }
 
 private:
@@ -469,21 +382,13 @@ private:
 
 //==============================================================================
 //! @brief Low qr form of Axial magnetic multipole operator: \f$ A^M_K = T^{(0)}_K(q)\gamma^5\f$
-class AMk_lowq final : public TensorOperator {
+class AMk_lowq final : public EM_multipole {
 public:
   AMk_lowq(const Grid &gr, int K, double omega)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                     gr.r(), 0, Realness::real, true) {
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'A', 'M', true) {
     if (omega != 0.0)
       updateFrequency(omega);
-  }
-
-  std::string name() const override final {
-    return std::string("T^M5_k_lowq_1") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, kb);
   }
 
   DiracSpinor radial_rhs(const int kappa_a,
@@ -535,13 +440,8 @@ public:
 
   //! nb: q = alpha*omega!
   void updateFrequency(const double omega) override final {
+    m_omega = omega;
     m_q = std::abs(PhysConst::alpha * omega);
-  }
-
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::even : Parity::odd;
   }
 
 private:
@@ -551,24 +451,16 @@ private:
 //==============================================================================
 //! @brief Low qr form of Temporal component of the axial vector multipole operator: \f$ \Theta_K = \Phi^5_K = t^K(q)\gamma^5\f$ .
 //! NOTE: If K=0, omega should be (ea-eb); for K=1 should be q = alpha*omega!
-class Phi5k_lowq final : public TensorOperator {
+class Phi5k_lowq final : public EM_multipole {
 public:
   Phi5k_lowq(const Grid &gr, int K, double omega,
              double alpha = PhysConst::alpha)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::real, true),
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'A', 'T', true),
       m_alpha(alpha) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("Phi5_lowq_") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, -kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final {
     DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
@@ -618,13 +510,8 @@ public:
 
   //! NOTE: If K=0, omega should be (ea-eb); for K=1 should be q = alpha*omega!
   void updateFrequency(const double omega) override final {
+    m_omega = omega;
     m_q = PhysConst::alpha * omega;
-  }
-
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
   }
 
 private:
@@ -636,23 +523,15 @@ private:
 //! @brief Low qr form of Pseudoscalar multipole operator:
 //! \f$ P_K = S^5_K = t^K(q)(i\gamma^0\gamma^5)\f$
 //! NOTE: If K=0, omega should be (ea-eb); for K=1 should be q = alpha*omega!
-class S5k_lowq final : public TensorOperator {
+class S5k_lowq final : public EM_multipole {
 public:
   S5k_lowq(const Grid &gr, int K, double omega, double alpha = PhysConst::alpha)
-    : TensorOperator(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                     gr.r(), 0, Realness::real, true),
+    : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
+                   gr.r(), Realness::real, true, &gr, 'P', 'T', true),
       m_alpha(alpha) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
-  std::string name() const override final {
-    return std::string("S5_k_lowq") + std::to_string(m_rank);
-  }
-
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_rank, ka, -kb);
-  }
-
   DiracSpinor radial_rhs(const int kappa_a,
                          const DiracSpinor &Fb) const override final {
     DiracSpinor dF(0, kappa_a, Fb.grid_sptr());
@@ -708,13 +587,8 @@ public:
 
   //! NOTE: If K=0, omega should be (ea-eb); for K=1 should be q = alpha*omega!
   void updateFrequency(const double omega) override final {
+    m_omega = omega;
     m_q = m_alpha * omega;
-  }
-
-  //! Updates rank (and parity). @note Must also call updateFrequency() after.
-  void updateRank(int new_K) override final {
-    m_rank = new_K;
-    m_parity = Angular::evenQ(new_K) ? Parity::odd : Parity::even;
   }
 
 private:

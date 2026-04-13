@@ -45,6 +45,7 @@ double VEk_Len::radialIntegral(const DiracSpinor &Fa,
 
 //------------------------------------------------------------------------------
 void VEk_Len::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
 
   if (m_jl) {
@@ -109,6 +110,7 @@ double VEk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
 //------------------------------------------------------------------------------
 void VEk::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
 
   if (m_jl) {
@@ -168,6 +170,7 @@ double VLk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
 //------------------------------------------------------------------------------
 void VLk::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
 
   if (m_jl) {
@@ -227,6 +230,7 @@ double VMk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
 //------------------------------------------------------------------------------
 void VMk::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
   if (m_jl) {
     // nb: may not be exact! Ensure lookup table is dense enough!
@@ -270,6 +274,7 @@ double Phik::radialIntegral(const DiracSpinor &Fa,
 
 //------------------------------------------------------------------------------
 void Phik::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
   if (m_jl) {
     // nb: may not be exact! Ensure lookup table is dense enough!
@@ -312,6 +317,7 @@ double Sk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
 //------------------------------------------------------------------------------
 void Sk::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
   if (m_jl) {
     // nb: may not be exact! Ensure lookup table is dense enough!
@@ -390,6 +396,7 @@ double AEk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
 //------------------------------------------------------------------------------
 void AEk::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
 
   if (m_jl) {
@@ -444,6 +451,7 @@ double ALk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
 //------------------------------------------------------------------------------
 void ALk::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
 
   if (m_jl) {
@@ -504,6 +512,7 @@ double AMk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
 //------------------------------------------------------------------------------
 void AMk::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
 
   if (m_jl) {
@@ -548,6 +557,7 @@ double Phi5k::radialIntegral(const DiracSpinor &Fa,
 
 //------------------------------------------------------------------------------
 void Phi5k::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
 
   if (m_jl) {
@@ -590,6 +600,7 @@ double S5k::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
 
 //------------------------------------------------------------------------------
 void S5k::updateFrequency(const double omega) {
+  m_omega = omega;
   const auto q = std::abs(PhysConst::alpha * omega);
 
   if (m_jl) {
@@ -599,6 +610,17 @@ void S5k::updateFrequency(const double omega) {
     SphericalBessel::fillBesselVec_kr(m_rank, q, m_vec, &m_jK);
     p_jK = &m_jK;
   }
+}
+
+//==============================================================================
+// EM_multipole base: clone()
+//==============================================================================
+
+std::unique_ptr<TensorOperator> EM_multipole::clone() const {
+  if (m_form == 'L')
+    return std::make_unique<VEk_Len>(*m_grid, m_rank, m_omega, m_jl);
+  return MultipoleOperator(*m_grid, m_rank, m_omega, m_type, m_comp, m_low_q,
+                           m_jl);
 }
 
 //------------------------------------------------------------------------------

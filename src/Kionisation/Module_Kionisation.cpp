@@ -42,7 +42,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       "List (2). Minimum, maximum momentum transfer (q), in MeV [0.01,0.01]"},
      {"q_steps", "Number of steps along q grid (logarithmic grid) [1]"},
      {"max_L", "Maximum multipolarity used in exp(iqr) expansion [6]"},
-     {"ec_cut", "Cut-off (in au) for continuum energy. [inf]"},
+     {"ec_max", "Cut-off (in au) for continuum energy. [inf]"},
      {"Zeff_bound", "Use Zeff for bound state [false]"},
      {"Zeff_cont", "Use Zeff for continuum state. False by default, unless "
                    "Zeff_bound=true, in which case true by default. [false]"},
@@ -93,7 +93,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_L = input.get("max_L", 6);
   const auto label = input.get("label", std::string{""});
 
-  const auto ec_cut = input.get("ec_cut", 1.0e99);
+  const auto ec_max = input.get("ec_max", 1.0 / 0.0);
 
   fmt::print(
     "Momentum: [{:.3f}, {:.3f}] MeV = [{:.1f}, {:.1f}] au, in {} steps\n",
@@ -104,7 +104,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   const Grid qgrid({q_steps, qmin_au, qmax_au, 0, GridType::logarithmic});
 
   // Check to see if grid is reasonable for maximum energy:
-  Kion::check_radial_grid(std::min(ec_cut, Emax_au), qmax_au, wf.grid());
+  Kion::check_radial_grid(std::min(ec_max, Emax_au), qmax_au, wf.grid());
 
   //----------------------------------------------------------------------------
   // Read in and parse options:
@@ -306,7 +306,7 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
 
     const auto K_nk = Kion::calculateK_nk(
       wf.vHF(), Fnk, max_L, Egrid, jl.get(), force_rescale, hole_particle,
-      force_orthog, use_Zeff_cont, use_Zeff_bound, ec_cut);
+      force_orthog, use_Zeff_cont, use_Zeff_bound, ec_max);
     if (write_each_state) {
       const auto oname_nk = oname + "_" + Fnk.shortSymbol();
       std::cout << "Written to file: " << oname_nk << "\n";
@@ -349,7 +349,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
                 "points around. Useful for specific regions we want more "
                 "resolution in."},
     {"oname", "oname"},
-    {"ec_cut", "Cut-off (in au) for continuum energy. [inf]"},
+    {"ec_max", "Cut-off (in au) for continuum energy. [1e99]"},
     {"K_minmax", "List (2). Minimum, maximum K [1, 1]"},
     {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
     {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
@@ -417,7 +417,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // "cut-off"/ceiling energy for continuum. Bad idea?
-  const auto ec_cut = input.get("ec_cut", 1 / 0.0);
+  const auto ec_max = input.get("ec_max", 1 / 0.0);
 
   std::cout << "\nSummary of inputs:\n";
   fmt::print(
@@ -497,16 +497,15 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       for (std::size_t ic = i_first_acc_core; ic < wf.core().size(); ++ic) {
         const auto &Fa = wf.core()[ic];
         const auto ec = omega + Fa.en();
-        if (ec < 0.0)
+        if (ec < 0.0 || ec > ec_max)
           continue;
-        const auto ec_t = std::min(ec, ec_cut);
 
         const int l = Fa.l();
         const int lc_max = l + k + 1;
         const int lc_min = std::max(l - k - 1, 0);
 
         ContinuumOrbitals cntm(wf.vHF());
-        cntm.solveContinuumHF(ec_t, lc_min, lc_max, &Fa, force_rescale,
+        cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale,
                               hole_particle, force_orthog);
 
         for (const auto &Fe : cntm.orbitals) {
@@ -604,6 +603,16 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                    "include in continuum states. By "
                    "default, will include all allowed values (limitted by "
                    "K_max). This should usually be left blank"},
+     {"ec_minmax",
+      "List of floats (2). Minimum and maximum continuum state energy to "
+      "include (eV). "
+      "Minimum energy can be used, e.g., to model recombination of "
+      "low-E ionised electron. Maximum energy may be used to simplify "
+      "calculations, in cases where lower shells dominate (and high-energy "
+      "electron ionised from high shell doesn't contribute to cross section). "
+      "Both must be used with care, and should not normally be different from "
+      "default. By default: minimum=0.0, maximum=infinity. For infinity, input "
+      "very large number. [0.0, 1e99]"},
      {"each_state",
       "true/false. If true, will output a separate K file for each "
       "(accessible) bound state. Output file will have same name as total, but "
@@ -798,6 +807,17 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                lc_minmax->at(0), lc_minmax->at(1));
   }
 
+  const auto ec_minmax_eV = input.get<std::array<double, 2>>("ec_minmax");
+  const double ec_min =
+    ec_minmax_eV ? ec_minmax_eV->at(0) / PhysConst::Hartree_eV : 0.0;
+  const double ec_max =
+    ec_minmax_eV ? ec_minmax_eV->at(1) / PhysConst::Hartree_eV : 1.0 / 0.0;
+  if (ec_minmax_eV) {
+    fmt::print("Limitting continuum state energy to: {} <= E/eV <= "
+               "{} ({:.1e} <= E/au <= {:.1e})\n",
+               ec_minmax_eV->at(0), ec_minmax_eV->at(1), ec_min, ec_max);
+  }
+
   // Method for continuum states:
   const auto force_orthog = input.get("force_orthog", true);
   const auto force_rescale = input.get("force_rescale", false);
@@ -887,8 +907,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     + std::to_string(Kmin) + "-" + std::to_string(Kmax) + "_" //
     + (lc_minmax ? std::to_string(lc_minmax->at(0)) + "-" +
                      std::to_string(lc_minmax->at(1)) + "_" :
-                   "")       //
-    + (low_q ? "lowq_" : "") //
+                   "")               //
+    + (ec_minmax_eV ? "eclim_" : "") //
+    + (low_q ? "lowq_" : "")         //
     + (label == "" ? "" : label + "_");
 
   if (vectorQ)
@@ -917,19 +938,21 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto lc_max =
       lc_minmax ? std::min(lc_max_tmp, lc_minmax->at(1)) : lc_max_tmp;
 
-    std::cout << Fa << " -> " << AtomData::l_symbol(lc_min) << " - "
-              << AtomData::l_symbol(lc_max) << "\n"
-              << std::flush;
+    fmt::print("{:4s} -> {} - {}  (L = {} -> {} - {})   [{}]\n",
+               Fa.shortSymbol(), AtomData::l_symbol(lc_min),
+               AtomData::l_symbol(lc_max), Fa.l(), lc_min, lc_max,
+               Fa.l() + Kmax);
+    std::cout << std::flush;
 
     // Form factors for specific bound state, Fa:
     const auto K_factors_nk = Kion::calculate_formFactors_nk(
-      wf, Fa, lc_min, lc_max, Kmin, Kmax, Egrid, qgrid, diagonal_Eq,
-      force_rescale, hole_particle, force_orthog, low_q, jK_tab, vectorQ,
-      spatialQ, axialQ, XvvQ, YaaQ, ZvaQ, scalarQ, pseudoscalarQ);
+      wf.vHF(), Fa, lc_min, lc_max, ec_min, ec_max, force_rescale,
+      hole_particle, force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab,
+      Kmin, Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ);
 
     assert(K_factors_nk.size() == K_factors.size());
 
-    // Optionally: write K factor for each bound state to disk
+    // Optionally: write all K factors for each bound state to disk
     if (each_state) {
       Kion::write_to_file_xyz_13(
         ofname_prefix + "." + Fa.shortSymbol() + ".txt", Egrid, qgrid, titles,
@@ -948,9 +971,17 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "done\n\n";
 
+  std::cout << "Calculated: ";
+  for (std::size_t i = 0; i < titles.size(); ++i) {
+    if (!K_factors[i].empty()) {
+      std::cout << titles[i] << ", ";
+    }
+  }
+  std::cout << "\n\n";
+
   //----------------------------------------
 
-  // Write total (summed) form factor to disc
+  // Write total (summed) form factors to disk
   Kion::write_to_file_xyz_13(ofname_prefix + ".txt", Egrid, qgrid, titles,
                              descriptions, K_factors, units, num_digits,
                              diagonal_Eq);

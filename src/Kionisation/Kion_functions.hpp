@@ -42,13 +42,12 @@ bool check_radial_grid(double Emax, double qmax, const Grid &rgrid);
  @note: order is important
 */
 std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
-  const Wavefunction &wf, const DiracSpinor &Fa, int lc_min, int lc_max,
-  int Kmin, int Kmax, const std::vector<double> &Egrid,
-  const std::vector<double> &qgrid, bool diagonal_Eq, bool force_rescale,
-  bool hole_particle, bool force_orthog, bool low_q,
-  const SphericalBessel::JL_table &jK_tab, bool vectorQ, bool spatialQ,
-  bool axialQ, bool XvvQ, bool YaaQ, bool ZvaQ, bool scalarQ,
-  bool pseudoscalarQ);
+  const HF::HartreeFock *vHF, const DiracSpinor &Fa, int lc_min, int lc_max,
+  double ec_min, double ec_max, bool force_rescale, bool hole_particle,
+  bool force_orthog, const std::vector<double> &Egrid,
+  const std::vector<double> &qgrid, bool diagonal_Eq, bool low_q,
+  const SphericalBessel::JL_table &jK_tab, int Kmin, int Kmax, bool vectorQ,
+  bool axialQ, bool scalarQ, bool pseudoscalarQ, bool spatialQ);
 
 //! Calculates ionisation factor K(E,q) for given core state, Fnk, using
 //! standard method. Stored as matrix. use_rpa0 is flag for including

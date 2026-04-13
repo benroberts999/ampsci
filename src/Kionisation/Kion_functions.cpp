@@ -1,6 +1,5 @@
 #include "Kion_functions.hpp"
 #include "DiracOperator/include.hpp"
-#include "ExternalField/DiagramRPA.hpp"
 #include "HF/HartreeFock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "Maths/Grid.hpp"
@@ -76,8 +75,8 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
     const auto dE = Egrid(idE);
 
     // Convert energy deposition to contimuum state energy:
-    const double ec = std::min(dE + Fnk.en(), ec_cut);
-    if (ec <= 0.0)
+    const double ec = dE + Fnk.en();
+    if (ec <= 0.0 || ec > ec_cut)
       continue;
 
     const int l = Fnk.l();
@@ -115,18 +114,23 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
 
 //==============================================================================
 std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
-  const Wavefunction &wf, const DiracSpinor &Fa, int lc_min, int lc_max,
-  int Kmin, int Kmax, const std::vector<double> &Egrid,
-  const std::vector<double> &qgrid, bool diagonal_Eq, bool force_rescale,
-  bool hole_particle, bool force_orthog, bool low_q,
-  const SphericalBessel::JL_table &jK_tab, bool vectorQ, bool spatialQ,
-  bool axialQ, bool XvvQ, bool YaaQ, bool ZvaQ, bool scalarQ,
-  bool pseudoscalarQ) {
+  const HF::HartreeFock *vHF, const DiracSpinor &Fa, int lc_min, int lc_max,
+  double ec_min, double ec_max, bool force_rescale, bool hole_particle,
+  bool force_orthog, const std::vector<double> &Egrid,
+  const std::vector<double> &qgrid, bool diagonal_Eq, bool low_q,
+  const SphericalBessel::JL_table &jK_tab, int Kmin, int Kmax, bool vectorQ,
+  bool axialQ, bool scalarQ, bool pseudoscalarQ, bool spatialQ) {
+
+  // can never get this far, but debugging check
+  assert(vHF != nullptr);
+
+  if (diagonal_Eq)
+    assert(qgrid.size() == 1);
 
   const auto E_steps = Egrid.size();
   const auto q_steps = qgrid.size();
 
-  // Factors for specific bound state, Fa
+  // Factors (output) for specific bound state, Fa
   std::array<LinAlg::Matrix<double>, 13> K_factors;
   auto &K_VT = K_factors[0];  // Vector: temporal
   auto &K_VE = K_factors[1];  // Vector: electric
@@ -142,6 +146,7 @@ std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
   auto &K_S = K_factors[11];  // Scalar
   auto &K_S5 = K_factors[12]; // Pseudo-scalar
 
+  // Re-size output arrays (if required)
   if (vectorQ) {
     K_VT.resize(E_steps, q_steps);
     if (spatialQ) {
@@ -170,70 +175,140 @@ std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
     K_S5.resize(E_steps, q_steps);
   }
 
-  const auto idE_0 = std::size_t(std::distance(
+  // Find which parts of E grid can contribute (more efficient parallelisation)
+  const auto idE_0_tmp = std::distance(
     Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
-                                [&Fa](auto e) { return e > -Fa.en(); })));
+                                [&](auto e) { return e + Fa.en() > ec_min; }));
+  assert(idE_0_tmp >= 0);
+  const auto idE_0 = std::size_t(idE_0_tmp);
 
-  if (diagonal_Eq)
-    assert(qgrid.size() == 1);
+  const auto idE_max = std::size_t(std::distance(
+    Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
+                                [&](auto e) { return e + Fa.en() > ec_max; })));
+  assert(idE_max <= Egrid.size());
 
+  const auto max_threads = std::size_t(omp_get_max_threads());
+
+  // Build one operator set per thread. updateRank() and updateFrequency() are
+  // called inside the loop before use; operators will be null for invalid
+  // type/comp combinations, so all uses are null-guarded below.
+  auto build_thread_ops = [&](char type, char comp, bool include)
+    -> std::vector<std::unique_ptr<DiracOperator::TensorOperator>> {
+    const auto op0 =
+      include ? DiracOperator::MultipoleOperator(vHF->grid(), 0, 0.0, type,
+                                                 comp, low_q, &jK_tab) :
+                nullptr;
+    std::vector<std::unique_ptr<DiracOperator::TensorOperator>> ops;
+    ops.reserve(max_threads);
+    for (auto t = 0ul; t < max_threads; ++t)
+      ops.push_back(op0 ? op0->clone() : nullptr);
+    return ops;
+  };
+
+  auto Phik_ops = build_thread_ops('V', 'T', vectorQ);
+  auto Ek_ops = build_thread_ops('V', 'E', vectorQ && spatialQ);
+  auto Mk_ops = build_thread_ops('V', 'M', vectorQ && spatialQ);
+  auto Lk_ops = build_thread_ops('V', 'L', vectorQ && spatialQ);
+  auto Phi5k_ops = build_thread_ops('A', 'T', axialQ);
+  auto E5k_ops = build_thread_ops('A', 'E', axialQ && spatialQ);
+  auto M5k_ops = build_thread_ops('A', 'M', axialQ && spatialQ);
+  auto L5k_ops = build_thread_ops('A', 'L', axialQ && spatialQ);
+  auto Sk_ops = build_thread_ops('S', 'T', scalarQ);
+  auto S5k_ops = build_thread_ops('P', 'T', pseudoscalarQ);
+
+  // nb: sum into K(iE,iq).
+  // Therefore, each thread has unique iE, and no reduction required if //-isation over iE/iq
+  // BUT if we change this (e.g., over k), then this will change
 #pragma omp parallel for
-  for (std::size_t iE = idE_0; iE < Egrid.size(); ++iE) {
+  for (std::size_t iE = idE_0; iE < idE_max; ++iE) {
     const auto omega = Egrid.at(iE);
 
     const auto ec = omega + Fa.en();
-    assert(ec > 0.0);
+    assert(ec >= ec_min);
+    assert(ec <= ec_max);
 
-    ContinuumOrbitals cntm(wf.vHF());
+    ContinuumOrbitals cntm(vHF);
     cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale, hole_particle,
                           force_orthog);
 
-    for (std::size_t iq = 0; iq < qgrid.size(); ++iq) {
+    const auto tid = std::size_t(omp_get_thread_num());
+    auto Phik = Phik_ops[tid].get();
+    auto Ek = Ek_ops[tid].get();
+    auto Mk = Mk_ops[tid].get();
+    auto Lk = Lk_ops[tid].get();
+    auto Phi5k = Phi5k_ops[tid].get();
+    auto E5k = E5k_ops[tid].get();
+    auto M5k = M5k_ops[tid].get();
+    auto L5k = L5k_ops[tid].get();
+    auto Sk = Sk_ops[tid].get();
+    auto S5k = S5k_ops[tid].get();
 
-      // Use qc as expected for "omega" in operators (just units)
-      const auto qc = diagonal_Eq ? Egrid.at(iE) : qgrid.at(iq) * PhysConst::c;
+    for (int k = Kmin; k <= Kmax; ++k) {
+      const auto tkp1_x = (2.0 * k + 1.0) * Fa.occ_frac();
 
-      for (int k = Kmin; k <= Kmax; ++k) {
+      for (std::size_t iq = 0; iq < qgrid.size(); ++iq) {
 
-        const auto tkp1_x = (2.0 * k + 1.0) * Fa.occ_frac();
+        // Use qc as expected for "omega" in operators (just units)
+        const auto qc =
+          diagonal_Eq ? Egrid.at(iE) : qgrid.at(iq) * PhysConst::c;
 
-        // Vector terms:
-        const auto Phik = DiracOperator::MultipoleOperator(
-          wf.grid(), k, qc, 'V', 'T', low_q, &jK_tab);
-        const auto Ek = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'V',
-                                                         'E', low_q, &jK_tab);
-        const auto Mk = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'V',
-                                                         'M', low_q, &jK_tab);
-        const auto Lk = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'V',
-                                                         'L', low_q, &jK_tab);
-
-        // Axial (gamma^5) versions
-        const auto Phi5k = DiracOperator::MultipoleOperator(
-          wf.grid(), k, qc, 'A', 'T', low_q, &jK_tab);
-        const auto E5k = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'A',
-                                                          'E', low_q, &jK_tab);
-        const auto M5k = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'A',
-                                                          'M', low_q, &jK_tab);
-        const auto L5k = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'A',
-                                                          'L', low_q, &jK_tab);
-
-        // Scalar and pseudoscalar
-        const auto Sk = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'S',
-                                                         'T', low_q, &jK_tab);
-        const auto S5k = DiracOperator::MultipoleOperator(wf.grid(), k, qc, 'P',
-                                                          'T', low_q, &jK_tab);
+        // Update rank (adjusts parity), then frequency (resets Bessel vectors)
+        if (Phik) {
+          Phik->updateRank(k);
+          Phik->updateFrequency(qc);
+        }
+        if (Ek) {
+          Ek->updateRank(k);
+          Ek->updateFrequency(qc);
+        }
+        if (Mk) {
+          Mk->updateRank(k);
+          Mk->updateFrequency(qc);
+        }
+        if (Lk) {
+          Lk->updateRank(k);
+          Lk->updateFrequency(qc);
+        }
+        if (Phi5k) {
+          Phi5k->updateRank(k);
+          Phi5k->updateFrequency(qc);
+        }
+        if (E5k) {
+          E5k->updateRank(k);
+          E5k->updateFrequency(qc);
+        }
+        if (M5k) {
+          M5k->updateRank(k);
+          M5k->updateFrequency(qc);
+        }
+        if (L5k) {
+          L5k->updateRank(k);
+          L5k->updateFrequency(qc);
+        }
+        if (Sk) {
+          Sk->updateRank(k);
+          Sk->updateFrequency(qc);
+        }
+        if (S5k) {
+          S5k->updateRank(k);
+          S5k->updateFrequency(qc);
+        }
 
         for (const auto &Fe : cntm.orbitals) {
 
-          const auto t = vectorQ ? Phik->reducedME(Fe, Fa) : 0.0;
-          const auto E = vectorQ && spatialQ ? Ek->reducedME(Fe, Fa) : 0.0;
-          const auto M = vectorQ && spatialQ ? Mk->reducedME(Fe, Fa) : 0.0;
-          const auto L = vectorQ && spatialQ ? Lk->reducedME(Fe, Fa) : 0.0;
-
-          const auto t5 = axialQ ? Phi5k->reducedME(Fe, Fa) : 0.0;
-          const auto E5 = axialQ && spatialQ ? E5k->reducedME(Fe, Fa) : 0.0;
-          const auto M5 = axialQ && spatialQ ? M5k->reducedME(Fe, Fa) : 0.0;
-          const auto L5 = axialQ && spatialQ ? L5k->reducedME(Fe, Fa) : 0.0;
+          // vector:
+          const auto t = Phik ? Phik->reducedME(Fe, Fa) : 0.0;
+          const auto E = Ek ? Ek->reducedME(Fe, Fa) : 0.0;
+          const auto M = Mk ? Mk->reducedME(Fe, Fa) : 0.0;
+          const auto L = Lk ? Lk->reducedME(Fe, Fa) : 0.0;
+          // axial:
+          const auto t5 = Phi5k ? Phi5k->reducedME(Fe, Fa) : 0.0;
+          const auto E5 = E5k ? E5k->reducedME(Fe, Fa) : 0.0;
+          const auto M5 = M5k ? M5k->reducedME(Fe, Fa) : 0.0;
+          const auto L5 = L5k ? L5k->reducedME(Fe, Fa) : 0.0;
+          // Scalar, Pseudoscalar
+          const auto S = Sk ? Sk->reducedME(Fe, Fa) : 0.0;
+          const auto S5 = S5k ? S5k->reducedME(Fe, Fa) : 0.0;
 
           // Vector operators
           if (vectorQ) {
@@ -242,11 +317,8 @@ std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
               K_VE(iE, iq) += tkp1_x * qip::pow(E, 2);
               K_VM(iE, iq) += tkp1_x * qip::pow(M, 2);
               K_VL(iE, iq) += tkp1_x * qip::pow(L, 2);
+              K_X(iE, iq) += tkp1_x * t * L;
             }
-          }
-          // Vector Interference:
-          if (XvvQ) {
-            K_X(iE, iq) += tkp1_x * t * L;
           }
 
           // Axial (γ^5) operators
@@ -256,25 +328,21 @@ std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
               K_E5(iE, iq) += tkp1_x * qip::pow(E5, 2);
               K_M5(iE, iq) += tkp1_x * qip::pow(M5, 2);
               K_L5(iE, iq) += tkp1_x * qip::pow(L5, 2);
+              K_X5(iE, iq) += tkp1_x * t5 * L5;
             }
           }
 
-          // Axial Interference:
-          if (YaaQ) {
-            K_X5(iE, iq) += tkp1_x * t5 * L5;
-          }
-
           // Vector-Axial Spatial Interference:
-          if (ZvaQ) {
+          if (vectorQ && axialQ && spatialQ) {
             K_Z(iE, iq) += tkp1_x * (E5 * M - E * M5);
           }
 
           // Scalar and Pseudoscalar
           if (scalarQ) {
-            K_S(iE, iq) += tkp1_x * qip::pow(Sk->reducedME(Fe, Fa), 2);
+            K_S(iE, iq) += tkp1_x * qip::pow(S, 2);
           }
           if (pseudoscalarQ) {
-            K_S5(iE, iq) += tkp1_x * qip::pow(S5k->reducedME(Fe, Fa), 2);
+            K_S5(iE, iq) += tkp1_x * qip::pow(S5, 2);
           }
         }
       }
