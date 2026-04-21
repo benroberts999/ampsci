@@ -62,6 +62,13 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     if (Sigma)
       rhs -= (*Sigma)(dF);
 
+    // For kappa=kappa' case: enforce Fredholm solvability condition.
+    // <Fa|hFa> is typically zeroed by the caller, but the non-local exchange
+    // contribution -V_nl*dF also contaminates <Fa|rhs> each iteration.
+    // Projects out the full residual so solve_inhomog remains well-conditioned.
+    if (dF.kappa() == Fa.kappa())
+      rhs -= (Fa * rhs) * Fa;
+
     DiracODE::solve_inhomog(dF, Fa.en() + omega, v, H_mag, alpha, rhs);
 
     // damp the solution

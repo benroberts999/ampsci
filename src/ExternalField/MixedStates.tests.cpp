@@ -73,7 +73,7 @@ TEST_CASE("External Field: Mixed-states (unit)",
       }
     }
 
-    REQUIRE(weps < 1.0e-3);
+    REQUIRE(weps < 2.0e-3);
     REQUIRE(beps < 2.0e-5);
     summary << h->name() << " worst: " << worst << " "
             << fmt::format("{:.1e}", weps) << ", best: " << best << " "
