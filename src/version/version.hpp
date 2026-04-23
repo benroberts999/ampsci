@@ -1,7 +1,7 @@
 #pragma once
 #include <string>
 
-// Manually define major/minor ampsci versions
+//! Manually define major/minor ampsci versions
 #define AMPSCI_VERSION "0.0"
 #define AMPSCI_MAJOR_VERSION 0
 #define AMPSCI_MINOR_VERSION 0
@@ -9,10 +9,23 @@
 //==============================================================================
 //! Information about the ampsci code (version, compiler etc.).
 /*! @details Defines the macros: 
-AMPSCI_VERSION, AMPSCI_MAJOR_VERSION, AMPSCI_MINOR_VERSION 
-(defined in version.hpp).
-Also, defines macros: GITBRANCH, GITREVISION, GITMODIFIED, CXXVERSION, COMPTIME
-These should be set using compil flags (-D) on compilation.
+
+  - AMPSCI_VERSION
+  - AMPSCI_MAJOR_VERSION
+  - AMPSCI_MINOR_VERSION 
+
+(defined manually in version.hpp).
+
+Also, defines macros: 
+
+  - GITBRANCH
+  - GITREVISION
+  - GITMODIFIED
+  - CXXVERSION
+  - COMPTIME
+
+These should be set using compil flags (-D) on compilation. 
+The provided Makefile does this.
 */
 namespace version {
 

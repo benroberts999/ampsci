@@ -9,7 +9,7 @@ Please follow the guidelines below to help keep the codebase clean, consistent, 
   * Set `MODE=dev` in the `Makefile`.
 * This turns on all the warnings.
 * While these can be very annoying at first, they are all there for a good reason.
-* Code shuold not flag any warnings to be merged into main.
+* Code should not flag any warnings to be merged into main.
 
 ## General Principles
 
@@ -27,10 +27,11 @@ Please follow the guidelines below to help keep the codebase clean, consistent, 
 * Branch from the appropriate parent branch (usually `dev`).
 * Create a new branch with a clear, descriptive name.
 * It's a good idea to regularly incorporate updates from the parent branch, which will likely also be undergoing continuing changes
-  * Rebasing (`git rebase`) is preferred.
+  * Rebasing (`git rebase dev`) is preferred.
   * If you are new to rebasing, consider doing on a temporary branch first.
-  * Ideally, if your changes are will targetted, there will not be conflicts, however, they do arise
+  * Ideally, if your changes are well targetted, there will not be conflicts, however, they do arise
   * Resolve conflicts carefully and test after rebasing.
+  * It is OK to submit a pull request without rebasing from dev if it's too difficuly; but that just means I'll have to do it. If it's too hard to resolve all conflicts, the pull request may be rejected
 
 <div class="shell-block">
 ```bash
@@ -72,24 +73,25 @@ First, find the path to your clang-format binary:
 
 <div class="shell-block">
 ```bash
-which clang-format
+which clang-format-14
 ```
 </div>
 
 Common locations:
-* Linux: `/usr/bin/clang-format`
-* macOS (Homebrew): `/opt/homebrew/bin/clang-format`
+
+* Linux: `/usr/bin/clang-format-14`
+* macOS (Homebrew): `/opt/homebrew/bin/clang-format-14`
 
 Then add the following to `.vscode/settings.json`:
 
 ```json
 {
-  "C_Cpp.clang_format_path": "/PATH_TO_CLANG_FORMAT/clang-format",
+  "C_Cpp.clang_format_path": "/PATH_TO_CLANG_FORMAT/clang-format-14",
   "editor.formatOnSave": true
 }
 ```
 
-Replace `PATH_TO_CLANG_FORMAT` with the path returned from `which clang-format`
+Replace `PATH_TO_CLANG_FORMAT` with the path returned from `which clang-format-14`
 
 ## Documenting
 
@@ -176,7 +178,7 @@ make tests
 ```
 </div>
 
-Then, remove the junk output files:
+Then, remove the junk output files (all have `deleteme` in the filename):
 
 <div class="shell-block">
 ```bash
@@ -231,7 +233,7 @@ Example:
 
 ```cpp
 #include "catch2/catch.hpp"
-#include "math/square.hpp" // simple example
+#include "math/square.hpp" // example, not real code
 
 TEST_CASE("square computes correct values", "[math][unit]") {
     REQUIRE(square(2) == 4);
@@ -254,6 +256,9 @@ TEST_CASE("example showing Approx for floating point", "[math][unit]") {
 }
 
 TEST_CASE("square handles zero input", "[math][unit]") {
-    CHECK(square(0.0) == 0.0);
+    REQUIRE(square(0) == 0);
+    REQUIRE(square(0ul) == 0ul);
+    REQUIRE(square(0.0f) == 0.0f);
+    REQUIRE(square(0.0) == 0.0);
 }
 ```

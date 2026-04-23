@@ -27,7 +27,7 @@
 ```
 </div>
 
-* With this, you can regularly pull any updates using pull (remember to re-comile!):
+* With this, you can regularly pull any updates using pull (remember to re-compile!):
 
 <div class="shell-block">
 ```bash
@@ -101,7 +101,8 @@ make
 * The documentation is provided on this website
 * A pdf with detailed physics descriptions of the methods is also provided: [ampsci.pdf](https://ampsci.dev/ampsci.pdf)
 * If you want, you can build the html and pdf documentaion locally using the Makefile:
-  * This requires doxygen for the html docs (`apt install doxygen`), and pdflatex for the pdf docs.
+  * Building the HTML docs requires _doxygen_ (`apt install doxygen`), and _python3_ for post-processing
+  * Building the pdf (physics) docs required pdflatex
 
 <div class="shell-block">
 ```shell

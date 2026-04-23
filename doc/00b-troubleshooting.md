@@ -55,7 +55,7 @@ LDLIBS += -lgfortran
 * **error: could not find <omp.h>**
 
 * openmp (used for parallelisation) is not working. See [Compilation Details](\ref compilation) for some possible solutions.
-* Quick fix: change '_OMPLIB=-fopenmp_' to '_OMPLIB=_' in Makefile, which turns off OpenMP
+* Quick fix: change '_OMPLIB=-fopenmp_' to '_OMPLIB=_' in Makefile (or delete/comment-out this line), which turns off OpenMP
 
 ### GSL Errors
 
@@ -65,9 +65,11 @@ LDLIBS += -lgfortran
 * Could not find required GSL libraries. Either they are not installed, or you need to link to them
 * 1) Ensure GSL is installed (see above for instructions)
 * 1) If GSL library is not installed in _/usr/local/_, you have to tell the compiler where to find the GSL files. Do this by setting the _GSL\_PATH_ option in Makefile. Common examples:
-  * _GSL\_PATH=/opt/gsl/2.1/gnu_ # For UQ's getafix cluster
-  * _GSL\_PATH=/usr/local/opt/gnu-scientific-library_ # For my macbook
+  * `GSL\_PATH=/opt/gsl/2.1/gnu` # For UQ's getafix cluster
+  * `GSL\_PATH=/usr/local/opt/gnu-scientific-library` # For intel mac
+  * `GSL_PATH=/opt/homebrew/Cellar/gsl/2.7` # for M1 mac
   * Note: the exact path may differ for you, depending on where GSL was installed
+  * Exact path may differ: use `brew --prefix gsl` for mac to find the location
 
 * **error: too few arguments to function ‘int gsl_bspline_deriv_eval**
 

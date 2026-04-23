@@ -8,10 +8,11 @@
 #include <algorithm>
 #include <vector>
 
+//! Radiative QED corrections (Flambaum-Ginges Radiative Potenti)
 namespace QED {
 
 //==============================================================================
-//! Class holds Flambaum-Ginges QED Radiative Potential
+//! Constructs and stores the Flambaum-Ginges QED Radiative Potential
 class RadPot {
 
 public:
@@ -72,10 +73,13 @@ public:
 
   //! Returns entire electric part of potential
   std::vector<double> Vel(int l = 0) const;
-  //! Returns H_mag
+  //! Returns H_mag (magnetic self-energy form vactor)
   std::vector<double> Hmag(int) const;
+  //! Uehling potential
   std::vector<double> Vu(int l = 0) const;
+  //! Low-frequency electric self-energy potential
   std::vector<double> Vl(int l = 0) const;
+  //! High-frequency electric self-energy potential
   std::vector<double> Vh(int l = 0) const;
 
   template <typename Func>

@@ -351,7 +351,7 @@ A nice way to do this is by `piping` the output through the unix `tee` program:
 e.g.,
 
 ```bash
-./ampsci example.in |tee -i example.out
+./ampsci example.in |tee -a example.out
 ```
 
 * Runs ampsci using input options in file "example.in".
@@ -439,6 +439,7 @@ Valence: CsI
 
 -----
 
+* See [Atomic Potentials](\ref tutorial_potentials) for getting started with basic calculations (Hartree-Fock etc.)
 * See [MBPT and Correlations](\ref tutorial_mbpt) for tutorial for more advanced calculations
 * See [Modules](\ref tutorial_modules) for tutorial on using the wavefunctions (e.g., calculating matrix elements)
 * See physics documentation: [ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full physics description of the employed methods

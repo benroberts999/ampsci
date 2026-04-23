@@ -35,28 +35,6 @@ jobs:
         # Copy the Makefile to the working directory
         cp ./doc/Makefile ./
 
-        # Adjust Markdown links for compatibility between GitHub and Doxygen
-        # for FILE in ./doc/*.md; do
-        #   # Fix relative links to /doc/
-        #   sed -i 's%(/doc/%(doc/%g' $FILE
-        #   # Fix README links
-        #   sed -i 's%(/README%(README%g' $FILE
-        #   # Convert src links to GitHub URLs
-        #   sed -i 's%(/src/%(https://github.com/benroberts999/ampsci/tree/main/src/%g' $FILE
-        #   # Replace custom tags with Doxygen-compatible tags
-        #   sed -i 's%::::%\brief%g' $FILE
-        # done
-
-        # # Adjust LaTeX math delimiters for Doxygen
-        # for FILE in ./doc/tutorial*.md; do
-        #   # Replace $$~ with \f[
-        #   sed -i -e 's/\$\$~/\\f\[/g' $FILE
-        #   # Replace ~$$ with \f]
-        #   sed -i -e 's/~\$\$/\\f\]/g' $FILE
-        #   # Replace $ with \f$
-        #   sed -i -e 's/\$/\\f\$/g' $FILE
-        # done
-
         # Remove non-ASCII characters from header files
         for FILE in ./src/*.h* ./src/*/*.h* ./src/*/*/*.h*; do
           tr -cd '\0-\177' < $FILE > temp && mv temp $FILE

@@ -72,56 +72,76 @@ function searchFor(query,page,count) {
 
     var xmlParser=new DOMParser().parseFromString(xmlData,"text/xml");
 
+    var ql=query.toLowerCase();
+    var matches=[];
+    var doc=xmlParser.getElementsByTagName("doc");
+    for (var i=0;i<doc.length;i++)
+    {
+        var type = doc[i].getElementsByTagName("field")[0].textContent.trim();
+        if (type === "source") continue;
+        var name = doc[i].getElementsByTagName("field")[1].textContent.trim();
+        var fields = doc[i].getElementsByTagName("field");
+        var url = ''; var text = '';
+        for (var f = 0; f < fields.length; f++) {
+          if (fields[f].getAttribute("name") === "url")  url  = fields[f].textContent.trim();
+          if (fields[f].getAttribute("name") === "text") text = fields[f].textContent.trim();
+        }
+
+        var nl=name.toLowerCase();
+        var nameMatch = nl.indexOf(ql)>=0;
+        var textMatch = text.toLowerCase().indexOf(ql)>=0;
+        if(!nameMatch && !textMatch) continue;
+
+        // Lower score = higher priority
+        var score;
+        if (nl === ql)                  score = 0; // exact name match
+        else if (nl.indexOf(ql) === 0)  score = 1; // name starts with query
+        else if (nameMatch)             score = 2; // name contains query
+        else                            score = 3; // text-only match
+
+        matches.push({type:type, name:name, url:url, text:text, score:score});
+    }
+
+    matches.sort(function(a,b){ return a.score-b.score; });
+
     count=0;
     output='<table>';
-    var doc=xmlParser.getElementsByTagName("doc");
-    for (i=0;i<doc.length;i++)
+    for (var m=0;m<matches.length;m++)
     {
-        // type=doc[i].getElementsByTagName("field")[0].childNodes[0].nodeValue;
-        // name=doc[i].getElementsByTagName("field")[1].childNodes[0].nodeValue;
-        // url=doc[i].getElementsByTagName("field")[2].childNodes[0].nodeValue;
-        // text=doc[i].getElementsByTagName("field")[4].childNodes[0].nodeValue;
-        type = doc[i].getElementsByTagName("field")[0].textContent.trim();
-        if (type === "source") continue;
-        name = doc[i].getElementsByTagName("field")[1].textContent.trim();
-        url  = doc[i].getElementsByTagName("field")[2].textContent.trim();
-        text = doc[i].getElementsByTagName("field")[4].textContent.trim();
+        var type=matches[m].type, name=matches[m].name,
+            url=matches[m].url, text=matches[m].text;
+        count++;
+        output+='<tr class="searchresult">';
+        output+='<td align="right">'+count+'.</td>';
+        output+='<td>'+escapeHtml(type)+'&#160;';
+        output+='<a href="'+escapeHtml(url)+'">';
+        output+=escapeHtml(name);
+        output+='</a>';
+        output+='</td>';
 
-        if(text.toLowerCase().indexOf(query.toLowerCase())>=0)
+        var start=text.toLowerCase().indexOf(ql);
+        var fragmentcount=0;
+        while(start>=0 && fragmentcount<3)
         {
-            count++;
-            output+='<tr class="searchresult">';
-            output+='<td align="right">'+count+'.</td>';
-            output+='<td>'+escapeHtml(type)+'&#160;';
-            output+='<a href="'+escapeHtml(url)+'">';
-            output+=escapeHtml(name);
-            output+='</a>';
-            output+='</td>';
+            var quotestart=Math.max(start-30,0);
+            var quoteend=Math.min(start+query.length+30,text.length);
+            var fragment='';
+            if(quotestart>0)
+                fragment+='...';
+            fragment+=escapeHtml(text.substring(quotestart,start));
+            fragment+='<span class="hl">';
+            fragment+=escapeHtml(text.substring(start,start+query.length));
+            fragment+='</span>';
+            fragment+=escapeHtml(text.substring(start+query.length,quoteend));
+            if(quoteend<text.length)
+                fragment+='...';
+            output+='<tr><td></td><td>'+fragment+'</td></tr>';
 
-            var start=text.toLowerCase().indexOf(query.toLowerCase());
-            var fragmentcount=0;
-            while(start>=0 && fragmentcount<3)
-            {
-                quotestart=Math.max(start-30,0);
-                quoteend=Math.min(start+query.length+30,text.length);
-                fragment='';
-                if(quotestart>0)
-                    fragment+='...';
-                fragment+=escapeHtml(text.substring(quotestart,start));
-                fragment+='<span class="hl">';
-                fragment+=escapeHtml(text.substring(start,start+query.length));
-                fragment+='</span>';
-                fragment+=escapeHtml(text.substring(start+query.length,quoteend));
-                if(quoteend<text.length);
-                    fragment+='...';
-                output+='<tr><td></td><td>'+fragment+'</td></tr>';
-
-                start=text.toLowerCase().indexOf(query.toLowerCase(),start+1);
-                fragmentcount++;
-            }
-
-            output+="</tr>";
+            start=text.toLowerCase().indexOf(ql,start+1);
+            fragmentcount++;
         }
+
+        output+="</tr>";
     }
     output+="</table>";
     var results = $('#searchresults');

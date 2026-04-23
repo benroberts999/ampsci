@@ -1,6 +1,7 @@
 #pragma once
 #include "Physics/PhysConst_constants.hpp"
 
+//! Unit conversions. Simple uses @ref PhysConst; just for convenience
 namespace UnitConv {
 
 //! energy: au -> keV

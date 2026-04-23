@@ -41,13 +41,21 @@
 //==============================================================================
 namespace version {
 
+// git branch for current compilation (if available)
 static const std::string git_branch = XSTRING(GITBRANCH);
+// git hash for current compilation (if available)
 static const std::string git_revision = XSTRING(GITREVISION);
+// List of files that have been modified since last git commit
 static const std::string git_modified = XSTRING(GITMODIFIED);
+// Compiler version information
 static const std::string cxx_version = XSTRING(CXXVERSION);
+// Date and time of compilation
 static const std::string compiled_time = XSTRING(COMPTIME);
+// ampsci version
 static const std::string ampsci_version = std::string(AMPSCI_VERSION);
+// gsl library version
 static const std::string gsl_version = std::string(GSL_VERSION);
+// OpenMP library version
 static const std::string omp_version = XSTRING(OMP_VERSION);
 
 std::string version() {

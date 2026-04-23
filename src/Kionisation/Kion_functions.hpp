@@ -11,6 +11,7 @@ namespace HF {
 class HartreeFock;
 }
 
+//! Functions for atomic ionisation form factors
 namespace Kion {
 
 //! DM-electron couplings

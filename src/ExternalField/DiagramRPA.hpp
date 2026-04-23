@@ -21,7 +21,7 @@ namespace ExternalField {
   The basic equation is:
 
   \f[
-      \langle{w}|{\delta V_{\pm}}|{v}\rangle &= 
+      \langle{w}|{\delta V_{\pm}}|{v}\rangle = 
       \sum_{na}\frac{t_{na}\,\widetilde g_{wavn}}{\varepsilon_a - \varepsilon_n \pm \omega}
       +
       \sum_{na}\frac{t_{an}\,\widetilde g_{wnva}}{\varepsilon_a - \varepsilon_n \mp \omega},

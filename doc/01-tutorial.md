@@ -9,6 +9,8 @@ This assumes you already have ampsci compiled.
 
 * \subpage tutorial_basic - \copybrief tutorial_basic
 
+* \subpage tutorial_potentials - \copybrief tutorial_potentials
+
 * \subpage tutorial_mbpt - \copybrief tutorial_mbpt
 
 * \subpage tutorial_modules - \copybrief tutorial_modules

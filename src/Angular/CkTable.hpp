@@ -20,8 +20,8 @@ constexpr int kappa_to_jindex(int ka) { return (ka > 0) ? ka - 1 : -ka - 1; }
 @brief Lookup table for C^k and 3j symbols (special m=1/2, q=0 case)
 @details
   - Builds 3j symbol lookup table for given maximum k and maximum j (2j)
-  - 3j symbols, special case: (ja jb k \\ -1/2, 1/2, 0)
-  - Ckab : \f$C^k_{ab} = \langle k_a||C^k||k_b \rangle\f$ 
+  - 3j symbols, special case: \f$\threej{ja}{jb}{k}{-1/2}{1/2}{0}\f$
+  - Ckab : \f$C^k_{ab} = \redmatel{k_a}{C^k}{k_b}\f$ 
     [symmetric up to +/- sign]
   - TildeCkab : \f$\widetilde C^k_{ab} = (-1)^{ja+1/2} C^k_{ab}\f$ [symmetric]
   - Slightly faster than calculating on-the-fly, but adds some overhead
