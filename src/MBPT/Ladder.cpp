@@ -3,8 +3,8 @@
 #include "Coulomb/include.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
-#include "qip/Widgets.hpp"
 #include <numeric>
+#include <unordered_set>
 
 namespace MBPT {
 
@@ -60,7 +60,6 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
   //   return 0.0;
   // }
 
-#pragma omp parallel for reduction(+ : l1)
   for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
     const auto &r = excited[r_index];
     for (const auto &s : excited) {
@@ -134,7 +133,6 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   //  6j(r) Triads: {m,i,k}, {k,u,l}, {i,u,c}, {l,c,m}
   //  6j(s) Triads: {n,b,k}, {k,u,l}, {b,u,d}, {l,d,n}
 
-#pragma omp parallel for reduction(+ : l4)
   for (auto c_index = 0ul; c_index < core.size(); ++c_index) {
     const auto &c = core[c_index];
     for (const auto &d : core) {
@@ -206,7 +204,6 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
   const auto s_mnijk =
     Angular::neg1pow_2(2 * k + m.twoj() + n.twoj() + i.twoj() + j.twoj());
 
-#pragma omp parallel for reduction(+ : l2)
   for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
     const auto &r = excited[r_index];
     for (const auto &c : core) {
@@ -264,53 +261,57 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const Coulomb::LkTable *const lk_prev, bool print_progbar,
                   const std::vector<double> &fk) {
 
-  const double a_damp = 0.35; // 0 means no damping
+  const double a_damp = 0.35;
   const double b_damp = 1.0 - a_damp;
 
-  // Check core/excited orbitals around right way:
   if (!core.empty() && !excited.empty())
     assert(core.front().en() < excited.front().en());
 
-  // nb: we can apply the symmetry condition, and only calculate the unique
-  // integrals by only calculating those when {mnib} is already NormalOrdered
+  // Build combined basis: excited + core + any extra i_orbs (e.g. valence)
+  std::vector<DiracSpinor> basis = excited;
+  for (const auto &x : core)
+    if (std::find(basis.begin(), basis.end(), x) == basis.end())
+      basis.push_back(x);
+  for (const auto &x : i_orbs)
+    if (std::find(basis.begin(), basis.end(), x) == basis.end())
+      basis.push_back(x);
 
-  int count = 0; // for prog bar
-  for (const auto &m : excited) {
-    if (print_progbar)
-      qip::progbar50(count++, int(excited.size()));
+  // Sets for O(1) membership checks inside lambdas
+  using Index = DiracSpinor::Index;
+  std::unordered_set<Index> excited_set, core_set, i_orbs_set;
+  for (const auto &x : excited)
+    excited_set.insert(x.nk_index());
+  for (const auto &x : core)
+    core_set.insert(x.nk_index());
+  for (const auto &x : i_orbs)
+    i_orbs_set.insert(x.nk_index());
 
-    for (const auto &n : excited) {
-      for (const auto &i : i_orbs) {
-        for (const auto &b : core) {
-          const auto lkey_mnib = lk->NormalOrder(m, n, i, b);
-          const auto lcurrent_mnib = lk->CurrentOrder(m, n, i, b);
-          if (lcurrent_mnib != lkey_mnib)
-            continue;
-          // we only need L's when there are non-zero Q's
-          const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b);
-          for (int k = k0; k <= kI; k += 2) {
+  // Selection rule: m,n in excited, i in i_orbs, b in core + angular SR
+  const auto Lk_SR = [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                         const DiracSpinor &i, const DiracSpinor &b) -> bool {
+    if (!excited_set.count(m.nk_index()) || !excited_set.count(n.nk_index()))
+      return false;
+    if (!i_orbs_set.count(i.nk_index()) || !core_set.count(b.nk_index()))
+      return false;
+    const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b);
+    return k >= k0 && k <= kI;
+  };
 
-            // a) only need L's with non-zero Q's [prob already case], b) may
-            // have k_max cutoff in Qk
-            if (qk.Q(k, m, n, i, b) == 0.0)
-              continue;
-
-            auto L_kmnib = MBPT::Lkmnij(k, m, n, i, b, qk, core, excited,
-                                        include_L4, sjt, lk_prev, fk);
-
-            // If we have old value, 'damp' new value
-            const auto L_prev = lk_prev ? lk_prev->Q(k, lkey_mnib) : 0.0;
-            if (L_prev != 0.0) {
-              L_kmnib = b_damp * L_kmnib + a_damp * L_prev;
-            }
-
-            // store new value in table
-            lk->update(k, lkey_mnib, L_kmnib);
-          }
-        }
-      }
+  // Lk integral with damping folded in
+  const auto Lk_function = [&](int k, const DiracSpinor &m,
+                               const DiracSpinor &n, const DiracSpinor &i,
+                               const DiracSpinor &b) -> double {
+    auto L_new =
+      Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, lk_prev, fk);
+    if (lk_prev) {
+      const auto L_prev = lk_prev->Q(k, m, n, i, b);
+      if (L_prev != 0.0)
+        L_new = b_damp * L_new + a_damp * L_prev;
     }
-  }
+    return L_new;
+  };
+
+  lk->fill(basis, Lk_function, Lk_SR, -1, print_progbar);
 }
 
 } // namespace MBPT
