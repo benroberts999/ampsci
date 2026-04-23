@@ -72,9 +72,12 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
       const auto inv_e_ijrs = 1.0 / (i.en() + j.en() - r.en() - s.en());
+      const auto key_mnrs = qk.NormalOrder(m, n, r, s);
+      const auto key_rsij = qk.NormalOrder(r, s, i, j);
+      const auto lkey_rsij = Lk ? Lk->NormalOrder(r, s, i, j) : 0ul;
 
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_umnrs = Fk(u) * qk.Q(u, m, n, r, s);
+        const auto Q_umnrs = Fk(u) * qk.Q(u, key_mnrs);
         if (Q_umnrs == 0.0)
           continue; // never? Unless have k_cut
 
@@ -91,8 +94,8 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto sj_r = SJ.get(m, i, k, l, u, r);
           const auto sj_s = SJ.get(n, j, k, l, u, s);
 
-          const auto Q_lrsij = Fk(l) * qk.Q(l, r, s, i, j);
-          const auto L_lrsij = Lk ? Lk->Q(l, r, s, i, j) : 0.0;
+          const auto Q_lrsij = Fk(l) * qk.Q(l, key_rsij);
+          const auto L_lrsij = Lk ? Lk->Q(l, lkey_rsij) : 0.0;
 
           l1 +=
             (s_rs * sj_r * sj_s) * Q_umnrs * (Q_lrsij + L_lrsij) * inv_e_ijrs;
@@ -143,9 +146,12 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto s_cd = Angular::neg1pow_2(c.twoj() + d.twoj());
       const auto inv_e_cdmn = 1.0 / (c.en() + d.en() - m.en() - n.en());
+      const auto key_cdij = qk.NormalOrder(c, d, i, j);
+      const auto key_mncd = qk.NormalOrder(m, n, c, d);
+      const auto lkey_mncd = Lk ? Lk->NormalOrder(m, n, c, d) : 0ul;
 
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_ucdij = Fk(u) * qk.Q(u, c, d, i, j);
+        const auto Q_ucdij = Fk(u) * qk.Q(u, key_cdij);
         if (Q_ucdij == 0.0)
           continue; // never? Unless have k_cut
 
@@ -162,8 +168,8 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto sj_c = SJ.get(m, i, k, u, l, c);
           const auto sj_d = SJ.get(n, j, k, u, l, d);
 
-          const auto Q_lmncd = Fk(l) * qk.Q(l, m, n, c, d);
-          const auto L_lmncd = Lk ? Lk->Q(l, m, n, c, d) : 0.0;
+          const auto Q_lmncd = Fk(l) * qk.Q(l, key_mncd);
+          const auto L_lmncd = Lk ? Lk->Q(l, lkey_mncd) : 0.0;
 
           l4 +=
             (s_cd * sj_c * sj_d) * Q_ucdij * (Q_lmncd + L_lmncd) * inv_e_cdmn;
@@ -212,9 +218,12 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
       const auto inv_e_cjmr = 1.0 / (c.en() + j.en() - m.en() - r.en());
+      const auto key_cnir = qk.NormalOrder(c, n, i, r);
+      const auto key_mrcj = qk.NormalOrder(m, r, c, j);
+      const auto lkey_mrcj = Lk ? Lk->NormalOrder(m, r, c, j) : 0ul;
 
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_ucnir = Fk(u) * qk.Q(u, c, n, i, r);
+        const auto Q_ucnir = Fk(u) * qk.Q(u, key_cnir);
         if (Q_ucnir == 0.0)
           continue; // never? Unless have k_cut
 
@@ -233,8 +242,8 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto sj_c = SJ.get(m, i, k, u, l, c);
           const auto sj_r = SJ.get(j, n, k, u, l, r);
 
-          const auto Q_lmrcj = Fk(l) * qk.Q(l, m, r, c, j);
-          const auto L_lmrcj = Lk ? Lk->Q(l, m, r, c, j) : 0.0;
+          const auto Q_lmrcj = Fk(l) * qk.Q(l, key_mrcj);
+          const auto L_lmrcj = Lk ? Lk->Q(l, lkey_mrcj) : 0.0;
 
           l2 += (s_ul * s_rc * sj_c * sj_r) * Q_ucnir * (Q_lmrcj + L_lmrcj) *
                 inv_e_cjmr;
@@ -273,7 +282,9 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
     for (const auto &n : excited) {
       for (const auto &i : i_orbs) {
         for (const auto &b : core) {
-          if (!lk->is_NormalOrdered(m, n, i, b))
+          const auto lkey_mnib = lk->NormalOrder(m, n, i, b);
+          const auto lcurrent_mnib = lk->CurrentOrder(m, n, i, b);
+          if (lcurrent_mnib != lkey_mnib)
             continue;
           // we only need L's when there are non-zero Q's
           const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b);
@@ -288,13 +299,13 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                                         include_L4, sjt, lk_prev, fk);
 
             // If we have old value, 'damp' new value
-            const auto L_prev = lk_prev ? lk_prev->Q(k, m, n, i, b) : 0.0;
+            const auto L_prev = lk_prev ? lk_prev->Q(k, lkey_mnib) : 0.0;
             if (L_prev != 0.0) {
               L_kmnib = b_damp * L_kmnib + a_damp * L_prev;
             }
 
             // store new value in table
-            lk->update(k, m, n, i, b, L_kmnib);
+            lk->update(k, lkey_mnib, L_kmnib);
           }
         }
       }
