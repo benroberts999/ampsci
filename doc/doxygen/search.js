@@ -84,8 +84,12 @@ function searchFor(query,page,count) {
         type = doc[i].getElementsByTagName("field")[0].textContent.trim();
         if (type === "source") continue;
         name = doc[i].getElementsByTagName("field")[1].textContent.trim();
-        url  = doc[i].getElementsByTagName("field")[2].textContent.trim();
-        text = doc[i].getElementsByTagName("field")[4].textContent.trim();
+        var fields = doc[i].getElementsByTagName("field");
+        url = ''; text = '';
+        for (var f = 0; f < fields.length; f++) {
+          if (fields[f].getAttribute("name") === "url")  url  = fields[f].textContent.trim();
+          if (fields[f].getAttribute("name") === "text") text = fields[f].textContent.trim();
+        }
 
         if(text.toLowerCase().indexOf(query.toLowerCase())>=0)
         {
