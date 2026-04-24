@@ -385,9 +385,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
               << DiracSpinor::state_config(excited_s2) << "\n";
     std::cout << std::flush;
 
-    Sk = CI::calculate_Sk(Sk_filename, cis2_basis, core_s2, excited_s2, qk,
-                          max_k_Coulomb, exclude_wrong_parity_box, denominators,
-                          no_new_integralsQ);
+    Sk = MBPT::calculate_Sk(Sk_filename, cis2_basis, core_s2, excited_s2, qk,
+                            max_k_Coulomb, exclude_wrong_parity_box,
+                            denominators, no_new_integralsQ);
   }
 
   //----------------------------------------------------------------------------

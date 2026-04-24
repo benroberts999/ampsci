@@ -61,14 +61,6 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
                    const MBPT::CorrelationPotential &Sigma,
                    bool include_Sigma1);
 
-//! Calculates table of single-particle matrix elements of two-body Sigma_2 operator.
-[[nodiscard]] Coulomb::LkTable calculate_Sk(
-  const std::string &filename, const std::vector<DiracSpinor> &cis2_basis,
-  const std::vector<DiracSpinor> &s2_basis_core,
-  const std::vector<DiracSpinor> &s2_basis_excited, const Coulomb::QkTable &qk,
-  int max_k, bool exclude_wrong_parity_box, MBPT::Denominators denominators,
-  bool no_new_integrals = false);
-
 //! Calculates table of single-particle matrix elements of two-body Breit operator.
 [[nodiscard]] Coulomb::WkTable
 calculate_Bk(const std::string &bk_filename, const HF::Breit *const pBr,

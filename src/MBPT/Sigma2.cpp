@@ -46,7 +46,9 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited) {
   const auto v_bar = std::find_if(
     excited.cbegin(), excited.cend(),
     [kappa_v](const DiracSpinor &n) { return n.kappa() == kappa_v; });
-  assert(v_bar != excited.cend());
+  if (v_bar == excited.cend()) {
+    return 0.0;
+  }
   return v_bar->en();
 }
 
@@ -87,7 +89,7 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
                const std::vector<DiracSpinor> &excited,
                const Angular::SixJTable &SixJ, Denominators denominators) {
-  using namespace InternalSigma;
+  using namespace Sigma2;
 
   if (!Sk_vwxy_SR(k, v, w, x, y))
     return 0.0;
@@ -101,11 +103,13 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
 //==============================================================================
 //==============================================================================
 //==============================================================================
-double InternalSigma::S_Sigma2_ab(
-  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
-  const DiracSpinor &y, const Coulomb::QkTable &qk,
-  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  const Angular::SixJTable &SixJ, Denominators denominators) {
+double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
+                           const DiracSpinor &x, const DiracSpinor &y,
+                           const Coulomb::QkTable &qk,
+                           const std::vector<DiracSpinor> &core,
+                           const std::vector<DiracSpinor> &excited,
+                           const Angular::SixJTable &SixJ,
+                           Denominators denominators) {
 
   // overall selectrion rule tested outside
 
@@ -155,11 +159,13 @@ double InternalSigma::S_Sigma2_ab(
 }
 
 //==============================================================================
-double InternalSigma::S_Sigma2_c1(
-  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
-  const DiracSpinor &y, const Coulomb::QkTable &qk,
-  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  const Angular::SixJTable &SixJ, Denominators denominators) {
+double Sigma2::S_Sigma2_c1(int k, const DiracSpinor &v, const DiracSpinor &w,
+                           const DiracSpinor &x, const DiracSpinor &y,
+                           const Coulomb::QkTable &qk,
+                           const std::vector<DiracSpinor> &core,
+                           const std::vector<DiracSpinor> &excited,
+                           const Angular::SixJTable &SixJ,
+                           Denominators denominators) {
 
   // overall selectrion rule tested outside
 
@@ -215,11 +221,13 @@ double InternalSigma::S_Sigma2_c1(
 }
 
 //==============================================================================
-double InternalSigma::S_Sigma2_c2(
-  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
-  const DiracSpinor &y, const Coulomb::QkTable &qk,
-  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  const Angular::SixJTable &SixJ, Denominators denominators) {
+double Sigma2::S_Sigma2_c2(int k, const DiracSpinor &v, const DiracSpinor &w,
+                           const DiracSpinor &x, const DiracSpinor &y,
+                           const Coulomb::QkTable &qk,
+                           const std::vector<DiracSpinor> &core,
+                           const std::vector<DiracSpinor> &excited,
+                           const Angular::SixJTable &SixJ,
+                           Denominators denominators) {
 
   // overall selectrion rule tested outside
 
@@ -275,11 +283,13 @@ double InternalSigma::S_Sigma2_c2(
 }
 
 //==============================================================================
-double InternalSigma::S_Sigma2_d(
-  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
-  const DiracSpinor &y, const Coulomb::QkTable &qk,
-  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  const Angular::SixJTable &SixJ, Denominators denominators) {
+double Sigma2::S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
+                          const DiracSpinor &x, const DiracSpinor &y,
+                          const Coulomb::QkTable &qk,
+                          const std::vector<DiracSpinor> &core,
+                          const std::vector<DiracSpinor> &excited,
+                          const Angular::SixJTable &SixJ,
+                          Denominators denominators) {
 
   const auto f = Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj()) *
                  (2.0 * k + 1.0);
@@ -336,6 +346,52 @@ double InternalSigma::S_Sigma2_d(
     }
   }
   return f * sum;
+}
+
+//==============================================================================
+Coulomb::LkTable calculate_Sk(
+  const std::string &filename, const std::vector<DiracSpinor> &external,
+  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
+  const Coulomb::QkTable &qk, int max_k, bool exclude_wrong_parity_box,
+  Denominators denominators, bool no_new_integrals) {
+
+  Coulomb::LkTable Sk;
+
+  const auto max_twoj =
+    std::max({DiracSpinor::max_tj(excited), DiracSpinor::max_tj(core),
+              DiracSpinor::max_tj(external)});
+  Angular::SixJTable sjt(max_twoj);
+
+  const auto Sk_function = [&](int k, const DiracSpinor &v,
+                               const DiracSpinor &w, const DiracSpinor &x,
+                               const DiracSpinor &y) {
+    return MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, sjt, denominators);
+  };
+  const auto Sk_selection_rule = [&](int k, const DiracSpinor &v,
+                                     const DiracSpinor &w, const DiracSpinor &x,
+                                     const DiracSpinor &y) {
+    return exclude_wrong_parity_box ? Coulomb::Qk_abcd_SR(k, v, w, x, y) :
+                                      MBPT::Sk_vwxy_SR(k, v, w, x, y);
+  };
+
+  // Try to read from disk (may already have calculated Qk)
+  Sk.read(filename);
+
+  const auto existing = Sk.count();
+  {
+    if (!no_new_integrals)
+      Sk.fill(external, Sk_function, Sk_selection_rule, max_k);
+
+    const auto total = Sk.count();
+    assert(total >= existing);
+    const auto new_integrals = total - existing;
+    std::cout << "Calculated " << new_integrals << " new MBPT integrals\n";
+    if (new_integrals > 0) {
+      Sk.write(filename);
+    }
+  }
+  std::cout << "\n" << std::flush;
+  return Sk;
 }
 
 } // namespace MBPT

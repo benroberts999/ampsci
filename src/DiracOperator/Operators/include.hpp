@@ -1,6 +1,7 @@
 // Auto-generated ampsci include file
 #pragma once
 #include "DiracOperator/Operators/EM_multipole.hpp"
+#include "DiracOperator/Operators/EM_multipole_base.hpp"
 #include "DiracOperator/Operators/EM_multipole_lowqr.hpp"
 #include "DiracOperator/Operators/Ek.hpp"
 #include "DiracOperator/Operators/FieldShift.hpp"
