@@ -893,7 +893,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
 //==============================================================================
 template <Symmetry S>
 void CoulombTable<S>::write(const std::string &fname, bool verbose) const {
-  if (fname == "false")
+  if (fname == "false" || fname == "")
     return;
   if (verbose)
     std::cout << "Writing " << count() << " integrals to file: " << fname

@@ -299,56 +299,6 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
 }
 
 //==============================================================================
-Coulomb::LkTable calculate_Sk(const std::string &filename,
-                              const std::vector<DiracSpinor> &cis2_basis,
-                              const std::vector<DiracSpinor> &s2_basis_core,
-                              const std::vector<DiracSpinor> &s2_basis_excited,
-                              const Coulomb::QkTable &qk, int max_k,
-                              bool exclude_wrong_parity_box,
-                              MBPT::Denominators denominators,
-                              bool no_new_integrals) {
-
-  Coulomb::LkTable Sk;
-
-  const auto max_twoj = std::max({DiracSpinor::max_tj(s2_basis_excited),
-                                  DiracSpinor::max_tj(s2_basis_core),
-                                  DiracSpinor::max_tj(cis2_basis)});
-  Angular::SixJTable sjt(max_twoj);
-
-  const auto Sk_function = [&](int k, const DiracSpinor &v,
-                               const DiracSpinor &w, const DiracSpinor &x,
-                               const DiracSpinor &y) {
-    return MBPT::Sk_vwxy(k, v, w, x, y, qk, s2_basis_core, s2_basis_excited,
-                         sjt, denominators);
-  };
-  const auto Sk_selection_rule = [&](int k, const DiracSpinor &v,
-                                     const DiracSpinor &w, const DiracSpinor &x,
-                                     const DiracSpinor &y) {
-    return exclude_wrong_parity_box ? Coulomb::Qk_abcd_SR(k, v, w, x, y) :
-                                      MBPT::Sk_vwxy_SR(k, v, w, x, y);
-  };
-
-  // Try to read from disk (may already have calculated Qk)
-  Sk.read(filename);
-
-  const auto existing = Sk.count();
-  {
-    if (!no_new_integrals)
-      Sk.fill(cis2_basis, Sk_function, Sk_selection_rule, max_k);
-
-    const auto total = Sk.count();
-    assert(total >= existing);
-    const auto new_integrals = total - existing;
-    std::cout << "Calculated " << new_integrals << " new MBPT integrals\n";
-    if (new_integrals > 0) {
-      Sk.write(filename);
-    }
-  }
-  std::cout << "\n" << std::flush;
-  return Sk;
-}
-
-//==============================================================================
 Coulomb::WkTable calculate_Bk(const std::string &bk_filename,
                               const HF::Breit *const pBr,
                               const std::vector<DiracSpinor> &ci_basis,

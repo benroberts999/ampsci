@@ -176,35 +176,6 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
                    bool include_Sigma1);
 
 /*!
-  @brief Builds or loads the two-body \f$ \Sigma_2 \f$ integral table.
-  @details
-  Computes the two-body MBPT \f$ \Sigma_2 \f$ matrix elements
-  \f$ \langle vw | \Sigma_2 | xy \rangle \f$ for all pairs in @p cis2_basis,
-  using @p s2_basis_core and @p s2_basis_excited as internal lines.  Results
-  are cached to/from @p filename.
-
-  If @p no_new_integrals is true, no new integrals are computed; only
-  previously cached values are used.
-
-  @param filename                Filename for caching the \f$ S^k \f$ table.
-  @param cis2_basis              Basis for which \f$ \Sigma_2 \f$ matrix elements are needed.
-  @param s2_basis_core           Core states used as internal lines.
-  @param s2_basis_excited        Excited states used as internal lines.
-  @param qk                      Coulomb integral table.
-  @param max_k                   Maximum multipolarity k to include.
-  @param exclude_wrong_parity_box If true, exclude box diagrams with "wrong" parity.
-  @param denominators            Energy denominators to use in MBPT (RS, Fermi, Fermi0).
-  @param no_new_integrals        If true, skip computing any new integrals.
-  @return Table of two-body \f$ \Sigma_2 \f$ (\f$ L^k \f$) integrals.
-*/
-[[nodiscard]] Coulomb::LkTable calculate_Sk(
-  const std::string &filename, const std::vector<DiracSpinor> &cis2_basis,
-  const std::vector<DiracSpinor> &s2_basis_core,
-  const std::vector<DiracSpinor> &s2_basis_excited, const Coulomb::QkTable &qk,
-  int max_k, bool exclude_wrong_parity_box, MBPT::Denominators denominators,
-  bool no_new_integrals = false);
-
-/*!
   @brief Builds or loads the two-body Breit integral table.
   @details
   Computes Breit \f$ W^k \f$ integrals for all pairs in @p ci_basis using the
