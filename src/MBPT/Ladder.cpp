@@ -258,7 +258,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                   const Angular::SixJTable &sjt,
-                  const Coulomb::LkTable *const lk_prev, bool print_progbar,
+                  const Coulomb::LkTable *const lk_prev, bool print,
                   const std::vector<double> &fk) {
 
   const double a_damp = 0.35;
@@ -268,29 +268,28 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
     assert(core.front().en() < excited.front().en());
 
   // Build combined basis: excited + core + any extra i_orbs (e.g. valence)
-  std::vector<DiracSpinor> basis = excited;
-  for (const auto &x : core)
-    if (std::find(basis.begin(), basis.end(), x) == basis.end())
-      basis.push_back(x);
-  for (const auto &x : i_orbs)
-    if (std::find(basis.begin(), basis.end(), x) == basis.end())
-      basis.push_back(x);
+  const auto basis = qip::merge(core, excited);
 
-  // Sets for O(1) membership checks inside lambdas
-  using Index = DiracSpinor::Index;
-  std::unordered_set<Index> excited_set, core_set, i_orbs_set;
-  for (const auto &x : excited)
-    excited_set.insert(x.nk_index());
-  for (const auto &x : core)
-    core_set.insert(x.nk_index());
-  for (const auto &x : i_orbs)
-    i_orbs_set.insert(x.nk_index());
+  // Sets for O(1) membership checks for "selection rules"
+  // (m,n) in excited, b in core, i in i_orbs
+  std::unordered_set<DiracSpinor::Index> excited_set, core_set, i_orbs_set;
+  for (const auto &n : excited) {
+    excited_set.insert(n.nk_index());
+  }
+  for (const auto &a : core) {
+    core_set.insert(a.nk_index());
+  }
+  for (const auto &i : i_orbs) {
+    i_orbs_set.insert(i.nk_index());
+  }
 
   // Selection rule: m,n in excited, i in i_orbs, b in core + angular SR
   const auto Lk_SR = [&](int k, const DiracSpinor &m, const DiracSpinor &n,
                          const DiracSpinor &i, const DiracSpinor &b) -> bool {
+    // Require m and n to be excited
     if (!excited_set.count(m.nk_index()) || !excited_set.count(n.nk_index()))
       return false;
+    // Require i to be in {i}, and b to be in core
     if (!i_orbs_set.count(i.nk_index()) || !core_set.count(b.nk_index()))
       return false;
     const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b);
@@ -311,7 +310,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
     return L_new;
   };
 
-  lk->fill(basis, Lk_function, Lk_SR, -1, print_progbar);
+  lk->fill(basis, Lk_function, Lk_SR, -1, print);
 }
 
 } // namespace MBPT

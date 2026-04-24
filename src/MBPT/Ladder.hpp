@@ -158,7 +158,7 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param include_L4  Include core--core diagram L4
   @param sjt         6j symbol table
   @param lk_prev     Ladder table from previous iteration (nullptr on first)
-  @param print_progbar Print a progress bar to stdout
+  @param print       Print Qk info to screen
   @param fk          Optional screening factors \f$ f_k \f$
 */
 void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
@@ -167,8 +167,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                   const Angular::SixJTable &sjt,
                   const Coulomb::LkTable *const lk_prev = nullptr,
-                  bool print_progbar = true,
-                  const std::vector<double> &fk = {});
+                  bool print = true, const std::vector<double> &fk = {});
 
 /*!
   @brief Second-order (or ladder) correction to the valence energy.
