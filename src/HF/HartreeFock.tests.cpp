@@ -594,7 +594,7 @@ TEST_CASE("HartreeFock - Sigma2 - InIII Converge",
     Grid {
       r0 = 1.0e-5;
       rmax = 75.0;
-      num_points = 1000;
+      num_points = 1200;
     }
     Basis {
       number = 30;

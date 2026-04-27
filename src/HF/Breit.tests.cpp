@@ -785,28 +785,31 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
   // NB: This is not so much a test as an example...
   // Probably, TDHF method is just better (so long as it converges!)
 
-  // No Breit:
   Wavefunction wf0({1000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
                    {"Cs", -1, "Fermi", -1.0, -1.0});
-  wf0.solve_core("HartreeFock", 0.0, "[Xe]");
-  wf0.solve_valence("6sp5d");
-  wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0});
+  const std::string valence = "6sp5d";
+  SplineBasis::Parameters basis("25spd15f", 30, 7, 1.0e-4, 0.0, 40.0);
+  basis.verbose = false;
 
-  // With Breit:
+  // Solve HF without Breit:
+  std::cout << "Hartree Fock, no Breit\n";
+  wf0.solve_core("HartreeFock", 0.0, "[Xe]", 1.0e-13, false);
+  wf0.solve_valence(valence);
+  wf0.formBasis(basis);
+
+  // Solve HF, WITH Breit:
+  std::cout << "Hartree Fock, with Breit\n";
   auto wfB = wf0;
-  wfB.solve_core("HartreeFock", 1.0, "[Xe]");
-  wfB.solve_valence("6sp5d");
-  wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0});
+  wfB.solve_core("HartreeFock", 1.0, "[Xe]", 1.0e-13, false);
+  wfB.solve_valence(valence);
+  wfB.formBasis(basis);
 
   auto hE1 = DiracOperator::generate_E1({}, wf0);
-  auto hhfs = DiracOperator::generate_hfs({}, wf0);
-  auto hpnc = DiracOperator::generate_pnc({}, wf0);
-
-  // const auto &h = hE1;
-  // double omega = 0.1;
+  auto hhfs = DiracOperator::generate_hfs({"", "print = false;"}, wf0);
+  auto hpnc = DiracOperator::generate_pnc({"", "print = false;"}, wf0);
 
   for (const auto &h : {hE1.get(), /*hhfs.get(),*/ hpnc.get()}) {
-    for (const auto omega : {0.0, 0.15}) {
+    for (const auto omega : {0.0, 0.05}) {
 
       if (h->name() != "E1" && omega != 0.0)
         continue;
@@ -830,8 +833,8 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
       auto rpat_0 = ExternalField::TDHF(h, wf0.vHF());
       auto rpat_B = ExternalField::TDHF(h, wfB.vHF());
       // need larger eta for TDHF + HFS
-      rpat_0.set_eta(0.75);
-      rpat_B.set_eta(0.75);
+      // rpat_0.set_eta(0.75);
+      // rpat_B.set_eta(0.75);
       rpat_0.solve_core(omega);
       rpat_B.solve_core(omega);
 
@@ -877,10 +880,10 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
                  a0.shortSymbol().c_str(), b0.shortSymbol().c_str(), Breit_hf,
                  Breit_rpad, Breit_rpat, delta, eps);
 
-          REQUIRE(delta < delta_target);
+          CHECK(delta < delta_target);
 
           if (std::abs(Breit_rpat) > 1.0e-4)
-            REQUIRE(eps < eps_target);
+            CHECK(eps < eps_target);
         }
       }
     }

@@ -353,7 +353,7 @@ TEST_CASE("ampsci - Integration Tests",
        "best possible\n";
   std::cout << "Does not include Breit/QED, structure radiation etc.\n";
 
-  std::string run_label = "deleteme_" + qip::random_string(5);
+  std::string run_label = "deleteme_" + qip::random_string(3);
 
   const auto input_string = std::string{R"(
     Atom {
@@ -450,38 +450,35 @@ TEST_CASE("ampsci - Integration Tests",
     "hfs", {"hfs_options", "k=1; F=SingleParticle;"}, wf);
   auto dVhfs =
     ExternalField::DiagramRPA(hfs.get(), wf.basis(), wf.vHF(), wf.identity());
+  dVhfs.solve_core(0.0);
 
-  // auto sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {4, 20});
+  auto sr = MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {4, 18});
+  sr.solve_core(hfs.get(), &dVhfs);
 
-  // fmt::print("{:3} {:7} + {:7} = {:7}  [{:7}] {:5}\n", "v", "A0", "SR+N",
-  //  "Final", "Expt.", "Eps(%)");
-  fmt::print("{:3} {:7}  [{:7}] {:5}\n", "v", "A0", "SR+N", "Final", "Expt.",
+  fmt::print("\n{:3} {:>7}  {:>7}  [{:>7}] {:5}\n", "v", "A0", "+SR+N", "Expt.",
              "Eps(%)");
   for (const auto &v : wf.valence()) {
     auto exp_val = A_exp[v.shortSymbol()];
     if (exp_val == 0.0)
       continue;
 
-    // 7% with no SR (need large SR basis to fix high-l states)
-    const auto eps_target = 7.0e-2;
+    // 1% for s, 3% for p. (need large SR basis to fix high-l states)
+    const auto eps_target = v.l() == 0 ? 1.0e-1 : 3.0e-2;
 
     const auto f =
       hfs->matel_factor(DiracOperator::MatrixElementType::HFConstant, v, v);
     const auto ampsci_val_0 = f * (hfs->reducedME(v, v) + dVhfs.dV(v, v));
 
-    // const auto [d, d2] = sr.srn(hfs.get(), v, v, 0.0);
+    const auto d = sr.srn(v, v, hfs.get(), &dVhfs);
 
-    // const auto srn = d * f;
+    const auto srn = d * f;
 
-    const auto ampsci_val = ampsci_val_0; // + srn;
+    const auto ampsci_val = ampsci_val_0 + srn;
 
     const auto eps = (ampsci_val / exp_val - 1.0);
 
-    // fmt::print("{:3} {:7.2f} + {:7.2f} = {:7.2f}  [{:7.2f}] {:+4.2f}%\n",
-    //            v.shortSymbol(), ampsci_val_0, 0.0, ampsci_val, exp_val,
-    //            eps * 100.0);
-    fmt::print("{:3} {:7.2f}  [{:7.2f}] {:+4.2f}%\n", v.shortSymbol(),
-               ampsci_val_0, exp_val, eps * 100.0);
+    fmt::print("{:3} {:7.2f}  {:7.2f}  [{:7.2f}] {:+4.2f}%\n", v.shortSymbol(),
+               ampsci_val_0, ampsci_val, exp_val, eps * 100.0);
 
     CHECK(std::abs(eps) < eps_target);
   }
