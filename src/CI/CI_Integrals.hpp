@@ -3,6 +3,7 @@
 #include "Coulomb/QkTable.hpp"
 #include "Coulomb/meTable.hpp"
 #include "LinAlg/Matrix.hpp"
+#include "MBPT/Sigma2.hpp" //temp - remove after refactor
 #include <string>
 #include <vector>
 class DiracDiracSpinor;
@@ -65,7 +66,8 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
   const std::string &filename, const std::vector<DiracSpinor> &cis2_basis,
   const std::vector<DiracSpinor> &s2_basis_core,
   const std::vector<DiracSpinor> &s2_basis_excited, const Coulomb::QkTable &qk,
-  int max_k, bool exclude_wrong_parity_box, bool no_new_integrals = false);
+  int max_k, bool exclude_wrong_parity_box, MBPT::Denominators denominators,
+  bool no_new_integrals = false);
 
 //! Calculates table of single-particle matrix elements of two-body Breit operator.
 [[nodiscard]] Coulomb::WkTable

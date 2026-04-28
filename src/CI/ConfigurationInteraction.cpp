@@ -73,6 +73,11 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
       "Coulomb integrals. Higher k often contribute negligably. Note: if qk "
       "file already has higher-k terms, they will be included. Set negative "
       "(or very large) to include all k. [8]"},
+     {"denominators",
+      "'RS', 'Fermi', 'Fermi0'. Denominators used in Sigma2 matrix elements. "
+      "RS uses actual states for external legs, Fermi uses the lowest excited "
+      "state for each kappa, Fermi0 uses lowest excited state for all kappas "
+      "(and thus cancels in all except diagram 'd'). [Fermi0]"},
      {"qk_file",
       "Filename for storing two-body Coulomb integrals. By default, is "
       "~ At.qk, where At is atomic symbol + 'identity'."},
@@ -191,6 +196,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     input.get("cis2_basis", std::to_string(N_max_core + 3) + "spdf");
   const auto cis2_basis = CI::basis_subset(ci_sp_basis, cis2_basis_string);
 
+  const auto denominators_str = input.get("denominators", "Fermi0"s);
+  const auto denominators = MBPT::parse_Denominators(denominators_str);
+
   //----------------------------------------------------------------------------
 
   if (include_MBPT) {
@@ -224,6 +232,9 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
           << "Excluding the Σ_2 diagrams that have the 'wrong' parity\n";
         std::cout << "(Unless they were already calculated in sk file)\n";
       }
+      std::cout << "Using: " << MBPT::parse_Denominators(denominators)
+                << " denominators (for *new* integrals). Old integals read in "
+                   "regardless.\n";
     }
     std::cout << "\n";
   }
@@ -375,7 +386,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     std::cout << std::flush;
 
     Sk = CI::calculate_Sk(Sk_filename, cis2_basis, core_s2, excited_s2, qk,
-                          max_k_Coulomb, exclude_wrong_parity_box,
+                          max_k_Coulomb, exclude_wrong_parity_box, denominators,
                           no_new_integralsQ);
   }
 

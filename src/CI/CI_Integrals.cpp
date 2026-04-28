@@ -305,6 +305,7 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
                               const std::vector<DiracSpinor> &s2_basis_excited,
                               const Coulomb::QkTable &qk, int max_k,
                               bool exclude_wrong_parity_box,
+                              MBPT::Denominators denominators,
                               bool no_new_integrals) {
 
   Coulomb::LkTable Sk;
@@ -318,7 +319,7 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
                                const DiracSpinor &w, const DiracSpinor &x,
                                const DiracSpinor &y) {
     return MBPT::Sk_vwxy(k, v, w, x, y, qk, s2_basis_core, s2_basis_excited,
-                         sjt);
+                         sjt, denominators);
   };
   const auto Sk_selection_rule = [&](int k, const DiracSpinor &v,
                                      const DiracSpinor &w, const DiracSpinor &x,

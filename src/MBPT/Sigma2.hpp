@@ -2,13 +2,27 @@
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/String.hpp"
+#include <string>
 #include <vector>
 
 namespace MBPT {
 
-//! Type of energy demoninators: Rayleigh-Schrodinger (RS),
-//! Brillouin-Wigner (BW). (not exact)
-enum class Denominators { RS, BW };
+/*! @brief Type of energy demoninators: RS, Fermi, Fermi0
+
+ - RS     : Use energy denominator ascociated with actual orbital for external legs. Symmeterised so that diagram is symmetric. May be danger of accidental enhancement.
+ - Fermi  : Use energy from the "Fermi" level (i.e., lowest state for given kappa in excited spectrum).
+ - Fermi0 : As above, but assume Fermi level for all kappas the same. These often cancel, so there is no (excited-excited) term in denominator (except diagram d). Fine, since the remaining core-excited always dominates.
+
+Energy for internal legs (hole-particle) always actual orbtials.
+*/
+enum class Denominators { RS, Fermi, Fermi0 };
+
+//! Returns string representation of Denominators enum
+std::string parse_Denominators(Denominators d);
+
+//! Parses string to Denominators enum (case-insensitive); returns Fermi0 if unrecognised
+Denominators parse_Denominators(std::string_view s);
 
 //! Splits the basis into the core (holes) and excited states.
 /*! @details 
@@ -28,7 +42,7 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
                const std::vector<DiracSpinor> &excited,
                const Angular::SixJTable &SixJ,
-               Denominators denominators = Denominators::BW);
+               Denominators denominators = Denominators::Fermi0);
 
 //! Selection rule for Sk_vwxy (differs from Qk_vwxy due to parity)
 bool Sk_vwxy_SR(int k, const DiracSpinor &v, const DiracSpinor &w,
@@ -53,7 +67,6 @@ template <class CoulombIntegral> // CoulombIntegral may be YkTable or QkTable
 double Sigma_vw(const DiracSpinor &v, const DiracSpinor &w,
                 const CoulombIntegral &qk, const std::vector<DiracSpinor> &core,
                 const std::vector<DiracSpinor> &excited,
-                //const Angular::SixJTable *const SixJ = nullptr,
                 int max_l_internal = 99,
                 std::optional<double> ev = std::nullopt);
 

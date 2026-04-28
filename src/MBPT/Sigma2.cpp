@@ -6,6 +6,25 @@
 namespace MBPT {
 
 //==============================================================================
+// Returns string representation of Denominators enum
+std::string parse_Denominators(Denominators d) {
+  if (d == Denominators::RS)
+    return "RS";
+  if (d == Denominators::Fermi)
+    return "Fermi";
+  return "Fermi0";
+}
+
+// Parses string to Denominators enum (case-insensitive); returns Fermi0 if unrecognised
+Denominators parse_Denominators(std::string_view s) {
+  if (qip::ci_compare(s, "RS"))
+    return Denominators::RS;
+  if (qip::ci_compare(s, "Fermi"))
+    return Denominators::Fermi;
+  return Denominators::Fermi0;
+}
+
+//==============================================================================
 std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
 split_basis(const std::vector<DiracSpinor> &basis, double E_Fermi,
             int min_n_core, int max_n_excited) {
@@ -92,21 +111,16 @@ double InternalSigma::S_Sigma2_ab(
 
   const auto f = Angular::neg1pow(k) / (2.0 * k + 1.0);
 
-  // 1. Use actual RS denoms
-  // 2. Use symmetrised RS denoms
-  // 3. Use "lowest kappa" denoms
-  // 4. Symmetrised "lowest kappa" denoms
-  // 5. "Full BW approx": only na
-
-  // const auto v0 = e_bar(v.kappa(), excited);
-  // const auto w0 = e_bar(w.kappa(), excited);
-  // const auto x0 = e_bar(x.kappa(), excited);
-  // const auto y0 = e_bar(y.kappa(), excited);
+  const auto v0 = e_bar(v.kappa(), excited);
+  const auto w0 = e_bar(w.kappa(), excited);
+  const auto x0 = e_bar(x.kappa(), excited);
+  const auto y0 = e_bar(y.kappa(), excited);
 
   // const auto de_xv = x.en() - v.en();
-  const auto de_xv = denominators == Denominators::BW ?
+  const auto de_xv = denominators == Denominators::Fermi0 ?
                        0.0 :
-                       //  0.5 * (x0 - v0 + y0 - w0) :
+                     denominators == Denominators::Fermi ?
+                       0.5 * (x0 - v0 + y0 - w0) :
                        0.5 * (x.en() - v.en() + y.en() - w.en());
 
   double sum = 0.0;
@@ -153,15 +167,16 @@ double InternalSigma::S_Sigma2_c1(
     Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
     (2.0 * k + 1.0);
 
-  // const auto v0 = e_bar(v.kappa(), excited);
-  // const auto w0 = e_bar(w.kappa(), excited);
-  // const auto x0 = e_bar(x.kappa(), excited);
-  // const auto y0 = e_bar(y.kappa(), excited);
+  const auto v0 = e_bar(v.kappa(), excited);
+  const auto w0 = e_bar(w.kappa(), excited);
+  const auto x0 = e_bar(x.kappa(), excited);
+  const auto y0 = e_bar(y.kappa(), excited);
 
   // const auto de_yv = y.en() - v.en();
-  const auto de_yv = denominators == Denominators::BW ?
-                       //  0.5 * (y0 - v0 + x0 - w0) :
+  const auto de_yv = denominators == Denominators::Fermi0 ?
                        0.0 :
+                     denominators == Denominators::Fermi ?
+                       0.5 * (y0 - v0 + x0 - w0) :
                        0.5 * (y.en() - v.en() + x.en() - w.en());
 
   double sum = 0.0;
@@ -208,18 +223,19 @@ double InternalSigma::S_Sigma2_c2(
 
   // overall selectrion rule tested outside
 
-  // const auto v0 = e_bar(v.kappa(), excited);
-  // const auto w0 = e_bar(w.kappa(), excited);
-  // const auto x0 = e_bar(x.kappa(), excited);
-  // const auto y0 = e_bar(y.kappa(), excited);
+  const auto v0 = e_bar(v.kappa(), excited);
+  const auto w0 = e_bar(w.kappa(), excited);
+  const auto x0 = e_bar(x.kappa(), excited);
+  const auto y0 = e_bar(y.kappa(), excited);
 
   const auto f =
     Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj() + 2 * k) *
     (2.0 * k + 1.0);
 
-  const auto de_yv = denominators == Denominators::BW ?
+  const auto de_yv = denominators == Denominators::Fermi0 ?
                        0.0 :
-                       //  0.5 * (x0 - w0 + y0 - v0) :
+                     denominators == Denominators::Fermi ?
+                       0.5 * (x0 - w0 + y0 - v0) :
                        0.5 * (x.en() - w.en() + y.en() - v.en());
 
   double sum = 0.0;
@@ -268,14 +284,18 @@ double InternalSigma::S_Sigma2_d(
   const auto f = Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj()) *
                  (2.0 * k + 1.0);
 
-  const auto vbar = e_bar(v.kappa(), excited);
-  const auto wbar = e_bar(w.kappa(), excited);
-  const auto xbar = e_bar(x.kappa(), excited);
-  const auto ybar = e_bar(y.kappa(), excited);
+  const auto v0 = e_bar(v.kappa(), excited);
+  const auto w0 = e_bar(w.kappa(), excited);
+  const auto x0 = e_bar(x.kappa(), excited);
+  const auto y0 = e_bar(y.kappa(), excited);
+  const auto e0 = DiracSpinor::min_En(excited);
 
-  // symmetrised..
-  const auto de_vw = denominators == Denominators::BW ?
-                       -0.5 * (vbar + wbar + xbar + ybar) :
+  // Here, "Fermi0" cancellation doesn't happen
+  // So, Fermi and Fermi0 are the same
+  const auto de_vw = denominators == Denominators::Fermi0 ?
+                       2.0 * e0 :
+                     denominators == Denominators::Fermi ?
+                       -0.5 * (v0 + w0 + x0 + y0) :
                        -0.5 * (v.en() + w.en() + x.en() + y.en());
 
   double sum = 0.0;

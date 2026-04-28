@@ -514,20 +514,23 @@ TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][CI][unit]") {
             //  {abcd} = badc
 
             const double sk1 = MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited,
-                                             SixJ, MBPT::Denominators::BW);
+                                             SixJ, MBPT::Denominators::Fermi0);
 
             const double sk2 = MBPT::Sk_vwxy(k, w, v, y, x, qk, core, excited,
-                                             SixJ, MBPT::Denominators::BW);
+                                             SixJ, MBPT::Denominators::Fermi0);
 
             const double sk3 =
               MBPT::InternalSigma::S_Sigma2_ab(k, v, w, x, y, qk, core, excited,
-                                               SixJ, MBPT::Denominators::BW) +
+                                               SixJ,
+                                               MBPT::Denominators::Fermi0) +
               MBPT::InternalSigma::S_Sigma2_c1(k, v, w, x, y, qk, core, excited,
-                                               SixJ, MBPT::Denominators::BW) +
+                                               SixJ,
+                                               MBPT::Denominators::Fermi0) +
               MBPT::InternalSigma::S_Sigma2_c2(k, v, w, x, y, qk, core, excited,
-                                               SixJ, MBPT::Denominators::BW) +
+                                               SixJ,
+                                               MBPT::Denominators::Fermi0) +
               MBPT::InternalSigma::S_Sigma2_d(k, v, w, x, y, qk, core, excited,
-                                              SixJ, MBPT::Denominators::BW);
+                                              SixJ, MBPT::Denominators::Fermi0);
 
             // tests symmetry:
             REQUIRE(sk2 == Approx(sk1));
