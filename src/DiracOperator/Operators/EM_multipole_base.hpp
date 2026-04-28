@@ -40,8 +40,8 @@ namespace DiracOperator {
   form character @p m_form (used to distinguish the length-form electric
   operator VEk_Len from the velocity-form VEk).
 
-  All concrete EM multipole operators — VEk, VMk, VLk, Phik, Sk, AEk, ALk,
-  AMk, Phi5k, S5k, and their low-q counterparts — derive from this class.
+  All concrete EM multipole operators  VEk, VMk, VLk, Phik, Sk, AEk, ALk,
+  AMk, Phi5k, S5k, and their low-q counterparts  derive from this class.
 
   @note This class does not implement angularF() and so remains abstract.
   Operators must be constructed via the concrete derived types or the
@@ -130,7 +130,7 @@ public:
     except axial-magnetic (AE, AL, AT), and pseudoscalar (P).
 
     @note \f$ C^K(\kappa_a,-\kappa_b) = C^K(-\kappa_a,\kappa_b) \f$.
-    @note VMk_lowq overrides this with an extra \f$(κ_a+κ_b)\f$ prefactor.
+    @note VMk_lowq overrides this with an extra \f$(_a+_b)\f$ prefactor.
   */
   double angularF(const int ka, const int kb) const override {
     const bool flip = (m_type == 'V' && m_comp == 'M') ||
@@ -143,7 +143,7 @@ public:
     @brief Updates the tensor rank and adjusts parity accordingly.
     @details
     Parity follows the tensor rank: even K gives even parity for most
-    operators, but is flipped (even K → odd parity) for vector-magnetic,
+    operators, but is flipped (even K  odd parity) for vector-magnetic,
     all axial components except axial-magnetic, and pseudoscalar operators.
     The same flip rule as angularF() applies.
 
