@@ -99,12 +99,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // Create the "total" basis, which has core+excited, but only those states
   // actually included (i.e., [n_min, n_max]). This is used to calculate Qk.
   // Reduces size of Qk; should also reduce lookup time.
-  // Use immediately invoked lambda
-  const std::vector<DiracSpinor> both = [&]() {
-    std::vector<DiracSpinor> t_basis = core;
-    t_basis.insert(t_basis.end(), excited.cbegin(), excited.cend());
-    return t_basis;
-  }();
+  const auto both = qip::merge(core, excited);
 
   // Fill Yk table (used to fill Qk table)
   const Coulomb::YkTable yk(both);

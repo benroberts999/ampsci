@@ -203,6 +203,7 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
   const double tkp1 = 2.0 * k + 1.0;
   const auto s_mnijk =
     Angular::neg1pow_2(2 * k + m.twoj() + n.twoj() + i.twoj() + j.twoj());
+  const auto ejm = j.en() - m.en();
 
   for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
     const auto &r = excited[r_index];
@@ -214,7 +215,7 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
         continue;
 
       const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
-      const auto inv_e_cjmr = 1.0 / (c.en() + j.en() - m.en() - r.en());
+      const auto inv_e_cjmr = 1.0 / (c.en() + ejm - r.en());
       const auto key_cnir = qk.NormalOrder(c, n, i, r);
       const auto key_mrcj = qk.NormalOrder(m, r, c, j);
       const auto lkey_mrcj = Lk ? Lk->NormalOrder(m, r, c, j) : 0ul;
