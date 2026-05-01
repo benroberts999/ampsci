@@ -180,9 +180,9 @@ static inline void yk_ijk_gen_impl(const int l, const Function &ff,
 //------------------------------------------------------------------------------
 
 // Used for frequency-dependent Breit
-template <int k, typename Function>
+template <typename Function>
 static inline void
-yk_ijk_gen_impl_freq(const int l, const Function &ff, const Grid &gr,
+yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
                      std::vector<double> &v0, std::vector<double> &vi,
                      const std::size_t maxi, const double w) {
   const auto du = gr.du();
@@ -202,10 +202,11 @@ yk_ijk_gen_impl_freq(const int l, const Function &ff, const Grid &gr,
 
   const auto &r = gr.r();
 
-  auto jkwr_func = [](const int &l, const double &w, const double &r) {
+  // XXX Fix - do not need lambda for this
+  auto jkwr_func = [](int l, const double &w, const double &r) {
     return SphericalBessel::exactGSL_JL_alt(l, w * r);
   };
-  auto ykwr_func = [](const int &l, const double &w, const double &r) {
+  auto ykwr_func = [](int l, const double &w, const double &r) {
     return SphericalBessel::exactGSL_YL_alt(l, w * r);
   };
 
@@ -552,28 +553,30 @@ void gk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
     return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
   };
 
-  if (k == 0)
-    yk_ijk_gen_impl_freq<0>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  else if (k == 1)
-    yk_ijk_gen_impl_freq<1>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  else if (k == 2)
-    yk_ijk_gen_impl_freq<2>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  else if (k == 3)
-    yk_ijk_gen_impl_freq<3>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  else if (k == 4)
-    yk_ijk_gen_impl_freq<4>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  else if (k == 5)
-    yk_ijk_gen_impl_freq<5>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  else if (k == 6)
-    yk_ijk_gen_impl_freq<6>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  else if (k == 7)
-    yk_ijk_gen_impl_freq<7>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  else if (k == 8)
-    yk_ijk_gen_impl_freq<8>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  else
-    yk_ijk_gen_impl_freq<-1>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  yk_ijk_gen_impl_freq(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  // if (k == 0)
+  //   yk_ijk_gen_impl_freq<0>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  // else if (k == 1)
+  //   yk_ijk_gen_impl_freq<1>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  // else if (k == 2)
+  //   yk_ijk_gen_impl_freq<2>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  // else if (k == 3)
+  //   yk_ijk_gen_impl_freq<3>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  // else if (k == 4)
+  //   yk_ijk_gen_impl_freq<4>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  // else if (k == 5)
+  //   yk_ijk_gen_impl_freq<5>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  // else if (k == 6)
+  //   yk_ijk_gen_impl_freq<6>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  // else if (k == 7)
+  //   yk_ijk_gen_impl_freq<7>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  // else if (k == 8)
+  //   yk_ijk_gen_impl_freq<8>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
+  // else
+  //   yk_ijk_gen_impl_freq<-1>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
 }
 
+//--------------------------------------------------------------------
 void hk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                  std::vector<double> &b0, std::vector<double> &binf,
                  std::size_t maxi, const double w) {
@@ -582,28 +585,30 @@ void hk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
     return (Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i));
   };
 
-  if (k == 0)
-    yk_ijk_gen_impl_freq<0>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  else if (k == 1)
-    yk_ijk_gen_impl_freq<1>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  else if (k == 2)
-    yk_ijk_gen_impl_freq<2>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  else if (k == 3)
-    yk_ijk_gen_impl_freq<3>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  else if (k == 4)
-    yk_ijk_gen_impl_freq<4>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  else if (k == 5)
-    yk_ijk_gen_impl_freq<5>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  else if (k == 6)
-    yk_ijk_gen_impl_freq<6>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  else if (k == 7)
-    yk_ijk_gen_impl_freq<7>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  else if (k == 8)
-    yk_ijk_gen_impl_freq<8>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  else
-    yk_ijk_gen_impl_freq<-1>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  yk_ijk_gen_impl_freq(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  // if (k == 0)
+  //   yk_ijk_gen_impl_freq<0>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  // else if (k == 1)
+  //   yk_ijk_gen_impl_freq<1>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  // else if (k == 2)
+  //   yk_ijk_gen_impl_freq<2>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  // else if (k == 3)
+  //   yk_ijk_gen_impl_freq<3>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  // else if (k == 4)
+  //   yk_ijk_gen_impl_freq<4>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  // else if (k == 5)
+  //   yk_ijk_gen_impl_freq<5>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  // else if (k == 6)
+  //   yk_ijk_gen_impl_freq<6>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  // else if (k == 7)
+  //   yk_ijk_gen_impl_freq<7>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  // else if (k == 8)
+  //   yk_ijk_gen_impl_freq<8>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
+  // else
+  //   yk_ijk_gen_impl_freq<-1>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
 }
 
+//--------------------------------------------------------------------
 void vk_ab_freqw(const int k, const DiracSpinor &Fi, const DiracSpinor &Fj,
                  const Grid &gr, std::vector<double> &v1,
                  std::vector<double> &v2, std::vector<double> &v3,
