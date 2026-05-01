@@ -72,7 +72,8 @@ HartreeFock::HartreeFock(std::shared_ptr<const Grid> grid,
                          std::vector<DiracSpinor> core,
                          std::optional<QED::RadPot> vrad, double alpha,
                          Method method, double x_Breit, double in_eps,
-                         Parametric::Type potential, double H_g, double d_t)
+                         Parametric::Type potential, double H_g, double d_t,
+                         bool freqBreit)
   : m_rgrid(grid),
     m_core(std::move(core)),
     m_vnuc(std::move(vnuc)),
@@ -82,6 +83,7 @@ HartreeFock::HartreeFock(std::shared_ptr<const Grid> grid,
     m_alpha(alpha),
     m_method(method),
     m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
+    m_freqBreit(freqBreit),
     m_vdir(m_rgrid->num_points(), 0.0),
     m_Yab() {
   set_parametric_potential(true, potential, H_g, d_t);
@@ -467,9 +469,15 @@ EpsIts HartreeFock::hartree_fock_core() {
 
       if (m_VBr) {
         // Add Breit to v_nonlocal, and energy guess
-        const auto VbrFa = m_VBr->VbrFa(Fa, core_prev);
-        en += (Fzero * VbrFa) / (Fa * Fzero);
-        v_nonlocal += VbrFa;
+        if (m_freqBreit == true) {
+          const auto VbrFa = m_VBr->VbrFa_freqw(Fa, core_prev);
+          en += (Fzero * VbrFa) / (Fa * Fzero);
+          v_nonlocal += VbrFa;
+        } else {
+          const auto VbrFa = m_VBr->VbrFa(Fa, core_prev);
+          en += (Fzero * VbrFa) / (Fa * Fzero);
+          v_nonlocal += VbrFa;
+        }
       }
 
       // Solve HF Dirac equation for core state
@@ -578,7 +586,11 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
 
     auto VxFa = vexFa(Fa);
     if (m_VBr) {
-      VxFa += m_VBr->VbrFa(Fa, m_core);
+      if (m_freqBreit == true) {
+        VxFa += m_VBr->VbrFa_freqw(Fa, m_core);
+      } else {
+        VxFa += m_VBr->VbrFa(Fa, m_core);
+      }
     }
     if (Sigma) {
       const auto f = prev_its && it < 15 ? it / 15.0 : 1.0;
@@ -1161,7 +1173,11 @@ void HartreeFock::hf_orbital_green(
     {
       auto VnlF_tilde = ::HF::vexFa(dFa, static_core, k_max);
       if (tVBr)
-        VnlF_tilde += tVBr->VbrFa(dFa, static_core);
+        if (m_freqBreit == true) {
+          VnlF_tilde += tVBr->VbrFa_freqw(dFa, static_core);
+        } else {
+          VnlF_tilde += tVBr->VbrFa(dFa, static_core);
+        }
       if (Sigma)
         VnlF_tilde += (*Sigma)(dFa);
       if (!dv0.empty())

@@ -120,14 +120,15 @@ Wavefunction::determineCore(const std::string &str_core_in)
 
 //==============================================================================
 void Wavefunction::set_HF(const std::string &method, const double x_Breit,
-                          const std::string &in_core, double eps_HF,
-                          bool print) {
+                          const std::string &in_core, double eps_HF, bool print,
+                          bool freq_Breit) {
 
   auto core = determineCore(in_core);
   const auto qed = std::nullopt; // we add QED (optionally) later - to allow for
                                  // QED into valence, but not core
   m_HF = HF::HartreeFock(rgrid, m_vnuc, std::move(core), qed, m_alpha,
-                         HF::parseMethod(method), x_Breit, eps_HF);
+                         HF::parseMethod(method), x_Breit, eps_HF,
+                         Parametric::Type::Green, 0.0, 0.0, freq_Breit);
 
   // Move this into HF?
   if (print) {
@@ -150,7 +151,10 @@ void Wavefunction::set_HF(const std::string &method, const double x_Breit,
     }
 
     // Can only include Breit within HF
-    if (method == "HartreeFock" && x_Breit != 0.0) {
+    if (method == "HartreeFock" && x_Breit != 0.0 && freq_Breit == true) {
+      std::cout
+        << "Including frequency-dependent Breit\n"; // scale for frequency-dependent Breit?
+    } else if (method == "HartreeFock" && x_Breit != 0.0) {
       std::cout << "Including Breit (scale = " << x_Breit << ")\n";
     } else if (method != "HartreeFock" && x_Breit != 0.0) {
       fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
