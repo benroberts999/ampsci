@@ -15,8 +15,7 @@
 namespace Angular {
 
 //=============================================================================
-// If given an integer (k), returns 2*k
-// If given a DiracSpinor, F, returns 2*j [F.twoj()]
+//! Returns 2*k if @p a is an integer, or 2*j if @p a is a DiracSpinor.
 template <class A>
 int twojk(const A &a) {
   if constexpr (std::is_same_v<A, DiracSpinor>) {
@@ -29,8 +28,14 @@ int twojk(const A &a) {
   }
 }
 
-//! "Magic" 6j, for integers and DiracSpinors. Pass int (for k), or DiracSpinor for j.
-//! e.g.: (F,F,k,F,F,k) -> {j,j,k,j,j,k}. Do NOT *2! Do NOT pass j or 2j directly!
+/*!
+  @brief "Magic" 6j symbol accepting integers or DiracSpinors.
+  @details Pass an integer for a rank \f$k\f$, or a DiracSpinor for a
+           half-integer \f$j\f$.  Example: `SixJ(Fa, Fb, k, Fc, Fd, k)`
+           evaluates \f$\{j_a,j_b,k;j_c,j_d,k\}\f$.
+  @warning Do **not** pre-multiply by 2, and do **not** pass \f$j\f$ or
+           \f$2j\f$ directly — pass the DiracSpinor itself.
+*/
 template <class A, class B, class C, class D, class E, class F>
 double SixJ(const A &a, const B &b, const C &c, const D &d, const E &e,
             const F &f) {
@@ -39,10 +44,26 @@ double SixJ(const A &a, const B &b, const C &c, const D &d, const E &e,
 
 //==============================================================================
 
-//! Lookup table for Wigner 6J symbols.
-/*! @details
-Note: functions all called with 2*j and 2*k (ensure j integer)
-Makes use of symmetry (but not completely, not every stores symbol is unique).
+/*!
+  @brief Lookup table for Wigner 6j symbols.
+  @details
+  Pre-computes and caches Wigner 6j symbols
+  \f$\sixj{a/2}{b/2}{c/2}{d/2}{e/2}{f/2}\f$.
+  All public functions accept arguments as \f$2j\f$ or \f$2k\f$ (integers),
+  so that half-integer spins are handled exactly.
+
+  Storage exploits symmetry: the six entries of each symbol are
+  permuted into a canonical "normal order" before lookup, so each
+  physically distinct symbol is stored only once.
+
+  @note
+  - Call fill() (or the constructor) with the maximum \f$2j\f$ or \f$k\f$
+    that will be needed; the table can be extended at any time.
+  - Requesting a symbol outside the stored range returns 0 without warning.
+  - Non-mutable accessors are thread-safe once the table is fully built.
+
+  @warning Symbols are stored up to the value passed to fill(); calls with
+           larger arguments silently return 0.
 */
 class SixJTable {
 private:
@@ -51,28 +72,31 @@ private:
   static auto s(int i) { return static_cast<uint8_t>(i); };
 
 public:
-  //! Default contructor: creates empty table
+  //! Constructs an empty table; extend later with fill() or get().
   SixJTable() = default;
 
-  //! On construction, calculates + stores all possible 6j symbols up to
-  //! maximum value of 2j (or k)
-  /*! @details 
-    Typically, max_2jk is 2*max_2j, where max_2j is 2* max j of set
-    of orbitals. You may call this function several times; if the new max_2jk is
-    larger, it will extend the table. If it is smaller, does nothing. 
+  /*!
+    @brief Constructs the table, pre-filling all symbols up to @p max_2j_k.
+    @details Calls fill() internally.  Typically @p max_2j_k is the maximum
+             \f$2j\f$ of the orbital set; all symbols with every argument
+             \f$\le 2 \times \texttt{max\_2j\_k}\f$ are stored.
+    @param max_2j_k  Maximum value of \f$2j\f$ (or \f$k\f$) to pre-compute.
   */
   SixJTable(int max_2j_k) { fill(max_2j_k); }
 
-  //! Returns maximum element (k or 2j) of tables [max(k) = 2*max(j) = max(2j)]
+  //! Returns the maximum 2j (or k) currently stored; max(k) = 2*max(j).
   int max_2jk() const { return m_max_2j_k; }
 
-  //! Returns number of non-zero symbols stored
+  //! Returns the number of non-zero symbols stored in the table.
   std::size_t size() const { return m_data.size(); }
 
   //----------------------------------------------------------------------------
-  //! Return 6j symbol {a/2,b/2,c/2,d/2,e/2,f/2}. Note: takes in 2*j/2*k as int
-  //! @details Note: If requesting a 6J symbol beyond what is stored, will
-  //! return 0 (without warning)
+  /*!
+    @brief Returns 6j symbol {a/2, b/2, c/2; d/2, e/2, f/2}.
+    @details Arguments are \f$2j\f$ or \f$2k\f$ as integers.
+             Returns 0 without warning if the symbol is outside the stored range.
+    @param a,b,c,d,e,f  Twice the top/bottom rows of the 6j symbol.
+  */
   inline double get_2(int a, int b, int c, int d, int e, int f) const {
     if (Angular::sixj_zeroQ(a, b, c, d, e, f))
       return 0.0;
@@ -80,10 +104,14 @@ public:
     return (it == m_data.cend()) ? 0.0 : it->second;
   }
 
-  //! Return "magic" 6j. Pass in either integer (for k), or DiracSpinor, F.
-  //! e.g.: (F,F,k,F,F,k) -> {j,j,k,j,j,k}. Do NOT *2!
-  //! @details Note: If requesting a 6J symbol beyond what is stored, will
-  //! return 0 (without warning)
+  /*!
+    @brief "Magic" table lookup: pass integers (for k) or DiracSpinors (for j).
+    @details Converts each argument via twojk() then delegates to get_2().
+             Example: `get(Fa, Fb, k, Fc, Fd, k)` returns
+             \f$\{j_a,j_b,k;j_c,j_d,k\}\f$.
+             Returns 0 without warning if the symbol is outside the stored range.
+    @warning Do **not** pre-multiply by 2.
+  */
   template <class A, class B, class C, class D, class E, class F>
   double get(const A &a, const B &b, const C &c, const D &d, const E &e,
              const F &f) const {
@@ -91,15 +119,20 @@ public:
   }
 
   //----------------------------------------------------------------------------
-  //! Checks if given 6j symbol is in table (note: may not be in table because
-  //! it's zero)
+  //! Returns true if the symbol is present in the table (absent symbols may be zero or simply out of range).
   bool contains(int a, int b, int c, int d, int e, int f) const {
     const auto it = m_data.find(normal_order(a, b, c, d, e, f));
     return (it != m_data.cend());
   }
 
   //----------------------------------------------------------------------------
-  //! Fill the table. max_2jk is maximum (2*j) or k that appears in the symbols
+  /*!
+    @brief Extends the table to cover all symbols up to @p max_2j_k.
+    @details Called automatically by the constructor.  Only needed explicitly
+             when the required \f$2j\f$ grows beyond the original maximum.
+             No-op if @p max_2j_k does not exceed the current maximum.
+    @param max_2j_k  New maximum value of \f$2j\f$ (or \f$k\f$).
+  */
   void fill(int max_2j_k) {
 
     if (max_2j_k <= m_max_2j_k)

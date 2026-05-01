@@ -18,7 +18,7 @@
   on-the-fly
   - Wrapper functions to calculate wigner 3,6,9-J symbols.
   - Uses GSL:
-  https://www.gnu.org/software/gsl/doc/html/specfunc.html?highlight=3j#coupling-coefficients
+  https://www.gnu.org/software/gsl/doc/html/specfunc.html#coupling-coefficients
 
   The general equations are defined:
   \f{align}{
@@ -243,10 +243,23 @@ constexpr int sumsToZero(int m1, int m2, int m3) {
 }
 
 //==============================================================================
-//! @brief Calculates wigner 3j symbol. Takes in 2*j (or 2*l) - intput is
-//! integer
-/*! @details
-   \f[ \begin{pmatrix}j1&j2&j3\\m1&m2&m3\end{pmatrix} \f]
+/*!
+  @brief Wigner 3j symbol. Inputs are 2*j (or 2*l) as integers.
+  @details
+  Computes the Wigner 3j symbol:
+  \f[
+    \begin{pmatrix} j_1 & j_2 & j_3 \\ m_1 & m_2 & m_3 \end{pmatrix}
+  \f]
+  Returns zero if the triangle rule or \f$ m_1+m_2+m_3=0 \f$ is not satisfied.
+  Wraps \c gsl_sf_coupling_3j.
+
+  @param two_j1  2*j1
+  @param two_j2  2*j2
+  @param two_j3  2*j3
+  @param two_m1  2*m1
+  @param two_m2  2*m2
+  @param two_m3  2*m3
+  @return Value of the 3j symbol; 0 if selection rules are not met.
 */
 inline double threej_2(int two_j1, int two_j2, int two_j3, int two_m1,
                        int two_m2, int two_m3) {
@@ -257,9 +270,20 @@ inline double threej_2(int two_j1, int two_j2, int two_j3, int two_m1,
 }
 
 //==============================================================================
-//!@brief  Special (common) 3js case:  (j1 j2 k, -0.5, 0.5, 0)
-/*! @details
-   \f[ \begin{pmatrix}j1&j2&k\\-1/2&1/2&0\end{pmatrix} \f]
+/*!
+  @brief Special 3j symbol: (j1 j2 k; -1/2 1/2 0). Inputs are 2*j as integers.
+  @details
+  Evaluates the commonly occurring 3j symbol:
+  \f[
+    \begin{pmatrix} j_1 & j_2 & k \\ -\tfrac{1}{2} & \tfrac{1}{2} & 0 \end{pmatrix}
+  \f]
+  Handles the \f$ k=0 \f$ case analytically; otherwise wraps \c gsl_sf_coupling_3j.
+  Returns zero if the triangle rule is not satisfied.
+
+  @param two_j1  2*j1
+  @param two_j2  2*j2
+  @param two_k   2*k
+  @return Value of the 3j symbol; 0 if selection rules are not met.
 */
 inline double special_threej_2(int two_j1, int two_j2, int two_k) {
   if (triangle(two_j1, two_j2, two_k) == 0)
@@ -272,15 +296,27 @@ inline double special_threej_2(int two_j1, int two_j2, int two_k) {
 }
 
 //==============================================================================
-//! Clebsh-Gordon coeficient <j1 m1, j2 m2 | J M> [takes 2*j, as int]
+/*!
+  @brief Clebsch-Gordon coefficient <j1 m1, j2 m2 | J M>. Takes 2*j as integers.
+  @details
+  Computes the Clebsch-Gordon coefficient:
+  \f[
+    \langle j_1 m_1,\, j_2 m_2 \,|\, J M \rangle
+    = (-1)^{j_1-j_2+M}\sqrt{2J+1}
+      \begin{pmatrix} j_1 & j_2 & J \\ m_1 & m_2 & -M \end{pmatrix}
+  \f]
+  Returns zero if the triangle rule or \f$ m_1+m_2=M \f$ is not satisfied.
+
+  @param two_j1  2*j1
+  @param two_m1  2*m1
+  @param two_j2  2*j2
+  @param two_m2  2*m2
+  @param two_J   2*J
+  @param two_M   2*M
+  @return Value of the CG coefficient; 0 if selection rules are not met.
+*/
 inline double cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
-                   int two_M)
-// <j1 m1, j2 m2 | J M> = (-1)^(j1-j2+M) * std::sqrt(2J+1) * (j1 j2  J)
-// .                                                    (m1 m2 -M)
-// (Last term is 3j symbol)
-// Note: this function takes INTEGER values, that have already multiplied by 2!
-// Works for l and j (integer and half-integer)
-{
+                   int two_M) {
   if (triangle(two_j1, two_j2, two_J) * sumsToZero(two_m1, two_m2, -two_M) == 0)
     return 0;
   int sign = -1;
@@ -291,12 +327,21 @@ inline double cg_2(int two_j1, int two_m1, int two_j2, int two_m2, int two_J,
 }
 
 //==============================================================================
-//! Checks triangle conditions for 6j symbols (for 2*j)
+/*!
+  @brief Returns true if the 6j symbol is zero by triangle/parity rules. Inputs are 2*j.
+  @details
+  Checks all four triangle triads and integer-sum (parity) conditions for:
+  \f[
+    \sixj{a}{b}{c}{d}{e}{f}
+  \f]
+  The triads (abc), (cde), (bdf), (efa) must each satisfy the triangle rule
+  and sum to an even integer (inputs are 2*j).
+
+  @note Some symbols that pass these checks are still numerically zero.
+        GSL may return a very small non-zero value in such cases.
+  @warning Only valid for inputs that are 2*(integer or half-integer).
+*/
 inline bool sixj_zeroQ(int a, int b, int c, int d, int e, int f) {
-  // nb: works for 2*integers ONLY
-  // check triangle consitions
-  // Note: there are some  6j symbols that pass this test, though are still zero
-  // GSL calculates these to have extremely small (but non-zero) value
   if (triangle(a, b, c) == 0)
     return true;
   if (triangle(c, d, e) == 0)
@@ -316,9 +361,24 @@ inline bool sixj_zeroQ(int a, int b, int c, int d, int e, int f) {
   return false;
 }
 
-//! Checks if a 6j symbol is valid - each input is optional
-//! @details i.e., sixjTriads(a,b,c,{},{},{}) will check if _any_ 6J symbol of
-//! form {a b c \ * * *} is valid (* can be any value)
+/*!
+  @brief Checks 6j triangle conditions with optional arguments (wildcards). Inputs are 2*j.
+  @details
+  Checks only the triads formed by the provided (non-null) arguments.
+  Missing (empty) optionals act as wildcards.
+  For example, \c sixjTriads(a,b,c,{},{},{}) checks whether any 6j symbol
+  \f$ \{ a\, b\, c \;|\; *\, *\, * \} \f$ could be non-zero.
+
+  The four triads of \f$ \{a\,b\,c\;|\;d\,e\,f\} \f$ are: (abc), (cde), (aef), (bdf).
+
+  @param a  2*j1 (optional)
+  @param b  2*j2 (optional)
+  @param c  2*j3 (optional)
+  @param d  2*j4 (optional)
+  @param e  2*j5 (optional)
+  @param f  2*j6 (optional)
+  @return false if any complete triad fails the triangle rule; true otherwise.
+*/
 inline bool sixjTriads(std::optional<int> a, std::optional<int> b,
                        std::optional<int> c, std::optional<int> d,
                        std::optional<int> e, std::optional<int> f) {
@@ -337,43 +397,80 @@ inline bool sixjTriads(std::optional<int> a, std::optional<int> b,
 }
 
 //==============================================================================
-//! 6j symbol {j1 j2 j3 \\ j4 j5 j6} - [takes 2*j as int]
+/*!
+  @brief Wigner 6j symbol {j1 j2 j3 | j4 j5 j6}. Inputs are 2*j as integers.
+  @details
+  Computes the Wigner 6j symbol:
+  \f[
+    \sixj{j_1}{j_2}{j_3}{j_4}{j_5}{j_6}
+  \f]
+  Returns zero if any triangle or parity condition is violated (via \ref sixj_zeroQ).
+  Wraps \c gsl_sf_coupling_6j.
+
+  @param two_j1  2*j1
+  @param two_j2  2*j2
+  @param two_j3  2*j3
+  @param two_j4  2*j4
+  @param two_j5  2*j5
+  @param two_j6  2*j6
+  @return Value of the 6j symbol; 0 if selection rules are not met.
+*/
 inline double sixj_2(int two_j1, int two_j2, int two_j3, int two_j4, int two_j5,
-                     int two_j6)
-// Calculates wigner 6j symbol:
-//   {j1 j2 j3}
-//   {j4 j5 j6}
-// Note: this function takes INTEGER values, that have already multiplied by 2!
-// Works for l and j (integer and half-integer)
-{
+                     int two_j6) {
   if (sixj_zeroQ(two_j1, two_j2, two_j3, two_j4, two_j5, two_j6))
     return 0.0;
   return gsl_sf_coupling_6j(two_j1, two_j2, two_j3, two_j4, two_j5, two_j6);
 }
 
 //------------------------------------------------------------------------------
-//! 9j symbol {j1 j2 j3 \\ j4 j5 j6 \\ j7 j8 j9} [takes 2*j as int]
+/*!
+  @brief Wigner 9j symbol. Inputs are 2*j as integers.
+  @details
+  Computes the Wigner 9j symbol:
+  \f[
+    \begin{Bmatrix} j_1 & j_2 & j_3 \\ j_4 & j_5 & j_6 \\ j_7 & j_8 & j_9 \end{Bmatrix}
+  \f]
+  Wraps \c gsl_sf_coupling_9j.
+
+  @param two_j1  2*j1
+  @param two_j2  2*j2
+  @param two_j3  2*j3
+  @param two_j4  2*j4
+  @param two_j5  2*j5
+  @param two_j6  2*j6
+  @param two_j7  2*j7
+  @param two_j8  2*j8
+  @param two_j9  2*j9
+  @return Value of the 9j symbol.
+*/
 inline double ninej_2(int two_j1, int two_j2, int two_j3, int two_j4,
                       int two_j5, int two_j6, int two_j7, int two_j8,
-                      int two_j9)
-// Calculates wigner 9j symbol:
-//   {j1 j2 j3}
-//   {j4 j5 j6}
-//   {j7 j8 j9}
-// Note: this function takes INTEGER values, that have already multiplied by 2!
-// Works for l and j (integer and half-integer)
-{
+                      int two_j9) {
   return gsl_sf_coupling_9j(two_j1, two_j2, two_j3, two_j4, two_j5, two_j6,
                             two_j7, two_j8, two_j9);
 }
 
 //==============================================================================
-//! Reduced (relativistic) angular ME: <ka||C^k||kb> [takes k and kappa]
-inline double Ck_kk(int k, int ka, int kb)
-// Reduced (relativistic) angular ME:
-// <ka||C^k||kb> = (-1)^(ja+1/2) * srt([ja][jb]) * 3js(ja jb k, -1/2 1/2 0) * Pi
-// Note: takes in kappa! (not j!)
-{
+/*!
+  @brief Reduced relativistic angular ME: <ka||C^k||kb>. Takes kappa values.
+  @details
+  Computes the reduced matrix element of the spherical tensor \f$ C^k \f$
+  between relativistic states labelled by Dirac quantum numbers:
+  \f[
+    \langle \kappa_a \| C^k \| \kappa_b \rangle
+    = (-1)^{j_a+\tfrac{1}{2}} \sqrt{[j_a][j_b]}
+      \begin{pmatrix} j_a & j_b & k \\ -\tfrac{1}{2} & \tfrac{1}{2} & 0 \end{pmatrix}
+      \pi(l_a+l_b+k),
+  \f]
+  where \f$ [j] \equiv 2j+1 \f$ and \f$ \pi(l_a+l_b+k) \f$ is 1 if \f$ l_a+l_b+k \f$
+  is even, 0 otherwise.
+
+  @param k   Multipole rank.
+  @param ka  Dirac quantum number \f$ \kappa_a \f$ (bra).
+  @param kb  Dirac quantum number \f$ \kappa_b \f$ (ket).
+  @return \f$ \langle \kappa_a \| C^k \| \kappa_b \rangle \f$; 0 if selection rules are not met.
+*/
+inline double Ck_kk(int k, int ka, int kb) {
   if (parity(l_k(ka), l_k(kb), k) == 0) {
     return 0.0;
   }
@@ -386,7 +483,26 @@ inline double Ck_kk(int k, int ka, int kb)
   return sign * f * g;
 }
 
-//! Full C^k_q matrix element - rarely used
+/*!
+  @brief Full (non-reduced) C^k_q matrix element. Takes kappa and 2*m values.
+  @details
+  Computes the full matrix element including magnetic quantum numbers via
+  the Wigner-Eckart theorem:
+  \f[
+    \langle \kappa_a m_a | C^k_q | \kappa_b m_b \rangle
+    = (-1)^{j_a-m_a}
+      \begin{pmatrix} j_a & k & j_b \\ -m_a & q & m_b \end{pmatrix}
+      \langle \kappa_a \| C^k \| \kappa_b \rangle
+  \f]
+
+  @param k      Multipole rank.
+  @param ka     Dirac quantum number \f$ \kappa_a \f$ (bra).
+  @param kb     Dirac quantum number \f$ \kappa_b \f$ (ket).
+  @param twoma  2*m_a
+  @param twomb  2*m_b
+  @param twoq   2*q
+  @return \f$ \langle \kappa_a m_a | C^k_q | \kappa_b m_b \rangle \f$
+*/
 inline double Ck_kk_mmq(int k, int ka, int kb, int twoma, int twomb, int twoq) {
   const auto tja = twoj_k(ka);
   const auto tjb = twoj_k(kb);
@@ -394,7 +510,17 @@ inline double Ck_kk_mmq(int k, int ka, int kb, int twoma, int twomb, int twoq) {
          threej_2(tja, 2 * k, tjb, -twoma, twoq, twomb) * Ck_kk(k, ka, kb);
 }
 
-//! Ck selection rule only. Returns false if C^k=0, true if non-zero.
+/*!
+  @brief Selection rule check for C^k: returns true if <ka||C^k||kb> may be non-zero.
+  @details
+  Checks parity and triangle conditions only; does not compute the value.
+  Equivalent to \c Ck_kk(k,ka,kb)!=0 but avoids the full computation.
+
+  @param k   Multipole rank.
+  @param ka  Dirac quantum number \f$ \kappa_a \f$.
+  @param kb  Dirac quantum number \f$ \kappa_b \f$.
+  @return false if \f$ \langle \kappa_a \| C^k \| \kappa_b \rangle = 0 \f$ by selection rules; true otherwise.
+*/
 inline bool Ck_kk_SR(int k, int ka, int kb) {
   if (parity(l_k(ka), l_k(kb), k) == 0)
     return false;
@@ -403,15 +529,41 @@ inline bool Ck_kk_SR(int k, int ka, int kb) {
   return true;
 }
 
-//! tildeCk_kk = (-1)^{ja+1/2}*Ck_kk
+/*!
+  @brief Tilde variant of the C^k reduced ME: (-1)^{ja+1/2} * <ka||C^k||kb>
+  @details
+  Computes \f$ \widetilde{C}^k_{ab} \equiv (-1)^{j_a+1/2} \langle \kappa_a \| C^k \| \kappa_b \rangle \f$.
+  This removes the \f$ (-1)^{j_a+1/2} \f$ phase from \ref Ck_kk, leaving
+  the purely geometric 3j piece times \f$ \sqrt{[j_a][j_b]} \f$.
+
+  @param k   Multipole rank.
+  @param ka  Dirac quantum number \f$ \kappa_a \f$.
+  @param kb  Dirac quantum number \f$ \kappa_b \f$.
+  @return \f$ \widetilde{C}^k_{ab} \f$
+*/
 inline double tildeCk_kk(int k, int ka, int kb) {
-  // tildeCk_kk = (-1)^{ja+1/2}*Ck_kk
   auto m1tjph = evenQ_2(twoj_k(ka) + 1) ? 1 : -1;
   return m1tjph * Ck_kk(k, ka, kb);
 }
 
-//! Returns [k_min, k_kmax] for C^k (min/max non-zero k, given kappa_a, kappa_b)
-//! Accounts for parity
+/*!
+  @brief Min and max non-zero multipole rank k for C^k, given kappa_a and kappa_b.
+  @details
+  Returns \f$ (k_\text{min}, k_\text{max}) \f$ such that
+  \f$ \langle \kappa_a \| C^k \| \kappa_b \rangle \neq 0 \f$ only for
+  \f$ k_\text{min} \leq k \leq k_\text{max} \f$.
+  Steps are in increments of 2, enforced by parity.
+
+  Derived from:
+  \f[
+    k_\text{min} = |j_a - j_b|, \quad k_\text{max} = j_a + j_b,
+  \f]
+  then adjusted so that \f$ l_a + l_b + k \f$ is even.
+
+  @param ka  Dirac quantum number \f$ \kappa_a \f$.
+  @param kb  Dirac quantum number \f$ \kappa_b \f$.
+  @return \f$ \{k_\text{min},\, k_\text{max}\} \f$
+*/
 inline std::pair<int, int> kminmax_Ck(int ka, int kb) {
   // j = |k|-0.5
   // kmin = |ja-jb| = | |ka| - |kb| |
@@ -431,16 +583,28 @@ inline std::pair<int, int> kminmax_Ck(int ka, int kb) {
 }
 
 //==============================================================================
-//! @brief Reduced spin angular ME: (for spin 1/2): <ka||S||kb>
-/*! @details
-  Reduced spin angular ME: (for spin 1/2!)
-  <ka||S||kb> = d(la,lb) * (-1)^{ja+la+3/2} * Sqrt([ja][jb](3/2)) *
-              *  sjs{ja, 1, jb,  1/2, la, 1/2}
-  Special 6j case:
-  sjs{ja, 1, jb,  1/2, la, 1/2}
-    = 0.5 (-1)^{ka+kb} * Sqrt(abs[{(ka-1)^2 - kb^2}/{3ka(1+2ka)}])
-      * triangle rule for j!
-  At least ~least 20% faster
+/*!
+  @brief Reduced spin-1/2 angular ME: <ka||S||kb>. Takes kappa values.
+  @details
+  Computes the reduced matrix element of the spin operator \f$ \mathbf{S} \f$
+  (for spin-1/2) between relativistic states:
+  \f[
+    \langle \kappa_a \| S \| \kappa_b \rangle
+    = \delta_{l_a l_b} \, (-1)^{j_a+l_a+3/2} \sqrt{[j_a][j_b]\tfrac{3}{2}}
+      \sixj{j_a}{1}{j_b}{\tfrac{1}{2}}{l_a}{\tfrac{1}{2}}
+  \f]
+  The 6j symbol is evaluated analytically:
+  \f[
+    \sixj{j_a}{1}{j_b}{\tfrac{1}{2}}{l_a}{\tfrac{1}{2}}
+    = \frac{(-1)^{\kappa_a+\kappa_b}}{2}
+      \sqrt{\left|\frac{(\kappa_a-1)^2 - \kappa_b^2}{3\kappa_a(1+2\kappa_a)}\right|}
+  \f]
+  This special-case formula is ~20% faster than the general 6j routine.
+  Returns 0 if \f$ l_a \neq l_b \f$ or the triangle rule is violated.
+
+  @param ka  Dirac quantum number \f$ \kappa_a \f$.
+  @param kb  Dirac quantum number \f$ \kappa_b \f$.
+  @return \f$ \langle \kappa_a \| S \| \kappa_b \rangle \f$; 0 if selection rules are not met.
 */
 inline double S_kk(int ka, int kb) {
   auto la = l_k(ka);

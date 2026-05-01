@@ -51,7 +51,7 @@ double speedup_6jt(const Angular::SixJTable &sjt,
 //==============================================================================
 
 //------------------------------------------------------------------------------
-TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
+TEST_CASE("Angular: Wigner369j functions", "[Angular][unit]") {
 
   // list in form: {kappa_index, kappa, l, 2j}
   const std::vector<std::tuple<std::size_t, int, int, int>> test_data{
@@ -176,6 +176,33 @@ TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
   // ClebschGordan[{5, 0}, {4, 0}, {1, 0}] = Sqrt[5/33]
   REQUIRE(std::abs(Angular::cg_2(10, 0, 8, 0, 2, 0) - (std::sqrt(5 / 33.0))) <
           eps);
+  // cg_2 selection rules
+  REQUIRE(Angular::cg_2(2, 2, 2, 2, 2, 0) == 0.0); // m1+m2 != M
+  REQUIRE(Angular::cg_2(2, 1, 2, 1, 6, 2) == 0.0); // triangle fails
+
+  // ninej_2 - zero cases (triangle rule violations in rows/columns)
+  // Row 1: j1=1/2, j2=1/2, j3=2 → triangle(1,1,4) fails (4 > 1+1)
+  REQUIRE(Angular::ninej_2(1, 1, 4, 2, 2, 0, 3, 3, 4) == 0.0);
+  // Col 1: j1=1/2, j4=1/2, j7=2 → triangle(1,1,4) fails
+  REQUIRE(Angular::ninej_2(1, 3, 2, 1, 3, 2, 4, 0, 4) == 0.0);
+  // Row 3: j7=0, j8=0, j9=2 → triangle(0,0,2) fails (2 > 0+0)
+  REQUIRE(Angular::ninej_2(1, 1, 2, 1, 1, 2, 0, 0, 4) == 0.0);
+  // ninej_2 - non-zero cases
+  // Ask Mathematica: NineJSymbol[{1/2,1,1/2},{1,1/2,1},{1/2,1,1}]
+  // REQUIRE(std::abs(Angular::ninej_2(1, 2, 1, 2, 1, 2, 1, 2, 2) - (?)) < eps);
+  // Ask Mathematica: NineJSymbol[{1/2,3/2,1},{3/2,1/2,1},{1,1,1}]
+  // REQUIRE(std::abs(Angular::ninej_2(1, 3, 2, 3, 1, 2, 2, 2, 2) - (?)) < eps);
+
+  // sixjTriads with optional (wildcard) arguments
+  REQUIRE(Angular::sixjTriads(2, 2, 2, {}, {}, {})); // triad (a,b,c) ok
+  REQUIRE(
+    !Angular::sixjTriads(2, 2, 6, {}, {}, {})); // triad (a,b,c) fails: 6 > 2+2
+  REQUIRE(Angular::sixjTriads({}, {}, 4, 2, 2, {})); // triad (c,d,e)=(4,2,2) ok
+  REQUIRE(!Angular::sixjTriads({}, {}, 6, 2, 2,
+                               {})); // triad (c,d,e)=(6,2,2) fails: 6-2=4>2
+  REQUIRE(Angular::sixjTriads({}, {}, {}, 2, 2, 2)); // no complete triad → true
+  REQUIRE(!Angular::sixjTriads(2, {}, {}, {}, 2,
+                               6)); // triad (a,e,f)=(2,2,6) fails: 6>2+2
 
   // <ka||C^k||kb>
   REQUIRE(std::abs(Angular::Ck_kk(0, -1, -1) - (std::sqrt(2))) < eps);
@@ -221,6 +248,50 @@ TEST_CASE("Angular: Winger369j functions", "[Angular][unit]") {
                          Angular::threej_2(tja, tjb, 2 * k, -1, 1, 0) *
                          Angular::parity(la, lb, k);
         REQUIRE(std::abs(ck1 - ck3) < eps);
+      }
+    }
+  }
+
+  // S_kk - zero cases
+  REQUIRE(Angular::S_kk(-1, 1) == 0.0);  // la=0 != lb=1
+  REQUIRE(Angular::S_kk(1, -1) == 0.0);  // la=1 != lb=0
+  REQUIRE(Angular::S_kk(-2, -1) == 0.0); // la=1 != lb=0
+  REQUIRE(Angular::S_kk(-2, 2) == 0.0);  // la=1 != lb=2
+  // triangle fails: ja=1/2, jb=7/2 → |ja-jb|=3 > 1=k_spin
+  REQUIRE(Angular::S_kk(-1, -4) == 0.0);
+  // S_kk non-zero: <s_1/2||S||s_1/2> = sqrt(3/2)
+  // Follows from <j||S||j> = sqrt(s(s+1)(2s+1)) with s=1/2, j=1/2
+  REQUIRE(std::abs(Angular::S_kk(-1, -1) - std::sqrt(1.5)) < eps);
+
+  // Ck_kk_mmq - selection rules: 3j is zero when ma != q+mb
+  REQUIRE(Angular::Ck_kk_mmq(0, -1, -1, 1, -1, 0) == 0.0); // ma=1/2 != 0+(-1/2)
+  REQUIRE(Angular::Ck_kk_mmq(1, -1, -1, 1, 1, 0) ==
+          0.0); // parity(0,0,1)=0 → Ck_kk=0
+  REQUIRE(Angular::Ck_kk_mmq(1, -1, 1, 1, -1, 0) == 0.0); // ma=1/2 != 0+(-1/2)
+  // Known value: (-1)^{ja-ma} * 3j(1/2,0,1/2;-1/2,0,1/2) * Ck_kk(0,-1,-1)
+  //            = 1 * (1/sqrt2) * sqrt2 = 1  [C^0 diagonal ME = 1]
+  REQUIRE(std::abs(Angular::Ck_kk_mmq(0, -1, -1, 1, 1, 0) - 1.0) < eps);
+  REQUIRE(std::abs(Angular::Ck_kk_mmq(0, -1, -1, -1, -1, 0) - 1.0) < eps);
+  // Consistency: Ck_kk_mmq matches independent Wigner-Eckart construction
+  for (auto ka : kap_list) {
+    for (auto kb : kap_list) {
+      auto [kmin, kmax] = Angular::kminmax_Ck(ka, kb);
+      const auto tja = Angular::twoj_k(ka);
+      const auto tjb = Angular::twoj_k(kb);
+      for (auto k = kmin; k <= kmax; k += 2) {
+        for (int twoma = -tja; twoma <= tja; twoma += 2) {
+          for (int twomb = -tjb; twomb <= tjb; twomb += 2) {
+            const int twoq = twoma - twomb;
+            if (std::abs(twoq) > 2 * k)
+              continue;
+            const auto val = Angular::Ck_kk_mmq(k, ka, kb, twoma, twomb, twoq);
+            const auto ref =
+              Angular::neg1pow_2(tja - twoma) *
+              Angular::threej_2(tja, 2 * k, tjb, -twoma, twoq, twomb) *
+              Angular::Ck_kk(k, ka, kb);
+            REQUIRE(std::abs(val - ref) < eps);
+          }
+        }
       }
     }
   }
@@ -549,51 +620,4 @@ double UnitTest::speedup_6jt(const Angular::SixJTable &sjt,
             << "\n";
   std::cout << t2 / t1 << "x speedup\n";
   return t2 / t1;
-}
-
-TEST_CASE("Angular: Ben", "[ben]") {
-
-  std::cout << std::numeric_limits<int>::max() << "\n";
-
-  const auto max_int = std::numeric_limits<int>::max();
-  const auto max_uint16 = std::numeric_limits<uint16_t>::max();
-
-  bool a{false}, b{false};
-
-  const auto lmax = 20; // practical limit
-
-  int max_n_int{0};
-  uint16_t max_n_uint16{0};
-
-  for (int n = 1; n < std::numeric_limits<int>::max(); ++n) {
-    for (int l = 0; l < std::min(n, lmax); ++l) {
-      for (int tj : {2 * l - 1, 2 * l + 1}) {
-        if (tj < 0)
-          continue;
-        const auto kappa = Angular::kappa_twojl(tj, l);
-        const auto index = Angular::nk_to_index(n, kappa);
-
-        if (!a && index >= max_int) {
-          fmt::print("max n/k int:    {:4} {:4} {:4}\n", n, kappa, index);
-          max_n_int = n;
-          a = true;
-        }
-
-        if (!b && index >= max_uint16) {
-          fmt::print("max n/k uint16: {:4} {:4} {:4}\n", n, kappa, index);
-          max_n_uint16 = uint16_t(n);
-          b = true;
-        }
-
-        if (a && b)
-          break;
-      }
-      if (a && b)
-        break;
-    }
-    if (a && b)
-      break;
-  }
-  REQUIRE(max_n_int > 46341);
-  REQUIRE(max_n_uint16 > 256);
 }

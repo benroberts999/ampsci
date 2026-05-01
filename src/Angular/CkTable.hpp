@@ -7,76 +7,108 @@
 namespace Angular {
 
 //==============================================================================
-// "Helper" functions
-//! Converts jindex to 2*j [helper function]
+// Helper index-conversion functions
+//! Converts jindex to 2j; jindex = 0,1,2,... maps to 2j = 1,3,5,...
 constexpr int jindex_to_twoj(int jindex) { return 2 * jindex + 1; }
-//! Converts 2*j to jindex {1/2, 3/2, 5/2} -> {0, 1, 2} [helper function]
+//! Converts 2j to jindex; 2j = 1,3,5,... maps to jindex = 0,1,2,...
 constexpr int twoj_to_jindex(int twoj) { return (twoj - 1) / 2; }
-//! Converts kappa to jindex {-1, 1, -2} -> {0, 0, 1} [helper function]
+//! Converts kappa to jindex; e.g. {-1, 1, -2, 2} -> {0, 0, 1, 1}
 constexpr int kappa_to_jindex(int ka) { return (ka > 0) ? ka - 1 : -ka - 1; }
 
 //==============================================================================
 /*!
-@brief Lookup table for C^k and 3j symbols (special m=1/2, q=0 case)
-@details
-  - Builds 3j symbol lookup table for given maximum k and maximum j (2j)
-  - 3j symbols, special case: \f$\threej{ja}{jb}{k}{-1/2}{1/2}{0}\f$
-  - Ckab : \f$C^k_{ab} = \redmatel{k_a}{C^k}{k_b}\f$ 
-    [symmetric up to +/- sign]
-  - TildeCkab : \f$\widetilde C^k_{ab} = (-1)^{ja+1/2} C^k_{ab}\f$ [symmetric]
-  - Slightly faster than calculating on-the-fly, but adds some overhead
-\par Construction
-  - Needs maximum two*j values. Will build look-up tables for all possible
-symbols.
-\par Mutable versions
-  - Some functions come with '_mutable' versions
-  - These will calculate (+ store) values if they don't exist yet
-  - '_mutable' versions are NOT thread safe (non-mutable are)
-  - The non-mutable versions: must not be called if symbol hasn't been 
-    calculated. This is undefined behaviour
-  - You can check which symbols exist by calling max_tj() and max_k()
-  - All "lower" symbols are calculated [max_tj, max_k defined all]
-\par Usage
-  - Note: Functions take k and kappa_a, kappa_b as input!
+  @brief Lookup table for Ck_ab reduced matrix elements and the
+         special 3j symbol (j_a, j_b, k; -1/2, 1/2, 0).
+  @details
+  Pre-computes and caches the angular symbols needed for radial matrix-element
+  evaluation. Three quantities are stored for each triple \f$(k, \kappa_a,
+  \kappa_b)\f$:
+
+  - The reduced matrix element of the normalised spherical harmonic:
+    \f[
+      C^k_{ab} \equiv \redmatel{\kappa_a}{C^k}{\kappa_b}
+      = (-1)^{j_a+\frac{1}{2}}\sqrt{[j_a][j_b]}
+        \threej{j_a}{j_b}{k}{-\tfrac{1}{2}}{\tfrac{1}{2}}{0}
+        \,\pi(l_a+l_b+k),
+    \f]
+    where \f$[x]\equiv 2x+1\f$ and \f$\pi\f$ encodes the parity selection
+    rule. \f$C^k_{ab}\f$ is antisymmetric under interchange up to a phase.
+
+  - The symmetrised (tilde) variant:
+    \f[
+      \widetilde C^k_{ab} = (-1)^{j_a+\frac{1}{2}} C^k_{ab},
+    \f]
+    which is fully symmetric: \f$\widetilde C^k_{ab} = \widetilde C^k_{ba}\f$.
+
+  - The underlying special 3j symbol:
+    \f[
+      \threej{j_a}{j_b}{k}{-\tfrac{1}{2}}{\tfrac{1}{2}}{0}.
+    \f]
+
+  All table lookups take \f$k\f$ and the Dirac quantum numbers
+  \f$\kappa_a, \kappa_b\f$ as input.
+
+  @note
+  - Table is filled up to a maximum \f$2j\f$ at construction; call fill()
+    to extend it afterwards.
+  - All symbols with \f$2j \le \f$ max_tj() and \f$k \le \f$ max_k() are
+    guaranteed to be present; there are no gaps.
+  - Non-mutable accessors are thread-safe. The `_mutable` variants extend the
+    table on demand but are **not** thread-safe.
+
+  @warning Calling a non-mutable accessor with out-of-range indices is
+           undefined behaviour; check against max_tj() and max_k() first.
 */
 class CkTable {
 
 public:
-  //! Calculates and stored all Ck/3j symbols up to given maximum 2j
+  /*!
+    @brief Constructs the table, pre-filling all symbols up to @p in_max_twoj.
+    @details Calls fill() internally; passing zero (the default) creates an
+             empty table that can be extended later with fill() or the mutable
+             accessors.
+    @param in_max_twoj  Maximum value of \f$2j\f$ to pre-compute.
+  */
   CkTable(const int in_max_twoj = 0) { fill(in_max_twoj); }
 
 public:
-  //! Extends existing look-up table to new twoj.
-  /*! 
-  @details 
-  nb: called on construction automatically, you only need to call this if you 
-  need to extend the table after original construction (rare)
+  /*!
+    @brief Extends the lookup table to cover all symbols up to @p in_max_twoj.
+    @details Called automatically on construction. Only needed explicitly when
+             the required \f$2j\f$ grows beyond the original maximum.
+    @param in_max_twoj  New maximum value of \f$2j\f$; no-op if already met.
   */
   void fill(const int in_max_twoj);
 
-  //! Ckab. mutable: will calculate if needed. Not thread safe
+  //! Returns Ck_ab; extends table if needed. Not thread-safe.
   double get_Ckab_mutable(int k, int ka, int kb);
-  //! tildeCkab. mutable: will calculate if needed. Not thread safe
+  //! Returns tilde-Ck_ab; extends table if needed. Not thread-safe.
   double get_tildeCkab_mutable(int k, int ka, int kb);
-  //! special 3j(k, ka, kb). mutable: will calculate if needed. Not thread safe
+  //! Returns 3j(j_a,j_b,k; -1/2,1/2,0); extends table if needed. Not thread-safe.
   double get_3jkab_mutable(int k, int ka, int kb);
 
-  //! Ckab. Undefined if k, ka, or kb are out-of-bounds [check with max_tj()].
+  //! Returns Ck_ab. Undefined behaviour if indices exceed max_tj() or max_k().
   double get_Ckab(int k, int ka, int kb) const;
-  //! tildeCkab. Undefined if k, ka, or kb are out-of-bounds
+  //! Returns tilde-Ck_ab. Undefined behaviour if indices exceed max_tj() or max_k().
   double get_tildeCkab(int k, int ka, int kb) const;
-  //! special 3j(k, ka, kb). Undefined if k, ka, or kb are out-of-bounds
+  //! Returns 3j(j_a,j_b,k; -1/2,1/2,0). Undefined behaviour if indices exceed max_tj() or max_k().
   double get_3jkab(int k, int ka, int kb) const;
 
-  //! Operator overload: returns Ckab
+  //! Equivalent to get_Ckab(@p k, @p ka, @p kb).
   double operator()(int k, int ka, int kb) const { return get_Ckab(k, ka, kb); }
 
-  //! Lambda^k_ij := 3js((ji,jj,k),(-1/2,1/2,0))^2 * parity(li+lj+k)
+  /*!
+    @brief Returns Lambda^k_ab := 3j(j_a,j_b,k; -1/2,1/2,0)^2 * parity(l_a+l_b+k).
+    @details
+    This is the angular factor that appears in the Coulomb interaction after
+    angular reduction, and equals \f$\left(C^k_{ab}\right)^2 / ([j_a][j_b])\f$
+    up to a phase.
+  */
   double get_Lambdakab(int k, int ka, int kb) const;
 
-  //! Maximum value for 2j currently stored in tables
+  //! Maximum value of 2j currently stored in the table.
   int max_tj() const { return jindex_to_twoj(m_max_jindex_sofar); }
-  //! Maximum value for k currently stored in tables
+  //! Maximum value of k currently stored in the table.
   int max_k() const { return m_max_k_sofar; }
 
 private:
