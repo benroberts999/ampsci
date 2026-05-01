@@ -1172,12 +1172,13 @@ void HartreeFock::hf_orbital_green(
       break;
     {
       auto VnlF_tilde = ::HF::vexFa(dFa, static_core, k_max);
-      if (tVBr)
+      if (tVBr) {
         if (m_freqBreit == true) {
           VnlF_tilde += tVBr->VbrFa_freqw(dFa, static_core);
         } else {
           VnlF_tilde += tVBr->VbrFa(dFa, static_core);
         }
+      }
       if (Sigma)
         VnlF_tilde += (*Sigma)(dFa);
       if (!dv0.empty())
