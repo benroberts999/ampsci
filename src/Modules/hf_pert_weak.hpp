@@ -28,10 +28,10 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
               const ExternalField::DiagramRPA *dV_hf = nullptr);
 double h1(std::vector<Coulomb::meTable<double>> ME_tables,
           const std::vector<DiracSpinor> &spectrum, const DiracSpinor &w,
-          const DiracSpinor &v, int I2, int Fv2, int Fw2);
+          const DiracSpinor &v, int I2, int Fv2, int Fw2, int two_k);
 double h2(std::vector<Coulomb::meTable<double>> ME_tables,
           const std::vector<DiracSpinor> &spectrum, const DiracSpinor &w,
-          const DiracSpinor &v, int I2, int Fv2, int Fw2);
+          const DiracSpinor &v, int I2, int Fv2, int Fw2, int two_k);
 
 void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf);
 } // namespace Module
