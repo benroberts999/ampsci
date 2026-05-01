@@ -158,7 +158,9 @@ void convert_energies_au(double Eau) {
   else
     fmt::print("  {:<20.15g} THz\n", EHz * 1.0e-12);
 
-  if (EeV < 1.0e3)
+  if (EeV < 1.0e-1)
+    fmt::print("  {:<20.14e} eV\n", EeV);
+  else if (EeV < 1.0e3)
     fmt::print("  {:<20.15g} eV\n", EeV);
   else if (EeV < 1.0e6)
     fmt::print("  {:<20.15g} keV\n", EeV * 1.0e-3);
@@ -207,14 +209,37 @@ void convert_length_au(double La0) {
 }
 
 //==============================================================================
+void convert_energy_au_invlength(double E_au) {
+  // k = E/(ℏc): true inverse length (not spectroscopic wavenumber E/hc)
+  const auto k_invfm =
+    E_au * PhysConst::Hartree_eV * 1.0e-6 / PhysConst::hbarc_MeVfm;
+  const auto k_invm = k_invfm * 1.0e15;
+
+  fmt::print("  {:<20.15g} a0^-1\n", E_au * PhysConst::alpha);
+  fmt::print("  {:<20.15g} fm^-1  =  1/({:<20.15g} fm)\n", k_invfm,
+             1 / k_invfm);
+  // always print fm^-1, also others if better range
+  if (std::abs(k_invm) < 1.0e3)
+    fmt::print("  {:<20.15g} m^-1  =  1/({:<20.14e} m)\n", k_invm, 1 / k_invm);
+  else if (std::abs(k_invm) < 1.0e5)
+    fmt::print("  {:<20.15g} cm^-1  =  1/({:<20.14e} cm)\n", k_invm * 1.0e-2,
+               1 / (k_invm * 1.0e-2));
+  else if (std::abs(k_invm) < 1.0e12)
+    fmt::print("  {:<20.15g} nm^-1  =  1/({:<20.14e} nm)\n", k_invm * 1.0e-9,
+               1 / (k_invm * 1.0e-9));
+}
+
+//==============================================================================
 void conversions(double number, const std::string &unit) {
   assert(unit.size() > 0);
 
   std::cout << "----------------------------\n";
-  fmt::print("{:<.15g} {} = \n", number, unit);
+  std::cout << "Unit conversion: *(caution - convenience only; always check)\n";
+  fmt::print("\n{:<.15g} {} = \n", number, unit);
 
   // this part: NOT case insensitive
-
+  // SI prefix:
+  // special case for 'm' - since it's a prefix _and_ a unit
   if (!qip::ci_contains(unit, "-1")) {
     if (unit[0] == 'f')
       number *= 1.0e-15;
@@ -224,6 +249,8 @@ void conversions(double number, const std::string &unit) {
       number *= 1.0e-9;
     if (unit[0] == 'u')
       number *= 1.0e-6;
+    if (unit[0] == 'c')
+      number *= 1.0e-2;
     if (unit[0] == 'm' && unit.size() > 1)
       number *= 1.0e-3;
     if (unit[0] == 'k')
@@ -243,6 +270,8 @@ void conversions(double number, const std::string &unit) {
       number /= 1.0e-9;
     if (unit[0] == 'u')
       number /= 1.0e-6;
+    if (unit[0] == 'c')
+      number /= 1.0e-2;
     if (unit[0] == 'm' && unit.size() > 1)
       number /= 1.0e-3;
     if (unit[0] == 'k')
@@ -255,24 +284,33 @@ void conversions(double number, const std::string &unit) {
       number /= 1.0e12;
   }
 
-  if (qip::ci_contains(unit, {"au", "a.u.", "Hartree", "Eh"})) {
+  using SV = std::vector<std::string>;
+
+  if (qip::ci_contains(unit, SV{"au", "a.u.", "Hartree", "Eh", "EH", "E_H"})) {
+    std::cout << "\nInterpret as energy (atomic units):\n";
     return convert_energies_au(number);
   }
 
-  if (qip::ci_contains(unit, "Ry")) {
+  if (qip::ci_contains(unit, SV{"Ry"})) {
     return convert_energies_au(number / 2);
   }
 
-  if (qip::ci_contains(unit, {"cm^-1", "/cm", "inversecm", "icm", "cm^{-1}"})) {
-    return convert_energies_au(number / PhysConst::Hartree_invcm);
+  if (qip::ci_contains(unit, SV{"m^-1", "m^{-1}"})) {
+    // Above, we converted from cm to m - so go back for this one
+    std::cout << "\nInterpret as energy (spectroscopic):\n";
+    convert_energies_au(number / (PhysConst::Hartree_invcm / 1e-2));
+    std::cout << "\nInterpret as energy (ℏc=1):\n";
+    return convert_energies_au(number * PhysConst::hbarc_MeVfm * 1.0e-15 /
+                               (PhysConst::Hartree_eV * 1.0e-6));
   }
 
   if (qip::ci_contains(unit, "Hz")) {
+    std::cout << "\nInterpret as energy (frequency):\n";
     return convert_energies_au(number / PhysConst::Hartree_Hz);
   }
 
   // Convert inverse energy to length:
-  if (qip::ci_contains(unit, std::vector<std::string>{"eV^-1", "eV^{-1}"})) {
+  if (qip::ci_contains(unit, SV{"eV^-1", "eV^{-1}"})) {
     std::cout << "\nInterpret as length (ℏc=1):\n";
     number *= 1.0e6; //back to MeV:
     return convert_length_au(number * PhysConst::hbarc_MeVfm /
@@ -281,7 +319,11 @@ void conversions(double number, const std::string &unit) {
 
   //must come after the eV^-1
   if (qip::ci_contains(unit, "eV")) {
-    return convert_energies_au(number / PhysConst::Hartree_eV);
+    std::cout << "\nInterpret as energy (eV):\n";
+    convert_energies_au(number / PhysConst::Hartree_eV);
+    std::cout << "\nInterpret as inverse length (ℏc=1):\n";
+    convert_energy_au_invlength(number / PhysConst::Hartree_eV);
+    return;
   }
 
   // This must come _after_ inverse cm check
@@ -294,7 +336,12 @@ void conversions(double number, const std::string &unit) {
     convert_energies_au(PhysConst::HartreeWL_nm / (1.0e9 * number));
   }
 
-  if (qip::ci_contains(unit, std::vector<std::string>{"a0", "ab"})) {
+  if (qip::ci_contains(unit, std::vector<std::string>{"a0", "ab", "Bohr"})) {
+    if (qip::ci_contains(unit, "-1")) {
+      std::cout << "\nInterpret as energy (a0^-1):\n";
+      return convert_energies_au(number / PhysConst::alpha);
+    }
+    std::cout << "\nInterpret as length:\n";
     return convert_length_au(number);
   }
 }
