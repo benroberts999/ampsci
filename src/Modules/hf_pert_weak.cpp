@@ -71,6 +71,25 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
         hpnc->reducedME(w, i) + (dV_pnc ? dV_pnc->dV(w, i) : 0.0);
     const auto pnc_iv =
         hpnc->reducedME(i, v) + (dV_pnc ? dV_pnc->dV(i, v) : 0.0);
+    const auto w_wf = w.shortSymbol();
+    const auto i_wf = i.shortSymbol();
+    const auto v_wf = v.shortSymbol();
+
+    //output for test
+    /*
+    if (i.n() < 16) {
+      std::cout << "Reduced NSI PNC matrix element  " << " <<" << w_wf
+                << "||h_pnc||" << i_wf << ">> = " << pnc_wi
+                << "(-Q_w/N)x10^-11 \n.";
+    }
+    const auto pnc_iv =
+        hpnc->reducedME(i, v) + (dV_pnc ? dV_pnc->dV(i, v) : 0.0);
+    if (i.n() < 16) {
+      std::cout << "Reduced NSI PNC matrix element  " << " <<" << i_wf
+                << "||h_pnc||" << v_wf << ">> = " << pnc_iv
+                << "(-Q_w/N)x10^-11\n.";
+    }
+                */
     //add to table
     pnc_me.add(w, i, pnc_wi);
     pnc_me.add(i, v, pnc_iv);
@@ -89,6 +108,17 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
     hf_me.add(w, i, hfs_wi);
     hf_me.add(i, v, hfs_iv);
 
+    //output for test
+    /*
+    if (i.n() < 16) {
+      std::cout << "Reduced hyperfine matrix element  " << " <<" << w_wf
+                << "||h_hfs||" << i_wf << ">> = " << hfs_wi << "MHz \n.";
+    }
+    if (i.n() < 16) {
+      std::cout << "Reduced hyperfine matrix element " << " <<" << i_wf
+                << "||h_hfs||" << v_wf << ">> = " << hfs_iv << "MHz \n.";
+    }
+*/
     //now include additional loop over spectrum
     for (const auto &j : spectrum) {
       const auto pnc_ij =
@@ -122,7 +152,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
 //Total initial and final angular momenta (F=I+J)
 double h1(std::vector<Coulomb::meTable<double>> ME_tables,
           const std::vector<DiracSpinor> &spectrum, const DiracSpinor &w,
-          const DiracSpinor &v, int I2, int Fv2, int Fw2) {
+          const DiracSpinor &v, int I2, int Fv2, int Fw2, int two_k) {
   double h1 = 0.0;
   //get angular momenta of valence electronic states from wavefunctions (we actually extract 2j) from kappa
   int kw = w.kappa();
@@ -146,9 +176,9 @@ double h1(std::vector<Coulomb::meTable<double>> ME_tables,
       //first compute angular factor
       auto tjj = Angular::twoj_k(j.kappa());
 
-      auto phase = Angular::neg1pow_2(Fv2 - Fw2 + 2);
+      auto phase = Angular::neg1pow_2(tjv - tjw + 2);
       double sixj1 = Angular::sixj_2(Fw2, Fv2, 2, tjj, tjw, I2);
-      double sixj2 = Angular::sixj_2(I2, I2, 2, tjj, tjv, Fv2);
+      double sixj2 = Angular::sixj_2(I2, I2, two_k, tjj, tjv, Fv2);
       double angular = phase * sixj1 * sixj2;
 
       //initialise sums over i for given j
@@ -197,7 +227,7 @@ double h1(std::vector<Coulomb::meTable<double>> ME_tables,
 
 double h2(std::vector<Coulomb::meTable<double>> ME_tables,
           const std::vector<DiracSpinor> &spectrum, const DiracSpinor &w,
-          const DiracSpinor &v, int I2, int Fv2, int Fw2) {
+          const DiracSpinor &v, int I2, int Fv2, int Fw2, int two_k) {
   double h2 = 0.0;
   //get angular momenta of valence electronic states from wavefunctions (we actually extract 2j) from kappa
   int kw = w.kappa();
@@ -223,7 +253,7 @@ double h2(std::vector<Coulomb::meTable<double>> ME_tables,
 
       auto phase = Angular::neg1pow_2(Fv2 - Fw2 + 2);
       double sixj1 = Angular::sixj_2(Fw2, Fv2, 2, tjv, tjj, I2);
-      double sixj2 = Angular::sixj_2(I2, I2, 2, tjj, tjw, Fw2);
+      double sixj2 = Angular::sixj_2(I2, I2, two_k, tjj, tjw, Fw2);
       double angular = phase * sixj1 * sixj2;
 
       //initialise sums over i for given j
@@ -277,12 +307,13 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
   // Input block and wavefunctions
 
   //check the input options
-  input.check(
-      {{"transition", "List. states (e.g., 6s,6s) []"},
-       {"rpa", "Include RPA? [true]"},
-       {"two_I", "two times the nuclear spin (integer)"},
-       {"two_Fw", "two times total angular momentum of final state w"},
-       {"two_Fv", "two times total angular momentum of final state v"}});
+  input.check({{"transition", "List. states (e.g., 6s,6s) []"},
+               {"rpa", "Include RPA? [true]"},
+               {"two_I", "two times the nuclear spin (integer)"},
+               {"two_Fw", "two times total angular momentum of final state w"},
+               {"two_Fv", "two times total angular momentum of final state v"},
+               {"hfs_options{}", "Options for HFS operator (see -o hfs)"},
+               {"two_k", "two times hyperfine multipolarity"}});
   // If we are just requesting 'help', don't run module:
 
   if (input.has_option("help")) {
@@ -355,9 +386,18 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     auto pnc_it = input.get("pnc_rpa_it", 99);
     dVE1.solve_core(omega, E1_it);
     dVpnc.solve_core(0.0, pnc_it);
+    const auto two_k = input.get("two_k", 0);
 
-    //for hyperfine matrix elements we use the diagram method
-    std::cout << "\nIncluding RPA (diagram method) - must have basis\n";
+    /*
+    if(two_k==4){
+      auto dVhf = ExternalField::TDHF(hfs.get(), wf.vHF());
+      auto hfs_it = input.get("hfs_rpa_it", 99);
+      dVpnc.solve_core(0.0, hfs_it);
+
+    }
+      */
+
+      std::cout << "\nIncluding RPA (diagram method) - must have basis\n";
     std::unique_ptr<ExternalField::DiagramRPA> rpa_hf;
     rpa_hf = std::make_unique<ExternalField::DiagramRPA>(
         hfs.get(), wf.basis(), wf.vHF(), wf.identity());
@@ -373,10 +413,11 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     int I2 = input.get("two_I", 0);
     const auto Fv2 = input.get("two_Fv", 0);
     const auto Fw2 = input.get("two_Fw", 0);
+    const auto two_k = input.get("two_k", 0);
 
-    double h_1 = h1(Table, spectrum, Fw, Fv, I2, Fv2, Fw2);
+    double h_1 = h1(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
 
-    double h_2 = h2(Table, spectrum, Fw, Fv, I2, Fv2, Fw2);
+    double h_2 = h2(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
 
     double I = 0.5 * I2;
 
@@ -386,7 +427,9 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
     double h_final = h_sum;
-    std::cout << "value is " << h_final << "  .";
+    std::cout << "value is " << h_final << "  MHz .with RPA\n\n";
+    std::cout << "In atomic unuts value is " << h_final / PhysConst::Hartree_MHz
+              << "  au .";
 
   } else {
     // Compute and store matrix elements without RPA
@@ -399,10 +442,11 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     int I2 = input.get("two_I", 0);
     const auto Fv2 = input.get("two_Fv", 0);
     const auto Fw2 = input.get("two_Fw", 0);
+    const auto two_k = input.get("two_k", 0);
 
-    double h_1 = h1(Table, spectrum, Fw, Fv, I2, Fv2, Fw2);
+    double h_1 = h1(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
 
-    double h_2 = h2(Table, spectrum, Fw, Fv, I2, Fv2, Fw2);
+    double h_2 = h2(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
 
     double I = 0.5 * I2;
 
@@ -412,8 +456,9 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
     double h_final = h_sum;
-    std::cout << "value is " << h_final << "  MHz .without RPA";
-    std::cout << "value is " << h_final / PhysConst::Hartree_MHz << "  au .";
+    std::cout << "value is " << h_final << "  MHz .without RPA\n\n";
+    std::cout << "In atomic unuts value is " << h_final / PhysConst::Hartree_MHz
+              << "  au .";
   }
 
   std::cout << "\n\n\n test succesful!... ";
