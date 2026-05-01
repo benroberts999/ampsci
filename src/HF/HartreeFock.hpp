@@ -79,6 +79,7 @@ private:
   double m_alpha;
   Method m_method;
   double m_eps_HF;
+  bool m_freqBreit;
   std::vector<double> m_vdir;
   Coulomb::YkTable m_Yab;
   int m_max_hf_its = 128;
@@ -114,7 +115,7 @@ public:
               Method method = Method::HartreeFock, double x_Breit = 0.0,
               double eps_HF = 0.0,
               Parametric::Type potential = Parametric::Type::Green,
-              double H_g = 0.0, double d_t = 0.0);
+              double H_g = 0.0, double d_t = 0.0, bool freqBreit = false);
 
   //! Solves HF equations self-consitantly for core orbs. Returns epsilon.
   EpsIts solve_core(bool print = true);
