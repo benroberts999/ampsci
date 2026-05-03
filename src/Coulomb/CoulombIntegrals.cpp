@@ -169,7 +169,8 @@ static inline void yk_ijk_gen_impl(const int l, const Function &ff,
   }
   const auto rbmax =
     bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
-  Bx = Bx * powk(r[bmax - 1] / rbmax) + ff(bmax - 1);
+  Bx = Bx * powk(r[bmax - 1] / rbmax) +
+       ff(bmax - 1) * w(bmax - 1) * gr.drduor(bmax - 1);
   vi[bmax - 1] += Bx * du;
   for (auto i = bmax - 1; i >= 1; --i) {
     Bx = Bx * powk(r[i - 1] / r[i]) + ff(i - 1) * w(i - 1) * gr.drduor(i - 1);
@@ -242,7 +243,8 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
   const auto rbmax =
     bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
 
-  Bx = Bx + ykwr_func(k, w, r[bmax - 1]) * ff(bmax - 1) * gr.drdu(bmax - 1);
+  Bx = Bx + ykwr_func(k, w, r[bmax - 1]) * ff(bmax - 1) * weights(bmax - 1) *
+              gr.drdu(bmax - 1);
 
   vi[bmax - 1] = -w * (2.0 * k + 1.0) * jkwr_func(k, w, r[bmax - 1]) * Bx * du;
 
