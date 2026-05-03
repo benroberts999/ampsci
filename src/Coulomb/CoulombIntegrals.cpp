@@ -179,7 +179,10 @@ static inline void yk_ijk_gen_impl(const int l, const Function &ff,
 
 //------------------------------------------------------------------------------
 
-// Used for frequency-dependent Breit
+// Implements the freq-dep Breit screening function (arXiv:2602.17129).
+// Applies the kernel replacement:
+//   r_<^k / r_>^{k+1}  ->  -w*(2k+1)*j_k(w*r_<)*y_k(w*r_>)
+// Used by gk_ab_freqw (X_ab density) and hk_ab_freqw (Y_ab density).
 template <typename Function>
 static inline void
 yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
@@ -254,7 +257,9 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
 
 //---------------------------------------------------------------------------------
 
-// function for calculating the Breit frequency-dependent screening factor vkabcd(w) - stores first term v1 and second term v2 separately
+// Computes the freq-dep v^k_abcd screening factor (Eq. A18, arXiv:2602.17129).
+// Pkbd = P^k_ij (Eq. A13), Qkbd = Q^k_ij (Eq. A14).
+// v1,v2: (0,r) parts; v3,v4: (r,inf) parts; see vk_ab_freqw docs for full breakdown.
 template <int k>
 static inline void
 vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
@@ -332,7 +337,7 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
       v1[i] = (A1 - A2 + wsd2 * C1) * du;
     } else {
       // first term in first part of v
-      A1 = A1 + jkwr(k - 1, w, r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
+      A1 = A1 + jkwr(l - 1, w, r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
                   gr.drdu(i - 1);
 
       // second term in first part of v
@@ -340,14 +345,14 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
                    (r[i - 1] * r[i - 1])) *
            powk(ratio) * ratio * ratio;
 
-      v1[i] = wcubed * ykwr(k + 1, w, r[i]) * A1 + (2.0 * k + 1.0) * A2;
+      v1[i] = wcubed * ykwr(l + 1, w, r[i]) * A1 + (2.0 * l + 1.0) * A2;
       v1[i] = -2.0 * odw2 * v1[i] * du;
     }
 
     // integral for second term in v
-    A3 = A3 + jkwr(k + 1, w, r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
+    A3 = A3 + jkwr(l + 1, w, r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
                 gr.drdu(i - 1);
-    v2[i] = -2.0 * w * ykwr(k - 1, w, r[i]) * A3 * du;
+    v2[i] = -2.0 * w * ykwr(l - 1, w, r[i]) * A3 * du;
   }
 
   for (std::size_t i = irmax; i < num_points; i++) {
@@ -378,16 +383,16 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
     D1 = Qkbd[bmax - 1] * weights(bmax - 1) * r[bmax - 1] * gr.drdu(bmax - 1);
     v3[bmax - 1] = (B1 - B2 + wsd2 * D1) * du;
   } else {
-    B1 = B1 + ykwr(k + 1, w, r[bmax - 1]) * Qkbd[bmax - 1] * gr.drdu(bmax - 1);
-    B2 = B2 + (pow(r[bmax - 1], k - 1) / pow(r[bmax - 1], k + 2)) *
+    B1 = B1 + ykwr(l + 1, w, r[bmax - 1]) * Qkbd[bmax - 1] * gr.drdu(bmax - 1);
+    B2 = B2 + (pow(r[bmax - 1], l - 1) / pow(r[bmax - 1], l + 2)) *
                 Qkbd[bmax - 1] * gr.drdu(bmax - 1);
-    v3[bmax - 1] = -2.0 * w * jkwr(k - 1, w, r[bmax - 1]) * B1 * du -
-                   2.0 * ((2.0 * k + 1.0) / (w * w)) * B2 * du;
+    v3[bmax - 1] = -2.0 * w * jkwr(l - 1, w, r[bmax - 1]) * B1 * du -
+                   2.0 * ((2.0 * l + 1.0) / (w * w)) * B2 * du;
   }
 
-  B3 = B3 + ykwr(k - 1, w, r[bmax - 1]) * Pkbd[bmax - 1] * gr.drdu(bmax - 1);
+  B3 = B3 + ykwr(l - 1, w, r[bmax - 1]) * Pkbd[bmax - 1] * gr.drdu(bmax - 1);
 
-  v4[bmax - 1] = -2.0 * w * jkwr(k + 1, w, r[bmax - 1]) * B3 * du;
+  v4[bmax - 1] = -2.0 * w * jkwr(l + 1, w, r[bmax - 1]) * B3 * du;
 
   for (auto i = bmax - 1; i >= 1; i--) {
 
@@ -402,24 +407,24 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
            Qkbd[i - 1] * weights(i - 1) * r[i - 1] * gr.drdu(i - 1);
       v3[i - 1] = (B1 - B2 + wsd2 * D1) * du;
     } else {
-      // j_{k-1}(wr1)y_{k+1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
-      B1 = B1 + ykwr(k + 1, w, r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
+      // j_{l-1}(wr1)y_{l+1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
+      B1 = B1 + ykwr(l + 1, w, r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
                   gr.drdu(i - 1);
 
-      // r2^{k-1}/r1^{k+2} term in integral that is integrated from r1 <= r2 <=infty
+      // r2^{l-1}/r1^{l+2} term in integral that is integrated from r1 <= r2 <=infty
       B2 = powk(ratio) * (1.0 / ratio) * B2 + Qkbd[i - 1] * weights(i - 1) *
                                                 gr.drduor(i - 1) /
                                                 (r[i - 1] * r[i - 1]);
 
-      v3[i - 1] = wcubed * jkwr(k - 1, w, r[i - 1]) * B1 + (2.0 * k + 1.0) * B2;
+      v3[i - 1] = wcubed * jkwr(l - 1, w, r[i - 1]) * B1 + (2.0 * l + 1.0) * B2;
 
       v3[i - 1] = -2.0 * odw2 * v3[i - 1] * du;
     }
 
-    // j_{k+1}(wr1)y_{k-1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
-    B3 = B3 + ykwr(k - 1, w, r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
+    // j_{l+1}(wr1)y_{l-1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
+    B3 = B3 + ykwr(l - 1, w, r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
                 gr.drdu(i - 1);
-    v4[i - 1] = -2.0 * w * jkwr(k + 1, w, r[i - 1]) * B3 * du;
+    v4[i - 1] = -2.0 * w * jkwr(l + 1, w, r[i - 1]) * B3 * du;
   }
 }
 
@@ -545,6 +550,7 @@ void gk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 
 // frequency-dependent Breit integrals which i call g^k_{ab}(r,w) and h^k_{ab}(r,w) for X_{ij} and Y_{ij}, respectively
 // also need to define v^{k,1}_{ab} and v^k{k,2}_{ab} for the two respective terms in v^k_{ab} which will be multiplying different parts of the
+// g^k_ab: freq-dep screening with X_ab density (Eq. A15); kernel replacement Eq. A17. arXiv:2602.17129
 void gk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                  std::vector<double> &g0, std::vector<double> &ginf,
                  const std::size_t maxi, const double w) {
@@ -554,29 +560,10 @@ void gk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   };
 
   yk_ijk_gen_impl_freq(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  // if (k == 0)
-  //   yk_ijk_gen_impl_freq<0>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  // else if (k == 1)
-  //   yk_ijk_gen_impl_freq<1>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  // else if (k == 2)
-  //   yk_ijk_gen_impl_freq<2>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  // else if (k == 3)
-  //   yk_ijk_gen_impl_freq<3>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  // else if (k == 4)
-  //   yk_ijk_gen_impl_freq<4>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  // else if (k == 5)
-  //   yk_ijk_gen_impl_freq<5>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  // else if (k == 6)
-  //   yk_ijk_gen_impl_freq<6>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  // else if (k == 7)
-  //   yk_ijk_gen_impl_freq<7>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  // else if (k == 8)
-  //   yk_ijk_gen_impl_freq<8>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
-  // else
-  //   yk_ijk_gen_impl_freq<-1>(k, fgfg, Fa.grid(), g0, ginf, maxi, w);
 }
 
 //--------------------------------------------------------------------
+// h^k_ab: freq-dep screening with Y_ab density (Eq. A16); kernel replacement Eq. A17. arXiv:2602.17129
 void hk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                  std::vector<double> &b0, std::vector<double> &binf,
                  std::size_t maxi, const double w) {
@@ -586,26 +573,6 @@ void hk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   };
 
   yk_ijk_gen_impl_freq(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  // if (k == 0)
-  //   yk_ijk_gen_impl_freq<0>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  // else if (k == 1)
-  //   yk_ijk_gen_impl_freq<1>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  // else if (k == 2)
-  //   yk_ijk_gen_impl_freq<2>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  // else if (k == 3)
-  //   yk_ijk_gen_impl_freq<3>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  // else if (k == 4)
-  //   yk_ijk_gen_impl_freq<4>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  // else if (k == 5)
-  //   yk_ijk_gen_impl_freq<5>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  // else if (k == 6)
-  //   yk_ijk_gen_impl_freq<6>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  // else if (k == 7)
-  //   yk_ijk_gen_impl_freq<7>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  // else if (k == 8)
-  //   yk_ijk_gen_impl_freq<8>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
-  // else
-  //   yk_ijk_gen_impl_freq<-1>(k, fgfg, Fa.grid(), b0, binf, maxi, w);
 }
 
 //--------------------------------------------------------------------
@@ -625,6 +592,7 @@ void vk_ab_freqw(const int k, const DiracSpinor &Fi, const DiracSpinor &Fj,
   std::vector<double> Pkbd(gr.size(), 0.0);
   std::vector<double> Qkbd(gr.size(), 0.0);
 
+  // P^k_ij (Eq. A13) and Q^k_ij (Eq. A14) of arXiv:2602.17129:
   for (int i = 0; i < gr.size(); i++) {
     Pkbd[i] = ((Fi.kappa() - Fj.kappa()) / k) * Xij(i) - Yij(i);
     Qkbd[i] = ((Fi.kappa() - Fj.kappa()) / (k + 1.0)) * Xij(i) + Yij(i);
