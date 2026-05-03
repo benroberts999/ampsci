@@ -64,7 +64,9 @@ TEST_CASE("FreqwBreit: symmetry", "[Coulomb][unit][fBreit][Breit]") {
 TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit]") {
   // gk_ab_freqw(w) -> gk_ab (static) as w -> 0.
   // Kernel replacement: -w(2k+1) j_k(wr) y_k(wr') -> r^k/r'^{k+1} as w->0.
-  // Deviation from static is O((wr)^2).
+  // Deviation from static is O((wr)^2) (??)
+
+  using namespace qip::overloads;
 
   const auto grid = std::make_shared<const Grid>(
     GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
@@ -72,10 +74,11 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit]") {
   const auto Fb = DiracSpinor::exactHlike(2, 1, grid, 10.0);
   const auto &gr = Fa.grid();
 
-  fmt::print("\nFreq. dep. Breit: freqw(r,w) vs static\n");
   const std::vector<double> r_tgts = {1.0e-6, 0.01, 0.1, 5.0, 100.0};
-  const std::vector<double> omegas = {10.0, 0.5, 0.05, 0.001, 1.0e-9};
+  const std::vector<double> omegas = {10.0, 5.0, 0.5, 0.05, 0.001, 1.0e-9};
 
+  //-------------------------------------------------------------------
+  fmt::print("\nFreq. dep. Breit: freqw(r,w) vs static\n");
   using FreqwFn =
     void (*)(int, const DiracSpinor &, const DiracSpinor &,
              std::vector<double> &, std::vector<double> &, std::size_t, double);
@@ -88,7 +91,6 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit]") {
   };
   const char *fn_names[] = {"gk_ab", "hk_ab/bk_ab"};
 
-  const int k = 3;
   for (std::size_t ifn = 0; ifn < 2; ++ifn) {
     const auto [freqw_fn, static_fn] = fn_pairs[ifn];
     fmt::print("\n{}:\n", fn_names[ifn]);
@@ -97,8 +99,6 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit]") {
       // Static reference
       std::vector<double> g0_s, ginf_s;
       static_fn(k, Fa, Fb, g0_s, ginf_s, 0);
-
-      using namespace qip::overloads;
 
       // Pre-compute freqw results for all omegas
       std::vector<std::vector<double>> g_w(omegas.size());
@@ -131,18 +131,76 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit]") {
         fmt::print(" {:+.1e}\n", g_w[omegas.size() - 2][ir] / g_stat[ir] - 1.0);
       }
 
-      const double eps = 1.0e-6;
+      const double eps1 = 1.0e-6;
+      const double eps2 = 1.0e-9;
 
+      // 1. Ensure the w~1.0e-3 case matches static case
       for (std::size_t ir = 0; ir < r_tgts.size(); ++ir) {
-        REQUIRE(g_w[omegas.size() - 2][ir] == Approx(g_stat[ir]).epsilon(eps));
+        REQUIRE(g_w[omegas.size() - 2][ir] == Approx(g_stat[ir]).epsilon(eps1));
       }
 
       // 2. w=1e-9 (last) agrees with static to eps
       for (std::size_t ir = 0; ir < r_tgts.size(); ++ir) {
-        CHECK(g_w[omegas.size() - 1][ir] == Approx(g_stat[ir]).epsilon(eps));
+        REQUIRE(g_w[omegas.size() - 1][ir] == Approx(g_stat[ir]).epsilon(eps2));
+      }
+
+      // 3. Ensure sign and order-of-magnitude does not change
+      for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
+        for (std::size_t ir = 0; ir < r_tgts.size(); ++ir) {
+          // Ensure sign is same
+          REQUIRE(g_w[iw][ir] / g_stat[ir] > 0.0);
+
+          // This FAILS sometimes:
+          // Ensure All within factior of ~2 from static case
+          // if (iw != 0)
+          // Might not be wrong, but should be tested!
+          // Also w=5 and w=10 breaks the trend? Again, maybe correct, but maybe not!
+          CHECK(g_w[iw][ir] == Approx(g_stat[ir]).epsilon(0.1));
+        }
       }
 
     } // k loop
   }   // fn_pairs loop
-  std::cout << "\n";
+
+  //--------------------------------------
+  // Test the vk_ab_freqw function
+  // For now: just check 1.0e-3 matches 1.0e-9 (not a great test)
+  // Test might not mean anything
+  // Ideally: Real test?
+
+  for (int k = 1; k <= 3; ++k) {
+
+    // Pre-compute total v = v1+v2+v3+v4 for all omegas
+    std::vector<std::vector<double>> v_w(omegas.size());
+    for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
+      std::vector<double> v1, v2, v3, v4;
+      Coulomb::vk_ab_freqw(k, Fa, Fb, gr, v1, v2, v3, v4, 0, omegas[iw]);
+      v_w[iw] = v1 + v2 + v3 + v4;
+    }
+
+    const int width = 13;
+    std::cout << "k = " << k << " [vk_ab]\n";
+    fmt::print("{:>5}", "r");
+    for (const auto w : omegas)
+      fmt::print("      w={:.0e}", w);
+    fmt::print("\n");
+
+    for (const auto r_t : r_tgts) {
+      const auto i = gr.getIndex(r_t);
+      fmt::print("{:>5.0e}", gr.r(i));
+      for (std::size_t iw = 0; iw < omegas.size(); ++iw)
+        fmt::print("{:>{}.4e}", v_w[iw][i], width);
+      fmt::print("\n");
+    }
+
+    const auto &v_ref = v_w.back();
+
+    // ensure the 1.0e-3 case matches the 1.0e-9 one
+    const double eps = 1.0e-6;
+    for (std::size_t ir = 0; ir < r_tgts.size(); ++ir) {
+      const auto i = gr.getIndex(r_tgts[ir]);
+      REQUIRE(v_w[omegas.size() - 2][i] == Approx(v_ref[i]).epsilon(eps));
+    }
+    std::cout << "\n";
+  }
 }

@@ -394,8 +394,8 @@ vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
     v3[i] = 0.0;
     v4[i] = 0.0;
   }
-  const auto rbmax =
-    bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
+  // const auto rbmax =
+  //   bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
 
   // calculating screening functions at end point
   if (cut_off) {
@@ -616,7 +616,7 @@ void vk_ab_freqw(const int k, const DiracSpinor &Fi, const DiracSpinor &Fj,
   std::vector<double> Qkbd(gr.size(), 0.0);
 
   // P^k_ij and Q^k_ij of arXiv:2602.17129:
-  for (int i = 0; i < gr.size(); i++) {
+  for (std::size_t i = 0; i < gr.size(); i++) {
     Pkbd[i] = ((Fi.kappa() - Fj.kappa()) / k) * Xij(i) - Yij(i);
     Qkbd[i] = ((Fi.kappa() - Fj.kappa()) / (k + 1.0)) * Xij(i) + Yij(i);
   }
