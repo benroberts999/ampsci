@@ -193,7 +193,8 @@ public:
                             const DiracSpinor &Fc, const DiracSpinor &Fd,
                             const double w) const;
 
-  //!Should add two-body matrix elements for frequency-dependent Breit at some point. As well as writing function for direct contribution to HF
+  // Should add two-body matrix elements for frequency-dependent Breit at some point.
+  // As well as writing function for direct contribution to HF
 
   //! BPkv_bcd defined: P(B)^k_abcd = <a|BPkv_bcd> (exchange part)
   DiracSpinor BPkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
