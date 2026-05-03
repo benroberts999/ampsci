@@ -30,7 +30,7 @@ void estimate_memory_usage(const std::string &basis_string,
       const auto &t =
         orbs.emplace_back(DiracSpinor::exactHlike(n, kappa, radial_grid, 1.0));
       ++orbital_count;
-      // if(any c = core_configs.at(i) have c.l()=t.() && c.n()==t.n()){}
+      // if(any c = core_configs.at(i) have c.l()=t.() && c.n()==t.n()) {}
       const bool is_core = std::any_of(
         core_configs.begin(), core_configs.end(),
         [&t](const auto &c) { return c.l == t.l() && c.n == t.n(); });

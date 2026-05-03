@@ -6,7 +6,7 @@
 //-----------------------
 class A : public qip::Comparison<A>, qip::Arithmetic<A> {
 public:
-  A(int x, int y) : a(x), b(y){};
+  A(int x, int y) : a(x), b(y) {};
   int a{};
   int b{};
   friend bool operator==(const A &lhs, const A &rhs) { return lhs.a == rhs.a; }
@@ -29,7 +29,7 @@ public:
 //-----------------------
 class B : qip::Comparison<B>, qip::Comparison<A, B>, qip::Comparison<B, A> {
 public:
-  B(int x) : a(x){};
+  B(int x) : a(x) {};
   int a{};
   friend bool operator==(const B &lhs, const B &rhs) { return lhs.a == rhs.a; }
   friend bool operator<(const B &lhs, const B &rhs) { return lhs.a < rhs.a; }
@@ -44,7 +44,7 @@ public:
 //-----------------------
 class C : qip::Comparison<C>, qip::Arithmetic<C>, qip::Arithmetic2<C, int> {
 public:
-  explicit C(int x) : a(x){};
+  explicit C(int x) : a(x) {};
   int a{};
 
   friend bool operator==(const C &lhs, const C &rhs) { return lhs.a == rhs.a; }

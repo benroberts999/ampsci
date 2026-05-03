@@ -248,7 +248,7 @@ void NDrange_impl(std::vector<std::array<std::size_t, N>> &result,
 //! Variadic array of all possible indexes.
 /*! @details
  Allows ranged for loop like:
-  for ([i,j,k,m,...,z] : array){
+  for ([i,j,k,m,...,z] : array) {
     array.at(i,j,k,m,...,z);
   }
  Note: not memory efficient at all! Don't use for large arrays

@@ -90,7 +90,7 @@ protected:
       opC(RorI),
       m_freqDependantQ(freq_dep),
       m_constant(constant),
-      m_vec(vec){};
+      m_vec(vec) {};
 
 public:
   //! Used to pass generic parameters to update() function

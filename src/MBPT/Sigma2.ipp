@@ -74,9 +74,8 @@ double Sigma_vw(const DiracSpinor &v, const DiracSpinor &w,
           sum += Qk_vnba * (Qk_wnba + Pk_wnba) * inv_de / (2.0 * k + 1.0);
         }
       }
-
-    } // n
-  }   // a
+    }
+  }
 
   return sum * (1.0 / v.twojp1());
 }

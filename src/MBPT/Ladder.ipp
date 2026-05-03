@@ -71,7 +71,7 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
           // diagram (b) [exchange]
           de_v += fk * Q_kvamn * P_kvamn * inv_de / (2 * k + 1);
         } // k
-      }   // m
+      } // m
 
       // Diagrams (c) + (d)
       for (const auto &b : core) {
@@ -90,12 +90,10 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
           de_v += /*fk **/ etak * Q_kvnab * L_kvnab * inv_de / (2 * k + 1);
           // diagram (d) [exchange]
           de_v += fk * Q_kvnab * P_kvnab * inv_de / (2 * k + 1);
-        } // k
-      }   // b
-
-      //
-    } // a
-  }   // n
+        }
+      }
+    }
+  }
 
   return de_v / v.twojp1();
 }

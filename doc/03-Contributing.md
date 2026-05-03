@@ -47,16 +47,16 @@ git rebase dev
 * Write clear, descriptive commit messages, use a concise imperative title (e.g. "Adds such and such function"), explaining what the change does.
   * Use detailed description if required, putting as much information as required
 
-## Code Formatting Style
+## Code Formatting Style: clang-format
 
 * Consistent formatting minimises unnecessary git diffs and improves readability.
 * Rather than doing this by hand, it is enforced by a tool [**clang-format**](https://clang.llvm.org/docs/ClangFormat.html), which automatically formats the code
-* Install the tool:
-  * Linux: `sudo apt install clang-format-14`
-  * macOS: `brew install clang-format-14`
+* Install the tool (for example):
+  * Linux: `sudo apt install clang-format`
+  * macOS: `brew install clang-format`
 * A style file, which defines the style rules, is provided in the repository `src/.clang-format`.
-  * Due to differences in the formatting between different clang-format versions, it's preferred to use clang-format-14 (this is old version, and we will shift up soon). If you don't have access to clang-format-14, best to just skip, or else risk introducing many small formatting diffs
-* The makefile also has a target to directly run clang-format (forces version 14), which is a good idea before committing:
+  * Unfortunately, different versions of clang-format make slightly different choices. v16+ is ideal, but the differences are usually small
+* The makefile has a target to directly run clang-format. It also normalises a few common differences between different clang-format version. It will only format files you have changed since last git commit
 
 <div class="shell-block">
 ```bash
@@ -64,34 +64,36 @@ make clang_format
 ```
 </div>
 
-### VSCode
+### VSCode with clang-format
 
-The VSCode C/C++ extension ships its own bundled clang-format binary, which may differ in version from the system-installed one and produce inconsistent formatting.
-To avoid this, configure VSCode to use the system clang-format via `.vscode/settings.json` (this file is not tracked by git — VSCode may have already created it, otherwise create it in the project directoty).
+The VSCode C/C++ extension ships its own bundled formatting tool, which may differ in version from the system-installed one and produce inconsistent formatting.
+To avoid this, configure VSCode to use the system clang-format via `.vscode/settings.json` (this file is not tracked by git -- VSCode may have already created it, otherwise create it in the project directoty).
 
 First, find the path to your clang-format binary:
 
 <div class="shell-block">
 ```bash
-which clang-format-14
+which clang-format
 ```
 </div>
 
 Common locations:
 
-* Linux: `/usr/bin/clang-format-14`
-* macOS (Homebrew): `/opt/homebrew/bin/clang-format-14`
+* Linux: `/usr/bin/clang-format`
+* macOS (Homebrew): `/opt/homebrew/bin/clang-format`
 
 Then add the following to `.vscode/settings.json`:
 
 ```json
 {
-  "C_Cpp.clang_format_path": "/PATH_TO_CLANG_FORMAT/clang-format-14",
+  "C_Cpp.clang_format_path": "/PATH_TO_CLANG_FORMAT/clang-format",
   "editor.formatOnSave": true
 }
 ```
 
-Replace `PATH_TO_CLANG_FORMAT` with the path returned from `which clang-format-14`
+Replace `PATH_TO_CLANG_FORMAT` with the path returned from `which clang-format`
+
+--------------------
 
 ## Documenting
 
@@ -101,6 +103,7 @@ Replace `PATH_TO_CLANG_FORMAT` with the path returned from `which clang-format-1
 * The `@brief` line should be about one sentence. Avoid special symbols and
   succinctly describe what the function or class does.  
   * This text is what appears in IDE/editor tooltips when hovering over the symbol.
+* LaTeX works, but uses slightly different syntax: use `\f[` and `\f]` (instead of `\[`, `\]`) for out-of-line equations, and `\f$` (instead of `$`) for inline equations
 
 Example:
 
@@ -128,10 +131,10 @@ double my_new_function(double x);
 | Command | Purpose |
 |-------|-------|
 | `@brief` | Short summary of the function/class |
-| `@details` | Longer description |
-| `@param name` | Describe a function parameter |
-| `@tparam name` | Describe a template parameter |
-| `@return` | Describe the return value |
+| `@details` | Longer description, often including equations |
+| `@param name` | Describe a function parameter (often not needed if named well) |
+| `@tparam name` | Describe a template parameter (often not needed if named well) |
+| `@return` | Describe the return value (often not needed if named well) |
 | `@note` | Additional information |
 | `@warning` | Important warning for users |
 | `@see` | Reference related functions or classes |

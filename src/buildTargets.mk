@@ -52,7 +52,7 @@ $(BUILD_DIR)/version/version.o: $(SRC)/version/version.cpp force | $(BUILD_DIR)
 ################################################################################
 ## Convenience targets:
 
-.PHONY: all full clean remove_junk docs clang_format pre_commit includes license-year force do_the_chicken_dance
+.PHONY: all full clean remove_junk docs open clang_format pre_commit includes license-year force do_the_chicken_dance
 
 clean:
 	rm -fv $(ALLEXES)
@@ -64,43 +64,34 @@ remove_junk:
 
 ## Builds the ampsci.pdf docs using tex, and the html using doxygen, if available
 docs:
-	( cd ./doc/tex && $(MAKE) 2>/dev/null || : )
-	cp ./doc/tex/ampsci.pdf ./doc/ampsci.pdf 2>/dev/null || :
-	cp ./LICENSE ./doc/LICENSE.md
-	bash ./doc/doxygen/build_docs.sh
+	bash ./doc/build_docs.sh
 
 do_the_chicken_dance:
 	@echo 'Why would I do that?'
 
-## Run clang format on entire project
+## clang-format targets
 ## External libraries (fmt, catch2, json) are excluded via their own .clang-format files
-## Force specific clang-format version to avoid many small diffs
-CLANG_FORMAT := clang-format-14
+CLANG_FORMAT := clang-format
+
+## Format the entire project (asks for confirmation)
+clang_format_all:
+	@./$(SRC)/tools/clang_format_all.sh $(CLANG_FORMAT) $(SRC)
+
+## Format only files changed since last commit (git diff HEAD)
 clang_format:
-	@echo "Running clang-format (whole project)"
-	@find $(SRC) \
-	  -type f \( -iname '*.cpp' -o -iname '*.hpp' -o -iname '*.ipp' \) -print \
-	  | xargs -r $(CLANG_FORMAT) -i -verbose
+	@./$(SRC)/tools/clang_format.sh $(CLANG_FORMAT)
 
-## Makes the include.hpp files, and runs clang format on them
+## Makes the include.hpp files, runs license-year and clang_format
 includes:
-	$(MAKE) license-year
 	./$(SRC)/tools/build_includes.sh
-	@echo "Running clang format (on includes)"
-	find $(SRC)/ -iname 'include.hpp' | xargs clang-format -i -verbose
+	./$(SRC)/tools/license_year.sh
+	./$(SRC)/tools/clang_format.sh $(CLANG_FORMAT)
 
-## Updates Licence year
+## Updates licence year
 license-year:
-	@year=$$(date +%Y); \
-	sed -i.bak -E "s/(Copyright \(c\) )([0-9]{4})(-[0-9]{4})?/\1\2-$${year}/" LICENSE; \
-	rm -f LICENSE.bak; \
-	echo "Updated license year to $${year}"
+	@./$(SRC)/tools/license_year.sh
 
 ## All things should be done before major commits
-pre_commit:
-	$(MAKE) includes
-	$(MAKE) clang_format
-	$(MAKE) license-year
-	$(MAKE) ampsci tests
+pre_commit: includes clang_format license-year ampsci tests
 	./test [unit]
 	rm -f -v *deleteme*

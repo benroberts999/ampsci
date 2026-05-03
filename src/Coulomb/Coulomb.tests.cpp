@@ -655,12 +655,11 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
               const auto delW = std::abs(qip::max_difference(W1, W2, W5));
               if (delW > worstW)
                 worstW = delW;
-
-            } // k
-          }   // d
-        }     // c
-      }       // b
-    }         // a
+            }
+          }
+        }
+      }
+    }
     REQUIRE(std::abs(worstQ) < 5.0e-13);
     REQUIRE(std::abs(worstP) < 5.0e-14);
     REQUIRE(std::abs(worstW) < 5.0e-14);

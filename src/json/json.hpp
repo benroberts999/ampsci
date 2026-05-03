@@ -154,7 +154,7 @@
 #ifndef NLOHMANN_JSON_NAMESPACE_END
 #define NLOHMANN_JSON_NAMESPACE_END                                     \
     }  /* namespace (inline namespace) NOLINT(readability/namespace) */ \
-    }  // namespace nlohmann
+    } // namespace nlohmann
 #endif
 
 // #include <nlohmann/detail/conversions/from_json.hpp>
@@ -268,7 +268,7 @@ template<typename ...Ts> struct make_void
 };
 template<typename ...Ts> using void_t = typename make_void<Ts...>::type;
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 
@@ -326,7 +326,7 @@ template<class To, template<class...> class Op, class... Args>
 using is_detected_convertible =
     std::is_convertible<detected_t<Op, Args...>, To>;
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/thirdparty/hedley/hedley.hpp>
@@ -3055,7 +3055,7 @@ inline bool operator<(const value_t lhs, const value_t rhs) noexcept
 }
 #endif
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/string_escape.hpp>
@@ -3130,7 +3130,7 @@ static void unescape(StringType& s)
     replace_substring(s, StringType{"~0"}, StringType{"~"});
 }
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/input/position_t.hpp>
@@ -3170,7 +3170,7 @@ struct position_t
     }
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/macro_scope.hpp>
@@ -3292,7 +3292,7 @@ struct Gen<T, 0>
     using type = integer_sequence<T>;
 };
 
-}  // namespace utility_internal
+} // namespace utility_internal
 
 // Compile-time sequences of integers
 
@@ -3346,7 +3346,7 @@ constexpr std::array<T, sizeof...(Args)> make_array(Args&& ... args)
     return std::array<T, sizeof...(Args)> {{static_cast<T>(std::forward<Args>(args))...}};
 }
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/meta/type_traits.hpp>
@@ -3429,7 +3429,7 @@ struct iterator_traits<T*, enable_if_t<std::is_object<T>::value>>
     using reference = T&;
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/macro_scope.hpp>
@@ -4296,7 +4296,7 @@ constexpr bool is_c_string()
         || (std::is_pointer<T>::value && std::is_same<TUnCVPtr, char>::value);
 }
 
-}  // namespace impl
+} // namespace impl
 
 // checks whether T is a [cv] char */[cv] char[] C string
 template<typename T>
@@ -4318,7 +4318,7 @@ constexpr bool is_transparent()
     return is_detected<detect_is_transparent, T>::value;
 }
 
-}  // namespace impl
+} // namespace impl
 
 // checks whether T has a member named is_transparent
 template<typename T>
@@ -4326,7 +4326,7 @@ struct is_transparent : bool_constant<impl::is_transparent<T>()> {};
 
 ///////////////////////////////////////////////////////////////////////////////
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/string_concat.hpp>
@@ -4476,7 +4476,7 @@ inline OutStringType concat(Args && ... args)
     return str;
 }
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 
@@ -4738,7 +4738,7 @@ class other_error : public exception
     other_error(int id_, const char* what_arg) : exception(id_, what_arg) {}
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 #if defined(__clang__)
@@ -4770,7 +4770,7 @@ namespace detail
 // dispatching helper struct
 template <class T> struct identity_tag {};
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/meta/std_fs.hpp>
@@ -4793,7 +4793,7 @@ NLOHMANN_JSON_NAMESPACE_BEGIN
 namespace detail
 {
 namespace std_fs = std::experimental::filesystem;
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 #elif JSON_HAS_FILESYSTEM
 #include <filesystem> // NOLINT(build/c++17)
@@ -4801,7 +4801,7 @@ NLOHMANN_JSON_NAMESPACE_BEGIN
 namespace detail
 {
 namespace std_fs = std::filesystem;
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 #endif
 
@@ -5334,7 +5334,7 @@ struct from_json_fn
     }
 };
 
-}  // namespace detail
+} // namespace detail
 
 #ifndef JSON_HAS_CPP_17
 /// namespace to hold default `from_json` function
@@ -5346,7 +5346,7 @@ namespace // NOLINT(cert-dcl59-cpp,fuchsia-header-anon-namespaces,google-build-n
 JSON_INLINE_VARIABLE constexpr const auto& from_json = // NOLINT(misc-definitions-in-headers)
     detail::static_const<detail::from_json_fn>::value;
 #ifndef JSON_HAS_CPP_17
-}  // namespace
+} // namespace
 #endif
 
 NLOHMANN_JSON_NAMESPACE_END
@@ -5438,7 +5438,7 @@ StringType to_string(std::size_t value)
     return result;
 }
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/value_t.hpp>
@@ -5618,7 +5618,7 @@ auto get(const nlohmann::detail::iteration_proxy_value<IteratorType>& i) -> decl
     return i.value();
 }
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // The Addition to the STD Namespace is required to add
@@ -5649,7 +5649,7 @@ class tuple_element<N, ::nlohmann::detail::iteration_proxy_value<IteratorType >>
     #pragma clang diagnostic pop
 #endif
 
-}  // namespace std
+} // namespace std
 
 #if JSON_HAS_RANGES
     template <typename IteratorType>
@@ -6093,7 +6093,7 @@ struct to_json_fn
         return to_json(j, std::forward<T>(val));
     }
 };
-}  // namespace detail
+} // namespace detail
 
 #ifndef JSON_HAS_CPP_17
 /// namespace to hold default `to_json` function
@@ -6105,7 +6105,7 @@ namespace // NOLINT(cert-dcl59-cpp,fuchsia-header-anon-namespaces,google-build-n
 JSON_INLINE_VARIABLE constexpr const auto& to_json = // NOLINT(misc-definitions-in-headers)
     detail::static_const<detail::to_json_fn>::value;
 #ifndef JSON_HAS_CPP_17
-}  // namespace
+} // namespace
 #endif
 
 NLOHMANN_JSON_NAMESPACE_END
@@ -6394,7 +6394,7 @@ std::size_t hash(const BasicJsonType& j)
     }
 }
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/input/binary_reader.hpp>
@@ -6887,7 +6887,7 @@ struct container_input_adapter_factory< ContainerType,
 }
        };
 
-}  // namespace container_input_adapter_factory_impl
+} // namespace container_input_adapter_factory_impl
 
 template<typename ContainerType>
 typename container_input_adapter_factory_impl::container_input_adapter_factory<ContainerType>::adapter_type input_adapter(const ContainerType& container)
@@ -6978,7 +6978,7 @@ class span_input_adapter
     contiguous_bytes_input_adapter ia;
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/input/json_sax.hpp>
@@ -8646,7 +8646,7 @@ scan_number_done:
     std::size_t decimal_point_position = std::string::npos;
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/macro_scope.hpp>
@@ -9617,7 +9617,7 @@ class json_sax_acceptor
     }
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/input/lexer.hpp>
@@ -9785,7 +9785,7 @@ struct is_sax_static_asserts
         "std::string&, const exception&)");
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/meta/type_traits.hpp>
@@ -12825,7 +12825,7 @@ class binary_reader
     constexpr std::size_t binary_reader<BasicJsonType, InputAdapterType, SAX>::npos;
 #endif
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/input/input_adapters.hpp>
@@ -13358,7 +13358,7 @@ class parser
     const bool allow_exceptions = true;
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/iterators/internal_iterator.hpp>
@@ -13506,7 +13506,7 @@ class primitive_iterator_t
     }
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 
@@ -13530,7 +13530,7 @@ template<typename BasicJsonType> struct internal_iterator
     primitive_iterator_t primitive_iterator {};
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/iterators/iter_impl.hpp>
@@ -14299,7 +14299,7 @@ class iter_impl // NOLINT(cppcoreguidelines-special-member-functions,hicpp-speci
     internal_iterator<typename std::remove_const<BasicJsonType>::type> m_it {};
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/iterators/iteration_proxy.hpp>
@@ -14434,7 +14434,7 @@ class json_reverse_iterator : public std::reverse_iterator<Base>
     }
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/iterators/primitive_iterator.hpp>
@@ -14478,7 +14478,7 @@ using json_base_class = typename std::conditional <
                         T
                         >::type;
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/json_pointer.hpp>
@@ -15555,7 +15555,7 @@ class json_ref
     value_type const* value_ref = nullptr;
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/macro_scope.hpp>
@@ -15743,7 +15743,7 @@ class output_adapter
     output_adapter_t<CharType> oa = nullptr;
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/string_concat.hpp>
@@ -17571,7 +17571,7 @@ class binary_writer
     output_adapter_t<CharType> oa = nullptr;
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/output/output_adapters.hpp>
@@ -18652,7 +18652,7 @@ inline char* format_buffer(char* buf, int len, int decimal_exponent,
     return append_exponent(buf, n - 1);
 }
 
-}  // namespace dtoa_impl
+} // namespace dtoa_impl
 
 /*!
 @brief generates a decimal representation of the floating-point number value in [first, last).
@@ -18719,7 +18719,7 @@ char* to_chars(char* first, const char* last, FloatType value)
     return dtoa_impl::format_buffer(first, len, decimal_exponent, kMinExp, kMaxExp);
 }
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/exceptions.hpp>
@@ -19690,7 +19690,7 @@ class serializer
     const error_handler_t error_handler;
 };
 
-}  // namespace detail
+} // namespace detail
 NLOHMANN_JSON_NAMESPACE_END
 
 // #include <nlohmann/detail/value_t.hpp>
@@ -25232,8 +25232,8 @@ JSON_HEDLEY_NON_NULL(1)
     return nlohmann::json::json_pointer(std::string(s, n));
 }
 
-}  // namespace json_literals
-}  // namespace literals
+} // namespace json_literals
+} // namespace literals
 NLOHMANN_JSON_NAMESPACE_END
 
 ///////////////////////
@@ -25288,7 +25288,7 @@ inline void swap(nlohmann::NLOHMANN_BASIC_JSON_TPL& j1, nlohmann::NLOHMANN_BASIC
 
 #endif
 
-}  // namespace std
+} // namespace std
 
 #if JSON_USE_GLOBAL_UDLS
     #if !defined(JSON_HEDLEY_GCC_VERSION) || JSON_HEDLEY_GCC_VERSION_CHECK(4,9,0)
