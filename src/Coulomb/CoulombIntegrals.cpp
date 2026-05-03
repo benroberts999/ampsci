@@ -15,8 +15,8 @@
 namespace Coulomb {
 
 //==============================================================================
-template <int k>
-static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
+template <int KT>
+static inline void yk_ijk_impl(const int k, const DiracSpinor &Fa,
                                const DiracSpinor &Fb, std::vector<double> &vabk,
                                const std::size_t maxi)
 // Calculalates y^k_ab screening function.
@@ -47,12 +47,12 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
   const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
 
   // faster method to calculate r^k
-  const auto powk = [l]() {
-    if constexpr (k < 0) {
-      return [l](double x) { return std::pow(x, l); };
+  const auto powk = [k]() {
+    if constexpr (KT < 0) {
+      return [k](double x) { return std::pow(x, k); };
     } else {
-      (void)l; // l not used
-      return qip::pow<k, double>;
+      (void)k;
+      return qip::pow<KT, double>;
     }
   }();
 
@@ -97,8 +97,8 @@ static inline void yk_ijk_impl(const int l, const DiracSpinor &Fa,
 
 //------------------------------------------------------------------------------
 // Used for Breit
-template <int k, typename Function>
-static inline void yk_ijk_gen_impl(const int l, const Function &ff,
+template <int KT, typename Function>
+static inline void yk_ijk_gen_impl(const int k, const Function &ff,
                                    const Grid &gr, std::vector<double> &v0,
                                    std::vector<double> &vi,
                                    const std::size_t maxi)
@@ -130,12 +130,12 @@ static inline void yk_ijk_gen_impl(const int l, const Function &ff,
   const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
 
   // faster method to calculate r^k
-  const auto powk = [l]() {
-    if constexpr (k < 0) {
-      return [l](double x) { return std::pow(x, l); };
+  const auto powk = [k]() {
+    if constexpr (KT < 0) {
+      return [k](double x) { return std::pow(x, k); };
     } else {
-      (void)l; // l not used
-      return qip::pow<k, double>;
+      (void)k;
+      return qip::pow<KT, double>;
     }
   }();
 
@@ -245,12 +245,12 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
 
 //---------------------------------------------------------------------------------
 
-// Computes the freq-dep v^k_abcd screening factor (Eq. A18, arXiv:2602.17129).
-// Pkbd = P^k_ij (Eq. A13), Qkbd = Q^k_ij (Eq. A14).
+// Computes the freq-dep v^k_abcd screening factor (arXiv:2602.17129).
+// Pkbd = P^k_ij, Qkbd = Q^k_ij.
 // v1,v2: (0,r) parts; v3,v4: (r,inf) parts; see vk_ab_freqw docs for full breakdown.
-template <int k>
+template <int KT>
 static inline void
-vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
+vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
              const std::vector<double> &Qkbd, const Grid &gr,
              std::vector<double> &v1, std::vector<double> &v2,
              std::vector<double> &v3, std::vector<double> &v4,
@@ -269,12 +269,12 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
   const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
 
   // faster method to calculate r^k
-  const auto powk = [l]() {
-    if constexpr (k < 0) {
-      return [l](double x) { return std::pow(x, l); };
+  const auto powk = [k]() {
+    if constexpr (KT < 0) {
+      return [k](double x) { return std::pow(x, k); };
     } else {
-      (void)l; // l not used
-      return qip::pow<k, double>;
+      (void)k;
+      return qip::pow<KT, double>;
     }
   }();
 
@@ -449,8 +449,8 @@ void yk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 }
 
 //==============================================================================
-template <int k, int pm>
-static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
+template <int KT, int pm>
+static inline void Breit_abk_impl(const int k, const DiracSpinor &Fa,
                                   const DiracSpinor &Fb, //
                                   std::vector<double> &b0,
                                   std::vector<double> &binf,
@@ -463,7 +463,7 @@ static inline void Breit_abk_impl(const int l, const DiracSpinor &Fa,
     else
       return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
   };
-  yk_ijk_gen_impl<k>(l, fgfg, Fa.grid(), b0, binf, maxi);
+  yk_ijk_gen_impl<KT>(k, fgfg, Fa.grid(), b0, binf, maxi);
   return;
 }
 //------------------------------------------------------------------------------
@@ -531,7 +531,7 @@ void gk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 
 // frequency-dependent Breit integrals which i call g^k_{ab}(r,w) and h^k_{ab}(r,w) for X_{ij} and Y_{ij}, respectively
 // also need to define v^{k,1}_{ab} and v^k{k,2}_{ab} for the two respective terms in v^k_{ab} which will be multiplying different parts of the
-// g^k_ab: freq-dep screening with X_ab density (Eq. A15); kernel replacement Eq. A17. arXiv:2602.17129
+// g^k_ab: freq-dep screening with X_ab density; kernel replacement Eq. A17. arXiv:2602.17129
 void gk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                  std::vector<double> &g0, std::vector<double> &ginf,
                  const std::size_t maxi, const double w) {
@@ -544,7 +544,7 @@ void gk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 }
 
 //--------------------------------------------------------------------
-// h^k_ab: freq-dep screening with Y_ab density (Eq. A16); kernel replacement Eq. A17. arXiv:2602.17129
+// h^k_ab: freq-dep screening with Y_ab density; kernel replacement arXiv:2602.17129
 void hk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                  std::vector<double> &b0, std::vector<double> &binf,
                  std::size_t maxi, const double w) {
@@ -573,7 +573,7 @@ void vk_ab_freqw(const int k, const DiracSpinor &Fi, const DiracSpinor &Fj,
   std::vector<double> Pkbd(gr.size(), 0.0);
   std::vector<double> Qkbd(gr.size(), 0.0);
 
-  // P^k_ij (Eq. A13) and Q^k_ij (Eq. A14) of arXiv:2602.17129:
+  // P^k_ij and Q^k_ij of arXiv:2602.17129:
   for (int i = 0; i < gr.size(); i++) {
     Pkbd[i] = ((Fi.kappa() - Fj.kappa()) / k) * Xij(i) - Yij(i);
     Qkbd[i] = ((Fi.kappa() - Fj.kappa()) / (k + 1.0)) * Xij(i) + Yij(i);
