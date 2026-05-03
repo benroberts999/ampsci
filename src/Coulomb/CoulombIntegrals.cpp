@@ -205,20 +205,8 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
   };
 
   const auto &r = gr.r();
-
-  // XXX Fix - do not need lambda for this
-  auto jkwr_func = [](int l, const double &w, const double &r) {
-    return SphericalBessel::exactGSL_JL_alt(l, w * r);
-  };
-  auto ykwr_func = [](int l, const double &w, const double &r) {
-    return SphericalBessel::exactGSL_YL_alt(l, w * r);
-  };
-
-  // fills vector with spherical Bessel functions of first kind j_k(\alpha*\omega*r)
-  //const auto jkwr = SphericalBessel::fillBesselVec_kr_alt(l, w, r);
-
-  // fills vector with spherical Bessel functions of second kind y_k(\alpha*\omega*r)
-  //const auto ykwr = SphericalBessel::fillSecondBesselVec_kr_alt(l, w, r);
+  const auto jL = SphericalBessel::exactGSL_JL_alt;
+  const auto yL = SphericalBessel::exactGSL_YL_alt;
 
   // values to keep running track of numerical integrals
   double Ax = 0.0;
@@ -227,9 +215,8 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
   // performs numerical integral from r'=0 to r'=r using single for loop trick
   v0[0] = 0.0;
   for (std::size_t i = 1; i < irmax; ++i) {
-    Ax = Ax + jkwr_func(k, w, r[i - 1]) * ff(i - 1) * weights(i - 1) *
-                gr.drdu(i - 1);
-    v0[i] = -w * (2 * k + 1.0) * ykwr_func(k, w, r[i]) * Ax * du;
+    Ax = Ax + jL(k, w * r[i - 1]) * ff(i - 1) * weights(i - 1) * gr.drdu(i - 1);
+    v0[i] = -w * (2 * k + 1.0) * yL(k, w * r[i]) * Ax * du;
   }
   for (std::size_t i = irmax; i < num_points; i++) {
     v0[i] = 0.0;
@@ -243,17 +230,16 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
   const auto rbmax =
     bmax == num_points ? r.back() + gr.drdu().back() * du : r[bmax];
 
-  Bx = Bx + ykwr_func(k, w, r[bmax - 1]) * ff(bmax - 1) * weights(bmax - 1) *
+  Bx = Bx + yL(k, w * r[bmax - 1]) * ff(bmax - 1) * weights(bmax - 1) *
               gr.drdu(bmax - 1);
 
-  vi[bmax - 1] = -w * (2.0 * k + 1.0) * jkwr_func(k, w, r[bmax - 1]) * Bx * du;
+  vi[bmax - 1] = -w * (2.0 * k + 1.0) * jL(k, w * r[bmax - 1]) * Bx * du;
 
   // loop for the integral that goes from r'=r up to r<infinity
   // in this loop I have to shift the index up by 1 so that i goes down to i>=1 rather than i>=0, since it freaks out when I do the latter, for some reason
   for (auto i = bmax - 1; i >= 1; i--) {
-    Bx = Bx + ykwr_func(k, w, r[i - 1]) * ff(i - 1) * weights(i - 1) *
-                gr.drdu(i - 1);
-    vi[i - 1] = -w * (2 * k + 1.0) * jkwr_func(k, w, r[i - 1]) * Bx * du;
+    Bx = Bx + yL(k, w * r[i - 1]) * ff(i - 1) * weights(i - 1) * gr.drdu(i - 1);
+    vi[i - 1] = -w * (2 * k + 1.0) * jL(k, w * r[i - 1]) * Bx * du;
   }
 }
 
@@ -302,15 +288,8 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
   };
 
   const auto &r = gr.r();
-
-  auto jkwr = [](const int &l, const double &w, const double &r) {
-    // return SphericalBessel::exactGSL_JL_alt(l, w * r);
-    return SphericalBessel::exactGSL_JL_alt(l, w * r);
-  };
-  auto ykwr = [](const int &l, const double &w, const double &r) {
-    // return SphericalBessel::exactGSL_YL(l, w * r);
-    return SphericalBessel::exactGSL_YL_alt(l, w * r);
-  };
+  const auto jL = SphericalBessel::exactGSL_JL_alt;
+  const auto yL = SphericalBessel::exactGSL_YL_alt;
 
   // values to keep running track of numerical integrals
   double A1 = 0.0;
@@ -339,7 +318,7 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
       v1[i] = (A1 - A2 + wsd2 * C1) * du;
     } else {
       // first term in first part of v
-      A1 = A1 + jkwr(l - 1, w, r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
+      A1 = A1 + jL(l - 1, w * r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
                   gr.drdu(i - 1);
 
       // second term in first part of v
@@ -347,14 +326,14 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
                    (r[i - 1] * r[i - 1])) *
            powk(ratio) * ratio * ratio;
 
-      v1[i] = wcubed * ykwr(l + 1, w, r[i]) * A1 + (2.0 * l + 1.0) * A2;
+      v1[i] = wcubed * yL(l + 1, w * r[i]) * A1 + (2.0 * l + 1.0) * A2;
       v1[i] = -2.0 * odw2 * v1[i] * du;
     }
 
     // integral for second term in v
-    A3 = A3 + jkwr(l + 1, w, r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
+    A3 = A3 + jL(l + 1, w * r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
                 gr.drdu(i - 1);
-    v2[i] = -2.0 * w * ykwr(l - 1, w, r[i]) * A3 * du;
+    v2[i] = -2.0 * w * yL(l - 1, w * r[i]) * A3 * du;
   }
 
   for (std::size_t i = irmax; i < num_points; i++) {
@@ -385,16 +364,16 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
     D1 = Qkbd[bmax - 1] * weights(bmax - 1) * r[bmax - 1] * gr.drdu(bmax - 1);
     v3[bmax - 1] = (B1 - B2 + wsd2 * D1) * du;
   } else {
-    B1 = B1 + ykwr(l + 1, w, r[bmax - 1]) * Qkbd[bmax - 1] * gr.drdu(bmax - 1);
+    B1 = B1 + yL(l + 1, w * r[bmax - 1]) * Qkbd[bmax - 1] * gr.drdu(bmax - 1);
     B2 = B2 + (pow(r[bmax - 1], l - 1) / pow(r[bmax - 1], l + 2)) *
                 Qkbd[bmax - 1] * gr.drdu(bmax - 1);
-    v3[bmax - 1] = -2.0 * w * jkwr(l - 1, w, r[bmax - 1]) * B1 * du -
+    v3[bmax - 1] = -2.0 * w * jL(l - 1, w * r[bmax - 1]) * B1 * du -
                    2.0 * ((2.0 * l + 1.0) / (w * w)) * B2 * du;
   }
 
-  B3 = B3 + ykwr(l - 1, w, r[bmax - 1]) * Pkbd[bmax - 1] * gr.drdu(bmax - 1);
+  B3 = B3 + yL(l - 1, w * r[bmax - 1]) * Pkbd[bmax - 1] * gr.drdu(bmax - 1);
 
-  v4[bmax - 1] = -2.0 * w * jkwr(l + 1, w, r[bmax - 1]) * B3 * du;
+  v4[bmax - 1] = -2.0 * w * jL(l + 1, w * r[bmax - 1]) * B3 * du;
 
   for (auto i = bmax - 1; i >= 1; i--) {
 
@@ -410,7 +389,7 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
       v3[i - 1] = (B1 - B2 + wsd2 * D1) * du;
     } else {
       // j_{l-1}(wr1)y_{l+1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
-      B1 = B1 + ykwr(l + 1, w, r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
+      B1 = B1 + yL(l + 1, w * r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
                   gr.drdu(i - 1);
 
       // r2^{l-1}/r1^{l+2} term in integral that is integrated from r1 <= r2 <=infty
@@ -418,15 +397,15 @@ vkabcd_freqw(const int l, const std::vector<double> &Pkbd,
                                                 gr.drduor(i - 1) /
                                                 (r[i - 1] * r[i - 1]);
 
-      v3[i - 1] = wcubed * jkwr(l - 1, w, r[i - 1]) * B1 + (2.0 * l + 1.0) * B2;
+      v3[i - 1] = wcubed * jL(l - 1, w * r[i - 1]) * B1 + (2.0 * l + 1.0) * B2;
 
       v3[i - 1] = -2.0 * odw2 * v3[i - 1] * du;
     }
 
     // j_{l+1}(wr1)y_{l-1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
-    B3 = B3 + ykwr(l - 1, w, r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
+    B3 = B3 + yL(l - 1, w * r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
                 gr.drdu(i - 1);
-    v4[i - 1] = -2.0 * w * jkwr(l + 1, w, r[i - 1]) * B3 * du;
+    v4[i - 1] = -2.0 * w * jL(l + 1, w * r[i - 1]) * B3 * du;
   }
 }
 
