@@ -1,6 +1,6 @@
 #include "HF/Breit.hpp"
 #include "Angular/Wigner369j.hpp"
-#include "Coulomb/CoulombIntegrals.hpp"
+#include "Coulomb/CoulombBreit.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "Maths/Grid.hpp"
 #include <iostream>
