@@ -448,6 +448,16 @@ public:
                        const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
   /*!
+    @brief Frequency-dependent exchange Breit one-body potential operator
+
+    @details
+    Frequency-dependent version of BPkv_bcd(). See @ref Bkv_bcd_freqw().
+  */
+  DiracSpinor BPkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
+                             const DiracSpinor &Fc, const DiracSpinor &Fd,
+                             const double w) const;
+
+  /*!
     @brief Anti-symmetrised Breit one-body potential operator
 
     @details
@@ -455,6 +465,16 @@ public:
   */
   DiracSpinor BWkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                        const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  /*!
+    @brief Frequency-dependent anti-symmetrised Breit one-body potential operator
+
+    @details
+    Frequency-dependent version of BWkv_bcd(). See @ref Bkv_bcd_freqw().
+  */
+  DiracSpinor BWkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
+                             const DiracSpinor &Fc, const DiracSpinor &Fd,
+                             const double w) const;
 
   /*!
     @brief Reduced static Breit matrix element (tabulated, fast lookup)
