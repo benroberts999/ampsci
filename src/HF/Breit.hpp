@@ -94,6 +94,9 @@ class Breit {
   // Scaling factors for each term (mainly for tests). {M,N}=Gaunt; {O,P} rtrd
   double m_M{1.0}, m_N{1.0}, m_O{1.0}, m_P{1.0};
 
+  // Scaling factor for frequency in frequency-dependent Breit; 1.0 by default
+  double m_lambda_f{1.0};
+
   // For speedy lookup, when only full integral is required
   std::vector<Coulomb::meTable<Breit_gb::single_k_mop>> m_gb{};
   std::vector<Coulomb::meTable<Breit_gb::single_k_n>> m_gb_N{};
@@ -104,13 +107,17 @@ public:
 
   //! Allows one to update scaling factor(s)
   void update_scale(double t_scale = 1.0, double t_M = 1.0, double t_N = 1.0,
-                    double t_O = 1.0, double t_P = 1.0) {
+                    double t_O = 1.0, double t_P = 1.0,
+                    double t_lambda_f = 1.0) {
     m_scale = t_scale;
     m_M = t_M;
     m_N = t_N;
     m_O = t_O;
     m_P = t_P;
+    m_lambda_f = t_lambda_f;
   }
+
+  void update_lambda_f(double lambda_f) { m_lambda_f = lambda_f; }
 
   static bool Bk_SR(int k, const DiracSpinor &v, const DiracSpinor &w,
                     const DiracSpinor &x, const DiracSpinor &y) {
