@@ -100,7 +100,50 @@ class Breit {
 
 public:
   /*!
-    @brief Constructs Breit interaction operator
+    @brief Parameters for constructing Breit interaction operator
+
+    @details
+    Holds all scaling factors for Breit interactions: overall scale,
+    individual term scaling (M, N, O, P), and frequency scaling (lambda_f).
+    All fields have sensible defaults, so you can set only the ones you need.
+
+    The M and N terms arise from the Gaunt (instantaneous magnetic) interaction,
+    while the O and P terms arise from the retarded (photon propagation) contribution.
+  */
+  struct Params {
+    //! Overall scaling factor for Breit contributions (default 1.0)
+    double scale{1.0};
+    //! Scaling for M term (Gaunt part, default 1.0)
+    double m{1.0};
+    //! Scaling for N term (Gaunt part, default 1.0)
+    double n{1.0};
+    //! Scaling for O term (retarded part, default 1.0)
+    double o{1.0};
+    //! Scaling for P term (retarded part, default 1.0)
+    double p{1.0};
+    //! Scaling factor for frequency in frequency-dependent Breit (default 0.0 = static)
+    double lambda_f{0.0};
+  };
+
+  /*!
+    @brief Constructs Breit interaction operator from parameters
+
+    @details
+    Creates a Breit operator with scaling factors specified in @ref Params.
+    See @ref Params for documentation of each scaling factor.
+
+    @param params Params struct containing all scaling factors
+  */
+  explicit Breit(const Params &params)
+    : m_scale(params.scale),
+      m_lambda_f(params.lambda_f),
+      m_M(params.m),
+      m_N(params.n),
+      m_O(params.o),
+      m_P(params.p) {}
+
+  /*!
+    @brief Constructs Breit interaction operator (deprecated)
 
     @details
     Initializes the Breit operator with an overall scaling factor. Individual term
@@ -113,8 +156,11 @@ public:
     @note If lambda_f is zero (default), frequency-independent form will be used.
     If 1, then will be frequency-dependent.
     Can be any value (e.g., 0.5 to test linearity/scaling of f-dependent results).
+
+    @deprecated Use Breit(const Params &params) instead.
   */
-  Breit(double scale = 1.0, double lambda_f = 0.0)
+  [[deprecated("Use Breit(const Params &params) instead")]] Breit(
+    double scale = 1.0, double lambda_f = 0.0)
     : m_scale(scale), m_lambda_f(lambda_f) {}
 
   /*!
