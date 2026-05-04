@@ -267,7 +267,8 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
   }
 
   // loop for the integral that goes from r'=r up to r<infinity
-  // in this loop I have to shift the index up by 1 so that i goes down to i>=1 rather than i>=0, since it freaks out when I do the latter, for some reason
+  // in this loop I have to shift the index up by 1 so that i goes down to i>=1
+  // rather than i>=0 (unsigned integer)
   for (auto i = bmax - 1; i >= 1; i--) {
     if (cut_off) {
       const auto rat = r[i - 1] / r[i];
