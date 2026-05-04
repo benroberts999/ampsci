@@ -205,9 +205,9 @@ TEST_CASE("a name for the test", "[tag]") {
 
 Common tags used in this project:
 
-* `[unit]` — tests a small component and runs very quickly.
-* `[integration]` — checks numerical accuracy and interaction between parts of the code.
-* `[slow]` — long-running tests (≈1 minute or more).
+* `[unit]` -- tests a small component and runs very quickly.
+* `[integration]` -- checks numerical accuracy and interaction between parts of the code.
+* `[slow]` -- long-running tests (≈1 minute or more).
 
 * If a test is checking numerical accuracy and how the code interfaces with the rest of ampsci, mark it '[integration]'
 * If a test is for one small component and runs very quickly, mark it `[unit]`

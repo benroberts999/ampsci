@@ -40,8 +40,8 @@ namespace DiracOperator {
   form character @p m_form (used to distinguish the length-form electric
   operator VEk_Len from the velocity-form VEk).
 
-  All concrete EM multipole operators — VEk, VMk, VLk, Phik, Sk, AEk, ALk,
-  AMk, Phi5k, S5k, and their low-q counterparts — derive from this class.
+  All concrete EM multipole operators -- VEk, VMk, VLk, Phik, Sk, AEk, ALk,
+  AMk, Phi5k, S5k, and their low-q counterparts -- derive from this class.
 
   @note This class does not implement angularF() and so remains abstract.
   Operators must be constructed via the concrete derived types or the

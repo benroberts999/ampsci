@@ -365,7 +365,7 @@ TEST_CASE("EM_multipole clone", "[DiracOperator][unit][EM_multipole]") {
           REQUIRE(orig_em->jl() == clone_em->jl());
         }
 
-        // Update original to omega1 — clone must still be at omega0
+        // Update original to omega1 -- clone must still be at omega0
         orig->updateFrequency(omega1);
 
         for (const auto &a : orbs) {
@@ -386,7 +386,7 @@ TEST_CASE("EM_multipole clone", "[DiracOperator][unit][EM_multipole]") {
           }
         }
 
-        // Now update clone to omega1 as well — results must match original
+        // Now update clone to omega1 as well -- results must match original
         cloned->updateFrequency(omega1);
 
         for (const auto &a : orbs) {

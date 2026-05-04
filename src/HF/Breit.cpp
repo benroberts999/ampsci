@@ -15,53 +15,26 @@ DiracSpinor Breit::VbrFa(const DiracSpinor &Fa,
   for (const auto &Fb : core) {
     const auto kmin = std::abs(Fb.twoj() - Fa.twoj()) / 2;
     const auto kmax = (Fb.twoj() + Fa.twoj()) / 2;
+
+    const auto w = m_lambda_f * PhysConst::alpha * std::abs(Fa.en() - Fb.en());
+
     for (int k = kmin; k <= kmax; ++k) {
       const auto s = Angular::neg1pow(k);
       if (s == 1)
-        BFa += Bkv_bcd(k, Fa.kappa(), Fb, Fb, Fa);
+        BFa += Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fb, Fa, w);
       else
-        BFa -= Bkv_bcd(k, Fa.kappa(), Fb, Fb, Fa);
+        BFa -= Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fb, Fa, w);
     }
   }
   BFa *= (-1.0 / Fa.twojp1());
   return BFa;
 }
 
-//================================================
-
+//==============================================================================
 DiracSpinor Breit::VbrFa_freqw(const DiracSpinor &Fa,
                                const std::vector<DiracSpinor> &core) const {
-  DiracSpinor BFa(Fa.n(), Fa.kappa(), Fa.grid_sptr());
-  for (const auto &Fb : core) {
-    const auto kmin = std::abs(Fb.twoj() - Fa.twoj()) / 2;
-    const auto kmax = (Fb.twoj() + Fa.twoj()) / 2;
-
-    const auto w = m_lambda_f * PhysConst::alpha * std::abs(Fa.en() - Fb.en());
-
-    // if w is too small then the frequency-dependent integrals diverge,
-    // so use the frequency-independent equations instead
-    if (w == 0.0) {
-      for (int k = kmin; k <= kmax; ++k) {
-        const auto s = Angular::neg1pow(k);
-        if (s == 1) {
-          BFa += Bkv_bcd(k, Fa.kappa(), Fb, Fb, Fa);
-        } else {
-          BFa -= Bkv_bcd(k, Fa.kappa(), Fb, Fb, Fa);
-        }
-      }
-    } else {
-      for (int k = kmin; k <= kmax; ++k) {
-        const auto s = Angular::neg1pow(k);
-        if (s == 1) {
-          BFa += Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fb, Fa, w);
-        } else {
-          BFa -= Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fb, Fa, w);
-        }
-      }
-    }
-  }
-  BFa *= (-1.0 / Fa.twojp1());
-  return BFa;
+  // lagacy:
+  return VbrFa(Fa, core);
 }
 
 //==============================================================================
@@ -201,6 +174,7 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
   return out;
 }
 
+//==============================================================================
 // Calculates (m^k(w) + n^k(w) + o^k(w) + p^k(w))Fi(r) -- frequency-dependent Breit
 DiracSpinor Breit::Bkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
                                  const DiracSpinor &Fc, const DiracSpinor &Fd,
@@ -282,7 +256,7 @@ DiracSpinor Breit::Bkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
       out.g(i) += cg2 * t0 * Fc.f(i);
     }
 
-    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS TERM IS A PROBLEM !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // XXX THIS TERM IS A PROBLEM
     // "P1" (v/X) part:
     const auto cf3 = factor * c_p0 * (d_ac_kp1 + 1.0);
     const auto cg3 = factor * c_p0 * (d_ac_kp1 - 1.0);
@@ -435,6 +409,13 @@ double Breit::Bk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 DiracSpinor Breit::BPkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                             const DiracSpinor &Fc,
                             const DiracSpinor &Fd) const {
+  return BPkv_bcd_freqw(k, kappa_v, Fb, Fc, Fd, 0.0);
+}
+
+//==============================================================================
+DiracSpinor Breit::BPkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
+                                  const DiracSpinor &Fc, const DiracSpinor &Fd,
+                                  const double w) const {
 
   const auto ka = kappa_v;
   const auto tja = Angular::twoj_k(ka);
@@ -453,7 +434,7 @@ DiracSpinor Breit::BPkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
     const auto sj = Angular::sixj_2(tjc, tja, 2 * k, tjd, tjb, twol);
     if (sj == 0.0)
       continue;
-    out += sj * Bkv_bcd(twol / 2, kappa_v, Fb, Fd, Fc);
+    out += sj * Bkv_bcd_freqw(twol / 2, kappa_v, Fb, Fd, Fc, w);
   }
   out *= (2.0 * k + 1.0);
   return out;
@@ -486,28 +467,48 @@ double Breit::BPk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
 DiracSpinor Breit::BWkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                             const DiracSpinor &Fc,
                             const DiracSpinor &Fd) const {
-  return Bkv_bcd(k, kappa_v, Fb, Fc, Fd) + BPkv_bcd(k, kappa_v, Fb, Fc, Fd);
+  return BWkv_bcd_freqw(k, kappa_v, Fb, Fc, Fd, 0.0);
+}
+
+//==============================================================================
+DiracSpinor Breit::BWkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
+                                  const DiracSpinor &Fc, const DiracSpinor &Fd,
+                                  const double w) const {
+  return Bkv_bcd_freqw(k, kappa_v, Fb, Fc, Fd, w) +
+         BPkv_bcd_freqw(k, kappa_v, Fb, Fc, Fd, w);
 }
 
 //==============================================================================
 double Breit::Bk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                       const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  return Fa * Bkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
-}
-double Breit::BPk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                       const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  return Fa * BPkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
-}
-double Breit::BWk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                       const DiracSpinor &Fc, const DiracSpinor &Fd) const {
-  return Fa * BWkv_bcd(k, Fa.kappa(), Fb, Fc, Fd);
+
+  const auto w = m_lambda_f * PhysConst::alpha * 0.5 *
+                 (std::abs(Fa.en() - Fc.en()) + std::abs(Fb.en() - Fd.en()));
+  return Fa * Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fc, Fd, w);
 }
 
+//==============================================================================
+double Breit::BPk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                       const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+
+  const auto w = m_lambda_f * PhysConst::alpha * 0.5 *
+                 (std::abs(Fa.en() - Fd.en()) + std::abs(Fb.en() - Fc.en()));
+  return Fa * BPkv_bcd_freqw(k, Fa.kappa(), Fb, Fc, Fd, w);
+}
+
+//==============================================================================
+double Breit::BWk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                       const DiracSpinor &Fc, const DiracSpinor &Fd) const {
+  return Bk_abcd(k, Fa, Fb, Fc, Fd) + BPk_abcd(k, Fa, Fb, Fc, Fd);
+}
+
+//==============================================================================
 double Breit::BWk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                          const DiracSpinor &Fc, const DiracSpinor &Fd) const {
   return Bk_abcd_2(k, Fa, Fb, Fc, Fd) + BPk_abcd_2(k, Fa, Fb, Fc, Fd);
 }
 
+//==============================================================================
 // calculates two-particle Breit matrix element evaluated at the energy difference of electrons a and c
 double Breit::Bk_abcd_eac_freqw(int k, const DiracSpinor &Fa,
                                 const DiracSpinor &Fb, const DiracSpinor &Fc,
@@ -517,6 +518,7 @@ double Breit::Bk_abcd_eac_freqw(int k, const DiracSpinor &Fa,
   return Fa * Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fc, Fd, ww);
 }
 
+//==============================================================================
 // calculates two-particle Breit matrix element evaluated at the energy difference of electrons b and d
 double Breit::Bk_abcd_ebd_freqw(int k, const DiracSpinor &Fa,
                                 const DiracSpinor &Fb, const DiracSpinor &Fc,
@@ -561,6 +563,7 @@ double Breit::de2_HF(const DiracSpinor &v,
   return deHF;
 }
 
+//==============================================================================
 double Breit::de2(const DiracSpinor &v, const std::vector<DiracSpinor> &holes,
                   const std::vector<DiracSpinor> &excited) const {
   double de = 0.0;
