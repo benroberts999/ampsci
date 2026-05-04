@@ -256,7 +256,7 @@ DiracSpinor Breit::Bkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
       out.g(i) += cg2 * t0 * Fc.f(i);
     }
 
-    //!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!! THIS TERM IS A PROBLEM !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!
+    // XXX THIS TERM IS A PROBLEM
     // "P1" (v/X) part:
     const auto cf3 = factor * c_p0 * (d_ac_kp1 + 1.0);
     const auto cg3 = factor * c_p0 * (d_ac_kp1 - 1.0);
