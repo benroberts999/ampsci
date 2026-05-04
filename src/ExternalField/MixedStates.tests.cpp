@@ -17,7 +17,7 @@ TEST_CASE("External Field: Mixed-states (unit)",
   // Create wavefunction object
   Wavefunction wf({1200, 1.0e-5, 80.0, 20.0, "loglinear", -1.0},
                   {"Rb", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Kr]");
+  wf.solve_core("HartreeFock", std::nullopt, "[Kr]");
 
   std::cout << "\nTest Mixed-States (TDHF) equation (no dV): \n"
             << "(H-e)Xc = -(h-de)Fc\n"
@@ -89,7 +89,7 @@ TEST_CASE("External Field: Mixed-states (full)",
   // Create wavefunction object
   Wavefunction wf({4000, 1.0e-6, 90.0, 20.0, "loglinear", -1.0},
                   {"Rb", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Kr]");
+  wf.solve_core("HartreeFock", std::nullopt, "[Kr]");
   wf.solve_valence("5sp");
 
   SplineBasis::Parameters bspl_param;

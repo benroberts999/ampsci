@@ -21,7 +21,7 @@ TEST_CASE("MBPT: Goldstone, unit tests", "[MBPT][Goldstone][unit]") {
 
   Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
                   {"Na", -1, "Fermi"}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-5);
+  wf.solve_core("HartreeFock", std::nullopt, "[Ne]", 1.0e-5);
   wf.solve_valence("3sp");
   wf.formBasis(SplineBasis::Parameters("20spd", 20, 6, 1.0e-4, 1.0e-4, 30.0));
 
@@ -67,7 +67,7 @@ TEST_CASE("MBPT: Feynman unit tests", "[MBPT][Feynman][unit]") {
 
   Wavefunction wf({1000, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
                   {"Na", -1, "Fermi"}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-5);
+  wf.solve_core("HartreeFock", std::nullopt, "[Ne]", 1.0e-5);
   wf.solve_valence("3sp");
 
   // These parameters are not meant to be accurate
@@ -156,7 +156,7 @@ TEST_CASE("MBPT: CorrelationPotential", "[MBPT][CorrelationPotential][unit]") {
 
   Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
                   {"Na", -1, "Fermi"}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-5);
+  wf.solve_core("HartreeFock", std::nullopt, "[Ne]", 1.0e-5);
   wf.solve_valence("3sp");
   wf.formBasis(SplineBasis::Parameters("20spd", 20, 6, 1.0e-4, 1.0e-4, 30.0));
 
@@ -238,7 +238,7 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
     // Comput. Phys. Commun. 179, 310 (2008).
     Wavefunction wf({4000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_core("HartreeFock", std::nullopt, "[Xe]");
     wf.solve_valence("6s");
     const auto &Fv = wf.valence().front();
 
@@ -314,7 +314,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
 
     Wavefunction wf({2000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_core("HartreeFock", std::nullopt, "[Xe]");
     wf.solve_valence("7sp5d4f");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0});
     wf.formSigma(3, 1.0e-4, 30.0, 14 /*stride*/, false, false, false, 0, {}, {},
@@ -357,7 +357,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
 
     Wavefunction wf({2000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_core("HartreeFock", std::nullopt, "[Xe]");
     wf.solve_valence("7sp5d4f");
     // Don't calculate Sigma, read it in from above example:
     wf.formSigma(1, 0.0, 0.0, 1 /*stride*/, false, false, false, 0, {}, {}, {},
@@ -400,7 +400,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
 
     Wavefunction wf({2000, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Fr", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Rn]");
+    wf.solve_core("HartreeFock", std::nullopt, "[Rn]");
     wf.solve_valence("7sp6d");
     wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0});
     wf.formSigma(4, 1.0e-4, 30.0, 12 /*stride*/, false, false, false, 0, {}, {},
@@ -442,7 +442,7 @@ TEST_CASE("MBPT: Correlation Potential: SigmaAO",
 
     Wavefunction wf({4000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_core("HartreeFock", std::nullopt, "[Xe]");
     wf.solve_valence("7sp5d");
     wf.formBasis({"35spdfghi", 40, 9, 0.0, 1.0e-6, 40.0});
 
@@ -490,7 +490,7 @@ TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][CI][unit]") {
   // Not meant to be accurate!
   Wavefunction wf({400, 1.0e-3, 30.0, 10.0, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("Local", 0.0, "[Ne]", 1.0e-4);
+  wf.solve_core("Local", std::nullopt, "[Ne]", 1.0e-4);
   wf.solve_valence("3spd");
   wf.formBasis({"5spdf", 20, 5, 1.0e-2, 1.0e-2, 20.0});
 
