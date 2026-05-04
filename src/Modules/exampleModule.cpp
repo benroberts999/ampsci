@@ -51,7 +51,7 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   // Note: Assume only Hartree-Fock approximation, no Breit, QED, Sigma etc.
 
   // Solve Hartree-Fock core for new wavefuinction:
-  wfpt.solve_core("HartreeFock", 0.0, wf.coreConfiguration());
+  wfpt.solve_core("HartreeFock", std::nullopt, wf.coreConfiguration());
   // print the new core energies:
   wfpt.printCore();
 

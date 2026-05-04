@@ -15,7 +15,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
   Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0, "0");
-  wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-4);
+  wf.solve_core("HartreeFock", std::nullopt, "[Ne]", 1.0e-4);
   wf.formBasis({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0});
   wf.solve_valence(val_str);
 
@@ -145,7 +145,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
   Wavefunction wfQED({num_points, r0, rmax, b, "loglinear", -1.0},
                      {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wfQED.set_HF("HartreeFock", 0.0, "[Ne]", 1.0e-4);
+  wfQED.set_HF("HartreeFock", std::nullopt, "[Ne]", 1.0e-4);
   wfQED.radiativePotential({1.0, 0.0, 1.0, 1.0, 1.0}, 1.0, 1.0, {1.0, 0.0},
                            false, true);
   wfQED.solve_core(true);
@@ -169,7 +169,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
   Wavefunction wfBr({num_points, r0, rmax, b, "loglinear", -1.0},
                     {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wfBr.solve_core("HartreeFock", 1.0, "[Ne]", 1.0e-4);
+  wfBr.solve_core("HartreeFock", HF::Breit::Params{1.0}, "[Ne]", 1.0e-4);
   wfBr.solve_valence(val_str);
 
   REQUIRE(wfBr.vHF()->vBreit() != nullptr);
@@ -183,7 +183,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   std::cout << "\nH-like test:\n";
   Wavefunction hlike({2000, r0, 150, b, "loglinear", -1.0},
                      {"H", -1, "pointlike", -1.0, -1.0}, 1.0);
-  hlike.solve_core("HartreeFock", 0.0, "[]"); // should do nothing!
+  hlike.solve_core("HartreeFock", std::nullopt, "[]"); // should do nothing!
   hlike.solve_valence("4spdf");
   hlike.printValence();
 
@@ -197,7 +197,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   Wavefunction hlike_nr({2000, r0, 150, b, "loglinear", -1.0},
                         {"H", -1, "pointlike", -1.0, -1.0}, 1.0e-9);
   // should be allowed to skip for H-like!
-  // hlike_nr.solve_core("HartreeFock", 0.0, "[]");
+  // hlike_nr.solve_core("HartreeFock", std::nullopt, "[]");
   hlike_nr.solve_valence("4spdf");
   hlike_nr.printValence();
   for (auto &v : hlike_nr.valence()) {
@@ -229,7 +229,7 @@ TEST_CASE("Wavefunction - continuum", "[wf][cntm][unit]") {
 
     Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
                     {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-8);
+    wf.solve_core("HartreeFock", std::nullopt, "[Ne]", 1.0e-8);
 
     std::cout << "ContinuumOrbitals\n";
     ContinuumOrbitals cntm(wf);
@@ -263,7 +263,7 @@ TEST_CASE("Wavefunction - continuum", "[wf][cntm][unit]") {
 
     Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
                     {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-8);
+    wf.solve_core("HartreeFock", std::nullopt, "[Ne]", 1.0e-8);
 
     std::cout << "ContinuumOrbitals\n";
     ContinuumOrbitals cntm(wf);
@@ -297,7 +297,7 @@ TEST_CASE("Wavefunction - continuum", "[wf][cntm][unit]") {
 
     Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
                     {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("ApproxHF", 0.0, "[Ne]", 1.0e-8);
+    wf.solve_core("ApproxHF", std::nullopt, "[Ne]", 1.0e-8);
 
     std::cout << "ContinuumOrbitals\n";
     ContinuumOrbitals cntm(wf);
@@ -316,7 +316,7 @@ TEST_CASE("Wavefunction - continuum", "[wf][cntm][unit]") {
 
     Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
                     {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("KohnSham", 0.0, "[Ne]", 1.0e-8);
+    wf.solve_core("KohnSham", std::nullopt, "[Ne]", 1.0e-8);
 
     std::cout << "ContinuumOrbitals\n";
     ContinuumOrbitals cntm(wf);

@@ -518,7 +518,7 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
   // Don't need dense grid, and use a local potential (Hartree)
   Wavefunction wf({900, 1.0e-6, 100.0, 10.0, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("Hartree", 0.0, "[Ne]");
+  wf.solve_core("Hartree", std::nullopt, "[Ne]");
   wf.formBasis({"4spd6fg8h8i", 30, 7, 1.0e-3, 1.0e-3, 40.0});
 
   // Split basis into core/excited
