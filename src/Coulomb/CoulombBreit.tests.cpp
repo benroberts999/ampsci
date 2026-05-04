@@ -1,4 +1,4 @@
-#include "Coulomb/CoulombIntegrals.hpp"
+#include "Coulomb/CoulombBreit.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "catch2/catch.hpp"
