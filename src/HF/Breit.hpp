@@ -236,7 +236,7 @@ public:
                     Actual maximum used is the minimum of this value and
                     the physical constraint k_minmax() for the given basis.
 
-    @warning This function uses substantial memory — use with caution for large 
+    @warning This function uses substantial memory -- use with caution for large 
     calculations. Have mostly found the speedup is not worth the memory cost, so 
     this is generally not used anymore.
 

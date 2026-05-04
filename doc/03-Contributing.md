@@ -67,7 +67,7 @@ make clang_format
 ### VSCode
 
 The VSCode C/C++ extension ships its own bundled clang-format binary, which may differ in version from the system-installed one and produce inconsistent formatting.
-To avoid this, configure VSCode to use the system clang-format via `.vscode/settings.json` (this file is not tracked by git — VSCode may have already created it, otherwise create it in the project directoty).
+To avoid this, configure VSCode to use the system clang-format via `.vscode/settings.json` (this file is not tracked by git -- VSCode may have already created it, otherwise create it in the project directoty).
 
 First, find the path to your clang-format binary:
 
@@ -218,9 +218,9 @@ TEST_CASE("a name for the test", "[tag]") {
 
 Common tags used in this project:
 
-* `[unit]` — tests a small component and runs very quickly.
-* `[integration]` — checks numerical accuracy and interaction between parts of the code.
-* `[slow]` — long-running tests (≈1 minute or more).
+* `[unit]` -- tests a small component and runs very quickly.
+* `[integration]` -- checks numerical accuracy and interaction between parts of the code.
+* `[slow]` -- long-running tests (≈1 minute or more).
 
 * If a test is checking numerical accuracy and how the code interfaces with the rest of ampsci, mark it '[integration]'
 * If a test is for one small component and runs very quickly, mark it `[unit]`

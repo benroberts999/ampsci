@@ -891,7 +891,8 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
 }
 
 //==============================================================================
-TEST_CASE("Breit: Frequency-dependent (f-Breit)", "[Breit][unit][fBreit2]") {
+TEST_CASE("HF Breit: Frequency-dependent (f-Breit) unit",
+          "[Breit][unit][HF][fBreit]") {
 
   std::cout << "f-Breit: Symmetries and lambda->0 limit\n";
 
