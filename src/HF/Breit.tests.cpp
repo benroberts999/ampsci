@@ -889,3 +889,119 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
     }
   }
 }
+
+//==============================================================================
+TEST_CASE("Breit: Frequency-dependent (f-Breit)", "[Breit][unit][fBreit2]") {
+
+  std::cout << "f-Breit: Symmetries and lambda->0 limit\n";
+
+  const auto radial_grid = std::make_shared<const Grid>(
+    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+  const double zeff = 1.0;
+  const int lmax = 4;
+
+  // build set of H-like orbitals
+  std::vector<DiracSpinor> orbs;
+  for (int l = 0; l <= lmax; ++l) {
+    int n_min = l + 1;
+    if (l != 0) {
+      orbs.push_back(DiracSpinor::exactHlike(n_min, l, radial_grid, zeff));
+    }
+    orbs.push_back(DiracSpinor::exactHlike(n_min, -l - 1, radial_grid, zeff));
+  }
+
+  auto Br_static = HF::Breit{};
+  auto Br_freqw = HF::Breit{};
+
+  std::cout << "Test (a): f-Breit selection rules and symmetries\n";
+  // Test selection rules and symmetries for frequency-dependent Breit
+  for (const auto &a : orbs) {
+    for (const auto &b : orbs) {
+      if (b <= a)
+        continue;
+      for (const auto &c : orbs) {
+        if (c <= a)
+          continue;
+        for (const auto &d : orbs) {
+          if (d <= a || d <= c)
+            continue;
+          for (int k = 1; k <= 8; ++k) {
+            const auto b1_static = Br_static.Bk_abcd(k, a, b, c, d);
+            const auto b1_freqw_eac = Br_freqw.Bk_abcd_eac_freqw(k, a, b, c, d);
+            const auto b1_freqw_ebd = Br_freqw.Bk_abcd_ebd_freqw(k, a, b, c, d);
+
+            // Test that selection rules are same: if static is 0, freqw should be 0
+            if (b1_static == 0.0) {
+              REQUIRE(b1_freqw_eac == 0.0);
+              REQUIRE(b1_freqw_ebd == 0.0);
+            }
+
+            // Test that where static is nonzero, freqw is also nonzero
+            if (std::abs(b1_static) > 1.0e-15) {
+              REQUIRE(std::abs(b1_freqw_eac) > 1.0e-15);
+              REQUIRE(std::abs(b1_freqw_ebd) > 1.0e-15);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  std::cout << "Test (b): lambda->0 limit recovers static Breit\n";
+  // Test that small lambda (low frequency) approaches static Breit
+  auto Br_f = HF::Breit{};
+  auto Br_lambda_tiny = HF::Breit{};
+  Br_f.update_lambda_f(1.0);
+  Br_lambda_tiny.update_lambda_f(1.0e-9);
+
+  for (const auto &a : orbs) {
+    for (const auto &b : orbs) {
+      if (b <= a)
+        continue;
+      for (const auto &c : orbs) {
+        if (c <= a)
+          continue;
+        for (const auto &d : orbs) {
+          if (d <= a || d <= c)
+            continue;
+          for (int k = 1; k <= 6; ++k) {
+            if (!HF::Breit::Bk_SR(k, a, b, c, d))
+              continue;
+
+            const auto b_static = Br_static.Bk_abcd(k, a, b, c, d);
+            const auto b_f_eac = Br_f.Bk_abcd_eac_freqw(k, a, b, c, d);
+            const auto b_tiny_eac =
+              Br_lambda_tiny.Bk_abcd_eac_freqw(k, a, b, c, d);
+            const auto b_f_ebd = Br_f.Bk_abcd_ebd_freqw(k, a, b, c, d);
+            const auto b_tiny_ebd =
+              Br_lambda_tiny.Bk_abcd_ebd_freqw(k, a, b, c, d);
+
+            // Tiny lambda should be independent of fequency:
+            CHECK(b_tiny_eac == Approx(b_tiny_ebd));
+
+            // Tiny lambda should be  the same as static case
+            CHECK(b_tiny_ebd == Approx(b_static));
+
+            if (std::abs(b_static) > 1.0e-15) {
+              // As lambda->0, should approach static Breit
+              const auto dBreit_f_eac =
+                std::abs((b_f_eac - b_static) / b_static);
+              const auto err_tiny_eac =
+                std::abs((b_tiny_eac - b_static) / b_static);
+              const auto dBreit_f_ebd =
+                std::abs((b_f_ebd - b_static) / b_static);
+              const auto err_tiny_ebd =
+                std::abs((b_tiny_ebd - b_static) / b_static);
+
+              // Difference between f-dep Breit and static should always
+              // be larger than difference between tiny-lambda and static
+              // (allowing ~1% wiggle room for numerical noise)
+              REQUIRE(err_tiny_eac <= dBreit_f_eac * 1.01);
+              REQUIRE(err_tiny_ebd <= dBreit_f_ebd * 1.01);
+            }
+          }
+        }
+      }
+    }
+  }
+}
