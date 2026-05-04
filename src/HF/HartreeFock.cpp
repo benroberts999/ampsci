@@ -71,19 +71,21 @@ HartreeFock::HartreeFock(std::shared_ptr<const Grid> grid,
                          std::vector<double> vnuc,
                          std::vector<DiracSpinor> core,
                          std::optional<QED::RadPot> vrad, double alpha,
-                         Method method, double x_Breit, double in_eps,
-                         Parametric::Type potential, double H_g, double d_t,
-                         bool freqBreit)
+                         Method method,
+                         std::optional<Breit::Params> breit_params,
+                         double in_eps, Parametric::Type potential,
+                         double H_g, double d_t)
   : m_rgrid(grid),
     m_core(std::move(core)),
     m_vnuc(std::move(vnuc)),
     m_vrad(std::move(vrad)),
-    m_VBr(x_Breit == 0.0 ? std::optional<HF::Breit>{} :
-                           std::optional<HF::Breit>(x_Breit)),
+    // If breit_params provided, construct Breit from it; otherwise nullopt (no Breit)
+    m_VBr(breit_params ? std::optional<HF::Breit>(HF::Breit(*breit_params))
+                       : std::nullopt),
     m_alpha(alpha),
     m_method(method),
     m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
-    m_freqBreit(freqBreit),
+    m_freqBreit(breit_params ? breit_params->lambda_f > 0.0 : false),
     m_vdir(m_rgrid->num_points(), 0.0),
     m_Yab() {
   set_parametric_potential(true, potential, H_g, d_t);

@@ -5,6 +5,7 @@
 #include "Potentials/Parametric_potentials.hpp"
 #include "Potentials/RadPot.hpp"
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 class Wavefunction;
@@ -97,8 +98,8 @@ public:
     Optional:
       - alpha (fine structure constant). default = true value
       - method default = HartreeFock
-      - x_Breit - Breit scaling factor. 0=no Breit (default), 1=Breit. may set
-        small number to check for non-linear contributions
+      - breit_params - Breit scaling factors. If std::nullopt (default), no Breit.
+        If present, a Breit object is constructed from the params.
       - eps_HF: convergence goal
       - potential: which parametric potential used for initial Potential
       - h and d (or g and t) are parameters for above (if left zero, default
@@ -112,10 +113,11 @@ public:
               std::vector<DiracSpinor> core,
               std::optional<QED::RadPot> vrad = std::nullopt,
               double m_alpha = PhysConst::alpha,
-              Method method = Method::HartreeFock, double x_Breit = 0.0,
+              Method method = Method::HartreeFock,
+              std::optional<Breit::Params> breit_params = std::nullopt,
               double eps_HF = 0.0,
               Parametric::Type potential = Parametric::Type::Green,
-              double H_g = 0.0, double d_t = 0.0, bool freqBreit = false);
+              double H_g = 0.0, double d_t = 0.0);
 
   //! Solves HF equations self-consitantly for core orbs. Returns epsilon.
   EpsIts solve_core(bool print = true);
