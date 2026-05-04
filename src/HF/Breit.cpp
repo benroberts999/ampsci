@@ -36,9 +36,10 @@ DiracSpinor Breit::VbrFa_freqw(const DiracSpinor &Fa,
     const auto kmin = std::abs(Fb.twoj() - Fa.twoj()) / 2;
     const auto kmax = (Fb.twoj() + Fa.twoj()) / 2;
 
-    const auto w = PhysConst::alpha * std::abs(Fa.en() - Fb.en());
+    const auto w = m_lambda_f * PhysConst::alpha * std::abs(Fa.en() - Fb.en());
 
-    // if w is too small then the frequency-dependent integrals diverge, so use the frequency-independent equations instead
+    // if w is too small then the frequency-dependent integrals diverge,
+    // so use the frequency-independent equations instead
     if (w == 0.0) {
       for (int k = kmin; k <= kmax; ++k) {
         const auto s = Angular::neg1pow(k);
@@ -512,16 +513,16 @@ double Breit::Bk_abcd_eac_freqw(int k, const DiracSpinor &Fa,
                                 const DiracSpinor &Fb, const DiracSpinor &Fc,
                                 const DiracSpinor &Fd) const {
 
-  return Fa * Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fc, Fd,
-                            PhysConst::alpha * abs(Fa.en() - Fc.en()));
+  const auto ww = m_lambda_f * PhysConst::alpha * abs(Fa.en() - Fc.en());
+  return Fa * Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fc, Fd, ww);
 }
 
 // calculates two-particle Breit matrix element evaluated at the energy difference of electrons b and d
 double Breit::Bk_abcd_ebd_freqw(int k, const DiracSpinor &Fa,
                                 const DiracSpinor &Fb, const DiracSpinor &Fc,
                                 const DiracSpinor &Fd) const {
-  return Fa * Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fc, Fd,
-                            PhysConst::alpha * abs(Fb.en() - Fd.en()));
+  const auto ww = m_lambda_f * PhysConst::alpha * abs(Fb.en() - Fd.en());
+  return Fa * Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fc, Fd, ww);
 }
 
 //==============================================================================
