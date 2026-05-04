@@ -154,7 +154,7 @@ TEST_CASE("Physics: Radiative Potential", "[RadPot][QED][integration]") {
     // Construct wavefunction, solve HF core+valence (without QED):
     Wavefunction wf({2000, 1.0e-6, 120.0, 0.3 * 120.0, "loglinear", -1.0},
                     {"Cs", 133, "Fermi", -1, 2.3}, 1.0);
-    wf.solve_core("Hartree", 0.0, "[Xe]", 0.0, false);
+    wf.solve_core("Hartree", std::nullopt, "[Xe]", 0.0, false);
     wf.solve_valence("6s", false);
     std::vector pt = {1.391, 6.583, 0.762};
     std::vector st = {1.391, 6.577, 0.762};
@@ -221,14 +221,14 @@ helper::compare_QED(const std::vector<QEDData> &QEDdata,
     // Construct wavefunction, solve HF core+valence (without QED):
     Wavefunction wf0({5000, 1.0e-6, 120.0, 0.3 * 120.0, "loglinear", -1.0},
                      {atom.name, atom.A, "Fermi", rrms, 2.3}, 1.0);
-    wf0.solve_core("HartreeFock", 0.0, atom.core, 0.0, false);
+    wf0.solve_core("HartreeFock", std::nullopt, atom.core, 0.0, false);
     wf0.solve_valence(atom.val, false);
 
     // Construct wavefunction, solve HF core+valence (with QED):
     Wavefunction wf({5000, 1.0e-6, 120.0, 0.3 * 120.0, "loglinear", -1.0},
                     {atom.name, atom.A, "Fermi", rrms, 2.3}, 1.0);
     const auto rcut = 15.0;
-    wf.set_HF("HartreeFock", 0.0, atom.core, 0.0, false);
+    wf.set_HF("HartreeFock", std::nullopt, atom.core, 0.0, false);
     wf.radiativePotential(scale, rcut, 1.0, {1.0}, false, false);
     wf.solve_core(false);
     wf.solve_valence(atom.val, false);

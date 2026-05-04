@@ -16,7 +16,7 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
 
   Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
                   {"K", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("Local", 0.0, "[Ar]", 1.0e-10, false);
+  wf.solve_core("Local", std::nullopt, "[Ar]", 1.0e-10, false);
   wf.solve_valence("4sp", false);
   // nb: use very small basis. Don't care about numerical results, just that eveything is working correctly.
   SplineBasis::Parameters params{"10spd", 20, 7, 1.0e-3, 1.0e-3, 40.0};
@@ -159,7 +159,7 @@ TEST_CASE("External Field: Diagram RPA",
 
   Wavefunction wf({3500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Xe]");
+  wf.solve_core("HartreeFock", std::nullopt, "[Xe]");
   wf.solve_valence("6sp5d4f");
   wf.formBasis({"30spd20f", 60, 9, 1.0e-4, 1.0e-3, 40.0});
 

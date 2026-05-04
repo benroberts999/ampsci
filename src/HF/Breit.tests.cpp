@@ -19,7 +19,7 @@ TEST_CASE("Breit (local)", "[Breit][unit]") {
   // solve HF (local) without breit. Calc Breit seperately:
   Wavefunction wf({750, 1.0e-4, 120.0, 40.0, "loglinear", -1.0},
                   {"Rb", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("Local", 0.0, "[Kr]");
+  wf.solve_core("Local", std::nullopt, "[Kr]");
   wf.solve_valence("5sp");
 
   HF::Breit Vb(1.0);
@@ -218,7 +218,7 @@ TEST_CASE("Breit (HF)", "[Breit][integration]") {
   // solve HF (local) without breit. Calc Breit seperately:
   Wavefunction wf({2000, 1.0e-6, 150.0, 40.0, "loglinear", -1.0},
                   {"Cu", 63, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Ar],3d10");
+  wf.solve_core("HartreeFock", std::nullopt, "[Ar],3d10");
   wf.solve_valence("4sp");
 
   const HF::Breit Vb(1.0);
@@ -250,14 +250,15 @@ TEST_CASE("Breit", "[Breit][integration][!mayfail]") {
   Wavefunction wf({3500, 1.0e-6, 125.0, 40.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   const double x_Breit = 1.0;
-  wf.solve_core("HartreeFock", x_Breit, "[Xe]");
+  const auto breit_params = x_Breit != 0.0 ? std::optional<HF::Breit::Params>{HF::Breit::Params{x_Breit}} : std::nullopt;
+  wf.solve_core("HartreeFock", breit_params, "[Xe]");
   wf.solve_valence("7sp5d");
 
   // Solve Hartree-Fock, without Breit
   std::cout << "\nSolving WF, without Breit:\n";
   Wavefunction wf0({3500, 1.0e-6, 125.0, 40.0, "loglinear", -1.0},
                    {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf0.solve_core("HartreeFock", 0.0, "[Xe]");
+  wf0.solve_core("HartreeFock", std::nullopt, "[Xe]");
   wf0.solve_valence("7sp5d");
 
   // Lambda to compare against (From Vladimir's code):
@@ -560,13 +561,13 @@ TEST_CASE("Breit: RPA Corrections",
   // No Breit:
   Wavefunction wf0({1600, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear", -1.0},
                    {"Cs", -1, "Fermi", -1.0, -1.0});
-  wf0.solve_core("HartreeFock", 0.0, "[Xe]");
+  wf0.solve_core("HartreeFock", std::nullopt, "[Xe]");
   wf0.solve_valence("7sp5d");
   wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 1.0e-6, 40.0});
 
   // With Breit:
   auto wfB = wf0;
-  wfB.solve_core("HartreeFock", 1.0, "[Xe]");
+  wfB.solve_core("HartreeFock", HF::Breit::Params{1.0}, "[Xe]");
   wfB.solve_valence("7sp5d");
   wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 1.0e-6, 40.0});
 
@@ -685,13 +686,13 @@ TEST_CASE("Breit: RPA Corrections - for HFS",
   // No Breit:
   Wavefunction wf0({1000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
                    {"Cs", -1, "Fermi", -1.0, -1.0});
-  wf0.solve_core("HartreeFock", 0.0, "[Xe]");
+  wf0.solve_core("HartreeFock", std::nullopt, "[Xe]");
   wf0.solve_valence("7sp5d");
   wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0});
 
   // With Breit:
   auto wfB = wf0;
-  wfB.solve_core("HartreeFock", 1.0, "[Xe]");
+  wfB.solve_core("HartreeFock", HF::Breit::Params{1.0}, "[Xe]");
   wfB.solve_valence("7sp5d");
   wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0});
 
@@ -793,14 +794,14 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
 
   // Solve HF without Breit:
   std::cout << "Hartree Fock, no Breit\n";
-  wf0.solve_core("HartreeFock", 0.0, "[Xe]", 1.0e-13, false);
+  wf0.solve_core("HartreeFock", std::nullopt, "[Xe]", 1.0e-13, false);
   wf0.solve_valence(valence);
   wf0.formBasis(basis);
 
   // Solve HF, WITH Breit:
   std::cout << "Hartree Fock, with Breit\n";
   auto wfB = wf0;
-  wfB.solve_core("HartreeFock", 1.0, "[Xe]", 1.0e-13, false);
+  wfB.solve_core("HartreeFock", HF::Breit::Params{1.0}, "[Xe]", 1.0e-13, false);
   wfB.solve_valence(valence);
   wfB.formBasis(basis);
 

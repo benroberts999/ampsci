@@ -119,18 +119,14 @@ Wavefunction::determineCore(const std::string &str_core_in)
 }
 
 //==============================================================================
-void Wavefunction::set_HF(const std::string &method, const double x_Breit,
-                          const std::string &in_core, double eps_HF, bool print,
-                          bool freq_Breit) {
+void Wavefunction::set_HF(const std::string &method,
+                          std::optional<HF::Breit::Params> breit_params,
+                          const std::string &in_core, double eps_HF,
+                          bool print) {
 
   auto core = determineCore(in_core);
   const auto qed = std::nullopt; // we add QED (optionally) later - to allow for
                                  // QED into valence, but not core
-  std::optional<HF::Breit::Params> breit_params = std::nullopt;
-  if (x_Breit != 0.0) {
-    breit_params = HF::Breit::Params{.scale = x_Breit,
-                                     .lambda_f = freq_Breit ? 1.0 : 0.0};
-  }
   m_HF = HF::HartreeFock(rgrid, m_vnuc, std::move(core), qed, m_alpha,
                          HF::parseMethod(method), breit_params, eps_HF,
                          Parametric::Type::Green, 0.0, 0.0);
@@ -156,12 +152,13 @@ void Wavefunction::set_HF(const std::string &method, const double x_Breit,
     }
 
     // Can only include Breit within HF
-    if (method == "HartreeFock" && x_Breit != 0.0 && freq_Breit == true) {
-      std::cout
-        << "Including frequency-dependent Breit\n"; // scale for frequency-dependent Breit?
-    } else if (method == "HartreeFock" && x_Breit != 0.0) {
-      std::cout << "Including Breit (scale = " << x_Breit << ")\n";
-    } else if (method != "HartreeFock" && x_Breit != 0.0) {
+    if (method == "HartreeFock" && breit_params &&
+        breit_params->lambda_f != 0.0) {
+      std::cout << "Including frequency-dependent Breit\n";
+      // scale for frequency-dependent Breit?
+    } else if (method == "HartreeFock" && breit_params) {
+      std::cout << "Including Breit (scale = " << breit_params->scale << ")\n";
+    } else if (method != "HartreeFock" && breit_params) {
       fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
       std::cout << "can only include Breit in Hartree-Fock "
                    "method. Breit will not be included.\n";
@@ -175,10 +172,11 @@ void Wavefunction::solve_core(bool print) {
     m_HF->solve_core(print);
 }
 
-void Wavefunction::solve_core(const std::string &method, const double x_Breit,
+void Wavefunction::solve_core(const std::string &method,
+                              std::optional<HF::Breit::Params> breit_params,
                               const std::string &in_core, double eps_HF,
                               bool print) {
-  set_HF(method, x_Breit, in_core, eps_HF, print);
+  set_HF(method, breit_params, in_core, eps_HF, print);
   solve_core(print);
 }
 

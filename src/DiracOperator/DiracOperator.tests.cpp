@@ -398,7 +398,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     std::cout << "Test p operator (Li)\n";
     Wavefunction wf2({2000, 1.0e-5, 80.0, 20.0, "loglinear"},
                      {"Li", 0, "pointlike"});
-    wf2.solve_core("HartreeFock", 0.0, "[He]");
+    wf2.solve_core("HartreeFock", std::nullopt, "[He]");
     wf2.solve_valence("2sp");
 
     const auto test_data =

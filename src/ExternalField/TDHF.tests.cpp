@@ -15,7 +15,7 @@ TEST_CASE("External Field: TDHF basic unit tests",
 
   Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-10, false);
+  wf.solve_core("HartreeFock", std::nullopt, "[Ne]", 1.0e-10, false);
   wf.solve_valence("3sp", false);
   // nb: use very small basis.
   // Don't care about numerical results, just that eveything is working correctly.
@@ -266,7 +266,7 @@ TEST_CASE("External Field: TDHF (RPA)",
     // Create wavefunction object, solve HF for core+valence
     Wavefunction wf({6000, 1.0e-6, 175.0, 20.0, "loglinear", -1.0},
                     {"Cs", 133, "Fermi", 4.8041, 2.3}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_core("HartreeFock", std::nullopt, "[Xe]");
     wf.solve_valence("7sp5d4f");
 
     DiracOperator::E1 dE1(wf.grid());
@@ -350,7 +350,7 @@ TEST_CASE("External Field: TDHF (RPA) for hyperfine",
       // Create wavefunction object, solve HF for core+valence
       Wavefunction wf({6000, 1.0e-6, 400.0, 20.0, "loglinear", -1.0},
                       {atom[i], A[i], "Fermi", rrms[i], 2.3}, 1.0);
-      wf.solve_core("HartreeFock", 0.0, core[i]);
+      wf.solve_core("HartreeFock", std::nullopt, core[i]);
       wf.solve_valence("12sp");
 
       DiracOperator::hfs hfs(1, mu[i] / I[i], 0.0, wf.grid(),

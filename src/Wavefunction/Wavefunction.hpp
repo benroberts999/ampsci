@@ -239,15 +239,16 @@ public:
   //! Initialises HF object and populates core orbitals (does not solve HF
   //! equations)
   void set_HF(const std::string &method = "HartreeFock",
-              const double x_Breit = 0.0, const std::string &in_core = "",
-              double eps_HF = 1.0e-13, bool print = true,
-              bool freq_Breit = false);
+              std::optional<HF::Breit::Params> breit_params = std::nullopt,
+              const std::string &in_core = "", double eps_HF = 1.0e-13,
+              bool print = true);
 
   //! Performs hartree-Fock procedure for core
   void solve_core(bool print = true);
 
   //! This version will first set_HF(), then solve_core()
-  void solve_core(const std::string &method, const double x_Breit = 0.0,
+  void solve_core(const std::string &method,
+                  std::optional<HF::Breit::Params> breit_params = std::nullopt,
                   const std::string &in_core = "", double eps_HF = 1.0e-13,
                   bool print = true);
 

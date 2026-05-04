@@ -80,7 +80,7 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\n";
   std::cout << "Solve Hartree-Fock again, including Breit\n";
   auto wf2 = wf;
-  wf2.solve_core("HartreeFock", 1.0, wf.coreConfiguration());
+  wf2.solve_core("HartreeFock", HF::Breit::Params{1.0}, wf.coreConfiguration());
   wf2.valence().clear();
   wf2.solve_valence(DiracSpinor::state_config(wf.valence()));
   wf2.printValence();

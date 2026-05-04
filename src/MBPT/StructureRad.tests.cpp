@@ -16,7 +16,7 @@ TEST_CASE("MBPT: Structure Rad + Norm basic", "[StrucRad][MBPT][unit]") {
 
   Wavefunction wf({300, 1.0e-3, 30.0, 10.0, "loglinear", -1.0},
                   {"B", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("Local", 0.0, "[He],2s2", 1.0e-12, false);
+  wf.solve_core("Local", std::nullopt, "[He],2s2", 1.0e-12, false);
   SplineBasis::Parameters params{"3spd4f", 60, 5, 1.0e-2, 1.0e-2, 20.0};
   params.verbose = false;
   wf.formBasis(params);
@@ -127,7 +127,7 @@ TEST_CASE("MBPT: Structure Rad + Norm",
   // Test for Na: (use splines for legs)
   Wavefunction wf({800, 1.0e-6, 90.0, 0.33 * 100.0, "loglinear"},
                   {"Na", -1, "Fermi"}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Ne]", 1.0e-12, false);
+  wf.solve_core("HartreeFock", std::nullopt, "[Ne]", 1.0e-12, false);
   wf.solve_valence("4s3p", false);
   // wf.printValence();
   auto basis_params =
@@ -209,7 +209,7 @@ TEST_CASE("MBPT: Structure Rad + Norm HFS",
   // Test for Na: (use splines for legs)
   Wavefunction wf({800, 1.0e-6, 80.0, 0.33 * 100.0, "loglinear"},
                   {"Cs", -1, "Fermi"}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[Xe]", 1.0e-12, false);
+  wf.solve_core("HartreeFock", std::nullopt, "[Xe]", 1.0e-12, false);
   wf.solve_valence("6p", false);
   // wf.printValence();
   auto basis_params =

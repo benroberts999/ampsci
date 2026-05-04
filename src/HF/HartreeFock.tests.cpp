@@ -65,7 +65,7 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
 
       std::cout << "\n" << wf.atom() << "\n";
       std::cout << wf.nucleus() << "\n";
-      wf.solve_core("HartreeFock", x_Breit, Core);
+      wf.solve_core("HartreeFock", std::nullopt, Core);
       wf.solve_valence(Valence);
 
       // // For generating test data:
@@ -146,7 +146,7 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
                       {Atom, A, nucleus_type});
 
       std::cout << "\n" << wf.atom() << "\n";
-      wf.solve_core("HartreeFock", x_Breit, Core);
+      wf.solve_core("HartreeFock", std::nullopt, Core);
       wf.solve_valence(Valence);
 
       // test energies:
@@ -214,7 +214,7 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
   const auto d = DiracOperator::E1(wf.grid());
 
   std::cout << "\n" << wf.atom() << "\n";
-  wf.solve_core("HartreeFock", x_Breit, Core);
+  wf.solve_core("HartreeFock", std::nullopt, Core);
   wf.solve_valence(Valence);
 
   // Test the energies:
@@ -311,7 +311,7 @@ TEST_CASE("HartreeFock - KS Core-Hartree and ApproxHF",
                     {"Cs", 133, nucleus_type});
 
     std::cout << "\n" << wf.atom() << ": Core-Hartree:\n";
-    wf.solve_core("Hartree", 0.0, "[Xe]");
+    wf.solve_core("Hartree", std::nullopt, "[Xe]");
     wf.solve_valence("6sp");
 
     const auto CH_data = std::vector{std::tuple{"1s+", -1294.301178790881},
@@ -359,7 +359,7 @@ TEST_CASE("HartreeFock - KS Core-Hartree and ApproxHF",
                     {"Cs", 133, nucleus_type});
 
     std::cout << "\n" << wf.atom() << ": Kohn-Sham:\n";
-    wf.solve_core("KohnSham", 0.0, "[Xe],6s1", 1.0e-13);
+    wf.solve_core("KohnSham", std::nullopt, "[Xe],6s1", 1.0e-13);
     wf.solve_valence("6sp5d");
 
     const auto KS_data = std::vector{std::tuple{"1s+", -1312.974817713126},
@@ -409,7 +409,7 @@ TEST_CASE("HartreeFock - KS Core-Hartree and ApproxHF",
                     {"Cs", 133, nucleus_type});
 
     std::cout << "\n" << wf.atom() << ": ApproxHF:\n";
-    wf.solve_core("ApproxHF", 0.0, "[Xe]");
+    wf.solve_core("ApproxHF", std::nullopt, "[Xe]");
     wf.solve_valence("6sp");
 
     const auto aHF_data = std::vector{std::tuple{"1s+", -1330.095428346559},
@@ -465,7 +465,7 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
   {
     Wavefunction wf({4000, 1.0e-7, 425.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Rb", 87, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Kr]");
+    wf.solve_core("HartreeFock", std::nullopt, "[Kr]");
     wf.solve_valence("12sp");
 
     // Test data [Phys. Rev. A 100, 042506 (2019)]
@@ -507,7 +507,7 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
     // Grunefeld, Roberts, Ginges, Phys. Rev. A 100, 042506 (2019).
     Wavefunction wf({4000, 1.0e-7, 400.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Cs", 133, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Xe]");
+    wf.solve_core("HartreeFock", std::nullopt, "[Xe]");
     wf.solve_valence("12sp");
     const std::vector s{1434.0, 393.9, 164.5, 84.11, 48.71, 30.70, 20.59};
     const std::vector p{161.0, 57.65, 27.09, 14.85, 9.002, 5.863, 4.030};
@@ -542,7 +542,7 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
     // Grunefeld, Roberts, Ginges, Phys. Rev. A 100, 042506 (2019).
     Wavefunction wf({4000, 1.0e-7, 325.0, 0.33 * 150.0, "loglinear", -1.0},
                     {"Fr", 211, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("HartreeFock", 0.0, "[Rn]");
+    wf.solve_core("HartreeFock", std::nullopt, "[Rn]");
     wf.solve_valence("12sp");
     const std::vector s{5929.0, 1520.0, 624.0, 316.8, 182.7, 114.9};
     const std::vector p{628.2, 222.9, 104.4, 57.13, 34.61, 22.53};

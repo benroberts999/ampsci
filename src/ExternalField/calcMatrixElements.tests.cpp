@@ -10,7 +10,7 @@ TEST_CASE("External Field: calcMatrixElements", "[ExternalField][unit]") {
 
   Wavefunction wf({500, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
                   {"Li", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", 0.0, "[He]");
+  wf.solve_core("HartreeFock", std::nullopt, "[He]");
   wf.solve_valence("2sp");
 
   auto dE1 = DiracOperator::E1(wf.grid());
