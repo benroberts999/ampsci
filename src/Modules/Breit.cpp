@@ -28,11 +28,11 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
-  const auto Br = HF::Breit{};
+  const auto Br = HF::Breit(HF::Breit::Params{});
 
   // To separate Gaus/Retardation parts
-  auto G = HF::Breit{};
-  auto R = HF::Breit{};
+  auto G = HF::Breit(HF::Breit::Params{});
+  auto R = HF::Breit(HF::Breit::Params{});
   G.update_scale(1.0, 1.0, 1.0, 0.0, 0.0);
   R.update_scale(1.0, 0.0, 0.0, 1.0, 1.0);
 

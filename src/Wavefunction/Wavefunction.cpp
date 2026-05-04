@@ -126,9 +126,14 @@ void Wavefunction::set_HF(const std::string &method, const double x_Breit,
   auto core = determineCore(in_core);
   const auto qed = std::nullopt; // we add QED (optionally) later - to allow for
                                  // QED into valence, but not core
+  std::optional<HF::Breit::Params> breit_params = std::nullopt;
+  if (x_Breit != 0.0) {
+    breit_params = HF::Breit::Params{.scale = x_Breit,
+                                     .lambda_f = freq_Breit ? 1.0 : 0.0};
+  }
   m_HF = HF::HartreeFock(rgrid, m_vnuc, std::move(core), qed, m_alpha,
-                         HF::parseMethod(method), x_Breit, eps_HF,
-                         Parametric::Type::Green, 0.0, 0.0, freq_Breit);
+                         HF::parseMethod(method), breit_params, eps_HF,
+                         Parametric::Type::Green, 0.0, 0.0);
 
   // Move this into HF?
   if (print) {
