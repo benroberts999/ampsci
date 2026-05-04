@@ -16,6 +16,8 @@
   * Ideally, omega (not alpha*omega) should be passed to all Breit functions
   * then when alpha*omega is used inside functions, rename to 'qw' or similar
   * `q*r` passed to Spherical bessel, `q = alpha*w`
+  * Except, that would require bein *very* careful everywhere - maybe better to change to qw
+* Which frequency should use used for exchange integrals P, W ?
 
 ## Failing unit tests
 
