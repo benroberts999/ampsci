@@ -88,11 +88,11 @@ class Breit {
   // overall scaling factor
   double m_scale;
 
+  // Scaling factor for frequency in frequency-dependent Breit (default 0.0 = static)
+  double m_lambda_f;
+
   // Scaling factors for each term (mainly for tests). {M,N}=Gaunt; {O,P} retarded
   double m_M{1.0}, m_N{1.0}, m_O{1.0}, m_P{1.0};
-
-  // Scaling factor for frequency in frequency-dependent Breit (default 1.0)
-  double m_lambda_f{1.0};
 
   // For speedy lookup, when only full integral is required
   std::vector<Coulomb::meTable<Breit_gb::single_k_mop>> m_gb{};
@@ -104,11 +104,18 @@ public:
 
     @details
     Initializes the Breit operator with an overall scaling factor. Individual term
-    scaling factors (M, N, O, P) and frequency scaling (lambda_f) default to 1.0.
+    scaling factors (M, N, O, P) default to 1.0.
+    Also scaling for frequency dependence (lambda_f); default to 0.0.
 
-    @param in_scale Overall scaling factor for Breit contributions (default 1.0)
+    @param scale    Overall scaling factor for Breit contributions (default 1.0)
+    @param lambda_f Scaling factor for frequency-dependent Breit (default 0.0)
+
+    @note If lambda_f is zero (default), frequency-independent form will be used.
+    If 1, then will be frequency-dependent.
+    Can be any value (e.g., 0.5 to test linearity/scaling of f-dependent results).
   */
-  Breit(double in_scale = 1.0) : m_scale(in_scale) {}
+  Breit(double scale = 1.0, double lambda_f = 0.0)
+    : m_scale(scale), m_lambda_f(lambda_f) {}
 
   /*!
     @brief Update all scaling factors
@@ -122,17 +129,16 @@ public:
     @param t_N        Scaling for N term (Gaunt part, default 1.0)
     @param t_O        Scaling for O term (retarded part, default 1.0)
     @param t_P        Scaling for P term (retarded part, default 1.0)
-    @param t_lambda_f Frequency scaling factor for frequency-dependent Breit (default 1.0)
+
+    @note Does not update lambda_f (f-dependent scaling)
   */
   void update_scale(double t_scale = 1.0, double t_M = 1.0, double t_N = 1.0,
-                    double t_O = 1.0, double t_P = 1.0,
-                    double t_lambda_f = 1.0) {
+                    double t_O = 1.0, double t_P = 1.0) {
     m_scale = t_scale;
     m_M = t_M;
     m_N = t_N;
     m_O = t_O;
     m_P = t_P;
-    m_lambda_f = t_lambda_f;
   }
 
   /*!
@@ -181,7 +187,7 @@ public:
     @brief Determine valid multipolarity range for Breit integrals
 
     @details
-   Minimum and maximum allowed multipolarity k for a four-body
+    Minimum and maximum allowed multipolarity k for a four-body
     Breit integral.
 
     @param a (b,c,d) electron states
@@ -237,6 +243,8 @@ public:
     @note Must be called once before using the faster variants Bk_abcd_2(),
           BPk_abcd_2(), or BWk_abcd_2(). Calling it multiple times will
           recompute and overwrite previous results.
+    
+    @note ONLY for static Breit
   */
   void fill_gb(const std::vector<DiracSpinor> &basis, int t_max_k = 99);
 
@@ -244,39 +252,44 @@ public:
   double scale_factor() const { return m_scale; };
 
   /*!
-    @brief Calculates Breit contribution to Hartree-Fock
+    @brief Calculates Breit contribution with automatic frequency dependence
 
     @details
-    Computes the static (frequency-independent) Hartree-Fock Breit interaction
-    V_br*Fa for a valence electron interacting with the core. This is the Breit
-    contribution from all core electrons.
+    Computes the Hartree-Fock Breit interaction V_br*Fa for a valence electron
+    interacting with the core. This is the direct Breit contribution from all
+    core electrons.
+
+    Will be static version is lambda = 0, otherwise, frequency-dependent
 
     @param Fa   Valence electron state
     @param core Core electron states
 
-    @return The Breit-Hartree-Fock potential applied to Fa
+    @return The Breit-Hartree-Fock potential applied to Fa, computed at the
+            appropriate frequency regime based on m_lambda_f.
+
+    @note For frequency-dependent calculations, this may be substantially slower
+          due to spherical Bessel function evaluation in the radial integrals.
   */
   DiracSpinor VbrFa(const DiracSpinor &Fa,
                     const std::vector<DiracSpinor> &core) const;
 
   /*!
-    @brief Calculates frequency-dependent Breit Breit contribution to Hartree-Fock
+    @brief Calculates Breit potential (wrapper, equivalent to VbrFa)
 
     @details
-    Computes the frequency-dependent Breit contribution V_br(w)*Fa to the Hartree-Fock
-    potential. The frequency w is determined by the energy difference between the
-    valence state and each core state, scaled by the frequency scaling factor lambda_f.
+    Backward compatibility wrapper. Now simply calls VbrFa(), which automatically
+    handles both static and frequency-dependent regimes based on m_lambda_f.
 
     @param Fa   Valence state
     @param core Core electron states
 
-    @return Frequency-dependent Breit potential applied to Fa
+    @return Equivalent to VbrFa(Fa, core).
 
-    @note The frequency dependence enters through the spherical Bessel function
-          evaluations in the radial integrals. May be substantially slower.
+    @note Kept for backward compatibility. New code should use VbrFa() directly.
   */
-  DiracSpinor VbrFa_freqw(const DiracSpinor &Fa,
-                          const std::vector<DiracSpinor> &core) const;
+  [[deprecated]] DiracSpinor
+  VbrFa_freqw(const DiracSpinor &Fa,
+              const std::vector<DiracSpinor> &core) const;
 
   /*!
     @brief Breit-TDHF: Breit correction to the TDHF correction to Hartree-Fock
@@ -299,13 +312,17 @@ public:
                     const DiracSpinor &Ybeta) const;
 
   /*!
-    @brief Reduced Breit two-body matrix element (static)
+    @brief Reduced Breit two-body matrix element with automatic frequency dependence
 
     @details
-    Calculates the reduced two-body Breit matrix element B^k_{abcd}, the static
-    (frequency-independent) Breit analogue of the Coulomb Q^k integral. The Breit
-    interaction is the sum of Gaunt (instantaneous magnetic) and retarded
-    (transverse photon) contributions, decomposed into multipole ranks k.
+    Calculates the reduced two-body Breit matrix element B^k_{abcd}, the Breit
+    analogue of the Coulomb Q^k integral. The Breit interaction is the sum of
+    Gaunt (instantaneous magnetic) and retarded (transverse photon) contributions,
+    decomposed into multipole ranks k.
+
+    Internally checks m_lambda_f: if zero (or close to zero), uses the static
+    (frequency-independent) formulation. Otherwise, uses frequency-dependent
+    formulation with frequency w = lambda_f * alpha * |E_a - E_c|.
 
     The individual term scaling factors (m_M, m_N, m_O, m_P) and overall
     scaling m_scale modulate the contributions:
@@ -315,13 +332,14 @@ public:
     @param k  Multipolarity (angular momentum rank of the interaction)
     @param Fa (Fb,Fc,Fd) electron states
 
-    @return The reduced Breit matrix element B^k_{abcd} 
+    @return The reduced Breit matrix element B^k_{abcd}, evaluated at the
+            appropriate frequency based on m_lambda_f.
 
     @note Selection rules depend on angular momentum quantum numbers via Bk_SR().
           Use k_minmax() to determine the valid multipolarity range before calling.
-          
+
     @note This function re-computes all four terms (m, n, o, p) each call.
-          For repeated calls with the same basis, you can use use fill_gb() once, then call
+          For repeated calls with the same basis, call fill_gb() once, then use
           the faster variant @ref Bk_abcd_2() instead.
   */
   double Bk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
@@ -343,11 +361,11 @@ public:
 
     @return B^k_abcd evaluated at w = lambda_f * alpha * |E_a - E_c|
 
-    @note The frequency dependence is important for processes where the energy
-          transfer is significant compared to atomic energies.
   */
-  double Bk_abcd_eac_freqw(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                           const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+  [[deprecated]] double Bk_abcd_eac_freqw(int k, const DiracSpinor &Fa,
+                                          const DiracSpinor &Fb,
+                                          const DiracSpinor &Fc,
+                                          const DiracSpinor &Fd) const;
 
   /*!
     @brief Reduced frequency-dependent Breit two-body matrix element
@@ -364,12 +382,11 @@ public:
     @param Fd Fourth electron state
 
     @return B^k_abcd evaluated at w = lambda_f * alpha * |E_b - E_d|
-
-    @note The frequency dependence is important for processes where the energy
-          transfer is significant compared to atomic energies.
   */
-  double Bk_abcd_ebd_freqw(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                           const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+  [[deprecated]] double Bk_abcd_ebd_freqw(int k, const DiracSpinor &Fa,
+                                          const DiracSpinor &Fb,
+                                          const DiracSpinor &Fc,
+                                          const DiracSpinor &Fd) const;
 
   /*!
     @brief Reduced exchange Breit two-body matrix element
