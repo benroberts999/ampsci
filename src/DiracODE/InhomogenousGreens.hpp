@@ -6,12 +6,22 @@ namespace DiracODE {
 
 //==============================================================================
 
-//! @brief Solves inhomogeneous Dirac equation
-/*! @details
-\f[ (H_0 + v -\epsilon_a)F_a = S \f]
-with `source' term, S. Solves for \f$\psi_\kappa\f$ with angular momentum kappa.
-en = \f$\epsilon\f$ is given. Note sign of S.
-Uses Green's method (see Method documentation).
+/*!
+  @brief Solves the inhomogeneous Dirac equation, returning the solution spinor.
+  @details
+  Solves \f$ (H_0 + v - \epsilon_a) F_a = S \f$ for \f$ \psi_\kappa \f$ using
+  Green's method (see Methods documentation). Note the sign convention for S.
+  @param kappa   Angular momentum kappa of the solution.
+  @param en      Orbital energy \f$ \epsilon \f$.
+  @param v       Local potential v(r).
+  @param H_mag   Off-diagonal (magnetic) potential.
+  @param alpha   Fine-structure constant.
+  @param source  Inhomogeneous source term S.
+  @param VxFa    Optional exchange potential. If nullptr, ignored.
+  @param Fa0     Optional inhomogeneous source spinor. If nullptr, ignored.
+  @param zion    Effective ionic charge (default 1).
+  @param mass    Effective particle mass in atomic units (default 1 = m_e).
+  @return Solution spinor Fa.
 */
 DiracSpinor solve_inhomog(const int kappa, const double en,
                           const std::vector<double> &v,
@@ -21,9 +31,10 @@ DiracSpinor solve_inhomog(const int kappa, const double en,
                           const DiracSpinor *const Fa0 = nullptr,
                           double zion = 1, double mass = 1.0);
 
-//! @brief Solves inhomogeneous Dirac equation
-/*! @details
-As above. Overload to accept/overwrite solution to Fa. kappa is taken from Fa.
+/*!
+  @brief Solves the inhomogeneous Dirac equation, overwriting Fa.
+  @details
+  As above; kappa is taken from Fa.
 */
 void solve_inhomog(DiracSpinor &Fa, const double en,
                    const std::vector<double> &v,
@@ -33,15 +44,14 @@ void solve_inhomog(DiracSpinor &Fa, const double en,
                    const DiracSpinor *const Fa0 = nullptr, double zion = 1,
                    double mass = 1.0);
 
-//! @brief Solves inhomogeneous Dirac equation
-/*! @details
-As above. Overload to accept/overwrite solution to Fa.
-All these routines solve also for Fzero, Finf, which are solutions to
-homogeneous equation  (H-en)Fa = 0 [reg @ origin, and infinity, respectively].
-  - The first two throw these solutions away, the third keeps them (in some
-cases they can be re-used)
-  - These Spinors are solved internally and over-written, they don't need to be
-solved first (i.e., they are out parameters, not in/out parameters)
+/*!
+  @brief Solves the inhomogeneous Dirac equation, overwriting Fa and exposing the homogeneous solutions.
+  @details
+  As above, but also returns the homogeneous solutions Fzero (regular at origin)
+  and Finf (regular at infinity), which satisfy \f$ (H_0 + v - \epsilon)F = 0 \f$.
+  The first two overloads discard these; this one keeps them for potential reuse.
+  Fzero and Finf are out parameters -- they are overwritten internally and do not
+  need to be initialised before calling.
 */
 void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
                    const double en, const std::vector<double> &v,
@@ -55,8 +65,7 @@ void solve_inhomog(DiracSpinor &Fa, DiracSpinor &Fzero, DiracSpinor &Finf,
 
 namespace Internal {
 
-// Takes solution regular at infinity (Finf), and that regular at zero (Fzero),
-// and the inhomogenous source term, Sr, to find particular solution, Fa.
+//! Constructs the particular solution Fa from homogeneous solutions Finf, Fzero and source Sr.
 void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
                    const DiracSpinor &Fzero, const double alpha,
                    const DiracSpinor &Sr);

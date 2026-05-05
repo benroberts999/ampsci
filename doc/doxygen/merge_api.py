@@ -12,7 +12,6 @@ import re
 import sys
 import os
 
-
 AUTO_EXPAND_NAVTREE = True  # expand sidebar page-nodes on click; toggle to disable
 HIDE_UNDOC_NAMESPACES = True  # hide namespaces with no doc comment from Full API list
 
@@ -169,9 +168,14 @@ def merge(html_dir):
 
     levels = extract_levels_block(ns_contents)
     merged_contents = (
-        '<div class="textblock">Complete API reference: '
-        "Documents all ampsci namespaces, classes, and functions. "
-        "Namespaces group related functionality; expand each to browse its members, or use search to find something specific.</div>"
+        '<div class="textblock">'
+        "<p>Full developer documentation for the ampsci C++ source code. "
+        "Documents all namespaces, classes, and functions.<br>"
+        "Namespaces group related functionality; expand each to browse its members, click the links to open each doc page,"
+        "or use the search bar to find something specific.</p>"
+        "<p><em>Note: this section is intended for developers editing the C++ source code. "
+        "Most users do not need it.</em></p>"
+        "</div>"
         '<div class="directory">\n' + levels + "\n" + merged_table + "\n</div>"
     )
 

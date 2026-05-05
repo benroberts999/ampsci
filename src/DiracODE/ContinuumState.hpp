@@ -7,39 +7,70 @@ class Grid;
 
 namespace DiracODE {
 
-//! For given energy en (en > 0), solves Dirac eq. for continuum state (with
-//! energy normalisation).
-/*! @details
-Normalisation is achieved by continuuing solving ODE to very large r, and 
-comparing asymptotic amplitude to that of analytic solution.
-We only keep solution on regular grid; extended part is not kept.
+/*!
+  @brief Solves Dirac equation for a continuum state (en > 0) with energy normalisation.
+  @details
+  Normalisation is achieved by continuing the ODE integration to very large r and
+  comparing the asymptotic amplitude to that of the analytic solution.
+  Only the solution on the regular grid is kept; the extended part is discarded.
+  @param Fa     Output spinor (result stored here).
+  @param en     Continuum energy (must be > 0).
+  @param v      Local potential v(r).
+  @param alpha  Fine-structure constant.
+  @param VxFa   Optional exchange potential. If nullptr, ignored.
+  @param Fa0    Optional inhomogeneous source spinor. If nullptr, ignored.
 */
 void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
                     double alpha, const DiracSpinor *const VxFa = nullptr,
                     const DiracSpinor *const Fa0 = nullptr);
 
-//! Analytic amplitude of f(r) at very large r, for H-like Dirac continuum
+/*!
+  @brief Analytic amplitude of f(r) at very large r for an H-like Dirac continuum state.
+  @param en     Continuum energy.
+  @param alpha  Fine-structure constant.
+  @return Analytic asymptotic amplitude.
+*/
 double analytic_f_amplitude(double en, double alpha);
 
-//! Finds the (numerical) amplitude of f(r) continuum Dirac solution at large r
-/*! @details
-It does this by continuing ODE integration to large r until: \n
-  (a) wavelength and, \n
-  (b) amplitude \n
-become constant.
-It starts from a solution hat has been already integrated out to rmax of regular
-radial grid. It uses linearly-spaced grid (dr), and assumes H-like potential
-(-Z/r).
+/*!
+  @brief Finds the numerical amplitude and phase of f(r) for a continuum Dirac solution at large r.
+  @details
+  Continues ODE integration beyond the regular grid until both the wavelength
+  and amplitude become constant. Assumes an H-like potential (-Zeff/r) and a
+  linearly-spaced extension grid with step dr.
+  @param en       Continuum energy.
+  @param kappa    Orbital kappa quantum number.
+  @param alpha    Fine-structure constant.
+  @param Zeff     Effective nuclear charge.
+  @param f_final  Value of f at the end of the regular grid.
+  @param g_final  Value of g at the end of the regular grid.
+  @param r_final  Radial position at the end of the regular grid.
+  @param dr       Step size for the extended linear grid.
+  @return {amplitude, phase} of the asymptotic f(r) oscillation.
 */
 std::pair<double, double> numerical_f_amplitude(double en, int kappa,
                                                 double alpha, double Zeff,
                                                 double f_final, double g_final,
                                                 double r_final, double dr);
 
-//! Derivative function for H-like; valid for continuum states at large r
+/*!
+  @brief H-like Dirac derivative matrix for continuum states at large r.
+  @details
+  Implements AdamsMoulton::DerivativeMatrix<double, double>, using r directly
+  as the argument type. Valid for H-like potential (-Zeff/r); used to extend
+  continuum integration beyond the regular grid for normalisation.
+  @note Non-copyable.
+*/
 struct DiracContinuumDerivative
   : AdamsMoulton::DerivativeMatrix<double, double> {
 
+  /*!
+    @brief Constructs the H-like continuum derivative matrix.
+    @param in_Zeff   Effective nuclear charge.
+    @param in_kappa  Orbital kappa quantum number.
+    @param in_en     Continuum energy.
+    @param in_alpha  Fine-structure constant.
+  */
   DiracContinuumDerivative(double in_Zeff, const int in_kappa,
                            const double in_en, const double in_alpha)
     : Zeff(in_Zeff),
@@ -60,8 +91,15 @@ struct DiracContinuumDerivative
   double d(double r) const final { return -a(r); }
 };
 
-//! Fits a quadratic to three points {x,y}, assuming |y2| = max(|y1|,|y2|,|y3|).
-//! @details Used to find amplitude of sin(x); points must be close to max
+/*!
+  @brief Fits a quadratic to three points and returns the interpolated maximum.
+  @details
+  Assumes |y2| = max(|y1|, |y2|, |y3|); used to find the amplitude of a
+  sinusoidal oscillation. The three points must be close to the maximum.
+  @param x1, x2, x3  x-coordinates of the three points.
+  @param y1, y2, y3  y-coordinates of the three points.
+  @return Interpolated maximum value.
+*/
 double fitQuadratic(double x1, double x2, double x3, double y1, double y2,
                     double y3);
 

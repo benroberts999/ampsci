@@ -7,7 +7,9 @@
 
 namespace DiracODE {
 
-//! Performs asymptotic expansion for f and g at large r, up to order Nx in (1/r)
+/*!
+  @brief Performs asymptotic expansion for f and g at large r, up to order Nx in (1/r).
+*/
 template <std::size_t Nx = 15>
 class AsymptoticSpinor {
 private:
@@ -40,20 +42,21 @@ public:
     // assert(en < 0.0 && "Must have en<0 in AsymptoticSpinor");
   }
 
-  //! Performs asymptotic expansion for f and g at large r, up to order Nx in (1/r)
   /*!
-   Large-r expansion of upper/lower radial components of the Dirac solution,
-   see Johnson (2007), Eqs. (2.170) -- (2.171).
+    @brief Returns {f(r), g(r)} via asymptotic expansion at large r.
+    @details
+    Large-r expansion of upper/lower radial components of the Dirac solution,
+    see Johnson (2007), Eqs. (2.170) -- (2.171).
 
-   f(r) = r^s exp(-yr) * { A(1 + O(1/r) + ...) + B(O(1/r) + ...)},
+    f(r) = r^s exp(-yr) * { A(1 + O(1/r) + ...) + B(O(1/r) + ...)},
 
-   g(r) = r^s exp(-yr) * { -B(1 + O(1/r) + ...) + A(O(1/r) + ...)},
+    g(r) = r^s exp(-yr) * { -B(1 + O(1/r) + ...) + A(O(1/r) + ...)},
 
-   where s~1, y~1, A~1, B<<1.
+    where s~1, y~1, A~1, B<<1.
 
-   It's the 1/r expansion inside the {} brackets that is truncated at order Nx.
-   The series is terminated if relative change drops below eps_target.
-   This usually hapens around order ~5.
+    The 1/r expansion inside the braces is truncated at order Nx. The series is
+    terminated early if the relative change drops below eps_target (typically
+    around order ~5).
   */
   std::pair<double, double> fg(double r) const {
     // See Johnson (2007), Eqs. (2.170) -- (2.171)

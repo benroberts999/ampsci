@@ -12,68 +12,36 @@ namespace AdamsMoulton {
 
 //==============================================================================
 
-//! Pure-virtual struct, holds the derivative matrix for 2x2 system of ODEs.
-//! Derive from this, and implement a(t),b(t),c(t),d(t) to define the 2x2
-//! ODE.
-/*! @details
-This struct is used by ODESolver2D, and defined the Derivative matrix, and the
-(optional) inhomogenous term.
+/*!
+  @brief Pure-virtual struct defining the derivative matrix for a 2x2 ODE system.
+  @details
+  Used by ODESolver2D to define the derivative matrix D and optional inhomogeneous
+  term S. Derive from this and implement a(t), b(t), c(t), d(t) to define the ODE.
 
-The system of ODEs is defined such that:
+  The system of ODEs is:
 
-\f[ \frac{dF(t)}{dt} = D(t) * F(t) + S(t) \f]
+  \f[ \frac{dF(t)}{dt} = D(t) F(t) + S(t) \f]
 
-Where F is a 2D set of functions:
+  where:
 
-\f[
-  F(t) = \begin{pmatrix}
-    f(t)\\
-    g(t)
-  \end{pmatrix},
-\f]
+  \f[
+    F(t) = \begin{pmatrix} f(t)\\ g(t) \end{pmatrix}, \quad
+    D(t) = \begin{pmatrix} a(t) & b(t)\\ c(t) & d(t) \end{pmatrix}, \quad
+    S(t) = \begin{pmatrix} s_f(t)\\ s_g(t) \end{pmatrix}.
+  \f]
 
-D is the 2x2 "derivative matrix":
+  D (and optionally S) must be provided by implementing this struct.
+  The four functions a, b, c, d must be overridden to define the ODE system.
+  Sf and Sg default to zero if not overridden.
 
-\f[
-  D(t) = \begin{pmatrix}
-    a(t) & b(t)\\
-    c(t) & d(t)
-  \end{pmatrix},
-\f]
+  Template parameter T is the type of the argument t (usually double or
+  complex<double>, but may be an index type such as std::size_t if the matrix
+  is known only at discrete grid points). Template parameter Y is the return
+  type (usually double, but may be float or complex<double>).
 
-and S(t) is the (optional) 2D inhomogenous term:
-
-\f[
-  S(t) = \begin{pmatrix}
-    s_f(t)\\
-    s_g(t)
-  \end{pmatrix}.
-\f]
-
-D (and, optionally S) must be provided by the user by implementing this
-DerivativeMatrix. \n
-D is defined by four functions, a,b,c,d. These four functions
-must be overriden with definitions to define the ODE system.
-
-Template parameters, T and Y
-
-Each of the four functions is a function of t, which has type T.
-Usually, T=double or complex<double>, but it may also be an index type (e.g.,
-std::size_t) if the derivative matrix is only known numerically at certain grid
-points/stored in an array.
-
-The return type, Y, is also a template parameter.
-It is usually double, but may be any type (e.g., float or complex<double>).
-DerivativeMatrix will work with any type, though only arithmetic types will
-work in the ODE solver.
-
-See documentation of ODESolver2D for example.
-
-\par
-
-Note: in tests, deriving from a struct was significantly faster than using
-std::function, slightly faster than using function pointers, and performed
-about equally to directly implementing the DerivativeMatrix.
+  @note In benchmarks, deriving from a struct was significantly faster than
+        using std::function, slightly faster than function pointers, and
+        comparable to a direct implementation.
 */
 template <typename T = double, typename Y = double>
 struct DerivativeMatrix {
@@ -96,27 +64,32 @@ struct is_complex : std::false_type {};
 // User-defined type-trait: Checks whether T is a std::complex type
 template <typename T>
 struct is_complex<std::complex<T>> : std::true_type {};
-//! User-defined type-trait: Checks whether T is a std::complex type
-/*! @details
-  For example:
-  `static_assert(!is_complex_v<double>);`
-  `static_assert(!is_complex_v<float>);`
-  `static_assert(is_complex_v<std::complex<double>>);`
-  `static_assert(is_complex_v<std::complex<float>>);`
-  `static_assert(is_complex<std::complex<float>>::value);`
+/*!
+  @brief Type trait: true if T is std::complex<U> for some U, false otherwise.
+  @details
+  Examples:
+  ```cpp
+  static_assert(!is_complex_v<double>);
+  static_assert(!is_complex_v<float>);
+  static_assert(is_complex_v<std::complex<double>>);
+  static_assert(is_complex_v<std::complex<float>>);
+  static_assert(is_complex<std::complex<float>>::value);
+  ```
 */
 template <typename T>
 constexpr bool is_complex_v = is_complex<T>::value;
 
 //==============================================================================
 
-//! Inner product of two std::arrays.
-/*! @details
-\f[ inner_product(a, b) = \sum_{i=0}^{N-1} a_i * b_i \f]
-Where `N = min(a.size(), b.size())`.
-The types of the arrays may be different (T and U).
-However, U must be convertable to T; the return-type is T (same as first
-array).
+/*!
+  @brief Inner product of two std::arrays: sum_i a_i * b_i.
+  @details
+
+  \f[ \text{inner\_product}(a,\, b) = \sum_{i=0}^{N-1} a_i \, b_i \f]
+
+  where \f$ N = \min(\text{a.size()}, \text{b.size()}) \f$.
+  The array types may differ (T and U), but U must be convertible to T.
+  The return type is T (same as the first array).
 */
 template <typename T, typename U, std::size_t N, std::size_t M>
 constexpr T inner_product(const std::array<T, N> &a,
@@ -223,20 +196,20 @@ static constexpr std::size_t K_max =
 
 //==============================================================================
 
-//! Holds the K+1 Adams-Moulton ak coefficients for the K-step AM method. Final
-//! one, aK, is stored separately.
-/*! @details
-The Adams coefficients, a_k, are defined such that: \n
- \f[ F_{n+K} = F_{n+K-1} + dx * \sum_{k=0}^K a_k y_{n+k} \f]
-where:
- \f[ y = d(F)/dr \f]
-Note: the 'order' of the coefs is reversed compared to some sources. \n
-The final coefficient is separated, such that: \n
- \f[ a_k = b_k / denom \f]
-for k = {0,1,...,K-1} \n
-and
- \f[ a_K = b_K / denom \f]
-They are stored as doubles regardless of other template parameters.
+/*!
+  @brief Holds the K+1 Adams-Moulton coefficients for the K-step AM method.
+  @details
+  The Adams coefficients a_k are defined such that:
+
+  \f[ F_{n+K} = F_{n+K-1} + dx \sum_{k=0}^{K} a_k y_{n+k}, \quad y \equiv \frac{dF}{dr} \f]
+
+  The order of the coefficients is reversed compared to some sources.
+  The final coefficient a_K is stored separately:
+
+  \f[ a_k = b_k / \text{denom}, \quad k = 0, 1, \ldots, K-1 \f]
+  \f[ a_K = b_K / \text{denom} \f]
+
+  All coefficients are stored as doubles regardless of other template parameters.
 */
 template <std::size_t K, typename = std::enable_if_t<(K > 0)>,
           typename = std::enable_if_t<(K <= K_max)>>
@@ -270,9 +243,10 @@ public:
 };
 
 //==============================================================================
-//! Solves a 2D system of ODEs using a K-step Adams-Moulton method
-/*! @details
-The system of ODEs is defined such that:
+/*!
+  @brief Solves a 2x2 system of ODEs using a K-step Adams-Moulton method.
+  @details
+  The system of ODEs is defined such that:
 
 \f[ \frac{dF(t)}{dt} = D(t) * F(t) + S(t) \f]
 
@@ -457,11 +431,11 @@ private:
   const DerivativeMatrix<T, Y> *m_D;
 
 public:
-  //! Arrays to store the previous K values of f and g.
   /*!
-  Note: Stored in the same order, regardless of sign of dt (i.e. whether
-  driving forwards or backwards). So f[0] is the 'oldest' value, f[K-1] is
-  newest.
+    @brief Arrays storing the previous K values of f and g.
+    @details
+    Stored in chronological order regardless of the sign of dt (i.e. whether
+    driving forwards or backwards). f[0] is the oldest value, f[K-1] is newest.
   */
   std::array<Y, K> f{}, g{};
 
@@ -474,14 +448,14 @@ public:
   Y S_scale{1.0};
 
 public:
-  //! Construct the solver. dt is the (constant) step size
-  //! @param dt -- (constant) step size
-  //! @param D -- Pointer to derivative matrix
-  /*! @details
-   The step-size, dt, may be positive (to drive forwards) or negative (to
-   drive backwards); it may also be complex. \n
-   Note: a pointer to the DerivativeMatrix, tD, is stored. This may not be null,
-   and must outlive the ODESolver2D.
+  /*!
+    @brief Constructs the ODE solver with a given step size and derivative matrix.
+    @details
+    The step-size dt may be positive (drive forwards), negative (drive backwards),
+    or complex. A raw pointer to D is stored internally and must not be null; it
+    must outlive the ODESolver2D instance.
+    @param dt  Constant step size.
+    @param D   Pointer to the derivative matrix. Must not be null.
   */
   ODESolver2D(Y dt, const DerivativeMatrix<T, Y> *D) : m_dt(dt), m_D(D) {
     assert(dt != Y{0.0} && "Cannot have zero step-size in ODESolver2D");
@@ -509,19 +483,21 @@ public:
     return m_D->c(tt) * ft + m_D->d(tt) * gt + S_scale * m_D->Sg(tt);
   }
 
-  //! Drives the DE system to next value, F(t), assuming system has already
-  //! been solved for the K previous values {t-K*dt, ..., t-dt}.
-  /*! @details
-  Note: t must align with previous values: i.e., t_next = last_t + dt \n
-  We re-send t to the function to avoid large build-up of small errors. \n
-  There's an overload that avoids this, but care should be taken. \n
-  For example, the 10,000th point along t grid may not exactly line up with t0
-  + 10000*dt, particularly for complicated non-linear grids. \n
+  /*!
+    @brief Drives the ODE system one step to t_next, given the K previous values.
+    @details
+    Assumes the system has already been solved for the K previous values
+    {t-K*dt, ..., t-dt}. The value t_next should satisfy t_next = last_t + dt.
 
-  The type of t_next (T) must match type required by DerivativeMatrix. \n
-  This is often T=double if analytic formula for derivative is known. \n
-  If   we have a numerical approximation to the derivative stored, e.g., on a
-  grid, then we may instead have T=std::size_t (or whatever). \n
+    t is passed explicitly to avoid accumulation of floating-point errors: the
+    10,000th grid point may not equal t0 + 10000*dt exactly, particularly on
+    non-linear grids. The no-argument overload drive() avoids this but should be
+    used with care.
+
+    The type T of t_next must match the type expected by DerivativeMatrix; usually
+    T=double for an analytic derivative, or T=std::size_t when the derivative is
+    stored on a discrete grid.
+    @param t_next  The target t value for the new step.
   */
   void drive(T t_next) {
 
@@ -566,16 +542,19 @@ public:
   //! integral types (grid index).
   void drive() { drive(next_t(last_t())); }
 
-  //! Automatically sets the first K values for F (and dF), given a single
-  //! initial value for F, f0=f(t0), fg=g(t0).
-  /*! @details
-  It does this by using successive N-step AM methods, for N={1,2,...,K-1}. \n
-  i.e., \n
-  F[0] must be given \n
-  F[1] determined using F[0] and a 1-step AM method \n
-  F[2] determined using F[0],F[1] and a 2-step AM method \n
-  ... \n
-  F[K-1] determined using F[0],F[1],...,F[K-2] and a (K-1)-step AM method \n
+  /*!
+    @brief Sets the first K values of F (and dF) given a single initial condition.
+    @details
+    Uses successive N-step AM methods for N = {1, 2, ..., K-1}:
+    - F[0] is set from the supplied initial values.
+    - F[1] is determined from F[0] using a 1-step AM method.
+    - F[2] is determined from F[0], F[1] using a 2-step AM method.
+    - ...
+    - F[K-1] is determined from F[0], ..., F[K-2] using a (K-1)-step AM method.
+
+    @param t0  Initial value of t.
+    @param f0  Initial value f(t0).
+    @param g0  Initial value g(t0).
   */
   void solve_initial_K(T t0, Y f0, Y g0) {
     t.at(0) = t0;
