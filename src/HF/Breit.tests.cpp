@@ -250,7 +250,10 @@ TEST_CASE("Breit", "[Breit][integration][!mayfail]") {
   Wavefunction wf({3500, 1.0e-6, 125.0, 40.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   const double x_Breit = 1.0;
-  const auto breit_params = x_Breit != 0.0 ? std::optional<HF::Breit::Params>{HF::Breit::Params{x_Breit}} : std::nullopt;
+  const auto breit_params =
+    x_Breit != 0.0 ?
+      std::optional<HF::Breit::Params>{HF::Breit::Params{x_Breit}} :
+      std::nullopt;
   wf.solve_core("HartreeFock", breit_params, "[Xe]");
   wf.solve_valence("7sp5d");
 
