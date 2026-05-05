@@ -91,3 +91,8 @@ div.fragment, pre.fragment, code, .line {
 #nav-tree .arrow {
     opacity: 1 !important;
 }
+
+/* Hide "Detailed Description" heading (the h2 immediately before the details block) */
+h2.groupheader:has(+ .textblock) {
+  display: none;
+}
