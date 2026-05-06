@@ -342,7 +342,7 @@ void GEMM(const Matrix<T> &a, const Matrix<T> &b, Matrix<T> *c,
   (B * X^{(i)}) via BLAS, while the remaining operations are
   elementwise scalings and accumulations.
 
-  The routine allocates temporary work matrices X and Y of size N×N
+  The routine allocates temporary work matrices X and Y of size NN
   (reused across i) and writes the result into @p M, which must be
   preallocated and is overwritten on entry (i.e., initialised to zero).
 
@@ -350,8 +350,8 @@ void GEMM(const Matrix<T> &a, const Matrix<T> &b, Matrix<T> *c,
   ~20% faster than Naiive implementation, BUT not easily parallelisable.
 
   @tparam T  Scalar type (float, double, std::complex<...>)
-  @param A,B,C,D,E  Input N×N matrices
-  @param[out] M     Output N×N matrix receiving the contraction. Must be previously sized
+  @param A,B,C,D,E  Input NN matrices
+  @param[out] M     Output NN matrix receiving the contraction. Must be previously sized
 */
 template <typename T>
 void PENTA_GEMM(const Matrix<T> &A, const Matrix<T> &B, const Matrix<T> &C,
@@ -397,8 +397,8 @@ Matrix<T> PENTA_GEMM(const Matrix<T> &A, const Matrix<T> &B, const Matrix<T> &C,
 
   @tparam T         Scalar type: double, float, std::complex
   @tparam PARALLEL  Enable OpenMP parallelisation when true (compile-time)
-  @param A,B,C,D,E  Input N×N matrices
-  @param[out] M     Output N×N matrix receiving the contraction. Must be previously sized
+  @param A,B,C,D,E  Input NN matrices
+  @param[out] M     Output NN matrix receiving the contraction. Must be previously sized
 */
 template <typename T, bool PARALLEL = false>
 void PENTA(const Matrix<T> &A, const Matrix<T> &B, const Matrix<T> &C,
