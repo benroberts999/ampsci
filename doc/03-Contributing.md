@@ -103,28 +103,12 @@ Replace `PATH_TO_CLANG_FORMAT` with the path returned from `which clang-format`
 * The `@brief` line should be about one sentence. Avoid special symbols and
   succinctly describe what the function or class does.  
   * This text is what appears in IDE/editor tooltips when hovering over the symbol.
-* LaTeX works, but uses slightly different syntax: use `\f[` and `\f]` (instead of `\[`, `\]`) for out-of-line equations, and `\f$` (instead of `$`) for inline equations
+* LaTeX is supported, but uses Doxygen's formula delimiters instead of standard LaTeX:
+  display equations use `\f[` ... `\f]` (not `\[` ... `\]`), and inline equations use `\f$` ... `\f$` (not `$` ... `$`)
 
 Example:
 
-```cpp
-//! Compute y = mx + b
-/*!
-  @details
-  A more detailed description that may contain LaTeX.
-
-  \f[
-    y = mx + b
-  \f]
-
-  or \f$ y = mx + b \f$ for inline equations.
-
-  @param x Input value.
-  @return Value of the linear function.
-  @warning May explode if poked
-*/
-double my_new_function(double x);
-```
+@include comment_example.cpp
 
 ### Common Doxygen commands
 
