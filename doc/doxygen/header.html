@@ -22,6 +22,16 @@
         <script type="text/javascript">
             DoxygenAwesomeFragmentCopyButton.init()
         </script>
+        <script type="text/javascript">
+        $(function() {
+            var btn = $('<button id="mobile-nav-btn" aria-label="Navigation menu"><span></span><span></span><span></span></button>');
+            btn.on('click touchstart', function(e) {
+                e.preventDefault();
+                $('#side-nav').toggleClass('mobile-menu-open');
+            });
+            $('#main-nav').before(btn);
+        });
+        </script>
         <!-- <script>
             document.documentElement.classList.add("light-mode");
         </script> -->
