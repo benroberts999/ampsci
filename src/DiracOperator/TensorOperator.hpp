@@ -12,13 +12,45 @@
 #include <string>
 #include <vector>
 
-//! Dirac Operators: General + derived
+/*!
+  @brief Dirac operators: TensorOperator base class and derived implementations for single-particle (one-body) spherical tensor operators.
+
+  @details
+  This namespace contains the TensorOperator base class and all derived
+  operator classes. Operators act on DiracSpinor objects and compute reduced
+  matrix elements (RMEs) of the form:
+
+  \f[
+    \langle a \| \hat{h} \| b \rangle = A_{ab} \cdot R_{ab}
+  \f]
+
+  where \f$ A_{ab} \f$ is a purely angular factor and \f$ R_{ab} \f$ is a radial
+  integral. New operators are implemented by deriving from TensorOperator (or
+  ScalarOperator for rank-0 operators) and overriding the relevant virtual
+  functions; see TensorOperator for details.
+
+  Operators are typically constructed via @ref generate(), which takes a name
+  string and an InputBlock; see GenerateOperator.hpp for the full list of
+  available operators.
+
+  See @ref TensorOperator class documentation for main descriptions.
+  All usable tensor operators dervive from that virtual class.
+*/
 namespace DiracOperator {
 
 //! Parity of operator
 enum class Parity { even, odd, Error };
 
-//! Realness of matrix element; impacts symmetry only
+/*!
+  @brief Specifies whether an operator's matrix elements are real or imaginary.
+  @details
+  Operators must have purely real or purely imaginary reduced matrix elements.
+  For imaginary operators, the imaginary part is computed and stored; the real
+  part is identically zero. This distinction affects the Hermitian symmetry
+  relation \f$ \langle b \| \hat{h} \| a \rangle = \pm \langle a \| \hat{h} \| b \rangle^* \f$ 
+  and the sign of \f$ \langle b \| \hat{h} \| a \rangle \f$ relative to
+ \f$ \langle a \| \hat{h} \| b \rangle \f$ .
+*/
 enum class Realness { real, imaginary, Error };
 
 //! Type of matrix element returned
@@ -52,26 +84,106 @@ MatrixElementType parse_MatrixElementType(const std::string &s);
 std::string parse_MatrixElementType(MatrixElementType t);
 
 //==============================================================================
-//! @brief General operator (virtual base class); operators derive from this.
-/*! @details
-  - k is rank, c is multiplicative constant, pi is parity, may be Parity::even or ::odd.
-  - RorI may be Realness::real or Realness::imaginary.
-  - Note: You may not construct a TensorOperator. Instead, you must construct
-    one of the derived 'operators' (there are some general ones); see
-    operators.hpp for list of operators. Operators work by overrideing the
-    angularCxx() functions and angularF().
-  - c, v, and Cxx are included in radial integral.
+/*!
+  @brief General tensor operator (virtual base class); 
+  all single-particle (one-body) tenosor operators derive from this.
+
+  @details
+
+  Represents a single-particle (one-body) tensor operator 
+  \f$ \hat{h} \f$ of rank-\f$ k \f$ and parity \f$ \pi \f$, 
+  thats acts on Dirac spinors. 
+  The core quantity is the _reduced matrix element_ (RME):
+
+  \f[
+    \langle a \| \hat{h} \| b \rangle \equiv A_{ab} \cdot R_{ab}
+  \f]
+
+  where \f$ A_{ab} \f$ is the angular factor (see angularF()) and \f$ R_{ab} \f$ 
+  is the radial integral (see radialIntegral()).
+
+  The default radial integral is:
+
+  \f[
+    R_{ab} = c \int_0^\infty v(r)\left(
+      C_{ff}\,f_a f_b + C_{fg}\,f_a g_b +
+      C_{gf}\,g_a f_b + C_{gg}\,g_a g_b
+    \right)\,{\rm d}r
+  \f]
+
+  where \f$ c \f$ is an overall multiplicative constant (1 by default),
+  \f$ v(r) \f$ is an optional radial function (stored in m_vec), 
+  and the \f$ C_{xy} \f$ are angular coefficients returned by @ref angularCff() etc.
+
+  - Operators must be spherical tensor operators of defined rank and parity
+  - Operators must have pure real, or pure imaginary matrix elements
+  - If matrix elements are imaginary, class returns the imaginary part
+  - For operators with imaginary matrix elements, the @ref Realness member variable (m_Realness) must be set to Realness::imaginary via the virtual base class constructor @ref TensorOperator() (impacts symmetry)
+  - (For brevity, we may refer to operators whose matrix elements are imaginary as 'imaginary operators'. This is sometimes confusing.)
+
+  ## Implementing a derived operator
+
+  TensorOperator is a virtual base class and cannot be constructed directly.
+
+  @note All derived operators must implement angularF()
+  
+  Beyond that, there are two levels of customisation:
+
+  ### Standard case -- override angular factors only:
+
+  Implement angularF() (required), and optionally 
+  @ref angularCff(), angularCgg(), angularCfg(), angularCgf().
+  The radial integral is then handled
+  automatically by the default @ref radial_rhs() and @ref radialIntegral().
+  The \f$ v(r) \f$ radial function, and overall constant \f$ c \f$ are set
+  within the constructor @ref TensorOperator::TensorOperator(), which should
+  be called by any deriving class.
+  Then, the default radial integral as above will be used.
+
+  ### Non-standard case -- override the radial functions:
+
+  If the radial integral cannot be expressed in the above standard/default form 
+  (e.g., it involves derivatives, non-local terms, or more complicated radial structure), 
+  you shuold override radial_rhs() **and** radialIntegral() directly. 
+  In that case both should be consistent with each other:
+
+  - radial_rhs(ka, Fb) returns the spinor \f$ \delta F_b \f$ such that
+
+  \f[ F_a \cdot \delta F_b = R_{ab} \f] 
+
+  - radialIntegral(Fa, Fb) returns \f$ R_{ab} \f$ directly
+  - Generally, this should be directly checked with a unit test
+
+  @note 
+  - If radialIntegral() is overridden then radial_rhs() _must_ be overridden
+  (and vice versa), or results will be inconsistent. 
+  It's OK (but inefficient) to define radialIntegral(a,b) = a*radial_rhs(b).
+  But that is not the default.
+
+  @warning 
+  - Frequency-dependent operators: if the operator depends on the
+  transition frequency, or energy/momentum transfer,
+  (e.g., dynamic multipole operators), pass
+  freq_dep=true to the constructor and override updateFrequency(). This
+  function must be called with the current frequency before computing
+  any matrix elements. Failing to override it will abort at runtime.
+
+  @note 
+  - You may not construct a TensorOperator directly. Construct one of the
+  derived classes; see [Operators/include.hpp](Operators/include.hpp) for the list.
 */
 class TensorOperator {
 protected:
-  //! @brief Constructs a tensor operator description.
-  /*! @details
+  /*! 
+    @brief Constructs a specific tensor operator. Called by derived classes.
+    @details
     Initialises the basic properties of a tensor operator.
 
     @param rank_k     Tensor rank k of the operator.
     @param pi         Parity of the operator (Parity::even or Parity::odd).
     @param constant   Multiplicative constant c, included in the radial integral.
-    @param vec        Overall v=f(r) radial function, as std::vector array
+    @param vec        Overall v=f(r) radial function, as std::vector. 
+                      May be impty, in which case it is not used (equivilant to vector of 1)
     @param RorI       Specifies whether the matrix element is real or imaginary
                       (Realness::real or Realness::imaginary).
     @param freq_dep   Indicates whether the operator depends on frequency
@@ -85,7 +197,7 @@ protected:
                  Realness RorI = Realness::real, bool freq_dep = false)
     : m_rank(rank_k),
       m_parity(pi),
-      opC(RorI),
+      m_Realness(RorI),
       m_freqDependantQ(freq_dep),
       m_constant(constant),
       m_vec(vec) {};
@@ -113,7 +225,7 @@ public:
 protected:
   int m_rank;
   Parity m_parity;
-  Realness opC;
+  Realness m_Realness;
   bool m_freqDependantQ{false};
 
 protected:
@@ -122,13 +234,16 @@ protected:
   std::vector<double> m_vec;
 
 public:
+  //! Returns true if the operator is frequency-dependent (requires updateFrequency() calls).
   bool freqDependantQ() const { return m_freqDependantQ; }
 
 public:
-  //! If matrix element <a|h|b> is zero, returns true
+  //! Returns true if <a|h|b> = 0 by rank/parity selection rules.
   bool isZero(int ka, int kb) const;
+  //! Overload taking DiracSpinors; forwards to isZero(ka, kb).
   bool isZero(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
+  //! Returns true if the matrix element is non-zero by angular momentum and parity selection rules (arguments are 2j and pi as integers).
   bool selectrion_rule(int twoJA, int piA, int twoJB, int piB) const {
     if (twoJA == twoJB && twoJA == 0.0)
       return false;
@@ -139,16 +254,36 @@ public:
     return (m_parity == Parity::even) == (piA == piB);
   }
 
-  //! Update frequency for frequency-dependant operators.
+  //! @brief Updates the operator for a new frequency omega.
+  /*!
+    @details
+    Must be overridden by any frequency-dependent operator (i.e., where
+    freqDependantQ() returns true). Called before computing matrix elements
+    whenever the frequency changes.
+
+    The base class implementation aborts -- if a frequency-dependent operator
+    is constructed but this function is not overridden, it will abort at
+    runtime when called.
+
+    @param omega   Frequency in atomic units.
+
+    @warning Must be implemented in any derived class that sets freq_dep=true.
+    Calling this on a non-frequency-dependent operator is a logic error.
+  */
   virtual void updateFrequency(const double) {
     std::cout << "Must reimplement updateFrequency()\n";
     std::cout << this->name() << "\n";
     std::abort();
   };
 
-  //! Updates the rank of operator (rarely used). Generally also updates parity
   /*!
-    @note: Will usually have to call updateFrequency() after this!
+    Updates the rank of operator (rarely used). Generally also updates parity
+
+    @details 
+    Use with caution.
+    @warning Will usually have to call updateFrequency() after this! 
+    Updating rank often breaks frequency-dependence of radial functions 
+    (e.g., spherical Bessel functions)
   */
   virtual void updateRank(int) {
     std::cout << "Must reimplement updateRank() is needed\n";
@@ -156,14 +291,14 @@ public:
     std::abort();
   }
 
-  //! Returns a const ref to vector v
+  //! Returns a const ref to the stored vector v
   const std::vector<double> &getv() const { return m_vec; }
 
-  //! Returns a const ref to constant c
+  //! Returns the "overall" constant c
   double getc() const { return m_constant; }
 
   //! returns true if operator is imaginary (has imag MEs)
-  bool imaginaryQ() const { return (opC == Realness::imaginary); }
+  bool imaginaryQ() const { return (m_Realness == Realness::imaginary); }
 
   //! Rank k of operator
   int rank() const { return m_rank; }
@@ -180,117 +315,197 @@ public:
 
   //! Returns "name" of operator (e.g., 'E1')
   virtual std::string name() const { return "Operator"; };
-  //! Returns units of operator (usually au, may be MHz, etc.)
+  //! Returns units of operator as a string (usually au, may be MHz, etc.)
   virtual std::string units() const { return "au"; };
 
 public:
   // These are needed for radial integrals
   // Usually just constants, but can also be functions of kappa
 
-  //! Angular factor for f_a*f_b part of radial integral
-  /*! @details 
-    - Often constant, though sometimes depends on \f$\kappa_a,\kappa_b\f$
+  /*!
+    @brief Angular coefficient C_ff for the f_a*f_b term of the radial integral.
+    
+    @details
+    The default radial integral is structured as:
+
     \f[
-      \int_0^\infty v(r)\left(
-        C_{ff}f_a(r)f_b(r) + 
-        C_{fg}f_a(r)g_b(r) + 
-        C_{gf}g_a(r)f_b(r) + 
-        C_{gg}g_a(r)g_b(r)
+      R_{ab} = c\int_0^\infty v(r)\left(
+        C_{ff}\,f_a f_b + C_{fg}\,f_a g_b +
+        C_{gf}\,g_a f_b + C_{gg}\,g_a g_b
       \right)\,{\rm d}r
     \f]
+
+    These coefficients are often constants, but may depend on
+    \f$ \kappa_a, \kappa_b \f$ for operators with angular-momentum-dependent
+    coupling between large and small components (e.g., spin-dependent
+    operators). Override in derived classes as needed.
+
+    @param kappa_a  kappa \f$ \kappa_a \f$ for left-hand-side (bra)
+    @param kappa_b  kappa \f$ \kappa_b \f$ for right-hand-side (ket)
+
+    @note Only relevant when using the default radial_rhs()/radialIntegral().
+    If those are overridden, these are not called.
   */
-  virtual double angularCff(int /*k_a*/, int /*k_b*/) const { return 1.0; }
-  //! Angular factor for g_a*g_b part of radial integral
+  virtual double angularCff(int kappa_a, int kappa_b) const {
+    (void)kappa_a, (void)kappa_b;
+    return 1.0;
+  }
+  //! Angular coefficient C_gg for the g_a*g_b term of the radial integral.
   virtual double angularCgg(int, int) const { return 1.0; }
-  //! Angular factor for f_a*g_b part of radial integral
+  //! Angular coefficient C_fg for the f_a*g_b term of the radial integral.
   virtual double angularCfg(int, int) const { return 0.0; }
-  //! Angular factor for g_a*f_b part of radial integral
+  //! Angular coefficient C_gf for the g_a*f_b term of the radial integral.
   virtual double angularCgf(int, int) const { return 0.0; }
 
+  /*!
+    @brief Dispatches to angularCff/fg/gf/gg based on component indices x, y.
+    @details
+    Convenience dispatcher: x and y index the spinor component (0 = large/f,
+    1 = small/g) of the bra and ket respectively, and returns the
+    corresponding angular coefficient C_xy(ka, kb).
+
+    See @ref angularCff()
+
+    | x | y | returns        |
+    |---|---|----------------|
+    | 0 | 0 | angularCff()   |
+    | 0 | 1 | angularCfg()   |
+    | 1 | 0 | angularCgf()   |
+    | 1 | 1 | angularCgg()   |
+
+    @param x       Bra component index: 0=f (large), 1=g (small).
+    @param y       Ket component index: 0=f (large), 1=g (small).
+    @param kappa_a  kappa \f$ \kappa_a \f$ for left-hand-side (bra)
+    @param kappa_b  kappa \f$ \kappa_b \f$ for right-hand-side (ket)
+
+    @note Only relevant when using the default radial_rhs()/radialIntegral().
+    If those are overridden, these are not called.
+  */
+  double angularCxy(uint8_t x, uint8_t y, int kappa_a, int kappa_b) const {
+    assert((x <= 1 && y <= 1) && "x and y must be 0 or 1 in angularCxy");
+    return x == 0 ? (y == 0 ? angularCff(kappa_a, kappa_b) :
+                              angularCfg(kappa_a, kappa_b)) :
+                    (y == 0 ? angularCgf(kappa_a, kappa_b) :
+                              angularCgg(kappa_a, kappa_b));
+  }
+
 public:
-  //! @brief angularF: links radiation integral to RME.
-  //! RME = <a||h||b> = angularF(a,b) * radial_int(a,b)
-  virtual double angularF(const int, const int) const = 0;
-
-  //! Returns a polymorphic copy at the current state, or nullptr if not supported.
-  virtual std::unique_ptr<TensorOperator> clone() const { return nullptr; }
-
-  //! radial_int = Fa * radial_rhs(a, Fb) (a needed for angular factor)
-  /*! @details
-  
-  By default, is defined as:
+  /*!
+    @brief Angular factor A_ab linking the radial integral to the RME.
+    
+    @details
+    All derived operators must implement this. It gives the purely angular
+    part of the reduced matrix element:
 
     \f[
-      \delta F_{\rm b} = 
-      C_{\rm overall}\,v(r)
+      \langle a \| \hat{h} \| b \rangle \equiv A_{ab} \cdot R_{ab}
+    \f]
+
+    where \f$ R_{ab} \f$ is returned by radialIntegral(). For most operators,
+    \f$ A_{ab} \f$ is a product of Clebsch-Gordan / 3j coefficients and
+    depends only on \f$ \kappa_a, \kappa_b \f$ 
+    (and the rank \f$ k \f$ and parity \f$ \pi \f$ of the operator).
+
+    @note This is a pure virtual function -- every derived operator must
+    provide an implementation.
+  */
+  virtual double angularF(const int, const int) const = 0;
+
+  //! Returns a polymorphic copy of the operator at its current state,
+  //! or nullptr if cloning is not supported by the derived class.
+  virtual std::unique_ptr<TensorOperator> clone() const { return nullptr; }
+
+  //! @brief Computes the right-hand spinor dF_b for the radial integral.
+  /*!
+    @details
+    Returns \f$ \delta F_b \f$ such that the radial integral satisfies:
+
+    \f[
+      R_{ab} = F_a \cdot \delta F_b
+             = \int_0^\infty \left(f_a\,\delta f_b + g_a\,\delta g_b\right)\,{\rm d}r
+    \f]
+
+    The default implementation constructs \f$ \delta F_b \f$ using the stored
+    radial function \f$ v(r) \f$ and the angular coefficients:
+
+    \f[
+      \delta F_b(r) = c\,v(r)
       \begin{pmatrix}
-        C_{ff}f_b(r) + C_{fg}g_b(r) \\
-        C_{gf}f_b(r) + C_{gg}g_b(r)
+        C_{ff}\,f_b(r) + C_{fg}\,g_b(r) \\
+        C_{gf}\,f_b(r) + C_{gg}\,g_b(r)
       \end{pmatrix}
     \f]
 
-    \f$ C_{f/g} \f$ are angular coeficients - see \ref TensorOperator::angularCff
+    This is used by reduced_rhs() to build \f$ \langle a \| \hat{h} \| b \rangle \f$ 
+    as a spinor-valued quantity, enabling perturbation theory and TDHF.
+    Override this for operators whose radial structure cannot be expressed in
+    this standard form.
 
-    See also: \ref TensorOperator::radial_rhs
+    @param kappa_a   Relativistic quantum number \f$ \kappa_a \f$ of the bra state
+                     (needed to evaluate the angular coefficients).
+    @param Fb        Ket DiracSpinor \f$ F_b \f$ .
+
+    @return DiracSpinor \f$ \delta F_b \f$ .
+
+    @warning If this is overridden, radialIntegral() should also be overridden
+    consistently (and vice versa), so that reducedME() and reduced_rhs() remain
+    consistent.
   */
   virtual DiracSpinor radial_rhs(const int kappa_a,
                                  const DiracSpinor &Fb) const;
 
-  //! Radial part of integral R_ab = (Fa|t|Fb).
-  /*! @details
+  //! @brief Radial integral R_ab, defined by RME = angularF(a,b) * radialIntegral(a,b).
+  /*!
+    @details
+    Returns the radial part \f$ R_{ab} \f$ of the reduced matrix element:
 
-    <a||t||b> = angularF(a,b) * radialIntegral(a,b)
-
-    The 'radial'  integral \f$R_{ab}\f$ for operator \f$t\f$ is defined as
     \f[
-      \langle a ||t|| b \rangle \equiv R_{ab} * A_{ab}
+      \langle a \| \hat{h} \| b \rangle = A_{ab} \cdot R_{ab}
     \f]
 
-    where \f$A_{ab}\f$ is TensorOperator::angularF()
+    where \f$ A_{ab} \f$ is angularF().
 
-    By default, is implemented as:
+    The default implementation evaluates \f$ R_{ab} = F_a \cdot \delta F_b \f$ ,
+    using the default radial structure:
+
     \f[
-      R = \int_0^\infty F_a\cdot\delta F_{\rm b} \,{\rm d}r
-    \f]
-
-    where \f$ \delta F_{\rm b} \f$ is defined in \ref TensorOperator::radial_rhs
-
-    So, if \ref TensorOperator::radial_rhs is defined normally, we have:
-    \f[
-      C_{\rm overall}\int_0^\infty v(r)\left(
-        C_{ff}f_a(r)f_b(r) + 
-        C_{fg}f_a(r)g_b(r) + 
-        C_{gf}g_a(r)f_b(r) + 
-        C_{gg}g_a(r)g_b(r)
+      R_{ab} = c\int_0^\infty v(r)\left(
+        C_{ff}\,f_a f_b + C_{fg}\,f_a g_b +
+        C_{gf}\,g_a f_b + C_{gg}\,g_a g_b
       \right)\,{\rm d}r
     \f]
 
-    \f$ C_{f/g} \f$ are angular coeficients - see \ref TensorOperator::angularCff
+    Override this for operators that do not fit this standard form. If
+    radial_rhs() is also overridden, both must remain mutually consistent.
 
-    @warning
-    - This is defined for the "standard" case, which doesn't always suit
-    - \ref TensorOperator::radial_rhs may be overridden for special cases
-    - If radial_rhs is overridden, then radialIntegral must also be_
+    @warning If radial_rhs() is overridden but radialIntegral() is not (or
+    vice versa), reducedME() and reduced_rhs() will give inconsistent results.
   */
   virtual double radialIntegral(const DiracSpinor &Fa,
                                 const DiracSpinor &Fb) const;
 
-  //! ME = rme3js * RME
+  /*!
+    @brief 3j-symbol factor linking the full ME to the RME.
+    @details
+    \f[ (-1)^{j_a - m_a} \begin{pmatrix} j_a & k & j_b \\ -m_a & q & m_b \end{pmatrix} \f]
+    such that \f$\langle a | \hat{h} | b \rangle = {\rm rme3js} \times \langle a \| \hat{h} \| b \rangle\f$.
+    All arguments are twice the actual value (2*j, 2*m, 2*q).
+  */
   double rme3js(int twoja, int twojb, int two_mb = 1, int two_q = 0) const;
 
-  //! ME = rme3js * RME
+  //! Overload of rme3js taking DiracSpinors.
   double rme3js(const DiracSpinor &Fa, const DiracSpinor &Fb, int two_mb = 1,
                 int two_q = 0) const {
     return rme3js(Fa.twoj(), Fb.twoj(), two_mb, two_q);
   }
 
-  //! <a||h||b> = Fa * reduced_rhs(a, Fb) (a needed for angular factor)
+  //! Returns angularF(ka,kb) * radial_rhs(ka,Fb); spinor-valued RME action on Fb, used in perturbation theory/TDHF.
   DiracSpinor reduced_rhs(const int ka, const DiracSpinor &Fb) const;
 
-  //! <b||h||a>  = Fa * reduced_lhs(a, Fb) (a needed for angular factor)
+  //! As reduced_rhs but for the conjugate direction; Fb * reduced_lhs(ka, Fb) = <b||h||a>.
   DiracSpinor reduced_lhs(const int ka, const DiracSpinor &Fb) const;
 
-  //! The reduced matrix element
+  //! Returns the reduced matrix element <a||h||b> = A_ab * R_ab.
   double reducedME(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   //! Returns "full" matrix element, for optional (ma, mb, q) [taken as int 2*].
@@ -300,9 +515,10 @@ public:
                 std::optional<int> two_mb = std::nullopt,
                 std::optional<int> two_q = std::nullopt) const;
 
-  //! Converts reduced matrix element to different "type" (MatrixElementType)
+  //! Returns the factor to convert a reduced ME to a different form (Reduced, Stretched, or HFConstant); see MatrixElementType.
   double matel_factor(MatrixElementType type, int twoJa, int twoJb) const;
 
+  //! Overload of matel_factor taking DiracSpinors.
   double matel_factor(MatrixElementType type, const DiracSpinor &Fa,
                       const DiracSpinor &Fb) const {
     return matel_factor(type, Fa.twoj(), Fb.twoj());
@@ -311,9 +527,17 @@ public:
 
 //============================================================================
 //============================================================================
-//! Speacial case for scalar operator
+/*!
+  @brief Rank-0 (scalar) tensor operator; derives from TensorOperator with k=0.
+  @details
+  Convenience base for scalar operators. angularF() returns \f$ \sqrt{2|\kappa|} \f$ 
+  when \f$ |\kappa_a|=|\kappa_b| \f$ , and zero otherwise. The four C_xy coefficients
+  default to (1,0,0,1) (diagonal ff+gg), but can be set via in_g for operators
+  with large/small component mixing (e.g., PNC operators).
+*/
 class ScalarOperator : public TensorOperator {
 public:
+  //! General scalar operator constructor. in_g = {C_ff, C_fg, C_gf, C_gg}.
   ScalarOperator(Parity pi, double in_coef,
                  const std::vector<double> &in_v = {},
                  const std::array<int, 4> &in_g = {1, 0, 0, 1},
@@ -324,6 +548,7 @@ public:
       c_gf(in_g[2]),
       c_gg(in_g[3]) {}
 
+  //! Convenience constructor: even-parity, real, diagonal (C_ff=C_gg=1, C_fg=C_gf=0) scalar operator.
   ScalarOperator(const std::vector<double> &in_v = {}, double in_coef = 1.0)
     : TensorOperator(0, Parity::even, in_coef, in_v),
       c_ff(1.0),
@@ -356,10 +581,10 @@ public:
   NullOperator() : ScalarOperator(Parity::even, 0, {}) {}
 
 protected:
-  double virtual angularCff(int, int) const override final { return 0.0; }
-  double virtual angularCgg(int, int) const override final { return 0.0; }
-  double virtual angularCfg(int, int) const override final { return 0.0; }
-  double virtual angularCgf(int, int) const override final { return 0.0; }
+  double angularCff(int, int) const override final { return 0.0; }
+  double angularCgg(int, int) const override final { return 0.0; }
+  double angularCfg(int, int) const override final { return 0.0; }
+  double angularCgf(int, int) const override final { return 0.0; }
 };
 
 //******************************************************************************
@@ -409,6 +634,7 @@ double Wab(const std::vector<double> &t, const DiracSpinor &Fa,
 double Gab(const std::vector<double> &t, const DiracSpinor &Fa,
            const DiracSpinor &Fb);
 
+//! Gab_rhs function: dF += a * t(r) * (0, g_b). NOTE: uses +=, so can combine.
 void Gab_rhs(const std::vector<double> &t, DiracSpinor *dF,
              const DiracSpinor &Fb, double a);
 
