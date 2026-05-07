@@ -1,5 +1,7 @@
 #include "SphericalBessel.hpp"
+#include "SphericalBessel.testdata.hpp"
 #include "catch2/catch.hpp"
+#include "fmt/format.hpp"
 #include "qip/Vector.hpp"
 #include <iostream>
 #include <vector>
@@ -225,3 +227,63 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
     }
   }
 }
+
+//==============================================================================
+TEST_CASE("Maths::SphericalBessel JL testdata", "[Bessel][unit]") {
+  for (const auto &data : UnitTest::jk_DATA) {
+    const auto value = SphericalBessel::JL(data.k, data.x);
+    fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}\n", data.k, data.x, value,
+               data.value, (value - data.value) / data.value);
+
+    if (std::abs(data.value) > 1.0e-10)
+      REQUIRE(value == Approx(data.value).epsilon(1e-10));
+    else
+      REQUIRE(value == Approx(data.value).epsilon(1e-5));
+  }
+}
+
+// TEST_CASE("Maths::SphericalBessel exactGSL_YL_alt testdata", "[Bessel][unit]") {
+//   for (const auto &data : UnitTest::jk_DATA) {
+//     const auto value = SphericalBessel::exactGSL_JL_alt(data.k, data.x);
+//     fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}\n", data.k, data.x, value,
+//                data.value, (value - data.value) / data.value);
+
+//     if (std::abs(data.value) > 1.0e-10)
+//       REQUIRE(value == Approx(data.value).epsilon(1e-10));
+//     else
+//       REQUIRE(value == Approx(data.value).epsilon(1e-5));
+//   }
+// }
+
+// //==============================================================================
+// TEST_CASE("Maths::SphericalBessel yL testdata", "[Bessel][unit]") {
+//   for (const auto &d : UnitTest::yk_DATA) {
+//     REQUIRE(SphericalBessel::YL(d.k, d.x) == Approx(d.value).epsilon(1e-10));
+//   }
+// }
+
+// //==============================================================================
+// TEST_CASE("Maths::SphericalBessel PhiL testdata", "[Bessel][unit]") {
+//   // phi(x) = [(2k+1)!! / x^k] * j_k(x); tilde data stores 1 - phi
+//   for (const auto &d : UnitTest::PhikTilde_DATA) {
+//     // non-tilde: phi = 1 - (tilde value)
+//     REQUIRE(SphericalBessel::PhiL(d.k, d.x) ==
+//             Approx(1.0 - d.value).epsilon(1e-10));
+//     // tilde: 1 - phi
+//     REQUIRE(SphericalBessel::PhiL(d.k, d.x, true) ==
+//             Approx(d.value).epsilon(1e-10));
+//   }
+// }
+
+// //==============================================================================
+// TEST_CASE("Maths::SphericalBessel PsiL testdata", "[Bessel][unit]") {
+//   // psi(x) = [x^{k+1} / (2k-1)!!] * y_k(x); tilde data stores 1 - psi
+//   for (const auto &d : UnitTest::PsikTilde_DATA) {
+//     // non-tilde: psi = 1 - (tilde value)
+//     REQUIRE(SphericalBessel::PsiL(d.k, d.x) ==
+//             Approx(1.0 - d.value).epsilon(1e-10));
+//     // tilde: 1 - psi
+//     REQUIRE(SphericalBessel::PsiL(d.k, d.x, true) ==
+//             Approx(d.value).epsilon(1e-10));
+//   }
+// }
