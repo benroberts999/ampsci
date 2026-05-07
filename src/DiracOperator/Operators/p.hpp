@@ -10,7 +10,7 @@ namespace DiracOperator {
 
 class p final : public TensorOperator {
 public:
-  p() : TensorOperator(1, Parity::odd, 1.0, {}, 0, Realness::imaginary) {}
+  p() : TensorOperator(1, Parity::odd, 1.0, {}, Realness::imaginary) {}
   std::string name() const override final { return "p"; }
   std::string units() const override final { return "i au"; }
 

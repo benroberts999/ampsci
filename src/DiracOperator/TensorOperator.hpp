@@ -54,8 +54,7 @@ std::string parse_MatrixElementType(MatrixElementType t);
 //==============================================================================
 //! @brief General operator (virtual base class); operators derive from this.
 /*! @details
-  - k is rank, c is multiplicative constant, d_order is derivative order,
-  - pi is parity, may be Parity::even or ::odd.
+  - k is rank, c is multiplicative constant, pi is parity, may be Parity::even or ::odd.
   - RorI may be Realness::real or Realness::imaginary.
   - Note: You may not construct a TensorOperator. Instead, you must construct
     one of the derived 'operators' (there are some general ones); see
@@ -82,11 +81,10 @@ protected:
     directly. It is intended to be initialised by derived operator classes.
   */
   TensorOperator(int rank_k, Parity pi, double constant = 1.0,
-                 const std::vector<double> &vec = {}, int diff_order = 0,
+                 const std::vector<double> &vec = {},
                  Realness RorI = Realness::real, bool freq_dep = false)
     : m_rank(rank_k),
       m_parity(pi),
-      m_diff_order(diff_order),
       opC(RorI),
       m_freqDependantQ(freq_dep),
       m_constant(constant),
@@ -115,7 +113,6 @@ public:
 protected:
   int m_rank;
   Parity m_parity;
-  int m_diff_order;
   Realness opC;
   bool m_freqDependantQ{false};
 
@@ -159,16 +156,11 @@ public:
     std::abort();
   }
 
-  //! Permanently re-scales the operator by constant, lambda
-  void scale(double lambda);
-
   //! Returns a const ref to vector v
   const std::vector<double> &getv() const { return m_vec; }
 
   //! Returns a const ref to constant c
   double getc() const { return m_constant; }
-
-  int get_d_order() const { return m_diff_order; }
 
   //! returns true if operator is imaginary (has imag MEs)
   bool imaginaryQ() const { return (opC == Realness::imaginary); }
@@ -324,16 +316,16 @@ class ScalarOperator : public TensorOperator {
 public:
   ScalarOperator(Parity pi, double in_coef,
                  const std::vector<double> &in_v = {},
-                 const std::array<int, 4> &in_g = {1, 0, 0, 1}, int in_diff = 0,
+                 const std::array<int, 4> &in_g = {1, 0, 0, 1},
                  Realness rori = Realness::real)
-    : TensorOperator(0, pi, in_coef, in_v, in_diff, rori),
+    : TensorOperator(0, pi, in_coef, in_v, rori),
       c_ff(in_g[0]),
       c_fg(in_g[1]),
       c_gf(in_g[2]),
       c_gg(in_g[3]) {}
 
   ScalarOperator(const std::vector<double> &in_v = {}, double in_coef = 1.0)
-    : TensorOperator(0, Parity::even, in_coef, in_v, 0),
+    : TensorOperator(0, Parity::even, in_coef, in_v),
       c_ff(1.0),
       c_fg(0.0),
       c_gf(0.0),

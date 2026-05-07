@@ -33,7 +33,6 @@ static const std::vector<
     {"Vrad", &generate_Vrad, "QED Radiative potential"},
     {"MLVP", &generate_MLVP,
      "Magnetic-Loop vacuum polarisation vertex correction to HFS"},
-    {"dr", &generate_dr, "Radial scalar derivative"},
     {"p", &generate_p, "Momentum operator"},
     {"l", &generate_l, "Orbital L"},
     {"s", &generate_s, "Spin S (not sigma)"}};

@@ -70,7 +70,7 @@ protected:
                const std::vector<double> &vec, Realness RorI, bool freq_dep,
                const Grid *grid, char type, char comp, bool low_q,
                const SphericalBessel::JL_table *jl = nullptr, char form = 'V')
-    : TensorOperator(rank_k, pi, constant, vec, 0, RorI, freq_dep),
+    : TensorOperator(rank_k, pi, constant, vec, RorI, freq_dep),
       m_grid(grid),
       m_type(type),
       m_comp(comp),

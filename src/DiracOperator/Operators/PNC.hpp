@@ -34,7 +34,7 @@ public:
          const std::string &in_units = "iQw*e-11")
     : ScalarOperator(Parity::odd, factor * PhysConst::GFe11 / std::sqrt(8.0),
                      Nuclear::fermiNuclearDensity_tcN(t, c, 1.0, rgrid),
-                     {0, -1, +1, 0}, 0, Realness::imaginary),
+                     {0, -1, +1, 0}, Realness::imaginary),
       m_unit(in_units) {}
   std::string name() const override final { return "pnc-nsi"; }
   std::string units() const override final { return m_unit; }
@@ -50,7 +50,7 @@ public:
     : ScalarOperator(Parity::odd,
                      (3.0 / (4.0 * M_PI * Rnuc_au * Rnuc_au * Rnuc_au)) *
                        factor * PhysConst::GFe11 / std::sqrt(8.0),
-                     {}, {0, -1, +1, 0}, 0, Realness::imaginary),
+                     {}, {0, -1, +1, 0}, Realness::imaginary),
       m_unit(in_units) {}
   std::string name() const override final { return "pnc_const"; }
   std::string units() const override final { return m_unit; }

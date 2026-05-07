@@ -107,7 +107,6 @@ public: // constructor
             double b = 1.0)
     : TensorOperator(h0->rank(), h0->parity() == 1 ? Parity::even : Parity::odd,
                      h0->getc(), vertex_func(rgrid, a, b, h0->getv()),
-                     h0->get_d_order(),
                      h0->imaginaryQ() ? Realness::imaginary : Realness::real,
                      h0->freqDependantQ()),
       m_h0(h0) {}
@@ -178,7 +177,6 @@ public:
   MLVP(const DiracOperator::hfs *const h0, const Grid &rgrid, double rN)
     : TensorOperator(h0->rank(), h0->parity() == 1 ? Parity::even : Parity::odd,
                      h0->getc(), MLVP_func(rgrid, rN, h0->getv()),
-                     h0->get_d_order(),
                      h0->imaginaryQ() ? Realness::imaginary : Realness::real,
                      h0->freqDependantQ()),
       m_h0(*h0) {}

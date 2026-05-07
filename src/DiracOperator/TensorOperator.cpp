@@ -101,9 +101,6 @@ double TensorOperator::matel_factor(MatrixElementType type, int twoJa,
 }
 
 //==============================================================================
-void TensorOperator::scale(double lambda) { m_constant *= lambda; }
-
-//==============================================================================
 
 DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
                                        const DiracSpinor &Fb) const {
@@ -120,14 +117,8 @@ DiracSpinor TensorOperator::radial_rhs(const int kappa_a,
     return dF;
   }
 
-  const auto &df =
-    (m_diff_order == 0) ?
-      Fb.f() :
-      NumCalc::derivative(Fb.f(), gr.drdu(), gr.du(), m_diff_order);
-  const auto &dg =
-    (m_diff_order == 0) ?
-      Fb.g() :
-      NumCalc::derivative(Fb.g(), gr.drdu(), gr.du(), m_diff_order);
+  const auto &df = Fb.f();
+  const auto &dg = Fb.g();
 
   const auto cff = angularCff(kappa_a, Fb.kappa());
   const auto cgg = angularCgg(kappa_a, Fb.kappa());
@@ -163,14 +154,8 @@ double TensorOperator::radialIntegral(const DiracSpinor &Fa,
   const auto p0 = std::max(Fa.min_pt(), Fb.min_pt());
   const auto pf = std::min(Fa.max_pt(), Fb.max_pt());
 
-  const auto &df =
-    (m_diff_order == 0) ?
-      Fb.f() :
-      NumCalc::derivative(Fb.f(), gr.drdu(), gr.du(), m_diff_order);
-  const auto &dg =
-    (m_diff_order == 0) ?
-      Fb.g() :
-      NumCalc::derivative(Fb.g(), gr.drdu(), gr.du(), m_diff_order);
+  const auto &df = Fb.f();
+  const auto &dg = Fb.g();
 
   const auto cff = angularCff(kappa_a, Fb.kappa());
   const auto cgg = angularCgg(kappa_a, Fb.kappa());

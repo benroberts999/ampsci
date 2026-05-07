@@ -59,7 +59,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       const auto hab = h->reducedME(Fa, Fb);
       REQUIRE(std::abs(hab - me) < 1.0e-6);
     }
-    REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 1);
     REQUIRE(h->parity() == -1);
@@ -68,7 +67,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
     // v-form
     auto hv = DiracOperator::generate("E1v", {}, wf);
-    REQUIRE(hv->get_d_order() == 0);
     REQUIRE(hv->imaginaryQ() == false);
     REQUIRE(hv->rank() == 1);
     REQUIRE(hv->parity() == -1);
@@ -125,7 +123,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     const IO::InputBlock options{"", "k=2;"};
     auto h = DiracOperator::generate("Ek", options, wf);
 
-    REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 2);
     REQUIRE(h->parity() == 1);
@@ -155,7 +152,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     const IO::InputBlock options{""};
     auto h = DiracOperator::generate("M1", options, wf);
 
-    REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 1);
     REQUIRE(h->parity() == 1);
@@ -223,7 +219,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     auto h0_au = DiracOperator::generate(
       "hfs", {"hfs", "F=pointlike; units=au; mu=2.582025;"}, wf);
 
-    REQUIRE(h0->get_d_order() == 0);
     REQUIRE(h0->imaginaryQ() == false);
     REQUIRE(h0->rank() == 1);
     REQUIRE(h0->parity() == 1);
@@ -270,7 +265,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     auto h2 = DiracOperator::generate(
       "hfs", {"hfs", "k=2; nuc_mag=pointlike; Q=1.0; units = au;"}, wf);
 
-    REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 2);
     REQUIRE(h->parity() == 1);
@@ -299,7 +293,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     auto h2 = DiracOperator::generate(
       "hfs", {"hfs", "k=3; nuc_mag=pointlike; Q=1.0; units = au;"}, wf);
 
-    REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 3);
     REQUIRE(h->parity() == 1);
@@ -324,7 +317,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
 
     auto h = DiracOperator::generate("r", {}, wf);
 
-    REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 0);
     REQUIRE(h->parity() == 1);
@@ -358,7 +350,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     auto h =
       DiracOperator::generate("pnc", {"pnc", "c=5.67073; t=2.3; N=-1;"}, wf);
 
-    REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == true);
     REQUIRE(h->rank() == 0);
     REQUIRE(h->parity() == -1);
@@ -370,24 +361,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       const auto &Fb = *wf.getState(b);
       const auto hab = h->reducedME(Fa, Fb);
       REQUIRE(std::abs((hab - me) / me) < 1.0e-5);
-    }
-  }
-
-  //--------------------------------------------------------------------
-  SECTION("dr") {
-    std::cout << "dr\n";
-
-    auto h = DiracOperator::generate("dr", {}, wf);
-
-    REQUIRE(h->get_d_order() == 1);
-    REQUIRE(h->imaginaryQ() == false);
-    REQUIRE(h->rank() == 0);
-    REQUIRE(h->parity() == 1);
-    REQUIRE(!h->units().empty());
-
-    for (const auto &Fa : wf.valence()) {
-      const auto hab = h->reducedME(Fa, Fa);
-      REQUIRE(std::abs(hab) < 1.0e-10);
     }
   }
 
@@ -433,7 +406,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
       "Vrad",
       {"Vrad", "readwrite=false; Ueh=1.0; SE_h=1.0; SE_l=1.0; SE_m=1.0"}, wf);
 
-    REQUIRE(h->get_d_order() == 0);
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 0);
     REQUIRE(h->parity() == 1);
@@ -471,7 +443,6 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     const DiracOperator::ig5jL ig5jL_0 = jl;
     const DiracOperator::ig0g5jL ig0g5jL_0 = jl;
 
-    REQUIRE(jl.get_d_order() == 0);
     REQUIRE(jl.imaginaryQ() == false);
     REQUIRE(jl.max_L() == in_max_l);
 
