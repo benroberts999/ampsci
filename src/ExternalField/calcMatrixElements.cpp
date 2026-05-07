@@ -48,7 +48,7 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
     }
 
     for (std::size_t ia = 0; ia < a_orbs.size(); ia++) {
-      const auto &Fa = b_orbs.at(ia);
+      const auto &Fa = a_orbs.at(ia);
 
       if (h->isZero(Fa.kappa(), Fa.kappa()))
         continue;
@@ -66,7 +66,7 @@ std::vector<MEdata> calcMatrixElements(const std::vector<DiracSpinor> &b_orbs,
     for (std::size_t ib = 0; ib < b_orbs.size(); ib++) {
       const auto &Fb = b_orbs.at(ib);
       for (std::size_t ia = 0; ia < a_orbs.size(); ia++) {
-        const auto &Fa = b_orbs.at(ia);
+        const auto &Fa = a_orbs.at(ia);
 
         if (Fa == Fb)
           continue;
