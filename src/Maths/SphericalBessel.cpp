@@ -96,7 +96,7 @@ double exactGSL_JL(int L, double x) { return gsl_sf_bessel_jl(L, x); }
 double exactGSL_YL(int L, double x) { return gsl_sf_bessel_yl(L, x); }
 
 //==============================================================================
-double exactGSL_YL_alt(int L, double x) {
+double yL(int L, double x) {
 
   // series expansion for small wr [keeps every term up to order (wr)^8]
   if (std::fabs(x) < 0.1) {
@@ -191,22 +191,123 @@ double exactGSL_YL_alt(int L, double x) {
              std::sin(x) / qip::pow<7>(x);
   }
 
-  return sqrt(M_PI / (2.0 * x)) * gsl_sf_bessel_Ynu(L + 1.0 / 2, x);
+  return gsl_sf_bessel_yl(L, x);
 }
 
 //==============================================================================
-double YL(int L, double x) { return 0.0; }
 
 double PhiL(int L, double x, bool tilde) {
-  if (tilde)
-    return 1.0 - PhiL(L, x);
-  return 0.0;
+
+  // if (tilde) {
+  //   return 1.0 - PhiL(L, x);
+  // }
+
+  const auto one = tilde ? 0.0 : 1.0;
+
+  // if (std::fabs(x) < 1e-5) {
+  //   return 1.0;
+  // }
+
+  if (std::fabs(x) < 0.1) {
+    if (L == 0) {
+      return one - 0.166666667 * x * x + 0.00833333333 * qip::pow(x, 4) -
+             0.000198412698 * qip::pow(x, 6) +
+             0.00000275573192 * qip::pow(x, 8);
+    }
+    if (L == 1) {
+      return one - 0.1 * x * x + 0.00357142857 * qip::pow(x, 4) -
+             0.0000661375661 * qip::pow(x, 6) +
+             0.000000751563252 * qip::pow(x, 8);
+    }
+    if (L == 2) {
+      return one - 0.0714285714 * x * x + 0.00198412698 * qip::pow(x, 4) -
+             0.0000300625301 * qip::pow(x, 6) +
+             0.000000289062789 * qip::pow(x, 8);
+    }
+    if (L == 3) {
+      return one - 0.0555555556 * x * x + 0.00126262626 * qip::pow(x, 4) -
+             0.0000161875162 * qip::pow(x, 6) +
+             0.000000134895968 * qip::pow(x, 8);
+    }
+    if (L == 4) {
+      return one - 0.0454545455 * x * x + 0.000874125874 * qip::pow(x, 4) -
+             0.00000971250971 * qip::pow(x, 6) +
+             0.0000000714155126 * qip::pow(x, 8);
+    }
+    if (L == 5) {
+      return one - 0.0384615385 * x * x + 0.000641025641 * qip::pow(x, 4) -
+             0.00000628456511 * qip::pow(x, 6) +
+             0.0000000413458231 * qip::pow(x, 8);
+    }
+    if (L == 6) {
+      return one - 0.0333333333 * x * x + 0.000490196078 * qip::pow(x, 4) -
+             0.0000042999656 * qip::pow(x, 6) +
+             0.0000000255950333 * qip::pow(x, 8);
+    }
+    if (L == 7) {
+      return one - 0.0294117647 * x * x + 0.000386996904 * qip::pow(x, 4) -
+             0.000003071404 * qip::pow(x, 6) +
+             0.000000016692413 * qip::pow(x, 8);
+    }
+  }
+
+  return tilde ?
+           (qip::double_factorial(2 * L + 1) / qip::pow(x, L)) * JL(L, x) -
+             1.0 :
+           (qip::double_factorial(2 * L + 1) / qip::pow(x, L)) * JL(L, x);
 }
 
+//==============================================================================
 double PsiL(int L, double x, bool tilde) {
-  if (tilde)
-    return 1.0 - PsiL(L, x);
-  return 0.0;
+
+  // if (std::fabs(x) < 1e-5) {
+  //   return 1.0;
+  // }
+
+  const auto one = tilde ? 0.0 : 1.0;
+
+  if (std::fabs(x) < 0.1) {
+    if (L == 0) {
+      return one - 0.5 * x * x + 0.0416666667 * qip::pow(x, 4) -
+             0.00138888889 * qip::pow(x, 6) + 0.0000248015873 * qip::pow(x, 8);
+    }
+    if (L == 1) {
+      return one + 0.5 * x * x - 0.125 * qip::pow(x, 4) +
+             0.00694444444 * qip::pow(x, 6) - 0.000173611111 * qip::pow(x, 8);
+    }
+    if (L == 2) {
+      return one + 0.166666667 * x * x + 0.0416666667 * qip::pow(x, 4) -
+             0.00694444444 * qip::pow(x, 6) + 0.000289351852 * qip::pow(x, 8);
+    }
+    if (L == 3) {
+      return one + 0.1 * x * x + 0.00833333333 * qip::pow(x, 4) +
+             0.00138888889 * qip::pow(x, 6) - 0.000173611111 * qip::pow(x, 8);
+    }
+    if (L == 4) {
+      return one + 0.0714285714 * x * x + 0.00357142857 * qip::pow(x, 4) +
+             0.000198412698 * qip::pow(x, 6) + 0.0000248015873 * qip::pow(x, 8);
+    }
+    if (L == 5) {
+      return one + 0.0555555556 * x * x + 0.00198412698 * qip::pow(x, 4) +
+             0.0000661375661 * qip::pow(x, 6) +
+             0.00000275573192 * qip::pow(x, 8);
+    }
+    if (L == 6) {
+      return one + 0.0454545455 * x * x + 0.00126262626 * qip::pow(x, 4) +
+             0.0000300625301 * qip::pow(x, 6) +
+             0.000000751563252 * qip::pow(x, 8);
+    }
+    if (L == 7) {
+      return one + 0.0384615385 * x * x + 0.000874125874 * qip::pow(x, 4) +
+             0.0000161875162 * qip::pow(x, 6) +
+             0.000000289062789 * qip::pow(x, 8);
+    }
+  }
+
+  return tilde ?
+           -(qip::pow(x, L + 1) / qip::double_factorial(2 * L - 1)) * yL(L, x) -
+             1.0 :
+           -(qip::pow(x, L + 1) / qip::double_factorial(2 * L - 1)) * yL(L, x);
 }
 
 //==============================================================================

@@ -117,22 +117,21 @@ constexpr T pow(T x, int n) {
 }
 
 //==============================================================================
-//! Factorial x! - nb: does not check for overflow. Max x is 20 for uint64_t.
-//! Note: returns 1 for arguments <0
+//! Factorial x! - nb: takes integer, returns double
 template <typename T>
-constexpr T factorial(T x) {
+constexpr double factorial(T x) {
   static_assert(std::is_integral_v<T>,
                 "In factorial(T), T must be an integral type");
-  return (x <= 1) ? 1 : x * factorial<T>(x - 1);
+  return (x <= 1) ? 1.0 : double(x) * factorial<T>(x - 1);
 }
 
-//! Double factorial x!! - nb: does not check for overflow. Max x is 20 for uint64_t
+//! Double factorial x!! - nb: takes integer, returns double
 template <typename T>
-constexpr T double_factorial(T x) {
+constexpr double double_factorial(T x) {
   static_assert(std::is_integral_v<T>,
                 "double_factorial(T): T must be an integral type");
 
-  return (x <= 1) ? 1 : x * double_factorial<T>(x - 2);
+  return (x <= 1) ? 1.0 : double(x) * double_factorial<T>(x - 2);
 }
 
 //==============================================================================

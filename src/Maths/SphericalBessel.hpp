@@ -22,7 +22,7 @@ double exactGSL_JL(int L, double x);
 double exactGSL_YL(int L, double x);
 
 //! Used for frequency-dependent Breit - more generic formula that can be used to evaluate spherical Bessel function of second kind for negative orders
-double exactGSL_YL_alt(int L, double x);
+double yL(int L, double x);
 
 //==============================================================================
 //! Spherical Bessel function of second kind, y_L(x)
