@@ -70,8 +70,8 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit]") {
 
   const auto grid = std::make_shared<const Grid>(
     GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
-  const auto Fa = DiracSpinor::exactHlike(1, -1, grid, 10.0);
-  const auto Fb = DiracSpinor::exactHlike(2, 1, grid, 10.0);
+  const auto Fa = DiracSpinor::exactHlike(1, -1, grid, 10.0); // 1s
+  const auto Fb = DiracSpinor::exactHlike(2, 1, grid, 10.0);  // 2p_{1/2}
   const auto &gr = Fa.grid();
 
   const std::vector<double> r_tgts = {1.0e-6, 0.01, 0.1, 5.0, 100.0};
@@ -160,7 +160,7 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit]") {
       }
 
     } // k loop
-  }   // fn_pairs loop
+  } // fn_pairs loop
 
   //--------------------------------------
   // Test the vk_ab_freqw function

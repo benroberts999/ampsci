@@ -203,6 +203,122 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
   }
 }
 
+// Implements the freq-dep Breit screening function (arXiv:2602.17129).
+// Applies the kernel replacement:
+//   r_<^k / r_>^{k+1}  ->  (r_<^k / r_>^{k+1}) * phi_k(wr_<) * psi_k(wr_>)
+// Used by gk_ab_freqw (X_ab density) and hk_ab_freqw (Y_ab density).
+template <typename Function>
+static inline void
+yk_ijk_gen_impl_freq_new(const int k, const Function &ff, const Grid &gr,
+                         std::vector<double> &v0, std::vector<double> &vi,
+                         const std::size_t maxi, const double w) {
+  const auto du = gr.du();
+  const auto num_points = gr.num_points();
+  v0.resize(num_points); // for safety
+  vi.resize(num_points); // for safety
+  const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
+
+  // Quadrature integration weights:
+  const auto weights = [=](std::size_t i) {
+    if (i < NumCalc::Nquad)
+      return NumCalc::dq_inv * NumCalc::cq[i];
+    if (i < num_points - NumCalc::Nquad)
+      return 1.0;
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
+  };
+
+  const auto &r = gr.r();
+  const auto jL = SphericalBessel::exactGSL_JL_alt<double>;
+  const auto yL = SphericalBessel::exactGSL_YL_alt<double>;
+
+  const auto phiL = SphericalBessel::exactGSL_JL_alt<double>;
+  const auto psiL = SphericalBessel::exactGSL_YL_alt<double>;
+
+  // For small w the Bessel kernel -w(2k+1) j_k(wr_<) y_k(wr_>) causes
+  // bad cancellation (y_k diverges, j_k vanishes). Use O(w^2) Taylor
+  // expansion of the kernel instead:
+  //   -w(2k+1) j_k(wr_<) y_k(wr_>) = r_<^k/r_>^{k+1}
+  //     * [1 - w^2*r_<^2/(2(2k+3)) + w^2*r_>^2/(2(2k-1))] + O(w^4)
+  // This requires two running sums each for v0 and vi.
+  const bool cut_off = w <= PhysConst::alpha;
+  const double w2 = w * w;
+  const double c_lo = 1.0 / (2.0 * (2 * k + 3)); // coefficient of r_<^2 term
+  const double c_hi = 1.0 / (2.0 * (2 * k - 1)); // coefficient of r_>^2 term
+
+  // Ax = A_k(r)/r^{k+1}  where A_k(r) = int_0^r r'^k ff dr'  (static part)
+  // Cx = A_{k+2}(r)/r^{k+1}                                   (w^2 correction)
+  // Bx = r^k * int_r^inf ff/r'^{k+1} dr'                      (static part)
+  // Dx = r^k * int_r^inf ff*r'^{1-k} dr' = r^k * B_{k-1}(r)  (w^2 correction)
+  double Ax = 0.0, Cx = 0.0;
+  double Bx = 0.0, Dx = 0.0;
+
+  // performs numerical integral from r'=0 to r'=r using single for loop trick
+  v0[0] = 0.0;
+  for (std::size_t i = 1; i < irmax; ++i) {
+    // if (cut_off) {
+    //   const auto rat = r[i - 1] / r[i];
+    //   const auto ratp1 = rat * std::pow(rat, k); // (r_{i-1}/r_i)^{k+1}
+    //   Ax = (Ax + ff(i - 1) * weights(i - 1) * gr.drduor(i - 1)) * ratp1;
+    //   Cx = (Cx + ff(i - 1) * weights(i - 1) * r[i - 1] * r[i - 1] *
+    //                gr.drduor(i - 1)) *
+    //        ratp1;
+    //   v0[i] = (Ax * (1.0 + w2 * r[i] * r[i] * c_hi) - w2 * c_lo * Cx) * du;
+    // } else {
+    const auto rat = r[i - 1] / r[i];
+    const auto ratp1 = rat * std::pow(rat, k); // (r_{i-1}/r_i)^{k+1}
+
+    Ax = (Ax + phiL(k, w * r[i - 1]) * ff(i - 1) * weights(i - 1) *
+                 gr.drduor(i - 1)) *
+         ratp1;
+    v0[i] = psiL(k, w * r[i]) * Ax * du;
+    // }
+  }
+  for (std::size_t i = irmax; i < num_points; i++) {
+    v0[i] = 0.0;
+  }
+
+  // nb bmax may be num_points
+  const auto bmax = irmax;
+  for (std::size_t i = 0; i <= bmax; i++) {
+    vi[i] = 0.0;
+  }
+
+  // if (cut_off) {
+  //   Bx = ff(bmax - 1) * weights(bmax - 1) * gr.drduor(bmax - 1);
+  //   Dx = ff(bmax - 1) * weights(bmax - 1) * r[bmax - 1] * r[bmax - 1] *
+  //        gr.drduor(bmax - 1);
+  //   vi[bmax - 1] =
+  //     (Bx * (1.0 - w2 * r[bmax - 1] * r[bmax - 1] * c_lo) + w2 * c_hi * Dx) *
+  //     du;
+  // } else {
+  Bx = Bx + psiL(k, w * r[bmax - 1]) * ff(bmax - 1) * weights(bmax - 1) *
+              gr.drduor(bmax - 1);
+  vi[bmax - 1] = phiL(k, w * r[bmax - 1]) * Bx * du;
+  // }
+
+  // loop for the integral that goes from r'=r up to r<infinity
+  // in this loop I have to shift the index up by 1 so that i goes down to i>=1
+  // rather than i>=0 (unsigned integer)
+  for (auto i = bmax - 1; i >= 1; i--) {
+    // if (cut_off) {
+    //   const auto rat = r[i - 1] / r[i];
+    //   const auto ratk = std::pow(rat, k); // (r_{i-1}/r_i)^k
+    //   Bx = Bx * ratk + ff(i - 1) * weights(i - 1) * gr.drduor(i - 1);
+    //   Dx = Dx * ratk +
+    //        ff(i - 1) * weights(i - 1) * r[i - 1] * r[i - 1] * gr.drduor(i - 1);
+    //   vi[i - 1] =
+    //     (Bx * (1.0 - w2 * r[i - 1] * r[i - 1] * c_lo) + w2 * c_hi * Dx) * du;
+    // } else {
+    const auto rat = r[i - 1] / r[i];
+    const auto ratk = std::pow(rat, k); // (r_{i-1}/r_i)^k
+
+    Bx = Bx * ratk +
+         psiL(k, w * r[i - 1]) * ff(i - 1) * weights(i - 1) * gr.drduor(i - 1);
+    vi[i - 1] = phiL(k, w * r[i - 1]) * Bx * du;
+    // }
+  }
+}
+
 //---------------------------------------------------------------------------------
 
 // Computes the freq-dep v^k_abcd screening factor (arXiv:2602.17129).
