@@ -103,9 +103,9 @@ static inline void yk_ijk_gen_impl(const int k, const Function &ff,
 // Used by gk_ab_freqw (X_ab density) and hk_ab_freqw (Y_ab density).
 template <typename Function>
 static inline void
-yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
-                     std::vector<double> &v0, std::vector<double> &vi,
-                     const std::size_t maxi, const double w) {
+yk_ijk_gen_impl_freq_old(const int k, const Function &ff, const Grid &gr,
+                         std::vector<double> &v0, std::vector<double> &vi,
+                         const std::size_t maxi, const double w) {
   const auto du = gr.du();
   const auto num_points = gr.num_points();
   v0.resize(num_points); // for safety
@@ -122,8 +122,8 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
   };
 
   const auto &r = gr.r();
-  const auto jL = SphericalBessel::exactGSL_JL_alt<double>;
-  const auto yL = SphericalBessel::exactGSL_YL_alt<double>;
+  const auto jL = SphericalBessel::JL;
+  const auto yL = SphericalBessel::yL;
 
   // For small w the Bessel kernel -w(2k+1) j_k(wr_<) y_k(wr_>) causes
   // bad cancellation (y_k diverges, j_k vanishes). Use O(w^2) Taylor
@@ -203,6 +203,73 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
   }
 }
 
+// Implements the freq-dep Breit screening function (arXiv:2602.17129).
+// Applies the kernel replacement:
+//   r_<^k / r_>^{k+1}  ->  (r_<^k / r_>^{k+1}) * phi_k(wr_<) * psi_k(wr_>)
+// Used by gk_ab_freqw (X_ab density) and hk_ab_freqw (Y_ab density).
+template <typename Function>
+static inline void
+yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
+                     std::vector<double> &v0, std::vector<double> &vi,
+                     const std::size_t maxi, const double w) {
+  const auto du = gr.du();
+  const auto num_points = gr.num_points();
+  v0.resize(num_points); // for safety
+  vi.resize(num_points); // for safety
+  const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
+
+  // Quadrature integration weights:
+  const auto weights = [=](std::size_t i) {
+    if (i < NumCalc::Nquad)
+      return NumCalc::dq_inv * NumCalc::cq[i];
+    if (i < num_points - NumCalc::Nquad)
+      return 1.0;
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
+  };
+
+  const auto &r = gr.r();
+
+  const auto phiL = SphericalBessel::PhiL;
+  const auto psiL = SphericalBessel::PsiL;
+
+  double Ax = 0.0;
+  double Bx = 0.0;
+
+  // Integral from r'=0 to r'=r
+  v0[0] = 0.0;
+  for (std::size_t i = 1; i < irmax; ++i) {
+    const auto rat = r[i - 1] / r[i];
+    const auto ratp1 = rat * std::pow(rat, k); // (r_{i-1}/r_i)^{k+1}
+    Ax = (Ax + phiL(k, w * r[i - 1], false) * ff(i - 1) * weights(i - 1) *
+                 gr.drduor(i - 1)) *
+         ratp1;
+    v0[i] = psiL(k, w * r[i], false) * Ax * du;
+  }
+  for (std::size_t i = irmax; i < num_points; i++) {
+    v0[i] = 0.0;
+  }
+
+  // nb bmax may be num_points
+  const auto bmax = irmax;
+  for (std::size_t i = 0; i <= bmax; i++) {
+    vi[i] = 0.0;
+  }
+
+  Bx = Bx + psiL(k, w * r[bmax - 1], false) * ff(bmax - 1) * weights(bmax - 1) *
+              gr.drduor(bmax - 1);
+  vi[bmax - 1] = phiL(k, w * r[bmax - 1], false) * Bx * du;
+
+  // Integral that goes from r'=r up to r<infinity
+  for (auto i = bmax - 1; i >= 1; i--) {
+    const auto rat = r[i - 1] / r[i];
+    const auto ratk = std::pow(rat, k); // (r_{i-1}/r_i)^k
+
+    Bx = Bx * ratk + psiL(k, w * r[i - 1], false) * ff(i - 1) * weights(i - 1) *
+                       gr.drduor(i - 1);
+    vi[i - 1] = phiL(k, w * r[i - 1], false) * Bx * du;
+  }
+}
+
 //---------------------------------------------------------------------------------
 
 // Computes the freq-dep v^k_abcd screening factor (arXiv:2602.17129).
@@ -210,11 +277,11 @@ yk_ijk_gen_impl_freq(const int k, const Function &ff, const Grid &gr,
 // v1,v2: (0,r) parts; v3,v4: (r,inf) parts; see vk_ab_freqw docs for full breakdown.
 template <int KT>
 static inline void
-vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
-             const std::vector<double> &Qkbd, const Grid &gr,
-             std::vector<double> &v1, std::vector<double> &v2,
-             std::vector<double> &v3, std::vector<double> &v4,
-             const std::size_t maxi, const double w) {
+vkabcd_freqw_old(const int k, const std::vector<double> &Pkbd,
+                 const std::vector<double> &Qkbd, const Grid &gr,
+                 std::vector<double> &v1, std::vector<double> &v2,
+                 std::vector<double> &v3, std::vector<double> &v4,
+                 const std::size_t maxi, const double w) {
 
   bool cut_off = w <= PhysConst::alpha;
   // bool cut_off = true;
@@ -248,8 +315,8 @@ vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
   };
 
   const auto &r = gr.r();
-  const auto jL = SphericalBessel::exactGSL_JL_alt<double>;
-  const auto yL = SphericalBessel::exactGSL_YL_alt<double>;
+  const auto jL = SphericalBessel::JL;
+  const auto yL = SphericalBessel::yL;
 
   // values to keep running track of numerical integrals
   double A1 = 0.0;
@@ -369,6 +436,148 @@ vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
   }
 }
 
+//---------------------------------------------------------------------------------
+
+// Computes the freq-dep v^k_abcd screening factor (arXiv:2602.17129).
+// Pkbd = P^k_ij, Qkbd = Q^k_ij.
+// v1,v2: (0,r) parts; v3,v4: (r,inf) parts; see vk_ab_freqw docs for full breakdown.
+template <int KT>
+static inline void
+vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
+             const std::vector<double> &Qkbd, const Grid &gr,
+             std::vector<double> &v1, std::vector<double> &v2,
+             std::vector<double> &v3, std::vector<double> &v4,
+             const std::size_t maxi, const double w) {
+
+  const auto du = gr.du();
+  const auto num_points = gr.num_points();
+  v1.resize(num_points); // for safety
+  v2.resize(num_points); // for safety
+  v3.resize(num_points); // for safety
+  v4.resize(num_points); // for safety
+  const auto irmax = (maxi == 0 || maxi > num_points) ? num_points : maxi;
+
+  // faster method to calculate r^k
+  const auto powk = [k]() {
+    if constexpr (KT < 0) {
+      return [k](double x) { return std::pow(x, k); };
+    } else {
+      (void)k;
+      return qip::pow<KT, double>;
+    }
+  }();
+
+  // Quadrature integration weights:
+  const auto weights = [=](std::size_t i) {
+    if (i < NumCalc::Nquad)
+      return NumCalc::dq_inv * NumCalc::cq[i];
+    if (i < num_points - NumCalc::Nquad)
+      return 1.0;
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
+  };
+
+  const auto &r = gr.r();
+  const auto jL = SphericalBessel::JL;
+  const auto yL = SphericalBessel::yL;
+  const auto phiL = SphericalBessel::PhiL;
+  const auto psiL = SphericalBessel::PsiL;
+
+  // values to keep running track of numerical integrals
+  double A1 = 0.0;
+  double A2 = 0.0;
+  double A3 = 0.0;
+
+  const double odw2 = 1.0 / (w * w);
+  const double w2dfact =
+    2.0 * w * w / ((2 * k + 3.0) * (2 * k + 1.0) * (2 * k - 1.0));
+
+  // performs numerical integrals for v1 and v2
+  v1[0] = 0.0;
+  v2[0] = 0.0;
+  for (std::size_t i = 1; i < irmax; ++i) {
+
+    double ratio = r[i - 1] / r[i];
+    double ratio2 = ratio * ratio;
+    double odrprev2 = 1.0 / (r[i - 1] * r[i - 1]);
+
+    // first term in first part of v
+    A1 = powk(ratio) * ratio2 *
+         (A1 + weights(i - 1) * phiL(k - 1, w * r[i - 1], true) * Pkbd[i - 1] *
+                 gr.drduor(i - 1) * odrprev2);
+
+    // second term in first part of v
+    A2 = powk(ratio) * ratio2 *
+         (A2 + weights(i - 1) * Pkbd[i - 1] * gr.drduor(i - 1) * odrprev2);
+
+    v1[i] =
+      A1 * psiL(k + 1, w * r[i], false) + A2 * psiL(k + 1, w * r[i], true);
+    v1[i] = 2.0 * (2 * k + 1.0) * odw2 * v1[i] * du;
+
+    // integral for second term in v
+    // A3 = A3 + jL(k + 1, w * r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
+    //             gr.drdu(i - 1);
+    // v2[i] = -2.0 * w * yL(k - 1, w * r[i]) * A3 * du;
+
+    A3 = powk(ratio) * (A3 + r[i - 1] * phiL(k + 1, w * r[i - 1], false) *
+                               Qkbd[i - 1] * weights(i - 1) * gr.drdu(i - 1));
+    v2[i] = w2dfact * A3 * psiL(k - 1, w * r[i], false) * du;
+  }
+
+  for (std::size_t i = irmax; i < num_points; i++) {
+    v1[i] = 0.0;
+    v2[i] = 0.0;
+  }
+
+  double B1 = 0.0;
+  double B2 = 0.0;
+  double B3 = 0.0;
+
+  // nb bmax may be num_points
+  const auto bmax = irmax;
+  for (std::size_t i = 0; i <= bmax; i++) {
+    v3[i] = 0.0;
+    v4[i] = 0.0;
+  }
+
+  // evaluating r1->inf integral at end point
+  double odrprev2 = 1.0 / (r[bmax - 1] * r[bmax - 1]);
+
+  B1 = B1 + psiL(k + 1, w * r[bmax - 1], true) * Qkbd[bmax - 1] *
+              gr.drduor(bmax - 1) * odrprev2;
+  B2 = B2 + Qkbd[bmax - 1] * gr.drduor(bmax - 1) * odrprev2;
+  v3[bmax - 1] = 2.0 * (2 * k + 1.0) * odw2 *
+                 (B1 * phiL(k - 1, w * r[bmax - 1], false) +
+                  B2 * phiL(k - 1, w * r[bmax - 1], true)) *
+                 du;
+
+  B3 = B3 + yL(k - 1, w * r[bmax - 1]) * Pkbd[bmax - 1] * gr.drdu(bmax - 1);
+
+  v4[bmax - 1] = -2.0 * w * jL(k + 1, w * r[bmax - 1]) * B3 * du;
+
+  for (auto i = bmax - 1; i >= 1; i--) {
+
+    double ratio = r[i - 1] / r[i];
+    double odratio = 1.0 / ratio;
+    odrprev2 = 1.0 / (r[i - 1] * r[i - 1]);
+
+    B1 = powk(ratio) * odratio * B1 + psiL(k + 1, w * r[i - 1], true) *
+                                        Qkbd[i - 1] * weights(i - 1) *
+                                        gr.drduor(i - 1) * odrprev2;
+
+    B2 = powk(ratio) * odratio * B2 +
+         Qkbd[i - 1] * weights(i - 1) * gr.drduor(i - 1) * odrprev2;
+
+    v3[i - 1] = B1 * phiL(k - 1, w * r[i - 1], false) +
+                B2 * phiL(k - 1, w * r[i - 1], true);
+
+    v3[i - 1] = 2.0 * (2 * k + 1.0) * odw2 * v3[i - 1] * du;
+
+    B3 = B3 + yL(k - 1, w * r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
+                gr.drdu(i - 1);
+    v4[i - 1] = -2.0 * w * jL(k + 1, w * r[i - 1]) * B3 * du;
+  }
+}
+
 //==============================================================================
 
 void bk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
@@ -479,8 +688,8 @@ void vk_ab_freqw(const int k, const DiracSpinor &Fi, const DiracSpinor &Fj,
 
   // P^k_ij and Q^k_ij of arXiv:2602.17129:
   for (std::size_t i = 0; i < gr.size(); i++) {
-    Pkbd[i] = ((Fi.kappa() - Fj.kappa()) / k) * Xij(i) - Yij(i);
-    Qkbd[i] = ((Fi.kappa() - Fj.kappa()) / (k + 1.0)) * Xij(i) + Yij(i);
+    Pkbd[i] = (double(Fi.kappa() - Fj.kappa()) / k) * Xij(i) - Yij(i);
+    Qkbd[i] = (double(Fi.kappa() - Fj.kappa()) / (k + 1.0)) * Xij(i) + Yij(i);
   }
 
   if (k == 0)

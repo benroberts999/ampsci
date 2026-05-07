@@ -998,6 +998,10 @@ TEST_CASE("HF Breit: Frequency-dependent (f-Breit) unit",
               const auto err_tiny_ebd =
                 std::abs((b_tiny_ebd - b_static) / b_static);
 
+              std::cout << b_static << " " << b_tiny_eac - b_static << " "
+                        << b_f_eac - b_static << "\n";
+              std::cout << b_static << " " << b_tiny_ebd - b_static << " "
+                        << b_f_ebd - b_static << "\n";
               // Difference between f-dep Breit and static should always
               // be larger than difference between tiny-lambda and static
               // (allowing ~1% wiggle room for numerical noise)
