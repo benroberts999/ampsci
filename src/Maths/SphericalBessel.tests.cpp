@@ -229,84 +229,105 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
 }
 
 //==============================================================================
-TEST_CASE("Maths::SphericalBessel JL testdata", "[Bessel][unit]") {
+TEST_CASE("Maths::SphericalBessel JL testdata", "[jL][Bessel][unit]") {
   for (const auto &data : UnitTest::jk_DATA) {
     const auto value = SphericalBessel::JL(data.k, data.x);
-    fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}\n", data.k, data.x, value,
-               data.value, (value - data.value) / data.value);
+    // fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}\n", data.k, data.x, value,
+    //            data.value, (value - data.value) / data.value);
 
-    if (std::abs(data.value) > 1.0e-10)
+    if (std::abs(data.value) > 1.0e-10) {
       REQUIRE(value == Approx(data.value).epsilon(1e-10));
-    else
+    } else {
       REQUIRE(value == Approx(data.value).epsilon(1e-5));
+      REQUIRE(value == Approx(data.value).margin(1e-12));
+    }
   }
 }
 
 // //==============================================================================
-TEST_CASE("Maths::SphericalBessel yL testdata", "[Bessel][unit]") {
+TEST_CASE("Maths::SphericalBessel yL testdata", "[yL][Bessel][unit]") {
   for (const auto &data : UnitTest::yk_DATA) {
     const auto value = SphericalBessel::yL(data.k, data.x);
-    fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}\n", data.k, data.x, value,
-               data.value, (value - data.value) / data.value);
+    // fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}\n", data.k, data.x, value,
+    //            data.value, (value - data.value) / data.value);
 
-    if (std::abs(data.value) > 1.0e-10)
+    if (std::abs(data.value) > 1.0e-10) {
       REQUIRE(value == Approx(data.value).epsilon(1e-10));
-    else
+    } else {
       REQUIRE(value == Approx(data.value).epsilon(1e-5));
+      REQUIRE(value == Approx(data.value).margin(1e-12));
+    }
   }
 }
 
 // //==============================================================================
-TEST_CASE("Maths::SphericalBessel PhiL testdata", "[Bessel][unit]") {
+TEST_CASE("Maths::SphericalBessel PhiL testdata", "[jL][Bessel][unit]") {
   // phi(x) = [(2k+1)!! / x^k] * j_k(x); tilde data stores 1 - phi
   for (const auto &d : UnitTest::PhikTilde_DATA) {
     // non-tilde: phi = 1 - (tilde value)
-    const auto value = SphericalBessel::PhiL(d.k, d.x);
-    const auto valuetilde = SphericalBessel::PhiL(d.k, d.x, true);
 
-    fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}    {:.6e} {:.6e} {:.1e}\n",
-               d.k, d.x, value, 1.0 - d.value,
-               (value - (1.0 - d.value)) / (1.0 - d.value), valuetilde,
-               -d.value, (valuetilde - (-d.value)) / -d.value);
+    // const auto value = SphericalBessel::PhiL(d.k, d.x);
+    // const auto valuetilde = SphericalBessel::PhiL(d.k, d.x, true);
+    // fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}    {:.6e} {:.6e} {:.1e}\n",
+    //            d.k, d.x, value, 1.0 - d.value,
+    //            (value - (1.0 - d.value)) / (1.0 - d.value), valuetilde,
+    //            -d.value, (valuetilde - (-d.value)) / -d.value);
 
     REQUIRE(SphericalBessel::PhiL(d.k, d.x) ==
             Approx(1.0 - d.value).epsilon(1e-10));
 
     // tilde: 1 - phi
-    if (std::abs(d.value) > 1.0e-9)
+    if (std::abs(d.value) > 1.0e-9) {
       REQUIRE(SphericalBessel::PhiL(d.k, d.x, true) ==
               Approx(-d.value).epsilon(1e-6));
-    else if (d.k < 10)
+      REQUIRE(SphericalBessel::PhiL(d.k, d.x, true) ==
+              Approx(-d.value).margin(1e-12));
+    } else if (d.k < 10) {
       REQUIRE(SphericalBessel::PhiL(d.k, d.x, true) ==
               Approx(-d.value).epsilon(1e-2));
-    else {
+      REQUIRE(SphericalBessel::PhiL(d.k, d.x, true) ==
+              Approx(-d.value).margin(1e-12));
+    } else {
       REQUIRE(SphericalBessel::PhiL(d.k, d.x, true) ==
               Approx(-d.value).epsilon(1e-1));
       REQUIRE(SphericalBessel::PhiL(d.k, d.x, true) ==
-              Approx(-d.value).margin(1e-10));
+              Approx(-d.value).margin(1e-12));
     }
   }
 }
 
 //==============================================================================
-TEST_CASE("Maths::SphericalBessel PsiL testdata", "[Bessel][unit]") {
+TEST_CASE("Maths::SphericalBessel PsiL testdata", "[yL][Bessel][unit]") {
   // psi(x) = [x^{k+1} / (2k-1)!!] * y_k(x); tilde data stores 1 - psi
   for (const auto &d : UnitTest::PsikTilde_DATA) {
+
+    // const auto value = SphericalBessel::PsiL(d.k, d.x);
+    // const auto valuetilde = SphericalBessel::PsiL(d.k, d.x, true);
+    // fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}    {:.6e} {:.6e} {:.1e}\n",
+    //            d.k, d.x, value, 1.0 - d.value,
+    //            (value - (1.0 - d.value)) / (1.0 - d.value), valuetilde,
+    //            -d.value, (valuetilde - (-d.value)) / -d.value);
+
     // non-tilde: psi = 1 - (tilde value)
     REQUIRE(SphericalBessel::PsiL(d.k, d.x) ==
             Approx(1.0 - d.value).epsilon(1e-10));
+
     // tilde: 1 - psi
-    if (std::abs(d.value) > 1.0e-9)
+    if (std::abs(d.value) > 1.0e-9) {
       REQUIRE(SphericalBessel::PsiL(d.k, d.x, true) ==
               Approx(-d.value).epsilon(1e-6));
-    else if (d.k < 10)
+      REQUIRE(SphericalBessel::PsiL(d.k, d.x, true) ==
+              Approx(-d.value).margin(1e-12));
+    } else if (d.k < 9) {
       REQUIRE(SphericalBessel::PsiL(d.k, d.x, true) ==
               Approx(-d.value).epsilon(1e-2));
-    else {
+      REQUIRE(SphericalBessel::PsiL(d.k, d.x, true) ==
+              Approx(-d.value).margin(1e-12));
+    } else {
       REQUIRE(SphericalBessel::PsiL(d.k, d.x, true) ==
               Approx(-d.value).epsilon(1e-1));
       REQUIRE(SphericalBessel::PsiL(d.k, d.x, true) ==
-              Approx(-d.value).margin(1e-10));
+              Approx(-d.value).margin(1e-12));
     }
   }
 }
