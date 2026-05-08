@@ -9,8 +9,8 @@
 
 namespace DiracOperator {
 
-//! List of available operators, their generator functions, and a short description.
 /*!
+  @brief List of available operators, their generator functions, and a short description.
   @details
   This list is used by @ref generate() to form operators, and is called in a few modules.
 
