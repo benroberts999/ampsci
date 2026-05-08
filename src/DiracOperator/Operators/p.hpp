@@ -8,6 +8,7 @@ namespace DiracOperator {
 
 //==============================================================================
 
+//! Momentum operator p = -i grad
 class p final : public TensorOperator {
 public:
   p() : TensorOperator(1, Parity::odd, 1.0, {}, Realness::imaginary) {}

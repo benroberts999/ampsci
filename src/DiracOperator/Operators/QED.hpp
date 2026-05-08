@@ -12,7 +12,7 @@
 namespace DiracOperator {
 
 //==============================================================================
-//! Flambaum-ginges radiative potential operator
+//! Flambaum-Ginges radiative potential operator
 class Vrad final : public ScalarOperator {
 public:
   Vrad(QED::RadPot rad_pot)

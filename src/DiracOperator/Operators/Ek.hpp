@@ -6,11 +6,14 @@
 namespace DiracOperator {
 
 //==============================================================================
-//! E^k (electric multipole) operator
+//! E^k (electric multipole) operator, length form, with (qr<<1) approximation
 /*! @details
-\f[ h = -|e|r^k = -e r^k \f]
-\f[<a||d||b> = R C^k_{ab}\f]
-\f[R = -e \int r^k (f_a f_b + g_a g_b) \, dr\f]
+  \f[ h = -|e|r^k = -e r^k \f]
+  \f[<a||d||b> = R C^k_{ab}\f]
+  \f[R = -e \int r^k (f_a f_b + g_a g_b) \, dr\f]
+
+  - This has (qr<<1) approximation; Bessel functions not explicit
+  - See @ref EM_multipole operator for full operators
 */
 class Ek : public TensorOperator {
 public:
@@ -45,6 +48,7 @@ public:
 };
 
 //==============================================================================
+//! Odd-parity rank-0 operator with radial function r (sigma_r)
 class sigma_r final : public ScalarOperator {
 public:
   sigma_r(const Grid &rgrid) : ScalarOperator(Parity::odd, -1.0, rgrid.r()) {}
@@ -89,6 +93,9 @@ public:
     return ka - kb + 1;
   }
 
+  //! @note At omega=0 (static limit) falls back to m_constant = -1.0;
+  //! the velocity-form operator diverges as 1/omega and is not physically
+  //! meaningful at zero frequency.
   void updateFrequency(const double omega) override final {
     // m_constant = std::abs(omega) > 1.0e-10 ? -2.0 / (m_alpha * omega) : 1.0;
     m_constant = std::abs(omega) > 1.0e-10 ? -1.0 / (m_alpha * omega) : -1.0;

@@ -9,7 +9,18 @@
 
 namespace DiracOperator {
 
-//! List of avilable operators, and their generator functions
+//! List of available operators, their generator functions, and a short description.
+/*!
+  @details
+  This list is used by @ref generate() to form operators, and is called in a few modules.
+
+  It is also what gets printed to the screen by:
+  ```shell
+    ampsci -o
+  ```
+
+  @note Operators must be added to this list in order for ampsci to know where to find them, and to document to users what's available.
+*/
 static const std::vector<
   std::tuple<std::string,
              std::unique_ptr<DiracOperator::TensorOperator> (*)(
@@ -39,8 +50,22 @@ static const std::vector<
 
 //------------------------------------------------------------------------------
 
-//! Returns a unique_ptr (polymorphic) to the requested operator, with given
-//! properties
+//! Returns a unique_ptr (polymorphic) to the requested operator, with given properties
+/*!
+  @details
+
+  From the command line, use
+  ```shell
+    ampsci -o
+  ```
+  to get a list of available operators.
+  For a specific operator 'OperatorName', use:
+  ```shell
+    ampsci -o OperatorName
+  ```
+  to see available run-time options for that operator.
+
+*/
 std::unique_ptr<DiracOperator::TensorOperator>
 generate(std::string_view operator_name, const IO::InputBlock &input,
          const Wavefunction &wf);

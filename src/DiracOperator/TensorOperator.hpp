@@ -35,6 +35,21 @@
 
   See @ref TensorOperator class documentation for main descriptions.
   All usable tensor operators dervive from that virtual class.
+
+  From the command line, use
+  ```shell
+    ampsci -o
+  ```
+  to get a list of available operators.
+  For a specific operator 'OperatorName', use:
+  ```shell
+    ampsci -o OperatorName
+  ```
+  to see available run-time options for that operator.
+  These options are passed to @ref generate().
+
+  @note New operator classes must be registered in the @ref operator_list in
+  GenerateOperator.hpp to be accessible at runtime.
 */
 namespace DiracOperator {
 
@@ -168,9 +183,16 @@ std::string parse_MatrixElementType(MatrixElementType t);
   function must be called with the current frequency before computing
   any matrix elements. Failing to override it will abort at runtime.
 
-  @note 
+  @note
   - You may not construct a TensorOperator directly. Construct one of the
   derived classes; see [Operators/include.hpp](Operators/include.hpp) for the list.
+
+  --
+
+  @note
+  - To expose a new operator at runtime (e.g., via `ampsci -o`), add it to
+  the @ref operator_list in GenerateOperator.hpp and provide a corresponding
+  `generate_XYZ()` factory function.
 */
 class TensorOperator {
 protected:

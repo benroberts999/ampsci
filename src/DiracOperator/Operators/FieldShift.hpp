@@ -9,8 +9,11 @@
 
 namespace DiracOperator {
 
-//! @brief Field shift operator, (e.g.) dV = V(r+dr) - V(r)
-/*! @details 
+//! @brief Field shift operator: dV = V(r, nuc2) - V(r, nuc1)
+/*! @details
+  Computes the change in nuclear potential between two nuclei differing in
+  size or shape. Also stores \f$\delta\langle r^2\rangle\f$ and
+  \f$\delta\langle r^4\rangle\f$ (in fm^2 and fm^4).
 */
 class fieldshift final : public ScalarOperator {
 
@@ -31,9 +34,9 @@ public:
   std::string name() const override { return std::string("Field shift"); }
   std::string units() const override { return "au"; }
 
-  //! \f$\delta <r^2>\f$ (in fm^2)
+  //! delta <r^2> (in fm^2)
   double dr2() const { return m_dr2; }
-  //! \delta <r^4> (in fm^2)
+  //! delta <r^4> (in fm^4)
   double dr4() const { return m_dr4; }
 
   //! Helper function: calculates <r^4> (nuclear) in fm^4

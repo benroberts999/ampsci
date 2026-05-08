@@ -43,6 +43,13 @@ private:
   const std::string m_unit{"iQw*e-11"};
 };
 
+//! PNC nuclear-spin-independent operator with uniform (constant) nuclear density.
+/*! @details
+  Same physics as PNCnsi but uses a uniform spherical density
+  \f$\rho = 3/(4\pi R_{\rm nuc}^3)\f$ inside the nucleus instead of a Fermi
+  distribution. Output units and sign convention match PNCnsi.
+  @param Rnuc_au  Nuclear radius in atomic units.
+*/
 class PNCnsi_const final : public ScalarOperator {
 public:
   PNCnsi_const(double Rnuc_au, double factor = 1.0,
