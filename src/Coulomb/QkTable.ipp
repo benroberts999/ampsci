@@ -5,6 +5,7 @@
 #include "Physics/AtomData.hpp"
 #include "QkTable.hpp"
 #include "fmt/format.hpp"
+#include "qip/Widgets.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cstring> // for memcpy
@@ -881,6 +882,56 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
                   *ptr = Fk(k, a, b, c, d);
                 }
               }
+            }
+          }
+        }
+      }
+    }
+  }
+  if (print)
+    std::cout << t.lap_reading_str() << std::endl;
+
+  if (print)
+    summary();
+}
+
+//==============================================================================
+template <Symmetry S>
+void CoulombTable<S>::update(const std::vector<DiracSpinor> &basis,
+                             const CoulombFunction &Fk, bool print) {
+  IO::ChronoTimer t("update");
+
+  const auto max_k = m_data.size() - 1;
+
+  // 4) Fill the pre-constructed map with values, in parallel. Since we are
+  // not adding any new elements to map, and since we are guarenteed to only
+  // access each map element once, we can do this part in parallel. nb: This
+  // //isation is not very efficient, though in theory it can be 100%
+  if (print)
+    std::cout << "Fill w/ values: " << std::flush;
+  t.start();
+
+  for (int k = 0; k <= int(max_k); ++k) {
+    if (print)
+      qip::progbar(k, int(max_k));
+#pragma omp parallel for collapse(2)
+    for (std::size_t ia = 0; ia < basis.size(); ++ia) {
+      for (std::size_t ib = 0; ib < basis.size(); ++ib) {
+        const auto &a = basis[ia];
+        const auto &b = basis[ib];
+        for (std::size_t ic = 0; ic < basis.size(); ++ic) {
+          for (std::size_t id = 0; id < basis.size(); ++id) {
+            const auto &c = basis[ic];
+            const auto &d = basis[id];
+
+            // Now, we can check symmetries, selectrion rules etc.
+            // just be seeing if this one is in the current table!
+            const auto index = CurrentOrder(a, b, c, d);
+
+            double *ptr = get(k, index);
+            // if not null, means already in table: so update it
+            if (ptr != nullptr) {
+              *ptr = Fk(k, a, b, c, d);
             }
           }
         }

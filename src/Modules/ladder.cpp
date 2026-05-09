@@ -169,23 +169,32 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   double de_c0 = MBPT::de_core(qk, lk, core, excited);
 
+  if (!read_lad) {
+    std::cout << "\nInitial fill of Lk table: core + valence\n" << std::flush;
+    MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core, include_L4, sjt, true,
+                       fk);
+    MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core, include_L4, sjt, true,
+                       fk);
+  }
+
   bool core_converged = false;
-  for (int it = 1; it <= max_it; ++it) {
+  for (int it = 2; it <= max_it; ++it) { // 1 iteration mean just calculate once
     std::cout << "it:" << it << "\n";
     {
-      IO::ChronoTimer t("Fill Lk");
+      IO::ChronoTimer t("Update Lk");
       if (!core_converged) {
         // Don't update core terms if core energy shift converged?
         // include screening for core parts?
-        MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core, include_L4, sjt,
-                           &lk, print_progbar, fk);
+        MBPT::update_Lk_mnib(&lk_next, qk, excited, core, core, include_L4, sjt,
+                             &lk, print_progbar, fk);
       }
       // in theory: each valence may converge differently, don't need to re-run
       // for valence states which already converged...
-      MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, valence, include_L4, sjt,
-                         &lk, print_progbar, fk);
+      MBPT::update_Lk_mnib(&lk_next, qk, excited, core, valence, include_L4,
+                           sjt, &lk, print_progbar, fk);
     }
-    lk = lk_next; // XXX use swap or similar?
+    // lk = lk_next; // XXX use swap or similar?
+    std::swap(lk, lk_next);
     lk.write(Lfname);
 
     // check convergance (core):

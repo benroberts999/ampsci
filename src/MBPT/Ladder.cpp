@@ -258,19 +258,16 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
-                  const Angular::SixJTable &sjt,
-                  const Coulomb::LkTable *const lk_prev, bool print,
+                  const Angular::SixJTable &sjt, bool print,
                   const std::vector<double> &fk) {
 
-  const double a_damp = 0.35;
-  const double b_damp = 1.0 - a_damp;
-
-  if (!core.empty() && !excited.empty())
-    assert(core.front().en() < excited.front().en());
+  // const double a_damp = 0.35;
+  // const double b_damp = 1.0 - a_damp;
 
   // Build combined basis: excited + core + any extra i_orbs (e.g. valence)
   const auto basis = qip::merge(core, excited);
 
+  // NB: This is dumb - probably a much faster way!
   // Sets for O(1) membership checks for "selection rules"
   // (m,n) in excited, b in core, i in i_orbs
   std::unordered_set<DiracSpinor::Index> excited_set, core_set, i_orbs_set;
@@ -297,6 +294,38 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
     return k >= k0 && k <= kI;
   };
 
+  // Lk integral
+  const auto Lk_function = [&](int k, const DiracSpinor &m,
+                               const DiracSpinor &n, const DiracSpinor &i,
+                               const DiracSpinor &b) -> double {
+    auto L_new =
+      Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, nullptr, fk);
+    // if (lk_prev) {
+    //   const auto L_prev = lk_prev->Q(k, m, n, i, b);
+    //   if (L_prev != 0.0)
+    //     L_new = b_damp * L_new + a_damp * L_prev;
+    // }
+    return L_new;
+  };
+
+  lk->fill(basis, Lk_function, Lk_SR, -1, print);
+}
+
+//==============================================================================
+void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
+                    const std::vector<DiracSpinor> &excited,
+                    const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &i_orbs, bool include_L4,
+                    const Angular::SixJTable &sjt,
+                    const Coulomb::LkTable *const lk_prev, bool print,
+                    const std::vector<double> &fk) {
+
+  const double a_damp = 0.35;
+  const double b_damp = 1.0 - a_damp;
+
+  // Build combined basis: excited + core + any extra i_orbs (e.g. valence)
+  const auto basis = qip::merge(core, excited);
+
   // Lk integral with damping folded in
   const auto Lk_function = [&](int k, const DiracSpinor &m,
                                const DiracSpinor &n, const DiracSpinor &i,
@@ -311,7 +340,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
     return L_new;
   };
 
-  lk->fill(basis, Lk_function, Lk_SR, -1, print);
+  lk->update(basis, Lk_function, print);
 }
 
 } // namespace MBPT

@@ -74,6 +74,7 @@ public:
   //! Takes a constructed YkTable, and fills Coulomb table with all possible
   //! non-zero Qk Coulomb integrals, accounting for symmetry (only allowed
   //! for QkTable), up to maximum k, k_cut (set k_cut to <=0 to use all k)
+  //! Only calculates new integrals, does NOT update
   void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
             int k_cut = -1, bool print = true);
 
@@ -81,12 +82,26 @@ public:
   //! non-zero Qk Coulomb integrals that are allowed by the SelectionFunction,
   //! accounting for symmetry (only allowed for QkTable), up to maximum k,
   //! k_cut (set k_cut to <=0 to use all k)
+  //! Only calculates new integrals, does NOT update
   void fill_if(const std::vector<DiracSpinor> &basis, const YkTable &yk,
                const SelectionRules &SelectionFunction, int k_cut = -1,
                bool print = true);
 
+  //! Takes a CoulombFunction, and fills Coulomb table with all
+  //! integrals that are allowed by the SelectionFunction,
+  //! accounting for symmetry, up to maximum k.
+  //! k_cut (set k_cut to <=0 to use all k)
+  //! Only calculates new integrals, does NOT update
   void fill(const std::vector<DiracSpinor> &basis, const CoulombFunction &Fk,
             const SelectionRules &Fk_SR, int k_cut = -1, bool print = true);
+
+  //! Takes a CoulombFunction, and fills Coulomb table with all
+  //! integrals that are allowed by the SelectionFunction,
+  //! accounting for symmetry, up to maximum k.
+  //! k_cut (set k_cut to <=0 to use all k)
+  //! Re-calculates all integrals, even if already in table
+  void update(const std::vector<DiracSpinor> &basis, const CoulombFunction &Fk,
+              bool print = true);
 
   //! Gives arrow access to all underlying vector<unordered_map> functions
   auto operator->() { return &m_data; }

@@ -147,8 +147,7 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   @details
   Iterates over all combinations of excited pairs \f$ (m,n) \f$ and
   orbitals in @p i_orbs, computing \f$ L^k_{mnib} \f$ and storing results
-  in @p lk. Designed for iterative refinement: pass the previous iteration's
-  table as @p lk_prev.
+  in @p lk.=
 
   @param lk          Output ladder table (written in place)
   @param qk          Coulomb \f$ Q^k \f$ integral table
@@ -157,7 +156,6 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param i_orbs      Orbitals for the \f$ i \f$ index
   @param include_L4  Include core--core diagram L4
   @param sjt         6j symbol table
-  @param lk_prev     Ladder table from previous iteration (nullptr on first)
   @param print       Print Qk info to screen
   @param fk          Optional screening factors \f$ f_k \f$
 */
@@ -165,9 +163,38 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
-                  const Angular::SixJTable &sjt,
-                  const Coulomb::LkTable *const lk_prev = nullptr,
-                  bool print = true, const std::vector<double> &fk = {});
+                  const Angular::SixJTable &sjt, bool print = true,
+                  const std::vector<double> &fk = {});
+
+/*!
+  @brief Updates the ladder integral table with L(Q,Q) -> L(Q,Q+L)
+  @details
+  Iterates over all combinations of excited pairs \f$ (m,n) \f$ and
+  orbitals in @p i_orbs, computing \f$ L^k_{mnib} \f$ and storing results
+  in @p lk. Designed for iterative refinement: pass the previous iteration's
+  table as @p lk_prev.
+
+  @note Does not calculate any new integrals - assumes all already present.
+  Just updates them (based on iterative rule: L(Q,Q) -> L(Q,Q+L))
+
+  @param lk          Output ladder table (written in place)
+  @param qk          Coulomb \f$ Q^k \f$ integral table
+  @param excited      Excited orbitals
+  @param core        Core orbitals
+  @param i_orbs      Orbitals for the \f$ i \f$ index
+  @param include_L4  Include core--core diagram L4
+  @param sjt         6j symbol table
+  @param lk_prev     Ladder table from previous iteration
+  @param print       Print Qk info to screen
+  @param fk          Optional screening factors \f$ f_k \f$
+*/
+void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
+                    const std::vector<DiracSpinor> &excited,
+                    const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &i_orbs, bool include_L4,
+                    const Angular::SixJTable &sjt,
+                    const Coulomb::LkTable *const lk_prev, bool print,
+                    const std::vector<double> &fk);
 
 /*!
   @brief Second-order (or ladder) correction to the valence energy.
