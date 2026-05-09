@@ -460,6 +460,8 @@ CoulombTable<S>::count_non_zero_integrals(const std::vector<DiracSpinor> &basis,
                                           double eF) const {
   static_assert(S == Symmetry::Qk);
 
+  // -1 account for parity selection rule
+  // (should be same as 2*max_l, without the -1)
   const auto tmp_max_k =
     std::size_t(std::max(DiracSpinor::max_tj(basis), 1) - 1);
   const auto max_k =
@@ -550,6 +552,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   than necisary)
   */
 
+  // -1 account for parity selection rule
+  // (should be same as 2*max_l, without the -1)
   const auto tmp_max_k =
     std::size_t(std::max(DiracSpinor::max_tj(basis), 1) - 1);
 
@@ -664,8 +668,8 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
   Same as above, but only calculate integrals satisfying the SelectionFunction
   */
 
-  const auto tmp_max_k =
-    std::size_t(std::max(DiracSpinor::max_tj(basis), 1) - 1);
+  // don't subtract 1 here - may have different parity selection rules
+  const auto tmp_max_k = std::size_t(std::max(DiracSpinor::max_tj(basis), 1));
 
   const auto max_k =
     (k_cut <= 0) ? tmp_max_k : std::min(tmp_max_k, std::size_t(k_cut));

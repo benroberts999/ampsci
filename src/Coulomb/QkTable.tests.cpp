@@ -10,6 +10,99 @@
 #include <random>
 
 //==============================================================================
+TEST_CASE("Coulomb: fill methods equivalence", "[Coulomb][QkTable][unit]") {
+
+  const auto radial_grid = std::make_shared<const Grid>(
+    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+  const double zeff = 1.0;
+  const int lmax = 5;
+  const int num_ns = 2;
+  const auto print = false;
+
+  const auto orbs = DiracSpinor::HlikeBasis(lmax, num_ns, radial_grid, zeff);
+  REQUIRE(DiracSpinor::max_l(orbs) == lmax);
+  REQUIRE(DiracSpinor::max_tj(orbs) == 2 * lmax + 1);
+
+  Coulomb::YkTable yk(orbs);
+
+  const int k_cut = DiracSpinor::max_tj(orbs) + 2; // +4 : bigger than required
+
+  // Method 1: fill(basis, yk)
+  Coulomb::QkTable qk1;
+  REQUIRE(qk1.emptyQ());
+  qk1.fill(orbs, yk, k_cut, print);
+  REQUIRE_FALSE(qk1.emptyQ());
+
+  std::cout << orbs.size() << " orbitals\n";
+  std::cout << qk1.count() << " integrals\n";
+
+  // Method 2: fill_if(basis, yk, select_all)
+  Coulomb::QkTable qk2;
+  const auto qk_qr = [](int k, const auto &a, const auto &b, const auto &c,
+                        const auto &d) {
+    return Coulomb::Qk_abcd_SR(k, a, b, c, d);
+  };
+
+  qk2.fill_if(orbs, yk, qk_qr, k_cut, print);
+
+  // Method 3: fill(basis, yk.Q as function, select_all)
+  Coulomb::QkTable qk3;
+  const auto yk_func = [&yk](int k, const auto &a, const auto &b, const auto &c,
+                             const auto &d) {
+    return yk.Q(k, a, b, c, d);
+    // return Coulomb::Qk_abcd(k, a, b, c, d);
+  };
+  qk3.fill(orbs, yk_func, qk_qr, -1, print); // -1: all k
+
+  // Ensure we have same number of integrals
+  REQUIRE(qk2.count() == qk1.count());
+  REQUIRE(qk3.count() == qk1.count());
+
+  // Verify all three produce identical results
+  for (const auto &a : orbs) {
+    for (const auto &b : orbs) {
+      for (const auto &c : orbs) {
+        for (const auto &d : orbs) {
+          for (int k = 0; k <= k_cut + 1; ++k) {
+
+            // calculate all integrals
+            const auto q0 = Coulomb::Qk_abcd(k, a, b, c, d);
+            const auto q1 = qk1.Q(k, a, b, c, d);
+            const auto q2 = qk2.Q(k, a, b, c, d);
+            const auto q3 = qk3.Q(k, a, b, c, d);
+
+            // Ensure we get the correct value (table matches direct)
+            REQUIRE(q1 == Approx(q0));
+
+            // Esnure all tables are equal
+            REQUIRE(q2 == Approx(q1));
+            REQUIRE(q3 == Approx(q1));
+
+            // ensure selection rule good
+            // (i.e., we didn't store any non-zero elements)
+            if (qk1.contains(k, a, b, c, d)) {
+              REQUIRE(q1 != 0.0);
+            }
+
+            // calculate all W integrals
+            const auto W1 = qk1.W(k, a, b, c, d);
+            const auto W2 = qk2.W(k, a, b, c, d);
+            const auto W3 = qk3.W(k, a, b, c, d);
+
+            REQUIRE(W2 == Approx(W1));
+            REQUIRE(W3 == Approx(W1));
+
+            // Accuracy tested below, can skip
+            // if (true) {
+            //   const auto W0 = Coulomb::Wk_abcd(k, a, b, c, d);
+            //   CHECK(W1 == Approx(W0).margin(1.0e-14));
+            // }
+          }
+        }
+      }
+    }
+  }
+}
 
 //==============================================================================
 TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
