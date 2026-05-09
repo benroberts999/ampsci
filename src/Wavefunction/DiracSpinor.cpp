@@ -457,6 +457,24 @@ DiracSpinor DiracSpinor::exactHlike(int n, int kappa,
 }
 
 //==============================================================================
+std::vector<DiracSpinor>
+DiracSpinor::HlikeBasis(int max_l, int num_ns,
+                        std::shared_ptr<const Grid> rgrid, double zeff,
+                        double alpha) {
+  std::vector<DiracSpinor> orbs;
+  const auto max_ki = Angular::l_to_max_kindex(max_l);
+  for (auto ik = 0ul; ik <= max_ki; ik++) {
+    const auto kappa = Angular::kindex_to_kappa(ik);
+    int n0 = Angular::l_k(kappa) + 1;
+    for (int i = 0; i < num_ns; ++i) {
+      const auto n = n0 + i;
+      orbs.push_back(DiracSpinor::exactHlike(n, kappa, rgrid, zeff, alpha));
+    }
+  }
+  return orbs;
+}
+
+//==============================================================================
 std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
 DiracSpinor::split_by_energy(const std::vector<DiracSpinor> &orbitals,
                              double Fermi_energy, int n_min_core,
