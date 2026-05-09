@@ -26,7 +26,7 @@ TEST_CASE("Coulomb: fill methods equivalence", "[Coulomb][QkTable][unit]") {
 
   Coulomb::YkTable yk(orbs);
 
-  const int k_cut = DiracSpinor::max_tj(orbs) + 2; // +4 : bigger than required
+  const int k_cut = DiracSpinor::max_tj(orbs) + 2; // +2 : bigger than required
 
   // Method 1: fill(basis, yk)
   Coulomb::QkTable qk1;

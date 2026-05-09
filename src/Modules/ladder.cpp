@@ -89,6 +89,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto pFv = std::find(wf.basis().cbegin(), wf.basis().cend(), Fv);
     valence.push_back(*pFv);
   }
+  const auto core_and_val = qip::merge(core, valence);
 
   // in/out file names (default based on basis)
   using namespace std::string_literals;
@@ -158,44 +159,88 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << (read_lad ? "Re-starting using existing ladder diagrams\n" :
                            "Calculating ladder diagrams from scratch\n");
 
+  if (read_lad) {
+    // must have correct dimension!
+    lk_next = lk;
+  }
+
   //----------------------------------------------------------------------------
   // Iterate Lk equations
-  std::cout << "\nFilling Lk table: core + valence & iterate\n" << std::flush;
+  std::cout << "\nFilling Lk table: core + valence & iterate\n\n" << std::flush;
 
   // initial corrections (will be zero if this is first run)
   std::vector<double> de_0(valence.size());
-  for (std::size_t i = 0; i < valence.size(); ++i) {
-    de_0[i] = MBPT::de_valence(valence[i], qk, lk, core, excited);
-  }
-  double de_c0 = MBPT::de_core(qk, lk, core, excited);
+  double de_c0{0.0};
+  // for (std::size_t i = 0; i < valence.size(); ++i) {
+  //   de_0[i] = MBPT::de_valence(valence[i], qk, lk, core, excited);
+  // }
+  // double de_c0 = MBPT::de_core(qk, lk, core, excited);
+
+  // if (read_lad) {
+  //   std::cout << "From read-in ladder file:\n";
+  //   std::cout << "de_l(core): ";
+  //   printf("%10.7f\n", de_c0);
+
+  //   // check convergance (valence):
+  //   for (std::size_t i = 0; i < valence.size(); ++i) {
+  //     // XXX include eta here?
+  //     const auto de_v =
+  //       MBPT::de_valence(valence[i], qk, lk, core, excited, fk, etak);
+  //     de_0[i] = de_v;
+  //     std::cout << "de_l(" << valence[i].shortSymbol() << ") : ";
+  //     printf("%10.7f\n", de_v);
+  //   }
+  // }
 
   if (!read_lad) {
-    std::cout << "\nInitial fill of Lk table: core + valence\n" << std::flush;
-    MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core, include_L4, sjt, true,
-                       fk);
-    MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core, include_L4, sjt, true,
-                       fk);
+    std::cout << "Initial fill of Lk table: core + valence\n" << std::flush;
+    MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core_and_val, include_L4,
+                       sjt, true, fk);
+    lk_next.write(Lfname);
+    lk = lk_next;
+  } else {
+    std::cout << "From read-in ladder file:\n";
+  }
+
+  {
+    std::cout << "\nde_l(core): ";
+    de_c0 = MBPT::de_core(qk, lk, core, excited);
+    printf("%10.7f\n", de_c0);
+
+    // check convergance (valence):
+    for (std::size_t i = 0; i < valence.size(); ++i) {
+      // XXX include eta here?
+      const auto de_v =
+        MBPT::de_valence(valence[i], qk, lk, core, excited, fk, etak);
+      de_0[i] = de_v;
+      std::cout << "de_l(" << valence[i].shortSymbol() << ") : ";
+      printf("%10.7f\n", de_v);
+    }
   }
 
   bool core_converged = false;
   for (int it = 2; it <= max_it; ++it) { // 1 iteration mean just calculate once
-    std::cout << "it:" << it << "\n";
+    std::cout << "\nit:" << it << "\n";
     {
-      IO::ChronoTimer t("Update Lk");
+      // IO::ChronoTimer t("Update Lk");
       if (!core_converged) {
         // Don't update core terms if core energy shift converged?
         // include screening for core parts?
-        MBPT::update_Lk_mnib(&lk_next, qk, excited, core, core, include_L4, sjt,
-                             &lk, print_progbar, fk);
+        MBPT::update_Lk_mnib(&lk_next, qk, excited, core, core_and_val,
+                             include_L4, sjt, &lk, print_progbar, fk);
       }
       // in theory: each valence may converge differently, don't need to re-run
       // for valence states which already converged...
-      MBPT::update_Lk_mnib(&lk_next, qk, excited, core, valence, include_L4,
-                           sjt, &lk, print_progbar, fk);
+      // MBPT::update_Lk_mnib(&lk_next, qk, excited, core, valence, include_L4,
+      //                      sjt, &lk, print_progbar, fk);
     }
-    // lk = lk_next; // XXX use swap or similar?
-    std::swap(lk, lk_next);
+
+    if (lk.emptyQ())
+      lk = lk_next; // XXX use swap or similar?
+    else
+      std::swap(lk, lk_next);
     lk.write(Lfname);
+    std::cout << "\n";
 
     // check convergance (core):
     const auto de_c = MBPT::de_core(qk, lk, core, excited);

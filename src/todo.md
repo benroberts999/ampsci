@@ -78,3 +78,44 @@
 * Clean UserInput
 * Standardise input/output
 * Option for JSON output?
+
+-----------------
+CK Table
+
+Get error:
+
+in Ladder module (calculating de)
+```
+Module: Module::ladder
+
+Ladder Module:
+
+min_n (core)    = 4
+max_n (excited) = 25
+max_l (excited) = 99
+include_L4      = false
+max_k           = 4
+max_it          = 15
+eps_target      = 0.0001
+No screening.
+
+Core/Valence MBPT(2) shifts, using Yk table
+Core: -0.0518146
+Valence, using wf.valence()
+6s_1/2 -0.00952511
+6p_1/2 -0.0039392
+6p_3/2 -0.00351977
+5d_3/2 -0.00170324
+5d_5/2 -0.00151915
+4f_5/2 -0.000125795
+ampsci: src/Angular/CkTable.cpp:84: double Angular::CkTable::get_tildeCkab(int, int, int) const: Assertion `std::max(jia, jib) <= m_max_jindex_sofar' failed.
+ampsci: src/Angular/CkTable.cpp:84: double Angular::CkTable::get_tildeCkab(int, int, int) const: Assertion `std::max(jia, jib) <= m_max_jindex_sofar' failed.
+ampsci: src/Angular/CkTable.cpp:84: double Angular::CkTable::get_tildeCkab(int, int, int) const: Assertion `std::max(jia, jib) <= m_max_jindex_sofar' failed.
+ampsci: src/Angular/CkTable.cpp:84: double Angular::CkTable::get_tildeCkab(int, int, int) const: Assertion `std::max(jia, jib) <= m_max_jindex_sofar' failed.
+ampsci: src/Angular/CkTable.cpp:84: double Angular::CkTable::get_tildeCkab(int, int, int) const: Assertion `std::max(jia, jib) <= m_max_jindex_sofar' failed.
+ampsci: src/Angular/CkTable.cpp:84: double Angular::CkTable::get_tildeCkab(int, int, int) const: Assertion `std::max(jia, jib) <= m_max_jindex_sofar' failed.
+ampsci: src/Angular/CkTable.cpp:84: double Angular::CkTable::get_tildeCkab(int, int, int) const: Assertion `std::max(jia, jib) <= m_max_jindex_sofar' failed.
+ampsci: src/Angular/CkTable.cpp:84: double Angular::CkTable::get_tildeCkab(int, int, int) const: Assertion `std::max(jia, jib) <= m_max_jindex_sofar' failed.
+Aborted (core dumped)
+```
+when basis contains fewer l than valence
