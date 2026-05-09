@@ -117,9 +117,22 @@ constexpr int kindex_to_l(std::uint64_t i) {
   return (i % 2 == 0) ? int(i / 2) : int((i + 1) / 2);
 }
 
+/*!
+  @brief Maximum kappa index for a given orbital angular momentum l.
+
+  @param l Orbital angular momentum quantum number
+  @return Kappa index of the state with maximum (larger) j
+
+  @see Angular::kappa_to_kindex()
+*/
+constexpr std::uint64_t l_to_max_kindex(int l) {
+  return (l == 0) ? 0 : std::uint64_t(2 * l);
+}
+
 //==============================================================================
-//! Returns number of possible states _below_ given n (i.e., n' < n)
-/*! @details
+/*! 
+  @brief Returns number of possible states _below_ given n (i.e., n' < n)
+  @details
 
   This could be made more "compact" with a maximum l.
   In practice, we go to large n, but never very large l.

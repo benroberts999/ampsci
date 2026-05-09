@@ -298,8 +298,47 @@ TEST_CASE("Angular: Wigner369j functions", "[Angular][unit]") {
 }
 
 //------------------------------------------------------------------------------
-//! Unit tests for angular functions/classes (threeJ symbols, lookup
-//! tables etc)
+TEST_CASE("Angular: index functions", "[Angular][unit]") {
+
+  // nb: most index functions still tested above,
+  // in "Angular: Winger369j functions"
+
+  const int lmax = 15;
+
+  std::uint64_t count_in_order = 0; // increment: should equal kappa_index
+  for (int l = 0; l <= lmax; ++l) {
+
+    const auto max_k_index = Angular::l_to_max_kindex(l);
+
+    // loop over j = l +/- 1/2
+    for (int tj : {2 * l - 1, 2 * l + 1}) {
+      if (tj < 0) {
+        REQUIRE(l == 0);
+        continue;
+      }
+
+      const auto kappa = Angular::kappa_twojl(tj, l);
+      REQUIRE(kappa != 0);
+      REQUIRE(Angular::twoj_k(kappa) == tj);
+      REQUIRE(Angular::l_k(kappa) == l);
+
+      const auto kappa_index = Angular::kappa_to_kindex(kappa);
+
+      REQUIRE(Angular::kappa_to_kindex(kappa) == count_in_order);
+      ++count_in_order;
+
+      if (tj == 2 * l + 1) {
+        REQUIRE(kappa_index == max_k_index);
+      } else {
+        REQUIRE(kappa_index < max_k_index);
+      }
+    }
+  }
+}
+
+//------------------------------------------------------------------------------
+// Unit tests for angular functions/classes (threeJ symbols, lookup
+// tables etc)
 TEST_CASE("Angular: Ck tables", "[Angular][unit]") {
 
   // Maximum value of 2*j (for initial run)
