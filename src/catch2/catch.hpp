@@ -15867,7 +15867,7 @@ std::string fpToString(T value, int precision) {
   }
 
   ReusableStringStream rss;
-  rss << std::setprecision(precision) << std::fixed << value;
+  rss << std::setprecision(precision) << std::scientific << value;
   std::string d = rss.str();
   std::size_t i = d.find_last_not_of('0');
   if (i != std::string::npos && i != d.size() - 1) {
