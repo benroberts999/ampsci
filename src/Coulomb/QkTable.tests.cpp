@@ -2,6 +2,7 @@
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/YkTable.hpp"
+#include "HF/Breit.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "MBPT/Sigma2.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -397,6 +398,104 @@ TEST_CASE("Coulomb: Q,W,N k Table", "[Coulomb][QkTable][unit]") {
     REQUIRE(n.Q(k, d, c, b, a) != x);
     n.update(k, a, b, c, d, y);
     REQUIRE(n.Q(k, a, b, c, d) == y);
+  }
+}
+
+//==============================================================================
+TEST_CASE("Coulomb: Breit QkTable", "[Coulomb][QkTable][Breit][bk7]") {
+
+  const auto radial_grid = std::make_shared<const Grid>(
+    GridParameters{250, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+  const double zeff = 5.0;
+  const int lmax = 3;
+  const int num_ns = 1;
+  const auto print = false;
+
+  const auto orbs = DiracSpinor::HlikeBasis(lmax, num_ns, radial_grid, zeff);
+
+  const int k_cut = DiracSpinor::max_tj(orbs) + 2; // +4 : bigger than required
+
+  HF::Breit bk{};
+
+  // HF::Breit bk2{};
+  bk.fill_gb(orbs);
+
+  // Breit has Wk symmetry (I think)
+
+  const auto bk_func = [&](int k, const auto &a, const auto &b, const auto &c,
+                           const auto &d) { return bk.Bk_abcd(k, a, b, c, d); };
+
+  const auto bk_func_2 = [&](int k, const auto &a, const auto &b, const auto &c,
+                             const auto &d) {
+    return bk.Bk_abcd_2(k, a, b, c, d);
+  };
+
+  const auto bk_SR = [&](int k, const auto &a, const auto &b, const auto &c,
+                         const auto &d) {
+    // return true;
+    return bk.Bk_SR(k, a, b, c, d);
+  };
+
+  // From scratch:
+  Coulomb::WkTable Bk;
+  Bk.fill(orbs, bk_func, bk_SR, -1, print); // -1: all k
+
+  // Use precomputed Bk gab()
+  Coulomb::WkTable Bk2;
+  Bk2.fill(orbs, bk_func_2, bk_SR, -1, print); // -1: all k
+
+  REQUIRE(Bk.count() == Bk2.count());
+
+  // Verify all three produce identical results
+  for (const auto &a : orbs) {
+    for (const auto &b : orbs) {
+      for (const auto &c : orbs) {
+        for (const auto &d : orbs) {
+          for (int k = 0; k <= k_cut + 1; ++k) {
+
+            // Require table matched direct calculation
+            const auto bk0 = bk.Bk_abcd(k, a, b, c, d);
+            const auto bk1 = Bk.Q(k, a, b, c, d);
+            if (std::abs(bk0) < 1.0e-10) {
+              REQUIRE(bk1 == Approx(bk0).margin(1.0e-14));
+            } else {
+              REQUIRE(bk1 == Approx(bk0));
+            }
+
+            // Require gab() version matched direct calculation
+            const auto bk2 = bk.Bk_abcd_2(k, a, b, c, d);
+            const auto bk3 = Bk2.Q(k, a, b, c, d);
+            REQUIRE(bk2 == Approx(bk0).margin(1.0e-14));
+            REQUIRE(bk2 == Approx(bk1).margin(1.0e-14));
+            REQUIRE(bk2 == Approx(bk3).margin(1.0e-14));
+
+            // Ensure gab() version matched direct for Pk
+            const auto pk2 = bk.BPk_abcd_2(k, a, b, c, d);
+            const auto pk0 = bk.BPk_abcd(k, a, b, c, d);
+            REQUIRE(pk2 == Approx(pk0).margin(1.0e-14));
+
+            // Ensure gab() version matched direct for Wk
+            const auto wk2 = bk.BWk_abcd_2(k, a, b, c, d);
+            const auto wk0 = bk.BWk_abcd(k, a, b, c, d);
+            REQUIRE(wk2 == Approx(wk0).margin(1.0e-14));
+
+            // Check tabulated Pk and Wk vs. direct:
+            const auto pk1 = Bk.P(k, a, b, c, d);
+            const auto pkx = Bk2.P(k, a, b, c, d);
+            REQUIRE(pkx == Approx(pk1).margin(1.0e-12));
+
+            const auto wk1 = Bk.W(k, a, b, c, d);
+            const auto wkx = Bk2.W(k, a, b, c, d);
+            REQUIRE(wkx == Approx(wk1).margin(1.0e-12));
+
+            // Fails! Not sure why!
+            // perhaps, because need k=0 sometimes!
+            REQUIRE(pk0 == Approx(pk1).margin(1.0e-12));
+            REQUIRE(wk1 == Approx(wk0).margin(1.0e-12));
+          }
+        }
+      }
+    }
   }
 }
 
