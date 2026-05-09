@@ -486,7 +486,7 @@ CoulombTable<S>::count_non_zero_integrals(const std::vector<DiracSpinor> &basis,
     return num == 1 || num == 2;
   };
 
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic, 1)
   for (auto k = 0ul; k <= max_k; ++k) {
     const auto ik = static_cast<int>(k);
     for (const auto &a : basis) {
@@ -595,7 +595,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
 
   // 3) Create space in map (set each element to zero).
   t.start();
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic, 1)
   for (auto k = 0ul; k <= max_k; ++k) {
     for (const auto &a : basis) {
       for (const auto &c : basis) {
@@ -624,34 +624,25 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   if (print)
     std::cout << "Fill w/ values: " << std::flush;
   t.start();
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for schedule(dynamic, 1)
   for (auto ia = 0ul; ia < basis.size(); ++ia) {
-    for (auto ib = 0ul; ib < basis.size(); ++ib) {
-      const auto &a = basis[ia];
-      const auto &b = basis[ib];
+    const auto &a = basis[ia];
+    for (const auto &b : basis) {
       for (const auto &c : basis) {
         for (const auto &d : basis) {
 
-          // const auto index = CurrentOrder(a, b, c, d);
-          // const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
-          // for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
-          //   double *ptr = get(k, index);
-          //   if (ptr != nullptr && *ptr == 0.0) {
-          //     *ptr = yk.Q(k, a, b, c, d);
-          //   }
-          // }
-
           const auto normal_index = NormalOrder(a, b, c, d);
-          if (normal_index == CurrentOrder(a, b, c, d)) {
-            const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
-            for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
-              double *ptr = get(k, normal_index);
-              assert(ptr != nullptr);
-              if (*ptr == 0.0) {
-                // only calculate if not already in table
-                // This saves some time, but surprisingly little!
-                *ptr = yk.Q(k, a, b, c, d);
-              }
+          if (normal_index != CurrentOrder(a, b, c, d))
+            continue;
+
+          const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
+          for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
+            double *ptr = get(k, normal_index);
+            assert(ptr != nullptr);
+            if (*ptr == 0.0) {
+              // only calculate if not already in table
+              // This saves some time, but surprisingly little!
+              *ptr = yk.Q(k, a, b, c, d);
             }
           }
         }
@@ -751,36 +742,27 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
   if (print)
     std::cout << "Fill w/ values: " << std::flush;
   t.start();
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for schedule(dynamic, 1)
   for (auto ia = 0ul; ia < basis.size(); ++ia) {
-    for (auto ib = 0ul; ib < basis.size(); ++ib) {
-      const auto &a = basis[ia];
-      const auto &b = basis[ib];
+    const auto &a = basis[ia];
+    for (const auto &b : basis) {
       for (const auto &c : basis) {
         for (const auto &d : basis) {
 
-          // const auto index = CurrentOrder(a, b, c, d);
-          // const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
-          // for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
-          //   double *ptr = get(k, index);
-          //   if (ptr != nullptr && *ptr == 0.0) {
-          //     *ptr = yk.Q(k, a, b, c, d);
-          //   }
-          // }
-
           const auto normal_index = NormalOrder(a, b, c, d);
-          if (normal_index == CurrentOrder(a, b, c, d)) {
-            const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
-            for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
-              if (!SelectionFunction(k, a, b, c, d))
-                continue;
-              double *ptr = get(k, normal_index);
-              assert(ptr != nullptr);
-              if (*ptr == 0.0) {
-                // only calculate if not already in table
-                // This saves some time, but surprisingly little!
-                *ptr = yk.Q(k, a, b, c, d);
-              }
+          if (normal_index != CurrentOrder(a, b, c, d))
+            continue;
+
+          const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
+          for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
+            if (!SelectionFunction(k, a, b, c, d))
+              continue;
+            double *ptr = get(k, normal_index);
+            assert(ptr != nullptr);
+            if (*ptr == 0.0) {
+              // only calculate if not already in table
+              // This saves some time, but surprisingly little!
+              *ptr = yk.Q(k, a, b, c, d);
             }
           }
         }
@@ -884,28 +866,22 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     std::cout << "Fill w/ values:\n" << std::flush;
   t.start();
 
-  for (int k = 0; k <= int(max_k); ++k) {
-    if (print)
-      qip::progbar(k, int(max_k + 1));
-#pragma omp parallel for //collapse(2)
-    for (std::size_t ia = 0; ia < basis.size(); ++ia) {
-      for (std::size_t ib = 0; ib < basis.size(); ++ib) {
-        const auto &a = basis[ia];
-        const auto &b = basis[ib];
-        for (const auto &c : basis) {
-          for (const auto &d : basis) {
+  qip::ProgressBar prog(int(basis.size()));
+#pragma omp parallel for schedule(dynamic, 1)
+  for (std::size_t ia = 0; ia < basis.size(); ++ia) {
+    if (print) {
+      prog.update();
+    }
+    const auto &a = basis[ia];
+    for (const auto &b : basis) {
+      for (const auto &c : basis) {
+        for (const auto &d : basis) {
 
-            // const auto index = CurrentOrder(a, b, c, d);
-            // for (int k = 0; k <= int(max_k); ++k) {
-            //   double *ptr = get(k, index);
-            //   if (ptr != nullptr && *ptr == 0.0) {
-            //     *ptr = Fk(k, a, b, c, d);
-            //   }
-            // }
+          const auto normal_index = NormalOrder(a, b, c, d);
+          if (normal_index != CurrentOrder(a, b, c, d))
+            continue;
 
-            const auto normal_index = NormalOrder(a, b, c, d);
-            if (normal_index != CurrentOrder(a, b, c, d))
-              continue;
+          for (int k = 0; k <= int(max_k); ++k) {
 
             if (!Fk_SR(k, a, b, c, d))
               continue;
@@ -921,7 +897,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     }
   }
   if (print)
-    std::cout << "\nFill w/ values: " << t.lap_reading_str() << std::endl;
+    std::cout << "Fill w/ values: " << t.lap_reading_str() << std::endl;
 
   if (print)
     summary();
@@ -940,26 +916,25 @@ void CoulombTable<S>::update(const std::vector<DiracSpinor> &basis,
   // access each map element once, we can do this part in parallel. nb: This
   // //isation is not very efficient, though in theory it can be 100%
 
-  for (int k = 0; k <= int(max_k); ++k) {
+  qip::ProgressBar prog(int(basis.size()));
+#pragma omp parallel for schedule(dynamic, 1)
+  for (std::size_t ia = 0; ia < basis.size(); ++ia) {
     if (print)
-      qip::progbar(k, int(max_k + 1));
-#pragma omp parallel for collapse(2)
-    for (std::size_t ia = 0; ia < basis.size(); ++ia) {
-      for (std::size_t ib = 0; ib < basis.size(); ++ib) {
-        for (std::size_t ic = 0; ic < basis.size(); ++ic) {
-          for (std::size_t id = 0; id < basis.size(); ++id) {
-            const auto &a = basis[ia];
-            const auto &b = basis[ib];
-            const auto &c = basis[ic];
-            const auto &d = basis[id];
+      prog.update();
 
-            // Now, we can check symmetries, selectrion rules etc.
-            // just be seeing if this one is in the current table!
-            const auto c_index = CurrentOrder(a, b, c, d);
-            const auto n_index = NormalOrder(a, b, c, d);
-            if (c_index != n_index)
-              continue;
+    const auto &a = basis[ia];
+    for (const auto &b : basis) {
+      for (const auto &c : basis) {
+        for (const auto &d : basis) {
 
+          // Now, we can check symmetries, selectrion rules etc.
+          // just be seeing if this one is in the current table!
+          const auto c_index = CurrentOrder(a, b, c, d);
+          const auto n_index = NormalOrder(a, b, c, d);
+          if (c_index != n_index)
+            continue;
+
+          for (int k = 0; k <= int(max_k); ++k) {
             double *ptr = get(k, n_index);
             // if not null, means already in table: so update it
             if (ptr != nullptr) {
@@ -970,10 +945,6 @@ void CoulombTable<S>::update(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  std::cout << "\n";
-
-  // if (print)
-  // summary();
 }
 
 //==============================================================================
