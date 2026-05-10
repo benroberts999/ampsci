@@ -16,41 +16,33 @@ namespace Module {
 //==============================================================================
 // Module for testing ladder diagram implementation
 void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
-  std::cout << "\nLadder Module:\n\n";
 
   input.check(
-    {{"min", "lowest core n to include [0]"},
-     {"max", "maximum excited n to include [99]"},
-     {"max_l", "maximum excited l to include [99]"},
-     {"max_k", "maximum k to include in Qk [99]"},
+    {{"min_n_core", "lowest core n to include [1]"},
+     {"max_n_excited",
+      "maximum excited n to include. Default is to include entire basis."},
+     {"max_l",
+      "maximum excited l to include. Default is to include entire basis."},
+     {"max_k", "maximum k to include in Qk. Put -1 to include all. [8]"},
      {"include_L4", "Inlcude 4th Ladder diagram [false]"},
-     {"fk", "List of doubles. Effective screening factors. Used to "
-            "calculate Lk. []"},
-     {"eta", "List of doubles. Effective hp factors. Only used to "
-             "print energy shift. []"},
-     {"Qfile", "filename to read/write Qk integrals"},
-     {"form_Q", "Form or read Qk? (if have lk already, dont' need!) [true]"},
-     {"Lfile", "filename to read/write Qk integrals"},
-     {"progbar", "Print progress bar? [true]"},
      {"max_it", "Max # iterations [15]"},
-     {"eps_target", "Target for convergance [1.0e-4]"}});
+     {"eps_target", "Target for convergance [1.0e-5]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
   }
 
   // Get input + print to screen
-  const auto min_n = input.get("min", 0);
-  const auto max_n = input.get("max", 99);
-  const auto max_l = input.get("max_l", 99);
-  const auto max_k = input.get("max_k", 99);
+  const auto min_n_core = input.get("min_n_core", 1);
+  const auto max_n = input.get("max_n_excited", 999);
+  const auto max_l = input.get("max_l", 999);
+  const auto max_k = input.get("max_k", 8);
   const auto include_L4 = input.get("include_L4", false);
-  const auto fk = input.get("fk", std::vector<double>{});
-  const auto etak = input.get("eta", std::vector<double>{});
+
   const auto max_it = input.get("max_it", 15);
-  const auto eps_target = input.get("eps_target", 1.0e-4);
-  const auto print_progbar = input.get("progbar", true);
-  std::cout << "min_n (core)    = " << min_n << "\n";
+  const auto eps_target = input.get("eps_target", 1.0e-5);
+
+  std::cout << "min_n (core)    = " << min_n_core << "\n";
   std::cout << "max_n (excited) = " << max_n << "\n";
   std::cout << "max_l (excited) = " << max_l << "\n";
   std::cout << std::boolalpha;
@@ -59,95 +51,80 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "max_it          = " << max_it << "\n";
   std::cout << "eps_target      = " << eps_target << "\n";
 
-  if (fk.empty()) {
-    std::cout << "No screening.\n";
-  } else {
-    std::cout << "Using screening factors, fk = ";
-    std::for_each(fk.cbegin(), fk.cend(),
-                  [](auto x) { std::cout << x << ", "; });
-    std::cout << "1.0\n";
-  }
-  if (!etak.empty()) {
-    std::cout << "Using eta (hp) factors, eta_k = ";
-    std::for_each(etak.cbegin(), etak.cend(),
-                  [](auto x) { std::cout << x << ", "; });
-    std::cout << "1.0 (only in de, does not affect Lk)\n";
-  }
-
   // Sort basis into core/excited/valcne
   std::vector<DiracSpinor> core, excited, valence;
   const auto en_core = wf.FermiLevel();
   for (const auto &Fn : wf.basis()) {
-    if (Fn.en() < en_core && Fn.n() >= min_n) {
+    if (Fn.en() < en_core && Fn.n() >= min_n_core) {
       core.push_back(Fn);
     } else if (Fn.en() > en_core && Fn.n() <= max_n && Fn.l() <= max_l) {
       excited.push_back(Fn);
     }
   }
+
+  // nb: use _basis_ version of valence states in iterations
+  std::cout << "\nValence vs. basis orthog:\n";
   for (const auto &Fv : wf.valence()) {
-    // nb: use _basis_ version of valence states (only for de, makes no diff)
     const auto pFv = std::find(wf.basis().cbegin(), wf.basis().cend(), Fv);
+    if (pFv == wf.basis().cend()) {
+      std::cout << "Warning: Basis missing valence state: " << Fv << "\n";
+      continue;
+    }
+    const auto orth = *pFv * Fv - 1.0;
+    const auto eps = (pFv->en() - Fv.en()) / Fv.en();
+    fmt::print("{:3s} orth = {:.1e}, dE/E = {:.1e}\n", Fv.shortSymbol(), orth,
+               eps);
     valence.push_back(*pFv);
   }
-  const auto core_and_val = qip::merge(core, valence);
-
-  // in/out file names (default based on basis)
-  using namespace std::string_literals;
-  const auto name = wf.identity() + DiracSpinor::state_config(excited);
-  const auto Qfname = input.get("Qfile", name + ".qk.abf"s);
-  const auto Lfname = input.get("Lfile", name + ".lk.abf"s);
 
   // Create the "total" basis, which has core+excited, but only those states
   // actually included (i.e., [n_min, n_max]). This is used to calculate Qk.
   // Reduces size of Qk; should also reduce lookup time.
   const auto both = qip::merge(core, excited);
+  // the "i" orbitals: core + valence
+  const auto core_and_val = qip::merge(core, valence);
+
+  // in/out file names (default based on basis)
+  using namespace std::string_literals;
+  const auto ident = wf.identity();
+  const auto basis_string = DiracSpinor::state_config(excited);
+  const auto Qfname = ident + ".qk.abf"s;
+  const auto lk4 = include_L4 ? "_l4" : ""s;
+  const auto Lfname = ident + "_" + basis_string + lk4 + ".lk.abf"s;
 
   // Fill Yk table (used to fill Qk table)
   const Coulomb::YkTable yk(both);
   // Store reference to Yk's 6J table (save typing):
   const auto &sjt = yk.SixJ();
 
-  // Calculate initial energy corrections (mainly for checks):
-  std::cout << "\nCore/Valence MBPT(2) shifts, using Yk table" << std::endl;
-  std::cout << "Core: " << MBPT::de_core(yk, yk, core, excited) << "\n";
-  //
-  std::cout << "Valence, using wf.valence()" << std::endl;
-  for (const auto &v : wf.valence()) {
-    std::cout << v.symbol() << " " << MBPT::de_valence(v, yk, yk, core, excited)
-              << "\n";
-  }
-  //
-  std::cout << "Valence, using basis" << std::endl;
-  for (const auto &v : valence) {
-    std::cout << v.symbol() << " " << MBPT::de_valence(v, yk, yk, core, excited)
-              << "\n";
-  }
-  if (!fk.empty() || !etak.empty()) {
-    std::cout << "Valence, using basis + fk + eta_k" << std::endl;
-    for (const auto &v : valence) {
-      std::cout << v.symbol() << " "
-                << MBPT::de_valence(v, yk, yk, core, excited, fk, etak) << "\n";
-    }
-  }
-
   // Form the Qk table.
-  // If we already have L, and just want to print de, don't need to do this
-  const auto formQ = input.get("form_Q", true);
   Coulomb::QkTable qk;
-  if (formQ) {
-    std::cout << "\nFill Qk table:\n";
-    const auto ok = qk.read(Qfname);
-    if (!ok) {
-      qk.fill(both, yk, max_k);
-      qk.write(Qfname);
-    }
+  std::cout << "\nFill Qk table:\n";
+  const auto ok = qk.read(Qfname);
+  // nb: will not extend Qk integrals. Maybe not best choice?
+  if (!ok) {
+    qk.fill(both, yk, max_k);
+    qk.write(Qfname);
   }
 
-  std::cout << "\nCore/Valence MBPT(2) shifts, using Qk table" << std::endl;
-  std::cout << "Core: " << MBPT::de_core(qk, qk, core, excited) << "\n";
-  for (const auto &v : valence) {
-    std::cout << v.symbol() << " " << MBPT::de_valence(v, qk, qk, core, excited)
-              << "\n";
+  std::cout << "\nMBPT(2) energy shifts, using HF vs. spline legs" << std::endl;
+  fmt::print("{:<5s} {:>13s} {:>13s} {:>13s}   {}\n", "state", "de(HF)",
+             "de(basis)", "de(Qk)", "eps");
+  const auto dec_1 = MBPT::de_core(yk, yk, wf.core(), excited);
+  const auto dec_2 = MBPT::de_core(yk, yk, core, excited);
+  const auto dec_3 = MBPT::de_core(qk, qk, core, excited);
+  const auto dec_eps = std::abs(2.0 * (dec_1 - dec_2) / (dec_1 + dec_2));
+  fmt::print("{:<5s} {:+13.7f} {:+13.7f} {:+13.7f}   {:.0e}\n", "core", dec_1,
+             dec_2, dec_3, dec_eps);
+  for (const auto &sv : valence) {
+    const auto pv = wf.getState(sv.n(), sv.kappa());
+    assert(pv != nullptr); //valence is subset of wf.valence()
+    const auto de_1 = MBPT::de_valence(*pv, yk, yk, core, excited);
+    const auto de_2 = MBPT::de_valence(sv, yk, yk, core, excited);
+    const auto de_3 = MBPT::de_valence(sv, qk, qk, core, excited);
+    const auto de_eps = std::abs(2.0 * (de_1 - de_2) / (de_1 + de_2));
+    fmt::print("{:<5s} {:+13.7f} {:+13.7f} {:+13.7f}   {:.0e}\n",
+               sv.shortSymbol(), de_1, de_2, de_3, de_eps);
   }
   std::cout << "\n";
 
@@ -156,111 +133,77 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   Coulomb::LkTable lk_next;
   // Each run will continue from where last left off
   const bool read_lad = lk.read(Lfname);
-  std::cout << (read_lad ? "Re-starting using existing ladder diagrams\n" :
-                           "Calculating ladder diagrams from scratch\n");
+  std::cout << (read_lad ? "\nRe-starting using existing ladder diagrams\n" :
+                           "\nCalculating ladder diagrams from scratch\n");
+
+  //----------------------------------------------------------------------------
+  // Iterate Lk equations
 
   if (read_lad) {
     // must have correct dimension!
     lk_next = lk;
-  }
-
-  //----------------------------------------------------------------------------
-  // Iterate Lk equations
-  std::cout << "\nFilling Lk table: core + valence & iterate\n\n" << std::flush;
-
-  // initial corrections (will be zero if this is first run)
-  std::vector<double> de_0(valence.size());
-  double de_c0{0.0};
-  // for (std::size_t i = 0; i < valence.size(); ++i) {
-  //   de_0[i] = MBPT::de_valence(valence[i], qk, lk, core, excited);
-  // }
-  // double de_c0 = MBPT::de_core(qk, lk, core, excited);
-
-  // if (read_lad) {
-  //   std::cout << "From read-in ladder file:\n";
-  //   std::cout << "de_l(core): ";
-  //   printf("%10.7f\n", de_c0);
-
-  //   // check convergance (valence):
-  //   for (std::size_t i = 0; i < valence.size(); ++i) {
-  //     // XXX include eta here?
-  //     const auto de_v =
-  //       MBPT::de_valence(valence[i], qk, lk, core, excited, fk, etak);
-  //     de_0[i] = de_v;
-  //     std::cout << "de_l(" << valence[i].shortSymbol() << ") : ";
-  //     printf("%10.7f\n", de_v);
-  //   }
-  // }
-
-  if (!read_lad) {
-    std::cout << "Initial fill of Lk table: core + valence\n" << std::flush;
+  } else {
+    std::cout << "\nInitial fill of Lk table: core + valence\n" << std::flush;
     MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core_and_val, include_L4,
-                       sjt, true, fk);
+                       sjt, true);
     lk_next.write(Lfname);
     lk = lk_next;
-  } else {
-    std::cout << "From read-in ladder file:\n";
   }
 
-  {
-    std::cout << "\nde_l(core): ";
-    de_c0 = MBPT::de_core(qk, lk, core, excited);
-    printf("%10.7f\n", de_c0);
+  // convert to inverse cm
+  const auto icm = PhysConst::Hartree_invcm;
 
-    // check convergance (valence):
-    for (std::size_t i = 0; i < valence.size(); ++i) {
-      // XXX include eta here?
-      const auto de_v =
-        MBPT::de_valence(valence[i], qk, lk, core, excited, fk, etak);
-      de_0[i] = de_v;
-      std::cout << "de_l(" << valence[i].shortSymbol() << ") : ";
-      printf("%10.7f\n", de_v);
-    }
+  // initial corrections
+  double de_c0 = MBPT::de_core(qk, lk, core, excited);
+  std::vector<double> de_0;
+  std::cout << "\nInitial Ladder Corrections:\n";
+  fmt::print("de_l({:4}): {:+12.9f} au  {:+12.5f} cm^-1\n", "core", de_c0,
+             de_c0 * icm);
+  for (const auto &v : valence) {
+    const auto de_v = MBPT::de_valence(v, qk, lk, core, excited);
+    de_0.push_back(de_v);
+    fmt::print("de_l({:>4}): {:+12.9f} au  {:+12.5f} cm^-1\n", v.shortSymbol(),
+               de_v, de_v * icm);
   }
 
   bool core_converged = false;
-  for (int it = 2; it <= max_it; ++it) { // 1 iteration mean just calculate once
+  for (int it = 1; it <= max_it; ++it) {
     std::cout << "\nit:" << it << "\n";
-    {
-      // IO::ChronoTimer t("Update Lk");
-      if (!core_converged) {
-        // Don't update core terms if core energy shift converged?
-        // include screening for core parts?
-        MBPT::update_Lk_mnib(&lk_next, qk, excited, core, core_and_val,
-                             include_L4, sjt, &lk, print_progbar, fk);
-      }
-      // in theory: each valence may converge differently, don't need to re-run
-      // for valence states which already converged...
-      // MBPT::update_Lk_mnib(&lk_next, qk, excited, core, valence, include_L4,
-      //                      sjt, &lk, print_progbar, fk);
-    }
 
-    if (lk.emptyQ())
-      lk = lk_next; // XXX use swap or similar?
-    else
-      std::swap(lk, lk_next);
+    // nb: if core or particular valence state has converged
+    // then we _could_ speed this up by skipping...
+    // Also: in converge core first, valence probably faster
+    // Would result in fewer integrals to calculate
+    // Achieve by re-introducing {i_orbs}....
+    MBPT::update_Lk_mnib(&lk_next, qk, excited, core, {}, include_L4, sjt, &lk,
+                         true, {});
+    // nb: Update seems to take *longer* than fill
+    // -> Probably because have to access existing for fill+damping
+    // Could be more efficient!
+    // XXX Also: should pass damping param in
+
+    std::swap(lk, lk_next); // lk never empty
     lk.write(Lfname);
     std::cout << "\n";
 
     // check convergance (core):
     const auto de_c = MBPT::de_core(qk, lk, core, excited);
-    const auto eps_c = std::abs((de_c - de_c0) / de_c);
+    const auto eps_c = std::abs(2.0 * (de_c - de_c0) / (de_c + de_c0));
     de_c0 = de_c;
-    std::cout << "de_l(core): ";
-    printf("%10.7f %.1e\n", de_c, eps_c);
+    fmt::print("de_l({:>4}): {:+12.9f} au  {:+12.5f} cm^-1  {:.1e}\n", "core",
+               de_c, de_c * icm, eps_c);
     if (eps_c < eps_target)
       core_converged = true;
 
     // check convergance (valence):
     double eps = 0.0;
     for (std::size_t i = 0; i < valence.size(); ++i) {
-      // XXX include eta here?
-      const auto de_v =
-        MBPT::de_valence(valence[i], qk, lk, core, excited, fk, etak);
-      const auto eps_v = std::abs((de_v - de_0[i]) / de_v);
+      const auto &v = valence[i];
+      const auto de_v = MBPT::de_valence(v, qk, lk, core, excited);
+      const auto eps_v = std::abs(2.0 * (de_v - de_0[i]) / (de_v + de_0[i]));
       de_0[i] = de_v;
-      std::cout << "de_l(" << valence[i].shortSymbol() << ") : ";
-      printf("%10.7f %.1e\n", de_v, eps_v);
+      fmt::print("de_l({:>4}): {:+12.9f} au  {:+12.5f} cm^-1  {:.1e}\n",
+                 v.shortSymbol(), de_v, de_v * icm, eps_v);
       if (eps_v > eps)
         eps = eps_v;
     }
@@ -268,56 +211,30 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     if (eps < eps_target && core_converged)
       break;
   }
+  std::cout << "\n";
   lk.summary();
+  std::cout << "\n";
   //----------------------------------------------------------------------------
 
-  std::cout << "\nEnergy corrections:\n";
-  std::cout << "       de(2)/au   de(A)/au   de(l)/au    de(2)/cm^-1 "
-               "  de(A)/cm^-1   de(l)/cm^-1\n";
+  std::cout << "Energy corrections:\n";
+  fmt::print("{:4s}  {:13}  {:11}  {:10}  {:10}\n", "", "HF", "de(2)",
+             "de(l) [Q*L]", "de(l) [L*Q]");
+  const auto Ec_HF = wf.coreEnergyHF();
+  const auto de2_c = MBPT::de_core(qk, qk, core, excited);
+  const auto del_c = MBPT::de_core(qk, lk, core, excited);
+  const auto del_c_2 = MBPT::de_core(lk, qk, core, excited);
+  fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}\n", "core", Ec_HF * icm,
+             de2_c * icm, del_c * icm, del_c_2 * icm);
+
   for (const auto &v : valence) {
 
-    const auto de2 = MBPT::de_valence(v, yk, yk, core, excited);
-    const auto dea = MBPT::de_valence(v, yk, yk, core, excited, fk, etak) - de2;
-    const auto del = MBPT::de_valence(v, yk, lk, core, excited, fk, etak);
-
-    printf("%4s: %11.8f %11.8f %11.8f   %9.3f %9.3f %9.3f\n",
-           v.shortSymbol().c_str(), de2, dea, del,
-           de2 * PhysConst::Hartree_invcm, dea * PhysConst::Hartree_invcm,
-           del * PhysConst::Hartree_invcm);
+    const auto e0 = v.en();
+    const auto de2 = MBPT::de_valence(v, qk, qk, core, excited);
+    const auto del = MBPT::de_valence(v, qk, lk, core, excited);
+    const auto del2 = MBPT::de_valence(v, lk, qk, core, excited);
+    fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}\n", v.shortSymbol(),
+               e0 * icm, de2 * icm, del * icm, del2 * icm);
   }
-
-  // check_L_symmetry(core, excited, valence, qk, include_L4, yk.SixJ(), &lk);
-
-  // // Calculate Sigma_l, compare de_l to <v|Sigma_l|v>
-  // bool include_G = false;
-  // const auto sigp = MBPT::Sigma_params{MBPT::Method::Goldstone,
-  //                                      min_n,
-  //                                      include_G,
-  //                                      0,
-  //                                      false,
-  //                                      false,
-  //                                      0.0,
-  //                                      0.0,
-  //                                      1.0,
-  //                                      false,
-  //                                      false,
-  //                                      "",
-  //                                      fk,
-  //                                      etak};
-
-  // MBPT::GoldstoneSigma Sigma(wf.vHF(), wf.basis(), sigp,
-  //                            MBPT::rgrid_params{1.0e-3, 30.0, 6}, "na");
-
-  // std::cout << "\nEnergy corrections, using Sigma:\n";
-  // for (const auto &v : valence) {
-  //   const auto sig_l = Sigma.Sigma_l(v, yk, lk, core, excited);
-
-  //   const auto SlFv = Sigma.Sigmal_Fv(v, yk, lk, core, excited);
-
-  //   std::cout << v.symbol() << " "
-  //             << v * Sigma.act_G_Fv(sig_l, v) * PhysConst::Hartree_invcm << " "
-  //             << v * SlFv * PhysConst::Hartree_invcm << "\n";
-  // }
 }
 
 //==============================================================================

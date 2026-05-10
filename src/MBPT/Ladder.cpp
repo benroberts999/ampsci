@@ -324,6 +324,9 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   const double b_damp = 1.0 - a_damp;
 
   // Build combined basis: excited + core + any extra i_orbs (e.g. valence)
+  // i_orbs not required (either core or subset of excited)
+  // Used previously for "selection rules" - now SR is if we already calc'd it!
+  (void)i_orbs;
   const auto basis = qip::merge(core, excited);
 
   // Lk integral with damping folded in
