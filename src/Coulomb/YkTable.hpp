@@ -11,17 +11,22 @@ namespace Coulomb {
 //! taking advantage of symmetry
 /*! @details
 
-Also stores a Ck and 6J table
+  Also stores a Ck and 6J table
 
-Definitions:
+  Definitions:
 
-\f[
-y^k_{ij}(r) = \int_0^\infty \frac{r_<^k}{r_>^{k+1}}\rho_{ij}(r')\,{\rm d}r'
-\f]
+  \f[
+  y^k_{ij}(r) = \int_0^\infty \frac{r_<^k}{r_>^{k+1}}\rho_{ij}(r')\,{\rm d}r'
+  \f]
 
-\f[\rho(r) = f_i(r)f_j(r) + g_i(r)g_j(r)\f]
+  \f[\rho(r) = f_i(r)f_j(r) + g_i(r)g_j(r)\f]
 
-with \f$r_< = min(r,r')\f$
+  with \f$r_< = min(r,r')\f$
+
+  @warning if you request an unstored integral, 0 will be returned without warning.
+  This is not considered an error, but a choice as to which integrals contribute.
+  It is up to the user to ensure any integral we require is included.
+
 */
 class YkTable {
 
@@ -62,19 +67,19 @@ public:
   const std::vector<double> *get(const int k, const DiracSpinor &Fa,
                                  const DiracSpinor &Fb) const;
 
-  //! Calculates Rk using the existing yk integrals. Note: Yk and Ck tables
+  //! Calculates Rk using the existing yk integrals. Note: Ck tables
   //! *must* include all required values, or behaviour not defined.
   [[nodiscard]] double R(const int k, const DiracSpinor &Fa,
                          const DiracSpinor &Fb, const DiracSpinor &Fc,
                          const DiracSpinor &Fd) const;
 
-  //! Calculates Qk using the existing yk integrals. Note: Yk and Ck tables
+  //! Calculates Qk using the existing yk integrals. Note: Ck tables
   //! *must* include all required values, or behaviour not defined.
   [[nodiscard]] double Q(const int k, const DiracSpinor &Fa,
                          const DiracSpinor &Fb, const DiracSpinor &Fc,
                          const DiracSpinor &Fd) const;
 
-  //! Calculates Pk using the existing yk integrals. Note: Yk and Ck tables
+  //! Calculates Pk using the existing yk integrals. Note: Ck tables
   //! *must* include all required values, or behaviour not defined.
   [[nodiscard]] double P(const int k, const DiracSpinor &Fa,
                          const DiracSpinor &Fb, const DiracSpinor &Fc,
@@ -85,13 +90,13 @@ public:
                           const DiracSpinor &Fd,
                           const std::vector<double> &fk = {}) const;
 
-  //! Calculates Wk=Qk+Pk using the existing yk integrals. Note: Yk and Ck
+  //! Calculates Wk=Qk+Pk using the existing yk integrals. Note: Ck
   //! tables *must* include all required values, or behaviour not defined.
   [[nodiscard]] double W(const int k, const DiracSpinor &Fa,
                          const DiracSpinor &Fb, const DiracSpinor &Fc,
                          const DiracSpinor &Fd) const;
 
-  //! Calculates Q^K(v)_bcd using existing yk integrals. Note: Yk and Ck tables
+  //! Calculates Q^K(v)_bcd using existing yk integrals. Note: Ck tables
   //! *must* include all required values, or behaviour not defined.
   [[nodiscard]] DiracSpinor Qkv_bcd(const int k, int kappa,
                                     const DiracSpinor &Fb,
@@ -99,7 +104,7 @@ public:
                                     const DiracSpinor &Fd) const;
 
   //! Calculates P^K(v)_bcd using existing yk integrals, including (optional)
-  //! screening factors. Note: Yk and Ck tables
+  //! screening factors. Note: Ck tables
   //! *must* include all required values, or behaviour not defined.
   [[nodiscard]] DiracSpinor
   Pkv_bcd(const int k, int kappa, const DiracSpinor &Fb, const DiracSpinor &Fc,

@@ -119,6 +119,8 @@ double YkTable::R(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                   const DiracSpinor &Fc, const DiracSpinor &Fd) const {
 
   const auto ykbd = get(k, Fb, Fd);
+  if (ykbd == nullptr)
+    return 0.0;
   assert(ykbd != nullptr && "YkTable::R() called but don't have Y_bd");
   return Coulomb::Rk_abcd(Fa, Fc, *ykbd);
 }
@@ -155,6 +157,8 @@ double YkTable::P(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   const auto [l0, lI] = Coulomb::k_minmax_Q(Fa, Fb, Fd, Fc);
   for (int l = l0; l <= lI; l += 2) {
     const auto ylbc = get(l, Fb, Fc);
+    if (ylbc == nullptr)
+      continue;
     assert(ylbc != nullptr && "YkTable::P() called but don't have Y_bc");
 
     const auto Ql = Q(l, Fa, Fb, Fd, Fc);
@@ -180,6 +184,8 @@ double YkTable::P2(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   const auto [l0, lI] = Coulomb::k_minmax_Q(Fa, Fb, Fd, Fc);
   for (int l = l0; l <= lI; l += 2) {
     const auto ylbc = get(l, Fb, Fc);
+    if (ylbc == nullptr)
+      continue;
     assert(ylbc != nullptr && "YkTable::P() called but don't have Y_bc");
 
     const auto f_scr_l = (l < (int)fk.size()) ? fk[std::size_t(l)] : 1.0;
@@ -209,6 +215,8 @@ DiracSpinor YkTable::Qkv_bcd(const int k, int kappa, const DiracSpinor &Fb,
   if (tCC != 0.0) {
     // const auto ylbc = get(l, Fb, Fc);
     const auto ykbd = get(k, Fb, Fd);
+    if (ykbd == nullptr)
+      return Qkv;
     assert(ykbd != nullptr && "YkTable::Qkv_bcd() called but don't have Y_bd");
     Coulomb::Rkv_bcd(&Qkv, Fc, *ykbd);
     const auto m1tk = Angular::evenQ(k) ? 1 : -1;
@@ -236,6 +244,8 @@ DiracSpinor YkTable::Pkv_bcd(const int k, int kappa, const DiracSpinor &Fb,
   const auto [l0, lI] = Coulomb::k_minmax_Q(Pkv, Fb, Fd, Fc);
   for (int l = l0; l <= lI; l += 2) {
     const auto ylbc = get(l, Fb, Fc);
+    if (ylbc == nullptr)
+      continue;
     assert(ylbc != nullptr && "YkTable::Pkv_bcd() called but don't have Y_bc");
 
     const auto sj = fk(l) * m_6j.get_2(Fc.twoj(), Angular::twoj_k(kappa), 2 * k,
