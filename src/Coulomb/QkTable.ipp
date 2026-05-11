@@ -866,12 +866,10 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     std::cout << "Fill w/ values:\n" << std::flush;
   t.start();
 
-  qip::ProgressBar prog(int(basis.size()));
+  qip::ProgressBar prog(int(basis.size()), print);
 #pragma omp parallel for schedule(dynamic, 1)
   for (std::size_t ia = 0; ia < basis.size(); ++ia) {
-    if (print) {
-      prog.update();
-    }
+
     const auto &a = basis[ia];
     for (const auto &b : basis) {
       for (const auto &c : basis) {
@@ -895,6 +893,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
         }
       }
     }
+
+    prog.update();
   }
   if (print)
     std::cout << "Fill w/ values: " << t.lap_reading_str() << std::endl;
@@ -916,11 +916,9 @@ void CoulombTable<S>::update(const std::vector<DiracSpinor> &basis,
   // access each map element once, we can do this part in parallel. nb: This
   // //isation is not very efficient, though in theory it can be 100%
 
-  qip::ProgressBar prog(int(basis.size()));
+  qip::ProgressBar prog(int(basis.size()), print);
 #pragma omp parallel for schedule(dynamic, 1)
   for (std::size_t ia = 0; ia < basis.size(); ++ia) {
-    if (print)
-      prog.update();
 
     const auto &a = basis[ia];
     for (const auto &b : basis) {
@@ -944,6 +942,8 @@ void CoulombTable<S>::update(const std::vector<DiracSpinor> &basis,
         }
       }
     }
+
+    prog.update();
   }
 }
 
