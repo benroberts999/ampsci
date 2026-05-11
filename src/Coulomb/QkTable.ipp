@@ -869,9 +869,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   qip::ProgressBar prog(int(basis.size()));
 #pragma omp parallel for schedule(dynamic, 1)
   for (std::size_t ia = 0; ia < basis.size(); ++ia) {
-    if (print) {
-      prog.update();
-    }
+
     const auto &a = basis[ia];
     for (const auto &b : basis) {
       for (const auto &c : basis) {
@@ -895,6 +893,9 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
         }
       }
     }
+
+    if (print)
+      prog.update();
   }
   if (print)
     std::cout << "Fill w/ values: " << t.lap_reading_str() << std::endl;
@@ -919,8 +920,6 @@ void CoulombTable<S>::update(const std::vector<DiracSpinor> &basis,
   qip::ProgressBar prog(int(basis.size()));
 #pragma omp parallel for schedule(dynamic, 1)
   for (std::size_t ia = 0; ia < basis.size(); ++ia) {
-    if (print)
-      prog.update();
 
     const auto &a = basis[ia];
     for (const auto &b : basis) {
@@ -944,6 +943,9 @@ void CoulombTable<S>::update(const std::vector<DiracSpinor> &basis,
         }
       }
     }
+
+    if (print)
+      prog.update();
   }
 }
 
