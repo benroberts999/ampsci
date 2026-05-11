@@ -618,7 +618,7 @@ vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
   B1 = B1 + psiL(k + 1, w * r[bmax - 1], true) * Qkbd[bmax - 1] *
               gr.drduor(bmax - 1) * odrprev2;
   B2 = B2 + Qkbd[bmax - 1] * gr.drduor(bmax - 1) * odrprev2;
-  v3[bmax - 1] = 2 * (2 * k + 1.0) * odw2 *
+  v3[bmax - 1] = 2.0 * (2 * k + 1.0) * odw2 *
                  (B1 * phiL(k - 1, w * r[bmax - 1], false) +
                   B2 * phiL(k - 1, w * r[bmax - 1], true)) *
                  du;
@@ -644,19 +644,18 @@ vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
     //   v3[i - 1] = (B1 - B2 + wsd2 * D1) * du;
     // } else {
     // j_{l-1}(wr1)y_{l+1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
-    B1 = ratio * odratio * B1 + psiL(k + 1, w * r[i - 1], true) * Qkbd[i - 1] *
-                                  weights(i - 1) * gr.drduor(i - 1) * odrprev2;
+    B1 = powk(ratio) * odratio * B1 + psiL(k + 1, w * r[i - 1], true) *
+                                        Qkbd[i - 1] * weights(i - 1) *
+                                        gr.drduor(i - 1) * odrprev2;
 
     // r2^{l-1}/r1^{l+2} term in integral that is integrated from r1 <= r2 <=infty
-    B2 = ratio * odratio * B2 +
+    B2 = powk(ratio) * odratio * B2 +
          Qkbd[i - 1] * weights(i - 1) * gr.drduor(i - 1) * odrprev2;
 
     v3[i - 1] = 2 * (2 * k + 1.0) * odw2 *
                 (B1 * phiL(k - 1, w * r[i - 1], false) +
                  B2 * phiL(k - 1, w * r[i - 1], true)) *
                 du;
-
-    v3[i - 1] = 2.0 * odw2 * v3[i - 1] * du;
 
     // j_{l+1}(wr1)y_{l-1}(wr2) term in integral that is integrated from r1 <= r2 <=infty
     B3 = B3 + yL(k - 1, w * r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
