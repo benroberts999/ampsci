@@ -25,6 +25,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       "maximum excited l to include. Default is to include entire basis."},
      {"max_k", "maximum k to include in Qk. Put -1 to include all. [8]"},
      {"include_L4", "Inlcude 4th Ladder diagram [false]"},
+     {"read", "true/false. If false, will not attemp to read Qk or Lk file "
+              "from disk, and will start calculation from scratch. "
+              "May still overwrite existing file. [true]"},
      {"max_it", "Max # iterations [15]"},
      {"eps_target", "Target for convergance [1.0e-5]"}});
   // If we are just requesting 'help', don't run module:
@@ -38,6 +41,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_l = input.get("max_l", 999);
   const auto max_k = input.get("max_k", 8);
   const auto include_L4 = input.get("include_L4", false);
+
+  const auto readQ = input.get("read", true);
 
   const auto max_it = input.get("max_it", 15);
   const auto eps_target = input.get("eps_target", 1.0e-5);
@@ -99,12 +104,18 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Form the Qk table.
   Coulomb::QkTable qk;
-  std::cout << "\nFill Qk table:\n";
-  const auto ok = qk.read(Qfname);
+  std::cout << "\nFill (or read) Qk table:\n";
+  const auto read_Qk = readQ ? qk.read(Qfname) : false;
   // nb: will not extend Qk integrals. Maybe not best choice?
-  if (!ok) {
+  if (!read_Qk) {
     qk.fill(both, yk, max_k);
     qk.write(Qfname);
+  } else {
+    qk.summary();
+    std::cout << qk.max_k() << "\n";
+    std::cout
+      << "\nNote: no new Qk integrals will be calculated, even if basis "
+         "has changed!\n";
   }
 
   std::cout << "\nMBPT(2) energy shifts, using HF vs. spline legs" << std::endl;
@@ -132,14 +143,16 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   Coulomb::LkTable lk;
   Coulomb::LkTable lk_next;
   // Each run will continue from where last left off
-  const bool read_lad = lk.read(Lfname);
-  std::cout << (read_lad ? "\nRe-starting using existing ladder diagrams\n" :
-                           "\nCalculating ladder diagrams from scratch\n");
+  const bool read_Lk = readQ ? lk.read(Lfname) : false;
+  std::cout << (read_Lk ? "\nRe-starting using existing ladder diagrams\n" :
+                          "\nCalculating ladder diagrams from scratch\n");
 
   //----------------------------------------------------------------------------
   // Iterate Lk equations
 
-  if (read_lad) {
+  if (read_Lk) {
+    lk.summary();
+    std::cout << lk.max_k() << "\n";
     // must have correct dimension!
     lk_next = lk;
   } else {
@@ -212,8 +225,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       break;
   }
   std::cout << "\n";
-  lk.summary();
-  std::cout << "\n";
+
   //----------------------------------------------------------------------------
 
   std::cout << "Energy corrections:\n";

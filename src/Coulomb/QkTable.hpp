@@ -135,6 +135,9 @@ public:
   //! Checks if given {k,a,b,c,d} is in the table
   bool contains(int k, nk4Index index) const;
 
+  //! Maximum k stored in table. If table is empty, returns '-1'
+  int max_k() const { return int(m_data.size()) - 1; }
+
   //! Returns true if table is empty
   bool emptyQ() const {
     return (m_data.size() == 0);

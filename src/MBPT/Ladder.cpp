@@ -281,16 +281,21 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
     i_orbs_set.insert(i.nk_index());
   }
 
+  const auto kmax = qk.max_k();
+
   // Selection rule: m,n in excited, i in i_orbs, b in core + angular SR
   const auto Lk_SR = [&](int k, const DiracSpinor &m, const DiracSpinor &n,
                          const DiracSpinor &i, const DiracSpinor &b) -> bool {
+    // XXX This should be checked! XXX
+    // It determines which L^k_mnib integrals are calculated
+
     // Require m and n to be excited
     if (!excited_set.count(m.nk_index()) || !excited_set.count(n.nk_index()))
       return false;
     // Require i to be in {i}, and b to be in core
     if (!i_orbs_set.count(i.nk_index()) || !core_set.count(b.nk_index()))
       return false;
-    const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b);
+    const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b); // correct??
     return k >= k0 && k <= kI;
   };
 
@@ -298,17 +303,11 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   const auto Lk_function = [&](int k, const DiracSpinor &m,
                                const DiracSpinor &n, const DiracSpinor &i,
                                const DiracSpinor &b) -> double {
-    auto L_new =
-      Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, nullptr, fk);
-    // if (lk_prev) {
-    //   const auto L_prev = lk_prev->Q(k, m, n, i, b);
-    //   if (L_prev != 0.0)
-    //     L_new = b_damp * L_new + a_damp * L_prev;
-    // }
-    return L_new;
+    return Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, nullptr,
+                  fk);
   };
 
-  lk->fill(basis, Lk_function, Lk_SR, -1, print);
+  lk->fill(basis, Lk_function, Lk_SR, kmax, print);
 }
 
 //==============================================================================

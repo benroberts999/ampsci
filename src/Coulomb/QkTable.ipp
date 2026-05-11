@@ -897,7 +897,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     prog.update();
   }
   if (print)
-    std::cout << "Fill w/ values: " << t.lap_reading_str() << std::endl;
+    std::cout << t.lap_reading_str() << std::endl;
 
   if (print)
     summary();
