@@ -5,6 +5,7 @@
 
 namespace qip {
 
+//! Returns a random alphanumeric string of the given length.
 inline std::string random_string(std::size_t length) {
   std::string out;
   out.reserve(length);

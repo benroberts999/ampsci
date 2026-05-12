@@ -82,15 +82,15 @@ TEST_CASE("qip::Maths", "[qip][Maths][unit]") {
   REQUIRE(qip::sign(16.0) == 1);
   REQUIRE(qip::sign(-16.0) == -1);
 
-  REQUIRE(qip::clip(6, 10) == 6);
-  REQUIRE(qip::clip(12, 10) == 10);
-  REQUIRE(qip::clip(-6, 10) == -6);
-  REQUIRE(qip::clip(-12, 10) == -10);
+  REQUIRE(qip::clamp_abs(6, 10) == 6);
+  REQUIRE(qip::clamp_abs(12, 10) == 10);
+  REQUIRE(qip::clamp_abs(-6, 10) == -6);
+  REQUIRE(qip::clamp_abs(-12, 10) == -10);
 
-  REQUIRE(qip::clip(6.0, 10.0) == 6.0);
-  REQUIRE(qip::clip(12.0, 10.0) == 10.0);
-  REQUIRE(qip::clip(-6.0, 10.0) == -6.0);
-  REQUIRE(qip::clip(-12.0, 10.0) == -10.0);
+  REQUIRE(qip::clamp_abs(6.0, 10.0) == 6.0);
+  REQUIRE(qip::clamp_abs(12.0, 10.0) == 10.0);
+  REQUIRE(qip::clamp_abs(-6.0, 10.0) == -6.0);
+  REQUIRE(qip::clamp_abs(-12.0, 10.0) == -10.0);
 
   REQUIRE(qip::chop(2, 2) == 2);
   REQUIRE(qip::chop(3, 2) == 3);

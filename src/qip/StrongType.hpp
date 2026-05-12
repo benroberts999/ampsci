@@ -2,43 +2,42 @@
 #include <iostream>
 #include <type_traits>
 
-//! Collection of handy tools
 namespace qip {
 
 /*!
-@brief A light-weight easy-to-use single-file header-only template class for
-strong typing.
+  @brief A light-weight easy-to-use single-file header-only template class for
+  strong typing.
 
-@details
-It works using scoped enums; the enum value (+scope) are used to ensure
-uniqueness for a given user-defined strong type. The class template, defined in
-the qip namespace, takes an enum class value, and a base type. The base type is
-confined to be an arithmetic type (float, double, int, long, etc.) to allow for
-operator overloading. The 'using' declaration is optional, but makes things much
-easier.
+  @details
+  It works using scoped enums; the enum value (+scope) are used to ensure
+  uniqueness for a given user-defined strong type. The class template, defined in
+  the qip namespace, takes an enum class value, and a base type. The base type is
+  confined to be an arithmetic type (float, double, int, long, etc.) to allow for
+  operator overloading. The 'using' declaration is optional, but makes things much
+  easier.
 
-```cpp
-using MyType = qip::StrongType<EnumClass::value, BaseType>;
-```
+  ```cpp
+  using MyType = qip::StrongType<EnumClass::value, BaseType>;
+  ```
 
-The newly-defined Strong Type will, for the most part, behave just like an
-instance of the underlying base type would. In particular, the usual arithmetic
-operations (+, -, \*, /, +=, \*= etc.) are all defined, and they work with
-iostreams. The main difference is that all implicit conversions are banned.
+  The newly-defined Strong Type will, for the most part, behave just like an
+  instance of the underlying base type would. In particular, the usual arithmetic
+  operations (+, -, \*, /, +=, \*= etc.) are all defined, and they work with
+  iostreams. The main difference is that all implicit conversions are banned.
 
-## Examples
+  ## Examples
 
-Usage is best shown with examples. Consider this dummy problem, where we define
-strong types for Energy, Mass, and Velocity.
+  Usage is best shown with examples. Consider this dummy problem, where we define
+  strong types for Energy, Mass, and Velocity.
 
-```cpp
-#include "StrongType.hpp"
-enum class MechanicsTypes { energy, mass, velocity };
-// Use of enum class ensures each StrongType is unique
+  ```cpp
+  #include "StrongType.hpp"
+  enum class MechanicsTypes { energy, mass, velocity };
+  // Use of enum class ensures each StrongType is unique
 
-using Energy   = qip::StrongType<MechanicsTypes::energy, double>;
-using Mass     = qip::StrongType<MechanicsTypes::mass, double>;
-using Velocity = qip::StrongType<MechanicsTypes::velocity, double>;
+  using Energy   = qip::StrongType<MechanicsTypes::energy, double>;
+  using Mass     = qip::StrongType<MechanicsTypes::mass, double>;
+  using Velocity = qip::StrongType<MechanicsTypes::velocity, double>;
 ```
 */
 template <auto enumV, typename BaseT>
@@ -92,7 +91,7 @@ public:
     return lhs -= rhs;
   }
 
-  //! Provide Base*Strong, Strong*Base oprators - allow scalar multiplication
+  //! Provides Base*Strong and Strong*Base operators for scalar multiplication.
   constexpr StrongT &operator*=(const BaseT &rhs) {
     this->v *= rhs;
     return *this;
@@ -155,8 +154,7 @@ public:
     return !(lhs < rhs);
   }
 
-  //! Provides operators for direct comparison w/ BaseT literal (rvalue).
-  //! Note: Does not allow comparison with BaseT lvalue
+  //! Provides comparison operators with BaseT rvalue literals (not lvalues).
   friend constexpr bool operator==(const StrongT &lhs, const BaseT &&rhs) {
     return lhs.v == rhs;
   }

@@ -5,8 +5,13 @@
 
 namespace qip {
 
-//! Function object for performing comparisons of absolute values (uses
-//! std::abs). Works similarly to std::less
+/*!
+  @brief Function object for comparisons by absolute value.
+
+  @details
+  Compares |lhs| < |rhs| using std::abs. Works like std::less.
+  T must be arithmetic.
+*/
 struct less_abs {
   template <class T>
   constexpr bool operator()(const T &lhs, const T &rhs) const {
@@ -17,7 +22,8 @@ struct less_abs {
 };
 
 //==============================================================================
-//! Returns maximum of any number of parameters (variadic function)
+
+//! Returns the maximum of any number of parameters (variadic).
 template <typename T, typename... Args>
 T max(T first, Args... rest) {
   if constexpr (sizeof...(rest) == 0) {
@@ -29,7 +35,8 @@ T max(T first, Args... rest) {
     return max_rest;
   }
 }
-//! Returns minimum of any number of parameters (variadic function)
+
+//! Returns the minimum of any number of parameters (variadic).
 template <typename T, typename... Args>
 T min(T first, Args... rest) {
   if constexpr (sizeof...(rest) == 0) {
@@ -42,8 +49,7 @@ T min(T first, Args... rest) {
   }
 }
 
-//! Returns value with maximum absolute value of any number of parameters
-//! (variadic function)
+//! Returns the value with maximum absolute value of any number of parameters (variadic).
 template <typename T, typename... Args>
 T max_abs(T first, Args... rest) {
   static_assert(std::is_arithmetic_v<T>,
@@ -57,8 +63,8 @@ T max_abs(T first, Args... rest) {
     return max_rest;
   }
 }
-//! Returns value with minimum absolute value of any number of parameters
-//! (variadic function)
+
+//! Returns the value with minimum absolute value of any number of parameters (variadic).
 template <typename T, typename... Args>
 T min_abs(T first, Args... rest) {
   static_assert(std::is_arithmetic_v<T>,
@@ -73,7 +79,7 @@ T min_abs(T first, Args... rest) {
   }
 }
 
-//! Returns max{args..} - min{args...}, for any number of args (variadic)
+//! Returns max - min over any number of arguments (variadic).
 template <typename T, typename... Args>
 T max_difference(T first, Args... rest) {
   static_assert(std::is_arithmetic_v<T>,
@@ -82,8 +88,12 @@ T max_difference(T first, Args... rest) {
 }
 
 //==============================================================================
-//! x^n for integer n (n compile-time template parameter), x any arithmetic type
-//! (T). Returns double for inverse powers, T otherwise
+/*!
+  @brief x^n for compile-time integer n, x any arithmetic type.
+
+  @details
+  Returns double for negative n, T otherwise.
+*/
 template <int n, typename T>
 constexpr auto pow(T x) {
   using namespace qip::overloads;
@@ -100,7 +110,7 @@ constexpr auto pow(T x) {
   }
 }
 
-//! x^n for integer n (runtime n), x any floating point type (T).
+//! x^n for runtime integer n; T must be floating point.
 template <typename T>
 constexpr T pow(T x, int n) {
   static_assert(std::is_floating_point_v<T>,
@@ -117,7 +127,8 @@ constexpr T pow(T x, int n) {
 }
 
 //==============================================================================
-//! Factorial x! - nb: takes integer, returns double
+
+//! Factorial x! - takes integer, returns double.
 template <typename T>
 constexpr double factorial(T x) {
   static_assert(std::is_integral_v<T>,
@@ -125,7 +136,7 @@ constexpr double factorial(T x) {
   return (x <= 1) ? 1.0 : double(x) * factorial<T>(x - 1);
 }
 
-//! Double factorial x!! - nb: takes integer, returns double
+//! Double factorial x!! - takes integer, returns double.
 template <typename T>
 constexpr double double_factorial(T x) {
   static_assert(std::is_integral_v<T>,
@@ -135,7 +146,8 @@ constexpr double double_factorial(T x) {
 }
 
 //==============================================================================
-//! Returns sign of value. Note: sign(0)==0
+
+//! Returns the sign of value. Note: sign(0) == 0.
 template <typename T>
 constexpr int sign(T value) {
   static_assert(std::is_arithmetic_v<T>,
@@ -143,12 +155,11 @@ constexpr int sign(T value) {
   return (T(0) < value) - (value < T(0));
 }
 
-//! Clips value to between -max <= value <= max
-//! clip(x,max) : |x| > max, ret max; if |x|<-max, -max; else x
+//! Clamps value to [-max_abs, max_abs] - i.e., using abs.
 template <typename T>
-constexpr T clip(T value, T max_abs) {
+constexpr T clamp_abs(T value, T max_abs) {
   static_assert(std::is_arithmetic_v<T>,
-                "In clip(T value, T max_abs), T must be arithmetic");
+                "In clamp_abs(T value, T max_abs), T must be arithmetic");
   if (value > max_abs)
     return max_abs;
   if (value < -max_abs)
@@ -156,11 +167,11 @@ constexpr T clip(T value, T max_abs) {
   return value;
 }
 
-//! Sets values |v|<min to zero; if |v|>=min, returns v
+//! Sets value to zero if |value| < min_abs, otherwise returns value unchanged.
 template <typename T>
 constexpr T chop(T value, T min_abs) {
   static_assert(std::is_arithmetic_v<T>,
-                "In clip(T value, T max_abs), T must be arithmetic");
+                "In cjop(T value, T min_abs), T must be arithmetic");
   if (std::abs(value) < min_abs)
     return static_cast<T>(0);
   return value;

@@ -5,15 +5,32 @@
 #include <numeric>
 #include <vector>
 
-//! qip library: A collection of useful functions
+/*!
+  @brief General-purpose utility library.
+
+  @details
+  Provides lightweight, header-only utilities used throughout ampsci, including:
+  - array and vector operations (@ref Array.hpp, @ref Vector.hpp),
+  - numerical methods (@ref Maths.hpp, @ref Methods.hpp),
+  - string helpers (@ref String.hpp),
+  - strong typing (@ref StrongType.hpp),
+  - template metaprogramming helpers (@ref Template.hpp),
+  - random number utilities (@ref Random.hpp),
+  - OpenMP helpers (@ref omp.hpp),
+    - include this instead of `<omp.h>` to allow compilation with+without OpenMP
+  - output/display widgets (@ref Widgets.hpp).
+*/
 namespace qip {
 
 //==============================================================================
-//! An iterator accounting for a stride.
-/*! @details
- - Not completely complient to standard 'forward iterator', 
-    but works with most standard library algorithms.
- - Reverse iterators can be formed with a negative stride.
+/*!
+  @brief Iterator with a configurable stride.
+
+  @details
+  Not fully compliant with the standard forward iterator concept,
+  but works with most standard library algorithms.
+  Reverse iterators can be formed with a negative stride.
+  See also @ref ConstStrideIterator.
 */
 template <typename T>
 class StrideIterator : public qip::Comparison<StrideIterator<T>> {
@@ -75,7 +92,7 @@ public:
   }
 };
 
-//! A constant iterator accounting for a stride.
+//! Const version of @ref StrideIterator.
 template <typename T>
 class ConstStrideIterator : public qip::Comparison<ConstStrideIterator<T>> {
 protected:
@@ -135,11 +152,13 @@ public:
 };
 
 //==============================================================================
-//! A view onto a 1D array; used for rows/collumns of ND array. Can have a stride.
-/*! @details
- - Size is the total number of elements.
- - Can have zero size - but undefined to access data in that case.
- - Mostly copies std::vector - should be no surprises
+/*!
+  @brief Non-owning view onto a 1D contiguous or strided array segment.
+
+  @details
+  - Size is the total number of elements.
+  - Can have zero size, but accessing data is undefined in that case.
+  - Interface mostly mirrors std::vector; no surprises.
 */
 template <typename T = double>
 class ArrayView {
@@ -207,7 +226,7 @@ public:
     return ConstStrideIterator(m_data - long(m_stride), -long(m_stride));
   }
 
-  //! Returns a copy of the array as a std::vector
+  //! Returns a copy of the view as a std::vector.
   std::vector<T> vector() {
     std::vector<T> out;
     for (std::size_t i = 0; i < m_size; ++i) {
@@ -245,13 +264,15 @@ void NDrange_impl(std::vector<std::array<std::size_t, N>> &result,
   }
 }
 
-//! Variadic array of all possible indexes.
-/*! @details
- Allows ranged for loop like:
-  for ([i,j,k,m,...,z] : array) {
-    array.at(i,j,k,m,...,z);
-  }
- Note: not memory efficient at all! Don't use for large arrays
+/*!
+  @brief Returns all index tuples for an N-dimensional range.
+
+  @details
+  Enables iteration over every index combination, e.g.:
+  @code
+  for (auto [i,j,k] : qip::NDrange(3,4,2)) { array.at(i,j,k); }
+  @endcode
+  @note Not memory efficient; do not use for large arrays.
 */
 template <typename... Args>
 auto NDrange(std::size_t first, Args... rest) {
@@ -270,6 +291,15 @@ auto NDrange(std::size_t first, Args... rest) {
 }
 
 //==============================================================================
+/*!
+  @brief N-dimensional array with arithmetic operators.
+
+  @details
+  Stores data in a flat std::vector; indices are computed from the shape.
+  Element-wise arithmetic (+, -, *, /) is provided between arrays of identical
+  shape, and between an array and its element type (see operator+=, etc.).
+  Row and column views (@ref ArrayView) are available for 2D arrays.
+*/
 template <typename T = double>
 class Array : public Arithmetic<Array<T>>, Arithmetic2<Array<T>, T> {
 
@@ -286,8 +316,11 @@ private:
   std::vector<T> m_data;
 
 public:
-  //! Constructor. Arguments are sized of each dimension.
-  //! e.g., Array(3,6,2) creates a 3x6x2 array.
+  /*!
+    @brief Constructs an N-dimensional array with the given dimension sizes.
+
+    @details e.g., Array(3,6,2) creates a 3×6×2 array.
+  */
   template <typename... Args>
   Array(std::size_t first, Args... rest);
 
@@ -295,51 +328,50 @@ public:
   template <typename... Args>
   void resize(std::size_t first, Args... rest);
 
-  //! Returns the total size (total number of elements)
+  //! Returns the total number of elements.
   std::size_t size() const { return m_total_size; }
 
-  //! Returns the size of a specific dimension
+  //! Returns the size of a specific dimension.
   std::size_t size(std::size_t dim) const { return m_sizes.at(dim); }
 
-  //! Returns the number of dimensions
+  //! Returns the number of dimensions.
   std::size_t dimensions() const { return m_Ndim; }
 
-  //! Returns the shape (sizes of all dimensions) of the array
+  //! Returns the shape (sizes of all dimensions) of the array.
   const std::vector<std::size_t> &shape() const { return m_sizes; }
 
-  //! Access element with bounds checking
+  //! Access element with bounds checking.
   template <typename... Args>
   T &at(std::size_t first, Args... rest);
 
-  //! Const access to element with bounds checking
+  //! Const access to element with bounds checking.
   template <typename... Args>
   T at(std::size_t first, Args... rest) const;
 
-  //! Access element without bounds checking
+  //! Access element without bounds checking.
   template <typename... Args>
   T &operator()(std::size_t first, Args... rest);
 
-  //! Const access to element without bounds checking
+  //! Const access to element without bounds checking.
   template <typename... Args>
   T operator()(std::size_t first, Args... rest) const;
 
-  //! Provides direct access to the underlying contiguous storage:
-  //! (pointer to first element)
+  //! Pointer to the first element of the underlying contiguous storage.
   T *data() { return m_data.data(); }
   const T *data() const { return m_data.data(); }
 
-  //! Constant reference to underlying vector data storage
+  //! Const reference to the underlying flat data vector.
   const std::vector<T> &vector() const { return m_data; }
 
-  //! Number of rows [equivilant to size of 0th dimension, size(0)]
+  //! Number of rows (equivalent to size(0)).
   std::size_t rows() const { return size(0); }
-  //! Number of rows [equivilant to size of 1st dimension, size(1)]
+  //! Number of columns (equivalent to size(1)).
   std::size_t cols() const { return size(1); }
 
-  //! A view onto the ith row. Only defined for 2D array
+  //! A view onto the ith row. Only defined for 2D arrays.
   ArrayView<T> row(std::size_t i);
   ArrayView<const T> row(std::size_t i) const;
-  //! A view onto the ith collumn. Only defined for 2D array
+  //! A view onto the jth column. Only defined for 2D arrays.
   ArrayView<T> col(std::size_t j);
   ArrayView<const T> col(std::size_t j) const;
 
@@ -361,16 +393,18 @@ public:
   //! Constant reverse iterator to the end of the data
   auto crend() const { return m_data.crend(); }
 
-  //! Provides standard arithmetic between two arrays. Arrays must be of identical size/shape
-  //! @details  +, -, *, / provided by Template::Arithmatic
+  //! Element-wise arithmetic between arrays of identical shape (+, -, *, /).
   Array<T> &operator+=(const Array<T> &other);
   Array<T> &operator-=(const Array<T> &other);
   Array<T> &operator*=(const Array<T> &other);
   Array<T> &operator/=(const Array<T> &other);
 
-  //! Provides scalar arithmetic between arrays and underlying type. Arrays must be of identical size/shape
-  /*! @details Array*T for +, -, *, / provided by Template::Arithmatic
-      Have T*Array only for * and +, not /,-
+  /*!
+    @brief Element-wise scalar arithmetic (+, -, *, /).
+
+    @details
+    Array op T is provided for +, -, *, /.
+    T op Array is provided only for * and +.
   */
   Array<T> &operator+=(const T &t);
   Array<T> &operator-=(const T &t);

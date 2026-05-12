@@ -5,12 +5,21 @@
 
 namespace qip {
 
-//! Slow, but accurate, method of finding derivative of function (y) at a point
-//! (x). Returns derivative + error estimate
-/*! @details
- delta_target is target for |dy/dx_n - dy/dx_{n+1}| < delta_target (1.0e-6);
- dx is initial step-size used to find derivative of f (0.01);
- it_limit is maximum number of iterations.
+/*!
+  @brief Numerical derivative of y(x) at point x; returns {dy/dx, error}.
+
+  @details
+  Iteratively halves the step size until
+  |dy/dx_n - dy/dx_{n-1}| < delta_target.
+
+  @tparam Function Callable as `y(x)`, returning a value convertible to Real.
+  @tparam Real     Floating-point type.
+
+  @param y            Function to differentiate.
+  @param x            Point at which to evaluate the derivative.
+  @param delta_target Convergence target (default 1e-6).
+  @param dx           Initial step size (default 0.01).
+  @param it_limit     Maximum number of iterations (default 250).
 */
 template <typename Function, typename Real>
 std::pair<Real, Real>
@@ -30,12 +39,17 @@ derivative(Function y, Real x, Real delta_target = Real{1.0e-6},
   return {dydx, 1.1 * delta};
 }
 
-//! Solve f(x) = 0 for x using Newtons method. Returns root + error estimate/
-/*! @details
- x is be initial guess for the root;
- delta_target is target for |x_n - x_{n+1}| < delta_target (1.0e-6);
- dx is initial step-size used to find derivative of f (0.01);
- it_limit is maximum number of iterations.
+/*!
+  @brief Solves f(x) = 0 using Newton's method; returns {root, error}.
+
+  @tparam Function Callable as `f(x)`, returning a value convertible to Real.
+  @tparam Real     Floating-point type.
+
+  @param f            Function to solve.
+  @param x            Initial guess.
+  @param delta_target Convergence target for |x_n - x_{n+1}| (default 1e-6).
+  @param dx           Initial step size for derivative (default 0.01).
+  @param it_limit     Maximum number of iterations (default 250).
 */
 template <typename Function, typename Real>
 std::pair<Real, Real> Newtons(Function f, Real x,
@@ -52,8 +66,19 @@ std::pair<Real, Real> Newtons(Function f, Real x,
   }
   return {x, 1.1 * delta};
 }
-//! Solve f(x) = 0 for x using Newtons method. Returns root + error estimate.
-//! Enforced to be between bounds.
+
+/*!
+  @brief Solves f(x) = 0 using Newton's method with bounds; returns {root, error}.
+
+  @details Solution is clamped to [bounds.first, bounds.second].
+
+  @param f            Function to solve.
+  @param x            Initial guess.
+  @param bounds       Allowed range [lower, upper].
+  @param delta_target Convergence target for |x_n - x_{n+1}| (default 1e-6).
+  @param dx           Initial step size for derivative (default 0.01).
+  @param it_limit     Maximum number of iterations (default 250).
+*/
 template <typename Function, typename Real>
 std::pair<Real, Real> Newtons(Function f, Real x, std::pair<Real, Real> bounds,
                               Real delta_target = Real{1.0e-6},

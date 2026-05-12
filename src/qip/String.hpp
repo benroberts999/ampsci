@@ -13,9 +13,13 @@
 namespace qip {
 
 //==============================================================================
-//! Returns a formatted std::string, with formatting printf-like commands. Note:
-//! maximum string lenth is 256 characters. If longer string required, use
-//! provided overload
+
+/*!
+  @brief Returns a formatted string using printf-style format specifiers.
+
+  @details Maximum string length is 256 characters.
+  Use the size overload for longer strings.
+*/
 inline std::string fstring(const std::string format, ...) {
   constexpr std::size_t size = 256;
   std::string fmt_str;
@@ -35,7 +39,7 @@ inline std::string fstring(const std::string format, ...) {
   return fmt_str;
 }
 
-//! Overload: size is maximum string length (buffer size).
+//! Overload of fstring with explicit buffer size (maximum string length).
 inline std::string fstring(const std::size_t size, const std::string format,
                            ...) {
   // nb: cannot just call other overload, since using c-style variadic function
@@ -58,8 +62,11 @@ inline std::string fstring(const std::size_t size, const std::string format,
 }
 
 //==============================================================================
-//! Compares two strings, s1 and s2. s2 may contain ONE wildcard ('*') which
-//! will match anything
+
+/*!
+  @brief Compares s1 against pattern s2, where s2 may contain one wildcard '*'
+  that matches any substring.
+*/
 inline bool wildcard_compare(std::string_view s1, std::string_view s2) {
   // look for wildcard:
   const auto wc = std::find(s2.cbegin(), s2.cend(), '*');
@@ -82,12 +89,14 @@ inline bool wildcard_compare(std::string_view s1, std::string_view s2) {
 }
 
 //==============================================================================
-//! return static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
+
+//! Conversion of a single character to lowercase.
 inline char tolower(char ch) {
   // https://en.cppreference.com/w/cpp/string/byte/tolower
   return static_cast<char>(std::tolower(static_cast<unsigned char>(ch)));
 }
 
+//! Returns a lowercase copy of the string.
 inline std::string tolower(std::string t_string) {
   for (auto &c : t_string) {
     c = qip::tolower(c);
@@ -96,18 +105,19 @@ inline std::string tolower(std::string t_string) {
 }
 
 //==============================================================================
-//! Checks if the_string (arg1) constaints sub_string (arg2)
+
+//! Returns true if the_string contains sub_string.
 inline bool contains(std::string_view the_string, std::string_view sub_string) {
   return the_string.find(sub_string) != std::string::npos;
 }
 
-//! Checks if the_string (arg1) constaints sub_string (arg2), case insensitive
+//! Returns true if the_string contains sub_string (case insensitive).
 inline bool ci_contains(const std::string &the_string,
                         const std::string &sub_string) {
   return tolower(the_string).find(tolower(sub_string)) != std::string::npos;
 }
 
-//! Checks if the_string (arg1) constaints any of the sub_strings (arg2)
+//! Returns true if the_string contains any of the sub_strings.
 inline bool contains(const std::string &the_string,
                      const std::vector<std::string> &sub_strings) {
   for (const auto &substr : sub_strings) {
@@ -117,7 +127,7 @@ inline bool contains(const std::string &the_string,
   return false;
 }
 
-//! Checks if the_string (arg1) constaints any of the sub_strings (arg2), case insensitive
+//! Returns true if the_string contains any of the sub_strings (case insensitive).
 inline bool ci_contains(const std::string &the_string,
                         const std::vector<std::string> &sub_strings) {
   for (const auto &substr : sub_strings) {
@@ -128,15 +138,20 @@ inline bool ci_contains(const std::string &the_string,
 }
 
 //==============================================================================
-//! Case insensitive string compare. Essentially: LowerCase(s1)==LowerCase(s2)
+
+//! Case-insensitive string comparison; equivalent to tolower(s1) == tolower(s2).
 inline bool ci_compare(std::string_view s1, std::string_view s2) {
   return std::equal(
     s1.cbegin(), s1.cend(), s2.cbegin(), s2.cend(),
     [](char c1, char c2) { return qip::tolower(c1) == qip::tolower(c2); });
 }
 
-//! Compares two strings, s1 and s2. s2 may contain ONE wildcard ('*') which
-//! will match anything. Case Insensitive version
+/*!
+  @brief Case-insensitive version of @ref wildcard_compare.
+
+  @details Compares s1 against pattern s2, where s2 may contain one wildcard
+  '*' that matches any substring.
+*/
 inline bool ci_wc_compare(std::string_view s1, std::string_view s2) {
   // look for wildcard:
   const auto wc = std::find(s2.cbegin(), s2.cend(), '*');
@@ -160,7 +175,7 @@ inline bool ci_wc_compare(std::string_view s1, std::string_view s2) {
 
 //==============================================================================
 
-//! A simple non-optimised implementation of the Levenshtein distance
+//! Returns the Levenshtein edit distance between strings a and b.
 inline auto Levenstein(std::string_view a, std::string_view b) {
   // https://en.wikipedia.org/wiki/Levenshtein_distance
   // https://stackoverflow.com/a/70237726/8446770
@@ -189,8 +204,7 @@ inline auto Levenstein(std::string_view a, std::string_view b) {
   return LevensteinInt(0, 0);
 }
 
-//! A simple non-optimised implementation of the Levenshtein distance (case
-//! insensitive)
+//! Case-insensitive version of @ref Levenstein.
 inline auto ci_Levenstein(std::string_view a, std::string_view b) {
   std::vector<size_t> d_t((a.size() + 1) * (b.size() + 1), size_t(-1));
   auto d = [&](size_t ia, size_t ib) -> size_t & {
@@ -217,7 +231,8 @@ inline auto ci_Levenstein(std::string_view a, std::string_view b) {
   return LevensteinInt(0, 0);
 }
 
-//! Finds the closest match in list to test_string (return iterator)
+//! Returns an iterator to the closest match to test_string in list,
+//! using @ref Levenstein distance.
 inline auto closest_match(std::string_view test_string,
                           const std::vector<std::string> &list) {
   auto compare = [&test_string](const auto &s1, const auto &s2) {
@@ -226,8 +241,8 @@ inline auto closest_match(std::string_view test_string,
   return std::min_element(list.cbegin(), list.cend(), compare);
 }
 
-//! Finds the closest match (case insensitive) in list to test_string (return
-//! iterator)
+//! Returns the closest match (case insensitive) to test_string in list,
+//! using @ref ci_Levenstein distance.
 inline std::string ci_closest_match(const std::string_view test_string,
                                     const std::vector<std::string> &list) {
   auto compare = [&test_string](const auto &s1, const auto &s2) {
@@ -240,10 +255,13 @@ inline std::string ci_closest_match(const std::string_view test_string,
 }
 
 //==============================================================================
-//! Checks if a string-like s is integer-like (including -)
+
 /*!
-e.g., The input strings "16" and "-12" would both return 'true', while "12x" or "12.5" would not.
-Does this by checking if all characters are integer digits exept first character, which is allowed to be an integer, or '+' or -'-
+  @brief Returns true if the string represents an integer.
+
+  @details
+  Accepts an optional leading '+' or '-'. e.g., "16" and "-12" return true;
+  "12x" and "12.5" return false.
 */
 inline bool string_is_integer(std::string_view s) {
   return !s.empty() &&
@@ -255,7 +273,8 @@ inline bool string_is_integer(std::string_view s) {
 }
 
 //==============================================================================
-//! Splits a string by delimeter into a vector
+
+//! Splits a string by delimiter into a vector of substrings.
 inline std::vector<std::string> split(const std::string &s, char delim = ' ') {
   std::vector<std::string> out;
   std::stringstream ss(s);
@@ -266,7 +285,7 @@ inline std::vector<std::string> split(const std::string &s, char delim = ' ') {
   return out;
 }
 
-//! Takes vector of strings, concats into single string, with optional delimeter
+//! Concatenates a vector of strings into one, with an optional delimiter.
 inline std::string concat(const std::vector<std::string> &v,
                           const std::string &delim = "") {
   std::string out;
@@ -279,8 +298,12 @@ inline std::string concat(const std::vector<std::string> &v,
 }
 
 //==============================================================================
-//! Wraps the string, 'input', at line 'at'. Optionally appends a prefix
-//! 'prefix' to each line. Does not split words (if can be avoided)
+
+/*!
+  @brief Word-wraps input at column at, optionally prefixing each line.
+
+  @details Does not split words unless unavoidable.
+*/
 inline std::string wrap(const std::string &input, std::size_t at = 80,
                         const std::string &prefix = "") {
   std::string output;
@@ -320,7 +343,8 @@ inline std::string wrap(const std::string &input, std::size_t at = 80,
 }
 
 //==============================================================================
-//! Converts integer, a, to Roman Numerals. Assumed that |a|<=4000
+
+//! Converts an integer to a Roman numeral string. Assumes |a| <= 3999.
 inline std::string int_to_roman(int a) {
   if (a < 0)
     return "-" + int_to_roman(-a);
