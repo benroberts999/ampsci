@@ -132,7 +132,7 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
     }
   }
 
-#pragma omp parallel for
+#pragma omp parallel for schedule(dynamic, 4)
   for (std::size_t i = 0; i < a_orbs.size(); ++i) {
     const auto &a = a_orbs[i];
     for (const auto &b : b_orbs) {

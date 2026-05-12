@@ -110,7 +110,7 @@ double StructureRad::srTB(const DiracSpinor &w, const DiracSpinor &v,
   }
 
   double tb{0.0};
-#pragma omp parallel for reduction(+ : tb)
+#pragma omp parallel for schedule(dynamic, 4) reduction(+ : tb)
   for (std::size_t i = 0; i < index_ra.size(); ++i) {
     const auto [ir, ia] = index_ra[i];
     const auto &r = mExcited[ir];
@@ -161,7 +161,7 @@ double StructureRad::srC(const DiracSpinor &w, const DiracSpinor &v) const {
   }
 
   double c{0.0};
-#pragma omp parallel for reduction(- : c)
+#pragma omp parallel for schedule(dynamic, 4) reduction(- : c)
   for (std::size_t i = 0; i < index_ab.size(); ++i) {
     const auto [ia, ib] = index_ab[i];
     const auto &a = mCore[ia];
@@ -174,7 +174,7 @@ double StructureRad::srC(const DiracSpinor &w, const DiracSpinor &v) const {
     c -= t_ba * C_wavb;
   }
 
-#pragma omp parallel for reduction(- : c)
+#pragma omp parallel for schedule(dynamic, 4) reduction(- : c)
   for (std::size_t i = 0; i < index_mr.size(); ++i) {
     const auto [im, ir] = index_mr[i];
     const auto &m = mExcited[im];
@@ -226,7 +226,7 @@ StructureRad::srn_table(const DiracOperator::TensorOperator *const h,
     }
   }
 
-#pragma omp parallel for collapse(2)
+#pragma omp parallel for schedule(dynamic, 4)
   for (std::size_t ia = 0; ia < as.size(); ++ia) {
     for (std::size_t ib = 0; ib < bs.size(); ++ib) {
       const auto &a = as[ia];
