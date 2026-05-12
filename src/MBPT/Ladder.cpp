@@ -316,11 +316,8 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &core,
                     const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                     const Angular::SixJTable &sjt,
-                    const Coulomb::LkTable *const lk_prev, bool print,
-                    const std::vector<double> &fk) {
-
-  const double a_damp = 0.35;
-  const double b_damp = 1.0 - a_damp;
+                    const Coulomb::LkTable *const lk_prev, double a_damp,
+                    bool print, const std::vector<double> &fk) {
 
   // Build combined basis: excited + core + any extra i_orbs (e.g. valence)
   // i_orbs not required (either core or subset of excited)
@@ -332,17 +329,11 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   const auto Lk_function = [&](int k, const DiracSpinor &m,
                                const DiracSpinor &n, const DiracSpinor &i,
                                const DiracSpinor &b) -> double {
-    auto L_new =
-      Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, lk_prev, fk);
-    if (lk_prev) {
-      const auto L_prev = lk_prev->Q(k, m, n, i, b);
-      if (L_prev != 0.0)
-        L_new = b_damp * L_new + a_damp * L_prev;
-    }
-    return L_new;
+    return Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, lk_prev,
+                  fk);
   };
 
-  lk->update(basis, Lk_function, print);
+  lk->update(basis, Lk_function, a_damp, print);
 }
 
 } // namespace MBPT

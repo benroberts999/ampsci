@@ -185,6 +185,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   @param include_L4  Include core--core diagram L4
   @param sjt         6j symbol table
   @param lk_prev     Ladder table from previous iteration
+  @param a_damp      Damping factor [0,1) : 0 means no damping
   @param print       Print Qk info to screen
   @param fk          Optional screening factors \f$ f_k \f$
 */
@@ -193,8 +194,8 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &core,
                     const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                     const Angular::SixJTable &sjt,
-                    const Coulomb::LkTable *const lk_prev, bool print,
-                    const std::vector<double> &fk);
+                    const Coulomb::LkTable *const lk_prev, double a_damp,
+                    bool print, const std::vector<double> &fk);
 
 /*!
   @brief Second-order (or ladder) correction to the valence energy.

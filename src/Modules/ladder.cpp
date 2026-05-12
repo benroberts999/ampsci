@@ -28,7 +28,10 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
      {"read", "true/false. If false, will not attemp to read Qk or Lk file "
               "from disk, and will start calculation from scratch. "
               "May still overwrite existing file. [true]"},
-     {"max_it", "Max # iterations [15]"},
+     {"max_it", "Max # iterations. If zero, will simply read ladder diagrams "
+                "in (and then run a symmetry test). [15]"},
+     {"damp",
+      "Damping factor for iterations, [0,1). 0 means no damping. [0.35]"},
      {"eps_target", "Target for convergance [1.0e-5]"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -45,6 +48,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto readQ = input.get("read", true);
 
   const auto max_it = input.get("max_it", 15);
+  const auto a_damp = input.get("damp", 0.35);
   const auto eps_target = input.get("eps_target", 1.0e-5);
 
   std::cout << "min_n (core)    = " << min_n_core << "\n";
@@ -54,6 +58,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "include_L4      = " << include_L4 << "\n";
   std::cout << "max_k           = " << max_k << "\n";
   std::cout << "max_it          = " << max_it << "\n";
+  std::cout << "damp            = " << a_damp << "\n";
   std::cout << "eps_target      = " << eps_target << "\n";
 
   // Sort basis into core/excited/valcne
@@ -112,7 +117,6 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     qk.write(Qfname);
   } else {
     qk.summary();
-    std::cout << qk.max_k() << "\n";
     std::cout
       << "\nNote: no new Qk integrals will be calculated, even if basis "
          "has changed!\n";
@@ -152,7 +156,6 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   if (read_Lk) {
     lk.summary();
-    std::cout << lk.max_k() << "\n";
     // must have correct dimension!
     lk_next = lk;
   } else {
@@ -189,13 +192,12 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     // Would result in fewer integrals to calculate
     // Achieve by re-introducing {i_orbs}....
     MBPT::update_Lk_mnib(&lk_next, qk, excited, core, {}, include_L4, sjt, &lk,
-                         true, {});
-    // nb: Update seems to take *longer* than fill
-    // -> Probably because have to access existing for fill+damping
-    // Could be more efficient!
-    // XXX Also: should pass damping param in
+                         a_damp, true, {});
 
-    std::swap(lk, lk_next); // lk never empty
+    // std::swap(lk, lk_next); // lk never empty
+    // for the damping, don't want to swap
+    // lk and lk_prev must be the same before next iteration begins
+    lk = lk_next;
     lk.write(Lfname);
     std::cout << "\n";
 
@@ -247,6 +249,12 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}\n", v.shortSymbol(),
                e0 * icm, de2 * icm, del * icm, del2 * icm);
   }
+
+  // Use this to check the symmetries
+  // old code that hasn't been tested in a while
+  // Doing odd things?
+  if (max_it == 0)
+    check_L_symmetry(core, excited, valence, qk, include_L4, sjt, &lk);
 }
 
 //==============================================================================

@@ -5,12 +5,29 @@
 #include <array>
 #include <cstdint>
 #include <functional>
+#include <string_view>
 #include <unordered_map>
 
 namespace Coulomb {
 
 //! Symmetry (state index order) for tables.
 enum class Symmetry { Qk, Wk, Lk, none };
+
+//! Convert Symmetry to string
+inline std::string_view to_string(Symmetry s) {
+  switch (s) {
+  case Symmetry::Qk:
+    return "Qk";
+  case Symmetry::Wk:
+    return "Wk";
+  case Symmetry::Lk:
+    return "Lk";
+  case Symmetry::none:
+    return "none";
+  }
+  return "";
+}
+
 //! Data type used to store integrals
 using Real = double;
 
@@ -101,7 +118,7 @@ public:
   //! k_cut (set k_cut to <=0 to use all k)
   //! Re-calculates all integrals, even if already in table
   void update(const std::vector<DiracSpinor> &basis, const CoulombFunction &Fk,
-              bool print = true);
+              double damp, bool print = true);
 
   //! Gives arrow access to all underlying vector<unordered_map> functions
   auto operator->() { return &m_data; }
