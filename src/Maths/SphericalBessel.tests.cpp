@@ -293,6 +293,14 @@ TEST_CASE("Maths::SphericalBessel PsiL testdata", "[Bessel][unit]") {
   // psi(x) = [x^{k+1} / (2k-1)!!] * y_k(x); tilde data stores 1 - psi
   for (const auto &d : UnitTest::PsikTilde_DATA) {
     // non-tilde: psi = 1 - (tilde value)
+    const auto value = SphericalBessel::PsiL(d.k, d.x);
+    const auto valuetilde = SphericalBessel::PsiL(d.k, d.x, true);
+
+    fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}    {:.6e} {:.6e} {:.1e}\n",
+               d.k, d.x, value, 1.0 - d.value,
+               (value - (1.0 - d.value)) / (1.0 - d.value), valuetilde,
+               -d.value, (valuetilde - (-d.value)) / -d.value);
+
     REQUIRE(SphericalBessel::PsiL(d.k, d.x) ==
             Approx(1.0 - d.value).epsilon(1e-10));
     // tilde: 1 - psi

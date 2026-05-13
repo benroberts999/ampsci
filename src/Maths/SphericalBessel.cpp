@@ -198,15 +198,7 @@ double yL(int L, double x) {
 
 double PhiL(int L, double x, bool tilde) {
 
-  // if (tilde) {
-  //   return 1.0 - PhiL(L, x);
-  // }
-
   const auto one = tilde ? 0.0 : 1.0;
-
-  // if (std::fabs(x) < 1e-5) {
-  //   return 1.0;
-  // }
 
   if (std::fabs(x) < 0.1) {
     if (L == 0) {
@@ -259,10 +251,6 @@ double PhiL(int L, double x, bool tilde) {
 
 //==============================================================================
 double PsiL(int L, double x, bool tilde) {
-
-  // if (std::fabs(x) < 1e-5) {
-  //   return 1.0;
-  // }
 
   const auto one = tilde ? 0.0 : 1.0;
 
