@@ -57,8 +57,13 @@ void CI_Pol(const IO::InputBlock &input, const Wavefunction &wf) {
   //store and fill table of single orbtial matrix elements
   ExternalField::TDHF tdhf(h1.get(), wf.vHF());
   tdhf.solve_core(0.0);
+  MBPT::StructureRad SR(wf.basis(), wf.FermiLevel(), {4, 25},
+                        wf.identity() + "SR.qk.abf", 8);
+  SR.solve_core(h1.get(), &tdhf);
   Coulomb::meTable<double> sTable =
-      ExternalField::me_table(orbitals, h1.get(), &tdhf);
+    ExternalField::me_table(orbitals, h1.get(), &tdhf, &SR);
+  //Coulomb::meTable<double> sTable =
+      //ExternalField::me_table(orbitals, h1.get(), &tdhf);
 
   //Number of states for final allowed angular momentum and parity obtained when solving CI+MBPT
 
@@ -78,14 +83,20 @@ void CI_Pol(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto wfn = wf.CIwf(J2, -parity);
     const auto num = wfn->num_solutions();
     double conj_phase = Angular::neg1pow_2(2 * J - 2 * J2);
+    std:: cout << "\n Matrix elements and energy denominator contributions to polarisability \n\n\n";
     for (std::size_t i = 0; i < num; i++) {
       double CI_ME_1 = CI::ReducedME(*wfV, nv, *wfn, i, sTable, k1, p1);
       double CI_ME_2 = CI::ReducedME(*wfn, i, *wfV, nv, sTable, k1, p1);
       double deltaE = wfn->energy(i) - wfV->energy(nv);
 
-      std::cout << i << " " << parity << " " << CI_ME_1 << "  " << CI_ME_2
-                << " " << deltaE << "\n";
+      const auto cf = (*wfV).info(nv).config;
+      const auto Tf = (*wfV).info(nv).config;
+      const auto cn = (*wfn).info(i).config;
+
+      std::cout << i << " " << parity << " "  << "Matrix element for states" << cf << "--->" << cn << " " << CI_ME_1 << "  " << CI_ME_2
+                << " " << "Energy denominator " << deltaE << "\n";
       double pol_cont = CI_ME_1 * conj_phase * CI_ME_2 / deltaE;
+      std:: cout << "Contribution to polarisability " << pol_cont << " a_0^3\n";
       pol += pol_cont;
     }
   }
