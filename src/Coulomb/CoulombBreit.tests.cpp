@@ -31,6 +31,11 @@ inline std::vector<double> vk2_naive(int k, const DiracSpinor &Fa,
 inline std::vector<double> vk3_naive(int k, const DiracSpinor &Fa,
                                      const DiracSpinor &Fb, const double &w);
 
+// This is a Naive (slow, but simple + correct) implementation of vk4_ab
+// This forms the "baseline" to compare against
+inline std::vector<double> vk4_naive(int k, const DiracSpinor &Fa,
+                                     const DiracSpinor &Fb, const double &w);
+
 } // namespace UnitTest
 
 //==============================================================================
@@ -54,7 +59,7 @@ TEST_CASE("fBreit: gk, vk formulas", "[fBreit][Breit][unit][k4]") {
 
   std::vector<double> v1, v2, v3, v4;
 
-  // Compare yk formula to "Naive" formula
+  // Compare vk formulas to naive formulas
   using namespace qip::overloads;
   for (const auto &Fa : orbs) {
     for (const auto &Fb : orbs) {
@@ -67,6 +72,7 @@ TEST_CASE("fBreit: gk, vk formulas", "[fBreit][Breit][unit][k4]") {
         std::vector<double> v1_naive = UnitTest::vk1_naive(k, Fa, Fb, 0.1);
         std::vector<double> v2_naive = UnitTest::vk2_naive(k, Fa, Fb, 0.1);
         std::vector<double> v3_naive = UnitTest::vk3_naive(k, Fa, Fb, 0.1);
+        std::vector<double> v4_naive = UnitTest::vk4_naive(k, Fa, Fb, 0.1);
 
         const auto delv1 = std::abs(qip::compare(v1, v1_naive).first);
         CHECK(delv1 < 1.0e-14);
@@ -74,6 +80,8 @@ TEST_CASE("fBreit: gk, vk formulas", "[fBreit][Breit][unit][k4]") {
         CHECK(delv2 < 1.0e-14);
         const auto delv3 = std::abs(qip::compare(v3, v3_naive).first);
         CHECK(delv3 < 1.0e-14);
+        const auto delv4 = std::abs(qip::compare(v4, v4_naive).first);
+        CHECK(delv4 < 1.0e-14);
       }
     }
   }
@@ -282,6 +290,8 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit][b7]") {
     std::vector<std::vector<double>> Vinf_w(omegas.size());
     std::vector<std::vector<double>> V2_w(omegas.size());
     std::vector<std::vector<double>> V4_w(omegas.size());
+    std::vector<std::vector<double>> V1_w(omegas.size());
+    std::vector<std::vector<double>> V3_w(omegas.size());
     for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
       std::vector<double> v1, v2, v3, v4;
       Coulomb::vk_ab_freqw(k, Fa, Fb, gr, v1, v2, v3, v4, 0, omegas[iw]);
@@ -289,14 +299,18 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit][b7]") {
       Vinf_w[iw] = v3 + v4;
       V2_w[iw] = v2;
       V4_w[iw] = v4;
+      V1_w[iw] = v1;
+      V3_w[iw] = v3;
     }
 
-    // Require that
+    // Require that v2 and v4 go to zero in w -> 0 limit
     for (const auto r_t : r_tgts) {
       const auto i = gr.getIndex(r_t);
       // std::cout << V2_w[omegas.size() - 1][i] << std::endl;
-      REQUIRE(V2_w[omegas.size() - 1][i] == Approx(0.0).epsilon(1.0e-12));
-      REQUIRE(V4_w[omegas.size() - 1][i] == Approx(0.0).epsilon(1.0e-12));
+      REQUIRE(abs(V2_w[omegas.size() - 1][i]) <=
+              1.0e-12 * abs(V1_w[omegas.size() - 1][i]));
+      REQUIRE(abs(V4_w[omegas.size() - 1][i]) <=
+              1.0e-12 * abs(V3_w[omegas.size() - 1][i]));
     }
 
     // Static limits to compare to
@@ -354,7 +368,7 @@ inline std::vector<double> UnitTest::vk1_naive(int k, const DiracSpinor &Fa,
   const auto &du = gr.du();
   const auto &num_points = gr.num_points();
   std::vector<double> v1(num_points);
-  auto odw2 = 1.0 / (w * w);
+  const auto odw2 = 1.0 / (w * w);
 
   // Quadrature integration weights:
   const auto weights = [=](std::size_t i) {
@@ -386,11 +400,11 @@ inline std::vector<double> UnitTest::vk1_naive(int k, const DiracSpinor &Fa,
     double A1 = 0.0; // keep track of running inner integral
     double A2 = 0.0;
     for (auto j = 0; j < n; j++) {
-      double ratio = qip::pow(r[j] / r[n], k - 1);
+      double ratiokm1 = qip::pow(r[j] / r[n], k - 1);
       // first term
-      A1 +=
-        ratio * phiL(k - 1, w * r[j], true) * Pkab[j] * weights(j) * gr.drdu(j);
-      A2 += ratio * Pkab[j] * weights(j) * gr.drdu(j);
+      A1 += ratiokm1 * phiL(k - 1, w * r[j], true) * Pkab[j] * weights(j) *
+            gr.drdu(j);
+      A2 += ratiokm1 * Pkab[j] * weights(j) * gr.drdu(j);
     } // integral over "r2" (j)
     double odr3 = 1.0 / (r[n] * r[n] * r[n]);
     v1[n] =
@@ -443,8 +457,8 @@ inline std::vector<double> UnitTest::vk2_naive(int k, const DiracSpinor &Fa,
   // double integral
   for (auto n = 1ul; n < v2.size(); n++) {
     for (auto j = 0; j < n; j++) {
-      double ratio = qip::pow(r[j] / r[n], k);
-      v2[n] += ratio * r[j] * phiL(k + 1, w * r[j], false) * Qkab[j] *
+      double ratiok = qip::pow(r[j] / r[n], k);
+      v2[n] += ratiok * r[j] * phiL(k + 1, w * r[j], false) * Qkab[j] *
                weights(j) * gr.drdu(j);
     } // integral over "r2" (j)
     v2[n] = w2dfact * v2[n] * psiL(k - 1, w * r[n], false) * du;
@@ -463,7 +477,7 @@ inline std::vector<double> UnitTest::vk3_naive(int k, const DiracSpinor &Fa,
   const auto &du = gr.du();
   const auto &num_points = gr.num_points();
   std::vector<double> v3(num_points);
-  auto odw2 = 1.0 / (w * w);
+  const auto odw2 = 1.0 / (w * w);
 
   // Quadrature integration weights:
   const auto weights = [=](std::size_t i) {
@@ -487,7 +501,7 @@ inline std::vector<double> UnitTest::vk3_naive(int k, const DiracSpinor &Fa,
 
   std::vector<double> Qkab(num_points);
   for (int i = 0; i < gr.num_points(); i++) {
-    Qkab[i] = ((Fa.kappa() - Fb.kappa()) / (k + 1.0)) * Xij(i) + Yij(i);
+    Qkab[i] = (double(Fa.kappa() - Fb.kappa()) / (k + 1.0)) * Xij(i) + Yij(i);
   }
 
   // double integral
@@ -495,12 +509,12 @@ inline std::vector<double> UnitTest::vk3_naive(int k, const DiracSpinor &Fa,
     double A1 = 0.0;
     double A2 = 0.0;
     for (auto j = n; j < v3.size(); j++) {
-      double ratio = qip::pow(r[n] / r[j], k - 1);
+      double ratiokm1 = qip::pow(r[n] / r[j], k - 1);
       double odr2 = 1.0 / (r[j] * r[j]);
       // first term
-      A1 += ratio * odr2 * psiL(k + 1, w * r[j], true) * Qkab[j] * weights(j) *
-            gr.drduor(j);
-      A2 += ratio * odr2 * Qkab[j] * weights(j) * gr.drduor(j);
+      A1 += ratiokm1 * odr2 * psiL(k + 1, w * r[j], true) * Qkab[j] *
+            weights(j) * gr.drduor(j);
+      A2 += ratiokm1 * odr2 * Qkab[j] * weights(j) * gr.drduor(j);
     } // integral over "r2" (j)
     v3[n] =
       2 * (2 * k + 1.0) * odw2 *
@@ -509,4 +523,58 @@ inline std::vector<double> UnitTest::vk3_naive(int k, const DiracSpinor &Fa,
   } // integral over "r1" (n)
 
   return v3;
+}
+
+//============================================================================
+inline std::vector<double> UnitTest::vk4_naive(int k, const DiracSpinor &Fa,
+                                               const DiracSpinor &Fb,
+                                               const double &w) {
+
+  const auto &gr = Fa.grid();
+  const auto &r = gr.r();
+  const auto &du = gr.du();
+  const auto &num_points = gr.num_points();
+  std::vector<double> v4(num_points);
+  const double w2dfact =
+    2.0 * w * w / ((2 * k + 3.0) * (2 * k + 1.0) * (2 * k - 1.0));
+
+  // Quadrature integration weights:
+  const auto weights = [=](std::size_t i) {
+    if (i < NumCalc::Nquad)
+      return NumCalc::dq_inv * NumCalc::cq[i];
+    if (i < num_points - NumCalc::Nquad)
+      return 1.0;
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
+  };
+
+  const auto phiL = SphericalBessel::PhiL;
+  const auto psiL = SphericalBessel::PsiL;
+
+  auto Xij = [&](std::size_t i) {
+    return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
+  };
+
+  auto Yij = [&](std::size_t i) {
+    return (Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i));
+  };
+
+  std::vector<double> Pkab(num_points);
+  for (int i = 0; i < gr.num_points(); i++) {
+    Pkab[i] = (double(Fa.kappa() - Fb.kappa()) / k) * Xij(i) - Yij(i);
+  }
+
+  // double integral
+  for (auto n = 0ul; n < v4.size(); n++) {
+    double A1 = 0.0;
+    double A2 = 0.0;
+    for (auto j = n; j < v4.size(); j++) {
+      double ratiok = qip::pow(r[n] / r[j], k);
+      // first term
+      v4[n] += ratiok * psiL(k - 1, w * r[j], false) * Pkab[j] * weights(j) *
+               gr.drdu(j);
+    } // integral over "r2" (j)
+    v4[n] = w2dfact * r[n] * v4[n] * phiL(k + 1, w * r[n], false) * du;
+  } // integral over "r1" (n)
+
+  return v4;
 }

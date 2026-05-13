@@ -513,11 +513,13 @@ vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
       A1 * psiL(k + 1, w * r[i], false) + A2 * psiL(k + 1, w * r[i], true);
     v1[i] = 2.0 * (2 * k + 1.0) * odw2 * v1[i] * du;
 
+    // old code using Bessel functions
     // integral for second term in v
     // A3 = A3 + jL(k + 1, w * r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
     //             gr.drdu(i - 1);
     // v2[i] = -2.0 * w * yL(k - 1, w * r[i]) * A3 * du;
 
+    // new code using phiL and psiL
     A3 = powk(ratio) * (A3 + r[i - 1] * phiL(k + 1, w * r[i - 1], false) *
                                Qkbd[i - 1] * weights(i - 1) * gr.drdu(i - 1));
     v2[i] = w2dfact * A3 * psiL(k - 1, w * r[i], false) * du;
@@ -550,21 +552,26 @@ vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
                   B2 * phiL(k - 1, w * r[bmax - 1], true)) *
                  du;
 
-  B3 = B3 + yL(k - 1, w * r[bmax - 1]) * Pkbd[bmax - 1] * gr.drdu(bmax - 1);
+  //! old code using Bessel functions
+  // B3 = B3 + yL(k - 1, w * r[bmax - 1]) * Pkbd[bmax - 1] * gr.drdu(bmax - 1);
+  // v4[bmax - 1] = -2.0 * w * jL(k + 1, w * r[bmax - 1]) * B3 * du;
 
-  v4[bmax - 1] = -2.0 * w * jL(k + 1, w * r[bmax - 1]) * B3 * du;
+  //! new code using phiL and psiL
+  B3 = B3 + r[bmax - 1] * psiL(k - 1, w * r[bmax - 1], false) * Pkbd[bmax - 1] *
+              weights(bmax - 1) * gr.drdu(bmax - 1);
+  v4[bmax - 1] = w2dfact * B3 * phiL(k + 1, w * r[bmax - 1], false) * du;
 
   for (auto i = bmax - 1; i >= 1; i--) {
 
     double ratio = r[i - 1] / r[i];
+    double ratiok = powk(ratio);
     double odratio = 1.0 / ratio;
     odrprev2 = 1.0 / (r[i - 1] * r[i - 1]);
 
-    B1 = powk(ratio) * odratio * B1 + psiL(k + 1, w * r[i - 1], true) *
-                                        Qkbd[i - 1] * weights(i - 1) *
-                                        gr.drduor(i - 1) * odrprev2;
+    B1 = ratiok * odratio * B1 + psiL(k + 1, w * r[i - 1], true) * Qkbd[i - 1] *
+                                   weights(i - 1) * gr.drduor(i - 1) * odrprev2;
 
-    B2 = powk(ratio) * odratio * B2 +
+    B2 = ratiok * odratio * B2 +
          Qkbd[i - 1] * weights(i - 1) * gr.drduor(i - 1) * odrprev2;
 
     v3[i - 1] = B1 * phiL(k - 1, w * r[i - 1], false) +
@@ -572,9 +579,15 @@ vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
 
     v3[i - 1] = 2.0 * (2 * k + 1.0) * odw2 * v3[i - 1] * du;
 
-    B3 = B3 + yL(k - 1, w * r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
-                gr.drdu(i - 1);
-    v4[i - 1] = -2.0 * w * jL(k + 1, w * r[i - 1]) * B3 * du;
+    //!old code using Bessel functions
+    // B3 = B3 + yL(k - 1, w * r[i - 1]) * Pkbd[i - 1] * weights(i - 1) *
+    //             gr.drdu(i - 1);
+    // v4[i - 1] = -2.0 * w * jL(k + 1, w * r[i - 1]) * B3 * du;
+
+    //!new code using phiL and psiL
+    B3 = B3 * ratiok * ratio + r[i - 1] * psiL(k - 1, w * r[i - 1], false) *
+                                 Pkbd[i - 1] * weights(i - 1) * gr.drdu(i - 1);
+    v4[i - 1] = w2dfact * B3 * phiL(k + 1, w * r[i - 1], false) * du;
   }
 }
 
