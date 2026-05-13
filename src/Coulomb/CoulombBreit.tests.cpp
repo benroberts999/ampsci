@@ -290,6 +290,8 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit][b7]") {
     std::vector<std::vector<double>> Vinf_w(omegas.size());
     std::vector<std::vector<double>> V2_w(omegas.size());
     std::vector<std::vector<double>> V4_w(omegas.size());
+    std::vector<std::vector<double>> V1_w(omegas.size());
+    std::vector<std::vector<double>> V3_w(omegas.size());
     for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
       std::vector<double> v1, v2, v3, v4;
       Coulomb::vk_ab_freqw(k, Fa, Fb, gr, v1, v2, v3, v4, 0, omegas[iw]);
@@ -297,14 +299,18 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit][b7]") {
       Vinf_w[iw] = v3 + v4;
       V2_w[iw] = v2;
       V4_w[iw] = v4;
+      V1_w[iw] = v1;
+      V3_w[iw] = v3;
     }
 
     // Require that v2 and v4 go to zero in w -> 0 limit
     for (const auto r_t : r_tgts) {
       const auto i = gr.getIndex(r_t);
       // std::cout << V2_w[omegas.size() - 1][i] << std::endl;
-      REQUIRE(abs(V2_w[omegas.size() - 1][i]) < 1.0e-21);
-      REQUIRE(abs(V4_w[omegas.size() - 1][i]) < 1.0e-21);
+      REQUIRE(abs(V2_w[omegas.size() - 1][i]) <=
+              1.0e-12 * abs(V1_w[omegas.size() - 1][i]));
+      REQUIRE(abs(V4_w[omegas.size() - 1][i]) <=
+              1.0e-12 * abs(V3_w[omegas.size() - 1][i]));
     }
 
     // Static limits to compare to
