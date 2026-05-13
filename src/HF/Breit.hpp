@@ -126,6 +126,13 @@ public:
   };
 
   /*!
+    @brief Constructs Breit with default parameters.
+    @details
+    Equivalent to Breit(Params{}). See @ref Breit::Params for default values.
+  */
+  Breit() : Breit(Params{}) {}
+
+  /*!
     @brief Constructs Breit interaction operator from parameters
 
     @details
@@ -143,27 +150,6 @@ public:
       m_P(params.p) {}
 
   /*!
-    @brief Constructs Breit interaction operator (deprecated)
-
-    @details
-    Initializes the Breit operator with an overall scaling factor. Individual term
-    scaling factors (M, N, O, P) default to 1.0.
-    Also scaling for frequency dependence (lambda_f); default to 0.0.
-
-    @param scale    Overall scaling factor for Breit contributions (default 1.0)
-    @param lambda_f Scaling factor for frequency-dependent Breit (default 0.0)
-
-    @note If lambda_f is zero (default), frequency-independent form will be used.
-    If 1, then will be frequency-dependent.
-    Can be any value (e.g., 0.5 to test linearity/scaling of f-dependent results).
-
-    @deprecated Use Breit(const Params &params) instead.
-  */
-  [[deprecated("Use Breit(const Params &params) instead")]] Breit(
-    double scale = 1.0, double lambda_f = 0.0)
-    : m_scale(scale), m_lambda_f(lambda_f) {}
-
-  /*!
     @brief Update all scaling factors
 
     @details
@@ -176,7 +162,8 @@ public:
     @param t_O        Scaling for O term (retarded part, default 1.0)
     @param t_P        Scaling for P term (retarded part, default 1.0)
 
-    @note Does not update lambda_f (f-dependent scaling)
+    @note Does not update lambda_f (f-dependent scaling). 
+    Use @ref update_lambda_f() for that.
   */
   void update_scale(double t_scale = 1.0, double t_M = 1.0, double t_N = 1.0,
                     double t_O = 1.0, double t_P = 1.0) {

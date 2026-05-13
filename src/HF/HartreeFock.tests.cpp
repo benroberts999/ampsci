@@ -30,8 +30,7 @@ TEST_CASE("HartreeFock", "[HF][HartreeFock][integration]") {
   // const auto r0 = 1.0e-7;
   // const auto rmax = 170.0;
   const auto b = 0.3 * rmax;
-  const auto x_Breit = 0.0; // do not include Breit
-  const int A = -1;         // use default A
+  const int A = -1; // use default A
   const auto nucleus_type = "Fermi";
 
   // Regression test: Compare Energies, E1 and HFS to my own calcs (test data
@@ -191,8 +190,7 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
   const auto r0 = 1.0e-6;
   const auto rmax = 150.0;
   const auto b = 0.3 * rmax;
-  const auto x_Breit = 0.0; // do not include Breit
-  const int A = -1;         // use default A
+  const int A = -1; // use default A
   const auto nucleus_type = "Fermi";
 
   double worst_eps{0.0};
@@ -266,7 +264,7 @@ TEST_CASE("HartreeFock - just Cs", "[HF][HartreeFock][Breit][unit]") {
 
   // Breit (regression test)
   std::cout << "Breit regression test: de\n";
-  HF::Breit Vbr{1.0};
+  HF::Breit Vbr{};
   // generated with large # points.
   const auto breit_data = std::vector{
     std::tuple{"6s+", 1.333977079113e-04}, {"7s+", 3.660284833750e-05},

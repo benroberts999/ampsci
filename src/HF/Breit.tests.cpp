@@ -22,7 +22,7 @@ TEST_CASE("Breit (local)", "[Breit][unit]") {
   wf.solve_core("Local", std::nullopt, "[Kr]");
   wf.solve_valence("5sp");
 
-  HF::Breit Vb(1.0);
+  HF::Breit Vb;
 
   REQUIRE(std::abs(Vb.scale_factor() - 1.0) < 1.0e-6);
 
@@ -221,7 +221,7 @@ TEST_CASE("Breit (HF)", "[Breit][integration]") {
   wf.solve_core("HartreeFock", std::nullopt, "[Ar],3d10");
   wf.solve_valence("4sp");
 
-  const HF::Breit Vb(1.0);
+  const HF::Breit Vb{};
 
   const auto expected_B1 = std::vector{
     std::pair{"4s", 1.880e-4}, {"4p-", 7.015e-5}, {"4p+", 5.140e-5}};
