@@ -488,6 +488,8 @@ vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
   double A3 = 0.0;
 
   const double odw2 = 1.0 / (w * w);
+  const double w2dfact =
+    2.0 * w * w / ((2 * k + 3.0) * (2 * k + 1.0) * (2 * k - 1.0));
 
   // performs numerical integrals for v1 and v2
   v1[0] = 0.0;
@@ -512,9 +514,13 @@ vkabcd_freqw(const int k, const std::vector<double> &Pkbd,
     v1[i] = 2.0 * (2 * k + 1.0) * odw2 * v1[i] * du;
 
     // integral for second term in v
-    A3 = A3 + jL(k + 1, w * r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
-                gr.drdu(i - 1);
-    v2[i] = -2.0 * w * yL(k - 1, w * r[i]) * A3 * du;
+    // A3 = A3 + jL(k + 1, w * r[i - 1]) * Qkbd[i - 1] * weights(i - 1) *
+    //             gr.drdu(i - 1);
+    // v2[i] = -2.0 * w * yL(k - 1, w * r[i]) * A3 * du;
+
+    A3 = powk(ratio) * (A3 + r[i - 1] * phiL(k + 1, w * r[i - 1], false) *
+                               Qkbd[i - 1] * weights(i - 1) * gr.drdu(i - 1));
+    v2[i] = w2dfact * A3 * psiL(k - 1, w * r[i], false) * du;
   }
 
   for (std::size_t i = irmax; i < num_points; i++) {

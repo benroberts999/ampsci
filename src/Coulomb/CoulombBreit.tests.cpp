@@ -21,6 +21,11 @@ namespace UnitTest {
 inline std::vector<double> vk1_naive(int k, const DiracSpinor &Fa,
                                      const DiracSpinor &Fb, const double &w);
 
+// This is a Naive (slow, but simple + correct) implementation of vk2_ab
+// This forms the "baseline" to compare against
+inline std::vector<double> vk2_naive(int k, const DiracSpinor &Fa,
+                                     const DiracSpinor &Fb, const double &w);
+
 // This is a Naive (slow, but simple + correct) implementation of vk3_ab
 // This forms the "baseline" to compare against
 inline std::vector<double> vk3_naive(int k, const DiracSpinor &Fa,
@@ -60,10 +65,13 @@ TEST_CASE("fBreit: gk, vk formulas", "[fBreit][Breit][unit][k4]") {
         Coulomb::vk_ab_freqw(k, Fa, Fb, Fa.grid(), v1, v2, v3, v4,
                              Fa.grid().num_points(), 0.1);
         std::vector<double> v1_naive = UnitTest::vk1_naive(k, Fa, Fb, 0.1);
+        std::vector<double> v2_naive = UnitTest::vk2_naive(k, Fa, Fb, 0.1);
         std::vector<double> v3_naive = UnitTest::vk3_naive(k, Fa, Fb, 0.1);
 
         const auto delv1 = std::abs(qip::compare(v1, v1_naive).first);
         CHECK(delv1 < 1.0e-14);
+        const auto delv2 = std::abs(qip::compare(v2, v2_naive).first);
+        CHECK(delv2 < 1.0e-14);
         const auto delv3 = std::abs(qip::compare(v3, v3_naive).first);
         CHECK(delv3 < 1.0e-14);
       }
@@ -370,7 +378,7 @@ inline std::vector<double> UnitTest::vk1_naive(int k, const DiracSpinor &Fa,
 
   std::vector<double> Pkab(num_points);
   for (int i = 0; i < gr.num_points(); i++) {
-    Pkab[i] = ((Fa.kappa() - Fb.kappa()) / k) * Xij(i) - Yij(i);
+    Pkab[i] = (double(Fa.kappa() - Fb.kappa()) / k) * Xij(i) - Yij(i);
   }
 
   // double integral
@@ -392,6 +400,57 @@ inline std::vector<double> UnitTest::vk1_naive(int k, const DiracSpinor &Fa,
   } // integral over "r1" (n)
 
   return v1;
+}
+
+//============================================================================
+inline std::vector<double> UnitTest::vk2_naive(int k, const DiracSpinor &Fa,
+                                               const DiracSpinor &Fb,
+                                               const double &w) {
+
+  const auto &gr = Fa.grid();
+  const auto &r = gr.r();
+  const auto &du = gr.du();
+  const auto &num_points = gr.num_points();
+  std::vector<double> v2(num_points);
+  const auto w2dfact =
+    2.0 * w * w / ((2 * k + 3.0) * (2 * k + 1.0) * (2 * k - 1.0));
+
+  // Quadrature integration weights:
+  const auto weights = [=](std::size_t i) {
+    if (i < NumCalc::Nquad)
+      return NumCalc::dq_inv * NumCalc::cq[i];
+    if (i < num_points - NumCalc::Nquad)
+      return 1.0;
+    return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
+  };
+
+  const auto phiL = SphericalBessel::PhiL;
+  const auto psiL = SphericalBessel::PsiL;
+
+  auto Xij = [&](std::size_t i) {
+    return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
+  };
+
+  auto Yij = [&](std::size_t i) {
+    return (Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i));
+  };
+
+  std::vector<double> Qkab(num_points);
+  for (int i = 0; i < gr.num_points(); i++) {
+    Qkab[i] = (double(Fa.kappa() - Fb.kappa()) / (k + 1.0)) * Xij(i) + Yij(i);
+  }
+
+  // double integral
+  for (auto n = 1ul; n < v2.size(); n++) {
+    for (auto j = 0; j < n; j++) {
+      double ratio = qip::pow(r[j] / r[n], k);
+      v2[n] += ratio * r[j] * phiL(k + 1, w * r[j], false) * Qkab[j] *
+               weights(j) * gr.drdu(j);
+    } // integral over "r2" (j)
+    v2[n] = w2dfact * v2[n] * psiL(k - 1, w * r[n], false) * du;
+  } // integral over "r1" (n)
+
+  return v2;
 }
 
 //============================================================================
