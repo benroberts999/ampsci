@@ -505,9 +505,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
     const auto x_br = wf.vHF()->x_Breit();
     std::optional<HF::Breit::Params> bp =
-      x_br != 0.0 ? std::optional<HF::Breit::Params>{
-                       HF::Breit::Params{x_br}}
-                 : std::nullopt;
+      x_br != 0.0 ? std::optional<HF::Breit::Params>{HF::Breit::Params{x_br}} :
+                    std::nullopt;
     wf2.solve_core("HartreeFock", bp, wf.coreConfiguration_nice());
     wf2.solve_valence(DiracSpinor::state_config(wf.valence()));
     if (wf.Sigma()) {

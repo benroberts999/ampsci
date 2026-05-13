@@ -241,20 +241,14 @@ TEST_CASE("Breit (HF)", "[Breit][integration]") {
 //==============================================================================
 //==============================================================================
 //! integration tests for Breit
-TEST_CASE("Breit", "[Breit][integration][!mayfail]") {
-
-  std::cout << "Breit\n";
+TEST_CASE("Breit", "[Breit][integration]") {
 
   // Solve Hartree-Fock, including Breit
   std::cout << "\nSolving WF, with Breit:\n";
   Wavefunction wf({3500, 1.0e-6, 125.0, 40.0, "loglinear", -1.0},
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   const double x_Breit = 1.0;
-  const auto breit_params =
-    x_Breit != 0.0 ?
-      std::optional<HF::Breit::Params>{HF::Breit::Params{x_Breit}} :
-      std::nullopt;
-  wf.solve_core("HartreeFock", breit_params, "[Xe]");
+  wf.solve_core("HartreeFock", HF::Breit::Params{x_Breit}, "[Xe]");
   wf.solve_valence("7sp5d");
 
   // Solve Hartree-Fock, without Breit
@@ -969,7 +963,7 @@ TEST_CASE("HF Breit: Frequency-dependent (f-Breit) unit",
         for (const auto &d : orbs) {
           if (d <= a || d <= c)
             continue;
-          for (int k = 1; k <= 6; ++k) {
+          for (int k = 0; k <= 6; ++k) {
             if (!HF::Breit::Bk_SR(k, a, b, c, d))
               continue;
 
@@ -988,25 +982,16 @@ TEST_CASE("HF Breit: Frequency-dependent (f-Breit) unit",
             CHECK(b_tiny_ebd == Approx(b_static));
 
             if (std::abs(b_static) > 1.0e-15) {
-              // As lambda->0, should approach static Breit
-              const auto dBreit_f_eac =
-                std::abs((b_f_eac - b_static) / b_static);
-              const auto err_tiny_eac =
-                std::abs((b_tiny_eac - b_static) / b_static);
-              const auto dBreit_f_ebd =
-                std::abs((b_f_ebd - b_static) / b_static);
-              const auto err_tiny_ebd =
-                std::abs((b_tiny_ebd - b_static) / b_static);
-
-              std::cout << b_static << " " << b_tiny_eac - b_static << " "
-                        << b_f_eac - b_static << "\n";
-              std::cout << b_static << " " << b_tiny_ebd - b_static << " "
-                        << b_f_ebd - b_static << "\n";
-              // Difference between f-dep Breit and static should always
-              // be larger than difference between tiny-lambda and static
-              // (allowing ~1% wiggle room for numerical noise)
-              REQUIRE(err_tiny_eac <= dBreit_f_eac * 1.01);
-              REQUIRE(err_tiny_ebd <= dBreit_f_ebd * 1.01);
+              // tiny-lambda should be closer to static than full f-dep,
+              // unless b_f is already negligibly close to static
+              if (std::abs(b_f_eac - b_static) > 1.0e-10) {
+                REQUIRE(std::abs(b_tiny_eac - b_static) <
+                        std::abs(b_f_eac - b_static));
+              }
+              if (std::abs(b_f_ebd - b_static) > 1.0e-10) {
+                REQUIRE(std::abs(b_tiny_ebd - b_static) <
+                        std::abs(b_f_ebd - b_static));
+              }
             }
           }
         }

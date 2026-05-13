@@ -16,7 +16,6 @@ std::vector<double> yk_ab(const int k, const DiracSpinor &Fa,
 void yk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
            std::vector<double> &ykab, const std::size_t maxi = 0);
 
-
 //==============================================================================
 
 //! Calculates R^k_abcd for given k. From scratch (calculates y)

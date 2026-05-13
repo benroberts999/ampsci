@@ -7,7 +7,7 @@
 namespace SphericalBessel {
 
 //==============================================================================
-double JL(int L, double x) {
+double jL(int L, double x) {
 
   if (L == 0 && std::abs(x) < 1.0e-5)
     return 1.0;
@@ -244,9 +244,9 @@ double PhiL(int L, double x, bool tilde) {
   }
 
   return tilde ?
-           (qip::double_factorial(2 * L + 1) / qip::pow(x, L)) * JL(L, x) -
+           (qip::double_factorial(2 * L + 1) / qip::pow(x, L)) * jL(L, x) -
              1.0 :
-           (qip::double_factorial(2 * L + 1) / qip::pow(x, L)) * JL(L, x);
+           (qip::double_factorial(2 * L + 1) / qip::pow(x, L)) * jL(L, x);
 }
 
 //==============================================================================
@@ -303,7 +303,7 @@ std::vector<double> fillBesselVec(int l, const std::vector<double> &xvec) {
   std::vector<double> Jl_vec;
   Jl_vec.reserve(xvec.size());
   for (const auto x : xvec) {
-    Jl_vec.push_back(JL(l, x));
+    Jl_vec.push_back(jL(l, x));
   }
   return Jl_vec;
 }
@@ -313,7 +313,7 @@ std::vector<double> fillBesselVec_kr(int l, double k,
   std::vector<double> Jl_vec;
   Jl_vec.reserve(rvec.size());
   for (const auto r : rvec) {
-    Jl_vec.push_back(JL(l, k * r));
+    Jl_vec.push_back(jL(l, k * r));
   }
   return Jl_vec;
 }
@@ -323,7 +323,7 @@ void fillBesselVec_kr(int l, double k, const std::vector<double> &r,
   jl->resize(r.size());
 #pragma omp parallel for
   for (std::size_t i = 0; i < r.size(); ++i) {
-    (*jl)[i] = JL(l, k * r[i]);
+    (*jl)[i] = jL(l, k * r[i]);
   }
 }
 

@@ -191,8 +191,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   // (Must set HF before adding RadPot - but must add RadPot before solving HF)
   std::optional<HF::Breit::Params> breit_params = std::nullopt;
   if (x_Breit != 0.0) {
-    breit_params = HF::Breit::Params{x_Breit, 1.0, 1.0, 1.0, 1.0,
-                                     freq_Breit ? 1.0 : 0.0};
+    breit_params =
+      HF::Breit::Params{x_Breit, 1.0, 1.0, 1.0, 1.0, freq_Breit ? 1.0 : 0.0};
   }
   wf.set_HF(HF_method, breit_params, core, eps_HF, true);
 

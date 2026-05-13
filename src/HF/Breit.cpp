@@ -516,7 +516,7 @@ double Breit::Bk_abcd_eac_freqw(int k, const DiracSpinor &Fa,
                                 const DiracSpinor &Fb, const DiracSpinor &Fc,
                                 const DiracSpinor &Fd) const {
 
-  const auto ww = m_lambda_f * PhysConst::alpha * abs(Fa.en() - Fc.en());
+  const auto ww = m_lambda_f * PhysConst::alpha * std::abs(Fa.en() - Fc.en());
   return Fa * Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fc, Fd, ww);
 }
 
@@ -525,7 +525,7 @@ double Breit::Bk_abcd_eac_freqw(int k, const DiracSpinor &Fa,
 double Breit::Bk_abcd_ebd_freqw(int k, const DiracSpinor &Fa,
                                 const DiracSpinor &Fb, const DiracSpinor &Fc,
                                 const DiracSpinor &Fd) const {
-  const auto ww = m_lambda_f * PhysConst::alpha * abs(Fb.en() - Fd.en());
+  const auto ww = m_lambda_f * PhysConst::alpha * std::abs(Fb.en() - Fd.en());
   return Fa * Bkv_bcd_freqw(k, Fa.kappa(), Fb, Fc, Fd, ww);
 }
 

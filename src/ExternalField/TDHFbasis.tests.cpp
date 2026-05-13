@@ -192,14 +192,16 @@ TEST_CASE("External Field: TDHF (basis) Breit",
   // Create wavefunction object, solve HF for core+valence
   Wavefunction wf({1000, 1.0e-6, 120.0, 50.0, "loglinear", -1.0},
                   {"Rb", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", std::nullopt, "[Kr]", 1.0e-12, false); // no breit
+  wf.solve_core("HartreeFock", std::nullopt, "[Kr]", 1.0e-12,
+                false); // no breit
   wf.solve_valence(valence, false);
   wf.formBasis(bspl_param);
   // wf.printValence();
 
   // Again, including Breit:
   Wavefunction wfB(wf.grid_sptr(), wf.nucleus(), 1.0);
-  wfB.solve_core("HartreeFock", HF::Breit::Params{1.0}, "[Kr]", 1.0e-12, false); // w/Breit
+  wfB.solve_core("HartreeFock", HF::Breit::Params{1.0}, "[Kr]", 1.0e-12,
+                 false); // w/Breit
   wfB.solve_valence(valence, false);
   wfB.formBasis(bspl_param);
 

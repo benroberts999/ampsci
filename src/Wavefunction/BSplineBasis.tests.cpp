@@ -114,7 +114,10 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
         // Create wavefunction object, solve HF for core + valence
         Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear"},
                         {"Cs", -1, "Fermi"});
-        const auto breit_params = f_Breit != 0.0 ? std::optional<HF::Breit::Params>{HF::Breit::Params{f_Breit}} : std::nullopt;
+        const auto breit_params =
+          f_Breit != 0.0 ?
+            std::optional<HF::Breit::Params>{HF::Breit::Params{f_Breit}} :
+            std::nullopt;
         wf.set_HF("HartreeFock", breit_params, "[Xe]");
         if (f_QED)
           wf.radiativePotential({1.0, 1.0, 1.0, 1.0, 0.0}, 10.0, 1.0, {1.0},
@@ -208,7 +211,10 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
       Wavefunction wf({6000, 1.0e-7, 150.0, 0.33 * 150.0, "loglinear"},
                       {"Cs", -1, "Fermi"}, 1.0);
 
-      const auto breit_params = f_Br != 0.0 ? std::optional<HF::Breit::Params>{HF::Breit::Params{f_Br}} : std::nullopt;
+      const auto breit_params =
+        f_Br != 0.0 ?
+          std::optional<HF::Breit::Params>{HF::Breit::Params{f_Br}} :
+          std::nullopt;
       wf.set_HF("HartreeFock", breit_params, "[Xe]");
       if (f_QED)
         wf.radiativePotential({1.0, 1.0, 1.0, 1.0, 0.0}, 10.0, 1.0, {1.0},

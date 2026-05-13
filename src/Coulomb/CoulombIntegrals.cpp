@@ -178,7 +178,6 @@ static inline void yk_ijk_gen_impl(const int k, const Function &ff,
   }
 }
 
-
 //------------------------------------------------------------------------------
 std::vector<double> yk_ab(const int k, const DiracSpinor &Fa,
                           const DiracSpinor &Fb, const std::size_t maxi) {
@@ -217,7 +216,6 @@ void yk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   else
     yk_ijk_impl<-1>(k, Fa, Fb, vabk, maxi);
 }
-
 
 //==============================================================================
 //==============================================================================

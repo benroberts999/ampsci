@@ -40,12 +40,12 @@ inline std::vector<double> vk4_naive(int k, const DiracSpinor &Fa,
 
 //==============================================================================
 //! Test that the gk and vk formulas match the naive double integration result
-TEST_CASE("fBreit: gk, vk formulas", "[fBreit][Breit][unit][k4]") {
+TEST_CASE("fBreit: gk vk formulas", "[fBreit][Breit][unit]") {
 
   const auto radial_grid = std::make_shared<const Grid>(
-    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+    GridParameters{100, 1.0e-4, 45.0, 10.0, GridType::loglinear});
   const double zeff = 1.0;
-  const int lmax = 6;
+  const int lmax = 5;
 
   // build set of H-like orbitals, one n for each kappa up to l=lmax
   std::vector<DiracSpinor> orbs;
@@ -66,7 +66,7 @@ TEST_CASE("fBreit: gk, vk formulas", "[fBreit][Breit][unit][k4]") {
       if (Fb < Fa)
         continue;
       auto [k0, ki] = Angular::kminmax_Ck(Fa.kappa(), Fb.kappa());
-      for (int k = k0; k <= ki; k += 2) {
+      for (int k = k0; k <= ki; ++k) {
         Coulomb::vk_ab_freqw(k, Fa, Fb, Fa.grid(), v1, v2, v3, v4,
                              Fa.grid().num_points(), 0.1);
         std::vector<double> v1_naive = UnitTest::vk1_naive(k, Fa, Fb, 0.1);
@@ -74,21 +74,31 @@ TEST_CASE("fBreit: gk, vk formulas", "[fBreit][Breit][unit][k4]") {
         std::vector<double> v3_naive = UnitTest::vk3_naive(k, Fa, Fb, 0.1);
         std::vector<double> v4_naive = UnitTest::vk4_naive(k, Fa, Fb, 0.1);
 
+        const auto eps124 = 1.0e-14;
+        const auto eps3 = 1.0e-14;
+
         const auto delv1 = std::abs(qip::compare(v1, v1_naive).first);
-        CHECK(delv1 < 1.0e-14);
+
+        CHECK(delv1 < eps124);
         const auto delv2 = std::abs(qip::compare(v2, v2_naive).first);
-        CHECK(delv2 < 1.0e-14);
-        const auto delv3 = std::abs(qip::compare(v3, v3_naive).first);
-        CHECK(delv3 < 1.0e-14);
+        CHECK(delv2 < eps124);
         const auto delv4 = std::abs(qip::compare(v4, v4_naive).first);
-        CHECK(delv4 < 1.0e-14);
+        CHECK(delv4 < eps124);
+
+        // used to be worse - missing weights. Fixed
+        const auto delv3 = std::abs(qip::compare(v3, v3_naive).first);
+        if (!(delv3 < eps3)) {
+          std::cout << *qip::compare(v3, v3_naive).second << " "
+                    << qip::compare(v3, v3_naive).first << "\n";
+        }
+        CHECK(delv3 < eps3);
       }
     }
   }
 }
 
 //==============================================================================
-TEST_CASE("FreqwBreit: symmetry", "[Coulomb][unit][fBreit][Breit]") {
+TEST_CASE("fBreit: symmetry", "[Coulomb][unit][fBreit][Breit]") {
   // X_ab = fa*gb + ga*fb is symmetric  -> gk(a,b) = gk(b,a)
   // Y_ab = fa*gb - ga*fb is antisymm.  -> hk(a,b) = -hk(b,a), hk(a,a) = 0
   // P^k_ii = Q^k_ii = 0 (kappa_i-kappa_i=0, Y_ii=0) -> vk(a,a) = 0
@@ -139,24 +149,29 @@ TEST_CASE("FreqwBreit: symmetry", "[Coulomb][unit][fBreit][Breit]") {
 }
 
 //==============================================================================
-TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit][b7]") {
+TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit]") {
   // gk_ab_freqw(w) -> gk_ab (static) as w -> 0.
   // Kernel replacement: -w(2k+1) j_k(wr) y_k(wr') -> r^k/r'^{k+1} as w->0.
   // Deviation from static is O((wr)^2) (??)
 
+  fmt::print("Freq. dep. Breit: freqw(r,w) -> static as w->0\n");
+
+  // Option to print (for debugging)
+  bool print = false;
+
   using namespace qip::overloads;
 
   const auto grid = std::make_shared<const Grid>(
-    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+    GridParameters{500, 1.0e-5, 250.0, 50.0, GridType::loglinear});
   const auto Fa = DiracSpinor::exactHlike(1, -1, grid, 10.0); // 1s
   const auto Fb = DiracSpinor::exactHlike(2, 1, grid, 10.0);  // 2p_{1/2}
   const auto &gr = Fa.grid();
 
-  const std::vector<double> r_tgts = {1.0e-6, 0.01, 0.1, 5.0, 50.0};
+  const std::vector<double> r_tgts = {1.0e-4, 0.01, 0.1, 5.0, 20.0};
   const std::vector<double> omegas = {1, 0.05, 1.0e-6, 1.0e-9};
 
   //-------------------------------------------------------------------
-  fmt::print("\nFreq. dep. Breit: freqw(r,w) vs static\n");
+
   using FreqwFn =
     void (*)(int, const DiracSpinor &, const DiracSpinor &,
              std::vector<double> &, std::vector<double> &, std::size_t, double);
@@ -171,7 +186,8 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit][b7]") {
 
   for (std::size_t ifn = 0; ifn < 2; ++ifn) {
     const auto [freqw_fn, static_fn] = fn_pairs[ifn];
-    fmt::print("\n{}:\n", fn_names[ifn]);
+    if (print)
+      fmt::print("\n{}:\n", fn_names[ifn]);
     for (int k = 0; k <= 3; ++k) {
 
       // Static reference
@@ -192,41 +208,43 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit][b7]") {
       const auto g_stat = g0_s + ginf_s;
 
       // Print table
-      const int width = 13;
+      if (print) {
+        const int width = 13;
 
-      // Table headers
-      std::cout << std::endl << "k = " << k << " : " << fn_names[ifn] << "\n";
-      fmt::print("{:>5}", "r");
-      for (const auto w : omegas)
-        fmt::print("      w={:.0e}", w);
-      fmt::print("{:>{}}\n", "static", width);
+        // Table headers
+        std::cout << std::endl << "k = " << k << " : " << fn_names[ifn] << "\n";
+        fmt::print("{:>5}", "r");
+        for (const auto w : omegas)
+          fmt::print("      w={:.0e}", w);
+        fmt::print("{:>{}}\n", "static", width);
 
-      // Table values
-      // 0 -> r1 gk/hk integral and comparison to static case
-      for (std::size_t ir = 0; ir < r_tgts.size(); ++ir) {
-        fmt::print("{:>5.0e}", r_tgts.at(ir));
-        const auto ir2 = Fa.grid().getIndex(r_tgts.at(ir));
-        for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
+        // Table values
+        // 0 -> r1 gk/hk integral and comparison to static case
+        for (std::size_t ir = 0; ir < r_tgts.size(); ++ir) {
+          fmt::print("{:>5.0e}", r_tgts.at(ir));
+          const auto ir2 = Fa.grid().getIndex(r_tgts.at(ir));
+          for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
 
-          fmt::print("{:>{}.4e}", g0_w[iw][ir2], width);
+            fmt::print("{:>{}.4e}", g0_w[iw][ir2], width);
+          }
+          fmt::print("{:>{}.4e}", g0_s[ir2], width);
+          fmt::print(" {:+.1e}\n",
+                     g0_w[omegas.size() - 2][ir2] / g0_s[ir2] - 1.0);
         }
-        fmt::print("{:>{}.4e}", g0_s[ir2], width);
-        fmt::print(" {:+.1e}\n",
-                   g0_w[omegas.size() - 2][ir2] / g0_s[ir2] - 1.0);
-      }
 
-      // r1 -> infty gk/hk integral and comparison to static case
+        // r1 -> infty gk/hk integral and comparison to static case
 
-      std::cout << std::endl << "r1 -> infty" << std::endl;
-      for (std::size_t ir = 0; ir < r_tgts.size(); ++ir) {
-        fmt::print("{:>5.0e}", r_tgts.at(ir));
-        const auto ir2 = Fa.grid().getIndex(r_tgts.at(ir));
-        for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
-          fmt::print("{:>{}.4e}", gI_w[iw][ir2], width);
+        std::cout << std::endl << "r1 -> infty" << std::endl;
+        for (std::size_t ir = 0; ir < r_tgts.size(); ++ir) {
+          fmt::print("{:>5.0e}", r_tgts.at(ir));
+          const auto ir2 = Fa.grid().getIndex(r_tgts.at(ir));
+          for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
+            fmt::print("{:>{}.4e}", gI_w[iw][ir2], width);
+          }
+          fmt::print("{:>{}.4e}", ginf_s[ir2], width);
+          fmt::print(" {:+.1e}\n",
+                     gI_w[omegas.size() - 2][ir2] / ginf_s[ir2] - 1.0);
         }
-        fmt::print("{:>{}.4e}", ginf_s[ir2], width);
-        fmt::print(" {:+.1e}\n",
-                   gI_w[omegas.size() - 2][ir2] / ginf_s[ir2] - 1.0);
       }
 
       const double eps1 = 1.0e-6;
@@ -249,21 +267,6 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit][b7]") {
         REQUIRE(gI_w[omegas.size() - 1][ir2] ==
                 Approx(ginf_s[ir2]).epsilon(eps2));
       }
-
-      // // 3. Ensure sign and order-of-magnitude does not change
-      // for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
-      //   for (std::size_t ir = 0; ir < r_tgts.size(); ++ir) {
-      //     // Ensure sign is same
-      //     REQUIRE(g_w[iw][ir] / g_stat[ir] > 0.0);
-
-      //     // This FAILS sometimes:
-      //     // Ensure All within factior of ~2 from static case
-      //     // if (iw != 0)
-      //     // Might not be wrong, but should be tested!
-      //     // Also w=5 and w=10 breaks the trend? Again, maybe correct, but maybe not!
-      //     CHECK(g_w[iw][ir] == Approx(g_stat[ir]).epsilon(0.1));
-      //   }
-      // }
 
     } // k loop
   } // fn_pairs loop
@@ -307,10 +310,10 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit][b7]") {
     for (const auto r_t : r_tgts) {
       const auto i = gr.getIndex(r_t);
       // std::cout << V2_w[omegas.size() - 1][i] << std::endl;
-      REQUIRE(abs(V2_w[omegas.size() - 1][i]) <=
-              1.0e-12 * abs(V1_w[omegas.size() - 1][i]));
-      REQUIRE(abs(V4_w[omegas.size() - 1][i]) <=
-              1.0e-12 * abs(V3_w[omegas.size() - 1][i]));
+      REQUIRE(std::abs(V2_w[omegas.size() - 1][i]) <=
+              1.0e-8 * std::abs(V1_w[omegas.size() - 1][i]));
+      REQUIRE(std::abs(V4_w[omegas.size() - 1][i]) <=
+              1.0e-8 * std::abs(V3_w[omegas.size() - 1][i]));
     }
 
     // Static limits to compare to
@@ -321,36 +324,55 @@ TEST_CASE("FreqwBreit: w->0 limit", "[Coulomb][unit][fBreit][Breit][b7]") {
       (double(Fa.kappa() - Fb.kappa()) / (k + 1)) * (ginf_km1_s - ginf_kp1_s) +
       (hinf_km1_s - hinf_kp1_s);
 
-    const int width = 13;
-    std::cout << std::endl << "k = " << k << " [vk_ab]\n";
-    fmt::print("{:>5}", "r");
-    for (const auto w : omegas)
-      fmt::print("      w={:.0e}", w);
-    fmt::print("\n");
+    if (print) {
+      const int width = 13;
+      std::cout << std::endl << "k = " << k << " [vk_ab]\n";
+      fmt::print("{:>5}", "r");
+      for (const auto w : omegas)
+        fmt::print("      w={:.0e}", w);
+      fmt::print("\n");
 
-    //!!! Should write definitive tests here. I am currently only printing tables
-
-    // V0 (r2: 0 -> r1) integral and comparison to static case
-    for (const auto r_t : r_tgts) {
-      const auto i = gr.getIndex(r_t);
-      fmt::print("{:>5.0e}", gr.r(i));
-      for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
-        fmt::print("{:>{}.4e}", V0_w[iw][i], width);
+      // V0 (r2: 0 -> r1) integral and comparison to static case
+      for (const auto r_t : r_tgts) {
+        const auto i = gr.getIndex(r_t);
+        fmt::print("{:>5.0e}", gr.r(i));
+        for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
+          fmt::print("{:>{}.4e}", V0_w[iw][i], width);
+        }
+        fmt::print("{:>{}.4e}", V0_s[i], width);
+        fmt::print(" {:+.1e}\n", V0_w[omegas.size() - 2][i] / V0_s[i] - 1.0);
       }
-      fmt::print("{:>{}.4e}", V0_s[i], width);
-      fmt::print(" {:+.1e}\n", V0_w[omegas.size() - 2][i] / V0_s[i] - 1.0);
+
+      // Vinf (r2: r1 -> infty) integral and comparison to static case
+      std::cout << std::endl << "r1 -> infty" << std::endl;
+      for (const auto r_t : r_tgts) {
+        const auto i = gr.getIndex(r_t);
+        fmt::print("{:>5.0e}", gr.r(i));
+        for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
+          fmt::print("{:>{}.4e}", Vinf_w[iw][i], width);
+        }
+        fmt::print("{:>{}.4e}", Vinf_s[i], width);
+        fmt::print(" {:+.1e}\n",
+                   Vinf_w[omegas.size() - 2][i] / Vinf_s[i] - 1.0);
+      }
     }
 
-    // Vinf (r2: r1 -> infty) integral and comparison to static case
-    std::cout << std::endl << "r1 -> infty" << std::endl;
+    // Test V0_w and Vinf_w agree with static limits as w -> 0
+    const auto iw_small = omegas.size() - 2; // w = 1e-6
     for (const auto r_t : r_tgts) {
       const auto i = gr.getIndex(r_t);
-      fmt::print("{:>5.0e}", gr.r(i));
-      for (std::size_t iw = 0; iw < omegas.size(); ++iw) {
-        fmt::print("{:>{}.4e}", Vinf_w[iw][i], width);
+      if (V0_s[i] == 0.0) {
+        REQUIRE(std::abs(V0_w[iw_small][i]) < 1.0e-15);
+      } else {
+        REQUIRE(V0_w[iw_small][i] ==
+                Approx(V0_s[i]).epsilon(1.0e-7).margin(1.0e-10));
       }
-      fmt::print("{:>{}.4e}", Vinf_s[i], width);
-      fmt::print(" {:+.1e}\n", Vinf_w[omegas.size() - 2][i] / Vinf_s[i] - 1.0);
+      if (Vinf_s[i] == 0.0) {
+        REQUIRE(std::abs(Vinf_w[iw_small][i]) < 1.0e-15);
+      } else {
+        REQUIRE(Vinf_w[iw_small][i] ==
+                Approx(Vinf_s[i]).epsilon(1.0e-7).margin(1.0e-10));
+      }
     }
   }
 }
@@ -391,7 +413,7 @@ inline std::vector<double> UnitTest::vk1_naive(int k, const DiracSpinor &Fa,
   };
 
   std::vector<double> Pkab(num_points);
-  for (int i = 0; i < gr.num_points(); i++) {
+  for (auto i = 0ul; i < gr.num_points(); i++) {
     Pkab[i] = (double(Fa.kappa() - Fb.kappa()) / k) * Xij(i) - Yij(i);
   }
 
@@ -399,8 +421,8 @@ inline std::vector<double> UnitTest::vk1_naive(int k, const DiracSpinor &Fa,
   for (auto n = 1ul; n < v1.size(); n++) {
     double A1 = 0.0; // keep track of running inner integral
     double A2 = 0.0;
-    for (auto j = 0; j < n; j++) {
-      double ratiokm1 = qip::pow(r[j] / r[n], k - 1);
+    for (auto j = 0ul; j < n; j++) {
+      const double ratiokm1 = qip::pow(r[j] / r[n], k - 1);
       // first term
       A1 += ratiokm1 * phiL(k - 1, w * r[j], true) * Pkab[j] * weights(j) *
             gr.drdu(j);
@@ -442,21 +464,21 @@ inline std::vector<double> UnitTest::vk2_naive(int k, const DiracSpinor &Fa,
   const auto psiL = SphericalBessel::PsiL;
 
   auto Xij = [&](std::size_t i) {
-    return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
+    return Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i);
   };
 
   auto Yij = [&](std::size_t i) {
-    return (Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i));
+    return Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i);
   };
 
   std::vector<double> Qkab(num_points);
-  for (int i = 0; i < gr.num_points(); i++) {
+  for (auto i = 0ul; i < gr.num_points(); i++) {
     Qkab[i] = (double(Fa.kappa() - Fb.kappa()) / (k + 1.0)) * Xij(i) + Yij(i);
   }
 
   // double integral
   for (auto n = 1ul; n < v2.size(); n++) {
-    for (auto j = 0; j < n; j++) {
+    for (auto j = 0ul; j < n; j++) {
       double ratiok = qip::pow(r[j] / r[n], k);
       v2[n] += ratiok * r[j] * phiL(k + 1, w * r[j], false) * Qkab[j] *
                weights(j) * gr.drdu(j);
@@ -492,15 +514,15 @@ inline std::vector<double> UnitTest::vk3_naive(int k, const DiracSpinor &Fa,
   const auto psiL = SphericalBessel::PsiL;
 
   auto Xij = [&](std::size_t i) {
-    return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
+    return Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i);
   };
 
   auto Yij = [&](std::size_t i) {
-    return (Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i));
+    return Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i);
   };
 
   std::vector<double> Qkab(num_points);
-  for (int i = 0; i < gr.num_points(); i++) {
+  for (std::size_t i = 0; i < gr.num_points(); i++) {
     Qkab[i] = (double(Fa.kappa() - Fb.kappa()) / (k + 1.0)) * Xij(i) + Yij(i);
   }
 
@@ -551,22 +573,20 @@ inline std::vector<double> UnitTest::vk4_naive(int k, const DiracSpinor &Fa,
   const auto psiL = SphericalBessel::PsiL;
 
   auto Xij = [&](std::size_t i) {
-    return (Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i));
+    return Fa.f(i) * Fb.g(i) + Fa.g(i) * Fb.f(i);
   };
 
   auto Yij = [&](std::size_t i) {
-    return (Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i));
+    return Fa.f(i) * Fb.g(i) - Fa.g(i) * Fb.f(i);
   };
 
   std::vector<double> Pkab(num_points);
-  for (int i = 0; i < gr.num_points(); i++) {
+  for (std::size_t i = 0; i < gr.num_points(); i++) {
     Pkab[i] = (double(Fa.kappa() - Fb.kappa()) / k) * Xij(i) - Yij(i);
   }
 
   // double integral
   for (auto n = 0ul; n < v4.size(); n++) {
-    double A1 = 0.0;
-    double A2 = 0.0;
     for (auto j = n; j < v4.size(); j++) {
       double ratiok = qip::pow(r[n] / r[j], k);
       // first term

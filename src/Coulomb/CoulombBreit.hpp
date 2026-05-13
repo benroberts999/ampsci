@@ -21,10 +21,14 @@ void gk_ab(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   @details
   Computes the frequency-dependent Breit screening function using the X_ab
   radial density [arXiv:2602.17129](https://arxiv.org/abs/2602.17129):
-  \f[ X_{ab}(r) = f_a(r)\,g_b(r) + g_a(r)\,f_b(r). \f]
+  \f[
+    X_{ab}(r) = f_a(r)\,g_b(r) + g_a(r)\,f_b(r).
+  \f]
   The static radial kernel \f$r_<^k/r_>^{k+1}\f$ is replaced by the
   frequency-dependent form:
-  \f[ \frac{r_<^k}{r_>^{k+1}} \to -\omega(2k+1)\,j_k(\omega r_<)\,y_k(\omega r_>), \f]
+  \f[
+    \frac{r_<^k}{r_>^{k+1}} \to -\omega(2k+1)\,j_k(\omega r_<)\,y_k(\omega r_>),
+  \f]
   where \f$j_k\f$ and \f$y_k\f$ are spherical Bessel functions of the first and
   second kind.
   This screening function enters the frequency-dependent \f$u^k_{abcd}\f$
@@ -43,9 +47,13 @@ void gk_ab_freqw(const int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
   @details
   Same as gk_ab_freqw but uses the Y_ab radial density
   [arXiv:2602.17129](https://arxiv.org/abs/2602.17129):
-  \f[ Y_{ab}(r) = f_a(r)\,g_b(r) - g_a(r)\,f_b(r), \f]
+  \f[
+    Y_{ab}(r) = f_a(r)\,g_b(r) - g_a(r)\,f_b(r),
+  \f]
   with the same frequency-dependent kernel replacement:
-  \f[ \frac{r_<^k}{r_>^{k+1}} \to -\omega(2k+1)\,j_k(\omega r_<)\,y_k(\omega r_>). \f]
+  \f[
+    \frac{r_<^k}{r_>^{k+1}} \to -\omega(2k+1)\,j_k(\omega r_<)\,y_k(\omega r_>).
+  \f]
   Together with gk_ab_freqw, this is used to construct the \f$P^k\f$ and
   \f$Q^k\f$ screening functions that enter the
   \f$s^k_{abcd}\f$ and \f$t^k_{abcd}\f$ radial integrals.

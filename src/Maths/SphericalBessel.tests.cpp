@@ -12,10 +12,10 @@ TEST_CASE("Maths::SphericalBessel", "[jL][unit]") {
 
   for (int L = 0; L <= 15; ++L) {
     for (auto r : r_list) {
-      REQUIRE(SphericalBessel::JL(L, r) ==
+      REQUIRE(SphericalBessel::jL(L, r) ==
               Approx(SphericalBessel::exactGSL_JL(L, r)).margin(1.0e-15));
 
-      REQUIRE(SphericalBessel::JL(L, r) ==
+      REQUIRE(SphericalBessel::jL(L, r) ==
               Approx(SphericalBessel::exactGSL_JL(L, r)).epsilon(1.0e-3));
     }
 
@@ -24,8 +24,8 @@ TEST_CASE("Maths::SphericalBessel", "[jL][unit]") {
       const auto jlkr = SphericalBessel::fillBesselVec_kr(L, 0.15, r_list);
       for (auto i = 0ul; i < r_list.size(); ++i) {
         const auto r = r_list.at(i);
-        REQUIRE(jl.at(i) == Approx(SphericalBessel::JL(L, r)));
-        REQUIRE(jlkr.at(i) == Approx(SphericalBessel::JL(L, 0.15 * r)));
+        REQUIRE(jl.at(i) == Approx(SphericalBessel::jL(L, r)));
+        REQUIRE(jlkr.at(i) == Approx(SphericalBessel::jL(L, 0.15 * r)));
       }
     }
   }
@@ -52,7 +52,7 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
         REQUIRE(v.size() == r.size());
         for (std::size_t ir = 0; ir < r.size(); ir++) {
           REQUIRE(v[ir] ==
-                  Approx(SphericalBessel::JL(L, q[iq] * r[ir])).epsilon(1e-12));
+                  Approx(SphericalBessel::jL(L, q[iq] * r[ir])).epsilon(1e-12));
         }
       }
     }
@@ -67,7 +67,7 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
         for (std::size_t ir = 0; ir < r.size(); ir++) {
           // This one may be quite rough, particularly for small jL values
           REQUIRE(v[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).margin(1e-2));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).margin(1e-2));
         }
       }
 
@@ -77,7 +77,7 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
         const auto &v = table.jL(L, qq);
         for (std::size_t ir = 0; ir < r.size(); ir++) {
           REQUIRE(v[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).epsilon(1e-12));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).epsilon(1e-12));
         }
       }
 
@@ -90,15 +90,15 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
         for (std::size_t ir = 0; ir < r.size(); ir++) {
           // less exact: went to far!
           REQUIRE(v1[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).margin(1e-2));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).margin(1e-2));
           // very exact
           REQUIRE(v1[ir] ==
-                  Approx(SphericalBessel::JL(
+                  Approx(SphericalBessel::jL(
                            L, q[std::min(iq + 1, q.size() - 1)] * r[ir]))
                     .epsilon(1e-12));
           // very exact
           REQUIRE(v2[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).epsilon(1e-12));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).epsilon(1e-12));
         }
       }
 
@@ -108,10 +108,10 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
       for (std::size_t ir = 0; ir < r.size(); ir++) {
         REQUIRE(
           v0[ir] ==
-          Approx(SphericalBessel::JL(L, q.front() * r[ir])).epsilon(1e-12));
+          Approx(SphericalBessel::jL(L, q.front() * r[ir])).epsilon(1e-12));
         REQUIRE(
           v1[ir] ==
-          Approx(SphericalBessel::JL(L, q.back() * r[ir])).epsilon(1e-12));
+          Approx(SphericalBessel::jL(L, q.back() * r[ir])).epsilon(1e-12));
       }
     }
   }
@@ -124,7 +124,7 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
 
         for (std::size_t ir = 0; ir < r.size(); ir++) {
           REQUIRE(v[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).margin(1e-2));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).margin(1e-2));
         }
       }
 
@@ -134,7 +134,7 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
         const auto &v = table.jL_nearest(L, qq);
         for (std::size_t ir = 0; ir < r.size(); ir++) {
           REQUIRE(v[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).epsilon(1e-12));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).epsilon(1e-12));
         }
       }
 
@@ -146,9 +146,9 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
         const auto &v2 = table.jL_nearest(L, qq * (1.0 - eps));
         for (std::size_t ir = 0; ir < r.size(); ir++) {
           REQUIRE(v1[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).epsilon(1e-12));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).epsilon(1e-12));
           REQUIRE(v2[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).epsilon(1e-12));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).epsilon(1e-12));
         }
       }
 
@@ -158,10 +158,10 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
       for (std::size_t ir = 0; ir < r.size(); ir++) {
         REQUIRE(
           v0[ir] ==
-          Approx(SphericalBessel::JL(L, q.front() * r[ir])).epsilon(1e-12));
+          Approx(SphericalBessel::jL(L, q.front() * r[ir])).epsilon(1e-12));
         REQUIRE(
           v1[ir] ==
-          Approx(SphericalBessel::JL(L, q.back() * r[ir])).epsilon(1e-12));
+          Approx(SphericalBessel::jL(L, q.back() * r[ir])).epsilon(1e-12));
       }
     }
   }
@@ -174,16 +174,16 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
         for (std::size_t ir = 0; ir < r.size(); ir++) {
           if (qq * r[ir] < 1.0) {
             REQUIRE(v[ir] ==
-                    Approx(SphericalBessel::JL(L, qq * r[ir])).epsilon(1e-4));
+                    Approx(SphericalBessel::jL(L, qq * r[ir])).epsilon(1e-4));
           } else if (qq * r[ir] < 10.0) {
             REQUIRE(v[ir] ==
-                    Approx(SphericalBessel::JL(L, qq * r[ir])).epsilon(1e-3));
+                    Approx(SphericalBessel::jL(L, qq * r[ir])).epsilon(1e-3));
           } else if (qq * r[ir] < 50.0) {
             REQUIRE(v[ir] ==
-                    Approx(SphericalBessel::JL(L, qq * r[ir])).margin(1e-3));
+                    Approx(SphericalBessel::jL(L, qq * r[ir])).margin(1e-3));
           } else {
             REQUIRE(v[ir] ==
-                    Approx(SphericalBessel::JL(L, qq * r[ir])).margin(1e-2));
+                    Approx(SphericalBessel::jL(L, qq * r[ir])).margin(1e-2));
           }
         }
       }
@@ -194,7 +194,7 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
         const auto &v = table.jL_interp(L, qq);
         for (std::size_t ir = 0; ir < r.size(); ir++) {
           REQUIRE(v[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).epsilon(1e-12));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).epsilon(1e-12));
         }
       }
 
@@ -207,9 +207,9 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
         for (std::size_t ir = 0; ir < r.size(); ir++) {
           // interp still not expected to be exact
           REQUIRE(v1[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).epsilon(1e-3));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).epsilon(1e-3));
           REQUIRE(v2[ir] ==
-                  Approx(SphericalBessel::JL(L, qq * r[ir])).epsilon(1e-3));
+                  Approx(SphericalBessel::jL(L, qq * r[ir])).epsilon(1e-3));
         }
       }
 
@@ -219,19 +219,19 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
       for (std::size_t ir = 0; ir < r.size(); ir++) {
         REQUIRE(
           v0[ir] ==
-          Approx(SphericalBessel::JL(L, q.front() * r[ir])).epsilon(1e-12));
+          Approx(SphericalBessel::jL(L, q.front() * r[ir])).epsilon(1e-12));
         REQUIRE(
           v1[ir] ==
-          Approx(SphericalBessel::JL(L, q.back() * r[ir])).epsilon(1e-12));
+          Approx(SphericalBessel::jL(L, q.back() * r[ir])).epsilon(1e-12));
       }
     }
   }
 }
 
 //==============================================================================
-TEST_CASE("Maths::SphericalBessel JL testdata", "[jL][Bessel][unit]") {
+TEST_CASE("Maths::SphericalBessel jL testdata", "[jL][Bessel][unit]") {
   for (const auto &data : UnitTest::jk_DATA) {
-    const auto value = SphericalBessel::JL(data.k, data.x);
+    const auto value = SphericalBessel::jL(data.k, data.x);
     // fmt::print("{:2} {:.1e} {:.6e} {:.6e} {:.1e}\n", data.k, data.x, value,
     //            data.value, (value - data.value) / data.value);
 

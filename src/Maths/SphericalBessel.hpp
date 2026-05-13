@@ -14,7 +14,7 @@ namespace SphericalBessel {
 //==============================================================================
 //! Spherical Bessel function; uses low-x approximation where appropriate
 // Good to parts in _ for x and _ otherwise
-double JL(int L, double x);
+double jL(int L, double x);
 
 //! Spherical Bessel function of first kind via GSL
 double exactGSL_JL(int L, double x);
