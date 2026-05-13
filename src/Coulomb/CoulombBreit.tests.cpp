@@ -42,6 +42,9 @@ inline std::vector<double> vk4_naive(int k, const DiracSpinor &Fa,
 //! Test that the gk and vk formulas match the naive double integration result
 TEST_CASE("fBreit: gk vk formulas", "[fBreit][Breit][unit]") {
 
+  std::cout << "Compare effective one-body f-dependent Breit integrals to "
+               "their slow/naive/simple implementations\n";
+
   const auto radial_grid = std::make_shared<const Grid>(
     GridParameters{100, 1.0e-4, 45.0, 10.0, GridType::loglinear});
   const double zeff = 1.0;
