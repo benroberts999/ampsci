@@ -82,7 +82,6 @@ HartreeFock::HartreeFock(
     m_alpha(alpha),
     m_method(method),
     m_eps_HF(std::abs(in_eps) < 1.0 ? in_eps : std::pow(10, -in_eps)),
-    m_freqBreit(breit_params ? breit_params->lambda_f > 0.0 : false),
     m_vdir(m_rgrid->num_points(), 0.0),
     m_Yab() {
   set_parametric_potential(true, potential, H_g, d_t);
@@ -468,15 +467,9 @@ EpsIts HartreeFock::hartree_fock_core() {
 
       if (m_VBr) {
         // Add Breit to v_nonlocal, and energy guess
-        if (m_freqBreit == true) {
-          const auto VbrFa = m_VBr->VbrFa_freqw(Fa, core_prev);
-          en += (Fzero * VbrFa) / (Fa * Fzero);
-          v_nonlocal += VbrFa;
-        } else {
-          const auto VbrFa = m_VBr->VbrFa(Fa, core_prev);
-          en += (Fzero * VbrFa) / (Fa * Fzero);
-          v_nonlocal += VbrFa;
-        }
+        const auto VbrFa = m_VBr->VbrFa(Fa, core_prev);
+        en += (Fzero * VbrFa) / (Fa * Fzero);
+        v_nonlocal += VbrFa;
       }
 
       // Solve HF Dirac equation for core state
@@ -585,11 +578,7 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
 
     auto VxFa = vexFa(Fa);
     if (m_VBr) {
-      if (m_freqBreit == true) {
-        VxFa += m_VBr->VbrFa_freqw(Fa, m_core);
-      } else {
-        VxFa += m_VBr->VbrFa(Fa, m_core);
-      }
+      VxFa += m_VBr->VbrFa(Fa, m_core);
     }
     if (Sigma) {
       const auto f = prev_its && it < 15 ? it / 15.0 : 1.0;
@@ -1172,11 +1161,7 @@ void HartreeFock::hf_orbital_green(
     {
       auto VnlF_tilde = ::HF::vexFa(dFa, static_core, k_max);
       if (tVBr) {
-        if (m_freqBreit == true) {
-          VnlF_tilde += tVBr->VbrFa_freqw(dFa, static_core);
-        } else {
-          VnlF_tilde += tVBr->VbrFa(dFa, static_core);
-        }
+        VnlF_tilde += tVBr->VbrFa(dFa, static_core);
       }
       if (Sigma)
         VnlF_tilde += (*Sigma)(dFa);

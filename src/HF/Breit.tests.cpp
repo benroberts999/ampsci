@@ -926,8 +926,10 @@ TEST_CASE("HF Breit: Frequency-dependent (f-Breit) unit",
             continue;
           for (int k = 1; k <= 8; ++k) {
             const auto b1_static = Br_static.Bk_abcd(k, a, b, c, d);
-            const auto b1_freqw_eac = Br_freqw.Bk_abcd_eac_freqw(k, a, b, c, d);
-            const auto b1_freqw_ebd = Br_freqw.Bk_abcd_ebd_freqw(k, a, b, c, d);
+            const auto b1_freqw_eac =
+              a * Br_freqw.Bkv_bcd_freqw(k, a.kappa(), b, c, d, 0.0);
+            const auto b1_freqw_ebd =
+              a * Br_freqw.Bkv_bcd_freqw(k, a.kappa(), b, c, d, 0.0);
 
             // Test that selection rules are same: if static is 0, freqw should be 0
             if (b1_static == 0.0) {
@@ -968,12 +970,16 @@ TEST_CASE("HF Breit: Frequency-dependent (f-Breit) unit",
               continue;
 
             const auto b_static = Br_static.Bk_abcd(k, a, b, c, d);
-            const auto b_f_eac = Br_f.Bk_abcd_eac_freqw(k, a, b, c, d);
-            const auto b_tiny_eac =
-              Br_lambda_tiny.Bk_abcd_eac_freqw(k, a, b, c, d);
-            const auto b_f_ebd = Br_f.Bk_abcd_ebd_freqw(k, a, b, c, d);
-            const auto b_tiny_ebd =
-              Br_lambda_tiny.Bk_abcd_ebd_freqw(k, a, b, c, d);
+            const auto w_ac = PhysConst::alpha * std::abs(a.en() - c.en());
+            const auto w_bd = PhysConst::alpha * std::abs(b.en() - d.en());
+            const auto b_f_eac =
+              a * Br_f.Bkv_bcd_freqw(k, a.kappa(), b, c, d, w_ac);
+            const auto b_tiny_eac = a * Br_lambda_tiny.Bkv_bcd_freqw(
+                                          k, a.kappa(), b, c, d, 1.0e-9 * w_ac);
+            const auto b_f_ebd =
+              a * Br_f.Bkv_bcd_freqw(k, a.kappa(), b, c, d, w_bd);
+            const auto b_tiny_ebd = a * Br_lambda_tiny.Bkv_bcd_freqw(
+                                          k, a.kappa(), b, c, d, 1.0e-9 * w_bd);
 
             // Tiny lambda should be independent of fequency:
             CHECK(b_tiny_eac == Approx(b_tiny_ebd));

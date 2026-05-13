@@ -80,7 +80,6 @@ private:
   double m_alpha;
   Method m_method;
   double m_eps_HF;
-  bool m_freqBreit;
   std::vector<double> m_vdir;
   Coulomb::YkTable m_Yab;
   int m_max_hf_its = 128;

@@ -162,7 +162,7 @@ public:
     @param t_O        Scaling for O term (retarded part, default 1.0)
     @param t_P        Scaling for P term (retarded part, default 1.0)
 
-    @note Does not update lambda_f (f-dependent scaling). 
+    @note Does not update lambda_f (f-dependent scaling).
     Use @ref update_lambda_f() for that.
   */
   void update_scale(double t_scale = 1.0, double t_M = 1.0, double t_N = 1.0,
@@ -226,13 +226,11 @@ public:
     @param a (b,c,d) electron states
 
     @return A pair {k_min, k_max} giving the valid multipolarity range.
-            k_min is at least 1 (forbidden to have k=0 for HF Breit).
-            Returns {k_max, k_min} (invalid range) if no valid k exists.
+            Returns with k_max < k_min (invalid range) if no valid k exists.
 
     @note This is the static method analogue of Coulomb::k_minmax_tj, adapted
           for the four-body Breit structure.
-    
-    @warning Discounts k=0 - only valid within Hartree-Fock??
+
   */
   static std::pair<int, int> k_minmax(const DiracSpinor &a,
                                       const DiracSpinor &b,
@@ -240,7 +238,7 @@ public:
                                       const DiracSpinor &d) {
     const auto [k1, k2] = Coulomb::k_minmax_tj(a.twoj(), c.twoj());
     const auto [k3, k4] = Coulomb::k_minmax_tj(b.twoj(), d.twoj());
-    return {std::max({1, k1, k3}), std::min(k2, k4)};
+    return {std::max(k1, k3), std::min(k2, k4)};
   }
 
   /*!
@@ -248,11 +246,12 @@ public:
 
     @details
     As @ref k_minmax but for 2*j (doesn't require DiracSpinors)
+    
   */
   static std::pair<int, int> k_minmax_tj(int tja, int tjb, int tjc, int tjd) {
     const auto [k1, k2] = Coulomb::k_minmax_tj(tja, tjc);
     const auto [k3, k4] = Coulomb::k_minmax_tj(tjb, tjd);
-    return {std::max({1, k1, k3}), std::min(k2, k4)};
+    return {std::max(k1, k3), std::min(k2, k4)};
   }
 
   /*!
@@ -269,15 +268,15 @@ public:
                     Actual maximum used is the minimum of this value and
                     the physical constraint k_minmax() for the given basis.
 
-    @warning This function uses substantial memory -- use with caution for large 
-    calculations. Have mostly found the speedup is not worth the memory cost, so 
-    this is generally not used anymore.
+    @warning This function uses substantial memory -- use with caution for large
+    calculations. Have mostly found the speedup is not worth the memory cost, so
+    this is generally not used anymore. Used in CI.
 
     @note Must be called once before using the faster variants Bk_abcd_2(),
           BPk_abcd_2(), or BWk_abcd_2(). Calling it multiple times will
           recompute and overwrite previous results.
-    
-    @note ONLY for static Breit
+
+    @warning ONLY for static Breit
   */
   void fill_gb(const std::vector<DiracSpinor> &basis, int t_max_k = 99);
 
@@ -292,7 +291,7 @@ public:
     interacting with the core. This is the direct Breit contribution from all
     core electrons.
 
-    Will be static version is lambda = 0, otherwise, frequency-dependent
+    Will be static version is lambda = 0, otherwise, frequency-dependent.
 
     @param Fa   Valence electron state
     @param core Core electron states
@@ -305,24 +304,6 @@ public:
   */
   DiracSpinor VbrFa(const DiracSpinor &Fa,
                     const std::vector<DiracSpinor> &core) const;
-
-  /*!
-    @brief Calculates Breit potential (wrapper, equivalent to VbrFa)
-
-    @details
-    Backward compatibility wrapper. Now simply calls VbrFa(), which automatically
-    handles both static and frequency-dependent regimes based on m_lambda_f.
-
-    @param Fa   Valence state
-    @param core Core electron states
-
-    @return Equivalent to VbrFa(Fa, core).
-
-    @note Kept for backward compatibility. New code should use VbrFa() directly.
-  */
-  [[deprecated]] DiracSpinor
-  VbrFa_freqw(const DiracSpinor &Fa,
-              const std::vector<DiracSpinor> &core) const;
 
   /*!
     @brief Breit-TDHF: Breit correction to the TDHF correction to Hartree-Fock
@@ -339,110 +320,15 @@ public:
     @param Ybeta Y perturbation to core state: from @ref ExternalField::TDHF
 
     @return The reduced RPA correction dV_Br*Fa
+
+    @note Only frequency-independent for now
   */
   DiracSpinor dV_Br(int kappa, int K, const DiracSpinor &Fa,
                     const DiracSpinor &Fb, const DiracSpinor &Xbeta,
                     const DiracSpinor &Ybeta) const;
 
   /*!
-    @brief Reduced Breit two-body matrix element with automatic frequency dependence
-
-    @details
-    Calculates the reduced two-body Breit matrix element B^k_{abcd}, the Breit
-    analogue of the Coulomb Q^k integral. The Breit interaction is the sum of
-    Gaunt (instantaneous magnetic) and retarded (transverse photon) contributions,
-    decomposed into multipole ranks k.
-
-    Internally checks m_lambda_f: if zero (or close to zero), uses the static
-    (frequency-independent) formulation. Otherwise, uses frequency-dependent
-    formulation with frequency w = lambda_f * alpha * |E_a - E_c|.
-
-    The individual term scaling factors (m_M, m_N, m_O, m_P) and overall
-    scaling m_scale modulate the contributions:
-    - M, N terms arise from Gaunt (instantaneous) interaction
-    - O, P terms arise from the retarded (photon propagation) contribution
-
-    @param k  Multipolarity (angular momentum rank of the interaction)
-    @param Fa (Fb,Fc,Fd) electron states
-
-    @return The reduced Breit matrix element B^k_{abcd}, evaluated at the
-            appropriate frequency based on m_lambda_f.
-
-    @note Selection rules depend on angular momentum quantum numbers via Bk_SR().
-          Use k_minmax() to determine the valid multipolarity range before calling.
-
-    @note This function re-computes all four terms (m, n, o, p) each call.
-          For repeated calls with the same basis, call fill_gb() once, then use
-          the faster variant @ref Bk_abcd_2() instead.
-  */
-  double Bk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                 const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-
-  /*!
-    @brief Reduced frequency-dependent Breit two-body matrix element
-
-    @details
-    Calculates the reduced two-body Breit matrix element evaluated at the frequency
-    corresponding to the energy difference between electrons a and c.
-    The frequency w is scaled by lambda_f.
-
-    @param k  Multipolarity (angular momentum rank)
-    @param A  First electron state
-    @param Fb Second electron state
-    @param Fc Third electron state
-    @param Fd Fourth electron state
-
-    @return B^k_abcd evaluated at w = lambda_f * alpha * |E_a - E_c|
-
-  */
-  [[deprecated]] double Bk_abcd_eac_freqw(int k, const DiracSpinor &Fa,
-                                          const DiracSpinor &Fb,
-                                          const DiracSpinor &Fc,
-                                          const DiracSpinor &Fd) const;
-
-  /*!
-    @brief Reduced frequency-dependent Breit two-body matrix element
-
-    @details
-    Calculates the reduced two-body Breit matrix element evaluated at the frequency
-    corresponding to the energy difference between electrons b and d.
-    The frequency w is scaled by lambda_f.
-
-    @param k  Multipolarity (angular momentum rank)
-    @param Fa First electron state
-    @param Fb Second electron state
-    @param Fc Third electron state
-    @param Fd Fourth electron state
-
-    @return B^k_abcd evaluated at w = lambda_f * alpha * |E_b - E_d|
-  */
-  [[deprecated]] double Bk_abcd_ebd_freqw(int k, const DiracSpinor &Fa,
-                                          const DiracSpinor &Fb,
-                                          const DiracSpinor &Fc,
-                                          const DiracSpinor &Fd) const;
-
-  /*!
-    @brief Reduced exchange Breit two-body matrix element
-
-    @details
-    Calculates the reduced two-body exchange Breit matrix element P(B)^k_{abcd},
-    the static Breit analogue of the Coulomb P^k integral.
-  */
-  double BPk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                  const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-
-  /*!
-    @brief Reduced anti-symmetrised Breit two-body matrix element
-
-    @details
-    Calculates the reduced anti-symmetrised Breit matrix element W(B)^k_{abcd}
-    for fermionic systems, the static Breit analogue of the Coulomb W^k integral.
-  */
-  double BWk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
-                  const DiracSpinor &Fc, const DiracSpinor &Fd) const;
-
-  /*!
-    @brief Direct Breit one-body potential operator
+    @brief Direct Breit two-body integral "right-hand-side"
 
     @details
     Computes the radial function of the direct part of the reduced Breit
@@ -453,61 +339,82 @@ public:
       B^k_{abcd} = \langle a | B^k_v(b,c,d) \rangle
     \f]
 
+    @note Frequency independent version
+
     See @ref Bk_abcd()
   */
   DiracSpinor Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                       const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
   /*!
-    @brief Frequency-dependent Breit one-body potential operator
-
-    @details
-    Frequency-dependent breit analogue of @ref Bkv_bcd()
-  */
-  DiracSpinor Bkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
-                            const DiracSpinor &Fc, const DiracSpinor &Fd,
-                            const double w) const;
-
-  // Should add two-body matrix elements for frequency-dependent Breit at some point.
-  // As well as writing function for direct contribution to HF
-
-  /*!
-    @brief Exchange Breit one-body potential operator
+    @brief Exchange Breit two-body integral "right-hand-side"
 
     @details
     See @ref Bkv_bcd() and @ref BPk_abcd()
+
+    @note Frequency independent version
   */
   DiracSpinor BPkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                        const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
   /*!
-    @brief Frequency-dependent exchange Breit one-body potential operator
-
-    @details
-    Frequency-dependent version of BPkv_bcd(). See @ref Bkv_bcd_freqw().
-  */
-  DiracSpinor BPkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
-                             const DiracSpinor &Fc, const DiracSpinor &Fd,
-                             const double w) const;
-
-  /*!
-    @brief Anti-symmetrised Breit one-body potential operator
+    @brief Anti-symmetrised Breit two-body integral "right-hand-side"
 
     @details
     See @ref Bkv_bcd() and @ref BWk_abcd()
+
+    @note Frequency independent version
   */
   DiracSpinor BWkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
                        const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
   /*!
-    @brief Frequency-dependent anti-symmetrised Breit one-body potential operator
+    @brief Reduced static Breit two-body matrix element
 
     @details
-    Frequency-dependent version of BWkv_bcd(). See @ref Bkv_bcd_freqw().
+    Calculates the static (frequency-independent) reduced two-body Breit matrix
+    element B^k_{abcd}, the Breit analogue of the Coulomb Q^k integral.
+
+    @note Frequency independent version
+
+    @param k  Multipolarity (angular momentum rank of the interaction)
+    @param Fa (Fb,Fc,Fd) electron states
+
+    @return The static reduced Breit matrix element B^k_{abcd}.
+
+    @note Selection rules depend on angular momentum quantum numbers via Bk_SR().
+          Use k_minmax() to determine the valid multipolarity range before calling.
+
+    @note This function re-computes all radial integrals each call.
+          For repeated calls with the same basis, call fill_gb() once, then use
+          the faster variant @ref Bk_abcd_2() instead.
   */
-  DiracSpinor BWkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
-                             const DiracSpinor &Fc, const DiracSpinor &Fd,
-                             const double w) const;
+  double Bk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                 const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  /*!
+    @brief Reduced static exchange Breit two-body matrix element
+
+    @details
+    Calculates the static reduced exchange Breit matrix element P(B)^k_{abcd},
+    the Breit analogue of the Coulomb P^k integral.
+
+    @note Frequency independent version
+  */
+  double BPk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                  const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  /*!
+    @brief Reduced static anti-symmetrised Breit two-body matrix element
+
+    @details
+    Calculates the static reduced anti-symmetrised Breit matrix element
+    W(B)^k_{abcd} = B^k_{abcd} + P(B)^k_{abcd}.
+
+    @note Frequency independent version
+  */
+  double BWk_abcd(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                  const DiracSpinor &Fc, const DiracSpinor &Fd) const;
 
   /*!
     @brief Reduced static Breit matrix element (tabulated, fast lookup)
@@ -534,6 +441,8 @@ public:
           is undefined.
 
     @warning Do not use this function unless fill_gb() has been successfully called.
+
+    @note Only implemented for frequency independent case
   */
   double Bk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                    const DiracSpinor &Fc, const DiracSpinor &Fd) const;
@@ -560,6 +469,8 @@ public:
           can be used. The spinors must be members of the basis provided to fill_gb().
 
     @warning Do not use this function unless fill_gb() has been successfully called.
+
+    @note Only implemented for frequency independent case
   */
   double BPk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd) const;
@@ -587,6 +498,8 @@ public:
           can be used. The spinors must be members of the basis provided to fill_gb().
 
     @warning Do not use this function unless fill_gb() has been successfully called.
+
+    @note Only implemented for frequency independent case
   */
   double BWk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
                     const DiracSpinor &Fc, const DiracSpinor &Fd) const;
@@ -595,10 +508,10 @@ public:
     @brief The one-body Breit (Breit-Hartree-Fock) correction to second-order energy
 
     @details
-    Calculates the one-body Breit (Breit-Hartree-Fock) correction to second-order 
+    Calculates the one-body Breit (Breit-Hartree-Fock) correction to second-order
     energy for a single-valence atom. This is included automatically if Breit is included into Hartree-Fock.
     (The lowest-order Breit correction <v|V_Br|v> not included.)
-    
+
 
     @param Fv      The valence electron state of interest
     @param holes   Occupied core electron states
@@ -614,6 +527,8 @@ public:
     @warning May significantly overcount or undercount energy shifts if
              Breit-Coulomb HF is not self-consistent. Use primarily as
              a correction term in perturbative Breit-on-Coulomb calculations.
+
+    @note Will automatically include freuqnecy-dependence if lambda non-zero
   */
   double de2_HF(const DiracSpinor &Fv, const std::vector<DiracSpinor> &holes,
                 const std::vector<DiracSpinor> &excited) const;
@@ -622,16 +537,112 @@ public:
     @brief The two-body Breit correction to second-order energy
 
     @details
-    Calculates the two-body Breit correction to second-order 
+    Calculates the two-body Breit correction to second-order
     energy for a single-valence atom.
-    This is _not_ included automatically if Breit is included into Hartree-Fock, 
+    This is _not_ included automatically if Breit is included into Hartree-Fock,
     since it requires modification of two-body Coulomb integals.
-    
-    @note This is just the energy shift - Breit can be included fully into MBPT 
+
+    @note This is just the energy shift - Breit can be included fully into MBPT
     calculations self-consistantly another way (see @ref MBPT)
+
+    -
+
+    @note Only frequency independent
   */
   double de2(const DiracSpinor &Fv, const std::vector<DiracSpinor> &holes,
              const std::vector<DiracSpinor> &excited) const;
+
+  /*!
+    @brief Frequency-dependent reduced Breit two-body matrix element
+
+    @details
+    - Automatically determines frequency, based on DiracSpinors
+    - Frequency-dependent analogue of @ref Bk_abcd(). See @ref Bkv_bcd_freqw().
+  */
+  double Bk_abcd_freqw(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                       const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  /*!
+    @brief Frequency-dependent reduced exchange Breit two-body matrix element
+
+    @details
+    - Automatically determines frequency, based on DiracSpinors
+    - Frequency-dependent analogue of @ref BPk_abcd(). See @ref Bkv_bcd_freqw().
+  */
+  double BPk_abcd_freqw(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                        const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  /*!
+    @brief Frequency-dependent reduced anti-symmetrised Breit two-body matrix element
+
+    @details
+    - Automatically determines frequency, based on DiracSpinors
+    - Frequency-dependent analogue of @ref BWk_abcd(). See @ref Bkv_bcd_freqw().
+  */
+  double BWk_abcd_freqw(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                        const DiracSpinor &Fc, const DiracSpinor &Fd) const;
+
+  //-------------------
+  /*!
+    @brief Frequency-dependent reduced Breit two-body matrix element (explicit frequency)
+
+    @details
+    Frequency-dependent analogue of @ref Bk_abcd(). See @ref Bkv_bcd_freqw().
+  */
+  double Bk_abcd_freqw(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                       const DiracSpinor &Fc, const DiracSpinor &Fd,
+                       const double w) const;
+
+  /*!
+    @brief Frequency-dependent reduced exchange Breit two-body matrix element (explicit frequency)
+
+    @details
+    Frequency-dependent analogue of @ref BPk_abcd(). See @ref Bkv_bcd_freqw().
+  */
+  double BPk_abcd_freqw(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                        const DiracSpinor &Fc, const DiracSpinor &Fd,
+                        const double w) const;
+
+  /*!
+    @brief Frequency-dependent reduced anti-symmetrised Breit two-body matrix element  (explicit frequency)
+
+    @details
+    Frequency-dependent analogue of @ref BWk_abcd(). See @ref Bkv_bcd_freqw().
+  */
+  double BWk_abcd_freqw(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
+                        const DiracSpinor &Fc, const DiracSpinor &Fd,
+                        const double w) const;
+
+  /*!
+    @brief Frequency-dependent Breit two-body integral "right-hand-side"
+
+    @details
+    Frequency-dependent breit analogue of @ref Bkv_bcd()
+  */
+  DiracSpinor Bkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
+                            const DiracSpinor &Fc, const DiracSpinor &Fd,
+                            const double w) const;
+
+  /*!
+    @brief Frequency-dependent exchange Breit two-body integral "right-hand-side"
+
+    @details
+    Frequency-dependent version of BPkv_bcd(). See @ref Bkv_bcd_freqw().
+  */
+  DiracSpinor BPkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
+                             const DiracSpinor &Fc, const DiracSpinor &Fd,
+                             const double w) const;
+
+  /*!
+    @brief Frequency-dependent anti-symmetrised Breit two-body 
+    integral "right-hand-side"
+
+    @details
+    Frequency-dependent version of BWkv_bcd(). See @ref Bkv_bcd_freqw().
+  */
+  DiracSpinor BWkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
+                             const DiracSpinor &Fc, const DiracSpinor &Fd,
+                             const double w) const;
 };
 
 } // namespace HF
