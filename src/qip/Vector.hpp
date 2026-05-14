@@ -34,6 +34,8 @@ std::vector<T> merge(std::vector<T> first, const std::vector<T> &second,
   @details
   Returns {delta, itr} where delta = max|first - second| (signed as first-second),
   and itr points to the position in first where the maximum occurred.
+
+  If all compare exactly, max_delta should be zero, and iterator points to begining of list.
 */
 template <typename T>
 auto compare(const std::vector<T> &first, const std::vector<T> &second) {
@@ -45,7 +47,8 @@ auto compare(const std::vector<T> &first, const std::vector<T> &second) {
   auto it1 = first.cbegin();
   auto it2 = second.cbegin();
   auto largest_delta = static_cast<T>(0);
-  auto largest_at = first.cend();
+  // auto largest_at = first.cend();
+  auto largest_at = first.cbegin();
   for (; it1 != first.cend(); ++it1, ++it2) {
     const auto delta = *it1 - *it2;
     if (std::abs(delta) > std::abs(largest_delta)) {

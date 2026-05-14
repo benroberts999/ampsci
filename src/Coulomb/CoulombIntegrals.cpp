@@ -164,7 +164,7 @@ static inline void yk_ijk_gen_impl(const int k, const Function &ff,
 
   // nb bmax may be num_points
   const auto bmax = irmax;
-  for (std::size_t i = 0; i <= bmax; i++) {
+  for (std::size_t i = 0; i < bmax; i++) {
     vi[i] = 0.0;
   }
   const auto rbmax =

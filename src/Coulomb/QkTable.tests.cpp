@@ -402,7 +402,7 @@ TEST_CASE("Coulomb: Q,W,N k Table", "[Coulomb][QkTable][unit]") {
 }
 
 //==============================================================================
-TEST_CASE("Coulomb: Breit QkTable", "[Coulomb][QkTable][Breit][bk7]") {
+TEST_CASE("Coulomb: Breit QkTable", "[Coulomb][QkTable][Breit][unit]") {
 
   const auto radial_grid = std::make_shared<const Grid>(
     GridParameters{250, 1.0e-4, 250.0, 50.0, GridType::loglinear});
