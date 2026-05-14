@@ -7,8 +7,9 @@
 ## Which compiler: (g++, clang++)
 CXX = g++
 
-## Build mode (changes warnings + optimisation level): release/dev/debug
+## Build mode (changes warnings + optimisation level): release/dev/debug/{x}san
 ## Change to dev if you plan to edit the code
+## Sanitiser modes: asan, tsan, ubsan (set CXX=clang++ for best results)
 MODE ?= release
 
 ## Speed up compilation by doing in parallel

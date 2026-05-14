@@ -120,8 +120,9 @@ LDFLAGS ?=
 ### Using OpenMP with clang on mac
 
 Use openMP for parellelisation when using clang++ on mac:
+
 * If using g++, should work as per normal
-  * On Mac, `g++` links to Apple clang - so you need to call exact compiler explicitely, 
+  * On Mac, `g++` links to Apple clang - so you need to call exact compiler explicitely,
   * e.g., `CXX = g++-15`
 * To use openMP with clang, best option is to use the llvm version of clang (not the default Apple clang)
 * _brew install llvm_
@@ -136,3 +137,28 @@ Use openMP for parellelisation when using clang++ on mac:
   * `LDFLAGS += -L/usr/local/opt/libomp/lib`
   * `LDLIBS ?= -lgsl -llapack -lblas -lomp`
   * Paths may vary: use `brew --prefix libomp`
+
+--------------------------------------------------------------------------------
+
+### Advanced compilation options
+
+* These options are relevant only for developers
+
+#### Sanitisers
+
+Clang sanitisers can be enabled via the `MODE` variable. Best used with `clang++`.
+
+| Mode | Sanitiser | OMP | Use for |
+|------|-----------|-----|---------|
+| `asan` | AddressSanitizer + UBSan | off | buffer overflows, heap/stack corruption, UB |
+| `tsan` | ThreadSanitizer | on | data races in parallel (OMP) code |
+| `ubsan` | UndefinedBehaviourSanitizer | on | integer overflow, null deref, other UB; low overhead |
+
+```bash
+make MODE=asan  CXX=clang++   # address + UB sanitiser
+make MODE=tsan  CXX=clang++   # thread sanitiser
+make MODE=ubsan CXX=clang++   # UB sanitiser only
+```
+
+Note: `asan` and `tsan` cannot be used together.
+MSan (uninitialised memory) is not supported here as it requires all linked libraries (GSL, LAPACK) to also be MSan-instrumented.

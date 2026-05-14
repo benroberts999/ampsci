@@ -55,22 +55,48 @@ else ifneq (,$(findstring g++,$(CXXNAME)))
   WARN += $(GCC_WARN)
 endif
 
+# suppress unknown OpenMP pragmas when OpenMP is not enabled.
+ifeq ($(OMPLIB),)
+  WARN += -Wno-unknown-pragmas
+endif
+
 ################################################################################
 ## Build-mode switches:
 
 ifeq ($(MODE),release)
-  WARN = -w
+  WARN = -w -fno-psabi
   EXTRA_CXXFLAGS += -g0 -DNDEBUG -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF
 endif
+
 ifeq ($(MODE),debug)
   OMPLIB=
   OPT = -O0
   EXTRA_CXXFLAGS += -g3 -fno-omit-frame-pointer
 endif
 
-# suppress unknown OpenMP pragmas when OpenMP is not enabled.
-ifeq ($(OMPLIB),)
-  WARN += -Wno-unknown-pragmas
+## clang sanitisers:
+
+ifeq ($(MODE),asan)
+  # AddressSanitizer + UndefinedBehaviourSanitizer. Use clang++ for best output.
+  # OMP disabled to avoid false positives from OMP runtime.
+  OMPLIB=
+  OPT = -O1
+  EXTRA_CXXFLAGS += -g3 -fno-omit-frame-pointer -fsanitize=address,undefined
+  LDFLAGS += -fsanitize=address,undefined
+endif
+
+ifeq ($(MODE),tsan)
+  # ThreadSanitizer. Use clang++ for best output.
+  OPT = -O1
+  EXTRA_CXXFLAGS += -g3 -fno-omit-frame-pointer -fsanitize=thread
+  LDFLAGS += -fsanitize=thread
+endif
+
+ifeq ($(MODE),ubsan)
+  # UndefinedBehaviourSanitizer only: lower overhead than asan, OMP kept.
+  OPT = -O1
+  EXTRA_CXXFLAGS += -g3 -fno-omit-frame-pointer -fsanitize=undefined
+  LDFLAGS += -fsanitize=undefined
 endif
 
 ################################################################################
