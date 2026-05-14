@@ -64,7 +64,7 @@ endif
 ## Build-mode switches:
 
 ifeq ($(MODE),release)
-  WARN = -w -fno-psabi
+  WARN = -w -Wno-psabi -Wno-unknown-pragmas
   EXTRA_CXXFLAGS += -g0 -DNDEBUG -DHAVE_INLINE -DGSL_RANGE_CHECK_OFF
 endif
 

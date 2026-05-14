@@ -33,7 +33,7 @@ The code is designed so that anyone can write a new Module to calculate anything
 
 * See [Modules](\ref modules) for more detail on general modules
   * Use `ampsci -m` to see a list of available modules
-* And [Writing Custom Modules](\ref modules_custom) for information on writing your own custom module
+* And [Writing Custom Modules and Operators](\ref modules_custom) for information on writing your own modules and operators
 
 ## Calculating matrix elements
 

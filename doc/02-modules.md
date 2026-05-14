@@ -1,11 +1,12 @@
-\page modules Modules
+\page modules Modules and Operators
 
-\brief Descpription of modules system: available modules and options
+\brief Descpription of modules system: available modules, operators, and ascociated options
 
+* See \ref tutorial_modules for a hands-on introduction to using modules.
 * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
-* Any number of _modules_ can be run by adding `Module::moduleName{}' blocks.
-* The code is designed so that you can easily create your own modules:
-  * \subpage modules_custom - \copybrief modules_custom
+* Any number of _modules_ can be run by adding `Module::moduleName{}` blocks.
+* The code is designed so that you can easily create your own modules -- see \subpage modules_custom.
+* You can also write your own operators -- see [Writing your own operator](\ref modules_custom_operator).
 
 ## Getting started with modules
 

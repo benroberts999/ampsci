@@ -1,78 +1,70 @@
-\page modules_custom Writing custom modules
+\page modules_custom Writing custom modules and operators
 
 \brief Instructions for writing your own custom ampsci modules
 
 * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
-* Any number of _modules_ can be run by adding a `Module::moduleName{}' block to the input file.
+* Any number of _modules_ can be run by adding a `Module::moduleName{}` block to the input file.
 * Get a list of available modules: `./ampsci -m`
-* See [Modules](\ref modules) for details of currently available modules
+* See \ref modules for details of currently available modules.
 * The code is designed so that you can easily create your own modules.
+* You can also write your own operators -- see [Writing your own operator](\ref modules_custom_operator) below.
 
 ## Creating your own module
 
-An example module is provided to help you write your own module;
+An example module is provided to help you write your own module:
 
 * `src/Modules/exampleModule.hpp`
 * `src/Modules/exampleModule.cpp`
 
-You should duplicate this module (both the .cpp and .hpp files) and give it a new name. That will be much easier than starting from scratch.
+Duplicate both files and give them a new name -- that is much easier than starting from scratch.
 
-* Modules are functions that have the following function signature:
+* Modules are functions with the following signature:
 
   ```cpp
-  namespace Module{
+  namespace Module {
   void exampleModule(const IO::InputBlock &input, const Wavefunction &wf);
   }
   ```
 
-* `input` is an `IO::InputBlock` that holds any input options.
+* `input` is an \ref IO::InputBlock that holds any input options supplied by the user.
 
-* `wf` is the `Wavefunction` object that was calculated by ampsci
+* `wf` is the \ref Wavefunction object calculated by ampsci -- it gives access to orbitals, the grid, and the HF potential.
 
-* They are typically placed in the `Module` namespace (but don't need to be).
+* Modules are typically placed in the `Module` namespace, but this is not required.
 
-* Typically, modules live in the `src/Modules` directory, but they can live anywhere
+* Modules typically live in `src/Modules/`, but can live anywhere.
 
-* Then, you can do anything you like inside this function
+### Including your module into ampsci
 
-## Including your Module into ampsci
-
-* In order for ampsci to know about your module, you must update the file `src/Modules/module_list.hpp`
-  * Add the corresponding header file to the #includes list
-
-* Add a `std::pair` the the `std::vector` _module_list_ in the form
+* Update `src/Modules/module_list.hpp`:
+  * Add the corresponding `#include` at the top.
+  * Add a `std::pair` to the `module_list` vector:
 
     ```cpp
-    {"moduleName", &moduleName}
+    {"moduleName", &Module::moduleName}
     ```
 
-* The first of the pair is a string, which will be the name of the module. This is how you will refer to the module in the input file.
+  * The string is the name used in the input file; the second element is a pointer to the function.
 
-* The second of the pair is the pointer to the function name.
+* Recompile ampsci.
 
-* You then have to recompile ampsci (modules are compiled into ampsci for now)
+* Run the module by adding a `Module::moduleName{}` block to the input file.
 
-* That's it - you're now ready to run your module by adding the `Module::moduleName{}` block to the input file.
+### Highly recommended (but optional)
 
-## Highly recommended (but optional)
-
-* It's highly recommended that you add a 'check()' statement for any input options that you use in your module (see example below)
-* This has two benefits:
-  * Firstly, it checks for possible spelling mistakes in user inputs
-  * (If an option) is spelled incorrectly, it will otherwise be ignored. This eaves the user thinking they set an option when they haven't
-  * Secondly, it allows you to provide a short description of each option, which will be printed to the screen when the user requests 'help' for a given Module
+* Add an `input.check()` call for all options used in your module:
 
 ```cpp
-  // Check the input option for spelling mistakes + provide description
-  input.check({{"option1", "Short description of option1 [default]"},
-               {"option2", "Short description of option2 [default]"}});
+  input.check({{"option1", "Short description of option1 [default1]"},
+               {"option2", "Short description of option2 [default2]"}});
 ```
 
-* Finally, it's strongly recommended to immediately exit the Module after the check() if 'help' was requested (see example below). This just limits unwanted noise/screen output
-* i.e., we generally don't want to actually run the module if we were just requesting help for it
+* Catches spelling mistakes in user input -- a mistyped option is silently ignored otherwise.
+* Descriptions are printed when the user requests `help` for the module.
+
+* Return immediately after `check()` if help was requested, to avoid running the module unnecessarily:
 
 ```cpp
-  // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
   }
@@ -81,21 +73,50 @@ You should duplicate this module (both the .cpp and .hpp files) and give it a ne
 * Minimal example:
 
 ```cpp
-  void exampleModule(const IO::InputBlock &input, const Wavefunction &wf){
+void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
 
-    input.check({{"option1", "Short description of option1 [default1]"},
+  input.check({{"option1", "Short description of option1 [default1]"},
                {"option2", "Short description of option2 [default2]"}});
 
-    // If we are just requesting 'help', don't run module:
-    if (input.has_option("help")) {
-      return;
-    }
-
-    // read in the input options:
-    auto option1 = input.get("option1", default1);
-    auto option2 = input.get("option2", default2);
-    // The variable 'option1' will be set according to the user input
-    // If no user input for option1 was given, it will be set to default1
-    // See documentation for IO::InputBlock for more detail
+  if (input.has_option("help")) {
+    return;
   }
+
+  auto option1 = input.get("option1", default1);
+  auto option2 = input.get("option2", default2);
+  // option1 is set from user input, or default1 if not given
+}
 ```
+
+---
+
+\anchor modules_custom_operator
+
+## Writing your own operator
+
+Custom operators derive from \ref DiracOperator::TensorOperator .
+See the \ref DiracOperator::TensorOperator class documentation for full instructions, including standard and non-standard cases.
+
+In short:
+
+* Construct your derived class, passing rank, parity, and other properties to the base constructor.
+* Override `angularF()` -- this is mandatory.
+* For non-standard radial dependence, also override `radial_rhs()` and `radialIntegral()`.
+* For frequency-dependent operators, pass `freq_dep=true` to the constructor and override `updateFrequency()`.
+
+Operators are registered in `src/DiracOperator/Operators/include.hpp` -- see \ref DiracOperator namespace for the full list of existing implementations to use as examples.
+
+---
+
+## Key API reference
+
+The following classes form the core API available inside a module.
+See the linked API docs for full details.
+
+* \ref DiracSpinor -- single relativistic orbital \f$ F_{n\kappa} = (f, g) \f$; radial components, quantum numbers, arithmetic, inner products.
+
+* \ref Wavefunction -- full atomic state: core/valence/basis orbital lists, radial grid, nuclear potential, and the HF object.
+
+* \ref HF::HartreeFock -- self-consistent HF field; accessible via `wf.vHF()`.
+
+* \ref DiracOperator::TensorOperator -- virtual base class for single-particle tensor operators (E1, hfs, pnc, ...); reduced matrix elements, selection rules, radial integrals.
