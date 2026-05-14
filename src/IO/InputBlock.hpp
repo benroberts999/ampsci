@@ -48,7 +48,7 @@ inline T parse_str_to_T(const std::string &value_as_str);
 //! Parses entire file into string. Note: v. inefficient
 inline std::string file_to_string(const std::istream &file);
 
-//! Class to determine if a class template in vector
+//! Compile-time trait: IsVector<T>::v is true if T is std::vector. IsVector<T>::t is the element type.
 template <typename T>
 struct IsVector {
   constexpr static bool v = false;
@@ -57,15 +57,10 @@ struct IsVector {
 template <typename T>
 struct IsVector<std::vector<T>> {
   constexpr static bool v = true;
-  // nb: returns conatined type of vector
   using t = T;
 };
-// e.g.:
-// std::cout << std::boolalpha;
-// std::cout << IO::IsVector<int>::v << "\n";
-// std::cout << IO::IsVector<std::vector<int>>::v << "\n";
-// std::cout << IO::IsVector<std::vector<double>>::v << "\n";
 
+//! Compile-time trait: IsArray<T>::v is true if T is std::array. IsArray<T>::t is the element type; IsArray<T>::size is the extent.
 template <typename T>
 struct IsArray {
   constexpr static bool v = false;
@@ -75,7 +70,6 @@ struct IsArray {
 template <typename T, std::size_t N>
 struct IsArray<std::array<T, N>> {
   constexpr static bool v = true;
-  // nb: returns conatined type of array
   using t = T;
   static constexpr std::size_t size = N;
 };
@@ -89,6 +83,7 @@ inline void print_line(const char c = '*', const int num = 80) {
 }
 
 //==============================================================================
+//! Returns current local date and time as a string, e.g. "2026-05-14 13:01:02".
 inline std::string time_date() {
   const auto now =
     std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -96,6 +91,7 @@ inline std::string time_date() {
   std::strftime(buffer, 30, "%F %T", localtime(&now));
   return buffer;
 }
+//! Returns current local date as a string, e.g. "2026-05-14".
 inline std::string date() {
   const auto now =
     std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -103,6 +99,7 @@ inline std::string date() {
   std::strftime(buffer, 30, "%F", localtime(&now));
   return buffer;
 }
+//! Returns current local time as a string, e.g. "13:01:02".
 inline std::string time() {
   const auto now =
     std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
@@ -133,23 +130,27 @@ struct Option {
 };
 
 //==============================================================================
-//! Holds list of Options, and a list of other InputBlocks. Can be initialised
-//! with a list of options, with a string, or from a file (ifstream).
-//! Format for input is, e.g.,:
 /*!
- BlockName1{
-   option1=value1;
-   option2=value2;
-   InnerBlock{
-     option1=v3;
-   }
- }
+  @brief Holds a named list of key=value options and nested InputBlocks.
+  @details
+  Parses and stores structured input in the format:
 
- Note: comparison for block/option names is case insensitive!
+  ```
+  BlockName1 {
+    option1 = value1;
+    option2 = value2;
+    InnerBlock {
+      option1 = v3;
+    }
+  }
+  ```
+
+  Can be constructed from a literal option list, a string, or a file stream.
+  Block and option name comparison is case-insensitive.
+
+  @note Implementations are inline in the header for single-file header-only use.
 */
-// nb: I sepparate the function implementations below (in the header file) and
-// mark them as inline. This is for readability only, and ensures this file
-// works as a single-file header-only
+// nb: implementations are separated below (inline) for readability only
 class InputBlock {
 private:
   std::string m_name{};
@@ -157,85 +158,121 @@ private:
   std::vector<InputBlock> m_blocks{};
 
 public:
-  //! Default constructor: name will be blank
+  //! Default constructor; name will be blank.
   InputBlock() {};
 
-  //! Construct from literal list of 'Options' (see Option struct)
+  //! Constructs from a literal list of Option structs.
   InputBlock(std::string_view name, std::initializer_list<Option> options = {})
     : m_name(name), m_options(options) {}
 
-  //! Construct from a string with the correct Block{option=value;} format
+  //! Constructs by parsing @p string_input in Block{option=value;} format.
   InputBlock(std::string_view name, const std::string &string_input)
     : m_name(name) {
     add(string_input);
   }
 
-  //! Construct from plain text file, in Block{option=value;} format
+  //! Constructs by reading and parsing a plain-text file stream.
   InputBlock(std::string_view name, const std::istream &file) : m_name(name) {
     add(file_to_string(file));
   }
 
-  //! Add a new InputBlock (merge: will be merged with existing if names
-  //! match)
+  /*!
+    @brief Appends or merges a child InputBlock.
+    @details
+    If @p merge is false (default), always appends @p block.
+    If @p merge is true and a block with the same name already exists,
+    the options from @p block are merged into the existing block instead.
+  */
   inline void add(InputBlock block, bool merge = false);
+
+  //! Merges @p block into an existing block of the same name, or appends it.
   inline void merge(InputBlock block) { add(block, true); }
-  //! Adds a new option to end of list
+
+  //! Appends a single Option to the option list.
   inline void add(Option option);
+
+  //! Appends a list of Options to the option list.
   inline void add(const std::vector<Option> &options);
-  //! Adds options/inputBlocks by parsing a string
+
+  /*!
+    @brief Parses @p string and adds its options and blocks.
+    @details
+    Comments, whitespace, and quote marks are stripped before parsing.
+    If @p merge is true, duplicate block names are consolidated rather than
+    appended.
+  */
   inline void add(const std::string &string, bool merge = false);
+
+  //! Parses @p string and merges any duplicate block names.
   inline void merge(const std::string &string) { add(string, true); }
 
+  //! Returns the name of this block.
   std::string_view name() const { return m_name; }
-  //! Return const reference to list of options
+
+  //! Returns const reference to the list of options.
   const std::vector<Option> &options() const { return m_options; }
-  //! Return const reference to list of blocks
+
+  //! Returns const reference to the list of child blocks.
   const std::vector<InputBlock> &blocks() const { return m_blocks; }
 
-  //! Comparison of blocks compares the 'name'
+  //! Equality/inequality compare by block name (case-insensitive).
   friend inline bool operator==(InputBlock block, std::string_view name);
   friend inline bool operator==(std::string_view name, InputBlock block);
   friend inline bool operator!=(InputBlock block, std::string_view name);
   friend inline bool operator!=(std::string_view name, InputBlock block);
 
-  //! If 'key' exists in the options, returns value. Else, returns
-  //! default_value. Note: If two keys with same name, will use the later
+  /*!
+    @brief Returns the value of @p key, or @p default_value if not found.
+    @details
+    If the same key appears more than once, the later occurrence takes
+    precedence. For bool, accepts "true"/"yes"/"y" (case-insensitive).
+    For std::vector<T> or std::array<T,N>, parses a comma-separated list.
+    @note Cannot be used with T = const char*; use std::string instead.
+  */
   template <typename T>
   T get(std::string_view key, T default_value) const;
 
-  //! Returns optional value. Contains value if key exists; empty otherwise.
-  //! Note: If two keys with same name, will use the later
+  /*!
+    @brief Returns an optional value for @p key; empty if not found or unset.
+    @details
+    If the same key appears more than once, the later occurrence takes
+    precedence. A value of "default" or empty string is treated as unset
+    (returns nullopt). Supports T = std::vector<T> or std::array<T,N> for
+    comma-separated list values.
+  */
   template <typename T = std::string>
   std::optional<T> get(std::string_view key) const;
 
-  //! Check is option is present (even if not set) in current block.
+  //! Returns true if @p key is present in this block's option list, even if unset.
   bool has_option(std::string_view key) const {
     const auto option = std::find(m_options.crbegin(), m_options.crend(), key);
     return !(option == m_options.crend());
   }
 
-  //! Check if option is present AND has been set
+  //! Returns true if @p key is present and has a non-default, non-empty value.
   bool option_is_set(std::string_view key) const {
     return !(get(key) == std::nullopt);
   }
 
-  //! Get value from set of nested blocks. .get({block1,block2},option)
+  //! Returns value of @p key in a sequence of nested blocks, or @p default_value.
   template <typename T>
   T get(std::initializer_list<std::string> blocks, std::string_view key,
         T default_value) const;
-  //! As above, but without default value
+
+  //! Returns optional value of @p key in a sequence of nested blocks; empty if not found.
   template <typename T>
   std::optional<T> get(std::initializer_list<std::string> blocks,
                        std::string_view key) const;
 
-  //! Returns optional InputBlock. Contains InputBlock if block of given name
-  //! exists; empty otherwise.
+  //! Returns an optional copy of the child block named @p name; empty if not found.
   inline std::optional<InputBlock> getBlock(std::string_view name) const;
+
+  //! Returns an optional copy of a block found by traversing @p blocks then looking for @p name.
   inline std::optional<InputBlock>
   getBlock(std::initializer_list<std::string> blocks,
            std::string_view name) const;
 
-  //! If block is present, returns a copy of it. If not, returns empty block
+  //! Returns a copy of the child block named @p name, or an empty block if not found.
   inline InputBlock get_block(std::string_view name) const {
     auto temp = getBlock(name);
     if (temp)
@@ -243,37 +280,43 @@ public:
     return InputBlock{};
   }
 
-  //! Checks if block 'name' is present in current block
+  //! Returns true if a child block named @p name exists in this block.
   bool has_block(std::string_view name) const {
     auto temp = getBlock(name);
     return temp != std::nullopt;
   }
-  //! Checks if block 'name' is present in nesteded block
+
+  //! Returns true if a block named @p name exists within the given nested @p blocks.
   bool has_block(std::initializer_list<std::string> blocks,
                  std::string_view name) const {
     auto temp = getBlock(blocks, name);
     return temp != std::nullopt;
   }
 
-  //! Get an 'Option' (kay, value) - rarely needed
+  //! Returns the raw Option struct for @p key; rarely needed directly.
   inline std::optional<Option> getOption(std::string_view key) const;
 
-  //! Prints options to screen in user-friendly form. Same form as input
-  //! string. By default prints to cout, but can be given any ostream
+  //! Prints the block contents to @p os in Block{option=value;} format.
   inline void print(std::ostream &os = std::cout, int indent_depth = 0) const;
 
-  //! Check all the options and blocks in this; if any of them are not present
-  //! in 'list', then there is likely a spelling error in the input => returns
-  //! false, warns user, and prints all options to screen. list is a pair:
-  //! {option, description}. Description allws you to explain what each option
-  //! is - great for 'self-documenting' code
-  //! If print=true - will print all options+descriptions even if all good.
+  /*!
+    @brief Validates options and sub-blocks against an allowed list.
+    @details
+    Checks each option and sub-block in the nested path @p blocks against
+    @p list. If any are not found, a warning is printed along with the nearest
+    spelling suggestion, and false is returned. If @p print is true, the full
+    list of allowed options and descriptions is always printed.
+
+    The list entries are pairs of {option_name, description}. Blocks are
+    identified by a trailing `{}` in the name, e.g., "SubBlock{}".
+    Descriptions support self-documenting input files.
+  */
   inline bool
   check(std::initializer_list<std::string> blocks,
         const std::vector<std::pair<std::string, std::string>> &list,
         bool print = false) const;
 
-  //! Override for when condidering current block
+  //! Validates options in the current block against @p list. See check() overload for details.
   inline bool
   check(const std::vector<std::pair<std::string, std::string>> &list,
         bool print = false) const {
