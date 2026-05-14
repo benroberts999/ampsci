@@ -207,8 +207,18 @@ double CoulombTable<S>::P(int k, nkIndex a, nkIndex b, nkIndex c, nkIndex d,
       Angular::triangle(2 * k, tjb, tjd) == 0)
     return 0.0;
 
-  const auto [lmin, lmax] = k_minmax_Q(ka, kb, kd, kc); // exchange
-  for (int l = lmin; l <= lmax; l += 2) {
+  // We may store non-Coulomb integrals in this table (for example, Breit)
+  // Then, the parity selection rule doesn't apply,
+  // and we don't know what the actual rule is, so use whole range
+  const auto [lmin, lmax] = [&]() -> std::pair<int, int> {
+    if constexpr (S == Symmetry::Qk)
+      return k_minmax_Q(ka, kb, kd, kc);
+    else
+      return {0, max_k()};
+  }();
+  const int dl = (S == Symmetry::Qk) ? 2 : 1;
+
+  for (int l = lmin; l <= lmax; l += dl) {
     const auto ql = this->Q(l, a, b, d, c); // exchange
     if (ql == 0.0)
       continue;
@@ -242,8 +252,18 @@ double CoulombTable<S>::P2(int k, const DiracSpinor &a, const DiracSpinor &b,
   if (Coulomb::triangle(a, c, k) == 0 || Coulomb::triangle(k, b, d) == 0)
     return 0.0;
 
-  const auto [lmin, lmax] = k_minmax_Q(a, b, d, c); // exchange
-  for (int l = lmin; l <= lmax; l += 2) {
+  // We may store non-Coulomb integrals in this table (for example, Breit)
+  // Then, the parity selection rule doesn't apply,
+  // and we don't know what the actual rule is, so use whole range
+  const auto [lmin, lmax] = [&]() -> std::pair<int, int> {
+    if constexpr (S == Symmetry::Qk)
+      return k_minmax_Q(a, b, d, c);
+    else
+      return {0, max_k()};
+  }();
+  const int dl = (S == Symmetry::Qk) ? 2 : 1;
+
+  for (int l = lmin; l <= lmax; l += dl) {
     const auto ql = this->Q(l, a, b, d, c); // exchange
     if (ql == 0.0)
       continue;
@@ -284,8 +304,15 @@ double CoulombTable<S>::g(const DiracSpinor &a, const DiracSpinor &b,
 
   //
   double g = 0.0;
-  const auto [k0, ki] = k_minmax_Q(a, b, c, d);
-  for (int k = k0; k <= ki; k += 2) {
+  const auto [k0, ki] = [&]() -> std::pair<int, int> {
+    if constexpr (S == Symmetry::Qk)
+      return k_minmax_Q(a, b, c, d);
+    else
+      return {0, max_k()};
+  }();
+  const int dk = (S == Symmetry::Qk) ? 2 : 1;
+
+  for (int k = k0; k <= ki; k += dk) {
     if (std::abs(twoq) > 2 * k)
       continue;
 

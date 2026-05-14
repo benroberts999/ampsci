@@ -70,6 +70,7 @@ using SelectionRules =
   
   - {abcd} = cbad = adcb = cdab = badc = bcda = dabc = dcba.
   - Normal ordering: "smallest" of above 8 options
+  - [ Also assumes Coulomb selection rules, for @ref fill(), and @ref P(), @ref W() ]
   
   ### Wk symmetry (same as g):
 
@@ -83,8 +84,19 @@ using SelectionRules =
 
   - No symmetry assumed; each integral treated as unique.
 
-  @warning 
+  @note Hashtable lookup is significant bottleneck. Should look into better hashmaps.
+
+  @warning
   Requires 0<n<256, see \ref Angular::nk_to_index
+
+  @note The internal summations in @ref P(), @ref P2(), @ref W(), and @ref g()
+  depend on the selection rules, and @p S:
+  for @ref Symmetry::Qk, we assume Coulomb angular selection rules, 
+  including parity rule, (via @ref k_minmax_Q); 
+  for all other symmetries no explicit selection rule is assumed.
+  The @ref fill() and @ref fill_if() functions also make this assumption;
+  these functions are only available for the @ref Symmetry::Qk symmetry, and
+  in that case, assume the regular Coulomb selection rules.
 */
 template <Symmetry S>
 class CoulombTable {
@@ -115,7 +127,7 @@ public:
     @param k_cut   Maximum multipolarity k. Set to <=0 for no cut-off.
     @param print   If true, prints timing and summary.
 
-    @note Only valid for QkTable (enforced via static_assert).
+    @note Only valid for QkTable ( @ref Symmetry::Qk ) (enforced via static_assert).
     @warning Does not update existing entries; only adds new ones.
   */
   void fill(const std::vector<DiracSpinor> &basis, const YkTable &yk,
@@ -136,7 +148,7 @@ public:
     @param k_cut               Maximum multipolarity k. Set to <=0 for no cut-off.
     @param print               If true, prints timing and summary.
 
-    @note Only valid for QkTable (enforced via static_assert).
+    @note Only valid for QkTable ( @ref Symmetry::Qk ) (enforced via static_assert).
     @warning Does not update existing entries; only adds new ones.
   */
   void fill_if(const std::vector<DiracSpinor> &basis, const YkTable &yk,
@@ -260,6 +272,7 @@ public:
   //! Retrieve a stored Q. If not present, returns 0. (Returns exactly as
   //! stored in table.)
   Real Q(int k, nkIndex a, nkIndex b, nkIndex c, nkIndex d) const;
+
   //! Retrieve a stored Q. If not present, returns 0. (Returns exactly as
   //! stored in table.)
   Real Q(int k, nk4Index index) const;
@@ -267,37 +280,73 @@ public:
   //! Returns 'R', defined via: R := Q / (angular_coef)
   Real R(int k, const DiracSpinor &a, const DiracSpinor &b,
          const DiracSpinor &c, const DiracSpinor &d) const;
+
   //! Returns 'R', defined via: R := Q / (angular_coef)
   Real R(int k, nkIndex a, nkIndex b, nkIndex c, nkIndex d) const;
 
-  //! 'Exchange-only', defined via W = Q + P. Optionally, takes pointer to 6J
-  //! table (faster eval of 6J symbols)
+  /*!
+    @brief Exchange integral P^k_abcd = (2k+1) sum_l {6j} Q^l_abdc.
+    @details
+    Computes the exchange part of the antisymmetrised W = Q + P integral.
+    Optionally uses a precomputed 6J table for faster evaluation.
+    @note For @ref Symmetry::Qk, l is iterated using Coulomb angular selection
+          rule bounds (k_minmax_Q); for all other symmetries, l runs over
+          [0, max_k()]. See @ref CoulombTable.
+  */
   Real P(int k, const DiracSpinor &a, const DiracSpinor &b,
          const DiracSpinor &c, const DiracSpinor &d,
          const Angular::SixJTable *const sj = nullptr) const;
-  //! 'Exchange-only', defined via W = Q + P. Optionally, takes pointer to 6J
-  //! table (faster eval of 6J symbols)
+
+  /*!
+    @brief Exchange integral P^k_abcd = (2k+1) sum_l {6j} Q^l_abdc.
+    @details
+    As @ref P(int, const DiracSpinor&, ...) but takes @ref nkIndex arguments.
+    @note For @ref Symmetry::Qk, l is iterated using Coulomb angular selection
+          rule bounds (k_minmax_Q); for all other symmetries, l runs over
+          [0, max_k()]. See @ref CoulombTable.
+  */
   Real P(int k, nkIndex a, nkIndex b, nkIndex c, nkIndex d,
          const Angular::SixJTable *const sj = nullptr) const;
 
-  //! 'Exchange-only', defined via W = Q + P. Optionally, takes pointer to 6J
-  //! table (faster eval of 6J symbols) - with screening
+  /*!
+    @brief Exchange integral P^k_abcd with effective Coulomb screening.
+    @details
+    As @ref P(), but each l term is weighted by a screening factor fk[l].
+    @note For @ref Symmetry::Qk, l is iterated using Coulomb angular selection
+          rule bounds (k_minmax_Q); for all other symmetries, l runs over
+          [0, max_k()]. See @ref CoulombTable.
+  */
   Real P2(int k, const DiracSpinor &a, const DiracSpinor &b,
           const DiracSpinor &c, const DiracSpinor &d,
           const Angular::SixJTable &sj, const std::vector<double> &fk) const;
 
-  //! W^k_abcd = Q^k_abcd + \sum_l [k] 6j * Q^l_abdc. Optionally, takes
-  //! pointer to 6J table (faster eval of 6J symbols)
+  /*!
+    @brief Antisymmetrised integral W^k_abcd = Q^k_abcd + P^k_abcd.
+    @details
+    Returns Q + P. Optionally uses a precomputed 6J table.
+    @note l iteration in P() depends on symmetry S; see @ref P() and @ref CoulombTable.
+  */
   Real W(int k, const DiracSpinor &a, const DiracSpinor &b,
          const DiracSpinor &c, const DiracSpinor &d,
          const Angular::SixJTable *const sj = nullptr) const;
 
-  //! W^k_abcd = Q^k_abcd + \sum_l [k] 6j * Q^l_abdc.
-  //! Optionally, takes pointer to 6J table (faster eval of 6J symbols)
+  /*!
+    @brief Antisymmetrised integral W^k_abcd = Q^k_abcd + P^k_abcd.
+    @details
+    As @ref W(int, const DiracSpinor&, ...) but takes @ref nkIndex arguments.
+    @note l iteration in P() depends on symmetry S; see @ref P() and @ref CoulombTable.
+  */
   Real W(int k, nkIndex a, nkIndex b, nkIndex c, nkIndex d,
          const Angular::SixJTable *const sj = nullptr) const;
 
-  //! Returns 'g_abcd'
+  /*!
+    @brief Full matrix element g_abcd with explicit magnetic quantum numbers.
+    @details
+    Sums over k, weighted by 3j symbols, using the stored Q^k values.
+    @note For @ref Symmetry::Qk, k is iterated using Coulomb angular selection
+          rule bounds (step 2); for all other symmetries, k runs over
+          [0, max_k()] with step 1. See @ref CoulombTable.
+  */
   Real g(const DiracSpinor &a, const DiracSpinor &b, const DiracSpinor &c,
          const DiracSpinor &d, int tma, int tmb, int tmc, int tmd) const;
 
@@ -353,9 +402,13 @@ private:
   @brief Coulomb integral table with 8-fold Qk symmetry.
   @details
   Stores Q^k_abcd assuming the symmetry:
-  {abcd} = cbad = adcb = cdab = badc = bcda = dabc = dcba.
+
+   - {abcd} = cbad = adcb = cdab = badc = bcda = dabc = dcba.
+
   Normal ordering is the lexicographically smallest arrangement among
   these 8 equivalents.
+
+  @note See @ref CoulombTable note regarding selection rules assumptions
 */
 using QkTable = CoulombTable<Symmetry::Qk>;
 
