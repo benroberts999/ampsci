@@ -50,13 +50,13 @@ inline void progbar(int i, int max, int length = 50) {
   Just a simple way of run-time turning off.
 
   @note
-  When stdout is not a normal TTY terminal (i.e., when output is piped), 
-  intermediate updates are not printed. The bar will start at 0%, and
-  then only jump to 100% when job is completed.
+  When stdout is not a TTY (i.e., piped), prints comma-separated percentages
+  instead of a bar: "0%, 10%, 20%, ... 100%\n". Prints approximately
+  @p Length / 5 values, spaced evenly.
 
-  The @p length template parameter specifies the total character width of the
-  output, including '[', the bar content, ']', and the percentage display.
-  The default is 55.
+  The @p Length template parameter controls output width.
+  For TTY mode: total bar width in characters.
+  For non-TTY mode: determines how many percentage values are printed (~Length/5).
 
   @note If the loop exits before the final iteration (i.e., early `break;`), 
   then final the newline `\n` will not be printed. Output may be messy.
@@ -76,56 +76,22 @@ inline void progbar(int i, int max, int length = 50) {
 
   - Put .update(); _after_ work, to avoid early "100% done" reporting
 
-  @tparam Length Total character width of the output (default 55).
+  @tparam Length Total character width of the output (default 60).
 
   @note Thread-safe; safe to call from multiple threads simultaneously.
   But may add overhead.
 */
-template <std::size_t Length = 55>
+template <std::size_t Length = 60>
 class ProgressBar {
 private:
   int m_max;
   bool m_print;
   // Atomicly tracks progress
   std::atomic<int> m_progress{0};
-  // bar chars printed last time; skip if unchanged
+  // TTY: bar fill chars printed last time. Non-TTY: last percentage slot printed.
   std::atomic<int> m_last_fill{-1};
 
   static constexpr std::size_t bar_width = (Length >= 7) ? (Length - 7) : 1;
-
-  void print_prog_bar(int progress) {
-    const bool is_initial = (progress == 0);
-    const bool is_final = (progress == m_max);
-
-    // when piped, skip intermediate updates to avoid cluttering captured output
-    const bool is_tty = isatty(fileno(stdout));
-    if (!is_tty && !is_final && !is_initial)
-      return;
-
-    // build bar into stack buffer (char array)
-    const auto current = int(bar_width * double(progress) / double(m_max));
-    char buf[Length + 2];
-    char *p = buf;
-    *p++ = '[';
-    for (int j = 0; j < current; ++j)
-      *p++ = '=';
-    for (int j = current; j < (int)bar_width; ++j)
-      *p++ = ' ';
-    *p++ = ']';
-    *p++ = ' ';
-    p += snprintf(p, sizeof(buf) - std::size_t(p - buf) - 2, "%d%%",
-                  int(100.0 * double(progress) / double(m_max)));
-    *p++ = is_final ? '\n' : '\r';
-    *p = '\0';
-
-    // serialise writes to std::out
-#pragma omp critical
-    {
-      fputs(buf, stdout);
-      fflush(stdout);
-    }
-    m_last_fill.store(current, std::memory_order_relaxed);
-  }
 
 public:
   /*!
@@ -154,6 +120,79 @@ public:
       return;
 
     print_prog_bar(progress);
+  }
+
+private:
+  //----------------------------------------------------------------------------
+
+  // Prints progress bar (when stdout is a normal tty)
+  void print_prog_bar(int progress) {
+    const bool is_tty = isatty(fileno(stdout));
+    if (!is_tty) {
+      print_prog_bar_notty(progress);
+      return;
+    }
+
+    const bool is_final = (progress == m_max);
+
+    // build bar into stack buffer (char array)
+    const auto current = int(bar_width * double(progress) / double(m_max));
+    char buf[Length + 2];
+    char *p = buf;
+    *p++ = '[';
+    for (int j = 0; j < current; ++j)
+      *p++ = '=';
+    for (int j = current; j < (int)bar_width; ++j)
+      *p++ = ' ';
+    *p++ = ']';
+    *p++ = ' ';
+    p += snprintf(p, sizeof(buf) - std::size_t(p - buf) - 2, "%d%%",
+                  int(100.0 * double(progress) / double(m_max)));
+    *p++ = is_final ? '\n' : '\r';
+    *p = '\0';
+
+    // serialise writes to std::out
+#pragma omp critical
+    {
+      fputs(buf, stdout);
+      fflush(stdout);
+    }
+    m_last_fill.store(current, std::memory_order_relaxed);
+  }
+
+  //----------------------------------------------------------------------------
+
+  // Prints progress "bar" (comma separated %) (when stdout is NOT a normal tty)
+  void print_prog_bar_notty(int progress) {
+    const bool is_initial = (progress == 0);
+    const bool is_final = (progress == m_max);
+
+    const int pct =
+      is_final ? 100 : int(100.0 * double(progress) / double(m_max));
+
+    // number of entries ~ Length/5 chars each; interval between prints in pct
+    static constexpr int n_entries = static_cast<int>(Length) / 5;
+    static constexpr int interval =
+      (n_entries > 1) ? (100 / (n_entries - 1)) : 100;
+    const int slot = pct / interval;
+
+    if (!is_initial && !is_final &&
+        slot <= m_last_fill.load(std::memory_order_relaxed))
+      return;
+
+    char buf[8];
+    if (is_final)
+      snprintf(buf, sizeof(buf), "100%%\n");
+    else
+      snprintf(buf, sizeof(buf), "%d%%, ", pct);
+
+#pragma omp critical
+    {
+      fputs(buf, stdout);
+      fflush(stdout);
+    }
+    if (!is_final)
+      m_last_fill.store(slot, std::memory_order_relaxed);
   }
 };
 
