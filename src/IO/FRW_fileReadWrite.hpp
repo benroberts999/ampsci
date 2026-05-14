@@ -9,106 +9,24 @@
 #include <utility>
 #include <vector>
 /*!
-Functions to help read-write data to files, including binary files.
+  @brief File read/write utilities: text parsing and binary I/O.
+  @details
+  Low-level helpers for reading and writing text and binary files. Includes
+  functions for parsing space- or line-separated input files (with comment
+  stripping), reading (x, y) data, and variadic binary read/write for PoD types,
+  vectors, and strings.
+
+  @warning Many functions in this namespace are old and some are obsolete.
+  Use sparingly and with caution -- prefer higher-level IO interfaces where
+  available.
 */
 namespace IO::FRW {
 
-//==============================================================================
-// Uses compile-time recursion to get access to elements of tuple.
-// Specifically, string-streams data from a string vector into tuple.
-// Works with a tuple of references, i.e., std::forward_as_tuple
-// Idea from:
-// https://stackoverflow.com/questions/1198260/iterate-over-tuple/23142715
-template <std::size_t I = 0, typename... Tp>
-inline typename std::enable_if<I == sizeof...(Tp), void>::type
-stringstreamVectorIntoTuple(const std::vector<std::string> &,
-                            std::tuple<Tp...> &) {}
-
-template <std::size_t I = 0, typename... Tp>
-  inline typename std::enable_if <
-  I<sizeof...(Tp), void>::type
-  stringstreamVectorIntoTuple(const std::vector<std::string> &lst,
-                              std::tuple<Tp...> &t) {
-  if (I > lst.size())
-    std::cerr << "\nFAIL 34 in FRW: list shorter than tuple\n";
-  std::stringstream(lst[I]) >> std::get<I>(t);
-  stringstreamVectorIntoTuple<I + 1, Tp...>(lst, t);
-}
-
-//==============================================================================
-inline std::vector<std::string> readInputFile_byEntry(const std::string &fname)
-// Reads each item (space separated) from a file into a string vector
-// Any text after a '#' or '!' are treated as comments and ignored
-// (can come anywhere in the line)
-{
-  std::vector<std::string> entry_list;
-  std::ifstream file(fname);
-  std::string line;
-  while (getline(file, line) && (file.is_open())) { // redundant?
-    std::stringstream ss(line);
-    std::string entry;
-    while (ss >> entry) {
-      if (entry.at(0) == '!' || entry.at(0) == '#')
-        break;
-      if (entry.size() >= 2 && entry.at(0) == '/' && entry.at(1) == '/')
-        break;
-      entry_list.push_back(entry);
-    }
-  }
-  return entry_list;
-}
-
-//==============================================================================
-inline std::vector<std::string> readInputFile_byLine(const std::string &fname)
-// Reads each line from a file into a string vector
-// Lines beginning with '!' or '#' are comments
-{
-  std::vector<std::string> entry_list;
-  std::ifstream file(fname);
-  std::string line;
-  while (getline(file, line) && (file.is_open())) { // redundant?
-    if (line == "")
-      continue;
-    if (line.at(0) == '!' || line.at(0) == '#')
-      continue;
-    if (line.size() >= 2 && line.at(0) == '/' && line.at(1) == '/')
-      continue;
-    entry_list.push_back(line);
-  }
-  return entry_list;
-}
-
-//==============================================================================
-inline std::vector<std::pair<double, double>>
-readFile_xy_VoP(const std::string &fname)
-// Reads each line from a file into a vector of {x,y} points
-// Lines beginning with '!' or '#' are comments
-// Could generalise this to any number of points?
-{
-  std::vector<std::pair<double, double>> out_list;
-  std::ifstream file(fname);
-  std::string line = "";
-  while (getline(file, line) && (file.is_open())) { // redundant?
-    if (line == "")
-      continue;
-    if (line.at(0) == '!' || line.at(0) == '#')
-      continue;
-    if (line.size() >= 2 && line.at(0) == '/' && line.at(1) == '/')
-      continue;
-    std::stringstream ss(line);
-    double x, y;
-    ss >> x >> y;
-    out_list.emplace_back(x, y);
-  }
-  return out_list;
-}
 //------------------------------------------------------------------------------
+//! Reads (x, y) pairs from a file; returns a pair of vectors {xs, ys}.
+//! Lines beginning with '#', '!', or '//' are skipped.
 inline std::pair<std::vector<double>, std::vector<double>>
-readFile_xy_PoV(const std::string &fname)
-// Reads each line from a file;
-// Returns a pair of a vectors {{x},{y}}
-// Lines beginning with '!' or '#' are comments
-{
+readFile_xy_PoV(const std::string &fname) {
   std::pair<std::vector<double>, std::vector<double>> out_list;
   std::ifstream file(fname);
   std::string line = "";
@@ -128,37 +46,8 @@ readFile_xy_PoV(const std::string &fname)
   return out_list;
 }
 
-//------------------------------------------------------------------------------
-inline void writeFile_xy(const std::vector<double> &x,
-                         const std::vector<double> &y,
-                         const std::string &fname) {
-  //
-  if (x.size() != y.size()) {
-    std::cout << "Warning 139 in FRW: trying to write {x,y} vectors of "
-                 "different lengths!\n";
-  }
-  std::ofstream file(fname);
-  auto max = std::min(x.size(), y.size());
-  for (auto i = 0ul; i < max; ++i) {
-    file << x[i] << " " << y[i] << "\n";
-  }
-  //
-}
-
 //==============================================================================
-//! reads entire text file into a string
-inline std::string readInputFile(const std::string &fname) {
-  std::ifstream f(fname); // taking file as inputstream
-  std::string str;
-  if (f) {
-    std::ostringstream ss;
-    ss << f.rdbuf(); // reading data
-    str = ss.str();
-  }
-  return str;
-}
-
-//==============================================================================
+//! Removes C-style block comments (/* ... */) from a string in-place.
 inline void removeBlockComments(std::string &input) {
   for (auto posi = input.find("/*"); posi != std::string::npos;
        posi = input.find("/*")) {
@@ -171,9 +60,9 @@ inline void removeBlockComments(std::string &input) {
   }
 }
 //==============================================================================
-inline std::string removeCommentsAndSpaces(const std::string &input)
-// Note: also squashes lines, except for semi-colons
-{
+//! Strips comments (#, !, //, /* */), spaces, tabs, and quote characters.
+//! Lines are squashed together; semicolons are preserved as delimiters.
+inline std::string removeCommentsAndSpaces(const std::string &input) {
   std::string lines = "";
   {
     std::string line;
@@ -210,114 +99,12 @@ inline std::string removeCommentsAndSpaces(const std::string &input)
 }
 
 //==============================================================================
-inline std::vector<std::pair<std::string, std::string>>
-splitInput_byBraces(const std::string &input) {
-
-  std::vector<std::pair<std::string, std::string>> output;
-
-  auto lines = removeCommentsAndSpaces(input);
-
-  auto find_close = [&lines](auto open) {
-    auto next_open = lines.find('{', open + 1);
-    auto next_close = lines.find('}', open + 1);
-    auto next = std::min(next_open, next_close);
-    if (next == next_close || next == std::string::npos)
-      return next;
-    int depth = 1;
-    while (depth > 0) {
-      next_open = lines.find('{', next + 1);
-      next_close = lines.find('}', next + 1);
-      next = std::min(next_open, next_close);
-      if (next == next_close)
-        --depth;
-      if (next == next_open)
-        ++depth;
-    }
-    next = lines.find('}', next + 1);
-    return next;
-  };
-
-  std::size_t previous_end = 0;
-  while (true) {
-    auto beg = lines.find('{', previous_end);
-    auto end = find_close(beg);
-    if (beg == std::string::npos)
-      break;
-    if (end == std::string::npos) {
-      std::cerr << "\nFAIL 114 in FRW: Bad file format (missing '}'?)\n";
-      break;
-    }
-    auto identifier = lines.substr(previous_end, beg - previous_end);
-    auto options = lines.substr(beg + 1, end - beg - 1);
-    output.push_back(std::make_pair(identifier, options));
-    previous_end = end + 1;
-  }
-
-  return output;
-}
-
-//==============================================================================
-inline std::vector<std::string> splitInput_bySemiColon(const std::string &input)
-// ...
-{
-  std::vector<std::string> entry_list;
-
-  auto lines = removeCommentsAndSpaces(input);
-
-  // BUT, treat anything inside [] brackets as single
-
-  // after removing comments, break up by ';'
-  // std::stringstream stream2(lines);
-  // std::string entry;
-  // while (std::getline(stream2, entry, ';')) {
-  //   entry_list.push_back(entry);
-  // }
-
-  // dumb hack to ingore first braket '['..
-  std::size_t start = (input.size() > 0 && input[0] == '{') ? 1 : 0;
-
-  // std::size_t start = 0;
-  while (true) {
-    // Check if we find a ';' or an open braket '[' first:
-    const auto bkt = input.find('{', start);
-    const auto semic = input.find(';', start);
-    const auto bracketQ = bkt < semic;
-
-    // If no braket, 'end' of string is semicolon ';'.
-    // If we do have brakets, end is "];"
-    const auto end = bracketQ ? input.find("};", start) + 1 : semic;
-    if (end == std::string::npos)
-      break;
-    entry_list.push_back(input.substr(start, end - start));
-    start = end + 1;
-  }
-
-  return entry_list;
-}
-
-//==============================================================================
-template <typename... Tp>
-void setInputParameters(const std::string &infile, std::tuple<Tp...> &tp) {
-  auto input = readInputFile_byEntry(infile);
-  if (sizeof...(Tp) > input.size()) {
-    // Note: for now, I allow a longer-than-needed input list.
-    // This allows us to not have to comment out all the crap below
-    // the input file..
-    std::cerr << "\nFail 71 in FRW: Wrong number of input parameters? "
-              << "Reading from file: " << infile << ". Expected "
-              << sizeof...(Tp) << " arguments"
-              << ", but got " << input.size() << ".\n";
-    return;
-  }
-  stringstreamVectorIntoTuple(input, tp);
-}
-
-//==============================================================================
 enum RoW { read, write };
 
 // XXX Wrap these into a class. AND make explicit which types are/aren't
 // allowed!
 
+//! Opens a binary fstream for reading or writing according to @p row.
 inline void open_binary(std::fstream &stream, const std::string &fname,
                         RoW row) {
   switch (row) {
@@ -332,6 +119,7 @@ inline void open_binary(std::fstream &stream, const std::string &fname,
   }
 }
 
+//! Returns true if the file at @p fileName exists and can be opened.
 inline bool file_exists(const std::string &fileName) {
   if (fileName == "")
     return false;

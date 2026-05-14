@@ -34,16 +34,40 @@ namespace IO {
 */
 class ChronoTimer {
 public:
+  //! Constructs and immediately starts the timer. If @p in_name is non-empty,
+  //! prints elapsed time to stdout on destruction.
   ChronoTimer(std::string_view in_name = "");
+
+  /*!
+    @brief Starts (or resumes) timing.
+    @details
+    If the timer is already running, the current lap is saved to the total
+    before restarting -- equivalent to calling stop() then start().
+  */
   void start();
+
+  //! Pauses timing and accumulates elapsed time into the running total.
   void stop();
+
+  //! Clears all accumulated time and stops the timer. Must call start() to resume.
   void reset();
+
+  //! Equivalent to reset() followed by start().
   void restart();
+
+  //! Prints elapsed time if a name was given at construction.
   ~ChronoTimer();
 
+  //! Total elapsed time in milliseconds (accumulated laps + current lap if running).
   double reading_ms() const;
+
+  //! Elapsed time in milliseconds for the current lap only (since last start()).
   double lap_reading_ms() const;
+
+  //! Total elapsed time as a human-readable string (e.g., "1.56 s", "2.10 hours").
   std::string reading_str() const;
+
+  //! Current lap elapsed time as a human-readable string.
   std::string lap_reading_str() const;
 
 private:
