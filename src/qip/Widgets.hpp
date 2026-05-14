@@ -113,7 +113,8 @@ private:
       *p++ = ' ';
     *p++ = ']';
     *p++ = ' ';
-    p += snprintf(p, 10, "%d%%", int(100.0 * double(progress) / double(m_max)));
+    p += snprintf(p, sizeof(buf) - std::size_t(p - buf) - 2, "%d%%",
+                  int(100.0 * double(progress) / double(m_max)));
     *p++ = is_final ? '\n' : '\r';
     *p = '\0';
 
