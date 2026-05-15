@@ -1,13 +1,18 @@
-\page modules_custom Writing custom modules and operators
+\page modules_custom Writing custom modules
 
 \brief Instructions for writing your own custom ampsci modules
+
+A module is the standard way to do calculations with ampsci wavefunctions --
+if none of the built-in modules do what you need, writing your own is straightforward.
+Modules are just C++ functions: you write the physics, ampsci handles the wavefunction.
 
 * The modules system allows the easy calculation of any atomic properties after the wavefunction has been calculated.
 * Any number of _modules_ can be run by adding a `Module::moduleName{}` block to the input file.
 * Get a list of available modules: `./ampsci -m`
 * See \ref modules for details of currently available modules.
+* See \ref tutorial_modules for a hands-on introduction to using modules.
 * The code is designed so that you can easily create your own modules.
-* You can also write your own operators -- see [Writing your own operator](\ref modules_custom_operator) below.
+* You can also write your own operators -- see \ref modules_custom_operator.
 
 ## Creating your own module
 
@@ -50,7 +55,7 @@ Duplicate both files and give them a new name -- that is much easier than starti
 
 * Run the module by adding a `Module::moduleName{}` block to the input file.
 
-### Highly recommended (but optional)
+### Highly recommended: input checking
 
 * Add an `input.check()` call for all options used in your module:
 
@@ -90,24 +95,6 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
 
 ---
 
-\anchor modules_custom_operator
-
-## Writing your own operator
-
-Custom operators derive from \ref DiracOperator::TensorOperator .
-See the \ref DiracOperator::TensorOperator class documentation for full instructions, including standard and non-standard cases.
-
-In short:
-
-* Construct your derived class, passing rank, parity, and other properties to the base constructor.
-* Override `angularF()` -- this is mandatory.
-* For non-standard radial dependence, also override `radial_rhs()` and `radialIntegral()`.
-* For frequency-dependent operators, pass `freq_dep=true` to the constructor and override `updateFrequency()`.
-
-Operators are registered in `src/DiracOperator/Operators/include.hpp` -- see \ref DiracOperator namespace for the full list of existing implementations to use as examples.
-
----
-
 ## Key API reference
 
 The following classes form the core API available inside a module.
@@ -116,7 +103,9 @@ See the linked API docs for full details.
 * \ref DiracSpinor -- single relativistic orbital \f$ F_{n\kappa} = (f, g) \f$; radial components, quantum numbers, arithmetic, inner products.
 
 * \ref Wavefunction -- full atomic state: core/valence/basis orbital lists, radial grid, nuclear potential, and the HF object.
+  Access valence orbitals via `wf.valence()`, core via `wf.core()`, basis via `wf.basis()`.
 
 * \ref HF::HartreeFock -- self-consistent HF field; accessible via `wf.vHF()`.
 
 * \ref DiracOperator::TensorOperator -- virtual base class for single-particle tensor operators (E1, hfs, pnc, ...); reduced matrix elements, selection rules, radial integrals.
+  See \ref modules_custom_operator for writing your own operator.
