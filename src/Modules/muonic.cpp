@@ -16,8 +16,8 @@ namespace Module {
 // Declare, register, then define below.
 void muonPV(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Registrar r_muonPV{"muonPV", "For testing/playing with muonic PV",
-                         &muonPV};
+const Register r_muonPV{"muonPV", "For testing/playing with muonic PV",
+                        &muonPV};
 } // namespace
 
 void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {

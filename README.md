@@ -56,7 +56,7 @@ make
   * lapack, blas, and GSL libraries
   * make (to compile)
   * [optionally] OpenMP
-* The `install-dependencies.sh` bash script should install all required dependencies.
+* The `install-dependencies.sh` bash script will check if you have all the required dependencies, and then will ask to install anything that's missing
   * It should work on most systems, but may not work on all
 * If there are any issues, see full compilation instructions at [ampsci.dev/compilation.html](https://ampsci.dev/compilation.html)
 

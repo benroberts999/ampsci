@@ -19,8 +19,8 @@ namespace Module {
 // Declare, register, then define below.
 void QED(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Registrar r_QED{"QED", "QED corrections to energies/matrix elements",
-                      &QED};
+const Register r_QED{"QED", "QED corrections to energies/matrix elements",
+                     &QED};
 } // namespace
 
 void QED(const IO::InputBlock &input, const Wavefunction &wf) {

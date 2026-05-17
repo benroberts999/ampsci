@@ -33,19 +33,19 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf);
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf);
 void normalisation(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Registrar r_matrixElements{"matrixElements",
-                                 "Calculates matrix elements of any operator",
-                                 &matrixElements};
-const Registrar r_CI_matrixElements{
+const Register r_matrixElements{"matrixElements",
+                                "Calculates matrix elements of any operator",
+                                &matrixElements};
+const Register r_CI_matrixElements{
   "CI_matrixElements",
   "Calculates matrix elements of any operator for CI wavefunctions",
   &CI_matrixElements};
-const Registrar r_structureRad{
+const Register r_structureRad{
   "structureRad",
   "Calculates structure radiation + normalisation corrections using "
   "perturbation theory",
   &structureRad};
-const Registrar r_normalisation{
+const Register r_normalisation{
   "normalisation",
   "Calculates normalisation correction via derivative of Sigma",
   &normalisation};

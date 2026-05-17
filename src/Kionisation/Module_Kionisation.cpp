@@ -25,13 +25,13 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf);
 void formFactors(const IO::InputBlock &input, const Wavefunction &wf);
 
 namespace {
-const Registrar r_Kionisation{
+const Register r_Kionisation{
   "Kionisation", "Calculate atomic ionisation form-factors", &Kionisation};
-const Registrar r_photo{
+const Register r_photo{
   "photo", "Calculate atomic photo-ionisation form-factors", &photo};
-const Registrar r_formFactors{
-  "formFactors", "Calculate general atomic ionisation form-factors",
-  &formFactors};
+const Register r_formFactors{"formFactors",
+                             "Calculate general atomic ionisation form-factors",
+                             &formFactors};
 } // namespace
 
 //==============================================================================

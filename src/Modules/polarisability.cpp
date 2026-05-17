@@ -29,12 +29,12 @@ void dynamicPolarisability(const IO::InputBlock &input, const Wavefunction &wf);
 void transitionPolarisability(const IO::InputBlock &input,
                               const Wavefunction &wf);
 namespace {
-const Registrar r_polarisability{
+const Register r_polarisability{
   "polarisability", "Calculates static polarisabilities", &polarisability};
-const Registrar r_dynamicPolarisability{"dynamicPolarisability",
-                                        "Calculates dynamic polarisabilities",
-                                        &dynamicPolarisability};
-const Registrar r_transitionPolarisability{
+const Register r_dynamicPolarisability{"dynamicPolarisability",
+                                       "Calculates dynamic polarisabilities",
+                                       &dynamicPolarisability};
+const Register r_transitionPolarisability{
   "transitionPolarisability", "Calculates transition polarisabilities",
   &transitionPolarisability};
 } // namespace

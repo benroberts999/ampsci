@@ -21,11 +21,11 @@ namespace Module {
 void fieldShift(const IO::InputBlock &input, const Wavefunction &wf);
 void fieldShift_direct(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Registrar r_fieldShift{
+const Register r_fieldShift{
   "fieldShift",
   "Calculates field shift constants (isotope shift) using TDHF and MBPT",
   &fieldShift};
-const Registrar r_fieldShift_direct{
+const Register r_fieldShift_direct{
   "fieldShift_direct",
   "Calculates field-shift constants (isotope shift) by direct calculation "
   "(Hartree-Fock)",

@@ -21,7 +21,7 @@ namespace Module {
 // The first string is the name used in input files: Module::exampleModule{}.
 void exampleModule(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Registrar r_exampleModule{
+const Register r_exampleModule{
   "exampleModule", "A short description of the module", &exampleModule};
 } // namespace
 

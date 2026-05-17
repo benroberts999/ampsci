@@ -12,7 +12,7 @@ namespace Module {
 // Declare, register, then define below.
 void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Registrar r_screeningFactors{
+const Register r_screeningFactors{
   "screeningFactors", "Calculates Feynman electron screening factors",
   &screeningFactors};
 } // namespace

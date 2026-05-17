@@ -20,7 +20,7 @@ namespace Module {
 // Declare, register, then define below.
 void pnc(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Registrar r_pnc{"pnc", "Calculates APV amplitudes", &pnc};
+const Register r_pnc{"pnc", "Calculates APV amplitudes", &pnc};
 } // namespace
 
 // Helpers (defined below)

@@ -252,7 +252,7 @@ namespace Module {
 // Declare, register, then define below.
 void dcp(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Registrar r_dcp{"dcp", "Module for testing dcp calculations", &dcp};
+const Register r_dcp{"dcp", "Module for testing dcp calculations", &dcp};
 } // namespace
 
 void dcp(const IO::InputBlock &input, const Wavefunction &wf) {

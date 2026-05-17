@@ -11,7 +11,7 @@ namespace Module {
 // Declare, register, then define below.
 void Breit(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Registrar r_Breit{"Breit", "Breit corrections to energies", &Breit};
+const Register r_Breit{"Breit", "Breit corrections to energies", &Breit};
 } // namespace
 
 void Breit(const IO::InputBlock &input, const Wavefunction &wf) {

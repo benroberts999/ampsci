@@ -21,10 +21,10 @@ namespace Module {
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf);
 void b_plot(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Registrar r_HFAnomaly{
+const Register r_HFAnomaly{
   "HFAnomaly", "Calculates Bohr-Weisskopf effect and hyperfine anomaly",
   &HFAnomaly};
-const Registrar r_b_plot{
+const Register r_b_plot{
   "b_plot", "Calculates HFAnomaly b moments, as a function of r_rms", &b_plot};
 } // namespace
 
