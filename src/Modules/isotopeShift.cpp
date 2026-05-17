@@ -1,9 +1,9 @@
-#include "Modules/isotopeShift.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/MixedStates.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/TDHFbasis.hpp"
 #include "IO/InputBlock.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/ostream.hpp"
@@ -16,6 +16,21 @@
 #include <iostream>
 
 namespace Module {
+
+// Declare, register, then define below.
+void fieldShift(const IO::InputBlock &input, const Wavefunction &wf);
+void fieldShift_direct(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Registrar r_fieldShift{
+  "fieldShift",
+  "Calculates field shift constants (isotope shift) using TDHF and MBPT",
+  &fieldShift};
+const Registrar r_fieldShift_direct{
+  "fieldShift_direct",
+  "Calculates field-shift constants (isotope shift) by direct calculation "
+  "(Hartree-Fock)",
+  &fieldShift_direct};
+} // namespace
 
 void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"", "Calculates field shift using MBPT, including 2nd-order "

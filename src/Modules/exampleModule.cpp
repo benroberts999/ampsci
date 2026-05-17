@@ -1,20 +1,39 @@
-#include "Modules/exampleModule.hpp"
-#include "DiracOperator/include.hpp" //For E1 operator
+// exampleModule.cpp
+//
+// Template for writing a custom ampsci module.
+//
+// HOW TO ADD A NEW MODULE:
+//   1. Copy this file. Rename it (e.g., myModule.cpp).
+//   2. Rename `exampleModule` to your module name throughout this file
+//      (function, registrar string, and function pointer).
+//   3. Drop the file in src/Modules/ and recompile.
+//      That's it -- no other files need to be edited.
+
+#include "DiracOperator/include.hpp" // For E1 operator
 #include "IO/InputBlock.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
 
 namespace Module {
 
+// Declare, register, then define below.
+// The first string is the name used in input files: Module::exampleModule{}.
+void exampleModule(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Registrar r_exampleModule{
+  "exampleModule", "A short description of the module", &exampleModule};
+} // namespace
+
 void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
-  // This is an example module, designed to help you write new modules
+  // This is an example module, designed to help you write new modules.
+  //
+  // In this example, we solve a new wavefunction, assuming a different nuclear
+  // charge distribution, and see the difference in the energies and E1 matrix
+  // elements this produces.
 
-  // In this example, we will solve a new wavefunction, assuming a different
-  // nuclear charge distribution, and see the difference in the energies and E1
-  // matrix elements this produces.
-
-  // Read in some optional input options: A, rms, and type
-  // "checkBlock" is optional, but helps prevent errors on input options:
+  // Declare and validate input options.
+  // Users see these descriptions when they run: ./ampsci -m exampleModule
   input.check({{"A", "Atomic mass number [0]"},
                {"rrms", "root-mean-square nuclear radii [-1]"},
                {"type", "Fermi/ball/pointlike [Fermi]"}});
@@ -23,7 +42,7 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
-  // If no A is specified, use 0 (i.e., poinlike)
+  // If no A is specified, use 0 (i.e., pointlike)
   auto A = input.get("A", 0);
   // if rrms<0, the default value (for the given A) will be looked up
   auto rrms = input.get("rrms", -1.0);

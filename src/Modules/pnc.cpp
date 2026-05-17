@@ -1,10 +1,10 @@
-#include "pnc.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/MixedStates.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/CorrelationPotential.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Potentials/NuclearPotentials.hpp"
@@ -17,10 +17,40 @@
 
 namespace Module {
 
+// Declare, register, then define below.
+void pnc(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Registrar r_pnc{"pnc", "Calculates APV amplitudes", &pnc};
+} // namespace
+
+// Helpers (defined below)
+namespace Pnc {
+std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                                  const DiracOperator::TensorOperator *hpnc,
+                                  const ExternalField::TDHF *dVpnc,
+                                  const DiracOperator::TensorOperator *he1,
+                                  const ExternalField::TDHF *dVE1,
+                                  const std::vector<DiracSpinor> &spectrum,
+                                  int main_n, double en_core, bool print);
+std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                                   const DiracOperator::TensorOperator *hpnc,
+                                   const ExternalField::TDHF *dVpnc,
+                                   const DiracOperator::TensorOperator *he1,
+                                   const ExternalField::TDHF *dVE1,
+                                   const MBPT::CorrelationPotential *Sigma,
+                                   const std::vector<DiracSpinor> &spectrum,
+                                   int main_n, double en_core, bool print);
+[[nodiscard]] DiracSpinor
+orthog_to_core(DiracSpinor dF, const std::vector<DiracSpinor> &in_orbs,
+               double en_core);
+[[nodiscard]] DiracSpinor
+orthog_to_coremain(DiracSpinor dF, const std::vector<DiracSpinor> &in_orbs,
+                   double en_core, int n_main);
+} // namespace Pnc
 using namespace Pnc;
 
 //==============================================================================
-void calculatePNC(const IO::InputBlock &input, const Wavefunction &wf) {
+void pnc(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::string ThisModule = "Module::PNC";
 
   input.check({{"t", ""},

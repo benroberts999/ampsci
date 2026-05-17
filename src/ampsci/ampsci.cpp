@@ -5,8 +5,7 @@
 #include "IO/InputBlock.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp" //for 'ExtraPotential'
-#include "Modules/modules_list.hpp"
-#include "Modules/runModules.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/include.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 

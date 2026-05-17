@@ -1,6 +1,6 @@
-#include "screeningFactors.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "IO/InputBlock.hpp"
+#include "Modules/Modules.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Vector.hpp"
@@ -8,6 +8,14 @@
 #include <vector>
 
 namespace Module {
+
+// Declare, register, then define below.
+void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Registrar r_screeningFactors{
+  "screeningFactors", "Calculates Feynman electron screening factors",
+  &screeningFactors};
+} // namespace
 
 void screeningFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 

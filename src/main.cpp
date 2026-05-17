@@ -2,7 +2,7 @@
 #include "Coulomb/QkTable.hpp"
 #include "DiracOperator/GenerateOperator.hpp"
 #include "IO/InputBlock.hpp"
-#include "Modules/modules_list.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/periodicTable.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "ampsci/ampsci.hpp"

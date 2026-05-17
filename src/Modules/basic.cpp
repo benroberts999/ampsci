@@ -1,4 +1,3 @@
-#include "basic.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"
@@ -6,7 +5,7 @@
 #include "ExternalField/calcMatrixElements.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
-#include "Modules/modules_list.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/ContinuumOrbitals.hpp"
@@ -25,6 +24,29 @@
 #include <vector>
 
 namespace Module {
+
+// Declare, register, then define below.
+void tests(const IO::InputBlock &input, const Wavefunction &wf);
+void testBasis(const IO::InputBlock &input, const Wavefunction &wf);
+void writeOrbitals(const IO::InputBlock &input, const Wavefunction &wf);
+void continuum(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Registrar r_tests{"tests", "Some basic wavefunction numerical tests",
+                        &tests};
+const Registrar r_testBasis{"testBasis", "Tests of basis and spectrum",
+                            &testBasis};
+const Registrar r_writeOrbitals{
+  "writeOrbitals", "Write orbitals to disk for plotting", &writeOrbitals};
+const Registrar r_continuum{
+  "continuum", "Compute and use continuum wavefunctions", &continuum};
+} // namespace
+
+// Sub-functions for "tests" (defined below)
+namespace Tests {
+void orthonormality(const Wavefunction &wf, const bool print_all = true);
+void Hamiltonian(const Wavefunction &wf);
+void r0pinf(const Wavefunction &wf);
+} // namespace Tests
 
 //==============================================================================
 void testBasis(const IO::InputBlock &input, const Wavefunction &wf) {

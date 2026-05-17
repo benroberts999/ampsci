@@ -1,17 +1,3 @@
 // Auto-generated ampsci include file
 #pragma once
-#include "Modules/Breit.hpp"
-#include "Modules/HFAnomaly.hpp"
-#include "Modules/basic.hpp"
-#include "Modules/dcp.hpp"
-#include "Modules/exampleModule.hpp"
-#include "Modules/isotopeShift.hpp"
-#include "Modules/ladder.hpp"
-#include "Modules/matrixElements.hpp"
-#include "Modules/modules_list.hpp"
-#include "Modules/muonic.hpp"
-#include "Modules/pnc.hpp"
-#include "Modules/polarisability.hpp"
-#include "Modules/qed.hpp"
-#include "Modules/runModules.hpp"
-#include "Modules/screeningFactors.hpp"
+#include "Modules/Modules.hpp"
