@@ -22,9 +22,9 @@ git clang-format --binary "$CLANG_FORMAT" --force HEAD || true
 
 # Apply the same sed normalisations as clang_format_all.sh (see that script for rationale).
 # Scope is limited to files changed since HEAD (same set git clang-format just touched).
-git diff --name-only HEAD \
+git diff --name-only --diff-filter=d HEAD \
   | grep -E '\.(cpp|hpp|ipp)$' \
   | xargs -r "${SED_I[@]}" 's/){/) {/g'
-git diff --name-only HEAD \
+git diff --name-only --diff-filter=d HEAD \
   | grep -E '\.(cpp|hpp|ipp)$' \
   | xargs -r "${SED_I[@]}" 's/}[[:space:]]*\/\//} \/\//g'
