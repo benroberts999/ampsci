@@ -1,12 +1,18 @@
 #include "HF/Breit.hpp"
 #include "DiracOperator/include.hpp" //For E1 operator
 #include "IO/InputBlock.hpp"
-#include "Modules/exampleModule.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
 #include <string>
 
 namespace Module {
+
+// Declare, register, then define below.
+void Breit(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Register r_Breit{"Breit", "Breit corrections to energies", &Breit};
+} // namespace
 
 void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
 

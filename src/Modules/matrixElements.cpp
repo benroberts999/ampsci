@@ -1,4 +1,3 @@
-#include "Modules/matrixElements.hpp"
 #include "CI/include.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/DiagramRPA.hpp"
@@ -11,6 +10,7 @@
 #include "MBPT/Sigma2.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Maths/Interpolator.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Potentials/NuclearPotentials.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -26,6 +26,30 @@
 #include <vector>
 
 namespace Module {
+
+// Declare, register, then define below.
+void matrixElements(const IO::InputBlock &input, const Wavefunction &wf);
+void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf);
+void structureRad(const IO::InputBlock &input, const Wavefunction &wf);
+void normalisation(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Register r_matrixElements{"matrixElements",
+                                "Calculates matrix elements of any operator",
+                                &matrixElements};
+const Register r_CI_matrixElements{
+  "CI_matrixElements",
+  "Calculates matrix elements of any operator for CI wavefunctions",
+  &CI_matrixElements};
+const Register r_structureRad{
+  "structureRad",
+  "Calculates structure radiation + normalisation corrections using "
+  "perturbation theory",
+  &structureRad};
+const Register r_normalisation{
+  "normalisation",
+  "Calculates normalisation correction via derivative of Sigma",
+  &normalisation};
+} // namespace
 
 //==============================================================================
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {

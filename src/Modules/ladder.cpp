@@ -1,9 +1,9 @@
-#include "Modules/ladder.hpp"
+#include "MBPT/Ladder.hpp"
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
-#include "MBPT/Ladder.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/String.hpp"
@@ -11,6 +11,21 @@
 #include <random>
 
 namespace Module {
+
+// Declare, register, then define below.
+void ladder(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Register r_ladder{
+  "ladder", "Calculates ladder diagrams and energy corrections", &ladder};
+} // namespace
+
+// Helper, defined below.
+void check_L_symmetry(const std::vector<DiracSpinor> &core,
+                      const std::vector<DiracSpinor> &excited,
+                      const std::vector<DiracSpinor> &valence,
+                      const Coulomb::QkTable &qk, bool include_L4,
+                      const Angular::SixJTable &sj,
+                      const Coulomb::LkTable *const lk = nullptr);
 
 //==============================================================================
 //==============================================================================

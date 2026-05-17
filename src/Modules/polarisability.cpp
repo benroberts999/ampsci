@@ -1,10 +1,10 @@
-#include "Modules/polarisability.hpp"
 #include "Coulomb/meTable.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/StructureRad.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/format.hpp"
@@ -22,6 +22,84 @@ ToDO:
 
 //==============================================================================
 namespace Module {
+
+// Declare, register, then define below.
+void polarisability(const IO::InputBlock &input, const Wavefunction &wf);
+void dynamicPolarisability(const IO::InputBlock &input, const Wavefunction &wf);
+void transitionPolarisability(const IO::InputBlock &input,
+                              const Wavefunction &wf);
+namespace {
+const Register r_polarisability{
+  "polarisability", "Calculates static polarisabilities", &polarisability};
+const Register r_dynamicPolarisability{"dynamicPolarisability",
+                                       "Calculates dynamic polarisabilities",
+                                       &dynamicPolarisability};
+const Register r_transitionPolarisability{
+  "transitionPolarisability", "Calculates transition polarisabilities",
+  &transitionPolarisability};
+} // namespace
+
+// Helpers (defined below)
+namespace alphaD {
+double core_sos(const std::vector<DiracSpinor> &core,
+                const std::vector<DiracSpinor> &spectrum,
+                const DiracOperator::E1 &he1,
+                const ExternalField::CorePolarisation *dVE1, double omega,
+                const Coulomb::meTable<double> *dtab = nullptr);
+
+double valence_sos(const DiracSpinor &Fv,
+                   const std::vector<DiracSpinor> &spectrum,
+                   const DiracOperator::E1 &he1,
+                   const ExternalField::CorePolarisation *dVE1, double omega,
+                   const Coulomb::meTable<double> *d_nv = nullptr);
+
+double tensor2_sos(const DiracSpinor &Fv,
+                   const std::vector<DiracSpinor> &spectrum,
+                   const DiracOperator::E1 &he1,
+                   const ExternalField::CorePolarisation *dVE1, double omega,
+                   const Coulomb::meTable<double> *dtab = nullptr);
+
+double core_tdhf(const std::vector<DiracSpinor> &core,
+                 const DiracOperator::E1 &he1, const ExternalField::TDHF &dVE1,
+                 double omega, const MBPT::CorrelationPotential *const Sigma);
+
+double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
+                    const ExternalField::TDHF &dVE1, double omega,
+                    const MBPT::CorrelationPotential *const Sigma,
+                    const std::vector<DiracSpinor> &force_orthog = {});
+
+double transition_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
+                      const std::vector<DiracSpinor> &spectrum,
+                      const DiracOperator::E1 &he1,
+                      const ExternalField::CorePolarisation *dVE1);
+
+double beta_sos(const DiracSpinor &Fv, const DiracSpinor &Fw,
+                const std::vector<DiracSpinor> &spectrum,
+                const DiracOperator::E1 &he1,
+                const ExternalField::CorePolarisation *dVE1);
+
+double transition_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
+                       const DiracOperator::E1 &he1,
+                       const ExternalField::TDHF &dVE1,
+                       const MBPT::CorrelationPotential *const Sigma);
+
+double beta_tdhf(const DiracSpinor &Fv, const DiracSpinor &Fw,
+                 const DiracOperator::E1 &he1, const ExternalField::TDHF &dVE1,
+                 const MBPT::CorrelationPotential *const Sigma);
+
+std::pair<double, double>
+valence_SRN(const DiracSpinor &Fv, const std::vector<DiracSpinor> &spectrum,
+            const DiracOperator::E1 &he1,
+            const ExternalField::CorePolarisation *dVE1, double omega,
+            bool do_tensor, const Coulomb::meTable<double> &srn);
+
+std::pair<double, double>
+transition_SRN(const DiracSpinor &Fv, const DiracSpinor &Fw,
+               const std::vector<DiracSpinor> &spectrum,
+               const DiracOperator::E1 &he1,
+               const ExternalField::CorePolarisation *dVE1,
+               const Coulomb::meTable<double> &srn);
+} // namespace alphaD
 
 //==============================================================================
 void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {

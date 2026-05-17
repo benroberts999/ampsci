@@ -1,8 +1,8 @@
-#include "Modules/muonic.hpp"
 #include "DiracODE/BoundState.hpp"
 #include "DiracODE/InhomogenousGreens.hpp"
 #include "DiracOperator/include.hpp"
 #include "IO/InputBlock.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Potentials/FGRadPot.hpp"
@@ -12,6 +12,13 @@
 #include "qip/Vector.hpp"
 
 namespace Module {
+
+// Declare, register, then define below.
+void muonPV(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Register r_muonPV{"muonPV", "For testing/playing with muonic PV",
+                        &muonPV};
+} // namespace
 
 void muonPV(const IO::InputBlock &input, const Wavefunction &wf) {
 

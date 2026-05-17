@@ -1,9 +1,8 @@
-#include "Modules/HFAnomaly.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
-#include "Modules/matrixElements.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -17,6 +16,17 @@
 #include <vector>
 
 namespace Module {
+
+// Declare, register, then define below.
+void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf);
+void b_plot(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Register r_HFAnomaly{
+  "HFAnomaly", "Calculates Bohr-Weisskopf effect and hyperfine anomaly",
+  &HFAnomaly};
+const Register r_b_plot{
+  "b_plot", "Calculates HFAnomaly b moments, as a function of r_rms", &b_plot};
+} // namespace
 
 //==============================================================================
 void BW_effect(const std::vector<DiracSpinor> &valence,

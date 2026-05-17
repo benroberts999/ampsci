@@ -1,11 +1,10 @@
-#include "Modules/qed.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/TDHFbasis.hpp"
 #include "ExternalField/calcMatrixElements.hpp"
 #include "IO/InputBlock.hpp"
-#include "Modules/matrixElements.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Potentials/NuclearPotentials.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -16,6 +15,13 @@
 #include <vector>
 
 namespace Module {
+
+// Declare, register, then define below.
+void QED(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Register r_QED{"QED", "QED corrections to energies/matrix elements",
+                     &QED};
+} // namespace
 
 void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 

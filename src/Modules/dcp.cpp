@@ -1,8 +1,8 @@
-#include "Modules/dcp.hpp"
 #include "Coulomb/include.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/include.hpp"
 #include "IO/InputBlock.hpp"
+#include "Modules/Modules.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 
 //==============================================================================
@@ -247,6 +247,14 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 }
 
 //==============================================================================
+namespace Module {
+
+// Declare, register, then define below.
+void dcp(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Register r_dcp{"dcp", "Module for testing dcp calculations", &dcp};
+} // namespace
+
 void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check({{"initial", ""},
@@ -425,3 +433,5 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Epnc: " << AK * z_comp << " + " << delta_AK * z_comp << "\n";
   }
 }
+
+} // namespace Module

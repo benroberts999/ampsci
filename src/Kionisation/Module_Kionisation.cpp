@@ -1,10 +1,10 @@
-#include "Kionisation/Module_Kionisation.hpp"
 #include "DiracOperator/include.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "Kionisation/Kion_functions.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "Maths/Grid.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/UnitConv_conversions.hpp"
 #include "Wavefunction/ContinuumOrbitals.hpp"
@@ -18,6 +18,21 @@
 #include <memory>
 
 namespace Module {
+
+// Declare, register, then define below.
+void Kionisation(const IO::InputBlock &input, const Wavefunction &wf);
+void photo(const IO::InputBlock &input, const Wavefunction &wf);
+void formFactors(const IO::InputBlock &input, const Wavefunction &wf);
+
+namespace {
+const Register r_Kionisation{
+  "Kionisation", "Calculate atomic ionisation form-factors", &Kionisation};
+const Register r_photo{
+  "photo", "Calculate atomic photo-ionisation form-factors", &photo};
+const Register r_formFactors{"formFactors",
+                             "Calculate general atomic ionisation form-factors",
+                             &formFactors};
+} // namespace
 
 //==============================================================================
 
