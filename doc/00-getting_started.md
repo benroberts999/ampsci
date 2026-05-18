@@ -68,14 +68,15 @@ The following simple method should work for most cases. More detailed compilatio
 ```
 </div>
 
-* Then, run `configure.sh` which will set up the Makefile
+* Then, run `configure.sh` which will auto-detect your compiler and libraries, set up the Makefile, and compile:
 
 <div class="shell-block">
 ```shell
-./configure.sh
-make
+./configure.sh && make
 ```
 </div>
+
+* Use `./configure.sh -y` to skip the confirmation prompt (useful for scripting)
 
 * These scripts will setup the Makefile and compile ampsci. After these have run, they do not need to be run again. You can re-compile ampsci after this using the makefil simply by running `make` from the command line. You will need to re-run make if you make make any changes to the code, or pull changes down from GitHub:
 
@@ -119,3 +120,5 @@ make docs
 * \subpage troubleshooting - \copybrief troubleshooting
 
 * \subpage examples - \copybrief examples
+
+* \subpage hpc - \copybrief hpc

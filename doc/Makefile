@@ -7,9 +7,8 @@
 ## Which compiler: (g++, clang++)
 CXX = g++
 
-## Build mode (changes warnings + optimisation level): release/dev/debug/{x}san
+## Build mode (changes warnings + optimisation level): release/dev/debug
 ## Change to dev if you plan to edit the code
-## Sanitiser modes: asan, tsan, ubsan (set CXX=clang++ for best results)
 MODE ?= release
 
 ## Speed up compilation by doing in parallel
@@ -30,11 +29,6 @@ GSL_PATH ?=
 ## Set GSL and LAPACK/BLAS library flags. These are typical, but sometimes differ
 LDLIBS ?= -lgsl -lgslcblas -llapack -lblas
 
-## Friday:
-# LDLIBS ?= -lgsl -lgslcblas -lopenblas
-
-## Bunya:
-# LDLIBS ?= -lgsl -lgslcblas -llapack -lopenblas -lgfortran 
 
 ################################################################################
 ## OpenMP library to use. Comment out or leave blank for no OpenMP

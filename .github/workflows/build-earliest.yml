@@ -30,7 +30,7 @@ jobs:
             apt-get update -y && \
             apt-get install -y make liblapack-dev libblas-dev libgsl-dev && \
             ./configure.sh --yes && \
-            make CXX=g++ OMPLIB=-fopenmp && \
+            make CXX=g++ MODE=release OMPLIB=-fopenmp && \
             ./ampsci -v
           "
 
