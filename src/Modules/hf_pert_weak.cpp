@@ -413,7 +413,7 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     int I2 = input.get("two_I", 0);
     const auto Fv2 = input.get("two_Fv", 0);
     const auto Fw2 = input.get("two_Fw", 0);
-    const auto two_k = input.get("two_k", 0);
+    //const auto two_k = input.get("two_k", 0);
 
     double h_1 = h1(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
 
