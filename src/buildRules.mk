@@ -50,3 +50,28 @@ $(BUILD_DIR)/%.o: $(SRC)/%.cpp | $(BUILD_DIR)
 	@mkdir -p $(@D)
 	$(COMPILE)
 
+################################################################################
+## External modules (set EXTERNAL_MODULES to a space-separated list of .cpp files)
+
+## Function: maps a source path to its object file under ExternalModules/
+## Uses basename only - all external module filenames must be unique.
+ext_obj = $(BUILD_DIR)/ExternalModules/$(notdir $(1:.cpp=)).o
+
+ifneq ($(strip $(EXTERNAL_MODULES)),)
+  ## Compute object paths for all external modules
+  EXT_OBJS := $(foreach src,$(EXTERNAL_MODULES),$(call ext_obj,$(src)))
+  ## Include compiler-generated dependency files (.d) so header changes trigger recompilation
+  -include $(EXT_OBJS:.o=.d)
+
+  ## Rule template: generates one compile rule per external module.
+  ## Called via $(eval $(call ext_rule,<src>)) below; $$(COMPILE) and $$(@D)
+  ## use $$ so they survive the call expansion and are evaluated at recipe run time.
+  define ext_rule
+$(call ext_obj,$(1)): $(abspath $(1)) | $(BUILD_DIR)
+	@mkdir -p $$(@D)
+	$$(COMPILE)
+  endef
+  ## Instantiate a compile rule for each external source file
+  $(foreach src,$(EXTERNAL_MODULES),$(eval $(call ext_rule,$(src))))
+endif
+

@@ -14,6 +14,7 @@ $(info   Libraries     : $(LDLIBS))
 $(info   Build dir     : $(BUILD_DIR))
 $(info   git revision  : $(GITBRANCH)/$(GITREVISION))
 $(if $(strip $(GITMODIFIED)),$(info   Modified      : $(GITMODIFIED)))
+$(if $(strip $(EXTERNAL_MODULES)),$(info   Ext. modules  : $(EXTERNAL_MODULES)))
 $(info ============================================================================)
 $(info )
 
@@ -36,11 +37,11 @@ full: $(ALLEXES)
 ## Main targets
 
 ## Compile+link main ampsci
-ampsci: $(BUILD_DIR)/main.o $(LIB_OBJS) | $(BUILD_DIR)
+ampsci: $(BUILD_DIR)/main.o $(LIB_OBJS) $(EXT_OBJS) | $(BUILD_DIR)
 	$(LINK)
 
 ## Compile+link tests
-tests: $(BUILD_DIR)/tests.o $(LIB_OBJS) $(TEST_OBJS) | $(BUILD_DIR)
+tests: $(BUILD_DIR)/tests.o $(LIB_OBJS) $(TEST_OBJS) $(EXT_OBJS) | $(BUILD_DIR)
 	$(LINK)
 
 ## Force version.o to rebuild each time (_any_ changes should be reflected)
