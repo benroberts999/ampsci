@@ -14,31 +14,60 @@ ampsci handles the wavefunction.
 * See \ref tutorial_modules for a hands-on introduction to using modules.
 * You can also write your own operators -- see \ref modules_custom_operator.
 
+## Internal vs external modules
+
+Modules can live inside or outside the ampsci source tree:
+
+* **External (recommended):** keep your module(s) in a separate directory outside `src/`, and list them in your Makefile. No changes to the ampsci source are required. This is the preferred approach -- your modules can be version-controlled and shared independently from ampsci.
+* **Internal:** drop the file anywhere under `src/` and the build system picks it up automatically. Simpler if you intend to contribute the module back to ampsci.
+
+> **Compatibility note:** ampsci's API (Wavefunction, DiracSpinor, DiracOperator, etc.)
+> evolves over time. External modules written against one version of ampsci are not
+> guaranteed to compile or produce correct results with a later version.
+> Pin your module's documentation or README to the ampsci version it was written against.
+
 ## Writing your module
 
-1. **Create the file.** 
- - Copy `src/Modules/exampleModule.cpp` to a new file (e.g. `src/Modules/myModule.cpp`) and rename `exampleModule` to your module name throughout.
- - You can name the module whatever you like (`myModule` in this example), but it must be in the `Module` namespace, and the function signature must be exactly:
-  ```cpp
-    void myModule(const IO::InputBlock &, const Wavefunction &)
-  ```
- - Place the file anywhere under `src/` (though use `src/Modules/` by default); the build system will pick it up automatically.
-2. **Write the physics.** 
- - Replace the body of your function with whatever calculation you need. 
- - Inside it, `input` (\ref IO::InputBlock) gives you access to the run-time user options, and `wf` (\ref Wavefunction) gives you the solved atomic wavefunction.
- - See detailed API documentation and the provided examples for details on how to use the \ref Wavefunction
-3. **Register the module.** 
- - Add a single `Register` line inside an anonymous namespace (see below for example)
- - This must be in the same .cpp file as your module (_after_ the module has been declared).
- - This is what makes the module visible to ampsci, and allows users to run it.
-4. **Recompile and run.** 
- - Add `Module::myModule{}` to an input file, or query its options with `./ampsci -m myModule`. 
- - You must recompile after adding a new module for it to be visible to ampsci.
+1. **Create the file.**
+
+* Copy `src/Modules/exampleModule.cpp` to a new file and rename `exampleModule` to your module name throughout. Place it anywhere -- inside or outside `src/` (see above).
+* You can name the module whatever you like (`myModule` in this example), but it must be in the `Module` namespace, and the function signature must be exactly:
+
+   ```cpp
+   void myModule(const IO::InputBlock &, const Wavefunction &)
+   ```
+
+* **External:** place the file anywhere outside `src/`, then add it to your Makefile:
+
+   ```makefile
+   EXTERNAL_MODULES = path/to/myModule.cpp
+   ```
+
+   Globs are supported: `EXTERNAL_MODULES = mymodules/*.cpp`. The modules are then compiled and linked into ampsci automatically.
+
+* **Internal:** place the file anywhere under `src/` (use `src/Modules/` by default); the build system picks it up automatically.
+
+1. **Write the physics.**
+
+* Replace the body of your function with whatever calculation you need.
+* Inside it, `input` (\ref IO::InputBlock) gives you access to the run-time user options, and `wf` (\ref Wavefunction) gives you the solved atomic wavefunction.
+* See detailed API documentation and the provided examples for details on how to use the \ref Wavefunction
+
+1. **Register the module.**
+
+* Add a single `Register` line inside an anonymous namespace (see below for example)
+* This must be in the same .cpp file as your module (_after_ the module has been declared).
+* This is what makes the module visible to ampsci, and allows users to run it.
+
+1. **Recompile and run.**
+
+* Add `Module::myModule{}` to an input file, or query its options with `./ampsci -m myModule`.
+* You must recompile after adding a new module for it to be visible to ampsci.
 
 No other files need to be edited. The module self-registers at program startup.
 
 Each module file declares its function, registers it with the @ref Module
-namespace, then defines it -- all in a single `.cpp` file. 
+namespace, then defines it -- all in a single `.cpp` file.
 The structure of a module will be like the following example:
 
 ```cpp
@@ -71,12 +100,17 @@ const Register r_myModule{"myModule",
 ```
 
 * **name** (`"myModule"`): the string used to invoke the module from an input file (`Module::myModule{...}`), and as the lookup key for `./ampsci -m myModule`. Conventionally the same as the function name.
+  * Must be unique across all compiled modules. Lookup is case-insensitive, so capitalisation alone is not enough. Duplicates don't compile errors; however if there are two modules with the same name, it is undefined which will actually be invoked/run.
+  * Must contain no spaces and only standard characters (letters, digits, `_`): `"my_module"` is fine, `"my module"` is not.
 * **description**: a short, one-line summary shown by `./ampsci -m`.
-* **function** (`&myModule`): pointer to the module function. The function's signature must match exactly `void name(const IO::InputBlock&, const Wavefunction&)` -- otherwise the address won't convert to the @ref Module::ModuleFn function pointer and you'll get a compile error.
+  * This is technically optional, but is there to be informative to users
+* **function** (`&myModule`): pointer to the module function.
+  * Signature must match exactly `void name(const IO::InputBlock&, const Wavefunction&)`
+  * The C++ function name must be unique across all compiled modules -- duplicates produce a link error.
 * The `r_myModule` name for the @ref Register is just convention -- it can be anything.
   * In fact, the only restriction is that multiple modules within the same .cpp file (compilation unit) have unique names; the names do not even need to be unique across different files. (These names are not used anywhere in the code)
 * The registration must appear _after_ the module function has been declared (a forward declaration is enough; the definition can come later).
-* Keep the registration in the _same_ `.cpp` file as the module: this isn't a hard language requirement, but it's the right convention -- splitting them buys nothing and makes the module harder to find.
+* Keep the registration in the _same_ `.cpp` file as the module.
 
 ## Highly recommended: input checking
 
@@ -100,25 +134,24 @@ if (input.has_option("help"))
   return;
 ```
 
-
 ## How registration works
 
 Most users don't need to care -- copy the template and it just works.
 
-The `Register` variable's constructor runs once, _before_ `main()`, as part of 
-C++ static initialisation. 
-The constructor body simply appends a new `ModuleEntry{name, description, &fn}` 
+The `Register` variable's constructor runs once, _before_ `main()`, as part of
+C++ static initialisation.
+The constructor body simply appends a new `ModuleEntry{name, description, &fn}`
 to the singleton `Module::Registry`.
 By the time `main()` starts, every compiled-in module has self-registered.
-The ampsci driver then iterates over the input file, looks up each 
-`Module::name{...}` block in the Registry by name, and dispatches to 
+The ampsci driver then iterates over the input file, looks up each
+`Module::name{...}` block in the Registry by name, and dispatches to
 the matching function pointer.
 
-The anonymous namespace surrounding the Register variable gives it 
-_internal linkage_; one private copy per `.cpp` file. 
-That's why different module files can each use the same identifier 
-(`r_myModule`, or whatever) without producing "multiple definition" link errors. 
-It's also why the registration must live in a `.cpp`: 
+The anonymous namespace surrounding the Register variable gives it
+_internal linkage_; one private copy per `.cpp` file.
+That's why different module files can each use the same identifier
+(`r_myModule`, or whatever) without producing "multiple definition" link errors.
+It's also why the registration must live in a `.cpp`:
 putting it in a header would create one entry in any translation unit that includes the header.
 
 For the full API (Register, Registry, ModuleEntry, runModule, list_modules),
