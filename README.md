@@ -43,21 +43,26 @@ is given in the physics documentation: [ampsci.pdf][man-url].
 
 ### Quick start
 
-* The `configure.sh` bash script should compile and build ampsci (uses Make)
-  * It uses only defaults, and may not work on all systems.
-    See documentation for full guide to compilation.
-  * It assumes dependencies have already been installed. If not, see next:
+```shell
+./install-dependencies.sh
+./configure.sh -y
+make
+```
+
+* The `configure.sh` bash script should automatically set up a Makefile, and then `make` will compile ampsci
+  * This should work on nearly all systems, but may not work on all
+* It assumes dependencies have already been installed. **Requires:**
+  * C++ compiler (e.g., g++)
+  * lapack, blas, and GSL libraries
+  * make (to compile)
+  * [optionally] OpenMP
 * The `install-dependencies.sh` bash script should install all required dependencies.
-  * It uses only defaults, and may not work on all systems.
-* If there are issue with compilation
-  * See full compilation instructions: [doc/compilation.md](doc/compilation.md)
-* Check out the example input files to get running:
-  * `doc/examples/ampsci.in` -- an example/template input file
-  * More: in `doc/examples/` there are several example input files, along with the expected output; use these to test if everything is working
+  * It should work on most systems, but may not work on all
+* If there are any issues, see full compilation instructions at [ampsci.dev/compilation.html](https://ampsci.dev/compilation.html)
 
 ### Tutorials/examples
 
-* The fastest way to get familiar with ampsci is to follow the tutorials at [ampsci.dev/](https://ampsci.dev/)
+* The fastest way to get familiar with ampsci is to follow the tutorials at [ampsci.dev/tutorials.html](https://ampsci.dev/tutorials.html)
 
 Much of ampsci documentation can be seen from the command line:
 
@@ -71,19 +76,35 @@ Much of ampsci documentation can be seen from the command line:
   * See available input options for each operator by following with its name
   * e.g., `./ampsci -o hfs`
 
+Also check out the example input files to get running:
+
+* `doc/examples/ampsci.in` -- an example/template input file
+* More: in `doc/examples/`
+  * There are several other example input files, along with the expected output; use these to test if everything is working
+
 ### Looking for atomic ionisation form-factors for dark-matter-electron scattering?
 
 * See `Kionisation` module (`./ampsci -m Kionisation`)
 
 --------------------------------------------------------------------------------
 
-#### A selection of publications resulting from ampsci
+## Publications
 
-* _Accurate electron-recoil ionization factors for dark matter direct detection in xenon, krypton and argon_, A. R. Caddell, V. V. Flambaum, B. M. Roberts, [Physical Review D **108**, 083030 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.108.083030), [[arXiv:2305.05125](https://arxiv.org/abs/2305.05125)]
-* _The neutrino fog for dark matter-electron scattering experiments_, B. Carew, A. R. Caddell, T. N. Maity, C. A. J. O'Hare, [arXiv:2312.04303](https://arxiv.org/abs/2312.04303)
-* _Electric dipole transition amplitudes for atoms and ions with one valence electron_, B. M. Roberts, C. J. Fairhall, J. S. M. Ginges, [Physical Review A **107**, 052812 (2023)](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.107.052812), [[arXiv:2211.11134](https://arxiv.org/abs/2211.11134)]
-* _Experimental and Theoretical Study of Dynamic Polarizabilities in the_ $5S - 5D_{5/2}$ _Clock Transition in Rubidium-87 and Determination of Electric Dipole Matrix Elements_, R. Hamilton _et al._, [Physical Review Applied **19**, 054059 (2023)](https://link.aps.org/doi/10.1103/PhysRevApplied.19.054059), [[arXiv:2212.10743](https://arxiv.org/abs/2212.10743)]
-* _QED radiative corrections to electric dipole amplitudes in heavy atoms_, C. J. Fairhall, B. M. Roberts, J. S. M. Ginges, [Physical Review A **107**, 022813 (2023)](https://link.aps.org/doi/10.1103/PhysRevA.107.022813), [[arXiv:2212.11490](https://arxiv.org/abs/2212.11490)]
+The ampsci code and methods have been described in the following papers
+
+* A. R. Caddell, V. V. Flambaum, B. M. Roberts, _Accurate electron-recoil ionization factors for dark matter direct detection in xenon, krypton and argon_, [Physical Review D **108**, 083030 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.108.083030), [[arXiv:2305.05125](https://arxiv.org/abs/2305.05125)]
+* B. M. Roberts, C. J. Fairhall, J. S. M. Ginges, _Electric dipole transition amplitudes for atoms and ions with one valence electron_, [Physical Review A **107**, 052812 (2023)](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.107.052812), [[arXiv:2211.11134](https://arxiv.org/abs/2211.11134)]
+
+### A selection of publications resulting from ampsci
+
+* R. B. Cserveny, B. M. Roberts, _Theoretical characterization of the barium II and radium II ions_, [Physical Review A 112, 032816 (2025)](https://link.aps.org/doi/10.1103/1rtb-8ymc), [[arXiv:2505.05230](https://arxiv.org/abs/2505.05230)]
+* B. Carew, A. R. Caddell, T. N. Maity, C. A. J. O'Hare, _The neutrino fog for dark matter-electron scattering experiments_, [arXiv:2312.04303](https://arxiv.org/abs/2312.04303)
+* R. Hamilton _et al._, _Experimental and Theoretical Study of Dynamic Polarizabilities in the_ \f$ 5S - 5D_{5/2} \f$ _Clock Transition in Rubidium-87 and Determination of Electric Dipole Matrix Elements_,  [Physical Review Applied **19**, 054059 (2023)](https://link.aps.org/doi/10.1103/PhysRevApplied.19.054059), [[arXiv:2212.10743](https://arxiv.org/abs/2212.10743)]
+* C. J. Fairhall, B. M. Roberts, J. S. M. Ginges, _QED radiative corrections to electric dipole amplitudes in heavy atoms_, [Physical Review A **107**, 022813 (2023)](https://link.aps.org/doi/10.1103/PhysRevA.107.022813), [[arXiv:2212.11490](https://arxiv.org/abs/2212.11490)]
+* The COSINE-100 Collaboration, _Constraints on sub-GeV dark matter scattering on electrons with COSINE-100_, [Physical Review D 113, 072012 (2026)](https://journals.aps.org/prd/abstract/10.1103/kszv-g7tl).
+* The NEON Collaboration, _First Direct Search for Light Dark Matter Using the NEON Experiment at a Nuclear Reactor_, [Physical Review Letters 134, 021802 (2025)](https://link.aps.org/doi/10.1103/PhysRevLett.134.021802)
+* J. M. Cline, M. Puel, and T. Toma, _Boosted dark matter from a phantom fluid_, [Physics Letters B 848, 138377 (2024)](https://www.sciencedirect.com/science/article/pii/S0370269323007116)
+* The XENON Collaboration, _Search for Electronic Recoil Event Rate Modulation with 4 Years of XENON100 Data_, [Physical Review Letters 118, 101101 (2017)](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.118.101101)
 
 --------------------------------------------------------------------------------
 

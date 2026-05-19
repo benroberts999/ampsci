@@ -67,13 +67,11 @@ jobs:
     # Step 2: Install dependencies using the script
     - name: "Install dependencies"
       run: |
-        chmod +x ./install-dependencies.sh
-        sudo ./install-dependencies.sh --yes
+        ./install-dependencies.sh --yes
 
     # Step 3: Set up the environment using the script
     - name: "Set up environment"
       run: |
-        chmod +x ./configure.sh
         ./configure.sh --yes
         make
 
