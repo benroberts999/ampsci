@@ -57,9 +57,12 @@ $(BUILD_DIR)/%.o: $(SRC)/%.cpp | $(BUILD_DIR)
 ## Uses basename only - all external module filenames must be unique.
 ext_obj = $(BUILD_DIR)/ExternalModules/$(notdir $(1:.cpp=)).o
 
-ifneq ($(strip $(EXTERNAL_MODULES)),)
+## Expand globs and resolve wildcards from EXTERNAL_MODULES (supports e.g. ext/*.cpp)
+EXT_SRCS := $(filter %.cpp,$(wildcard $(EXTERNAL_MODULES)))
+
+ifneq ($(strip $(EXT_SRCS)),)
   ## Compute object paths for all external modules
-  EXT_OBJS := $(foreach src,$(EXTERNAL_MODULES),$(call ext_obj,$(src)))
+  EXT_OBJS := $(foreach src,$(EXT_SRCS),$(call ext_obj,$(src)))
   ## Include compiler-generated dependency files (.d) so header changes trigger recompilation
   -include $(EXT_OBJS:.o=.d)
 
@@ -72,6 +75,6 @@ $(call ext_obj,$(1)): $(abspath $(1)) | $(BUILD_DIR)
 	$$(COMPILE)
   endef
   ## Instantiate a compile rule for each external source file
-  $(foreach src,$(EXTERNAL_MODULES),$(eval $(call ext_rule,$(src))))
+  $(foreach src,$(EXT_SRCS),$(eval $(call ext_rule,$(src))))
 endif
 

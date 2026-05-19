@@ -14,7 +14,7 @@ $(info   Libraries     : $(LDLIBS))
 $(info   Build dir     : $(BUILD_DIR))
 $(info   git revision  : $(GITBRANCH)/$(GITREVISION))
 $(if $(strip $(GITMODIFIED)),$(info   Modified      : $(GITMODIFIED)))
-$(if $(strip $(EXTERNAL_MODULES)),$(info   Ext. modules  : $(EXTERNAL_MODULES)))
+$(if $(strip $(EXT_SRCS)),$(info   Ext. modules  : $(EXT_SRCS)))
 $(info ============================================================================)
 $(info )
 
