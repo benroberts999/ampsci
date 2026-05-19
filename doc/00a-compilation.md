@@ -33,6 +33,13 @@ GSL path, LAPACK/BLAS libraries, and OpenMP support, and write a working
 
 * the `-y` automatically responds `yes` to prompts from the script.
 * This works "out-of-the-box" on most systems.
+* If compilation fails and the Makefile may be corrupted or outdated, delete it and re-run `configure.sh`:
+
+<div class="shell-block">
+```shell
+rm Makefile && ./configure.sh -y
+```
+</div>
 
 --------------------------------------------------------------------------------
 
