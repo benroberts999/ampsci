@@ -100,7 +100,7 @@ class Breit {
 
 public:
   /*!
-    @brief Parameters for constructing Breit interaction operator
+    @brief Parameters for constructing Breit interaction operator (s,m,n,o,p,f)
 
     @details
     Holds all scaling factors for Breit interactions: overall scale,
