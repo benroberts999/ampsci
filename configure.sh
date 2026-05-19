@@ -7,7 +7,7 @@ echo 'You may need to run install-dependencies.sh first, to install dependencies
 echo ''
 
 if [[ "$1" != "--yes" && "$1" != "-y" ]]; then
-  read -r -p "This script will overwrite existing Makefile. Do you wish to continue? [y/N] " response
+  read -r -p "This will configure your Makefile. Do you wish to continue? [y/N] " response
   if [[ "$response" =~ ^([yY][eE][sS]|[yY])$ ]]
   then
     echo ""
@@ -29,8 +29,14 @@ if [[ "${machine}" == "UNKNOWN:${unameOut}" ]]; then
   exit 1
 fi
 
-# Copy template Makefile and example input file
-cp ./doc/Makefile ./ || { echo "Error: doc/Makefile not found"; exit 1; }
+# Copy template Makefile only if one doesn't already exist (preserve user edits)
+MAKEFILE_TEMPLATE=./doc/Makefile
+if [[ -f Makefile ]]; then
+  echo "Makefile        : existing file kept (only options updated)"
+else
+  cp "${MAKEFILE_TEMPLATE}" ./ || { echo "Error: ${MAKEFILE_TEMPLATE} not found"; exit 1; }
+  echo "Makefile        : created from template"
+fi
 cp -n ./doc/examples/ampsci.in ./ampsci.in
 
 ################################################################################

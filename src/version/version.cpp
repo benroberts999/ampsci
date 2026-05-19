@@ -27,6 +27,9 @@
 #ifndef COMPTIME
 #define COMPTIME
 #endif
+#ifndef EXTERNAL_MODULES
+#define EXTERNAL_MODULES
+#endif
 // GSL_VERSION defined by GSL library (if it exists)
 #ifndef GSL_VERSION
 #define GSL_VERSION ""
@@ -51,6 +54,8 @@ static const std::string git_modified = XSTRING(GITMODIFIED);
 static const std::string cxx_version = XSTRING(CXXVERSION);
 // Date and time of compilation
 static const std::string compiled_time = XSTRING(COMPTIME);
+// External modules compiled in (space-separated filenames, may be empty)
+static const std::string external_modules = XSTRING(EXTERNAL_MODULES);
 // ampsci version
 static const std::string ampsci_version = std::string(AMPSCI_VERSION);
 // gsl library version
@@ -59,12 +64,15 @@ static const std::string gsl_version = std::string(GSL_VERSION);
 static const std::string omp_version = XSTRING(OMP_VERSION);
 
 std::string version() {
-  return git_revision.empty() ?
-           ampsci_version :
-         git_modified.empty() ?
-           ampsci_version + " [" + git_branch + "/" + git_revision + "]" :
-           ampsci_version + " [" + git_branch + "/" + git_revision + "]*\n" +
-             " *(Modified: " + git_modified + ")";
+  std::string v = git_revision.empty() ? ampsci_version :
+                  git_modified.empty() ? ampsci_version + " [" + git_branch +
+                                           "/" + git_revision + "]" :
+                                         ampsci_version + " [" + git_branch +
+                                           "/" + git_revision + "]*\n" +
+                                           " *(Modified: " + git_modified + ")";
+  if (!external_modules.empty())
+    v += "\n External modules: " + external_modules;
+  return v;
 }
 
 std::string compiled() { return cxx_version + " " + compiled_time; }

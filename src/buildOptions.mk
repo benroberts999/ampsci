@@ -8,6 +8,17 @@ SRC = ./src
 BUILD ?= ./build
 
 ################################################################################
+## External modules: list extra .cpp files to compile and link into ampsci/tests.
+## Paths may be absolute or relative to the directory where make is invoked.
+## Globs are supported (e.g. ext/*.cpp). Examples:
+##   EXTERNAL_MODULES = /abs/path/MyModule.cpp ../shared/OtherModule.cpp
+##   EXTERNAL_MODULES = ext/*.cpp
+## Objects land in $(BUILD_DIR)/ExternalModules/. Each file must have a unique
+## basename (two files named MyMod.cpp from different directories will collide).
+## Paths with spaces are not supported. Recompile after changing this list.
+EXTERNAL_MODULES ?=
+
+################################################################################
 
 ## Parallelism for build. Default to JOBS if -j not passed
 ## Directly -j from command line seems to override this, but maybe not gaurenteed
@@ -135,3 +146,4 @@ GITFLAGS += -D GITBRANCH="$(GITBRANCH)"
 GITFLAGS += -D GITMODIFIED="$(GITMODIFIED)"
 GITFLAGS += -D CXXVERSION="$(CXXVERSION)"
 GITFLAGS += -D COMPTIME="$(NOW)"
+GITFLAGS += -D EXTERNAL_MODULES="$(foreach src,$(filter %.cpp,$(wildcard $(EXTERNAL_MODULES))),$(notdir $(src)))"
