@@ -6,7 +6,6 @@
 #include "IO/InputBlock.hpp"
 #include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp"
-#include "Potentials/NuclearPotentials.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/String.hpp"
@@ -18,8 +17,9 @@ namespace Module {
 
 // Declare, register, then define below.
 void QED(const IO::InputBlock &input, const Wavefunction &wf);
+
 namespace {
-const Register r_QED{"QED", "QED corrections to energies/matrix elements",
+const Register r_QED{"QED", "QED corrections to energies at Hartree-Fock level",
                      &QED};
 } // namespace
 
@@ -28,46 +28,43 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // Check input options for spelling mistakes etc.:
   input.check(
     {{"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
-     {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
-                  "typical [1.0]"},
-     {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
-                 "1,0,1 => include for s and d, but not for p [1.0]"},
-     {"core_QED",
-      "Inlcude QED into core (or only valence) - AKA relaxation? [true]"},
-     {"use_cm", "Use cm^-1 for energy corrections (otherwise au) [false]"},
-     {"MatrixElements{}", "For "
-                          "QED corrects to MEs. Input block; takes mostly "
-                          "same inputs an Module::MatrixElements."}});
+     {"scale_rN", "Scale factor for Nuclear size within QED potential. 0 for "
+                  "pointlike, 1 for typical [1.0]"},
+     {"scale_l", "List of doubles. Extra scaling factor for each l. e.g., "
+                 "1,0,1 => include for s and d, but not for p. Normally should "
+                 "be left blank. [1.0]"},
+     {"units", "Energy units for output: au (default) or cm (cm^-1)"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
   }
 
-  // We should not run this module if outer wavefunction aleady includes QED, as this will double-count!
+  // We should not run this module if outer wavefunction already includes QED
   if (wf.vrad() != nullptr) {
-    std::cout << "\nDo not run QED module if QED corrections are inlcuded at "
-                 "main level!\n"
-              << "Module not run\n\n";
+    fmt::print(
+      "\nError: Do not run QED module if QED corrections are included at "
+      "main level!\nModule not run\n\n");
     return;
   }
 
-  // We simply 'copy' the correlation potential across from the
-  // outer-wavefunction. This is usually fine, but means QED was not included
-  // in the basis/Green's function that was used to construct Sigma.
-  if (wf.Sigma() != nullptr) {
-    std::cout
-      << "\nNote: QED corrections not included into correlations\n"
-      << "This is probably fine, but should be confirmed independently\n";
+  // Just HF level: complicated to re-solve Sigma with QED - just use ampsci
+  if (wf.Sigma()) {
+    fmt::print(
+      "\nError: QED module is not compatible with correlation potential "
+      "(Brueckner orbitals). Run with HartreeFock (not Brueckner). To "
+      "include QED with correlations, add QED directly to the HF "
+      "potential and run manually.\n");
+    return;
   }
 
-  const bool use_cm = input.get("use_cm", false);
-  const auto units = use_cm ? PhysConst::Hartree_invcm : 1.0;
-  const std::string units_str = use_cm ? "cm^-1" : "au";
+  const auto units_in = input.get("units", std::string{"au"});
+  const bool use_cm = (units_in == "cm");
+  const double un = use_cm ? PhysConst::Hartree_invcm : 1.0;
+  const std::string unit_label = use_cm ? "cm^-1" : "au";
 
   // This module calculates QED corections:
   // 1. Energy corrections, without relaxation
   // 2. Energy corrections, with relaxation
-  // 3. Optional: corrections to matrix elements
 
   // Read in options for QED:
   const auto rcut = input.get("rcut", 5.0);
@@ -75,7 +72,12 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto r_N_au =
     std::sqrt(5.0 / 3.0) * wf.nucleus().r_rms() * scale_rn / PhysConst::aB_fm;
   const auto x_spd = input.get("scale_l", std::vector{1.0});
-  bool include_qed_core = input.get("core_QED", true);
+
+  fmt::print("rcut = {} au\n", rcut);
+  if (scale_rn != 1.0)
+    fmt::print("scale_rN = {}\n", scale_rn);
+  if (x_spd != std::vector{1.0})
+    fmt::print("scale_l = {}\n", fmt::join(x_spd, ", "));
 
   // Construct the radiative potentials (seperately, and a 'total' one)
   // nb: don't write to disk, allows easier update of, e.g., rcut
@@ -119,32 +121,23 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
     wf_w.vHF()->set_Vrad(WK);
     wf_t.vHF()->set_Vrad(Vtot);
   } else {
-    std::cout << "?";
+    fmt::print("Error: no HF potential found.\n");
     return;
   }
 
-  // If including QED into core, we will then re-solve HF for the core.
-  if (include_qed_core) {
-    std::cout << "\nRe-solving Hartree-Fock for core states, including:\n";
-    std::cout << "Uehling potential:\n";
-    wf_u.solve_core();
-    std::cout << "Self-energy (high frequency):\n";
-    wf_h.solve_core();
-    std::cout << "Self-energy (low frequency):\n";
-    wf_l.solve_core();
-    std::cout << "Self-energy (magnetic):\n";
-    wf_m.solve_core();
-    std::cout << "Wichmann-Kroll (approximate):\n";
-    wf_w.solve_core();
-    std::cout << "Total radiative potential:\n";
-    wf_t.solve_core();
-
-    std::cout << "\nCore energies (including total QED):\n";
-    wf_t.printCore();
-  } else {
-    std::cout
-      << "\nIncluding QED radiative potential into valence states only\n";
-  }
+  fmt::print("\nRe-solving Hartree-Fock for core states, including:\n");
+  fmt::print("Uehling potential:\n");
+  wf_u.solve_core();
+  fmt::print("Self-energy (high frequency):\n");
+  wf_h.solve_core();
+  fmt::print("Self-energy (low frequency):\n");
+  wf_l.solve_core();
+  fmt::print("Self-energy (magnetic):\n");
+  wf_m.solve_core();
+  fmt::print("Wichmann-Kroll (approximate):\n");
+  wf_w.solve_core();
+  fmt::print("Total radiative potential:\n");
+  wf_t.solve_core();
 
   // We clear the valence wavefunctions, and re-solve them from scratch.
   wf_u.valence().clear();
@@ -157,212 +150,96 @@ void QED(const IO::InputBlock &input, const Wavefunction &wf) {
   // Solve for valence states with QED:
   // nb: hartreeFockBrueckner() has no effect if Sigma doesn't exist
   const auto valence_list = DiracSpinor::state_config(wf.valence());
-  std::cout << "\nRe-solving Hartree-Fock for valence states " << valence_list
-            << ", inclduding:\n";
+  fmt::print("\nRe-solving Hartree-Fock for valence states {}, including:\n",
+             valence_list);
 
-  std::cout << "Uehling potential:\n";
+  fmt::print("Uehling potential:\n");
   wf_u.solve_valence(valence_list);
-  wf_u.hartreeFockBrueckner();
 
-  std::cout << "Self-energy (high frequency):\n";
+  fmt::print("Self-energy (high frequency):\n");
   wf_h.solve_valence(valence_list);
-  wf_h.hartreeFockBrueckner();
 
-  std::cout << "Self-energy (low frequency):\n";
+  fmt::print("Self-energy (low frequency):\n");
   wf_l.solve_valence(valence_list);
-  wf_l.hartreeFockBrueckner();
 
-  std::cout << "Self-energy (magnetic):\n";
+  fmt::print("Self-energy (magnetic):\n");
   wf_m.solve_valence(valence_list);
-  wf_m.hartreeFockBrueckner();
 
-  std::cout << "Wichmann-Kroll (approximate):\n";
+  fmt::print("Wichmann-Kroll (approximate):\n");
   wf_w.solve_valence(valence_list);
-  wf_w.hartreeFockBrueckner();
 
-  std::cout << "Total radiative potential:\n";
+  fmt::print("Total radiative potential:\n");
   wf_t.solve_valence(valence_list);
-  wf_t.hartreeFockBrueckner();
 
-  std::cout << "\nValence energies (including total QED):\n";
+  fmt::print("\nCore energies (including total QED):\n");
+  wf_t.printCore();
+  fmt::print("\nValence energies (including total QED):\n");
   wf_t.printValence();
 
   //----------------------------------------------------------------------------
   // Output:
 
-  // 1. First-order QED corrections to energies
-  std::cout << "\nFirst-order QED corrections to energies (" << units_str
-            << "):\n";
-  std::cout << "State Uehl        SE(h)       SE(l)       SE(m)       WK  "
-               "        Total\n";
-  for (auto &v : wf.valence()) {
-    const auto deu = Vu.radialIntegral(v, v) * units;
-    const auto deh = Vh.radialIntegral(v, v) * units;
-    const auto del = Vl.radialIntegral(v, v) * units;
-    const auto dem = Vm.radialIntegral(v, v) * units;
-    const auto dew = Vw.radialIntegral(v, v) * units;
-    const auto det = Vt.radialIntegral(v, v) * units;
-    // const auto det2 = deu + deh + del + dem + dew;
-    printf("%4s %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e\n",
-           v.shortSymbol().c_str(), deu, deh, del, dem, dew, det);
+  // common table "header"
+  const auto qed_header = [&]() {
+    fmt::print("{:5s} {:>11s} {:>11s} {:>11s} {:>11s} {:>11s} {:>11s}  [{}]\n",
+               "State", "Uehl", "SE(h)", "SE(l)", "SE(m)", "WK", "Total",
+               unit_label);
+  };
+
+  // 1. First-order QED corrections to energies (no relaxation)
+  const auto de1_row_printer = [&](const DiracSpinor &s) {
+    fmt::print("{:5s} {:11.4e} {:11.4e} {:11.4e} {:11.4e} {:11.4e} {:11.4e}\n",
+               s.shortSymbol(), Vu.radialIntegral(s, s) * un,
+               Vh.radialIntegral(s, s) * un, Vl.radialIntegral(s, s) * un,
+               Vm.radialIntegral(s, s) * un, Vw.radialIntegral(s, s) * un,
+               Vt.radialIntegral(s, s) * un);
+  };
+
+  fmt::print("\nCore energy corrections (first-order, no relaxation)  [{}]:\n",
+             unit_label);
+  qed_header();
+  for (const auto &a : wf.core()) {
+    de1_row_printer(a);
   }
 
-  // 2. Total QED corrections to energies
-  std::cout << "\nTotal QED corrections to energies (" << units_str
-            << "), with relaxation:\n";
-  std::cout << "State Uehl        SE(h)       SE(l)       SE(m)       WK  "
-               "        Total\n";
-  for (auto &v0 : wf.valence()) {
-    const auto &vu = *wf_u.getState(v0.n(), v0.kappa());
-    const auto &vh = *wf_h.getState(v0.n(), v0.kappa());
-    const auto &vl = *wf_l.getState(v0.n(), v0.kappa());
-    const auto &vm = *wf_m.getState(v0.n(), v0.kappa());
-    const auto &vw = *wf_w.getState(v0.n(), v0.kappa());
-    const auto &vt = *wf_t.getState(v0.n(), v0.kappa());
-
-    const auto deu = (vu.en() - v0.en()) * units;
-    const auto deh = (vh.en() - v0.en()) * units;
-    const auto del = (vl.en() - v0.en()) * units;
-    const auto dem = (vm.en() - v0.en()) * units;
-    const auto dew = (vw.en() - v0.en()) * units;
-    const auto det = (vt.en() - v0.en()) * units;
-    printf("%4s %11.4e %11.4e %11.4e %11.4e %11.4e %11.4e\n",
-           v0.shortSymbol().c_str(), deu, deh, del, dem, dew, det);
-  }
-
-  //----------------------------------------------------------------------------
-  //----------------------------------------------------------------------------
-  // Matrix elements:
-
-  const auto me_input = input.getBlock("MatrixElements");
-  // If we aren't given this block, we're done:
-  if (me_input == std::nullopt)
-    return;
-
-  std::cout << "\n";
-  IO::print_line();
-  std::cout << "QED corrections to matrix elements\n";
-
-  me_input->check({{"operator", "e.g., E1, hfs"},
-                   {"options{}", "options specific to operator; blank by dflt"},
-                   {"rpa", "true or false (only TDHF method) [true]"},
-                   {"omega", "Frequency for RPA [0.0]"}});
-
-  const auto oper = me_input->get<std::string>("operator", "");
-  // Get optional 'options' for operator
-  const auto tmp_opt = me_input->getBlock("options");
-  const auto h =
-    DiracOperator::generate(oper, tmp_opt ? *tmp_opt : IO::InputBlock{}, wf);
-
-  const auto rpaQ = me_input->get("rpa", true);
-  const auto omega = me_input->get("omega", 0.0);
-
-  // set up RPA, for each QED sub-operator:
-  using namespace ExternalField;
-  std::unique_ptr<CorePolarisation> dV0{nullptr};
-  std::unique_ptr<CorePolarisation> dVu{nullptr};
-  std::unique_ptr<CorePolarisation> dVh{nullptr};
-  std::unique_ptr<CorePolarisation> dVl{nullptr};
-  std::unique_ptr<CorePolarisation> dVm{nullptr};
-  std::unique_ptr<CorePolarisation> dVw{nullptr};
-  std::unique_ptr<CorePolarisation> dVt{nullptr};
-  if (rpaQ) {
-    std::cout << "Including RPA: ";
-    std::cout << "TDHF method\n";
-    dV0 = std::make_unique<TDHF>(h.get(), wf.vHF());
-    dVu = std::make_unique<TDHF>(h.get(), wf_u.vHF());
-    dVh = std::make_unique<TDHF>(h.get(), wf_h.vHF());
-    dVl = std::make_unique<TDHF>(h.get(), wf_l.vHF());
-    dVm = std::make_unique<TDHF>(h.get(), wf_m.vHF());
-    dVw = std::make_unique<TDHF>(h.get(), wf_w.vHF());
-    dVt = std::make_unique<TDHF>(h.get(), wf_t.vHF());
-  }
-
-  std::cout << "\nCalculating matrix elements ";
-  if (rpaQ) {
-    std::cout << "(and solving RPA) ";
-  }
-  std::cout << "including:\n";
-  std::cout << "No QED:\n";
-  const auto me0 = calcMatrixElements(wf.valence(), h.get(), dV0.get(), omega);
-
-  std::cout << "Uehling:\n";
-  const auto meu =
-    calcMatrixElements(wf_u.valence(), h.get(), dVu.get(), omega);
-
-  std::cout << "Self-energy (high-frequency):\n";
-  const auto meh =
-    calcMatrixElements(wf_h.valence(), h.get(), dVh.get(), omega);
-
-  std::cout << "Self-energy (low-frequency):\n";
-  const auto mel =
-    calcMatrixElements(wf_l.valence(), h.get(), dVl.get(), omega);
-
-  std::cout << "Self-energy (magnetic):\n";
-  const auto mem =
-    calcMatrixElements(wf_m.valence(), h.get(), dVm.get(), omega);
-
-  std::cout << "Wichmann-Kroll:\n";
-  const auto mew =
-    calcMatrixElements(wf_w.valence(), h.get(), dVw.get(), omega);
-
-  std::cout << "Total radiative potential:\n";
-  const auto met =
-    calcMatrixElements(wf_t.valence(), h.get(), dVt.get(), omega);
-
-  // Print matrix elements, without QED:
-  std::cout << "\nReduced matrix elements (" << h->name() << "), no QED:\n";
-  std::cout << (rpaQ ? ExternalField::MEdata::title() :
-                       ExternalField::MEdata::title_noRPA())
-            << "\n";
-  for (const auto &me : me0) {
-    std::cout << me << "\n";
-  }
-
-  // Print matrix elements, with total QED:
-  std::cout << "\nReduced matrix elements (" << h->name()
-            << "), including full QED:\n";
-  std::cout << (rpaQ ? ExternalField::MEdata::title() :
-                       ExternalField::MEdata::title_noRPA())
-            << "\n";
-  for (const auto &me : met) {
-    std::cout << me << "\n";
-  }
-
-  // QED corrections to MEs (no RPA):
-  std::cout << "\nQED corrections to reduced matrix elements (no RPA), in au\n";
-  std::cout << "States     Uehl       SE(h)      SE(l)      SE(m)      WK     "
-               "    Total\n";
-  for (std::size_t i = 0; i < me0.size(); ++i) {
-    const auto [a, b, ww, hab, dv] = me0.at(i);
-    printf("%4s %4s ", a.c_str(), b.c_str());
-    for (const auto p : {&meu, &meh, &mel, &mem, &mew, &met}) {
-      const auto [qa, qb, qww, qh, qdv] = (*p).at(i);
-      assert(qa == a && qb == b);
-      auto del0 = qh - hab;
-      printf("%10.3e ", del0);
+  if (!wf.valence().empty()) {
+    fmt::print(
+      "\nValence energy corrections (first-order, no relaxation)  [{}]:\n",
+      unit_label);
+    qed_header();
+    for (const auto &v : wf.valence()) {
+      de1_row_printer(v);
     }
-    std::cout << "\n";
   }
 
-  // QED corrections to MEs (with RPA):
-  if (rpaQ) {
-    // QED corrections to MEs:
-    std::cout << "\nQED corrections to matrix elements (with RPA), in au\n";
-    std::cout
-      << "States     Uehl       SE(h)      SE(l)      SE(m)      WK     "
-         "    Total\n";
-    for (std::size_t i = 0; i < me0.size(); ++i) {
-      const auto [a, b, ww, hab, dv] = me0.at(i);
-      printf("%4s %4s ", a.c_str(), b.c_str());
-      for (const auto p : {&meu, &meh, &mel, &mem, &mew, &met}) {
-        const auto [qa, qb, qww, qh, qdv] = (*p).at(i);
-        assert(qa == a && qb == b);
-        auto deldv = (qh + qdv) - (hab + dv);
-        printf("%10.3e ", deldv);
-      }
-      std::cout << "\n";
-    }
+  // 2. Total QED corrections to energies (with relaxation)
+  const auto de_relax_row = [&](const DiracSpinor &s0, const Wavefunction &wu,
+                                const Wavefunction &wh, const Wavefunction &wl,
+                                const Wavefunction &wm, const Wavefunction &ww,
+                                const Wavefunction &wt) {
+    const auto e0 = s0.en();
+    fmt::print("{:5s} {:11.4e} {:11.4e} {:11.4e} {:11.4e} {:11.4e} {:11.4e}\n",
+               s0.shortSymbol(),
+               (wu.getState(s0.n(), s0.kappa())->en() - e0) * un,
+               (wh.getState(s0.n(), s0.kappa())->en() - e0) * un,
+               (wl.getState(s0.n(), s0.kappa())->en() - e0) * un,
+               (wm.getState(s0.n(), s0.kappa())->en() - e0) * un,
+               (ww.getState(s0.n(), s0.kappa())->en() - e0) * un,
+               (wt.getState(s0.n(), s0.kappa())->en() - e0) * un);
+  };
+
+  fmt::print("\nCore energy corrections (with relaxation)  [{}]:\n",
+             unit_label);
+  qed_header();
+  for (const auto &a : wf.core())
+    de_relax_row(a, wf_u, wf_h, wf_l, wf_m, wf_w, wf_t);
+
+  if (!wf.valence().empty()) {
+    fmt::print("\nValence energy corrections (with relaxation)  [{}]:\n",
+               unit_label);
+    qed_header();
+    for (const auto &v0 : wf.valence())
+      de_relax_row(v0, wf_u, wf_h, wf_l, wf_m, wf_w, wf_t);
   }
 }
 

@@ -17,14 +17,44 @@
 
 namespace Module {
 
-// Declare, register, then define below.
+/*! @brief Isotope field shift using TDHF/RPA and MBPT
+
+  @details
+  Calculates the field shift constants F, G2, G4 by varying the nuclear
+  charge radius and fitting the resulting energy shifts:
+
+  \f[ \delta E = F \, \delta\langle r^2 \rangle
+               + G_2 (\delta\langle r^2 \rangle)^2
+               + G_4 \, \delta\langle r^4 \rangle \f]
+
+  Uses TDHF/RPA to include core polarisation. Fits are performed via GSL.
+
+  @warning Old module, not well tested. Use with caution. 
+  G definitions may not match literature or expectations.
+*/
 void fieldShift(const IO::InputBlock &input, const Wavefunction &wf);
+
+/*! @brief Isotope field shift by direct Hartree-Fock recalculation
+
+  @details
+  Calculates the field shift constant F by directly re-solving Hartree-Fock
+  for a range of nuclear charge radii and fitting:
+
+  \f[ \delta E = F \, \delta\langle r^2 \rangle \f]
+
+  Core relaxation (equivalent to RPA) is optionally included.
+  Does not recompute the correlation potential Sigma.
+
+  @warning Old module, not well tested. Use with caution.
+*/
 void fieldShift_direct(const IO::InputBlock &input, const Wavefunction &wf);
+
 namespace {
 const Register r_fieldShift{
   "fieldShift",
   "Calculates field shift constants (isotope shift) using TDHF and MBPT",
   &fieldShift};
+
 const Register r_fieldShift_direct{
   "fieldShift_direct",
   "Calculates field-shift constants (isotope shift) by direct calculation "
@@ -32,6 +62,10 @@ const Register r_fieldShift_direct{
   &fieldShift_direct};
 } // namespace
 
+//==============================================================================
+//==============================================================================
+
+//==============================================================================
 void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({{"", "Calculates field shift using MBPT, including 2nd-order "
                     "(quadratic) field shift, via the TDHF/RPA(basis) method"},
@@ -44,6 +78,9 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.has_option("help")) {
     return;
   }
+
+  std::cout << "\nWARNING: fieldShift module is old and not well tested. "
+               "Use with caution.\n";
 
   using namespace qip::overloads;
 
@@ -366,6 +403,10 @@ void fieldShift_direct(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.has_option("help")) {
     return;
   }
+
+  std::cout
+    << "\nWARNING: fieldShift_direct module is old and not well tested. "
+       "Use with caution.\n";
 
   const auto core_relax = input.get("core_relaxation", true);
   const auto print = input.get("print", true);

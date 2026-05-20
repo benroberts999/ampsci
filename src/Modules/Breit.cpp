@@ -14,7 +14,8 @@ namespace Module {
 void Breit(const IO::InputBlock &input, const Wavefunction &wf);
 
 namespace {
-const Register r_Breit{"Breit", "Breit corrections to energies", &Breit};
+const Register r_Breit{
+  "Breit", "Breit corrections to energies at the Hartree-Fock levels", &Breit};
 } // namespace
 
 void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
@@ -28,14 +29,6 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.has_option("help")) {
     return;
   }
-
-  const auto units_str = input.get("units", std::string{"au"});
-  const bool use_cm = (units_str == "cm");
-  const double un = use_cm ? PhysConst::Hartree_invcm : 1.0;
-  const std::string unit_label = use_cm ? "cm^-1" : "au";
-
-  const double lambda = input.get("lambda", 1.0);
-  const bool second_order = input.get("second_order", false);
 
   if (wf.vHF()->vBreit()) {
     fmt::print("Error: This module assumes Breit is not included in "
@@ -51,8 +44,16 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
+  const auto units_str = input.get("units", std::string{"au"});
+  const bool use_cm = (units_str == "cm");
+  const double un = use_cm ? PhysConst::Hartree_invcm : 1.0;
+  const std::string unit_label = use_cm ? "cm^-1" : "au";
+
+  const double lambda = input.get("lambda", 1.0);
+  const bool second_order = input.get("second_order", false);
+
   std::cout << "Using scale: " << lambda
-            << " for f-dependent Breit (scales the frequnecies)\n";
+            << " for f-dependent Breit (scales the frequencies)\n";
 
   // Static Gaunt-only, retardation-only, full static, full f-dependent
   auto G = HF::Breit();
