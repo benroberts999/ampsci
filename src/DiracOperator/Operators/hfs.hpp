@@ -1,6 +1,8 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/InputBlock.hpp"
+#include "Physics/NuclearData.hpp"
+#include "Potentials/NuclearPotentials.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
 #include "qip/Maths.hpp"
@@ -9,109 +11,118 @@
 namespace DiracOperator {
 
 //==============================================================================
-//! Auxillary Functions for hyperfine operatrs; F(r) [nuclear distribution] and similar
+//! Auxiliary functions for hyperfine operators; F(r) [nuclear distribution] and similar
 //! @details See \ref DiracOperator::hfs for operator
 namespace Hyperfine {
 
-//! Type for radial function F(r,rN) (type alias to save typing)
-/*! @details
- - F(r,rN) contains only finite nuclear size correction, not HFS radial function.
- - F(r,rN) -> 1 for r > rN
- - r and rN always in atomic units
+/*!
+  @brief Type for radial function F(r, r_Nuc) -- nuclear magnetisation/charge distribution
+  @details
+  - F(r,rN) contains only finite nuclear size correction, not HFS radial function.
+  - F(r,rN) -> 1 for r > rN
+  - r and rN always in atomic units
+
+  The full HFS radial operator is t^k(r) = F(r, r_N) / r^{k+1}, formed by
+  \ref tk_radial. F(r) itself is defined by the chosen nuclear model;
+  see \ref sphericalBall_F, \ref VolotkaSP_F, \ref uSP, \ref doublyOddSP_F,
+  \ref generic_F.
 */
 using RadialFunction = std::function<double(double r, double r_Nuc)>;
 
 //==============================================================================
-/*! Forms the hyperfine radial function: F(r,rN)/r^{k+1}
+/*!
+  @brief Forms the hyperfine radial operator: F(r, r_N) / r^{k+1}
   @details
   \f[
-    t^k_{\rm radial}[r_i] = \frac{F(r_i,r_N)}{r_i^{k+1}}
+    t^k_{\rm radial}[r_i] = \frac{F(r_i, r_N)}{r_i^{k+1}}
   \f]
 
- @param k     Multipole rank (1 = M1, 2 = E2, ...)
- @param rN    Nuclear radius (a.u.); passed to F(r,r_N)
- @param r     Radial grid (a.u.)
- @param hfs_F Finite nuclear magnetisation function F(r,r_N)
- @return      Radial values of t^k(r)
+  See \ref RadialFunction for the contract on F(r, r_N).
+  Angular factors and signs are handled elsewhere.
 
- @note
- - Angular factors and signs are handled elsewhere.
- - F(r,r_N) contains only the finite nuclear-size correction.
- - Default F corresponds to the spherical-ball model.
- - F(r,r_N) -> 1 for r > r_N.
+  @param k     Multipole rank (1 = M1, 2 = E2, ...)
+  @param rN    Nuclear radius (a.u.); passed to @p hfs_F as r_N
+  @param r     Radial grid points (a.u.)
+  @param hfs_F Nuclear magnetisation/charge distribution F(r, r_N);
+               see \ref RadialFunction and \ref sphericalBall_F
+  @return      Radial values of t^k(r)
 */
 std::vector<double> tk_radial(int k, double rN, const std::vector<double> &r,
                               const RadialFunction &hfs_F);
 
 //==============================================================================
-//! Spherical ball model for F(r,rN) [default]. Uniformly distributed point k-poles.
-/*! @details
-Based on a simple multipole expansion, assuming nucleus is made up from 
-uniformly distributed point k-poles. Note: not everyone seems to define this 
-the same way!
+/*!
+  @brief Spherical ball model for F(r, r_N) [default]. Uniformly distributed point k-poles.
+  @details
+  Based on a simple multipole expansion, assuming the nucleus is composed of
+  uniformly distributed point k-poles. Note: not everyone defines this the same way.
 
-\f[
-  F(r,r_N) = 
-  \begin{cases}
-    (r/r_N)^{2k+1} & r<r_N \\
-    1 & r>r_N \\
-  \end{cases}
-\f]
+  \f[
+    F(r, r_N) =
+    \begin{cases}
+      (r/r_N)^{2k+1} & r < r_N \\
+      1               & r > r_N
+    \end{cases}
+  \f]
 */
 RadialFunction sphericalBall_F(int k);
 
-//! Spherical shell F(r): 0 for r<rN, 1 for r>rN
+//! Spherical shell F(r, r_N): 0 for r < r_N, 1 for r > r_N
 RadialFunction sphericalShell_F();
 
-//! Pointlike F(r): 1
+//! Pointlike F(r): F = 1 everywhere
 RadialFunction pointlike_F();
 
-//! Volotka single-particle nuclear model: F(r,rN)
-/*! @details 
-Calculates the Bohr–Weisskopf magnetisation distribution using the `Volotka' 
-single-particle model of Phys. Rev. Lett. 125, 063002 (2020).
-Returns a RadialFunction F(r,r_N).
-F goes to 1 as r_N->0, and F=1 for r>rN.
-Assumes radial nuclear density is a step function.
- 
- @param mu     Nuclear magnetic moment (in nuclear magnetons)
- @param I_nuc  Nuclear spin
- @param l_pn   Orbital angular momentum of valence nucleon
- @param gl     Orbital g-factor (1 = proton, 0 = neutron)
- @param print  Print model details
- 
- @return Radial function \f$ F_{\mathrm{BW}}(r, r_N) \f$
-*/
-RadialFunction VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl,
-                           bool print = true);
-
-//! Elizarov single-particle magnetisation model [extended Volotka]
-/*! @details
-Returns the radial magnetisation function F(r,r_N) for the model of
-Elizarov, A. A. et al., Opt. Spectrosc. 100, 361 (2006).
-Uses nuclear radial density u(r), with:
-
-\f[
-  u(r) = 
-    \begin{cases}
-      u_0 (R-r)^n & \text{u1(r)} \\
-      u_0 r^n & \text{u2(r)}
-    \end{cases}
-\f]
-
-n=0 should correspond to Volotka model.
+/*!
+  @brief Volotka single-particle nuclear model: F(r, rN)
+  @details
+  Calculates the Bohr-Weisskopf magnetisation distribution using the Volotka
+  single-particle model of Phys. Rev. Lett. 125, 063002 (2020).
+  Assumes radial nuclear density is a step function.
+  F goes to 1 as r_N -> 0. See \ref RadialFunction for F(r) contract.
 
   @param mu     Nuclear magnetic moment (in nuclear magnetons)
   @param I_nuc  Nuclear spin
   @param l_pn   Orbital angular momentum of valence nucleon
   @param gl     Orbital g-factor (1 = proton, 0 = neutron)
-  @param n      Power in usually 0,1,2, but can be anything. 0 => Volotka
-  @param R      Nuclear radius
-  @param u_option Selects returned radial form: true means u1(r)
   @param print  Print model details
-  @return Radial magnetisation function
-  @warning Does normalisation by numerical integration; may be unstable. 
-  Check that returns to Volotka as n->0
+
+  @return Radial function \f$ F_{\mathrm{BW}}(r, r_N) \f$
+*/
+RadialFunction VolotkaSP_F(double mu, double I_nuc, double l_pn, int gl,
+                           bool print = true);
+
+/*!
+  @brief Elizarov single-particle magnetisation model [extended Volotka]
+  @details
+  Returns the radial magnetisation function F(r, r_N) for the model of
+  Elizarov, A. A. et al., Opt. Spectrosc. 100, 361 (2006).
+  Uses nuclear radial density u(r), with:
+
+  \f[
+    u(r) =
+      \begin{cases}
+        u_0 (R-r)^n & \text{u1(r)} \\
+        u_0 r^n     & \text{u2(r)}
+      \end{cases}
+  \f]
+
+  n=0 should correspond to the Volotka model (see \ref VolotkaSP_F).
+  See \ref RadialFunction for F(r) contract.
+
+  @param mu       Nuclear magnetic moment (in nuclear magnetons)
+  @param I_nuc    Nuclear spin
+  @param l_pn     Orbital angular momentum of valence nucleon
+  @param gl       Orbital g-factor (1 = proton, 0 = neutron)
+  @param n        Power; usually 0, 1, or 2. 0 => Volotka
+  @param R        Nuclear radius
+  @param u_option Selects radial form: true for u1(r), false for u2(r)
+  @param print    Print model details
+
+  @return Radial magnetisation function F(r, r_N)
+
+  @warning Normalisation is done by numerical integration; may be unstable.
+           Check that result returns to \ref VolotkaSP_F as n -> 0.
 */
 RadialFunction uSP(double mu, double I_nuc, double l_pn, int gl, double n,
                    double R, bool u_option, bool print = true);
@@ -155,6 +166,34 @@ RadialFunction doublyOddSP_F(double mut, double It, double mu1, double I1,
                              double l1, int gl1, double I2, double l2,
                              bool print = true);
 
+/*!
+  @brief Constructs F(r) from a numerical density rho(r) given on the radial grid.
+  @details
+  Computes the cumulative radial integral with rank-k weighting:
+
+  \f[
+    F(r) = N \int_0^r x^{2k} \rho(x)\, \d x, \qquad
+    N = \frac{1}{\int_0^\infty x^{2k} \rho(x)\, \d x}
+  \f]
+
+  so that \f$ F(r) \to 1 \f$ as \f$ r \to \infty \f$.
+
+  The x^{2k} weighting matches the radial scaling of the multipole operator of rank k
+  (consistent with \ref sphericalBall_F, where F ~ r^{2k+1} inside the nucleus).
+  
+  The density @p rho need not be pre-normalised.
+  The returned function ignores its second argument (r_Nuc), since the
+  distribution is already encoded in @p rho. Assumes @p r is always a
+  grid point (no interpolation).
+
+  @param grid  Radial grid on which @p rho is defined.
+  @param rho   Nuclear density values on the grid points.
+  @param k     Multipole rank (1 = M1, 2 = E2, ...)
+  @return Radial distribution function F(r, r_Nuc).
+*/
+RadialFunction generic_F(const Grid &grid, const std::vector<double> &rho,
+                         int k);
+
 //------------------------------------------------------------------------------
 //! Converts reduced matrix element to A/B coeficients (takes k, 2J, 2J)
 double convert_RME_to_HFSconstant_2J(int k, int tja, int tjb);
@@ -171,60 +210,62 @@ double convert_RME_to_HFSconstant(int k, int ka, int kb);
 //! Generalised hyperfine-structure operator, including relevant nuclear moment
 /*! @details
 
-Implements the nuclear multipole hyperfine operator of rank @p k using a
-specified finite-nucleus radial model.
+  Implements the nuclear multipole hyperfine operator of rank @p k using a
+  specified finite-nucleus radial model.
 
-By default, includes the nuclear moment, and relevant factors.
-Input parameter @p GQ is the g-factor (k=1) or nuclear moment (k>1), 
-in units of nuclear magnetons * barns^power.
-If 'units' set to 'au', usually should set mu=I=Q=1 then to get raw t^k matrix elements.
+  By default, includes the nuclear moment, and relevant factors.
+  Input parameter @p GQ is the g-factor (k=1) or nuclear moment (k>1), 
+  in units of nuclear magnetons * barns^power.
+  If 'units' set to 'au', usually should set mu=I=Q=1 then to get raw t^k matrix elements.
 
-That is, it calculates:
+  That is, it calculates:
 
-\f[
-   GQ * t^k
-\f]
+  \f[
+    GQ * t^k
+  \f]
 
-with:
+  with:
 
-\f[
-    t^k = 
-    \frac{-1}{r^{k+1}}\,F(r)
+  \f[
+      t^k = 
+      \frac{-1}{r^{k+1}}\,F(r)
+      \begin{cases}
+        C^k & \text{electric (even k)} \\
+        \sqrt{\frac{k+1}{k}}
+          \mathbf{\alpha}\!\cdot\!\mathbf{C}^{(0)}_k 
+          & \text{magnetic (odd k)}
+      \end{cases}
+  \f]
+
+  where F(r) is nuclear k-pole distribution (=1 for pointlike).
+
+  Convert to hyperfine constant by taking stretched state, and multiply by:
+
+  \f[
+    M = 
     \begin{cases}
-      C^k & \text{electric (even k)} \\
-      \sqrt{\frac{k+1}{k}}
-        \mathbf{\alpha}\!\cdot\!\mathbf{C}^{(0)}_k 
-        & \text{magnetic (odd k)}
+      1/J      &  k = 1 \\
+      2        &  k = 2 \\
+      -1       &  k = 3 \\
+      1        &  k \geq 4 \\
     \end{cases}
-\f]
+  \f]
 
-where F(r) is nuclear k-pole distribution (=1 for pointlike).
+  This factor (including the steched 3j symbol) is returned by \ref Hyperfine::convert_RME_to_HFSconstant()
 
-Convert to hyperfine constant by taking stretched state, and multiply by:
+  Units: 
+  - Assumes nuclear moments in units of:
+  - magnetic moments: @f$\mu_N\, b^{(k-1)/2}@f$
+  - electric moments: @f$b^{k/2}@f$
+  - Matrix element are in MHz by default, otherwise in atomic units.
 
-\f[
-  M = 
-  \begin{cases}
-    1/J      &  k = 1 \\
-    2        &  k = 2 \\
-    -1       &  k = 3 \\
-    1        &  k \geq 4 \\
-  \end{cases}
-\f]
+  Here \f$ \mu_N \f$ is the nuclear magneton and \f$ b \f$ is the barn.
 
-This factor (including the steched 3j symbol) is returned by \ref Hyperfine::convert_RME_to_HFSconstant()
+  See, e.g., Xiao _et al._, [Phys. Rev. A 102, 022810 (2020).](http://arxiv.org/abs/2007.06798)
 
-Units: 
-- Assumes nuclear moments in units of:
-- magnetic moments: @f$\mu_N\, b^{(k-1)/2}@f$
-- electric moments: @f$b^{k/2}@f$
-- Matrix element are in MHz by default, otherwise in atomic units.
+  The radial part is constructed from \ref Hyperfine::tk_radial().
 
-Here \f$ \mu_N \f$ is the nuclear magneton and \f$ b \f$ is the barn.
-
-See, e.g., Xiao _et al._, [Phys. Rev. A 102, 022810 (2020).](http://arxiv.org/abs/2007.06798)
-
-The radial part is constructed from \ref Hyperfine::tk_radial().
+  @note See @ref DiracOperator::Hyperfine for details
 */
 class hfs final : public TensorOperator {
   using RadialFunction = std::function<double(double, double)>;
@@ -309,9 +350,9 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
                "assumes nuclear moments g/Q are in mu_N*barns^p. For atomic "
                "units, best to set g=Q=1 to get raw t^k matrix elements [MHz]"},
      {"F", "F(r): Nuclear moment distribution: ball, point, shell, "
-           "SingleParticle, or doublyOddSP [ball]"},
-     {"F(r)", "Obselete; use 'F' from now - will be removed"},
-     {"nuc_mag", "Obselete; use 'F' from now - will be removed"},
+           "SingleParticle, doublyOddSP, uSP, Fermi, or Gaussian [ball]"},
+     {"", "The following options are all for F(r) details. See "
+          "https://ampsci.dev for full details (search `hyperfine`)"},
      {"printF", "Writes F(r) to a text file [false]"},
      {"print", "Write F(r) info to screen [true]"},
      {"", "The following are only for F=SingleParticle or doublyOddSP"},
@@ -327,15 +368,19 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
      {"l2", "l of 'second' unpaired nucleon"},
      {"I1", "total spin (J) of 'first' unpaired nucleon"},
      {"I2", "total spin (J) of 'second' unpaired nucleon"},
-     {"", "The following are only for u(r) function"},
+     {"", "The following are only for u(r) function (F=uSP)"},
      {"u", "u1 or u2 : u1(r) = (R-r)^n, u2(r) = r^n [u1]"},
-     {"n", "n that appears above. Should be between 0 and 2 [0]"}});
+     {"n", "n that appears above. Should be between 0 and 2 [0]"},
+     {"", "The following are only for Fermi function (F=Fermi)"},
+     {"t", "skin thickness (normally 2.3). note: c taken from wavefunction, or "
+           "from rrms above [2.3]"}});
   if (input.has_option("help")) {
     return nullptr;
   }
 
   const auto nuc = wf.nucleus();
   const auto isotope = Nuclear::findIsotopeData(nuc.z(), nuc.a());
+
   auto mu = input.get("mu", isotope.mu ? *isotope.mu : 1.0);
   auto I_nuc = input.get("I", isotope.I_N ? *isotope.I_N : 1.0);
   const auto print = input.get("print", true);
@@ -370,11 +415,13 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
     shell,
     SingleParticle,
     doublyOddSP,
-    spu,
+    uSP,
+    Fermi,
+    Gaussian,
     Error
   };
 
-  std::string default_distribution = "ball";
+  const std::string default_distribution = "ball";
 
   // For compatability with old notation of 'F(r)' input option
   const auto Fr_str =
@@ -391,8 +438,11 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
     qip::ci_compare(Fr_str, "shell")         ? DistroType::shell :
     qip::ci_wc_compare(Fr_str, "Single*")    ? DistroType::SingleParticle :
     qip::ci_wc_compare(Fr_str, "doublyOdd*") ? DistroType::doublyOddSP :
-    qip::ci_compare(Fr_str, "spu")           ? DistroType::spu :
-                                               DistroType::Error;
+    (qip::ci_compare(Fr_str, "spu") || qip::ci_compare(Fr_str, "uSP")) ?
+                                               DistroType::uSP :
+    qip::ci_wc_compare(Fr_str, "Fermi*") ? DistroType::Fermi :
+    qip::ci_wc_compare(Fr_str, "Gauss*") ? DistroType::Gaussian :
+                                           DistroType::Error;
   if (distro_type == DistroType::Error) {
     fmt2::styled_print(fg(fmt::color::red), "\nError 271:\n");
     std::cout << "\nIn hyperfine. Unkown F(r) - " << Fr_str << "\n";
@@ -426,11 +476,14 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // default is BALL:
-  auto Fr = Hyperfine::sphericalBall_F(k);
+  auto Fr = Hyperfine::sphericalBall_F(k); // should never be used
+
   if (distro_type == DistroType::ball) {
     Fr = Hyperfine::sphericalBall_F(k);
+
   } else if (distro_type == DistroType::shell) {
     Fr = Hyperfine::sphericalShell_F();
+
   } else if (distro_type == DistroType::SingleParticle) {
     const auto pi = input.get("parity", isotope.parity ? *isotope.parity : 0);
     const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
@@ -449,11 +502,12 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "with l=" << l << " (pi=" << pi << ")\n";
     }
     Fr = Hyperfine::VolotkaSP_F(mu, I_nuc, l, gl, print);
-  } else if (distro_type == DistroType::spu) {
+
+  } else if (distro_type == DistroType::uSP) {
     const auto pi = input.get("parity", isotope.parity ? *isotope.parity : 0);
     const auto u_func = input.get("u", std::string{"u1"}); // u1=(R-r)^n, u2=r^n
     const bool u_option = u_func == std::string{"u1"};
-    const auto n = input.get("n", 0.0); // u1=(R-r)^n, u2=r^n
+    const auto n = input.get("n", 1.0); // u1=(R-r)^n, u2=r^n
     const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
     auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
     l = input.get("l", l); // can override derived 'l' (not recommended)
@@ -469,7 +523,12 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
         std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
       std::cout << "with l=" << l << " (pi=" << pi << ")\n";
     }
+    if (print) {
+      std::cout << "u(r) = " << u_func << ": " << (u_option ? "(R-r)^n" : "r^n")
+                << ", n=" << n << "\n";
+    }
     Fr = Hyperfine::uSP(mu, I_nuc, l, gl, n, r_nucau, u_option, print);
+
   } else if (distro_type == DistroType::doublyOddSP) {
     const auto mu1 = input.get<double>("mu1", 1.0);
     const auto gl1 = input.get<int>("gl1", -1); // 1 or 0 (p or n)
@@ -485,6 +544,29 @@ generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto I2 = input.get<double>("I2", -1.0);
 
     Fr = Hyperfine::doublyOddSP_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2, print);
+
+  } else if (distro_type == DistroType::Fermi) {
+    const auto t_fm = input.get("t", nuc.t());
+    const auto c_fm = Nuclear::c_hdr_formula_rrms_t(r_rmsfm, t_fm);
+    if (print)
+      std::cout << "Fermi distro: c=" << c_fm << " fm, t=" << t_fm << " fm\n";
+    const auto rho =
+      Nuclear::fermiNuclearDensity_tcN(t_fm, c_fm, 1.0, wf.grid());
+    Fr = Hyperfine::generic_F(wf.grid(), rho, k);
+
+  } else if (distro_type == DistroType::Gaussian) {
+    const auto rN_au = r_rmsfm / PhysConst::aB_fm;
+    if (print)
+      std::cout << "Gaussian distro: r_rms=" << r_rmsfm << " fm\n";
+    std::vector<double> rho;
+    rho.reserve(wf.grid().num_points());
+    for (const auto ri : wf.grid().r()) {
+      rho.push_back(std::exp(-1.5 * ri * ri / (rN_au * rN_au)));
+    }
+    Fr = Hyperfine::generic_F(wf.grid(), rho, k);
+  } else if (distro_type == DistroType::Error) {
+    std::cout << "Using pointlike F(r):\n";
+    Fr = Hyperfine::pointlike_F();
   }
 
   // Optionally print F(r) function to file

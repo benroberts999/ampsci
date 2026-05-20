@@ -165,6 +165,43 @@ RadialFunction doublyOddSP_F(double mut, double It, double mu1, double I1,
 }
 
 //------------------------------------------------------------------------------
+RadialFunction generic_F(const Grid &grid, const std::vector<double> &rho,
+                         int k) {
+  const auto &r = grid.r();
+  const auto &drdu = grid.drdu();
+  const auto du = grid.du();
+  const auto n = r.size();
+
+  // Total norm: int_0^inf r^{2k} rho(r) dr
+  double norm = 0.0;
+  for (std::size_t i = 0; i < n; ++i) {
+    norm += rho.at(i) * std::pow(r[i], 2 * k) * drdu[i] * du;
+  }
+
+  // Cumulative F[i] = (1/norm) * int_0^{r_i} x^{2k} rho(x) dx
+  std::vector<double> F(n, 0.0);
+  double F_cumulative = 0.0;
+  for (std::size_t i = 0; i < n; ++i) {
+    F_cumulative += rho.at(i) * std::pow(r[i], 2 * k) * drdu[i] * du;
+    F[i] = F_cumulative / norm;
+  }
+
+  if (std::abs(F.back() - 1.0) > 1.0e-6) {
+    std::cerr << "WARNING: generic_F: F.back() = " << F.back()
+              << " (expected 1)\n";
+  }
+
+  return [r_grid = r, F_grid = std::move(F)](double r_val, double) -> double {
+    // find corresponding grid point:
+    const auto it = std::lower_bound(r_grid.begin(), r_grid.end(), r_val);
+    if (it == r_grid.end())
+      return 1.0;
+    const auto i = std::size_t(it - r_grid.begin());
+    return F_grid[i];
+  };
+}
+
+//------------------------------------------------------------------------------
 // Converts reduced matrix element to A/B coeficients (takes k, 2J, 2J)
 double convert_RME_to_HFSconstant_2J(int k, int tja, int tjb) {
   // first, get stretched state:
