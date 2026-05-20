@@ -13,13 +13,6 @@
 #include <fstream>
 #include <iomanip>
 
-/*
-ToDO:
-
- * alpha and beta (transition)
-
-*/
-
 //==============================================================================
 namespace Module {
 
