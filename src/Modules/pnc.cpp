@@ -19,6 +19,7 @@ namespace Module {
 
 // Declare, register, then define below.
 void pnc(const IO::InputBlock &input, const Wavefunction &wf);
+
 namespace {
 const Register r_pnc{"pnc", "Calculates APV amplitudes", &pnc};
 } // namespace
@@ -319,9 +320,9 @@ std::pair<double, double> pnc_tdhf(const DiracSpinor &Fa, const DiracSpinor &Fb,
 
   //
   std::cout << "<" << Fa.shortSymbol() << "|" << he1->name() << "|d"
-            << Fb.shortSymbol() << "> + "
-            << "<d" << Fa.shortSymbol() << "|" << he1->name() << "|"
-            << Fb.shortSymbol() << "> ; w/ h = " << hpnc->name() << "\n";
+            << Fb.shortSymbol() << "> + " << "<d" << Fa.shortSymbol() << "|"
+            << he1->name() << "|" << Fb.shortSymbol()
+            << "> ; w/ h = " << hpnc->name() << "\n";
   const auto XB = dVpnc->solve_dPsis(Fb, w_SE, ExternalField::dPsiType::X,
                                      Sigma, ExternalField::StateType::ket);
   const auto YA = dVpnc->solve_dPsis(Fa, w_SE, ExternalField::dPsiType::Y,

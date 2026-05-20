@@ -10,7 +10,23 @@
 
 namespace Module {
 
-// Declare, register, then define below.
+/*!
+  @brief Breit corrections to HF energies and matrix elements.
+  @details
+  Calculates first-order (one-body) Breit corrections to core and valence
+  energies, with and without HF relaxation. Decomposes into Gaunt,
+  retardation, and frequency-dependent contributions.
+
+  Optionally computes second-order Breit corrections using the Johnson
+  formula (requires a basis). The second-order term includes both HF
+  one-body (de(B1,2)) and Sigma two-body (de(B2,2)) contributions.
+
+  @note Assumes Breit is NOT already included in the input wavefunction.
+  @warning Not compatible with Brueckner (correlation potential) orbitals.
+
+  To calculate Breit corrections including MBPT, just use ampsci manually (i.e., calculate once with and once without Breit). 
+  This is because Breit must be included into the basis/Green's function when forming correlation potential.
+*/
 void Breit(const IO::InputBlock &input, const Wavefunction &wf);
 
 namespace {
@@ -18,6 +34,7 @@ const Register r_Breit{
   "Breit", "Breit corrections to energies at the Hartree-Fock levels", &Breit};
 } // namespace
 
+//==============================================================================
 void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(

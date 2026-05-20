@@ -14,6 +14,7 @@ namespace Module {
 
 // Declare, register, then define below.
 void ladder(const IO::InputBlock &input, const Wavefunction &wf);
+
 namespace {
 const Register r_ladder{
   "ladder", "Calculates ladder diagrams and energy corrections", &ladder};

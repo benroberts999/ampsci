@@ -28,23 +28,110 @@
 namespace Module {
 
 // Declare, register, then define below.
+
+/*!
+  @brief Matrix elements of any operator for HF/Brueckner valence states.
+  @details
+  Computes matrix elements \f$ \redmatel{a}{h}{b} \f$ of any registered
+  operator @p operator between valence states, with optional RPA corrections.
+  Output can be reduced matrix elements, stretched-state matrix elements
+  (with \f$ m = j \f$), or hyperfine constants \f$ A, B, \ldots \f$.
+
+  Optionally:
+  - Includes RPA corrections (TDHF, diagram, or basis method).
+  - Includes core-state matrix elements.
+  - Uses the spectrum instead of HF valence states.
+  - Solves RPA at a fixed frequency or at each transition frequency
+    (for frequency-dependent operators or 'each').
+
+  @note For hyperfine operators (hfs, MLVP), the default output is HFS
+        constants rather than reduced matrix elements.
+*/
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf);
+
+//------------------------------------------------------------------------------
+
+/*!
+  @brief Matrix elements of any operator between CI many-body states.
+  @details
+  Computes matrix elements between CI (configuration interaction) many-body
+  wavefunctions. Loops over angular momentum \f$ J \f$ and parity, applying
+  selection rules. Optionally includes:
+  - RPA corrections (diagram method).
+  - Structure radiation and normalisation corrections (via @p StructureRadiation{}).
+  - Frequency-dependent operators, solved at each transition frequency or at a
+    fixed value.
+
+  @note Requires CI wavefunctions to be computed (via the CI{} module).
+*/
 void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf);
+
+//------------------------------------------------------------------------------
+
+/*!
+  @brief Structure radiation and normalisation corrections to matrix elements.
+  @details
+  Computes second-order MBPT corrections to matrix elements using the structure
+  radiation (SR) framework. Includes:
+
+  - SR "top", "bottom", and "centre" diagrams.
+  - Normalisation of states.
+  - Brueckner orbital (BO) corrections (if no Brueckner orbitals present).
+
+  The total corrected matrix element is
+  \f[
+    t_{ab}^{\rm tot} = t_{ab}^{(0)} + \delta V_{ab} + \delta t_{ab}^{\rm SR}
+    + \delta t_{ab}^{\rm Norm} + \delta t_{ab}^{\rm BO}.
+  \f]
+
+  Optionally reads/writes Coulomb \f$ Q^k \f$ integrals to file for speed.
+
+  @note Requires a basis (B-splines). For large bases, the QkTable option
+        gives ~10x speedup at the cost of memory.
+*/
 void structureRad(const IO::InputBlock &input, const Wavefunction &wf);
+
+//------------------------------------------------------------------------------
+
+/*!
+  @brief Normalisation correction via derivative of correlation potential.
+  @details
+  Computes the normalisation factor for each valence state from the
+  energy derivative of the correlation potential,
+
+  \f[
+    \delta t_{ab}^{\rm Norm} = \frac{1}{2}
+    \left( \langle v | \frac{\partial \Sigma}{\partial \varepsilon} | v \rangle_a
+         + \langle v | \frac{\partial \Sigma}{\partial \varepsilon} | v \rangle_b
+    \right) t_{ab},
+  \f]
+
+  evaluated numerically via a finite difference \f$ \delta \varepsilon \f$.
+  This is an alternative to the perturbative SR normalisation.
+
+  @note Requires Brueckner orbitals (correlation potential Sigma must be present).
+*/
 void normalisation(const IO::InputBlock &input, const Wavefunction &wf);
+
+//------------------------------------------------------------------------------
+//------------------------------------------------------------------------------
+
 namespace {
 const Register r_matrixElements{"matrixElements",
                                 "Calculates matrix elements of any operator",
                                 &matrixElements};
+
 const Register r_CI_matrixElements{
   "CI_matrixElements",
   "Calculates matrix elements of any operator for CI wavefunctions",
   &CI_matrixElements};
+
 const Register r_structureRad{
   "structureRad",
   "Calculates structure radiation + normalisation corrections using "
   "perturbation theory",
   &structureRad};
+
 const Register r_normalisation{
   "normalisation",
   "Calculates normalisation correction via derivative of Sigma",
@@ -54,6 +141,9 @@ const Register r_normalisation{
 //==============================================================================
 void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({
+    {"", "Matrix elements of any operator for HF/Brueckner valence states. "
+         "Supports RPA, diagonal and off-diagonal elements, core states, "
+         "and optional use of the spectrum instead of valence states."},
     {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
     {"options{}", "options specific to operator (see ampsci -o 'operator')"},
     {"rpa",
@@ -980,7 +1070,11 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
 void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   //
   input.check(
-    {{"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
+    {{"",
+      "Matrix elements of any operator between CI many-body states. "
+      "Loops over J and parity, applies selection rules, optionally includes "
+      "RPA and structure radiation + normalisation corrections."},
+     {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
      {"options{}", "options specific to operator"},
      {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram"},
      {"ci_basis",

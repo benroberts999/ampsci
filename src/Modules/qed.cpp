@@ -15,7 +15,16 @@
 
 namespace Module {
 
-// Declare, register, then define below.
+/*!
+  @brief QED corrections to HF energies.
+  @details
+  Calculates first-order QED corrections (Ginges-Flambaum radiative potential)
+  to core and valence energies, with and without HF relaxation.
+  Decomposes into Uehling (vacuum polarisation), self-energy (high- and
+  low-frequency), and magnetic form-factor contributions.
+
+  @note Assumes QED is NOT already included in the input wavefunction.
+*/
 void QED(const IO::InputBlock &input, const Wavefunction &wf);
 
 namespace {
@@ -23,6 +32,7 @@ const Register r_QED{"QED", "QED corrections to energies at Hartree-Fock level",
                      &QED};
 } // namespace
 
+//==============================================================================
 void QED(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Check input options for spelling mistakes etc.:

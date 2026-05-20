@@ -24,7 +24,6 @@
 
 namespace Module {
 
-// Declare, register, then define below.
 /*!
   @brief Runs basic numerical tests on HF orbitals and basis/spectrum.
   @details Tests orthonormality, Hamiltonian expectation values, radial

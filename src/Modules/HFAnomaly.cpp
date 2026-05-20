@@ -18,8 +18,62 @@
 namespace Module {
 
 // Declare, register, then define below.
+
+/*!
+  @brief Bohr-Weisskopf effect and hyperfine anomaly.
+  @details
+  Computes the Bohr-Weisskopf (BW) effect: the fractional change in the
+  hyperfine constant due to a finite nuclear magnetisation distribution, defined:
+
+  \f[
+    A \equiv A_0(1 + \varepsilon_{\rm BW})
+  \f]
+
+  where \f$ A_0 \f$ is the pointlike result and \f$ A \f$ uses a finite
+  distribution (Ball/Fermi/Sp model, set via @p hfs_options). 
+  Note: Some places define \f$ \varepsilon \f$ with opposite sign.
+  
+  Optionally:
+
+  - Includes RPA corrections (diagram method only, required a basis).
+  - Computes BW screening factors \f$ x \f$ and \f$ \eta_{sp} \f$ (relative
+    to hydrogenic values), as in [PhysRevA.105.052802](http://arxiv.org/abs/2111.12954).
+  - Computes b moments in the \f$ K_S(R) \f$ and \f$ K_L(R) \f$ polynomial
+    expansions (see @p b_power).
+  - Tunes the magnetic radius to reproduce an experimental BW effect
+    (@p eps_target).
+  - Computes the differential hyperfine anomaly \f${}^1\Delta^2\f$ between
+    two isotopes (@p A2), optionally tuning both magnetic radii to match a
+    target (@p 1D2_target).
+
+  @note Requires valence states. For RPA, a basis is also needed.
+
+  Since this module runs automatically, calculations should be checked/confirmed using manual calculation with the @ref Module::MatrixElements module
+*/
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf);
+
+/*!
+  @brief b moments KS(R) and KL(R) as a function of nuclear rms radius.
+  @details
+  Computes the b-moment polynomial coefficients in the expansions
+
+  \f[
+    K_S(R_m) = \sum_n k_{2n}^{(S)} R_m^{2n}, \quad
+    K_L(R_m) = \sum_n k_{2n}^{(L)} R_m^{2n},
+  \f]
+
+  across a range of nuclear rms radii \f$ [r_1, r_2] \f$. At each radius, HF
+  is re-solved and b_moments fits the radial integrals up to @p b_power.
+  Numerical uncertainties are estimated by varying grid density, inner grid
+  boundary, and fit radius.
+
+  * [arXiv:2603.20090](http://arxiv.org/abs/2603.20090)
+
+  Output is a table: r_rms, KS coefficients and uncertainties, KL coefficients
+  and uncertainties.
+*/
 void b_plot(const IO::InputBlock &input, const Wavefunction &wf);
+
 namespace {
 const Register r_HFAnomaly{
   "HFAnomaly", "Calculates Bohr-Weisskopf effect and hyperfine anomaly",
@@ -354,7 +408,11 @@ b_moments(const std::string &iso, const DiracSpinor &v, double R0_fm,
 void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
-    {{"hfs_options{}", "Options for HFS operator (see -o hfs)"},
+    {{"", "Bohr-Weisskopf effect and differential hyperfine anomaly. "
+          "Compares HFS constants from a finite-magnetisation distribution "
+          "with pointlike results. Optionally includes RPA, screening "
+          "factors, b moments, and differential anomaly between two isotopes."},
+     {"hfs_options{}", "Options for HFS operator (see -o hfs)"},
      {"rpa", "Include RPA (diagram method)? [false]"},
      {"screening", "Calculate screening parameters (x and eta) [false]"},
      {"b_power", "Maximum power for which to caculate b moments in "
