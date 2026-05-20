@@ -1,0 +1,172 @@
+
+/* Core palette + typography */
+html {
+  --primary-color: #1f6feb;            /* light blue accent */
+  --primary-dark-color: #2d5891;
+  --page-background-color: #ffffff;
+  --page-foreground-color: #0b1220;
+
+  --separator-color: #e6eefc;
+  --side-nav-background: #dfebf7;      /* very light blue wash */
+  --code-background: #edeef4;          /* GitHub-ish code bg */
+  --border-radius: 8px;
+
+  --font-family: system-ui, -apple-system, Segoe UI, Roboto, Helvetica, Arial, "Noto Sans", "Liberation Sans", sans-serif;
+
+  /*Change height of search box*/
+  --searchbar-height: 25px;
+
+  --side-nav-fixed-width: 285px;
+
+  --content-maxwidth: 850px;
+}
+
+/* Top bar / title area: white with subtle border (GSL vibe) */
+#titlearea {
+  background: #dfebf7;
+  border-bottom: 1px solid var(--separator-color);
+}
+
+#projectname {
+  font-weight: 650;
+}
+
+/* Sidebar */
+/* #side-nav, #nav-tree {
+  background: var(--side-nav-background);
+} */
+#nav-tree .selected {
+  background: rgba(31, 111, 235, 0.10);
+  border-left: 1px solid var(--primary-color);
+}
+
+/* Links */
+a, a:visited {
+  color: var(--primary-color);
+}
+a:hover {
+  color: var(--primary-dark-color);
+  text-decoration: underline;
+}
+
+/* Content cards / boxes (make doxygen boxes less “heavy”) */
+.memitem, .memproto, .memdoc, .fragment, .contents {
+  border-radius: var(--border-radius);
+}
+.memproto {
+  border: 1px solid var(--separator-color);
+  background: #ffffff;
+}
+.memdoc {
+  border: 1px solid var(--separator-color);
+  border-top: 0;
+}
+
+/* Code blocks */
+div.fragment, pre.fragment, code, .line {
+  background: var(--code-background) !important;
+}
+
+/* Hide duplicate API entries in sidebar (keep accessible via Full API page) */
+/* #side-nav a[href$="namespaces.html"],
+#side-nav a[href$="annotated.html"],
+#side-nav a[href$="classes.html"],
+#side-nav a[href$="classindex.html"],
+#side-nav a[href$="hierarchy.html"] {
+  display: none !important;
+} */
+
+
+/* Doxygen "fragment" blocks with per-line <div class="line"> */
+
+/* Allow shell blocks with non-copyable green $*/
+.shell-block div.fragment div.line::before {
+  content: "$ ";
+  color: #30894b;   /* light green */
+  opacity: 0.85;
+  user-select: none;
+}
+
+/* Makes arrows always visible */
+#nav-tree .arrow {
+    opacity: 1 !important;
+}
+
+/* Hide "Detailed Description" heading (the h2 immediately before the details block) */
+h2.groupheader:has(+ .textblock) {
+  display: none;
+}
+
+/* Mobile hamburger menu */
+#mobile-nav-btn {
+  display: none;
+}
+
+@media screen and (max-width: 767px) {
+  /* Show hamburger button on mobile */
+  #mobile-nav-btn {
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    width: 28px;
+    height: 20px;
+    background: none;
+    border: none;
+    cursor: pointer;
+    padding: 0;
+    position: fixed;
+    top: 18px;
+    right: 16px;
+    z-index: 10;
+  }
+
+  #mobile-nav-btn span {
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: var(--page-foreground-color);
+    border-radius: 2px;
+    transition: transform 0.25s, opacity 0.25s;
+  }
+
+  /* Show top nav on mobile (search + menu items) */
+  #main-nav {
+    display: block !important;
+    width: 100% !important;
+    border-top: 1px solid var(--separator-color);
+    padding: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Hide sidebar by default on mobile, show in overlay when opened */
+  #side-nav {
+    display: none !important;
+    position: fixed !important;
+    top: 110px !important;
+    left: 0 !important;
+    width: 85% !important;
+    max-width: 300px !important;
+    height: 100vh !important;
+    z-index: 1000 !important;
+    background: white !important;
+    overflow-y: auto !important;
+    border-right: 1px solid var(--separator-color) !important;
+    padding-right: 0 !important;
+    margin: 0 !important;
+  }
+
+  /* Show sidebar when menu is open */
+  #side-nav.mobile-menu-open {
+    display: block !important;
+  }
+
+  /* Dim content when menu is open */
+  #doc-content {
+    transition: opacity 0.25s;
+  }
+
+  #side-nav.mobile-menu-open ~ #doc-content {
+    opacity: 0.5;
+    pointer-events: none;
+  }
+}

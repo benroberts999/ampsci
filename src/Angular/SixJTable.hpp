@@ -34,7 +34,7 @@ int twojk(const A &a) {
            half-integer \f$j\f$.  Example: `SixJ(Fa, Fb, k, Fc, Fd, k)`
            evaluates \f$\{j_a,j_b,k;j_c,j_d,k\}\f$.
   @warning Do **not** pre-multiply by 2, and do **not** pass \f$j\f$ or
-           \f$2j\f$ directly — pass the DiracSpinor itself.
+           \f$2j\f$ directly  pass the DiracSpinor itself.
 */
 template <class A, class B, class C, class D, class E, class F>
 double SixJ(const A &a, const B &b, const C &c, const D &d, const E &e,
