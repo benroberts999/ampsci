@@ -99,25 +99,25 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
   fmt::print("\nSolve HF (Gaunt only)\n");
   auto wf_G = wf;
   wf_G.valence().clear();
-  wf_G.solve_core("HartreeFock",
-                  HF::Breit::Params{1.0, 1.0, 1.0, 0.0, 0.0, 0.0}, core_str,
-                  1.0e-13, true);
+  wf_G.solve_core("HartreeFock", core_str,
+                  HF::Breit::Params{1.0, 1.0, 1.0, 0.0, 0.0, 0.0}, 1.0e-13,
+                  true);
   wf_G.solve_valence(val_str, true);
 
   fmt::print("\nSolve HF (Gaunt + Ret., static)\n");
   auto wf_GR = wf;
   wf_GR.valence().clear();
-  wf_GR.solve_core("HartreeFock",
-                   HF::Breit::Params{1.0, 1.0, 1.0, 1.0, 1.0, 0.0}, core_str,
-                   1.0e-13, true);
+  wf_GR.solve_core("HartreeFock", core_str,
+                   HF::Breit::Params{1.0, 1.0, 1.0, 1.0, 1.0, 0.0}, 1.0e-13,
+                   true);
   wf_GR.solve_valence(val_str, true);
 
   fmt::print("\nSolve HF (Gaunt + Ret. + Freq., f-dependent)\n");
   auto wf_GRF = wf;
   wf_GRF.valence().clear();
-  wf_GRF.solve_core("HartreeFock",
-                    HF::Breit::Params{1.0, 1.0, 1.0, 1.0, 1.0, lambda},
-                    core_str, 1.0e-13, true);
+  wf_GRF.solve_core("HartreeFock", core_str,
+                    HF::Breit::Params{1.0, 1.0, 1.0, 1.0, 1.0, lambda}, 1.0e-13,
+                    true);
   wf_GRF.solve_valence(val_str, true);
 
   // Relaxed tables: differences between solved wavefunctions

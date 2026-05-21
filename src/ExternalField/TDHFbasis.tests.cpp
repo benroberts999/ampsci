@@ -16,7 +16,7 @@ TEST_CASE("External Field: TDHFbasis - basic unit tests",
 
   Wavefunction wf({350, 1.0e-4, 80.0, 20.0, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", std::nullopt, "[Ne]", 1.0e-10, false);
+  wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-10, false);
   wf.solve_valence("3sp", false);
   // nb: use very small basis.
   // Don't care about numerical results, just that eveything is working correctly.
@@ -94,7 +94,7 @@ TEST_CASE("External Field: TDHFbasis (RPA)",
   // Create wavefunction object, solve HF for core+valence
   Wavefunction wf({1600, 1.0e-6, 130.0, 10.0, "loglinear", -1.0},
                   {"K", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", std::nullopt, "[Ar]", 1.0e-13, false);
+  wf.solve_core("HartreeFock", "[Ar]", std::nullopt, 1.0e-13, false);
   wf.solve_valence("4sp3d4f", false);
 
   // Use reasonably small basis here
@@ -192,7 +192,7 @@ TEST_CASE("External Field: TDHF (basis) Breit",
   // Create wavefunction object, solve HF for core+valence
   Wavefunction wf({1000, 1.0e-6, 120.0, 50.0, "loglinear", -1.0},
                   {"Rb", -1, "Fermi", -1.0, -1.0}, 1.0);
-  wf.solve_core("HartreeFock", std::nullopt, "[Kr]", 1.0e-12,
+  wf.solve_core("HartreeFock", "[Kr]", std::nullopt, 1.0e-12,
                 false); // no breit
   wf.solve_valence(valence, false);
   wf.formBasis(bspl_param);
@@ -200,7 +200,7 @@ TEST_CASE("External Field: TDHF (basis) Breit",
 
   // Again, including Breit:
   Wavefunction wfB(wf.grid_sptr(), wf.nucleus(), 1.0);
-  wfB.solve_core("HartreeFock", HF::Breit::Params{1.0}, "[Kr]", 1.0e-12,
+  wfB.solve_core("HartreeFock", "[Kr]", HF::Breit::Params{1.0}, 1.0e-12,
                  false); // w/Breit
   wfB.solve_valence(valence, false);
   wfB.formBasis(bspl_param);

@@ -433,7 +433,7 @@ void fieldShift_direct(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto r0 = wf.get_rrms();
 
   std::cout << "\n";
-  wfB.solve_core("HartreeFock", std::nullopt, core_string, 0.0, true);
+  wfB.solve_core("HartreeFock", core_string, std::nullopt, 0.0, true);
   if (!core_relax) {
     std::cout << "Not including Core relaxtion\n";
   } else {
@@ -486,7 +486,7 @@ void fieldShift_direct(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     if (core_relax)
-      wfB.solve_core("HartreeFock", std::nullopt, core_string, 0.0, false);
+      wfB.solve_core("HartreeFock", core_string, std::nullopt, 0.0, false);
     wfB.solve_valence(val_string, false);
     wfB.hartreeFockBrueckner(false);
 

@@ -119,48 +119,43 @@ Wavefunction::determineCore(const std::string &str_core_in)
 }
 
 //==============================================================================
-void Wavefunction::set_HF(const std::string &method,
+void Wavefunction::set_HF(HF::Method method, const std::string &in_core,
                           std::optional<HF::Breit::Params> breit_params,
-                          const std::string &in_core, double eps_HF,
-                          bool print) {
+                          double eps_HF, bool print) {
 
   auto core = determineCore(in_core);
   const auto qed = std::nullopt; // we add QED (optionally) later - to allow for
                                  // QED into valence, but not core
-  m_HF = HF::HartreeFock(rgrid, m_vnuc, std::move(core), qed, m_alpha,
-                         HF::parseMethod(method), breit_params, eps_HF,
-                         Parametric::Type::Green, 0.0, 0.0);
+  m_HF =
+    HF::HartreeFock(rgrid, m_vnuc, std::move(core), qed, m_alpha, method,
+                    breit_params, eps_HF, Parametric::Type::Green, 0.0, 0.0);
 
   // Move this into HF?
   if (print) {
-    // Print some HF into to screen:
-    if (method == "Hartree")
+    // Print some HF info to screen:
+    if (method == HF::Method::Hartree)
       std::cout << "Using Hartree Method (no Exchange)\n";
-    else if (method == "ApproxHF")
+    else if (method == HF::Method::ApproxHF)
       std::cout << "Using approximate HF Method (approx Exchange)\n";
-    else if (method == "KohnSham") {
+    else if (method == HF::Method::KohnSham) {
       std::cout
         << "Using Kohn-Sham Method.\n"
         << "Note: You should include first valence state into the core:\n"
            "Kohn-Sham is NOT a V^N-1 method!\n";
-    } else if (method == "Local") {
+    } else if (method == HF::Method::Local) {
       std::cout << "Using local potential\n";
-    } else if (method != "HartreeFock") {
-      fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
-      std::cout << "unkown method: " << method
-                << "\nDefaulting to HartreeFock method.\n";
     }
 
     // Can only include Breit within HF
-    if (method == "HartreeFock" && breit_params &&
-        breit_params->lambda_f != 0.0) {
-      std::cout << "Including frequency-dependent Breit\n";
-      // scale for frequency-dependent Breit?
-    } else if (method == "HartreeFock" && breit_params) {
+    if (method == HF::Method::HartreeFock && breit_params) {
       std::cout << "Including Breit (scale = " << breit_params->scale << ")\n";
-    } else if (method != "HartreeFock" && breit_params) {
+      if (breit_params->lambda_f != 0.0) {
+        std::cout << "Including frequency-dependent Breit (scale = "
+                  << breit_params->lambda_f << ")\n";
+      }
+    } else if (method != HF::Method::HartreeFock && breit_params) {
       fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
-      std::cout << "can only include Breit in Hartree-Fock "
+      std::cout << "Can only include Breit in Hartree-Fock "
                    "method. Breit will not be included.\n";
     }
   }
@@ -172,12 +167,18 @@ void Wavefunction::solve_core(bool print) {
     m_HF->solve_core(print);
 }
 
-void Wavefunction::solve_core(const std::string &method,
+void Wavefunction::solve_core(HF::Method method, const std::string &in_core,
                               std::optional<HF::Breit::Params> breit_params,
-                              const std::string &in_core, double eps_HF,
-                              bool print) {
-  set_HF(method, breit_params, in_core, eps_HF, print);
+                              double eps_HF, bool print) {
+  set_HF(method, in_core, breit_params, eps_HF, print);
   solve_core(print);
+}
+
+void Wavefunction::solve_core(const std::string &method,
+                              const std::string &in_core,
+                              std::optional<HF::Breit::Params> breit_params,
+                              double eps_HF, bool print) {
+  solve_core(HF::parseMethod(method), in_core, breit_params, eps_HF, print);
 }
 
 //==============================================================================

@@ -193,7 +193,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     breit_params =
       HF::Breit::Params{x_Breit, 1.0, 1.0, 1.0, 1.0, freq_Breit ? 1.0 : 0.0};
   }
-  wf.set_HF(HF_method, breit_params, core, eps_HF, true);
+  wf.set_HF(HF::parseMethod(HF_method), core, breit_params, eps_HF, true);
 
   // Forms QED radiative potential, if RadPot{} block is present.
   // Note: input options are parsed inside radiativePotential()

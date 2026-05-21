@@ -517,7 +517,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
     std::optional<HF::Breit::Params> bp =
       x_br != 0.0 ? std::optional<HF::Breit::Params>{HF::Breit::Params{x_br}} :
                     std::nullopt;
-    wf2.solve_core("HartreeFock", bp, wf.coreConfiguration_nice());
+    wf2.solve_core("HartreeFock", wf.coreConfiguration_nice(), bp);
     wf2.solve_valence(DiracSpinor::state_config(wf.valence()));
     if (wf.Sigma()) {
       wf2.copySigma(wf.Sigma());
@@ -759,17 +759,17 @@ void b_plot(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\n--------------------------\n\n";
     std::cout << wf_t.nucleus() << "\n";
 
-    wf_t.solve_core("HartreeFock", std::nullopt, core_str, 1.0e-13, true);
+    wf_t.solve_core("HartreeFock", core_str, std::nullopt, 1.0e-13, true);
     wf_t.solve_valence(valence_str);
     wf_t.printValence();
     const auto &v = wf_t.valence().front();
 
-    wf_s.solve_core("HartreeFock", std::nullopt, core_str, 1.0e-13, true);
+    wf_s.solve_core("HartreeFock", core_str, std::nullopt, 1.0e-13, true);
     wf_s.solve_valence(valence_str);
     wf_s.printValence();
     const auto &v_s = wf_s.valence().front();
 
-    wf_s2.solve_core("HartreeFock", std::nullopt, core_str, 1.0e-13, true);
+    wf_s2.solve_core("HartreeFock", core_str, std::nullopt, 1.0e-13, true);
     wf_s2.solve_valence(valence_str);
     wf_s2.printValence();
     const auto &v_s2 = wf_s2.valence().front();

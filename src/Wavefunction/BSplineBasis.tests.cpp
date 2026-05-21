@@ -26,7 +26,7 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][unit]") {
   // Create wavefunction object, solve HF for core + valence
   Wavefunction wf({2500, 1.0e-6, 150.0, 0.33 * 150.0, "loglinear"},
                   {"Cs", -1, "Fermi"});
-  wf.set_HF("Local", std::nullopt, "[Xe]");
+  wf.set_HF(HF::Method::Local, "[Xe]");
   wf.solve_core();
   wf.solve_valence("7sp5d4f");
 
@@ -118,7 +118,7 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
           f_Breit != 0.0 ?
             std::optional<HF::Breit::Params>{HF::Breit::Params{f_Breit}} :
             std::nullopt;
-        wf.set_HF("HartreeFock", breit_params, "[Xe]");
+        wf.set_HF(HF::Method::HartreeFock, "[Xe]", breit_params);
         if (f_QED)
           wf.radiativePotential({1.0, 1.0, 1.0, 1.0, 0.0}, 10.0, 1.0, {1.0},
                                 false, false);
@@ -215,7 +215,7 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
         f_Br != 0.0 ?
           std::optional<HF::Breit::Params>{HF::Breit::Params{f_Br}} :
           std::nullopt;
-      wf.set_HF("HartreeFock", breit_params, "[Xe]");
+      wf.set_HF(HF::Method::HartreeFock, "[Xe]", breit_params);
       if (f_QED)
         wf.radiativePotential({1.0, 1.0, 1.0, 1.0, 0.0}, 10.0, 1.0, {1.0},
                               false, false);
@@ -274,7 +274,7 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
   {
     Wavefunction wf({5000, 1.0e-6, 50.0, 0.33 * 50.0, "loglinear", -1.0},
                     {"2", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("Hartree", std::nullopt, "[]");
+    wf.solve_core("Hartree", "[]");
 
     std::string states = "spdfghi";
     std::size_t nspl = 40;
@@ -331,7 +331,7 @@ TEST_CASE("Wavefunction: BSpline-basis", "[BSpline][QED][Breit][integration]") {
   {
     Wavefunction wf({5000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear", -1.0},
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
-    wf.solve_core("Hartree", std::nullopt, "[Xe]");
+    wf.solve_core("Hartree", "[Xe]");
 
     std::string states = "spdfghi";
     std::size_t nspl = 50;
