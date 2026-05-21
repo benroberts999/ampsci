@@ -62,9 +62,10 @@ enum class Parity { even, odd, Error };
   Operators must have purely real or purely imaginary reduced matrix elements.
   For imaginary operators, the imaginary part is computed and stored; the real
   part is identically zero. This distinction affects the Hermitian symmetry
-  relation \f$ \langle b \| \hat{h} \| a \rangle = \pm \langle a \| \hat{h} \| b \rangle^* \f$ 
-  and the sign of \f$ \langle b \| \hat{h} \| a \rangle \f$ relative to
- \f$ \langle a \| \hat{h} \| b \rangle \f$ .
+  relation 
+  \f[ 
+    \langle b \| \hat{h} \| a \rangle = \pm \langle a \| \hat{h} \| b \rangle 
+  \f]
 */
 enum class Realness { real, imaginary, Error };
 

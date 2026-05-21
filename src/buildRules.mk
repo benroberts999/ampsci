@@ -57,8 +57,10 @@ $(BUILD_DIR)/%.o: $(SRC)/%.cpp | $(BUILD_DIR)
 ## Uses basename only - all external module filenames must be unique.
 ext_obj = $(BUILD_DIR)/ExternalModules/$(notdir $(1:.cpp=)).o
 
-## Expand globs and resolve wildcards from EXTERNAL_MODULES (supports e.g. ext/*.cpp)
-EXT_SRCS := $(filter %.cpp,$(wildcard $(EXTERNAL_MODULES)))
+## Expand globs and resolve wildcards from EXTERNAL_MODULES and EXTERNAL_OPERATORS
+EXT_MOD_SRCS := $(filter %.cpp,$(wildcard $(EXTERNAL_MODULES)))
+EXT_OP_SRCS  := $(filter %.cpp,$(wildcard $(EXTERNAL_OPERATORS)))
+EXT_SRCS     := $(EXT_MOD_SRCS) $(EXT_OP_SRCS)
 
 ifneq ($(strip $(EXT_SRCS)),)
   ## Compute object paths for all external modules

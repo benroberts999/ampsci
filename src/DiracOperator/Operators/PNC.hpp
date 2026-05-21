@@ -8,25 +8,23 @@ namespace DiracOperator {
 //==============================================================================
 //! @brief Nuclear-spin independent PNC operator (Qw)
 /*! @details
-\f[
-h_{PNCnsi} = -\frac{G_F \, Q_W}{2\sqrt{2}} \, \rho(r) \, \gamma^5.
-\f]
-\f[
-h_{PNCnsi} = \frac{G_F \, Q_W}{2\sqrt{2}} \, \rho(r) \, \gamma_5.
-\f]
+  \f[
+    h_{PNCnsi} = -\frac{G_F \, Q_W}{2\sqrt{2}} \, \rho(r) \, \gamma^5.
+  \f]
+  \f[
+    h_{PNCnsi} = \frac{G_F \, Q_W}{2\sqrt{2}} \, \rho(r) \, \gamma_5.
+  \f]
+
   - Ouput is in units of (Qw * 1.e-11.) by default. To get (Qw/-N), multiply
-  by (-N) [can go into optional 'factor']
+    by (-N) [can go into optional 'factor']
 
-XXX Note - check sign? Ambiguous compared to many sources, probably stemming
-from writing gamma_5 but meaning gamma^5 ??
+  Scalar, ME = Radial integral (F'|h|F)
+  \f[
+  (F'|h|F) = -\frac{G_F \, Q_W}{2\sqrt{2}}\int (f'g - g'f) rho(r) dr
+  \f]
 
-Scalar, ME = Radial integral (F'|h|F)
-\f[
-(F'|h|F) = -\frac{G_F \, Q_W}{2\sqrt{2}}\int (f'g - g'f) rho(r) dr
-\f]
-
-Generates rho(r) according to fermi distribution, given c and t [c and t in
-FERMI / femptometers].
+  Generates rho(r) according to fermi distribution, given c and t [c and t in
+  FERMI / femptometers].
 */
 class PNCnsi final : public ScalarOperator {
 public:
@@ -36,8 +34,10 @@ public:
                      Nuclear::fermiNuclearDensity_tcN(t, c, 1.0, rgrid),
                      {0, -1, +1, 0}, Realness::imaginary),
       m_unit(in_units) {}
+
   std::string name() const override final { return "pnc-nsi"; }
   std::string units() const override final { return m_unit; }
+
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &wf) {
     input.check(
@@ -58,29 +58,6 @@ public:
       std::cout << "pnc: with c=" << c << ", t=" << t << " [" << units << "]\n";
     return std::make_unique<PNCnsi>(c, t, wf.grid(), -1.0 * N, "units");
   }
-
-private:
-  const std::string m_unit{"iQw*e-11"};
-};
-
-//! PNC nuclear-spin-independent operator with uniform (constant) nuclear density.
-/*! @details
-  Same physics as PNCnsi but uses a uniform spherical density
-  \f$\rho = 3/(4\pi R_{\rm nuc}^3)\f$ inside the nucleus instead of a Fermi
-  distribution. Output units and sign convention match PNCnsi.
-  @param Rnuc_au  Nuclear radius in atomic units.
-*/
-class PNCnsi_const final : public ScalarOperator {
-public:
-  PNCnsi_const(double Rnuc_au, double factor = 1.0,
-               const std::string &in_units = "iQw*e-11")
-    : ScalarOperator(Parity::odd,
-                     (3.0 / (4.0 * M_PI * Rnuc_au * Rnuc_au * Rnuc_au)) *
-                       factor * PhysConst::GFe11 / std::sqrt(8.0),
-                     {}, {0, -1, +1, 0}, Realness::imaginary),
-      m_unit(in_units) {}
-  std::string name() const override final { return "pnc_const"; }
-  std::string units() const override final { return m_unit; }
 
 private:
   const std::string m_unit{"iQw*e-11"};

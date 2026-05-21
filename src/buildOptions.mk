@@ -18,6 +18,12 @@ BUILD ?= ./build
 ## Paths with spaces are not supported. Recompile after changing this list.
 EXTERNAL_MODULES ?=
 
+## External operators: same as EXTERNAL_MODULES but for custom DiracOperator files.
+## Usage is identical -- list .cpp files containing your operator class + Register<T>.
+##   EXTERNAL_OPERATORS = /abs/path/MyOperator.cpp
+##   EXTERNAL_OPERATORS = ext/operators/*.cpp
+EXTERNAL_OPERATORS ?=
+
 ################################################################################
 
 ## Parallelism for build. Default to JOBS if -j not passed
@@ -147,3 +153,4 @@ GITFLAGS += -D GITMODIFIED="$(GITMODIFIED)"
 GITFLAGS += -D CXXVERSION="$(CXXVERSION)"
 GITFLAGS += -D COMPTIME="$(NOW)"
 GITFLAGS += -D EXTERNAL_MODULES="$(foreach src,$(filter %.cpp,$(wildcard $(EXTERNAL_MODULES))),$(notdir $(src)))"
+GITFLAGS += -D EXTERNAL_OPERATORS="$(foreach src,$(filter %.cpp,$(wildcard $(EXTERNAL_OPERATORS))),$(notdir $(src)))"

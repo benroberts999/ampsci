@@ -98,11 +98,23 @@ struct Register {
   }
 };
 
-//! Returns a unique_ptr (polymorphic) to the requested operator.
 /*!
+  @brief Constructs and returns a TensorOperator by name.
   @details
   Looks up @p operator_name in the Registry (case-insensitive) and calls its
-  factory. Returns a NullOperator and prints an error if not found.
+  factory with @p input and @p wf. Returns a NullOperator and prints a warning
+  if the name is not found.
+
+  This is the main runtime entry point for operator construction -- used by
+  modules such as \ref Module::MatrixElements and by `ampsci -o`.
+
+  @param operator_name  Name of the operator as registered (case-insensitive).
+  @param input          Input block containing run-time options for the operator.
+                        May be empty if the operator takes no options.
+  @param wf             Solved wavefunction; provides the grid, nuclear model,
+                        and orbitals needed by the factory.
+  @return               Owning pointer to the constructed operator, or a
+                        NullOperator if @p operator_name is not found.
 */
 std::unique_ptr<DiracOperator::TensorOperator>
 generate(std::string_view operator_name, const IO::InputBlock &input,

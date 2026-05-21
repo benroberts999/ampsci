@@ -18,11 +18,13 @@ DEFAULT_MFLAGS = -j6
 OPT ?= -O3
 
 ################################################################################
-## External modules: list extra .cpp files of external modules
-## Paths may be absolute or relative, wildcard '*' allowed.
+## External modules and operators: 
+## List extra .cpp files containing external modules/operators
+## Paths may be absolute or relative, wildcard '*' allowed, e.g.:
 ##   EXTERNAL_MODULES = /abs/path/MyModule.cpp ../shared/OtherModule.cpp
 ##   EXTERNAL_MODULES = extmodules/*
 EXTERNAL_MODULES ?=
+EXTERNAL_OPERATORS ?=
 
 ################################################################################
 ## Path to the GSL library. Usually, this can be left blank. 

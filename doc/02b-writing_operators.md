@@ -52,7 +52,17 @@ and the \f$ C_{xy} \f$ are angular coefficients (defaulting to \f$ C_{ff}=C_{gg}
 
 ## Creating your own operator
 
-Derive from \ref DiracOperator::TensorOperator and pass the operator properties to the base constructor, for example:
+Done in three steps (details below):
+
+1. **Write the operator class** -- derive from `TensorOperator`, implement `angularF()` and any needed overrides.
+2. **Add a static `generate()` factory** -- required for runtime lookup by name; without it the operator cannot be used from input files or by any module.
+3. **Register it** -- add a `Register<T>` entry in a `.cpp` file so ampsci discovers it at startup.
+
+By default, put everything in a single new `.cpp` file (class, `generate()`, and registration), dropped anywhere in the source tree -- no header needed.
+Split into `.hpp`/`.cpp` only if the class needs to be visible to other files (i.e., if we plan to add this to the core ampsci operator list).
+The `.cpp` file may also live outside the source tree (see "Built-in vs. external operators" below).
+
+First, derive from \ref DiracOperator::TensorOperator and pass the operator properties to the base constructor, for example:
 
 ```cpp
 class MyOperator : public DiracOperator::TensorOperator {
@@ -66,7 +76,7 @@ public:
     return /* ... */;
   }
 
-  // Optiona
+  // Optional (angularCff, angularCfg, angularCgf, angularCgg)
   double angularCff(int kappa_a, int kappa_b) const override {
     return /* default returns 1 */;
   }
@@ -116,13 +126,74 @@ if not overridden.
 
 ---
 
+## Adding the generate "factory" function: `generate()`
+
+Add this static function to your class so ampsci can find the operator by name (from input files, `ampsci -o`, and modules like `MatrixElements`).
+The signature and return value must be exactly like:
+
+```cpp
+static std::unique_ptr<DiracOperator::TensorOperator>
+generate(const IO::InputBlock &input, const Wavefunction &wf){
+  // details
+  return std::make_unique<MyOperator>(/*any options your operator takes*/);
+}
+```
+
+The implementation details are up to you; for most simple operators, they will be very simple (or even blank).
+You don't have to use `input` or `wf`, but they are available for reading user options and accessing the wavefunction/nucleaus/grid etc.
+For example, an operator that depends on the radial grid, the nuclear charge, as well as two parameters, \f$ c \f$ and \f$ n \f$, may be written like:
+
+```cpp
+static std::unique_ptr<TensorOperator>
+generate(const IO::InputBlock &input, const Wavefunction &wf) {
+
+  input.check({{"c", "Overall scale factor [default: 1.0]"},
+               {"n",    "Power of r [default: 2]"}});
+  if (input.has_option("help"))
+    return nullptr;
+
+  const auto c = input.get("c", 1.0);
+  const auto n = input.get("n", 2);
+  return std::make_unique<MyOperator>(wf.grid(), wf.Znuc(), c, n);
+}
+```
+
+* `input.check(...)` is optional but strongly recommended -- it is what populates `ampsci -o` and catches typos in user input. Return `nullptr` for the `help` case.
+* Same for `if (input.has_option("help")) return nullptr;`
+* These are what makes the `ampsci -o` command-line helper works, and how users will know what options your operator takes
+
+---
+
 ## Registering your operator
 
-To expose the operator at runtime:
+Add a `Register<T>` entry, where `T` is your operator class name, into the same .cpp file as your class (inside an anonymous namespace) so ampsci discovers it at startup:
 
-1. Add a `generate_MyOp()` factory function and register it in the `operator_list` in
-   `src/DiracOperator/GenerateOperator.hpp`.
-2. Include your header in `src/DiracOperator/Operators/include.hpp`.
+```cpp
+namespace {
+const DiracOperator::Register<DiracOperator::MyOperator> r_MyOperator{
+  "MyOperator", "Short description (shown by ampsci -o)"};
+} // namespace
+```
+
+(If your operator is written into a .hpp file instead, add this to a seperate .cpp file -- see "Built-in vs. external operators" below).
+The first argument is the name used in input files (e.g., `MatrixElements::MyOp{}`); the second is shown by `ampsci -o`.
+
+---
+
+## Built-in vs. external operators
+
+**External (recommended):** put everything in a single `.cpp` file that lives _outside_ the main ampsci source code, and add it to `EXTERNAL_OPERATORS` in your Makefile -- no changes to the ampsci source required:
+
+```makefile
+EXTERNAL_OPERATORS = path/to/MyOperator.cpp
+```
+
+* This allows you to write and share operators without touching the ampsci source, so ampsci can be updated without conflicts with your code. Can be version-controlled and shared (e.g. via GitHub) independently.
+* Downside: the operator can only be accessed through `generate()` -- you cannot use it directly as a concrete C++ type. This is sufficient for the vast majority of use cases.
+
+**Built-in** (contributing to the ampsci repo): define the class in `src/DiracOperator/Operators/MyOperator.hpp`, add a `Register<MyOperator>` line to `src/DiracOperator/RegisterOperators.cpp`, and add the header to `src/DiracOperator/Operators/include.hpp`.
+
+* The full class type is visible to the rest of the codebase, so other code can construct or cast to it directly.
 
 ---
 
