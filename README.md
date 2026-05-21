@@ -92,18 +92,19 @@ Also check out the example input files to get running:
 
 The ampsci code and methods have been described in the following papers
 
-* A. R. Caddell, V. V. Flambaum, B. M. Roberts, _Accurate electron-recoil ionization factors for dark matter direct detection in xenon, krypton and argon_, [Physical Review D **108**, 083030 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.108.083030), [[arXiv:2305.05125](https://arxiv.org/abs/2305.05125)]
 * B. M. Roberts, C. J. Fairhall, J. S. M. Ginges, _Electric dipole transition amplitudes for atoms and ions with one valence electron_, [Physical Review A **107**, 052812 (2023)](https://journals.aps.org/pra/abstract/10.1103/PhysRevA.107.052812), [[arXiv:2211.11134](https://arxiv.org/abs/2211.11134)]
+* A. R. Caddell, V. V. Flambaum, B. M. Roberts, _Accurate electron-recoil ionization factors for dark matter direct detection in xenon, krypton and argon_, [Physical Review D **108**, 083030 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.108.083030), [[arXiv:2305.05125](https://arxiv.org/abs/2305.05125)]
+* A. Skoufris and B. M. Roberts, _Breit Corrections to Moderately Charged Ions in All-Orders Calculations_, [arXiv:2602.17129](http://arxiv.org/abs/2602.17129).
 
 ### A selection of publications resulting from ampsci
 
+* The COSINE-100 Collaboration, _Constraints on sub-GeV dark matter scattering on electrons with COSINE-100_, [Physical Review D 113, 072012 (2026)](https://journals.aps.org/prd/abstract/10.1103/kszv-g7tl).
 * R. B. Cserveny, B. M. Roberts, _Theoretical characterization of the barium II and radium II ions_, [Physical Review A 112, 032816 (2025)](https://link.aps.org/doi/10.1103/1rtb-8ymc), [[arXiv:2505.05230](https://arxiv.org/abs/2505.05230)]
-* B. Carew, A. R. Caddell, T. N. Maity, C. A. J. O'Hare, _The neutrino fog for dark matter-electron scattering experiments_, [arXiv:2312.04303](https://arxiv.org/abs/2312.04303)
+* The NEON Collaboration, _First Direct Search for Light Dark Matter Using the NEON Experiment at a Nuclear Reactor_, [Physical Review Letters 134, 021802 (2025)](https://link.aps.org/doi/10.1103/PhysRevLett.134.021802)
+* B. Carew, A. R. Caddell, T. N. Maity, C. A. J. O'Hare, _The neutrino fog for dark matter-electron scattering experiments_, [Phys. Rev. D 109, 083016 (2024)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.109.083016), [arXiv:2312.04303](https://arxiv.org/abs/2312.04303)
+* J. M. Cline, M. Puel, and T. Toma, _Boosted dark matter from a phantom fluid_, [Physics Letters B 848, 138377 (2024)](https://www.sciencedirect.com/science/article/pii/S0370269323007116)
 * R. Hamilton _et al._, _Experimental and Theoretical Study of Dynamic Polarizabilities in the_ \f$ 5S - 5D_{5/2} \f$ _Clock Transition in Rubidium-87 and Determination of Electric Dipole Matrix Elements_,  [Physical Review Applied **19**, 054059 (2023)](https://link.aps.org/doi/10.1103/PhysRevApplied.19.054059), [[arXiv:2212.10743](https://arxiv.org/abs/2212.10743)]
 * C. J. Fairhall, B. M. Roberts, J. S. M. Ginges, _QED radiative corrections to electric dipole amplitudes in heavy atoms_, [Physical Review A **107**, 022813 (2023)](https://link.aps.org/doi/10.1103/PhysRevA.107.022813), [[arXiv:2212.11490](https://arxiv.org/abs/2212.11490)]
-* The COSINE-100 Collaboration, _Constraints on sub-GeV dark matter scattering on electrons with COSINE-100_, [Physical Review D 113, 072012 (2026)](https://journals.aps.org/prd/abstract/10.1103/kszv-g7tl).
-* The NEON Collaboration, _First Direct Search for Light Dark Matter Using the NEON Experiment at a Nuclear Reactor_, [Physical Review Letters 134, 021802 (2025)](https://link.aps.org/doi/10.1103/PhysRevLett.134.021802)
-* J. M. Cline, M. Puel, and T. Toma, _Boosted dark matter from a phantom fluid_, [Physics Letters B 848, 138377 (2024)](https://www.sciencedirect.com/science/article/pii/S0370269323007116)
 * The XENON Collaboration, _Search for Electronic Recoil Event Rate Modulation with 4 Years of XENON100 Data_, [Physical Review Letters 118, 101101 (2017)](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.118.101101)
 
 --------------------------------------------------------------------------------
