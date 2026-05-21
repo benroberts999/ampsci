@@ -31,7 +31,7 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
   const auto &in_name = module_input.name();
   std::cout << '\n';
   IO::print_line('-');
-  std::cout << "Module: " << in_name << "\n" << std::flush;
+  std::cout << in_name << "\n" << std::flush;
 
   const auto &entries = Registry::get().entries();
 
@@ -43,22 +43,15 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
   }
 
   // Only reach here if module not found:
-  std::cout << "\nThere is no available module named: " << in_name << "\n";
+  std::cout << "\nCould not find requested module.\n";
 
-  // spell-check + nearest suggestion:
-  const auto compare_sc = [&in_name](const auto &s1, const auto &s2) {
-    return qip::ci_Levenstein(s1.name, in_name) <
-           qip::ci_Levenstein(s2.name, in_name);
-  };
-  const auto guess =
-    std::min_element(entries.cbegin(), entries.cend(), compare_sc);
-  if (guess != entries.cend()) {
-    std::cout << "\nDid you mean: " << guess->name << " ?\n";
+  std::vector<std::string> names;
+  for (const auto &e : entries) {
+    names.push_back(e.name);
   }
+  IO::unkown_option(in_name, names);
 
-  std::cout << "\nAvailable modules:\n";
-  list_modules();
-  std::cout << "\n";
+  std::cout << "\nTo see a list of available modules:  `./ampsci -m`\n";
 }
 
 //==============================================================================

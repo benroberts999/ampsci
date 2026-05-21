@@ -9,6 +9,11 @@ and you can add your own the same way.
 
 * See \ref modules_custom for how to write a module that uses your operator.
 * See \ref modules for the list of existing modules and operators.
+* Use `./ampsci -o` command-line option so see a list of available operators
+  * `./ampsci -o <OperatorName>` for list of input options for specific operator
+  * This will also work for your custom operator once it's compiled
+
+@note If you plan to contribute your operator directly to the ampsci codebase, see the [Contributing guidelines](contributing.html) for how to structure and submit your contribution.
 
 ---
 
@@ -20,6 +25,7 @@ If you need a matrix element that is not already implemented, the operator frame
 * Selection rules enforced by the base class (rank, parity).
 * Compatibility with all existing modules (e.g., `Module::MatrixElements`, RPA, structure radiation).
 * Frequency dependence handled cleanly if needed.
+* RPA (see \ref ExternalField) and any other many-body effects (Structure Radiation etc.) will all "just work" if you implement the operator in this way
 
 ---
 
@@ -62,6 +68,8 @@ By default, put everything in a single new `.cpp` file (class, `generate()`, and
 Split into `.hpp`/`.cpp` only if the class needs to be visible to other files (i.e., if we plan to add this to the core ampsci operator list).
 The `.cpp` file may also live outside the source tree (see "Built-in vs. external operators" below).
 
+### Write the operator
+
 First, derive from \ref DiracOperator::TensorOperator and pass the operator properties to the base constructor, for example:
 
 ```cpp
@@ -92,7 +100,12 @@ Key parameters passed to the base constructor:
 * `RorI` -- `Realness::real` or `Realness::imaginary`.
 * `freq_dep` -- set `true` if the operator depends on frequency or momentum transfer.
 
-### Standard case: override angular coefficients
+You can add any other public/private functions or variables if you require.
+
+@note
+It's very important to get the `rank`, `parity`, and `Realness` correct, since they dictate the selection rules and symmetry properties.
+
+#### Standard case: override angular coefficients
 
 For operators whose radial integral fits the default form above:
 
@@ -105,7 +118,7 @@ For operators whose radial integral fits the default form above:
   
 The radial integral is then handled automatically.
 
-### Non-standard case: override the radial functions
+#### Non-standard case: override the radial functions
 
 If the radial integral cannot be expressed in the default form
 (e.g., it involves derivatives, non-local terms, or mixing not captured by the \f$ C_{xy} \f$ coefficients),
@@ -117,16 +130,15 @@ override **both** `radial_rhs()` and `radialIntegral()` consistently:
 * Both must be overridden together, or results will be inconsistent.
 * `angularCff()`, `angularCgg()`, `angularCfg()`, `angularCgf()` are not used (unless you explicitely use them in your overridden radial functions)
 
-### Frequency-dependent operators
+#### Frequency-dependent operators
 
 For frequency-dependent operators, pass `freq_dep=true` to the base constructor and override `updateFrequency(double omega)`.
 This is called by modules such as `MatrixElements` whenever the frequency changes
-(e.g., when `omega = each` is set in the input). The base implementation aborts at runtime
-if not overridden.
+(e.g., when `omega = each` is set in the input). The base implementation aborts at runtime if this is every required but not overridden to prevent silent failures.
 
 ---
 
-## Adding the generate "factory" function: `generate()`
+### Adding the generate "factory" function: `generate()`
 
 Add this static function to your class so ampsci can find the operator by name (from input files, `ampsci -o`, and modules like `MatrixElements`).
 The signature and return value must be exactly like:
@@ -164,7 +176,7 @@ generate(const IO::InputBlock &input, const Wavefunction &wf) {
 
 ---
 
-## Registering your operator
+### Registering your operator
 
 Add a `Register<T>` entry, where `T` is your operator class name, into the same .cpp file as your class (inside an anonymous namespace) so ampsci discovers it at startup:
 
@@ -204,3 +216,30 @@ Browse `src/DiracOperator/Operators/` for a wide range of examples:
 * Electric dipole, \f$k\f$-pole -- see `Ek.hpp`.
 * Hyperfine structure with non-trivial angular structure -- see `hfs.hpp`.
 * Frequency-dependent operators with spherical Bessel functions -- see the multipole operators.
+
+---
+
+## Key API reference
+
+The following links are to the detailed documentation for the specific namespaces/classes that will be most useful for writing your own operator:
+
+* \ref DiracOperator::TensorOperator -- single-particle tensor operators
+
+* \ref DiracSpinor -- single relativistic orbital \f$ F_{n\kappa} = (f, g) \f$;
+  radial components, quantum numbers, arithmetic, inner products.
+
+* \ref Wavefunction -- full atomic state: core/valence/basis orbital lists,
+  radial grid, nuclear potential, and the HF object. Access valence orbitals
+  via `wf.valence()`, core via `wf.core()`, basis via `wf.basis()`.
+
+* \ref Angular -- Angular coeficients, 3j/6j symbols etc.
+
+* \ref Nuclear -- Nuclear data and potentials
+
+* \ref SphericalBessel -- Spherical Bessel functions
+
+* \ref PhysConst -- Physical constants, unit conversions
+
+* \ref Grid -- numerical grids, including Jacobian
+
+* [Namespaces](namespaces.html) -- full ampsci API docs

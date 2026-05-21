@@ -54,7 +54,7 @@ $(BUILD_DIR)/version/version.o: $(SRC)/version/version.cpp force | $(BUILD_DIR)
 ################################################################################
 ## Convenience targets:
 
-.PHONY: all full clean remove_junk docs open clang_format pre_commit includes license-year force do_the_chicken_dance
+.PHONY: all full clean remove_junk docs opendocs clang_format pre_commit includes license-year force do_the_chicken_dance
 
 clean:
 	rm -fv $(ALLEXES)
@@ -67,6 +67,10 @@ remove_junk:
 ## Builds the ampsci.pdf docs using tex, and the html using doxygen, if available
 docs:
 	bash ./doc/build_docs.sh
+
+## Just a helper for lazy Ben (opens the html docs)
+opendocs: docs
+	@(xdg-open doc/html/index.html > /dev/null 2>&1 &)
 
 do_the_chicken_dance:
 	@echo 'Why would I do that?'

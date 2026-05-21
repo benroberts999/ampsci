@@ -41,9 +41,18 @@ git pull
 
 The following simple method should work for most cases. More detailed compilation instructions/options are provided: [Compilation Details](\ref compilation)
 
-* Easiest method to quickly get running is to use provided shell script `install-dependencies.sh`, which installs the required packages/compilers
+* Easiest method to quickly get running is to use provided shell scripts:
+
+<div class="shell-block">
+```shell
+./install-dependencies.sh
+./configure.sh -y
+make
+```
+</div>
+
+* The script `install-dependencies.sh`, will check if you have the required dependencies, and then as to install them if not
   * This might not work on all systems, meaning a manual setup will be required.
-  * If on linux, you will need sudo privileges to run `install-dependencies.sh`
   * On Mac - the easiest method is to use homebrew [https://brew.sh/](https://brew.sh/) to install the required packages (`install-dependencies.sh` will do this for you)
 
 <div class="shell-block">
@@ -120,5 +129,3 @@ make docs
 * \subpage troubleshooting - \copybrief troubleshooting
 
 * \subpage examples - \copybrief examples
-
-* \subpage hpc - \copybrief hpc

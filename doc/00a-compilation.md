@@ -50,46 +50,7 @@ rm Makefile && ./configure.sh -y
   * What we require: C++ compiler, lapack, blas, GSL
   * Often, most of these come 'bundled' in a "toolchain" (e.g., foss)
 * Load the required modules _before_ running `configure.sh`.
-* On most systems (e.g., Friday) unversioned names work:
-
-<div class="shell-block">
-```shell
-module load foss gsl
-./configure.sh -y
-make
-```
-</div>
-
-On others (e.g. Bunya), explicit versions are required and must be consistent.
-On EasyBuild-based systems, the GSL module typically matches the foss toolchain:
-
-| foss    | GCC    | Matching GSL (typical)|
-|---------|--------|-----------------------|
-| 2022a   | 11.3.0 | gsl/2.7-gcc-11.3.0    |
-| 2023a   | 12.3.0 | gsl/2.7-gcc-12.3.0    |
-| 2024a   | 13.3.0 | gsl/2.8-gcc-13.3.0    |
-
-<div class="shell-block">
-```shell
-module load foss/2024a gsl/2.8-gcc-13.3.0
-./configure.sh -y
-make
-```
-</div>
-
-Use `module avail foss` or `module spider gsl` or similar to find available versions.
-
-`configure.sh` auto-detects OpenBLAS (via `$EBROOTOPENBLAS`) and sets `LDLIBS`
-accordingly. If auto-detection fails, you will have to set it manually in `Makefile`:
-
-```makefile
-LDLIBS ?= -lgsl -lgslcblas -lopenblas
-```
-
-Note: `-lgfortran` may also be required on some older configurations.
-
-If `configure.sh` does not produce a working build, refer to the manual
-compilation options below.
+* See [HPC / SLURM](\ref hpc) details and examples
 
 --------------------------------------------------------------------------------
 
