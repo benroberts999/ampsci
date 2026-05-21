@@ -6,13 +6,20 @@
 namespace DiracOperator {
 
 //==============================================================================
-//! E^k (electric multipole) operator, length form, with (qr<<1) approximation
+//! E^k (electric multipole) operator, length form, with qr<<1 (static) approximation
 /*! @details
-  \f[ h = -|e|r^k = -e r^k \f]
-  \f[<a||d||b> = R C^k_{ab}\f]
-  \f[R = -e \int r^k (f_a f_b + g_a g_b) \, dr\f]
+  \f[ 
+    h_k = -|e|r^k = -e r^k 
+  \f]
+  \f[
+    \redmatel{a}{h_k}{b} = R C^k_{ab}
+  \f]
+  \f[
+    R = -e \int r^k (f_a f_b + g_a g_b) \, dr
+  \f]
 
-  - This has (qr<<1) approximation; Bessel functions not explicit
+  - This has \f$ qr \\ 1\f$ (static) approximation; 
+  - That is, no bessel functions
   - See @ref EM_multipole operator for full operators
 */
 class Ek : public TensorOperator {
@@ -21,14 +28,25 @@ public:
     : TensorOperator(k, Angular::evenQ(k) ? Parity::even : Parity::odd, -1.0,
                      gr.rpow(k)),
       m_k(k) {}
-  double angularF(const int ka, const int kb) const override final {
-    return Angular::Ck_kk(m_k, ka, kb);
-  }
+
   std::string name() const override {
     return std::string("E") + std::to_string(m_k);
   }
   std::string units() const override {
     return m_k == 1 ? "|e|aB" : std::string("|e|aB^") + std::to_string(m_k);
+  }
+
+  double angularF(const int ka, const int kb) const override final {
+    return Angular::Ck_kk(m_k, ka, kb);
+  }
+
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
+    input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"}});
+    if (input.has_option("help"))
+      return nullptr;
+    const auto k = input.get("k", 1);
+    return std::make_unique<Ek>(wf.grid(), k);
   }
 
 private:
@@ -45,6 +63,14 @@ private:
 class E1 final : public Ek {
 public:
   E1(const Grid &gr) : Ek(gr, 1) {}
+
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
+    input.check({{"no options", ""}});
+    if (input.has_option("help"))
+      return nullptr;
+    return std::make_unique<E1>(wf.grid());
+  }
 };
 
 //==============================================================================
@@ -54,6 +80,14 @@ public:
   sigma_r(const Grid &rgrid) : ScalarOperator(Parity::odd, -1.0, rgrid.r()) {}
   std::string name() const override final { return "s.r"; }
   std::string units() const override final { return "aB"; }
+
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
+    input.check({{"no options", ""}});
+    if (input.has_option("help"))
+      return nullptr;
+    return std::make_unique<sigma_r>(wf.grid());
+  }
 };
 
 //==============================================================================
@@ -101,6 +135,14 @@ public:
     m_constant = std::abs(omega) > 1.0e-10 ? -1.0 / (m_alpha * omega) : -1.0;
   }
 
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
+    input.check({{"no options", ""}});
+    if (input.has_option("help"))
+      return nullptr;
+    return std::make_unique<E1v>(wf.alpha(), 0.0);
+  }
+
 private:
   double m_alpha; // (including var-alpha)
 };
@@ -123,70 +165,29 @@ public:
   double angularCgg(int, int) const override final { return 0; }
   double angularCfg(int ka, int kb) const override final { return ka - kb - 1; }
   double angularCgf(int ka, int kb) const override final { return ka - kb + 1; }
+
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &) {
+    input.check({{"no options", ""}});
+    if (input.has_option("help"))
+      return nullptr;
+    return std::make_unique<ialpha>();
+  }
 };
 
 //==============================================================================
+//! @brief Electric quadrupole operator: -|e|r^2
+class E2 final : public Ek {
+public:
+  E2(const Grid &gr) : Ek(gr, 2) {}
 
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_sigma_r(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"no options", ""}});
-  if (input.has_option("help")) {
-    return nullptr;
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
+    input.check({{"no options", ""}});
+    if (input.has_option("help"))
+      return nullptr;
+    return std::make_unique<E2>(wf.grid());
   }
-  return std::make_unique<sigma_r>(wf.grid());
-}
-
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_E1(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"no options", ""}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  return std::make_unique<E1>(wf.grid());
-}
-
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_E1v(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"no options", ""}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  return std::make_unique<E1v>(wf.alpha(), 0.0);
-}
-
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_E2(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"no options", ""}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  return std::make_unique<Ek>(wf.grid(), 2);
-}
-
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_ialpha(const IO::InputBlock &input, const Wavefunction &) {
-  using namespace DiracOperator;
-  input.check({{"no options", ""}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  return std::make_unique<ialpha>();
-}
-
-//------------------------------------------------------------------------------
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Ek(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  const auto k = input.get("k", 1);
-  return std::make_unique<Ek>(wf.grid(), k);
-}
+};
 
 } // namespace DiracOperator

@@ -1,76 +1,114 @@
 #pragma once
+#include "DiracOperator/TensorOperator.hpp"
 #include "IO/InputBlock.hpp"
-#include "Operators/include.hpp"
-#include "TensorOperator.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <memory>
 #include <string>
+#include <string_view>
 #include <vector>
 
 namespace DiracOperator {
 
 /*!
-  @brief List of available operators, their generator functions, and a short description.
-  @details
-  This list is used by @ref generate() to form operators, and is called in a few modules.
+  @brief Operators are self-registering: each operator class exposes a static
+  generate() factory and registers it via a file-scope Register<T> object.
 
-  It is also what gets printed to the screen by:
+  ## Adding a new operator
+
+  **Internal operators** (need concrete type access from outside): add a
+  `static generate()` to the class in its `.hpp`, and add a `Register<T>`
+  entry in `RegisterOperators.cpp`.
+
+  **External operators** (never constructed directly from outside): put the
+  class definition, `static generate()`, and `Register<T>` all in a single
+  `.cpp` file. Drop it in the build and it self-registers at startup.
+
+  The minimal static factory signature:
+
+  \code{.cpp}
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlock &input, const Wavefunction &wf);
+  \endcode
+
+  From the command line:
   ```shell
-    ampsci -o
+    ampsci -o                 # list all operators
+    ampsci -o OperatorName    # show options for OperatorName
   ```
-
-  @note Operators must be added to this list in order for ampsci to know where to find them, and to document to users what's available.
 */
-static const std::vector<
-  std::tuple<std::string,
-             std::unique_ptr<DiracOperator::TensorOperator> (*)(
-               const IO::InputBlock &input, const Wavefunction &wf),
-             std::string>>
-  operator_list{
-    {"E1", &generate_E1, "Electric dipole (moment), length form: -|e|r"},
-    {"E1v", &generate_E1v, "Electric dipole, v-form"},
-    {"E2", &generate_E2, "Electric quadrupole moment operator"},
-    {"Ek", &generate_Ek, "Electric multipole moment operator, in low qr limit"},
-    {"ialpha", &generate_ialpha, "i*alpha (propto E1v)"},
-    {"M1", &generate_M1, "Magnetic dipole (relativistic formula)"},
-    {"M1nr", &generate_M1nr, "Non-relativistic M1"},
-    {"Multipole", &generate_Multipole,
-     "Multipole transition operators (Vector,Axial,Scalar,Pseudoscalar)"},
-    {"hfs", &generate_hfs, "Hyperfine structure k-pole operators"},
-    {"fieldshift", &generate_fieldshift, "Field-shift F(r) operator"},
-    {"r", &generate_r, "radial (scalar) |r|"},
-    {"sigma_r", &generate_sigma_r, "scalar sigma.r operator"},
-    {"pnc", &generate_pnc, "NSI PNC operator"},
-    {"Vrad", &generate_Vrad, "QED Radiative potential"},
-    {"MLVP", &generate_MLVP,
-     "Magnetic-Loop vacuum polarisation vertex correction to HFS"},
-    {"p", &generate_p, "Momentum operator"},
-    {"l", &generate_l, "Orbital L"},
-    {"s", &generate_s, "Spin S (not sigma)"}};
 
-//------------------------------------------------------------------------------
+//! Function-pointer signature shared by every operator factory.
+using FactoryFn = std::unique_ptr<TensorOperator> (*)(const IO::InputBlock &,
+                                                      const Wavefunction &);
 
-//! Returns a unique_ptr (polymorphic) to the requested operator, with given properties
+/*!
+  @brief One entry in the operator registry.
+*/
+struct OperatorEntry {
+  std::string name;
+  std::string description;
+  FactoryFn factory;
+};
+
+/*!
+  @brief Singleton registry of all compiled-in operators.
+  @details
+  Populated at program startup via static initialisers (one per operator) and
+  never modified once main() begins. Uses construct-on-first-use to avoid the
+  static-initialisation order fiasco.
+*/
+class Registry {
+public:
+  //! Access the singleton instance.
+  static Registry &get() {
+    static Registry instance;
+    return instance;
+  }
+
+  //! Append a new entry. Normally called only by Register<T>.
+  void add(std::string name, std::string description, FactoryFn fn) {
+    m_entries.push_back({std::move(name), std::move(description), fn});
+  }
+
+  //! All registered operators, in registration order.
+  const std::vector<OperatorEntry> &entries() const { return m_entries; }
+
+private:
+  Registry() : m_entries{} {}
+  std::vector<OperatorEntry> m_entries;
+};
+
+/*!
+  @brief Constructing a Register<T> adds T::generate to the Registry.
+  @details
+  Place one of these at file scope (inside an anonymous namespace) in a .cpp
+  file to register an operator. T must have a static generate() with the
+  FactoryFn signature; the template instantiation enforces this at compile time.
+
+  \code{.cpp}
+  namespace {
+  const DiracOperator::Register<MyOp> r{"MyOp", "One-line description"};
+  }
+  \endcode
+*/
+template <typename T>
+struct Register {
+  Register(const char *name, const char *description) {
+    Registry::get().add(name, description, &T::generate);
+  }
+};
+
+//! Returns a unique_ptr (polymorphic) to the requested operator.
 /*!
   @details
-
-  From the command line, use
-  ```shell
-    ampsci -o
-  ```
-  to get a list of available operators.
-  For a specific operator 'OperatorName', use:
-  ```shell
-    ampsci -o OperatorName
-  ```
-  to see available run-time options for that operator.
-
+  Looks up @p operator_name in the Registry (case-insensitive) and calls its
+  factory. Returns a NullOperator and prints an error if not found.
 */
 std::unique_ptr<DiracOperator::TensorOperator>
 generate(std::string_view operator_name, const IO::InputBlock &input,
          const Wavefunction &wf);
 
-//! List available operators
+//! Print the list of compiled-in operators (name + description).
 void list_operators();
 
 } // namespace DiracOperator

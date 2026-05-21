@@ -1,5 +1,4 @@
 #pragma once
-#include "DiracOperator/GenerateOperator.hpp"
 #include "DiracOperator/Operators/hfs.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/InputBlock.hpp"
@@ -40,49 +39,42 @@ public:
 
   const QED::RadPot &RadPot() const { return m_Vrad; }
 
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
+    input.check(
+      {{{"Ueh", "  Uehling (vacuum pol). [1.0]"},
+        {"SE_h", "  self-energy high-freq electric. [1.0]"},
+        {"SE_l", "  self-energy low-freq electric. [1.0]"},
+        {"SE_m", "  self-energy magnetic. [1.0]"},
+        {"WK", "  Wickman-Kroll. [0.0]"},
+        {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
+        {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
+                     "typical [1.0]"},
+        {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
+                    "1,0,1 => include for s and d, but not for p [1.0]"},
+        {"readwrite", "Read/write potential? [true]"}}});
+    if (input.has_option("help"))
+      return nullptr;
+    const auto x_Ueh = input.get("Ueh", 1.0);
+    const auto x_SEe_h = input.get("SE_h", 1.0);
+    const auto x_SEe_l = input.get("SE_l", 1.0);
+    const auto x_SEm = input.get("SE_m", 1.0);
+    const auto x_wk = input.get("WK", 0.0);
+    const auto rcut = input.get("rcut", 5.0);
+    const auto scale_rN = input.get("scale_rN", 1.0);
+    const auto x_spd = input.get("scale_l", std::vector{1.0});
+    const auto readwrite = input.get("readwrite", true);
+    const auto r_N_au =
+      std::sqrt(5.0 / 3.0) * scale_rN * wf.nucleus().r_rms() / PhysConst::aB_fm;
+    auto qed = QED::RadPot(wf.grid().r(), wf.Znuc(), r_N_au, rcut,
+                           {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, x_spd, true,
+                           readwrite, wf.run_label());
+    return std::make_unique<Vrad>(std::move(qed));
+  }
+
 private:
   QED::RadPot m_Vrad;
 };
-
-//==============================================================================
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_Vrad(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check(
-    {{{"Ueh", "  Uehling (vacuum pol). [1.0]"},
-      {"SE_h", "  self-energy high-freq electric. [1.0]"},
-      {"SE_l", "  self-energy low-freq electric. [1.0]"},
-      {"SE_m", "  self-energy magnetic. [1.0]"},
-      {"WK", "  Wickman-Kroll. [0.0]"},
-      {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
-      {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
-                   "typical [1.0]"},
-      {"scale_l", "List of doubles. Extra scaling factor for each l e.g., "
-                  "1,0,1 => include for s and d, but not for p [1.0]"},
-      {"readwrite", "Read/write potential? [true]"}}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-
-  const auto x_Ueh = input.get("Ueh", 1.0);
-  const auto x_SEe_h = input.get("SE_h", 1.0);
-  const auto x_SEe_l = input.get("SE_l", 1.0);
-  const auto x_SEm = input.get("SE_m", 1.0);
-  const auto x_wk = input.get("WK", 0.0);
-  const auto rcut = input.get("rcut", 5.0);
-  const auto scale_rN = input.get("scale_rN", 1.0);
-  const auto x_spd = input.get("scale_l", std::vector{1.0});
-  const auto readwrite = input.get("readwrite", true);
-
-  const auto r_N_au =
-    std::sqrt(5.0 / 3.0) * scale_rN * wf.nucleus().r_rms() / PhysConst::aB_fm;
-
-  auto qed = QED::RadPot(wf.grid().r(), wf.Znuc(), r_N_au, rcut,
-                         {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, x_spd, true,
-                         readwrite, wf.run_label());
-
-  return std::make_unique<Vrad>(std::move(qed));
-}
 
 //==============================================================================
 //! @brief Effective VertexQED operator
@@ -225,46 +217,37 @@ public:
 
     return v;
   }
+
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
+    input.check(
+      {{"rN",
+        "Nuclear radius (in fm), for finite-nuclear size "
+        "correction to Uehling loop. If not given, taken from wavefunction."},
+       {"hfs_options{}",
+        "Options for hyperfine operator that sits inside the MLVP operator. "
+        " [see `ampsci -o hfs`]."}});
+    if (input.has_option("help"))
+      return nullptr;
+    // 1. generate regular hfs operator
+    const auto t_options = input.getBlock("hfs_options");
+    auto oper_options = t_options ? *t_options : IO::InputBlock{};
+    // 2. MLVP
+    const auto rN_fm =
+      input.get("rN", std::sqrt(5.0 / 3.0) * wf.nucleus().r_rms());
+    if (oper_options.get("print", true)) {
+      std::cout << "\nGenerate MLVP operator for hfs, with parameters:\n";
+      if (rN_fm != 0.0)
+        std::cout << "Using finite nuclear charge in Uehling loop, with rN="
+                  << rN_fm << " fm.\n";
+      else
+        std::cout << "Using pointlike Uehling loop.\n";
+    }
+    const auto h = hfs::generate(oper_options, wf);
+    const auto r_N_au = rN_fm / PhysConst::aB_fm;
+    return std::make_unique<MLVP>(dynamic_cast<DiracOperator::hfs *>(h.get()),
+                                  wf.grid(), r_N_au);
+  }
 };
-
-//==============================================================================
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_MLVP(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check(
-    {{"rN",
-      "Nuclear radius (in fm), for finite-nuclear size "
-      "correction to Uehling loop. If not given, taken from wavefunction."},
-     {"hfs_options{}",
-      "Options for hyperfine operator that sits inside the MLVP operator. "
-      " [see `ampsci -o hfs`]."}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-
-  // 1. generate regular hfs operator
-  const auto t_options = input.getBlock("hfs_options");
-  auto oper_options = t_options ? *t_options : IO::InputBlock{};
-
-  // 2. MLVP
-  const auto rN_fm =
-    input.get("rN", std::sqrt(5.0 / 3.0) * wf.nucleus().r_rms());
-
-  if (oper_options.get("print", true)) {
-    std::cout << "\nGenerate MLVP operator for hfs, with parameters:\n";
-    if (rN_fm != 0.0)
-      std::cout << "Using finite nuclear charge in Uehling loop, with rN="
-                << rN_fm << " fm.\n";
-    else
-      std::cout << "Using pointlike Uehling loop.\n";
-  }
-
-  const auto h = generate_hfs(oper_options, wf);
-
-  const auto r_N_au = rN_fm / PhysConst::aB_fm;
-
-  return std::make_unique<MLVP>(dynamic_cast<DiracOperator::hfs *>(h.get()),
-                                wf.grid(), r_N_au);
-}
 
 } // namespace DiracOperator

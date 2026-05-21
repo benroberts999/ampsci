@@ -322,6 +322,260 @@ public:
   double angularCfg(int, int) const override final { return cfg; }
   double angularCgf(int, int) const override final { return cfg; }
 
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
+
+    input.check(
+      {{"", "Most following will be taken from the default nucleus if "
+            "not explicitely given"},
+       {"mu", "Magnetic moment in mu_N"},
+       {"Q", "Nuclear quadrupole moment, in barns. Also used as overall "
+             "constant for any higher-order moments [1.0]"},
+       {"k", "Multipolarity. 1=mag. dipole, 2=elec. quad, etc. [1]"},
+       {"rrms",
+        "nuclear (magnetic) rms radius, in Fermi (fm) (defult is charge rms)"},
+       {"units",
+        "Units for output (only for k=1,k=2). MHz or au. For MHz, "
+        "assumes nuclear moments g/Q are in mu_N*barns^p. For atomic "
+        "units, best to set g=Q=1 to get raw t^k matrix elements [MHz]"},
+       {"F", "F(r): Nuclear moment distribution: ball, point, shell, "
+             "SingleParticle, doublyOddSP, uSP, Fermi, or Gaussian [ball]"},
+       {"", "The following options are all for F(r) details. See "
+            "https://ampsci.dev for full details (search `hyperfine`)"},
+       {"printF", "Writes F(r) to a text file [false]"},
+       {"print", "Write F(r) info to screen [true]"},
+       {"", "The following are only for F=SingleParticle or doublyOddSP"},
+       {"I", "Nuclear spin. Taken from nucleus"},
+       {"parity", "Nulcear parity: +/-1"},
+       {"l", "l for unpaired nucleon (automatically derived from I and "
+             "parity; best to leave as default)"},
+       {"gl", "=1 for proton, =0 for neutron"},
+       {"", "The following are only used if F=doublyOddSP"},
+       {"mu1", "mag moment of 'first' unpaired nucleon"},
+       {"gl1", "gl of 'first' unpaired nucleon"},
+       {"l1", "l of 'first' unpaired nucleon"},
+       {"l2", "l of 'second' unpaired nucleon"},
+       {"I1", "total spin (J) of 'first' unpaired nucleon"},
+       {"I2", "total spin (J) of 'second' unpaired nucleon"},
+       {"", "The following are only for u(r) function (F=uSP)"},
+       {"u", "u1 or u2 : u1(r) = (R-r)^n, u2(r) = r^n [u1]"},
+       {"n", "n that appears above. Should be between 0 and 2 [0]"},
+       {"", "The following are only for Fermi function (F=Fermi)"},
+       {"t",
+        "skin thickness (normally 2.3). note: c taken from wavefunction, or "
+        "from rrms above [2.3]"}});
+    if (input.has_option("help")) {
+      return nullptr;
+    }
+
+    const auto nuc = wf.nucleus();
+    const auto isotope = Nuclear::findIsotopeData(nuc.z(), nuc.a());
+
+    auto mu = input.get("mu", isotope.mu ? *isotope.mu : 1.0);
+    auto I_nuc = input.get("I", isotope.I_N ? *isotope.I_N : 1.0);
+    const auto print = input.get("print", true);
+    const auto k = input.get("k", 1);
+
+    const auto use_MHz =
+      qip::ci_compare(input.get<std::string>("units", "MHz"), "MHz");
+
+    if (k <= 0) {
+      fmt2::styled_print(fg(fmt::color::red), "\nError 246:\n");
+      std::cout << "In hyperfine: invalid K=" << k << "! meaningless results\n";
+    }
+    if (I_nuc <= 0 && k == 1) {
+      fmt2::styled_print(fg(fmt::color::orange), "\nWarning 253:\n");
+      std::cout << "In hyperfine: invalid I_nuc=" << I_nuc
+                << "! meaningless results\nSetting I=1\n";
+      I_nuc = 1;
+    }
+    if (mu == 0.0 && k == 1) {
+      fmt2::styled_print(fg(fmt::color::orange), "\nWarning 352:\n");
+      std::cout << "Setting mu=1\n";
+      mu = 1;
+    }
+
+    const auto g_or_Q =
+      (k == 1) ? (mu / I_nuc) :
+      (k == 2) ? input.get("Q", isotope.q ? *isotope.q : 1.0) :
+                 input.get("Q", 1.0);
+
+    enum class DistroType {
+      point,
+      ball,
+      shell,
+      SingleParticle,
+      doublyOddSP,
+      uSP,
+      Fermi,
+      Gaussian,
+      Error
+    };
+
+    const std::string default_distribution = "ball";
+
+    // For compatability with old notation of 'F(r)' input option
+    const auto Fr_str =
+      input.has_option("F") ?
+        input.get<std::string>("F", default_distribution) :
+      input.has_option("nuc_mag") ?
+        input.get<std::string>("nuc_mag", default_distribution) :
+        input.get<std::string>("F(r)", default_distribution);
+
+    const auto distro_type =
+      (qip::ci_wc_compare(Fr_str, "point*") || qip::ci_compare(Fr_str, "1")) ?
+        DistroType::point :
+      qip::ci_compare(Fr_str, "ball")          ? DistroType::ball :
+      qip::ci_compare(Fr_str, "shell")         ? DistroType::shell :
+      qip::ci_wc_compare(Fr_str, "Single*")    ? DistroType::SingleParticle :
+      qip::ci_wc_compare(Fr_str, "doublyOdd*") ? DistroType::doublyOddSP :
+      (qip::ci_compare(Fr_str, "spu") || qip::ci_compare(Fr_str, "uSP")) ?
+                                                 DistroType::uSP :
+      qip::ci_wc_compare(Fr_str, "Fermi*") ? DistroType::Fermi :
+      qip::ci_wc_compare(Fr_str, "Gauss*") ? DistroType::Gaussian :
+                                             DistroType::Error;
+    if (distro_type == DistroType::Error) {
+      fmt2::styled_print(fg(fmt::color::red), "\nError 271:\n");
+      std::cout << "\nIn hyperfine. Unkown F(r) - " << Fr_str << "\n";
+      std::cout << "Defaulting to pointlike!\n";
+    }
+
+    const auto r_rmsfm =
+      distro_type == DistroType::point ? 0.0 : input.get("rrms", nuc.r_rms());
+    const auto r_nucfm = std::sqrt(5.0 / 3) * r_rmsfm;
+    const auto r_nucau = r_nucfm / PhysConst::aB_fm;
+
+    if (print) {
+      std::cout << "\nHyperfine structure: " << wf.atom() << "\n";
+      std::cout << "K=" << k << " ("
+                << (k == 1     ? "magnetic dipole" :
+                    k == 2     ? "electric quadrupole" :
+                    k % 2 == 0 ? "electric multipole" :
+                                 "magnetic multipole")
+                << ")\n";
+      std::cout << "Using " << Fr_str << " nuclear distro for F(r)\n"
+                << "w/ r_N = " << r_nucfm << "fm = " << r_nucau
+                << "au  (r_rms=" << r_rmsfm << "fm)\n";
+      std::cout << "Points inside nucleus: " << wf.grid().getIndex(r_nucau)
+                << "\n";
+      if (k == 1) {
+        std::cout << "mu = " << mu << ", I = " << I_nuc << ", g = " << g_or_Q
+                  << "\n";
+      } else {
+        std::cout << "Q = " << g_or_Q << "\n";
+      }
+    }
+
+    // default is BALL:
+    auto Fr = Hyperfine::sphericalBall_F(k); // should never be used
+
+    if (distro_type == DistroType::ball) {
+      Fr = Hyperfine::sphericalBall_F(k);
+
+    } else if (distro_type == DistroType::shell) {
+      Fr = Hyperfine::sphericalShell_F();
+
+    } else if (distro_type == DistroType::SingleParticle) {
+      const auto pi = input.get("parity", isotope.parity ? *isotope.parity : 0);
+      const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
+      auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
+      l = input.get("l", l); // can override derived 'l' (not recommended)
+      const auto gl_default = wf.Znuc() % 2 == 0 ? 0 : 1; // unparied proton?
+      const auto gl = input.get<int>("gl", gl_default);
+      if (print) {
+        std::cout << "Single-Particle (Volotka formula) for unpaired";
+        if (gl == 1)
+          std::cout << " proton ";
+        else if (gl == 0)
+          std::cout << " neturon ";
+        else
+          std::cout << " gl=" << gl
+                    << "??? program will run, but prob wrong!\n";
+        std::cout << "with l=" << l << " (pi=" << pi << ")\n";
+      }
+      Fr = Hyperfine::VolotkaSP_F(mu, I_nuc, l, gl, print);
+
+    } else if (distro_type == DistroType::uSP) {
+      const auto pi = input.get("parity", isotope.parity ? *isotope.parity : 0);
+      const auto u_func =
+        input.get("u", std::string{"u1"}); // u1=(R-r)^n, u2=r^n
+      const bool u_option = u_func == std::string{"u1"};
+      const auto n = input.get("n", 1.0); // u1=(R-r)^n, u2=r^n
+      const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
+      auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
+      l = input.get("l", l); // can override derived 'l' (not recommended)
+      const auto gl_default = wf.Znuc() % 2 == 0 ? 0 : 1; // unparied proton?
+      const auto gl = input.get<int>("gl", gl_default);
+      if (print) {
+        std::cout << "Single-Particle (Volotka formula) with u(r) for unpaired";
+        if (gl == 1)
+          std::cout << " proton ";
+        else if (gl == 0)
+          std::cout << " neturon ";
+        else
+          std::cout << " gl=" << gl
+                    << "??? program will run, but prob wrong!\n";
+        std::cout << "with l=" << l << " (pi=" << pi << ")\n";
+      }
+      if (print) {
+        std::cout << "u(r) = " << u_func << ": "
+                  << (u_option ? "(R-r)^n" : "r^n") << ", n=" << n << "\n";
+      }
+      Fr = Hyperfine::uSP(mu, I_nuc, l, gl, n, r_nucau, u_option, print);
+
+    } else if (distro_type == DistroType::doublyOddSP) {
+      const auto mu1 = input.get<double>("mu1", 1.0);
+      const auto gl1 = input.get<int>("gl1", -1); // 1 or 0 (p or n)
+      if (gl1 != 0 && gl1 != 1) {
+        fmt2::styled_print(fg(fmt::color::red), "\nError 324:\n");
+        std::cout << "In " << input.name() << " " << Fr_str
+                  << "; have gl1=" << gl1 << " but need 1 or 0\n";
+        return std::make_unique<NullOperator>(NullOperator());
+      }
+      const auto l1 = input.get<double>("l1", -1.0);
+      const auto l2 = input.get<double>("l2", -1.0);
+      const auto I1 = input.get<double>("I1", -1.0);
+      const auto I2 = input.get<double>("I2", -1.0);
+
+      Fr = Hyperfine::doublyOddSP_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2, print);
+
+    } else if (distro_type == DistroType::Fermi) {
+      const auto t_fm = input.get("t", nuc.t());
+      const auto c_fm = Nuclear::c_hdr_formula_rrms_t(r_rmsfm, t_fm);
+      if (print)
+        std::cout << "Fermi distro: c=" << c_fm << " fm, t=" << t_fm << " fm\n";
+      const auto rho =
+        Nuclear::fermiNuclearDensity_tcN(t_fm, c_fm, 1.0, wf.grid());
+      Fr = Hyperfine::generic_F(wf.grid(), rho, k);
+
+    } else if (distro_type == DistroType::Gaussian) {
+      const auto rN_au = r_rmsfm / PhysConst::aB_fm;
+      if (print)
+        std::cout << "Gaussian distro: r_rms=" << r_rmsfm << " fm\n";
+      std::vector<double> rho;
+      rho.reserve(wf.grid().num_points());
+      for (const auto ri : wf.grid().r()) {
+        rho.push_back(std::exp(-1.5 * ri * ri / (rN_au * rN_au)));
+      }
+      Fr = Hyperfine::generic_F(wf.grid(), rho, k);
+    } else if (distro_type == DistroType::Error) {
+      std::cout << "Using pointlike F(r):\n";
+      Fr = Hyperfine::pointlike_F();
+    }
+
+    // Optionally print F(r) function to file
+    if (input.get<bool>("printF", false)) {
+      std::ofstream of(wf.identity() + "_" + Fr_str + ".txt");
+      of << "r/fm  F(r)\n";
+      for (auto r : wf.grid()) {
+        of << r * PhysConst::aB_fm << " "
+           << Fr(r * PhysConst::aB_fm, r_nucau * PhysConst::aB_fm) << "\n";
+      }
+    }
+
+    return std::make_unique<hfs>(k, g_or_Q, r_nucau, wf.grid(), Fr, use_MHz);
+  }
+
 private:
   int k;
   bool magnetic;
@@ -330,256 +584,5 @@ private:
   bool mMHzQ;
   double m_unit{1.0};
 };
-
-//==============================================================================
-//==============================================================================
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_hfs(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-
-  input.check(
-    {{"", "Most following will be taken from the default nucleus if "
-          "not explicitely given"},
-     {"mu", "Magnetic moment in mu_N"},
-     {"Q", "Nuclear quadrupole moment, in barns. Also used as overall "
-           "constant for any higher-order moments [1.0]"},
-     {"k", "Multipolarity. 1=mag. dipole, 2=elec. quad, etc. [1]"},
-     {"rrms",
-      "nuclear (magnetic) rms radius, in Fermi (fm) (defult is charge rms)"},
-     {"units", "Units for output (only for k=1,k=2). MHz or au. For MHz, "
-               "assumes nuclear moments g/Q are in mu_N*barns^p. For atomic "
-               "units, best to set g=Q=1 to get raw t^k matrix elements [MHz]"},
-     {"F", "F(r): Nuclear moment distribution: ball, point, shell, "
-           "SingleParticle, doublyOddSP, uSP, Fermi, or Gaussian [ball]"},
-     {"", "The following options are all for F(r) details. See "
-          "https://ampsci.dev for full details (search `hyperfine`)"},
-     {"printF", "Writes F(r) to a text file [false]"},
-     {"print", "Write F(r) info to screen [true]"},
-     {"", "The following are only for F=SingleParticle or doublyOddSP"},
-     {"I", "Nuclear spin. Taken from nucleus"},
-     {"parity", "Nulcear parity: +/-1"},
-     {"l", "l for unpaired nucleon (automatically derived from I and "
-           "parity; best to leave as default)"},
-     {"gl", "=1 for proton, =0 for neutron"},
-     {"", "The following are only used if F=doublyOddSP"},
-     {"mu1", "mag moment of 'first' unpaired nucleon"},
-     {"gl1", "gl of 'first' unpaired nucleon"},
-     {"l1", "l of 'first' unpaired nucleon"},
-     {"l2", "l of 'second' unpaired nucleon"},
-     {"I1", "total spin (J) of 'first' unpaired nucleon"},
-     {"I2", "total spin (J) of 'second' unpaired nucleon"},
-     {"", "The following are only for u(r) function (F=uSP)"},
-     {"u", "u1 or u2 : u1(r) = (R-r)^n, u2(r) = r^n [u1]"},
-     {"n", "n that appears above. Should be between 0 and 2 [0]"},
-     {"", "The following are only for Fermi function (F=Fermi)"},
-     {"t", "skin thickness (normally 2.3). note: c taken from wavefunction, or "
-           "from rrms above [2.3]"}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-
-  const auto nuc = wf.nucleus();
-  const auto isotope = Nuclear::findIsotopeData(nuc.z(), nuc.a());
-
-  auto mu = input.get("mu", isotope.mu ? *isotope.mu : 1.0);
-  auto I_nuc = input.get("I", isotope.I_N ? *isotope.I_N : 1.0);
-  const auto print = input.get("print", true);
-  const auto k = input.get("k", 1);
-
-  const auto use_MHz =
-    qip::ci_compare(input.get<std::string>("units", "MHz"), "MHz");
-
-  if (k <= 0) {
-    fmt2::styled_print(fg(fmt::color::red), "\nError 246:\n");
-    std::cout << "In hyperfine: invalid K=" << k << "! meaningless results\n";
-  }
-  if (I_nuc <= 0 && k == 1) {
-    fmt2::styled_print(fg(fmt::color::orange), "\nWarning 253:\n");
-    std::cout << "In hyperfine: invalid I_nuc=" << I_nuc
-              << "! meaningless results\nSetting I=1\n";
-    I_nuc = 1;
-  }
-  if (mu == 0.0 && k == 1) {
-    fmt2::styled_print(fg(fmt::color::orange), "\nWarning 352:\n");
-    std::cout << "Setting mu=1\n";
-    mu = 1;
-  }
-
-  const auto g_or_Q = (k == 1) ? (mu / I_nuc) :
-                      (k == 2) ? input.get("Q", isotope.q ? *isotope.q : 1.0) :
-                                 input.get("Q", 1.0);
-
-  enum class DistroType {
-    point,
-    ball,
-    shell,
-    SingleParticle,
-    doublyOddSP,
-    uSP,
-    Fermi,
-    Gaussian,
-    Error
-  };
-
-  const std::string default_distribution = "ball";
-
-  // For compatability with old notation of 'F(r)' input option
-  const auto Fr_str =
-    input.has_option("F") ?
-      input.get<std::string>("F", default_distribution) :
-    input.has_option("nuc_mag") ?
-      input.get<std::string>("nuc_mag", default_distribution) :
-      input.get<std::string>("F(r)", default_distribution);
-
-  const auto distro_type =
-    (qip::ci_wc_compare(Fr_str, "point*") || qip::ci_compare(Fr_str, "1")) ?
-      DistroType::point :
-    qip::ci_compare(Fr_str, "ball")          ? DistroType::ball :
-    qip::ci_compare(Fr_str, "shell")         ? DistroType::shell :
-    qip::ci_wc_compare(Fr_str, "Single*")    ? DistroType::SingleParticle :
-    qip::ci_wc_compare(Fr_str, "doublyOdd*") ? DistroType::doublyOddSP :
-    (qip::ci_compare(Fr_str, "spu") || qip::ci_compare(Fr_str, "uSP")) ?
-                                               DistroType::uSP :
-    qip::ci_wc_compare(Fr_str, "Fermi*") ? DistroType::Fermi :
-    qip::ci_wc_compare(Fr_str, "Gauss*") ? DistroType::Gaussian :
-                                           DistroType::Error;
-  if (distro_type == DistroType::Error) {
-    fmt2::styled_print(fg(fmt::color::red), "\nError 271:\n");
-    std::cout << "\nIn hyperfine. Unkown F(r) - " << Fr_str << "\n";
-    std::cout << "Defaulting to pointlike!\n";
-  }
-
-  const auto r_rmsfm =
-    distro_type == DistroType::point ? 0.0 : input.get("rrms", nuc.r_rms());
-  const auto r_nucfm = std::sqrt(5.0 / 3) * r_rmsfm;
-  const auto r_nucau = r_nucfm / PhysConst::aB_fm;
-
-  if (print) {
-    std::cout << "\nHyperfine structure: " << wf.atom() << "\n";
-    std::cout << "K=" << k << " ("
-              << (k == 1     ? "magnetic dipole" :
-                  k == 2     ? "electric quadrupole" :
-                  k % 2 == 0 ? "electric multipole" :
-                               "magnetic multipole")
-              << ")\n";
-    std::cout << "Using " << Fr_str << " nuclear distro for F(r)\n"
-              << "w/ r_N = " << r_nucfm << "fm = " << r_nucau
-              << "au  (r_rms=" << r_rmsfm << "fm)\n";
-    std::cout << "Points inside nucleus: " << wf.grid().getIndex(r_nucau)
-              << "\n";
-    if (k == 1) {
-      std::cout << "mu = " << mu << ", I = " << I_nuc << ", g = " << g_or_Q
-                << "\n";
-    } else {
-      std::cout << "Q = " << g_or_Q << "\n";
-    }
-  }
-
-  // default is BALL:
-  auto Fr = Hyperfine::sphericalBall_F(k); // should never be used
-
-  if (distro_type == DistroType::ball) {
-    Fr = Hyperfine::sphericalBall_F(k);
-
-  } else if (distro_type == DistroType::shell) {
-    Fr = Hyperfine::sphericalShell_F();
-
-  } else if (distro_type == DistroType::SingleParticle) {
-    const auto pi = input.get("parity", isotope.parity ? *isotope.parity : 0);
-    const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
-    auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
-    l = input.get("l", l); // can override derived 'l' (not recommended)
-    const auto gl_default = wf.Znuc() % 2 == 0 ? 0 : 1; // unparied proton?
-    const auto gl = input.get<int>("gl", gl_default);
-    if (print) {
-      std::cout << "Single-Particle (Volotka formula) for unpaired";
-      if (gl == 1)
-        std::cout << " proton ";
-      else if (gl == 0)
-        std::cout << " neturon ";
-      else
-        std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
-      std::cout << "with l=" << l << " (pi=" << pi << ")\n";
-    }
-    Fr = Hyperfine::VolotkaSP_F(mu, I_nuc, l, gl, print);
-
-  } else if (distro_type == DistroType::uSP) {
-    const auto pi = input.get("parity", isotope.parity ? *isotope.parity : 0);
-    const auto u_func = input.get("u", std::string{"u1"}); // u1=(R-r)^n, u2=r^n
-    const bool u_option = u_func == std::string{"u1"};
-    const auto n = input.get("n", 1.0); // u1=(R-r)^n, u2=r^n
-    const auto l_tmp = int(I_nuc + 0.5 + 0.0001);
-    auto l = ((l_tmp % 2 == 0) == (pi == 1)) ? l_tmp : l_tmp - 1;
-    l = input.get("l", l); // can override derived 'l' (not recommended)
-    const auto gl_default = wf.Znuc() % 2 == 0 ? 0 : 1; // unparied proton?
-    const auto gl = input.get<int>("gl", gl_default);
-    if (print) {
-      std::cout << "Single-Particle (Volotka formula) with u(r) for unpaired";
-      if (gl == 1)
-        std::cout << " proton ";
-      else if (gl == 0)
-        std::cout << " neturon ";
-      else
-        std::cout << " gl=" << gl << "??? program will run, but prob wrong!\n";
-      std::cout << "with l=" << l << " (pi=" << pi << ")\n";
-    }
-    if (print) {
-      std::cout << "u(r) = " << u_func << ": " << (u_option ? "(R-r)^n" : "r^n")
-                << ", n=" << n << "\n";
-    }
-    Fr = Hyperfine::uSP(mu, I_nuc, l, gl, n, r_nucau, u_option, print);
-
-  } else if (distro_type == DistroType::doublyOddSP) {
-    const auto mu1 = input.get<double>("mu1", 1.0);
-    const auto gl1 = input.get<int>("gl1", -1); // 1 or 0 (p or n)
-    if (gl1 != 0 && gl1 != 1) {
-      fmt2::styled_print(fg(fmt::color::red), "\nError 324:\n");
-      std::cout << "In " << input.name() << " " << Fr_str
-                << "; have gl1=" << gl1 << " but need 1 or 0\n";
-      return std::make_unique<NullOperator>(NullOperator());
-    }
-    const auto l1 = input.get<double>("l1", -1.0);
-    const auto l2 = input.get<double>("l2", -1.0);
-    const auto I1 = input.get<double>("I1", -1.0);
-    const auto I2 = input.get<double>("I2", -1.0);
-
-    Fr = Hyperfine::doublyOddSP_F(mu, I_nuc, mu1, I1, l1, gl1, I2, l2, print);
-
-  } else if (distro_type == DistroType::Fermi) {
-    const auto t_fm = input.get("t", nuc.t());
-    const auto c_fm = Nuclear::c_hdr_formula_rrms_t(r_rmsfm, t_fm);
-    if (print)
-      std::cout << "Fermi distro: c=" << c_fm << " fm, t=" << t_fm << " fm\n";
-    const auto rho =
-      Nuclear::fermiNuclearDensity_tcN(t_fm, c_fm, 1.0, wf.grid());
-    Fr = Hyperfine::generic_F(wf.grid(), rho, k);
-
-  } else if (distro_type == DistroType::Gaussian) {
-    const auto rN_au = r_rmsfm / PhysConst::aB_fm;
-    if (print)
-      std::cout << "Gaussian distro: r_rms=" << r_rmsfm << " fm\n";
-    std::vector<double> rho;
-    rho.reserve(wf.grid().num_points());
-    for (const auto ri : wf.grid().r()) {
-      rho.push_back(std::exp(-1.5 * ri * ri / (rN_au * rN_au)));
-    }
-    Fr = Hyperfine::generic_F(wf.grid(), rho, k);
-  } else if (distro_type == DistroType::Error) {
-    std::cout << "Using pointlike F(r):\n";
-    Fr = Hyperfine::pointlike_F();
-  }
-
-  // Optionally print F(r) function to file
-  if (input.get<bool>("printF", false)) {
-    std::ofstream of(wf.identity() + "_" + Fr_str + ".txt");
-    of << "r/fm  F(r)\n";
-    for (auto r : wf.grid()) {
-      of << r * PhysConst::aB_fm << " "
-         << Fr(r * PhysConst::aB_fm, r_nucau * PhysConst::aB_fm) << "\n";
-    }
-  }
-
-  return std::make_unique<hfs>(k, g_or_Q, r_nucau, wf.grid(), Fr, use_MHz);
-}
 
 } // namespace DiracOperator

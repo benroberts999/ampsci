@@ -53,6 +53,14 @@ public:
     }
   }
 
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
+    input.check({{"", "No input options"}});
+    if (input.has_option("help"))
+      return nullptr;
+    return std::make_unique<M1>(wf.grid(), wf.alpha(), 0.0);
+  }
+
 private:
   const std::vector<double> m_r; // store radial vector (copy)
   const double m_alpha;
@@ -82,30 +90,17 @@ public:
     return Fa * radial_rhs(Fa.kappa(), Fb);
   }
 
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &) {
+    input.check({{"", "No input options"}});
+    if (input.has_option("help"))
+      return nullptr;
+    return std::make_unique<M1nr>();
+  }
+
 private:
   DiracOperator::s m_s{};
   DiracOperator::l m_l{};
 };
-
-//------------------------------------------------------------------------------
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_M1(const IO::InputBlock &input, const Wavefunction &wf) {
-  using namespace DiracOperator;
-  input.check({{"", "No input options"}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  return std::make_unique<M1>(wf.grid(), wf.alpha(), 0.0);
-}
-
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_M1nr(const IO::InputBlock &input, const Wavefunction &) {
-  using namespace DiracOperator;
-  input.check({{"", "No input options"}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  return std::make_unique<M1nr>();
-}
 
 } // namespace DiracOperator

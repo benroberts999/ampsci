@@ -43,6 +43,13 @@ public:
   }
   std::string name() const override { return std::string("l"); }
   std::string units() const override { return "au"; }
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &) {
+    input.check({{"no options", ""}});
+    if (input.has_option("help"))
+      return nullptr;
+    return std::make_unique<l>();
+  }
 };
 
 //==============================================================================
@@ -65,27 +72,13 @@ public:
   }
   std::string name() const override { return std::string("s"); }
   std::string units() const override { return "au"; }
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &) {
+    input.check({{"no options", ""}});
+    if (input.has_option("help"))
+      return nullptr;
+    return std::make_unique<s>();
+  }
 };
-
-//==============================================================================
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_l(const IO::InputBlock &input, const Wavefunction &) {
-  using namespace DiracOperator;
-  input.check({{"no options", ""}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  return std::make_unique<l>();
-}
-
-inline std::unique_ptr<DiracOperator::TensorOperator>
-generate_s(const IO::InputBlock &input, const Wavefunction &) {
-  using namespace DiracOperator;
-  input.check({{"no options", ""}});
-  if (input.has_option("help")) {
-    return nullptr;
-  }
-  return std::make_unique<s>();
-}
 
 } // namespace DiracOperator

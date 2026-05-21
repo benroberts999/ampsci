@@ -576,7 +576,7 @@ TEST_CASE("Breit: RPA Corrections",
                                         {"6s+", "7p-", -0.31, -0.79},
                                         {"7s+", "6p-", -0.32, -0.81},
                                         {"7s+", "7p-", -0.31, -0.80}};
-  auto h_pnc = DiracOperator::generate_pnc({}, wf0);
+  auto h_pnc = DiracOperator::PNCnsi::generate({}, wf0);
 
   const auto expected_E1 = std::vector{std::tuple{"6s+", "6p-", 0.007, 0.002},
                                        {"6s+", "6p+", 0.011, 0.005},
@@ -588,7 +588,7 @@ TEST_CASE("Breit: RPA Corrections",
                                        {"7s+", "7p+", 0.005, 0.004},
                                        {"5d-", "6p-", -0.049, -0.053},
                                        {"5d-", "6p+", -0.069, -0.074}};
-  auto h_E1 = DiracOperator::generate_E1({}, wf0);
+  auto h_E1 = DiracOperator::E1::generate({}, wf0);
 
   for (auto &[h, expected] : std::vector{std::tuple{h_pnc.get(), expected_pnc},
                                          {h_E1.get(), expected_E1}}) {
@@ -704,7 +704,7 @@ TEST_CASE("Breit: RPA Corrections - for HFS",
                                     {"7p+", "7p+", -0.25, 0.19},
                                     {"5d-", "5d-", 0.54, 1.09}};
 
-  auto h = DiracOperator::generate_hfs({}, wf0);
+  auto h = DiracOperator::hfs::generate({}, wf0);
 
   std::cout << "\nSolve RPA; using diagram/Basis method, with/without Breit:\n";
   std::cout << "For " << h->name() << "\n";
@@ -802,9 +802,9 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
   wfB.solve_valence(valence);
   wfB.formBasis(basis);
 
-  auto hE1 = DiracOperator::generate_E1({}, wf0);
-  auto hhfs = DiracOperator::generate_hfs({"", "print = false;"}, wf0);
-  auto hpnc = DiracOperator::generate_pnc({"", "print = false;"}, wf0);
+  auto hE1 = DiracOperator::E1::generate({}, wf0);
+  auto hhfs = DiracOperator::hfs::generate({"", "print = false;"}, wf0);
+  auto hpnc = DiracOperator::PNCnsi::generate({"", "print = false;"}, wf0);
 
   for (const auto &h : {hE1.get(), /*hhfs.get(),*/ hpnc.get()}) {
     for (const auto omega : {0.0, 0.05}) {
