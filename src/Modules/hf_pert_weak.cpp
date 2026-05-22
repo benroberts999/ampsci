@@ -109,7 +109,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
     hf_me.add(i, v, hfs_iv);
 
     //output for test
-    /*
+    
     if (i.n() < 16) {
       std::cout << "Reduced hyperfine matrix element  " << " <<" << w_wf
                 << "||h_hfs||" << i_wf << ">> = " << hfs_wi << "MHz \n.";
@@ -118,7 +118,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
       std::cout << "Reduced hyperfine matrix element " << " <<" << i_wf
                 << "||h_hfs||" << v_wf << ">> = " << hfs_iv << "MHz \n.";
     }
-*/
+
     //now include additional loop over spectrum
     for (const auto &j : spectrum) {
       const auto pnc_ij =
@@ -142,6 +142,12 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
 }
 
 // To compute the reduced matrix element we split the total quantity into two summations
+
+
+//options to include for testing 
+
+//leave out core states
+// check cancellations 
 
 // <w||h_[w+hf]|v>=h_1+h_2
 //Inputs
