@@ -2,7 +2,7 @@
 #include "CSF.hpp"
 #include "Coulomb/QkTable.hpp"
 #include "Coulomb/meTable.hpp"
-#include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
@@ -149,7 +149,7 @@ namespace CI {
                  basis and radial grid.
   @return Vector of PsiJPi, one entry per (J, parity) combination requested.
 */
-std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
+std::vector<PsiJPi> configuration_interaction(const IO::InputBlockLegacy &input,
                                               const Wavefunction &wf);
 
 /*!

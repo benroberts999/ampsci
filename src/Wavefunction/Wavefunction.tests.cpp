@@ -159,7 +159,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
     REQUIRE(v.en() == Approx(wfQED.Hab(v, v)).epsilon(1.0e-7));
   }
 
-  wfQED.radiativePotential(IO::InputBlock{}, false, true);
+  wfQED.radiativePotential(IO::InputBlockLegacy{}, false, true);
 
   REQUIRE(wfQED.vrad() != nullptr);
   REQUIRE(wfQED.Hmag().size() == num_points);

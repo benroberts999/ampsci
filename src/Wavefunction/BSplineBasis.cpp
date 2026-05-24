@@ -2,7 +2,7 @@
 #include "DiracOperator/include.hpp" //for Drake-Gordon
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
-#include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "LinAlg/include.hpp"
 #include "Maths/BSpline.hpp"
 #include "Maths/Grid.hpp"
@@ -20,7 +20,7 @@
 namespace SplineBasis {
 
 //==============================================================================
-Parameters::Parameters(IO::InputBlock input)
+Parameters::Parameters(IO::InputBlockLegacy input)
   : states(input.get<std::string>("states", "")),
     n(input.get("number", 30ul)),
     k(input.get("order", 7ul)),

@@ -282,8 +282,8 @@ public:
                           bool do_readwrite = true, bool print = true);
 
   //! Calculates radiative potential, adds to HF potential
-  void radiativePotential(const IO::InputBlock &qed_input, bool do_readwrite,
-                          bool print);
+  void radiativePotential(const IO::InputBlockLegacy &qed_input,
+                          bool do_readwrite, bool print);
 
   //! Calculates + populates basis [see BSplineBasis]
   void formBasis(const SplineBasis::Parameters &params);
@@ -302,9 +302,9 @@ public:
                  bool ScreeningQ = false, bool hole_particleQ = false,
                  int lmax = 6, double omre = -0.2, double w0 = 0.01,
                  double wratio = 1.5,
-                 const std::optional<IO::InputBlock> &ek = std::nullopt);
+                 const std::optional<IO::InputBlockLegacy> &ek = std::nullopt);
 
-  // void correlations(const IO::InputBlock &input);
+  // void correlations(const IO::InputBlockLegacy &input);
 
   void copySigma(const MBPT::CorrelationPotential *const Sigma) {
     if (Sigma != nullptr)
@@ -338,7 +338,7 @@ public:
   double Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   //! Runs the CI+MBPT routines; stores wavefunctions
-  void ConfigurationInteraction(const IO::InputBlock &input);
+  void ConfigurationInteraction(const IO::InputBlockLegacy &input);
 
   //! Writes wavefunction information to json file;
   //! if out_name given, will print to that file

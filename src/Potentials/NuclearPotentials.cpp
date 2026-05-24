@@ -111,17 +111,19 @@ std::ostream &operator<<(std::ostream &ostr, const Nucleus &n) {
     ostr << "Point-like nucleus; ";
     break;
   case Nuclear::ChargeDistro::spherical:
-    ostr << "Spherical nucleus; " << " r_rms = " << rrms
+    ostr << "Spherical nucleus; "
+         << " r_rms = " << rrms
          << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
     break;
   case Nuclear::ChargeDistro::Gaussian:
-    ostr << "Gaussian nucleus; " << " r_rms = " << rrms
+    ostr << "Gaussian nucleus; "
+         << " r_rms = " << rrms
          << ", r_charge = " << Nuclear::c_hdr_formula_rrms_t(rrms, 0);
     break;
   case Nuclear::ChargeDistro::Fermi: {
     const auto c = Nuclear::c_hdr_formula_rrms_t(rrms, tt);
-    ostr << "Fermi nucleus; " << " r_rms = " << rrms << ", c_hdr = " << c
-         << ", t = " << tt;
+    ostr << "Fermi nucleus; "
+         << " r_rms = " << rrms << ", c_hdr = " << c << ", t = " << tt;
 
     if (n.beta() != 0.0) {
       ostr << ", \u03b2 = " << n.beta()
@@ -130,8 +132,8 @@ std::ostream &operator<<(std::ostream &ostr, const Nucleus &n) {
     break;
   }
   case Nuclear::ChargeDistro::custom:
-    ostr << "Custom nuclear potential; " << "loaded from file: \'"
-         << n.custom_pot_file() << "\'";
+    ostr << "Custom nuclear potential; "
+         << "loaded from file: \'" << n.custom_pot_file() << "\'";
     break;
   default:
     ostr << "Invalid nucleus type?";
@@ -148,7 +150,7 @@ std::ostream &operator<<(std::ostream &ostr, const Nucleus &n) {
 }
 
 //==============================================================================
-Nucleus form_nucleus(int Z, std::optional<int> tA, IO::InputBlock input) {
+Nucleus form_nucleus(int Z, std::optional<int> tA, IO::InputBlockLegacy input) {
 
   // Nucleus: Get + setup nuclear parameters
 

@@ -1,11 +1,15 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <memory>
 #include <string>
 #include <string_view>
 #include <vector>
+
+namespace IO {
+class InputBlock;
+} // namespace IO
 
 namespace DiracOperator {
 
@@ -27,7 +31,7 @@ namespace DiracOperator {
 
   \code{.cpp}
   static std::unique_ptr<TensorOperator>
-  generate(const IO::InputBlock &input, const Wavefunction &wf);
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf);
   \endcode
 
   From the command line:
@@ -38,8 +42,8 @@ namespace DiracOperator {
 */
 
 //! Function-pointer signature shared by every operator factory.
-using FactoryFn = std::unique_ptr<TensorOperator> (*)(const IO::InputBlock &,
-                                                      const Wavefunction &);
+using FactoryFn = std::unique_ptr<TensorOperator> (*)(
+  const IO::InputBlockLegacy &, const Wavefunction &);
 
 /*!
   @brief One entry in the operator registry.
@@ -115,6 +119,18 @@ struct Register {
                         and orbitals needed by the factory.
   @return               Owning pointer to the constructed operator, or a
                         NullOperator if @p operator_name is not found.
+*/
+std::unique_ptr<DiracOperator::TensorOperator>
+generate(std::string_view operator_name, const IO::InputBlockLegacy &input,
+         const Wavefunction &wf);
+
+/*!
+  @brief Constructs and returns a TensorOperator by name (InputBlock overload).
+  @details
+  Converts @p input to legacy IO::InputBlockLegacy via to_ampsci_string() and
+  delegates to the InputBlockLegacy overload. This is the bridge point so that
+  module code using IO::InputBlock can construct operators without changing
+  all operator factory signatures.
 */
 std::unique_ptr<DiracOperator::TensorOperator>
 generate(std::string_view operator_name, const IO::InputBlock &input,

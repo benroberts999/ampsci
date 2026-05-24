@@ -50,7 +50,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                                     {"3d-", "2p-", -5.4823578421e+00},
                                     {"3d-", "2p+", -2.4518347077e+00}};
 
-    const IO::InputBlock options{""};
+    const IO::InputBlockLegacy options{""};
     auto h = DiracOperator::generate("E1", options, wf);
 
     for (auto &[a, b, me] : e1data) {
@@ -66,7 +66,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     REQUIRE(!h->units().empty());
 
     // v-form
-    auto hv = DiracOperator::generate("E1v", {}, wf);
+    auto hv = DiracOperator::generate("E1v", IO::InputBlockLegacy{}, wf);
     REQUIRE(hv->imaginaryQ() == false);
     REQUIRE(hv->rank() == 1);
     REQUIRE(hv->parity() == -1);
@@ -89,8 +89,8 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     }
 
     std::cout << "Length vs. velocity vs. i*alpha\n";
-    auto h_e1v = DiracOperator::generate("E1v", {}, wf);
-    auto h_ial = DiracOperator::generate("ialpha", {}, wf);
+    auto h_e1v = DiracOperator::generate("E1v", IO::InputBlockLegacy{}, wf);
+    auto h_ial = DiracOperator::generate("ialpha", IO::InputBlockLegacy{}, wf);
     for (const auto &a : orbs) {
       for (const auto &b : orbs) {
         if (h_e1v->isZero(a, b))
@@ -120,7 +120,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                                   {"3d-", "1s+", -1.5500083192e+00},
                                   {"3d-", "3d-", 1.1269636147e+02}};
 
-    const IO::InputBlock options{"", "k=2;"};
+    const IO::InputBlockLegacy options{"", "k=2;"};
     auto h = DiracOperator::generate("Ek", options, wf);
 
     REQUIRE(h->imaginaryQ() == false);
@@ -149,7 +149,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                                   {"3d-", "1s+", -1.0524536312e-06},
                                   {"3d-", "3d-", 3.0983744553e+00}};
 
-    const IO::InputBlock options{""};
+    const IO::InputBlockLegacy options{""};
     auto h = DiracOperator::generate("M1", options, wf);
 
     REQUIRE(h->imaginaryQ() == false);
@@ -209,7 +209,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                   {"3d-", "3d-", -0.0000000000e+00}};
 
     // test data generated with "old" mu = 2.582025
-    const IO::InputBlock options{""};
+    const IO::InputBlockLegacy options{""};
     auto h0 =
       DiracOperator::generate("hfs", {"hfs", "F=pointlike; mu=2.582025;"}, wf);
     auto hB =
@@ -258,7 +258,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                                   {"3d-", "1s+", -2.1316106092e+00},
                                   {"3d-", "3d-", 5.1893316793e-01}};
 
-    const IO::InputBlock options{""};
+    const IO::InputBlockLegacy options{""};
     auto h = DiracOperator::generate(
       "hfs", {"hfs", "k=2; nuc_mag=pointlike; Q=1.0; "}, wf);
 
@@ -286,7 +286,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
   SECTION("hfs(3)") {
     std::cout << "hfs(3)\n";
 
-    const IO::InputBlock options{""};
+    const IO::InputBlockLegacy options{""};
     auto h = DiracOperator::generate(
       "hfs", {"hfs", "k=3; nuc_mag=pointlike; Q=1.0; "}, wf);
 
@@ -315,7 +315,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                                   {"2p+", "2p+", 9.9999467487e+00},
                                   {"3d-", "3d-", 2.0999852080e+01}};
 
-    auto h = DiracOperator::generate("r", {}, wf);
+    auto h = DiracOperator::generate("r", IO::InputBlockLegacy{}, wf);
 
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 0);
@@ -346,7 +346,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                                   {"2p+", "3d-", 3.4613851942e-17},
                                   {"3d-", "2p+", -3.4613851942e-17}};
 
-    const IO::InputBlock options{""};
+    const IO::InputBlockLegacy options{""};
     auto h =
       DiracOperator::generate("pnc", {"pnc", "c=5.67073; t=2.3; N=-1;"}, wf);
 
@@ -377,7 +377,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     const auto test_data =
       std::vector{std::pair{"2s+", 0.0}, {"2p-", -0.04163}, {"2p+", -0.04162}};
 
-    const auto p = DiracOperator::generate("p", {}, wf);
+    const auto p = DiracOperator::generate("p", IO::InputBlockLegacy{}, wf);
     for (const auto &[state, expected] : test_data) {
       const auto v = wf2.getState(state);
       REQUIRE(v != nullptr);

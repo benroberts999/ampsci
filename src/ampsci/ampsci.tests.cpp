@@ -55,7 +55,7 @@ TEST_CASE("ampsci - basic unit test",
     }
   )"};
 
-  const auto wf = ampsci(IO::InputBlock{"", input_string});
+  const auto wf = ampsci(IO::InputBlockLegacy{"", input_string});
 
   REQUIRE(wf.Znuc() == 55);
   REQUIRE(wf.identity() == "Cs1_" + run_label);
@@ -151,7 +151,7 @@ TEST_CASE("ampsci - basic Feynman unit test",
     }
   )"};
 
-  const auto wf = ampsci(IO::InputBlock{"", input_string});
+  const auto wf = ampsci(IO::InputBlockLegacy{"", input_string});
 
   CHECK(wf.Znuc() == 55);
   CHECK(wf.identity() == "Cs1q_" + run_label);
@@ -242,7 +242,7 @@ TEST_CASE("ampsci - basic CI unit test", "[ampsci][CI][unit]") {
     }
   )"};
 
-  auto input1 = IO::InputBlock{"", input_string};
+  auto input1 = IO::InputBlockLegacy{"", input_string};
   const auto wf = ampsci(input1);
 
   // Expt. for lowest few states:
@@ -312,7 +312,7 @@ TEST_CASE("ampsci - basic CI unit test", "[ampsci][CI][unit]") {
     }
   )"};
 
-  const auto wf2 = ampsci(IO::InputBlock{"", input_string_v2});
+  const auto wf2 = ampsci(IO::InputBlockLegacy{"", input_string_v2});
 
   // loop through original wavefunction:
   for (auto &ci_wf : ci_wfs) {
@@ -385,7 +385,7 @@ TEST_CASE("ampsci - Integration Tests",
 
   // run ampsci
   fmt2::styled_print(fg(fmt::color::blue), "\nRun AMPSCI:\n");
-  const auto wf = ampsci(IO::InputBlock{"", input_string});
+  const auto wf = ampsci(IO::InputBlockLegacy{"", input_string});
 
   // --------- Energies -----------
 
@@ -417,7 +417,7 @@ TEST_CASE("ampsci - Integration Tests",
 
   fmt2::styled_print(fg(fmt::color::blue),
                      "\nCompare E1 matrix elements (No SR):\n");
-  const auto e1 = DiracOperator::generate("E1", {}, wf);
+  const auto e1 = DiracOperator::generate("E1", IO::InputBlockLegacy{}, wf);
   auto dVe1 = ExternalField::TDHF(e1.get(), wf.vHF());
   dVe1.solve_core(0.0); // ignore frequency dependence ?
   fmt::print("\n{:3} {:3}  {:7}  [{:7}]  {:5}\n", "v", "w", "E1", "Expt",

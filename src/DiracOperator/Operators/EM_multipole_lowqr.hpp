@@ -1,6 +1,6 @@
 #pragma once
 #include "DiracOperator/Operators/EM_multipole_base.hpp"
-#include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Maths.hpp"
 

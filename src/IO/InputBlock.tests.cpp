@@ -1,141 +1,156 @@
 #include "InputBlock.hpp"
 #include "catch2/catch.hpp"
-#include <cassert>
 #include <iostream>
+#include <sstream>
 
-inline void run_tests(const IO::InputBlock &ib);
-
-TEST_CASE("InputBlock", "[InputBlock][unit]") {
-
-  // A basic unit test  of IO::InputBlock
-  // Tests each function, but not all that thoroughly
-
+TEST_CASE("InputBlock: basic construction and value access",
+          "[InputBlock][unit]") {
   using namespace IO;
 
-  InputBlock ib("name1", {{"k1", "1"}, {"k2", "2.5"}});
-  ib.add(Option{"k3", "number_3"});
-  ib.add(Option{"k4", ""});
-  ib.add(InputBlock("blockA", {{"kA1", "old_val"}, {"kA1", "new_val"}}));
-  ib.add(InputBlock("blockB", {{"keyB1", "valB"}}));
-  // 'true' means will be merged with existing block (if exists)
-  ib.add(InputBlock("blockB", {{"keyB2", "17.3"}}), true);
-  std::string input_string = "blockC{ kC1=1; InnerBlock{ kib1=-6; } }";
-  ib.add(input_string);
-  ib.add(Option{"list", "1,2,3,4,5"});
-  ib.add(Option{"bool1", "true"});
-  ib.add(Option{"bool2", "false"});
+  nlohmann::json j = {
+    {"k_int", 1},       {"k_double", 2.5},
+    {"k_str", "hello"}, {"k_bool", true},
+    {"k_empty", ""},    {"k_list", nlohmann::json::array({1, 2, 3})},
+    {"k_csv", "4,5,6"}, {"SubBlock", {{"inner", 42}}}};
 
-  run_tests(ib);
+  InputBlock ib{"root", j};
 
-  // Construct a new InputBlock using the string output of another
-  std::stringstream ostr1;
-  ib.print(ostr1);
-  InputBlock ib2("name2", ostr1.str());
+  REQUIRE(ib.get("k_int", 0) == 1);
+  REQUIRE(ib.get("k_double", 0.0) == Approx(2.5));
+  REQUIRE(ib.get("k_str", std::string{}) == "hello");
+  REQUIRE(ib.get("k_bool", false) == true);
 
-  // Run same tests on this one
-  run_tests(ib2);
+  // missing key -> default
+  REQUIRE(ib.get("missing", 99) == 99);
 
-  // test copy construct
-  auto ib3 = ib2;
-  run_tests(ib3);
+  // empty string -> nullopt
+  REQUIRE_FALSE(ib.get<std::string>("k_empty").has_value());
 
-  // test copy assign
-  ib2 = ib;
-  run_tests(ib2);
-
-  // Test that the two string outputs are identical
-  std::stringstream ostr2;
-  ib2.print(ostr2);
-  REQUIRE(ostr1.str() == ostr2.str());
+  // optional form
+  REQUIRE(ib.get<int>("k_int") == std::optional<int>{1});
+  REQUIRE_FALSE(ib.get<int>("missing").has_value());
 }
 
-//==============================================================================
-void run_tests(const IO::InputBlock &ib) {
+TEST_CASE("InputBlock: bool coercion", "[InputBlock][unit]") {
+  using namespace IO;
 
-  REQUIRE(ib.get("k1", 0) == 1);
+  nlohmann::json j = {
+    {"b_native", true},
+    {"b_str_t", "true"},
+    {"b_str_yes", "yes"},
+    {"b_str_y", "Y"},
+    {"b_str_f", "false"},
+    {"b_num", 42} // number is NOT a bool in JSON -> returns default
+  };
+  InputBlock ib{"root", j};
 
-  REQUIRE(ib.has_option("k1"));
-  REQUIRE(ib.option_is_set("k1"));
-  REQUIRE_FALSE(ib.has_option("option that isn't set"));
-  REQUIRE(ib.has_option("k4"));
-  REQUIRE_FALSE(ib.option_is_set("k4"));
+  REQUIRE(ib.get("b_native", false) == true);
+  REQUIRE(ib.get("b_str_t", false) == true);
+  REQUIRE(ib.get("b_str_yes", false) == true);
+  REQUIRE(ib.get("b_str_y", false) == true);
+  REQUIRE(ib.get("b_str_f", true) == false);
+  REQUIRE(ib.get("b_num", false) == false); // int is not bool
+}
 
-  REQUIRE(ib.check({{"k1", ""},
-                    {"k2", ""},
-                    {"k3", ""},
-                    {"k4", ""},
-                    {"BlockA{}", ""},
-                    {"blockB{}", ""},
-                    {"blockC{}", ""},
-                    {"list", ""},
-                    {"bool1", ""},
-                    {"bool2", ""},
-                    {"Extra_not_in_list", ""},
-                    {"Extra_not_in_list{}", ""}}));
+TEST_CASE("InputBlock: vector and array", "[InputBlock][unit]") {
+  using namespace IO;
 
-  std::cout
-    << "Note: following warning message is expected as part of tests:\n";
-  REQUIRE_FALSE(ib.check({{"k1", ""},
-                          {"k2", ""},
-                          {"k3", ""},
-                          {"k4", ""},
-                          {"BlockA{}", ""},
-                          {"blockB{}", ""},
-                          {"blockC{}", ""},
-                          {"list", ""},
-                          /*{"bool1", ""},*/
-                          {"bool2", ""}}));
+  nlohmann::json j = {{"arr_int", nlohmann::json::array({10, 20, 30})},
+                      {"arr_dbl", nlohmann::json::array({1.1, 2.2, 3.3})},
+                      {"arr_str", nlohmann::json::array({"a", "b", "c"})},
+                      {"not_arr", 42}};
+  InputBlock ib{"root", j};
 
-  std::cout
-    << "Note: following warning message is expected as part of tests:\n";
-  REQUIRE_FALSE(ib.check({{"k1", ""},
-                          {"k2", ""},
-                          {"k3", ""},
-                          {"k4", ""},
-                          {"BlockA{}", ""},
-                          {"blockB{}", ""},
-                          /*{"blockC{}", ""},*/
-                          {"list", ""},
-                          {"bool1", ""},
-                          {"bool2", ""}}));
+  auto v1 = ib.get<std::vector<int>>("arr_int", {});
+  REQUIRE(v1 == std::vector<int>{10, 20, 30});
 
-  // There is no k109 option, so should return default value
-  REQUIRE(ib.get("k109", -17.6) == -17.6);
-  // Test it returns 'empty' optional
-  REQUIRE(ib.get("k109") == std::nullopt);
-  REQUIRE(!ib.get("k109"));
+  auto a1 = ib.get<std::array<double, 3>>("arr_dbl", {});
+  REQUIRE(a1[0] == Approx(1.1));
+  REQUIRE(a1[1] == Approx(2.2));
+  REQUIRE(a1[2] == Approx(3.3));
 
-  REQUIRE(ib.get<double>("k2") == 2.5);
-  // Returns an std::optional, so test that
-  REQUIRE(ib.get<double>("k2").value() == 2.5);
-  // Should instatiate as std::string by default
-  REQUIRE(ib.get("k3") == "number_3");
+  auto vs = ib.get<std::vector<std::string>>("arr_str", {});
+  REQUIRE(vs == std::vector<std::string>{"a", "b", "c"});
 
-  // Should return the later of two options with same key (overrides earlier)
-  REQUIRE(ib.getBlock("blockA")->get("kA1") == "new_val");
-  REQUIRE(ib.getBlock("blockZ") == std::nullopt);
+  // non-array -> default
+  auto v2 = ib.get<std::vector<int>>("not_arr", {-1});
+  REQUIRE(v2 == std::vector<int>{-1});
+}
 
-  // Adding two 'blockB' - these should be 'consolidated'
-  REQUIRE(ib.getBlock("blockB")->get("keyB1") == "valB");
-  REQUIRE(ib.getBlock("blockB")->get("keyB2", 0.0) == 17.3);
+TEST_CASE("InputBlock: sub-block access", "[InputBlock][unit]") {
+  using namespace IO;
 
-  // Test blockC - added via a string
-  REQUIRE(ib.getBlock("blockC")->get<int>("kC1") == 1);
-  // test nested blocks
-  REQUIRE(ib.getBlock("blockC")->getBlock("InnerBlock")->get<int>("kib1") ==
-          -6);
+  nlohmann::json j = {{"Sub", {{"x", 7}, {"y", 8.0}}}};
+  InputBlock ib{"root", j};
 
-  // Test the 'nested block' retrival
-  REQUIRE(ib.get<int>({}, "k1") == 1);
-  REQUIRE(ib.get<std::string>({"blockA"}, "kA1") == "new_val");
-  REQUIRE(ib.get<int>({"blockC", "InnerBlock"}, "kib1") == -6);
+  REQUIRE(ib.has_block("Sub"));
+  REQUIRE_FALSE(ib.has_block("Other"));
 
-  // test the input list
-  const auto in_list = ib.get<std::vector<int>>("list", {});
-  const std::vector<int> expected_list{1, 2, 3, 4, 5};
-  REQUIRE(in_list.size() == expected_list.size());
-  REQUIRE(std::equal(in_list.cbegin(), in_list.cend(), expected_list.cbegin()));
+  auto sub = ib.getBlock("Sub");
+  REQUIRE(sub.has_value());
+  REQUIRE(sub->get("x", 0) == 7);
+  REQUIRE(sub->get("y", 0.0) == Approx(8.0));
 
-  REQUIRE(ib.get<bool>("bool1").value() == true);
-  REQUIRE(ib.get<bool>("bool2").value() == false);
+  auto empty = ib.get_block("Other");
+  REQUIRE(empty.get("x", -1) == -1);
+}
+
+TEST_CASE("InputBlock: has_option and set", "[InputBlock][unit]") {
+  using namespace IO;
+
+  InputBlock ib{"block"};
+
+  REQUIRE_FALSE(ib.has_option("key"));
+  ib.set("key", 42);
+  REQUIRE(ib.has_option("key"));
+  REQUIRE(ib.get("key", 0) == 42);
+
+  // Overwrite
+  ib.set("key", 99);
+  REQUIRE(ib.get("key", 0) == 99);
+
+  // set_block
+  InputBlock child{"child"};
+  child.set("v", 3.14);
+  ib.set_block("child", child);
+  REQUIRE(ib.has_block("child"));
+  REQUIRE(ib.getBlock("child")->get("v", 0.0) == Approx(3.14));
+}
+
+TEST_CASE("InputBlock: check validation", "[InputBlock][unit]") {
+  using namespace IO;
+
+  nlohmann::json j = {{"allowed_opt", 1}, {"Sub", {{"x", 1}}}};
+  InputBlock ib{"root", j};
+
+  // All known -> returns true
+  REQUIRE(ib.check({{"allowed_opt", "an option"},
+                    {"Sub{}", "a sub-block"},
+                    {"extra", "not present, still allowed"}}));
+
+  // Unknown option -> returns false (warning printed)
+  nlohmann::json j2 = {{"unknown_key", 5}};
+  InputBlock ib2{"root", j2};
+  std::cout << "Note: following warning is expected as part of test:\n";
+  REQUIRE_FALSE(ib2.check({{"known_key", "desc"}}));
+}
+
+TEST_CASE("InputBlock: from_file (parse JSON with comments)",
+          "[InputBlock][unit]") {
+  using namespace IO;
+
+  // Write a temp file with comments
+  const std::string tmppath = "/tmp/ib2_test.jsonc";
+  {
+    std::ofstream f(tmppath);
+    f << R"({
+  // a comment
+  "Z": "Cs",   /* block comment */
+  "num": 42
+})";
+  }
+
+  auto ib = InputBlock::from_file(tmppath);
+  REQUIRE(ib.get("Z", std::string{}) == "Cs");
+  REQUIRE(ib.get("num", 0) == 42);
 }

@@ -1,7 +1,7 @@
 #include "DiracOperator/TensorOperator.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "DiracOperator/Operators/hfs.hpp"
-#include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/String.hpp"

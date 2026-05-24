@@ -1,7 +1,7 @@
 #pragma once
 #include "Angular/Wigner369j.hpp"
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 
 namespace DiracOperator {
@@ -43,8 +43,8 @@ public:
   }
   std::string name() const override { return std::string("l"); }
   std::string units() const override { return "au"; }
-  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
-                                                  const Wavefunction &) {
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &) {
     input.check({{"no options", ""}});
     if (input.has_option("help"))
       return nullptr;
@@ -72,8 +72,8 @@ public:
   }
   std::string name() const override { return std::string("s"); }
   std::string units() const override { return "au"; }
-  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
-                                                  const Wavefunction &) {
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &) {
     input.check({{"no options", ""}});
     if (input.has_option("help"))
       return nullptr;

@@ -3,8 +3,9 @@
 #include <vector>
 
 namespace IO {
+class InputBlockLegacy;
 class InputBlock;
-}
+} // namespace IO
 class Wavefunction;
 
 /*!
@@ -222,7 +223,7 @@ struct Register {
   @param input  Top-level input block.
   @param wf     Solved wavefunction passed to each module.
 */
-void runModules(const IO::InputBlock &input, const Wavefunction &wf);
+void runModules(const IO::InputBlockLegacy &input, const Wavefunction &wf);
 
 /*!
   @brief Run a single module.
@@ -235,6 +236,26 @@ void runModules(const IO::InputBlock &input, const Wavefunction &wf);
   @param wf     Solved wavefunction.
 */
 void runModule(const IO::InputBlock &input, const Wavefunction &wf);
+
+/*!
+  @brief Run a single module (legacy InputBlockLegacy overload).
+  @details
+  Converts @p input to IO::InputBlock and delegates to the InputBlock
+  overload. Used by the legacy .in file dispatch path.
+*/
+void runModule(const IO::InputBlockLegacy &input, const Wavefunction &wf);
+
+/*!
+  @brief Iterate over a JSON-format input block and run any modules found.
+  @details
+  Reads the "Module" array from @p input (new JSON format) and dispatches
+  each entry directly to the registered module function as IO::InputBlock.
+  No legacy string conversion is performed.
+
+  @param input  Top-level JSON input block (must contain a "Module" array).
+  @param wf     Solved wavefunction passed to each module.
+*/
+void runModules2(const IO::InputBlock &input, const Wavefunction &wf);
 
 /*!
   @brief Print the list of compiled-in modules (name + description).

@@ -105,8 +105,9 @@ void fieldShift(const IO::InputBlock &input, const Wavefunction &wf) {
   // See, e.g., Eq.(8) PhysRevA.103.L030801 (2021)
 
   std::cout << "\nInitial nuclear parameters:\n"
-            << "r_rms_0 = " << r_rms0 << " fm, " << "<r^2>_0 = " << r20
-            << " fm^2, " << "<r^4>_0 = " << r40 << " fm^4\n";
+            << "r_rms_0 = " << r_rms0 << " fm, "
+            << "<r^2>_0 = " << r20 << " fm^2, "
+            << "<r^4>_0 = " << r40 << " fm^4\n";
 
   // Grid for delta_rrms: use logarithmic grid (should be fit around 0)
   const auto gtype = GridType::logarithmic;

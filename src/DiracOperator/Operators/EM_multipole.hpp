@@ -1,7 +1,7 @@
 #pragma once
 #include "DiracOperator/Operators/EM_multipole_base.hpp"
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "Maths/SphericalBessel.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Maths.hpp"
@@ -620,8 +620,8 @@ inline double moment_factor(int K, double omega) {
 //! @brief Factory class for Multipole operators (never instantiated directly).
 struct Multipole {
   Multipole() = delete;
-  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
-                                                  const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
     input.check({
       {"",
        "Note: This function cannot use the Spherical Bessel looup table. If "

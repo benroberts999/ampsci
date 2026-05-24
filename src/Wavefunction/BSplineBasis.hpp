@@ -1,5 +1,5 @@
 #pragma once
-#include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "LinAlg/include.hpp"
 #include <memory>
 #include <string>
@@ -11,7 +11,7 @@ namespace MBPT {
 class CorrelationPotential;
 }
 namespace IO {
-class InputBlock;
+class InputBlockLegacy;
 }
 
 /*!
@@ -59,7 +59,7 @@ struct Parameters {
              double reps, double rmax, const std::string &positron = "",
              SplineType itype = SplineType::Derevianko,
              bool in_orthogonalise = false, bool in_verbose = true);
-  Parameters(IO::InputBlock input);
+  Parameters(IO::InputBlockLegacy input);
 
   std::string states{};
   std::size_t n{}, k{};

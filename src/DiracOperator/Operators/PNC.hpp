@@ -1,6 +1,6 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 
 namespace DiracOperator {
@@ -38,8 +38,8 @@ public:
   std::string name() const override final { return "pnc-nsi"; }
   std::string units() const override final { return m_unit; }
 
-  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
-                                                  const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
     input.check(
       {{{"c",
          "Half-density radius for Fermi rho(r). [defaut: from wavefunction]"},

@@ -68,7 +68,7 @@ void exampleModule(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto oper = input.get<std::string>("operator", "E1");
   // Use user-supplied options block if present, otherwise empty (defaults)
   const auto h_options =
-    input.getBlock("options").value_or(IO::InputBlock(oper, {}));
+    input.getBlock("options").value_or(IO::InputBlock{oper});
 
   const auto var_alpha = input.get("var_alpha", 0.01);
 

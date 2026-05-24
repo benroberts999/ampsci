@@ -135,9 +135,8 @@ void tune_Rmag(const DiracSpinor &Fv, const double eps_target,
   const auto delta_eps = [&](double t_rrms) {
     // const auto &Fv = *pFv;
     auto t_hfs_options = hfs_options ? *hfs_options : IO::InputBlock{};
-    // t_hfs_options.add("rrms=0.1;");
-    t_hfs_options.add(IO::Option{"rrms", std::to_string(t_rrms)});
-    t_hfs_options.add(IO::Option{"print", "false"});
+    t_hfs_options.set("rrms", t_rrms);
+    t_hfs_options.set("print", false);
     const auto ht = DiracOperator::generate("hfs", t_hfs_options, wf);
 
     if (rpa_t) {
@@ -446,20 +445,20 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto h = DiracOperator::generate(
     "hfs", hfs_options ? *hfs_options : IO::InputBlock{}, wf);
 
-  // Build pointlike HFS operator
-  IO::InputBlock h0_options{"h0", "F = pointlike;"};
-  // Ensure same parameters as other operator
+  // Build pointlike HFS operator (same nuclear parameters, F=pointlike)
+  IO::InputBlock h0_options{"h0"};
+  h0_options.set("F", std::string{"pointlike"});
   if (hfs_options) {
-    if (hfs_options->has_option("mu"))
-      h0_options.add(*hfs_options->getOption("mu"));
-    if (hfs_options->has_option("I"))
-      h0_options.add(*hfs_options->getOption("I"));
-    if (hfs_options->has_option("Q"))
-      h0_options.add(*hfs_options->getOption("Q"));
-    if (hfs_options->has_option("k"))
-      h0_options.add(*hfs_options->getOption("k"));
-    if (hfs_options->has_option("print"))
-      h0_options.add(*hfs_options->getOption("print"));
+    if (auto v = hfs_options->get<double>("mu"))
+      h0_options.set("mu", *v);
+    if (auto v = hfs_options->get<double>("I"))
+      h0_options.set("I", *v);
+    if (auto v = hfs_options->get<double>("Q"))
+      h0_options.set("Q", *v);
+    if (auto v = hfs_options->get<int>("k"))
+      h0_options.set("k", *v);
+    if (auto v = hfs_options->get<bool>("print"))
+      h0_options.set("print", *v);
   }
   const auto h0 = DiracOperator::generate("hfs", h0_options, wf);
 
@@ -503,7 +502,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
   // 1.5: Tune magnetic radius to reproduce experimental BW effect:
-  if (input.get("eps_target")) {
+  if (input.has_option("eps_target")) {
     std::cout << "\n-------------------------------\n";
     std::cout << "Tuning Rmag to reproduce Bohr-Weiskopf effect:\n";
     const auto [a, eps_s] =
@@ -540,13 +539,14 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
 
     std::cout << "\nRe-solving HF for second isotope:\n";
     // Set nuclear type for second nucleus. If given
-    const auto nuc_type = input.get({"Nucleus2"}, "type", std::string{"Fermi"});
+    const auto nuc2_block = input.get_block("Nucleus2");
+    const auto nuc_type = nuc2_block.get("type", std::string{"Fermi"});
     // Get default nucleus:
     auto nucleus = Nuclear::Nucleus{wf.Znuc(), *A2, nuc_type};
     // over-ride default options
-    const auto rrms = input.get<double>({"Nucleus2"}, "rrms");
-    const auto t = input.get<double>({"Nucleus2"}, "t");
-    const auto c_hdr = input.get<double>({"Nucleus2"}, "c");
+    const auto rrms = nuc2_block.get<double>("rrms");
+    const auto t = nuc2_block.get<double>("t");
+    const auto c_hdr = nuc2_block.get<double>("c");
     if (t) {
       nucleus.t() = *t;
     }
@@ -588,9 +588,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
                  "is the "
                  "same accross isotopes! Test by swapping A1 and A2\n";
 
-    auto hfs2_options = input.getBlock("hfs2_options") ?
-                          *input.getBlock("hfs2_options") :
-                          IO::InputBlock{};
+    auto hfs2_options = input.get_block("hfs2_options");
 
     // Generate hyperfine operator (including BW effect from input)
     std::cout << "\nIsotope 2:";
@@ -613,7 +611,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
     //            std::sqrt(5.0 / 3) * wf2.get_rrms(), wf2.get_rrms());
 
     // // Build pointlike HFS operator
-    // IO::InputBlock h2_0_options{"h0", "F(r)=pointlike;"};
+    // IO::InputBlockLegacy h2_0_options{"h0", "F(r)=pointlike;"};
     // // Ensure same parameters as other operator
     // {
     //   if (hfs2_options.has_option("mu"))
@@ -665,7 +663,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
     rpa2.reset(nullptr);
 
     // Tune _both_ magnetic radii to fit target differential anomaly, 1D2
-    if (input.get("1D2_target")) {
+    if (input.has_option("1D2_target")) {
       std::cout << "\n-------------------------------\n";
       std::cout << "Tune magnetic radii of both isotopes to match 1D2:\n";
 
@@ -699,8 +697,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
         // 2. Fit r2 : 1D2 = target
 
         auto h1_options = hfs_options ? *hfs_options : IO::InputBlock{};
-        h1_options.add(IO::Option{"rrms", std::to_string(r1)});
-        h1_options.add(IO::Option{"print", "false"});
+        h1_options.set("rrms", r1);
+        h1_options.set("print", false);
         const auto h1 = DiracOperator::generate("hfs", h1_options, wf);
 
         if (rpaQ) {
@@ -727,8 +725,8 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
         double hf_1D2 = -1.0;
         const auto delta_1D2 = [&](double r2) {
           auto h2_options = hfs2_options;
-          h2_options.add(IO::Option{"rrms", std::to_string(r2)});
-          h2_options.add(IO::Option{"print", "false"});
+          h2_options.set("rrms", r2);
+          h2_options.set("print", false);
           auto h22 = DiracOperator::generate("hfs", h2_options, wf2);
 
           if (rpaQ) {

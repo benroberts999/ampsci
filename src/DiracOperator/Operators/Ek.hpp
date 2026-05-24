@@ -1,6 +1,6 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 
 namespace DiracOperator {
@@ -40,8 +40,8 @@ public:
     return Angular::Ck_kk(m_k, ka, kb);
   }
 
-  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
-                                                  const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
     input.check({{"k", "Rank: k=1 for E1, =2 for E2 etc. [1]"}});
     if (input.has_option("help"))
       return nullptr;
@@ -64,8 +64,8 @@ class E1 final : public Ek {
 public:
   E1(const Grid &gr) : Ek(gr, 1) {}
 
-  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
-                                                  const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
     input.check({{"no options", ""}});
     if (input.has_option("help"))
       return nullptr;
@@ -81,8 +81,8 @@ public:
   std::string name() const override final { return "s.r"; }
   std::string units() const override final { return "aB"; }
 
-  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
-                                                  const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
     input.check({{"no options", ""}});
     if (input.has_option("help"))
       return nullptr;
@@ -135,8 +135,8 @@ public:
     m_constant = std::abs(omega) > 1.0e-10 ? -1.0 / (m_alpha * omega) : -1.0;
   }
 
-  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
-                                                  const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
     input.check({{"no options", ""}});
     if (input.has_option("help"))
       return nullptr;
@@ -166,8 +166,8 @@ public:
   double angularCfg(int ka, int kb) const override final { return ka - kb - 1; }
   double angularCgf(int ka, int kb) const override final { return ka - kb + 1; }
 
-  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
-                                                  const Wavefunction &) {
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &) {
     input.check({{"no options", ""}});
     if (input.has_option("help"))
       return nullptr;
@@ -181,8 +181,8 @@ class E2 final : public Ek {
 public:
   E2(const Grid &gr) : Ek(gr, 2) {}
 
-  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
-                                                  const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator>
+  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
     input.check({{"no options", ""}});
     if (input.has_option("help"))
       return nullptr;

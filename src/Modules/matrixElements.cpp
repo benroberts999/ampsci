@@ -171,7 +171,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto t_rpa_input = input.getBlock("rpa_options");
   auto rpa_input = t_rpa_input ? *t_rpa_input : IO::InputBlock{"rpa_options"};
   if (input.has_option("help")) {
-    rpa_input.add("help;");
+    rpa_input.set("help", true);
   }
   rpa_input.check({{"eps", "Convergance goal [1.0e-10]"},
                    {"eta", "Damping factor - be carful with this [0.4]"},
@@ -187,7 +187,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
-  auto h_options = IO::InputBlock(oper, {});
+  auto h_options = IO::InputBlock{oper};
   const auto tmp_opt = input.getBlock("options");
   if (tmp_opt) {
     h_options = *tmp_opt;
@@ -461,7 +461,7 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
   // Get input options:
   const auto oper = input.get<std::string>("operator", "E1");
   // Get optional 'options' for operator
-  auto h_options = IO::InputBlock(oper, {});
+  auto h_options = IO::InputBlock{oper};
   const auto tmp_opt = input.getBlock("options");
   if (tmp_opt) {
     h_options = *tmp_opt;
@@ -889,7 +889,7 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
-  auto h_options = IO::InputBlock(oper, {});
+  auto h_options = IO::InputBlock{oper};
   const auto tmp_opt = input.getBlock("options");
   if (tmp_opt) {
     h_options = *tmp_opt;
@@ -1107,7 +1107,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   auto SR_input =
     t_SR_input ? *t_SR_input : IO::InputBlock{"StructureRadiation"};
   if (input.has_option("help")) {
-    SR_input.add("help;");
+    SR_input.set("help", true);
   }
   SR_input.check(
     {{"", "If this block is included, SR + Normalisation "
@@ -1129,7 +1129,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto oper = input.get<std::string>("operator", "");
   // Get optional 'options' for operator
-  auto h_options = IO::InputBlock(oper, {});
+  auto h_options = IO::InputBlock{oper};
   const auto tmp_opt = input.getBlock("options");
   if (tmp_opt) {
     h_options = *tmp_opt;

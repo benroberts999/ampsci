@@ -189,7 +189,7 @@ std::vector<double> RadPot::Vh(int l) const {
 
 //==============================================================================
 RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
-                       const IO::InputBlock &input, bool print,
+                       const IO::InputBlockLegacy &input, bool print,
                        bool do_readwrite, const std::string &label) {
 
   input.check(

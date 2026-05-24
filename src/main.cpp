@@ -2,6 +2,7 @@
 #include "Coulomb/QkTable.hpp"
 #include "DiracOperator/GenerateOperator.hpp"
 #include "IO/InputBlock.hpp"
+#include "IO/InputBlockLegacy.hpp"
 #include "Modules/Modules.hpp"
 #include "Physics/periodicTable.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -28,7 +29,7 @@ const std::string synopsis{
   "ampsci [InputFile]                | Run with input file\n"
   "ampsci [Atom] <Core> <Valence>    | Basic Hartree-Fock run\n"
   "ampsci -s [InputString]           | Run with input string\n"
-  "ampsci -i <InputBlock>            | Query input options\n"
+  "ampsci -i <InputBlockLegacy>            | Query input options\n"
   "ampsci -m <Module>                | Query module options\n"
   "ampsci -o <Operator>              | Query operator options\n"
   "ampsci -p <Atom> <Isotope>        | Periodic table, isotope info\n"
@@ -212,8 +213,9 @@ int main(int argc, char *argv[]) {
     if (!module_name.empty()) {
       // run the module, with option 'help' set. This will trigger the helper
       // to print the details for the available options in that module
-      Module::runModule(IO::InputBlock{"Module::"s + module_name, {"help;"}},
-                        {});
+      IO::InputBlock help_input{"Module::"s + module_name};
+      help_input.set("help", true);
+      Module::runModule(help_input, {});
     } else {
       std::cout << "Available modules: \n";
       Module::list_modules();
@@ -223,7 +225,8 @@ int main(int argc, char *argv[]) {
     const std::string op_name = (argc > 2) ? argv[2] : "";
     if (!op_name.empty()) {
       Wavefunction wf{{1, 1.0, 1.0}, {1, 1}};
-      DiracOperator::generate(op_name, IO::InputBlock{op_name, {"help;"}}, wf);
+      DiracOperator::generate(op_name, IO::InputBlockLegacy{op_name, {"help;"}},
+                              wf);
     } else {
       std::cout << "Available operators: \n";
       DiracOperator::list_operators();
@@ -231,11 +234,11 @@ int main(int argc, char *argv[]) {
     return 0;
   } else if (in_text_1 == "-a" || in_text_1 == "--ampsci" ||
              in_text_1 == "-i" || in_text_1 == "--input") {
-    auto temp_input = IO::InputBlock{"ampsci", {"help;"}};
+    auto temp_input = IO::InputBlockLegacy{"ampsci", {"help;"}};
     for (int i_in = 2; i_in < argc; ++i_in) {
       const std::string block_name = (argc > i_in) ? argv[i_in] : "";
       if (!block_name.empty()) {
-        temp_input.add(IO::InputBlock{block_name, {"help;"}});
+        temp_input.add(IO::InputBlockLegacy{block_name, {"help;"}});
       }
     }
     ampsci(temp_input);
@@ -297,10 +300,23 @@ int main(int argc, char *argv[]) {
     default_input = in_text_2;
   }
 
+  // JSON input path: .json or .jsonc extension
+  const bool is_json = in_text_1.size() > 5 &&
+                       (in_text_1.substr(in_text_1.size() - 5) == ".json" ||
+                        in_text_1.substr(in_text_1.size() - 6) == ".jsonc");
+  if (is_json) {
+    // Parse JSON (comments supported), convert to legacy InputBlockLegacy for solver.
+    const auto ib2 = IO::InputBlock::from_file(in_text_1);
+    const IO::InputBlockLegacy input{"ampsci", ib2.to_ampsci_string()};
+    ampsci(input);
+    return 0;
+  }
+
   // nb: std::filesystem not available in g++-7 (getafix version)
   const auto fstream = std::fstream(in_text_1);
-  const auto input = fstream.good() ? IO::InputBlock("ampsci", fstream) :
-                                      IO::InputBlock("ampsci", default_input);
+  const auto input = fstream.good() ?
+                       IO::InputBlockLegacy("ampsci", fstream) :
+                       IO::InputBlockLegacy("ampsci", default_input);
 
   // Run program. Add option to run multiple times
   ampsci(input);

@@ -301,8 +301,8 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   // t is time-dependent, s is static
   const auto t_oper = input.get("t", ""s);
   const auto s_oper = input.get("s", ""s);
-  const auto t = DiracOperator::generate(t_oper, {}, wf);
-  const auto s = DiracOperator::generate(s_oper, {}, wf);
+  const auto t = DiracOperator::generate(t_oper, IO::InputBlock{}, wf);
+  const auto s = DiracOperator::generate(s_oper, IO::InputBlock{}, wf);
 
   const auto ks = s->rank();
   const auto kt = t->rank();

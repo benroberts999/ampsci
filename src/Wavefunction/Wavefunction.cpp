@@ -247,7 +247,7 @@ void Wavefunction::radiativePotential(QED::RadPot::Scale scale, double rcut,
 }
 
 //==============================================================================
-void Wavefunction::radiativePotential(const IO::InputBlock &qed_input,
+void Wavefunction::radiativePotential(const IO::InputBlockLegacy &qed_input,
                                       bool do_readwrite, bool print) {
 
   //re-scale happends inside ConstructRadPot
@@ -519,7 +519,7 @@ void Wavefunction::formSigma(
   const std::vector<double> &lambdas, const std::vector<double> &fk,
   const std::vector<double> &etak, bool read_write, const std::string &in_fname,
   bool FeynmanQ, bool ScreeningQ, bool hole_particleQ, int lmax, double omre,
-  double w0, double wratio, const std::optional<IO::InputBlock> &ek) {
+  double w0, double wratio, const std::optional<IO::InputBlockLegacy> &ek) {
   if (core().empty() || !m_HF)
     return;
 
@@ -777,7 +777,7 @@ double Wavefunction::H0ab_impl(const DiracSpinor &Fa, std::vector<double> dga,
 }
 
 //==============================================================================
-void Wavefunction::ConfigurationInteraction(const IO::InputBlock &input) {
+void Wavefunction::ConfigurationInteraction(const IO::InputBlockLegacy &input) {
   std::cout << "\n========================================================\n"
             << "Configuration Interaction:\n";
   IO::ChronoTimer t("CI");
