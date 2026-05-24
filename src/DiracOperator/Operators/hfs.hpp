@@ -1,6 +1,6 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Potentials/NuclearPotentials.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -322,8 +322,8 @@ public:
   double angularCfg(int, int) const override final { return cfg; }
   double angularCgf(int, int) const override final { return cfg; }
 
-  static std::unique_ptr<TensorOperator>
-  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
 
     input.check(
       {{"", "Most following will be taken from the default nucleus if "

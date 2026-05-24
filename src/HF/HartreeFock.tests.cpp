@@ -607,7 +607,7 @@ TEST_CASE("HartreeFock - Sigma2 - InIII Converge",
   )"};
 
   // require all valence states converge
-  const auto wf = ampsci(IO::InputBlockLegacy{"", input_string});
+  const auto wf = ampsci(IO::InputBlock{"", input_string});
   for (const auto &v : wf.valence()) {
     REQUIRE(v.eps() < 1.0e-9);
   }

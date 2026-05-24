@@ -1,6 +1,6 @@
 # Migration: IO::InputBlockLegacy → IO::InputBlock
 
-Tracking the phased replacement of the custom `IO::InputBlockLegacy` input parser with
+Tracking the phased replacement of the custom `IO::InputBlockLegacy` parser with
 `IO::InputBlock`, a wrapper around `nlohmann::json` (already bundled in `src/json/`).
 
 ## Why JSON?
@@ -46,7 +46,7 @@ All other keys are passed directly to the module as `IO::InputBlock`.
 
 ### Phase 2 -- Top-level parsing [DONE]
 - `main.cpp`: `.json`/`.jsonc` extension detected, parsed via `InputBlock::from_file()`
-- `ampsci.cpp`: JSON path still converts to `IO::InputBlockLegacy` via `to_ampsci_string()` (bridge, see Phase 4)
+- `ampsci.cpp`: JSON path still converts to `IO::InputBlock` via `to_ampsci_string()` (bridge, see Phase 4)
 - `Modules::runModules2()`: dispatches `IO::InputBlock` directly to module functions
 
 ### Phase 3 -- Module functions [DONE]
@@ -65,30 +65,25 @@ All module functions now take `const IO::InputBlock &`:
 - `src/Modules/qed.cpp`
 - `src/Kionisation/Module_Kionisation.cpp`
 
-`ModuleFn` typedef updated. `runModules` (legacy `.in` path) converts via local
-`ib_to_ib2()` helper. `DiracOperator::generate()` has an `InputBlock` overload
-that bridges to operator factories via `to_ampsci_string()`.
+`ModuleFn` typedef updated. `runModules` reads `"Module"` JSON array.
+`DiracOperator::generate()` and `FactoryFn` use `IO::InputBlock` directly.
 
-### Phase 4 -- Main solver and operators [TODO]
+### Phase 4 -- Main solver and operators [DONE]
 
-Remaining `IO::InputBlockLegacy` users:
+All remaining code migrated to `IO::InputBlock`:
 
-| File | Scope |
-|------|-------|
-| `src/ampsci/ampsci.cpp` | `ampsci(IO::InputBlockLegacy)` -- main solver driver |
-| `src/main.cpp` | `.in` legacy path, `-o`/`-i` help queries |
-| `src/DiracOperator/GenerateOperator.hpp` | `FactoryFn` typedef; individual `generate()` statics |
-| `src/Wavefunction/Wavefunction.hpp` | `radiativePotential`, `ConfigurationInteraction` |
-| `src/Wavefunction/BSplineBasis.hpp` | `Parameters(IO::InputBlockLegacy)` |
-| `src/CI/ConfigurationInteraction.cpp` | `configuration_interaction(IO::InputBlockLegacy)` |
-| `src/Potentials/RadPot.hpp` | `radiativePotential(IO::InputBlockLegacy)` |
-| All operator `*.hpp` | `static generate(IO::InputBlockLegacy, Wavefunction)` factories |
+- `src/ampsci/ampsci.cpp` -- main solver driver
+- `src/main.cpp` -- `.in` path parses via `IO::InputBlockLegacy` + `IO::from_legacy()`; `-o`/`-i` help queries use `IO::InputBlock` directly; `.json`/`.jsonc` path uses `IO::InputBlock::from_file()` directly
+- `src/DiracOperator/GenerateOperator.hpp/.cpp` -- single `generate()` overload, single `FactoryFn`
+- `src/Wavefunction/Wavefunction.hpp/.cpp` -- `radiativePotential`, `ConfigurationInteraction`, `formSigma`
+- `src/Wavefunction/BSplineBasis.hpp/.cpp` -- `Parameters(IO::InputBlock)`
+- `src/CI/ConfigurationInteraction.cpp` -- `configuration_interaction(IO::InputBlock)`
+- `src/Potentials/RadPot.hpp/.cpp` -- `radiativePotential(IO::InputBlock)`
+- All operator `*.hpp` -- `static generate(IO::InputBlock, Wavefunction)` factories
 
-Suggested order for Phase 4:
-1. Migrate `ampsci.cpp` to `InputBlock` -- removes the top-level `to_ampsci_string()` bridge
-2. Update `BSplineBasis::Parameters`, `Wavefunction` methods
-3. Update operator `FactoryFn` and all `static generate()` factories
-4. Remove `IO::InputBlockLegacy` and legacy paths
+`IO::InputBlockLegacy` is retained only for `.in` file parsing (via `IO::from_legacy` bridge).
+
+All 118 tests pass.
 
 ## IO::InputBlock API reference
 
@@ -98,7 +93,7 @@ InputBlock b{"name"};
 InputBlock b{"name", json_node};
 auto b = InputBlock::from_file("path/to/file.jsonc");  // parses JSONC
 
-// Value access (same as InputBlockLegacy)
+// Value access (same as InputBlock)
 auto x = b.get("key", default_value);   // T inferred from default
 auto x = b.get<T>("key");               // returns std::optional<T>
 

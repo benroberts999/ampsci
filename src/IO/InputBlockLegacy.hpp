@@ -15,16 +15,6 @@
 
 namespace IO {
 
-//! Prints unkown option warning, with suggested alternative
-inline void unkown_option(std::string_view test_string,
-                          const std::vector<std::string> &list) {
-  fmt2::warning();
-  std::cout << ": Unknown option: " << test_string << "\n";
-  if (!list.empty())
-    std::cout << "Did you mean: " << qip::ci_closest_match(test_string, list)
-              << " ?\n ";
-}
-
 //==============================================================================
 //! Removes all white space (space, tab, newline), except for those in quotes
 inline std::string removeSpaces(std::string str);
@@ -73,14 +63,6 @@ struct IsArray<std::array<T, N>> {
   using t = T;
   static constexpr std::size_t size = N;
 };
-
-//! Prints a line of 'c' characters (dflt '*'), num chars long (dflt 80) to
-//! cout
-inline void print_line(const char c = '*', const int num = 80) {
-  for (int i = 0; i < num; i++)
-    std::cout << c;
-  std::cout << "\n";
-}
 
 //==============================================================================
 //! Returns current local date and time as a string, e.g. "2026-05-14 13:01:02".

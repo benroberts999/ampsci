@@ -247,7 +247,7 @@ void Wavefunction::radiativePotential(QED::RadPot::Scale scale, double rcut,
 }
 
 //==============================================================================
-void Wavefunction::radiativePotential(const IO::InputBlockLegacy &qed_input,
+void Wavefunction::radiativePotential(const IO::InputBlock &qed_input,
                                       bool do_readwrite, bool print) {
 
   //re-scale happends inside ConstructRadPot
@@ -519,7 +519,7 @@ void Wavefunction::formSigma(
   const std::vector<double> &lambdas, const std::vector<double> &fk,
   const std::vector<double> &etak, bool read_write, const std::string &in_fname,
   bool FeynmanQ, bool ScreeningQ, bool hole_particleQ, int lmax, double omre,
-  double w0, double wratio, const std::optional<IO::InputBlockLegacy> &ek) {
+  double w0, double wratio, const std::optional<IO::InputBlock> &ek) {
   if (core().empty() || !m_HF)
     return;
 
@@ -580,14 +580,17 @@ void Wavefunction::formSigma(
     }
   } else if (ek /*&& m_Sigma->empty()*/) {
     // solve at specific energies:
-    for (auto &[state, en] : ek->options()) {
+    for (auto &[state, en_val] : ek->node().items()) {
       auto [n, k] = AtomData::parse_symbol(state);
+      const double en = en_val.is_string() ?
+                          std::stod(en_val.get<std::string>()) :
+                          en_val.get<double>();
       auto Fv = std::find_if(cbegin(m_valence), cend(m_valence),
                              [kt = k](auto f) { return f.kappa() == kt; });
       if (Fv != cend(m_valence)) {
-        m_Sigma->formSigma(k, std::stod(en), n, &*Fv);
+        m_Sigma->formSigma(k, en, n, &*Fv);
       } else {
-        m_Sigma->formSigma(k, std::stod(en), n);
+        m_Sigma->formSigma(k, en, n);
       }
     }
   }
@@ -777,7 +780,7 @@ double Wavefunction::H0ab_impl(const DiracSpinor &Fa, std::vector<double> dga,
 }
 
 //==============================================================================
-void Wavefunction::ConfigurationInteraction(const IO::InputBlockLegacy &input) {
+void Wavefunction::ConfigurationInteraction(const IO::InputBlock &input) {
   std::cout << "\n========================================================\n"
             << "Configuration Interaction:\n";
   IO::ChronoTimer t("CI");

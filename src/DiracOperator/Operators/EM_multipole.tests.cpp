@@ -118,22 +118,21 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
             continue;
 
           // Version one: using 'generate'
-          std::string opts = std::string("k=") + std::to_string(k) +
-                             "; omega=" + std::to_string(omega) + "; ";
-
           const auto op_type = std::string(1, name.at(0));
           const auto component =
             name.size() > 1 ? std::string(1, name.at(1)) : "";
           const auto form = name.size() > 3 ? std::string(1, name.at(3)) : "";
 
-          opts += "type=" + op_type + ";";
-          opts += "component=" + component + ";";
-          opts += "form=" + form + ";";
-          if (low_q) {
-            opts += "low_q=true;";
-          }
+          IO::InputBlock opts{""};
+          opts.set("k", k);
+          opts.set("omega", omega);
+          opts.set("type", op_type);
+          opts.set("component", component);
+          opts.set("form", form);
+          if (low_q)
+            opts.set("low_q", true);
 
-          auto h = DiracOperator::generate("Multipole", {"", opts}, wf);
+          auto h = DiracOperator::generate("Multipole", opts, wf);
 
           //using "helper" functions
           auto h_3 = use_helper_function(name, low_q, k);

@@ -1,6 +1,6 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 
 namespace DiracOperator {
@@ -32,8 +32,8 @@ public:
   }
   std::string name() const override final { return "RadialFunction"; }
   std::string units() const override final { return "au"; }
-  static std::unique_ptr<TensorOperator>
-  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
     input.check({{"power", "Power (real) for r^k"}});
     if (input.has_option("help"))
       return nullptr;

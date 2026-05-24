@@ -1,5 +1,4 @@
 #include "GenerateOperator.hpp"
-#include "IO/InputBlock.hpp"
 #include "fmt/color.hpp"
 #include "qip/String.hpp"
 #include <iostream>
@@ -8,7 +7,7 @@ namespace DiracOperator {
 
 //--------------------------------------------------------------------
 std::unique_ptr<DiracOperator::TensorOperator>
-generate(std::string_view operator_name, const IO::InputBlockLegacy &input,
+generate(std::string_view operator_name, const IO::InputBlock &input,
          const Wavefunction &wf) {
 
   for (const auto &entry : Registry::get().entries()) {
@@ -34,15 +33,6 @@ generate(std::string_view operator_name, const IO::InputBlockLegacy &input,
   std::cout << "\n";
   std::cout << "Returning NULL operator (0)\n";
   return std::make_unique<NullOperator>(NullOperator());
-}
-
-//--------------------------------------------------------------------
-std::unique_ptr<DiracOperator::TensorOperator>
-generate(std::string_view operator_name, const IO::InputBlock &input,
-         const Wavefunction &wf) {
-  IO::InputBlockLegacy legacy{std::string(operator_name),
-                              input.to_ampsci_string()};
-  return generate(operator_name, legacy, wf);
 }
 
 //--------------------------------------------------------------------

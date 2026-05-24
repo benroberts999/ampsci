@@ -1,6 +1,6 @@
 #pragma once
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 
 //! Calculates wavefunction and runs optional modules
-Wavefunction ampsci(const IO::InputBlockLegacy &input);
+Wavefunction ampsci(const IO::InputBlock &input);

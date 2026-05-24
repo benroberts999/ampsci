@@ -1,6 +1,6 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Potentials/NuclearPotentials.hpp"
@@ -72,8 +72,8 @@ public:
            abfm2factor / nuc.z();
   }
 
-  static std::unique_ptr<TensorOperator>
-  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
     input.check(
       {{"", "Field shift operator."},
        {"drrms",

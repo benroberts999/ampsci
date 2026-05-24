@@ -1,7 +1,7 @@
 #pragma once
 #include "DiracOperator/Operators/hfs.hpp"
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Potentials/FGRadPot.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -39,8 +39,8 @@ public:
 
   const QED::RadPot &RadPot() const { return m_Vrad; }
 
-  static std::unique_ptr<TensorOperator>
-  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
     input.check(
       {{{"Ueh", "  Uehling (vacuum pol). [1.0]"},
         {"SE_h", "  self-energy high-freq electric. [1.0]"},
@@ -218,8 +218,8 @@ public:
     return v;
   }
 
-  static std::unique_ptr<TensorOperator>
-  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
     input.check(
       {{"rN",
         "Nuclear radius (in fm), for finite-nuclear size "
@@ -231,7 +231,7 @@ public:
       return nullptr;
     // 1. generate regular hfs operator
     const auto t_options = input.getBlock("hfs_options");
-    auto oper_options = t_options ? *t_options : IO::InputBlockLegacy{};
+    auto oper_options = t_options ? *t_options : IO::InputBlock{};
     // 2. MLVP
     const auto rN_fm =
       input.get("rN", std::sqrt(5.0 / 3.0) * wf.nucleus().r_rms());

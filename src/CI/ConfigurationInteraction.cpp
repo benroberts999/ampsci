@@ -5,7 +5,7 @@
 #include "Coulomb/include.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/calcMatrixElements.hpp"
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/Sigma2.hpp"
@@ -21,7 +21,7 @@
 #include <vector>
 
 namespace CI {
-std::vector<PsiJPi> configuration_interaction(const IO::InputBlockLegacy &input,
+std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
                                               const Wavefunction &wf) {
 
   // Check input options:

@@ -1,6 +1,6 @@
 #include "CI_Integrals.hpp"
 #include "ConfigurationInteraction.hpp"
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Random.hpp"
@@ -17,14 +17,14 @@ TEST_CASE("CI: Configuration Interaction, unit tests", "[CI][unit]") {
 
   std::string qk_filename = "deleteme_" + qip::random_string(6) + ".qk.abf";
 
-  const IO::InputBlockLegacy input{"CI", "ci_basis = 6spd;"
-                                         "n_min_core = 1;"
-                                         "J + = 0, 1;"
-                                         "J - = 0, 1;"
-                                         "qk_file = " +
-                                           qk_filename +
-                                           ";"
-                                           "num_solutions = 2;"};
+  const IO::InputBlock input{"CI", "ci_basis = 6spd;"
+                                   "n_min_core = 1;"
+                                   "J + = 0, 1;"
+                                   "J - = 0, 1;"
+                                   "qk_file = " +
+                                     qk_filename +
+                                     ";"
+                                     "num_solutions = 2;"};
 
   const auto CIWFs = CI::configuration_interaction(input, wf);
 

@@ -28,7 +28,7 @@ TEST_CASE("External Field: Mixed-states (unit)",
   // test E1 (odd+vector+real), pnc (odd+scalar+imag), hfs (even+vector+real)
   for (std::string_view oper : {"E1", "hfs", "pnc"}) {
     std::cout << "\n" << oper << "\n";
-    auto h = DiracOperator::generate(oper, IO::InputBlockLegacy{}, wf);
+    auto h = DiracOperator::generate(oper, IO::InputBlock{}, wf);
 
     std::string worst{""};
     double weps{0.0};
@@ -107,7 +107,7 @@ TEST_CASE("External Field: Mixed-states (full)",
 
   for (std::string_view oper : {"E1", "hfs"}) {
     std::cout << "\n" << oper << "\n";
-    auto h = DiracOperator::generate(oper, IO::InputBlockLegacy{}, wf);
+    auto h = DiracOperator::generate(oper, IO::InputBlock{}, wf);
 
     // const auto r = wf.grid().r();
 

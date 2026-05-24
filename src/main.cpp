@@ -2,6 +2,7 @@
 #include "Coulomb/QkTable.hpp"
 #include "DiracOperator/GenerateOperator.hpp"
 #include "IO/InputBlock.hpp"
+#include "IO/InputBlockConvert.hpp"
 #include "IO/InputBlockLegacy.hpp"
 #include "Modules/Modules.hpp"
 #include "Physics/periodicTable.hpp"
@@ -29,7 +30,7 @@ const std::string synopsis{
   "ampsci [InputFile]                | Run with input file\n"
   "ampsci [Atom] <Core> <Valence>    | Basic Hartree-Fock run\n"
   "ampsci -s [InputString]           | Run with input string\n"
-  "ampsci -i <InputBlockLegacy>            | Query input options\n"
+  "ampsci -i <InputBlock>            | Query input options\n"
   "ampsci -m <Module>                | Query module options\n"
   "ampsci -o <Operator>              | Query operator options\n"
   "ampsci -p <Atom> <Isotope>        | Periodic table, isotope info\n"
@@ -225,8 +226,9 @@ int main(int argc, char *argv[]) {
     const std::string op_name = (argc > 2) ? argv[2] : "";
     if (!op_name.empty()) {
       Wavefunction wf{{1, 1.0, 1.0}, {1, 1}};
-      DiracOperator::generate(op_name, IO::InputBlockLegacy{op_name, {"help;"}},
-                              wf);
+      IO::InputBlock op_help{op_name};
+      op_help.set("help", true);
+      DiracOperator::generate(op_name, op_help, wf);
     } else {
       std::cout << "Available operators: \n";
       DiracOperator::list_operators();
@@ -234,11 +236,14 @@ int main(int argc, char *argv[]) {
     return 0;
   } else if (in_text_1 == "-a" || in_text_1 == "--ampsci" ||
              in_text_1 == "-i" || in_text_1 == "--input") {
-    auto temp_input = IO::InputBlockLegacy{"ampsci", {"help;"}};
+    IO::InputBlock temp_input{"ampsci"};
+    temp_input.set("help", true);
     for (int i_in = 2; i_in < argc; ++i_in) {
       const std::string block_name = (argc > i_in) ? argv[i_in] : "";
       if (!block_name.empty()) {
-        temp_input.add(IO::InputBlockLegacy{block_name, {"help;"}});
+        IO::InputBlock sub{block_name};
+        sub.set("help", true);
+        temp_input.set_block(block_name, sub);
       }
     }
     ampsci(temp_input);
@@ -305,18 +310,17 @@ int main(int argc, char *argv[]) {
                        (in_text_1.substr(in_text_1.size() - 5) == ".json" ||
                         in_text_1.substr(in_text_1.size() - 6) == ".jsonc");
   if (is_json) {
-    // Parse JSON (comments supported), convert to legacy InputBlockLegacy for solver.
-    const auto ib2 = IO::InputBlock::from_file(in_text_1);
-    const IO::InputBlockLegacy input{"ampsci", ib2.to_ampsci_string()};
+    const auto input = IO::InputBlock::from_file(in_text_1);
     ampsci(input);
     return 0;
   }
 
   // nb: std::filesystem not available in g++-7 (getafix version)
   const auto fstream = std::fstream(in_text_1);
-  const auto input = fstream.good() ?
-                       IO::InputBlockLegacy("ampsci", fstream) :
-                       IO::InputBlockLegacy("ampsci", default_input);
+  const auto legacy = fstream.good() ?
+                        IO::InputBlockLegacy("ampsci", fstream) :
+                        IO::InputBlockLegacy("ampsci", default_input);
+  const auto input = IO::from_legacy(legacy);
 
   // Run program. Add option to run multiple times
   ampsci(input);

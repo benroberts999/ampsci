@@ -14,6 +14,23 @@
 
 namespace IO {
 
+//! Prints a horizontal line of @p num copies of character @p c to stdout.
+inline void print_line(const char c = '*', const int num = 80) {
+  for (int i = 0; i < num; i++)
+    std::cout << c;
+  std::cout << "\n";
+}
+
+//! Prints an unknown-option warning with a nearest-match suggestion.
+inline void unkown_option(std::string_view test_string,
+                          const std::vector<std::string> &list) {
+  fmt2::warning();
+  std::cout << ": Unknown option: " << test_string << "\n";
+  if (!list.empty())
+    std::cout << "Did you mean: " << qip::ci_closest_match(test_string, list)
+              << " ?\n ";
+}
+
 //==============================================================================
 namespace detail {
 
@@ -46,7 +63,7 @@ struct is_std_array<std::array<T, N>> : std::true_type {
   @brief JSON-backed structured input block.
   @details
   Light wrapper around nlohmann::json that provides a similar interface to
-  IO::InputBlockLegacy, but backed by a standard JSON object. Designed for reading
+  IO::InputBlock, but backed by a standard JSON object. Designed for reading
   ampsci input files in JSON format.
 
   Comments (//) and block comments (slash-star) are supported in input files
@@ -150,6 +167,28 @@ public:
   template <typename T = std::string>
   std::optional<T> get(std::string_view key) const;
 
+  //! Returns the value of @p key in the nested sub-block at @p blocks path,
+  //! or @p default_value if the block or key is absent.
+  template <typename T>
+  T get(std::initializer_list<std::string> blocks, std::string_view key,
+        T default_value) const {
+    auto blk = *this;
+    for (const auto &b : blocks)
+      blk = blk.get_block(b);
+    return blk.get(key, default_value);
+  }
+
+  //! Returns an optional value of @p key in the nested sub-block at @p blocks
+  //! path; empty if the block or key is absent.
+  template <typename T = std::string>
+  std::optional<T> get(std::initializer_list<std::string> blocks,
+                       std::string_view key) const {
+    auto blk = *this;
+    for (const auto &b : blocks)
+      blk = blk.get_block(b);
+    return blk.get<T>(key);
+  }
+
   //==============================================================================
   // Block access
 
@@ -176,6 +215,21 @@ public:
     return getBlock(name).has_value();
   }
 
+  /*!
+    @brief Returns an optional nested block, traversing @p blocks then looking
+           for @p name.
+    @details
+    Equivalent to following the @p blocks path via get_block(), then calling
+    getBlock(@p name). Returns nullopt if any step along the path is absent.
+  */
+  std::optional<InputBlock> getBlock(std::initializer_list<std::string> blocks,
+                                     std::string_view name) const {
+    auto blk = *this;
+    for (const auto &b : blocks)
+      blk = blk.get_block(b);
+    return blk.getBlock(name);
+  }
+
   //! Returns true if @p key is present in this block (regardless of value type).
   bool has_option(std::string_view key) const {
     return m_node.contains(std::string(key));
@@ -187,7 +241,7 @@ public:
   }
 
   //==============================================================================
-  // Dynamic construction (replaces IO::InputBlockLegacy::add(Option) sticky tape)
+  // Dynamic construction (replaces IO::InputBlock::add(Option) sticky tape)
 
   /*!
     @brief Sets (or overwrites) @p key to @p value.
@@ -203,6 +257,15 @@ public:
   //! Sets (or overwrites) @p name as a child block.
   void set_block(std::string_view name, InputBlock block) {
     m_node[std::string(name)] = std::move(block.m_node);
+  }
+
+  //! Append @p module to the "Module" JSON array, using @p module.name() as "type".
+  void add_module(InputBlock module) {
+    auto &arr = m_node["Module"];
+    if (!arr.is_array())
+      arr = nlohmann::json::array();
+    module.m_node["type"] = std::string{module.m_name};
+    arr.push_back(std::move(module.m_node));
   }
 
   //==============================================================================
@@ -225,6 +288,16 @@ public:
   bool check(const std::vector<std::pair<std::string, std::string>> &list,
              bool print = false) const;
 
+  //! Validates the options of the nested sub-block reached via @p blocks path.
+  bool check(std::initializer_list<std::string> blocks,
+             const std::vector<std::pair<std::string, std::string>> &list,
+             bool print = false) const {
+    auto blk = *this;
+    for (const auto &b : blocks)
+      blk = blk.get_block(b);
+    return blk.check(list, print);
+  }
+
   //! Prints the block contents as indented JSON to @p os.
   void print(std::ostream &os = std::cout, int /*indent_depth*/ = 0) const {
     os << m_node.dump(2) << "\n";
@@ -235,7 +308,7 @@ public:
     @details
     Converts this block's JSON content to the old-style ampsci input string.
     Used as a bridge so that JSON-parsed input can be passed to code that
-    still accepts IO::InputBlockLegacy.
+    still accepts IO::InputBlock.
 
     Conversion rules:
     - Scalar values (string, number, bool) become  key = value;
@@ -326,11 +399,21 @@ std::optional<T> InputBlock::get(std::string_view key) const {
   }
 
   // --- std::string ---
+  // Convert booleans and numbers to their string representation so that
+  // get<std::string>("key") works even when the JSON value is not a string
+  // (e.g., after from_legacy() converts "true"/"false" to JSON booleans).
   else if constexpr (std::is_same_v<T, std::string>) {
-    if (!val.is_string())
+    std::string str;
+    if (val.is_string()) {
+      str = val.template get<std::string>();
+    } else if (val.is_boolean()) {
+      str = val.template get<bool>() ? "true" : "false";
+    } else if (val.is_number()) {
+      str = val.dump();
+    } else {
       return std::nullopt;
-    const auto str = val.template get<std::string>();
-    // treat "" or "default" as unset (matches InputBlockLegacy behaviour)
+    }
+    // treat "" or "default" as unset (matches InputBlock behaviour)
     if (str.empty() || qip::ci_wc_compare("default", str))
       return std::nullopt;
     return str;

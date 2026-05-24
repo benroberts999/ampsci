@@ -150,7 +150,7 @@ std::ostream &operator<<(std::ostream &ostr, const Nucleus &n) {
 }
 
 //==============================================================================
-Nucleus form_nucleus(int Z, std::optional<int> tA, IO::InputBlockLegacy input) {
+Nucleus form_nucleus(int Z, std::optional<int> tA, IO::InputBlock input) {
 
   // Nucleus: Get + setup nuclear parameters
 

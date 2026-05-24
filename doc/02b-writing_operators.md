@@ -145,7 +145,7 @@ The signature and return value must be exactly like:
 
 ```cpp
 static std::unique_ptr<DiracOperator::TensorOperator>
-generate(const IO::InputBlockLegacy &input, const Wavefunction &wf){
+generate(const IO::InputBlock &input, const Wavefunction &wf){
   // details
   return std::make_unique<MyOperator>(/*any options your operator takes*/);
 }
@@ -157,7 +157,7 @@ For example, an operator that depends on the radial grid, the nuclear charge, as
 
 ```cpp
 static std::unique_ptr<TensorOperator>
-generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
+generate(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check({{"c", "Overall scale factor [default: 1.0]"},
                {"n",    "Power of r [default: 2]"}});

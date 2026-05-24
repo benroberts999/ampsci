@@ -1,6 +1,6 @@
 #include "hfs.hpp"
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
 #include "qip/Maths.hpp"

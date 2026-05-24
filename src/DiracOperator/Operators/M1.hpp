@@ -1,6 +1,6 @@
 #pragma once
 #include "DiracOperator/TensorOperator.hpp"
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "jls.hpp"
 
@@ -53,8 +53,8 @@ public:
     }
   }
 
-  static std::unique_ptr<TensorOperator>
-  generate(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &wf) {
     input.check({{"", "No input options"}});
     if (input.has_option("help"))
       return nullptr;
@@ -90,8 +90,8 @@ public:
     return Fa * radial_rhs(Fa.kappa(), Fb);
   }
 
-  static std::unique_ptr<TensorOperator>
-  generate(const IO::InputBlockLegacy &input, const Wavefunction &) {
+  static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+                                                  const Wavefunction &) {
     input.check({{"", "No input options"}});
     if (input.has_option("help"))
       return nullptr;

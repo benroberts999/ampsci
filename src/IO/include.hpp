@@ -3,4 +3,3 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "IO/InputBlock.hpp"
-#include "IO/InputBlockLegacy.hpp"

@@ -1,6 +1,5 @@
 #include "Modules/Modules.hpp"
 #include "IO/InputBlock.hpp"
-#include "IO/InputBlockLegacy.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
@@ -10,42 +9,6 @@
 #include <iostream>
 
 namespace Module {
-
-namespace {
-// Convert a legacy IO::InputBlockLegacy to IO::InputBlock by walking the options
-// and sub-blocks recursively. Values are parsed as JSON where possible
-// (numbers, bools); anything that doesn't parse stays as a string.
-IO::InputBlock ib_to_ib2(const IO::InputBlockLegacy &ib) {
-  auto j = nlohmann::json::object();
-  for (const auto &opt : ib.options()) {
-    try {
-      j[opt.key] = nlohmann::json::parse(opt.value_str);
-    } catch (...) {
-      j[opt.key] = opt.value_str;
-    }
-  }
-  for (const auto &block : ib.blocks()) {
-    j[std::string{block.name()}] = ib_to_ib2(block).node();
-  }
-  return IO::InputBlock{std::string{ib.name()}, std::move(j)};
-}
-} // namespace
-
-//==============================================================================
-void runModules(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
-
-  // Check if block is a module (modules state with 'Module::')
-  const auto block_is_module = [](auto &block) {
-    return qip::ci_wc_compare(block.name(), "Module*");
-  };
-  // if it is, run it with its input (converting to InputBlock)
-  for (const auto &block : input.blocks()) {
-    if (block_is_module(block)) {
-      runModule(ib_to_ib2(block), wf);
-      std::cout << std::flush;
-    }
-  }
-}
 
 //==============================================================================
 void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
@@ -77,12 +40,6 @@ void runModule(const IO::InputBlock &module_input, const Wavefunction &wf) {
 }
 
 //==============================================================================
-void runModule(const IO::InputBlockLegacy &module_input,
-               const Wavefunction &wf) {
-  runModule(ib_to_ib2(module_input), wf);
-}
-
-//==============================================================================
 void list_modules() {
   for (const auto &entry : Registry::get().entries()) {
     fmt::print(" * {}\n", entry.name);
@@ -93,7 +50,7 @@ void list_modules() {
 }
 
 //==============================================================================
-void runModules2(const IO::InputBlock &input, const Wavefunction &wf) {
+void runModules(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto &node = input.node();
   const auto it = node.find("Module");
   if (it == node.end() || !it->is_array())
@@ -105,12 +62,10 @@ void runModules2(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto type = entry.value("type", std::string{});
     if (type.empty())
       continue;
-    // Strip "type" key (module name metadata) and dispatch directly as
-    // InputBlock -- no legacy string conversion.
     auto opts = entry;
     opts.erase("type");
-    IO::InputBlock mod_ib2{"Module::" + type, std::move(opts)};
-    runModule(mod_ib2, wf);
+    IO::InputBlock mod_input{"Module::" + type, std::move(opts)};
+    runModule(mod_input, wf);
     std::cout << std::flush;
   }
 }

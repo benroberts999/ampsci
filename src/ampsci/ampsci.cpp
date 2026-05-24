@@ -2,14 +2,14 @@
 #include "DiracODE/BoundState.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //for 'ExtraPotential'
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp" //for 'ExtraPotential'
 #include "Modules/Modules.hpp"
 #include "Physics/include.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 
-Wavefunction ampsci(const IO::InputBlockLegacy &input) {
+Wavefunction ampsci(const IO::InputBlock &input) {
   IO::ChronoTimer timer("\nampsci");
 
   using namespace std::string_literals;
@@ -199,7 +199,7 @@ Wavefunction ampsci(const IO::InputBlockLegacy &input) {
   // Note: input options are parsed inside radiativePotential()
   if (include_qed && qed_core) {
     std::cout << "\nIncluding QED into core (and valence)\n";
-    wf.radiativePotential(qed_input ? *qed_input : IO::InputBlockLegacy{}, true,
+    wf.radiativePotential(qed_input ? *qed_input : IO::InputBlock{}, true,
                           true);
     std::cout << "\n";
   }
@@ -254,7 +254,7 @@ Wavefunction ampsci(const IO::InputBlockLegacy &input) {
 
   if (include_qed && !qed_core) {
     std::cout << "\nIncluding QED into valence (not included in core)\n";
-    wf.radiativePotential(qed_input ? *qed_input : IO::InputBlockLegacy{}, true,
+    wf.radiativePotential(qed_input ? *qed_input : IO::InputBlock{}, true,
                           true);
     std::cout << "\n";
   }

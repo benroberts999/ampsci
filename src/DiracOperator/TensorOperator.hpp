@@ -30,7 +30,7 @@
   functions; see TensorOperator for details.
 
   Operators are typically constructed via @ref generate(), which takes a name
-  string and an InputBlockLegacy; see GenerateOperator.hpp for the full list of
+  string and an InputBlock; see GenerateOperator.hpp for the full list of
   available operators.
 
   See @ref TensorOperator class documentation for main descriptions.

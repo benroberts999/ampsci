@@ -16,46 +16,53 @@ TEST_CASE("ampsci - basic unit test",
 
   std::string run_label = "deleteme_" + qip::random_string(5);
 
-  const auto input_string = std::string{R"(
-    Atom {
-      Z = Cs;
-      run_label = )" + run_label + R"(;
-      json_out = true;
-    }
-    HartreeFock {
-      core = [Xe];
-      valence = 6sp;
-    }
-    Grid {
-      r0 = 1.0e-5;
-      rmax = 75.0;
-      num_points = 800;
-    }
-    Basis {
-      number = 30;
-      order = 7;
-      rmax = 35.0;
-      states = 12spdf;
-    }
-    Correlations {
-      stride = 10;
-      n_min_core = 4;
-      each_valence = false;
-      read = false;
-    }
-    Module::MatrixElements {
-      operator = hfs;
-      rpa = diagram;
-      off-diagonal = false;
-    }
-    Module::MatrixElements {
-      operator = E1;
-      rpa = TDHF;
-      omega = 0.0;
-    }
-  )"};
+  IO::InputBlock input{""};
+  {
+    IO::InputBlock atom{"Atom"};
+    atom.set("Z", std::string{"Cs"});
+    atom.set("run_label", run_label);
+    atom.set("json_out", true);
+    input.set_block("Atom", atom);
 
-  const auto wf = ampsci(IO::InputBlockLegacy{"", input_string});
+    IO::InputBlock hf{"HartreeFock"};
+    hf.set("core", std::string{"[Xe]"});
+    hf.set("valence", std::string{"6sp"});
+    input.set_block("HartreeFock", hf);
+
+    IO::InputBlock grid{"Grid"};
+    grid.set("r0", 1.0e-5);
+    grid.set("rmax", 75.0);
+    grid.set("num_points", 800);
+    input.set_block("Grid", grid);
+
+    IO::InputBlock basis{"Basis"};
+    basis.set("number", 30);
+    basis.set("order", 7);
+    basis.set("rmax", 35.0);
+    basis.set("states", std::string{"12spdf"});
+    input.set_block("Basis", basis);
+
+    IO::InputBlock corr{"Correlations"};
+    corr.set("stride", 10);
+    corr.set("n_min_core", 4);
+    corr.set("each_valence", false);
+    corr.set("read", false);
+    input.set_block("Correlations", corr);
+
+    IO::InputBlock me_hfs{"MatrixElements"};
+    me_hfs.set("operator", std::string{"hfs"});
+    me_hfs.set("rpa", std::string{"diagram"});
+    me_hfs.set("off-diagonal", false);
+    input.add_module(me_hfs);
+
+    IO::InputBlock me_e1{"MatrixElements"};
+    me_e1.set("operator", std::string{"E1"});
+    me_e1.set("rpa", std::string{"TDHF"});
+    me_e1.set("omega", 0.0);
+    input.add_module(me_e1);
+  }
+
+  const auto wf = ampsci(input);
 
   REQUIRE(wf.Znuc() == 55);
   REQUIRE(wf.identity() == "Cs1_" + run_label);
@@ -110,48 +117,55 @@ TEST_CASE("ampsci - basic Feynman unit test",
 
   std::string run_label = "deleteme_" + qip::random_string(5);
 
-  const auto input_string = std::string{R"(
-    Atom {
-      Z = Cs;
-      run_label = )" + run_label + R"(;
-    }
-    HartreeFock {
-      core = [Xe];
-      valence = 6sp;
-      QED = true;
-    }
-    Nucleus{
-      type = Gaussian;
-    }
-    Grid {
-      r0 = 1.0e-5;
-      rmax = 80.0;
-      num_points = 1000;
-    }
-    Basis {
-      number = 35;
-      order = 7;
-      rmax = 40.0;
-      states = 25spdfg;
-      type = Johnson;
-    }
-    Spectrum {
-      number = 70;
-      order = 7;
-      rmax = 70.0;
-      states = 6spd;
-    }
-    Correlations {
-      n_min_core = 5;
-      all_order = true;
-      stride = 14;
-      each_valence = false;
-      imag_omega = 0.02, 2.0;
-      read = false;
-    }
-  )"};
+  IO::InputBlock input{""};
+  {
+    IO::InputBlock atom{"Atom"};
+    atom.set("Z", std::string{"Cs"});
+    atom.set("run_label", run_label);
+    input.set_block("Atom", atom);
 
-  const auto wf = ampsci(IO::InputBlockLegacy{"", input_string});
+    IO::InputBlock hf{"HartreeFock"};
+    hf.set("core", std::string{"[Xe]"});
+    hf.set("valence", std::string{"6sp"});
+    hf.set("QED", true);
+    input.set_block("HartreeFock", hf);
+
+    IO::InputBlock nuc{"Nucleus"};
+    nuc.set("type", std::string{"Gaussian"});
+    input.set_block("Nucleus", nuc);
+
+    IO::InputBlock grid{"Grid"};
+    grid.set("r0", 1.0e-5);
+    grid.set("rmax", 80.0);
+    grid.set("num_points", 1000);
+    input.set_block("Grid", grid);
+
+    IO::InputBlock basis{"Basis"};
+    basis.set("number", 35);
+    basis.set("order", 7);
+    basis.set("rmax", 40.0);
+    basis.set("states", std::string{"25spdfg"});
+    basis.set("type", std::string{"Johnson"});
+    input.set_block("Basis", basis);
+
+    IO::InputBlock spec{"Spectrum"};
+    spec.set("number", 70);
+    spec.set("order", 7);
+    spec.set("rmax", 70.0);
+    spec.set("states", std::string{"6spd"});
+    input.set_block("Spectrum", spec);
+
+    IO::InputBlock corr{"Correlations"};
+    corr.set("n_min_core", 5);
+    corr.set("all_order", true);
+    corr.set("stride", 14);
+    corr.set("each_valence", false);
+    corr.set("imag_omega", std::vector<double>{0.02, 2.0});
+    corr.set("read", false);
+    input.set_block("Correlations", corr);
+  }
+
+  const auto wf = ampsci(input);
 
   CHECK(wf.Znuc() == 55);
   CHECK(wf.identity() == "Cs1q_" + run_label);
@@ -205,44 +219,48 @@ TEST_CASE("ampsci - basic CI unit test", "[ampsci][CI][unit]") {
 
   std::string run_label = "deleteme_" + qip::random_string(5);
 
-  const auto input_string = std::string{R"(
-    Atom {
-      Z = Be;
-      run_label = )" + run_label + R"(;
-    }
-    HartreeFock {
-      core = [He];
-    }
-    Grid {
-      r0 = 1.0e-4;
-      rmax = 50.0;
-      num_points = 700;
-    }
-    Basis {
-      number = 25;
-      order = 7;
-      rmax = 40.0;
-      states = 16spdf;
-    }
-    CI {
-      ci_basis = 12spdf;
-      J+ = 0,1;
-      J- = 0,1;
-      num_solutions = 2;
-      sigma1 = true;
-      sigma2 = true;
-      cis2_basis = 3spd;
-    }
-    Module::CI_matrixElements{
-      operator = E1;
-      rpa = false;
-      ci_basis = 12spdf;
-      omega = 0.0;
-      J=0,1;
-    }
-  )"};
+  IO::InputBlock input1{""};
+  {
+    IO::InputBlock atom{"Atom"};
+    atom.set("Z", std::string{"Be"});
+    atom.set("run_label", run_label);
+    input1.set_block("Atom", atom);
 
-  auto input1 = IO::InputBlockLegacy{"", input_string};
+    IO::InputBlock hf{"HartreeFock"};
+    hf.set("core", std::string{"[He]"});
+    input1.set_block("HartreeFock", hf);
+
+    IO::InputBlock grid{"Grid"};
+    grid.set("r0", 1.0e-4);
+    grid.set("rmax", 50.0);
+    grid.set("num_points", 700);
+    input1.set_block("Grid", grid);
+
+    IO::InputBlock basis{"Basis"};
+    basis.set("number", 25);
+    basis.set("order", 7);
+    basis.set("rmax", 40.0);
+    basis.set("states", std::string{"16spdf"});
+    input1.set_block("Basis", basis);
+
+    IO::InputBlock ci{"CI"};
+    ci.set("ci_basis", std::string{"12spdf"});
+    ci.set("J+", std::vector<int>{0, 1});
+    ci.set("J-", std::vector<int>{0, 1});
+    ci.set("num_solutions", 2);
+    ci.set("sigma1", true);
+    ci.set("sigma2", true);
+    ci.set("cis2_basis", std::string{"3spd"});
+    input1.set_block("CI", ci);
+
+    IO::InputBlock ci_me{"CI_matrixElements"};
+    ci_me.set("operator", std::string{"E1"});
+    ci_me.set("rpa", false);
+    ci_me.set("ci_basis", std::string{"12spdf"});
+    ci_me.set("omega", 0.0);
+    ci_me.set("J", std::vector<int>{0, 1});
+    input1.add_module(ci_me);
+  }
   const auto wf = ampsci(input1);
 
   // Expt. for lowest few states:
@@ -279,40 +297,45 @@ TEST_CASE("ampsci - basic CI unit test", "[ampsci][CI][unit]") {
 
   // run again, by reading in qk files
   // Input almost the same, but we add 'no_new_integrals'
-  const auto input_string_v2 = std::string{R"(
-    Atom {
-      Z = Be;
-      run_label = )" + run_label + R"(;
-    }
-    HartreeFock {
-      core = [He];
-    }
-    Grid {
-      r0 = 1.0e-4;
-      rmax = 50.0;
-      num_points = 700;
-    }
-    Basis {
-      number = 25;
-      order = 7;
-      rmax = 40.0;
-      states = 16spdf;
-    }
-    CI {
-      no_new_integrals = true;
-      sort_output = true;
-      ci_basis = 12spdf;
-      J+ = 0,1;
-      J- = 0,1;
-      num_solutions = 2;
-      sigma1 = true;
-      sigma2 = true;
-      cis2_basis = 3spd;
-      print_details = false;
-    }
-  )"};
+  IO::InputBlock input_v2{""};
+  {
+    IO::InputBlock atom{"Atom"};
+    atom.set("Z", std::string{"Be"});
+    atom.set("run_label", run_label);
+    input_v2.set_block("Atom", atom);
 
-  const auto wf2 = ampsci(IO::InputBlockLegacy{"", input_string_v2});
+    IO::InputBlock hf{"HartreeFock"};
+    hf.set("core", std::string{"[He]"});
+    input_v2.set_block("HartreeFock", hf);
+
+    IO::InputBlock grid{"Grid"};
+    grid.set("r0", 1.0e-4);
+    grid.set("rmax", 50.0);
+    grid.set("num_points", 700);
+    input_v2.set_block("Grid", grid);
+
+    IO::InputBlock basis{"Basis"};
+    basis.set("number", 25);
+    basis.set("order", 7);
+    basis.set("rmax", 40.0);
+    basis.set("states", std::string{"16spdf"});
+    input_v2.set_block("Basis", basis);
+
+    IO::InputBlock ci{"CI"};
+    ci.set("no_new_integrals", true);
+    ci.set("sort_output", true);
+    ci.set("ci_basis", std::string{"12spdf"});
+    ci.set("J+", std::vector<int>{0, 1});
+    ci.set("J-", std::vector<int>{0, 1});
+    ci.set("num_solutions", 2);
+    ci.set("sigma1", true);
+    ci.set("sigma2", true);
+    ci.set("cis2_basis", std::string{"3spd"});
+    ci.set("print_details", false);
+    input_v2.set_block("CI", ci);
+  }
+
+  const auto wf2 = ampsci(input_v2);
 
   // loop through original wavefunction:
   for (auto &ci_wf : ci_wfs) {
@@ -355,37 +378,42 @@ TEST_CASE("ampsci - Integration Tests",
 
   std::string run_label = "deleteme_" + qip::random_string(3);
 
-  const auto input_string = std::string{R"(
-    Atom {
-      Z = Cs;
-      run_label = )" + run_label + R"(;
-    }
-    HartreeFock {
-      core = [Xe];
-      valence = 6sp5d4f;
-    }
-    Grid {
-      r0 = 1.0e-6;
-      rmax = 120.0;
-      num_points = 1600;
-    }
-    Basis {
-      number = 30;
-      order = 7;
-      rmax = 35.0;
-      states = 30spdfghi;
-    }
-    Correlations {
-      n_min_core = 3;
-      all_order = true;
-      each_valence = false;
-      fk = 0.7, 0.6, 0.83, 0.89, 0.95, 0.97, 0.99;
-    }
-  )"};
+  IO::InputBlock input{""};
+  {
+    IO::InputBlock atom{"Atom"};
+    atom.set("Z", std::string{"Cs"});
+    atom.set("run_label", run_label);
+    input.set_block("Atom", atom);
+
+    IO::InputBlock hf{"HartreeFock"};
+    hf.set("core", std::string{"[Xe]"});
+    hf.set("valence", std::string{"6sp5d4f"});
+    input.set_block("HartreeFock", hf);
+
+    IO::InputBlock grid{"Grid"};
+    grid.set("r0", 1.0e-6);
+    grid.set("rmax", 120.0);
+    grid.set("num_points", 1600);
+    input.set_block("Grid", grid);
+
+    IO::InputBlock basis{"Basis"};
+    basis.set("number", 30);
+    basis.set("order", 7);
+    basis.set("rmax", 35.0);
+    basis.set("states", std::string{"30spdfghi"});
+    input.set_block("Basis", basis);
+
+    IO::InputBlock corr{"Correlations"};
+    corr.set("n_min_core", 3);
+    corr.set("all_order", true);
+    corr.set("each_valence", false);
+    corr.set("fk", std::vector<double>{0.7, 0.6, 0.83, 0.89, 0.95, 0.97, 0.99});
+    input.set_block("Correlations", corr);
+  }
 
   // run ampsci
   fmt2::styled_print(fg(fmt::color::blue), "\nRun AMPSCI:\n");
-  const auto wf = ampsci(IO::InputBlockLegacy{"", input_string});
+  const auto wf = ampsci(input);
 
   // --------- Energies -----------
 
@@ -417,7 +445,7 @@ TEST_CASE("ampsci - Integration Tests",
 
   fmt2::styled_print(fg(fmt::color::blue),
                      "\nCompare E1 matrix elements (No SR):\n");
-  const auto e1 = DiracOperator::generate("E1", IO::InputBlockLegacy{}, wf);
+  const auto e1 = DiracOperator::generate("E1", IO::InputBlock{}, wf);
   auto dVe1 = ExternalField::TDHF(e1.get(), wf.vHF());
   dVe1.solve_core(0.0); // ignore frequency dependence ?
   fmt::print("\n{:3} {:3}  {:7}  [{:7}]  {:5}\n", "v", "w", "E1", "Expt",
@@ -446,8 +474,10 @@ TEST_CASE("ampsci - Integration Tests",
   std::map<std::string, double> A_exp{
     {"6s+", 2298.1579425}, {"6p-", 291.9135}, {"6p+", 50.28163}};
 
-  const auto hfs = DiracOperator::generate(
-    "hfs", {"hfs_options", "k=1; F=SingleParticle;"}, wf);
+  IO::InputBlock hfs_opts{"hfs_options"};
+  hfs_opts.set("k", 1);
+  hfs_opts.set("F", std::string{"SingleParticle"});
+  const auto hfs = DiracOperator::generate("hfs", hfs_opts, wf);
   auto dVhfs =
     ExternalField::DiagramRPA(hfs.get(), wf.basis(), wf.vHF(), wf.identity());
   dVhfs.solve_core(0.0);

@@ -802,9 +802,11 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
   wfB.solve_valence(valence);
   wfB.formBasis(basis);
 
-  auto hE1 = DiracOperator::E1::generate({}, wf0);
-  auto hhfs = DiracOperator::hfs::generate({"", "print = false;"}, wf0);
-  auto hpnc = DiracOperator::PNCnsi::generate({"", "print = false;"}, wf0);
+  auto hE1 = DiracOperator::E1::generate(IO::InputBlock{}, wf0);
+  IO::InputBlock no_print{""};
+  no_print.set("print", false);
+  auto hhfs = DiracOperator::hfs::generate(no_print, wf0);
+  auto hpnc = DiracOperator::PNCnsi::generate(no_print, wf0);
 
   for (const auto &h : {hE1.get(), /*hhfs.get(),*/ hpnc.get()}) {
     for (const auto omega : {0.0, 0.05}) {

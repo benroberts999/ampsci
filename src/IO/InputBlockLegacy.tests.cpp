@@ -5,7 +5,7 @@
 
 inline void run_tests(const IO::InputBlockLegacy &ib);
 
-TEST_CASE("InputBlockLegacy", "[InputBlockLegacy][unit]") {
+TEST_CASE("InputBlockLegacy", "[InputBlock][unit]") {
 
   // A basic unit test  of IO::InputBlockLegacy
   // Tests each function, but not all that thoroughly

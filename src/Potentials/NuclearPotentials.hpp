@@ -1,5 +1,5 @@
 #pragma once
-#include "IO/InputBlockLegacy.hpp"
+#include "IO/InputBlock.hpp"
 #include "Physics/NuclearData.hpp" //for Isotope
 #include <optional>
 #include <string>
@@ -73,7 +73,7 @@ public:
 
 //------------------------------------------------------------------------------
 Nucleus form_nucleus(int Z, std::optional<int> A = std::nullopt,
-                     IO::InputBlockLegacy input = {});
+                     IO::InputBlock input = {});
 
 //------------------------------------------------------------------------------
 

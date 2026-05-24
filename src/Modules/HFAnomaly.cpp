@@ -611,7 +611,7 @@ void HFAnomaly(const IO::InputBlock &input, const Wavefunction &wf) {
     //            std::sqrt(5.0 / 3) * wf2.get_rrms(), wf2.get_rrms());
 
     // // Build pointlike HFS operator
-    // IO::InputBlockLegacy h2_0_options{"h0", "F(r)=pointlike;"};
+    // IO::InputBlock h2_0_options{"h0", "F(r)=pointlike;"};
     // // Ensure same parameters as other operator
     // {
     //   if (hfs2_options.has_option("mu"))

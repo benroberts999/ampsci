@@ -60,7 +60,7 @@ Writing a module consists of three steps:
 * You can name the module whatever you like (`myModule` in this example), but it must be in the `Module` namespace, must have a unique name (not clash with other modules), and the function signature must be exactly:
 
    ```cpp
-   void myModule(const IO::InputBlockLegacy &, const Wavefunction &)
+   void myModule(const IO::InputBlock &, const Wavefunction &)
    ```
 
 * **External:** place the file anywhere outside `src/`, then add it to your Makefile:
@@ -76,7 +76,7 @@ Writing a module consists of three steps:
 ### Write the physics
 
 * Replace the body of your function with whatever calculation you need.
-* Inside it, `input` (\ref IO::InputBlockLegacy) gives you access to the run-time user options, and `wf` (\ref Wavefunction) gives you the solved atomic wavefunction.
+* Inside it, `input` (\ref IO::InputBlock) gives you access to the run-time user options, and `wf` (\ref Wavefunction) gives you the solved atomic wavefunction.
 * See examples below.
 * See detailed API documentation and the provided examples for details on how to use the \ref Wavefunction
 
@@ -109,7 +109,7 @@ The structure of a module will be like the following example:
 namespace Module {
 
 // Implement your module:
-void myModule(const IO::InputBlockLegacy &input, const Wavefunction &wf) {
+void myModule(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // input checking:
   input.check({{"value1", "Short description of value1 [3.14]"},
@@ -146,7 +146,7 @@ const Register r_myModule{"myModule",
 * **description**: a short, one-line summary shown by `./ampsci -m`.
   * This is technically optional, but is there to be informative to users
 * **function** (`&myModule`): pointer to the module function.
-  * Signature must match exactly `void name(const IO::InputBlockLegacy&, const Wavefunction&)`
+  * Signature must match exactly `void name(const IO::InputBlock&, const Wavefunction&)`
   * The C++ function name must be unique across all compiled modules -- duplicates produce a link error.
 * The `r_myModule` name for the @ref Register is just convention -- it can be anything.
   * In fact, the only restriction is that multiple modules within the same .cpp file (compilation unit) have unique names; the names do not even need to be unique across different files. (These names are not used anywhere in the code)
@@ -228,7 +228,7 @@ The following links are to the detailed documentation for the specific namespace
   
   * See \ref modules_custom_operator for writing your own operator.
 
-* \ref IO::InputBlockLegacy -- the input block passed to your module; use
+* \ref IO::InputBlock -- the input block passed to your module; use
   `input.get<T>("key", default_value)` to read user-supplied options, and
   `input.check({...})` to declare and validate them.
 
