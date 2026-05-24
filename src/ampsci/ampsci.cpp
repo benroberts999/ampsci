@@ -27,11 +27,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   // Check Top-level input blocks
   input.check(
-    {{"", "These are the top-level ampsci input blocks and options. Default "
-          "values are given in square brackets following the description: "
-          "[default_value]. Blocks end with '{}', options end with ';'. run "
-          "`ampsci -a BlockName` (for any of the following blocks) to see "
-          "all the options available for that block."},
+    {{"", "Top-level ampsci input blocks. Default values are given in "
+          "[square brackets]. Each block is a JSON object. Run "
+          "`ampsci -i BlockName` to see all options for that block. "
+          "Input files use JSON/JSONC format (.json or .jsonc)."},
      {"Atom{}", "Which atom to run for"},
      {"Nucleus{}", "Set nuclear parameters"},
      {"Grid{}", "Set radial grid/lattice parameters"},
@@ -45,8 +44,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "Like basis, but includes correlations. Used for sum-over-states"},
      {"Exotic{}", "Option for including `exotic` (e.g., muonic) atom states."},
      {"CI{}", "Configuration Interaction"},
-     {"Module::*{}", "Run any number of modules (* -> module name). `ampsci "
-                     "-m` to see available modules"}});
+     {"Module::*{}", "Run modules: JSON array of objects, each with a "
+                     "\"type\" key. `ampsci -m` to see available modules"}});
 
   //----------------------------------------------------------------------------
   // Atom: Get + setup atom parameters

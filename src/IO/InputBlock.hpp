@@ -518,18 +518,37 @@ InputBlock::check(const std::vector<std::pair<std::string, std::string>> &list,
   }
 
   if (!all_ok || print) {
+    // Header comment from empty-key entry (if any)
+    for (const auto &[opt, desc] : list) {
+      if (opt.empty() && !desc.empty()) {
+        fmt2::styled_print(fg(fmt::color::light_blue), "\n{}\n",
+                           qip::wrap(desc, 78, "// "));
+        break;
+      }
+    }
+
     fmt2::styled_print(fg(fmt::color::light_blue),
-                       "\n// Available {} options/blocks\n", m_name);
-    fmt2::styled_print(fmt::emphasis::bold, m_name);
-    std::cout << " {\n";
+                       "// Available {} options:\n", m_name);
+    fmt2::styled_print(fmt::emphasis::bold, "\"{}\"", m_name);
+    std::cout << ": {\n";
+
+    // Find last non-empty entry for comma placement
+    const auto last_it =
+        std::find_if(list.crbegin(), list.crend(),
+                     [](const auto &p) { return !p.first.empty(); });
+
     for (const auto &[opt, desc] : list) {
       if (opt.empty())
         continue;
-      const bool is_block = (opt.back() == '}');
-      std::cout << "  " << opt << (is_block ? "\n" : ";\n");
+      const bool is_blk = (opt.back() == '}');
+      const auto key = is_blk ? opt.substr(0, opt.size() - 2) : opt;
+      const bool is_last = (&opt == &last_it->first);
+      fmt2::styled_print(fmt::emphasis::bold, "  \"{}\"", key);
+      std::cout << ": " << (is_blk ? "{}" : "null") << (is_last ? "" : ",")
+                << "\n";
       if (!desc.empty()) {
-        fmt2::styled_print(fg(fmt::color::light_blue), "{}\n",
-                           qip::wrap(desc, 60, "    // "));
+        fmt2::styled_print(fg(fmt::color::light_blue), "{}\n\n",
+                           qip::wrap(desc, 76, "    // "));
       } else {
         std::cout << "\n";
       }
