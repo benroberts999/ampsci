@@ -22,22 +22,39 @@ namespace ExternalField {
   elements of an external field operator.
 
   @details
-  Solves the set of TDHF equations
+  Solves the TDHF equations for each core orbital \f$ \phi_a \f$,
   \f[
-    (H - \epsilon \pm \omega)\delta\psi_b = -(\delta V + \delta\epsilon_c)\psi_b
+    (h_{\rm HF} - \en_a \mp \omega)\varphi^a_\pm
+      = -(t_\pm + \delta V_\pm - \delta\en^a_\pm)\phi_a,
   \f]
-  self-consistently for each electron in the core to determine \f$\delta V\f$.
-  See 'ampsci.pdf' for a detailed physics description.
+  self-consistently to determine \f$ \delta V_\pm \f$.
+  See the @ref ExternalField namespace documentation for full physics description.
+
+  Each core orbital acquires both a forward (\f$ \varphi^a_+ \f$, stored as X)
+  and backward (\f$ \varphi^a_- \f$, stored as Y) correction. Both contribute
+  to \f$ \delta V_\pm \f$:
+  \f[
+    \delta V_\pm \phi_i =
+    \sum_a^{\rm core} \left[
+      \matel{\phi_a}{Q}{\varphi^a_+}\phi_i - \matel{\phi_a}{Q}{\phi_i}\varphi^a_+
+    + \matel{\varphi^a_-}{Q}{\phi_a}\phi_i - \matel{\varphi^a_-}{Q}{\phi_i}\phi_a
+    \right].
+  \f]
+  It is via \f$ \delta V_\pm \f$ that the \f$ e^{\pm i\omega t} \f$ terms are mixed.
 
   \par Construction
   Requires a pointer to an operator (h) and a const @ref HF::HartreeFock object.
 
   \par Usage
   @ref solve_core (omega) solves the TDHF equations for a given frequency.
-  Frequency should be positive (negative is allowed for testing only, with
-  care). Can be re-run with a different frequency without restarting from
-  scratch. @ref dV (Fa, Fb) then returns the correction to the matrix element:
-  \f[ \langle \phi_a || \delta V || \phi_b \rangle \f]
+  @ref dV (Fa, Fb) then returns the RPA correction to the reduced matrix element
+  \f$ \redmatel{a}{\delta V}{b} \f$.
+
+  @warning Does not currently work for frequency-dependent operators
+  unless they depend only on the magnitude \f$ |\omega| \f$.
+  The method assumes \f$ t_- = t_+^\dag \f$, whereas the correct relation is
+  \f$ t_-(\omega) = t_+^\dag(-\omega) \f$.
+  This will be fixed in a future update.
 */
 class TDHF : public CorePolarisation {
 
@@ -69,12 +86,27 @@ public:
        const HF::HartreeFock *const hf);
 
   /*!
-    @brief Solves TDHF equations self-consistently for core electrons at
-    frequency omega.
+    @brief Solves TDHF equations self-consistently for core electrons at frequency omega.
+    @details
+    Iterates the TDHF equations until \f$ \delta V_\pm \f$ converges to within
+    eps_target(), or @p max_its iterations have been performed.
+    Can be re-run at a different frequency without restarting from scratch.
 
-    @details Will iterate up to a maximum of max_its. Set max_its=1 to get
-    first-order correction [note: no damping is used for first iteration].
-    If print=true, will write progress to screen.
+    @param omega    External-field frequency \f$ \omega \f$ in atomic units.
+    @param max_its  Maximum number of iterations.
+                   Set to 1 to get the first-order correction (no damping on
+                   first iteration).
+    @param print    If true, write convergence progress to screen.
+
+    @note Frequency should be positive; negative is allowed but use with care.
+    Unlike @ref DiagramRPA, TDHF solves for both \f$ \varphi^a_+ \f$ and
+    \f$ \varphi^a_- \f$ simultaneously (see class docs), so a single call
+    covers both contributions to \f$ \delta V_\pm \f$.
+
+    ---
+
+    @note Does not update the frequency of the operator itself; for frequency-dependent
+    operators, update the operator frequency externally before calling.
   */
   virtual void solve_core(double omega, int max_its = 100,
                           bool print = true) override;
@@ -83,8 +115,8 @@ public:
 
   virtual void clear() override final;
 
-  //! Returns reduced matrix element \f$\langle a||\delta V||b\rangle\f$,
-  //! or the conjugate \f$\langle a||\delta V^\dagger||b\rangle\f$ if conj=true.
+  //! Returns reduced matrix element \f$\redmatel{a}{\delta V}{b}\f$,
+  //! or the conjugate \f$\redmatel{a}{\delta V^\dagger}{b}\f$ if conj=true.
   double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
 
   virtual double dV(const DiracSpinor &Fa,
@@ -100,21 +132,20 @@ public:
   const DiracSpinor &get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
                                 const int kappa_x) const;
 
-  /*! @brief
-    Forms \f$\delta\psi_v\f$ for valence state Fv (including core pol.):
-    single kappa.
-
+  /*!
+    @brief Forms \f$\varphi^v_\pm\f$ for valence state Fv (including core pol.):
+    single kappa channel.
     @details
     Solves
-    \f[ (H + \Sigma - \epsilon - \omega)X
-      = -(h + \delta V - \delta\epsilon)\psi \f]
+    \f[ (h_{\rm HF} + \Sigma - \en_v - \omega)\varphi^v_+
+      = -(t + \delta V - \delta\en^v)\phi_v \f]
     or
-    \f[ (H + \Sigma - \epsilon + \omega)Y
-      = -(h^\dagger + \delta V^\dagger - \delta\epsilon)\psi \f]
+    \f[ (h_{\rm HF} + \Sigma - \en_v + \omega)\varphi^v_-
+      = -(t^\dagger + \delta V^\dagger - \delta\en^v)\phi_v \f]
     Returns \f$ \chi_\beta \f$ for given kappa_beta, where
     \f[ X_{j,m} = (-1)^{j_\beta-m}tjs(j,k,j;-m,0,m)\chi_j \f]
 
-    @param Fv         Valence state \f$\psi_v\f$.
+    @param Fv         Valence state \f$\phi_v\f$.
     @param omega      Perturbation frequency \f$\omega\f$.
     @param XorY       Selects X or Y solution; see @ref dPsiType.
     @param kappa_beta Kappa quantum number of the target channel.
@@ -128,7 +159,7 @@ public:
              const MBPT::CorrelationPotential *const Sigma = nullptr,
              StateType st = StateType::ket, bool incl_dV = true) const;
 
-  //! Forms \f$\delta\psi_v\f$ for all kappa channels; see @ref solve_dPsi.
+  //! Forms \f$\varphi^v_\pm\f$ for all kappa channels; see @ref solve_dPsi.
   std::vector<DiracSpinor>
   solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
               const MBPT::CorrelationPotential *const Sigma = nullptr,

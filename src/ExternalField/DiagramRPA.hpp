@@ -16,8 +16,9 @@ class HartreeFock;
 
 namespace ExternalField {
 
-//! RPA correction to matrix elements, using Diagram technique
-/*! @details
+/*!
+  @brief RPA correction to matrix elements using the diagram technique.
+  @details
   The basic equation is:
 
   \f[
@@ -52,17 +53,30 @@ namespace ExternalField {
   the results from this class (as it should).
   The DiagramRPA::solve_core() function should be re called if the external operator is updated.
 
+  ---
+
   @note
   Stores required W^k integrals (only those which are required).
   Writes them to disk by default.
   This can use significant memory, particularly for large basis.
   At the moment, always uses full basis -- this may optionally change in the future.
 
+  ---
+
   @note
   Calling DiagramRPA::dV() without calling DiagramRPA::solve_core() will return 0.
   This is different from previous behaviour, where it returned dV^1, but in line with others.
   Call with max_its = 0 will also return 0.
   Call with max_its = 1 will return lowest-order dV correction.
+
+  ---
+
+  @note
+  @ref solve_core() must be called separately for positive and negative frequencies;
+  the solutions
+  are not related by simple conjugation. To maintain Hermiticity,
+  \f$ [\delta V_\pm(\omega)]^\dag = \delta V_\mp(-\omega) \f$,
+  so dV() is not Hermitian unless solve_core() has been run at the specific \f$\pm\omega\f$
 */
 class DiagramRPA : public CorePolarisation {
 
@@ -88,8 +102,9 @@ private:
   std::vector<std::vector<std::vector<std::vector<double>>>> m_Wmban{};
 
 public:
-  //! @brief Constructs DiagramRPA from a basis and a Hartree-Fock object
-  /*! @details
+  /*!
+    @brief Constructs DiagramRPA from a basis and a Hartree-Fock object.
+    @details
     Splits @p basis into core (hole) and excited states, then computes the
     Coulomb W-matrix integrals required by the diagram RPA equations.
     If @p atom is non-empty the W matrices are read from a binary cache file
@@ -114,8 +129,9 @@ public:
              const DiagramRPA *const drpa);
 
 public:
-  //! @brief Iterates the RPA equations to convergence for the core electrons
-  /*! @details
+  /*!
+    @brief Iterates the RPA equations to convergence for the core electrons.
+    @details
     Performs a self-consistent iterative solution of the diagram-method RPA
     equations at external-field frequency @p omega.
     The zeroth-order matrix elements \f$ t^{(0)}_{am} \f$ are calculated (so long as max_its>0).
@@ -131,6 +147,20 @@ public:
     Calling DiagramRPA::dV() without calling DiagramRPA::solve_core() will return 0.
     Call with max_its = 0 will mean that dV() also returns 0.
     Call with max_its = 1 will mean that dV() returns the lowest-order dV correction.
+
+    ---
+
+    @note
+    Must be called separately for positive and negative frequencies; the solutions
+    are not related by simple conjugation. To maintain Hermiticity,
+    \f$ [\delta V_\pm(\omega)]^\dag = \delta V_\mp(-\omega) \f$,
+    so dV() is not Hermitian unless solve_core() has been run at both @p omega and -@p omega.
+
+    ---
+
+    @note
+    Does not update the frequency of the operator itself; for frequency-dependent
+    operators, update the operator frequency externally before calling.
   */
   void solve_core(double omega, int max_its = 200,
                   bool print = true) override final;
@@ -138,8 +168,9 @@ public:
   //! @brief Returns the RPA method identifier (diagram)
   Method method() const final { return Method::diagram; }
 
-  //! @brief Returns the RPA correction to a reduced matrix element
-  /*! @details
+  /*!
+    @brief Returns the RPA correction to a reduced matrix element.
+    @details
     Computes the many-body RPA correction to the reduced matrix element
     \f[ \langle a \| \delta V \| b \rangle \f]
     using the converged RPA matrix elements \f$ t_{am} \f$ from the most
@@ -160,8 +191,9 @@ public:
   DiracSpinor dV_rhs(int kappa, const DiracSpinor &Fm,
                      bool conj = false) const final;
 
-  //! @brief Resets the RPA matrix elements to their unperturbed (zeroth-order) values
-  /*! @details
+  /*!
+    @brief Resets the RPA matrix elements to their unperturbed (zeroth-order) values.
+    @details
     Clears the \f$ t_{am} \f$ and \f$ t_{ma} \f$ matrices (which encode the
     hole-excited RPA corrections) back to the state prior to any
     solve_core() call.
@@ -170,8 +202,9 @@ public:
   */
   void clear() final;
 
-  //! @brief Updates the zeroth-order matrix elements and resets the RPA solution
-  /*! @details
+  /*!
+    @brief Updates the zeroth-order matrix elements and resets the RPA solution.
+    @details
     Recomputes the lowest-order (no-RPA) matrix elements \f$ t^{(0)}_{am} \f$
     for operator @p h . Does not update the rpa T_am values.
     If @p h is null the currently stored operator is used unchanged.

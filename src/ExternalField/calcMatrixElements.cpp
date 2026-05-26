@@ -143,7 +143,7 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
       if (h->isZero(a, b))
         continue;
 
-      const auto ww = omega ? *omega : std::abs(b.en() - a.en()); // abs?
+      const auto ww = omega ? *omega : 0.0; // abs?
 
       const auto tab = h->reducedME(a, b);
       const auto dv = dV ? dV->dV(a, b) : 0.0;
