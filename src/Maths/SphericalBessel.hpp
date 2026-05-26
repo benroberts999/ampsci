@@ -239,14 +239,82 @@ double PsiL(int L, double x, bool tilde = false);
 // }
 
 //==============================================================================
-//! Creates a vector of Jl(r) for given r
-std::vector<double> fillBesselVec(int l, const std::vector<double> &xvec);
+/*!
+  @brief Fills a vector with the spherical Bessel function j_L sampled on the
+  supplied grid; oscillation-resolving cell-average is used where needed.
+  @details
+  Returns a vector v such that v[i] is the value (or cell-average) of j_L on
+  the grid point xvec[i]. The "cell" at index i is the interval bounded by the
+  midpoints to its neighbours (asymmetric for the first/last point).
 
+  This vector is intended for integration of the form
+  \f$ \int j_L(x)\,\psi(x)\,dx \approx \sum_i w_i\,v_i\,\psi(x_i) \f$
+  against a smooth wavefunction \f$\psi\f$ sampled on the same grid. When the
+  grid cell at index i resolves the oscillation of j_L (\f$\Delta x_i \le
+  \lambda_j / N\f$ with \f$\lambda_j = 2\pi\f$ asymptotically and N = 10), v[i]
+  is the point value j_L(xvec[i]). When the cell is too coarse, v[i] is the
+  cell average
+  \f[
+    v_i = \frac{1}{\Delta x_i}\int_{\text{cell}_i} j_L(x)\,dx ,
+  \f]
+  computed by trapezoidal sub-sampling with enough sub-points to resolve j_L
+  on the cell. Using these cell averages in the Riemann-sum quadrature is
+  equivalent to a Filon-style integration: the (smooth) factor \f$\psi\f$ is
+  treated as piecewise-constant per cell while the oscillation of j_L is
+  integrated exactly within each cell. This recovers the correct
+  Riemann-Lebesgue (~1/x) suppression at large x and removes the aliasing seen
+  with pure point-sampling on a coarse grid.
+
+  @param l             Order of the spherical Bessel function.
+  @param xvec          Grid (monotonic) on which j_L is sampled.
+  @param cell_average  If true (default), enables the cell averaging described
+                       above. If false, every entry is a pure point sample
+                       j_L(xvec[i]); use this for inspection / plotting or to
+                       reproduce legacy behaviour.
+  @return Vector v with v[i] = j_L(xvec[i]) or its cell average; same size as xvec.
+
+  @warning The returned values are NOT pure point samples on cells where
+           averaging triggers. They are only meaningful in conjunction with a
+           Riemann-sum-style quadrature using the same grid weights.
+*/
+std::vector<double> fillBesselVec(int l, const std::vector<double> &xvec,
+                                  bool cell_average = true);
+
+/*!
+  @brief As fillBesselVec, with the argument of j_L being k*r instead of x.
+  @details
+  Returns a vector v with v[i] = j_L(k*rvec[i]) or, where the cell at index i
+  is too coarse for the oscillation of j_L(kr) (cell width
+  \f$\Delta r_i > 2\pi / (k\,N)\f$ with N = 10), the cell average
+  \f[
+    v_i = \frac{1}{\Delta r_i}\int_{\text{cell}_i} j_L(k r)\,dr .
+  \f]
+  See fillBesselVec for the usage and warning.
+
+  @param l             Order of the spherical Bessel function.
+  @param k             Momentum (or other) factor multiplying r in the argument.
+  @param rvec          Radial grid on which j_L(kr) is sampled.
+  @param cell_average  If true (default), enables cell averaging; if false,
+                       point-samples j_L(k*rvec[i]) at every grid point.
+  @return Vector v of same length as rvec.
+*/
 std::vector<double> fillBesselVec_kr(int l, double k,
-                                     const std::vector<double> &rvec);
+                                     const std::vector<double> &rvec,
+                                     bool cell_average = true);
 
+/*!
+  @brief In-place variant of fillBesselVec_kr; writes into a caller-owned vector.
+  @details Identical semantics to the returning overload (including the
+  cell-averaging behaviour); jl is resized to r.size().
+  @param l             Order of the spherical Bessel function.
+  @param k             Momentum factor multiplying r in the argument.
+  @param r             Radial grid.
+  @param jl            Output vector (resized internally); must be non-null.
+  @param cell_average  If true (default), enables cell averaging; if false,
+                       point-samples j_L(k*r[i]) at every grid point.
+*/
 void fillBesselVec_kr(int l, double k, const std::vector<double> &r,
-                      std::vector<double> *jl);
+                      std::vector<double> *jl, bool cell_average = true);
 
 //==============================================================================
 //! Spherical Bessel Lookup table; in the form j_L(qr) = J[L][q][r].
@@ -260,13 +328,14 @@ class JL_table {
 public:
   JL_table() {}
   JL_table(int max_L, const std::vector<double> &q,
-           const std::vector<double> &r) {
-    fill(max_L, q, r);
+           const std::vector<double> &r, bool cell_average = true) {
+    fill(max_L, q, r, cell_average);
   }
 
-  //! If derivatives required for degree L, max_L = L+1
+  //! If derivatives required for degree L, max_L = L+1.
+  //! cell_average is forwarded to fillBesselVec_kr (see its docs); default true.
   void fill(int max_L, const std::vector<double> &q,
-            const std::vector<double> &r) {
+            const std::vector<double> &r, bool cell_average = true) {
     m_q = q;
     m_J_L_q.resize(std::size_t(max_L + 1), q.size());
     m_J_L_q_on_qr.resize(std::size_t(max_L + 1), q.size());
@@ -275,8 +344,8 @@ public:
     for (auto L = 0ul; L <= std::size_t(max_L); ++L) {
       for (auto iq = 0ul; iq < m_J_L_q.cols(); ++iq) {
         const auto tq = q[iq];
-        // Fill jL(qr)
-        m_J_L_q[L][iq] = fillBesselVec_kr(int(L), tq, r);
+        // Fill jL(qr) (cell-averaged if cell_average and grid is too coarse)
+        m_J_L_q[L][iq] = fillBesselVec_kr(int(L), tq, r, cell_average);
         // Store jL(qr)/qr
         m_J_L_q_on_qr[L][iq] = m_J_L_q[L][iq] / (tq * r);
       }

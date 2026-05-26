@@ -1,5 +1,7 @@
 #include "SphericalBessel.hpp"
 #include "qip/Maths.hpp"
+#include <algorithm>
+#include <cmath>
 #include <gsl/gsl_errno.h>
 #include <gsl/gsl_sf_bessel.h>
 #include <iostream>
@@ -299,32 +301,88 @@ double PsiL(int L, double x, bool tilde) {
 }
 
 //==============================================================================
-std::vector<double> fillBesselVec(int l, const std::vector<double> &xvec) {
-  std::vector<double> Jl_vec;
-  Jl_vec.reserve(xvec.size());
-  for (const auto x : xvec) {
-    Jl_vec.push_back(jL(l, x));
+namespace {
+// Threshold: if the grid cell at index i has width dx <= lambda/N_per_lambda
+// (where lambda = 2 pi / k is the asymptotic wavelength of j_L(kx)),
+// the cell resolves the oscillation and we just point-sample j_L. Otherwise
+// we cell-average.
+constexpr int N_per_lambda = 10;
+
+// Average j_L(k*x) over [x_lo, x_hi] by trapezoidal sub-sampling with n_sub
+// intervals. n_sub aims for ~N_per_lambda samples per local wavelength of
+// j_L inside the cell, capped at 200. Beyond the cap the cell holds so many
+// oscillations that the average is small (Riemann-Lebesgue suppression);
+// finer resolution does not change the result meaningfully.
+constexpr int N_sub_max = 200;
+double cell_average_jL_kx(int l, double k, double x_lo, double x_hi) {
+  const double dx = x_hi - x_lo;
+  const double samples = double(N_per_lambda) * k * dx / (2.0 * M_PI);
+  const int n_sub = std::clamp(int(std::ceil(samples)), 4, N_sub_max);
+  const double dxs = dx / double(n_sub);
+  double sum = 0.5 * (jL(l, k * x_lo) + jL(l, k * x_hi));
+  for (int s = 1; s < n_sub; ++s) {
+    sum += jL(l, k * (x_lo + double(s) * dxs));
   }
-  return Jl_vec;
+  return sum / double(n_sub);
 }
 
-std::vector<double> fillBesselVec_kr(int l, double k,
-                                     const std::vector<double> &rvec) {
-  std::vector<double> Jl_vec;
-  Jl_vec.reserve(rvec.size());
-  for (const auto r : rvec) {
-    Jl_vec.push_back(jL(l, k * r));
-  }
-  return Jl_vec;
-}
-
-void fillBesselVec_kr(int l, double k, const std::vector<double> &r,
-                      std::vector<double> *jl) {
-  jl->resize(r.size());
+//==============================================================================
+// Core: fill jL_vec[i] with either j_L(k*x[i]) (cell_average == false, or the
+// cell at index i is fine enough to resolve j_L) or the cell-averaged value
+// (1/dx_i) * integral_{cell_i} j_L(k*x) dx (cell_average == true and the cell
+// is too coarse). Cell extents are midpoints to neighbours, asymmetric at the
+// endpoints.
+void fill_jL_core(int l, double k, const std::vector<double> &xvec,
+                  std::vector<double> *jL_vec, bool cell_average) {
+  const std::size_t N = xvec.size();
+  jL_vec->resize(N);
+  if (N == 0)
+    return;
+  if (N == 1 || !cell_average || k <= 0.0) {
 #pragma omp parallel for
-  for (std::size_t i = 0; i < r.size(); ++i) {
-    (*jl)[i] = jL(l, k * r[i]);
+    for (std::size_t i = 0; i < N; ++i)
+      (*jL_vec)[i] = jL(l, k * xvec[i]);
+    return;
   }
+
+  const double dx_target = 2.0 * M_PI / (k * double(N_per_lambda));
+
+#pragma omp parallel for
+  for (std::size_t i = 0; i < N; ++i) {
+    const double x_lo = (i == 0) ? xvec[0] : 0.5 * (xvec[i - 1] + xvec[i]);
+    const double x_hi =
+      (i == N - 1) ? xvec.back() : 0.5 * (xvec[i] + xvec[i + 1]);
+    const double dx = x_hi - x_lo;
+    if (dx <= dx_target) {
+      (*jL_vec)[i] = jL(l, k * xvec[i]);
+    } else {
+      (*jL_vec)[i] = cell_average_jL_kx(l, k, x_lo, x_hi);
+    }
+  }
+}
+} // namespace
+
+//==============================================================================
+std::vector<double> fillBesselVec(int l, const std::vector<double> &xvec,
+                                  bool cell_average) {
+  std::vector<double> jl;
+  fill_jL_core(l, 1.0, xvec, &jl, cell_average);
+  return jl;
+}
+
+//==============================================================================
+std::vector<double> fillBesselVec_kr(int l, double k,
+                                     const std::vector<double> &rvec,
+                                     bool cell_average) {
+  std::vector<double> jl;
+  fill_jL_core(l, k, rvec, &jl, cell_average);
+  return jl;
+}
+
+//==============================================================================
+void fillBesselVec_kr(int l, double k, const std::vector<double> &r,
+                      std::vector<double> *jl, bool cell_average) {
+  fill_jL_core(l, k, r, jl, cell_average);
 }
 
 } // namespace SphericalBessel

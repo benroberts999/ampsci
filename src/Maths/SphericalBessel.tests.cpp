@@ -43,7 +43,11 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
     556ul, 999ul, q.size() - 3, q.size() - 2, q.size() - 1};
 
   const int max_L = 4;
-  SphericalBessel::JL_table table(max_L, q, r);
+  // cell_average = false: this test asserts pointwise equality of stored
+  // values with j_L(q*r). The default cell-averaging behaviour intentionally
+  // breaks pointwise equality on coarse cells (see the
+  // "fillBesselVec: cell-averaged quadrature" test below).
+  SphericalBessel::JL_table table(max_L, q, r, /*cell_average=*/false);
 
   SECTION("at() returns correct values") {
     for (int L = 0; L <= max_L; ++L) {
@@ -223,6 +227,67 @@ TEST_CASE("Maths::JL_table", "[JL_table][jL][unit]") {
         REQUIRE(
           v1[ir] ==
           Approx(SphericalBessel::jL(L, q.back() * r[ir])).epsilon(1e-12));
+      }
+    }
+  }
+}
+
+//==============================================================================
+TEST_CASE("Maths::SphericalBessel cell-averaged quadrature",
+          "[jL][Bessel][unit][xyz]") {
+  // Verifies the cell-averaging mode of fillBesselVec_kr:
+  // integrating j_L(q*r) * psi(r) on a coarse log grid with cell-averaged
+  // j_L values should match a high-resolution pointwise reference, while
+  // the same coarse grid with pure point sampling should be much worse
+  // once q is large enough for the cells to not resolve j_L's oscillation.
+  // psi(r) is a smooth decaying envelope, which is the typical situation
+  // (smooth wavefunction times oscillatory Bessel factor).
+
+  auto psi = [](double r) { return r * std::exp(-0.5 * r); };
+
+  // Dense linear reference grid: resolves j_L for all q values tested.
+  const std::size_t N_fine = 5000;
+  const double r_max = 25.0;
+  std::vector<double> r_fine(N_fine);
+  for (std::size_t i = 0; i < N_fine; ++i)
+    r_fine[i] = double(i + 1) * r_max / double(N_fine);
+
+  // Coarse log grid: cells widen with r and stop resolving j_L for q >> 1.
+  const auto r_coarse = qip::logarithmic_range(1.0e-3, r_max, 60);
+
+  auto integrate_trap = [](const std::vector<double> &r,
+                           const std::vector<double> &fr) {
+    double s = 0.0;
+    for (std::size_t i = 1; i < r.size(); ++i)
+      s += 0.5 * (fr[i - 1] + fr[i]) * (r[i] - r[i - 1]);
+    return s;
+  };
+
+  auto integrate_jl_psi = [&](int L, double q, const std::vector<double> &r,
+                              bool cell_average) {
+    const auto jl = SphericalBessel::fillBesselVec_kr(L, q, r, cell_average);
+    std::vector<double> integrand(r.size());
+    for (std::size_t i = 0; i < r.size(); ++i)
+      integrand[i] = jl[i] * psi(r[i]);
+    return integrate_trap(r, integrand);
+  };
+
+  for (int L : {0, 1, 2, 3}) {
+    for (double q : {1.0, 5.0, 20.0, 100.0}) {
+      const double I_ref = integrate_jl_psi(L, q, r_fine, false);
+      const double I_avg = integrate_jl_psi(L, q, r_coarse, true);
+      const double I_pt = integrate_jl_psi(L, q, r_coarse, false);
+
+      const double err_avg = std::abs(I_avg - I_ref);
+      const double err_pt = std::abs(I_pt - I_ref);
+
+      // Averaged coarse integral matches the dense reference reasonably well.
+      REQUIRE(err_avg < 0.05 * std::abs(I_ref) + 1.0e-4);
+
+      // For q large enough that cells do not resolve j_L, averaging is a
+      // strict improvement over point sampling.
+      if (q >= 20.0) {
+        REQUIRE(err_avg < err_pt);
       }
     }
   }
