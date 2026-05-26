@@ -13,6 +13,7 @@
 #include "fmt/ostream.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Methods.hpp"
+#include "qip/Widgets.hpp"
 #include <cassert>
 #include <iostream>
 #include <memory>
@@ -448,8 +449,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto force_rescale = input.get("force_rescale", false);
   const auto hole_particle = input.get("hole_particle", true);
 
-  auto oname = input.get("oname", std::string{"out.txt"});
-  std::ofstream out_file(oname);
+  auto oname = input.get("oname", std::string{"photoel-out.txt"});
 
   // "full" dipole operator
   const auto E1 = DiracOperator::E1(wf.grid());
@@ -457,34 +457,25 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
 
   auto M1nr = DiracOperator::M1nr();
 
-  // Note: This is parallelised very ineficiently.
-  // Could be improved quite a bit probably..
-  // Also: perhaps faster to use jL lookup table? Maybe not the bottleneck
+  // Store per-omega results in an array, then write to file after the parallel
+  // loop. Avoids the race condition / interleaved output from writing inside
+  // the parallel loop. Columns (per row, matching the existing file format):
+  //   Q_E1, Q_M1, Q_M1_nr, Q_E, Q_E_len, Q_M, Q_multipole(=Q_E+Q_M), Q_E2, Q_Ek2, Q_Mk1
+  // omega itself is recovered from energies[i_omega] at write time.
+  constexpr std::size_t N_cols = 10;
+  std::vector<std::array<double, N_cols>> results(energies.size());
 
-  int count = 0;
-  for (const auto omega : energies) {
-
-    // First, loop through and just find list of what we shall do.
-    // THEN parellelise over that!
-    std::size_t i_first_acc_core{wf.core().size()};
-    int num_accessible_core = 0;
-    for (std::size_t i = 0; i < wf.core().size(); ++i) {
-      const auto ec = omega + wf.core()[i].en();
-      if (ec > 0.0) {
-        if (i < i_first_acc_core) {
-          i_first_acc_core = i;
-        }
-        num_accessible_core++;
-      }
-    }
-
-    fmt::print("{:3} {:9.2f} eV ; {:3} shells accessible\n", count++,
-               omega * PhysConst::Hartree_eV, num_accessible_core);
+  // int count = 0;
+  qip::ProgressBar prog(int(energies.size()), true);
+#pragma omp parallel for schedule(dynamic)
+  for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
+    const auto omega = energies[i_omega];
 
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
                         PhysConst::aB_cm * PhysConst::aB_cm * omega;
 
-    double Q_E1 = 0.0;    // Regular (length) E1 operator
+    double Q_E1 = 0.0; // Regular (length) E1 operator
+
     double Q_M1 = 0.0;    // "Regular" M1
     double Q_M1_nr = 0.0; // Non-relativistic M1 operator
     double Q_Mk1 = 0.0;   // Mk at k=1
@@ -507,10 +498,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       // "Length" form - for tests only
       const auto Ek_len = DiracOperator::VEk_Len(wf.grid(), k, omega);
 
-#pragma omp parallel for reduction(+ : Q_E1, Q_M1, Q_Mk1, Q_M1_nr, Q_Ek2,      \
-                                     Q_E2, Q_E, Q_M, Q_E_len)
-      for (std::size_t ic = i_first_acc_core; ic < wf.core().size(); ++ic) {
-        const auto &Fa = wf.core()[ic];
+      for (const auto &Fa : wf.core()) {
         const auto ec = omega + Fa.en();
         if (ec < 0.0 || ec > ec_max)
           continue;
@@ -557,11 +545,55 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
 
-    out_file << omega * PhysConst::Hartree_eV / 1e6 << " " << Q_E1 * Ksigma
-             << " " << Q_M1 * Ksigma << " " << Q_M1_nr * Ksigma << " "
-             << Q_E * Ksigma << " " << Q_E_len * Ksigma << " " << Q_M * Ksigma
-             << " " << (Q_E + Q_M) * Ksigma << " " << Q_E2 * Ksigma << " "
-             << Q_Ek2 * Ksigma << " " << Q_Mk1 * Ksigma << "\n";
+    results[i_omega] = {Ksigma * Q_E1,        //
+                        Ksigma * Q_M1,        //
+                        Ksigma * Q_M1_nr,     //
+                        Ksigma * Q_E,         //
+                        Ksigma * Q_E_len,     //
+                        Ksigma * Q_M,         //
+                        Ksigma * (Q_E + Q_M), //
+                        Ksigma * Q_E2,        //
+                        Ksigma * Q_Ek2,       //
+                        Ksigma * Q_Mk1};
+    prog.update();
+  }
+
+  std::cout << "\n";
+
+  // Sequential write after the parallel loop completes.
+  std::ofstream out_file(oname);
+  out_file << "# Photoelectric effect::\n"
+           << "# Cross section (cm^2):\n"
+           << "# Columns:\n"
+           << "# omega_MeV  : photon energy (MeV)\n"
+           << "# sigma_E1       : E1 (length) dipole\n"
+           << "# sigma_M1       : M1 dipole\n"
+           << "# sigma_M1_nr    : M1 non-relativistic\n"
+           << "# sigma_E        : electric multipole (velocity)\n"
+           << "# sigma_E_len    : electric multipole (length) (Ek) all K\n"
+           << "# sigma_M        : magnetic multipole (Mk) all K\n"
+           << "# sigma_multipole: sigma_E + sigma_M (total multipole)\n"
+           << "# sigma_E2       : E2 (length)\n"
+           << "# sigma_Ek2      : Ek at K=2\n"
+           << "# sigma_Mk1      : Mk at K=1\n"
+           << "omega_MeV  sigma_E1  sigma_M1  sigma_M1_nr  sigma_E  "
+              "sigma_E_len  sigma_M  "
+              "sigma_multipole  sigma_E2  sigma_Ek2  sigma_Mk1\n";
+
+  for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
+    const auto &r = results[i_omega];
+    out_file << energies[i_omega] * PhysConst::Hartree_eV / 1e6 // omega (MeV)
+             << " " << r[0] // Q_E1      : E1 (length) dipole
+             << " " << r[1] // Q_M1      : M1 dipole
+             << " " << r[2] // Q_M1_nr   : M1 non-relativistic
+             << " " << r[3] // Q_E       : electric multipole (velocity)
+             << " " << r[4] // Q_E_len   : electric multipole (length)
+             << " " << r[5] // Q_M       : magnetic multipole
+             << " " << r[6] // Q_multipole : Q_E + Q_M (total multipole)
+             << " " << r[7] // Q_E2      : E2 (length)
+             << " " << r[8] // Q_Ek2     : Ek at K=2
+             << " " << r[9] // Q_Mk1     : Mk at K=1
+             << "\n";
   }
 }
 
