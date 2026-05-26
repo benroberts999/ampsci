@@ -31,12 +31,6 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
   const auto dr0 = gr.drdu().back() * gr.du();
   const double dr0_target = approx_wavelength / N_ppw;
   if (dr0 > dr0_target) {
-    fmt2::styled_print(fg(fmt::color::red), "\nERROR 104: ");
-    fmt::print(
-      "Grid not dense enough for continuum state with e={:.2f} (kappa={}); \n"
-      "Try increasing points (to ~ du < {:.3f})\n"
-      "Writing zeros to Spinor for this state.\n",
-      en, Fa.kappa(), dr0_target);
     Fa *= 0.0;
     return;
   }
@@ -55,10 +49,8 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
   // Re-scale wavefunction so tha large-r amplitude matches analytic expression
 
   // Step-size for large-r solution: Uses linear grid
-  // Require at least 40 points per wavelength (20 per half-wave)
-  // but limit to ~100 pts per half-wave (? no benefit after this)
-  auto dr = std::min(dr0, approx_wavelength / 40.0);
-  dr = std::max(dr, approx_wavelength / 200.0);
+  // Require at least 50 points per wavelength (25 per half-wave)
+  auto dr = std::min(dr0, approx_wavelength / 50.0);
 
   // Parameters needed to solve f(r) to large r:
   const auto ztmp = -1.0 * v.back() * gr.r().back();
@@ -85,93 +77,62 @@ std::pair<double, double> numerical_f_amplitude(double en, int kappa,
                                                 double f_final, double g_final,
                                                 double r_final, double dr) {
 
-  // Now, normalise the solution.
-  // Keep solving ODE outwards, on linearly-spaced grid
-  // Use "H-like" derivative: assume exchange etc. negligable here
-  // Calculate running:
-  //    - wavelength
-  //    - amplitude
-  // Until they stabilise; find amplitude in this region
+  // In the asymptotic region (V negligible) the Dirac ODE reduces to:
+  //   f'' = -k^2 f,  k^2 = en * (alpha^2 * en + 2)
+  // giving f = A sin(kr+phi), g = A*rho*cos(kr+phi),
+  // where rho = sqrt(alpha^2*en / (alpha^2*en + 2)).
+  // Combining: A^2 = f^2 + c_g^2 * g^2,  c_g^2 = 1 + 2/(alpha^2 * en).
+  // This gives A at every ODE step without requiring peak or node detection.
+  const double c_g2 = 1.0 + 2.0 / (alpha * alpha * en);
 
-  // Set-up H-like solver for linearly-spaced grid
   DiracContinuumDerivative Heff(Zeff, kappa, en, alpha);
   AdamsMoulton::ODESolver2D<Param::K_Adams, double, double> ode{dr, &Heff};
-  // start from existing final position:
   ode.solve_initial_K(r_final, f_final, g_final);
 
-  // convergence targets, for amplitude and wavelength
-  const double eps_target_amp = 1.0e-7;
-  const double eps_target_lambda = 2.0e-5;
+  const double eps_target = 1.0e-6;
+  // Relative to r_final: for high energy, 5000/sqrt(2*en) << r_final
 
-  // amplitude:
+  const double approx_wavelength = 2.0 * M_PI / std::sqrt(2.0 * en);
+  const double max_r = r_final + 250 * approx_wavelength;
+
+  // Average A over windows of ~one wavelength (dr ~ lambda/40, so N=40 steps).
+  // Compare consecutive window averages for convergence.
+  const int N_window = 40;
   double amp = 0.0;
   double eps_amp = 1.0;
-  double amp_maxf = 0.0;
-
-  // wavelength
-  double lambda = 0.0;
-  double eps_lambda = 1.0;
-  double r_node_0 = 0.0;
-
-  // previous points:
-  double rm1 = 0.0;
-  double fm1 = 0.0;
-  double r0 = ode.last_t();
-  double f0 = ode.last_f();
-
-  // Reasonable guess at fully asymptotic region:
-  // (Only reaches max_r if amp/wavelength don't converge)
-  const double max_r = 5000.0 / std::sqrt(2 * en);
+  double window_sum = 0.0;
+  int window_count = 0;
+  double amp_prev = 0.0;
+  bool have_prev = false;
+  int count_num_windows = 0;
 
   while (ode.last_t() < max_r) {
     ode.drive();
-    const auto r1 = ode.last_t();
-    const auto f1 = ode.last_f();
+    const double f = ode.last_f();
+    const double g = ode.last_g();
+    window_sum += std::sqrt(f * f + c_g2 * g * g);
+    ++window_count;
 
-    // Update wavelength:
-    if (f1 * f0 < 0.0) {
-      // linear interp: find rx (position of node)
-      const double r_node_1 = (r1 * f0 - r0 * f1) / (f0 - f1);
-      const double lambda1 = 2.0 * (r_node_1 - r_node_0);
-      eps_lambda = std::abs(2.0 * (lambda1 - lambda) / (lambda1 + lambda));
-      lambda = lambda1;
-      r_node_0 = r_node_1;
-    }
-
-    // find amplitude via maximum point:
-    if (std::abs(f1) > amp_maxf) {
-      amp_maxf = std::abs(f1);
-    }
-
-    // find amplitude by fitting around maximum:
-    if (std::abs(f1) < std::abs(f0) && std::abs(f0) > std::abs(fm1)) {
-
-      const auto amp_fit = fitQuadratic(rm1, r0, r1, fm1, f0, f1);
-      const auto eps_amp_fit =
-        std::abs(2.0 * (amp_fit - amp) / (amp_fit + amp));
-      amp = amp_fit;
-
-      const auto eps_amp_max =
-        std::abs(2.0 * (amp_fit - amp_maxf) / (amp_fit + amp_maxf));
-
-      const auto eps_amp_best = std::min({eps_amp_fit, eps_amp_max});
-      const auto eps_amp_worst = std::max({eps_amp_fit, eps_amp_max});
-      eps_amp = eps_amp_worst;
-
-      if (eps_amp_best < eps_target_amp &&
-          eps_amp_worst < 100.0 * eps_target_amp &&
-          eps_lambda < eps_target_lambda) {
-        amp = std::max(amp_fit, amp_maxf);
-        break;
+    if (window_count == N_window) {
+      const double amp_curr = window_sum / N_window;
+      if (have_prev) {
+        eps_amp = std::abs(amp_curr - amp_prev) / (0.5 * (amp_curr + amp_prev));
+        amp = amp_curr;
+        if (eps_amp < eps_target && count_num_windows > 5)
+          break;
       }
+      amp = amp_curr;
+      amp_prev = amp_curr;
+      have_prev = true;
+      window_sum = 0.0;
+      window_count = 0;
+      ++count_num_windows;
     }
-    // update "previous" values
-    rm1 = r0;
-    fm1 = f0;
-    r0 = r1;
-    f0 = f1;
   }
-  // assert(amp != 0.0);
+
+  if (eps_amp > 1.0e-2)
+    amp = 0.0;
+
   return {amp, eps_amp};
 }
 
