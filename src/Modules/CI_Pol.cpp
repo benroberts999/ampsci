@@ -1,4 +1,5 @@
 #include "Modules/CI_Pol.hpp"
+#include "Modules/Modules.hpp"
 #include "CI/CI_Integrals.hpp"
 #include "Coulomb/meTable.hpp"
 #include "DiracOperator/include.hpp" //For E1 operator
@@ -107,4 +108,10 @@ void CI_Pol(const IO::InputBlock &input, const Wavefunction &wf) {
             << ", angular momentum " << J << " and parity " << parity << " is "
             << pol << " a_0^3\n";
 }
+namespace {
+  const Register r_CI_Pol{
+    "CI_Pol", "Sum over states calculation of two valence polarisability", &CI_Pol};
+  } // namespace
 } // namespace Module
+
+
