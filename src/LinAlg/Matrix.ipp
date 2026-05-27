@@ -3,104 +3,6 @@
 namespace LinAlg {
 
 //==============================================================================
-template <typename T>
-class View {
-  std::size_t m_size;
-  std::size_t m_stride;
-  T *m_data;
-
-public:
-  View(T *data, std::size_t start, std::size_t size, std::size_t stride)
-    : m_size(size), m_stride(stride), m_data(data + long(start)) {}
-
-  std::size_t size() const { return m_size; }
-
-  //! [] index access (with no range checking). [i][j] returns ith row, jth col
-  T &operator[](std::size_t i) { return m_data[i * m_stride]; }
-  //! As above, but const
-  T operator[](std::size_t i) const { return m_data[i * m_stride]; }
-
-  //! () index access (with range checking). (i,j) returns ith row, jth col
-  T &at(std::size_t i) {
-    assert(i < m_size);
-    return m_data[i * m_stride];
-  }
-  //! As above, but const
-  T at(std::size_t i) const {
-    assert(i < m_size);
-    return m_data[i * m_stride];
-  }
-  //! () index access (with range checking). (i,j) returns ith row, jth col
-  T &operator()(std::size_t i) { return at(i); }
-  //! As above, but const
-  T operator()(std::size_t i) const { return at(i); }
-
-  T *data() { return m_data; }
-};
-
-//==============================================================================
-//! Non-owning 2D view onto a Matrix. Supports element access but not resize.
-//! Use Matrix_view<const T> for a read-only view.
-template <typename T>
-class Matrix_view {
-  std::size_t m_rows;
-  std::size_t m_cols;
-  T *m_data;
-
-public:
-  Matrix_view(T *data, std::size_t rows, std::size_t cols)
-    : m_rows(rows), m_cols(cols), m_data(data) {}
-
-  //! Implicit conversion from mutable Matrix (works for both mutable and const view)
-  Matrix_view(Matrix<std::remove_const_t<T>> &m)
-    : m_rows(m.rows()), m_cols(m.cols()), m_data(m.data()) {}
-
-  //! Implicit conversion from const Matrix (only for Matrix_view<const T>)
-  template <typename U = T, typename = std::enable_if_t<std::is_const_v<U>>>
-  Matrix_view(const Matrix<std::remove_const_t<T>> &m)
-    : m_rows(m.rows()), m_cols(m.cols()), m_data(m.data()) {}
-
-  std::size_t rows() const { return m_rows; }
-  std::size_t cols() const { return m_cols; }
-  std::size_t size() const { return m_rows * m_cols; }
-  bool empty() const { return m_rows == 0 || m_cols == 0; }
-
-  T *data() { return m_data; }
-  const T *data() const { return m_data; }
-
-  //! [] index access (no range checking). [i] returns pointer to ith row
-  T *operator[](std::size_t i) { return m_data + i * m_cols; }
-  const T *operator[](std::size_t i) const { return m_data + i * m_cols; }
-
-  //! at(i,j): element access with range checking
-  T &at(std::size_t i, std::size_t j) {
-    assert(i < m_rows && j < m_cols);
-    return m_data[i * m_cols + j];
-  }
-  T at(std::size_t i, std::size_t j) const {
-    assert(i < m_rows && j < m_cols);
-    return m_data[i * m_cols + j];
-  }
-  const T &atc(std::size_t i, std::size_t j) const {
-    assert(i < m_rows && j < m_cols);
-    return m_data[i * m_cols + j];
-  }
-
-  //! (i,j): same as at(i,j)
-  T &operator()(std::size_t i, std::size_t j) { return at(i, j); }
-  T operator()(std::size_t i, std::size_t j) const { return at(i, j); }
-
-  auto begin() { return m_data; }
-  auto end() { return m_data + m_rows * m_cols; }
-  auto cbegin() const { return m_data; }
-  auto cend() const { return m_data + m_rows * m_cols; }
-};
-
-//==============================================================================
-//==============================================================================
-//==============================================================================
-
-//==============================================================================
 // Returns the determinant. Uses GSL; via LU decomposition. Only works for
 // double/complex<double>
 template <typename T>
@@ -156,12 +58,6 @@ Matrix<T> &Matrix<T>::invert_in_place() {
   }
   gsl_permutation_free(permutn);
   return *this;
-}
-
-template <typename T>
-Matrix<T> Matrix<T>::inverse() const {
-  auto inverse = *this; // copy
-  return inverse.invert_in_place();
 }
 
 //==============================================================================
@@ -348,48 +244,6 @@ template <typename T>
 }
 
 //==============================================================================
-
-// // Matrix multiplication C = A*B. C is overwritten with product, and must be correct size already
-// template <typename T>
-// void GEMM(const Matrix<T> &a, const Matrix<T> &b, Matrix<T> *c, bool trans_A,
-//            bool trans_B) {
-//   //
-//   assert(a.cols() == b.rows() &&
-//          "Matrices a and b must have correct dimension for multiplication");
-//   assert(c->rows() == a.rows() && c->cols() == b.cols() &&
-//          "Matrices c (output) must have correct dimension for multiplication "
-//          "of a and b");
-
-//   const auto a_gsl = a.as_gsl_view();
-//   const auto b_gsl = b.as_gsl_view();
-//   auto c_gsl = c->as_gsl_view();
-
-//   const auto a_trans = trans_A ? CblasTrans : CblasNoTrans;
-//   const auto b_trans = trans_B ? CblasTrans : CblasNoTrans;
-
-//   if constexpr (std::is_same_v<T, double>) {
-//     gsl_blas_dgemm(a_trans, b_trans, 1.0, &a_gsl.matrix, &b_gsl.matrix, 0.0,
-//                    &c_gsl.matrix);
-//   } else if constexpr (std::is_same_v<T, float>) {
-//     gsl_blas_sgemm(a_trans, b_trans, 1.0f, &a_gsl.matrix, &b_gsl.matrix, 0.0f,
-//                    &c_gsl.matrix);
-//   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
-//     gsl_blas_zgemm(a_trans, b_trans, GSL_COMPLEX_ONE, &a_gsl.matrix,
-//                    &b_gsl.matrix, GSL_COMPLEX_ZERO, &c_gsl.matrix);
-//   } else if constexpr (std::is_same_v<T, std::complex<float>>) {
-//     const gsl_complex_float one{1.0f, 0.0f};
-//     const gsl_complex_float zero{0.0f, 0.0f};
-//     gsl_blas_cgemm(a_trans, b_trans, one, &a_gsl.matrix, &b_gsl.matrix, zero,
-//                    &c_gsl.matrix);
-//   }
-// }
-
-//==============================================================================
-inline CBLAS_TRANSPOSE to_cblas_trans(bool trans) {
-  return trans ? CblasTrans : CblasNoTrans;
-}
-
-//------------------------------------------------------------------------------
 template <typename T>
 void GEMM(const Matrix<T> &a, const Matrix<T> &b, Matrix<T> *c, bool trans_A,
           bool trans_B) {

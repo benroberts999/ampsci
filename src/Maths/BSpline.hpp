@@ -20,17 +20,28 @@
 #endif
 
 /*!
-Calculates basis of N B-splines of order K (degree K-1), defined over range [0,
-xmax]. x0 is first non-zero ("internal") knot point.
-@details
- * N - K + 2 break-points "internal knots" placed between [x0,xmax].
-   * By default: on a _logarithmic_ scale
-   * May also be placed on a linear or log-linear scale
-   * If log-linear scale, b=(xmax/2) (see qip::loglinear_range)
- * knots are the same as breakpoints, but the ends are repeated K times.
- * Uses the GSL Bspline library, gsl/gsl_bspline.h
-   * https://www.gnu.org/software/gsl/doc/html/bspline.html
- * See also: Bachau et al.,  Reports Prog. Phys. 64, 1815 (2001).
+  @brief Basis of N B-splines of order K (degree K-1), defined over [0, xmax].
+
+  @details
+  Constructs and evaluates a B-spline basis using the GSL B-spline library
+  (gsl/gsl_bspline.h). See also: Bachau et al., Rep. Prog. Phys. 64, 1815
+  (2001).
+
+  **Knot structure:**
+  - N - K + 2 breakpoints (internal knots) are placed in [x0, xmax], where x0
+    is the first non-zero knot. The point 0 is prepended, giving N - K + 2
+    breakpoints total spanning [0, xmax].
+  - The full knot vector repeats the endpoints K times.
+  - Breakpoints may be placed on a logarithmic (default), linear, or
+    log-linear scale; see `KnotDistro`.
+
+  **Compatibility:**
+  Supports GSL v2.x (<2.8), and v2.8+. API differences are handled
+  internally via compile-time version macros.
+  Should also support v1.x, but this is difficult to test.
+
+  Copy construction and copy assignment are deleted (GSL workspace is not
+  copyable).
 */
 class BSpline {
 
@@ -49,10 +60,25 @@ class BSpline {
 #endif
 
 public:
-  enum class KnotDistro { logarithmic, linear, loglinear };
+  //! Distribution of internal knot points
+  enum class KnotDistro {
+    //! Knots on a logarithmic scale (default; suits bound-state grids)
+    logarithmic,
+    //! Knots evenly spaced
+    linear,
+    //! Log-linear blend; midpoint at xmax/2
+    loglinear
+  };
+
   //============================================================================
-  //! Constructs basis of n splines of order k, defined over [0,xmax]. x0 is
-  //! first non-zero knot. kd = { logarithmic, linear, loglinear }
+  /*!
+    @brief Construct a basis of N B-splines of order K over [0, xmax].
+    @param n   Number of splines N. Must satisfy N > K.
+    @param k   Order K (degree K-1). E.g. K=4 gives cubic splines.
+    @param x0  First non-zero (internal) knot; must satisfy 0 < x0 < xmax.
+    @param xmax Upper bound of the spline domain.
+    @param kd  Knot distribution: logarithmic (default), linear, or loglinear.
+  */
   BSpline(std::size_t n, std::size_t k, double x0, double xmax,
           KnotDistro kd = KnotDistro::logarithmic)
     : m_K(k), m_N(n), m_xmax(xmax) {
@@ -81,12 +107,11 @@ public:
     assert(gsl_bspline_nbreak(gsl_bspl_work) == n_break);
   }
 
-  // delete copy assignment (no simple way to copy gsl_bspl_work)
+  //! Copy assignment deleted: GSL workspace is not copyable
   BSpline &operator=(const BSpline &) = delete;
-  // delete copy constructor (no simple way to copy gsl_bspl_work)
+  //! Copy construction deleted: GSL workspace is not copyable
   BSpline(const BSpline &) = delete;
 
-  // Desctructor
   ~BSpline() {
     gsl_bspline_free(gsl_bspl_work);
 #ifdef GSL_VERSION_1
@@ -97,14 +122,15 @@ public:
   //============================================================================
   //! Order of the splines, K
   std::size_t K() { return m_K; }
-  //! Degree of the splines, d:=K-1
+  //! Degree of the splines, d := K-1
   std::size_t d() { return m_K - 1; }
   //! Number of splines, N
   std::size_t N() { return m_N; }
 
   //============================================================================
-  //! Returns the first nonzero spline index i0; Note that i runs [0,N).
-  //! The last non-zero index is min(i0+K-1, N-1).
+  //! Returns the index i0 of the first non-zero spline at x.
+  //! Spline indices run [0, N); at most K splines are non-zero at any x,
+  //! occupying indices [i0, min(i0+K-1, N-1)].
   std::size_t find_i0(double x) {
     for (std::size_t i = 0; i < m_N; ++i) {
       if (gsl_vector_get(gsl_bspl_work->knots, i + m_K) > x) {
@@ -115,7 +141,8 @@ public:
   }
 
   //============================================================================
-  //! Returns a std::vector of all splines {b0, b1, ..., b_N-1} evaluated at x
+  //! Returns all N spline values {b_0(x), b_1(x), ..., b_{N-1}(x)}.
+  //! Returns a vector of zeros if x is outside [0, xmax].
   std::vector<double> get(double x) {
     std::vector<double> b(m_N);
     gsl_vector_view b_gsl = gsl_vector_view_array(b.data(), b.size());
@@ -132,15 +159,24 @@ public:
   }
 
   //============================================================================
-  //! Returns a pair {i0, M}, where i0 is spline index of first non-zero spline,
-  //! and M is a matrix of non-zero splines and their derivatives. M_ij contains
-  //! the jth derivative of the spline b[i+i0] evaulated at x.
-  /*! @details
-    - n_deriv is the maximum derivative calculated (inclusive).
-    - Matrix M is has K rows, and (n_deriv+1) columns.
-    - If x>xmax, will return a matrix of zeros, and i0+K will be >N
-    - If x=xmax, only last spline is nonzero, still i0+K=N [lower derivs may be
-    non-zero]
+  /*!
+    @brief Returns the non-zero splines and their derivatives at x.
+    @details
+    Returns `{i0, M}`, where:
+    - `i0` is the index of the first non-zero spline,
+    - `M` is a K × (n_deriv+1) matrix; `M(i, j)` is the j-th derivative of
+      spline `b[i0 + i]` evaluated at x.
+
+    At most K splines are non-zero at any x. This is more efficient than
+    `get()` when only the non-zero splines are needed.
+
+    If x > xmax, returns a zero matrix with i0+K > N.
+    If x = xmax, only the last spline is non-zero (lower derivatives may not
+    be zero).
+
+    @param x       Evaluation point.
+    @param n_deriv Maximum derivative order to compute (inclusive).
+    @returns Pair `{i0, M}`.
   */
   std::pair<std::size_t, LinAlg::Matrix<double>>
   get_nonzero(double x, std::size_t n_deriv) {
@@ -171,6 +207,7 @@ public:
   }
 
   //============================================================================
+  //! Prints the full knot vector to stdout (N+K values).
   void print_knots() const {
 
     std::size_t n_cols_to_print = 4;

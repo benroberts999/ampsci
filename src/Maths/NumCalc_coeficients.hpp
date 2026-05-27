@@ -3,7 +3,9 @@
 
 namespace NumCalc {
 //==============================================================================
-// Define the coeficients for quadrature integration:
+//! Quadrature integration coefficients for a given number of points N.
+//! `cq` holds the weights; the step contribution is multiplied by `dq_inv`.
+//! Specialisations are provided for N = 1, 3, 5, 7, 9, 11, 13.
 template <std::size_t N>
 struct QintCoefs {};
 

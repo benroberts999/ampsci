@@ -14,27 +14,205 @@
 #include <utility>
 #include <vector>
 
+//! Type trait: true iff T is std::complex<U> for some U
 template <typename T>
 struct is_complex : std::false_type {};
+
 template <typename T>
 struct is_complex<std::complex<T>> : std::true_type {};
+
+//! Convenience variable template: is_complex_v<T> == is_complex<T>::value
 template <typename T>
 constexpr bool is_complex_v = is_complex<T>::value;
 
 //==============================================================================
-//! Defines Matrix, Vector classes, and linear some algebra functions
+/*!
+  @brief Linear algebra: matrices, vectors, views, and solvers.
+  @details
+  Provides dense matrix and vector types, non-owning views, and a set of
+  linear algebra solvers wrapping LAPACK and GSL.
+
+  **Core types** (Matrix.hpp, Vector.hpp):
+  - `Matrix<T>` — owning row-major dense matrix; supports real and complex
+    element types. Provides arithmetic, GSL interop, and element-wise access.
+  - `Vector<T>` — owning 1D array; used for eigenvectors, right-hand sides,
+    and eigenvalue arrays.
+
+  **Views** (Matrix.hpp):
+  - `View<T>` — non-owning strided view over a 1D segment of an array.
+    Used to provide row and column access into a Matrix without copying.
+    Obtained via `Matrix::row_view()` and `Matrix::column_view()`.
+  - `Matrix_view<T>` — non-owning view of a 2D subblock of a Matrix.
+    Obtained via `Matrix::submatrix_view()`.
+
+  **Solvers** (Solvers.hpp):
+  - `solve_Axeqb(A, b)` — solves Ax = b via LU decomposition (GSL).
+  - `symmhEigensystem(A)` — all eigenvalues/vectors of a symmetric or
+    Hermitian matrix (LAPACK `dsyev`/`zheev`).
+  - `symmhEigensystem(A, n)` — first n eigenvalues/vectors (LAPACK `dsyevx`).
+  - `symmhEigensystem(A, threshold)` — all eigenvalues below a threshold
+    (LAPACK `dsyevr`).
+  - `symmhEigensystem(A, B)` — generalised problem Av = eBv (LAPACK
+    `dsygv`/`zhegv`).
+  - `genEigensystem(A, sort)` — general non-symmetric real matrix (GSL).
+*/
 namespace LinAlg {
 
-//! Proved a "view" onto an array
+// Forward declaration (Matrix_view constructors accept Matrix<T> by reference)
 template <typename T>
-class View;
+class Matrix;
 
-//! Provides a non-owning view onto a Matrix (read/write, but no resize)
+/*!
+  @brief Non-owning strided view onto a 1D segment of an array.
+  @details
+  Provides indexed read/write access into an existing array without ownership.
+  The stride allows views over non-contiguous memory (e.g., a column of a
+  row-major matrix).
+
+  Used by `Matrix::row_view()` and `Matrix::column_view()`.
+
+  @note Does not perform bounds checking in `operator[]`; use `at()` for
+        checked access.
+*/
 template <typename T>
-class Matrix_view;
+class View {
+  std::size_t m_size;
+  std::size_t m_stride;
+  T *m_data;
+
+public:
+  //! Construct view over @p size elements starting at offset @p start, with @p stride
+  View(T *data, std::size_t start, std::size_t size, std::size_t stride)
+    : m_size(size), m_stride(stride), m_data(data + long(start)) {}
+
+  //! Number of elements in the view
+  std::size_t size() const { return m_size; }
+
+  //! [] index access (no range checking), mutable
+  T &operator[](std::size_t i) { return m_data[i * m_stride]; }
+  //! [] index access (no range checking), const
+  T operator[](std::size_t i) const { return m_data[i * m_stride]; }
+
+  //! at(i): element access with range checking, mutable
+  T &at(std::size_t i) {
+    assert(i < m_size);
+    return m_data[i * m_stride];
+  }
+  //! at(i): element access with range checking, const
+  T at(std::size_t i) const {
+    assert(i < m_size);
+    return m_data[i * m_stride];
+  }
+  //! () index access with range checking, mutable
+  T &operator()(std::size_t i) { return at(i); }
+  //! () index access with range checking, const
+  T operator()(std::size_t i) const { return at(i); }
+
+  //! Raw pointer to first viewed element
+  T *data() { return m_data; }
+};
 
 //==============================================================================
-//! Matrix class; row-major
+/*!
+  @brief Non-owning 2D view onto a Matrix.
+  @details
+  Provides row/column element access to an existing matrix buffer without
+  ownership or resize capability. Supports both mutable (`Matrix_view<T>`)
+  and read-only (`Matrix_view<const T>`) access.
+
+  Implicitly constructible from `Matrix<T>` (mutable view) and from
+  `const Matrix<T>` (const view only, via SFINAE).
+
+  @note Iterators (`begin()`/`end()`) yield raw pointers into the flat buffer.
+*/
+template <typename T>
+class Matrix_view {
+  std::size_t m_rows;
+  std::size_t m_cols;
+  T *m_data;
+
+public:
+  //! Construct from raw pointer and dimensions (no ownership)
+  Matrix_view(T *data, std::size_t rows, std::size_t cols)
+    : m_rows(rows), m_cols(cols), m_data(data) {}
+
+  //! Implicit conversion from mutable Matrix (works for both mutable and const view)
+  Matrix_view(Matrix<std::remove_const_t<T>> &m)
+    : m_rows(m.rows()), m_cols(m.cols()), m_data(m.data()) {}
+
+  //! Implicit conversion from const Matrix (only for Matrix_view<const T>)
+  template <typename U = T, typename = std::enable_if_t<std::is_const_v<U>>>
+  Matrix_view(const Matrix<std::remove_const_t<T>> &m)
+    : m_rows(m.rows()), m_cols(m.cols()), m_data(m.data()) {}
+
+  //! Return rows [major index size]
+  std::size_t rows() const { return m_rows; }
+  //! Return columns [minor index size]
+  std::size_t cols() const { return m_cols; }
+  //! Return rows*columns [total array size]
+  std::size_t size() const { return m_rows * m_cols; }
+  //! Bool - is empty? (same as size==0)
+  bool empty() const { return m_rows == 0 || m_cols == 0; }
+
+  //! Raw pointer to first element, mutable
+  T *data() { return m_data; }
+  //! Raw pointer to first element, const
+  const T *data() const { return m_data; }
+
+  //! [] index access (no range checking). [i] returns pointer to ith row, mutable
+  T *operator[](std::size_t i) { return m_data + i * m_cols; }
+  //! [] index access (no range checking). [i] returns const pointer to ith row
+  const T *operator[](std::size_t i) const { return m_data + i * m_cols; }
+
+  //! at(i,j): element access with range checking, mutable
+  T &at(std::size_t i, std::size_t j) {
+    assert(i < m_rows && j < m_cols);
+    return m_data[i * m_cols + j];
+  }
+  //! at(i,j): element access with range checking, const
+  T at(std::size_t i, std::size_t j) const {
+    assert(i < m_rows && j < m_cols);
+    return m_data[i * m_cols + j];
+  }
+  //! at(i,j): element access with range checking, const ref
+  const T &atc(std::size_t i, std::size_t j) const {
+    assert(i < m_rows && j < m_cols);
+    return m_data[i * m_cols + j];
+  }
+
+  //! () index access with range checking, mutable
+  T &operator()(std::size_t i, std::size_t j) { return at(i, j); }
+  //! () index access with range checking, const
+  T operator()(std::size_t i, std::size_t j) const { return at(i, j); }
+
+  //! Iterators over flat data buffer
+  auto begin() { return m_data; }
+  auto end() { return m_data + m_rows * m_cols; }
+  auto cbegin() const { return m_data; }
+  auto cend() const { return m_data + m_rows * m_cols; }
+};
+
+//==============================================================================
+/*!
+  @brief Row-major dense matrix with arithmetic and linear algebra support.
+  @details
+  Owns its data as a contiguous `std::vector<T>` stored in row-major order.
+  Supports scalar types `T = float`, `double`, `std::complex<float>`, and
+  `std::complex<double>`.
+
+  Provides:
+  - Element access via `operator[]` (no bounds checking) and `at()`/`operator()` (bounds-checked).
+  - Basic arithmetic: addition, subtraction, scalar multiply/divide, and matrix
+    multiplication via BLAS.
+  - Linear algebra via GSL: `determinant()`, `inverse()`, `transpose()`.
+  - Conversion utilities: `conj()`, `real()`, `imag()`, `complex()`.
+  - Non-owning views: `row_view()`, `column_view()`, `matrix_view()`.
+  - GSL interop: `as_gsl_view()`.
+
+  @note The scalar `+=` and `-=` operators treat the scalar as a multiple of
+        the identity: `M += a` adds `a` to all diagonal elements. Only valid
+        for square matrices.
+*/
 template <typename T = double>
 class Matrix {
 
@@ -118,39 +296,38 @@ public:
   //! Bool - is empty? (same as size==0)
   bool empty() const { return m_data.empty(); }
 
-  //! Returns pointer to first element. Note: for std::complex<T>, this is a
-  //! pointer to complex<T>, not T
+  //! Pointer to first element; for std::complex<T> this is complex<T>*, not T*
   T *data() { return m_data.data(); }
-  //! As above, but const
+  //! Const pointer to first element; for std::complex<T> this is const complex<T>*, not const T*
   const T *data() const { return m_data.data(); }
 
   //============================================================================
 
-  //! [] index access (with no range checking). [i][j] returns ith row, jth col
-  const T *operator[](std::size_t i) const { return &(m_data[i * m_cols]); }
-  //! As above, but const
+  //! [] index access (no range checking). [i] returns pointer to ith row, mutable
   T *operator[](std::size_t i) { return &(m_data[i * m_cols]); }
+  //! [] index access (no range checking). [i] returns const pointer to ith row
+  const T *operator[](std::size_t i) const { return &(m_data[i * m_cols]); }
 
-  //! () index access (with range checking). (i,j) returns ith row, jth col
+  //! at(i,j): element access with range checking, mutable
   T &at(std::size_t row_i, std::size_t col_j) {
     assert(row_i < m_rows && col_j < m_cols);
     return m_data[row_i * m_cols + col_j];
   }
-  //! const () index access (with range checking). (i,j) ith row, jth col
+  //! at(i,j): element access with range checking, const
   T at(std::size_t row_i, std::size_t col_j) const {
     assert(row_i < m_rows && col_j < m_cols);
     return m_data[row_i * m_cols + col_j];
   }
 
-  //! const ref () index access (with range checking). (i,j) ith row, jth col
+  //! at(i,j): element access with range checking, const ref
   const T &atc(std::size_t row_i, std::size_t col_j) const {
     assert(row_i < m_rows && col_j < m_cols);
     return m_data[row_i * m_cols + col_j];
   }
 
-  //! () index access (with range checking). (i,j) returns ith row, jth col
+  //! () index access with range checking, mutable
   T &operator()(std::size_t i, std::size_t j) { return at(i, j); }
-  //! As above, but const
+  //! () index access with range checking, const
   T operator()(std::size_t i, std::size_t j) const { return at(i, j); }
 
   //============================================================================
@@ -194,13 +371,24 @@ public:
   }
 
   //============================================================================
-  //! Returns gsl_matrix_view (or _float_view, _complex_view,
-  //! _complex_float_view). Call .matrix to use as a GSL matrix (no copy is
-  //! involved). Allows one to use all GSL built-in functions. Note: non-owning
-  //! pointer - matrix AND gsl_view must remain in scope.
+  /*!
+    @brief Returns a GSL matrix view for use with GSL functions (no copy).
+    @details
+    Returns a `gsl_matrix_view` (or `_float_view`, `_complex_view`,
+    `_complex_float_view`) wrapping the matrix data in place. Access the
+    underlying GSL matrix via `.matrix` on the returned object. Allows
+    use of all GSL/BLAS built-in functions without any data copy.
+
+    Supported types: `double`, `float`, `std::complex<double>`,
+    `std::complex<float>`.
+
+    @note Both the `Matrix` and the returned view must remain in scope
+          during use; the view is non-owning.
+    @warning Fails at runtime (assert) for unsupported scalar types.
+  */
   [[nodiscard]] auto as_gsl_view();
 
-  //! As above, but const
+  //! Const GSL matrix view; see as_gsl_view()
   [[nodiscard]] auto as_gsl_view() const;
 
   //============================================================================
@@ -208,18 +396,52 @@ public:
   //============================================================================
   //============================================================================
 
-  //! Returns the determinant. Uses GSL; via LU decomposition. Only works for
-  //! `double/complex<double>`
+  /*!
+    @brief Returns the determinant via LU decomposition (GSL).
+    @details
+    Makes an internal copy of the matrix, performs LU decomposition, and
+    returns the determinant. The original matrix is not modified.
+
+    @return Determinant of the matrix.
+    @note Only available for `T = double` or `T = std::complex<double>`.
+    @warning Only defined for square matrices; asserts otherwise.
+  */
   [[nodiscard]] T determinant() const;
 
-  //! Inverts the matrix, in place. Uses GSL; via LU decomposition. Only works
-  //! for `double/complex<double>.`
+  /*!
+    @brief Inverts the matrix in place via LU decomposition (GSL).
+    @details
+    Performs LU decomposition on a copy, then overwrites `*this` with its
+    inverse using `gsl_linalg_LU_invert` (or the complex equivalent).
+
+    @return Reference to `*this` (the inverted matrix).
+    @note Only available for `T = double` or `T = std::complex<double>`.
+    @warning Only defined for square matrices; asserts otherwise.
+  */
   Matrix<T> &invert_in_place();
 
-  //! Returns inverse of the matrix. Leaves original matrix intact. Uses GSL;
-  //! via LU decomposition. Only works for `double/complex<double>`
-  [[nodiscard]] Matrix<T> inverse() const;
-  //! Returns transpose of matrix
+  /*!
+    @brief Returns inverse of the matrix; original is unchanged.
+    @details
+    Copies `*this` and calls `invert_in_place()` on the copy.
+
+    @note Only available for `T = double` or `T = std::complex<double>`.
+  */
+  [[nodiscard]] Matrix<T> inverse() const {
+    auto inv = *this;
+    return inv.invert_in_place();
+  }
+
+  /*!
+    @brief Returns the transpose of the matrix.
+    @details
+    Allocates and returns a new `Matrix<T>` of size `cols() x rows()` with
+    elements transposed. Uses GSL `gsl_matrix_transpose_memcpy` for `double`,
+    `float`, and their complex variants; falls back to a naive loop for other
+    types.
+
+    @return New matrix of dimensions `cols() x rows()`.
+  */
   [[nodiscard]] Matrix<T> transpose() const;
 
   //============================================================================
@@ -245,52 +467,72 @@ public:
   Matrix<T> &conj_in_place();
 
   //============================================================================
-  //! Muplitplies all the elements by those of matrix a, in place: M_ij *= a_ij
+  /*!
+    @brief Elementwise multiply in place: M_ij *= a_ij
+    @details
+    Each element of `*this` is multiplied by the corresponding element of @p a.
+    Matrices must have the same dimensions.
+
+    @param a  Matrix whose elements multiply `*this`.
+    @return   Reference to `*this`.
+    @warning  Dimensions must match; asserts otherwise.
+  */
   Matrix<T> &mult_elements_by(const Matrix<T> &a);
 
-  //! Returns new matrix, C_ij = A_ij*B_ij
+  /*!
+    @brief Returns new matrix C with C_ij = A_ij * B_ij (elementwise product).
+    @details Calls `a.mult_elements_by(b)` on a copy of @p a.
+  */
   [[nodiscard]] friend Matrix<T> mult_elements(Matrix<T> a,
                                                const Matrix<T> &b) {
     return a.mult_elements_by(b);
   }
 
   //============================================================================
-  // Operator overloads: +,-, scalar */
-  //! Overload standard operators: do what expected
+  //! In-place elementwise addition; dimensions must match
   Matrix<T> &operator+=(const Matrix<T> &rhs);
+  //! In-place elementwise subtraction; dimensions must match
   Matrix<T> &operator-=(const Matrix<T> &rhs);
+  //! In-place scalar multiply: M_ij *= x
   Matrix<T> &operator*=(const T x);
+  //! In-place scalar divide: M_ij /= x
   Matrix<T> &operator/=(const T x);
 
   //============================================================================
-  // nb: these are defined inline here to avoid ambiguous overload?
+  //! Elementwise addition: returns M + N
   [[nodiscard]] friend Matrix<T> operator+(Matrix<T> lhs,
                                            const Matrix<T> &rhs) {
     return (lhs += rhs);
   }
+  //! Elementwise subtraction: returns M - N
   [[nodiscard]] friend Matrix<T> operator-(Matrix<T> lhs,
                                            const Matrix<T> &rhs) {
     return (lhs -= rhs);
   }
+  //! Scalar multiply: returns x * M
   [[nodiscard]] friend Matrix<T> operator*(const T x, Matrix<T> rhs) {
     return (rhs *= x);
   }
+  //! Scalar multiply: returns M * x
   [[nodiscard]] friend Matrix<T> operator*(Matrix<T> lhs, const T x) {
     return (lhs *= x);
   }
+  //! Scalar divide: returns M / x
   [[nodiscard]] friend Matrix<T> operator/(Matrix<T> lhs, const T x) {
     return (lhs /= x);
   }
 
   //============================================================================
-  //! Matrix<T> += T : T assumed to be *Identity!
+  //! M += aI: adds a to diagonal elements (scalar treated as a*Identity)
   Matrix<T> &operator+=(T aI);
-  //! Matrix<T> -= T : T assumed to be *Identity!
+  //! M -= aI: subtracts a from diagonal elements (scalar treated as a*Identity)
   Matrix<T> &operator-=(T aI);
 
+  //! Returns M + aI (adds a to diagonal)
   [[nodiscard]] friend Matrix<T> operator+(Matrix<T> M, T aI) {
     return (M += aI);
   }
+  //! Returns M - aI (subtracts a from diagonal)
   [[nodiscard]] friend Matrix<T> operator-(Matrix<T> M, T aI) {
     return (M -= aI);
   }
@@ -300,7 +542,7 @@ public:
   template <typename U>
   friend Matrix<U> operator*(const Matrix<U> &a, const Matrix<U> &b);
 
-  //============================================================================
+  //! Prints matrix elements row by row to output stream
   template <typename U>
   friend std::ostream &operator<<(std::ostream &os, const Matrix<U> &a);
 };
@@ -309,8 +551,27 @@ public:
 //==============================================================================
 //==============================================================================
 
-//! Matrix multiplication C = A*B. C is overwritten with product, and must be correct size already
-/*! @details Wrapper for BLAS gemm functions:
+//! Converts bool to CBLAS_TRANSPOSE enum (CblasTrans if true, CblasNoTrans if false)
+inline CBLAS_TRANSPOSE to_cblas_trans(bool trans) {
+  return trans ? CblasTrans : CblasNoTrans;
+}
+
+/*!
+  @brief Matrix multiplication C = op(A) * op(B) via CBLAS GEMM (row-major).
+  @details
+  Computes \f$ C = \mathrm{op}(A)\,\mathrm{op}(B) \f$ where
+  \f$ \mathrm{op}(X) = X \f$ or \f$ X^T \f$ depending on @p trans_A /
+  @p trans_B. @p c is overwritten with the result.
+
+  Wraps CBLAS `gemm` for `double`, `float`, `std::complex<double>`, and
+  `std::complex<float>`.
+
+  @param a        Left-hand matrix.
+  @param b        Right-hand matrix.
+  @param[out] c   Output matrix; must be pre-allocated to the correct size.
+  @param trans_A  If true, use \f$A^T\f$ in the product.
+  @param trans_B  If true, use \f$B^T\f$ in the product.
+  @warning @p c must not alias @p a or @p b.
 */
 template <typename T>
 void GEMM(const Matrix<T> &a, const Matrix<T> &b, Matrix<T> *c,
@@ -418,10 +679,24 @@ Matrix<T> PENTA(const Matrix<T> &A, const Matrix<T> &B, const Matrix<T> &C,
 //==============================================================================
 //==============================================================================
 
+//! Default relative tolerance for `equal()`: 1e-6 for float, 1e-12 for double
 template <typename T>
 constexpr auto myEps();
-//! Compares two matrices; returns true iff all elements compare relatively to
-//! better than eps
+
+/*!
+  @brief Compares two matrices element-wise to within a relative tolerance.
+  @details
+  Returns true iff all elements satisfy
+  \f[
+    |A_{ij} - B_{ij}| \leq |\varepsilon\,(A_{ij} + B_{ij})|.
+  \f]
+  Matrices of different dimensions compare as not equal.
+
+  @param lhs  Left matrix.
+  @param rhs  Right matrix.
+  @param eps  Relative tolerance (default: `myEps<T>()`).
+  @return `true` if all elements agree within @p eps; `false` otherwise.
+*/
 template <typename T>
 bool equal(const Matrix<T> &lhs, const Matrix<T> &rhs, T eps = myEps<T>());
 

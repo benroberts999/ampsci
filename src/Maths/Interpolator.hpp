@@ -14,62 +14,40 @@
 #endif
 #endif
 
-//! Interpolates functions using cubic splines. Uses GSL:
-//! https://www.gnu.org/software/gsl/doc/html/interp.html
+/*!
+  @brief 1D interpolation using GSL splines.
+  @details
+  Wraps the GSL interpolation library
+  (https://www.gnu.org/software/gsl/doc/html/interp.html).
+  Provides a stateful `Interp` class and a convenience `interpolate()`
+  function. Several interpolation methods are available via `Method`.
+  Does not extrapolate: values outside [xmin, xmax] are returned as zero.
+*/
 namespace Interpolator {
 
-//! Method (type) of 1D Interpolation used
-/*! @details 
-The following interpolation types are provided by GSL
-(see https://www.gnu.org/software/gsl/doc/html/interp.html#c.gsl_interp_type)
-
-linear
-
- * Linear interpolation. This interpolation method does not require any additional memory.
-
-polynomial
-
- * Polynomial interpolation. This method should only be used for interpolating small numbers of points because polynomial interpolation introduces large oscillations, even for well-behaved datasets. The number of terms in the interpolating polynomial is equal to the number of points.
-
-cspline
-
- * Cubic spline with natural boundary conditions. The resulting curve is piecewise cubic on each interval, with matching first and second derivatives at the supplied data-points. The second derivative is chosen to be zero at the first point and last point.
-
-cspline_periodic
-
- * Cubic spline with periodic boundary conditions. The resulting curve is piecewise cubic on each interval, with matching first and second derivatives at the supplied data-points. The derivatives at the first and last points are also matched. Note that the last point in the data must have the same y-value as the first point, otherwise the resulting periodic interpolation will have a discontinuity at the boundary.
-
-akima
-
- * Non-rounded Akima spline with natural boundary conditions. This method uses the non-rounded corner algorithm of Wodicka.
-
-akima_periodic
-
- * Non-rounded Akima spline with periodic boundary conditions. This method uses the non-rounded corner algorithm of Wodicka.
-
-steffen
-
- * Steffen's method guarantees the monotonicity of the interpolating function between the given data points. Therefore, minima and maxima can only occur exactly at the data points, and there can never be spurious oscillations between data points. The interpolated function is piecewise cubic in each interval. The resulting curve and its first derivative are guaranteed to be continuous, but the second derivative may be discontinuous.
-
+/*!
+  @brief Interpolation method.
+  @details
+  See https://www.gnu.org/software/gsl/doc/html/interp.html for full details.
 */
 enum class Method {
-  //! linear interpolation
+  //! Linear interpolation; no additional memory required
   linear,
-  //! polynomial interpolation
+  //! Polynomial interpolation; only suitable for small numbers of points
   polynomial,
-  //! cubic b-spline interpolation
+  //! Cubic spline with natural boundary conditions (zero second derivative at endpoints)
   cspline,
-  //! cubic b-spline interpolation with periodic boundary condition
+  //! Cubic spline with periodic boundary conditions; first and last y-values must match
   cspline_periodic,
-  //! akima interpolation
+  //! Akima spline with natural boundary conditions (Wodicka non-rounded corner algorithm)
   akima,
-  //! akima interpolation with periodic boundary condition
+  //! Akima spline with periodic boundary conditions
   akima_periodic,
-  //! steffen interpolation (ensure monotonicity between points). Only GSLv2+
+  //! Steffen's monotone spline: no spurious oscillations between data points. GSL v2+ only.
   steffen
 };
 
-//! Maps from enum 'Interpolator::Method' to gsl_interp_type
+//! Maps Interpolator::Method to the corresponding GSL interpolation type
 static const std::map<Method, const gsl_interp_type *> interp_method{
   {Method::linear, gsl_interp_linear},
   {Method::polynomial, gsl_interp_polynomial},
@@ -85,17 +63,19 @@ static const std::map<Method, const gsl_interp_type *> interp_method{
 
 //==============================================================================
 
-//! Performs interpolation using GSL (GNU Scientific Library)
-/*! @details 
-  On construction takes in vectors x and y, to be interpolated.
-  These are intepreted as function values y(x) at descrete points x.
-  x and y dimensions must match.
-  Given new x', will return y(x') based on interpolation.
-  NOTE: Interpolates, but does NOT extrapolate! Everything outside the region (xmin,xmax) from initial input will be zero.
-  It may use any interpolation method provided by GSL library.
-  See Interpolator::Method for list of options.
-  By default, cspline (cubic b-spline) method is used.
-  Note: gsl function takes *pointers* to x and y data. Therefore, vectors x and y should outlive the Interp object
+/*!
+  @brief Stateful 1D interpolation object using GSL.
+  @details
+  Constructed from data vectors x and y (interpreted as samples of y(x)).
+  Once constructed, evaluates the interpolated function at arbitrary points
+  via `interp()` or `operator()`.
+
+  Does not extrapolate: returns 0.0 for x outside [x.front(), x.back()].
+
+  Copy construction and copy assignment are deleted.
+
+  @note x and y are copied into GSL internal storage during construction;
+  the input vectors do not need to outlive the `Interp` object.
 */
 class Interp {
 
@@ -105,7 +85,12 @@ private:
   double x0, xmax;
 
 public:
-  //! x_in and y_in
+  /*!
+    @brief Construct interpolation object from data points.
+    @param x      Strictly increasing x values (abscissae).
+    @param y      Function values y(x); must satisfy `y.size() == x.size()`.
+    @param method Interpolation method (default: cspline).
+  */
   Interp(const std::vector<double> &x, const std::vector<double> &y,
          Method method = Method::cspline)
     : acc(gsl_interp_accel_alloc()),
@@ -119,14 +104,18 @@ public:
            "of points");
     gsl_spline_init(spline, x.data(), y.data(), x.size());
   }
+
   ~Interp() {
     gsl_spline_free(spline);
     gsl_interp_accel_free(acc);
   }
+
+  //! Copy construction deleted
   Interp(const Interpolator::Interp &) = delete;
+  //! Copy assignment deleted
   Interp &operator=(const Interpolator::Interp &) = delete;
 
-  //! Evaluates interpolation function at point x. Does not extrapolate.
+  //! Returns interpolated y(x). Returns 0.0 if x is outside [x0, xmax].
   double interp(double x) const {
     if (x < x0 || x > xmax)
       return 0.0;
@@ -134,7 +123,7 @@ public:
       return gsl_spline_eval(spline, x, acc);
   }
 
-  //! Evaluates interpolation function at set of points {x}. Does not extrapolate.
+  //! Returns interpolated y(x) for each point in x. Returns 0.0 outside range.
   std::vector<double> interp(const std::vector<double> &x) const {
     std::vector<double> y;
     y.reserve(x.size());
@@ -143,10 +132,10 @@ public:
     return y;
   }
 
-  //! Evaluates interpolation function at point x. Does not extrapolate.
+  //! Returns interpolated y(x). Returns 0.0 if x is outside [x0, xmax].
   double operator()(double x) const { return interp(x); }
 
-  //! Evaluates interpolation function at set of points {x}. Does not extrapolate.
+  //! Returns interpolated y(x) for each point in x. Returns 0.0 outside range.
   std::vector<double> operator()(const std::vector<double> &x) const {
     return interp(x);
   }
@@ -154,10 +143,13 @@ public:
 
 //==============================================================================
 
-//! Performs interpolation using GSL (GNU Scientific Library)
-/*! @details Takes set of points {xin, yin}, interpolates and evaluates new y
-  values at positions defined by {x_out}; returns as vector.
-  Just a wrapper for class Interp
+/*!
+  @brief Convenience wrapper: interpolates y_in(x_in) and evaluates at x_out.
+  @param x_in   Input x values (strictly increasing).
+  @param y_in   Input y values; must satisfy `y_in.size() == x_in.size()`.
+  @param x_out  Points at which to evaluate the interpolant.
+  @param method Interpolation method (default: cspline).
+  @returns Vector of interpolated values at each point in x_out.
 */
 inline std::vector<double> interpolate(const std::vector<double> &x_in,
                                        const std::vector<double> &y_in,
@@ -169,7 +161,7 @@ inline std::vector<double> interpolate(const std::vector<double> &x_in,
 
 //==============================================================================
 
-//! Check if steffen method available (only with GSL version 2+)
+//! Returns true if the Steffen interpolation method is available (GSL v2+)
 static constexpr bool has_steffen_method() {
 #ifndef GSL_VERSION_1
   return true;

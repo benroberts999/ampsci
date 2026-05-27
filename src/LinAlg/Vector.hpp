@@ -4,34 +4,49 @@
 namespace LinAlg {
 
 //==============================================================================
-//! Vector class (inherits from Matrix)
+/*!
+  @brief Owning 1D array; inherits from Matrix<T> with a single column.
+  @details
+  Stores elements contiguously. Provides 1D index access via `[]`, `()`,
+  and `at()`, plus arithmetic operators and GSL interop inherited from Matrix.
+
+  Supports inner product (`a * b`), matrix-vector product (`A * v`), and
+  outer product (`outer_product(a, b)`).
+
+  **Vector vs View<T>:**
+  Use `Vector<T>` when you need to own the data (e.g. storing a result,
+  passing to a solver). Use `View<T>` (@ref LinAlg::View) for non-owning,
+  zero-copy access into an existing array — e.g. a row or column of a Matrix,
+  obtained via `Matrix::row_view()` or `Matrix::column_view()`.
+
+  @tparam T Element type (default: `double`).
+*/
 template <typename T = double>
 class Vector : public Matrix<T> {
 public:
-  //! Default construct
+  //! Default construct: empty vector
   Vector() : Matrix<T>() {}
 
-  //! Initialise a blank square matrix dimension*dimension, filled with 0
+  //! Construct zero-initialised vector of length `dimension`
   Vector(std::size_t dimension) : Matrix<T>(dimension, 1) {}
 
-  //! Initialise a matrix from initialiser list. {{},{},{}}. Each row must be
-  //! same length
+  //! Construct from initialiser list: `Vector<double> v = {1.0, 2.0, 3.0};`
   Vector(std::initializer_list<T> l) : Matrix<T>(l.size(), 1, l) {}
 
-  //! Initialise from std::vector using move()
+  //! Construct from std::vector by move
   Vector(std::vector<T> &&v)
     : Matrix<T>(v.size(), 1, std::forward<std::vector<T>>(v)) {}
 
-  //! Initialise from std::vector by copy
+  //! Construct from std::vector by copy
   Vector(const std::vector<T> &v) : Matrix<T>(v.size(), 1, v) {}
 
-  //! Initialise from Matrix by move
+  //! Construct from single-column Matrix by move
   Vector(const Matrix<T> &&m) : Matrix<T>(std::move(m)) {
     assert(m.cols() == 1 && "Can only convert Matrix to Vector if matrix has 1 "
                             "column. Traspose first?");
   }
 
-  //! Initialise from Matrix by copy
+  //! Construct from single-column Matrix by copy
   Vector(const Matrix<T> &m) : Matrix<T>(m) {
     assert(m.cols() == 1 && "Can only convert Matrix to Vector if matrix has 1 "
                             "column. Traspose first?");
@@ -39,59 +54,76 @@ public:
 
   //============================================================================
 
-  //! [] index access (with no range checking). [i][j] returns ith row, jth col
-  T operator[](std::size_t i) const { return this->data()[i]; }
-  //! As above, but const
+  //! Element access by index, no range checking, mutable
   T &operator[](std::size_t i) { return this->data()[i]; }
-  //! () index access (with range checking). (i,j) returns ith row, jth col
+  //! Element access by index, no range checking, const
+  T operator[](std::size_t i) const { return this->data()[i]; }
+  //! Element access by index, with range checking, mutable
   T &at(std::size_t i) {
     assert(i < this->size());
     return this->data()[i];
   }
-  //! As above, but const
+  //! Element access by index, with range checking, const
   T at(std::size_t i) const {
     assert(i < this->size());
     return this->data()[i];
   }
-  //! () index access (with range checking). (i,j) returns ith row, jth col
+  //! Element access by index, with range checking, mutable
   T &operator()(std::size_t i) { return at(i); }
-  //! As above, but const
+  //! Element access by index, with range checking, const
   T operator()(std::size_t i) const { return at(i); }
 
   //============================================================================
+
+  //! Returns element-wise complex conjugate
   [[nodiscard]] Vector<T> conj() const;
+  //! Returns real part of each element as a new Vector
   [[nodiscard]] auto real() const;
+  //! Returns imaginary part of each element as a new Vector
   [[nodiscard]] auto imag() const;
+  //! Returns a complex-valued copy of this Vector
   [[nodiscard]] auto complex() const;
 
+  //! Transpose is not defined for Vector (deleted)
   Vector<T> transpose() const = delete;
 
   //============================================================================
+
+  //! Addition assignment: element-wise `*this += rhs`
   Vector<T> &operator+=(const Vector<T> &rhs);
+  //! Subtraction assignment: element-wise `*this -= rhs`
   Vector<T> &operator-=(const Vector<T> rhs);
+  //! Scalar multiplication assignment: `*this *= x`
   Vector<T> &operator*=(const T x);
+  //! Scalar division assignment: `*this /= x`
   Vector<T> &operator/=(const T x);
 
+  //! Element-wise addition: `lhs + rhs`
   [[nodiscard]] friend Vector<T> operator+(Vector<T> lhs,
                                            const Matrix<T> &rhs) {
     return (lhs += rhs);
   }
+  //! Element-wise subtraction: `lhs - rhs`
   [[nodiscard]] friend Vector<T> operator-(Vector<T> lhs,
                                            const Matrix<T> &rhs) {
     return (lhs -= rhs);
   }
+  //! Scalar multiplication: `x * v`
   [[nodiscard]] friend Vector<T> operator*(const T x, Vector<T> rhs) {
     return (rhs *= x);
   }
+  //! Scalar multiplication: `v * x`
   [[nodiscard]] friend Vector<T> operator*(Vector<T> lhs, const T x) {
     return (lhs *= x);
   }
+  //! Scalar division: `v / x`
   [[nodiscard]] friend Vector<T> operator/(Vector<T> lhs, const T x) {
     return (lhs /= x);
   }
 
   //============================================================================
-  //! Matrix*Vector multiplication: v_i = sum_j A_ij*B_j
+
+  //! Matrix-vector product: returns `A * b`, i.e. `v_i = sum_j A_ij * b_j`
   [[nodiscard]] friend Vector<T> operator*(const Matrix<T> &a,
                                            const Vector<T> &b) {
     // https://www.gnu.org/software/gsl/doc/html/blas.html
@@ -119,7 +151,7 @@ public:
     return product;
   }
 
-  //! Inner product: = sum_i a_i*b_i
+  //! Inner (dot) product: returns `sum_i a_i * b_i`
   [[nodiscard]] friend T operator*(const Vector<T> &a, const Vector<T> &b) {
     // https://www.gnu.org/software/gsl/doc/html/blas.html
     assert(a.rows() == b.rows());
@@ -141,7 +173,7 @@ public:
     return product;
   }
 
-  //! Outer product:M_ij = a_i*b_j
+  //! Outer product: returns matrix M with `M_ij = a_i * b_j`
   [[nodiscard]] friend Matrix<T> outer_product(const Vector<T> &a,
                                                const Vector<T> &b) {
     Matrix<T> op(a.rows(), b.rows());
@@ -154,13 +186,13 @@ public:
   }
 
   //============================================================================
-  //! Returns gsl_vector_view (or _float_view, _complex_view,
-  //! _complex_float_view). Call .matrix to use as a GSL matrix (no copy is
-  //! involved). Allows one to use all GSL built-in functions. Note: non -
-  //! owning pointer - matrix must remain in scope.
+
+  //! Returns a GSL vector view of the underlying data (no copy).
+  //! The Vector must remain in scope for the lifetime of the view.
   [[nodiscard]] auto as_gsl_view();
 
-  //! As above, but const
+  //! Returns a const GSL vector view of the underlying data (no copy).
+  //! The Vector must remain in scope for the lifetime of the view.
   [[nodiscard]] auto as_gsl_view() const;
 };
 
