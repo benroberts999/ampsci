@@ -75,7 +75,9 @@ rm Makefile && ./configure.sh -y
   * `GSL_PATH=/usr/local/opt/gnu-scientific-library`
   * Exact path may differ: use `brew --prefix gsl`
 * Then compile by running _make_ from the ampsci directory
-* See below for using
+* See below for using OpenMP with clang on mac
+* **After a macOS update**, GCC may fail to find system headers (see [troubleshooting](\ref troubleshooting)).
+  If this happens, reinstall GCC: `brew reinstall gcc`
 
 ## Compilation: MacOS (M1/M2/apple silicon chip)
 
@@ -83,6 +85,8 @@ rm Makefile && ./configure.sh -y
   * `GSL_PATH=/opt/homebrew/Cellar/gsl/2.7`
   * Exact path may differ: use `brew --prefix gsl`
 * See below for using OpenMP
+* **After a macOS update**, GCC may fail to find system headers (see [troubleshooting](\ref troubleshooting)).
+  If this happens, reinstall GCC: `brew reinstall gcc`
 
 ## Compilation: Windows
 

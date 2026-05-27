@@ -108,6 +108,39 @@ LARGS=-Wl,-ld_classic
 
 You shouldn't need to make clean first, but if it doesn't work, try that too.
 
+### `stdlib.h: No such file or directory` (macOS + GCC)
+
+Error looks something like:
+
+```text
+/usr/local/Cellar/gcc/15.2.0_1/include/c++/15/cstdlib:83:15: fatal error: stdlib.h: No such file or directory
+   83 | #include_next <stdlib.h>
+      |               ^~~~~~~~~~
+compilation terminated.
+make: *** [build/.../main.o] Error 1
+```
+
+This typically happens on macOS after an OS update.
+Homebrew GCC is compiled against a specific macOS SDK (Software Development Kit) version; if that SDK is no longer present after an update, GCC cannot find the system headers.
+Even running update/upgrade doesn't fix this - only solution is the force a reinstall.
+
+Fix: force reinstall GCC so it is built against the current SDK:
+
+<div class="shell-block">
+```shell
+brew reinstall gcc
+```
+</div>
+
+Then reconfigure as before:
+
+<div class="shell-block">
+```shell
+./configure.sh
+make
+```
+</div>
+
 ### Others
 
-* Sometimes, the compiler will not be able to find the correct libraries (particular, e.g., on clusters). In this case, there are two options in the Makfefile: **CARGS ?=** and **LARGS ?=**
+* Sometimes, the compiler will not be able to find the correct libraries (in particular, e.g., on clusters). In this case, there are two options in the Makefile: **CXXFLAGS +=** and **LDFLAGS +=** for extra compiler and linker arguments respectively.
