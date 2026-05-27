@@ -1,4 +1,4 @@
-#include "Modules/DCPdiagrams.hpp"
+#include "Modules/Modules.hpp"
 #include "Angular/CkTable.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "Angular/include.hpp"
@@ -41,8 +41,8 @@ compute_me(const DiracOperator::TensorOperator *const h1,
            const DiracOperator::TensorOperator *const h2,
            const std::vector<DiracSpinor> &core,
            const std::vector<DiracSpinor> &excited, const double omega,
-           const ExternalField::CorePolarisation *dV1,
-           const ExternalField::CorePolarisation *dV2) {
+           const ExternalField::CorePolarisation *dV1=nullptr,
+           const ExternalField::CorePolarisation *dV2=nullptr) {
   //create tables
   Coulomb::meTable<double> matrix_elements1;
   Coulomb::meTable<double> matrix_elements2;
@@ -1147,6 +1147,10 @@ void DCPdiagrams(const IO::InputBlock &input, const Wavefunction &wf) {
 // sum contribution from all diagrams
 
 // Compute contribution to scalar/vector transition polarisability through appropriate scaling factor
+namespace {
+  const Register r_DCPdiagrams{
+    "DCPdiagrams", "Initial lowest order DCP diagram evaluation", &DCPdiagrams};
+  } // namespace
 } // namespace Module
 // namespace Module
 // namespace Module
