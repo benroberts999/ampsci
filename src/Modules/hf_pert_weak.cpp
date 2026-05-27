@@ -1,6 +1,6 @@
 //Module for computing the third order hyperfine-weak induced electric dipole tranisition matrix element required for extraction
 // of the nuclear anapole moment from atomic parity violation experiments
-#include "Modules/hf_pert_weak.hpp"
+#include "Modules/Modules.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/meTable.hpp"
 #include "DiracOperator/TensorOperator.hpp"
@@ -10,7 +10,6 @@
 #include "ExternalField/TDHF.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
-#include "Modules/matrixElements.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/NuclearData.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
@@ -43,9 +42,9 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
               const DiracOperator::TensorOperator *const hfs,
               const std::vector<DiracSpinor> &spectrum, const DiracSpinor &w,
               const DiracSpinor &v,
-              const ExternalField::CorePolarisation *dV_pnc,
-              const ExternalField::CorePolarisation *dV_e1,
-              const ExternalField::DiagramRPA *dV_hf) {
+              const ExternalField::CorePolarisation *dV_pnc=nullptr,
+              const ExternalField::CorePolarisation *dV_e1=nullptr,
+              const ExternalField::DiagramRPA *dV_hf=nullptr) {
 
   //Need matrix elements between valence states in transition and intermediate states from the spectrum
 
@@ -471,6 +470,10 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
 }
 
 // namespace Module
+namespace {
+  const Register r_hf_pert_weak{
+    "hf_pert_weak", "Third order SOS dipole amplitude incl weak x hyperfine", &hf_pert_weak};
+  } // namespace
 
 // namespace Module
 } // namespace Module
