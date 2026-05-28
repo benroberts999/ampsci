@@ -213,6 +213,9 @@ public:
                         (v.kappa() + x.kappa() != 0) &&
                         (w.kappa() + y.kappa() != 0);
 
+    if (!have_mop && have_n && k == 0)
+      return false;
+
     return (have_mop || have_n);
   }
 

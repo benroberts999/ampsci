@@ -33,28 +33,23 @@ constexpr bool is_complex_v = is_complex<T>::value;
   linear algebra solvers wrapping LAPACK and GSL.
 
   ### Core types:
-  - @ref Matrix<T> : owning row-major matrix; supports real and complex
+  - @ref LinAlg::Matrix<T> : owning row-major matrix; supports real and complex
     element types. Provides arithmetic, GSL interop, and element-wise access.
-  - @ref Vector<T> : owning 1D array; used for eigenvectors, right-hand sides,
+  - @ref LinAlg::Vector<T> : owning 1D array; used for eigenvectors, right-hand sides,
     and eigenvalue arrays.
 
   ### Views:
-  - @ref View<T> : non-owning strided view over a 1D segment of an array.
+  - @ref LinAlg::View<T> : non-owning strided view over a 1D segment of an array.
     Used to provide row and column access into a Matrix without copying.
     Obtained via @ref Matrix::row_view() and @ref Matrix::column_view()
-  - @ref Matrix_view<T> : non-owning view of a 2D subblock of a Matrix.
-    Obtained via @ref Matrix::submatrix_view().
+  - @ref LinAlg::Matrix_view<T> : non-owning view of a 2D subblock of a Matrix.
 
   ### Solvers:
-  - @ref solve_Axeqb(A, b) : solves `Ax = b` via LU decomposition (GSL).
-  - @ref symmhEigensystem(A) : all eigenvalues/vectors of a symmetric or
-    Hermitian matrix (LAPACK `dsyev`/`zheev`).
-  - @ref symmhEigensystem(A, n) : first n eigenvalues/vectors (LAPACK `dsyevx`).
-  - @ref symmhEigensystem(A, threshold) : all eigenvalues below a threshold
-    (LAPACK `dsyevr`).
-  - @ref symmhEigensystem(A, B) : generalised problem `Av = eBv` (LAPACK
-    `dsygv`/`zhegv`).
-  - @ref genEigensystem(A, sort) : general non-symmetric real matrix (GSL).
+  - @ref LinAlg::solve_Axeqb() : solves `Ax = b` via LU decomposition (GSL).
+  - @ref LinAlg::symmhEigensystem() : generalised problem `Av = eBv` or `Av = ev`
+    Several overloads, and templayte for real/complex types
+    (LAPACK `dsygv`/`zhegv`/`dsyevr`/`dsyev`/`zheev`).
+  - @ref LinAlg::genEigensystem() : general non-symmetric real matrix (GSL).
 */
 namespace LinAlg {
 
