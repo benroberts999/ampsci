@@ -259,11 +259,11 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
                                   {"3d-", "3d-", 5.1893316793e-01}};
 
     const IO::InputBlock options{""};
-    auto h = DiracOperator::generate(
-      "hfs", {"hfs", "k=2; nuc_mag=pointlike; Q=1.0; "}, wf);
+    auto h =
+      DiracOperator::generate("hfs", {"hfs", "k=2; F=pointlike; Q=1.0; "}, wf);
 
     auto h2 = DiracOperator::generate(
-      "hfs", {"hfs", "k=2; nuc_mag=pointlike; Q=1.0; units = au;"}, wf);
+      "hfs", {"hfs", "k=2; F=pointlike; Q=1.0; units = au;"}, wf);
 
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 2);
@@ -287,11 +287,11 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     std::cout << "hfs(3)\n";
 
     const IO::InputBlock options{""};
-    auto h = DiracOperator::generate(
-      "hfs", {"hfs", "k=3; nuc_mag=pointlike; Q=1.0; "}, wf);
+    auto h =
+      DiracOperator::generate("hfs", {"hfs", "k=3; F=pointlike; Q=1.0; "}, wf);
 
     auto h2 = DiracOperator::generate(
-      "hfs", {"hfs", "k=3; nuc_mag=pointlike; Q=1.0; units = au;"}, wf);
+      "hfs", {"hfs", "k=3; F=pointlike; Q=1.0; units = au;"}, wf);
 
     REQUIRE(h->imaginaryQ() == false);
     REQUIRE(h->rank() == 3);

@@ -21,7 +21,7 @@ Module::matrixElements {
 Module::matrixElements { 
   operator = hfs;
   off-diagonal = false;
-  options { nuc_mag = pointlike; }
+  options { F = pointlike; }
 }
 
 Running for Cs, Z=55 A=133

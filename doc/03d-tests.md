@@ -2,20 +2,26 @@
 
 \brief Writing and running tests for ampsci using Catch2.
 
-## Running tests
-
-* Where possible, add new unit/integration tests for new functionality.
-  * Tests are strongly encouraged for core library changes.
+* Where possible, add new unit/integration tests for any new functionality that you add.
+  * Tests are strongly encouraged for core ampsci changes.
   * Tests are not required for standalone modules.
   * Code uses `Catch2` style tests - easiest way is to copy existing tests, or see example below
   * All tests must be in a cpp file that ends with
     * `.tests.cpp`
     * This ensures they are compiled correctly into the right executable
-* More importantly, ensure existing tests pass before submitting a pull request.
+* More importantly, ensure all existing tests pass before submitting a pull request.
   * In dev mode, `tests` will be compiled by default
   * Otherwise, compile the tests executable
-* Running tests will produce junk output files. These all have `deleteme` in their filenames, so can be cleared easily. The Makefile has a target for this: `make remove_junk`
 
+## Running tests
+
+* Running tests will produce junk output files. These all have `deleteme` in their filenames, so can be cleared easily. The Makefile has a target for this: `make remove_junk`
+* The full set of tests can take a very long time; though running just the unit tests should be very quick.
+ * The set of tests that are run can be selected by passing "filters" to the commandline `tests` executable (see examples below)
+
+
+In dev mode, `tests` will be compiled by default.
+  * Otherwise, compile the tests executable:
 <div class="shell-block">
 ```bash
 make tests
@@ -50,6 +56,15 @@ Then, remove the junk output files (all have `deleteme` in the filename):
 make remove_junk
 ```
 </div>
+
+@note
+On mac, you may need to escape the filters:
+<div class="shell-block">
+```bash
+./tests "~[slow]"
+```
+</div>
+
 
 ### Writing tests using Catch2
 
