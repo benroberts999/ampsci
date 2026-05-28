@@ -88,6 +88,16 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
      {"bk_file",
       "Filename for storing two-body Breit integrals. By default, is "
       "~ At.bk, where At is atomic symbol + 'identity'."},
+     {"ci_file",
+      "Filename for storing CI solutions (energies + eigenvectors). Default "
+      "is auto-generated: identity_cibasis[_s1][_s2][_bru].ci.abf. "
+      "Set to 'false' to disable read/write. [auto]"},
+     {"read_only",
+      "If true, will *only* read in the existing CI solutions, and will not "
+      "calculate anything new, even if new states are requested. You must set "
+      "the ci_basis (not read in) and the J/pi solutions you want; only these "
+      "will be read in. Use if you "
+      "know CI has already been completed. [false]"},
      {"no_new_integrals",
       "Usually false. If set to true, ampsci will not calculate any new "
       "Coulomb or Sigma_2 integrals, even if they are implied by the above "
@@ -162,6 +172,11 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   using namespace std::string_literals;
   const auto br_string = Brueckner ? "_bru"s : "";
 
+  const auto read_only = input.get("read_only", false);
+  if (read_only) {
+    std::cout << "\nReading existing CI solutions - no new CI performed\n";
+  }
+
   //----------------------------------------------------------------------------
 
   // Determine different basis subsets
@@ -201,7 +216,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   //----------------------------------------------------------------------------
 
-  if (include_MBPT) {
+  if (include_MBPT && !read_only) {
     std::cout << "\nIncluding MBPT: "
               << (include_Sigma1 && include_Sigma2 ? "Σ_1 + Σ_2" :
                   include_Sigma1                   ? "Σ_1" :
@@ -247,7 +262,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   // It takes time to check if we need to, so faster to skip if we already
   // know all integrals exist.
   const auto no_new_integralsQ = input.get("no_new_integrals", false);
-  {
+  if (!read_only) {
     std::cout << "Calculate two-body Coulomb integrals: Q^k_abcd\n";
     std::cout << std::flush;
 
@@ -321,15 +336,17 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
   // Create lookup table for one-particle matrix elements, h1
   // nb: if Brueckner, Sigma1 already accounted for!
-  std::cout << "Calculate one-body integrals.\n";
-  std::cout << std::flush;
+  if (!read_only) {
+    std::cout << "Calculate one-body integrals.\n";
+    std::cout << std::flush;
+  }
   const auto h1 =
-    Brueckner ?
-      CI::calculate_h1_table(ci_sp_basis, {}, {}, {}, false) :
-    wf.Sigma() ?
-      CI::calculate_h1_table(ci_sp_basis, *wf.Sigma(), include_Sigma1) :
-      CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
-                             include_Sigma1);
+    read_only  ? Coulomb::meTable<double>{} :
+    Brueckner  ? CI::calculate_h1_table(ci_sp_basis, {}, {}, {}, false) :
+    wf.Sigma() ? CI::calculate_h1_table(ci_sp_basis, *wf.Sigma(),
+                                        include_Sigma1) :
+                 CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
+                                        include_Sigma1);
 
   //----------------------------------------------------------------------------
   // Breit and QED
@@ -345,7 +362,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   // Creat Breit table (only for CI, not MBPT part)
   Coulomb::WkTable Bk;
   const auto Breit2 = input.get("Breit2", true);
-  if (wf.vHF()->vBreit() && Breit2) {
+  if (wf.vHF()->vBreit() && Breit2 && !read_only) {
 
     // use a subset of basis for Breit?
     const auto Breit_basis_string =
@@ -368,7 +385,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   // Calculate MBPT corrections to two-body Coulomb integrals
 
   Coulomb::LkTable Sk;
-  if (include_Sigma2) {
+  if (include_Sigma2 && !read_only) {
 
     // Here, write basis info into filename, since these are _internal_ lines!
     const auto Sk_filename =
@@ -397,6 +414,17 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   const auto num_solutions = input.get("num_solutions", 5);
   const auto all_below_cm = input.get<double>("all_below_cm");
   const auto ci_input = input.get("ci_input", std::string{""});
+
+  // CI solutions file: identity_basis[_s1][_s2][_bru].ci.abf
+  const auto default_ci_fname =
+    wf.identity() + "_" + basis_string + (include_Sigma1 ? "_s1" : "") +
+    (include_Sigma2 ? "_s2" : "") + br_string + ".ci.abf";
+  const auto ci_fname_input = input.get("ci_file", default_ci_fname);
+  const auto ci_fname =
+    (ci_fname_input == "false") ? std::string{} : ci_fname_input;
+  if (!ci_fname.empty()) {
+    std::cout << "CI solutions file: " << ci_fname << "\n";
+  }
   const auto sort_output = input.get("sort_output", false);
   const auto parallel_ci = input.get("parallel_ci", true);
   const auto print_details = input.get("print_details", true);
@@ -406,7 +434,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
   levels.resize(n_Js);
   std::vector<std::ostringstream> os(n_Js); // for parallel output
 
-  fmt::print("Running CI for {} J/pi's {}\n", n_Js,
+  fmt::print("Running CI for {} J/pi's {}\n\n", n_Js,
              parallel_ci ? "in parallel" : "");
   std::cout << std::flush;
 
@@ -422,7 +450,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
       auto &output_stream = parallel_ci ? os.at(i) : std::cout;
       levels.at(i) =
         run_CI(ci_sp_basis, twoj, pi, num_solutions, all_below_cm, h1, qk, Bk,
-               Sk, include_Sigma2, print_details, output_stream);
+               Sk, include_Sigma2, print_details, output_stream, ci_fname);
     }
 
     // If doing in parallel, output detailed output at end
@@ -501,8 +529,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_solutions, std::optional<double> all_below_cm,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
               const Coulomb::WkTable &Bk, const Coulomb::LkTable &Sk,
-              bool include_Sigma2, bool print_details,
-              std::ostream &outstream) {
+              bool include_Sigma2, bool print_details, std::ostream &outstream,
+              const std::string &ci_fname) {
 
   auto printJ = [](int twoj) {
     return twoj % 2 == 0 ? std::to_string(twoj / 2) :
@@ -510,8 +538,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   };
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
-  fmt::print(outstream, "Run CI for J={}, {} parity\n", printJ(twoJ),
-             printPi(parity));
+  fmt::print(outstream, "CI: J={}, {} parity\n", printJ(twoJ), printPi(parity));
   outstream << std::flush;
 
   PsiJPi psi{twoJ, parity, ci_sp_basis};
@@ -526,33 +553,61 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   }
 
   const auto N_CSFs = psi.CSFs().size();
-  outstream << "Total CSFs: " << psi.CSFs().size() << "\n";
-  outstream << std::flush;
+  outstream << "Total CSFs: " << N_CSFs << "\n" << std::flush;
 
-  //----------------------------------------------------------------------------
+  // If "read only" then h1 should be empty
+  // (or we could just pass read_only in)
+  const bool read_only = h1.empty();
 
-  // Construct the CI matrix:
-  const auto br_ptr = !Bk.emptyQ() ? &Bk : nullptr;
-  const auto s2_ptr = include_Sigma2 ? &Sk : nullptr;
-  const auto Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr);
+  // Try to read existing solutions from file
+  bool read_ok =
+    !ci_fname.empty() && psi.read_write(ci_fname, IO::FRW::read, outstream);
+  const auto num_read_solutions = (int)psi.num_solutions();
 
-  //----------------------------------------------------------------------------
+  // Solve only if we don't have enough solutions already
+  const auto n_required =
+    (num_solutions <= 0 || all_below_cm) ? (int)N_CSFs : num_solutions;
+  const bool need_solve = !read_ok || num_read_solutions < n_required;
 
-  if (all_below_cm) {
-    fmt::print(outstream, "Finding all solutions below {} cm^-1\n",
-               *all_below_cm);
-  } else if (num_solutions > 0) {
-    fmt::print(outstream, "Find first {} solutions\n", num_solutions);
+  if (read_only && need_solve) {
+    fmt::print(
+      outstream,
+      "Warning: Requested {} solutions, but only read {} from {}.\n"
+      "         Running 'read only' CI, so these will not be computed.\n"
+      "         Re-run with `read_only = false` to calculate these levels\n",
+      n_required, num_read_solutions, ci_fname);
+  }
+
+  if (need_solve && !read_only) {
+    // Construct the CI matrix:
+    const auto br_ptr = !Bk.emptyQ() ? &Bk : nullptr;
+    const auto s2_ptr = include_Sigma2 ? &Sk : nullptr;
+    const auto Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr);
+
+    if (all_below_cm) {
+      fmt::print(outstream, "Finding all solutions below {} cm^-1\n",
+                 *all_below_cm);
+    } else if (num_solutions > 0) {
+      fmt::print(outstream, "Find first {} solutions\n", num_solutions);
+    } else {
+      fmt::print(outstream, "Finding all solutions\n");
+    }
+
+    {
+      IO::ChronoTimer t2("");
+      psi.solve(Hci, num_solutions, all_below_cm);
+      outstream << psi.num_solutions()
+                << " eigenvalues: T = " << t2.reading_str() << "\n";
+    }
+
+    if (!ci_fname.empty()) {
+      psi.read_write(ci_fname, IO::FRW::write, outstream);
+    }
   } else {
-    fmt::print(outstream, "Finding all solutions\n", num_solutions);
+    outstream << "Using " << psi.num_solutions()
+              << " solutions read from file.\n";
   }
-
-  {
-    IO::ChronoTimer t2("");
-    psi.solve(Hci, num_solutions, all_below_cm);
-    outstream << psi.num_solutions() << " eigenvalues: T = " << t2.reading_str()
-              << "\n\n";
-  }
+  outstream << "\n";
   const auto E0 = psi.num_solutions() > 0 ? psi.energy(0) : 0.0;
 
   // For calculating g-factors
@@ -560,9 +615,10 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   // only actually need to do this once..
   const auto m1_tab = ExternalField::me_table(ci_sp_basis, &m1);
 
-  // Print details of each solution, unless we find all:
-  const auto print_details_tmp = all_below_cm || num_solutions > 0;
-  print_details = print_details && print_details_tmp;
+  // Print details of each solution, unless we find all, or read from file:
+  const auto print_details_tmp =
+    (all_below_cm || num_solutions > 0) && need_solve;
+  print_details = print_details && print_details_tmp && !read_only;
   const double minimum_percentage = 5.0; // min % to print
 
   // XXX nb: sometimes get's non-rel config wrong! (not a big issue)

@@ -55,59 +55,120 @@ As always, we check the available input options: `./ampsci -i CI`
 ```java
 // Available CI options/blocks
 CI{
-  // Basis used for CI expansion; must be a sub-set of full ampsci basis
-  // [default: 10spdf]
   ci_basis;
-  // List of total angular momentum J for CI solutions (comma separated). Must
-  // be integers (two-electron only). []
+    // Basis used for CI expansion; must be a sub-set of
+    // full ampsci basis [default: 20spdf]
   J;
-  // As above, but for EVEN CSFs only (takes precedence over J).
+    // List of total angular momentum J for CI solutions
+    // (comma separated). Must be integers (two-electron
+    // only). []
   J+;
-  // As above, but for ODD CSFs (takes precedence over J).
+    // As above, but for EVEN CSFs only (takes precedence
+    // over J).
   J-;
-  // Number of CI solutions to find (for each J/pi) [5]
+    // As above, but for ODD CSFs (takes precedence over J).
   num_solutions;
-  // Include one-body MBPT correlations? [false]
+    // Number of CI solutions to find (for each J/pi) [5]
+  all_below_cm;
+    // Find all CI solutions for energies below this
+    // threshold, in inverse cm. Note that this is the total
+    // energy, not the excitation energy. If set,
+    // num_solutions is ignored.
   sigma1;
-  // Include two-body MBPT correlations? [false]
+    // Include one-body MBPT correlations? [false]
   sigma2;
-  // The subset of ci_basis for which the two-body MBPT corrections are
-  // calculated. Must be a subset of ci_basis. If existing sk file has more
-  // integrals, they will be used. [default: Nspdf, where N is maximum n for
-  // core + 3]
+    // Include two-body MBPT correlations? [false]
+  Brueckner;
+    // Use Brueckner (spectrum) states for CI basis? Must
+    // have Spectrum and sigma1. [false]
   cis2_basis;
-  // Basis used for the one-body MBPT diagrams (Sigma^1). These are the most
-  // important, so in general the default (all basis states) should be used.
-  // Must be a subset of full ampsci basis. [default: full basis]
-  //  - Note: if CorrelationPotential is available, it will be used instead of
-  // calculating the Sigma_1 integrals
+    // The subset of ci_basis for which the two-body MBPT
+    // corrections are calculated. Must be a subset of
+    // ci_basis. If existing sk file has more integrals,
+    // they will be used. [default: Nspdf, where N is
+    // maximum n for core + 3]
+  Breit2;
+    // Include two-body Breit? Default is true if Breit
+    // included in HF. Ignored if Breit not included in HF.
+    // [true]
+  Breit_basis;
+    // Subset of ci_basis used to include two-body Breit
+    // corrections into CI matrix. Large basis is slow, uses
+    // huge memory, and makes small contribution. [default:
+    // Nspdf, where N is maximum n for core + 6]
   s1_basis;
-  // Basis used for internal lines of the two-body MBPT diagrams (Sigma^2). Must
-  // be a subset of s1_basis. [default: s1_basis]
+    // Usually should be left as default. Basis used for the
+    // one-body MBPT diagrams (Sigma^1) internal lines.
+    // These are the most important, so in general the
+    // default (all basis states) should be used. Must be a
+    // subset of full ampsci basis. [default: full basis]
+    //  - Note: if CorrelationPotential is available, it
+    // will be used instead of calculating the Sigma_1
+    // integrals
   s2_basis;
-  // Minimum n for core to be included in MBPT [1]
+    // Usually should be left blank. Basis used for internal
+    // lines of the two-body MBPT diagrams (Sigma^2)
+    // internal lines. Must be a subset of s1_basis.
+    // [default: s1_basis]
   n_min_core;
-  // Maximum k (multipolarity) to include when calculating new Coulomb
-  // integrals. Higher k often contribute negligibly. Note: if qk file already
-  // has higher-k terms, they will be included. Set negative (or very large) to
-  // include all k. [8]
+    // Minimum n for core to be included in MBPT [1]
   max_k;
-  // Filename for storing two-body Coulomb integrals. By default, is At.qk,
-  // where At is atomic symbol.
+    // Maximum k (multipolarity) to include when calculating
+    // new Coulomb integrals. Higher k often contribute
+    // negligably. Note: if qk file already has higher-k
+    // terms, they will be included. Set negative (or very
+    // large) to include all k. [8]
+  denominators;
+    // 'RS', 'Fermi', 'Fermi0'. Denominators used in Sigma2
+    // matrix elements. RS uses actual states for external
+    // legs, Fermi uses the lowest excited state for each
+    // kappa, Fermi0 uses lowest excited state for all
+    // kappas (and thus cancels in all except diagram 'd').
+    // [Fermi0]
   qk_file;
-  // Filename for storing two-body Sigma_2 integrals. By default, is
-  // At_n_b_k.sk, where At is atomic symbol, n is n_min_core, b is cis2_basis, k
-  // is max_k.
+    // Filename for storing two-body Coulomb integrals. By
+    // default, is ~ At.qk, where At is atomic symbol +
+    // 'identity'.
   sk_file;
-  // Excludes the Sigma_2 box corrections that have 'wrong' parity when
-  // calculating Sigma2 matrix elements. Note: If existing sk file already has
-  // these, they will be included [false]
+    // Filename for storing two-body Sigma_2 integrals. By
+    // default, is At_n_b_k.sk, where At is atomic symbol, n
+    // is n_min_core, b is cis2_basis, k is max_k.
+  bk_file;
+    // Filename for storing two-body Breit integrals. By
+    // default, is ~ At.bk, where At is atomic symbol +
+    // 'identity'.
+  ci_file;
+    // Filename for storing CI solutions (energies +
+    // eigenvectors). Default is auto-generated:
+    // identity_cibasis[_s1][_s2][_bru].ci.abf. Set to
+    // 'false' to disable read/write. [auto]
+  read_only;
+    // If true, will *only* read in the existing CI
+    // solutions, and will not calculate anything new, even
+    // if new states are requested. You must set the
+    // ci_basis (not read in) and the J/pi solutions you
+    // want; only these will be read in. Use if you know CI
+    // has already been completed. [false]
+  no_new_integrals;
+    // Usually false. If set to true, ampsci will not
+    // calculate any new Coulomb or Sigma_2 integrals, even
+    // if they are implied by the above settings. This saves
+    // time when we know all required integrals already
+    // exist, since the code doesn't need to check. [true]
   exclude_wrong_parity_box;
-  // Sort output by energy? Default is to sort by J and Pi first. [false]
+    // Excludes the Sigma_2 box corrections that have
+    // 'wrong' parity when calculating Sigma2 matrix
+    // elements. Note: If existing sk file already has
+    // these, they will be included [false]
   sort_output;
-  // Run CI in parallel (solve each J/Pi in parallel). Faster, uses slightly
-  // more memory [true]
+    // Sort output by energy? Default is to sort by J and Pi
+    // first. [false]
+  print_details;
+    // Condition to print details of each CI solution
+    // (otherwise just prints summary) [true]
   parallel_ci;
+    // Run CI in parallel (solve each J/Pi in parallel).
+    // Faster, uses slightly more memory [true]
 }
 ```
 
@@ -268,6 +329,61 @@ Where `conf` is the leading configuration (in non-relativistic notation), and th
 
 The table shows the results of the calculation, and comparison to experimental excitation energies, in units of \f${\rm cm}^{-1}\f$ (for the ground state, the ionisation potential is instead shown).
 The agreement is at the ~few % level.
+
+-----
+
+## Storing and reusing CI solutions <a name="cifile"></a>
+
+CI solutions (energies and eigenvectors) can be saved to disk and read back on subsequent runs, which avoids re-diagonalising the Hamiltonian.
+By default, a filename is generated automatically based on the atomic identity, CI basis, and which MBPT corrections are included (e.g., `Mg_20spdf_s1_s2.ci.abf`).
+This can be overridden with the `ci_file` option; set it to `false` to disable read/write entirely.
+
+On the first run the solutions are computed and written to file.
+On subsequent runs ampsci reads them back and skips diagonalisation.
+If more solutions are requested than are stored, ampsci re-solves (from scratch) and overwrites those objects in the file.
+
+If the CI solutions already exist on disk and you do not need to recalculate (e.g., you are only computing matrix elements), set `read_only = true`.
+This skips all integral calculations and reads directly from the file:
+
+```java
+CI{
+  ci_basis = 20spdf;
+  J+ = 0,1,2;
+  J- = 0,1,2;
+  read_only = true;
+}
+```
+
+* The ci_basis _must_ be set, and must be the same.
+* Code will throw an error/warning if the ci_basis does not match that expected
+* The required J must be set: only the requested J's will be read in.
+  * They can be a subset of previous run
+
+### Multiple runs
+
+The same CI output file stores solutions for each J/parity independently.
+For example, if you required 20 `J=1-` levels, but only a few from the other states, you could run twice like:
+
+```java
+CI{
+  ci_basis = 20spdf;
+  J- = 1;
+  num_solutions = 20;
+}
+```
+
+```java
+CI{
+  ci_basis = 20spdf;
+  J+ = 0,1,2;
+  J- = 0,1,2;
+  num_solutions = 3;
+}
+```
+
+* In the second run, 20 previous `J=1-` solutions will be read in; there are no existing solutions for the other states, so the requested 3 will be calculated.
+
+* These have to be completely seperate ampsci runs - cannot have two CI blocks in the same ampsci input file.
 
 -----
 

@@ -1,10 +1,12 @@
 #include "CSF.hpp"
 #include "Angular/include.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <iostream>
 
 namespace CI {
 
@@ -193,6 +195,137 @@ std::size_t PsiJPi::num_solutions() const { return m_num_solutions; }
 const ConfigInfo &PsiJPi::info(std::size_t i) const {
   assert(m_Info.size() == m_num_solutions);
   return m_Info.at(i);
+}
+
+//==============================================================================
+bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
+                        std::ostream &outstream) {
+  using IO::FRW::rw_binary;
+  const bool readQ = (rw == IO::FRW::read);
+
+  std::size_t nc = m_CSFs.size();
+
+  // Bytes of one sector's payload: num_solutions + E[nc] + M[nc*nc]
+  const auto payload_bytes = [](std::size_t n) {
+    return sizeof(std::size_t) + (n + n * n) * sizeof(double);
+  };
+  // Bytes of one sector's prefix: twoJ + pi + num_csfs
+  constexpr std::size_t prefix_bytes = 2 * sizeof(int) + sizeof(std::size_t);
+
+  // Write this sector's payload (num_solutions, E, M) to an open stream
+  const auto write_payload = [&](std::fstream &f) {
+    rw_binary(f, IO::FRW::write, m_num_solutions);
+    // Energies: always nc doubles (zero-pad if partial solve)
+    std::vector<double> E(nc, 0.0);
+    std::copy_n(m_Solution.first.data(), std::min(m_Solution.first.size(), nc),
+                E.data());
+    f.write(reinterpret_cast<const char *>(E.data()),
+            static_cast<std::streamsize>(nc * sizeof(double)));
+    // Coefficient matrix: always nc*nc doubles (zero-pad extra rows)
+    std::vector<double> M(nc * nc, 0.0);
+    const auto nr = std::min(m_Solution.second.rows(), nc);
+    const auto nc2 = std::min(m_Solution.second.cols(), nc);
+    for (std::size_t i = 0; i < nr; ++i) {
+      std::copy_n(m_Solution.second.data() + i * m_Solution.second.cols(), nc2,
+                  M.data() + i * nc);
+    }
+    f.write(reinterpret_cast<const char *>(M.data()),
+            static_cast<std::streamsize>(nc * nc * sizeof(double)));
+  };
+
+  if (readQ && !IO::FRW::file_exists(fname)) {
+    return false;
+  }
+
+  // Scan file for matching (twoJ, pi) sector; record its offset if found
+  std::streamoff match_offset = -1;
+  std::size_t match_num_csfs = 0;
+  if (IO::FRW::file_exists(fname)) {
+    std::fstream f;
+    IO::FRW::open_binary(f, fname, IO::FRW::read);
+    while (f) {
+      const auto pos = f.tellg();
+      int twoj = 0, pi = 0;
+      std::size_t num_csfs = 0;
+      rw_binary(f, IO::FRW::read, twoj, pi, num_csfs);
+      if (!f) {
+        break;
+      }
+      if (twoj == m_twoj && pi == m_pi) {
+        match_offset = pos;
+        match_num_csfs = num_csfs;
+        break;
+      }
+      f.seekg(static_cast<std::streamoff>(payload_bytes(num_csfs)),
+              std::ios::cur);
+    }
+  }
+
+  // ===== READ =====
+  if (readQ) {
+    if (match_offset < 0) {
+      return false;
+    }
+    if (match_num_csfs != nc) {
+      // in theory, should never happen: filename includes basis string..
+      outstream << "\nCannot read from " << fname << ": CSF count mismatch "
+                << "(file has " << match_num_csfs << ", expected " << nc
+                << ").\n";
+      return false;
+    }
+    std::fstream f;
+    IO::FRW::open_binary(f, fname, IO::FRW::read);
+    f.seekg(match_offset + static_cast<std::streamoff>(prefix_bytes));
+    rw_binary(f, IO::FRW::read, m_num_solutions);
+    const auto Jstr = (m_twoj % 2 == 0) ? std::to_string(m_twoj / 2) :
+                                          std::to_string(m_twoj) + "/2";
+    outstream << "Reading J=" << Jstr << " pi=" << (m_pi > 0 ? "+" : "-")
+              << " (" << m_num_solutions << " solutions) from " << fname
+              << "\n";
+    std::vector<double> E(nc), M(nc * nc);
+    f.read(reinterpret_cast<char *>(E.data()),
+           static_cast<std::streamsize>(nc * sizeof(double)));
+    f.read(reinterpret_cast<char *>(M.data()),
+           static_cast<std::streamsize>(nc * nc * sizeof(double)));
+    m_Solution.first = LinAlg::Vector<double>(std::move(E));
+    m_Solution.second = LinAlg::Matrix<double>(nc, nc, std::move(M));
+    m_Info.resize(m_num_solutions);
+    return true;
+  }
+
+  // ===== WRITE =====
+  {
+    const auto Jstr = (m_twoj % 2 == 0) ? std::to_string(m_twoj / 2) :
+                                          std::to_string(m_twoj) + "/2";
+    outstream << "Writing J=" << Jstr << " pi=" << (m_pi > 0 ? "+" : "-")
+              << " (" << m_num_solutions << " solutions) to " << fname << "\n";
+  }
+
+  if (match_offset >= 0) {
+    // Sector exists: overwrite in-place (payload size fixed by num_csfs)
+    if (match_num_csfs != nc) {
+      outstream << "\nCannot write to " << fname << ": CSF count mismatch "
+                << "(file has " << match_num_csfs << ", expected " << nc
+                << ").\n";
+      return false;
+    }
+    std::fstream f;
+    IO::FRW::open_binary(f, fname, IO::FRW::update);
+    f.seekp(match_offset + static_cast<std::streamoff>(prefix_bytes));
+    write_payload(f);
+  } else {
+    // New sector: append prefix + payload at end of file
+    std::fstream f;
+    IO::FRW::open_binary(f, fname, IO::FRW::update);
+    if (!f) {
+      IO::FRW::open_binary(f, fname, IO::FRW::write);
+    }
+    f.seekp(0, std::ios::end);
+    rw_binary(f, IO::FRW::write, m_twoj, m_pi, nc);
+    write_payload(f);
+  }
+
+  return true;
 }
 
 } // namespace CI

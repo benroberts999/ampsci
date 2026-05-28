@@ -1,7 +1,9 @@
 #pragma once
+#include "IO/FRW_fileReadWrite.hpp"
 #include "LinAlg/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <array>
+#include <iostream>
 #include <optional>
 #include <utility>
 #include <vector>
@@ -214,6 +216,38 @@ public:
 
   //! Configuration info for the ith solution (must have been set via update_config_info())
   const ConfigInfo &info(std::size_t i) const;
+
+  /*!
+    @brief Reads or writes CI solutions (energies, eigenvectors) to/from a multi-sector binary file.
+    @details
+    A single file holds multiple sectors, one per (twoJ, parity) pair.
+    Each sector is self-describing: (twoJ, pi, num_csfs, num_solutions, E[num_csfs], M[num_csfs x num_csfs]).
+    Energies and eigenvectors are always stored at full num_csfs size (zero-padded
+    if only a partial solve was done), so sector size is determined from num_csfs
+    alone, enabling O(N) scan and in-place overwrite.
+
+    The CSF basis (m_CSFs) is not touched; it must be constructed via the normal
+    constructor before calling this function. The basis (and hence num_csfs) must
+    be consistent with the file on write; a mismatch causes failure.
+
+    ConfigInfo is not stored -- call update_config_info() after reading if needed.
+
+    On read: scans sectors until matching (twoJ, pi) is found, verifies num_csfs,
+    reads num_solutions, E, and M; returns false if sector not found or num_csfs
+    mismatches.
+
+    On write: if the sector already exists and num_csfs matches, overwrites it
+    in-place using @ref IO::FRW::update. If it is a new sector, appends it to
+    the end of the file -- no rewrite of existing data.
+
+    @param fname  Path to the binary file.
+    @param rw     @ref IO::FRW::read to read; @ref IO::FRW::write to write.
+
+    @return True on success; false if the file does not exist (read), the sector
+            is not found (read), or num_csfs mismatches.
+  */
+  bool read_write(const std::string &fname, IO::FRW::RoW rw,
+                  std::ostream &outstream = std::cout);
 };
 
 } // namespace CI

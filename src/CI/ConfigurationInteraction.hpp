@@ -6,6 +6,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
+#include <string>
 #include <vector>
 
 //! Functions and classes for Configuration Interaction calculations
@@ -202,6 +203,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
               const Coulomb::WkTable &Bk, const Coulomb::LkTable &Sk,
               bool include_Sigma2, bool print_details,
-              std::ostream &outstream = std::cout);
+              std::ostream &outstream = std::cout,
+              const std::string &ci_fname = "");
 
 } // namespace CI

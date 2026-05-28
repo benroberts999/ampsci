@@ -99,12 +99,13 @@ inline std::string removeCommentsAndSpaces(const std::string &input) {
 }
 
 //==============================================================================
-enum RoW { read, write };
+enum RoW { read, write, update };
 
 // XXX Wrap these into a class. AND make explicit which types are/aren't
 // allowed!
 
 //! Opens a binary fstream for reading or writing according to @p row.
+//! @p update opens existing file for random-access read/write without truncation.
 inline void open_binary(std::fstream &stream, const std::string &fname,
                         RoW row) {
   switch (row) {
@@ -113,6 +114,10 @@ inline void open_binary(std::fstream &stream, const std::string &fname,
     break;
   case read:
     stream.open(fname, std::ios_base::in | std::ios_base::binary);
+    break;
+  case update:
+    stream.open(fname,
+                std::ios_base::in | std::ios_base::out | std::ios_base::binary);
     break;
   default:
     std::cout << "\nFAIL 16 in FRW\n";
