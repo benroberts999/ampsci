@@ -142,31 +142,37 @@ DiracSpinor Breit::Bkv_bcd(int k, int kappa_v, const DiracSpinor &Fb,
     // "M2" and "O2" (t/Y) part:
     const auto cf2 = factor * (c_m2 + c_o2) * (d_ac_k - 1.0);
     const auto cg2 = factor * (c_m2 + c_o2) * (d_ac_k + 1.0);
-    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-      const auto t0 = d_bd_k * (gbk.g0_minus[i] + gbk.gi_minus[i]) -
-                      gbk.b0_minus[i] - gbk.bi_minus[i];
-      out.f(i) += cf2 * t0 * Fc.g(i);
-      out.g(i) += cg2 * t0 * Fc.f(i);
+    if (k != 0) {
+      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+        const auto t0 = d_bd_k * (gbk.g0_minus[i] + gbk.gi_minus[i]) -
+                        gbk.b0_minus[i] - gbk.bi_minus[i];
+        out.f(i) += cf2 * t0 * Fc.g(i);
+        out.g(i) += cg2 * t0 * Fc.f(i);
+      }
     }
 
     // "P1" (v/X) part:
     const auto cf3 = factor * c_p0 * (d_ac_kp1 + 1.0);
     const auto cg3 = factor * c_p0 * (d_ac_kp1 - 1.0);
-    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-      const auto v0 = d_bd_k * (gbk.g0_minus[i] - gbk.g0_plus[i]) -
-                      gbk.b0_minus[i] + gbk.b0_plus[i];
-      out.f(i) += cf3 * v0 * Fc.g(i);
-      out.g(i) += cg3 * v0 * Fc.f(i);
+    if (k != 0) {
+      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+        const auto v0 = d_bd_k * (gbk.g0_minus[i] - gbk.g0_plus[i]) -
+                        gbk.b0_minus[i] + gbk.b0_plus[i];
+        out.f(i) += cf3 * v0 * Fc.g(i);
+        out.g(i) += cg3 * v0 * Fc.f(i);
+      }
     }
 
     // "P2" (w/Y) part:
     const auto cf4 = factor * c_p0 * (d_ac_k - 1.0);
     const auto cg4 = factor * c_p0 * (d_ac_k + 1.0);
-    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-      const auto w0 = d_bd_kp1 * (gbk.gi_minus[i] - gbk.gi_plus[i]) +
-                      gbk.bi_minus[i] - gbk.bi_plus[i];
-      out.f(i) += cf4 * w0 * Fc.g(i);
-      out.g(i) += cg4 * w0 * Fc.f(i);
+    if (k != 0) {
+      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+        const auto w0 = d_bd_kp1 * (gbk.gi_minus[i] - gbk.gi_plus[i]) +
+                        gbk.bi_minus[i] - gbk.bi_plus[i];
+        out.f(i) += cf4 * w0 * Fc.g(i);
+        out.g(i) += cg4 * w0 * Fc.f(i);
+      }
     }
   }
 
@@ -287,31 +293,37 @@ double Breit::Bk_abcd_2(int k, const DiracSpinor &Fa, const DiracSpinor &Fb,
     // "M2" and "O2" (t/Y) part:
     const auto cf2 = factor * (c_m2 + c_o2) * (d_ac_k - 1.0);
     const auto cg2 = factor * (c_m2 + c_o2) * (d_ac_k + 1.0);
-    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-      const auto t0 = d_bd_k * (gbk.g0_minus[i] + gbk.gi_minus[i]) -
-                      gbk.b0_minus[i] - gbk.bi_minus[i];
-      out += Fa.f(i) * cf2 * t0 * Fc.g(i) * drdu[i];
-      out += Fa.g(i) * cg2 * t0 * Fc.f(i) * drdu[i];
+    if (k != 0) {
+      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+        const auto t0 = d_bd_k * (gbk.g0_minus[i] + gbk.gi_minus[i]) -
+                        gbk.b0_minus[i] - gbk.bi_minus[i];
+        out += Fa.f(i) * cf2 * t0 * Fc.g(i) * drdu[i];
+        out += Fa.g(i) * cg2 * t0 * Fc.f(i) * drdu[i];
+      }
     }
 
     // "P1" (v/X) part:
     const auto cf3 = factor * c_p0 * (d_ac_kp1 + 1.0);
     const auto cg3 = factor * c_p0 * (d_ac_kp1 - 1.0);
-    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-      const auto v0 = d_bd_k * (gbk.g0_minus[i] - gbk.g0_plus[i]) -
-                      gbk.b0_minus[i] + gbk.b0_plus[i];
-      out += Fa.f(i) * cf3 * v0 * Fc.g(i) * drdu[i];
-      out += Fa.g(i) * cg3 * v0 * Fc.f(i) * drdu[i];
+    if (k != 0) {
+      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+        const auto v0 = d_bd_k * (gbk.g0_minus[i] - gbk.g0_plus[i]) -
+                        gbk.b0_minus[i] + gbk.b0_plus[i];
+        out += Fa.f(i) * cf3 * v0 * Fc.g(i) * drdu[i];
+        out += Fa.g(i) * cg3 * v0 * Fc.f(i) * drdu[i];
+      }
     }
 
     // "P2" (w/Y) part:
     const auto cf4 = factor * c_p0 * (d_ac_k - 1.0);
     const auto cg4 = factor * c_p0 * (d_ac_k + 1.0);
-    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-      const auto w0 = d_bd_kp1 * (gbk.gi_minus[i] - gbk.gi_plus[i]) +
-                      gbk.bi_minus[i] - gbk.bi_plus[i];
-      out += Fa.f(i) * cf4 * w0 * Fc.g(i) * drdu[i];
-      out += Fa.g(i) * cg4 * w0 * Fc.f(i) * drdu[i];
+    if (k != 0) {
+      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+        const auto w0 = d_bd_kp1 * (gbk.gi_minus[i] - gbk.gi_plus[i]) +
+                        gbk.bi_minus[i] - gbk.bi_plus[i];
+        out += Fa.f(i) * cf4 * w0 * Fc.g(i) * drdu[i];
+        out += Fa.g(i) * cg4 * w0 * Fc.f(i) * drdu[i];
+      }
     }
   }
 
@@ -519,10 +531,10 @@ DiracSpinor Breit::Bkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
     // Angular factors
     const auto d_ac = ka - kc;
     const auto d_bd = kb - kd;
-    const auto d_bd_k = d_bd / double(k);
+    const auto d_bd_k = k == 0 ? 0.0 : d_bd / double(k);
     const auto d_bd_kp1 = d_bd / double(k + 1);
     const auto d_ac_kp1 = d_ac / double(k + 1);
-    const auto d_ac_k = d_ac / double(k);
+    const auto d_ac_k = k == 0 ? 0.0 : d_ac / double(k);
 
     // Calculate the frequency-dependent Breit radial screening integrals
     const auto ghkw = Breit_gh_freqdep::single_k_mop_freq(Fb, Fd, k, w);
@@ -550,31 +562,37 @@ DiracSpinor Breit::Bkv_bcd_freqw(int k, int kappa_v, const DiracSpinor &Fb,
     // "M2" and "O2" (t/Y) part:
     const auto cf2 = factor * (c_m2 + c_o2) * (d_ac_k - 1.0);
     const auto cg2 = factor * (c_m2 + c_o2) * (d_ac_k + 1.0);
-    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-      const auto t0 =
-        d_bd_k * (ghkw.g0_minus_freqw[i] + ghkw.gi_minus_freqw[i]) -
-        ghkw.h0_minus_freqw[i] - ghkw.hi_minus_freqw[i];
-      out.f(i) += cf2 * t0 * Fc.g(i);
-      out.g(i) += cg2 * t0 * Fc.f(i);
+    if (k != 0) {
+      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+        const auto t0 =
+          d_bd_k * (ghkw.g0_minus_freqw[i] + ghkw.gi_minus_freqw[i]) -
+          ghkw.h0_minus_freqw[i] - ghkw.hi_minus_freqw[i];
+        out.f(i) += cf2 * t0 * Fc.g(i);
+        out.g(i) += cg2 * t0 * Fc.f(i);
+      }
     }
 
     // THIS TERM IS (was) THE NUMERICAL PROBLEM
     // "P1" (v/X) part:
     const auto cf3 = factor * c_p0 * (d_ac_kp1 + 1.0);
     const auto cg3 = factor * c_p0 * (d_ac_kp1 - 1.0);
-    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-      const auto v1pv4 = ghkw.v1_freqw[i] + ghkw.v4_freqw[i];
-      out.f(i) += cf3 * v1pv4 * Fc.g(i);
-      out.g(i) += cg3 * v1pv4 * Fc.f(i);
+    if (k != 0) {
+      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+        const auto v1pv4 = ghkw.v1_freqw[i] + ghkw.v4_freqw[i];
+        out.f(i) += cf3 * v1pv4 * Fc.g(i);
+        out.g(i) += cg3 * v1pv4 * Fc.f(i);
+      }
     }
 
     // "P2" (w/Y) part:
     const auto cf4 = factor * c_p0 * (d_ac_k - 1.0);
     const auto cg4 = factor * c_p0 * (d_ac_k + 1.0);
-    for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
-      const auto v2pv3 = ghkw.v2_freqw[i] + ghkw.v3_freqw[i];
-      out.f(i) += cf4 * v2pv3 * Fc.g(i);
-      out.g(i) += cg4 * v2pv3 * Fc.f(i);
+    if (k != 0) {
+      for (auto i = Fc.min_pt(); i < Fc.max_pt(); ++i) {
+        const auto v2pv3 = ghkw.v2_freqw[i] + ghkw.v3_freqw[i];
+        out.f(i) += cf4 * v2pv3 * Fc.g(i);
+        out.g(i) += cg4 * v2pv3 * Fc.f(i);
+      }
     }
   }
 
@@ -646,19 +664,11 @@ void single_k_mop::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
 #pragma omp parallel sections num_threads(4)
   {
 #pragma omp section
-    if (k != 0) {
+    if (k != 0)
       Coulomb::bk_ab((k - 1), Fi, Fj, b0_minus, bi_minus, maxi);
-    } else {
-      b0_minus.resize(Fi.grid().num_points());
-      bi_minus.resize(Fi.grid().num_points());
-    }
 #pragma omp section
-    if (k != 0) {
+    if (k != 0)
       Coulomb::gk_ab((k - 1), Fi, Fj, g0_minus, gi_minus, maxi);
-    } else {
-      g0_minus.resize(Fi.grid().num_points());
-      gi_minus.resize(Fi.grid().num_points());
-    }
 #pragma omp section
     Coulomb::bk_ab((k + 1), Fi, Fj, b0_plus, bi_plus, maxi);
 #pragma omp section
@@ -668,13 +678,15 @@ void single_k_mop::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
 
 void single_k_n::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
                            int k) {
+  using namespace qip::overloads;
+
   if (!Angular::Ck_kk_SR(k, -Fi.kappa(), Fj.kappa()))
+    return;
+  if (k == 0)
     return;
   const auto maxi =
     std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points()}); // ok?
-  // assert(k != 0);
   Coulomb::gk_ab(k, Fi, Fj, g, gi, maxi);
-  using namespace qip::overloads;
   g += gi;
 }
 
@@ -700,28 +712,21 @@ void single_k_mop_freq::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
 #pragma omp parallel sections num_threads(5)
   {
 #pragma omp section
-    if (k != 0) {
+    if (k != 0)
       Coulomb::gk_ab_freqw(k - 1, Fi, Fj, g0_minus_freqw, gi_minus_freqw, maxi,
                            w);
-    } else {
-      g0_minus_freqw.resize(Fi.grid().num_points());
-      gi_minus_freqw.resize(Fi.grid().num_points());
-    }
 #pragma omp section
-    if (k != 0) {
+    if (k != 0)
       Coulomb::hk_ab_freqw(k - 1, Fi, Fj, h0_minus_freqw, hi_minus_freqw, maxi,
                            w);
-    } else {
-      h0_minus_freqw.resize(Fi.grid().num_points());
-      hi_minus_freqw.resize(Fi.grid().num_points());
-    }
 #pragma omp section
     Coulomb::gk_ab_freqw(k + 1, Fi, Fj, g0_plus_freqw, gi_plus_freqw, maxi, w);
 #pragma omp section
     Coulomb::hk_ab_freqw(k + 1, Fi, Fj, h0_plus_freqw, hi_plus_freqw, maxi, w);
 #pragma omp section
-    Coulomb::vk_ab_freqw(k, Fi, Fj, Fi.grid(), v1_freqw, v2_freqw, v3_freqw,
-                         v4_freqw, maxi, w);
+    if (k != 0)
+      Coulomb::vk_ab_freqw(k, Fi, Fj, Fi.grid(), v1_freqw, v2_freqw, v3_freqw,
+                           v4_freqw, maxi, w);
   }
 }
 
@@ -730,9 +735,10 @@ void single_k_n_freq::calculate(const DiracSpinor &Fi, const DiracSpinor &Fj,
                                 int k, const double w) {
   if (!Angular::Ck_kk_SR(k, -Fi.kappa(), Fj.kappa()))
     return;
+  if (k == 0)
+    return;
   const auto maxi =
     std::min({Fi.max_pt(), Fj.max_pt(), Fi.grid().num_points()}); // ok?
-  // assert(k != 0);
   Coulomb::gk_ab_freqw(k, Fi, Fj, g, gi, maxi, w);
   using namespace qip::overloads;
   g += gi;

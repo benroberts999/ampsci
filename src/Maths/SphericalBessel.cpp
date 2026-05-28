@@ -87,6 +87,9 @@ double jL(int L, double x) {
            3.0 * std::cos(x) / (x * x);
   }
 
+  if (L < 0)
+    return 0.0;
+
   // If none of above apply, use GSL to calc. accurately
   return gsl_sf_bessel_jl(L, x);
 }
@@ -101,7 +104,7 @@ double exactGSL_YL(int L, double x) { return gsl_sf_bessel_yl(L, x); }
 double yL(int L, double x) {
 
   // series expansion for small wr [keeps every term up to order (wr)^8]
-  if (std::fabs(x) < 0.1) {
+  if (std::abs(x) < 0.1) {
     if (L == 0) {
       return -1.0 / x + 0.5 * x - 0.0416666667 * (x * x * x) +
              0.00138888888 * qip::pow<5>(x) - 0.0000248015873 * qip::pow<7>(x);
@@ -193,6 +196,9 @@ double yL(int L, double x) {
              std::sin(x) / qip::pow<7>(x);
   }
 
+  if (L < 0)
+    return 0.0;
+
   return gsl_sf_bessel_yl(L, x);
 }
 
@@ -202,7 +208,7 @@ double PhiL(int L, double x, bool tilde) {
 
   const auto one = tilde ? 0.0 : 1.0;
 
-  if (std::fabs(x) < 0.1) {
+  if (std::abs(x) < 0.1) {
     if (L == 0) {
       return one - 0.166666667 * x * x + 0.00833333333 * qip::pow<4>(x) -
              0.000198412698 * qip::pow<6>(x) +
@@ -245,6 +251,9 @@ double PhiL(int L, double x, bool tilde) {
     }
   }
 
+  if (L < 0)
+    return 0.0;
+
   return tilde ?
            (qip::double_factorial(2 * L + 1) / qip::pow(x, L)) * jL(L, x) -
              1.0 :
@@ -256,7 +265,7 @@ double PsiL(int L, double x, bool tilde) {
 
   const auto one = tilde ? 0.0 : 1.0;
 
-  if (std::fabs(x) < 0.1) {
+  if (std::abs(x) < 0.1) {
     if (L == 0) {
       return one - 0.5 * x * x + 0.0416666667 * qip::pow<4>(x) -
              0.00138888889 * qip::pow<6>(x) + 0.0000248015873 * qip::pow<8>(x);
@@ -293,6 +302,9 @@ double PsiL(int L, double x, bool tilde) {
              0.000000289062789 * qip::pow<8>(x);
     }
   }
+
+  if (L < 0)
+    return 0.0;
 
   return tilde ?
            -(qip::pow(x, L + 1) / qip::double_factorial(2 * L - 1)) * yL(L, x) -

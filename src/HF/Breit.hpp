@@ -56,6 +56,7 @@ public:
 
   void calculate(const DiracSpinor &Fi, const DiracSpinor &Fj, int k,
                  const double w);
+
   std::vector<double> g0_minus_freqw{}, gi_minus_freqw{};
   std::vector<double> g0_plus_freqw{}, gi_plus_freqw{};
   std::vector<double> h0_minus_freqw{}, hi_minus_freqw{};
