@@ -29,32 +29,32 @@ constexpr bool is_complex_v = is_complex<T>::value;
 /*!
   @brief Linear algebra: matrices, vectors, views, and solvers.
   @details
-  Provides dense matrix and vector types, non-owning views, and a set of
+  Provides matrix and vector types, non-owning views, and a set of
   linear algebra solvers wrapping LAPACK and GSL.
 
-  **Core types** (Matrix.hpp, Vector.hpp):
-  - `Matrix<T>` — owning row-major dense matrix; supports real and complex
+  ### Core types:
+  - @ref Matrix<T> : owning row-major matrix; supports real and complex
     element types. Provides arithmetic, GSL interop, and element-wise access.
-  - `Vector<T>` — owning 1D array; used for eigenvectors, right-hand sides,
+  - @ref Vector<T> : owning 1D array; used for eigenvectors, right-hand sides,
     and eigenvalue arrays.
 
-  **Views** (Matrix.hpp):
-  - `View<T>` — non-owning strided view over a 1D segment of an array.
+  ### Views:
+  - @ref View<T> : non-owning strided view over a 1D segment of an array.
     Used to provide row and column access into a Matrix without copying.
-    Obtained via `Matrix::row_view()` and `Matrix::column_view()`.
-  - `Matrix_view<T>` — non-owning view of a 2D subblock of a Matrix.
-    Obtained via `Matrix::submatrix_view()`.
+    Obtained via @ref Matrix::row_view() and @ref Matrix::column_view()
+  - @ref Matrix_view<T> : non-owning view of a 2D subblock of a Matrix.
+    Obtained via @ref Matrix::submatrix_view().
 
-  **Solvers** (Solvers.hpp):
-  - `solve_Axeqb(A, b)` — solves Ax = b via LU decomposition (GSL).
-  - `symmhEigensystem(A)` — all eigenvalues/vectors of a symmetric or
+  ### Solvers:
+  - @ref solve_Axeqb(A, b) : solves `Ax = b` via LU decomposition (GSL).
+  - @ref symmhEigensystem(A) : all eigenvalues/vectors of a symmetric or
     Hermitian matrix (LAPACK `dsyev`/`zheev`).
-  - `symmhEigensystem(A, n)` — first n eigenvalues/vectors (LAPACK `dsyevx`).
-  - `symmhEigensystem(A, threshold)` — all eigenvalues below a threshold
+  - @ref symmhEigensystem(A, n) : first n eigenvalues/vectors (LAPACK `dsyevx`).
+  - @ref symmhEigensystem(A, threshold) : all eigenvalues below a threshold
     (LAPACK `dsyevr`).
-  - `symmhEigensystem(A, B)` — generalised problem Av = eBv (LAPACK
+  - @ref symmhEigensystem(A, B) : generalised problem `Av = eBv` (LAPACK
     `dsygv`/`zhegv`).
-  - `genEigensystem(A, sort)` — general non-symmetric real matrix (GSL).
+  - @ref genEigensystem(A, sort) : general non-symmetric real matrix (GSL).
 */
 namespace LinAlg {
 
@@ -69,10 +69,7 @@ class Matrix;
   The stride allows views over non-contiguous memory (e.g., a column of a
   row-major matrix).
 
-  Used by `Matrix::row_view()` and `Matrix::column_view()`.
-
-  @note Does not perform bounds checking in `operator[]`; use `at()` for
-        checked access.
+  Used by @ref Matrix::row_view() and @ref Matrix::column_view().
 */
 template <typename T>
 class View {
@@ -121,7 +118,7 @@ public:
   and read-only (`Matrix_view<const T>`) access.
 
   Implicitly constructible from `Matrix<T>` (mutable view) and from
-  `const Matrix<T>` (const view only, via SFINAE).
+  `const Matrix<T>` (const view only).
 
   @note Iterators (`begin()`/`end()`) yield raw pointers into the flat buffer.
 */

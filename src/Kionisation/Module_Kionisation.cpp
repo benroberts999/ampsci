@@ -443,6 +443,12 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     energies.size());
 
   const auto [Kmin, Kmax] = input.get("K_minmax", std::array{1, 1});
+  // Error with structured bindings + clang++ with OpenMP:
+  // error: capturing a structured binding is not yet supported in OpenMP
+  // So, workaround: make local copy
+  const auto Kmin_ = Kmin;
+  const auto Kmax_ = Kmax;
+
   const auto label = input.get("label", std::string{""});
 
   const auto force_orthog = input.get("force_orthog", true);
@@ -458,37 +464,42 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   auto M1nr = DiracOperator::M1nr();
 
   // Store per-omega results in an array, then write to file after the parallel
-  // loop. Avoids the race condition / interleaved output from writing inside
-  // the parallel loop. Columns (per row, matching the existing file format):
-  //   Q_E1, Q_M1, Q_M1_nr, Q_E, Q_E_len, Q_M, Q_multipole(=Q_E+Q_M), Q_E2, Q_Ek2, Q_Mk1
+  // loop.
+  // Columns (per row, matching the existing file format):
+  // Q_E1, Q_M1, Q_M1_nr, Q_E, Q_E_len, Q_M, Q_EM(=Q_E+Q_M), Q_E2, Q_Ek2, Q_Mk1
   // omega itself is recovered from energies[i_omega] at write time.
   constexpr std::size_t N_cols = 10;
   std::vector<std::array<double, N_cols>> results(energies.size());
 
-  // int count = 0;
-  qip::ProgressBar prog(int(energies.size()), true);
+  qip::ProgressBar prog(int(energies.size()));
 #pragma omp parallel for schedule(dynamic)
   for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
     const auto omega = energies[i_omega];
 
+    // Conversion factor from dimensionless Q absorption form factor to sigma
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
                         PhysConst::aB_cm * PhysConst::aB_cm * omega;
 
-    double Q_E1 = 0.0; // Regular (length) E1 operator
+    // Regular (length) E1 operator
+    double Q_E1 = 0.0;
+    // "Regular" M1
+    double Q_M1 = 0.0;
+    // Non-relativistic M1 operator
+    double Q_M1_nr = 0.0;
+    // Mk at k=1 (compare to regular M1)
+    double Q_Mk1 = 0.0;
+    // Ek at K=2 (compare to regular E2)
+    double Q_Ek2 = 0.0;
+    // Regular E2 (length)
+    double Q_E2 = 0.0;
+    // Full electric multipole
+    double Q_E = 0.0;
+    // Full magnetic multipole
+    double Q_M = 0.0;
+    // Full electric multipole (length form)
+    double Q_E_len = 0.0;
 
-    double Q_M1 = 0.0;    // "Regular" M1
-    double Q_M1_nr = 0.0; // Non-relativistic M1 operator
-    double Q_Mk1 = 0.0;   // Mk at k=1
-
-    double Q_Ek2 = 0.0; // Ek at K=2
-    double Q_E2 = 0.0;  // Regular E2 (length)
-
-    double Q_E = 0.0; // Full electric multipole
-    double Q_M = 0.0; // Full magnetic multipole
-
-    double Q_E_len = 0.0; // Full electric multipole (length form)
-
-    for (int k = Kmin; k <= Kmax; ++k) {
+    for (int k = Kmin_; k <= Kmax_; ++k) {
 
       // Electric, magnetic parts
       const auto Ek = DiracOperator::VEk(wf.grid(), k, omega);
@@ -558,41 +569,40 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     prog.update();
   }
 
-  std::cout << "\n";
-
   // Sequential write after the parallel loop completes.
   std::ofstream out_file(oname);
   out_file << "# Photoelectric effect::\n"
            << "# Cross section (cm^2):\n"
            << "# Columns:\n"
-           << "# omega_MeV  : photon energy (MeV)\n"
-           << "# sigma_E1       : E1 (length) dipole\n"
+           << "# omega_MeV      : photon energy (MeV)\n"
+           << "# sigma_E1       : E1 (length) dipole cross section\n"
            << "# sigma_M1       : M1 dipole\n"
            << "# sigma_M1_nr    : M1 non-relativistic\n"
            << "# sigma_E        : electric multipole (velocity)\n"
            << "# sigma_E_len    : electric multipole (length) (Ek) all K\n"
            << "# sigma_M        : magnetic multipole (Mk) all K\n"
-           << "# sigma_multipole: sigma_E + sigma_M (total multipole)\n"
+           << "# sigma_EM       : sigma_E + sigma_M (total multipole)\n"
            << "# sigma_E2       : E2 (length)\n"
            << "# sigma_Ek2      : Ek at K=2\n"
            << "# sigma_Mk1      : Mk at K=1\n"
+           << "#\n"
            << "omega_MeV  sigma_E1  sigma_M1  sigma_M1_nr  sigma_E  "
               "sigma_E_len  sigma_M  "
-              "sigma_multipole  sigma_E2  sigma_Ek2  sigma_Mk1\n";
+              "sigma_EM  sigma_E2  sigma_Ek2  sigma_Mk1\n";
 
   for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
     const auto &r = results[i_omega];
     out_file << energies[i_omega] * PhysConst::Hartree_eV / 1e6 // omega (MeV)
-             << " " << r[0] // Q_E1      : E1 (length) dipole
-             << " " << r[1] // Q_M1      : M1 dipole
-             << " " << r[2] // Q_M1_nr   : M1 non-relativistic
-             << " " << r[3] // Q_E       : electric multipole (velocity)
-             << " " << r[4] // Q_E_len   : electric multipole (length)
-             << " " << r[5] // Q_M       : magnetic multipole
-             << " " << r[6] // Q_multipole : Q_E + Q_M (total multipole)
-             << " " << r[7] // Q_E2      : E2 (length)
-             << " " << r[8] // Q_Ek2     : Ek at K=2
-             << " " << r[9] // Q_Mk1     : Mk at K=1
+             << " " << r[0] // s_E1      : E1 (length) dipole
+             << " " << r[1] // s_M1      : M1 dipole
+             << " " << r[2] // s_M1_nr   : M1 non-relativistic
+             << " " << r[3] // s_E       : electric multipole (velocity)
+             << " " << r[4] // s_E_len   : electric multipole (length)
+             << " " << r[5] // s_M       : magnetic multipole
+             << " " << r[6] // s_EM      : Q_E + Q_M (total multipole)
+             << " " << r[7] // s_E2      : E2 (length)
+             << " " << r[8] // s_Ek2     : Ek at K=2
+             << " " << r[9] // s_Mk1     : Mk at K=1
              << "\n";
   }
 }

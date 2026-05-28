@@ -65,6 +65,7 @@ inline void progbar(int i, int max, int length = 50) {
   For non-parallel loops, the simpler @ref qip::progbar() function should work fine.
 
   Typical usage in a parallel loop: 
+
   @code
   qip::ProgressBar bar(n_iterations);
   #pragma omp parallel for schedule(dynamic)
@@ -80,6 +81,9 @@ inline void progbar(int i, int max, int length = 50) {
 
   @note Thread-safe; safe to call from multiple threads simultaneously.
   But may add overhead.
+
+  @note Counts converted to `int` internally, so the maximum supported 
+  iteration count is INT_MAX.
 */
 template <std::size_t Length = 60>
 class ProgressBar {
@@ -90,6 +94,9 @@ private:
   std::atomic<int> m_progress{0};
   // TTY: bar fill chars printed last time. Non-TTY: last percentage slot printed.
   std::atomic<int> m_last_fill{-1};
+  // Set to true once the final bar (with '\n') has been printed; guarded by
+  // omp critical so no further '\r' output can overwrite the newline.
+  bool m_done{false};
 
   static constexpr std::size_t bar_width = (Length >= 7) ? (Length - 7) : 1;
 
@@ -97,9 +104,12 @@ public:
   /*!
     @brief Construct progress bar for @p max iterations.
     @param max Total number of iterations (denominator for percentage).
+              Accepts any integral type; converted to int internally.
     @param print Runtime switch; if false, class does nothing.
   */
-  ProgressBar(int max, bool print) : m_max(max), m_print(print) {
+  template <typename T, typename = std::enable_if_t<std::is_integral_v<T>>>
+  ProgressBar(T max, bool print = true)
+    : m_max(static_cast<int>(max)), m_print(print) {
     if (m_print)
       print_prog_bar(0);
   }
@@ -108,8 +118,7 @@ public:
   void update() {
     if (!m_print)
       return;
-    m_progress++;
-    const int progress = m_progress.load();
+    const int progress = ++m_progress;
     if (progress > m_max)
       return;
     const bool is_final = (progress == m_max);
@@ -146,18 +155,26 @@ private:
       *p++ = ' ';
     *p++ = ']';
     *p++ = ' ';
-    p += snprintf(p, sizeof(buf) - std::size_t(p - buf) - 2, "%d%%",
+    p += snprintf(p, sizeof(buf) - std::size_t(p - buf) - 1, "%d%%",
                   int(100.0 * double(progress) / double(m_max)));
     *p++ = is_final ? '\n' : '\r';
     *p = '\0';
 
-    // serialise writes to std::out
+    // serialise writes; skip if final bar already printed (prevents a lagging
+    // thread's '\r' from overwriting the final '\n' on the terminal)
+    bool did_print = false;
 #pragma omp critical
     {
-      fputs(buf, stdout);
-      fflush(stdout);
+      if (!m_done) {
+        fputs(buf, stdout);
+        fflush(stdout);
+        did_print = true;
+        if (is_final)
+          m_done = true;
+      }
     }
-    m_last_fill.store(current, std::memory_order_relaxed);
+    if (did_print)
+      m_last_fill.store(current, std::memory_order_relaxed);
   }
 
   //----------------------------------------------------------------------------
@@ -186,12 +203,18 @@ private:
     else
       snprintf(buf, sizeof(buf), "%d%%, ", pct);
 
+    bool did_print = false;
 #pragma omp critical
     {
-      fputs(buf, stdout);
-      fflush(stdout);
+      if (!m_done) {
+        fputs(buf, stdout);
+        fflush(stdout);
+        did_print = true;
+        if (is_final)
+          m_done = true;
+      }
     }
-    if (!is_final)
+    if (!is_final && did_print)
       m_last_fill.store(slot, std::memory_order_relaxed);
   }
 };
