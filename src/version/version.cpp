@@ -2,6 +2,15 @@
 #include <gsl/gsl_version.h>
 #include <string>
 
+// Weak references to BLAS/LAPACK version functions.
+// Resolve to null if the library was not linked -- no headers required.
+extern "C" {
+const char *openblas_get_config() __attribute__((weak));
+int openblas_get_num_threads() __attribute__((weak));
+void MKL_Get_Version_String(char *, int) __attribute__((weak));
+int mkl_get_max_threads() __attribute__((weak));
+}
+
 // Macro translates constants to "strings"
 #define XSTRING(s) STRING(s)
 #define STRING(s) #s
@@ -77,9 +86,29 @@ std::string version() {
 
 std::string compiled() { return cxx_version + " " + compiled_time; }
 
+static std::string blas_info() {
+  if (openblas_get_config)
+    return std::string("OpenBLAS: ") + openblas_get_config();
+  if (MKL_Get_Version_String) {
+    char buf[256] = {};
+    MKL_Get_Version_String(buf, 256);
+    return std::string("Intel MKL: ") + buf;
+  }
+  return "Reference LAPACK/BLAS";
+}
+
+std::string blas_threads() {
+  if (openblas_get_num_threads)
+    return "OpenBLAS: " + std::to_string(openblas_get_num_threads()) +
+           " threads.";
+  if (mkl_get_max_threads)
+    return "MKL: " + std::to_string(mkl_get_max_threads()) + " threads.";
+  return "";
+}
+
 std::string libraries() {
   return "  GSL (GNU Scientific Libraries): " + gsl_version + '\n' +
-         "  OpenMP: " + omp_version;
+         "  OpenMP: " + omp_version + '\n' + "  LAPACK/BLAS: " + blas_info();
 }
 
 } // namespace version

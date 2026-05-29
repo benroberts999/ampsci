@@ -5,6 +5,7 @@
 This assumes you already have ampsci compiled and have a basic understanding of how to run and use it.
 
 * See [Compilation](\ref compilation) for compilation instructions
+  * For CI calculations, linking against a threaded BLAS (OpenBLAS or MKL) is recommended for faster matrix diagonalisation -- see the compilation page for details
 * See [Basic Tutorial](\ref tutorial_basic) for getting started if unfamiliar
 * See [ampsci.dev/ampsci.pdf](https://ampsci.dev/ampsci.pdf) for full description of the physics
 

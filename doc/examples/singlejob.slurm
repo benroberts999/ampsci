@@ -22,6 +22,11 @@ module load gsl/2.8-gcc-13.3.0
 
 ## Set number of OMP threads:
 export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
+## Set BLAS threads to match (for OpenBLAS or MKL):
+export OPENBLAS_NUM_THREADS=$SLURM_CPUS_PER_TASK
+## If using MKL instead of OpenBLAS, replace above with:
+## export MKL_THREADING_LAYER=GNU
+## export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 ## Path to where ampsci was compiled
 AMPSCI=$HOME/ampsci/ampsci

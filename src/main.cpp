@@ -277,7 +277,9 @@ int main(int argc, char *argv[]) {
   std::cout << '\n';
   IO::print_line();
   std::cout << "AMPSCI v: " << version::version() << '\n';
-  std::cout << "Parallel: " << qip::omp_details() << '\n';
+  const auto blas_t = version::blas_threads();
+  std::cout << "Parallel: " << qip::omp_details()
+            << (blas_t.empty() ? "" : " " + blas_t) << '\n';
   std::cout << "Compiled: " << version::compiled() << '\n';
   std::cout << "Run time: " << IO::time_date() << '\n';
 

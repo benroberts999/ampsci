@@ -40,4 +40,7 @@ std::string compiled();
 //! String continaing details (version numbers) of libraries (e.g., GSL)
 std::string libraries();
 
+//! BLAS thread count string, e.g. "OpenBLAS: 8 threads." Empty if not detected.
+std::string blas_threads();
+
 } // namespace version

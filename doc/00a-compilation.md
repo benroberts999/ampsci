@@ -140,6 +140,40 @@ GSL_PATH ?=
 LDLIBS ?= -lgsl -lgslcblas -llapack -lblas
 ```
 
+### Faster matrix diagonalisation: OpenBLAS or Intel MKL
+
+The LAPACK eigensolver (used heavily in CI calculations) runs faster with a
+threaded BLAS implementation. On most Linux systems `-lblas` already resolves
+to OpenBLAS and is threaded by default. To link explicitly, modify `LDLIBS` in
+the Makefile:
+
+```make
+## OpenBLAS (usually fastest; controls threads via OPENBLAS_NUM_THREADS)
+LDLIBS ?= -lgsl -lgslcblas -lopenblas
+
+## Intel MKL (single dynamic library; see note on threading below)
+LDLIBS ?= -lgsl -lgslcblas -lmkl_rt
+```
+
+The number of threads used by the BLAS library is controlled at runtime via
+environment variables -- no recompilation needed:
+
+```bash
+export OPENBLAS_NUM_THREADS=8   # OpenBLAS
+export MKL_NUM_THREADS=8        # MKL
+```
+
+**MKL with GNU OpenMP**: ampsci uses GNU OpenMP (`-fopenmp`). MKL defaults to
+Intel threads, which conflicts. Set the threading layer in your shell or job
+script:
+
+```bash
+export MKL_THREADING_LAYER=GNU
+```
+
+Alternatively, set `OMP_NUM_THREADS` instead of `MKL_NUM_THREADS` (it is
+respected by MKL when `MKL_THREADING_LAYER=GNU`).
+
 * OpenMP library
 * Comment out or leave option blank to turn off OpenMP multithreading
 

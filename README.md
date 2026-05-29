@@ -59,6 +59,7 @@ make
 * The `install-dependencies.sh` bash script will check if you have all the required dependencies, and then will ask to install anything that's missing
   * It should work on most systems, but may not work on all
 * If there are any issues, see full compilation instructions at [ampsci.dev/compilation.html](https://ampsci.dev/compilation.html)
+* For faster matrix diagonalisation (recommended for CI calculations), link against a threaded BLAS such as OpenBLAS or Intel MKL -- see [compilation instructions](https://ampsci.dev/compilation.html) for details
 
 ### Tutorials/examples
 

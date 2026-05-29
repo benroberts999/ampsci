@@ -112,19 +112,55 @@ Note: `-lgfortran` may also be required on some older configurations.
 
 If `configure.sh` does not produce a working build, refer to the manual [Compilation Details](\ref compilation) for details
 
+### BLAS threading (recommended for CI calculations)
+
+The `foss` toolchain includes OpenBLAS, which is already multi-threaded.
+Set `OPENBLAS_NUM_THREADS` in your job script to match `--cpus-per-task`:
+
+```bash
+export OPENBLAS_NUM_THREADS=$SLURM_CPUS_PER_TASK
+```
+
+**Intel MKL** is an alternative to OpenBLAS and may be faster on Intel nodes.
+Load the MKL module (name is site-specific -- try `module spider mkl` or `module spider imkl`):
+
+```bash
+module load imkl   # name varies: intel-mkl, imkl, mkl, ...
+```
+
+Then set in the Makefile:
+
+```makefile
+LDLIBS ?= -lgsl -lgslcblas -lmkl_rt
+```
+
+And in your job script:
+
+```bash
+export MKL_THREADING_LAYER=GNU          # required with GNU OpenMP
+export MKL_NUM_THREADS=$SLURM_CPUS_PER_TASK
+```
+
+See [Compilation Details](\ref compilation) for more on BLAS options.
+
 --------------------------------------------------------------------------------
 
 ## Example scripts
 
-Three example SLURM scripts are provided in `doc/examples/`:
+Four example SLURM scripts are provided in `doc/examples/`:
 
-* \ref compile.slurm -- compile ampsci
+* \ref compile.slurm -- compile ampsci (OpenBLAS)
+* \ref compile_mkl.slurm -- compile ampsci with Intel MKL
 * \ref singlejob.slurm -- run a single ampsci job
 * \ref arrayjob.slurm -- run an array of jobs (e.g. over a parameter range)
 
 ### Compile job
 
 \include compile.slurm
+
+### Compile job (Intel MKL)
+
+\include compile_mkl.slurm
 
 ### Single job
 
