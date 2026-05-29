@@ -8,8 +8,8 @@ using complex_double = long double;
 // on apple M1, long double is just double
 // nb: it actually doesn't matter, since all operations happen on fortran end
 
-void dsyev_(char *, char *, int *, double *, int *, double *, double *, int *,
-            int *);
+void dsyevd_(char *, char *, int *, double *, int *, double *, double *, int *,
+             int *, int *, int *);
 void zheev_(char *, char *, int *, complex_double *, int *, double *,
             complex_double *, int *, double *, int *);
 void dsygv_(int *, char *, char *, int *, double *, int *, double *, int *,
@@ -17,10 +17,6 @@ void dsygv_(int *, char *, char *, int *, double *, int *, double *, int *,
 void zhegv_(int *, char *, char *, int *, complex_double *, int *,
             complex_double *, int *, double *, complex_double *, int *,
             double *, int *);
-
-void dsyevx_(char *, char *, char *, int *, double *, int *, double *, double *,
-             int *, int *, double *, int *, double *, double *, int *, double *,
-             int *, int *, int *, int *);
 
 void dsyevr_(char *jobz, char *range, char *uplo, int *n, double *a, int *lda,
              double *vl, double *vu, int *il, int *iu, double *abstol, int *m,
@@ -79,16 +75,24 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A) {
   char uplo{'U'};
   int info = 0;
 
-  std::vector<T> work(3 * e_vectors.rows());
-  int workspace_size = (int)work.size();
-
   if constexpr (std::is_same_v<T, double>) {
 
-    // For double (symmetric real) matrix
-    dsyev_(&jobz, &uplo, &dim, e_vectors.data(), &dim, e_values.data(),
-           work.data(), &workspace_size, &info);
+    // Workspace query
+    int lwork = -1, liwork = -1;
+    double work_query = 0.0;
+    int iwork_query = 0;
+    dsyevd_(&jobz, &uplo, &dim, e_vectors.data(), &dim, e_values.data(),
+            &work_query, &lwork, &iwork_query, &liwork, &info);
+    lwork = static_cast<int>(work_query);
+    liwork = iwork_query;
+    std::vector<double> work(std::size_t(std::max(1, lwork)));
+    std::vector<int> iwork(std::size_t(std::max(1, liwork)));
+    dsyevd_(&jobz, &uplo, &dim, e_vectors.data(), &dim, e_values.data(),
+            work.data(), &lwork, iwork.data(), &liwork, &info);
 
   } else if constexpr (std::is_same_v<T, std::complex<double>>) {
+    std::vector<T> work(3 * e_vectors.rows());
+    int workspace_size = (int)work.size();
     // static_assert(sizeof(complex_double) == 16); // LAPACK assumption
     // nb: this isn't actually required
 
@@ -123,8 +127,8 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number) {
   assert(A.rows() == A.cols());
   assert(number < (int)A.rows());
   static_assert(std::is_same_v<T, double>,
-                "This overload uses dsyevx_ (real symmetric). "
-                "For complex Hermitian use zheevx/cheevx?");
+                "This overload uses dsyevr_ (real symmetric). "
+                "For complex Hermitian use zheevr/cheevr.");
 
   // E. values of Hermetian complex matrix are _real_
   auto eigen_vv = std::make_pair(Vector<double>(A.rows()), Matrix<T>(A.rows()));
@@ -138,41 +142,36 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number) {
   double vu{0.0};
   int il{1};
   int iu{number};
-  double abstol{1.0e-12}; //?
+  double abstol{1.0e-12};
   int m{0};
   int info{0};
 
-  // std::vector<T> work(8 * A.rows());
-  // std::vector<int> iwork(5 * A.rows());
-  // std::vector<int> ifail(A.rows());
+  std::vector<int> isuppz(std::size_t(2 * std::max(1, number)));
 
-  // ---- Workspace query (DSYEVX)
-  int lwork = -1;
+  // Workspace query
+  int lwork = -1, liwork = -1;
   double work_query = 0.0;
-  std::vector<int> iwork(5 * A.rows()); // DSYEVX requires at least 5*N
-  std::vector<int> ifail(A.rows());     // size N
-  dsyevx_(&jobz, &range, &uplo, &dim, A.data(), &dim, &vl, &vu, &il, &iu,
-          &abstol, &m, e_values.data(), e_vectors.data(), &dim, &work_query,
-          &lwork, iwork.data(), ifail.data(), &info);
+  int iwork_query = 0;
+  dsyevr_(&jobz, &range, &uplo, &dim, A.data(), &dim, &vl, &vu, &il, &iu,
+          &abstol, &m, e_values.data(), e_vectors.data(), &dim, isuppz.data(),
+          &work_query, &lwork, &iwork_query, &liwork, &info);
 
   if (info != 0) {
-    std::cerr << "\nError: dsyevx workspace query info=" << info << "\n";
+    std::cerr << "\nError: dsyevr workspace query info=" << info << "\n";
   }
 
-  // ---- Allocate optimal WORK
-
   lwork = static_cast<int>(work_query);
+  liwork = iwork_query;
   std::vector<double> work(std::size_t(std::max(1, lwork)));
-  int workspace_size = (int)work.size();
+  std::vector<int> iwork(std::size_t(std::max(1, liwork)));
 
-  // For double (symmetric real) matrix
-  dsyevx_(&jobz, &range, &uplo, &dim, A.data(), &dim, &vl, &vu, &il, &iu,
-          &abstol, &m, e_values.data(), e_vectors.data(), &dim, work.data(),
-          &workspace_size, iwork.data(), ifail.data(), &info);
+  dsyevr_(&jobz, &range, &uplo, &dim, A.data(), &dim, &vl, &vu, &il, &iu,
+          &abstol, &m, e_values.data(), e_vectors.data(), &dim, isuppz.data(),
+          work.data(), &lwork, iwork.data(), &liwork, &info);
 
   if (info != 0) {
-    std::cerr << "\nError 135: symmhEigensystem " << info << " " << dim << " "
-              << std::endl;
+    std::cerr << "\nError: dsyevr (range=I) symmhEigensystem info=" << info
+              << " dim=" << dim << "\n";
   }
 
   return eigen_vv;

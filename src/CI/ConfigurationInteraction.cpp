@@ -25,94 +25,92 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
                                               const Wavefunction &wf) {
 
   // Check input options:
-  input.check(
-    {{"ci_basis",
-      "Basis used for CI expansion; must be a sub-set of full ampsci basis "
-      "[default: 20spdf]"},
-     {"J", "List of total angular momentum J for CI solutions (comma "
-           "separated). Must be integers (two-electron only). []"},
-     {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
-     {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
-     {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
-     {"all_below_cm",
-      "Find all CI solutions for energies below this threshold, "
-      "in inverse cm. Note that this is the total energy, not the "
-      "excitation energy. If set, num_solutions is ignored."},
-     {"sigma1", "Include one-body MBPT correlations? [false]"},
-     {"sigma2", "Include two-body MBPT correlations? [false]"},
-     {"Brueckner", "Use Brueckner (spectrum) states for CI basis? Must have "
-                   "Spectrum and sigma1. [false]"},
-     {"cis2_basis",
-      "The subset of ci_basis for which the two-body MBPT corrections are "
-      "calculated. Must be a subset of ci_basis. If existing sk file has "
-      "more integrals, they will be used. [default: Nspdf, where N is "
-      "maximum n for core + 3]"},
-     {"Breit2", "Include two-body Breit? Default is true if Breit included in "
-                "HF. Ignored if Breit not included in HF. [true]"},
-     {"Breit_basis",
-      "Subset of ci_basis used to include two-body Breit "
-      "corrections into CI matrix. Large basis is slow, uses "
-      "huge memory, and makes small contribution. [default: Nspdf, where N is "
-      "maximum n for core + 6]"},
-     {"s1_basis",
-      "Usually should be left as default. Basis used for the one-body MBPT "
-      "diagrams (Sigma^1) internal lines. These are the "
-      "most important, so in general the default (all basis states) should "
-      "be used. Must be a subset of full ampsci basis. [default: full "
-      "basis]\n"
-      " - Note: if CorrelationPotential is available, it will be used "
-      "instead of calculating the Sigma_1 integrals"},
-     {"s2_basis",
-      "Usually should be left blank. Basis used for internal lines of the "
-      "two-body MBPT diagrams "
-      "(Sigma^2) internal lines. Must be a subset of s1_basis. [default: "
-      "s1_basis]"},
-     {"n_min_core", "Minimum n for core to be included in MBPT [1]"},
-     {"max_k",
-      "Maximum k (multipolarity) to include when calculating new "
-      "Coulomb integrals. Higher k often contribute negligably. Note: if qk "
-      "file already has higher-k terms, they will be included. Set negative "
-      "(or very large) to include all k. [8]"},
-     {"denominators",
-      "'RS', 'Fermi', 'Fermi0'. Denominators used in Sigma2 matrix elements. "
-      "RS uses actual states for external legs, Fermi uses the lowest excited "
-      "state for each kappa, Fermi0 uses lowest excited state for all kappas "
-      "(and thus cancels in all except diagram 'd'). [Fermi0]"},
-     {"qk_file",
-      "Filename for storing two-body Coulomb integrals. By default, is "
-      "~ At.qk, where At is atomic symbol + 'identity'."},
-     {"sk_file",
-      "Filename for storing two-body Sigma_2 integrals. By default, is "
-      "At_n_b_k.sk, where At is atomic symbol, n is n_min_core, b is "
-      "cis2_basis, k is max_k."},
-     {"bk_file",
-      "Filename for storing two-body Breit integrals. By default, is "
-      "~ At.bk, where At is atomic symbol + 'identity'."},
-     {"ci_file",
-      "Filename for storing CI solutions (energies + eigenvectors). Default "
-      "is auto-generated: identity_cibasis[_s1][_s2][_bru].ci.abf. "
-      "Set to 'false' to disable read/write. [auto]"},
-     {"read_only",
-      "If true, will *only* read in the existing CI solutions, and will not "
-      "calculate anything new, even if new states are requested. You must set "
-      "the ci_basis (not read in) and the J/pi solutions you want; only these "
-      "will be read in. Use if you "
-      "know CI has already been completed. [false]"},
-     {"no_new_integrals",
-      "Usually false. If set to true, ampsci will not calculate any new "
-      "Coulomb or Sigma_2 integrals, even if they are implied by the above "
-      "settings. This saves time when we know all required integrals already "
-      "exist, since the code doesn't need to check. [true]"},
-     {"exclude_wrong_parity_box",
-      "Excludes the Sigma_2 box corrections that "
-      "have 'wrong' parity when calculating Sigma2 matrix elements. Note: If "
-      "existing sk file already has these, they will be included [false]"},
-     {"sort_output", "Sort output by energy? Default is to sort by J and Pi "
-                     "first. [false]"},
-     {"print_details", "Condition to print details of each CI solution "
-                       "(otherwise just prints summary) [true]"},
-     {"parallel_ci", "Run CI in parallel (solve each J/Pi in parallel). "
-                     "Faster, uses slightly more memory [true]"}});
+  input.check({
+    {"ci_basis",
+     "Basis used for CI expansion; must be a sub-set of full ampsci basis "
+     "[default: 20spdf]"},
+    {"J", "List of total angular momentum J for CI solutions (comma "
+          "separated). Must be integers (two-electron only). []"},
+    {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
+    {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
+    {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
+    {"all_below_cm",
+     "Find all CI solutions for energies below this threshold, "
+     "in inverse cm. Note that this is the total energy, not the "
+     "excitation energy. If set, num_solutions is ignored."},
+    {"sigma1", "Include one-body MBPT correlations? [false]"},
+    {"sigma2", "Include two-body MBPT correlations? [false]"},
+    {"Brueckner", "Use Brueckner (spectrum) states for CI basis? Must have "
+                  "Spectrum and sigma1. [false]"},
+    {"cis2_basis",
+     "The subset of ci_basis for which the two-body MBPT corrections are "
+     "calculated. Must be a subset of ci_basis. If existing sk file has "
+     "more integrals, they will be used. [default: Nspdf, where N is "
+     "maximum n for core + 3]"},
+    {"Breit2", "Include two-body Breit? Default is true if Breit included in "
+               "HF. Ignored if Breit not included in HF. [true]"},
+    {"Breit_basis",
+     "Subset of ci_basis used to include two-body Breit "
+     "corrections into CI matrix. Large basis is slow, uses "
+     "huge memory, and makes small contribution. [default: Nspdf, where N is "
+     "maximum n for core + 6]"},
+    {"s1_basis",
+     "Usually should be left as default. Basis used for the one-body MBPT "
+     "diagrams (Sigma^1) internal lines. These are the "
+     "most important, so in general the default (all basis states) should "
+     "be used. Must be a subset of full ampsci basis. [default: full "
+     "basis]\n"
+     " - Note: if CorrelationPotential is available, it will be used "
+     "instead of calculating the Sigma_1 integrals"},
+    {"s2_basis",
+     "Usually should be left blank. Basis used for internal lines of the "
+     "two-body MBPT diagrams "
+     "(Sigma^2) internal lines. Must be a subset of s1_basis. [default: "
+     "s1_basis]"},
+    {"n_min_core", "Minimum n for core to be included in MBPT [1]"},
+    {"max_k",
+     "Maximum k (multipolarity) to include when calculating new "
+     "Coulomb integrals. Higher k often contribute negligably. Note: if qk "
+     "file already has higher-k terms, they will be included. Set negative "
+     "(or very large) to include all k. [8]"},
+    {"denominators",
+     "'RS', 'Fermi', 'Fermi0'. Denominators used in Sigma2 matrix elements. "
+     "RS uses actual states for external legs, Fermi uses the lowest excited "
+     "state for each kappa, Fermi0 uses lowest excited state for all kappas "
+     "(and thus cancels in all except diagram 'd'). [Fermi0]"},
+    {"qk_file",
+     "Filename for storing two-body Coulomb integrals. By default, is "
+     "~ At.qk, where At is atomic symbol + 'identity'."},
+    {"sk_file",
+     "Filename for storing two-body Sigma_2 integrals. By default, is "
+     "At_n_b_k.sk, where At is atomic symbol, n is n_min_core, b is "
+     "cis2_basis, k is max_k."},
+    {"bk_file", "Filename for storing two-body Breit integrals. By default, is "
+                "~ At.bk, where At is atomic symbol + 'identity'."},
+    {"ci_file",
+     "Filename for storing CI solutions (energies + eigenvectors). Default "
+     "is auto-generated: identity_cibasis[_s1][_s2][_bru].ci.abf. "
+     "Set to 'false' to disable read/write. [auto]"},
+    {"read_only",
+     "If true, will *only* read in the existing CI solutions, and will not "
+     "calculate anything new, even if new states are requested. You must set "
+     "the ci_basis (not read in) and the J/pi solutions you want; only these "
+     "will be read in. Use if you "
+     "know CI has already been completed. [false]"},
+    {"no_new_integrals",
+     "Usually false. If set to true, ampsci will not calculate any new "
+     "Coulomb or Sigma_2 integrals, even if they are implied by the above "
+     "settings. This saves time when we know all required integrals already "
+     "exist, since the code doesn't need to check. [true]"},
+    {"exclude_wrong_parity_box",
+     "Excludes the Sigma_2 box corrections that "
+     "have 'wrong' parity when calculating Sigma2 matrix elements. Note: If "
+     "existing sk file already has these, they will be included [false]"},
+    {"sort_output", "Sort output by energy? Default is to sort by J and Pi "
+                    "first. [false]"},
+    {"print_details", "Condition to print details of each CI solution "
+                      "(otherwise just prints summary) [true]"},
+  });
 
   // construct first, for RVO
   std::vector<PsiJPi> levels;
@@ -426,38 +424,26 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
     std::cout << "CI solutions file: " << ci_fname << "\n";
   }
   const auto sort_output = input.get("sort_output", false);
-  const auto parallel_ci = input.get("parallel_ci", true);
   const auto print_details = input.get("print_details", true);
 
   const auto n_Js = J_even_list.size() + J_odd_list.size();
 
   levels.resize(n_Js);
-  std::vector<std::ostringstream> os(n_Js); // for parallel output
 
-  fmt::print("Running CI for {} J/pi's {}\n\n", n_Js,
-             parallel_ci ? "in parallel" : "");
+  fmt::print("Running CI for {} J/pi's\n\n", n_Js);
   std::cout << std::flush;
 
   {
     IO::ChronoTimer t2("CI Eigenvalues");
-#pragma omp parallel for if (parallel_ci)
     for (std::size_t i = 0; i < n_Js; ++i) {
       const auto [twoj, pi] =
         i < J_even_list.size() ?
           std::pair{2 * J_even_list.at(i), +1} :
           std::pair{2 * J_odd_list.at(i - J_even_list.size()), -1};
 
-      auto &output_stream = parallel_ci ? os.at(i) : std::cout;
       levels.at(i) =
         run_CI(ci_sp_basis, twoj, pi, num_solutions, all_below_cm, h1, qk, Bk,
-               Sk, include_Sigma2, print_details, output_stream, ci_fname);
-    }
-
-    // If doing in parallel, output detailed output at end
-    if (parallel_ci) {
-      for (const auto &out : os)
-        std::cout << out.str();
-      std::cout << std::flush;
+               Sk, include_Sigma2, print_details, std::cout, ci_fname);
     }
   }
 
