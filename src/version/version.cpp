@@ -1,15 +1,7 @@
 #include "version.hpp"
+#include <dlfcn.h>
 #include <gsl/gsl_version.h>
 #include <string>
-
-// Weak references to BLAS/LAPACK version functions.
-// Resolve to null if the library was not linked -- no headers required.
-extern "C" {
-const char *openblas_get_config() __attribute__((weak));
-int openblas_get_num_threads() __attribute__((weak));
-void MKL_Get_Version_String(char *, int) __attribute__((weak));
-int mkl_get_max_threads() __attribute__((weak));
-}
 
 // Macro translates constants to "strings"
 #define XSTRING(s) STRING(s)
@@ -87,22 +79,32 @@ std::string version() {
 std::string compiled() { return cxx_version + " " + compiled_time; }
 
 static std::string blas_info() {
-  if (openblas_get_config)
-    return std::string("OpenBLAS: ") + openblas_get_config();
-  if (MKL_Get_Version_String) {
+  using fn_str = const char *(*)();
+  using fn_mkl = void (*)(char *, int);
+  auto oblas_cfg =
+    reinterpret_cast<fn_str>(dlsym(RTLD_DEFAULT, "openblas_get_config"));
+  if (oblas_cfg)
+    return std::string("OpenBLAS: ") + oblas_cfg();
+  auto mkl_ver =
+    reinterpret_cast<fn_mkl>(dlsym(RTLD_DEFAULT, "MKL_Get_Version_String"));
+  if (mkl_ver) {
     char buf[256] = {};
-    MKL_Get_Version_String(buf, 256);
+    mkl_ver(buf, 256);
     return std::string("Intel MKL: ") + buf;
   }
   return "Reference LAPACK/BLAS";
 }
 
 std::string blas_threads() {
-  if (openblas_get_num_threads)
-    return "OpenBLAS: " + std::to_string(openblas_get_num_threads()) +
-           " threads.";
-  if (mkl_get_max_threads)
-    return "MKL: " + std::to_string(mkl_get_max_threads()) + " threads.";
+  using fn_int = int (*)();
+  auto oblas_thr =
+    reinterpret_cast<fn_int>(dlsym(RTLD_DEFAULT, "openblas_get_num_threads"));
+  if (oblas_thr)
+    return "OpenBLAS: " + std::to_string(oblas_thr()) + " threads.";
+  auto mkl_thr =
+    reinterpret_cast<fn_int>(dlsym(RTLD_DEFAULT, "mkl_get_max_threads"));
+  if (mkl_thr)
+    return "MKL: " + std::to_string(mkl_thr()) + " threads.";
   return "";
 }
 

@@ -130,6 +130,11 @@ endif
 CXXFLAGS += $(CXXSTD) $(OPT) $(OMPLIB) $(WARN) $(INCLUDES) $(EXTRA_CXXFLAGS)
 LDFLAGS += $(OMPLIB)
 
+# dlsym is in libdl on Linux; on macOS it is part of libSystem (no -ldl needed)
+ifeq ($(shell uname),Linux)
+  LDLIBS += -ldl
+endif
+
 # Compile and link commands
 COMPILE = $(CXX) $(CXXFLAGS) -MMD -MP -c -o $@ $<
 LINK = $(CXX) $(LDFLAGS) -o $@ $^ $(LDLIBS)
