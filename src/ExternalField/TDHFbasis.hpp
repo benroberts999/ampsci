@@ -19,12 +19,6 @@ namespace ExternalField {
       \frac{\ket{n}\matel{n}{t_\pm + \delta V_\pm}{a}}{\en_a - \en_n \pm \omega},
   \f]
   rather than by solving the inhomogeneous ODE directly.
-
-  @warning Does not currently work correctly for frequency-dependent operators
-  unless they depend only on the magnitude \f$ |\omega| \f$.
-  The method assumes \f$ t_- = t_+^\dag \f$, whereas the correct relation is
-  \f$ t_-(\omega) = t_+^\dag(-\omega) \f$.
-  This will be fixed in a future update.
 */
 class TDHFbasis final : public TDHF {
 public:
@@ -38,7 +32,8 @@ public:
   */
   TDHFbasis(const DiracOperator::TensorOperator *const h,
             const HF::HartreeFock *const hf,
-            const std::vector<DiracSpinor> &basis);
+            const std::vector<DiracSpinor> &basis,
+            const DiracOperator::TensorOperator *const h_minus = nullptr);
 
 private:
   std::vector<DiracSpinor> m_basis{}; // store copy?

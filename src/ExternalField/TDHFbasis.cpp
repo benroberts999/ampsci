@@ -12,8 +12,9 @@ namespace ExternalField {
 //==============================================================================
 TDHFbasis::TDHFbasis(const DiracOperator::TensorOperator *const h,
                      const HF::HartreeFock *const hf,
-                     const std::vector<DiracSpinor> &basis)
-  : TDHF(h, hf) {
+                     const std::vector<DiracSpinor> &basis,
+                     const DiracOperator::TensorOperator *const h_minus)
+  : TDHF(h, hf, h_minus) {
 
   // Let user make this choice on construction
   m_basis = basis;
@@ -51,6 +52,8 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
   const auto imag = m_h->imaginaryQ();
   const auto s = (imag && conj) ? -1 : 1;
 
+  const auto *h_use = conj ? m_h_minus : m_h;
+
   auto s2 = 1;
   if (st == StateType::bra) {
     // "left-hand-side" : "reduced" ket, so has factor (+ conjugate)
@@ -69,13 +72,9 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
     if (Fn.kappa() != Xx.kappa() || m_h->isZero(Fn.kappa(), Fv.kappa()) ||
         Fv == Fn)
       continue;
-    // XXX Check:
-    // why need multiply dV by s too? Thought I shouldn't??
-    // const auto hnc = s2 * (s * m_h->reducedME(Fn, Fv) + s * dV(Fn, Fv,
-    // conj));
     const auto hnc = incl_dV ?
-                       s2 * s * (m_h->reducedME(Fn, Fv) + dV(Fn, Fv, conj)) :
-                       s2 * s * m_h->reducedME(Fn, Fv);
+                       s2 * s * (h_use->reducedME(Fn, Fv) + dV(Fn, Fv, conj)) :
+                       s2 * s * h_use->reducedME(Fn, Fv);
     Xx += (hnc / (Fv.en() - Fn.en() + ww)) * Fn;
   }
 

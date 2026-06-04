@@ -43,18 +43,18 @@ namespace ExternalField {
   It is via \f$ \delta V_\pm \f$ that the \f$ e^{\pm i\omega t} \f$ terms are mixed.
 
   \par Construction
-  Requires a pointer to an operator (h) and a const @ref HF::HartreeFock object.
+  Requires a pointer to the forward operator (\f$ t_+ \f$), a const
+  @ref HF::HartreeFock object, and an optional pointer to the backward
+  operator (\f$ t_- \f$). If @p h_minus is omitted, \f$ t_- \f$ is taken
+  to be the same pointer as \f$ t_+ \f$.
+  The user is responsible for updating operator frequencies externally
+  before calling solve_core().
+  Note: Only need \f$t_-\f$ for operators that depend on the sign of the frequency (e.g., E1v). Most depend only on magnitude, in which case \f$t_- = t_+^\dag \f$, which is dealt with automatically.
 
   \par Usage
   @ref solve_core (omega) solves the TDHF equations for a given frequency.
   @ref dV (Fa, Fb) then returns the RPA correction to the reduced matrix element
   \f$ \redmatel{a}{\delta V}{b} \f$.
-
-  @warning Does not currently work for frequency-dependent operators
-  unless they depend only on the magnitude \f$ |\omega| \f$.
-  The method assumes \f$ t_- = t_+^\dag \f$, whereas the correct relation is
-  \f$ t_-(\omega) = t_+^\dag(-\omega) \f$.
-  This will be fixed in a future update.
 */
 class TDHF : public CorePolarisation {
 
@@ -67,6 +67,7 @@ protected:
   std::vector<std::vector<DiracSpinor>> m_X{};
   std::vector<std::vector<DiracSpinor>> m_Y{};
   std::vector<std::vector<DiracSpinor>> m_hFcore{};
+  std::vector<std::vector<DiracSpinor>> m_hFcore_minus{};
   // can just write these to disk! Read them in, continue as per normal
 
   const HF::HartreeFock *const p_hf;
@@ -74,16 +75,25 @@ protected:
   // const std::vector<double> m_Hmag;
   const double m_alpha;
   const HF::Breit *const p_VBr;
+  // nb: m_h_plus := m_h is the one in CorePolarisation
+  const DiracOperator::TensorOperator *const m_h_minus;
 
 public:
   /*!
     @brief Constructs TDHF for operator h.
 
-    @param h  External field operator.
-    @param hf @ref HF::HartreeFock object defining the core.
+    @param h_plus  Forward operator \f$ t_+ \f$; must be set to positive
+                   frequency before each call to solve_core().
+    @param hf      @ref HF::HartreeFock object defining the core.
+    @param h_minus Backward operator \f$ t_- \f$; if nullptr (default), uses
+                   @p h_plus. Only needed when the operator is frequency-dependent
+                   *and* depends on the **sign** of \f$ \omega \f$ (e.g. E1
+                   velocity form). For operators that depend only on
+                   \f$ |\omega| \f$ (e.g. M1), the default suffices.
   */
-  TDHF(const DiracOperator::TensorOperator *const h,
-       const HF::HartreeFock *const hf);
+  TDHF(const DiracOperator::TensorOperator *const h_plus,
+       const HF::HartreeFock *const hf,
+       const DiracOperator::TensorOperator *const h_minus = nullptr);
 
   /*!
     @brief Solves TDHF equations self-consistently for core electrons at frequency omega.
@@ -174,7 +184,8 @@ private:
   // Single iteration of TDHF equations
   std::pair<double, std::string> tdhf_core_it(double omega, double eta_damp);
   // Forms set of h*Fc for all core orbitals and all projections
-  std::vector<std::vector<DiracSpinor>> form_hFcore() const;
+  std::vector<std::vector<DiracSpinor>>
+  form_hFcore(const DiracOperator::TensorOperator *h) const;
   // Solves the MS equations for all projections, single core state
   void solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
                      const std::vector<DiracSpinor> &hFbs, const double omega,

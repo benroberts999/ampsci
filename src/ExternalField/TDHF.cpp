@@ -19,13 +19,15 @@
 namespace ExternalField {
 
 //==============================================================================
-TDHF::TDHF(const DiracOperator::TensorOperator *const h,
-           const HF::HartreeFock *const hf)
-  : CorePolarisation((assert(h != nullptr), h)),
+TDHF::TDHF(const DiracOperator::TensorOperator *const h_plus,
+           const HF::HartreeFock *const hf,
+           const DiracOperator::TensorOperator *const h_minus)
+  : CorePolarisation((assert(h_plus != nullptr), h_plus)),
     p_hf((assert(hf != nullptr), hf)),
     m_core(hf->core()),
     m_alpha(hf->alpha()),
-    p_VBr(hf->vBreit()) {
+    p_VBr(hf->vBreit()),
+    m_h_minus(h_minus ? h_minus : h_plus) {
   initialise_dPsi();
 }
 
@@ -119,16 +121,16 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
     conj = !conj;
 
   const auto imag = m_h->imaginaryQ();
+  const auto *h_use = conj ? m_h_minus : m_h;
 
-  auto rhs = m_h->reduced_rhs(kappa_x, Fv);
-  // if (imag && conj)
-  //   rhs *= -1;
-  /// XXX Think this ^ shouldn't be here. Haven't checked though!
+  auto rhs = h_use->reduced_rhs(kappa_x, Fv);
+  if (imag && conj)
+    rhs *= -1;
 
   if (incl_dV)
     rhs += dV_rhs(kappa_x, Fv, conj);
   if (kappa_x == Fv.kappa() && !imag) {
-    auto de = m_h->reducedME(Fv, Fv);
+    auto de = h_use->reducedME(Fv, Fv);
     if (incl_dV)
       de += dV(Fv, Fv, conj);
     rhs -= de * Fv;
@@ -149,7 +151,7 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   const auto &Hmag = p_hf->Hmag(Angular::l_k(Fv.kappa()));
   // The l from X ? or from Fv ?
   return s2 * ExternalField::solveMixedState(Fv, ww, vl, m_alpha, m_core, rhs,
-                                             1.0e-9, Sigma, p_VBr, Hmag);
+                                             1.0e-12, Sigma, p_VBr, Hmag);
 }
 
 //==============================================================================
@@ -188,14 +190,15 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
 }
 
 //==============================================================================
-std::vector<std::vector<DiracSpinor>> TDHF::form_hFcore() const {
+std::vector<std::vector<DiracSpinor>>
+TDHF::form_hFcore(const DiracOperator::TensorOperator *h) const {
   std::vector<std::vector<DiracSpinor>> hFcore(m_core.size());
   for (auto ic = 0ul; ic < m_X.size(); ic++) {
     const auto &Fc = m_core[ic];
     hFcore.reserve(m_X[ic].size()); // each h projection
     for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
       const auto &Xx = m_X[ic][beta];
-      hFcore[ic].push_back(m_h->reduced_rhs(Xx.kappa(), Fc));
+      hFcore[ic].push_back(h->reduced_rhs(Xx.kappa(), Fc));
     }
   }
   return hFcore;
@@ -215,7 +218,7 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
   auto Ys = m_Y;
   std::vector<std::pair<double, std::string>> epss(m_core.size());
 
-  const auto eps_ms = 1.0e-10;
+  const auto eps_ms = 1.0e-12;
 
   double DdF2 = 0.0;
   double dF2 = 0.0;
@@ -224,14 +227,15 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
     const auto &Fb = m_core.at(ib);
 
     const auto &hFbs = m_hFcore[ib];
+    const auto &hFbs_minus = m_hFcore_minus[ib];
 
     // solve for dF, and damp
     solve_ms_core(Xs[ib], Fb, hFbs, omega, dPsiType::X, eps_ms);
     Xs[ib] = eta_damp * m_X[ib] + (1.0 - eta_damp) * Xs[ib];
-    if (staticQ) {
+    if (staticQ && !m_h->freqDependantQ()) {
       Ys[ib] = s * Xs[ib];
     } else {
-      solve_ms_core(Ys[ib], Fb, hFbs, omega, dPsiType::Y, eps_ms);
+      solve_ms_core(Ys[ib], Fb, hFbs_minus, omega, dPsiType::Y, eps_ms);
       Ys[ib] = eta_damp * m_Y[ib] + (1.0 - eta_damp) * Ys[ib];
     }
 
@@ -286,7 +290,8 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
     std::cout << std::flush;
   }
 
-  m_hFcore = form_hFcore();
+  m_hFcore = form_hFcore(m_h);
+  m_hFcore_minus = form_hFcore(m_h_minus);
 
   std::pair<double, std::string> eps{};
   double best_eps{1.0};
@@ -306,7 +311,9 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
       }
     }
 
-    if (it > 1 && eps.first < converge_targ)
+    if (it > 1 && eps.first < 0.01 * converge_targ)
+      break;
+    if (it > 5 && eps.first < converge_targ)
       break;
     if (count_worse > 5 && eps.first < 1.0e4 * converge_targ)
       break;
@@ -380,6 +387,7 @@ DiracSpinor TDHF::dV_rhs(int kappa_n, const DiracSpinor &Fa, bool conj) const {
       // Breit part:
       if (p_VBr) {
         // Makes small difference for E1, huge difference for HFS
+        // No frequency-dependence yet. Not sure if we should bother.
         dVFa += tkp1 * p_VBr->dV_Br(kappa_n, k, Fa, Fb, X_beta, Y_beta);
       }
     }

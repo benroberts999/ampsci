@@ -29,6 +29,10 @@ public:
                      gr.rpow(k)),
       m_k(k) {}
 
+  std::unique_ptr<TensorOperator> clone() const override {
+    return std::make_unique<Ek>(*this);
+  }
+
   std::string name() const override {
     return std::string("E") + std::to_string(m_k);
   }
@@ -64,6 +68,10 @@ class E1 final : public Ek {
 public:
   E1(const Grid &gr) : Ek(gr, 1) {}
 
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<E1>(*this);
+  }
+
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &wf) {
     input.check({{"no options", ""}});
@@ -80,6 +88,10 @@ public:
   sigma_r(const Grid &rgrid) : ScalarOperator(Parity::odd, -1.0, rgrid.r()) {}
   std::string name() const override final { return "s.r"; }
   std::string units() const override final { return "aB"; }
+
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<sigma_r>(*this);
+  }
 
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &wf) {
@@ -131,8 +143,13 @@ public:
   //! the velocity-form operator diverges as 1/omega and is not physically
   //! meaningful at zero frequency.
   void updateFrequency(const double omega) override final {
+    m_omega = omega;
     // m_constant = std::abs(omega) > 1.0e-10 ? -2.0 / (m_alpha * omega) : 1.0;
     m_constant = std::abs(omega) > 1.0e-10 ? -1.0 / (m_alpha * omega) : -1.0;
+  }
+
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<E1v>(*this);
   }
 
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
@@ -152,7 +169,7 @@ private:
 //! i factored so that ME is real
 class ialpha final : public TensorOperator {
 public:
-  ialpha() : TensorOperator(1, Parity::odd, 1.0, {}, Realness::real, true) {}
+  ialpha() : TensorOperator(1, Parity::odd, 1.0, {}, Realness::real, false) {}
 
   std::string name() const override final { return "i*alpha"; }
   std::string units() const override final { return "au"; }
@@ -165,6 +182,10 @@ public:
   double angularCgg(int, int) const override final { return 0; }
   double angularCfg(int ka, int kb) const override final { return ka - kb - 1; }
   double angularCgf(int ka, int kb) const override final { return ka - kb + 1; }
+
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<ialpha>(*this);
+  }
 
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &) {
@@ -180,6 +201,10 @@ public:
 class E2 final : public Ek {
 public:
   E2(const Grid &gr) : Ek(gr, 2) {}
+
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<E2>(*this);
+  }
 
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &wf) {

@@ -20,6 +20,9 @@ public:
   }
   std::string name() const override { return std::string("j"); }
   std::string units() const override { return "au"; }
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<j>(*this);
+  }
 };
 
 //==============================================================================
@@ -43,6 +46,9 @@ public:
   }
   std::string name() const override { return std::string("l"); }
   std::string units() const override { return "au"; }
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<l>(*this);
+  }
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &) {
     input.check({{"no options", ""}});
@@ -72,6 +78,9 @@ public:
   }
   std::string name() const override { return std::string("s"); }
   std::string units() const override { return "au"; }
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<s>(*this);
+  }
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &) {
     input.check({{"no options", ""}});

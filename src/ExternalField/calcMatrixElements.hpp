@@ -171,11 +171,14 @@ inline Coulomb::meTable<double> me_table(
   If the method string is not recognised, prints an error and defaults to none.
 
   @param method    String specifying the RPA method (see above).
-  @param h         Pointer to the operator for which RPA is to be solved.
+  @param h         Pointer to the forward operator (\f$ t_+ \f$).
   @param vhf       Pointer to the Hartree-Fock object (provides core potential).
   @param print     If true, print a brief description of the chosen method.
   @param basis     Basis set for basis/diagram methods (ignored for TDHF).
   @param identity  Identifier string passed to DiagramRPA (e.g. for caching).
+  @param h_minus   Pointer to the backward operator (\f$ t_- \f$); if nullptr
+                   (default), @p h is used for both. See @ref TDHF constructor
+                   for when this is needed.
 
   @return Unique pointer to the constructed CorePolarisation object, or
           nullptr if RPA is disabled.
@@ -187,6 +190,7 @@ std::unique_ptr<CorePolarisation>
 make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
          const HF::HartreeFock *vhf, bool print = false,
          const std::vector<DiracSpinor> &basis = {},
-         const std::string &identity = "");
+         const std::string &identity = "",
+         const DiracOperator::TensorOperator *h_minus = nullptr);
 
 } // namespace ExternalField

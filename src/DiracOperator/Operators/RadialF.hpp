@@ -32,6 +32,9 @@ public:
   }
   std::string name() const override final { return "RadialFunction"; }
   std::string units() const override final { return "au"; }
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<RadialF>(*this);
+  }
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &wf) {
     input.check({{"power", "Power (real) for r^k"}});

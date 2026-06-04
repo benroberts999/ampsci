@@ -255,10 +255,15 @@ protected:
   // these may be updated for frequency-dependant operators
   double m_constant; // included in radial integral
   std::vector<double> m_vec;
+  double m_omega{0.0};
 
 public:
   //! Returns true if the operator is frequency-dependent (requires updateFrequency() calls).
   bool freqDependantQ() const { return m_freqDependantQ; }
+
+  //! Returns the current frequency set by the last updateFrequency() call.
+  //! Zero for frequency-independent operators.
+  double omega() const { return m_omega; }
 
 public:
   //! Returns true if <a|h|b> = 0 by rank/parity selection rules.
@@ -292,6 +297,10 @@ public:
 
     @warning Must be implemented in any derived class that sets freq_dep=true.
     Calling this on a non-frequency-dependent operator is a logic error.
+
+    @note Derived implementations must set @p m_omega = omega so that omega()
+    reflects the current frequency (e.g., for use by the TDHF solver when
+    constructing the \f$ t_- \f$ operator at negated frequency).
   */
   virtual void updateFrequency(const double) {
     std::cout << "Must reimplement updateFrequency()\n";
@@ -434,8 +443,25 @@ public:
   */
   virtual double angularF(const int, const int) const = 0;
 
-  //! Returns a polymorphic copy of the operator at its current state,
-  //! or nullptr if cloning is not supported by the derived class.
+  /*!
+    @brief Creates a polymorphic copy of the operator at its current state,
+    or nullptr if cloning is not supported by the derived class.
+    @details
+    Frequency-dependent operators must override this so the TDHF solver
+    can construct an independent \f$ t_- = t_+^\dagger(-\omega) \f$ operator.
+
+    Most operators can implement this as a one-liner using the copy constructor:
+    \code
+    return std::make_unique<DerivedClass>(*this);
+    \endcode
+    This works whenever the copy constructor correctly preserves all state,
+    including m_vec, m_constant, and m_omega.
+
+    @return Owning pointer to a copy, or nullptr if cloning is unsupported.
+    @note The base class returns nullptr. Operators whose copy constructor is
+    deleted or otherwise unavailable cannot use this pattern and must either
+    implement a manual clone or leave the default nullptr.
+  */
   virtual std::unique_ptr<TensorOperator> clone() const { return nullptr; }
 
   //! @brief Computes the right-hand spinor dF_b for the radial integral.
@@ -570,14 +596,6 @@ public:
       c_fg(in_g[1]),
       c_gf(in_g[2]),
       c_gg(in_g[3]) {}
-
-  //! Convenience constructor: even-parity, real, diagonal (C_ff=C_gg=1, C_fg=C_gf=0) scalar operator.
-  ScalarOperator(const std::vector<double> &in_v = {}, double in_coef = 1.0)
-    : TensorOperator(0, Parity::even, in_coef, in_v),
-      c_ff(1.0),
-      c_fg(0.0),
-      c_gf(0.0),
-      c_gg(1.0) {}
 
 public:
   virtual double angularF(const int ka, const int kb) const override {

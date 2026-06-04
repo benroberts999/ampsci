@@ -42,6 +42,7 @@ public:
   double angularCgf(int, int) const override final { return 1.0; }
 
   void updateFrequency(const double omega) override final {
+    m_omega = omega;
     if (std::abs(omega) > 1.0e-10) {
       m_constant = -3.0 / std::abs((m_alpha * m_alpha * omega));
       SphericalBessel::fillBesselVec_kr(1, std::abs(omega) * m_alpha, m_r,
@@ -51,6 +52,10 @@ public:
       m_constant = -1.0 / (m_alpha);
       m_vec = m_r;
     }
+  }
+
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<M1>(*this);
   }
 
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
@@ -88,6 +93,10 @@ public:
                         const DiracSpinor &Fb) const override final {
     // nb: faster not to do this, but nicer this way
     return Fa * radial_rhs(Fa.kappa(), Fb);
+  }
+
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<M1nr>(*this);
   }
 
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,

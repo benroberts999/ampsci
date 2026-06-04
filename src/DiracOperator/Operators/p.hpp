@@ -57,6 +57,10 @@ public:
     return Fa * radial_rhs(Fa.kappa(), Fb);
   }
 
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<p>(*this);
+  }
+
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &) {
     input.check({{"", "no input"}});

@@ -194,6 +194,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   const auto h = DiracOperator::generate(oper, h_options, wf);
+  // For sign-sensitive freq-dependent operators (e.g. E1v), h_minus holds
+  // t_- at -|omega|; otherwise nullptr and TDHF uses h for both.
+  auto h_minus = h->freqDependantQ() ? h->clone() : nullptr;
 
   // treat hyperfine operator differently: constants instead of RME
   const bool is_hyperfine =
@@ -244,7 +247,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   if (wf.core().empty())
     rpa_method_str = "false";
   auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
-                                     wf.basis(), wf.identity());
+                                     wf.basis(), wf.identity(), h_minus.get());
 
   const auto rpa_eps = rpa_input.get("eps", 1.0e-10);
   const auto rpa_its = rpa_input.get("max_iterations", 128);
@@ -300,7 +303,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   if (h->freqDependantQ() && !eachFreqQ) {
-    h->updateFrequency(omega);
+    h->updateFrequency(std::abs(omega));
+    if (h_minus)
+      h_minus->updateFrequency(-std::abs(omega));
   }
 
   if (rpa && !eachFreqQ) {
@@ -315,6 +320,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
     if (eachFreqQ && h->freqDependantQ()) {
       h->updateFrequency(0.0);
+      if (h_minus)
+        h_minus->updateFrequency(0.0);
     }
     if (eachFreqQ && rpa) {
       if (rpa_its == 1) {
@@ -377,7 +384,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
                      b.shortSymbol(), ww_s);
 
         if (eachFreqQ && h->freqDependantQ()) {
-          h->updateFrequency(ww_s);
+          h->updateFrequency(std::abs(ww_s));
+          if (h_minus)
+            h_minus->updateFrequency(-std::abs(ww_s));
         }
         if (eachFreqQ && rpa) {
           if (rpa->last_eps() > 1.0e-5 || rpa_its == 1 ||
@@ -389,7 +398,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
         const auto factor = h->matel_factor(matel_type, a, b);
 
-        const auto hab = h->reducedME(a, b);
+        const auto *h_me = (ww_s < 0.0 && h_minus) ? h_minus.get() : h.get();
+        const auto hab = h_me->reducedME(a, b);
         const auto dv = rpa ? rpa->dV(a, b) : 0.0;
         // const auto sub_tot = factor * (hab + dv);
 

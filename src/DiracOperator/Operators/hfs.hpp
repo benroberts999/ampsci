@@ -322,6 +322,10 @@ public:
   double angularCfg(int, int) const override final { return cfg; }
   double angularCgf(int, int) const override final { return cfg; }
 
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<hfs>(*this);
+  }
+
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &wf) {
 

@@ -39,6 +39,10 @@ public:
 
   const QED::RadPot &RadPot() const { return m_Vrad; }
 
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<Vrad>(*this);
+  }
+
   static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
                                                   const Wavefunction &wf) {
     input.check(
@@ -190,6 +194,10 @@ public:
   }
   double angularCgf(int ka, int kb) const override final {
     return m_h0.angularCgf(ka, kb);
+  }
+
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<MLVP>(*this);
   }
 
 public:

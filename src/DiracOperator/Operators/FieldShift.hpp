@@ -35,6 +35,10 @@ public:
   std::string name() const override { return std::string("Field shift"); }
   std::string units() const override { return "au"; }
 
+  std::unique_ptr<TensorOperator> clone() const override final {
+    return std::make_unique<fieldshift>(*this);
+  }
+
   //! delta <r^2> (in fm^2)
   double dr2() const { return m_dr2; }
   //! delta <r^4> (in fm^4)

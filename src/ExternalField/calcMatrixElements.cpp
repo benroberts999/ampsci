@@ -164,7 +164,8 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
 std::unique_ptr<CorePolarisation>
 make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
          const HF::HartreeFock *vhf, bool print,
-         const std::vector<DiracSpinor> &basis, const std::string &identity) {
+         const std::vector<DiracSpinor> &basis, const std::string &identity,
+         const DiracOperator::TensorOperator *h_minus) {
 
   // Parse method for RPA:
   auto rpa_method = ExternalField::ParseMethod(method);
@@ -185,12 +186,12 @@ make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
   if (rpa_method == ExternalField::Method::TDHF) {
     if (print)
       std::cout << "TDHF method\n";
-    dV = std::make_unique<ExternalField::TDHF>(h, vhf);
+    dV = std::make_unique<ExternalField::TDHF>(h, vhf, h_minus);
   } else if (rpa_method == ExternalField::Method::basis) {
     if (print)
       std::cout << "TDHF/basis method (" << DiracSpinor::state_config(basis)
                 << ")\n";
-    dV = std::make_unique<ExternalField::TDHFbasis>(h, vhf, basis);
+    dV = std::make_unique<ExternalField::TDHFbasis>(h, vhf, basis, h_minus);
   } else if (rpa_method == ExternalField::Method::diagram) {
     if (print)
       std::cout << "diagram method (" << DiracSpinor::state_config(basis)

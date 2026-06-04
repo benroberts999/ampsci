@@ -171,8 +171,6 @@ public:
 
 protected:
   const Grid *m_grid{nullptr};
-  double m_omega{
-    0.0}; //!< Current frequency; cached by each derived updateFrequency().
   char m_type{};
   char m_comp{};
   bool m_low_q{};
