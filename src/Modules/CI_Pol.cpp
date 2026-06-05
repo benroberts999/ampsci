@@ -27,7 +27,7 @@ void CI_Pol(const IO::InputBlock &input, const Wavefunction &wf) {
        {"parity", "Parity of state"},
        {"operator_1", "e.g., E1, hfs (see ampsci -o for available operators)"},
        {"state_number", "specify which state with angular momentum J and "
-                        "parity PI is required"}});
+                        "parity PI is required"}, {"struc_rad","Include structure radiation in matrix elements"}});
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
     return;
@@ -54,17 +54,24 @@ void CI_Pol(const IO::InputBlock &input, const Wavefunction &wf) {
   //get CI wavefunction for "initial state"
   const auto wfV = wf.CIwf(J, parity);
 
+  const auto SR_bool = input.get("struc_rad",0);
+
   std::vector<DiracSpinor> orbitals = wf.basis();
   //store and fill table of single orbtial matrix elements
+  Coulomb::meTable<double> sTable;
+  if(SR_bool == 0){
+
   ExternalField::TDHF tdhf(h1.get(), wf.vHF());
+  tdhf.solve_core(0.0);
+  sTable = ExternalField::me_table(orbitals, h1.get(), &tdhf);
+  }else{
+    ExternalField::TDHF tdhf(h1.get(), wf.vHF());
   tdhf.solve_core(0.0);
   MBPT::StructureRad SR(wf.basis(), wf.FermiLevel(), {4, 25},
                         wf.identity() + "SR.qk.abf", 8);
   SR.solve_core(h1.get(), &tdhf);
-  Coulomb::meTable<double> sTable =
-    ExternalField::me_table(orbitals, h1.get(), &tdhf, &SR);
-  //Coulomb::meTable<double> sTable =
-      //ExternalField::me_table(orbitals, h1.get(), &tdhf);
+  sTable = ExternalField::me_table(orbitals, h1.get(), &tdhf, &SR);
+  }
 
   //Number of states for final allowed angular momentum and parity obtained when solving CI+MBPT
 
@@ -89,11 +96,11 @@ void CI_Pol(const IO::InputBlock &input, const Wavefunction &wf) {
       double CI_ME_1 = CI::ReducedME(*wfV, nv, *wfn, i, sTable, k1, p1);
       double CI_ME_2 = CI::ReducedME(*wfn, i, *wfV, nv, sTable, k1, p1);
       double deltaE = wfn->energy(i) - wfV->energy(nv);
-
+//get configurations
       const auto cf = (*wfV).info(nv).config;
       const auto Tf = (*wfV).info(nv).config;
       const auto cn = (*wfn).info(i).config;
-
+//get term symbols 
       std::cout << i << " " << parity << " "  << "Matrix element for states" << cf << "--->" << cn << " " << CI_ME_1 << "  " << CI_ME_2
                 << " " << "Energy denominator " << deltaE << "\n";
       double pol_cont = CI_ME_1 * conj_phase * CI_ME_2 / deltaE;
