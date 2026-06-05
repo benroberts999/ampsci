@@ -155,10 +155,18 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
 //spectrum
 //nuclear spin
 //Total initial and final angular momenta (F=I+J)
-double h1(std::vector<Coulomb::meTable<double>> ME_tables,
+std::vector<double> h1(std::vector<Coulomb::meTable<double>> ME_tables,
           const std::vector<DiracSpinor> &spectrum, const DiracSpinor &w,
           const DiracSpinor &v, int I2, int Fv2, int Fw2, int two_k) {
-  double h1 = 0.0;
+
+  // to check stability of calculation we separate positive and negative contributions
+  //initialise sums          
+  double h1_neg = 0.0;
+  double h1_pos =0.0;
+   //initialise vector output
+  std::vector<double> h_pm={0,0}; //h plus and minus contributions 
+ 
+
   //get angular momenta of valence electronic states from wavefunctions (we actually extract 2j) from kappa
   int kw = w.kappa();
   int kv = v.kappa();
@@ -186,10 +194,14 @@ double h1(std::vector<Coulomb::meTable<double>> ME_tables,
       double sixj2 = Angular::sixj_2(I2, I2, two_k, tjj, tjv, Fv2);
       double angular = phase * sixj1 * sixj2;
 
-      //initialise sums over i for given j
-      double sum_1 = 0.0;
-      double sum_2 = 0.0;
-      double sum_3 = 0.0;
+      //initialise sums over i for given j (negative and positive)
+      double sum_1p = 0.0;
+      double sum_2p = 0.0;
+      double sum_3p = 0.0;
+
+      double sum_1n = 0.0;
+      double sum_2n = 0.0;
+      double sum_3n = 0.0;
 
       //get energy for state j
       double e_j = j.en();
@@ -215,25 +227,64 @@ double h1(std::vector<Coulomb::meTable<double>> ME_tables,
           double t3 = pnc_me.getv(i, v) * e1_me.getv(w, j) * hf_me.getv(j, i) /
                       e_denom3;
 
-          sum_1 = sum_1 + t1;
-          sum_2 = sum_2 + t2;
-          sum_3 = sum_3 + t3;
+
+          //separate sum into positive and negative terms to check stability 
+          // have h1_neg and h1_pos      
+          
+          if(t1<0){
+            sum_1n=sum_1n + t1;
+          }else{
+            sum_1p=sum_1p + t1;
+          }
+
+          if(t2<0){
+            sum_2n=sum_2n + t2;
+          }else{
+            sum_2p=sum_2p + t2;
+          }
+
+          if(t3<0){
+            sum_3n=sum_3n + t3;
+          }else{
+            sum_3p=sum_3p + t3;
+          }
+
+          //sum_1 = sum_1 + t1;
+         // sum_2 = sum_2 + t2;
+          //sum_3 = sum_3 + t3;
         }
       }
       //fourth term (no summation over i)
       double e_denom4 = (e_j - e_v) * (e_j - e_v);
       double t4 =
           pnc_me.getv(j, v) * e1_me.getv(w, j) * hf_me.getv(v, v) / e_denom4;
-      h1 = h1 + angular * (sum_1 + sum_2 + sum_3 - t4);
+          if(t4<0){
+            h1_pos= h1_pos + angular * (sum_1p + sum_2p + sum_3p - t4);
+            h1_neg= h1_neg + angular * (sum_1n + sum_2n + sum_3n);
+          } else{
+            h1_pos= h1_pos + angular * (sum_1p + sum_2p + sum_3p);
+            h1_neg= h1_neg + angular * (sum_1n + sum_2n + sum_3n-t4);
+          }
     }
   }
-  return h1;
+  //return vector [first element ]
+  h_pm.at(0)=h1_pos;
+  h_pm.at(0)=h1_pos;
+
+  return h_pm;
 }
 
-double h2(std::vector<Coulomb::meTable<double>> ME_tables,
+std::vector<double> h2(std::vector<Coulomb::meTable<double>> ME_tables,
           const std::vector<DiracSpinor> &spectrum, const DiracSpinor &w,
           const DiracSpinor &v, int I2, int Fv2, int Fw2, int two_k) {
-  double h2 = 0.0;
+
+  //same for h2, we split up the sum into positive and negative contributions 
+
+  double h2_neg = 0.0;
+  double h2_pos = 0.0;
+
+  //initialise a 2 element vector for output
+  std::vector<double> h2_pm = {0,0};
   //get angular momenta of valence electronic states from wavefunctions (we actually extract 2j) from kappa
   int kw = w.kappa();
   int kv = v.kappa();
@@ -262,9 +313,14 @@ double h2(std::vector<Coulomb::meTable<double>> ME_tables,
       double angular = phase * sixj1 * sixj2;
 
       //initialise sums over i for given j
-      double sum_1 = 0.0;
-      double sum_2 = 0.0;
-      double sum_3 = 0.0;
+      //separate sums based on overall sign
+      double sum_1n = 0.0;
+      double sum_2n = 0.0;
+      double sum_3n = 0.0;
+
+      double sum_1p = 0.0;
+      double sum_2p = 0.0;
+      double sum_3p = 0.0;
 
       //get energy for state j
       double e_j = j.en();
@@ -290,19 +346,50 @@ double h2(std::vector<Coulomb::meTable<double>> ME_tables,
           double t3 = pnc_me.getv(j, i) * e1_me.getv(i, v) * hf_me.getv(w, j) /
                       e_denom3;
 
-          sum_1 = sum_1 + t1;
-          sum_2 = sum_2 + t2;
-          sum_3 = sum_3 + t3;
+          if(t1<0){
+            sum_1n = sum_1n + t1;
+          }else{
+            sum_1p=sum_1p+t1;
+          }    
+          if(t2<0){
+            sum_2n = sum_2n + t2;
+          }else{
+            sum_2p=sum_2p+t2;
+          }            
+          if(t3<0){
+            sum_3n = sum_3n + t3;
+          }else{
+            sum_3p=sum_3p+t3;
+          }            
+                 
+         
+         
+          //sum_1 = sum_1 + t1;
+          //sum_2 = sum_2 + t2;
+          //sum_3 = sum_3 + t3;
         }
       }
       //fourth term (no summation over i)
       double e_denom4 = (e_j - e_w) * (e_j - e_w);
       double t4 =
           pnc_me.getv(w, j) * e1_me.getv(j, v) * hf_me.getv(w, w) / e_denom4;
-      h2 = h2 + angular * (sum_1 + sum_2 + sum_3 - t4);
+
+          if(t4<0){
+            h1_pos= h1_pos + angular * (sum_1p + sum_2p + sum_3p - t4);
+            h1_neg= h1_neg + angular * (sum_1n + sum_2n + sum_3n);
+          } else{
+            h1_pos= h1_pos + angular * (sum_1p + sum_2p + sum_3p);
+            h1_neg= h1_neg + angular * (sum_1n + sum_2n + sum_3n-t4);
+          }
+
+      }    
+    
     }
   }
-  return h2;
+  h2_pm.at(0)=h2_neg;
+  h2_pm.at(1)=h2_pos;
+
+  return h2_pm;
 }
 
 void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
@@ -420,21 +507,31 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto Fw2 = input.get("two_Fw", 0);
     //const auto two_k = input.get("two_k", 0);
 
-    double h_1 = h1(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
+    std::vector<double> h_1 = h1(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
 
-    double h_2 = h2(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
+    std::vector<double> h_2 = h2(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
 
     double I = 0.5 * I2;
 
+    //return final values 
+    //first negative and positive contributiions separately
+
+    double h_sum_n = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0));
+    double h_sum_p = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(1)+h_2.at(1));
+
     double h_sum =
-        sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1 + h_2);
+        sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(2));
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
-    double h_final = h_sum;
-    std::cout << "value is " << h_final << "  MHz .with RPA\n\n";
-    std::cout << "In atomic unuts value is " << h_final / PhysConst::Hartree_MHz
+    std::cout << "\n Total value is " << h_sum << "  MHz .with RPA\n\n";
+    std::cout << "In atomic unuts value is " << h_sum / PhysConst::Hartree_MHz
               << "  au .";
+    std::cout << "\n\n We also split up positive and negative contributions to the sum\n\n";
+    std::cout << "Negative sum contribution is " << h_sum_n / PhysConst::Hartree_MHz
+    << "  au .\n\n";  
+    std::cout << "Positive sum contribution is " << h_sum_p / PhysConst::Hartree_MHz
+    << "  au .\n\n";      
 
   } else {
     // Compute and store matrix elements without RPA
@@ -449,31 +546,39 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto Fw2 = input.get("two_Fw", 0);
     const auto two_k = input.get("two_k", 0);
 
-    double h_1 = h1(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
+    std::vector<double> h_1 = h1(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
 
-    double h_2 = h2(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
+    std::vector<double> h_2 = h2(Table, spectrum, Fw, Fv, I2, Fv2, Fw2, two_k);
 
     double I = 0.5 * I2;
 
+    //return final values 
+    //first negative and positive contributiions separately
+
+    double h_sum_n = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0));
+    double h_sum_p = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(1)+h_2.at(1));
+
     double h_sum =
-        sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1 + h_2);
+        sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(2));
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
-    double h_final = h_sum;
-    std::cout << "value is " << h_final << "  MHz .without RPA\n\n";
-    std::cout << "In atomic unuts value is " << h_final / PhysConst::Hartree_MHz
+    std::cout << "\n Total value is " << h_sum << "  MHz .with RPA\n\n";
+    std::cout << "In atomic unuts value is " << h_sum / PhysConst::Hartree_MHz
               << "  au .";
-  }
-
-  std::cout << "\n\n\n test succesful!... ";
+    std::cout << "\n\n We also split up positive and negative contributions to the sum\n\n";
+    std::cout << "Negative sum contribution is " << h_sum_n / PhysConst::Hartree_MHz
+    << "  au .\n\n";  
+    std::cout << "Positive sum contribution is " << h_sum_p / PhysConst::Hartree_MHz
+    << "  au .\n\n";      
+}
 }
 
 // namespace Module
 namespace {
   const Register r_hf_pert_weak{
     "hf_pert_weak", "Third order SOS dipole amplitude incl weak x hyperfine", &hf_pert_weak};
-  } // namespace
+  }// namespace
 
 // namespace Module
-} // namespace Module
+// namespace Module
