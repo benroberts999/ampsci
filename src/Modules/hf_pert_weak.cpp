@@ -88,7 +88,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
                 << "||h_pnc||" << v_wf << ">> = " << pnc_iv
                 << "(-Q_w/N)x10^-11\n.";
     }
-                */
+            */    
     //add to table
     pnc_me.add(w, i, pnc_wi);
     pnc_me.add(i, v, pnc_iv);
@@ -109,14 +109,15 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
 
     //output for test
     
-    if (i.n() < 16) {
+    if (i.n() > 60) {
       std::cout << "Reduced hyperfine matrix element  " << " <<" << w_wf
                 << "||h_hfs||" << i_wf << ">> = " << hfs_wi << "MHz \n.";
     }
-    if (i.n() < 16) {
+    if (i.n() > 60) {
       std::cout << "Reduced hyperfine matrix element " << " <<" << i_wf
                 << "||h_hfs||" << v_wf << ">> = " << hfs_iv << "MHz \n.";
     }
+                
 
     //now include additional loop over spectrum
     for (const auto &j : spectrum) {
@@ -268,8 +269,8 @@ std::vector<double> h1(std::vector<Coulomb::meTable<double>> ME_tables,
     }
   }
   //return vector [first element ]
-  h_pm.at(0)=h1_pos;
-  h_pm.at(0)=h1_pos;
+  h_pm.at(0)=h1_neg;
+  h_pm.at(1)=h1_pos;
 
   return h_pm;
 }
@@ -375,17 +376,16 @@ std::vector<double> h2(std::vector<Coulomb::meTable<double>> ME_tables,
           pnc_me.getv(w, j) * e1_me.getv(j, v) * hf_me.getv(w, w) / e_denom4;
 
           if(t4<0){
-            h1_pos= h1_pos + angular * (sum_1p + sum_2p + sum_3p - t4);
-            h1_neg= h1_neg + angular * (sum_1n + sum_2n + sum_3n);
+            h2_pos= h2_pos + angular * (sum_1p + sum_2p + sum_3p - t4);
+            h2_neg= h2_neg + angular * (sum_1n + sum_2n + sum_3n);
           } else{
-            h1_pos= h1_pos + angular * (sum_1p + sum_2p + sum_3p);
-            h1_neg= h1_neg + angular * (sum_1n + sum_2n + sum_3n-t4);
+            h2_pos= h2_pos + angular * (sum_1p + sum_2p + sum_3p);
+            h2_neg= h2_neg + angular * (sum_1n + sum_2n + sum_3n-t4);
           }
 
       }    
     
     }
-  }
   h2_pm.at(0)=h2_neg;
   h2_pm.at(1)=h2_pos;
 
@@ -520,7 +520,7 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     double h_sum_p = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(1)+h_2.at(1));
 
     double h_sum =
-        sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(2));
+        sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(1));
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
@@ -555,11 +555,15 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     //return final values 
     //first negative and positive contributiions separately
 
+    //separate sums and +/-
+    double h1_sum_n = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0));
+    double h1_sum_p = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(1));
+
     double h_sum_n = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0));
     double h_sum_p = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(1)+h_2.at(1));
 
     double h_sum =
-        sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(2));
+        sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(1));
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
@@ -570,7 +574,13 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Negative sum contribution is " << h_sum_n / PhysConst::Hartree_MHz
     << "  au .\n\n";  
     std::cout << "Positive sum contribution is " << h_sum_p / PhysConst::Hartree_MHz
-    << "  au .\n\n";      
+    << "  au .\n\n";    
+    
+    std::cout << "\n\n For h1 only \n\n";
+    std::cout << "Negative sum contribution is " << h1_sum_n / PhysConst::Hartree_MHz
+    << "  au .\n\n";  
+    std::cout << "Positive sum contribution is " << h1_sum_p / PhysConst::Hartree_MHz
+    << "  au .\n\n";
 }
 }
 
@@ -579,6 +589,8 @@ namespace {
   const Register r_hf_pert_weak{
     "hf_pert_weak", "Third order SOS dipole amplitude incl weak x hyperfine", &hf_pert_weak};
   }// namespace
+
+} // namespace Module
 
 // namespace Module
 // namespace Module
