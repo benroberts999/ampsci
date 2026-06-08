@@ -462,6 +462,15 @@ TEST_CASE("Coulomb: Breit QkTable", "[Coulomb][QkTable][Breit][unit]") {
               REQUIRE(bk1 == Approx(bk0));
             }
 
+            if (HF::Breit::Bk_SR(k, a, b, c, d)) {
+              REQUIRE(bk0 != 0.0);
+            } else {
+              // some selection rules based on radial part
+              // So not expected to be exactly zero
+              // (In real code, should check SR before calculating)
+              REQUIRE(std::abs(bk0) < 1.0e-16);
+            }
+
             // Require gab() version matched direct calculation
             const auto bk2 = bk.Bk_abcd_2(k, a, b, c, d);
             const auto bk3 = Bk2.Q(k, a, b, c, d);
@@ -488,10 +497,32 @@ TEST_CASE("Coulomb: Breit QkTable", "[Coulomb][QkTable][Breit][unit]") {
             const auto wkx = Bk2.W(k, a, b, c, d);
             REQUIRE(wkx == Approx(wk1).margin(1.0e-12));
 
-            // Fails! Not sure why!
-            // perhaps, because need k=0 sometimes!
             REQUIRE(pk0 == Approx(pk1).margin(1.0e-12));
             REQUIRE(wk1 == Approx(wk0).margin(1.0e-12));
+
+            // Test symmetry 1: (trivially passes - encoded in Qk Table)
+            // Still useful as regression test
+            // The fact that table matches direct calc combined with this makes
+            // it a good test.
+            const auto B_abcd = Bk.Q(k, a, b, c, d);
+            const auto B_cdab = Bk.Q(k, c, d, a, b);
+            const auto B_badc = Bk.Q(k, b, a, d, c);
+            const auto B_dcba = Bk.Q(k, d, c, b, a);
+            REQUIRE(B_abcd == Approx(B_cdab));
+            REQUIRE(B_abcd == Approx(B_badc));
+            REQUIRE(B_abcd == Approx(B_dcba));
+
+            // Test the "further" symmetries
+            if (HF::Breit::Bk_SR(k, a, b, c, d)) {
+
+              const auto B_cbad = Bk.Q(k, c, b, a, d);
+              const auto s1 = Angular::neg1pow(a.l() + c.l() + k + 1);
+              REQUIRE(B_abcd == Approx(s1 * B_cbad));
+
+              const auto B_adcb = Bk.Q(k, a, d, c, b);
+              const auto s2 = Angular::neg1pow(b.l() + d.l() + k + 1);
+              REQUIRE(B_abcd == Approx(s2 * B_adcb));
+            }
           }
         }
       }
