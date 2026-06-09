@@ -1,6 +1,7 @@
 #pragma once
 #include "IO/InputBlock.hpp"
 #include "LinAlg/include.hpp"
+#include "qip/String.hpp"
 #include <memory>
 #include <string>
 #include <utility>
@@ -15,44 +16,88 @@ class InputBlock;
 }
 
 /*!
-@brief Constucts of spinor/orbital basis using B-splines
-(DKB/Reno/Derevianko-Beloy method)
+  @brief Constructs spinor/orbital basis using B-splines
 
-@details
-Uses Maths/Bsplines to forma set of B-spline orbitals (using method from [1]
-"Derevianko", or [2] "Johnson"). Diagonalises B-splines over Hamiltonian to
-produce a set of basis orbitals.
+  @details
+  Uses Bsplines to form a set of B-spline orbitals (using method from [1]
+  "Derevianko", [2] "Johnson", or [3] "Fischer"). 
+  Diagonalises B-splines over Hamiltonian to produce a set of basis orbitals.
+
   * [1] K. Beloy, A. Derevianko, Comput. Phys. Commun. 179, 310 (2008).
   * [2] W. Johnson, S. Blundell, J. Sapirstein, Phys. Rev. A 37, 307 (1988).
-  * See also: Bachau et al., Reports Prog. Phys. 64, 1815 (2001).
+  * [3] C. F. Fischer and F. A. Parpia, Phys. Lett. A 179, 198 (1993).
+  * See also: 
+    * Bachau et al., Reports Prog. Phys. 64, 1815 (2001).
+    * V. M. Shabaev, I. I. Tupitsyn, V. A. Yerokhin, G. Plunien, and G. Soff, Phys. Rev. Lett. 93, 130405 (2004).
 
-If \f$\{|i\rangle\}\f$ are the set of \f$2N\f$ DKB spline orbitals (of a given
-angular symmetry), and
-\f[ H_{ij} = \langle{S_i}|\hat H_{\rm HF}|{S_j}\rangle \,
-, \qquad S_{ij} = \langle{S_i|S_j}\rangle. \f]
-The eigenvalue problem:
-\f[
-H_{ij}p_i = \epsilon S_{ij}p_i,
-\f]
-is solved, yielding \f$2N\f$ eigenvalues \f$\epsilon\f$ with corresponding
-eigenvectors \f$p\f$ (half of these are positive energy solutions, half are
-negative energy solutions).
+  By default, uses the Derevianko Dual Kintetic Balance (DKB) basis.
 
-Note: form_basis() does not store the eigenvectors, instead, it expands the
-basis orbitals and stores them on the regular grid (coordinate space).
-i.e., for each eigenvalue, n, the corresponding basis orbital is:
-\f[
-|{n}\rangle = \sum_i^{2N} p_i |i\rangle\,
-\f]
+  If \f$\{|i\rangle\}\f$ are the set of \f$2N\f$ DKB spline orbitals (of a given
+  angular symmetry), and
+  \f[ 
+    H_{ij} = \langle{S_i}|\hat H_{\rm HF}|{S_j}\rangle \,
+    , \qquad S_{ij} = \langle{S_i|S_j}\rangle. 
+  \f]
+  The eigenvalue problem:
+  \f[
+    H_{ij}p_i = \epsilon S_{ij}p_i,
+  \f]
+  is solved, yielding \f$2N\f$ eigenvalues \f$\epsilon\f$ with corresponding
+  eigenvectors \f$p\f$ (half of these are positive energy solutions, half are
+  negative energy solutions).
+
+  Note: form_basis() does not store the eigenvectors, instead, it expands the
+  basis orbitals and stores them on the regular grid (coordinate space).
+  i.e., for each eigenvalue, n, the corresponding basis orbital is:
+  \f[
+    |{n}\rangle = \sum_i^{2N} p_i |i\rangle\,
+  \f]
 */
 namespace SplineBasis {
 
-enum class SplineType { Derevianko, Johnson };
-inline auto parseSplineType(std::string_view type) {
-  return (type == "Johnson" || type == "johnson") ? SplineType::Johnson :
-                                                    SplineType::Derevianko;
+/*!
+  @brief B-spline construction method: Derevianko/Reno (DKB), Johnson/NotreDame, or Fischer.
+  @details
+  W. R. Johnson, S. A. Blundell, J. Sapirstein, Phys. Rev. A 37, 307 (1988).
+*/
+enum class SplineType { Derevianko, Johnson, Fischer };
+
+//! Returns the canonical name string for a SplineType.
+inline std::string_view parseSplineType(SplineType type) {
+  switch (type) {
+  case SplineType::Johnson:
+    return "Johnson";
+  case SplineType::Fischer:
+    return "Fischer";
+  case SplineType::Derevianko:
+    return "Derevianko";
+  }
+  return "UnknownSplineType";
 }
 
+/*!
+  @brief Parses a string to SplineType (case-insensitive).
+  @details
+  - Derevianko (default, aliases: reno): Dual Kinetic Balance method; K. Beloy, A. Derevianko, Comput. Phys. Commun. 179, 310 (2008).
+  - Johnson (aliases: nd, notredame, notre-dame): Notre-Dame method with explicit boundary conditions; W. R. Johnson, S. A. Blundell, J. Sapirstein, Phys. Rev. A 37, 307 (1988).
+  - Fischer (aliases: vanderbilt): rmax boundary only (no r=0 conditions); C. F. Fischer and F. A. Parpia, Phys. Lett. A 179, 198 (1993).
+*/
+inline auto parseSplineType(std::string_view type) {
+  using qip::ci_compare;
+  if (ci_compare(type, "Johnson") || ci_compare(type, "nd") ||
+      ci_compare(type, "NotreDame") || ci_compare(type, "Notre-Dame"))
+    return SplineType::Johnson;
+  if (ci_compare(type, "Fischer") || ci_compare(type, "Vanderbilt"))
+    return SplineType::Fischer;
+  if (ci_compare(type, "Derevianko") || ci_compare(type, "Reno") ||
+      type.empty())
+    return SplineType::Derevianko;
+  std::cout << "Warning: unknown SplineType '" << type
+            << "'. Defaulting to Derevianko.\n";
+  return SplineType::Derevianko;
+}
+
+//! Input parameters for B-spline basis construction.
 struct Parameters {
   Parameters() {}
   Parameters(const std::string &states, std::size_t n, std::size_t k, double r0,
@@ -70,8 +115,10 @@ struct Parameters {
   bool verbose{true};
 };
 
-//! @brief Forms + returns the basis orbitals (expanded in terms of splines)
-/*! @details
+//!
+/*!
+  @brief Forms and returns the basis orbitals (expanded in terms of splines).
+  @details
   - states_str = which states to keep e.g., "25spd10f" (up to n=25 for
   s,p,d-states, and up to n=10 for f states)
   - n_spl: Number of splines (nb: underlying spline set is larger, see [1])
@@ -93,8 +140,23 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const Wavefunction &wf,
                                     const bool correlationsQ = false);
 
+//! Compares basis to reference orbitals; checks normality, orthogonality, and energies.
 double check(const std::vector<DiracSpinor> &basis,
              const std::vector<DiracSpinor> &orbs, bool print_warning = true);
+
+//! Type-dependent spline grid parameters for a given kappa.
+struct SplineParams {
+  //! first included spline index
+  std::size_t imin;
+  //! total number of splines (n_spl >= N, number of basis functions)
+  std::size_t n_spl;
+  //! one-past-last included spline index (exclusive upper bound)
+  std::size_t imax;
+  //! kinetic balance prefactor (1 for DKB, 0 for Johnson)
+  double lambda_DKB;
+};
+//! Returns SplineParams for the given type, kappa, and number of states.
+SplineParams spline_params(SplineType type, int kappa, std::size_t n_states);
 
 //! Forms the underlying spline basis (which is not kept)
 std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> form_spline_basis(
@@ -102,8 +164,7 @@ std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> form_spline_basis(
   const double r0_spl, const double rmax_spl, std::shared_ptr<const Grid> rgrid,
   const double alpha, SplineType itype = SplineType::Derevianko);
 
-//! Calculates  + reyurns the Hamiltonian \f$H_{ij}\f$ (and \f$S_{ij}\f$)
-//! matrices
+//! Calculates and returns the Hamiltonian matrix H_ij and overlap matrix S_ij.
 std::pair<LinAlg::Matrix<double>, LinAlg::Matrix<double>>
 fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const std::vector<DiracSpinor> &d_basis,
@@ -111,11 +172,23 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
                         const bool correlationsQ = false,
                         SplineType itype = SplineType::Derevianko);
 
-void add_NotreDameBoundary(LinAlg::Matrix<double> *Aij, const int kappa,
-                           const double alpha);
+/*!
+  @brief Applies Johnson/Notre-Dame boundary conditions to the Hamiltonian matrix.
+  @details
+  Adds r=0 and r=rmax boundary terms to enforce correct asymptotic behaviour.
+  W. R. Johnson, S. A. Blundell, J. Sapirstein, Phys. Rev. A 37, 307 (1988).
+*/
+void add_JohnsonBoundary(LinAlg::Matrix<double> *Aij, const int kappa,
+                         const double alpha);
 
-//! @brief Expands basis orbitals in terms of spline orbitals, by
-//! diagonalising Hamiltonian
+/*!
+  @brief Applies Fischer/Vanderbilt rmax boundary: forces f(rmax)=g(rmax).
+  @details
+  Subset of add_JohnsonBoundary (rmax terms only; no r=0 conditions).
+*/
+void add_FischerBoundary(LinAlg::Matrix<double> *Aij, const double alpha);
+
+//! Expands basis orbitals in terms of spline orbitals by diagonalising Hamiltonian.
 void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            std::vector<DiracSpinor> *basis_positron,
                            const std::vector<DiracSpinor> &spl_basis,
@@ -133,7 +206,17 @@ std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
 std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
                                const Grid &gr, double alpha, bool print);
 
+//! Measures radial completeness of the basis for orbital Fv.
 std::pair<double, double> r_completeness(const DiracSpinor &Fv,
                                          const std::vector<DiracSpinor> &basis,
                                          const Grid &gr, bool print = false);
+
+//! Prints the title and column headers for r_completeness output.
+inline void r_completeness_header() {
+  std::printf("Completeness (radial sum rules):\n");
+  std::printf("  <a|a>    = sum_n <a|r|n><n|1/r|a>  [= 1]\n");
+  std::printf("  <a|r2|a> = sum_n <a|r|n><n|r|a>    [= <a|r^2|a>_HF]\n");
+  std::printf("%-4s  %7s [%7s] %6s | %10s [%10s] %6s\n", "St", "sum1", "1",
+              "eps", "sum_r2", "<r2>_HF", "eps");
+}
 } // namespace SplineBasis

@@ -78,11 +78,7 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     if (!positron_str.empty()) {
       std::cout << "and    : " << positron_str << " -ve energy states\n";
     }
-    std::cout << "Using "
-              << (basis_type == SplineType::Derevianko ?
-                    "Derevianko (Duel Kinetic Balance)" :
-                    "Johnson")
-              << " type splines.\n";
+    std::cout << "Using " << parseSplineType(basis_type) << " type splines.\n";
   }
 
   for (const auto &nk : nklst) {
@@ -190,24 +186,31 @@ double check(const std::vector<DiracSpinor> &basis,
 }
 
 //==============================================================================
+SplineParams spline_params(SplineType type, int kappa, std::size_t N_states) {
+  const auto lk = static_cast<std::size_t>(std::abs(kappa));
+
+  switch (type) {
+  case SplineType::Johnson:
+    return {0, N_states, N_states, 0.0};
+  case SplineType::Fischer:
+    return {1, N_states + 1, N_states + 1, 1.0};
+  case SplineType::Derevianko:
+    return {lk, N_states + lk + 1, N_states + lk, 1.0};
+  }
+  assert(false && "Unreachable: missing spline type in spline_params");
+  return {};
+}
+
+//==============================================================================
 std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
-form_spline_basis(const int kappa, const std::size_t n_states,
+form_spline_basis(const int kappa, const std::size_t N_states,
                   const std::size_t k_spl, const double r0_spl,
                   const double rmax_spl, std::shared_ptr<const Grid> rgrid,
                   const double alpha, SplineType type) {
   // Forms the "base" basis of B-splines (DKB/Reno Method)
 
-  auto imin = static_cast<std::size_t>(std::abs(kappa));
-  auto n_spl = n_states + imin + 1; // subtract l (n_min)?
-  auto imax = n_spl - 1;
-  auto lambda_DKB = 1.0; // include kinetic balance term
-
-  if (type == SplineType::Johnson) {
-    imin = 0;
-    n_spl = n_states + imin;
-    imax = n_spl;
-    lambda_DKB = 0.0;
-  }
+  const auto [imin, n_spl, imax, lambda_DKB] =
+    spline_params(type, kappa, N_states);
 
   // uses sepperate B-splines for each partial wave! OK?
 
@@ -216,8 +219,8 @@ form_spline_basis(const int kappa, const std::size_t n_states,
   std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> out;
   auto &basis = out.first;
   auto &d_basis = out.second;
-  basis.resize(2 * n_states, {0, kappa, rgrid});
-  d_basis.resize(2 * n_states, {0, kappa, rgrid});
+  basis.resize(2 * N_states, {0, kappa, rgrid});
+  d_basis.resize(2 * N_states, {0, kappa, rgrid});
 
   for (auto ir = 0ul; ir < rgrid->num_points(); ++ir) {
     const auto r = rgrid->r(ir);
@@ -237,7 +240,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
       Sn1.g(ir) =
         lambda_DKB * 0.5 * alpha * (bij[i][1] + (kappa / r) * bij[i][0]);
       // second "g-like"
-      auto &Sn2 = basis.at(nB + n_states - imin);
+      auto &Sn2 = basis.at(nB + N_states - imin);
       Sn2.f(ir) =
         lambda_DKB * 0.5 * alpha * (bij[i][1] - (kappa / r) * bij[i][0]);
       Sn2.g(ir) = bij[i][0];
@@ -250,7 +253,7 @@ form_spline_basis(const int kappa, const std::size_t n_states,
         lambda_DKB * 0.5 * alpha *
         (bij[i][2] + (kappa / r) * bij[i][1] - (kappa / r / r) * bij[i][0]);
       // second "g-like"
-      auto &dSn2 = d_basis.at(nB + n_states - imin);
+      auto &dSn2 = d_basis.at(nB + N_states - imin);
       dSn2.f(ir) =
         lambda_DKB * 0.5 * alpha *
         (bij[i][2] - (kappa / r) * bij[i][1] + (kappa / r / r) * bij[i][0]);
@@ -312,28 +315,42 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   }
   // Note: This is work-around, since Breit seems not to be 100% symmetric!
   if (type == SplineType::Johnson)
-    add_NotreDameBoundary(&Aij, spl_basis.front().kappa(), wf.alpha());
+    add_JohnsonBoundary(&Aij, spl_basis.front().kappa(), wf.alpha());
+  else if (type == SplineType::Fischer)
+    add_FischerBoundary(&Aij, wf.alpha());
 
   return A_and_S;
 }
 
 //==============================================================================
-void add_NotreDameBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
-                           const double alpha) {
-  // XX These should be re-checked..
+void add_JohnsonBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
+                         const double alpha) {
   // W. R. Johnson, S. A. Blundell, J. Sapirstein, Phys. Rev. A 37, 307 (1988)
   auto &Aij = *pAij;
   const auto n2 = Aij.rows();
   const auto n1 = n2 / 2;
-  const auto c = 1.0 / alpha;
   // r=0 boundary conds
   // Add (c/2)*f(0)^2 + (c/2)*f(0)*g(0)
-  Aij[0][0] += (kappa < 0) ? c * c : 2.0 * c * c * c;
-  Aij[0][n1] += 0.5 * c;
-  Aij[n1][0] += 0.5 * c;
+  Aij[0][0] += (kappa < 0) ? 1.0 / alpha : 2.0 / (alpha * alpha);
+  Aij[0][n1] += 0.5;
+  Aij[n1][0] -= 0.5;
   // f(rmax)=g(rmax)
-  Aij[n1 - 1][n1 - 1] += 0.5 * c * c; // f(R)^2
-  Aij[n2 - 1][n2 - 1] -= 0.5 * c * c; // g(R)^2
+  Aij[n1 - 1][n1 - 1] += 0.5 / alpha; // f(R)^2
+  Aij[n1 - 1][n2 - 1] -= 0.5;
+  Aij[n2 - 1][n1 - 1] += 0.5;
+  Aij[n2 - 1][n2 - 1] -= 0.5 * alpha; // g(R)^2
+}
+
+//==============================================================================
+void add_FischerBoundary(LinAlg::Matrix<double> *pAij, const double alpha) {
+  auto &Aij = *pAij;
+  const auto n2 = Aij.rows();
+  const auto n1 = n2 / 2;
+  // f(rmax)=g(rmax)
+  Aij[n1 - 1][n1 - 1] += 0.5 / alpha; // f(R)^2
+  Aij[n1 - 1][n2 - 1] -= 0.5;
+  Aij[n2 - 1][n1 - 1] += 0.5;
+  Aij[n2 - 1][n2 - 1] -= 0.5 * alpha; // g(R)^2
 }
 
 //==============================================================================
@@ -370,42 +387,29 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       Fi += pvec[ib] * spl_basis[ib];
     }
-    // Check positive at low r:
+    // Enforce f > 0 at small r: find first significant amplitude
     {
-      const auto low_r = 0.3 / wf.Znuc();
-      const auto low_i = wf.grid().getIndex(low_r);
-      double fsum = Fi.f(low_i);
-      if (fsum < 0.0) {
-        Fi *= -1.0;
+      const auto &fv = Fi.f();
+      const double fmax =
+        *std::max_element(fv.cbegin(), fv.cend(), [](double a, double b) {
+          return std::abs(a) < std::abs(b);
+        });
+      for (const auto fi : fv) {
+        if (std::abs(fi) > 1.0e-4 * std::abs(fmax)) {
+          if (fi < 0.0) {
+            Fi *= -1.0;
+          }
+          break;
+        }
       }
     }
     const auto Fnorm = Fi * Fi;
+    Fi.normalise();
     if (std::abs(Fnorm - 1) > 1.0e-4) {
       std::cout << "Warning: Possible spurious state: " << Fi.shortSymbol()
                 << " e=" << Fi.en() << ", Norm=" << Fnorm << " (" << Fnorm - 1.0
-                << ")\n";
-    }
-    // Note: they are not even roughly normalised...I think they should be??
-    Fi.normalise();
-
-    // find first non-zero point
-    {
-      auto p0 = 0ul;
-      for (auto ir = 0ul; ir < Fi.grid().num_points(); ++ir) {
-        if (Fi.f(ir) != 0 || Fi.g(ir) != 0) {
-          p0 = ir;
-          break;
-        }
-      }
-      auto pinf = Fi.grid().num_points();
-      for (auto ir = Fi.grid().num_points(); ir != 0; --ir) {
-        if (Fi.f(ir - 1) != 0 || Fi.g(ir - 1) != 0) {
-          pinf = ir;
-          break;
-        }
-      }
-      Fi.min_pt() = p0;
-      Fi.max_pt() = pinf;
+                << "). Killed\n";
+      Fi *= 0.0;
     }
   }
 }
@@ -523,7 +527,7 @@ std::pair<double, double> r_completeness(const DiracSpinor &Fa,
   const auto eps1 = std::abs((sum1 - 1.0) / 1.0);
   const auto epsr2 = std::abs((sumr2 - sumr2_expect) / sumr2_expect);
   if (print) {
-    printf("%3s : %.0f [%.0f] %.1e | %9.4f [%9.4f] %.1e\n",
+    printf("%-4s  %7.5f [%7.5f] %6.0e | %10.5f [%10.5f] %6.1e\n",
            Fa.shortSymbol().c_str(), sum1, 1.0, eps1, sumr2, sumr2_expect,
            epsr2);
   }
