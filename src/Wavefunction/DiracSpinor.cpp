@@ -441,17 +441,20 @@ DiracSpinor::orthonormaliseWrt(const DiracSpinor &psi_v,
 //==============================================================================
 DiracSpinor DiracSpinor::exactHlike(int n, int kappa,
                                     std::shared_ptr<const Grid> rgrid,
-                                    double zeff, double alpha) {
+                                    double zeff, double alpha, double mass) {
   if (alpha <= 0.0)
     alpha = PhysConst::alpha;
   DiracSpinor Fa(n, kappa, rgrid);
   using namespace DiracHydrogen;
-  Fa.m_en = enk(PrincipalQN(n), DiracQN(kappa), Zeff(zeff), AlphaFS(alpha));
+  Fa.m_en =
+    enk(PrincipalQN(n), DiracQN(kappa), Zeff(zeff), AlphaFS(alpha), mass);
   for (std::size_t i = 0; i < rgrid->num_points(); ++i) {
-    Fa.m_f[i] = DiracHydrogen::f(RaB(rgrid->r(i)), PrincipalQN(n),
-                                 DiracQN(kappa), Zeff(zeff), AlphaFS(alpha));
-    Fa.m_g[i] = DiracHydrogen::g(RaB(rgrid->r(i)), PrincipalQN(n),
-                                 DiracQN(kappa), Zeff(zeff), AlphaFS(alpha));
+    Fa.m_f[i] =
+      DiracHydrogen::f(RaB(rgrid->r(i)), PrincipalQN(n), DiracQN(kappa),
+                       Zeff(zeff), AlphaFS(alpha), mass);
+    Fa.m_g[i] =
+      DiracHydrogen::g(RaB(rgrid->r(i)), PrincipalQN(n), DiracQN(kappa),
+                       Zeff(zeff), AlphaFS(alpha), mass);
   }
   return Fa;
 }
@@ -460,7 +463,7 @@ DiracSpinor DiracSpinor::exactHlike(int n, int kappa,
 std::vector<DiracSpinor>
 DiracSpinor::HlikeBasis(int max_l, int num_ns,
                         std::shared_ptr<const Grid> rgrid, double zeff,
-                        double alpha) {
+                        double alpha, double mass) {
   std::vector<DiracSpinor> orbs;
   const auto max_ki = Angular::l_to_max_kindex(max_l);
   for (auto ik = 0ul; ik <= max_ki; ik++) {
@@ -468,7 +471,25 @@ DiracSpinor::HlikeBasis(int max_l, int num_ns,
     int n0 = Angular::l_k(kappa) + 1;
     for (int i = 0; i < num_ns; ++i) {
       const auto n = n0 + i;
-      orbs.push_back(DiracSpinor::exactHlike(n, kappa, rgrid, zeff, alpha));
+      orbs.push_back(
+        DiracSpinor::exactHlike(n, kappa, rgrid, zeff, alpha, mass));
+    }
+  }
+  return orbs;
+}
+
+//==============================================================================
+std::vector<DiracSpinor>
+DiracSpinor::HlikeBasis(const std::string &basis_string,
+                        std::shared_ptr<const Grid> rgrid, double zeff,
+                        double alpha, double mass) {
+  std::vector<DiracSpinor> orbs;
+  const auto nmaxk_list = AtomData::n_kappa_list(basis_string);
+  for (const auto &[n_max, kappa] : nmaxk_list) {
+    const int n0 = Angular::l_k(kappa) + 1;
+    for (int n = n0; n <= n_max; ++n) {
+      orbs.push_back(
+        DiracSpinor::exactHlike(n, kappa, rgrid, zeff, alpha, mass));
     }
   }
   return orbs;

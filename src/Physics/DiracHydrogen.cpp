@@ -25,6 +25,9 @@ double nn(PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
   return std::sqrt((n * n).v - 2.0 * (n.v - ak) * (ak - gamma(k, z, a)));
 }
 
+// N_{nk}: normalization prefactor [Methods Eq. (233)].
+// Mass-independent: c1 ~ sqrt(m) and x = 2*lambda_m*r already account for the
+// full m-scaling, f_m(r) = sqrt(m) f_1(m*r).
 double Norm(PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
   const auto denom = nn(n, k, z, a) * Gamma(2.0 * gamma(k, z, a) + 1);
   const auto argGamma = n.v + double(1 - std::abs(k.v));
@@ -33,84 +36,89 @@ double Norm(PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
   return std::sqrt(arg1 / arg2) / denom;
 }
 
-double lambda(PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
-  // const auto a2 = (a * a).v;
-  // const auto en = Enk(n, k, z, a);
-  // return std::sqrt(1.0 / a2 - a2 * en * en);
-  const auto e = enk(n, k, z, a);
-  const auto c2 = 1.0 / (a * a).v;
-  return std::sqrt(-e * (2.0 + e / c2));
+double lambda(PrincipalQN n, DiracQN k, Zeff z, AlphaFS a, double m) {
+  const auto e = enk(n, k, z, a, m);
+  const auto a2 = (a * a).v;
+  return std::sqrt(-e * (2.0 * m + a2 * e));
 }
 
-double x(RaB r, PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
-  return r.v * 2.0 * lambda(n, k, z, a);
+double x(RaB r, PrincipalQN n, DiracQN k, Zeff z, AlphaFS a, double m) {
+  return r.v * 2.0 * lambda(n, k, z, a, m);
 }
 } // namespace Hidden
 
 //==============================================================================
-double enk(PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
-  using namespace Hidden;
-  const auto a2 = (a * a).v;
-  const auto c2 = 1.0 / a2;
-  const auto arg = gamma(k, z, a) + n.v - double(std::abs(k.v));
-  const auto w2 = (z * z).v / (arg * arg);
-  const auto d = 1.0 + a2 * w2;
-  return -w2 / (2.0 * d) -
-         (0.5 * a2 * w2 + 1.0 - std::sqrt(1.0 + a2 * w2)) * (c2 / d);
+// Stable form for enk (avoids cancellation between O(c^2) terms):
+//   nbar = gamma + n - |k|
+//   s    = sqrt(nbar^2 + (alpha*Z)^2)
+//   enk  = -m*Z^2 / (s * (nbar + s))
+double enk(PrincipalQN n, DiracQN k, Zeff z, AlphaFS a, double m) {
+  const auto nbar = gamma(k, z, a) + n.v - double(std::abs(k.v));
+  const auto az = a.v * z.v;
+  const auto s = std::sqrt(nbar * nbar + az * az);
+  return -m * z.v * z.v / (s * (nbar + s));
 }
 
-double Enk(PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
-  const auto a2 = (a * a).v;
-  return 1.0 / a2 + enk(n, k, z, a);
+double Enk(PrincipalQN n, DiracQN k, Zeff z, AlphaFS a, double m) {
+  return m / (a * a).v + enk(n, k, z, a, m);
 }
 
 double gamma(DiracQN k, Zeff z, AlphaFS a) {
   return std::sqrt(double((k * k).v) - (a * a).v * (z * z).v); //
 }
 
-double f(RaB r, PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
+double f(RaB r, PrincipalQN n, DiracQN k, Zeff z, AlphaFS a, double m) {
   using namespace Hidden;
-  const auto xr = x(r, n, k, z, a);
-  const auto g = gamma(k, z, a);
+  const auto xr = x(r, n, k, z, a, m);
+  const auto gam = gamma(k, z, a);
   const auto kmn = double(std::abs(k.v)) - n.v;
-  const auto c1 = std::sqrt(1.0 + (a * a).v * Enk(n, k, z, a));
-  const auto c2 = Norm(n, k, z, a) * std::exp(-0.5 * xr) * std::pow(xr, g);
-  const auto d1 = (nn(n, k, z, a) - double(k.v)) * H1f1(kmn, 2.0 * g + 1.0, xr);
-  const auto d2 = kmn * H1f1(kmn + 1.0, 2.0 * g + 1.0, xr);
-  return c1 * c2 * (d1 + d2);
+  const auto a2 = (a * a).v;
+  const auto en = enk(n, k, z, a, m);
+  const auto c1 = std::sqrt(2.0 * m + a2 * en);
+  const auto c2 = Norm(n, k, z, a) * std::exp(-0.5 * xr) * std::pow(xr, gam);
+  const auto d1 =
+    (nn(n, k, z, a) - double(k.v)) * H1f1(kmn, 2.0 * gam + 1.0, xr);
+  const auto d2 = kmn * H1f1(kmn + 1.0, 2.0 * gam + 1.0, xr);
+  const auto sk = k.v < 0 ? 1.0 : -1.0;
+  return sk * c1 * c2 * (d1 + d2);
 }
 
-double g(RaB r, PrincipalQN n, DiracQN k, Zeff z, AlphaFS a) {
+double g(RaB r, PrincipalQN n, DiracQN k, Zeff z, AlphaFS a, double m) {
   using namespace Hidden;
-  const auto xr = x(r, n, k, z, a);
-  const auto g = gamma(k, z, a);
+  const auto xr = x(r, n, k, z, a, m);
+  const auto gam = gamma(k, z, a);
   const auto kmn = double(std::abs(k.v)) - n.v;
-  const auto c1 = std::sqrt(1.0 - (a * a).v * Enk(n, k, z, a));
-  const auto c2 = Norm(n, k, z, a) * std::exp(-0.5 * xr) * std::pow(xr, g);
-  const auto d1 = (nn(n, k, z, a) - double(k.v)) * H1f1(kmn, 2.0 * g + 1.0, xr);
-  const auto d2 = kmn * H1f1(kmn + 1.0, 2.0 * g + 1.0, xr);
-  return -c1 * c2 * (d1 - d2);
+  const auto a2 = (a * a).v;
+  const auto en = enk(n, k, z, a, m);
+  const auto c1 = std::sqrt(-a2 * en);
+  const auto c2 = Norm(n, k, z, a) * std::exp(-0.5 * xr) * std::pow(xr, gam);
+  const auto d1 =
+    (nn(n, k, z, a) - double(k.v)) * H1f1(kmn, 2.0 * gam + 1.0, xr);
+  const auto d2 = kmn * H1f1(kmn + 1.0, 2.0 * gam + 1.0, xr);
+  const auto sk = k.v < 0 ? 1.0 : -1.0;
+  return -sk * c1 * c2 * (d1 - d2);
 }
 
 double gfratio(double r, int k, double z, double a, double e, double m) {
   using namespace Hidden;
 
-  const auto g = std::sqrt(double(k * k) - (a * a * z * z));
+  const auto gam = std::sqrt(double(k * k) - (a * a * z * z));
   const auto a2 = a * a;
   const auto absk = (double)std::abs(k);
 
   const auto n =
-    ((z * (m + e * a2)) / std::sqrt(-(e * (2 * m + e * a2)))) - g + absk;
+    ((z * (m + e * a2)) / std::sqrt(-(e * (2.0 * m + e * a2)))) - gam + absk;
 
-  const auto xr = r * 2.0 * std::sqrt(-e * (2.0 + e * a2));
+  const auto xr = r * 2.0 * std::sqrt(-e * (2.0 * m + e * a2));
   const auto kmn = double(absk) - n;
-  const auto c1_f = std::sqrt(1.0 + (a2 * e + m));
-  const auto nn = std::sqrt((n * n) - 2.0 * (n - absk) * (absk - g));
-  const auto d1 = (nn - double(k)) * H1f1(kmn, 2.0 * g + 1.0, xr);
-  const auto d2 = kmn * H1f1(kmn + 1.0, 2.0 * g + 1.0, xr);
+  const auto c1_f = std::sqrt(2.0 * m + a2 * e);
+  const auto nn = std::sqrt((n * n) - 2.0 * (n - absk) * (absk - gam));
+  const auto d1 = (nn - double(k)) * H1f1(kmn, 2.0 * gam + 1.0, xr);
+  const auto d2 = kmn * H1f1(kmn + 1.0, 2.0 * gam + 1.0, xr);
   const auto ff = c1_f * (d1 + d2);
 
-  const auto c1_g = std::sqrt(1.0 - (a2 * e + m));
+  const auto c1_g = std::sqrt(-a2 * e);
+  // sign factor s_kappa cancels in the ratio g/f
   const auto gg = c1_g * (d2 - d1);
   return gg / ff;
 }

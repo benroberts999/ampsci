@@ -104,17 +104,23 @@ constexpr T inner_product(const std::array<T, N> &a,
   } else if constexpr (!std::is_same_v<T, U> && is_complex_v<T>) {
     // This is to avoid float conversion warning in case that U=double,
     // T=complex<float>; want to case b to float, then to complex<float>
-    T res = a[0] * static_cast<typename T::value_type>(b[0]);
-    for (std::size_t i = 1; i < Size; ++i) {
-      res += a[i] * static_cast<typename T::value_type>(b[i]);
+    T sum{0}, c{0};
+    for (std::size_t i = 0; i < Size; ++i) {
+      const T y = a[i] * static_cast<typename T::value_type>(b[i]) - c;
+      const T tmp = sum + y;
+      c = (tmp - sum) - y;
+      sum = tmp;
     }
-    return res;
+    return sum;
   } else {
-    T res = a[0] * static_cast<T>(b[0]);
-    for (std::size_t i = 1; i < Size; ++i) {
-      res += a[i] * static_cast<T>(b[i]);
+    T sum{0}, c{0};
+    for (std::size_t i = 0; i < Size; ++i) {
+      const T y = a[i] * static_cast<T>(b[i]) - c;
+      const T tmp = sum + y;
+      c = (tmp - sum) - y;
+      sum = tmp;
     }
-    return res;
+    return sum;
   }
 }
 
@@ -415,8 +421,8 @@ class ODESolver2D {
     is_complex_v<Y> || std::is_floating_point_v<Y>,
     "Template parameter Y (function values and dt) must be floating point "
     "or complex");
-  static_assert(is_complex_v<Y> || std::is_floating_point_v<Y> ||
-                  std::is_integral_v<T>,
+  static_assert(std::is_floating_point_v<T> || std::is_integral_v<T> ||
+                  is_complex_v<T>,
                 "Template parameter T (derivative matrix argument) must be "
                 "floating point, complex, or integral");
 
@@ -466,13 +472,13 @@ public:
   constexpr std::size_t K_steps() const { return K; }
 
   //! Returns most recent f value. Can also access f array directly
-  Y last_f() { return f.back(); }
+  Y last_f() const { return f.back(); }
   //! Returns most recent g value. Can also access g array directly
-  Y last_g() { return g.back(); }
+  Y last_g() const { return g.back(); }
   //! Returns most recent t value; last_f() := f(last_t())
-  T last_t() { return t.back(); }
+  T last_t() const { return t.back(); }
   //! Returns the step size
-  Y dt() { return m_dt; }
+  Y dt() const { return m_dt; }
 
   //! Returns derivative, df/dt(t), given f(t),g(t),t
   Y dfdt(Y ft, Y gt, T tt) const {
@@ -589,9 +595,9 @@ private:
       constexpr AM_Coefs<ik> ai{};
       // nb: ai.ak is smaller than df; inner_product still works
       const auto sf = f.at(ik - 1) + m_dt * (inner_product(df, ai.ak) +
-                                             am.aK * S_scale * m_D->Sf(t_next));
+                                             ai.aK * S_scale * m_D->Sf(t_next));
       const auto sg = g.at(ik - 1) + m_dt * (inner_product(dg, ai.ak) +
-                                             am.aK * S_scale * m_D->Sg(t_next));
+                                             ai.aK * S_scale * m_D->Sg(t_next));
       const auto a0 = m_dt * static_cast<Y>(ai.aK);
       const auto a02 = a0 * a0;
       const auto a = m_D->a(t_next);

@@ -269,16 +269,30 @@ public:
 
   //! Constructs H-like (pointlike) DiracSpinor - mainly for testing
   static DiracSpinor exactHlike(int n, int k, std::shared_ptr<const Grid> rgrid,
-                                double zeff, double alpha = 0.0);
+                                double zeff, double alpha = 0.0,
+                                double mass = 1.0);
 
   //! Constructs a basis of H-like (pointlike) DiracSpinors - mainly for testing
-  /*! @details 
+  /*! @details
     @param max_l = maxiumum l (both kappas calculated)
     @param num_ns = number of principle quantum numbers per l (not max n)
+    @param mass   = lepton mass in units of m_e (default 1 = electron)
   */
   static std::vector<DiracSpinor> HlikeBasis(int max_l, int num_ns,
                                              std::shared_ptr<const Grid> rgrid,
-                                             double zeff, double alpha = 0.0);
+                                             double zeff, double alpha = 0.0,
+                                             double mass = 1.0);
+
+  //! Constructs a basis of H-like (pointlike) DiracSpinors - mainly for testing
+  /*! @details
+    @param basis_string = e.g., "6sp5d": max n for each kappa; all n down to
+           n_min = l+1 are included
+    @param mass = lepton mass in units of m_e (default 1 = electron)
+  */
+  static std::vector<DiracSpinor> HlikeBasis(const std::string &basis_string,
+                                             std::shared_ptr<const Grid> rgrid,
+                                             double zeff, double alpha = 0.0,
+                                             double mass = 1.0);
 
   //! Searches for {n,k} in list of orbitals, returns pointer (may be null)
   static const DiracSpinor *find(int n, int k,

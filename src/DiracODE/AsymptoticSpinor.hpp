@@ -14,9 +14,8 @@ template <std::size_t Nx = 15>
 class AsymptoticSpinor {
 private:
   int kappa;
-  double Zeff, en, alpha, eps_target;
-  double kappa2, alpha2, c, c2, lambda, sigma, Ren;
-  double m_mass;
+  double Zeff, en, alpha, m_mass, eps_target;
+  double kappa2, alpha2, c, lambda, sigma;
   std::array<double, Nx> bx; // bx must be first
   std::array<double, Nx> ax; // ax depends on bx
 
@@ -28,15 +27,14 @@ public:
       Zeff(in_Zeff),
       en(in_en),
       alpha(in_alpha),
+      m_mass(m),
       eps_target(in_eps_target),
       kappa2(double(kappa * kappa)),
       alpha2(alpha * alpha),
       c(1.0 / alpha),
-      c2(c * c),
-      lambda(std::sqrt(-en * (2.0 + en * alpha2 / m))),
+      lambda(std::sqrt(-en * (2.0 * m_mass + en * alpha2))),
       sigma((m + en * alpha2) * (Zeff / lambda)),
-      Ren(en + m * c2),
-      m_mass(m),
+      // Ren(en + m * c2),
       bx(make_bx()),
       ax(make_ax()) {
     // assert(en < 0.0 && "Must have en<0 in AsymptoticSpinor");
@@ -68,17 +66,17 @@ public:
     const double A_large = std::sqrt(1.0 + 0.5 * en * alpha2 / m_mass);
     const double A_small = std::sqrt(-0.5 * en / m_mass) * alpha;
 
-    const double rfac = 2.0 * std::pow(r, sigma) * std::exp(-lambda * r);
+    const double rfac = /*2.0 * */ std::pow(r, sigma) * std::exp(-lambda * r);
     double fs = 1.0;
     double gs = 0.0;
-    double rk = 1.0;
     // Continue the expansion until reach eps, or Nx
     for (std::size_t k = 0; k < Nx; k++) {
-      rk *= r;
-      fs += (ax[k] / rk);
-      gs += (bx[k] / rk);
-      const auto eps =
-        std::max(std::abs(ax[k] / fs), std::abs(bx[k] / gs)) / rk;
+      const auto rkp1 = qip::pow(r, int(k) + 1);
+      const auto df = ax[k] / rkp1;
+      const auto dg = bx[k] / rkp1;
+      fs += df;
+      gs += dg;
+      const auto eps = std::max(std::abs(df / fs), std::abs(dg / gs));
       if (eps < eps_target) {
         break;
       }
@@ -94,7 +92,7 @@ private:
     // See Johnson (2007), Eqs. (2.172) -- (2.173)
     std::array<double, Nx> tbx;
     const auto Zalpha2 = Zeff * Zeff * alpha2;
-    tbx[0] = (kappa + (Zeff / lambda)) * (0.5 * alpha);
+    tbx[0] = (kappa / m_mass + (Zeff / lambda)) * (0.5 * alpha);
     for (std::size_t i = 1; i < Nx; i++) {
       tbx[i] = (kappa2 - qip::pow<2>((double(i) - sigma)) - Zalpha2) *
                tbx[i - 1] / (double(2 * i) * lambda);
@@ -106,11 +104,11 @@ private:
     // See Johnson (2007), Eq. (2.174)
     // bx must already be initialised
     std::array<double, Nx> tax;
-    const auto RenAlpha2 = 1.0 + en * alpha2;
+    const auto RenAlpha2 = m_mass + en * alpha2;
     for (std::size_t i = 0; i < Nx; i++) {
-      tax[i] =
-        (kappa + (double(i + 1) - sigma) * RenAlpha2 - Zeff * lambda * alpha2) *
-        (bx[i] * c) / (double(i + 1) * lambda);
+      tax[i] = (kappa * m_mass + (double(i + 1) - sigma) * RenAlpha2 -
+                Zeff * lambda * alpha2) *
+               (bx[i] * c) / (double(i + 1) * lambda);
     }
     return tax;
   }

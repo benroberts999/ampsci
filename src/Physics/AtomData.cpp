@@ -1,4 +1,5 @@
 #include "AtomData.hpp"
+#include "DiracHydrogen.hpp"
 #include "qip/String.hpp"
 #include <algorithm>
 #include <array>
@@ -247,14 +248,8 @@ std::string configs_to_string(const std::vector<NonRelConfig> &configs) {
 
 //==============================================================================
 double diracen(double z, double n, int k, double alpha) {
-  const double a2 = alpha * alpha;
-  const double c2 = 1.0 / a2;
-  const double za2 = z * z * a2;
-  const double g = std::sqrt(k * k - za2);
-  const double w2 = z * z / std::pow(g + n - fabs((double)k), 2);
-  const double d = 1.0 + a2 * w2;
-  return -w2 / (2 * d) -
-         (0.5 * a2 * w2 + 1. - std::sqrt(1.0 + a2 * w2)) * (c2 / d);
+  using namespace DiracHydrogen;
+  return enk(PrincipalQN{n}, DiracQN{k}, Zeff{z}, AlphaFS{alpha});
 }
 
 //==============================================================================

@@ -50,6 +50,7 @@ TEST_CASE("DiracODE: AsymptoticSpinor expansion", "[DiracODE][unit]") {
 
         const auto e = AtomData::diracen(z, n, kappa, PhysConst::alpha);
         const auto F1s = DiracSpinor::exactHlike(n, kappa, grid, z);
+        REQUIRE(F1s.en() == Approx(e));
         DiracODE::AsymptoticSpinor x{kappa, z, e};
         for (std::size_t i = 0; i < num_grid_points; ++i) {
           const auto r = grid->r(i);
@@ -714,4 +715,240 @@ TEST_CASE("DiracODE: exotic atoms - numerical", "[Exotic]") {
   REQUIRE(count < 20);
   std::cout << "(It's OK if not all converged, so long as we noticed with conv "
                "parameter)\n";
+}
+
+//==============================================================================
+TEST_CASE("Wavefunction: H-like Exotic muon and tauon",
+          "[DiracODE][unit][Exotic][muon][tauon]") {
+
+  std::cout << "\nSolve H-like muonic and tauonic atoms, for few Z, \n"
+               "compare energies, matrix elements, and asymptotics to exact "
+               "Dirac functions\n\n";
+
+  for (const int Z : {2, 55}) {
+    for (const double m_mu : {PhysConst::m_muon, PhysConst::m_tau}) {
+
+      const std::string ident =
+        m_mu == Approx(PhysConst::m_tau) ? "tauonic" : "muonic";
+      const auto label =
+        fmt::format("Z = {} - {} (m={:.1f} m_e)", Z, ident, m_mu);
+
+      // Grid scaled for exotic orbits (~m times smaller than electronic)
+      Wavefunction wf(
+        {2000, 1.0e-5 / m_mu, 100.0 / m_mu / Z, 10.0 / m_mu, "loglinear"},
+        {std::to_string(Z), -1, "pointlike", -1.0, -1.0});
+
+      wf.solve_core("HartreeFock", "[]");
+      wf.solve_exotic("4sp3d4f", m_mu, false);
+
+      fmt::print("\n{}: solve ODE\n", label);
+      double temp_worst = 0.0;
+      for (const auto &Fv : wf.valence()) {
+        temp_worst = std::max(temp_worst, Fv.eps());
+        CHECK(Fv.eps() < 1.0e-12);
+      }
+      std::cout << "Worst eps: " << temp_worst << "\n";
+
+      // Exact exotic H-like orbitals (with exotic-particle mass)
+      const auto hlike =
+        DiracSpinor::HlikeBasis("4sp3d4f", wf.grid_sptr(), Z, 0.0, m_mu);
+
+      const auto &rv = wf.grid().r();
+
+      // Energies
+      fmt::print("\n{}: energies (valence vs exact):\n", label);
+      fmt::print("{:<4} [{:>15}] {:>15} {:>7}\n", "State", "Exact", "E_val",
+                 "eps");
+      for (const auto &Fv : wf.valence()) {
+        const auto *pFh = DiracSpinor::find(Fv.n(), Fv.kappa(), hlike);
+        if (!pFh)
+          continue;
+        const auto eps = std::abs((Fv.en() - pFh->en()) / pFh->en());
+        fmt::print("{:<4} [{:>15.8f}] {:>15.8f} {:>7.0e}\n", Fv.shortSymbol(),
+                   pFh->en(), Fv.en(), eps);
+        const auto target = Fv.twoj() <= 1 ? 1.0e-9 : 1.0e-12;
+        REQUIRE(eps < target);
+      }
+
+      // Orthonormality: exact H-like basis
+      fmt::print("\n{}: orthonormality <a|b> (exact):\n", label);
+      double e_worst = 0.0;
+      for (const auto &Fa : hlike) {
+        for (const auto &Fb : hlike) {
+          if (Fa.kappa() != Fb.kappa() || Fb.n() > Fa.n())
+            continue;
+          const double expected = (Fa.n() == Fb.n()) ? 1.0 : 0.0;
+          const double val = Fa * Fb;
+          const double eps = std::abs(val - expected);
+          e_worst = std::max(eps, e_worst);
+          CHECK(eps < 1.0e-9);
+        }
+      }
+      fmt::print("Worst: {:.2e}\n", e_worst);
+
+      // Orthonormality: exact H-like basis
+      fmt::print("\n{}: orthonormality <a|b> (valence):\n", label);
+      e_worst = 0.0;
+      for (const auto &Fa : wf.valence()) {
+        for (const auto &Fb : wf.valence()) {
+          if (Fa.kappa() != Fb.kappa() || Fb.n() > Fa.n())
+            continue;
+          const double expected = (Fa.n() == Fb.n()) ? 1.0 : 0.0;
+          const double val = Fa * Fb;
+          const double eps = std::abs(val - expected);
+          e_worst = std::max(eps, e_worst);
+          CHECK(eps < 1.0e-9);
+        }
+      }
+      fmt::print("Worst: {:.2e}\n", e_worst);
+
+      // <r> diagonal
+      fmt::print("\n{}: <r> diagonal:\n", label);
+      fmt::print("{:<10} [{:>13}] {:>13} {:>7}\n", "State", "Exact", "<r>_val",
+                 "eps");
+      for (const auto &Fv : wf.valence()) {
+        const auto *pFh = DiracSpinor::find(Fv.n(), Fv.kappa(), hlike);
+        if (!pFh)
+          continue;
+        const double r_val = Fv * (rv * Fv);
+        const double r_ex = (*pFh) * (rv * (*pFh));
+        const double eps = std::abs((r_val - r_ex) / r_ex);
+        fmt::print("{:<10} [{:>13.8f}] {:>13.8f} {:>7.0e}\n", Fv.shortSymbol(),
+                   r_ex, r_val, eps);
+        REQUIRE(eps < 1.0e-9);
+      }
+
+      // <n|r|n+1> off-diagonal
+      fmt::print("\n{}: <n|r|n+1> off-diagonal:\n", label);
+      fmt::print("{:<20} [{:>13}] {:>13} {:>7}\n", "States", "Exact", "<r>_val",
+                 "eps");
+      for (const auto &Fv : wf.valence()) {
+        const auto *pFh = DiracSpinor::find(Fv.n(), Fv.kappa(), hlike);
+        const auto *pFvb = wf.getState(Fv.n() + 1, Fv.kappa());
+        const auto *pFhb = DiracSpinor::find(Fv.n() + 1, Fv.kappa(), hlike);
+        if (!pFh || !pFvb || !pFhb)
+          continue;
+        const double r_val = Fv * (rv * (*pFvb));
+        const double r_ex = (*pFh) * (rv * (*pFhb));
+        const double eps = std::abs((r_val - r_ex) / r_ex);
+        fmt::print(
+          "{:<20} [{:>13.8f}] {:>13.8f} {:>7.0e}\n",
+          fmt::format("<{}|r|{}>", Fv.shortSymbol(), pFvb->shortSymbol()), r_ex,
+          r_val, eps);
+        REQUIRE(eps < 1.0e-8);
+      }
+
+      // Small-r sign: f and g at r ~ 0.1/(Z*m_mu)
+      const double r_small = 0.1 / (Z * m_mu);
+      const auto ir = wf.grid().getIndex(r_small);
+      fmt::print("\n{}: f,g at small r = {:.3e} (index {}):\n", label, rv[ir],
+                 ir);
+      fmt::print("{:<10} [{:>11}] {:>11} [{:>11}] {:>11}\n", "State", "f_ex",
+                 "f_val", "g_ex", "g_val");
+      for (const auto &Fv : wf.valence()) {
+        const auto *pFh = DiracSpinor::find(Fv.n(), Fv.kappa(), hlike);
+        if (!pFh)
+          continue;
+        fmt::print("{:<10} [{:>11.4e}] {:>11.4e} [{:>11.4e}] {:>11.4e}\n",
+                   Fv.shortSymbol(), pFh->f(ir), Fv.f(ir), pFh->g(ir),
+                   Fv.g(ir));
+
+        REQUIRE(pFh->f(ir) == Approx(Fv.f(ir)).epsilon(1.0e-6));
+        REQUIRE(pFh->g(ir) == Approx(Fv.g(ir)).epsilon(1.0e-5));
+        REQUIRE(Fv.f(ir) > 0.0);
+        REQUIRE(pFh->f(ir) > 0.0);
+
+        // don't both print, but also test large
+        const auto i_large = std::size_t(0.9 * double(Fv.max_pt()));
+        REQUIRE(Fv.f(i_large) == Approx(pFh->f(i_large)).epsilon(1.0e-7));
+      }
+    }
+  }
+}
+
+//==============================================================================
+// Tests the large-r tail extension (DiracODE::Internal::extendTail). After the
+// bound state is found, the decaying orbital is continued outward past the
+// practical infinity until |f| drops below Param::tail_cut * max|f|.
+TEST_CASE("DiracODE: tail extension", "[DiracODE][unit]") {
+  std::cout << "Tail extension past practical infinity\n";
+
+  using namespace DiracODE;
+  const double Z = 20.0;
+  const auto alpha = PhysConst::alpha;
+  // Grid must extend well past the cALR cutoff so there is room to extend:
+  const auto grid = std::make_shared<const Grid>(1.0e-7, 150.0, 4000ul,
+                                                 GridType::loglinear, 10.0);
+  const auto v = Nuclear::sphericalNuclearPotential(Z, 0.0, grid->r());
+  const auto &r = grid->r();
+  const auto num_points = grid->num_points();
+
+  bool any_extended = false;
+  for (const auto &[n, k, en_lst] : AtomData::listOfStates_nk("4spdf")) {
+    (void)en_lst;
+    auto F = DiracSpinor(n, k, grid);
+    const auto en_guess = -0.5 * Z * Z / double(n * n);
+    boundState(F, en_guess, v, {}, alpha, 1.0e-15);
+
+    // Practical infinity *before* extension (same definition boundState uses):
+    const auto old_pinf =
+      Internal::findPracticalInfinity(F.en(), v, r, Internal::Param::cALR);
+    const auto new_pinf = F.max_pt();
+
+    double fmax = 0.0;
+    for (const auto x : F.f())
+      fmax = std::max(fmax, std::abs(x));
+    REQUIRE(fmax > 0.0);
+
+    // Energy still correct: extension must not corrupt the solution:
+    const auto e_exact = DiracHydrogen::enk(
+      DiracHydrogen::PrincipalQN(n), DiracHydrogen::DiracQN(k),
+      DiracHydrogen::Zeff(Z), DiracHydrogen::AlphaFS(alpha));
+    REQUIRE(F.en() == Approx(e_exact).epsilon(1.0e-6));
+    // ...and still normalised:
+    REQUIRE(F.norm() == Approx(1.0).epsilon(1.0e-12));
+
+    // Tail was extended outward (there is room on this grid):
+    REQUIRE(new_pinf >= old_pinf);
+    if (new_pinf > old_pinf)
+      any_extended = true;
+
+    // Extended tail is the physical decaying solution: fixed sign, and
+    // monotonically decreasing in |f| (i.e. no spurious growing solution):
+    const auto sign0 = (F.f()[old_pinf - 1] >= 0.0) ? 1 : -1;
+    for (auto i = old_pinf; i < new_pinf; ++i) {
+      const auto fi = F.f(i);
+      REQUIRE((fi == 0.0 || (fi > 0.0 ? 1 : -1) == sign0));
+      REQUIRE(std::abs(fi) <= std::abs(F.f()[i - 1]));
+    }
+
+    // Tail reached the cutoff (unless it ran into the grid edge):
+    if (new_pinf < num_points) {
+      REQUIRE(std::abs(F.f()[new_pinf - 1]) <
+              10.0 * Internal::Param::tail_cut * fmax);
+    }
+
+    // Everything beyond the new practical infinity is zeroed:
+    for (auto i = new_pinf; i < num_points; ++i) {
+      REQUIRE(F.f(i) == 0.0);
+      REQUIRE(F.g(i) == 0.0);
+    }
+
+    // Reduce case: calling again with a *larger* cutoff must move pinf back
+    // inward, to where |f| ~ the new (larger) cutoff:
+    {
+      const double big_cut = 1.0e-8;
+      const double big_fcut = big_cut * fmax;
+      const Internal::DiracDerivative Hd(*grid, v, k, F.en(), alpha);
+      const auto reduced =
+        Internal::extendTail(F.f(), F.g(), Hd, new_pinf, big_cut);
+      REQUIRE(reduced < new_pinf);
+      REQUIRE(reduced >= 2);
+      REQUIRE(std::abs(F.f(reduced - 2)) >=
+              0.1 * big_fcut); // last point above cutoff
+      REQUIRE(std::abs(F.f(reduced - 1)) < 0.1 * big_fcut); // first point below
+      REQUIRE(F.f(reduced) == 0.0); // trimmed tail is zeroed
+    }
+  }
+  REQUIRE(any_extended);
 }

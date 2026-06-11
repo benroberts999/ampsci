@@ -199,6 +199,39 @@ TEST_CASE("Simple: array index argument", "[AdamsMoulton][unit]") {
 
 //------------------------------------------------------------------------------
 template <std::size_t K>
+void helper_inhom(double dt) {
+  // y'' + y = 1, y(0)=0, y'(0)=0 => y=1-cos(x), y'=sin(x)
+  // Constant Sg=1 (non-zero at t0) exercises first_k_i bootstrap for each K.
+  struct DM : AdamsMoulton::DerivativeMatrix<double> {
+    double a(double) const final { return 0.0; }
+    double b(double) const final { return 1.0; }
+    double c(double) const final { return -1.0; }
+    double d(double) const final { return 0.0; }
+    double Sf(double) const final { return 0.0; }
+    double Sg(double) const final { return 1.0; }
+  };
+  DM D;
+  AdamsMoulton::ODESolver2D<K> ode{dt, &D};
+  ode.solve_initial_K(0.0, 0.0, 0.0);
+
+  auto f_ex = [](double x) { return 1.0 - std::cos(x); };
+  auto g_ex = [](double x) { return std::sin(x); };
+
+  double t = 0.0;
+  for (std::size_t i = 0; i < K; ++i) {
+    REQUIRE(ode.f[i] == Approx(f_ex(t)).margin(1.0e-8));
+    REQUIRE(ode.g[i] == Approx(g_ex(t)).epsilon(1.0e-7));
+    t += dt;
+  }
+  int num_steps = 1000;
+  for (int i = 0; i < num_steps; ++i)
+    ode.drive();
+  REQUIRE(ode.last_f() == Approx(f_ex(ode.last_t())).epsilon(1.0e-6));
+  REQUIRE(ode.last_g() == Approx(g_ex(ode.last_t())).epsilon(1.0e-6));
+}
+
+//------------------------------------------------------------------------------
+template <std::size_t K>
 void helper(const AdamsMoulton::DerivativeMatrix<double> &D, double dt) {
 
   AdamsMoulton::ODESolver2D<K> ode{dt, &D};
@@ -383,6 +416,61 @@ TEST_CASE("Inhomogenous", "[AdamsMoulton][unit]") {
 
   REQUIRE(ode.last_t() ==
           Approx(t0 + (num_steps + (int)ode.K_steps() - 1) * ode.dt()));
+}
+
+//------------------------------------------------------------------------------
+TEST_CASE("Inhomogeneous: constant source", "[AdamsMoulton][unit]") {
+
+  // y'' + y = 1, y(0)=0, y'(0)=0 => y=1-cos(x), y'=sin(x)
+  // Sg=1 is non-zero at t0, so any error in the first_k_i bootstrap is O(dt)
+  // rather than O(dt^2) as with Sg=sin(t), and is clearly visible.
+  struct DM : AdamsMoulton::DerivativeMatrix<double> {
+    double a(double) const final { return 0.0; }
+    double b(double) const final { return 1.0; }
+    double c(double) const final { return -1.0; }
+    double d(double) const final { return 0.0; }
+    double Sf(double) const final { return 0.0; }
+    double Sg(double) const final { return 1.0; }
+  };
+  DM D;
+
+  double dt = 0.001;
+  AdamsMoulton::ODESolver2D<5> ode{dt, &D};
+  ode.solve_initial_K(0.0, 0.0, 0.0);
+
+  auto f_ex = [](double x) { return 1.0 - std::cos(x); };
+  auto g_ex = [](double x) { return std::sin(x); };
+
+  double t = 0.0;
+  for (std::size_t i = 0; i < ode.f.size(); ++i) {
+    REQUIRE(ode.f[i] == Approx(f_ex(t)).margin(1.0e-8));
+    REQUIRE(ode.g[i] == Approx(g_ex(t)).epsilon(1.0e-6));
+    REQUIRE(ode.t[i] == Approx(t));
+    t += ode.dt();
+  }
+
+  int num_steps = 1000;
+  for (int i = 0; i < num_steps; ++i)
+    ode.drive();
+  REQUIRE(ode.last_f() == Approx(f_ex(ode.last_t())).epsilon(1.0e-6));
+  REQUIRE(ode.last_g() == Approx(g_ex(ode.last_t())).epsilon(1.0e-6));
+}
+
+//------------------------------------------------------------------------------
+TEST_CASE("Inhomogeneous: K=[1,12]", "[AdamsMoulton][unit]") {
+  double dt = 0.001;
+  helper_inhom<1>(dt);
+  helper_inhom<2>(dt);
+  helper_inhom<3>(dt);
+  helper_inhom<4>(dt);
+  helper_inhom<5>(dt);
+  helper_inhom<6>(dt);
+  helper_inhom<7>(dt);
+  helper_inhom<8>(dt);
+  helper_inhom<9>(dt);
+  helper_inhom<10>(dt);
+  helper_inhom<11>(dt);
+  helper_inhom<12>(dt);
 }
 
 //------------------------------------------------------------------------------

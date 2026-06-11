@@ -9,16 +9,156 @@
 #include <algorithm>
 #include <string>
 
-/* XXX 18/01/2022
-  - Made change to spline (r00 = log-average<r0,s0_spl>)
-  - Fixed Breit, but (slightly) broke basis
-  - "Fix" by just loosening tollerences here
-*/
-
 inline double hfsA(const DiracOperator::TensorOperator *h,
                    const DiracSpinor &Fa) {
   auto Raa = h->radialIntegral(Fa, Fa);
   return Raa * Fa.kappa() / (Fa.jjp1()) * PhysConst::muN_CGS_MHz;
+}
+
+//==============================================================================
+TEST_CASE("Wavefunction: BSpline H-like",
+          "[BSpline][basis][unit][DiracHydrogen]") {
+
+  const double Z = 5.0;
+  Wavefunction wf({1500, 1.0e-6, 100.0, 8.0, "loglinear"},
+                  {"B", -1, "pointlike", -1.0, -1.0});
+  wf.solve_core("HartreeFock", "[]");
+  wf.solve_valence("5spdf");
+
+  const auto basis =
+    SplineBasis::form_basis({"5spdf", 90, 9, 1.0e-5, 0.0, 90.0, "",
+                             SplineBasis::SplineType::Derevianko, false, false},
+                            wf);
+
+  const auto hlike = DiracSpinor::HlikeBasis(3, 5, wf.grid_sptr(), Z);
+
+  const auto &rv = wf.grid().r();
+
+  // Energies
+  fmt::print("\nH-like: energies (spline vs exact):\n");
+  fmt::print("{:<10} [{:>13}] {:>13} {:>7} {:>13} {:>7}\n", "State", "Exact",
+             "E_val", "eps", "E_spline", "eps");
+  for (const auto &Fb : basis) {
+    const auto *pFh = DiracSpinor::find(Fb.n(), Fb.kappa(), hlike);
+    if (!pFh)
+      continue;
+    const auto pFv = wf.getState(Fb.n(), Fb.kappa());
+    const auto epsb = std::abs((Fb.en() - pFh->en()) / pFh->en());
+    const auto epsv = std::abs((pFv->en() - pFh->en()) / pFh->en());
+    fmt::print("{:<10} [{:>13.8f}] {:>13.8f} {:>7.0e} {:>13.8f} {:>7.0e}\n",
+               Fb.symbol(), pFh->en(), pFv->en(), epsv, Fb.en(), epsb);
+    REQUIRE(epsb < 1.0e-9);
+    REQUIRE(epsv < 1.0e-11);
+  }
+
+  // Orthonormality: spline basis
+  fmt::print("\nH-like: orthonormality <a|b> (spline):\n");
+  // fmt::print("{:<20}  {:>14}  {:>9}\n", "States", "<a|b>", "eps");
+  double e_worst = 0.0;
+  for (const auto &Fa : basis) {
+    for (const auto &Fb : basis) {
+      if (Fa.kappa() != Fb.kappa() || Fb.n() > Fa.n())
+        continue;
+      const double expected = (Fa.n() == Fb.n()) ? 1.0 : 0.0;
+      const double val = Fa * Fb;
+      const double eps = std::abs(val - expected);
+      // fmt::print("{:<20}  {:>14.8f}  {:>9.2e}\n",
+      //            fmt::format("<{}|{}>", Fa.shortSymbol(), Fb.shortSymbol()),
+      //            val, eps);
+      e_worst = std::max(eps, e_worst);
+      REQUIRE(eps < 1.0e-15);
+    }
+  }
+  std::cout << "Worst: " << e_worst << "\n";
+
+  // Orthonormality: exact H-like basis
+  fmt::print("\nH-like: orthonormality <a|b> (exact):\n");
+  // fmt::print("{:<20}  {:>14}  {:>9}\n", "States", "<a|b>", "eps");
+  e_worst = 0.0;
+  for (const auto &Fa : hlike) {
+    for (const auto &Fb : hlike) {
+      if (Fa.kappa() != Fb.kappa() || Fb.n() > Fa.n())
+        continue;
+      const double expected = (Fa.n() == Fb.n()) ? 1.0 : 0.0;
+      const double val = Fa * Fb;
+      const double eps = std::abs(val - expected);
+      // fmt::print("{:<20}  {:>14.8f}  {:>9.2e}\n",
+      //            fmt::format("<{}|{}>", Fa.shortSymbol(), Fb.shortSymbol()),
+      //            val, eps);
+      e_worst = std::max(eps, e_worst);
+      REQUIRE(eps < 1.0e-13);
+    }
+  }
+  std::cout << "Worst: " << e_worst << "\n";
+
+  // <r> diagonal
+  fmt::print("\nH-like: <r> diagonal:\n");
+  fmt::print("{:<10} [{:>13}] {:>13} {:>7} {:>13} {:>7}\n", "State", "Exact",
+             "<r>_val", "eps", "<r>_spl", "eps");
+  for (const auto &Fb : basis) {
+    const auto *pFh = DiracSpinor::find(Fb.n(), Fb.kappa(), hlike);
+    const auto *pFv = wf.getState(Fb.n(), Fb.kappa());
+    if (!pFh || !pFv)
+      continue;
+    const double r_spl = Fb * (rv * Fb);
+    const double r_ex = (*pFh) * (rv * (*pFh));
+    const double r_val = (*pFv) * (rv * (*pFv));
+    const double epsb = std::abs((r_spl - r_ex) / r_ex);
+    const double epsv = std::abs((r_val - r_ex) / r_ex);
+    fmt::print("{:<10} [{:>13.8f}] {:>13.8f} {:>7.0e} {:>13.8f} {:>7.0e}\n",
+               Fb.symbol(), r_ex, r_val, epsv, r_spl, epsb);
+    REQUIRE(epsb < 1.0e-6);
+    REQUIRE(epsv < 1.0e-9);
+  }
+
+  // <n|r|n+1> off-diagonal
+  fmt::print("\nH-like: <n|r|n+1> off-diagonal:\n");
+  fmt::print("{:<12} [{:>13}] {:>13} {:>7} {:>13} {:>7}\n", "States", "Exact",
+             "<r>_val", "eps", "<r>_spl", "eps");
+  for (const auto &Fa : basis) {
+    const auto *pFb = DiracSpinor::find(Fa.n() + 1, Fa.kappa(), basis);
+    if (!pFb)
+      continue;
+    const auto *pFha = DiracSpinor::find(Fa.n(), Fa.kappa(), hlike);
+    const auto *pFhb = DiracSpinor::find(Fa.n() + 1, Fa.kappa(), hlike);
+    const auto *pFva = wf.getState(Fa.n(), Fa.kappa());
+    const auto *pFvb = wf.getState(Fa.n() + 1, Fa.kappa());
+    if (!pFha || !pFhb || !pFva || !pFvb)
+      continue;
+    const double r_spl = Fa * (rv * (*pFb));
+    const double r_ex = (*pFha) * (rv * (*pFhb));
+    const double r_val = (*pFva) * (rv * (*pFvb));
+    const double epsb = std::abs((r_spl - r_ex) / r_ex);
+    const double epsv = std::abs((r_val - r_ex) / r_ex);
+    fmt::print("{:<12} [{:>13.8f}] {:>13.8f} {:>7.0e} {:>13.8f} {:>7.0e}\n",
+               fmt::format("<{}|r|{}>", Fa.shortSymbol(), pFb->shortSymbol()),
+               r_ex, r_val, epsv, r_spl, epsb);
+    REQUIRE(epsb < 1.0e-5);
+    REQUIRE(epsv < 1.0e-9);
+  }
+
+  // Small-r sign: f and g at r ~ 0.1/Z (well inside classical region)
+  const double r_small = 0.1 / Z;
+  const auto ir = wf.grid().getIndex(r_small);
+  fmt::print("\nH-like: f,g at small r = {:.3e} (index {}):\n", rv[ir], ir);
+  fmt::print("{:<10} [{:>11}] {:>11} {:>11} [{:>11}] {:>11} {:>11}\n", "State",
+             "f_ex", "f_val", "f_spl", "g_ex", "g_val", "g_spl");
+  for (const auto &Fb : basis) {
+    const auto *pFh = DiracSpinor::find(Fb.n(), Fb.kappa(), hlike);
+    const auto *pFv = wf.getState(Fb.n(), Fb.kappa());
+    if (!pFh || !pFv)
+      continue;
+    fmt::print("{:<10} [{:>11.4e}] {:>11.4e} {:>11.4e} [{:>11.4e}] {:>11.4e} "
+               "{:>11.4e}\n",
+               Fb.symbol(), pFh->f(ir), pFv->f(ir), Fb.f(ir), pFh->g(ir),
+               pFv->g(ir), Fb.g(ir));
+    REQUIRE(pFh->f(ir) == Approx(pFv->f(ir)).epsilon(1.0e-10));
+    REQUIRE(pFh->f(ir) == Approx(Fb.f(ir)).epsilon(1.0e-5));
+    REQUIRE(pFh->g(ir) == Approx(pFv->g(ir)).epsilon(1.0e-8));
+    REQUIRE(pFh->g(ir) == Approx(Fb.g(ir)).epsilon(1.0e-3));
+    REQUIRE(Fb.f(ir) > 0.0);
+    REQUIRE(pFh->f(ir) > 0.0);
+  }
 }
 
 //==============================================================================
@@ -289,70 +429,4 @@ TEST_CASE("Wavefunction: BSpline-basis",
       }
     }
   }
-
-  //============================================================================
-
-  // // Check low-r behavour (splines vs HF for hyperfine)
-  // for (auto f_QED : {false, true}) {
-  //   for (auto f_Br : {0.0, 1.0}) {
-
-  //     Wavefunction wf({6000, 1.0e-7, 150.0, 0.33 * 150.0, "loglinear"},
-  //                     {"Cs", -1, "Fermi"}, 1.0);
-
-  //     const auto breit_params =
-  //       f_Br != 0.0 ?
-  //         std::optional<HF::Breit::Params>{HF::Breit::Params{f_Br}} :
-  //         std::nullopt;
-  //     wf.set_HF(HF::Method::HartreeFock, "[Xe]", breit_params);
-  //     if (f_QED)
-  //       wf.radiativePotential({1.0, 1.0, 1.0, 1.0, 0.0}, 10.0, 1.0, {1.0},
-  //                             false, false);
-  //     wf.solve_core();
-
-  //     const std::string states = "7sp5d4f";
-  //     wf.solve_valence(states);
-
-  //     const auto r0 = 1.0e-4;
-  //     const auto r0eps = 1.0e-5;
-  //     const auto rmax = 60.0; // need large rmax, to match to large nl HF
-  //     const int nspl = 75;    // need large n due to large rmax
-  //     const int kspl = 7;
-  //     wf.formBasis({states, nspl, kspl, r0, r0eps, rmax, "",
-  //                   SplineBasis::SplineType::Derevianko});
-
-  //     // Hyperfine operator: Pointlike, g=1
-  //     const auto h = DiracOperator::hfs(
-  //       1, 1.0, 0.0, wf.grid(), DiracOperator::Hyperfine::pointlike_F());
-
-  //     // Calculate A with HF and spline states, compare for each l:
-  //     std::vector<std::vector<double>> hfs(4); // s,p,d,f
-  //     std::cout << "A, hf vs spl:\n";
-  //     for (const auto &orbs : {wf.core(), wf.valence()}) { //*
-  //       for (const auto &Fv : orbs) {
-  //         const auto pFb = std::find(cbegin(wf.basis()), cend(wf.basis()), Fv);
-  //         const auto Ahf = hfsA(&h, Fv);
-  //         const auto Aspl = hfsA(&h, *pFb);
-  //         const auto eps = (Ahf - Aspl) / Ahf;
-  //         std::cout << Fv.symbol() << " " << Ahf << " " << Aspl << " " << eps
-  //                   << "\n";
-  //         hfs.at(std::size_t(Fv.l())).push_back(eps);
-  //       }
-  //     }
-  //     for (std::size_t l = 0; l < hfs.size(); l++) {
-  //       const auto eps =
-  //         *std::max_element(cbegin(hfs[l]), cend(hfs[l]), qip::less_abs{});
-
-  //       std::string name = "spl";
-  //       if (f_Br != 0.0)
-  //         name += "+Br";
-  //       if (f_QED)
-  //         name += "+QED";
-  //       const std::string str = name + " low-r (hfs) l=";
-
-  //       // pass &=
-  //       // qip::check_value(&obuff, str + std::to_string(l), eps, 0.0, 1.0e-4);
-  //       REQUIRE(std::abs(eps) < 1.0e-4);
-  //     }
-  //   }
-  // }
 }
