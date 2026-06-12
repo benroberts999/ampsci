@@ -68,7 +68,8 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const DiracSpinor &Fs, double eps_target = 1.0e-9,
                      const MBPT::CorrelationPotential *const Sigma = nullptr,
                      const HF::Breit *const VBr = nullptr,
-                     const std::vector<double> &H_mag = {});
+                     const std::vector<double> &H_mag = {},
+                     bool orthog_core = false);
 
 //! Solves Mixed States (TDHF) equation. Overload; takes hf object
 DiracSpinor

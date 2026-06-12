@@ -178,16 +178,41 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
     const auto &hFb = hFbs[ibeta];
     const auto s = (imag && conj) ? -1.0 : 1.0;
     auto rhs = s * hFb + dV_rhs(kappa_beta, Fb, conj);
-    if (kappa_beta == Fb.kappa() && !imag) {
-      const auto de = Fb * rhs;
-      rhs -= de * Fb;
+
+    // Project the source orthogonal to all core states of this kappa:
+    // (h_l - e_b -+ w) is near-singular for these components (exactly
+    // singular for the diagonal kappa==kappa_b, w=0 case; near-singular for
+    // e.g., fine-structure partners), so they cannot be found reliably from
+    // the Green's-function solve. They are restored analytically below.
+    // For m = b, this is the usual de subtraction.
+    std::vector<std::pair<const DiracSpinor *, double>> proj{};
+    if (!imag) {
+      for (const auto &Fm : m_core) {
+        if (Fm.kappa() != kappa_beta)
+          continue;
+        const auto cm = Fm * rhs;
+        rhs -= cm * Fm;
+        proj.emplace_back(&Fm, cm);
+      }
     }
 
     const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
     const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
     // The l from X ? or from Fv ?
     ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
-                                   eps_ms, nullptr, p_VBr, Hmag);
+                                   eps_ms, nullptr, p_VBr, Hmag, !imag);
+
+    // Restore the projected-out core components analytically:
+    // <m|dF_b> = <m|(t + dV)|b> / (e_b + w - e_m).
+    // For m = b: component is zero (orthogonality condition); skip.
+    for (const auto &[Fm, cm] : proj) {
+      if (*Fm == Fb)
+        continue;
+      const auto denom = Fb.en() + ww - Fm->en();
+      if (std::abs(denom) < 1.0e-5) // (near-)resonant: leave orthogonal
+        continue;
+      dF_beta += (cm / denom) * (*Fm);
+    }
   }
 }
 

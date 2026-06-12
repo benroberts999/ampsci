@@ -33,18 +33,32 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const DiracSpinor &hFa, const double eps_target,
                      const MBPT::CorrelationPotential *const Sigma,
                      const HF::Breit *const VBr,
-                     const std::vector<double> &H_mag) {
+                     const std::vector<double> &H_mag, bool orthog_core) {
   using namespace qip::overloads;
   assert(dF.kappa() == hFa.kappa());
 
   const auto eta_damp = 0.85;
   const int max_its = (eps_target < 1.0e-8) ? 256 : 128;
 
+  // (h_l - e_a -+ w) is near-singular if any bound state of same kappa lies
+  // close to e_a -+ w; orthogonalising against those states each iteration
+  // keeps the iteration well-conditioned. With orthog_core, orthogonalise
+  // against all (same-kappa) core states; the missing components must then
+  // be restored analytically by the caller (see TDHF::solve_ms_core).
+  const auto orthogonalise = [&](DiracSpinor &dF_v) {
+    if (orthog_core) {
+      for (const auto &Fm : core)
+        dF_v.orthog(Fm);
+    } else {
+      dF_v.orthog(Fa);
+    }
+  };
+
   if (std::abs(dF * dF) == 0.0) {
     // If dF is not yet a solution, solve from scratch:
     DiracODE::solve_inhomog(dF, Fa.en() + omega, vl, H_mag, alpha, -1.0 * hFa);
-    dF.orthog(Fa);
   }
+  orthogonalise(dF);
 
   // Old/previous value of dF, used for damping
   auto dF0 = dF;
@@ -69,7 +83,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
       dF = (1.0 - eta_damp) * dF + eta_damp * dF0;
 
     // Force orthogonality
-    dF.orthog(Fa);
+    orthogonalise(dF);
 
     // Check convergence:
     eps = std::sqrt((dF - dF0).norm2() / dF0.norm2());
