@@ -10,6 +10,8 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "fmt/format.hpp"
+#include "qip/Widgets.hpp"
 #include "qip/omp.hpp"
 #include <algorithm>
 #include <numeric>
@@ -482,10 +484,8 @@ void DiagramRPA::solve_core(double omega, int max_its, bool print) {
   if (m_holes.empty() || m_excited.empty())
     return;
 
-  if (print) {
-    fmt::print("RPA(D) {:s} (w={:.4f}): ", m_h->name(), m_core_omega);
-    std::cout << std::flush;
-  }
+  qip::LiveMessage status(
+    fmt::format("RPA(D) {} (w={:.4f}): ", m_h->name(), m_core_omega), print);
 
   // Start at 2:
   int its_performed = 0;
@@ -569,14 +569,18 @@ void DiagramRPA::solve_core(double omega, int max_its, bool print) {
                         [](auto &a, auto &b) { return a.first < b.first; });
     eps = teps.first;
     s_worst = teps.second;
+
+    status(fmt::format("{:2d} {:.1e} [{}]", its_performed, eps, s_worst));
     if (eps < eps_targ)
       break;
   }
 
-  if (print) {
-    printf("%2i %.1e [%s]\n", its_performed, eps, s_worst.c_str());
-    std::cout << std::flush;
-  }
+  // Provide soft visual warning for non-converged TDHF
+  const auto stars = (max_its > 1 && eps > 1.0e-4) ? "  ***" :
+                     (max_its > 1 && eps > 1.0e-6) ? "  **" :
+                     (max_its > 1 && eps > 1.0e-8) ? "  *" :
+                                                     "";
+  status.done(stars);
 
   m_core_eps = eps;
   m_core_its = its_performed;

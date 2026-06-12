@@ -11,6 +11,8 @@
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "fmt/format.hpp"
+#include "qip/Widgets.hpp"
 #include <algorithm>
 #include <fstream>
 #include <memory>
@@ -285,10 +287,8 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
   const auto eta_damp = m_eta;
   omega = std::abs(omega);
 
-  if (print) {
-    printf("TDHF %s (w=%.4f): ", m_h->name().c_str(), omega);
-    std::cout << std::flush;
-  }
+  qip::LiveMessage status(
+    fmt::format("TDHF {} (w={:.4f}): ", m_h->name(), omega), print);
 
   m_hFcore = form_hFcore(m_h);
   m_hFcore_minus = form_hFcore(m_h_minus);
@@ -311,27 +311,21 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
       }
     }
 
-    if (it > 1 && eps.first < 0.01 * converge_targ)
+    status(fmt::format("{:2d} {:.1e} [{}]", it, eps.first, eps.second));
+
+    if ((it > 1 && eps.first < 0.01 * converge_targ) ||
+        (it > 5 && eps.first < converge_targ) ||
+        (count_worse > 5 && eps.first < 1.0e4 * converge_targ) ||
+        std::isnan(eps.first))
       break;
-    if (it > 5 && eps.first < converge_targ)
-      break;
-    if (count_worse > 5 && eps.first < 1.0e4 * converge_targ)
-      break;
-    if (std::isnan(eps.first)) {
-      break;
-    }
   }
 
-  if (print) {
-    printf("%2i %.1e [%s]", it, eps.first, eps.second.c_str());
-    if (eps.first > 1.0e-8 && max_its > 1)
-      std::cout << "  *";
-    if (eps.first > 1.0e-6 && max_its > 1)
-      std::cout << "*";
-    if (eps.first > 1.0e-4 && max_its > 1)
-      std::cout << "*";
-    std::cout << "\n" << std::flush;
-  }
+  // Provide soft visual warning for non-converged TDHF
+  const auto stars = (max_its > 1 && eps.first > 1.0e-4) ? "  ***" :
+                     (max_its > 1 && eps.first > 1.0e-6) ? "  **" :
+                     (max_its > 1 && eps.first > 1.0e-8) ? "  *" :
+                                                           "";
+  status.done(stars);
 
   // set last eps (convergance) and frequency (omega)
   m_core_eps = eps.first;

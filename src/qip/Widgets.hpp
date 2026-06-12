@@ -3,10 +3,102 @@
 #include <atomic>
 #include <cstdio>
 #include <iostream>
+#include <string>
+#include <string_view>
 // Note: Uses POSIX isatty(). Not portable to Windows without WSL/MinGW.
 #include <unistd.h>
 
 namespace qip {
+
+/*!
+  @brief Live status line for iterative loops; overwrites itself on a TTY.
+  @details
+  Construct before the loop, call operator() each iteration with the current
+  status message, then call done() (optionally with a trailing annotation) when
+  the loop finishes. The destructor calls done() automatically if it has not
+  been called explicitly, so early returns and exceptions are handled cleanly.
+
+  Behaviour depends on whether stdout is a TTY:
+  - TTY: each operator() call prints `\r{header}{msg}` and flushes,
+    overwriting the current line. done() prints `\r{header}{last_msg}{post}\n`.
+  - Non-TTY: the header is printed on construction; operator() calls are
+    silent (but the message is buffered). done() prints `{last_msg}{post}\n`.
+    This gives one clean output line with no intermediate churn.
+
+  If @p active is false all methods are no-ops (runtime print toggle).
+
+  Typical usage:
+  @code
+  qip::LiveMessage status("TDHF E1 (w=1.23): ", print);
+  for (int it = 0; it < max_its; ++it) {
+    // ... work ...
+    status(fmt::format("{:2d} {:.1e} [{}]", it, eps, worst));
+    if (converged) break;
+  }
+  status.done("  ***");  // optional trailing annotation; destructor calls done() otherwise
+  @endcode
+
+  @param header  Fixed prefix, always printed (on construction for non-TTY,
+                 or on every line for TTY).
+  @param active  If false, all methods are no-ops. Default true.
+*/
+class LiveMessage {
+public:
+  explicit LiveMessage(std::string_view header, bool active = true)
+    : m_header(header), m_is_tty(isatty(fileno(stdout))), m_active(active) {
+    if (m_active && !m_is_tty) {
+      std::fwrite(m_header.data(), 1, m_header.size(), stdout);
+      std::fflush(stdout);
+    }
+  }
+
+  ~LiveMessage() { done(); }
+
+  // Non-copyable: owns the "print header once" invariant
+  LiveMessage(const LiveMessage &) = delete;
+  LiveMessage &operator=(const LiveMessage &) = delete;
+
+  //! Update the status message. On TTY overwrites the current line; on
+  //! non-TTY buffers silently until done() is called.
+  void update(std::string_view msg) {
+    if (!m_active || m_done)
+      return;
+    m_last_msg = msg;
+    if (m_is_tty) {
+      std::fputs("\r", stdout);
+      std::fwrite(m_header.data(), 1, m_header.size(), stdout);
+      std::fwrite(msg.data(), 1, msg.size(), stdout);
+      std::fflush(stdout);
+    }
+  }
+
+  //! Update the status message. see @ref update()
+  void operator()(std::string_view msg) { return update(msg); }
+
+  //! Finalise: print last message + optional @p post, then newline.
+  //! Safe to call multiple times (only the first call has effect).
+  void done(std::string_view post = {}) {
+    if (!m_active || m_done)
+      return;
+    m_done = true;
+    if (m_is_tty) {
+      std::fputs("\r", stdout);
+      std::fwrite(m_header.data(), 1, m_header.size(), stdout);
+    }
+    std::fwrite(m_last_msg.data(), 1, m_last_msg.size(), stdout);
+    if (!post.empty())
+      std::fwrite(post.data(), 1, post.size(), stdout);
+    std::fputc('\n', stdout);
+    std::fflush(stdout);
+  }
+
+private:
+  std::string m_header;
+  std::string m_last_msg;
+  bool m_is_tty;
+  bool m_active;
+  bool m_done{false};
+};
 
 /*! @brief Basic progress bar. Prints new line if (and only if) i==(max-1)
     @details 

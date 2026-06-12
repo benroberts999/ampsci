@@ -4,6 +4,8 @@
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "fmt/format.hpp"
+#include "qip/Widgets.hpp"
 #include <algorithm>
 #include <vector>
 
@@ -128,10 +130,8 @@ void TDHFbasis::solve_core(double omega, int max_its, bool print) {
   auto eps = 0.0;
   std::string s_worst;
 
-  if (print) {
-    printf("TDHFb %s (w=%.3f): ", m_h->name().c_str(), ww);
-    std::cout << std::flush;
-  }
+  qip::LiveMessage status(fmt::format("TDHFb {} (w={:.3f}): ", m_h->name(), ww),
+                          print);
 
   // Store 2D indexes, for more efficient //isation
   std::vector<std::pair<std::size_t, std::size_t>> indexs;
@@ -189,16 +189,21 @@ void TDHFbasis::solve_core(double omega, int max_its, bool print) {
     m_X = tmp_X;
     m_Y = tmp_Y;
 
+    status.update(fmt::format("{:2d} {:.1e} [{}]", it, eps, s_worst));
     if (it > 1 && eps < converge_targ)
       break;
   }
-  if (print) {
-    printf("%2i %.1e [%s]\n", it, eps, s_worst.c_str());
-  }
-  std::cout << std::flush;
+
+  // Provide soft visual warning for non-converged TDHF
+  const auto stars = (max_its > 1 && eps > 1.0e-4) ? "  ***" :
+                     (max_its > 1 && eps > 1.0e-6) ? "  **" :
+                     (max_its > 1 && eps > 1.0e-8) ? "  *" :
+                                                     "";
+  status.done(stars);
+
   m_core_eps = eps;
   m_core_its = it;
-  m_core_omega = ww; //?
+  m_core_omega = ww;
 }
 
 } // namespace ExternalField
