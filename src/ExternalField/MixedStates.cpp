@@ -6,6 +6,7 @@
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Vector.hpp"
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <vector>
@@ -33,24 +34,25 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const DiracSpinor &hFa, const double eps_target,
                      const MBPT::CorrelationPotential *const Sigma,
                      const HF::Breit *const VBr,
-                     const std::vector<double> &H_mag, bool orthog_core) {
+                     const std::vector<double> &H_mag,
+                     const std::vector<const DiracSpinor *> &orthog_states) {
   using namespace qip::overloads;
   assert(dF.kappa() == hFa.kappa());
 
-  const auto eta_damp = 0.85;
   const int max_its = (eps_target < 1.0e-8) ? 256 : 128;
 
   // (h_l - e_a -+ w) is near-singular if any bound state of same kappa lies
   // close to e_a -+ w; orthogonalising against those states each iteration
-  // keeps the iteration well-conditioned. With orthog_core, orthogonalise
-  // against all (same-kappa) core states; the missing components must then
-  // be restored analytically by the caller (see TDHF::solve_ms_core).
+  // keeps the iteration well-conditioned. The caller passes the list of
+  // near-resonant states (orthog_states); the source must already be
+  // projected orthogonal to them (see TDHF::solve_ms_core).
+  // If empty, orthogonalise against Fa (no-op if kappa differs).
   const auto orthogonalise = [&](DiracSpinor &dF_v) {
-    if (orthog_core) {
-      for (const auto &Fm : core)
-        dF_v.orthog(Fm);
-    } else {
+    if (orthog_states.empty()) {
       dF_v.orthog(Fa);
+    } else {
+      for (const auto *Fm : orthog_states)
+        dF_v.orthog(*Fm);
     }
   };
 
@@ -59,6 +61,8 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     DiracODE::solve_inhomog(dF, Fa.en() + omega, vl, H_mag, alpha, -1.0 * hFa);
   }
   orthogonalise(dF);
+
+  const auto eta_damp = 0.85;
 
   // Old/previous value of dF, used for damping
   auto dF0 = dF;

@@ -191,6 +191,47 @@ private:
                      const std::vector<DiracSpinor> &hFbs, const double omega,
                      dPsiType XorY, double eps_ms = 1.0e-9) const;
 
+  /*!
+    @brief Projects source `rhs` orthogonal to the near-resonant core states of
+    a TDHF channel; returns the projected-out states and amplitudes.
+    @details
+    For the channel of angular momentum @p kappa_beta and energy
+    \f$ e_0 = \en_b + ww \f$, the radial operator \f$ (h_l - e_0) \f$ is
+    (near-)singular for components along any bound core state \f$ \phi_m \f$ of
+    the same kappa with \f$ \en_m \approx e_0 \f$ -- exactly singular for the
+    diagonal (\f$ \kappa_\beta = \kappa_b \f$, \f$ ww = 0 \f$) case, and
+    near-singular for e.g. fine-structure partners. Those components cannot be
+    found reliably from the Green's-function solve.
+
+    Such states are identified by a relative nearness criterion
+    (\f$ |e_0 - \en_m| < \eta\,|e_0 + \en_m| \f$, \f$ \eta \approx 0.1 \f$),
+    removed from @p rhs, and returned so the caller can:
+    
+    (i) force the solution orthogonal to them during the inhomogeneous solve
+    (keeping the remaining, non-resonant part well-conditioned), and
+    
+    (ii) restore the off-diagonal ones analytically via first-order PT,
+    \f$ \matel{m}{dF}{} = \matel{m}{\rm src}{}/(\en_b \pm \omega - \en_m) \f$.
+    
+    The restored value equals the component the Green's-function solve would
+    have produced naturally, so the result matches solving without projection
+    but stays stable as the denominator becomes small. Only resonant states
+    are touched: well-separated same-kappa core components are left in @p rhs
+    and recovered naturally by the solve, since transitions into those occupied
+    states cancel pairwise in \f$ \delta V \f$.
+
+    @param rhs        Source spinor; modified in place (resonant part removed).
+    @param core       Core orbitals.
+    @param Fb         Core state \f$ \phi_b \f$ being perturbed.
+    @param ww         Signed frequency (\f$ +\omega \f$ for X, \f$ -\omega \f$ for Y).
+    @param kappa_beta Kappa of the solution channel.
+    @return {states, amplitudes}: parallel vectors of the projected-out core
+            states and the corresponding amplitudes \f$ \matel{m}{\rm src}{} \f$.
+  */
+  static std::pair<std::vector<const DiracSpinor *>, std::vector<double>>
+  project_resonant(DiracSpinor &rhs, const std::vector<DiracSpinor> &core,
+                   const DiracSpinor &Fb, double ww, int kappa_beta);
+
 public:
   TDHF &operator=(const TDHF &) = delete;
   TDHF(const TDHF &) = default;

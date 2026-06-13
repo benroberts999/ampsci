@@ -61,15 +61,22 @@ DiracSpinor solveMixedState(
   @details
   Starts from @p dF as an initial guess rather than zero; converges faster if
   @p dF is already an approximate solution (e.g., from a nearby frequency).
+
+  @note @p orthog_states is the list of near-resonant bound states: those for
+  which \f$ (h_{\rm HF} - \en_a \mp \omega) \f$ is (near-)singular. The source
+  @p Fs must already be projected orthogonal to them; the solution is forced
+  orthogonal to them at each iteration to keep the solve well-conditioned.
+  If empty, the solution is instead orthogonalised against @p Fa
+  (no-op if kappa differs).
 */
-void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
-                     const std::vector<double> &vl, double alpha,
-                     const std::vector<DiracSpinor> &core,
-                     const DiracSpinor &Fs, double eps_target = 1.0e-9,
-                     const MBPT::CorrelationPotential *const Sigma = nullptr,
-                     const HF::Breit *const VBr = nullptr,
-                     const std::vector<double> &H_mag = {},
-                     bool orthog_core = false);
+void solveMixedState(
+  DiracSpinor &dF, const DiracSpinor &Fa, double omega,
+  const std::vector<double> &vl, double alpha,
+  const std::vector<DiracSpinor> &core, const DiracSpinor &Fs,
+  double eps_target = 1.0e-9,
+  const MBPT::CorrelationPotential *const Sigma = nullptr,
+  const HF::Breit *const VBr = nullptr, const std::vector<double> &H_mag = {},
+  const std::vector<const DiracSpinor *> &orthog_states = {});
 
 //! Solves Mixed States (TDHF) equation. Overload; takes hf object
 DiracSpinor
