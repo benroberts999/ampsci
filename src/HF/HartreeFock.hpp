@@ -61,6 +61,13 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
 DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
                   int k_cut = 99);
 
+//! @brief Density-based (Kohn-Sham/Slater) local exchange potential, ~rho^1/3.
+//! @details Unlike vex_approx it does not depend on the orbital, so it
+//! conditions all symmetries uniformly -- useful as the local-exchange term on
+//! the LHS of the mixed-states iteration (where vex_approx, which divides by
+//! the perturbation, is poorly conditioned). Grid is taken from @p core.
+std::vector<double> vex_KS(const std::vector<DiracSpinor> &core);
+
 //==============================================================================
 //==============================================================================
 //==============================================================================

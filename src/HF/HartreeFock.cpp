@@ -1032,6 +1032,28 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
 }
 
 //==============================================================================
+std::vector<double> vex_KS(const std::vector<DiracSpinor> &core) {
+  // Kohn-Sham / Slater density local exchange: V_x = f/r * (r*rho)^(1/3),
+  // with f = -(2/3)(81/32pi^2)^(1/3). Orbital-independent.
+  assert(!core.empty());
+  const auto &grid = core.front().grid();
+  const auto f =
+    -(2.0 / 3.0) * std::pow(81.0 / (32.0 * M_PI * M_PI), 1.0 / 3.0);
+
+  std::vector<double> rho(grid.num_points());
+  for (const auto &Fc : core) {
+    rho = qip::add(rho, Fc.rho());
+  }
+
+  std::vector<double> vx(grid.num_points());
+  for (std::size_t i = 0; i < grid.num_points(); ++i) {
+    const auto r = grid.r(i);
+    vx[i] = (f / r) * std::pow(r * rho[i], 1.0 / 3.0);
+  }
+  return vx;
+}
+
+//==============================================================================
 void HartreeFock::vex_Fa_core(const DiracSpinor &Fa, DiracSpinor &VxFa) const
 // calculates V_ex Fa
 // Fa must be in the core, and Yab must already be calculated

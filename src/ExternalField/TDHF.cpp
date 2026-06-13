@@ -167,8 +167,10 @@ TDHF::project_resonant(DiracSpinor &rhs, const std::vector<DiracSpinor> &core,
   for (const auto &Fm : core) {
     if (Fm.kappa() != kappa_beta)
       continue;
-    // relative "nearness" criterion: e_m within ~10% of e0 = e_b +- w
-    const auto near = std::abs(e0 - Fm.en()) < 0.1 * std::abs(e0 + Fm.en());
+    // relative "nearness" criterion: e_m within ~20% of e0 = e_b +- w. Catches
+    // fine-structure partners (which must be conditioned in the solve) while
+    // excluding well-separated cores (whose components are found naturally).
+    const auto near = std::abs(e0 - Fm.en()) < 0.2 * std::abs(e0 + Fm.en());
     if (Fm == Fb || near) {
       const auto cm = Fm * rhs;
       rhs -= cm * Fm;
@@ -259,9 +261,8 @@ TDHF::eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
   // -- the relative change -- if `relative`, else the squared ratio.
   // (Y need not be included: X and Y are solved with the same dV, so once X is
   // converged dV is converged and Y too.)
-  // |dX|^2 = |X_new|^2 + |X_old|^2 - 2<X_new|X_old>, via inner products so no
-  // temporary spinor is formed.
 
+  using namespace qip::overloads;
   double DdF2 = 0.0;
   double dF2 = 0.0;
   double worst = 0.0;
@@ -269,13 +270,12 @@ TDHF::eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
   for (std::size_t ib = 0; ib < m_core.size(); ++ib) {
     for (std::size_t i = 0; i < Xnew[ib].size(); ++i) {
       const auto &nw = Xnew[ib][i];
-      const auto &od = m_X[ib][i];
-      const auto nn = nw.norm2();
-      const auto d = std::max(0.0, nn + od.norm2() - 2.0 * (nw * od));
+      const auto d = (nw - m_X[ib][i]).norm2();
+      const auto n = nw.norm2();
       DdF2 += d;
-      dF2 += nn;
+      dF2 += n;
       // per-channel ratio: used only to rank the worst channel for reporting
-      const auto e = nn == 0.0 ? 0.0 : d / nn;
+      const auto e = n == 0.0 ? 0.0 : d / n;
       if (e > worst) {
         worst = e;
         worst_lab = m_core[ib].shortSymbol() + "," + nw.shortSymbol();

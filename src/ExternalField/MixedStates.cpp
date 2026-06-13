@@ -65,17 +65,22 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
 
   const auto eta_damp = 0.85;
 
+  // Local exchange on the LHS of the equation (also added to the RHS, so it
+  // cancels at the fixed point -- it only conditions the iteration). We use the
+  // density-based Kohn-Sham/Slater local exchange: being orbital-independent it
+  // conditions all channels uniformly and is computed once. (The alternative,
+  // vex_approx, divides by the perturbation and is poorly conditioned for
+  // awkward channels.)
+  const auto Ux = HF::vex_KS(core);
+  const auto v = vl + Ux;
+
   // Old/previous value of dF, used for damping
   auto dF0 = dF;
 
   int its{0};
   double eps{};
   for (; its < max_its; its++) {
-    // Include approximate exchange on LHS of equation (therefore also on RHS)
-    // This makes v_local have correct long-range behaviour
-    const auto vx = HF::vex_approx(dF, core);
-    const auto v = vl + vx;
-    auto rhs = (vx * dF) - HF::vexFa(dF, core) - hFa;
+    auto rhs = (Ux * dF) - HF::vexFa(dF, core) - hFa;
     if (VBr)
       rhs -= VBr->VbrFa(dF, core);
     if (Sigma)
