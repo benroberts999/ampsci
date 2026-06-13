@@ -207,9 +207,10 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
     // are restored analytically afterwards. See project_resonant().
     std::vector<const DiracSpinor *> resonant{};
     std::vector<double> amps{};
-    if (!imag)
+    if (!imag) {
       std::tie(resonant, amps) =
         project_resonant(rhs, m_core, Fb, ww, kappa_beta);
+    }
 
     const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
     const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
@@ -249,73 +250,85 @@ TDHF::form_hFcore(const DiracOperator::TensorOperator *h) const {
 }
 
 //==============================================================================
+std::pair<double, std::string>
+TDHF::eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
+               bool relative) const {
+
+  // Relative L2 change of the (undamped) X spinors, summed over all core
+  // orbitals and channels: ratio = Sum|dX|^2 / Sum|X_new|^2. Returns sqrt(ratio)
+  // -- the relative change -- if `relative`, else the squared ratio.
+  // (Y need not be included: X and Y are solved with the same dV, so once X is
+  // converged dV is converged and Y too.)
+  // |dX|^2 = |X_new|^2 + |X_old|^2 - 2<X_new|X_old>, via inner products so no
+  // temporary spinor is formed.
+
+  double DdF2 = 0.0;
+  double dF2 = 0.0;
+  double worst = 0.0;
+  std::string worst_lab;
+  for (std::size_t ib = 0; ib < m_core.size(); ++ib) {
+    for (std::size_t i = 0; i < Xnew[ib].size(); ++i) {
+      const auto &nw = Xnew[ib][i];
+      const auto &od = m_X[ib][i];
+      const auto nn = nw.norm2();
+      const auto d = std::max(0.0, nn + od.norm2() - 2.0 * (nw * od));
+      DdF2 += d;
+      dF2 += nn;
+      // per-channel ratio: used only to rank the worst channel for reporting
+      const auto e = nn == 0.0 ? 0.0 : d / nn;
+      if (e > worst) {
+        worst = e;
+        worst_lab = m_core[ib].shortSymbol() + "," + nw.shortSymbol();
+      }
+    }
+  }
+  const auto ratio = dF2 == 0.0 ? 0.0 : DdF2 / dF2;
+  return {relative ? std::sqrt(ratio) : ratio, worst_lab};
+}
+
+//==============================================================================
 std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
                                                   double eta_damp) {
   // solve TDHF equation for core - single iteration
   using namespace qip::overloads;
   const bool staticQ = std::abs(omega) < 1.0e-10;
+  const bool static_Y = staticQ && !m_h->freqDependantQ();
   const auto s = m_imag ? -1 : 1;
 
   // make copies (instead of blank spinors) since the solve_mixed_states
   // is faster if it starts from existing solution
   auto Xs = m_X;
   auto Ys = m_Y;
-  std::vector<std::pair<double, std::string>> epss(m_core.size());
 
   const auto eps_ms = 1.0e-12;
 
-  double DdF2 = 0.0;
-  double dF2 = 0.0;
-#pragma omp parallel for reduction(+ : DdF2) reduction(+ : dF2)
+  // Solve for the (undamped) dF of this iteration, for every core orbital.
+#pragma omp parallel for schedule(dynamic)
   for (auto ib = 0ul; ib < m_core.size(); ib++) {
     const auto &Fb = m_core.at(ib);
-
-    const auto &hFbs = m_hFcore[ib];
-    const auto &hFbs_minus = m_hFcore_minus[ib];
-
-    // solve for dF, and damp
-    solve_ms_core(Xs[ib], Fb, hFbs, omega, dPsiType::X, eps_ms);
-    Xs[ib] = eta_damp * m_X[ib] + (1.0 - eta_damp) * Xs[ib];
-    if (staticQ && !m_h->freqDependantQ()) {
-      Ys[ib] = s * Xs[ib];
-    } else {
-      solve_ms_core(Ys[ib], Fb, hFbs_minus, omega, dPsiType::Y, eps_ms);
-      Ys[ib] = eta_damp * m_Y[ib] + (1.0 - eta_damp) * Ys[ib];
-    }
-
-    // find eps: of each orbital (just so I know which was the 'worst')
-    // and for total core (for overal convergance)
-    epss[ib] = {0.0, ""};
-    for (std::size_t ibeta = 0; ibeta < Xs[ib].size(); ++ibeta) {
-      const auto &Xx = Xs[ib][ibeta];
-      const auto &oldX = m_X[ib][ibeta];
-
-      const auto t_DdF2 = (Xx - oldX).norm2();
-      const auto t_dF2 = 0.5 * (Xx + oldX).norm2();
-      DdF2 += t_DdF2;
-      dF2 += t_dF2;
-
-      // find worst orbital
-      const auto t_eps = t_dF2 == 0.0 ? 1.0 : t_DdF2 / t_dF2;
-      if (t_eps > epss[ib].first) {
-        epss[ib].first = t_eps;
-        epss[ib].second = Fb.shortSymbol() + "," + Xx.shortSymbol();
-      }
+    solve_ms_core(Xs[ib], Fb, m_hFcore[ib], omega, dPsiType::X, eps_ms);
+    if (!static_Y) {
+      solve_ms_core(Ys[ib], Fb, m_hFcore_minus[ib], omega, dPsiType::Y, eps_ms);
     }
   }
-  const auto total_eps = DdF2 / dF2;
 
-  // Find the worst orbital (just for reporting)
-  const auto comp_first = [](const auto &a, const auto &b) {
-    return a.first < b.first;
-  };
-  const auto worst_orbital =
-    *std::max_element(epss.begin(), epss.end(), comp_first);
+  // Measure convergence on the undamped X solution, before damping.
+  const auto eps = eps_dPsi(Xs, m_eps_sqrt);
 
+  // Damp the solution (for the next iteration) and store.
+#pragma omp parallel for
+  for (auto ib = 0ul; ib < m_core.size(); ib++) {
+    Xs[ib] = eta_damp * m_X[ib] + (1.0 - eta_damp) * Xs[ib];
+    if (static_Y) {
+      Ys[ib] = s * Xs[ib];
+    } else {
+      Ys[ib] = eta_damp * m_Y[ib] + (1.0 - eta_damp) * Ys[ib];
+    }
+  }
   m_X = std::move(Xs);
   m_Y = std::move(Ys);
 
-  return {total_eps, worst_orbital.second};
+  return eps;
 }
 
 //==============================================================================
@@ -336,36 +349,33 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
   m_hFcore_minus = form_hFcore(m_h_minus);
 
   std::pair<double, std::string> eps{};
-  double best_eps{1.0};
+  double best_eps{1.0e30};
   int count_worse = 0;
   int it{0};
   for (; it < max_its; it++) {
     const auto eta = it == 0 ? 0.0 : eta_damp;
     eps = tdhf_core_it(omega, eta);
 
-    // Check for a "platau" in convergance (count # of 'worse' iterations)
-    if (it > 15) {
-      if (eps.first > best_eps) {
-        ++count_worse;
-      } else {
-        best_eps = eps.first;
-        count_worse = 0;
-      }
-    }
-
     status(fmt::format("{:2d} {:.1e} [{}]", it, eps.first, eps.second));
 
-    if ((it > 1 && eps.first < 0.01 * converge_targ) ||
-        (it > 5 && eps.first < converge_targ) ||
-        (count_worse > 5 && eps.first < 1.0e4 * converge_targ) ||
-        std::isnan(eps.first))
+    if (eps.first < converge_targ || std::isnan(eps.first))
+      break; // converged (or broken)
+
+    // Stalled: no meaningful improvement for several iterations -> give up.
+    // (The result is still used; the warning stars flag its quality.)
+    if (eps.first < 0.99 * best_eps) {
+      best_eps = eps.first;
+      count_worse = 0;
+    } else if (++count_worse > 5) {
       break;
+    }
   }
 
-  // Provide soft visual warning for non-converged TDHF
-  const auto stars = (max_its > 1 && eps.first > 1.0e-4) ? "  ***" :
-                     (max_its > 1 && eps.first > 1.0e-6) ? "  **" :
-                     (max_its > 1 && eps.first > 1.0e-8) ? "  *" :
+  // Soft visual warning, relative to the convergence target.
+  const auto stars = (max_its <= 1)                      ? "" :
+                     (eps.first > 1.0e6 * converge_targ) ? "  ***" :
+                     (eps.first > 1.0e4 * converge_targ) ? "  **" :
+                     (eps.first > 1.0e2 * converge_targ) ? "  *" :
                                                            "";
   status.done(stars);
 

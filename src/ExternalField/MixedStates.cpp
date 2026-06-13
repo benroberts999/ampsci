@@ -51,8 +51,9 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     if (orthog_states.empty()) {
       dF_v.orthog(Fa);
     } else {
-      for (const auto *Fm : orthog_states)
+      for (const auto *Fm : orthog_states) {
         dF_v.orthog(*Fm);
+      }
     }
   };
 
