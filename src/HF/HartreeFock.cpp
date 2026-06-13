@@ -630,7 +630,7 @@ EpsIts HartreeFock::hf_valence_Green(
     return local_valence(Fa);
 
   local_valence(Fa);
-  const auto vx0 = vex_approx(Fa, m_core);
+  const auto vx0 = vex_KS(m_core);
   const auto Fzero = Fa;
   const auto Vx0Fa = vx0 * Fa;
 

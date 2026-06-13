@@ -132,7 +132,7 @@ void ContinuumOrbitals::IncludeExchange(DiracSpinor &Fc, const DiracSpinor *Fi,
   const double conv_target = 1.0e-6;
 
   for (int it = 0; it <= max_its; ++it) {
-    const auto vx0 = HF::vex_approx(Fc, p_hf->core());
+    const auto vx0 = HF::vex_KS(p_hf->core());
     const auto vl = qip::add(vc, vx0);
 
     // Copy old solution (needed by DiracODE)
