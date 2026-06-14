@@ -1,4 +1,5 @@
 #include "DiracOperator/include.hpp"
+#include "ExternalField/TDHF.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "Kionisation/Kion_functions.hpp"
@@ -371,6 +372,8 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
                       "hole-particle interaction) [true]"},
     {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
+    {"rpa", "Include RPA (continuum TDHF) in the E1 cross section, as an extra "
+            "column sigma_E1_rpa. Assumes hole_particle=true. [false]"},
   });
   if (input.has_option("help")) {
     return;
@@ -454,6 +457,7 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto force_orthog = input.get("force_orthog", true);
   const auto force_rescale = input.get("force_rescale", false);
   const auto hole_particle = input.get("hole_particle", true);
+  const auto do_rpa = input.get("rpa", false);
 
   auto oname = input.get("oname", std::string{"photoel-out.txt"});
 
@@ -569,6 +573,47 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
     prog.update();
   }
 
+  // RPA (continuum TDHF) E1 cross section -- separate loop, since the TDHF SCF
+  // is the bottleneck and only parallelises (poorly) over core orbitals.
+  // We instead parallelise over omega here: there are many energies, and TDHF's
+  // own (nested) parallel-for runs serial, so threads are well used.
+  // Uses the same V^{N-1} continuum bra (hole_particle); the RPA-dressed
+  // amplitude is D = <ec,a'||E1||a> + dV_cont (see TDHF::dV_cont).
+  std::vector<double> results_E1_rpa(energies.size(), 0.0);
+  if (do_rpa) {
+    const auto E1_rpa = DiracOperator::E1(wf.grid());
+    // qip::ProgressBar prog_rpa(int(energies.size()));
+    // #pragma omp parallel for schedule(dynamic)
+    for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
+      const auto omega = energies[i_omega];
+      const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
+                          PhysConst::aB_cm * PhysConst::aB_cm * omega;
+
+      auto rpa = ExternalField::TDHF(&E1_rpa, wf.vHF());
+      rpa.solve_core_cntm(omega, 30, true, false);
+
+      double Q_E1_rpa = 0.0;
+      for (const auto &Fa : wf.core()) {
+        const auto ec = omega + Fa.en();
+        if (ec < 0.0 || ec > ec_max)
+          continue;
+        const int l = Fa.l();
+        ContinuumOrbitals cntm(wf.vHF());
+        cntm.solveContinuumHF(ec, std::max(l - 1, 0), l + 1, &Fa, force_rescale,
+                              hole_particle, force_orthog);
+        for (const auto &Fe : cntm.orbitals) {
+          if (E1_rpa.isZero(Fe, Fa))
+            continue;
+          const auto dV = rpa.last_eps() < 1.0e-2 ? rpa.dV_cont(Fe, Fa) : 0.0;
+          const auto D = E1_rpa.reducedME(Fe, Fa) + dV;
+          Q_E1_rpa += (1.0 / 3.0) * D * D; // f_Q_E1 = 1/3
+        }
+      }
+      results_E1_rpa[i_omega] = Ksigma * Q_E1_rpa;
+      // prog_rpa.update();
+    }
+  }
+
   // Sequential write after the parallel loop completes.
   std::ofstream out_file(oname);
   out_file << "# Photoelectric effect::\n"
@@ -584,26 +629,33 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
            << "# sigma_EM       : sigma_E + sigma_M (total multipole)\n"
            << "# sigma_E2       : E2 (length)\n"
            << "# sigma_Ek2      : Ek at K=2\n"
-           << "# sigma_Mk1      : Mk at K=1\n"
-           << "#\n"
+           << "# sigma_Mk1      : Mk at K=1\n";
+  if (do_rpa) {
+    out_file << "# sigma_E1_rpa   : E1 (length) dipole, with RPA (continuum "
+                "TDHF)\n";
+  }
+  out_file << "#\n"
            << "omega_MeV  sigma_E1  sigma_M1  sigma_M1_nr  sigma_E  "
               "sigma_E_len  sigma_M  "
-              "sigma_EM  sigma_E2  sigma_Ek2  sigma_Mk1\n";
+              "sigma_EM  sigma_E2  sigma_Ek2  sigma_Mk1";
+  out_file << (do_rpa ? "  sigma_E1_rpa\n" : "\n");
 
   for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
     const auto &r = results[i_omega];
     out_file << energies[i_omega] * PhysConst::Hartree_eV / 1e6 // omega (MeV)
-             << " " << r[0] // s_E1      : E1 (length) dipole
-             << " " << r[1] // s_M1      : M1 dipole
-             << " " << r[2] // s_M1_nr   : M1 non-relativistic
-             << " " << r[3] // s_E       : electric multipole (velocity)
-             << " " << r[4] // s_E_len   : electric multipole (length)
-             << " " << r[5] // s_M       : magnetic multipole
-             << " " << r[6] // s_EM      : Q_E + Q_M (total multipole)
-             << " " << r[7] // s_E2      : E2 (length)
-             << " " << r[8] // s_Ek2     : Ek at K=2
-             << " " << r[9] // s_Mk1     : Mk at K=1
-             << "\n";
+             << " " << r[0]  // s_E1      : E1 (length) dipole
+             << " " << r[1]  // s_M1      : M1 dipole
+             << " " << r[2]  // s_M1_nr   : M1 non-relativistic
+             << " " << r[3]  // s_E       : electric multipole (velocity)
+             << " " << r[4]  // s_E_len   : electric multipole (length)
+             << " " << r[5]  // s_M       : magnetic multipole
+             << " " << r[6]  // s_EM      : Q_E + Q_M (total multipole)
+             << " " << r[7]  // s_E2      : E2 (length)
+             << " " << r[8]  // s_Ek2     : Ek at K=2
+             << " " << r[9]; // s_Mk1     : Mk at K=1
+    if (do_rpa)
+      out_file << " " << results_E1_rpa[i_omega]; // s_E1_rpa : E1 with RPA
+    out_file << "\n";
   }
 }
 
