@@ -6,11 +6,36 @@
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Vector.hpp"
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <vector>
 
 namespace ExternalField {
+
+//==============================================================================
+// Bound states of the solve channel that make (h_l - e0) near-singular.
+std::vector<const DiracSpinor *>
+conditioning_states(const std::vector<DiracSpinor> &core, const DiracSpinor &Fa,
+                    int kappa, double e0) {
+  std::vector<const DiracSpinor *> states;
+  for (const auto &Fm : core) {
+    if (Fm.kappa() != kappa || Fm == Fa)
+      continue;
+    // relative nearness: e_m within ~20% of e0. Catches fine-structure partners
+    // (which must be conditioned) while leaving well-separated states to be
+    // found naturally by the solve.
+    if (std::abs(e0 - Fm.en()) < 0.2 * std::abs(e0 + Fm.en())) {
+      states.push_back(&Fm);
+    }
+  }
+  // Fa only when its kappa matches the channel (else the projection/orthog is
+  // a cross-kappa no-op, but the inner product is not guarded -- so skip it).
+  if (Fa.kappa() == kappa) {
+    states.push_back(&Fa);
+  }
+  return states;
+}
 
 //==============================================================================
 DiracSpinor solveMixedState(const DiracSpinor &Fa, double omega,
@@ -37,14 +62,49 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   using namespace qip::overloads;
   assert(dF.kappa() == hFa.kappa());
 
-  const auto eta_damp = 0.85;
   const int max_its = (eps_target < 1.0e-8) ? 256 : 128;
+  const auto e0 = Fa.en() + omega;
+
+  // (h_l - e0) is (near-)singular for components along same-kappa bound states
+  // with e_m ~ e0 (fine-structure partners, and the diagonal Fa). We project
+  // the source orthogonal to these, solve for the well-conditioned remainder
+  // while forcing it orthogonal to them, then restore the off-diagonal
+  // components analytically via first-order PT. See conditioning_states().
+  const auto resonant = conditioning_states(core, Fa, dF.kappa(), e0);
+
+  const auto orthogonalise = [&resonant](DiracSpinor &dF_v) {
+    for (const auto *Fm : resonant) {
+      dF_v.orthog(*Fm);
+    }
+  };
+
+  // Project the source orthogonal to the conditioning set; keep the amplitudes
+  // <m|src> for the analytic restoration below.
+  auto src = hFa;
+  std::vector<double> amps;
+  amps.reserve(resonant.size());
+  for (const auto *Fm : resonant) {
+    const auto cm = (*Fm) * src;
+    amps.push_back(cm);
+    src -= cm * (*Fm);
+  }
 
   if (std::abs(dF * dF) == 0.0) {
     // If dF is not yet a solution, solve from scratch:
-    DiracODE::solve_inhomog(dF, Fa.en() + omega, vl, H_mag, alpha, -1.0 * hFa);
-    dF.orthog(Fa);
+    DiracODE::solve_inhomog(dF, e0, vl, H_mag, alpha, -1.0 * src);
   }
+  orthogonalise(dF);
+
+  const auto eta_damp = 0.85;
+
+  // Local exchange on the LHS of the equation (also added to the RHS, so it
+  // cancels at the fixed point -- it only conditions the iteration). We use the
+  // density-based Kohn-Sham/Slater local exchange: being orbital-independent it
+  // conditions all channels uniformly and is computed once. (The alternative,
+  // vex_approx, divides by the perturbation and is poorly conditioned for
+  // awkward channels.)
+  const auto Ux = HF::vex_KS(core);
+  const auto v = vl + Ux;
 
   // Old/previous value of dF, used for damping
   auto dF0 = dF;
@@ -52,24 +112,23 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   int its{0};
   double eps{};
   for (; its < max_its; its++) {
-    // Include approximate exchange on LHS of equation (therefore also on RHS)
-    // This makes v_local have correct long-range behaviour
-    const auto vx = HF::vex_approx(dF, core);
-    const auto v = vl + vx;
-    auto rhs = (vx * dF) - HF::vexFa(dF, core) - hFa;
-    if (VBr)
+    auto rhs = (Ux * dF) - HF::vexFa(dF, core) - src;
+    if (VBr) {
       rhs -= VBr->VbrFa(dF, core);
-    if (Sigma)
+    }
+    if (Sigma) {
       rhs -= (*Sigma)(dF);
+    }
 
-    DiracODE::solve_inhomog(dF, Fa.en() + omega, v, H_mag, alpha, rhs);
+    DiracODE::solve_inhomog(dF, e0, v, H_mag, alpha, rhs);
 
     // damp the solution
-    if (its != 0)
+    if (its != 0) {
       dF = (1.0 - eta_damp) * dF + eta_damp * dF0;
+    }
 
     // Force orthogonality
-    dF.orthog(Fa);
+    orthogonalise(dF);
 
     // Check convergence:
     eps = std::sqrt((dF - dF0).norm2() / dF0.norm2());
@@ -80,6 +139,20 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
 
     // store old values (for damping and convergence)
     dF0 = dF;
+  }
+
+  // Restore the projected components analytically: <m|dF> = <m|src>/(e0 - e_m).
+  // Skip Fa (the left-orthogonality constraint -- left orthogonal) and any
+  // genuinely resonant denominator (Pauli-blocked -- left orthogonal).
+  for (std::size_t i = 0; i < resonant.size(); ++i) {
+    const auto *Fm = resonant[i];
+    if (*Fm == Fa)
+      continue;
+    const auto denom = e0 - Fm->en();
+    // This might need to be checked for some systems.. probably fine
+    if (std::abs(denom) < 1.0e-5)
+      continue;
+    dF += (amps[i] / denom) * (*Fm);
   }
 
   dF.its() = its;

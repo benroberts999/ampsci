@@ -78,6 +78,10 @@ protected:
   // nb: m_h_plus := m_h is the one in CorePolarisation
   const DiracOperator::TensorOperator *const m_h_minus;
 
+  // If true, eps is the relative change |dPsi| (sqrt of the ratio); if false,
+  // the squared ratio. See eps_dPsi().
+  bool m_eps_sqrt{false};
+
 public:
   /*!
     @brief Constructs TDHF for operator h.
@@ -190,6 +194,13 @@ private:
   void solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
                      const std::vector<DiracSpinor> &hFbs, const double omega,
                      dPsiType XorY, double eps_ms = 1.0e-9) const;
+
+  // Convergence (eps): the relative L2 change of the (undamped) X spinors,
+  // Sum|dX|^2 / Sum|X_new|^2 (summed over all channels); returns its sqrt
+  // -- the relative change -- if @p relative. Returns {eps, worst-channel}.
+  std::pair<double, std::string>
+  eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
+           bool relative) const;
 
 public:
   TDHF &operator=(const TDHF &) = delete;

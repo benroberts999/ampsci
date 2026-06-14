@@ -61,6 +61,13 @@ DiracSpinor solveMixedState(
   @details
   Starts from @p dF as an initial guess rather than zero; converges faster if
   @p dF is already an approximate solution (e.g., from a nearby frequency).
+
+  @note Near-resonant channels are handled automatically: \f$ (h_{\rm HF} -
+  \en_a \mp \omega) \f$ is (near-)singular for components along any same-kappa
+  bound state with \f$ \en_m \approx \en_a \pm \omega \f$ (the diagonal @p Fa,
+  fine-structure partners, etc.). These are projected out of the source,
+  the solution is forced orthogonal to them, and the off-diagonal components are
+  restored analytically. The caller need not pre-condition @p Fs.
 */
 void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const std::vector<double> &vl, double alpha,
@@ -93,5 +100,26 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
 DiracSpinor solveMixedState_basis(const DiracSpinor &Fa, const DiracSpinor &hFa,
                                   double omega,
                                   const std::vector<DiracSpinor> &basis);
+
+/*!
+  @brief Find bound states of the solve channel that make (h_l - e0) near-singular.
+  @details
+  For the channel of kappa @p kappa and energy \f$ e_0 = \en_a \pm \omega \f$,
+  the radial operator \f$ (h_l - e_0) \f$ is (near-)singular for components
+  along any bound core state \f$ \phi_m \f$ of the same kappa with
+  \f$ \en_m \approx e_0 \f$: exactly singular for the diagonal (\f$ \phi_a \f$,
+  \f$ \omega = 0 \f$) case, near-singular for e.g. fine-structure partners.
+  Those components cannot be resolved reliably by the Green's-function solve, so
+  they are projected out of the source (forces the solution orthogonal
+  to them), they should be restore the off-diagonal ones analytically afterwards.
+
+  The set is the same-kappa core states satisfying a relative nearness criterion
+  \f$ |e_0 - \en_m| < \eta\,|e_0 + \en_m| \f$ (\f$ \eta = 0.2 \f$), plus @p Fa
+  itself when it shares the channel kappa (the \f$ \matel{a}{\delta F}{} = 0 \f$
+  / left-orthogonality constraint).
+*/
+std::vector<const DiracSpinor *>
+conditioning_states(const std::vector<DiracSpinor> &core, const DiracSpinor &Fa,
+                    int kappa, double e0);
 
 } // namespace ExternalField
