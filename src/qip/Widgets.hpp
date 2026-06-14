@@ -29,13 +29,16 @@ namespace qip {
 
   Typical usage:
   @code
-  qip::LiveMessage status("TDHF E1 (w=1.23): ", print);
+  bool print_message = true;
+  qip::LiveMessage status("Method iterations: ", print_message);
   for (int it = 0; it < max_its; ++it) {
     // ... work ...
     status(fmt::format("{:2d} {:.1e} [{}]", it, eps, worst));
-    if (converged) break;
+    if (condition) 
+      break;
   }
-  status.done("  ***");  // optional trailing annotation; destructor calls done() otherwise
+  // optional trailing annotation; destructor calls done() otherwise
+  status.done("  Finished");
   @endcode
 
   @param header  Fixed prefix, always printed (on construction for non-TTY,
@@ -43,6 +46,13 @@ namespace qip {
   @param active  If false, all methods are no-ops. Default true.
 */
 class LiveMessage {
+private:
+  std::string m_header;
+  bool m_is_tty;
+  bool m_active;
+  std::string m_last_msg{};
+  bool m_done{false};
+
 public:
   explicit LiveMessage(std::string_view header, bool active = true)
     : m_header(header), m_is_tty(isatty(fileno(stdout))), m_active(active) {
@@ -91,13 +101,6 @@ public:
     std::fputc('\n', stdout);
     std::fflush(stdout);
   }
-
-private:
-  std::string m_header;
-  std::string m_last_msg;
-  bool m_is_tty;
-  bool m_active;
-  bool m_done{false};
 };
 
 /*! @brief Basic progress bar. Prints new line if (and only if) i==(max-1)
