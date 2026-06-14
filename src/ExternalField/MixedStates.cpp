@@ -2,6 +2,9 @@
 #include "DiracODE/include.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
+#include "LinAlg/Matrix.hpp"
+#include "LinAlg/Solvers.hpp"
+#include "LinAlg/Vector.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -58,8 +61,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const DiracSpinor &hFa, const double eps_target,
                      const MBPT::CorrelationPotential *const Sigma,
                      const HF::Breit *const VBr,
-                     const std::vector<double> &H_mag,
-                     const DiracSpinor *const Fhole) {
+                     const std::vector<double> &H_mag) {
   using namespace qip::overloads;
   assert(dF.kappa() == hFa.kappa());
 
@@ -90,9 +92,8 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     src -= cm * (*Fm);
   }
 
-  if (std::abs(dF * dF) == 0.0 || !std::isfinite(dF * dF)) {
-    // If dF is not yet a solution (zero, or nan from a failed solve), solve
-    // from scratch:
+  if (std::abs(dF * dF) == 0.0) {
+    // If dF is not yet a solution, solve from scratch:
     DiracODE::solve_inhomog(dF, e0, vl, H_mag, alpha, -1.0 * src);
   }
   orthogonalise(dF);
@@ -114,12 +115,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   int its{0};
   double eps{};
   for (; its < max_its; its++) {
-    auto vnl = HF::vexFa(dF, core);
-    // V^{N-1}: remove one electron's exchange with the hole orbital
-    if (Fhole) {
-      vnl -= HF::vexFa_1el(dF, *Fhole);
-    }
-    auto rhs = (Ux * dF) - vnl - src;
+    auto rhs = (Ux * dF) - HF::vexFa(dF, core) - src;
     if (VBr) {
       rhs -= VBr->VbrFa(dF, core);
     }
@@ -166,6 +162,173 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   dF.eps() = eps;
 
   return;
+}
+
+//==============================================================================
+void solveMixedState_cntm(DiracSpinor &dF, const DiracSpinor &Fa,
+                          const double omega, const std::vector<double> &vl,
+                          const double alpha,
+                          const std::vector<DiracSpinor> &core,
+                          const DiracSpinor &hFa, const double eps_target,
+                          const HF::Breit *const VBr,
+                          const std::vector<double> &H_mag,
+                          const DiracSpinor *const Fhole) {
+  // Bound mixed-state solve for the continuum (photoionisation) TDHF path. Same
+  // physics as solveMixedState(), but solves the LINEAR equation
+  // (h_HF - e0)dF = -src with Anderson/Pulay acceleration instead of damped
+  // fixed-point iteration. At the high frequencies needed for photoionisation a
+  // bound channel's e0 can sit near a SPURIOUS eigenvalue of the local
+  // preconditioner (h_local + Ux - e0), where the damped iteration diverges even
+  // though (h_HF - e0) is non-singular and the response is finite. Anderson
+  // mixing (= preconditioned GMRES for this linear system) converges on the
+  // conditioning of the TRUE operator, independent of the preconditioner's
+  // spurious modes. Kept separate so the standard bound solveMixedState() (and
+  // the bound RPA path) is untouched. Also supports the V^{N-1} hole term via
+  // @p Fhole (see solveMixedState() note).
+  using namespace qip::overloads;
+  assert(dF.kappa() == hFa.kappa());
+
+  const int max_its = (eps_target < 1.0e-8) ? 256 : 128;
+  const auto e0 = Fa.en() + omega;
+
+  // Near-singular same-kappa bound states: project the source orthogonal to
+  // them, solve the well-conditioned remainder, restore analytically. (Same as
+  // solveMixedState(); see conditioning_states().)
+  const auto resonant = conditioning_states(core, Fa, dF.kappa(), e0);
+  const auto orthogonalise = [&resonant](DiracSpinor &dF_v) {
+    for (const auto *Fm : resonant)
+      dF_v.orthog(*Fm);
+  };
+  auto src = hFa;
+  std::vector<double> amps;
+  amps.reserve(resonant.size());
+  for (const auto *Fm : resonant) {
+    const auto cm = (*Fm) * src;
+    amps.push_back(cm);
+    src -= cm * (*Fm);
+  }
+
+  // Seed (or re-seed if dF holds nan from a failed solve at a nearby omega).
+  if (std::abs(dF * dF) == 0.0 || !std::isfinite(dF * dF)) {
+    DiracODE::solve_inhomog(dF, e0, vl, H_mag, alpha, -1.0 * src);
+  }
+  orthogonalise(dF);
+
+  // Local exchange on the LHS for conditioning (cancels on the RHS at the fixed
+  // point); orbital-independent Kohn-Sham/Slater exchange, as solveMixedState().
+  const auto Ux = HF::vex_KS(core);
+  const auto v = vl + Ux;
+
+  // Preconditioned fixed-point map G(dF) (fixed point = the solution).
+  const auto G = [&](const DiracSpinor &x) {
+    auto vnl = HF::vexFa(x, core);
+    // V^{N-1}: remove one electron's exchange with the hole orbital
+    if (Fhole)
+      vnl -= HF::vexFa_1el(x, *Fhole);
+    auto rhs = (Ux * x) - vnl - src;
+    if (VBr)
+      rhs -= VBr->VbrFa(x, core);
+    auto gx = x; // solve_inhomog uses x as the starting guess
+    DiracODE::solve_inhomog(gx, e0, v, H_mag, alpha, rhs);
+    orthogonalise(gx);
+    return gx;
+  };
+
+  constexpr std::size_t and_dim = 8;     // Anderson history depth
+  constexpr double cond_floor = 1.0e-14; // drop-oldest threshold on B
+  std::vector<DiracSpinor> g_hist;       // map outputs g_k = G(x_k)
+  std::vector<DiracSpinor> r_hist;       // residuals r_k = g_k - x_k
+
+  int its{0};
+  double eps{};
+  for (; its < max_its; its++) {
+    const auto g = G(dF);
+    const auto r = g - dF;
+    eps = std::sqrt(r.norm2() / (dF.norm2() + 1.0e-300));
+    if (eps < eps_target) {
+      dF = g;
+      break;
+    }
+
+    g_hist.push_back(g);
+    r_hist.push_back(r);
+    if (g_hist.size() > and_dim) {
+      g_hist.erase(g_hist.begin());
+      r_hist.erase(r_hist.begin());
+    }
+
+    // First step: nothing to mix yet -- plain fixed-point step.
+    auto m = g_hist.size();
+    if (m == 1) {
+      dF = g;
+      continue;
+    }
+
+    // Anderson coefficients: minimise || sum_i c_i r_i ||^2 s.t. sum_i c_i = 1,
+    // via the bordered system [B 1; 1' 0][c; lam] = [0; 1], B_ij = <r_i|r_j>.
+    // If B is ill-conditioned (saturated history), drop the oldest and re-build.
+    LinAlg::Vector<double> c;
+    while (true) {
+      LinAlg::Matrix<double> B(m + 1, m + 1);
+      LinAlg::Vector<double> bvec(m + 1);
+      double dmax = 0.0, dmin = 1.0e300;
+      for (std::size_t i = 0; i < m; ++i) {
+        for (std::size_t j = 0; j < m; ++j)
+          B(i, j) = r_hist[i] * r_hist[j];
+        B(i, m) = 1.0;
+        B(m, i) = 1.0;
+        bvec(i) = 0.0;
+        dmax = std::max(dmax, B(i, i));
+        dmin = std::min(dmin, B(i, i));
+      }
+      B(m, m) = 0.0;
+      bvec(m) = 1.0;
+      if (m > 2 && dmin < cond_floor * dmax) {
+        g_hist.erase(g_hist.begin());
+        r_hist.erase(r_hist.begin());
+        --m;
+        continue;
+      }
+      c = LinAlg::solve_Axeqb<double>(B, bvec);
+      // No exceptions in this codebase: guard a singular/near-singular LU by
+      // checking the coefficients are finite; if not, drop the oldest entry and
+      // re-build. (The ill-conditioning check above normally prevents this.)
+      bool finite = true;
+      for (std::size_t i = 0; i < m; ++i) {
+        if (!std::isfinite(c(i)))
+          finite = false;
+      }
+      if (finite)
+        break;
+      g_hist.erase(g_hist.begin());
+      r_hist.erase(r_hist.begin());
+      --m;
+      if (m == 0)
+        break;
+    }
+    if (m == 0)
+      continue;
+
+    // New iterate: dF = sum_i c_i g_i (DIIS extrapolation).
+    dF = c(0) * g_hist[0];
+    for (std::size_t i = 1; i < m; ++i)
+      dF += c(i) * g_hist[i];
+    orthogonalise(dF);
+  }
+
+  // Restore the projected components analytically: <m|dF> = <m|src>/(e0 - e_m).
+  for (std::size_t i = 0; i < resonant.size(); ++i) {
+    const auto *Fm = resonant[i];
+    if (*Fm == Fa)
+      continue;
+    const auto denom = e0 - Fm->en();
+    if (std::abs(denom) < 1.0e-5)
+      continue;
+    dF += (amps[i] / denom) * (*Fm);
+  }
+
+  dF.its() = its;
+  dF.eps() = eps;
 }
 
 //==============================================================================

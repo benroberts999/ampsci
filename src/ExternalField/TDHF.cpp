@@ -295,16 +295,18 @@ void TDHF::solve_ms_core_cntm(std::vector<DiracSpinor> &dFb,
       // Bound (Y/-) partner of an ionised orbital: same V^{N-1} treatment.
       const auto vl_c = p_hf->vlocal(Angular::l_k(Fb.kappa())) - y0aa;
       const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
-      ExternalField::solveMixedState(dF_beta, Fb, ww, vl_c, m_alpha, m_core,
-                                     rhs, eps_ms, nullptr, p_VBr, Hmag, &Fb);
+      ExternalField::solveMixedState_cntm(
+        dF_beta, Fb, ww, vl_c, m_alpha, m_core, rhs, eps_ms, p_VBr, Hmag, &Fb);
       continue;
     }
 
-    // Closed orbital (not ionised at this omega): standard bound solve.
+    // Closed orbital (not ionised at this omega): bound solve (robust against
+    // the spurious-preconditioner divergence at high omega -- see
+    // solveMixedState_cntm()).
     const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
     const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
-    ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
-                                   eps_ms, nullptr, p_VBr, Hmag);
+    ExternalField::solveMixedState_cntm(dF_beta, Fb, ww, vl, m_alpha, m_core,
+                                        rhs, eps_ms, p_VBr, Hmag);
   }
 }
 

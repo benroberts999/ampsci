@@ -68,13 +68,6 @@ DiracSpinor solveMixedState(
   fine-structure partners, etc.). These are projected out of the source,
   the solution is forced orthogonal to them, and the off-diagonal components are
   restored analytically. The caller need not pre-condition @p Fs.
-
-  @note If @p Fhole is given, the iterated non-local exchange is
-  \f$ V^{\rm exch} - X_{\rm hole} \f$ with \f$ X_{\rm hole} \f$ the
-  one-electron self-exchange (@ref HF::vexFa_1el) -- the exchange part of the
-  V^{N-1} (residual ion) Hamiltonian for the equations of an ionised orbital.
-  The caller must pair this with the direct part,
-  \f$ v_l \to v_l - y^0_{\rm hole,hole} \f$, in @p vl (do both or neither).
 */
 void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const std::vector<double> &vl, double alpha,
@@ -82,8 +75,39 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const DiracSpinor &Fs, double eps_target = 1.0e-9,
                      const MBPT::CorrelationPotential *const Sigma = nullptr,
                      const HF::Breit *const VBr = nullptr,
-                     const std::vector<double> &H_mag = {},
-                     const DiracSpinor *const Fhole = nullptr);
+                     const std::vector<double> &H_mag = {});
+
+/*!
+  @brief Bound mixed-state solve for the continuum (photoionisation) TDHF path:
+  Anderson/Pulay-accelerated, with optional V^{N-1} hole term.
+  @details
+  Same physics and conditioning as @ref solveMixedState (in-place overload), but
+  solves the LINEAR equation \f$ (h_{\rm HF} - \en_0)\,\delta F = -F_S \f$ by
+  Anderson/Pulay mixing (equivalent to preconditioned GMRES) instead of damped
+  fixed-point iteration. At the high frequencies of photoionisation a bound
+  channel's \f$ \en_0 = \en_a + \omega \f$ can sit near a SPURIOUS eigenvalue of
+  the local preconditioner \f$ (h_{\rm local} + U_x - \en_0) \f$, where damped
+  iteration diverges even though \f$ (h_{\rm HF} - \en_0) \f$ is non-singular and
+  the response is finite; Anderson mixing converges on the true operator's
+  conditioning, independent of those spurious modes.
+
+  Kept separate from @ref solveMixedState so the standard bound RPA path is
+  untouched. Used by @ref TDHF::solve_core_cntm for the closed channels and the
+  bound (Y/-) partner of an ionised orbital.
+
+  @note If @p Fhole is given, the iterated non-local exchange is
+  \f$ V^{\rm exch} - X_{\rm hole} \f$ with \f$ X_{\rm hole} \f$ the one-electron
+  self-exchange (@ref HF::vexFa_1el) -- the exchange part of the V^{N-1}
+  (residual ion) Hamiltonian. The caller must pair this with the direct part,
+  \f$ v_l \to v_l - y^0_{\rm hole,hole} \f$, in @p vl (do both or neither).
+*/
+void solveMixedState_cntm(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
+                          const std::vector<double> &vl, double alpha,
+                          const std::vector<DiracSpinor> &core,
+                          const DiracSpinor &Fs, double eps_target = 1.0e-9,
+                          const HF::Breit *const VBr = nullptr,
+                          const std::vector<double> &H_mag = {},
+                          const DiracSpinor *const Fhole = nullptr);
 
 /*!
   @brief Solves the continuum (en>0) mixed-state equation by forward
