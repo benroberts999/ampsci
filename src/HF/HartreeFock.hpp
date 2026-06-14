@@ -81,6 +81,26 @@ DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
 //! the perturbation, is poorly conditioned). Grid is taken from @p core.
 std::vector<double> vex_KS(const std::vector<DiracSpinor> &core);
 
+/*!
+  @brief Exchange of a single electron in orbital Fa, acting on Fv: Xa_1el Fv.
+  @details
+
+  \f[ X_a F_v = -\frac{1}{[j_v]\,[j_a]}\sum_k C^k_{va}{}^2\, y^k_{av}(r)\,F_a \f]
+
+  - The b=Fa term of vexFa(), scaled to ONE electron (weight 1/[j_a] rather
+    than the subshell occupancy), i.e. the spherically-averaged one-electron
+    self-exchange.
+  - Used for the V^{N-1} (residual ion) potential: removing one electron from
+    subshell a removes y^0_aa from the direct potential and removes this term
+    from the exchange, V^{N-1}_a = V_HF - (D_a - X_a). The exchange part is
+    h^{N-1} = ... + (vexFa - vexFa_1el).
+
+  @note All multipoles k allowed by the (v,a) triangle/parity rules are
+        included; the occupation fraction of Fa is NOT applied (exactly one
+        electron is removed).
+*/
+DiracSpinor vexFa_1el(const DiracSpinor &Fv, const DiracSpinor &Fa);
+
 //==============================================================================
 //==============================================================================
 //==============================================================================

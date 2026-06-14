@@ -56,8 +56,12 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 
   using namespace qip::overloads;
   auto vc = p_hf->vlocal();
-  if ((Fi != nullptr) && subtract_self && self_consistant) {
-    // Subtract off the self-interaction direct part: V-self(r) = y^0_ii(r)
+  // V^{N-1}: remove the one-electron self-interaction of the hole orbital Fi.
+  // Direct part here (local, y^0_ii -> Z_ion = 1 tail); the exchange part (the
+  // one-electron self-exchange) is removed inside IncludeExchange below.
+  const bool subtract_self_Fi =
+    (Fi != nullptr) && subtract_self && self_consistant;
+  if (subtract_self_Fi) {
     vc -= Coulomb::yk_ab(0, *Fi, *Fi);
   }
 
@@ -97,7 +101,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     DiracODE::solveContinuum(Fc, ec, vc, m_alpha);
     // Then, include exchange correction:
     if (p_hf != nullptr && !p_hf->is_localQ()) {
-      IncludeExchange(Fc, Fi, force_orthog_Fi, vc);
+      IncludeExchange(Fc, Fi, force_orthog_Fi, vc, subtract_self_Fi);
     }
   }
 
@@ -126,7 +130,8 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
 //******************************************************************************
 void ContinuumOrbitals::IncludeExchange(DiracSpinor &Fc, const DiracSpinor *Fi,
                                         bool force_orthog_Fi,
-                                        const std::vector<double> &vc) {
+                                        const std::vector<double> &vc,
+                                        bool subtract_self_exch) {
   // Include exchange (Hartree Fock)
   const int max_its = 50;
   const double conv_target = 1.0e-6;
@@ -144,6 +149,10 @@ void ContinuumOrbitals::IncludeExchange(DiracSpinor &Fc, const DiracSpinor *Fi,
     const auto Fc0 = Fc;
     if (p_hf->method() == HF::Method::HartreeFock) {
       auto VxFc = HF::vexFa(Fc, p_hf->core()) - vx0 * Fc;
+      // V^{N-1} exchange part: remove the hole's one-electron self-exchange
+      // (pairs with the y^0_ii direct subtraction done by the caller)
+      if (subtract_self_exch && Fi != nullptr)
+        VxFc -= HF::vexFa_1el(Fc, *Fi);
       DiracODE::solveContinuum(Fc, Fc.en(), vl, m_alpha, &VxFc, &Fc0);
     } else {
       DiracODE::solveContinuum(Fc, Fc.en(), vl, m_alpha);

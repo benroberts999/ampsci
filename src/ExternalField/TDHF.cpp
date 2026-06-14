@@ -166,6 +166,13 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
   // The diagonal (de) and near-resonant fine-structure partner terms are
   // conditioned inside solveMixedState (see conditioning_states()).
 
+  // Continuum (photoionisation) mode: delegate to the V^{N-1} version
+  // (active only via solve_core_cntm()).
+  if (m_cntm_mode) {
+    solve_ms_core_cntm(dFb, Fb, hFbs, omega, XorY, eps_ms);
+    return;
+  }
+
   const auto ww = XorY == dPsiType::X ? omega : -omega;
   auto conj = XorY == dPsiType::Y;
   if (omega < 0.0)
@@ -213,6 +220,92 @@ void TDHF::solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fb,
   const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
   ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
                                  eps_ms, nullptr, p_VBr, Hmag);
+}
+
+//==============================================================================
+void TDHF::solve_ms_core_cntm(std::vector<DiracSpinor> &dFb,
+                              const DiracSpinor &Fb,
+                              const std::vector<DiracSpinor> &hFbs,
+                              const double omega, dPsiType XorY,
+                              double eps_ms) const {
+  // Continuum (photoionisation) version of solve_ms_core. Active only via
+  // solve_core_cntm(); see there for the V^{N-1} rearrangement.
+  // Ionised orbital: en_+ = en_a + omega > 0. The one-electron (spherically
+  // averaged) self-interaction V^a_0 = y^0_aa - X_a of the hole (= Fb itself)
+  // is subtracted from the static Hamiltonian AND added (lagged) to the
+  // source -- an exact rearrangement of the TDHF equations:
+  //   (h_HF - V^a_0 - en_pm) phi = -(t + dV - de)phi_a - V^a_0 phi_bar,
+  // so the fixed point is the unchanged TDHF one, but:
+  //   - the long-ranged hole monopole -y^0_aa is inverted directly (local
+  //     potential vl - y^0_aa: residual-ion tail, Z_ion = 1, consistent with
+  //     the continuum Coulomb boundary conditions);
+  //   - the lagged source is short-ranged: the +y^0_aa*phi_bar term cancels
+  //     pointwise the 1/r tail hidden in the b=a part of dV*phi_a;
+  //   - the exchange part is carried by the mixed-state solvers (Fhole = &Fb:
+  //     vexFa -> vexFa - vexFa_1el on the current iterate).
+  // Both partners (X/+ and Y/-) of the ionised orbital are treated this way.
+  using namespace qip::overloads;
+
+  const auto ww = XorY == dPsiType::X ? omega : -omega;
+  auto conj = XorY == dPsiType::Y;
+  if (omega < 0.0)
+    conj = !conj;
+  const auto imag = m_h->imaginaryQ();
+
+  const bool ionisedQ = !m_suppress_open && (Fb.en() + std::abs(ww) > 0.0);
+  // Only the X/+ channel (ww = +omega) reaches en_+ > 0 (continuum solve).
+  const bool continuumQ = ionisedQ && (Fb.en() + ww > 0.0);
+  // suppress_open: hold the open channels at zero instead.
+  const bool suppressQ = m_suppress_open && (Fb.en() + ww > 0.0);
+
+  // One-electron direct potential of the hole orbital (the hole is Fb itself).
+  const auto y0aa =
+    ionisedQ ? Coulomb::yk_ab(0, Fb, Fb) : std::vector<double>{};
+
+  for (auto ibeta = 0ul; ibeta < dFb.size(); ibeta++) {
+    auto &dF_beta = dFb[ibeta];
+    const int kappa_beta = dF_beta.kappa();
+
+    if (suppressQ) {
+      // Open channel excluded from the response (explicit zero: clears nan)
+      dF_beta.f().assign(dF_beta.f().size(), 0.0);
+      dF_beta.g().assign(dF_beta.g().size(), 0.0);
+      continue;
+    }
+
+    const auto &hFb = hFbs[ibeta];
+    const auto s = (imag && conj) ? -1.0 : 1.0;
+    auto rhs = s * hFb + dV_rhs(kappa_beta, Fb, conj);
+
+    // + V^a_0 phi_bar (lagged): dF_beta still holds the previous iterate
+    if (ionisedQ) {
+      rhs += (y0aa * dF_beta) + HF::vexFa_1el(dF_beta, Fb);
+    }
+
+    if (continuumQ) {
+      const auto vl_c = p_hf->vlocal(Angular::l_k(kappa_beta)) - y0aa;
+      DiracSpinor Freg{0, kappa_beta, Fb.grid_sptr()};
+      DiracSpinor Firr{0, kappa_beta, Fb.grid_sptr()};
+      ExternalField::solveContinuumMixedState(
+        dF_beta, Freg, Firr, Fb, ww, vl_c, m_alpha, m_core, rhs, eps_ms, &Fb);
+      continue;
+    }
+
+    if (ionisedQ) {
+      // Bound (Y/-) partner of an ionised orbital: same V^{N-1} treatment.
+      const auto vl_c = p_hf->vlocal(Angular::l_k(Fb.kappa())) - y0aa;
+      const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
+      ExternalField::solveMixedState(dF_beta, Fb, ww, vl_c, m_alpha, m_core,
+                                     rhs, eps_ms, nullptr, p_VBr, Hmag, &Fb);
+      continue;
+    }
+
+    // Closed orbital (not ionised at this omega): standard bound solve.
+    const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
+    const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
+    ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
+                                   eps_ms, nullptr, p_VBr, Hmag);
+  }
 }
 
 //==============================================================================
@@ -384,6 +477,24 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
 }
 
 //==============================================================================
+void TDHF::solve_core_cntm(double omega, int max_its, bool print,
+                           bool suppress_open) {
+  // Continuum (photoionisation) RPA. Enables the V^{N-1} continuum branches in
+  // solve_ms_core (via m_cntm_mode), then reuses the standard damped solve_core
+  // driver -- the same proven iteration as the bound RPA. The continuum
+  // mixed-state solve uses forward integration (regular at the origin), so the
+  // fixed-point map stays bounded and damped iteration converges. (cf. Dzuba's
+  // continuum solver, which likewise matches the inner/outer integrations at a
+  // turning point and uses adaptive damping, rather than carrying the
+  // origin-divergent irregular solution through a global Green's function.)
+  m_cntm_mode = true;
+  m_suppress_open = suppress_open;
+  solve_core(omega, max_its, print);
+  m_cntm_mode = false;
+  m_suppress_open = false;
+}
+
+//==============================================================================
 // does it matter if a or b is in the core?
 double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj) const {
   const auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful. OK?
@@ -394,6 +505,24 @@ double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj) const {
 double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
   const auto conj = Fm.en() > Fn.en();
   return dV(Fn, Fm, conj);
+}
+
+//==============================================================================
+double TDHF::dV_cont(const DiracSpinor &Fe, const DiracSpinor &Fa) const {
+  // As dV(Fe,Fa), but for a continuum Fe: add the one-electron self-
+  // interaction term +V^a_0 phi_pm to the source, matching the V^{N-1}
+  // rearrangement used in solve_ms_core_cntm (see solve_core_cntm). Its
+  // +y^0_aa*phi term cancels the 1/r tail hidden in the b=a part of dV*phi_a
+  // pointwise, so the continuum-continuum overlap is box-independent; Fe must
+  // be the V^{N-1} continuum state (hole = Fa, incl. the exchange part).
+  using namespace qip::overloads;
+  const auto conj = Fa.en() > Fe.en();
+  const auto s = conj && m_h->imaginaryQ() ? -1 : 1;
+  const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
+  const auto &chi = get_dPsi_x(Fa, ChiType, Fe.kappa());
+  const auto y0aa = Coulomb::yk_ab(0, Fa, Fa);
+  const auto V0chi = (y0aa * chi) + HF::vexFa_1el(chi, Fa);
+  return s * (Fe * (dV_rhs(Fe.kappa(), Fa, conj) + V0chi));
 }
 
 //==============================================================================

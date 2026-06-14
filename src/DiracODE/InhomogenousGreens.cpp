@@ -5,15 +5,8 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "include.hpp"
 #include "qip/Vector.hpp"
+#include <cmath>
 #include <vector>
-/*
-
-Solve inhomogenous Dirac equation:
-(H_0 + v - e)Fa = S
-
-S (source) is spinor
-
-*/
 
 namespace DiracODE {
 
@@ -83,9 +76,16 @@ void GreenSolution(DiracSpinor &Fa, const DiracSpinor &Finf,
   constexpr auto ztr = NumCalc::zero_to_r;
   constexpr auto rti = NumCalc::r_to_inf;
 
-  Fa.max_pt() = gr.num_points();
-  Fa *= 0.0;
+  // nb: explicit zero-fill, not *= 0.0: Fa may hold nan from a previous
+  // failed solve (nan * 0.0 = nan)
+  Fa.f().assign(Fa.f().size(), 0.0);
+  Fa.g().assign(Fa.g().size(), 0.0);
   Fa.max_pt() = Finf.max_pt();
+
+  // If the homogeneous solutions are invalid (e.g., a continuum solve failed
+  // and returned zeros), w2 = 0 (or nan): return zeros rather than 0*inf=nan
+  if (w2 == 0.0 || !std::isfinite(w2))
+    return;
 
   NumCalc::additivePIntegral<ztr>(Fa.f(), Finf.f(), Fzero.f(), Sr.f(), gr,
                                   Finf.max_pt());

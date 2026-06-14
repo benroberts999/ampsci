@@ -1,4 +1,5 @@
 #include "DiracODE/ContinuumState.hpp"
+#include "DiracODE/AsymptoticSpinor.hpp"
 #include "DiracODE/BoundState.hpp"
 #include "DiracODE/include.hpp"
 #include "Maths/Grid.hpp"
@@ -69,6 +70,157 @@ void solveContinuum(DiracSpinor &Fa, double en, const std::vector<double> &v,
   // Calculate normalisation coeficient, D, and re-scaling factor:
   const auto D = analytic_f_amplitude(en, alpha);
   Fa *= (amp != 0.0 ? (D / amp) : 0.0);
+}
+
+//==============================================================================
+void solveContinuumIrregular(DiracSpinor &Firr, const DiracSpinor &Freg,
+                             double en, const std::vector<double> &v,
+                             double alpha) {
+  // Build the irregular standing-wave partner of F_reg by seeding the inward
+  // integration at the outermost grid points (see header).
+  // Method B (Coulomb-series projection): project F_reg onto the asymptotic
+  // Dirac-Coulomb standing pair {F^C, G^C} (1/r series), F_reg = a F^C + b
+  // G^C, and seed F_irr = b F^C - a G^C -- the exact 90-degree partner to
+  // series order, w[F_reg, F_irr] = (a^2+b^2) alpha/pi. This removes the
+  // O(1/(p r_box)) phase-dependent F_reg admixture of the leading-order
+  // component swap (method A), which otherwise contaminates the standing-wave
+  // solution with an omega-oscillating on-shell admixture. Falls back to the
+  // component swap if the projection is poor (series not converged: very low
+  // p r_box, or non-Coulomb tail).
+
+  Firr.en() = en;
+  const auto &gr = Freg.grid();
+  const auto kappa = Freg.kappa();
+  const auto pinf = Freg.max_pt();
+  Firr.max_pt() = pinf;
+
+  // small/large amplitude ratio beta = sqrt(en/(en+2c^2))
+  const auto c2 = 1.0 / (alpha * alpha);
+  const double beta = std::sqrt(en / (en + 2.0 * c2));
+
+  // Residual-ion charge seen at the box edge (Coulomb tail of v)
+  const auto Zion = std::max(0.0, -v[pinf - 1] * gr.r(pinf - 1));
+  const AsymptoticSpinorContinuum<15> asy{kappa, Zion, en, alpha};
+
+  // Project F_reg = a F^C + b G^C pointwise over an outer window (2x2 in the
+  // two components; W[F^C,G^C] = fC gG - fG gC = -alpha/pi), and average.
+  const std::size_t n_w = std::min<std::size_t>(24, pinf / 2);
+  double a_sum = 0.0, b_sum = 0.0;
+  for (std::size_t i = pinf - n_w; i < pinf; ++i) {
+    const auto [fC, gC, fG, gG] = asy.fg(gr.r(i));
+    const auto Wcg = fC * gG - fG * gC;
+    a_sum += (Freg.f(i) * gG - Freg.g(i) * fG) / Wcg;
+    b_sum += (fC * Freg.g(i) - gC * Freg.f(i)) / Wcg;
+  }
+  const auto a = a_sum / double(n_w);
+  const auto b = b_sum / double(n_w);
+  // Both F_reg and {F^C,G^C} are energy-normalised, so a^2+b^2 = 1 when the
+  // series represents F_reg well; use as the quality check for the fallback
+  const auto q = a * a + b * b;
+  const bool good_projection = std::abs(q - 1.0) < 0.1;
+
+  // Homogeneous radial Dirac operator at en (same local potential as F_reg)
+  DiracDerivative Hd(gr, v, kappa, en, alpha);
+
+  const auto du = gr.du();
+  AdamsMoulton::ODESolver2D<Param::K_Adams, std::size_t, double> ode{-du, &Hd};
+  ode.S_scale = 0.0;
+
+  auto &f = Firr.f();
+  auto &g = Firr.g();
+
+  // Seed the outermost K_steps points: method B projection, or method A
+  // (component swap on F_reg) as the fallback
+  for (std::size_t i0 = pinf - 1, i = 0; i < ode.K_steps(); ++i) {
+    double f0{}, g0{};
+    if (good_projection) {
+      const auto [fC, gC, fG, gG] = asy.fg(gr.r(i0));
+      f0 = b * fC - a * fG;
+      g0 = b * gC - a * gG;
+    } else {
+      f0 = -Freg.g(i0) / beta;
+      g0 = beta * Freg.f(i0);
+    }
+    ode.f[i] = f0;
+    ode.g[i] = g0;
+    ode.df[i] = ode.dfdt(f0, g0, i0);
+    ode.dg[i] = ode.dgdt(f0, g0, i0);
+    ode.t[i] = i0;
+    --i0;
+  }
+  for (std::size_t i = 0; i < ode.K_steps(); ++i) {
+    f.at(ode.t.at(i)) = ode.f.at(i);
+    g.at(ode.t.at(i)) = ode.g.at(i);
+  }
+
+  // Integrate inwards to the origin
+  const auto i_start = ode.last_t();
+  for (std::size_t i = i_start - 1;; --i) {
+    ode.drive(i);
+    f.at(i) = ode.last_f();
+    g.at(i) = ode.last_g();
+    if (i == 0)
+      break;
+  }
+
+  // Zero anything beyond the seeded region
+  for (std::size_t i = pinf; i < f.size(); ++i) {
+    f.at(i) = 0.0;
+    g.at(i) = 0.0;
+  }
+}
+
+//==============================================================================
+double solveContinuumForward(DiracSpinor &phi, const DiracSpinor &Freg,
+                             const DiracSpinor &Firr, double en,
+                             const std::vector<double> &v, double alpha,
+                             const DiracSpinor &Sr) {
+  // Forward integration plus F_reg subtraction (see header). Outward
+  // integration suppresses the irregular admixture (r^{-l} vs r^{l+1} near
+  // the origin); the F_reg admixture from the zero seed is removed by the
+  // c-subtraction, so the start is not critical.
+  phi.en() = en;
+  const auto &gr = Freg.grid();
+  const auto kappa = Freg.kappa();
+  const auto pinf = Freg.max_pt();
+  phi.max_pt() = pinf;
+
+  // (h_r - en)phi = Sr; DiracDerivative solves (h_r - en)phi = -VxFa.
+  // solve_Dirac_outwards seeds the usual H-like regular form at r0 and
+  // carries the source; the (arbitrary-scale) F_reg admixture this start
+  // introduces is exactly what the c-subtraction below removes.
+  const auto mSr = -1.0 * Sr;
+  DiracDerivative Hd(gr, v, kappa, en, alpha, {}, &mSr);
+  solve_Dirac_outwards(phi.f(), phi.g(), Hd, pinf);
+
+  auto &f = phi.f();
+  auto &g = phi.g();
+  for (std::size_t i = pinf; i < f.size(); ++i) {
+    f.at(i) = 0.0;
+    g.at(i) = 0.0;
+  }
+
+  // Beyond the source: phi~ = c*F_reg + K*F_irr. Extract (c, K) pointwise
+  // from the 2x2 component system over the outer grid, and average.
+  const auto iw0 = std::size_t(0.70 * double(pinf));
+  const auto iw1 = std::size_t(0.95 * double(pinf));
+  double c_sum = 0.0, K_sum = 0.0;
+  int n_w = 0;
+  for (std::size_t i = iw0; i < iw1; ++i) {
+    const auto w_i = Freg.f(i) * Firr.g(i) - Firr.f(i) * Freg.g(i);
+    if (w_i == 0.0)
+      continue;
+    c_sum += (f[i] * Firr.g(i) - g[i] * Firr.f(i)) / w_i;
+    K_sum += (Freg.f(i) * g[i] - Freg.g(i) * f[i]) / w_i;
+    ++n_w;
+  }
+  const auto c = (n_w > 0) ? c_sum / n_w : 0.0;
+  const auto K = (n_w > 0) ? K_sum / n_w : 0.0;
+
+  // Impose the oscillating boundary condition: phi -> K*F_irr
+  phi -= c * Freg;
+
+  return K;
 }
 
 //==============================================================================

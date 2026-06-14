@@ -452,8 +452,10 @@ void solve_Dirac_outwards(std::vector<double> &f, std::vector<double> &g,
     // states (en<0), and may fail numerically - fall back to leading-order
     // (r->0) ratio in that case
     const auto gf0 = (ka > 0) ? (ka + ga0) / az0 : az0 / (ka - ga0);
+    // nb: gfratio calls GSL's 1F1, which recurses without bound if handed
+    // nan arguments (e.g., Z_eff = nan from a nan potential): guard inputs
     const auto gf1 =
-      Hd.en < 0.0 ?
+      (Hd.en < 0.0 && std::isfinite(Z_eff) && std::isfinite(Hd.en)) ?
         DiracHydrogen::gfratio(r[0], ka, Z_eff, alpha, Hd.en, Hd.mass) :
         gf0;
     const auto g_f_ratio = std::isfinite(gf1) ? gf1 : gf0;

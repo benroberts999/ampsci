@@ -58,7 +58,8 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
                      const DiracSpinor &hFa, const double eps_target,
                      const MBPT::CorrelationPotential *const Sigma,
                      const HF::Breit *const VBr,
-                     const std::vector<double> &H_mag) {
+                     const std::vector<double> &H_mag,
+                     const DiracSpinor *const Fhole) {
   using namespace qip::overloads;
   assert(dF.kappa() == hFa.kappa());
 
@@ -89,8 +90,9 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
     src -= cm * (*Fm);
   }
 
-  if (std::abs(dF * dF) == 0.0) {
-    // If dF is not yet a solution, solve from scratch:
+  if (std::abs(dF * dF) == 0.0 || !std::isfinite(dF * dF)) {
+    // If dF is not yet a solution (zero, or nan from a failed solve), solve
+    // from scratch:
     DiracODE::solve_inhomog(dF, e0, vl, H_mag, alpha, -1.0 * src);
   }
   orthogonalise(dF);
@@ -112,7 +114,12 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   int its{0};
   double eps{};
   for (; its < max_its; its++) {
-    auto rhs = (Ux * dF) - HF::vexFa(dF, core) - src;
+    auto vnl = HF::vexFa(dF, core);
+    // V^{N-1}: remove one electron's exchange with the hole orbital
+    if (Fhole) {
+      vnl -= HF::vexFa_1el(dF, *Fhole);
+    }
+    auto rhs = (Ux * dF) - vnl - src;
     if (VBr) {
       rhs -= VBr->VbrFa(dF, core);
     }
@@ -159,6 +166,131 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, const double omega,
   dF.eps() = eps;
 
   return;
+}
+
+//==============================================================================
+void solveContinuumMixedState(DiracSpinor &phi, DiracSpinor &Freg,
+                              DiracSpinor &Firr, const DiracSpinor &Fa,
+                              double omega, const std::vector<double> &vl,
+                              double alpha, const DiracSpinor &Fs) {
+  using namespace qip::overloads;
+  assert(phi.kappa() == Fs.kappa());
+
+  const auto en_plus = Fa.en() + omega;
+  assert(en_plus > 0.0 && "solveContinuumMixedState requires en_+ > 0");
+
+  const auto kappa_alpha = phi.kappa();
+
+  // Regular (energy-normalised) homogeneous solution at en_+, and its
+  // irregular partner, in the local potential vl.
+  Freg = DiracSpinor(0, kappa_alpha, Fa.grid_sptr());
+  DiracODE::solveContinuum(Freg, en_plus, vl, alpha);
+  Firr = DiracSpinor(0, kappa_alpha, Fa.grid_sptr());
+  DiracODE::solveContinuumIrregular(Firr, Freg, en_plus, vl, alpha);
+
+  // Particular solution of (h_r - en_+) phi = -Fs with the standing-wave BC,
+  // by forward (outward) integration + F_reg subtraction. (Not the global
+  // Green's function: F_irr diverges at the origin like r^{-l-1}, which the
+  // outward-integrated solution avoids -- F_irr is only sampled in the outer
+  // window for the c,K extraction.)
+  DiracODE::solveContinuumForward(phi, Freg, Firr, en_plus, vl, alpha,
+                                  -1.0 * Fs);
+}
+
+//==============================================================================
+void solveContinuumMixedState(DiracSpinor &phi, DiracSpinor &Freg,
+                              DiracSpinor &Firr, const DiracSpinor &Fa,
+                              const double omega, const std::vector<double> &vl,
+                              const double alpha,
+                              const std::vector<DiracSpinor> &core,
+                              const DiracSpinor &Fs, const double eps_target,
+                              const DiracSpinor *const Fhole) {
+  using namespace qip::overloads;
+  assert(phi.kappa() == Fs.kappa());
+
+  const auto en_plus = Fa.en() + omega;
+  assert(en_plus > 0.0 && "solveContinuumMixedState requires en_+ > 0");
+
+  const auto kappa = phi.kappa();
+  const auto eta_damp = 0.85;
+  const int max_its = (eps_target < 1.0e-8) ? 256 : 128;
+
+  // Local exchange on the LHS for conditioning (added to v, cancels on the RHS
+  // at the fixed point). Orbital-independent density-based Kohn-Sham/Slater
+  // exchange, exactly as in the bound solveMixedState(): the alternative
+  // vex_approx divides by the (oscillatory) continuum orbital and spikes at its
+  // nodes, which destabilises the iteration. Being orbital-independent, Ux (and
+  // hence v) is fixed across iterations, so F_reg/F_irr are built only once
+  // (which also removes the per-rebuild F_reg renormalisation noise).
+  std::vector<double> Ux(vl.size(), 0.0);
+  if (!core.empty())
+    Ux = HF::vex_KS(core);
+  const auto v = vl + Ux;
+
+  // Energy-normalised regular continuum orbital F_reg and its irregular partner
+  // F_irr at en_+ in the (fixed) local potential v.
+  Freg = DiracSpinor(0, kappa, Fa.grid_sptr());
+  DiracODE::solveContinuum(Freg, en_plus, v, alpha);
+  Firr = DiracSpinor(0, kappa, Fa.grid_sptr());
+  DiracODE::solveContinuumIrregular(Firr, Freg, en_plus, v, alpha);
+
+  // Standing-wave particular solution of (h_r^{(v)} - en_+) F = S, by forward
+  // (outward) integration + F_reg subtraction (regular at the origin; F_irr is
+  // only sampled in the outer window, avoiding its r^{-l-1} divergence).
+  const auto inhom_solve = [&](const DiracSpinor &S) {
+    DiracSpinor out{0, kappa, Fa.grid_sptr()};
+    DiracODE::solveContinuumForward(out, Freg, Firr, en_plus, v, alpha, S);
+    return out;
+  };
+
+  // Project out occupied core orbitals of the same kappa (continuum
+  // normalisation unaffected: the overlap with the decaying bound orbital is
+  // finite). Replaces the bound solver's single dF.orthog(Fa).
+  const auto orthog_to_core = [&](DiracSpinor &F) {
+    for (const auto &Fb : core) {
+      if (Fb.kappa() == kappa)
+        F -= (F * Fb) * Fb;
+    }
+  };
+
+  // First pass (no nonlocal exchange in the source): seeds the iteration, and
+  // is the complete answer when there is no exchange.
+  // (also re-seed if phi holds nan from a failed previous solve)
+  if (std::abs(phi * phi) == 0.0 || !std::isfinite(phi * phi)) {
+    phi = inhom_solve(-1.0 * Fs);
+    orthog_to_core(phi);
+  }
+  if (core.empty()) {
+    phi.its() = 0;
+    phi.eps() = 0.0;
+    return;
+  }
+
+  // Iterate the nonlocal exchange, mirroring the bound solveMixedState():
+  //   (h_r^{(v)} - en_+) phi = Ux*phi - V^exch*phi - Fs,  v = vl + Ux.
+  auto phi0 = phi;
+  int its = 0;
+  double eps = 0.0;
+  for (; its < max_its; ++its) {
+    auto vnl = HF::vexFa(phi, core);
+    // V^{N-1}: remove one electron's exchange with the hole orbital (the caller
+    // pairs this with vl -> vl - y^0_hole,hole for the direct part)
+    if (Fhole)
+      vnl -= HF::vexFa_1el(phi, *Fhole);
+    const auto src = (Ux * phi) - vnl - Fs;
+    phi = inhom_solve(src);
+
+    if (its != 0)
+      phi = (1.0 - eta_damp) * phi + eta_damp * phi0;
+    orthog_to_core(phi);
+
+    eps = std::sqrt((phi - phi0).norm2() / phi0.norm2());
+    if (eps < eps_target)
+      break;
+    phi0 = phi;
+  }
+  phi.its() = its;
+  phi.eps() = eps;
 }
 
 //==============================================================================

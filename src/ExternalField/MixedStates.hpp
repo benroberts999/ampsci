@@ -68,6 +68,13 @@ DiracSpinor solveMixedState(
   fine-structure partners, etc.). These are projected out of the source,
   the solution is forced orthogonal to them, and the off-diagonal components are
   restored analytically. The caller need not pre-condition @p Fs.
+
+  @note If @p Fhole is given, the iterated non-local exchange is
+  \f$ V^{\rm exch} - X_{\rm hole} \f$ with \f$ X_{\rm hole} \f$ the
+  one-electron self-exchange (@ref HF::vexFa_1el) -- the exchange part of the
+  V^{N-1} (residual ion) Hamiltonian for the equations of an ionised orbital.
+  The caller must pair this with the direct part,
+  \f$ v_l \to v_l - y^0_{\rm hole,hole} \f$, in @p vl (do both or neither).
 */
 void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const std::vector<double> &vl, double alpha,
@@ -75,7 +82,97 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const DiracSpinor &Fs, double eps_target = 1.0e-9,
                      const MBPT::CorrelationPotential *const Sigma = nullptr,
                      const HF::Breit *const VBr = nullptr,
-                     const std::vector<double> &H_mag = {});
+                     const std::vector<double> &H_mag = {},
+                     const DiracSpinor *const Fhole = nullptr);
+
+/*!
+  @brief Solves the continuum (en>0) mixed-state equation by forward
+  integration (bare local solve: no exchange, no dV).
+  @details
+  For photoionisation the X/+ response energy en_+ = en_a + omega can be
+  positive (continuum). Then the bound inhomogeneous solver is singular and is
+  replaced by a continuum solve: solves
+  \f[ (h_r^{(\kappa_\alpha)} - \en_+)\,\varphi_+ = -F_S \f]
+  with the standing-wave (K-matrix) boundary condition, by forward (outward)
+  integration plus F_reg subtraction, using the two real homogeneous solutions
+  at en_+ -- the regular continuum orbital F_reg (energy-normalised) and its
+  irregular partner F_irr -- in place of the bound (regular-at-origin /
+  decaying-at-infinity) pair. Internally calls @ref DiracODE::solveContinuum,
+  @ref DiracODE::solveContinuumIrregular and
+  @ref DiracODE::solveContinuumForward. (The global continuum Green's function
+  is avoided: F_irr diverges at the origin like r^{-l-1}; the outward-integrated
+  solution is regular there, and F_irr is only sampled in the outer window for
+  the c,K extraction.)
+
+  This overload exposes the homogeneous solutions F_reg, F_irr (out-params);
+  @p phi.kappa() selects the continuum channel kappa_alpha and must equal
+  @p Fs.kappa().
+
+  @param phi    Output: continuum correction orbital (kappa = continuum channel).
+  @param Freg   Output: regular energy-normalised continuum orbital at en_+.
+  @param Firr   Output: irregular partner.
+  @param Fa     Bound orbital phi_a (provides en_a and the grid).
+  @param omega  External-field frequency (en_+ = Fa.en() + omega must be > 0).
+  @param vl     Local potential v(r) (homogeneous solutions are eigenstates of it).
+  @param alpha  Fine-structure constant.
+  @param Fs     Source spinor F_S (note sign: +h*phi_a, as in solveMixedState).
+
+  @warning Requires en_+ > 0 and a grid dense enough at large r (see
+           @ref DiracODE::solveContinuum); F_reg is zeroed if too sparse.
+*/
+void solveContinuumMixedState(DiracSpinor &phi, DiracSpinor &Freg,
+                              DiracSpinor &Firr, const DiracSpinor &Fa,
+                              double omega, const std::vector<double> &vl,
+                              double alpha, const DiracSpinor &Fs);
+
+/*!
+  @brief Continuum (en>0) mixed-state solve with nonlocal exchange iterated in
+  the source: the continuum X/+ channel for the TDHF iteration.
+  @details
+  As solveContinuumMixedState() above, but with Hartree-Fock exchange iterated
+  to self-consistency, exactly as in the bound @ref solveMixedState. Solves
+  \f[ (h_r^{(\kappa_\alpha)} + V^{\rm nl} - \en_+)\,\varphi_+ = -F_S \f]
+  with the standing-wave (K-matrix) boundary condition. The orbital-independent
+  Kohn-Sham local exchange @ref HF::vex_KS is folded into the local potential
+  \f$ v = v_l + U_x \f$ for conditioning (cancelled on the right at the fixed
+  point); the nonlocal exchange remainder is carried in the source and iterated.
+  Because \f$ U_x \f$ is orbital-independent, v is fixed across iterations, so
+  F_reg and F_irr are built only once. (vex_approx is NOT used here: it divides
+  by the oscillatory continuum orbital and spikes at its nodes.) After each
+  solve \f$ \varphi_+ \f$ is orthogonalised to the same-kappa occupied core
+  orbitals.
+
+  The hole-particle (self-interaction) treatment is the caller's: pass @p vl
+  already adjusted (e.g. \f$ v_l - y^0_{aa} \f$), and pass the hole orbital as
+  @p Fhole so the iterated exchange becomes \f$ V^{\rm exch} - X_a \f$ (with
+  \f$ X_a \f$ the one-electron self-exchange, @ref HF::vexFa_1el). Together
+  these put the photoelectron in the V^{N-1} Hamiltonian (do both or neither).
+
+  @param phi    Output: continuum correction orbital. Used as the starting guess
+                if nonzero (faster at a nearby omega).
+  @param Freg   Output: regular energy-normalised continuum orbital at en_+.
+  @param Firr   Output: irregular partner, final iteration.
+  @param Fa     Bound orbital phi_a (provides en_a and the grid).
+  @param omega  External-field frequency (en_+ = Fa.en() + omega must be > 0).
+  @param vl     Local potential v_l(r) (caller includes any hole-particle term).
+  @param alpha  Fine-structure constant.
+  @param core   Core orbitals (nonlocal exchange and orthogonalisation).
+  @param Fs     Source spinor F_S (note sign: +h*phi_a).
+  @param eps_target  Convergence goal for the exchange self-consistency.
+  @param Fhole  Optional hole orbital: subtract its one-electron self-exchange
+                from the iterated non-local exchange (V^{N-1} exchange part).
+
+  @note If @p core is empty, reduces to a single bare local continuum (forward)
+        solve.
+  @warning Requires en_+ > 0 and a grid dense enough at large r.
+*/
+void solveContinuumMixedState(DiracSpinor &phi, DiracSpinor &Freg,
+                              DiracSpinor &Firr, const DiracSpinor &Fa,
+                              double omega, const std::vector<double> &vl,
+                              double alpha,
+                              const std::vector<DiracSpinor> &core,
+                              const DiracSpinor &Fs, double eps_target = 1.0e-9,
+                              const DiracSpinor *const Fhole = nullptr);
 
 //! Solves Mixed States (TDHF) equation. Overload; takes hf object
 DiracSpinor
