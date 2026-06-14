@@ -19,8 +19,18 @@ class CorrelationPotential;
 namespace HF {
 
 //==============================================================================
-//! Small struct to store: {eps, its, symbol}. eps=convergence; its=iterations;
-//! symbol=which state. May be sorted (by eps).
+/*!
+  @brief Convergence results of for each self-consistent-field solve.
+  @details
+  Holds the output of solving for an orbital (core or valence) via an
+  iterative HF-like method: the convergence metric, iteration count, and
+  orbital identification symbol for reporting.
+  @param eps Convergence metric: relative change in orbital norm, or similar,
+             from the previous iteration.
+  @param its Number of iterations performed.
+  @param symbol Orbital identification (e.g. "2p-", "1s+") for labelling
+                output tables.
+*/
 struct EpsIts {
   double eps{0.0};
   int its{0};
@@ -31,8 +41,8 @@ struct EpsIts {
 };
 
 //==============================================================================
-//! @brief Methods available for self-consistant field model
-/*! @details
+/*! @brief Methods available for self-consistant field model
+  @details
  - HartreeFock: Self-consistent Hartree-Fock method
  - ApproxHF   : Approximate (localised) Hartree-Fock method
  - Hartree    : Core-Hartree method. No exchange, Vdir includes self-interaction
@@ -40,9 +50,12 @@ struct EpsIts {
  - Local      : Uses a local parameteric potential. [NOT self-consistant field]
  */
 enum class Method { HartreeFock, ApproxHF, Hartree, KohnSham, Local };
-//! @brief Convers string (name) of method (HartreeFock, Hartree etc.) to enum
+
+//! Convers string (name) of method (e.g., HartreeFock) to HF::Method enum
 Method parseMethod(const std::string &in_method);
+//! Convers HF::Method enum to string (name) of method (e.g., HartreeFock)
 std::string parseMethod(const Method &in_method);
+//! Convers HF::Method enum to short string (name) of method (e.g., HF)
 std::string parseMethod_short(const Method &in_method);
 
 //==============================================================================
@@ -60,6 +73,13 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
 //! limit to ~1 (e.g.) for speed when high accuracy is not required]
 DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
                   int k_cut = 99);
+
+//! @brief Density-based (Kohn-Sham/Slater) local exchange potential, ~rho^1/3.
+//! @details Does not depend on the orbital, so it
+//! conditions all symmetries uniformly -- useful as the local-exchange term on
+//! the LHS of the mixed-states iteration (where vex_approx, which divides by
+//! the perturbation, is poorly conditioned). Grid is taken from @p core.
+std::vector<double> vex_KS(const std::vector<DiracSpinor> &core);
 
 //==============================================================================
 //==============================================================================

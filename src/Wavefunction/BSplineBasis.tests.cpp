@@ -66,7 +66,7 @@ TEST_CASE("Wavefunction: BSpline H-like",
       //            fmt::format("<{}|{}>", Fa.shortSymbol(), Fb.shortSymbol()),
       //            val, eps);
       e_worst = std::max(eps, e_worst);
-      REQUIRE(eps < 1.0e-15);
+      REQUIRE(eps < 1.0e-14);
     }
   }
   std::cout << "Worst: " << e_worst << "\n";

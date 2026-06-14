@@ -11,6 +11,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
+#include "qip/String.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <cassert>
@@ -23,15 +24,19 @@ namespace HF {
 
 //==============================================================================
 Method parseMethod(const std::string &in_method) {
-  if (in_method == "HartreeFock")
+  // Match long forms (case-insensitive)
+  if (qip::ci_compare(in_method, "HartreeFock") ||
+      qip::ci_compare(in_method, "HF"))
     return Method::HartreeFock;
-  if (in_method == "ApproxHF")
+  if (qip::ci_compare(in_method, "ApproxHF") ||
+      qip::ci_compare(in_method, "aHF"))
     return Method::ApproxHF;
-  if (in_method == "Hartree")
+  if (qip::ci_compare(in_method, "Hartree") || qip::ci_compare(in_method, "H"))
     return Method::Hartree;
-  if (in_method == "KohnSham")
+  if (qip::ci_compare(in_method, "KohnSham") ||
+      qip::ci_compare(in_method, "KS"))
     return Method::KohnSham;
-  if (in_method == "Local")
+  if (qip::ci_compare(in_method, "Local") || qip::ci_compare(in_method, "L"))
     return Method::Local;
   std::cout << "Warning: HF Method: " << in_method << " ?? Defaulting to HF\n";
   return Method::HartreeFock;
@@ -103,16 +108,12 @@ EpsIts HartreeFock::solve_core(bool print) {
 
   case Method::HartreeFock:
     text = "Hartree-Fock";
-
     eps_its = hartree_fock_core();
-
     break;
 
   case Method::ApproxHF:
     text = "Approximate (localised) Hartree-Fock";
-
     eps_its = hf_approx_core(m_eps_HF);
-
     break;
 
   case Method::Hartree:
@@ -630,7 +631,7 @@ EpsIts HartreeFock::hf_valence_Green(
     return local_valence(Fa);
 
   local_valence(Fa);
-  const auto vx0 = vex_approx(Fa, m_core);
+  const auto vx0 = vex_KS(m_core);
   const auto Fzero = Fa;
   const auto Vx0Fa = vx0 * Fa;
 
@@ -1032,10 +1033,33 @@ std::vector<double> vex_approx(const DiracSpinor &Fa,
 }
 
 //==============================================================================
-void HartreeFock::vex_Fa_core(const DiracSpinor &Fa, DiracSpinor &VxFa) const
-// calculates V_ex Fa
-// Fa must be in the core, and Yab must already be calculated
-{
+std::vector<double> vex_KS(const std::vector<DiracSpinor> &core) {
+  // Kohn-Sham / Slater density local exchange: V_x = f/r * (r*rho)^(1/3),
+  // with f = -(2/3)(81/32pi^2)^(1/3). Orbital-independent.
+  assert(!core.empty());
+  const auto &grid = core.front().grid();
+  const auto f =
+    -(2.0 / 3.0) * std::pow(81.0 / (32.0 * M_PI * M_PI), 1.0 / 3.0);
+
+  using namespace qip::overloads;
+  std::vector<double> rho(grid.num_points());
+  for (const auto &Fc : core) {
+    rho += Fc.rho();
+  }
+
+  std::vector<double> vx(grid.num_points());
+  for (std::size_t i = 0; i < grid.num_points(); ++i) {
+    const auto r = grid.r(i);
+    vx[i] = (f / r) * std::pow(r * rho[i], 1.0 / 3.0);
+  }
+  return vx;
+}
+
+//==============================================================================
+void HartreeFock::vex_Fa_core(const DiracSpinor &Fa, DiracSpinor &VxFa) const {
+  // calculates V_ex Fa
+  // Fa must be in the core, and Yab must already be calculated
+
   // Ensure VxFa = 0, even after pinf
   using namespace qip::overloads;
   VxFa.f() *= 0.0;
@@ -1067,11 +1091,11 @@ void HartreeFock::vex_Fa_core(const DiracSpinor &Fa, DiracSpinor &VxFa) const
 
 // -----------------------------------------------------------------------------
 DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
-                  int k_cut)
-// Free Function
-// calculates V_ex Fa (returns new Dirac Spinor)
-// Fa can be any orbital (Calculates coulomb integrals here!)
-{
+                  int k_cut) {
+  // Free Function
+  // calculates V_ex Fa (returns new Dirac Spinor)
+  // Fa can be any orbital (Calculates coulomb integrals here!)
+
   DiracSpinor VxFa(Fa.n(), Fa.kappa(), Fa.grid_sptr());
   VxFa.max_pt() = 0; // nb: updated below
 
