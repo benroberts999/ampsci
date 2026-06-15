@@ -190,6 +190,32 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
 }
 
 //==============================================================================
+void TDHF::solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fb,
+                           const DiracSpinor &hFb, const double omega,
+                           dPsiType XorY, double eps_ms) const {
+  // As solve_ms_core(), but for a single channel (one core orbital Fb, one
+  // kappa projection beta, X or Y). Used to parallelise tdhf_core_it() over
+  // (orbital x channel x X/Y) for better load balance than per-orbital.
+  // Thread-safe: reads only const/shared state (and the previous iteration's
+  // m_X/m_Y via dV_rhs); writes only dF_beta.
+
+  const auto ww = XorY == dPsiType::X ? omega : -omega;
+  auto conj = XorY == dPsiType::Y;
+  if (omega < 0.0)
+    conj = !conj;
+
+  const auto imag = m_h->imaginaryQ();
+  const int kappa_beta = dF_beta.kappa();
+  const auto s = (imag && conj) ? -1.0 : 1.0;
+  auto rhs = s * hFb + dV_rhs(kappa_beta, Fb, conj);
+
+  const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
+  const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
+  ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
+                                 eps_ms, nullptr, p_VBr, Hmag);
+}
+
+//==============================================================================
 std::vector<std::vector<DiracSpinor>>
 TDHF::form_hFcore(const DiracOperator::TensorOperator *h) const {
   std::vector<std::vector<DiracSpinor>> hFcore(m_core.size());
@@ -255,14 +281,34 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
 
   const auto eps_ms = 1.0e-12;
 
-  // Solve for the (undamped) dF of this iteration, for every core orbital.
-#pragma omp parallel for schedule(dynamic)
+  // Flatten all (core orbital x channel x X/Y) mixed-states solves into one
+  // task list, so the parallel loop has many small, fairly-uniform tasks
+  // instead of a few very uneven per-orbital ones (much better load balance).
+  // Each task writes a distinct dF and only reads shared state, so they are
+  // independent. See solve_ms_core_b().
+  struct MsTask {
+    DiracSpinor *dF;        // target (in Xs or Ys)
+    const DiracSpinor *Fb;  // core orbital
+    const DiracSpinor *hFb; // source projection h|Fb>
+    dPsiType type;
+  };
+  std::vector<MsTask> tasks;
   for (auto ib = 0ul; ib < m_core.size(); ib++) {
-    const auto &Fb = m_core.at(ib);
-    solve_ms_core(Xs[ib], Fb, m_hFcore[ib], omega, dPsiType::X, eps_ms);
-    if (!static_Y) {
-      solve_ms_core(Ys[ib], Fb, m_hFcore_minus[ib], omega, dPsiType::Y, eps_ms);
+    for (auto be = 0ul; be < Xs[ib].size(); be++) {
+      tasks.push_back(
+        {&Xs[ib][be], &m_core[ib], &m_hFcore[ib][be], dPsiType::X});
+      if (!static_Y) {
+        tasks.push_back(
+          {&Ys[ib][be], &m_core[ib], &m_hFcore_minus[ib][be], dPsiType::Y});
+      }
     }
+  }
+
+  // Solve for the (undamped) dF of this iteration.
+#pragma omp parallel for schedule(dynamic)
+  for (auto it = 0ul; it < tasks.size(); it++) {
+    const auto &t = tasks[it];
+    solve_ms_core_b(*t.dF, *t.Fb, *t.hFb, omega, t.type, eps_ms);
   }
 
   // Measure convergence on the undamped X solution, before damping.

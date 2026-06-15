@@ -65,8 +65,17 @@ static inline void yk_ijk_impl(const int k, const DiracSpinor &Fa,
     return NumCalc::dq_inv * NumCalc::cq[num_points - i - 1];
   };
 
+  // Bind the underlying arrays once and index with operator[]: this is the
+  // hottest loop in the program, and the f()/g()/drduor(i) accessors use .at()
+  // (bounds-checked, not disabled by NDEBUG). Bypassing that here removes ~5
+  // range checks per grid point. Safety elsewhere is unchanged.
+  const auto &faf = Fa.f();
+  const auto &fbf = Fb.f();
+  const auto &fag = Fa.g();
+  const auto &fbg = Fb.g();
+  const auto &drdu = gr.drduor();
   const auto ff = [&](std::size_t i) {
-    return (Fa.f(i) * Fb.f(i) + Fa.g(i) * Fb.g(i)) * w(i) * gr.drduor(i);
+    return (faf[i] * fbf[i] + fag[i] * fbg[i]) * w(i) * drdu[i];
   };
   const auto &r = gr.r();
 

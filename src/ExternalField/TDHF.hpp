@@ -194,6 +194,11 @@ private:
   void solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
                      const std::vector<DiracSpinor> &hFbs, const double omega,
                      dPsiType XorY, double eps_ms = 1.0e-9) const;
+  // As solve_ms_core(), but a single channel (one projection). Thread-safe;
+  // used to parallelise tdhf_core_it() over (orbital x channel x X/Y).
+  void solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fb,
+                       const DiracSpinor &hFb, const double omega,
+                       dPsiType XorY, double eps_ms = 1.0e-9) const;
 
   // Convergence (eps): the relative L2 change of the (undamped) X spinors,
   // Sum|dX|^2 / Sum|X_new|^2 (summed over all channels); returns its sqrt
