@@ -91,6 +91,17 @@ ifeq ($(MODE),debug)
   EXTRA_CXXFLAGS += -g3 -fno-omit-frame-pointer
 endif
 
+ifeq ($(MODE),profile)
+  # Profiling build, used by all src/tools/profile_*.sh scripts (hotspots,
+  # allocations, cache). Like release (full -O3, NDEBUG, OMP on) but with debug
+  # info + frame pointers so perf/heaptrack/valgrind can attribute samples to
+  # source lines and unwind stacks.
+  # Builds into its own build/profile/ tree, so it won't clobber the dev build.
+  WARN = -w -Wno-psabi -Wno-unknown-pragmas
+  EXTRA_CXXFLAGS += -g -fno-omit-frame-pointer -DNDEBUG -DHAVE_INLINE \
+                    -DGSL_RANGE_CHECK_OFF
+endif
+
 ## clang sanitisers:
 
 ifeq ($(MODE),asan)

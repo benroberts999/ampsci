@@ -7,7 +7,7 @@
 ## Which compiler: (g++, clang++)
 CXX = g++
 
-## Build mode (changes warnings + optimisation level): release/dev/debug
+## Build mode (changes warnings + optimisation level): release/dev/debug/profile
 ## Change to dev if you plan to edit the code
 MODE ?= release
 

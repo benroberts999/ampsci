@@ -35,7 +35,7 @@ repeat=1
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --threads)
-      threads_opt="$2"
+      max_threads="$2"
       shift 2
       ;;
     --inc)
