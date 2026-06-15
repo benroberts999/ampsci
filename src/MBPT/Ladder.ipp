@@ -99,6 +99,62 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
 }
 
 //------------------------------------------------------------------------------
+// Ladder (or MBPT2) valence energy with the exchange moved onto the FIRST
+// (Coulomb) integral:
+//   de = sum_{amn,k} W^k_{vamn} L^k_{mnva} / Δε / [k] / [j_v]   (a)+(b)
+//      + sum_{anb,k} W^k_{vnab} L^k_{vnab} / Δε / [k] / [j_v]   (c)+(d)
+// Here W = Q + P is the antisymmetrised Coulomb integral (qk.W), and the ladder
+// L enters as the bare (direct) second integral (lk.Q). This is an alternative
+// to de_valence(), which instead antisymmetrises the second (ladder) integral
+// via lk.P. The two agree (the exchange symmetry holds under the full sum),
+// because L^k vanishes outside the Coulomb k-range and gates the sum.
+// Putting the ladder in the FIRST slot does NOT work, since the ladder lacks
+// that symmetry.
+// nb: no screening/eta here (W lumps direct+exchange with unit weight).
+template <typename Qintegrals, typename Lintegrals>
+double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
+                    const Lintegrals &lk, const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &excited,
+                    const Angular::SixJTable *sj) {
+
+  auto de_v = 0.0;
+#pragma omp parallel for reduction(+ : de_v)
+  for (auto in = 0ul; in < excited.size(); ++in) {
+    const auto &n = excited[in];
+    for (const auto &a : core) {
+
+      // Diagrams (a)+(b): W^k_{vamn} L^k_{mnva}
+      for (const auto &m : excited) {
+        const auto inv_de = 1.0 / (v.en() + a.en() - m.en() - n.en());
+        const auto [k0, kI] = Coulomb::k_minmax_W(v, a, m, n);
+        for (int k = k0; k <= kI; ++k) {
+          const auto W_kvamn = qk.W(k, v, a, m, n, sj);
+          if (W_kvamn == 0.0)
+            continue;
+          const auto L_kmnva = lk.Q(k, m, n, v, a);
+          de_v += W_kvamn * L_kmnva * inv_de / (2 * k + 1);
+        }
+      }
+
+      // Diagrams (c)+(d): W^k_{vnab} L^k_{vnab}
+      for (const auto &b : core) {
+        const auto inv_de = 1.0 / (v.en() + n.en() - a.en() - b.en());
+        const auto [k0, kI] = Coulomb::k_minmax_W(v, n, a, b);
+        for (int k = k0; k <= kI; ++k) {
+          const auto W_kvnab = qk.W(k, v, n, a, b, sj);
+          if (W_kvnab == 0.0)
+            continue;
+          const auto L_kvnab = lk.Q(k, v, n, a, b);
+          de_v += W_kvnab * L_kvnab * inv_de / (2 * k + 1);
+        }
+      }
+    }
+  }
+
+  return de_v / v.twojp1();
+}
+
+//------------------------------------------------------------------------------
 // Calculate energy shift (either ladder, or sigma2) for CORE
 // lk may be regular Coulomb integrals [in which case this returns MBPT(2)
 // correction], or Ladder diagrams [in which case this returns the ladder

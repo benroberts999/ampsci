@@ -246,9 +246,21 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
 
+  // Extend Qk table to the FULL basis. Sigma_ladder projects the ladder onto
+  // the full basis of each kappa_v, so Lkmnij() needs Qk integrals involving
+  // those (high-n) projection states - which are absent if Qk was filled only
+  // over the [n_min,n_max] subset 'both'.
+  {
+    std::cout << "\nExtending Qk table to full basis (for Sigma_ladder):\n"
+              << std::flush;
+    const Coulomb::YkTable yk_full(wf.basis());
+    qk.fill(wf.basis(), yk_full, max_k);
+    qk.summary();
+  }
+
   std::cout << "Energy corrections:\n";
-  fmt::print("{:4s}  {:13}  {:11}  {:10}  {:10}\n", "", "HF", "de(2)",
-             "de(l) [Q*L]", "de(l) [L*Q]");
+  fmt::print("{:4s}  {:13}  {:11}  {:10}  {:10}  {:10}\n", "", "HF", "de(2)",
+             "de(l) [Q*L]", "de(l) [W*L]", "<v|Sig_L|v>");
   const auto Ec_HF = wf.coreEnergyHF();
   const auto de2_c = MBPT::de_core(qk, qk, core, excited);
   const auto del_c = MBPT::de_core(qk, lk, core, excited);
@@ -261,16 +273,26 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto e0 = v.en();
     const auto de2 = MBPT::de_valence(v, qk, qk, core, excited);
     const auto del = MBPT::de_valence(v, qk, lk, core, excited);
-    const auto del2 = MBPT::de_valence(v, lk, qk, core, excited);
-    fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}\n", v.shortSymbol(),
-               e0 * icm, de2 * icm, del * icm, del2 * icm);
+    // Alternative: antisymmetrise the first (Coulomb) integral via W=Q+P,
+    // rather than the second (ladder) integral via lk.P. Should match 'del'.
+    const auto del2 = MBPT::de_valence_w(v, qk, lk, core, excited, &sjt);
+    // Matrix element of the ladder correlation potential, <v|Sigma_L|v>.
+    // TEST: project onto {v} only (not the full basis) and use nullptr internal
+    // rung (L^(1)). This should then be ~identical to de_valence_w.
+    const std::vector<DiracSpinor> proj_v{v};
+    const auto Sig_L = MBPT::Sigma_ladder(v.kappa(), v.en(), core, excited,
+                                          proj_v, qk, nullptr, sjt, include_L4);
+    const auto deS = v * (Sig_L * v);
+    fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}  {:10.7}\n",
+               v.shortSymbol(), e0 * icm, de2 * icm, del * icm, del2 * icm,
+               deS * icm);
   }
 
   // Use this to check the symmetries
   // old code that hasn't been tested in a while
   // Doing odd things?
-  if (max_it == 0)
-    check_L_symmetry(core, excited, valence, qk, include_L4, sjt, &lk);
+  // if (max_it == 0)
+  // check_L_symmetry(core, excited, valence, qk, include_L4, sjt, &lk);
 }
 
 //==============================================================================

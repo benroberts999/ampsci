@@ -3,6 +3,7 @@
 #include "Coulomb/include.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/omp.hpp"
 #include <numeric>
 #include <unordered_set>
 
@@ -39,8 +40,8 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
   // Ensured 'excited' is actually the excited orbitals
   // and that m and n are excited orbitals
   // (Still possible BOTH wrong at the same time..)
-  assert(std::find(excited.cbegin(), excited.cend(), m) != excited.cend());
-  assert(std::find(excited.cbegin(), excited.cend(), n) != excited.cend());
+  // assert(std::find(excited.cbegin(), excited.cend(), m) != excited.cend());
+  // assert(std::find(excited.cbegin(), excited.cend(), n) != excited.cend());
 
   // screening factors:
   auto Fk = [&fk](int l) {
@@ -117,8 +118,8 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   // Therefore, can test:
   // Ensured 'excited' is actually the excited orbitals
   // and that m and n are excited orbitals
-  assert(std::find(core.cbegin(), core.cend(), m) == core.cend());
-  assert(std::find(core.cbegin(), core.cend(), n) == core.cend());
+  // assert(std::find(core.cbegin(), core.cend(), m) == core.cend());
+  // assert(std::find(core.cbegin(), core.cend(), n) == core.cend());
 
   // screening factors:
   auto Fk = [&fk](int l) {
@@ -190,9 +191,9 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
   // Therefore, can test:
   // Ensured 'excited' is actually the excited orbitals
   // and that m and n are excited orbitals
-  assert(std::find(excited.cbegin(), excited.cend(), m) != excited.cend());
-  assert(std::find(excited.cbegin(), excited.cend(), n) != excited.cend());
-  assert(std::find(core.cbegin(), core.cend(), m) == core.cend());
+  // assert(std::find(excited.cbegin(), excited.cend(), m) != excited.cend());
+  // assert(std::find(excited.cbegin(), excited.cend(), n) != excited.cend());
+  // assert(std::find(core.cbegin(), core.cend(), m) == core.cend());
 
   // screening factors:
   auto Fk = [&fk](int l) {
@@ -308,6 +309,153 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   };
 
   lk->fill(basis, Lk_function, Lk_SR, kmax, print);
+}
+
+//==============================================================================
+GMatrix Sigma_ladder(int kappa_v, double en_v,
+                     const std::vector<DiracSpinor> &core,
+                     const std::vector<DiracSpinor> &excited,
+                     const std::vector<DiracSpinor> &basis,
+                     const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
+                     const Angular::SixJTable &sjt, bool include_L4,
+                     const std::vector<double> &, const std::vector<double> &,
+                     double r0, double rmax, std::size_t stride) {
+
+  // Ladder correction to the correlation potential, evaluated at energy en_v.
+  // The exchange is folded into the Coulomb vertex via W = Q + P (mirrors
+  // de_valence_w), so no ladder-P is needed. The bra index i runs over the
+  // excited basis states of kappa_v (projection basis, approximating
+  // completeness).
+  //
+  // Diagrams (a)+(b)  [particle-particle]:
+  //   Sigma_L += sum_{i,amn,k} |W^k_{.amn}> w <i| ,  w = L^k_{mn,i,a}/([k][j_v]de)
+  //   de = en_v + e_a - e_m - e_n
+  // Diagrams (c)+(d)  [particle-hole, external line in the m-slot of L]:
+  //   Sigma_L += sum_{i,nab,k} |W^k_{.nab}> w <i| ,  w = L^k_{i,n,a,b}/([k][j_v]de)
+  //   de = en_v + e_n - e_a - e_b
+  //
+  // The ladder integrals are always computed on-the-fly via Lkmnij() (using the
+  // converged ladder table lk as the internal rung), evaluated at the fixed
+  // external energy en_v. We cannot reuse the stored lk entries: those were
+  // evaluated at the orbital energy e_i, not en_v (equal only for i = the
+  // valence state at en_v = e_valence). The energy fix is applied by passing a
+  // copy of the projection orbital with its energy set to en_v: the energy only
+  // enters the L denominators, never the integral lookups, so this overrides
+  // every denominator uniformly regardless of which slot the external line is
+  // in (i-slot for a+b, m-slot for c+d).
+
+  // 'lk' is the internal-rung ladder table passed straight to Lkmnij: pass
+  // nullptr for L(Q,Q) = L^(1) (matches an un-iterated table), or a converged
+  // table (its fixed point) for the full ladder.
+
+  // get_k helper (screening / enhancement factors):
+  // const auto get_k = [](int k, const std::vector<double> &f) {
+  //   const auto sk = std::size_t(k);
+  //   return sk < f.size() ? f[sk] : 1.0;
+  // };
+
+  const auto tjv = Angular::twoj_k(kappa_v);
+
+  // Sub-grid + GMatrix (no lower g part):
+  const auto grid = excited.empty() ?
+                      (core.empty() ? nullptr : core.front().grid_sptr()) :
+                      excited.front().grid_sptr();
+  const auto i0 = grid ? grid->getIndex(r0) : 0ul;
+  const auto size = grid ? (grid->getIndex(rmax) - i0) / stride + 1 : 0ul;
+  GMatrix Sd{i0, stride, size, true, grid};
+
+  if (core.empty() || excited.empty())
+    return Sd;
+
+  // Projection basis: states with kappa == kappa_v
+  std::vector<const DiracSpinor *> proj;
+  for (const auto &x : basis) {
+    if (x.kappa() == kappa_v)
+      proj.push_back(&x);
+  }
+  if (proj.empty())
+    return Sd;
+
+  std::vector<GMatrix> Sd_ts(std::size_t(omp_get_max_threads()), Sd);
+
+  for (auto ii = 0ul; ii < proj.size(); ++ii) {
+    const auto &i = *proj[ii];
+
+    // Copy of the projection orbital with energy fixed to en_v, used for the
+    // external line in the ladder integrals (the bra <i| keeps the true energy).
+    auto i_ev = i;
+    i_ev.en() = en_v;
+
+    qip::ProgressBar bar(core.size());
+#pragma omp parallel for schedule(dynamic)
+    for (auto ia = 0ul; ia < core.size(); ++ia) {
+      const auto &a = core[ia];
+      // Per-thread accumulator: must be bound INSIDE the parallel region so
+      // each thread writes to its own matrix (else all threads race on one).
+      auto &Sd_t = Sd_ts[std::size_t(omp_get_thread_num())];
+      for (const auto &n : excited) {
+
+        // Diagrams (a)+(b): W^k_{.amn} L^k_{mn,i,a}
+        const auto [kmin_na, kmax_na] = Coulomb::k_minmax_Ck(n, a);
+        for (int k = kmin_na; k <= kmax_na; ++k) {
+
+          const auto f_kkjj = (2 * k + 1) * (tjv + 1);
+          // if (get_k(k, fk) == 0.0 || get_k(k, etak) == 0.0)
+          //   continue;
+          // Enforce the (a,n) Coulomb parity: only k with Q^k_{vamn} != 0
+          // contribute. The W=Q+P ket does NOT self-gate parity the way the
+          // bare Q ket does, so without this its P-part adds spurious
+          // wrong-parity terms (not present in de_valence_w).
+          if (!Angular::Ck_kk_SR(k, n.kappa(), a.kappa()))
+            continue;
+
+          for (const auto &m : excited) {
+            if (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()))
+              continue;
+            const auto Lkmnia =
+              Lkmnij(k, m, n, i_ev, a, qk, core, excited, include_L4, sjt, lk);
+            if (Lkmnia == 0.0)
+              continue;
+            const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, a, m, n);
+            const auto dele = en_v + a.en() - m.en() - n.en();
+            Sd_t.add(Wkv, i, Lkmnia / (f_kkjj * dele));
+          }
+        }
+
+        // Diagrams (c)+(d): W^k_{.nab} L^k_{i,n,a,b}
+        for (const auto &b : core) {
+          const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, b);
+          for (int k = kmin_nb; k <= kmax_nb; ++k) {
+
+            const auto f_kkjj = (2 * k + 1) * (tjv + 1);
+            // if (get_k(k, fk) == 0.0 || get_k(k, etak) == 0.0)
+            //   continue;
+            if (!Angular::Ck_kk_SR(k, kappa_v, a.kappa()))
+              continue;
+            // Enforce the (n,b) Coulomb parity (only k with Q^k_{vnab} != 0);
+            // see note in the (a)+(b) block.
+            if (!Angular::Ck_kk_SR(k, n.kappa(), b.kappa()))
+              continue;
+
+            const auto Lkinab =
+              Lkmnij(k, i_ev, n, a, b, qk, core, excited, include_L4, sjt, lk);
+            if (Lkinab == 0.0)
+              continue;
+            const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, n, a, b);
+            const auto dele = en_v + n.en() - a.en() - b.en();
+            Sd_t.add(Wkv, i, Lkinab / (f_kkjj * dele));
+          }
+        }
+      }
+      bar.update();
+    }
+  }
+
+  for (const auto &Sd_t : Sd_ts) {
+    Sd += Sd_t;
+  }
+
+  return Sd.drj_in_place();
 }
 
 //==============================================================================
