@@ -33,6 +33,9 @@ namespace MBPT {
   @param Lk         Ladder table from previous iteration (nullptr on first)
   @param fk         Optional screening factors \f$ f_k \f$
   @return \f$ L^k_{mnij} \f$
+  @note To evaluate at a fixed external energy (for a correlation potential),
+        pass the external orbital with its energy set accordingly: the energy
+        only enters the denominators, never the integral lookups.
 */
 double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
               const DiracSpinor &i, const DiracSpinor &j,
@@ -226,6 +229,35 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
                   const std::vector<double> &etak = {});
 
 /*!
+  @brief Ladder (or MBPT2) valence energy, antisymmetrising the FIRST integral.
+  @details
+  Computes
+  \f[
+    \delta\epsilon_v = \sum_{amn,k}\frac{W^k_{vamn}\,L^k_{mnva}}{[k]\,[j_v]\,\Delta\epsilon}
+      + \text{(c+d)},
+  \f]
+  with \f$ W = Q + P \f$ the antisymmetrised Coulomb integral (@p qk.W) and the
+  ladder @p lk entering only through the direct integral @p lk.Q. Equivalent to
+  de_valence() (which instead antisymmetrises the ladder via @p lk.P), since the
+  exchange symmetry holds under the full sum. Unlike de_valence(), this works
+  only with the Coulomb integrals in the first slot (the ladder lacks the
+  required symmetry). No screening/eta is applied.
+
+  @param v       Valence orbital
+  @param qk      Coulomb integrals supplying \f$ W = Q+P \f$ (first integral)
+  @param lk      Ladder \f$ L^k \f$ integrals (second, direct integral)
+  @param core    Core orbitals
+  @param excited Excited orbitals
+  @param sj      Optional 6j table (speeds up the W exchange sum)
+  @return \f$ \delta\epsilon_v \f$
+*/
+template <typename Qintegrals, typename Lintegrals>
+double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
+                    const Lintegrals &lk, const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &excited,
+                    const Angular::SixJTable *sj = nullptr);
+
+/*!
   @brief Second-order (or ladder) correction to the core energy.
   @details
   Sums the correlation energy shift over all core orbitals. When @p lk holds
@@ -242,6 +274,55 @@ template <typename Qintegrals, typename QorLintegrals>
 double de_core(const Qintegrals &qk, const QorLintegrals &lk,
                const std::vector<DiracSpinor> &core,
                const std::vector<DiracSpinor> &excited);
+
+/*!
+  @brief Ladder-diagram correction to the correlation potential, Sigma_L(en_v).
+  @details
+  Forms the ladder correlation potential by projecting the discrete ladder
+  integrals onto the excited basis states of @p kappa_v. The exchange is folded
+  into the Coulomb vertex via \f$ W = Q + P \f$ (as in de_valence_w):
+  \f[
+    \Sigma_L = \sum_{i,amn,k} |W^k_{\cdot amn}\rangle\,
+      \frac{L^k_{mn,i,a}}{[k][j_v]\,(\epsilon_v+\epsilon_a-\epsilon_m-\epsilon_n)}\,
+      \langle i|
+      + \sum_{i,nab,k} |W^k_{\cdot nab}\rangle\,
+      \frac{L^k_{i,n,a,b}}{[k][j_v]\,(\epsilon_v+\epsilon_n-\epsilon_a-\epsilon_b)}\,
+      \langle i| ,
+  \f]
+  (particle-particle (a+b) and particle-hole (c+d) diagrams). The bra index
+  \f$ i \f$ runs over the excited basis states of @p kappa_v (approximating
+  completeness). The ladder integrals are computed on-the-fly via Lkmnij()
+  evaluated at the fixed external energy @p en_v (applied by setting the energy
+  of the external orbital, since the energy enters only the denominators).
+
+  The sub-grid (@p r0, @p rmax, @p stride) defaults match Wavefunction::formSigma.
+
+  @note No lower (g) component.
+
+  @param kappa_v   Valence kappa
+  @param en_v      Energy at which to evaluate Sigma_L
+  @param core      Core (hole) orbitals
+  @param excited   Excited orbitals (also supplies the projection basis)
+  @param qk        Converged Coulomb \f$ Q^k \f$ table
+  @param lk        Internal-rung ladder table, forwarded to Lkmnij: nullptr for
+                   L(Q,Q)=L^(1); a converged table (its fixed point) for the
+                   full ladder
+  @param sjt       6j symbol table
+  @param include_L4 Include core--core diagram in on-the-fly Lkmnij
+  @param fk        Optional screening factors \f$ f_k \f$
+  @param etak      Optional enhancement factors \f$ \eta_k \f$
+  @param r0,rmax,stride  Sub-grid parameters
+  @return Sigma_L as a coordinate-space GMatrix
+*/
+GMatrix Sigma_ladder(int kappa_v, double en_v,
+                     const std::vector<DiracSpinor> &core,
+                     const std::vector<DiracSpinor> &excited,
+                     const std::vector<DiracSpinor> &basis,
+                     const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
+                     const Angular::SixJTable &sjt, bool include_L4 = false,
+                     const std::vector<double> &fk = {},
+                     const std::vector<double> &etak = {}, double r0 = 1.0e-4,
+                     double rmax = 30.0, std::size_t stride = 4);
 
 // template implementations:
 #include "Ladder.ipp"
