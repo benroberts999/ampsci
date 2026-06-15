@@ -248,6 +248,25 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][basis][unit]") {
         REQUIRE(e2 < 1.0e-6);
       }
     }
+
+    fmt::print("\n");
+    const auto regular = DiracSpinor::subset(wf.basis(), "30spdf", true);
+    std::cout << "Basis subset (with no -ve energy states): ";
+    std::cout << DiracSpinor::state_config(regular) << " / "
+              << DiracSpinor::state_config(wf.basis()) << "\n";
+    SplineBasis::r_completeness_header();
+    for (auto &v : wf.valence()) {
+      const auto [e1, e2] =
+        SplineBasis::r_completeness(v, regular, wf.grid(), true);
+      if (v.l() <= 2) {
+        REQUIRE(e1 < 5.0e-2);
+        REQUIRE(e2 < 1.0e-3);
+      } else {
+        REQUIRE(e1 < 5.0e-2);
+        REQUIRE(e2 < 1.0e-3);
+      }
+    }
+    // std::cin.get();
   }
 }
 

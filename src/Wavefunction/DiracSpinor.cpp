@@ -132,6 +132,11 @@ int DiracSpinor::num_electrons() const {
 }
 
 //==============================================================================
+bool DiracSpinor::negativeEnergyStateQ() const {
+  return m_en < -1.0 * PhysConst::c2;
+}
+
+//==============================================================================
 double DiracSpinor::r0() const { return m_rgrid->r()[m_p0]; }
 double DiracSpinor::rinf() const { return m_rgrid->r()[m_pinf - 1]; }
 
@@ -544,7 +549,8 @@ DiracSpinor::split_by_core(const std::vector<DiracSpinor> &orbitals,
 //==============================================================================
 std::vector<DiracSpinor>
 DiracSpinor::subset(const std::vector<DiracSpinor> &basis,
-                    const std::string &subset_string) {
+                    const std::string &subset_string,
+                    bool exclude_negative_energy) {
 
   // Form 'subset' from {a} in 'basis', if:
   //    a _is_ in subset_string AND
@@ -554,6 +560,8 @@ DiracSpinor::subset(const std::vector<DiracSpinor> &basis,
   const auto nmaxk_list = AtomData::n_kappa_list(subset_string);
 
   for (const auto &a : basis) {
+    if (exclude_negative_energy && a.negativeEnergyStateQ())
+      continue;
 
     // Check if a is present in 'subset_string'
     const auto nk =

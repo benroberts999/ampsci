@@ -109,6 +109,9 @@ public:
   //! Checks if spinor is for "exotic" lepton, or regular electron
   bool exotic() const { return m_exotic; }
 
+  //! NOTE: Only works for regular alpha, and m=1 - shuold fix
+  bool negativeEnergyStateQ() const;
+
   //! Changes 'kappa' angular quantum number. Use with caution!
   void set_new_kappa(int new_kappa);
 
@@ -339,5 +342,6 @@ public:
   //! @details
   //! - Includes only states matching the subset_string
   static std::vector<DiracSpinor> subset(const std::vector<DiracSpinor> &basis,
-                                         const std::string &subset_string);
+                                         const std::string &subset_string,
+                                         bool exclude_negative_energy = true);
 };
