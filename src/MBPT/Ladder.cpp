@@ -284,20 +284,29 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
 
   const auto kmax = qk.max_k();
 
-  // Selection rule: m,n in excited, i in i_orbs, b in core + angular SR
-  const auto Lk_SR = [&](int k, const DiracSpinor &m, const DiracSpinor &n,
-                         const DiracSpinor &i, const DiracSpinor &b) -> bool {
-    // XXX This should be checked! XXX
-    // It determines which L^k_mnib integrals are calculated
-
+  // Base selection rule: m,n in excited, i in i_orbs, b in core + angular SR.
+  // Determines which L^k_mnib integrals we actually need.
+  const auto Lk_SR_one = [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                             const DiracSpinor &i, const DiracSpinor &b) -> bool {
     // Require m and n to be excited
     if (!excited_set.count(m.nk_index()) || !excited_set.count(n.nk_index()))
       return false;
     // Require i to be in {i}, and b to be in core
     if (!i_orbs_set.count(i.nk_index()) || !core_set.count(b.nk_index()))
       return false;
-    const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b); // correct??
+    const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b);
     return k >= k0 && k <= kI;
+  };
+
+  // Selection rule passed to fill(): must be invariant under the Lk table
+  // symmetry L^k_{abcd} = L^k_{badc}. fill() only stores/computes the canonical
+  // tuple, so an entry must be accepted if EITHER it OR its symmetry partner
+  // (b,a,d,c) passes the base rule - otherwise needed entries whose canonical
+  // form puts a non-core hole in the b-slot (e.g. L^k_{mnva} -> canonical
+  // (n,m,a,v) with valence v in slot b) are silently dropped.
+  const auto Lk_SR = [&](int k, const DiracSpinor &a, const DiracSpinor &b,
+                         const DiracSpinor &c, const DiracSpinor &d) -> bool {
+    return Lk_SR_one(k, a, b, c, d) || Lk_SR_one(k, b, a, d, c);
   };
 
   // Lk integral
