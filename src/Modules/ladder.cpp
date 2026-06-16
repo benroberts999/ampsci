@@ -253,9 +253,10 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   {
     std::cout << "\nExtending Qk table to full basis (for Sigma_ladder):\n"
               << std::flush;
-    const Coulomb::YkTable yk_full(wf.basis());
-    qk.fill(wf.basis(), yk_full, max_k);
-    qk.summary();
+    std::cout << "XXX RESTORE ME LATER XXX\n";
+    // const Coulomb::YkTable yk_full(wf.basis());
+    // qk.fill(wf.basis(), yk_full, max_k);
+    // qk.summary();
   }
 
   std::cout << "Energy corrections:\n";
@@ -283,6 +284,54 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto Sig_L = MBPT::Sigma_ladder(v.kappa(), v.en(), core, excited,
                                           proj_v, qk, nullptr, sjt, include_L4);
     const auto deS = v * (Sig_L * v);
+
+    // DIAGNOSTIC: split de_valence_w-style sum into (a+b)/(c+d), each computed
+    // both with the table (lk.Q) and the recompute (Lkmnij,nullptr).
+    {
+      double ab_tab = 0, ab_rec = 0, cd_tab = 0, cd_rec = 0;
+      const auto kv = v.kappa();
+      for (const auto &a : core) {
+        for (const auto &n : excited) {
+          for (const auto &m : excited) {
+            const auto [k0, kI] = Coulomb::k_minmax_W(v, a, m, n);
+            const auto [kQ0, kQI] = Coulomb::k_minmax_Q(m, n, v, a);
+            for (int k = k0; k <= kI; ++k) {
+              const auto W = qk.W(k, v, a, m, n, &sjt);
+              if (W == 0.0)
+                continue;
+              const auto de = v.en() + a.en() - m.en() - n.en();
+              const auto f = (2 * k + 1) * v.twojp1() * de;
+              ab_tab += W * lk.Q(k, m, n, v, a) / f;
+              // recompute restricted to the Coulomb (stored) k-range only:
+              if (k >= kQ0 && k <= kQI)
+                ab_rec += W *
+                          MBPT::Lkmnij(k, m, n, v, a, qk, core, excited,
+                                       include_L4, sjt, nullptr) /
+                          f;
+            }
+          }
+          for (const auto &b : core) {
+            const auto [k0, kI] = Coulomb::k_minmax_W(v, n, a, b);
+            for (int k = k0; k <= kI; ++k) {
+              const auto W = qk.W(k, v, n, a, b, &sjt);
+              if (W == 0.0)
+                continue;
+              const auto de = v.en() + n.en() - a.en() - b.en();
+              const auto f = (2 * k + 1) * v.twojp1() * de;
+              cd_tab += W * lk.Q(k, v, n, a, b) / f;
+              cd_rec += W *
+                        MBPT::Lkmnij(k, v, n, a, b, qk, core, excited,
+                                     include_L4, sjt, nullptr) /
+                        f;
+            }
+          }
+        }
+      }
+      (void)kv;
+      fmt::print("    ab: tab={:.5} rec={:.5} | cd: tab={:.5} rec={:.5}\n",
+                 ab_tab * icm, ab_rec * icm, cd_tab * icm, cd_rec * icm);
+    }
+
     fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}  {:10.7}\n",
                v.shortSymbol(), e0 * icm, de2 * icm, del * icm, del2 * icm,
                deS * icm);
