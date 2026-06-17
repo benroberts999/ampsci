@@ -11,6 +11,7 @@
 #include "fmt/ostream.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Methods.hpp"
+#include "qip/Widgets.hpp"
 #include "qip/omp.hpp"
 #include <iostream>
 #include <memory>
@@ -219,7 +220,8 @@ std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
   // nb: sum into K(iE,iq).
   // Therefore, each thread has unique iE, and no reduction required if //-isation over iE/iq
   // BUT if we change this (e.g., over k), then this will change
-#pragma omp parallel for schedule(dynamic, 4)
+  qip::ProgressBar bar(idE_max - idE_0);
+#pragma omp parallel for schedule(dynamic)
   for (std::size_t iE = idE_0; iE < idE_max; ++iE) {
     const auto omega = Egrid.at(iE);
 
@@ -347,6 +349,7 @@ std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
         }
       }
     }
+    bar.update();
   }
 
   return K_factors;

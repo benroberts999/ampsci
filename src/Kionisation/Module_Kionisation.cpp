@@ -966,8 +966,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                      std::to_string(lc_minmax->at(1)) + "_" :
                    "")               //
     + (ec_minmax_eV ? "eclim_" : "") //
-    + (low_q ? "lowq_" : "")         //
-    + (label == "" ? "" : label + "_");
+    + (low_q ? "lowq_" : "");        //
 
   if (vectorQ)
     ofname_prefix += "V";
@@ -978,9 +977,14 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   if (pseudoscalarQ)
     ofname_prefix += "P";
 
-  //-------------------------------------------------------------------------
-  std::cout << "\nCalculating ionisation factors:\n";
+  if (!label.empty()) {
+    ofname_prefix += "_" + label;
+  }
 
+  //-------------------------------------------------------------------------
+  std::cout << "\nCalculating ionisation factors for each bound electron:\n";
+
+  int count = 1;
   for (const auto &Fa : wf.core()) {
 
     // Find min/max allowed l for continuum states
@@ -995,10 +999,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto lc_max =
       lc_minmax ? std::min(lc_max_tmp, lc_minmax->at(1)) : lc_max_tmp;
 
-    fmt::print("{:4s} -> {} - {}  (L = {} -> {} - {})   [{}]\n",
-               Fa.shortSymbol(), AtomData::l_symbol(lc_min),
-               AtomData::l_symbol(lc_max), Fa.l(), lc_min, lc_max,
-               Fa.l() + Kmax);
+    fmt::print("[{:2}/{:2}]: {:4s} -> {} - {}  (L = {} -> {} - {})\n", count++,
+               wf.core().size(), Fa.shortSymbol(), AtomData::l_symbol(lc_min),
+               AtomData::l_symbol(lc_max), Fa.l(), lc_min, lc_max);
     std::cout << std::flush;
 
     // Form factors for specific bound state, Fa:
@@ -1012,7 +1015,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     // Optionally: write all K factors for each bound state to disk
     if (each_state) {
       Kion::write_to_file_xyz_13(
-        ofname_prefix + "." + Fa.shortSymbol() + ".txt", Egrid, qgrid, titles,
+        Fa.shortSymbol() + "." + ofname_prefix + ".txt", Egrid, qgrid, titles,
         descriptions, K_factors_nk, units, num_digits, diagonal_Eq);
     }
 

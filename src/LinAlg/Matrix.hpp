@@ -1,5 +1,5 @@
 #pragma once
-#include "qip/Vector.hpp" // for std::vector overloads
+#include "qip/Vector.hpp"
 #include <array>
 #include <cassert>
 #include <complex>

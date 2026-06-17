@@ -139,9 +139,9 @@ public:
     m_J_L_q.resize(std::size_t(max_L + 1), q.size());
     m_J_L_q_on_qr.resize(std::size_t(max_L + 1), q.size());
     using namespace qip::overloads;
-#pragma omp parallel for collapse(2)
-    for (auto L = 0ul; L <= std::size_t(max_L); ++L) {
-      for (auto iq = 0ul; iq < m_J_L_q.cols(); ++iq) {
+#pragma omp parallel for schedule(dynamic)
+    for (auto iq = 0ul; iq < m_J_L_q.cols(); ++iq) {
+      for (auto L = 0ul; L <= std::size_t(max_L); ++L) {
         const auto tq = q[iq];
         // Fill jL(qr) (cell-averaged if cell_average and grid is too coarse)
         m_J_L_q[L][iq] = fillBesselVec_kr(int(L), tq, r, cell_average);

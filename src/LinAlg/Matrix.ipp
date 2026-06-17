@@ -172,28 +172,43 @@ template <typename T>
 Matrix<T> &Matrix<T>::operator+=(const Matrix<T> &rhs) {
   assert(rows() == rhs.rows() && cols() == rhs.cols() &&
          "Matrices must have same dimensions for addition");
-  using namespace qip::overloads;
-  this->m_data += rhs.m_data;
+// this->m_data += rhs.m_data;
+#pragma omp parallel for
+  for (auto i = 0ul; i < m_data.size(); ++i) {
+    m_data[i] += rhs.m_data[i];
+  }
   return *this;
 }
 template <typename T>
 Matrix<T> &Matrix<T>::operator-=(const Matrix<T> &rhs) {
   assert(rows() == rhs.rows() && cols() == rhs.cols() &&
          "Matrices must have same dimensions for subtraction");
-  using namespace qip::overloads;
-  this->m_data -= rhs.m_data;
+// using namespace qip::overloads;
+// this->m_data -= rhs.m_data;
+#pragma omp parallel for
+  for (auto i = 0ul; i < m_data.size(); ++i) {
+    m_data[i] -= rhs.m_data[i];
+  }
   return *this;
 }
 template <typename T>
 Matrix<T> &Matrix<T>::operator*=(const T x) {
-  using namespace qip::overloads;
-  this->m_data *= x;
+// using namespace qip::overloads;
+// this->m_data *= x;
+#pragma omp parallel for
+  for (auto i = 0ul; i < m_data.size(); ++i) {
+    m_data[i] *= x;
+  }
   return *this;
 }
 template <typename T>
 Matrix<T> &Matrix<T>::operator/=(const T x) {
-  using namespace qip::overloads;
-  this->m_data /= x;
+// using namespace qip::overloads;
+// this->m_data /= x;
+#pragma omp parallel for
+  for (auto i = 0ul; i < m_data.size(); ++i) {
+    m_data[i] /= x;
+  }
   return *this;
 }
 
