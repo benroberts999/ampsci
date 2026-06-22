@@ -11,9 +11,7 @@
 template <typename Qintegrals, typename QorLintegrals>
 double de_valence(const DiracSpinor &v, const Qintegrals &qk,
                   const QorLintegrals &lk, const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &excited,
-                  const std::vector<double> &v_fk,
-                  const std::vector<double> &v_eta) {
+                  const std::vector<DiracSpinor> &excited) {
 
   // XXX Fix this!
   // static_assert(std::is_same_v<Qintegrals, Coulomb::YkTable> ||
@@ -31,15 +29,6 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
     else
       return false;
   }();
-
-  // screening factors:
-  auto Fk = [&v_fk](int k) {
-    return k < (int)v_fk.size() ? v_fk[std::size_t(k)] : 1.0;
-  };
-  // hole-particle
-  auto Eta = [&v_eta](int k) {
-    return k < (int)v_eta.size() ? v_eta[std::size_t(k)] : 1.0;
-  };
 
   auto de_v = 0.0;
 
@@ -59,17 +48,14 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
         const auto [k0, kI] = Coulomb::k_minmax_Q(v, a, m, n);
         for (int k = k0; k <= kI; k += 2) {
 
-          const auto fk = Fk(k);
-          const auto etak = Eta(k);
-
           const auto Q_kvamn = qk.Q(k, v, a, m, n);
-          const auto L_kvamn = LisQ ? fk * Q_kvamn : lk.Q(k, m, n, v, a);
-          const auto P_kvamn = lk.P(k, n, m, a, v); // \propto Q_mnva
+          const auto L_kvamn = LisQ ? Q_kvamn : lk.Q(k, m, n, v, a);
+          const auto P_kvamn = lk.P(k, n, m, a, v);
 
-          // diagram (a). xxx include fk here? I though no...
-          de_v += /*fk **/ etak * Q_kvamn * L_kvamn * inv_de / (2 * k + 1);
+          // diagram (a)
+          de_v += Q_kvamn * L_kvamn * inv_de / (2 * k + 1);
           // diagram (b) [exchange]
-          de_v += fk * Q_kvamn * P_kvamn * inv_de / (2 * k + 1);
+          de_v += Q_kvamn * P_kvamn * inv_de / (2 * k + 1);
         } // k
       } // m
 
@@ -79,17 +65,14 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
         const auto [k0, kI] = Coulomb::k_minmax_Q(v, n, a, b);
         for (int k = k0; k <= kI; k += 2) {
 
-          const auto fk = Fk(k);
-          const auto etak = Eta(k);
-
           const auto Q_kvnab = qk.Q(k, v, n, a, b);
-          const auto L_kvnab = LisQ ? fk * Q_kvnab : lk.Q(k, v, n, a, b);
+          const auto L_kvnab = LisQ ? Q_kvnab : lk.Q(k, v, n, a, b);
           const auto P_kvnab = lk.P(k, v, n, a, b);
 
-          // diagram (c). xxx include fk here? I though no...
-          de_v += /*fk **/ etak * Q_kvnab * L_kvnab * inv_de / (2 * k + 1);
+          // diagram (c)
+          de_v += Q_kvnab * L_kvnab * inv_de / (2 * k + 1);
           // diagram (d) [exchange]
-          de_v += fk * Q_kvnab * P_kvnab * inv_de / (2 * k + 1);
+          de_v += Q_kvnab * P_kvnab * inv_de / (2 * k + 1);
         }
       }
     }
