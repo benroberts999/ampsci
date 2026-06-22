@@ -6,13 +6,27 @@
 #include <cstdint>
 #include <cstring>
 #include <iostream>
-#include <unordered_map>
 #include <vector>
+// #define SIXJ_USE_STD_MAP
+#ifdef SIXJ_USE_STD_MAP
+#include <unordered_map>
+#else
+#include "ankerl/unordered_dense.h"
+#endif
 
 // XXX Note: This is significantly faster if implemented in header file, not
 // sepperate cpp file. Seems due to inlineing of 'get' function
 
 namespace Angular {
+
+//! Hashmap type used to store 6j symbols.
+//! @details Defaults to ankerl::unordered_dense::map (fast, densely-stored,
+//! open-addressing). Define SIXJ_USE_STD_MAP to fall back to std::unordered_map.
+#ifdef SIXJ_USE_STD_MAP
+using SixJMap = std::unordered_map<uint64_t, double>;
+#else
+using SixJMap = ankerl::unordered_dense::map<uint64_t, double>;
+#endif
 
 //=============================================================================
 //! Returns 2*k if @p a is an integer, or 2*j if @p a is a DiracSpinor.
@@ -67,7 +81,7 @@ double SixJ(const A &a, const B &b, const C &c, const D &d, const E &e,
 */
 class SixJTable {
 private:
-  std::unordered_map<uint64_t, double> m_data{};
+  SixJMap m_data{};
   int m_max_2j_k{-1};
   static auto s(int i) { return static_cast<uint8_t>(i); };
 

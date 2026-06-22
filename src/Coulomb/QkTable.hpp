@@ -6,7 +6,12 @@
 #include <cstdint>
 #include <functional>
 #include <string_view>
+// #define COULOMB_USE_STD_MAP
+#ifdef COULOMB_USE_STD_MAP
 #include <unordered_map>
+#else
+#include "ankerl/unordered_dense.h"
+#endif
 
 namespace Coulomb {
 
@@ -40,6 +45,17 @@ using nk4Index = uint64_t;
 using nkIndex = uint16_t;
 
 static_assert(sizeof(nkIndex) == sizeof(DiracSpinor::Index));
+
+//! Hashmap type used to store integrals (one per k).
+//! @details Defaults to ankerl::unordered_dense::map (a fast, densely-stored,
+//! open-addressing hashmap). Define COULOMB_USE_STD_MAP at compile time to fall
+//! back to std::unordered_map. The two share the API used here, so swapping is
+//! transparent to the rest of the code.
+#ifdef COULOMB_USE_STD_MAP
+using QkMap = std::unordered_map<nk4Index, Real>;
+#else
+using QkMap = ankerl::unordered_dense::map<nk4Index, Real>;
+#endif
 
 //! Function type for calculating Coulomb(-like) integrals.
 //! Takes k and 4 DiracSpinors, returns a double
@@ -103,7 +119,7 @@ class CoulombTable {
 
 private:
   // each vector element corresponds to a 'k'
-  std::vector<std::unordered_map<nk4Index, Real>> m_data{};
+  std::vector<QkMap> m_data{};
 
 public:
   // 'Rule of zero' (except virtual destructor)

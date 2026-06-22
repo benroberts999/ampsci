@@ -2,10 +2,25 @@
 #include "Angular/CkTable.hpp"
 #include "Angular/SixJTable.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
-#include <unordered_map>
 #include <vector>
+// #define YKTABLE_USE_STD_MAP
+#ifdef YKTABLE_USE_STD_MAP
+#include <unordered_map>
+#else
+#include "ankerl/unordered_dense.h"
+#endif
 
 namespace Coulomb {
+
+//! Hashmap type used to store the y^k_ab radial functions (one map per k).
+//! @details Defaults to ankerl::unordered_dense::map (fast, densely-stored,
+//! open-addressing). Define YKTABLE_USE_STD_MAP to fall back to
+//! std::unordered_map.
+#ifdef YKTABLE_USE_STD_MAP
+using YkMap = std::unordered_map<uint32_t, std::vector<double>>;
+#else
+using YkMap = ankerl::unordered_dense::map<uint32_t, std::vector<double>>;
+#endif
 
 //! @brief Calculates + stores Hartree Y functions + Angular (w/ look-up),
 //! taking advantage of symmetry
@@ -31,7 +46,7 @@ namespace Coulomb {
 class YkTable {
 
 private:
-  std::vector<std::unordered_map<uint32_t, std::vector<double>>> m_Y{};
+  std::vector<YkMap> m_Y{};
   Angular::CkTable m_Ck{};
   Angular::SixJTable m_6j{};
 
