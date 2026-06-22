@@ -6,11 +6,6 @@
 
 namespace MBPT {
 
-// // Weighted average:
-// fk = 0.714, 0.617, 0.832, 0.885, 0.941, 0.970, 0.987, 0.994
-// fk = 0.654, 0.514, 0.792, 0.857, 0.930, 0.967, 0.986, 0.994 // w/ hp
-// eta= 1.258, 1.511, 1.281, 1.175, 1.114, 1.073, 1.062, 1.066
-
 /*!
   @brief Full ladder integral summed over all diagrams.
   @details
@@ -31,7 +26,6 @@ namespace MBPT {
   @param include_L4 Include the core--core diagram L4
   @param SJ         6j symbol table
   @param Lk         Ladder table from previous iteration (nullptr on first)
-  @param fk         Optional screening factors \f$ f_k \f$
   @return \f$ L^k_{mnij} \f$
   @note To evaluate at a fixed external energy (for a correlation potential),
         pass the external orbital with its energy set accordingly: the energy
@@ -42,8 +36,7 @@ double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
               const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
               const std::vector<DiracSpinor> &excited, bool include_L4,
               const Angular::SixJTable &SJ,
-              const Coulomb::LkTable *const Lk = nullptr,
-              const std::vector<double> &fk = {});
+              const Coulomb::LkTable *const Lk = nullptr);
 
 /*!
   @brief Particle--particle ladder diagram L1.
@@ -66,15 +59,13 @@ double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param excited Excited orbitals
   @param SJ      6j symbol table
   @param Lk      Ladder table from previous iteration (nullptr on first)
-  @param fk      Optional screening factors \f$ f_k \f$
   @return \f$ L1^k_{mnij} \f$
 */
 double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &excited,
           const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk = nullptr,
-          const std::vector<double> &fk = {});
+          const Coulomb::LkTable *const Lk = nullptr);
 
 /*!
   @brief Particle--hole ladder diagram L2.
@@ -94,15 +85,13 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param excited Excited orbitals
   @param SJ      6j symbol table
   @param Lk      Ladder table from previous iteration (nullptr on first)
-  @param fk      Optional screening factors \f$ f_k \f$
   @return \f$ L2^k_{mnij} \f$
 */
 double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk = nullptr,
-          const std::vector<double> &fk = {});
+          const Coulomb::LkTable *const Lk = nullptr);
 
 /*!
   @brief Exchange partner of L2; equals L2 with m,n and i,j swapped.
@@ -115,9 +104,8 @@ inline double L3(int k, const DiracSpinor &m, const DiracSpinor &n,
                  const std::vector<DiracSpinor> &core,
                  const std::vector<DiracSpinor> &excited,
                  const Angular::SixJTable &SJ,
-                 const Coulomb::LkTable *const Lk = nullptr,
-                 const std::vector<double> &fk = {}) {
-  return L2(k, n, m, j, i, qk, core, excited, SJ, Lk, fk);
+                 const Coulomb::LkTable *const Lk = nullptr) {
+  return L2(k, n, m, j, i, qk, core, excited, SJ, Lk);
 }
 
 /*!
@@ -135,15 +123,13 @@ inline double L3(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param core Core orbitals
   @param SJ  6j symbol table
   @param Lk  Ladder table from previous iteration (nullptr on first)
-  @param fk  Optional screening factors \f$ f_k \f$
   @return \f$ L4^k_{mnij} \f$
 */
 double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk = nullptr,
-          const std::vector<double> &fk = {});
+          const Coulomb::LkTable *const Lk = nullptr);
 
 /*!
   @brief Fills the ladder integral table for all required index combinations.
@@ -160,14 +146,12 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param include_L4  Include core--core diagram L4
   @param sjt         6j symbol table
   @param print       Print Qk info to screen
-  @param fk          Optional screening factors \f$ f_k \f$
 */
 void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
-                  const Angular::SixJTable &sjt, bool print = true,
-                  const std::vector<double> &fk = {});
+                  const Angular::SixJTable &sjt, bool print = true);
 
 /*!
   @brief Updates the ladder integral table with L(Q,Q) -> L(Q,Q+L)
@@ -190,7 +174,6 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   @param lk_prev     Ladder table from previous iteration
   @param a_damp      Damping factor [0,1) : 0 means no damping
   @param print       Print Qk info to screen
-  @param fk          Optional screening factors \f$ f_k \f$
 */
 void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &excited,
@@ -198,7 +181,7 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                     const Angular::SixJTable &sjt,
                     const Coulomb::LkTable *const lk_prev, double a_damp,
-                    bool print, const std::vector<double> &fk);
+                    bool print);
 
 /*!
   @brief Second-order (or ladder) correction to the valence energy.
@@ -217,16 +200,12 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   @param lk      \f$ Q^k \f$ or ladder \f$ L^k \f$ integral table
   @param core    Core orbitals
   @param excited Excited orbitals
-  @param fk      Optional screening factors \f$ f_k \f$
-  @param etak    Optional enhancement factors \f$ \eta_k \f$
   @return \f$ \delta\epsilon_v \f$
 */
 template <typename Qintegrals, typename QorLintegrals>
 double de_valence(const DiracSpinor &v, const Qintegrals &qk,
                   const QorLintegrals &lk, const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &excited,
-                  const std::vector<double> &fk = {},
-                  const std::vector<double> &etak = {});
+                  const std::vector<DiracSpinor> &excited);
 
 /*!
   @brief Ladder (or MBPT2) valence energy, antisymmetrising the FIRST integral.
@@ -309,8 +288,6 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
                    full ladder
   @param sjt       6j symbol table
   @param include_L4 Include core--core diagram in on-the-fly Lkmnij
-  @param fk        Optional screening factors \f$ f_k \f$
-  @param etak      Optional enhancement factors \f$ \eta_k \f$
   @param r0,rmax,stride  Sub-grid parameters
   @return Sigma_L as a coordinate-space GMatrix
 */
@@ -320,9 +297,8 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
                      const std::vector<DiracSpinor> &basis,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
                      const Angular::SixJTable &sjt, bool include_L4 = false,
-                     const std::vector<double> &fk = {},
-                     const std::vector<double> &etak = {}, double r0 = 1.0e-4,
-                     double rmax = 30.0, std::size_t stride = 4);
+                     double r0 = 1.0e-4, double rmax = 30.0,
+                     std::size_t stride = 4);
 
 // template implementations:
 #include "Ladder.ipp"

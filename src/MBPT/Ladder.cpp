@@ -14,16 +14,15 @@ double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
               const DiracSpinor &i, const DiracSpinor &j,
               const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
               const std::vector<DiracSpinor> &excited, bool include_L4,
-              const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk,
-              const std::vector<double> &fk) {
+              const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk) {
 
-  const auto L123 = L1(k, m, n, i, j, qk, excited, SJ, Lk, fk) +
-                    L2(k, m, n, i, j, qk, core, excited, SJ, Lk, fk) +
-                    L3(k, m, n, i, j, qk, core, excited, SJ, Lk, fk);
+  const auto L123 = L1(k, m, n, i, j, qk, excited, SJ, Lk) +
+                    L2(k, m, n, i, j, qk, core, excited, SJ, Lk) +
+                    L3(k, m, n, i, j, qk, core, excited, SJ, Lk);
   // Optionally include "4th" ladder diagram
   // nb: L4 not fully checked!
   if (include_L4)
-    return L123 + L4(k, m, n, i, j, qk, core, SJ, Lk, fk);
+    return L123 + L4(k, m, n, i, j, qk, core, SJ, Lk);
   else
     return L123;
 }
@@ -32,8 +31,7 @@ double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
 double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &excited,
-          const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk,
-          const std::vector<double> &fk) {
+          const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk) {
 
   // m (and n) must be excited states, as should 'excited'
   // Therefore, can test:
@@ -42,11 +40,6 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
   // (Still possible BOTH wrong at the same time..)
   // assert(std::find(excited.cbegin(), excited.cend(), m) != excited.cend());
   // assert(std::find(excited.cbegin(), excited.cend(), n) != excited.cend());
-
-  // screening factors:
-  auto Fk = [&fk](int l) {
-    return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
-  };
 
   double l1 = 0.0;
   const double tkp1 = 2.0 * k + 1.0;
@@ -77,7 +70,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
       const auto lkey_rsij = Lk ? Lk->NormalOrder(r, s, i, j) : 0ul;
 
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_umnrs = Fk(u) * qk.Q(u, key_mnrs);
+        const auto Q_umnrs = qk.Q(u, key_mnrs);
         if (Q_umnrs == 0.0)
           continue; // never? Unless have k_cut
 
@@ -94,7 +87,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto sj_r = SJ.get(m, i, k, l, u, r);
           const auto sj_s = SJ.get(n, j, k, l, u, s);
 
-          const auto Q_lrsij = Fk(l) * qk.Q(l, key_rsij);
+          const auto Q_lrsij = qk.Q(l, key_rsij);
           const auto L_lrsij = Lk ? Lk->Q(l, lkey_rsij) : 0.0;
 
           l1 +=
@@ -111,8 +104,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
-          const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk,
-          const std::vector<double> &fk) {
+          const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk) {
 
   // m (and n) must be excited states, as should 'excited'
   // Therefore, can test:
@@ -120,11 +112,6 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   // and that m and n are excited orbitals
   // assert(std::find(core.cbegin(), core.cend(), m) == core.cend());
   // assert(std::find(core.cbegin(), core.cend(), n) == core.cend());
-
-  // screening factors:
-  auto Fk = [&fk](int l) {
-    return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
-  };
 
   double l4 = 0.0;
   const double tkp1 = 2.0 * k + 1.0;
@@ -150,7 +137,7 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
       const auto lkey_mncd = Lk ? Lk->NormalOrder(m, n, c, d) : 0ul;
 
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_ucdij = Fk(u) * qk.Q(u, key_cdij);
+        const auto Q_ucdij = qk.Q(u, key_cdij);
         if (Q_ucdij == 0.0)
           continue; // never? Unless have k_cut
 
@@ -167,7 +154,7 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto sj_c = SJ.get(m, i, k, u, l, c);
           const auto sj_d = SJ.get(n, j, k, u, l, d);
 
-          const auto Q_lmncd = Fk(l) * qk.Q(l, key_mncd);
+          const auto Q_lmncd = qk.Q(l, key_mncd);
           const auto L_lmncd = Lk ? Lk->Q(l, lkey_mncd) : 0.0;
 
           l4 +=
@@ -185,7 +172,7 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk, const std::vector<double> &fk) {
+          const Coulomb::LkTable *const Lk) {
 
   // m (and n) must be excited states, as should 'excited'
   // Therefore, can test:
@@ -194,11 +181,6 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
   // assert(std::find(excited.cbegin(), excited.cend(), m) != excited.cend());
   // assert(std::find(excited.cbegin(), excited.cend(), n) != excited.cend());
   // assert(std::find(core.cbegin(), core.cend(), m) == core.cend());
-
-  // screening factors:
-  auto Fk = [&fk](int l) {
-    return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
-  };
 
   double l2 = 0.0;
   const double tkp1 = 2.0 * k + 1.0;
@@ -222,7 +204,7 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
       const auto lkey_mrcj = Lk ? Lk->NormalOrder(m, r, c, j) : 0ul;
 
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_ucnir = Fk(u) * qk.Q(u, key_cnir);
+        const auto Q_ucnir = qk.Q(u, key_cnir);
         if (Q_ucnir == 0.0)
           continue; // never? Unless have k_cut
 
@@ -241,7 +223,7 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto sj_c = SJ.get(m, i, k, u, l, c);
           const auto sj_r = SJ.get(j, n, k, u, l, r);
 
-          const auto Q_lmrcj = Fk(l) * qk.Q(l, key_mrcj);
+          const auto Q_lmrcj = qk.Q(l, key_mrcj);
           const auto L_lmrcj = Lk ? Lk->Q(l, lkey_mrcj) : 0.0;
 
           l2 += (s_ul * s_rc * sj_c * sj_r) * Q_ucnir * (Q_lmrcj + L_lmrcj) *
@@ -259,8 +241,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
-                  const Angular::SixJTable &sjt, bool print,
-                  const std::vector<double> &fk) {
+                  const Angular::SixJTable &sjt, bool print) {
 
   // const double a_damp = 0.35;
   // const double b_damp = 1.0 - a_damp;
@@ -287,7 +268,8 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   // Base selection rule: m,n in excited, i in i_orbs, b in core + angular SR.
   // Determines which L^k_mnib integrals we actually need.
   const auto Lk_SR_one = [&](int k, const DiracSpinor &m, const DiracSpinor &n,
-                             const DiracSpinor &i, const DiracSpinor &b) -> bool {
+                             const DiracSpinor &i,
+                             const DiracSpinor &b) -> bool {
     // Require m and n to be excited
     if (!excited_set.count(m.nk_index()) || !excited_set.count(n.nk_index()))
       return false;
@@ -313,8 +295,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   const auto Lk_function = [&](int k, const DiracSpinor &m,
                                const DiracSpinor &n, const DiracSpinor &i,
                                const DiracSpinor &b) -> double {
-    return Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, nullptr,
-                  fk);
+    return Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, nullptr);
   };
 
   lk->fill(basis, Lk_function, Lk_SR, kmax, print);
@@ -327,7 +308,6 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
                      const std::vector<DiracSpinor> &basis,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
                      const Angular::SixJTable &sjt, bool include_L4,
-                     const std::vector<double> &, const std::vector<double> &,
                      double r0, double rmax, std::size_t stride) {
 
   // Ladder correction to the correlation potential, evaluated at energy en_v.
@@ -356,12 +336,6 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
   // 'lk' is the internal-rung ladder table passed straight to Lkmnij: pass
   // nullptr for L(Q,Q) = L^(1) (matches an un-iterated table), or a converged
   // table (its fixed point) for the full ladder.
-
-  // get_k helper (screening / enhancement factors):
-  // const auto get_k = [](int k, const std::vector<double> &f) {
-  //   const auto sk = std::size_t(k);
-  //   return sk < f.size() ? f[sk] : 1.0;
-  // };
 
   const auto tjv = Angular::twoj_k(kappa_v);
 
@@ -409,8 +383,6 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
         for (int k = kmin_na; k <= kmax_na; ++k) {
 
           const auto f_kkjj = (2 * k + 1) * (tjv + 1);
-          // if (get_k(k, fk) == 0.0 || get_k(k, etak) == 0.0)
-          //   continue;
           // Enforce the (a,n) Coulomb parity: only k with Q^k_{vamn} != 0
           // contribute. The W=Q+P ket does NOT self-gate parity the way the
           // bare Q ket does, so without this its P-part adds spurious
@@ -437,8 +409,6 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
           for (int k = kmin_nb; k <= kmax_nb; ++k) {
 
             const auto f_kkjj = (2 * k + 1) * (tjv + 1);
-            // if (get_k(k, fk) == 0.0 || get_k(k, etak) == 0.0)
-            //   continue;
             if (!Angular::Ck_kk_SR(k, kappa_v, a.kappa()))
               continue;
             // Enforce the (n,b) Coulomb parity (only k with Q^k_{vnab} != 0);
@@ -474,7 +444,7 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                     const Angular::SixJTable &sjt,
                     const Coulomb::LkTable *const lk_prev, double a_damp,
-                    bool print, const std::vector<double> &fk) {
+                    bool print) {
 
   // Build combined basis: excited + core + any extra i_orbs (e.g. valence)
   // i_orbs not required (either core or subset of excited)
@@ -486,8 +456,7 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   const auto Lk_function = [&](int k, const DiracSpinor &m,
                                const DiracSpinor &n, const DiracSpinor &i,
                                const DiracSpinor &b) -> double {
-    return Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, lk_prev,
-                  fk);
+    return Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, lk_prev);
   };
 
   lk->update(basis, Lk_function, a_damp, print);
