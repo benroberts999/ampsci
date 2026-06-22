@@ -1,7 +1,10 @@
 #pragma once
 #include "Angular/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <algorithm>
+#include <cstdlib>
 #include <optional>
+#include <utility>
 #include <vector>
 
 //! Functions (+classes) for computing Coulomb integrals
@@ -95,28 +98,88 @@ DiracSpinor Wkv_bcd(const int k, int kappa_v, const DiracSpinor &Fb,
 
 //==============================================================================
 
-//! Returns min and max k (multipolarity) allowed for C^k_ab, accounting for
-//! parity (used by k_minmax_Q)
-std::pair<int, int> k_minmax_Ck(const DiracSpinor &a, const DiracSpinor &b);
-//! Returns min and max k (multipolarity) allowed for C^k_ab, accounting for
-//! parity (used by k_minmax_Q)
-std::pair<int, int> k_minmax_Ck(int kappa_a, int kappa_b);
-
 //! Returns min and max k (multipolarity) allowed for Triangle(k,a,b),
 //! NOT accounting for parity (2j only, not kappa/l) (used by k_minmax_P,W)
-std::pair<int, int> k_minmax_tj(int tja, int tjb);
+//! @details made inline - called very often
+inline std::pair<int, int> k_minmax_tj(int tja, int tjb) {
+  return std::make_pair(std::abs(tja - tjb) / 2, (tja + tjb) / 2);
+}
+
+//! Returns min and max k (multipolarity) allowed for C^k_ab, accounting for
+//! parity (used by k_minmax_Q)
+//! @details made inline - called very often
+inline std::pair<int, int> k_minmax_Ck(const DiracSpinor &a,
+                                       const DiracSpinor &b) {
+  auto minmax = k_minmax_tj(a.twoj(), b.twoj());
+  auto &min_k = minmax.first;
+  auto &max_k = minmax.second;
+  if ((a.l() + b.l() + min_k) % 2 != 0) {
+    ++min_k;
+  }
+  if ((a.l() + b.l() + max_k) % 2 != 0) {
+    --max_k;
+  }
+  return minmax;
+}
+//! Returns min and max k (multipolarity) allowed for C^k_ab, accounting for
+//! parity (used by k_minmax_Q)
+//! @details inline (header) - hot inner-loop helper.
+inline std::pair<int, int> k_minmax_Ck(int kappa_a, int kappa_b) {
+  auto minmax = k_minmax_tj(Angular::twoj_k(kappa_a), Angular::twoj_k(kappa_b));
+  auto &min_k = minmax.first;
+  auto &max_k = minmax.second;
+  const auto la = Angular::l_k(kappa_a);
+  const auto lb = Angular::l_k(kappa_b);
+  if ((la + lb + min_k) % 2 != 0) {
+    ++min_k;
+  }
+  if ((la + lb + max_k) % 2 != 0) {
+    --max_k;
+  }
+  return minmax;
+}
 
 //! Returns min and max k (multipolarity) allowed for Q^k_abcd.
 //! Parity rule is included, so you may safely call k+=2.
 //! Guaranteed to be non-zero *at* min and max, and every 2nd inbetween.
-std::pair<int, int> k_minmax_Q(const DiracSpinor &a, const DiracSpinor &b,
-                               const DiracSpinor &c, const DiracSpinor &d);
+//! @details made inline - called very often
+inline std::pair<int, int> k_minmax_Q(const DiracSpinor &a,
+                                      const DiracSpinor &b,
+                                      const DiracSpinor &c,
+                                      const DiracSpinor &d) {
+  // Determine if K needs to be even/odd (parity selection rule)
+  const auto k_even_ac = (a.l() + c.l()) % 2 == 0;
+  const auto k_even_bd = (b.l() + d.l()) % 2 == 0;
+  if (k_even_ac != k_even_bd) {
+    // no K satisfies selection rule!
+    return {1, 0};
+  }
+
+  // Find min/max k from triangle rule:
+  const auto [l1, u1] = k_minmax_Ck(a, c);
+  const auto [l2, u2] = k_minmax_Ck(b, d);
+  return {std::max(l1, l2), std::min(u1, u2)};
+}
 
 //! Returns min and max k (multipolarity) allowed for Q^k_abcd.
 //! Parity rule is included, so you may safely call k+=2.
 //! Guaranteed to be non-zero *at* min and max, and every 2nd inbetween.
-std::pair<int, int> k_minmax_Q(int kappa_a, int kappa_b, int kappa_c,
-                               int kappa_d);
+//! @details made inline - called very often
+inline std::pair<int, int> k_minmax_Q(int kap_a, int kap_b, int kap_c,
+                                      int kap_d) {
+  // Determine if K needs to be even/odd (parity selection rule)
+  const auto k_even_ac = (Angular::l_k(kap_a) + Angular::l_k(kap_c)) % 2 == 0;
+  const auto k_even_bd = (Angular::l_k(kap_b) + Angular::l_k(kap_d)) % 2 == 0;
+  if (k_even_ac != k_even_bd) {
+    // no K satisfies selection rule!
+    return {1, 0};
+  }
+
+  // Find min/max k from triangle rule:
+  const auto [l1, u1] = k_minmax_Ck(kap_a, kap_c);
+  const auto [l2, u2] = k_minmax_Ck(kap_b, kap_d);
+  return {std::max(l1, l2), std::min(u1, u2)};
+}
 
 //! Returns min and max k (multipolarity) allowed for P^k_abcd.
 //! DOES NOT contain parity rules (6j only) - so NOT safe to call k+=2.
