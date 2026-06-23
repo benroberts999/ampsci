@@ -92,9 +92,51 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
     }
   }
 
+  // Thread-local cache of Q^u_{mnrs} for the current (m,n), indexed by
+  // (r,s,u). Q^u_{mnrs} depends only on (m,n,r,s) - not on the external (i,j) -
+  // but L1 is called once per (m,n,i,j). fill()/update() hold (m,n)=(a,b) fixed
+  // while sweeping the inner (i,j)=(c,d), so caching here turns the dominant
+  // cross-call Qk hash lookups into array reads (rebuilt only when (m,n) or the
+  // excited set changes). The u-dimension bound depends only on (m,n), so the
+  // cache stays valid across the whole (i,j) sweep. Bit-identical.
+  const auto ne = excited.size();
+  const int kumax = (std::max(m.twoj(), n.twoj()) + t2max) / 2;
+  const auto ndu = std::size_t(kumax) + 1;
+  const auto qu_index = [ne, ndu](std::size_t ri, std::size_t si, int u) {
+    return (ri * ne + si) * ndu + std::size_t(u);
+  };
+  static thread_local std::vector<double> Qu_mnrs;
+  static thread_local const DiracSpinor *Qu_excited = nullptr;
+  static thread_local std::size_t Qu_ne = 0;
+  static thread_local int Qu_kumax = -1;
+  static thread_local DiracSpinor::Index Qu_m = 0, Qu_n = 0;
+  if (Qu_excited != excited.data() || Qu_ne != ne || Qu_kumax != kumax ||
+      Qu_m != m.nk_index() || Qu_n != n.nk_index()) {
+    // resize (not assign): every cell the main loop reads (u in [u0,uI]) is
+    // written below for the same (r,s); cells outside are never read.
+    Qu_mnrs.resize(ne * ne * ndu);
+    for (auto ri = 0ul; ri < ne; ++ri) {
+      for (auto si = 0ul; si < ne; ++si) {
+        const auto [uu0, uuI] =
+          Coulomb::k_minmax_Q(m, n, excited[ri], excited[si]);
+        if (uuI < uu0)
+          continue;
+        const auto key = qk.NormalOrder(m, n, excited[ri], excited[si]);
+        for (auto u = uu0; u <= uuI; u += 2)
+          Qu_mnrs[qu_index(ri, si, u)] = qk.Q(u, key);
+      }
+    }
+    Qu_excited = excited.data();
+    Qu_ne = ne;
+    Qu_kumax = kumax;
+    Qu_m = m.nk_index();
+    Qu_n = n.nk_index();
+  }
+
   for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
     const auto &r = excited[r_index];
-    for (const auto &s : excited) {
+    for (auto s_index = 0ul; s_index < excited.size(); ++s_index) {
+      const auto &s = excited[s_index];
 
       const auto [u0, uI] = Coulomb::k_minmax_Q(m, n, r, s);
       const auto [l0, lI] = Coulomb::k_minmax_Q(r, s, i, j);
@@ -103,7 +145,6 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
       const auto inv_e_ijrs = 1.0 / (i.en() + j.en() - r.en() - s.en());
-      const auto key_mnrs = qk.NormalOrder(m, n, r, s);
       const auto key_rsij = qk.NormalOrder(r, s, i, j);
       const auto lkey_rsij = Lk ? Lk->NormalOrder(r, s, i, j) : 0ul;
 
@@ -116,7 +157,7 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
       }
 
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_umnrs = qk.Q(u, key_mnrs);
+        const auto Q_umnrs = Qu_mnrs[qu_index(r_index, s_index, u)];
         if (Q_umnrs == 0.0)
           continue; // never? Unless have k_cut
 
