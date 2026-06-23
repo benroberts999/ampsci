@@ -4,10 +4,19 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/omp.hpp"
+#include <algorithm>
+#include <array>
+#include <cassert>
+#include <cstdint>
 #include <numeric>
-#include <unordered_set>
+#include <vector>
 
 namespace MBPT {
+
+// Size of the stack arrays used to cache the k-dependent (Q,L) integrals in
+// the L1/L2/L4 inner loops, indexed directly by multipolarity k. Comfortably
+// larger than any physical k = k_minmax_Q(...) for realistic bases.
+constexpr std::size_t sk_array_size = 32;
 
 //==============================================================================
 double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
@@ -54,9 +63,80 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
   //   return 0.0;
   // }
 
+  // Local dense cache of the recoupling 6j symbols. sj_r = {m,i,k;l,u,r} and
+  // sj_s = {n,j,k;l,u,s} depend on the intermediate orbital (r or s) only
+  // through its 2j, so two orbitals of the same kappa give the same value.
+  // Precompute once per call, indexed by (2j, l, u), turning the inner-loop
+  // SixJTable hash lookup into a direct array read. Bit-identical.
+  // (kmax bounds every l,u from k_minmax_Q: l,u <= (max_ext_2j + max_2j)/2.)
+  int t2max = 0;
+  for (const auto &x : excited)
+    t2max = std::max(t2max, x.twoj());
+  const int kmax =
+    (std::max({m.twoj(), n.twoj(), i.twoj(), j.twoj()}) + t2max) / 2;
+  const auto ndk = std::size_t(kmax) + 1;
+  const auto sj_index = [ndk](int t2, int l, int u) {
+    return (std::size_t(t2) * ndk + std::size_t(l)) * ndk + std::size_t(u);
+  };
+  static thread_local std::vector<double> sjr_cache, sjs_cache;
+  sjr_cache.resize((std::size_t(t2max) + 1) * ndk * ndk);
+  sjs_cache.resize((std::size_t(t2max) + 1) * ndk * ndk);
+  for (int t2 = 1; t2 <= t2max; t2 += 2) {
+    for (int l = 0; l <= kmax; ++l) {
+      for (int u = 0; u <= kmax; ++u) {
+        sjr_cache[sj_index(t2, l, u)] =
+          SJ.get_2(m.twoj(), i.twoj(), 2 * k, 2 * l, 2 * u, t2);
+        sjs_cache[sj_index(t2, l, u)] =
+          SJ.get_2(n.twoj(), j.twoj(), 2 * k, 2 * l, 2 * u, t2);
+      }
+    }
+  }
+
+  // Thread-local cache of Q^u_{mnrs} for the current (m,n), indexed by
+  // (r,s,u). Q^u_{mnrs} depends only on (m,n,r,s) - not on the external (i,j) -
+  // but L1 is called once per (m,n,i,j). fill()/update() hold (m,n)=(a,b) fixed
+  // while sweeping the inner (i,j)=(c,d), so caching here turns the dominant
+  // cross-call Qk hash lookups into array reads (rebuilt only when (m,n) or the
+  // excited set changes). The u-dimension bound depends only on (m,n), so the
+  // cache stays valid across the whole (i,j) sweep. Bit-identical.
+  const auto ne = excited.size();
+  const int kumax = (std::max(m.twoj(), n.twoj()) + t2max) / 2;
+  const auto ndu = std::size_t(kumax) + 1;
+  const auto qu_index = [ne, ndu](std::size_t ri, std::size_t si, int u) {
+    return (ri * ne + si) * ndu + std::size_t(u);
+  };
+  static thread_local std::vector<double> Qu_mnrs;
+  static thread_local const DiracSpinor *Qu_excited = nullptr;
+  static thread_local std::size_t Qu_ne = 0;
+  static thread_local int Qu_kumax = -1;
+  static thread_local DiracSpinor::Index Qu_m = 0, Qu_n = 0;
+  if (Qu_excited != excited.data() || Qu_ne != ne || Qu_kumax != kumax ||
+      Qu_m != m.nk_index() || Qu_n != n.nk_index()) {
+    // resize (not assign): every cell the main loop reads (u in [u0,uI]) is
+    // written below for the same (r,s); cells outside are never read.
+    Qu_mnrs.resize(ne * ne * ndu);
+    for (auto ri = 0ul; ri < ne; ++ri) {
+      for (auto si = 0ul; si < ne; ++si) {
+        const auto [uu0, uuI] =
+          Coulomb::k_minmax_Q(m, n, excited[ri], excited[si]);
+        if (uuI < uu0)
+          continue;
+        const auto key = qk.NormalOrder(m, n, excited[ri], excited[si]);
+        for (auto u = uu0; u <= uuI; u += 2)
+          Qu_mnrs[qu_index(ri, si, u)] = qk.Q(u, key);
+      }
+    }
+    Qu_excited = excited.data();
+    Qu_ne = ne;
+    Qu_kumax = kumax;
+    Qu_m = m.nk_index();
+    Qu_n = n.nk_index();
+  }
+
   for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
     const auto &r = excited[r_index];
-    for (const auto &s : excited) {
+    for (auto s_index = 0ul; s_index < excited.size(); ++s_index) {
+      const auto &s = excited[s_index];
 
       const auto [u0, uI] = Coulomb::k_minmax_Q(m, n, r, s);
       const auto [l0, lI] = Coulomb::k_minmax_Q(r, s, i, j);
@@ -65,12 +145,19 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
       const auto inv_e_ijrs = 1.0 / (i.en() + j.en() - r.en() - s.en());
-      const auto key_mnrs = qk.NormalOrder(m, n, r, s);
       const auto key_rsij = qk.NormalOrder(r, s, i, j);
       const auto lkey_rsij = Lk ? Lk->NormalOrder(r, s, i, j) : 0ul;
 
+      // Cache (Q+L)^l_rsij: depends only on l, avoid N_u lookups
+      assert(lI < int(sk_array_size));
+      std::array<double, sk_array_size> QLl_rsij{};
+      for (auto l = l0; l <= lI; l += 2) {
+        QLl_rsij[std::size_t(l)] =
+          qk.Q(l, key_rsij) + (Lk ? Lk->Q(l, lkey_rsij) : 0.0);
+      }
+
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_umnrs = qk.Q(u, key_mnrs);
+        const auto Q_umnrs = Qu_mnrs[qu_index(r_index, s_index, u)];
         if (Q_umnrs == 0.0)
           continue; // never? Unless have k_cut
 
@@ -84,14 +171,12 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           if (Angular::triangle(k, l, u) == 0)
             continue;
 
-          const auto sj_r = SJ.get(m, i, k, l, u, r);
-          const auto sj_s = SJ.get(n, j, k, l, u, s);
+          const auto sj_r = sjr_cache[sj_index(r.twoj(), l, u)];
+          const auto sj_s = sjs_cache[sj_index(s.twoj(), l, u)];
 
-          const auto Q_lrsij = qk.Q(l, key_rsij);
-          const auto L_lrsij = Lk ? Lk->Q(l, lkey_rsij) : 0.0;
+          const auto QL_lrsij = QLl_rsij[std::size_t(l)];
 
-          l1 +=
-            (s_rs * sj_r * sj_s) * Q_umnrs * (Q_lrsij + L_lrsij) * inv_e_ijrs;
+          l1 += (s_rs * sj_r * sj_s) * Q_umnrs * QL_lrsij * inv_e_ijrs;
         }
       }
     }
@@ -121,9 +206,71 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   //  6j(r) Triads: {m,i,k}, {k,u,l}, {i,u,c}, {l,c,m}
   //  6j(s) Triads: {n,b,k}, {k,u,l}, {b,u,d}, {l,d,n}
 
-  for (auto c_index = 0ul; c_index < core.size(); ++c_index) {
+  // Local dense cache of the recoupling 6j symbols (see L1). sj_c = {m,i,k;u,l,c}
+  // and sj_d = {n,j,k;u,l,d} depend on the intermediate orbital only through its
+  // 2j; precompute once per call, indexed by (2j, u, l). c, d are core orbitals.
+  // Bit-identical.
+  int t2max = 0;
+  for (const auto &x : core)
+    t2max = std::max(t2max, x.twoj());
+  const int kmax =
+    (std::max({m.twoj(), n.twoj(), i.twoj(), j.twoj()}) + t2max) / 2;
+  const auto ndk = std::size_t(kmax) + 1;
+  const auto sj_index = [ndk](int t2, int u, int l) {
+    return (std::size_t(t2) * ndk + std::size_t(u)) * ndk + std::size_t(l);
+  };
+  static thread_local std::vector<double> sjc_cache, sjd_cache;
+  sjc_cache.resize((std::size_t(t2max) + 1) * ndk * ndk);
+  sjd_cache.resize((std::size_t(t2max) + 1) * ndk * ndk);
+  for (int t2 = 1; t2 <= t2max; t2 += 2) {
+    for (int u = 0; u <= kmax; ++u) {
+      for (int l = 0; l <= kmax; ++l) {
+        sjc_cache[sj_index(t2, u, l)] =
+          SJ.get_2(m.twoj(), i.twoj(), 2 * k, 2 * u, 2 * l, t2);
+        sjd_cache[sj_index(t2, u, l)] =
+          SJ.get_2(n.twoj(), j.twoj(), 2 * k, 2 * u, 2 * l, t2);
+      }
+    }
+  }
+
+  // Thread-local cache of Q^u_{cdij} for fixed (i,j): avoids repeated hash
+  // lookups when L4 is called repeatedly with the same (i,j) (e.g. fixed
+  // i=i_ev and j=a in Sigma_ladder while m,n vary).
+  // Indexed as [c_index * nc + d_index][u], sequential in d for the inner loop.
+  const auto core_size = core.size();
+  const int kumax_cdij = (std::max(i.twoj(), j.twoj()) + t2max) / 2;
+  const auto ndu_cdij = std::size_t(kumax_cdij) + 1;
+  const auto qu_cdij_idx = [core_size, ndu_cdij](std::size_t ci, std::size_t di,
+                                                 int u) {
+    return (ci * core_size + di) * ndu_cdij + std::size_t(u);
+  };
+  static thread_local std::vector<double> Qu_cdij;
+  static thread_local const DiracSpinor *Qu_cdij_core = nullptr;
+  static thread_local DiracSpinor::Index Qu_cdij_i = 0, Qu_cdij_j = 0;
+  static thread_local int Qu_cdij_kumax = -1;
+  if (Qu_cdij_core != core.data() || Qu_cdij_i != i.nk_index() ||
+      Qu_cdij_j != j.nk_index() || Qu_cdij_kumax != kumax_cdij) {
+    Qu_cdij.assign(core_size * core_size * ndu_cdij, 0.0);
+    for (auto ci = 0ul; ci < core_size; ++ci) {
+      for (auto di = 0ul; di < core_size; ++di) {
+        const auto [uu0, uuI] = Coulomb::k_minmax_Q(core[ci], core[di], i, j);
+        if (uuI < uu0)
+          continue;
+        const auto key = qk.NormalOrder(core[ci], core[di], i, j);
+        for (auto u = uu0; u <= uuI; u += 2)
+          Qu_cdij[qu_cdij_idx(ci, di, u)] = qk.Q(u, key);
+      }
+    }
+    Qu_cdij_core = core.data();
+    Qu_cdij_i = i.nk_index();
+    Qu_cdij_j = j.nk_index();
+    Qu_cdij_kumax = kumax_cdij;
+  }
+
+  for (auto c_index = 0ul; c_index < core_size; ++c_index) {
     const auto &c = core[c_index];
-    for (const auto &d : core) {
+    for (auto d_index = 0ul; d_index < core_size; ++d_index) {
+      const auto &d = core[d_index];
 
       const auto [u0, uI] = Coulomb::k_minmax_Q(c, d, i, j);
       const auto [l0, lI] = Coulomb::k_minmax_Q(m, n, c, d);
@@ -132,12 +279,19 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto s_cd = Angular::neg1pow_2(c.twoj() + d.twoj());
       const auto inv_e_cdmn = 1.0 / (c.en() + d.en() - m.en() - n.en());
-      const auto key_cdij = qk.NormalOrder(c, d, i, j);
       const auto key_mncd = qk.NormalOrder(m, n, c, d);
       const auto lkey_mncd = Lk ? Lk->NormalOrder(m, n, c, d) : 0ul;
 
+      // Cache (Q+L)^l_mncd: depends only on l, used inside the u loop
+      assert(lI < int(sk_array_size));
+      std::array<double, sk_array_size> QLl_mncd{};
+      for (auto l = l0; l <= lI; l += 2) {
+        QLl_mncd[std::size_t(l)] =
+          qk.Q(l, key_mncd) + (Lk ? Lk->Q(l, lkey_mncd) : 0.0);
+      }
+
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_ucdij = qk.Q(u, key_cdij);
+        const auto Q_ucdij = Qu_cdij[qu_cdij_idx(c_index, d_index, u)];
         if (Q_ucdij == 0.0)
           continue; // never? Unless have k_cut
 
@@ -151,14 +305,12 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           if (Angular::triangle(k, u, l) == 0)
             continue;
 
-          const auto sj_c = SJ.get(m, i, k, u, l, c);
-          const auto sj_d = SJ.get(n, j, k, u, l, d);
+          const auto sj_c = sjc_cache[sj_index(c.twoj(), u, l)];
+          const auto sj_d = sjd_cache[sj_index(d.twoj(), u, l)];
 
-          const auto Q_lmncd = qk.Q(l, key_mncd);
-          const auto L_lmncd = Lk ? Lk->Q(l, lkey_mncd) : 0.0;
+          const auto QL_lmncd = QLl_mncd[std::size_t(l)];
 
-          l4 +=
-            (s_cd * sj_c * sj_d) * Q_ucdij * (Q_lmncd + L_lmncd) * inv_e_cdmn;
+          l4 += (s_cd * sj_c * sj_d) * Q_ucdij * QL_lmncd * inv_e_cdmn;
         }
       }
     }
@@ -188,9 +340,78 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
     Angular::neg1pow_2(2 * k + m.twoj() + n.twoj() + i.twoj() + j.twoj());
   const auto ejm = j.en() - m.en();
 
-  for (auto r_index = 0ul; r_index < excited.size(); ++r_index) {
+  // Local dense cache of the recoupling 6j symbols (see L1). sj_c = {m,i,k;u,l,c}
+  // and sj_r = {j,n,k;u,l,r} depend on the intermediate orbital only through its
+  // 2j; precompute once per call, indexed by (2j, u, l). c is a core, r an
+  // excited orbital, so t2max spans both. Bit-identical.
+  int t2max = 0;
+  for (const auto &x : core)
+    t2max = std::max(t2max, x.twoj());
+  for (const auto &x : excited)
+    t2max = std::max(t2max, x.twoj());
+  const int kmax =
+    (std::max({m.twoj(), n.twoj(), i.twoj(), j.twoj()}) + t2max) / 2;
+  const auto ndk = std::size_t(kmax) + 1;
+  const auto sj_index = [ndk](int t2, int u, int l) {
+    return (std::size_t(t2) * ndk + std::size_t(u)) * ndk + std::size_t(l);
+  };
+  static thread_local std::vector<double> sjc_cache, sjr_cache;
+  sjc_cache.resize((std::size_t(t2max) + 1) * ndk * ndk);
+  sjr_cache.resize((std::size_t(t2max) + 1) * ndk * ndk);
+  for (int t2 = 1; t2 <= t2max; t2 += 2) {
+    for (int u = 0; u <= kmax; ++u) {
+      for (int l = 0; l <= kmax; ++l) {
+        sjc_cache[sj_index(t2, u, l)] =
+          SJ.get_2(m.twoj(), i.twoj(), 2 * k, 2 * u, 2 * l, t2);
+        sjr_cache[sj_index(t2, u, l)] =
+          SJ.get_2(j.twoj(), n.twoj(), 2 * k, 2 * u, 2 * l, t2);
+      }
+    }
+  }
+
+  // Thread-local cache of Q^u_{cnir} for fixed (n,i): avoids repeated hash
+  // lookups across repeated L2 calls sharing the same (n,i) (i.e. fixed
+  // n=b and i=c in the fill outer loop while j=d varies).
+  // Indexed as [r_index * nc + c_index][u], laid out for sequential c access.
+  const auto nc = core.size();
+  const auto ne = excited.size();
+  const int kumax_cnir = (std::max(n.twoj(), i.twoj()) + t2max) / 2;
+  const auto ndu_cnir = std::size_t(kumax_cnir) + 1;
+  const auto qu_cnir_idx = [nc, ndu_cnir](std::size_t ri, std::size_t ci,
+                                          int u) {
+    return (ri * nc + ci) * ndu_cnir + std::size_t(u);
+  };
+  static thread_local std::vector<double> Qu_cnir;
+  static thread_local const DiracSpinor *Qu_cnir_core = nullptr;
+  static thread_local const DiracSpinor *Qu_cnir_excited = nullptr;
+  static thread_local DiracSpinor::Index Qu_cnir_n = 0, Qu_cnir_i = 0;
+  static thread_local int Qu_cnir_kumax = -1;
+  if (Qu_cnir_core != core.data() || Qu_cnir_excited != excited.data() ||
+      Qu_cnir_n != n.nk_index() || Qu_cnir_i != i.nk_index() ||
+      Qu_cnir_kumax != kumax_cnir) {
+    Qu_cnir.assign(ne * nc * ndu_cnir, 0.0);
+    for (auto ri = 0ul; ri < ne; ++ri) {
+      for (auto ci = 0ul; ci < nc; ++ci) {
+        const auto [uu0, uuI] =
+          Coulomb::k_minmax_Q(core[ci], n, i, excited[ri]);
+        if (uuI < uu0)
+          continue;
+        const auto key = qk.NormalOrder(core[ci], n, i, excited[ri]);
+        for (auto u = uu0; u <= uuI; u += 2)
+          Qu_cnir[qu_cnir_idx(ri, ci, u)] = qk.Q(u, key);
+      }
+    }
+    Qu_cnir_core = core.data();
+    Qu_cnir_excited = excited.data();
+    Qu_cnir_n = n.nk_index();
+    Qu_cnir_i = i.nk_index();
+    Qu_cnir_kumax = kumax_cnir;
+  }
+
+  for (auto r_index = 0ul; r_index < ne; ++r_index) {
     const auto &r = excited[r_index];
-    for (const auto &c : core) {
+    for (auto c_index = 0ul; c_index < nc; ++c_index) {
+      const auto &c = core[c_index];
 
       const auto [u0, uI] = Coulomb::k_minmax_Q(c, n, i, r);
       const auto [l0, lI] = Coulomb::k_minmax_Q(m, r, c, j);
@@ -199,12 +420,19 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
 
       const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
       const auto inv_e_cjmr = 1.0 / (c.en() + ejm - r.en());
-      const auto key_cnir = qk.NormalOrder(c, n, i, r);
       const auto key_mrcj = qk.NormalOrder(m, r, c, j);
       const auto lkey_mrcj = Lk ? Lk->NormalOrder(m, r, c, j) : 0ul;
 
+      // Cache (Q+L)^l_mrcj: depends only on l, used inside the u loop (see L1).
+      assert(lI < int(sk_array_size));
+      std::array<double, sk_array_size> QLl_mrcj{};
+      for (auto l = l0; l <= lI; l += 2) {
+        QLl_mrcj[std::size_t(l)] =
+          qk.Q(l, key_mrcj) + (Lk ? Lk->Q(l, lkey_mrcj) : 0.0);
+      }
+
       for (auto u = u0; u <= uI; u += 2) {
-        const auto Q_ucnir = qk.Q(u, key_cnir);
+        const auto Q_ucnir = Qu_cnir[qu_cnir_idx(r_index, c_index, u)];
         if (Q_ucnir == 0.0)
           continue; // never? Unless have k_cut
 
@@ -220,14 +448,12 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
 
           const auto s_ul = Angular::neg1pow(u + l);
 
-          const auto sj_c = SJ.get(m, i, k, u, l, c);
-          const auto sj_r = SJ.get(j, n, k, u, l, r);
+          const auto sj_c = sjc_cache[sj_index(c.twoj(), u, l)];
+          const auto sj_r = sjr_cache[sj_index(r.twoj(), u, l)];
 
-          const auto Q_lmrcj = qk.Q(l, key_mrcj);
-          const auto L_lmrcj = Lk ? Lk->Q(l, lkey_mrcj) : 0.0;
+          const auto QL_lmrcj = QLl_mrcj[std::size_t(l)];
 
-          l2 += (s_ul * s_rc * sj_c * sj_r) * Q_ucnir * (Q_lmrcj + L_lmrcj) *
-                inv_e_cjmr;
+          l2 += (s_ul * s_rc * sj_c * sj_r) * Q_ucnir * QL_lmrcj * inv_e_cjmr;
         }
       }
     }
@@ -249,19 +475,25 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   // Build combined basis: excited + core + any extra i_orbs (e.g. valence)
   const auto basis = qip::merge(core, excited);
 
-  // NB: This is dumb - probably a much faster way!
-  // Sets for O(1) membership checks for "selection rules"
-  // (m,n) in excited, b in core, i in i_orbs
-  std::unordered_set<DiracSpinor::Index> excited_set, core_set, i_orbs_set;
-  for (const auto &n : excited) {
-    excited_set.insert(n.nk_index());
-  }
-  for (const auto &a : core) {
-    core_set.insert(a.nk_index());
-  }
-  for (const auto &i : i_orbs) {
-    i_orbs_set.insert(i.nk_index());
-  }
+  // Flat arrays for O(1) membership checks (no hash overhead).
+  // Indexed directly by nk_index (uint16_t), so size is max_idx+1.
+  DiracSpinor::Index max_idx = 0;
+  for (const auto &x : basis)
+    max_idx = std::max(max_idx, x.nk_index());
+  // i_orbs is almost always a subset of basis - but not always
+  // For example, basis might restict n_min_core
+  // whereas i_orbs may be full basis, eg.g., L|i><i| = L_mnib|i>
+  for (const auto &x : i_orbs)
+    max_idx = std::max(max_idx, x.nk_index());
+  std::vector<uint8_t> is_excited(std::size_t(max_idx) + 1, 0);
+  std::vector<uint8_t> is_core(std::size_t(max_idx) + 1, 0);
+  std::vector<uint8_t> is_i_orb(std::size_t(max_idx) + 1, 0);
+  for (const auto &n : excited)
+    is_excited[n.nk_index()] = 1;
+  for (const auto &a : core)
+    is_core[a.nk_index()] = 1;
+  for (const auto &x : i_orbs)
+    is_i_orb[x.nk_index()] = 1;
 
   const auto kmax = qk.max_k();
 
@@ -271,10 +503,10 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                              const DiracSpinor &i,
                              const DiracSpinor &b) -> bool {
     // Require m and n to be excited
-    if (!excited_set.count(m.nk_index()) || !excited_set.count(n.nk_index()))
+    if (!is_excited[m.nk_index()] || !is_excited[n.nk_index()])
       return false;
     // Require i to be in {i}, and b to be in core
-    if (!i_orbs_set.count(i.nk_index()) || !core_set.count(b.nk_index()))
+    if (!is_i_orb[i.nk_index()] || !is_core[b.nk_index()])
       return false;
     const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b);
     return k >= k0 && k <= kI;
@@ -307,8 +539,8 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
                      const std::vector<DiracSpinor> &excited,
                      const std::vector<DiracSpinor> &basis,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
-                     const Angular::SixJTable &sjt, bool include_L4,
-                     double r0, double rmax, std::size_t stride) {
+                     const Angular::SixJTable &sjt, bool include_L4, double r0,
+                     double rmax, std::size_t stride) {
 
   // Ladder correction to the correlation potential, evaluated at energy en_v.
   // The exchange is folded into the Coulomb vertex via W = Q + P (mirrors
