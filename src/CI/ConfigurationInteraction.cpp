@@ -110,6 +110,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
                     "first. [false]"},
     {"print_details", "Condition to print details of each CI solution "
                       "(otherwise just prints summary) [true]"},
+    {"fk", "vector of screening factors for Sigma 2"}
   });
 
   // construct first, for RVO
@@ -394,6 +395,14 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
                                 "") +
                              br_string + ".sk.abf");
 
+    const auto fk = input.get("fk",std::vector<double>{});
+    // output screening factors to check
+    for(int i=0;i<fk.size();i++){
+      std::cout << "Element number " << i << " of the screening factor vector is " << fk.at(i) << "\n.";
+    }
+
+    
+
     std::cout << "\nCalculate two-body MBPT integrals: Σ^k_abcd\n";
 
     std::cout << "For: " << DiracSpinor::state_config(cis2_basis) << ", using "
@@ -402,7 +411,7 @@ std::vector<PsiJPi> configuration_interaction(const IO::InputBlock &input,
 
     Sk = MBPT::calculate_Sk(Sk_filename, cis2_basis, core_s2, excited_s2, qk,
                             max_k_Coulomb, exclude_wrong_parity_box,
-                            denominators, no_new_integralsQ);
+                            denominators, no_new_integralsQ,fk);
   }
 
   //----------------------------------------------------------------------------

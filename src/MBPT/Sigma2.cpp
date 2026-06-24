@@ -88,16 +88,16 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const DiracSpinor &x, const DiracSpinor &y,
                const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
                const std::vector<DiracSpinor> &excited,
-               const Angular::SixJTable &SixJ, Denominators denominators) {
+               const Angular::SixJTable &SixJ, Denominators denominators,const std::vector<double> &fk) {
   using namespace Sigma2;
 
   if (!Sk_vwxy_SR(k, v, w, x, y))
     return 0.0;
 
-  return S_Sigma2_ab(k, v, w, x, y, qk, core, excited, SixJ, denominators) +
-         S_Sigma2_c1(k, v, w, x, y, qk, core, excited, SixJ, denominators) +
-         S_Sigma2_c2(k, v, w, x, y, qk, core, excited, SixJ, denominators) +
-         S_Sigma2_d(k, v, w, x, y, qk, core, excited, SixJ, denominators);
+  return S_Sigma2_ab(k, v, w, x, y, qk, core, excited, SixJ, denominators,fk) +
+         S_Sigma2_c1(k, v, w, x, y, qk, core, excited, SixJ, denominators,fk) +
+         S_Sigma2_c2(k, v, w, x, y, qk, core, excited, SixJ, denominators,fk) +
+         S_Sigma2_d(k, v, w, x, y, qk, core, excited, SixJ, denominators,fk);
 }
 
 //==============================================================================
@@ -109,7 +109,7 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
                            const std::vector<DiracSpinor> &core,
                            const std::vector<DiracSpinor> &excited,
                            const Angular::SixJTable &SixJ,
-                           Denominators denominators) {
+                           Denominators denominators,const std::vector<double> &fk) {
 
   // overall selectrion rule tested outside
 
@@ -119,6 +119,11 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
   const auto w0 = e_bar(w.kappa(), excited);
   const auto x0 = e_bar(x.kappa(), excited);
   const auto y0 = e_bar(y.kappa(), excited);
+
+  //screeening factors
+  auto Fk = [&fk](int l) {
+    return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
+  };
 
   // const auto de_xv = x.en() - v.en();
   const auto de_xv = denominators == Denominators::Fermi0 ?
@@ -132,9 +137,10 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
     for (const auto &n : excited) {
       const auto de = de_xv + a.en() - n.en();
 
+
       // A diagrams:
-      const auto qk_vnxa = qk.Q(k, v, n, x, a);
-      const auto pk_vnxa = qk.P(k, v, n, x, a, &SixJ);
+      const auto qk_vnxa = Fk(k) * qk.Q(k, v, n, x, a);
+      const auto pk_vnxa = qk.P2(k, v, n, x, a, SixJ,fk);
 
       const auto qk_awny = qk.Q(k, a, w, n, y);
       const auto pk_awny = qk.P(k, a, w, n, y, &SixJ);
@@ -145,7 +151,7 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
 
       // B diagrams: a <-> n
       const auto qk_vaxn = qk_vnxa;
-      const auto pk_vaxn = v == x ? pk_vnxa : qk.P(k, v, a, x, n, &SixJ);
+      const auto pk_vaxn = v == x ? pk_vnxa : qk.P2(k, v, a, x, n, SixJ, fk);
       const auto qk_nway = qk_awny;
       const auto pk_nway = w == y ? pk_awny : qk.P(k, n, w, a, y, &SixJ);
       const auto wk_nway = qk_nway + pk_nway;
@@ -165,8 +171,13 @@ double Sigma2::S_Sigma2_c1(int k, const DiracSpinor &v, const DiracSpinor &w,
                            const std::vector<DiracSpinor> &core,
                            const std::vector<DiracSpinor> &excited,
                            const Angular::SixJTable &SixJ,
-                           Denominators denominators) {
+                           Denominators denominators,const std::vector<double> &fk) {
 
+
+  // screening factors
+    auto Fk = [&fk](int l) {
+      return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
+    };                          
   // overall selectrion rule tested outside
 
   const auto f =
@@ -209,7 +220,7 @@ double Sigma2::S_Sigma2_c1(int k, const DiracSpinor &v, const DiracSpinor &w,
           const auto SixJ2 = SixJ.get(l, u, k, y, w, n);
           const auto s = Angular::neg1pow_2(2 * a.twoj() + 2 * l + 2 * u);
 
-          const auto qk_vnay = qk.Q(u, v, n, a, y);
+          const auto qk_vnay =Fk(u) * qk.Q(u, v, n, a, y);
           const auto qk_awxn = qk.Q(l, a, w, x, n);
 
           sum += s * SixJ1 * SixJ2 * qk_vnay * qk_awxn / de;
@@ -227,7 +238,13 @@ double Sigma2::S_Sigma2_c2(int k, const DiracSpinor &v, const DiracSpinor &w,
                            const std::vector<DiracSpinor> &core,
                            const std::vector<DiracSpinor> &excited,
                            const Angular::SixJTable &SixJ,
-                           Denominators denominators) {
+                           Denominators denominators,const std::vector<double> &fk) {
+
+
+  // screening factors
+  auto Fk = [&fk](int l) {
+    return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
+  };                           
 
   // overall selectrion rule tested outside
 
@@ -271,7 +288,7 @@ double Sigma2::S_Sigma2_c2(int k, const DiracSpinor &v, const DiracSpinor &w,
           const auto SixJ2 = SixJ.get(l, u, k, y, w, a);
           const auto s = Angular::neg1pow_2(2 * a.twoj() + 2 * l + 2 * u);
 
-          const auto qk_vany = qk.Q(u, v, a, n, y);
+          const auto qk_vany = Fk(u)*qk.Q(u, v, a, n, y);
           const auto qk_nwxa = qk.Q(l, n, w, x, a);
 
           sum += s * SixJ1 * SixJ2 * qk_vany * qk_nwxa / de;
@@ -289,7 +306,13 @@ double Sigma2::S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
                           const std::vector<DiracSpinor> &core,
                           const std::vector<DiracSpinor> &excited,
                           const Angular::SixJTable &SixJ,
-                          Denominators denominators) {
+                          Denominators denominators,const std::vector<double> &fk) {
+
+
+  // screening factors
+   auto Fk = [&fk](int l) {
+    return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
+  }; 
 
   const auto f = Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj()) *
                  (2.0 * k + 1.0);
@@ -337,7 +360,7 @@ double Sigma2::S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
           const auto SixJ1 = SixJ.get(l, u, k, v, x, a);
           const auto SixJ2 = SixJ.get(l, u, k, w, y, b);
 
-          const auto qu_vwab = qk.Q(u, v, w, a, b);
+          const auto qu_vwab = Fk(u) * qk.Q(u, v, w, a, b);
           const auto ql_abxy = qk.Q(l, a, b, x, y);
 
           sum += s * SixJ1 * SixJ2 * qu_vwab * ql_abxy / de;
@@ -353,7 +376,7 @@ Coulomb::LkTable calculate_Sk(
   const std::string &filename, const std::vector<DiracSpinor> &external,
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
   const Coulomb::QkTable &qk, int max_k, bool exclude_wrong_parity_box,
-  Denominators denominators, bool no_new_integrals) {
+  Denominators denominators, bool no_new_integrals,const std::vector<double> &fk) {
 
   Coulomb::LkTable Sk;
 
@@ -365,7 +388,7 @@ Coulomb::LkTable calculate_Sk(
   const auto Sk_function = [&](int k, const DiracSpinor &v,
                                const DiracSpinor &w, const DiracSpinor &x,
                                const DiracSpinor &y) {
-    return MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, sjt, denominators);
+    return MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, sjt, denominators,fk);
   };
   const auto Sk_selection_rule = [&](int k, const DiracSpinor &v,
                                      const DiracSpinor &w, const DiracSpinor &x,

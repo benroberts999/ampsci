@@ -102,7 +102,7 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
                const std::vector<DiracSpinor> &excited,
                const Angular::SixJTable &SixJ,
-               Denominators denominators = Denominators::Fermi0);
+               Denominators denominators = Denominators::Fermi0,const std::vector<double> &fk={});
 
 /*!
   @brief Selection rule for \f$ S^k_{vwxy} \f$.
@@ -203,7 +203,7 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
   const std::string &filename, const std::vector<DiracSpinor> &external,
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
   const Coulomb::QkTable &qk, int max_k, bool exclude_wrong_parity_box,
-  Denominators denominators, bool no_new_integrals = false);
+  Denominators denominators, bool no_new_integrals = false,const std::vector<double> &fk={});
 
 //==============================================================================
 //==============================================================================
@@ -232,7 +232,7 @@ double S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
                    const Coulomb::QkTable &qk,
                    const std::vector<DiracSpinor> &core,
                    const std::vector<DiracSpinor> &excited,
-                   const Angular::SixJTable &SixJ, Denominators denominators);
+                   const Angular::SixJTable &SixJ, Denominators denominators,const std::vector<double> &fk={});
 
 /*!
   @brief Diagram c1 contribution to the reduced two-body Sigma.
@@ -254,7 +254,7 @@ double S_Sigma2_c1(int k, const DiracSpinor &v, const DiracSpinor &w,
                    const Coulomb::QkTable &qk,
                    const std::vector<DiracSpinor> &core,
                    const std::vector<DiracSpinor> &excited,
-                   const Angular::SixJTable &SixJ, Denominators denominators);
+                   const Angular::SixJTable &SixJ, Denominators denominators,const std::vector<double> &fk={});
 
 /*!
   @brief Diagram c2 contribution to the reduced two-body Sigma.
@@ -276,7 +276,7 @@ double S_Sigma2_c2(int k, const DiracSpinor &v, const DiracSpinor &w,
                    const Coulomb::QkTable &qk,
                    const std::vector<DiracSpinor> &core,
                    const std::vector<DiracSpinor> &excited,
-                   const Angular::SixJTable &SixJ, Denominators denominators);
+                   const Angular::SixJTable &SixJ, Denominators denominators,const std::vector<double> &fk={});
 
 /*!
   @brief Diagram d contribution to the reduced two-body Sigma.
@@ -298,7 +298,7 @@ double S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
                   const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &excited,
-                  const Angular::SixJTable &SixJ, Denominators denominators);
+                  const Angular::SixJTable &SixJ, Denominators denominators,const std::vector<double> &fk={});
 
 } // namespace Sigma2
 
