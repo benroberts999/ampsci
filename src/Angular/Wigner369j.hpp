@@ -417,7 +417,7 @@ inline bool sixjTriads(std::optional<int> a, std::optional<int> b,
   \f[
     \sixj{j_1}{j_2}{j_3}{j_4}{j_5}{j_6}
   \f]
-  Returns zero if any triangle or parity condition is violated (via \ref sixj_zeroQ).
+  Returns zero if any triangle condition is violated (via \ref sixj_zeroQ).
   Wraps \c gsl_sf_coupling_6j.
 
   @param two_j1  2*j1

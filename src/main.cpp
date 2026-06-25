@@ -143,19 +143,19 @@ void print_manual(bool details = true) {
   const int wrap_at = 80;
   std::string tab = "    ";
   fmt2::styled_print(fmt::emphasis::bold, "NAME\n");
-  fmt::print(qip::wrap(name, wrap_at, tab + tab));
+  std::cout << qip::wrap(name, wrap_at, tab + tab);
 
   std::cout << "\n\n";
 
   fmt2::styled_print(fmt::emphasis::bold, "SYNOPSIS\n");
-  fmt::print(qip::wrap(synopsis, wrap_at, tab + tab));
+  std::cout << qip::wrap(synopsis, wrap_at, tab + tab);
   std::cout << "\n";
 
   if (details) {
     std::cout << "\n";
 
     fmt2::styled_print(fmt::emphasis::bold, "DESCRIPTION\n");
-    fmt::print(qip::wrap(description, wrap_at, tab + tab));
+    std::cout << qip::wrap(description, wrap_at, tab + tab);
 
     std::cout << "\n\n";
 
@@ -164,14 +164,14 @@ void print_manual(bool details = true) {
       fmt2::styled_print(fg(fmt::color::steel_blue),
                          qip::wrap(option, wrap_at, tab + tab));
       std::cout << "\n";
-      fmt::print(qip::wrap(text, wrap_at, tab + tab + tab));
+      std::cout << qip::wrap(text, wrap_at, tab + tab + tab);
       std::cout << "\n";
     }
   }
 
   std::cout << "\n";
   fmt2::styled_print(fmt::emphasis::bold, "AUTHOR\n");
-  fmt::print(qip::wrap(author, wrap_at, tab + tab));
+  std::cout << qip::wrap(author, wrap_at, tab + tab);
 
   std::cout << "\n";
 }
