@@ -264,9 +264,10 @@ public:
   //! @details
   //! Note: The exotic states are just added to the valence list, so they can be
   //! used more simply with all the modules.
-  //! However, be careful; for example, RPA will now be meaningless!
+  //! However, be careful; for example, RPA will now be meaningless for these states!
   void solve_exotic(const std::string &in_exotic_str,
-                    double mass = PhysConst::m_muon, bool print = true);
+                    double mass = PhysConst::m_muon, bool screening = true,
+                    bool print = true);
 
   //! Forms Bruckner valence orbitals: (H_hf + Sigma)|nk> = e|nk>. Replaces
   //! existing valence states

@@ -787,7 +787,7 @@ void Wavefunction::ConfigurationInteraction(const IO::InputBlock &input) {
 
 //==============================================================================
 void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
-                                bool print) {
+                                bool screeningQ, bool print) {
 
   using namespace qip::overloads;
 
@@ -836,7 +836,7 @@ void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
     }
   }
 
-  if (!this->core().empty() && Fscreen) {
+  if (!this->core().empty() && Fscreen && screeningQ) {
     // make a _copy_ of the Hartree-Fock object for doing muon+electron HF
     // We include muon screening by temporarily updating Vnuc
     // (Can't add it to the core, since we must exclude exchange!)

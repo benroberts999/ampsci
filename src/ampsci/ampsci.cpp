@@ -482,6 +482,11 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     {{"", "Option for including `exotic` (e.g., muonic) atom states.\n"
           "Adds them to end of valence list; usually valence should be empty.\n"
           "Includes screening. Use muon module as test"},
+     {"screening",
+      "true/false. Include screening? If true, will include effect of electron "
+      "screening on the exotic wavefunction and vice versa. nb: Typically, "
+      "electron screening makes no difference to exotic wavefunction, but "
+      "exotic state does impact electron wavefunctions. [default: true]"},
      {"mass", "Mass (in au=m_e) of exotic lepton [M_muon = 206.7682827]"},
      {"mass_MeV", "Mass (in MeV) of exotic lepton [M_muon = 105.6583755 "
                   "MeV]; will be overridden by the above au version"},
@@ -489,12 +494,13 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   if (exotic && !exotic->has_option("help")) {
 
     const auto states_str = exotic->get("states", std::string{"1s"});
+    const auto screeningQ = exotic->get("screening", true);
 
     const auto mass_MeV = exotic->get<double>("mass_MeV");
     const auto mass = exotic->get(
       "mass", mass_MeV ? *mass_MeV / PhysConst::m_e_MeV : PhysConst::m_muon);
 
-    wf.solve_exotic(states_str, mass, true);
+    wf.solve_exotic(states_str, mass, screeningQ, true);
   }
 
   //----------------------------------------------------------------------------
