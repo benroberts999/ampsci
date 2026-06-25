@@ -616,6 +616,15 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     }
   }
 
+  // If table holds correct number already: skip
+  if (already_filled(count_non_zero_k)) {
+    if (print) {
+      std::cout << "Table already filled: no new integrals calculated\n";
+      summary();
+    }
+    return;
+  }
+
   // 2) Reserve space in each sub-map
 #pragma omp parallel for
   for (auto ik = 0ul; ik <= max_k; ++ik) {
@@ -635,7 +644,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
               continue;
             const auto normal_index = NormalOrder(a, b, c, d);
             if (normal_index == CurrentOrder(a, b, c, d)) {
-              add(int(k), normal_index, 0.0);
+              m_data[k].insert({normal_index, 0.0});
             }
           }
         }
@@ -665,8 +674,9 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
 
           const auto [kmin, kmax] = k_minmax_Q(a, b, c, d);
           for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
-            double *ptr = get(k, normal_index);
-            assert(ptr != nullptr);
+            auto it = m_data[std::size_t(k)].find(normal_index);
+            assert(it != m_data[std::size_t(k)].end());
+            double *ptr = &it->second;
             if (*ptr == 0.0) {
               // only calculate if not already in table
               // This saves some time, but surprisingly little!
@@ -732,6 +742,15 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
     }
   }
 
+  // If table holds correct number already: skip
+  if (already_filled(count_non_zero_k)) {
+    if (print) {
+      std::cout << "Table already filled: no new integrals calculated\n";
+      summary();
+    }
+    return;
+  }
+
   // 2) Reserve space in each sub-map
 #pragma omp parallel for
   for (auto ik = 0ul; ik <= max_k; ++ik) {
@@ -753,7 +772,7 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
               continue;
             const auto normal_index = NormalOrder(a, b, c, d);
             if (normal_index == CurrentOrder(a, b, c, d)) {
-              add(int(k), normal_index, 0.0);
+              m_data[k].insert({normal_index, 0.0});
             }
           }
         }
@@ -785,8 +804,9 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
           for (int k = kmin; k <= kmax && k <= int(max_k); k += 2) {
             if (!SelectionFunction(k, a, b, c, d))
               continue;
-            double *ptr = get(k, normal_index);
-            assert(ptr != nullptr);
+            auto it = m_data[std::size_t(k)].find(normal_index);
+            assert(it != m_data[std::size_t(k)].end());
+            double *ptr = &it->second;
             if (*ptr == 0.0) {
               // only calculate if not already in table
               // This saves some time, but surprisingly little!
@@ -859,6 +879,15 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     }
   }
 
+  // If table holds correct number already: skip
+  if (already_filled(count_non_zero_k)) {
+    if (print) {
+      std::cout << "Table already filled: no new integrals calculated\n";
+      summary();
+    }
+    return;
+  }
+
   // 2) Reserve space in each sub-map
 #pragma omp parallel for
   for (auto ik = 0ul; ik <= max_k; ++ik) {
@@ -875,7 +904,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
             if (Fk_SR(int(k), a, b, c, d)) {
               const auto normal_index = NormalOrder(a, b, c, d);
               if (normal_index == CurrentOrder(a, b, c, d)) {
-                add(int(k), normal_index, 0.0);
+                m_data[k].insert({normal_index, 0.0});
               }
             }
           }
@@ -910,8 +939,9 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
 
             if (!Fk_SR(k, a, b, c, d))
               continue;
-            double *ptr = get(k, normal_index);
-            assert(ptr != nullptr);
+            auto it = m_data[std::size_t(k)].find(normal_index);
+            assert(it != m_data[std::size_t(k)].end());
+            double *ptr = &it->second;
             if (*ptr == 0.0) {
               // only calculate if not already in table
               *ptr = Fk(k, a, b, c, d);
