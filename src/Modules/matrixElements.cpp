@@ -523,8 +523,8 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto &orbs2 = qip::ci_wc_compare(legs_str, "basis")    ? wf.basis() :
                       qip::ci_wc_compare(legs_str, "spectrum") ? wf.spectrum() :
-                      qip::ci_wc_compare(legs_str, "bru*")     ? wf.valence() :
-                                                                 wf.hf_valence();
+                      qip::ci_wc_compare(legs_str, "bru*") ? wf.valence() :
+                                                             wf.hf_valence();
 
   // add valcence states:
   for (const auto &v : wf.valence()) {
@@ -1197,7 +1197,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
     const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
-    const auto Qk_file_t = input.get("Qk_file", std::string{"false"});
+    const auto Qk_file_t = SR_input.get("Qk_file", std::string{"false"});
     std::string Qk_file =
       Qk_file_t != "false" ?
         Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
