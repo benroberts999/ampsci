@@ -203,35 +203,30 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                de_v, de_v * icm);
   }
 
-  bool core_converged = false;
+  // Iterate for core states:
   for (int it = 1; it <= max_it; ++it) {
-    std::cout << "\nit:" << it << "\n";
-
-    // nb: if core or particular valence state has converged
-    // then we _could_ speed this up by skipping...
-    // Also: in converge core first, valence probably faster
-    // Would result in fewer integrals to calculate
-    // Achieve by re-introducing {i_orbs}....
-    MBPT::update_Lk_mnib(&lk_next, qk, excited, core, {}, include_L4, sjt, &lk,
-                         a_damp, true);
-
-    // std::swap(lk, lk_next); // lk never empty
-    // for the damping, don't want to swap
-    // lk and lk_prev must be the same before next iteration begins
+    std::cout << "\ncore it:" << it << "\n";
+    MBPT::update_Lk_mnib(&lk_next, qk, excited, core, core, include_L4, sjt,
+                         &lk, a_damp, true);
+    // for the damping, don't swap; lk and lk_prev must match before next iter
     lk = lk_next;
     lk.write(Lfname);
-    std::cout << "\n";
-
-    // check convergance (core):
     const auto de_c = MBPT::de_core(qk, lk, core, excited);
     const auto eps_c = std::abs(2.0 * (de_c - de_c0) / (de_c + de_c0));
     de_c0 = de_c;
     fmt::print("de_l({:>4}): {:+12.9f} au  {:+12.5f} cm^-1  {:.1e}\n", "core",
                de_c, de_c * icm, eps_c);
     if (eps_c < eps_target)
-      core_converged = true;
+      break;
+  }
 
-    // check convergance (valence):
+  // Iterate for each required valence state
+  for (int it = 1; it <= max_it; ++it) {
+    std::cout << "\nvalence it:" << it << "\n";
+    MBPT::update_Lk_mnib(&lk_next, qk, excited, core, valence, include_L4, sjt,
+                         &lk, a_damp, true);
+    lk = lk_next;
+    lk.write(Lfname);
     double eps = 0.0;
     for (std::size_t i = 0; i < valence.size(); ++i) {
       const auto &v = valence[i];
@@ -243,8 +238,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       if (eps_v > eps)
         eps = eps_v;
     }
-    // keep going until core and all valence have converged!
-    if (eps < eps_target && core_converged)
+    if (eps < eps_target)
       break;
   }
   std::cout << "\n";

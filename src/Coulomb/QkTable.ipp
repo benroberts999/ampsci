@@ -962,9 +962,11 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
 
 //==============================================================================
 template <Symmetry S>
-void CoulombTable<S>::update(const std::vector<DiracSpinor> &basis,
-                             const CoulombFunction &Fk, double damp,
-                             bool print) {
+void CoulombTable<S>::update(
+  const std::vector<DiracSpinor> &basis, const CoulombFunction &Fk, double damp,
+  bool print,
+  const std::function<bool(const DiracSpinor &, const DiracSpinor &,
+                           const DiracSpinor &, const DiracSpinor &)> &filter) {
   IO::ChronoTimer t(print ? "update" : "");
 
   const auto max_k = m_data.size() - 1;
@@ -993,6 +995,11 @@ void CoulombTable<S>::update(const std::vector<DiracSpinor> &basis,
           const auto c_index = CurrentOrder(a, b, c, d);
           const auto n_index = NormalOrder(a, b, c, d);
           if (c_index != n_index)
+            continue;
+
+          // Skip (leave unchanged) entries the filter rejects - before any
+          // per-k lookup or recalculation.
+          if (filter && !filter(a, b, c, d))
             continue;
 
           for (int k = 0; k <= int(max_k); ++k) {
