@@ -48,9 +48,12 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       "completeness; production form), rather than just the single state |v>. "
       "The single-state form is a test that matches de_valence_w (with L^(1) "
       "rung). Using the full basis usually requires extending Qk. [false]"},
-     {"read", "true/false. If false, will not attemp to read Qk or Lk file "
-              "from disk, and will start calculation from scratch. "
-              "May still overwrite existing file. [true]"},
+     {"read_Qk", "If true, read Qk from disk and calculate any newly-required "
+                 "integrals; if false, calculate from scratch. [true]"},
+     {"read_Lk", "If true, read Lk from disk; the first iteration then only "
+                 "adds any newly-required diagrams, subsequent iterations "
+                 "iterate the existing table. If false, calculate from "
+                 "scratch. [true]"},
      {"max_it", "Max # iterations. If zero, will simply read ladder diagrams "
                 "in (and then run a symmetry test). [15]"},
      {"damp",
@@ -69,7 +72,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto include_L4 = input.get("include_L4", false);
   const auto full_basis = input.get("full_basis", false);
 
-  const auto readQ = input.get("read", true);
+  const auto read_Qk = input.get("read_Qk", true);
+  const auto read_Lk = input.get("read_Lk", true);
 
   const auto max_it = input.get("max_it", 15);
   const auto a_damp = input.get("damp", 0.35);
@@ -135,17 +139,12 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // Form the Qk table.
   Coulomb::QkTable qk;
   std::cout << "\nFill (or read) Qk table:\n";
-  const auto read_Qk = readQ ? qk.read(Qfname) : false;
-  // nb: will not extend Qk integrals. Maybe not best choice?
-  if (!read_Qk) {
-    qk.fill(both, yk, max_k);
-    qk.write(Qfname);
-  } else {
-    qk.summary();
-    std::cout
-      << "\nNote: no new Qk integrals will be calculated, even if basis "
-         "has changed!\n";
+  if (read_Qk) {
+    qk.read(Qfname);
   }
+  // fill in either case: in case basis has increased
+  qk.fill(both, yk, max_k);
+  qk.write(Qfname);
 
   std::cout << "\nMBPT(2) energy shifts, using HF vs. spline legs" << std::endl;
   fmt::print("{:<5s} {:>13s} {:>13s} {:>13s}   {}\n", "state", "de(HF)",
@@ -172,24 +171,21 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   Coulomb::LkTable lk;
   Coulomb::LkTable lk_next;
   // Each run will continue from where last left off
-  const bool read_Lk = readQ ? lk.read(Lfname) : false;
-  std::cout << (read_Lk ? "\nRe-starting using existing ladder diagrams\n" :
-                          "\nCalculating ladder diagrams from scratch\n");
+  const bool did_read_Lk = read_Lk ? lk_next.read(Lfname) : false;
+  std::cout << (did_read_Lk ? "\nRe-starting using existing ladder diagrams\n" :
+                              "\nCalculating ladder diagrams from scratch\n");
 
   //----------------------------------------------------------------------------
   // Iterate Lk equations
 
-  if (read_Lk) {
-    lk.summary();
-    // must have correct dimension!
-    lk_next = lk;
-  } else {
-    std::cout << "\nInitial fill of Lk table: core + valence\n" << std::flush;
-    MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core_and_val, include_L4,
-                       sjt, true);
-    lk_next.write(Lfname);
-    lk = lk_next;
-  }
+  // "First iteration": fill_Lk_mnib keeps existing (read) entries and adds only
+  // newly-required diagrams (or fills from scratch if not read). Subsequent
+  // iterations below re-iterate the existing table.
+  std::cout << "\nInitial fill of Lk table: core + valence\n" << std::flush;
+  MBPT::fill_Lk_mnib(&lk_next, qk, excited, core, core_and_val, include_L4, sjt,
+                     true);
+  lk_next.write(Lfname);
+  lk = lk_next;
 
   // convert to inverse cm
   const auto icm = PhysConst::Hartree_invcm;
@@ -298,7 +294,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto &proj = full_basis ? wf.basis() : proj_v;
 
     const auto Sig_L = MBPT::Sigma_ladder(v.kappa(), v.en(), core, excited,
-                                          proj, qk, nullptr, sjt, include_L4);
+                                          proj, qk, &lk, sjt, include_L4);
     const auto deS = v * (Sig_L * v);
     fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}  {:10.7}\n",
                v.shortSymbol(), e0 * icm, de2 * icm, del * icm, del2 * icm,
