@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cstdint>
 #include <numeric>
+#include <unordered_set>
 #include <vector>
 
 namespace MBPT {
@@ -654,15 +655,11 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
 void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &excited,
                     const std::vector<DiracSpinor> &core,
-                    const std::vector<DiracSpinor> &i_orbs, bool include_L4,
+                    const std::vector<DiracSpinor> &update_i, bool include_L4,
                     const Angular::SixJTable &sjt,
                     const Coulomb::LkTable *const lk_prev, double a_damp,
                     bool print) {
 
-  // Build combined basis: excited + core + any extra i_orbs (e.g. valence)
-  // i_orbs not required (either core or subset of excited)
-  // Used previously for "selection rules" - now SR is if we already calc'd it!
-  (void)i_orbs;
   const auto basis = qip::merge(core, excited);
 
   // Lk integral with damping folded in
@@ -672,7 +669,36 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
     return Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, lk_prev);
   };
 
-  lk->update(basis, Lk_function, a_damp, print);
+  // Empty update_i => update everything.
+  if (update_i.empty()) {
+    lk->update(basis, Lk_function, a_damp, print);
+    return;
+  }
+
+  // Otherwise restrict the re-iteration to entries whose i-slot is in
+  // 'update_i' (b is always core; by the L^k_{mnib}=L^k_{nmbi} symmetry the i
+  // index sits in slot 3 or 4). The filter is applied in update() before any
+  // per-k lookup, so skipped entries cost (almost) nothing. Lets us converge
+  // core (update_i=core) before valence (update_i=valence), the latter using
+  // the now-frozen core rungs.
+  std::unordered_set<DiracSpinor::Index> core_set, update_set;
+  for (const auto &x : core) {
+    core_set.insert(x.nk_index());
+  }
+  for (const auto &x : update_i) {
+    update_set.insert(x.nk_index());
+  }
+  const auto in = [](const std::unordered_set<DiracSpinor::Index> &set,
+                     const DiracSpinor &x) {
+    return set.find(x.nk_index()) != set.cend();
+  };
+  const auto filter = [&](const DiracSpinor &, const DiracSpinor &,
+                          const DiracSpinor &i, const DiracSpinor &b) {
+    return (in(update_set, i) && in(core_set, b)) ||
+           (in(update_set, b) && in(core_set, i));
+  };
+
+  lk->update(basis, Lk_function, a_damp, print, filter);
 }
 
 } // namespace MBPT

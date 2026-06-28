@@ -215,9 +215,15 @@ public:
     @param Fk      Function to compute the integral value.
     @param damp    Damping factor, \f$\eta \in [0,1)\f$. 0 means no damping.
     @param print   If true, prints a progress bar.
+    @param filter  Optional. If set, entries for which filter(a,b,c,d) returns
+                   false are left unchanged (skipped before the k-loop, so no
+                   lookup/recalculation is done for them). Empty => update all.
   */
   void update(const std::vector<DiracSpinor> &basis, const CoulombFunction &Fk,
-              double damp, bool print = true);
+              double damp, bool print = true,
+              const std::function<bool(const DiracSpinor &, const DiracSpinor &,
+                                       const DiracSpinor &,
+                                       const DiracSpinor &)> &filter = {});
 
   //! Gives arrow access to all underlying vector<unordered_map> functions
   auto operator->() { return &m_data; }

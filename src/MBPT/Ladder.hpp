@@ -168,7 +168,10 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   @param qk          Coulomb \f$ Q^k \f$ integral table
   @param excited      Excited orbitals
   @param core        Core orbitals
-  @param i_orbs      Orbitals for the \f$ i \f$ index
+  @param update_i    Restrict re-iteration to entries whose i index is in this
+                     set (b is always core). Empty => update all. Used to
+                     converge core (update_i=core) before valence
+                     (update_i=valence).
   @param include_L4  Include core--core diagram L4
   @param sjt         6j symbol table
   @param lk_prev     Ladder table from previous iteration
@@ -178,7 +181,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
 void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &excited,
                     const std::vector<DiracSpinor> &core,
-                    const std::vector<DiracSpinor> &i_orbs, bool include_L4,
+                    const std::vector<DiracSpinor> &update_i, bool include_L4,
                     const Angular::SixJTable &sjt,
                     const Coulomb::LkTable *const lk_prev, double a_damp,
                     bool print);
