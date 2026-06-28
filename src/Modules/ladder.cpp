@@ -41,6 +41,13 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       "maximum excited l to include. Default is to include entire basis."},
      {"max_k", "maximum k to include in Qk. Put -1 to include all. [8]"},
      {"include_L4", "Inlcude 4th Ladder diagram [false]"},
+     {"full_basis",
+      "Construct the ladder correlation potential Sigma_L = sum_i L|i><i| "
+      "using "
+      "the full basis of each kappa_v as the projection {|i>} (approximates "
+      "completeness; production form), rather than just the single state |v>. "
+      "The single-state form is a test that matches de_valence_w (with L^(1) "
+      "rung). Using the full basis usually requires extending Qk. [false]"},
      {"read", "true/false. If false, will not attemp to read Qk or Lk file "
               "from disk, and will start calculation from scratch. "
               "May still overwrite existing file. [true]"},
@@ -60,6 +67,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_l = input.get("max_l", 999);
   const auto max_k = input.get("max_k", 8);
   const auto include_L4 = input.get("include_L4", false);
+  const auto full_basis = input.get("full_basis", false);
 
   const auto readQ = input.get("read", true);
 
@@ -72,6 +80,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "max_l (excited) = " << max_l << "\n";
   std::cout << std::boolalpha;
   std::cout << "include_L4      = " << include_L4 << "\n";
+  std::cout << "full_basis      = " << full_basis << "\n";
   std::cout << "max_k           = " << max_k << "\n";
   std::cout << "max_it          = " << max_it << "\n";
   std::cout << "damp            = " << a_damp << "\n";
@@ -248,17 +257,18 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
 
-  // Extend Qk table to the FULL basis. Sigma_ladder projects the ladder onto
-  // the full basis of each kappa_v, so Lkmnij() needs Qk integrals involving
-  // those (high-n) projection states - which are absent if Qk was filled only
-  // over the [n_min,n_max] subset 'both'.
-  {
+  // Extend Qk table to the FULL basis. With full_basis, Sigma_ladder projects
+  // the ladder onto the full basis of each kappa_v, so Lkmnij() needs Qk
+  // integrals involving those (high-n) projection states - which are absent if
+  // Qk was filled only over the [n_min,n_max] subset 'both'. Not always
+  // strictly required (only when projection states fall outside 'both'), but we
+  // just refill over the full basis to be safe. Skipped for single-state |v>.
+  if (full_basis) {
     std::cout << "\nExtending Qk table to full basis (for Sigma_ladder):\n"
               << std::flush;
-    std::cout << "XXX RESTORE ME LATER XXX\n";
-    // const Coulomb::YkTable yk_full(wf.basis());
-    // qk.fill(wf.basis(), yk_full, max_k);
-    // qk.summary();
+    const Coulomb::YkTable yk_full(wf.basis());
+    qk.fill(wf.basis(), yk_full, max_k);
+    qk.summary();
   }
 
   std::cout << "Energy corrections:\n";
@@ -281,12 +291,14 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto del2 = MBPT::de_valence_w(v, qk, lk, core, excited, &sjt);
 
     // Matrix element of the ladder correlation potential, <v|Sigma_L|v>.
-    // TEST: project onto {v} only (not the full basis) and use nullptr internal
-    // rung (L^(1)). This should then be ~identical to de_valence_w.
+    // Projection basis {|i>} for Sigma_L = sum_i L|i><i|: full basis of kappa_v
+    // (completeness; production), or just {|v>}. With {|v>} and a nullptr rung
+    // (L^(1)), <v|Sigma_L|v> should be ~identical to de_valence_w.
     const std::vector<DiracSpinor> proj_v{v};
+    const auto &proj = full_basis ? wf.basis() : proj_v;
 
     const auto Sig_L = MBPT::Sigma_ladder(v.kappa(), v.en(), core, excited,
-                                          proj_v, qk, nullptr, sjt, include_L4);
+                                          proj, qk, nullptr, sjt, include_L4);
     const auto deS = v * (Sig_L * v);
     fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}  {:10.7}\n",
                v.shortSymbol(), e0 * icm, de2 * icm, del * icm, del2 * icm,

@@ -566,75 +566,81 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
 
   std::vector<GMatrix> Sd_ts(std::size_t(omp_get_max_threads()), Sd);
 
-  for (auto ii = 0ul; ii < proj.size(); ++ii) {
-    const auto &i = *proj[ii];
-
-    // Copy of the projection orbital with energy fixed to en_v, used for the
-    // external line in the ladder integrals (the bra <i| keeps the true energy).
-    auto i_ev = i;
+  // Copy of the projection orbitals with energy fixed to en_v, used for the
+  // external line in the ladder integrals (the bra <i| keeps the true energy).
+  std::vector<DiracSpinor> proj_ev;
+  proj_ev.reserve(proj.size());
+  for (const auto *ip : proj) {
+    auto i_ev = *ip;
     i_ev.en() = en_v;
+    proj_ev.push_back(i_ev);
+  }
 
-    qip::ProgressBar bar(core.size());
+  qip::ProgressBar bar(core.size());
 #pragma omp parallel for schedule(dynamic)
-    for (auto ia = 0ul; ia < core.size(); ++ia) {
-      const auto &a = core[ia];
-      // Per-thread accumulator: must be bound INSIDE the parallel region so
-      // each thread writes to its own matrix (else all threads race on one).
-      auto &Sd_t = Sd_ts[std::size_t(omp_get_thread_num())];
-      for (const auto &n : excited) {
+  for (auto ia = 0ul; ia < core.size(); ++ia) {
+    const auto &a = core[ia];
+    // Per-thread accumulator: must be bound INSIDE the parallel region so
+    // each thread writes to its own matrix (else all threads race on one).
+    auto &Sd_t = Sd_ts[std::size_t(omp_get_thread_num())];
+    for (const auto &n : excited) {
 
-        // Diagrams (a)+(b): W^k_{.amn} L^k_{mn,i,a}
-        const auto [kmin_na, kmax_na] = Coulomb::k_minmax_Ck(n, a);
-        for (int k = kmin_na; k <= kmax_na; ++k) {
+      // Diagrams (a)+(b): W^k_{.amn} L^k_{mn,i,a}
+      const auto [kmin_na, kmax_na] = Coulomb::k_minmax_Ck(n, a);
+      for (int k = kmin_na; k <= kmax_na; ++k) {
 
-          const auto f_kkjj = (2 * k + 1) * (tjv + 1);
-          // Enforce the (a,n) Coulomb parity: only k with Q^k_{vamn} != 0
-          // contribute. The W=Q+P ket does NOT self-gate parity the way the
-          // bare Q ket does, so without this its P-part adds spurious
-          // wrong-parity terms (not present in de_valence_w).
-          if (!Angular::Ck_kk_SR(k, n.kappa(), a.kappa()))
+        const auto f_kkjj = (2 * k + 1) * (tjv + 1);
+        // Enforce the (a,n) Coulomb parity: only k with Q^k_{vamn} != 0
+        // contribute. The W=Q+P ket does NOT self-gate parity the way the
+        // bare Q ket does, so without this its P-part adds spurious
+        // wrong-parity terms (not present in de_valence_w).
+        if (!Angular::Ck_kk_SR(k, n.kappa(), a.kappa()))
+          continue;
+
+        for (const auto &m : excited) {
+          if (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()))
             continue;
-
-          for (const auto &m : excited) {
-            if (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()))
-              continue;
-            const auto Lkmnia =
-              Lkmnij(k, m, n, i_ev, a, qk, core, excited, include_L4, sjt, lk);
+          // Wkv, dele don't depend on i: build once, sweep i below.
+          const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, a, m, n);
+          const auto dele = en_v + a.en() - m.en() - n.en();
+          for (auto ii = 0ul; ii < proj.size(); ++ii) {
+            const auto Lkmnia = Lkmnij(k, m, n, proj_ev[ii], a, qk, core,
+                                       excited, include_L4, sjt, lk);
             if (Lkmnia == 0.0)
               continue;
-            const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, a, m, n);
-            const auto dele = en_v + a.en() - m.en() - n.en();
-            Sd_t.add(Wkv, i, Lkmnia / (f_kkjj * dele));
-          }
-        }
-
-        // Diagrams (c)+(d): W^k_{.nab} L^k_{i,n,a,b}
-        for (const auto &b : core) {
-          const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, b);
-          for (int k = kmin_nb; k <= kmax_nb; ++k) {
-
-            const auto f_kkjj = (2 * k + 1) * (tjv + 1);
-            if (!Angular::Ck_kk_SR(k, kappa_v, a.kappa()))
-              continue;
-            // Enforce the (n,b) Coulomb parity (only k with Q^k_{vnab} != 0);
-            // see note in the (a)+(b) block.
-            if (!Angular::Ck_kk_SR(k, n.kappa(), b.kappa()))
-              continue;
-
-            // Always calculate? For some values of i_ev, might already have!
-            // Energy denominator??
-            const auto Lkinab =
-              Lkmnij(k, i_ev, n, a, b, qk, core, excited, include_L4, sjt, lk);
-            if (Lkinab == 0.0)
-              continue;
-            const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, n, a, b);
-            const auto dele = en_v + n.en() - a.en() - b.en();
-            Sd_t.add(Wkv, i, Lkinab / (f_kkjj * dele));
+            Sd_t.add(Wkv, *proj[ii], Lkmnia / (f_kkjj * dele));
           }
         }
       }
-      bar.update();
+
+      // Diagrams (c)+(d): W^k_{.nab} L^k_{i,n,a,b}
+      for (const auto &b : core) {
+        const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, b);
+        for (int k = kmin_nb; k <= kmax_nb; ++k) {
+
+          const auto f_kkjj = (2 * k + 1) * (tjv + 1);
+          if (!Angular::Ck_kk_SR(k, kappa_v, a.kappa()))
+            continue;
+          // Enforce the (n,b) Coulomb parity (only k with Q^k_{vnab} != 0);
+          // see note in the (a)+(b) block.
+          if (!Angular::Ck_kk_SR(k, n.kappa(), b.kappa()))
+            continue;
+
+          const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, n, a, b);
+          const auto dele = en_v + n.en() - a.en() - b.en();
+          for (auto ii = 0ul; ii < proj.size(); ++ii) {
+            // Always calculate? For some values of i_ev, might already have!
+            // Energy denominator??
+            const auto Lkinab = Lkmnij(k, proj_ev[ii], n, a, b, qk, core,
+                                       excited, include_L4, sjt, lk);
+            if (Lkinab == 0.0)
+              continue;
+            Sd_t.add(Wkv, *proj[ii], Lkinab / (f_kkjj * dele));
+          }
+        }
+      }
     }
+    bar.update();
   }
 
   for (const auto &Sd_t : Sd_ts) {
