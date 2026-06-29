@@ -728,6 +728,83 @@ TEST_CASE("Coulomb: Qk Table - with WF", "[Coulomb][QkTable][integration]") {
 }
 
 //==============================================================================
+TEST_CASE("Coulomb: Qk extend with new angular momenta",
+          "[Coulomb][QkTable][unit]") {
+  // Regression test: fill() must not skip filling when the existing table was
+  // built for a different basis that holds >= the required number of integrals
+  // at each k, yet is missing whole angular-momentum channels.
+  //
+  // Mirrors the real case: a table read from file with many n but few l
+  // (e.g. 33spdfg) holds more integrals per k than a new basis with fewer n
+  // but more l (e.g. 15spd12fghi). A count-only check then wrongly concludes
+  // "no new integrals required", even though the high-l integrals are absent.
+  // A shared max_k (k_cut) hides the new basis's higher-k channels, so the
+  // detection cannot rely on the k-range either.
+
+  const auto grid = std::make_shared<const Grid>(
+    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+  const double zeff = 1.0;
+
+  // A: few l, many n  (simulates table read from file)
+  const auto orbs_A = DiracSpinor::HlikeBasis(4, 4, grid, zeff);
+  // B: more l, one n  (adds higher l, but far fewer integrals overall)
+  const auto orbs_B = DiracSpinor::HlikeBasis(6, 1, grid, zeff);
+  const auto lmax_A = DiracSpinor::max_l(orbs_A);
+
+  Coulomb::YkTable yk_A(orbs_A);
+  Coulomb::YkTable yk_B(orbs_B);
+
+  // Cap k to A's maximum, so both fills share the same k-range. B's higher-l
+  // channels still contribute within this range, but B's higher-k channels are
+  // hidden -- so neither the count nor the k-range reveals the missing data.
+  const int k_cut = DiracSpinor::max_tj(orbs_A) - 1;
+
+  // Fill with A (existing table, no high-l integrals)
+  Coulomb::QkTable qk;
+  qk.fill(orbs_A, yk_A, k_cut, false);
+  const auto count_A = qk.count();
+
+  // Confirm the trap: B requires fewer integrals than A already holds, so a
+  // count-only check would conclude nothing new is needed.
+  {
+    Coulomb::QkTable qk_B;
+    qk_B.fill(orbs_B, yk_B, k_cut, false);
+    REQUIRE(qk_B.count() < count_A);
+  }
+
+  // High-l integrals (in B, beyond A's l range) are absent before extending
+  for (const auto &a : orbs_B) {
+    if (a.l() > lmax_A)
+      REQUIRE_FALSE(qk.contains(0, a, a, a, a));
+  }
+
+  // Extend with B (same k_cut)
+  qk.fill(orbs_B, yk_B, k_cut, false);
+  REQUIRE(qk.count() > count_A);
+
+  // High-l self-integrals must now be present
+  for (const auto &a : orbs_B) {
+    if (a.l() > lmax_A)
+      REQUIRE(qk.contains(0, a, a, a, a));
+  }
+
+  // Every B integral must be correct (within the k_cut range)
+  for (const auto &a : orbs_B) {
+    for (const auto &b : orbs_B) {
+      for (const auto &c : orbs_B) {
+        for (const auto &d : orbs_B) {
+          const auto [kmin, kmax] = Coulomb::k_minmax_Q(a, b, c, d);
+          for (int k = kmin; k <= std::min(kmax, k_cut); k += 2) {
+            REQUIRE(qk.Q(k, a, b, c, d) ==
+                    Approx(Coulomb::Qk_abcd(k, a, b, c, d)).margin(1.0e-14));
+          }
+        }
+      }
+    }
+  }
+}
+
+//==============================================================================
 TEST_CASE("Coulomb: Qk Table - performance",
           "[Coulomb][QkTable][performance][!mayfail]") {
 
