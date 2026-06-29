@@ -423,10 +423,10 @@ private:
   // k in [0, count.size()). Used by fill()/fill_if() to skip re-filling a
   // table that already contains all the required entries.
   bool already_filled(const std::vector<std::size_t> &count) const {
-    if (m_data.size() < count.size())
-      return false;
     for (auto k = 0ul; k < count.size(); ++k) {
-      if (m_data[k].size() != count[k])
+      if (count[k] == 0)
+        continue;
+      if (k >= m_data.size() || m_data[k].size() < count[k])
         return false;
     }
     return true;

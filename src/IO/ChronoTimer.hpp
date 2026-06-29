@@ -34,9 +34,9 @@ namespace IO {
 */
 class ChronoTimer {
 public:
-  //! Constructs and immediately starts the timer. If @p in_name is non-empty,
+  //! Constructs and immediately starts the timer. If @p print is true (default),
   //! prints elapsed time to stdout on destruction.
-  ChronoTimer(std::string_view in_name = "");
+  ChronoTimer(std::string_view in_name = "", bool print = true);
 
   /*!
     @brief Starts (or resumes) timing.
@@ -72,21 +72,28 @@ public:
 
 private:
   std::string name;
+  bool m_print;
   bool running;
   std::chrono::high_resolution_clock::time_point tstart{};
-  std::string convertHR(double t) const;
   double total_time_ms;
+
+  std::string convertHR(double t) const;
 };
 
 //==============================================================================
-inline ChronoTimer::ChronoTimer(std::string_view in_name)
-  : name(in_name), running(false), total_time_ms(0) {
+inline ChronoTimer::ChronoTimer(std::string_view in_name, bool print)
+  : name(in_name), m_print(print), running(false), total_time_ms(0) {
   start();
 }
 //==============================================================================
 inline ChronoTimer::~ChronoTimer() {
-  if (name != "")
+  if (!m_print)
+    return;
+  if (name.empty()) {
+    std::cout << reading_str() << "\n";
+  } else {
     std::cout << name << ": T = " << reading_str() << "\n";
+  }
 }
 
 //==============================================================================

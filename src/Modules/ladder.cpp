@@ -220,25 +220,42 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       break;
   }
 
-  // Iterate for each required valence state
+  // Print energy corrections after core convergence; refresh de_0 for valence
+  std::cout << "\nAfter core convergence:\n";
+  fmt::print("de_l({:4}): {:+12.9f} au  {:+12.5f} cm^-1\n", "core", de_c0,
+             de_c0 * icm);
+  for (std::size_t i = 0; i < valence.size(); ++i) {
+    const auto de_v = MBPT::de_valence(valence[i], qk, lk, core, excited);
+    de_0[i] = de_v;
+    fmt::print("de_l({:>4}): {:+12.9f} au  {:+12.5f} cm^-1\n",
+               valence[i].shortSymbol(), de_v, de_v * icm);
+  }
+
+  // Iterate for each required valence state; drop converged states each iter
+  std::vector<DiracSpinor> unconverged_valence = valence;
   for (int it = 1; it <= max_it; ++it) {
     std::cout << "\nvalence it:" << it << "\n";
-    MBPT::update_Lk_mnib(&lk_next, qk, excited, core, valence, include_L4, sjt,
-                         &lk, a_damp, true);
+    MBPT::update_Lk_mnib(&lk_next, qk, excited, core, unconverged_valence,
+                         include_L4, sjt, &lk, a_damp, true);
     lk = lk_next;
     lk.write(Lfname);
-    double eps = 0.0;
     for (std::size_t i = 0; i < valence.size(); ++i) {
       const auto &v = valence[i];
       const auto de_v = MBPT::de_valence(v, qk, lk, core, excited);
       const auto eps_v = std::abs(2.0 * (de_v - de_0[i]) / (de_v + de_0[i]));
-      de_0[i] = de_v;
       fmt::print("de_l({:>4}): {:+12.9f} au  {:+12.5f} cm^-1  {:.1e}\n",
                  v.shortSymbol(), de_v, de_v * icm, eps_v);
-      if (eps_v > eps)
-        eps = eps_v;
+      auto it2 =
+        std::find(unconverged_valence.begin(), unconverged_valence.end(), v);
+      if (it2 != unconverged_valence.end()) {
+        de_0[i] = de_v;
+        if (eps_v < eps_target) {
+          // if converged: remove from list (speed up convergance)
+          unconverged_valence.erase(it2);
+        }
+      }
     }
-    if (eps < eps_target)
+    if (unconverged_valence.empty())
       break;
   }
   std::cout << "\n";

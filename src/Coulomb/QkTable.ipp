@@ -564,7 +564,7 @@ template <Symmetry S>
 void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
                            const YkTable &yk, int k_cut, bool print) {
   static_assert(S == Symmetry::Qk);
-  IO::ChronoTimer t(print ? "fill" : "");
+  IO::ChronoTimer t("", print);
 
   /*
   In order to make best use of CPU and Memory, we "fill" the QK table in a
@@ -619,7 +619,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   // If table holds correct number already: skip
   if (already_filled(count_non_zero_k)) {
     if (print) {
-      std::cout << "Table already filled: no new integrals calculated\n";
+      std::cout << "No new integrals required\n";
       summary();
     }
     return;
@@ -630,6 +630,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   for (auto ik = 0ul; ik <= max_k; ++ik) {
     m_data[ik].reserve(count_non_zero_k[ik]);
   }
+  const auto n_existing = count();
 
   // 3) Create space in map (set each element to zero).
 #pragma omp parallel for schedule(dynamic, 1)
@@ -651,14 +652,16 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  if (print)
-    std::cout << "Construct empty table: " << t.lap_reading_str() << std::endl;
+  // if (print)
+  //   std::cout << "Construct empty table: " << t.lap_reading_str() << std::endl;
 
   // 4) Fill the pre-constructed map with values, in parallel. Since we are
   // not adding any new elements to map, and since we are guarenteed to only
   // access each map element once, we can do this part in parallel.
+  // if (print)
+  //   std::cout << "Fill w/ values:\n" << std::flush;
   if (print)
-    std::cout << "Fill w/ values:\n" << std::flush;
+    fmt::print("Calculating {} integrals\n", count() - n_existing);
   t.start();
   qip::ProgressBar prog(int(basis.size()), print);
 #pragma omp parallel for schedule(dynamic, 1)
@@ -689,8 +692,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     prog.update();
   }
 
-  if (print)
-    std::cout << t.lap_reading_str() << std::endl;
+  // if (print)
+  //   std::cout << t.lap_reading_str() << std::endl;
 
   if (print)
     summary();
@@ -703,7 +706,7 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
                               const SelectionRules &SelectionFunction,
                               int k_cut, bool print) {
   static_assert(S == Symmetry::Qk);
-  IO::ChronoTimer t(print ? "fill" : "");
+  IO::ChronoTimer t("", print);
 
   /*
   Same as above, but only calculate integrals satisfying the SelectionFunction
@@ -745,7 +748,7 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
   // If table holds correct number already: skip
   if (already_filled(count_non_zero_k)) {
     if (print) {
-      std::cout << "Table already filled: no new integrals calculated\n";
+      std::cout << "No new integrals required\n";
       summary();
     }
     return;
@@ -756,6 +759,7 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
   for (auto ik = 0ul; ik <= max_k; ++ik) {
     m_data[ik].reserve(count_non_zero_k[ik]);
   }
+  const auto n_existing = count();
 
   // 3) Create space in map (set each element to zero).
 #pragma omp parallel for
@@ -779,14 +783,16 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  if (print)
-    std::cout << "Construct empty table: " << t.lap_reading_str() << std::endl;
+  // if (print)
+  //   std::cout << "Construct empty table: " << t.lap_reading_str() << std::endl;
 
   // 4) Fill the pre-constructed map with values, in parallel. Since we are
   // not adding any new elements to map, and since we are guarenteed to only
   // access each map element once, we can do this part in parallel.
+  // if (print)
+  //   std::cout << "Fill w/ values:\n" << std::flush;
   if (print)
-    std::cout << "Fill w/ values:\n" << std::flush;
+    fmt::print("Calculating {} integrals\n", count() - n_existing);
   t.start();
   qip::ProgressBar prog(int(basis.size()), print);
 #pragma omp parallel for schedule(dynamic, 1)
@@ -818,9 +824,8 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
     }
     prog.update();
   }
-
-  if (print)
-    std::cout << t.lap_reading_str() << std::endl;
+  // if (print)
+  //   std::cout << t.lap_reading_str() << std::endl;
 
   if (print)
     summary();
@@ -831,7 +836,7 @@ template <Symmetry S>
 void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
                            const CoulombFunction &Fk,
                            const SelectionRules &Fk_SR, int k_cut, bool print) {
-  IO::ChronoTimer t(print ? "fill" : "");
+  IO::ChronoTimer t("", print);
 
   /*
   In order to make best use of CPU and Memory, we "fill" the QK table in a
@@ -882,7 +887,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   // If table holds correct number already: skip
   if (already_filled(count_non_zero_k)) {
     if (print) {
-      std::cout << "Table already filled: no new integrals calculated\n";
+      std::cout << "No new integrals required\n";
       summary();
     }
     return;
@@ -893,6 +898,7 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   for (auto ik = 0ul; ik <= max_k; ++ik) {
     m_data[ik].reserve(count_non_zero_k[ik]);
   }
+  const auto n_existing = count();
 
   // 3) Create space in map (set each element to zero).
 #pragma omp parallel for
@@ -912,14 +918,16 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
       }
     }
   }
-  if (print)
-    std::cout << "Construct empty table: " << t.lap_reading_str() << std::endl;
+  // if (print)
+  //   std::cout << "Construct empty table: " << t.lap_reading_str() << std::endl;
 
   // 4) Fill the pre-constructed map with values, in parallel. Since we are
   // not adding any new elements to map, and since we are guarenteed to only
   // access each map element once, we can do this part in parallel.
+  // if (print)
+  //   std::cout << "Fill w/ values:\n" << std::flush;
   if (print)
-    std::cout << "Fill w/ values:\n" << std::flush;
+    fmt::print("Calculating {} integrals\n", count() - n_existing);
   t.start();
 
   qip::ProgressBar prog(int(basis.size()), print);
@@ -953,8 +961,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
 
     prog.update();
   }
-  if (print)
-    std::cout << t.lap_reading_str() << std::endl;
+  // if (print)
+  //   std::cout << t.lap_reading_str() << std::endl;
 
   if (print)
     summary();
@@ -967,7 +975,7 @@ void CoulombTable<S>::update(
   bool print,
   const std::function<bool(const DiracSpinor &, const DiracSpinor &,
                            const DiracSpinor &, const DiracSpinor &)> &filter) {
-  IO::ChronoTimer t(print ? "update" : "");
+  IO::ChronoTimer t("", print);
 
   const auto max_k = m_data.size() - 1;
 
@@ -981,6 +989,10 @@ void CoulombTable<S>::update(
   // not adding any new elements to map, and since we are guarenteed to only
   // access each map element once, we can do this part in parallel.
 
+  if (print) {
+    fmt::print("Updating {}{} integrals\n", filter ? "(subset of) " : "",
+               count());
+  }
   qip::ProgressBar prog(int(basis.size()), print);
 #pragma omp parallel for schedule(dynamic, 1)
   for (std::size_t ia = 0; ia < basis.size(); ++ia) {

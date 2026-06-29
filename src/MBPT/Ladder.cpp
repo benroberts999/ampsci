@@ -577,7 +577,7 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
     proj_ev.push_back(i_ev);
   }
 
-  qip::ProgressBar bar(core.size());
+  // qip::ProgressBar bar(core.size());
 #pragma omp parallel for schedule(dynamic)
   for (auto ia = 0ul; ia < core.size(); ++ia) {
     const auto &a = core[ia];
@@ -641,7 +641,7 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
         }
       }
     }
-    bar.update();
+    // bar.update();
   }
 
   for (const auto &Sd_t : Sd_ts) {
