@@ -1,20 +1,20 @@
-# ampsci
+<img src="doc/logos/ampsci_logo_transparent.png" width="40%" alt="ampsci logo" align="right">
 
 ## Atomic Many-body Perturbation theory in the Screened Coulomb Interaction
 
 [_ampsci_](https://ampsci.dev/)
-is a c++ program for high-precision atomic structure calculations of one and two valence atomic systems, developed and maintained by [Benjamin M. Roberts](https://broberts.io/), University of Queensland, Australia
+is a C++ program for high-precision atomic structure calculations of one and two valence atomic systems, developed and maintained by [Benjamin M. Roberts](https://broberts.io/), University of Queensland, Australia
 
 Designed to be fast, accurate, and easy to use.
 
-* Solves the correlated Dirac equation using the Hartree-Fock + correlation potential method (based on Dzuba-Flambaum-Sushkov method) to produce a set of atomic wavefunctions and energies.
-* For two-valence systems, uses the CI+MBPT (Configuration Interaction with many-body perturbation theory) method.
+* Solves the correlated Dirac equation using the Hartree-Fock and all-orders correlation potential method (based on Dzuba-Flambaum-Sushkov method) to produce a set of atomic wavefunctions and energies.
+* For two-valence systems, uses the CI+MBPT (Configuration Interaction with many-body perturbation theory) method, accounting for select series of diagrams to all-orders.
 * Fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, RPA for matrix elements, and structure radiation/renormalisation.
 * QED is included via the Flambaum-Ginges radiative potential method.
 * Can solve for continuum states with high energy, and calculate ionisation cross sections with large energy/momentum transfer.
 * Can solve for exotic atoms (e.g., muonic atoms), including electron screening.
-* The "modules" system see [ampsci.dev/modules](https://ampsci.dev/modules.html)) makes it relatively simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
-* You can also write wavefunction output to disk in a JSON format, which can be read in to python, for example
+* The "modules" system (see [ampsci.dev/modules](https://ampsci.dev/modules.html)) makes it relatively simple to add your own routines to use the atomic wavefunctions to calculate whatever properties you may be interested in.
+* You can also write wavefunction output to disk in a JSON format, which can be read in to python, for example (see [ampsci.dev/tutorial_json](https://ampsci.dev/tutorial_json.html))
 
 The code is on GitHub: [github.com/benroberts999/ampsci](https://github.com/benroberts999/ampsci)
 
@@ -97,16 +97,17 @@ The ampsci code and methods have been described in the following papers
 * A. R. Caddell, V. V. Flambaum, B. M. Roberts, _Accurate electron-recoil ionization factors for dark matter direct detection in xenon, krypton and argon_, [Physical Review D **108**, 083030 (2023)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.108.083030), [[arXiv:2305.05125](https://arxiv.org/abs/2305.05125)]
 * A. Skoufris and B. M. Roberts, _Breit Corrections to Moderately Charged Ions in All-Orders Calculations_, [arXiv:2602.17129](http://arxiv.org/abs/2602.17129).
 
-### A selection of publications resulting from ampsci
+### A selection of publications using ampsci
 
-* The COSINE-100 Collaboration, _Constraints on sub-GeV dark matter scattering on electrons with COSINE-100_, [Physical Review D 113, 072012 (2026)](https://journals.aps.org/prd/abstract/10.1103/kszv-g7tl).
-* R. B. Cserveny, B. M. Roberts, _Theoretical characterization of the barium II and radium II ions_, [Physical Review A 112, 032816 (2025)](https://link.aps.org/doi/10.1103/1rtb-8ymc), [[arXiv:2505.05230](https://arxiv.org/abs/2505.05230)]
-* The NEON Collaboration, _First Direct Search for Light Dark Matter Using the NEON Experiment at a Nuclear Reactor_, [Physical Review Letters 134, 021802 (2025)](https://link.aps.org/doi/10.1103/PhysRevLett.134.021802)
-* B. Carew, A. R. Caddell, T. N. Maity, C. A. J. O'Hare, _The neutrino fog for dark matter-electron scattering experiments_, [Phys. Rev. D 109, 083016 (2024)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.109.083016), [arXiv:2312.04303](https://arxiv.org/abs/2312.04303)
-* J. M. Cline, M. Puel, and T. Toma, _Boosted dark matter from a phantom fluid_, [Physics Letters B 848, 138377 (2024)](https://www.sciencedirect.com/science/article/pii/S0370269323007116)
-* R. Hamilton _et al._, _Experimental and Theoretical Study of Dynamic Polarizabilities in the_ \f$ 5S - 5D_{5/2} \f$ _Clock Transition in Rubidium-87 and Determination of Electric Dipole Matrix Elements_,  [Physical Review Applied **19**, 054059 (2023)](https://link.aps.org/doi/10.1103/PhysRevApplied.19.054059), [[arXiv:2212.10743](https://arxiv.org/abs/2212.10743)]
+* E. Aprile _et al._ (XENON Collaboration), _Light Dark Matter Search with 7.8 Tonne-Year of Ionization-Only Data in XENONnT_, Physical Review Letters (2026), [[arXiv:2601.11296](https://arxiv.org/abs/2601.11296)]
+* The COSINE-100 Collaboration, _Constraints on sub-GeV dark matter scattering on electrons with COSINE-100_, [Physical Review D **113**, 072012 (2026)](https://journals.aps.org/prd/abstract/10.1103/kszv-g7tl), [[arXiv:2510.01927](https://arxiv.org/abs/2510.01927)]
+* R. B. Cserveny, B. M. Roberts, _Theoretical characterization of the barium II and radium II ions_, [Physical Review A **112**, 032816 (2025)](https://link.aps.org/doi/10.1103/1rtb-8ymc), [[arXiv:2505.05230](https://arxiv.org/abs/2505.05230)]
+* The NEON Collaboration, _First Direct Search for Light Dark Matter Using the NEON Experiment at a Nuclear Reactor_, [Physical Review Letters **134**, 021802 (2025)](https://link.aps.org/doi/10.1103/PhysRevLett.134.021802), [[arXiv:2407.16194](https://arxiv.org/abs/2407.16194)]
+* B. Carew, A. R. Caddell, T. N. Maity, C. A. J. O'Hare, _The neutrino fog for dark matter-electron scattering experiments_, [Phys. Rev. D **109**, 083016 (2024)](https://journals.aps.org/prd/abstract/10.1103/PhysRevD.109.083016), [[arXiv:2312.04303](https://arxiv.org/abs/2312.04303)]
+* J. M. Cline, M. Puel, and T. Toma, _Boosted dark matter from a phantom fluid_, [Physics Letters B **848**, 138377 (2024)](https://www.sciencedirect.com/science/article/pii/S0370269323007116), [[arXiv:2308.01333](https://arxiv.org/abs/2308.01333)]
+* R. Hamilton _et al._, <em>Experimental and Theoretical Study of Dynamic Polarizabilities in the 5S - 5D<sub>5/2</sub> Clock Transition in Rubidium-87 and Determination of Electric Dipole Matrix Elements</em>,  [Physical Review Applied **19**, 054059 (2023)](https://link.aps.org/doi/10.1103/PhysRevApplied.19.054059), [[arXiv:2212.10743](https://arxiv.org/abs/2212.10743)]
 * C. J. Fairhall, B. M. Roberts, J. S. M. Ginges, _QED radiative corrections to electric dipole amplitudes in heavy atoms_, [Physical Review A **107**, 022813 (2023)](https://link.aps.org/doi/10.1103/PhysRevA.107.022813), [[arXiv:2212.11490](https://arxiv.org/abs/2212.11490)]
-* The XENON Collaboration, _Search for Electronic Recoil Event Rate Modulation with 4 Years of XENON100 Data_, [Physical Review Letters 118, 101101 (2017)](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.118.101101)
+<!-- * The XENON Collaboration, _Search for Electronic Recoil Event Rate Modulation with 4 Years of XENON100 Data_, [Physical Review Letters **118**, 101101 (2017)](https://journals.aps.org/prl/abstract/10.1103/PhysRevLett.118.101101), [[arXiv:1701.00769](https://arxiv.org/abs/1701.00769)] -->
 
 --------------------------------------------------------------------------------
 

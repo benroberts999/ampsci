@@ -13,8 +13,10 @@ doc/tex/*
 !doc/tex/*.bib
 !doc/tex/Makefile
 !doc/tex/img
-!doc/examples
-!doc/examples/*.in
+!doc/examples/
+!doc/examples/*
+!doc/logos
+!doc/logos/*
 !doc/Makefile
 !.github/
 !.gitignore

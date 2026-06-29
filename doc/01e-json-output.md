@@ -126,7 +126,7 @@ plt.show()
 
 which should produce:
 
-![plot](./img/plot.png)
+![plot](./img/Cs-3p-.png)
 
 Another example, plots all core wavefunctions (\f$f(r)\f$ only) in light, and valence wavefunctions solid with labels:
 
@@ -158,4 +158,4 @@ plt.show()
 
 which should produce:
 
-![plot2](./img/plot2.png)
+![plot2](./img/Cs-wavefunctions.png)

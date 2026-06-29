@@ -31,6 +31,26 @@ html {
   font-weight: 650;
 }
 
+#projectlogo {
+  padding: 10px 8px 4px 8px;
+  text-align: center;
+}
+
+#projectlogo img {
+  width: 125px;
+  max-height: none;
+  height: auto;
+  display: block;
+  margin: 0 auto;
+}
+
+/* Override sidebar-only top height to fit logo + brief + search */
+@media screen and (min-width: 768px) {
+  html {
+    --top-height: 175px;
+  }
+}
+
 /* Sidebar */
 /* #side-nav, #nav-tree {
   background: var(--side-nav-background);

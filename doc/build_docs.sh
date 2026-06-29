@@ -27,6 +27,7 @@ doxygen "$DOXYGEN_DIR/Doxyfile" 2>/dev/null \
 # Copy PDF and images into the HTML tree so they are accessible from the docs
 cp "$ROOT/doc/tex/ampsci.pdf" "$ROOT/doc/html/ampsci.pdf" 2>/dev/null || true
 cp -r "$ROOT/doc/img" "$ROOT/doc/html/" 2>/dev/null || true
+mkdir -p "$ROOT/doc/html/doc" && cp -r "$ROOT/doc/logos" "$ROOT/doc/html/doc/" 2>/dev/null || true
 
 # Replace the default Doxygen search.js with the custom one (fixes short-query behaviour)
 cp "$DOXYGEN_DIR/search.js" "$ROOT/doc/html/search/search.js"
