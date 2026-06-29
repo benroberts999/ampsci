@@ -197,21 +197,23 @@ calculate_Bk(const std::string &bk_filename, const HF::Breit *const pBr,
              bool no_new_integralsQ = false);
 
 /*!
-  @brief Returns the subset of @p basis matching @p subset_string, excluding
-  states in @p frozen_core_string.
+  @brief Returns the subset of @p basis matching @p include_str, excluding
+  states in @p exclude_str.
   @details
   Filters @p basis to retain only states described by the ampsci basis-string
   notation (e.g., "20spdf") that are not part of the frozen core.
 
   @param basis               Full single-particle basis to filter.
-  @param subset_string       Basis-string specifying which states to keep.
-  @param frozen_core_string  Basis-string specifying core states to exclude.
+  @param include_str         Basis-string specifying which states to keep;
+                             if empty, all states in @p basis are kept (subject
+                             to the frozen-core exclusion).
+  @param exclude_str         Basis-string specifying core states to exclude.
   @return Filtered basis vector.
 */
 [[nodiscard]] std::vector<DiracSpinor>
 basis_subset(const std::vector<DiracSpinor> &basis,
-             const std::string &subset_string,
-             const std::string &frozen_core_string = "");
+             const std::string &include_str,
+             const std::string &exclude_str = "");
 
 /*!
   @brief Reduced matrix element between two CI states (low-level overload).

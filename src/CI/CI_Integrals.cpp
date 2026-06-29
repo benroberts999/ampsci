@@ -348,8 +348,8 @@ std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
                                       const std::string &frozen_core_string) {
 
   // Form 'subset' from {a} in 'basis', if:
-  //    a _is_ in subset_string AND
-  //    a _is not_ in basis string
+  //    a _is_ in subset_string (or subset_string is empty) AND
+  //    a _is not_ in frozen_core_string
 
   std::vector<DiracSpinor> subset;
   const auto nmaxk_list = AtomData::n_kappa_list(subset_string);
@@ -357,15 +357,16 @@ std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
 
   for (const auto &a : basis) {
 
-    // Check if a is present in 'subset_string'
-    const auto nk =
-      std::find_if(nmaxk_list.cbegin(), nmaxk_list.cend(),
-                   [&a](const auto &tnk) { return a.kappa() == tnk.second; });
-    if (nk == nmaxk_list.cend())
-      continue;
-    // nk is now max n, for given kappa {max_n, kappa}
-    if (a.n() > nk->first)
-      continue;
+    // If subset_string is non-empty, check that a is within it
+    if (!subset_string.empty()) {
+      const auto nk =
+        std::find_if(nmaxk_list.cbegin(), nmaxk_list.cend(),
+                     [&a](const auto &tnk) { return a.kappa() == tnk.second; });
+      if (nk == nmaxk_list.cend())
+        continue;
+      if (a.n() > nk->first)
+        continue;
+    }
 
     // assume only filled shells in frozen core
     const auto core = std::find_if(

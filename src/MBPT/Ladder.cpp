@@ -441,7 +441,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
-                  const Angular::SixJTable &sjt, bool print) {
+                  const Angular::SixJTable &sjt, int max_k, bool print) {
 
   // const double a_damp = 0.35;
   // const double b_damp = 1.0 - a_damp;
@@ -469,7 +469,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   for (const auto &x : i_orbs)
     is_i_orb[x.nk_index()] = 1;
 
-  const auto kmax = qk.max_k();
+  const auto kmax = (max_k < 0) ? qk.max_k() : std::min(max_k, qk.max_k());
 
   // Base selection rule: m,n in excited, i in i_orbs, b in core + angular SR.
   // Determines which L^k_mnib integrals we actually need.
@@ -577,14 +577,14 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
     proj_ev.push_back(i_ev);
   }
 
-  // qip::ProgressBar bar(core.size());
+  qip::ProgressBar bar(excited.size());
 #pragma omp parallel for schedule(dynamic)
-  for (auto ia = 0ul; ia < core.size(); ++ia) {
-    const auto &a = core[ia];
+  for (auto in = 0ul; in < excited.size(); ++in) {
+    const auto &n = excited[in];
     // Per-thread accumulator: must be bound INSIDE the parallel region so
     // each thread writes to its own matrix (else all threads race on one).
     auto &Sd_t = Sd_ts[std::size_t(omp_get_thread_num())];
-    for (const auto &n : excited) {
+    for (const auto &a : core) {
 
       // Diagrams (a)+(b): W^k_{.amn} L^k_{mn,i,a}
       const auto [kmin_na, kmax_na] = Coulomb::k_minmax_Ck(n, a);
@@ -630,8 +630,6 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
           const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, n, a, b);
           const auto dele = en_v + n.en() - a.en() - b.en();
           for (auto ii = 0ul; ii < proj.size(); ++ii) {
-            // Always calculate? For some values of i_ev, might already have!
-            // Energy denominator??
             const auto Lkinab = Lkmnij(k, proj_ev[ii], n, a, b, qk, core,
                                        excited, include_L4, sjt, lk);
             if (Lkinab == 0.0)
@@ -641,7 +639,7 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
         }
       }
     }
-    // bar.update();
+    bar.update();
   }
 
   for (const auto &Sd_t : Sd_ts) {

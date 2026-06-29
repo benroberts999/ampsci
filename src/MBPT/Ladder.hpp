@@ -132,26 +132,29 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const Coulomb::LkTable *const Lk = nullptr);
 
 /*!
-  @brief Fills the ladder integral table for all required index combinations.
+  @brief Fills the ladder integral table for all _new_ index combinations.
   @details
   Iterates over all combinations of excited pairs \f$ (m,n) \f$ and
   orbitals in @p i_orbs, computing \f$ L^k_{mnib} \f$ and storing results
-  in @p lk.=
+  in @p lk.
+  Only calculates new integrals. Only lowest-order.
 
   @param lk          Output ladder table (written in place)
   @param qk          Coulomb \f$ Q^k \f$ integral table
   @param excited      Excited orbitals
   @param core        Core orbitals
   @param i_orbs      Orbitals for the \f$ i \f$ index
-  @param include_L4  Include core--core diagram L4
+  @param include_L4  Include core-core diagram L4
   @param sjt         6j symbol table
+  @param max_k       Maximum multipolarity; -1 uses qk.max_k()
   @param print       Print Qk info to screen
 */
 void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
-                  const Angular::SixJTable &sjt, bool print = true);
+                  const Angular::SixJTable &sjt, int max_k = -1,
+                  bool print = true);
 
 /*!
   @brief Updates the ladder integral table with L(Q,Q) -> L(Q,Q+L)

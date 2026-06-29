@@ -661,7 +661,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   // if (print)
   //   std::cout << "Fill w/ values:\n" << std::flush;
   if (print)
-    fmt::print("Calculating {} integrals\n", count() - n_existing);
+    fmt::print("Calculating {}{} integrals\n", count() - n_existing,
+               n_existing == 0 ? "" : " new");
   t.start();
   qip::ProgressBar prog(int(basis.size()), print);
 #pragma omp parallel for schedule(dynamic, 1)
@@ -792,7 +793,8 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
   // if (print)
   //   std::cout << "Fill w/ values:\n" << std::flush;
   if (print)
-    fmt::print("Calculating {} integrals\n", count() - n_existing);
+    fmt::print("Calculating {}{} integrals\n", count() - n_existing,
+               n_existing == 0 ? "" : " new");
   t.start();
   qip::ProgressBar prog(int(basis.size()), print);
 #pragma omp parallel for schedule(dynamic, 1)
