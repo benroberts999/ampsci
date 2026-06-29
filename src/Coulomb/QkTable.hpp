@@ -419,10 +419,20 @@ private:
   static inline nk4Index NormalOrder_impl(nkIndex a, nkIndex b, nkIndex c,
                                           nkIndex d);
 
-  // True if m_data[k].size() already equals the expected count for every
-  // k in [0, count.size()). Used by fill()/fill_if() to skip re-filling a
-  // table that already contains all the required entries.
-  bool already_filled(const std::vector<std::size_t> &count) const {
+  // True if the table already holds every integral the basis requires, so the
+  // full fill() can skip re-filling. Checks both the per-k count and, if basis
+  // is given, that every orbital is present (via its Q^0_aaaa self-integral).
+  // The coverage check catches a table built for a different basis (e.g. more n
+  // but fewer l) whose per-k count is >= required but is missing whole
+  // angular-momentum channels. For a full fill, coverage implies completeness.
+  // basis must be null for selective fills, which may omit Q^0_aaaa.
+  bool already_filled(const std::vector<std::size_t> &count,
+                      const std::vector<DiracSpinor> basis) const {
+
+    for (const auto &a : basis) {
+      if (!contains(0, a, a, a, a))
+        return false;
+    }
     for (auto k = 0ul; k < count.size(); ++k) {
       if (count[k] == 0)
         continue;
