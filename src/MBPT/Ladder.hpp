@@ -282,8 +282,6 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
 
   The sub-grid (@p r0, @p rmax, @p stride) defaults match Wavefunction::formSigma.
 
-  @note No lower (g) component.
-
   @param kappa_v   Valence kappa
   @param en_v      Energy at which to evaluate Sigma_L
   @param core      Core (hole) orbitals
@@ -295,6 +293,7 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
   @param sjt       6j symbol table
   @param include_L4 Include core--core diagram in on-the-fly Lkmnij
   @param r0,rmax,stride  Sub-grid parameters
+  @param include_G Include the lower (g) component of Sigma_L
   @return Sigma_L as a coordinate-space GMatrix
 */
 GMatrix Sigma_ladder(int kappa_v, double en_v,
@@ -304,7 +303,39 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
                      const Angular::SixJTable &sjt, bool include_L4 = false,
                      double r0 = 1.0e-4, double rmax = 30.0,
-                     std::size_t stride = 4);
+                     std::size_t stride = 4, bool include_G = false);
+
+//==============================================================================
+
+//! Ladder correlation potential matrix, Sigma_L, for a single (kappa, n)
+//! state, evaluated at energy en.
+struct SigmaLData {
+  int kappa;
+  int n;
+  double en;
+  GMatrix SL;
+};
+
+/*!
+  @brief Writes Sigma_L (ladder) matrices to binary file.
+  @details
+  File contains the full-grid parameters (for checking on read), followed by
+  each Sigma_L matrix with its own sub-grid parameters and include_G flag.
+  Returns false (and writes nothing) if fname is empty or 'false'.
+*/
+bool write_SigmaL(const std::string &fname, const std::vector<SigmaLData> &SLs,
+                  const Grid &grid);
+
+/*!
+  @brief Reads Sigma_L (ladder) matrices from binary file.
+  @details
+  Returns empty vector if file doesn't exist or on grid mismatch: @p grid must
+  match the full radial grid the matrices were calculated on. Each matrix
+  carries its own sub-grid parameters and include_G flag (they need not match
+  those of the base Sigma).
+*/
+std::vector<SigmaLData> read_SigmaL(const std::string &fname,
+                                    const std::shared_ptr<const Grid> &grid);
 
 // template implementations:
 #include "Ladder.ipp"

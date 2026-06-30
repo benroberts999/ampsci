@@ -3,12 +3,15 @@
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/YkTable.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include "MBPT/Ladder.hpp"
 #include "MBPT/SpinorMatrix.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "fmt/format.hpp"
+#include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <utility>
 #include <vector>
 
 namespace MBPT {
@@ -20,7 +23,7 @@ CorrelationPotential::CorrelationPotential(
   std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
   bool include_Breit_b2, int n_max_breit, const FeynmanOptions &Foptions,
   bool calculate_fk, const std::vector<double> &fk,
-  const std::vector<double> &etak)
+  const std::vector<double> &etak, const std::string &ladder_file)
   : m_HF(vHF),
     m_basis(basis),
     m_r0(r0),
@@ -37,13 +40,39 @@ CorrelationPotential::CorrelationPotential(
     m_calculate_fk(calculate_fk),
     m_fk(fk),
     m_etak(etak),
-    m_fname(fname) {
+    m_fname(fname),
+    m_ladder_file(ladder_file) {
 
   std::cout << "\nConstruct Correlation Potential\n";
 
   // attempt to read in Sigma file:
   // (Just contains Sigma matrix, nothing else)
   const bool read_ok = read_write(fname, IO::FRW::read);
+
+  // Read (separate) ladder file, Sigma_L, if given. Produced by the Ladder{}
+  // block; stored separately from the base Sigma (independent of read_ok)
+  if (!m_ladder_file.empty()) {
+    auto SLs = read_SigmaL(m_ladder_file, m_HF->grid_sptr());
+    for (auto &sl : SLs) {
+      fmt::print("Sigma_L: kappa = {:>2}, en = {:+.5f} (n = {})", sl.kappa,
+                 sl.en, sl.n);
+      // de = <v|Sigma_L|v> (basis version of state) - visual check for users
+      const auto pFv =
+        std::find_if(m_basis.cbegin(), m_basis.cend(), [&sl](const auto &F) {
+          return F.n() == sl.n && F.kappa() == sl.kappa;
+        });
+      if (pFv != m_basis.cend()) {
+        const auto de = *pFv * (sl.SL * *pFv);
+        fmt::print(", de = {:+.5e}", de);
+      }
+      std::cout << "\n";
+      m_Sigma_L.push_back({sl.kappa, sl.en, std::move(sl.SL), sl.n, 1.0});
+    }
+    if (m_Sigma_L.empty()) {
+      std::cout << "WARNING: no ladder Sigma_L read from: " << m_ladder_file
+                << " - ladder will not be included\n";
+    }
+  }
 
   if (!read_ok) {
 
@@ -121,8 +150,8 @@ void CorrelationPotential::formSigma(int kappa, double ev, int n,
     // have sigma already!
     // print deets!
     auto de = Fv ? *Fv * (it->Sigma * *Fv) : 0.0;
-    fmt::print("Have Sigma: kappa={}, en={:.5f}, de={:.5e}\n", it->kappa,
-               it->en, de);
+    fmt::print("Have Sigma: kappa = {:>2}, en = {:+.5f}, de = {:+.5e}\n",
+               it->kappa, it->en, de);
     return;
   }
   if (Fv) {
@@ -358,21 +387,34 @@ void CorrelationPotential::setup_Feynman() {
 }
 
 //==============================================================================
-const SigmaData *CorrelationPotential::get(int kappa, int n) const {
+namespace {
+// Finds Sigma in list for given kappa (and n); shared by get()/get_ladder()
+const SigmaData *find_Sigma(const std::vector<SigmaData> &Sigmas, int kappa,
+                            int n) {
   if (n <= 0) {
     // returns FIRST sigma that has correct kappa, order matters!
     const auto it =
-      std::find_if(m_Sigmas.cbegin(), m_Sigmas.cend(),
+      std::find_if(Sigmas.cbegin(), Sigmas.cend(),
                    [kappa](const auto &s) { return s.kappa == kappa; });
-    return it != m_Sigmas.cend() ? &(*it) : nullptr;
+    return it != Sigmas.cend() ? &(*it) : nullptr;
   } else {
     // Find first Sigma that matches kappa _and_ n
-    const auto it = std::find_if(
-      m_Sigmas.cbegin(), m_Sigmas.cend(),
-      [kappa, n](const auto &s) { return s.kappa == kappa && s.n == n; });
+    const auto it =
+      std::find_if(Sigmas.cbegin(), Sigmas.cend(), [kappa, n](const auto &s) {
+        return s.kappa == kappa && s.n == n;
+      });
     // If not found, look (recursively) for next lowest n
-    return it != m_Sigmas.cend() ? &(*it) : get(kappa, n - 1);
+    return it != Sigmas.cend() ? &(*it) : find_Sigma(Sigmas, kappa, n - 1);
   }
+}
+} // namespace
+
+const SigmaData *CorrelationPotential::get(int kappa, int n) const {
+  return find_Sigma(m_Sigmas, kappa, n);
+}
+
+const SigmaData *CorrelationPotential::get_ladder(int kappa, int n) const {
+  return find_Sigma(m_Sigma_L, kappa, n);
 }
 
 //==============================================================================
@@ -391,8 +433,16 @@ double CorrelationPotential::getLambda(int kappa, int n) const {
 //! returns Spinor: Sigma|Fv>
 //! @details If Sigma for kappa_v doesn't exist, returns |0>.
 DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &Fv) const {
-  auto Sv = get(Fv.kappa(), Fv.n());
-  return Sv ? Sv->lambda * (Sv->Sigma * Fv) : 0.0 * Fv;
+  const auto Sv = get(Fv.kappa(), Fv.n());
+  const auto Sl = get_ladder(Fv.kappa(), Fv.n());
+  if (!Sv && !Sl)
+    return 0.0 * Fv;
+  auto SF = Sv ? Sv->Sigma * Fv : 0.0 * Fv;
+  if (Sl)
+    SF += Sl->Sigma * Fv;
+  // lambda (from base Sigma) scales both the base and ladder parts
+  const auto lambda = Sv ? Sv->lambda : 1.0;
+  return lambda * SF;
 }
 
 //==============================================================================
@@ -525,7 +575,7 @@ bool CorrelationPotential::read_write(const std::string &fname,
 //==============================================================================
 void CorrelationPotential::print_info() const {
   for (const auto &Sig : m_Sigmas) {
-    fmt::print("kappa = {}, ev = {:.5f}", Sig.kappa, Sig.en);
+    fmt::print("kappa = {:>2}, ev = {:+.5f}", Sig.kappa, Sig.en);
     if (Sig.n > 0) {
       fmt::print(" (n = {})", Sig.n);
     }

@@ -1,27 +1,24 @@
-#include "MBPT/Ladder.hpp"
+#include "MBPT/LadderDriver.hpp"
 #include "Angular/include.hpp"
 #include "CI/CI_Integrals.hpp"
 #include "Coulomb/include.hpp"
-#include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
-#include "Modules/Modules.hpp"
+#include "MBPT/Ladder.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "qip/String.hpp"
+#include "fmt/format.hpp"
 #include "qip/Vector.hpp"
-#include <numeric>
+#include <algorithm>
+#include <cassert>
+#include <cmath>
+#include <iostream>
 #include <random>
+#include <string>
+#include <vector>
 
-namespace Module {
-
-// Declare, register, then define below.
-void ladder(const IO::InputBlock &input, const Wavefunction &wf);
+namespace MBPT {
 
 namespace {
-const Register r_ladder{
-  "ladder", "Calculates ladder diagrams and energy corrections", &ladder};
-} // namespace
-
 // Helper, defined below.
 void check_L_symmetry(const std::vector<DiracSpinor> &core,
                       const std::vector<DiracSpinor> &excited,
@@ -29,10 +26,10 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
                       const Coulomb::QkTable &qk, bool include_L4,
                       const Angular::SixJTable &sj,
                       const Coulomb::LkTable *const lk = nullptr);
+} // namespace
 
 //==============================================================================
-//==============================================================================
-// Module for testing ladder diagram implementation
+// Driver for ladder diagram calculation: Ladder{} input block
 void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
@@ -51,14 +48,25 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                  "<Identity>.qk. If 'false' will not read or write."},
      {"Lk_file", "Filename for storing Lk ladder integrals. By default, is "
                  "<Identity>.lk. If 'false' will not read or write."},
+     {"sl_file", "Filename for storing the ladder correlation potential, "
+                 "Sigma_L. By default, is <Identity>.sl. If 'false' will not "
+                 "write. Read in via Correlations{ladder_file=...;}"},
      {"from_scratch", "If true, don't read existing Qk/Lk files (still "
                       "writes). [false]"},
      {"max_it", "Max # iterations. If zero, will simply read ladder diagrams "
-                "in (and then run a symmetry test). [15]"},
+                "in. [15]"},
      {"damp",
       "Damping factor for iterations, [0,1). 0 means no damping. [0.0]"},
-     {"eps_target", "Target for convergance [1.0e-4]"}});
-  // If we are just requesting 'help', don't run module:
+     {"eps_target", "Target for convergance [1.0e-5]"},
+     {"rmin", "minimum radius of Sigma_L sub-grid [1.0e-4]"},
+     {"rmax", "maximum radius of Sigma_L sub-grid [30.0]"},
+     {"stride", "Only calculate Sigma_L every <stride> points. Default such "
+                "that there are 150 points between (1e-4, 30)"},
+     {"include_G", "Inlcude lower g-part into Sigma_L [false]"},
+     {"check_symmetry",
+      "Run the (slow) numerical symmetry test of the ladder integrals at the "
+      "end [false]"}});
+  // If we are just requesting 'help', don't run:
   if (input.has_option("help")) {
     return;
   }
@@ -73,6 +81,20 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_it = input.get("max_it", 15);
   const auto a_damp = input.get("damp", 0.0);
   const auto eps_target = input.get("eps_target", 1.0e-5);
+
+  // Sub-grid for Sigma_L matrix (same defaults as Correlations):
+  const auto sig_r0 = input.get("rmin", 1.0e-4);
+  const auto sig_rmax = input.get("rmax", 30.0);
+  const auto default_stride = [&]() {
+    // By default, choose stride such that there is 150 points over [1e-4,30]
+    const auto stride =
+      int(wf.grid().getIndex(30.0) - wf.grid().getIndex(1.0e-4)) / 150;
+    return (stride <= 2) ? 2 : stride;
+  }();
+  const auto sig_stride = std::size_t(input.get("stride", default_stride));
+  const auto include_G = input.get("include_G", false);
+
+  const auto check_symmetry = input.get("check_symmetry", false);
 
   // Sort basis into core/excited/valence
   const auto en_core = wf.FermiLevel();
@@ -90,19 +112,18 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << "Warning: Basis missing valence state: " << Fv << "\n";
       continue;
     }
-    // const auto orth = *pFv * Fv - 1.0;
-    // const auto eps = (pFv->en() - Fv.en()) / Fv.en();
-    // fmt::print("{:3s} orth = {:.1e}, dE/E = {:.1e}\n", Fv.shortSymbol(), orth,
-    //            eps);
     valence.push_back(*pFv);
   }
 
   std::cout << "\n";
+  IO::print_line();
+  std::cout << "Ladder Diagrams\n\n";
   std::cout << "basis        = " << DiracSpinor::state_config(excited) << "\n";
   std::cout << "min_n (core) = " << min_n_core << "\n";
   std::cout << std::boolalpha;
   std::cout << "include_L4   = " << include_L4 << "\n";
   std::cout << "full_basis   = " << full_basis << "\n";
+  std::cout << "include_G    = " << include_G << "\n";
   std::cout << "max_k        = " << max_k << "\n";
   std::cout << "max_it       = " << max_it << "\n";
   std::cout << "damp         = " << a_damp << "\n";
@@ -115,6 +136,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto lk4 = include_L4 ? "_l4" : ""s;
   const auto Lk_file =
     input.get<std::string>("Lk_file", ident + lk4 + ".lk.abf"s);
+  const auto sl_ext =
+    ".sl"s + (include_L4 ? "4" : "") + (include_G ? "g" : "") + ".abf"s;
+  const auto sl_file = input.get<std::string>("sl_file", ident + sl_ext);
   const auto from_scratch = input.get("from_scratch", false);
 
   // Create the "total" basis, which has core+excited, but only those states
@@ -251,8 +275,6 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "\n";
 
-  // return;
-
   //----------------------------------------------------------------------------
 
   // Extend Qk table to the FULL basis. With full_basis, Sigma_ladder projects
@@ -273,12 +295,15 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::vector<MBPT::GMatrix> SigL_v;
   fmt::print("\nCalculating Sigma_L matrix (using {} projection):\n",
              full_basis ? "full basis" : "single state");
+  fmt::print("Sigma_L sub-grid: r0={:.1e}, rmax={:.1f}, stride={}\n", sig_r0,
+             sig_rmax, sig_stride);
   for (const auto &v : valence) {
     std::cout << v << "\n";
     const std::vector<DiracSpinor> proj_v{v};
     const auto &proj = full_basis ? wf.basis() : proj_v;
     SigL_v.push_back(MBPT::Sigma_ladder(v.kappa(), v.en(), holes, excited, proj,
-                                        qk, &lk, sjt, include_L4));
+                                        qk, &lk, sjt, include_L4, sig_r0,
+                                        sig_rmax, sig_stride, include_G));
   }
 
   std::cout << "\nEnergy corrections:\n";
@@ -305,12 +330,22 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                deS * icm);
   }
 
+  // Write the Sigma_L matrices to disk
+  // (read in via Correlations{ladder_file=...;})
+  std::vector<MBPT::SigmaLData> SLs;
+  for (std::size_t i = 0; i < valence.size(); ++i) {
+    const auto &v = valence[i];
+    SLs.push_back({v.kappa(), v.n(), v.en(), std::move(SigL_v[i])});
+  }
+  MBPT::write_SigmaL(sl_file, SLs, wf.grid());
+
   // Use this to check the symmetries
-  if (max_it == 0)
+  if (check_symmetry)
     check_L_symmetry(holes, excited, valence, qk, include_L4, sjt, &lk);
 }
 
 //==============================================================================
+namespace {
 void check_L_symmetry(const std::vector<DiracSpinor> &core,
                       const std::vector<DiracSpinor> &excited,
                       const std::vector<DiracSpinor> &valence,
@@ -415,5 +450,6 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
     std::cout << "(no table -- skipping table comparisons)\n";
   }
 }
+} // namespace
 
-} // namespace Module
+} // namespace MBPT

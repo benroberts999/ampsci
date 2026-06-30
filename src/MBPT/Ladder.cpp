@@ -1,14 +1,19 @@
 #include "Ladder.hpp"
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
+#include "IO/FRW_fileReadWrite.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/omp.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <cmath>
 #include <cstdint>
+#include <fstream>
+#include <iostream>
 #include <numeric>
+#include <string>
 #include <unordered_set>
 #include <vector>
 
@@ -514,7 +519,7 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
                      const std::vector<DiracSpinor> &basis,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
                      const Angular::SixJTable &sjt, bool include_L4, double r0,
-                     double rmax, std::size_t stride) {
+                     double rmax, std::size_t stride, bool include_G) {
 
   // Ladder correction to the correlation potential, evaluated at energy en_v.
   // The exchange is folded into the Coulomb vertex via W = Q + P (mirrors
@@ -545,13 +550,13 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
 
   const auto tjv = Angular::twoj_k(kappa_v);
 
-  // Sub-grid + GMatrix (no lower g part):
+  // Sub-grid + GMatrix (lower g part included if include_G):
   const auto grid = excited.empty() ?
                       (core.empty() ? nullptr : core.front().grid_sptr()) :
                       excited.front().grid_sptr();
   const auto i0 = grid ? grid->getIndex(r0) : 0ul;
   const auto size = grid ? (grid->getIndex(rmax) - i0) / stride + 1 : 0ul;
-  GMatrix Sd{i0, stride, size, true, grid};
+  GMatrix Sd{i0, stride, size, include_G, grid};
 
   if (core.empty() || excited.empty())
     return Sd;
@@ -697,6 +702,110 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   };
 
   lk->update(basis, Lk_function, a_damp, print, filter);
+}
+
+//==============================================================================
+bool write_SigmaL(const std::string &fname, const std::vector<SigmaLData> &SLs,
+                  const Grid &grid) {
+  if (fname.empty() || fname == "false" || SLs.empty())
+    return false;
+
+  std::cout << "\nWriting Sigma_L (ladder) to file: " << fname << " ... "
+            << std::flush;
+
+  std::fstream iofs;
+  IO::FRW::open_binary(iofs, fname, IO::FRW::write);
+  const auto rw = IO::FRW::write;
+
+  // Full-grid parameters - just to check on read:
+  auto r0 = grid.r0();
+  auto rmax = grid.rmax();
+  auto b = grid.loglin_b();
+  auto pts = grid.num_points();
+  rw_binary(iofs, rw, r0, rmax, b, pts);
+
+  auto num = SLs.size();
+  rw_binary(iofs, rw, num);
+
+  for (const auto &sig : SLs) {
+    auto kappa = sig.kappa;
+    auto n = sig.n;
+    auto en = sig.en;
+    auto i0 = sig.SL.i0();
+    auto stride = sig.SL.stride();
+    auto size = sig.SL.size();
+    auto incl_g = sig.SL.includes_g();
+    rw_binary(iofs, rw, kappa, n, en, i0, stride, size, incl_g);
+    for (auto i = 0ul; i < size; ++i) {
+      for (auto j = 0ul; j < size; ++j) {
+        auto ff = sig.SL.ff(i, j);
+        rw_binary(iofs, rw, ff);
+        if (incl_g) {
+          auto fg = sig.SL.fg(i, j);
+          auto gf = sig.SL.gf(i, j);
+          auto gg = sig.SL.gg(i, j);
+          rw_binary(iofs, rw, fg, gf, gg);
+        }
+      }
+    }
+  }
+  std::cout << "done.\n";
+  return true;
+}
+
+//==============================================================================
+std::vector<SigmaLData> read_SigmaL(const std::string &fname,
+                                    const std::shared_ptr<const Grid> &grid) {
+  std::vector<SigmaLData> SLs;
+  if (fname.empty() || fname == "false" || !grid)
+    return SLs;
+  if (!IO::FRW::file_exists(fname)) {
+    std::cout << "\nNo Sigma_L (ladder) file: " << fname << "\n";
+    return SLs;
+  }
+
+  std::cout << "\nReading Sigma_L (ladder) from file: " << fname << " ... "
+            << std::flush;
+
+  std::fstream iofs;
+  IO::FRW::open_binary(iofs, fname, IO::FRW::read);
+  const auto rw = IO::FRW::read;
+
+  // Full-grid parameters - must match current grid:
+  double r0{}, rmax{}, b{};
+  std::size_t pts{};
+  rw_binary(iofs, rw, r0, rmax, b, pts);
+  const bool grid_ok = std::abs((r0 - grid->r0()) / r0) < 1.0e-6 &&
+                       std::abs(rmax - grid->rmax()) < 0.001 &&
+                       std::abs(b - grid->loglin_b()) < 0.001 &&
+                       pts == grid->num_points();
+  if (!grid_ok) {
+    std::cout << "\nCannot read from: " << fname << ". Grid mismatch.\n";
+    return SLs;
+  }
+
+  std::size_t num{};
+  rw_binary(iofs, rw, num);
+
+  for (std::size_t iS = 0; iS < num; ++iS) {
+    int kappa{}, n{};
+    double en{};
+    std::size_t i0{}, stride{}, size{};
+    bool incl_g{};
+    rw_binary(iofs, rw, kappa, n, en, i0, stride, size, incl_g);
+    GMatrix SL{i0, stride, size, incl_g, grid};
+    for (auto i = 0ul; i < size; ++i) {
+      for (auto j = 0ul; j < size; ++j) {
+        rw_binary(iofs, rw, SL.ff(i, j));
+        if (incl_g) {
+          rw_binary(iofs, rw, SL.fg(i, j), SL.gf(i, j), SL.gg(i, j));
+        }
+      }
+    }
+    SLs.push_back({kappa, n, en, std::move(SL)});
+  }
+  std::cout << "done.\n";
+  return SLs;
 }
 
 } // namespace MBPT

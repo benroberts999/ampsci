@@ -3,6 +3,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/InputBlock.hpp"
+#include "MBPT/LadderDriver.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp" //for 'ExtraPotential'
 #include "Modules/Modules.hpp"
@@ -23,6 +24,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     std::cout << '\n';
     IO::print_line();
     input.print();
+    std::cout << '\n';
+    IO::print_line();
   }
 
   // Check Top-level input blocks
@@ -40,6 +43,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "Options for the QED radiative potential (usually defaults suffice)"},
      {"ExtraPotential{}", "Include an extra effective potential. Rarely used."},
      {"Basis{}", "Basis of HF eigenstates used for MBPT"},
+     {"Ladder{}", "Calculate MBPT ladder diagrams and ladder correlation "
+                  "potential, Sigma_L (runs before Correlations)"},
      {"Correlations{}", "Options for MBPT and correlation corrections"},
      {"Spectrum{}",
       "Like basis, but includes correlations. Used for sum-over-states"},
@@ -300,6 +305,18 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   //----------------------------------------------------------------------------
 
+  // Ladder diagrams: calculates ladder integrals, Lk, and writes the ladder
+  // correlation potential, Sigma_L, to file. Runs before Correlations; the
+  // Sigma_L file is read in via Correlations{ladder_file=...;}
+  // (Options parsed inside the driver, incl. for help mode)
+  const auto ladder_in = input.getBlock("Ladder");
+  if (ladder_in) {
+    IO::ChronoTimer time("Ladder");
+    MBPT::ladder(*ladder_in, wf);
+  }
+
+  //----------------------------------------------------------------------------
+
   // Correlations: read in options
   // This is a mess - will re-do correlations part
   const auto Sigma_ok = input.check(
@@ -354,7 +371,12 @@ Wavefunction ampsci(const IO::InputBlock &input) {
      {"include_Breit", "Inlcude two-body Breit corrections into Sigma [false]"},
      {"n_max_Breit",
       "Maximum n for excited states to include in two-body Breit "
-      "correction to Correlation potential [<=0, means entire basis]"}});
+      "correction to Correlation potential [<=0, means entire basis]"},
+     {"ladder_file",
+      "Filename of ladder correlation potential (Sigma_L) file, as produced "
+      "by the Ladder{} block. If given, Sigma_L is read in and included into "
+      "Sigma (stored separately; scaled by same lambda). [blank => no "
+      "ladder]"}});
 
   const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
@@ -421,6 +443,9 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto fk = input.get({"Correlations"}, "fk", std::vector<double>{});
   const auto etak = input.get({"Correlations"}, "eta", std::vector<double>{});
 
+  // Ladder correlation potential file (produced by the Ladder{} block):
+  const auto ladder_file = input.get({"Correlations"}, "ladder_file", ""s);
+
   // Form correlation potential:
   if (Sigma_ok && do_brueckner) {
     IO::ChronoTimer time("Sigma");
@@ -428,7 +453,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                  include_G, include_Breit, n_max_Breit, lambda_k, fk, etak,
                  sigma_readwrite, sigma_filename, sigma_Feynman,
                  sigma_Screening, hole_particle, sigma_lmax, sigma_omre, w0,
-                 wratio, ek_Sig);
+                 wratio, ek_Sig, ladder_file);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

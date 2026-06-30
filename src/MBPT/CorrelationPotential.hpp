@@ -61,6 +61,13 @@ class CorrelationPotential {
 
   std::string m_fname{};
 
+  // Ladder correction, Sigma_L: read from file (produced by the Ladder{}
+  // block/driver - see MBPT::ladder). Stored separately from the base Sigma
+  // (may have its own sub-grid and include_G); added in SigmaFv, and scaled
+  // by the same lambda as the base Sigma.
+  std::vector<SigmaData> m_Sigma_L{};
+  std::string m_ladder_file{};
+
 public:
   CorrelationPotential(const std::string &fname, const HF::HartreeFock *vHF,
                        const std::vector<DiracSpinor> &basis, double r0,
@@ -70,7 +77,8 @@ public:
                        const FeynmanOptions &Foptions = {},
                        bool calculate_fk = true,
                        const std::vector<double> &fk = {},
-                       const std::vector<double> &etak = {});
+                       const std::vector<double> &etak = {},
+                       const std::string &ladder_file = "");
 
   // // not thread safe!
   // void formSigma(int kappa, double en, int n = 0) {}
@@ -113,6 +121,7 @@ private:
   std::vector<double> calculate_fk(double ev, const DiracSpinor &v) const;
   std::vector<double> calculate_etak(double ev, const DiracSpinor &v) const;
   const SigmaData *get(int kappa, int n = 0) const;
+  const SigmaData *get_ladder(int kappa, int n = 0) const;
 
   GMatrix formSigma_F(int kappa, double ev, const DiracSpinor *Fv = nullptr);
   GMatrix formSigma_G(int kappa, double ev, const DiracSpinor *Fv = nullptr);
