@@ -21,6 +21,7 @@
 #include <numeric>
 #include <sstream>
 #include <string>
+#include <tuple>
 #include <utility>
 #include <vector>
 
@@ -519,7 +520,8 @@ void Wavefunction::formSigma(
   const std::vector<double> &lambdas, const std::vector<double> &fk,
   const std::vector<double> &etak, bool read_write, const std::string &in_fname,
   bool FeynmanQ, bool ScreeningQ, bool hole_particleQ, int lmax, double omre,
-  double w0, double wratio, const std::optional<IO::InputBlock> &ek) {
+  double w0, double wratio, const std::optional<IO::InputBlock> &ek,
+  const std::optional<MBPT::LadderOptions> &ladder) {
   if (core().empty() || !m_HF)
     return;
 
@@ -541,6 +543,20 @@ void Wavefunction::formSigma(
   const auto file_name =
     read_write ? (in_fname == "" ? identity() + ext : in_fname + ext) : "";
 
+  // Separate file for the ladder Sigma_L matrices: ".sl"(+"4" if L4)(+"g" if G).
+  // Kept distinct from the base Sigma file so ladder can be toggled without
+  // recomputing the base.
+  std::string ladder_ext = ".sl";
+  if (ladder && ladder->include_L4)
+    ladder_ext += "4";
+  if (include_G)
+    ladder_ext += "g";
+  ladder_ext += ".abf";
+  const auto ladder_file_name =
+    (read_write && ladder) ?
+      (in_fname == "" ? identity() + ladder_ext : in_fname + ladder_ext) :
+      "";
+
   const auto method =
     FeynmanQ ? MBPT::SigmaMethod::Feynman : MBPT::SigmaMethod::Goldstone;
 
@@ -556,40 +572,47 @@ void Wavefunction::formSigma(
     file_name, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core,
     method, include_G, include_Breit_b2, n_max_breit,
     MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio}, calculate_fk,
-    fk, etak);
+    fk, etak, ladder, ladder_file_name);
 
   std::cout << "\n";
 
   if (ek)
     each_valence = false;
 
-  // This is for each valence state.... otherwise, just do for lowest??
+  // Build the list of (kappa, energy, n, Fv) to form Sigma for.
+  std::vector<std::tuple<int, double, int, const DiracSpinor *>> states;
   if (each_valence) {
-    // calculate sigma for each valence state:
-    for (const auto &Fv : m_valence) {
-      m_Sigma->formSigma(Fv.kappa(), Fv.en(), Fv.n(), &Fv);
-    }
-  } else if (!ek /*&& m_Sigma->empty()*/) {
-    // calculate sigma for lowest n valence state of each kappa:
+    // each valence state:
+    for (const auto &Fv : m_valence)
+      states.emplace_back(Fv.kappa(), Fv.en(), Fv.n(), &Fv);
+  } else if (!ek) {
+    // lowest n valence state of each kappa:
     const auto max_ki = DiracSpinor::max_kindex(m_valence);
     for (auto ki = 0ul; ki <= max_ki; ++ki) {
       auto Fv = std::find_if(cbegin(m_valence), cend(m_valence),
                              [ki](auto f) { return f.k_index() == ki; });
       if (Fv != cend(m_valence))
-        m_Sigma->formSigma(Fv->kappa(), Fv->en(), Fv->n(), &*Fv);
+        states.emplace_back(Fv->kappa(), Fv->en(), Fv->n(), &*Fv);
     }
-  } else if (ek /*&& m_Sigma->empty()*/) {
-    // solve at specific energies:
+  } else { // ek: specific energies
     for (auto &[state, en] : ek->options()) {
       auto [n, k] = AtomData::parse_symbol(state);
       auto Fv = std::find_if(cbegin(m_valence), cend(m_valence),
                              [kt = k](auto f) { return f.kappa() == kt; });
-      if (Fv != cend(m_valence)) {
-        m_Sigma->formSigma(k, std::stod(en), n, &*Fv);
-      } else {
-        m_Sigma->formSigma(k, std::stod(en), n);
-      }
+      const DiracSpinor *pFv = Fv != cend(m_valence) ? &*Fv : nullptr;
+      states.emplace_back(k, std::stod(en), n, pFv);
     }
+  }
+
+  // Form the base correlation potential Sigma (Goldstone/Feynman):
+  for (const auto &[k, en, n, Fv] : states)
+    m_Sigma->formSigma(k, en, n, Fv);
+
+  // Form the ladder correction Sigma_L -- a separate, independent operation:
+  if (ladder) {
+    m_Sigma->prepare_ladder(*this);
+    for (const auto &[k, en, n, Fv] : states)
+      m_Sigma->formSigma_L(k, en, n, Fv);
   }
 
   if (!lambdas.empty()) {

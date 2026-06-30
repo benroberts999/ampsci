@@ -3,6 +3,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp" //for 'ExtraPotential'
 #include "IO/InputBlock.hpp"
+#include "MBPT/LadderPotential.hpp" // for MBPT::LadderOptions
 #include "Maths/Grid.hpp"
 #include "Maths/Interpolator.hpp" //for 'ExtraPotential'
 #include "Modules/Modules.hpp"
@@ -354,7 +355,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
      {"include_Breit", "Inlcude two-body Breit corrections into Sigma [false]"},
      {"n_max_Breit",
       "Maximum n for excited states to include in two-body Breit "
-      "correction to Correlation potential [<=0, means entire basis]"}});
+      "correction to Correlation potential [<=0, means entire basis]"},
+     {"Ladder{}",
+      "If present, include the ladder-diagram correction into Sigma. The "
+      "sub-block carries the ladder options."}});
 
   const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
@@ -421,6 +425,16 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto fk = input.get({"Correlations"}, "fk", std::vector<double>{});
   const auto etak = input.get({"Correlations"}, "eta", std::vector<double>{});
 
+  // Ladder-diagram correction to Sigma: Correlations{ Ladder{...} }. Parsing,
+  // validation and help-documentation are delegated to the ladder module (so
+  // `ampsci -i Correlations` also prints the Ladder sub-block options).
+  const auto correlations_in = input.getBlock("Correlations");
+  std::optional<MBPT::LadderOptions> ladder_options{};
+  if (correlations_in) {
+    ladder_options =
+      MBPT::parse_ladder_options(*correlations_in, wf.identity());
+  }
+
   // Form correlation potential:
   if (Sigma_ok && do_brueckner) {
     IO::ChronoTimer time("Sigma");
@@ -428,7 +442,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                  include_G, include_Breit, n_max_Breit, lambda_k, fk, etak,
                  sigma_readwrite, sigma_filename, sigma_Feynman,
                  sigma_Screening, hole_particle, sigma_lmax, sigma_omre, w0,
-                 wratio, ek_Sig);
+                 wratio, ek_Sig, ladder_options);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

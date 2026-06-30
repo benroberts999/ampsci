@@ -514,7 +514,7 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
                      const std::vector<DiracSpinor> &basis,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
                      const Angular::SixJTable &sjt, bool include_L4, double r0,
-                     double rmax, std::size_t stride) {
+                     double rmax, std::size_t stride, bool include_G) {
 
   // Ladder correction to the correlation potential, evaluated at energy en_v.
   // The exchange is folded into the Coulomb vertex via W = Q + P (mirrors
@@ -545,13 +545,13 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
 
   const auto tjv = Angular::twoj_k(kappa_v);
 
-  // Sub-grid + GMatrix (no lower g part):
+  // Sub-grid + GMatrix (lower g part included if include_G):
   const auto grid = excited.empty() ?
                       (core.empty() ? nullptr : core.front().grid_sptr()) :
                       excited.front().grid_sptr();
   const auto i0 = grid ? grid->getIndex(r0) : 0ul;
   const auto size = grid ? (grid->getIndex(rmax) - i0) / stride + 1 : 0ul;
-  GMatrix Sd{i0, stride, size, true, grid};
+  GMatrix Sd{i0, stride, size, include_G, grid};
 
   if (core.empty() || excited.empty())
     return Sd;

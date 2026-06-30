@@ -5,10 +5,14 @@
 #include "IO/FRW_fileReadWrite.hpp"
 #include "MBPT/SpinorMatrix.hpp"
 #include "Physics/AtomData.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "Wavefunction/Wavefunction.hpp"
 #include "fmt/format.hpp"
+#include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <utility>
 #include <vector>
 
 namespace MBPT {
@@ -20,7 +24,8 @@ CorrelationPotential::CorrelationPotential(
   std::size_t stride, int n_min_core, SigmaMethod method, bool include_g,
   bool include_Breit_b2, int n_max_breit, const FeynmanOptions &Foptions,
   bool calculate_fk, const std::vector<double> &fk,
-  const std::vector<double> &etak)
+  const std::vector<double> &etak, std::optional<LadderOptions> ladder_opts,
+  const std::string &ladder_sigma_file)
   : m_HF(vHF),
     m_basis(basis),
     m_r0(r0),
@@ -37,13 +42,21 @@ CorrelationPotential::CorrelationPotential(
     m_calculate_fk(calculate_fk),
     m_fk(fk),
     m_etak(etak),
-    m_fname(fname) {
+    m_fname(fname),
+    m_ladder_opts(std::move(ladder_opts)),
+    m_use_ladder(m_ladder_opts.has_value()),
+    m_ladder_sigma_file(ladder_sigma_file) {
 
   std::cout << "\nConstruct Correlation Potential\n";
 
   // attempt to read in Sigma file:
   // (Just contains Sigma matrix, nothing else)
   const bool read_ok = read_write(fname, IO::FRW::read);
+
+  // attempt to read the (separate) ladder Sigma_L file, if ladder requested and
+  // the base Sigma was read (so entries exist to attach Sigma_L to):
+  if (m_use_ladder && read_ok)
+    read_write_ladder(m_ladder_sigma_file, IO::FRW::read);
 
   if (!read_ok) {
 
@@ -137,6 +150,55 @@ void CorrelationPotential::formSigma(int kappa, double ev, int n,
                                               formSigma_G(kappa, ev, Fv);
 
   m_Sigmas.push_back({kappa, ev, std::move(S), n, 1.0});
+}
+
+//==============================================================================
+void CorrelationPotential::prepare_ladder(const Wavefunction &wf) {
+  if (!m_use_ladder || m_Ladder.has_value())
+    return;
+  // If every stored Sigma already has its Sigma_L (read from file), there is
+  // nothing to compute -- don't build the (expensive) Lk/Qk machinery.
+  const bool all_cached =
+    !m_Sigmas.empty() &&
+    std::all_of(m_Sigmas.cbegin(), m_Sigmas.cend(),
+                [](const auto &s) { return s.Sigma_L.has_value(); });
+  if (all_cached)
+    return;
+  m_Ladder.emplace(wf, m_r0, m_rmax, m_stride, *m_ladder_opts);
+}
+
+//==============================================================================
+void CorrelationPotential::formSigma_L(int kappa, double ev, int n,
+                                       const DiracSpinor *Fv) {
+  if (!m_use_ladder)
+    return;
+
+  // Sigma_L is stored alongside the base Sigma for this (kappa, n).
+  auto it =
+    std::find_if(m_Sigmas.begin(), m_Sigmas.end(), [kappa, n](const auto &s) {
+      return s.kappa == kappa && (s.n == n || n <= 0);
+    });
+  if (it == m_Sigmas.end())
+    return;
+
+  if (it->Sigma_L.has_value()) {
+    // Read from file -- nothing to compute.
+    const auto deL = Fv ? *Fv * (*it->Sigma_L * *Fv) : 0.0;
+    fmt::print("Have Sigma_L: kappa={}, de={:.5e}\n", kappa, deL);
+    return;
+  }
+
+  // prepare_ladder() must be called first
+  if (!m_Ladder.has_value())
+    return;
+
+  // Build Sigma_L with the same g-inclusion as the rest of Sigma (m_includeG).
+  auto SL = m_Ladder->Sigma_ladder(kappa, ev, Fv, m_includeG);
+  if (Fv) {
+    const auto deL = (*Fv) * (SL * *Fv);
+    fmt::print("  de[ladder] = {:.2f}\n", deL * PhysConst::Hartree_invcm);
+  }
+  it->Sigma_L = std::move(SL);
 }
 
 //==============================================================================
@@ -391,8 +453,13 @@ double CorrelationPotential::getLambda(int kappa, int n) const {
 //! returns Spinor: Sigma|Fv>
 //! @details If Sigma for kappa_v doesn't exist, returns |0>.
 DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &Fv) const {
-  auto Sv = get(Fv.kappa(), Fv.n());
-  return Sv ? Sv->lambda * (Sv->Sigma * Fv) : 0.0 * Fv;
+  const auto Sv = get(Fv.kappa(), Fv.n());
+  if (!Sv)
+    return 0.0 * Fv;
+  auto SF = Sv->Sigma * Fv;
+  if (m_use_ladder && Sv->Sigma_L.has_value())
+    SF += *Sv->Sigma_L * Fv;
+  return Sv->lambda * SF;
 }
 
 //==============================================================================
@@ -445,6 +512,8 @@ void CorrelationPotential::print_subGrid() const {
 bool CorrelationPotential::read_write(const std::string &fname,
                                       IO::FRW::RoW rw) {
 
+  if (fname == "false")
+    return false;
   if (rw == IO::FRW::read && !IO::FRW::file_exists(fname))
     return false;
 
@@ -519,6 +588,81 @@ bool CorrelationPotential::read_write(const std::string &fname,
     std::cout << "Read Sigma from file: " << fname << "\n";
     print_info();
   }
+  return true;
+}
+
+//==============================================================================
+bool CorrelationPotential::read_write_ladder(const std::string &fname,
+                                             IO::FRW::RoW rw) {
+  const bool reading = rw == IO::FRW::read;
+  if (fname.empty() || fname == "false")
+    return false;
+  if (reading && !IO::FRW::file_exists(fname))
+    return false;
+
+  const auto rw_str = reading ? "\nReading from " : "\nWriting to ";
+  std::cout << rw_str << "ladder Sigma_L file: " << fname << " ... "
+            << std::flush;
+
+  std::fstream iofs;
+  IO::FRW::open_binary(iofs, fname, rw);
+
+  // Sub-grid (must match the base Sigma):
+  auto t_r0 = m_r0, t_rmax = m_rmax;
+  auto t_stride = m_stride, t_i0 = m_i0, t_size = m_size;
+  bool t_g = m_includeG;
+  rw_binary(iofs, rw, t_r0, t_rmax, t_stride, t_i0, t_size, t_g);
+  if (reading && (t_stride != m_stride || t_i0 != m_i0 || t_size != m_size ||
+                  t_g != m_includeG)) {
+    std::cout << "\nLadder Sigma_L file sub-grid mismatch; ignoring.\n";
+    return false;
+  }
+
+  // Number of stored Sigma_L matrices:
+  std::size_t num = 0;
+  if (!reading) {
+    for (const auto &Sig : m_Sigmas)
+      if (Sig.Sigma_L.has_value())
+        ++num;
+  }
+  rw_binary(iofs, rw, num);
+
+  const auto rw_matrix = [&](GMatrix &Gk) {
+    for (auto i = 0ul; i < m_size; ++i) {
+      for (auto j = 0ul; j < m_size; ++j) {
+        rw_binary(iofs, rw, Gk.ff(i, j));
+        if (m_includeG) {
+          rw_binary(iofs, rw, Gk.fg(i, j));
+          rw_binary(iofs, rw, Gk.gf(i, j));
+          rw_binary(iofs, rw, Gk.gg(i, j));
+        }
+      }
+    }
+  };
+
+  if (!reading) {
+    for (auto &Sig : m_Sigmas) {
+      if (!Sig.Sigma_L.has_value())
+        continue;
+      rw_binary(iofs, rw, Sig.kappa, Sig.n);
+      rw_matrix(*Sig.Sigma_L);
+    }
+  } else {
+    for (std::size_t iS = 0; iS < num; ++iS) {
+      int kappa = 0, n = 0;
+      rw_binary(iofs, rw, kappa, n);
+      GMatrix Gk{m_i0, m_stride, m_size, m_includeG, m_HF->grid_sptr()};
+      rw_matrix(Gk);
+      // Attach to the matching base Sigma (silently drop if none):
+      auto it = std::find_if(
+        m_Sigmas.begin(), m_Sigmas.end(),
+        [kappa, n](const auto &s) { return s.kappa == kappa && s.n == n; });
+      if (it != m_Sigmas.end())
+        it->Sigma_L = std::move(Gk);
+    }
+  }
+
+  std::cout << "done.\n";
   return true;
 }
 

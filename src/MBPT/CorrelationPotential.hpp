@@ -5,10 +5,14 @@
 #include "IO/FRW_fileReadWrite.hpp"
 #include "MBPT/Feynman.hpp"
 #include "MBPT/Goldstone.hpp"
+#include "MBPT/LadderPotential.hpp"
 #include "MBPT/SpinorMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <optional>
+#include <string>
 #include <vector>
+
+class Wavefunction;
 
 namespace MBPT {
 
@@ -18,6 +22,9 @@ struct SigmaData {
   SpinorMatrix<double> Sigma;
   int n{0};
   double lambda{1.0};
+  // Ladder-diagram correction, stored separately so it can be toggled on/off
+  // (and added/removed) without recomputing the base Sigma.
+  std::optional<SpinorMatrix<double>> Sigma_L{};
 };
 
 enum class SigmaMethod { Goldstone, Feynman };
@@ -61,6 +68,16 @@ class CorrelationPotential {
 
   std::string m_fname{};
 
+  // Ladder diagrams: if ladder options are provided, the ladder correction
+  // Sigma_L is built by m_Ladder and stored separately in each SigmaData, so it
+  // can be toggled on/off without recomputing the base Sigma. m_Ladder owns Qk +
+  // the converged Lk and is independent of the base Sigma (its own
+  // basis/n_min_core); only the sub-grid is shared.
+  std::optional<LadderOptions> m_ladder_opts{};
+  bool m_use_ladder{false};
+  std::optional<LadderPotential> m_Ladder{};
+  std::string m_ladder_sigma_file{}; // separate file for the Sigma_L matrices
+
 public:
   CorrelationPotential(const std::string &fname, const HF::HartreeFock *vHF,
                        const std::vector<DiracSpinor> &basis, double r0,
@@ -70,12 +87,27 @@ public:
                        const FeynmanOptions &Foptions = {},
                        bool calculate_fk = true,
                        const std::vector<double> &fk = {},
-                       const std::vector<double> &etak = {});
+                       const std::vector<double> &etak = {},
+                       std::optional<LadderOptions> ladder_opts = {},
+                       const std::string &ladder_sigma_file = "");
 
   // // not thread safe!
   // void formSigma(int kappa, double en, int n = 0) {}
   // not thread safe!
   void formSigma(int kappa, double ev, int n, const DiracSpinor *Fv = nullptr);
+
+  //! Builds the ladder machinery (reads/iterates Lk, prints diagnostics).
+  //! @details Call once before the formSigma_L loop. No-op if ladder is off, or
+  //! if every stored Sigma already has its Sigma_L (read from file -> nothing to
+  //! compute, so the Lk/Qk tables are never even loaded).
+  void prepare_ladder(const Wavefunction &wf);
+
+  //! Forms (or confirms read) the ladder correction Sigma_L for (kappa,n).
+  //! @details Independent of the base Sigma: if Sigma_L was read from file it is
+  //! used as-is; otherwise it is computed via the LadderPotential (which
+  //! prepare_ladder must have built). Stored separately in the SigmaData.
+  void formSigma_L(int kappa, double ev, int n,
+                   const DiracSpinor *Fv = nullptr);
 
   bool empty() const { return m_Sigmas.empty(); }
 
@@ -105,10 +137,17 @@ public:
   //! Prints the sub-grid parameters to screen
   void print_subGrid() const;
 
-  void write(const std::string &fname) { read_write(fname, IO::FRW::write); }
+  void write(const std::string &fname) {
+    read_write(fname, IO::FRW::write);
+    if (m_use_ladder)
+      read_write_ladder(m_ladder_sigma_file, IO::FRW::write);
+  }
 
 private:
   bool read_write(const std::string &fname, IO::FRW::RoW rw);
+  // Serialises the ladder Sigma_L matrices to/from a separate file (one per
+  // stored Sigma, matched by kappa/n). Assumes m_Sigmas already populated.
+  bool read_write_ladder(const std::string &fname, IO::FRW::RoW rw);
   void setup_Feynman();
   std::vector<double> calculate_fk(double ev, const DiracSpinor &v) const;
   std::vector<double> calculate_etak(double ev, const DiracSpinor &v) const;
