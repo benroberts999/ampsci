@@ -763,16 +763,14 @@ void structureRad(const IO::InputBlock &input, const Wavefunction &wf) {
         // "Normalisation"
         const auto f_norm_w = sr.f_norm(*ws);
         const auto f_norm_v = sr.f_norm(*vs);
-        const auto norm = factor * (f_norm_w + f_norm_v) * (twvs + dvs);
-        fmt::print("{:8s}  {:12.5e}\n", "Norm(0)",
-                   factor * (f_norm_w + f_norm_v) * (twvs + dvs));
+        const auto norm = (f_norm_w + f_norm_v) * (twvs + dvs);
+        fmt::print("{:8s}  {:12.5e}\n", "Norm(0)", factor * norm);
         fmt::print("{:8s}  {:12.5e}\n", "Norm(SR)",
                    factor * (f_norm_w + f_norm_v) * (twvs + dvs + TBC));
         std::cout << std::flush;
 
         double T_bo = 0.0;
         if (!have_brueckner) {
-
           auto bo = sr.BO(*ws, *vs);
           fmt::print("{:8s}  {:12.5e}\n", "BO", factor * bo);
 
