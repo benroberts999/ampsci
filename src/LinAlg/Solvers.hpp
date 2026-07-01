@@ -61,7 +61,7 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number);
 
   @tparam T Element type: `double` only.
   @param A         Square real symmetric matrix (taken by value; overwritten).
-  @param all_below Upper bound: only eigenvalues ≤ `all_below` are returned.
+  @param all_below Upper bound: only eigenvalues  `all_below` are returned.
   @returns  Tuple `{N, e, V}`, where:
             - `N` is the number of eigenvalues found,
             - `e(i)` is the i-th eigenvalue (ascending),
