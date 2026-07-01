@@ -75,11 +75,17 @@ void printConstants() //
   printf("aB      = %.12e m\n", PhysConst::aB_m);
   printf("        = %.8f fm\n", PhysConst::aB_fm);
   printf("        = %.12e c/MeV\n", PhysConst::aB_fm / PhysConst::hbarc_MeVfm);
+  printf("b       = %.12e a0^2\n", PhysConst::barn_au);
+  printf("        = %.12e cm^2\n", PhysConst::barn_m2 * 1.0e4);
+  printf("        = %.12e GeV^-2  (ℏ=c=1)\n",
+         PhysConst::barn_m2 * 1.0e30 /
+           (PhysConst::hbarc_MeVfm * 1.0e-3 * PhysConst::hbarc_MeVfm * 1.0e-3));
   printf("E_h     = %.12f eV\n", PhysConst::Hartree_eV);
-  printf("        = %.12e Hz\n", PhysConst::Hartree_Hz);
+  printf("        = %.12e MHz\n", PhysConst::Hartree_MHz);
   printf("        = %.8f /cm\n", PhysConst::Hartree_invcm);
   printf("λ(E_h)  = %.8f nm\n", 1e9 * PhysConst::c_SI / PhysConst::Hartree_Hz);
   printf("ℏ/E_h   = %.10e s\n", PhysConst::hbar_on_EH);
+  printf("muN     = %.12e a.u.\n", PhysConst::muN_SI);
   std::cout << "\n";
   return;
 }
@@ -230,6 +236,47 @@ void convert_energy_au_invlength(double E_au) {
 }
 
 //==============================================================================
+// sigma given in m^2 (SI). Prints in b, cm^2, a0^2, GeV^-2, eV^-2.
+void convert_cross_sections(double sigma_m2) {
+  const auto hbarc_GeVfm = PhysConst::hbarc_MeVfm * 1.0e-3;
+  // m^2 -> GeV^-2 (ℏ=c=1): 1 m = 1e15 fm = 1e15/hbarc_GeVfm GeV^-1
+  const auto sigma_invGeV2 = sigma_m2 * 1.0e30 / (hbarc_GeVfm * hbarc_GeVfm);
+
+  fmt::print("  {:<20.15g} b\n", sigma_m2 / PhysConst::barn_m2);
+  fmt::print("  {:<20.15g} cm^2\n", sigma_m2 * 1.0e4);
+  fmt::print("  {:<20.15g} a0^2\n",
+             sigma_m2 / (PhysConst::aB_m * PhysConst::aB_m));
+  fmt::print("  {:<20.15g} GeV^-2  (ℏ=c=1)\n", sigma_invGeV2);
+  fmt::print("  {:<20.15g} eV^-2   (ℏ=c=1)\n", sigma_invGeV2 * 1.0e18);
+}
+
+// SI prefix multiplier from leading character (1.0 if none; 'm' = metre)
+double si_prefix_factor(char c) {
+  switch (c) {
+  case 'f':
+    return 1.0e-15;
+  case 'p':
+    return 1.0e-12;
+  case 'n':
+    return 1.0e-9;
+  case 'u':
+    return 1.0e-6;
+  case 'c':
+    return 1.0e-2;
+  case 'k':
+    return 1.0e3;
+  case 'M':
+    return 1.0e6;
+  case 'G':
+    return 1.0e9;
+  case 'T':
+    return 1.0e12;
+  default:
+    return 1.0;
+  }
+}
+
+//==============================================================================
 void conversions(double number, const std::string &unit) {
   assert(unit.size() > 0);
 
@@ -237,31 +284,21 @@ void conversions(double number, const std::string &unit) {
   std::cout << "Unit conversion: *(caution - convenience only; always check)\n";
   fmt::print("\n{:<.15g} {} = \n", number, unit);
 
+  // Cross section / area: barn (b) or <prefix>m^2. Handled before the general
+  // SI-prefix block below, since for an area the prefix must be *squared*.
+  const bool is_barn = (unit == "b" || qip::ci_contains(unit, "barn"));
+  if (is_barn || qip::ci_contains(unit, "^2")) {
+    std::cout << "\nInterpret as cross section (area):\n";
+    const auto p = si_prefix_factor(unit[0]);
+    const auto sigma_m2 =
+      is_barn ? number * PhysConst::barn_m2 : number * p * p;
+    return convert_cross_sections(sigma_m2);
+  }
+
   // this part: NOT case insensitive
   // SI prefix:
   // special case for 'm' - since it's a prefix _and_ a unit
-  if (!qip::ci_contains(unit, "-1")) {
-    if (unit[0] == 'f')
-      number *= 1.0e-15;
-    if (unit[0] == 'p')
-      number *= 1.0e-12;
-    if (unit[0] == 'n')
-      number *= 1.0e-9;
-    if (unit[0] == 'u')
-      number *= 1.0e-6;
-    if (unit[0] == 'c')
-      number *= 1.0e-2;
-    if (unit[0] == 'm' && unit.size() > 1)
-      number *= 1.0e-3;
-    if (unit[0] == 'k')
-      number *= 1.0e3;
-    if (unit[0] == 'M')
-      number *= 1.0e6;
-    if (unit[0] == 'G')
-      number *= 1.0e9;
-    if (unit[0] == 'T')
-      number *= 1.0e12;
-  } else {
+  if (qip::ci_contains(unit, "-1")) {
     if (unit[0] == 'f')
       number /= 1.0e-15;
     if (unit[0] == 'p')
@@ -282,6 +319,27 @@ void conversions(double number, const std::string &unit) {
       number /= 1.0e9;
     if (unit[0] == 'T')
       number /= 1.0e12;
+  } else {
+    if (unit[0] == 'f')
+      number *= 1.0e-15;
+    if (unit[0] == 'p')
+      number *= 1.0e-12;
+    if (unit[0] == 'n')
+      number *= 1.0e-9;
+    if (unit[0] == 'u')
+      number *= 1.0e-6;
+    if (unit[0] == 'c')
+      number *= 1.0e-2;
+    if (unit[0] == 'm' && unit.size() > 1)
+      number *= 1.0e-3;
+    if (unit[0] == 'k')
+      number *= 1.0e3;
+    if (unit[0] == 'M')
+      number *= 1.0e6;
+    if (unit[0] == 'G')
+      number *= 1.0e9;
+    if (unit[0] == 'T')
+      number *= 1.0e12;
   }
 
   using SV = std::vector<std::string>;
