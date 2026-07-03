@@ -7,6 +7,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/format.hpp"
+#include "qip/String.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <cassert>
@@ -39,11 +40,13 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                "basis), e.g. '30spdf'. Default: include entire excited basis."},
      {"max_k", "maximum k to include in Qk. Put -1 to include all. [8]"},
      {"include_L4", "Inlcude 4th Ladder diagram [false]"},
-     {"full_basis",
-      "Construct the ladder correlation potential Sigma_L = sum_i L|i><i| "
-      "using the full basis for {|i>}, otherwise just single HF |v> "
-      "eigenstate. Using the full basis usually requires extending Qk. "
-      "[false]"},
+     {"projection",
+      "Projection basis {|i>} for the ladder correlation potential Sigma_L = "
+      "sum_i L|i><i|. Options:\n"
+      "   - single : just the single HF |v> eigenstate\n"
+      "   - ladder : states in the ladder basis (see basis option)\n"
+      "   - full   : entire basis; requires extending Qk (slow)\n"
+      "  [ladder]"},
      {"Qk_file", "Filename for storing Qk Coulomb integrals. By default, is "
                  "<Identity>.qk. If 'false' will not read or write."},
      {"Lk_file", "Filename for storing Lk ladder integrals. By default, is "
@@ -71,12 +74,26 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
-  // Get input + print to screen
+  std::cout << "\n";
+  IO::print_line('*', 50);
+  IO::print_line('*', 50);
+  std::cout << "Ladder Diagrams\n\n";
+
+  // Get input
   const auto min_n_core = input.get("min_n_core", 1);
   const auto basis_str = input.get<std::string>("basis", "");
   const auto max_k = input.get("max_k", 8);
   const auto include_L4 = input.get("include_L4", false);
-  const auto full_basis = input.get("full_basis", false);
+
+  // Projection basis for Sigma_L: single |v>, ladder basis, or full basis
+  using namespace std::string_literals;
+  const auto projection = input.get("projection", "ladder"s);
+  const auto proj_single = qip::ci_compare(projection, "single");
+  const auto proj_full = qip::ci_compare(projection, "full");
+  if (!proj_single && !proj_full && !qip::ci_compare(projection, "ladder")) {
+    std::cout << "\nWARNING: unknown projection option: " << projection
+              << " - using 'ladder'\n";
+  }
 
   const auto max_it = input.get("max_it", 15);
   const auto a_damp = input.get("damp", 0.0);
@@ -115,14 +132,15 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     valence.push_back(*pFv);
   }
 
-  std::cout << "\n";
-  IO::print_line();
-  std::cout << "Ladder Diagrams\n\n";
   std::cout << "basis        = " << DiracSpinor::state_config(excited) << "\n";
   std::cout << "min_n (core) = " << min_n_core << "\n";
   std::cout << std::boolalpha;
   std::cout << "include_L4   = " << include_L4 << "\n";
-  std::cout << "full_basis   = " << full_basis << "\n";
+  std::cout << "projection   = "
+            << (proj_single ? "single" :
+                proj_full   ? "full" :
+                              "ladder")
+            << "\n";
   std::cout << "include_G    = " << include_G << "\n";
   std::cout << "max_k        = " << max_k << "\n";
   std::cout << "max_it       = " << max_it << "\n";
@@ -130,7 +148,6 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "eps_target   = " << eps_target << "\n";
 
   // in/out file names (default based on atom identity)
-  using namespace std::string_literals;
   const auto ident = wf.identity();
   const auto Qk_file = input.get("Qk_file", ident + ".qk.abf"s);
   const auto lk4 = include_L4 ? "_l4" : ""s;
@@ -156,10 +173,16 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // Form the Qk table.
   Coulomb::QkTable qk;
   std::cout << "\nFill (or read) Qk table:\n";
-  if (!from_scratch)
+  if (!from_scratch) {
     qk.read(Qk_file);
+  }
+  const auto count_init = qk.count();
   qk.fill(both, yk, max_k);
-  qk.write(Qk_file);
+  const auto count_after = qk.count();
+  if (count_init != count_after) {
+    fmt::print("Calculated {} new Qk integrals\n", count_after - count_init);
+    qk.write(Qk_file);
+  }
 
   std::cout << "\nMBPT(2) energy shifts, using HF vs. spline legs" << std::endl;
   fmt::print("{:<5s} {:>13s} {:>13s} {:>13s}   {}\n", "state", "de(HF)",
@@ -186,7 +209,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   Coulomb::LkTable lk;
   Coulomb::LkTable lk_next;
   // Each run will continue from where last left off
-  const bool did_read_Lk = !from_scratch ? lk_next.read(Lk_file) : false;
+  const bool did_read_Lk = !from_scratch ? lk.read(Lk_file) : false;
   std::cout << (did_read_Lk ? "\nRe-starting using existing ladder diagrams\n" :
                               "\nCalculating ladder diagrams from scratch\n");
 
@@ -197,10 +220,18 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // newly-required diagrams (or fills from scratch if not read). Subsequent
   // iterations below re-iterate the existing table.
   std::cout << "\nInitial fill of Lk table: core + valence\n" << std::flush;
-  MBPT::fill_Lk_mnib(&lk_next, qk, excited, holes, core_and_val, include_L4,
-                     sjt, max_k, true);
-  lk_next.write(Lk_file);
-  lk = lk_next;
+  const auto n_lk_initial = lk.count();
+  MBPT::fill_Lk_mnib(&lk, qk, excited, holes, core_and_val, include_L4, sjt,
+                     max_k, true);
+  const auto n_lk_after = lk.count();
+  if (n_lk_initial != n_lk_after) {
+    fmt::print("Calculated {} new Lk integrals\n", n_lk_after - n_lk_initial);
+    lk.summary();
+    lk.write(Lk_file);
+  } else {
+    std::cout << "No new Lk integrals required\n";
+  }
+  lk_next = lk;
 
   // convert to inverse cm
   const auto icm = PhysConst::Hartree_invcm;
@@ -236,14 +267,16 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   // Print energy corrections after core convergence; refresh de_0 for valence
-  std::cout << "\nAfter core convergence:\n";
-  fmt::print("de_l({:4}): {:+12.9f} au  {:+12.5f} cm^-1\n", "core", de_c0,
-             de_c0 * icm);
-  for (std::size_t i = 0; i < valence.size(); ++i) {
-    const auto de_v = MBPT::de_valence(valence[i], qk, lk, holes, excited);
-    de_0[i] = de_v;
-    fmt::print("de_l({:>4}): {:+12.9f} au  {:+12.5f} cm^-1\n",
-               valence[i].shortSymbol(), de_v, de_v * icm);
+  if (max_it > 0) {
+    std::cout << "\nAfter core convergence:\n";
+    fmt::print("de_l({:4}): {:+12.9f} au  {:+12.5f} cm^-1\n", "core", de_c0,
+               de_c0 * icm);
+    for (std::size_t i = 0; i < valence.size(); ++i) {
+      const auto de_v = MBPT::de_valence(valence[i], qk, lk, holes, excited);
+      de_0[i] = de_v;
+      fmt::print("de_l({:>4}): {:+12.9f} au  {:+12.5f} cm^-1\n",
+                 valence[i].shortSymbol(), de_v, de_v * icm);
+    }
   }
 
   // Iterate for each required valence state; drop converged states each iter
@@ -277,33 +310,54 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
 
-  // Extend Qk table to the FULL basis. With full_basis, Sigma_ladder projects
-  // the ladder onto the full basis of each kappa_v, so Lkmnij() needs Qk
-  // integrals involving those (high-n) projection states - which are absent if
-  // Qk was filled only over the [n_min,n_max] subset 'both'. Not always
-  // strictly required (only when projection states fall outside 'both'), but we
-  // just refill over the full basis to be safe. Skipped for single-state |v>.
-  if (full_basis) {
-    std::cout << "\nExtending Qk table to full basis (for Sigma_ladder):\n"
-              << std::flush;
-    const Coulomb::YkTable yk_full(wf.basis());
-    qk.fill(wf.basis(), yk_full, max_k);
+  // Extend Qk table for the projection states. With projection=full,
+  // Sigma_ladder projects the ladder onto the full basis of each kappa_v, so
+  // Lkmnij() needs Qk integrals involving those (high-n) projection states -
+  // absent if Qk was filled only over the [n_min,n_max] subset 'both'.
+  // Only basis states with a valence kappa are used in the projection, so
+  // extend over both + those (not the entire basis). Not required for
+  // single-state or ladder-basis projection (those states already in 'both').
+  if (proj_full) {
+    std::cout
+      << "\nExtending Qk table for projection states (for Sigma_ladder):\n"
+      << std::flush;
+
+    // Basis states with a valence kappa, not already in 'both':
+    const auto proj_states = qip::select_if(wf.basis(), [&](const auto &Fi) {
+      const auto vkappa =
+        std::any_of(valence.cbegin(), valence.cend(),
+                    [&](const auto &v) { return v.kappa() == Fi.kappa(); });
+      return vkappa && std::find(both.cbegin(), both.cend(), Fi) == both.cend();
+    });
+
+    std::cout << "Adding: " << DiracSpinor::state_config(proj_states) << "\n";
+    const auto ext_basis = qip::merge(both, proj_states);
+    const Coulomb::YkTable yk_ext(ext_basis);
+    qk.fill(ext_basis, yk_ext, max_k);
     qk.write(Qk_file);
   }
 
   // Build all Sigma_L first (parallelisable), then print
   std::vector<MBPT::GMatrix> SigL_v;
   fmt::print("\nCalculating Sigma_L matrix (using {} projection):\n",
-             full_basis ? "full basis" : "single state");
+             proj_single ? "single state" :
+             proj_full   ? "full basis" :
+                           "ladder basis");
   fmt::print("Sigma_L sub-grid: r0={:.1e}, rmax={:.1f}, stride={}\n", sig_r0,
              sig_rmax, sig_stride);
-  for (const auto &v : valence) {
-    std::cout << v << "\n";
-    const std::vector<DiracSpinor> proj_v{v};
-    const auto &proj = full_basis ? wf.basis() : proj_v;
-    SigL_v.push_back(MBPT::Sigma_ladder(v.kappa(), v.en(), holes, excited, proj,
-                                        qk, &lk, sjt, include_L4, sig_r0,
-                                        sig_rmax, sig_stride, include_G));
+  // XXX Add an "each_valence" option - false by default
+  {
+    IO::ChronoTimer t("", true);
+    for (const auto &v : valence) {
+      std::cout << v << "\n";
+      const std::vector<DiracSpinor> proj_v{v};
+      const auto &proj = proj_single ? proj_v :
+                         proj_full   ? wf.basis() :
+                                       excited;
+      SigL_v.push_back(MBPT::Sigma_ladder(
+        v.kappa(), v.en(), holes, excited, proj, qk, &lk, sjt, include_L4,
+        sig_r0, sig_rmax, sig_stride, include_G));
+    }
   }
 
   std::cout << "\nEnergy corrections:\n";

@@ -80,15 +80,17 @@ double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
               const DiracSpinor &i, const DiracSpinor &j,
               const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
               const std::vector<DiracSpinor> &excited, bool include_L4,
-              const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk) {
+              const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk,
+              std::optional<double> e_i, std::optional<double> e_m) {
 
-  const auto L123 = L1(k, m, n, i, j, qk, excited, SJ, Lk) +
-                    L2(k, m, n, i, j, qk, core, excited, SJ, Lk) +
-                    L3(k, m, n, i, j, qk, core, excited, SJ, Lk);
+  // nb: i energy enters only L1 and L3; m energy only L2 and L4
+  const auto L123 = L1(k, m, n, i, j, qk, excited, SJ, Lk, e_i) +
+                    L2(k, m, n, i, j, qk, core, excited, SJ, Lk, {}, e_m) +
+                    L3(k, m, n, i, j, qk, core, excited, SJ, Lk, e_i);
   // Optionally include "4th" ladder diagram
   // nb: L4 not fully checked!
   if (include_L4)
-    return L123 + L4(k, m, n, i, j, qk, core, SJ, Lk);
+    return L123 + L4(k, m, n, i, j, qk, core, SJ, Lk, e_m);
   else
     return L123;
 }
@@ -97,7 +99,8 @@ double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
 double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &excited,
-          const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk) {
+          const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk,
+          std::optional<double> e_i) {
 
   // m (and n) must be excited states, as should 'excited'
   // Therefore, can test:
@@ -189,7 +192,8 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
         continue;
 
       const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
-      const auto inv_e_ijrs = 1.0 / (i.en() + j.en() - r.en() - s.en());
+      const auto inv_e_ijrs =
+        1.0 / (e_i.value_or(i.en()) + j.en() - r.en() - s.en());
       const auto Qkey_rsij = qk.NormalOrder(r, s, i, j);
       const auto Lkey_rsij = Lk ? Lk->NormalOrder(r, s, i, j) : 0ul;
 
@@ -235,7 +239,8 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
-          const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk) {
+          const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk,
+          std::optional<double> e_m) {
 
   // m (and n) must be excited states, as should 'excited'
   // Therefore, can test:
@@ -310,7 +315,8 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
         continue;
 
       const auto s_cd = Angular::neg1pow_2(c.twoj() + d.twoj());
-      const auto inv_e_cdmn = 1.0 / (c.en() + d.en() - m.en() - n.en());
+      const auto inv_e_cdmn =
+        1.0 / (c.en() + d.en() - e_m.value_or(m.en()) - n.en());
       const auto Qkey_mncd = qk.NormalOrder(m, n, c, d);
       const auto Lkey_mncd = Lk ? Lk->NormalOrder(m, n, c, d) : 0ul;
 
@@ -357,7 +363,8 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk) {
+          const Coulomb::LkTable *const Lk, std::optional<double> e_j,
+          std::optional<double> e_m) {
 
   // m (and n) must be excited states, as should 'excited'
   // Therefore, can test:
@@ -371,7 +378,7 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
   const double tkp1 = 2.0 * k + 1.0;
   const auto s_mnijk =
     Angular::neg1pow_2(2 * k + m.twoj() + n.twoj() + i.twoj() + j.twoj());
-  const auto ejm = j.en() - m.en();
+  const auto ejm = e_j.value_or(j.en()) - e_m.value_or(m.en());
 
   // Cached recoupling 6j symbols (see SixJCache). sj_c = {m,i,k;u,l,c}
   // and sj_r = {j,n,k;u,l,r} depend on the intermediate orbital only through
@@ -537,15 +544,18 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
   //   Sigma_L += sum_{i,nab,k} |W^k_{.nab}> w <i| ,  w = L^k_{i,n,a,b}/([k][j_v]de)
   //   de = en_v + e_n - e_a - e_b
   //
-  // The ladder integrals are always computed on-the-fly via Lkmnij() (using the
+  // The ladder integrals are computed on-the-fly via Lkmnij() (using the
   // converged ladder table lk as the internal rung), evaluated at the fixed
-  // external energy en_v. We cannot reuse the stored lk entries: those were
-  // evaluated at the orbital energy e_i, not en_v (equal only for i = the
-  // valence state at en_v = e_valence). The energy fix is applied by passing a
-  // copy of the projection orbital with its energy set to en_v: the energy only
-  // enters the L denominators, never the integral lookups, so this overrides
-  // every denominator uniformly regardless of which slot the external line is
-  // in (i-slot for a+b, m-slot for c+d).
+  // external energy en_v via the e_i/e_m energy overrides (the energy only
+  // enters the L denominators, never the integral lookups; the override
+  // applies to whichever slot holds the external line: i-slot for a+b,
+  // m-slot for c+d).
+  // Exception: for the valence state itself (the projection state whose
+  // orbital energy equals en_v), the stored (converged) table entries ARE the
+  // required integrals - use them directly (makes single-state projection
+  // essentially free, and consistent with de_valence). For other projection
+  // states the stored entries cannot be used: they are not in the table (and
+  // would be at the wrong energy).
 
   // 'lk' is the internal-rung ladder table passed straight to Lkmnij: pass
   // nullptr for L(Q,Q) = L^(1) (matches an un-iterated table), or a converged
@@ -575,16 +585,6 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
 
   std::vector<GMatrix> Sd_ts(std::size_t(omp_get_max_threads()), Sd);
 
-  // Copy of the projection orbitals with energy fixed to en_v, used for the
-  // external line in the ladder integrals (the bra <i| keeps the true energy).
-  std::vector<DiracSpinor> proj_ev;
-  proj_ev.reserve(proj.size());
-  for (const auto *ip : proj) {
-    auto i_ev = *ip;
-    i_ev.en() = en_v;
-    proj_ev.push_back(i_ev);
-  }
-
   qip::ProgressBar bar(excited.size());
 #pragma omp parallel for schedule(dynamic)
   for (auto in = 0ul; in < excited.size(); ++in) {
@@ -613,11 +613,17 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
           const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, a, m, n);
           const auto dele = en_v + a.en() - m.en() - n.en();
           for (auto ii = 0ul; ii < proj.size(); ++ii) {
-            const auto Lkmnia = Lkmnij(k, m, n, proj_ev[ii], a, qk, core,
-                                       excited, include_L4, sjt, lk);
+            const auto &Fi = *proj[ii];
+            // Use stored table entry when we have it (see note above):
+            const bool in_table =
+              lk && Fi.en() == en_v && lk->contains(k, m, n, Fi, a);
+            const auto Lkmnia = in_table ?
+                                  lk->Q(k, m, n, Fi, a) :
+                                  Lkmnij(k, m, n, Fi, a, qk, core, excited,
+                                         include_L4, sjt, lk, en_v);
             if (Lkmnia == 0.0)
               continue;
-            Sd_t.add(Wkv, *proj[ii], Lkmnia / (f_kkjj * dele));
+            Sd_t.add(Wkv, Fi, Lkmnia / (f_kkjj * dele));
           }
         }
       }
@@ -638,11 +644,17 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
           const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, n, a, b);
           const auto dele = en_v + n.en() - a.en() - b.en();
           for (auto ii = 0ul; ii < proj.size(); ++ii) {
-            const auto Lkinab = Lkmnij(k, proj_ev[ii], n, a, b, qk, core,
-                                       excited, include_L4, sjt, lk);
+            const auto &Fi = *proj[ii];
+            // Use stored table entry when we have it (see note above):
+            const bool in_table =
+              lk && Fi.en() == en_v && lk->contains(k, Fi, n, a, b);
+            const auto Lkinab = in_table ?
+                                  lk->Q(k, Fi, n, a, b) :
+                                  Lkmnij(k, Fi, n, a, b, qk, core, excited,
+                                         include_L4, sjt, lk, {}, en_v);
             if (Lkinab == 0.0)
               continue;
-            Sd_t.add(Wkv, *proj[ii], Lkinab / (f_kkjj * dele));
+            Sd_t.add(Wkv, Fi, Lkinab / (f_kkjj * dele));
           }
         }
       }

@@ -3,6 +3,7 @@
 #include "Coulomb/include.hpp"
 #include "MBPT/SpinorMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <optional>
 
 namespace MBPT {
 
@@ -26,9 +27,11 @@ namespace MBPT {
   @param include_L4 Include the core--core diagram L4
   @param SJ         6j symbol table
   @param Lk         Ladder table from previous iteration (nullptr on first)
+  @param e_i        Optional: used in place of i.en() in energy denominators
+  @param e_m        Optional: used in place of m.en() in energy denominators
   @return \f$ L^k_{mnij} \f$
   @note To evaluate at a fixed external energy (for a correlation potential),
-        pass the external orbital with its energy set accordingly: the energy
+        use @p e_i or @p e_m (for external line in the i or m slot): the energy
         only enters the denominators, never the integral lookups.
 */
 double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
@@ -36,7 +39,8 @@ double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
               const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
               const std::vector<DiracSpinor> &excited, bool include_L4,
               const Angular::SixJTable &SJ,
-              const Coulomb::LkTable *const Lk = nullptr);
+              const Coulomb::LkTable *const Lk = nullptr,
+              std::optional<double> e_i = {}, std::optional<double> e_m = {});
 
 /*!
   @brief Particle--particle ladder diagram L1.
@@ -59,13 +63,15 @@ double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param excited Excited orbitals
   @param SJ      6j symbol table
   @param Lk      Ladder table from previous iteration (nullptr on first)
+  @param e_i     Optional: used in place of i.en() in energy denominator
   @return \f$ L1^k_{mnij} \f$
 */
 double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &excited,
           const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk = nullptr);
+          const Coulomb::LkTable *const Lk = nullptr,
+          std::optional<double> e_i = {});
 
 /*!
   @brief Particle--hole ladder diagram L2.
@@ -85,27 +91,30 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param excited Excited orbitals
   @param SJ      6j symbol table
   @param Lk      Ladder table from previous iteration (nullptr on first)
+  @param e_j     Optional: used in place of j.en() in energy denominator
+  @param e_m     Optional: used in place of m.en() in energy denominator
   @return \f$ L2^k_{mnij} \f$
 */
 double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk = nullptr);
+          const Coulomb::LkTable *const Lk = nullptr,
+          std::optional<double> e_j = {}, std::optional<double> e_m = {});
 
 /*!
   @brief Exchange partner of L2; equals L2 with m,n and i,j swapped.
   @details
   \f[ L3^k_{mnij} = L2^k_{nmji} \f]
+  (@p e_i optional: used in place of i.en() in energy denominator)
 */
-inline double L3(int k, const DiracSpinor &m, const DiracSpinor &n,
-                 const DiracSpinor &i, const DiracSpinor &j,
-                 const Coulomb::QkTable &qk,
-                 const std::vector<DiracSpinor> &core,
-                 const std::vector<DiracSpinor> &excited,
-                 const Angular::SixJTable &SJ,
-                 const Coulomb::LkTable *const Lk = nullptr) {
-  return L2(k, n, m, j, i, qk, core, excited, SJ, Lk);
+inline double
+L3(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
+   const DiracSpinor &j, const Coulomb::QkTable &qk,
+   const std::vector<DiracSpinor> &core,
+   const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
+   const Coulomb::LkTable *const Lk = nullptr, std::optional<double> e_i = {}) {
+  return L2(k, n, m, j, i, qk, core, excited, SJ, Lk, e_i);
 }
 
 /*!
@@ -123,13 +132,15 @@ inline double L3(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param core Core orbitals
   @param SJ  6j symbol table
   @param Lk  Ladder table from previous iteration (nullptr on first)
+  @param e_m Optional: used in place of m.en() in energy denominator
   @return \f$ L4^k_{mnij} \f$
 */
 double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk = nullptr);
+          const Coulomb::LkTable *const Lk = nullptr,
+          std::optional<double> e_m = {});
 
 /*!
   @brief Fills the ladder integral table for all _new_ index combinations.
@@ -277,8 +288,11 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
   (particle-particle (a+b) and particle-hole (c+d) diagrams). The bra index
   \f$ i \f$ runs over the excited basis states of @p kappa_v (approximating
   completeness). The ladder integrals are computed on-the-fly via Lkmnij()
-  evaluated at the fixed external energy @p en_v (applied by setting the energy
-  of the external orbital, since the energy enters only the denominators).
+  evaluated at the fixed external energy @p en_v (via the e_i/e_m energy
+  overrides, since the energy enters only the denominators). Exception: for
+  the valence state itself (projection state whose orbital energy equals
+  @p en_v), the stored table entries are used directly - they are already at
+  the correct energy, making single-state projection essentially free.
 
   The sub-grid (@p r0, @p rmax, @p stride) defaults match Wavefunction::formSigma.
 
