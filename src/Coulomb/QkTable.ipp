@@ -11,6 +11,8 @@
 #include <cstring> // for memcpy
 #include <numeric>
 #include <string_view>
+#include <type_traits>
+#include <vector>
 
 namespace Coulomb {
 
@@ -621,10 +623,6 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   // completeness; the count alone is fooled by a different basis with a
   // coincidentally-larger per-k count but missing angular-momentum channels).
   if (already_filled(count_non_zero_k, basis)) {
-    if (print) {
-      std::cout << "No new integrals required\n";
-      summary();
-    }
     return;
   }
 
@@ -933,8 +931,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
     prog.update();
   }
 
-  if (print)
-    summary();
+  // if (print)
+  //   summary();
 }
 
 //==============================================================================
@@ -1001,6 +999,17 @@ void CoulombTable<S>::update(
 }
 
 //==============================================================================
+// Plain (key, value) pair for bulk (single-call) file read/write of the table
+// data. Byte-layout matches the (older) element-by-element format, [key][value]
+// pairs in sequence, so files are fully compatible (checked by static_asserts).
+struct KeyValueBlock {
+  nk4Index key;
+  Real value;
+};
+static_assert(std::is_trivially_copyable_v<KeyValueBlock>);
+static_assert(sizeof(KeyValueBlock) == sizeof(nk4Index) + sizeof(Real));
+
+//==============================================================================
 template <Symmetry S>
 void CoulombTable<S>::write(const std::string &fname, bool verbose) const {
   if (fname == "false" || fname == "")
@@ -1014,13 +1023,19 @@ void CoulombTable<S>::write(const std::string &fname, bool verbose) const {
 
   auto size = m_data.size();
   rw_binary(f, rw, size);
+  std::vector<KeyValueBlock> block;
   for (const auto &Q_k : m_data) {
     auto size_k = Q_k.size();
     rw_binary(f, rw, size_k);
-    for (auto [key, value] : Q_k) {
-      auto key_copy = key; // have to pass non-const reference!
-      rw_binary(f, rw, key_copy, value);
+    // Bulk write: copy block to contiguous buffer, write in single call
+    // (element-by-element stream writes dominate the cost otherwise)
+    block.clear();
+    block.reserve(size_k);
+    for (const auto &[key, value] : Q_k) {
+      block.push_back({key, value});
     }
+    f.write(reinterpret_cast<const char *>(block.data()),
+            std::streamsize(block.size() * sizeof(KeyValueBlock)));
   }
   if (verbose)
     std::cout << "\n" << std::flush;
@@ -1028,7 +1043,8 @@ void CoulombTable<S>::write(const std::string &fname, bool verbose) const {
 
 //==============================================================================
 template <Symmetry S>
-bool CoulombTable<S>::read(const std::string &fname, bool verbose) {
+bool CoulombTable<S>::read(const std::string &fname, bool verbose,
+                           bool parse_basis_string) {
   if (fname == "false" || fname.empty())
     return false;
 
@@ -1037,9 +1053,8 @@ bool CoulombTable<S>::read(const std::string &fname, bool verbose) {
   IO::FRW::open_binary(f, fname, rw);
 
   // store max_n for each l: allows us to reconstruct the basis string
-  // This adds noticable overhead, but is useful
+  // This adds noticable overhead, so only done if parse_basis_string requested
   std::vector<int> max_n_l;
-  constexpr bool count_orbs = true;
 
   if (!f.good())
     return false;
@@ -1052,19 +1067,23 @@ bool CoulombTable<S>::read(const std::string &fname, bool verbose) {
   m_data.resize(size);
   if (m_data.size() == 0)
     return false;
+  std::vector<KeyValueBlock> block;
   for (std::size_t i = 0; i < m_data.size(); ++i) {
     auto &Q_k = m_data[i];
     std::size_t size_k{0};
     rw_binary(f, rw, size_k);
     Q_k.reserve(size_k);
-    for (std::size_t ik = 0; ik < size_k; ++ik) {
-      nk4Index key;
-      Real value;
-      rw_binary(f, rw, key, value);
+
+    // Bulk read: whole k-block in a single call, then insert from memory
+    // (element-by-element stream reads dominate the cost otherwise)
+    block.resize(size_k);
+    f.read(reinterpret_cast<char *>(block.data()),
+           std::streamsize(size_k * sizeof(KeyValueBlock)));
+    for (const auto &[key, value] : block) {
       Q_k[key] = value;
 
       // determine basis string (max n for each l)
-      if constexpr (count_orbs) {
+      if (parse_basis_string) {
         const auto indexes = UnFormIndex(key);
         for (const auto index : indexes) {
           const auto [n, ki] = Angular::nkindex_to_n_kindex(index);

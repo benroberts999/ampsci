@@ -392,8 +392,11 @@ public:
 
   //! Writes coulomb integrals to disk
   void write(const std::string &fname, bool verbose = true) const;
-  //! Reads coulomb integrals to disk. Returns false if none read in
-  bool read(const std::string &fname, bool verbose = true);
+  //! Reads coulomb integrals to disk. Returns false if none read in.
+  //! If parse_basis_string is true, decodes every key to determine (and print) the
+  //! basis string [e.g., 30spdf] - adds noticable overhead, purely aesthetic.
+  bool read(const std::string &fname, bool verbose = true,
+            bool parse_basis_string = false);
 
   //! Directly gets one of the stored elements, given normal-ordered nk4Index
   double *get(int k, nk4Index index);
