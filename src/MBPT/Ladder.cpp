@@ -24,6 +24,57 @@ namespace MBPT {
 // larger than any physical k = k_minmax_Q(...) for realistic bases.
 constexpr std::size_t sk_array_size = 32;
 
+namespace {
+/*
+Dense cache of the recoupling 6j symbols {tj1/2, tj2/2, k; a, b, t2/2},
+indexed by (t2, a, b) with a,b in [0, kmax] - see L1/L2/L4. The values depend
+on the external orbitals only through (tj1, tj2) and on k; the dimensions
+depend on (kmax, max_2j). The cache is refilled only when this key changes, so
+it is re-used across calls that vary only the other externals - e.g. the
+(i,j) sweep in fill/update, or the projection-state sweep in Sigma_ladder.
+Bit-identical to an unconditional refill.
+Intended to be used as a (static) thread_local (one per call site).
+*/
+class SixJCache {
+  std::vector<double> m_cache{};
+  int m_tj1{-1}, m_tj2{-1}, m_k{-1}, m_max_2j{-1}, m_kmax{-1};
+  const Angular::SixJTable *m_SJ{nullptr};
+  std::size_t m_dim{0};
+
+  std::size_t index(int t2, int a, int b) const {
+    return (std::size_t(t2) * m_dim + std::size_t(a)) * m_dim + std::size_t(b);
+  }
+
+public:
+  // Fills cache with {tj1/2, tj2/2, k; a, b, t2/2} for all (t2, a, b).
+  // No-op if the key is unchanged since the last call.
+  void update(int tj1, int tj2, int k, int max_2j, int kmax,
+              const Angular::SixJTable &SJ) {
+    if (tj1 == m_tj1 && tj2 == m_tj2 && k == m_k && max_2j == m_max_2j &&
+        kmax == m_kmax && &SJ == m_SJ)
+      return;
+    m_tj1 = tj1;
+    m_tj2 = tj2;
+    m_k = k;
+    m_max_2j = max_2j;
+    m_kmax = kmax;
+    m_SJ = &SJ;
+    m_dim = std::size_t(kmax) + 1;
+    m_cache.resize((std::size_t(max_2j) + 1) * m_dim * m_dim);
+    for (int t2 = 1; t2 <= max_2j; t2 += 2) {
+      for (int a = 0; a <= kmax; ++a) {
+        for (int b = 0; b <= kmax; ++b) {
+          m_cache[index(t2, a, b)] =
+            SJ.get_2(tj1, tj2, 2 * k, 2 * a, 2 * b, t2);
+        }
+      }
+    }
+  }
+
+  double get(int t2, int a, int b) const { return m_cache[index(t2, a, b)]; }
+};
+} // namespace
+
 //==============================================================================
 double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
               const DiracSpinor &i, const DiracSpinor &j,
@@ -69,34 +120,18 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
   //   return 0.0;
   // }
 
-  // Local dense cache of the recoupling 6j symbols. sj_r = {m,i,k;l,u,r} and
+  // Cached recoupling 6j symbols (see SixJCache). sj_r = {m,i,k;l,u,r} and
   // sj_s = {n,j,k;l,u,s} depend on the intermediate orbital (r or s) only
   // through its 2j, so two orbitals of the same kappa give the same value.
-  // Precompute once per call, indexed by (2j, l, u), turning the inner-loop
-  // SixJTable hash lookup into a direct array read. Bit-identical.
+  // Indexed by (2j, l, u), turning the inner-loop SixJTable hash lookup into
+  // a direct array read; refilled only when (2j pair, k, dims) change.
   // (kmax bounds every l,u from k_minmax_Q: l,u <= (max_ext_2j + max_2j)/2.)
   const int max_2j = DiracSpinor::max_tj(excited);
   const int kmax =
     (std::max({m.twoj(), n.twoj(), i.twoj(), j.twoj()}) + max_2j) / 2;
-  // sj_dim = kmax+1; sj_cache indexed as [2j][l][u]
-  const auto sj_dim = std::size_t(kmax) + 1;
-  const auto sj_cache_index = [sj_dim](int t2, int l, int u) {
-    return (std::size_t(t2) * sj_dim + std::size_t(l)) * sj_dim +
-           std::size_t(u);
-  };
-  static thread_local std::vector<double> sjr_cache, sjs_cache;
-  sjr_cache.resize((std::size_t(max_2j) + 1) * sj_dim * sj_dim);
-  sjs_cache.resize((std::size_t(max_2j) + 1) * sj_dim * sj_dim);
-  for (int t2 = 1; t2 <= max_2j; t2 += 2) {
-    for (int l = 0; l <= kmax; ++l) {
-      for (int u = 0; u <= kmax; ++u) {
-        sjr_cache[sj_cache_index(t2, l, u)] =
-          SJ.get_2(m.twoj(), i.twoj(), 2 * k, 2 * l, 2 * u, t2);
-        sjs_cache[sj_cache_index(t2, l, u)] =
-          SJ.get_2(n.twoj(), j.twoj(), 2 * k, 2 * l, 2 * u, t2);
-      }
-    }
-  }
+  static thread_local SixJCache sjr_cache, sjs_cache;
+  sjr_cache.update(m.twoj(), i.twoj(), k, max_2j, kmax, SJ);
+  sjs_cache.update(n.twoj(), j.twoj(), k, max_2j, kmax, SJ);
 
   // Thread-local cache of Q^u_{mnrs} for the current (m,n), indexed by
   // (r,s,u). Q^u_{mnrs} depends only on (m,n,r,s) - not on the external (i,j) -
@@ -182,8 +217,8 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
           if (Angular::triangle(k, l, u) == 0)
             continue;
 
-          const auto sj_r = sjr_cache[sj_cache_index(r.twoj(), l, u)];
-          const auto sj_s = sjs_cache[sj_cache_index(s.twoj(), l, u)];
+          const auto sj_r = sjr_cache.get(r.twoj(), l, u);
+          const auto sj_s = sjs_cache.get(s.twoj(), l, u);
 
           const auto QL_lrsij = QLl_rsij[std::size_t(l)];
 
@@ -217,32 +252,16 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   //  6j(r) Triads: {m,i,k}, {k,u,l}, {i,u,c}, {l,c,m}
   //  6j(s) Triads: {n,b,k}, {k,u,l}, {b,u,d}, {l,d,n}
 
-  // Local dense cache of the recoupling 6j symbols (see L1). sj_c = {m,i,k;u,l,c}
-  // and sj_d = {n,j,k;u,l,d} depend on the intermediate orbital only through its
-  // 2j; precompute once per call, indexed by (2j, u, l). c, d are core orbitals.
-  // Bit-identical.
+  // Cached recoupling 6j symbols (see SixJCache). sj_c = {m,i,k;u,l,c}
+  // and sj_d = {n,j,k;u,l,d} depend on the intermediate orbital only through
+  // its 2j; indexed by (2j, u, l); refilled only when (2j pair, k, dims)
+  // change. c, d are core orbitals.
   const int max_2j = DiracSpinor::max_tj(core);
   const int kmax =
     (std::max({m.twoj(), n.twoj(), i.twoj(), j.twoj()}) + max_2j) / 2;
-  // sj_dim = kmax+1; sj_cache indexed as [2j][u][l]
-  const auto sj_dim = std::size_t(kmax) + 1;
-  const auto sj_cache_index = [sj_dim](int t2, int u, int l) {
-    return (std::size_t(t2) * sj_dim + std::size_t(u)) * sj_dim +
-           std::size_t(l);
-  };
-  static thread_local std::vector<double> sjc_cache, sjd_cache;
-  sjc_cache.resize((std::size_t(max_2j) + 1) * sj_dim * sj_dim);
-  sjd_cache.resize((std::size_t(max_2j) + 1) * sj_dim * sj_dim);
-  for (int t2 = 1; t2 <= max_2j; t2 += 2) {
-    for (int u = 0; u <= kmax; ++u) {
-      for (int l = 0; l <= kmax; ++l) {
-        sjc_cache[sj_cache_index(t2, u, l)] =
-          SJ.get_2(m.twoj(), i.twoj(), 2 * k, 2 * u, 2 * l, t2);
-        sjd_cache[sj_cache_index(t2, u, l)] =
-          SJ.get_2(n.twoj(), j.twoj(), 2 * k, 2 * u, 2 * l, t2);
-      }
-    }
-  }
+  static thread_local SixJCache sjc_cache, sjd_cache;
+  sjc_cache.update(m.twoj(), i.twoj(), k, max_2j, kmax, SJ);
+  sjd_cache.update(n.twoj(), j.twoj(), k, max_2j, kmax, SJ);
 
   // Thread-local cache of Q^u_{c,d,i,j} for fixed (i,j): avoids repeated hash
   // lookups when L4 is called repeatedly with the same (i,j).
@@ -319,8 +338,8 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           if (Angular::triangle(k, u, l) == 0)
             continue;
 
-          const auto sj_c = sjc_cache[sj_cache_index(c.twoj(), u, l)];
-          const auto sj_d = sjd_cache[sj_cache_index(d.twoj(), u, l)];
+          const auto sj_c = sjc_cache.get(c.twoj(), u, l);
+          const auto sj_d = sjd_cache.get(d.twoj(), u, l);
 
           const auto QL_lmncd = QLl_mncd[std::size_t(l)];
 
@@ -354,33 +373,17 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
     Angular::neg1pow_2(2 * k + m.twoj() + n.twoj() + i.twoj() + j.twoj());
   const auto ejm = j.en() - m.en();
 
-  // Local dense cache of the recoupling 6j symbols (see L1). sj_c = {m,i,k;u,l,c}
-  // and sj_r = {j,n,k;u,l,r} depend on the intermediate orbital only through its
-  // 2j; precompute once per call, indexed by (2j, u, l). c is a core, r an
-  // excited orbital, so max_2j spans both. Bit-identical.
+  // Cached recoupling 6j symbols (see SixJCache). sj_c = {m,i,k;u,l,c}
+  // and sj_r = {j,n,k;u,l,r} depend on the intermediate orbital only through
+  // its 2j; indexed by (2j, u, l); refilled only when (2j pair, k, dims)
+  // change. c is a core, r an excited orbital, so max_2j spans both.
   const int max_2j =
     std::max(DiracSpinor::max_tj(core), DiracSpinor::max_tj(excited));
   const int kmax =
     (std::max({m.twoj(), n.twoj(), i.twoj(), j.twoj()}) + max_2j) / 2;
-  // sj_dim = kmax+1; sj_cache indexed as [2j][u][l]
-  const auto sj_dim = std::size_t(kmax) + 1;
-  const auto sj_cache_index = [sj_dim](int t2, int u, int l) {
-    return (std::size_t(t2) * sj_dim + std::size_t(u)) * sj_dim +
-           std::size_t(l);
-  };
-  static thread_local std::vector<double> sjc_cache, sjr_cache;
-  sjc_cache.resize((std::size_t(max_2j) + 1) * sj_dim * sj_dim);
-  sjr_cache.resize((std::size_t(max_2j) + 1) * sj_dim * sj_dim);
-  for (int t2 = 1; t2 <= max_2j; t2 += 2) {
-    for (int u = 0; u <= kmax; ++u) {
-      for (int l = 0; l <= kmax; ++l) {
-        sjc_cache[sj_cache_index(t2, u, l)] =
-          SJ.get_2(m.twoj(), i.twoj(), 2 * k, 2 * u, 2 * l, t2);
-        sjr_cache[sj_cache_index(t2, u, l)] =
-          SJ.get_2(j.twoj(), n.twoj(), 2 * k, 2 * u, 2 * l, t2);
-      }
-    }
-  }
+  static thread_local SixJCache sjc_cache, sjr_cache;
+  sjc_cache.update(m.twoj(), i.twoj(), k, max_2j, kmax, SJ);
+  sjr_cache.update(j.twoj(), n.twoj(), k, max_2j, kmax, SJ);
 
   // (n,i) change on every call so a cross-call cache for Q^u_{cnir} would never
   // hit; look up inline (only for pairs surviving selection rules).
@@ -428,8 +431,8 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
             continue;
 
           const auto s_ul = Angular::neg1pow(u + l);
-          const auto sj_c = sjc_cache[sj_cache_index(c.twoj(), u, l)];
-          const auto sj_r = sjr_cache[sj_cache_index(r.twoj(), u, l)];
+          const auto sj_c = sjc_cache.get(c.twoj(), u, l);
+          const auto sj_r = sjr_cache.get(r.twoj(), u, l);
           const auto QL_lmrcj = QLl_mrcj[std::size_t(l)];
 
           l2 += (s_ul * s_rc * sj_c * sj_r) * Q_ucnir * QL_lmrcj * inv_e_cjmr;
