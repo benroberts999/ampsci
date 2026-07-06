@@ -430,23 +430,21 @@ double CorrelationPotential::getLambda(int kappa, int n) const {
 }
 
 //==============================================================================
-//! returns Spinor: Sigma|Fv>
-//! @details If Sigma for kappa_v doesn't exist, returns |0>.
 DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &Fv) const {
   const auto Sv = get(Fv.kappa(), Fv.n());
   const auto Sl = get_ladder(Fv.kappa(), Fv.n());
   if (!Sv && !Sl)
     return 0.0 * Fv;
   auto SF = Sv ? Sv->Sigma * Fv : 0.0 * Fv;
-  if (Sl)
+  if (Sl) {
     SF += Sl->Sigma * Fv;
+  }
   // lambda (from base Sigma) scales both the base and ladder parts
   const auto lambda = Sv ? Sv->lambda : 1.0;
   return lambda * SF;
 }
 
 //==============================================================================
-//! Stores scaling factors, lambda, for each kappa (Sigma -> lamda*Sigma)
 void CorrelationPotential::scale_Sigma(const std::vector<double> &lambdas) {
   for (std::size_t i = 0; i < m_Sigmas.size() && i < lambdas.size(); ++i) {
     m_Sigmas.at(i).lambda = lambdas.at(i);

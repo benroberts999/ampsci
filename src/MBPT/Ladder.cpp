@@ -4,6 +4,7 @@
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "qip/String.hpp"
 #include "qip/omp.hpp"
 #include <algorithm>
 #include <array>
@@ -19,6 +20,41 @@
 
 namespace MBPT {
 
+//==============================================================================
+SigmaLMethod parseSigmaLMethod(const std::string &method) {
+  if (qip::ci_compare(method, "single"))
+    return SigmaLMethod::single;
+  if (qip::ci_compare(method, "ladder"))
+    return SigmaLMethod::ladder;
+  if (qip::ci_compare(method, "full"))
+    return SigmaLMethod::full;
+  if (qip::ci_compare(method, "Dzuba") || qip::ci_compare(method, "ratio"))
+    return SigmaLMethod::ratio;
+  if (qip::ci_compare(method, "direct"))
+    return SigmaLMethod::direct;
+  std::cout << "Warning: unknown Sigma_L method: " << method
+            << " ?? Defaulting to ladder\n";
+  return SigmaLMethod::ladder;
+}
+
+std::string parseSigmaLMethod(SigmaLMethod method) {
+  switch (method) {
+  case SigmaLMethod::single:
+    return "single";
+  case SigmaLMethod::ladder:
+    return "ladder";
+  case SigmaLMethod::full:
+    return "full";
+  case SigmaLMethod::ratio:
+    return "ratio";
+  case SigmaLMethod::direct:
+    return "direct";
+  }
+  assert(false);
+  return "ladder";
+}
+
+//==============================================================================
 // Size of the stack arrays used to cache the k-dependent (Q,L) integrals in
 // the L1/L2/L4 inner loops, indexed directly by multipolarity k. Comfortably
 // larger than any physical k = k_minmax_Q(...) for realistic bases.
@@ -523,19 +559,17 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
 }
 
 //==============================================================================
-GMatrix Sigma_ladder(int kappa_v, double en_v,
-                     const std::vector<DiracSpinor> &core,
+GMatrix Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
                      const std::vector<DiracSpinor> &excited,
-                     const std::vector<DiracSpinor> &basis,
+                     const std::vector<DiracSpinor> &projection,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
                      const Angular::SixJTable &sjt, bool include_L4, double r0,
                      double rmax, std::size_t stride, bool include_G) {
 
-  // Ladder correction to the correlation potential, evaluated at energy en_v.
+  // Ladder correction to the correlation potential, evaluated at energy e_v.
   // The exchange is folded into the Coulomb vertex via W = Q + P (mirrors
   // de_valence_w), so no ladder-P is needed. The bra index i runs over the
-  // excited basis states of kappa_v (projection basis, approximating
-  // completeness).
+  // projection states of kappa_v (approximating completeness).
   //
   // Diagrams (a)+(b)  [particle-particle]:
   //   Sigma_L += sum_{i,amn,k} |W^k_{.amn}> w <i| ,  w = L^k_{mn,i,a}/([k][j_v]de)
@@ -556,19 +590,33 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
   // essentially free, and consistent with de_valence). For other projection
   // states the stored entries cannot be used: they are not in the table (and
   // would be at the wrong energy).
-
+  //
   // 'lk' is the internal-rung ladder table passed straight to Lkmnij: pass
   // nullptr for L(Q,Q) = L^(1) (matches an un-iterated table), or a converged
   // table (its fixed point) for the full ladder.
+  //
+  // If 'projection' is empty: ratio method instead (no projection; follows
+  // Dzuba, PRA 78, 042502 (2008)). Each term of the regular second-order
+  // Sigma (as in Goldstone::Sigma_both) is rescaled by the scalar ratio L/Q,
+  // both taken straight from the stored tables (the L entries with i = v are
+  // already at the valence energy - nothing computed on-the-fly; fast):
+  //   (a+b): |Q^k_{.amn}><W^k_{.amn}| (L^k_{mnva}/Q^k_{mnva}) / ([k][j_v] de)
+  //   (c+d): |Q^k_{.nab}><W^k_{.nab}| (L^k_{vnab}/Q^k_{vnab}) / ([k][j_v] de)
+  // The diagonal then reproduces the ladder energy exactly:
+  // <v|Sigma_L|v> = de_valence_w(v); the radial shape is approximate (each
+  // term keeps its second-order shape). Terms with Q^k = 0 cannot be
+  // rescaled: dropped.
 
-  const auto tjv = Angular::twoj_k(kappa_v);
+  const auto ratio_method = projection.empty();
+
+  const auto kappa_v = v.kappa();
+  const auto en_v = v.en();
+  const auto tjv = v.twoj();
 
   // Sub-grid + GMatrix (lower g part included if include_G):
-  const auto grid = excited.empty() ?
-                      (core.empty() ? nullptr : core.front().grid_sptr()) :
-                      excited.front().grid_sptr();
-  const auto i0 = grid ? grid->getIndex(r0) : 0ul;
-  const auto size = grid ? (grid->getIndex(rmax) - i0) / stride + 1 : 0ul;
+  const auto grid = v.grid_sptr();
+  const auto i0 = grid->getIndex(r0);
+  const auto size = (grid->getIndex(rmax) - i0) / stride + 1;
   GMatrix Sd{i0, stride, size, include_G, grid};
 
   if (core.empty() || excited.empty())
@@ -576,11 +624,11 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
 
   // Projection basis: states with kappa == kappa_v
   std::vector<const DiracSpinor *> proj;
-  for (const auto &x : basis) {
+  for (const auto &x : projection) {
     if (x.kappa() == kappa_v)
       proj.push_back(&x);
   }
-  if (proj.empty())
+  if (proj.empty() && !ratio_method)
     return Sd;
 
   std::vector<GMatrix> Sd_ts(std::size_t(omp_get_max_threads()), Sd);
@@ -595,23 +643,35 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
     for (const auto &a : core) {
 
       // Diagrams (a)+(b): W^k_{.amn} L^k_{mn,i,a}
+      // k range/step enforces the (n,a) Coulomb parity: only k with
+      // Q^k_{vamn} != 0 contribute. The W=Q+P ket does NOT self-gate parity
+      // the way the bare Q ket does, so without this its P-part adds spurious
+      // wrong-parity terms (not present in de_valence_w).
       const auto [kmin_na, kmax_na] = Coulomb::k_minmax_Ck(n, a);
-      for (int k = kmin_na; k <= kmax_na; ++k) {
+      for (int k = kmin_na; k <= kmax_na; k += 2) {
 
         const auto f_kkjj = (2 * k + 1) * (tjv + 1);
-        // Enforce the (a,n) Coulomb parity: only k with Q^k_{vamn} != 0
-        // contribute. The W=Q+P ket does NOT self-gate parity the way the
-        // bare Q ket does, so without this its P-part adds spurious
-        // wrong-parity terms (not present in de_valence_w).
-        if (!Angular::Ck_kk_SR(k, n.kappa(), a.kappa()))
-          continue;
-
         for (const auto &m : excited) {
           if (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()))
             continue;
+          const auto dele = en_v + a.en() - m.en() - n.en();
+
+          if (ratio_method) {
+            // Rescale the Sigma(2) term |Q><W| by L/Q (tables only):
+            const auto Qkmnva = qk.Q(k, m, n, v, a);
+            if (Qkmnva == 0.0)
+              continue;
+            const auto Lkmnva = lk ? lk->Q(k, m, n, v, a) : 0.0;
+            if (Lkmnva == 0.0)
+              continue;
+            const auto Qkv = Coulomb::Qkv_bcd(k, kappa_v, a, m, n);
+            const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, a, m, n);
+            Sd_t.add(Qkv, Wkv, (Lkmnva / Qkmnva) / (f_kkjj * dele));
+            continue;
+          }
+
           // Wkv, dele don't depend on i: build once, sweep i below.
           const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, a, m, n);
-          const auto dele = en_v + a.en() - m.en() - n.en();
           for (auto ii = 0ul; ii < proj.size(); ++ii) {
             const auto &Fi = *proj[ii];
             // Use stored table entry when we have it (see note above):
@@ -630,19 +690,32 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
 
       // Diagrams (c)+(d): W^k_{.nab} L^k_{i,n,a,b}
       for (const auto &b : core) {
+        // k range/step enforces the (n,b) Coulomb parity (only k with
+        // Q^k_{vnab} != 0); see note in the (a)+(b) block.
         const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, b);
-        for (int k = kmin_nb; k <= kmax_nb; ++k) {
+        for (int k = kmin_nb; k <= kmax_nb; k += 2) {
 
           const auto f_kkjj = (2 * k + 1) * (tjv + 1);
           if (!Angular::Ck_kk_SR(k, kappa_v, a.kappa()))
             continue;
-          // Enforce the (n,b) Coulomb parity (only k with Q^k_{vnab} != 0);
-          // see note in the (a)+(b) block.
-          if (!Angular::Ck_kk_SR(k, n.kappa(), b.kappa()))
+
+          const auto dele = en_v + n.en() - a.en() - b.en();
+
+          if (ratio_method) {
+            // Rescale the Sigma(2) term |Q><W| by L/Q (tables only):
+            const auto Qkvnab = qk.Q(k, v, n, a, b);
+            if (Qkvnab == 0.0)
+              continue;
+            const auto Lkvnab = lk ? lk->Q(k, v, n, a, b) : 0.0;
+            if (Lkvnab == 0.0)
+              continue;
+            const auto Qkv = Coulomb::Qkv_bcd(k, kappa_v, n, a, b);
+            const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, n, a, b);
+            Sd_t.add(Qkv, Wkv, (Lkvnab / Qkvnab) / (f_kkjj * dele));
             continue;
+          }
 
           const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, n, a, b);
-          const auto dele = en_v + n.en() - a.en() - b.en();
           for (auto ii = 0ul; ii < proj.size(); ++ii) {
             const auto &Fi = *proj[ii];
             // Use stored table entry when we have it (see note above):
@@ -656,6 +729,603 @@ GMatrix Sigma_ladder(int kappa_v, double en_v,
               continue;
             Sd_t.add(Wkv, Fi, Lkinab / (f_kkjj * dele));
           }
+        }
+      }
+    }
+    bar.update();
+  }
+
+  for (const auto &Sd_t : Sd_ts) {
+    Sd += Sd_t;
+  }
+
+  return Sd.drj_in_place();
+}
+
+//==============================================================================
+DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
+                     const DiracSpinor &n, const DiracSpinor &a,
+                     const Coulomb::QkTable &qk, const Coulomb::YkTable &yk,
+                     const std::vector<DiracSpinor> &core,
+                     const std::vector<DiracSpinor> &excited, bool include_L4,
+                     const Angular::SixJTable &SJ,
+                     const Coulomb::LkTable *const Lk) {
+
+  // Vertex (ket) form of L^k_{mnia} over the external index i:
+  // <x|Lkv_mnia> = Lkmnij(k, m, n, x, a; e_i = v.en()) for any x with
+  // kappa_x = kappa_v. Mirrors L1/L2/L3(/L4) exactly, but the single Coulomb
+  // line containing the external index is opened as a radial function
+  // (yk.Qkv_bcd) instead of contracted with an orbital. The L-part of the
+  // internal (Q+L) rung in L1/L3 contains the external line (attached to a
+  // dressed rung): for that piece set i = v (scalar dv, one |v> add at the
+  // end) - exact at x = v; identical to what the scalar table provides.
+
+  const auto kappa_v = v.kappa();
+  const auto tjv = v.twoj();
+  const auto en_v = v.en();
+  const double tkp1 = 2.0 * k + 1.0;
+
+  DiracSpinor Lkv{0, kappa_v, v.grid_sptr()};
+  double dv = 0.0; // coefficient of |v>: dressed-rung (internal-L) piece
+
+  const int max_2j =
+    std::max(DiracSpinor::max_tj(excited), DiracSpinor::max_tj(core));
+  const int kmax = (std::max({m.twoj(), n.twoj(), tjv, a.twoj()}) + max_2j) / 2;
+
+  //--------------------------------------------------------------------------
+  // L1: sum_{rs,ul} Q^u_{mnrs} (Q+L)^l_{rs,x,a} / (en_v + e_a - e_r - e_s)
+  // External: Q^l_{rs,x,a} = <x|Q^l(v)_{sra}>; L^l_{rs,x,a} -> i=v.
+  {
+    const auto s1 =
+      Angular::neg1pow_2(2 + m.twoj() + n.twoj() + tjv + a.twoj());
+    static thread_local SixJCache sjr_cache, sjs_cache;
+    sjr_cache.update(m.twoj(), tjv, k, max_2j, kmax, SJ);
+    sjs_cache.update(n.twoj(), a.twoj(), k, max_2j, kmax, SJ);
+
+    for (const auto &r : excited) {
+      for (const auto &s : excited) {
+        const auto [u0, uI] = Coulomb::k_minmax_Q(m, n, r, s);
+        const auto [l0, lI] =
+          Coulomb::k_minmax_Q(r.kappa(), s.kappa(), kappa_v, a.kappa());
+        if (uI < u0 || lI < l0)
+          continue;
+        const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
+        const auto inv_e = 1.0 / (en_v + a.en() - r.en() - s.en());
+        const auto Qkey_mnrs = qk.NormalOrder(m, n, r, s);
+
+        // cl[l] = sum_u Q^u_{mnrs} sj_r sj_s
+        assert(lI < int(sk_array_size));
+        std::array<double, sk_array_size> cl{};
+        bool non_zero = false;
+        for (int u = u0; u <= uI; u += 2) {
+          const auto Q_umnrs = qk.Q(u, Qkey_mnrs);
+          if (Q_umnrs == 0.0)
+            continue;
+          if (!Coulomb::triangle(u, r, m) || !Coulomb::triangle(u, s, n))
+            continue;
+          for (int l = l0; l <= lI; l += 2) {
+            if (Angular::triangle(k, l, u) == 0)
+              continue;
+            const auto sjsj =
+              sjr_cache.get(r.twoj(), l, u) * sjs_cache.get(s.twoj(), l, u);
+            if (sjsj == 0.0)
+              continue;
+            cl[std::size_t(l)] += sjsj * Q_umnrs;
+            non_zero = true;
+          }
+        }
+        if (!non_zero)
+          continue;
+
+        const auto factor = s1 * tkp1 * s_rs * inv_e;
+        for (int l = l0; l <= lI; l += 2) {
+          const auto coef = factor * cl[std::size_t(l)];
+          if (coef == 0.0)
+            continue;
+          Lkv += coef * yk.Qkv_bcd(l, kappa_v, s, r, a);
+          if (Lk) {
+            dv += coef * Lk->Q(l, r, s, v, a);
+          }
+        }
+      }
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // L2: sum_{rc,ul} Q^u_{c,n,x,r} (Q+L)^l_{mrca} / (e_c + e_a - e_m - e_r)
+  // External: Q^u_{c,n,x,r} = <x|Q^u(v)_{ncr}>; internal rung fully in tables.
+  {
+    const auto s2 =
+      Angular::neg1pow_2(2 * k + m.twoj() + n.twoj() + tjv + a.twoj());
+    static thread_local SixJCache sjc_cache, sjr_cache;
+    sjc_cache.update(m.twoj(), tjv, k, max_2j, kmax, SJ);
+    sjr_cache.update(a.twoj(), n.twoj(), k, max_2j, kmax, SJ);
+
+    for (const auto &r : excited) {
+      for (const auto &c : core) {
+        const auto [u0, uI] =
+          Coulomb::k_minmax_Q(c.kappa(), n.kappa(), kappa_v, r.kappa());
+        const auto [l0, lI] = Coulomb::k_minmax_Q(m, r, c, a);
+        if (uI < u0 || lI < l0)
+          continue;
+        const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
+        const auto inv_e = 1.0 / (c.en() + a.en() - m.en() - r.en());
+        const auto Qkey_mrca = qk.NormalOrder(m, r, c, a);
+        const auto Lkey_mrca = Lk ? Lk->NormalOrder(m, r, c, a) : 0ul;
+
+        // (Q+L)^l_{mrca}: fully internal - from tables
+        assert(lI < int(sk_array_size));
+        std::array<double, sk_array_size> QLl{};
+        for (int l = l0; l <= lI; l += 2) {
+          QLl[std::size_t(l)] =
+            qk.Q(l, Qkey_mrca) + (Lk ? Lk->Q(l, Lkey_mrca) : 0.0);
+        }
+
+        const auto factor = s2 * tkp1 * s_rc * inv_e;
+        for (int u = u0; u <= uI; u += 2) {
+          if (Angular::triangle(tjv, 2 * u, c.twoj()) == 0 ||
+              Angular::triangle(n.twoj(), 2 * u, r.twoj()) == 0)
+            continue;
+          double cu = 0.0;
+          for (int l = l0; l <= lI; l += 2) {
+            if (Angular::triangle(k, l, u) == 0)
+              continue;
+            const auto s_ul = Angular::neg1pow(u + l);
+            cu += s_ul * sjc_cache.get(c.twoj(), u, l) *
+                  sjr_cache.get(r.twoj(), u, l) * QLl[std::size_t(l)];
+          }
+          if (cu == 0.0)
+            continue;
+          Lkv += (factor * cu) * yk.Qkv_bcd(u, kappa_v, n, c, r);
+        }
+      }
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // L3 = L2(k, n, m, a, x; e_j = en_v):
+  // sum_{rc,ul} Q^u_{c,m,a,r} (Q+L)^l_{n,r,c,x} / (e_c + en_v - e_n - e_r)
+  // External: Q^l_{n,r,c,x} = <x|Q^l(v)_{nrc}>;
+  // L^l_{n,r,c,x} = L^l_{r,n,x,c} -> i=v.
+  {
+    const auto s3 =
+      Angular::neg1pow_2(2 * k + n.twoj() + m.twoj() + a.twoj() + tjv);
+    static thread_local SixJCache sjc_cache, sjr_cache;
+    sjc_cache.update(n.twoj(), a.twoj(), k, max_2j, kmax, SJ);
+    sjr_cache.update(tjv, m.twoj(), k, max_2j, kmax, SJ);
+
+    for (const auto &r : excited) {
+      for (const auto &c : core) {
+        const auto [u0, uI] = Coulomb::k_minmax_Q(c, m, a, r);
+        const auto [l0, lI] =
+          Coulomb::k_minmax_Q(n.kappa(), r.kappa(), c.kappa(), kappa_v);
+        if (uI < u0 || lI < l0)
+          continue;
+        const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
+        const auto inv_e = 1.0 / (c.en() + en_v - n.en() - r.en());
+        const auto Qkey_cmar = qk.NormalOrder(c, m, a, r);
+
+        // dl[l] = sum_u (-1)^{u+l} Q^u_{cmar} sj_c sj_r
+        assert(lI < int(sk_array_size));
+        std::array<double, sk_array_size> dl{};
+        bool non_zero = false;
+        for (int u = u0; u <= uI; u += 2) {
+          const auto Q_ucmar = qk.Q(u, Qkey_cmar);
+          if (Q_ucmar == 0.0)
+            continue;
+          if (Angular::triangle(a.twoj(), 2 * u, c.twoj()) == 0 ||
+              Angular::triangle(m.twoj(), 2 * u, r.twoj()) == 0)
+            continue;
+          for (int l = l0; l <= lI; l += 2) {
+            if (Angular::triangle(k, l, u) == 0)
+              continue;
+            const auto s_ul = Angular::neg1pow(u + l);
+            const auto sjsj =
+              sjc_cache.get(c.twoj(), u, l) * sjr_cache.get(r.twoj(), u, l);
+            if (sjsj == 0.0)
+              continue;
+            dl[std::size_t(l)] += s_ul * sjsj * Q_ucmar;
+            non_zero = true;
+          }
+        }
+        if (!non_zero)
+          continue;
+
+        const auto factor = s3 * tkp1 * s_rc * inv_e;
+        for (int l = l0; l <= lI; l += 2) {
+          const auto coef = factor * dl[std::size_t(l)];
+          if (coef == 0.0)
+            continue;
+          Lkv += coef * yk.Qkv_bcd(l, kappa_v, n, r, c);
+          if (Lk) {
+            dv += coef * Lk->Q(l, r, n, v, c);
+          }
+        }
+      }
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // L4: sum_{cd,ul} Q^u_{c,d,x,a} (Q+L)^l_{mncd} / (e_c + e_d - e_m - e_n)
+  // External: Q^u_{c,d,x,a} = <x|Q^u(v)_{dca}>; internal rung fully in tables.
+  if (include_L4) {
+    const auto s4 =
+      Angular::neg1pow_2(2 + m.twoj() + n.twoj() + tjv + a.twoj());
+    static thread_local SixJCache sjc_cache, sjd_cache;
+    sjc_cache.update(m.twoj(), tjv, k, max_2j, kmax, SJ);
+    sjd_cache.update(n.twoj(), a.twoj(), k, max_2j, kmax, SJ);
+
+    for (const auto &c : core) {
+      for (const auto &d : core) {
+        const auto [u0, uI] =
+          Coulomb::k_minmax_Q(c.kappa(), d.kappa(), kappa_v, a.kappa());
+        const auto [l0, lI] = Coulomb::k_minmax_Q(m, n, c, d);
+        if (uI < u0 || lI < l0)
+          continue;
+        const auto s_cd = Angular::neg1pow_2(c.twoj() + d.twoj());
+        const auto inv_e = 1.0 / (c.en() + d.en() - m.en() - n.en());
+        const auto Qkey_mncd = qk.NormalOrder(m, n, c, d);
+        const auto Lkey_mncd = Lk ? Lk->NormalOrder(m, n, c, d) : 0ul;
+
+        // (Q+L)^l_{mncd}: fully internal - from tables
+        assert(lI < int(sk_array_size));
+        std::array<double, sk_array_size> QLl{};
+        for (int l = l0; l <= lI; l += 2) {
+          QLl[std::size_t(l)] =
+            qk.Q(l, Qkey_mncd) + (Lk ? Lk->Q(l, Lkey_mncd) : 0.0);
+        }
+
+        const auto factor = s4 * tkp1 * s_cd * inv_e;
+        for (int u = u0; u <= uI; u += 2) {
+          if (Angular::triangle(tjv, 2 * u, c.twoj()) == 0 ||
+              Angular::triangle(a.twoj(), 2 * u, d.twoj()) == 0)
+            continue;
+          double cu = 0.0;
+          for (int l = l0; l <= lI; l += 2) {
+            if (Angular::triangle(k, u, l) == 0)
+              continue;
+            cu += sjc_cache.get(c.twoj(), u, l) *
+                  sjd_cache.get(d.twoj(), u, l) * QLl[std::size_t(l)];
+          }
+          if (cu == 0.0)
+            continue;
+          Lkv += (factor * cu) * yk.Qkv_bcd(u, kappa_v, d, c, a);
+        }
+      }
+    }
+  }
+
+  if (dv != 0.0) {
+    Lkv += dv * v;
+  }
+  return Lkv;
+}
+
+//==============================================================================
+DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
+                     const DiracSpinor &a, const DiracSpinor &b,
+                     const Coulomb::QkTable &qk, const Coulomb::YkTable &yk,
+                     const std::vector<DiracSpinor> &core,
+                     const std::vector<DiracSpinor> &excited, bool include_L4,
+                     const Angular::SixJTable &SJ,
+                     const Coulomb::LkTable *const Lk) {
+
+  // Vertex (ket) form of L^k_{inab} over the external index i (the m-slot):
+  // <x|Lkv_inab> = Lkmnij(k, x, n, a, b; e_m = v.en()). Mirror of Lkv_mnia
+  // for the particle-hole (c+d) diagrams: here L1/L3 have the external on a
+  // bare Coulomb line (opened exactly), while the internal (Q+L) rung of
+  // L2/L4 contains it (L-part: i = v, as in Lkv_mnia).
+
+  const auto kappa_v = v.kappa();
+  const auto tjv = v.twoj();
+  const auto en_v = v.en();
+  const double tkp1 = 2.0 * k + 1.0;
+
+  DiracSpinor Lkv{0, kappa_v, v.grid_sptr()};
+  double dv = 0.0; // coefficient of |v>: dressed-rung (internal-L) piece
+
+  const int max_2j =
+    std::max(DiracSpinor::max_tj(excited), DiracSpinor::max_tj(core));
+  const int kmax = (std::max({tjv, n.twoj(), a.twoj(), b.twoj()}) + max_2j) / 2;
+
+  //--------------------------------------------------------------------------
+  // L1: sum_{rs,ul} Q^u_{x,n,r,s} (Q+L)^l_{rsab} / (e_a + e_b - e_r - e_s)
+  // External: Q^u_{x,n,r,s} = <x|Q^u(v)_{nrs}>; internal rung fully in tables.
+  {
+    const auto s1 =
+      Angular::neg1pow_2(2 + tjv + n.twoj() + a.twoj() + b.twoj());
+    static thread_local SixJCache sjr_cache, sjs_cache;
+    sjr_cache.update(tjv, a.twoj(), k, max_2j, kmax, SJ);
+    sjs_cache.update(n.twoj(), b.twoj(), k, max_2j, kmax, SJ);
+
+    for (const auto &r : excited) {
+      for (const auto &s : excited) {
+        const auto [u0, uI] =
+          Coulomb::k_minmax_Q(kappa_v, n.kappa(), r.kappa(), s.kappa());
+        const auto [l0, lI] = Coulomb::k_minmax_Q(r, s, a, b);
+        if (uI < u0 || lI < l0)
+          continue;
+        const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
+        const auto inv_e = 1.0 / (a.en() + b.en() - r.en() - s.en());
+        const auto Qkey_rsab = qk.NormalOrder(r, s, a, b);
+        const auto Lkey_rsab = Lk ? Lk->NormalOrder(r, s, a, b) : 0ul;
+
+        // (Q+L)^l_{rsab}: fully internal - from tables
+        assert(lI < int(sk_array_size));
+        std::array<double, sk_array_size> QLl{};
+        for (int l = l0; l <= lI; l += 2) {
+          QLl[std::size_t(l)] =
+            qk.Q(l, Qkey_rsab) + (Lk ? Lk->Q(l, Lkey_rsab) : 0.0);
+        }
+
+        const auto factor = s1 * tkp1 * s_rs * inv_e;
+        for (int u = u0; u <= uI; u += 2) {
+          if (Angular::triangle(2 * u, r.twoj(), tjv) == 0 ||
+              Angular::triangle(2 * u, s.twoj(), n.twoj()) == 0)
+            continue;
+          double cu = 0.0;
+          for (int l = l0; l <= lI; l += 2) {
+            if (Angular::triangle(k, l, u) == 0)
+              continue;
+            cu += sjr_cache.get(r.twoj(), l, u) *
+                  sjs_cache.get(s.twoj(), l, u) * QLl[std::size_t(l)];
+          }
+          if (cu == 0.0)
+            continue;
+          Lkv += (factor * cu) * yk.Qkv_bcd(u, kappa_v, n, r, s);
+        }
+      }
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // L2: sum_{rc,ul} Q^u_{cnar} (Q+L)^l_{x,r,c,b} / (e_c + e_b - en_v - e_r)
+  // External: Q^l_{x,r,c,b} = <x|Q^l(v)_{rcb}>; L^l_{x,r,c,b} -> i=v.
+  {
+    const auto s2 =
+      Angular::neg1pow_2(2 * k + tjv + n.twoj() + a.twoj() + b.twoj());
+    static thread_local SixJCache sjc_cache, sjr_cache;
+    sjc_cache.update(tjv, a.twoj(), k, max_2j, kmax, SJ);
+    sjr_cache.update(b.twoj(), n.twoj(), k, max_2j, kmax, SJ);
+
+    for (const auto &r : excited) {
+      for (const auto &c : core) {
+        const auto [u0, uI] = Coulomb::k_minmax_Q(c, n, a, r);
+        const auto [l0, lI] =
+          Coulomb::k_minmax_Q(kappa_v, r.kappa(), c.kappa(), b.kappa());
+        if (uI < u0 || lI < l0)
+          continue;
+        const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
+        const auto inv_e = 1.0 / (c.en() + b.en() - en_v - r.en());
+        const auto Qkey_cnar = qk.NormalOrder(c, n, a, r);
+
+        // dl[l] = sum_u (-1)^{u+l} Q^u_{cnar} sj_c sj_r
+        assert(lI < int(sk_array_size));
+        std::array<double, sk_array_size> dl{};
+        bool non_zero = false;
+        for (int u = u0; u <= uI; u += 2) {
+          const auto Q_ucnar = qk.Q(u, Qkey_cnar);
+          if (Q_ucnar == 0.0)
+            continue;
+          if (Angular::triangle(a.twoj(), 2 * u, c.twoj()) == 0 ||
+              Angular::triangle(n.twoj(), 2 * u, r.twoj()) == 0)
+            continue;
+          for (int l = l0; l <= lI; l += 2) {
+            if (Angular::triangle(k, l, u) == 0)
+              continue;
+            const auto s_ul = Angular::neg1pow(u + l);
+            const auto sjsj =
+              sjc_cache.get(c.twoj(), u, l) * sjr_cache.get(r.twoj(), u, l);
+            if (sjsj == 0.0)
+              continue;
+            dl[std::size_t(l)] += s_ul * sjsj * Q_ucnar;
+            non_zero = true;
+          }
+        }
+        if (!non_zero)
+          continue;
+
+        const auto factor = s2 * tkp1 * s_rc * inv_e;
+        for (int l = l0; l <= lI; l += 2) {
+          const auto coef = factor * dl[std::size_t(l)];
+          if (coef == 0.0)
+            continue;
+          Lkv += coef * yk.Qkv_bcd(l, kappa_v, r, c, b);
+          if (Lk) {
+            dv += coef * Lk->Q(l, v, r, c, b);
+          }
+        }
+      }
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // L3 = L2(k, n, x, b, a):
+  // sum_{rc,ul} Q^u_{c,x,b,r} (Q+L)^l_{nrca} / (e_c + e_a - e_n - e_r)
+  // External: Q^u_{c,x,b,r} = <x|Q^u(v)_{crb}>; internal rung fully in tables.
+  {
+    const auto s3 =
+      Angular::neg1pow_2(2 * k + n.twoj() + tjv + b.twoj() + a.twoj());
+    static thread_local SixJCache sjc_cache, sjr_cache;
+    sjc_cache.update(n.twoj(), b.twoj(), k, max_2j, kmax, SJ);
+    sjr_cache.update(a.twoj(), tjv, k, max_2j, kmax, SJ);
+
+    for (const auto &r : excited) {
+      for (const auto &c : core) {
+        const auto [u0, uI] =
+          Coulomb::k_minmax_Q(c.kappa(), kappa_v, b.kappa(), r.kappa());
+        const auto [l0, lI] = Coulomb::k_minmax_Q(n, r, c, a);
+        if (uI < u0 || lI < l0)
+          continue;
+        const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
+        const auto inv_e = 1.0 / (c.en() + a.en() - n.en() - r.en());
+        const auto Qkey_nrca = qk.NormalOrder(n, r, c, a);
+        const auto Lkey_nrca = Lk ? Lk->NormalOrder(n, r, c, a) : 0ul;
+
+        // (Q+L)^l_{nrca}: fully internal - from tables
+        assert(lI < int(sk_array_size));
+        std::array<double, sk_array_size> QLl{};
+        for (int l = l0; l <= lI; l += 2) {
+          QLl[std::size_t(l)] =
+            qk.Q(l, Qkey_nrca) + (Lk ? Lk->Q(l, Lkey_nrca) : 0.0);
+        }
+
+        const auto factor = s3 * tkp1 * s_rc * inv_e;
+        for (int u = u0; u <= uI; u += 2) {
+          if (Angular::triangle(b.twoj(), 2 * u, c.twoj()) == 0 ||
+              Angular::triangle(tjv, 2 * u, r.twoj()) == 0)
+            continue;
+          double cu = 0.0;
+          for (int l = l0; l <= lI; l += 2) {
+            if (Angular::triangle(k, l, u) == 0)
+              continue;
+            const auto s_ul = Angular::neg1pow(u + l);
+            cu += s_ul * sjc_cache.get(c.twoj(), u, l) *
+                  sjr_cache.get(r.twoj(), u, l) * QLl[std::size_t(l)];
+          }
+          if (cu == 0.0)
+            continue;
+          Lkv += (factor * cu) * yk.Qkv_bcd(u, kappa_v, c, r, b);
+        }
+      }
+    }
+  }
+
+  //--------------------------------------------------------------------------
+  // L4: sum_{cd,ul} Q^u_{cdab} (Q+L)^l_{x,n,c,d} / (e_c + e_d - en_v - e_n)
+  // External: Q^l_{x,n,c,d} = <x|Q^l(v)_{ncd}>; L^l_{x,n,c,d} -> i=v.
+  if (include_L4) {
+    const auto s4 =
+      Angular::neg1pow_2(2 + tjv + n.twoj() + a.twoj() + b.twoj());
+    static thread_local SixJCache sjc_cache, sjd_cache;
+    sjc_cache.update(tjv, a.twoj(), k, max_2j, kmax, SJ);
+    sjd_cache.update(n.twoj(), b.twoj(), k, max_2j, kmax, SJ);
+
+    for (const auto &c : core) {
+      for (const auto &d : core) {
+        const auto [u0, uI] = Coulomb::k_minmax_Q(c, d, a, b);
+        const auto [l0, lI] =
+          Coulomb::k_minmax_Q(kappa_v, n.kappa(), c.kappa(), d.kappa());
+        if (uI < u0 || lI < l0)
+          continue;
+        const auto s_cd = Angular::neg1pow_2(c.twoj() + d.twoj());
+        const auto inv_e = 1.0 / (c.en() + d.en() - en_v - n.en());
+        const auto Qkey_cdab = qk.NormalOrder(c, d, a, b);
+
+        // dl[l] = sum_u Q^u_{cdab} sj_c sj_d
+        assert(lI < int(sk_array_size));
+        std::array<double, sk_array_size> dl{};
+        bool non_zero = false;
+        for (int u = u0; u <= uI; u += 2) {
+          const auto Q_ucdab = qk.Q(u, Qkey_cdab);
+          if (Q_ucdab == 0.0)
+            continue;
+          if (Angular::triangle(a.twoj(), 2 * u, c.twoj()) == 0 ||
+              Angular::triangle(b.twoj(), 2 * u, d.twoj()) == 0)
+            continue;
+          for (int l = l0; l <= lI; l += 2) {
+            if (Angular::triangle(k, u, l) == 0)
+              continue;
+            const auto sjsj =
+              sjc_cache.get(c.twoj(), u, l) * sjd_cache.get(d.twoj(), u, l);
+            if (sjsj == 0.0)
+              continue;
+            dl[std::size_t(l)] += sjsj * Q_ucdab;
+            non_zero = true;
+          }
+        }
+        if (!non_zero)
+          continue;
+
+        const auto factor = s4 * tkp1 * s_cd * inv_e;
+        for (int l = l0; l <= lI; l += 2) {
+          const auto coef = factor * dl[std::size_t(l)];
+          if (coef == 0.0)
+            continue;
+          Lkv += coef * yk.Qkv_bcd(l, kappa_v, n, c, d);
+          if (Lk) {
+            dv += coef * Lk->Q(l, v, n, c, d);
+          }
+        }
+      }
+    }
+  }
+
+  if (dv != 0.0) {
+    Lkv += dv * v;
+  }
+  return Lkv;
+}
+
+//==============================================================================
+GMatrix
+Sigma_ladder_direct(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &excited,
+                    const Coulomb::QkTable &qk, const Coulomb::YkTable &yk,
+                    const Coulomb::LkTable *lk, const Angular::SixJTable &sjt,
+                    bool include_L4, double r0, double rmax, std::size_t stride,
+                    bool include_G) {
+
+  // Ladder correction to the correlation potential via the direct (open
+  // external line) method. Same diagram structure as Sigma_ladder, but the
+  // bra side is the ladder vertex |L^k> (Lkv_mnia / Lkv_inab) rather than a
+  // projection sum_i L^k_i <i|:
+  //
+  // Diagrams (a)+(b): Sigma_L += |W^k_{.amn}> <L^k_{mn.a}| / ([k][j_v] de)
+  //   de = en_v + e_a - e_m - e_n
+  // Diagrams (c)+(d): Sigma_L += |W^k_{.nab}> <L^k_{.nab}| / ([k][j_v] de)
+  //   de = en_v + e_n - e_a - e_b
+
+  const auto kappa_v = v.kappa();
+  const auto en_v = v.en();
+  const auto tjv = v.twoj();
+
+  const auto grid = v.grid_sptr();
+  const auto i0 = grid->getIndex(r0);
+  const auto size = (grid->getIndex(rmax) - i0) / stride + 1;
+  GMatrix Sd{i0, stride, size, include_G, grid};
+
+  if (core.empty() || excited.empty())
+    return Sd;
+
+  std::vector<GMatrix> Sd_ts(std::size_t(omp_get_max_threads()), Sd);
+
+  qip::ProgressBar bar(excited.size());
+#pragma omp parallel for schedule(dynamic)
+  for (auto in = 0ul; in < excited.size(); ++in) {
+    const auto &n = excited[in];
+    // Per-thread accumulator: must be bound INSIDE the parallel region so
+    // each thread writes to its own matrix (else all threads race on one).
+    auto &Sd_t = Sd_ts[std::size_t(omp_get_thread_num())];
+    for (const auto &a : core) {
+
+      // Diagrams (a)+(b): |W^k_{.amn}> <L^k_{mn.a}|
+      const auto [kmin_na, kmax_na] = Coulomb::k_minmax_Ck(n, a);
+      for (int k = kmin_na; k <= kmax_na; k += 2) {
+        const auto f_kkjj = (2 * k + 1) * (tjv + 1);
+        for (const auto &m : excited) {
+          if (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()))
+            continue;
+          const auto dele = en_v + a.en() - m.en() - n.en();
+          const auto Lv =
+            Lkv_mnia(k, v, m, n, a, qk, yk, core, excited, include_L4, sjt, lk);
+          const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, a, m, n);
+          Sd_t.add(Wkv, Lv, 1.0 / (f_kkjj * dele));
+        }
+      }
+
+      // Diagrams (c)+(d): |W^k_{.nab}> <L^k_{.nab}|
+      for (const auto &b : core) {
+        const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, b);
+        for (int k = kmin_nb; k <= kmax_nb; k += 2) {
+          if (!Angular::Ck_kk_SR(k, kappa_v, a.kappa()))
+            continue;
+          const auto f_kkjj = (2 * k + 1) * (tjv + 1);
+          const auto dele = en_v + n.en() - a.en() - b.en();
+          const auto Lv =
+            Lkv_inab(k, v, n, a, b, qk, yk, core, excited, include_L4, sjt, lk);
+          const auto Wkv = Coulomb::Wkv_bcd(k, kappa_v, n, a, b);
+          Sd_t.add(Wkv, Lv, 1.0 / (f_kkjj * dele));
         }
       }
     }

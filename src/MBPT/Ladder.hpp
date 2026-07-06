@@ -4,6 +4,7 @@
 #include "MBPT/SpinorMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <optional>
+#include <string>
 
 namespace MBPT {
 
@@ -272,11 +273,33 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
                const std::vector<DiracSpinor> &excited);
 
 /*!
-  @brief Ladder-diagram correction to the correlation potential, Sigma_L(en_v).
+  @brief Method used to construct the ladder correlation potential, Sigma_L.
   @details
-  Forms the ladder correlation potential by projecting the discrete ladder
-  integrals onto the excited basis states of @p kappa_v. The exchange is folded
-  into the Coulomb vertex via \f$ W = Q + P \f$ (as in de_valence_w):
+  - single : project onto the single HF |v> eigenstate [Sigma_ladder()]
+  - ladder : project onto states in the ladder basis [Sigma_ladder()]
+  - full   : project onto the entire basis; requires extending Qk (slow)
+             [Sigma_ladder()]
+  - ratio  : no projection; rescale each Sigma(2) term by L/Q
+             [Sigma_ladder(), empty projection basis]
+  - direct : no projection; open the external line exactly (ladder vertex)
+             [Sigma_ladder_direct()]
+*/
+enum class SigmaLMethod { single, ladder, full, ratio, direct };
+
+//! Converts string (name) to SigmaLMethod enum (case-insensitive); warns and
+//! defaults to ladder if unknown
+SigmaLMethod parseSigmaLMethod(const std::string &method);
+//! Converts SigmaLMethod enum to string (name)
+std::string parseSigmaLMethod(SigmaLMethod method);
+
+/*!
+  @brief Ladder-diagram correction to the correlation potential, Sigma_L(e_v),
+  by projection (or, if @p projection is empty, by the L/Q ratio method).
+  @details
+  With a non-empty @p projection basis, forms the ladder correlation potential
+  by projecting the discrete ladder integrals onto the projection states of
+  kappa_v. The exchange is folded into the Coulomb vertex via
+  \f$ W = Q + P \f$ (as in de_valence_w):
   \f[
     \Sigma_L = \sum_{i,amn,k} |W^k_{\cdot amn}\rangle\,
       \frac{L^k_{mn,i,a}}{[k][j_v]\,(\epsilon_v+\epsilon_a-\epsilon_m-\epsilon_n)}\,
@@ -286,38 +309,159 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
       \langle i| ,
   \f]
   (particle-particle (a+b) and particle-hole (c+d) diagrams). The bra index
-  \f$ i \f$ runs over the excited basis states of @p kappa_v (approximating
+  \f$ i \f$ runs over the @p projection states of kappa_v (approximating
   completeness). The ladder integrals are computed on-the-fly via Lkmnij()
-  evaluated at the fixed external energy @p en_v (via the e_i/e_m energy
-  overrides, since the energy enters only the denominators). Exception: for
-  the valence state itself (projection state whose orbital energy equals
-  @p en_v), the stored table entries are used directly - they are already at
-  the correct energy, making single-state projection essentially free.
+  evaluated at the fixed external energy \f$ \epsilon_v \f$ (via the e_i/e_m
+  energy overrides, since the energy enters only the denominators). Exception:
+  for the valence state itself, the stored table entries are used directly -
+  they are already at the correct energy, making single-state projection
+  essentially free.
+
+  If @p projection is empty, instead uses the ratio method (following
+  V. A. Dzuba, Phys. Rev. A 78, 042502 (2008)): no projection; each term of
+  the regular second-order correlation potential (cf. Goldstone::Sigma_both)
+  is rescaled by the scalar ratio of ladder to Coulomb integrals:
+  \f[
+    \Sigma_L = \sum_{amn,k} |Q^k_{\cdot amn}\rangle\,
+      \frac{L^k_{mnva}/Q^k_{mnva}}{[k][j_v]\,(\epsilon_v+\epsilon_a-\epsilon_m-\epsilon_n)}\,
+      \langle W^k_{\cdot amn}|
+      + \sum_{nab,k} |Q^k_{\cdot nab}\rangle\,
+      \frac{L^k_{vnab}/Q^k_{vnab}}{[k][j_v]\,(\epsilon_v+\epsilon_n-\epsilon_a-\epsilon_b)}\,
+      \langle W^k_{\cdot nab}| .
+  \f]
+  By construction the diagonal reproduces the ladder energy exactly:
+  <v|Sigma_L|v> = de_valence_w(v). The off-diagonal (radial) structure is
+  approximate: each term keeps the shape of the corresponding second-order
+  term, rescaled by a scalar. All integrals come straight from the stored
+  tables (the L^k entries with i = v are already at the valence energy), so
+  nothing is computed on-the-fly: much faster than projection.
 
   The sub-grid (@p r0, @p rmax, @p stride) defaults match Wavefunction::formSigma.
 
-  @param kappa_v   Valence kappa
-  @param en_v      Energy at which to evaluate Sigma_L
+  @param v         Valence state (basis version; must be in the qk/lk tables)
   @param core      Core (hole) orbitals
-  @param excited   Excited orbitals (also supplies the projection basis)
+  @param excited   Excited orbitals
+  @param projection Projection basis {|i>}; states of kappa_v are used. If
+                   empty, the ratio method is used instead (no projection)
   @param qk        Converged Coulomb \f$ Q^k \f$ table
-  @param lk        Internal-rung ladder table, forwarded to Lkmnij: nullptr for
-                   L(Q,Q)=L^(1); a converged table (its fixed point) for the
-                   full ladder
+  @param lk        Converged ladder \f$ L^k \f$ table. For projection, it is
+                   the internal-rung table forwarded to Lkmnij (nullptr for
+                   L(Q,Q)=L^(1)); for ratio, it supplies the L^k integrals
+                   (nullptr gives Sigma_L = 0)
   @param sjt       6j symbol table
   @param include_L4 Include core--core diagram in on-the-fly Lkmnij
+                   (projection only; the ratio method never re-computes L)
   @param r0,rmax,stride  Sub-grid parameters
   @param include_G Include the lower (g) component of Sigma_L
   @return Sigma_L as a coordinate-space GMatrix
+
+  @note Ratio method: terms with \f$ Q^k_{mnva} = 0 \f$ (but \f$ L^k \ne 0 \f$)
+        cannot be rescaled and are dropped; inherent to the method (rare,
+        since Q and L share angular selection rules).
 */
-GMatrix Sigma_ladder(int kappa_v, double en_v,
-                     const std::vector<DiracSpinor> &core,
+GMatrix Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
                      const std::vector<DiracSpinor> &excited,
-                     const std::vector<DiracSpinor> &basis,
+                     const std::vector<DiracSpinor> &projection,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
                      const Angular::SixJTable &sjt, bool include_L4 = false,
                      double r0 = 1.0e-4, double rmax = 30.0,
                      std::size_t stride = 4, bool include_G = false);
+
+/*!
+  @brief Vertex (ket) form of the ladder integral L^k_mnia over the external
+  index i.
+  @details
+  Returns the radial spinor \f$ |L^k_{mn \cdot a}\rangle \f$ (kappa of @p v)
+  satisfying
+  \f[ \langle x|L^k_{mn\cdot a}\rangle = L^k_{mnxa}(\epsilon_v) \f]
+  for any \f$ x \f$ with \f$ \kappa_x = \kappa_v \f$, with the external energy
+  fixed at \f$ \epsilon_v \f$ (as the e_i override in Lkmnij).
+
+  In each diagram the external line attaches to a single bare Coulomb line;
+  that line is opened exactly as a radial function (Qkv_bcd). The exception is
+  the L-part of the internal (Q+L) rung in L1 and L3, where the external line
+  attaches to a dressed rung: for that piece we set i = v (scalar coefficient
+  times |v>), which is exact at x = v and is the same level of treatment the
+  scalar table gives it (entries exist only for stored orbitals).
+
+  @note All internal lines are Hartree-Fock basis states (from the tables);
+        only the external line is left open. This is the correct structure for
+        acting on Brueckner orbitals.
+*/
+DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
+                     const DiracSpinor &n, const DiracSpinor &a,
+                     const Coulomb::QkTable &qk, const Coulomb::YkTable &yk,
+                     const std::vector<DiracSpinor> &core,
+                     const std::vector<DiracSpinor> &excited, bool include_L4,
+                     const Angular::SixJTable &SJ,
+                     const Coulomb::LkTable *const Lk = nullptr);
+
+/*!
+  @brief Vertex (ket) form of the ladder integral L^k_inab over the external
+  index i (the m-slot).
+  @details
+  Returns the radial spinor \f$ |L^k_{\cdot nab}\rangle \f$ (kappa of @p v)
+  satisfying
+  \f[ \langle x|L^k_{\cdot nab}\rangle = L^k_{xnab}(\epsilon_v) \f]
+  for any \f$ x \f$ with \f$ \kappa_x = \kappa_v \f$, with the external energy
+  fixed at \f$ \epsilon_v \f$ (as the e_m override in Lkmnij).
+
+  Mirror of Lkv_mnia() for the particle-hole (c+d) diagrams: here the external
+  line sits in the m-slot, so it is L2 and L4 whose internal (Q+L) rung
+  contains it (i = v used for the L-part), while L1 and L3 open exactly.
+*/
+DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
+                     const DiracSpinor &a, const DiracSpinor &b,
+                     const Coulomb::QkTable &qk, const Coulomb::YkTable &yk,
+                     const std::vector<DiracSpinor> &core,
+                     const std::vector<DiracSpinor> &excited, bool include_L4,
+                     const Angular::SixJTable &SJ,
+                     const Coulomb::LkTable *const Lk = nullptr);
+
+/*!
+  @brief Ladder correlation potential Sigma_L via the direct (open external
+  line) method.
+  @details
+  Forms the ladder correlation potential with the external line opened
+  exactly, rather than projected onto a basis:
+  \f[
+    \Sigma_L = \sum_{amn,k} |W^k_{\cdot amn}\rangle\,
+      \frac{1}{[k][j_v]\,(\epsilon_v+\epsilon_a-\epsilon_m-\epsilon_n)}\,
+      \langle L^k_{mn \cdot a}|
+      + \sum_{nab,k} |W^k_{\cdot nab}\rangle\,
+      \frac{1}{[k][j_v]\,(\epsilon_v+\epsilon_n-\epsilon_a-\epsilon_b)}\,
+      \langle L^k_{\cdot nab}| ,
+  \f]
+  with the bra-side ladder vertices from Lkv_mnia() / Lkv_inab(). All internal
+  lines are Hartree-Fock basis states; the external line is exact wherever it
+  attaches to a bare Coulomb line (everything at lowest order in L), and is
+  taken as |v><v| only for the dressed-rung (internal-L) attachment, which
+  enters the energy at 4th order. Consequently Sigma_L acts correctly on
+  Brueckner orbitals: (H + Sigma + Sigma_L)|psi_B> = e|psi_B>, rather than
+  merely shifting by <v|Sigma_L|v>.
+
+  <v|Sigma_L|v> reproduces the ladder energy de_valence_w (up to iteration
+  convergence of the L table). No projection basis, no Qk extension.
+
+  @param v        Valence state (basis version; supplies kappa_v, en_v, and
+                  the i=v dressed-rung piece)
+  @param core     Core (hole) orbitals
+  @param excited  Excited orbitals
+  @param qk       Converged Coulomb \f$ Q^k \f$ table
+  @param yk       Yk table spanning core+excited (radial vertex functions)
+  @param lk       Converged ladder \f$ L^k \f$ table (nullptr: lowest-order L)
+  @param sjt      6j symbol table
+  @param include_L4 Include core--core diagram L4
+  @param r0,rmax,stride  Sub-grid parameters
+  @param include_G Include the lower (g) component of Sigma_L
+  @return Sigma_L as a coordinate-space GMatrix
+*/
+GMatrix Sigma_ladder_direct(
+  const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited, const Coulomb::QkTable &qk,
+  const Coulomb::YkTable &yk, const Coulomb::LkTable *lk,
+  const Angular::SixJTable &sjt, bool include_L4 = false, double r0 = 1.0e-4,
+  double rmax = 30.0, std::size_t stride = 4, bool include_G = false);
 
 //==============================================================================
 
