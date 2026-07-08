@@ -109,11 +109,11 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
 
     //output for test
     
-    if (i.n() > 60) {
+    if (i.n() < 0) {
       std::cout << "Reduced hyperfine matrix element  " << " <<" << w_wf
                 << "||h_hfs||" << i_wf << ">> = " << hfs_wi << "MHz \n.";
     }
-    if (i.n() > 60) {
+    if (i.n() < 0) {
       std::cout << "Reduced hyperfine matrix element " << " <<" << i_wf
                 << "||h_hfs||" << v_wf << ">> = " << hfs_iv << "MHz \n.";
     }
