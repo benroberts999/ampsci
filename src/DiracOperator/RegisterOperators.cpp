@@ -52,6 +52,9 @@ const DiracOperator::Register<DiracOperator::sigma_r> r_sigma_r{
 const DiracOperator::Register<DiracOperator::PNCnsi> r_pnc{"pnc",
                                                            "NSI PNC operator"};
 
+const DiracOperator::Register<DiracOperator::PNCsd> r_pnc_sd{"PNCsd",
+"NSD PNC operator"};                                                           
+
 const DiracOperator::Register<DiracOperator::Vrad> r_Vrad{
   "Vrad", "QED Radiative potential"};
 
