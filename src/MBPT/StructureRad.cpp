@@ -76,6 +76,9 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
     if (verbose)
       std::cout << "\nUsing Yk Coulomb table for Struc. Rad.\n";
     mY.calculate(mBasis);
+    mQ->fill(mBasis, mY, k_cut, verbose);
+    // mQ->fill_if(mBasis, mY, select_Q_SR, k_cut, verbose);
+    mQ->write(Qk_fname, verbose);
   }
 }
 
