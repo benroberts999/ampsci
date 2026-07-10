@@ -74,22 +74,19 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
     const auto i_wf = i.shortSymbol();
     const auto v_wf = v.shortSymbol();
 
-    //output for test
-    /*
-    if (i.n() < 16) {
+    
+    if (i.n() < 0) {
       std::cout << "Reduced NSI PNC matrix element  " << " <<" << w_wf
                 << "||h_pnc||" << i_wf << ">> = " << pnc_wi
                 << "(-Q_w/N)x10^-11 \n.";
     }
-    const auto pnc_iv =
-        hpnc->reducedME(i, v) + (dV_pnc ? dV_pnc->dV(i, v) : 0.0);
-    if (i.n() < 16) {
+
+    if (i.n() < 0) {
       std::cout << "Reduced NSI PNC matrix element  " << " <<" << i_wf
                 << "||h_pnc||" << v_wf << ">> = " << pnc_iv
                 << "(-Q_w/N)x10^-11\n.";
     }
-            */    
-    //add to table
+  
     pnc_me.add(w, i, pnc_wi);
     pnc_me.add(i, v, pnc_iv);
 
@@ -224,7 +221,7 @@ std::vector<double> h1(std::vector<Coulomb::meTable<double>> ME_tables,
                       e_denom2;
 
           //third term
-          double e_denom3 = (e_j - e_v) * (e_i - e_w);
+          double e_denom3 = (e_j - e_v) * (e_i - e_v);
           double t3 = pnc_me.getv(i, v) * e1_me.getv(w, j) * hf_me.getv(j, i) /
                       e_denom3;
 
