@@ -382,9 +382,9 @@ TDHFcntm::DVRhsAll TDHFcntm::dV_rhs_all(bool include_Y) const {
 
 //==============================================================================
 void TDHFcntm::solve_core(double omega, int max_its, bool print) {
-  // Shared set-up, then the damped (staged) self-consistency driver, using
-  // the continuum-aware channel dispatch (tdhf_core_it_cntm) for each
-  // iteration.
+  // Shared set-up, then dispatch to the Anderson (default) or plain damped
+  // self-consistency driver; both use the continuum-aware channel dispatch
+  // (tdhf_core_it_cntm) for each iteration.
 
   assert(m_h->rank() == m_rank && "Rank must match in solve_core");
   assert(m_h->parity() == m_pi && "Parity must match in solve_core");
@@ -410,7 +410,11 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
     prepare_channels(omega, print);
   }
 
-  solve_core_damped(omega, max_its, print, warm_start);
+  if (m_anderson) {
+    solve_core_anderson(omega, max_its, print);
+  } else {
+    solve_core_damped(omega, max_its, print, warm_start);
+  }
 }
 
 //==============================================================================
@@ -418,7 +422,7 @@ void TDHFcntm::solve_core_damped(double omega, int max_its, bool print,
                                  bool warm_start) {
   // Damped fixed-point driver, as TDHF::solve_core (with Johnson staging).
   // nb: diverges wherever the Picard multiplier exceeds 1 (autoionising
-  // resonances, occupied-occupied near-degeneracies).
+  // resonances, occupied-occupied near-degeneracies) -- see set_anderson.
 
   const double converge_targ = m_eps;
   const auto eta_damp = m_eta;
@@ -476,6 +480,197 @@ void TDHFcntm::solve_core_damped(double omega, int max_its, bool print,
 
     if (eps.first < converge_targ)
       break; // converged
+
+    // Stalled: no meaningful improvement for several iterations -> give up.
+    // (The result is still used; the warning stars flag its quality.)
+    if (eps.first < 0.99 * best_eps) {
+      best_eps = eps.first;
+      count_worse = 0;
+    } else if (++count_worse > 5) {
+      break;
+    }
+  }
+
+  // Soft visual warning, relative to the convergence target.
+  const auto stars = (max_its <= 1)                      ? "" :
+                     (eps.first > 1.0e6 * converge_targ) ? "  ***" :
+                     (eps.first > 1.0e4 * converge_targ) ? "  **" :
+                     (eps.first > 1.0e2 * converge_targ) ? "  *" :
+                                                           "";
+  status.done(stars);
+
+  // set last eps (convergance) and frequency (omega)
+  m_core_eps = eps.first;
+  m_core_its = it;
+  m_core_omega = omega;
+}
+
+//==============================================================================
+void TDHFcntm::solve_core_anderson(double omega, int max_its, bool print) {
+  // Anderson/Pulay (DIIS) accelerated driver. One "map application" is a
+  // single UNDAMPED tdhf_core_it_cntm (all channels, X and Y): the TDHF
+  // fixed-point problem is linear, x = A x + b, so DIIS extrapolation over
+  // the map outputs (equivalent to preconditioned GMRES) converges wherever
+  // (1 - A) is non-singular -- in particular through the resonance windows
+  // where the damped driver diverges. Mirrors the Anderson implementation
+  // in solveMixedState_cntm(), with the state = all (X, Y) corrections
+  // (and the channel K amplitudes, which are linear in the state, so they
+  // extrapolate with the same coefficients).
+
+  const double converge_targ = m_eps;
+
+  // Flatten the full state (all X, all Y spinor components, all K) into a
+  // single vector, and back.
+  const auto flatten = [this]() {
+    std::vector<double> v;
+    for (const auto *set : {&m_X, &m_Y}) {
+      for (const auto &Fs : *set) {
+        for (const auto &F : Fs) {
+          v.insert(v.end(), F.f().cbegin(), F.f().cend());
+          v.insert(v.end(), F.g().cbegin(), F.g().cend());
+        }
+      }
+    }
+    for (const auto &chs : m_ch) {
+      for (const auto &ch : chs) {
+        v.push_back(ch.K);
+      }
+    }
+    return v;
+  };
+  const auto unflatten = [this](const std::vector<double> &v) {
+    std::size_t i = 0;
+    for (auto *set : {&m_X, &m_Y}) {
+      for (auto &Fs : *set) {
+        for (auto &F : Fs) {
+          std::copy_n(v.cbegin() + long(i), F.f().size(), F.f().begin());
+          i += F.f().size();
+          std::copy_n(v.cbegin() + long(i), F.g().size(), F.g().begin());
+          i += F.g().size();
+        }
+      }
+    }
+    for (auto &chs : m_ch) {
+      for (auto &ch : chs) {
+        ch.K = v[i];
+        ++i;
+      }
+    }
+    assert(i == v.size());
+  };
+  const auto dot = [](const std::vector<double> &a,
+                      const std::vector<double> &b) {
+    double sum = 0.0;
+    for (std::size_t i = 0; i < a.size(); ++i) {
+      sum += a[i] * b[i];
+    }
+    return sum;
+  };
+
+  // Anderson history depth: the dominant memory user -- each history entry
+  // holds TWO full copies of the state (all X, Y spinor components), i.e.
+  // 2 * and_dim * n_channels * 2 * num_points doubles in total. Depth 4
+  // converges essentially as well as deeper histories here (typical solves
+  // take only a handful of iterations).
+  constexpr std::size_t and_dim = 4;
+  constexpr double cond_floor = 1.0e-14;   // drop-oldest threshold on B
+  std::vector<std::vector<double>> g_hist; // map outputs g_k = G(x_k)
+  std::vector<std::vector<double>> r_hist; // residuals r_k = g_k - x_k
+
+  std::pair<double, std::string> eps{};
+  double best_eps{1.0e30};
+  int count_worse = 0;
+  int it{0};
+  qip::LiveMessage status(
+    fmt::format("TDHFcntm {} (w={:.4f}): ", m_h->name(), omega), print);
+  for (; it < max_its; it++) {
+    auto x = flatten();
+    // Undamped map application; eps (from eps_cntm) measures G(x) vs x --
+    // exactly the residual, in the physical (K-weighted) measure.
+    eps = tdhf_core_it_cntm(omega, 0.0, true);
+
+    status(fmt::format("{:2d} {:.1e} [{}]", it, eps.first, eps.second));
+
+    if (std::isnan(eps.first))
+      break; // broken
+    if (eps.first < converge_targ)
+      break; // converged (m_X/m_Y hold the latest map output)
+
+    auto g = flatten();
+    auto r = g;
+    for (std::size_t i = 0; i < r.size(); ++i) {
+      r[i] -= x[i];
+    }
+    g_hist.push_back(std::move(g));
+    r_hist.push_back(std::move(r));
+    if (g_hist.size() > and_dim) {
+      g_hist.erase(g_hist.begin());
+      r_hist.erase(r_hist.begin());
+    }
+
+    // First step: nothing to mix yet -- plain fixed-point step (m_X/m_Y
+    // already hold g; from a fresh start this is the first-order result,
+    // so max_its == 1 gives the exact first-order correction).
+    auto m = g_hist.size();
+    if (m == 1)
+      continue;
+
+    // Anderson coefficients: minimise || sum_i c_i r_i ||^2 s.t.
+    // sum_i c_i = 1, via the bordered system [B 1; 1' 0][c; lam] = [0; 1],
+    // B_ij = <r_i|r_j>. If B is ill-conditioned (saturated history), drop
+    // the oldest and re-build. (As solveMixedState_cntm().)
+    LinAlg::Vector<double> c;
+    while (true) {
+      LinAlg::Matrix<double> B(m + 1, m + 1);
+      LinAlg::Vector<double> bvec(m + 1);
+      double dmax = 0.0, dmin = 1.0e300;
+      for (std::size_t i = 0; i < m; ++i) {
+        for (std::size_t j = 0; j < m; ++j) {
+          B(i, j) = dot(r_hist[i], r_hist[j]);
+        }
+        B(i, m) = 1.0;
+        B(m, i) = 1.0;
+        bvec(i) = 0.0;
+        dmax = std::max(dmax, B(i, i));
+        dmin = std::min(dmin, B(i, i));
+      }
+      B(m, m) = 0.0;
+      bvec(m) = 1.0;
+      if (m > 2 && dmin < cond_floor * dmax) {
+        g_hist.erase(g_hist.begin());
+        r_hist.erase(r_hist.begin());
+        --m;
+        continue;
+      }
+      c = LinAlg::solve_Axeqb<double>(B, bvec);
+      // Guard a singular/near-singular LU (no exceptions in this codebase):
+      // drop the oldest entry and re-build if the coefficients are bad.
+      bool finite = true;
+      for (std::size_t i = 0; i < m; ++i) {
+        if (!std::isfinite(c(i)))
+          finite = false;
+      }
+      if (finite)
+        break;
+      g_hist.erase(g_hist.begin());
+      r_hist.erase(r_hist.begin());
+      --m;
+      if (m == 0)
+        break;
+    }
+    if (m == 0)
+      continue;
+
+    // New iterate: x = sum_i c_i g_i (DIIS extrapolation).
+    auto x_new = std::vector<double>(g_hist[0].size(), 0.0);
+    for (std::size_t i = 0; i < m; ++i) {
+      const auto ci = c(i);
+      const auto &gi = g_hist[i];
+      for (std::size_t k = 0; k < x_new.size(); ++k) {
+        x_new[k] += ci * gi[k];
+      }
+    }
+    unflatten(x_new);
 
     // Stalled: no meaningful improvement for several iterations -> give up.
     // (The result is still used; the warning stars flag its quality.)

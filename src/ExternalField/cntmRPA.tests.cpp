@@ -12,6 +12,56 @@
 #include <cmath>
 
 //==============================================================================
+//! Below all ionisation thresholds every channel is bound, so TDHFcntm
+//! (Anderson bound solves) and bound TDHF (damped solves) iterate to the SAME
+//! TDHF fixed point: the dV matrix elements must agree. Verifies both that
+//! the continuum class reproduces the bound physics, and that the bound TDHF
+//! class is untouched by the refactor.
+TEST_CASE("cntmRPA: below-threshold matches bound TDHF",
+          "[ExternalField][TDHF][cntmrpa][unit]") {
+
+  Wavefunction wf({4000, 1.0e-6, 40.0, 1.0, "loglinear", -1.0},
+                  {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]");
+
+  const auto E1 = DiracOperator::E1(wf.grid());
+  // 2p threshold is ~0.85 au: at omega = 0.5 all channels are closed
+  const double omega = 0.5;
+
+  auto rpa_bound = ExternalField::TDHF(&E1, wf.vHF());
+  rpa_bound.solve_core(omega, 100, false);
+  // damped driver: same outer iteration as bound TDHF (tight agreement)
+  auto rpa_cntm = ExternalField::TDHFcntm(&E1, wf.vHF());
+  rpa_cntm.set_anderson(false);
+  rpa_cntm.solve_core(omega, 100, false);
+  // Anderson (default) driver: same fixed point, different iteration path;
+  // its residual target maps to a slightly looser effective tolerance
+  auto rpa_and = ExternalField::TDHFcntm(&E1, wf.vHF());
+  rpa_and.solve_core(omega, 100, false);
+
+  fmt::print("\nBound TDHF vs TDHFcntm at omega = {:.2f} au (all closed):\n",
+             omega);
+  fmt::print("{:>9s} {:>13s} {:>13s} {:>13s}\n", "<a|dV|b>", "TDHF", "damped",
+             "Anderson");
+  for (const auto &Fa : wf.core()) {
+    for (const auto &Fb : wf.core()) {
+      if (E1.isZero(Fa, Fb))
+        continue;
+      const auto dv_b = rpa_bound.dV(Fa, Fb);
+      const auto dv_c = rpa_cntm.dV(Fa, Fb);
+      const auto dv_a = rpa_and.dV(Fa, Fb);
+      fmt::print("{:>4s} {:>4s} {:13.6e} {:13.6e} {:13.6e}\n", Fa.shortSymbol(),
+                 Fb.shortSymbol(), dv_b, dv_c, dv_a);
+      // Damped driver: same outer scheme as bound TDHF (only the inner
+      // mixed-states solver differs: damped vs Anderson) -- tight:
+      REQUIRE(dv_c == Approx(dv_b).epsilon(1.0e-5));
+      // Anderson outer driver: same fixed point, to its residual target:
+      REQUIRE(dv_a == Approx(dv_b).epsilon(1.0e-3));
+    }
+  }
+}
+
+//==============================================================================
 //! Internal consistency of the continuum solve: the standing-wave (K-matrix)
 //! amplitude of the converged correction must equal pi * D, with
 //! D = <F_reg|(t + dV')phi_a> the dressed amplitude built from the SAME

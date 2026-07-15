@@ -106,6 +106,27 @@ public:
   void set_staged_Y(bool staged_Y) { m_staged_Y = staged_Y; }
 
   /*!
+    @brief Anderson/Pulay (DIIS) acceleration of the outer self-consistency
+    (default on).
+    @details
+    The TDHF fixed-point map is LINEAR in the corrections (dV is linear in
+    {X,Y} and each channel solve is a linear inversion), so Anderson mixing
+    (equivalent to preconditioned GMRES) converges wherever (1 - A) is
+    non-singular -- including near the (auto)ionising resonances and the
+    occupied-occupied near-degeneracies (omega ~ en_b - en_a), where the
+    Picard multiplier exceeds 1 and DAMPED iteration diverges for any
+    damping factor. Set false for the plain damped iteration (with staged
+    Y; the bound-TDHF-style driver).
+    @note Memory: the history holds 2 * depth (= 8) flattened copies of all
+    the (X, Y) corrections, ~ 8 * n_channels * 2 * num_points doubles --
+    of order a GB for a heavy atom on a dense grid, PER TDHFcntm instance.
+    Callers parallelising over omega should account for this (the photoRPA
+    module runs energies serially for this reason, with threads used inside
+    each solve), or use set_anderson(false).
+  */
+  void set_anderson(bool anderson) { m_anderson = anderson; }
+
+  /*!
     @brief Per-open-channel results for hole orbital Fa, after solve_core().
     @details
     For each open channel (kappa, en_+ = en_a + omega > 0): the standing-wave
@@ -230,6 +251,7 @@ private:
   // Continuum option flags (see setters above)
   bool m_suppress_open{false};
   bool m_staged_Y{true};
+  bool m_anderson{true};
 
   // Per-(core orbital x channel) continuum data, cached at fixed omega:
   // openness, the homogeneous pair Freg/Firr at en_+ (built ONCE, in the
@@ -252,11 +274,13 @@ private:
   // unresolvable (en_+ too close to that shell's threshold for the box).
   void prepare_channels(double omega, bool print);
 
-  // Driver for solve_core (after the shared set-up): plain damped (staged)
-  // fixed-point iteration. warm_start: continuing at the same omega (first
+  // Drivers for solve_core (after the shared set-up): plain damped (staged)
+  // fixed-point iteration, and Anderson/DIIS-accelerated iteration (see
+  // set_anderson). warm_start: continuing at the same omega (first
   // iteration must be damped).
   void solve_core_damped(double omega, int max_its, bool print,
                          bool warm_start);
+  void solve_core_anderson(double omega, int max_its, bool print);
 
   // Single TDHF iteration, all (core orbital x channel x X/Y) solves
   // task-flattened; continuum-aware dispatch. Mirrors TDHF::tdhf_core_it.
