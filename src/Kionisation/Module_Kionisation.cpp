@@ -1,4 +1,5 @@
 #include "DiracOperator/include.hpp"
+#include "ExternalField/TDHFcntm.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "Kionisation/Kion_functions.hpp"
@@ -15,6 +16,9 @@
 #include "qip/Maths.hpp"
 #include "qip/Methods.hpp"
 #include "qip/Widgets.hpp"
+#include "qip/omp.hpp"
+#include <algorithm>
+#include <array>
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
@@ -25,6 +29,7 @@ namespace Module {
 // Declare, register, then define below.
 void Kionisation(const IO::InputBlock &input, const Wavefunction &wf);
 void photo(const IO::InputBlock &input, const Wavefunction &wf);
+void photoRPA(const IO::InputBlock &input, const Wavefunction &wf);
 void formFactors(const IO::InputBlock &input, const Wavefunction &wf);
 
 namespace {
@@ -32,6 +37,9 @@ const Register r_Kionisation{
   "Kionisation", "Calculate atomic ionisation form-factors", &Kionisation};
 const Register r_photo{
   "photo", "Calculate atomic photo-ionisation form-factors", &photo};
+const Register r_photoRPA{
+  "photoRPA", "Photo-ionisation cross-section with RPA (continuum TDHF)",
+  &photoRPA};
 const Register r_formFactors{"formFactors",
                              "Calculate general atomic ionisation form-factors",
                              &formFactors};
@@ -587,8 +595,8 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
            << "# sigma_EM       : sigma_E + sigma_M (total multipole)\n"
            << "# sigma_E2       : E2 (length)\n"
            << "# sigma_Ek2      : Ek at K=2\n"
-           << "# sigma_Mk1      : Mk at K=1\n"
-           << "#\n"
+           << "# sigma_Mk1      : Mk at K=1\n";
+  out_file << "#\n"
            << "omega_MeV  sigma_E1  sigma_M1  sigma_M1_nr  sigma_E  "
               "sigma_E_len  sigma_M  "
               "sigma_EM  sigma_E2  sigma_Ek2  sigma_Mk1\n";
@@ -608,6 +616,158 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
              << " " << r[9] // s_Mk1     : Mk at K=1
              << "\n";
   }
+}
+
+//==============================================================================
+void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
+  IO::ChronoTimer timer("photoRPA");
+
+  input.check({
+    {"", "E1 photoionisation cross-section, with core polarisation (RPA) "
+         "included via the continuum TDHF method (Johnson RRPA). Columns: "
+         "bare (V^{N-1} tree) and fully-iterated RPA (standing-wave), plus "
+         "convergence diagnostics. The photoelectron is always treated in "
+         "the V^{N-1} (residual ion) potential, orthogonalised to the "
+         "core."},
+    {"E_range",
+     "List (2). Minimum, maximum photon energy (omega), in eV [10, 1000]"},
+    {"E_steps", "Number of steps along omega grid (logarithmic) [50]"},
+    {"ec_max", "Cut-off (in au) for continuum energy. [1e99]"},
+    {"max_its", "Maximum RPA (TDHF) iterations per omega [60]"},
+    {"eps", "Convergence target for the RPA iterations [1e-5]"},
+    {"eta", "Damping factor for the RPA iterations (larger = heavier "
+            "damping; helps near autoionising resonances) [0.4]"},
+    {"oname", "Output file name [photoRPA-out.txt]"},
+  });
+  if (input.has_option("help")) {
+    return;
+  }
+
+  // Set up energy grid:
+  const auto [Emin_eV, Emax_eV] =
+    input.get("E_range", std::array{10.0, 1000.0});
+  const auto E_steps = input.get<std::size_t>("E_steps", 50);
+  const auto Emin_au = Emin_eV / PhysConst::Hartree_eV;
+  const auto Emax_au =
+    Emax_eV < Emin_eV ? Emin_au : Emax_eV / PhysConst::Hartree_eV;
+  const auto energies = qip::logarithmic_range(Emin_au, Emax_au, E_steps);
+
+  const auto ec_max = input.get("ec_max", 1 / 0.0);
+  const auto max_its = input.get("max_its", 60);
+  const auto eps_target = input.get("eps", 1.0e-5);
+  const auto eta = input.get("eta", 0.4);
+  const auto oname = input.get("oname", std::string{"photoRPA-out.txt"});
+
+  std::cout << "\nCore ionisation energies, in eV\n";
+  for (const auto &Fc : wf.core()) {
+    fmt::print("{:3} : {:.4f}\n", Fc.shortSymbol(),
+               -1 * Fc.en() * PhysConst::Hartree_eV);
+  }
+  fmt::print("\nomega : [{:.1f}, {:.1f}] eV = [{:.3f}, {:.3f}] au, {} steps\n",
+             Emin_eV, Emax_eV, energies.front(), energies.back(),
+             energies.size());
+
+  const auto E1 = DiracOperator::E1(wf.grid());
+
+  // Per-omega results: {sigma_bare, sigma_rpa}, then the convergence
+  // diagnostics
+  const auto n_shells = wf.core().size();
+  const auto n_cols = 5ul;
+  std::vector<std::vector<double>> results(energies.size(),
+                                           std::vector<double>(n_cols, 0.0));
+
+  // Energies run serially; threads are used inside each solve (the
+  // channel tasks). Each omega's RPA convergence line prints live.
+  for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
+    const auto omega = energies[i_omega];
+
+    // Below every ionisation threshold (or every open shell beyond ec_max):
+    // no contributing channels, sigma = 0 -- nothing to solve. (Same shell
+    // condition as the matrix-element loop below.)
+    const auto any_open =
+      std::any_of(wf.core().cbegin(), wf.core().cend(), [&](const auto &Fa) {
+        const auto ec = omega + Fa.en();
+        return ec >= 0.0 && ec <= ec_max;
+      });
+    if (!any_open) {
+      fmt::print("TDHFcntm (w={:.4f}): below all thresholds, sigma = 0 "
+                 "(skipped)\n",
+                 omega);
+      continue;
+    }
+
+    // Conversion: (1/3) sum |<e||E1||a>|^2 -> cross-section (cm^2)
+    const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
+                        PhysConst::aB_cm * PhysConst::aB_cm * omega / 3.0;
+
+    // Solve the RPA (continuum TDHF) at this omega:
+    auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
+    rpa.eps_target() = eps_target;
+    rpa.set_eta(eta);
+    rpa.solve_core(omega, max_its, true);
+
+    // Matrix elements: D = D0 + <e|dV|a> (standing-wave):
+    double sigma_E1 = 0.0;
+    double sigma_E1_rpa = 0.0;
+    for (std::size_t i_shell = 0; i_shell < n_shells; ++i_shell) {
+      const auto &Fa = wf.core()[i_shell];
+      const auto ec = omega + Fa.en();
+      if (ec < 0.0 || ec > ec_max)
+        continue;
+      ContinuumOrbitals cntm(wf.vHF());
+      cntm.solveContinuumHF(ec, std::max(Fa.l() - 1, 0), Fa.l() + 1, &Fa, false,
+                            true, true);
+      for (const auto &Fe : cntm.orbitals) {
+        if (E1.isZero(Fe, Fa) || Fe.norm2() == 0.0)
+          continue;
+        const auto D0 = E1.reducedME(Fe, Fa);
+        const auto D = D0 + rpa.dV_cntm(Fe, Fa);
+        sigma_E1 += Ksigma * D0 * D0;
+        sigma_E1_rpa += Ksigma * D * D;
+      }
+    }
+
+    // Convergence / internal-consistency diagnostics
+    // [KpiD: the K = pi*D identity]
+    double KpiD_dev = 0.0;
+    for (const auto &Fa : wf.core()) {
+      for (const auto &ch : rpa.open_channels(Fa)) {
+        if (ch.K == 0.0 || ch.D == 0.0)
+          continue;
+        KpiD_dev = std::max(KpiD_dev, std::abs(ch.K / (M_PI * ch.D) - 1.0));
+      }
+    }
+
+    results[i_omega][0] = sigma_E1;
+    results[i_omega][1] = sigma_E1_rpa;
+    results[i_omega][2] = rpa.last_eps();
+    results[i_omega][3] = rpa.last_its();
+    results[i_omega][4] = KpiD_dev;
+  }
+
+  std::ofstream out_file(oname);
+  out_file << "# E1 photoionisation cross-section (cm^2), with RPA\n"
+           << "# Columns:\n"
+           << "# omega_eV       : photon energy (eV)\n"
+           << "# sigma_E1       : bare (V^{N-1} tree, no RPA)\n"
+           << "# sigma_E1_rpa   : full (iterated) RPA, standing-wave "
+              "amplitudes (poles above thresholds!)\n"
+           << "# rpa_eps        : RPA convergence achieved\n"
+           << "# rpa_its        : RPA iterations used\n"
+           << "# KpiD_dev       : worst |K/(pi*D) - 1| internal consistency\n"
+           << "#\n"
+           << "omega_eV  sigma_E1  sigma_E1_rpa  rpa_eps  rpa_its  "
+              "KpiD_dev\n";
+
+  for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
+    const auto &r = results[i_omega];
+    out_file << energies[i_omega] * PhysConst::Hartree_eV;
+    for (std::size_t ic = 0; ic < r.size(); ++ic) {
+      out_file << " " << r[ic];
+    }
+    out_file << "\n";
+  }
+  std::cout << "Written to: " << oname << "\n";
 }
 
 //==============================================================================
