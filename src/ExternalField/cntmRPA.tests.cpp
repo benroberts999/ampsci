@@ -722,6 +722,74 @@ TEST_CASE("cntmRPA: even-parity operator (temporal t0)",
 }
 
 //==============================================================================
+//! Gauge invariance: exact RRPA amplitudes are identical in length (E1) and
+//! velocity (E1v) form -- the decisive end-to-end test of the continuum RRPA
+//! machinery (Johnson & Lin, PRA 19, 964 (1979)). Kbar is
+//! operator-independent, so the test reduces to the driven amplitudes:
+//! D_KS_L = D_KS_V per channel, and the unitarised |A_L| = |A_V|. The bare
+//! (HF) amplitudes agree only approximately (nonlocal-exchange gauge
+//! ambiguity); the RRPA resummation must close that gap. Requires the
+//! consistent occupied-component convention in every channel solve (keep
+//! them all; project only the diagonal) -- the old blanket core projection
+//! in the open channels broke this at the several-% level.
+//! E1v is frequency-dependent: t_+ at +omega, t_- at -omega.
+TEST_CASE("cntmRPA: gauge invariance (E1 vs E1v)",
+          "[ExternalField][TDHF][cntmrpa][integration]") {
+
+  Wavefunction wf({5000, 1.0e-6, 40.0, 1.0, "loglinear", -1.0},
+                  {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]");
+  const auto E1 = DiracOperator::E1(wf.grid());
+
+  // Smooth region (2s+2p open), and high omega (all shells open):
+  for (const auto omega : {4.0, 38.0}) {
+
+    auto E1v = DiracOperator::E1v(wf.alpha(), omega);
+    auto E1v_minus = DiracOperator::E1v(wf.alpha(), -omega);
+
+    auto rpa_L = ExternalField::TDHFcntm(&E1, wf.vHF());
+    rpa_L.eps_target() = 1.0e-7;
+    rpa_L.solve_core(omega, 60, false);
+    const auto rL = rpa_L.rescattering(40, false, true);
+
+    auto rpa_V = ExternalField::TDHFcntm(&E1v, wf.vHF(), &E1v_minus);
+    rpa_V.eps_target() = 1.0e-7;
+    rpa_V.solve_core(omega, 60, false);
+    const auto rV = rpa_V.rescattering(40, false, true);
+
+    fmt::print("\nGauge test at omega = {:.1f} au ({} open channels):\n"
+               "{:>7s} {:>11s} {:>11s} {:>9s}\n",
+               omega, rL.channels.size(), "kappa", "|A_L|/pi", "|A_V|/pi",
+               "V/L - 1");
+    REQUIRE(!rL.channels.empty());
+    REQUIRE(rL.channels.size() == rV.channels.size());
+
+    // Kbar is operator-independent: identical matrices (machinery check)
+    double dK = 0.0, kmax = 0.0;
+    for (std::size_t i = 0; i < rL.channels.size(); ++i) {
+      for (std::size_t j = 0; j < rL.channels.size(); ++j) {
+        dK = std::max(dK, std::abs(rL.Kbar(i, j) - rV.Kbar(i, j)));
+        kmax = std::max(kmax, std::abs(rL.Kbar(i, j)));
+      }
+    }
+    REQUIRE(dK < 1.0e-10 * kmax);
+
+    // Per-channel gauge invariance of the physical amplitudes. Tolerance is
+    // the numerical (extraction/TDHF) floor, not physics: observed ~1e-4.
+    double sum_L = 0.0, sum_V = 0.0;
+    for (std::size_t i = 0; i < rL.channels.size(); ++i) {
+      fmt::print("{:>7d} {:11.6f} {:11.6f} {:9.1e}\n", rL.channels[i].kappa,
+                 rL.D_phys[i], rV.D_phys[i], rV.D_phys[i] / rL.D_phys[i] - 1.0);
+      REQUIRE(rV.D_phys[i] == Approx(rL.D_phys[i]).epsilon(1.0e-2));
+      sum_L += rL.D_phys[i] * rL.D_phys[i];
+      sum_V += rV.D_phys[i] * rV.D_phys[i];
+    }
+    // Total (cross-section level): tighter
+    REQUIRE(sum_V == Approx(sum_L).epsilon(2.0e-3));
+  }
+}
+
+//==============================================================================
 //! The batched dV builder (dV_rhs_all: shared yk screening functions) must
 //! reproduce the per-task TDHF::dV_rhs exactly (same angular factors, same
 //! radial integrals; only the evaluation order differs). Checked on a

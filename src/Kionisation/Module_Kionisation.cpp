@@ -624,11 +624,12 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check({
     {"", "E1 photoionisation cross-section, with core polarisation (RPA) "
-         "included via the continuum TDHF method (Johnson RRPA). Columns: "
-         "bare (V^{N-1} tree), fully-iterated RPA (standing-wave), and "
-         "unitarised RPA, plus convergence diagnostics. The photoelectron "
-         "is always treated in the V^{N-1} (residual ion) potential, "
-         "orthogonalised to the core."},
+         "included via the continuum TDHF method (Johnson RRPA), in BOTH "
+         "length and velocity gauges (RRPA-L = RRPA-V is the gauge test). "
+         "Columns per gauge: bare (V^{N-1} tree), fully-iterated RPA "
+         "(standing-wave), and unitarised RPA, plus convergence "
+         "diagnostics. The photoelectron is always treated in the V^{N-1} "
+         "(residual ion) potential, orthogonalised to the core."},
     {"E_range",
      "List (2). Minimum, maximum photon energy (omega), in eV [10, 1000]"},
     {"E_steps", "Number of steps along omega grid (logarithmic) [50]"},
@@ -677,10 +678,11 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto E1 = DiracOperator::E1(wf.grid());
 
-  // Per-omega results: {sigma_bare, sigma_rpa, sigma_rpaU}, then the
-  // convergence diagnostics, then optional per-shell (unitarised) sigmas
+  // Per-omega results: {sigma_bare, sigma_rpa, sigma_rpaU} for E1 (length)
+  // then E1v (velocity), eps, its, KpiD_dev, Kbar_asym (diagnostics = worst
+  // over the two gauges), then optional per-shell (unitarised, length) sigmas
   const auto n_shells = wf.core().size();
-  const auto n_cols = 7ul + (each_shell ? n_shells : 0ul);
+  const auto n_cols = 10ul + (each_shell ? n_shells : 0ul);
   std::vector<std::vector<double>> results(energies.size(),
                                            std::vector<double>(n_cols, 0.0));
 
@@ -713,11 +715,21 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
                         PhysConst::aB_cm * PhysConst::aB_cm * omega / 3.0;
 
-    // Solve the RPA (continuum TDHF) at this omega:
-    auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
-    rpa.eps_target() = eps_target;
-    rpa.set_eta(eta);
-    rpa.solve_core(omega, max_its, true);
+    // Velocity-form operators: frequency-dependent, so per-omega instances,
+    // updated to (+omega, -omega) for the (t_+, t_-) pair.
+    auto E1v = DiracOperator::E1v(wf.alpha(), omega);
+    auto E1v_minus = DiracOperator::E1v(wf.alpha(), -omega);
+
+    // Solve the RPA (continuum TDHF) at this omega, both gauges:
+    auto rpa_L = ExternalField::TDHFcntm(&E1, wf.vHF());
+    rpa_L.eps_target() = eps_target;
+    rpa_L.set_eta(eta);
+    rpa_L.solve_core(omega, max_its, true);
+
+    auto rpa_V = ExternalField::TDHFcntm(&E1v, wf.vHF(), &E1v_minus);
+    rpa_V.eps_target() = eps_target;
+    rpa_V.set_eta(eta);
+    rpa_V.solve_core(omega, max_its, true);
 
     // Matrix elements: D = D0 + <e|dV|a> (standing-wave), and the
     // unitarised (physical) amplitudes D_phys = |A|/pi [A = (1-i*Kbar)^{-1}
@@ -725,6 +737,9 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     double sigma_E1 = 0.0;
     double sigma_E1_rpa = 0.0;
     double sigma_E1_rpaU = 0.0;
+    double sigma_E1v = 0.0;
+    double sigma_E1v_rpa = 0.0;
+    double sigma_E1v_rpaU = 0.0;
     for (std::size_t i_shell = 0; i_shell < n_shells; ++i_shell) {
       const auto &Fa = wf.core()[i_shell];
       const auto ec = omega + Fa.en();
@@ -737,59 +752,77 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
         if (E1.isZero(Fe, Fa) || Fe.norm2() == 0.0)
           continue;
         const auto D0 = E1.reducedME(Fe, Fa);
-        const auto D = D0 + rpa.dV_cntm(Fe, Fa);
+        const auto D = D0 + rpa_L.dV_cntm(Fe, Fa);
+        const auto D0v = E1v.reducedME(Fe, Fa);
+        const auto Dv = D0v + rpa_V.dV_cntm(Fe, Fa);
         sigma_E1 += Ksigma * D0 * D0;
         sigma_E1_rpa += Ksigma * D * D;
+        sigma_E1v += Ksigma * D0v * D0v;
+        sigma_E1v_rpa += Ksigma * Dv * Dv;
         if (unitarise) {
-          const auto DU = rpa.D_phys(Fa, Fe.kappa());
+          const auto DU = rpa_L.D_phys(Fa, Fe.kappa());
+          const auto DUv = rpa_V.D_phys(Fa, Fe.kappa());
           sigma_E1_rpaU += Ksigma * DU * DU;
+          sigma_E1v_rpaU += Ksigma * DUv * DUv;
           if (each_shell) {
-            results[i_omega][7 + i_shell] += Ksigma * DU * DU;
+            results[i_omega][10 + i_shell] += Ksigma * DU * DU;
           }
         }
       }
     }
 
-    // Convergence / internal-consistency diagnostics
+    // Convergence / internal-consistency diagnostics, worst over gauges
     // [KpiD: the K = pi*D identity]
     double KpiD_dev = 0.0;
     for (const auto &Fa : wf.core()) {
-      for (const auto &ch : rpa.open_channels(Fa)) {
-        if (ch.K == 0.0 || ch.D == 0.0)
-          continue;
-        KpiD_dev = std::max(KpiD_dev, std::abs(ch.K / (M_PI * ch.D) - 1.0));
+      for (const auto *rpa : {&rpa_L, &rpa_V}) {
+        for (const auto &ch : rpa->open_channels(Fa)) {
+          if (ch.K == 0.0 || ch.D == 0.0)
+            continue;
+          KpiD_dev = std::max(KpiD_dev, std::abs(ch.K / (M_PI * ch.D) - 1.0));
+        }
       }
     }
 
     results[i_omega][0] = sigma_E1;
     results[i_omega][1] = sigma_E1_rpa;
     results[i_omega][2] = sigma_E1_rpaU;
-    results[i_omega][3] = rpa.last_eps();
-    results[i_omega][4] = rpa.last_its();
-    results[i_omega][5] = KpiD_dev;
-    results[i_omega][6] = rpa.rescattering_asymmetry();
+    results[i_omega][3] = sigma_E1v;
+    results[i_omega][4] = sigma_E1v_rpa;
+    results[i_omega][5] = sigma_E1v_rpaU;
+    results[i_omega][6] = std::max(rpa_L.last_eps(), rpa_V.last_eps());
+    results[i_omega][7] = std::max(rpa_L.last_its(), rpa_V.last_its());
+    results[i_omega][8] = KpiD_dev;
+    results[i_omega][9] =
+      std::max(rpa_L.rescattering_asymmetry(), rpa_V.rescattering_asymmetry());
   }
 
   std::ofstream out_file(oname);
-  out_file << "# E1 photoionisation cross-section (cm^2), with RPA\n"
+  out_file << "# E1 photoionisation cross-section (cm^2), with RPA; "
+              "length (E1) and velocity (E1v) gauges\n"
            << "# Columns:\n"
            << "# omega_eV       : photon energy (eV)\n"
-           << "# sigma_E1       : bare (V^{N-1} tree, no RPA)\n"
+           << "# sigma_E1       : bare (V^{N-1} tree, no RPA), length\n"
            << "# sigma_E1_rpa   : full (iterated) RPA, standing-wave "
-              "amplitudes (poles above thresholds!)\n"
+              "amplitudes (poles above thresholds!), length\n"
            << "# sigma_E1_rpaU  : full RPA, unitarised (physical) "
-              "amplitudes\n"
-           << "# rpa_eps        : RPA convergence achieved\n"
-           << "# rpa_its        : RPA iterations used\n"
+              "amplitudes, length\n"
+           << "# sigma_E1v      : bare, velocity\n"
+           << "# sigma_E1v_rpa  : full RPA, standing-wave, velocity\n"
+           << "# sigma_E1v_rpaU : full RPA, unitarised, velocity\n"
+           << "# rpa_eps        : RPA convergence achieved (worst gauge)\n"
+           << "# rpa_its        : RPA iterations used (worst gauge)\n"
            << "# KpiD_dev       : worst |K/(pi*D) - 1| internal consistency\n"
            << "# Kbar_asym      : rescattering-matrix asymmetry "
               "(consistency)\n";
   if (each_shell) {
-    out_file << "# sigma_<shell>  : per-shell unitarised-RPA cross-section\n";
+    out_file << "# sigma_<shell>  : per-shell unitarised-RPA cross-section "
+                "(length)\n";
   }
   out_file << "#\n"
-           << "omega_eV  sigma_E1  sigma_E1_rpa  sigma_E1_rpaU  rpa_eps  "
-              "rpa_its  KpiD_dev  Kbar_asym";
+           << "omega_eV  sigma_E1  sigma_E1_rpa  sigma_E1_rpaU  sigma_E1v  "
+              "sigma_E1v_rpa  sigma_E1v_rpaU  rpa_eps  rpa_its  KpiD_dev  "
+              "Kbar_asym";
   if (each_shell) {
     for (const auto &Fc : wf.core()) {
       out_file << "  sigma_" << Fc.shortSymbol();
