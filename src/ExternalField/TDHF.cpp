@@ -157,45 +157,16 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
 }
 
 //==============================================================================
-void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
-                         const std::vector<DiracSpinor> &hFbs,
-                         const double omega, dPsiType XorY,
-                         double eps_ms) const {
-  // Solves (H - e - w)Xb = -(h + dV - de)Psi
-  // or     (H - e + w)Y = -(h^dag + dV^dag - de)Psi
-  // The diagonal (de) and near-resonant fine-structure partner terms are
-  // conditioned inside solveMixedState (see conditioning_states()).
-
-  const auto ww = XorY == dPsiType::X ? omega : -omega;
-  auto conj = XorY == dPsiType::Y;
-  if (omega < 0.0)
-    conj = !conj;
-
-  const auto imag = m_h->imaginaryQ();
-  for (auto ibeta = 0ul; ibeta < dFb.size(); ibeta++) {
-
-    auto &dF_beta = dFb[ibeta];
-    const int kappa_beta = dF_beta.kappa();
-
-    const auto &hFb = hFbs[ibeta];
-    const auto s = (imag && conj) ? -1.0 : 1.0;
-    auto rhs = s * hFb + dV_rhs(kappa_beta, Fb, conj);
-
-    const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
-    const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
-    // The l from X ? or from Fv ?
-    ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
-                                   eps_ms, nullptr, p_VBr, Hmag);
-  }
-}
-
-//==============================================================================
 void TDHF::solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fb,
                            const DiracSpinor &hFb, const double omega,
                            dPsiType XorY, double eps_ms) const {
-  // As solve_ms_core(), but for a single channel (one core orbital Fb, one
-  // kappa projection beta, X or Y). Used to parallelise tdhf_core_it() over
-  // (orbital x channel x X/Y) for better load balance than per-orbital.
+  // Solves (H - e - w)Xb = -(h + dV - de)Psi
+  // or     (H - e + w)Y = -(h^dag + dV^dag - de)Psi
+  // for a single channel (one core orbital Fb, one kappa projection beta,
+  // X or Y). Used to parallelise tdhf_core_it() over (orbital x channel x
+  // X/Y) for better load balance than per-orbital.
+  // The diagonal (de) and near-resonant fine-structure partner terms are
+  // conditioned inside solveMixedState (see conditioning_states()).
   // Thread-safe: reads only const/shared state (and the previous iteration's
   // m_X/m_Y via dV_rhs); writes only dF_beta.
 

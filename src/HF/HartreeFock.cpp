@@ -1124,6 +1124,33 @@ DiracSpinor vexFa(const DiracSpinor &Fa, const std::vector<DiracSpinor> &core,
   return VxFa;
 }
 
+// -----------------------------------------------------------------------------
+DiracSpinor vexFa_1el(const DiracSpinor &Fv, const DiracSpinor &Fa)
+// Free Function
+// One-electron self-exchange: the b=Fa term of vexFa, with one-electron
+// weight 1/[j_a] in place of the subshell occupancy (see header).
+{
+  DiracSpinor VxFv(Fv.n(), Fv.kappa(), Fv.grid_sptr());
+  VxFv.max_pt() = Fa.max_pt();
+
+  std::vector<double> vavk(Fv.grid().num_points());
+
+  const auto [kmin, kmax] = Angular::kminmax_Ck(Fv.kappa(), Fa.kappa());
+  for (int k = kmin; k <= kmax; k += 2) {
+    const auto ckva = Angular::Ck_kk(k, Fv.kappa(), Fa.kappa());
+    Coulomb::yk_ab(k, Fa, Fv, vavk, Fa.max_pt());
+    const auto c2x = ckva * ckva / Fa.twojp1();
+    for (auto i = 0u; i < Fa.max_pt(); i++) {
+      const auto v = -c2x * vavk[i];
+      VxFv.f(i) += v * Fa.f(i);
+      VxFv.g(i) += v * Fa.g(i);
+    }
+  }
+  VxFv *= (1.0 / Fv.twojp1());
+
+  return VxFv;
+}
+
 //==============================================================================
 std::vector<double> HartreeFock::Hrad_el(int l) const {
   return m_vrad ? m_vrad->Vel(l) : std::vector<double>{};

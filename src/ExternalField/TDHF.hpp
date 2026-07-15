@@ -127,7 +127,7 @@ public:
 
   virtual Method method() const override { return Method::TDHF; }
 
-  virtual void clear() override final;
+  virtual void clear() override;
 
   //! Returns reduced matrix element \f$\redmatel{a}{\delta V}{b}\f$,
   //! or the conjugate \f$\redmatel{a}{\delta V^\dagger}{b}\f$ if conj=true.
@@ -182,23 +182,10 @@ public:
   // //! Writes dPsi (f-component) to textfile
   // void print(const std::string &ofname = "dPsi.txt") const;
 
-private:
-  void initialise_dPsi();
-
-  // Single iteration of TDHF equations
-  std::pair<double, std::string> tdhf_core_it(double omega, double eta_damp);
+protected:
   // Forms set of h*Fc for all core orbitals and all projections
   std::vector<std::vector<DiracSpinor>>
   form_hFcore(const DiracOperator::TensorOperator *h) const;
-  // Solves the MS equations for all projections, single core state
-  void solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
-                     const std::vector<DiracSpinor> &hFbs, const double omega,
-                     dPsiType XorY, double eps_ms = 1.0e-9) const;
-  // As solve_ms_core(), but a single channel (one projection). Thread-safe;
-  // used to parallelise tdhf_core_it() over (orbital x channel x X/Y).
-  void solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fb,
-                       const DiracSpinor &hFb, const double omega,
-                       dPsiType XorY, double eps_ms = 1.0e-9) const;
 
   // Convergence (eps): the relative L2 change of the (undamped) X spinors,
   // Sum|dX|^2 / Sum|X_new|^2 (summed over all channels); returns its sqrt
@@ -206,6 +193,18 @@ private:
   std::pair<double, std::string>
   eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
            bool relative) const;
+
+private:
+  void initialise_dPsi();
+
+  // Single iteration of TDHF equations
+  std::pair<double, std::string> tdhf_core_it(double omega, double eta_damp);
+  // Solves the MS equations for a single channel (one core orbital, one
+  // projection). Thread-safe; used to parallelise tdhf_core_it() over
+  // (orbital x channel x X/Y).
+  void solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fb,
+                       const DiracSpinor &hFb, const double omega,
+                       dPsiType XorY, double eps_ms = 1.0e-9) const;
 
 public:
   TDHF &operator=(const TDHF &) = delete;
