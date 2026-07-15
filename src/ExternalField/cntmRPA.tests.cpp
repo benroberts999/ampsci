@@ -105,6 +105,74 @@ TEST_CASE("cntmRPA: K = pi*D consistency",
 }
 
 //==============================================================================
+//! High-frequency limit: far above the ionisation thresholds the core has no
+//! time to respond (the response corrections fall off as ~1/omega), so the
+//! PHYSICAL (unitarised) RPA cross section must approach the bare (V^{N-1}
+//! tree) one. nb: this limit belongs to the unitarised amplitudes |A|: the
+//! standing-wave (principal-value) amplitudes differ from |A| by the
+//! on-shell phase rotation, and their per-channel ratios to bare do NOT
+//! tend to 1 (the occupied components of the corrections carry a
+//! bare-scaled contribution through the orthogonalised-bra matrix
+//! elements). The approach is slow (~1/omega), so the test checks the
+//! TREND -- |sigma_U/sigma_bare - 1| decreasing above the last threshold --
+//! plus a loose bound at the largest omega.
+TEST_CASE("cntmRPA: high-omega limit", "[ExternalField][TDHF][cntmrpa][unit]") {
+
+  Wavefunction wf({5000, 1.0e-6, 40.0, 1.0, "loglinear", -1.0},
+                  {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]");
+  const auto E1 = DiracOperator::E1(wf.grid());
+
+  // Ne thresholds: 2p ~0.85, 2s ~1.93, 1s ~32.8 au. All shells are open at
+  // these omega (the 15 -> 60 au step crosses the 1s threshold, so monotone
+  // decay is only required for the 60 -> 240 au step):
+  const auto omegas = std::vector{15.0, 60.0, 240.0};
+
+  // |sigma_U/sigma_bare - 1| per omega
+  std::vector<double> dev;
+
+  for (const auto omega : omegas) {
+    auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
+    rpa.eps_target() = 1.0e-6;
+    rpa.solve_core(omega, 60, false);
+    const auto resc = rpa.rescattering(40, false, true);
+
+    // Bare cross-section from the (orthogonalised) V^{N-1} HF bra states
+    double sum_D0_2 = 0.0;
+    for (const auto &Fb : wf.core()) {
+      const auto ec = Fb.en() + omega;
+      if (ec <= 0.0)
+        continue;
+      ContinuumOrbitals cntm(wf.vHF());
+      cntm.solveContinuumHF(ec, std::max(Fb.l() - 1, 0), Fb.l() + 1, &Fb, false,
+                            true, true);
+      for (const auto &Fe : cntm.orbitals) {
+        if (E1.isZero(Fe, Fb) || Fe.norm2() == 0.0)
+          continue;
+        const auto D0 = E1.reducedME(Fe, Fb);
+        sum_D0_2 += D0 * D0;
+      }
+    }
+    double sum_A_2 = 0.0;
+    for (const auto &Dp : resc.D_phys) {
+      sum_A_2 += Dp * Dp;
+    }
+    REQUIRE(sum_D0_2 > 0.0);
+    REQUIRE(sum_A_2 > 0.0);
+
+    const auto ratio = sum_A_2 / sum_D0_2;
+    fmt::print("High-omega limit, omega = {:>3.0f} au: sigma_U/sigma_bare = "
+               "{:.4f}\n",
+               omega, ratio);
+    dev.push_back(std::abs(ratio - 1.0));
+  }
+
+  // Monotone decay above the last (1s) threshold, and small at the top:
+  REQUIRE(dev[2] < dev[1]);
+  REQUIRE(dev[2] < 0.1);
+}
+
+//==============================================================================
 //! The hole-particle acceptance test. (a) The compensated source
 //! S = [(t + dV')phi_a]_beta for an ionised orbital must be SHORT-RANGED:
 //! the +y^0_aa*chi hole compensation must cancel, pointwise, the 1/r tail
@@ -217,6 +285,76 @@ TEST_CASE("cntmRPA: source short-rangedness, box-independence",
       // physical amplitude must not depend on the box size:
       REQUIRE(Ds[1][i] == Approx(Ds[0][i]).epsilon(1.0e-2));
     }
+  }
+}
+
+//==============================================================================
+//! Validation against Johnson & Cheng, PRA 20, 978 (1979), Fig 1: Ne total
+//! E1 (length) photoionisation cross-section, RRPA vs HF. Expected values
+//! are read off the published figure (so carry ~10-15% reading uncertainty).
+//! The comparable quantity is the UNITARISED (physical) cross-section --
+//! Johnson's RRPA amplitudes are the outgoing-wave (eigenchannel) ones.
+//! Chosen omega sit in the smooth region above the 2s threshold, away from
+//! the 2s->np autoionising resonances (cf. Johnson & Cheng: "we avoid these
+//! resonances altogether").
+//! nb: tolerance 25%: our (gauge-invariant, L=V) result sits systematically
+//! ~15-20% above the figure-read values in this 60-120 eV window (while
+//! matching experiment near the 2p maximum and at high omega) -- open
+//! question, tracked in the status notes.
+TEST_CASE("cntmRPA: Johnson 1979 Ne cross-section",
+          "[ExternalField][TDHF][cntmrpa][integration]") {
+
+  Wavefunction wf({10000, 1.0e-6, 40.0, 1.0, "loglinear", -1.0},
+                  {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]");
+  const auto E1 = DiracOperator::E1(wf.grid());
+
+  // {omega (au), RRPA sigma (Mb) read from Fig 1 of Johnson & Cheng 1979}
+  const auto expected = std::vector{std::pair{2.31, 6.0}, std::pair{2.91, 4.7},
+                                    std::pair{3.67, 3.5}};
+
+  fmt::print("\nNe total E1 cross-section vs Johnson & Cheng (1979):\n");
+  fmt::print("{:>7s} {:>10s} {:>10s} {:>12s} {:>9s}\n", "w (au)", "bare(Mb)",
+             "RPA-U(Mb)", "Johnson(Mb)", "eps");
+
+  for (const auto &[omega, sigma_expct] : expected) {
+    auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
+    rpa.eps_target() = 1.0e-5;
+    rpa.solve_core(omega, 90, false);
+    const auto resc = rpa.rescattering(40, false, true);
+
+    // sigma = (4 pi^2 alpha / 3) * omega * sum_channels |D|^2, in Mb
+    const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha * omega / 3.0 *
+                        PhysConst::aB_cm * PhysConst::aB_cm * 1.0e18;
+    double sigma_0 = 0.0;
+    for (const auto &Fb : wf.core()) {
+      const auto ec = Fb.en() + omega;
+      if (ec <= 0.0)
+        continue;
+      ContinuumOrbitals cntm(wf.vHF());
+      cntm.solveContinuumHF(ec, std::max(Fb.l() - 1, 0), Fb.l() + 1, &Fb, false,
+                            true, true);
+      for (const auto &Fe : cntm.orbitals) {
+        if (E1.isZero(Fe, Fb) || Fe.norm2() == 0.0)
+          continue;
+        const auto D0 = E1.reducedME(Fe, Fb);
+        sigma_0 += Ksigma * D0 * D0;
+      }
+    }
+    double sigma_U = 0.0;
+    for (const auto &Dp : resc.D_phys) {
+      sigma_U += Ksigma * Dp * Dp;
+    }
+
+    fmt::print("{:7.2f} {:10.2f} {:10.2f} {:12.1f} {:9.1e}\n", omega, sigma_0,
+               sigma_U, sigma_expct, rpa.last_eps());
+
+    // TDHF converged (away from the resonances):
+    REQUIRE(rpa.last_eps() < 1.0e-2);
+    // Kbar consistency (reciprocity, not imposed):
+    REQUIRE(resc.asymmetry < 0.05);
+    // Agreement with the published RRPA curve (see @note above):
+    REQUIRE(sigma_U == Approx(sigma_expct).epsilon(0.25));
   }
 }
 
@@ -338,6 +476,248 @@ TEST_CASE("cntmRPA: Ne E1 photoionisation table",
     // The TDHF stays bounded (no divergence); it converges tightly except near a
     // collective resonance, where it stalls at a higher eps (still finite).
     REQUIRE(std::isfinite(rpa_full.last_eps()));
+  }
+}
+
+//==============================================================================
+//! Unitarisation (on-shell rescattering, Johnson 1979 appendix): the
+//! standing-wave RRPA amplitudes D have real poles where an eigenphase passes
+//! through pi/2 (e.g. just above the 1s threshold); the physical amplitudes
+//! A = (1 - i*Kbar)^{-1} pi*D must stay finite there. Checks: (a) Kbar is
+//! symmetric (reciprocity -- not imposed anywhere by the construction);
+//! (b) for the dominant channel the multichannel result reduces to the
+//! single-channel form |A| ~ pi*D*cos(atan Kbar_ii); (c) through the Ne 1s
+//! near-edge pole the standing-wave cross-section blows up while the
+//! unitarised one stays at the physical (Henke-scale) value.
+TEST_CASE("cntmRPA: unitarisation (rescattering)",
+          "[ExternalField][TDHF][cntmrpa][integration]") {
+
+  Wavefunction wf({4000, 1.0e-6, 30.0, 1.0, "loglinear", -1.0},
+                  {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]");
+  const auto E1 = DiracOperator::E1(wf.grid());
+
+  { // (a) + (b): consistency in the smooth region (only 2p open)
+    const double omega = 1.5;
+    auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
+    rpa.eps_target() = 1.0e-7;
+    rpa.solve_core(omega, 60, false);
+    const auto resc = rpa.rescattering(40, false);
+
+    fmt::print("\nRescattering at omega = {:.2f} au ({} open channels), "
+               "Kbar asymmetry = {:.1e}\n",
+               omega, resc.channels.size(), resc.asymmetry);
+    fmt::print("{:>7s} {:>12s} {:>12s} {:>12s} {:>9s}\n", "kappa", "D",
+               "D_phys", "D*cos(th)", "Kbar_ii");
+    REQUIRE(resc.channels.size() == 5);
+    REQUIRE(resc.asymmetry < 0.05);
+
+    std::size_t i_dom = 0;
+    for (std::size_t i = 0; i < resc.channels.size(); ++i) {
+      REQUIRE(std::isfinite(resc.D_phys[i]));
+      if (std::abs(resc.D[i]) > std::abs(resc.D[i_dom]))
+        i_dom = i;
+    }
+    for (std::size_t i = 0; i < resc.channels.size(); ++i) {
+      const auto d_cos =
+        std::abs(resc.D[i]) * std::cos(std::atan(resc.Kbar(i, i)));
+      fmt::print("{:>7d} {:12.5e} {:12.5e} {:12.5e} {:9.5f}\n",
+                 resc.channels[i].kappa, resc.D[i], resc.D_phys[i], d_cos,
+                 resc.Kbar(i, i));
+    }
+    // Dominant channel: single-channel unitarisation dominates (off-diagonal
+    // rescattering gives only a small correction here):
+    const auto d_cos_dom =
+      std::abs(resc.D[i_dom]) * std::cos(std::atan(resc.Kbar(i_dom, i_dom)));
+    REQUIRE(resc.D_phys[i_dom] == Approx(d_cos_dom).epsilon(0.10));
+  }
+
+  { // (c): the Ne 1s near-edge region. Just above the 1s threshold (893 eV)
+    // an RRPA eigenphase sweeps through pi/2: the standing-wave amplitudes
+    // pass through a real pole (their value there is arbitrary-large and
+    // grid-sensitive), while the physical (unitarised) amplitude must stay
+    // bounded at the smooth (Henke ~0.35 Mb) scale. Assert (i) standing and
+    // physical amplitudes differ strongly in the sweep region -- the
+    // standing column is NOT physical here -- and (ii) the physical one
+    // remains at the Mb scale.
+    const double omega = 894.2 / PhysConst::Hartree_eV;
+    auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
+    rpa.eps_target() = 1.0e-7;
+    rpa.solve_core(omega, 60, false);
+    const auto resc = rpa.rescattering(40, false);
+    REQUIRE(resc.asymmetry < 0.05);
+
+    // 1s-channel partial cross-sections (cm^2), standing vs unitarised:
+    const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
+                        PhysConst::aB_cm * PhysConst::aB_cm * omega / 3.0;
+    double sig_std = 0.0, sig_uni = 0.0;
+    for (std::size_t i = 0; i < resc.channels.size(); ++i) {
+      if (resc.channels[i].i_core == 0) { // 1s
+        sig_std += Ksigma * resc.D[i] * resc.D[i];
+        sig_uni += Ksigma * resc.D_phys[i] * resc.D_phys[i];
+      }
+    }
+    fmt::print("\nNe 1s channel at omega = 894.2 eV (near-edge sweep):\n"
+               "sigma_standing = {:.3e} cm^2, sigma_unitarised = {:.3e} cm^2 "
+               "(Henke ~3.5e-19)\n",
+               sig_std, sig_uni);
+    // Standing-wave vs physical: clearly different through the sweep (the
+    // deviation grows without bound AT the pole itself, but the pole
+    // position is grid-sensitive; assert a robust lower bound at this
+    // sampled omega)
+    REQUIRE(std::abs(sig_std / sig_uni - 1.0) > 0.15);
+    // Unitarised: finite, bounded at the physical (Mb) scale
+    REQUIRE(sig_uni > 1.0e-19);
+    REQUIRE(sig_uni < 3.0e-18);
+  }
+}
+
+//==============================================================================
+//! Even-parity operators: the diagonal channel (kappa_e = kappa_a) carries
+//! the norm-conservation (Lagrange multiplier) term de*phi_a in its source,
+//! de = <a|(t + dV)phi_a>. The key application is scattering
+//! (electron-impact ionisation), where the even K=0 temporal multipole
+//! t^0 = j0(qr) usually dominates -- and for rank 0 EVERY channel is
+//! diagonal. Uses the temporal vector multipole Phik (q = alpha*omega_op).
+//! Checks:
+//! (a) below all thresholds TDHFcntm matches bound TDHF for t^0 (the bound
+//!     dispatch handles even parity via the conditioning projection);
+//! (b) above threshold: TDHF converges, K = pi*D holds in the (all-diagonal)
+//!     open channels, and the seeded (rescattering) solves -- which
+//!     orthogonalise the diagonal seed -- give a symmetric Kbar and finite
+//!     physical amplitudes;
+//! (c) identity limit: j0(qr) -> 1 as q -> 0, and the identity operator
+//!     must give ZERO response (norm conservation). The response is linear
+//!     in the effective transition operator j0 - <j0> = O(q^2), so the K
+//!     amplitudes must vanish as q^2. Without the de term the diagonal
+//!     source is O(1) at small q and the response is spuriously large:
+//!     this is the acceptance test for the diagonal-channel treatment.
+TEST_CASE("cntmRPA: even-parity operator (temporal t0)",
+          "[ExternalField][TDHF][cntmrpa][unit]") {
+
+  Wavefunction wf({8000, 1.0e-6, 40.0, 1.0, "loglinear", -1.0},
+                  {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]");
+
+  // Momentum transfers (au^-1): identity limit, quadratic regime, moderate.
+  // Phik takes the operator frequency: q = alpha*omega_op
+  const auto t0_at_q = [&wf](double q) {
+    return DiracOperator::Phik(wf.grid(), 0, q / PhysConst::alpha);
+  };
+  const double q_tiny = 1.0e-4;
+  const double q_1 = 0.02;
+  const double q_2 = 0.04;
+  const double q_mod = 1.0;
+
+  // --- (a) below-threshold: TDHFcntm matches bound TDHF (rank 0, even)
+  {
+    const double omega = 0.5; // 2p threshold ~0.85 au: all channels closed
+    const auto t0 = t0_at_q(q_mod);
+    auto rpa_bound = ExternalField::TDHF(&t0, wf.vHF());
+    rpa_bound.solve_core(omega, 100, false);
+    auto rpa_cntm = ExternalField::TDHFcntm(&t0, wf.vHF());
+    rpa_cntm.solve_core(omega, 100, false);
+
+    fmt::print("\nt0(qr), q = {:.3f}: bound TDHF vs TDHFcntm at omega = "
+               "{:.2f} au (all closed):\n",
+               q_mod, omega);
+    fmt::print("{:>9s} {:>13s} {:>13s}\n", "<a|dV|b>", "TDHF", "TDHFcntm");
+    for (const auto &Fa : wf.core()) {
+      for (const auto &Fb : wf.core()) {
+        if (t0.isZero(Fa, Fb))
+          continue;
+        const auto dv_b = rpa_bound.dV(Fa, Fb);
+        const auto dv_c = rpa_cntm.dV(Fa, Fb);
+        fmt::print("{:>4s} {:>4s} {:13.6e} {:13.6e}\n", Fa.shortSymbol(),
+                   Fb.shortSymbol(), dv_b, dv_c);
+        REQUIRE(dv_c == Approx(dv_b).epsilon(1.0e-2).margin(1.0e-6));
+      }
+    }
+  }
+
+  const double omega = 1.7; // 2p open (ec ~ 0.85 au); 2s, 1s closed
+
+  // --- (b) above threshold: K = pi*D, and the seeded (diagonal) solves
+  {
+    const auto t0 = t0_at_q(q_mod);
+    auto rpa = ExternalField::TDHFcntm(&t0, wf.vHF());
+    rpa.eps_target() = 1.0e-6;
+    rpa.solve_core(omega, 60, false);
+    REQUIRE(rpa.last_eps() < 1.0e-5);
+
+    fmt::print("\nt0(qr), q = {:.3f}: K = pi*D at omega = {:.2f} au "
+               "(diagonal channels):\n",
+               q_mod, omega);
+    fmt::print("{:>4s} {:>6s} {:>12s} {:>12s} {:>8s}\n", "a", "kappa", "K",
+               "pi*D", "K/piD-1");
+    int n_channels = 0;
+    for (const auto &Fb : wf.core()) {
+      for (const auto &ch : rpa.open_channels(Fb)) {
+        if (ch.K == 0.0)
+          continue;
+        const auto piD = M_PI * ch.D;
+        fmt::print("{:>4s} {:>6d} {:12.5e} {:12.5e} {:8.1e}\n",
+                   Fb.shortSymbol(), ch.kappa, ch.K, piD, ch.K / piD - 1.0);
+        REQUIRE(ch.K == Approx(piD).epsilon(5.0e-2));
+        ++n_channels;
+      }
+    }
+    REQUIRE(n_channels == 2); // 2p_1/2 and 2p_3/2, kappa_e = kappa_a
+
+    // Seeded homogeneous solves: the diagonal seed is orthogonalised
+    // against phi_a (constraint <a|w> = 0); reciprocity (Kbar symmetry) is
+    // not imposed anywhere, so it is a real consistency check of that path
+    const auto resc = rpa.rescattering(40, false, true);
+    REQUIRE(resc.channels.size() == 2);
+    REQUIRE(resc.asymmetry < 0.05);
+    for (const auto &Dp : resc.D_phys) {
+      REQUIRE(std::isfinite(Dp));
+    }
+    fmt::print("Kbar asymmetry (diagonal-seeded solves): {:.1e}\n",
+               resc.asymmetry);
+  }
+
+  // --- (c) identity limit and q^2 scaling of the response
+  {
+    // K amplitudes per (2p_1/2, 2p_3/2) channel at each q
+    const auto solve_Ks = [&](double q) {
+      const auto t0 = t0_at_q(q);
+      auto rpa = ExternalField::TDHFcntm(&t0, wf.vHF());
+      rpa.eps_target() = 1.0e-6;
+      rpa.solve_core(omega, 60, false);
+      std::vector<double> Ks;
+      for (const auto &Fb : wf.core()) {
+        for (const auto &ch : rpa.open_channels(Fb)) {
+          Ks.push_back(ch.K);
+        }
+      }
+      REQUIRE(Ks.size() == 2);
+      return Ks;
+    };
+
+    const auto K_tiny = solve_Ks(q_tiny);
+    const auto K_1 = solve_Ks(q_1);
+    const auto K_2 = solve_Ks(q_2);
+    const auto K_mod = solve_Ks(q_mod);
+
+    fmt::print("\nt0(qr) identity limit and q^2 scaling, omega = {:.2f} au:\n",
+               omega);
+    fmt::print("{:>10s} {:>12s} {:>12s}\n", "q", "K(2p-)", "K(2p+)");
+    for (const auto &[q, Ks] : {std::pair{q_tiny, &K_tiny},
+                                {q_1, &K_1},
+                                {q_2, &K_2},
+                                {q_mod, &K_mod}}) {
+      fmt::print("{:10.2e} {:12.5e} {:12.5e}\n", q, (*Ks)[0], (*Ks)[1]);
+    }
+
+    for (std::size_t i = 0; i < 2; ++i) {
+      // Identity limit: j0 -> 1, zero response (norm conservation). With
+      // the de term missing, |K(q_tiny)| ~ |K(q_mod)| instead:
+      REQUIRE(std::abs(K_tiny[i]) < 1.0e-4 * std::abs(K_mod[i]));
+      // Quadratic regime: K linear in (j0 - <j0>) ~ q^2:
+      const auto expect = (q_1 / q_2) * (q_1 / q_2);
+      REQUIRE(K_1[i] / K_2[i] == Approx(expect).epsilon(0.05));
+    }
   }
 }
 

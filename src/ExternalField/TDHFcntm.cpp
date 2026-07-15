@@ -32,6 +32,7 @@ void TDHFcntm::clear() {
   TDHF::clear();
   m_ch.clear();
   m_omega = -1.0;
+  m_resc.reset();
 }
 
 //==============================================================================
@@ -398,6 +399,10 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
   // Fixed core-core yk table for dV_rhs_all (first call only)
   build_ycc();
 
+  // New solve: the cached rescattering (D_phys) is stale
+  m_resc.reset();
+  m_max_its = max_its;
+
   // Warm start: continuing a previous solve at the SAME omega (e.g. after a
   // first-order run). The first damped iteration must then be damped: an
   // undamped step from an already-large near-resonant X can diverge. From a
@@ -581,8 +586,14 @@ void TDHFcntm::solve_core_anderson(double omega, int max_its, bool print) {
   double best_eps{1.0e30};
   int count_worse = 0;
   int it{0};
+  // Label seeded (homogeneous) solves by their seed channel
+  const auto seed_lab =
+    m_seed ? fmt::format(" seed {},{}", m_core[m_seed->ib].shortSymbol(),
+                         m_X[m_seed->ib][m_seed->be].shortSymbol()) :
+             std::string{};
   qip::LiveMessage status(
-    fmt::format("TDHFcntm {} (w={:.4f}): ", m_h->name(), omega), print);
+    fmt::format("TDHFcntm {} (w={:.4f}) {}: ", m_h->name(), omega, seed_lab),
+    print);
   for (; it < max_its; it++) {
     auto x = flatten();
     // Undamped map application; eps (from eps_cntm) measures G(x) vs x --
@@ -726,12 +737,13 @@ TDHFcntm::tdhf_core_it_cntm(double omega, double eta_damp, bool include_Y) {
   // Flatten all (core orbital x channel x X/Y) solves into one task list
   // (load balance; see TDHF::tdhf_core_it). Only the X/+ tasks carry the
   // continuum channel cache (Y/- partners are always bound). Y tasks are
-  // skipped when Y is frozen (staged iteration).
+  // skipped when Y is frozen (staged iteration). In seeded (homogeneous)
+  // mode there is no external field: hFb is nullptr for every task.
   struct MsTask {
     DiracSpinor *dF;           // target (in Xs or Ys)
     CntmChannel *ch;           // continuum cache (nullptr for Y)
     const DiracSpinor *Fb;     // core orbital
-    const DiracSpinor *hFb;    // source projection h|Fb>
+    const DiracSpinor *hFb;    // source projection h|Fb> (nullptr if seeded)
     const DiracSpinor *dV_src; // this task's [dV phi]_beta (dV_rhs_all)
     dPsiType type;
   };
@@ -739,11 +751,12 @@ TDHFcntm::tdhf_core_it_cntm(double omega, double eta_damp, bool include_Y) {
   for (auto ib = 0ul; ib < m_core.size(); ib++) {
     for (auto be = 0ul; be < Xs[ib].size(); be++) {
       tasks.push_back({&Xs[ib][be], &m_ch[ib][be], &m_core[ib],
-                       &m_hFcore[ib][be], &dv.X[ib][be], dPsiType::X});
+                       m_seed ? nullptr : &m_hFcore[ib][be], &dv.X[ib][be],
+                       dPsiType::X});
       if (include_Y) {
         tasks.push_back({&Ys[ib][be], nullptr, &m_core[ib],
-                         &m_hFcore_minus[ib][be], &dv.Y[ib][be],
-                         dPsiType::Y});
+                         m_seed ? nullptr : &m_hFcore_minus[ib][be],
+                         &dv.Y[ib][be], dPsiType::Y});
       }
     }
   }
@@ -970,9 +983,25 @@ void TDHFcntm::solve_channel_cntm(DiracSpinor *dF_beta, CntmChannel *ch,
       rhs -= (Fb * rhs) * Fb;
     }
     // dF_beta still holds the previous iterate: the lagged chi in dV'
+    // (in seeded mode, the TOTAL seed + correction for the seeded channel)
     rhs += hole_compensation(Fb, *dF_beta);
     const auto y0aa = Coulomb::yk_ab(0, Fb, Fb);
     const auto vl_c = p_hf->vlocal(Angular::l_k(kappa_beta)) - y0aa;
+    // Seeded (homogeneous) channel: solve for the CORRECTION only -- the
+    // seed is a solution of the conditioning-potential equation, so its
+    // exchange deficit (vnl - U_KS)*seed joins the source; the total
+    // (seed + correction) is stored back so dV sees the seed. The K
+    // written to the cache is the correction's cos-amplitude = Kbar_ij.
+    const bool seeded = m_seed && ch == &m_ch[m_seed->ib][m_seed->be];
+    if (seeded) {
+      rhs += m_seed->deficit;
+      auto corr = *dF_beta - m_seed->seed;
+      ExternalField::solveContinuumMixedState(&corr, &ch->Freg, &ch->Firr,
+                                              &ch->K, Fb, ww, vl_c, m_alpha,
+                                              m_core, rhs, eps_ms, &Fb);
+      *dF_beta = corr + m_seed->seed;
+      return;
+    }
     // Freg/Firr reused from the cache (built in prepare_channels); the
     // standing-wave K amplitude of this channel is written back to the cache.
     ExternalField::solveContinuumMixedState(dF_beta, &ch->Freg, &ch->Firr,
@@ -1009,6 +1038,158 @@ DiracSpinor TDHFcntm::hole_compensation(const DiracSpinor &Fa,
   using namespace qip::overloads;
   const auto y0aa = Coulomb::yk_ab(0, Fa, Fa);
   return (y0aa * chi) + HF::vexFa_1el(chi, Fa);
+}
+
+//==============================================================================
+void TDHFcntm::solve_homogeneous(std::size_t ib, std::size_t be, int max_its,
+                                 bool print) {
+  // Seeded homogeneous TDHF (Johnson and Cheng 1979, appendix): no external
+  // field; channel (ib, be) is seeded with its regular continuum orbital
+  // (the cached Freg -- KS phase reference). m_X stores the TOTAL for the
+  // seeded channel, so dV is built from (seed + correction); the channel's
+  // own solve is for the correction, with the seed's exchange deficit
+  // (vnl - U_KS)*seed carried in the source (the seed solves the local
+  // conditioning-potential equation exactly, not the full HF one).
+  // At convergence, the per-channel K amplitudes in m_ch are column
+  // (ib, be) of the rescattering matrix Kbar. Mutates *this; call on a copy.
+  using namespace qip::overloads;
+  assert(!m_ch.empty() && m_omega >= 0.0 &&
+         "solve_homogeneous requires prepared channels (run solve_core)");
+  assert(m_ch[ib][be].open && m_ch[ib][be].Freg.norm2() != 0.0);
+
+  const auto &Freg = m_ch[ib][be].Freg;
+  const auto Ux = HF::vex_KS(m_core);
+  auto deficit =
+    HF::vexFa(Freg, m_core) - HF::vexFa_1el(Freg, m_core[ib]) - (Ux * Freg);
+  auto seed = Freg;
+  // Diagonal seeded channel (even-parity operators): orthogonalise the seed
+  // against phi_a, so the converged total w = seed + correction satisfies
+  // the norm-conservation constraint <a|w> = 0 exactly (every solved piece
+  // is kept orthogonal to phi_a; the raw F_reg is not). The seed then no
+  // longer solves the local equation: the extra term joins the deficit,
+  //   (h^{N-1} - en_+)(F_reg - c*phi_a) = deficit + c*(omega + V^a_0)phi_a,
+  // using h_HF phi_a = en_a phi_a. phi_a decays, so the asymptotics (and
+  // the Kbar decomposition) are unchanged.
+  if (seed.kappa() == m_core[ib].kappa()) {
+    const auto c_a = m_core[ib] * seed;
+    seed -= c_a * m_core[ib];
+    deficit +=
+      c_a * (m_omega * m_core[ib] + hole_compensation(m_core[ib], m_core[ib]));
+  }
+
+  // Fresh start: zero all corrections and K amplitudes (keep the channel
+  // caches), then insert the seed as the seeded channel's total.
+  TDHF::clear();
+  for (auto &chs : m_ch) {
+    for (auto &ch : chs) {
+      ch.K = 0.0;
+    }
+  }
+  m_X[ib][be] = seed;
+  m_seed = SeedInfo{ib, be, seed, deficit};
+
+  solve_core_anderson(m_omega, max_its, print);
+
+  m_seed.reset();
+}
+
+//==============================================================================
+TDHFcntm::Rescattering TDHFcntm::rescattering(int max_its, bool print,
+                                              bool parallel) const {
+  // On-shell rescattering matrix and unitarised (physical) amplitudes; see
+  // hpp. One seeded homogeneous solve per open channel gives one column of
+  // Kbar; the driven amplitudes D = K/pi are read from the converged
+  // channel caches of *this (which is left untouched: the homogeneous
+  // solves run on copies).
+  Rescattering out;
+  if (m_ch.empty() || m_omega < 0.0) {
+    return out;
+  }
+
+  // Open (and usable) channels, in fixed (ib, be) order
+  std::vector<std::pair<std::size_t, std::size_t>> idx;
+  for (auto ib = 0ul; ib < m_ch.size(); ib++) {
+    for (auto be = 0ul; be < m_ch[ib].size(); be++) {
+      const auto &ch = m_ch[ib][be];
+      if (ch.open && ch.Freg.norm2() != 0.0) {
+        idx.emplace_back(ib, be);
+        out.channels.push_back(
+          {ib, m_X[ib][be].kappa(), m_core[ib].en() + m_omega});
+        out.D.push_back(ch.K / M_PI);
+      }
+    }
+  }
+  const auto Np = idx.size();
+  if (Np == 0) {
+    return out;
+  }
+
+  // Column j of Kbar: seeded solve for open channel j (on a copy). The
+  // columns are independent, so they can run in parallel (printing forces
+  // serial, so the labelled convergence lines stay readable). Inside an
+  // active parallel region (e.g. omega-parallel caller) the nested pragma
+  // is inert and the seeds run serially on that thread, as before.
+  const bool par_seeds = parallel && !print;
+  out.Kbar = LinAlg::Matrix<double>(Np, Np);
+#pragma omp parallel for schedule(dynamic) if (par_seeds)
+  for (auto j = 0ul; j < Np; j++) {
+    auto homog = *this;
+    homog.solve_homogeneous(idx[j].first, idx[j].second, max_its, print);
+    for (auto i = 0ul; i < Np; i++) {
+      out.Kbar(i, j) = homog.m_ch[idx[i].first][idx[i].second].K;
+    }
+  }
+
+  // Symmetry diagnostic: Kbar is symmetric in exact arithmetic
+  double kmax = 0.0, asym = 0.0;
+  for (auto i = 0ul; i < Np; i++) {
+    for (auto ij = 0ul; ij < Np; ij++) {
+      kmax = std::max(kmax, std::abs(out.Kbar(i, ij)));
+      asym = std::max(asym, std::abs(out.Kbar(i, ij) - out.Kbar(ij, i)));
+    }
+  }
+  out.asymmetry = kmax == 0.0 ? 0.0 : asym / kmax;
+
+  // A = (1 - i*Kbar)^{-1} pi*D, in real arithmetic:
+  // (1 + Kbar*Kbar) Re(A) = pi*D,  Im(A) = Kbar * Re(A)
+  LinAlg::Matrix<double> B = out.Kbar * out.Kbar;
+  for (auto i = 0ul; i < Np; i++) {
+    B(i, i) += 1.0;
+  }
+  LinAlg::Vector<double> piD(Np);
+  for (auto i = 0ul; i < Np; i++) {
+    piD(i) = M_PI * out.D[i];
+  }
+  const auto Ar = LinAlg::solve_Axeqb(B, piD);
+  out.D_phys.resize(Np);
+  for (auto i = 0ul; i < Np; i++) {
+    double Ai = 0.0;
+    for (auto j = 0ul; j < Np; j++) {
+      Ai += out.Kbar(i, j) * Ar(j);
+    }
+    out.D_phys[i] = std::sqrt(Ar(i) * Ar(i) + Ai * Ai) / M_PI;
+  }
+
+  return out;
+}
+
+//==============================================================================
+double TDHFcntm::D_phys(const DiracSpinor &Fa, int kappa_e) {
+  // Unitarised (physical) amplitude |A|/pi for the (Fa, kappa_e) open
+  // channel; see hpp. All channels are computed together (the seeded solves
+  // couple them), so the rescattering runs once and is cached.
+  if (!m_resc) {
+    m_resc = rescattering(m_max_its, false, true);
+  }
+  const auto ib = static_cast<std::size_t>(
+    std::find(m_core.cbegin(), m_core.cend(), Fa) - m_core.cbegin());
+  for (std::size_t i = 0; i < m_resc->channels.size(); ++i) {
+    if (m_resc->channels[i].i_core == ib &&
+        m_resc->channels[i].kappa == kappa_e) {
+      return m_resc->D_phys[i];
+    }
+  }
+  return 0.0;
 }
 
 //==============================================================================

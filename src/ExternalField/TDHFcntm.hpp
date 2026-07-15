@@ -88,7 +88,7 @@ public:
                           bool print = true) override;
 
   //! Clears the dPsi corrections (as TDHF::clear) and the cached continuum
-  //! channel data (continuum pairs, K amplitudes).
+  //! channel data (homogeneous solutions, K amplitudes).
   virtual void clear() override;
 
   //! If true, the open (continuum) X/+ channels are excluded (held at zero)
@@ -149,6 +149,90 @@ public:
   //! See @ref OpenChannel. Empty if solve_core() not yet run, or no open
   //! channels for Fa at this omega.
   std::vector<OpenChannel> open_channels(const DiracSpinor &Fa) const;
+
+  /*!
+    @brief On-shell rescattering (unitarisation) of the standing-wave RRPA
+    amplitudes: Kbar matrix and physical outgoing amplitudes.
+    @details
+    The driven RRPA solve uses real standing-wave boundary conditions
+    (principal-value continuum), so the amplitudes D are the "mathematical"
+    reaction-matrix ones: they have real poles wherever an RRPA eigenphase
+    passes through pi/2 (e.g. just above a deep ionisation threshold, or
+    through the Xe 4d giant resonance region), where the PHYSICAL
+    (outgoing-wave) amplitude stays finite. Following the appendix of
+    Johnson and Cheng, Phys. Rev. A 20, 978 (1979), we build the on-shell
+    rescattering matrix from the N_P homogeneous coupled-channel solutions:
+    seed each open channel j in turn with its regular continuum orbital and
+    iterate the RRPA equations with NO external field; the converged
+    channel-i amplitudes give
+    \f[ \bar K_{ij} = \pi \matel{y^0_i}{R^{(j)}}{\,}, \f]
+    (their Eq. A14). The physical outgoing amplitudes are then
+    \f[ A = (1 - i\bar K)^{-1}\,\pi D , \f]
+    which is finite through the standing-wave poles (D and Kbar share them),
+    and per-channel \f$ |A_i|/\pi \f$ replaces \f$ |D_i| \f$ in the
+    cross-section. Everything is computed in the phase reference of the
+    local (KS-conditioned) continuum pair Freg/Firr -- the same reference
+    the channel solves extract K against -- in which the driven solution
+    has exactly zero regular component; |A_i| is reference-independent.
+
+    @note Kbar is symmetric in exact arithmetic (reciprocity survives the
+    diagonal phase rotation from the HF to the KS reference); `asymmetry`
+    reports the worst relative deviation as a numerical diagnostic.
+    @warning Requires a converged solve_core() at this omega. Each of the
+    N_P seeded solves costs about as much as the driven solve.
+  */
+  struct Rescattering {
+    //! Open channels, in matrix order: core-orbital index, channel kappa,
+    //! photoelectron energy en = en_a + omega
+    struct Channel {
+      std::size_t i_core;
+      int kappa;
+      double en;
+    };
+    std::vector<Channel> channels{};
+    //! On-shell rescattering matrix Kbar_ij (KS phase reference)
+    LinAlg::Matrix<double> Kbar{};
+    //! Driven standing-wave amplitudes D_i = K_i/pi (KS phase reference)
+    std::vector<double> D{};
+    //! Physical amplitudes |A_i|/pi, A = (1 - i*Kbar)^{-1} pi*D
+    std::vector<double> D_phys{};
+    //! Worst |Kbar_ij - Kbar_ji| relative to the largest |Kbar| element
+    double asymmetry{0.0};
+  };
+  /*!
+    @brief See @ref Rescattering. max_its/eps as the driven solve_core.
+    @param max_its   Maximum iterations for each seeded solve.
+    @param print     Print each seeded solve's convergence (labelled by the
+                     seeded channel). Forces the seeds to run serially.
+    @param parallel  Solve the seed columns in parallel (one seeded solve
+                     per thread; each thread holds its own copy of the
+                     corrections plus an Anderson history -- similar memory
+                     per thread to an omega-parallel driven solve). Ignored
+                     when @p print is set.
+  */
+  Rescattering rescattering(int max_its = 40, bool print = false,
+                            bool parallel = false) const;
+
+  /*!
+    @brief Unitarised (physical) amplitude |A|/pi for the open channel of
+    hole Fa with photoelectron kappa_e; replaces |D| in the cross-section.
+    @details
+    The physical amplitudes are computed for ALL open channels in one go
+    (the rescattering solves couple every channel; see @ref rescattering);
+    the result is cached, so the first call after solve_core() does the
+    work and later calls are lookups. Returns 0 for closed (or excluded)
+    channels.
+    @note This is a magnitude: the physical amplitude is complex, so the
+    sign of the real standing-wave amplitude has no meaning here. Fine for
+    cross-sections (squares).
+  */
+  double D_phys(const DiracSpinor &Fa, int kappa_e);
+
+  //! Kbar asymmetry diagnostic of the cached rescattering (see @ref
+  //! Rescattering); 0.0 if not yet computed (no D_phys call).
+  double rescattering_asymmetry() const {
+    return m_resc ? m_resc->asymmetry : 0.0;
+  }
 
   /*!
     @brief Reduced ME of dV for a continuum final state, consistent with the
@@ -228,7 +312,7 @@ public:
       (the (-1)^((j_n - j_beta)) phase separates into per-channel factors);
     - the exchange (P) part of the first W term needs only the core-core
       y^l(Fb, Fa): fixed functions, computed once per instance and shared
-      across iterations and omegas;
+      across iterations, omegas, and the seeded (rescattering) solves;
     - the exchange (P) part of the second W term needs y^l(eta_beta, Fa):
       built once per core orbital a, shared across its target channels.
     @param include_Y  Also build the conjugate (Y) sources; skipped while Y
@@ -243,7 +327,8 @@ private:
   // pair (j <= i, index i*(i+1)/2 + j) and every multipole l allowed by the
   // Ck selection rules (index (l - lmin)/2, lmin from Angular::kminmax_Ck).
   // Fixed for the life of the instance (the core never changes); built once
-  // by build_ycc() on the first solve_core(), shared by copies.
+  // by build_ycc() on the first solve_core(), shared by copies (seeded
+  // rescattering solves run on copies).
   using YccTable = std::vector<std::vector<std::vector<double>>>;
   std::shared_ptr<const YccTable> m_ycc{};
   void build_ycc();
@@ -268,6 +353,33 @@ private:
   std::vector<std::vector<CntmChannel>> m_ch{};
   // The omega the caches were built at (rebuild when it changes)
   double m_omega{-1.0};
+  // Cached rescattering result for D_phys()/rescattering_asymmetry();
+  // invalidated by solve_core() and clear(). max_its of the last solve_core
+  // is reused for the seeded solves.
+  std::optional<Rescattering> m_resc{};
+  int m_max_its{40};
+
+  // Homogeneous (seeded, no external field) solve state -- set only inside
+  // rescattering(), on a copy of the driven-solved object. The seeded
+  // channel's m_X entry stores the TOTAL (seed + correction), so dV sees the
+  // seed; its own solve is for the correction, with the seed's exchange
+  // deficit (vnl - U_KS)*seed added to the source. See rescattering().
+  struct SeedInfo {
+    std::size_t ib;      // core-orbital index of the seeded channel
+    std::size_t be;      // channel index (within m_X[ib]) of the seed
+    DiracSpinor seed;    // the seed: cached Freg of that channel
+    DiracSpinor deficit; // (vexFa - vexFa_1el - U_KS) applied to the seed
+  };
+  std::optional<SeedInfo> m_seed{};
+
+  // Runs the seeded homogeneous TDHF (no external field) for open channel
+  // (ib, be): sets m_seed, zeroes X/Y, inserts the seed, and iterates with
+  // the Anderson driver. On convergence the per-channel K amplitudes in
+  // m_ch hold column (ib, be) of the rescattering matrix. Mutates *this
+  // (call on a copy).
+  void solve_homogeneous(std::size_t ib, std::size_t be, int max_its,
+                         bool print);
+
   // (Re)builds m_ch for this omega: openness flags (open AND resolvable on
   // the radial box), and the homogeneous continuum pair Freg/Firr for each
   // open channel. If print, warns when open channels are excluded as
@@ -302,6 +414,9 @@ private:
   // reused from *ch; K written back to it; ch may be nullptr for Y), the
   // bound Y/- partner of an ionised orbital with the matching hole-particle
   // term, closed orbitals with the plain bound (Anderson) solve.
+  // hFb may be nullptr: no external-field source (homogeneous/seeded mode);
+  // if ch is the seeded channel (see m_seed), the solve is for the
+  // correction (seed deficit added to the source; total stored back).
   // dV_src: this task's [dV phi_a]_beta, from dV_rhs_all() (built once per
   // iteration; replaces the per-task dV_rhs call).
   void solve_channel_cntm(DiracSpinor *dF_beta, CntmChannel *ch,

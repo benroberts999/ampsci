@@ -625,10 +625,10 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   input.check({
     {"", "E1 photoionisation cross-section, with core polarisation (RPA) "
          "included via the continuum TDHF method (Johnson RRPA). Columns: "
-         "bare (V^{N-1} tree) and fully-iterated RPA (standing-wave), plus "
-         "convergence diagnostics. The photoelectron is always treated in "
-         "the V^{N-1} (residual ion) potential, orthogonalised to the "
-         "core."},
+         "bare (V^{N-1} tree), fully-iterated RPA (standing-wave), and "
+         "unitarised RPA, plus convergence diagnostics. The photoelectron "
+         "is always treated in the V^{N-1} (residual ion) potential, "
+         "orthogonalised to the core."},
     {"E_range",
      "List (2). Minimum, maximum photon energy (omega), in eV [10, 1000]"},
     {"E_steps", "Number of steps along omega grid (logarithmic) [50]"},
@@ -637,6 +637,12 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     {"eps", "Convergence target for the RPA iterations [1e-5]"},
     {"eta", "Damping factor for the RPA iterations (larger = heavier "
             "damping; helps near autoionising resonances) [0.4]"},
+    {"unitarise", "Unitarise the RPA amplitudes (on-shell rescattering, "
+                  "Johnson 1979 appendix): the standing-wave amplitudes "
+                  "have real poles (e.g. just above deep thresholds) where "
+                  "the physical cross-section is finite. Costs one extra "
+                  "RPA-type solve per open channel per energy. [true]"},
+    {"each_shell", "Add per-shell RPA cross-section columns [false]"},
     {"oname", "Output file name [photoRPA-out.txt]"},
   });
   if (input.has_option("help")) {
@@ -656,6 +662,8 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_its = input.get("max_its", 60);
   const auto eps_target = input.get("eps", 1.0e-5);
   const auto eta = input.get("eta", 0.4);
+  const auto unitarise = input.get("unitarise", true);
+  const auto each_shell = input.get("each_shell", false);
   const auto oname = input.get("oname", std::string{"photoRPA-out.txt"});
 
   std::cout << "\nCore ionisation energies, in eV\n";
@@ -669,15 +677,20 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto E1 = DiracOperator::E1(wf.grid());
 
-  // Per-omega results: {sigma_bare, sigma_rpa}, then the convergence
-  // diagnostics
+  // Per-omega results: {sigma_bare, sigma_rpa, sigma_rpaU}, then the
+  // convergence diagnostics, then optional per-shell (unitarised) sigmas
   const auto n_shells = wf.core().size();
-  const auto n_cols = 5ul;
+  const auto n_cols = 7ul + (each_shell ? n_shells : 0ul);
   std::vector<std::vector<double>> results(energies.size(),
                                            std::vector<double>(n_cols, 0.0));
 
-  // Energies run serially; threads are used inside each solve (the
-  // channel tasks). Each omega's RPA convergence line prints live.
+  // Energies run serially; threads are used inside each solve (the channel
+  // tasks, and the rescattering seed columns). With unitarisation the cost
+  // concentrates in the few high-omega points (many open channels = many
+  // seeded solves), which parallelise well over the seed columns --
+  // omega-parallel would leave the most expensive omega serial on one
+  // thread (and hold an Anderson history per thread). Each omega's RPA
+  // convergence line prints live.
   for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
     const auto omega = energies[i_omega];
 
@@ -706,9 +719,12 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     rpa.set_eta(eta);
     rpa.solve_core(omega, max_its, true);
 
-    // Matrix elements: D = D0 + <e|dV|a> (standing-wave):
+    // Matrix elements: D = D0 + <e|dV|a> (standing-wave), and the
+    // unitarised (physical) amplitudes D_phys = |A|/pi [A = (1-i*Kbar)^{-1}
+    // pi*D: finite through the standing-wave poles above thresholds]:
     double sigma_E1 = 0.0;
     double sigma_E1_rpa = 0.0;
+    double sigma_E1_rpaU = 0.0;
     for (std::size_t i_shell = 0; i_shell < n_shells; ++i_shell) {
       const auto &Fa = wf.core()[i_shell];
       const auto ec = omega + Fa.en();
@@ -724,6 +740,13 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
         const auto D = D0 + rpa.dV_cntm(Fe, Fa);
         sigma_E1 += Ksigma * D0 * D0;
         sigma_E1_rpa += Ksigma * D * D;
+        if (unitarise) {
+          const auto DU = rpa.D_phys(Fa, Fe.kappa());
+          sigma_E1_rpaU += Ksigma * DU * DU;
+          if (each_shell) {
+            results[i_omega][7 + i_shell] += Ksigma * DU * DU;
+          }
+        }
       }
     }
 
@@ -740,9 +763,11 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
 
     results[i_omega][0] = sigma_E1;
     results[i_omega][1] = sigma_E1_rpa;
-    results[i_omega][2] = rpa.last_eps();
-    results[i_omega][3] = rpa.last_its();
-    results[i_omega][4] = KpiD_dev;
+    results[i_omega][2] = sigma_E1_rpaU;
+    results[i_omega][3] = rpa.last_eps();
+    results[i_omega][4] = rpa.last_its();
+    results[i_omega][5] = KpiD_dev;
+    results[i_omega][6] = rpa.rescattering_asymmetry();
   }
 
   std::ofstream out_file(oname);
@@ -752,12 +777,25 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
            << "# sigma_E1       : bare (V^{N-1} tree, no RPA)\n"
            << "# sigma_E1_rpa   : full (iterated) RPA, standing-wave "
               "amplitudes (poles above thresholds!)\n"
+           << "# sigma_E1_rpaU  : full RPA, unitarised (physical) "
+              "amplitudes\n"
            << "# rpa_eps        : RPA convergence achieved\n"
            << "# rpa_its        : RPA iterations used\n"
            << "# KpiD_dev       : worst |K/(pi*D) - 1| internal consistency\n"
-           << "#\n"
-           << "omega_eV  sigma_E1  sigma_E1_rpa  rpa_eps  rpa_its  "
-              "KpiD_dev\n";
+           << "# Kbar_asym      : rescattering-matrix asymmetry "
+              "(consistency)\n";
+  if (each_shell) {
+    out_file << "# sigma_<shell>  : per-shell unitarised-RPA cross-section\n";
+  }
+  out_file << "#\n"
+           << "omega_eV  sigma_E1  sigma_E1_rpa  sigma_E1_rpaU  rpa_eps  "
+              "rpa_its  KpiD_dev  Kbar_asym";
+  if (each_shell) {
+    for (const auto &Fc : wf.core()) {
+      out_file << "  sigma_" << Fc.shortSymbol();
+    }
+  }
+  out_file << "\n";
 
   for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
     const auto &r = results[i_omega];
