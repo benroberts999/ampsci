@@ -234,6 +234,15 @@ public:
     return m_resc ? m_resc->asymmetry : 0.0;
   }
 
+  //! Worst |K - pi*D| / K_max over the open channels of the last
+  //! solve_core() (K_max = largest channel amplitude): the K = pi*D
+  //! identity holds to ~1% for healthy channels, so a gross violation
+  //! flags an unreliable channel solve (marginal grid resolution) even
+  //! when the SCF itself converged. Scaled to the DOMINANT amplitude, so
+  //! weak/zero-crossing channels cannot fire the alarm on a negligible
+  //! absolute error. A warning is printed (if print) when it exceeds ~5%.
+  double KpiD_dev() const { return m_KpiD; }
+
   /*!
     @brief Reduced ME of dV for a continuum final state, consistent with the
     V^{N-1} treatment of the photoelectron: <Fe || dV + V^a_0 phi || Fa>.
@@ -358,6 +367,8 @@ private:
   // is reused for the seeded solves.
   std::optional<Rescattering> m_resc{};
   int m_max_its{40};
+  // Worst K = pi*D violation of the last solve_core (see KpiD_dev())
+  double m_KpiD{0.0};
 
   // Homogeneous (seeded, no external field) solve state -- set only inside
   // rescattering(), on a copy of the driven-solved object. The seeded
@@ -380,10 +391,11 @@ private:
   void solve_homogeneous(std::size_t ib, std::size_t be, int max_its,
                          bool print);
 
-  // (Re)builds m_ch for this omega: openness flags (open AND resolvable on
-  // the radial box), and the homogeneous continuum pair Freg/Firr for each
-  // open channel. If print, warns when open channels are excluded as
-  // unresolvable (en_+ too close to that shell's threshold for the box).
+  // (Re)builds m_ch for this omega: openness flags, and the homogeneous
+  // continuum pair Freg/Firr for each open channel (barely-open channels
+  // handled by the outward-extension pair construction; high-energy
+  // channels truncated at Freg.max_pt()). If print, warns on the backstop
+  // exclusion (solveContinuum returned zero: grid resolves nothing).
   void prepare_channels(double omega, bool print);
 
   // Drivers for solve_core (after the shared set-up): plain damped (staged)

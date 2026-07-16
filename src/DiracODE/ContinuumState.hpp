@@ -117,15 +117,28 @@ std::size_t averageTail(DiracSpinor &Fa, const std::vector<double> &v,
   integration of the homogeneous radial Dirac equation
   \f$ (h_r - \en)F_{\rm irr} = 0 \f$ (same local potential v as F_reg).
 
-  Method A (component swap) fallback: asymptotically
+  Method B' (outward extension): when the series has not converged at the
+  box edge (a^2+b^2 far from 1: small p*r_box, i.e. a barely-open channel),
+  F_reg is continued outward on a fine linear grid with the H-like tail
+  potential (exactly as the normalisation continuation) until the
+  projection converges -- the series is asymptotic in 1/(pr) with
+  coefficients growing like nu^2, nu ~ Z_ion/p, so near threshold it
+  converges only far outside the box. F_irr is then seeded there and
+  integrated back inward through the extension; the outermost grid points
+  are sampled from the fine solution (cubic Hermite) to seed the main-grid
+  integration. This makes the pair usable arbitrarily close to threshold
+  (no minimum p*r_box), at the cost of a fine-grid integration out to the
+  convergence radius (capped at ~400 wavelengths).
+
+  Method A (component swap) last-resort fallback: asymptotically
   F_reg = (A_L cos X, A_S sin X) with A_S = beta A_L,
   beta = sqrt(en/(en+2c^2)), so the 90-degree partner follows by eliminating
-  the phase X: f_irr = -g_reg/beta, g_irr = beta f_reg. Used when the series
-  projection is poor (a^2+b^2 far from 1: very small p*r_box, or a
-  non-Coulomb tail). Method A is exact only to leading asymptotic order: the
-  seed carries an O(1/(p*r_box)) phase-dependent admixture of F_reg, which
-  contaminates the oscilating Green's solution with an omega-oscillating
-  on-shell term (worst near threshold) -- the reason method B is preferred.
+  the phase X: f_irr = -g_reg/beta, g_irr = beta f_reg. Used only when the
+  extension projection also fails (non-Coulomb tail). Method A is exact
+  only to leading asymptotic order: the seed carries an O(1/(p*r_box))
+  phase-dependent admixture of F_reg, which contaminates the oscilating
+  Green's solution with an omega-oscillating on-shell term (worst near
+  threshold) -- the reason methods B/B' are preferred.
 
   The result has the conserved Wronskian
   \f$ w[F_{\rm reg},F_{\rm irr}] = f_{\rm reg}g_{\rm irr} - f_{\rm irr}g_{\rm reg}
@@ -187,12 +200,18 @@ void solveContinuumIrregular(DiracSpinor &Firr, const DiracSpinor &Freg,
 
   @return The K-matrix amplitude: phi -> K * F_irr at large r.
 
-  @note The c,K extraction window is the outer part of the grid; the source
-        must have decayed there (it is built from bound orbitals, so this
-        holds whenever the box is large enough for the Green's method too).
-  @warning The outward integration is numerically delicate when the
-           oscillations are dense (very near threshold); prefer the Green's
-           route in production (see Methods, "TDHF for continuum states").
+  @note The c,K extraction window sits beyond the source support and inside
+        the region where the main grid resolves the oscillations to ~40
+        points per wavelength (the same criterion as solveContinuum's
+        normalisation start). At low/moderate energy this is the usual
+        outer window; at high energy it moves inward. In the marginal band
+        beyond it (where the pair from solveContinuum is fine-grid
+        accurate but the raw inhomogeneous integration is not), phi is
+        overwritten with its exact beyond-the-source form, K*F_irr.
+  @warning If the trusted region ends inside the source support (extreme
+           energy for the grid), no valid window exists and K = 0 is
+           returned; the caller should treat the channel as unresolvable
+           (flagged by the K = pi*D consistency check in the RPA).
 */
 double solveContinuumForward(DiracSpinor &phi, const DiracSpinor &Freg,
                              const DiracSpinor &Firr, double en,

@@ -8,6 +8,7 @@
 #include "LinAlg/Matrix.hpp"
 #include "LinAlg/Solvers.hpp"
 #include "LinAlg/Vector.hpp"
+#include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "fmt/format.hpp"
 #include "qip/Maths.hpp"
@@ -46,16 +47,17 @@ void TDHFcntm::prepare_channels(double omega, bool print) {
   // solves per channel per iteration, and removes the per-rebuild F_reg
   // renormalisation noise, which otherwise sets the TDHF convergence floor).
   //
-  // An open channel is kept only if it is RESOLVABLE on the radial box: the
-  // standing-wave boundary condition and the energy normalisation both need
-  // the outer (constant-amplitude) envelope, i.e. a few asymptotic
-  // wavelengths inside r_max. Just above a shell's threshold (en_+ -> 0+)
-  // that fails: the continuum solve returns noise, which feeds noise into
-  // dV and the TDHF cannot converge (the map is no longer reproducibly
-  // linear). Such channels are excluded from the response (zeroed, as
-  // suppress_open does) -- an approximation ONLY for omega within
-  // ~ (3*2*pi/r_max)^2/2 of that shell's threshold; enlarge the box to
-  // resolve them.
+  // All open channels are kept: barely-open channels (en_+ -> 0+) are
+  // handled by the outward-extension construction of the pair (the F_reg
+  // normalisation continues outward until its envelope converges, and
+  // F_irr is seeded where the asymptotic series converges -- see
+  // solveContinuumIrregular), and at high energy the pair is solved on a
+  // fine auxiliary grid through the marginal band and truncated at
+  // Freg.max_pt() (see solveContinuum), which the channel solves and the
+  // (c, K) extraction respect. The only exclusion left is the backstop
+  // below: solveContinuum returning zero (nothing resolvable on this grid
+  // at all) -- a zero pair must never reach the dispatch (the extraction
+  // divides by the pair Wronskian).
   using namespace qip::overloads;
 
   m_ch.clear();
@@ -64,41 +66,40 @@ void TDHFcntm::prepare_channels(double omega, bool print) {
 
   const auto Ux = HF::vex_KS(m_core);
 
-  const auto r_max = m_core.front().grid().r().back();
-  // at least ~one asymptotic wavelength must fit in the box (nonrel k is
-  // fine for this estimate)
-  const auto n_waves_min = 1.0;
-  const auto ec_min = 0.5 * qip::pow<2>(n_waves_min * 2.0 * M_PI / r_max);
-
   for (auto ib = 0ul; ib < m_X.size(); ib++) {
     const auto &Fb = m_core[ib];
     const auto en_plus = Fb.en() + omega;
     const bool open = en_plus > 0.0;
-    const bool resolvable = en_plus > ec_min;
-
-    if (open && !resolvable && print) {
-      fmt::print(
-        "\nWarning: TDHFcntm: {} channels open but unresolvable on this box "
-        "(en_+ = {:.1e} < {:.1e} au): excluded from the response. Enlarge "
-        "r_max to include them.\n",
-        Fb.shortSymbol(), en_plus, ec_min);
-    }
 
     const auto y0bb = open ? Coulomb::yk_ab(0, Fb, Fb) : std::vector<double>{};
 
+    std::string failed{};
     for (const auto &X_beta : m_X[ib]) {
       const auto kappa = X_beta.kappa();
       DiracSpinor Freg{0, kappa, Fb.grid_sptr()};
       DiracSpinor Firr{0, kappa, Fb.grid_sptr()};
-      if (open && resolvable) {
+      bool usable = open;
+      if (open) {
         const auto v = p_hf->vlocal(Angular::l_k(kappa)) - y0bb + Ux;
         DiracODE::solveContinuum(Freg, en_plus, v, m_alpha);
-        DiracODE::solveContinuumIrregular(Firr, Freg, en_plus, v, m_alpha);
+        if (Freg.norm2() == 0.0) {
+          usable = false;
+          failed += (failed.empty() ? "" : ",") + X_beta.shortSymbol();
+        } else {
+          DiracODE::solveContinuumIrregular(Firr, Freg, en_plus, v, m_alpha);
+        }
       }
-      // nb: "open" in the cache means open AND resolvable: unresolvable
-      // channels are dispatched exactly like suppress_open (zeroed)
-      m_ch[ib].emplace_back(open && resolvable, std::move(Freg),
-                            std::move(Firr));
+      // nb: "open" in the cache means open AND usable: failed channels are
+      // dispatched exactly like suppress_open (zeroed)
+      m_ch[ib].emplace_back(usable, std::move(Freg), std::move(Firr));
+    }
+
+    if (print && !failed.empty()) {
+      fmt::print("\nWarning: TDHFcntm: {} open channels [{}]: continuum solve "
+                 "returned zero (en_+ = {:.1e} au unresolvable on this grid): "
+                 "excluded from the response. Increase num_points to include "
+                 "them.\n",
+                 Fb.shortSymbol(), failed, en_plus);
     }
   }
 }
@@ -419,6 +420,46 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
     solve_core_anderson(omega, max_its, print);
   } else {
     solve_core_damped(omega, max_its, print, warm_start);
+  }
+
+  // K = pi*D consistency of the converged open channels: the one measure
+  // that reliably detects an unreliable channel solve (marginal grid
+  // resolution, invalid extraction window, bad pair) -- such failures can
+  // otherwise LOOK converged (the SCF is stable on garbage). The identity
+  // holds to ~1% for healthy channels; grossly violated means the channel
+  // amplitudes (and everything built on them) are not trustworthy at this
+  // omega on this grid. Measured as the ABSOLUTE inconsistency relative to
+  // the largest channel amplitude, |K - pi*D| / K_max: a weak channel (or
+  // one passing through a Cooper-type zero) with a large RELATIVE error
+  // but negligible absolute one must not fire the alarm -- what matters is
+  // the impact on the summed cross-section (same logic as the eps_cntm
+  // floor).
+  m_KpiD = 0.0;
+  std::string worst_lab{};
+  std::vector<std::pair<const DiracSpinor *, OpenChannel>> ochs;
+  double K_scale = 0.0;
+  for (const auto &Fb : m_core) {
+    for (const auto &och : open_channels(Fb)) {
+      K_scale = std::max({K_scale, std::abs(och.K), M_PI * std::abs(och.D)});
+      ochs.emplace_back(&Fb, och);
+    }
+  }
+  for (const auto &[pFb, och] : ochs) {
+    if (K_scale == 0.0) {
+      break;
+    }
+    const auto dev = std::abs(och.K - M_PI * och.D) / K_scale;
+    if (dev > m_KpiD) {
+      m_KpiD = dev;
+      worst_lab = pFb->shortSymbol() + "," + AtomData::kappa_symbol(och.kappa);
+    }
+  }
+  const auto KpiD_warn = 0.05;
+  if (print && m_KpiD > KpiD_warn) {
+    fmt::print("\nWarning: TDHFcntm: K = pi*D violated ({:.1e} for [{}]) at "
+               "w = {:.4f}: channel solve unreliable on this grid; results "
+               "at this omega are suspect. Increase num_points.\n",
+               m_KpiD, worst_lab, omega);
   }
 }
 
@@ -951,8 +992,8 @@ void TDHFcntm::solve_channel_cntm(DiracSpinor *dF_beta, CntmChannel *ch,
 
   if (openQ && (m_suppress_open || ch == nullptr || !ch->open)) {
     // Open channel excluded from the response (explicit zero: clears nan):
-    // either by the suppress_open option, or unresolvable on this radial
-    // box (en_+ too close to threshold; see prepare_channels).
+    // either by the suppress_open option, or the continuum solve returned
+    // zero (see prepare_channels backstop).
     dF_beta->f().assign(dF_beta->f().size(), 0.0);
     dF_beta->g().assign(dF_beta->g().size(), 0.0);
     if (ch) {

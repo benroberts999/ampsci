@@ -2,6 +2,7 @@
 #include "ExternalField/TDHFcntm.hpp"
 #include "HF/HartreeFock.hpp"
 #include "Maths/Grid.hpp"
+#include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/ContinuumOrbitals.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -838,5 +839,142 @@ TEST_CASE("cntmRPA: batched dV_rhs (dV_rhs_all vs dV_rhs)",
                h->name(), n_checked, worst);
     REQUIRE(n_checked > 0);
     REQUIRE(worst < 1.0e-12);
+  }
+}
+
+//==============================================================================
+//! Marginal-band channel solve: at high omega the radial grid resolves the
+//! continuum oscillations only marginally at large r (10-40 points per
+//! wavelength). The pair is fine-grid solved through that band
+//! (solveContinuum), so the driven solve must be too: it is continued by
+//! variation of parameters on the pair (solveContinuumForward). Acceptance:
+//! the K = pi*D identity, and grid-independence of the channel amplitudes
+//! against a band-free reference grid. With a main-grid-only driven solve
+//! both fail at O(1): the phi/pair grid errors no longer cancel in the
+//! (c, K) extraction once the pair is band-accurate.
+TEST_CASE("cntmRPA: marginal-band channel solve (high omega)",
+          "[ExternalField][TDHF][cntmrpa][unit]") {
+
+  // en_+ ~ 240 au: lambda ~ 0.29 au. Coarse grid: ~25 points/wavelength at
+  // r_max (band engaged); dense grid: >= 40 everywhere (band-free reference)
+  const double omega = 240.0;
+  const std::vector<std::size_t> npts{5000, 9000};
+
+  // per grid: {kappa_index label -> K}, and the KpiD deviation
+  std::vector<std::vector<double>> Ks(2);
+  std::vector<std::vector<std::string>> labs(2);
+  std::vector<double> kpid(2);
+
+  for (std::size_t ig = 0; ig < npts.size(); ++ig) {
+    Wavefunction wf({npts[ig], 1.0e-6, 40.0, 1.0, "loglinear", -1.0},
+                    {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+    wf.solve_core("HartreeFock", "[Ne]");
+    const auto E1 = DiracOperator::E1(wf.grid());
+    auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
+    rpa.eps_target() = 1.0e-8;
+    rpa.solve_core(omega, 40, false);
+    kpid[ig] = rpa.KpiD_dev();
+    for (const auto &Fa : wf.core()) {
+      for (const auto &ch : rpa.open_channels(Fa)) {
+        Ks[ig].push_back(ch.K);
+        labs[ig].push_back(Fa.shortSymbol() + "," +
+                           AtomData::kappa_symbol(ch.kappa));
+      }
+    }
+  }
+
+  fmt::print("\nMarginal-band solve, omega = {:.0f} au: KpiD = {:.1e} "
+             "(coarse) / {:.1e} (dense)\n",
+             omega, kpid[0], kpid[1]);
+  REQUIRE(kpid[0] < 0.05);
+  REQUIRE(kpid[1] < 0.005);
+
+  // Channel amplitudes grid-independent (compare against the band-free
+  // reference; weak channels compared on the dominant-amplitude scale)
+  REQUIRE(Ks[0].size() == Ks[1].size());
+  double K_max = 0.0;
+  for (const auto K : Ks[1]) {
+    K_max = std::max(K_max, std::abs(K));
+  }
+  fmt::print("{:>10s} {:>13s} {:>13s} {:>10s}\n", "channel", "K (coarse)",
+             "K (dense)", "rel diff");
+  for (std::size_t i = 0; i < Ks[0].size(); ++i) {
+    const auto dev = std::abs(Ks[0][i] - Ks[1][i]) / K_max;
+    fmt::print("{:>10s} {:13.6e} {:13.6e} {:10.1e}\n", labs[0][i], Ks[0][i],
+               Ks[1][i], dev);
+    REQUIRE(dev < 0.03);
+  }
+}
+
+//==============================================================================
+//! Barely-open channels (en_+ far below one asymptotic wavelength in the
+//! radial box): the asymptotic series does not converge at the box edge, so
+//! the pair is built by the outward-extension construction (method B' in
+//! solveContinuumIrregular: continue F_reg out on the H-like tail until the
+//! series projection converges, seed F_irr there, integrate back in).
+//! These channels used to be EXCLUDED (zeroed, warned); now they must
+//! solve: SCF converged, K = pi*D, and amplitudes box-independent (the
+//! physics lives inside the core region -- the box only ever mattered for
+//! the pair construction).
+TEST_CASE("cntmRPA: barely-open channels (extension pair)",
+          "[ExternalField][TDHF][cntmrpa][unit]") {
+
+  // en_+(2p-) fixed at 0.002 au on each grid (omega from the grid's own
+  // 2p- energy): under one wavelength in either box (old exclusion was
+  // en_+ < (2pi/r_max)^2/2 ~ 0.012 / 0.005); 2p+ then opens at ~0.0066
+  const double en_plus = 2.0e-3;
+  const std::vector<std::pair<std::size_t, double>> grids{{4000, 40.0},
+                                                          {5400, 60.0}};
+
+  std::vector<std::vector<double>> Ks(2);
+  std::vector<std::vector<std::string>> labs(2);
+  std::vector<double> kpid(2), eps(2);
+
+  for (std::size_t ig = 0; ig < grids.size(); ++ig) {
+    Wavefunction wf(
+      {grids[ig].first, 1.0e-6, grids[ig].second, 1.0, "loglinear", -1.0},
+      {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+    wf.solve_core("HartreeFock", "[Ne]");
+    const auto &F2pm = wf.core()[2]; // 2p-
+    const auto omega = en_plus - F2pm.en();
+    const auto E1 = DiracOperator::E1(wf.grid());
+    auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
+    rpa.eps_target() = 1.0e-8;
+    rpa.solve_core(omega, 60, false);
+    kpid[ig] = rpa.KpiD_dev();
+    eps[ig] = rpa.last_eps();
+    for (const auto &Fa : wf.core()) {
+      for (const auto &ch : rpa.open_channels(Fa)) {
+        Ks[ig].push_back(ch.K);
+        labs[ig].push_back(Fa.shortSymbol() + "," +
+                           AtomData::kappa_symbol(ch.kappa));
+      }
+    }
+  }
+
+  fmt::print("\nBarely-open channels, en_+(2p-) = {:.1e} au:\n"
+             "  eps = {:.1e} / {:.1e},  KpiD = {:.1e} / {:.1e} "
+             "(r_max 40 / 60)\n",
+             en_plus, eps[0], eps[1], kpid[0], kpid[1]);
+  REQUIRE(eps[0] < 1.0e-6);
+  REQUIRE(eps[1] < 1.0e-6);
+  REQUIRE(kpid[0] < 0.05);
+  REQUIRE(kpid[1] < 0.05);
+
+  // Channels must be present (not excluded), and box-independent
+  REQUIRE(Ks[0].size() >= 5);
+  REQUIRE(Ks[0].size() == Ks[1].size());
+  double K_max = 0.0;
+  for (const auto K : Ks[1]) {
+    K_max = std::max(K_max, std::abs(K));
+  }
+  fmt::print("{:>10s} {:>13s} {:>13s} {:>10s}\n", "channel", "K (40 au)",
+             "K (60 au)", "rel diff");
+  for (std::size_t i = 0; i < Ks[0].size(); ++i) {
+    REQUIRE(Ks[0][i] != 0.0);
+    const auto dev = std::abs(Ks[0][i] - Ks[1][i]) / K_max;
+    fmt::print("{:>10s} {:13.6e} {:13.6e} {:10.1e}\n", labs[0][i], Ks[0][i],
+               Ks[1][i], dev);
+    REQUIRE(dev < 0.03);
   }
 }

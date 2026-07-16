@@ -1,3 +1,4 @@
+#include "DiracODE/ContinuumState.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/TDHFcntm.hpp"
 #include "IO/ChronoTimer.hpp"
@@ -676,6 +677,41 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
              Emin_eV, Emax_eV, energies.front(), energies.back(),
              energies.size());
 
+  // Grid-resolution guidance for the requested range: the channel solves
+  // and the (c, K) extraction need ~40 points per wavelength on the main
+  // grid (the pair itself is fine-grid solved past that; see
+  // solveContinuumForward). Report the omega up to which the current grid
+  // meets this everywhere, and what the full range would need. Purely
+  // informative: higher omegas run on the reduced extraction window, and
+  // failures are flagged by the K = pi*D warnings / KpiD_dev column.
+  if (!wf.core().empty()) {
+    const auto e_least = std::max_element(wf.core().cbegin(), wf.core().cend(),
+                                          [](const auto &a, const auto &b) {
+                                            return a.en() < b.en();
+                                          })
+                           ->en();
+    const auto en_top = energies.back() + e_least;
+    const auto N_ppw = 40.0;
+    if (en_top > 0.0) {
+      const auto req =
+        DiracODE::RequiredContinuumGrid(en_top, wf.grid(), N_ppw, wf.alpha());
+      if (req.num_points > wf.grid().num_points()) {
+        // largest en with dr_max <= lambda(en)/N_ppw, from
+        // k^2 = en*(2 + alpha^2 en):
+        const auto dr_max = wf.grid().drdu().back() * wf.grid().du();
+        const auto k_ok = 2.0 * M_PI / (N_ppw * dr_max);
+        const auto al2 = wf.alpha() * wf.alpha();
+        const auto en_ok = (std::sqrt(1.0 + al2 * k_ok * k_ok) - 1.0) / al2;
+        fmt::print("\nNote: this grid resolves the continuum solves ({:.0f} "
+                   "pts/wavelength) up to omega ~ {:.0f} eV; the full range "
+                   "would need num_points ~ {} (or b ~ {:.3f}). Above that, "
+                   "watch the K = pi*D warnings (KpiD_dev column).\n",
+                   N_ppw, (en_ok - e_least) * PhysConst::Hartree_eV,
+                   req.num_points, req.b);
+      }
+    }
+  }
+
   const auto E1 = DiracOperator::E1(wf.grid());
 
   // Per-omega results: {sigma_bare, sigma_rpa, sigma_rpaU} for E1 (length)
@@ -772,17 +808,8 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     // Convergence / internal-consistency diagnostics, worst over gauges
-    // [KpiD: the K = pi*D identity]
-    double KpiD_dev = 0.0;
-    for (const auto &Fa : wf.core()) {
-      for (const auto *rpa : {&rpa_L, &rpa_V}) {
-        for (const auto &ch : rpa->open_channels(Fa)) {
-          if (ch.K == 0.0 || ch.D == 0.0)
-            continue;
-          KpiD_dev = std::max(KpiD_dev, std::abs(ch.K / (M_PI * ch.D) - 1.0));
-        }
-      }
-    }
+    // [KpiD: the K = pi*D identity, computed (and warned on) by solve_core]
+    const auto KpiD_dev = std::max(rpa_L.KpiD_dev(), rpa_V.KpiD_dev());
 
     results[i_omega][0] = sigma_E1;
     results[i_omega][1] = sigma_E1_rpa;

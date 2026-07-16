@@ -360,9 +360,14 @@ void solveContinuumIrregular(DiracSpinor &Firr, const DiracSpinor &Freg,
   // series order, w[F_reg, F_irr] = (a^2+b^2) alpha/pi. This removes the
   // O(1/(p r_box)) phase-dependent F_reg admixture of the leading-order
   // component swap (method A), which otherwise contaminates the standing-wave
-  // solution with an omega-oscillating on-shell admixture. Falls back to the
-  // component swap if the projection is poor (series not converged: very low
-  // p r_box, or non-Coulomb tail).
+  // solution with an omega-oscillating on-shell admixture.
+  // Method B' (outward extension): when the series has not converged AT the
+  // box edge (small p*r: barely-open channel), F_reg is continued outward on
+  // a fine linear grid (H-like tail, as the normalisation continuation)
+  // until the projection converges; F_irr is seeded there and integrated
+  // back inward through the extension, and the outermost grid points are
+  // sampled from the fine solution. Falls back to the component swap only
+  // if the projection never converges (non-Coulomb tail).
 
   Firr.en() = en;
   const auto &gr = Freg.grid();
@@ -378,22 +383,40 @@ void solveContinuumIrregular(DiracSpinor &Firr, const DiracSpinor &Freg,
   const auto Zion = std::max(0.0, -v[pinf - 1] * gr.r(pinf - 1));
   const AsymptoticSpinorContinuum<15> asy{kappa, Zion, en, alpha};
 
-  // Project F_reg = a F^C + b G^C pointwise over an outer window (2x2 in the
-  // two components; W[F^C,G^C] = fC gG - fG gC = -alpha/pi), and average.
-  const std::size_t n_w = std::min<std::size_t>(24, pinf / 2);
-  double a_sum = 0.0, b_sum = 0.0;
-  for (std::size_t i = pinf - n_w; i < pinf; ++i) {
-    const auto [fC, gC, fG, gG] = asy.fg(gr.r(i));
-    const auto Wcg = fC * gG - fG * gC;
-    a_sum += (Freg.f(i) * gG - Freg.g(i) * fG) / Wcg;
-    b_sum += (fC * Freg.g(i) - gC * Freg.f(i)) / Wcg;
-  }
-  const auto a = a_sum / double(n_w);
-  const auto b = b_sum / double(n_w);
+  // Projection of a set of points (r_j, f_j, g_j) onto {F^C, G^C}, averaged
+  // (2x2 in the two components; W[F^C,G^C] = fC gG - fG gC = -alpha/pi).
   // Both F_reg and {F^C,G^C} are energy-normalised, so a^2+b^2 = 1 when the
-  // series represents F_reg well; use as the quality check for the fallback
-  const auto q = a * a + b * b;
-  const bool good_projection = std::abs(q - 1.0) < 0.1;
+  // series represents F_reg well: used as the quality measure.
+  struct Projection {
+    double a{0.0}, b{0.0}, q_err{1.0};
+  };
+  const auto project = [&asy](const auto &rs, const auto &fs, const auto &gs,
+                              std::size_t n) {
+    double a_sum = 0.0, b_sum = 0.0;
+    for (std::size_t j = 0; j < n; ++j) {
+      const auto [fC, gC, fG, gG] = asy.fg(rs[j]);
+      const auto Wcg = fC * gG - fG * gC;
+      a_sum += (fs[j] * gG - gs[j] * fG) / Wcg;
+      b_sum += (fC * gs[j] - gC * fs[j]) / Wcg;
+    }
+    Projection p;
+    p.a = a_sum / double(n);
+    p.b = b_sum / double(n);
+    p.q_err = std::abs(p.a * p.a + p.b * p.b - 1.0);
+    return p;
+  };
+
+  // Method B: project over an outer window of the main grid
+  const std::size_t n_w = std::min<std::size_t>(24, pinf / 2);
+  std::vector<double> w_r(n_w), w_f(n_w), w_g(n_w);
+  for (std::size_t j = 0; j < n_w; ++j) {
+    const auto i = pinf - n_w + j;
+    w_r[j] = gr.r(i);
+    w_f[j] = Freg.f(i);
+    w_g[j] = Freg.g(i);
+  }
+  const auto pj = project(w_r, w_f, w_g, n_w);
+  const bool good_projection = pj.q_err < 0.1;
 
   // Homogeneous radial Dirac operator at en (same local potential as F_reg)
   DiracDerivative Hd(gr, v, kappa, en, alpha);
@@ -405,14 +428,126 @@ void solveContinuumIrregular(DiracSpinor &Firr, const DiracSpinor &Freg,
   auto &f = Firr.f();
   auto &g = Firr.g();
 
-  // Seed the outermost K_steps points: method B projection, or method A
-  // (component swap on F_reg) as the fallback
+  // Method B': seed values for the outermost K_steps grid points from the
+  // outward-extension construction (see above); ext_ok if it converged.
+  // Everything beyond the box assumes the H-like (Coulomb) tail, exactly as
+  // the normalisation continuation does.
+  bool ext_ok = false;
+  std::vector<double> ext_f(ode.K_steps()), ext_g(ode.K_steps());
+  if (!good_projection) {
+    const double k_wave = std::sqrt(en * (2.0 + alpha * alpha * en));
+    const double lambda = 2.0 * M_PI / k_wave;
+    const double h = lambda / 100.0;
+    const double r_edge = gr.r(pinf - 1);
+    // Cap: the series is asymptotic in 1/(pr), with coefficients growing
+    // like nu^2 (nu ~ Z_ion/p): near threshold it converges only far out.
+    const double r_cap = r_edge + 400.0 * lambda;
+
+    // Continue F_reg outward (H-like tail), checking the projection over a
+    // rolling window of the last n_w fine points every ~quarter wavelength:
+    DiracContinuumDerivative Heff(Zion, kappa, en, alpha);
+    AdamsMoulton::ODESolver2D<Param::K_Adams, double, double> out_ode{h, &Heff};
+    out_ode.solve_initial_K(r_edge, Freg.f(pinf - 1), Freg.g(pinf - 1));
+
+    std::vector<double> rw_r(n_w), rw_f(n_w), rw_g(n_w);
+    std::size_t filled = 0, step = 0;
+    Projection px;
+    bool conv = false;
+    double r_x = 0.0;
+    while (out_ode.last_t() < r_cap) {
+      out_ode.drive();
+      rw_r[step % n_w] = out_ode.last_t();
+      rw_f[step % n_w] = out_ode.last_f();
+      rw_g[step % n_w] = out_ode.last_g();
+      ++step;
+      if (filled < n_w) {
+        ++filled;
+      }
+      if (filled == n_w && step % 25 == 0) {
+        px = project(rw_r, rw_f, rw_g, n_w);
+        if (px.q_err < 0.02) {
+          conv = true;
+          r_x = out_ode.last_t();
+          break;
+        }
+      }
+    }
+
+    if (conv) {
+      // Seed F_irr = b F^C - a G^C at r_x and integrate inward on the fine
+      // grid; sample the outermost K_steps grid points (cubic Hermite,
+      // values + ODE derivatives) as they are crossed.
+      AdamsMoulton::ODESolver2D<Param::K_Adams, double, double> in_ode{-h,
+                                                                       &Heff};
+      const auto dfdr = [&Heff](double r, double ff, double gg) {
+        return Heff.a(r) * ff + Heff.b(r) * gg;
+      };
+      const auto dgdr = [&Heff](double r, double ff, double gg) {
+        return Heff.c(r) * ff + Heff.d(r) * gg;
+      };
+      for (std::size_t j = 0; j < in_ode.K_steps(); ++j) {
+        const auto t_j = r_x - double(j) * h;
+        const auto [fC, gC, fG, gG] = asy.fg(t_j);
+        const auto f0 = px.b * fC - px.a * fG;
+        const auto g0 = px.b * gC - px.a * gG;
+        in_ode.f[j] = f0;
+        in_ode.g[j] = g0;
+        in_ode.df[j] = dfdr(t_j, f0, g0);
+        in_ode.dg[j] = dgdr(t_j, f0, g0);
+        in_ode.t[j] = t_j;
+      }
+
+      // main-grid points to sample: r(pinf-1) down to r(pinf-K_steps)
+      std::size_t i0 = pinf - 1;
+      std::size_t n_done = 0;
+      auto t_prev = in_ode.last_t();
+      auto f_prev = in_ode.last_f();
+      auto g_prev = in_ode.last_g();
+      const auto r_low = gr.r(pinf - ode.K_steps()) - h;
+      while (in_ode.last_t() > r_low && n_done < ode.K_steps()) {
+        in_ode.drive();
+        const auto t = in_ode.last_t();
+        const auto ff = in_ode.last_f();
+        const auto gg = in_ode.last_g();
+        while (n_done < ode.K_steps() && gr.r(i0) >= t && gr.r(i0) <= t_prev) {
+          const auto hh = t - t_prev; // negative (inward)
+          const auto x = (gr.r(i0) - t_prev) / hh;
+          const auto x2 = x * x, x3 = x2 * x;
+          const auto h00 = 2.0 * x3 - 3.0 * x2 + 1.0;
+          const auto h10 = x3 - 2.0 * x2 + x;
+          const auto h01 = -2.0 * x3 + 3.0 * x2;
+          const auto h11 = x3 - x2;
+          ext_f[n_done] = h00 * f_prev +
+                          h10 * hh * dfdr(t_prev, f_prev, g_prev) + h01 * ff +
+                          h11 * hh * dfdr(t, ff, gg);
+          ext_g[n_done] = h00 * g_prev +
+                          h10 * hh * dgdr(t_prev, f_prev, g_prev) + h01 * gg +
+                          h11 * hh * dgdr(t, ff, gg);
+          ++n_done;
+          if (i0 == 0) {
+            break;
+          }
+          --i0;
+        }
+        t_prev = t;
+        f_prev = ff;
+        g_prev = gg;
+      }
+      ext_ok = n_done == ode.K_steps();
+    }
+  }
+
+  // Seed the outermost K_steps points: method B projection, method B'
+  // extension, or method A (component swap on F_reg) as the last resort
   for (std::size_t i0 = pinf - 1, i = 0; i < ode.K_steps(); ++i) {
     double f0{}, g0{};
     if (good_projection) {
       const auto [fC, gC, fG, gG] = asy.fg(gr.r(i0));
-      f0 = b * fC - a * fG;
-      g0 = b * gC - a * gG;
+      f0 = pj.b * fC - pj.a * fG;
+      g0 = pj.b * gC - pj.a * gG;
+    } else if (ext_ok) {
+      f0 = ext_f[i];
+      g0 = ext_g[i];
     } else {
       f0 = -Freg.g(i0) / beta;
       g0 = beta * Freg.f(i0);
@@ -465,15 +600,73 @@ double solveContinuumForward(DiracSpinor &phi, const DiracSpinor &Freg,
   // solve_Dirac_outwards seeds the usual H-like regular form at r0 and
   // carries the source; the (arbitrary-scale) F_reg admixture this start
   // introduces is exactly what the c-subtraction below removes.
+  // The main-grid integration is accurate only where the grid gives
+  // >= N_ppw_acc points per wavelength (the N_ppw_norm criterion of
+  // solveContinuum): integrate on the grid up to there (i_acc); the
+  // marginal band beyond is handled on a fine grid below. At low/moderate
+  // energy i_acc = pinf and this is the whole solve.
+  const double k_wave = std::sqrt(en * (2.0 + alpha * alpha * en));
+  const double approx_wavelength = 2.0 * M_PI / k_wave;
+  const int N_ppw_acc = 40;
+  auto i_acc = pinf;
+  while (i_acc > 0 &&
+         gr.drdu(i_acc - 1) * gr.du() > approx_wavelength / N_ppw_acc) {
+    --i_acc;
+  }
+
   const auto mSr = -1.0 * Sr;
   DiracDerivative Hd(gr, v, kappa, en, alpha, {}, &mSr);
-  solve_Dirac_outwards(phi.f(), phi.g(), Hd, pinf);
+  solve_Dirac_outwards(phi.f(), phi.g(), Hd, i_acc);
 
   auto &f = phi.f();
   auto &g = phi.g();
   for (std::size_t i = pinf; i < f.size(); ++i) {
     f.at(i) = 0.0;
     g.at(i) = 0.0;
+  }
+
+  // Marginal band [i_acc, pinf): the pair (from solveContinuum) is
+  // fine-grid accurate there, but a main-grid ODE integration of phi is
+  // not, and its errors no longer cancel against the pair in the (c, K)
+  // decomposition (they DID cancel when both sides were solved on the same
+  // coarse grid, which is why this only broke once the pair became
+  // band-accurate). A fine-grid ODE for phi does not work either: the
+  // source is only KNOWN at the grid points, and interpolating an on-shell
+  // oscillating source drives the response resonantly (the interpolation
+  // error accumulates secularly over the band). Instead, continue phi
+  // through the band by variation of parameters on the band-accurate pair,
+  //   phi = u(r) F_reg + w(r) F_irr,
+  //   u' = +pi (F_irr . S),  w' = -pi (F_reg . S)
+  // [Wronskian alpha/pi; source coupling s_f = +alpha S_g, s_g = -alpha S_f
+  // as DiracDerivative with VxFa = -S], with (u, w) read off the forward
+  // solution at the last accurate point and the quadratures done by
+  // trapezoid on the grid: products of same-frequency oscillations have a
+  // smooth rectified part plus a 2k ripple whose quadrature error does NOT
+  // feed back into the solution (no secular growth).
+  if (pinf > i_acc && i_acc > 0) {
+    const auto i0 = i_acc - 1;
+    const auto Wr = Freg.f(i0) * Firr.g(i0) - Firr.f(i0) * Freg.g(i0);
+    auto u = (f[i0] * Firr.g(i0) - g[i0] * Firr.f(i0)) / Wr;
+    auto w = (Freg.f(i0) * g[i0] - Freg.g(i0) * f[i0]) / Wr;
+    const auto Sf_at = [&Sr](std::size_t i) {
+      return i < Sr.max_pt() ? Sr.f(i) : 0.0;
+    };
+    const auto Sg_at = [&Sr](std::size_t i) {
+      return i < Sr.max_pt() ? Sr.g(i) : 0.0;
+    };
+    auto Pu_prev = M_PI * (Firr.f(i0) * Sf_at(i0) + Firr.g(i0) * Sg_at(i0));
+    auto Pw_prev = -M_PI * (Freg.f(i0) * Sf_at(i0) + Freg.g(i0) * Sg_at(i0));
+    for (std::size_t i = i_acc; i < pinf; ++i) {
+      const auto Pu = M_PI * (Firr.f(i) * Sf_at(i) + Firr.g(i) * Sg_at(i));
+      const auto Pw = -M_PI * (Freg.f(i) * Sf_at(i) + Freg.g(i) * Sg_at(i));
+      const auto dr_i = gr.r(i) - gr.r(i - 1);
+      u += 0.5 * (Pu_prev + Pu) * dr_i;
+      w += 0.5 * (Pw_prev + Pw) * dr_i;
+      f[i] = u * Freg.f(i) + w * Firr.f(i);
+      g[i] = u * Freg.g(i) + w * Firr.g(i);
+      Pu_prev = Pu;
+      Pw_prev = Pw;
+    }
   }
 
   // Beyond the source: phi~ = c*F_reg + K*F_irr. Extract (c, K) pointwise
