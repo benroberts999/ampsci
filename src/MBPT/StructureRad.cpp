@@ -65,7 +65,7 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
     }
     mQ = Coulomb::QkTable{};
     const auto read_ok = mQ->read(Qk_fname, verbose);
-    std::cout << mQ.count() << "\n";
+    //std::cout << mQ.count() << "\n";
 
       std::cout << "Fill Qk table:\n" << std::flush;
       mY.calculate(mBasis);
@@ -73,7 +73,7 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
       // mQ->fill_if(mBasis, mY, select_Q_SR, k_cut, verbose);
       mQ->write(Qk_fname, verbose);
       
-    std::cout << mQ.count() << "\n";
+    //std::cout << mQ.count() << "\n";
   } else { 
     if (verbose)
       std::cout << "\nUsing Yk Coulomb table for Struc. Rad.\n";
