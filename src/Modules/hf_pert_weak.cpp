@@ -74,7 +74,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
     const auto i_wf = i.shortSymbol();
     const auto v_wf = v.shortSymbol();
 
-    
+    /*
     if (i.n() < 0) {
       std::cout << "Reduced NSI PNC matrix element  " << " <<" << w_wf
                 << "||h_pnc||" << i_wf << ">> = " << pnc_wi
@@ -86,7 +86,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
                 << "||h_pnc||" << v_wf << ">> = " << pnc_iv
                 << "(-Q_w/N)x10^-11\n.";
     }
-  
+  */
     pnc_me.add(w, i, pnc_wi);
     pnc_me.add(i, v, pnc_iv);
 
@@ -105,7 +105,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
     hf_me.add(i, v, hfs_iv);
 
     //output for test
-    
+    /*
     if (i.n() < 0) {
       std::cout << "Reduced hyperfine matrix element  " << " <<" << w_wf
                 << "||h_hfs||" << i_wf << ">> = " << hfs_wi << "MHz \n.";
@@ -114,7 +114,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
       std::cout << "Reduced hyperfine matrix element " << " <<" << i_wf
                 << "||h_hfs||" << v_wf << ">> = " << hfs_iv << "MHz \n.";
     }
-                
+    */            
 
     //now include additional loop over spectrum
     for (const auto &j : spectrum) {
@@ -513,11 +513,23 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     //return final values 
     //first negative and positive contributiions separately
 
-    double h_sum_n = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0));
-    double h_sum_p = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(1)+h_2.at(1));
+    //pre factors depend on respective operators 
+
+    double pre_factor;
+
+    if(two_k==2){
+      pre_factor = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1));
+
+    }else{
+      pre_factor = sqrt((I2+3)*(I2+1)*(I+1)* (Fv2 + 1) * (Fw2 + 1)/(I*(I-1)));
+
+    }
+
+    double h_sum_n = pre_factor * (h_1.at(0)+h_2.at(0));
+    double h_sum_p = pre_factor * (h_1.at(1)+h_2.at(1));
 
     double h_sum =
-        sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(1));
+        pre_factor * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(1));
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
@@ -549,18 +561,21 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
 
     double I = 0.5 * I2;
 
-    //return final values 
-    //first negative and positive contributiions separately
+    double pre_factor;
 
-    //separate sums and +/-
-    double h1_sum_n = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0));
-    double h1_sum_p = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(1));
+    if(two_k==2){
+      pre_factor = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1));
 
-    double h_sum_n = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0));
-    double h_sum_p = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(1)+h_2.at(1));
+    }else{
+      pre_factor = sqrt((I2+3)*(I2+1)*(I+1)* (Fv2 + 1) * (Fw2 + 1)/(I*(I-1)));
+
+    }
+
+    double h_sum_n = pre_factor * (h_1.at(0)+h_2.at(0));
+    double h_sum_p = pre_factor * (h_1.at(1)+h_2.at(1));
 
     double h_sum =
-        sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1)) * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(1));
+        pre_factor * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(1));
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
@@ -572,14 +587,10 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     << "  au .\n\n";  
     std::cout << "Positive sum contribution is " << h_sum_p / PhysConst::Hartree_MHz
     << "  au .\n\n";    
+  }
+}
     
-    std::cout << "\n\n For h1 only \n\n";
-    std::cout << "Negative sum contribution is " << h1_sum_n / PhysConst::Hartree_MHz
-    << "  au .\n\n";  
-    std::cout << "Positive sum contribution is " << h1_sum_p / PhysConst::Hartree_MHz
-    << "  au .\n\n";
-}
-}
+  
 
 // namespace Module
 namespace {
