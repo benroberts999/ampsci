@@ -36,15 +36,21 @@ namespace Module {
 //spectrum
 //valence transition states
 
+
+//Include option for reduced matrix elements scaling factor 
+// 0 (default): standard reduced matrix element definition
+// 1 (Johnson unconventional... debatable whether they even do it this way)
+
 std::vector<Coulomb::meTable<double>>
 compute_me_3f(const DiracOperator::TensorOperator *hpnc,
               const DiracOperator::TensorOperator *he1,
               const DiracOperator::TensorOperator *const hfs,
               const std::vector<DiracSpinor> &spectrum, const DiracSpinor &w,
-              const DiracSpinor &v,
+              const DiracSpinor &v, int pnc_type,
               const ExternalField::CorePolarisation *dV_pnc=nullptr,
               const ExternalField::CorePolarisation *dV_e1=nullptr,
-              const ExternalField::DiagramRPA *dV_hf=nullptr) {
+              const ExternalField::DiagramRPA *dV_hf=nullptr)
+             {
 
   //Need matrix elements between valence states in transition and intermediate states from the spectrum
 
@@ -60,16 +66,36 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
 
   //summing over all states in the spectrum
 
+  // get angular momentum
+  double tjw = w.twoj();
+
+
+
   //compute all matrix elements -> including RPA if dV object is passed based on input options
   for (const auto &i : spectrum) {
+  // get angular momentum
+  double tji = i.twoj();
 
+
+  //specify pnc matrix element definition -- 
+
+ 
+  double pnc_factor1;
+  double pnc_factor2;
+  if(pnc_type==0){
+   pnc_factor1 = 1.0;
+   pnc_factor2 = 1.0;
+  }else{
+    pnc_factor1 = 1.0/sqrt(tjw+1);
+    pnc_factor2 =  1.0/sqrt(tji+1);
+  }
     //first we consider matrix elements involving the initial or final states
     //compute me
     //pnc matrix elements--------------------------------------------------------------------
     const auto pnc_wi =
-        hpnc->reducedME(w, i) + (dV_pnc ? dV_pnc->dV(w, i) : 0.0);
+        hpnc-> reducedME(w, i) + (dV_pnc ? dV_pnc->dV(w, i) : 0.0);
     const auto pnc_iv =
-        hpnc->reducedME(i, v) + (dV_pnc ? dV_pnc->dV(i, v) : 0.0);
+        hpnc-> reducedME(i, v) + (dV_pnc ? dV_pnc->dV(i, v) : 0.0);
     const auto w_wf = w.shortSymbol();
     const auto i_wf = i.shortSymbol();
     const auto v_wf = v.shortSymbol();
@@ -87,8 +113,8 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
                 << "(-Q_w/N)x10^-11\n.";
     }
   */
-    pnc_me.add(w, i, pnc_wi);
-    pnc_me.add(i, v, pnc_iv);
+    pnc_me.add(w, i, pnc_factor1*pnc_wi);
+    pnc_me.add(i, v, pnc_factor2*pnc_iv);
 
     //e1 matrix elements--------------------------------------------------------------------
     const auto e1_wi = he1->reducedME(w, i) + (dV_e1 ? dV_e1->dV(w, i) : 0.0);
@@ -118,6 +144,12 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
 
     //now include additional loop over spectrum
     for (const auto &j : spectrum) {
+      double pnc_factor3;
+      if(pnc_type==0){
+      pnc_factor3 = 1.0;
+      }else{
+      pnc_factor3 = 1.0/sqrt(tji+1);
+  }
       const auto pnc_ij =
           hpnc->reducedME(i, j) + (dV_pnc ? dV_pnc->dV(i, j) : 0.0);
       const auto e1_ij = he1->reducedME(i, j) + (dV_e1 ? dV_e1->dV(i, j) : 0.0);
@@ -126,7 +158,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
 
       //add to table
       //hpnc->rme3js(i.twoj(), i.twoj();
-      pnc_me.add(i, j, pnc_ij);
+      pnc_me.add(i, j, pnc_factor3*pnc_ij);
       e1_me.add(i, j, e1_ij);
       hf_me.add(i, j, hfs_ij);
     }
@@ -402,7 +434,8 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
                {"two_Fw", "two times total angular momentum of final state w"},
                {"two_Fv", "two times total angular momentum of final state v"},
                {"hfs_options{}", "Options for HFS operator (see -o hfs)"},
-               {"two_k", "two times hyperfine multipolarity"}});
+               {"two_k", "two times hyperfine multipolarity"},
+               {"pnc_type", "choose definition of reduced matrix element"}});
   // If we are just requesting 'help', don't run module:
 
   if (input.has_option("help")) {
@@ -493,9 +526,10 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     rpa_hf->solve_core(0.0, 100, true);
 
     // Compute and store matrix elements with RPA
+    const auto pnc_type = input.get("pnc_type", 0);
     std::cout << "Computing and storing all matrix elements.... ";
     std::vector<Coulomb::meTable<double>> Table = compute_me_3f(
-        &hpnc, &he1, hfs.get(), spectrum, Fw, Fv, &dVpnc, &dVE1, rpa_hf.get());
+        &hpnc, &he1, hfs.get(), spectrum, Fw, Fv,pnc_type, &dVpnc, &dVE1, rpa_hf.get());
     std::cout << "Complete. \n";
 
     //use matrix elements to compute the amplitude
@@ -544,9 +578,10 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
 
   } else {
     // Compute and store matrix elements without RPA
+    const auto pnc_type = input.get("pnc_type", 0);
     std::cout << "Computing and storing all matrix elements without RPA.... ";
     std::vector<Coulomb::meTable<double>> Table =
-        compute_me_3f(&hpnc, &he1, hfs.get(), spectrum, Fw, Fv);
+        compute_me_3f(&hpnc, &he1, hfs.get(), spectrum, Fw, Fv,pnc_type);
     std::cout << "Complete. \n";
 
     //use matrix elements to compute the amplitude
