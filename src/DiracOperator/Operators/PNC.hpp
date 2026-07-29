@@ -121,4 +121,58 @@ class PNCsd : public TensorOperator {
       }
 
   };
+
+
+  // anapole moment/spin dependent pnc
+class PNC_wqm : public TensorOperator {
+  public:
+    PNC_wqm(double c, double t, const Grid &rgrid)
+      : TensorOperator(1,  Parity::odd, PhysConst::GFe11 / std::sqrt(2.0),
+        Nuclear::fermiNuclearDensity_tcN(t, c, 1.0, rgrid), Realness::imaginary)
+       {}
+  
+    std::unique_ptr<TensorOperator> clone() const override {
+      return std::make_unique<PNCsd>(*this);
+    }
+  
+    std::string name() const override {
+      return std::string("PNCsd");
+    }
+    std::string units() const override {
+      return std::string("iκ e-11");
+    }
+  
+    double angularF(const int, const int) const override final {
+      return 1.0;
+    }
+
+    double angularCff(int kappa_a, int kappa_b) const override final {
+      (void)kappa_a, (void)kappa_b;
+      return 0.0;
+    }
+  
+    double angularCgg(int, int) const override final { return 0.0; }
+    
+    double angularCfg(int ka, int kb) const override final { return 2.0*Angular::S_kk(ka,-kb); }
+    
+    double angularCgf(int ka, int kb) const override final { return -2.0*Angular::S_kk(-ka,kb); }
+  
+    static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
+      const Wavefunction &wf) {
+        input.check(
+          {{{"c",
+              "Half-density radius for Fermi rho(r). [defaut: from wavefunction]"},
+            {"t", "skin thickness [2.3]"},
+            {"print", "Write details to screen [true]"}}});
+        if (input.has_option("help"))
+          return nullptr;
+        const auto r_rms = wf.get_rrms();
+        const auto c = input.get("c", Nuclear::c_hdr_formula_rrms_t(r_rms));
+        const auto t = input.get("t", Nuclear::default_t);
+        if (input.get("print", true))
+          std::cout << "spin-dep pnc: with c=" << c << ", t=" << t << "\n";
+        return std::make_unique<PNCsd>(c, t, wf.grid());
+      }
+
+  };
 } // namespace DiracOperator
