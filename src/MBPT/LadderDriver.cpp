@@ -450,8 +450,9 @@ void check_L_symmetry(const std::vector<DiracSpinor> &core,
     const auto &b = core[c_index(gen)];
     auto sym = [](const auto &x) { return x.shortSymbol(); };
 
-    const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, a, b);
-    for (int k = k0; k <= kI; k += 2) {
+    // Full ladder k range: both parities (see k_minmax_L)
+    const auto [k0, kI] = k_minmax_L(m, n, a, b);
+    for (int k = k0; k <= kI; ++k) {
       ++count;
       auto Qkmnab = qk.Q(k, m, n, a, b);
       auto lkmnab =

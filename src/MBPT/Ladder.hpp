@@ -5,8 +5,45 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include <optional>
 #include <string>
+#include <utility>
 
 namespace MBPT {
+
+//! Returns min and max k (multipolarity) allowed for ladder integral
+//! L^k_abcd. Triangle rules {a,c,k} and {b,d,k} apply, plus the combined
+//! parity rule (l_a+l_b+l_c+l_d even). Unlike Q^k, there is no
+//! individual-pair parity rule linking k to the orbital parities, so k takes
+//! both parities: NOT safe to call k+=2.
+inline std::pair<int, int> k_minmax_L(const DiracSpinor &a,
+                                      const DiracSpinor &b,
+                                      const DiracSpinor &c,
+                                      const DiracSpinor &d) {
+  // Combined parity rule: each (direct) Coulomb rung shifts the parity of
+  // both pair lines together, so only the total parity is constrained
+  if ((a.l() + b.l() + c.l() + d.l()) % 2 != 0) {
+    return {1, 0};
+  }
+  const auto [l1, u1] = Coulomb::k_minmax_tj(a.twoj(), c.twoj());
+  const auto [l2, u2] = Coulomb::k_minmax_tj(b.twoj(), d.twoj());
+  return {std::max(l1, l2), std::min(u1, u2)};
+}
+
+//! Returns min and max k (multipolarity) allowed for ladder integral L^k_abcd
+//! (kappa version) - see above. NOT safe to call k+=2.
+inline std::pair<int, int> k_minmax_L(int kap_a, int kap_b, int kap_c,
+                                      int kap_d) {
+  if ((Angular::l_k(kap_a) + Angular::l_k(kap_b) + Angular::l_k(kap_c) +
+       Angular::l_k(kap_d)) %
+        2 !=
+      0) {
+    return {1, 0};
+  }
+  const auto [l1, u1] =
+    Coulomb::k_minmax_tj(Angular::twoj_k(kap_a), Angular::twoj_k(kap_c));
+  const auto [l2, u2] =
+    Coulomb::k_minmax_tj(Angular::twoj_k(kap_b), Angular::twoj_k(kap_d));
+  return {std::max(l1, l2), std::min(u1, u2)};
+}
 
 /*!
   @brief Full ladder integral summed over all diagrams.
@@ -123,8 +160,7 @@ L3(int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
   @details
   Intermediate states run over core orbitals only, making this the
   hole--hole counterpart of the particle--particle diagram L1.
-  Typically small and omitted by default; enable via @p include_L4 in
-  Lkmnij().
+  Enable via @p include_L4 in Lkmnij().
 
   @param k   Multipole rank
   @param m,n Excited (particle) orbitals
@@ -356,8 +392,11 @@ std::string parseSigmaLMethod(SigmaLMethod method);
   @return Sigma_L as a coordinate-space GMatrix
 
   @note Ratio method: terms with \f$ Q^k_{mnva} = 0 \f$ (but \f$ L^k \ne 0 \f$)
-        cannot be rescaled and are dropped; inherent to the method (rare,
-        since Q and L share angular selection rules).
+        cannot be rescaled and are dropped; inherent to the method. Note that
+        L^k exists at both parities of k (see k_minmax_L) while Q^k
+        exists only at Coulomb parity, so the exchange-only (wrong-parity)
+        k channels are always dropped here; the projection and direct methods
+        include them.
 */
 GMatrix Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
                      const std::vector<DiracSpinor> &excited,

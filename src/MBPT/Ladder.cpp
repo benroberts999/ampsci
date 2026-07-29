@@ -123,8 +123,7 @@ double Lkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
   const auto L123 = L1(k, m, n, i, j, qk, excited, SJ, Lk, e_i) +
                     L2(k, m, n, i, j, qk, core, excited, SJ, Lk, {}, e_m) +
                     L3(k, m, n, i, j, qk, core, excited, SJ, Lk, e_i);
-  // Optionally include "4th" ladder diagram
-  // nb: L4 not fully checked!
+  // Optionally include the hole-hole (L4) ladder diagram
   if (include_L4)
     return L123 + L4(k, m, n, i, j, qk, core, SJ, Lk, e_m);
   else
@@ -223,8 +222,11 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
       const auto &s = excited[is];
 
       const auto [u0, uI] = Coulomb::k_minmax_Q(m, n, r, s);
+      // Rung range: the bare Coulomb part exists only in the parity range
+      // [l0,lI]; the L^l part exists at both parities of l (see k_minmax_L)
       const auto [l0, lI] = Coulomb::k_minmax_Q(r, s, i, j);
-      if (uI < u0 || lI < l0)
+      const auto [w0, wI] = k_minmax_L(r, s, i, j);
+      if (uI < u0 || wI < w0)
         continue;
 
       const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
@@ -234,11 +236,12 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
       const auto Lkey_rsij = Lk ? Lk->NormalOrder(r, s, i, j) : 0ul;
 
       // Cache (Q+L)^l_rsij: depends only on l, avoid N_u lookups
-      assert(lI < int(sk_array_size));
+      assert(wI < int(sk_array_size));
       std::array<double, sk_array_size> QLl_rsij{};
-      for (auto l = l0; l <= lI; l += 2) {
+      for (auto l = w0; l <= wI; ++l) {
+        const bool has_Q = l >= l0 && l <= lI && (l - l0) % 2 == 0;
         QLl_rsij[std::size_t(l)] =
-          qk.Q(l, Qkey_rsij) + (Lk ? Lk->Q(l, Lkey_rsij) : 0.0);
+          (has_Q ? qk.Q(l, Qkey_rsij) : 0.0) + (Lk ? Lk->Q(l, Lkey_rsij) : 0.0);
       }
 
       for (auto u = u0; u <= uI; u += 2) {
@@ -251,7 +254,11 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
         if (Coulomb::triangle(u, r, m) == 0 || Coulomb::triangle(u, s, n) == 0)
           continue;
 
-        for (auto l = l0; l <= lI; l += 2) {
+        for (auto l = w0; l <= wI; ++l) {
+
+          const auto QL_lrsij = QLl_rsij[std::size_t(l)];
+          if (QL_lrsij == 0.0)
+            continue;
 
           // 6j triad:
           if (Angular::triangle(k, l, u) == 0)
@@ -259,8 +266,6 @@ double L1(int k, const DiracSpinor &m, const DiracSpinor &n,
 
           const auto sj_r = sjr_cache.get(r.twoj(), l, u);
           const auto sj_s = sjs_cache.get(s.twoj(), l, u);
-
-          const auto QL_lrsij = QLl_rsij[std::size_t(l)];
 
           l1 += (s_rs * sj_r * sj_s) * Q_umnrs * QL_lrsij * inv_e_ijrs;
         }
@@ -346,8 +351,10 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
       const auto &d = core[id];
 
       const auto [u0, uI] = Coulomb::k_minmax_Q(c, d, i, j);
+      // Rung range: L^l part exists at both parities of l (see L1)
       const auto [l0, lI] = Coulomb::k_minmax_Q(m, n, c, d);
-      if (uI < u0 || lI < l0)
+      const auto [w0, wI] = k_minmax_L(m, n, c, d);
+      if (uI < u0 || wI < w0)
         continue;
 
       const auto s_cd = Angular::neg1pow_2(c.twoj() + d.twoj());
@@ -357,11 +364,12 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
       const auto Lkey_mncd = Lk ? Lk->NormalOrder(m, n, c, d) : 0ul;
 
       // Cache (Q+L)^l_mncd: depends only on l, used inside the u loop
-      assert(lI < int(sk_array_size));
+      assert(wI < int(sk_array_size));
       std::array<double, sk_array_size> QLl_mncd{};
-      for (auto l = l0; l <= lI; l += 2) {
+      for (auto l = w0; l <= wI; ++l) {
+        const bool has_Q = l >= l0 && l <= lI && (l - l0) % 2 == 0;
         QLl_mncd[std::size_t(l)] =
-          qk.Q(l, Qkey_mncd) + (Lk ? Lk->Q(l, Lkey_mncd) : 0.0);
+          (has_Q ? qk.Q(l, Qkey_mncd) : 0.0) + (Lk ? Lk->Q(l, Lkey_mncd) : 0.0);
       }
 
       for (auto u = u0; u <= uI; u += 2) {
@@ -374,7 +382,11 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
         if (Coulomb::triangle(i, u, c) == 0 || Coulomb::triangle(j, u, d) == 0)
           continue;
 
-        for (auto l = l0; l <= lI; l += 2) {
+        for (auto l = w0; l <= wI; ++l) {
+
+          const auto QL_lmncd = QLl_mncd[std::size_t(l)];
+          if (QL_lmncd == 0.0)
+            continue;
 
           // 6j triad:
           if (Angular::triangle(k, u, l) == 0)
@@ -382,8 +394,6 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
 
           const auto sj_c = sjc_cache.get(c.twoj(), u, l);
           const auto sj_d = sjd_cache.get(d.twoj(), u, l);
-
-          const auto QL_lmncd = QLl_mncd[std::size_t(l)];
 
           l4 += (s_cd * sj_c * sj_d) * Q_ucdij * QL_lmncd * inv_e_cdmn;
         }
@@ -439,8 +449,10 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
       const auto &c = core[ic];
 
       const auto [u0, uI] = Coulomb::k_minmax_Q(c, n, i, r);
+      // Rung range: L^l part exists at both parities of l (see L1)
       const auto [l0, lI] = Coulomb::k_minmax_Q(m, r, c, j);
-      if (uI < u0 || lI < l0)
+      const auto [w0, wI] = k_minmax_L(m, r, c, j);
+      if (uI < u0 || wI < w0)
         continue;
 
       const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
@@ -450,11 +462,12 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
       const auto Lkey_mrcj = Lk ? Lk->NormalOrder(m, r, c, j) : 0ul;
 
       // Cache (Q+L)^l_mrcj: depends only on l, used inside the u loop (see L1).
-      assert(lI < int(sk_array_size));
+      assert(wI < int(sk_array_size));
       std::array<double, sk_array_size> QLl_mrcj{};
-      for (auto l = l0; l <= lI; l += 2) {
+      for (auto l = w0; l <= wI; ++l) {
+        const bool has_Q = l >= l0 && l <= lI && (l - l0) % 2 == 0;
         QLl_mrcj[std::size_t(l)] =
-          qk.Q(l, Qkey_mrcj) + (Lk ? Lk->Q(l, Lkey_mrcj) : 0.0);
+          (has_Q ? qk.Q(l, Qkey_mrcj) : 0.0) + (Lk ? Lk->Q(l, Lkey_mrcj) : 0.0);
       }
 
       for (auto u = u0; u <= uI; u += 2) {
@@ -467,7 +480,11 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
         if (Coulomb::triangle(i, u, c) == 0 || Coulomb::triangle(n, u, r) == 0)
           continue;
 
-        for (auto l = l0; l <= lI; l += 2) {
+        for (auto l = w0; l <= wI; ++l) {
+
+          const auto QL_lmrcj = QLl_mrcj[std::size_t(l)];
+          if (QL_lmrcj == 0.0)
+            continue;
 
           // 6j triad:
           if (Angular::triangle(k, l, u) == 0)
@@ -476,7 +493,6 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const auto s_ul = Angular::neg1pow(u + l);
           const auto sj_c = sjc_cache.get(c.twoj(), u, l);
           const auto sj_r = sjr_cache.get(r.twoj(), u, l);
-          const auto QL_lmrcj = QLl_mrcj[std::size_t(l)];
 
           l2 += (s_ul * s_rc * sj_c * sj_r) * Q_ucnir * QL_lmrcj * inv_e_cjmr;
         }
@@ -524,6 +540,10 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
 
   // Base selection rule: m,n in excited, i in i_orbs, b in core + angular SR.
   // Determines which L^k_mnib integrals we actually need.
+  // nb: k runs over the full ladder range (k_minmax_L): triangle rules plus
+  // the combined parity rule only. Unlike Q^k, L^k has components at BOTH
+  // parities of k; the wrong-parity (Coulomb-forbidden) components enter the
+  // exchange diagrams (via P/W) and feed back into the iterated rungs.
   const auto Lk_SR_one = [&](int k, const DiracSpinor &m, const DiracSpinor &n,
                              const DiracSpinor &i,
                              const DiracSpinor &b) -> bool {
@@ -533,7 +553,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
     // Require i to be in {i}, and b to be in core
     if (!is_i_orb[i.nk_index()] || !is_core[b.nk_index()])
       return false;
-    const auto [k0, kI] = Coulomb::k_minmax_Q(m, n, i, b);
+    const auto [k0, kI] = k_minmax_L(m, n, i, b);
     return k >= k0 && k <= kI;
   };
 
@@ -602,10 +622,12 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
   // already at the valence energy - nothing computed on-the-fly; fast):
   //   (a+b): |Q^k_{.amn}><W^k_{.amn}| (L^k_{mnva}/Q^k_{mnva}) / ([k][j_v] de)
   //   (c+d): |Q^k_{.nab}><W^k_{.nab}| (L^k_{vnab}/Q^k_{vnab}) / ([k][j_v] de)
-  // The diagonal then reproduces the ladder energy exactly:
-  // <v|Sigma_L|v> = de_valence_w(v); the radial shape is approximate (each
-  // term keeps its second-order shape). Terms with Q^k = 0 cannot be
-  // rescaled: dropped.
+  // The diagonal then reproduces the Coulomb-parity part of the ladder
+  // energy exactly; the radial shape is approximate (each term keeps its
+  // second-order shape). Terms with Q^k = 0 cannot be rescaled: dropped. In
+  // particular, the exchange-only k channels (Coulomb-forbidden parity,
+  // where W = P and L^k != 0 - see k_minmax_L) are inherently absent, so
+  // <v|Sigma_L|v> differs from de_valence_w(v) by those (small) terms.
 
   const auto ratio_method = projection.empty();
 
@@ -643,17 +665,27 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
     for (const auto &a : core) {
 
       // Diagrams (a)+(b): W^k_{.amn} L^k_{mn,i,a}
-      // k range/step enforces the (n,a) Coulomb parity: only k with
-      // Q^k_{vamn} != 0 contribute. The W=Q+P ket does NOT self-gate parity
-      // the way the bare Q ket does, so without this its P-part adds spurious
-      // wrong-parity terms (not present in de_valence_w).
-      const auto [kmin_na, kmax_na] = Coulomb::k_minmax_Ck(n, a);
-      for (int k = kmin_na; k <= kmax_na; k += 2) {
+      // k runs over the full ladder range, both parities (see k_minmax_L):
+      // at Coulomb-forbidden ("wrong"-parity) k the Q part of W vanishes,
+      // but the P part and L^k do not - these exchange-only channels are
+      // genuine (also present in de_valence_w). Exception: the ratio method
+      // rescales second-order |Q><W| terms, so requires Q^k != 0 (Coulomb
+      // parity); the exchange-only channels cannot be represented there.
+      const auto [kmin_na, kmax_na] = Coulomb::k_minmax_tj(n.twoj(), a.twoj());
+      for (int k = kmin_na; k <= kmax_na; ++k) {
 
         const auto f_kkjj = (2 * k + 1) * (tjv + 1);
+        if (ratio_method && !Angular::Ck_kk_SR(k, n.kappa(), a.kappa()))
+          continue;
         for (const auto &m : excited) {
-          if (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()))
-            continue;
+          if (ratio_method) {
+            if (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()))
+              continue;
+          } else {
+            const auto [k0, kI] = k_minmax_L(m, n, v, a);
+            if (k < k0 || k > kI)
+              continue;
+          }
           const auto dele = en_v + a.en() - m.en() - n.en();
 
           if (ratio_method) {
@@ -690,14 +722,21 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
 
       // Diagrams (c)+(d): W^k_{.nab} L^k_{i,n,a,b}
       for (const auto &b : core) {
-        // k range/step enforces the (n,b) Coulomb parity (only k with
-        // Q^k_{vnab} != 0); see note in the (a)+(b) block.
-        const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, b);
-        for (int k = kmin_nb; k <= kmax_nb; k += 2) {
+        // k range: full ladder range, both parities; see (a)+(b) note.
+        const auto [kmin_nb, kmax_nb] =
+          Coulomb::k_minmax_tj(n.twoj(), b.twoj());
+        for (int k = kmin_nb; k <= kmax_nb; ++k) {
 
           const auto f_kkjj = (2 * k + 1) * (tjv + 1);
-          if (!Angular::Ck_kk_SR(k, kappa_v, a.kappa()))
-            continue;
+          if (ratio_method) {
+            if (!Angular::Ck_kk_SR(k, n.kappa(), b.kappa()) ||
+                !Angular::Ck_kk_SR(k, kappa_v, a.kappa()))
+              continue;
+          } else {
+            const auto [k0, kI] = k_minmax_L(v, n, a, b);
+            if (k < k0 || k > kI)
+              continue;
+          }
 
           const auto dele = en_v + n.en() - a.en() - b.en();
 
@@ -785,16 +824,20 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
     for (const auto &r : excited) {
       for (const auto &s : excited) {
         const auto [u0, uI] = Coulomb::k_minmax_Q(m, n, r, s);
+        // Opened Coulomb line exists only in the parity range [l0,lI]; the
+        // L^l part (dv) exists at both parities of l (see k_minmax_L)
         const auto [l0, lI] =
           Coulomb::k_minmax_Q(r.kappa(), s.kappa(), kappa_v, a.kappa());
-        if (uI < u0 || lI < l0)
+        const auto [w0, wI] =
+          k_minmax_L(r.kappa(), s.kappa(), kappa_v, a.kappa());
+        if (uI < u0 || wI < w0)
           continue;
         const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
         const auto inv_e = 1.0 / (en_v + a.en() - r.en() - s.en());
         const auto Qkey_mnrs = qk.NormalOrder(m, n, r, s);
 
         // cl[l] = sum_u Q^u_{mnrs} sj_r sj_s
-        assert(lI < int(sk_array_size));
+        assert(wI < int(sk_array_size));
         std::array<double, sk_array_size> cl{};
         bool non_zero = false;
         for (int u = u0; u <= uI; u += 2) {
@@ -803,7 +846,7 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
             continue;
           if (!Coulomb::triangle(u, r, m) || !Coulomb::triangle(u, s, n))
             continue;
-          for (int l = l0; l <= lI; l += 2) {
+          for (int l = w0; l <= wI; ++l) {
             if (Angular::triangle(k, l, u) == 0)
               continue;
             const auto sjsj =
@@ -818,11 +861,14 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
           continue;
 
         const auto factor = s1 * tkp1 * s_rs * inv_e;
-        for (int l = l0; l <= lI; l += 2) {
+        for (int l = w0; l <= wI; ++l) {
           const auto coef = factor * cl[std::size_t(l)];
           if (coef == 0.0)
             continue;
-          Lkv += coef * yk.Qkv_bcd(l, kappa_v, s, r, a);
+          // ket: bare Coulomb line - Coulomb parity range only
+          if (l >= l0 && l <= lI && (l - l0) % 2 == 0) {
+            Lkv += coef * yk.Qkv_bcd(l, kappa_v, s, r, a);
+          }
           if (Lk) {
             dv += coef * Lk->Q(l, r, s, v, a);
           }
@@ -845,8 +891,10 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
       for (const auto &c : core) {
         const auto [u0, uI] =
           Coulomb::k_minmax_Q(c.kappa(), n.kappa(), kappa_v, r.kappa());
+        // Rung range: L^l part exists at both parities of l (see k_minmax_L)
         const auto [l0, lI] = Coulomb::k_minmax_Q(m, r, c, a);
-        if (uI < u0 || lI < l0)
+        const auto [w0, wI] = k_minmax_L(m, r, c, a);
+        if (uI < u0 || wI < w0)
           continue;
         const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
         const auto inv_e = 1.0 / (c.en() + a.en() - m.en() - r.en());
@@ -854,11 +902,12 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
         const auto Lkey_mrca = Lk ? Lk->NormalOrder(m, r, c, a) : 0ul;
 
         // (Q+L)^l_{mrca}: fully internal - from tables
-        assert(lI < int(sk_array_size));
+        assert(wI < int(sk_array_size));
         std::array<double, sk_array_size> QLl{};
-        for (int l = l0; l <= lI; l += 2) {
-          QLl[std::size_t(l)] =
-            qk.Q(l, Qkey_mrca) + (Lk ? Lk->Q(l, Lkey_mrca) : 0.0);
+        for (int l = w0; l <= wI; ++l) {
+          const bool has_Q = l >= l0 && l <= lI && (l - l0) % 2 == 0;
+          QLl[std::size_t(l)] = (has_Q ? qk.Q(l, Qkey_mrca) : 0.0) +
+                                (Lk ? Lk->Q(l, Lkey_mrca) : 0.0);
         }
 
         const auto factor = s2 * tkp1 * s_rc * inv_e;
@@ -867,7 +916,9 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
               Angular::triangle(n.twoj(), 2 * u, r.twoj()) == 0)
             continue;
           double cu = 0.0;
-          for (int l = l0; l <= lI; l += 2) {
+          for (int l = w0; l <= wI; ++l) {
+            if (QLl[std::size_t(l)] == 0.0)
+              continue;
             if (Angular::triangle(k, l, u) == 0)
               continue;
             const auto s_ul = Angular::neg1pow(u + l);
@@ -897,16 +948,20 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
     for (const auto &r : excited) {
       for (const auto &c : core) {
         const auto [u0, uI] = Coulomb::k_minmax_Q(c, m, a, r);
+        // Opened Coulomb line exists only in the parity range [l0,lI]; the
+        // L^l part (dv) exists at both parities of l (see k_minmax_L)
         const auto [l0, lI] =
           Coulomb::k_minmax_Q(n.kappa(), r.kappa(), c.kappa(), kappa_v);
-        if (uI < u0 || lI < l0)
+        const auto [w0, wI] =
+          k_minmax_L(n.kappa(), r.kappa(), c.kappa(), kappa_v);
+        if (uI < u0 || wI < w0)
           continue;
         const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
         const auto inv_e = 1.0 / (c.en() + en_v - n.en() - r.en());
         const auto Qkey_cmar = qk.NormalOrder(c, m, a, r);
 
         // dl[l] = sum_u (-1)^{u+l} Q^u_{cmar} sj_c sj_r
-        assert(lI < int(sk_array_size));
+        assert(wI < int(sk_array_size));
         std::array<double, sk_array_size> dl{};
         bool non_zero = false;
         for (int u = u0; u <= uI; u += 2) {
@@ -916,7 +971,7 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
           if (Angular::triangle(a.twoj(), 2 * u, c.twoj()) == 0 ||
               Angular::triangle(m.twoj(), 2 * u, r.twoj()) == 0)
             continue;
-          for (int l = l0; l <= lI; l += 2) {
+          for (int l = w0; l <= wI; ++l) {
             if (Angular::triangle(k, l, u) == 0)
               continue;
             const auto s_ul = Angular::neg1pow(u + l);
@@ -932,11 +987,14 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
           continue;
 
         const auto factor = s3 * tkp1 * s_rc * inv_e;
-        for (int l = l0; l <= lI; l += 2) {
+        for (int l = w0; l <= wI; ++l) {
           const auto coef = factor * dl[std::size_t(l)];
           if (coef == 0.0)
             continue;
-          Lkv += coef * yk.Qkv_bcd(l, kappa_v, n, r, c);
+          // ket: bare Coulomb line - Coulomb parity range only
+          if (l >= l0 && l <= lI && (l - l0) % 2 == 0) {
+            Lkv += coef * yk.Qkv_bcd(l, kappa_v, n, r, c);
+          }
           if (Lk) {
             dv += coef * Lk->Q(l, r, n, v, c);
           }
@@ -959,8 +1017,10 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
       for (const auto &d : core) {
         const auto [u0, uI] =
           Coulomb::k_minmax_Q(c.kappa(), d.kappa(), kappa_v, a.kappa());
+        // Rung range: L^l part exists at both parities of l (see k_minmax_L)
         const auto [l0, lI] = Coulomb::k_minmax_Q(m, n, c, d);
-        if (uI < u0 || lI < l0)
+        const auto [w0, wI] = k_minmax_L(m, n, c, d);
+        if (uI < u0 || wI < w0)
           continue;
         const auto s_cd = Angular::neg1pow_2(c.twoj() + d.twoj());
         const auto inv_e = 1.0 / (c.en() + d.en() - m.en() - n.en());
@@ -968,11 +1028,12 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
         const auto Lkey_mncd = Lk ? Lk->NormalOrder(m, n, c, d) : 0ul;
 
         // (Q+L)^l_{mncd}: fully internal - from tables
-        assert(lI < int(sk_array_size));
+        assert(wI < int(sk_array_size));
         std::array<double, sk_array_size> QLl{};
-        for (int l = l0; l <= lI; l += 2) {
-          QLl[std::size_t(l)] =
-            qk.Q(l, Qkey_mncd) + (Lk ? Lk->Q(l, Lkey_mncd) : 0.0);
+        for (int l = w0; l <= wI; ++l) {
+          const bool has_Q = l >= l0 && l <= lI && (l - l0) % 2 == 0;
+          QLl[std::size_t(l)] = (has_Q ? qk.Q(l, Qkey_mncd) : 0.0) +
+                                (Lk ? Lk->Q(l, Lkey_mncd) : 0.0);
         }
 
         const auto factor = s4 * tkp1 * s_cd * inv_e;
@@ -981,7 +1042,9 @@ DiracSpinor Lkv_mnia(int k, const DiracSpinor &v, const DiracSpinor &m,
               Angular::triangle(a.twoj(), 2 * u, d.twoj()) == 0)
             continue;
           double cu = 0.0;
-          for (int l = l0; l <= lI; l += 2) {
+          for (int l = w0; l <= wI; ++l) {
+            if (QLl[std::size_t(l)] == 0.0)
+              continue;
             if (Angular::triangle(k, u, l) == 0)
               continue;
             cu += sjc_cache.get(c.twoj(), u, l) *
@@ -1042,8 +1105,10 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
       for (const auto &s : excited) {
         const auto [u0, uI] =
           Coulomb::k_minmax_Q(kappa_v, n.kappa(), r.kappa(), s.kappa());
+        // Rung range: L^l part exists at both parities of l (see k_minmax_L)
         const auto [l0, lI] = Coulomb::k_minmax_Q(r, s, a, b);
-        if (uI < u0 || lI < l0)
+        const auto [w0, wI] = k_minmax_L(r, s, a, b);
+        if (uI < u0 || wI < w0)
           continue;
         const auto s_rs = Angular::neg1pow_2(r.twoj() + s.twoj());
         const auto inv_e = 1.0 / (a.en() + b.en() - r.en() - s.en());
@@ -1051,11 +1116,12 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
         const auto Lkey_rsab = Lk ? Lk->NormalOrder(r, s, a, b) : 0ul;
 
         // (Q+L)^l_{rsab}: fully internal - from tables
-        assert(lI < int(sk_array_size));
+        assert(wI < int(sk_array_size));
         std::array<double, sk_array_size> QLl{};
-        for (int l = l0; l <= lI; l += 2) {
-          QLl[std::size_t(l)] =
-            qk.Q(l, Qkey_rsab) + (Lk ? Lk->Q(l, Lkey_rsab) : 0.0);
+        for (int l = w0; l <= wI; ++l) {
+          const bool has_Q = l >= l0 && l <= lI && (l - l0) % 2 == 0;
+          QLl[std::size_t(l)] = (has_Q ? qk.Q(l, Qkey_rsab) : 0.0) +
+                                (Lk ? Lk->Q(l, Lkey_rsab) : 0.0);
         }
 
         const auto factor = s1 * tkp1 * s_rs * inv_e;
@@ -1064,7 +1130,9 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
               Angular::triangle(2 * u, s.twoj(), n.twoj()) == 0)
             continue;
           double cu = 0.0;
-          for (int l = l0; l <= lI; l += 2) {
+          for (int l = w0; l <= wI; ++l) {
+            if (QLl[std::size_t(l)] == 0.0)
+              continue;
             if (Angular::triangle(k, l, u) == 0)
               continue;
             cu += sjr_cache.get(r.twoj(), l, u) *
@@ -1091,16 +1159,20 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
     for (const auto &r : excited) {
       for (const auto &c : core) {
         const auto [u0, uI] = Coulomb::k_minmax_Q(c, n, a, r);
+        // Opened Coulomb line exists only in the parity range [l0,lI]; the
+        // L^l part (dv) exists at both parities of l (see k_minmax_L)
         const auto [l0, lI] =
           Coulomb::k_minmax_Q(kappa_v, r.kappa(), c.kappa(), b.kappa());
-        if (uI < u0 || lI < l0)
+        const auto [w0, wI] =
+          k_minmax_L(kappa_v, r.kappa(), c.kappa(), b.kappa());
+        if (uI < u0 || wI < w0)
           continue;
         const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
         const auto inv_e = 1.0 / (c.en() + b.en() - en_v - r.en());
         const auto Qkey_cnar = qk.NormalOrder(c, n, a, r);
 
         // dl[l] = sum_u (-1)^{u+l} Q^u_{cnar} sj_c sj_r
-        assert(lI < int(sk_array_size));
+        assert(wI < int(sk_array_size));
         std::array<double, sk_array_size> dl{};
         bool non_zero = false;
         for (int u = u0; u <= uI; u += 2) {
@@ -1110,7 +1182,7 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
           if (Angular::triangle(a.twoj(), 2 * u, c.twoj()) == 0 ||
               Angular::triangle(n.twoj(), 2 * u, r.twoj()) == 0)
             continue;
-          for (int l = l0; l <= lI; l += 2) {
+          for (int l = w0; l <= wI; ++l) {
             if (Angular::triangle(k, l, u) == 0)
               continue;
             const auto s_ul = Angular::neg1pow(u + l);
@@ -1126,11 +1198,14 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
           continue;
 
         const auto factor = s2 * tkp1 * s_rc * inv_e;
-        for (int l = l0; l <= lI; l += 2) {
+        for (int l = w0; l <= wI; ++l) {
           const auto coef = factor * dl[std::size_t(l)];
           if (coef == 0.0)
             continue;
-          Lkv += coef * yk.Qkv_bcd(l, kappa_v, r, c, b);
+          // ket: bare Coulomb line - Coulomb parity range only
+          if (l >= l0 && l <= lI && (l - l0) % 2 == 0) {
+            Lkv += coef * yk.Qkv_bcd(l, kappa_v, r, c, b);
+          }
           if (Lk) {
             dv += coef * Lk->Q(l, v, r, c, b);
           }
@@ -1154,8 +1229,10 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
       for (const auto &c : core) {
         const auto [u0, uI] =
           Coulomb::k_minmax_Q(c.kappa(), kappa_v, b.kappa(), r.kappa());
+        // Rung range: L^l part exists at both parities of l (see k_minmax_L)
         const auto [l0, lI] = Coulomb::k_minmax_Q(n, r, c, a);
-        if (uI < u0 || lI < l0)
+        const auto [w0, wI] = k_minmax_L(n, r, c, a);
+        if (uI < u0 || wI < w0)
           continue;
         const auto s_rc = Angular::neg1pow_2(r.twoj() + c.twoj());
         const auto inv_e = 1.0 / (c.en() + a.en() - n.en() - r.en());
@@ -1163,11 +1240,12 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
         const auto Lkey_nrca = Lk ? Lk->NormalOrder(n, r, c, a) : 0ul;
 
         // (Q+L)^l_{nrca}: fully internal - from tables
-        assert(lI < int(sk_array_size));
+        assert(wI < int(sk_array_size));
         std::array<double, sk_array_size> QLl{};
-        for (int l = l0; l <= lI; l += 2) {
-          QLl[std::size_t(l)] =
-            qk.Q(l, Qkey_nrca) + (Lk ? Lk->Q(l, Lkey_nrca) : 0.0);
+        for (int l = w0; l <= wI; ++l) {
+          const bool has_Q = l >= l0 && l <= lI && (l - l0) % 2 == 0;
+          QLl[std::size_t(l)] = (has_Q ? qk.Q(l, Qkey_nrca) : 0.0) +
+                                (Lk ? Lk->Q(l, Lkey_nrca) : 0.0);
         }
 
         const auto factor = s3 * tkp1 * s_rc * inv_e;
@@ -1176,7 +1254,9 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
               Angular::triangle(tjv, 2 * u, r.twoj()) == 0)
             continue;
           double cu = 0.0;
-          for (int l = l0; l <= lI; l += 2) {
+          for (int l = w0; l <= wI; ++l) {
+            if (QLl[std::size_t(l)] == 0.0)
+              continue;
             if (Angular::triangle(k, l, u) == 0)
               continue;
             const auto s_ul = Angular::neg1pow(u + l);
@@ -1204,16 +1284,20 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
     for (const auto &c : core) {
       for (const auto &d : core) {
         const auto [u0, uI] = Coulomb::k_minmax_Q(c, d, a, b);
+        // Opened Coulomb line exists only in the parity range [l0,lI]; the
+        // L^l part (dv) exists at both parities of l (see k_minmax_L)
         const auto [l0, lI] =
           Coulomb::k_minmax_Q(kappa_v, n.kappa(), c.kappa(), d.kappa());
-        if (uI < u0 || lI < l0)
+        const auto [w0, wI] =
+          k_minmax_L(kappa_v, n.kappa(), c.kappa(), d.kappa());
+        if (uI < u0 || wI < w0)
           continue;
         const auto s_cd = Angular::neg1pow_2(c.twoj() + d.twoj());
         const auto inv_e = 1.0 / (c.en() + d.en() - en_v - n.en());
         const auto Qkey_cdab = qk.NormalOrder(c, d, a, b);
 
         // dl[l] = sum_u Q^u_{cdab} sj_c sj_d
-        assert(lI < int(sk_array_size));
+        assert(wI < int(sk_array_size));
         std::array<double, sk_array_size> dl{};
         bool non_zero = false;
         for (int u = u0; u <= uI; u += 2) {
@@ -1223,7 +1307,7 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
           if (Angular::triangle(a.twoj(), 2 * u, c.twoj()) == 0 ||
               Angular::triangle(b.twoj(), 2 * u, d.twoj()) == 0)
             continue;
-          for (int l = l0; l <= lI; l += 2) {
+          for (int l = w0; l <= wI; ++l) {
             if (Angular::triangle(k, u, l) == 0)
               continue;
             const auto sjsj =
@@ -1238,11 +1322,14 @@ DiracSpinor Lkv_inab(int k, const DiracSpinor &v, const DiracSpinor &n,
           continue;
 
         const auto factor = s4 * tkp1 * s_cd * inv_e;
-        for (int l = l0; l <= lI; l += 2) {
+        for (int l = w0; l <= wI; ++l) {
           const auto coef = factor * dl[std::size_t(l)];
           if (coef == 0.0)
             continue;
-          Lkv += coef * yk.Qkv_bcd(l, kappa_v, n, c, d);
+          // ket: bare Coulomb line - Coulomb parity range only
+          if (l >= l0 && l <= lI && (l - l0) % 2 == 0) {
+            Lkv += coef * yk.Qkv_bcd(l, kappa_v, n, c, d);
+          }
           if (Lk) {
             dv += coef * Lk->Q(l, v, n, c, d);
           }
@@ -1300,11 +1387,15 @@ Sigma_ladder_direct(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
     for (const auto &a : core) {
 
       // Diagrams (a)+(b): |W^k_{.amn}> <L^k_{mn.a}|
-      const auto [kmin_na, kmax_na] = Coulomb::k_minmax_Ck(n, a);
-      for (int k = kmin_na; k <= kmax_na; k += 2) {
+      // k runs over the full ladder range, both parities (see k_minmax_L):
+      // at Coulomb-forbidden k the Q part of W vanishes, but the P part and
+      // L^k do not (as in de_valence_w and Sigma_ladder)
+      const auto [kmin_na, kmax_na] = Coulomb::k_minmax_tj(n.twoj(), a.twoj());
+      for (int k = kmin_na; k <= kmax_na; ++k) {
         const auto f_kkjj = (2 * k + 1) * (tjv + 1);
         for (const auto &m : excited) {
-          if (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()))
+          const auto [k0, kI] = k_minmax_L(m, n, v, a);
+          if (k < k0 || k > kI)
             continue;
           const auto dele = en_v + a.en() - m.en() - n.en();
           const auto Lv =
@@ -1316,9 +1407,12 @@ Sigma_ladder_direct(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
 
       // Diagrams (c)+(d): |W^k_{.nab}> <L^k_{.nab}|
       for (const auto &b : core) {
-        const auto [kmin_nb, kmax_nb] = Coulomb::k_minmax_Ck(n, b);
-        for (int k = kmin_nb; k <= kmax_nb; k += 2) {
-          if (!Angular::Ck_kk_SR(k, kappa_v, a.kappa()))
+        // k range: full ladder range, both parities; see (a)+(b) note
+        const auto [kmin_nb, kmax_nb] =
+          Coulomb::k_minmax_tj(n.twoj(), b.twoj());
+        for (int k = kmin_nb; k <= kmax_nb; ++k) {
+          const auto [k0, kI] = k_minmax_L(v, n, a, b);
+          if (k < k0 || k > kI)
             continue;
           const auto f_kkjj = (2 * k + 1) * (tjv + 1);
           const auto dele = en_v + n.en() - a.en() - b.en();
