@@ -72,8 +72,8 @@ private:
 // anapole moment/spin dependent pnc
 class PNCsd : public TensorOperator {
   public:
-    PNCsd(double c, double t, double I, const Grid &rgrid)
-      : TensorOperator(1,  Parity::odd, I * PhysConst::GFe11 / std::sqrt(2.0),
+    PNCsd(double c, double t, const Grid &rgrid)
+      : TensorOperator(1,  Parity::odd, PhysConst::GFe11 / std::sqrt(2.0),
         Nuclear::fermiNuclearDensity_tcN(t, c, 1.0, rgrid), Realness::imaginary)
        {}
   
