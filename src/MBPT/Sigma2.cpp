@@ -143,17 +143,17 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
       const auto pk_vnxa = qk.P2(k, v, n, x, a, SixJ,fk);
 
       const auto qk_awny = qk.Q(k, a, w, n, y);
-      const auto pk_awny = qk.P(k, a, w, n, y, &SixJ);
+      const auto pk_awny = qk.P2(k, a, w, n, y, &SixJ,fk);
       const auto wk_awny = qk_awny + pk_awny;
 
       // diagrams a1, a2, a3:
-      sum += (qk_vnxa * wk_awny + pk_vnxa * qk_awny) / de;
+      sum += (qk_vnxa * wk_awny + pk_vnxa * Fk(k) * qk_awny) / de;
 
       // B diagrams: a <-> n
       const auto qk_vaxn = qk_vnxa;
       const auto pk_vaxn = v == x ? pk_vnxa : qk.P2(k, v, a, x, n, SixJ, fk);
       const auto qk_nway = qk_awny;
-      const auto pk_nway = w == y ? pk_awny : qk.P(k, n, w, a, y, &SixJ);
+      const auto pk_nway = w == y ? pk_awny : qk.P2(k, n, w, a, y, &SixJ,fk);
       const auto wk_nway = qk_nway + pk_nway;
 
       // diagrams b1, b2, b3:
@@ -221,7 +221,7 @@ double Sigma2::S_Sigma2_c1(int k, const DiracSpinor &v, const DiracSpinor &w,
           const auto s = Angular::neg1pow_2(2 * a.twoj() + 2 * l + 2 * u);
 
           const auto qk_vnay =Fk(u) * qk.Q(u, v, n, a, y);
-          const auto qk_awxn = qk.Q(l, a, w, x, n);
+          const auto qk_awxn =Fk(u) * qk.Q(l, a, w, x, n);
 
           sum += s * SixJ1 * SixJ2 * qk_vnay * qk_awxn / de;
         }
@@ -289,7 +289,7 @@ double Sigma2::S_Sigma2_c2(int k, const DiracSpinor &v, const DiracSpinor &w,
           const auto s = Angular::neg1pow_2(2 * a.twoj() + 2 * l + 2 * u);
 
           const auto qk_vany = Fk(u)*qk.Q(u, v, a, n, y);
-          const auto qk_nwxa = qk.Q(l, n, w, x, a);
+          const auto qk_nwxa = Fk(u)*qk.Q(l, n, w, x, a);
 
           sum += s * SixJ1 * SixJ2 * qk_vany * qk_nwxa / de;
         }
@@ -326,7 +326,7 @@ double Sigma2::S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
   // Here, "Fermi0" cancellation doesn't happen
   // So, Fermi and Fermi0 are the same
   const auto de_vw = denominators == Denominators::Fermi0 ?
-                       2.0 * e0 :
+                       -2.0 * e0 :
                      denominators == Denominators::Fermi ?
                        -0.5 * (v0 + w0 + x0 + y0) :
                        -0.5 * (v.en() + w.en() + x.en() + y.en());
@@ -361,7 +361,7 @@ double Sigma2::S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
           const auto SixJ2 = SixJ.get(l, u, k, w, y, b);
 
           const auto qu_vwab = Fk(u) * qk.Q(u, v, w, a, b);
-          const auto ql_abxy = qk.Q(l, a, b, x, y);
+          const auto ql_abxy = Fk(u) * qk.Q(l, a, b, x, y);
 
           sum += s * SixJ1 * SixJ2 * qu_vwab * ql_abxy / de;
         }
