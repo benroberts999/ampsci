@@ -143,7 +143,7 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
       const auto pk_vnxa = qk.P2(k, v, n, x, a, SixJ,fk);
 
       const auto qk_awny = qk.Q(k, a, w, n, y);
-      const auto pk_awny = qk.P2(k, a, w, n, y, &SixJ,fk);
+      const auto pk_awny = qk.P2(k, a, w, n, y, SixJ,fk);
       const auto wk_awny = qk_awny + pk_awny;
 
       // diagrams a1, a2, a3:
@@ -153,7 +153,7 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
       const auto qk_vaxn = qk_vnxa;
       const auto pk_vaxn = v == x ? pk_vnxa : qk.P2(k, v, a, x, n, SixJ, fk);
       const auto qk_nway = qk_awny;
-      const auto pk_nway = w == y ? pk_awny : qk.P2(k, n, w, a, y, &SixJ,fk);
+      const auto pk_nway = w == y ? pk_awny : qk.P2(k, n, w, a, y, SixJ,fk);
       const auto wk_nway = qk_nway + pk_nway;
 
       // diagrams b1, b2, b3:
