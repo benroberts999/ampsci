@@ -311,16 +311,14 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
 /*!
   @brief Method used to construct the ladder correlation potential, Sigma_L.
   @details
-  - single : project onto the single HF |v> eigenstate [Sigma_ladder()]
-  - ladder : project onto states in the ladder basis [Sigma_ladder()]
-  - full   : project onto the entire basis; requires extending Qk (slow)
+  - basis  : project onto the basis; requires extending Qk (slow)
              [Sigma_ladder()]
   - ratio  : no projection; rescale each Sigma(2) term by L/Q
              [Sigma_ladder(), empty projection basis]
   - direct : no projection; open the external line exactly (ladder vertex)
              [Sigma_ladder_direct()]
 */
-enum class SigmaLMethod { single, ladder, full, ratio, direct };
+enum class SigmaLMethod { basis, ratio, direct };
 
 //! Converts string (name) to SigmaLMethod enum (case-insensitive); warns and
 //! defaults to ladder if unknown
@@ -350,8 +348,8 @@ std::string parseSigmaLMethod(SigmaLMethod method);
   evaluated at the fixed external energy \f$ \epsilon_v \f$ (via the e_i/e_m
   energy overrides, since the energy enters only the denominators). Exception:
   for the valence state itself, the stored table entries are used directly -
-  they are already at the correct energy, making single-state projection
-  essentially free.
+  they are already at the correct energy, so the i = v term is essentially
+  free.
 
   If @p projection is empty, instead uses the ratio method (following
   V. A. Dzuba, Phys. Rev. A 78, 042502 (2008)): no projection; each term of
