@@ -324,22 +324,17 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     {{"", "Options for inclusion of correlations (correlation potential "
           "method)."},
      {"n_min_core", "Minimum core n to polarise [1]"},
-     //  {"n_min_core_F",
-     //   "Minimum core n to polarise in Feynman method. By default, same as "
-     //   "n_min_core. If n_min_core_F>n_min_core, code will use Goldstone "
-     //   "method for lowest ns"},
      {"each_valence",
       "Construct seperate Sigma for each valence state? [false]"},
      {"fitTo_cm", "List of binding energies (in cm^-1) to scale Sigma for. "
                   "Must be in same order as valence states"},
      {"lambda_kappa",
       "Scaling factors for Sigma. Must be in same order as valence states"},
-     {"read", "Read/write correlation potential to disk [true]"},
      {"filename",
-      "Filename prefix (i.e., not including extension) to "
-      "read/write correlation matrix to/from. "
-      "Normally, this option should remain unset. By default it will be "
-      "<identity>.sigX.abf, where X details parameters of Sigma."},
+      "Filename to read/write correlation potential (Sigma) to/from. "
+      "true => use default filename: <identity>.sX.abf, where X details "
+      "parameters of Sigma. false => do not read or write to disk. Or give "
+      "the full filename directly. [true]"},
      {"rmin", "minimum radius to calculate sigma for [1.0e-4]"},
      {"rmax", "maximum radius to calculate sigma for [30.0]"},
      {"stride", "Only calculate Sigma every <stride> points. Default such "
@@ -429,8 +424,14 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   // e.g., ek{6s+=-0.127, 7s+=-0.552;}
   const auto ek_Sig = input.getBlock({"Correlations"}, "ek");
 
-  const auto sigma_readwrite = input.get({"Correlations"}, "read", true);
-  const auto sigma_filename = input.get({"Correlations"}, "filename", ""s);
+  // Filename for Sigma: true => default filename; false => don't read or
+  // write to disk; otherwise, the given filename (prefix) is used
+  const auto t_fname = input.get({"Correlations"}, "filename", "true"s);
+  const auto sigma_readwrite = !qip::ci_compare(t_fname, "false");
+  const auto sigma_filename =
+    qip::ci_compare(t_fname, "true") || qip::ci_compare(t_fname, "false") ?
+      ""s :
+      t_fname;
 
   // To fit Sigma to energies:
   // (nb: energies given in cm^-1, convert to au on input)

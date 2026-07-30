@@ -536,8 +536,9 @@ void Wavefunction::formSigma(
     ext += "2";
   ext += ".abf";
 
+  // Default filename identity+ext; explicit filename used verbatim (full name)
   const auto file_name =
-    read_write ? (in_fname == "" ? identity() + ext : in_fname + ext) : "";
+    read_write ? (in_fname == "" ? identity() + ext : in_fname) : "";
 
   const auto method =
     FeynmanQ ? MBPT::SigmaMethod::Feynman : MBPT::SigmaMethod::Goldstone;
