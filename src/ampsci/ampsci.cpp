@@ -372,11 +372,11 @@ Wavefunction ampsci(const IO::InputBlock &input) {
      {"n_max_Breit",
       "Maximum n for excited states to include in two-body Breit "
       "correction to Correlation potential [<=0, means entire basis]"},
-     {"ladder_file",
-      "Filename of ladder correlation potential (Sigma_L) file, as produced "
-      "by the Ladder{} block. If given, Sigma_L is read in and included into "
-      "Sigma (stored separately; scaled by same lambda). [blank => no "
-      "ladder]"}});
+     {"ladder",
+      "Include ladder correlation potential (Sigma_L), as produced by the "
+      "Ladder{} block; read in and included into Sigma (stored separately; "
+      "scaled by same lambda). Give the .sl filename, or 'true' to use the "
+      "default filename: <Identity>.sl.abf. [false]"}});
 
   const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
@@ -444,7 +444,12 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto etak = input.get({"Correlations"}, "eta", std::vector<double>{});
 
   // Ladder correlation potential file (produced by the Ladder{} block):
-  const auto ladder_file = input.get({"Correlations"}, "ladder_file", ""s);
+  // ladder = true; uses the default filename; or give the filename directly
+  const auto t_ladder = input.get({"Correlations"}, "ladder", ""s);
+  const auto ladder_file = qip::ci_compare(t_ladder, "true") ?
+                             wf.identity() + ".sl.abf" :
+                           qip::ci_compare(t_ladder, "false") ? ""s :
+                                                                t_ladder;
 
   // Form correlation potential:
   if (Sigma_ok && do_brueckner) {
