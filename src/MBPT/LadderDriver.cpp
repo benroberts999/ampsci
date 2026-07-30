@@ -40,12 +40,10 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                "basis), e.g. '30spdf'. Default: include entire excited basis."},
      {"max_k", "maximum k to include in Qk. Put -1 to include all. [8]"},
      {"include_L4", "Inlcude 4th Ladder diagram [false]"},
-     {"projection",
-      "Projection basis {|i>} for the ladder correlation potential Sigma_L = "
-      "sum_i L|i><i|. Options:\n"
-      "   - single : just the single HF |v> eigenstate\n"
-      "   - ladder : states in the ladder basis (see basis option)\n"
-      "   - full   : entire basis; requires extending Qk (slow)\n"
+     {"sigma_method",
+      "Method for the ladder correlation potential Sigma_L. Options:\n"
+      "   - basis  : projection Sigma_L = sum_i L|i><i| onto the basis; "
+      "requires extending Qk (slow)\n"
       "   - ratio  : no projection; rescale each Sigma(2) term by L/Q "
       "(fast)\n"
       "   - direct : no projection; open the external line exactly (ladder "
@@ -93,11 +91,10 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_k = input.get("max_k", 8);
   const auto include_L4 = input.get("include_L4", false);
 
-  // Method for Sigma_L: projection (single |v>, ladder basis, full basis),
-  // Dzuba (no projection: rescale Sigma(2) terms by L/Q), or direct (no
-  // projection: open the external line exactly)
+  // Method for Sigma_L: basis projection, ratio (rescale Sigma(2) terms by
+  // L/Q; Dzuba), or direct (open the external line exactly)
   using namespace std::string_literals;
-  const auto method = parseSigmaLMethod(input.get("projection", "ratio"s));
+  const auto method = parseSigmaLMethod(input.get("sigma_method", "ratio"s));
 
   const auto each_valence = input.get("each_valence", false);
 
@@ -151,7 +148,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "min_n (core) = " << min_n_core << "\n";
   std::cout << std::boolalpha;
   std::cout << "include_L4   = " << include_L4 << "\n";
-  std::cout << "projection   = " << parseSigmaLMethod(method) << "\n";
+  std::cout << "sigma_method = " << parseSigmaLMethod(method) << "\n";
   std::cout << "each_valence = " << each_valence << "\n";
   std::cout << "include_G    = " << include_G << "\n";
   std::cout << "max_k        = " << max_k << "\n";
@@ -322,14 +319,13 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
 
-  // Extend Qk table for the projection states. With projection=full,
+  // Extend Qk table for the projection states. With projection=basis,
   // Sigma_ladder projects the ladder onto the full basis of each kappa_v, so
   // Lkmnij() needs Qk integrals involving those (high-n) projection states -
   // absent if Qk was filled only over the [n_min,n_max] subset 'both'.
   // Only basis states with a valence kappa are used in the projection, so
-  // extend over both + those (not the entire basis). Not required for
-  // single-state or ladder-basis projection (those states already in 'both').
-  if (method == SigmaLMethod::full) {
+  // extend over both + those (not the entire basis).
+  if (method == SigmaLMethod::basis) {
     std::cout
       << "\nExtending Qk table for projection states (for Sigma_ladder):\n"
       << std::flush;
@@ -366,12 +362,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
         continue;
       }
       // Projection basis for Sigma_ladder; empty => ratio method
-      const std::vector<DiracSpinor> proj_v{v};
       const std::vector<DiracSpinor> empty{};
-      const auto &proj = method == SigmaLMethod::single ? proj_v :
-                         method == SigmaLMethod::full   ? wf.basis() :
-                         method == SigmaLMethod::ratio  ? empty :
-                                                          excited;
+      const auto &proj = method == SigmaLMethod::basis ? wf.basis() : empty;
       SigL_v.push_back(MBPT::Sigma_ladder(v, holes, excited, proj, qk, &lk, sjt,
                                           include_L4, sig_r0, sig_rmax,
                                           sig_stride, include_G));
@@ -400,6 +392,89 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}  {:10.7}\n",
                v.shortSymbol(), e0 * icm, de2 * icm, del * icm, del2 * icm,
                deS * icm);
+  }
+
+  // Hermiticity check of Sigma_L. The exact Sigma_L(e), at fixed energy, is
+  // Hermitian (real-symmetric kernel); asymmetry here measures the one-sided
+  // (|W><L|) construction. The stored matrix is K_ij*dr_j (drj_in_place), so
+  // compare w_i*S_ij with w_j*S_ji. Uses only the matrix as built: no new
+  // integrals are evaluated.
+  if (check_symmetry) {
+    std::cout << "\nSigma_L hermiticity: eps = max|K - K^T| / max|K|\n";
+    for (std::size_t iv = 0; iv < valence.size(); ++iv) {
+      const auto &S = SigL_v[iv];
+      const auto w = [&](std::size_t i) {
+        return wf.grid().drdu(S.i0() + i * S.stride()) * wf.grid().du() *
+               double(S.stride());
+      };
+      double max_K = 0.0, asym = 0.0;
+      double max_g = 0.0, asym_g = 0.0;
+      for (std::size_t i = 0; i < S.size(); ++i) {
+        for (std::size_t j = 0; j < S.size(); ++j) {
+          const auto Kij = w(i) * S.ff(i, j);
+          const auto Kji = w(j) * S.ff(j, i);
+          max_K = std::max(max_K, std::abs(Kij));
+          asym = std::max(asym, std::abs(Kij - Kji));
+          if (S.includes_g()) {
+            // gg block symmetric; fg block the transpose of gf
+            const auto gij = w(i) * S.gg(i, j);
+            const auto gji = w(j) * S.gg(j, i);
+            const auto xij = w(i) * S.fg(i, j);
+            const auto xji = w(j) * S.gf(j, i);
+            max_g = std::max({max_g, std::abs(gij), std::abs(xij)});
+            asym_g =
+              std::max({asym_g, std::abs(gij - gji), std::abs(xij - xji)});
+          }
+        }
+      }
+      fmt::print("{:4s}  ff: eps = {:.1e}", valence[iv].shortSymbol(),
+                 max_K > 0.0 ? asym / max_K : 0.0);
+      if (S.includes_g()) {
+        fmt::print("   g: eps = {:.1e}", max_g > 0.0 ? asym_g / max_g : 0.0);
+      }
+      std::cout << "\n";
+    }
+  }
+
+  // Symmetrise Sigma_L: the exact Sigma_L(e) kernel, at fixed energy, is
+  // symmetric, so the antisymmetric part of the constructed matrix is a
+  // construction artefact (it contributes zero to any expectation value:
+  // energies unchanged). The stored matrix is K_ij*dr_j, so symmetrise the
+  // kernel: S_ij -> (S_ij + (w_j/w_i) S_ji)/2. nb: the hermiticity check
+  // above reports the raw (pre-symmetrisation) asymmetry.
+  for (auto &S : SigL_v) {
+    const auto w = [&](std::size_t i) {
+      return wf.grid().drdu(S.i0() + i * S.stride()) * wf.grid().du() *
+             double(S.stride());
+    };
+    for (std::size_t i = 0; i < S.size(); ++i) {
+      for (std::size_t j = 0; j < i; ++j) {
+        const auto rji = w(j) / w(i);
+        const auto ff_ij = S.ff(i, j);
+        const auto ff_ji = S.ff(j, i);
+        S.ff(i, j) = 0.5 * (ff_ij + rji * ff_ji);
+        S.ff(j, i) = 0.5 * (ff_ji + ff_ij / rji);
+        if (S.includes_g()) {
+          const auto gg_ij = S.gg(i, j);
+          const auto gg_ji = S.gg(j, i);
+          S.gg(i, j) = 0.5 * (gg_ij + rji * gg_ji);
+          S.gg(j, i) = 0.5 * (gg_ji + gg_ij / rji);
+        }
+      }
+    }
+    if (S.includes_g()) {
+      // Off-diagonal spinor blocks pair across the diagonal:
+      // K_fg(i,j) = K_gf(j,i). Each (i,j) handles one fg/gf pair.
+      for (std::size_t i = 0; i < S.size(); ++i) {
+        for (std::size_t j = 0; j < S.size(); ++j) {
+          const auto rji = w(j) / w(i);
+          const auto fg_ij = S.fg(i, j);
+          const auto gf_ji = S.gf(j, i);
+          S.fg(i, j) = 0.5 * (fg_ij + rji * gf_ji);
+          S.gf(j, i) = 0.5 * (gf_ji + fg_ij / rji);
+        }
+      }
+    }
   }
 
   // Write the Sigma_L matrices to disk

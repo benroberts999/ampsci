@@ -22,36 +22,28 @@ namespace MBPT {
 
 //==============================================================================
 SigmaLMethod parseSigmaLMethod(const std::string &method) {
-  if (qip::ci_compare(method, "single"))
-    return SigmaLMethod::single;
-  if (qip::ci_compare(method, "ladder"))
-    return SigmaLMethod::ladder;
-  if (qip::ci_compare(method, "full"))
-    return SigmaLMethod::full;
+  if (qip::ci_compare(method, "basis") || qip::ci_compare(method, "full"))
+    return SigmaLMethod::basis;
   if (qip::ci_compare(method, "Dzuba") || qip::ci_compare(method, "ratio"))
     return SigmaLMethod::ratio;
   if (qip::ci_compare(method, "direct"))
     return SigmaLMethod::direct;
   std::cout << "Warning: unknown Sigma_L method: " << method
-            << " ?? Defaulting to ladder\n";
-  return SigmaLMethod::ladder;
+            << " ?? Defaulting to ratio\n";
+  return SigmaLMethod::ratio;
 }
 
 std::string parseSigmaLMethod(SigmaLMethod method) {
   switch (method) {
-  case SigmaLMethod::single:
-    return "single";
-  case SigmaLMethod::ladder:
-    return "ladder";
-  case SigmaLMethod::full:
-    return "full";
+  case SigmaLMethod::basis:
+    return "basis";
   case SigmaLMethod::ratio:
     return "ratio";
   case SigmaLMethod::direct:
     return "direct";
   }
   assert(false);
-  return "ladder";
+  return "ratio";
 }
 
 //==============================================================================
@@ -606,8 +598,8 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
   // m-slot for c+d).
   // Exception: for the valence state itself (the projection state whose
   // orbital energy equals en_v), the stored (converged) table entries ARE the
-  // required integrals - use them directly (makes single-state projection
-  // essentially free, and consistent with de_valence). For other projection
+  // required integrals - use them directly (makes the i = v term essentially
+  // free, and consistent with de_valence). For other projection
   // states the stored entries cannot be used: they are not in the table (and
   // would be at the wrong energy).
   //
