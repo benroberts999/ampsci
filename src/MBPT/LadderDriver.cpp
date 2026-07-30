@@ -58,8 +58,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
      {"Lk_file", "Filename for storing Lk ladder integrals. By default, is "
                  "<Identity>.lk. If 'false' will not read or write."},
      {"sl_file", "Filename for storing the ladder correlation potential, "
-                 "Sigma_L. By default, is <Identity>.sl. If 'false' will not "
-                 "write. Read in via Correlations{ladder_file=...;}"},
+                 "Sigma_L. By default, is <Identity>.sl.abf. If 'false' will "
+                 "not write. Read in via Correlations{ladder=...;}"},
      {"from_scratch", "If true, don't read existing Qk/Lk files (still "
                       "writes). [false]"},
      {"max_it", "Max # iterations. If zero, will simply read ladder diagrams "
@@ -162,9 +162,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto lk4 = include_L4 ? "_l4" : ""s;
   const auto Lk_file =
     input.get<std::string>("Lk_file", ident + lk4 + ".lk.abf"s);
-  const auto sl_ext =
-    ".sl"s + (include_L4 ? "4" : "") + (include_G ? "g" : "") + ".abf"s;
-  const auto sl_file = input.get<std::string>("sl_file", ident + sl_ext);
+  const auto sl_file = input.get<std::string>("sl_file", ident + ".sl.abf"s);
   const auto from_scratch = input.get("from_scratch", false);
 
   // Create the "total" basis, which has core+excited, but only those states
