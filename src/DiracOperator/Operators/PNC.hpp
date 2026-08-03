@@ -132,7 +132,7 @@ class PNC_wqm : public TensorOperator {
        {}
   
     std::unique_ptr<TensorOperator> clone() const override {
-      return std::make_unique<PNCsd>(*this);
+      return std::make_unique<PNC_wqm>(*this);
     }
   
     std::string name() const override {
@@ -153,9 +153,9 @@ class PNC_wqm : public TensorOperator {
   
     double angularCgg(int, int) const override final { return 0.0; }
     
-    double angularCfg(int ka, int kb) const override final { return 1.0; }
+    double angularCfg(int, int) const override final { return 1.0; }
     
-    double angularCgf(int ka, int kb) const override final { return -1.0; }
+    double angularCgf(int, int) const override final { return -1.0; }
   
     static std::unique_ptr<TensorOperator> generate(const IO::InputBlock &input,
       const Wavefunction &wf) {
@@ -168,7 +168,7 @@ class PNC_wqm : public TensorOperator {
               "Nuclear mean square charge radius. [defaut: from wavefunction]"}}});
         if (input.has_option("help"))
           return nullptr;
-        const auto r_rms = wf.get_rrms();
+        const auto r_rms = input.get("r_rms",wf.get_rrms());
         const auto c = input.get("c", Nuclear::c_hdr_formula_rrms_t(r_rms));
         const auto t = input.get("t", Nuclear::default_t);
         if (input.get("print", true))
