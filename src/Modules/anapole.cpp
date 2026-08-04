@@ -306,14 +306,28 @@ void anapole(const IO::InputBlock &input, const Wavefunction &wf) {
 
     //pre factors depend on respective operators 
 
-    double pre_factor=sqrt((I+1)*(I2+1)*(Fw2+1)*(Fv2+1)/I);
+   
+    double pre_factor1=sqrt((I+1)*(I2+1)*(Fw2+1)*(Fv2+1)/I);
+    double pre_factor2=sqrt((I+1)*(I2+1)*(Fw2+1)*(Fv2+1)*I);
+
+    //for full z component matrix element
+    int two_M = std::min(Fw2, Fv2); 
 
 
-    double pnc_final = pre_factor * pnc;
+    double z_me_conv =Angular::neg1pow_2(Fw2 - two_M)* Angular::threej_2(Fw2, 2, Fv2, -two_M, 0, two_M);
+
+
+   
+
+    double pnc_final1 = pre_factor1* pnc;
+    double pnc_final1_full = z_me_conv*pnc_final1;
+    double pnc_final2 = pre_factor2 * pnc;
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
-    std::cout << "\n Total value is " << pnc_final << "iκ e-11\n\n";
+    std::cout << "\n Reduced matrix element is " << pnc_final1 << " iκ e-11\n\n";
+    std::cout << "\n Full z componenet matrix element  value is " << pnc_final1_full << " iκ e-11\n\n";   
+    std::cout << "\n Total reduced matrix element value using Johnson operator definition is " << pnc_final2 << " iκ e-11\n\n"; 
   } else {
     // Compute and store matrix elements without RPA
     std::cout << "Computing and storing all matrix elements without RPA.... ";
@@ -330,15 +344,19 @@ void anapole(const IO::InputBlock &input, const Wavefunction &wf) {
 
     double I = 0.5 * I2;
 
-    double pre_factor=sqrt((I+1)*(I2+1)*(Fw2+1)*(Fv2+1)*I);;
+    double pre_factor1=sqrt((I+1)*(I2+1)*(Fw2+1)*(Fv2+1)/I);
+    double pre_factor2=sqrt((I+1)*(I2+1)*(Fw2+1)*(Fv2+1)*I);
+
 
    
 
-    double pnc_final = pre_factor * pnc;
+    double pnc_final1 = pre_factor1* pnc;
+    double pnc_final2 = pre_factor2 * pnc;
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
-    std::cout << "\n Total value is " << pnc_final << " iκ e-11\n\n";  
+    std::cout << "\n Total value is " << pnc_final1 << " iκ e-11\n\n";  
+    std::cout << "\n Total value using Johnson operator definition is " << pnc_final2 << " iκ e-11\n\n";  
   }
 }
     
