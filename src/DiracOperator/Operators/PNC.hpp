@@ -127,7 +127,7 @@ class PNCsd : public TensorOperator {
 class PNC_wqm : public TensorOperator {
   public:
     PNC_wqm(double c, double t, double r_rms, const Grid &rgrid)
-      : TensorOperator(2,  Parity::odd, (5.0/4.0)*PhysConst::GFe11 / (std::sqrt(2.0)*(r_rms)),
+      : TensorOperator(2,  Parity::odd, 100.0*(5.0/4.0)*PhysConst::GFe11 / (std::sqrt(2.0)*(r_rms*r_rms)),
         Nuclear::fermiNuclearDensity_tcN(t, c, 1.0, rgrid), Realness::imaginary)
        {}
   
