@@ -1,23 +1,17 @@
 #include "DiracOperator/Operators/Vee.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "CI/CI_Integrals.hpp"
-#include "DiracOperator/GenerateOperator.hpp"
 #include "DiracOperator/Operators/Ek.hpp"
-#include "DiracOperator/Operators/RadialF.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/TDHFbasis.hpp"
 #include "ExternalField/calcMatrixElements.hpp"
 #include "IO/InputBlock.hpp"
-#include "Maths/NumCalc_quadIntegrate.hpp"
-#include "Maths/SphericalBessel.hpp"
 #include "Modules/Modules.hpp"
-#include "Modules/Vee.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Potentials/Vee_Potentials.hpp"
 #include "Wavefunction/Wavefunction.hpp"
-#include "ampsci/ampsci.hpp"
 #include "fmt/format.hpp"
 #include <cmath>
 #include <gsl/gsl_sf.h>
@@ -25,6 +19,16 @@
 #include <omp.h>
 
 namespace Module {
+
+void Vee(const IO::InputBlock &input, const Wavefunction &wf);
+void test_CI(const IO::InputBlock &input, const Wavefunction &wf);
+double CI_edm(const Wavefunction &wf, const std::string basis_string,
+              const double mu, const bool contact, const int J_V,
+              const int pi_V, const int i_V, const bool verbose = true);
+double calc_ME(const std::string op, const std::string type, const bool contact,
+               const double mu, const bool tdhf, const double omega,
+               const Wavefunction &wf, const DiracSpinor &Fw,
+               const DiracSpinor &Fv);
 
 namespace {
 const Register r_Vee{
@@ -134,6 +138,9 @@ void Vee(const IO::InputBlock &input, const Wavefunction &wf) {
   const bool ci = input.get<bool>("ci", false);
 
   if (ci) {
+    std::cout
+      << "\n\nWARNING: CI calculations are a WIP and unstable - use with "
+         "care.";
     test_CI(input, wf);
     return;
   }
@@ -258,6 +265,9 @@ double calc_ME(const std::string op, const std::string type, const bool contact,
                const Wavefunction &wf, const DiracSpinor &Fw,
                const DiracSpinor &Fv) {
   if (op == "V") {
+    std::cout << "\n\nERROR: Direct MEs of V are not fully implemented yet.";
+    return 0.0;
+
     DiracOperator::Vee VeeOp(wf.core(), contact, mu, type, false);
 
     if (tdhf) {
