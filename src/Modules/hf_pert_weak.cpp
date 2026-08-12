@@ -39,7 +39,7 @@ namespace Module {
 
 //Include option for reduced matrix elements scaling factor 
 // 0 (default): standard reduced matrix element definition
-// 1 (Johnson unconventional... debatable whether they even do it this way)
+// 1 (Johnson unconventional... debatable whether they even do it this way) but technically this is correct
 
 std::vector<Coulomb::meTable<double>>
 compute_me_3f(const DiracOperator::TensorOperator *hpnc,
@@ -614,7 +614,7 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
-    std::cout << "\n Total value is " << h_sum << "  MHz .with RPA\n\n";
+    std::cout << "\n Total value is " << h_sum << "  MHz .without RPA\n\n";
     std::cout << "In atomic unuts value is " << h_sum / PhysConst::Hartree_MHz
               << "  au .";
     std::cout << "\n\n We also split up positive and negative contributions to the sum\n\n";
