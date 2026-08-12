@@ -4,7 +4,7 @@
 #include "IO/InputBlock.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 
-namespace BSM_Vee {
+namespace Vee_pots {
 DiracSpinor V_Fv(const std::vector<DiracSpinor> &core, const bool eN,
                  const DiracSpinor &Fv, const std::string type,
                  const int kappa_n, const double y, const bool contact,
@@ -34,4 +34,4 @@ DiracSpinor old_i_g0_g5(const DiracSpinor &Fa);
 double mod_sph_bessel_i(double n, double x);
 double mod_sph_bessel_k(double n, double x);
 
-} // namespace BSM_Vee
+} // namespace Vee

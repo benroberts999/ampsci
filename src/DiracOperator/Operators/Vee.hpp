@@ -2,7 +2,7 @@
 #include "Angular/Wigner369j.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/InputBlock.hpp"
-#include "Potentials/BSM_Vee_Potentials.hpp"
+#include "Potentials/Vee_Potentials.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 
 namespace DiracOperator {
@@ -50,8 +50,8 @@ public:
 
     const double gghc = 1.0;
 
-    return BSM_Vee::V_Fv(m_core, m_eN, Fb, m_type, kappa_a, gghc, m_contact,
-                         m_mu);
+    return Vee_pots::V_Fv(m_core, m_eN, Fb, m_type, kappa_a, gghc, m_contact,
+                          m_mu);
   }
 
   // BSM_Vee::V_Fv is the *full* RHS, not just radial.

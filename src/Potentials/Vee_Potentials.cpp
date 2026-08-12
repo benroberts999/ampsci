@@ -5,7 +5,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include <gsl/gsl_sf.h>
 
-namespace BSM_Vee {
+namespace Vee_pots {
 
 DiracSpinor V_Fv(const std::vector<DiracSpinor> &core, const bool eN,
                  const DiracSpinor &Fv, const std::string type,
@@ -78,7 +78,7 @@ DiracSpinor calc_Fexch(const std::string type, const int kappa_n,
   DiracSpinor Fexch(Fa.n(), Fa.kappa(), Fa.grid_sptr());
 
   const auto phase =
-      Angular::neg1pow_2(Fv.twoj() - Fa.twoj()) * (1.0 / (Fv.twojp1()));
+    Angular::neg1pow_2(Fv.twoj() - Fa.twoj()) * (1.0 / (Fv.twojp1()));
 
   for (int k = 0; k <= 0.5 * (Fa.twoj() + Fv.twoj()); ++k) {
 
@@ -88,12 +88,12 @@ DiracSpinor calc_Fexch(const std::string type, const int kappa_n,
     const auto A_naav = Angular::Ck_kk(k, kappa_n, Fa.kappa()) *
                         Angular::Ck_kk(k, Fa.kappa(), -Fv.kappa());
     const auto Fexch_AB =
-        A_naav * Bk_ab_v(k, contact, mu, false, type, Fa, Fv, Fa);
+      A_naav * Bk_ab_v(k, contact, mu, false, type, Fa, Fv, Fa);
 
     const auto A_anva = Angular::Ck_kk(k, Fa.kappa(), Fv.kappa()) *
                         Angular::Ck_kk(k, kappa_n, -Fa.kappa());
     const auto Fexch_BA =
-        A_anva * Bk_ab_v(k, contact, mu, true, type, Fa, Fv, Fa);
+      A_anva * Bk_ab_v(k, contact, mu, true, type, Fa, Fv, Fa);
 
     Fexch += phase * twokp1 * (Fexch_AB + Fexch_BA);
   }
@@ -137,8 +137,8 @@ DiracSpinor Bk_ab_v(const int k, const bool contact, const double mu,
     std::vector<double> FaFb_rr(gr.size());
     for (int i_gr = 0; i_gr < gr.size(); ++i_gr) {
       FaFb_rr[i_gr] =
-          (Fa.f(i_gr) * mod_Fb.f(i_gr) + Fa.g(i_gr) * mod_Fb.g(i_gr)) /
-          (gr.r(i_gr) * gr.r(i_gr));
+        (Fa.f(i_gr) * mod_Fb.f(i_gr) + Fa.g(i_gr) * mod_Fb.g(i_gr)) /
+        (gr.r(i_gr) * gr.r(i_gr));
     }
     return FaFb_rr * mod_Fv;
   } else if (mu == 0) {
@@ -159,10 +159,10 @@ DiracSpinor Bk_ab_v(const int k, const bool contact, const double mu,
 
     for (int i_mid = 0; i_mid < gr.size(); ++i_mid) {
       double lower_ff =
-          NumCalc::integrate(1.0, 0, i_mid, i_k, Fa.f(), mod_Fb.f(), gr.drdu());
+        NumCalc::integrate(1.0, 0, i_mid, i_k, Fa.f(), mod_Fb.f(), gr.drdu());
 
       double lower_gg =
-          NumCalc::integrate(1.0, 0, i_mid, i_k, Fa.g(), mod_Fb.g(), gr.drdu());
+        NumCalc::integrate(1.0, 0, i_mid, i_k, Fa.g(), mod_Fb.g(), gr.drdu());
 
       // For r0 point
       if (i_mid == 0) {
@@ -220,7 +220,7 @@ double u_anav_contact(const Wavefunction &wf, const DiracSpinor &Fn,
 
   // Angular part
   const double A_factor =
-      (1.0 / (4 * M_PI)) * sqrt(Fa.twojp1() * (1.0 / Fv.twojp1()));
+    (1.0 / (4 * M_PI)) * sqrt(Fa.twojp1() * (1.0 / Fv.twojp1()));
   const double A_cc = Angular::Ck_kk(0, Fa.kappa(), Fa.kappa()) *
                       Angular::Ck_kk(0, Fn.kappa(), -Fv.kappa());
 
@@ -236,9 +236,9 @@ double u_anav_contact(const Wavefunction &wf, const DiracSpinor &Fn,
         const auto factor = Angular::neg1pow_2(tq) * (2 * k + 1) / (4.0 * M_PI);
 
         const auto cc =
-            factor *
-            Angular::Ck_kk_mmq(k, Fn.kappa(), -Fv.kappa(), tmv, tmv, tq) *
-            Angular::Ck_kk_mmq(k, Fa.kappa(), Fa.kappa(), tma, tma, -tq);
+          factor *
+          Angular::Ck_kk_mmq(k, Fn.kappa(), -Fv.kappa(), tmv, tmv, tq) *
+          Angular::Ck_kk_mmq(k, Fa.kappa(), Fa.kappa(), tma, tma, -tq);
 
         full_cc_VA += cc;
       }
@@ -316,19 +316,18 @@ double u_anva_contact(const Wavefunction &wf, const DiracSpinor &Fn,
     for (int tq = -2 * k; tq <= 2 * k; tq += 2) {
       for (int tma = -Fa.twoj(); tma <= Fa.twoj(); tma += 2) {
         const auto factor =
-            Angular::neg1pow_2(tq) * (2.0 * k + 1.0) / (4.0 * M_PI);
+          Angular::neg1pow_2(tq) * (2.0 * k + 1.0) / (4.0 * M_PI);
 
         const auto cc_VA =
-            factor *
-            Angular::Ck_kk_mmq(k, Fn.kappa(), -Fa.kappa(), tmv, tma, tq) *
-            Angular::Ck_kk_mmq(k, Fa.kappa(), Fv.kappa(), tma, tmv, -tq);
+          factor *
+          Angular::Ck_kk_mmq(k, Fn.kappa(), -Fa.kappa(), tmv, tma, tq) *
+          Angular::Ck_kk_mmq(k, Fa.kappa(), Fv.kappa(), tma, tmv, -tq);
 
         full_cc_VA += cc_VA;
 
         const auto cc_AV =
-            factor *
-            Angular::Ck_kk_mmq(k, Fn.kappa(), Fa.kappa(), tmv, tma, tq) *
-            Angular::Ck_kk_mmq(k, Fa.kappa(), -Fv.kappa(), tma, tmv, -tq);
+          factor * Angular::Ck_kk_mmq(k, Fn.kappa(), Fa.kappa(), tmv, tma, tq) *
+          Angular::Ck_kk_mmq(k, Fa.kappa(), -Fv.kappa(), tma, tmv, -tq);
 
         full_cc_AV += cc_AV;
       }
@@ -415,4 +414,4 @@ double mod_sph_bessel_k(double n, double x) {
   throw std::bad_function_call();
 }
 
-} // namespace BSM_Vee
+} // namespace Vee
