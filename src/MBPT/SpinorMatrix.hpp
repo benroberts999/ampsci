@@ -165,6 +165,15 @@ public:
     std::abort();
   }
 
+  //! Spinor block (mu, nu) as a RadialMatrix, on the same sub-grid:
+  //! (0,0) = ff, (0,1) = fg, (1,0) = gf, (1,1) = gg
+  [[nodiscard]] RadialMatrix<T> radial(std::size_t mu, std::size_t nu) const {
+    assert(m_incl_g || (mu == 0 && nu == 0));
+    RadialMatrix<T> out(m_i0, m_stride, m_size, m_rgrid);
+    out.Rmatrix() = sp(mu, nu);
+    return out;
+  }
+
   //! Number of sub-grid points (dimension of each block)
   std::size_t size() const { return m_size; }
   //! Dimension of the g blocks: size(), or 0 if g parts are not included

@@ -128,6 +128,8 @@ class CorrelationPotential {
   std::vector<double> m_etak;
   // Apply fk to both Coulomb lines of the exchange diagrams (else outer only)
   bool m_fk_both_lines;
+  // Exchange diagrams by Feynman method (else Goldstone with fk)
+  bool m_feynman_exchange;
 
   std::optional<Feynman> m_Fy{};
 
@@ -201,6 +203,8 @@ public:
     @param tail_extrapolation  Extrapolate Sigma beyond the sub-grid as
                                a_eff/r^4 (experimental; see
                                fit_tail_coefficient)
+    @param feynman_exchange    Exchange diagrams by Feynman method (else
+                               Goldstone with fk)
 
     @note If read from file, the sub-grid and @p include_g are taken from the
           file, not the inputs.
@@ -213,7 +217,8 @@ public:
     const FeynmanOptions &Foptions = {}, bool calculate_fk = true,
     const std::vector<double> &fk = {}, const std::vector<double> &etak = {},
     const std::string &ladder_file = "", bool form_derivative = false,
-    bool fk_both_lines = false, bool tail_extrapolation = false);
+    bool fk_both_lines = false, bool tail_extrapolation = false,
+    bool feynman_exchange = false);
 
   /*!
     @brief Forms and stores Sigma for given kappa, at energy @p ev.
