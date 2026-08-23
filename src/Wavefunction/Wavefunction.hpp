@@ -314,7 +314,8 @@ public:
                  double wratio = 1.5, bool complex_green = false,
                  const std::optional<IO::InputBlock> &ek = std::nullopt,
                  const std::string &ladder_file = "", bool derivative = false,
-                 bool print_de = false, bool fk_both_lines = false);
+                 bool print_de = false, bool fk_both_lines = false,
+                 bool feynman_exchange = false);
 
   // void correlations(const IO::InputBlock &input);
 

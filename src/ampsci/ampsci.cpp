@@ -355,6 +355,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
             "scratch. []"},
      {"eta", "List of doubles. Hole-Particle factors. In Feynman method, "
              "used only for G part; Goldstone, used in direct also. []"},
+     {"exchange",
+      "Method for the exchange diagrams (Feynman method only): Goldstone "
+      "(sum over basis, with effective screening factors fk) or Feynman "
+      "(frequency integration; second order, no screening) [Goldstone]"},
      {"fk_both_lines",
       "Apply the screening factors fk to both Coulomb lines of the exchange "
       "diagrams (f_k * f_l), rather than to the outer line only. By default, "
@@ -472,6 +476,18 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto etak = input.get({"Correlations"}, "eta", std::vector<double>{});
   const auto fk_both_lines =
     input.get({"Correlations"}, "fk_both_lines", false);
+  const auto exchange_method =
+    input.get({"Correlations"}, "exchange", "Goldstone"s);
+  const auto feynman_exchange = qip::ci_compare(exchange_method, "Feynman");
+  if (!feynman_exchange && !qip::ci_compare(exchange_method, "Goldstone")) {
+    fmt::print("\nWARNING: Correlations{{exchange={}}} not recognised: use "
+               "Goldstone or Feynman. Using Goldstone.\n",
+               exchange_method);
+  }
+  if (feynman_exchange && !sigma_Feynman) {
+    std::cout << "\nWARNING: Correlations{exchange=Feynman} requires the "
+                 "Feynman method; using Goldstone for exchange.\n";
+  }
 
   // Also form dSigma/dE (for CI iterative_correction)
   const auto sigma_derivative =
@@ -495,7 +511,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                  sigma_readwrite, sigma_filename, sigma_Feynman,
                  sigma_Screening, hole_particle, sigma_lmax, sigma_omre, w0,
                  wratio, complex_green, ek_Sig, ladder_file, sigma_derivative,
-                 print_de, fk_both_lines);
+                 print_de, fk_both_lines, feynman_exchange && sigma_Feynman);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

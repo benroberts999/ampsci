@@ -163,6 +163,44 @@ public:
     return lhs;
   }
 
+  //! Multiplies each column by a function on the sub-grid (in place):
+  //! G_ij -> G_ij * f_j, i.e., G * diag(f). f is indexed on the sub-grid
+  RadialMatrix<T> &mult_cols_by(const std::vector<double> &f) {
+    assert(f.size() == m_size);
+    for (auto i = 0ul; i < m_size; ++i) {
+      for (auto j = 0ul; j < m_size; ++j) {
+        m_Rmatrix[i][j] *= f[j];
+      }
+    }
+    return *this;
+  }
+
+  //! Multiplies each row by a function on the sub-grid (in place):
+  //! G_ij -> f_i * G_ij, i.e., diag(f) * G. f is indexed on the sub-grid
+  RadialMatrix<T> &mult_rows_by(const std::vector<double> &f) {
+    assert(f.size() == m_size);
+    for (auto i = 0ul; i < m_size; ++i) {
+      for (auto j = 0ul; j < m_size; ++j) {
+        m_Rmatrix[i][j] *= f[i];
+      }
+    }
+    return *this;
+  }
+
+  //! G * diag(f): returns G_ij * f_j (G unchanged). f is indexed on the sub-grid
+  [[nodiscard]] friend RadialMatrix<T> mult_cols(RadialMatrix<T> G,
+                                                 const std::vector<double> &f) {
+    G.mult_cols_by(f);
+    return G;
+  }
+
+  //! diag(f) * G: returns f_i * G_ij (G unchanged). f is indexed on the sub-grid
+  [[nodiscard]] friend RadialMatrix<T> mult_rows(RadialMatrix<T> G,
+                                                 const std::vector<double> &f) {
+    G.mult_rows_by(f);
+    return G;
+  }
+
   //! Matrix multiplication:  Gij = Aik*Bkj
   //! Note: integration measure not included: call .drj() first to include it!
   [[nodiscard]] friend RadialMatrix<T>

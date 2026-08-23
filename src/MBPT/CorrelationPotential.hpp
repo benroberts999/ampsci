@@ -55,6 +55,8 @@ class CorrelationPotential {
   std::vector<double> m_etak;
   // Apply fk to both Coulomb lines of the exchange diagrams (else outer only)
   bool m_fk_both_lines;
+  // Exchange diagrams by Feynman method (else Goldstone with fk)
+  bool m_feynman_exchange;
 
   std::optional<Feynman> m_Fy{};
 
@@ -88,7 +90,7 @@ public:
     const FeynmanOptions &Foptions = {}, bool calculate_fk = true,
     const std::vector<double> &fk = {}, const std::vector<double> &etak = {},
     const std::string &ladder_file = "", bool form_derivative = false,
-    bool fk_both_lines = false);
+    bool fk_both_lines = false, bool feynman_exchange = false);
 
   // // not thread safe!
   // void formSigma(int kappa, double en, int n = 0) {}

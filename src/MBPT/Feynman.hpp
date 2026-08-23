@@ -1,10 +1,12 @@
 #pragma once
+#include "Angular/SixJTable.hpp"
 #include "HF/HartreeFock.hpp"
 #include "MBPT/RadialMatrix.hpp"
 #include "MBPT/SpinorMatrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <memory>
+#include <optional>
 #include <vector>
 
 namespace MBPT {
@@ -182,6 +184,14 @@ public:
   GMatrix Sigma_direct(int kappa_v, double en_v,
                        std::optional<int> k = {}) const;
 
+  //! Exchange part of the correlation potential (second order, no
+  //! screening), by frequency integration.
+  //! @details The first of the two frequency integrals is done analytically
+  //! (closing the contour on the core poles), leaving a single integral
+  //! along w = omre + iu, on the same grid as the direct term. Cf.
+  //! Goldstone::Sigma_exchange
+  GMatrix Sigma_exchange(int kappa_v, double en_v) const;
+
   //! Direct part of correlation potential, for each multipole k separately
   //! (not summed: Sigma_d = sum of these). Same cost as a single Sigma_direct
   //! call, since the Green's functions are shared by all k
@@ -264,6 +274,24 @@ private:
                     const DiracSpinor &Ix0, const DiracSpinor &xI,
                     const DiracSpinor &IxI) const;
 
+  // Components of Fa on the sub-grid: F[0] = f, F[1] = g (if include_G)
+  std::vector<std::vector<double>>
+  subgrid_components(const DiracSpinor &Fa) const;
+
+  // The two terms of Gamma (see Sigma_exchange), for one core state a, with
+  // the Coulomb line q^l_i2 and the angular factor L attached, summed over
+  // the internal partial wave and l. p^a is rank one, so the factor of p^a
+  // outside the i sum, F_a^mu(r_1) [pa_gex] or F_a^t(r_j) [gex_pa], is left
+  // out. Indexed [spinor index](k, gamma):
+  //   pa_gex[t](k, gamma)_j2 = sum_{beta l} L^{kl}_{v beta a gamma} [gex^beta(e_a+w) F_a q^l]^t_j2
+  //   gex_pa[mu](k, gamma)_12 = sum_{alpha l} L^{kl}_{v a alpha gamma} [gex^alpha(e_a-w) F_a q^l]^mu_12
+  struct GammaQ {
+    std::vector<LinAlg::Matrix<ComplexRMatrix>> pa_gex, gex_pa;
+  };
+  GammaQ exchange_Gamma_q(int kappa_v, const DiracSpinor &Fa,
+                          std::complex<double> w,
+                          const Angular::SixJTable &sixj) const;
+
   // Given Dirac solutions regular at 0 (x0) and infinity (xI), forms "local"
   // Green's function, with all four spinor components
   GMatrix construct_green_g0(const DiracSpinor &x0, const DiracSpinor &xI,
@@ -288,6 +316,19 @@ public:
   Feynman(const Feynman &) = default;
   ~Feynman() = default;
 };
+
+//! Angular factor for the exchange correlation potential,
+//! L^{kl}_{v beta alpha gamma} of Methods Eq. (RadialSigmaExch), including
+//! that equation's (-1)^(k+l) / [j_v]:
+//!   L = (-1)^(k+l) C~^k_{v alpha} C~^k_{beta gamma} C~^l_{v gamma}
+//!       C~^l_{beta alpha} {j_v j_alpha k; j_beta j_gamma l} / [j_v]
+//! @details alpha, beta, gamma are the partial waves of the lines 1i, ij, j2
+//! (leaving r_1, joining the two internal points, entering r_2); k, l the
+//! multipoles of the Coulomb lines 1j, i2. The symmetric C~
+//! (Angular::tildeCk_kk) is used: the product of four C^k of Methods is
+//! identical, as the (-1)^(j+1/2) phases cancel in pairs.
+double L_exchange(int k, int l, int kappa_v, int kappa_alpha, int kappa_beta,
+                  int kappa_gamma, const Angular::SixJTable &sixj);
 
 //! Best real part of the frequency, omre, for the direct diagram: the value
 //! furthest from any pole of the u=0 integrand.

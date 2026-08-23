@@ -25,7 +25,7 @@ CorrelationPotential::CorrelationPotential(
   bool include_Breit_b2, int n_max_breit, const FeynmanOptions &Foptions,
   bool calculate_fk, const std::vector<double> &fk,
   const std::vector<double> &etak, const std::string &ladder_file,
-  bool form_derivative, bool fk_both_lines)
+  bool form_derivative, bool fk_both_lines, bool feynman_exchange)
   : m_HF(vHF),
     m_basis(basis),
     m_r0(r0),
@@ -43,6 +43,7 @@ CorrelationPotential::CorrelationPotential(
     m_fk(fk),
     m_etak(etak),
     m_fk_both_lines(fk_both_lines),
+    m_feynman_exchange(feynman_exchange),
     m_fname(fname),
     m_ladder_file(ladder_file),
     m_form_derivative(form_derivative) {
@@ -80,7 +81,9 @@ CorrelationPotential::CorrelationPotential(
 
   if (!read_ok) {
 
-    if (m_method == SigmaMethod::Feynman) {
+    if (m_method == SigmaMethod::Feynman && m_feynman_exchange) {
+      std::cout << "Using Feynman method for direct and exchange diagrams\n";
+    } else if (m_method == SigmaMethod::Feynman) {
       std::cout << "Using Feynman method for direct diagrams, Goldstone "
                    "for exchange\n";
       if (m_calculate_fk && m_Foptions.screening == Screening::include) {
@@ -298,7 +301,9 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     std::cout << std::flush;
   }
 
-  const auto Sx = m_Gold->Sigma_exchange(kappa, ev, vfk, m_fk_both_lines);
+  const auto Sx = m_feynman_exchange ?
+                    m_Fy->Sigma_exchange(kappa, ev) :
+                    m_Gold->Sigma_exchange(kappa, ev, vfk, m_fk_both_lines);
 
   if (Fv && print) {
     const auto deX = (*Fv) * (Sx * *Fv);
