@@ -201,6 +201,46 @@ public:
     return G;
   }
 
+  //! G_ij -> G_ij * f(r_j) (in place): f is indexed on the FULL grid,
+  //! sampled at the sub-grid points
+  RadialMatrix<T> &mult_cols_by_full(const std::vector<double> &f) {
+    for (auto j = 0ul; j < m_size; ++j) {
+      const auto fj = f[index_to_fullgrid(j)];
+      for (auto i = 0ul; i < m_size; ++i) {
+        m_Rmatrix[i][j] *= fj;
+      }
+    }
+    return *this;
+  }
+
+  //! G_ij -> f(r_i) * G_ij (in place): f is indexed on the FULL grid,
+  //! sampled at the sub-grid points
+  RadialMatrix<T> &mult_rows_by_full(const std::vector<double> &f) {
+    for (auto i = 0ul; i < m_size; ++i) {
+      const auto fi = f[index_to_fullgrid(i)];
+      for (auto j = 0ul; j < m_size; ++j) {
+        m_Rmatrix[i][j] *= fi;
+      }
+    }
+    return *this;
+  }
+
+  //! G * diag(f): returns G_ij * f(r_j) (G unchanged). f is indexed on the
+  //! FULL grid, sampled at the sub-grid points
+  [[nodiscard]] friend RadialMatrix<T>
+  mult_cols_full(RadialMatrix<T> G, const std::vector<double> &f) {
+    G.mult_cols_by_full(f);
+    return G;
+  }
+
+  //! diag(f) * G: returns f(r_i) * G_ij (G unchanged). f is indexed on the
+  //! FULL grid, sampled at the sub-grid points
+  [[nodiscard]] friend RadialMatrix<T>
+  mult_rows_full(RadialMatrix<T> G, const std::vector<double> &f) {
+    G.mult_rows_by_full(f);
+    return G;
+  }
+
   //! Matrix multiplication:  Gij = Aik*Bkj
   //! Note: integration measure not included: call .drj() first to include it!
   [[nodiscard]] friend RadialMatrix<T>
