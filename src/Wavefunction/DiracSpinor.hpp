@@ -1,5 +1,6 @@
 #pragma once
 #include "Physics/PhysConst_constants.hpp" // for default alpha
+#include <cassert>
 #include <cstdint>
 #include <memory>
 #include <string>
@@ -145,6 +146,12 @@ public:
   //! Lower (small) radial component, g(r_i)
   double g(std::size_t i) const { return m_g.at(i); }
   double &g(std::size_t i) { return m_g.at(i); }
+
+  //! Radial component function by spinor index: component(0) = f, component(1) = g
+  const std::vector<double> &component(std::size_t s) const {
+    assert(s <= 1);
+    return s == 0 ? m_f : m_g;
+  }
 
   /*!
     @brief First non-zero point (index for f[i])

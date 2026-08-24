@@ -274,17 +274,19 @@ private:
                     const DiracSpinor &Ix0, const DiracSpinor &xI,
                     const DiracSpinor &IxI) const;
 
-  // Components of Fa on the sub-grid: F[0] = f, F[1] = g (if include_G)
-  std::vector<std::vector<double>>
-  subgrid_components(const DiracSpinor &Fa) const;
+  /*
+    The two terms of Gamma (see Sigma_exchange), for one core state a, with
+    the Coulomb line q^l_i2 and the angular factor L attached, summed over
+    the internal partial wave and l. p^a is rank one, so the factor of p^a
+    outside the i sum, F_a^mu(r_1) [pa_gex] or F_a^t(r_j) [gex_pa], is left
+    out. Indexed [spinor index](k, gamma):
 
-  // The two terms of Gamma (see Sigma_exchange), for one core state a, with
-  // the Coulomb line q^l_i2 and the angular factor L attached, summed over
-  // the internal partial wave and l. p^a is rank one, so the factor of p^a
-  // outside the i sum, F_a^mu(r_1) [pa_gex] or F_a^t(r_j) [gex_pa], is left
-  // out. Indexed [spinor index](k, gamma):
-  //   pa_gex[t](k, gamma)_j2 = sum_{beta l} L^{kl}_{v beta a gamma} [gex^beta(e_a+w) F_a q^l]^t_j2
-  //   gex_pa[mu](k, gamma)_12 = sum_{alpha l} L^{kl}_{v a alpha gamma} [gex^alpha(e_a-w) F_a q^l]^mu_12
+      pa_gex[t](k, gamma)_j2  = sum_{beta l}  L^{kl}_{v beta a gamma}
+                                  [gex^beta(e_a+w) F_a q^l]^t_j2
+
+      gex_pa[mu](k, gamma)_12 = sum_{alpha l} L^{kl}_{v a alpha gamma}
+                                  [gex^alpha(e_a-w) F_a q^l]^mu_12
+  */
   struct GammaQ {
     std::vector<LinAlg::Matrix<ComplexRMatrix>> pa_gex, gex_pa;
   };

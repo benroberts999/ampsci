@@ -1184,58 +1184,39 @@ double L_exchange(int k, int l, int kappa_v, int kappa_alpha, int kappa_beta,
 }
 
 //==============================================================================
-std::vector<std::vector<double>>
-Feynman::subgrid_components(const DiracSpinor &Fa) const {
-  const auto num_sp = m_include_G ? 2ul : 1ul;
-  std::vector<std::vector<double>> F(num_sp,
-                                     std::vector<double>(m_subgrid_points));
-  for (auto i = 0ul; i < m_subgrid_points; ++i) {
-    F[0][i] = Fa.f(m_i0 + i * m_stride);
-    if (m_include_G) {
-      F[1][i] = Fa.g(m_i0 + i * m_stride);
-    }
-  }
-  return F;
-}
-
-//==============================================================================
 GMatrix Feynman::Sigma_exchange(int kv, double env) const {
-  // Exchange correlation potential, Methods Eq. (RadialSigmaExch):
-  //   Sigma_12 = Int dw1/2pi Int dw2/2pi sum_{k l} sum_{alpha beta gamma}
-  //     L^{kl}_{v beta alpha gamma}
-  //     g^alpha_1i(e+w1) q^k_1j g^beta_ij(e+w1+w2) q^l_i2 g^gamma_j2(e+w2)
-  // alpha, beta, gamma: partial waves of the lines 1i, ij, j2; k, l:
-  // multipoles of the Coulomb lines 1j, i2; L includes (-1)^(k+l)/[j_v].
-  // Spinor indices (f, g) run along the electron line 1i, ij, j2 (q is a
-  // spinor scalar): Sigma^{mu nu}_12 = ... g^{mu s}_1i q_1j g^{st}_ij q_i2 g^{t nu}_j2
-  //
-  // The w1 integral is done analytically, by closing the contour on the
-  // core poles [Methods Eq. (ExchInt1)]:
-  //   Int dw1/2pi g^alpha_1i(e+w1) g^beta_ij(e+w1+w) = i Gamma^{alpha beta}_1iij(w)
-  //   Gamma^{alpha beta}_1iij(w) = sum_{a in alpha} p^a_1i gex^beta_ij(e_a+w)
-  //                              + sum_{a in beta} gex^alpha_1i(e_a-w) p^a_ij
-  // p^a_ij = F_a(r_i) F_a(r_j)^T is the core projector [p^{st}_ij =
-  // F_a^s(r_i) F_a^t(r_j)], gex is the Green's function of the excited
-  // states only, 'a in alpha' runs over the core states of partial wave
-  // alpha.
-  //
-  // The w2 = w = omre + iu integral is done numerically:
-  //   Sigma_12 = -(1/pi) Re Int_0^inf du sum_{k l} sum_{alpha beta gamma}
-  //     L^{kl}_{v beta alpha gamma} Gamma^{alpha beta}_1iij(w) q^k_1j q^l_i2 g^gamma_j2(e+w)
-  // -1/pi = (1/2pi) x i (dw = i du) x i (from Gamma) x 2 (the integrand at
-  // -u is the conjugate of that at +u). The integrand is finite at u = 0
-  // and falls as u^-2.
-  //
-  // Gamma is not formed. Since p^a is rank one, each of its two terms, with
-  // q^l_i2 and L attached and summed over the internal partial wave and l
-  // (exchange_Gamma_q), is a product of matrices:
-  //   sum_{beta l} L^{kl}_{v beta a gamma} [p^a_1i gex^beta_ij q^l_i2]^{mu t} = F_a^mu(r_1) [pa_gex]^t_j2
-  //   sum_{alpha l} L^{kl}_{v a alpha gamma} [gex^alpha_1i p^a_ij q^l_i2]^{mu t} = [gex_pa]^mu_12 F_a^t(r_j)
-  // which leaves, for each core state a, and each (k, gamma):
-  //   Sigma^{mu nu}_12 += F_a^mu(r_1) sum_t [q^k (g^{t nu} o [pa_gex]^t)]_12
-  //                     + [gex_pa]^mu_12 [q^k sum_t F_a^t g^{t nu}]_12
-  // ('o': element-wise product). Integration measures: q^k_1j carries dr_j,
-  // q^l_i2 carries dr_i dr_2 (so Sigma carries dr_2, as for the direct term).
+  /*
+    Exchange Sigma, Methods Eq. (RadialSigmaExch):
+
+      Sigma_12 = Int dw1/2pi Int dw2/2pi sum_{kl, alpha beta gamma}
+                 L^{kl}_{v beta alpha gamma} g^alpha_1i(e+w1) q^k_1j
+                 g^beta_ij(e+w1+w2) q^l_i2 g^gamma_j2(e+w2)
+
+    alpha, beta, gamma: partial waves of lines 1i, ij, j2
+    k, l: multipoles of Coulomb lines 1j, i2 (L includes (-1)^(k+l)/[j_v])
+
+    The w1 integral is analytic: contour over core poles [Methods Eq.
+    (ExchInt1)]:
+
+      Int dw1/2pi g^alpha_1i(e+w1) g^beta_ij(e+w1+w)
+        = i sum_{a in alpha} p^a_1i gex^beta_ij(e_a+w)
+        + i sum_{a in beta}  gex^alpha_1i(e_a-w) p^a_ij
+
+    (p^a = |a><a|, gex = excited-only G). The w2 = w = omre + iu integral
+    is numeric: same u grid as the direct term; the integrand is finite at
+    u = 0, and falls as u^-2.
+
+    p^a is rank 1, so each term = GEMMs + one element-wise product ('o').
+    exchange_Gamma_q returns both terms with q^l and L attached, summed
+    over l and the internal partial wave: pa_gex, gex_pa. Per (a, k, gamma):
+
+      Sigma^{mu nu}_12 += F_a^mu(r_1) sum_t [q^k (g^{t nu} o pa_gex^t)]_12
+                        + [gex_pa^mu o (q^k sum_t F_a^t g^{t nu})]_12
+
+    Spinor indices (f, g) run along the electron line (q: spinor scalar).
+    Measures: q^k carries dr_j; q^l carries dr_i, dr_2
+    => Sigma carries dr_2 (as for the direct term)
+  */
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_kappas = m_max_ki + 1;
@@ -1257,12 +1238,14 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
 
 #pragma omp parallel for schedule(dynamic)
   for (auto iw = 0ul; iw < m_wgrid_points.size(); ++iw) {
-    auto &Sigma_t = Sigma_ts[std::size_t(omp_get_thread_num())];
+    const auto tid = std::size_t(omp_get_thread_num());
+    auto &Sigma_t = Sigma_ts[tid];
 
     const auto w = std::complex<double>{m_omre, m_wgrid_points[iw]};
     const auto du = weights[iw];
 
     // Valence-line Green's function, g^gamma(e + w), for each partial wave
+    // nb: could be shared with direct term.. probably not bottleneck
     std::vector<ComplexGMatrix> g_gamma;
     for (auto ig = 0ul; ig < num_kappas; ++ig) {
       g_gamma.push_back(green(Angular::kindex_to_kappa(ig), env + w));
@@ -1272,7 +1255,6 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
       if (Fa.n() < m_min_core_n)
         continue;
       const auto ka = Fa.kappa();
-      const auto F = subgrid_components(Fa);
       const auto Gamma = exchange_Gamma_q(kv, Fa, w, sixj);
 
       for (auto k = 0ul; k < num_ks; ++k) {
@@ -1296,7 +1278,8 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
               }
               for (auto mu = 0ul; mu < num_sp; ++mu) {
                 Sigma_t.sp(mu, nu) +=
-                  du * mult_rows(qk_g_Gamma, F[mu]).real().Rmatrix();
+                  du *
+                  mult_rows_full(qk_g_Gamma, Fa.component(mu)).real().Rmatrix();
               }
             }
 
@@ -1304,7 +1287,7 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
               // [gex_pa]^mu_12 [q^k sum_t F_a^t g^{t nu}]_12
               ComplexRMatrix Fa_g(zero);
               for (auto t = 0ul; t < num_sp; ++t) {
-                Fa_g += mult_rows(g.radial(t, nu), F[t]);
+                Fa_g += mult_rows_full(g.radial(t, nu), Fa.component(t));
               }
               const auto qk_Fa_g = qk * Fa_g;
               for (auto mu = 0ul; mu < num_sp; ++mu) {
@@ -1324,6 +1307,8 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
   for (const auto &Sigma_t : Sigma_ts) {
     Sigma += Sigma_t;
   }
+  // -1/pi = (1/2pi) * i (dw = i du) * i (w1 integral) * 2 (the integrand
+  // at -u is the conjugate of that at +u, and we take Re part)
   Sigma *= (-1.0 / M_PI);
   return Sigma;
 }
@@ -1332,17 +1317,29 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
 Feynman::GammaQ
 Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::complex<double> w,
                           const Angular::SixJTable &sixj) const {
-  // The two terms of Gamma (see Sigma_exchange) for core state a, with the
-  // Coulomb line q^l_i2 and the angular factor L attached, summed over the
-  // internal partial wave (beta, alpha) and l. With p^{st}_ij = F_a^s(r_i)
-  // F_a^t(r_j), the factor of p^a outside the i sum comes out:
-  //   sum_{beta l} L^{kl}_{v beta a gamma} [p^a_1i gex^beta_ij(e_a+w) q^l_i2]^{mu t} = F_a^mu(r_1) [pa_gex]^t_j2
-  //   sum_{alpha l} L^{kl}_{v a alpha gamma} [gex^alpha_1i(e_a-w) p^a_ij q^l_i2]^{mu t} = [gex_pa]^mu_12 F_a^t(r_j)
-  // so that
-  //   [pa_gex]^t = sum_{beta l} L^{kl}_{v beta a gamma} [gex^beta(e_a+w) F_a q^l]^t
-  //   [gex_pa]^mu = sum_{alpha l} L^{kl}_{v a alpha gamma} [gex^alpha(e_a-w) F_a q^l]^mu
-  // with [gex F_a]^t_ji = sum_s gex^{ts}_ji F_a^s(r_i) (using gex_ij = gex_ji^T).
-  // Returned for each (k, gamma), and each spinor index t (mu)
+  /*
+    The two terms of Gamma (see Sigma_exchange) for core state a, with the
+    Coulomb line q^l_i2 and the angular factor L attached, summed over the
+    internal partial wave (beta, alpha) and l. p^{st}_ij = F_a^s(r_i)
+    F_a^t(r_j) is rank 1, so the factor of p^a outside the i sum comes out:
+
+      sum_{beta l} L^{kl}_{v beta a gamma}
+        [p^a_1i gex^beta_ij(e_a+w) q^l_i2]^{mu t} = F_a^mu(r_1) [pa_gex]^t_j2
+
+      sum_{alpha l} L^{kl}_{v a alpha gamma}
+        [gex^alpha_1i(e_a-w) p^a_ij q^l_i2]^{mu t} = [gex_pa]^mu_12 F_a^t(r_j)
+
+    so that
+
+      [pa_gex]^t  = sum_{beta l}  L [gex^beta(e_a+w) F_a q^l]^t
+      [gex_pa]^mu = sum_{alpha l} L [gex^alpha(e_a-w) F_a q^l]^mu
+
+    with the spinor contraction
+
+      [gex F_a]^t_ji = sum_s gex^{ts}_ji F_a^s(r_i)   (uses gex_ij = gex_ji^T)
+
+    Returned for each (k, gamma), and each spinor index t (mu).
+  */
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_kappas = m_max_ki + 1;
@@ -1350,7 +1347,6 @@ Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::complex<double> w,
 
   const auto ka = Fa.kappa();
   const auto ea = std::complex<double>{Fa.en()};
-  const auto F = subgrid_components(Fa);
 
   const ComplexRMatrix zero(m_i0, m_stride, m_subgrid_points, m_grid);
   const LinAlg::Matrix<ComplexRMatrix> zeros(num_ks, num_kappas, zero);
@@ -1367,8 +1363,9 @@ Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::complex<double> w,
       gexFa_minus(num_sp, zero);
     for (auto t = 0ul; t < num_sp; ++t) {
       for (auto s = 0ul; s < num_sp; ++s) {
-        gexFa_plus[t] += mult_cols(gex_plus.radial(t, s), F[s]);
-        gexFa_minus[t] += mult_cols(gex_minus.radial(t, s), F[s]);
+        gexFa_plus[t] += mult_cols_full(gex_plus.radial(t, s), Fa.component(s));
+        gexFa_minus[t] +=
+          mult_cols_full(gex_minus.radial(t, s), Fa.component(s));
       }
     }
 
