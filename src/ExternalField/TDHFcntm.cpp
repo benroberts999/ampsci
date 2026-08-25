@@ -26,14 +26,16 @@ namespace ExternalField {
 TDHFcntm::TDHFcntm(const DiracOperator::TensorOperator *const h_plus,
                    const HF::HartreeFock *const hf,
                    const DiracOperator::TensorOperator *const h_minus)
-  : TDHF(h_plus, hf, h_minus) {}
+  : TDHF(h_plus, hf, h_minus),
+    // Fixed core-core y^l(Fi, Fj) table for the exchange part of
+    // dV_rhs_all(); the core never changes, so build it once here
+    m_ycc(std::make_shared<const Coulomb::YkTable>(m_core)) {}
 
 //==============================================================================
 void TDHFcntm::clear() {
   TDHF::clear();
-  m_ch.clear();
+  m_channels.clear();
   m_omega = -1.0;
-  m_resc.reset();
   m_KpiD = 0.0;
   m_KpiD_lab.clear();
   m_excluded.clear();
@@ -63,8 +65,8 @@ void TDHFcntm::prepare_channels(double omega) {
   // divides by the pair Wronskian).
   using namespace qip::overloads;
 
-  m_ch.clear();
-  m_ch.resize(m_X.size());
+  m_channels.clear();
+  m_channels.resize(m_X.size());
   m_omega = omega;
 
   const auto Ux = HF::vex_KS(m_core);
@@ -94,7 +96,7 @@ void TDHFcntm::prepare_channels(double omega) {
       }
       // nb: "open" in the cache means open AND usable: failed channels are
       // dispatched exactly like suppress_open (zeroed)
-      m_ch[ib].emplace_back(usable, std::move(Freg), std::move(Firr));
+      m_channels[ib].emplace_back(usable, std::move(Freg), std::move(Firr));
     }
 
     if (!failed.empty()) {
@@ -105,57 +107,14 @@ void TDHFcntm::prepare_channels(double omega) {
 }
 
 //==============================================================================
-void TDHFcntm::build_ycc() {
-  // See hpp: fixed core-core y^l(Fi, Fj) table for the exchange part of
-  // dV_rhs_all(). Full grid: the y^l tail region multiplies the (continuum)
-  // channel spinors.
-  if (m_ycc) {
-    return;
-  }
-  const auto Nc = m_core.size();
-  auto ycc = std::make_shared<YccTable>(Nc * (Nc + 1) / 2);
-  std::vector<std::pair<std::size_t, std::size_t>> prs;
-  for (std::size_t i = 0; i < Nc; ++i) {
-    for (std::size_t j = 0; j <= i; ++j) {
-      prs.emplace_back(i, j);
-    }
-  }
-#pragma omp parallel for schedule(dynamic)
-  for (std::size_t ij = 0; ij < prs.size(); ++ij) {
-    const auto &Fi = m_core[prs[ij].first];
-    const auto &Fj = m_core[prs[ij].second];
-    const auto [lmin, lmax] = Angular::kminmax_Ck(Fi.kappa(), Fj.kappa());
-    auto &yij = (*ycc)[ij];
-    for (int l = lmin; l <= lmax; l += 2) {
-      yij.push_back(Coulomb::yk_ab(l, Fi, Fj));
-    }
-  }
-  m_ycc = ycc;
-}
-
-//------------------------------------------------------------------------------
-const std::vector<double> &TDHFcntm::ycc_get(std::size_t i, std::size_t j,
-                                             int l) const {
-  // y^l(core_i, core_j); the caller guarantees l is Ck-allowed for (i, j)
-  if (j > i) {
-    std::swap(i, j);
-  }
-  const auto lmin =
-    Angular::kminmax_Ck(m_core[i].kappa(), m_core[j].kappa()).first;
-  return (*m_ycc)[i * (i + 1) / 2 + j][std::size_t(l - lmin) / 2];
-}
-
-//==============================================================================
-TDHFcntm::DVRhsAll TDHFcntm::dV_rhs_all(bool include_Y) const {
+TDHFcntm::dVrhs_XY TDHFcntm::dV_rhs_all(bool include_Y) const {
   // See hpp. Follows TDHF::dV_rhs term-by-term (both W = Q + P calls, same
   // angular factors), with the radial yk functions hoisted out of the
   // per-task loop; verified against dV_rhs directly in the [cntmrpa] tests.
-  assert(m_ycc && "solve_core() builds the core-core yk table first");
-
   const auto Nc = m_core.size();
   const auto num_points = m_core.front().grid().num_points();
 
-  DVRhsAll rhs;
+  dVrhs_XY rhs;
   rhs.X.resize(Nc);
   rhs.Y.resize(include_Y ? Nc : 0);
   for (std::size_t ib = 0; ib < Nc; ++ib) {
@@ -185,19 +144,20 @@ TDHFcntm::DVRhsAll TDHFcntm::dV_rhs_all(bool include_Y) const {
   const auto tkp1 = double(2 * k + 1);
 
   // Flat channel list, for the shared yk passes
-  std::vector<std::pair<std::size_t, std::size_t>> chans;
+  std::vector<std::pair<std::size_t, std::size_t>> all_channels;
   for (std::size_t jb = 0; jb < Nc; ++jb) {
     for (std::size_t be = 0; be < m_X[jb].size(); ++be) {
-      chans.emplace_back(jb, be);
+      all_channels.emplace_back(jb, be);
     }
   }
 
   // Nonzero flags, once per channel function (fresh solves start from 0)
-  std::vector<char> nzX(chans.size()), nzY(chans.size());
-  for (std::size_t ic = 0; ic < chans.size(); ++ic) {
-    const auto [jb, be] = chans[ic];
-    nzX[ic] = m_X[jb][be].norm2() != 0.0;
-    nzY[ic] = m_Y[jb][be].norm2() != 0.0;
+  std::vector<bool> non_zero_X(all_channels.size());
+  std::vector<bool> non_zero_Y(all_channels.size());
+  for (std::size_t ic = 0; ic < all_channels.size(); ++ic) {
+    const auto [jb, be] = all_channels[ic];
+    non_zero_X[ic] = m_X[jb][be].norm2() != 0.0;
+    non_zero_Y[ic] = m_Y[jb][be].norm2() != 0.0;
   }
 
   // Rank-k channel-core yk pass: y^k(Fb, X_beta) and y^k(Fb, Y_beta) for
@@ -207,22 +167,23 @@ TDHFcntm::DVRhsAll TDHFcntm::dV_rhs_all(bool include_Y) const {
   //                          + tCk(k, k_beta, kb) y^k(Y_beta, Fb)]
   // (S_Y with X <-> Y), where u(2j) = (-1)^((2j - 1)/2) is the channel
   // factor of the separated dV_rhs phase (-1)^((2j_n - 2j_beta)/2 + k).
-  std::vector<std::vector<double>> ykX(chans.size()), ykY(chans.size());
+  std::vector<std::vector<double>> ykX(all_channels.size()),
+    ykY(all_channels.size());
 #pragma omp parallel for schedule(dynamic)
-  for (std::size_t ic = 0; ic < chans.size(); ++ic) {
-    const auto [jb, be] = chans[ic];
+  for (std::size_t ic = 0; ic < all_channels.size(); ++ic) {
+    const auto [jb, be] = all_channels[ic];
     const auto &Fb = m_core[jb];
-    if (nzX[ic]) {
+    if (non_zero_X[ic]) {
       ykX[ic] = Coulomb::yk_ab(k, Fb, m_X[jb][be]);
     }
-    if (nzY[ic]) {
+    if (non_zero_Y[ic]) {
       ykY[ic] = Coulomb::yk_ab(k, Fb, m_Y[jb][be]);
     }
   }
   std::vector<double> S_X(num_points, 0.0), S_Y(num_points, 0.0);
   bool have_S = false;
-  for (std::size_t ic = 0; ic < chans.size(); ++ic) {
-    const auto [jb, be] = chans[ic];
+  for (std::size_t ic = 0; ic < all_channels.size(); ++ic) {
+    const auto [jb, be] = all_channels[ic];
     const auto kb = m_core[jb].kappa();
     const auto kbeta = m_X[jb][be].kappa();
     const auto u_beta = Angular::neg1pow_2(m_X[jb][be].twoj() - 1);
@@ -250,26 +211,26 @@ TDHFcntm::DVRhsAll TDHFcntm::dV_rhs_all(bool include_Y) const {
     const auto &Fa = m_core[ib];
     const auto ka = Fa.kappa();
     const auto tja = Fa.twoj();
-    const auto &faf = Fa.f();
-    const auto &fag = Fa.g();
+    const auto &Fa_f = Fa.f();
+    const auto &Fa_g = Fa.g();
 
     // Exchange block for this a: y^l(chi, Fa) for every channel function
     // chi (s = 0: X_beta, 1: Y_beta) and every l allowed by Ck(l, k_beta,
     // ka), computed up to the partner orbital's extent (it multiplies Fb).
-    // Indexed yblk[ic][s][(l - lmin)/2].
-    std::vector<std::array<std::vector<std::vector<double>>, 2>> yblk(
-      chans.size());
-    for (std::size_t ic = 0; ic < chans.size(); ++ic) {
-      const auto [jb, be] = chans[ic];
-      const auto maxi = m_core[jb].max_pt();
+    // Indexed y_exchange[ic][s][(l - lmin)/2].
+    std::vector<std::array<std::vector<std::vector<double>>, 2>> y_exchange(
+      all_channels.size());
+    for (std::size_t ic = 0; ic < all_channels.size(); ++ic) {
+      const auto [jb, be] = all_channels[ic];
+      const auto max_pt = m_core[jb].max_pt();
       const auto [lmin, lmax] = Angular::kminmax_Ck(m_X[jb][be].kappa(), ka);
       for (int l = lmin; l <= lmax; l += 2) {
-        yblk[ic][0].push_back(nzX[ic] ?
-                                Coulomb::yk_ab(l, m_X[jb][be], Fa, maxi) :
-                                std::vector<double>{});
-        yblk[ic][1].push_back(nzY[ic] ?
-                                Coulomb::yk_ab(l, m_Y[jb][be], Fa, maxi) :
-                                std::vector<double>{});
+        y_exchange[ic][0].push_back(
+          non_zero_X[ic] ? Coulomb::yk_ab(l, m_X[jb][be], Fa, max_pt) :
+                           std::vector<double>{});
+        y_exchange[ic][1].push_back(
+          non_zero_Y[ic] ? Coulomb::yk_ab(l, m_Y[jb][be], Fa, max_pt) :
+                           std::vector<double>{});
       }
     }
 
@@ -277,8 +238,8 @@ TDHFcntm::DVRhsAll TDHFcntm::dV_rhs_all(bool include_Y) const {
     // radial functions with dV_rhs's angular factors
     const auto assemble = [&](int kappa_n, bool conj, DiracSpinor *out) {
       const auto tjn = Angular::twoj_k(kappa_n);
-      auto &of = out->f();
-      auto &og = out->g();
+      auto &out_f = out->f();
+      auto &out_g = out->g();
 
       // Direct (Q) parts of both W terms: u_n tCk(k, kappa_n, ka) S(r) Fa
       if (have_S) {
@@ -287,15 +248,15 @@ TDHFcntm::DVRhsAll TDHFcntm::dV_rhs_all(bool include_Y) const {
           Angular::neg1pow_2(tjn - 1) * Angular::tildeCk_kk(k, kappa_n, ka);
         if (cQ != 0.0) {
           for (auto i = Fa.min_pt(); i < Fa.max_pt(); ++i) {
-            of[i] += cQ * S[i] * faf[i];
-            og[i] += cQ * S[i] * fag[i];
+            out_f[i] += cQ * S[i] * Fa_f[i];
+            out_g[i] += cQ * S[i] * Fa_g[i];
           }
         }
       }
 
       // Exchange (P) parts
-      for (std::size_t ic = 0; ic < chans.size(); ++ic) {
-        const auto [jb, be] = chans[ic];
+      for (std::size_t ic = 0; ic < all_channels.size(); ++ic) {
+        const auto [jb, be] = all_channels[ic];
         const auto &Fb = m_core[jb];
         const auto kb = Fb.kappa();
         const auto tjb = Fb.twoj();
@@ -303,16 +264,16 @@ TDHFcntm::DVRhsAll TDHFcntm::dV_rhs_all(bool include_Y) const {
         const auto kbeta = chi.kappa();
         const auto tjbeta = chi.twoj();
         const auto sQ = Angular::neg1pow_2(tjn - tjbeta + 2 * k);
-        const auto lmin_blk = Angular::kminmax_Ck(kbeta, ka).first;
+        const auto lmin_exchange = Angular::kminmax_Ck(kbeta, ka).first;
 
         // P of W(k, n, Fb, Fa, chi) = sum_l 6j Q^l(n, Fb, chi, Fa):
         // fixed y^l(Fb, Fa), multiplies chi
-        if (conj ? nzY[ic] : nzX[ic]) {
+        if (conj ? non_zero_Y[ic] : non_zero_X[ic]) {
           const auto min_twol =
             std::max(std::abs(tjbeta - tjn), std::abs(tja - tjb));
           const auto max_twol = std::min(tjbeta + tjn, tja + tjb);
-          const auto &cf = chi.f();
-          const auto &cg = chi.g();
+          const auto &chi_f = chi.f();
+          const auto &chi_g = chi.g();
           for (int tl = min_twol; tl <= max_twol; tl += 2) {
             const auto l = tl / 2;
             if (!Angular::Ck_kk_SR(l, kb, ka) ||
@@ -327,23 +288,24 @@ TDHFcntm::DVRhsAll TDHFcntm::dV_rhs_all(bool include_Y) const {
             const auto coef = sQ * tkp1 * sixj * m1tl *
                               Angular::tildeCk_kk(l, kappa_n, kbeta) *
                               Angular::tildeCk_kk(l, kb, ka);
-            const auto &y = ycc_get(jb, ib, l);
+            const auto *y = m_ycc->get(l, Fb, Fa);
+            assert(y && "Ck-allowed l is always stored in the YkTable");
             for (auto i = chi.min_pt(); i < chi.max_pt(); ++i) {
-              of[i] += coef * y[i] * cf[i];
-              og[i] += coef * y[i] * cg[i];
+              out_f[i] += coef * (*y)[i] * chi_f[i];
+              out_g[i] += coef * (*y)[i] * chi_g[i];
             }
           }
         }
 
         // P of W(k, n, eta, Fa, Fb) = sum_l 6j Q^l(n, eta, Fb, Fa):
         // y^l(eta, Fa) from the block, multiplies Fb
-        if (conj ? nzX[ic] : nzY[ic]) {
+        if (conj ? non_zero_X[ic] : non_zero_Y[ic]) {
           const auto s_eta = conj ? 0 : 1;
           const auto min_twol =
             std::max(std::abs(tjb - tjn), std::abs(tja - tjbeta));
           const auto max_twol = std::min(tjb + tjn, tja + tjbeta);
-          const auto &bf = Fb.f();
-          const auto &bg = Fb.g();
+          const auto &Fb_f = Fb.f();
+          const auto &Fb_g = Fb.g();
           for (int tl = min_twol; tl <= max_twol; tl += 2) {
             const auto l = tl / 2;
             if (!Angular::Ck_kk_SR(l, kbeta, ka) ||
@@ -358,11 +320,11 @@ TDHFcntm::DVRhsAll TDHFcntm::dV_rhs_all(bool include_Y) const {
             const auto coef = sQ * tkp1 * sixj * m1tl *
                               Angular::tildeCk_kk(l, kappa_n, kb) *
                               Angular::tildeCk_kk(l, kbeta, ka);
-            const auto &y =
-              yblk[ic][std::size_t(s_eta)][std::size_t(l - lmin_blk) / 2];
+            const auto &y = y_exchange[ic][std::size_t(s_eta)]
+                                      [std::size_t(l - lmin_exchange) / 2];
             for (auto i = Fb.min_pt(); i < Fb.max_pt(); ++i) {
-              of[i] += coef * y[i] * bf[i];
-              og[i] += coef * y[i] * bg[i];
+              out_f[i] += coef * y[i] * Fb_f[i];
+              out_g[i] += coef * y[i] * Fb_g[i];
             }
           }
         }
@@ -397,22 +359,15 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
   m_hFcore = form_hFcore(m_h);
   m_hFcore_minus = form_hFcore(m_h_minus);
 
-  // Fixed core-core yk table for dV_rhs_all (first call only)
-  build_ycc();
-
-  // New solve: the cached rescattering (D_phys) is stale
-  m_resc.reset();
-  m_max_its = max_its;
-
   // Warm start: continuing a previous solve at the SAME omega (e.g. after a
   // first-order run). The first damped iteration must then be damped: an
   // undamped step from an already-large near-resonant X can diverge. From a
   // fresh start (X = 0), the first iteration is undamped as usual (it just
   // builds the first-order correction).
-  const bool warm_start = omega == m_omega && !m_ch.empty();
+  const bool warm_start = omega == m_omega && !m_channels.empty();
 
   // (Re)build the continuum channel caches when omega changes
-  if (omega != m_omega || m_ch.empty()) {
+  if (omega != m_omega || m_channels.empty()) {
     prepare_channels(omega);
   }
 
@@ -438,22 +393,24 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
   // (KpiD_dev(), KpiD_worst_channel()).
   m_KpiD = 0.0;
   m_KpiD_lab.clear();
-  std::vector<std::pair<const DiracSpinor *, OpenChannel>> ochs;
+  std::vector<std::pair<const DiracSpinor *, OpenChannel>> open_channel_list;
   double K_scale = 0.0;
   for (const auto &Fb : m_core) {
-    for (const auto &och : open_channels(Fb)) {
-      K_scale = std::max({K_scale, std::abs(och.K), M_PI * std::abs(och.D)});
-      ochs.emplace_back(&Fb, och);
+    for (const auto &channel : open_channels(Fb)) {
+      K_scale =
+        std::max({K_scale, std::abs(channel.K), M_PI * std::abs(channel.D)});
+      open_channel_list.emplace_back(&Fb, channel);
     }
   }
-  for (const auto &[pFb, och] : ochs) {
+  for (const auto &[pFb, channel] : open_channel_list) {
     if (K_scale == 0.0) {
       break;
     }
-    const auto dev = std::abs(och.K - M_PI * och.D) / K_scale;
+    const auto dev = std::abs(channel.K - M_PI * channel.D) / K_scale;
     if (dev > m_KpiD) {
       m_KpiD = dev;
-      m_KpiD_lab = pFb->shortSymbol() + "," + AtomData::kappa_symbol(och.kappa);
+      m_KpiD_lab =
+        pFb->shortSymbol() + "," + AtomData::kappa_symbol(channel.kappa);
     }
   }
 }
@@ -476,10 +433,10 @@ void TDHFcntm::solve_core_damped(double omega, int max_its, bool print,
   // Only applies in the photoionisation regime (open channels present): for
   // an all-bound core the X-only map can diverge where the full X+Y damped
   // iteration is fine, and there is nothing to gain from staging.
-  const bool any_open =
-    std::any_of(m_ch.cbegin(), m_ch.cend(), [](const auto &chs) {
-      return std::any_of(chs.cbegin(), chs.cend(),
-                         [](const auto &ch) { return ch.open; });
+  const bool any_open = std::any_of(
+    m_channels.cbegin(), m_channels.cend(), [](const auto &orbital_channels) {
+      return std::any_of(orbital_channels.cbegin(), orbital_channels.cend(),
+                         [](const auto &channel) { return channel.open; });
     });
   bool stageA = m_staged_Y && max_its > 2 && any_open && !m_suppress_open;
 
@@ -572,9 +529,9 @@ void TDHFcntm::solve_core_anderson(double omega, int max_its, bool print) {
         }
       }
     }
-    for (const auto &chs : m_ch) {
-      for (const auto &ch : chs) {
-        v.push_back(ch.K);
+    for (const auto &orbital_channels : m_channels) {
+      for (const auto &channel : orbital_channels) {
+        v.push_back(channel.K);
       }
     }
     return v;
@@ -591,9 +548,9 @@ void TDHFcntm::solve_core_anderson(double omega, int max_its, bool print) {
         }
       }
     }
-    for (auto &chs : m_ch) {
-      for (auto &ch : chs) {
-        ch.K = v[i];
+    for (auto &orbital_channels : m_channels) {
+      for (auto &channel : orbital_channels) {
+        channel.K = v[i];
         ++i;
       }
     }
@@ -622,14 +579,16 @@ void TDHFcntm::solve_core_anderson(double omega, int max_its, bool print) {
   double best_eps{1.0e30};
   int count_worse = 0;
   int it{0};
-  // Label seeded (homogeneous) solves by their seed channel
-  const auto seed_lab =
-    m_seed ? fmt::format(" seed {},{}", m_core[m_seed->ib].shortSymbol(),
-                         m_X[m_seed->ib][m_seed->be].shortSymbol()) :
-             std::string{};
-  qip::LiveMessage status(
-    fmt::format("TDHFcntm {} (w={:.4f}) {}: ", m_h->name(), omega, seed_lab),
-    print);
+  // Label homogeneous solves by their incident channel
+  const auto incident_lab =
+    m_incident ?
+      fmt::format(
+        " incident {},{}", m_core[m_incident->i_core].shortSymbol(),
+        m_X[m_incident->i_core][m_incident->i_channel].shortSymbol()) :
+      std::string{};
+  qip::LiveMessage status(fmt::format("TDHFcntm {} (w={:.4f}) {}: ",
+                                      m_h->name(), omega, incident_lab),
+                          print);
   for (; it < max_its; it++) {
     auto x = flatten();
     // Undamped map application; eps (from eps_cntm) measures G(x) vs x --
@@ -694,8 +653,9 @@ void TDHFcntm::solve_core_anderson(double omega, int max_its, bool print) {
       // drop the oldest entry and re-build if the coefficients are bad.
       bool finite = true;
       for (std::size_t i = 0; i < m; ++i) {
-        if (!std::isfinite(c(i)))
+        if (!std::isfinite(c(i))) {
           finite = false;
+        }
       }
       if (finite)
         break;
@@ -759,40 +719,40 @@ TDHFcntm::tdhf_core_it_cntm(double omega, double eta_damp, bool include_Y) {
 
   // Batched dV sources for every task, one shared-yk pass (reads m_X/m_Y,
   // which are fixed for this iteration: the solves write into Xs/Ys).
-  const auto dv = dV_rhs_all(include_Y);
+  const auto dV_sources = dV_rhs_all(include_Y);
 
   // Previous iteration's K amplitudes (for the convergence measure); the
-  // channel solves write the new K into m_ch in place.
-  std::vector<std::vector<double>> K_old(m_ch.size());
-  for (auto ib = 0ul; ib < m_ch.size(); ib++) {
-    for (const auto &ch : m_ch[ib]) {
-      K_old[ib].push_back(ch.K);
+  // channel solves write the new K into m_channels in place.
+  std::vector<std::vector<double>> K_old(m_channels.size());
+  for (auto ib = 0ul; ib < m_channels.size(); ib++) {
+    for (const auto &channel : m_channels[ib]) {
+      K_old[ib].push_back(channel.K);
     }
   }
 
   // Flatten all (core orbital x channel x X/Y) solves into one task list
   // (load balance; see TDHF::tdhf_core_it). Only the X/+ tasks carry the
   // continuum channel cache (Y/- partners are always bound). Y tasks are
-  // skipped when Y is frozen (staged iteration). In seeded (homogeneous)
-  // mode there is no external field: hFb is nullptr for every task.
+  // skipped when Y is frozen (staged iteration). In homogeneous mode there
+  // is no external field: hFb is nullptr for every task.
   struct MsTask {
     DiracSpinor *dF;           // target (in Xs or Ys)
-    CntmChannel *ch;           // continuum cache (nullptr for Y)
+    ContinuumChannel *channel; // continuum cache (nullptr for Y)
     const DiracSpinor *Fb;     // core orbital
-    const DiracSpinor *hFb;    // source projection h|Fb> (nullptr if seeded)
+    const DiracSpinor *hFb;    // source h|Fb> (nullptr: homogeneous mode)
     const DiracSpinor *dV_src; // this task's [dV phi]_beta (dV_rhs_all)
     dPsiType type;
   };
   std::vector<MsTask> tasks;
   for (auto ib = 0ul; ib < m_core.size(); ib++) {
     for (auto be = 0ul; be < Xs[ib].size(); be++) {
-      tasks.push_back({&Xs[ib][be], &m_ch[ib][be], &m_core[ib],
-                       m_seed ? nullptr : &m_hFcore[ib][be], &dv.X[ib][be],
-                       dPsiType::X});
+      tasks.push_back({&Xs[ib][be], &m_channels[ib][be], &m_core[ib],
+                       m_incident ? nullptr : &m_hFcore[ib][be],
+                       &dV_sources.X[ib][be], dPsiType::X});
       if (include_Y) {
         tasks.push_back({&Ys[ib][be], nullptr, &m_core[ib],
-                         m_seed ? nullptr : &m_hFcore_minus[ib][be],
-                         &dv.Y[ib][be], dPsiType::Y});
+                         m_incident ? nullptr : &m_hFcore_minus[ib][be],
+                         &dV_sources.Y[ib][be], dPsiType::Y});
       }
     }
   }
@@ -801,7 +761,7 @@ TDHFcntm::tdhf_core_it_cntm(double omega, double eta_damp, bool include_Y) {
 #pragma omp parallel for schedule(dynamic)
   for (auto it = 0ul; it < tasks.size(); it++) {
     const auto &t = tasks[it];
-    solve_channel_cntm(t.dF, t.ch, *t.Fb, t.hFb, *t.dV_src, omega, t.type,
+    solve_channel_cntm(t.dF, t.channel, *t.Fb, t.hFb, *t.dV_src, omega, t.type,
                        eps_ms);
   }
 
@@ -812,10 +772,10 @@ TDHFcntm::tdhf_core_it_cntm(double omega, double eta_damp, bool include_Y) {
   // Damp the solution (for the next iteration) and store. K is linear in the
   // spinor, so it is damped with the same weights (keeps the stored K
   // consistent with the stored X).
-  for (auto ib = 0ul; ib < m_ch.size(); ib++) {
-    for (auto be = 0ul; be < m_ch[ib].size(); be++) {
-      m_ch[ib][be].K =
-        eta_damp * K_old[ib][be] + (1.0 - eta_damp) * m_ch[ib][be].K;
+  for (auto ib = 0ul; ib < m_channels.size(); ib++) {
+    for (auto be = 0ul; be < m_channels[ib].size(); be++) {
+      m_channels[ib][be].K =
+        eta_damp * K_old[ib][be] + (1.0 - eta_damp) * m_channels[ib][be].K;
     }
   }
 #pragma omp parallel for
@@ -859,10 +819,10 @@ TDHFcntm::eps_cntm(const std::vector<std::vector<DiracSpinor>> &Xnew,
   // passes through zero (e.g. near a Cooper-type minimum) cannot blow up
   // the relative measure while the physics is converged.
   double K_max2 = 0.0;
-  for (const auto &chs : m_ch) {
-    for (const auto &ch : chs) {
-      if (ch.open && ch.K * ch.K > K_max2) {
-        K_max2 = ch.K * ch.K;
+  for (const auto &orbital_channels : m_channels) {
+    for (const auto &channel : orbital_channels) {
+      if (channel.open && channel.K * channel.K > K_max2) {
+        K_max2 = channel.K * channel.K;
       }
     }
   }
@@ -873,8 +833,8 @@ TDHFcntm::eps_cntm(const std::vector<std::vector<DiracSpinor>> &Xnew,
       const auto &nw = Xnew[ib][i];
       // Norm scale: ALL X channels contribute to the denominator
       dF2 += nw.norm2();
-      if (m_ch[ib][i].open) {
-        const auto Kn = m_ch[ib][i].K;
+      if (m_channels[ib][i].open) {
+        const auto Kn = m_channels[ib][i].K;
         const auto dK = Kn - K_old[ib][i];
         const auto den = std::max(Kn * Kn, K_floor2);
         const auto e = den == 0.0 ? 0.0 : (dK * dK) / den;
@@ -916,19 +876,19 @@ TDHFcntm::open_channels(const DiracSpinor &Fa) const {
   // residual measures only the solve/extraction accuracy, not the exchange.
   using namespace qip::overloads;
   std::vector<OpenChannel> out;
-  if (m_ch.empty() || m_hFcore.empty() || m_omega < 0.0) {
+  if (m_channels.empty() || m_hFcore.empty() || m_omega < 0.0) {
     return out;
   }
   const auto ib = static_cast<std::size_t>(
     std::find(m_core.cbegin(), m_core.cend(), Fa) - m_core.cbegin());
-  assert(ib < m_ch.size());
+  assert(ib < m_channels.size());
   const auto Ux = HF::vex_KS(m_core);
-  for (std::size_t be = 0; be < m_ch[ib].size(); ++be) {
-    const auto &ch = m_ch[ib][be];
-    if (!ch.open || ch.Freg.norm2() == 0.0) {
+  for (std::size_t be = 0; be < m_channels[ib].size(); ++be) {
+    const auto &channel = m_channels[ib][be];
+    if (!channel.open || channel.Freg.norm2() == 0.0) {
       continue;
     }
-    const auto kappa = ch.Freg.kappa();
+    const auto kappa = channel.Freg.kappa();
     const auto &chi = m_X[ib][be];
     // Physical source (with the diagonal de projection, mirroring the
     // channel solve), plus compensation and exchange remainder:
@@ -938,14 +898,15 @@ TDHFcntm::open_channels(const DiracSpinor &Fa) const {
     }
     const auto S = S_t + hole_compensation(Fa, chi) + HF::vexFa(chi, m_core) -
                    HF::vexFa_1el(chi, Fa) - (Ux * chi);
-    const auto D = ch.Freg * S;
-    out.push_back({kappa, Fa.en() + m_omega, ch.K, D});
+    const auto D = channel.Freg * S;
+    out.push_back({kappa, Fa.en() + m_omega, channel.K, D});
   }
   return out;
 }
 
 //==============================================================================
-void TDHFcntm::solve_channel_cntm(DiracSpinor *dF_beta, CntmChannel *ch,
+void TDHFcntm::solve_channel_cntm(DiracSpinor *dF_beta,
+                                  ContinuumChannel *channel,
                                   const DiracSpinor &Fb, const DiracSpinor *hFb,
                                   const DiracSpinor &dV_src, const double omega,
                                   dPsiType XorY, double eps_ms) const {
@@ -968,8 +929,9 @@ void TDHFcntm::solve_channel_cntm(DiracSpinor *dF_beta, CntmChannel *ch,
 
   const auto ww = XorY == dPsiType::X ? omega : -omega;
   auto conj = XorY == dPsiType::Y;
-  if (omega < 0.0)
+  if (omega < 0.0) {
     conj = !conj;
+  }
   const auto imag = m_h->imaginaryQ();
 
   // Only channels with e0 = en_b + ww > 0 are open; for an ionised orbital
@@ -985,14 +947,14 @@ void TDHFcntm::solve_channel_cntm(DiracSpinor *dF_beta, CntmChannel *ch,
   // outer TDHF where plain bound TDHF converges).
   const bool openQ = Fb.en() + ww > 0.0;
 
-  if (openQ && (m_suppress_open || ch == nullptr || !ch->open)) {
+  if (openQ && (m_suppress_open || channel == nullptr || !channel->open)) {
     // Open channel excluded from the response (explicit zero: clears nan):
     // either by the suppress_open option, or the continuum solve returned
     // zero (see prepare_channels backstop).
     dF_beta->f().assign(dF_beta->f().size(), 0.0);
     dF_beta->g().assign(dF_beta->g().size(), 0.0);
-    if (ch) {
-      ch->K = 0.0;
+    if (channel) {
+      channel->K = 0.0;
     }
     return;
   }
@@ -1001,7 +963,8 @@ void TDHFcntm::solve_channel_cntm(DiracSpinor *dF_beta, CntmChannel *ch,
 
   if (openQ) {
     using namespace qip::overloads;
-    assert(ch != nullptr && "open X channel requires its CntmChannel cache");
+    assert(channel != nullptr &&
+           "open X channel requires its ContinuumChannel cache");
     const int kappa_beta = dF_beta->kappa();
     // Physical source: [(t + dV)phi_a]_beta
     auto rhs = dV_src;
@@ -1019,30 +982,32 @@ void TDHFcntm::solve_channel_cntm(DiracSpinor *dF_beta, CntmChannel *ch,
       rhs -= (Fb * rhs) * Fb;
     }
     // dF_beta still holds the previous iterate: the lagged chi in dV'
-    // (in seeded mode, the TOTAL seed + correction for the seeded channel)
+    // (homogeneous mode: the TOTAL incident + correction for that channel)
     rhs += hole_compensation(Fb, *dF_beta);
     const auto y0aa = Coulomb::yk_ab(0, Fb, Fb);
     const auto vl_c = p_hf->vlocal(Angular::l_k(kappa_beta)) - y0aa;
-    // Seeded (homogeneous) channel: solve for the CORRECTION only -- the
-    // seed is a solution of the conditioning-potential equation, so its
-    // exchange deficit (vnl - U_KS)*seed joins the source; the total
-    // (seed + correction) is stored back so dV sees the seed. The K
-    // written to the cache is the correction's cos-amplitude = Kbar_ij.
-    const bool seeded = m_seed && ch == &m_ch[m_seed->ib][m_seed->be];
-    if (seeded) {
-      rhs += m_seed->deficit;
-      auto corr = *dF_beta - m_seed->seed;
-      ExternalField::solveContinuumMixedState(&corr, &ch->Freg, &ch->Firr,
-                                              &ch->K, Fb, ww, vl_c, m_alpha,
-                                              m_core, rhs, eps_ms, &Fb);
-      *dF_beta = corr + m_seed->seed;
+    // Incident (homogeneous) channel: solve for the CORRECTION only -- the
+    // incident wave solves the conditioning-potential equation, so its
+    // exchange deficit (vnl - U_KS)*Freg joins the source; the total
+    // (incident + correction) is stored back so dV sees it. The K written
+    // to the cache is the correction's cos-amplitude = Kbar_ij.
+    const bool is_incident =
+      m_incident &&
+      channel == &m_channels[m_incident->i_core][m_incident->i_channel];
+    if (is_incident) {
+      rhs += m_incident->deficit;
+      auto correction = *dF_beta - m_incident->Freg;
+      ExternalField::solveContinuumMixedState(
+        &correction, &channel->Freg, &channel->Firr, &channel->K, Fb, ww, vl_c,
+        m_alpha, m_core, rhs, eps_ms, &Fb);
+      *dF_beta = correction + m_incident->Freg;
       return;
     }
     // Freg/Firr reused from the cache (built in prepare_channels); the
     // standing-wave K amplitude of this channel is written back to the cache.
-    ExternalField::solveContinuumMixedState(dF_beta, &ch->Freg, &ch->Firr,
-                                            &ch->K, Fb, ww, vl_c, m_alpha,
-                                            m_core, rhs, eps_ms, &Fb);
+    ExternalField::solveContinuumMixedState(
+      dF_beta, &channel->Freg, &channel->Firr, &channel->K, Fb, ww, vl_c,
+      m_alpha, m_core, rhs, eps_ms, &Fb);
     return;
   }
 
@@ -1077,102 +1042,93 @@ DiracSpinor TDHFcntm::hole_compensation(const DiracSpinor &Fa,
 }
 
 //==============================================================================
-void TDHFcntm::solve_homogeneous(std::size_t ib, std::size_t be, int max_its,
-                                 bool print) {
-  // Seeded homogeneous TDHF (Johnson and Cheng 1979, appendix): no external
-  // field; channel (ib, be) is seeded with its regular continuum orbital
-  // (the cached Freg -- KS phase reference). m_X stores the TOTAL for the
-  // seeded channel, so dV is built from (seed + correction); the channel's
-  // own solve is for the correction, with the seed's exchange deficit
-  // (vnl - U_KS)*seed carried in the source (the seed solves the local
-  // conditioning-potential equation exactly, not the full HF one).
-  // At convergence, the per-channel K amplitudes in m_ch are column
-  // (ib, be) of the rescattering matrix Kbar. Mutates *this; call on a copy.
+void TDHFcntm::solve_homogeneous(std::size_t i_core, std::size_t i_channel,
+                                 int max_its, bool print) {
+  // Homogeneous TDHF (Johnson and Cheng 1979, appendix): no external
+  // field; a fixed unit-amplitude incident wave -- the channel's regular
+  // continuum orbital (cached Freg, KS phase reference) -- is inserted in
+  // open channel (i_core, i_channel). m_X stores the TOTAL for the
+  // incident channel, so dV is built from (incident + correction); the
+  // channel's own solve is for the correction, with the incident wave's
+  // exchange deficit (vnl - U_KS)*Freg carried in the source (Freg solves
+  // the local conditioning-potential equation exactly, not the full HF
+  // one). At convergence, the per-channel K amplitudes in m_channels are column
+  // (i_core, i_channel) of the K matrix. Mutates *this; call on a copy.
   using namespace qip::overloads;
-  assert(!m_ch.empty() && m_omega >= 0.0 &&
+  assert(!m_channels.empty() && m_omega >= 0.0 &&
          "solve_homogeneous requires prepared channels (run solve_core)");
-  assert(m_ch[ib][be].open && m_ch[ib][be].Freg.norm2() != 0.0);
+  assert(m_channels[i_core][i_channel].open &&
+         m_channels[i_core][i_channel].Freg.norm2() != 0.0);
 
-  const auto &Freg = m_ch[ib][be].Freg;
+  const auto &Freg = m_channels[i_core][i_channel].Freg;
+  const auto &Fa = m_core[i_core];
   const auto Ux = HF::vex_KS(m_core);
   auto deficit =
-    HF::vexFa(Freg, m_core) - HF::vexFa_1el(Freg, m_core[ib]) - (Ux * Freg);
-  auto seed = Freg;
-  // Diagonal seeded channel (even-parity operators): orthogonalise the seed
-  // against phi_a, so the converged total w = seed + correction satisfies
-  // the norm-conservation constraint <a|w> = 0 exactly (every solved piece
-  // is kept orthogonal to phi_a; the raw F_reg is not). The seed then no
-  // longer solves the local equation: the extra term joins the deficit,
+    HF::vexFa(Freg, m_core) - HF::vexFa_1el(Freg, Fa) - (Ux * Freg);
+  auto incident = Freg;
+  // Diagonal incident channel (even-parity operators): orthogonalise the
+  // incident wave against phi_a, so the converged total w = incident +
+  // correction satisfies the norm-conservation constraint <a|w> = 0
+  // exactly (every solved piece is kept orthogonal to phi_a; the raw F_reg
+  // is not). The orthogonalised wave then no longer solves the local
+  // equation: the extra term joins the deficit,
   //   (h^{N-1} - en_+)(F_reg - c*phi_a) = deficit + c*(omega + V^a_0)phi_a,
   // using h_HF phi_a = en_a phi_a. phi_a decays, so the asymptotics (and
   // the Kbar decomposition) are unchanged.
-  if (seed.kappa() == m_core[ib].kappa()) {
-    const auto c_a = m_core[ib] * seed;
-    seed -= c_a * m_core[ib];
-    deficit +=
-      c_a * (m_omega * m_core[ib] + hole_compensation(m_core[ib], m_core[ib]));
+  if (incident.kappa() == Fa.kappa()) {
+    const auto c_a = Fa * incident;
+    incident -= c_a * Fa;
+    deficit += c_a * (m_omega * Fa + hole_compensation(Fa, Fa));
   }
 
   // Fresh start: zero all corrections and K amplitudes (keep the channel
-  // caches), then insert the seed as the seeded channel's total.
+  // caches), then insert the incident wave as that channel's total.
   TDHF::clear();
-  for (auto &chs : m_ch) {
-    for (auto &ch : chs) {
-      ch.K = 0.0;
+  for (auto &orbital_channels : m_channels) {
+    for (auto &channel : orbital_channels) {
+      channel.K = 0.0;
     }
   }
-  m_X[ib][be] = seed;
-  m_seed = SeedInfo{ib, be, seed, deficit};
+  m_X[i_core][i_channel] = incident;
+  m_incident = IncidentWave{i_core, i_channel, incident, deficit};
 
   solve_core_anderson(m_omega, max_its, print);
 
-  m_seed.reset();
+  m_incident.reset();
 }
 
 //==============================================================================
-TDHFcntm::Rescattering TDHFcntm::rescattering(int max_its, bool print,
-                                              bool parallel) const {
-  // On-shell rescattering matrix and unitarised (physical) amplitudes; see
-  // hpp. One seeded homogeneous solve per open channel gives one column of
-  // Kbar; the driven amplitudes D = K/pi are read from the converged
-  // channel caches of *this (which is left untouched: the homogeneous
-  // solves run on copies).
-  Rescattering out;
-  if (m_ch.empty() || m_omega < 0.0) {
+KMatrix TDHFcntm::kmatrix(int max_its, bool print, bool parallel) const {
+  // On-shell K matrix; see hpp. One homogeneous (field-free) solve
+  // per open channel gives one column of Kbar. *this is left untouched:
+  // the homogeneous solves run on copies.
+  KMatrix out;
+  if (m_channels.empty() || m_omega < 0.0) {
     return out;
   }
 
-  // Open (and usable) channels, in fixed (ib, be) order
-  std::vector<std::pair<std::size_t, std::size_t>> idx;
-  for (auto ib = 0ul; ib < m_ch.size(); ib++) {
-    for (auto be = 0ul; be < m_ch[ib].size(); be++) {
-      const auto &ch = m_ch[ib][be];
-      if (ch.open && ch.Freg.norm2() != 0.0) {
-        idx.emplace_back(ib, be);
-        out.channels.push_back(
-          {ib, m_X[ib][be].kappa(), m_core[ib].en() + m_omega});
-        out.D.push_back(ch.K / M_PI);
-      }
-    }
-  }
-  const auto Np = idx.size();
+  const auto index_list = list_open_channels(&out.channels);
+  const auto Np = index_list.size();
   if (Np == 0) {
     return out;
   }
 
-  // Column j of Kbar: seeded solve for open channel j (on a copy). The
-  // columns are independent, so they can run in parallel (printing forces
-  // serial, so the labelled convergence lines stay readable). Inside an
-  // active parallel region (e.g. omega-parallel caller) the nested pragma
-  // is inert and the seeds run serially on that thread, as before.
-  const bool par_seeds = parallel && !print;
+  // Column j of Kbar: homogeneous solve with the incident wave in open
+  // channel j (on a copy). The columns are independent, so they can run in
+  // parallel (printing forces serial, so the labelled convergence lines
+  // stay readable). Inside an active parallel region the nested pragma is
+  // inert and the columns run serially on that thread, as before.
+  const bool parallel_columns = parallel && !print;
   out.Kbar = LinAlg::Matrix<double>(Np, Np);
-#pragma omp parallel for schedule(dynamic) if (par_seeds)
+#pragma omp parallel for schedule(dynamic) if (parallel_columns)
   for (auto j = 0ul; j < Np; j++) {
-    auto homog = *this;
-    homog.solve_homogeneous(idx[j].first, idx[j].second, max_its, print);
+    auto homogeneous_copy = *this;
+    homogeneous_copy.solve_homogeneous(index_list[j].first,
+                                       index_list[j].second, max_its, print);
     for (auto i = 0ul; i < Np; i++) {
-      out.Kbar(i, j) = homog.m_ch[idx[i].first][idx[i].second].K;
+      out.Kbar(i, j) =
+        homogeneous_copy.m_channels[index_list[i].first][index_list[i].second]
+          .K;
     }
   }
 
@@ -1186,43 +1142,74 @@ TDHFcntm::Rescattering TDHFcntm::rescattering(int max_its, bool print,
   }
   out.asymmetry = kmax == 0.0 ? 0.0 : asym / kmax;
 
-  // A = (1 - i*Kbar)^{-1} pi*D, in real arithmetic:
-  // (1 + Kbar*Kbar) Re(A) = pi*D,  Im(A) = Kbar * Re(A)
-  LinAlg::Matrix<double> B = out.Kbar * out.Kbar;
+  return out;
+}
+
+//==============================================================================
+std::vector<std::pair<std::size_t, std::size_t>>
+TDHFcntm::list_open_channels(std::vector<KMatrix::Channel> *channels,
+                             std::vector<double> *D) const {
+  // Open (and usable) channels of the converged driven solve, in fixed
+  // (ib, be) order; D = K/pi from the channel caches
+  std::vector<std::pair<std::size_t, std::size_t>> index_list;
+  for (auto ib = 0ul; ib < m_channels.size(); ib++) {
+    for (auto be = 0ul; be < m_channels[ib].size(); be++) {
+      const auto &channel = m_channels[ib][be];
+      if (channel.open && channel.Freg.norm2() != 0.0) {
+        index_list.emplace_back(ib, be);
+        channels->push_back(
+          {ib, m_X[ib][be].kappa(), m_core[ib].en() + m_omega});
+        if (D) {
+          D->push_back(channel.K / M_PI);
+        }
+      }
+    }
+  }
+  return index_list;
+}
+
+//==============================================================================
+double TDHFcntm::D_phys(const DiracSpinor &Fa, int kappa_e,
+                        const KMatrix &kmat) const {
+  // Unitarised (physical) amplitude |A|/pi for the (Fa, kappa_e) open
+  // channel; see hpp. A = (1 - i*Kbar)^{-1} pi*D, solved for ALL channels
+  // (the K matrix couples them) in real arithmetic:
+  // (1 + Kbar*Kbar) Re(A) = pi*D,  Im(A) = Kbar * Re(A).
+  // D comes from this instance's converged driven solve; Kbar from the
+  // KMatrix, which is operator-independent (any operator of the same rank
+  // and parity at this omega).
+  std::vector<KMatrix::Channel> channels;
+  std::vector<double> D;
+  list_open_channels(&channels, &D);
+  const auto Np = channels.size();
+  assert(Np == kmat.channels.size() &&
+         "KMatrix must be from the same core, omega, rank, and parity");
+  if (Np == 0 || Np != kmat.channels.size()) {
+    return 0.0;
+  }
+
+  LinAlg::Matrix<double> B = kmat.Kbar * kmat.Kbar;
   for (auto i = 0ul; i < Np; i++) {
     B(i, i) += 1.0;
   }
   LinAlg::Vector<double> piD(Np);
   for (auto i = 0ul; i < Np; i++) {
-    piD(i) = M_PI * out.D[i];
+    piD(i) = M_PI * D[i];
   }
   const auto Ar = LinAlg::solve_Axeqb(B, piD);
-  out.D_phys.resize(Np);
-  for (auto i = 0ul; i < Np; i++) {
-    double Ai = 0.0;
-    for (auto j = 0ul; j < Np; j++) {
-      Ai += out.Kbar(i, j) * Ar(j);
-    }
-    out.D_phys[i] = std::sqrt(Ar(i) * Ar(i) + Ai * Ai) / M_PI;
-  }
 
-  return out;
-}
-
-//==============================================================================
-double TDHFcntm::D_phys(const DiracSpinor &Fa, int kappa_e) {
-  // Unitarised (physical) amplitude |A|/pi for the (Fa, kappa_e) open
-  // channel; see hpp. All channels are computed together (the seeded solves
-  // couple them), so the rescattering runs once and is cached.
-  if (!m_resc) {
-    m_resc = rescattering(m_max_its, false, true);
-  }
   const auto ib = static_cast<std::size_t>(
     std::find(m_core.cbegin(), m_core.cend(), Fa) - m_core.cbegin());
-  for (std::size_t i = 0; i < m_resc->channels.size(); ++i) {
-    if (m_resc->channels[i].i_core == ib &&
-        m_resc->channels[i].kappa == kappa_e) {
-      return m_resc->D_phys[i];
+  for (auto i = 0ul; i < Np; i++) {
+    assert(channels[i].i_core == kmat.channels[i].i_core &&
+           channels[i].kappa == kmat.channels[i].kappa &&
+           "KMatrix channel list must match this instance's open channels");
+    if (channels[i].i_core == ib && channels[i].kappa == kappa_e) {
+      double Ai = 0.0;
+      for (auto j = 0ul; j < Np; j++) {
+        Ai += kmat.Kbar(i, j) * Ar(j);
+      }
+      return std::sqrt(Ar(i) * Ar(i) + Ai * Ai) / M_PI;
     }
   }
   return 0.0;

@@ -651,6 +651,14 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
                 "at its most expensive (every shell open). Above this, the "
                 "RPA columns repeat the bare values. Set 0 (or negative) for "
                 "no limit [1000]"},
+    {"unitarise_max",
+     "Maximum photon energy (eV) at which the rescattering (unitarisation) "
+     "solves are run; above it the rpaU columns use the standing-wave RPA "
+     "amplitudes directly. The error of skipping is ~ Kbar^2, which decays "
+     "with the ionised-electron energies -- but is NOT small in the window "
+     "just above any threshold (a newly-open channel is slow), so keep this "
+     "above the deepest edge in the scan range. 0 (or negative) = no limit "
+     "[0]"},
     {"oname", "Output file name [photoRPA-out.txt]"},
   });
   if (input.has_option("help")) {
@@ -675,12 +683,20 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto rpa_max_eV = input.get("rpa_max", 1000.0);
   const auto rpa_max_au =
     rpa_max_eV > 0.0 ? rpa_max_eV / PhysConst::Hartree_eV : 1.0 / 0.0;
+  const auto unitarise_max_eV = input.get("unitarise_max", 0.0);
+  const auto unitarise_max_au = unitarise_max_eV > 0.0 ?
+                                  unitarise_max_eV / PhysConst::Hartree_eV :
+                                  1.0 / 0.0;
   const auto oname = input.get("oname", std::string{"photoRPA-out.txt"});
 
   fmt::print("\nomega : [{:.1f}, {:.1f}] eV, {} steps (logarithmic)\n", Emin_eV,
              Emax_eV, energies.size());
   if (rpa_max_au < energies.back()) {
     fmt::print("RPA solved up to {:.0f} eV; bare above\n", rpa_max_eV);
+  }
+  if (unitarise && unitarise_max_au < energies.back()) {
+    fmt::print("Unitarised up to {:.0f} eV; standing-wave RPA above\n",
+               unitarise_max_eV);
   }
 
   // Grid-resolution guidance for the requested range: the channel solves
@@ -761,9 +777,11 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     // Above rpa_max the RPA is not solved: the columns repeat the bare
-    // values (see the rpa_max option).
+    // values (see the rpa_max option). Above unitarise_max the rescattering
+    // solves are skipped: the rpaU columns use the standing-wave amplitudes
+    // (error ~ Kbar^2; see the unitarise_max option).
     const bool do_rpa = omega <= rpa_max_au;
-    const bool do_unitarise = unitarise && do_rpa;
+    const bool do_unitarise = unitarise && do_rpa && omega <= unitarise_max_au;
 
     // Conversion: (1/3) sum |<e||E1||a>|^2 -> cross-section (cm^2)
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
@@ -785,6 +803,14 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
       rpa_V.eps_target() = eps_target;
       rpa_V.set_eta(eta);
       rpa_V.solve_core(omega, max_its, false);
+    }
+
+    // One K matrix per omega: operator-independent (same rank and parity),
+    // so it unitarises BOTH gauges. This is the dominant cost of a
+    // unitarised scan (one field-free solve per open channel).
+    std::optional<ExternalField::KMatrix> kmat{};
+    if (do_unitarise) {
+      kmat = rpa_L.kmatrix(max_its, false, true);
     }
 
     // Matrix elements: D = D0 + <e|dV|a> (standing-wave), and the
@@ -815,10 +841,11 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
         sigma_E1_rpa += Ksigma * D * D;
         sigma_E1v += Ksigma * D0v * D0v;
         sigma_E1v_rpa += Ksigma * Dv * Dv;
-        // Unitarised: the physical amplitudes. Without the RPA solve there
-        // is nothing to rescatter, so the bare value stands.
-        const auto DU = do_unitarise ? rpa_L.D_phys(Fa, Fe.kappa()) : D0;
-        const auto DUv = do_unitarise ? rpa_V.D_phys(Fa, Fe.kappa()) : D0v;
+        // Unitarised: the physical amplitudes. Above unitarise_max the
+        // standing-wave RPA amplitude stands (A -> pi*D for weak
+        // rescattering); without the RPA solve at all, the bare value.
+        const auto DU = kmat ? rpa_L.D_phys(Fa, Fe.kappa(), *kmat) : D;
+        const auto DUv = kmat ? rpa_V.D_phys(Fa, Fe.kappa(), *kmat) : Dv;
         if (unitarise) {
           sigma_E1_rpaU += Ksigma * DU * DU;
           sigma_E1v_rpaU += Ksigma * DUv * DUv;
@@ -859,8 +886,7 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     results[i_omega][7] =
       do_rpa ? std::max(rpa_L.last_its(), rpa_V.last_its()) : 0.0;
     results[i_omega][8] = KpiD_dev;
-    results[i_omega][9] =
-      std::max(rpa_L.rescattering_asymmetry(), rpa_V.rescattering_asymmetry());
+    results[i_omega][9] = kmat ? kmat->asymmetry : 0.0;
 
     fmt::print("{:9.2f}  {:10.3e}  {:10.3e}{}  {:8.1e} {:4.0f}  {:8.1e}{}\n",
                omega * PhysConst::Hartree_eV, sigma_E1, sigma_E1_rpa,
@@ -907,6 +933,11 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   if (rpa_max_au < energies.back()) {
     out_file << "# nb: RPA solved only up to " << rpa_max_eV
              << " eV; above that the rpa/rpaU columns repeat the bare\n";
+  }
+  if (unitarise && unitarise_max_au < energies.back()) {
+    out_file << "# nb: unitarised only up to " << unitarise_max_eV
+             << " eV; above that the rpaU columns repeat the standing-wave "
+                "rpa\n";
   }
   if (each_shell) {
     out_file << "# sigma_<shell>  : per-shell unitarised-RPA cross-section "

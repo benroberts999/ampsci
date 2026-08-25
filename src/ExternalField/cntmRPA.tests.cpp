@@ -136,7 +136,7 @@ TEST_CASE("cntmRPA: high-omega limit", "[ExternalField][TDHF][cntmrpa][unit]") {
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-6;
     rpa.solve_core(omega, 60, false);
-    const auto resc = rpa.rescattering(40, false, true);
+    const auto kmat = rpa.kmatrix(40, false, true);
 
     // Bare cross-section from the (orthogonalised) V^{N-1} HF bra states
     double sum_D0_2 = 0.0;
@@ -155,8 +155,11 @@ TEST_CASE("cntmRPA: high-omega limit", "[ExternalField][TDHF][cntmrpa][unit]") {
       }
     }
     double sum_A_2 = 0.0;
-    for (const auto &Dp : resc.D_phys) {
-      sum_A_2 += Dp * Dp;
+    for (const auto &Fb : wf.core()) {
+      for (const auto &oc : rpa.open_channels(Fb)) {
+        const auto Dp = rpa.D_phys(Fb, oc.kappa, kmat);
+        sum_A_2 += Dp * Dp;
+      }
     }
     REQUIRE(sum_D0_2 > 0.0);
     REQUIRE(sum_A_2 > 0.0);
@@ -322,7 +325,7 @@ TEST_CASE("cntmRPA: Johnson 1979 Ne cross-section",
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-5;
     rpa.solve_core(omega, 90, false);
-    const auto resc = rpa.rescattering(40, false, true);
+    const auto kmat = rpa.kmatrix(40, false, true);
 
     // sigma = (4 pi^2 alpha / 3) * omega * sum_channels |D|^2, in Mb
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha * omega / 3.0 *
@@ -343,8 +346,11 @@ TEST_CASE("cntmRPA: Johnson 1979 Ne cross-section",
       }
     }
     double sigma_U = 0.0;
-    for (const auto &Dp : resc.D_phys) {
-      sigma_U += Ksigma * Dp * Dp;
+    for (const auto &Fb : wf.core()) {
+      for (const auto &oc : rpa.open_channels(Fb)) {
+        const auto Dp = rpa.D_phys(Fb, oc.kappa, kmat);
+        sigma_U += Ksigma * Dp * Dp;
+      }
     }
 
     fmt::print("{:7.2f} {:10.2f} {:10.2f} {:12.1f} {:9.1e}\n", omega, sigma_0,
@@ -353,7 +359,7 @@ TEST_CASE("cntmRPA: Johnson 1979 Ne cross-section",
     // TDHF converged (away from the resonances):
     REQUIRE(rpa.last_eps() < 1.0e-2);
     // Kbar consistency (reciprocity, not imposed):
-    REQUIRE(resc.asymmetry < 0.05);
+    REQUIRE(kmat.asymmetry < 0.05);
     // Agreement with the published RRPA curve (see @note above):
     REQUIRE(sigma_U == Approx(sigma_expct).epsilon(0.25));
   }
@@ -503,34 +509,44 @@ TEST_CASE("cntmRPA: unitarisation (rescattering)",
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-7;
     rpa.solve_core(omega, 60, false);
-    const auto resc = rpa.rescattering(40, false);
+    const auto kmat = rpa.kmatrix(40, false);
 
     fmt::print("\nRescattering at omega = {:.2f} au ({} open channels), "
                "Kbar asymmetry = {:.1e}\n",
-               omega, resc.channels.size(), resc.asymmetry);
+               omega, kmat.channels.size(), kmat.asymmetry);
     fmt::print("{:>7s} {:>12s} {:>12s} {:>12s} {:>9s}\n", "kappa", "D",
                "D_phys", "D*cos(th)", "Kbar_ii");
-    REQUIRE(resc.channels.size() == 5);
-    REQUIRE(resc.asymmetry < 0.05);
+    REQUIRE(kmat.channels.size() == 5);
+    REQUIRE(kmat.asymmetry < 0.05);
+
+    // Standing D = K/pi and physical |A|/pi per channel; open_channels()
+    // iterates in the same (core, channel) order as kmat.channels
+    std::vector<double> D, D_phys;
+    for (const auto &Fb : wf.core()) {
+      for (const auto &oc : rpa.open_channels(Fb)) {
+        D.push_back(oc.K / M_PI);
+        D_phys.push_back(rpa.D_phys(Fb, oc.kappa, kmat));
+      }
+    }
+    REQUIRE(D.size() == kmat.channels.size());
 
     std::size_t i_dom = 0;
-    for (std::size_t i = 0; i < resc.channels.size(); ++i) {
-      REQUIRE(std::isfinite(resc.D_phys[i]));
-      if (std::abs(resc.D[i]) > std::abs(resc.D[i_dom]))
+    for (std::size_t i = 0; i < kmat.channels.size(); ++i) {
+      REQUIRE(std::isfinite(D_phys[i]));
+      if (std::abs(D[i]) > std::abs(D[i_dom]))
         i_dom = i;
     }
-    for (std::size_t i = 0; i < resc.channels.size(); ++i) {
-      const auto d_cos =
-        std::abs(resc.D[i]) * std::cos(std::atan(resc.Kbar(i, i)));
+    for (std::size_t i = 0; i < kmat.channels.size(); ++i) {
+      const auto d_cos = std::abs(D[i]) * std::cos(std::atan(kmat.Kbar(i, i)));
       fmt::print("{:>7d} {:12.5e} {:12.5e} {:12.5e} {:9.5f}\n",
-                 resc.channels[i].kappa, resc.D[i], resc.D_phys[i], d_cos,
-                 resc.Kbar(i, i));
+                 kmat.channels[i].kappa, D[i], D_phys[i], d_cos,
+                 kmat.Kbar(i, i));
     }
     // Dominant channel: single-channel unitarisation dominates (off-diagonal
     // rescattering gives only a small correction here):
     const auto d_cos_dom =
-      std::abs(resc.D[i_dom]) * std::cos(std::atan(resc.Kbar(i_dom, i_dom)));
-    REQUIRE(resc.D_phys[i_dom] == Approx(d_cos_dom).epsilon(0.10));
+      std::abs(D[i_dom]) * std::cos(std::atan(kmat.Kbar(i_dom, i_dom)));
+    REQUIRE(D_phys[i_dom] == Approx(d_cos_dom).epsilon(0.10));
   }
 
   { // (c): the Ne 1s near-edge region. Just above the 1s threshold (893 eV)
@@ -545,18 +561,19 @@ TEST_CASE("cntmRPA: unitarisation (rescattering)",
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-7;
     rpa.solve_core(omega, 60, false);
-    const auto resc = rpa.rescattering(40, false);
-    REQUIRE(resc.asymmetry < 0.05);
+    const auto kmat = rpa.kmatrix(40, false);
+    REQUIRE(kmat.asymmetry < 0.05);
 
     // 1s-channel partial cross-sections (cm^2), standing vs unitarised:
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
                         PhysConst::aB_cm * PhysConst::aB_cm * omega / 3.0;
     double sig_std = 0.0, sig_uni = 0.0;
-    for (std::size_t i = 0; i < resc.channels.size(); ++i) {
-      if (resc.channels[i].i_core == 0) { // 1s
-        sig_std += Ksigma * resc.D[i] * resc.D[i];
-        sig_uni += Ksigma * resc.D_phys[i] * resc.D_phys[i];
-      }
+    const auto &F1s = wf.core().front();
+    for (const auto &oc : rpa.open_channels(F1s)) {
+      const auto D = oc.K / M_PI;
+      const auto Dp = rpa.D_phys(F1s, oc.kappa, kmat);
+      sig_std += Ksigma * D * D;
+      sig_uni += Ksigma * Dp * Dp;
     }
     fmt::print("\nNe 1s channel at omega = 894.2 eV (near-edge sweep):\n"
                "sigma_standing = {:.3e} cm^2, sigma_unitarised = {:.3e} cm^2 "
@@ -668,14 +685,14 @@ TEST_CASE("cntmRPA: even-parity operator (temporal t0)",
     // Seeded homogeneous solves: the diagonal seed is orthogonalised
     // against phi_a (constraint <a|w> = 0); reciprocity (Kbar symmetry) is
     // not imposed anywhere, so it is a real consistency check of that path
-    const auto resc = rpa.rescattering(40, false, true);
-    REQUIRE(resc.channels.size() == 2);
-    REQUIRE(resc.asymmetry < 0.05);
-    for (const auto &Dp : resc.D_phys) {
-      REQUIRE(std::isfinite(Dp));
+    const auto kmat = rpa.kmatrix(40, false, true);
+    REQUIRE(kmat.channels.size() == 2);
+    REQUIRE(kmat.asymmetry < 0.05);
+    for (const auto &ch : kmat.channels) {
+      REQUIRE(std::isfinite(rpa.D_phys(wf.core()[ch.i_core], ch.kappa, kmat)));
     }
     fmt::print("Kbar asymmetry (diagonal-seeded solves): {:.1e}\n",
-               resc.asymmetry);
+               kmat.asymmetry);
   }
 
   // --- (c) identity limit and q^2 scaling of the response
@@ -751,26 +768,26 @@ TEST_CASE("cntmRPA: gauge invariance (E1 vs E1v)",
     auto rpa_L = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa_L.eps_target() = 1.0e-7;
     rpa_L.solve_core(omega, 60, false);
-    const auto rL = rpa_L.rescattering(40, false, true);
+    const auto kmat_L = rpa_L.kmatrix(40, false, true);
 
     auto rpa_V = ExternalField::TDHFcntm(&E1v, wf.vHF(), &E1v_minus);
     rpa_V.eps_target() = 1.0e-7;
     rpa_V.solve_core(omega, 60, false);
-    const auto rV = rpa_V.rescattering(40, false, true);
+    const auto kmat_V = rpa_V.kmatrix(40, false, true);
 
     fmt::print("\nGauge test at omega = {:.1f} au ({} open channels):\n"
                "{:>7s} {:>11s} {:>11s} {:>9s}\n",
-               omega, rL.channels.size(), "kappa", "|A_L|/pi", "|A_V|/pi",
+               omega, kmat_L.channels.size(), "kappa", "|A_L|/pi", "|A_V|/pi",
                "V/L - 1");
-    REQUIRE(!rL.channels.empty());
-    REQUIRE(rL.channels.size() == rV.channels.size());
+    REQUIRE(!kmat_L.channels.empty());
+    REQUIRE(kmat_L.channels.size() == kmat_V.channels.size());
 
     // Kbar is operator-independent: identical matrices (machinery check)
     double dK = 0.0, kmax = 0.0;
-    for (std::size_t i = 0; i < rL.channels.size(); ++i) {
-      for (std::size_t j = 0; j < rL.channels.size(); ++j) {
-        dK = std::max(dK, std::abs(rL.Kbar(i, j) - rV.Kbar(i, j)));
-        kmax = std::max(kmax, std::abs(rL.Kbar(i, j)));
+    for (std::size_t i = 0; i < kmat_L.channels.size(); ++i) {
+      for (std::size_t j = 0; j < kmat_L.channels.size(); ++j) {
+        dK = std::max(dK, std::abs(kmat_L.Kbar(i, j) - kmat_V.Kbar(i, j)));
+        kmax = std::max(kmax, std::abs(kmat_L.Kbar(i, j)));
       }
     }
     REQUIRE(dK < 1.0e-10 * kmax);
@@ -778,12 +795,15 @@ TEST_CASE("cntmRPA: gauge invariance (E1 vs E1v)",
     // Per-channel gauge invariance of the physical amplitudes. Tolerance is
     // the numerical (extraction/TDHF) floor, not physics: observed ~1e-4.
     double sum_L = 0.0, sum_V = 0.0;
-    for (std::size_t i = 0; i < rL.channels.size(); ++i) {
-      fmt::print("{:>7d} {:11.6f} {:11.6f} {:9.1e}\n", rL.channels[i].kappa,
-                 rL.D_phys[i], rV.D_phys[i], rV.D_phys[i] / rL.D_phys[i] - 1.0);
-      REQUIRE(rV.D_phys[i] == Approx(rL.D_phys[i]).epsilon(1.0e-2));
-      sum_L += rL.D_phys[i] * rL.D_phys[i];
-      sum_V += rV.D_phys[i] * rV.D_phys[i];
+    for (const auto &ch : kmat_L.channels) {
+      const auto &Fa = wf.core()[ch.i_core];
+      const auto A_L = rpa_L.D_phys(Fa, ch.kappa, kmat_L);
+      const auto A_V = rpa_V.D_phys(Fa, ch.kappa, kmat_V);
+      fmt::print("{:>7d} {:11.6f} {:11.6f} {:9.1e}\n", ch.kappa, A_L, A_V,
+                 A_V / A_L - 1.0);
+      REQUIRE(A_V == Approx(A_L).epsilon(1.0e-2));
+      sum_L += A_L * A_L;
+      sum_V += A_V * A_V;
     }
     // Total (cross-section level): tighter
     REQUIRE(sum_V == Approx(sum_L).epsilon(2.0e-3));
@@ -976,5 +996,72 @@ TEST_CASE("cntmRPA: barely-open channels (extension pair)",
     fmt::print("{:>10s} {:13.6e} {:13.6e} {:10.1e}\n", labs[0][i], Ks[0][i],
                Ks[1][i], dev);
     REQUIRE(dev < 0.03);
+  }
+}
+
+//==============================================================================
+//! The K matrix is operator-independent: it is built from field-free seeded
+//! solves, so it depends only on (core, omega, rank, parity) -- never on the
+//! external field's radial form. Checks, with the two E1 gauges (same rank
+//! and parity, different radial operators):
+//! (a) kmatrix() from the length and velocity instances agree element-wise
+//!     to machine-level precision (identical field-free solves);
+//! (b) cross-use: unitarising each gauge's amplitudes with the OTHER
+//!     gauge's K matrix changes nothing -- the pattern the photoRPA module
+//!     relies on (one kmatrix() per omega serves every operator of the
+//!     block).
+TEST_CASE("cntmRPA: K matrix operator-independence",
+          "[ExternalField][TDHF][cntmrpa][integration]") {
+
+  Wavefunction wf({4000, 1.0e-6, 30.0, 1.0, "loglinear", -1.0},
+                  {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]");
+
+  const double omega = 1.5;
+  const auto E1 = DiracOperator::E1(wf.grid());
+  auto E1v = DiracOperator::E1v(wf.alpha(), omega);
+  auto E1v_minus = DiracOperator::E1v(wf.alpha(), -omega);
+
+  auto rpa_L = ExternalField::TDHFcntm(&E1, wf.vHF());
+  auto rpa_V = ExternalField::TDHFcntm(&E1v, wf.vHF(), &E1v_minus);
+  for (auto *rpa : {&rpa_L, &rpa_V}) {
+    rpa->eps_target() = 1.0e-7;
+    rpa->solve_core(omega, 60, false);
+  }
+
+  const auto kmat_L = rpa_L.kmatrix(40, false, true);
+  const auto kmat_V = rpa_V.kmatrix(40, false, true);
+
+  // (a) identical K matrices
+  REQUIRE(kmat_L.channels.size() == 5);
+  REQUIRE(kmat_V.channels.size() == kmat_L.channels.size());
+  double worst = 0.0;
+  double kmax = 0.0;
+  for (auto i = 0ul; i < kmat_L.channels.size(); i++) {
+    REQUIRE(kmat_V.channels[i].i_core == kmat_L.channels[i].i_core);
+    REQUIRE(kmat_V.channels[i].kappa == kmat_L.channels[i].kappa);
+    for (auto j = 0ul; j < kmat_L.channels.size(); j++) {
+      kmax = std::max(kmax, std::abs(kmat_L.Kbar(i, j)));
+      worst = std::max(worst, std::abs(kmat_L.Kbar(i, j) - kmat_V.Kbar(i, j)));
+    }
+  }
+  fmt::print("\nKbar(L) vs Kbar(V) at omega = {:.2f} au: worst abs diff "
+             "{:.1e} (scale {:.2f})\n",
+             omega, worst, kmax);
+  REQUIRE(worst < 1.0e-10 * kmax);
+
+  // (b) cross-use: each gauge unitarised with the other's K matrix
+  fmt::print("{:>8s} {:>6s} {:>13s} {:>13s} {:>13s} {:>13s}\n", "shell",
+             "kappa", "L(kmat_L)", "L(kmat_V)", "V(kmat_V)", "V(kmat_L)");
+  for (const auto &ch : kmat_L.channels) {
+    const auto &Fa = wf.core()[ch.i_core];
+    const auto L_own = rpa_L.D_phys(Fa, ch.kappa, kmat_L);
+    const auto L_cross = rpa_L.D_phys(Fa, ch.kappa, kmat_V);
+    const auto V_own = rpa_V.D_phys(Fa, ch.kappa, kmat_V);
+    const auto V_cross = rpa_V.D_phys(Fa, ch.kappa, kmat_L);
+    fmt::print("{:>8s} {:>6d} {:13.6e} {:13.6e} {:13.6e} {:13.6e}\n",
+               Fa.shortSymbol(), ch.kappa, L_own, L_cross, V_own, V_cross);
+    REQUIRE(L_cross == Approx(L_own).epsilon(1.0e-10));
+    REQUIRE(V_cross == Approx(V_own).epsilon(1.0e-10));
   }
 }
