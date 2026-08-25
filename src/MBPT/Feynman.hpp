@@ -184,11 +184,13 @@ public:
   GMatrix Sigma_direct(int kappa_v, double en_v,
                        std::optional<int> k = {}) const;
 
-  //! Exchange part of the correlation potential (second order, no
-  //! screening), by frequency integration.
+  //! Exchange part of the correlation potential, by frequency integration.
   //! @details The first of the two frequency integrals is done analytically
   //! (closing the contour on the core poles), leaving a single integral
-  //! along w = omre + iu, on the same grid as the direct term. Cf.
+  //! along w = omre + iu, on the same grid as the direct term. When the
+  //! screening/hole_particle options are set: half-screened all-orders
+  //! screening (each Coulomb line dressed one at a time; both-at-once
+  //! neglected), and Vhp(a) on the loop Green's functions. Cf.
   //! Goldstone::Sigma_exchange
   GMatrix Sigma_exchange(int kappa_v, double en_v) const;
 
@@ -212,6 +214,8 @@ public:
   }
 
 private:
+  // Number of spinor components: 2 (f, g) if include_G, else 1
+  std::size_t num_spins() const { return m_include_G ? 2ul : 1ul; }
   // forms Qk matrices, as well as dri, drj
   void form_qk();
   // Forms core projection operators
@@ -286,13 +290,16 @@ private:
 
       gex_pa[mu](k, gamma)_12 = sum_{alpha l} L^{kl}_{v a alpha gamma}
                                   [gex^alpha(e_a-w) F_a q^l]^mu_12
+
+    One GammaQ per q^l-line variant: [0] bare q^l; [1] (when screening) the
+    screening-only bar-q^l(w). gex is Vhp(a)-dressed when hole_particle.
   */
   struct GammaQ {
     std::vector<LinAlg::Matrix<ComplexRMatrix>> pa_gex, gex_pa;
   };
-  GammaQ exchange_Gamma_q(int kappa_v, const DiracSpinor &Fa,
-                          std::complex<double> w,
-                          const Angular::SixJTable &sixj) const;
+  std::vector<GammaQ> exchange_Gamma_q(int kappa_v, const DiracSpinor &Fa,
+                                       std::size_t iw,
+                                       const Angular::SixJTable &sixj) const;
 
   // Given Dirac solutions regular at 0 (x0) and infinity (xI), forms "local"
   // Green's function, with all four spinor components
