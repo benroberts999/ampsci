@@ -931,7 +931,7 @@ double best_omre(const std::vector<DiracSpinor> &core,
     for (const auto w : fict_poles) {
       fmt::print("{:.4f} ", w);
     }
-    fmt::print("\nBest omre = {:.4f}\n", best);
+    fmt::print("\nBest Re(w) = {:.4f}\n", best);
     fmt::print("Distance to nearest pole: {:.4f}\n", 0.5 * best_gap);
   }
 
@@ -1111,6 +1111,13 @@ void Feynman::form_qpiq(const std::vector<std::vector<ComplexRMatrix>> &pi_wk) {
   assert(pi_wk.front().front().size() == m_subgrid_points &&
          "pi_wk must be on the same sub-grid");
 
+  std::cout << "Forming QPQ"
+            << (m_hole_particle && m_screen_Coulomb ? " (w/ hp + screening)" :
+                m_hole_particle                     ? " (w/ hp)" :
+                m_screen_Coulomb                    ? " (w/ screening)" :
+                                                      "")
+            << "\n";
+
   m_qpiq_wk.resize(num_ws, num_ks,
                    ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
 
@@ -1216,11 +1223,27 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
     Spinor indices (f, g) run along the electron line (q: spinor scalar).
     Measures: q^k carries dr_j; q^l carries dr_i, dr_2
     => Sigma carries dr_2 (as for the direct term)
+
+    Screening (when included): half-screened. The numeric line is dressed,
+    q^l -> q^l + bar-q^l(w), bar-q^l = -i [q pi q~]^l (the stored Q*Pi*Q;
+    all-orders, hp-dressed pi). The mirror term (bar-q on the analytic q^k
+    line, bare q^l) is the transpose of the bar-q correction, since the
+    diagram maps to its transpose under (1,i,k,w1) <-> (2,j,l,w2):
+
+      Sigma = Sigma[q,q] + dSigma[q,bar-q] + dSigma[q,bar-q]^T
+
+    Dressing both lines at once is neglected (next order in the screening).
+    Hole-particle: Vhp(a) dresses gex(e_a +/- w), the excited half of the
+    (a, gex) pair, as in the polarisation loop.
   */
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_kappas = m_max_ki + 1;
-  const auto num_sp = m_include_G ? 2ul : 1ul;
+  const auto num_sp = num_spins();
+  // q^l-line variants: bare, plus the screening-only bar-q when screening
+  const auto num_lines = m_screen_Coulomb ? 2ul : 1ul;
+  assert((!m_screen_Coulomb || has_qpiq()) &&
+         "Screened exchange requires Q*Pi*Q (form_qpiq)");
   const Angular::SixJTable sixj(2 * m_max_k);
 
   // Quadrature weights: the u^-3 tail correction of the w grid (direct term)
@@ -1234,7 +1257,9 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
   const ComplexRMatrix zero(m_i0, m_stride, m_subgrid_points, m_grid);
   const GMatrix Sigma_zero(m_i0, m_stride, m_subgrid_points, m_include_G,
                            m_grid);
-  std::vector<GMatrix> Sigma_ts(std::size_t(omp_get_max_threads()), Sigma_zero);
+  std::vector<std::vector<GMatrix>> Sigma_ts(
+    std::size_t(omp_get_max_threads()),
+    std::vector<GMatrix>(num_lines, Sigma_zero));
 
 #pragma omp parallel for schedule(dynamic)
   for (auto iw = 0ul; iw < m_wgrid_points.size(); ++iw) {
@@ -1255,7 +1280,7 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
       if (Fa.n() < m_min_core_n)
         continue;
       const auto ka = Fa.kappa();
-      const auto Gamma = exchange_Gamma_q(kv, Fa, w, sixj);
+      const auto Gammas = exchange_Gamma_q(kv, Fa, iw, sixj);
 
       for (auto k = 0ul; k < num_ks; ++k) {
         const auto &qk = get_qk(int(k));
@@ -1271,15 +1296,18 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
 
             if (pa_gex_nonzero) {
               // F_a^mu(r_1) sum_t [q^k (g^{t nu} o [pa_gex]^t)]_12
-              ComplexRMatrix qk_g_Gamma(zero);
-              for (auto t = 0ul; t < num_sp; ++t) {
-                qk_g_Gamma +=
-                  qk * mult_elements(g.radial(t, nu), Gamma.pa_gex[t](k, ig));
-              }
-              for (auto mu = 0ul; mu < num_sp; ++mu) {
-                Sigma_t.sp(mu, nu) +=
-                  du *
-                  mult_rows_full(qk_g_Gamma, Fa.component(mu)).real().Rmatrix();
+              for (auto iq = 0ul; iq < num_lines; ++iq) {
+                ComplexRMatrix qk_g_Gamma(zero);
+                for (auto t = 0ul; t < num_sp; ++t) {
+                  qk_g_Gamma += qk * mult_elements(g.radial(t, nu),
+                                                   Gammas[iq].pa_gex[t](k, ig));
+                }
+                for (auto mu = 0ul; mu < num_sp; ++mu) {
+                  Sigma_t[iq].sp(mu, nu) +=
+                    du * mult_rows_full(qk_g_Gamma, Fa.component(mu))
+                           .real()
+                           .Rmatrix();
+                }
               }
             }
 
@@ -1290,11 +1318,13 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
                 Fa_g += mult_rows_full(g.radial(t, nu), Fa.component(t));
               }
               const auto qk_Fa_g = qk * Fa_g;
-              for (auto mu = 0ul; mu < num_sp; ++mu) {
-                Sigma_t.sp(mu, nu) +=
-                  du * mult_elements(Gamma.gex_pa[mu](k, ig), qk_Fa_g)
-                         .real()
-                         .Rmatrix();
+              for (auto iq = 0ul; iq < num_lines; ++iq) {
+                for (auto mu = 0ul; mu < num_sp; ++mu) {
+                  Sigma_t[iq].sp(mu, nu) +=
+                    du * mult_elements(Gammas[iq].gex_pa[mu](k, ig), qk_Fa_g)
+                           .real()
+                           .Rmatrix();
+                }
               }
             }
           }
@@ -1305,7 +1335,17 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
 
   GMatrix Sigma(Sigma_zero);
   for (const auto &Sigma_t : Sigma_ts) {
-    Sigma += Sigma_t;
+    Sigma += Sigma_t[0];
+  }
+  if (m_screen_Coulomb) {
+    // Screening correction (bar-q on the numeric line), plus its mirror
+    // (bar-q on the analytic line) = its transpose
+    GMatrix dSigma(Sigma_zero);
+    for (const auto &Sigma_t : Sigma_ts) {
+      dSigma += Sigma_t[1];
+    }
+    Sigma += dSigma;
+    Sigma += dSigma.transpose_drj();
   }
   // -1/pi = (1/2pi) * i (dw = i du) * i (w1 integral) * 2 (the integrand
   // at -u is the conjugate of that at +u, and we take Re part)
@@ -1314,8 +1354,8 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
 }
 
 //==============================================================================
-Feynman::GammaQ
-Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::complex<double> w,
+std::vector<Feynman::GammaQ>
+Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::size_t iw,
                           const Angular::SixJTable &sixj) const {
   /*
     The two terms of Gamma (see Sigma_exchange) for core state a, with the
@@ -1338,25 +1378,34 @@ Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::complex<double> w,
 
       [gex F_a]^t_ji = sum_s gex^{ts}_ji F_a^s(r_i)   (uses gex_ij = gex_ji^T)
 
-    Returned for each (k, gamma), and each spinor index t (mu).
+    Returned for each (k, gamma), and each spinor index t (mu); one GammaQ
+    per q^l-line variant: [0] bare q^l, [1] (when screening) the
+    screening-only part, bar-q^l(w) = -i [q pi q~]^l(w).
+    Hole-particle: gex(e_a +/- w) is dressed by Vhp(a) (the excited
+    electron of the (a, gex) pair feels the hole it left).
   */
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_kappas = m_max_ki + 1;
-  const auto num_sp = m_include_G ? 2ul : 1ul;
+  const auto num_sp = num_spins();
+  const auto num_lines = m_screen_Coulomb ? 2ul : 1ul;
+  constexpr std::complex<double> Iunit{0.0, 1.0};
 
+  const auto w = std::complex<double>{m_omre, m_wgrid_points[iw]};
   const auto ka = Fa.kappa();
   const auto ea = std::complex<double>{Fa.en()};
+  const auto *Fa_hp = m_hole_particle ? &Fa : nullptr;
 
   const ComplexRMatrix zero(m_i0, m_stride, m_subgrid_points, m_grid);
   const LinAlg::Matrix<ComplexRMatrix> zeros(num_ks, num_kappas, zero);
-  GammaQ Gamma{std::vector(num_sp, zeros), std::vector(num_sp, zeros)};
+  std::vector<GammaQ> Gammas(
+    num_lines, GammaQ{std::vector(num_sp, zeros), std::vector(num_sp, zeros)});
 
   for (auto ik = 0ul; ik < num_kappas; ++ik) {
     const auto kappa = Angular::kindex_to_kappa(ik);
 
-    const auto gex_plus = green_excited(kappa, ea + w);
-    const auto gex_minus = green_excited(kappa, ea - w);
+    const auto gex_plus = green_excited(kappa, ea + w, Fa_hp);
+    const auto gex_minus = green_excited(kappa, ea - w, Fa_hp);
 
     // [gex F_a]^t = sum_s gex^{ts} F_a^s
     std::vector<ComplexRMatrix> gexFa_plus(num_sp, zero),
@@ -1373,33 +1422,41 @@ Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::complex<double> w,
       // q^l joins core state a to the internal line
       if (!Angular::Ck_kk_SR(l, ka, kappa))
         continue;
-      const auto ql = get_qk(l).dri();
 
-      // [gex(e_a +/- w) F_a q^l]^t
-      std::vector<ComplexRMatrix> gexFaq_plus, gexFaq_minus;
-      for (auto t = 0ul; t < num_sp; ++t) {
-        gexFaq_plus.push_back(gexFa_plus[t] * ql);
-        gexFaq_minus.push_back(gexFa_minus[t] * ql);
-      }
+      for (auto iq = 0ul; iq < num_lines; ++iq) {
+        // Bare q^l, or the screening-only part bar-q^l(w)
+        const auto ql = iq == 0 ?
+                          get_qk(l).dri() :
+                          (-Iunit * m_qpiq_wk[iw][std::size_t(l)]).dri();
 
-      for (auto k = 0ul; k < num_ks; ++k) {
-        for (auto ig = 0ul; ig < num_kappas; ++ig) {
-          const auto kg = Angular::kindex_to_kappa(ig);
-          const auto L_pa_gex = L_exchange(int(k), l, kv, ka, kappa, kg, sixj);
-          const auto L_gex_pa = L_exchange(int(k), l, kv, kappa, ka, kg, sixj);
-          for (auto t = 0ul; t < num_sp; ++t) {
-            if (L_pa_gex != 0.0) {
-              Gamma.pa_gex[t](k, ig) += L_pa_gex * gexFaq_plus[t];
-            }
-            if (L_gex_pa != 0.0) {
-              Gamma.gex_pa[t](k, ig) += L_gex_pa * gexFaq_minus[t];
+        // [gex(e_a +/- w) F_a q^l]^t
+        std::vector<ComplexRMatrix> gexFaq_plus, gexFaq_minus;
+        for (auto t = 0ul; t < num_sp; ++t) {
+          gexFaq_plus.push_back(gexFa_plus[t] * ql);
+          gexFaq_minus.push_back(gexFa_minus[t] * ql);
+        }
+
+        for (auto k = 0ul; k < num_ks; ++k) {
+          for (auto ig = 0ul; ig < num_kappas; ++ig) {
+            const auto kg = Angular::kindex_to_kappa(ig);
+            const auto L_pa_gex =
+              L_exchange(int(k), l, kv, ka, kappa, kg, sixj);
+            const auto L_gex_pa =
+              L_exchange(int(k), l, kv, kappa, ka, kg, sixj);
+            for (auto t = 0ul; t < num_sp; ++t) {
+              if (L_pa_gex != 0.0) {
+                Gammas[iq].pa_gex[t](k, ig) += L_pa_gex * gexFaq_plus[t];
+              }
+              if (L_gex_pa != 0.0) {
+                Gammas[iq].gex_pa[t](k, ig) += L_gex_pa * gexFaq_minus[t];
+              }
             }
           }
         }
       }
     }
   }
-  return Gamma;
+  return Gammas;
 }
 
 //==============================================================================

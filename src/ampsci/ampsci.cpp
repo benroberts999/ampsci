@@ -358,7 +358,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
      {"exchange",
       "Method for the exchange diagrams (Feynman method only): Goldstone "
       "(sum over basis, with effective screening factors fk) or Feynman "
-      "(frequency integration; second order, no screening) [Goldstone]"},
+      "(frequency integration; includes all-orders (half-)screening and "
+      "hole-particle when those options are set) [Goldstone]"},
      {"fk_both_lines",
       "Apply the screening factors fk to both Coulomb lines of the exchange "
       "diagrams (f_k * f_l), rather than to the outer line only. By default, "
