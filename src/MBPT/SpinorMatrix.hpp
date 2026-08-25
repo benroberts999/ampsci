@@ -180,6 +180,8 @@ public:
   std::size_t g_size() const { return m_g_size; }
   //! True if g parts (fg, gf, gg) are included
   bool includes_g() const { return m_g_size == m_size; };
+  //! Number of spinor components: 2 (f, g) if g parts included, else 1
+  std::size_t num_spins() const { return includes_g() ? 2ul : 1ul; }
   //! Full-grid index of the first sub-grid point
   std::size_t i0() const { return m_i0; }
   //! Sub-grid stride: every stride-th point of the full grid
@@ -519,6 +521,27 @@ public:
   double dr(std::size_t sub_index) const {
     const auto full_index = index_to_fullgrid(sub_index);
     return m_rgrid->drdu(full_index) * m_rgrid->du() * double(m_stride);
+  }
+
+  //! Transpose of a matrix that carries the drj integration measure: the
+  //! measure stays on the column index. Returns new matrix (orig unchanged)
+  //! @details M_ij = K_ij*dr_j -> K_ji*dr_j, i.e., out^{mu nu}_ij =
+  //! M^{nu mu}_ji * dr_j/dr_i (spinor blocks swapped and transposed)
+  [[nodiscard]] SpinorMatrix<T> transpose_drj() const {
+    SpinorMatrix<T> out(*this);
+    const auto num_sp = num_spins();
+    for (auto mu = 0ul; mu < num_sp; ++mu) {
+      for (auto nu = 0ul; nu < num_sp; ++nu) {
+        const auto &in = sp(nu, mu);
+        auto &block = out.sp(mu, nu);
+        for (auto i = 0ul; i < m_size; ++i) {
+          for (auto j = 0ul; j < m_size; ++j) {
+            block(i, j) = in(j, i) * (dr(j) / dr(i));
+          }
+        }
+      }
+    }
+    return out;
   }
 
   //============================================================================
