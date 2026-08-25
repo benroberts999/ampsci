@@ -23,7 +23,7 @@ namespace MBPT {
 Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
                  std::size_t size, const FeynmanOptions &options,
                  int n_min_core, bool include_G, bool verbose,
-                 const std::string &ident, bool form_qpq)
+                 const std::string &ident)
   : m_HF(vHF),
     m_grid(vHF->grid_sptr()),
     m_i0(i0),
@@ -43,6 +43,15 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
                               HoleParticle::include_k0),
     m_screen_Coulomb(options.screening == Screening::include),
     m_Complex_green_method(options.complex_green) {
+
+  m_ident = ident;
+
+  // Polarised core states (n >= n_min_core): indices into m_HF->core()
+  for (auto ia = 0ul; ia < m_HF->core().size(); ++ia) {
+    if (m_HF->core()[ia].n() >= m_min_core_n) {
+      m_core_index.push_back(ia);
+    }
+  }
 
   form_w_quadrature(m_w0, m_wratio);
 
@@ -77,10 +86,9 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
   form_pa();
   form_vx();
 
-  // Construct Q*Pi*Q (polarisation loop): the expensive step
-  if (form_qpq) {
-    form_qpiq(ident);
-  }
+  // The expensive steps, Q*Pi*Q and the loop Green's functions (gex),
+  // are calculated on first use (or read from the disk cache): see
+  // calculate_qpiq, calculate_gex
 }
 
 //==============================================================================
@@ -160,7 +168,6 @@ ComplexGMatrix Feynman::green_single(const DiracSpinor &ket,
 }
 
 //==============================================================================
-// new test way to form the radial exchange potential coordinate matrix using change of basis formula -- the complete basis that is used is the hydrogenic wave functions
 void Feynman::form_vx() {
 
   const auto localQ = m_HF->is_localQ();
@@ -210,7 +217,6 @@ void Feynman::form_vx() {
 }
 
 //==============================================================================
-// // this function constructs the radial exchange coordinate matrix using the typical way that ampsci does it -- know this works since this is what the feynman method used by default
 // void Feynman::form_vx_old() {
 //   // this function forms the matrix form of the radial exchange matrix
 //   // Vx = -|a>Q<a|
@@ -688,8 +694,8 @@ ComplexGMatrix Feynman::construct_green_g0(const DiracSpinor &x0,
 
 //==============================================================================
 std::vector<ComplexRMatrix>
-Feynman::polarisation_each_k(std::complex<double> omega,
-                             bool hole_particle) const {
+Feynman::polarisation_each_k(std::complex<double> omega, bool hole_particle,
+                             std::optional<std::size_t> iw) const {
 
   // polarisation operator is ~ Fa^dag * [Gex(ea + w) + Gex(ea - w)] * Fa
   // The Green's functions, and the sandwich Fa^dag * Gex * Fa, are independent
@@ -700,12 +706,15 @@ Feynman::polarisation_each_k(std::complex<double> omega,
     std::size_t(m_max_k + 1),
     ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
 
+  // The loop gex are the same as the exchange term's: use the cache when
+  // filled, at a grid frequency, with the same hp dressing
+  const bool use_gex_cache =
+    iw && !m_gex_wak.empty() && hole_particle == m_hole_particle;
+
   const auto Iunit = std::complex<double>{0.0, 1.0};
   const auto &core = m_HF->core();
-  for (auto ia = 0ul; ia < core.size(); ++ia) {
-    const auto &Fa = core[ia];
-    if (Fa.n() < m_min_core_n)
-      continue;
+  for (auto ic = 0ul; ic < m_core_index.size(); ++ic) {
+    const auto &Fa = core[m_core_index[ic]];
 
     const auto ea_minus_w = std::complex<double>{Fa.en()} - omega;
     const auto ea_plus_w = std::complex<double>{Fa.en()} + omega;
@@ -728,8 +737,11 @@ Feynman::polarisation_each_k(std::complex<double> omega,
       if (k_cang.empty())
         continue;
 
-      const ComplexGMatrix Gx_pm = green_excited(kn, ea_minus_w, Fa_hp) +
-                                   green_excited(kn, ea_plus_w, Fa_hp);
+      const ComplexGMatrix Gx_pm =
+        use_gex_cache ?
+          m_gex_wak[*iw][ic][in].plus + m_gex_wak[*iw][ic][in].minus :
+          green_excited(kn, ea_minus_w, Fa_hp) +
+            green_excited(kn, ea_plus_w, Fa_hp);
 
       // sandwich: Sa ~ Fa^dag(r1)[Gex(r1,r2,ea-w) + Gex(r1,r2,ea+w)]Fa(r2)
       // pi is symmetric in r1,r2: fill lower half, then mirror
@@ -950,41 +962,46 @@ std::string Feynman::qpiq_filename(const std::string &ident) const {
 }
 
 //==============================================================================
-bool Feynman::read_qpiq(const std::string &ident) {
+std::string Feynman::gex_filename(const std::string &ident) const {
+  // No screening tag: gex does not depend on the screening option
+  const auto prefix = ident.substr(0, ident.find('.'));
+  if (prefix == "" || prefix == "false")
+    return "";
+  return prefix + ".gex" + (m_hole_particle ? "h" : "") +
+         (m_HF->vBreit() == nullptr ? "" : "b") + (m_include_G ? "g" : "") +
+         std::to_string(m_min_core_n) + ".abf";
+}
+
+//==============================================================================
+bool Feynman::read_qpiq(const std::string &ident) const {
   const auto fname = qpiq_filename(ident);
   return fname.empty() ? false : readwrite_qpiq(IO::FRW::read, fname);
 }
 
 //==============================================================================
-bool Feynman::write_qpiq(const std::string &ident) {
+bool Feynman::write_qpiq(const std::string &ident) const {
   const auto fname = qpiq_filename(ident);
   return fname.empty() ? false : readwrite_qpiq(IO::FRW::write, fname);
 }
 
 //==============================================================================
-bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) {
-
-  const auto readQ = rw == IO::FRW::read;
-
-  if (!readQ && fname == "")
-    return false;
-
-  if (readQ && !IO::FRW::file_exists(fname))
-    return false;
+bool Feynman::rw_cache_header(std::fstream &iofs, IO::FRW::RoW rw,
+                              bool check_screening) const {
+  // Every parameter the cached objects depend on; on read, false if any
+  // does not match. Same format for both caches: gex does not depend on
+  // screening, so its file skips only that comparison (not the field)
 
   // For comparing floats:
   constexpr double eps = 1.0e-10;
   auto fequal = [](double a, double b) { return std::abs(a - b) <= eps; };
-
-  std::fstream iofs;
-  IO::FRW::open_binary(iofs, fname, rw);
 
   // Check screening / hole-particle (should be different filename)
   bool t_hp{m_hole_particle}, t_sc{m_screen_Coulomb},
     t_hohp{m_include_higher_order_hp}, t_cgm{m_Complex_green_method},
     t_iG{m_include_G};
   rw_binary(iofs, rw, t_hp, t_sc, t_hohp, t_cgm, t_iG);
-  if (t_hp != m_hole_particle || t_sc != m_screen_Coulomb ||
+  if (t_hp != m_hole_particle ||
+      (check_screening && t_sc != m_screen_Coulomb) ||
       t_hohp != m_include_higher_order_hp || t_cgm != m_Complex_green_method ||
       t_iG != m_include_G)
     return false;
@@ -1041,6 +1058,26 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) {
   if (t_max_k != m_max_k || !fequal(t_omre, m_omre))
     return false;
 
+  return true;
+}
+
+//==============================================================================
+bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) const {
+
+  const auto readQ = rw == IO::FRW::read;
+
+  if (!readQ && fname == "")
+    return false;
+
+  if (readQ && !IO::FRW::file_exists(fname))
+    return false;
+
+  std::fstream iofs;
+  IO::FRW::open_binary(iofs, fname, rw);
+
+  if (!rw_cache_header(iofs, rw, true))
+    return false;
+
   // Now, do actual read/write of data:
 
   const auto num_ks = std::size_t(m_max_k + 1);
@@ -1070,11 +1107,83 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) {
 }
 
 //==============================================================================
-void Feynman::form_qpiq(const std::string &ident) {
-  if (read_qpiq(ident))
+bool Feynman::readwrite_gex(IO::FRW::RoW rw, const std::string &fname) const {
+
+  const auto readQ = rw == IO::FRW::read;
+
+  if (!readQ && fname == "")
+    return false;
+
+  if (readQ && !IO::FRW::file_exists(fname))
+    return false;
+
+  std::fstream iofs;
+  IO::FRW::open_binary(iofs, fname, rw);
+
+  // Same header as QPQ; screening not compared (gex independent of it)
+  if (!rw_cache_header(iofs, rw, false))
+    return false;
+
+  // Now, do actual read/write of data:
+
+  const auto num_ws = m_wgrid_points.size();
+  const auto num_kappas = m_max_ki + 1;
+  const auto num_sp = num_spins();
+
+  std::size_t n_gex{m_core_index.size()};
+  rw_binary(iofs, rw, n_gex);
+  if (n_gex != m_core_index.size())
+    return false;
+
+  if (readQ) {
+    const ComplexGMatrix gzero(m_i0, m_stride, m_subgrid_points, m_include_G,
+                               m_grid);
+    m_gex_wak.assign(num_ws, std::vector<std::vector<GexPair>>(
+                               n_gex, std::vector<GexPair>(
+                                        num_kappas, GexPair{gzero, gzero})));
+  }
+
+  for (auto iw = 0ul; iw < num_ws; ++iw) {
+    for (auto ic = 0ul; ic < n_gex; ++ic) {
+      for (auto ik = 0ul; ik < num_kappas; ++ik) {
+        for (auto *G :
+             {&m_gex_wak[iw][ic][ik].plus, &m_gex_wak[iw][ic][ik].minus}) {
+          for (auto mu = 0ul; mu < num_sp; ++mu) {
+            for (auto nu = 0ul; nu < num_sp; ++nu) {
+              auto &block = G->sp(mu, nu);
+              for (std::size_t i = 0; i < m_subgrid_points; ++i) {
+                for (std::size_t j = 0; j < m_subgrid_points; ++j) {
+                  double re = block(i, j).real();
+                  double im = block(i, j).imag();
+                  rw_binary(iofs, rw, re, im);
+                  if (readQ)
+                    block(i, j) = {re, im};
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+
+  const auto rw_str = !readQ ? "Written Gex to " : "Read Gex from ";
+  std::cout << rw_str << "file: " << fname << "\n";
+  return true;
+}
+
+//==============================================================================
+void Feynman::calculate_qpiq() const {
+  if (has_qpiq()) {
     return;
+  }
+  if (read_qpiq(m_ident)) {
+    return;
+  }
+  // The polarisation loop re-uses the cached gex when present (see
+  // calculate_gex); otherwise it solves (and discards) its own
   form_qpiq(polarisation_wk());
-  write_qpiq(ident);
+  write_qpiq(m_ident);
 }
 
 //==============================================================================
@@ -1093,7 +1202,7 @@ std::vector<std::vector<ComplexRMatrix>> Feynman::polarisation_wk() const {
 #pragma omp parallel for schedule(dynamic)
   for (auto iw = 0ul; iw < num_ws; ++iw) {
     const auto omega = std::complex<double>{m_omre, m_wgrid_points[iw]};
-    pi_wk[iw] = polarisation_each_k(omega, m_hole_particle);
+    pi_wk[iw] = polarisation_each_k(omega, m_hole_particle, iw);
   }
 
   std::cout << " done\n" << std::flush;
@@ -1101,7 +1210,8 @@ std::vector<std::vector<ComplexRMatrix>> Feynman::polarisation_wk() const {
 }
 
 //==============================================================================
-void Feynman::form_qpiq(const std::vector<std::vector<ComplexRMatrix>> &pi_wk) {
+void Feynman::form_qpiq(
+  const std::vector<std::vector<ComplexRMatrix>> &pi_wk) const {
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_ws = m_wgrid_points.size();
@@ -1191,6 +1301,54 @@ double L_exchange(int k, int l, int kappa_v, int kappa_alpha, int kappa_beta,
 }
 
 //==============================================================================
+void Feynman::calculate_gex() const {
+  // gex(e_a +/- w) depends on the core state and the w grid only:
+  // Therefore, can fill once
+  // Vhp(a)-dressed when hole_particle
+  if (!m_gex_wak.empty()) {
+    return;
+  }
+
+  if (readwrite_gex(IO::FRW::read, gex_filename(m_ident))) {
+    return;
+  }
+
+  std::cout << "Calculating loop Gex .. " << std::flush;
+
+  const auto &core = m_HF->core();
+  const auto num_core = m_core_index.size();
+
+  const auto num_kappas = m_max_ki + 1;
+  const ComplexGMatrix gzero(m_i0, m_stride, m_subgrid_points, m_include_G,
+                             m_grid);
+  m_gex_wak.assign(
+    m_wgrid_points.size(),
+    std::vector<std::vector<GexPair>>(
+      num_core, std::vector<GexPair>(num_kappas, GexPair{gzero, gzero})));
+
+  // BLAS must run single-threaded inside the omp region below
+  const qip::SingleThreadBlas single_thread_blas{};
+
+#pragma omp parallel for collapse(2) schedule(dynamic)
+  for (auto iw = 0ul; iw < m_wgrid_points.size(); ++iw) {
+    for (auto ic = 0ul; ic < num_core; ++ic) {
+      const auto &Fa = core[m_core_index[ic]];
+      const auto ea = std::complex<double>{Fa.en()};
+      const auto w = std::complex<double>{m_omre, m_wgrid_points[iw]};
+      const auto *Fa_hp = m_hole_particle ? &Fa : nullptr;
+      for (auto ik = 0ul; ik < num_kappas; ++ik) {
+        const auto kappa = Angular::kindex_to_kappa(ik);
+        m_gex_wak[iw][ic][ik] = GexPair{green_excited(kappa, ea + w, Fa_hp),
+                                        green_excited(kappa, ea - w, Fa_hp)};
+      }
+    }
+  }
+  std::cout << " done\n" << std::flush;
+
+  readwrite_gex(IO::FRW::write, gex_filename(m_ident));
+}
+
+//==============================================================================
 GMatrix Feynman::Sigma_exchange(int kv, double env) const {
   /*
     Exchange Sigma, Methods Eq. (RadialSigmaExch):
@@ -1242,8 +1400,6 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
   const auto num_sp = num_spins();
   // q^l-line variants: bare, plus the screening-only bar-q when screening
   const auto num_lines = m_screen_Coulomb ? 2ul : 1ul;
-  assert((!m_screen_Coulomb || has_qpiq()) &&
-         "Screened exchange requires Q*Pi*Q (form_qpiq)");
   const Angular::SixJTable sixj(2 * m_max_k);
 
   // Quadrature weights: the u^-3 tail correction of the w grid (direct term)
@@ -1251,8 +1407,30 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
   auto weights = m_wgrid_weights;
   weights.back() += 0.5 * m_wgrid_points.back();
 
-  // BLAS must run single-threaded inside the omp region below
+  // Loop gex first (the polarisation loop re-uses them if Q*Pi*Q, needed
+  // for the screened line bar-q, is yet to be formed); both are no-ops
+  // when already calculated or read from disk
+  calculate_gex();
+  if (m_screen_Coulomb) {
+    calculate_qpiq();
+  }
+  const auto num_core = m_core_index.size();
+
+  // BLAS must run single-threaded inside the omp regions below
   const qip::SingleThreadBlas single_thread_blas{};
+
+  // Valence-line Green's function, g^gamma(e + w), for each (w, kappa)
+  const ComplexGMatrix gzero(m_i0, m_stride, m_subgrid_points, m_include_G,
+                             m_grid);
+  std::vector<std::vector<ComplexGMatrix>> g_v(
+    m_wgrid_points.size(), std::vector<ComplexGMatrix>(num_kappas, gzero));
+#pragma omp parallel for collapse(2) schedule(dynamic)
+  for (auto iw = 0ul; iw < m_wgrid_points.size(); ++iw) {
+    for (auto ig = 0ul; ig < num_kappas; ++ig) {
+      const auto w = std::complex<double>{m_omre, m_wgrid_points[iw]};
+      g_v[iw][ig] = green(Angular::kindex_to_kappa(ig), env + w);
+    }
+  }
 
   const ComplexRMatrix zero(m_i0, m_stride, m_subgrid_points, m_grid);
   const GMatrix Sigma_zero(m_i0, m_stride, m_subgrid_points, m_include_G,
@@ -1261,26 +1439,14 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
     std::size_t(omp_get_max_threads()),
     std::vector<GMatrix>(num_lines, Sigma_zero));
 
-#pragma omp parallel for schedule(dynamic)
+#pragma omp parallel for collapse(2) schedule(dynamic)
   for (auto iw = 0ul; iw < m_wgrid_points.size(); ++iw) {
-    const auto tid = std::size_t(omp_get_thread_num());
-    auto &Sigma_t = Sigma_ts[tid];
-
-    const auto w = std::complex<double>{m_omre, m_wgrid_points[iw]};
-    const auto du = weights[iw];
-
-    // Valence-line Green's function, g^gamma(e + w), for each partial wave
-    // nb: could be shared with direct term.. probably not bottleneck
-    std::vector<ComplexGMatrix> g_gamma;
-    for (auto ig = 0ul; ig < num_kappas; ++ig) {
-      g_gamma.push_back(green(Angular::kindex_to_kappa(ig), env + w));
-    }
-
-    for (const auto &Fa : m_HF->core()) {
-      if (Fa.n() < m_min_core_n)
-        continue;
+    for (auto ic = 0ul; ic < num_core; ++ic) {
+      auto &Sigma_t = Sigma_ts[std::size_t(omp_get_thread_num())];
+      const auto du = weights[iw];
+      const auto &Fa = m_HF->core()[m_core_index[ic]];
       const auto ka = Fa.kappa();
-      const auto Gammas = exchange_Gamma_q(kv, Fa, iw, sixj);
+      const auto Gammas = exchange_Gamma_q(kv, ic, iw, sixj);
 
       for (auto k = 0ul; k < num_ks; ++k) {
         const auto &qk = get_qk(int(k));
@@ -1289,7 +1455,7 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
 
         for (auto ig = 0ul; ig < num_kappas; ++ig) {
           const auto kg = Angular::kindex_to_kappa(ig);
-          const auto &g = g_gamma[ig];
+          const auto &g = g_v[iw][ig];
           const bool gex_pa_nonzero = Angular::Ck_kk_SR(int(k), ka, kg);
 
           for (auto nu = 0ul; nu < num_sp; ++nu) {
@@ -1355,7 +1521,7 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
 
 //==============================================================================
 std::vector<Feynman::GammaQ>
-Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::size_t iw,
+Feynman::exchange_Gamma_q(int kv, std::size_t ic, std::size_t iw,
                           const Angular::SixJTable &sixj) const {
   /*
     The two terms of Gamma (see Sigma_exchange) for core state a, with the
@@ -1381,8 +1547,8 @@ Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::size_t iw,
     Returned for each (k, gamma), and each spinor index t (mu); one GammaQ
     per q^l-line variant: [0] bare q^l, [1] (when screening) the
     screening-only part, bar-q^l(w) = -i [q pi q~]^l(w).
-    Hole-particle: gex(e_a +/- w) is dressed by Vhp(a) (the excited
-    electron of the (a, gex) pair feels the hole it left).
+    Hole-particle: the cached gex(e_a +/- w) are Vhp(a)-dressed (the
+    excited electron of the (a, gex) pair feels the hole it left).
   */
 
   const auto num_ks = std::size_t(m_max_k + 1);
@@ -1391,10 +1557,8 @@ Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::size_t iw,
   const auto num_lines = m_screen_Coulomb ? 2ul : 1ul;
   constexpr std::complex<double> Iunit{0.0, 1.0};
 
-  const auto w = std::complex<double>{m_omre, m_wgrid_points[iw]};
+  const auto &Fa = m_HF->core()[m_core_index[ic]];
   const auto ka = Fa.kappa();
-  const auto ea = std::complex<double>{Fa.en()};
-  const auto *Fa_hp = m_hole_particle ? &Fa : nullptr;
 
   const ComplexRMatrix zero(m_i0, m_stride, m_subgrid_points, m_grid);
   const LinAlg::Matrix<ComplexRMatrix> zeros(num_ks, num_kappas, zero);
@@ -1404,8 +1568,7 @@ Feynman::exchange_Gamma_q(int kv, const DiracSpinor &Fa, std::size_t iw,
   for (auto ik = 0ul; ik < num_kappas; ++ik) {
     const auto kappa = Angular::kindex_to_kappa(ik);
 
-    const auto gex_plus = green_excited(kappa, ea + w, Fa_hp);
-    const auto gex_minus = green_excited(kappa, ea - w, Fa_hp);
+    const auto &[gex_plus, gex_minus] = m_gex_wak[iw][ic][ik];
 
     // [gex F_a]^t = sum_s gex^{ts} F_a^s
     std::vector<ComplexRMatrix> gexFa_plus(num_sp, zero),
@@ -1466,7 +1629,7 @@ std::vector<GMatrix> Feynman::Sigma_direct_each_k(int kv, double env) const {
   // costs the same as a single k (used for the effective screening factors
   // fk, which need the ratio of each k term separately).
 
-  assert(has_qpiq() && "Q*Pi*Q must be formed (form_qpiq) before Sigma_direct");
+  calculate_qpiq();
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const GMatrix zero(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);

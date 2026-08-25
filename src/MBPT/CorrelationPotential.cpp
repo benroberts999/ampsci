@@ -462,6 +462,13 @@ void CorrelationPotential::setup_Feynman() {
   if (!m_Fy) {
     m_Fy = Feynman(m_HF, m_i0, m_stride, m_size, m_Foptions, m_n_min_core,
                    m_includeG, true, m_fname);
+    // Calculate the expensive parts we know we need now, rather than on
+    // first use (clearer output). gex first: the polarisation loop
+    // re-uses them, and the disk cache is then written once, holding both
+    if (m_feynman_exchange) {
+      m_Fy->calculate_gex();
+    }
+    m_Fy->calculate_qpiq();
   }
 
   if (m_calculate_fk && !m_Fy0 && m_Fy->screening()) {
@@ -471,7 +478,7 @@ void CorrelationPotential::setup_Feynman() {
     t_Foptions0.screening = Screening::exclude;
     t_Foptions0.hole_particle = HoleParticle::exclude;
     m_Fy0 = Feynman(m_HF, m_i0, m_stride, m_size, t_Foptions0, m_n_min_core,
-                    m_includeG, false, m_fname, false);
+                    m_includeG, false, m_fname);
 
     // Fy with screening (but no hp)
     auto t_FoptionsX{m_Foptions};
@@ -479,7 +486,7 @@ void CorrelationPotential::setup_Feynman() {
     t_FoptionsX.hole_particle = HoleParticle::exclude;
     m_FyX = m_Fy->hole_particle() ?
               Feynman(m_HF, m_i0, m_stride, m_size, t_FoptionsX, m_n_min_core,
-                      m_includeG, false, m_fname, false) :
+                      m_includeG, false, m_fname) :
               m_Fy;
 
     // Fy0 and FyX differ only in screening, so the polarisation loop (the
