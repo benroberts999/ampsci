@@ -645,6 +645,12 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
                   "the physical cross-section is finite. Costs one extra "
                   "RPA-type solve per open channel per energy. [true]"},
     {"each_shell", "Add per-shell RPA cross-section columns [false]"},
+    {"rpa_max", "Maximum photon energy (eV) at which the RPA is solved. Core "
+                "polarisation is a low-energy effect: above a few hundred eV "
+                "the correction is well under a percent, while the solve is "
+                "at its most expensive (every shell open). Above this, the "
+                "RPA columns repeat the bare values. Set 0 (or negative) for "
+                "no limit [1000]"},
     {"oname", "Output file name [photoRPA-out.txt]"},
   });
   if (input.has_option("help")) {
@@ -666,16 +672,16 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto eta = input.get("eta", 0.4);
   const auto unitarise = input.get("unitarise", true);
   const auto each_shell = input.get("each_shell", false);
+  const auto rpa_max_eV = input.get("rpa_max", 1000.0);
+  const auto rpa_max_au =
+    rpa_max_eV > 0.0 ? rpa_max_eV / PhysConst::Hartree_eV : 1.0 / 0.0;
   const auto oname = input.get("oname", std::string{"photoRPA-out.txt"});
 
-  std::cout << "\nCore ionisation energies, in eV\n";
-  for (const auto &Fc : wf.core()) {
-    fmt::print("{:3} : {:.4f}\n", Fc.shortSymbol(),
-               -1 * Fc.en() * PhysConst::Hartree_eV);
+  fmt::print("\nomega : [{:.1f}, {:.1f}] eV, {} steps (logarithmic)\n", Emin_eV,
+             Emax_eV, energies.size());
+  if (rpa_max_au < energies.back()) {
+    fmt::print("RPA solved up to {:.0f} eV; bare above\n", rpa_max_eV);
   }
-  fmt::print("\nomega : [{:.1f}, {:.1f}] eV = [{:.3f}, {:.3f}] au, {} steps\n",
-             Emin_eV, Emax_eV, energies.front(), energies.back(),
-             energies.size());
 
   // Grid-resolution guidance for the requested range: the channel solves
   // and the (c, K) extraction need ~40 points per wavelength on the main
@@ -722,13 +728,23 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   std::vector<std::vector<double>> results(energies.size(),
                                            std::vector<double>(n_cols, 0.0));
 
+  // Scan-wide diagnostics: collected here and reported once at the end,
+  // rather than warned on per omega.
+  double KpiD_worst = 0.0;
+  double KpiD_worst_at = 0.0;
+  std::string KpiD_worst_ch{};
+  std::size_t n_excluded_omega = 0;
+
+  fmt::print("\n{:>9s}  {:>10s}  {:>10s}{}  {:>8s} {:>4s}  {:>8s}\n",
+             "omega/eV", "bare", "RPA", unitarise ? "       RPA_U" : "", "eps",
+             "its", "KpiD");
+
   // Energies run serially; threads are used inside each solve (the channel
   // tasks, and the rescattering seed columns). With unitarisation the cost
   // concentrates in the few high-omega points (many open channels = many
   // seeded solves), which parallelise well over the seed columns --
   // omega-parallel would leave the most expensive omega serial on one
-  // thread (and hold an Anderson history per thread). Each omega's RPA
-  // convergence line prints live.
+  // thread (and hold an Anderson history per thread).
   for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
     const auto omega = energies[i_omega];
 
@@ -741,11 +757,13 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
         return ec >= 0.0 && ec <= ec_max;
       });
     if (!any_open) {
-      fmt::print("TDHFcntm (w={:.4f}): below all thresholds, sigma = 0 "
-                 "(skipped)\n",
-                 omega);
       continue;
     }
+
+    // Above rpa_max the RPA is not solved: the columns repeat the bare
+    // values (see the rpa_max option).
+    const bool do_rpa = omega <= rpa_max_au;
+    const bool do_unitarise = unitarise && do_rpa;
 
     // Conversion: (1/3) sum |<e||E1||a>|^2 -> cross-section (cm^2)
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
@@ -758,14 +776,16 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
 
     // Solve the RPA (continuum TDHF) at this omega, both gauges:
     auto rpa_L = ExternalField::TDHFcntm(&E1, wf.vHF());
-    rpa_L.eps_target() = eps_target;
-    rpa_L.set_eta(eta);
-    rpa_L.solve_core(omega, max_its, true);
-
     auto rpa_V = ExternalField::TDHFcntm(&E1v, wf.vHF(), &E1v_minus);
-    rpa_V.eps_target() = eps_target;
-    rpa_V.set_eta(eta);
-    rpa_V.solve_core(omega, max_its, true);
+    if (do_rpa) {
+      rpa_L.eps_target() = eps_target;
+      rpa_L.set_eta(eta);
+      rpa_L.solve_core(omega, max_its, false);
+
+      rpa_V.eps_target() = eps_target;
+      rpa_V.set_eta(eta);
+      rpa_V.solve_core(omega, max_its, false);
+    }
 
     // Matrix elements: D = D0 + <e|dV|a> (standing-wave), and the
     // unitarised (physical) amplitudes D_phys = |A|/pi [A = (1-i*Kbar)^{-1}
@@ -788,16 +808,18 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
         if (E1.isZero(Fe, Fa) || Fe.norm2() == 0.0)
           continue;
         const auto D0 = E1.reducedME(Fe, Fa);
-        const auto D = D0 + rpa_L.dV_cntm(Fe, Fa);
+        const auto D = do_rpa ? D0 + rpa_L.dV_cntm(Fe, Fa) : D0;
         const auto D0v = E1v.reducedME(Fe, Fa);
-        const auto Dv = D0v + rpa_V.dV_cntm(Fe, Fa);
+        const auto Dv = do_rpa ? D0v + rpa_V.dV_cntm(Fe, Fa) : D0v;
         sigma_E1 += Ksigma * D0 * D0;
         sigma_E1_rpa += Ksigma * D * D;
         sigma_E1v += Ksigma * D0v * D0v;
         sigma_E1v_rpa += Ksigma * Dv * Dv;
+        // Unitarised: the physical amplitudes. Without the RPA solve there
+        // is nothing to rescatter, so the bare value stands.
+        const auto DU = do_unitarise ? rpa_L.D_phys(Fa, Fe.kappa()) : D0;
+        const auto DUv = do_unitarise ? rpa_V.D_phys(Fa, Fe.kappa()) : D0v;
         if (unitarise) {
-          const auto DU = rpa_L.D_phys(Fa, Fe.kappa());
-          const auto DUv = rpa_V.D_phys(Fa, Fe.kappa());
           sigma_E1_rpaU += Ksigma * DU * DU;
           sigma_E1v_rpaU += Ksigma * DUv * DUv;
           if (each_shell) {
@@ -808,8 +830,21 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     // Convergence / internal-consistency diagnostics, worst over gauges
-    // [KpiD: the K = pi*D identity, computed (and warned on) by solve_core]
+    // [KpiD: the K = pi*D identity, computed by solve_core]
     const auto KpiD_dev = std::max(rpa_L.KpiD_dev(), rpa_V.KpiD_dev());
+    if (KpiD_dev > KpiD_worst) {
+      KpiD_worst = KpiD_dev;
+      KpiD_worst_at = omega;
+      KpiD_worst_ch = rpa_L.KpiD_dev() >= rpa_V.KpiD_dev() ?
+                        rpa_L.KpiD_worst_channel() :
+                        rpa_V.KpiD_worst_channel();
+    }
+    for (const auto *rpa : {&rpa_L, &rpa_V}) {
+      if (!rpa->excluded_channels().empty()) {
+        n_excluded_omega++;
+        break;
+      }
+    }
 
     results[i_omega][0] = sigma_E1;
     results[i_omega][1] = sigma_E1_rpa;
@@ -817,11 +852,37 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     results[i_omega][3] = sigma_E1v;
     results[i_omega][4] = sigma_E1v_rpa;
     results[i_omega][5] = sigma_E1v_rpaU;
-    results[i_omega][6] = std::max(rpa_L.last_eps(), rpa_V.last_eps());
-    results[i_omega][7] = std::max(rpa_L.last_its(), rpa_V.last_its());
+    // Convergence of the RPA solve; zero where it was not solved (above
+    // rpa_max), rather than the unsolved default.
+    results[i_omega][6] =
+      do_rpa ? std::max(rpa_L.last_eps(), rpa_V.last_eps()) : 0.0;
+    results[i_omega][7] =
+      do_rpa ? std::max(rpa_L.last_its(), rpa_V.last_its()) : 0.0;
     results[i_omega][8] = KpiD_dev;
     results[i_omega][9] =
       std::max(rpa_L.rescattering_asymmetry(), rpa_V.rescattering_asymmetry());
+
+    fmt::print("{:9.2f}  {:10.3e}  {:10.3e}{}  {:8.1e} {:4.0f}  {:8.1e}{}\n",
+               omega * PhysConst::Hartree_eV, sigma_E1, sigma_E1_rpa,
+               unitarise ? fmt::format("  {:10.3e}", sigma_E1_rpaU) : "",
+               results[i_omega][6], results[i_omega][7], KpiD_dev,
+               do_rpa ? "" : "  (bare)");
+    std::cout << std::flush;
+  }
+
+  // Scan-wide quality report: printed once, in place of per-omega warnings.
+  if (KpiD_worst > 0.05) {
+    fmt::print("\nK = pi*D worst: {:.1e} [{}] at w = {:.1f} eV. Above ~5% the "
+               "channel solve is unreliable on this grid (increase "
+               "num_points); check the KpiD_dev column.\n",
+               KpiD_worst, KpiD_worst_ch,
+               KpiD_worst_at * PhysConst::Hartree_eV);
+  }
+  if (n_excluded_omega != 0) {
+    fmt::print("\n{} of {} energies had open channels dropped (continuum solve "
+               "returned zero: grid resolves nothing at that energy). Increase "
+               "num_points to include them.\n",
+               n_excluded_omega, energies.size());
   }
 
   std::ofstream out_file(oname);
@@ -839,9 +900,14 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
            << "# sigma_E1v_rpaU : full RPA, unitarised, velocity\n"
            << "# rpa_eps        : RPA convergence achieved (worst gauge)\n"
            << "# rpa_its        : RPA iterations used (worst gauge)\n"
-           << "# KpiD_dev       : worst |K/(pi*D) - 1| internal consistency\n"
+           << "# KpiD_dev       : worst |K - pi*D| / max|K| internal "
+              "consistency\n"
            << "# Kbar_asym      : rescattering-matrix asymmetry "
               "(consistency)\n";
+  if (rpa_max_au < energies.back()) {
+    out_file << "# nb: RPA solved only up to " << rpa_max_eV
+             << " eV; above that the rpa/rpaU columns repeat the bare\n";
+  }
   if (each_shell) {
     out_file << "# sigma_<shell>  : per-shell unitarised-RPA cross-section "
                 "(length)\n";

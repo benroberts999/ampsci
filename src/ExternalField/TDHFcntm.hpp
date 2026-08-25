@@ -240,8 +240,20 @@ public:
   //! flags an unreliable channel solve (marginal grid resolution) even
   //! when the SCF itself converged. Scaled to the DOMINANT amplitude, so
   //! weak/zero-crossing channels cannot fire the alarm on a negligible
-  //! absolute error. A warning is printed (if print) when it exceeds ~5%.
+  //! absolute error. Above ~5% the amplitudes at this omega should not be
+  //! trusted (a denser grid is needed). Never printed: query it.
   double KpiD_dev() const { return m_KpiD; }
+
+  //! Label ("shell,kappa") of the channel attaining KpiD_dev(); empty if
+  //! there are no open channels.
+  const std::string &KpiD_worst_channel() const { return m_KpiD_lab; }
+
+  //! Open channels dropped from the response because the continuum solve
+  //! returned zero (the grid resolves nothing at that energy); they are
+  //! zeroed, exactly as suppress_open does. Empty when none were dropped,
+  //! which is the normal case. Accumulated over every omega solved since
+  //! the last clear(). Never printed: query it.
+  const std::string &excluded_channels() const { return m_excluded; }
 
   /*!
     @brief Reduced ME of dV for a continuum final state, consistent with the
@@ -367,8 +379,12 @@ private:
   // is reused for the seeded solves.
   std::optional<Rescattering> m_resc{};
   int m_max_its{40};
-  // Worst K = pi*D violation of the last solve_core (see KpiD_dev())
+  // Worst K = pi*D violation of the last solve_core (see KpiD_dev()), and
+  // the channel that attained it
   double m_KpiD{0.0};
+  std::string m_KpiD_lab{};
+  // Channels dropped by the zero-pair backstop (see excluded_channels())
+  std::string m_excluded{};
 
   // Homogeneous (seeded, no external field) solve state -- set only inside
   // rescattering(), on a copy of the driven-solved object. The seeded
@@ -394,9 +410,9 @@ private:
   // (Re)builds m_ch for this omega: openness flags, and the homogeneous
   // continuum pair Freg/Firr for each open channel (barely-open channels
   // handled by the outward-extension pair construction; high-energy
-  // channels truncated at Freg.max_pt()). If print, warns on the backstop
-  // exclusion (solveContinuum returned zero: grid resolves nothing).
-  void prepare_channels(double omega, bool print);
+  // channels truncated at Freg.max_pt()). Channels dropped by the backstop
+  // (solveContinuum returned zero) are recorded in m_excluded, not printed.
+  void prepare_channels(double omega);
 
   // Drivers for solve_core (after the shared set-up): plain damped (staged)
   // fixed-point iteration, and Anderson/DIIS-accelerated iteration (see

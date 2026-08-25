@@ -34,10 +34,13 @@ void TDHFcntm::clear() {
   m_ch.clear();
   m_omega = -1.0;
   m_resc.reset();
+  m_KpiD = 0.0;
+  m_KpiD_lab.clear();
+  m_excluded.clear();
 }
 
 //==============================================================================
-void TDHFcntm::prepare_channels(double omega, bool print) {
+void TDHFcntm::prepare_channels(double omega) {
   // (Re)build the per-channel continuum caches for this omega: openness, and
   // for each open channel the homogeneous pair Freg/Firr at en_+ = en_b +
   // omega, built ONCE in the fixed conditioning potential
@@ -94,12 +97,9 @@ void TDHFcntm::prepare_channels(double omega, bool print) {
       m_ch[ib].emplace_back(usable, std::move(Freg), std::move(Firr));
     }
 
-    if (print && !failed.empty()) {
-      fmt::print("\nWarning: TDHFcntm: {} open channels [{}]: continuum solve "
-                 "returned zero (en_+ = {:.1e} au unresolvable on this grid): "
-                 "excluded from the response. Increase num_points to include "
-                 "them.\n",
-                 Fb.shortSymbol(), failed, en_plus);
+    if (!failed.empty()) {
+      m_excluded +=
+        (m_excluded.empty() ? "" : "; ") + Fb.shortSymbol() + "," + failed;
     }
   }
 }
@@ -413,7 +413,7 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
 
   // (Re)build the continuum channel caches when omega changes
   if (omega != m_omega || m_ch.empty()) {
-    prepare_channels(omega, print);
+    prepare_channels(omega);
   }
 
   if (m_anderson) {
@@ -434,8 +434,10 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
   // but negligible absolute one must not fire the alarm -- what matters is
   // the impact on the summed cross-section (same logic as the eps_cntm
   // floor).
+  // Stored, never printed: the caller decides what to do with it
+  // (KpiD_dev(), KpiD_worst_channel()).
   m_KpiD = 0.0;
-  std::string worst_lab{};
+  m_KpiD_lab.clear();
   std::vector<std::pair<const DiracSpinor *, OpenChannel>> ochs;
   double K_scale = 0.0;
   for (const auto &Fb : m_core) {
@@ -451,15 +453,8 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
     const auto dev = std::abs(och.K - M_PI * och.D) / K_scale;
     if (dev > m_KpiD) {
       m_KpiD = dev;
-      worst_lab = pFb->shortSymbol() + "," + AtomData::kappa_symbol(och.kappa);
+      m_KpiD_lab = pFb->shortSymbol() + "," + AtomData::kappa_symbol(och.kappa);
     }
-  }
-  const auto KpiD_warn = 0.05;
-  if (print && m_KpiD > KpiD_warn) {
-    fmt::print("\nWarning: TDHFcntm: K = pi*D violated ({:.1e} for [{}]) at "
-               "w = {:.4f}: channel solve unreliable on this grid; results "
-               "at this omega are suspect. Increase num_points.\n",
-               m_KpiD, worst_lab, omega);
   }
 }
 
