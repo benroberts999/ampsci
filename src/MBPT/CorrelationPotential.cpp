@@ -575,7 +575,13 @@ void CorrelationPotential::setup_Feynman() {
 
   if (!m_Fy) {
     m_Fy = Feynman(m_HF, m_i0, m_stride, m_size, m_Foptions, m_n_min_core,
-                   m_includeG, true, m_fname);
+                   m_includeG, true, m_fname, !m_feynman_exchange);
+    // Feynman exchange needs the loop gex: calculate them first, so the
+    // polarisation loop (Q*Pi*Q) re-uses them
+    if (m_feynman_exchange) {
+      m_Fy->calculate_gex();
+      m_Fy->form_qpiq(m_fname);
+    }
   }
 
   if (m_calculate_fk && !m_Fy0 && m_Fy->screening()) {

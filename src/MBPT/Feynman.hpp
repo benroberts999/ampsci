@@ -140,6 +140,20 @@ class Feynman {
   // Effective spinless Q*Pi*Q operator: for each imaginary omega, and each k
   LinAlg::Matrix<ComplexRMatrix> m_qpiq_wk{};
 
+  // Loop gex(e_a + w) and gex(e_a - w), for each (w, core state, kappa).
+  // Independent of the valence state: one fill (calculate_gex) serves
+  // every Sigma_exchange call. Has its own disk cache.
+  // Memory: 2 N_w N_core N_kappa sub-grid matrices
+  struct GexPair {
+    ComplexGMatrix plus, minus;
+  };
+  mutable std::vector<std::vector<std::vector<GexPair>>> m_gex_wak{};
+  // Indices of the polarised core states (n >= n_min_core) in
+  // m_HF->core(); set at construction
+  std::vector<std::size_t> m_core_index{};
+  // File prefix for the disk cache (as given at construction)
+  std::string m_ident{};
+
   // Method for complex-energy Green's function (see FeynmanOptions)
   // false: Dyson method (solve at real energy, correct to complex);
   // true: solve Dirac equation directly at complex energy
@@ -167,8 +181,8 @@ public:
     @param include_G   Include small (g) components throughout. Always on if
                        @p vHF includes Breit
     @param verbose     Print summary of options
-    @param ident       File prefix for the Q*Pi*Q disk cache ("" or "false":
-                       no cache)
+    @param ident       File prefix for the Q*Pi*Q and loop-gex disk caches
+                       ("" or "false": no cache)
     @param form_qpq    Form Q*Pi*Q on construction
   */
   Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
@@ -262,9 +276,14 @@ public:
     @param omega          Complex frequency
     @param hole_particle  Include the hole-particle interaction (independent
                           of the option set on construction)
+    @param iw             Index of omega on the frequency grid: if given and
+                          the loop-gex cache is filled (with matching hp
+                          dressing), the cached Green's functions are used
+                          instead of solving
   */
-  std::vector<ComplexRMatrix> polarisation_each_k(std::complex<double> omega,
-                                                  bool hole_particle) const;
+  std::vector<ComplexRMatrix>
+  polarisation_each_k(std::complex<double> omega, bool hole_particle,
+                      std::optional<std::size_t> iw = {}) const;
 
   /*!
     @brief Polarisation operator pi^k(w) on the frequency grid, for each k.
@@ -287,6 +306,13 @@ public:
     forms and writes it (see read_qpiq/write_qpiq).
   */
   void form_qpiq(const std::string &ident = "");
+
+  //! Ensures the loop Green's functions gex(e_a +/- w) exist (required by
+  //! Sigma_exchange; re-used by the polarisation loop when present, so
+  //! call BEFORE form_qpiq): no-op if already calculated; else reads
+  //! its own disk cache, or calculates (Vhp(a)-dressed when
+  //! hole_particle) and writes it
+  void calculate_gex() const;
 
   /*!
     @brief Forms Q*Pi*Q (with screening, if set) from given polarisation op.
@@ -339,7 +365,8 @@ public:
   //! screening/hole_particle options are set: half-screened all-orders
   //! screening (each Coulomb line dressed one at a time; both-at-once
   //! neglected), and Vhp(a) on the loop Green's functions. Cf.
-  //! Goldstone::Sigma_exchange
+  //! Goldstone::Sigma_exchange. Not safe to call concurrently on one
+  //! object (fills the loop-gex cache on first call)
   GMatrix Sigma_exchange(int kappa_v, double en_v) const;
 
   /*!
@@ -467,11 +494,19 @@ private:
   // composite Simpson's rule in ln(u) on the log grid [w0, wmax], trapezoid
   // panel for [0, w0], and u^-3 tail correction beyond wmax
   void form_w_quadrature(double w0, double wratio);
-  // Disk-cache filename for Q*Pi*Q (encodes the options it depends on);
-  // "" if caching is disabled for this ident
+  // Disk-cache filenames for Q*Pi*Q and for the loop gex (each encodes
+  // the options it depends on); "" if caching is disabled for this ident
   std::string qpiq_filename(const std::string &ident) const;
+  std::string gex_filename(const std::string &ident) const;
+
+  // Common header of the two cache files (every parameter the stored
+  // objects depend on); on read, false if any does not match. gex does
+  // not depend on screening: its file skips that comparison only
+  bool rw_cache_header(std::fstream &iofs, IO::FRW::RoW rw,
+                       bool check_screening) const;
 
   bool readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname);
+  bool readwrite_gex(IO::FRW::RoW rw, const std::string &fname) const;
 
   // Screening factor X = [1 + i qk*pik]^-1
   ComplexRMatrix X_screen(const ComplexRMatrix &pik,
@@ -537,7 +572,9 @@ private:
   struct GammaQ {
     std::vector<LinAlg::Matrix<ComplexRMatrix>> pa_gex, gex_pa;
   };
-  std::vector<GammaQ> exchange_Gamma_q(int kappa_v, const DiracSpinor &Fa,
+  // ic indexes the core state within m_core_index (the gex cache must be
+  // filled first)
+  std::vector<GammaQ> exchange_Gamma_q(int kappa_v, std::size_t ic,
                                        std::size_t iw,
                                        const Angular::SixJTable &sixj) const;
 
