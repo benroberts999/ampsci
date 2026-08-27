@@ -126,8 +126,9 @@ class CorrelationPotential {
   bool m_calculate_fk; // if not, need fk and etak
   std::vector<double> m_fk;
   std::vector<double> m_etak;
-  // Apply fk to both Coulomb lines of the exchange diagrams (else outer only)
-  bool m_fk_both_lines;
+  // Screening on both Coulomb lines of the exchange diagrams (Goldstone:
+  // f_k f_l; Feynman: the both-lines-screened estimate), else one line only
+  bool m_exchange_both_lines;
   // Exchange diagrams by Feynman method (else Goldstone with fk)
   bool m_feynman_exchange;
 
@@ -198,8 +199,10 @@ public:
     @param ladder_file         File with ladder correction, Sigma_L (empty:
                                none)
     @param form_derivative     Also form dSigma/dE (see dSigmaFv)
-    @param fk_both_lines       Apply fk to both Coulomb lines of the exchange
-                               diagrams (else outer only)
+    @param exchange_both_lines Screening on both Coulomb lines of the
+                               exchange diagrams (Goldstone: f_k f_l;
+                               Feynman: the both-lines-screened estimate),
+                               else one line only
     @param tail_extrapolation  Extrapolate Sigma beyond the sub-grid as
                                a_eff/r^4 (experimental; see
                                fit_tail_coefficient)
@@ -217,7 +220,7 @@ public:
     const FeynmanOptions &Foptions = {}, bool calculate_fk = true,
     const std::vector<double> &fk = {}, const std::vector<double> &etak = {},
     const std::string &ladder_file = "", bool form_derivative = false,
-    bool fk_both_lines = false, bool tail_extrapolation = false,
+    bool exchange_both_lines = false, bool tail_extrapolation = false,
     bool feynman_exchange = false);
 
   /*!

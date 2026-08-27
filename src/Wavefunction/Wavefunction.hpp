@@ -537,8 +537,10 @@ public:
                                none)
     @param derivative          Also form dSigma/dE
     @param print_de            Print MBPT(2) energy corrections for valence
-    @param fk_both_lines       Apply fk to both Coulomb lines of the exchange
-                               diagrams (else outer only)
+    @param exchange_both_lines Screening on both Coulomb lines of the
+                               exchange diagrams (Goldstone: f_k f_l;
+                               Feynman: the both-lines-screened estimate),
+                               else one line only
     @param tail_extrapolation  Extrapolate Sigma beyond the sub-grid as
                                a_eff/r^4 (experimental)
     @param feynman_exchange    Exchange diagrams by Feynman method (else
@@ -559,7 +561,7 @@ public:
                  double wratio = 1.5, bool complex_green = false,
                  const std::optional<IO::InputBlock> &ek = std::nullopt,
                  const std::string &ladder_file = "", bool derivative = false,
-                 bool print_de = false, bool fk_both_lines = false,
+                 bool print_de = false, bool exchange_both_lines = false,
                  bool tail_extrapolation = false,
                  bool feynman_exchange = false);
 
