@@ -149,6 +149,52 @@ TEST_CASE("MBPT: Feynman unit tests", "[MBPT][Feynman][unit]") {
     // Test hole-particle: ratio of all-orders to screening
     REQUIRE(deao / des == Approx(expected_hp_ratio[i]).epsilon(epsilon));
   }
+
+  // Effective screening factors of the dressed Coulomb line: per k, the
+  // ratio of the direct diagram to the same with the screening removed
+  // (same hp). Compare against the ratio formed from separate objects
+  // (screening included/excluded; same include_G as FyS/FyAO), which tests
+  // the unscreened Q*Pi*Q formed by the screened object, and the per-state
+  // store. References: no screening, without/with hp
+  MBPT::Feynman Fy0(wf.vHF(), i0, stride, size,
+                    {MBPT::Screening::exclude, MBPT::HoleParticle::exclude,
+                     lmax, omre, w0, wratio},
+                    n_min_core, false, false);
+  MBPT::Feynman FyH(wf.vHF(), i0, stride, size,
+                    {MBPT::Screening::exclude, MBPT::HoleParticle::include,
+                     lmax, omre, w0, wratio},
+                    n_min_core, false, false);
+  for (const auto &v : wf.valence()) {
+    // Without screening, all factors are 1
+    for (const auto f : Fy0.screening_fk(v)) {
+      REQUIRE(f == 1.0);
+    }
+    const auto Sd_k = Fy0.Sigma_direct_each_k(v.kappa(), v.en());
+    const auto SdS_k = FyS.Sigma_direct_each_k(v.kappa(), v.en());
+    const auto SdH_k = FyH.Sigma_direct_each_k(v.kappa(), v.en());
+    const auto SdAO_k = FyAO.Sigma_direct_each_k(v.kappa(), v.en());
+    const auto fk_S = FyS.screening_fk(v);
+    const auto fk_AO = FyAO.screening_fk(v);
+    REQUIRE(fk_S.size() == Sd_k.size());
+    REQUIRE(fk_AO.size() == Sd_k.size());
+    bool tested_nontrivial = false;
+    for (auto k = 0ul; k < Sd_k.size(); ++k) {
+      const auto de0 = v * (Sd_k[k] * v);
+      const auto deH = v * (SdH_k[k] * v);
+      if (de0 == 0.0 || deH == 0.0)
+        continue;
+      const auto expected_S = (v * (SdS_k[k] * v)) / de0;
+      const auto expected_AO = (v * (SdAO_k[k] * v)) / deH;
+      REQUIRE(fk_S[k] == Approx(expected_S).epsilon(1.0e-6));
+      REQUIRE(fk_AO[k] == Approx(expected_AO).epsilon(1.0e-6));
+      if (std::abs(expected_S - 1.0) > 0.01) {
+        tested_nontrivial = true;
+      }
+    }
+    REQUIRE(tested_nontrivial);
+    // Stored: a second call (at any energy) returns the same factors
+    REQUIRE(FyS.screening_fk(v, v.en() + 0.01) == fk_S);
+  }
   std::cout << "\n";
 }
 
@@ -355,11 +401,10 @@ TEST_CASE("MBPT: Feynman omre stability", "[MBPT][Feynman][omre]") {
               << "\n";
     std::vector<double> des;
     for (const auto omre : omres) {
-      const MBPT::Feynman Fy(wf.vHF(), i0, stride, size,
-                             {MBPT::Screening::exclude,
-                              MBPT::HoleParticle::exclude, lmax, omre, w0,
-                              wratio, complex_green},
-                             n_min_core, true, false);
+      MBPT::Feynman Fy(wf.vHF(), i0, stride, size,
+                       {MBPT::Screening::exclude, MBPT::HoleParticle::exclude,
+                        lmax, omre, w0, wratio, complex_green},
+                       n_min_core, true, false);
       const auto Sd = Fy.Sigma_direct(v.kappa(), v.en());
       des.push_back(v * (Sd * v));
       fmt::print("  omre = {:6.3f} : de = {:.6f}\n", omre, des.back());

@@ -10,6 +10,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
+#include "qip/Maths.hpp"
 #include "qip/omp.hpp"
 #include <algorithm>
 #include <cassert>
@@ -951,57 +952,51 @@ double best_omre(const std::vector<DiracSpinor> &core,
 }
 
 //==============================================================================
-std::string Feynman::qpiq_filename(const std::string &ident) const {
+std::string Feynman::cache_filename(const std::string &ident,
+                                    const std::string &suffix,
+                                    bool screened) const {
   const auto prefix = ident.substr(0, ident.find('.'));
   if (prefix == "" || prefix == "false")
     return "";
-  return prefix + ".qpq" + (m_hole_particle ? "h" : "") +
-         (m_screen_Coulomb ? "s" : "") +
-         (m_HF->vBreit() == nullptr ? "" : "b") + (m_include_G ? "g" : "") +
-         std::to_string(m_min_core_n) + ".abf";
+  return prefix + "." + suffix + (m_hole_particle ? "h" : "") +
+         (screened ? "s" : "") + (m_HF->vBreit() == nullptr ? "" : "b") +
+         (m_include_G ? "g" : "") + std::to_string(m_min_core_n) + ".abf";
 }
 
 //==============================================================================
-std::string Feynman::gex_filename(const std::string &ident) const {
-  // No screening tag: gex does not depend on the screening option
-  const auto prefix = ident.substr(0, ident.find('.'));
-  if (prefix == "" || prefix == "false")
-    return "";
-  return prefix + ".gex" + (m_hole_particle ? "h" : "") +
-         (m_HF->vBreit() == nullptr ? "" : "b") + (m_include_G ? "g" : "") +
-         std::to_string(m_min_core_n) + ".abf";
+bool Feynman::read_qpiq(const std::string &ident) {
+  const auto fname = cache_filename(ident, "qpq", m_screen_Coulomb);
+  return fname.empty() ?
+           false :
+           readwrite_qpiq(IO::FRW::read, fname, m_qpiq_wk, m_screen_Coulomb);
 }
 
 //==============================================================================
-bool Feynman::read_qpiq(const std::string &ident) const {
-  const auto fname = qpiq_filename(ident);
-  return fname.empty() ? false : readwrite_qpiq(IO::FRW::read, fname);
-}
-
-//==============================================================================
-bool Feynman::write_qpiq(const std::string &ident) const {
-  const auto fname = qpiq_filename(ident);
-  return fname.empty() ? false : readwrite_qpiq(IO::FRW::write, fname);
+bool Feynman::write_qpiq(const std::string &ident) {
+  const auto fname = cache_filename(ident, "qpq", m_screen_Coulomb);
+  return fname.empty() ?
+           false :
+           readwrite_qpiq(IO::FRW::write, fname, m_qpiq_wk, m_screen_Coulomb);
 }
 
 //==============================================================================
 bool Feynman::rw_cache_header(std::fstream &iofs, IO::FRW::RoW rw,
-                              bool check_screening) const {
+                              std::optional<bool> screening) const {
   // Every parameter the cached objects depend on; on read, false if any
-  // does not match. Same format for both caches: gex does not depend on
-  // screening, so its file skips only that comparison (not the field)
+  // does not match. Same format for all caches: the screening field holds
+  // the flag of the stored Q*Pi*Q; the gex file (which does not depend on
+  // screening) writes the object's flag and skips only that comparison
 
   // For comparing floats:
   constexpr double eps = 1.0e-10;
   auto fequal = [](double a, double b) { return std::abs(a - b) <= eps; };
 
   // Check screening / hole-particle (should be different filename)
-  bool t_hp{m_hole_particle}, t_sc{m_screen_Coulomb},
+  bool t_hp{m_hole_particle}, t_sc{screening ? *screening : m_screen_Coulomb},
     t_hohp{m_include_higher_order_hp}, t_cgm{m_Complex_green_method},
     t_iG{m_include_G};
   rw_binary(iofs, rw, t_hp, t_sc, t_hohp, t_cgm, t_iG);
-  if (t_hp != m_hole_particle ||
-      (check_screening && t_sc != m_screen_Coulomb) ||
+  if (t_hp != m_hole_particle || (screening && t_sc != *screening) ||
       t_hohp != m_include_higher_order_hp || t_cgm != m_Complex_green_method ||
       t_iG != m_include_G)
     return false;
@@ -1062,7 +1057,9 @@ bool Feynman::rw_cache_header(std::fstream &iofs, IO::FRW::RoW rw,
 }
 
 //==============================================================================
-bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) const {
+bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname,
+                             LinAlg::Matrix<ComplexRMatrix> &qpiq_wk,
+                             bool screened) const {
 
   const auto readQ = rw == IO::FRW::read;
 
@@ -1075,7 +1072,7 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) const {
   std::fstream iofs;
   IO::FRW::open_binary(iofs, fname, rw);
 
-  if (!rw_cache_header(iofs, rw, true))
+  if (!rw_cache_header(iofs, rw, screened))
     return false;
 
   // Now, do actual read/write of data:
@@ -1083,19 +1080,19 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) const {
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_ws = m_wgrid_points.size();
   if (readQ) {
-    m_qpiq_wk.resize(num_ws, num_ks,
-                     ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
+    qpiq_wk.resize(num_ws, num_ks,
+                   ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
   }
 
   for (auto iw = 0ul; iw < num_ws; ++iw) {
     for (auto k = 0ul; k < num_ks; ++k) {
       for (std::size_t i = 0; i < m_subgrid_points; ++i) {
         for (std::size_t j = 0; j < m_subgrid_points; ++j) {
-          double re = m_qpiq_wk[iw][k](i, j).real();
-          double im = m_qpiq_wk[iw][k](i, j).imag();
+          double re = qpiq_wk[iw][k](i, j).real();
+          double im = qpiq_wk[iw][k](i, j).imag();
           rw_binary(iofs, rw, re, im);
           if (readQ)
-            m_qpiq_wk[iw][k](i, j) = {re, im};
+            qpiq_wk[iw][k](i, j) = {re, im};
         }
       }
     }
@@ -1107,7 +1104,7 @@ bool Feynman::readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) const {
 }
 
 //==============================================================================
-bool Feynman::readwrite_gex(IO::FRW::RoW rw, const std::string &fname) const {
+bool Feynman::readwrite_gex(IO::FRW::RoW rw, const std::string &fname) {
 
   const auto readQ = rw == IO::FRW::read;
 
@@ -1121,7 +1118,7 @@ bool Feynman::readwrite_gex(IO::FRW::RoW rw, const std::string &fname) const {
   IO::FRW::open_binary(iofs, fname, rw);
 
   // Same header as QPQ; screening not compared (gex independent of it)
-  if (!rw_cache_header(iofs, rw, false))
+  if (!rw_cache_header(iofs, rw, std::nullopt))
     return false;
 
   // Now, do actual read/write of data:
@@ -1173,7 +1170,7 @@ bool Feynman::readwrite_gex(IO::FRW::RoW rw, const std::string &fname) const {
 }
 
 //==============================================================================
-void Feynman::calculate_qpiq() const {
+void Feynman::calculate_qpiq() {
   if (has_qpiq()) {
     return;
   }
@@ -1184,6 +1181,71 @@ void Feynman::calculate_qpiq() const {
   // calculate_gex); otherwise it solves (and discards) its own
   form_qpiq(polarisation_wk());
   write_qpiq(m_ident);
+}
+
+//==============================================================================
+void Feynman::calculate_qpiq_unscreened() {
+  // Without screening, m_qpiq_wk is already the unscreened Q*Pi*Q
+  if (!m_screen_Coulomb || has_qpiq_unscreened()) {
+    return;
+  }
+  const auto fname = cache_filename(m_ident, "qpq", false);
+  if (!fname.empty() &&
+      readwrite_qpiq(IO::FRW::read, fname, m_qpiq_wk_unscreened, false)) {
+    return;
+  }
+  m_qpiq_wk_unscreened = qpiq_from_pi(polarisation_wk(), false);
+  if (!fname.empty()) {
+    readwrite_qpiq(IO::FRW::write, fname, m_qpiq_wk_unscreened, false);
+  }
+}
+
+//==============================================================================
+std::vector<double> Feynman::screening_fk(const DiracSpinor &Fv,
+                                          std::optional<double> en_v) {
+  const auto num_ks = std::size_t(m_max_k + 1);
+  if (!m_screen_Coulomb) {
+    return std::vector<double>(num_ks, 1.0);
+  }
+
+  // Stored for this state?
+  for (const auto &state : m_fk_states) {
+    if (state.kappa == Fv.kappa() && state.n == Fv.n()) {
+      return state.fk;
+    }
+  }
+
+  calculate_qpiq();
+  calculate_qpiq_unscreened();
+
+  // Direct diagram, per k, with and without the screening
+  const auto en = en_v.value_or(Fv.en());
+  const auto Sd_k = direct_each_k(Fv.kappa(), en, m_qpiq_wk);
+  const auto Sd0_k = direct_each_k(Fv.kappa(), en, m_qpiq_wk_unscreened);
+
+  // Clamp: when the unscreened diagram is negligible the ratio is
+  // meaningless (and so is the term it is used for)
+  constexpr double max_fk = 10.0;
+  int num_clamped = 0;
+
+  std::vector<double> fk;
+  fk.reserve(num_ks);
+  for (auto k = 0ul; k < num_ks; ++k) {
+    const auto de = Fv * (Sd_k[k] * Fv);
+    const auto de0 = Fv * (Sd0_k[k] * Fv);
+    const auto f = de0 != 0.0 ? de / de0 : 1.0;
+    if (std::abs(f) > max_fk) {
+      ++num_clamped;
+    }
+    fk.push_back(qip::clamp_abs(f, max_fk));
+  }
+  if (num_clamped > 0) {
+    fmt::print("  (* Warning: clamped {} screening factor(s) to |fk|<={})\n",
+               num_clamped, max_fk);
+  }
+
+  m_fk_states.push_back({Fv.kappa(), Fv.n(), fk});
+  return fk;
 }
 
 //==============================================================================
@@ -1210,8 +1272,14 @@ std::vector<std::vector<ComplexRMatrix>> Feynman::polarisation_wk() const {
 }
 
 //==============================================================================
-void Feynman::form_qpiq(
-  const std::vector<std::vector<ComplexRMatrix>> &pi_wk) const {
+void Feynman::form_qpiq(const std::vector<std::vector<ComplexRMatrix>> &pi_wk) {
+  m_qpiq_wk = qpiq_from_pi(pi_wk, m_screen_Coulomb);
+}
+
+//==============================================================================
+LinAlg::Matrix<ComplexRMatrix>
+Feynman::qpiq_from_pi(const std::vector<std::vector<ComplexRMatrix>> &pi_wk,
+                      bool screen) const {
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_ws = m_wgrid_points.size();
@@ -1222,14 +1290,14 @@ void Feynman::form_qpiq(
          "pi_wk must be on the same sub-grid");
 
   std::cout << "Forming QPQ"
-            << (m_hole_particle && m_screen_Coulomb ? " (w/ hp + screening)" :
-                m_hole_particle                     ? " (w/ hp)" :
-                m_screen_Coulomb                    ? " (w/ screening)" :
-                                                      "")
+            << (m_hole_particle && screen ? " (w/ hp + screening)" :
+                m_hole_particle           ? " (w/ hp)" :
+                screen                    ? " (w/ screening)" :
+                                            "")
             << "\n";
 
-  m_qpiq_wk.resize(num_ws, num_ks,
-                   ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
+  LinAlg::Matrix<ComplexRMatrix> qpiq_wk(
+    num_ws, num_ks, ComplexRMatrix{m_i0, m_stride, m_subgrid_points, m_grid});
 
   // BLAS must run single-threaded inside the omp region below
   const qip::SingleThreadBlas single_thread_blas{};
@@ -1242,14 +1310,15 @@ void Feynman::form_qpiq(
       const auto qdri = q.dri();      // has drj, and dri
       const auto &pi = pi_wk[iw][k];
 
-      if (m_screen_Coulomb) {
+      if (screen) {
         const auto X = X_screen(pi, qdri);
-        m_qpiq_wk[iw][k] = q * pi * X * qdri;
+        qpiq_wk[iw][k] = q * pi * X * qdri;
       } else {
-        m_qpiq_wk[iw][k] = q * pi * qdri;
+        qpiq_wk[iw][k] = q * pi * qdri;
       }
     }
   }
+  return qpiq_wk;
 }
 
 //==============================================================================
@@ -1261,8 +1330,7 @@ ComplexRMatrix Feynman::X_screen(const ComplexRMatrix &pik,
 }
 
 //==============================================================================
-GMatrix Feynman::Sigma_direct(int kv, double env,
-                              std::optional<int> in_k) const {
+GMatrix Feynman::Sigma_direct(int kv, double env, std::optional<int> in_k) {
   // If in_k is set, only calculate for single k
   // Used both for testing, and for calculating f_k factors
 
@@ -1301,7 +1369,7 @@ double L_exchange(int k, int l, int kappa_v, int kappa_alpha, int kappa_beta,
 }
 
 //==============================================================================
-void Feynman::calculate_gex() const {
+void Feynman::calculate_gex() {
   // gex(e_a +/- w) depends on the core state and the w grid only:
   // Therefore, can fill once
   // Vhp(a)-dressed when hole_particle
@@ -1309,7 +1377,7 @@ void Feynman::calculate_gex() const {
     return;
   }
 
-  if (readwrite_gex(IO::FRW::read, gex_filename(m_ident))) {
+  if (readwrite_gex(IO::FRW::read, cache_filename(m_ident, "gex", false))) {
     return;
   }
 
@@ -1345,11 +1413,12 @@ void Feynman::calculate_gex() const {
   }
   std::cout << " done\n" << std::flush;
 
-  readwrite_gex(IO::FRW::write, gex_filename(m_ident));
+  readwrite_gex(IO::FRW::write, cache_filename(m_ident, "gex", false));
 }
 
 //==============================================================================
-GMatrix Feynman::Sigma_exchange(int kv, double env) const {
+GMatrix Feynman::Sigma_exchange(int kv, double env,
+                                const DiracSpinor *Fv_both_lines) {
   /*
     Exchange Sigma, Methods Eq. (RadialSigmaExch):
 
@@ -1390,7 +1459,19 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
 
       Sigma = Sigma[q,q] + dSigma[q,bar-q] + dSigma[q,bar-q]^T
 
-    Dressing both lines at once is neglected (next order in the screening).
+    Dressing both lines at once, dSigma[bar-q,bar-q], has no analytic
+    inner integral. Given the valence state, it is estimated with the
+    effective screening factor of the analytic line, bar-q^k -> (f_k - 1)
+    q^k (screening_fk: the valence-weighted ratio of the screened to the
+    bare line, from the direct diagram), keeping the exact bar-q^l(w) on
+    the numeric line:
+
+      dSigma[bar-q,bar-q] ~ E = sum_k (f_k - 1) dSigma^k[q,bar-q]
+
+    where dSigma^k is the k-th (analytic-line) multipole term of
+    dSigma[q,bar-q]. E^T is the equally valid estimate with the roles of
+    the two lines exchanged, so (E + E^T)/2 is added. Without the valence
+    state that term is neglected.
     Hole-particle: Vhp(a) dresses gex(e_a +/- w), the excited half of the
     (a, gex) pair, as in the polarisation loop.
   */
@@ -1398,8 +1479,7 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_kappas = m_max_ki + 1;
   const auto num_sp = num_spins();
-  // q^l-line variants: bare, plus the screening-only bar-q when screening
-  const auto num_lines = m_screen_Coulomb ? 2ul : 1ul;
+  const auto num_core = m_core_index.size();
   const Angular::SixJTable sixj(2 * m_max_k);
 
   // Quadrature weights: the u^-3 tail correction of the w grid (direct term)
@@ -1414,7 +1494,18 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
   if (m_screen_Coulomb) {
     calculate_qpiq();
   }
-  const auto num_core = m_core_index.size();
+
+  // Accumulated terms, indexed by the q^l-line variant of exchange_Gamma_q:
+  // [bare] q^l; [screened] bar-q^l (when screening); and [both] the
+  // screened terms weighted by (f_k - 1), for the both-lines estimate
+  constexpr std::size_t bare = 0, screened = 1, both = 2;
+  assert((Fv_both_lines == nullptr || Fv_both_lines->kappa() == kv) &&
+         "Fv_both_lines must have kappa_v");
+  const bool estimate_both = m_screen_Coulomb && Fv_both_lines != nullptr;
+  const auto num_lines = m_screen_Coulomb ? 2ul : 1ul;
+  const auto num_terms = estimate_both ? 3ul : num_lines;
+  const auto fk = estimate_both ? screening_fk(*Fv_both_lines, env) :
+                                  std::vector<double>(num_ks, 1.0);
 
   // BLAS must run single-threaded inside the omp regions below
   const qip::SingleThreadBlas single_thread_blas{};
@@ -1435,9 +1526,10 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
   const ComplexRMatrix zero(m_i0, m_stride, m_subgrid_points, m_grid);
   const GMatrix Sigma_zero(m_i0, m_stride, m_subgrid_points, m_include_G,
                            m_grid);
+  // Per-thread accumulators, one per term
   std::vector<std::vector<GMatrix>> Sigma_ts(
     std::size_t(omp_get_max_threads()),
-    std::vector<GMatrix>(num_lines, Sigma_zero));
+    std::vector<GMatrix>(num_terms, Sigma_zero));
 
 #pragma omp parallel for collapse(2) schedule(dynamic)
   for (auto iw = 0ul; iw < m_wgrid_points.size(); ++iw) {
@@ -1457,8 +1549,13 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
           const auto kg = Angular::kindex_to_kappa(ig);
           const auto &g = g_v[iw][ig];
           const bool gex_pa_nonzero = Angular::Ck_kk_SR(int(k), ka, kg);
+          if (!pa_gex_nonzero && !gex_pa_nonzero)
+            continue;
 
           for (auto nu = 0ul; nu < num_sp; ++nu) {
+            // The two terms of Gamma, per q^l-line variant and mu
+            std::vector<std::vector<ComplexRMatrix>> dSigma(
+              num_lines, std::vector<ComplexRMatrix>(num_sp, zero));
 
             if (pa_gex_nonzero) {
               // F_a^mu(r_1) sum_t [q^k (g^{t nu} o [pa_gex]^t)]_12
@@ -1469,10 +1566,8 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
                                                    Gammas[iq].pa_gex[t](k, ig));
                 }
                 for (auto mu = 0ul; mu < num_sp; ++mu) {
-                  Sigma_t[iq].sp(mu, nu) +=
-                    du * mult_rows_full(qk_g_Gamma, Fa.component(mu))
-                           .real()
-                           .Rmatrix();
+                  dSigma[iq][mu] +=
+                    mult_rows_full(qk_g_Gamma, Fa.component(mu));
                 }
               }
             }
@@ -1486,10 +1581,21 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
               const auto qk_Fa_g = qk * Fa_g;
               for (auto iq = 0ul; iq < num_lines; ++iq) {
                 for (auto mu = 0ul; mu < num_sp; ++mu) {
-                  Sigma_t[iq].sp(mu, nu) +=
-                    du * mult_elements(Gammas[iq].gex_pa[mu](k, ig), qk_Fa_g)
-                           .real()
-                           .Rmatrix();
+                  dSigma[iq][mu] +=
+                    mult_elements(Gammas[iq].gex_pa[mu](k, ig), qk_Fa_g);
+                }
+              }
+            }
+
+            // Accumulate (real part, quadrature weight); the screened-line
+            // terms also enter the both-lines estimate, with weight (f_k - 1)
+            // for this analytic-line multipole
+            for (auto iq = 0ul; iq < num_lines; ++iq) {
+              for (auto mu = 0ul; mu < num_sp; ++mu) {
+                const auto dS = du * dSigma[iq][mu].real().Rmatrix();
+                Sigma_t[iq].sp(mu, nu) += dS;
+                if (estimate_both && iq == screened) {
+                  Sigma_t[both].sp(mu, nu) += (fk[k] - 1.0) * dS;
                 }
               }
             }
@@ -1499,20 +1605,26 @@ GMatrix Feynman::Sigma_exchange(int kv, double env) const {
     }
   }
 
-  GMatrix Sigma(Sigma_zero);
+  // Sum over threads
+  std::vector<GMatrix> Sigma_terms(num_terms, Sigma_zero);
   for (const auto &Sigma_t : Sigma_ts) {
-    Sigma += Sigma_t[0];
-  }
-  if (m_screen_Coulomb) {
-    // Screening correction (bar-q on the numeric line), plus its mirror
-    // (bar-q on the analytic line) = its transpose
-    GMatrix dSigma(Sigma_zero);
-    for (const auto &Sigma_t : Sigma_ts) {
-      dSigma += Sigma_t[1];
+    for (auto it = 0ul; it < num_terms; ++it) {
+      Sigma_terms[it] += Sigma_t[it];
     }
-    Sigma += dSigma;
-    Sigma += dSigma.transpose_drj();
   }
+
+  // Sigma = Sigma[q,q] + dSigma[q,bar-q] + dSigma[q,bar-q]^T + (E + E^T)/2:
+  // the mirror of each screened term (bar-q on the analytic line; the roles
+  // of the two lines exchanged in the estimate) is its transpose
+  auto Sigma = Sigma_terms[bare];
+  if (m_screen_Coulomb) {
+    Sigma += Sigma_terms[screened];
+    Sigma += Sigma_terms[screened].transpose_drj();
+  }
+  if (estimate_both) {
+    Sigma += 0.5 * (Sigma_terms[both] + Sigma_terms[both].transpose_drj());
+  }
+
   // -1/pi = (1/2pi) * i (dw = i du) * i (w1 integral) * 2 (the integrand
   // at -u is the conjugate of that at +u, and we take Re part)
   Sigma *= (-1.0 / M_PI);
@@ -1623,13 +1735,19 @@ Feynman::exchange_Gamma_q(int kv, std::size_t ic, std::size_t iw,
 }
 
 //==============================================================================
-std::vector<GMatrix> Feynman::Sigma_direct_each_k(int kv, double env) const {
+std::vector<GMatrix> Feynman::Sigma_direct_each_k(int kv, double env) {
+  calculate_qpiq();
+  return direct_each_k(kv, env, m_qpiq_wk);
+}
+
+//==============================================================================
+std::vector<GMatrix>
+Feynman::direct_each_k(int kv, double env,
+                       const LinAlg::Matrix<ComplexRMatrix> &qpiq_wk) const {
   // Direct Sigma, for each multipole k separately: Sigma_d = sum_k Sigma_d^k.
   // Green's functions are shared by all k, so calculating every k at once
   // costs the same as a single k (used for the effective screening factors
   // fk, which need the ratio of each k term separately).
-
-  calculate_qpiq();
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const GMatrix zero(m_i0, m_stride, m_subgrid_points, m_include_G, m_grid);
@@ -1665,7 +1783,7 @@ std::vector<GMatrix> Feynman::Sigma_direct_each_k(int kv, double env) const {
         if (ck_vB == 0.0)
           continue;
 
-        const auto &qpq_dw = m_qpiq_wk[iw][k];
+        const auto &qpq_dw = qpiq_wk[iw][k];
 
         const auto c_ang_dw =
           dw * ck_vB * ck_vB / double(Angular::twoj_k(kv) + 1);
