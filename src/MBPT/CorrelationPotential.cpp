@@ -25,7 +25,7 @@ CorrelationPotential::CorrelationPotential(
   bool include_Breit_b2, int n_max_breit, const FeynmanOptions &Foptions,
   bool calculate_fk, const std::vector<double> &fk,
   const std::vector<double> &etak, const std::string &ladder_file,
-  bool form_derivative, bool fk_both_lines, bool feynman_exchange)
+  bool form_derivative, bool exchange_both_lines, bool feynman_exchange)
   : m_HF(vHF),
     m_basis(basis),
     m_r0(r0),
@@ -42,7 +42,7 @@ CorrelationPotential::CorrelationPotential(
     m_calculate_fk(calculate_fk),
     m_fk(fk),
     m_etak(etak),
-    m_fk_both_lines(fk_both_lines),
+    m_exchange_both_lines(exchange_both_lines),
     m_feynman_exchange(feynman_exchange),
     m_fname(fname),
     m_ladder_file(ladder_file),
@@ -83,6 +83,12 @@ CorrelationPotential::CorrelationPotential(
 
     if (m_method == SigmaMethod::Feynman && m_feynman_exchange) {
       std::cout << "Using Feynman method for direct and exchange diagrams\n";
+      if (m_Foptions.screening == Screening::include) {
+        std::cout << "Exchange screening: each Coulomb line"
+                  << (m_exchange_both_lines ?
+                        ", and both at once (estimate, effective fk)\n" :
+                        " (one at a time)\n");
+      }
     } else if (m_method == SigmaMethod::Feynman) {
       std::cout << "Using Feynman method for direct diagrams, Goldstone "
                    "for exchange\n";
@@ -97,7 +103,7 @@ CorrelationPotential::CorrelationPotential(
           std::cout << "}\n";
         }
       }
-      if (m_fk_both_lines) {
+      if (m_exchange_both_lines) {
         std::cout << "fk applied to both Coulomb lines in exchange\n";
       }
     }
@@ -110,7 +116,7 @@ CorrelationPotential::CorrelationPotential(
           printf("%.3f, ", tfk);
         }
         std::cout << "}\n";
-        if (m_fk_both_lines) {
+        if (m_exchange_both_lines) {
           std::cout << "fk applied to both Coulomb lines in exchange\n";
         }
       }
@@ -287,6 +293,23 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     vfk = m_fk;
   }
 
+  // Feynman exchange with both lines screened: needs the valence state, for
+  // its effective screening factors (stored per state on first calculation;
+  // the derivative re-uses them)
+  const auto Fv_both_lines =
+    m_feynman_exchange && m_exchange_both_lines && m_Fy->screening() ? Fv :
+                                                                       nullptr;
+  if (Fv_both_lines != nullptr) {
+    const auto fk_state = m_Fy->screening_fk(*Fv_both_lines, ev);
+    if (print) {
+      std::cout << "  fk   = {";
+      for (const auto &each_fk : fk_state) {
+        printf("%.3f, ", each_fk);
+      }
+      std::cout << "}\n";
+    }
+  }
+
   if (Fv && print) {
     fmt::print("  de({}) = ", Fv->shortSymbol());
     std::cout << std::flush;
@@ -301,9 +324,10 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     std::cout << std::flush;
   }
 
-  const auto Sx = m_feynman_exchange ?
-                    m_Fy->Sigma_exchange(kappa, ev) :
-                    m_Gold->Sigma_exchange(kappa, ev, vfk, m_fk_both_lines);
+  const auto Sx =
+    m_feynman_exchange ?
+      m_Fy->Sigma_exchange(kappa, ev, Fv_both_lines) :
+      m_Gold->Sigma_exchange(kappa, ev, vfk, m_exchange_both_lines);
 
   if (Fv && print) {
     const auto deX = (*Fv) * (Sx * *Fv);
@@ -333,8 +357,8 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
 }
 
 //==============================================================================
-std::vector<double>
-CorrelationPotential::calculate_fk(double ev, const DiracSpinor &v) const {
+std::vector<double> CorrelationPotential::calculate_fk(double ev,
+                                                       const DiracSpinor &v) {
 
   assert(m_Fy0 && m_FyX);
 
@@ -374,8 +398,8 @@ CorrelationPotential::calculate_fk(double ev, const DiracSpinor &v) const {
 }
 
 //==============================================================================
-std::vector<double>
-CorrelationPotential::calculate_etak(double ev, const DiracSpinor &v) const {
+std::vector<double> CorrelationPotential::calculate_etak(double ev,
+                                                         const DiracSpinor &v) {
   assert(m_Fy0 && m_FyH);
   // Sigma_d for every k in one pass (see calculate_fk)
   const auto Sd0_k = m_FyX->Sigma_direct_each_k(v.kappa(), ev);
@@ -407,9 +431,10 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
                 m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
   }
 
-  auto Sd = exchange_seperately ?
-              m_Gold->Sigma_direct(kappa, ev, m_fk, m_etak) :
-              m_Gold->Sigma_both(kappa, ev, m_fk, m_etak, 99, m_fk_both_lines);
+  auto Sd =
+    exchange_seperately ?
+      m_Gold->Sigma_direct(kappa, ev, m_fk, m_etak) :
+      m_Gold->Sigma_both(kappa, ev, m_fk, m_etak, 99, m_exchange_both_lines);
 
   double deD{0.0};
   if (Fv && print) {
@@ -419,7 +444,8 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
   }
 
   if (exchange_seperately) {
-    const auto Sx = m_Gold->Sigma_exchange(kappa, ev, m_fk, m_fk_both_lines);
+    const auto Sx =
+      m_Gold->Sigma_exchange(kappa, ev, m_fk, m_exchange_both_lines);
     if (Fv && print) {
       const auto deX = (*Fv) * (Sx * *Fv);
       fmt::print("+ {:.2f} = {:.2f}\n", deX * PhysConst::Hartree_invcm,
@@ -469,6 +495,11 @@ void CorrelationPotential::setup_Feynman() {
       m_Fy->calculate_gex();
     }
     m_Fy->calculate_qpiq();
+    if (m_feynman_exchange && m_exchange_both_lines && m_Fy->screening()) {
+      // Reference for the effective screening factors (both-lines-screened
+      // exchange estimate); the polarisation loop re-uses the gex
+      m_Fy->calculate_qpiq_unscreened();
+    }
   }
 
   if (m_calculate_fk && !m_Fy0 && m_Fy->screening()) {

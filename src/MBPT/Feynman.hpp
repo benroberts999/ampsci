@@ -93,18 +93,35 @@ class Feynman {
   // Hartree-Fock Exchange matrix (one for each kappa)
   std::vector<GMatrix> m_Vx_kappa{};
 
-  // Effective spinless Q*Pi*Q operator: for each imaginary omega, and each
-  // k. Mutable: disk-backed cache (readwrite_qpiq)
-  mutable LinAlg::Matrix<ComplexRMatrix> m_qpiq_wk{};
+  // Effective spinless Q*Pi*Q operator, for each imaginary omega and each k,
+  // indexed [iw][k]. Formed on first use (calculate_qpiq), or read from the
+  // disk cache
+  LinAlg::Matrix<ComplexRMatrix> m_qpiq_wk{};
+  // The same with the screening switched off (same hp): the reference for
+  // the effective screening factors (screening_fk). Only formed when
+  // screening is included (else m_qpiq_wk is already unscreened); has its
+  // own disk cache, the one an unscreened object with the same hp would use
+  LinAlg::Matrix<ComplexRMatrix> m_qpiq_wk_unscreened{};
 
-  // Loop gex(e_a + w) and gex(e_a - w), for each (w, core state, kappa).
-  // Independent of the valence state: one fill (calculate_gex) serves
-  // every Sigma_exchange call. Has its own disk cache.
-  // Memory: 2 N_w N_core N_kappa sub-grid matrices
+  // Effective screening factors f_k, stored per valence state (kappa, n)
+  // on first calculation (screening_fk)
+  struct StateFk {
+    int kappa, n;
+    std::vector<double> fk;
+  };
+  std::vector<StateFk> m_fk_states{};
+
+  // Loop Green's functions gex(e_a + w) and gex(e_a - w) for one (w, core
+  // state a, kappa); Vhp(a)-dressed when hole_particle
   struct GexPair {
     ComplexGMatrix plus, minus;
   };
-  mutable std::vector<std::vector<std::vector<GexPair>>> m_gex_wak{};
+  // All loop gex, indexed [iw][core index][kappa index] (core index as in
+  // m_core_index). Independent of the valence state: filled once
+  // (calculate_gex, or read from its disk cache), then re-used by every
+  // Sigma_exchange call and by the polarisation loop.
+  // Memory: 2 N_w N_core N_kappa sub-grid matrices
+  std::vector<std::vector<std::vector<GexPair>>> m_gex_wak{};
   // Indices of the polarised core states (n >= n_min_core) in
   // m_HF->core(); set at construction
   std::vector<std::size_t> m_core_index{};
@@ -182,50 +199,119 @@ public:
   //! exchange): no-op if already formed; else reads its disk cache, or
   //! forms it (polarisation loop, which re-uses the loop gex when
   //! present) and writes the cache
-  void calculate_qpiq() const;
+  void calculate_qpiq();
 
   //! Ensures the loop Green's functions gex(e_a +/- w) exist (required by
   //! Sigma_exchange; re-used by the polarisation loop when present, so
   //! call BEFORE calculate_qpiq): no-op if already calculated; else reads
   //! its own disk cache, or calculates (Vhp(a)-dressed when
   //! hole_particle) and writes it
-  void calculate_gex() const;
+  void calculate_gex();
 
   //! Forms Q*Pi*Q (with screening, if set) from a given polarisation operator
   //! pi_wk (from polarisation_wk()), which may be shared between Feynman
   //! objects that differ only in screening. Must be on the same sub-grid and
   //! frequency grid
-  void form_qpiq(const std::vector<std::vector<ComplexRMatrix>> &pi_wk) const;
+  void form_qpiq(const std::vector<std::vector<ComplexRMatrix>> &pi_wk);
 
   //! True once Q*Pi*Q has been formed
   bool has_qpiq() const { return m_qpiq_wk.size() != 0; }
 
+  //! Ensures the unscreened Q*Pi*Q (same hp) exists, the reference for the
+  //! effective screening factors (screening_fk): no-op without screening,
+  //! or if already formed; else reads its disk cache, or forms it from the
+  //! polarisation loop (cheap when the loop gex are present, see
+  //! calculate_gex) and writes the cache
+  void calculate_qpiq_unscreened();
+
+  //! True once the unscreened Q*Pi*Q has been formed
+  bool has_qpiq_unscreened() const { return m_qpiq_wk_unscreened.size() != 0; }
+
+  /*!
+    @brief Effective screening factors f_k of the dressed Coulomb line, for
+    valence state Fv.
+
+    @details
+    Per multipole k, the ratio of this object's direct diagram (screening,
+    and hole-particle if set) to the same with the screening switched off:
+
+    \f[ f_k = \frac{\bra{v}\Sigma_{\rm d}^{k}\ket{v}}
+                   {\bra{v}\Sigma_{\rm d}^{k}[\text{no screening}]\ket{v}} .\f]
+
+    The all-orders direct diagram is one bare Coulomb line, the polarisation
+    loop, and one screened line, so f_k is the valence-weighted ratio of the
+    screened to the bare Coulomb line, and \f$ \bar q^k \approx (f_k - 1)
+    q^k \f$ for the screening correction. With hole-particle, the loop is
+    hp-dressed in both numerator and denominator, so f_k is the ratio for
+    the hp-dressed screened line (the line that appears in Sigma_exchange).
+    Used to estimate the exchange term with both lines screened at once
+    (Sigma_exchange). Without screening, all factors are 1.
+
+    Stored per state (kappa, n) on first calculation, at the energy given
+    then; later calls for the same state return the stored values, so that
+    Sigma and dSigma/dE (evaluated at a shifted energy) share the same
+    factors. Requires the unscreened Q*Pi*Q (calculate_qpiq_unscreened).
+    Cost: two direct-diagram evaluations.
+
+    @param Fv    Valence state (for the matrix elements and the store key)
+    @param en_v  Energy at which the direct diagrams are evaluated; by
+                 default, the energy of Fv
+
+    @return f_k for k = 0..max_k. |f_k| is clamped to 10 (only when the
+    unscreened diagram is negligible and the ratio is meaningless)
+  */
+  std::vector<double> screening_fk(const DiracSpinor &Fv,
+                                   std::optional<double> en_v = {});
+
   //! Reads Q*Pi*Q from the disk cache for ident (file prefix); false if
   //! no matching file (or ident is "" or "false")
-  bool read_qpiq(const std::string &ident) const;
+  bool read_qpiq(const std::string &ident);
 
   //! Writes Q*Pi*Q to the disk cache for ident; false if not written
-  bool write_qpiq(const std::string &ident) const;
+  bool write_qpiq(const std::string &ident);
 
-  //! Calculate Direct part of correlation potential
-  GMatrix Sigma_direct(int kappa_v, double en_v,
-                       std::optional<int> k = {}) const;
+  //! Calculate Direct part of correlation potential (forms Q*Pi*Q on first
+  //! use, see calculate_qpiq)
+  GMatrix Sigma_direct(int kappa_v, double en_v, std::optional<int> k = {});
 
-  //! Exchange part of the correlation potential, by frequency integration.
-  //! @details The first of the two frequency integrals is done analytically
-  //! (closing the contour on the core poles), leaving a single integral
-  //! along w = omre + iu, on the same grid as the direct term. When the
-  //! screening/hole_particle options are set: half-screened all-orders
-  //! screening (each Coulomb line dressed one at a time; both-at-once
-  //! neglected), and Vhp(a) on the loop Green's functions. Cf.
-  //! Goldstone::Sigma_exchange. Not safe to call concurrently on one
-  //! object (fills the loop-gex cache on first call)
-  GMatrix Sigma_exchange(int kappa_v, double en_v) const;
+  /*!
+    @brief Exchange part of the correlation potential, by frequency
+    integration.
+
+    @details
+    The first of the two frequency integrals is done analytically (closing
+    the contour on the core poles), leaving a single integral along
+    w = omre + iu, on the same grid as the direct term. When the
+    screening/hole_particle options are set: all-orders screening of each
+    Coulomb line one at a time (half-screening; exact for those terms), and
+    Vhp(a) on the loop Green's functions.
+
+    The term with both lines screened at once (which has no analytic inner
+    integral) is included as an estimate when @p Fv_both_lines is given: the
+    screening correction on the analytic line is replaced by its effective
+    factor, \f$ \bar q^k \to (f_k - 1) q^k \f$ (screening_fk, for that
+    state), with the exact \f$ \bar q^l(w) \f$ kept on the numeric line;
+    the result is symmetrised (the transpose is the equally valid estimate
+    with the roles of the two lines exchanged). Cf. Goldstone::Sigma_exchange,
+    where f_k f_l on the two lines approximates all of the screening.
+
+    @param kappa_v        Valence kappa
+    @param en_v           Valence energy
+    @param Fv_both_lines  Valence state (kappa_v): if given, the term with
+                          both lines screened at once is included, estimated
+                          with its effective screening factors; nullptr:
+                          that term is neglected
+
+    @note Not safe to call concurrently on one object (fills the loop-gex
+    cache and the screening-factor store on first call)
+  */
+  GMatrix Sigma_exchange(int kappa_v, double en_v,
+                         const DiracSpinor *Fv_both_lines = nullptr);
 
   //! Direct part of correlation potential, for each multipole k separately
   //! (not summed: Sigma_d = sum of these). Same cost as a single Sigma_direct
   //! call, since the Green's functions are shared by all k
-  std::vector<GMatrix> Sigma_direct_each_k(int kappa_v, double en_v) const;
+  std::vector<GMatrix> Sigma_direct_each_k(int kappa_v, double en_v);
 
   //! Returns (reference to) q^k (radial) matrix. Note: includes drj? No?
   const ComplexRMatrix &get_qk(int k) const { return m_qk.at(std::size_t(k)); }
@@ -255,19 +341,40 @@ private:
   // composite Simpson's rule in ln(u) on the log grid [w0, wmax], trapezoid
   // panel for [0, w0], and u^-3 tail correction beyond wmax
   void form_w_quadrature(double w0, double wratio);
-  // Disk-cache filenames for Q*Pi*Q and for the loop gex (each encodes
-  // the options it depends on); "" if caching is disabled for this ident
-  std::string qpiq_filename(const std::string &ident) const;
-  std::string gex_filename(const std::string &ident) const;
+  // Disk-cache filename, <prefix>.<suffix>[h][s][b][g]<n_min>.abf, encoding
+  // the options the cached object depends on. suffix: "qpq" (Q*Pi*Q,
+  // screened or not) or "gex" (loop Green's functions; independent of
+  // screening, so always unscreened). "" if caching is disabled for ident
+  std::string cache_filename(const std::string &ident,
+                             const std::string &suffix, bool screened) const;
 
-  // Common header of the two cache files (every parameter the stored
-  // objects depend on); on read, false if any does not match. gex does
-  // not depend on screening: its file skips that comparison only
+  // Common header of the cache files (every parameter the stored objects
+  // depend on); on read, false if any does not match. screening: the
+  // screening flag of the stored Q*Pi*Q (written, and compared on read);
+  // nullopt for the gex file, which does not depend on screening (the
+  // field is written, not compared)
   bool rw_cache_header(std::fstream &iofs, IO::FRW::RoW rw,
-                       bool check_screening) const;
+                       std::optional<bool> screening) const;
 
-  bool readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname) const;
-  bool readwrite_gex(IO::FRW::RoW rw, const std::string &fname) const;
+  // Reads/writes the given Q*Pi*Q (m_qpiq_wk or m_qpiq_wk_unscreened, with
+  // its screening flag for the header); touches no member itself
+  bool readwrite_qpiq(IO::FRW::RoW rw, const std::string &fname,
+                      LinAlg::Matrix<ComplexRMatrix> &qpiq_wk,
+                      bool screened) const;
+  // Reads/writes m_gex_wak
+  bool readwrite_gex(IO::FRW::RoW rw, const std::string &fname);
+
+  // Forms Q*Pi*Q (screened or not) from the polarisation operator, for
+  // every (w, k)
+  LinAlg::Matrix<ComplexRMatrix>
+  qpiq_from_pi(const std::vector<std::vector<ComplexRMatrix>> &pi_wk,
+               bool screen) const;
+
+  // Direct Sigma for each k separately, from the given Q*Pi*Q (screened as
+  // set, or unscreened): see Sigma_direct_each_k
+  std::vector<GMatrix>
+  direct_each_k(int kappa_v, double en_v,
+                const LinAlg::Matrix<ComplexRMatrix> &qpiq_wk) const;
 
   // Screening factor X = [1 + i qk*pik]^-1
   ComplexRMatrix X_screen(const ComplexRMatrix &pik,

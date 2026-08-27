@@ -53,8 +53,9 @@ class CorrelationPotential {
   bool m_calculate_fk; // if not, need fk and etak
   std::vector<double> m_fk;
   std::vector<double> m_etak;
-  // Apply fk to both Coulomb lines of the exchange diagrams (else outer only)
-  bool m_fk_both_lines;
+  // Screening on both Coulomb lines of the exchange diagrams (Goldstone:
+  // f_k f_l; Feynman: the both-lines-screened estimate), else one line only
+  bool m_exchange_both_lines;
   // Exchange diagrams by Feynman method (else Goldstone with fk)
   bool m_feynman_exchange;
 
@@ -90,7 +91,7 @@ public:
     const FeynmanOptions &Foptions = {}, bool calculate_fk = true,
     const std::vector<double> &fk = {}, const std::vector<double> &etak = {},
     const std::string &ladder_file = "", bool form_derivative = false,
-    bool fk_both_lines = false, bool feynman_exchange = false);
+    bool exchange_both_lines = false, bool feynman_exchange = false);
 
   // // not thread safe!
   // void formSigma(int kappa, double en, int n = 0) {}
@@ -182,8 +183,8 @@ public:
 private:
   bool read_write(const std::string &fname, IO::FRW::RoW rw);
   void setup_Feynman();
-  std::vector<double> calculate_fk(double ev, const DiracSpinor &v) const;
-  std::vector<double> calculate_etak(double ev, const DiracSpinor &v) const;
+  std::vector<double> calculate_fk(double ev, const DiracSpinor &v);
+  std::vector<double> calculate_etak(double ev, const DiracSpinor &v);
   const SigmaData *get_ladder(int kappa, int n = 0) const;
 
   // given_fk: screening factors to use (from state_fk); if nullptr,

@@ -356,15 +356,12 @@ Wavefunction ampsci(const IO::InputBlock &input) {
      {"eta", "List of doubles. Hole-Particle factors. In Feynman method, "
              "used only for G part; Goldstone, used in direct also. []"},
      {"exchange",
-      "Method for the exchange diagrams (Feynman method only): Goldstone "
-      "(sum over basis, with effective screening factors fk) or Feynman "
-      "(frequency integration; includes all-orders (half-)screening and "
-      "hole-particle when those options are set) [Goldstone]"},
-     {"fk_both_lines",
-      "Apply the screening factors fk to both Coulomb lines of the exchange "
-      "diagrams (f_k * f_l), rather than to the outer line only. By default, "
-      "one line only: the missing hole-particle exchange diagram "
-      "approximately cancels the second factor. [false]"},
+      "Method for the exchange diagrams, Goldstone, Goldstone2, Feynman, "
+      "Feynman2. "
+      "Goldstone: regular Goldstone with effective fk on oneline; "
+      "Goldstone2: fk on both lines (f_k * f_l). "
+      "Feynman: Feynman with all-order screening on one line (+hp); "
+      "Feynman2: Feynman with estimated double-screened diagram [Goldstone]"},
      {"screening", "Include all-orders screening. Only applicable for "
                    "Feynman method [false]"},
      {"hole_particle",
@@ -475,14 +472,20 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   const auto fk = input.get({"Correlations"}, "fk", std::vector<double>{});
   const auto etak = input.get({"Correlations"}, "eta", std::vector<double>{});
-  const auto fk_both_lines =
-    input.get({"Correlations"}, "fk_both_lines", false);
+  // Exchange diagrams: method (Goldstone / Feynman), and whether the
+  // screening is applied to both Coulomb lines (Goldstone2 / Feynman2)
   const auto exchange_method =
     input.get({"Correlations"}, "exchange", "Goldstone"s);
-  const auto feynman_exchange = qip::ci_compare(exchange_method, "Feynman");
-  if (!feynman_exchange && !qip::ci_compare(exchange_method, "Goldstone")) {
+  const auto feynman_exchange = qip::ci_compare(exchange_method, "Feynman") ||
+                                qip::ci_compare(exchange_method, "Feynman2");
+  const auto exchange_both_lines =
+    qip::ci_compare(exchange_method, "Goldstone2") ||
+    qip::ci_compare(exchange_method, "Feynman2");
+  if (!feynman_exchange && !exchange_both_lines &&
+      !qip::ci_compare(exchange_method, "Goldstone")) {
     fmt::print("\nWARNING: Correlations{{exchange={}}} not recognised: use "
-               "Goldstone or Feynman. Using Goldstone.\n",
+               "Goldstone, Goldstone2, Feynman, or Feynman2. Using "
+               "Goldstone.\n",
                exchange_method);
   }
   if (feynman_exchange && !sigma_Feynman) {
@@ -512,7 +515,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                  sigma_readwrite, sigma_filename, sigma_Feynman,
                  sigma_Screening, hole_particle, sigma_lmax, sigma_omre, w0,
                  wratio, complex_green, ek_Sig, ladder_file, sigma_derivative,
-                 print_de, fk_both_lines, feynman_exchange && sigma_Feynman);
+                 print_de, exchange_both_lines,
+                 feynman_exchange && sigma_Feynman);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)
