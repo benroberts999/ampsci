@@ -17,6 +17,7 @@
 #include <array>
 #include <cassert>
 #include <cmath>
+#include <complex>
 #include <utility>
 #include <vector>
 
@@ -28,17 +29,69 @@ TDHFcntm::TDHFcntm(const DiracOperator::TensorOperator *const h_plus,
                    const DiracOperator::TensorOperator *const h_minus)
   : TDHF(h_plus, hf, h_minus),
     // Fixed core-core y^l(Fi, Fj) table for the exchange part of
-    // dV_rhs_all(); the core never changes, so build it once here
+    // dV_rhs_all(); the core never changes, so build it once here (copies
+    // share it)
     m_ycc(std::make_shared<const Coulomb::YkTable>(m_core)) {}
+
+//==============================================================================
+void TDHFcntm::set_operator(const DiracOperator::TensorOperator *h_plus,
+                            const DiracOperator::TensorOperator *h_minus) {
+  assert(h_plus != nullptr);
+  // The omega-only caches (channel pairs, K matrix) depend on the operator
+  // only through the channel structure (rank, parity): keep them when that
+  // is unchanged, else rebuild the channel sets and drop the caches
+  const bool same_channels =
+    h_plus->rank() == m_rank && h_plus->parity() == m_pi;
+  m_h = h_plus;
+  m_h_minus = h_minus ? h_minus : h_plus;
+  m_rank = h_plus->rank();
+  m_pi = h_plus->parity();
+  m_imag = h_plus->imaginaryQ();
+  if (same_channels) {
+    TDHF::clear();
+    m_have_solution = false;
+  } else {
+    m_X.clear();
+    m_Y.clear();
+    initialise_dPsi();
+    clear();
+  }
+}
 
 //==============================================================================
 void TDHFcntm::clear() {
   TDHF::clear();
   m_channels.clear();
+  m_kmat.reset();
+  m_have_solution = false;
   m_omega = -1.0;
   m_KpiD = 0.0;
   m_KpiD_lab.clear();
   m_excluded.clear();
+}
+
+//==============================================================================
+void TDHFcntm::prepare(double omega, int max_its) {
+  // The omega-only work, each piece once: the channel caches when omega
+  // (or, via set_operator, the channel structure) changed, and the K
+  // matrix when unitarising and none is held for these caches
+  omega = std::abs(omega);
+  if (omega != m_omega || m_channels.empty()) {
+    prepare_channels(omega);
+  }
+  if (m_unitarise && !m_kmat) {
+    solve_kmatrix(max_its, false, true);
+  }
+}
+
+//==============================================================================
+std::vector<KMatrix::Channel> TDHFcntm::channel_list() const {
+  std::vector<KMatrix::Channel> channels;
+  if (m_channels.empty() || m_omega < 0.0) {
+    return channels;
+  }
+  list_open_channels(&channels);
+  return channels;
 }
 
 //==============================================================================
@@ -68,6 +121,10 @@ void TDHFcntm::prepare_channels(double omega) {
   m_channels.clear();
   m_channels.resize(m_X.size());
   m_omega = omega;
+  // Everything built on the old caches goes with them
+  m_kmat.reset();
+  m_have_solution = false;
+  m_excluded.clear();
 
   const auto Ux = HF::vex_KS(m_core);
 
@@ -360,22 +417,22 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
   m_hFcore_minus = form_hFcore(m_h_minus);
 
   // Warm start: continuing a previous solve at the SAME omega (e.g. after a
-  // first-order run). The first damped iteration must then be damped: an
-  // undamped step from an already-large near-resonant X can diverge. From a
-  // fresh start (X = 0), the first iteration is undamped as usual (it just
+  // first-order run, or with the operator's momentum transfer updated in
+  // place). The first damped iteration must then be damped: an undamped
+  // step from an already-large near-resonant X can diverge. From a fresh
+  // start (X = 0), the first iteration is undamped as usual (it just
   // builds the first-order correction).
-  const bool warm_start = omega == m_omega && !m_channels.empty();
+  const bool warm_start = m_have_solution && omega == m_omega;
 
-  // (Re)build the continuum channel caches when omega changes
-  if (omega != m_omega || m_channels.empty()) {
-    prepare_channels(omega);
-  }
+  // The omega-only work (channel caches; K matrix if unitarising), once
+  prepare(omega, max_its);
 
   if (m_anderson) {
     solve_core_anderson(omega, max_its, print);
   } else {
     solve_core_damped(omega, max_its, print, warm_start);
   }
+  m_have_solution = true;
 
   // K = pi*D consistency of the converged open channels: the one measure
   // that reliably detects an unreliable channel solve (marginal grid
@@ -1056,7 +1113,7 @@ void TDHFcntm::solve_homogeneous(std::size_t i_core, std::size_t i_channel,
   // (i_core, i_channel) of the K matrix. Mutates *this; call on a copy.
   using namespace qip::overloads;
   assert(!m_channels.empty() && m_omega >= 0.0 &&
-         "solve_homogeneous requires prepared channels (run solve_core)");
+         "solve_homogeneous requires prepared channels (run prepare)");
   assert(m_channels[i_core][i_channel].open &&
          m_channels[i_core][i_channel].Freg.norm2() != 0.0);
 
@@ -1098,19 +1155,18 @@ void TDHFcntm::solve_homogeneous(std::size_t i_core, std::size_t i_channel,
 }
 
 //==============================================================================
-KMatrix TDHFcntm::kmatrix(int max_its, bool print, bool parallel) const {
+const KMatrix &TDHFcntm::solve_kmatrix(int max_its, bool print, bool parallel) {
   // On-shell K matrix; see hpp. One homogeneous (field-free) solve
-  // per open channel gives one column of Kbar. *this is left untouched:
-  // the homogeneous solves run on copies.
+  // per open channel gives one column of Kbar. The driven state of *this
+  // is left untouched: the homogeneous solves run on copies.
+  assert(!m_channels.empty() && m_omega >= 0.0 &&
+         "solve_kmatrix requires prepared channels (run prepare)");
   KMatrix out;
-  if (m_channels.empty() || m_omega < 0.0) {
-    return out;
-  }
-
   const auto index_list = list_open_channels(&out.channels);
   const auto Np = index_list.size();
   if (Np == 0) {
-    return out;
+    m_kmat = std::move(out);
+    return *m_kmat;
   }
 
   // Column j of Kbar: homogeneous solve with the incident wave in open
@@ -1142,7 +1198,8 @@ KMatrix TDHFcntm::kmatrix(int max_its, bool print, bool parallel) const {
   }
   out.asymmetry = kmax == 0.0 ? 0.0 : asym / kmax;
 
-  return out;
+  m_kmat = std::move(out);
+  return *m_kmat;
 }
 
 //==============================================================================
@@ -1169,23 +1226,41 @@ TDHFcntm::list_open_channels(std::vector<KMatrix::Channel> *channels,
 }
 
 //==============================================================================
-double TDHFcntm::D_phys(const DiracSpinor &Fa, int kappa_e,
-                        const KMatrix &kmat) const {
-  // Unitarised (physical) amplitude |A|/pi for the (Fa, kappa_e) open
-  // channel; see hpp. A = (1 - i*Kbar)^{-1} pi*D, solved for ALL channels
-  // (the K matrix couples them) in real arithmetic:
-  // (1 + Kbar*Kbar) Re(A) = pi*D,  Im(A) = Kbar * Re(A).
-  // D comes from this instance's converged driven solve; Kbar from the
-  // KMatrix, which is operator-independent (any operator of the same rank
-  // and parity at this omega).
+std::vector<std::complex<double>> TDHFcntm::A_phys() const {
+  // Physical amplitudes A/pi of all open channels; see hpp. With a K
+  // matrix: A = (1 - i*Kbar)^{-1} pi*D, solved for ALL channels (the K
+  // matrix couples them) in real arithmetic,
+  // (1 + Kbar*Kbar) Re(A) = pi*D,  Im(A) = Kbar * Re(A);
+  // without one, the standing-wave D. D is this instance's converged
+  // driven solve; Kbar was built from the same channel caches (operator-
+  // independent: any operator of the same rank and parity at this omega).
   std::vector<KMatrix::Channel> channels;
   std::vector<double> D;
-  list_open_channels(&channels, &D);
+  if (!m_channels.empty() && m_omega >= 0.0) {
+    list_open_channels(&channels, &D);
+  }
   const auto Np = channels.size();
+  std::vector<std::complex<double>> A(Np, 0.0);
+  if (Np == 0) {
+    return A;
+  }
+  if (!m_kmat) {
+    for (auto i = 0ul; i < Np; i++) {
+      A[i] = D[i];
+    }
+    return A;
+  }
+
+  const auto &kmat = *m_kmat;
   assert(Np == kmat.channels.size() &&
-         "KMatrix must be from the same core, omega, rank, and parity");
-  if (Np == 0 || Np != kmat.channels.size()) {
-    return 0.0;
+         "K matrix must be from the same core, omega, rank, and parity");
+  if (Np != kmat.channels.size()) {
+    return A;
+  }
+  for (auto i = 0ul; i < Np; i++) {
+    assert(channels[i].i_core == kmat.channels[i].i_core &&
+           channels[i].kappa == kmat.channels[i].kappa &&
+           "K matrix channel list must match this instance's open channels");
   }
 
   LinAlg::Matrix<double> B = kmat.Kbar * kmat.Kbar;
@@ -1198,21 +1273,46 @@ double TDHFcntm::D_phys(const DiracSpinor &Fa, int kappa_e,
   }
   const auto Ar = LinAlg::solve_Axeqb(B, piD);
 
+  for (auto i = 0ul; i < Np; i++) {
+    double Ai = 0.0;
+    for (auto j = 0ul; j < Np; j++) {
+      Ai += kmat.Kbar(i, j) * Ar(j);
+    }
+    A[i] = std::complex<double>{Ar(i), Ai} / M_PI;
+  }
+  return A;
+}
+
+//==============================================================================
+std::complex<double> TDHFcntm::A_phys(const DiracSpinor &Fa,
+                                      int kappa_e) const {
+  // The (Fa, kappa_e) entry of A_phys(); 0 if closed/excluded
+  const auto channels = channel_list();
+  const auto A = A_phys();
   const auto ib = static_cast<std::size_t>(
     std::find(m_core.cbegin(), m_core.cend(), Fa) - m_core.cbegin());
-  for (auto i = 0ul; i < Np; i++) {
-    assert(channels[i].i_core == kmat.channels[i].i_core &&
-           channels[i].kappa == kmat.channels[i].kappa &&
-           "KMatrix channel list must match this instance's open channels");
+  for (auto i = 0ul; i < A.size(); i++) {
     if (channels[i].i_core == ib && channels[i].kappa == kappa_e) {
-      double Ai = 0.0;
-      for (auto j = 0ul; j < Np; j++) {
-        Ai += kmat.Kbar(i, j) * Ar(j);
-      }
-      return std::sqrt(Ar(i) * Ar(i) + Ai * Ai) / M_PI;
+      return A[i];
     }
   }
   return 0.0;
+}
+
+//==============================================================================
+double TDHFcntm::D_phys(const DiracSpinor &Fa, int kappa_e) const {
+  return std::abs(A_phys(Fa, kappa_e));
+}
+
+//==============================================================================
+double TDHFcntm::dV(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+  // Continuum bra (positive energy): the V^{N-1} matrix element; else the
+  // bound TDHF one
+  assert(Fb.en() <= 0.0 && "continuum state must be the bra: dV(Fe, Fa)");
+  if (Fa.en() > 0.0) {
+    return dV_cntm(Fa, Fb);
+  }
+  return TDHF::dV(Fa, Fb);
 }
 
 //==============================================================================

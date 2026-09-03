@@ -2,6 +2,7 @@
 #include "Coulomb/YkTable.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "TDHF.hpp"
+#include <complex>
 #include <memory>
 #include <optional>
 #include <string>
@@ -92,17 +93,34 @@ struct KMatrix {
   the response to t -> identity (j0(qr) at q -> 0) is exactly zero.
 
   \par Usage
-  As TDHF: @ref solve_core (omega) at a frequency (typically above at least
-  one ionisation threshold; below all thresholds every channel is bound and
-  the result matches bound TDHF). Matrix elements with a continuum final
-  state are then evaluated with @ref dV_cntm (not @ref dV), which applies
-  the matching V^{N-1} source term.
+  As TDHF, with all the continuum set-up handled internally. @ref solve_core
+  (omega) builds the channel caches at omega, solves the driven equations,
+  and (by default; see @ref set_unitarise) the on-shell K matrix: one
+  field-free solve per open channel, built once per (omega, rank, parity)
+  and reused by every operator sharing them. Then either
+  - @ref dV (Fe, Fa), with Fe the energy-normalised V^{N-1} continuum state
+    of hole Fa: the standing-wave dV correction (bound TDHF's dV plus the
+    matching V^{N-1} source term); or
+  - @ref A_phys / @ref D_phys (Fa, kappa_e): the physical (unitarised)
+    amplitude of each open channel, which needs no continuum bra at all.
+    This is the production quantity for cross-sections.
+  Below all thresholds every channel is bound and dV matches bound TDHF.
+
+  One instance serves many operators: @ref set_operator swaps the operator,
+  keeping the core-only tables always and the omega-only caches (channel
+  pairs, K matrix) whenever the rank and parity are unchanged. Copies share
+  the core tables and carry the caches, so per-thread copies of a prepared
+  instance are cheap (see @ref prepare).
 */
 class TDHFcntm : public TDHF {
 
 public:
   /*!
     @brief Constructs continuum TDHF for operator h; see @ref TDHF::TDHF.
+    @details The core-only tables (the core-core Coulomb screening functions
+    of the batched dV builder) are built here, once; copies share them.
+    Build one instance and re-use it (see @ref set_operator) rather than
+    one per operator.
   */
   TDHFcntm(const DiracOperator::TensorOperator *const h_plus,
            const HF::HartreeFock *const hf,
@@ -121,8 +139,61 @@ public:
                           bool print = true) override;
 
   //! Clears the dPsi corrections (as TDHF::clear) and the cached continuum
-  //! channel data (homogeneous solutions, K amplitudes).
+  //! channel data (homogeneous pairs, K amplitudes, K matrix).
   virtual void clear() override;
+
+  /*!
+    @brief Switches the instance to a different external-field operator
+    (with its conjugate partner, as in the constructor).
+    @details The core-only tables are kept always. The omega-only caches
+    (channel openness and continuum pairs, and the K matrix) depend on the
+    operator only through its rank and parity, so they are kept when those
+    are unchanged (e.g. the two E1 gauges; every multipole of one (rank,
+    parity) class) and rebuilt by the next prepare()/solve_core() otherwise.
+    The previous corrections are discarded (the next solve starts from
+    zero). Updating an operator's frequency or momentum transfer IN PLACE
+    (through the pointer) needs no call here: the next solve_core() then
+    warm-starts from the previous corrections.
+  */
+  void set_operator(const DiracOperator::TensorOperator *h_plus,
+                    const DiracOperator::TensorOperator *h_minus = nullptr);
+
+  /*!
+    @brief Whether prepare()/solve_core() build the on-shell K matrix, so
+    that A_phys()/D_phys() return the unitarised (physical) amplitudes
+    (default true).
+    @details The K matrix costs one field-free solve per open channel (each
+    about as expensive as the driven solve), once per (omega, rank, parity).
+    With false no K matrix is built (an existing one is dropped) and
+    A_phys()/D_phys() return the standing-wave amplitudes D, which have real
+    poles just above thresholds; see @ref solve_kmatrix.
+  */
+  void set_unitarise(bool unitarise) {
+    m_unitarise = unitarise;
+    if (!unitarise) {
+      m_kmat.reset();
+    }
+  }
+
+  /*!
+    @brief Builds the operator-independent quantities at omega: the channel
+    caches (openness, and the homogeneous pair of each open channel) and,
+    if unitarising, the on-shell K matrix. No driven solve.
+    @details solve_core() calls this. Call it directly to do the omega-only
+    work once and re-use it: e.g. prepare a master instance, then take
+    per-thread copies (which carry the caches) for the driven solves of
+    every operator and momentum transfer of the same rank and parity.
+    Nothing is rebuilt while omega, rank, and parity are unchanged.
+    @param omega    External-field frequency (atomic units).
+    @param max_its  Maximum iterations of each field-free (K-matrix) solve;
+                    solve_core() passes its own max_its.
+  */
+  void prepare(double omega, int max_its = 40);
+
+  //! Open (usable) channels at the prepared omega, in K-matrix order: the
+  //! order of KMatrix::channels and of @ref A_phys. Empty before prepare() or
+  //! solve_core(). Operator-independent (fixed by core, omega, rank, parity).
+  std::vector<KMatrix::Channel> channel_list() const;
 
   //! If true, the open (continuum) X/+ channels are excluded (held at zero)
   //! rather than solved: dV then contains only the closed (bound) part of
@@ -183,9 +254,13 @@ public:
   //! channels for Fa at this omega.
   std::vector<OpenChannel> open_channels(const DiracSpinor &Fa) const;
 
+  //! The on-shell K matrix of the prepared (omega, rank, parity), if built
+  //! (see @ref set_unitarise); empty otherwise. Operator-independent.
+  const std::optional<KMatrix> &kmatrix() const { return m_kmat; }
+
   /*!
-    @brief Computes the on-shell K matrix (see @ref KMatrix) at the current
-    omega, from one field-free solve per open channel.
+    @brief Computes and stores the on-shell K matrix (see @ref KMatrix) at
+    the prepared omega, from one field-free solve per open channel.
     @details
     The driven RRPA solve uses real standing-wave boundary conditions
     (principal-value continuum), so the amplitudes D are reaction-matrix
@@ -205,11 +280,15 @@ public:
     has exactly zero regular component.
 
     The result is operator-independent (the homogeneous solves have no
-    external field): reuse it for every operator of the same rank and
-    parity at this omega, via @ref D_phys.
+    external field), so it is kept across @ref set_operator within the same
+    rank and parity, and used by @ref A_phys / @ref D_phys.
 
-    @warning Requires a converged solve_core() at this omega. Each of the
-    N_P homogeneous solves costs about as much as the driven solve.
+    prepare()/solve_core() call this when unitarising (see
+    @ref set_unitarise); call it directly only for the labelled per-column
+    convergence output.
+    @warning Requires the channel caches at this omega (@ref prepare). No
+    driven solution is needed: the homogeneous solves start from zero. Each
+    of the N_P homogeneous solves costs about as much as a driven solve.
     @param max_its   Maximum iterations for each homogeneous solve.
     @param print     Print each homogeneous solve's convergence (labelled by
                      its incident channel). Forces them to run serially.
@@ -217,29 +296,45 @@ public:
                      per thread; each thread holds its own copy of the
                      corrections plus an Anderson history -- similar memory
                      per thread to an omega-parallel driven solve). Ignored
-                     when @p print is set.
+                     when @p print is set, and inert inside an active
+                     parallel region.
   */
-  KMatrix kmatrix(int max_its = 40, bool print = false,
-                  bool parallel = false) const;
+  const KMatrix &solve_kmatrix(int max_its = 40, bool print = false,
+                               bool parallel = true);
 
   /*!
-    @brief Unitarised (physical) amplitude |A|/pi for the open channel of
-    hole Fa with ionised-electron kappa_e; replaces |D| in the
-    cross-section.
+    @brief Physical amplitudes A/pi of every open channel of the converged
+    solve, as complex numbers, in channel_list() order.
     @details
+    Unitarised with the K matrix when one is built (see @ref set_unitarise):
     \f[ A = (1 - i\bar K)^{-1}\,\pi D , \f]
-    finite through the standing-wave poles (D and Kbar share them). The
-    K matrix couples all open channels, so all the physical amplitudes are
-    solved together and the requested one returned; 0 for closed (or
-    excluded) channels. The KMatrix must be from this omega and the same
-    (rank, parity) -- it need NOT be from this operator: e.g. compute it
-    once (either gauge) and unitarise both gauges with it. Without a
-    KMatrix there is no unitarisation: use the standing-wave amplitudes.
-    @note This is a magnitude: the physical amplitude is complex, so the
-    sign of the real standing-wave amplitude has no meaning here. Fine for
-    cross-sections (squares).
+    finite through the standing-wave poles (D and Kbar share them). The K
+    matrix couples all open channels, so the amplitudes are solved together.
+    Without a K matrix (set_unitarise(false)) these are the standing-wave
+    amplitudes D themselves (real).
+
+    Phase convention: D is in the local-KS (conditioning-potential) phase
+    reference of each channel, and the physical outgoing-wave amplitude of
+    channel i carries a further channel phase exp(i(delta_i + sigma_i))
+    (HF and Coulomb phase shifts) that is NOT included here. That phase is
+    the same for every operator, so the RELATIVE phase of two operators'
+    amplitudes in the SAME channel is physical -- e.g. the interference
+    term Re(A_t conj(A_L)) between two multipole components -- while the
+    absolute phase, and the phase between different channels, are not.
+    @warning Requires a converged solve_core() at this omega.
   */
-  double D_phys(const DiracSpinor &Fa, int kappa_e, const KMatrix &kmat) const;
+  std::vector<std::complex<double>> A_phys() const;
+
+  //! Physical amplitude A/pi (see @ref A_phys) of the open channel of hole
+  //! Fa with ionised-electron kappa_e; 0 for closed (or excluded) channels.
+  std::complex<double> A_phys(const DiracSpinor &Fa, int kappa_e) const;
+
+  //! |A_phys| for the channel of hole Fa with ionised-electron kappa_e (see
+  //! @ref A_phys): the magnitude that replaces |D| in cross-sections. The
+  //! physical amplitude is complex, so the sign of the real standing-wave
+  //! amplitude has no meaning here; for interference between operators use
+  //! @ref A_phys.
+  double D_phys(const DiracSpinor &Fa, int kappa_e) const;
 
   //! Worst |K - pi*D| / K_max over the open channels of the last
   //! solve_core() (K_max = largest channel amplitude): the K = pi*D
@@ -255,12 +350,23 @@ public:
   //! there are no open channels.
   const std::string &KpiD_worst_channel() const { return m_KpiD_lab; }
 
-  //! Open channels dropped from the response because the continuum solve
-  //! returned zero (the grid resolves nothing at that energy); they are
-  //! zeroed, exactly as suppress_open does. Empty when none were dropped,
-  //! which is the normal case. Accumulated over every omega solved since
-  //! the last clear(). Never printed: query it.
+  //! Open channels at the prepared omega dropped from the response because
+  //! the continuum solve returned zero (the grid resolves nothing at that
+  //! energy); they are zeroed, exactly as suppress_open does. Empty when
+  //! none were dropped, which is the normal case. Never printed: query it.
   const std::string &excluded_channels() const { return m_excluded; }
+
+  /*!
+    @brief Reduced ME of dV, as @ref TDHF::dV, with a continuum bra (positive
+    energy) routed to @ref dV_cntm: the V^{N-1} treatment of the ionised
+    electron.
+    @details For a continuum bra, @p Fa must be the energy-normalised
+    V^{N-1} continuum state of the core orbital @p Fb (see dV_cntm).
+    Bound-bound as TDHF. A continuum KET is not supported: the V^{N-1}
+    treatment is defined for the final (bra) state.
+  */
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb) const override;
+  using TDHF::dV;
 
   /*!
     @brief Reduced ME of dV for a continuum final state, consistent with the
@@ -275,10 +381,10 @@ public:
     1/r tail hidden in the b=a part of dV*phi_a, making the
     continuum-continuum matrix element box-independent.
 
-    Use this for ionisation amplitudes, with @p Fe the energy-normalised
-    V^{N-1} continuum state of hole @p Fa (including the exchange part, see
-    @ref ContinuumOrbitals::solveContinuumHF with subtract_self); use
-    @ref dV for bound-bound.
+    @p Fe is the energy-normalised V^{N-1} continuum state of hole @p Fa
+    (including the exchange part, see
+    @ref ContinuumOrbitals::solveContinuumHF with subtract_self). @ref dV
+    dispatches here for a continuum bra.
 
     @note The diagonal de (norm-conservation) term of the TDHF source is NOT
     included: it multiplies phi_a, and @p Fe is orthogonalised against the
@@ -362,6 +468,13 @@ private:
   bool m_suppress_open{false};
   bool m_staged_Y{true};
   bool m_anderson{true};
+  bool m_unitarise{true};
+
+  // On-shell K matrix of the prepared (omega, rank, parity), built by
+  // prepare() when unitarising; dropped with the channel caches
+  std::optional<KMatrix> m_kmat{};
+  // A driven solution at m_omega is held (solve_core then warm-starts)
+  bool m_have_solution{false};
 
   // Per-(core orbital x channel) continuum data, cached at fixed omega:
   // openness, the homogeneous pair Freg/Firr at en_+ (built ONCE, in the
@@ -382,7 +495,8 @@ private:
   // the channel that attained it
   double m_KpiD{0.0};
   std::string m_KpiD_lab{};
-  // Channels dropped by the zero-pair backstop (see excluded_channels())
+  // Channels dropped by the zero-pair backstop at m_omega (see
+  // excluded_channels())
   std::string m_excluded{};
 
   // The homogeneous (field-free) solve computes the response to a fixed

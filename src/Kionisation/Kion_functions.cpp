@@ -1,6 +1,7 @@
 #include "Kion_functions.hpp"
 #include "DiracODE/include.hpp"
 #include "DiracOperator/include.hpp"
+#include "ExternalField/TDHFcntm.hpp"
 #include "HF/HartreeFock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "Maths/Grid.hpp"
@@ -16,6 +17,8 @@
 #include "qip/String.hpp"
 #include "qip/Widgets.hpp"
 #include "qip/omp.hpp"
+#include <algorithm>
+#include <complex>
 #include <iostream>
 #include <memory>
 #include <optional>
@@ -415,6 +418,340 @@ std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
   }
 
   return K_factors;
+}
+
+//==============================================================================
+RPAFormFactors calculate_formFactors_rpa(
+  const HF::HartreeFock *vHF, double ec_min, double ec_max,
+  const std::vector<double> &Egrid, const std::vector<double> &qgrid,
+  bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
+  int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
+  bool pseudoscalarQ, bool spatialQ, const RPAOptions &options, bool print) {
+
+  assert(vHF != nullptr);
+  if (diagonal_Eq) {
+    assert(qgrid.size() == 1);
+  }
+
+  const auto &core = vHF->core();
+  const auto n_core = core.size();
+  const auto E_steps = Egrid.size();
+  const auto q_steps = qgrid.size();
+
+  // Operators (null if not included), as calculate_formFactors_nk. The rank
+  // is set per k; the frequency is set per q, on per-thread clones.
+  const auto &grid = vHF->grid();
+  const auto Phik = vectorQ ? DiracOperator::MultipoleOperator(
+                                grid, Kmin, 0.0, 'V', 'T', low_q, &jK_tab) :
+                              nullptr;
+  const auto Ek = vectorQ && spatialQ ?
+                    DiracOperator::MultipoleOperator(grid, Kmin, 0.0, 'V', 'E',
+                                                     low_q, &jK_tab) :
+                    nullptr;
+  const auto Mk = vectorQ && spatialQ ?
+                    DiracOperator::MultipoleOperator(grid, Kmin, 0.0, 'V', 'M',
+                                                     low_q, &jK_tab) :
+                    nullptr;
+  const auto Lk = vectorQ && spatialQ ?
+                    DiracOperator::MultipoleOperator(grid, Kmin, 0.0, 'V', 'L',
+                                                     low_q, &jK_tab) :
+                    nullptr;
+  const auto Phi5k = axialQ ? DiracOperator::MultipoleOperator(
+                                grid, Kmin, 0.0, 'A', 'T', low_q, &jK_tab) :
+                              nullptr;
+  const auto E5k = axialQ && spatialQ ?
+                     DiracOperator::MultipoleOperator(grid, Kmin, 0.0, 'A', 'E',
+                                                      low_q, &jK_tab) :
+                     nullptr;
+  const auto M5k = axialQ && spatialQ ?
+                     DiracOperator::MultipoleOperator(grid, Kmin, 0.0, 'A', 'M',
+                                                      low_q, &jK_tab) :
+                     nullptr;
+  const auto L5k = axialQ && spatialQ ?
+                     DiracOperator::MultipoleOperator(grid, Kmin, 0.0, 'A', 'L',
+                                                      low_q, &jK_tab) :
+                     nullptr;
+  const auto Sk = scalarQ ? DiracOperator::MultipoleOperator(
+                              grid, Kmin, 0.0, 'S', 'T', low_q, &jK_tab) :
+                            nullptr;
+  const auto S5k = pseudoscalarQ ?
+                     DiracOperator::MultipoleOperator(grid, Kmin, 0.0, 'P', 'T',
+                                                      low_q, &jK_tab) :
+                     nullptr;
+  // In a fixed order; the amplitudes below are stored by the same index
+  const std::array<DiracOperator::TensorOperator *, 10> operators{
+    Phik.get(), Ek.get(),  Mk.get(),  Lk.get(), Phi5k.get(),
+    E5k.get(),  M5k.get(), L5k.get(), Sk.get(), S5k.get()};
+
+  // Operator "frequency": the multipoles take q = alpha*omega_op, so pass
+  // qc (or E itself in the diagonal, massless-absorption, case)
+  const auto qc_at = [&](std::size_t iE, std::size_t iq) {
+    return diagonal_Eq ? Egrid.at(iE) : qgrid.at(iq) * PhysConst::c;
+  };
+
+  // Output: the 13 factors of each core orbital, allocated (empty if not
+  // requested) as calculate_formFactors_nk
+  const std::array<bool, 13> requested{vectorQ,
+                                       vectorQ && spatialQ,
+                                       vectorQ && spatialQ,
+                                       vectorQ && spatialQ,
+                                       vectorQ && spatialQ,
+                                       axialQ,
+                                       axialQ && spatialQ,
+                                       axialQ && spatialQ,
+                                       axialQ && spatialQ,
+                                       axialQ && spatialQ,
+                                       vectorQ && axialQ && spatialQ,
+                                       scalarQ,
+                                       pseudoscalarQ};
+  RPAFormFactors out;
+  out.K_nk.resize(n_core);
+  for (auto &K_factors : out.K_nk) {
+    for (std::size_t i = 0; i < K_factors.size(); ++i) {
+      if (requested[i]) {
+        K_factors[i].resize(E_steps, q_steps);
+      }
+    }
+  }
+  out.rpa_eps.assign(E_steps, 0.0);
+  out.rpa_its.assign(E_steps, 0.0);
+  out.KpiD_dev.assign(E_steps, 0.0);
+  out.Kbar_asym.assign(E_steps, 0.0);
+
+  // The RPA solver: one instance, its core-only tables built once here. Its
+  // operator is switched per (rank, parity) class below; per-thread copies
+  // carry its omega-only caches (channel pairs, K matrix).
+  DiracOperator::TensorOperator *any_operator = nullptr;
+  for (auto *h : operators) {
+    if (h != nullptr) {
+      any_operator = h;
+    }
+  }
+  if (any_operator == nullptr) {
+    return out;
+  }
+  ExternalField::TDHFcntm rpa(any_operator, vHF);
+  rpa.eps_target() = options.eps;
+  rpa.set_unitarise(options.unitarise);
+
+  if (print) {
+    fmt::print("\nRPA form factors: {} energies, {} q points, K = {}-{}, {} "
+               "amplitudes\n",
+               E_steps, q_steps, Kmin, Kmax,
+               options.unitarise ? "unitarised" : "standing-wave");
+    fmt::print("{:>9s} {:>5s} {:>8s} {:>4s} {:>8s} {:>8s}\n", "E/eV", "chans",
+               "eps", "its", "KpiD", "Kasym");
+  }
+
+  // Energies run serially: threads are used inside (over the K-matrix
+  // columns, and over q or inside each driven solve)
+  for (std::size_t iE = 0; iE < E_steps; ++iE) {
+    const auto omega = Egrid.at(iE);
+    if (options.E_max > 0.0 && omega > options.E_max) {
+      continue;
+    }
+
+    // Nothing to output unless some orbital is ionised within the ec limits
+    bool any_open = false;
+    for (const auto &Fa : core) {
+      const auto ec = omega + Fa.en();
+      if (ec > 0.0 && ec >= ec_min && ec <= ec_max) {
+        any_open = true;
+      }
+    }
+    if (!any_open) {
+      continue;
+    }
+
+    // Standing-wave option: the orthogonalised V^{N-1} HF continuum bra of
+    // each ionised orbital, at every l reachable from it by a rank up to
+    // Kmax (the unitarised amplitudes need no bra)
+    std::vector<ContinuumOrbitals> bra(n_core, ContinuumOrbitals(vHF));
+    if (!options.unitarise) {
+#pragma omp parallel for schedule(dynamic)
+      for (std::size_t ib = 0; ib < n_core; ++ib) {
+        const auto &Fa = core[ib];
+        const auto ec = omega + Fa.en();
+        if (ec <= 0.0 || ec < ec_min || ec > ec_max) {
+          continue;
+        }
+        const auto lc_min = std::max((Fa.twoj() - 2 * Kmax - 1) / 2, 0);
+        const auto lc_max = (Fa.twoj() + 2 * Kmax + 1) / 2;
+        bra[ib].solveContinuumHF(ec, lc_min, lc_max, &Fa, false, true, true);
+      }
+    }
+
+    std::size_t max_channels = 0;
+
+    for (int k = Kmin; k <= Kmax; ++k) {
+      for (auto *h : operators) {
+        if (h != nullptr) {
+          h->updateRank(k);
+        }
+      }
+
+      // The operators of each (k, parity) class share the channel
+      // structure, hence the channel caches and the K matrix: built once
+      // per class, on the master instance (K-matrix columns in parallel),
+      // with any operator of the class
+      for (const int parity : {1, -1}) {
+        DiracOperator::TensorOperator *class_operator = nullptr;
+        for (auto *h : operators) {
+          if (h != nullptr && h->parity() == parity) {
+            class_operator = h;
+          }
+        }
+        if (class_operator == nullptr) {
+          continue;
+        }
+        rpa.set_operator(class_operator);
+        rpa.prepare(omega, options.max_its);
+        const auto channels = rpa.channel_list();
+        const auto n_channels = channels.size();
+        if (n_channels == 0) {
+          continue;
+        }
+        max_channels = std::max(max_channels, n_channels);
+        if (rpa.kmatrix()) {
+          out.Kbar_asym[iE] =
+            std::max(out.Kbar_asym[iE], rpa.kmatrix()->asymmetry);
+        }
+
+        // Amplitudes A/pi of each operator, [iq][channel], indexed as
+        // `operators`; zero for the operators not in this class
+        std::array<std::vector<std::vector<std::complex<double>>>, 10>
+          amplitudes;
+        for (auto &A : amplitudes) {
+          A.assign(q_steps, std::vector<std::complex<double>>(n_channels, 0.0));
+        }
+
+        for (std::size_t i_op = 0; i_op < operators.size(); ++i_op) {
+          const auto *h = operators[i_op];
+          if (h == nullptr || h->parity() != parity) {
+            continue;
+          }
+          auto &A = amplitudes[i_op];
+#pragma omp parallel if (options.parallel_q)
+          {
+            // Per thread: its own operator (frequency set per q), and a
+            // copy of the prepared solver (carries the channel caches and
+            // K matrix; its own corrections and Anderson history). With
+            // parallel_q the solve's own parallel regions are nested,
+            // hence inert; otherwise this region has one thread and they
+            // are active.
+            auto h_thread = h->clone();
+            auto rpa_thread = rpa;
+            rpa_thread.set_operator(h_thread.get());
+
+            // Static schedule: consecutive q on one thread, so each solve
+            // warm-starts from the neighbouring q
+#pragma omp for schedule(static)
+            for (std::size_t iq = 0; iq < q_steps; ++iq) {
+              h_thread->updateFrequency(qc_at(iE, iq));
+              rpa_thread.solve_core(omega, options.max_its, false);
+              if (options.unitarise) {
+                A[iq] = rpa_thread.A_phys();
+                assert(A[iq].size() == n_channels);
+              } else {
+                // Standing-wave amplitude D = <e|h + dV|a> with the HF bra
+                for (std::size_t i = 0; i < n_channels; ++i) {
+                  const auto &Fa = core[channels[i].i_core];
+                  for (const auto &Fe : bra[channels[i].i_core].orbitals) {
+                    if (Fe.kappa() == channels[i].kappa && Fe.norm2() != 0.0) {
+                      A[iq][i] =
+                        h_thread->reducedME(Fe, Fa) + rpa_thread.dV(Fe, Fa);
+                    }
+                  }
+                }
+              }
+#pragma omp critical(kion_rpa_diagnostics)
+              {
+                out.rpa_eps[iE] =
+                  std::max(out.rpa_eps[iE], rpa_thread.last_eps());
+                out.rpa_its[iE] =
+                  std::max(out.rpa_its[iE], rpa_thread.last_its());
+                out.KpiD_dev[iE] =
+                  std::max(out.KpiD_dev[iE], rpa_thread.KpiD_dev());
+              }
+            }
+          }
+        }
+
+        // Accumulate as calculate_formFactors_nk, with |A|^2 for the
+        // squares and Re(A conj(A')) for the interference terms (every
+        // interference pair lies within one parity class). Channels outside
+        // the ec limits are left out of the output only.
+        for (std::size_t iq = 0; iq < q_steps; ++iq) {
+          for (std::size_t i = 0; i < n_channels; ++i) {
+            const auto &channel = channels[i];
+            if (channel.en < ec_min || channel.en > ec_max) {
+              continue;
+            }
+            const auto tkp1_x =
+              (2.0 * k + 1.0) * core[channel.i_core].occ_frac();
+            auto &K_factors = out.K_nk[channel.i_core];
+            const auto t = amplitudes[0][iq][i];
+            const auto E = amplitudes[1][iq][i];
+            const auto M = amplitudes[2][iq][i];
+            const auto L = amplitudes[3][iq][i];
+            const auto t5 = amplitudes[4][iq][i];
+            const auto E5 = amplitudes[5][iq][i];
+            const auto M5 = amplitudes[6][iq][i];
+            const auto L5 = amplitudes[7][iq][i];
+            const auto S = amplitudes[8][iq][i];
+            const auto S5 = amplitudes[9][iq][i];
+
+            // Vector operators
+            if (vectorQ) {
+              K_factors[0](iE, iq) += tkp1_x * std::norm(t); // VT
+              if (spatialQ) {
+                K_factors[1](iE, iq) += tkp1_x * std::norm(E); // VE
+                K_factors[2](iE, iq) += tkp1_x * std::norm(M); // VM
+                K_factors[3](iE, iq) += tkp1_x * std::norm(L); // VL
+                K_factors[4](iE, iq) +=
+                  tkp1_x * std::real(t * std::conj(L)); // X
+              }
+            }
+
+            // Axial operators
+            if (axialQ) {
+              K_factors[5](iE, iq) += tkp1_x * std::norm(t5); // T5
+              if (spatialQ) {
+                K_factors[6](iE, iq) += tkp1_x * std::norm(E5); // E5
+                K_factors[7](iE, iq) += tkp1_x * std::norm(M5); // M5
+                K_factors[8](iE, iq) += tkp1_x * std::norm(L5); // L5
+                K_factors[9](iE, iq) +=
+                  tkp1_x * std::real(t5 * std::conj(L5)); // X5
+              }
+            }
+
+            // Vector-Axial spatial interference
+            if (vectorQ && axialQ && spatialQ) {
+              K_factors[10](iE, iq) +=
+                tkp1_x * std::real(E5 * std::conj(M) - E * std::conj(M5)); // Z
+            }
+
+            // Scalar and Pseudoscalar
+            if (scalarQ) {
+              K_factors[11](iE, iq) += tkp1_x * std::norm(S); // S
+            }
+            if (pseudoscalarQ) {
+              K_factors[12](iE, iq) += tkp1_x * std::norm(S5); // S5
+            }
+          }
+        }
+      }
+    }
+
+    if (print) {
+      fmt::print("{:9.2f} {:5d} {:8.1e} {:4.0f} {:8.1e} {:8.1e}\n",
+                 omega * PhysConst::Hartree_eV, max_channels, out.rpa_eps[iE],
+                 out.rpa_its[iE], out.KpiD_dev[iE], out.Kbar_asym[iE]);
+      std::cout << std::flush;
+    }
+  }
+
+  return out;
 }
 
 //==============================================================================

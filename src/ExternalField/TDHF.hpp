@@ -70,13 +70,13 @@ protected:
   std::vector<std::vector<DiracSpinor>> m_hFcore_minus{};
   // can just write these to disk! Read them in, continue as per normal
 
-  const HF::HartreeFock *const p_hf;
+  const HF::HartreeFock *p_hf;
   const std::vector<DiracSpinor> m_core;
   // const std::vector<double> m_Hmag;
   const double m_alpha;
-  const HF::Breit *const p_VBr;
+  const HF::Breit *p_VBr;
   // nb: m_h_plus := m_h is the one in CorePolarisation
-  const DiracOperator::TensorOperator *const m_h_minus;
+  const DiracOperator::TensorOperator *m_h_minus;
 
   // If true, eps is the relative change |dPsi| (sqrt of the ratio); if false,
   // the squared ratio. See eps_dPsi().
@@ -134,7 +134,7 @@ public:
   double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
 
   virtual double dV(const DiracSpinor &Fa,
-                    const DiracSpinor &Fb) const override final;
+                    const DiracSpinor &Fb) const override;
 
   DiracSpinor dV_rhs(int kappa_n, const DiracSpinor &Fm,
                      bool conj = false) const override;
@@ -194,9 +194,11 @@ protected:
   eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
            bool relative) const;
 
-private:
+  // Builds the (zero) X and Y channel sets of every core orbital from the
+  // operator's rank and parity (selection rules); m_X and m_Y must be empty
   void initialise_dPsi();
 
+private:
   // Single iteration of TDHF equations
   std::pair<double, std::string> tdhf_core_it(double omega, double eta_damp);
   // Solves the MS equations for a single channel (one core orbital, one

@@ -84,6 +84,7 @@ TEST_CASE("cntmRPA: K = pi*D consistency",
   for (const auto omega : {1.7, 3.0}) {
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-6;
+    rpa.set_unitarise(false); // standing-wave quantities only
     rpa.solve_core(omega, 60, false);
 
     fmt::print("\nK = pi*D consistency, omega = {:.2f} au:\n", omega);
@@ -135,8 +136,7 @@ TEST_CASE("cntmRPA: high-omega limit", "[ExternalField][TDHF][cntmrpa][unit]") {
   for (const auto omega : omegas) {
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-6;
-    rpa.solve_core(omega, 60, false);
-    const auto kmat = rpa.kmatrix(40, false, true);
+    rpa.solve_core(omega, 60, false); // unitarised (K matrix built)
 
     // Bare cross-section from the (orthogonalised) V^{N-1} HF bra states
     double sum_D0_2 = 0.0;
@@ -157,7 +157,7 @@ TEST_CASE("cntmRPA: high-omega limit", "[ExternalField][TDHF][cntmrpa][unit]") {
     double sum_A_2 = 0.0;
     for (const auto &Fb : wf.core()) {
       for (const auto &oc : rpa.open_channels(Fb)) {
-        const auto Dp = rpa.D_phys(Fb, oc.kappa, kmat);
+        const auto Dp = rpa.D_phys(Fb, oc.kappa);
         sum_A_2 += Dp * Dp;
       }
     }
@@ -199,6 +199,7 @@ TEST_CASE("cntmRPA: source short-rangedness, box-independence",
 
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-6;
+    rpa.set_unitarise(false); // the source and standing D only
     rpa.solve_core(omega, 60, false);
 
     const auto &gr = wf.grid();
@@ -254,6 +255,7 @@ TEST_CASE("cntmRPA: source short-rangedness, box-independence",
       const auto E1 = DiracOperator::E1(wf.grid());
       auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
       rpa.eps_target() = 1.0e-6;
+      rpa.set_unitarise(false);
       rpa.solve_core(omega, 60, false);
 
       std::vector<double> D_box;
@@ -324,8 +326,8 @@ TEST_CASE("cntmRPA: Johnson 1979 Ne cross-section",
   for (const auto &[omega, sigma_expct] : expected) {
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-5;
-    rpa.solve_core(omega, 90, false);
-    const auto kmat = rpa.kmatrix(40, false, true);
+    rpa.solve_core(omega, 90, false); // unitarised (K matrix built)
+    const auto &kmat = *rpa.kmatrix();
 
     // sigma = (4 pi^2 alpha / 3) * omega * sum_channels |D|^2, in Mb
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha * omega / 3.0 *
@@ -348,7 +350,7 @@ TEST_CASE("cntmRPA: Johnson 1979 Ne cross-section",
     double sigma_U = 0.0;
     for (const auto &Fb : wf.core()) {
       for (const auto &oc : rpa.open_channels(Fb)) {
-        const auto Dp = rpa.D_phys(Fb, oc.kappa, kmat);
+        const auto Dp = rpa.D_phys(Fb, oc.kappa);
         sigma_U += Ksigma * Dp * Dp;
       }
     }
@@ -404,15 +406,20 @@ TEST_CASE("cntmRPA: Ne E1 photoionisation table",
 
   for (const auto omega : {1.5, 1.7, 3.0, 10.0, 30.0}) {
 
-    // New continuum TDHF, at the various levels:
-    auto rpa_g0 = ExternalField::TDHFcntm(&E1, wf.vHF());  // fwd solve, no dV
+    // New continuum TDHF, at the various levels (standing-wave matrix
+    // elements only: no K matrix):
+    auto rpa_g0 = ExternalField::TDHFcntm(&E1, wf.vHF()); // fwd solve, no dV
+    rpa_g0.set_unitarise(false);
     rpa_g0.solve_core(omega, 0);                           // 0 iterations
     auto rpa_1it = ExternalField::TDHFcntm(&E1, wf.vHF()); // one dV iteration
+    rpa_1it.set_unitarise(false);
     rpa_1it.solve_core(omega, 1);
     auto rpa_closed = ExternalField::TDHFcntm(&E1, wf.vHF()); // open chnls off
+    rpa_closed.set_unitarise(false);
     rpa_closed.set_suppress_open(true);
     rpa_closed.solve_core(omega, 60);
     auto rpa_full = ExternalField::TDHFcntm(&E1, wf.vHF()); // full dV
+    rpa_full.set_unitarise(false);
     // F_reg is re-normalised from its large-r envelope (~1e-6 noise) each
     // rebuild; that sets the achievable TDHF floor (well below the MEs).
     rpa_full.eps_target() = 1.0e-5;
@@ -452,10 +459,10 @@ TEST_CASE("cntmRPA: Ne E1 photoionisation table",
 
         const auto D_noself = E1.reducedME(Fe_bare, Fb);
         const auto D_vn1 = E1.reducedME(Fe, Fb); // tree, V^{N-1}
-        const auto D_g0 = D_vn1 + rpa_g0.dV_cntm(Fe, Fb);
-        const auto D_1it = D_vn1 + rpa_1it.dV_cntm(Fe, Fb);
-        const auto D_closed = D_vn1 + rpa_closed.dV_cntm(Fe, Fb);
-        const auto D_full = D_vn1 + rpa_full.dV_cntm(Fe, Fb);
+        const auto D_g0 = D_vn1 + rpa_g0.dV(Fe, Fb);
+        const auto D_1it = D_vn1 + rpa_1it.dV(Fe, Fb);
+        const auto D_closed = D_vn1 + rpa_closed.dV(Fe, Fb);
+        const auto D_full = D_vn1 + rpa_full.dV(Fe, Fb);
 
         fmt::print("{:>4s} -> {:<3s} {:7.3f} {:11.4e} {:11.4e} {:11.4e} "
                    "{:11.4e} {:11.4e} {:11.4e}\n",
@@ -509,7 +516,7 @@ TEST_CASE("cntmRPA: unitarisation (rescattering)",
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-7;
     rpa.solve_core(omega, 60, false);
-    const auto kmat = rpa.kmatrix(40, false);
+    const auto &kmat = *rpa.kmatrix();
 
     fmt::print("\nRescattering at omega = {:.2f} au ({} open channels), "
                "Kbar asymmetry = {:.1e}\n",
@@ -525,7 +532,7 @@ TEST_CASE("cntmRPA: unitarisation (rescattering)",
     for (const auto &Fb : wf.core()) {
       for (const auto &oc : rpa.open_channels(Fb)) {
         D.push_back(oc.K / M_PI);
-        D_phys.push_back(rpa.D_phys(Fb, oc.kappa, kmat));
+        D_phys.push_back(rpa.D_phys(Fb, oc.kappa));
       }
     }
     REQUIRE(D.size() == kmat.channels.size());
@@ -561,7 +568,7 @@ TEST_CASE("cntmRPA: unitarisation (rescattering)",
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-7;
     rpa.solve_core(omega, 60, false);
-    const auto kmat = rpa.kmatrix(40, false);
+    const auto &kmat = *rpa.kmatrix();
     REQUIRE(kmat.asymmetry < 0.05);
 
     // 1s-channel partial cross-sections (cm^2), standing vs unitarised:
@@ -571,7 +578,7 @@ TEST_CASE("cntmRPA: unitarisation (rescattering)",
     const auto &F1s = wf.core().front();
     for (const auto &oc : rpa.open_channels(F1s)) {
       const auto D = oc.K / M_PI;
-      const auto Dp = rpa.D_phys(F1s, oc.kappa, kmat);
+      const auto Dp = rpa.D_phys(F1s, oc.kappa);
       sig_std += Ksigma * D * D;
       sig_uni += Ksigma * Dp * Dp;
     }
@@ -682,14 +689,15 @@ TEST_CASE("cntmRPA: even-parity operator (temporal t0)",
     }
     REQUIRE(n_channels == 2); // 2p_1/2 and 2p_3/2, kappa_e = kappa_a
 
-    // Seeded homogeneous solves: the diagonal seed is orthogonalised
-    // against phi_a (constraint <a|w> = 0); reciprocity (Kbar symmetry) is
-    // not imposed anywhere, so it is a real consistency check of that path
-    const auto kmat = rpa.kmatrix(40, false, true);
+    // Seeded homogeneous solves (the K matrix, built by solve_core): the
+    // diagonal seed is orthogonalised against phi_a (constraint <a|w> = 0);
+    // reciprocity (Kbar symmetry) is not imposed anywhere, so it is a real
+    // consistency check of that path
+    const auto &kmat = *rpa.kmatrix();
     REQUIRE(kmat.channels.size() == 2);
     REQUIRE(kmat.asymmetry < 0.05);
     for (const auto &ch : kmat.channels) {
-      REQUIRE(std::isfinite(rpa.D_phys(wf.core()[ch.i_core], ch.kappa, kmat)));
+      REQUIRE(std::isfinite(rpa.D_phys(wf.core()[ch.i_core], ch.kappa)));
     }
     fmt::print("Kbar asymmetry (diagonal-seeded solves): {:.1e}\n",
                kmat.asymmetry);
@@ -702,6 +710,7 @@ TEST_CASE("cntmRPA: even-parity operator (temporal t0)",
       const auto t0 = t0_at_q(q);
       auto rpa = ExternalField::TDHFcntm(&t0, wf.vHF());
       rpa.eps_target() = 1.0e-6;
+      rpa.set_unitarise(false); // standing K amplitudes only
       rpa.solve_core(omega, 60, false);
       std::vector<double> Ks;
       for (const auto &Fb : wf.core()) {
@@ -765,15 +774,16 @@ TEST_CASE("cntmRPA: gauge invariance (E1 vs E1v)",
     auto E1v = DiracOperator::E1v(wf.alpha(), omega);
     auto E1v_minus = DiracOperator::E1v(wf.alpha(), -omega);
 
+    // Independent instances: each builds its own K matrix
     auto rpa_L = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa_L.eps_target() = 1.0e-7;
     rpa_L.solve_core(omega, 60, false);
-    const auto kmat_L = rpa_L.kmatrix(40, false, true);
+    const auto &kmat_L = *rpa_L.kmatrix();
 
     auto rpa_V = ExternalField::TDHFcntm(&E1v, wf.vHF(), &E1v_minus);
     rpa_V.eps_target() = 1.0e-7;
     rpa_V.solve_core(omega, 60, false);
-    const auto kmat_V = rpa_V.kmatrix(40, false, true);
+    const auto &kmat_V = *rpa_V.kmatrix();
 
     fmt::print("\nGauge test at omega = {:.1f} au ({} open channels):\n"
                "{:>7s} {:>11s} {:>11s} {:>9s}\n",
@@ -797,8 +807,8 @@ TEST_CASE("cntmRPA: gauge invariance (E1 vs E1v)",
     double sum_L = 0.0, sum_V = 0.0;
     for (const auto &ch : kmat_L.channels) {
       const auto &Fa = wf.core()[ch.i_core];
-      const auto A_L = rpa_L.D_phys(Fa, ch.kappa, kmat_L);
-      const auto A_V = rpa_V.D_phys(Fa, ch.kappa, kmat_V);
+      const auto A_L = rpa_L.D_phys(Fa, ch.kappa);
+      const auto A_V = rpa_V.D_phys(Fa, ch.kappa);
       fmt::print("{:>7d} {:11.6f} {:11.6f} {:9.1e}\n", ch.kappa, A_L, A_V,
                  A_V / A_L - 1.0);
       REQUIRE(A_V == Approx(A_L).epsilon(1.0e-2));
@@ -830,6 +840,7 @@ TEST_CASE("cntmRPA: batched dV_rhs (dV_rhs_all vs dV_rhs)",
   const std::vector<const DiracOperator::TensorOperator *> ops{&E1, &t0};
   for (const auto *h : ops) {
     auto rpa = ExternalField::TDHFcntm(h, wf.vHF());
+    rpa.set_unitarise(false);
     // A few iterations: 2p/2s open at omega = 2.0, 1s closed; X and Y both
     // nonzero and far from converged (the comparison must hold at ANY state)
     rpa.solve_core(2.0, 4, false);
@@ -892,6 +903,7 @@ TEST_CASE("cntmRPA: marginal-band channel solve (high omega)",
     const auto E1 = DiracOperator::E1(wf.grid());
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-8;
+    rpa.set_unitarise(false); // standing K amplitudes only
     rpa.solve_core(omega, 40, false);
     kpid[ig] = rpa.KpiD_dev();
     for (const auto &Fa : wf.core()) {
@@ -960,6 +972,7 @@ TEST_CASE("cntmRPA: barely-open channels (extension pair)",
     const auto E1 = DiracOperator::E1(wf.grid());
     auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
     rpa.eps_target() = 1.0e-8;
+    rpa.set_unitarise(false); // standing K amplitudes only
     rpa.solve_core(omega, 60, false);
     kpid[ig] = rpa.KpiD_dev();
     eps[ig] = rpa.last_eps();
@@ -1004,12 +1017,15 @@ TEST_CASE("cntmRPA: barely-open channels (extension pair)",
 //! solves, so it depends only on (core, omega, rank, parity) -- never on the
 //! external field's radial form. Checks, with the two E1 gauges (same rank
 //! and parity, different radial operators):
-//! (a) kmatrix() from the length and velocity instances agree element-wise
-//!     to machine-level precision (identical field-free solves);
-//! (b) cross-use: unitarising each gauge's amplitudes with the OTHER
-//!     gauge's K matrix changes nothing -- the pattern the photoRPA module
-//!     relies on (one kmatrix() per omega serves every operator of the
-//!     block).
+//! (a) the K matrices built by independent length and velocity instances
+//!     agree element-wise to machine-level precision (identical field-free
+//!     solves);
+//! (b) re-use: an instance switched from the length to the velocity
+//!     operator (set_operator) keeps the length K matrix and channel caches,
+//!     and its unitarised velocity amplitudes equal those of the independent
+//!     velocity instance -- the pattern the modules rely on (one K matrix
+//!     per (omega, rank, parity) serves every operator of the block);
+//! (c) switching to an operator of different rank/parity drops the caches.
 TEST_CASE("cntmRPA: K matrix operator-independence",
           "[ExternalField][TDHF][cntmrpa][integration]") {
 
@@ -1022,15 +1038,16 @@ TEST_CASE("cntmRPA: K matrix operator-independence",
   auto E1v = DiracOperator::E1v(wf.alpha(), omega);
   auto E1v_minus = DiracOperator::E1v(wf.alpha(), -omega);
 
+  // Independent instances: each builds its own K matrix
   auto rpa_L = ExternalField::TDHFcntm(&E1, wf.vHF());
   auto rpa_V = ExternalField::TDHFcntm(&E1v, wf.vHF(), &E1v_minus);
   for (auto *rpa : {&rpa_L, &rpa_V}) {
     rpa->eps_target() = 1.0e-7;
     rpa->solve_core(omega, 60, false);
+    REQUIRE(rpa->kmatrix().has_value());
   }
-
-  const auto kmat_L = rpa_L.kmatrix(40, false, true);
-  const auto kmat_V = rpa_V.kmatrix(40, false, true);
+  const auto &kmat_L = *rpa_L.kmatrix();
+  const auto &kmat_V = *rpa_V.kmatrix();
 
   // (a) identical K matrices
   REQUIRE(kmat_L.channels.size() == 5);
@@ -1050,18 +1067,42 @@ TEST_CASE("cntmRPA: K matrix operator-independence",
              omega, worst, kmax);
   REQUIRE(worst < 1.0e-10 * kmax);
 
-  // (b) cross-use: each gauge unitarised with the other's K matrix
-  fmt::print("{:>8s} {:>6s} {:>13s} {:>13s} {:>13s} {:>13s}\n", "shell",
-             "kappa", "L(kmat_L)", "L(kmat_V)", "V(kmat_V)", "V(kmat_L)");
+  // (b) re-use: the length instance switched to the velocity operator
+  // keeps its (length-built) K matrix and channel caches; only the driven
+  // solve is redone
+  auto rpa_VL = rpa_L;
+  rpa_VL.set_operator(&E1v, &E1v_minus);
+  REQUIRE(rpa_VL.kmatrix().has_value());
+  REQUIRE(rpa_VL.channel_list().size() == kmat_L.channels.size());
+  rpa_VL.solve_core(omega, 60, false);
+  const auto &kmat_VL = *rpa_VL.kmatrix();
+  REQUIRE(kmat_VL.channels.size() == kmat_L.channels.size());
+  for (auto i = 0ul; i < kmat_L.channels.size(); i++) {
+    for (auto j = 0ul; j < kmat_L.channels.size(); j++) {
+      // kept, not re-built: bitwise the length one
+      REQUIRE(kmat_VL.Kbar(i, j) == kmat_L.Kbar(i, j));
+    }
+  }
+  fmt::print("{:>8s} {:>6s} {:>13s} {:>13s} {:>13s}\n", "shell", "kappa", "L",
+             "V (own K)", "V (L's K)");
   for (const auto &ch : kmat_L.channels) {
     const auto &Fa = wf.core()[ch.i_core];
-    const auto L_own = rpa_L.D_phys(Fa, ch.kappa, kmat_L);
-    const auto L_cross = rpa_L.D_phys(Fa, ch.kappa, kmat_V);
-    const auto V_own = rpa_V.D_phys(Fa, ch.kappa, kmat_V);
-    const auto V_cross = rpa_V.D_phys(Fa, ch.kappa, kmat_L);
-    fmt::print("{:>8s} {:>6d} {:13.6e} {:13.6e} {:13.6e} {:13.6e}\n",
-               Fa.shortSymbol(), ch.kappa, L_own, L_cross, V_own, V_cross);
-    REQUIRE(L_cross == Approx(L_own).epsilon(1.0e-10));
-    REQUIRE(V_cross == Approx(V_own).epsilon(1.0e-10));
+    const auto L_own = rpa_L.D_phys(Fa, ch.kappa);
+    const auto V_own = rpa_V.D_phys(Fa, ch.kappa);
+    const auto V_reused = rpa_VL.D_phys(Fa, ch.kappa);
+    fmt::print("{:>8s} {:>6d} {:13.6e} {:13.6e} {:13.6e}\n", Fa.shortSymbol(),
+               ch.kappa, L_own, V_own, V_reused);
+    // Same driven solve (same operator, same channel pairs), K matrices
+    // equal to 1e-10: machine-level agreement
+    REQUIRE(V_reused == Approx(V_own).epsilon(1.0e-8));
   }
+
+  // (c) a different (rank, parity) has different channels: caches dropped
+  const auto t0 = DiracOperator::Phik(wf.grid(), 0, 1.0 / PhysConst::alpha);
+  auto rpa_t0 = rpa_L;
+  rpa_t0.set_operator(&t0);
+  REQUIRE(rpa_t0.rank() == 0);
+  REQUIRE(rpa_t0.parity() == 1);
+  REQUIRE(!rpa_t0.kmatrix().has_value());
+  REQUIRE(rpa_t0.channel_list().empty());
 }

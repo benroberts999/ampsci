@@ -751,6 +751,15 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   std::string KpiD_worst_ch{};
   std::size_t n_excluded_omega = 0;
 
+  // The RPA solver: one instance, re-used at every omega and for both
+  // gauges (set_operator). The K matrix is built once per omega, during
+  // the length-form solve, and re-used by the velocity form: it is
+  // operator-independent (same rank and parity). This is the dominant
+  // cost of a unitarised scan (one field-free solve per open channel).
+  auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
+  rpa.eps_target() = eps_target;
+  rpa.set_eta(eta);
+
   fmt::print("\n{:>9s}  {:>10s}  {:>10s}{}  {:>8s} {:>4s}  {:>8s}\n",
              "omega/eV", "bare", "RPA", unitarise ? "       RPA_U" : "", "eps",
              "its", "KpiD");
@@ -766,7 +775,7 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
 
     // Below every ionisation threshold (or every open shell beyond ec_max):
     // no contributing channels, sigma = 0 -- nothing to solve. (Same shell
-    // condition as the matrix-element loop below.)
+    // condition as the bra construction below.)
     const auto any_open =
       std::any_of(wf.core().cbegin(), wf.core().cend(), [&](const auto &Fa) {
         const auto ec = omega + Fa.en();
@@ -777,11 +786,12 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     // Above rpa_max the RPA is not solved: the columns repeat the bare
-    // values (see the rpa_max option). Above unitarise_max the rescattering
-    // solves are skipped: the rpaU columns use the standing-wave amplitudes
-    // (error ~ Kbar^2; see the unitarise_max option).
+    // values (see the rpa_max option). Above unitarise_max no K matrix is
+    // built: the rpaU columns use the standing-wave amplitudes (error ~
+    // Kbar^2; see the unitarise_max option).
     const bool do_rpa = omega <= rpa_max_au;
     const bool do_unitarise = unitarise && do_rpa && omega <= unitarise_max_au;
+    rpa.set_unitarise(do_unitarise);
 
     // Conversion: (1/3) sum |<e||E1||a>|^2 -> cross-section (cm^2)
     const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
@@ -792,105 +802,97 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     auto E1v = DiracOperator::E1v(wf.alpha(), omega);
     auto E1v_minus = DiracOperator::E1v(wf.alpha(), -omega);
 
-    // Solve the RPA (continuum TDHF) at this omega, both gauges:
-    auto rpa_L = ExternalField::TDHFcntm(&E1, wf.vHF());
-    auto rpa_V = ExternalField::TDHFcntm(&E1v, wf.vHF(), &E1v_minus);
-    if (do_rpa) {
-      rpa_L.eps_target() = eps_target;
-      rpa_L.set_eta(eta);
-      rpa_L.solve_core(omega, max_its, false);
-
-      rpa_V.eps_target() = eps_target;
-      rpa_V.set_eta(eta);
-      rpa_V.solve_core(omega, max_its, false);
-    }
-
-    // One K matrix per omega: operator-independent (same rank and parity),
-    // so it unitarises BOTH gauges. This is the dominant cost of a
-    // unitarised scan (one field-free solve per open channel).
-    std::optional<ExternalField::KMatrix> kmat{};
-    if (do_unitarise) {
-      kmat = rpa_L.kmatrix(max_its, false, true);
-    }
-
-    // Matrix elements: D = D0 + <e|dV|a> (standing-wave), and the
-    // unitarised (physical) amplitudes D_phys = |A|/pi [A = (1-i*Kbar)^{-1}
-    // pi*D: finite through the standing-wave poles above thresholds]:
-    double sigma_E1 = 0.0;
-    double sigma_E1_rpa = 0.0;
-    double sigma_E1_rpaU = 0.0;
-    double sigma_E1v = 0.0;
-    double sigma_E1v_rpa = 0.0;
-    double sigma_E1v_rpaU = 0.0;
+    // Orthogonalised V^{N-1} HF continuum bra of each open shell, for the
+    // bare and standing-wave amplitudes (the unitarised ones need no bra)
+    std::vector<ContinuumOrbitals> bra;
+    bra.reserve(n_shells);
     for (std::size_t i_shell = 0; i_shell < n_shells; ++i_shell) {
       const auto &Fa = wf.core()[i_shell];
+      bra.emplace_back(wf.vHF());
       const auto ec = omega + Fa.en();
       if (ec < 0.0 || ec > ec_max)
         continue;
-      ContinuumOrbitals cntm(wf.vHF());
-      cntm.solveContinuumHF(ec, std::max(Fa.l() - 1, 0), Fa.l() + 1, &Fa, false,
-                            true, true);
-      for (const auto &Fe : cntm.orbitals) {
-        if (E1.isZero(Fe, Fa) || Fe.norm2() == 0.0)
-          continue;
-        const auto D0 = E1.reducedME(Fe, Fa);
-        const auto D = do_rpa ? D0 + rpa_L.dV_cntm(Fe, Fa) : D0;
-        const auto D0v = E1v.reducedME(Fe, Fa);
-        const auto Dv = do_rpa ? D0v + rpa_V.dV_cntm(Fe, Fa) : D0v;
-        sigma_E1 += Ksigma * D0 * D0;
-        sigma_E1_rpa += Ksigma * D * D;
-        sigma_E1v += Ksigma * D0v * D0v;
-        sigma_E1v_rpa += Ksigma * Dv * Dv;
-        // Unitarised: the physical amplitudes. Above unitarise_max the
-        // standing-wave RPA amplitude stands (A -> pi*D for weak
-        // rescattering); without the RPA solve at all, the bare value.
-        const auto DU = kmat ? rpa_L.D_phys(Fa, Fe.kappa(), *kmat) : D;
-        const auto DUv = kmat ? rpa_V.D_phys(Fa, Fe.kappa(), *kmat) : Dv;
-        if (unitarise) {
-          sigma_E1_rpaU += Ksigma * DU * DU;
-          sigma_E1v_rpaU += Ksigma * DUv * DUv;
-          if (each_shell) {
-            results[i_omega][10 + i_shell] += Ksigma * DU * DU;
+      bra.back().solveContinuumHF(ec, std::max(Fa.l() - 1, 0), Fa.l() + 1, &Fa,
+                                  false, true, true);
+    }
+
+    // One gauge: solve the RPA, then the cross-sections -- bare, RPA
+    // (standing-wave, D = D0 + <e|dV|a>), and unitarised (the physical
+    // amplitudes |A|/pi = D_phys, finite through the standing-wave poles).
+    // Above unitarise_max the standing-wave RPA amplitude stands (A -> pi*D
+    // for weak rescattering); without the RPA solve at all, the bare value.
+    struct GaugeResult {
+      double sigma_bare{0.0};
+      double sigma_rpa{0.0};
+      double sigma_rpaU{0.0};
+      double eps{0.0};
+      double its{0.0};
+      double KpiD{0.0};
+      std::string KpiD_channel{};
+    };
+    const auto solve_gauge = [&](const DiracOperator::TensorOperator &h,
+                                 const DiracOperator::TensorOperator *h_minus,
+                                 bool length_form) {
+      GaugeResult res;
+      rpa.set_operator(&h, h_minus);
+      if (do_rpa) {
+        rpa.solve_core(omega, max_its, false);
+        res.eps = rpa.last_eps();
+        res.its = rpa.last_its();
+        res.KpiD = rpa.KpiD_dev();
+        res.KpiD_channel = rpa.KpiD_worst_channel();
+      }
+      for (std::size_t i_shell = 0; i_shell < n_shells; ++i_shell) {
+        const auto &Fa = wf.core()[i_shell];
+        for (const auto &Fe : bra[i_shell].orbitals) {
+          if (h.isZero(Fe, Fa) || Fe.norm2() == 0.0)
+            continue;
+          const auto D0 = h.reducedME(Fe, Fa);
+          const auto D = do_rpa ? D0 + rpa.dV(Fe, Fa) : D0;
+          const auto DU = do_unitarise ? rpa.D_phys(Fa, Fe.kappa()) : D;
+          res.sigma_bare += Ksigma * D0 * D0;
+          res.sigma_rpa += Ksigma * D * D;
+          if (unitarise) {
+            res.sigma_rpaU += Ksigma * DU * DU;
+            if (length_form && each_shell) {
+              results[i_omega][10 + i_shell] += Ksigma * DU * DU;
+            }
           }
         }
       }
-    }
+      return res;
+    };
+    const auto L = solve_gauge(E1, nullptr, true);
+    const auto V = solve_gauge(E1v, &E1v_minus, false);
 
     // Convergence / internal-consistency diagnostics, worst over gauges
     // [KpiD: the K = pi*D identity, computed by solve_core]
-    const auto KpiD_dev = std::max(rpa_L.KpiD_dev(), rpa_V.KpiD_dev());
+    const auto KpiD_dev = std::max(L.KpiD, V.KpiD);
     if (KpiD_dev > KpiD_worst) {
       KpiD_worst = KpiD_dev;
       KpiD_worst_at = omega;
-      KpiD_worst_ch = rpa_L.KpiD_dev() >= rpa_V.KpiD_dev() ?
-                        rpa_L.KpiD_worst_channel() :
-                        rpa_V.KpiD_worst_channel();
+      KpiD_worst_ch = L.KpiD >= V.KpiD ? L.KpiD_channel : V.KpiD_channel;
     }
-    for (const auto *rpa : {&rpa_L, &rpa_V}) {
-      if (!rpa->excluded_channels().empty()) {
-        n_excluded_omega++;
-        break;
-      }
+    if (do_rpa && !rpa.excluded_channels().empty()) {
+      n_excluded_omega++;
     }
 
-    results[i_omega][0] = sigma_E1;
-    results[i_omega][1] = sigma_E1_rpa;
-    results[i_omega][2] = sigma_E1_rpaU;
-    results[i_omega][3] = sigma_E1v;
-    results[i_omega][4] = sigma_E1v_rpa;
-    results[i_omega][5] = sigma_E1v_rpaU;
+    results[i_omega][0] = L.sigma_bare;
+    results[i_omega][1] = L.sigma_rpa;
+    results[i_omega][2] = L.sigma_rpaU;
+    results[i_omega][3] = V.sigma_bare;
+    results[i_omega][4] = V.sigma_rpa;
+    results[i_omega][5] = V.sigma_rpaU;
     // Convergence of the RPA solve; zero where it was not solved (above
-    // rpa_max), rather than the unsolved default.
-    results[i_omega][6] =
-      do_rpa ? std::max(rpa_L.last_eps(), rpa_V.last_eps()) : 0.0;
-    results[i_omega][7] =
-      do_rpa ? std::max(rpa_L.last_its(), rpa_V.last_its()) : 0.0;
+    // rpa_max)
+    results[i_omega][6] = std::max(L.eps, V.eps);
+    results[i_omega][7] = std::max(L.its, V.its);
     results[i_omega][8] = KpiD_dev;
-    results[i_omega][9] = kmat ? kmat->asymmetry : 0.0;
+    results[i_omega][9] = rpa.kmatrix() ? rpa.kmatrix()->asymmetry : 0.0;
 
     fmt::print("{:9.2f}  {:10.3e}  {:10.3e}{}  {:8.1e} {:4.0f}  {:8.1e}{}\n",
-               omega * PhysConst::Hartree_eV, sigma_E1, sigma_E1_rpa,
-               unitarise ? fmt::format("  {:10.3e}", sigma_E1_rpaU) : "",
+               omega * PhysConst::Hartree_eV, L.sigma_bare, L.sigma_rpa,
+               unitarise ? fmt::format("  {:10.3e}", L.sigma_rpaU) : "",
                results[i_omega][6], results[i_omega][7], KpiD_dev,
                do_rpa ? "" : "  (bare)");
     std::cout << std::flush;
@@ -1050,7 +1052,28 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       "Effective charge for the Zeff/ZeffAnalytic methods. If set (to "
       "anything), the default method becomes Zeff. Set to 'true' or <=0 to "
       "use 'real' Zeff = n*sqrt(-2*en) from each binding energy; "
-      "set to a positive value to use that constant Zeff for all states."}});
+      "set to a positive value to use that constant Zeff for all states."},
+     {"rpa", "Include core polarisation (RPA) via the continuum TDHF (Johnson "
+             "RRPA): every requested multipole and coupling is dressed, all "
+             "bound electrons at once. The bare factors are always written; "
+             "the RPA factors go to a second set of files (method tag _rpaU, "
+             "or _rpa for standing-wave amplitudes). HF states only. [false]"},
+     {"rpa_max_its", "Maximum RPA (TDHF) iterations per solve [60]"},
+     {"rpa_eps", "Convergence target for the RPA iterations [1e-5]"},
+     {"rpa_unitarise",
+      "Unitarise the RPA amplitudes (on-shell rescattering, Johnson 1979 "
+      "appendix): the physical, outgoing-wave amplitudes. The standing-wave "
+      "amplitudes (false) have real poles just above thresholds. Costs one "
+      "extra RPA-type solve per open channel per (E, K, parity) [true]"},
+     {"rpa_E_max",
+      "Maximum energy deposit (eV) at which the RPA is solved; above it the "
+      "RPA files repeat the bare factors. Core polarisation is a low-energy "
+      "effect, while the solve is at its most expensive when every shell is "
+      "open. 0 (or negative) = no limit [0]"},
+     {"rpa_parallel_q",
+      "Parallelise the RPA solves over q (one solver, with its own Anderson "
+      "history, per thread: memory scales with the thread count) rather than "
+      "inside each solve [true]"}});
   if (input.has_option("help")) {
     return;
   }
@@ -1317,6 +1340,31 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "\n";
 
+  // Core polarisation (continuum RPA); see Kion::calculate_formFactors_rpa
+  const auto rpaQ = input.get("rpa", false);
+  Kion::RPAOptions rpa_opts;
+  rpa_opts.max_its = input.get("rpa_max_its", 60);
+  rpa_opts.eps = input.get("rpa_eps", 1.0e-5);
+  rpa_opts.unitarise = input.get("rpa_unitarise", true);
+  const auto rpa_E_max_eV = input.get("rpa_E_max", 0.0);
+  rpa_opts.E_max =
+    rpa_E_max_eV > 0.0 ? rpa_E_max_eV / PhysConst::Hartree_eV : 0.0;
+  rpa_opts.parallel_q = input.get("rpa_parallel_q", true);
+  if (rpaQ && use_Zeff) {
+    fmt2::styled_print(fg(fmt::color::red), "\nFail: ");
+    fmt::print("rpa requires Hartree-Fock states (method=HF)\n");
+    return;
+  }
+  if (rpaQ) {
+    fmt::print(
+      "Including core polarisation (RPA, continuum TDHF): {} "
+      "amplitudes{}\n\n",
+      rpa_opts.unitarise ? "unitarised" : "standing-wave",
+      rpa_E_max_eV > 0.0 ?
+        fmt::format(", up to E = {:.0f} eV (bare above)", rpa_E_max_eV) :
+        std::string{});
+  }
+
   // Spherical Bessel lookup table.
   // Each operator stores a pointer to this table.
   std::cout << "Filling jL spherical Bessel table.." << std::flush;
@@ -1373,31 +1421,41 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // optional extra label
   const auto label = input.get("label", std::string{""});
 
-  std::string ofname_prefix =
-    wf.identity() + "_"                                       //
-    + method + "_"                                            //
-    + std::to_string(Kmin) + "-" + std::to_string(Kmax) + "_" //
-    + (lc_minmax ? std::to_string(lc_minmax->at(0)) + "-" +
-                     std::to_string(lc_minmax->at(1)) + "_" :
-                   "")               //
-    + (ec_minmax_eV ? "eclim_" : "") //
-    + (low_q ? "lowq_" : "");        //
+  // Output file name prefix, for a given method tag (the RPA files carry
+  // an extended tag)
+  const auto make_ofname_prefix = [&](const std::string &method_tag) {
+    std::string prefix =
+      wf.identity() + "_"                                       //
+      + method_tag + "_"                                        //
+      + std::to_string(Kmin) + "-" + std::to_string(Kmax) + "_" //
+      + (lc_minmax ? std::to_string(lc_minmax->at(0)) + "-" +
+                       std::to_string(lc_minmax->at(1)) + "_" :
+                     "")               //
+      + (ec_minmax_eV ? "eclim_" : "") //
+      + (low_q ? "lowq_" : "");        //
 
-  if (vectorQ)
-    ofname_prefix += "V";
-  if (axialQ)
-    ofname_prefix += "A";
-  if (scalarQ)
-    ofname_prefix += "S";
-  if (pseudoscalarQ)
-    ofname_prefix += "P";
+    if (vectorQ)
+      prefix += "V";
+    if (axialQ)
+      prefix += "A";
+    if (scalarQ)
+      prefix += "S";
+    if (pseudoscalarQ)
+      prefix += "P";
 
-  if (!label.empty()) {
-    ofname_prefix += "_" + label;
-  }
+    if (!label.empty()) {
+      prefix += "_" + label;
+    }
+    return prefix;
+  };
+  const auto ofname_prefix = make_ofname_prefix(method);
 
   //-------------------------------------------------------------------------
   std::cout << "\nCalculating ionisation factors for each bound electron:\n";
+
+  // Per-orbital bare factors, kept only for the RPA output (rows above
+  // rpa_E_max repeat them)
+  std::vector<std::array<LinAlg::Matrix<double>, 13>> K_bare_nk;
 
   int count = 1;
   for (const auto &Fa : wf.core()) {
@@ -1439,6 +1497,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
         Fa.shortSymbol() + "." + ofname_prefix + ".txt", Egrid, qgrid, titles,
         descriptions, K_factors_nk, units, num_digits, diagonal_Eq);
     }
+    if (rpaQ) {
+      K_bare_nk.push_back(K_factors_nk);
+    }
 
     for (std::size_t i = 0; i < K_factors.size(); ++i) {
       if (K_factors_nk[i].empty())
@@ -1465,6 +1526,73 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // Write total (summed) form factors to disk
   Kion::write_to_file_xyz_13(ofname_prefix + ".txt", Egrid, qgrid, titles,
                              descriptions, K_factors, units, num_digits,
+                             diagonal_Eq);
+
+  if (!rpaQ) {
+    return;
+  }
+
+  //----------------------------------------
+  // Core polarisation: all bound electrons at once (the RPA couples them)
+
+  std::cout << "\nCalculating RPA-dressed ionisation factors:\n";
+  const auto rpa_ff = Kion::calculate_formFactors_rpa(
+    wf.vHF(), ec_min, ec_max, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin,
+    Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_opts, true);
+  assert(rpa_ff.K_nk.size() == K_bare_nk.size());
+
+  const auto ofname_prefix_rpa =
+    make_ofname_prefix(method + (rpa_opts.unitarise ? "_rpaU" : "_rpa"));
+
+  std::array<LinAlg::Matrix<double>, 13> K_rpa;
+  for (std::size_t ib = 0; ib < wf.core().size(); ++ib) {
+    auto K_rpa_nk = rpa_ff.K_nk[ib];
+    // Energies not dressed (above rpa_E_max): the bare factors
+    for (std::size_t i = 0; i < K_rpa_nk.size(); ++i) {
+      if (K_rpa_nk[i].empty())
+        continue;
+      for (std::size_t iE = 0; iE < E_steps; ++iE) {
+        if (rpa_opts.E_max <= 0.0 || Egrid[iE] <= rpa_opts.E_max)
+          continue;
+        for (std::size_t iq = 0; iq < q_steps; ++iq) {
+          K_rpa_nk[i](iE, iq) = K_bare_nk[ib][i](iE, iq);
+        }
+      }
+    }
+    if (each_state) {
+      Kion::write_to_file_xyz_13(
+        wf.core()[ib].shortSymbol() + "." + ofname_prefix_rpa + ".txt", Egrid,
+        qgrid, titles, descriptions, K_rpa_nk, units, num_digits, diagonal_Eq);
+    }
+    for (std::size_t i = 0; i < K_rpa.size(); ++i) {
+      if (K_rpa_nk[i].empty())
+        continue;
+      if (K_rpa[i].empty()) {
+        K_rpa[i].resize(E_steps, q_steps);
+      }
+      K_rpa[i] += K_rpa_nk[i];
+    }
+  }
+
+  // Scan-wide quality report (see photoRPA): the K = pi*D identity is the
+  // one measure that reliably detects an unreliable channel solve
+  const auto i_worst = std::size_t(
+    std::max_element(rpa_ff.KpiD_dev.cbegin(), rpa_ff.KpiD_dev.cend()) -
+    rpa_ff.KpiD_dev.cbegin());
+  const auto i_eps = std::size_t(
+    std::max_element(rpa_ff.rpa_eps.cbegin(), rpa_ff.rpa_eps.cend()) -
+    rpa_ff.rpa_eps.cbegin());
+  fmt::print("\nRPA: worst convergence {:.1e} at E = {:.1f} eV\n",
+             rpa_ff.rpa_eps[i_eps], Egrid[i_eps] * PhysConst::Hartree_eV);
+  if (rpa_ff.KpiD_dev[i_worst] > 0.05) {
+    fmt::print("K = pi*D worst: {:.1e} at E = {:.1f} eV. Above ~5% the channel "
+               "solve is unreliable on this grid (increase num_points).\n",
+               rpa_ff.KpiD_dev[i_worst],
+               Egrid[i_worst] * PhysConst::Hartree_eV);
+  }
+
+  Kion::write_to_file_xyz_13(ofname_prefix_rpa + ".txt", Egrid, qgrid, titles,
+                             descriptions, K_rpa, units, num_digits,
                              diagonal_Eq);
 }
 
