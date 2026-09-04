@@ -116,6 +116,14 @@ struct RPAOptions {
   //! the channel tasks inside each solve. Better load balance; memory
   //! scales with the thread count (see ExternalField::TDHFcntm).
   bool parallel_q{true};
+  //! Solve with outgoing-wave (complex) boundary conditions
+  //! (ExternalField::TDHFcomplex): the physical amplitudes from ONE complex
+  //! solve per operator, with no K matrix (no seeded solves), instead of
+  //! the standing-wave solve plus on-shell K matrix (ExternalField::TDHFcntm,
+  //! Johnson). Same physical amplitudes (the two routes cross-validate);
+  //! roughly N_open times cheaper per (E, rank, parity) block. Implies
+  //! unitarise (there are no standing-wave amplitudes).
+  bool outgoing_wave{false};
 };
 
 /*!
@@ -158,7 +166,9 @@ struct RPAFormFactors {
     continuum bra of each ionised orbital;
   - per (E, rank, parity): the on-shell K matrix -- one field-free solve
     per open channel, shared by every operator of that rank and parity and
-    by the whole q grid;
+    by the whole q grid (or, with RPAOptions::outgoing_wave, the cheap
+    outgoing-wave channel caches of ExternalField::TDHFcomplex: no K
+    matrix at all);
   - per (E, rank, operator, q): the driven solve. This is the dominant
     cost, and is parallelised over q (see RPAOptions::parallel_q).
   Energies run serially.

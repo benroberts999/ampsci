@@ -369,22 +369,29 @@ double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
 
 //==============================================================================
 DiracSpinor TDHF::dV_rhs(int kappa_n, const DiracSpinor &Fa, bool conj) const {
+  return dV_rhs_sets(kappa_n, Fa, conj, m_X, m_Y);
+}
+
+//==============================================================================
+DiracSpinor
+TDHF::dV_rhs_sets(int kappa_n, const DiracSpinor &Fa, bool conj,
+                  const std::vector<std::vector<DiracSpinor>> &X,
+                  const std::vector<std::vector<DiracSpinor>> &Y) const {
 
   auto dVFa = DiracSpinor(0, kappa_n, Fa.grid_sptr());
   dVFa.max_pt() = Fa.max_pt();
-
-  const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
-  const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
 
   const auto k = m_h->rank();
   const auto tkp1 = double(2 * k + 1);
   const auto tjn = Angular::twoj_k(kappa_n);
 
   // nb: faster to not //ize this one
-  for (const auto &Fb : m_core) {
+  for (auto ib = 0ul; ib < m_core.size(); ++ib) {
+    const auto &Fb = m_core[ib];
 
-    const auto &X_b = get_dPsis(Fb, ChiType);
-    const auto &Y_b = get_dPsis(Fb, EtaType);
+    // conj (the dV^dagger source): the roles of X and Y swap
+    const auto &X_b = conj ? Y[ib] : X[ib];
+    const auto &Y_b = conj ? X[ib] : Y[ib];
 
     for (auto ibeta = 0ul; ibeta < X_b.size(); ++ibeta) {
       const auto &X_beta = X_b[ibeta];

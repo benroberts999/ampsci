@@ -198,6 +198,14 @@ protected:
   // operator's rank and parity (selection rules); m_X and m_Y must be empty
   void initialise_dPsi();
 
+  // dV_rhs built from explicit correction sets X, Y (indexed as m_X, m_Y)
+  // instead of the members; dV_rhs delegates here with (m_X, m_Y). Lets a
+  // derived class apply the same (real-linear) builder to a second pair of
+  // sets, e.g. the imaginary parts of complex corrections.
+  DiracSpinor dV_rhs_sets(int kappa_n, const DiracSpinor &Fa, bool conj,
+                          const std::vector<std::vector<DiracSpinor>> &X,
+                          const std::vector<std::vector<DiracSpinor>> &Y) const;
+
 private:
   // Single iteration of TDHF equations
   std::pair<double, std::string> tdhf_core_it(double omega, double eta_damp);

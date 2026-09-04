@@ -1,6 +1,7 @@
 #include "DiracODE/ContinuumState.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/TDHFcntm.hpp"
+#include "ExternalField/TDHFcomplex.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "Kionisation/Kion_functions.hpp"
@@ -24,6 +25,7 @@
 #include <cstdlib>
 #include <iostream>
 #include <memory>
+#include <type_traits>
 
 namespace Module {
 
@@ -659,6 +661,15 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
      "just above any threshold (a newly-open channel is slow), so keep this "
      "above the deepest edge in the scan range. 0 (or negative) = no limit "
      "[0]"},
+    {"method",
+     "RPA solver: 'Kmatrix' = standing-wave solve + on-shell K matrix "
+     "(Johnson; the unitarisation costs one extra field-free solve per open "
+     "channel per omega); 'complex' = outgoing-wave (complex) solve, no K "
+     "matrix: one complex solve per gauge per omega, ~N_open times cheaper "
+     "at high omega. Same physical (unitarised) amplitudes. With 'complex' "
+     "there are no standing-wave amplitudes: unitarise is implied, "
+     "unitarise_max is inert, and the RPA (standing-wave) columns repeat "
+     "RPA_U [Kmatrix]"},
     {"oname", "Output file name [photoRPA-out.txt]"},
   });
   if (input.has_option("help")) {
@@ -678,7 +689,14 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_its = input.get("max_its", 60);
   const auto eps_target = input.get("eps", 1.0e-5);
   const auto eta = input.get("eta", 0.4);
-  const auto unitarise = input.get("unitarise", true);
+  const auto method = input.get("method", std::string{"Kmatrix"});
+  if (method != "Kmatrix" && method != "complex") {
+    fmt2::styled_print(fg(fmt::color::red), "\nFail: ");
+    fmt::print("method must be Kmatrix or complex (got {})\n", method);
+    return;
+  }
+  const bool outgoing_wave = method == "complex";
+  const auto unitarise = outgoing_wave || input.get("unitarise", true);
   const auto each_shell = input.get("each_shell", false);
   const auto rpa_max_eV = input.get("rpa_max", 1000.0);
   const auto rpa_max_au =
@@ -691,10 +709,14 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
 
   fmt::print("\nomega : [{:.1f}, {:.1f}] eV, {} steps (logarithmic)\n", Emin_eV,
              Emax_eV, energies.size());
+  fmt::print("RPA solver: {}\n", outgoing_wave ?
+                                   "outgoing-wave (complex) solve, no K "
+                                   "matrix; RPA columns repeat RPA_U" :
+                                   "standing-wave solve + K matrix");
   if (rpa_max_au < energies.back()) {
     fmt::print("RPA solved up to {:.0f} eV; bare above\n", rpa_max_eV);
   }
-  if (unitarise && unitarise_max_au < energies.back()) {
+  if (unitarise && !outgoing_wave && unitarise_max_au < energies.back()) {
     fmt::print("Unitarised up to {:.0f} eV; standing-wave RPA above\n",
                unitarise_max_eV);
   }
@@ -752,13 +774,11 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   std::size_t n_excluded_omega = 0;
 
   // The RPA solver: one instance, re-used at every omega and for both
-  // gauges (set_operator). The K matrix is built once per omega, during
-  // the length-form solve, and re-used by the velocity form: it is
-  // operator-independent (same rank and parity). This is the dominant
-  // cost of a unitarised scan (one field-free solve per open channel).
-  auto rpa = ExternalField::TDHFcntm(&E1, wf.vHF());
-  rpa.eps_target() = eps_target;
-  rpa.set_eta(eta);
+  // gauges (set_operator). K-matrix method: the K matrix is built once per
+  // omega, during the length-form solve, and re-used by the velocity form
+  // (operator-independent: same rank and parity); this is the dominant cost
+  // of a unitarised scan (one field-free solve per open channel).
+  // Outgoing-wave method: no K matrix; one complex solve per gauge.
 
   fmt::print("\n{:>9s}  {:>10s}  {:>10s}{}  {:>8s} {:>4s}  {:>8s}\n",
              "omega/eV", "bare", "RPA", unitarise ? "       RPA_U" : "", "eps",
@@ -770,132 +790,161 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   // seeded solves), which parallelise well over the seed columns --
   // omega-parallel would leave the most expensive omega serial on one
   // thread (and hold an Anderson history per thread).
-  for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
-    const auto omega = energies[i_omega];
+  // The scan, generic in the solver type (TDHFcntm: standing-wave solve +
+  // K matrix; TDHFcomplex: outgoing-wave solve). The K-matrix-specific
+  // calls exist only for TDHFcntm and are compiled only for it.
+  const auto run_scan = [&](auto &rpa) {
+    using Solver = std::decay_t<decltype(rpa)>;
+    constexpr bool has_kmatrix =
+      std::is_same_v<Solver, ExternalField::TDHFcntm>;
+    rpa.eps_target() = eps_target;
+    rpa.set_eta(eta);
 
-    // Below every ionisation threshold (or every open shell beyond ec_max):
-    // no contributing channels, sigma = 0 -- nothing to solve. (Same shell
-    // condition as the bra construction below.)
-    const auto any_open =
-      std::any_of(wf.core().cbegin(), wf.core().cend(), [&](const auto &Fa) {
-        const auto ec = omega + Fa.en();
-        return ec >= 0.0 && ec <= ec_max;
-      });
-    if (!any_open) {
-      continue;
-    }
+    for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
+      const auto omega = energies[i_omega];
 
-    // Above rpa_max the RPA is not solved: the columns repeat the bare
-    // values (see the rpa_max option). Above unitarise_max no K matrix is
-    // built: the rpaU columns use the standing-wave amplitudes (error ~
-    // Kbar^2; see the unitarise_max option).
-    const bool do_rpa = omega <= rpa_max_au;
-    const bool do_unitarise = unitarise && do_rpa && omega <= unitarise_max_au;
-    rpa.set_unitarise(do_unitarise);
-
-    // Conversion: (1/3) sum |<e||E1||a>|^2 -> cross-section (cm^2)
-    const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
-                        PhysConst::aB_cm * PhysConst::aB_cm * omega / 3.0;
-
-    // Velocity-form operators: frequency-dependent, so per-omega instances,
-    // updated to (+omega, -omega) for the (t_+, t_-) pair.
-    auto E1v = DiracOperator::E1v(wf.alpha(), omega);
-    auto E1v_minus = DiracOperator::E1v(wf.alpha(), -omega);
-
-    // Orthogonalised V^{N-1} HF continuum bra of each open shell, for the
-    // bare and standing-wave amplitudes (the unitarised ones need no bra)
-    std::vector<ContinuumOrbitals> bra;
-    bra.reserve(n_shells);
-    for (std::size_t i_shell = 0; i_shell < n_shells; ++i_shell) {
-      const auto &Fa = wf.core()[i_shell];
-      bra.emplace_back(wf.vHF());
-      const auto ec = omega + Fa.en();
-      if (ec < 0.0 || ec > ec_max)
+      // Below every ionisation threshold (or every open shell beyond ec_max):
+      // no contributing channels, sigma = 0 -- nothing to solve. (Same shell
+      // condition as the bra construction below.)
+      const auto any_open =
+        std::any_of(wf.core().cbegin(), wf.core().cend(), [&](const auto &Fa) {
+          const auto ec = omega + Fa.en();
+          return ec >= 0.0 && ec <= ec_max;
+        });
+      if (!any_open) {
         continue;
-      bra.back().solveContinuumHF(ec, std::max(Fa.l() - 1, 0), Fa.l() + 1, &Fa,
-                                  false, true, true);
-    }
-
-    // One gauge: solve the RPA, then the cross-sections -- bare, RPA
-    // (standing-wave, D = D0 + <e|dV|a>), and unitarised (the physical
-    // amplitudes |A|/pi = D_phys, finite through the standing-wave poles).
-    // Above unitarise_max the standing-wave RPA amplitude stands (A -> pi*D
-    // for weak rescattering); without the RPA solve at all, the bare value.
-    struct GaugeResult {
-      double sigma_bare{0.0};
-      double sigma_rpa{0.0};
-      double sigma_rpaU{0.0};
-      double eps{0.0};
-      double its{0.0};
-      double KpiD{0.0};
-      std::string KpiD_channel{};
-    };
-    const auto solve_gauge = [&](const DiracOperator::TensorOperator &h,
-                                 const DiracOperator::TensorOperator *h_minus,
-                                 bool length_form) {
-      GaugeResult res;
-      rpa.set_operator(&h, h_minus);
-      if (do_rpa) {
-        rpa.solve_core(omega, max_its, false);
-        res.eps = rpa.last_eps();
-        res.its = rpa.last_its();
-        res.KpiD = rpa.KpiD_dev();
-        res.KpiD_channel = rpa.KpiD_worst_channel();
       }
+
+      // Above rpa_max the RPA is not solved: the columns repeat the bare
+      // values (see the rpa_max option). Above unitarise_max no K matrix is
+      // built: the rpaU columns use the standing-wave amplitudes (error ~
+      // Kbar^2; see the unitarise_max option).
+      const bool do_rpa = omega <= rpa_max_au;
+      const bool do_unitarise =
+        unitarise && do_rpa && (outgoing_wave || omega <= unitarise_max_au);
+      if constexpr (has_kmatrix) {
+        rpa.set_unitarise(do_unitarise);
+      }
+
+      // Conversion: (1/3) sum |<e||E1||a>|^2 -> cross-section (cm^2)
+      const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
+                          PhysConst::aB_cm * PhysConst::aB_cm * omega / 3.0;
+
+      // Velocity-form operators: frequency-dependent, so per-omega instances,
+      // updated to (+omega, -omega) for the (t_+, t_-) pair.
+      auto E1v = DiracOperator::E1v(wf.alpha(), omega);
+      auto E1v_minus = DiracOperator::E1v(wf.alpha(), -omega);
+
+      // Orthogonalised V^{N-1} HF continuum bra of each open shell, for the
+      // bare and standing-wave amplitudes (the unitarised ones need no bra)
+      std::vector<ContinuumOrbitals> bra;
+      bra.reserve(n_shells);
       for (std::size_t i_shell = 0; i_shell < n_shells; ++i_shell) {
         const auto &Fa = wf.core()[i_shell];
-        for (const auto &Fe : bra[i_shell].orbitals) {
-          if (h.isZero(Fe, Fa) || Fe.norm2() == 0.0)
-            continue;
-          const auto D0 = h.reducedME(Fe, Fa);
-          const auto D = do_rpa ? D0 + rpa.dV(Fe, Fa) : D0;
-          const auto DU = do_unitarise ? rpa.D_phys(Fa, Fe.kappa()) : D;
-          res.sigma_bare += Ksigma * D0 * D0;
-          res.sigma_rpa += Ksigma * D * D;
-          if (unitarise) {
-            res.sigma_rpaU += Ksigma * DU * DU;
-            if (length_form && each_shell) {
-              results[i_omega][10 + i_shell] += Ksigma * DU * DU;
+        bra.emplace_back(wf.vHF());
+        const auto ec = omega + Fa.en();
+        if (ec < 0.0 || ec > ec_max)
+          continue;
+        bra.back().solveContinuumHF(ec, std::max(Fa.l() - 1, 0), Fa.l() + 1,
+                                    &Fa, false, true, true);
+      }
+
+      // One gauge: solve the RPA, then the cross-sections -- bare, RPA
+      // (standing-wave, D = D0 + <e|dV|a>), and unitarised (the physical
+      // amplitudes |A|/pi = D_phys, finite through the standing-wave poles).
+      // Above unitarise_max the standing-wave RPA amplitude stands (A -> pi*D
+      // for weak rescattering); without the RPA solve at all, the bare value.
+      struct GaugeResult {
+        double sigma_bare{0.0};
+        double sigma_rpa{0.0};
+        double sigma_rpaU{0.0};
+        double eps{0.0};
+        double its{0.0};
+        double KpiD{0.0};
+        std::string KpiD_channel{};
+      };
+      const auto solve_gauge = [&](const DiracOperator::TensorOperator &h,
+                                   const DiracOperator::TensorOperator *h_minus,
+                                   bool length_form) {
+        GaugeResult res;
+        rpa.set_operator(&h, h_minus);
+        if (do_rpa) {
+          rpa.solve_core(omega, max_its, false);
+          res.eps = rpa.last_eps();
+          res.its = rpa.last_its();
+          res.KpiD = rpa.KpiD_dev();
+          res.KpiD_channel = rpa.KpiD_worst_channel();
+        }
+        for (std::size_t i_shell = 0; i_shell < n_shells; ++i_shell) {
+          const auto &Fa = wf.core()[i_shell];
+          for (const auto &Fe : bra[i_shell].orbitals) {
+            if (h.isZero(Fe, Fa) || Fe.norm2() == 0.0)
+              continue;
+            const auto D0 = h.reducedME(Fe, Fa);
+            // Standing-wave amplitude (K-matrix method only; the outgoing-wave
+            // solve has none, and its RPA column repeats the physical one)
+            const auto D_standing =
+              do_rpa && !outgoing_wave ? D0 + rpa.dV(Fe, Fa) : D0;
+            const auto DU =
+              do_unitarise ? rpa.D_phys(Fa, Fe.kappa()) : D_standing;
+            const auto D = do_rpa && outgoing_wave ? DU : D_standing;
+            res.sigma_bare += Ksigma * D0 * D0;
+            res.sigma_rpa += Ksigma * D * D;
+            if (unitarise) {
+              res.sigma_rpaU += Ksigma * DU * DU;
+              if (length_form && each_shell) {
+                results[i_omega][10 + i_shell] += Ksigma * DU * DU;
+              }
             }
           }
         }
+        return res;
+      };
+      const auto L = solve_gauge(E1, nullptr, true);
+      const auto V = solve_gauge(E1v, &E1v_minus, false);
+
+      // Convergence / internal-consistency diagnostics, worst over gauges
+      // [KpiD: the K = pi*D identity, computed by solve_core]
+      const auto KpiD_dev = std::max(L.KpiD, V.KpiD);
+      if (KpiD_dev > KpiD_worst) {
+        KpiD_worst = KpiD_dev;
+        KpiD_worst_at = omega;
+        KpiD_worst_ch = L.KpiD >= V.KpiD ? L.KpiD_channel : V.KpiD_channel;
       }
-      return res;
-    };
-    const auto L = solve_gauge(E1, nullptr, true);
-    const auto V = solve_gauge(E1v, &E1v_minus, false);
+      if (do_rpa && !rpa.excluded_channels().empty()) {
+        n_excluded_omega++;
+      }
 
-    // Convergence / internal-consistency diagnostics, worst over gauges
-    // [KpiD: the K = pi*D identity, computed by solve_core]
-    const auto KpiD_dev = std::max(L.KpiD, V.KpiD);
-    if (KpiD_dev > KpiD_worst) {
-      KpiD_worst = KpiD_dev;
-      KpiD_worst_at = omega;
-      KpiD_worst_ch = L.KpiD >= V.KpiD ? L.KpiD_channel : V.KpiD_channel;
+      results[i_omega][0] = L.sigma_bare;
+      results[i_omega][1] = L.sigma_rpa;
+      results[i_omega][2] = L.sigma_rpaU;
+      results[i_omega][3] = V.sigma_bare;
+      results[i_omega][4] = V.sigma_rpa;
+      results[i_omega][5] = V.sigma_rpaU;
+      // Convergence of the RPA solve; zero where it was not solved (above
+      // rpa_max)
+      results[i_omega][6] = std::max(L.eps, V.eps);
+      results[i_omega][7] = std::max(L.its, V.its);
+      results[i_omega][8] = KpiD_dev;
+      if constexpr (has_kmatrix) {
+        results[i_omega][9] = rpa.kmatrix() ? rpa.kmatrix()->asymmetry : 0.0;
+      }
+
+      fmt::print("{:9.2f}  {:10.3e}  {:10.3e}{}  {:8.1e} {:4.0f}  {:8.1e}{}\n",
+                 omega * PhysConst::Hartree_eV, L.sigma_bare, L.sigma_rpa,
+                 unitarise ? fmt::format("  {:10.3e}", L.sigma_rpaU) : "",
+                 results[i_omega][6], results[i_omega][7], KpiD_dev,
+                 do_rpa ? "" : "  (bare)");
+      std::cout << std::flush;
     }
-    if (do_rpa && !rpa.excluded_channels().empty()) {
-      n_excluded_omega++;
-    }
+  };
 
-    results[i_omega][0] = L.sigma_bare;
-    results[i_omega][1] = L.sigma_rpa;
-    results[i_omega][2] = L.sigma_rpaU;
-    results[i_omega][3] = V.sigma_bare;
-    results[i_omega][4] = V.sigma_rpa;
-    results[i_omega][5] = V.sigma_rpaU;
-    // Convergence of the RPA solve; zero where it was not solved (above
-    // rpa_max)
-    results[i_omega][6] = std::max(L.eps, V.eps);
-    results[i_omega][7] = std::max(L.its, V.its);
-    results[i_omega][8] = KpiD_dev;
-    results[i_omega][9] = rpa.kmatrix() ? rpa.kmatrix()->asymmetry : 0.0;
-
-    fmt::print("{:9.2f}  {:10.3e}  {:10.3e}{}  {:8.1e} {:4.0f}  {:8.1e}{}\n",
-               omega * PhysConst::Hartree_eV, L.sigma_bare, L.sigma_rpa,
-               unitarise ? fmt::format("  {:10.3e}", L.sigma_rpaU) : "",
-               results[i_omega][6], results[i_omega][7], KpiD_dev,
-               do_rpa ? "" : "  (bare)");
-    std::cout << std::flush;
+  if (outgoing_wave) {
+    ExternalField::TDHFcomplex rpa(&E1, wf.vHF());
+    run_scan(rpa);
+  } else {
+    ExternalField::TDHFcntm rpa(&E1, wf.vHF());
+    run_scan(rpa);
   }
 
   // Scan-wide quality report: printed once, in place of per-omega warnings.
@@ -936,7 +985,12 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     out_file << "# nb: RPA solved only up to " << rpa_max_eV
              << " eV; above that the rpa/rpaU columns repeat the bare\n";
   }
-  if (unitarise && unitarise_max_au < energies.back()) {
+  if (outgoing_wave) {
+    out_file << "# nb: method = complex (outgoing-wave solve, no K matrix): "
+                "the rpa (standing-wave) columns repeat rpaU; Kbar_asym is "
+                "0\n";
+  }
+  if (unitarise && !outgoing_wave && unitarise_max_au < energies.back()) {
     out_file << "# nb: unitarised only up to " << unitarise_max_eV
              << " eV; above that the rpaU columns repeat the standing-wave "
                 "rpa\n";
@@ -1073,7 +1127,14 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
      {"rpa_parallel_q",
       "Parallelise the RPA solves over q (one solver, with its own Anderson "
       "history, per thread: memory scales with the thread count) rather than "
-      "inside each solve [true]"}});
+      "inside each solve [true]"},
+     {"rpa_method",
+      "RPA solver: 'Kmatrix' = standing-wave solve + on-shell K matrix "
+      "(Johnson; one extra field-free solve per open channel per (E, K, "
+      "parity)); 'complex' = outgoing-wave (complex) solve, no K matrix: one "
+      "complex solve per operator, ~N_open times cheaper per block; same "
+      "physical (unitarised) amplitudes, so rpa_unitarise is implied "
+      "[Kmatrix]"}});
   if (input.has_option("help")) {
     return;
   }
@@ -1350,6 +1411,16 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   rpa_opts.E_max =
     rpa_E_max_eV > 0.0 ? rpa_E_max_eV / PhysConst::Hartree_eV : 0.0;
   rpa_opts.parallel_q = input.get("rpa_parallel_q", true);
+  const auto rpa_method = input.get("rpa_method", std::string{"Kmatrix"});
+  if (rpaQ && rpa_method != "Kmatrix" && rpa_method != "complex") {
+    fmt2::styled_print(fg(fmt::color::red), "\nFail: ");
+    fmt::print("rpa_method must be Kmatrix or complex (got {})\n", rpa_method);
+    return;
+  }
+  rpa_opts.outgoing_wave = rpa_method == "complex";
+  if (rpa_opts.outgoing_wave) {
+    rpa_opts.unitarise = true;
+  }
   if (rpaQ && use_Zeff) {
     fmt2::styled_print(fg(fmt::color::red), "\nFail: ");
     fmt::print("rpa requires Hartree-Fock states (method=HF)\n");
@@ -1357,8 +1428,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   if (rpaQ) {
     fmt::print(
-      "Including core polarisation (RPA, continuum TDHF): {} "
+      "Including core polarisation (RPA, continuum TDHF, {}): {} "
       "amplitudes{}\n\n",
+      rpa_opts.outgoing_wave ? "outgoing-wave solve" :
+                               "standing-wave solve + K matrix",
       rpa_opts.unitarise ? "unitarised" : "standing-wave",
       rpa_E_max_eV > 0.0 ?
         fmt::format(", up to E = {:.0f} eV (bare above)", rpa_E_max_eV) :
