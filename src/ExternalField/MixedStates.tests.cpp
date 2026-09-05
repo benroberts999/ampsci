@@ -7,8 +7,10 @@
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
 #include "qip/String.hpp"
+#include <cmath>
 #include <iomanip>
 #include <string>
+#include <vector>
 
 //==============================================================================
 TEST_CASE("External Field: Mixed-states (unit)",
@@ -175,5 +177,103 @@ TEST_CASE("External Field: Mixed-states (full)",
       }
       std::cout << "\n";
     }
+  }
+}
+//==============================================================================
+//! Anderson (DIIS) mixing coefficients: the constrained least-squares
+//! solution for known residuals, the history-dropping on an ill-conditioned
+//! Gram matrix, and exact convergence of the extrapolation for a small
+//! linear fixed-point problem whose damped iteration diverges.
+TEST_CASE("External Field: Anderson (DIIS) coefficients",
+          "[ExternalField][MixedStates][TDHFcntm][unit]") {
+  using ExternalField::anderson_coefficients;
+
+  // Single entry: the plain step
+  {
+    const std::vector<std::vector<double>> gram{{2.0}};
+    const auto c = anderson_coefficients(gram);
+    REQUIRE(c.size() == 1);
+    REQUIRE(c[0] == Approx(1.0));
+  }
+
+  // Orthogonal residuals: minimising |c1 r1 + c2 r2|^2 with c1 + c2 = 1
+  // gives c_i proportional to 1/|r_i|^2
+  {
+    const std::vector<std::vector<double>> gram{{4.0, 0.0}, {0.0, 1.0}};
+    const auto c = anderson_coefficients(gram);
+    REQUIRE(c.size() == 2);
+    REQUIRE(c[0] == Approx(0.2));
+    REQUIRE(c[1] == Approx(0.8));
+    REQUIRE(c[0] + c[1] == Approx(1.0));
+  }
+
+  // Ill-conditioned Gram matrix (one negligible residual, oldest): the
+  // oldest entry is dropped and coefficients are returned for the rest
+  {
+    const std::vector<std::vector<double>> gram{{1.0e-20, 0.0, 0.0, 0.0},
+                                                {0.0, 1.0, 0.0, 0.0},
+                                                {0.0, 0.0, 1.0, 0.0},
+                                                {0.0, 0.0, 0.0, 1.0}};
+    const auto c = anderson_coefficients(gram);
+    REQUIRE(c.size() == 3);
+    for (const auto ci : c) {
+      REQUIRE(ci == Approx(1.0 / 3.0));
+    }
+  }
+
+  // Linear fixed point x = A x + b in two dimensions, with eigenvalues of A
+  // outside the unit circle (damped iteration diverges for any damping):
+  // the DIIS extrapolation reaches the exact solution once the residual
+  // history spans the space (three iterates), as used in the mixed-state
+  // solvers
+  {
+    const double A[2][2] = {{1.5, 0.3}, {0.2, -1.2}};
+    const double b[2] = {1.0, 1.0};
+    // Exact: (1 - A) x = b
+    const double M[2][2] = {{1.0 - A[0][0], -A[0][1]},
+                            {-A[1][0], 1.0 - A[1][1]}};
+    const double det = M[0][0] * M[1][1] - M[0][1] * M[1][0];
+    const double x_exact[2] = {(M[1][1] * b[0] - M[0][1] * b[1]) / det,
+                               (M[0][0] * b[1] - M[1][0] * b[0]) / det};
+
+    std::vector<double> x{0.0, 0.0};
+    std::vector<std::vector<double>> g_hist;
+    std::vector<std::vector<double>> r_hist;
+    int its = 0;
+    double residual = 1.0;
+    for (; its < 10; ++its) {
+      const std::vector<double> g{A[0][0] * x[0] + A[0][1] * x[1] + b[0],
+                                  A[1][0] * x[0] + A[1][1] * x[1] + b[1]};
+      const std::vector<double> r{g[0] - x[0], g[1] - x[1]};
+      residual = std::sqrt(r[0] * r[0] + r[1] * r[1]);
+      if (residual < 1.0e-10)
+        break;
+      g_hist.push_back(g);
+      r_hist.push_back(r);
+      const auto m = r_hist.size();
+      std::vector<std::vector<double>> gram(m, std::vector<double>(m, 0.0));
+      for (std::size_t i = 0; i < m; ++i) {
+        for (std::size_t j = 0; j < m; ++j) {
+          gram[i][j] =
+            r_hist[i][0] * r_hist[j][0] + r_hist[i][1] * r_hist[j][1];
+        }
+      }
+      const auto c = anderson_coefficients(gram);
+      const auto n_drop = long(m - c.size());
+      g_hist.erase(g_hist.begin(), g_hist.begin() + n_drop);
+      r_hist.erase(r_hist.begin(), r_hist.begin() + n_drop);
+      REQUIRE(!c.empty());
+      x = {0.0, 0.0};
+      for (std::size_t i = 0; i < c.size(); ++i) {
+        x[0] += c[i] * g_hist[i][0];
+        x[1] += c[i] * g_hist[i][1];
+      }
+    }
+    fmt::print("\nAnderson mixing, 2D linear map with |eigenvalues| > 1: "
+               "converged in {} iterations, residual {:.1e}\n",
+               its, residual);
+    REQUIRE(its <= 4);
+    REQUIRE(x[0] == Approx(x_exact[0]).epsilon(1.0e-8));
+    REQUIRE(x[1] == Approx(x_exact[1]).epsilon(1.0e-8));
   }
 }
