@@ -127,14 +127,14 @@ public:
 
   virtual Method method() const override { return Method::TDHF; }
 
-  virtual void clear() override final;
+  virtual void clear() override;
 
   //! Returns reduced matrix element \f$\redmatel{a}{\delta V}{b}\f$,
   //! or the conjugate \f$\redmatel{a}{\delta V^\dagger}{b}\f$ if conj=true.
   double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
 
   virtual double dV(const DiracSpinor &Fa,
-                    const DiracSpinor &Fb) const override final;
+                    const DiracSpinor &Fb) const override;
 
   DiracSpinor dV_rhs(int kappa_n, const DiracSpinor &Fm,
                      bool conj = false) const override;
@@ -182,14 +182,24 @@ public:
   // //! Writes dPsi (f-component) to textfile
   // void print(const std::string &ofname = "dPsi.txt") const;
 
+protected:
+  // Forms set of h*Fc for all core orbitals and all projections
+  std::vector<std::vector<DiracSpinor>>
+  form_hFcore(const DiracOperator::TensorOperator *h) const;
+
+  // dV_rhs built from explicit correction sets X, Y (indexed as m_X, m_Y)
+  // in place of the members; dV_rhs delegates here with (m_X, m_Y). Lets a
+  // derived class apply the same (real-linear) builder to a second pair of
+  // sets, e.g. the imaginary parts of complex corrections.
+  DiracSpinor dV_rhs_sets(int kappa_n, const DiracSpinor &Fa, bool conj,
+                          const std::vector<std::vector<DiracSpinor>> &X,
+                          const std::vector<std::vector<DiracSpinor>> &Y) const;
+
 private:
   void initialise_dPsi();
 
   // Single iteration of TDHF equations
   std::pair<double, std::string> tdhf_core_it(double omega, double eta_damp);
-  // Forms set of h*Fc for all core orbitals and all projections
-  std::vector<std::vector<DiracSpinor>>
-  form_hFcore(const DiracOperator::TensorOperator *h) const;
   // Solves the MS equations for all projections, single core state
   void solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
                      const std::vector<DiracSpinor> &hFbs, const double omega,
