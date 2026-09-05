@@ -1,3 +1,4 @@
+#include "HF/HartreeFock.hpp"
 #include "DiracOperator/include.hpp"
 #include "HF/HartreeFock_test_data.hpp"
 #include "IO/ChronoTimer.hpp"
@@ -610,5 +611,29 @@ TEST_CASE("HartreeFock - Sigma2 - InIII Converge",
   const auto wf = ampsci(IO::InputBlock{"", input_string});
   for (const auto &v : wf.valence()) {
     REQUIRE(v.eps() < 1.0e-9);
+  }
+}
+//==============================================================================
+//! One-electron self-exchange: vexFa_1el(Fv, Fa) is the exchange of a single
+//! electron in (closed) subshell Fa acting on Fv, i.e. the full-subshell
+//! exchange of Fa alone divided by its occupancy [j_a] = 2j_a + 1.
+TEST_CASE("HartreeFock: one-electron exchange vexFa_1el",
+          "[HF][HartreeFock][unit]") {
+
+  Wavefunction wf({1000, 1.0e-5, 50.0, 10.0, "loglinear", -1.0},
+                  {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-10, false);
+
+  for (const auto &Fa : wf.core()) {
+    REQUIRE(Fa.occ_frac() == 1.0);
+    const std::vector<DiracSpinor> subshell{Fa};
+    for (const auto &Fv : wf.core()) {
+      const auto X_1el = HF::vexFa_1el(Fv, Fa);
+      const auto X_full = HF::vexFa(Fv, subshell);
+      REQUIRE(X_1el.kappa() == Fv.kappa());
+      REQUIRE(X_full.norm2() > 0.0);
+      const auto diff = (double(Fa.twojp1()) * X_1el - X_full).norm2();
+      REQUIRE(diff < 1.0e-24 * X_full.norm2());
+    }
   }
 }
