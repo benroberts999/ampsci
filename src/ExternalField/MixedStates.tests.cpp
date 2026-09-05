@@ -180,11 +180,11 @@ TEST_CASE("External Field: Mixed-states (full)",
   }
 }
 //==============================================================================
-//! Anderson (DIIS) mixing coefficients: the constrained least-squares
+//! Anderson mixing coefficients: the constrained least-squares
 //! solution for known residuals, the history-dropping on an ill-conditioned
 //! Gram matrix, and exact convergence of the extrapolation for a small
 //! linear fixed-point problem whose damped iteration diverges.
-TEST_CASE("External Field: Anderson (DIIS) coefficients",
+TEST_CASE("External Field: Anderson coefficients",
           "[ExternalField][MixedStates][TDHFcntm][unit]") {
   using ExternalField::anderson_coefficients;
 
@@ -223,7 +223,7 @@ TEST_CASE("External Field: Anderson (DIIS) coefficients",
 
   // Linear fixed point x = A x + b in two dimensions, with eigenvalues of A
   // outside the unit circle (damped iteration diverges for any damping):
-  // the DIIS extrapolation reaches the exact solution once the residual
+  // the Anderson extrapolation reaches the exact solution once the residual
   // history spans the space (three iterates), as used in the mixed-state
   // solvers
   {

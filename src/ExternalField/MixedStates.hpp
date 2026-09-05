@@ -78,7 +78,7 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const std::vector<double> &H_mag = {});
 
 /*!
-  @brief Anderson/Pulay (DIIS) mixing coefficients for a fixed-point
+  @brief Anderson mixing coefficients for a fixed-point
   iteration x -> G(x).
   @details
   Given the residuals \f$ r_k = G(x_k) - x_k \f$ of the stored iterates
@@ -104,8 +104,8 @@ std::vector<double>
 anderson_coefficients(const std::vector<DiracSpinor> &residuals);
 
 /*!
-  @brief Bound mixed-state solve with Anderson (DIIS) acceleration; the bound
-  channels of @ref TDHFcomplex.
+  @brief Bound mixed-state solve with Anderson acceleration; the bound
+  channels of @ref TDHFcntm.
   @details
   Same physics and conditioning as @ref solveMixedState (in-place overload),
   but the linear equation \f$ (h_{\rm HF} - \en_0)\,\delta F = -F_S \f$ is
@@ -128,7 +128,7 @@ void solveMixedState_cntm(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
 /*!
   @brief Continuum (en_+ > 0) mixed-state solve with the standing-wave
   boundary condition and the non-local exchange iterated in the source: the
-  open channels of @ref TDHFcomplex.
+  open channels of @ref TDHFcntm.
   @details
   Solves
   \f[ 

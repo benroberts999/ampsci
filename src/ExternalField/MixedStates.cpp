@@ -298,7 +298,7 @@ void solveMixedState_cntm(DiracSpinor &dF, const DiracSpinor &Fa,
       r_hist.erase(r_hist.begin());
     }
 
-    // DIIS extrapolation over the kept history: dF = sum_i c_i g_i
+    // Anderson extrapolation over the kept history: dF = sum_i c_i g_i
     const auto c = anderson_coefficients(r_hist);
     const auto n_drop = long(r_hist.size() - c.size());
     g_hist.erase(g_hist.begin(), g_hist.begin() + n_drop);
@@ -453,7 +453,7 @@ void solveContinuumMixedState(DiracSpinor *phi, DiracSpinor *Freg,
       r_hist.erase(r_hist.begin());
     }
 
-    // DIIS extrapolation over the kept history: phi = sum_i c_i g_i, and K
+    // Anderson extrapolation over the kept history: phi = sum_i c_i g_i, and K
     // with the same coefficients
     const auto c = anderson_coefficients(r_hist);
     const auto n_drop = long(r_hist.size() - c.size());
