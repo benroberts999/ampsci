@@ -1,4 +1,5 @@
 #include "DiracODE/ContinuumState.hpp"
+#include "DiracODE/AsymptoticSpinor.hpp"
 #include "DiracODE/BoundState.hpp"
 #include "DiracODE/include.hpp"
 #include "Maths/Grid.hpp"
@@ -345,6 +346,331 @@ std::size_t averageTail(DiracSpinor &Fa, const std::vector<double> &v,
 
   Fa.max_pt() = num_points;
   return i_avg;
+}
+
+//==============================================================================
+void solveContinuumIrregular(DiracSpinor &Firr, const DiracSpinor &Freg,
+                             double en, const std::vector<double> &v,
+                             double alpha) {
+  // Seeds the outermost grid points of F_irr from the asymptotic
+  // Dirac-Coulomb pair and integrates the homogeneous equation inwards (see
+  // header). The projection F_reg = a F^C + b G^C over an outer window gives
+  // the seed F_irr = b F^C - a G^C, the exact quarter-wave partner to series
+  // order; a^2 + b^2 = 1 (both energy-normalised) measures the quality of
+  // the series at the box edge.
+
+  Firr.en() = en;
+  const auto &gr = Freg.grid();
+  const auto kappa = Freg.kappa();
+  const auto pinf = Freg.max_pt();
+  Firr.max_pt() = pinf;
+
+  // small/large amplitude ratio beta = sqrt(en/(en+2c^2))
+  const auto c2 = 1.0 / (alpha * alpha);
+  const double beta = std::sqrt(en / (en + 2.0 * c2));
+
+  // Residual-ion charge seen at the box edge (Coulomb tail of v)
+  const auto Zion = std::max(0.0, -v[pinf - 1] * gr.r(pinf - 1));
+  const AsymptoticSpinorContinuum<15> asy{kappa, Zion, en, alpha};
+
+  // Projection of a set of points (r_j, f_j, g_j) onto {F^C, G^C}, averaged
+  // (2x2 in the two components; W[F^C,G^C] = fC gG - fG gC = -alpha/pi)
+  struct Projection {
+    double a{0.0}, b{0.0}, q_err{1.0};
+  };
+  const auto project = [&asy](const auto &rs, const auto &fs, const auto &gs,
+                              std::size_t n) {
+    double a_sum = 0.0, b_sum = 0.0;
+    for (std::size_t j = 0; j < n; ++j) {
+      const auto [fC, gC, fG, gG] = asy.fg(rs[j]);
+      const auto Wcg = fC * gG - fG * gC;
+      a_sum += (fs[j] * gG - gs[j] * fG) / Wcg;
+      b_sum += (fC * gs[j] - gC * fs[j]) / Wcg;
+    }
+    Projection p;
+    p.a = a_sum / double(n);
+    p.b = b_sum / double(n);
+    p.q_err = std::abs(p.a * p.a + p.b * p.b - 1.0);
+    return p;
+  };
+
+  // Projection over an outer window of the main grid
+  const std::size_t n_w = std::min<std::size_t>(24, pinf / 2);
+  std::vector<double> w_r(n_w), w_f(n_w), w_g(n_w);
+  for (std::size_t j = 0; j < n_w; ++j) {
+    const auto i = pinf - n_w + j;
+    w_r[j] = gr.r(i);
+    w_f[j] = Freg.f(i);
+    w_g[j] = Freg.g(i);
+  }
+  const auto pj = project(w_r, w_f, w_g, n_w);
+  const bool good_projection = pj.q_err < 0.1;
+
+  // Homogeneous radial Dirac operator at en (same local potential as F_reg)
+  DiracDerivative Hd(gr, v, kappa, en, alpha);
+
+  const auto du = gr.du();
+  AdamsMoulton::ODESolver2D<Param::K_Adams, std::size_t, double> ode{-du, &Hd};
+  ode.S_scale = 0.0;
+
+  auto &f = Firr.f();
+  auto &g = Firr.g();
+
+  // Outward extension: when the series has not converged at the box edge
+  // (barely-open channel), continue F_reg outward on a fine linear grid
+  // with the Coulomb tail potential until the projection converges, seed
+  // F_irr there, integrate back inward through the extension, and sample
+  // the outermost main-grid points from the fine solution. The series is
+  // asymptotic in 1/(pr) with coefficients growing like nu^2 (nu ~ Z_ion/p),
+  // so near threshold it converges only far outside the box.
+  bool ext_ok = false;
+  std::vector<double> ext_f(ode.K_steps()), ext_g(ode.K_steps());
+  if (!good_projection) {
+    const double k_wave = std::sqrt(en * (2.0 + alpha * alpha * en));
+    const double lambda = 2.0 * M_PI / k_wave;
+    const double h = lambda / 100.0;
+    const double r_edge = gr.r(pinf - 1);
+    const double r_cap = r_edge + 400.0 * lambda;
+
+    // Continue F_reg outward, checking the projection over a rolling window
+    // of the last n_w fine points every quarter wavelength
+    DiracContinuumDerivative Heff(Zion, kappa, en, alpha);
+    AdamsMoulton::ODESolver2D<Param::K_Adams, double, double> out_ode{h, &Heff};
+    out_ode.solve_initial_K(r_edge, Freg.f(pinf - 1), Freg.g(pinf - 1));
+
+    std::vector<double> rw_r(n_w), rw_f(n_w), rw_g(n_w);
+    std::size_t filled = 0, step = 0;
+    Projection px;
+    bool conv = false;
+    double r_x = 0.0;
+    while (out_ode.last_t() < r_cap) {
+      out_ode.drive();
+      rw_r[step % n_w] = out_ode.last_t();
+      rw_f[step % n_w] = out_ode.last_f();
+      rw_g[step % n_w] = out_ode.last_g();
+      ++step;
+      if (filled < n_w) {
+        ++filled;
+      }
+      if (filled == n_w && step % 25 == 0) {
+        px = project(rw_r, rw_f, rw_g, n_w);
+        if (px.q_err < 0.02) {
+          conv = true;
+          r_x = out_ode.last_t();
+          break;
+        }
+      }
+    }
+
+    if (conv) {
+      // Seed F_irr = b F^C - a G^C at r_x and integrate inward on the fine
+      // grid; sample the outermost K_steps grid points (cubic Hermite,
+      // values + ODE derivatives) as they are crossed
+      AdamsMoulton::ODESolver2D<Param::K_Adams, double, double> in_ode{-h,
+                                                                       &Heff};
+      const auto dfdr = [&Heff](double r, double ff, double gg) {
+        return Heff.a(r) * ff + Heff.b(r) * gg;
+      };
+      const auto dgdr = [&Heff](double r, double ff, double gg) {
+        return Heff.c(r) * ff + Heff.d(r) * gg;
+      };
+      for (std::size_t j = 0; j < in_ode.K_steps(); ++j) {
+        const auto t_j = r_x - double(j) * h;
+        const auto [fC, gC, fG, gG] = asy.fg(t_j);
+        const auto f0 = px.b * fC - px.a * fG;
+        const auto g0 = px.b * gC - px.a * gG;
+        in_ode.f[j] = f0;
+        in_ode.g[j] = g0;
+        in_ode.df[j] = dfdr(t_j, f0, g0);
+        in_ode.dg[j] = dgdr(t_j, f0, g0);
+        in_ode.t[j] = t_j;
+      }
+
+      // main-grid points to sample: r(pinf-1) down to r(pinf-K_steps)
+      std::size_t i0 = pinf - 1;
+      std::size_t n_done = 0;
+      auto t_prev = in_ode.last_t();
+      auto f_prev = in_ode.last_f();
+      auto g_prev = in_ode.last_g();
+      const auto r_low = gr.r(pinf - ode.K_steps()) - h;
+      while (in_ode.last_t() > r_low && n_done < ode.K_steps()) {
+        in_ode.drive();
+        const auto t = in_ode.last_t();
+        const auto ff = in_ode.last_f();
+        const auto gg = in_ode.last_g();
+        while (n_done < ode.K_steps() && gr.r(i0) >= t && gr.r(i0) <= t_prev) {
+          const auto hh = t - t_prev; // negative (inward)
+          const auto x = (gr.r(i0) - t_prev) / hh;
+          const auto x2 = x * x, x3 = x2 * x;
+          const auto h00 = 2.0 * x3 - 3.0 * x2 + 1.0;
+          const auto h10 = x3 - 2.0 * x2 + x;
+          const auto h01 = -2.0 * x3 + 3.0 * x2;
+          const auto h11 = x3 - x2;
+          ext_f[n_done] = h00 * f_prev +
+                          h10 * hh * dfdr(t_prev, f_prev, g_prev) + h01 * ff +
+                          h11 * hh * dfdr(t, ff, gg);
+          ext_g[n_done] = h00 * g_prev +
+                          h10 * hh * dgdr(t_prev, f_prev, g_prev) + h01 * gg +
+                          h11 * hh * dgdr(t, ff, gg);
+          ++n_done;
+          if (i0 == 0) {
+            break;
+          }
+          --i0;
+        }
+        t_prev = t;
+        f_prev = ff;
+        g_prev = gg;
+      }
+      ext_ok = n_done == ode.K_steps();
+    }
+  }
+
+  // Seed the outermost K_steps points: series projection, outward
+  // extension, or the component swap on F_reg as the last resort
+  for (std::size_t i0 = pinf - 1, i = 0; i < ode.K_steps(); ++i) {
+    double f0{}, g0{};
+    if (good_projection) {
+      const auto [fC, gC, fG, gG] = asy.fg(gr.r(i0));
+      f0 = pj.b * fC - pj.a * fG;
+      g0 = pj.b * gC - pj.a * gG;
+    } else if (ext_ok) {
+      f0 = ext_f[i];
+      g0 = ext_g[i];
+    } else {
+      f0 = -Freg.g(i0) / beta;
+      g0 = beta * Freg.f(i0);
+    }
+    ode.f[i] = f0;
+    ode.g[i] = g0;
+    ode.df[i] = ode.dfdt(f0, g0, i0);
+    ode.dg[i] = ode.dgdt(f0, g0, i0);
+    ode.t[i] = i0;
+    --i0;
+  }
+  for (std::size_t i = 0; i < ode.K_steps(); ++i) {
+    f.at(ode.t.at(i)) = ode.f.at(i);
+    g.at(ode.t.at(i)) = ode.g.at(i);
+  }
+
+  // Integrate inwards to the origin
+  const auto i_start = ode.last_t();
+  for (std::size_t i = i_start - 1;; --i) {
+    ode.drive(i);
+    f.at(i) = ode.last_f();
+    g.at(i) = ode.last_g();
+    if (i == 0)
+      break;
+  }
+
+  // Zero anything beyond the seeded region
+  for (std::size_t i = pinf; i < f.size(); ++i) {
+    f.at(i) = 0.0;
+    g.at(i) = 0.0;
+  }
+}
+
+//==============================================================================
+double solveContinuumForward(DiracSpinor &phi, const DiracSpinor &Freg,
+                             const DiracSpinor &Firr, double en,
+                             const std::vector<double> &v, double alpha,
+                             const DiracSpinor &Sr) {
+  // Outward integration plus F_reg subtraction (see header). Outward
+  // integration suppresses the irregular admixture (r^{-l} vs r^{l+1} near
+  // the origin); the F_reg admixture from the start is removed by the
+  // c-subtraction, so the start is not critical.
+  phi.en() = en;
+  const auto &gr = Freg.grid();
+  const auto kappa = Freg.kappa();
+  const auto pinf = Freg.max_pt();
+  phi.max_pt() = pinf;
+
+  // (h_r - en)phi = Sr; DiracDerivative solves (h_r - en)phi = -VxFa.
+  // The main-grid integration is accurate only where the grid gives at
+  // least N_ppw_acc points per wavelength: integrate on the grid up to
+  // there (i_acc); the marginal band beyond is handled below. At low and
+  // moderate energy i_acc = pinf and this is the whole solve.
+  const double k_wave = std::sqrt(en * (2.0 + alpha * alpha * en));
+  const double approx_wavelength = 2.0 * M_PI / k_wave;
+  const int N_ppw_acc = 40;
+  auto i_acc = pinf;
+  while (i_acc > 0 &&
+         gr.drdu(i_acc - 1) * gr.du() > approx_wavelength / N_ppw_acc) {
+    --i_acc;
+  }
+
+  const auto mSr = -1.0 * Sr;
+  DiracDerivative Hd(gr, v, kappa, en, alpha, {}, &mSr);
+  solve_Dirac_outwards(phi.f(), phi.g(), Hd, i_acc);
+
+  auto &f = phi.f();
+  auto &g = phi.g();
+  for (std::size_t i = pinf; i < f.size(); ++i) {
+    f.at(i) = 0.0;
+    g.at(i) = 0.0;
+  }
+
+  // Marginal band [i_acc, pinf): the pair (from solveContinuum) is accurate
+  // there but a main-grid integration of phi is not, and a fine-grid
+  // integration is not possible either (the source is known only at the
+  // grid points, and interpolating an on-shell oscillating source drives
+  // the response resonantly). Instead, continue phi through the band by
+  // variation of parameters on the pair,
+  //   phi = u(r) F_reg + w(r) F_irr,
+  //   u' = +pi (F_irr . S),  w' = -pi (F_reg . S)
+  // [Wronskian alpha/pi; source coupling s_f = +alpha S_g, s_g = -alpha S_f
+  // as DiracDerivative with VxFa = -S], with (u, w) read off the outward
+  // solution at the last accurate point and the quadratures done by
+  // trapezoid on the grid: products of same-frequency oscillations have a
+  // smooth rectified part plus a 2k ripple whose quadrature error does not
+  // feed back into the solution (no secular growth).
+  if (pinf > i_acc && i_acc > 0) {
+    const auto i0 = i_acc - 1;
+    const auto Wr = Freg.f(i0) * Firr.g(i0) - Firr.f(i0) * Freg.g(i0);
+    auto u = (f[i0] * Firr.g(i0) - g[i0] * Firr.f(i0)) / Wr;
+    auto w = (Freg.f(i0) * g[i0] - Freg.g(i0) * f[i0]) / Wr;
+    const auto Sf_at = [&Sr](std::size_t i) {
+      return i < Sr.max_pt() ? Sr.f(i) : 0.0;
+    };
+    const auto Sg_at = [&Sr](std::size_t i) {
+      return i < Sr.max_pt() ? Sr.g(i) : 0.0;
+    };
+    auto Pu_prev = M_PI * (Firr.f(i0) * Sf_at(i0) + Firr.g(i0) * Sg_at(i0));
+    auto Pw_prev = -M_PI * (Freg.f(i0) * Sf_at(i0) + Freg.g(i0) * Sg_at(i0));
+    for (std::size_t i = i_acc; i < pinf; ++i) {
+      const auto Pu = M_PI * (Firr.f(i) * Sf_at(i) + Firr.g(i) * Sg_at(i));
+      const auto Pw = -M_PI * (Freg.f(i) * Sf_at(i) + Freg.g(i) * Sg_at(i));
+      const auto dr_i = gr.r(i) - gr.r(i - 1);
+      u += 0.5 * (Pu_prev + Pu) * dr_i;
+      w += 0.5 * (Pw_prev + Pw) * dr_i;
+      f[i] = u * Freg.f(i) + w * Firr.f(i);
+      g[i] = u * Freg.g(i) + w * Firr.g(i);
+      Pu_prev = Pu;
+      Pw_prev = Pw;
+    }
+  }
+
+  // Beyond the source: phi~ = c*F_reg + K*F_irr. Extract (c, K) pointwise
+  // from the 2x2 component system over the outer grid, and average
+  const auto iw0 = std::size_t(0.70 * double(pinf));
+  const auto iw1 = std::size_t(0.95 * double(pinf));
+  double c_sum = 0.0, K_sum = 0.0;
+  int n_w = 0;
+  for (std::size_t i = iw0; i < iw1; ++i) {
+    const auto w_i = Freg.f(i) * Firr.g(i) - Firr.f(i) * Freg.g(i);
+    if (w_i == 0.0)
+      continue;
+    c_sum += (f[i] * Firr.g(i) - g[i] * Firr.f(i)) / w_i;
+    K_sum += (Freg.f(i) * g[i] - Freg.g(i) * f[i]) / w_i;
+    ++n_w;
+  }
+  const auto c = (n_w > 0) ? c_sum / n_w : 0.0;
+  const auto K = (n_w > 0) ? K_sum / n_w : 0.0;
+
+  // Impose the standing-wave boundary condition: phi -> K*F_irr
+  phi -= c * Freg;
+
+  return K;
 }
 
 //==============================================================================

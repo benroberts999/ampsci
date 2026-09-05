@@ -92,6 +92,100 @@ std::size_t averageTail(DiracSpinor &Fa, const std::vector<double> &v,
                         double alpha);
 
 /*!
+  @brief 
+  Builds the irregular continuum partner F_irr of a regular continuum orbital F_reg.
+
+  @details
+  Given the regular (energy-normalised) continuum orbital F_reg at energy
+  en > 0 in the local potential v, constructs the linearly independent
+  irregular solution F_irr of the same homogeneous equation: the quarter-wave
+  phase-shifted partner (F_reg ~ sin, F_irr ~ -cos at large r), so that
+
+  \f[
+    F_reg + i F_irr
+  \f]
+
+  is the outgoing wave.
+  
+  It plays the role of the "regular at infinity" solution of the 
+  continuum Green's function, in place of the decaying bound solution.
+
+  The outermost grid points are seeded by projecting F_reg onto the
+  energy-normalised asymptotic Dirac-Coulomb pair {F^C, G^C}
+  ( @ref AsymptoticSpinorContinuum ), F_reg = a F^C + b G^C, so
+  
+  \f[
+    F_irr = b F^C - a G^C 
+  \f]
+  
+  (the short-range phase shift is in a, b);
+  the homogeneous equation is then integrated inwards to the origin. If the
+  asymptotic series has not converged at the box edge (a barely-open channel,
+  small p*r_max), F_reg is first continued outward on a fine grid with the
+  Coulomb tail potential until it has; F_irr is seeded there and integrated
+  back to the box. As a last resort (non-Coulomb tail) the seed is the
+  leading-order component swap, f_irr = -g_reg/beta, g_irr = beta f_reg.
+
+  The result has the Wronskian f_reg g_irr - f_irr g_reg = alpha/pi (times
+  a^2 + b^2, which is 1 when the projection is exact). It need not be
+  normalised: the overall scale cancels in the Green's-function prefactor.
+
+  @param Firr   Output: the irregular partner (kappa from Freg).
+  @param Freg   The regular, energy-normalised continuum orbital.
+  @param en     Continuum energy (> 0; should equal Freg.en()).
+  @param v      Local potential (as used to solve Freg); its tail sets the
+                residual-ion charge of the Coulomb series.
+  @param alpha  Fine-structure constant.
+
+  @warning Requires en > 0 and a grid dense enough at large r that F_reg is
+           resolved there (same condition as solveContinuum).
+*/
+void solveContinuumIrregular(DiracSpinor &Firr, const DiracSpinor &Freg,
+                             double en, const std::vector<double> &v,
+                             double alpha);
+
+/*!
+  @brief
+  Solves the inhomogeneous continuum equation (h_r - en) phi = S
+  (en > 0) with the standing-wave boundary condition, by outward integration
+  plus subtraction of the regular solution.
+
+  @details
+  Outward integration from the origin with regular initial conditions gives
+  a particular solution, determined only up to an admixture of F_reg (itself
+  regular at the origin). Beyond the (short-ranged) source it equals
+  c F_reg + K F_irr exactly; c and K are read off pointwise over an outer
+  window from the two spinor components (local Wronskian; no phase fit) and
+  averaged, and then
+  \f[ 
+    \varphi = \tilde\varphi - c\,F_{\rm reg} \to K\,F_{\rm irr} , 
+  \f]
+  the Green's-function solution with the standing-wave Green's function. The
+  outgoing solution is phi - i K F_reg.
+
+  Where the main grid no longer resolves the oscillations (high energy), phi
+  is continued through that band by variation of parameters on the pair,
+  phi = u F_reg + w F_irr, with the quadratures done on the grid; the
+  extraction window lies inside the resolved region.
+
+  @param phi    Output: the standing-wave particular solution (kappa from Freg).
+  @param Freg   Regular homogeneous solution at en (energy-normalised).
+  @param Firr   Irregular partner (see solveContinuumIrregular).
+  @param en     Continuum energy (> 0).
+  @param v      Local potential (as used for Freg and Firr).
+  @param alpha  Fine-structure constant.
+  @param Sr     Source spinor S.
+
+  @return K: phi -> K F_irr at large r (K = -pi <Freg|S> for the exact
+          solution; +pi <Freg|S> in the TDHF convention (h - en) phi = -S). Returns 0 if no valid extraction window exists (the
+          resolved region ends inside the source).
+*/
+double solveContinuumForward(DiracSpinor &phi, const DiracSpinor &Freg,
+                             const DiracSpinor &Firr, double en,
+                             const std::vector<double> &v, double alpha,
+                             const DiracSpinor &Sr);
+
+/*!
   @brief Analytic amplitude of f(r) at very large r for an H-like Dirac continuum state.
   @param en     Continuum energy.
   @param alpha  Fine-structure constant.
@@ -100,7 +194,9 @@ std::size_t averageTail(DiracSpinor &Fa, const std::vector<double> &v,
 double analytic_f_amplitude(double en, double alpha);
 
 /*!
-  @brief Finds the numerical amplitude of f(r) for a continuum Dirac solution at large r.
+  @brief
+  Finds the numerical amplitude of f(r) for a continuum Dirac solution at large r.
+  
   @details
   Continues ODE integration beyond the regular grid, assuming an H-like
   potential (-Zeff/r) and a linearly-spaced extension grid with step dr.
@@ -109,6 +205,7 @@ double analytic_f_amplitude(double en, double alpha);
   accuracy), and the cycle means are extrapolated to r -> infinity by
   fitting A_inf + c2/r^2 + c3/r^3 + c4/r^4. Converged when the extrapolated
   estimates from the full and half integration ranges agree.
+  
   @param en       Continuum energy.
   @param kappa    Orbital kappa quantum number.
   @param alpha    Fine-structure constant.

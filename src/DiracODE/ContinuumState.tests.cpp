@@ -314,3 +314,92 @@ TEST_CASE("DiracODE: continuum averageTail", "[DiracODE][cntm][unit]") {
              worst_avg);
   REQUIRE(worst_avg < 0.1 * worst_zero);
 }
+
+//==============================================================================
+// The irregular partner F_irr of the regular continuum solution F_reg, and
+// the standing-wave inhomogeneous solve built on the pair. Checks:
+//  - the Wronskian f_reg g_irr - f_irr g_reg is constant over the grid
+//    (F_irr solves the same homogeneous equation), and equals alpha/pi for
+//    the energy-normalised F_reg (the seed is the exact quarter-wave partner
+//    of the asymptotic Coulomb pair; barely-open energies use the outward
+//    extension);
+//  - the forward solve of (h - en) phi = S gives phi -> K F_irr beyond the
+//    source, with K = -pi <F_reg|S> (the Green's-function identity).
+TEST_CASE("DiracODE: continuum irregular partner and forward solve",
+          "[DiracODE][cntm][TDHFcntm][unit]") {
+
+  const double alpha = PhysConst::alpha;
+  const auto grid =
+    std::make_shared<const Grid>(1.0e-6, 60.0, 3000, GridType::loglinear, 1.0);
+  const auto num_points = grid->num_points();
+
+  // Coulomb potential of a singly-charged ion (the tail an ejected electron
+  // sees)
+  std::vector<double> v(num_points);
+  for (std::size_t i = 0; i < num_points; ++i) {
+    v[i] = -1.0 / grid->r(i);
+  }
+
+  fmt::print("\nContinuum pair (F_reg, F_irr) and forward solve, Z_ion = 1:\n");
+  fmt::print("{:>5s} {:>6s} {:>12s} {:>12s} {:>10s} {:>12s} {:>12s} {:>10s}\n",
+             "kappa", "en", "W (found)", "alpha/pi", "W var.", "K (found)",
+             "-pi<Freg|S>", "phi/K.Firr");
+
+  for (const int kappa : {-1, 1, -2, 2}) {
+    // A short-ranged source: bound-like radial functions
+    DiracSpinor S(0, kappa, grid);
+    for (std::size_t i = 0; i < num_points; ++i) {
+      const auto r = grid->r(i);
+      S.f(i) = r * std::exp(-r);
+      S.g(i) = 0.5 * alpha * r * std::exp(-r);
+    }
+    S.min_pt() = 0;
+    S.max_pt() = num_points;
+
+    for (const double en : {0.05, 0.5, 3.0}) {
+      DiracSpinor Freg(0, kappa, grid);
+      DiracSpinor Firr(0, kappa, grid);
+      DiracODE::solveContinuum(Freg, en, v, alpha);
+      REQUIRE(Freg.norm2() != 0.0);
+      DiracODE::solveContinuumIrregular(Firr, Freg, en, v, alpha);
+      const auto pinf = Freg.max_pt();
+      REQUIRE(Firr.max_pt() == pinf);
+
+      // Wronskian: constant over the grid (away from the origin, where
+      // F_irr grows like r^{-l-1}), and equal to alpha/pi
+      const auto W_expected = alpha / M_PI;
+      double W_min = 1.0e300;
+      double W_max = -1.0e300;
+      for (std::size_t i = pinf / 20; i < pinf; ++i) {
+        const auto W = Freg.f(i) * Firr.g(i) - Firr.f(i) * Freg.g(i);
+        W_min = std::min(W_min, W);
+        W_max = std::max(W_max, W);
+      }
+      const auto W_mid = 0.5 * (W_min + W_max);
+      const auto W_variation = (W_max - W_min) / std::abs(W_mid);
+
+      // Forward solve: K from the boundary-condition extraction vs the
+      // overlap identity, and phi = K F_irr in the outer region
+      DiracSpinor phi(0, kappa, grid);
+      const auto K =
+        DiracODE::solveContinuumForward(phi, Freg, Firr, en, v, alpha, S);
+      const auto K_overlap = -M_PI * (Freg * S);
+      double phi_ratio = 0.0;
+      {
+        const auto i = std::size_t(0.85 * double(pinf));
+        phi_ratio = (phi.f(i) * Firr.f(i) + phi.g(i) * Firr.g(i)) /
+                    (K * (Firr.f(i) * Firr.f(i) + Firr.g(i) * Firr.g(i)));
+      }
+
+      fmt::print("{:>5d} {:6.2f} {:12.6e} {:12.6e} {:10.1e} {:12.5e} "
+                 "{:12.5e} {:10.6f}\n",
+                 kappa, en, W_mid, W_expected, W_variation, K, K_overlap,
+                 phi_ratio);
+
+      REQUIRE(W_variation < 1.0e-5);
+      REQUIRE(W_mid == Approx(W_expected).epsilon(0.05));
+      REQUIRE(K == Approx(K_overlap).epsilon(1.0e-3));
+      REQUIRE(phi_ratio == Approx(1.0).epsilon(1.0e-3));
+    }
+  }
+}
