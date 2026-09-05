@@ -1,4 +1,6 @@
+#include "DiracODE/ContinuumState.hpp"
 #include "DiracOperator/include.hpp"
+#include "ExternalField/TDHFcomplex.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "Kionisation/Kion_functions.hpp"
@@ -15,6 +17,7 @@
 #include "qip/Maths.hpp"
 #include "qip/Methods.hpp"
 #include "qip/Widgets.hpp"
+#include <algorithm>
 #include <cassert>
 #include <cstdlib>
 #include <iostream>
@@ -25,6 +28,7 @@ namespace Module {
 // Declare, register, then define below.
 void Kionisation(const IO::InputBlock &input, const Wavefunction &wf);
 void photo(const IO::InputBlock &input, const Wavefunction &wf);
+void photoRPA(const IO::InputBlock &input, const Wavefunction &wf);
 void formFactors(const IO::InputBlock &input, const Wavefunction &wf);
 
 namespace {
@@ -32,6 +36,9 @@ const Register r_Kionisation{
   "Kionisation", "Calculate atomic ionisation form-factors", &Kionisation};
 const Register r_photo{
   "photo", "Calculate atomic photo-ionisation form-factors", &photo};
+const Register r_photoRPA{
+  "photoRPA", "Photo-ionisation cross-section with RPA (outgoing-wave TDHF)",
+  &photoRPA};
 const Register r_formFactors{"formFactors",
                              "Calculate general atomic ionisation form-factors",
                              &formFactors};
@@ -608,6 +615,173 @@ void photo(const IO::InputBlock &input, const Wavefunction &wf) {
              << " " << r[9] // s_Mk1     : Mk at K=1
              << "\n";
   }
+}
+
+//==============================================================================
+void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
+  IO::ChronoTimer timer("photoRPA");
+
+  input.check({
+    {"", "Photoionisation cross-section for a single operator, without and "
+         "with RPA (core polarisation) from the outgoing-wave TDHF "
+         "(TDHFcntm)."},
+    {"operator", "Operator: E1, E1v, M1, E2, TE (VEk), TEL (VEk_Len), "
+                 "TM (VMk) [E1]"},
+    {"K_minmax", "List (2). Minimum, maximum K (TE, TEL, TM only) [1, 1]"},
+    {"E_range", "List (2). Minimum, maximum photon energy, in eV [10, 1000]"},
+    {"E_steps", "Number of photon energies (logarithmic grid) [50]"},
+    {"max_its", "Maximum RPA iterations per omega [60]"},
+    {"eps", "RPA convergence target [1e-5]"},
+    {"oname", "Output file name [photoRPA-out.txt]"},
+  });
+  if (input.has_option("help")) {
+    return;
+  }
+
+  const auto op = input.get("operator", std::string{"E1"});
+  const bool multipole = (op == "TE" || op == "TEL" || op == "TM");
+  const auto [Kmin, Kmax] =
+    multipole ? input.get("K_minmax", std::array{1, 1}) : std::array{1, 1};
+  auto [Emin_eV, Emax_eV] = input.get("E_range", std::array{10.0, 1000.0});
+  auto E_steps = input.get<std::size_t>("E_steps", 64);
+  const auto max_its = input.get("max_its", 60);
+  const auto eps = input.get("eps", 1.0e-12);
+  const auto oname = input.get("oname", std::string{"photoRPA-out.txt"});
+
+  if (E_steps <= 1) {
+    E_steps = 1;
+    Emax_eV = Emin_eV;
+  }
+  const auto Emin_au = Emin_eV / PhysConst::Hartree_eV;
+  const auto Emax_au =
+    Emax_eV < Emin_eV ? Emin_au : Emax_eV / PhysConst::Hartree_eV;
+  const auto energies = qip::logarithmic_range(Emin_au, Emax_au, E_steps);
+
+  std::cout << "\nCore ionisation energies, in eV\n";
+  for (const auto &Fc : wf.core()) {
+    fmt::print("{:3} : {:.3f}\n", Fc.shortSymbol(),
+               -Fc.en() * PhysConst::Hartree_eV);
+  }
+  fmt::print("\nOperator: {}", op);
+  if (multipole) {
+    fmt::print(", K = {} to {}", Kmin, Kmax);
+  }
+  fmt::print("\nEnergy  : [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} "
+             "steps\n",
+             energies.front() * PhysConst::Hartree_eV,
+             energies.back() * PhysConst::Hartree_eV, energies.front(),
+             energies.back(), energies.size());
+
+  // Operator by name; the frequency-dependent ones are updated per omega
+  const auto make_operator =
+    [&](int k, double omega) -> std::unique_ptr<DiracOperator::TensorOperator> {
+    if (op == "E1")
+      return std::make_unique<DiracOperator::E1>(wf.grid());
+    if (op == "E1v")
+      return std::make_unique<DiracOperator::E1v>(wf.alpha(), omega);
+    if (op == "M1")
+      return std::make_unique<DiracOperator::M1>(wf.grid(), wf.alpha(), omega);
+    if (op == "E2")
+      return std::make_unique<DiracOperator::Ek>(wf.grid(), 2);
+    if (op == "TE")
+      return std::make_unique<DiracOperator::VEk>(wf.grid(), k, omega);
+    if (op == "TEL")
+      return std::make_unique<DiracOperator::VEk_Len>(wf.grid(), k, omega);
+    if (op == "TM")
+      return std::make_unique<DiracOperator::VMk>(wf.grid(), k, omega);
+    fmt::print("\nError: photoRPA: unknown operator {}\n", op);
+    std::abort();
+  };
+
+  // Angular/polarisation factor: dimensionless absorption form factor Q is
+  // f * |<e||t||a>|^2 summed over channels (as in photo{})
+  const auto Q_factor = [&](int k, double omega) {
+    const auto q = PhysConst::alpha * omega;
+    if (op == "E1" || op == "E1v")
+      return 1.0 / 3.0;
+    if (op == "M1")
+      return 1.0 / 3.0 * qip::pow(PhysConst::muB_CGS, 2);
+    if (op == "E2")
+      return 1.0 / 3.0 / 20.0 * q * q;
+    return (2.0 * k + 1.0) / 2.0 / (q * q);
+  };
+
+  // Cross-sections without and with RPA, per photon energy; summed over K
+  std::vector<double> sigma_0(energies.size(), 0.0);
+  std::vector<double> sigma_rpa(energies.size(), 0.0);
+
+  for (int k = Kmin; k <= Kmax; ++k) {
+
+    const auto h = make_operator(k, energies.front());
+    // E1v depends on the sign of omega: t_- is E1v at -omega. Every other
+    // operator depends on |omega| only, so t_- = t_+^dagger (automatic)
+    const auto h_minus =
+      op == "E1v" ? make_operator(k, -energies.front()) : nullptr;
+
+    // One RPA solver for the whole scan: each omega warm starts from the last
+    ExternalField::TDHFcntm rpa(h.get(), wf.vHF(), h_minus.get());
+    rpa.eps_target() = eps;
+
+    for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
+      const auto omega = energies[i_omega];
+
+      // Below the lowest threshold no channel is open: nothing to do
+      const auto any_open =
+        std::any_of(wf.core().begin(), wf.core().end(),
+                    [omega](const auto &Fa) { return omega + Fa.en() > 0.0; });
+      if (!any_open)
+        continue;
+
+      if (h->freqDependantQ()) {
+        h->updateFrequency(omega);
+        if (h_minus) {
+          h_minus->updateFrequency(-omega);
+        }
+      }
+
+      std::cout << rpa.rank() << " " << omega << "\n";
+      rpa.solve_core(omega, max_its);
+
+      // Conversion factor from dimensionless Q absorption form factor to sigma
+      const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
+                          PhysConst::aB_cm * PhysConst::aB_cm * omega;
+      const auto f_Q = Q_factor(k, omega);
+
+      for (const auto &Fa : wf.core()) {
+        const auto ec = omega + Fa.en();
+        if (ec < 0.0)
+          continue;
+
+        // Continuum states of the ejected electron, in V^(N-1) of hole Fa
+        const int lc_max = Fa.l() + h->rank() + 1;
+        const int lc_min = std::max(Fa.l() - h->rank() - 1, 0);
+        ContinuumOrbitals cntm(wf.vHF());
+        cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, false, true, true);
+
+        for (const auto &Fe : cntm.orbitals) {
+          if (h->isZero(Fe, Fa))
+            continue;
+          const auto t0 = h->reducedME(Fe, Fa);
+          const auto t_rpa = t0 + rpa.dV_complex(Fe, Fa);
+          sigma_0[i_omega] += Ksigma * f_Q * t0 * t0;
+          sigma_rpa[i_omega] += Ksigma * f_Q * std::norm(t_rpa);
+        }
+      }
+    }
+  }
+
+  std::ofstream out_file(oname);
+  out_file << "# Photoionisation cross section (cm^2): " << op;
+  if (multipole) {
+    out_file << ", K = " << Kmin << " to " << Kmax;
+  }
+  out_file << "\n# omega_eV  sigma  sigma_rpa\n";
+  for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
+    fmt::print(out_file, "{:.6e} {:.6e} {:.6e}\n",
+               energies[i_omega] * PhysConst::Hartree_eV, sigma_0[i_omega],
+               sigma_rpa[i_omega]);
+  }
+  fmt::print("\nWritten to {}\n", oname);
 }
 
 //==============================================================================
