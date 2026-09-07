@@ -922,7 +922,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       "    E1 qM K1(E1,qM) ...\n"
       "    E2 q1 K1(E2,q1) ...\n"
       "    ....               \n"
-      "    EN qM K1(E1,q1) ... KN(E1,q1)\n"
+      "    EN qM K1(EN,qM) ... KN(EN,qM)\n"
       "q and E are given in eV; factors K are dimensionless.\n"
       "Output filename will be in form, e.g., "
       "Xe0_method_kmin-kmax_VASP.txt\n\n"},
@@ -982,9 +982,17 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                        "hole-particle interaction) [true]"},
      {"force_orthog", "Enforce orthogonality of the continuum orbitals [true]"},
      {"method",
-      "Method for bound and continuum states: HF (standard), Zeff (H-like, "
-      "solved numerically with DiracODE), ZeffAnalytic (H-like, exact "
-      "analytic functions; requires FLINT). [HF; Zeff if Zeff option is set]"},
+      "Method for bound and continuum states: HF (standard), RPA (HF states, "
+      "with RPA/core-polarisation corrections to every amplitude from the "
+      "outgoing-wave TDHF; requires the HF method; writes the bare HF file "
+      "as well as the RPA file), Zeff (H-like, solved numerically with "
+      "DiracODE), ZeffAnalytic (H-like, exact analytic functions; requires "
+      "FLINT). [HF; Zeff if Zeff option is set]"},
+     {"rpa_max_its", "RPA: maximum iterations per solve; 1 gives the "
+                     "first-order correction [60]"},
+     {"rpa_eps", "RPA: convergence target [1e-10]"},
+     {"rpa_eps_fail", "RPA: a solve whose final eps is above this (or nan) is "
+                      "discarded, and the no-RPA value used there [1e-3]"},
      {"Zeff",
       "Effective charge for the Zeff/ZeffAnalytic methods. If set (to "
       "anything), the default method becomes Zeff. Set to 'true' or <=0 to "
@@ -1192,7 +1200,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto t_method =
     input.get<std::string>("method", zeff_input ? "Zeff" : "HF");
 
-  const auto states_method = Kion::parseStatesMethod(t_method);
+  const auto method = Kion::parseStatesMethod(t_method);
+  // RPA is a method for the amplitudes: the states themselves are those of HF
+  const bool use_rpa = method == Kion::AtomicMethod::RPA;
+  const auto states_method = use_rpa ? Kion::AtomicMethod::HF : method;
   const bool use_Zeff = states_method != Kion::AtomicMethod::HF;
   const bool Zeff_analytic = states_method == Kion::AtomicMethod::ZeffAnalytic;
 
@@ -1214,6 +1225,16 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                "use method=Zeff (solves with DiracODE)\n");
     return;
   }
+  if (use_rpa && wf.vHF()->method() != HF::Method::HartreeFock) {
+    fmt2::styled_print(fg(fmt::color::red), "\nFail: ");
+    fmt::print("method=RPA requires a Hartree-Fock core (have {}); RPA is "
+               "meaningless for a local potential\n",
+               HF::parseMethod_short(wf.vHF()->method()));
+    return;
+  }
+  const Kion::RPAOptions rpa_options{input.get("rpa_max_its", 60),
+                                     input.get("rpa_eps", 1.0e-10),
+                                     input.get("rpa_eps_fail", 1.0e-3)};
 
   std::cout << "\n";
   if (use_Zeff) {
@@ -1228,6 +1249,16 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                     "Solving H-like states numerically (DiracODE)\n");
     std::cout << "(force_rescale/hole_particle have no effect for Zeff "
                  "states)\n";
+  }
+  if (use_rpa) {
+    fmt::print("Including RPA (core polarisation) via "
+               "TDHF: max_its = {}, eps = {:.1e}, discarded if eps > {:.1e}\n",
+               rpa_options.max_its, rpa_options.eps, rpa_options.eps_fail);
+    if (!hole_particle) {
+      fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
+      fmt::print("The RPA amplitudes assume continuum states of the residual "
+                 "ion (hole_particle=true).\n");
+    }
   }
   if (force_rescale && !use_Zeff) {
     std::cout << "Force rescale: Enforcing V(r) ~ -Z_ion/r at large r\n";
@@ -1256,24 +1287,21 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "\n";
 
-  // Spherical Bessel lookup table.
-  // Each operator stores a pointer to this table.
+  // Spherical Bessel lookup table, on the q grid (in the diagonal case, on
+  // q = E/c at each energy). Each operator stores a pointer to this table.
   std::cout << "Filling jL spherical Bessel table.." << std::flush;
-  const SphericalBessel::JL_table jK_tab(Kmax + 1, qgrid, wf.grid().r());
+  const auto q_table = diagonal_Eq ? Egrid * PhysConst::alpha : qgrid;
+  const SphericalBessel::JL_table jK_tab(Kmax + 1, q_table, wf.grid().r());
   std::cout << "..done\n" << std::flush;
 
-  // Matrices for each K(E,q) form factor
-  // These will be empty (size==0), unless we calculate for relevant operator
-  // nb: Order matters, so that output file columns match expected.
-  // Always:
+  // Titles/descriptions of each K(E,q) form factor, in the order of
+  // Kion::FormFactorSet (which is the order of the output file columns):
   // Vector (V_T, V_E, V_M, V_L, X),
   // Axial (A_T, A_E, A_M, A_L, Y),
+  // Vector-Axial interference (Z),
   // Scalar (S),
   // Pseudoscalar (P)
-  std::array<LinAlg::Matrix<double>, 13> K_factors;
-
-  // Note: important that these are in the same order at the form-factor arrays
-  // Always: Vector, Axial, Scalar, Pseudoscalar
+  // Always (order): Vector, Axial, Scalar, Pseudoscalar
   const auto titles =
     std::vector<std::string>{"V_T", "V_E", "V_M", "V_L", "X", "A_T", "A_E",
                              "A_M", "A_L", "Y",   "Z",   "S", "P"};
@@ -1302,8 +1330,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                                        std::string{"Zeff"}) +
                  (Zeff_analytic ? "an" : "") :
                HF::parseMethod_short(wf.vHF()->method());
-  const auto method =
-    base_method + (force_rescale && !use_Zeff ? "_rescale" : "") +
+  const auto method_suffix =
+    std::string{} + (force_rescale && !use_Zeff ? "_rescale" : "") +
     (hole_particle && !use_Zeff ? "_hp" : "") + (force_orthog ? "_orth" : "");
 
   const auto units = Kion::Units::Particle;
@@ -1312,99 +1340,119 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   // optional extra label
   const auto label = input.get("label", std::string{""});
 
-  std::string ofname_prefix =
-    wf.identity() + "_"                                       //
-    + method + "_"                                            //
-    + std::to_string(Kmin) + "-" + std::to_string(Kmax) + "_" //
-    + (lc_minmax ? std::to_string(lc_minmax->at(0)) + "-" +
-                     std::to_string(lc_minmax->at(1)) + "_" :
-                   "")               //
-    + (ec_minmax_eV ? "eclim_" : "") //
-    + (low_q ? "lowq_" : "");        //
-
-  if (vectorQ)
-    ofname_prefix += "V";
-  if (axialQ)
-    ofname_prefix += "A";
-  if (scalarQ)
-    ofname_prefix += "S";
-  if (pseudoscalarQ)
-    ofname_prefix += "P";
-
-  if (!label.empty()) {
-    ofname_prefix += "_" + label;
-  }
+  // e.g., Xe0_HF_hp_orth_0-6_VA; the RPA factors go to Xe0_RPA_hp_orth_0-6_VA
+  const auto output_prefix = [&](const std::string &method_text) {
+    std::string prefix =
+      wf.identity() + "_"                                       //
+      + method_text + method_suffix + "_"                       //
+      + std::to_string(Kmin) + "-" + std::to_string(Kmax) + "_" //
+      + (lc_minmax ? std::to_string(lc_minmax->at(0)) + "-" +
+                       std::to_string(lc_minmax->at(1)) + "_" :
+                     "")               //
+      + (ec_minmax_eV ? "eclim_" : "") //
+      + (low_q ? "lowq_" : "")         //
+      + (temporal_only ? "T_" : "");   //
+    if (vectorQ)
+      prefix += "V";
+    if (axialQ)
+      prefix += "A";
+    if (scalarQ)
+      prefix += "S";
+    if (pseudoscalarQ)
+      prefix += "P";
+    if (!label.empty()) {
+      prefix += "_" + label;
+    }
+    return prefix;
+  };
+  const auto ofname_prefix = output_prefix(base_method);
+  const auto ofname_prefix_rpa = output_prefix("RPA");
 
   //-------------------------------------------------------------------------
-  std::cout << "\nCalculating ionisation factors for each bound electron:\n";
-
-  int count = 1;
-  for (const auto &Fa : wf.core()) {
-
-    // Find min/max allowed l for continuum states
-    // l_min = j_min - 1/2
-    //       = j - K_max - 1/2
-    //       = (2j - 2*Kmax - 1) / 2
-    // nb: 2j is always odd! And allow for either parity.
-    const auto lc_min_tmp = std::max((Fa.twoj() - 2 * Kmax - 1) / 2, 0);
-    const auto lc_max_tmp = (Fa.twoj() + 2 * Kmax + 1) / 2;
-    const auto lc_min =
-      lc_minmax ? std::max(lc_min_tmp, lc_minmax->at(0)) : lc_min_tmp;
-    const auto lc_max =
-      lc_minmax ? std::min(lc_max_tmp, lc_minmax->at(1)) : lc_max_tmp;
-
-    fmt::print("[{:2}/{:2}]: {:4s} -> {} - {}  (L = {} -> {} - {})\n", count++,
-               wf.core().size(), Fa.shortSymbol(), AtomData::l_symbol(lc_min),
-               AtomData::l_symbol(lc_max), Fa.l(), lc_min, lc_max);
-    if (use_Zeff) {
-      fmt::print("         Zeff = {:.4f}\n",
+  if (use_Zeff) {
+    std::cout << "\nZeff for each bound electron:\n";
+    for (const auto &Fa : wf.core()) {
+      fmt::print("{:4s}: Zeff = {:.4f}\n", Fa.shortSymbol(),
                  Zeff_constant != 0.0 ? Zeff_constant :
                                         Kion::Zeff_real(Fa.en(), Fa.n()));
     }
     std::cout << std::flush;
-
-    // Form factors for specific bound state, Fa:
-    const auto K_factors_nk = Kion::calculate_formFactors_nk(
-      wf.vHF(), Fa, lc_min, lc_max, ec_min, ec_max, force_rescale,
-      hole_particle, force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab,
-      Kmin, Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ,
-      states_method, Zeff_constant);
-
-    assert(K_factors_nk.size() == K_factors.size());
-
-    // Optionally: write all K factors for each bound state to disk
-    if (each_state) {
-      Kion::write_to_file_xyz_13(
-        Fa.shortSymbol() + "." + ofname_prefix + ".txt", Egrid, qgrid, titles,
-        descriptions, K_factors_nk, units, num_digits, diagonal_Eq);
-    }
-
-    for (std::size_t i = 0; i < K_factors.size(); ++i) {
-      if (K_factors_nk[i].empty())
-        continue;
-      if (K_factors[i].empty()) {
-        // resize if first non-zero nk
-        K_factors[i].resize(E_steps, q_steps);
-      }
-      K_factors[i] += K_factors_nk[i];
-    }
   }
+
+  // Writes the per-orbital files (if requested), then the total
+  const auto write_factors = [&](const std::string &prefix,
+                                 const std::vector<Kion::FormFactorSet> &K_nk) {
+    if (each_state) {
+      for (std::size_t ia = 0; ia < wf.core().size(); ++ia) {
+        Kion::write_to_file_xyz_13(
+          wf.core()[ia].shortSymbol() + "." + prefix + ".txt", Egrid, qgrid,
+          titles, descriptions, K_nk[ia], units, num_digits, diagonal_Eq);
+      }
+    }
+    // Total over the orbitals (factors not calculated stay empty)
+    Kion::FormFactorSet total;
+    for (const auto &K_factors : K_nk) {
+      for (std::size_t i = 0; i < total.size(); ++i) {
+        if (K_factors[i].empty())
+          continue;
+        if (total[i].empty()) {
+          total[i] = K_factors[i];
+        } else {
+          total[i] += K_factors[i];
+        }
+      }
+    }
+    std::cout << "Calculated: ";
+    for (std::size_t i = 0; i < titles.size(); ++i) {
+      if (!total[i].empty()) {
+        std::cout << titles[i] << ", ";
+      }
+    }
+    std::cout << "\n";
+    Kion::write_to_file_xyz_13(prefix + ".txt", Egrid, qgrid, titles,
+                               descriptions, total, units, num_digits,
+                               diagonal_Eq);
+    std::cout << "\n";
+  };
+
+  if (!use_rpa) {
+    const auto K_nk = Kion::calculate_formFactors(
+      wf.vHF(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
+      force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax,
+      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, states_method,
+      Zeff_constant);
+    std::cout << "done\n\n";
+    write_factors(ofname_prefix, K_nk);
+    return;
+  }
+
+  // When we include RPA: Write both (with + without) to disk seperately,
+  // Since we have to calculate both anyway
+
+  auto result = Kion::calculate_formFactors_RPA(
+    wf.vHF(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
+    force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ,
+    axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
   std::cout << "done\n\n";
 
-  std::cout << "Calculated: ";
-  for (std::size_t i = 0; i < titles.size(); ++i) {
-    if (!K_factors[i].empty()) {
-      std::cout << titles[i] << ", ";
+  // Try to smoothly interpolate
+  if (rpa_options.max_its > 1) {
+    // Isolated failed solves leave a step in an otherwise smooth factor
+    const auto [n_failed, n_interpolated] =
+      Kion::interpolate_failed_rpa(result, rpa_options.eps_fail);
+    if (n_failed > 0) {
+      fmt::print(
+        "Note: RPA not converged (eps > {:.0e}) at {} of {} "
+        "(E,q) points: dRPA interpolated in q for {}; no-RPA used for {}\n\n",
+        rpa_options.eps_fail, n_failed, E_steps * q_steps, n_interpolated,
+        n_failed - n_interpolated);
     }
   }
-  std::cout << "\n\n";
 
-  //----------------------------------------
-
-  // Write total (summed) form factors to disk
-  Kion::write_to_file_xyz_13(ofname_prefix + ".txt", Egrid, qgrid, titles,
-                             descriptions, K_factors, units, num_digits,
-                             diagonal_Eq);
+  std::cout << "Without RPA:\n";
+  write_factors(ofname_prefix, result.bare);
+  std::cout << "With RPA:\n";
+  write_factors(ofname_prefix_rpa, result.rpa);
 }
 
 } // namespace Module

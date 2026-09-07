@@ -1,6 +1,8 @@
 #include "Kion_functions.hpp"
+#include "Angular/Wigner369j.hpp"
 #include "DiracODE/include.hpp"
 #include "DiracOperator/include.hpp"
+#include "ExternalField/TDHFcomplex.hpp"
 #include "HF/HartreeFock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "Maths/Grid.hpp"
@@ -16,9 +18,11 @@
 #include "qip/String.hpp"
 #include "qip/Widgets.hpp"
 #include "qip/omp.hpp"
+#include <complex>
 #include <iostream>
 #include <memory>
 #include <optional>
+#include <utility>
 
 namespace Kion {
 
@@ -31,6 +35,9 @@ AtomicMethod parseStatesMethod(const std::string &in_method) {
     return AtomicMethod::Zeff;
   if (qip::ci_wc_compare(in_method, "ZeffAn*"))
     return AtomicMethod::ZeffAnalytic;
+  if (qip::ci_compare(in_method, "RPA") ||
+      qip::ci_wc_compare(in_method, "TDHF*"))
+    return AtomicMethod::RPA;
   std::cout << "Warning: AtomicMethod: " << in_method
             << " ?? Defaulting to HF\n";
   return AtomicMethod::HF;
@@ -44,6 +51,8 @@ std::string parseStatesMethod(const AtomicMethod &in_method) {
     return "Zeff";
   case AtomicMethod::ZeffAnalytic:
     return "ZeffAnalytic";
+  case AtomicMethod::RPA:
+    return "RPA";
   }
   assert(false);
 }
@@ -144,277 +153,502 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
 }
 
 //==============================================================================
-std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
-  const HF::HartreeFock *vHF, const DiracSpinor &Fa, int lc_min, int lc_max,
-  double ec_min, double ec_max, bool force_rescale, bool hole_particle,
-  bool force_orthog, const std::vector<double> &Egrid,
-  const std::vector<double> &qgrid, bool diagonal_Eq, bool low_q,
-  const SphericalBessel::JL_table &jK_tab, int Kmin, int Kmax, bool vectorQ,
-  bool axialQ, bool scalarQ, bool pseudoscalarQ, bool spatialQ,
-  AtomicMethod method, double zeff_constant) {
+FormFactorSet allocate_formFactors(std::size_t E_steps, std::size_t q_steps,
+                                   bool vectorQ, bool axialQ, bool scalarQ,
+                                   bool pseudoscalarQ, bool spatialQ) {
+  // Order: V_T, V_E, V_M, V_L, X, A_T, A_E, A_M, A_L, Y, Z, S, P
+  const std::array<bool, 13> requested{vectorQ,
+                                       vectorQ && spatialQ,
+                                       vectorQ && spatialQ,
+                                       vectorQ && spatialQ,
+                                       vectorQ && spatialQ,
+                                       axialQ,
+                                       axialQ && spatialQ,
+                                       axialQ && spatialQ,
+                                       axialQ && spatialQ,
+                                       axialQ && spatialQ,
+                                       vectorQ && axialQ && spatialQ,
+                                       scalarQ,
+                                       pseudoscalarQ};
+  FormFactorSet K_factors;
+  for (std::size_t i = 0; i < K_factors.size(); ++i) {
+    if (requested[i]) {
+      K_factors[i].resize(E_steps, q_steps, 0.0);
+    }
+  }
+  return K_factors;
+}
 
-  // can never get this far, but debugging check
+//==============================================================================
+std::array<std::unique_ptr<DiracOperator::TensorOperator>, 10>
+multipole_operators(const Grid &grid, bool low_q,
+                    const SphericalBessel::JL_table *jK_tab, bool vectorQ,
+                    bool axialQ, bool scalarQ, bool pseudoscalarQ,
+                    bool spatialQ) {
+  const auto make =
+    [&](char type, char comp,
+        bool include) -> std::unique_ptr<DiracOperator::TensorOperator> {
+    return include ? DiracOperator::MultipoleOperator(grid, 0, 0.0, type, comp,
+                                                      low_q, jK_tab) :
+                     nullptr;
+  };
+  return {make('V', 'T', vectorQ),
+          make('V', 'E', vectorQ && spatialQ),
+          make('V', 'M', vectorQ && spatialQ),
+          make('V', 'L', vectorQ && spatialQ),
+          make('A', 'T', axialQ),
+          make('A', 'E', axialQ && spatialQ),
+          make('A', 'M', axialQ && spatialQ),
+          make('A', 'L', axialQ && spatialQ),
+          make('S', 'T', scalarQ),
+          make('P', 'T', pseudoscalarQ)};
+}
+
+//==============================================================================
+void accumulate_formFactors(FormFactorSet &K_factors, std::size_t iE,
+                            std::size_t iq, double tkp1_x,
+                            const ChannelAmplitudes &A) {
+  const auto &[t, E, M, L, t5, E5, M5, L5, S, S5] = A;
+
+  const auto add = [&](std::size_t i, double value) {
+    if (!K_factors[i].empty()) {
+      K_factors[i](iE, iq) += tkp1_x * value;
+    }
+  };
+  // Interference of two amplitudes in the same channel: Re(A A'^*)
+  const auto cross = [](std::complex<double> a, std::complex<double> b) {
+    return std::real(a * std::conj(b));
+  };
+
+  // Vector: temporal, electric, magnetic, longitudinal, and t-L cross term
+  add(0, std::norm(t));
+  add(1, std::norm(E));
+  add(2, std::norm(M));
+  add(3, std::norm(L));
+  add(4, cross(t, L));
+  // Axial (gamma^5) partners
+  add(5, std::norm(t5));
+  add(6, std::norm(E5));
+  add(7, std::norm(M5));
+  add(8, std::norm(L5));
+  add(9, cross(t5, L5));
+  // Vector-axial spatial interference
+  add(10, cross(E5, M) - cross(E, M5));
+  // Scalar, pseudoscalar
+  add(11, std::norm(S));
+  add(12, std::norm(S5));
+}
+
+//==============================================================================
+std::vector<FormFactorSet> calculate_formFactors(
+  const HF::HartreeFock *vHF,
+  const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
+  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  const std::vector<double> &Egrid, const std::vector<double> &qgrid,
+  bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
+  int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
+  bool pseudoscalarQ, bool spatialQ, AtomicMethod method,
+  double zeff_constant) {
+
   assert(vHF != nullptr);
-
   if (diagonal_Eq) {
     assert(qgrid.size() == 1);
   }
 
-  // H-like (Zeff) approximation: constant Zeff (if given), else "real"
-  // Zeff = n*sqrt(-2*en) from the binding energy (same as DarkARC):
-  const bool use_zeff = method != AtomicMethod::HF;
-  const double Zeff =
-    zeff_constant > 0.0 ? zeff_constant : Zeff_real(Fa.en(), Fa.n());
-
-  // Bound state used in the matrix elements: the real state, or its H-like
-  // (Zeff, pointlike) version, solved analytically or numerically (DiracODE).
-  // nb: Zeff state will not have exactly right energy; continuum energies
-  // (ec = E + en) and occupation always use the real (input) Fa.
-  std::optional<DiracSpinor> Fa_zeff{};
-  if (method == AtomicMethod::ZeffAnalytic) {
-    Fa_zeff = DiracSpinor::exactHlike(Fa.n(), Fa.kappa(), Fa.grid_sptr(), Zeff,
-                                      vHF->alpha());
-  } else if (method == AtomicMethod::Zeff) {
-    const auto v_z =
-      Nuclear::sphericalNuclearPotential(Zeff, 0.0, vHF->grid().r());
-    const auto e0 = AtomData::diracen(Zeff, Fa.n(), Fa.kappa(), vHF->alpha());
-    Fa_zeff = DiracODE::boundState(Fa.n(), Fa.kappa(), e0, Fa.grid_sptr(), v_z,
-                                   {}, vHF->alpha());
-  }
-  const auto &Fa_t = use_zeff ? *Fa_zeff : Fa;
-
+  const auto &core = vHF->core();
+  const auto n_core = core.size();
   const auto E_steps = Egrid.size();
   const auto q_steps = qgrid.size();
 
-  // Factors (output) for specific bound state, Fa
-  std::array<LinAlg::Matrix<double>, 13> K_factors;
-  auto &K_VT = K_factors[0];  // Vector: temporal
-  auto &K_VE = K_factors[1];  // Vector: electric
-  auto &K_VM = K_factors[2];  // Vector: magnetic
-  auto &K_VL = K_factors[3];  // Vector: longitudinal
-  auto &K_X = K_factors[4];   // Vector: v-v cross
-  auto &K_T5 = K_factors[5];  // Axial: temporal
-  auto &K_E5 = K_factors[6];  // Axial: electric
-  auto &K_M5 = K_factors[7];  // Axial: magnetic
-  auto &K_L5 = K_factors[8];  // Axial: longitudinal
-  auto &K_X5 = K_factors[9];  // Axial: a-a cross
-  auto &K_Z = K_factors[10];  // Vector-Axial interference
-  auto &K_S = K_factors[11];  // Scalar
-  auto &K_S5 = K_factors[12]; // Pseudo-scalar
-
-  // Re-size output arrays (if required)
-  if (vectorQ) {
-    K_VT.resize(E_steps, q_steps);
-    if (spatialQ) {
-      K_VE.resize(E_steps, q_steps);
-      K_VM.resize(E_steps, q_steps);
-      K_VL.resize(E_steps, q_steps);
-      K_X.resize(E_steps, q_steps);
+  // H-like (Zeff) approximation: constant Zeff (if given), else "real"
+  // Zeff = n*sqrt(-2*en) from the binding energy (same as DarkARC).
+  // Bound state used in the matrix elements: the real state, or its H-like
+  // (Zeff, pointlike) version, solved analytically or numerically (DiracODE).
+  // nb: Zeff state will not have exactly right energy; continuum energies
+  // (ec = E + en) and occupation always use the real (HF) orbital.
+  std::vector<double> Zeff(n_core, 0.0);
+  std::vector<DiracSpinor> bound;
+  bound.reserve(n_core);
+  for (std::size_t ia = 0; ia < n_core; ++ia) {
+    const auto &Fa = core[ia];
+    Zeff[ia] = zeff_constant > 0.0 ? zeff_constant : Zeff_real(Fa.en(), Fa.n());
+    if (method == AtomicMethod::ZeffAnalytic) {
+      bound.push_back(DiracSpinor::exactHlike(
+        Fa.n(), Fa.kappa(), Fa.grid_sptr(), Zeff[ia], vHF->alpha()));
+    } else if (method == AtomicMethod::Zeff) {
+      const auto v_z =
+        Nuclear::sphericalNuclearPotential(Zeff[ia], 0.0, vHF->grid().r());
+      const auto e0 =
+        AtomData::diracen(Zeff[ia], Fa.n(), Fa.kappa(), vHF->alpha());
+      bound.push_back(DiracODE::boundState(
+        Fa.n(), Fa.kappa(), e0, Fa.grid_sptr(), v_z, {}, vHF->alpha()));
+    } else {
+      bound.push_back(Fa);
     }
   }
-  if (axialQ) {
-    K_T5.resize(E_steps, q_steps);
-    if (spatialQ) {
-      K_E5.resize(E_steps, q_steps);
-      K_M5.resize(E_steps, q_steps);
-      K_L5.resize(E_steps, q_steps);
-      K_X5.resize(E_steps, q_steps);
+
+  // Output: the factors of each core orbital
+  std::vector<FormFactorSet> K_nk(
+    n_core, allocate_formFactors(E_steps, q_steps, vectorQ, axialQ, scalarQ,
+                                 pseudoscalarQ, spatialQ));
+
+  // Work list: every (orbital, E) with the ejected electron energy within the
+  // limits. Flattened for load balance: a deep shell is ionised at only the
+  // few highest energies.
+  std::vector<std::pair<std::size_t, std::size_t>> tasks;
+  for (std::size_t ia = 0; ia < n_core; ++ia) {
+    for (std::size_t iE = 0; iE < E_steps; ++iE) {
+      const auto ec = Egrid[iE] + core[ia].en();
+      if (ec > ec_min && ec <= ec_max) {
+        tasks.emplace_back(ia, iE);
+      }
     }
   }
-  if (vectorQ && axialQ && spatialQ) {
-    K_Z.resize(E_steps, q_steps);
-  }
-  if (scalarQ) {
-    K_S.resize(E_steps, q_steps);
-  }
-  if (pseudoscalarQ) {
-    K_S5.resize(E_steps, q_steps);
-  }
 
-  // Find which parts of E grid can contribute (more efficient parallelisation)
-  const auto idE_0_tmp = std::distance(
-    Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
-                                [&](auto e) { return e + Fa.en() > ec_min; }));
-  assert(idE_0_tmp >= 0);
-  const auto idE_0 = std::size_t(idE_0_tmp);
-
-  const auto idE_max = std::size_t(std::distance(
-    Egrid.begin(), std::find_if(Egrid.begin(), Egrid.end(),
-                                [&](auto e) { return e + Fa.en() > ec_max; })));
-  assert(idE_max <= Egrid.size());
-
+  // One operator set per thread: the rank and frequency are set in place
+  // inside the loop. Operators not requested are null.
+  const auto prototypes =
+    multipole_operators(vHF->grid(), low_q, &jK_tab, vectorQ, axialQ, scalarQ,
+                        pseudoscalarQ, spatialQ);
   const auto max_threads = std::size_t(omp_get_max_threads());
+  std::vector<std::array<std::unique_ptr<DiracOperator::TensorOperator>, 10>>
+    thread_operators(max_threads);
+  for (auto &operators : thread_operators) {
+    for (std::size_t i = 0; i < operators.size(); ++i) {
+      operators[i] = prototypes[i] ? prototypes[i]->clone() : nullptr;
+    }
+  }
 
-  // Build one operator set per thread. updateRank() and updateFrequency() are
-  // called inside the loop before use; operators will be null for invalid
-  // type/comp combinations, so all uses are null-guarded below.
-  auto build_thread_ops = [&](char type, char comp, bool include)
-    -> std::vector<std::unique_ptr<DiracOperator::TensorOperator>> {
-    const auto op0 =
-      include ? DiracOperator::MultipoleOperator(vHF->grid(), 0, 0.0, type,
-                                                 comp, low_q, &jK_tab) :
-                nullptr;
-    std::vector<std::unique_ptr<DiracOperator::TensorOperator>> ops;
-    ops.reserve(max_threads);
-    for (auto t = 0ul; t < max_threads; ++t)
-      ops.push_back(op0 ? op0->clone() : nullptr);
-    return ops;
-  };
-
-  auto Phik_ops = build_thread_ops('V', 'T', vectorQ);
-  auto Ek_ops = build_thread_ops('V', 'E', vectorQ && spatialQ);
-  auto Mk_ops = build_thread_ops('V', 'M', vectorQ && spatialQ);
-  auto Lk_ops = build_thread_ops('V', 'L', vectorQ && spatialQ);
-  auto Phi5k_ops = build_thread_ops('A', 'T', axialQ);
-  auto E5k_ops = build_thread_ops('A', 'E', axialQ && spatialQ);
-  auto M5k_ops = build_thread_ops('A', 'M', axialQ && spatialQ);
-  auto L5k_ops = build_thread_ops('A', 'L', axialQ && spatialQ);
-  auto Sk_ops = build_thread_ops('S', 'T', scalarQ);
-  auto S5k_ops = build_thread_ops('P', 'T', pseudoscalarQ);
-
-  // nb: sum into K(iE,iq).
-  // Therefore, each thread has unique iE, and no reduction required if //-isation over iE/iq
-  // BUT if we change this (e.g., over k), then this will change
-  qip::ProgressBar bar(idE_max - idE_0);
+  // Each task owns one row (iE) of one orbital's factors: no reduction
+  qip::ProgressBar bar(tasks.size());
 #pragma omp parallel for schedule(dynamic)
-  for (std::size_t iE = idE_0; iE < idE_max; ++iE) {
-    const auto omega = Egrid.at(iE);
-
-    const auto ec = omega + Fa.en();
-    assert(ec >= ec_min);
-    assert(ec <= ec_max);
+  for (std::size_t it = 0; it < tasks.size(); ++it) {
+    const auto ia = tasks[it].first;
+    const auto iE = tasks[it].second;
+    const auto &Fa = core[ia];
+    const auto &Fa_t = bound[ia];
+    const auto ec = Egrid[iE] + Fa.en();
+    // Continuum l reached by multipoles up to Kmax (either parity):
+    // j_e = j_a -/+ Kmax, l_e = j_e -/+ 1/2; within the lc_minmax limits
+    auto lc_min = std::max((Fa.twoj() - 2 * Kmax - 1) / 2, 0);
+    auto lc_max = (Fa.twoj() + 2 * Kmax + 1) / 2;
+    if (lc_minmax) {
+      lc_min = std::max(lc_min, lc_minmax->at(0));
+      lc_max = std::min(lc_max, lc_minmax->at(1));
+    }
 
     ContinuumOrbitals cntm(vHF);
     if (method == AtomicMethod::Zeff) {
-      cntm.solveContinuumZeff(ec, lc_min, lc_max, Zeff, &Fa_t, force_orthog);
+      cntm.solveContinuumZeff(ec, lc_min, lc_max, Zeff[ia], &Fa_t,
+                              force_orthog);
     } else if (method == AtomicMethod::ZeffAnalytic) {
-      cntm.solveContinuumZeffAnalytic(ec, lc_min, lc_max, Zeff, &Fa_t,
+      cntm.solveContinuumZeffAnalytic(ec, lc_min, lc_max, Zeff[ia], &Fa_t,
                                       force_orthog);
     } else {
       cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa_t, force_rescale,
                             hole_particle, force_orthog);
     }
 
-    const auto tid = std::size_t(omp_get_thread_num());
-    auto Phik = Phik_ops[tid].get();
-    auto Ek = Ek_ops[tid].get();
-    auto Mk = Mk_ops[tid].get();
-    auto Lk = Lk_ops[tid].get();
-    auto Phi5k = Phi5k_ops[tid].get();
-    auto E5k = E5k_ops[tid].get();
-    auto M5k = M5k_ops[tid].get();
-    auto L5k = L5k_ops[tid].get();
-    auto Sk = Sk_ops[tid].get();
-    auto S5k = S5k_ops[tid].get();
-
+    auto &operators = thread_operators[std::size_t(omp_get_thread_num())];
     for (int k = Kmin; k <= Kmax; ++k) {
       const auto tkp1_x = (2.0 * k + 1.0) * Fa.occ_frac();
-
-      for (std::size_t iq = 0; iq < qgrid.size(); ++iq) {
-
-        // Use qc as expected for "omega" in operators (just units)
-        const auto qc =
-          diagonal_Eq ? Egrid.at(iE) : qgrid.at(iq) * PhysConst::c;
-
-        // Update rank (adjusts parity), then frequency (resets Bessel vectors)
-        if (Phik) {
-          Phik->updateRank(k);
-          Phik->updateFrequency(qc);
+      for (std::size_t iq = 0; iq < q_steps; ++iq) {
+        // The operators take qc as their "frequency" (or E itself in the
+        // diagonal, massless-absorption, case). Rank first (sets the
+        // parity), then frequency (fills the Bessel vectors)
+        const auto qc = diagonal_Eq ? Egrid[iE] : qgrid[iq] * PhysConst::c;
+        for (auto &h : operators) {
+          if (h) {
+            h->updateRank(k);
+            h->updateFrequency(qc);
+          }
         }
-        if (Ek) {
-          Ek->updateRank(k);
-          Ek->updateFrequency(qc);
-        }
-        if (Mk) {
-          Mk->updateRank(k);
-          Mk->updateFrequency(qc);
-        }
-        if (Lk) {
-          Lk->updateRank(k);
-          Lk->updateFrequency(qc);
-        }
-        if (Phi5k) {
-          Phi5k->updateRank(k);
-          Phi5k->updateFrequency(qc);
-        }
-        if (E5k) {
-          E5k->updateRank(k);
-          E5k->updateFrequency(qc);
-        }
-        if (M5k) {
-          M5k->updateRank(k);
-          M5k->updateFrequency(qc);
-        }
-        if (L5k) {
-          L5k->updateRank(k);
-          L5k->updateFrequency(qc);
-        }
-        if (Sk) {
-          Sk->updateRank(k);
-          Sk->updateFrequency(qc);
-        }
-        if (S5k) {
-          S5k->updateRank(k);
-          S5k->updateFrequency(qc);
-        }
-
         for (const auto &Fe : cntm.orbitals) {
-
-          // vector:
-          const auto t = Phik ? Phik->reducedME(Fe, Fa_t) : 0.0;
-          const auto E = Ek ? Ek->reducedME(Fe, Fa_t) : 0.0;
-          const auto M = Mk ? Mk->reducedME(Fe, Fa_t) : 0.0;
-          const auto L = Lk ? Lk->reducedME(Fe, Fa_t) : 0.0;
-          // axial:
-          const auto t5 = Phi5k ? Phi5k->reducedME(Fe, Fa_t) : 0.0;
-          const auto E5 = E5k ? E5k->reducedME(Fe, Fa_t) : 0.0;
-          const auto M5 = M5k ? M5k->reducedME(Fe, Fa_t) : 0.0;
-          const auto L5 = L5k ? L5k->reducedME(Fe, Fa_t) : 0.0;
-          // Scalar, Pseudoscalar
-          const auto S = Sk ? Sk->reducedME(Fe, Fa_t) : 0.0;
-          const auto S5 = S5k ? S5k->reducedME(Fe, Fa_t) : 0.0;
-
-          // Vector operators
-          if (vectorQ) {
-            K_VT(iE, iq) += tkp1_x * qip::pow(t, 2);
-            if (spatialQ) {
-              K_VE(iE, iq) += tkp1_x * qip::pow(E, 2);
-              K_VM(iE, iq) += tkp1_x * qip::pow(M, 2);
-              K_VL(iE, iq) += tkp1_x * qip::pow(L, 2);
-              K_X(iE, iq) += tkp1_x * t * L;
+          ChannelAmplitudes A{};
+          for (std::size_t i = 0; i < operators.size(); ++i) {
+            if (operators[i]) {
+              A[i] = operators[i]->reducedME(Fe, Fa_t);
             }
           }
-
-          // Axial (γ^5) operators
-          if (axialQ) {
-            K_T5(iE, iq) += tkp1_x * qip::pow(t5, 2);
-            if (spatialQ) {
-              K_E5(iE, iq) += tkp1_x * qip::pow(E5, 2);
-              K_M5(iE, iq) += tkp1_x * qip::pow(M5, 2);
-              K_L5(iE, iq) += tkp1_x * qip::pow(L5, 2);
-              K_X5(iE, iq) += tkp1_x * t5 * L5;
-            }
-          }
-
-          // Vector-Axial Spatial Interference:
-          if (vectorQ && axialQ && spatialQ) {
-            K_Z(iE, iq) += tkp1_x * (E5 * M - E * M5);
-          }
-
-          // Scalar and Pseudoscalar
-          if (scalarQ) {
-            K_S(iE, iq) += tkp1_x * qip::pow(S, 2);
-          }
-          if (pseudoscalarQ) {
-            K_S5(iE, iq) += tkp1_x * qip::pow(S5, 2);
-          }
+          accumulate_formFactors(K_nk[ia], iE, iq, tkp1_x, A);
         }
       }
     }
     bar.update();
   }
 
-  return K_factors;
+  return K_nk;
+}
+
+//==============================================================================
+FormFactorsRPA calculate_formFactors_RPA(
+  const HF::HartreeFock *vHF,
+  const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
+  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  const std::vector<double> &Egrid, const std::vector<double> &qgrid,
+  bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
+  int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
+  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options) {
+
+  assert(vHF != nullptr);
+  if (diagonal_Eq) {
+    assert(qgrid.size() == 1);
+  }
+
+  const auto &core = vHF->core();
+  const auto n_core = core.size();
+  const auto E_steps = Egrid.size();
+  const auto q_steps = qgrid.size();
+
+  FormFactorsRPA out;
+  out.bare.assign(n_core,
+                  allocate_formFactors(E_steps, q_steps, vectorQ, axialQ,
+                                       scalarQ, pseudoscalarQ, spatialQ));
+  out.rpa = out.bare;
+  out.eps.resize(E_steps, q_steps, 0.0);
+
+  // The requested operators (the others are null); per-thread clones are
+  // made per (E, K, operator) block below
+  const auto prototypes =
+    multipole_operators(vHF->grid(), low_q, &jK_tab, vectorQ, axialQ, scalarQ,
+                        pseudoscalarQ, spatialQ);
+  std::vector<std::size_t> active_operators;
+  for (std::size_t i = 0; i < prototypes.size(); ++i) {
+    if (prototypes[i]) {
+      active_operators.push_back(i);
+    }
+  }
+  if (active_operators.empty()) {
+    return out;
+  }
+
+  // The operators take qc as their "frequency" (or E itself in the diagonal,
+  // massless-absorption, case)
+  const auto qc_at = [&](std::size_t iE, std::size_t iq) {
+    return diagonal_Eq ? Egrid[iE] : qgrid[iq] * PhysConst::c;
+  };
+
+  // Enough q points to keep every thread busy: parallel over q, each thread
+  // owning its solver (the solver's own parallel regions are then nested,
+  // hence inert). Otherwise q runs serially, with the parallelism inside
+  // the solver.
+  const bool parallel_q = q_steps >= std::size_t(omp_get_max_threads());
+
+  // A first-order solve (max_its <= 1) is what was asked for: its eps is
+  // the size of the correction, not a convergence measure, and is not tested
+  const bool test_convergence = rpa_options.max_its > 1;
+  const auto converged = [=](double eps) {
+    return !test_convergence ||
+           (!std::isnan(eps) && eps < rpa_options.eps_fail);
+  };
+  // The worse of two eps values (nan is the worst)
+  const auto worst_eps = [](double a, double b) {
+    return (std::isnan(a) || std::isnan(b)) ? std::nan("") : std::max(a, b);
+  };
+
+  const auto n_K = std::size_t(Kmax - Kmin + 1);
+  const auto solves_per_E = n_K * active_operators.size() * q_steps;
+  fmt::print("RPA: {} solves per energy (K x operators x q = {} x {} x {}); "
+             "eps target {:.1e}, discarded if eps > {:.1e}; parallel over "
+             "{}\n",
+             solves_per_E, n_K, active_operators.size(), q_steps,
+             rpa_options.eps, rpa_options.eps_fail,
+             parallel_q ? "q" : "RPA channels");
+
+  for (std::size_t iE = 0; iE < E_steps; ++iE) {
+    const auto omega = Egrid[iE];
+
+    // Orbitals ionised within the ec limits (for the output; the RPA itself
+    // includes every open channel)
+    std::vector<std::size_t> ionised;
+    for (std::size_t ia = 0; ia < n_core; ++ia) {
+      const auto ec = omega + core[ia].en();
+      if (ec > ec_min && ec <= ec_max) {
+        ionised.push_back(ia);
+      }
+    }
+    if (ionised.empty()) {
+      continue;
+    }
+
+    // Continuum states of the ejected electron of each, in the V^(N-1)
+    // potential of its hole
+    std::vector<ContinuumOrbitals> cntm(ionised.size(), ContinuumOrbitals(vHF));
+#pragma omp parallel for schedule(dynamic)
+    for (std::size_t j = 0; j < ionised.size(); ++j) {
+      const auto &Fa = core[ionised[j]];
+      // Continuum l reached by multipoles up to Kmax (either parity):
+      // j_e = j_a -/+ Kmax, l_e = j_e -/+ 1/2; within the lc_minmax limits
+      auto lc_min = std::max((Fa.twoj() - 2 * Kmax - 1) / 2, 0);
+      auto lc_max = (Fa.twoj() + 2 * Kmax + 1) / 2;
+      if (lc_minmax) {
+        lc_min = std::max(lc_min, lc_minmax->at(0));
+        lc_max = std::min(lc_max, lc_minmax->at(1));
+      }
+      cntm[j].solveContinuumHF(omega + Fa.en(), lc_min, lc_max, &Fa,
+                               force_rescale, hole_particle, force_orthog);
+    }
+
+    // Every (hole orbital, ejected state) channel at this energy
+    std::vector<std::pair<std::size_t, const DiracSpinor *>> channels;
+    for (std::size_t j = 0; j < ionised.size(); ++j) {
+      for (const auto &Fe : cntm[j].orbitals) {
+        channels.emplace_back(ionised[j], &Fe);
+      }
+    }
+
+    fmt::print("E = {:.6g} eV: {} orbital(s) ionised, {} channels\n",
+               omega * PhysConst::Hartree_eV, ionised.size(), channels.size());
+    std::cout << std::flush;
+    qip::ProgressBar bar(solves_per_E);
+    // Solves at this energy whose RPA was discarded (for the screen)
+    std::vector<std::string> discarded;
+
+    for (int k = Kmin; k <= Kmax; ++k) {
+      // Amplitudes of every channel at every q, [channel][iq], filled one
+      // operator at a time, then accumulated
+      std::vector<std::vector<ChannelAmplitudes>> A_bare(
+        channels.size(), std::vector<ChannelAmplitudes>(q_steps));
+      auto A_rpa = A_bare;
+
+      for (const auto i_op : active_operators) {
+#pragma omp parallel if (parallel_q)
+        {
+          // Per thread: its own operator (rank set here, frequency per q)
+          // and solver. Static schedule: consecutive q on one thread, so
+          // each solve warm starts from the neighbouring q
+          auto h = prototypes[i_op]->clone();
+          h->updateRank(k);
+          h->updateFrequency(qc_at(iE, 0));
+          ExternalField::TDHFcntm rpa(h.get(), vHF);
+          rpa.eps_target() = rpa_options.eps;
+#pragma omp for schedule(static)
+          for (std::size_t iq = 0; iq < q_steps; ++iq) {
+            h->updateFrequency(qc_at(iE, iq));
+
+            // An unconverged solve is retried once from a cleared state
+            // (the warm start may be poor near a resonance); if that also
+            // fails, the bare amplitude is used, and the solver is cleared
+            // so the next q does not warm start from a broken state
+            rpa.solve_core(omega, rpa_options.max_its, false);
+            if (!converged(rpa.last_eps())) {
+              rpa.clear();
+              rpa.solve_core(omega, rpa_options.max_its, false);
+            }
+            const auto eps_solve = rpa.last_eps();
+            const bool use_rpa = converged(eps_solve);
+            if (!use_rpa) {
+              rpa.clear();
+#pragma omp critical(kion_rpa_discarded)
+              discarded.push_back(
+                fmt::format("{} q[{}] eps={:.0e}", h->name(), iq, eps_solve));
+            }
+            // (iE, iq) is visited by one thread within this block
+            out.eps(iE, iq) = worst_eps(out.eps(iE, iq), eps_solve);
+
+            for (std::size_t ic = 0; ic < channels.size(); ++ic) {
+              const auto &Fa = core[channels[ic].first];
+              const auto &Fe = *channels[ic].second;
+              if (h->isZero(Fe, Fa))
+                continue;
+              const auto t0 = h->reducedME(Fe, Fa);
+              A_bare[ic][iq][i_op] = t0;
+              A_rpa[ic][iq][i_op] = use_rpa ? t0 + rpa.dV_complex(Fe, Fa) : t0;
+            }
+            bar.update();
+          }
+        }
+      }
+
+      for (std::size_t ic = 0; ic < channels.size(); ++ic) {
+        const auto ia = channels[ic].first;
+        const auto tkp1_x = (2.0 * k + 1.0) * core[ia].occ_frac();
+        for (std::size_t iq = 0; iq < q_steps; ++iq) {
+          accumulate_formFactors(out.bare[ia], iE, iq, tkp1_x, A_bare[ic][iq]);
+          accumulate_formFactors(out.rpa[ia], iE, iq, tkp1_x, A_rpa[ic][iq]);
+        }
+      }
+    }
+
+    if (!discarded.empty()) {
+      fmt::print("  RPA discarded (no-RPA amplitude used) for {} of {} solves:",
+                 discarded.size(), solves_per_E);
+      for (const auto &solve : discarded) {
+        fmt::print(" {};", solve);
+      }
+      fmt::print("\n");
+    }
+  }
+
+  return out;
+}
+
+//==============================================================================
+std::pair<std::size_t, std::size_t>
+interpolate_failed_rpa(FormFactorsRPA &K_rpa, double eps_fail) {
+
+  const auto E_steps = K_rpa.eps.rows();
+  const auto q_steps = K_rpa.eps.cols();
+
+  const auto failed = [&](std::size_t iE, std::size_t iq) {
+    const auto eps = K_rpa.eps(iE, iq);
+    return std::isnan(eps) || eps > eps_fail;
+  };
+
+  // Count number that failed
+  std::size_t n_failed = 0;
+  for (std::size_t iE = 0; iE < E_steps; ++iE) {
+    for (std::size_t iq = 0; iq < q_steps; ++iq) {
+      if (failed(iE, iq)) {
+        ++n_failed;
+      }
+    }
+  }
+  // No neighbour to interpolate from (a diagonal E-q calculation, say)
+  if (q_steps < 2) {
+    return {n_failed, 0};
+  }
+
+  std::size_t n_corrected = 0;
+  for (std::size_t iE = 0; iE < E_steps; ++iE) {
+    for (std::size_t iq = 0; iq < q_steps; ++iq) {
+      if (!failed(iE, iq))
+        continue;
+      const bool have_below = iq > 0 && !failed(iE, iq - 1);
+      const bool have_above = iq + 1 < q_steps && !failed(iE, iq + 1);
+      if (!have_below && !have_above)
+        continue;
+      for (std::size_t ia = 0; ia < K_rpa.rpa.size(); ++ia) {
+        for (std::size_t i = 0; i < K_rpa.rpa[ia].size(); ++i) {
+          auto &K_factor = K_rpa.rpa[ia][i];
+          const auto &K_bare = K_rpa.bare[ia][i];
+          if (K_factor.empty())
+            continue;
+          // Relative shift of each converged neighbour in q. A zero bare
+          // factor has no shift to speak of
+          double sum_shift = 0.0;
+          int n_sides = 0;
+          if (have_below && K_bare(iE, iq - 1) != 0.0) {
+            sum_shift += K_factor(iE, iq - 1) / K_bare(iE, iq - 1);
+            ++n_sides;
+          }
+          if (have_above && K_bare(iE, iq + 1) != 0.0) {
+            sum_shift += K_factor(iE, iq + 1) / K_bare(iE, iq + 1);
+            ++n_sides;
+          }
+          if (n_sides == 0)
+            continue;
+          // Both sides: their mean. One side only: half its correction,
+          // since the shift is unconstrained on the other side
+          const auto shift =
+            n_sides == 2 ? 0.5 * sum_shift : 1.0 + 0.5 * (sum_shift - 1.0);
+          K_factor(iE, iq) = shift * K_bare(iE, iq);
+        }
+      }
+      ++n_corrected;
+    }
+  }
+  return {n_failed, n_corrected};
 }
 
 //==============================================================================
@@ -591,12 +825,13 @@ void write_to_file_xyz(const std::string &filename,
 }
 
 //==============================================================================
-void write_to_file_xyz_13(
-  const std::string &filename, const std::vector<double> &E_grid,
-  const std::vector<double> &q_grid, const std::vector<std::string> &titles,
-  const std::vector<std::string> &descriptions,
-  const std::array<LinAlg::Matrix<double>, 13> K_factors, Units units,
-  int num_digits, bool diagonal) {
+void write_to_file_xyz_13(const std::string &filename,
+                          const std::vector<double> &E_grid,
+                          const std::vector<double> &q_grid,
+                          const std::vector<std::string> &titles,
+                          const std::vector<std::string> &descriptions,
+                          const FormFactorSet &K_factors, Units units,
+                          int num_digits, bool diagonal) {
 
   const auto &K_VT = K_factors[0];  // Vector: temporal
   const auto &K_VE = K_factors[1];  // Vector: electric
