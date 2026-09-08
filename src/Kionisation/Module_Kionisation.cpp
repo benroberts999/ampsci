@@ -1439,7 +1439,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   if (rpa_options.max_its > 1) {
     // Isolated failed solves leave a step in an otherwise smooth factor
     const auto [n_failed, n_interpolated] =
-      Kion::interpolate_failed_rpa(result, rpa_options.eps_fail);
+      Kion::interpolate_failed_rpa(&result, rpa_options.eps_fail);
     if (n_failed > 0) {
       fmt::print(
         "\nNote: RPA not converged (eps > {:.0e}) at {} of {} "

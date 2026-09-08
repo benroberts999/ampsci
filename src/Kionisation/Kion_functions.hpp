@@ -3,6 +3,7 @@
 #include "LinAlg/Matrix.hpp"
 #include "Maths/SphericalBessel.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "Wavefunction/ContinuumOrbitals.hpp"
 #include <array>
 #include <cmath>
 #include <complex>
@@ -16,6 +17,9 @@ class Grid;
 class Wavefunction;
 namespace HF {
 class HartreeFock;
+}
+namespace ExternalField {
+class TDHFcntm;
 }
 
 //! Functions for atomic ionisation form factors
@@ -214,7 +218,7 @@ multipole_operators(const Grid &grid, bool low_q,
   @param tkp1_x     Weight (2K+1) times the occupation fraction.
   @param A          Channel amplitudes, in multipole_operators() order.
 */
-void accumulate_formFactors(FormFactorSet &K_factors, std::size_t iE,
+void accumulate_formFactors(FormFactorSet *K_factors, std::size_t iE,
                             std::size_t iq, double tkp1_x,
                             const ChannelAmplitudes &A);
 
@@ -280,6 +284,129 @@ std::vector<FormFactorSet> calculate_formFactors(
   bool pseudoscalarQ, bool spatialQ, AtomicMethod method = AtomicMethod::HF,
   double zeff_constant = 0.0);
 
+//! One ionisation channel: a hole in a core orbital, and the ejected
+//! (continuum) state
+struct IonisationChannel {
+  //! Index of the hole orbital in the core
+  std::size_t hole_index{};
+  //! The hole (core) orbital
+  const DiracSpinor *hole{nullptr};
+  //! The ejected (continuum) state
+  const DiracSpinor *ejected{nullptr};
+};
+
+/*!
+  @brief Range of continuum l reached from a bound orbital by multipoles of
+  rank up to Kmax.
+
+  @details
+  Either parity: \f$ j_e = j_a \pm K_{\rm max} \f$, \f$ l_e = j_e \pm 1/2 \f$,
+  clipped to @p lc_minmax if given.
+
+  @param Fa         Bound (core) orbital.
+  @param Kmax       Maximum multipolarity.
+  @param lc_minmax  Optional limits {lc_min, lc_max} on the continuum l.
+  @return {lc_min, lc_max}.
+*/
+std::pair<int, int>
+continuum_l_range(const DiracSpinor &Fa, int Kmax,
+                  const std::optional<std::array<int, 2>> &lc_minmax);
+
+//! A core orbital ionised at one energy transfer, with the continuum states
+//! of its ejected electron
+struct IonisedOrbital {
+  //! Index of the orbital in the core
+  std::size_t core_index{};
+  //! Continuum states of the ejected electron
+  ContinuumOrbitals ejected;
+};
+
+/*!
+  @brief The core orbitals ionised by an energy transfer omega, each with the
+  Hartree-Fock continuum states of its ejected electron.
+
+  @details
+  An orbital is ionised if its ejected electron energy
+  \f$ \en_c = \omega + \en_a \f$ lies in (@p ec_min, @p ec_max]. Its continuum
+  states are solved at that energy, with l from continuum_l_range(). In core
+  order; parallel over the orbitals.
+
+  @param vHF            Hartree-Fock potential; its core defines the orbitals.
+  @param omega          Energy transfer, in au.
+  @param ec_min         Minimum ejected electron energy, in au.
+  @param ec_max         Maximum ejected electron energy, in au.
+  @param Kmax           Maximum multipolarity (sets the continuum l range).
+  @param lc_minmax      Optional limits on the continuum orbital l.
+  @param force_rescale  Rescale V(r) at large r for the continuum states.
+  @param hole_particle  Solve the continuum in the V^(N-1) potential of the
+                        hole.
+  @param force_orthog   Orthogonalise the continuum states to the core.
+  @return The ionised orbitals and their continuum states; empty if none is
+          ionised.
+*/
+std::vector<IonisedOrbital> solve_ionised_orbitals_at_omega(
+  const HF::HartreeFock *vHF, double omega, double ec_min, double ec_max,
+  int Kmax, const std::optional<std::array<int, 2>> &lc_minmax,
+  bool force_rescale, bool hole_particle, bool force_orthog);
+
+/*!
+  @brief Every (hole orbital, ejected state) channel at one energy transfer.
+
+  @details
+  Ordered by orbital (as @p ionised), then by continuum state. The channels
+  point into @p core and @p ionised, which must outlive them.
+
+  @param core     Core orbitals.
+  @param ionised  The ionised orbitals and their continuum states
+                  (solve_ionised_orbitals_at_omega()).
+  @return The channel list.
+*/
+std::vector<IonisationChannel>
+construct_channels(const std::vector<DiracSpinor> &core,
+                   const std::vector<IonisedOrbital> &ionised);
+
+//! Indices of the requested (non-null) operators of a multipole_operators()
+//! set, in its order
+std::vector<std::size_t> active_operators(
+  const std::array<std::unique_ptr<DiracOperator::TensorOperator>, 10>
+    &operators);
+
+/*!
+  @brief One RPA solve: the bare and RPA amplitudes of every channel, for one
+  operator at one (E, K, q).
+
+  @details
+  @p h is the operator @p rpa was constructed with, with its rank and
+  frequency already set. Solves the TDHF at @p omega (warm starting from the
+  solver's current state), then fills amplitude @p i_op of each channel:
+  bare \f$ \redmatel{e}{h}{a} \f$ in @p A_bare, and RPA
+  \f$ \redmatel{e}{h + \delta V}{a} \f$ (ExternalField::TDHFcntm::dV_complex)
+  in @p A_rpa. Channels for which the operator is zero by selection rules are
+  left as they are.
+
+  If the solve did not converge (eps above RPAOptions::eps_fail, or nan), the
+  RPA amplitude is the bare one, and the solver is cleared so that the next
+  solve does not warm start from the failed state. Convergence is not tested
+  for a first-order solve (RPAOptions::max_its of 1): its eps is the size of
+  the correction, not a convergence measure.
+
+  @param h            Multipole operator (rank and frequency set).
+  @param i_op         Its index in the multipole_operators() set.
+  @param rpa          TDHF solver for @p h.
+  @param omega        Energy transfer, in au.
+  @param rpa_options  Iterations and convergence limits (see RPAOptions).
+  @param channels     The (hole, ejected) channels (construct_channels()).
+  @param A_bare       Bare amplitudes, one per channel; entry @p i_op set.
+  @param A_rpa        RPA amplitudes, one per channel; entry @p i_op set.
+  @return The eps of the solve (see ExternalField::TDHF::last_eps).
+*/
+double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
+                                std::size_t i_op, ExternalField::TDHFcntm *rpa,
+                                double omega, const RPAOptions &rpa_options,
+                                const std::vector<IonisationChannel> &channels,
+                                std::vector<ChannelAmplitudes> *A_bare,
+                                std::vector<ChannelAmplitudes> *A_rpa);
+
 /*!
   @brief Calculates the form factors for every core orbital, without and with
   RPA (core polarisation) from the outgoing-wave TDHF.
@@ -326,11 +453,11 @@ std::vector<FormFactorSet> calculate_formFactors(
   @return The bare and RPA factors of each core orbital, and the worst RPA
           eps at each (E, q).
 
-  @note An unconverged solve (eps above RPAOptions::eps_fail, or nan) is
-        retried once from a cleared state; if it still fails, the bare
-        amplitude is used for that (E, K, operator, q) and the solver is
-        cleared. FormFactorsRPA::eps records the worst eps at each (E, q),
-        for diagnostics.
+  @note An unconverged solve (eps above RPAOptions::eps_fail, or nan) is not
+        used: the bare amplitude is taken for that (E, K, operator, q), and
+        the solver is cleared so the next q does not warm start from it (see
+        solve_channel_amplitudes()). FormFactorsRPA::eps records the worst
+        eps at each (E, q), for diagnostics.
 
   @warning The continuum states must be those of the residual ion
            (@p hole_particle = true) for the RPA amplitude to be consistent;
@@ -380,7 +507,7 @@ FormFactorsRPA calculate_formFactors_RPA(
         correction, not a convergence measure.
 */
 std::pair<std::size_t, std::size_t>
-interpolate_failed_rpa(FormFactorsRPA &K_rpa, double eps_fail);
+interpolate_failed_rpa(FormFactorsRPA *K_rpa, double eps_fail);
 
 /*!
   @brief Calculates the ionisation factor K(E,q) for one core state, using the
