@@ -1251,8 +1251,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                  "states)\n";
   }
   if (use_rpa) {
-    fmt::print("Including RPA (core polarisation) via "
-               "TDHF: max_its = {}, eps = {:.1e}, discarded if eps > {:.1e}\n",
+    fmt::print("Including RPA (core polarisation) via TDHF:\n"
+               "  max_its = {}, eps = {:.1e}, discarded if eps > {:.1e}\n",
                rpa_options.max_its, rpa_options.eps, rpa_options.eps_fail);
     if (!hole_particle) {
       fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
@@ -1442,7 +1442,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       Kion::interpolate_failed_rpa(result, rpa_options.eps_fail);
     if (n_failed > 0) {
       fmt::print(
-        "Note: RPA not converged (eps > {:.0e}) at {} of {} "
+        "\nNote: RPA not converged (eps > {:.0e}) at {} of {} "
         "(E,q) points: dRPA interpolated in q for {}; no-RPA used for {}\n\n",
         rpa_options.eps_fail, n_failed, E_steps * q_steps, n_interpolated,
         n_failed - n_interpolated);

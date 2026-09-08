@@ -449,8 +449,7 @@ FormFactorsRPA calculate_formFactors_RPA(
   const auto n_K = std::size_t(Kmax - Kmin + 1);
   const auto solves_per_E = n_K * active_operators.size() * q_steps;
   fmt::print("RPA: {} solves per energy (K x operators x q = {} x {} x {}); "
-             "eps target {:.1e}, discarded if eps > {:.1e}; parallel over "
-             "{}\n",
+             " parallel over {}\n",
              solves_per_E, n_K, active_operators.size(), q_steps,
              rpa_options.eps, rpa_options.eps_fail,
              parallel_q ? "q" : "RPA channels");
@@ -458,8 +457,7 @@ FormFactorsRPA calculate_formFactors_RPA(
   for (std::size_t iE = 0; iE < E_steps; ++iE) {
     const auto omega = Egrid[iE];
 
-    // Orbitals ionised within the ec limits (for the output; the RPA itself
-    // includes every open channel)
+    // List of ionised (energetically accessible) orbitals
     std::vector<std::size_t> ionised;
     for (std::size_t ia = 0; ia < n_core; ++ia) {
       const auto ec = omega + core[ia].en();
@@ -471,8 +469,7 @@ FormFactorsRPA calculate_formFactors_RPA(
       continue;
     }
 
-    // Continuum states of the ejected electron of each, in the V^(N-1)
-    // potential of its hole
+    // Continuum states of the ejected electron of each
     std::vector<ContinuumOrbitals> cntm(ionised.size(), ContinuumOrbitals(vHF));
 #pragma omp parallel for schedule(dynamic)
     for (std::size_t j = 0; j < ionised.size(); ++j) {
@@ -500,10 +497,8 @@ FormFactorsRPA calculate_formFactors_RPA(
     fmt::print("E = {:.6g} eV: {} orbital(s) ionised, {} channels\n",
                omega * PhysConst::Hartree_eV, ionised.size(), channels.size());
     std::cout << std::flush;
-    qip::ProgressBar bar(solves_per_E);
-    // Solves at this energy whose RPA was discarded (for the screen)
-    std::vector<std::string> discarded;
 
+    qip::ProgressBar bar(solves_per_E);
     for (int k = Kmin; k <= Kmax; ++k) {
       // Amplitudes of every channel at every q, [channel][iq], filled one
       // operator at a time, then accumulated
@@ -526,24 +521,14 @@ FormFactorsRPA calculate_formFactors_RPA(
           for (std::size_t iq = 0; iq < q_steps; ++iq) {
             h->updateFrequency(qc_at(iE, iq));
 
-            // An unconverged solve is retried once from a cleared state
-            // (the warm start may be poor near a resonance); if that also
-            // fails, the bare amplitude is used, and the solver is cleared
-            // so the next q does not warm start from a broken state
             rpa.solve_core(omega, rpa_options.max_its, false);
-            if (!converged(rpa.last_eps())) {
-              rpa.clear();
-              rpa.solve_core(omega, rpa_options.max_its, false);
-            }
             const auto eps_solve = rpa.last_eps();
             const bool use_rpa = converged(eps_solve);
             if (!use_rpa) {
+              // prevents contaminating next q iteration
               rpa.clear();
-#pragma omp critical(kion_rpa_discarded)
-              discarded.push_back(
-                fmt::format("{} q[{}] eps={:.0e}", h->name(), iq, eps_solve));
             }
-            // (iE, iq) is visited by one thread within this block
+
             out.eps(iE, iq) = worst_eps(out.eps(iE, iq), eps_solve);
 
             for (std::size_t ic = 0; ic < channels.size(); ++ic) {
@@ -568,15 +553,6 @@ FormFactorsRPA calculate_formFactors_RPA(
           accumulate_formFactors(out.rpa[ia], iE, iq, tkp1_x, A_rpa[ic][iq]);
         }
       }
-    }
-
-    if (!discarded.empty()) {
-      fmt::print("  RPA discarded (no-RPA amplitude used) for {} of {} solves:",
-                 discarded.size(), solves_per_E);
-      for (const auto &solve : discarded) {
-        fmt::print(" {};", solve);
-      }
-      fmt::print("\n");
     }
   }
 
