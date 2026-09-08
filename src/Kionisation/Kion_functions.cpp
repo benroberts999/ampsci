@@ -524,39 +524,63 @@ FormFactorsRPA calculate_formFactors_RPA(
     return factors;
   }
 
-  // Enough q points to keep every thread busy: parallel over q, each thread
-  // owning its solver (the solver's own parallel regions are then nested,
-  // hence inert). Otherwise q runs serially, with the parallelism inside
-  // the solver.
-  const bool parallel_q = q_steps >= std::size_t(omp_get_max_threads());
+  // The energies at which some orbital is ionised
+  // highest first (better OMP load balance)
+  std::vector<std::size_t> active_E;
+  for (std::size_t i = 0; i < E_steps; ++i) {
+    const auto iE = E_steps - 1 - i;
+    for (const auto &Fa : core) {
+      const auto ec = Egrid[iE] + Fa.en();
+      if (ec > ec_min && ec <= ec_max) {
+        active_E.push_back(iE);
+        break;
+      }
+    }
+  }
 
-  const auto n_K = std::size_t(Kmax - Kmin + 1);
-  const auto solves_per_E = n_K * active_multipoles.size() * q_steps;
-  fmt::print("RPA: {} solves per energy (K x operators x q = {} x {} x {}); "
-             "parallel over {}\n",
-             solves_per_E, n_K, active_multipoles.size(), q_steps,
-             parallel_q ? "q" : "RPA channels");
+  // Decide which (E or q) to parallelise over
+  // Neither: is parallelised over RPA instead
+  const auto n_threads = std::size_t(omp_get_max_threads());
+  const bool parallel_E = n_threads > 1 && active_E.size() >= n_threads;
+  const bool parallel_q = !parallel_E && q_steps >= n_threads;
 
-  for (std::size_t iE = 0; iE < E_steps; ++iE) {
+  const auto num_Ks = std::size_t(Kmax - Kmin + 1);
+  const auto solves_per_E = num_Ks * active_multipoles.size() * q_steps;
+  fmt::print("RPA: {} energies with an ionised orbital, {} solves per energy "
+             "(K x operators x q = {} x {} x {}); parallel over {}\n",
+             active_E.size(), solves_per_E, num_Ks, active_multipoles.size(),
+             q_steps,
+             parallel_E ? "E" :
+             parallel_q ? "q" :
+                          "RPA channels");
+
+  // Progress: one bar over the run when E is parallel (energies then finish
+  // out of order), else one per energy
+  qip::ProgressBar run_bar(active_E.size() * solves_per_E, parallel_E);
+
+#pragma omp parallel for schedule(dynamic) if (parallel_E)
+  for (std::size_t i = 0; i < active_E.size(); ++i) {
+    const auto iE = active_E[i];
     const auto omega = Egrid[iE];
 
     const auto ionised = solve_ionised_orbitals_at_omega(
       vHF, omega, ec_min, ec_max, Kmax, lc_minmax, force_rescale, hole_particle,
       force_orthog);
-    if (ionised.empty()) {
-      continue;
-    }
+    assert(!ionised.empty());
     const auto channels = construct_channels(core, ionised);
     // The operators take qc as their "frequency" (omega itself in the
     // diagonal, massless-absorption, case)
     const auto frequencies =
       diagonal_Eq ? std::vector<double>(q_steps, omega) : qgrid * PhysConst::c;
 
-    fmt::print("E = {:.6g} eV: {} orbital(s) ionised, {} channels\n",
-               omega * PhysConst::Hartree_eV, ionised.size(), channels.size());
-    std::cout << std::flush;
-
-    qip::ProgressBar bar(solves_per_E);
+    if (!parallel_E) {
+      fmt::print("E = {:.6g} eV: {} orbital(s) ionised, {} channels\n",
+                 omega * PhysConst::Hartree_eV, ionised.size(),
+                 channels.size());
+      std::cout << std::flush;
+    }
+    qip::ProgressBar E_bar(solves_per_E, !parallel_E);
+    auto &bar = parallel_E ? run_bar : E_bar;
     for (int k = Kmin; k <= Kmax; ++k) {
       // Amplitudes of every channel at every q, [iq][channel], filled one
       // operator at a time, then accumulated

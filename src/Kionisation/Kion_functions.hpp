@@ -421,12 +421,17 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
 
   One RPA solve is required per (E, K, operator, q); it serves every core
   orbital at once, which is why the orbital loop is inside. The RPA includes
-  every open channel; the ec limits apply to the output only. Energies run
-  serially (progress is printed per energy). Within each (E, K, operator)
-  block the q points run in parallel when there are at least as many as
-  threads (each thread owns a solver, and its solves warm start from the
-  neighbouring q); otherwise q runs serially with the solver's own
-  parallelism.
+  every open channel; the ec limits apply to the output only.
+
+  Parallel over the coarsest axis that keeps every thread busy. Over the
+  energies at which some orbital is ionised, when there are at least as many
+  as threads: each thread solves its energies in full, with its own
+  continuum states and solver, and the q points in one warm-start chain
+  (one progress bar over the run). Otherwise, within each (E, K, operator)
+  block, over q when there are at least as many as threads (each thread
+  owns a solver, and its solves warm start from the neighbouring q); else q
+  runs serially with the solver's own parallelism (one progress bar per
+  energy).
 
   @param vHF            Hartree-Fock potential; its core defines the orbitals.
   @param lc_minmax      Optional limits on the continuum orbital l.
