@@ -96,7 +96,7 @@ std::string parseStatesMethod(const AtomicMethod &in_method);
   @param n   Principal quantum number.
   @return Effective charge.
 */
-inline double Zeff_real(double en, int n) {
+inline double Zeff_nonrel(double en, int n) {
   return n * std::sqrt(std::abs(2.0 * en));
 }
 
@@ -249,6 +249,60 @@ void accumulate_formFactors(FormFactorSet *K_factors, std::size_t iE,
 
 //------------------------------------------------------------------------------
 /*!
+  @brief The bound state of each core orbital as used in the matrix elements:
+  the real (HF) orbital, or its H-like (Zeff) version.
+
+  @details
+  For AtomicMethod::Zeff the H-like state is solved numerically (DiracODE) in
+  the pointlike -Zeff/r potential, for AtomicMethod::ZeffAnalytic it is the
+  exact Dirac-Coulomb function; otherwise the HF orbital itself. Zeff is
+  that of each orbital from its binding energy (Zeff_nonrel(), as DarkARC). Every state carries the
+  occupation of the real orbital. The Zeff states have the H-like energy,
+  not the HF one: continuum energies must be taken from the real orbital.
+
+  @param vHF            Hartree-Fock; its core defines the orbitals.
+  @param method  States method (see AtomicMethod).
+  @return One bound state per core orbital, indexed as the core.
+*/
+std::vector<DiracSpinor> model_bound_states(const HF::HartreeFock &vHF,
+                                            AtomicMethod method);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Adds the multipole sum of one bound orbital at one energy transfer
+  to the form factors: every rank K, momentum transfer, and continuum state.
+
+  @details
+  For each K in [@p Kmin, @p Kmax] and each (column, qc) of @p q_columns, sets
+  the rank and frequency of every (non-null) operator, forms the channel
+  amplitudes $ 
+edmatel{e}{h}{a} $ with each continuum state e, and
+  accumulates them with weight $ (2K+1)x_{
+m occ} $ (see
+  accumulate_formFactors()) into row @p iE of @p K_factors. The operators
+  take qc (or E itself in the diagonal, massless-absorption, case) as their
+  frequency; see DiracOperator::MultipoleOperator.
+
+  @param K_factors  Factors to add to; empty (not allocated) ones are skipped.
+  @param iE         Row (energy-transfer index) of @p K_factors to add to.
+  @param Fa         Bound orbital (as used in the matrix elements).
+  @param occ_frac   Its occupation fraction.
+  @param continuum  Continuum states of the ejected electron (all l, kappa).
+  @param multipoles Operator set (multipole_operators()); modified in place
+                    (rank and frequency), so each thread needs its own.
+  @param Kmin       Minimum multipolarity K.
+  @param Kmax       Maximum multipolarity K.
+  @param q_columns  The (column index, frequency qc) pairs to evaluate.
+*/
+void accumulate_multipole_sum(
+  FormFactorSet *K_factors, std::size_t iE, const DiracSpinor &Fa,
+  double occ_frac, const std::vector<DiracSpinor> &continuum,
+  std::array<std::unique_ptr<DiracOperator::TensorOperator>, 10> &multipoles,
+  int Kmin, int Kmax,
+  const std::vector<std::pair<std::size_t, double>> &q_columns);
+
+//------------------------------------------------------------------------------
+/*!
   @brief Calculates all 13 form factors (V, A, S, P) for every core orbital.
 
   @details
@@ -259,13 +313,19 @@ void accumulate_formFactors(FormFactorSet *K_factors, std::size_t iE,
   \f$ j_e = j_a \pm K_{\rm max} \f$, \f$ l_e = j_e \pm 1/2 \f$, clipped to
   @p lc_minmax if given. Parallel over the (orbital, E) pairs.
 
-  Optionally (@p method not AtomicMethod::HF), uses H-like (Zeff) states for
-  both the bound state and the continuum, solved either numerically (DiracODE)
-  or with exact analytic Dirac-Coulomb functions. Zeff is @p zeff_constant if
-  non-zero, else the "real" Zeff from the binding energy (see Zeff_real()).
-  Continuum energies and occupation always use the real (HF) orbital.
+  The bound state used in the matrix elements of each orbital is
+  @p bound_states[ia]: the Hartree-Fock orbital itself, or (for the H-like
+  methods) its Zeff version, from model_bound_states(). With @p method
+  Zeff or ZeffAnalytic the continuum is also H-like, in the pointlike
+  potential of the same charge as that model state (Zeff_nonrel() of the HF
+  binding energy), solved numerically (DiracODE) or with the exact
+  analytic Dirac-Coulomb functions. The
+  occupation x_i is that of the bound state used; continuum energies always
+  use the real (HF) orbital.
 
   @param vHF            Hartree-Fock potential; its core defines the orbitals.
+  @param bound_states   Bound state of each core orbital as used in the
+                        matrix elements, indexed as the core.
   @param lc_minmax      Optional limits on the continuum orbital l.
   @param ec_min         Minimum ejected electron energy, in au.
   @param ec_max         Maximum ejected electron energy, in au.
@@ -286,14 +346,12 @@ void accumulate_formFactors(FormFactorSet *K_factors, std::size_t iE,
   @param scalarQ        Calculate the scalar factor.
   @param pseudoscalarQ  Calculate the pseudoscalar factor.
   @param spatialQ       Calculate the spatial (E, M, L) components.
-  @param method         States used for the matrix elements:
+  @param method         Continuum states:
                         - AtomicMethod::HF           : Hartree-Fock
                         - AtomicMethod::Zeff         : H-like, DiracODE
                         - AtomicMethod::ZeffAnalytic : H-like, analytic
                         (AtomicMethod::RPA is not a states method, and is
                         treated as HF here; see calculate_formFactors_RPA.)
-  @param zeff_constant  Constant Zeff for the H-like methods; if zero, the
-                        Zeff of each orbital is used.
   @return One FormFactorSet per core orbital, indexed as the core (zero for
           an orbital that is not ionised anywhere on the E grid). See
           allocate_formFactors() for which factors are calculated.
@@ -301,14 +359,19 @@ void accumulate_formFactors(FormFactorSet *K_factors, std::size_t iE,
   @note @p force_rescale and @p hole_particle have no effect for Zeff states.
 */
 std::vector<FormFactorSet> calculate_formFactors(
-  const HF::HartreeFock *vHF,
+  const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &bound_states,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
   double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
-  bool pseudoscalarQ, bool spatialQ, AtomicMethod method = AtomicMethod::HF,
-  double zeff_constant = 0.0);
+  bool pseudoscalarQ, bool spatialQ, AtomicMethod method = AtomicMethod::HF);
+
+//------------------------------------------------------------------------------
+//! Adds the factors of each orbital of dK to those of K_nk (same orbitals,
+//! same allocation pattern; factors not allocated in either are skipped)
+void add_formFactors(std::vector<FormFactorSet> *K_nk,
+                     const std::vector<FormFactorSet> &dK);
 
 //------------------------------------------------------------------------------
 //! One ionisation channel: a hole in a core orbital, and the ejected
@@ -621,9 +684,10 @@ count_failed_rpa(const LinAlg::Matrix<double> &eps, double eps_fail);
   neighbours and applied to the bare value,
   \f$ K_{\rm RPA}(i,j) = R\,K_{\rm bare}(i,j) \f$:
   \f[
-    R = \frac{1}{2}(R_{j-1} + R_{j+1}),
-    \qquad
-    R = 1 + \frac{1}{2}(R_{j\mp1} - 1),
+  \begin{align}
+    R &= \frac{1}{2}(R_{j-1} + R_{j+1}), \\
+    R &= 1 + \frac{1}{2}(R_{j\mp1} - 1),
+  \end{align}
   \f]
   the mean of the two when both have converged; half the relative correction
   when only one has, since the shift is then unconstrained on the other side.

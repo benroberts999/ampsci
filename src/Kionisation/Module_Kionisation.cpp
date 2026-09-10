@@ -4,6 +4,7 @@
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "Kionisation/Kion_functions.hpp"
+#include "Kionisation/Kion_ridge.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "Maths/Grid.hpp"
 #include "Modules/Modules.hpp"
@@ -1126,6 +1127,14 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
      {"low_q", "Explicitly use low-q form of operators. These are only valid "
                "at low q only, and are used for numerical tests. (nb: All are "
                "zero for K>2.) [false]"},
+     {"ridge_correction",
+      "true/false. Bethe-ridge correction: completes the multipole sum above "
+      "K_max with free (plane-wave) states for the ejected electron. A sum "
+      "truncated at K_max misses the response near the quasi-free ridge "
+      "E ~ q^2/2m, where multipoles up to K ~ q*r contribute; off the ridge "
+      "the correction vanishes. Adds '_ridge' to the output file name. "
+      "Skipped (with a warning) if K_max < 2*l_max of the core, or with "
+      "diagonal, lc_minmax, or low_q. [false]"},
      {"force_rescale", "Rescale atomic potential V(r) at large r when solving "
                        "continuum orbitals. Should be false for local "
                        "potentials or if hole-particle is included. [false]"},
@@ -1152,11 +1161,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                    "the diagonal case, this limits E (q = E/c). [no limit]"},
      {"rpa_K_max", "RPA: solve the RPA only for multipoles K up to this; the "
                    "higher multipoles contribute their bare factors. [K_max]"},
-     {"Zeff",
-      "Effective charge for the Zeff/ZeffAnalytic methods. If set (to "
-      "anything), the default method becomes Zeff. Set to 'true' or <=0 to "
-      "use 'real' Zeff = n*sqrt(-2*en) from each binding energy; "
-      "set to a positive value to use that constant Zeff for all states."}});
+     {"Zeff", "true/false. Use H-like (Zeff) bound and continuum states, with "
+              "Zeff = n*sqrt(-2*en) from each binding energy; the same as "
+              "method = Zeff. [false]"}});
   if (input.has_option("help")) {
     return;
   }
@@ -1346,16 +1353,43 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                ec_minmax_eV->at(0), ec_minmax_eV->at(1), ec_min, ec_max);
   }
 
+  // Bethe-ridge (plane-wave) completion of the multipole sum above Kmax.
+  // Skipped at the q where the multipoles above Kmax carry less than
+  // ridge_eps of the norm (see Kion::calculate_ridge_correction)
+  auto ridge_correction = input.get("ridge_correction", false);
+  const double ridge_eps = 1.0e-4;
+  if (ridge_correction) {
+    int l_max_core = 0;
+    for (const auto &Fa : wf.core()) {
+      l_max_core = std::max(l_max_core, Fa.l());
+    }
+    if (diagonal_Eq || lc_minmax || low_q) {
+      fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
+      fmt::print("ridge_correction skipped: not available with diagonal, "
+                 "lc_minmax, or low_q\n");
+      ridge_correction = false;
+    } else if (Kmax < 2 * l_max_core) {
+      fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
+      fmt::print("ridge_correction skipped: requires K_max >= 2*l_max(core) "
+                 "= {} (have {})\n",
+                 2 * l_max_core, Kmax);
+      ridge_correction = false;
+    } else {
+      fmt::print("Ridge correction: completing K > {} with free (plane-wave) "
+                 "states, at the q where K <= {} carries less than 1 - {:.0e} "
+                 "of the norm of exp(iq.r)psi\n",
+                 Kmax, Kmax, ridge_eps);
+    }
+  }
+
   // Method for continuum states:
   const auto force_orthog = input.get("force_orthog", true);
   const auto force_rescale = input.get("force_rescale", false);
   const auto hole_particle = input.get("hole_particle", true);
 
-  // H-like (Zeff) approximation (for testing/comparison):
-  // If the Zeff option is set (to anything), the default method is Zeff.
-  // Zeff = 'true' or <= 0 (or not set): "real" Zeff = n*sqrt(-2*en);
-  // Zeff = positive value: use that constant Zeff for all states.
-  const auto zeff_input = input.get<std::string>("Zeff");
+  // H-like (Zeff) approximation (for testing/comparison), with
+  // Zeff = n*sqrt(-2*en) for each state. Zeff = true is method = Zeff
+  const auto zeff_input = input.get("Zeff", false);
   const auto t_method =
     input.get<std::string>("method", zeff_input ? "Zeff" : "HF");
 
@@ -1365,14 +1399,6 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto states_method = use_rpa ? Kion::AtomicMethod::HF : method;
   const bool use_Zeff = states_method != Kion::AtomicMethod::HF;
   const bool Zeff_analytic = states_method == Kion::AtomicMethod::ZeffAnalytic;
-
-  // Zeff value: positive number -> constant; 'true'/non-numeric/<=0 -> real:
-  double Zeff_constant = 0.0;
-  if (zeff_input && !qip::ci_compare(*zeff_input, "true")) {
-    // strtod returns 0.0 for non-numeric input (-> real Zeff)
-    const double z = std::strtod(zeff_input->c_str(), nullptr);
-    Zeff_constant = z > 0.0 ? z : 0.0;
-  }
 
   if (zeff_input && !use_Zeff) {
     fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
@@ -1411,12 +1437,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\n";
   if (use_Zeff) {
-    std::cout << "Using H-like (Zeff) bound and continuum states";
-    if (Zeff_constant != 0.0) {
-      fmt::print(": constant Zeff = {:g}\n", Zeff_constant);
-    } else {
-      std::cout << ": Zeff = n*sqrt(-2*en) for each state\n";
-    }
+    std::cout << "Using H-like (Zeff) bound and continuum states: "
+                 "Zeff = n*sqrt(-2*en) for each state\n";
     std::cout << (Zeff_analytic ?
                     "Using exact analytic H-like functions\n" :
                     "Solving H-like states numerically (DiracODE)\n");
@@ -1511,14 +1533,13 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Output file name: depends on approximation, options
   // (force_rescale/hole_particle have no effect for Zeff states)
-  const auto base_method =
-    use_Zeff ? (Zeff_constant != 0.0 ? fmt::format("Zeff{:g}", Zeff_constant) :
-                                       std::string{"Zeff"}) +
-                 (Zeff_analytic ? "an" : "") :
-               HF::parseMethod_short(wf.vHF()->method());
+  const auto base_method = use_Zeff ?
+                             std::string{"Zeff"} + (Zeff_analytic ? "an" : "") :
+                             HF::parseMethod_short(wf.vHF()->method());
   const auto method_suffix =
     std::string{} + (force_rescale && !use_Zeff ? "_rescale" : "") +
-    (hole_particle && !use_Zeff ? "_hp" : "") + (force_orthog ? "_orth" : "");
+    (hole_particle && !use_Zeff ? "_hp" : "") + (force_orthog ? "_orth" : "") +
+    (ridge_correction ? "_ridge" : "");
 
   const auto units = Kion::Units::Particle;
   const int num_digits = 6;
@@ -1559,11 +1580,14 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\nZeff for each bound electron:\n";
     for (const auto &Fa : wf.core()) {
       fmt::print("{:4s}: Zeff = {:.4f}\n", Fa.shortSymbol(),
-                 Zeff_constant != 0.0 ? Zeff_constant :
-                                        Kion::Zeff_real(Fa.en(), Fa.n()));
+                 Kion::Zeff_nonrel(Fa.en(), Fa.n()));
     }
     std::cout << std::flush;
   }
+
+  // Bound states used in the matrix elements: the HF orbitals, or (Zeff
+  // methods) their H-like versions
+  const auto bound_states = Kion::model_bound_states(*wf.vHF(), states_method);
 
   // Writes the per-orbital files (if requested), then the total
   const auto write_factors = [&](const std::string &prefix,
@@ -1601,13 +1625,25 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\n";
   };
 
+  // Bethe-ridge correction: plane waves and the bound states only, so the
+  // same for every amplitude method (added to both the bare and RPA factors)
+  const auto ridge = [&]() {
+    return Kion::calculate_ridge_correction(
+      wf.vHF(), bound_states, ec_min, ec_max, Egrid, qgrid, jK_tab, Kmax,
+      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, ridge_eps);
+  };
+
   if (!use_rpa) {
-    const auto K_nk = Kion::calculate_formFactors(
-      wf.vHF(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
-      force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax,
-      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, states_method,
-      Zeff_constant);
+    auto K_nk = Kion::calculate_formFactors(
+      wf.vHF(), bound_states, lc_minmax, ec_min, ec_max, force_rescale,
+      hole_particle, force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab,
+      Kmin, Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ,
+      states_method);
     std::cout << "done\n\n";
+    if (ridge_correction) {
+      Kion::add_formFactors(&K_nk, ridge());
+      std::cout << "done\n\n";
+    }
     write_factors(ofname_prefix, K_nk);
     return;
   }
@@ -1635,6 +1671,12 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
+  if (ridge_correction) {
+    const auto dK = ridge();
+    std::cout << "done\n\n";
+    Kion::add_formFactors(&result.bare, dK);
+    Kion::add_formFactors(&result.rpa, dK);
+  }
   std::cout << "Without RPA:\n";
   write_factors(ofname_prefix, result.bare);
   std::cout << "With RPA:\n";
