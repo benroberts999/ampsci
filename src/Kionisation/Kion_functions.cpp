@@ -243,15 +243,86 @@ void accumulate_formFactors(FormFactorSet *K_factors, std::size_t iE,
 }
 
 //==============================================================================
+std::vector<DiracSpinor> model_bound_states(const HF::HartreeFock &vHF,
+                                            AtomicMethod method) {
+  const auto &core = vHF.core();
+  std::vector<DiracSpinor> bound_states;
+  bound_states.reserve(core.size());
+  for (const auto &Fa_hf : core) {
+    const auto Zeff = Zeff_nonrel(Fa_hf.en(), Fa_hf.n());
+    if (method == AtomicMethod::ZeffAnalytic) {
+      bound_states.push_back(DiracSpinor::exactHlike(
+        Fa_hf.n(), Fa_hf.kappa(), Fa_hf.grid_sptr(), Zeff, vHF.alpha()));
+    } else if (method == AtomicMethod::Zeff) {
+      const auto v_z =
+        Nuclear::sphericalNuclearPotential(Zeff, 0.0, vHF.grid().r());
+      const auto e0 =
+        AtomData::diracen(Zeff, Fa_hf.n(), Fa_hf.kappa(), vHF.alpha());
+      bound_states.push_back(DiracODE::boundState(
+        Fa_hf.n(), Fa_hf.kappa(), e0, Fa_hf.grid_sptr(), v_z, {}, vHF.alpha()));
+    } else {
+      bound_states.push_back(Fa_hf);
+    }
+    // The model states carry the occupation of the real orbital
+    bound_states.back().occ_frac() = Fa_hf.occ_frac();
+  }
+  return bound_states;
+}
+
+//==============================================================================
+void accumulate_multipole_sum(
+  FormFactorSet *K_factors, std::size_t iE, const DiracSpinor &Fa,
+  double occ_frac, const std::vector<DiracSpinor> &continuum,
+  std::array<std::unique_ptr<DiracOperator::TensorOperator>, 10> &multipoles,
+  int Kmin, int Kmax,
+  const std::vector<std::pair<std::size_t, double>> &q_columns) {
+  assert(K_factors != nullptr);
+  for (int k = Kmin; k <= Kmax; ++k) {
+    const auto tkp1_x = (2.0 * k + 1.0) * occ_frac;
+    for (const auto &[iq, qc] : q_columns) {
+      // Rank first (sets the parity), then frequency (fills the Bessel
+      // vectors)
+      for (auto &h : multipoles) {
+        if (h) {
+          h->updateRank(k);
+          h->updateFrequency(qc);
+        }
+      }
+      for (const auto &Fe : continuum) {
+        ChannelAmplitudes A{};
+        for (std::size_t i = 0; i < multipoles.size(); ++i) {
+          if (multipoles[i]) {
+            A[i] = multipoles[i]->reducedME(Fe, Fa);
+          }
+        }
+        accumulate_formFactors(K_factors, iE, iq, tkp1_x, A);
+      }
+    }
+  }
+}
+
+//==============================================================================
+void add_formFactors(std::vector<FormFactorSet> *K_nk,
+                     const std::vector<FormFactorSet> &dK) {
+  assert(K_nk != nullptr && K_nk->size() == dK.size());
+  for (std::size_t ia = 0; ia < dK.size(); ++ia) {
+    for (std::size_t i = 0; i < dK[ia].size(); ++i) {
+      if (!(*K_nk)[ia][i].empty() && !dK[ia][i].empty()) {
+        (*K_nk)[ia][i] += dK[ia][i];
+      }
+    }
+  }
+}
+
+//==============================================================================
 std::vector<FormFactorSet> calculate_formFactors(
-  const HF::HartreeFock *vHF,
+  const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &bound_states,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
   double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
-  bool pseudoscalarQ, bool spatialQ, AtomicMethod method,
-  double zeff_constant) {
+  bool pseudoscalarQ, bool spatialQ, AtomicMethod method) {
 
   assert(vHF != nullptr);
   if (diagonal_Eq) {
@@ -260,36 +331,15 @@ std::vector<FormFactorSet> calculate_formFactors(
 
   const auto &core = vHF->core();
   const auto n_core = core.size();
+  assert(bound_states.size() == n_core);
   const auto E_steps = Egrid.size();
   const auto q_steps = qgrid.size();
 
-  // H-like (Zeff) approximation: constant Zeff (if given), else "real"
-  // Zeff = n*sqrt(-2*en) from the binding energy (same as DarkARC).
-  // Bound state used in the matrix elements: the real state, or its H-like
-  // (Zeff, pointlike) version, solved analytically or numerically (DiracODE).
-  // nb: Zeff state will not have exactly right energy; continuum energies
-  // (ec = E + en) and occupation always use the real (HF) orbital.
+  // Charge of the H-like continuum for the Zeff methods: the same as the
+  // model bound states (model_bound_states), from the HF binding energy
   std::vector<double> Zeff(n_core, 0.0);
-  std::vector<DiracSpinor> bound_states;
-  bound_states.reserve(n_core);
   for (std::size_t ia = 0; ia < n_core; ++ia) {
-    const auto &Fa_hf = core[ia];
-    Zeff[ia] =
-      zeff_constant > 0.0 ? zeff_constant : Zeff_real(Fa_hf.en(), Fa_hf.n());
-    if (method == AtomicMethod::ZeffAnalytic) {
-      bound_states.push_back(DiracSpinor::exactHlike(
-        Fa_hf.n(), Fa_hf.kappa(), Fa_hf.grid_sptr(), Zeff[ia], vHF->alpha()));
-    } else if (method == AtomicMethod::Zeff) {
-      const auto v_z =
-        Nuclear::sphericalNuclearPotential(Zeff[ia], 0.0, vHF->grid().r());
-      const auto e0 =
-        AtomData::diracen(Zeff[ia], Fa_hf.n(), Fa_hf.kappa(), vHF->alpha());
-      bound_states.push_back(DiracODE::boundState(Fa_hf.n(), Fa_hf.kappa(), e0,
-                                                  Fa_hf.grid_sptr(), v_z, {},
-                                                  vHF->alpha()));
-    } else {
-      bound_states.push_back(Fa_hf);
-    }
+    Zeff[ia] = Zeff_nonrel(core[ia].en(), core[ia].n());
   }
 
   // Output: the factors of each core orbital
@@ -329,8 +379,8 @@ std::vector<FormFactorSet> calculate_formFactors(
 #pragma omp parallel for schedule(dynamic)
   for (std::size_t it = 0; it < orbital_E_pairs.size(); ++it) {
     const auto [ia, iE] = orbital_E_pairs[it];
-    // Fa is the state in the matrix elements; Fa_hf sets the energies
-    // and occupation
+    // Fa is the state in the matrix elements (and carries the occupation);
+    // Fa_hf sets the energies
     const auto &Fa_hf = core[ia];
     const auto &Fa = bound_states[ia];
     const auto ec = Egrid[iE] + Fa_hf.en();
@@ -354,31 +404,19 @@ std::vector<FormFactorSet> calculate_formFactors(
                             hole_particle, force_orthog);
     }
 
-    auto &own_multipoles = thread_multipoles[std::size_t(omp_get_thread_num())];
-    for (int k = Kmin; k <= Kmax; ++k) {
-      const auto tkp1_x = (2.0 * k + 1.0) * Fa_hf.occ_frac();
+    // The operators take qc as their "frequency" (or E itself in the
+    // diagonal, massless-absorption, case)
+    std::vector<std::pair<std::size_t, double>> q_columns;
+    if (diagonal_Eq) {
+      q_columns.emplace_back(0, Egrid[iE]);
+    } else {
       for (std::size_t iq = 0; iq < q_steps; ++iq) {
-        // The operators take qc as their "frequency" (or E itself in the
-        // diagonal, massless-absorption, case). Rank first (sets the
-        // parity), then frequency (fills the Bessel vectors)
-        const auto qc = diagonal_Eq ? Egrid[iE] : qgrid[iq] * PhysConst::c;
-        for (auto &h : own_multipoles) {
-          if (h) {
-            h->updateRank(k);
-            h->updateFrequency(qc);
-          }
-        }
-        for (const auto &Fe : cntm.orbitals) {
-          ChannelAmplitudes A{};
-          for (std::size_t i = 0; i < own_multipoles.size(); ++i) {
-            if (own_multipoles[i]) {
-              A[i] = own_multipoles[i]->reducedME(Fe, Fa);
-            }
-          }
-          accumulate_formFactors(&K_nk[ia], iE, iq, tkp1_x, A);
-        }
+        q_columns.emplace_back(iq, qgrid[iq] * PhysConst::c);
       }
     }
+    auto &own_multipoles = thread_multipoles[std::size_t(omp_get_thread_num())];
+    accumulate_multipole_sum(&K_nk[ia], iE, Fa, Fa.occ_frac(), cntm.orbitals,
+                             own_multipoles, Kmin, Kmax, q_columns);
     bar.update();
   }
 
@@ -701,9 +739,9 @@ FormFactorsRPA calculate_formFactors_RPA(
   // The bare factors over the full grids; the RPA factors start as these
   FormFactorsRPA factors;
   factors.bare = calculate_formFactors(
-    vHF, lc_minmax, ec_min, ec_max, force_rescale, hole_particle, force_orthog,
-    Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ, axialQ,
-    scalarQ, pseudoscalarQ, spatialQ, AtomicMethod::HF);
+    vHF, vHF->core(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
+    force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ,
+    axialQ, scalarQ, pseudoscalarQ, spatialQ, AtomicMethod::HF);
   factors.rpa = factors.bare;
   factors.eps.resize(E_steps, q_steps, 0.0);
 
