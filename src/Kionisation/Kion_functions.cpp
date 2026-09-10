@@ -487,7 +487,7 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
 }
 
 //==============================================================================
-FormFactorsRPA calculate_formFactors_RPA(
+FormFactorsRPA solve_formFactors_RPA(
   const HF::HartreeFock *vHF,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
   double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
@@ -544,19 +544,25 @@ FormFactorsRPA calculate_formFactors_RPA(
   const bool parallel_E = n_threads > 1 && active_E.size() >= n_threads;
   const bool parallel_q = !parallel_E && q_steps >= n_threads;
 
+  // Multipoles above the K limit are bare (no solve), but are still one
+  // step of the progress bar each
   const auto num_Ks = std::size_t(Kmax - Kmin + 1);
-  const auto solves_per_E = num_Ks * active_multipoles.size() * q_steps;
-  fmt::print("RPA: {} energies with an ionised orbital, {} solves per energy "
-             "(K x operators x q = {} x {} x {}); parallel over {}\n",
-             active_E.size(), solves_per_E, num_Ks, active_multipoles.size(),
-             q_steps,
-             parallel_E ? "E" :
-             parallel_q ? "q" :
-                          "RPA channels");
+  const auto num_Ks_rpa =
+    std::size_t(std::max(std::min(Kmax, rpa_options.K_max) - Kmin + 1, 0));
+  const auto steps_per_E = num_Ks * active_multipoles.size() * q_steps;
+  fmt::print(
+    "RPA: {} energies with an ionised orbital, {} solves per energy "
+    "(K x operators x q = {} x {} x {}) {}; parallel over {}\n",
+    active_E.size(), num_Ks_rpa * active_multipoles.size() * q_steps,
+    num_Ks_rpa, active_multipoles.size(), q_steps,
+    num_Ks_rpa < num_Ks ? fmt::format("; K > {} bare", rpa_options.K_max) : "",
+    parallel_E ? "E" :
+    parallel_q ? "q" :
+                 "RPA channels");
 
-  // Progress: one bar over the run when E is parallel (energies then finish
-  // out of order), else one per energy
-  qip::ProgressBar run_bar(active_E.size() * solves_per_E, parallel_E);
+  // One progress bar over the run (it counts steps, so the order in which
+  // the energies finish does not matter)
+  qip::ProgressBar bar(active_E.size() * steps_per_E, true);
 
 #pragma omp parallel for schedule(dynamic) if (parallel_E)
   for (std::size_t i = 0; i < active_E.size(); ++i) {
@@ -570,17 +576,9 @@ FormFactorsRPA calculate_formFactors_RPA(
     const auto channels = construct_channels(core, ionised);
     // The operators take qc as their "frequency" (omega itself in the
     // diagonal, massless-absorption, case)
-    const auto frequencies =
+    const auto qc_grid =
       diagonal_Eq ? std::vector<double>(q_steps, omega) : qgrid * PhysConst::c;
 
-    if (!parallel_E) {
-      fmt::print("E = {:.6g} eV: {} orbital(s) ionised, {} channels\n",
-                 omega * PhysConst::Hartree_eV, ionised.size(),
-                 channels.size());
-      std::cout << std::flush;
-    }
-    qip::ProgressBar E_bar(solves_per_E, !parallel_E);
-    auto &bar = parallel_E ? run_bar : E_bar;
     for (int k = Kmin; k <= Kmax; ++k) {
       // Amplitudes of every channel at every q, [iq][channel], filled one
       // operator at a time, then accumulated
@@ -588,7 +586,26 @@ FormFactorsRPA calculate_formFactors_RPA(
         q_steps, std::vector<ChannelAmplitudes>(channels.size()));
       auto A_rpa = A_bare;
 
+      // Multipoles above the RPA limit: bare amplitudes only, no solver
+      const bool bare_only = k > rpa_options.K_max;
+
       for (const auto i_op : active_multipoles) {
+        if (bare_only) {
+          auto h = multipoles[i_op]->clone();
+          h->updateRank(k);
+          for (std::size_t iq = 0; iq < q_steps; ++iq) {
+            h->updateFrequency(qc_grid[iq]);
+            for (std::size_t ic = 0; ic < channels.size(); ++ic) {
+              const auto &Fa = *channels[ic].hole;
+              const auto &Fe = *channels[ic].ejected;
+              if (!h->isZero(Fe, Fa)) {
+                A_bare[iq][ic][i_op] = h->reducedME(Fe, Fa);
+              }
+            }
+            bar.update();
+          }
+          continue;
+        }
 #pragma omp parallel if (parallel_q)
         {
           // Per thread: its own operator (rank set here, frequency per q)
@@ -600,7 +617,7 @@ FormFactorsRPA calculate_formFactors_RPA(
           rpa.eps_target() = rpa_options.eps;
 #pragma omp for schedule(static)
           for (std::size_t iq = 0; iq < q_steps; ++iq) {
-            h->updateFrequency(frequencies[iq]);
+            h->updateFrequency(qc_grid[iq]);
             const auto eps_solve =
               solve_channel_amplitudes(*h, i_op, &rpa, omega, rpa_options,
                                        channels, &A_bare[iq], &A_rpa[iq]);
@@ -615,6 +632,9 @@ FormFactorsRPA calculate_formFactors_RPA(
         }
       }
 
+      if (bare_only) {
+        A_rpa = A_bare;
+      }
       for (std::size_t iq = 0; iq < q_steps; ++iq) {
         for (std::size_t ic = 0; ic < channels.size(); ++ic) {
           const auto &channel = channels[ic];
@@ -632,72 +652,171 @@ FormFactorsRPA calculate_formFactors_RPA(
 }
 
 //==============================================================================
+FormFactorsRPA calculate_formFactors_RPA(
+  const HF::HartreeFock *vHF,
+  const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
+  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  const std::vector<double> &Egrid, const std::vector<double> &qgrid,
+  bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
+  int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
+  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options) {
+
+  assert(vHF != nullptr);
+  if (diagonal_Eq) {
+    assert(qgrid.size() == 1);
+  }
+  const auto E_steps = Egrid.size();
+  const auto q_steps = qgrid.size();
+
+  // The region of the grids within the RPA limits, as indices into the grids
+  // (which need not be ordered). In the diagonal case q = E/c, so the q
+  // limit is a limit on E
+  std::vector<std::size_t> E_region;
+  for (std::size_t iE = 0; iE < E_steps; ++iE) {
+    const auto q_at_E = diagonal_Eq ? Egrid[iE] * PhysConst::alpha : 0.0;
+    if (Egrid[iE] <= rpa_options.E_max && q_at_E <= rpa_options.q_max) {
+      E_region.push_back(iE);
+    }
+  }
+  std::vector<std::size_t> q_region;
+  for (std::size_t iq = 0; iq < q_steps; ++iq) {
+    if (diagonal_Eq || qgrid[iq] <= rpa_options.q_max) {
+      q_region.push_back(iq);
+    }
+  }
+
+  // No E or q limit in effect: the RPA is solved over the full grids (the K
+  // limit is applied inside)
+  if (E_region.size() == E_steps && q_region.size() == q_steps) {
+    return solve_formFactors_RPA(
+      vHF, lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
+      force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax,
+      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
+  }
+  fmt::print("RPA region: {} of {} energies, {} of {} momenta (E <= {:.4g} "
+             "au, q <= {:.4g} au); bare factors elsewhere\n",
+             E_region.size(), E_steps, q_region.size(), q_steps,
+             rpa_options.E_max, rpa_options.q_max);
+
+  // The bare factors over the full grids; the RPA factors start as these
+  FormFactorsRPA factors;
+  factors.bare = calculate_formFactors(
+    vHF, lc_minmax, ec_min, ec_max, force_rescale, hole_particle, force_orthog,
+    Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ, axialQ,
+    scalarQ, pseudoscalarQ, spatialQ, AtomicMethod::HF);
+  factors.rpa = factors.bare;
+  factors.eps.resize(E_steps, q_steps, 0.0);
+
+  if (E_region.empty() || q_region.empty()) {
+    return factors;
+  }
+
+  // The RPA on the region only, which replaces the bare factors there
+  std::vector<double> Egrid_region, qgrid_region;
+  for (const auto iE : E_region) {
+    Egrid_region.push_back(Egrid[iE]);
+  }
+  for (const auto iq : q_region) {
+    qgrid_region.push_back(qgrid[iq]);
+  }
+  const auto region = solve_formFactors_RPA(
+    vHF, lc_minmax, ec_min, ec_max, force_rescale, hole_particle, force_orthog,
+    Egrid_region, qgrid_region, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ,
+    axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
+
+  for (std::size_t ia = 0; ia < factors.rpa.size(); ++ia) {
+    for (std::size_t i = 0; i < factors.rpa[ia].size(); ++i) {
+      auto &K_rpa = factors.rpa[ia][i];
+      if (K_rpa.empty())
+        continue;
+      for (std::size_t jE = 0; jE < E_region.size(); ++jE) {
+        for (std::size_t jq = 0; jq < q_region.size(); ++jq) {
+          K_rpa(E_region[jE], q_region[jq]) = region.rpa[ia][i](jE, jq);
+        }
+      }
+    }
+  }
+  for (std::size_t jE = 0; jE < E_region.size(); ++jE) {
+    for (std::size_t jq = 0; jq < q_region.size(); ++jq) {
+      factors.eps(E_region[jE], q_region[jq]) = region.eps(jE, jq);
+    }
+  }
+
+  return factors;
+}
+
+//==============================================================================
+std::pair<std::size_t, std::size_t>
+count_failed_rpa(const LinAlg::Matrix<double> &eps, double eps_fail) {
+  std::size_t n_failed = 0;
+  std::size_t n_with_neighbour = 0;
+  for (std::size_t i = 0; i < eps.rows(); ++i) {
+    for (std::size_t j = 0; j < eps.cols(); ++j) {
+      if (!rpa_failed(eps(i, j), eps_fail))
+        continue;
+      ++n_failed;
+      const bool have_below = j > 0 && !rpa_failed(eps(i, j - 1), eps_fail);
+      const bool have_above =
+        j + 1 < eps.cols() && !rpa_failed(eps(i, j + 1), eps_fail);
+      if (have_below || have_above) {
+        ++n_with_neighbour;
+      }
+    }
+  }
+  return {n_failed, n_with_neighbour};
+}
+
+//==============================================================================
+void interpolate_failed_rpa(const LinAlg::Matrix<double> &eps, double eps_fail,
+                            const LinAlg::Matrix<double> &K_bare,
+                            LinAlg::Matrix<double> *K_rpa) {
+  assert(K_rpa != nullptr);
+  assert(K_bare.rows() == eps.rows() && K_bare.cols() == eps.cols());
+  assert(K_rpa->rows() == eps.rows() && K_rpa->cols() == eps.cols());
+
+  for (std::size_t i = 0; i < eps.rows(); ++i) {
+    for (std::size_t j = 0; j < eps.cols(); ++j) {
+      if (!rpa_failed(eps(i, j), eps_fail))
+        continue;
+      const bool have_below = j > 0 && !rpa_failed(eps(i, j - 1), eps_fail);
+      const bool have_above =
+        j + 1 < eps.cols() && !rpa_failed(eps(i, j + 1), eps_fail);
+      // Relative shift of each converged neighbour. A zero bare value has
+      // no shift to speak of
+      double sum_shift = 0.0;
+      int n_sides = 0;
+      if (have_below && K_bare(i, j - 1) != 0.0) {
+        sum_shift += (*K_rpa)(i, j - 1) / K_bare(i, j - 1);
+        ++n_sides;
+      }
+      if (have_above && K_bare(i, j + 1) != 0.0) {
+        sum_shift += (*K_rpa)(i, j + 1) / K_bare(i, j + 1);
+        ++n_sides;
+      }
+      if (n_sides == 0)
+        continue;
+      // Both sides: their mean. One side only: half its correction, since
+      // the shift is unconstrained on the other side
+      const auto shift =
+        n_sides == 2 ? 0.5 * sum_shift : 1.0 + 0.5 * (sum_shift - 1.0);
+      (*K_rpa)(i, j) = shift * K_bare(i, j);
+    }
+  }
+}
+
+//==============================================================================
 std::pair<std::size_t, std::size_t>
 interpolate_failed_rpa(FormFactorsRPA *K_rpa, double eps_fail) {
   assert(K_rpa != nullptr);
-
-  const auto E_steps = K_rpa->eps.rows();
-  const auto q_steps = K_rpa->eps.cols();
-
-  const auto failed = [&](std::size_t iE, std::size_t iq) {
-    const auto eps = K_rpa->eps(iE, iq);
-    return std::isnan(eps) || eps > eps_fail;
-  };
-
-  // Count number that failed
-  std::size_t n_failed = 0;
-  for (std::size_t iE = 0; iE < E_steps; ++iE) {
-    for (std::size_t iq = 0; iq < q_steps; ++iq) {
-      if (failed(iE, iq)) {
-        ++n_failed;
-      }
+  for (std::size_t ia = 0; ia < K_rpa->rpa.size(); ++ia) {
+    for (std::size_t i = 0; i < K_rpa->rpa[ia].size(); ++i) {
+      if (K_rpa->rpa[ia][i].empty())
+        continue;
+      interpolate_failed_rpa(K_rpa->eps, eps_fail, K_rpa->bare[ia][i],
+                             &K_rpa->rpa[ia][i]);
     }
   }
-  // No neighbour to interpolate from (a diagonal E-q calculation, say)
-  if (q_steps < 2) {
-    return {n_failed, 0};
-  }
-
-  std::size_t n_corrected = 0;
-  for (std::size_t iE = 0; iE < E_steps; ++iE) {
-    for (std::size_t iq = 0; iq < q_steps; ++iq) {
-      if (!failed(iE, iq))
-        continue;
-      const bool have_below = iq > 0 && !failed(iE, iq - 1);
-      const bool have_above = iq + 1 < q_steps && !failed(iE, iq + 1);
-      if (!have_below && !have_above)
-        continue;
-      for (std::size_t ia = 0; ia < K_rpa->rpa.size(); ++ia) {
-        for (std::size_t i = 0; i < K_rpa->rpa[ia].size(); ++i) {
-          auto &K_factor = K_rpa->rpa[ia][i];
-          const auto &K_bare = K_rpa->bare[ia][i];
-          if (K_factor.empty())
-            continue;
-          // Relative shift of each converged neighbour in q. A zero bare
-          // factor has no shift to speak of
-          double sum_shift = 0.0;
-          int n_sides = 0;
-          if (have_below && K_bare(iE, iq - 1) != 0.0) {
-            sum_shift += K_factor(iE, iq - 1) / K_bare(iE, iq - 1);
-            ++n_sides;
-          }
-          if (have_above && K_bare(iE, iq + 1) != 0.0) {
-            sum_shift += K_factor(iE, iq + 1) / K_bare(iE, iq + 1);
-            ++n_sides;
-          }
-          if (n_sides == 0)
-            continue;
-          // Both sides: their mean. One side only: half its correction,
-          // since the shift is unconstrained on the other side
-          const auto shift =
-            n_sides == 2 ? 0.5 * sum_shift : 1.0 + 0.5 * (sum_shift - 1.0);
-          K_factor(iE, iq) = shift * K_bare(iE, iq);
-        }
-      }
-      ++n_corrected;
-    }
-  }
-  return {n_failed, n_corrected};
+  return count_failed_rpa(K_rpa->eps, eps_fail);
 }
 
 //==============================================================================

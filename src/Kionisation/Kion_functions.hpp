@@ -25,9 +25,11 @@ class TDHFcntm;
 //! Functions for atomic ionisation form factors
 namespace Kion {
 
+//------------------------------------------------------------------------------
 //! DM-electron couplings
 enum class Coupling { Vector, Scalar, AxialVector, PseudoScalar, Error };
 
+//------------------------------------------------------------------------------
 /*!
   @brief Format for output file. (All new code should use xyz; matrix kept 
   for legacy code)
@@ -38,6 +40,7 @@ enum class Coupling { Vector, Scalar, AxialVector, PseudoScalar, Error };
 */
 enum class OutputFormat { matrix, xyz, Error };
 
+//------------------------------------------------------------------------------
 /*!
   @brief Units used in output file
 
@@ -48,6 +51,7 @@ enum class OutputFormat { matrix, xyz, Error };
 */
 enum class Units { Atomic, Particle, Error };
 
+//------------------------------------------------------------------------------
 /*!
   @brief Method used to solve bound/continuum states for form factors
 
@@ -66,6 +70,7 @@ enum class Units { Atomic, Particle, Error };
 */
 enum class AtomicMethod { HF, Zeff, ZeffAnalytic, RPA };
 
+//------------------------------------------------------------------------------
 /*!
   @brief Parses string (HF, Zeff, ZeffAnalytic, RPA) to AtomicMethod
   (case-insensitive).
@@ -75,9 +80,11 @@ enum class AtomicMethod { HF, Zeff, ZeffAnalytic, RPA };
 */
 AtomicMethod parseStatesMethod(const std::string &in_method);
 
+//------------------------------------------------------------------------------
 //! AtomicMethod to string (HF, Zeff, ZeffAnalytic, RPA)
 std::string parseStatesMethod(const AtomicMethod &in_method);
 
+//------------------------------------------------------------------------------
 /*!
   @brief Effective charge of an orbital, from its binding energy.
 
@@ -93,6 +100,7 @@ inline double Zeff_real(double en, int n) {
   return n * std::sqrt(std::abs(2.0 * en));
 }
 
+//------------------------------------------------------------------------------
 /*!
   @brief Checks the radial grid is dense enough for the continuum states and
   momentum transfers required.
@@ -115,17 +123,20 @@ inline double Zeff_real(double en, int n) {
 bool check_radial_grid(double Emax, double qmax, const Grid &rgrid,
                        double alpha = PhysConst::alpha);
 
+//------------------------------------------------------------------------------
 //! The 13 form factors of one bound orbital (or their sum), in the fixed
 //! order: {V_T, V_E, V_M, V_L, X, A_T, A_E, A_M, A_L, Y, Z, S, P}. A factor
 //! that is not calculated is left empty (0x0).
 using FormFactorSet = std::array<LinAlg::Matrix<double>, 13>;
 
+//------------------------------------------------------------------------------
 //! Reduced matrix elements <e||h||a> of one (bound, continuum) channel for
 //! each operator of the multipole set, in the order of multipole_operators():
 //! {t, E, M, L, t5, E5, M5, L5, S, S5}. Real (imaginary part zero) without
 //! RPA; complex (outgoing-wave amplitudes) with RPA. Zero if not calculated.
 using ChannelAmplitudes = std::array<std::complex<double>, 10>;
 
+//------------------------------------------------------------------------------
 //! Options for the RPA (core polarisation) form factors
 struct RPAOptions {
   //! Maximum RPA iterations per solve; 1 gives the first-order correction
@@ -135,8 +146,18 @@ struct RPAOptions {
   //! An RPA solve whose final eps is above this (or nan) is discarded: the
   //! bare (no-RPA) amplitude is used for that (E, q, K, operator)
   double eps_fail{1.0e-3};
+  //! The RPA is solved only for energy transfers E up to this (au); above
+  //! it the factors are the bare ones (see calculate_formFactors_RPA)
+  double E_max{1.0e99};
+  //! The RPA is solved only for momentum transfers q up to this (au); in the
+  //! diagonal (q = E/c) case this is a limit on E
+  double q_max{1.0e99};
+  //! The RPA is solved only for multipoles of rank K up to this; the higher
+  //! multipoles contribute their bare factors
+  int K_max{999};
 };
 
+//------------------------------------------------------------------------------
 //! Bare and RPA form factors of every core orbital, from
 //! calculate_formFactors_RPA()
 struct FormFactorsRPA {
@@ -145,10 +166,12 @@ struct FormFactorsRPA {
   //! Factors including RPA (the total, not the correction), indexed as core
   std::vector<FormFactorSet> rpa{};
   //! Worst RPA eps over K and operators at each (E, q); zero where no
-  //! orbital is ionised
+  //! orbital is ionised, or where the RPA was not solved (outside the
+  //! RPAOptions limits)
   LinAlg::Matrix<double> eps{};
 };
 
+//------------------------------------------------------------------------------
 /*!
   @brief Small helper to allocate/size the requested factors.
 
@@ -172,6 +195,7 @@ FormFactorSet allocate_formFactors(std::size_t E_steps, std::size_t q_steps,
                                    bool vectorQ, bool axialQ, bool scalarQ,
                                    bool pseudoscalarQ, bool spatialQ);
 
+//------------------------------------------------------------------------------
 /*!
   @brief Constructs the required multipole operator set for the form factors (at w=q=0)
 
@@ -202,6 +226,7 @@ multipole_operators(const Grid &grid, bool low_q,
                     bool axialQ, bool scalarQ, bool pseudoscalarQ,
                     bool spatialQ);
 
+//------------------------------------------------------------------------------
 /*!
   @brief Adds the contribution of one (bound, continuum) channel to the form
   factors at (iE, iq).
@@ -222,6 +247,7 @@ void accumulate_formFactors(FormFactorSet *K_factors, std::size_t iE,
                             std::size_t iq, double tkp1_x,
                             const ChannelAmplitudes &A);
 
+//------------------------------------------------------------------------------
 /*!
   @brief Calculates all 13 form factors (V, A, S, P) for every core orbital.
 
@@ -284,6 +310,7 @@ std::vector<FormFactorSet> calculate_formFactors(
   bool pseudoscalarQ, bool spatialQ, AtomicMethod method = AtomicMethod::HF,
   double zeff_constant = 0.0);
 
+//------------------------------------------------------------------------------
 //! One ionisation channel: a hole in a core orbital, and the ejected
 //! (continuum) state
 struct IonisationChannel {
@@ -295,6 +322,7 @@ struct IonisationChannel {
   const DiracSpinor *ejected{nullptr};
 };
 
+//------------------------------------------------------------------------------
 /*!
   @brief Range of continuum l reached from a bound orbital by multipoles of
   rank up to Kmax.
@@ -312,6 +340,7 @@ std::pair<int, int>
 continuum_l_range(const DiracSpinor &Fa, int Kmax,
                   const std::optional<std::array<int, 2>> &lc_minmax);
 
+//------------------------------------------------------------------------------
 //! A core orbital ionised at one energy transfer, with the continuum states
 //! of its ejected electron
 struct IonisedOrbital {
@@ -321,6 +350,7 @@ struct IonisedOrbital {
   ContinuumOrbitals ejected;
 };
 
+//------------------------------------------------------------------------------
 /*!
   @brief The core orbitals ionised by an energy transfer omega, each with the
   Hartree-Fock continuum states of its ejected electron.
@@ -349,6 +379,7 @@ std::vector<IonisedOrbital> solve_ionised_orbitals_at_omega(
   int Kmax, const std::optional<std::array<int, 2>> &lc_minmax,
   bool force_rescale, bool hole_particle, bool force_orthog);
 
+//------------------------------------------------------------------------------
 /*!
   @brief Every (hole orbital, ejected state) channel at one energy transfer.
 
@@ -365,12 +396,14 @@ std::vector<IonisationChannel>
 construct_channels(const std::vector<DiracSpinor> &core,
                    const std::vector<IonisedOrbital> &ionised);
 
+//------------------------------------------------------------------------------
 //! Indices of the requested (non-null) operators of a multipole_operators()
 //! set, in its order
 std::vector<std::size_t> active_operators(
   const std::array<std::unique_ptr<DiracOperator::TensorOperator>, 10>
     &operators);
 
+//------------------------------------------------------------------------------
 /*!
   @brief One RPA solve: the bare and RPA amplitudes of every channel, for one
   operator at one (E, K, q).
@@ -407,9 +440,11 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
                                 std::vector<ChannelAmplitudes> *A_bare,
                                 std::vector<ChannelAmplitudes> *A_rpa);
 
+//------------------------------------------------------------------------------
 /*!
-  @brief Calculates the form factors for every core orbital, without and with
-  RPA (core polarisation) from the outgoing-wave TDHF.
+  @brief Bare and RPA (core polarisation) form factors of every core orbital,
+  with the RPA solved at every point of the grids, from the outgoing-wave
+  TDHF.
 
   @details
   The bare factors are exactly those of calculate_formFactors() (Hartree-Fock
@@ -426,12 +461,17 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
   Parallel over the coarsest axis that keeps every thread busy. Over the
   energies at which some orbital is ionised, when there are at least as many
   as threads: each thread solves its energies in full, with its own
-  continuum states and solver, and the q points in one warm-start chain
-  (one progress bar over the run). Otherwise, within each (E, K, operator)
-  block, over q when there are at least as many as threads (each thread
-  owns a solver, and its solves warm start from the neighbouring q); else q
-  runs serially with the solver's own parallelism (one progress bar per
-  energy).
+  continuum states and solver, and the q points in one warm-start chain.
+  Otherwise, within each (E, K, operator) block, over q when there are at
+  least as many as threads (each thread owns a solver, and its solves warm
+  start from the neighbouring q); else q runs serially with the solver's own
+  parallelism. Prints one summary line at the start, then a progress bar.
+
+  The RPA is solved at every (E, q) given: the E and q limits of
+  @p rpa_options are not applied here (see calculate_formFactors_RPA(), which
+  restricts the grids to the region within them; what the formFactors module
+  uses). The K limit is: multipoles above RPAOptions::K_max contribute their
+  bare amplitudes, with no solve.
 
   @param vHF            Hartree-Fock potential; its core defines the orbitals.
   @param lc_minmax      Optional limits on the continuum orbital l.
@@ -453,8 +493,9 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
   @param scalarQ        Calculate the scalar factor.
   @param pseudoscalarQ  Calculate the pseudoscalar factor.
   @param spatialQ       Calculate the spatial (E, M, L) components.
-  @param rpa_options    RPA iterations, convergence target, and the eps above
-                        which a solve is discarded (see RPAOptions).
+  @param rpa_options    RPA iterations, convergence target, the eps above
+                        which a solve is discarded, and the K limit (see
+                        RPAOptions); the E and q limits are not applied.
   @return The bare and RPA factors of each core orbital, and the worst RPA
           eps at each (E, q).
 
@@ -463,6 +504,71 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
         the solver is cleared so the next q does not warm start from it (see
         solve_channel_amplitudes()). FormFactorsRPA::eps records the worst
         eps at each (E, q), for diagnostics.
+
+  @warning The continuum states must be those of the residual ion
+           (@p hole_particle = true) for the RPA amplitude to be consistent;
+           see ExternalField::TDHFcntm::dV_complex.
+*/
+FormFactorsRPA solve_formFactors_RPA(
+  const HF::HartreeFock *vHF,
+  const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
+  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  const std::vector<double> &Egrid, const std::vector<double> &qgrid,
+  bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
+  int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
+  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options = {});
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Calculates the form factors for every core orbital, without and with
+  RPA (core polarisation), the RPA solved only within the limits of
+  RPAOptions.
+
+  @details
+  The bare factors are those of calculate_formFactors() (Hartree-Fock states)
+  over the full grids. The RPA is solved (solve_formFactors_RPA()) only on
+  the region of the grids with \f$ E \le E_{\rm max} \f$ and
+  \f$ q \le q_{\rm max} \f$ (RPAOptions::E_max, q_max), and its factors
+  replace the bare ones there; elsewhere the RPA factors are the bare ones.
+  Multipoles above RPAOptions::K_max are bare everywhere (applied inside
+  solve_formFactors_RPA()). In the diagonal case (q = E/c) the q limit is a
+  limit on E. With no E or q limit in effect the RPA is solved over the full
+  grids directly, and the bare factors are calculated once only.
+
+  The limits exist because the RPA is expensive, and hard to converge, at
+  high E, q, and K (many open channels; rapidly oscillating operators) where
+  its effect on the factors is small: they confine the work to the low-E,
+  low-q, low-K region where the core polarisation matters.
+
+  @param vHF            Hartree-Fock potential; its core defines the orbitals.
+  @param lc_minmax      Optional limits on the continuum orbital l.
+  @param ec_min         Minimum ejected electron energy, in au.
+  @param ec_max         Maximum ejected electron energy, in au.
+  @param force_rescale  Rescale V(r) at large r for the continuum states.
+  @param hole_particle  Solve the continuum in the V^(N-1) potential of the
+                        hole (required here; see warning).
+  @param force_orthog   Orthogonalise the continuum states to the core.
+  @param Egrid          Energy transfer grid, in au.
+  @param qgrid          Momentum transfer grid, in au (size 1 if diagonal).
+  @param diagonal_Eq    Momentum transfer set equal to the energy transfer.
+  @param low_q          Use the low-q form of the operators.
+  @param jK_tab         Precomputed spherical Bessel table.
+  @param Kmin           Minimum multipolarity K.
+  @param Kmax           Maximum multipolarity K.
+  @param vectorQ        Calculate the vector factors.
+  @param axialQ         Calculate the axial-vector factors.
+  @param scalarQ        Calculate the scalar factor.
+  @param pseudoscalarQ  Calculate the pseudoscalar factor.
+  @param spatialQ       Calculate the spatial (E, M, L) components.
+  @param rpa_options    RPA iterations, convergence target, the eps above
+                        which a solve is discarded, and the E, q, K limits
+                        (see RPAOptions).
+  @return The bare and RPA factors of each core orbital, and the worst RPA
+          eps at each (E, q): zero outside the RPA region.
+
+  @note An unconverged solve within the region is treated as in
+        solve_formFactors_RPA(): the bare amplitude is used there, and
+        FormFactorsRPA::eps records it.
 
   @warning The continuum states must be those of the residual ion
            (@p hole_particle = true) for the RPA amplitude to be consistent;
@@ -477,43 +583,88 @@ FormFactorsRPA calculate_formFactors_RPA(
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
   bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options = {});
 
+//------------------------------------------------------------------------------
+//! A failed RPA solve: final eps above eps_fail, or nan
+inline bool rpa_failed(double eps, double eps_fail) {
+  return std::isnan(eps) || eps > eps_fail;
+}
+
+//------------------------------------------------------------------------------
 /*!
-  @brief Corrects (E,q) points at which the RPA solve failed, by interpolating
-  the relative RPA shift from the neighbouring q.
+  @brief Counts the points of an RPA eps table at which the solve failed, and
+  those of them with a converged neighbour along the columns.
 
   @details
-  Where a solve fails the bare amplitude is used, which leaves a step in an
-  otherwise smooth factor. The relative shift \f$ R = K_{\rm RPA}/K_{\rm
-  bare} \f$ varies slowly with q, so it is taken from the converged
-  neighbours and applied to the bare factor,
-  \f$ K_{\rm RPA}(E,q_i) = R\,K_{\rm bare}(E,q_i) \f$, for every factor of
-  every orbital:
+  A point fails if rpa_failed(); its neighbours are the adjacent columns of
+  the same row (the q grid for the form factors, the energy grid for
+  photoionisation). Those with at least one converged neighbour are the
+  points interpolate_failed_rpa() corrects.
+
+  @param eps       Final RPA eps of each point (rows x columns).
+  @param eps_fail  Failure threshold; as RPAOptions::eps_fail.
+  @return {number of failed points, number of those with a converged
+          neighbour}.
+*/
+std::pair<std::size_t, std::size_t>
+count_failed_rpa(const LinAlg::Matrix<double> &eps, double eps_fail);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Corrects the points at which the RPA solve failed, by interpolating
+  the relative RPA shift from the neighbouring columns.
+
+  @details
+  Where a solve fails the bare value is used, which leaves a step in an
+  otherwise smooth function. The relative shift \f$ R = K_{\rm RPA}/K_{\rm
+  bare} \f$ varies slowly along the columns (q for the form factors, the
+  photon energy for photoionisation), so it is taken from the converged
+  neighbours and applied to the bare value,
+  \f$ K_{\rm RPA}(i,j) = R\,K_{\rm bare}(i,j) \f$:
   \f[
-    R = \frac{1}{2}(R_{i-1} + R_{i+1}),
+    R = \frac{1}{2}(R_{j-1} + R_{j+1}),
     \qquad
-    R = 1 + \frac{1}{2}(R_{i\mp1} - 1),
+    R = 1 + \frac{1}{2}(R_{j\mp1} - 1),
   \f]
   the mean of the two when both have converged; half the relative correction
   when only one has, since the shift is then unconstrained on the other side.
   A point with no converged neighbour (in a run of adjacent failures, a
-  resonance say) is left as it is.
+  resonance say) is left as it is, as is one whose converged neighbours have
+  a zero bare value. Points that fail are never used as neighbours, so the
+  result does not depend on the order of the corrections.
+
+  @param eps       Final RPA eps of each point (rows x columns).
+  @param eps_fail  Failure threshold (see rpa_failed()).
+  @param K_bare    Bare (no-RPA) values, same shape as @p eps.
+  @param K_rpa     RPA values, same shape; corrected in place.
+
+  @note Corrects nothing with a single column, since there is no neighbour
+        to interpolate from. Only meaningful for an iterated solve: after a
+        first-order solve (RPAOptions::max_its of 1) eps is the size of the
+        correction, not a convergence measure.
+*/
+void interpolate_failed_rpa(const LinAlg::Matrix<double> &eps, double eps_fail,
+                            const LinAlg::Matrix<double> &K_bare,
+                            LinAlg::Matrix<double> *K_rpa);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Corrects the (E,q) points at which the RPA solve failed, for every
+  factor of every orbital, by interpolating in q.
+
+  @details
+  interpolate_failed_rpa() (the matrix form) applied to each allocated
+  factor, with the neighbours along q; see there for the formula.
 
   @param K_rpa    Bare and RPA factors, and the eps of each (E,q); the RPA
                   factors are updated in place.
-  @param eps_fail Solves with eps above this (or nan) counted as failed; as
-                  RPAOptions::eps_fail.
+  @param eps_fail Failure threshold; as RPAOptions::eps_fail.
   @return {number of (E,q) points that failed, number of those corrected};
-          the rest keep the no-RPA value.
-
-  @note Corrects nothing if there is only one q point (a diagonal E-q
-        calculation, say), since there is then no neighbour to interpolate
-        from. Only meaningful for an iterated solve: after a
-        first-order solve (RPAOptions::max_its of 1) eps is the size of the
-        correction, not a convergence measure.
+          the rest keep the no-RPA value (see count_failed_rpa()).
 */
 std::pair<std::size_t, std::size_t>
 interpolate_failed_rpa(FormFactorsRPA *K_rpa, double eps_fail);
 
+//------------------------------------------------------------------------------
 /*!
   @brief Calculates the ionisation factor K(E,q) for one core state, using the
   standard (single multipole operator) method. New code should use calculate_formFactors
@@ -552,6 +703,7 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
               bool force_rescale, bool hole_particle, bool force_orthog,
               bool zeff_cont, bool zeff_bound, double ec_cut = 1.0e99);
 
+//------------------------------------------------------------------------------
 /*!
   @brief Writes output file in matrix form.
 
@@ -574,6 +726,7 @@ void write_to_file_matrix(const LinAlg::Matrix<double> &K,
                           const std::string &filename, int num_digits = 5,
                           Units units = Units::Particle);
 
+//------------------------------------------------------------------------------
 /*!
   @brief Writes output file in 'xyz' form: for easy 2D interpolation.
 
@@ -603,6 +756,7 @@ void write_to_file_xyz(const std::string &filename,
                        Units units = Units::Particle, int num_digits = 6,
                        bool diagonal = false);
 
+//------------------------------------------------------------------------------
 //! As write_to_file_xyz, for a FormFactorSet (empty factors are skipped)
 void write_to_file_xyz_13(
   const std::string &filename, const std::vector<double> &E_grid,
