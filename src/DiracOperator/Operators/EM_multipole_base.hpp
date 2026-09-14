@@ -35,9 +35,9 @@ namespace DiracOperator {
   Specifically, the stored parameters are: a pointer to the radial grid, the
   current frequency @p omega (updated by each derived class's
   updateFrequency()), the Lorentz type character @p m_type, the component
-  character @p m_comp, the low-q flag @p m_low_q, an optional Bessel table
-  pointer @p m_jl (shallow-owned; shared between original and clone), and a
-  form character @p m_form (used to distinguish the length-form electric
+  character @p m_comp, the low-q flag @p m_low_q, the high-q flag @p m_high_q, 
+  an optional Bessel table pointer @p m_jl (shallow-owned; shared between original 
+  and clone), and a form character @p m_form (used to distinguish the length-form electric
   operator VEk_Len from the velocity-form VEk).
 
   All concrete EM multipole operators -- VEk, VMk, VLk, Phik, Sk, AEk, ALk,
@@ -63,18 +63,20 @@ protected:
     @param type     Lorentz type: 'V', 'A', 'S', or 'P'.
     @param comp     Component: 'E', 'M', 'L', or 'T'.
     @param low_q    True for the low-momentum (long-wavelength) approximation.
+    @param high_q   True for the high-momentum (short-wavelength) approximation.
     @param jl       Optional pointer to a precomputed Bessel table.
     @param form     'V' (velocity/V-form) or 'L' (length-form, VEk_Len only).
   */
   EM_multipole(int rank_k, Parity pi, double constant,
                const std::vector<double> &vec, Realness RorI, bool freq_dep,
-               const Grid *grid, char type, char comp, bool low_q,
+               const Grid *grid, char type, char comp, bool low_q, bool high_q = false,
                const SphericalBessel::JL_table *jl = nullptr, char form = 'V')
     : TensorOperator(rank_k, pi, constant, vec, RorI, freq_dep),
       m_grid(grid),
       m_type(type),
       m_comp(comp),
       m_low_q(low_q),
+      m_high_q(high_q),
       m_form(form),
       m_jl(jl) {}
 
@@ -116,6 +118,8 @@ public:
       base += "(Len)";
     if (m_low_q)
       base += "(lq)";
+    if (m_high_q)
+      base += "(hq)";
     return base + "_" + std::to_string(m_rank);
   }
 
@@ -174,6 +178,7 @@ protected:
   char m_type{};
   char m_comp{};
   bool m_low_q{};
+  bool m_high_q{};
   char m_form{};
   const SphericalBessel::JL_table *m_jl{nullptr};
 

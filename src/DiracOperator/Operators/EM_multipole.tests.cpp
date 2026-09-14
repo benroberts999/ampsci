@@ -42,7 +42,7 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
     "VE_Len", "VE", "VM", "VL", "VT", "AE", "AM", "AL", "AT", "S", "P"};
 
   auto use_helper_function =
-    [&](const std::string &name, bool low_q, int k,
+    [&](const std::string &name, bool low_q, bool high_q, int k,
         SphericalBessel::JL_table *jl =
           nullptr) -> std::unique_ptr<DiracOperator::TensorOperator> {
     using namespace DiracOperator;
@@ -67,6 +67,34 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
         return std::make_unique<ALk_lowq>(wf.grid(), k, 1.0e-4);
       if (name == "AT")
         return std::make_unique<Phi5k_lowq>(wf.grid(), k, 1.0e-4);
+
+      // Scalar / pseudoscalar
+      if (name == "S")
+        return std::make_unique<Sk_lowq>(wf.grid(), k, 1.0e-4);
+      if (name == "P")
+        return std::make_unique<S5k_lowq>(wf.grid(), k, 1.0e-4);
+    }
+
+    if (high_q) {
+      // Vector
+      if (name == "VE")
+        return std::make_unique<VEk_highq>(wf.grid(), k, 1.0e-4);
+      if (name == "VM")
+        return std::make_unique<VMk_highq>(wf.grid(), k, 1.0e-4);
+      if (name == "VL")
+        return std::make_unique<VLk_highq>(wf.grid(), k, 1.0e-4);
+      if (name == "VT")
+        return std::make_unique<Phik_highq>(wf.grid(), k, 1.0e-4);
+
+      // Axial
+      if (name == "AE")
+        return std::make_unique<AEk_highq>(wf.grid(), k, 1.0e-4);
+      if (name == "AM")
+        return std::make_unique<AMk_highq>(wf.grid(), k, 1.0e-4);
+      if (name == "AL")
+        return std::make_unique<ALk_highq>(wf.grid(), k, 1.0e-4);
+      if (name == "AT")
+        return std::make_unique<Phi5k_highq>(wf.grid(), k, 1.0e-4);
 
       // Scalar / pseudoscalar
       if (name == "S")
@@ -111,10 +139,14 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
   for (const auto &name : op_names) {
     std::cout << name << "\n";
     for (const auto &low_q : {false, true}) {
+      for (const auto &high_q : {false, true}) {
       for (int k = 0; k <= max_L; ++k) {
         for (double omega : omegas) {
 
           if (low_q && name == "VE_Len")
+            continue;
+
+          if (high_q && name == "VE_Len")
             continue;
 
           // Version one: using 'generate'
@@ -133,16 +165,20 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
             opts += "low_q=true;";
           }
 
+          if (high_q) {
+            opts += "high_q=true;";
+          }
+
           auto h = DiracOperator::generate("Multipole", {"", opts}, wf);
 
           //using "helper" functions
-          auto h_3 = use_helper_function(name, low_q, k);
+          auto h_3 = use_helper_function(name, low_q, high_q, k);
           h_3->updateFrequency(omega);
 
           // Using Bessel loolup table
           std::unique_ptr<DiracOperator::TensorOperator> h_4{nullptr};
           if (!low_q) {
-            h_4 = use_helper_function(name, low_q, k, &jl_table);
+            h_4 = use_helper_function(name, low_q, high_q, k, &jl_table);
             h_4->updateFrequency(omega);
           }
 
@@ -195,6 +231,7 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
           }
         }
       }
+    }
     }
   }
 
@@ -268,7 +305,7 @@ TEST_CASE("EM_multipole updateRank", "[DiracOperator][unit][EM_multipole]") {
     // Single polymorphic operator constructed once at K=Ks[0], omega=omegas[0];
     // updated via updateRank + updateFrequency for each subsequent (k, omega).
     auto op_update = DiracOperator::MultipoleOperator(
-      wf.grid(), 0, 0.0, spec.type, spec.comp, false);
+      wf.grid(), 0, 0.0, spec.type, spec.comp, false, false);
     std::cout << spec.type << " " << spec.comp << std::endl;
     // std::cout << op_update->name() << "\n";
     REQUIRE(op_update != nullptr);
@@ -278,7 +315,7 @@ TEST_CASE("EM_multipole updateRank", "[DiracOperator][unit][EM_multipole]") {
 
         // Fresh operator constructed directly for this (k, omega)
         const auto op_fresh = DiracOperator::MultipoleOperator(
-          wf.grid(), k, omega, spec.type, spec.comp, false);
+          wf.grid(), k, omega, spec.type, spec.comp, false, false);
         REQUIRE(op_fresh != nullptr);
 
         // Update the persistent operator to the same (k, omega)

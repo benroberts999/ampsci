@@ -681,6 +681,9 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
      {"low_q", "Explicitly use low-q form of operators. These are only valid "
                "at low q only, and are used for numerical tests. (nb: All are "
                "zero for K>2.) [false]"},
+     {"high_q", "Explicitly use high-q form of operators. These are only valid "
+               "at high q, and are used for numerical tests. (nb: All are "
+               "zero for K>2.) NOTE: HAS NOT BEEN TESTED!! [false]"},
      {"force_rescale", "Rescale atomic potential V(r) at large r when solving "
                        "continuum orbitals. Should be false for local "
                        "potentials or if hole-particle is included. [false]"},
@@ -858,10 +861,16 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Only calculating temporal parts (non-relativistic)\n";
   }
 
+  // Tests for low/high q limits
   const auto low_q = input.get("low_q", false);
   if (low_q)
     std::cout << "\nExplicitely using low-q form of operators.\n"
                  "Valid only for q << 1/a0 ~ 1e-3 MeV\n\n";
+
+  const auto high_q = input.get("high_q", false);
+  if (high_q)
+    std::cout << "\nExplicitely using high-q form of operators.\n";
+                 //"Valid only for q << 1/a0 ~ 1e-3 MeV\n\n"; <- add the bounds of validity
 
   // Multipolarity:
   const auto [Kmin, Kmax] = input.get("K_minmax", std::array{0, 6});
@@ -1026,7 +1035,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                      std::to_string(lc_minmax->at(1)) + "_" :
                    "")               //
     + (ec_minmax_eV ? "eclim_" : "") //
-    + (low_q ? "lowq_" : "");        //
+    + (low_q ? "lowq_" : "")        //
+    + (high_q ? "highq_" : "");        //
 
   if (vectorQ)
     ofname_prefix += "V";
@@ -1072,7 +1082,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     // Form factors for specific bound state, Fa:
     const auto K_factors_nk = Kion::calculate_formFactors_nk(
       wf.vHF(), Fa, lc_min, lc_max, ec_min, ec_max, force_rescale,
-      hole_particle, force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab,
+      hole_particle, force_orthog, Egrid, qgrid, diagonal_Eq, low_q, high_q, jK_tab,
       Kmin, Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ,
       states_method, Zeff_constant);
 

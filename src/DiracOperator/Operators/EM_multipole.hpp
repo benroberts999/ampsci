@@ -9,6 +9,7 @@
 // include the 'low qr' form here, simply for convenience
 // (EM_multipole_lowqr.hpp already includes EM_multipole_base.hpp)
 #include "EM_multipole_lowqr.hpp"
+#include "EM_multipole_highqr.hpp"
 
 namespace DiracOperator {
 
@@ -32,7 +33,7 @@ public:
   VEk_Len(const Grid &gr, int K, double omega,
           const SphericalBessel::JL_table *jl = nullptr)
     : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                   gr.r(), Realness::imaginary, true, &gr, 'V', 'E', false, jl,
+                   gr.r(), Realness::imaginary, true, &gr, 'V', 'E', false, false, jl,
                    'L') {
     if (omega != 0.0)
       updateFrequency(omega);
@@ -630,6 +631,7 @@ struct Multipole {
       {"omega", "Frequency: nb: q := alpha*omega [1.0e-4]"},
       {"type", "V,A,S,P (Vector, Axial, Scalar, Pseudoscalar) [V]"},
       {"low_q", "bool. Use low-q formulas (K=0 and 1 only, no L-form) [false]"},
+      {"high_q", "bool. Use high-q formulas (K=0 and 1 only, no L-form) [false]"},
       {"component", "E,M,L,T (electric, magnetic, longitudanel, temporal). "
                     "Temporal is forced if type = S or P. [E]"},
       {"form", "L,V (Length, Velocity); only for electric vector [L]"},
@@ -641,6 +643,7 @@ struct Multipole {
     const auto omega = input.get("omega", 1.0e-4);
 
     const auto low_q = input.get("low_q", false);
+    const auto high_q = input.get("high_q", false);
 
     using namespace std::string_literals;
     const auto type = input.get("type", "V"s);
@@ -691,6 +694,36 @@ struct Multipole {
         return std::make_unique<Sk_lowq>(wf.grid(), k, omega);
       if (PseudoScalar)
         return std::make_unique<S5k_lowq>(wf.grid(), k, omega);
+    }
+
+    if (high_q) {
+      if (Electric && Vector)
+        return std::make_unique<VEk_highq>(wf.grid(), k, omega);
+      if (Electric && AxialVector)
+        return std::make_unique<AEk_highq>(wf.grid(), k, omega);
+
+      // Longitudinal
+      if (Longitudinal && Vector)
+        return std::make_unique<VLk_highq>(wf.grid(), k, omega);
+      if (Longitudinal && AxialVector)
+        return std::make_unique<ALk_highq>(wf.grid(), k, omega);
+
+      // Magnetic
+      if (Magnetic && Vector)
+        return std::make_unique<VMk_highq>(wf.grid(), k, omega);
+      if (Magnetic && AxialVector)
+        return std::make_unique<AMk_highq>(wf.grid(), k, omega);
+
+      // Temporal
+      if (Temporal && Vector)
+        return std::make_unique<Phik_highq>(wf.grid(), k, omega);
+      if (Temporal && AxialVector)
+        return std::make_unique<Phi5k_highq>(wf.grid(), k, omega);
+
+      // if (Scalar)
+      //   return std::make_unique<Sk_lowq>(wf.grid(), k, omega);
+      // if (PseudoScalar)
+      //   return std::make_unique<S5k_lowq>(wf.grid(), k, omega);
     }
 
     // Electric:
@@ -777,6 +810,8 @@ struct Multipole {
                 (Ignored for scalar and pseudoscalar operators.)
   @param low_q  If true, construct the low-momentum (long-wavelength)
                 approximation of the operator.
+  @param high_q If true, construct the high-momentum (short-wavelength)
+                approximation of the operator.
   @param jl     Optional pointer to a precomputed spherical Bessel table.
                 If provided, radial Bessel functions are taken from this
                 table to avoid recomputation. If nullptr, they are generated
@@ -792,6 +827,6 @@ struct Multipole {
 */
 std::unique_ptr<DiracOperator::TensorOperator>
 MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,
-                  bool low_q, const SphericalBessel::JL_table *jl = nullptr);
+                  bool low_q, bool high_q, const SphericalBessel::JL_table *jl = nullptr);
 
 } // namespace DiracOperator

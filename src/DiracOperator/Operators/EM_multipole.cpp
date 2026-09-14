@@ -619,7 +619,7 @@ void S5k::updateFrequency(const double omega) {
 std::unique_ptr<TensorOperator> EM_multipole::clone() const {
   if (m_form == 'L')
     return std::make_unique<VEk_Len>(*m_grid, m_rank, m_omega, m_jl);
-  return MultipoleOperator(*m_grid, m_rank, m_omega, m_type, m_comp, m_low_q,
+  return MultipoleOperator(*m_grid, m_rank, m_omega, m_type, m_comp, m_low_q, m_high_q,
                            m_jl);
 }
 
@@ -627,7 +627,7 @@ std::unique_ptr<TensorOperator> EM_multipole::clone() const {
 // Factory for relativistic multipole operators.
 std::unique_ptr<DiracOperator::TensorOperator>
 MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,
-                  bool low_q, const SphericalBessel::JL_table *jl) {
+                  bool low_q, bool high_q, const SphericalBessel::JL_table *jl) {
 
   // quick exit if requsting no operator:
   if (comp == '0' || type == '0') {
@@ -691,6 +691,34 @@ MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,
   if (low_q && PseudoScalar)
     return std::make_unique<S5k_lowq>(grid, k, omega);
 
+  // -------- high-q branch --------
+  if (high_q && Electric && Vector)
+    return std::make_unique<VEk_highq>(grid, k, omega);
+  if (high_q && Electric && AxialVector)
+    return std::make_unique<AEk_highq>(grid, k, omega);
+
+  if (high_q && Longitudinal && Vector)
+    return std::make_unique<VLk_highq>(grid, k, omega);
+  if (high_q && Longitudinal && AxialVector)
+    return std::make_unique<ALk_highq>(grid, k, omega);
+
+  if (high_q && Magnetic && Vector)
+    return std::make_unique<VMk_highq>(grid, k, omega);
+  if (high_q && Magnetic && AxialVector)
+    return std::make_unique<AMk_highq>(grid, k, omega);
+
+  if (high_q && Temporal && Vector)
+    return std::make_unique<Phik_highq>(grid, k, omega);
+  if (high_q && Temporal && AxialVector)
+    return std::make_unique<Phi5k_highq>(grid, k, omega);
+
+  // Need to implement this after I calculate the high-q matrix elements
+
+  if (high_q && Scalar)
+    return std::make_unique<Sk_lowq>(grid, k, omega);
+  if (high_q && PseudoScalar)
+    return std::make_unique<S5k_lowq>(grid, k, omega);
+
   // -------- normal-q branch --------
 
   if (Electric && Vector)
@@ -720,7 +748,7 @@ MultipoleOperator(const Grid &grid, int k, double omega, char type, char comp,
 
   // Should be unreachable if validation above is correct
   std::cout << "make_tensor_op: no operator matched (type=" << type
-            << ", comp=" << comp << ", low_q=" << low_q << ")\n";
+            << ", comp=" << comp << ", low_q=" << low_q << ", high_q=" << high_q << ")\n";
   return nullptr;
 }
 

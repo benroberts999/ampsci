@@ -148,7 +148,7 @@ std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
   const HF::HartreeFock *vHF, const DiracSpinor &Fa, int lc_min, int lc_max,
   double ec_min, double ec_max, bool force_rescale, bool hole_particle,
   bool force_orthog, const std::vector<double> &Egrid,
-  const std::vector<double> &qgrid, bool diagonal_Eq, bool low_q,
+  const std::vector<double> &qgrid, bool diagonal_Eq, bool low_q, bool high_q,
   const SphericalBessel::JL_table &jK_tab, int Kmin, int Kmax, bool vectorQ,
   bool axialQ, bool scalarQ, bool pseudoscalarQ, bool spatialQ,
   AtomicMethod method, double zeff_constant) {
@@ -252,7 +252,7 @@ std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
     -> std::vector<std::unique_ptr<DiracOperator::TensorOperator>> {
     const auto op0 =
       include ? DiracOperator::MultipoleOperator(vHF->grid(), 0, 0.0, type,
-                                                 comp, low_q, &jK_tab) :
+                                                 comp, low_q, high_q, &jK_tab) :
                 nullptr;
     std::vector<std::unique_ptr<DiracOperator::TensorOperator>> ops;
     ops.reserve(max_threads);

@@ -86,7 +86,7 @@ std::array<LinAlg::Matrix<double>, 13> calculate_formFactors_nk(
   const HF::HartreeFock *vHF, const DiracSpinor &Fa, int lc_min, int lc_max,
   double ec_min, double ec_max, bool force_rescale, bool hole_particle,
   bool force_orthog, const std::vector<double> &Egrid,
-  const std::vector<double> &qgrid, bool diagonal_Eq, bool low_q,
+  const std::vector<double> &qgrid, bool diagonal_Eq, bool low_q, bool high_q,
   const SphericalBessel::JL_table &jK_tab, int Kmin, int Kmax, bool vectorQ,
   bool axialQ, bool scalarQ, bool pseudoscalarQ, bool spatialQ,
   AtomicMethod method = AtomicMethod::HF, double zeff_constant = 0.0);
