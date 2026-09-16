@@ -117,7 +117,16 @@ public:
     }
 
     if (m_rank == 0) {
-      return ( 1.0 / m_q) * Rab(+1, m_oneonr, Fa, Fb);
+      using namespace qip::overloads;
+      std::vector<double> m_qr = m_q*m_vec;
+      std::vector<double> m_sinqr(m_vec.size());
+      int count = 0;
+      for (const auto &x : m_qr) {
+        m_sinqr[count] = std::sin(x);
+        count+=1;
+      }
+
+      return (1.0 / m_q) * Rab(+1, m_sinqr*m_oneonr, Fa, Fb);
     }
 
     return 0.0;
