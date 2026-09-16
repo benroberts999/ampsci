@@ -79,14 +79,14 @@ public:
 };
 
 //==============================================================================
-//! Low qr form of Temporal component of the vector multipole operator:
+//! High qr form of Temporal component of the vector multipole operator (only K=0 contributes):
 //! \f$ \Phi_K = t^K(q)\f$
 class Phik_highq final : public EM_multipole {
 public:
   Phik_highq(const Grid &gr, int K, double omega)
     : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
                    gr.r(), Realness::real, true, &gr, 'V', 'T', false, true),
-      m_r2(gr.rpow(2)) {
+      m_oneonr(gr.rpow(-1.0)) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -103,9 +103,7 @@ public:
     }
 
     if (m_rank == 0) {
-      Rab_rhs(+1, m_r2, &dF, Fb, -(m_q * m_q / 6.0));
-    } else if (m_rank == 1) {
-      Rab_rhs(+1, m_vec, &dF, Fb, (m_q / 3.0));
+      Rab_rhs(+1, m_oneonr, &dF, Fb, (1.0 / m_q));
     }
 
     return dF;
@@ -119,10 +117,7 @@ public:
     }
 
     if (m_rank == 0) {
-      return -(m_q * m_q / 6.0) * Rab(+1, m_r2, Fa, Fb);
-    }
-    if (m_rank == 1) {
-      return (m_q / 3.0) * Rab(+1, m_vec, Fa, Fb);
+      return ( 1.0 / m_q) * Rab(+1, m_oneonr, Fa, Fb);
     }
 
     return 0.0;
@@ -136,12 +131,10 @@ public:
 
 private:
   double m_q{};
-  std::vector<double> m_r2;
+  std::vector<double> m_oneonr;
 };
 
 //==============================================================================
-
-// TO BE ADDED LATER!!
 
 //! @brief Low qr form of Scalar multipole operator: \f$ S_K = t^K(q)\gamma^0\f$
 class Sk_highq final : public EM_multipole {
