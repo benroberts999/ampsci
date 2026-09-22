@@ -980,7 +980,10 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     // the previous one.
 #pragma omp parallel if (parallel_omega)
     {
-      const auto [h, h_minus] = make_operator_pair(block);
+      // Bug(?): OMP cannot work with structured bindings?
+      const auto operator_pair = make_operator_pair(block);
+      const auto &h = operator_pair.first;
+      const auto &h_minus = operator_pair.second;
       std::unique_ptr<ExternalField::TDHFcntm> rpa;
       if (use_rpa) {
         rpa = std::make_unique<ExternalField::TDHFcntm>(h.get(), wf.vHF(),
@@ -1332,7 +1335,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                  "Valid only for q << 1/a0 ~ 1e-3 MeV\n\n";
 
   // Multipolarity:
-  const auto [Kmin, Kmax] = input.get("K_minmax", std::array{0, 6});
+  // Bug(?) capturing structured bindings in lambdas with clang
+  const auto K_minmax = input.get("K_minmax", std::array{0, 6});
+  const auto Kmin = K_minmax.at(0);
+  const auto Kmax = K_minmax.at(1);
   fmt::print("\nIncluding K = {} - {}\n", Kmin, Kmax);
 
   // Optional:
