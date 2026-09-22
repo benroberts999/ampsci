@@ -280,7 +280,7 @@ double captured_fraction(const DiracSpinor &Fa, int Kmax, std::size_t iq,
     \Delta K_a = K_a^{\rm PW}({\rm all}\ K) - K_a^{\rm PW}(K \le K_{\rm max}),
   \f]
   the all-K plane-wave response (planewave_formFactors()) minus the same
-  multipole sum evaluated with free Dirac spherical waves (DiracODE::freeWaves()), i.e.
+  multipole sum evaluated with free Dirac spherical waves (DiracODE::freeDirac()), i.e.
   exactly the plane-wave multipoles above Kmax. Added to the distorted-wave
   factors of calculate_formFactors(), the total is
   \f[
@@ -304,7 +304,7 @@ double captured_fraction(const DiracSpinor &Fa, int Kmax, std::size_t iq,
   The correction is computed only where it can matter: for each orbital,
   at the momentum transfers where the multipoles above Kmax carry more than
   @p ridge_eps of the norm (captured_fraction()), at the energies where
-  the orbital is ionised (ejected energy within (@p ec_min, @p ec_max]),
+  the orbital is ionised (ejected energy within ( @p ec_min, @p ec_max ),
   and, at each energy, only where |p_f - q| lies within the momentum grid
   of the orbital (elsewhere, far off the ridge, the plane-wave response is
   zero by construction).
