@@ -46,7 +46,7 @@ FreeWaveParameters freeWaveParameters(double en, const Grid &grid,
   \begin{align}
     k &= \sqrt{\en(2 + \alpha^2\en)}, \\
     \tilde l &= l(-\kappa), \\
-    N &= k D,
+    N &= k D = \sqrt{\frac{k\,(\en + 2mc^2)}{\pi c^2}},
   \end{align}
   \f]
   (\f$ \tilde l \f$ is l+1 for kappa < 0, l-1 for kappa > 0), where D is the

@@ -84,12 +84,12 @@ Cx T(const M4 &Lam, const M4 &Ga, const M4 &rho, const M4 &Gb) {
 
 // The 11 traces by brute force, for a general direction of p (azimuth phi)
 std::array<double, 11> numeric_traces(double p, double F, double G, int kappa,
-                                      double k, double q, double ef,
+                                      double pf, double q, double ef,
                                       double alpha, double phi) {
   const double c = 1.0 / alpha;
   const double mc2 = c * c;
   const double Ef = mc2 + ef;
-  const double cos_t = (k * k - p * p - q * q) / (2.0 * p * q);
+  const double cos_t = (pf * pf - p * p - q * q) / (2.0 * p * q);
   const double sin_t = std::sqrt(1.0 - cos_t * cos_t);
   const std::array<double, 3> n{sin_t * std::cos(phi), sin_t * std::sin(phi),
                                 cos_t};
@@ -142,16 +142,17 @@ TEST_CASE("Kion: plane-wave traces and momentum orbitals",
     double worst = 0.0;
     for (int trial = 0; trial < 200; ++trial) {
       const double ef = 1.0 + 3000.0 * uni(gen);
-      const double k = std::sqrt(ef * (2.0 + alpha * alpha * ef));
-      const double q = k * (0.2 + 3.0 * uni(gen));
-      const double p = std::abs(k - q) + 2.0 * std::min(k, q) * uni(gen);
+      const double pf = std::sqrt(ef * (2.0 + alpha * alpha * ef));
+      const double q = pf * (0.2 + 3.0 * uni(gen));
+      const double p = std::abs(pf - q) + 2.0 * std::min(pf, q) * uni(gen);
       const double F = uni(gen) - 0.5;
       const double G = 0.3 * (uni(gen) - 0.5);
       const int kappa = uni(gen) < 0.5 ? -2 : 3;
       const double phi = 2.0 * M_PI * uni(gen);
       const auto closed =
-        Kion::planewave_traces(p, F, G, kappa, k, q, ef, alpha);
-      const auto numeric = numeric_traces(p, F, G, kappa, k, q, ef, alpha, phi);
+        Kion::planewave_traces(p, F, G, kappa, pf, q, ef, alpha);
+      const auto numeric =
+        numeric_traces(p, F, G, kappa, pf, q, ef, alpha, phi);
       const auto scale_ = std::abs(numeric[0]);
       for (std::size_t i = 0; i < 11; ++i) {
         worst = std::max(worst, std::abs(closed[i] - numeric[i]) / scale_);
@@ -168,11 +169,11 @@ TEST_CASE("Kion: plane-wave traces and momentum orbitals",
     const double c = 1.0 / alpha;
     double worst = 0.0;
     for (const auto ef : {10.0, 1000.0, 20000.0}) {
-      const double k = std::sqrt(ef * (2.0 + alpha * alpha * ef));
+      const double pf = std::sqrt(ef * (2.0 + alpha * alpha * ef));
       const double Ef = c * c + ef;
       const auto T =
-        Kion::planewave_traces(1.0e-9, 1.0, 0.0, -1, k, k, ef, alpha);
-      const auto w_q = ef / (k * c);
+        Kion::planewave_traces(1.0e-9, 1.0, 0.0, -1, pf, pf, ef, alpha);
+      const auto w_q = ef / (pf * c);
       const auto ratio = [&](std::size_t i) { return T[i] / T[0]; };
       worst = std::max(worst, std::abs(ratio(1) - w_q * w_q));
       worst = std::max(worst, std::abs(ratio(2) - 2.0 * ef / (Ef + c * c)));
@@ -199,7 +200,7 @@ TEST_CASE("Kion: plane-wave traces and momentum orbitals",
       Fa.occ_frac() = 1.0;
       const auto orb = Kion::momentum_orbital(Fa, Fa.en());
       REQUIRE(orb.p.size() > 200);
-      // (2/pi) int (F^2 + G^2) p^2 dp = 1, trapezoid on the log grid
+      // int (F^2 + G^2) p^2 dp = (2 pi)^3, trapezoid on the log grid
       double norm = 0.0;
       for (std::size_t i = 1; i < orb.p.size(); ++i) {
         const auto d0 =
@@ -208,13 +209,14 @@ TEST_CASE("Kion: plane-wave traces and momentum orbitals",
         norm += 0.5 * (orb.p[i] - orb.p[i - 1]) *
                 (d0 * orb.p[i - 1] * orb.p[i - 1] + d1 * orb.p[i] * orb.p[i]);
       }
-      norm *= 2.0 / M_PI;
+      norm /= std::pow(2.0 * M_PI, 3);
       worst = std::max(worst, std::abs(norm - 1.0));
     }
     fmt::print("  momentum density normalisation: 1 {:+.1e}\n", worst);
     REQUIRE(worst < 1.0e-4);
 
-    // Hydrogen 1s: F(p) = 4/(1+p^2)^2 (non-relativistic; O(alpha^2) here)
+    // Hydrogen 1s: F(p) = 16 pi/(1+p^2)^2 (non-relativistic; O(alpha^2)
+    // here)
     auto F1s = DiracSpinor::exactHlike(1, -1, grid, 1.0, alpha);
     F1s.occ_frac() = 1.0;
     const auto orb = Kion::momentum_orbital(F1s, F1s.en());
@@ -223,10 +225,10 @@ TEST_CASE("Kion: plane-wave traces and momentum orbitals",
       const auto p = orb.p[i];
       if (p > 5.0)
         break;
-      const auto expected = 4.0 / std::pow(1.0 + p * p, 2);
+      const auto expected = 16.0 * M_PI / std::pow(1.0 + p * p, 2);
       worst_1s = std::max(worst_1s, std::abs(orb.F[i] - expected) / expected);
     }
-    fmt::print("  hydrogen 1s F(p) vs 4/(1+p^2)^2: {:.1e}\n", worst_1s);
+    fmt::print("  hydrogen 1s F(p) vs 16 pi/(1+p^2)^2: {:.1e}\n", worst_1s);
     REQUIRE(worst_1s < 2.0e-4);
   }
 }
