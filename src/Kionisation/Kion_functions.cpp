@@ -235,8 +235,9 @@ void accumulate_formFactors(FormFactorSet *K_factors, std::size_t iE,
   add(7, std::norm(M5));
   add(8, std::norm(L5));
   add(9, cross(t5, L5));
-  // Vector-axial spatial interference
-  add(10, cross(E5, M) - cross(E, M5));
+  // Vector-axial spatial interference (Hermitian multipoles, uniform i^{K+1}
+  // phase): Z = -Re{<E5>^* <M> + <E> <M5>^*}, paper Eq. (Z-cross)
+  add(10, -cross(E5, M) - cross(E, M5));
   // Scalar, pseudoscalar
   add(11, std::norm(S));
   add(12, std::norm(S5));

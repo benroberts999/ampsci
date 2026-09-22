@@ -86,6 +86,9 @@ public:
     enable lookup from a precomputed table for improved performance.
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
+  - Reduced matrix element (imaginary): -i sqrt((K+1)/K) [ (kappa_b - kappa_a)
+    P^(+)[j_K/qr - j_{K+1}/(K+1)] - K P^(-)[j_K/qr] ] C^K(kappa_b, kappa_a);
+    the imaginary part is stored, Realness::imaginary.
 */
 class VEk final : public EM_multipole {
 public:
@@ -203,10 +206,9 @@ public:
     enable lookup from a precomputed table for improved performance.
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
-  - The explicit factor -i of the reduced matrix element,
-    -i (kappa_b + kappa_a) P^(+)[j_K] C^K(kappa_b, -kappa_a) / sqrt(K(K+1)),
-    is dropped. The stored elements obey the swap symmetry of a real,
-    Hermitian operator (as M1): Realness::real.
+  - Reduced matrix element (real, swap-symmetric, as M1):
+    -(kappa_b + kappa_a) P^(+)[j_K] C^K(kappa_b, -kappa_a) / sqrt(K(K+1)).
+    Realness::real.
 */
 class VMk final : public EM_multipole {
 public:
@@ -468,10 +470,9 @@ public:
     `VMk` but with the gamma^5 Dirac structure applied where appropriate.
   - Uses spherical Bessel functions j_L(q*r) for radial dependence and
     accepts an optional `const SphericalBessel::JL_table *jl`.
-  - The reduced matrix element,
-    -(kappa_b - kappa_a) R^(-)[j_K] C^K(kappa_b, kappa_a) / sqrt(K(K+1)),
-    changes sign under a <-> b beyond the (-1)^(ja-jb) of a real operator:
-    the swap symmetry of an imaginary operator, Realness::imaginary.
+  - Reduced matrix element (imaginary, swap-antisymmetric):
+    +i (kappa_b - kappa_a) R^(-)[j_K] C^K(kappa_b, kappa_a) / sqrt(K(K+1));
+    the imaginary part is stored, Realness::imaginary.
 */
 class AMk final : public EM_multipole {
 public:
@@ -573,6 +574,8 @@ public:
   \f[ P_K = S^5_K = t^K(q)(i\gamma^0\gamma^5) \f]
 
   - Implements the pseudoscalar multipole operator ~ \f$ e^{i q r} i \gamma^0 \gamma^5. \f$
+  - Reduced matrix element (real): -P^(+)[j_K] C^K(kappa_b, -kappa_a)
+    (= i times that of t^K gamma^0 gamma^5, which is i P^(+) C).
   - Radial dependence is provided via spherical Bessel functions \f$ j_L(q*r). \f$
   - Supports an optional `const SphericalBessel::JL_table *jl` for precomputed
     Bessel lookup; otherwise computes on demand.
@@ -760,11 +763,28 @@ struct Multipole {
       &= \sqrt{4\pi}\sum_{KQ}\sqrt{[K]} \, 
         i^K \, {Y^*_{KQ}}{(\hat q)} \, t^K_Q(q,r),\\
     \vec{\alpha} \, e^{i\vec{q}\cdot\vec{r}}
-      & = \sqrt{4\pi} \sum_{KQ\sigma} \sqrt{[K]} \, i^{K-\sigma} \, 
+      & = \sqrt{4\pi} \sum_{KQ\sigma} \sqrt{[K]} \, i^{K+1} \, 
             \vec{Y}_{KQ}^{(\sigma)*}(\hat{{q}}) \, 
             T^{(\sigma)}_{KQ}.
   \end{align}  
   \f]
+
+  with \f$ T^{(\sigma)}_{KQ} = \vec\alpha\cdot\vec t^{(\sigma)}_{KQ} \f$ and
+  \f[
+  \begin{align}
+    \vec t^{(+1)}_{KQ} &= -\left[(K+1)\tfrac{j_K}{qr} - j_{K+1}\right]\vec C^{(+1)}_{KQ}
+                          - \sqrt{K(K+1)}\,\tfrac{j_K}{qr}\,\vec C^{(-1)}_{KQ}, \\
+    \vec t^{(0)}_{KQ}  &= -i\, j_K\, \vec C^{(0)}_{KQ} = j_K\,\vec C^{(+1)}_{KQ}\times\hat r, \\
+    \vec t^{(-1)}_{KQ} &= -\sqrt{K(K+1)}\,\tfrac{j_K}{qr}\,\vec C^{(+1)}_{KQ}
+                          - \left[K\tfrac{j_K}{qr} - j_{K+1}\right]\vec C^{(-1)}_{KQ},
+  \end{align}
+  \f]
+  (uniform phase \f$ i^{K+1} \f$; the signs of \f$ t^{(+1)}, t^{(0)} \f$ are
+  chosen so that every \f$ T^{(\sigma)}_{KQ} \f$ is Hermitian,
+  \f$ T^\dagger_{KQ} = (-1)^Q T_{K,-Q} \f$). The stored reduced matrix
+  elements are the real (Realness::real) or imaginary (Realness::imaginary)
+  part of the Hermitian operator's RME, so that <b||h||a> follows from
+  <a||h||b> by the usual symmetry.
 
   The operator corresponds to a spherical multipole of rank @p k with
   frequency/energy transfer @p omega. The type and component determine

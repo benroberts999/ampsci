@@ -7,9 +7,12 @@
 #include "fmt/format.hpp"
 #include "include.hpp"
 #include "qip/Vector.hpp"
+#include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <map>
 #include <string>
+#include <tuple>
 #include <vector>
 
 TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
@@ -257,12 +260,13 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
       for (const auto &b : orbs) {
         // Compare reduced matrix elements with table-backed versions
 
-        // nb: extra sign, because E1 defined as -|e|r, rather than |e|r
+        // With the Hermitian (uniform i^{K+1}) convention T^(+1)_1 ->
+        // +(sqrt2/3)<alpha>, matching E1 = -|e| r and E1v directly
         REQUIRE(E1.reducedME(a, b) ==
-                Approx(-ff * E1_w.reducedME(a, b)).epsilon(eps));
+                Approx(ff * E1_w.reducedME(a, b)).epsilon(eps));
 
         REQUIRE(E1v.reducedME(a, b) ==
-                Approx(-ff * E1v_w.reducedME(a, b)).epsilon(eps));
+                Approx(ff * E1v_w.reducedME(a, b)).epsilon(eps));
 
         REQUIRE(M1.reducedME(a, b) * PhysConst::muB_CGS ==
                 Approx(ff * M1_w.reducedME(a, b)).epsilon(eps));
@@ -433,5 +437,139 @@ TEST_CASE("EM_multipole clone", "[DiracOperator][unit][EM_multipole]") {
         }
       }
     }
+  }
+}
+
+//==============================================================================
+TEST_CASE("EM_multipole low-q vs full-q",
+          "[DiracOperator][unit][EM_multipole]") {
+  // The low-q (long-wavelength) forms must reproduce the full operators as
+  // q -> 0, including the sign: this pins the relative phase conventions of
+  // the two implementations (the 2026-09 audit found VEk_lowq, VLk_lowq and
+  // S5k with the wrong sign, undetected by any test).
+  // Exact H-like (Z=1) Dirac orbitals; a second orbital of the same kappa is
+  // included for the first three kappas so that the orthogonal same-kappa
+  // pairs used by the kappa_a = kappa_b branches (AE, AL, K=0 S) are
+  // exercised. Diagonal elements are skipped where the low-q form assumes
+  // <a|b> = 0 (AE, AL, S). Not tested: K=0 vector temporal (an O(q^2) term,
+  // needs exact orthogonality) and K=0 vector longitudinal (no low-q form
+  // is implemented; the paper's B36 has one).
+  using namespace DiracOperator;
+
+  Wavefunction wf({2000, 1.0e-5, 60.0, 1.0, "loglinear"}, {"Cs", 133, "Fermi"});
+  auto &orbs = wf.valence();
+  for (auto ik = 0ul; ik <= 5; ik++) {
+    const int kappa = Angular::kindex_to_kappa(ik);
+    const int l = Angular::l_k(kappa);
+    orbs.push_back(DiracSpinor::exactHlike(l + 1, kappa, wf.grid_sptr(), 1.0));
+    if (ik <= 2)
+      orbs.push_back(
+        DiracSpinor::exactHlike(l + 2, kappa, wf.grid_sptr(), 1.0));
+  }
+
+  // q = alpha*omega; (qr)^2 < 1e-9 over the grid, so the low-q forms hold
+  // to that order (the K=0 AT and P forms use the transition frequency
+  // internally, via the exact gamma^5 relations, exact for H-like states)
+  const double omega = 1.0e-5;
+  const auto &gr = wf.grid();
+
+  const auto make = [&](const std::string &name, int k,
+                        bool low_q) -> std::unique_ptr<TensorOperator> {
+    if (low_q) {
+      if (name == "VE")
+        return std::make_unique<VEk_lowq>(gr, k, omega);
+      if (name == "VL")
+        return std::make_unique<VLk_lowq>(gr, k, omega);
+      if (name == "VM")
+        return std::make_unique<VMk_lowq>(gr, k, omega);
+      if (name == "VT")
+        return std::make_unique<Phik_lowq>(gr, k, omega);
+      if (name == "AE")
+        return std::make_unique<AEk_lowq>(gr, k, omega);
+      if (name == "AL")
+        return std::make_unique<ALk_lowq>(gr, k, omega);
+      if (name == "AM")
+        return std::make_unique<AMk_lowq>(gr, k, omega);
+      if (name == "AT")
+        return std::make_unique<Phi5k_lowq>(gr, k, omega);
+      if (name == "S")
+        return std::make_unique<Sk_lowq>(gr, k, omega);
+      if (name == "P")
+        return std::make_unique<S5k_lowq>(gr, k, omega);
+    } else {
+      if (name == "VE")
+        return std::make_unique<VEk>(gr, k, omega);
+      if (name == "VL")
+        return std::make_unique<VLk>(gr, k, omega);
+      if (name == "VM")
+        return std::make_unique<VMk>(gr, k, omega);
+      if (name == "VT")
+        return std::make_unique<Phik>(gr, k, omega);
+      if (name == "AE")
+        return std::make_unique<AEk>(gr, k, omega);
+      if (name == "AL")
+        return std::make_unique<ALk>(gr, k, omega);
+      if (name == "AM")
+        return std::make_unique<AMk>(gr, k, omega);
+      if (name == "AT")
+        return std::make_unique<Phi5k>(gr, k, omega);
+      if (name == "S")
+        return std::make_unique<Sk>(gr, k, omega);
+      if (name == "P")
+        return std::make_unique<S5k>(gr, k, omega);
+    }
+    return nullptr;
+  };
+
+  // The K=0 pseudoscalar elements are alpha^3 w^2 suppressed and come from
+  // a near-cancellation in the full operator (P^(+)[j_0]), so the full-q
+  // values are only good to ~1% on this grid for the smallest w
+  struct LowqCase {
+    std::string name;
+    int k;
+    bool skip_diagonal;
+    double tol;
+  };
+  const std::vector<LowqCase> cases{
+    {"VE", 1, false, 1.0e-4}, {"VL", 1, false, 1.0e-4},
+    {"VM", 1, false, 1.0e-4}, {"VT", 1, false, 1.0e-4},
+    {"AE", 1, true, 1.0e-4},  {"AL", 1, true, 1.0e-4},
+    {"AM", 1, false, 1.0e-4}, {"AT", 1, false, 1.0e-4},
+    {"S", 1, false, 1.0e-4},  {"P", 1, false, 1.0e-4},
+    {"AL", 0, false, 1.0e-4}, {"AT", 0, false, 1.0e-4},
+    {"P", 0, false, 3.0e-2},  {"S", 0, true, 1.0e-4}};
+
+  std::cout
+    << "Low-q vs full-q multipoles (worst |low-q - full| / max|full|):\n";
+  for (const auto &[name, k, skip_diagonal, tol] : cases) {
+    const auto h_full = make(name, k, false);
+    const auto h_lowq = make(name, k, true);
+    REQUIRE(h_full != nullptr);
+    REQUIRE(h_lowq != nullptr);
+
+    std::vector<std::tuple<std::string, double, double>> pairs;
+    double max_abs = 0.0;
+    for (const auto &a : orbs) {
+      for (const auto &b : orbs) {
+        const bool diagonal = (a.n() == b.n() && a.kappa() == b.kappa());
+        if (h_full->isZero(a, b) || (skip_diagonal && diagonal))
+          continue;
+        const auto full = h_full->reducedME(a, b);
+        const auto lowq = h_lowq->reducedME(a, b);
+        pairs.emplace_back(a.shortSymbol() + " " + b.shortSymbol(), full, lowq);
+        max_abs = std::max(max_abs, std::abs(full));
+      }
+    }
+    REQUIRE(!pairs.empty());
+    REQUIRE(max_abs > 0.0);
+
+    double worst = 0.0;
+    for (const auto &[label, full, lowq] : pairs) {
+      INFO(name << " K=" << k << " <" << label << ">: full = " << full
+                << ", low-q = " << lowq);
+      REQUIRE(lowq == Approx(full).epsilon(tol).margin(tol * max_abs));
+      worst = std::max(worst, std::abs(lowq - full) / max_abs);
+    }
+    fmt::print("  {:>2} K={}: {:.1e}\n", name, k, worst);
   }
 }
