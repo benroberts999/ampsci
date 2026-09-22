@@ -9,9 +9,9 @@ namespace DiracODE {
 
 /*!
   @brief Momentum, normalisation, and resolved extent of the free (V = 0)
-  Dirac waves at one energy on a grid; see freeWaves().
+  Dirac waves at one energy on a grid; see freeDirac().
 */
-struct FreeWaveParameters {
+struct FreeDiracParameters {
   //! Momentum, k = sqrt(en (2 + alpha^2 en)), in au
   double k{};
   //! Amplitude N = k D of f = N r j_l(kr): D the energy-normalised large-r
@@ -22,11 +22,10 @@ struct FreeWaveParameters {
   //! Extent of the stored solution: the grid resolves the oscillations (at
   //! least ~10 points per wavelength, as solveContinuum) below this index
   std::size_t max_pt{};
-};
 
-//! The parameters of the free waves at energy en (> 0, au) on the grid
-FreeWaveParameters freeWaveParameters(double en, const Grid &grid,
-                                      double alpha);
+  //! Parameters of the free Dirac waves at energy en (> 0, au) on the grid
+  FreeDiracParameters(double en, const Grid &grid, double alpha);
+};
 
 /*!
   @brief Free (V = 0) Dirac spherical waves at energy en, for every kappa
@@ -68,8 +67,8 @@ FreeWaveParameters freeWaveParameters(double en, const Grid &grid,
   same energy are truncated alike (as required when completing a truncated
   multipole sum with plane waves).
 
-  All l are evaluated together, from one Bessel recurrence per grid point;
-  for a single kappa use freeWave().
+  j_l(kr) for l = 0..max_l+1 is evaluated once per grid point and shared by
+  every kappa; for a single kappa use the (en, kappa) overload.
 
   @param en     Continuum (kinetic) energy, > 0, in au.
   @param min_l  Minimum orbital l.
@@ -81,12 +80,13 @@ FreeWaveParameters freeWaveParameters(double en, const Grid &grid,
   @note Do not obtain free waves from solveContinuum() with a zero
         potential: its normalisation assumes a Coulomb tail.
 */
-std::vector<DiracSpinor> freeWaves(double en, int min_l, int max_l,
+std::vector<DiracSpinor> freeDirac(double en, int min_l, int max_l,
                                    std::shared_ptr<const Grid> grid,
                                    double alpha);
 
-//! Free (V = 0) Dirac spherical wave of a single kappa; see freeWaves()
-DiracSpinor freeWave(double en, int kappa, std::shared_ptr<const Grid> grid,
-                     double alpha);
+//! Free (V = 0) Dirac spherical wave of a single kappa; see the all-l
+//! overload of freeDirac()
+DiracSpinor freeDirac(double en, int kappa, std::shared_ptr<const Grid> grid,
+                      double alpha);
 
 } // namespace DiracODE

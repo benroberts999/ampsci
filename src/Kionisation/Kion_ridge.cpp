@@ -1,6 +1,6 @@
 #include "Kionisation/Kion_ridge.hpp"
 #include "Angular/Wigner369j.hpp"
-#include "DiracODE/FreeWave.hpp"
+#include "DiracODE/FreeDirac.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/ChronoTimer.hpp"
@@ -414,7 +414,7 @@ std::vector<FormFactorSet> calculate_ridge_correction(
     // Plane-wave multipole sum, K = 0..Kmax, full continuum l range
     const auto [lc_min, lc_max] = continuum_l_range(Fa_hf, Kmax, std::nullopt);
     const auto free_waves =
-      DiracODE::freeWaves(ec, lc_min, lc_max, Fa.grid_sptr(), alpha);
+      DiracODE::freeDirac(ec, lc_min, lc_max, Fa.grid_sptr(), alpha);
     auto PW = allocate_formFactors(1, q_steps, vectorQ, axialQ, scalarQ,
                                    pseudoscalarQ, spatialQ);
     auto &own_multipoles = thread_multipoles[std::size_t(omp_get_thread_num())];

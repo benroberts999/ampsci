@@ -5,5 +5,5 @@
 #include "DiracODE/BoundState.hpp"
 #include "DiracODE/ComplexDirac.hpp"
 #include "DiracODE/ContinuumState.hpp"
-#include "DiracODE/FreeWave.hpp"
+#include "DiracODE/FreeDirac.hpp"
 #include "DiracODE/InhomogenousGreens.hpp"

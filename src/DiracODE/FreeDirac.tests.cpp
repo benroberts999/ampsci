@@ -1,4 +1,4 @@
-#include "DiracODE/FreeWave.hpp"
+#include "DiracODE/FreeDirac.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
@@ -14,7 +14,7 @@
 #include <vector>
 
 //==============================================================================
-TEST_CASE("DiracODE: free waves", "[DiracODE][cntm][unit]") {
+TEST_CASE("DiracODE: freeDirac", "[DiracODE][cntm][unit]") {
   std::cout << "Free (V = 0) Dirac spherical waves\n";
 
   const auto grid = std::make_shared<const Grid>(1.0e-6, 40.0, 8000ul,
@@ -26,7 +26,7 @@ TEST_CASE("DiracODE: free waves", "[DiracODE][cntm][unit]") {
   //   f = -(g' - kappa g/r) / (alpha en)
   // Checks the small component, its sign, and the l' = l(-kappa) choice
   for (const auto en : {0.5, 5.0, 60.0}) {
-    const auto waves = DiracODE::freeWaves(en, 0, 6, grid, alpha);
+    const auto waves = DiracODE::freeDirac(en, 0, 6, grid, alpha);
     // l = 0 has one kappa, l = 1..6 two each
     REQUIRE(waves.size() == 13);
     double worst = 0.0;
@@ -67,7 +67,7 @@ TEST_CASE("DiracODE: free waves", "[DiracODE][cntm][unit]") {
     double worst = 0.0;
     for (const auto en : {0.3, 8.0}) {
       for (const auto kappa : {-1, 1, -2, 3, -5}) {
-        const auto Fk = DiracODE::freeWave(en, kappa, grid, alpha_nr);
+        const auto Fk = DiracODE::freeDirac(en, kappa, grid, alpha_nr);
         REQUIRE(Fk.kappa() == kappa);
         double err = 0.0, max_f = 0.0;
         for (std::size_t i = 0; i < Fk.max_pt(); ++i) {
@@ -90,7 +90,7 @@ TEST_CASE("DiracODE: free waves", "[DiracODE][cntm][unit]") {
     double worst = 0.0;
     for (const auto en : {1.0, 20.0}) {
       for (const auto kappa : {-1, 1, -3, 3}) {
-        const auto Fk = DiracODE::freeWave(en, kappa, grid, alpha);
+        const auto Fk = DiracODE::freeDirac(en, kappa, grid, alpha);
         double err_f = 0.0, err_g = 0.0, max_f = 0.0, max_g = 0.0;
         // every 20th point is plenty (FLINT is slow)
         for (std::size_t i = 0; i < Fk.max_pt(); i += 20) {
@@ -110,13 +110,12 @@ TEST_CASE("DiracODE: free waves", "[DiracODE][cntm][unit]") {
     std::cout << "  (no FLINT: skipping Dirac-Coulomb comparison)\n";
   }
 
-  // Single-kappa and batch versions evaluate the Bessel functions
-  // differently (direct vs downward recurrence): must agree
+  // Single-kappa and all-l overloads must agree
   {
-    const auto waves = DiracODE::freeWaves(3.0, 0, 5, grid, alpha);
+    const auto waves = DiracODE::freeDirac(3.0, 0, 5, grid, alpha);
     double worst = 0.0;
     for (const auto &Fk : waves) {
-      const auto single = DiracODE::freeWave(3.0, Fk.kappa(), grid, alpha);
+      const auto single = DiracODE::freeDirac(3.0, Fk.kappa(), grid, alpha);
       REQUIRE(single.max_pt() == Fk.max_pt());
       double err = 0.0, max_f = 0.0;
       for (std::size_t i = 0; i < Fk.max_pt(); ++i) {
@@ -126,7 +125,7 @@ TEST_CASE("DiracODE: free waves", "[DiracODE][cntm][unit]") {
       }
       worst = std::max(worst, err / max_f);
     }
-    fmt::print("  freeWave vs freeWaves: rel. difference = {:.1e}\n", worst);
+    fmt::print("  single kappa vs all l: rel. difference = {:.1e}\n", worst);
     REQUIRE(worst < 1.0e-12);
   }
 
@@ -135,9 +134,9 @@ TEST_CASE("DiracODE: free waves", "[DiracODE][cntm][unit]") {
   {
     const auto coarse = std::make_shared<const Grid>(1.0e-6, 40.0, 400ul,
                                                      GridType::loglinear, 5.0);
-    const auto low = DiracODE::freeWave(0.1, -1, coarse, alpha);
+    const auto low = DiracODE::freeDirac(0.1, -1, coarse, alpha);
     REQUIRE(low.max_pt() == coarse->num_points());
-    const auto high = DiracODE::freeWave(200.0, -1, coarse, alpha);
+    const auto high = DiracODE::freeDirac(200.0, -1, coarse, alpha);
     REQUIRE(high.max_pt() < coarse->num_points());
     REQUIRE(high.max_pt() > 0);
     // resolved: at least 10 points per wavelength at the last stored point

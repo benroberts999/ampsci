@@ -1,42 +1,40 @@
-#include "DiracODE/FreeWave.hpp"
+#include "DiracODE/FreeDirac.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "DiracODE/ContinuumState.hpp"
 #include "Maths/Grid.hpp"
+#include "Maths/SphericalBessel.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <cassert>
 #include <cmath>
 #include <cstdint>
 #include <gsl/gsl_errno.h>
-#include <gsl/gsl_sf_bessel.h>
 #include <memory>
 #include <vector>
 
 namespace DiracODE {
 
 //==============================================================================
-FreeWaveParameters freeWaveParameters(double en, const Grid &grid,
-                                      double alpha) {
-  assert(en > 0.0 && "free waves require a positive (continuum) energy");
-  FreeWaveParameters fw;
+FreeDiracParameters::FreeDiracParameters(double en, const Grid &grid,
+                                         double alpha) {
+  assert(en > 0.0 && "free Dirac waves require a positive (continuum) energy");
   // f -> D sin(kr - l pi/2), while r j_l(kr) -> sin(kr - l pi/2)/k
-  fw.k = std::sqrt(en * (2.0 + alpha * alpha * en));
-  fw.norm = fw.k * analytic_f_amplitude(en, alpha);
+  k = std::sqrt(en * (2.0 + alpha * alpha * en));
+  norm = k * analytic_f_amplitude(en, alpha);
   // c k / (E + m c^2) = k alpha / (2 + alpha^2 en)
-  fw.g_ratio = fw.k * alpha / (2.0 + alpha * alpha * en);
+  g_ratio = k * alpha / (2.0 + alpha * alpha * en);
   // Store the solution only where the grid resolves the oscillations (at
   // least N_ppw points per wavelength), as solveContinuum does, so that
   // free and distorted waves at the same energy are truncated alike
   const int N_ppw = 10;
-  const double dr_max = 2.0 * M_PI / (fw.k * N_ppw);
-  fw.max_pt = grid.num_points();
-  while (fw.max_pt > 0 && grid.drdu(fw.max_pt - 1) * grid.du() > dr_max) {
-    --fw.max_pt;
+  const double dr_max = 2.0 * M_PI / (k * N_ppw);
+  max_pt = grid.num_points();
+  while (max_pt > 0 && grid.drdu(max_pt - 1) * grid.du() > dr_max) {
+    --max_pt;
   }
-  return fw;
 }
 
 //==============================================================================
-std::vector<DiracSpinor> freeWaves(double en, int min_l, int max_l,
+std::vector<DiracSpinor> freeDirac(double en, int min_l, int max_l,
                                    std::shared_ptr<const Grid> grid,
                                    double alpha) {
   assert(grid != nullptr);
@@ -46,7 +44,7 @@ std::vector<DiracSpinor> freeWaves(double en, int min_l, int max_l,
   // zero to double precision), not an error: keep GSL from aborting
   [[maybe_unused]] static const auto hndl = gsl_set_error_handler_off();
 
-  const auto fw = freeWaveParameters(en, *grid, alpha);
+  const FreeDiracParameters fw(en, *grid, alpha);
 
   // Every kappa with l in [min_l, max_l], in kappa-index order (-1, 1, -2, ..)
   std::vector<DiracSpinor> waves;
@@ -68,13 +66,8 @@ std::vector<DiracSpinor> freeWaves(double en, int min_l, int max_l,
   for (std::size_t i = 0; i < fw.max_pt; ++i) {
     const auto r = grid->r(i);
     const auto x = fw.k * r;
-    // The array routine recurs downwards from l_top: if j_{l_top}(x)
-    // underflows, every entry comes out zero, so fall back to each l alone
-    const auto status = gsl_sf_bessel_jl_array(l_top, x, jl.data());
-    if (status != GSL_SUCCESS) {
-      for (int l = 0; l <= l_top; ++l) {
-        jl[std::size_t(l)] = gsl_sf_bessel_jl(l, x);
-      }
+    for (int l = 0; l <= l_top; ++l) {
+      jl[std::size_t(l)] = SphericalBessel::jL(l, x);
     }
     for (auto &Fk : waves) {
       const auto l = std::size_t(Fk.l());
@@ -88,12 +81,12 @@ std::vector<DiracSpinor> freeWaves(double en, int min_l, int max_l,
 }
 
 //==============================================================================
-DiracSpinor freeWave(double en, int kappa, std::shared_ptr<const Grid> grid,
-                     double alpha) {
+DiracSpinor freeDirac(double en, int kappa, std::shared_ptr<const Grid> grid,
+                      double alpha) {
   assert(grid != nullptr);
   [[maybe_unused]] static const auto hndl = gsl_set_error_handler_off();
 
-  const auto fw = freeWaveParameters(en, *grid, alpha);
+  const FreeDiracParameters fw(en, *grid, alpha);
   const auto l = Angular::l_k(kappa);
   const auto l_tilde = Angular::l_tilde_k(kappa);
   const double sign = kappa > 0 ? 1.0 : -1.0;
@@ -104,8 +97,8 @@ DiracSpinor freeWave(double en, int kappa, std::shared_ptr<const Grid> grid,
   for (std::size_t i = 0; i < fw.max_pt; ++i) {
     const auto r = grid->r(i);
     const auto x = fw.k * r;
-    Fk.f(i) = fw.norm * r * gsl_sf_bessel_jl(l, x);
-    Fk.g(i) = sign * fw.norm * fw.g_ratio * r * gsl_sf_bessel_jl(l_tilde, x);
+    Fk.f(i) = fw.norm * r * SphericalBessel::jL(l, x);
+    Fk.g(i) = sign * fw.norm * fw.g_ratio * r * SphericalBessel::jL(l_tilde, x);
   }
   return Fk;
 }

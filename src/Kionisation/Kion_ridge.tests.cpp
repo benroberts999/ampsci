@@ -1,5 +1,5 @@
 #include "Kionisation/Kion_ridge.hpp"
-#include "DiracODE/FreeWave.hpp"
+#include "DiracODE/FreeDirac.hpp"
 #include "Kionisation/Kion_functions.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/SphericalBessel.hpp"
@@ -294,7 +294,7 @@ TEST_CASE("Kion: all-K plane-wave response vs multipole sum",
     for (std::size_t iE = 0; iE < cs.Es.size(); ++iE) {
       const auto ec = cs.Es[iE] + Fa.en();
       const auto waves =
-        DiracODE::freeWaves(ec, lc_min, lc_max, cs.grid, alpha);
+        DiracODE::freeDirac(ec, lc_min, lc_max, cs.grid, alpha);
       Kion::accumulate_multipole_sum(&PW, iE, Fa, 1.0, waves, multipoles, 0,
                                      K_top, q_columns);
     }
