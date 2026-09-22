@@ -4,9 +4,11 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
+#include "fmt/format.hpp"
 #include "include.hpp"
 #include "qip/Vector.hpp"
 #include <iostream>
+#include <map>
 #include <string>
 #include <vector>
 
@@ -107,6 +109,10 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
     return std::make_unique<NullOperator>();
   };
 
+  // Worst violation, per operator, of the hermiticity relation between
+  // <a||h||b> and <b||h||a> (see below)
+  std::map<std::string, double> worst_symmetry;
+
   // 1) For each operator, check that radial_rhs reduced product equals radialIntegral
   for (const auto &name : op_names) {
     std::cout << name << "\n";
@@ -191,11 +197,38 @@ TEST_CASE("EM_multipole operators", "[DiracOperator][unit][EM_multipole][jL]") {
               // 4. Test the Bessel table version
               if (h_4)
                 REQUIRE(rme_4 == Approx(rme));
+
+              // 5. Hermiticity: <b||h||a> = symm_sign <a||h||b>, where the
+              // sign depends on whether the stored reduced matrix elements
+              // are the real or the imaginary part (Realness). Only the
+              // exact operators are checked: the low-q forms at K = 0 and
+              // the length form VEk_Len hold on shell (omega = e_a - e_b)
+              // only, so at fixed omega they mix both swap symmetries (as
+              // E1v); VEk_Len is checked against E1 below
+              if (!low_q && name != "VE_Len") {
+                const auto rme_ba = h->reducedME(b, a);
+                const auto expected = h->symm_sign(a, b) * rme;
+                const auto scale = std::max(std::abs(rme), 1.0e-30);
+                auto &worst = worst_symmetry[name];
+                worst = std::max(worst, std::abs(rme_ba - expected) / scale);
+              }
             }
           }
         }
       }
     }
+  }
+
+  // Hermiticity (5): every operator must obey its own symmetry rule
+  std::cout << "Hermiticity of the reduced matrix elements:\n";
+  for (const auto &[name, worst] : worst_symmetry) {
+    fmt::print(
+      "  {:>6}: worst |<b||h||a> - s <a||h||b>| / |<a||h||b>| = {:.1e}\n", name,
+      worst);
+  }
+  for (const auto &[name, worst] : worst_symmetry) {
+    INFO(name);
+    REQUIRE(worst < 1.0e-8);
   }
 
   // small qr limit: electric and magnetic only
