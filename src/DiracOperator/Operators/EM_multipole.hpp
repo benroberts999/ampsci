@@ -26,13 +26,15 @@ namespace DiracOperator {
     closest j_L(q) vector for performance.
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
+  - The stored reduced matrix elements (at fixed omega) obey the swap
+    symmetry of a real, Hermitian operator: Realness::real.
 */
 class VEk_Len final : public EM_multipole {
 public:
   VEk_Len(const Grid &gr, int K, double omega,
           const SphericalBessel::JL_table *jl = nullptr)
     : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                   gr.r(), Realness::imaginary, true, &gr, 'V', 'E', false, jl,
+                   gr.r(), Realness::real, true, &gr, 'V', 'E', false, jl,
                    'L') {
     if (omega != 0.0)
       updateFrequency(omega);
@@ -201,14 +203,17 @@ public:
     enable lookup from a precomputed table for improved performance.
   - Note: The q value for jL(qr) will be the _nearest_ to the requested q 
     - you should ensure the lookup table is close enough, or this can lead to errors.
+  - The explicit factor -i of the reduced matrix element,
+    -i (kappa_b + kappa_a) P^(+)[j_K] C^K(kappa_b, -kappa_a) / sqrt(K(K+1)),
+    is dropped. The stored elements obey the swap symmetry of a real,
+    Hermitian operator (as M1): Realness::real.
 */
 class VMk final : public EM_multipole {
 public:
   VMk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
     : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                   gr.r(), Realness::imaginary, true, &gr, 'V', 'M', false,
-                   jl) {
+                   gr.r(), Realness::real, true, &gr, 'V', 'M', false, jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -463,13 +468,18 @@ public:
     `VMk` but with the gamma^5 Dirac structure applied where appropriate.
   - Uses spherical Bessel functions j_L(q*r) for radial dependence and
     accepts an optional `const SphericalBessel::JL_table *jl`.
+  - The reduced matrix element,
+    -(kappa_b - kappa_a) R^(-)[j_K] C^K(kappa_b, kappa_a) / sqrt(K(K+1)),
+    changes sign under a <-> b beyond the (-1)^(ja-jb) of a real operator:
+    the swap symmetry of an imaginary operator, Realness::imaginary.
 */
 class AMk final : public EM_multipole {
 public:
   AMk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
     : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                   gr.r(), Realness::real, true, &gr, 'A', 'M', false, jl) {
+                   gr.r(), Realness::imaginary, true, &gr, 'A', 'M', false,
+                   jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -513,13 +523,17 @@ public:
     the appropriate spin-angular structure.
   - Radial dependence uses j_L(q*r) and the constructor accepts an
     optional `const SphericalBessel::JL_table *jl`.
+  - The reduced matrix element is imaginary,
+    i P^(-)[j_K] C^K(kappa_b, -kappa_a); the imaginary part is stored
+    (Realness::imaginary), which sets the sign of <a||h||b> vs <b||h||a>.
 */
 class Phi5k final : public EM_multipole {
 public:
   Phi5k(const Grid &gr, int K, double omega,
         const SphericalBessel::JL_table *jl = nullptr)
     : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                   gr.r(), Realness::real, true, &gr, 'A', 'T', false, jl) {
+                   gr.r(), Realness::imaginary, true, &gr, 'A', 'T', false,
+                   jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }

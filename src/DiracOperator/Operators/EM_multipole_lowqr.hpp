@@ -29,8 +29,8 @@ public:
 class VMk_lowq final : public EM_multipole {
 public:
   VMk_lowq(const Grid &gr, int K, double omega)
-    : EM_multipole(K, Parity::even, 0, gr.r(), Realness::imaginary, true, &gr,
-                   'V', 'M', true) {
+    : EM_multipole(K, Parity::even, 0, gr.r(), Realness::real, true, &gr, 'V',
+                   'M', true) {
     updateFrequency(omega);
   }
 
@@ -386,7 +386,7 @@ class AMk_lowq final : public EM_multipole {
 public:
   AMk_lowq(const Grid &gr, int K, double omega)
     : EM_multipole(K, Angular::evenQ(K) ? Parity::even : Parity::odd, 1.0,
-                   gr.r(), Realness::real, true, &gr, 'A', 'M', true) {
+                   gr.r(), Realness::imaginary, true, &gr, 'A', 'M', true) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
@@ -456,7 +456,7 @@ public:
   Phi5k_lowq(const Grid &gr, int K, double omega,
              double alpha = PhysConst::alpha)
     : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                   gr.r(), Realness::real, true, &gr, 'A', 'T', true),
+                   gr.r(), Realness::imaginary, true, &gr, 'A', 'T', true),
       m_alpha(alpha) {
     if (omega != 0.0)
       updateFrequency(omega);
