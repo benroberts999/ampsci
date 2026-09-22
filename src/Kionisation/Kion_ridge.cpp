@@ -3,6 +3,7 @@
 #include "DiracODE/FreeWave.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "HF/HartreeFock.hpp"
+#include "IO/ChronoTimer.hpp"
 #include "Maths/Grid.hpp"
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Maths/SphericalBessel.hpp"
@@ -57,9 +58,13 @@ MomentumOrbital momentum_orbital(const DiracSpinor &Fa, double en, double p_min,
       const auto p = p_block[j];
       const auto jl = SphericalBessel::fillBesselVec_kr(l, p, r);
       const auto jl_tilde = SphericalBessel::fillBesselVec_kr(l_tilde, p, r);
+      // f~(p) = 4 pi int f(r) j_l(pr) r dr: the Fourier transform of the
+      // orbital, normalised to (2 pi)^3
       F_block[j] =
+        4.0 * M_PI *
         NumCalc::integrate(gr.du(), 0, n_r, Fa.f(), jl, gr.r(), gr.drdu());
-      G_block[j] = NumCalc::integrate(gr.du(), 0, n_r, Fa.g(), jl_tilde, gr.r(),
+      G_block[j] = 4.0 * M_PI *
+                   NumCalc::integrate(gr.du(), 0, n_r, Fa.g(), jl_tilde, gr.r(),
                                       gr.drdu());
     }
     bool all_negligible = true;
@@ -83,14 +88,15 @@ MomentumOrbital momentum_orbital(const DiracSpinor &Fa, double en, double p_min,
 
 //==============================================================================
 std::array<double, 11> planewave_traces(double p, double F, double G, int kappa,
-                                        double k, double q, double ef,
+                                        double pf, double q, double ef,
                                         double alpha) {
   // Dirac representation, z along q, p in the xz plane (the returned
   // combinations are independent of the azimuth of p). Closed forms of
   //   Tr[(E_f + c alpha.p_f + beta m c^2) Gamma rho Gamma'^dag]
-  // with rho = [[F^2, s F G sigma.n], [s F G sigma.n, G^2]] (2x2 blocks),
-  // n = p-hat, p_f = p + q, s = sign(kappa) from the phases of the
-  // momentum-space spinor. A = E_f + m c^2, B = E_f - m c^2 = e_f.
+  // with rho = [[F^2, s F G sigma.n], [s F G sigma.n, G^2]] (2x2 blocks):
+  // the momentum-space density matrix of the shell without its N_a/(8 pi)
+  // prefactor; n = p-hat, p_f = p + q, s = sign(kappa) from the phases of
+  // the momentum-space spinor. A = E_f + m c^2, B = E_f - m c^2 = e_f.
   const double c = 1.0 / alpha;
   const double mc2 = c * c;
   const double Ef = mc2 + ef;
@@ -98,7 +104,7 @@ std::array<double, 11> planewave_traces(double p, double F, double G, int kappa,
   const double B = ef;
 
   // Energy conservation fixes the angle between p and q
-  auto cos_t = (k * k - p * p - q * q) / (2.0 * p * q);
+  auto cos_t = (pf * pf - p * p - q * q) / (2.0 * p * q);
   cos_t = std::clamp(cos_t, -1.0, 1.0);
   const double sin_t = std::sqrt(1.0 - cos_t * cos_t);
   const double nz = cos_t;
@@ -142,11 +148,11 @@ std::array<double, 13> planewave_formFactors(const MomentumOrbital &orb,
     return K;
 
   const double c = 1.0 / alpha;
-  const double k = std::sqrt(ef * (2.0 + alpha * alpha * ef));
+  const double pf = std::sqrt(ef * (2.0 + alpha * alpha * ef));
   // Integration limits: |p_f - q| <= p <= p_f + q; nothing below the first
   // grid point (O(p^3)), or beyond the last (density negligible)
-  const double p_lo = std::max(std::abs(k - q), orb.p.front());
-  const double p_hi = std::min(k + q, orb.p.back());
+  const double p_lo = std::max(std::abs(pf - q), orb.p.front());
+  const double p_hi = std::min(pf + q, orb.p.back());
   if (p_hi <= p_lo)
     return K;
 
@@ -196,7 +202,7 @@ std::array<double, 13> planewave_formFactors(const MomentumOrbital &orb,
   Ts.reserve(ps.size());
   for (std::size_t i = 0; i < ps.size(); ++i) {
     Ts.push_back(
-      planewave_traces(ps[i], Fs[i], Gs[i], orb.kappa, k, q, ef, alpha));
+      planewave_traces(ps[i], Fs[i], Gs[i], orb.kappa, pf, q, ef, alpha));
   }
   std::array<double, 11> sum{};
   const auto add_trapezoid = [&](std::size_t i0, std::size_t i1) {
@@ -235,7 +241,10 @@ std::array<double, 13> planewave_formFactors(const MomentumOrbital &orb,
       add_trapezoid(i, g1);
   }
 
-  const double pref = orb.num_electrons / (4.0 * M_PI * q * c * c);
+  // R^{mu nu} = 1/(8 pi^2 c^2 q) int p dp Tr[...], with the density matrix
+  // of the shell rho_a = (N_a / 8 pi) x (the matrix of planewave_traces)
+  const double density_norm = orb.num_electrons / (8.0 * M_PI);
+  const double pref = density_norm / (8.0 * M_PI * M_PI * q * c * c);
   // FormFactorSet order: V_T, V_E, V_M, V_L, X, A_T, A_E, A_M, A_L, Y, Z, S, P
   // The transverse response is not split between E and M: all in E
   K[0] = pref * sum[0];
@@ -330,6 +339,7 @@ std::vector<FormFactorSet> calculate_ridge_correction(
   }
 
   // Momentum-space orbitals (one at a time; the transform is parallel)
+  IO::ChronoTimer timer("");
   std::vector<MomentumOrbital> p_orbitals;
   p_orbitals.reserve(n_core);
   for (std::size_t ia = 0; ia < n_core; ++ia) {
@@ -337,6 +347,10 @@ std::vector<FormFactorSet> calculate_ridge_correction(
                            MomentumOrbital{} :
                            momentum_orbital(bound_states[ia], core[ia].en()));
   }
+
+  fmt::print("  momentum-space orbitals: {:.1f} s\n",
+             timer.lap_reading_ms() / 1000.0);
+  timer.start();
 
   // Work list: every (orbital, E) with an active q and the ejected electron
   // energy within the limits
@@ -382,6 +396,21 @@ std::vector<FormFactorSet> calculate_ridge_correction(
     const auto E = Egrid[iE];
     const auto ec = E + Fa_hf.en();
 
+    // Far off the ridge in E, where |p_f - q| lies beyond the momentum grid
+    // of the orbital, the plane-wave response is zero by construction (and
+    // its partial sum negligible): nothing to complete
+    const auto pf = std::sqrt(ec * (2.0 + alpha * alpha * ec));
+    std::vector<std::pair<std::size_t, double>> q_columns;
+    for (const auto &column : active_q[ia]) {
+      if (std::abs(pf - qgrid[column.first]) <= p_orbitals[ia].p.back()) {
+        q_columns.push_back(column);
+      }
+    }
+    if (q_columns.empty()) {
+      bar.update();
+      continue;
+    }
+
     // Plane-wave multipole sum, K = 0..Kmax, full continuum l range
     const auto [lc_min, lc_max] = continuum_l_range(Fa_hf, Kmax, std::nullopt);
     const auto free_waves =
@@ -390,10 +419,10 @@ std::vector<FormFactorSet> calculate_ridge_correction(
                                    pseudoscalarQ, spatialQ);
     auto &own_multipoles = thread_multipoles[std::size_t(omp_get_thread_num())];
     accumulate_multipole_sum(&PW, 0, Fa, Fa.occ_frac(), free_waves,
-                             own_multipoles, 0, Kmax, active_q[ia]);
+                             own_multipoles, 0, Kmax, q_columns);
 
     // All-K plane-wave response minus the plane-wave partial sum
-    for (const auto &[iq, qc] : active_q[ia]) {
+    for (const auto &[iq, qc] : q_columns) {
       const auto IA =
         planewave_formFactors(p_orbitals[ia], E, qgrid[iq], alpha);
       for (std::size_t i = 0; i < 13; ++i) {
@@ -414,6 +443,7 @@ std::vector<FormFactorSet> calculate_ridge_correction(
     }
     bar.update();
   }
+  fmt::print("  plane-wave sums: {:.1f} s\n", timer.lap_reading_ms() / 1000.0);
 
   return dK;
 }

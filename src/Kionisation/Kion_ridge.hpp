@@ -14,24 +14,34 @@ namespace Kion {
 
 //------------------------------------------------------------------------------
 /*!
-  @brief Momentum-space (Bessel transformed) bound orbital, for the all-K
+  @brief Momentum-space (Fourier transformed) bound orbital, for the all-K
   plane-wave response.
 
   @details
+  The momentum-space orbital,
+  \f[
+    \tilde\psi_{am}(\vb{p}) = \int d^3r\, e^{-i\vb{p}\cdot\vb{r}}\,
+      \psi_{am}(\vb{r})
+    = (-i)^l \begin{pmatrix}
+        \tilde f_a(p)\, \ket{\kappa m} \\
+        -s_\kappa\, \tilde g_a(p)\, \ket{-\kappa, m}
+      \end{pmatrix}
+  \f]
+  (the spinors are functions of \f$ \hat{\vb{p}} \f$, and
+  \f$ s_\kappa = \kappa/|\kappa| \f$), has the radial functions
   \f[
   \begin{align}
-    \tilde F(p) &= \int f(r)\, j_l(pr)\, r\, dr, \\
-    \tilde G(p) &= \int g(r)\, j_{\tilde l}(pr)\, r\, dr,
+    \tilde f_a(p) &= 4\pi\int f_a(r)\, j_l(pr)\, r\, dr, \\
+    \tilde g_a(p) &= 4\pi\int g_a(r)\, j_{\tilde l}(pr)\, r\, dr,
   \end{align}
   \f]
-  with \f$ \tilde l = l(-\kappa) \f$. The radial momentum density is
-  \f$ (2/\pi)(\tilde F^2 + \tilde G^2) \f$, normalised as
+  with \f$ \tilde l = l(-\kappa) \f$, normalised as
   \f[
-    \frac{2}{\pi}\int (\tilde F^2 + \tilde G^2)\, p^2\, dp = 1.
+    \int (\tilde f_a^2 + \tilde g_a^2)\, p^2\, dp = (2\pi)^3.
   \f]
-  The grid is logarithmic, and ends where the density has fallen below a
-  set fraction of its peak (see momentum_orbital()): the density is zero
-  beyond p.back().
+  The grid is logarithmic, and ends where the density
+  \f$ \tilde f_a^2 + \tilde g_a^2 \f$ has fallen below a set fraction of
+  its peak (see momentum_orbital()): the density is zero beyond p.back().
 */
 struct MomentumOrbital {
   //! Dirac quantum number of the orbital
@@ -42,15 +52,16 @@ struct MomentumOrbital {
   double num_electrons{};
   //! Momentum grid (au), logarithmic
   std::vector<double> p{};
-  //! Transformed large component at each p
+  //! Transformed large component, f~_a, at each p
   std::vector<double> F{};
-  //! Transformed small component at each p
+  //! Transformed small component, g~_a, at each p
   std::vector<double> G{};
 };
 
 //------------------------------------------------------------------------------
 /*!
-  @brief Bessel transforms a bound orbital onto a logarithmic momentum grid.
+  @brief Fourier transforms a bound orbital onto a logarithmic momentum grid
+  (MomentumOrbital).
 
   @details
   The grid is logarithmic, @p points_per_decade points per factor of 10 in
@@ -82,39 +93,40 @@ MomentumOrbital momentum_orbital(const DiracSpinor &Fa, double en,
   momentum p: the Dirac traces of every factor.
 
   @details
-  With z along q, and the angle between p and q fixed by energy
-  conservation,
+  With z along q, \f$ \vb{p}_f = \vb{p} + \vb{q} \f$, and the angle between
+  p and q fixed by energy conservation,
   \f[
-    \cos\theta = \frac{k^2 - p^2 - q^2}{2pq},
+    \cos\theta_{pq} = \frac{p_f^2 - p^2 - q^2}{2pq},
   \f]
-  returns the traces
+  returns the traces over the Dirac indices
   \f[
     T = {\rm Tr}\big[(E_f + c\,\vb{\alpha}\cdot\vb{p}_f + \beta mc^2)\,
         \Gamma\,\rho\,\Gamma'^\dagger\big]
   \f]
-  for the closed-shell momentum-space density matrix (2x2 blocks)
+  for the momentum-space density matrix of the shell without its
+  \f$ N_a/(8\pi) \f$ prefactor (2x2 blocks; see planewave_formFactors()),
   \f[
     \rho = \begin{pmatrix}
-      \tilde F^2 & s\,\tilde F\tilde G\,\vb{\sigma}\cdot\hat{\vb{p}} \\
-      s\,\tilde F\tilde G\,\vb{\sigma}\cdot\hat{\vb{p}} & \tilde G^2
+      \tilde f_a^2 & s_\kappa\,\tilde f_a\tilde g_a\,\vb{\sigma}\cdot\hat{\vb{p}} \\
+      s_\kappa\,\tilde f_a\tilde g_a\,\vb{\sigma}\cdot\hat{\vb{p}} & \tilde g_a^2
     \end{pmatrix},
   \f]
-  where \f$ s = {\rm sign}(\kappa) \f$. The traces are returned in the order
-  {V: 00, 33, 11+22, 03; A: 00, 33, 11+22, 03; Im VA 12; S; P}.
+  where \f$ s_\kappa = \kappa/|\kappa| \f$. The traces are returned in the
+  order {V: 00, 33, 11+22, 03; A: 00, 33, 11+22, 03; Im VA 12; S; P}.
   See planewave_formFactors() for the vertices and the use.
 
   @param p      Bound-electron momentum (au).
-  @param F      Transformed large component at p.
-  @param G      Transformed small component at p.
+  @param F      Transformed large component, f~_a, at p.
+  @param G      Transformed small component, g~_a, at p.
   @param kappa  Dirac quantum number of the orbital.
-  @param k      Ejected-electron momentum (au).
+  @param pf     Ejected-electron momentum, p_f (au).
   @param q      Momentum transfer (au).
   @param ef     Ejected-electron kinetic energy (au).
   @param alpha  Fine-structure constant.
   @return The 11 traces.
 */
 std::array<double, 11> planewave_traces(double p, double F, double G, int kappa,
-                                        double k, double q, double ef,
+                                        double pf, double q, double ef,
                                         double alpha);
 
 //------------------------------------------------------------------------------
@@ -125,26 +137,40 @@ std::array<double, 11> planewave_traces(double p, double F, double G, int kappa,
 
   @details
   The ejected electron is free (the potential does not act during the
-  collision), with kinetic energy and momentum
+  collision), with kinetic energy, momentum, and total energy
   \f[
   \begin{align}
     \en_f &= E + \en_a, \\
-    k &= \sqrt{\en_f(2 + \alpha^2\en_f)},
+    p_f &= \sqrt{\en_f(2 + \alpha^2\en_f)}, \\
+    E_f &= \en_f + mc^2,
   \end{align}
   \f]
-  and the bound electron has the momentum distribution of the orbital.
-  Summed over the closed shell and the final spin, each factor is a
-  Cartesian component of the response tensor (z along q), reduced to a
-  single integral over the bound-electron momentum p, with the angle
-  between p and q fixed by energy conservation:
+  and the bound electron has the momentum distribution of the orbital
+  (MomentumOrbital). The factors of the orbital are the Cartesian
+  components (z along q) of its response tensor,
   \f[
-    R^{\mu\nu} = \frac{N_a}{4\pi q c^2}\int_{|k-q|}^{k+q} p\,dp\;
-      {\rm Tr}\big[(E_f + c\,\vb{\alpha}\cdot\vb{p}_f + \beta mc^2)\,
-      \Gamma^\mu \rho(p)\, \Gamma^{\nu\dagger}\big],
+    R^{\mu\nu}_a = x_a \sum_{m_a}\sum_f J^\mu_{fa}\, J^{\nu *}_{fa},
   \f]
-  with \f$ \vb{p}_f = \vb{p} + \vb{q} \f$, \f$ E_f = mc^2 + \en_f \f$, and
-  \f$ \rho \f$ the closed-shell momentum density matrix (planewave_traces()).
-  The vertex \f$ \Gamma^\mu \f$ is that of the operator:
+  summed over the final plane waves at energy \f$ \en_f \f$ and over the
+  closed shell. The sum reduces to a single integral over the
+  bound-electron momentum p, the angle between p and q being fixed by
+  energy conservation (planewave_traces()):
+  \f[
+    R^{\mu\nu}_a = \frac{1}{8\pi^2 c^2 q}\int_{|p_f-q|}^{p_f+q} p\,dp\;
+      {\rm Tr}\big[(E_f + c\,\vb{\alpha}\cdot\vb{p}_f + \beta mc^2)\,
+      \Gamma^\mu \rho_a(p)\, \Gamma^{\nu\dagger}\big],
+  \f]
+  with \f$ \vb{p}_f = \vb{p} + \vb{q} \f$, the trace over the Dirac
+  indices, and
+  \f[
+    \rho_a = \frac{N_a}{8\pi}\begin{pmatrix}
+      \tilde f_a^2 & s_\kappa\,\tilde f_a\tilde g_a\,\vb{\sigma}\cdot\hat{\vb{p}} \\
+      s_\kappa\,\tilde f_a\tilde g_a\,\vb{\sigma}\cdot\hat{\vb{p}} & \tilde g_a^2
+    \end{pmatrix}
+  \f]
+  the momentum-space density matrix of the shell (\f$ N_a \f$ electrons).
+  The vertex \f$ \Gamma^\mu = \gamma^0\gamma^\mu\tilde\gamma \f$ is that
+  of the operator:
   - vector: \f$ (1, \vb{\alpha}) \f$
   - axial: \f$ (\gamma^5, \vb{\Sigma}) \f$
   - scalar: \f$ \beta \f$
@@ -166,8 +192,25 @@ std::array<double, 11> planewave_traces(double p, double F, double G, int kappa,
     P &= R_{PP},
   \end{align}
   \f]
-  where Z is the antisymmetric transverse vector-axial interference. For
-  an electron at rest these reduce to the free-electron values, e.g.
+  where Z is the antisymmetric transverse vector-axial interference. With
+  the couplings in the vertex, \f$ \gamma^0\gamma^\mu(c_V - c_A\gamma^5) \f$,
+  the tensor is \f$ c_V^2 R_V + c_A^2 R_A - c_V c_A (R_{VA} + R_{AV}) \f$,
+  and its components are the coefficients of the spin-summed cross
+  section:
+  \f[
+  \begin{align}
+    R^{00} &= c_V^2 V_T + c_A^2 A_T, \\
+    R^{33} &= c_V^2 V_L + c_A^2 A_L, \\
+    R^{11} + R^{22} &= c_V^2 (V_E + V_M) + c_A^2 (A_E + A_M), \\
+    -{\rm Re}\,R^{03} &= c_V^2 X - c_A^2 Y, \\
+    -{\rm Im}\,R^{12} &= c_V c_A Z,
+  \end{align}
+  \f]
+  (for an isotropic target \f$ R^{21}_{VA} = -R^{12}_{VA} \f$, so the VA and
+  AV terms contribute \f$ {\rm Im}\,R^{12}_{VA} \f$ each), and
+  \f$ R = c_S^2 S + c_P^2 P \f$ for the scalar-pseudoscalar vertex
+  \f$ c_S\gamma^0 + i c_P\gamma^0\gamma^5 \f$. For an electron at rest the
+  factors reduce to the free-electron values, e.g.
   \f[
   \begin{align}
     V_L &= (E/qc)^2\, V_T, \\
@@ -260,8 +303,11 @@ double captured_fraction(const DiracSpinor &Fa, int Kmax, std::size_t iq,
 
   The correction is computed only where it can matter: for each orbital,
   at the momentum transfers where the multipoles above Kmax carry more than
-  @p ridge_eps of the norm (captured_fraction()), and at the energies where
-  the orbital is ionised (ejected energy within (@p ec_min, @p ec_max]).
+  @p ridge_eps of the norm (captured_fraction()), at the energies where
+  the orbital is ionised (ejected energy within (@p ec_min, @p ec_max]),
+  and, at each energy, only where |p_f - q| lies within the momentum grid
+  of the orbital (elsewhere, far off the ridge, the plane-wave response is
+  zero by construction).
   Parallel over the (orbital, E) pairs. Prints, per orbital, the momentum
   transfer above which the correction is active.
 
