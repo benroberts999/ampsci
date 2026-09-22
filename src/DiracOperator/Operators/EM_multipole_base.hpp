@@ -19,7 +19,7 @@ namespace DiracOperator {
       &= \sqrt{4\pi}\sum_{KQ}\sqrt{[K]} \, 
         i^K \, {Y^*_{KQ}}{(\hat q)} \, t^K_Q(q,r),\\
     \vec{\alpha} \, e^{i\vec{q}\cdot\vec{r}}
-      & = \sqrt{4\pi} \sum_{KQ\sigma} \sqrt{[K]} \, i^{K-\sigma} \, 
+      & = \sqrt{4\pi} \sum_{KQ\sigma} \sqrt{[K]} \, i^{K+1} \, 
             \vec{Y}_{KQ}^{(\sigma)*}(\hat{{q}}) \, 
             T^{(\sigma)}_{KQ},
   \end{align}  
