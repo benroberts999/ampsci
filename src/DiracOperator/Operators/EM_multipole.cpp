@@ -21,9 +21,9 @@ DiracSpinor VEk_Len::radial_rhs(const int kappa_a,
   const auto K = double(m_rank);
   const auto c1 = double(kappa_a - Fb.kappa()) / (K + 1.0);
   const auto cx = std::sqrt((K + 1.0) / K);
-  Rab_rhs(+1, *p_jK, &dF, Fb, cx);
-  Pab_rhs(+1, *p_jKp1, &dF, Fb, -c1 * cx);
-  Pab_rhs(-1, *p_jKp1, &dF, Fb, -cx);
+  Rab_rhs(+1, *p_jK, &dF, Fb, -cx);
+  Pab_rhs(+1, *p_jKp1, &dF, Fb, c1 * cx);
+  Pab_rhs(-1, *p_jKp1, &dF, Fb, cx);
   return dF;
 }
 
@@ -39,8 +39,8 @@ double VEk_Len::radialIntegral(const DiracSpinor &Fa,
   const auto cc = double(Fa.kappa() - Fb.kappa()) / (K + 1.0);
   const auto cx = std::sqrt((K + 1.0) / K);
 
-  return cx * (Rab(+1, *p_jK, Fa, Fb) - (cc + 1.0) * Vab(*p_jKp1, Fa, Fb) +
-               (1.0 - cc) * Wab(*p_jKp1, Fa, Fb));
+  return -cx * (Rab(+1, *p_jK, Fa, Fb) - (cc + 1.0) * Vab(*p_jKp1, Fa, Fb) +
+                (1.0 - cc) * Wab(*p_jKp1, Fa, Fb));
 }
 
 //------------------------------------------------------------------------------
@@ -81,10 +81,10 @@ DiracSpinor VEk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   assert(m_rank != 0); // should already be discounted!
   const auto cx = std::sqrt((K + 1.0) / K);
   if (dk != 0.0) {
-    Pab_rhs(+1, *p_jK_on_qr, &dF, Fb, cx * dk);
-    Pab_rhs(+1, *p_jKp1, &dF, Fb, -cx * dk / (K + 1.0));
+    Pab_rhs(+1, *p_jK_on_qr, &dF, Fb, -cx * dk);
+    Pab_rhs(+1, *p_jKp1, &dF, Fb, cx * dk / (K + 1.0));
   }
-  Pab_rhs(-1, *p_jK_on_qr, &dF, Fb, -cx * K);
+  Pab_rhs(-1, *p_jK_on_qr, &dF, Fb, cx * K);
 
   return dF;
 }
@@ -105,7 +105,7 @@ double VEk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   const auto Pp2 = Pab(+1, *p_jKp1, Fa, Fb);
   const auto Pm1 = Pab(-1, *p_jK_on_qr, Fa, Fb);
 
-  return cx * (dk * (Pp1 - Pp2 / (K + 1)) - K * Pm1);
+  return -cx * (dk * (Pp1 - Pp2 / (K + 1)) - K * Pm1);
 }
 
 //------------------------------------------------------------------------------
@@ -350,16 +350,16 @@ DiracSpinor AEk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   assert(m_rank != 0); // should already be discounted!
   const auto cx = std::sqrt((K + 1.0) / K);
 
-  Rab_rhs(-1, *p_jKp1, &dF, Fb, -cx * dk / (K + 1.0));
+  Rab_rhs(-1, *p_jKp1, &dF, Fb, cx * dk / (K + 1.0));
 
   if (dk_int == m_rank) {
     // FF terms cancel!
     // R^- - R^+ = -2G
-    Gab_rhs(*p_jK_on_qr, &dF, Fb, -2.0 * cx * dk);
+    Gab_rhs(*p_jK_on_qr, &dF, Fb, 2.0 * cx * dk);
     return dF;
   } else {
-    Rab_rhs(-1, *p_jK_on_qr, &dF, Fb, cx * dk);
-    Rab_rhs(+1, *p_jK_on_qr, &dF, Fb, -cx * K);
+    Rab_rhs(-1, *p_jK_on_qr, &dF, Fb, -cx * dk);
+    Rab_rhs(+1, *p_jK_on_qr, &dF, Fb, cx * K);
     return dF;
   }
 }
@@ -385,13 +385,13 @@ double AEk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     // R^- - R^+ = -2G
     // Always? Or only same kappa?
     const auto GG = Gab(*p_jK_on_qr, Fa, Fb);
-    return cx * dk * (-2.0 * GG - Rmp1);
+    return cx * dk * (2.0 * GG + Rmp1);
   }
 
   const auto Rm1 = Rab(-1, *p_jK_on_qr, Fa, Fb);
   const auto Rp1 = Rab(+1, *p_jK_on_qr, Fa, Fb);
 
-  return cx * (dk * Rm1 - K * Rp1 - dk * Rmp1);
+  return -cx * (dk * Rm1 - K * Rp1 - dk * Rmp1);
 }
 
 //------------------------------------------------------------------------------
@@ -489,7 +489,7 @@ DiracSpinor AMk::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
   assert(m_rank != 0); // should already be discounted!
   const auto ck = sk / std::sqrt(K * (K + 1.0));
 
-  Rab_rhs(-1, *p_jK, &dF, Fb, -ck);
+  Rab_rhs(-1, *p_jK, &dF, Fb, ck);
   return dF;
 }
 
@@ -507,7 +507,7 @@ double AMk::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
   assert(m_rank != 0); // should already be discounted!
   const auto ck = sk / std::sqrt(K * (K + 1.0));
 
-  return -ck * Rab(-1, *p_jK, Fa, Fb);
+  return ck * Rab(-1, *p_jK, Fa, Fb);
 }
 
 //------------------------------------------------------------------------------
@@ -584,7 +584,7 @@ DiracSpinor S5k::radial_rhs(const int kappa_a, const DiracSpinor &Fb) const {
     return dF;
   }
 
-  Pab_rhs(+1, *p_jK, &dF, Fb);
+  Pab_rhs(+1, *p_jK, &dF, Fb, -1.0);
   return dF;
 }
 
@@ -595,7 +595,7 @@ double S5k::radialIntegral(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
     return 0.0;
   }
 
-  return Pab(+1, *p_jK, Fa, Fb);
+  return -Pab(+1, *p_jK, Fa, Fb);
 }
 
 //------------------------------------------------------------------------------

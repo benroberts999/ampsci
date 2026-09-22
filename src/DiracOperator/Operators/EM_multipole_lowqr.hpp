@@ -63,7 +63,7 @@ private:
 class VLk_lowq final : public EM_multipole {
 public:
   VLk_lowq(const Grid &gr, int K, double)
-    : EM_multipole(K, Parity::odd, 1.0 / 3.0, {}, Realness::imaginary, false,
+    : EM_multipole(K, Parity::odd, -1.0 / 3.0, {}, Realness::imaginary, false,
                    &gr, 'V', 'L', true) {}
 
   void updateFrequency(const double) override final { return; }
@@ -232,10 +232,10 @@ public:
       const double cx = std::sqrt(2.0) / 3.0;
 
       if (same_kap || dk_int == 1) {
-        Gab_rhs(&dF, Fb, -2.0 * cx * dk);
+        Gab_rhs(&dF, Fb, 2.0 * cx * dk);
       } else {
-        Rab_rhs(-1, &dF, Fb, cx * dk);
-        Rab_rhs(+1, &dF, Fb, -cx);
+        Rab_rhs(-1, &dF, Fb, -cx * dk);
+        Rab_rhs(+1, &dF, Fb, cx);
       }
     }
 
@@ -244,11 +244,11 @@ public:
 
       if (dk_int == 2) {
         // F-part cancels!
-        Gab_rhs(&dF, Fb, -4.0 * cx2 * m_q);
+        Gab_rhs(&dF, Fb, 4.0 * cx2 * m_q);
         dF *= m_vec;
       } else {
-        Rab_rhs(-1, m_vec, &dF, Fb, cx2 * dk * m_q);
-        Rab_rhs(+1, m_vec, &dF, Fb, -2.0 * cx2 * m_q);
+        Rab_rhs(-1, m_vec, &dF, Fb, -cx2 * dk * m_q);
+        Rab_rhs(+1, m_vec, &dF, Fb, 2.0 * cx2 * m_q);
       }
     }
 
@@ -271,11 +271,11 @@ public:
       const auto cx = std::sqrt(2.0);
 
       if (same_kap || dk_int == 1) {
-        return (-2.0 / 3.0) * cx * dk * Gab(Fa, Fb);
+        return (2.0 / 3.0) * cx * dk * Gab(Fa, Fb);
       }
       const auto Rm1 = Rab(-1, Fa, Fb);
       const auto Rp1 = Rab(+1, Fa, Fb);
-      return cx * (dk * Rm1 - Rp1) / 3.0;
+      return -cx * (dk * Rm1 - Rp1) / 3.0;
     }
 
     if (m_rank == 2) {
@@ -283,10 +283,10 @@ public:
 
       if (dk_int == 2) {
         // F-part cancels!
-        return cx2 * m_q * (-4.0 * Gab(m_vec, Fa, Fb));
+        return cx2 * m_q * (4.0 * Gab(m_vec, Fa, Fb));
       }
 
-      return cx2 * m_q *
+      return -cx2 * m_q *
              (dk * Rab(-1, m_vec, Fa, Fb) - 2.0 * Rab(+1, m_vec, Fa, Fb));
     }
 
@@ -405,12 +405,12 @@ public:
 
     const auto sk = double(kappa_a - Fb.kappa());
     if (m_rank == 1) {
-      Rab_rhs(-1, m_vec, &dF, Fb, -(m_q / (std::sqrt(2.0) * 3.0)) * sk);
+      Rab_rhs(-1, m_vec, &dF, Fb, (m_q / (std::sqrt(2.0) * 3.0)) * sk);
     }
 
     if (m_rank == 2) {
       using namespace qip::overloads;
-      const auto c = -(m_q * m_q / (std::sqrt(6.0) * 15.0)) * sk;
+      const auto c = (m_q * m_q / (std::sqrt(6.0) * 15.0)) * sk;
       Rab_rhs(-1, m_vec * m_vec, &dF, Fb, c);
     }
 
@@ -428,11 +428,11 @@ public:
 
     if (m_rank == 1) {
       const auto ck = sk / std::sqrt(2.0);
-      return -ck * m_q * Rab(-1, m_vec, Fa, Fb) / 3.0;
+      return ck * m_q * Rab(-1, m_vec, Fa, Fb) / 3.0;
     }
     if (m_rank == 2) {
       using namespace qip::overloads;
-      return -(m_q * m_q / (std::sqrt(6.0) * 15.0)) * sk *
+      return (m_q * m_q / (std::sqrt(6.0) * 15.0)) * sk *
              Rab(-1, m_vec * m_vec, Fa, Fb);
     }
     return 0.0;
@@ -473,8 +473,12 @@ public:
 
     if (m_rank == 0) {
       // XXX q here is via _frequency_, not momentum
+      // Exact relation for <a|g5|b> (Roberts et al. 2014): the relativistic
+      // factor carries kappa of the ket (= -kappa_a here, since kappa_b =
+      // -kappa_a); checked against the full operator for exact H-like
+      // states (EM_multipole.tests, low-q vs full-q)
       const auto w_ab = m_q / m_alpha;
-      const auto f_rel = 1.0 / (1.0 + m_alpha * m_alpha * kappa_a * w_ab);
+      const auto f_rel = 1.0 / (1.0 + m_alpha * m_alpha * Fb.kappa() * w_ab);
       const auto c = -m_alpha * w_ab * f_rel;
       Rab_rhs(+1, m_vec, &dF, Fb, c);
     } else if (m_rank == 1) {
@@ -494,8 +498,9 @@ public:
 
     if (m_rank == 0) {
       // XXX q here is via _frequency_, not momentum
+      // relativistic factor: kappa of the ket state (see radial_rhs)
       const auto w_ab = Fa.en() - Fb.en();
-      const auto f_rel = 1.0 / (1.0 + m_alpha * m_alpha * Fa.kappa() * w_ab);
+      const auto f_rel = 1.0 / (1.0 + m_alpha * m_alpha * Fb.kappa() * w_ab);
       return -m_alpha * w_ab * Rab(+1, m_vec, Fa, Fb) * f_rel;
       //Pab(-1, Fa, Fb); //
     }
@@ -547,8 +552,9 @@ public:
       // return dF;
       // XXX omega_ab factored out!! XXX
 
+      // relativistic factor: kappa of the ket state (see Phi5k_lowq)
       const auto w_ab = m_q / m_alpha;
-      const auto f_rel = 1.0 / (1.0 + m_alpha * m_alpha * kappa_a * w_ab);
+      const auto f_rel = 1.0 / (1.0 + m_alpha * m_alpha * Fb.kappa() * w_ab);
       const auto wab2 = std::pow(w_ab, 2);
       const auto c = 0.5 * m_alpha * m_alpha * m_alpha * wab2 * f_rel;
 
@@ -571,7 +577,8 @@ public:
 
       // XXX q here is via _frequency_, not momentum
       const auto w_ab = Fa.en() - Fb.en();
-      const auto f_rel = 1.0 / (1.0 + m_alpha * m_alpha * Fa.kappa() * w_ab);
+      // relativistic factor: kappa of the ket state (see Phi5k_lowq)
+      const auto f_rel = 1.0 / (1.0 + m_alpha * m_alpha * Fb.kappa() * w_ab);
 
       const auto wab2 = std::pow(w_ab, 2);
       return 0.5 * m_alpha * m_alpha * m_alpha * wab2 * Rab(+1, m_vec, Fa, Fb) *
