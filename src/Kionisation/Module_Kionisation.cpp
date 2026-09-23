@@ -33,17 +33,17 @@ namespace Module {
 // Declare, register, then define below.
 void Kionisation(const IO::InputBlock &input, const Wavefunction &wf);
 void photo(const IO::InputBlock &input, const Wavefunction &wf);
-void photoRPA(const IO::InputBlock &input, const Wavefunction &wf);
+void photoionisation(const IO::InputBlock &input, const Wavefunction &wf);
 void formFactors(const IO::InputBlock &input, const Wavefunction &wf);
 
 namespace {
 const Register r_Kionisation{
   "Kionisation", "Calculate atomic ionisation form-factors", &Kionisation};
-const Register r_photo{
-  "photo", "Calculate atomic photo-ionisation form-factors", &photo};
-const Register r_photoRPA{
-  "photoRPA", "Photo-ionisation cross-section with RPA (outgoing-wave TDHF)",
-  &photoRPA};
+
+const Register r_photoionisation{
+  "photoionisation",
+  "Photoionisation cross-section, with or without RPA (outgoing-wave TDHF)",
+  &photoionisation};
 const Register r_formFactors{"formFactors",
                              "Calculate general atomic ionisation form-factors",
                              &formFactors};
@@ -363,283 +363,28 @@ void Kionisation(const IO::InputBlock &input, const Wavefunction &wf) {
 }
 
 //==============================================================================
-void photo(const IO::InputBlock &input, const Wavefunction &wf) {
-  IO::ChronoTimer timer("photo");
-
-  input.check({
-    {"", "For calculating photoionisation cross-section, including comparison "
-         "of beyond-dipole approximations. These can also be reconstructed "
-         "from the vector form factors from formFactors{} module, which can "
-         "serve as a check."},
-    {"E_range",
-     "List (2). Minimum, maximum energy transfer (dE), in eV [10, 1000]"},
-    {"E_steps", "Numer of steps along dE grid (logarithmic grid) [50]"},
-    {"E_threshold", "Numer of extra E steps to add in -15% range on either side"
-                    " of each threshold. If <2, will add no new points [0]"},
-    {"E_extra", "List (comma separated) extra energies (in eV) to add 10 "
-                "points around. Useful for specific regions we want more "
-                "resolution in."},
-    {"ec_max", "Cut-off (in au) for continuum energy. [1e99]"},
-    {"K_minmax", "List (2). Minimum, maximum K [1, 1]"},
-    {"force_rescale", "Rescale V(r) when solving cntm orbitals [false]"},
-    {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
-                      "hole-particle interaction) [true]"},
-    {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
-    {"label", "Optional extra label appended to output file name"},
-  });
-  if (input.has_option("help")) {
-    return;
-  }
-
-  // Set up energy grid:
-  auto [Emin_eV, Emax_eV] = input.get("E_range", std::array{10.0, 1000.0});
-  auto E_steps = input.get<std::size_t>("E_steps", 50);
-  auto E_threshold = input.get<std::size_t>("E_threshold", 0);
-  if (E_steps <= 1) {
-    E_steps = 1;
-    Emax_eV = Emin_eV;
-  }
-  // Convert to atomic units for calculations:
-  const auto Emin_au = Emin_eV / PhysConst::Hartree_eV;
-  const auto Emax_au =
-    Emax_eV < Emin_eV ? Emin_au : Emax_eV / PhysConst::Hartree_eV;
-
-  // const Grid Egrid({E_steps, Emin_au, Emax_au, 0, GridType::logarithmic});
-  // auto energies = Egrid.r();
-
-  // Instead of using "grid" - specificly add extra points around
-  auto energies = qip::logarithmic_range(Emin_au, Emax_au, E_steps);
-
-  std::cout << "\nCore ionisation energies, in MeV\n";
-  for (const auto &Fc : wf.core()) {
-    fmt::print("{:3} : {:.4e}\n", Fc.shortSymbol(),
-               -1 * Fc.en() * PhysConst::Hartree_eV / 1.0e6);
-  }
-  std::cout << "\n";
-
-  // Add extra energy points near thresholds:
-  if (E_threshold > 1) {
-    for (const auto &Fc : wf.core()) {
-
-      // just below thresholds:
-      const auto extra1 =
-        qip::uniform_range(-0.85 * Fc.en(), -0.999 * Fc.en(), E_threshold);
-
-      // Just above thresholds (note: careful, since hard to solve
-      // Dirac equation for cntm states with very small energy)
-      const auto e0 = 0.01; // smallest energy can calculate well for cntm
-      const auto extra2 =
-        qip::uniform_range(-Fc.en() + e0, 1.15 * (-Fc.en() + e0), E_threshold);
-      energies = qip::merge(energies, extra1, extra2);
-    }
-  }
-
-  // Add extra points around specific energies
-  const auto E_extra = input.get("E_extra", std::vector<double>{});
-  for (const auto &Em_eV : E_extra) {
-    const auto Em = Em_eV / PhysConst::Hartree_eV;
-    const auto extra3 = qip::uniform_range(0.8 * Em, 1.2 * Em, 10);
-    energies = qip::merge(energies, extra3);
-  }
-
-  // If added extra points, sort list:
-  if (E_threshold > 1 || E_extra.size() > 0) {
-    std::sort(energies.begin(), energies.end());
-  }
-
-  // "cut-off"/ceiling energy for continuum. Bad idea?
-  const auto ec_max = input.get("ec_max", 1 / 0.0);
-
-  std::cout << "\nSummary of inputs:\n";
-  fmt::print(
-    "Energy  : [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} steps\n\n",
-    energies.front() * PhysConst::Hartree_eV,
-    energies.back() * PhysConst::Hartree_eV, energies.front(), energies.back(),
-    energies.size());
-
-  const auto [Kmin, Kmax] = input.get("K_minmax", std::array{1, 1});
-  // Error with structured bindings + clang++ with OpenMP:
-  // error: capturing a structured binding is not yet supported in OpenMP
-  // So, workaround: make local copy
-  const auto Kmin_ = Kmin;
-  const auto Kmax_ = Kmax;
-
-  const auto force_orthog = input.get("force_orthog", true);
-  const auto force_rescale = input.get("force_rescale", false);
-  const auto hole_particle = input.get("hole_particle", true);
-  const auto label = input.get("label", std::string{""});
-
-  // Output file name: identity, method, continuum options, optional label
-  const auto oname =
-    wf.identity() + "_photo_" +
-    (wf.vHF()->method() == HF::Method::HartreeFock ? "hf" : "local") +
-    (force_rescale ? "_rescale" : "") + (hole_particle ? "_hp" : "") +
-    (force_orthog ? "_orth" : "") + (label.empty() ? "" : "_" + label) + ".txt";
-
-  // "full" dipole operator
-  const auto E1 = DiracOperator::E1(wf.grid());
-  const auto E2 = DiracOperator::Ek(wf.grid(), 2);
-
-  auto M1nr = DiracOperator::M1nr();
-
-  // Store per-omega results in an array, then write to file after the parallel
-  // loop.
-  // Columns (per row, matching the existing file format):
-  // Q_E1, Q_M1, Q_M1_nr, Q_E, Q_E_len, Q_M, Q_EM(=Q_E+Q_M), Q_E2, Q_Ek2, Q_Mk1
-  // omega itself is recovered from energies[i_omega] at write time.
-  constexpr std::size_t N_cols = 10;
-  std::vector<std::array<double, N_cols>> results(energies.size());
-
-  qip::ProgressBar prog(int(energies.size()));
-#pragma omp parallel for schedule(dynamic)
-  for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
-    const auto omega = energies[i_omega];
-
-    // Conversion factor from dimensionless Q absorption form factor to sigma
-    const auto Ksigma = 4.0 * M_PI * M_PI * PhysConst::alpha *
-                        PhysConst::aB_cm * PhysConst::aB_cm * omega;
-
-    // Regular (length) E1 operator
-    double Q_E1 = 0.0;
-    // "Regular" M1
-    double Q_M1 = 0.0;
-    // Non-relativistic M1 operator
-    double Q_M1_nr = 0.0;
-    // Mk at k=1 (compare to regular M1)
-    double Q_Mk1 = 0.0;
-    // Ek at K=2 (compare to regular E2)
-    double Q_Ek2 = 0.0;
-    // Regular E2 (length)
-    double Q_E2 = 0.0;
-    // Full electric multipole
-    double Q_E = 0.0;
-    // Full magnetic multipole
-    double Q_M = 0.0;
-    // Full electric multipole (length form)
-    double Q_E_len = 0.0;
-
-    for (int k = Kmin_; k <= Kmax_; ++k) {
-
-      // Electric, magnetic parts
-      const auto Ek = DiracOperator::VEk(wf.grid(), k, omega);
-      const auto Mk = DiracOperator::VMk(wf.grid(), k, omega);
-      // Magnetic dipole
-      const auto M1 = DiracOperator::M1(wf.grid(), PhysConst::alpha, omega);
-      // "Length" form - for tests only
-      const auto Ek_len = DiracOperator::VEk_Len(wf.grid(), k, omega);
-
-      for (const auto &Fa : wf.core()) {
-        const auto ec = omega + Fa.en();
-        if (ec < 0.0 || ec > ec_max)
-          continue;
-
-        const int l = Fa.l();
-        const int lc_max = l + k + 1;
-        const int lc_min = std::max(l - k - 1, 0);
-
-        ContinuumOrbitals cntm(wf.vHF());
-        cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale,
-                              hole_particle, force_orthog);
-
-        for (const auto &Fe : cntm.orbitals) {
-
-          const auto q = PhysConst::alpha * omega;
-
-          const auto tkp1 = 2.0 * k + 1.0;
-          const auto pol_av = 1.0 / 2.0;
-          const auto f_Q =
-            tkp1 * pol_av / qip::pow(PhysConst::alpha * omega, 2);
-
-          // check!
-          const auto f_Q_E1 = 1.0 / 3.0;
-          const auto f_Q_M1 = 1.0 / 3.0 * qip::pow(PhysConst::muB_CGS, 2);
-
-          if (k == 1) {
-            Q_E1 += f_Q_E1 * qip::pow(E1.reducedME(Fe, Fa), 2);
-            Q_M1 += f_Q_M1 * qip::pow(M1.reducedME(Fe, Fa), 2);
-            Q_Mk1 += f_Q * qip::pow(Mk.reducedME(Fe, Fa), 2);
-            Q_M1_nr += f_Q_M1 * qip::pow(M1nr.reducedME(Fe, Fa), 2);
-          }
-          if (k == 2) {
-            // test with "actual" E2 as well!
-            Q_Ek2 += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
-
-            Q_E2 += f_Q_E1 * qip::pow(E2.reducedME(Fe, Fa), 2) / 20 * q * q;
-          }
-
-          Q_E += f_Q * qip::pow(Ek.reducedME(Fe, Fa), 2);
-          Q_M += f_Q * qip::pow(Mk.reducedME(Fe, Fa), 2);
-
-          Q_E_len += f_Q * qip::pow(Ek_len.reducedME(Fe, Fa), 2);
-        }
-      }
-    }
-
-    results[i_omega] = {Ksigma * Q_E1,        //
-                        Ksigma * Q_M1,        //
-                        Ksigma * Q_M1_nr,     //
-                        Ksigma * Q_E,         //
-                        Ksigma * Q_E_len,     //
-                        Ksigma * Q_M,         //
-                        Ksigma * (Q_E + Q_M), //
-                        Ksigma * Q_E2,        //
-                        Ksigma * Q_Ek2,       //
-                        Ksigma * Q_Mk1};
-    prog.update();
-  }
-
-  // Sequential write after the parallel loop completes.
-  std::ofstream out_file(oname);
-  out_file << "# Photoelectric effect::\n"
-           << "# Cross section (cm^2):\n"
-           << "# Columns:\n"
-           << "# omega_MeV      : photon energy (MeV)\n"
-           << "# sigma_E1       : E1 (length) dipole cross section\n"
-           << "# sigma_M1       : M1 dipole\n"
-           << "# sigma_M1_nr    : M1 non-relativistic\n"
-           << "# sigma_E        : electric multipole (velocity)\n"
-           << "# sigma_E_len    : electric multipole (length) (Ek) all K\n"
-           << "# sigma_M        : magnetic multipole (Mk) all K\n"
-           << "# sigma_EM       : sigma_E + sigma_M (total multipole)\n"
-           << "# sigma_E2       : E2 (length)\n"
-           << "# sigma_Ek2      : Ek at K=2\n"
-           << "# sigma_Mk1      : Mk at K=1\n"
-           << "#\n"
-           << "omega_MeV  sigma_E1  sigma_M1  sigma_M1_nr  sigma_E  "
-              "sigma_E_len  sigma_M  "
-              "sigma_EM  sigma_E2  sigma_Ek2  sigma_Mk1\n";
-
-  for (std::size_t i_omega = 0; i_omega < energies.size(); ++i_omega) {
-    const auto &r = results[i_omega];
-    out_file << energies[i_omega] * PhysConst::Hartree_eV / 1e6 // omega (MeV)
-             << " " << r[0] // s_E1      : E1 (length) dipole
-             << " " << r[1] // s_M1      : M1 dipole
-             << " " << r[2] // s_M1_nr   : M1 non-relativistic
-             << " " << r[3] // s_E       : electric multipole (velocity)
-             << " " << r[4] // s_E_len   : electric multipole (length)
-             << " " << r[5] // s_M       : magnetic multipole
-             << " " << r[6] // s_EM      : Q_E + Q_M (total multipole)
-             << " " << r[7] // s_E2      : E2 (length)
-             << " " << r[8] // s_Ek2     : Ek at K=2
-             << " " << r[9] // s_Mk1     : Mk at K=1
-             << "\n";
-  }
-}
-
-//==============================================================================
-void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
-  IO::ChronoTimer timer("photoRPA");
+void photoionisation(const IO::InputBlock &input, const Wavefunction &wf) {
+  IO::ChronoTimer timer("photoionisation");
 
   input.check({
     {"", "Photoionisation cross-section for one or more operators, without "
          "or with RPA (core polarisation) from the outgoing-wave TDHF "
          "(TDHFcntm)."},
-    {"operator", "List. Operators: any of E1, E1v, M1, E2, VEk, VEk_Len, VMk. "
-                 "Each is written to own column in output file. [E1]"},
-    {"method", "HF (Hartree-Fock cross-section only) or RPA (with "
-               "RPA/core-polarisation corrections; requires the HF method). "
-               "As formFactors, without the Zeff options [RPA]"},
-    {"K_minmax", "List (2). Minimum, maximum multipolarity K [1, 1]"},
+    {"operator", "List. Operators: any of E1, E1v, M1, M1nr, E2, VEk, "
+                 "VEk_Len, VMk, AEk, AMk, Sk, S5k. Each is written to own "
+                 "column in output file. [E1]"},
+    {"", "Note: the scalar (Sk), pseudoscalar (S5k), and axial-vector (AEk, "
+         "AMk) operators do not give a photoionisation cross-section. They "
+         "are proportional to the absorption cross-section of a massless "
+         "boson with that coupling, evaluated with the standard EM coupling "
+         "(alpha) and the same polarisation average as the vector "
+         "multipoles."},
+    {"RPA", "Include RPA (core-polarisation) corrections; requires a "
+            "Hartree-Fock core [true]"},
+    {"K_minmax", "List (2). Minimum, maximum multipolarity K for the "
+                 "multipole family (VEk, VEk_Len, VMk, AEk, AMk, Sk, S5k). "
+                 "The fixed-rank operators (E1, E1v, M1, M1nr, E2) are always "
+                 "calculated, at their own rank [1, 1]"},
     {"E_range", "List (2). Minimum, maximum photon energy, in eV [10, 1000]"},
     {"E_steps", "Number of photon energies (logarithmic grid) [64]"},
     {"E_threshold", "Number of extra energies to add in the 15% range on "
@@ -650,17 +395,22 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
                 "need more resolution"},
     {"max_its", "Maximum RPA iterations per omega [60]"},
     {"eps", "RPA convergence target [1e-10]"},
-    {"eps_fail", "RPA solutions whose final eps is above this (or nan) are "
+    {"eps_fail", "RPA solutions that do not converge to this level are "
                  "discarded: the RPA shift is interpolated from the "
-                 "neighbouring energies, else the no-RPA value is used "
-                 "[1e-3]"},
-    {"rpa_E_max", "Solve the RPA only for photon energies up to this (eV); "
-                  "the no-RPA value is used above it [no limit]"},
+                 "neighbouring energies if possible, else the no-RPA value is "
+                 "used [1e-3]"},
+    {"rpa_E_max", "Solve RPA only for photon energies up to this (eV); "
+                  "the no-RPA value is used above it"},
     {"rpa_K_max", "Solve the RPA only for multipoles K up to this; the no-RPA "
-                  "value is used for the higher K [K_max]"},
-    {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
-                      "hole-particle interaction) [true]"},
+                  "value is used for the higher K. Applies to the multipole "
+                  "family only: the fixed-rank operators always include RPA "
+                  "[K_max]"},
+    {"hole_particle",
+     "Subtract Hartree-Fock self-interaction (account for "
+     "hole-particle interaction). Should be true if including RPA [true]"},
     {"force_orthog", "Force orthogonality of cntm orbitals [true]"},
+    {"force_rescale", "Rescale V(r) when solving cntm orbitals; inconsistent "
+                      "with RPA and hole_particle [false]"},
     {"label", "Optional extra label appended to output file name"},
   });
   if (input.has_option("help")) {
@@ -670,7 +420,8 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   // Operator names, matched case-insensitively against the DiracOperator
   // names. A list keeps its brackets in the parsed entries: stripped here
   const std::vector<std::string> supported_operators{
-    "E1", "E1v", "M1", "E2", "VEk", "VEk_Len", "VMk"};
+    "E1",      "E1v", "M1",  "M1nr", "E2", "VEk",
+    "VEk_Len", "VMk", "AEk", "AMk",  "Sk", "S5k"};
   std::vector<std::string> operators;
   for (auto name : input.get("operator", std::vector<std::string>{"E1"})) {
     name.erase(std::remove_if(name.begin(), name.end(),
@@ -683,7 +434,7 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
                    });
     if (match == supported_operators.end()) {
       fmt2::styled_print(fg(fmt::color::red), "\nFail: ");
-      fmt::print("photoRPA: unknown or unsupported operator {}\n", name);
+      fmt::print("photoionisation: unknown or unsupported operator {}\n", name);
       return;
     }
     operators.push_back(*match);
@@ -698,24 +449,25 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto eps_fail = input.get("eps_fail", 1.0e-3);
   const auto hole_particle = input.get("hole_particle", true);
   const auto force_orthog = input.get("force_orthog", true);
+  const auto force_rescale = input.get("force_rescale", false);
   const auto label = input.get("label", std::string{""});
 
-  // Method: HF (no RPA) or RPA; the Zeff methods of formFactors do not apply
-  const auto method =
-    Kion::parseStatesMethod(input.get("method", std::string{"RPA"}));
-  if (method != Kion::AtomicMethod::HF && method != Kion::AtomicMethod::RPA) {
+  // RPA requires a Hartree-Fock core: meaningless for a local potential
+  const auto use_rpa = input.get("RPA", true);
+  const bool hartree_fock_core = wf.vHF()->method() == HF::Method::HartreeFock;
+  if (use_rpa && !hartree_fock_core) {
     fmt2::styled_print(fg(fmt::color::red), "\nFail: ");
-    fmt::print("photoRPA: method must be HF or RPA (have {})\n",
-               Kion::parseStatesMethod(method));
-    return;
-  }
-  const bool use_rpa = method == Kion::AtomicMethod::RPA;
-  if (use_rpa && wf.vHF()->method() != HF::Method::HartreeFock) {
-    fmt2::styled_print(fg(fmt::color::red), "\nFail: ");
-    fmt::print("method=RPA requires a Hartree-Fock core (have {}); RPA is "
+    fmt::print("RPA requires a Hartree-Fock core (have {}); RPA is "
                "meaningless for a local potential\n",
                HF::parseMethod_short(wf.vHF()->method()));
     return;
+  }
+  // The RPA solves its own continuum channels without rescaling V(r), so
+  // rescaled ejected-electron states are inconsistent with it
+  if (use_rpa && force_rescale) {
+    fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
+    fmt::print("force_rescale is inconsistent with RPA: the RPA continuum "
+               "channels are solved without rescaling V(r)\n");
   }
 
   // Limits on where the RPA is solved (the no-RPA value is used elsewhere)
@@ -726,9 +478,11 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Output file name: identity, method, operators, K, continuum options,
   // label
+  const auto method_tag =
+    use_rpa ? std::string{"RPA"} : HF::parseMethod_short(wf.vHF()->method());
   const auto oname =
-    wf.identity() + "_photo_" + Kion::parseStatesMethod(method) + "_" +
-    qip::concat(operators, "-") + fmt::format("_{}-{}", Kmin, Kmax) +
+    wf.identity() + "_photo_" + method_tag + "_" + qip::concat(operators, "-") +
+    fmt::format("_{}-{}", Kmin, Kmax) + (force_rescale ? "_rescale" : "") +
     (hole_particle ? "_hp" : "") + (force_orthog ? "_orth" : "") +
     (label.empty() ? "" : "_" + label) + ".txt";
 
@@ -785,43 +539,62 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
       return std::make_unique<DiracOperator::E1v>(wf.alpha(), omega);
     if (name == "M1")
       return std::make_unique<DiracOperator::M1>(wf.grid(), wf.alpha(), omega);
+    if (name == "M1nr")
+      return std::make_unique<DiracOperator::M1nr>();
     if (name == "E2")
       return std::make_unique<DiracOperator::E2>(wf.grid());
     if (name == "VEk")
       return std::make_unique<DiracOperator::VEk>(wf.grid(), k, omega);
     if (name == "VEk_Len")
       return std::make_unique<DiracOperator::VEk_Len>(wf.grid(), k, omega);
-    // VMk
-    return std::make_unique<DiracOperator::VMk>(wf.grid(), k, omega);
+    if (name == "VMk")
+      return std::make_unique<DiracOperator::VMk>(wf.grid(), k, omega);
+    if (name == "AEk")
+      return std::make_unique<DiracOperator::AEk>(wf.grid(), k, omega);
+    if (name == "AMk")
+      return std::make_unique<DiracOperator::AMk>(wf.grid(), k, omega);
+    if (name == "Sk")
+      return std::make_unique<DiracOperator::Sk>(wf.grid(), k, omega);
+    if (name == "S5k")
+      return std::make_unique<DiracOperator::S5k>(wf.grid(), k, omega);
+    return std::make_unique<DiracOperator::NullOperator>();
   };
+  // The multipole family takes its rank from K; the others have a fixed rank
   const auto variable_rank = [](const std::string &name) {
-    return name == "VEk" || name == "VEk_Len" || name == "VMk";
+    return name == "VEk" || name == "VEk_Len" || name == "VMk" ||
+           name == "AEk" || name == "AMk" || name == "Sk" || name == "S5k";
   };
 
   // The (operator, K) blocks: one RPA solve per block per energy, with the
-  // convergence bookkeeping per block. A fixed-rank operator contributes at
-  // its own K only (E1 at K = 1, E2 at K = 2, ...)
+  // convergence bookkeeping per block. The K range applies to the multipole
+  // family only; a fixed-rank operator is always calculated, at its own
+  // rank (E1 at K = 1, E2 at K = 2, ...)
   struct Block {
     std::size_t i_op;
     int k;
+    bool multipole;
   };
   std::vector<Block> blocks;
-  for (int k = Kmin; k <= Kmax; ++k) {
-    for (std::size_t i_op = 0; i_op < n_ops; ++i_op) {
-      const auto &name = operators[i_op];
-      if (variable_rank(name) ||
-          make_operator(name, k, energies.front())->rank() == k) {
-        blocks.push_back({i_op, k});
+  for (std::size_t i_op = 0; i_op < n_ops; ++i_op) {
+    const auto &name = operators[i_op];
+    if (variable_rank(name)) {
+      for (int k = Kmin; k <= Kmax; ++k) {
+        blocks.push_back({i_op, k, true});
       }
+    } else {
+      const auto k = make_operator(name, 0, energies.front())->rank();
+      blocks.push_back({i_op, k, false});
     }
   }
 
   fmt::print("\nCore ionisation energies:\n");
-  fmt::print("{:>4} {:>12} {:>12}\n", "", "au", "eV");
+  fmt::print("{:>4} {:>12} {:>12}  {:>3}  {:>3}\n", "", "au", "eV", "j", "Nel");
   for (const auto &Fc : wf.core()) {
-    fmt::print("{:>4} {:12.6f} {:12.3f}\n", Fc.shortSymbol(), -Fc.en(),
-               -Fc.en() * PhysConst::Hartree_eV);
+    fmt::print("{:>4} {:12.6f} {:12.3f}  {}/2  {:3}\n", Fc.shortSymbol(),
+               -Fc.en(), -Fc.en() * PhysConst::Hartree_eV, Fc.twoj(),
+               Fc.num_electrons());
   }
+
   fmt::print("\nOperators: {}; K = {} to {}\n", qip::concat(operators, ", "),
              Kmin, Kmax);
   fmt::print("Energy   : [{:.1e}, {:.1e}] eV  = [{:.1e}, {:.1e}] au, in {} "
@@ -829,12 +602,21 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
              energies.front() * PhysConst::Hartree_eV,
              energies.back() * PhysConst::Hartree_eV, energies.front(),
              energies.back(), n_E);
+
+  if (n_E > E_steps) {
+    fmt::print(
+      "Including: {} extra energy points around thresholds/requested\n",
+      n_E - E_steps);
+  }
+
   if (!use_rpa) {
-    std::cout << "Method   : HF (no RPA); parallel over energies\n";
+    fmt::print("Method   : {} (no RPA)\n",
+               HF::parseMethod_short(wf.vHF()->method()));
   } else {
-    fmt::print("Method   : RPA, eps target {:.1e}, discarded if eps > {:.1e}; "
-               "parallel over {}\n",
-               eps, eps_fail, parallel_omega ? "energies" : "RPA channels");
+    fmt::print("Method   : RPA, eps target {:.1e}, discarded if eps > {:.1e}\n",
+               eps, eps_fail);
+    fmt::print("Parallel over {}\n",
+               parallel_omega ? "energies" : "RPA channels");
   }
   if (use_rpa && (rpa_E_max_eV || rpa_K_max < Kmax)) {
     std::cout << "RPA solved only for:";
@@ -844,13 +626,13 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     if (rpa_K_max < Kmax) {
       fmt::print(" K <= {};", rpa_K_max);
     }
-    std::cout << " no-RPA value elsewhere\n";
+    std::cout << "\n";
   }
   if (blocks.empty()) {
-    fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
-    std::cout << "no operator contributes in this K range; nothing to do\n";
+    std::cout << "Requested operators do not contributes in this K range\n";
     return;
   }
+  std::cout << "\n";
 
   // The operator pair for the RPA solver: t_+ and t_-. E1v depends on the
   // sign of omega, so t_- is E1v at -omega. Every other operator depends on
@@ -871,10 +653,11 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto q = PhysConst::alpha * omega;
     if (name == "E1" || name == "E1v")
       return 1.0 / 3.0;
-    if (name == "M1")
+    if (name == "M1" || name == "M1nr")
       return 1.0 / 3.0 * qip::pow(PhysConst::muB_CGS, 2);
     if (name == "E2")
       return 1.0 / 3.0 / 20.0 * q * q;
+    // Multipole family (vector, axial, scalar, pseudoscalar): same factor
     return (2.0 * block.k + 1.0) / 2.0 / (q * q);
   };
 
@@ -920,8 +703,9 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
 
-    const bool solve_rpa =
-      rpa != nullptr && block.k <= rpa_K_max && omega <= rpa_E_max;
+    const bool solve_rpa = rpa != nullptr &&
+                           (!block.multipole || block.k <= rpa_K_max) &&
+                           omega <= rpa_E_max;
     double eps_final = 0.0;
     bool dressed = false;
     if (solve_rpa) {
@@ -951,8 +735,8 @@ void photoRPA(const IO::InputBlock &input, const Wavefunction &wf) {
       const int lc_max = Fa.l() + h->rank() + 1;
       const int lc_min = std::max(Fa.l() - h->rank() - 1, 0);
       ContinuumOrbitals cntm(wf.vHF());
-      cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, false, hole_particle,
-                            force_orthog);
+      cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale,
+                            hole_particle, force_orthog);
 
       for (const auto &Fe : cntm.orbitals) {
         if (h->isZero(Fe, Fa))
