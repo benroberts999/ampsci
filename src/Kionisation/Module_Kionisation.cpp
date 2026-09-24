@@ -927,7 +927,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       "truncated at K_max misses the response near the quasi-free ridge "
       "E ~ q^2/2m, where multipoles up to K ~ q*r contribute; off the ridge "
       "the correction vanishes. Adds '_ridge' to the output file name. "
-      "Skipped (with a warning) if K_max < 2*l_max of the core, or with "
+      "Skipped (with a warning) if K_max < 2*j_max of the core, or with "
       "diagonal, lc_minmax, or low_q. [false]"},
      {"force_rescale", "Rescale atomic potential V(r) at large r when solving "
                        "continuum orbitals. Should be false for local "
@@ -1156,26 +1156,22 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   auto ridge_correction = input.get("ridge_correction", false);
   const double ridge_eps = 1.0e-4;
   if (ridge_correction) {
-    int l_max_core = 0;
-    for (const auto &Fa : wf.core()) {
-      l_max_core = std::max(l_max_core, Fa.l());
-    }
+    const auto twoj_max_core = DiracSpinor::max_tj(wf.core());
     if (diagonal_Eq || lc_minmax || low_q) {
       fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
       fmt::print("ridge_correction skipped: not available with diagonal, "
                  "lc_minmax, or low_q\n");
       ridge_correction = false;
-    } else if (Kmax < 2 * l_max_core) {
+    } else if (Kmax < twoj_max_core) {
       fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
-      fmt::print("ridge_correction skipped: requires K_max >= 2*l_max(core) "
+      fmt::print("ridge_correction skipped: requires K_max >= 2*j_max(core) "
                  "= {} (have {})\n",
-                 2 * l_max_core, Kmax);
+                 twoj_max_core, Kmax);
       ridge_correction = false;
     } else {
       fmt::print("Ridge correction: completing K > {} with free (plane-wave) "
-                 "states, at the q where K <= {} carries less than 1 - {:.0e} "
-                 "of the norm of exp(iq.r)psi\n",
-                 Kmax, Kmax, ridge_eps);
+                 "states\n",
+                 Kmax);
     }
   }
 
