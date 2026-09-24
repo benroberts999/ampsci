@@ -453,19 +453,40 @@ continuum_l_range(const DiracSpinor &Fa, int Kmax,
 }
 
 //==============================================================================
-std::vector<IonisedOrbital> solve_ionised_orbitals_at_omega(
-  const HF::HartreeFock *vHF, double omega, double ec_min, double ec_max,
-  int Kmax, const std::optional<std::array<int, 2>> &lc_minmax,
+std::vector<std::vector<IonisedOrbital>> solve_ionised_orbitals(
+  const HF::HartreeFock *vHF, const std::vector<double> &omegas, double ec_min,
+  double ec_max, int Kmax, const std::optional<std::array<int, 2>> &lc_minmax,
   bool force_rescale, bool hole_particle, bool force_orthog) {
   assert(vHF != nullptr);
   const auto &core = vHF->core();
 
-  // The orbitals whose ejected electron energy lies within the limits
-  std::vector<IonisedOrbital> ionised;
-  for (std::size_t ia = 0; ia < core.size(); ++ia) {
-    const auto ec = omega + core[ia].en();
-    if (ec > ec_min && ec <= ec_max) {
-      ionised.push_back({ia, ContinuumOrbitals(vHF)});
+  // At each energy, the orbitals whose ejected electron energy lies within
+  // the limits
+  std::vector<std::vector<IonisedOrbital>> ionised(omegas.size());
+  for (std::size_t j = 0; j < omegas.size(); ++j) {
+    for (std::size_t ia = 0; ia < core.size(); ++ia) {
+      const auto ec = omegas[j] + core[ia].en();
+      if (ec > ec_min && ec <= ec_max) {
+        ionised[j].push_back({ia, ContinuumOrbitals(vHF)});
+      }
+    }
+  }
+
+  // One task per (energy, orbital, l), both kappa of the l: fine enough to
+  // balance the threads even at a single energy
+  struct Task {
+    std::size_t i_omega;
+    std::size_t i_orbital;
+    int l;
+  };
+  std::vector<Task> tasks;
+  for (std::size_t j = 0; j < omegas.size(); ++j) {
+    for (std::size_t i = 0; i < ionised[j].size(); ++i) {
+      const auto &Fa = core[ionised[j][i].core_index];
+      const auto [lc_min, lc_max] = continuum_l_range(Fa, Kmax, lc_minmax);
+      for (int l = lc_min; l <= lc_max; ++l) {
+        tasks.push_back({j, i, l});
+      }
     }
   }
 
@@ -473,13 +494,25 @@ std::vector<IonisedOrbital> solve_ionised_orbitals_at_omega(
   // as a smooth local average (exact for integrals against smooth
   // co-factors; an abrupt cut leaves a spurious boundary term)
   const bool average_tail = true;
+  std::vector<std::vector<DiracSpinor>> solved(tasks.size());
 #pragma omp parallel for schedule(dynamic)
-  for (std::size_t j = 0; j < ionised.size(); ++j) {
-    const auto &Fa = core[ionised[j].core_index];
-    const auto [lc_min, lc_max] = continuum_l_range(Fa, Kmax, lc_minmax);
-    ionised[j].ejected.solveContinuumHF(omega + Fa.en(), lc_min, lc_max, &Fa,
-                                        force_rescale, hole_particle,
-                                        force_orthog, average_tail);
+  for (std::size_t it = 0; it < tasks.size(); ++it) {
+    const auto &task = tasks[it];
+    const auto &Fa = core[ionised[task.i_omega][task.i_orbital].core_index];
+    ContinuumOrbitals cntm(vHF);
+    cntm.solveContinuumHF(omegas[task.i_omega] + Fa.en(), task.l, task.l, &Fa,
+                          force_rescale, hole_particle, force_orthog,
+                          average_tail);
+    solved[it] = std::move(cntm.orbitals);
+  }
+
+  // Gather in l order: the order of a single solve over the whole l range
+  for (std::size_t it = 0; it < tasks.size(); ++it) {
+    auto &states =
+      ionised[tasks[it].i_omega][tasks[it].i_orbital].ejected.orbitals;
+    for (auto &Fe : solved[it]) {
+      states.push_back(std::move(Fe));
+    }
   }
   return ionised;
 }
@@ -620,17 +653,11 @@ FormFactorsRPA solve_formFactors_RPA(
     }
   }
 
-  // Debug switch: E and q in series (the parallelism is then inside the RPA
+  // Debug switch: chains in series (the parallelism is then inside the RPA
   // solver), every RPA solve prints its iterations, and no progress bar
   constexpr bool debug_print_rpa = false;
 
-  // Decide which (E or q) to parallelise over
-  // Neither: is parallelised over RPA instead
   const auto n_threads = std::size_t(omp_get_max_threads());
-  const bool parallel_E =
-    !debug_print_rpa && n_threads > 1 && active_E.size() >= n_threads;
-  const bool parallel_q =
-    !debug_print_rpa && !parallel_E && q_steps >= n_threads;
 
   // Multipoles above the K limit are bare (no solve), but are still one
   // step of the progress bar each
@@ -638,21 +665,35 @@ FormFactorsRPA solve_formFactors_RPA(
   const auto num_Ks_rpa =
     std::size_t(std::max(std::min(Kmax, rpa_options.K_max) - Kmin + 1, 0));
   const auto steps_per_E = num_Ks * active_multipoles.size() * q_steps;
+
+  // The RPA solves run as chains: one (E, K, operator) and a run of
+  // consecutive q, each solve warm starting from the previous q. The
+  // energies are taken in batches (their continuum states are held
+  // together), and the chains of a batch form one pool, so the threads are
+  // balanced whatever the number of E or q. The run of q is the longest
+  // that still gives a few chains per thread (a chain costs one cold start)
+  const auto n_rpa_solves =
+    active_E.size() * num_Ks_rpa * active_multipoles.size() * q_steps;
+  const auto q_chunk =
+    debug_print_rpa ?
+      q_steps :
+      std::clamp<std::size_t>(
+        (n_rpa_solves + 4 * n_threads - 1) / (4 * n_threads), 1, q_steps);
+  const auto n_chunks = (q_steps + q_chunk - 1) / q_chunk;
+  const auto batch_size =
+    std::min(std::max<std::size_t>(n_threads, 1), active_E.size());
+
   fmt::print("RPA: {} energies with an ionised orbital, {} solves per energy\n"
              "(K x operators x q = {} x {} x {})\n"
-             "{}\n"
-             "parallel over {}\n",
+             "{}",
              active_E.size(), num_Ks_rpa * active_multipoles.size() * q_steps,
              num_Ks_rpa, active_multipoles.size(), q_steps,
              num_Ks_rpa < num_Ks ?
-               fmt::format("RPA for K <= {} only", rpa_options.K_max) :
-               "",
-             parallel_E ? "E" :
-             parallel_q ? "q" :
-                          "RPA channels");
+               fmt::format("RPA for K <= {} only\n", rpa_options.K_max) :
+               "");
 
   // One progress bar over the run (it counts steps, so the order in which
-  // the energies finish does not matter)
+  // the chains finish does not matter)
   qip::ProgressBar bar(active_E.size() * steps_per_E, !debug_print_rpa);
 
   // Solves made, and how many did not converge (not tested for a
@@ -660,98 +701,258 @@ FormFactorsRPA solve_formFactors_RPA(
   std::size_t n_solves = 0;
   std::size_t n_failed = 0;
 
-#pragma omp parallel for schedule(dynamic) if (parallel_E)
-  for (std::size_t i = 0; i < active_E.size(); ++i) {
-    const auto iE = active_E[i];
-    const auto omega = Egrid[iE];
+  // The RPA-solved K are accumulated per K, [K][orbital], so that a failed
+  // solve can be corrected within its own (K, factor) block before the sum
+  // over K; the higher K go straight into the totals. The eps of each solve,
+  // [K][operator](E, q); -1 where no solve was made
+  std::vector<std::vector<FormFactorSet>> block_bare(num_Ks_rpa, factors.bare);
+  auto block_rpa = block_bare;
+  std::vector<std::vector<LinAlg::Matrix<double>>> block_eps(
+    num_Ks_rpa,
+    std::vector<LinAlg::Matrix<double>>(
+      multipoles.size(), LinAlg::Matrix<double>(E_steps, q_steps, -1.0)));
 
-    const auto ionised = solve_ionised_orbitals_at_omega(
-      vHF, omega, ec_min, ec_max, Kmax, lc_minmax, force_rescale, hole_particle,
-      force_orthog);
-    assert(!ionised.empty());
-    const auto channels = construct_channels(core, ionised);
+  // Amplitudes of one (E, K) block: every channel at every q, [iq][channel]
+  struct BlockAmplitudes {
+    std::vector<std::vector<ChannelAmplitudes>> bare;
+    std::vector<std::vector<ChannelAmplitudes>> rpa;
+  };
+  // One chain: (energy in the batch, K from Kmin, operator, run of q)
+  struct Chain {
+    std::size_t i_batch;
+    std::size_t ik;
+    std::size_t i_op;
+    std::size_t iq_begin;
+    std::size_t iq_end;
+  };
+  // One bare block: (energy in the batch, K above the RPA limit)
+  struct BareBlock {
+    std::size_t i_batch;
+    int k;
+  };
+
+  for (std::size_t b0 = 0; b0 < active_E.size(); b0 += batch_size) {
+    const auto b1 = std::min(b0 + batch_size, active_E.size());
+    const auto n_batch = b1 - b0;
+    std::vector<double> omegas(n_batch);
+    for (std::size_t jb = 0; jb < n_batch; ++jb) {
+      omegas[jb] = Egrid[active_E[b0 + jb]];
+    }
+
+    const auto ionised =
+      solve_ionised_orbitals(vHF, omegas, ec_min, ec_max, Kmax, lc_minmax,
+                             force_rescale, hole_particle, force_orthog);
+    std::vector<std::vector<IonisationChannel>> channels(n_batch);
+    for (std::size_t jb = 0; jb < n_batch; ++jb) {
+      assert(!ionised[jb].empty());
+      channels[jb] = construct_channels(core, ionised[jb]);
+    }
     // The operators take qc as their "frequency" (omega itself in the
     // diagonal, massless-absorption, case)
-    const auto qc_grid =
-      diagonal_Eq ? std::vector<double>(q_steps, omega) : qgrid * PhysConst::c;
+    const auto qc_at = [&](std::size_t jb, std::size_t iq) {
+      return diagonal_Eq ? omegas[jb] : qgrid[iq] * PhysConst::c;
+    };
 
-    for (int k = Kmin; k <= Kmax; ++k) {
-      // Amplitudes of every channel at every q, [iq][channel], filled one
-      // operator at a time, then accumulated
-      std::vector<std::vector<ChannelAmplitudes>> A_bare(
-        q_steps, std::vector<ChannelAmplitudes>(channels.size()));
-      auto A_rpa = A_bare;
+    std::vector<std::vector<BlockAmplitudes>> amplitudes(
+      n_batch, std::vector<BlockAmplitudes>(num_Ks_rpa));
+    for (std::size_t jb = 0; jb < n_batch; ++jb) {
+      for (std::size_t ik = 0; ik < num_Ks_rpa; ++ik) {
+        amplitudes[jb][ik].bare.assign(
+          q_steps, std::vector<ChannelAmplitudes>(channels[jb].size()));
+        amplitudes[jb][ik].rpa = amplitudes[jb][ik].bare;
+      }
+    }
 
-      // Multipoles above the RPA limit: bare amplitudes only, no solver
-      const bool bare_only = k > rpa_options.K_max;
-
-      for (const auto i_op : active_multipoles) {
-        if (bare_only) {
-          auto h = multipoles[i_op]->clone();
-          h->updateRank(k);
-          for (std::size_t iq = 0; iq < q_steps; ++iq) {
-            h->updateFrequency(qc_grid[iq]);
-            for (std::size_t ic = 0; ic < channels.size(); ++ic) {
-              const auto &Fa = *channels[ic].hole;
-              const auto &Fe = *channels[ic].ejected;
-              if (!h->isZero(Fe, Fa)) {
-                A_bare[iq][ic][i_op] = h->reducedME(Fe, Fa);
-              }
-            }
-            bar.update();
-          }
-          continue;
-        }
-#pragma omp parallel if (parallel_q)
-        {
-          // Per thread: its own operator (rank set here, frequency per q)
-          // and solver. Static schedule: consecutive q on one thread, so
-          // each solve warm starts from the neighbouring q
-          auto h = multipoles[i_op]->clone();
-          h->updateRank(k);
-          ExternalField::TDHFcntm rpa(h.get(), vHF);
-          rpa.eps_target() = rpa_options.eps;
-#pragma omp for schedule(static)
-          for (std::size_t iq = 0; iq < q_steps; ++iq) {
-            h->updateFrequency(qc_grid[iq]);
-            if (debug_print_rpa) {
-              fmt::print("RPA solve: {} K={} E={:.5g} au, qc={:.5g} au\n",
-                         h->name(), k, omega, qc_grid[iq]);
-            }
-            const auto eps_solve = solve_channel_amplitudes(
-              *h, i_op, &rpa, omega, rpa_options, channels, &A_bare[iq],
-              &A_rpa[iq], debug_print_rpa);
-            if (eps_solve) {
-              // Worst over K and operators (nan is the worst); (iE, iq) is
-              // visited by one thread within this block
-              auto &eps_Eq = factors.eps(iE, iq);
-              if (std::isnan(*eps_solve) || *eps_solve > eps_Eq) {
-                eps_Eq = *eps_solve;
-              }
-#pragma omp atomic
-              ++n_solves;
-              if (rpa_options.max_its > 1 &&
-                  rpa_failed(*eps_solve, rpa_options.eps_fail)) {
-#pragma omp atomic
-                ++n_failed;
-              }
-            }
-            bar.update();
+    // The chain pool of the batch; the energies come highest first (the
+    // most open channels, so the longest chains), which suits the dynamic
+    // schedule
+    std::vector<Chain> chains;
+    for (std::size_t jb = 0; jb < n_batch; ++jb) {
+      for (std::size_t ik = 0; ik < num_Ks_rpa; ++ik) {
+        for (const auto i_op : active_multipoles) {
+          for (std::size_t ic = 0; ic < n_chunks; ++ic) {
+            chains.push_back({jb, ik, i_op, ic * q_chunk,
+                              std::min(q_steps, (ic + 1) * q_chunk)});
           }
         }
       }
+    }
 
-      if (bare_only) {
-        A_rpa = A_bare;
+#pragma omp parallel for schedule(dynamic) if (!debug_print_rpa)
+    for (std::size_t ich = 0; ich < chains.size(); ++ich) {
+      const auto &chain = chains[ich];
+      const auto omega = omegas[chain.i_batch];
+      const auto iE = active_E[b0 + chain.i_batch];
+      const auto k = Kmin + int(chain.ik);
+      const auto &batch_channels = channels[chain.i_batch];
+      auto &amps = amplitudes[chain.i_batch][chain.ik];
+      // Own operator (rank set here, frequency per q) and solver
+      auto h = multipoles[chain.i_op]->clone();
+      h->updateRank(k);
+      ExternalField::TDHFcntm rpa(h.get(), vHF);
+      rpa.eps_target() = rpa_options.eps;
+      for (std::size_t iq = chain.iq_begin; iq < chain.iq_end; ++iq) {
+        h->updateFrequency(qc_at(chain.i_batch, iq));
+        if (debug_print_rpa) {
+          fmt::print("RPA solve: {} K={} E={:.5g} au, qc={:.5g} au\n",
+                     h->name(), k, omega, qc_at(chain.i_batch, iq));
+        }
+        const auto eps_solve = solve_channel_amplitudes(
+          *h, chain.i_op, &rpa, omega, rpa_options, batch_channels,
+          &amps.bare[iq], &amps.rpa[iq], debug_print_rpa);
+        if (eps_solve) {
+          // (E, K, operator, q) belongs to exactly one chain
+          block_eps[chain.ik][chain.i_op](iE, iq) = *eps_solve;
+#pragma omp atomic
+          ++n_solves;
+          if (rpa_options.max_its > 1 &&
+              rpa_failed(*eps_solve, rpa_options.eps_fail)) {
+#pragma omp atomic
+            ++n_failed;
+          }
+        }
+        bar.update();
       }
+    }
+
+    // Accumulate the RPA-solved blocks: (E, K) owns its rows of its block
+#pragma omp parallel for schedule(dynamic)
+    for (std::size_t it = 0; it < n_batch * num_Ks_rpa; ++it) {
+      const auto jb = it / num_Ks_rpa;
+      const auto ik = it % num_Ks_rpa;
+      const auto iE = active_E[b0 + jb];
+      const auto k = Kmin + int(ik);
+      const auto &amps = amplitudes[jb][ik];
       for (std::size_t iq = 0; iq < q_steps; ++iq) {
-        for (std::size_t ic = 0; ic < channels.size(); ++ic) {
-          const auto &channel = channels[ic];
+        for (std::size_t ic = 0; ic < channels[jb].size(); ++ic) {
+          const auto &channel = channels[jb][ic];
           const auto tkp1_x = (2.0 * k + 1.0) * channel.hole->occ_frac();
-          accumulate_formFactors(&factors.bare[channel.hole_index], iE, iq,
-                                 tkp1_x, A_bare[iq][ic]);
-          accumulate_formFactors(&factors.rpa[channel.hole_index], iE, iq,
-                                 tkp1_x, A_rpa[iq][ic]);
+          accumulate_formFactors(&block_bare[ik][channel.hole_index], iE, iq,
+                                 tkp1_x, amps.bare[iq][ic]);
+          accumulate_formFactors(&block_rpa[ik][channel.hole_index], iE, iq,
+                                 tkp1_x, amps.rpa[iq][ic]);
+        }
+      }
+    }
+
+    // Multipoles above the RPA limit: bare amplitudes only, no solver. One
+    // task per (E, K); the K of one energy add into the same rows of the
+    // totals, so the (cheap) accumulation is serialised
+    std::vector<BareBlock> bare_blocks;
+    for (std::size_t jb = 0; jb < n_batch; ++jb) {
+      for (int k = Kmin + int(num_Ks_rpa); k <= Kmax; ++k) {
+        bare_blocks.push_back({jb, k});
+      }
+    }
+#pragma omp parallel for schedule(dynamic)
+    for (std::size_t it = 0; it < bare_blocks.size(); ++it) {
+      const auto jb = bare_blocks[it].i_batch;
+      const auto k = bare_blocks[it].k;
+      const auto iE = active_E[b0 + jb];
+      const auto &batch_channels = channels[jb];
+      std::vector<std::vector<ChannelAmplitudes>> A(
+        q_steps, std::vector<ChannelAmplitudes>(batch_channels.size()));
+      for (const auto i_op : active_multipoles) {
+        auto h = multipoles[i_op]->clone();
+        h->updateRank(k);
+        for (std::size_t iq = 0; iq < q_steps; ++iq) {
+          h->updateFrequency(qc_at(jb, iq));
+          for (std::size_t ic = 0; ic < batch_channels.size(); ++ic) {
+            const auto &Fa = *batch_channels[ic].hole;
+            const auto &Fe = *batch_channels[ic].ejected;
+            if (!h->isZero(Fe, Fa)) {
+              A[iq][ic][i_op] = h->reducedME(Fe, Fa);
+            }
+          }
+          bar.update();
+        }
+      }
+#pragma omp critical
+      {
+        for (std::size_t iq = 0; iq < q_steps; ++iq) {
+          for (std::size_t ic = 0; ic < batch_channels.size(); ++ic) {
+            const auto &channel = batch_channels[ic];
+            const auto tkp1_x = (2.0 * k + 1.0) * channel.hole->occ_frac();
+            accumulate_formFactors(&factors.bare[channel.hole_index], iE, iq,
+                                   tkp1_x, A[iq][ic]);
+            accumulate_formFactors(&factors.rpa[channel.hole_index], iE, iq,
+                                   tkp1_x, A[iq][ic]);
+          }
+        }
+      }
+    }
+  }
+
+  // The worst eps over K and operators at each (E, q), for diagnostics
+  // (nan is the worst; -1, no solve, does not count)
+  for (std::size_t ik = 0; ik < num_Ks_rpa; ++ik) {
+    for (const auto i_op : active_multipoles) {
+      for (std::size_t iE = 0; iE < E_steps; ++iE) {
+        for (std::size_t iq = 0; iq < q_steps; ++iq) {
+          const auto e = block_eps[ik][i_op](iE, iq);
+          auto &worst = factors.eps(iE, iq);
+          if (std::isnan(e) || (e >= 0.0 && e > worst)) {
+            worst = e;
+          }
+        }
+      }
+    }
+  }
+
+  // Failed solves: each (K, factor) block is corrected at its failed (E, q)
+  // points from the converged neighbours in E and q, then the blocks are
+  // summed into the totals. Not after a first-order solve, whose eps is not
+  // a convergence measure
+  const bool test_convergence = rpa_options.max_its > 1;
+  for (std::size_t ik = 0; ik < num_Ks_rpa; ++ik) {
+    for (std::size_t ia = 0; ia < n_core; ++ia) {
+      for (std::size_t i = 0; i < block_rpa[ik][ia].size(); ++i) {
+        if (block_rpa[ik][ia][i].empty())
+          continue;
+        if (test_convergence) {
+          // A factor fails where any of its operators did (nan is the worst)
+          LinAlg::Matrix<double> eps_factor(E_steps, q_steps, -1.0);
+          for (const auto i_op : factor_operators(i)) {
+            for (std::size_t iE = 0; iE < E_steps; ++iE) {
+              for (std::size_t iq = 0; iq < q_steps; ++iq) {
+                const auto e = block_eps[ik][i_op](iE, iq);
+                auto &worst = eps_factor(iE, iq);
+                if (std::isnan(e) || e > worst) {
+                  worst = e;
+                }
+              }
+            }
+          }
+          interpolate_failed_rpa_2d(eps_factor, rpa_options.eps_fail,
+                                    block_bare[ik][ia][i],
+                                    &block_rpa[ik][ia][i]);
+        }
+        factors.bare[ia][i] += block_bare[ik][ia][i];
+        factors.rpa[ia][i] += block_rpa[ik][ia][i];
+      }
+    }
+  }
+
+  // Failed solves with a converged neighbour of the same (K, operator),
+  // adjacent in E or q: those the correction above reaches
+  std::size_t n_interpolated = 0;
+  if (test_convergence) {
+    for (std::size_t ik = 0; ik < num_Ks_rpa; ++ik) {
+      for (const auto i_op : active_multipoles) {
+        const auto &eps_op = block_eps[ik][i_op];
+        const auto converged = [&](std::size_t iE, std::size_t iq) {
+          return iE < E_steps && iq < q_steps && eps_op(iE, iq) >= 0.0 &&
+                 !rpa_failed(eps_op(iE, iq), rpa_options.eps_fail);
+        };
+        for (std::size_t iE = 0; iE < E_steps; ++iE) {
+          for (std::size_t iq = 0; iq < q_steps; ++iq) {
+            if (!rpa_failed(eps_op(iE, iq), rpa_options.eps_fail))
+              continue;
+            if (converged(iE - 1, iq) || converged(iE + 1, iq) ||
+                converged(iE, iq - 1) || converged(iE, iq + 1)) {
+              ++n_interpolated;
+            }
+          }
         }
       }
     }
@@ -759,6 +960,7 @@ FormFactorsRPA solve_formFactors_RPA(
 
   factors.n_solves = n_solves;
   factors.n_failed = n_failed;
+  factors.n_interpolated = n_interpolated;
   return factors;
 }
 
@@ -856,6 +1058,7 @@ FormFactorsRPA calculate_formFactors_RPA(
   }
   factors.n_solves = region.n_solves;
   factors.n_failed = region.n_failed;
+  factors.n_interpolated = region.n_interpolated;
 
   return factors;
 }
@@ -920,18 +1123,87 @@ void interpolate_failed_rpa(const LinAlg::Matrix<double> &eps, double eps_fail,
 }
 
 //==============================================================================
-std::pair<std::size_t, std::size_t>
-interpolate_failed_rpa(FormFactorsRPA *K_rpa, double eps_fail) {
+void interpolate_failed_rpa_2d(const LinAlg::Matrix<double> &eps,
+                               double eps_fail,
+                               const LinAlg::Matrix<double> &K_bare,
+                               LinAlg::Matrix<double> *K_rpa) {
   assert(K_rpa != nullptr);
-  for (std::size_t ia = 0; ia < K_rpa->rpa.size(); ++ia) {
-    for (std::size_t i = 0; i < K_rpa->rpa[ia].size(); ++i) {
-      if (K_rpa->rpa[ia][i].empty())
+  assert(K_bare.rows() == eps.rows() && K_bare.cols() == eps.cols());
+  assert(K_rpa->rows() == eps.rows() && K_rpa->cols() == eps.cols());
+  const auto rows = eps.rows();
+  const auto cols = eps.cols();
+
+  // The relative shift at a neighbour, if it is on the grid, converged, and
+  // has a bare value to take the shift from. A failed point is never a
+  // neighbour, so the corrections are independent of their order
+  const auto shift_at = [&](std::size_t i,
+                            std::size_t j) -> std::optional<double> {
+    if (i >= rows || j >= cols)
+      return std::nullopt;
+    if (rpa_failed(eps(i, j), eps_fail) || K_bare(i, j) == 0.0)
+      return std::nullopt;
+    return (*K_rpa)(i, j) / K_bare(i, j);
+  };
+
+  for (std::size_t i = 0; i < rows; ++i) {
+    for (std::size_t j = 0; j < cols; ++j) {
+      if (!rpa_failed(eps(i, j), eps_fail))
         continue;
-      interpolate_failed_rpa(K_rpa->eps, eps_fail, K_rpa->bare[ia][i],
-                             &K_rpa->rpa[ia][i]);
+      double sum_shift = 0.0;
+      int n_neighbours = 0;
+      for (const auto shift : {shift_at(i - 1, j), shift_at(i + 1, j),
+                               shift_at(i, j - 1), shift_at(i, j + 1)}) {
+        if (shift) {
+          sum_shift += *shift;
+          ++n_neighbours;
+        }
+      }
+      if (n_neighbours == 0)
+        continue;
+      // Mean shift; a single neighbour gives half its correction, since the
+      // shift is unconstrained on the other sides
+      const auto mean = sum_shift / n_neighbours;
+      const auto shift = n_neighbours == 1 ? 1.0 + 0.5 * (mean - 1.0) : mean;
+      (*K_rpa)(i, j) = shift * K_bare(i, j);
     }
   }
-  return count_failed_rpa(K_rpa->eps, eps_fail);
+}
+
+//==============================================================================
+std::vector<std::size_t> factor_operators(std::size_t i_factor) {
+  // Order of FormFactorSet and of ChannelAmplitudes {t, E, M, L, t5, E5,
+  // M5, L5, S, S5}, as in accumulate_formFactors()
+  switch (i_factor) {
+  case 0:
+    return {0};
+  case 1:
+    return {1};
+  case 2:
+    return {2};
+  case 3:
+    return {3};
+  case 4:
+    return {0, 3};
+  case 5:
+    return {4};
+  case 6:
+    return {5};
+  case 7:
+    return {6};
+  case 8:
+    return {7};
+  case 9:
+    return {4, 7};
+  case 10:
+    return {1, 2, 5, 6};
+  case 11:
+    return {8};
+  case 12:
+    return {9};
+  default:
+    assert(false && "factor index out of range");
+    return {};
+  }
 }
 
 //==============================================================================

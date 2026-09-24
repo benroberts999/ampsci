@@ -184,6 +184,9 @@ struct FormFactorsRPA {
   //! How many of those did not converge (eps above RPAOptions::eps_fail, or
   //! nan); zero for a first-order solve, whose eps is not tested
   std::size_t n_failed{0};
+  //! How many of the failed solves had a converged neighbour (same K and
+  //! operator, adjacent E or q) to interpolate the RPA shift from
+  std::size_t n_interpolated{0};
 };
 
 //------------------------------------------------------------------------------
@@ -290,10 +293,8 @@ std::vector<DiracSpinor> model_bound_states(const HF::HartreeFock &vHF,
   @details
   For each K in [@p Kmin, @p Kmax] and each (column, qc) of @p q_columns, sets
   the rank and frequency of every (non-null) operator, forms the channel
-  amplitudes $ 
-edmatel{e}{h}{a} $ with each continuum state e, and
-  accumulates them with weight $ (2K+1)x_{
-m occ} $ (see
+  amplitudes \f$ \redmatel{e}{h}{a} \f$ with each continuum state e, and
+  accumulates them with weight \f$ (2K+1)x_{\rm occ} \f$ (see
   accumulate_formFactors()) into row @p iE of @p K_factors. The operators
   take qc (or E itself in the diagonal, massless-absorption, case) as their
   frequency; see DiracOperator::MultipoleOperator.
@@ -430,17 +431,18 @@ struct IonisedOrbital {
 
 //------------------------------------------------------------------------------
 /*!
-  @brief The core orbitals ionised by an energy transfer omega, each with the
-  Hartree-Fock continuum states of its ejected electron.
+  @brief The core orbitals ionised by each of a set of energy transfers, each
+  with the Hartree-Fock continuum states of its ejected electron.
 
   @details
   An orbital is ionised if its ejected electron energy
   \f$ \en_c = \omega + \en_a \f$ lies in (@p ec_min, @p ec_max]. Its continuum
-  states are solved at that energy, with l from continuum_l_range(). In core
-  order; parallel over the orbitals.
+  states are solved at that energy, with l from continuum_l_range(), the
+  unresolved high-r tail locally averaged (DiracODE::averageTail). In core
+  order at each energy; parallel over (energy, orbital, l).
 
   @param vHF            Hartree-Fock potential; its core defines the orbitals.
-  @param omega          Energy transfer, in au.
+  @param omegas         Energy transfers, in au.
   @param ec_min         Minimum ejected electron energy, in au.
   @param ec_max         Maximum ejected electron energy, in au.
   @param Kmax           Maximum multipolarity (sets the continuum l range).
@@ -449,12 +451,12 @@ struct IonisedOrbital {
   @param hole_particle  Solve the continuum in the V^(N-1) potential of the
                         hole.
   @param force_orthog   Orthogonalise the continuum states to the core.
-  @return The ionised orbitals and their continuum states; empty if none is
-          ionised.
+  @return At each energy (as @p omegas), the ionised orbitals and their
+          continuum states; empty if none is ionised.
 */
-std::vector<IonisedOrbital> solve_ionised_orbitals_at_omega(
-  const HF::HartreeFock *vHF, double omega, double ec_min, double ec_max,
-  int Kmax, const std::optional<std::array<int, 2>> &lc_minmax,
+std::vector<std::vector<IonisedOrbital>> solve_ionised_orbitals(
+  const HF::HartreeFock *vHF, const std::vector<double> &omegas, double ec_min,
+  double ec_max, int Kmax, const std::optional<std::array<int, 2>> &lc_minmax,
   bool force_rescale, bool hole_particle, bool force_orthog);
 
 //------------------------------------------------------------------------------
@@ -466,8 +468,8 @@ std::vector<IonisedOrbital> solve_ionised_orbitals_at_omega(
   point into @p core and @p ionised, which must outlive them.
 
   @param core     Core orbitals.
-  @param ionised  The ionised orbitals and their continuum states
-                  (solve_ionised_orbitals_at_omega()).
+  @param ionised  The ionised orbitals and their continuum states at one
+                  energy (solve_ionised_orbitals()).
   @return The channel list.
 */
 std::vector<IonisationChannel>
@@ -584,8 +586,19 @@ std::optional<double> solve_channel_amplitudes(
   @note An unconverged solve (eps above RPAOptions::eps_fail, or nan) is not
         used: the bare amplitude is taken for that (E, K, operator, q), and
         the solver is cleared so the next q does not warm start from it (see
-        solve_channel_amplitudes()). FormFactorsRPA::eps records the worst
-        eps at each (E, q), for diagnostics.
+        solve_channel_amplitudes()). The factors are accumulated per K for
+        the RPA-solved K, and each (K, factor) block is corrected at its
+        failed (E, q) points from the converged neighbours in E and q
+        (interpolate_failed_rpa_2d()) before the sum over K; not after a
+        first-order solve. FormFactorsRPA::eps records the worst eps at each
+        (E, q), and n_solves, n_failed, n_interpolated the counts.
+
+  @note Parallel over chains, each one (E, K, operator) and a run of
+        consecutive q (warm starts along it). The energies are taken in
+        batches of the thread count, the continuum states of a batch held
+        together, and the chains of a batch are one dynamically scheduled
+        pool; the run of q is chosen to give a few chains per thread. The
+        multipoles above the K limit are bare, one task per (E, K).
 
   @warning The continuum states must be those of the residual ion
            (@p hole_particle = true) for the RPA amplitude to be consistent;
@@ -731,21 +744,45 @@ void interpolate_failed_rpa(const LinAlg::Matrix<double> &eps, double eps_fail,
 
 //------------------------------------------------------------------------------
 /*!
-  @brief Corrects the (E,q) points at which the RPA solve failed, for every
-  factor of every orbital, by interpolating in q.
+  @brief Corrects the (E, q) points at which the RPA solve failed, by
+  interpolating the relative RPA shift from the neighbours in E and q.
 
   @details
-  interpolate_failed_rpa() (the matrix form) applied to each allocated
-  factor, with the neighbours along q; see there for the formula.
+  As interpolate_failed_rpa(), with the neighbours on both axes: the
+  adjacent rows (E) and columns (q). The shift \f$ R = K_{\rm RPA}/K_{\rm
+  bare} \f$ is the mean over the converged neighbours with a non-zero bare
+  value (up to four); with a single one, half its relative correction. A
+  point with none is left as it is. Failed points are never used as
+  neighbours. With a single column (the diagonal, q = E/c, case) the
+  neighbours are along E.
 
-  @param K_rpa    Bare and RPA factors, and the eps of each (E,q); the RPA
-                  factors are updated in place.
-  @param eps_fail Failure threshold; as RPAOptions::eps_fail.
-  @return {number of (E,q) points that failed, number of those corrected};
-          the rest keep the no-RPA value (see count_failed_rpa()).
+  @param eps       Final RPA eps of each point (E rows x q columns); a point
+                   that was not solved must not count as failed (eps of 0,
+                   or negative).
+  @param eps_fail  Failure threshold (see rpa_failed()).
+  @param K_bare    Bare (no-RPA) values, same shape as @p eps.
+  @param K_rpa     RPA values, same shape; corrected in place.
 */
-std::pair<std::size_t, std::size_t>
-interpolate_failed_rpa(FormFactorsRPA *K_rpa, double eps_fail);
+void interpolate_failed_rpa_2d(const LinAlg::Matrix<double> &eps,
+                               double eps_fail,
+                               const LinAlg::Matrix<double> &K_bare,
+                               LinAlg::Matrix<double> *K_rpa);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief The operators (indices into ChannelAmplitudes) that a form factor is
+  built from.
+
+  @details
+  The direct factors depend on one amplitude, the cross terms on two (X: t
+  and L; Y: t5 and L5) or four (Z: E, M, E5, M5); see
+  accumulate_formFactors(). A factor is affected by a failed RPA solve of
+  any of its operators.
+
+  @param i_factor  Index into FormFactorSet.
+  @return The operator indices.
+*/
+std::vector<std::size_t> factor_operators(std::size_t i_factor);
 
 //------------------------------------------------------------------------------
 /*!
