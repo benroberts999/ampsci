@@ -329,6 +329,8 @@ std::vector<FormFactorSet> calculate_formFactors(
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
   bool pseudoscalarQ, bool spatialQ, AtomicMethod method) {
+  IO::ChronoTimer timer("Calculate form factors");
+  fmt::print("Calculating form factors: for K = {} - {}\n", Kmin, Kmax);
 
   assert(vHF != nullptr);
   if (diagonal_Eq) {
@@ -605,15 +607,18 @@ FormFactorsRPA solve_formFactors_RPA(
   const auto num_Ks_rpa =
     std::size_t(std::max(std::min(Kmax, rpa_options.K_max) - Kmin + 1, 0));
   const auto steps_per_E = num_Ks * active_multipoles.size() * q_steps;
-  fmt::print(
-    "RPA: {} energies with an ionised orbital, {} solves per energy "
-    "(K x operators x q = {} x {} x {}) {}; parallel over {}\n",
-    active_E.size(), num_Ks_rpa * active_multipoles.size() * q_steps,
-    num_Ks_rpa, active_multipoles.size(), q_steps,
-    num_Ks_rpa < num_Ks ? fmt::format("; K > {} bare", rpa_options.K_max) : "",
-    parallel_E ? "E" :
-    parallel_q ? "q" :
-                 "RPA channels");
+  fmt::print("RPA: {} energies with an ionised orbital, {} solves per energy\n"
+             "(K x operators x q = {} x {} x {})\n"
+             "{}\n"
+             "parallel over {}\n",
+             active_E.size(), num_Ks_rpa * active_multipoles.size() * q_steps,
+             num_Ks_rpa, active_multipoles.size(), q_steps,
+             num_Ks_rpa < num_Ks ?
+               fmt::format("RPA for K <= {} only", rpa_options.K_max) :
+               "",
+             parallel_E ? "E" :
+             parallel_q ? "q" :
+                          "RPA channels");
 
   // One progress bar over the run (it counts steps, so the order in which
   // the energies finish does not matter)
@@ -715,6 +720,8 @@ FormFactorsRPA calculate_formFactors_RPA(
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
   bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options) {
+  IO::ChronoTimer timer("Calculate RPA form factors");
+  fmt::print("Calculating RPA form factors: for K = {} - {}\n", Kmin, Kmax);
 
   assert(vHF != nullptr);
   if (diagonal_Eq) {
@@ -749,7 +756,7 @@ FormFactorsRPA calculate_formFactors_RPA(
       vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
   }
   fmt::print("RPA region: {} of {} energies, {} of {} momenta (E <= {:.4g} "
-             "au, q <= {:.4g} au); bare factors elsewhere\n",
+             "au, q <= {:.4g} au)\n",
              E_region.size(), E_steps, q_region.size(), q_steps,
              rpa_options.E_max, rpa_options.q_max);
 

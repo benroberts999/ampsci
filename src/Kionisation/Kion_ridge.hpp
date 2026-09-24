@@ -332,8 +332,9 @@ double captured_fraction(const DiracSpinor &Fa, int Kmax, std::size_t iq,
   @return The correction of each core orbital, indexed as the core, with the
           allocation pattern of allocate_formFactors().
 
-  @warning Requires Kmax >= 2 l_max(core) (asserted), and is not defined for
-           the diagonal (q = E/c) case, which never approaches the ridge.
+  @warning Requires Kmax >= 2 l_max(core): if not, prints a warning and
+           returns a zero correction. Not defined for the diagonal (q = E/c)
+           case, which never approaches the ridge.
 */
 std::vector<FormFactorSet> calculate_ridge_correction(
   const HF::HartreeFock *vHF, const std::vector<DiracSpinor> &bound_states,
