@@ -609,6 +609,12 @@ void photoionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       n_E - E_steps);
   }
 
+  // The grid must resolve the ejected electron (energy up to the largest
+  // photon energy) out to rmax. Warns (and continues) if not: the continuum
+  // solver zeroes the unresolved tail, and the cross-section is then wrong
+  Kion::check_radial_grid_E(energies.back(), wf.grid(), wf.alpha());
+  std::cout << "\n";
+
   if (!use_rpa) {
     fmt::print("Method   : {} (no RPA)\n",
                HF::parseMethod_short(wf.vHF()->method()));
@@ -734,9 +740,10 @@ void photoionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       // Continuum states of the ejected electron, in V^(N-1) of hole Fa
       const int lc_max = Fa.l() + h->rank() + 1;
       const int lc_min = std::max(Fa.l() - h->rank() - 1, 0);
+      const bool average_tail = true;
       ContinuumOrbitals cntm(wf.vHF());
       cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale,
-                            hole_particle, force_orthog);
+                            hole_particle, force_orthog, average_tail);
 
       for (const auto &Fe : cntm.orbitals) {
         if (h->isZero(Fe, Fa))
