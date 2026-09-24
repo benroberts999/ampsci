@@ -127,12 +127,17 @@ calculateK_nk(const HF::HartreeFock *vHF, const DiracSpinor &Fnk, int max_L,
     const double x_ocf = Fnk.occ_frac();
 
     // create cntm object [survives locally only]
+    // The unresolved high-r tail of a high-energy continuum state is stored
+    // as a smooth local average (exact for integrals against smooth
+    // co-factors; an abrupt cut leaves a spurious boundary term)
+    const bool average_tail = true;
     ContinuumOrbitals cntm(vHF);
     if (zeff_cont) {
-      cntm.solveContinuumZeff(ec, lc_min, lc_max, Zeff, &Fnk_t, force_orthog);
+      cntm.solveContinuumZeff(ec, lc_min, lc_max, Zeff, &Fnk_t, force_orthog,
+                              average_tail);
     } else {
       cntm.solveContinuumHF(ec, lc_min, lc_max, &Fnk_t, force_rescale,
-                            hole_particle, force_orthog);
+                            hole_particle, force_orthog, average_tail);
     }
 
 // Generate AK for each L, lc, and q
@@ -395,14 +400,21 @@ std::vector<FormFactorSet> calculate_formFactors(
     }
 
     ContinuumOrbitals cntm(vHF);
+    // The unresolved high-r tail of a high-energy continuum state is stored
+    // as a smooth local average: exact for integrals against co-factors
+    // that are smooth on the oscillation scale (bound orbitals, jK(qr) with
+    // q << k); an abrupt cut leaves a spurious boundary term. Near the
+    // ridge (q ~ k) neither is right: the grid must resolve the state
+    const bool average_tail = true;
     if (method == AtomicMethod::Zeff) {
-      cntm.solveContinuumZeff(ec, lc_min, lc_max, Zeff[ia], &Fa, force_orthog);
+      cntm.solveContinuumZeff(ec, lc_min, lc_max, Zeff[ia], &Fa, force_orthog,
+                              average_tail);
     } else if (method == AtomicMethod::ZeffAnalytic) {
       cntm.solveContinuumZeffAnalytic(ec, lc_min, lc_max, Zeff[ia], &Fa,
                                       force_orthog);
     } else {
       cntm.solveContinuumHF(ec, lc_min, lc_max, &Fa, force_rescale,
-                            hole_particle, force_orthog);
+                            hole_particle, force_orthog, average_tail);
     }
 
     // The operators take qc as their "frequency" (or E itself in the
@@ -455,13 +467,17 @@ std::vector<IonisedOrbital> solve_ionised_orbitals_at_omega(
     }
   }
 
+  // The unresolved high-r tail of a high-energy continuum state is stored
+  // as a smooth local average (exact for integrals against smooth
+  // co-factors; an abrupt cut leaves a spurious boundary term)
+  const bool average_tail = true;
 #pragma omp parallel for schedule(dynamic)
   for (std::size_t j = 0; j < ionised.size(); ++j) {
     const auto &Fa = core[ionised[j].core_index];
     const auto [lc_min, lc_max] = continuum_l_range(Fa, Kmax, lc_minmax);
     ionised[j].ejected.solveContinuumHF(omega + Fa.en(), lc_min, lc_max, &Fa,
                                         force_rescale, hole_particle,
-                                        force_orthog);
+                                        force_orthog, average_tail);
   }
   return ionised;
 }
@@ -859,17 +875,8 @@ interpolate_failed_rpa(FormFactorsRPA *K_rpa, double eps_fail) {
 }
 
 //==============================================================================
-bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid,
-                       double alpha) {
+bool check_radial_grid_q(double qmax_au, const Grid &rgrid) {
   bool ok = true;
-
-  // Check grid type: only loglinear is reasonable for this module
-  if (rgrid.type() != GridType::loglinear) {
-    fmt2::styled_print(fg(fmt::color::orange), "\nWarning:\n");
-    std::cout << "This module unlikely to work with grid type: "
-              << GridParameters::parseType(rgrid.type())
-              << "; consider changing to loglinear\n";
-  }
 
   // *Very* rough estimate of good aximum q range.
   const auto r_q = 1.0;
@@ -908,6 +915,20 @@ bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid,
     std::cout << "(nb: Rough: high q might not contribute, in which case "
                  "numerical error there might not matter. Always check)\n";
   }
+  return ok;
+}
+
+//==============================================================================
+bool check_radial_grid_E(double Emax_au, const Grid &rgrid, double alpha) {
+  bool ok = true;
+
+  // Check grid type: only loglinear is reasonable for continuum states
+  if (rgrid.type() != GridType::loglinear) {
+    fmt2::styled_print(fg(fmt::color::orange), "\nWarning:\n");
+    std::cout << "This module unlikely to work with grid type: "
+              << GridParameters::parseType(rgrid.type())
+              << "; consider changing to loglinear\n";
+  }
 
   // E check: grid must resolve the continuum oscillations at Emax
   // (RequiredContinuumGrid: 15 points-per-wavelength at the coarsest
@@ -932,6 +953,14 @@ bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid,
   }
 
   return ok;
+}
+
+//==============================================================================
+bool check_radial_grid(double Emax_au, double qmax_au, const Grid &rgrid,
+                       double alpha) {
+  const bool q_ok = check_radial_grid_q(qmax_au, rgrid);
+  const bool E_ok = check_radial_grid_E(Emax_au, rgrid, alpha);
+  return q_ok && E_ok;
 }
 
 //==============================================================================
