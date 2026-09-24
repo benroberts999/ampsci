@@ -123,6 +123,15 @@ inline double Zeff_nonrel(double en, int n) {
 bool check_radial_grid(double Emax, double qmax, const Grid &rgrid,
                        double alpha = PhysConst::alpha);
 
+//! The q part of check_radial_grid only: grid spacing near r ~ a0 must
+//! resolve exp(iq.r) at qmax (au). Returns false (with advice) if not.
+bool check_radial_grid_q(double qmax, const Grid &rgrid);
+
+//! The E part of check_radial_grid only: grid must resolve the continuum
+//! oscillations out to rmax at Emax (au). Returns false (with advice) if not.
+bool check_radial_grid_E(double Emax, const Grid &rgrid,
+                         double alpha = PhysConst::alpha);
+
 //------------------------------------------------------------------------------
 //! The 13 form factors of one bound orbital (or their sum), in the fixed
 //! order: {V_T, V_E, V_M, V_L, X, A_T, A_E, A_M, A_L, Y, Z, S, P}. A factor
