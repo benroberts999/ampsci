@@ -178,6 +178,12 @@ struct FormFactorsRPA {
   //! orbital is ionised, or where the RPA was not solved (outside the
   //! RPAOptions limits)
   LinAlg::Matrix<double> eps{};
+  //! Number of RPA solves made (one per (E, K, operator, q) with a non-zero
+  //! amplitude, within the limits)
+  std::size_t n_solves{0};
+  //! How many of those did not converge (eps above RPAOptions::eps_fail, or
+  //! nan); zero for a first-order solve, whose eps is not tested
+  std::size_t n_failed{0};
 };
 
 //------------------------------------------------------------------------------
@@ -495,7 +501,7 @@ std::vector<std::size_t> active_operators(
   for a first-order solve (RPAOptions::max_its of 1): its eps is the size of
   the correction, not a convergence measure. An operator with no non-zero
   bare amplitude in any channel (a transverse multipole at K = 0) is not
-  solved: the RPA amplitudes are the bare ones, and the returned eps is 0.
+  solved: the RPA amplitudes are the bare ones, and nothing is returned.
 
   @param h            Multipole operator (rank and frequency set).
   @param i_op         Its index in the multipole_operators() set.
@@ -506,15 +512,15 @@ std::vector<std::size_t> active_operators(
   @param A_bare       Bare amplitudes, one per channel; entry @p i_op set.
   @param A_rpa        RPA amplitudes, one per channel; entry @p i_op set.
   @param print        Print the RPA iterations of the solve.
-  @return The eps of the solve (see ExternalField::TDHF::last_eps).
+  @return The eps of the solve (see ExternalField::TDHF::last_eps); nullopt
+          if the RPA was not solved.
 */
-double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
-                                std::size_t i_op, ExternalField::TDHFcntm *rpa,
-                                double omega, const RPAOptions &rpa_options,
-                                const std::vector<IonisationChannel> &channels,
-                                std::vector<ChannelAmplitudes> *A_bare,
-                                std::vector<ChannelAmplitudes> *A_rpa,
-                                bool print = false);
+std::optional<double> solve_channel_amplitudes(
+  const DiracOperator::TensorOperator &h, std::size_t i_op,
+  ExternalField::TDHFcntm *rpa, double omega, const RPAOptions &rpa_options,
+  const std::vector<IonisationChannel> &channels,
+  std::vector<ChannelAmplitudes> *A_bare, std::vector<ChannelAmplitudes> *A_rpa,
+  bool print = false);
 
 //------------------------------------------------------------------------------
 /*!

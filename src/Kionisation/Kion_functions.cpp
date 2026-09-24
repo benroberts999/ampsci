@@ -511,13 +511,13 @@ std::vector<std::size_t> active_operators(
 }
 
 //==============================================================================
-double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
-                                std::size_t i_op, ExternalField::TDHFcntm *rpa,
-                                double omega, const RPAOptions &rpa_options,
-                                const std::vector<IonisationChannel> &channels,
-                                std::vector<ChannelAmplitudes> *A_bare,
-                                std::vector<ChannelAmplitudes> *A_rpa,
-                                bool print) {
+std::optional<double>
+solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
+                         std::size_t i_op, ExternalField::TDHFcntm *rpa,
+                         double omega, const RPAOptions &rpa_options,
+                         const std::vector<IonisationChannel> &channels,
+                         std::vector<ChannelAmplitudes> *A_bare,
+                         std::vector<ChannelAmplitudes> *A_rpa, bool print) {
   assert(rpa != nullptr && A_bare != nullptr && A_rpa != nullptr);
   assert(A_bare->size() == channels.size() && A_rpa->size() == channels.size());
 
@@ -542,7 +542,7 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
     if (print) {
       fmt::print("  (no non-zero amplitude: RPA not solved)\n");
     }
-    return 0.0;
+    return std::nullopt;
   }
 
   rpa->solve_core(omega, rpa_options.max_its, print);
@@ -655,6 +655,11 @@ FormFactorsRPA solve_formFactors_RPA(
   // the energies finish does not matter)
   qip::ProgressBar bar(active_E.size() * steps_per_E, !debug_print_rpa);
 
+  // Solves made, and how many did not converge (not tested for a
+  // first-order solve)
+  std::size_t n_solves = 0;
+  std::size_t n_failed = 0;
+
 #pragma omp parallel for schedule(dynamic) if (parallel_E)
   for (std::size_t i = 0; i < active_E.size(); ++i) {
     const auto iE = active_E[i];
@@ -716,11 +721,20 @@ FormFactorsRPA solve_formFactors_RPA(
             const auto eps_solve = solve_channel_amplitudes(
               *h, i_op, &rpa, omega, rpa_options, channels, &A_bare[iq],
               &A_rpa[iq], debug_print_rpa);
-            // Worst over K and operators (nan is the worst); (iE, iq) is
-            // visited by one thread within this block
-            auto &eps_Eq = factors.eps(iE, iq);
-            if (std::isnan(eps_solve) || eps_solve > eps_Eq) {
-              eps_Eq = eps_solve;
+            if (eps_solve) {
+              // Worst over K and operators (nan is the worst); (iE, iq) is
+              // visited by one thread within this block
+              auto &eps_Eq = factors.eps(iE, iq);
+              if (std::isnan(*eps_solve) || *eps_solve > eps_Eq) {
+                eps_Eq = *eps_solve;
+              }
+#pragma omp atomic
+              ++n_solves;
+              if (rpa_options.max_its > 1 &&
+                  rpa_failed(*eps_solve, rpa_options.eps_fail)) {
+#pragma omp atomic
+                ++n_failed;
+              }
             }
             bar.update();
           }
@@ -743,6 +757,8 @@ FormFactorsRPA solve_formFactors_RPA(
     }
   }
 
+  factors.n_solves = n_solves;
+  factors.n_failed = n_failed;
   return factors;
 }
 
@@ -838,6 +854,8 @@ FormFactorsRPA calculate_formFactors_RPA(
       factors.eps(E_region[jE], q_region[jq]) = region.eps(jE, jq);
     }
   }
+  factors.n_solves = region.n_solves;
+  factors.n_failed = region.n_failed;
 
   return factors;
 }
