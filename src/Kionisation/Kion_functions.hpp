@@ -503,6 +503,7 @@ std::vector<std::size_t> active_operators(
   @param channels     The (hole, ejected) channels (construct_channels()).
   @param A_bare       Bare amplitudes, one per channel; entry @p i_op set.
   @param A_rpa        RPA amplitudes, one per channel; entry @p i_op set.
+  @param print        Print the RPA iterations of the solve.
   @return The eps of the solve (see ExternalField::TDHF::last_eps).
 */
 double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
@@ -510,7 +511,8 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
                                 double omega, const RPAOptions &rpa_options,
                                 const std::vector<IonisationChannel> &channels,
                                 std::vector<ChannelAmplitudes> *A_bare,
-                                std::vector<ChannelAmplitudes> *A_rpa);
+                                std::vector<ChannelAmplitudes> *A_rpa,
+                                bool print = false);
 
 //------------------------------------------------------------------------------
 /*!
