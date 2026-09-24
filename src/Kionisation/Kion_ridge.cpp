@@ -10,6 +10,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Physics/UnitConv_conversions.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "fmt/color.hpp"
 #include "fmt/format.hpp"
 #include "qip/Widgets.hpp"
 #include "qip/omp.hpp"
@@ -290,6 +291,9 @@ std::vector<FormFactorSet> calculate_ridge_correction(
   const std::vector<double> &qgrid, const SphericalBessel::JL_table &jK_tab,
   int Kmax, bool vectorQ, bool axialQ, bool scalarQ, bool pseudoscalarQ,
   bool spatialQ, double ridge_eps) {
+  IO::ChronoTimer timer("Ridge correction");
+
+  const bool print = false;
 
   assert(vHF != nullptr);
   const auto &core = vHF->core();
@@ -300,17 +304,23 @@ std::vector<FormFactorSet> calculate_ridge_correction(
   const auto alpha = vHF->alpha();
   const auto c = 1.0 / alpha;
 
-  // Bound-bound leakage of the plane waves is confined to K <= l_a + l_b
+  std::vector<FormFactorSet> dK(
+    n_core, allocate_formFactors(E_steps, q_steps, vectorQ, axialQ, scalarQ,
+                                 pseudoscalarQ, spatialQ));
+
+  // Bound-bound leakage of the plane waves is confined to K <= l_a + l_b;
+  // below that Kmax the correction is not defined: none is applied
   int l_max_core = 0;
   for (const auto &Fa : core) {
     l_max_core = std::max(l_max_core, Fa.l());
   }
-  assert(Kmax >= 2 * l_max_core &&
-         "ridge correction requires Kmax >= 2 l_max(core)");
-
-  std::vector<FormFactorSet> dK(
-    n_core, allocate_formFactors(E_steps, q_steps, vectorQ, axialQ, scalarQ,
-                                 pseudoscalarQ, spatialQ));
+  if (Kmax < 2 * l_max_core) {
+    fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
+    fmt::print("ridge correction requires Kmax >= 2 l_max(core) = {} (have "
+               "{}); no correction applied\n",
+               2 * l_max_core, Kmax);
+    return dK;
+  }
 
   // Where the correction is active: the q at which the multipoles above
   // Kmax carry more than ridge_eps of the norm. Their fraction grows with
@@ -326,20 +336,22 @@ std::vector<FormFactorSet> calculate_ridge_correction(
         active_q[ia].emplace_back(iq, qgrid[iq] * c);
       }
     }
-    if (active_q[ia].empty()) {
-      fmt::print("  {:4s}: not needed (K <= {} complete to {:.0e})\n",
-                 core[ia].shortSymbol(), Kmax, ridge_eps);
-    } else {
-      fmt::print("  {:4s}: active for q >= {:.3e} eV ({} of {} q points)\n",
-                 core[ia].shortSymbol(),
-                 qgrid[active_q[ia].front().first] *
-                   UnitConv::Momentum_au_to_eV,
-                 active_q[ia].size(), q_steps);
+    if (print) {
+      if (active_q[ia].empty()) {
+        fmt::print("  {:4s}: not needed (K <= {} complete to {:.0e})\n",
+                   core[ia].shortSymbol(), Kmax, ridge_eps);
+      } else {
+        fmt::print("  {:4s}: active for q >= {:.3e} eV ({} of {} q points)\n",
+                   core[ia].shortSymbol(),
+                   qgrid[active_q[ia].front().first] *
+                     UnitConv::Momentum_au_to_eV,
+                   active_q[ia].size(), q_steps);
+      }
     }
   }
 
   // Momentum-space orbitals (one at a time; the transform is parallel)
-  IO::ChronoTimer timer("");
+  // IO::ChronoTimer timer("");
   std::vector<MomentumOrbital> p_orbitals;
   p_orbitals.reserve(n_core);
   for (std::size_t ia = 0; ia < n_core; ++ia) {
@@ -348,9 +360,9 @@ std::vector<FormFactorSet> calculate_ridge_correction(
                            momentum_orbital(bound_states[ia], core[ia].en()));
   }
 
-  fmt::print("  momentum-space orbitals: {:.1f} s\n",
-             timer.lap_reading_ms() / 1000.0);
-  timer.start();
+  // fmt::print("  momentum-space orbitals: {:.1f} s\n",
+  //            timer.lap_reading_ms() / 1000.0);
+  // timer.start();
 
   // Work list: every (orbital, E) with an active q and the ejected electron
   // energy within the limits
@@ -443,7 +455,7 @@ std::vector<FormFactorSet> calculate_ridge_correction(
     }
     bar.update();
   }
-  fmt::print("  plane-wave sums: {:.1f} s\n", timer.lap_reading_ms() / 1000.0);
+  // fmt::print("  plane-wave sums: {:.1f} s\n", timer.lap_reading_ms() / 1000.0);
 
   return dK;
 }
