@@ -935,6 +935,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
      {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
                        "hole-particle interaction) [true]"},
      {"force_orthog", "Enforce orthogonality of the continuum orbitals [true]"},
+     {"rpa", "true/false. Include the RPA (core-polarisation) corrections to "
+             "the amplitudes, on top of the HF states: method=HF with "
+             "RPA=true is the same as method=RPA. Ignored for the Zeff "
+             "methods. [false; true if method=RPA]"},
      {"method",
       "Method for bound and continuum states: HF (standard), RPA (HF states, "
       "with RPA/core-polarisation corrections to every amplitude from the "
@@ -1187,9 +1191,18 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     input.get<std::string>("method", zeff_input ? "Zeff" : "HF");
 
   const auto method = Kion::parseStatesMethod(t_method);
-  // RPA is a method for the amplitudes: the states themselves are those of HF
-  const bool use_rpa = method == Kion::AtomicMethod::RPA;
+  // RPA is a method for the amplitudes: the states themselves are those of
+  // HF. Either method=RPA, or method=HF with RPA=true
+  const auto rpa_input = input.get("rpa", method == Kion::AtomicMethod::RPA);
+  const bool use_rpa = method == Kion::AtomicMethod::RPA ||
+                       (method == Kion::AtomicMethod::HF && rpa_input);
   const auto states_method = use_rpa ? Kion::AtomicMethod::HF : method;
+  if (rpa_input && !use_rpa) {
+    fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
+    fmt::print("rpa=true has no effect for method={}: the RPA needs the HF "
+               "states; ignoring\n",
+               t_method);
+  }
   const bool use_Zeff = states_method != Kion::AtomicMethod::HF;
   const bool Zeff_analytic = states_method == Kion::AtomicMethod::ZeffAnalytic;
 
