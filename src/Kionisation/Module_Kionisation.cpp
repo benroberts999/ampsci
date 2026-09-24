@@ -1247,7 +1247,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
                "  max_its = {}, eps = {:.1e}, discarded if eps > {:.1e}\n",
                rpa_options.max_its, rpa_options.eps, rpa_options.eps_fail);
     if (rpa_E_max_eV || rpa_q_max_eV || rpa_K_max) {
-      std::cout << "  RPA solved only for:";
+      std::cout << "  RPA included only for:";
       if (rpa_E_max_eV) {
         fmt::print(" E <= {:.4g} eV;", *rpa_E_max_eV);
       }
@@ -1257,7 +1257,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       if (rpa_K_max) {
         fmt::print(" K <= {};", *rpa_K_max);
       }
-      std::cout << " bare factors elsewhere\n";
+      std::cout << "\n";
     }
     if (!hole_particle) {
       fmt2::styled_print(fg(fmt::color::orange), "Warning: ");
@@ -1297,7 +1297,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "Filling jL spherical Bessel table.." << std::flush;
   const auto q_table = diagonal_Eq ? Egrid * PhysConst::alpha : qgrid;
   const SphericalBessel::JL_table jK_tab(Kmax + 1, q_table, wf.grid().r());
-  std::cout << "..done\n" << std::flush;
+  std::cout << "..done\n\n" << std::flush;
 
   // Titles/descriptions of each K(E,q) form factor, in the order of
   // Kion::FormFactorSet (which is the order of the output file columns):
@@ -1422,62 +1422,62 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\n";
   };
 
-  // Bethe-ridge correction: plane waves and the bound states only, so the
-  // same for every amplitude method (added to both the bare and RPA factors)
-  const auto ridge = [&]() {
-    return Kion::calculate_ridge_correction(
-      wf.vHF(), bound_states, ec_min, ec_max, Egrid, qgrid, jK_tab, Kmax,
-      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, ridge_eps);
-  };
+  // Form factors: bare (HF or Zeff states) and, for method=RPA, with RPA.
+  // With RPA, both are written to disk (both are calculated anyway)
+  Kion::FormFactorsRPA factors;
+  if (use_rpa) {
+    factors = Kion::calculate_formFactors_RPA(
+      wf.vHF(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
+      force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax,
+      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
+    std::cout << "\n";
 
-  if (!use_rpa) {
-    auto K_nk = Kion::calculate_formFactors(
+    // Isolated failed solves leave a step in an otherwise smooth factor
+    if (rpa_options.max_its > 1) {
+      const auto [n_failed, n_interpolated] =
+        Kion::interpolate_failed_rpa(&factors, rpa_options.eps_fail);
+      if (n_failed > 0) {
+        fmt::print("\nNote: RPA not converged (eps > {:.0e}) at {} of {} "
+                   "(E,q) points:\n dRPA interpolated in q for {}; no-RPA used "
+                   "for {}\n\n",
+                   rpa_options.eps_fail, n_failed, E_steps * q_steps,
+                   n_interpolated, n_failed - n_interpolated);
+      }
+    }
+  } else {
+    factors.bare = Kion::calculate_formFactors(
       wf.vHF(), bound_states, lc_minmax, ec_min, ec_max, force_rescale,
       hole_particle, force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab,
       Kmin, Kmax, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ,
       states_method);
-    std::cout << "done\n\n";
-    if (ridge_correction) {
-      Kion::add_formFactors(&K_nk, ridge());
-      std::cout << "done\n\n";
-    }
-    write_factors(ofname_prefix, K_nk);
-    return;
+    std::cout << "\n";
   }
 
-  // When we include RPA: Write both (with + without) to disk seperately,
-  // Since we have to calculate both anyway
-
-  auto result = Kion::calculate_formFactors_RPA(
-    wf.vHF(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
-    force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ,
-    axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
-  std::cout << "done\n\n";
-
-  // Try to smoothly interpolate
-  if (rpa_options.max_its > 1) {
-    // Isolated failed solves leave a step in an otherwise smooth factor
-    const auto [n_failed, n_interpolated] =
-      Kion::interpolate_failed_rpa(&result, rpa_options.eps_fail);
-    if (n_failed > 0) {
-      fmt::print(
-        "\nNote: RPA not converged (eps > {:.0e}) at {} of {} "
-        "(E,q) points: dRPA interpolated in q for {}; no-RPA used for {}\n\n",
-        rpa_options.eps_fail, n_failed, E_steps * q_steps, n_interpolated,
-        n_failed - n_interpolated);
-    }
-  }
-
+  // Bethe-ridge correction: plane waves and the bound states only, so the
+  // same for every amplitude method. Empty if not requested
+  std::vector<Kion::FormFactorSet> dK_ridge;
   if (ridge_correction) {
-    const auto dK = ridge();
-    std::cout << "done\n\n";
-    Kion::add_formFactors(&result.bare, dK);
-    Kion::add_formFactors(&result.rpa, dK);
+    dK_ridge = Kion::calculate_ridge_correction(
+      wf.vHF(), bound_states, ec_min, ec_max, Egrid, qgrid, jK_tab, Kmax,
+      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, ridge_eps);
+    std::cout << "\n";
   }
-  std::cout << "Without RPA:\n";
-  write_factors(ofname_prefix, result.bare);
-  std::cout << "With RPA:\n";
-  write_factors(ofname_prefix_rpa, result.rpa);
+
+  if (!dK_ridge.empty()) {
+    Kion::add_formFactors(&factors.bare, dK_ridge);
+    if (use_rpa) {
+      Kion::add_formFactors(&factors.rpa, dK_ridge);
+    }
+  }
+
+  if (use_rpa) {
+    std::cout << "Without RPA:\n";
+  }
+  write_factors(ofname_prefix, factors.bare);
+  if (use_rpa) {
+    std::cout << "With RPA:\n";
+    write_factors(ofname_prefix_rpa, factors.rpa);
+  }
 }
 
 } // namespace Module
