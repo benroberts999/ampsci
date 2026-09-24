@@ -368,7 +368,7 @@ public:
   AEk(const Grid &gr, int K, double omega,
       const SphericalBessel::JL_table *jl = nullptr)
     : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                   gr.r(), Realness::real, false, &gr, 'A', 'E', false, jl) {
+                   gr.r(), Realness::real, true, &gr, 'A', 'E', false, jl) {
     if (omega != 0.0)
       updateFrequency(omega);
   }

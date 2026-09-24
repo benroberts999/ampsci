@@ -208,7 +208,7 @@ class AEk_lowq final : public EM_multipole {
 public:
   AEk_lowq(const Grid &gr, int K, double omega)
     : EM_multipole(K, Angular::evenQ(K) ? Parity::odd : Parity::even, 1.0,
-                   gr.r(), Realness::real, false, &gr, 'A', 'E', true) {
+                   gr.r(), Realness::real, true, &gr, 'A', 'E', true) {
     if (omega != 0.0)
       updateFrequency(omega);
   }
