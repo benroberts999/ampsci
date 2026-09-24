@@ -927,7 +927,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       "truncated at K_max misses the response near the quasi-free ridge "
       "E ~ q^2/2m, where multipoles up to K ~ q*r contribute; off the ridge "
       "the correction vanishes. Adds '_ridge' to the output file name. "
-      "Skipped (with a warning) if K_max < 2*l_max of the core, or with "
+      "Skipped (with a warning) if K_max < 2*j_max of the core, or with "
       "diagonal, lc_minmax, or low_q. [false]"},
      {"force_rescale", "Rescale atomic potential V(r) at large r when solving "
                        "continuum orbitals. Should be false for local "
@@ -935,6 +935,10 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
      {"hole_particle", "Subtract Hartree-Fock self-interaction (account for "
                        "hole-particle interaction) [true]"},
      {"force_orthog", "Enforce orthogonality of the continuum orbitals [true]"},
+     {"rpa", "true/false. Include the RPA (core-polarisation) corrections to "
+             "the amplitudes, on top of the HF states: method=HF with "
+             "RPA=true is the same as method=RPA. Ignored for the Zeff "
+             "methods. [false; true if method=RPA]"},
      {"method",
       "Method for bound and continuum states: HF (standard), RPA (HF states, "
       "with RPA/core-polarisation corrections to every amplitude from the "
@@ -1156,26 +1160,22 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   auto ridge_correction = input.get("ridge_correction", false);
   const double ridge_eps = 1.0e-4;
   if (ridge_correction) {
-    int l_max_core = 0;
-    for (const auto &Fa : wf.core()) {
-      l_max_core = std::max(l_max_core, Fa.l());
-    }
+    const auto twoj_max_core = DiracSpinor::max_tj(wf.core());
     if (diagonal_Eq || lc_minmax || low_q) {
       fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
       fmt::print("ridge_correction skipped: not available with diagonal, "
                  "lc_minmax, or low_q\n");
       ridge_correction = false;
-    } else if (Kmax < 2 * l_max_core) {
+    } else if (Kmax < twoj_max_core) {
       fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
-      fmt::print("ridge_correction skipped: requires K_max >= 2*l_max(core) "
+      fmt::print("ridge_correction skipped: requires K_max >= 2*j_max(core) "
                  "= {} (have {})\n",
-                 2 * l_max_core, Kmax);
+                 twoj_max_core, Kmax);
       ridge_correction = false;
     } else {
       fmt::print("Ridge correction: completing K > {} with free (plane-wave) "
-                 "states, at the q where K <= {} carries less than 1 - {:.0e} "
-                 "of the norm of exp(iq.r)psi\n",
-                 Kmax, Kmax, ridge_eps);
+                 "states\n",
+                 Kmax);
     }
   }
 
@@ -1191,9 +1191,18 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     input.get<std::string>("method", zeff_input ? "Zeff" : "HF");
 
   const auto method = Kion::parseStatesMethod(t_method);
-  // RPA is a method for the amplitudes: the states themselves are those of HF
-  const bool use_rpa = method == Kion::AtomicMethod::RPA;
+  // RPA is a method for the amplitudes: the states themselves are those of
+  // HF. Either method=RPA, or method=HF with RPA=true
+  const auto rpa_input = input.get("rpa", method == Kion::AtomicMethod::RPA);
+  const bool use_rpa = method == Kion::AtomicMethod::RPA ||
+                       (method == Kion::AtomicMethod::HF && rpa_input);
   const auto states_method = use_rpa ? Kion::AtomicMethod::HF : method;
+  if (rpa_input && !use_rpa) {
+    fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
+    fmt::print("rpa=true has no effect for method={}: the RPA needs the HF "
+               "states; ignoring\n",
+               t_method);
+  }
   const bool use_Zeff = states_method != Kion::AtomicMethod::HF;
   const bool Zeff_analytic = states_method == Kion::AtomicMethod::ZeffAnalytic;
 
