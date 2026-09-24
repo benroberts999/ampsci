@@ -714,8 +714,8 @@ FormFactorsRPA solve_formFactors_RPA(
 
   // Amplitudes of one (E, K) block: every channel at every q, [iq][channel]
   struct BlockAmplitudes {
-    std::vector<std::vector<ChannelAmplitudes>> bare;
-    std::vector<std::vector<ChannelAmplitudes>> rpa;
+    std::vector<std::vector<ChannelAmplitudes>> bare{};
+    std::vector<std::vector<ChannelAmplitudes>> rpa{};
   };
   // One chain: (energy in the batch, K from Kmin, operator, run of q)
   struct Chain {

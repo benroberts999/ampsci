@@ -295,8 +295,8 @@ double captured_fraction(const DiracSpinor &Fa, int Kmax, std::size_t iq,
   continuum truncation (max_pt) as the distorted-wave sum, so that the
   K <= Kmax parts cancel to grid accuracy. It has no hole-particle or
   orthogonalisation (distorted-wave physics only). Bound-bound (Pauli)
-  leakage of the plane waves is confined to K <= l_a + l_b and cancels as
-  long as Kmax >= 2 l_max of the core (checked). The squared factors are
+  leakage of the plane waves is confined to K <= j_a + j_b and cancels as
+  long as Kmax >= 2 j_max of the core (checked). The squared factors are
   clamped at zero (they are sums of squares; a negative value is noise from
   the subtraction). The whole transverse correction goes into the electric
   factors (see planewave_formFactors()).
@@ -332,7 +332,7 @@ double captured_fraction(const DiracSpinor &Fa, int Kmax, std::size_t iq,
   @return The correction of each core orbital, indexed as the core, with the
           allocation pattern of allocate_formFactors().
 
-  @warning Requires Kmax >= 2 l_max(core): if not, prints a warning and
+  @warning Requires Kmax >= 2 j_max(core): if not, prints a warning and
            returns a zero correction. Not defined for the diagonal (q = E/c)
            case, which never approaches the ridge.
 */

@@ -308,17 +308,16 @@ std::vector<FormFactorSet> calculate_ridge_correction(
     n_core, allocate_formFactors(E_steps, q_steps, vectorQ, axialQ, scalarQ,
                                  pseudoscalarQ, spatialQ));
 
-  // Bound-bound leakage of the plane waves is confined to K <= l_a + l_b;
-  // below that Kmax the correction is not defined: none is applied
-  int l_max_core = 0;
-  for (const auto &Fa : core) {
-    l_max_core = std::max(l_max_core, Fa.l());
-  }
-  if (Kmax < 2 * l_max_core) {
+  // Bound-bound leakage of the plane waves is confined by the triangle
+  // rule on j, K <= j_a + j_b (= l_a + l_b + 1 for the operators with
+  // C^K(kappa_b, -kappa_a)); below Kmax = 2 j_max the correction is not
+  // defined: none is applied
+  const auto twoj_max_core = DiracSpinor::max_tj(core);
+  if (Kmax < twoj_max_core) {
     fmt2::styled_print(fg(fmt::color::orange), "\nWarning: ");
-    fmt::print("ridge correction requires Kmax >= 2 l_max(core) = {} (have "
+    fmt::print("ridge correction requires Kmax >= 2 j_max(core) = {} (have "
                "{}); no correction applied\n",
-               2 * l_max_core, Kmax);
+               twoj_max_core, Kmax);
     return dK;
   }
 
