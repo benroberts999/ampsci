@@ -516,11 +516,12 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
                                 double omega, const RPAOptions &rpa_options,
                                 const std::vector<IonisationChannel> &channels,
                                 std::vector<ChannelAmplitudes> *A_bare,
-                                std::vector<ChannelAmplitudes> *A_rpa) {
+                                std::vector<ChannelAmplitudes> *A_rpa,
+                                bool print) {
   assert(rpa != nullptr && A_bare != nullptr && A_rpa != nullptr);
   assert(A_bare->size() == channels.size() && A_rpa->size() == channels.size());
 
-  rpa->solve_core(omega, rpa_options.max_its, false);
+  rpa->solve_core(omega, rpa_options.max_its, print);
   const auto eps = rpa->last_eps();
   // A first-order solve (max_its <= 1) is what was asked for: its eps is the
   // size of the correction, not a convergence measure
@@ -595,11 +596,17 @@ FormFactorsRPA solve_formFactors_RPA(
     }
   }
 
+  // Debug switch: E and q in series (the parallelism is then inside the RPA
+  // solver), every RPA solve prints its iterations, and no progress bar
+  constexpr bool debug_print_rpa = true;
+
   // Decide which (E or q) to parallelise over
   // Neither: is parallelised over RPA instead
   const auto n_threads = std::size_t(omp_get_max_threads());
-  const bool parallel_E = n_threads > 1 && active_E.size() >= n_threads;
-  const bool parallel_q = !parallel_E && q_steps >= n_threads;
+  const bool parallel_E =
+    !debug_print_rpa && n_threads > 1 && active_E.size() >= n_threads;
+  const bool parallel_q =
+    !debug_print_rpa && !parallel_E && q_steps >= n_threads;
 
   // Multipoles above the K limit are bare (no solve), but are still one
   // step of the progress bar each
@@ -622,7 +629,7 @@ FormFactorsRPA solve_formFactors_RPA(
 
   // One progress bar over the run (it counts steps, so the order in which
   // the energies finish does not matter)
-  qip::ProgressBar bar(active_E.size() * steps_per_E, true);
+  qip::ProgressBar bar(active_E.size() * steps_per_E, !debug_print_rpa);
 
 #pragma omp parallel for schedule(dynamic) if (parallel_E)
   for (std::size_t i = 0; i < active_E.size(); ++i) {
@@ -678,9 +685,13 @@ FormFactorsRPA solve_formFactors_RPA(
 #pragma omp for schedule(static)
           for (std::size_t iq = 0; iq < q_steps; ++iq) {
             h->updateFrequency(qc_grid[iq]);
-            const auto eps_solve =
-              solve_channel_amplitudes(*h, i_op, &rpa, omega, rpa_options,
-                                       channels, &A_bare[iq], &A_rpa[iq]);
+            if (debug_print_rpa) {
+              fmt::print("RPA solve: {} K={} E={:.5g} au, qc={:.5g} au\n",
+                         h->name(), k, omega, qc_grid[iq]);
+            }
+            const auto eps_solve = solve_channel_amplitudes(
+              *h, i_op, &rpa, omega, rpa_options, channels, &A_bare[iq],
+              &A_rpa[iq], debug_print_rpa);
             // Worst over K and operators (nan is the worst); (iE, iq) is
             // visited by one thread within this block
             auto &eps_Eq = factors.eps(iE, iq);
