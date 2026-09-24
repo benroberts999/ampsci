@@ -521,17 +521,11 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
   assert(rpa != nullptr && A_bare != nullptr && A_rpa != nullptr);
   assert(A_bare->size() == channels.size() && A_rpa->size() == channels.size());
 
-  rpa->solve_core(omega, rpa_options.max_its, print);
-  const auto eps = rpa->last_eps();
-  // A first-order solve (max_its <= 1) is what was asked for: its eps is the
-  // size of the correction, not a convergence measure
-  const bool use_rpa = rpa_options.max_its <= 1 ||
-                       (!std::isnan(eps) && eps < rpa_options.eps_fail);
-  // A failed solve is not used, and is not warm started from
-  if (!use_rpa) {
-    rpa->clear();
-  }
-
+  // Bare amplitudes first. An operator with no non-zero amplitude in any
+  // channel (a transverse multipole at K = 0 is identically zero) has
+  // nothing to correct, and its null field must not be iterated: the
+  // relative convergence measure would only compare round-off
+  bool any_nonzero = false;
   for (std::size_t ic = 0; ic < channels.size(); ++ic) {
     const auto &Fa = *channels[ic].hole;
     const auto &Fe = *channels[ic].ejected;
@@ -539,7 +533,37 @@ double solve_channel_amplitudes(const DiracOperator::TensorOperator &h,
       continue;
     const auto bare = h.reducedME(Fe, Fa);
     (*A_bare)[ic][i_op] = bare;
-    (*A_rpa)[ic][i_op] = use_rpa ? bare + rpa->dV_complex(Fe, Fa) : bare;
+    (*A_rpa)[ic][i_op] = bare;
+    if (bare != 0.0) {
+      any_nonzero = true;
+    }
+  }
+  if (!any_nonzero) {
+    if (print) {
+      fmt::print("  (no non-zero amplitude: RPA not solved)\n");
+    }
+    return 0.0;
+  }
+
+  rpa->solve_core(omega, rpa_options.max_its, print);
+  const auto eps = rpa->last_eps();
+  // A first-order solve (max_its <= 1) is what was asked for: its eps is the
+  // size of the correction, not a convergence measure
+  const bool use_rpa = rpa_options.max_its <= 1 ||
+                       (!std::isnan(eps) && eps < rpa_options.eps_fail);
+  // A failed solve is not used (the bare amplitudes stay), and is not warm
+  // started from
+  if (!use_rpa) {
+    rpa->clear();
+    return eps;
+  }
+
+  for (std::size_t ic = 0; ic < channels.size(); ++ic) {
+    const auto &Fa = *channels[ic].hole;
+    const auto &Fe = *channels[ic].ejected;
+    if (h.isZero(Fe, Fa))
+      continue;
+    (*A_rpa)[ic][i_op] += rpa->dV_complex(Fe, Fa);
   }
   return eps;
 }
@@ -598,7 +622,7 @@ FormFactorsRPA solve_formFactors_RPA(
 
   // Debug switch: E and q in series (the parallelism is then inside the RPA
   // solver), every RPA solve prints its iterations, and no progress bar
-  constexpr bool debug_print_rpa = true;
+  constexpr bool debug_print_rpa = false;
 
   // Decide which (E or q) to parallelise over
   // Neither: is parallelised over RPA instead

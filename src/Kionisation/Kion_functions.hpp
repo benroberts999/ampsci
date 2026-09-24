@@ -493,7 +493,9 @@ std::vector<std::size_t> active_operators(
   RPA amplitude is the bare one, and the solver is cleared so that the next
   solve does not warm start from the failed state. Convergence is not tested
   for a first-order solve (RPAOptions::max_its of 1): its eps is the size of
-  the correction, not a convergence measure.
+  the correction, not a convergence measure. An operator with no non-zero
+  bare amplitude in any channel (a transverse multipole at K = 0) is not
+  solved: the RPA amplitudes are the bare ones, and the returned eps is 0.
 
   @param h            Multipole operator (rank and frequency set).
   @param i_op         Its index in the multipole_operators() set.
