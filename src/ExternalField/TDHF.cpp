@@ -14,11 +14,18 @@
 #include "fmt/format.hpp"
 #include "qip/Widgets.hpp"
 #include <algorithm>
+#include <cmath>
 #include <fstream>
 #include <memory>
 #include <vector>
 
 namespace ExternalField {
+
+//==============================================================================
+// Rounds very small omega to zero
+static double round_to_zero(double omega) {
+  return std::abs(omega) < 1.0e-12 ? 0.0 : omega;
+}
 
 //==============================================================================
 TDHF::TDHF(const DiracOperator::TensorOperator *const h_plus,
@@ -117,9 +124,10 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
   // Solves (H + Sigma - e - w)X = -(h + dV - de)Psi
   // or     (H + Sigma - e + w)Y = -(h^dag + dV^dag - de)Psi
 
-  const auto ww = XorY == dPsiType::X ? omega : -omega;
+  const auto w0 = round_to_zero(omega);
+  const auto ww = XorY == dPsiType::X ? w0 : -w0;
   auto conj = XorY == dPsiType::Y;
-  if (omega < 0.0)
+  if (w0 < 0.0)
     conj = !conj;
 
   const auto imag = m_h->imaginaryQ();
@@ -166,9 +174,10 @@ void TDHF::solve_ms_core(std::vector<DiracSpinor> &dFb, const DiracSpinor &Fb,
   // The diagonal (de) and near-resonant fine-structure partner terms are
   // conditioned inside solveMixedState (see conditioning_states()).
 
-  const auto ww = XorY == dPsiType::X ? omega : -omega;
+  const auto w0 = round_to_zero(omega);
+  const auto ww = XorY == dPsiType::X ? w0 : -w0;
   auto conj = XorY == dPsiType::Y;
-  if (omega < 0.0)
+  if (w0 < 0.0)
     conj = !conj;
 
   const auto imag = m_h->imaginaryQ();
@@ -199,9 +208,10 @@ void TDHF::solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fb,
   // Thread-safe: reads only const/shared state (and the previous iteration's
   // m_X/m_Y via dV_rhs); writes only dF_beta.
 
-  const auto ww = XorY == dPsiType::X ? omega : -omega;
+  const auto w0 = round_to_zero(omega);
+  const auto ww = XorY == dPsiType::X ? w0 : -w0;
   auto conj = XorY == dPsiType::Y;
-  if (omega < 0.0)
+  if (w0 < 0.0)
     conj = !conj;
 
   const auto imag = m_h->imaginaryQ();

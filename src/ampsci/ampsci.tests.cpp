@@ -237,7 +237,6 @@ TEST_CASE("ampsci - basic CI unit test", "[ampsci][CI][unit]") {
     Module::CI_matrixElements{
       operator = E1;
       rpa = false;
-      ci_basis = 12spdf;
       omega = 0.0;
       J=0,1;
     }

@@ -7,9 +7,16 @@
 #include "fmt/format.hpp"
 #include "qip/Widgets.hpp"
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 namespace ExternalField {
+
+//==============================================================================
+// Rounds very small omega to zero
+static double round_to_zero(double omega) {
+  return std::abs(omega) < 1.0e-12 ? 0.0 : omega;
+}
 
 //==============================================================================
 TDHFbasis::TDHFbasis(const DiracOperator::TensorOperator *const h,
@@ -46,9 +53,10 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
                                  const std::vector<DiracSpinor> &spectrum,
                                  StateType st, bool incl_dV) const {
 
-  const auto ww = XorY == dPsiType::X ? omega : -omega;
+  const auto w0 = round_to_zero(omega);
+  const auto ww = XorY == dPsiType::X ? w0 : -w0;
   auto conj = XorY == dPsiType::Y;
-  if (omega < 0.0)
+  if (w0 < 0.0)
     conj = !conj; //?
 
   const auto imag = m_h->imaginaryQ();
