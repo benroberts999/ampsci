@@ -576,7 +576,7 @@ TEST_CASE("HartreeFock - Hyperfine", "[HF][HartreeFock]") {
 
 //============================================================================
 TEST_CASE("HartreeFock - Sigma2 - InIII Converge",
-          "[HF][HartreeFock][Correlations][unit]") {
+          "[HF][HartreeFock][Correlations]") {
 
   // This is just a test case that failed to converge before an update
   std::string run_label = "deleteme_" + qip::random_string(3);

@@ -117,7 +117,7 @@ TEST_CASE("TDHFcntm: basic unit tests",
 //! imaginary parts exactly zero. E1 (odd parity) static and at finite
 //! frequency, and E2 (even parity: diagonal channels, de projection).
 TEST_CASE("TDHFcntm: matches TDHF below threshold",
-          "[ExternalField][TDHF][TDHFcntm][unit]") {
+          "[ExternalField][TDHF][TDHFcntm]") {
 
   Wavefunction wf({2000, 1.0e-6, 30.0, 1.0, "loglinear", -1.0},
                   {"Ne", -1, "Fermi", -1.0, -1.0}, 1.0);
