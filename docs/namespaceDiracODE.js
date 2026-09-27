@@ -1,0 +1,28 @@
+var namespaceDiracODE =
+[
+    [ "AsymptoticSpinor", "classDiracODE_1_1AsymptoticSpinor.html", "classDiracODE_1_1AsymptoticSpinor" ],
+    [ "AsymptoticSpinorContinuum", "classDiracODE_1_1AsymptoticSpinorContinuum.html", "classDiracODE_1_1AsymptoticSpinorContinuum" ],
+    [ "ContinuumTailSpinors", "namespaceDiracODE.html#structDiracODE_1_1ContinuumTailSpinors", "namespaceDiracODE_structDiracODE_1_1ContinuumTailSpinors_dup" ],
+    [ "DiracContinuumDerivative", "structDiracODE_1_1DiracContinuumDerivative.html", "structDiracODE_1_1DiracContinuumDerivative" ],
+    [ "FreeDiracParameters", "structDiracODE_1_1FreeDiracParameters.html", "structDiracODE_1_1FreeDiracParameters" ],
+    [ "GridRequirements", "namespaceDiracODE.html#structDiracODE_1_1GridRequirements", "namespaceDiracODE_structDiracODE_1_1GridRequirements_dup" ],
+    [ "boundState", "namespaceDiracODE.html#ac7175e0a05be9b52a6b13325bbe74269", null ],
+    [ "regularAtOrigin", "namespaceDiracODE.html#a9940ba289adbee366bd0ea9c1431c393", null ],
+    [ "regularAtInfinity", "namespaceDiracODE.html#a7b31e16bceecc0e2de4de70d4b5c37d3", null ],
+    [ "boundState", "namespaceDiracODE.html#aa9b6582e144ab4768432c80e24d3bfd1", null ],
+    [ "regularAtOrigin_C", "namespaceDiracODE.html#ad76ee1d0c67830b3cdeb2027631c9fed", null ],
+    [ "regularAtInfinity_C", "namespaceDiracODE.html#aab795c8f3a5e64b6e5b96f69d811140d", null ],
+    [ "solveContinuum", "namespaceDiracODE.html#ab693c081fe2a0f690b5a01bb445dcd44", null ],
+    [ "RequiredContinuumGrid", "namespaceDiracODE.html#a461a454f08cfb1c584434dc99a545f2b", null ],
+    [ "averageTail", "namespaceDiracODE.html#ae05a8dd0d0264774ca5a77d8b697e9d9", null ],
+    [ "solveContinuumIrregular", "namespaceDiracODE.html#af9f4d4c8cc3fe152766928e262d5b588", null ],
+    [ "solveContinuumForward", "namespaceDiracODE.html#a0c83aae97553f05c3a55ed5f29f72d57", null ],
+    [ "numerical_f_amplitude", "namespaceDiracODE.html#a47668c913efefdc39689a9b0a6664f1e", null ],
+    [ "analytic_f_amplitude", "namespaceDiracODE.html#ac94d67cc0e61683ff899f1c74bea73c8", null ],
+    [ "fitQuadratic", "namespaceDiracODE.html#a3c10738e08f95813d2d261415b6ae466", null ],
+    [ "freeDirac", "namespaceDiracODE.html#afcd4d54bf76b48750f6204bd216b150b", null ],
+    [ "freeDirac", "namespaceDiracODE.html#a9ab41cbbcda55a01360ab9f032175411", null ],
+    [ "solve_inhomog", "namespaceDiracODE.html#a639c43d318325af07adc1aab63451f37", null ],
+    [ "solve_inhomog", "namespaceDiracODE.html#a45f74702f78b9a806f784563fb39c868", null ],
+    [ "solve_inhomog", "namespaceDiracODE.html#a0878d35d333154f814d10edb310f57bb", null ]
+];

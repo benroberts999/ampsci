@@ -1,0 +1,85 @@
+var namespaceMBPT =
+[
+    [ "Sigma2", "namespaceMBPT_1_1Sigma2.html", [
+      [ "S_Sigma2_ab", "namespaceMBPT_1_1Sigma2.html#a21321925ade813af475013304cb5809f", null ],
+      [ "S_Sigma2_c1", "namespaceMBPT_1_1Sigma2.html#a973274509348e13c92527f4f0ece098e", null ],
+      [ "S_Sigma2_c2", "namespaceMBPT_1_1Sigma2.html#a8be0ec635e3287b4807908e360dbcdb6", null ],
+      [ "S_Sigma2_d", "namespaceMBPT_1_1Sigma2.html#aeecd3fdbe791d5ce1e320feee1e9b97f", null ]
+    ] ],
+    [ "Feynman", "classMBPT_1_1Feynman.html", "classMBPT_1_1Feynman" ],
+    [ "Goldstone", "classMBPT_1_1Goldstone.html", "classMBPT_1_1Goldstone" ],
+    [ "RadialMatrix", "classMBPT_1_1RadialMatrix.html", "classMBPT_1_1RadialMatrix" ],
+    [ "SigmaLData", "namespaceMBPT.html#structMBPT_1_1SigmaLData", null ],
+    [ "SpinorMatrix", "classMBPT_1_1SpinorMatrix.html", "classMBPT_1_1SpinorMatrix" ],
+    [ "StructureRad", "classMBPT_1_1StructureRad.html", "classMBPT_1_1StructureRad" ],
+    [ "HoleParticle", "namespaceMBPT.html#ae19393c58daf5b46ce4c057e0d0f3623", [
+      [ "exclude", "namespaceMBPT.html#ae19393c58daf5b46ce4c057e0d0f3623a18acedb191d664dc01b71835ae33caef", null ],
+      [ "include", "namespaceMBPT.html#ae19393c58daf5b46ce4c057e0d0f3623ad436eb0fd9de10b54a828ce6435f7e81", null ],
+      [ "include_k0", "namespaceMBPT.html#ae19393c58daf5b46ce4c057e0d0f3623a42e1ab0307c92874cc69eeef7c9bfc8a", null ]
+    ] ],
+    [ "Screening", "namespaceMBPT.html#a74a7f8f1abde576e977c367b4325a842", [
+      [ "exclude", "namespaceMBPT.html#a74a7f8f1abde576e977c367b4325a842a18acedb191d664dc01b71835ae33caef", null ],
+      [ "include", "namespaceMBPT.html#a74a7f8f1abde576e977c367b4325a842ad436eb0fd9de10b54a828ce6435f7e81", null ]
+    ] ],
+    [ "GreenStates", "namespaceMBPT.html#a278757288350f7d3c12b222fdc24c9a5", [
+      [ "both", "namespaceMBPT.html#a278757288350f7d3c12b222fdc24c9a5af6cb3e816496528d4187db53bc66567f", null ],
+      [ "core", "namespaceMBPT.html#a278757288350f7d3c12b222fdc24c9a5aa74ad8dfacd4f985eb3977517615ce25", null ],
+      [ "excited", "namespaceMBPT.html#a278757288350f7d3c12b222fdc24c9a5a7b849a50da92f39d6af294b10e0b93f5", null ]
+    ] ],
+    [ "SigmaLMethod", "namespaceMBPT.html#aa703b86d9571cc6ff8868249f31e1ddf", [
+      [ "basis", "namespaceMBPT.html#aa703b86d9571cc6ff8868249f31e1ddfad7c95dd61cc3588432f3b3eef94101e9", null ],
+      [ "ratio", "namespaceMBPT.html#aa703b86d9571cc6ff8868249f31e1ddfa8283014e6e586d80b0fbaf92ba85082f", null ],
+      [ "direct", "namespaceMBPT.html#aa703b86d9571cc6ff8868249f31e1ddfa7caa701b2bd5a182b80c72b9bdf88e2d", null ]
+    ] ],
+    [ "Denominators", "namespaceMBPT.html#a4f35cdf49a888b7cc60adb11e12c0106", [
+      [ "RS", "namespaceMBPT.html#a4f35cdf49a888b7cc60adb11e12c0106a8cee5050eeb7c783e8bfaa73003ced3a", null ],
+      [ "Fermi", "namespaceMBPT.html#a4f35cdf49a888b7cc60adb11e12c0106a9b7db742c51c67ff42d010e59aca884e", null ],
+      [ "Fermi0", "namespaceMBPT.html#a4f35cdf49a888b7cc60adb11e12c0106a2109d1f010b659d29ad6d7183adf3304", null ],
+      [ "DFK", "namespaceMBPT.html#a4f35cdf49a888b7cc60adb11e12c0106adcc385314d646c4fa25ca75b4a0a55dc", null ],
+      [ "BW", "namespaceMBPT.html#a4f35cdf49a888b7cc60adb11e12c0106a81043f8c681575bca3e4eff6afbd9db9", null ]
+    ] ],
+    [ "best_omre", "namespaceMBPT.html#a0722d0897c28384893aa96675f6ebb90", null ],
+    [ "parseSigmaLMethod", "namespaceMBPT.html#a5441f411293b7b683faa9788b201f6a9", null ],
+    [ "parseSigmaLMethod", "namespaceMBPT.html#aa317ec095d6b72036dbbb1d34fd71138", null ],
+    [ "Lkmnij", "namespaceMBPT.html#a813c06608a7645cfe08930edd0de10ab", null ],
+    [ "L1", "namespaceMBPT.html#a70883a8f92b5756ea86a28770656a15f", null ],
+    [ "L4", "namespaceMBPT.html#af7aa07a607374ed39628004a72782d42", null ],
+    [ "L2", "namespaceMBPT.html#a4ecf513d0a2ae6d7d8b833cd83eafbaf", null ],
+    [ "fill_Lk_mnib", "namespaceMBPT.html#a96432147c526f8b554e23a508888cdce", null ],
+    [ "Sigma_ladder", "namespaceMBPT.html#a716c70af77e85e31c03a4cc00b8b19be", null ],
+    [ "Lkv_mnia", "namespaceMBPT.html#a76aa6503bcdeb301339ca1534ceff443", null ],
+    [ "Lkv_inab", "namespaceMBPT.html#a4f97640f9e6294979e15429444f6ccf1", null ],
+    [ "Sigma_ladder_direct", "namespaceMBPT.html#a5e09fa9dde7850c29f2326f1953c18a6", null ],
+    [ "update_Lk_mnib", "namespaceMBPT.html#a5935e7d3b6e2112eb5da1d6fc9e6eb0c", null ],
+    [ "write_SigmaL", "namespaceMBPT.html#abbb36716f2aa4eb26c8b4c97262831f7", null ],
+    [ "read_SigmaL", "namespaceMBPT.html#a73400283b6aaf0bfad4ab5e296ce4d39", null ],
+    [ "k_minmax_L", "namespaceMBPT.html#a66e27147883256083b373ed1b7b3ac91", null ],
+    [ "k_minmax_L", "namespaceMBPT.html#afa129255e52adb612c1e5a743ff89039", null ],
+    [ "L3", "namespaceMBPT.html#ac7397a16c22fd42fd6f41d75d4ff2c29", null ],
+    [ "de_valence", "namespaceMBPT.html#ad92e4f841daa4b234c0b7bffd2b00a4b", null ],
+    [ "de_valence_w", "namespaceMBPT.html#a025110638125308b60a7d5bab101f22d", null ],
+    [ "de_core", "namespaceMBPT.html#a82ef8ec83d5802088bbb447c5abb8a70", null ],
+    [ "ladder", "namespaceMBPT.html#a2e8206ae1abbaaa4782b3e3090d654e1", null ],
+    [ "equal", "namespaceMBPT.html#a5e4ded2f701c8228a4177ac269a581ab", null ],
+    [ "max_element", "namespaceMBPT.html#a4aacea6ae8013ad18f3eb3e52e5cb88d", null ],
+    [ "max_delta", "namespaceMBPT.html#a85e775ef2a22bb56743de1f11f74bd66", null ],
+    [ "max_epsilon", "namespaceMBPT.html#aad06ded9f45beaa54b8b2644eba4e81f", null ],
+    [ "parse_Denominators", "namespaceMBPT.html#a12fe2a24040886cb8091a6a682a8a601", null ],
+    [ "parse_Denominators", "namespaceMBPT.html#adbb8746206df5b566775a783043f8943", null ],
+    [ "leg_de", "namespaceMBPT.html#a4b04689a6954d55e53940de9c6d3acca", null ],
+    [ "split_basis", "namespaceMBPT.html#a56bf8b1730cbb4f8e7a05c28f9da4f6d", null ],
+    [ "e_bar", "namespaceMBPT.html#a35b00803007ebeb7ac82def026263212", null ],
+    [ "Sk_vwxy_SR", "namespaceMBPT.html#a3cd7b5b376b1b94c904dc5c2e7a004c1", null ],
+    [ "k_minmax_S", "namespaceMBPT.html#a453b21f560103d0f8bae65ab60373a1a", null ],
+    [ "k_minmax_S", "namespaceMBPT.html#a1dfc655950874351918e31aec1b782ba", null ],
+    [ "Sk_vwxy", "namespaceMBPT.html#a27fc0939be8ec9bc441f2ec0d1561765", null ],
+    [ "calculate_Sk", "namespaceMBPT.html#ad8492725c34af6c358046c31b2cfe3d6", null ],
+    [ "average_hk", "namespaceMBPT.html#a77bd84183969b28cc287254ef4e46db6", null ],
+    [ "Sigma_vw", "namespaceMBPT.html#a8866a180d630abd15dc596ab200f71c1", null ],
+    [ "Sigma_vw_direct_exchange", "namespaceMBPT.html#aac77c56791e7c98a7b4803e6170045bb", null ],
+    [ "dSigma_dE_vw", "namespaceMBPT.html#a5658a41770ae9a1a5b52f7f03018d5c4", null ],
+    [ "equal", "namespaceMBPT.html#a5fec3616fa2bd6ce975377ab50fbead3", null ],
+    [ "max_element", "namespaceMBPT.html#ad4c9bc8f249adae0b0ecbcdc4e44b887", null ],
+    [ "max_delta", "namespaceMBPT.html#a1b3cf999f86d0e11d2d509778b1bb102", null ],
+    [ "max_epsilon", "namespaceMBPT.html#a7834346b8fbd2a40671d4a9b2ebc6d4c", null ]
+];

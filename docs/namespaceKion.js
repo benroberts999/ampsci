@@ -1,0 +1,67 @@
+var namespaceKion =
+[
+    [ "FormFactorsRPA", "namespaceKion.html#structKion_1_1FormFactorsRPA", "namespaceKion_structKion_1_1FormFactorsRPA_dup" ],
+    [ "IonisationChannel", "namespaceKion.html#structKion_1_1IonisationChannel", "namespaceKion_structKion_1_1IonisationChannel_dup" ],
+    [ "IonisedOrbital", "namespaceKion.html#structKion_1_1IonisedOrbital", "namespaceKion_structKion_1_1IonisedOrbital_dup" ],
+    [ "MomentumOrbital", "namespaceKion.html#structKion_1_1MomentumOrbital", "namespaceKion_structKion_1_1MomentumOrbital_dup" ],
+    [ "RPAOptions", "namespaceKion.html#structKion_1_1RPAOptions", "namespaceKion_structKion_1_1RPAOptions_dup" ],
+    [ "FormFactorSet", "namespaceKion.html#afaae23e122018001aecb41d078f9fe45", null ],
+    [ "ChannelAmplitudes", "namespaceKion.html#a5b5ed2ea3a9e17ef28d12101c2c2a87f", null ],
+    [ "Coupling", "namespaceKion.html#ad0b03ef3530243231165789b4728fd37", [
+      [ "Vector", "namespaceKion.html#ad0b03ef3530243231165789b4728fd37a57dea6f5039281b7fee517fc43bf3110", null ],
+      [ "Scalar", "namespaceKion.html#ad0b03ef3530243231165789b4728fd37af60357a8d17e45793298323f1b372a74", null ],
+      [ "AxialVector", "namespaceKion.html#ad0b03ef3530243231165789b4728fd37a467640087d4c40c4f0d0353ce8bed289", null ],
+      [ "PseudoScalar", "namespaceKion.html#ad0b03ef3530243231165789b4728fd37a02fee40cc8cef6f346b27dd6f1001967", null ],
+      [ "Error", "namespaceKion.html#ad0b03ef3530243231165789b4728fd37a902b0d55fddef6f8d651fe1035b7d4bd", null ]
+    ] ],
+    [ "OutputFormat", "namespaceKion.html#ae6e694f5160c1548def06da46edfa11c", [
+      [ "matrix", "namespaceKion.html#ae6e694f5160c1548def06da46edfa11ca21b72c0b7adc5c7b4a50ffcb90d92dd6", null ],
+      [ "xyz", "namespaceKion.html#ae6e694f5160c1548def06da46edfa11cad16fb36f0911f878998c136191af705e", null ],
+      [ "Error", "namespaceKion.html#ae6e694f5160c1548def06da46edfa11ca902b0d55fddef6f8d651fe1035b7d4bd", null ]
+    ] ],
+    [ "Units", "namespaceKion.html#ae835baa3e0ad99d64d45d01a3e0685ed", [
+      [ "Atomic", "namespaceKion.html#ae835baa3e0ad99d64d45d01a3e0685eda557eccd321b7f10f5127c1ef27aaac7d", null ],
+      [ "Particle", "namespaceKion.html#ae835baa3e0ad99d64d45d01a3e0685eda5e9328c486b44b9a58bca20f7f2064f4", null ],
+      [ "Error", "namespaceKion.html#ae835baa3e0ad99d64d45d01a3e0685eda902b0d55fddef6f8d651fe1035b7d4bd", null ]
+    ] ],
+    [ "AtomicMethod", "namespaceKion.html#affceafd833749933ebc8d80dbc601328", [
+      [ "HF", "namespaceKion.html#affceafd833749933ebc8d80dbc601328a498ab1ea4aab0295389f6c51484cca6c", null ],
+      [ "Zeff", "namespaceKion.html#affceafd833749933ebc8d80dbc601328a3df31f09379fdc67beec50f609e3a729", null ],
+      [ "ZeffAnalytic", "namespaceKion.html#affceafd833749933ebc8d80dbc601328a81a42e64d59a68defb28c07285f17857", null ],
+      [ "RPA", "namespaceKion.html#affceafd833749933ebc8d80dbc601328a9882ff214fe0d780e8f904d91c2f9090", null ]
+    ] ],
+    [ "parseStatesMethod", "namespaceKion.html#a447fc9bf3d9ab4aba670805c4d9059c3", null ],
+    [ "parseStatesMethod", "namespaceKion.html#a8ef3ebc8da82772471348510e80d8b85", null ],
+    [ "calculateK_nk", "namespaceKion.html#aa5615c0e622da910e8eebc589b2ead43", null ],
+    [ "allocate_formFactors", "namespaceKion.html#a7f61862ce80ed555e47eea88db92af55", null ],
+    [ "multipole_operators", "namespaceKion.html#a8202736528f62828f740981ae8d2dfa5", null ],
+    [ "accumulate_formFactors", "namespaceKion.html#a29cc224c93518ef531e5d984b1781d9c", null ],
+    [ "model_bound_states", "namespaceKion.html#a2088a6b90214612ec1c4e79f43315557", null ],
+    [ "accumulate_multipole_sum", "namespaceKion.html#a7368e6e2834503f975270dbcc2507f0a", null ],
+    [ "add_formFactors", "namespaceKion.html#a586f18ec3e73650d195cfd8a9be284de", null ],
+    [ "calculate_formFactors", "namespaceKion.html#a5885af971abbf64f26c46fed03c96a2a", null ],
+    [ "continuum_l_range", "namespaceKion.html#afead640da0913ab7978b7c4a600b1f0f", null ],
+    [ "solve_ionised_orbitals", "namespaceKion.html#a92caea1a3c62d3f3095e0c0d22a3adae", null ],
+    [ "construct_channels", "namespaceKion.html#a8580ac3b03cca1548f6a2558fab27fc3", null ],
+    [ "active_operators", "namespaceKion.html#a3477a37e5773c28eca41eb6802d7a65d", null ],
+    [ "solve_channel_amplitudes", "namespaceKion.html#a3b534969a792cfaf59651d68db1b219a", null ],
+    [ "solve_formFactors_RPA", "namespaceKion.html#a35245bdd66dd0cca69627b3c52345c5f", null ],
+    [ "calculate_formFactors_RPA", "namespaceKion.html#aa1e738f0362071559c25c80765f4e73e", null ],
+    [ "count_failed_rpa", "namespaceKion.html#a1abcf35ce2bad3f1632464cac272a3a3", null ],
+    [ "interpolate_failed_rpa", "namespaceKion.html#a5b2ab8cec1324f31926f6367a58c02ac", null ],
+    [ "interpolate_failed_rpa_2d", "namespaceKion.html#a13330b60e1e4ef7e54c9b386728e95d5", null ],
+    [ "factor_operators", "namespaceKion.html#a2e0e3c16be4dff7bfab9b725e4d4eeca", null ],
+    [ "check_radial_grid_q", "namespaceKion.html#a94538288c7fb894f3d029424ba52be0e", null ],
+    [ "check_radial_grid_E", "namespaceKion.html#a33bb9d76e7bfb598c6d42414a9f565ce", null ],
+    [ "check_radial_grid", "namespaceKion.html#ae142faebca254424f516ffcc1be49281", null ],
+    [ "write_to_file_xyz", "namespaceKion.html#a36693cda6ed4e984e44f04c1bac1f352", null ],
+    [ "write_to_file_xyz_13", "namespaceKion.html#ae21554c85ed935120110e97802b5d8c3", null ],
+    [ "write_to_file_matrix", "namespaceKion.html#a28ec3466ada6f030957d8690a1b9289a", null ],
+    [ "Zeff_nonrel", "namespaceKion.html#a14720bdea7e7235441699118cc16d263", null ],
+    [ "rpa_failed", "namespaceKion.html#aed01d933f73bdbe7c686c0b22683c24e", null ],
+    [ "momentum_orbital", "namespaceKion.html#a06c009de0598e10d40239e67cf55a0a8", null ],
+    [ "planewave_traces", "namespaceKion.html#ab07f8caff0c6fe4cd40326ffb64a6a53", null ],
+    [ "planewave_formFactors", "namespaceKion.html#a5ab515e14f42d75e92007beb8529735a", null ],
+    [ "captured_fraction", "namespaceKion.html#aa76d69cdd1ea4f102514439f27e58265", null ],
+    [ "calculate_ridge_correction", "namespaceKion.html#ab7905c8da68a52c7b82ba51e2afc3f9e", null ]
+];

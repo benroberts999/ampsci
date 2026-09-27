@@ -77,7 +77,7 @@ public:
 
     Qk_fname is the filename for the QkTable. If provided, the QkTable will be
     read from / written to this file and then used to calculate SR. This leads
-    to ~10× speedup in the calculation at the cost of significantly higher
+    to ~10 speedup in the calculation at the cost of significantly higher
     memory usage.
 
     fk and etak are effective screening factors for screening and hole-particle.

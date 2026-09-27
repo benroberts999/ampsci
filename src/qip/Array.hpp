@@ -319,7 +319,7 @@ public:
   /*!
     @brief Constructs an N-dimensional array with the given dimension sizes.
 
-    @details e.g., Array(3,6,2) creates a 3×6×2 array.
+    @details e.g., Array(3,6,2) creates a 362 array.
   */
   template <typename... Args>
   Array(std::size_t first, Args... rest);
