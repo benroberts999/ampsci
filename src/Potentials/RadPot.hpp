@@ -36,6 +36,8 @@ public:
   public:
     Xl();
     Xl(std::vector<double> x);
+    //! The factors as given (one per l; the last applies to higher l)
+    const std::vector<double> &values() const { return m_x; }
 
     double operator()(int l) const;
   };
@@ -65,6 +67,23 @@ public:
          double rcut = 0.0, Scale f = {1.0, 1.0, 1.0, 1.0, 0.0}, Xl xl = {},
          bool tprint = true, bool do_readwrite = true,
          const std::string &label = "");
+
+  //! The constructor arguments other than the grid: enough to rebuild the
+  //! potential (on the same grid) with the Params constructor
+  struct Params {
+    double Z;
+    double rN;
+    double rcut;
+    Scale f;
+    std::vector<double> xl;
+  };
+  //! As params() of an existing potential
+  Params params() const { return {m_Z, m_rN, m_rcut, m_f, m_xl.values()}; }
+  //! Constructs from params(); see the main constructor
+  RadPot(const std::vector<double> &r, const Params &params, bool tprint = true,
+         bool do_readwrite = true, const std::string &label = "")
+    : RadPot(r, params.Z, params.rN, params.rcut, params.f, Xl(params.xl),
+             tprint, do_readwrite, label) {}
 
   bool read_write(const std::vector<double> &r, IO::FRW::RoW rw,
                   const std::string &label_x = "");

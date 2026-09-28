@@ -93,6 +93,45 @@ HartreeFock::HartreeFock(
 }
 
 //==============================================================================
+HartreeFock::Params HartreeFock::params() const {
+  Params params{m_rgrid->params(), m_vnuc,  {},       std::nullopt,
+                std::nullopt,      m_alpha, m_method, m_eps_HF};
+  for (const auto &Fc : m_core) {
+    params.core.push_back({Fc.n(), Fc.kappa(), Fc.occ_frac()});
+  }
+  if (m_vrad) {
+    params.vrad = m_vrad->params();
+  }
+  if (m_VBr) {
+    params.breit = m_VBr->params();
+  }
+  return params;
+}
+
+//------------------------------------------------------------------------------
+HartreeFock::HartreeFock(const Params &params)
+  : m_rgrid(std::make_shared<const Grid>(params.grid)),
+    m_core(),
+    m_vnuc(params.vnuc),
+    // The QED potential is calculated afresh (no file access)
+    m_vrad(params.vrad ? std::optional<QED::RadPot>(QED::RadPot(
+                           m_rgrid->r(), *params.vrad, false, false)) :
+                         std::nullopt),
+    m_VBr(params.breit ? std::optional<HF::Breit>(HF::Breit(*params.breit)) :
+                         std::nullopt),
+    m_alpha(params.alpha),
+    m_method(params.method),
+    m_eps_HF(params.eps_HF),
+    m_vdir(m_rgrid->num_points(), 0.0),
+    m_Yab() {
+  for (const auto &orbital : params.core) {
+    m_core.emplace_back(orbital.n, orbital.kappa, m_rgrid);
+    m_core.back().occ_frac() = orbital.occ_frac;
+  }
+  set_parametric_potential(false);
+}
+
+//==============================================================================
 EpsIts HartreeFock::solve_core(bool print) {
   auto eps_its = EpsIts{};
 

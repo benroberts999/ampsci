@@ -34,6 +34,7 @@ MAKEFLAGS += $(DEFAULT_MFLAGS)
 ## Clean variables (strip spaces) for later use
 
 OMPLIB  := $(strip $(OMPLIB))
+MPI     := $(strip $(MPI))
 MODE    := $(strip $(MODE))
 SRC     := $(strip $(SRC))
 BUILD   := $(strip $(BUILD))
@@ -154,6 +155,12 @@ ifneq ($(findstring -lflint-arb,$(LDLIBS))$(findstring -larb,$(LDLIBS)),)
   EXTRA_CXXFLAGS += -DAMPSCI_USE_FLINT2
 else ifneq ($(findstring -lflint,$(LDLIBS)),)
   EXTRA_CXXFLAGS += -DAMPSCI_USE_FLINT3
+endif
+
+## MPI: the qip::mpi wrappers (qip/mpi.hpp) compile against <mpi.h>; the
+## compiler must be an MPI wrapper (see Makefile)
+ifneq ($(MPI),)
+  EXTRA_CXXFLAGS += -DAMPSCI_USE_MPI
 endif
 
 CXXFLAGS += $(CXXSTD) $(OPT) $(OMPLIB) $(WARN) $(INCLUDES) $(EXTRA_CXXFLAGS)

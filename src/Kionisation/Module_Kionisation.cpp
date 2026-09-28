@@ -938,7 +938,8 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
      {"rpa", "true/false. Include the RPA (core-polarisation) corrections to "
              "the amplitudes, on top of the HF states: method=HF with "
              "RPA=true is the same as method=RPA. Ignored for the Zeff "
-             "methods. [false; true if method=RPA]"},
+             "methods. Under MPI (see the Makefile) the RPA solves are "
+             "shared between the ranks. [false; true if method=RPA]"},
      {"method",
       "Method for bound and continuum states: HF (standard), RPA (HF states, "
       "with RPA/core-polarisation corrections to every amplitude from the "

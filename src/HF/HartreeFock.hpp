@@ -1,6 +1,7 @@
 #pragma once
 #include "Coulomb/YkTable.hpp"
 #include "HF/Breit.hpp"
+#include "Maths/Grid.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Potentials/Parametric_potentials.hpp"
 #include "Potentials/RadPot.hpp"
@@ -10,7 +11,6 @@
 #include <vector>
 class Wavefunction;
 class DiracSpinor;
-class Grid;
 namespace MBPT {
 class CorrelationPotential;
 }
@@ -156,6 +156,37 @@ public:
               double eps_HF = 0.0,
               Parametric::Type potential = Parametric::Type::Green,
               double H_g = 0.0, double d_t = 0.0);
+
+  //! Configuration of one core orbital, as needed to set up the core
+  struct CoreConfig {
+    int n;
+    int kappa;
+    double occ_frac;
+  };
+
+  /*!
+    @brief The construction parameters: enough to rebuild an equivalent
+    object with the Params constructor (a new grid is made from the grid
+    parameters) and solve_core().
+    @details The initial parametric potential is not included (it does not
+    affect the solved core). The QED potential, if there is one, is included
+    as its parameters, and is then part of the rebuilt core's solve.
+  */
+  struct Params {
+    GridParameters grid;
+    std::vector<double> vnuc;
+    std::vector<CoreConfig> core;
+    std::optional<QED::RadPot::Params> vrad;
+    std::optional<Breit::Params> breit;
+    double alpha;
+    Method method;
+    double eps_HF;
+  };
+  //! The construction parameters of this object; see Params
+  Params params() const;
+  //! Constructs from params(); the core is not solved (call solve_core()).
+  //! The QED potential is calculated afresh, with no file access.
+  explicit HartreeFock(const Params &params);
 
   //! Solves HF equations self-consitantly for core orbs. Returns epsilon.
   EpsIts solve_core(bool print = true);

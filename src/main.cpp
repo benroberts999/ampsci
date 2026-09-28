@@ -8,9 +8,11 @@
 #include "ampsci/ampsci.hpp"
 #include "fmt/color.hpp"
 #include "qip/String.hpp"
+#include "qip/mpi.hpp"
 #include "qip/omp.hpp"
 #include "version/EasterEgg.hpp"
 #include "version/version.hpp"
+#include <cstdio>
 #include <iostream>
 #include <string>
 
@@ -186,6 +188,19 @@ void print_manual(bool details = true) {
 int main(int argc, char *argv[]) {
   using namespace std::string_literals;
 
+  // MPI (if compiled in; see qip/mpi.hpp): only rank 0 runs the program. The
+  // other ranks wait for, and run, the tasks rank 0 starts; their screen
+  // output is discarded
+  const qip::mpi::Environment mpi_environment(&argc, &argv);
+  if (!qip::mpi::root()) {
+    if (std::freopen("/dev/null", "w", stdout) == nullptr) {
+      std::cerr << "Warning: could not silence MPI rank " << qip::mpi::rank()
+                << '\n';
+    }
+    qip::mpi::worker_loop();
+    return 0;
+  }
+
   // Parse input text into strings:
   const std::string in_text_1 = (argc > 1) ? argv[1] : "";
   const std::string in_text_2 = (argc > 2) ? argv[2] : "";
@@ -280,6 +295,9 @@ int main(int argc, char *argv[]) {
   const auto blas_t = version::blas_threads();
   std::cout << "Parallel: " << qip::omp_details()
             << (blas_t.empty() ? "" : " " + blas_t) << '\n';
+  if (qip::mpi::use_mpi) {
+    std::cout << "MPI     : " << qip::mpi::details() << '\n';
+  }
   std::cout << "Compiled: " << version::compiled() << '\n';
   std::cout << "Run time: " << IO::time_date() << '\n';
 

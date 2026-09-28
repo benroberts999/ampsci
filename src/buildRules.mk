@@ -15,7 +15,14 @@ else
   FLINTDIR :=
 endif
 
-BUILD_DIR := $(BUILD)/$(MODE)/$(CXXNAME)/$(OPT)/$(OMPDIR)$(FLINTDIR)
+## MPI changes compiled code (-DAMPSCI_USE_MPI), so needs its own subdir
+ifneq ($(MPI),)
+  MPIDIR := /mpi
+else
+  MPIDIR :=
+endif
+
+BUILD_DIR := $(BUILD)/$(MODE)/$(CXXNAME)/$(OPT)/$(OMPDIR)$(FLINTDIR)$(MPIDIR)
 
 ################################################################################
 ## Find source files and objects

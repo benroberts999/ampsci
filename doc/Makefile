@@ -45,6 +45,14 @@ LDLIBS ?= -lgsl -llapack -lblas -lgslcblas
 OMPLIB ?= -fopenmp
 
 ################################################################################
+## MPI (optional): 
+## To enable: uncomment both lines below (MPI compiler wrapper replaces CXX).
+## Run as: mpirun -np N ./ampsci input.in
+MPI ?=
+# MPI = true
+# CXX = mpicxx
+
+################################################################################
 # Use these to pass in any other compiler/linker arguments (Rarely needed)
 CXXFLAGS +=
 LDFLAGS +=

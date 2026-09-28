@@ -287,6 +287,9 @@ public:
   //! Returns the overall scaling factor
   double scale_factor() const { return m_scale; };
 
+  //! The scaling factors, as passed to the constructor
+  Params params() const { return {m_scale, m_M, m_N, m_O, m_P, m_lambda_f}; }
+
   /*!
     @brief Calculates Breit contribution with automatic frequency dependence
 

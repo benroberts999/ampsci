@@ -18,9 +18,11 @@
 #include "qip/String.hpp"
 #include "qip/Vector.hpp"
 #include "qip/Widgets.hpp"
+#include "qip/mpi.hpp"
 #include "qip/omp.hpp"
 #include <complex>
 #include <iostream>
+#include <limits>
 #include <memory>
 #include <optional>
 #include <utility>
@@ -608,7 +610,8 @@ FormFactorsRPA solve_formFactors_RPA(
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
-  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options) {
+  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options,
+  bool share_between_ranks) {
   using namespace qip::overloads;
 
   assert(vHF != nullptr);
@@ -654,6 +657,15 @@ FormFactorsRPA solve_formFactors_RPA(
   if (active_E.empty()) {
     return factors;
   }
+  // Shared between MPI ranks: the energies are dealt round robin (the list
+  // is cost ordered, so the shares are alike); each rank solves its own, and
+  // the blocks are summed over the ranks at the end
+  std::vector<std::size_t> local_E;
+  for (std::size_t i = 0; i < active_E.size(); ++i) {
+    if (!share_between_ranks || qip::mpi::mine(i)) {
+      local_E.push_back(active_E[i]);
+    }
+  }
 
   // Debug switch: chains in series (the parallelism is then inside the RPA
   // solver), every RPA solve prints its iterations, and no progress bar
@@ -673,7 +685,7 @@ FormFactorsRPA solve_formFactors_RPA(
   // balanced whatever the number of E or q. The run of q is the longest
   // that still gives a few chains per thread (a chain costs one cold start)
   const auto n_rpa_solves =
-    active_E.size() * num_Ks * active_multipoles.size() * q_steps;
+    local_E.size() * num_Ks * active_multipoles.size() * q_steps;
   const auto q_chunk =
     debug_print_rpa ?
       q_steps :
@@ -681,11 +693,11 @@ FormFactorsRPA solve_formFactors_RPA(
         (n_rpa_solves + 4 * n_threads - 1) / (4 * n_threads), 1, q_steps);
   const auto n_chunks = (q_steps + q_chunk - 1) / q_chunk;
   const auto batch_size =
-    std::min(std::max<std::size_t>(n_threads, 1), active_E.size());
+    std::min(std::max<std::size_t>(n_threads, 1), local_E.size());
 
-  // One progress bar over the solves (it counts steps, so the order in
-  // which the chains finish does not matter)
-  qip::ProgressBar bar(n_rpa_solves, !debug_print_rpa);
+  // One progress bar over this rank's solves (it counts steps, so the order
+  // in which the chains finish does not matter)
+  qip::ProgressBar bar(n_rpa_solves, !debug_print_rpa && qip::mpi::root());
 
   // Solves made, and how many did not converge (not tested for a
   // first-order solve)
@@ -717,12 +729,12 @@ FormFactorsRPA solve_formFactors_RPA(
     std::size_t iq_end;
   };
 
-  for (std::size_t b0 = 0; b0 < active_E.size(); b0 += batch_size) {
-    const auto b1 = std::min(b0 + batch_size, active_E.size());
+  for (std::size_t b0 = 0; b0 < local_E.size(); b0 += batch_size) {
+    const auto b1 = std::min(b0 + batch_size, local_E.size());
     const auto n_batch = b1 - b0;
     std::vector<double> omegas(n_batch);
     for (std::size_t jb = 0; jb < n_batch; ++jb) {
-      omegas[jb] = Egrid[active_E[b0 + jb]];
+      omegas[jb] = Egrid[local_E[b0 + jb]];
     }
 
     const auto ionised =
@@ -768,7 +780,7 @@ FormFactorsRPA solve_formFactors_RPA(
     for (std::size_t ich = 0; ich < chains.size(); ++ich) {
       const auto &chain = chains[ich];
       const auto omega = omegas[chain.i_batch];
-      const auto iE = active_E[b0 + chain.i_batch];
+      const auto iE = local_E[b0 + chain.i_batch];
       const auto k = Kmin + int(chain.ik);
       const auto &batch_channels = channels[chain.i_batch];
       auto &amps = amplitudes[chain.i_batch][chain.ik];
@@ -806,7 +818,7 @@ FormFactorsRPA solve_formFactors_RPA(
     for (std::size_t it = 0; it < n_batch * num_Ks; ++it) {
       const auto jb = it / num_Ks;
       const auto ik = it % num_Ks;
-      const auto iE = active_E[b0 + jb];
+      const auto iE = local_E[b0 + jb];
       const auto k = Kmin + int(ik);
       const auto &amps = amplitudes[jb][ik];
       for (std::size_t iq = 0; iq < q_steps; ++iq) {
@@ -820,6 +832,42 @@ FormFactorsRPA solve_formFactors_RPA(
         }
       }
     }
+  }
+
+  // Shared between MPI ranks: each rank holds the blocks of its own energies
+  // (zero, or no solve, elsewhere); combine them, so that every rank holds
+  // the whole. eps is -1 where not solved, else eps >= 0 or nan (as +inf for
+  // the maximum)
+  if (share_between_ranks) {
+    for (auto *blocks : {&block_bare, &block_rpa}) {
+      for (auto &block : *blocks) {
+        for (auto &K_factors : block) {
+          for (auto &K_factor : K_factors) {
+            qip::mpi::all_reduce_sum(K_factor.data(),
+                                     K_factor.rows() * K_factor.cols());
+          }
+        }
+      }
+    }
+    for (auto &block : block_eps) {
+      for (auto &eps_op : block) {
+        auto *data = eps_op.data();
+        const auto n = eps_op.rows() * eps_op.cols();
+        for (std::size_t i = 0; i < n; ++i) {
+          if (std::isnan(data[i])) {
+            data[i] = std::numeric_limits<double>::infinity();
+          }
+        }
+        qip::mpi::all_reduce_max(data, n);
+        for (std::size_t i = 0; i < n; ++i) {
+          if (std::isinf(data[i])) {
+            data[i] = std::numeric_limits<double>::quiet_NaN();
+          }
+        }
+      }
+    }
+    qip::mpi::all_reduce_sum(&n_solves);
+    qip::mpi::all_reduce_sum(&n_failed);
   }
 
   // The worst eps over K and operators at each (E, q), for diagnostics
@@ -904,6 +952,125 @@ FormFactorsRPA solve_formFactors_RPA(
 }
 
 //==============================================================================
+// Name under which the worker side of solve_formFactors_RPA_MPI() is
+// registered as an MPI task
+const std::string formFactors_RPA_task_name = "Kion::formFactors_RPA";
+const qip::mpi::TaskRegistration formFactors_RPA_task_registration{
+  formFactors_RPA_task_name, &formFactors_RPA_task};
+
+FormFactorsRPA solve_formFactors_RPA_MPI(
+  const HF::HartreeFock *vHF,
+  const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
+  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  const std::vector<double> &Egrid, const std::vector<double> &qgrid,
+  bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
+  int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
+  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options) {
+  assert(vHF != nullptr);
+  if (qip::mpi::size() == 1) {
+    return solve_formFactors_RPA(
+      vHF, lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
+      force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax,
+      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options, false);
+  }
+
+  // The workers start formFactors_RPA_task(), which receives these inputs in
+  // this order
+  qip::mpi::start_task(formFactors_RPA_task_name);
+  qip::mpi::Buffer inputs;
+  const auto hf = vHF->params();
+  inputs.put(hf.grid);
+  inputs.put(hf.vnuc);
+  inputs.put(hf.core);
+  inputs.put(hf.vrad.has_value());
+  if (hf.vrad) {
+    inputs.put(hf.vrad->Z);
+    inputs.put(hf.vrad->rN);
+    inputs.put(hf.vrad->rcut);
+    inputs.put(hf.vrad->f);
+    inputs.put(hf.vrad->xl);
+  }
+  inputs.put(hf.breit);
+  inputs.put(hf.alpha);
+  inputs.put(hf.method);
+  inputs.put(hf.eps_HF);
+  inputs.put(lc_minmax);
+  inputs.put(ec_min);
+  inputs.put(ec_max);
+  inputs.put(force_rescale);
+  inputs.put(hole_particle);
+  inputs.put(force_orthog);
+  inputs.put(Egrid);
+  inputs.put(qgrid);
+  inputs.put(diagonal_Eq);
+  inputs.put(low_q);
+  inputs.put(Kmin);
+  inputs.put(Kmax);
+  inputs.put(std::array{vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ});
+  inputs.put(rpa_options);
+  qip::mpi::broadcast(&inputs);
+
+  return solve_formFactors_RPA(
+    vHF, lc_minmax, ec_min, ec_max, force_rescale, hole_particle, force_orthog,
+    Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ, axialQ,
+    scalarQ, pseudoscalarQ, spatialQ, rpa_options, true);
+}
+
+//==============================================================================
+void formFactors_RPA_task() {
+  // Inputs from rank 0, in the order solve_formFactors_RPA_MPI() packs them
+  qip::mpi::Buffer inputs;
+  qip::mpi::broadcast(&inputs);
+  HF::HartreeFock::Params hf_params{};
+  inputs.get(hf_params.grid);
+  inputs.get(hf_params.vnuc);
+  inputs.get(hf_params.core);
+  if (inputs.get<bool>()) {
+    QED::RadPot::Params vrad{};
+    inputs.get(vrad.Z);
+    inputs.get(vrad.rN);
+    inputs.get(vrad.rcut);
+    inputs.get(vrad.f);
+    inputs.get(vrad.xl);
+    hf_params.vrad = std::move(vrad);
+  }
+  inputs.get(hf_params.breit);
+  inputs.get(hf_params.alpha);
+  inputs.get(hf_params.method);
+  inputs.get(hf_params.eps_HF);
+  const auto lc_minmax = inputs.get<std::optional<std::array<int, 2>>>();
+  // The Hartree-Fock core, solved again here
+  HF::HartreeFock hf(hf_params);
+  hf.solve_core(false);
+  const auto ec_min = inputs.get<double>();
+  const auto ec_max = inputs.get<double>();
+  const auto force_rescale = inputs.get<bool>();
+  const auto hole_particle = inputs.get<bool>();
+  const auto force_orthog = inputs.get<bool>();
+  const auto Egrid = inputs.get<std::vector<double>>();
+  const auto qgrid = inputs.get<std::vector<double>>();
+  const auto diagonal_Eq = inputs.get<bool>();
+  const auto low_q = inputs.get<bool>();
+  const auto Kmin = inputs.get<int>();
+  const auto Kmax = inputs.get<int>();
+  const auto [vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ] =
+    inputs.get<std::array<bool, 5>>();
+  const auto rpa_options = inputs.get<RPAOptions>();
+
+  // The Bessel table as the formFactors module builds it, for the solved
+  // multipoles (rank K needs j up to K + 1) and the q of these grids
+  using namespace qip::overloads;
+  const auto q_table = diagonal_Eq ? Egrid * PhysConst::alpha : qgrid;
+  const SphericalBessel::JL_table jK_tab(Kmax + 1, q_table, hf.grid().r());
+
+  // This rank's share; the combined result is rank 0's
+  solve_formFactors_RPA(&hf, lc_minmax, ec_min, ec_max, force_rescale,
+                        hole_particle, force_orthog, Egrid, qgrid, diagonal_Eq,
+                        low_q, jK_tab, Kmin, Kmax, vectorQ, axialQ, scalarQ,
+                        pseudoscalarQ, spatialQ, rpa_options, true);
+}
+
+//==============================================================================
 FormFactorsRPA calculate_formFactors_RPA(
   const HF::HartreeFock *vHF,
   const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
@@ -956,11 +1123,11 @@ FormFactorsRPA calculate_formFactors_RPA(
       qgrid_region.push_back(qgrid[iq]);
     }
     fmt::print("Calculating RPA form factors:\n");
-    block = solve_formFactors_RPA(vHF, lc_minmax, ec_min, ec_max, force_rescale,
-                                  hole_particle, force_orthog, Egrid_region,
-                                  qgrid_region, diagonal_Eq, low_q, jK_tab,
-                                  Kmin, Kmax_rpa, vectorQ, axialQ, scalarQ,
-                                  pseudoscalarQ, spatialQ, rpa_options);
+    block = solve_formFactors_RPA_MPI(
+      vHF, lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
+      force_orthog, Egrid_region, qgrid_region, diagonal_Eq, low_q, jK_tab,
+      Kmin, Kmax_rpa, vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ,
+      rpa_options);
   }
 
   // The bare factors: every multipole over the full grids (what a run

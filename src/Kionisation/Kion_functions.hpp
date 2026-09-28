@@ -596,6 +596,13 @@ std::optional<double> solve_channel_amplitudes(
         together, and the chains of a batch are one dynamically scheduled
         pool; the run of q is chosen to give a few chains per thread.
 
+  @note With @p share_between_ranks (MPI; see solve_formFactors_RPA_MPI(),
+        which sets it) the energies are shared round robin between the
+        ranks, each rank solving its own as above, and the blocks are summed
+        over the ranks at the end: every rank returns the whole result. It
+        must then be called on every rank. Only rank 0 shows the progress
+        bar (of its own solves).
+
   @warning The continuum states must be those of the residual ion
            (@p hole_particle = true) for the RPA amplitude to be consistent;
            see ExternalField::TDHFcntm::dV_complex.
@@ -607,7 +614,34 @@ FormFactorsRPA solve_formFactors_RPA(
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
+  bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options = {},
+  bool share_between_ranks = false);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief As solve_formFactors_RPA(), with the solves shared between the MPI
+  ranks when there are several (see qip/mpi.hpp); otherwise the same call.
+  @details
+  Call on rank 0 only. Starts formFactors_RPA_task() on the other ranks and
+  sends them the inputs (the Hartree-Fock object as its parameters, and the
+  core is solved again there; the Bessel table is rebuilt from K and the
+  grids); every rank then solves its share of
+  the energies, and all ranks hold the combined result. Parameters and
+  return as solve_formFactors_RPA().
+*/
+FormFactorsRPA solve_formFactors_RPA_MPI(
+  const HF::HartreeFock *vHF,
+  const std::optional<std::array<int, 2>> &lc_minmax, double ec_min,
+  double ec_max, bool force_rescale, bool hole_particle, bool force_orthog,
+  const std::vector<double> &Egrid, const std::vector<double> &qgrid,
+  bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
+  int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
   bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options = {});
+
+//! The worker side of solve_formFactors_RPA_MPI(): receives the inputs from
+//! rank 0, and solves this rank's share. Registered as an MPI task; not for
+//! direct calls.
+void formFactors_RPA_task();
 
 //------------------------------------------------------------------------------
 /*!
