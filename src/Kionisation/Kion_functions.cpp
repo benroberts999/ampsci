@@ -2,7 +2,7 @@
 #include "Angular/Wigner369j.hpp"
 #include "DiracODE/include.hpp"
 #include "DiracOperator/include.hpp"
-#include "ExternalField/TDHFcomplex.hpp"
+#include "ExternalField/TDHFcntm.hpp"
 #include "HF/HartreeFock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "Maths/Grid.hpp"
@@ -328,9 +328,8 @@ std::vector<FormFactorSet> calculate_formFactors(
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
-  bool pseudoscalarQ, bool spatialQ, AtomicMethod method) {
-  IO::ChronoTimer timer("Calculate form factors");
-  fmt::print("Calculating form factors: for K = {} - {}\n", Kmin, Kmax);
+  bool pseudoscalarQ, bool spatialQ, AtomicMethod method, bool print_time) {
+  IO::ChronoTimer timer("Calculate form factors", print_time);
 
   assert(vHF != nullptr);
   if (diagonal_Eq) {
@@ -652,6 +651,9 @@ FormFactorsRPA solve_formFactors_RPA(
       }
     }
   }
+  if (active_E.empty()) {
+    return factors;
+  }
 
   // Debug switch: chains in series (the parallelism is then inside the RPA
   // solver), every RPA solve prints its iterations, and no progress bar
@@ -659,12 +661,10 @@ FormFactorsRPA solve_formFactors_RPA(
 
   const auto n_threads = std::size_t(omp_get_max_threads());
 
-  // Multipoles above the K limit are bare (no solve), but are still one
-  // step of the progress bar each
+  // Every multipole given is solved (the K limit of rpa_options is the
+  // caller's, as the E and q limits)
+  assert(Kmax >= Kmin);
   const auto num_Ks = std::size_t(Kmax - Kmin + 1);
-  const auto num_Ks_rpa =
-    std::size_t(std::max(std::min(Kmax, rpa_options.K_max) - Kmin + 1, 0));
-  const auto steps_per_E = num_Ks * active_multipoles.size() * q_steps;
 
   // The RPA solves run as chains: one (E, K, operator) and a run of
   // consecutive q, each solve warm starting from the previous q. The
@@ -673,7 +673,7 @@ FormFactorsRPA solve_formFactors_RPA(
   // balanced whatever the number of E or q. The run of q is the longest
   // that still gives a few chains per thread (a chain costs one cold start)
   const auto n_rpa_solves =
-    active_E.size() * num_Ks_rpa * active_multipoles.size() * q_steps;
+    active_E.size() * num_Ks * active_multipoles.size() * q_steps;
   const auto q_chunk =
     debug_print_rpa ?
       q_steps :
@@ -683,18 +683,9 @@ FormFactorsRPA solve_formFactors_RPA(
   const auto batch_size =
     std::min(std::max<std::size_t>(n_threads, 1), active_E.size());
 
-  fmt::print("RPA: {} energies with an ionised orbital, {} solves per energy\n"
-             "(K x operators x q = {} x {} x {})\n"
-             "{}",
-             active_E.size(), num_Ks_rpa * active_multipoles.size() * q_steps,
-             num_Ks_rpa, active_multipoles.size(), q_steps,
-             num_Ks_rpa < num_Ks ?
-               fmt::format("RPA for K <= {} only\n", rpa_options.K_max) :
-               "");
-
-  // One progress bar over the run (it counts steps, so the order in which
-  // the chains finish does not matter)
-  qip::ProgressBar bar(active_E.size() * steps_per_E, !debug_print_rpa);
+  // One progress bar over the solves (it counts steps, so the order in
+  // which the chains finish does not matter)
+  qip::ProgressBar bar(n_rpa_solves, !debug_print_rpa);
 
   // Solves made, and how many did not converge (not tested for a
   // first-order solve)
@@ -705,10 +696,10 @@ FormFactorsRPA solve_formFactors_RPA(
   // solve can be corrected within its own (K, factor) block before the sum
   // over K; the higher K go straight into the totals. The eps of each solve,
   // [K][operator](E, q); -1 where no solve was made
-  std::vector<std::vector<FormFactorSet>> block_bare(num_Ks_rpa, factors.bare);
+  std::vector<std::vector<FormFactorSet>> block_bare(num_Ks, factors.bare);
   auto block_rpa = block_bare;
   std::vector<std::vector<LinAlg::Matrix<double>>> block_eps(
-    num_Ks_rpa,
+    num_Ks,
     std::vector<LinAlg::Matrix<double>>(
       multipoles.size(), LinAlg::Matrix<double>(E_steps, q_steps, -1.0)));
 
@@ -724,11 +715,6 @@ FormFactorsRPA solve_formFactors_RPA(
     std::size_t i_op;
     std::size_t iq_begin;
     std::size_t iq_end;
-  };
-  // One bare block: (energy in the batch, K above the RPA limit)
-  struct BareBlock {
-    std::size_t i_batch;
-    int k;
   };
 
   for (std::size_t b0 = 0; b0 < active_E.size(); b0 += batch_size) {
@@ -754,9 +740,9 @@ FormFactorsRPA solve_formFactors_RPA(
     };
 
     std::vector<std::vector<BlockAmplitudes>> amplitudes(
-      n_batch, std::vector<BlockAmplitudes>(num_Ks_rpa));
+      n_batch, std::vector<BlockAmplitudes>(num_Ks));
     for (std::size_t jb = 0; jb < n_batch; ++jb) {
-      for (std::size_t ik = 0; ik < num_Ks_rpa; ++ik) {
+      for (std::size_t ik = 0; ik < num_Ks; ++ik) {
         amplitudes[jb][ik].bare.assign(
           q_steps, std::vector<ChannelAmplitudes>(channels[jb].size()));
         amplitudes[jb][ik].rpa = amplitudes[jb][ik].bare;
@@ -768,7 +754,7 @@ FormFactorsRPA solve_formFactors_RPA(
     // schedule
     std::vector<Chain> chains;
     for (std::size_t jb = 0; jb < n_batch; ++jb) {
-      for (std::size_t ik = 0; ik < num_Ks_rpa; ++ik) {
+      for (std::size_t ik = 0; ik < num_Ks; ++ik) {
         for (const auto i_op : active_multipoles) {
           for (std::size_t ic = 0; ic < n_chunks; ++ic) {
             chains.push_back({jb, ik, i_op, ic * q_chunk,
@@ -817,9 +803,9 @@ FormFactorsRPA solve_formFactors_RPA(
 
     // Accumulate the RPA-solved blocks: (E, K) owns its rows of its block
 #pragma omp parallel for schedule(dynamic)
-    for (std::size_t it = 0; it < n_batch * num_Ks_rpa; ++it) {
-      const auto jb = it / num_Ks_rpa;
-      const auto ik = it % num_Ks_rpa;
+    for (std::size_t it = 0; it < n_batch * num_Ks; ++it) {
+      const auto jb = it / num_Ks;
+      const auto ik = it % num_Ks;
       const auto iE = active_E[b0 + jb];
       const auto k = Kmin + int(ik);
       const auto &amps = amplitudes[jb][ik];
@@ -834,58 +820,11 @@ FormFactorsRPA solve_formFactors_RPA(
         }
       }
     }
-
-    // Multipoles above the RPA limit: bare amplitudes only, no solver. One
-    // task per (E, K); the K of one energy add into the same rows of the
-    // totals, so the (cheap) accumulation is serialised
-    std::vector<BareBlock> bare_blocks;
-    for (std::size_t jb = 0; jb < n_batch; ++jb) {
-      for (int k = Kmin + int(num_Ks_rpa); k <= Kmax; ++k) {
-        bare_blocks.push_back({jb, k});
-      }
-    }
-#pragma omp parallel for schedule(dynamic)
-    for (std::size_t it = 0; it < bare_blocks.size(); ++it) {
-      const auto jb = bare_blocks[it].i_batch;
-      const auto k = bare_blocks[it].k;
-      const auto iE = active_E[b0 + jb];
-      const auto &batch_channels = channels[jb];
-      std::vector<std::vector<ChannelAmplitudes>> A(
-        q_steps, std::vector<ChannelAmplitudes>(batch_channels.size()));
-      for (const auto i_op : active_multipoles) {
-        auto h = multipoles[i_op]->clone();
-        h->updateRank(k);
-        for (std::size_t iq = 0; iq < q_steps; ++iq) {
-          h->updateFrequency(qc_at(jb, iq));
-          for (std::size_t ic = 0; ic < batch_channels.size(); ++ic) {
-            const auto &Fa = *batch_channels[ic].hole;
-            const auto &Fe = *batch_channels[ic].ejected;
-            if (!h->isZero(Fe, Fa)) {
-              A[iq][ic][i_op] = h->reducedME(Fe, Fa);
-            }
-          }
-          bar.update();
-        }
-      }
-#pragma omp critical
-      {
-        for (std::size_t iq = 0; iq < q_steps; ++iq) {
-          for (std::size_t ic = 0; ic < batch_channels.size(); ++ic) {
-            const auto &channel = batch_channels[ic];
-            const auto tkp1_x = (2.0 * k + 1.0) * channel.hole->occ_frac();
-            accumulate_formFactors(&factors.bare[channel.hole_index], iE, iq,
-                                   tkp1_x, A[iq][ic]);
-            accumulate_formFactors(&factors.rpa[channel.hole_index], iE, iq,
-                                   tkp1_x, A[iq][ic]);
-          }
-        }
-      }
-    }
   }
 
   // The worst eps over K and operators at each (E, q), for diagnostics
   // (nan is the worst; -1, no solve, does not count)
-  for (std::size_t ik = 0; ik < num_Ks_rpa; ++ik) {
+  for (std::size_t ik = 0; ik < num_Ks; ++ik) {
     for (const auto i_op : active_multipoles) {
       for (std::size_t iE = 0; iE < E_steps; ++iE) {
         for (std::size_t iq = 0; iq < q_steps; ++iq) {
@@ -904,7 +843,7 @@ FormFactorsRPA solve_formFactors_RPA(
   // summed into the totals. Not after a first-order solve, whose eps is not
   // a convergence measure
   const bool test_convergence = rpa_options.max_its > 1;
-  for (std::size_t ik = 0; ik < num_Ks_rpa; ++ik) {
+  for (std::size_t ik = 0; ik < num_Ks; ++ik) {
     for (std::size_t ia = 0; ia < n_core; ++ia) {
       for (std::size_t i = 0; i < block_rpa[ik][ia].size(); ++i) {
         if (block_rpa[ik][ia][i].empty())
@@ -937,7 +876,7 @@ FormFactorsRPA solve_formFactors_RPA(
   // adjacent in E or q: those the correction above reaches
   std::size_t n_interpolated = 0;
   if (test_convergence) {
-    for (std::size_t ik = 0; ik < num_Ks_rpa; ++ik) {
+    for (std::size_t ik = 0; ik < num_Ks; ++ik) {
       for (const auto i_op : active_multipoles) {
         const auto &eps_op = block_eps[ik][i_op];
         const auto converged = [&](std::size_t iE, std::size_t iq) {
@@ -974,7 +913,6 @@ FormFactorsRPA calculate_formFactors_RPA(
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
   bool pseudoscalarQ, bool spatialQ, const RPAOptions &rpa_options) {
   IO::ChronoTimer timer("Calculate RPA form factors");
-  fmt::print("Calculating RPA form factors: for K = {} - {}\n", Kmin, Kmax);
 
   assert(vHF != nullptr);
   if (diagonal_Eq) {
@@ -999,66 +937,67 @@ FormFactorsRPA calculate_formFactors_RPA(
       q_region.push_back(iq);
     }
   }
+  const auto Kmax_rpa = std::min(Kmax, rpa_options.K_max);
 
-  // No E or q limit in effect: the RPA is solved over the full grids (the K
-  // limit is applied inside)
-  if (E_region.size() == E_steps && q_region.size() == q_steps) {
-    return solve_formFactors_RPA(
-      vHF, lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
-      force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax,
-      vectorQ, axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
-  }
-  fmt::print("RPA region: {} of {} energies, {} of {} momenta (E <= {:.4g} "
-             "au, q <= {:.4g} au)\n",
-             E_region.size(), E_steps, q_region.size(), q_steps,
-             rpa_options.E_max, rpa_options.q_max);
-
-  // The bare factors over the full grids; the RPA factors start as these
   FormFactorsRPA factors;
+  factors.eps.resize(E_steps, q_steps, 0.0);
+
+  // The RPA block: the multipoles up to the K limit, on the region. Its bare
+  // factors are those of the same multipoles, so rpa - bare is the RPA shift
+  FormFactorsRPA block;
+  const bool solve_rpa =
+    Kmax_rpa >= Kmin && !E_region.empty() && !q_region.empty();
+  if (solve_rpa) {
+    std::vector<double> Egrid_region, qgrid_region;
+    for (const auto iE : E_region) {
+      Egrid_region.push_back(Egrid[iE]);
+    }
+    for (const auto iq : q_region) {
+      qgrid_region.push_back(qgrid[iq]);
+    }
+    fmt::print("Calculating RPA form factors:\n");
+    block = solve_formFactors_RPA(vHF, lc_minmax, ec_min, ec_max, force_rescale,
+                                  hole_particle, force_orthog, Egrid_region,
+                                  qgrid_region, diagonal_Eq, low_q, jK_tab,
+                                  Kmin, Kmax_rpa, vectorQ, axialQ, scalarQ,
+                                  pseudoscalarQ, spatialQ, rpa_options);
+  }
+
+  // The bare factors: every multipole over the full grids (what a run
+  // without RPA gives). The RPA factors are these plus the shift of the block
+  fmt::print("RPA-excluded contributions:\n");
   factors.bare = calculate_formFactors(
     vHF, vHF->core(), lc_minmax, ec_min, ec_max, force_rescale, hole_particle,
     force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ,
-    axialQ, scalarQ, pseudoscalarQ, spatialQ, AtomicMethod::HF);
+    axialQ, scalarQ, pseudoscalarQ, spatialQ, AtomicMethod::HF, false);
   factors.rpa = factors.bare;
-  factors.eps.resize(E_steps, q_steps, 0.0);
-
-  if (E_region.empty() || q_region.empty()) {
+  if (!solve_rpa) {
     return factors;
   }
-
-  // The RPA on the region only, which replaces the bare factors there
-  std::vector<double> Egrid_region, qgrid_region;
-  for (const auto iE : E_region) {
-    Egrid_region.push_back(Egrid[iE]);
-  }
-  for (const auto iq : q_region) {
-    qgrid_region.push_back(qgrid[iq]);
-  }
-  const auto region = solve_formFactors_RPA(
-    vHF, lc_minmax, ec_min, ec_max, force_rescale, hole_particle, force_orthog,
-    Egrid_region, qgrid_region, diagonal_Eq, low_q, jK_tab, Kmin, Kmax, vectorQ,
-    axialQ, scalarQ, pseudoscalarQ, spatialQ, rpa_options);
 
   for (std::size_t ia = 0; ia < factors.rpa.size(); ++ia) {
     for (std::size_t i = 0; i < factors.rpa[ia].size(); ++i) {
       auto &K_rpa = factors.rpa[ia][i];
       if (K_rpa.empty())
         continue;
+      const auto &K_block_rpa = block.rpa[ia][i];
+      const auto &K_block_bare = block.bare[ia][i];
       for (std::size_t jE = 0; jE < E_region.size(); ++jE) {
         for (std::size_t jq = 0; jq < q_region.size(); ++jq) {
-          K_rpa(E_region[jE], q_region[jq]) = region.rpa[ia][i](jE, jq);
+          K_rpa(E_region[jE], q_region[jq]) +=
+            K_block_rpa(jE, jq) - K_block_bare(jE, jq);
         }
       }
     }
   }
   for (std::size_t jE = 0; jE < E_region.size(); ++jE) {
     for (std::size_t jq = 0; jq < q_region.size(); ++jq) {
-      factors.eps(E_region[jE], q_region[jq]) = region.eps(jE, jq);
+      factors.eps(E_region[jE], q_region[jq]) = block.eps(jE, jq);
     }
   }
-  factors.n_solves = region.n_solves;
-  factors.n_failed = region.n_failed;
-  factors.n_interpolated = region.n_interpolated;
+  factors.n_solves = block.n_solves;
+  factors.n_failed = block.n_failed;
+  factors.n_interpolated = block.n_interpolated;
 
   return factors;
 }
@@ -1331,7 +1270,7 @@ void write_to_file_xyz(const std::string &filename,
   const auto unit_str = units == Units::Particle ? "eV" : "au";
 
   out_file << "# ampsci Kion form factors output data file: " << filename
-           << " - xyz format\n";
+           << "\n";
   fmt::print(out_file, "# Units: ");
   if (units == Units::Atomic) {
     fmt::print(out_file, "Atomic units. [q] = [1/a0], [E] = [E_H], [K] = 1\n");
@@ -1354,6 +1293,21 @@ void write_to_file_xyz(const std::string &filename,
     if (factors.at(i).size() == 0)
       continue;
     fmt::print(out_file, "# {:<4} : {}\n", titles[i], descriptions[i]);
+  }
+
+  // Grid summary
+  out_file << "# Grids:\n";
+  if (!E_grid.empty()) {
+    fmt::print(out_file, "# E grid: {} points, [{:.6e}, {:.6e}] {}\n",
+               E_grid.size(), E_grid.front() * unit_E, E_grid.back() * unit_E,
+               unit_str);
+  }
+  if (diagonal) {
+    fmt::print(out_file, "# q grid: diagonal, q = E/c\n");
+  } else if (!q_grid.empty()) {
+    fmt::print(out_file, "# q grid: {} points, [{:.6e}, {:.6e}] {}\n",
+               q_grid.size(), q_grid.front() * unit_q, q_grid.back() * unit_q,
+               unit_str);
   }
   out_file << "################################################################"
               "################\n";

@@ -192,9 +192,11 @@ private:
                                                     int kappa) const;
 
   // One (undamped) application of the complex TDHF map to the stored
-  // corrections, all (core orbital x channel x X/Y) solves task-flattened;
-  // returns the convergence measure {eps, worst channel}
-  std::pair<double, std::string> tdhf_core_it_complex(double omega);
+  // corrections, all (core orbital x channel x X/Y) solves task-flattened,
+  // each channel solved to relative accuracy eps_ms; returns the
+  // convergence measure {eps, worst channel}
+  std::pair<double, std::string> tdhf_core_it_complex(double omega,
+                                                      double eps_ms);
 
   // Outgoing-wave solve of one open X channel: real and imaginary parts of
   // the previous iterate in, new iterate out; K_+ written to the channel
