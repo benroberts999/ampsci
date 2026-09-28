@@ -1,6 +1,6 @@
 #include "DiracODE/ContinuumState.hpp"
 #include "DiracOperator/include.hpp"
-#include "ExternalField/TDHFcomplex.hpp"
+#include "ExternalField/TDHFcntm.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "Kionisation/Kion_functions.hpp"
@@ -801,11 +801,12 @@ void photoionisation(const IO::InputBlock &input, const Wavefunction &wf) {
       Kion::count_failed_rpa(eps_rpa, eps_fail);
     Kion::interpolate_failed_rpa(eps_rpa, eps_fail, sigma_0, &sigma_rpa);
     if (n_failed > 0) {
-      fmt::print("\nNote: RPA not converged (eps > {:.0e}) at {} of {} "
-                 "(energy, operator, K) points: dRPA interpolated in energy "
-                 "for {}; no-RPA used for {}\n",
-                 eps_fail, n_failed, blocks.size() * n_E, n_interpolated,
-                 n_failed - n_interpolated);
+      fmt::print(
+        "\nNote: RPA not converged (eps > {:.0e}) at {} of {} "
+        "(energy, operator, K) points:\n - dRPA interpolated in energy "
+        "for {}; no-RPA used for {}\n",
+        eps_fail, n_failed, blocks.size() * n_E, n_interpolated,
+        n_failed - n_interpolated);
     }
   }
 
@@ -948,7 +949,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
       "FLINT). [HF; Zeff if Zeff option is set]"},
      {"rpa_max_its", "RPA: maximum iterations per solve; 1 gives the "
                      "first-order correction [60]"},
-     {"rpa_eps", "RPA: convergence target [1e-10]"},
+     {"rpa_eps", "RPA: convergence target [1e-8]"},
      {"rpa_eps_fail", "RPA: a solve whose final eps is above this (or nan) is "
                       "discarded, and the no-RPA value used there [1e-3]"},
      {"rpa_E_max", "RPA: solve the RPA only for energy transfers E up to this "
@@ -1225,7 +1226,7 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   Kion::RPAOptions rpa_options;
   rpa_options.max_its = input.get("rpa_max_its", 60);
-  rpa_options.eps = input.get("rpa_eps", 1.0e-10);
+  rpa_options.eps = input.get("rpa_eps", 1.0e-8);
   rpa_options.eps_fail = input.get("rpa_eps_fail", 1.0e-3);
   // Limits on where the RPA is solved (bare factors elsewhere); input in eV
   const auto rpa_E_max_eV = input.get<double>("rpa_E_max");
@@ -1445,13 +1446,14 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
     // the converged neighbours in E and q, before the sum over K
     if (factors.n_failed > 0) {
       fmt::print("\nNote: RPA not converged (eps > {:.0e}) at {} of {} "
-                 "(E, q, operator, K) points: dRPA interpolated in E/q for "
+                 "(E, q, operator, K) points:\n - dRPA interpolated in E/q for "
                  "{}; no-RPA used for {}\n\n",
                  rpa_options.eps_fail, factors.n_failed, factors.n_solves,
                  factors.n_interpolated,
                  factors.n_failed - factors.n_interpolated);
     }
   } else {
+    std::cout << "Calculating form factors:\n";
     factors.bare = Kion::calculate_formFactors(
       wf.vHF(), bound_states, lc_minmax, ec_min, ec_max, force_rescale,
       hole_particle, force_orthog, Egrid, qgrid, diagonal_Eq, low_q, jK_tab,
@@ -1478,13 +1480,11 @@ void formFactors(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   if (use_rpa) {
+    std::cout << "With RPA:\n";
+    write_factors(ofname_prefix_rpa, factors.rpa);
     std::cout << "Without RPA:\n";
   }
   write_factors(ofname_prefix, factors.bare);
-  if (use_rpa) {
-    std::cout << "With RPA:\n";
-    write_factors(ofname_prefix_rpa, factors.rpa);
-  }
 }
 
 } // namespace Module

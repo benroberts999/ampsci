@@ -191,6 +191,21 @@ DiracSpinor operator-(DiracSpinor lhs, const DiracSpinor &rhs) {
   return lhs -= rhs;
 }
 
+DiracSpinor &DiracSpinor::add_scaled(const double x, const DiracSpinor &rhs) {
+  if (rhs.max_pt() > m_pinf)
+    m_pinf = rhs.max_pt();
+  if (rhs.min_pt() < m_p0)
+    m_p0 = rhs.min_pt();
+
+  for (std::size_t i = rhs.min_pt(); i < rhs.max_pt(); i++) {
+    m_f[i] += x * rhs.m_f[i];
+  }
+  for (std::size_t i = rhs.min_pt(); i < rhs.max_pt(); i++) {
+    m_g[i] += x * rhs.m_g[i];
+  }
+  return *this;
+}
+
 DiracSpinor &DiracSpinor::operator*=(const double x) {
   scale(x);
   return *this;

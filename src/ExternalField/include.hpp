@@ -3,6 +3,7 @@
 #include "ExternalField/CorePolarisation.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/MixedStates.hpp"
+#include "ExternalField/MixedStatesContinuum.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "ExternalField/TDHFbasis.hpp"
-#include "ExternalField/TDHFcomplex.hpp"
+#include "ExternalField/TDHFcntm.hpp"

@@ -210,6 +210,8 @@ public:
   DiracSpinor &operator+=(const DiracSpinor &rhs);
   //! Subtracts rhs from this, in place; must have same kappa
   DiracSpinor &operator-=(const DiracSpinor &rhs);
+  //! Adds x*rhs to this, in place (no temporary); must have same kappa
+  DiracSpinor &add_scaled(double x, const DiracSpinor &rhs);
   //! Returns lhs + rhs; must have same kappa
   friend DiracSpinor operator+(DiracSpinor lhs, const DiracSpinor &rhs);
   //! Returns lhs - rhs; must have same kappa

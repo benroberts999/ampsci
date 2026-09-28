@@ -151,7 +151,7 @@ struct RPAOptions {
   //! Maximum RPA iterations per solve; 1 gives the first-order correction
   int max_its{60};
   //! RPA convergence target
-  double eps{1.0e-10};
+  double eps{1.0e-8};
   //! An RPA solve whose final eps is above this (or nan) is discarded: the
   //! bare (no-RPA) amplitude is used for that (E, q, K, operator)
   double eps_fail{1.0e-3};
@@ -368,6 +368,8 @@ void accumulate_multipole_sum(
                         - AtomicMethod::ZeffAnalytic : H-like, analytic
                         (AtomicMethod::RPA is not a states method, and is
                         treated as HF here; see calculate_formFactors_RPA.)
+  @param print_time     Print the time taken on completion (false when the
+                        caller times a larger calculation).
   @return One FormFactorSet per core orbital, indexed as the core (zero for
           an orbital that is not ionised anywhere on the E grid). See
           allocate_formFactors() for which factors are calculated.
@@ -381,7 +383,8 @@ std::vector<FormFactorSet> calculate_formFactors(
   const std::vector<double> &Egrid, const std::vector<double> &qgrid,
   bool diagonal_Eq, bool low_q, const SphericalBessel::JL_table &jK_tab,
   int Kmin, int Kmax, bool vectorQ, bool axialQ, bool scalarQ,
-  bool pseudoscalarQ, bool spatialQ, AtomicMethod method = AtomicMethod::HF);
+  bool pseudoscalarQ, bool spatialQ, AtomicMethod method = AtomicMethod::HF,
+  bool print_time = true);
 
 //------------------------------------------------------------------------------
 //! Adds the factors of each orbital of dK to those of K_nk (same orbitals,
@@ -526,13 +529,14 @@ std::optional<double> solve_channel_amplitudes(
 
 //------------------------------------------------------------------------------
 /*!
-  @brief Bare and RPA (core polarisation) form factors of every core orbital,
-  with the RPA solved at every point of the grids, from the outgoing-wave
-  TDHF.
+  @brief Bare and RPA (core polarisation) form factors of every core orbital
+  from the multipoles Kmin to Kmax, with the RPA solved at every point of the
+  grids, from the outgoing-wave TDHF.
 
   @details
-  The bare factors are exactly those of calculate_formFactors() (Hartree-Fock
-  states only). For the RPA, each channel amplitude
+  The bare factors are those of calculate_formFactors() (Hartree-Fock states
+  only) for the same multipoles, so that rpa - bare is the RPA shift of those
+  multipoles. For the RPA, each channel amplitude
   \f$ \redmatel{e}{h}{a} \f$ is replaced by the complex outgoing-wave
   amplitude \f$ \redmatel{e}{h + \delta V}{a} \f$ (see
   ExternalField::TDHFcntm::dV_complex), and the factors are accumulated as in
@@ -542,20 +546,13 @@ std::optional<double> solve_channel_amplitudes(
   orbital at once, which is why the orbital loop is inside. The RPA includes
   every open channel; the ec limits apply to the output only.
 
-  Parallel over the coarsest axis that keeps every thread busy. Over the
-  energies at which some orbital is ionised, when there are at least as many
-  as threads: each thread solves its energies in full, with its own
-  continuum states and solver, and the q points in one warm-start chain.
-  Otherwise, within each (E, K, operator) block, over q when there are at
-  least as many as threads (each thread owns a solver, and its solves warm
-  start from the neighbouring q); else q runs serially with the solver's own
-  parallelism. Prints one summary line at the start, then a progress bar.
+  Parallel over chains of solves (see the note below). Prints a progress bar
+  over the solves, and nothing else.
 
-  The RPA is solved at every (E, q) given: the E and q limits of
-  @p rpa_options are not applied here (see calculate_formFactors_RPA(), which
-  restricts the grids to the region within them; what the formFactors module
-  uses). The K limit is: multipoles above RPAOptions::K_max contribute their
-  bare amplitudes, with no solve.
+  The RPA is solved at every (E, q) given and every K from Kmin to Kmax: the
+  E, q and K limits of @p rpa_options are not applied here (see
+  calculate_formFactors_RPA(), which restricts the grids and the K range to
+  within them; what the formFactors module uses).
 
   @param vHF            Hartree-Fock potential; its core defines the orbitals.
   @param lc_minmax      Optional limits on the continuum orbital l.
@@ -577,11 +574,11 @@ std::optional<double> solve_channel_amplitudes(
   @param scalarQ        Calculate the scalar factor.
   @param pseudoscalarQ  Calculate the pseudoscalar factor.
   @param spatialQ       Calculate the spatial (E, M, L) components.
-  @param rpa_options    RPA iterations, convergence target, the eps above
-                        which a solve is discarded, and the K limit (see
-                        RPAOptions); the E and q limits are not applied.
-  @return The bare and RPA factors of each core orbital, and the worst RPA
-          eps at each (E, q).
+  @param rpa_options    RPA iterations, convergence target, and the eps above
+                        which a solve is discarded (see RPAOptions); the E, q
+                        and K limits are not applied.
+  @return The bare and RPA factors of each core orbital from the multipoles
+          Kmin to Kmax, and the worst RPA eps at each (E, q).
 
   @note An unconverged solve (eps above RPAOptions::eps_fail, or nan) is not
         used: the bare amplitude is taken for that (E, K, operator, q), and
@@ -597,8 +594,7 @@ std::optional<double> solve_channel_amplitudes(
         consecutive q (warm starts along it). The energies are taken in
         batches of the thread count, the continuum states of a batch held
         together, and the chains of a batch are one dynamically scheduled
-        pool; the run of q is chosen to give a few chains per thread. The
-        multipoles above the K limit are bare, one task per (E, K).
+        pool; the run of q is chosen to give a few chains per thread.
 
   @warning The continuum states must be those of the residual ion
            (@p hole_particle = true) for the RPA amplitude to be consistent;
@@ -621,14 +617,17 @@ FormFactorsRPA solve_formFactors_RPA(
 
   @details
   The bare factors are those of calculate_formFactors() (Hartree-Fock states)
-  over the full grids. The RPA is solved (solve_formFactors_RPA()) only on
-  the region of the grids with \f$ E \le E_{\rm max} \f$ and
-  \f$ q \le q_{\rm max} \f$ (RPAOptions::E_max, q_max), and its factors
-  replace the bare ones there; elsewhere the RPA factors are the bare ones.
-  Multipoles above RPAOptions::K_max are bare everywhere (applied inside
-  solve_formFactors_RPA()). In the diagonal case (q = E/c) the q limit is a
-  limit on E. With no E or q limit in effect the RPA is solved over the full
-  grids directly, and the bare factors are calculated once only.
+  for every multipole over the full grids. The RPA is solved
+  (solve_formFactors_RPA()) only for the multipoles up to RPAOptions::K_max,
+  on the region of the grids with \f$ E \le E_{\rm max} \f$ and
+  \f$ q \le q_{\rm max} \f$ (RPAOptions::E_max, q_max); the RPA factors
+  are the bare ones plus the RPA shift of that block (its rpa - bare) on the
+  region, and the bare ones elsewhere. In the diagonal case (q = E/c) the q
+  limit is a limit on E.
+
+  Prints "Calculating RPA form factors:" with a progress bar over the RPA
+  solves, then "Calculating form factors (non-RPA contributions):" with a
+  progress bar over the bare calculation.
 
   The limits exist because the RPA is expensive, and hard to converge, at
   high E, q, and K (many open channels; rapidly oscillating operators) where
