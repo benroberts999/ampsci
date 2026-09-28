@@ -1,9 +1,9 @@
-#include "TDHFcomplex.hpp"
+#include "TDHFcntm.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracODE/ContinuumState.hpp"
 #include "DiracOperator/TensorOperator.hpp"
-#include "ExternalField/MixedStates.hpp"
+#include "ExternalField/MixedStatesContinuum.hpp"
 #include "HF/HartreeFock.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "fmt/format.hpp"
@@ -149,8 +149,30 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
 
   // Continuum data of the open channels; kept while omega is unchanged (a
   // re-solve at the same omega warm-starts from the previous corrections)
-  if (omega != m_omega || m_channels.empty()) {
+  const bool warm = omega == m_omega && !m_channels.empty();
+  if (!warm) {
     prepare_channels(omega);
+  }
+
+  // Tolerance of the inner (exchange) solve of each channel: a factor 10
+  // below the relative change of the last outer iteration (the Anderson
+  // extrapolation absorbs the inexactness, and a channel solved far more
+  // accurately than the current residual is wasted work), between 1e-6 and
+  // 1% of the target. The outer eps is a squared relative change unless
+  // m_eps_sqrt. A warm start continues from the previous solve's residual;
+  // a first-order solve (max_its <= 1) is one exact application of the map
+  const double eps_ms_max = 1.0e-6;
+  const double eps_ms_min = std::min(
+    0.01 * (m_eps_sqrt ? converge_targ : std::sqrt(converge_targ)), eps_ms_max);
+  const auto inner_tolerance = [&](double eps_outer) {
+    const auto relative = m_eps_sqrt ? eps_outer : std::sqrt(eps_outer);
+    return std::clamp(0.1 * relative, eps_ms_min, eps_ms_max);
+  };
+  double eps_ms = eps_ms_max;
+  if (max_its <= 1) {
+    eps_ms = eps_ms_min;
+  } else if (warm && std::isfinite(m_core_eps)) {
+    eps_ms = inner_tolerance(m_core_eps);
   }
 
   // Anderson history of the whole state: map outputs g_k = G(x_k)
@@ -171,12 +193,13 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
     const auto x = state_vector();
     // Undamped map application: the sets now hold G(x); eps measures G(x)
     // against x, the residual in the physical measure
-    eps = tdhf_core_it_complex(omega);
+    eps = tdhf_core_it_complex(omega, eps_ms);
 
     status(fmt::format("{:2d} {:.1e} [{}]", it, eps.first, eps.second));
 
     if (eps.first < converge_targ || std::isnan(eps.first))
       break; // converged (or broken)
+    eps_ms = inner_tolerance(eps.first);
 
     auto g = state_vector();
     auto r = g;
@@ -285,11 +308,14 @@ void TDHFcntm::set_state(const std::vector<double> &state) {
 }
 
 //==============================================================================
-std::pair<double, std::string> TDHFcntm::tdhf_core_it_complex(double omega) {
+std::pair<double, std::string> TDHFcntm::tdhf_core_it_complex(double omega,
+                                                              double eps_ms) {
   // One undamped iteration of the complex TDHF map. The dV sources of the
   // real and imaginary sets are built separately (the builder is
   // real-linear; the sets couple only through the outgoing addition in the
-  // open channels). The external field drives the real part only.
+  // open channels). The external field drives the real part only. Each
+  // channel is solved to relative accuracy eps_ms (set by the driver from
+  // the outer residual).
   assert(omega >= 0.0 && "solve_core() passes omega = |omega|");
   assert(!m_channels.empty() && "iteration requires prepared channels");
 
@@ -297,8 +323,6 @@ std::pair<double, std::string> TDHFcntm::tdhf_core_it_complex(double omega) {
   auto Ys = m_Y;
   auto Xis = m_Xi;
   auto Yis = m_Yi;
-
-  const auto eps_ms = 1.0e-12;
 
   // Previous iteration's amplitudes (for the convergence measure); the
   // channel solves write the new K into m_channels in place

@@ -1,4 +1,4 @@
-#include "TDHFcomplex.hpp"
+#include "TDHFcntm.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/TDHF.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -134,7 +134,7 @@ TEST_CASE("TDHFcntm: matches TDHF below threshold",
   const std::vector<Case> cases{
     {"E1", &E1, 0.0}, {"E1", &E1, 0.5}, {"E2", &E2, 0.0}};
 
-  fmt::print("\nTDHFcomplex vs TDHF below threshold (Ne):\n");
+  fmt::print("\nTDHFcntm vs TDHF below threshold (Ne):\n");
   fmt::print("{:>4s} {:>5s} {:>4s} {:>4s} {:>14s} {:>14s} {:>9s} {:>9s}\n", "h",
              "omega", "a", "b", "TDHF", "complex", "Im", "rel.diff");
 
