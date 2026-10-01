@@ -703,7 +703,9 @@ std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
                      [&a](const auto &tnk) { return a.kappa() == tnk.second; });
       if (nk == nmaxk_list.cend())
         continue;
-      if (a.n() > nk->first)
+      // n labels of negative-energy states continue on from the electron
+      // states, so the n limit applies to the electron states only
+      if (!a.negativeEnergyStateQ() && a.n() > nk->first)
         continue;
     }
 

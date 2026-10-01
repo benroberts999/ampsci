@@ -452,15 +452,12 @@ double g_abcd(const DiracSpinor &a, const DiracSpinor &b, const DiracSpinor &c,
 int number_below_Fermi(const DiracSpinor &i, const DiracSpinor &j,
                        const DiracSpinor &k, const DiracSpinor &l,
                        double eFermi) {
+  // negative-energy states are never core (holes), despite en < eFermi
   int num_core = 0;
-  if (i.en() < eFermi)
-    ++num_core;
-  if (j.en() < eFermi)
-    ++num_core;
-  if (k.en() < eFermi)
-    ++num_core;
-  if (l.en() < eFermi)
-    ++num_core;
+  for (const auto *Fa : {&i, &j, &k, &l}) {
+    if (Fa->en() < eFermi && !Fa->negativeEnergyStateQ())
+      ++num_core;
+  }
   return num_core;
 }
 

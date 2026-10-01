@@ -17,7 +17,8 @@
 
 //==============================================================================
 DiracSpinor::DiracSpinor(int in_n, int in_k,
-                         std::shared_ptr<const Grid> in_rgrid)
+                         std::shared_ptr<const Grid> in_rgrid,
+                         bool negative_energy)
   : m_rgrid(in_rgrid),
     m_n(in_n),
     m_kappa(in_k),
@@ -28,22 +29,26 @@ DiracSpinor::DiracSpinor(int in_n, int in_k,
     m_l(Angular::l_k(in_k)),
     m_parity(Angular::parity_k(in_k)),
     m_kappa_index(Angular::kappa_to_kindex(in_k)),
-    m_nkappa_index(static_cast<Index>(Angular::nk_to_index(in_n, in_k))) {}
+    m_nkappa_index(static_cast<Index>(Angular::nk_to_index(in_n, in_k))),
+    m_negative_energy(negative_energy) {}
 
 //==============================================================================
 std::string DiracSpinor::symbol(bool gnuplot) const {
   // Readable symbol (s_1/2, p_{3/2} etc.).
   // gnuplot-firndly '{}' braces optional.
-  std::string ostring1 = (m_n != 0) ?
-                           std::to_string(m_n) + AtomData::l_symbol(m_l) :
-                           AtomData::l_symbol(m_l);
+  // Negative-energy states are printed with a leading '-' (e.g., -1s_1/2)
+  const std::string sign = m_negative_energy ? "-" : "";
+  const std::string ostring1 =
+    (m_n != 0) ? sign + std::to_string(m_n) + AtomData::l_symbol(m_l) :
+                 AtomData::l_symbol(m_l);
   std::string ostring2 = gnuplot ? "_{" + std::to_string(m_twoj) + "/2}" :
                                    "_" + std::to_string(m_twoj) + "/2";
   return ostring1 + ostring2;
 }
 
 std::string DiracSpinor::shortSymbol() const {
-  return shortSymbol(m_n, m_kappa);
+  // Negative-energy states are printed with a leading '-' (e.g., -1s+)
+  return (m_negative_energy ? "-" : "") + shortSymbol(m_n, m_kappa);
 }
 
 std::string DiracSpinor::shortSymbol(int n, int kappa) {
@@ -131,11 +136,6 @@ std::vector<double> DiracSpinor::rho() const {
 //==============================================================================
 int DiracSpinor::num_electrons() const {
   return static_cast<int>(std::round((twoj() + 1) * m_occ_frac));
-}
-
-//==============================================================================
-bool DiracSpinor::negativeEnergyStateQ() const {
-  return m_en < -1.0 * PhysConst::c2;
 }
 
 //==============================================================================
@@ -252,34 +252,57 @@ bool operator>=(const DiracSpinor &lhs, const DiracSpinor &rhs) {
 }
 //==============================================================================
 // static
-std::string DiracSpinor::state_config(const std::vector<DiracSpinor> &orbs) {
-  std::string result = "";
+std::string DiracSpinor::state_config(const std::vector<DiracSpinor> &orbs,
+                                      Branch branch) {
   if (orbs.empty())
-    return result;
+    return "";
 
-  // find max l
-  const auto maxl =
-    std::max_element(orbs.cbegin(), orbs.cend(), DiracSpinor::comp_l)->l();
-
-  // for each l, count num, add to string
-  int prev_max_n = 0;
-  for (int l = 0; l <= maxl; ++l) {
-
-    auto find_max_n_given_l = [l](int max_n, const auto &Fn) {
-      return (Fn.l() == l && Fn.n() > max_n) ? Fn.n() : max_n;
-    };
-    const auto max_n =
-      std::accumulate(orbs.cbegin(), orbs.cend(), 0, find_max_n_given_l);
-
-    // format 'state string' into required notation:
-    if (max_n == prev_max_n && max_n != 0)
-      result += AtomData::l_symbol(l);
-    else if (max_n != 0)
-      result += std::to_string(max_n) + AtomData::l_symbol(l);
-
-    prev_max_n = max_n;
+  if (branch == Branch::both) {
+    const auto electron = state_config(orbs, Branch::electron);
+    const auto positron = state_config(orbs, Branch::positron);
+    return positron.empty() ? electron : electron + "+" + positron;
   }
 
+  const auto num_l = std::size_t(DiracSpinor::max_l(orbs)) + 1;
+  std::vector<int> n_per_l(num_l, 0);
+  if (branch == Branch::positron) {
+    // Number of negative-energy states for each kappa (largest of the two
+    // kappa for each l)
+    std::vector<int> count_kappa(DiracSpinor::max_kindex(orbs) + 1, 0);
+    for (const auto &Fn : orbs) {
+      if (!Fn.negativeEnergyStateQ())
+        continue;
+      auto &count = count_kappa[Fn.k_index()];
+      ++count;
+      const auto l = std::size_t(Fn.l());
+      n_per_l[l] = std::max(n_per_l[l], count);
+    }
+  } else {
+    // Maximum n for each l, electron states only
+    for (const auto &Fn : orbs) {
+      if (Fn.negativeEnergyStateQ())
+        continue;
+      const auto l = std::size_t(Fn.l());
+      n_per_l[l] = std::max(n_per_l[l], Fn.n());
+    }
+  }
+  return config_string(n_per_l);
+}
+
+//==============================================================================
+std::string DiracSpinor::config_string(const std::vector<int> &n_per_l) {
+  // Compressed notation: the number is written only when it changes from the
+  // previous l, e.g., {30, 30, 20, 20} -> "30sp20df"; zero entries are skipped
+  std::string result;
+  int prev_n = 0;
+  for (std::size_t l = 0; l < n_per_l.size(); ++l) {
+    const auto n = n_per_l[l];
+    if (n == prev_n && n != 0)
+      result += AtomData::l_symbol(int(l));
+    else if (n != 0)
+      result += std::to_string(n) + AtomData::l_symbol(int(l));
+    prev_n = n;
+  }
   return result;
 }
 
@@ -537,18 +560,18 @@ DiracSpinor::HlikeBasis(const std::string &basis_string,
 std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
 DiracSpinor::split_by_energy(const std::vector<DiracSpinor> &orbitals,
                              double Fermi_energy, int n_min_core,
-                             int n_max_excited, bool positrons_are_excited) {
+                             int n_max_excited, bool include_negative_energy) {
 
   std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> out;
 
-  // nb: doesn't account for variation of alpha..
-  const auto neg_mc2 = positrons_are_excited ?
-                         -1.0 * PhysConst::c2 :
-                         -std::numeric_limits<double>::infinity();
-
   auto &[below, above] = out;
   for (const auto &n : orbitals) {
-    if (n.en() <= Fermi_energy && n.en() > neg_mc2) {
+    if (n.negativeEnergyStateQ()) {
+      // n labels of negative-energy states continue on from the electron
+      // states, so n_max_excited does not apply to them
+      if (include_negative_energy)
+        above.push_back(n);
+    } else if (n.en() <= Fermi_energy) {
       if (n.n() >= n_min_core)
         below.push_back(n);
     } else {
@@ -602,8 +625,10 @@ DiracSpinor::subset(const std::vector<DiracSpinor> &basis,
                    [&a](const auto &tnk) { return a.kappa() == tnk.second; });
     if (nk == nmaxk_list.cend())
       continue;
-    // nk is now max n, for given kappa {max_n, kappa}
-    if (a.n() > nk->first)
+    // nk is now max n, for given kappa {max_n, kappa}. The n labels of
+    // negative-energy states continue on from the electron states, so the n
+    // limit applies to the electron states only
+    if (!a.negativeEnergyStateQ() && a.n() > nk->first)
       continue;
 
     subset.push_back(a);

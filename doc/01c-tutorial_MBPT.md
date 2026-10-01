@@ -33,7 +33,8 @@ The \f$p_i\f$ expansion coefficients are found by diagonalising the set of basis
 There are \f$2N\f$ solutions of eigenvalues \f$\varepsilon\f$ with corresponding eigenvectors \f$\vec{p}\f$, which correspond to the spectrum of stationary states; \f$N\f$ of these correspond to negative-energy (\f$\varepsilon<-mc^2\f$) states.
 
 * The negative energy states are dropped by default but can be kept with `positron=true;`. You can keep a smaller subset of the negative energy states with, for example,  `positron=7spdf;`.
-* The negative energy states are always put at the end of the basis, and have \f$\varepsilon < -m_ec^2\f$
+  * For the negative energy states, the number in this string is just the number of solutions kept for each \f$\kappa\f$ (e.g., `7spdf` keeps lowest 7 solutions for s,p,d,f), always those closest to the gap.
+* The negative energy states are put at the end of the basis, and have \f$\varepsilon < -m_ec^2\f$. Their \f$n\f$ labels continue on from the regular positive-energy solutions (for each \f$\kappa\f$), with the state closest to the gap first; so there is a gap in \f$n\f$ between the last electron state kept and the first negative energy state.
 
 For the \f$S_i\f$ basis orbitals, we use the Duel-Kinetic-Balence basis of Beloy and Dereviano, and \f$S_i\f$ is built from \f$N_{\rm spl}\f$ B-splines of order \f$k\f$.
 

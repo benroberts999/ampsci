@@ -497,7 +497,8 @@ calculate_Bk(const std::string &bk_filename, const HF::Breit *const pBr,
                              if empty, all states in @p basis are kept (subject
                              to the frozen-core exclusion).
   @param exclude_str         Basis-string specifying core states to exclude.
-  @return Filtered basis vector.
+  @return Filtered basis vector. Negative-energy states (if present) with
+          kappa in @p include_str are kept (the n limit is not applied to them).
 */
 [[nodiscard]] std::vector<DiracSpinor>
 basis_subset(const std::vector<DiracSpinor> &basis,

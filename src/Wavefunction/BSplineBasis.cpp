@@ -360,29 +360,51 @@ void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            const int kappa, const int max_n, int max_n_positron,
                            const LinAlg::Vector<double> &e_values,
                            const LinAlg::Matrix<double> &e_vectors,
-                           const Wavefunction &wf)
-// Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
-// coeficient found from diagonalising the Hamiltonian over Bsplns
-{
-  auto l = Angular::l_k(kappa);
-  auto min_n = l + 1;
+                           const Wavefunction &wf) {
+  // Expands the pseudo-spectrum basis in terms of B-spline basis and expansion
+  // coeficient found from diagonalising the Hamiltonian over Bsplns
 
+  const auto l = Angular::l_k(kappa);
+  const auto min_n = l + 1;
+
+  // Eigenvalues are in ascending order. The threshold -mc^2 lies inside the
+  // gap (energies exclude the rest energy), so the negative-energy solutions
+  // occupy the first num_negative slots.
   const auto neg_mc2 = -1.0 / (wf.alpha() * wf.alpha());
-  auto pqn = min_n - 1;
-  auto pqn_pstrn = -min_n + 1;
-  for (auto i = 0ul; i < e_values.rows(); i++) {
+  std::size_t num_negative = 0;
+  while (num_negative < e_values.rows() && e_values[num_negative] < neg_mc2) {
+    ++num_negative;
+  }
+
+  // Electron states are taken from the bottom of the positive-energy branch
+  // upwards, labelled n = l+1, l+2, ..., l+num_positive. Negative-energy
+  // states are taken from just below the gap downwards (i.e., in reverse
+  // order), so that on both branches the states nearest the gap are kept and
+  // those far from it discarded. Their labels continue on from the
+  // positive-energy branch, n = l+num_positive+1, ..., so {n, kappa} is unique
+  // across the basis (there is a gap in n if not all electron states are
+  // kept). max_n_positron is the number of negative-energy states kept (for
+  // each kappa).
+  const auto num_positive = static_cast<int>(e_values.rows() - num_negative);
+  auto pqn_electron = min_n - 1;
+  auto count_negative = 0;
+  for (std::size_t j = 0; j < e_values.rows(); j++) {
+    const auto negative_energy = j < num_negative;
+    const auto i = negative_energy ? num_negative - 1 - j : j;
     const auto &en = e_values[i];
     const auto &pvec = e_vectors[i];
-    const auto positive_energy = en > neg_mc2;
-    positive_energy ? ++pqn : --pqn_pstrn;
 
-    if ((positive_energy && pqn > max_n) ||
-        (!positive_energy && pqn_pstrn < -max_n_positron))
+    if (negative_energy && ++count_negative > max_n_positron)
       continue;
+    if (!negative_energy && ++pqn_electron > max_n)
+      continue;
+    const auto pqn =
+      negative_energy ? l + num_positive + count_negative : pqn_electron;
 
-    auto &Fi = (positive_energy) ?
-                 basis->emplace_back(pqn, kappa, wf.grid_sptr()) :
-                 basis_positron->emplace_back(pqn_pstrn, kappa, wf.grid_sptr());
+    auto &Fi =
+      negative_energy ?
+        basis_positron->emplace_back(pqn, kappa, wf.grid_sptr(), true) :
+        basis->emplace_back(pqn, kappa, wf.grid_sptr());
     Fi.en() = en;
     for (std::size_t ib = 0; ib < spl_basis.size(); ++ib) {
       Fi += pvec[ib] * spl_basis[ib];
@@ -437,10 +459,10 @@ std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
         continue;
       const auto Ran = Fa * (r * Fn);
       const auto term = f * (Fn.en() - Fa.en()) * Ran * Ran / (2 * l + 1);
-      if (Fn.n() > 0)
-        sum_el += term;
-      else
+      if (Fn.negativeEnergyStateQ())
         sum_p += term;
+      else
+        sum_el += term;
     }
     result.push_back(sum_el + sum_p);
     if (print)

@@ -220,7 +220,7 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
   // Arbitrary Fermi level:
   const auto e_Fermi =
     0.5 * (orbs.at(orbs.size() / 2).en() + orbs.at(orbs.size() / 2 + 1).en());
-  const auto [core, excited] = MBPT::split_basis(orbs, e_Fermi);
+  const auto [core, excited] = DiracSpinor::split_by_energy(orbs, e_Fermi);
 
   const auto selection_func = [eF = e_Fermi](int k, auto &a, auto &b, auto &c,
                                              auto &d) {

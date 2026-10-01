@@ -226,7 +226,8 @@ std::pair<double, double> pnc_sos(const DiracSpinor &Fa, const DiracSpinor &Fb,
     if (he1->isZero(np.kappa(), Fa.kappa()) &&
         he1->isZero(np.kappa(), Fb.kappa()))
       continue;
-    const auto coreQ = np.en() < en_core;
+    // negative-energy states (if present) are counted in the tail
+    const auto coreQ = np.en() < en_core && !np.negativeEnergyStateQ();
     const auto mainQ = !coreQ && np.n() <= main_n;
 
     // nb: need 'conj' here, since w = |w|, and want work for a->b and b->a ?
@@ -278,7 +279,7 @@ DiracSpinor orthog_to_core(DiracSpinor dF,
                            const std::vector<DiracSpinor> &in_orbs,
                            double en_core) {
   for (const auto &Fc : in_orbs) {
-    const auto coreQ = Fc.en() < en_core;
+    const auto coreQ = Fc.en() < en_core && !Fc.negativeEnergyStateQ();
     if (dF.kappa() == Fc.kappa() && coreQ)
       dF -= (dF * Fc) * Fc;
   }
@@ -289,7 +290,7 @@ DiracSpinor orthog_to_coremain(DiracSpinor dF,
                                const std::vector<DiracSpinor> &in_orbs,
                                double en_core, int n_main) {
   for (const auto &Fc : in_orbs) {
-    const auto coreQ = Fc.en() < en_core;
+    const auto coreQ = Fc.en() < en_core && !Fc.negativeEnergyStateQ();
     const auto mainQ = !coreQ && Fc.n() <= n_main;
     if (dF.kappa() == Fc.kappa() && (coreQ || mainQ))
       dF -= (dF * Fc) * Fc;

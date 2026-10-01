@@ -4,9 +4,12 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
+#include "fmt/format.hpp"
 #include "qip/Maths.hpp"
 #include "qip/Random.hpp"
 #include <algorithm>
+#include <array>
+#include <cmath>
 #include <string>
 
 //==============================================================================
@@ -275,5 +278,81 @@ TEST_CASE("External Field: Diagram RPA",
     // used to be 0.0007 .. changed after "Breit/Basis" fiasco
     // REQUIRE(std::abs(eps) < 0.009);
     REQUIRE(std::abs(eps) < 0.09);
+  }
+}
+
+//==============================================================================
+TEST_CASE("External Field: Diagram RPA - negative-energy states",
+          "[ExternalField][DiagramRPA][RPA][integration]") {
+
+  // Including the negative-energy (Dirac sea) basis states must leave the RPA
+  // result essentially unchanged: their contribution is small (E1: below 1e-9
+  // relative; hfs: up to ~2e-4 relative, since hfs is sensitive to the small
+  // component), whereas any mix-up between a negative-energy state and the
+  // electron state with the same {n,kappa} (e.g., a shared Coulomb-table key)
+  // gives O(1) errors.
+
+  Wavefunction wf({2000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
+                  {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", "[Xe]", std::nullopt, 1.0e-10, false);
+  wf.solve_valence("6sp", false);
+
+  SplineBasis::Parameters params{"25spd", 40, 9, 1.0e-4, 1.0e-3, 40.0};
+  params.verbose = false;
+  wf.formBasis(params);
+  const auto basis_e = wf.basis();
+
+  params.positron = "25spd";
+  wf.formBasis(params);
+  const auto basis_pos = wf.basis();
+
+  const auto num_negative =
+    std::count_if(basis_pos.cbegin(), basis_pos.cend(),
+                  [](const auto &F) { return F.negativeEnergyStateQ(); });
+  REQUIRE(num_negative > 0);
+  REQUIRE(basis_pos.size() == basis_e.size() + std::size_t(num_negative));
+
+  const auto *F6s = wf.getState("6s");
+  const auto *F6pm = wf.getState("6p-");
+  const auto *F6pp = wf.getState("6p+");
+  REQUIRE(F6s != nullptr);
+  REQUIRE(F6pm != nullptr);
+  REQUIRE(F6pp != nullptr);
+
+  const auto dE1 = DiracOperator::E1(wf.grid());
+  const auto hfs = DiracOperator::hfs(1, 1.0, 0.0, wf.grid(),
+                                      DiracOperator::Hyperfine::pointlike_F());
+
+  const std::array<std::string, 4> labels{"E1 <6p-||d||6s>", "E1 <6p+||d||6s>",
+                                          "hfs <6s||h||6s>",
+                                          "hfs <6p-||h||6p->"};
+  const std::array<double, 4> tolerances{1.0e-6, 1.0e-6, 1.0e-3, 1.0e-3};
+
+  // dV for each case, with electron-only basis [0] and including negative
+  // energy states [1]
+  std::array<std::array<double, 4>, 2> dvs{};
+  for (std::size_t ib = 0; ib < 2; ++ib) {
+    const auto &basis = (ib == 0) ? basis_e : basis_pos;
+
+    ExternalField::DiagramRPA rpa_e1(&dE1, basis, wf.vHF(), "");
+    rpa_e1.solve_core(0.0, 128, false);
+    REQUIRE(rpa_e1.last_eps() < 1.0e-8);
+
+    ExternalField::DiagramRPA rpa_hfs(&hfs, basis, wf.vHF(), "");
+    rpa_hfs.solve_core(0.0, 128, false);
+    REQUIRE(rpa_hfs.last_eps() < 1.0e-8);
+
+    dvs[ib] = {rpa_e1.dV(*F6pm, *F6s), rpa_e1.dV(*F6pp, *F6s),
+               rpa_hfs.dV(*F6s, *F6s), rpa_hfs.dV(*F6pm, *F6pm)};
+  }
+
+  fmt::print("\n{:<18s} {:>14s} {:>14s} {:>10s}\n", "RPA dV", "electron-only",
+             "with -ve en.", "rel.diff");
+  for (std::size_t i = 0; i < 4; ++i) {
+    const auto rel_diff = std::abs((dvs[1][i] - dvs[0][i]) / dvs[0][i]);
+    fmt::print("{:<18s} {:>14.7e} {:>14.7e} {:>10.1e}\n", labels[i], dvs[0][i],
+               dvs[1][i], rel_diff);
+    REQUIRE(std::isfinite(dvs[1][i]));
+    REQUIRE(rel_diff < tolerances[i]);
   }
 }

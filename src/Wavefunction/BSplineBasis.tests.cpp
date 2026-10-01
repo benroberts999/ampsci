@@ -1,4 +1,5 @@
 #include "Wavefunction/BSplineBasis.hpp"
+#include "CI/CI_Integrals.hpp"
 #include "DiracOperator/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -7,7 +8,9 @@
 #include "qip/Maths.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
+#include <set>
 #include <string>
+#include <vector>
 
 inline double hfsA(const DiracOperator::TensorOperator *h,
                    const DiracSpinor &Fa) {
@@ -448,4 +451,138 @@ TEST_CASE("Wavefunction: BSpline-basis",
       }
     }
   }
+}
+
+//==============================================================================
+TEST_CASE("Wavefunction: BSpline-basis negative-energy states",
+          "[BSpline][basis][unit]") {
+
+  // Negative-energy (Dirac sea) states: flagged, labelled by n continuing on
+  // from the positive-energy solutions (so {n,kappa} is unique), truncated to
+  // the states closest to the gap, and never mistaken for core/electron states.
+
+  Wavefunction wf({1000, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear"},
+                  {"Cs", -1, "Fermi"});
+  wf.set_HF(HF::Method::Local, "[Xe]");
+  wf.solve_core();
+  wf.solve_valence("6sp");
+
+  const std::size_t n_spl = 20;
+  const std::size_t k_spl = 7;
+  const auto r0 = 1.0e-4;
+  const auto r0_eps = 0.0;
+  const auto rmax = 40.0;
+  const auto type = SplineBasis::SplineType::Derevianko;
+
+  // Electron states only; plus 5 negative-energy states per kappa; plus all
+  // negative-energy states (at most n_spl per kappa)
+  const auto basis_e = SplineBasis::form_basis(
+    {"5sp", n_spl, k_spl, r0, r0_eps, rmax, "", type, false, false}, wf);
+  const auto basis_5 = SplineBasis::form_basis(
+    {"5sp", n_spl, k_spl, r0, r0_eps, rmax, "5sp", type, false, false}, wf);
+  const auto basis_all = SplineBasis::form_basis(
+    {"5sp", n_spl, k_spl, r0, r0_eps, rmax, "20sp", type, false, false}, wf);
+
+  const auto is_negative = [](const DiracSpinor &F) {
+    return F.negativeEnergyStateQ();
+  };
+  const auto count_negative = [&](const std::vector<DiracSpinor> &orbs) {
+    return std::count_if(orbs.cbegin(), orbs.cend(), is_negative);
+  };
+  const auto neg_mc2 = -1.0 / (wf.alpha() * wf.alpha());
+
+  REQUIRE(count_negative(basis_e) == 0);
+
+  // Electron states are unchanged; negative-energy states are appended at the
+  // end: 5 for each of s, p-, p+
+  const auto num_negative_5 = 5 + 5 + 5;
+  REQUIRE(basis_5.size() == basis_e.size() + num_negative_5);
+  REQUIRE(count_negative(basis_5) == num_negative_5);
+  for (std::size_t i = 0; i < basis_e.size(); ++i) {
+    REQUIRE(basis_5[i] == basis_e[i]);
+    REQUIRE(basis_5[i].en() == Approx(basis_e[i].en()).epsilon(1.0e-12));
+    REQUIRE_FALSE(basis_5[i].negativeEnergyStateQ());
+  }
+  for (std::size_t i = basis_e.size(); i < basis_5.size(); ++i) {
+    const auto &Fn = basis_5[i];
+    REQUIRE(Fn.negativeEnergyStateQ());
+    REQUIRE(Fn.en() < neg_mc2);
+    REQUIRE(Fn.shortSymbol().front() == '-');
+    REQUIRE(Fn.symbol().front() == '-');
+    // {n, kappa} never coincides with an electron state (labels continue on
+    // from the positive-energy solutions: n_spl of them per kappa)
+    REQUIRE(Fn.n() > Fn.l() + int(n_spl));
+    REQUIRE(DiracSpinor::find(Fn.n(), Fn.kappa(), basis_e) == nullptr);
+  }
+
+  // Full set: the first label is closest to the gap and energy decreases with
+  // n. The truncated set must be exactly the first 5 (closest to gap) states.
+  fmt::print("\nNegative-energy states kept (closest to gap first):\n");
+  for (const auto kappa : {-1, 1, -2}) {
+    std::vector<const DiracSpinor *> all_kappa;
+    for (const auto &Fn : basis_all) {
+      if (Fn.negativeEnergyStateQ() && Fn.kappa() == kappa)
+        all_kappa.push_back(&Fn);
+    }
+    REQUIRE(all_kappa.size() >= 5);
+    for (std::size_t i = 0; i < all_kappa.size(); ++i) {
+      REQUIRE(all_kappa[i]->n() == all_kappa[0]->n() + int(i));
+      if (i > 0) {
+        REQUIRE(all_kappa[i]->en() < all_kappa[i - 1]->en());
+      }
+    }
+    std::size_t count_kappa = 0;
+    for (const auto &Fn : basis_5) {
+      if (!Fn.negativeEnergyStateQ() || Fn.kappa() != kappa)
+        continue;
+      const auto &Fall = *all_kappa.at(count_kappa);
+      ++count_kappa;
+      REQUIRE(Fall == Fn);
+      REQUIRE(Fn.en() == Approx(Fall.en()).epsilon(1.0e-12));
+      fmt::print("{:>6s}  {:+.6e}\n", Fn.shortSymbol(), Fn.en());
+    }
+    REQUIRE(count_kappa == 5);
+  }
+
+  // nk_index is unique across the full basis (it is used as a table key)
+  std::set<DiracSpinor::Index> indexes;
+  for (const auto &Fn : basis_all) {
+    REQUIRE(indexes.insert(Fn.nk_index()).second);
+  }
+
+  // Core/excited splits: never core; excited only when requested
+  {
+    const auto [holes, excited] =
+      DiracSpinor::split_by_core(basis_5, wf.core());
+    REQUIRE(count_negative(holes) == 0);
+    REQUIRE(count_negative(excited) == num_negative_5);
+  }
+  {
+    const auto [holes, excited] =
+      DiracSpinor::split_by_energy(basis_5, wf.FermiLevel());
+    REQUIRE(count_negative(holes) == 0);
+    REQUIRE(count_negative(excited) == num_negative_5);
+  }
+  {
+    const auto [holes, excited] =
+      DiracSpinor::split_by_energy(basis_5, wf.FermiLevel(), 1, 9999, false);
+    REQUIRE(count_negative(holes) == 0);
+    REQUIRE(count_negative(excited) == 0);
+  }
+  REQUIRE(DiracSpinor::subset(basis_5, "5sp").size() == basis_e.size());
+  REQUIRE(DiracSpinor::subset(basis_5, "5sp", false).size() == basis_5.size());
+  REQUIRE(count_negative(CI::basis_subset(basis_5, "5sp")) == num_negative_5);
+  REQUIRE(count_negative(CI::basis_subset(basis_5, "")) == num_negative_5);
+  REQUIRE(count_negative(CI::basis_subset(basis_5, "5s")) == 5);
+
+  // Basis strings: electron states, joined to the negative-energy count per
+  // kappa (if any) by default; or either branch alone
+  using Branch = DiracSpinor::Branch;
+  REQUIRE(DiracSpinor::state_config(basis_e) == "5sp");
+  REQUIRE(DiracSpinor::state_config(basis_5) == "5sp+5sp");
+  REQUIRE(DiracSpinor::state_config(basis_all) == "5sp+20sp");
+  REQUIRE(DiracSpinor::state_config(basis_e, Branch::positron) == "");
+  REQUIRE(DiracSpinor::state_config(basis_5, Branch::electron) == "5sp");
+  REQUIRE(DiracSpinor::state_config(basis_5, Branch::positron) == "5sp");
+  REQUIRE(DiracSpinor::state_config(basis_all, Branch::positron) == "20sp");
 }

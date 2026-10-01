@@ -199,8 +199,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
 
   // Select from basis those which match input 'basis_string'
   // exclude those in coreConfiguration
-  const std::vector<DiracSpinor> ci_sp_basis =
-    CI::basis_subset(t_basis, basis_string, wf.coreConfiguration());
+  // Negative-energy states must always excluded from CI
+  const std::vector<DiracSpinor> ci_sp_basis = qip::select_if(
+    CI::basis_subset(t_basis, basis_string, wf.coreConfiguration()),
+    [](const auto &Fn) { return !Fn.negativeEnergyStateQ(); });
 
   // Print info re: basis to screen:
   std::cout << "\nUsing " << DiracSpinor::state_config(ci_sp_basis) << " = "
@@ -261,9 +263,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // Split basis' into core/excited (for MBPT evaluations)
   const auto n_min_core = input.get("n_min_core", 1);
   const auto [core_s1, excited_s1] =
-    MBPT::split_basis(s1_basis, wf.FermiLevel(), n_min_core);
+    DiracSpinor::split_by_energy(s1_basis, wf.FermiLevel(), n_min_core);
   const auto [core_s2, excited_s2] =
-    MBPT::split_basis(s2_basis, wf.FermiLevel(), n_min_core);
+    DiracSpinor::split_by_energy(s2_basis, wf.FermiLevel(), n_min_core);
 
   // S2 corrections are included only for this subset of the CI basis:
   const auto cis2_basis_string =

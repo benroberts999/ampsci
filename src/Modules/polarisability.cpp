@@ -250,11 +250,12 @@ void polarisability(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "         cv            main          tail          tot\n";
 
     for (auto &Fv : wf.valence()) {
+      // negative-energy states (if present) are counted in the tail
       const auto main = qip::select_if(spectrum, [=](const auto &f) {
         return f.en() > eFemi && f.n() <= n_main;
       });
       const auto tail = qip::select_if(spectrum, [=](const auto &f) {
-        return f.en() > eFemi && f.n() > n_main;
+        return f.negativeEnergyStateQ() || (f.en() > eFemi && f.n() > n_main);
       });
 
       const auto a_vc =
@@ -475,13 +476,15 @@ void transitionPolarisability(const IO::InputBlock &input,
     std::cout << "Seperate core/main/tail (using SOS)\n";
     const int n_main = wf.valence().front().n() + 2;
     const auto eFemi = wf.FermiLevel();
-    const auto core =
-      qip::select_if(spectrum, [=](const auto &f) { return f.en() <= eFemi; });
+    // negative-energy states (if present) are counted in the tail
+    const auto core = qip::select_if(spectrum, [=](const auto &f) {
+      return !f.negativeEnergyStateQ() && f.en() <= eFemi;
+    });
     const auto main = qip::select_if(spectrum, [=](const auto &f) {
       return f.en() > eFemi && f.n() <= n_main;
     });
     const auto tail = qip::select_if(spectrum, [=](const auto &f) {
-      return f.en() > eFemi && f.n() > n_main;
+      return f.negativeEnergyStateQ() || (f.en() > eFemi && f.n() > n_main);
     });
 
     const auto a_c = alphaD::transition_sos(Fv, Fw, core, he1, &dVE1);

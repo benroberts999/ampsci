@@ -117,12 +117,13 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto check_symmetry = input.get("check_symmetry", false);
 
   // Sort basis into core/excited/valence
-  const auto en_core = wf.FermiLevel();
-  const auto holes = qip::select_if(wf.basis(), [&](const auto &Fn) {
-    return Fn.en() < en_core && Fn.n() >= min_n_core;
-  });
+  const auto core_excited =
+    DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel(), min_n_core);
+  const auto &holes = core_excited.first;
   const auto excited =
-    CI::basis_subset(wf.basis(), basis_str, wf.coreConfiguration());
+    basis_str.empty() ?
+      core_excited.second :
+      DiracSpinor::subset(core_excited.second, basis_str, false);
 
   // nb: use _basis_ version of valence states in iterations.
   // Take only the lowest valence state of each kappa (Unless each_valence=true)

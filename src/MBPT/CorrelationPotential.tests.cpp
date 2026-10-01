@@ -731,7 +731,7 @@ TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][CI][unit]") {
   wf.formBasis({"5spdf", 20, 5, 1.0e-2, 1.0e-2, 20.0});
 
   const auto &[core, excited] =
-    MBPT::split_basis(wf.basis(), wf.FermiLevel(), 2);
+    DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel(), 2);
   const auto mbpt_basis = qip::merge(core, excited);
 
   int kmax = 4;

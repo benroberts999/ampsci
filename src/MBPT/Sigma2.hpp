@@ -73,28 +73,6 @@ double leg_de(Denominators denominators, double et_bar, double et,
               double ei_bar, double ei, double es, double E0);
 
 /*!
-  @brief Splits the basis into the core (holes) and excited states.
-  @details
-  States with energy below @p E_Fermi are considered core/holes.
-  Only core states with \f$ n \geq \f$ @p min_n_core, and excited states with
-  \f$ n \leq \f$ @p max_n_excited are kept.
-
-  @note Negative energy states not dealt with! Assumed not to be present in basis. Fix?
-
-  @note Replace all instances with \ref DiracSpinor::split_by_energy
-
-  @param basis         Full set of single-particle basis states.
-  @param E_Fermi       Energy threshold separating core from excited states.
-  @param min_n_core    Minimum principal quantum number for core states.
-  @param max_n_excited Maximum principal quantum number for excited states.
-
-  @return Pair {core, excited} of DiracSpinor vectors.
-*/
-std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
-split_basis(const std::vector<DiracSpinor> &basis, double E_Fermi,
-            int min_n_core = 1, int max_n_excited = 999);
-
-/*!
   @brief Reduced two-body Sigma (2nd-order correlation) operator matrix element.
   @details
   Computes \f$ S^k_{vwxy} \f$, the reduced matrix element of the two-body

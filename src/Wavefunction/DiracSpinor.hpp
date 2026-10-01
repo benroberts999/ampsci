@@ -44,9 +44,15 @@ class Grid;
 class DiracSpinor {
 
 public:
-  //! Constructor: Requires n (PQN), kappa (Dirac QN), and grid (shared pointer,
-  //! as it's a shared resource)
-  DiracSpinor(int in_n, int in_kappa, std::shared_ptr<const Grid> in_rgrid);
+  /*!
+    @brief Constructor: Requires n (PQN), kappa (Dirac QN), and grid (shared
+    pointer, as it's a shared resource)
+    
+    @details
+    negative_energy marks a negative-energy (Dirac sea) solution.
+  */
+  DiracSpinor(int in_n, int in_kappa, std::shared_ptr<const Grid> in_rgrid,
+              bool negative_energy = false);
   //! Integer type for the compressed (n,kappa) index
   using Index = uint16_t;
 
@@ -83,6 +89,8 @@ private:
 
   // flag for regular electron, or "exotic"
   bool m_exotic{false};
+  // flag for negative-energy (Dirac sea) solution
+  bool m_negative_energy{false};
 
 public:
   //! Principal quantum number, n
@@ -113,11 +121,9 @@ public:
   //! Checks if spinor is for "exotic" lepton, or regular electron
   bool exotic() const { return m_exotic; }
 
-  /*!
-    @brief Returns true if this is a negative-energy state
-    @warning Only works for regular alpha and mass = 1 (should fix)
-  */
-  bool negativeEnergyStateQ() const;
+  //! Returns true if this is a negative-energy (Dirac sea) state. Set at
+  //! construction (by the basis builder); independent of alpha and mass.
+  bool negativeEnergyStateQ() const { return m_negative_energy; }
 
   //! Changes 'kappa' angular quantum number. Use with caution!
   void set_new_kappa(int new_kappa);
@@ -298,8 +304,23 @@ public:
   //! e.g., 6p_1/2 => 6p-, 6p_3/2 => 6p+
   static std::string shortSymbol(int n, int kappa);
 
-  //! Returns formatted states string (e.g., '7sp5d') given list of orbs
-  static std::string state_config(const std::vector<DiracSpinor> &orbs);
+  //! Which energy branch of a set of orbitals state_config() describes
+  enum class Branch { electron, positron, both };
+
+  /*!
+    @brief Returns formatted states string (e.g., '7sp5d') given list of orbs
+    @details
+    For the electron states, the number is the maximum n for each l. For the
+    negative-energy (positron) states, it is the number kept for each kappa.
+    By default (both), the two are joined with '+' when negative-energy states
+    are present (e.g., '30spd20f+9spdf'), so they are always visible.
+  */
+  static std::string state_config(const std::vector<DiracSpinor> &orbs,
+                                  Branch branch = Branch::both);
+
+  //! Formats a list of numbers (one per l, starting at l=0) into the
+  //! compressed states-string notation, e.g., {30,30,20,20} => '30sp20df'
+  static std::string config_string(const std::vector<int> &n_per_l);
 
   /*!
     @brief Constructs an exact H-like (pointlike Coulomb) DiracSpinor
@@ -376,11 +397,15 @@ public:
     - The second group contains orbitals with energy > energy
     - The first group is also limited to have n >= n_min_core (i.e., exclude
       deep core states)
+    - The second group is limited to have n <= n_max_excited
+    - Negative-energy states (if present) all go to the second group
+      (n_max_excited is not applied to them). Set include_negative_energy=false
+      to drop them entirely instead
   */
   static std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
   split_by_energy(const std::vector<DiracSpinor> &orbitals, double Fermi_energy,
                   int n_min_core = 1, int n_max_excited = 9999,
-                  bool positrons_are_excited = true);
+                  bool include_negative_energy = true);
 
   /*!
     @brief Splits orbitals into two groups (i.e., core, excited)
@@ -398,6 +423,9 @@ public:
     @brief Takes a subset of an input basis (by copy), according to subset_string
     @details
     - Includes only states matching the subset_string
+    - Negative-energy states are excluded, unless exclude_negative_energy is
+      false: then all those with kappa in subset_string are included (the n
+      limit is not applied to them)
   */
   static std::vector<DiracSpinor> subset(const std::vector<DiracSpinor> &basis,
                                          const std::string &subset_string,

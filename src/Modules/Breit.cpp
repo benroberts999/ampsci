@@ -189,10 +189,9 @@ void Breit(const IO::InputBlock &input, const Wavefunction &wf) {
       "Total    = de(B1,1) + de(B1,2) + de(B2,2)\n");
 
     const auto eFermi = wf.FermiLevel();
-    const auto holes =
-      qip::select_if(wf.basis(), [=](auto &a) { return a.en() < eFermi; });
-    const auto excited =
-      qip::select_if(wf.basis(), [=](auto &a) { return a.en() > eFermi; });
+    // (negative-energy states, if present, are part of the excited set)
+    const auto [holes, excited] =
+      DiracSpinor::split_by_energy(wf.basis(), eFermi);
 
     fmt::print("\n2nd-order energy corrections (no relaxation)  [{}]:\n",
                unit_label);

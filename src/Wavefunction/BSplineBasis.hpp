@@ -129,9 +129,12 @@ struct Parameters {
   - rmax_spl: last internal knot (basis orbitals only non-zero before this
   point)
   - wf: Wavefunction object: needed to form Hartree-Fock Hamiltonian
-  - positronQ: =true will keep negative energy states (have -ve principal
-  quantum number, are appended to end of the basis std::vector). If false,
-  discards them.
+  - positron: basis string giving the number of negative-energy states to keep
+  for each kappa (e.g., "9spdf" keeps 9 of each). Those closest to -2mc^2 are
+  kept. They are labelled with n continuing on from the positive-energy
+  solutions (so {n,kappa} stays unique), are flagged
+  (DiracSpinor::negativeEnergyStateQ), and are appended to the end of the
+  basis std::vector. Empty string discards them.
 
 Note: This function calls the below functions, they rarely need to be called
 explicitely, unless you are trying to do something different to usual.
@@ -188,7 +191,15 @@ void add_JohnsonBoundary(LinAlg::Matrix<double> *Aij, const int kappa,
 */
 void add_FischerBoundary(LinAlg::Matrix<double> *Aij, const double alpha);
 
-//! Expands basis orbitals in terms of spline orbitals by diagonalising Hamiltonian.
+/*!
+  @brief Expands basis orbitals in terms of spline orbitals, from the
+  eigenvectors of the Hamiltonian.
+  @details
+  Keeps the lowest max_n electron states (from the bottom of the positive-energy
+  branch up), and the max_n_positron negative-energy states closest to the gap
+  (labelled with n continuing on from the positive-energy solutions, and
+  flagged).
+*/
 void expand_basis_orbitals(std::vector<DiracSpinor> *basis,
                            std::vector<DiracSpinor> *basis_positron,
                            const std::vector<DiracSpinor> &spl_basis,

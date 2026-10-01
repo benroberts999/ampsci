@@ -64,23 +64,6 @@ double leg_de(Denominators denominators, double et_bar, double et,
 }
 
 //==============================================================================
-std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
-split_basis(const std::vector<DiracSpinor> &basis, double E_Fermi,
-            int min_n_core, int max_n_excited) {
-
-  std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> core_excited;
-  auto &[core, excited] = core_excited;
-  for (const auto &Fn : basis) {
-    if (Fn.en() <= E_Fermi && Fn.n() >= min_n_core) {
-      core.push_back(Fn);
-    } else if (Fn.en() > E_Fermi && Fn.n() <= max_n_excited) {
-      excited.push_back(Fn);
-    }
-  }
-  return core_excited;
-}
-
-//==============================================================================
 double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited) {
   // Assumes excited is sorted by energy, so first match of each kappa is the
   // lowest (true in practice).

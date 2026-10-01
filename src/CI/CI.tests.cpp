@@ -414,7 +414,7 @@ TEST_CASE("CI: dSdE from correlation potential", "[CI][integration]") {
   const auto yk = Coulomb::YkTable(wf.basis());
   qk.fill(wf.basis(), yk, 8, false);
   const auto [core_s1, excited_s1] =
-    MBPT::split_basis(wf.basis(), wf.FermiLevel(), 1);
+    DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel(), 1);
   const auto corr_G =
     CI::calculate_dSdE_correction(ci_basis, core_s1, excited_s1, qk);
 
