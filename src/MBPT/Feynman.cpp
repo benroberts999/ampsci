@@ -797,7 +797,11 @@ void Feynman::form_w_quadrature(double w0, double wratio) {
     if (std::abs(Fc.en()) > wmax_core)
       wmax_core = std::abs(Fc.en());
   }
-  const auto wmax_t = 2.0 * wratio * wmax_core;
+  // The exchange term (same grid) falls only as u^-2, and reaches that law
+  // slowly, at u of a few thousand au (not set by the core energies). Its
+  // tail estimate is poor before then: always extend to wmax_exchange
+  constexpr double wmax_exchange = 5000.0;
+  const auto wmax_t = std::max(2.0 * wratio * wmax_core, wmax_exchange);
 
   // Solve wmax < w0 * ratio^{N-1} for N; odd number of log points
   std::size_t wsteps =

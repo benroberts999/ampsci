@@ -433,6 +433,75 @@ TEST_CASE("MBPT: Feynman omre stability", "[MBPT][Feynman][omre]") {
 }
 
 //==============================================================================
+TEST_CASE("MBPT: Feynman vs Goldstone",
+          "[MBPT][Feynman][Goldstone][integration]") {
+
+  // Second-order correlation potential by the two methods: Goldstone (sum
+  // over a finite B-spline basis) and Feynman (Green's functions, with
+  // numerical frequency integration), direct and exchange separately.
+  // The two differ by the basis completeness (Goldstone) and by the
+  // frequency quadrature and Green's function accuracy (Feynman), so only a
+  // rough correspondence is expected. No screening, no hole-particle, no
+  // small (g) components.
+
+  fmt::print("Sigma(2) for K: Goldstone (basis) vs Feynman (Green's fn)\n");
+
+  Wavefunction wf({1600, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear"},
+                  {"K", -1, "Fermi"}, 1.0);
+  wf.solve_core("HartreeFock", "[Ar]");
+  wf.solve_valence("4sp3d");
+  wf.formBasis(SplineBasis::Parameters("40spdfgh", 40, 7, 1.0e-4, 0.0, 40.0));
+
+  const double r0{1.0e-4};
+  const double rmax{30.0};
+  const auto i0 = wf.grid().getIndex(r0);
+  const auto stride = (wf.grid().getIndex(rmax) - i0) / 150;
+  const auto size = (wf.grid().getIndex(rmax) - i0) / stride + 1;
+  const int n_min_core = 2;
+  const int lmax = DiracSpinor::max_l(wf.basis());
+  const bool include_G = false;
+
+  const MBPT::Goldstone Gs(wf.basis(), wf.core(), i0, stride, size, n_min_core,
+                           include_G);
+
+  const auto omre = MBPT::best_omre(wf.core(), wf.valence());
+  const double w0{0.01};
+  const double wratio{1.5};
+  MBPT::Feynman Fy(wf.vHF(), i0, stride, size,
+                   {MBPT::Screening::exclude, MBPT::HoleParticle::exclude, lmax,
+                    omre, w0, wratio},
+                   n_min_core, include_G);
+
+  // Same partial waves in the basis and the internal lines
+  REQUIRE(Gs.lmax() == lmax);
+  REQUIRE(Fy.lmax() == lmax);
+
+  // Loop Green's functions and Q*Pi*Q up front (gex first: re-used by the
+  // polarisation loop), so their output does not interrupt the table
+  Fy.calculate_gex();
+  Fy.calculate_qpiq();
+
+  fmt::print("\n{:>6} {:>11} {:>11} {:>8}   {:>11} {:>11} {:>8}\n", "",
+             "Direct", "", "", "Exchange", "", "");
+  fmt::print("{:>6} {:>11} {:>11} {:>8}   {:>11} {:>11} {:>8}\n", "state",
+             "Goldstone", "Feynman", "eps", "Goldstone", "Feynman", "eps");
+  for (const auto &v : wf.valence()) {
+    const auto de_dir_G = v * (Gs.Sigma_direct(v.kappa(), v.en()) * v);
+    const auto de_exch_G = v * (Gs.Sigma_exchange(v.kappa(), v.en()) * v);
+    const auto de_dir_F = v * (Fy.Sigma_direct(v.kappa(), v.en()) * v);
+    const auto de_exch_F = v * (Fy.Sigma_exchange(v.kappa(), v.en()) * v);
+    const auto eps_dir = de_dir_F / de_dir_G - 1.0;
+    const auto eps_exch = de_exch_F / de_exch_G - 1.0;
+    fmt::print("{:>6} {:11.7f} {:11.7f} {:8.1e}   {:11.7f} {:11.7f} {:8.1e}\n",
+               v.shortSymbol(), de_dir_G, de_dir_F, eps_dir, de_exch_G,
+               de_exch_F, eps_exch);
+    CHECK(std::abs(eps_dir) < 6e-3);
+    CHECK(std::abs(eps_exch) < 7e-2);
+  }
+  std::cout << "\n";
+}
+
+//==============================================================================
 TEST_CASE("MBPT: CorrelationPotential", "[MBPT][CorrelationPotential][unit]") {
 
   Wavefunction wf({400, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
