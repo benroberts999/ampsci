@@ -150,7 +150,19 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
       }else{
       pnc_factor3 = 1.0/sqrt(tji+1);
   }
-      const auto pnc_ij =
+/*
+  if(j.en()<-37577 && i.en()<-37577 ){
+    const auto pnc_ij = 0.0;
+      const auto e1_ij = 0.0;
+      const auto hfs_ij = 0.0;
+
+      //add to table
+      //hpnc->rme3js(i.twoj(), i.twoj();
+      pnc_me.add(i, j, pnc_factor3*pnc_ij);
+      e1_me.add(i, j, e1_ij);
+      hf_me.add(i, j, hfs_ij);
+  }else{
+     */ const auto pnc_ij =
           hpnc->reducedME(i, j) + (dV_pnc ? dV_pnc->dV(i, j) : 0.0);
       const auto e1_ij = he1->reducedME(i, j) + (dV_e1 ? dV_e1->dV(i, j) : 0.0);
       const auto hfs_ij =
@@ -161,6 +173,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
       pnc_me.add(i, j, pnc_factor3*pnc_ij);
       e1_me.add(i, j, e1_ij);
       hf_me.add(i, j, hfs_ij);
+  //}
     }
   }
   //finally create vector of matrix element tables for single element output
@@ -169,6 +182,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
   ME_tables.push_back(hf_me);
   return ME_tables;
 }
+            
 
 // To compute the reduced matrix element we split the total quantity into two summations
 
