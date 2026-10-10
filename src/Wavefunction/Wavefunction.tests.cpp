@@ -3,6 +3,8 @@
 #include "Maths/NumCalc_quadIntegrate.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "catch2/catch.hpp"
+#include <algorithm>
+#include <cmath>
 
 TEST_CASE("Wavefunction", "[wf][unit]") {
 
@@ -100,6 +102,27 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   //============================================================================
   for (auto &v : wf.valence()) {
     REQUIRE(v.en() == Approx(wf.Hab(v, v)).epsilon(1.0e-7));
+  }
+
+  //============================================================================
+  // With Sigma, the spectrum must reproduce the Brueckner valence orbitals.
+  // The spectrum B-splines extend beyond the Sigma sub-grid (rmax 20 vs 15), so
+  // this requires Sigma to act there as one fixed, linear operator: checked
+  // with and without the (experimental) large-r tail
+  for (const bool tail : {false, true}) {
+    auto wf_s = wf;
+    wf_s.formSigma(2, 1.0e-3, 15.0, 8, false, false, false, 0, {}, {}, {},
+                   false, "", false, false, false, 6, -0.2, 0.01, 1.5, false,
+                   std::nullopt, "", false, false, false, tail);
+    wf_s.hartreeFockBrueckner(false);
+    wf_s.formSpectrum({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0});
+    const auto &spectrum = wf_s.spectrum();
+    for (const auto &Fv : wf_s.valence()) {
+      const auto Fspec = std::find(spectrum.cbegin(), spectrum.cend(), Fv);
+      REQUIRE(Fspec != spectrum.cend());
+      REQUIRE(std::abs(Fspec->en() / Fv.en() - 1.0) < 1.0e-3);
+      REQUIRE(std::abs(std::abs(*Fspec * Fv) - 1.0) < 1.0e-3);
+    }
   }
 
   //============================================================================

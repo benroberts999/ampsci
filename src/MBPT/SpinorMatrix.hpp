@@ -474,7 +474,8 @@ public:
   }
 
   //============================================================================
-  //! Action of SpinorMatrix operator on DiracSpinor. Assumes matrix already includes integration measure
+  //! Action of SpinorMatrix operator on DiracSpinor. Assumes matrix already
+  //! includes integration measure. Result is zero outside the sub-grid.
   DiracSpinor operator*(const DiracSpinor &Fn) const {
 
     const auto &r = Fn.grid().r();
@@ -502,38 +503,6 @@ public:
     out.f() = Interpolator::interpolate(sub_r, f, r);
     if (m_incl_g) {
       out.g() = Interpolator::interpolate(sub_r, g, r);
-    }
-
-    // Beyond the sub-grid (r > rmax), where the matrix is not calculated,
-    // treat it as a local potential with the asymptotic polarisation form
-    // V(r) = alpha_eff / r^4 (alpha_eff ~ -alpha/2 for the polarisability
-    // alpha). alpha_eff is the average of V(r_i) r_i^4 over the last few
-    // sub-grid points, with V(r_i) = (G*F)(r_i)/F(r_i) from the large
-    // component. Otherwise, (G*F)(r > rmax) = 0.
-    // Switch is hard-coded: for testing only
-    constexpr bool extrapolate_tail = true;
-    if (extrapolate_tail) {
-      constexpr std::size_t n_fit = 10;
-      double alpha_eff = 0.0;
-      std::size_t n_used = 0;
-      for (auto i = m_size - std::min(n_fit, m_size); i < m_size; ++i) {
-        const auto i_f = index_to_fullgrid(i);
-        if (Fn.f(i_f) == 0.0)
-          continue;
-        alpha_eff += f[i] / Fn.f(i_f) * std::pow(r[i_f], 4);
-        ++n_used;
-      }
-      if (n_used > 0) {
-        alpha_eff /= double(n_used);
-        const auto i_rmax = index_to_fullgrid(m_size - 1);
-        for (auto i = i_rmax + 1; i < Fn.max_pt(); ++i) {
-          const auto V = alpha_eff / std::pow(r[i], 4);
-          out.f(i) = V * Fn.f(i);
-          if (m_incl_g) {
-            out.g(i) = V * Fn.g(i);
-          }
-        }
-      }
     }
     return out;
   }

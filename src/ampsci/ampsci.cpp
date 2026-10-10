@@ -391,7 +391,11 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "difference (step 0.01 au) of the full Sigma [false]"},
      {"print_de",
       "For each valence state, print MBPT(2) energy correction (direct, "
-      "exchange, total), and <v|Sigma|v> using the stored Sigma [false]"}});
+      "exchange, total), and <v|Sigma|v> using the stored Sigma [false]"},
+     {"tail_extrapolation",
+      "Experimental. Extrapolate "
+      "Sigma as a local polarisation potential a_eff/r^4 beyond rmax (if "
+      "valence state is available). [false]"}});
 
   const bool do_brueckner = input.getBlock({"Correlations"}) != std::nullopt;
   const auto n_min_core = input.get({"Correlations"}, "n_min_core", 1);
@@ -479,6 +483,9 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   const auto print_de = input.get({"Correlations"}, "print_de", false);
 
+  const auto tail_extrapolation =
+    input.get({"Correlations"}, "tail_extrapolation", false);
+
   // Ladder correlation potential file (produced by the Ladder{} block):
   // ladder = true; uses the default filename; or give the filename directly
   const auto t_ladder = input.get({"Correlations"}, "ladder", ""s);
@@ -495,7 +502,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                  sigma_readwrite, sigma_filename, sigma_Feynman,
                  sigma_Screening, hole_particle, sigma_lmax, sigma_omre, w0,
                  wratio, complex_green, ek_Sig, ladder_file, sigma_derivative,
-                 print_de, fk_both_lines);
+                 print_de, fk_both_lines, tail_extrapolation);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

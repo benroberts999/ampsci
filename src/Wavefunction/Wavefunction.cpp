@@ -476,7 +476,8 @@ void Wavefunction::formBasis(const SplineBasis::Parameters &params) {
     m_basis = SplineBasis::form_basis(params, *this, false);
 
     if (params.orthogonalise) {
-      std::cout << "Forcing basis to be orthog to core:\n";
+      if (params.verbose)
+        std::cout << "Forcing basis to be orthog to core:\n";
       for (auto &Fb : m_basis) {
         Fb = DiracSpinor::orthonormaliseWrt(Fb, core());
       }
@@ -497,16 +498,19 @@ void Wavefunction::formSpectrum(const SplineBasis::Parameters &params) {
   }
 
   if (params.orthogonalise) {
-    std::cout << "Forcing spectrum to be orthog to valence:\n";
+    if (params.verbose)
+      std::cout << "Forcing spectrum to be orthog to valence:\n";
     for (auto &Fb : m_spectrum) {
       Fb = DiracSpinor::orthonormaliseWrt(Fb, m_valence);
     }
   }
 
-  std::cout << "Spectrum/core:\n";
-  SplineBasis::check(m_spectrum, core(), m_Sigma == std::nullopt);
-  std::cout << "Spectrum/valence:\n";
-  SplineBasis::check(m_spectrum, valence(), true);
+  if (params.verbose) {
+    std::cout << "Spectrum/core:\n";
+    SplineBasis::check(m_spectrum, core(), m_Sigma == std::nullopt);
+    std::cout << "Spectrum/valence:\n";
+    SplineBasis::check(m_spectrum, valence(), true);
+  }
 }
 
 //==============================================================================
@@ -518,7 +522,7 @@ void Wavefunction::formSigma(
   bool FeynmanQ, bool ScreeningQ, bool hole_particleQ, int lmax, double omre,
   double w0, double wratio, bool complex_green,
   const std::optional<IO::InputBlock> &ek, const std::string &ladder_file,
-  bool derivative, bool print_de, bool fk_both_lines) {
+  bool derivative, bool print_de, bool fk_both_lines, bool tail_extrapolation) {
   if (core().empty() || !m_HF)
     return;
 
@@ -566,7 +570,8 @@ void Wavefunction::formSigma(
     file_name, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core,
     method, include_G, include_Breit_b2, n_max_breit,
     MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio, complex_green},
-    calculate_fk, fk, etak, ladder_file, derivative, fk_both_lines);
+    calculate_fk, fk, etak, ladder_file, derivative, fk_both_lines,
+    tail_extrapolation);
 
   std::cout << "\n";
 
@@ -601,6 +606,8 @@ void Wavefunction::formSigma(
       }
     }
   }
+
+  m_Sigma->print_tail(m_valence);
 
   if (!lambdas.empty()) {
     std::cout << "Note: be careful order of input lambdas matches Sigma\n";

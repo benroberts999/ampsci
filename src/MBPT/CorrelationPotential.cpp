@@ -11,6 +11,7 @@
 #include "fmt/format.hpp"
 #include <algorithm>
 #include <cassert>
+#include <cmath>
 #include <iostream>
 #include <utility>
 #include <vector>
@@ -25,7 +26,7 @@ CorrelationPotential::CorrelationPotential(
   bool include_Breit_b2, int n_max_breit, const FeynmanOptions &Foptions,
   bool calculate_fk, const std::vector<double> &fk,
   const std::vector<double> &etak, const std::string &ladder_file,
-  bool form_derivative, bool fk_both_lines)
+  bool form_derivative, bool fk_both_lines, bool tail_extrapolation)
   : m_HF(vHF),
     m_basis(basis),
     m_r0(r0),
@@ -45,7 +46,8 @@ CorrelationPotential::CorrelationPotential(
     m_fk_both_lines(fk_both_lines),
     m_fname(fname),
     m_ladder_file(ladder_file),
-    m_form_derivative(form_derivative) {
+    m_form_derivative(form_derivative),
+    m_tail_extrapolation(tail_extrapolation) {
 
   std::cout << "\nConstruct Correlation Potential\n";
 
@@ -135,6 +137,10 @@ CorrelationPotential::CorrelationPotential(
            "stride=%i]\n",
            vHF->grid().r(m_i0), vHF->grid().r(m_i0 + m_stride * (m_size - 1)),
            int(m_size), int(m_i0), int(m_stride));
+    if (m_tail_extrapolation) {
+      std::cout << "Sigma extrapolated beyond sub-grid as a_eff/r^4 "
+                   "(experimental)\n";
+    }
 
     // If didn't read, setup Goldstone/Feynman (create Yk, pol operator etc.)
     m_Gold =
@@ -143,6 +149,10 @@ CorrelationPotential::CorrelationPotential(
     if (m_method == SigmaMethod::Feynman) {
       setup_Feynman();
     }
+  } else if (m_tail_extrapolation) {
+    // a_eff is not stored in the sigma file: fitted again after reading
+    std::cout << "Sigma extrapolated beyond sub-grid as a_eff/r^4 "
+                 "(experimental)\n";
   }
 }
 
@@ -162,6 +172,8 @@ void CorrelationPotential::formSigma(int kappa, double ev, int n,
     auto de = Fv ? *Fv * (it->Sigma * *Fv) : 0.0;
     fmt::print("Have Sigma: kappa = {:>2}, en = {:+.5f}, de = {:+.5e}\n",
                it->kappa, it->en, de);
+    // a_eff is not stored in the sigma file
+    fit_tail(&*it, Fv);
     // May still need the derivative (e.g., Sigma read from an older file)
     if (m_form_derivative && !get_derivative(kappa, it->n)) {
       const auto fk_state = state_fk(it->en, Fv);
@@ -201,8 +213,91 @@ void CorrelationPotential::formSigma(int kappa, double ev, int n,
     m_Sigmas.back().fk = m_fk;
   }
 
+  fit_tail(&m_Sigmas.back(), Fv);
+
   if (m_form_derivative && !get_derivative(kappa, n)) {
     form_derivative(kappa, ev, n, Fv, m_Sigmas.back().Sigma, fk_pointer);
+  }
+}
+
+//==============================================================================
+void CorrelationPotential::fit_tail(SigmaData *Sig,
+                                    const DiracSpinor *Fv) const {
+  if (!m_tail_extrapolation || Fv == nullptr || Sig->a_eff != 0.0)
+    return;
+  Sig->a_eff = fit_tail_coefficient(Sig->Sigma, *Fv);
+}
+
+//==============================================================================
+void CorrelationPotential::print_tail(
+  const std::vector<DiracSpinor> &valence) const {
+  if (!m_tail_extrapolation)
+    return;
+
+  std::cout << "\nSigma large-r tail extrapolation, a_eff/r^4\n";
+  fmt::print("{:5s} {:>9s} {:>12s}  {:>12s}  {:>8s}\n", "state", "a_eff",
+             "<v|S0|v>", "<v|S+tail|v>", "eps");
+  for (const auto &v : valence) {
+    const auto Sv = get(v.kappa(), v.n());
+    if (!Sv || Sv->a_eff == 0.0)
+      continue;
+    auto tail = 0.0 * v;
+    add_tail(&tail, Sv->Sigma, v, Sv->a_eff);
+    const auto de = v * SigmaFv(v);
+    const auto de0 = de - Sv->lambda * (v * tail);
+    fmt::print("{:5s} {:9.4f} {:+12.4e}  {:+12.4e}  {:+8.1e}\n",
+               v.shortSymbol(), Sv->a_eff, de0, de, (de - de0) / de0);
+  }
+}
+
+//==============================================================================
+double fit_tail_coefficient(const GMatrix &Sigma, const DiracSpinor &Fv,
+                            std::size_t n_fit, double f_cut) {
+  const auto SigmaFv = Sigma * Fv;
+  const auto &r = Fv.grid().r();
+  const auto f_max = std::abs(
+    *std::max_element(Fv.f().cbegin(), Fv.f().cend(), [](double a, double b) {
+      return std::abs(a) < std::abs(b);
+    }));
+  const auto f_min = f_cut * f_max;
+
+  // Moving inwards from the end of the sub-grid: skip the points where Fv is
+  // negligible (there, (Sigma Fv)/Fv is numerical noise), then average over
+  // the next n_fit points, stopping at a node of Fv
+  double a_eff = 0.0;
+  std::size_t n_used = 0;
+  double f_prev = 0.0;
+  for (auto i = Sigma.size(); i-- > 0;) {
+    const auto i_full = Sigma.index_to_fullgrid(i);
+    const auto f = Fv.f(i_full);
+    if (std::abs(f) < f_min) {
+      if (n_used > 0)
+        break;
+      continue;
+    }
+    if (f * f_prev < 0.0)
+      break;
+    a_eff += SigmaFv.f(i_full) / f * std::pow(r[i_full], 4);
+    f_prev = f;
+    if (++n_used == n_fit)
+      break;
+  }
+  return n_used == 0 ? 0.0 : a_eff / double(n_used);
+}
+
+//==============================================================================
+void add_tail(DiracSpinor *SigmaFn, const GMatrix &Sigma, const DiracSpinor &Fn,
+              double a_eff) {
+  if (a_eff == 0.0)
+    return;
+  const auto &r = Fn.grid().r();
+  const auto i_rmax = Sigma.index_to_fullgrid(Sigma.size() - 1);
+  for (auto i = i_rmax + 1; i < Fn.max_pt(); ++i) {
+    const auto V = a_eff / std::pow(r[i], 4);
+    SigmaFn->f(i) += V * Fn.f(i);
+    if (Sigma.includes_g()) {
+      SigmaFn->g(i) += V * Fn.g(i);
+    }
   }
 }
 
@@ -546,6 +641,9 @@ DiracSpinor CorrelationPotential::SigmaFv(const DiracSpinor &Fv) const {
   if (!Sv && !Sl)
     return 0.0 * Fv;
   auto SF = Sv ? Sv->Sigma * Fv : 0.0 * Fv;
+  if (Sv) {
+    add_tail(&SF, Sv->Sigma, Fv, Sv->a_eff);
+  }
   if (Sl) {
     SF += Sl->Sigma * Fv;
   }
@@ -787,6 +885,9 @@ std::string CorrelationPotential::method_string() const {
   }
   if (!m_ladder_file.empty()) {
     out += ", ladder";
+  }
+  if (m_tail_extrapolation) {
+    out += ", r^-4 tail";
   }
   return out;
 }

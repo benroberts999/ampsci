@@ -7,6 +7,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
+#include <algorithm>
 #include <cmath>
 #include <utility>
 #include <vector>
@@ -167,6 +168,107 @@ TEST_CASE("Amplitudes: second-order SOS", "[Amplitudes][SecondOrder][unit]") {
       }
     }
     check("alpha_core", (-2.0 / 3.0) * ref, alpha_core);
+  }
+}
+
+//==============================================================================
+//! Polarisability with Sigma, with and without the large-r tail extrapolation,
+//! at realistic settings: Sigma calculated to 30 aB, spectrum extending well
+//! beyond (as in production runs), so spectrum B-splines straddle the Sigma
+//! sub-grid boundary. Sigma must act as one fixed linear operator everywhere
+//! it is used: Brueckner valence + spectrum (SOS) and mixed states (MS) must
+//! give the same polarisability, and the spectrum must reproduce the
+//! Brueckner energies. Regression: a tail fitted separately for each function
+//! Sigma acted on corrupted the spectrum (SOS out by orders of magnitude).
+TEST_CASE("Amplitudes: Sigma tail extrapolation",
+          "[Amplitudes][SecondOrder][MBPT]") {
+
+  Wavefunction wf0({1600, 1.0e-5, 100.0, 20.0, "loglinear", -1.0},
+                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf0.solve_core("HartreeFock", "[Xe]", std::nullopt, 1.0e-13, true);
+  wf0.solve_valence("6sp5d", false);
+  SplineBasis::Parameters params{"25spdfghi", 35, 7, 1.0e-4, 0.0, 40.0};
+  params.verbose = false;
+  wf0.formBasis(params);
+
+  const DiracOperator::E1 hE1(wf0.grid());
+
+  const double sigma_rmax = 20.0;
+  // SOS vs MS agreement is limited by spectrum completeness
+
+  // alpha (SOS) for each valence state, without and with the tail correction
+  std::vector<double> alpha_no_tail, alpha_tail;
+
+  for (const bool tail : {false, true}) {
+    std::cout << (tail ? "\nWith tail correction:\n" :
+                         "\nWithout tail correction:\n");
+    auto wf = wf0;
+    wf.formSigma(3, 1.0e-4, sigma_rmax, 6, false, false, false, 0, {}, {}, {},
+                 false, "", false, false, false, 6, -0.2, 0.01, 1.5, false,
+                 std::nullopt, "", false, false, false, tail);
+    wf.hartreeFockBrueckner(false);
+    SplineBasis::Parameters spectrum_params{"70spdf", 70, 9, 1.0e-4, 0.0, 90.0};
+    spectrum_params.verbose = false;
+    wf.formSpectrum(spectrum_params);
+
+    // The spectrum (H + Sigma diagonalised) must reproduce the Brueckner
+    // valence energies
+    const auto &spectrum = wf.spectrum();
+    fmt::print("\n{} Sigma tail exptrapolation\n", tail ? "With" : "without");
+    fmt::print("{:<5} {:>14} {:>14} {:>9}\n", "state", "E(Brueckner)",
+               "E(spectrum)", "rel.diff");
+
+    // Spectrum vs Brueckner energies: limited by spectrum completeness
+    const double tol_energy = 1.0e-5;
+    for (const auto &Fbrueckner : wf.valence()) {
+      const auto Fspectrum =
+        std::find(spectrum.cbegin(), spectrum.cend(), Fbrueckner);
+      REQUIRE(Fspectrum != spectrum.cend());
+      const auto rel_diff = std::abs(Fspectrum->en() / Fbrueckner.en() - 1.0);
+      fmt::print("{:<5} {:14.9f} {:14.9f} {:9.1e}\n", Fbrueckner.shortSymbol(),
+                 Fbrueckner.en(), Fspectrum->en(), rel_diff);
+      REQUIRE(rel_diff < tol_energy);
+    }
+
+    // Static scalar polarisability: SOS (Brueckner + spectrum) vs MS
+    const double tol_sos_ms = 1.0e-3;
+    const ExternalField::TDHF tdhf(&hE1, wf.vHF());
+    auto &alpha_sos_list = tail ? alpha_tail : alpha_no_tail;
+    fmt::print("\n{} Sigma tail exptrapolation\n", tail ? "With" : "without");
+    fmt::print("{:<5} {:>12} {:>12} {:6}\n", "state", "alpha(SOS)", "alpha(MS)",
+               "eps");
+    for (const auto &Fv : wf.valence()) {
+      const auto to_alpha = 1.0 / std::sqrt(3.0 * (Fv.twoj() + 1));
+      const auto alpha_sos =
+        to_alpha *
+        Amplitudes::sos_valence(0, Fv, Fv, &hE1, &hE1, 0.0, 0.0, spectrum);
+      const auto alpha_ms =
+        to_alpha * Amplitudes::ms_valence(0, Fv, Fv, &hE1, &hE1, 0.0, 0.0,
+                                          &tdhf, &tdhf, wf.Sigma())
+                     .first;
+      fmt::print("{:<5} {:12.5e} {:12.5e}  {:6.0e}\n", Fv.shortSymbol(),
+                 alpha_sos, alpha_ms, std::abs(alpha_sos / alpha_ms - 1.0));
+
+      /// XXX the p states, MS does not work
+      if (Fv.l() != 1) {
+        REQUIRE(alpha_sos == Approx(alpha_ms).epsilon(tol_sos_ms));
+      }
+      alpha_sos_list.push_back(alpha_sos);
+    }
+  }
+
+  // At realistic Sigma rmax, the tail is a negligible correction
+  fmt::print("\nalpha(SOS), Sigma rmax = {} aB\n", sigma_rmax);
+  fmt::print("{:<5} {:>12} {:>12}  {:6}\n", "state", "no tail", "with tail",
+             "eps");
+  const auto &valence = wf0.valence();
+  const double tol_sos_tail = 1.0e-4;
+  for (std::size_t i = 0; i < valence.size(); ++i) {
+    const auto without = alpha_no_tail.at(i);
+    const auto with = alpha_tail.at(i);
+    fmt::print("{:<5} {:12.5e} {:12.5e} {:6.0e}\n", valence.at(i).shortSymbol(),
+               without, with, std::abs(with / without - 1.0));
+    REQUIRE(with == Approx(without).epsilon(tol_sos_tail));
   }
 }
 

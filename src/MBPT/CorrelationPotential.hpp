@@ -20,7 +20,37 @@ struct SigmaData {
   double lambda{1.0};
   //! fk screening factors used for this Sigma (empty if none)
   std::vector<double> fk{};
+  //! Coefficient of the large-r tail, Sigma = a_eff/r^4 beyond the sub-grid
+  //! (see fit_tail_coefficient). Zero: no tail
+  double a_eff{0.0};
 };
+
+/*!
+  @brief Fits the coefficient a_eff of the large-r polarisation tail of Sigma,
+  Sigma(r) -> a_eff/r^4.
+  @details
+  Averages r^4 (Sigma Fv)(r)/Fv(r) (large component) over @p n_fit sub-grid
+  points: the outermost ones where |Fv| >= @p f_cut * max|Fv| (stopping at a
+  node). Further out, Fv is exponentially small and the ratio is dominated by
+  numerical noise in Sigma. In the fit region (outside the core, typically a
+  few to ~15 aB) r^4 (Sigma Fv)/Fv is already close to constant.
+
+  @note Can be numerically unstable, should be treated as a test
+
+  @return a_eff; zero if there are no points in the fit region.
+*/
+double fit_tail_coefficient(const GMatrix &Sigma, const DiracSpinor &Fv,
+                            std::size_t n_fit = 10, double f_cut = 1.0e-2);
+
+/*!
+  @brief Adds the large-r polarisation tail, a_eff/r^4 * Fn, to @p SigmaFn,
+  for r beyond the Sigma sub-grid (where Sigma*Fn is zero).
+  @details
+  Treated as a local potential. Acts on the small component only if @p Sigma
+  includes g parts. Does nothing if a_eff is zero.
+*/
+void add_tail(DiracSpinor *SigmaFn, const GMatrix &Sigma, const DiracSpinor &Fn,
+              double a_eff);
 
 enum class SigmaMethod { Goldstone, Feynman };
 
@@ -79,6 +109,12 @@ class CorrelationPotential {
   std::vector<SigmaData> m_dSigma{};
   static constexpr double m_delta_en = 0.01;
 
+  // Experimental: extrapolate Sigma beyond the sub-grid as a_eff/r^4, with
+  // a_eff fitted once for each Sigma from the valence state it was formed for
+  // (see fit_tail_coefficient). Sigmas formed without a valence state get no
+  // tail.
+  bool m_tail_extrapolation{false};
+
 public:
   CorrelationPotential(
     const std::string &fname, const HF::HartreeFock *vHF,
@@ -88,7 +124,7 @@ public:
     const FeynmanOptions &Foptions = {}, bool calculate_fk = true,
     const std::vector<double> &fk = {}, const std::vector<double> &etak = {},
     const std::string &ladder_file = "", bool form_derivative = false,
-    bool fk_both_lines = false);
+    bool fk_both_lines = false, bool tail_extrapolation = false);
 
   // // not thread safe!
   // void formSigma(int kappa, double en, int n = 0) {}
@@ -97,6 +133,10 @@ public:
 
   bool empty() const { return m_Sigmas.empty(); }
 
+  //! Pointer to the stored Sigma matrix for given kappa (and n); nullptr if
+  //! not present.
+  //! @note The raw matrix: does not include lambda, the ladder part, or the
+  //! large-r tail (use SigmaFv for those)
   const GMatrix *getSigma(int kappa, int n = 0) const;
 
   double getLambda(int kappa, int n = 0) const;
@@ -104,13 +144,19 @@ public:
   void clear() { m_Sigmas.clear(); }
 
   //! returns Spinor: Sigma|Fv>
-  //! @details If Sigma for kappa_v doesn't exist, returns |0>.
+  //! @details If Sigma for kappa_v doesn't exist, returns |0>. Includes the
+  //! large-r tail if it was fitted (see tail_extrapolation option).
   DiracSpinor SigmaFv(const DiracSpinor &Fv) const;
   DiracSpinor operator()(const DiracSpinor &Fv) const { return SigmaFv(Fv); }
 
   //! For each valence state, prints MBPT(2) energy correction (direct,
   //! exchange, total), and <v|Sigma|v> using the stored Sigma matrix.
   void print_de(const std::vector<DiracSpinor> &valence);
+
+  //! For each valence state with a fitted large-r tail, prints a_eff and
+  //! <v|Sigma|v> without (S0) and with (S) the tail. Prints nothing if
+  //! tail_extrapolation is off.
+  void print_tail(const std::vector<DiracSpinor> &valence) const;
 
   //! True if any dSigma/dE matrices are present (see form_derivative)
   bool has_derivative() const { return !m_dSigma.empty(); }
@@ -175,6 +221,7 @@ public:
 
   //! Pointer to the stored Sigma data (matrix, energy formed at, lambda) for
   //! given kappa (and n); nullptr if not present
+  //! @note Sigma matrix is raw (no lambda, ladder, or tail; see SigmaFv)
   const SigmaData *get(int kappa, int n = 0) const;
 
 private:
@@ -204,6 +251,10 @@ private:
   void form_derivative(int kappa, double ev, int n, const DiracSpinor *Fv,
                        const GMatrix &Sigma0,
                        const std::vector<double> *given_fk = nullptr);
+
+  // If tail_extrapolation is set and not yet fitted, fits a_eff for this
+  // Sigma from the valence state it was formed for (no tail if Fv is null)
+  void fit_tail(SigmaData *Sig, const DiracSpinor *Fv) const;
 
 public:
   CorrelationPotential &operator=(const CorrelationPotential &) = default;
