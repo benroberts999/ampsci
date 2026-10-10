@@ -69,11 +69,11 @@ public:
     // create vector of r on sub-grid, used to interpolate values onto full
     const auto &r = m_rgrid->r();
     sub_r.reserve(m_size);
-    assert(m_i0 + m_stride * m_size <= r.size());
+    // last sub-grid point, i0 + stride*(size-1), must lie on the full grid
+    assert(m_size > 0 && index_to_fullgrid(m_size - 1) < r.size());
     for (std::size_t i = 0; i < m_size; ++i) {
       sub_r.push_back(r[index_to_fullgrid(i)]);
     }
-    assert(m_i0 + m_stride * m_size <= r.size());
     assert(sub_r[1] == r[index_to_fullgrid(1)]);
     assert(sub_r[m_size - 1] == r[index_to_fullgrid(m_size - 1)]);
     //------------------

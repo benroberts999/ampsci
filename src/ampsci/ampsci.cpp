@@ -10,6 +10,7 @@
 #include "Modules/Modules.hpp"
 #include "Physics/include.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include <algorithm>
 
 Wavefunction ampsci(const IO::InputBlock &input) {
   IO::ChronoTimer timer("\nampsci");
@@ -402,7 +403,9 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   // const auto n_min_core_F =
   //     input.get({"Correlations"}, "n_min_core_F", n_min_core);
   const auto sigma_rmin = input.get({"Correlations"}, "rmin", 1.0e-4);
-  const auto sigma_rmax = input.get({"Correlations"}, "rmax", 30.0);
+  // Sigma sub-grid cannot extend beyond the full radial grid
+  const auto sigma_rmax =
+    std::min(input.get({"Correlations"}, "rmax", 30.0), wf.grid().rmax());
   const auto each_valence = input.get({"Correlations"}, "each_valence", false);
   const auto default_stride = [&]() {
     // By default, choose stride such that there is 200 points over [1e-4,30]

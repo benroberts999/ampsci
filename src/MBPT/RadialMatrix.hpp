@@ -46,11 +46,11 @@ public:
     // create vector of r on sub-grid, used to interpolate values onto full
     const auto &r = m_rgrid->r();
     sub_r.reserve(m_size);
-    assert(m_i0 + m_stride * m_size <= r.size());
+    // last sub-grid point, i0 + stride*(size-1), must lie on the full grid
+    assert(m_size > 0 && index_to_fullgrid(m_size - 1) < r.size());
     for (std::size_t i = 0; i < m_size; ++i) {
       sub_r.push_back(r[index_to_fullgrid(i)]);
     }
-    assert(m_i0 + m_stride * m_size <= r.size());
     assert(sub_r[1] == r[index_to_fullgrid(1)]);
     assert(sub_r[m_size - 1] == r[index_to_fullgrid(m_size - 1)]);
     //------------------
@@ -84,7 +84,7 @@ public:
   //! returns dr at position along sub grid
   double dr(std::size_t sub_i) const {
     const auto full_index = index_to_fullgrid(sub_i);
-    return m_rgrid->drdu(sub_i) * m_rgrid->du() * double(m_stride);
+    return m_rgrid->drdu(full_index) * m_rgrid->du() * double(m_stride);
   }
 
   //! Converts an index on the sub-grid to the full grid.

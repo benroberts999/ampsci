@@ -279,6 +279,34 @@ TEST_CASE("MBPT: SpinorMatrix", "[MBPT][SpinorMatrix][unit]") {
   }
 
   //============================================================================
+  // Strided sub-grid whose last point is the last point of the full grid
+  {
+    const bool include_g = true;
+    const std::size_t stride = 5;
+    const std::size_t size = 181;
+    const std::size_t i0 = grid->num_points() - 1 - stride * (size - 1);
+    MBPT::SpinorMatrix<double> m(i0, stride, size, include_g, grid);
+    REQUIRE(m.index_to_fullgrid(size - 1) == grid->num_points() - 1);
+
+    // Construct Green function, G(e) = |a><a|/(e-e_a)
+    const double e = -0.1;
+    for (const auto &Fs : orbitals) {
+      m.add(Fs, Fs, 1.0 / (e - Fs.en()));
+    }
+
+    // <Fs|G|Fs> = 1.0 / (e - e_s)
+    double worst = 0.0;
+    for (const auto &Fs : orbitals) {
+      const auto expected = 1.0 / (e - Fs.en());
+      const auto res = Fs * (m.drj() * Fs);
+      const auto eps = std::abs((res - expected) / expected);
+      if (eps > worst)
+        worst = eps;
+    }
+    REQUIRE(std::abs(worst) < 1.0e-2);
+  }
+
+  //============================================================================
   // Test basics using "full" matrix (no stride, include G)
   {
     const bool include_g = true;
