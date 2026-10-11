@@ -801,7 +801,17 @@ double HartreeFock::calculateCoreEnergy() const {
     }
   }
 
-  return e0 - 0.5 * (edir + ex);
+  // Breit enters the core orbital energies through the mean-field potential,
+  // so is double-counted in the same way as the Coulomb interaction
+  double ebreit = 0.0;
+  if (m_VBr) {
+    for (const auto &a : m_core) {
+      const auto num_a = a.twojp1() * a.occ_frac();
+      ebreit += num_a * (a * m_VBr->VbrFa(a, m_core));
+    }
+  }
+
+  return e0 - 0.5 * (edir + ex + ebreit);
 
   return Etot;
 }

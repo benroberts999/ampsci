@@ -116,6 +116,8 @@ std::pair<double, double> DiracSpinor::r0pinfratio() const {
   };
   const auto max_pos =
     std::max_element(m_f.begin(), m_f.begin() + long(m_pinf), max_abs_compare);
+  if (m_pinf <= m_p0 || *max_pos == 0.0)
+    return {0.0, 0.0};
   const auto r0_ratio = m_f[m_p0] / *max_pos;
   const auto pinf_ratio = m_f[m_pinf - 1] / *max_pos;
   return std::make_pair(r0_ratio, pinf_ratio);
@@ -179,7 +181,9 @@ int DiracSpinor::num_electrons() const {
 
 //==============================================================================
 double DiracSpinor::r0() const { return m_rgrid->r()[m_p0]; }
-double DiracSpinor::rinf() const { return m_rgrid->r()[m_pinf - 1]; }
+double DiracSpinor::rinf() const {
+  return m_pinf == 0 ? 0.0 : m_rgrid->r()[m_pinf - 1];
+}
 
 //==============================================================================
 //==============================================================================
@@ -384,7 +388,7 @@ std::size_t DiracSpinor::max_kindex(const std::vector<DiracSpinor> &orbs) {
 // static
 const DiracSpinor *DiracSpinor::find(int n, int k,
                                      const std::vector<DiracSpinor> &orbs) {
-  const auto find_nk = [n, k](const auto Fa) {
+  const auto find_nk = [n, k](const auto &Fa) {
     return Fa.n() == n && Fa.kappa() == k;
   };
   auto Fnk = std::find_if(cbegin(orbs), cend(orbs), find_nk);
@@ -541,11 +545,13 @@ DiracSpinor DiracSpinor::exactHlike_cntm(double en, int kappa,
                                          double zeff, double alpha,
                                          double mass) {
 
-  if (!DiracContinuum::available) {
-    std::cerr << "\nWARNING: DiracSpinor::exactContinuum requires FLINT, but "
+  // Only the relativistic case needs FLINT (alpha <= 0: non-relativistic)
+  const bool relativistic = alpha > 0.0;
+  if (relativistic && !DiracContinuum::available) {
+    std::cerr << "\nWARNING: DiracSpinor::exactHlike_cntm requires FLINT, but "
                  "ampsci was compiled without FLINT support. Returning NaN\n";
   }
-  assert(DiracContinuum::available &&
+  assert((!relativistic || DiracContinuum::available) &&
          "Required FLINT to compute continuum states. See docs.");
   DiracSpinor Fa(0, kappa, rgrid);
   Fa.m_en = en;
@@ -647,9 +653,7 @@ DiracSpinor::subset(const std::vector<DiracSpinor> &basis,
                     const std::string &subset_string,
                     bool exclude_negative_energy) {
 
-  // Form 'subset' from {a} in 'basis', if:
-  //    a _is_ in subset_string AND
-  //    a _is not_ in exclude_string
+  // Form 'subset' from {a} in 'basis', if a _is_ in subset_string
 
   std::vector<DiracSpinor> subset;
   const auto nmaxk_list = AtomData::n_kappa_list(subset_string);

@@ -1,5 +1,5 @@
 #include "BSplineBasis.hpp"
-#include "DiracOperator/include.hpp" //for Drake-Gordon
+#include "DiracOperator/include.hpp" //for Drake-Goldman
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
@@ -14,6 +14,7 @@
 #include <algorithm>
 #include <cassert>
 #include <iostream>
+#include <limits>
 #include <string>
 #include <utility>
 
@@ -81,6 +82,19 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
     std::cout << "Using " << parseSplineType(basis_type) << " type splines.\n";
   }
 
+  // Negative-energy states are only formed for kappas that are also in states
+  for (const auto &nk_positron : nklst_positron) {
+    const auto kappa_in_states =
+      std::any_of(nklst.cbegin(), nklst.cend(), [&nk_positron](const auto &nk) {
+        return nk.k == nk_positron.k;
+      });
+    if (!kappa_in_states) {
+      std::cout << "Warning: No -ve energy states formed for "
+                << DiracSpinor::shortSymbol(0, nk_positron.k)
+                << ", since not included in electron states\n";
+    }
+  }
+
   for (const auto &nk : nklst) {
 
     const auto max_n = nk.n;
@@ -98,10 +112,8 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
 
     const auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
     (void)rmax_l; // don't warn on unused rmax_l
-    auto r0_eff = std::max(rmin_l, r0_spl);
-
-    if (r0_eff == 0.0)
-      r0_eff = wf.grid().r(0);
+    // rmin_l is a grid point, so r0_eff > 0
+    const auto r0_eff = std::max(rmin_l, r0_spl);
 
     const auto [spl_basis, d_basis] =
       form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl, wf.grid_sptr(),
@@ -123,6 +135,17 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
   if (positronQ) {
     for (const auto &Fp : basis_positron)
       basis.push_back(Fp);
+  }
+
+  // nk_index keys the Coulomb/MBPT tables, and must fit in DiracSpinor::Index.
+  // Large n arises for negative-energy states, labelled after the electrons
+  const auto max_nk_index = std::numeric_limits<DiracSpinor::Index>::max();
+  for (const auto &Fn : basis) {
+    if (Angular::nk_to_index(Fn.n(), Fn.kappa()) > max_nk_index) {
+      std::cout << "Warning: n too large for nk_index (" << Fn.shortSymbol()
+                << "): reduce number of splines or -ve energy states\n";
+      break;
+    }
   }
 
   return basis;
@@ -148,7 +171,7 @@ double check(const std::vector<DiracSpinor> &basis,
     if (pFbc == basis.cend())
       continue;
     const auto FcFb = Fc * (*pFbc);
-    if (Fc == *pFbc && FcFb < 0.0) {
+    if (FcFb < 0.0) {
       // basis state has wrong sign!
       wrong_sign_list += Fc.shortSymbol() + ",";
     }
@@ -478,7 +501,7 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
   // Drake-Goldman sum rules: w^n |<a|r|b>|^2  (n=0,1,2)
   // Only up to lmax-1, since need to have states with l'=l+1
 
-  assert(nDG < 3); // better way?
+  assert(nDG >= 0 && nDG < 3); // better way?
 
   auto rhat = DiracOperator::E1(gr);          // vector E1
   auto r2hat = DiracOperator::RadialF(gr, 2); // scalar r^2
@@ -496,7 +519,11 @@ std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
   for (auto ki = 0ul; ki <= max_ki; ki++) {
     const auto kappa = Angular::kindex_to_kappa(ki);
     auto find_ka = [=](const auto &Fn) { return Fn.kappa() == kappa; };
-    const auto &Fa = *std::find_if(basis.begin(), basis.end(), find_ka);
+    const auto pFa = std::find_if(basis.begin(), basis.end(), find_ka);
+    // kappas missing from the basis (e.g., "20s5d" has no p states) skipped
+    if (pFa == basis.end())
+      continue;
+    const auto &Fa = *pFa;
     // need to have l_n = la+1 terms, or sum doesn't work:
     if (Fa.l() == max_l)
       continue;

@@ -287,14 +287,15 @@ Wavefunction ampsci(const IO::InputBlock &input) {
      {"order", "order of splines ~7-9 [7]"},
      {"r0", "minimum cavity radius (first internal knot) [1.0e-4]"},
      {"r0_eps", "Select cavity radius r0 for each l by position "
-                "where |psi(r0)/psi_max| falls below r0_eps [0.0]"},
+                "where core density rho_l(r0)/rho_max falls below r0_eps "
+                "[0.0]"},
      {"rmax", "maximum cavity radius [40.0]"},
      {"states", "states to keep (e.g., 30spdf20ghi)"},
      {"orthogonalise", "Force orthogonal to core [false]"},
      {"print", "Print all spline energies (for testing) [false]"},
      {"positron",
       "Basis string for negative energy states (same format as states). []"},
-     {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
+     {"type", "Derevianko (DKB), Johnson, or Fischer [Derevianko]"}});
 
   const auto basis_input = input.getBlock("Basis");
   if (basis_input) {
@@ -535,13 +536,13 @@ Wavefunction ampsci(const IO::InputBlock &input) {
      {"order", "order of splines ~7-9"},
      {"r0", "minimum cavity radius"},
      {"r0_eps", "Select cavity radius r0 for each l by position "
-                "where |psi(r0)/psi_max| falls below r0_eps"},
+                "where core density rho_l(r0)/rho_max falls below r0_eps"},
      {"rmax", "maximum cavity radius"},
      {"states", "states to keep (e.g., 30spdf20ghi)"},
      {"orthogonalise", "Force orthogonal to valence [false]"},
      {"print", "Print all spline energies (for testing)"},
      {"positron", "Basis string (as states) to include -ve energy states"},
-     {"type", "Derevianko (DKB) or Johnson [Derevianko]"}});
+     {"type", "Derevianko (DKB), Johnson, or Fischer [Derevianko]"}});
 
   const auto spectrum_in = input.getBlock("Spectrum");
   if (spectrum_in && !spectrum_in->has_option("help")) {

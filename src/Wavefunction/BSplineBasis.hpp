@@ -169,7 +169,9 @@ struct Parameters {
     -2mc^2 are kept. They are labelled with n continuing on from the
     positive-energy solutions (so {n,kappa} stays unique), are flagged
     (DiracSpinor::negativeEnergyStateQ), and are appended to the end of the
-    basis std::vector. Empty string discards them.
+    basis std::vector. Empty string discards them. Must be a subset of states.
+    A warning is also printed if any label is too large for DiracSpinor::nk_index (n > 256;
+    e.g., many splines with many negative-energy states kept).
   - type: B-spline construction method (see SplineType)
   - verbose: print construction details to screen
   - orthogonalise: not used here (see Wavefunction::formBasis)
@@ -405,11 +407,8 @@ std::vector<double> sumrule_TKR(const std::vector<DiracSpinor> &basis,
   @param alpha  Fine-structure constant
   @param print  Print sum, exact value, and difference, for each kappa
 
-  @return Sum minus exact value, for each kappa included.
-
-  @warning Every kappa up to the largest in @p basis must be present (e.g.,
-           not "20s5d", which has no p states): a missing kappa dereferences
-           an end iterator.
+  @return Sum minus exact value, for each kappa included. Kappas not present
+          in @p basis (e.g., p states for "20s5d") are skipped.
 */
 std::vector<double> sumrule_DG(int nDG, const std::vector<DiracSpinor> &basis,
                                const Grid &gr, double alpha, bool print);

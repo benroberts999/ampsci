@@ -473,7 +473,7 @@ void sumRules(const std::vector<DiracSpinor> &basis, const Grid &grid,
               double alpha) {
   std::cout << "\nTKR sum rule:\n";
   SplineBasis::sumrule_TKR(basis, grid.r(), true);
-  std::cout << "\nDrake-Gordon sum rule:\n";
+  std::cout << "\nDrake-Goldman sum rule:\n";
   for (int nDG = 0; nDG < 3; ++nDG)
     SplineBasis::sumrule_DG(nDG, basis, grid, alpha, true);
 }

@@ -49,8 +49,8 @@ Basis{
   order;
   // minimum cavity radius (first internal knot) [1.0e-4]
   r0;
-  // Select cavity radius r0 for each l by position where |psi(r0)/psi_max|
-  // falls below r0_eps [0.0]
+  // Select cavity radius r0 for each l by position where core density
+  // rho_l(r0)/rho_max falls below r0_eps [0.0]
   r0_eps;
   // maximum cavity radius [40.0]
   rmax;
@@ -62,7 +62,7 @@ Basis{
   print;
   // Include -ve energy states [false]]
   positron;
-  // Derevianko (DKB) or Johnson [Derevianko]
+  // Derevianko (DKB), Johnson, or Fischer [Derevianko]
   type;
 }
 ```

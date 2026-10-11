@@ -41,6 +41,16 @@ class Grid;
     - n has no setter; kappa only via set_new_kappa(). Avoids angular errors.
     - non-const accessors (e.g., en(), f(), max_pt()) return mutable
       references to variables
+
+  \par Continuum orbitals
+  
+  @note 
+  Continuum (and other unlabelled) orbitals have n = 0. Since they are
+  identified only by kappa, all n = 0 orbitals with the same kappa compare
+  equal (operator==), and their nk_index() coincides with that of a bound
+  state (see nk_index). They must not be mixed with each other, or with
+  bound states, in anything that identifies orbitals by {n, kappa}.
+  This might need to be updated later.
 */
 class DiracSpinor {
 
@@ -115,7 +125,21 @@ public:
   int parity() const { return m_parity; }
   //! kappa index (see Angular::kappa_to_kindex)
   std::size_t k_index() const { return m_kappa_index; }
-  //! (n,kappa) index (see Angular::nk_to_index)
+  /*!
+    @brief (n,kappa) index
+
+    @details
+    See @ref Angular::nk_to_index.
+
+    @warning Unique only for 1 <= n <= 256: larger n overflows Index (not
+    checked here; see @ref SplineBasis::form_basis and @ref Angular::nk_to_index). 
+    
+    @note 
+    For n = 0 (continuum orbitals), 
+    it coincides with a bound-state index (that of n = 2: e.g.,
+    continuum s and 2s, p_1/2 and 2p_1/2, d_3/2 and 3s), so continuum and
+    bound states must not share a table keyed by this index.
+  */
   Index nk_index() const { return m_nkappa_index; }
   //! Single-electron term symbol (e.g., 6s_1/2). Gnuplot=true => 6s_{1/2}
   std::string symbol(bool gnuplot = false) const;
@@ -184,7 +208,7 @@ public:
     @deprecated Candidate for removal
   */
   double r0() const;
-  //! rinf = r[max_pt - 1], the last point of the spinor (in atomic units)
+  //! rinf = r[max_pt - 1], the last point of the spinor (au); 0 if max_pt = 0
   double rinf() const;
 
   //! Number of iterations until energy convergence (for latest routine only)
@@ -237,7 +261,7 @@ public:
   */
   int num_nodes(double rel_cut = 1.0e-3) const;
 
-  //! Returns [f[p0]/f_max , f[pinf-1]/f_max] - for tests
+  //! Returns [f[p0]/f_max , f[pinf-1]/f_max] - for tests; {0,0} if f = 0
   std::pair<double, double> r0pinfratio() const;
 
   /*!
@@ -259,15 +283,21 @@ public:
   //! Returns radial integral (Fa,Fb) = Int(fa*fb + ga*gb)
   friend double operator*(const DiracSpinor &Fa, const DiracSpinor &Fb);
 
-  //! Adds rhs to this, in place; must have same kappa
+  /*!
+    @brief Adds rhs to this, in place (should generally have same kappa, but forced)
+
+    @details
+    Kappa is not checked: the result keeps n and kappa of `this`. Range
+    [min_pt, max_pt) is extended to include that of @p rhs.
+  */
   DiracSpinor &operator+=(const DiracSpinor &rhs);
-  //! Subtracts rhs from this, in place; must have same kappa
+  //! Subtracts rhs from this, in place; should generally have same kappa (see +=)
   DiracSpinor &operator-=(const DiracSpinor &rhs);
-  //! Adds x*rhs to this, in place (no temporary); must have same kappa
+  //! Adds x*rhs to this, in place (no temporary); should generally have same kappa
   DiracSpinor &add_scaled(double x, const DiracSpinor &rhs);
-  //! Returns lhs + rhs; must have same kappa
+  //! Returns lhs + rhs; should generally have same kappa (see +=)
   friend DiracSpinor operator+(DiracSpinor lhs, const DiracSpinor &rhs);
-  //! Returns lhs - rhs; must have same kappa
+  //! Returns lhs - rhs; should generally have same kappa (see +=)
   friend DiracSpinor operator-(DiracSpinor lhs, const DiracSpinor &rhs);
 
   //! Scales this by scalar x, in place
@@ -282,7 +312,12 @@ public:
   //! Returns Fa multiplied by function v(r), pointwise
   friend DiracSpinor operator*(const std::vector<double> &v, DiracSpinor Fa);
 
-  //! Equality: true if {n,kappa} match
+  /*!
+    @brief Equality: true if {n,kappa} match
+
+    @note Compares labels only: any two continuum orbitals (n = 0) with the
+    same kappa compare equal, whatever their energy.
+  */
   friend bool operator==(const DiracSpinor &lhs, const DiracSpinor &rhs);
   //! Inequality: true if {n,kappa} differ
   friend bool operator!=(const DiracSpinor &lhs, const DiracSpinor &rhs);

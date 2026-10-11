@@ -225,7 +225,7 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][basis][unit]") {
       REQUIRE(tkr < eps_tkr);
     }
 
-    fmt::print("\n{}: Drake-Gordon sum rule, including positron states:\n",
+    fmt::print("\n{}: Drake-Goldman sum rule, including positron states:\n",
                tname);
     const auto eps_dg = type == ST::Derevianko ? 1.0e-7 :
                         type == ST::Johnson    ? 1.0e-5 :

@@ -126,9 +126,11 @@ void Wavefunction::set_HF(HF::Method method, const std::string &in_core,
   auto core = determineCore(in_core);
   const auto qed = std::nullopt; // we add QED (optionally) later - to allow for
                                  // QED into valence, but not core
-  m_HF =
-    HF::HartreeFock(rgrid, m_vnuc, std::move(core), qed, m_alpha, method,
-                    breit_params, eps_HF, Parametric::Type::Green, 0.0, 0.0);
+  // Breit can only be included in the Hartree-Fock method
+  const auto breit =
+    method == HF::Method::HartreeFock ? breit_params : std::nullopt;
+  m_HF = HF::HartreeFock(rgrid, m_vnuc, std::move(core), qed, m_alpha, method,
+                         breit, eps_HF, Parametric::Type::Green, 0.0, 0.0);
 
   // Move this into HF?
   if (print) {
@@ -272,7 +274,7 @@ bool Wavefunction::isInCore(int n, int k) const {
 }
 //------------------------------------------------------------------------------
 bool Wavefunction::isInValence(int n, int k) const {
-  const auto find_nk = [n, k](const auto Fa) {
+  const auto find_nk = [n, k](const auto &Fa) {
     return Fa.n() == n && Fa.kappa() == k;
   };
   const auto Fnk = std::find_if(cbegin(m_valence), cend(m_valence), find_nk);
@@ -293,7 +295,7 @@ bool Wavefunction::isInAboveFermiCore(int n, int k) const {
 
 //==============================================================================
 const DiracSpinor *Wavefunction::getState(int n, int k) const {
-  const auto find_nk = [n, k](const auto Fa) {
+  const auto find_nk = [n, k](const auto &Fa) {
     return Fa.n() == n && Fa.kappa() == k;
   };
   // Try to find in valence first:
@@ -531,6 +533,14 @@ void Wavefunction::formSigma(
   if (core().empty() || !m_HF)
     return;
 
+  // Brueckner orbitals (HF::solve_valence) include Sigma only for Hartree-Fock
+  if (m_HF->method() != HF::Method::HartreeFock) {
+    fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
+    std::cout << "Correlation potential requires Hartree-Fock method. Sigma "
+                 "will not be included.\n";
+    return;
+  }
+
   std::cout << "\n";
   IO::print_line('*', 50);
   std::cout << "Including correlations:\n" << std::flush;
@@ -633,7 +643,8 @@ void Wavefunction::formSigma(
 //==============================================================================
 void Wavefunction::hartreeFockBrueckner(const bool print) {
   if (!m_HF) {
-    std::cerr << "WARNING 62: Cant call solve_valence before solve_core\n";
+    std::cerr
+      << "WARNING 62: Cant call hartreeFockBrueckner before solve_core\n";
     return;
   }
   if (m_Sigma)
@@ -644,6 +655,10 @@ void Wavefunction::hartreeFockBrueckner(const bool print) {
 void Wavefunction::fitSigma_hfBrueckner(const std::string &,
                                         const std::vector<double> &fit_energies,
                                         bool separate_lambda) {
+  if (!m_Sigma || !m_HF) {
+    std::cerr << "WARNING: Cant fit Sigma: correlation potential not formed\n";
+    return;
+  }
   std::cout << "Fitting Sigma for lowest valence states:\n" << std::flush;
 
   const auto max_its = 30;
@@ -659,6 +674,12 @@ void Wavefunction::fitSigma_hfBrueckner(const std::string &,
     const auto &Fv = m_valence[i];
     const auto e_exp = -std::abs(fit_energies[i]);
 
+    // Scaling only applies to a Sigma formed for this state (same kappa and
+    // n). A state using the Sigma of a lower n (e.g., each_valence = false)
+    // cannot be fitted: its energy is that with the lower-n Sigma as is
+    const auto *Sigma_v = m_Sigma->get(Fv.kappa(), Fv.n());
+    const bool has_own_Sigma = Sigma_v != nullptr && Sigma_v->n == Fv.n();
+
     const double en_0 = Fv.en(); // HF value
     auto e_Sig1 = 0.0;
     auto lambda = 1.0;
@@ -673,7 +694,7 @@ void Wavefunction::fitSigma_hfBrueckner(const std::string &,
       if (its == 0)
         e_Sig1 = en_l;
       eps = std::abs((e_exp - en_l) / e_exp);
-      if (eps < eps_targ || its == max_its)
+      if (eps < eps_targ || its == max_its || !has_own_Sigma)
         break;
       const auto r = (e_exp - en_l) / (en_l - en_0);
       const auto new_lambda = lambda * (1.0 + a_damp * r);
@@ -683,10 +704,13 @@ void Wavefunction::fitSigma_hfBrueckner(const std::string &,
            en_0 * PhysConst::Hartree_invcm, e_Sig1 * PhysConst::Hartree_invcm,
            e_exp * PhysConst::Hartree_invcm);
     printf("%.0e (%2i); lambda = %.4f", eps, its, lambda);
-    if (eps > 1.0e-6)
+    if (!has_own_Sigma) {
+      std::cout << " (not fitted)";
+    } else if (eps > 1.0e-5) {
+      std::cout << " *****";
+    } else if (eps > 1.0e-6) {
       std::cout << " **";
-    if (eps > 1.0e-5)
-      std::cout << "***";
+    }
     std::cout << "\n";
   }
   std::cout << "\n";
@@ -751,13 +775,17 @@ std::string Wavefunction::identity() const {
                          m_HF && m_HF->vBreit()           ? "b" :
                          vrad()                           ? "q" :
                                                             "";
+  // 6 significant figures resolves any variation above the 1e-5 cut-off
   const std::string va2 =
-    dalpha2() > 1.0e-5 ? fmt::format("_{:1.4g}", 1.0 + dalpha2()) : "";
+    std::abs(dalpha2()) > 1.0e-5 ? fmt::format("_{:.6g}", 1.0 + dalpha2()) : "";
   return atomicSymbol() + std::to_string(Zion()) + bq + va2 + lab;
 }
 
 //==============================================================================
 double Wavefunction::Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+  // H is a scalar (rank-0) operator
+  if (Fa.kappa() != Fb.kappa())
+    return 0.0;
 
   auto H0 = H0ab(Fa, Fb);
 
@@ -954,6 +982,9 @@ void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
                    "(keV)\n";
     }
     for (auto &Fnk : this->valence()) {
+      // Electron valence states are not re-solved with the exotic mass
+      if (!Fnk.exotic())
+        continue;
       DiracODE::boundState(Fnk, Fnk.en(), this->vlocal(), this->Hmag(),
                            this->alpha(), 1.0e-14, nullptr, nullptr,
                            double(this->Znuc()), mass);
@@ -1006,7 +1037,7 @@ nlohmann::json Wavefunction::output_to_json(const std::string &out_name) {
                   "quotes in real JSON)"},
       {"orbital_fields",
        {{"n", "Principal quantum number"},
-        {"kappa", "Dirac angular quantum number (κ)"},
+        {"kappa", "Dirac angular quantum number"},
         {"2j", "Twice the total angular momentum (integer)"},
         {"j", "Total angular momentum (j = 2j / 2)"},
         {"l", "Orbital angular momentum"},

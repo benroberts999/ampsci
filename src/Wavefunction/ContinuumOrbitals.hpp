@@ -69,12 +69,12 @@ public:
                           local average (see DiracODE::averageTail); done
                           after exchange, before orthogonalisation
 
-    @return 0 (always).
+    @return 0 on success; 1 if there is no Hartree-Fock object (constructed
+            from a Wavefunction with no HF): prints a warning, and no
+            orbitals are solved.
 
     @note @p force_rescale and @p subtract_self only apply for the
           HartreeFock, Hartree, and ApproxHF methods.
-    @warning Requires a Hartree-Fock object: dereferences a null pointer if
-             constructed from a Wavefunction with no HF.
   */
   int solveContinuumHF(double ec, int min_l, int max_l,
                        const DiracSpinor *psi = nullptr,

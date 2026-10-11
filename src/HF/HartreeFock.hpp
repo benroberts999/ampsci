@@ -182,7 +182,7 @@ public:
   EpsIts hf_valence_Green(DiracSpinor &Fa,
                           const MBPT::CorrelationPotential *const Sigma) const;
 
-  //! Calculates the HF core energy (not including Breit?)
+  //! Calculates the HF core energy (including Breit, if present)
   double calculateCoreEnergy() const;
 
   //! Calculates exchange term Vex*Fa

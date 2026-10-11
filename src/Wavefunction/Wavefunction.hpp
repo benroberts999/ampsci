@@ -37,6 +37,13 @@ struct Parameters;
     - var_alpha = \f$\lambda\f$, \f$\alpha = \lambda\alpha_0\f$
     - run_label:  Optional label for output identity - for distinguishing
       outputs with different parameters
+
+  \par Copying:
+  A copy has its own HF object (and core), but its Sigma (if formed) still
+  refers to the HF object of the original (see copySigma). Applying Sigma
+  does not use the HF object, but forming or writing Sigma does: these then
+  use the original core (e.g., without any changes to the copy's HF), and the
+  original must outlive the copy.
 */
 class Wavefunction {
 
@@ -274,13 +281,9 @@ public:
     @details
     Used as the base name for output and cache files (Sigma, Qk, CI, etc.).
     Form: symbol + Zion + Breit/QED flag ("b", "q", or "bq") + alpha
-    variation ("_x", with x = (alpha/alpha_0)^2 to 4 significant figures, if
-    dalpha2() > 1e-5) + "_run_label" (if not empty). E.g., "Cs1",
-    "Cs1bq_label".
-
-    @warning Alpha variation is only labelled for alpha > alpha_0: runs with
-    alpha < alpha_0 get the same identity (and so read the same cache files)
-    as alpha = alpha_0.
+    variation ("_x", with x = (alpha/alpha_0)^2 to 6 significant figures, if
+    |dalpha2()| > 1e-5) + "_run_label" (if not empty). E.g., "Cs1",
+    "Cs1bq_label", "Cs1_1.01".
   */
   std::string identity() const;
 
@@ -324,12 +327,9 @@ public:
 
     @details
     Sum of core orbital energies (weighted by occupation), minus the
-    double-counted Coulomb (direct + exchange) interaction. QED (if included
-    in the core) enters through the orbital energies. Zero if HF is not set.
-
-    @note The double-counting correction is for Coulomb only: Breit (if
-          included) enters only through the orbital energies, without the
-          factor 1/2.
+    double-counted Coulomb (direct + exchange) and Breit (if included)
+    interactions. QED (if included in the core) enters through the orbital
+    energies. Zero if HF is not set.
   */
   double coreEnergyHF() const;
 
@@ -349,7 +349,7 @@ public:
                          shells after it are in the core, but may also be
                          valence states (see solve_valence)
     @param breit_params  Breit parameters (nullopt: no Breit). HartreeFock
-                         method only: a warning is printed otherwise
+                         method only: ignored (with a warning) otherwise
     @param eps_HF        HF convergence goal (if >= 1, taken as the exponent:
                          10^-eps_HF)
     @param print         Print method details
@@ -399,7 +399,7 @@ public:
     @p screening (and a non-empty core), the core HF equations are iterated
     including the direct potential of the first exotic state; the HF object
     (core) is then replaced by the screened one (Vnuc itself unchanged), and
-    the valence states are re-solved in the screened potential.
+    the exotic states are re-solved in the screened potential.
 
     Note: The exotic states are just added to the valence list, so they can
     be used more simply with all the modules. However, be careful; for
@@ -410,9 +410,9 @@ public:
     @param screening      Include screening (core and exotic states)
     @param print          Print energies and screening iterations
 
-    @warning With @p screening, all valence states are re-solved with the
-             exotic mass, including any (electron) valence states already
-             present: valence should be empty before calling this.
+    @note With @p screening, any (electron) valence states already present
+          are not re-solved, so are no longer consistent with the screened
+          core.
   */
   void solve_exotic(const std::string &in_exotic_str,
                     double mass = PhysConst::m_muon, bool screening = true,
@@ -426,8 +426,7 @@ public:
     Does nothing if Sigma has not been formed; prints a warning and does
     nothing if HF is not set.
 
-    @note Sigma is only included for the HartreeFock method (otherwise the
-          valence states are re-solved in the local potential).
+    @note Sigma is only formed for the HartreeFock method (see formSigma).
   */
   void hartreeFockBrueckner(const bool print = true);
 
@@ -448,8 +447,9 @@ public:
     @param separate_lambda  Keep lambdas of fine-structure pairs separate
 
     @note Each fitted state needs its own Sigma (same kappa and n; see
-          each_valence in formSigma), otherwise its fit has no effect.
-    @warning Sigma must have been formed (not checked).
+          each_valence in formSigma). Otherwise it is not fitted (lambda = 1
+          is printed): its energy is that with the lower-n Sigma.
+    @note Prints a warning and does nothing if Sigma has not been formed.
   */
   void fitSigma_hfBrueckner(const std::string &valence_list,
                             const std::vector<double> &fit_energies,
@@ -489,7 +489,8 @@ public:
     it exists, and forms it for the valence states (see @p each_valence,
     @p ek). Then applies @p lambdas, optionally prints the energy shifts, and
     writes Sigma to file. Requires the basis (formBasis) for the Goldstone
-    sums. Does nothing if the core is empty or HF is not set.
+    sums. Does nothing if the core is empty or HF is not set. Requires the
+    HartreeFock method: prints a warning and does nothing otherwise.
 
     @param nmin_core           Minimum n of core states included in
                                polarisation
@@ -627,11 +628,7 @@ public:
 
     @details
     H0ab, plus HF exchange (if HF is non-local), Sigma (if formed, including
-    lambda), and Breit (if included in HF).
-
-    @warning Only meaningful for @p Fa and @p Fb of the same kappa: H0ab is
-             then zero, but the other terms are still added (the DiracSpinor
-             product does not check kappa).
+    lambda), and Breit (if included in HF). Zero if kappa differs.
   */
   double Hab(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 

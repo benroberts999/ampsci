@@ -47,6 +47,13 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
                                         bool force_orthog_Fi,
                                         bool average_tail) {
 
+  if (p_hf == nullptr) {
+    fmt2::styled_print(fg(fmt::color::orange), "\nWARNING: ");
+    fmt::print("ContinuumOrbitals::solveContinuumHF requires Hartree-Fock: "
+               "no continuum orbitals solved\n");
+    return 1;
+  }
+
   // include Hartree here? Probably shouldn't, since we do "core Hartree"
   const auto self_consistant = (p_hf->method() == HF::Method::HartreeFock ||
                                 p_hf->method() == HF::Method::Hartree ||
@@ -97,7 +104,7 @@ int ContinuumOrbitals::solveContinuumHF(double ec, int min_l, int max_l,
     // solve initial, without exchange term
     DiracODE::solveContinuum(Fc, ec, vc, m_alpha);
     // Then, include exchange correction:
-    if (p_hf != nullptr && !p_hf->is_localQ()) {
+    if (!p_hf->is_localQ()) {
       IncludeExchange(Fc, Fi, force_orthog_Fi, vc);
     }
     // Optionally, fill the unresolved (zeroed) tail with local average;
@@ -207,7 +214,6 @@ int ContinuumOrbitals::solveContinuumZeff(double ec, int min_l, int max_l,
   } // kappa
 
   // Forcing orthogonality between continuum states and current core state
-  // (have to do this _after_ orthog_core, since that slightly breaks this)
   if (force_orthog) {
     for (auto &Fc : orbitals) {
       if (Fi != nullptr && Fi->kappa() == Fc.kappa()) {
@@ -243,7 +249,6 @@ int ContinuumOrbitals::solveContinuumZeffAnalytic(double ec, int min_l,
   } // kappa
 
   // Forcing orthogonality between continuum states and current core state
-  // (have to do this _after_ orthog_core, since that slightly breaks this)
   if (force_orthog) {
     for (auto &Fc : orbitals) {
       if (Fi != nullptr && Fi->kappa() == Fc.kappa()) {
