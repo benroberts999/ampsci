@@ -2,22 +2,6 @@
 #include "Physics/NuclearData.hpp"
 #include <vector>
 
-// Auto-generated file, using data from https://www-nds.iaea.org/
-
-// Generated using compile_nuclear_data.py
-// Available from: https://github.com/benroberts999/atomic_tools
-// Generated date: 2024-05-10 16:45:57
-
-// Nuclear rms radii (in fm) taken from:
-// https://www-nds.iaea.org/nuclearmoments/magn_mom_recomm.csv
-
-// Nuclear spin, parity, magnetic mu moments (in nuclear magnetons) from:
-// https://www-nds.iaea.org/radii/charge_radii.csv
-
-// And,
-// Nuclear spin, parity, electric Q moments (in barns) from:
-// https://www-nds.iaea.org/nuclearmoments/elec_mom_recomm.csv
-
 namespace Nuclear {
 
 //! Table of nuclear isotope data: Z, A, r_rms/fm, I, pi, mu/mu_N, Q/b
@@ -26,6 +10,23 @@ namespace Nuclear {
  - Nuclear Data Service: https://www-nds.iaea.org/.
  - Radii: https://www-nds.iaea.org/radii/ (Marinova, Angeli).
  - Moments: https://www-nds.iaea.org/nuclearmoments/.
+
+  Auto-generated file, using data from https://www-nds.iaea.org/
+
+  Generated using compile_nuclear_data.py
+  Available from: https://github.com/benroberts999/atomic_tools
+  Generated date: 2024-05-10 16:45:57
+
+  Nuclear rms radii (in fm) taken from:
+  https://www-nds.iaea.org/nuclearmoments/magn_mom_recomm.csv
+
+  Nuclear spin, parity, magnetic mu moments (in nuclear magnetons) from:
+  https://www-nds.iaea.org/radii/charge_radii.csv
+
+  And,
+  Nuclear spin, parity, electric Q moments (in barns) from:
+  https://www-nds.iaea.org/nuclearmoments/elec_mom_recomm.csv
+
 */
 static const std::vector<Isotope> NuclearDataTable = {
   // {Z, A, rrms, I, pi, mu, Q}

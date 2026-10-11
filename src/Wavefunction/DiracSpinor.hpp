@@ -26,30 +26,36 @@ class Grid;
   \f]
 
   \par  Construction.
-  Takes in constant n and k=kappa values + grid
+  Takes in n and k=kappa values + grid
     - A shared pointer to the Grid is stored (to avoid many copies of Grid)
 
   \par Operator Overloads
-    - Intuative operator overloads are provided (Fa, Fb are DiracSpinors):
+    - Intuitive operator overloads are provided (Fa, Fb are DiracSpinors):
     - v * Fa, where v is a double or vector works the obvious way
     - Fa * Fb = <Fa|Fb>
     - Fa == Fb returns true if {na,ka}=={nb,kb}
     - Fa > Fb : first compares n, and then kappa (via kappa_index)
     - Fa +/- Fb : Adds/subtracts the two spinors (and updates p0/pinf)
     - You can make copies: auto Fnew = Fa
-    - And you can re-asign: Fb = Fa (provided Fa and Fb have same n and kappa!)
-    - n and kappa are constant, cannot be changed. Avoids angular errors.
-    - all 'set_' functions return mutable references to variables
+    - And you can re-assign: Fb = Fa (copies all, including n and kappa)
+    - n has no setter; kappa only via set_new_kappa(). Avoids angular errors.
+    - non-const accessors (e.g., en(), f(), max_pt()) return mutable
+      references to variables
 */
 class DiracSpinor {
 
 public:
   /*!
-    @brief Constructor: Requires n (PQN), kappa (Dirac QN), and grid (shared
-    pointer, as it's a shared resource)
-    
+    @brief Constructor: Requires n (PQN), kappa (Dirac QN), and grid.
+
     @details
-    negative_energy marks a negative-energy (Dirac sea) solution.
+    Grid is a shared pointer, as it's a shared resource. f and g are
+    initialised to zero over the full grid (max_pt() = grid size).
+
+    @param in_n             Principal quantum number
+    @param in_kappa         Dirac quantum number, kappa
+    @param in_rgrid         Radial grid (shared resource)
+    @param negative_energy  Marks a negative-energy (Dirac sea) solution
   */
   DiracSpinor(int in_n, int in_kappa, std::shared_ptr<const Grid> in_rgrid,
               bool negative_energy = false);
@@ -107,9 +113,9 @@ public:
   int twojp1() const { return m_twoj + 1; }
   //! (-1)^l, returns +/- 1
   int parity() const { return m_parity; }
-  //! kappa index (see AtomData)
+  //! kappa index (see Angular::kappa_to_kindex)
   std::size_t k_index() const { return m_kappa_index; }
-  //! (n,kappa) index (see AtomData)
+  //! (n,kappa) index (see Angular::nk_to_index)
   Index nk_index() const { return m_nkappa_index; }
   //! Single-electron term symbol (e.g., 6s_1/2). Gnuplot=true => 6s_{1/2}
   std::string symbol(bool gnuplot = false) const;
@@ -121,17 +127,25 @@ public:
   //! Checks if spinor is for "exotic" lepton, or regular electron
   bool exotic() const { return m_exotic; }
 
-  //! Returns true if this is a negative-energy (Dirac sea) state. Set at
-  //! construction (by the basis builder); independent of alpha and mass.
+  /*!
+    @brief Returns true if this is a negative-energy (Dirac sea) state.
+
+    @details
+    Set at construction (by the basis builder); independent of alpha and mass.
+  */
   bool negativeEnergyStateQ() const { return m_negative_energy; }
 
   //! Changes 'kappa' angular quantum number. Use with caution!
   void set_new_kappa(int new_kappa);
 
-  //! Resturns a const reference to the radial grid
+  //! Returns a const reference to the radial grid
   const Grid &grid() const { return *m_rgrid; };
-  //! Resturns copy of shared_ptr to grid [shared resource] - used when we want
-  //! to construct a new DiracSpinor that shares this grid
+  /*!
+    @brief Returns copy of shared_ptr to grid [shared resource].
+
+    @details
+    Used when we want to construct a new DiracSpinor that shares this grid.
+  */
   std::shared_ptr<const Grid> grid_sptr() const { return m_rgrid; };
 
   //! Single-particle energy, not including rest energy
@@ -154,6 +168,7 @@ public:
 
   /*!
     @brief First non-zero point (index for f[i])
+
     @deprecated Candidate for removal
   */
   auto min_pt() const { return m_p0; }
@@ -165,10 +180,11 @@ public:
 
   /*!
     @brief r0 = r[min_pt] (in atomic units)
+
     @deprecated Candidate for removal
   */
   double r0() const;
-  //! rinf = r[max_pt]
+  //! rinf = r[max_pt - 1], the last point of the spinor (in atomic units)
   double rinf() const;
 
   //! Number of iterations until energy convergence (for latest routine only)
@@ -185,7 +201,13 @@ public:
 
   //! Scales DiracSpinor (f and g) by constant
   const DiracSpinor &scale(const double factor);
-  //! Scales DiracSpinor (f and g) by function of r
+  /*!
+    @brief Scales DiracSpinor (f and g) by function of r
+
+    @details
+    Pointwise, over [min_pt, max_pt). Points beyond the end of @p v (up to
+    max_pt) are set to zero.
+  */
   const DiracSpinor &scale(const std::vector<double> &v);
   //! By default normalises to 1, but can normalise to other number.
   void normalise(double norm_to = 1.0);
@@ -197,27 +219,38 @@ public:
   //! Returns the norm^2, defined: Norm2 = <a|a>
   double norm2() const;
 
-  /*! 
-  @brief
-    Number of nodes (sign changes) in f(r); should be n-l-1 for bound states
-  
-  @details 
+  /*!
+    @brief Number of nodes (sign changes) in f(r).
+
+    @details
+    Should be n-l-1 for bound states.
+
     Only counts out to the last point where |f| >= rel_cut*max|f|,
     so that small-amplitude sign changes in the tail (e.g., the
     exchange-dominated tail of Hartree-Fock orbitals), which are not physical
     nodes, are not counted. Likewise, sign changes before |f| first reaches
     1e-10*max|f| (near the nucleus, where high-l orbitals are negligible) are
-    not counted. Returns -1 if f is zero or not finite (failed solution).
+    not counted.
+
+    @param rel_cut  Relative amplitude cut-off for the tail (see above)
+    @return Number of nodes; -1 if f is zero or not finite (failed solution).
   */
   int num_nodes(double rel_cut = 1.0e-3) const;
 
-  //! Returns [f[p0]/f_max , f[pinf]/f_max] - for tests
+  //! Returns [f[p0]/f_max , f[pinf-1]/f_max] - for tests
   std::pair<double, double> r0pinfratio() const;
 
-  //! rho(r) = sum_m |Psi^2|(r) = (2j+1) * x_occ * |F^2|(r)
+  /*!
+    @brief Radial density: rho(r) = (2j+1) * x_occ * |F^2|(r)
+
+    @details
+    \f$ \rho(r) = 4\pi r^2 \, x_{\rm occ} \sum_m |\psi_{n\kappa m}|^2
+    = (2j+1) \, x_{\rm occ} \, (f^2 + g^2) \f$, with x_occ = occ_frac().
+    Integrates (over r) to the number of electrons, for a normalised orbital.
+  */
   std::vector<double> rho() const;
 
-  //! Number of occupied electrons: (2j+1)*occ_frac
+  //! Number of occupied electrons: (2j+1)*occ_frac, rounded to an integer
   int num_electrons() const;
 
 public:
@@ -290,19 +323,38 @@ public:
 
   // Static (helper) functions:
 
-  //! Returns worst |<a|b>| (or |<a|b>-1| for a=b) {val, state_names}
+  //! Returns worst |<a|b>| (or ||<a|b>|-1| for a=b) {val, state_names}
   static std::pair<double, std::string>
   check_ortho(const std::vector<DiracSpinor> &a,
               const std::vector<DiracSpinor> &b);
 
   /*!
     @brief (approximately) OrthoNormalises a set of any orbitals
-    @details Note: only updates orbs, not energies
+
+    @details
+    Symmetric: each orbital is orthogonalised against all others of the same
+    kappa,
+    \f$ \ket{a} \to \ket{a} - \frac{1}{2}\sum_{b \neq a}
+    \ket{b}\langle b|a\rangle \f$ (overlaps from the start of the iteration),
+    then normalised. Half of each overlap is removed from each of the pair,
+    so the overlaps are removed to first order only. Repeated @p num_its
+    times.
+
+    @note Only updates orbs, not energies
   */
   static void orthonormaliseOrbitals(std::vector<DiracSpinor> &orbs,
                                      int num_its = 1);
 
-  //! Forces Fin to be orthogonal to orbs. If Fn (i.e., {n,k}) in in orbs, replaces Fin with that from orbs.
+  /*!
+    @brief Forces Fin to be orthogonal to orbs.
+
+    @details
+    If Fn (i.e., {n,k}) is in orbs, replaces Fin with that from orbs.
+    Otherwise, subtracts the projection of @p Fin onto each orbital in
+    @p orbs with the same kappa (exact only if @p orbs are orthonormal).
+
+    @note Energy is not updated (unless Fin is replaced from @p orbs).
+  */
   [[nodiscard]] static DiracSpinor
   orthogonaliseWrt(const DiracSpinor &Fin,
                    const std::vector<DiracSpinor> &orbs);
@@ -312,7 +364,16 @@ public:
   orthonormaliseWrt(const DiracSpinor &Fin,
                     const std::vector<DiracSpinor> &orbs);
 
-  //! A more correct way to force orthogonality than normal
+  /*!
+    @brief A more correct way to force orthogonality than normal
+
+    @details
+    |this> -> |this> - <this|rhs>|rhs>, only over the range where both
+    spinors are defined: min_pt() and max_pt() of this are unchanged. Does
+    nothing if kappa differs.
+
+    @note Assumes @p rhs is normalised.
+  */
   void orthog(const DiracSpinor &rhs);
 
   //! e.g., 6p_1/2 => 6p-, 6p_3/2 => 6p+
@@ -323,24 +384,33 @@ public:
 
   /*!
     @brief Returns formatted states string (e.g., '7sp5d') given list of orbs
+
     @details
     For the electron states, the number is the maximum n for each l. For the
-    negative-energy (positron) states, it is the number kept for each kappa.
+    negative-energy (positron) states, it is the number kept for each kappa
+    (the larger of the two kappa, for each l).
     By default (both), the two are joined with '+' when negative-energy states
     are present (e.g., '30spd20f+9spdf'), so they are always visible.
   */
   static std::string state_config(const std::vector<DiracSpinor> &orbs,
                                   Branch branch = Branch::both);
 
-  //! Formats a list of numbers (one per l, starting at l=0) into the
-  //! compressed states-string notation, e.g., {30,30,20,20} => '30sp20df'
+  /*!
+    @brief Formats a list of numbers into the compressed states-string notation
+
+    @details
+    One number per l, starting at l=0, e.g., {30,30,20,20} => '30sp20df'.
+    Zero entries are skipped.
+  */
   static std::string config_string(const std::vector<int> &n_per_l);
 
   /*!
     @brief Constructs an exact H-like (pointlike Coulomb) DiracSpinor
+
     @details
     Relativistic Dirac-Coulomb bound orbital for nuclear charge @p zeff (see
     DiracHydrogen).
+
     @note alpha <= 0 gives the non-relativistic (Schrodinger) solution instead:
     f = P_nl, g = 0.
   */
@@ -350,11 +420,15 @@ public:
 
   /*!
     @brief Constructs an exact (Dirac-Coulomb) continuum DiracSpinor
+
     @details
     Energy-normalised relativistic continuum orbital (en > 0; n set to 0).
     Requires FLINT for the relativistic case (see DiracContinuum::available).
+
     @note alpha <= 0 gives the non-relativistic solution instead (f = P_el,
     g = 0), which does not require FLINT.
+    @warning Relativistic case without FLINT: prints a warning and returns
+    NaN (assert fails if NDEBUG is not defined).
   */
   static DiracSpinor exactHlike_cntm(double en, int k,
                                      std::shared_ptr<const Grid> rgrid,
@@ -364,6 +438,7 @@ public:
 
   /*!
     @brief Constructs a basis of H-like (pointlike) DiracSpinors
+
     @param max_l  maximum l (both kappas calculated)
     @param num_ns number of principal quantum numbers per l (not max n)
     @param mass   lepton mass in units of m_e (default 1 = electron)
@@ -375,6 +450,7 @@ public:
 
   /*!
     @brief Constructs a basis of H-like (pointlike) DiracSpinors
+
     @param basis_string e.g., "6sp5d": max n for each kappa; all n down to
                         n_min = l+1 are included
     @param mass         lepton mass in units of m_e (default 1 = electron)
@@ -401,20 +477,21 @@ public:
 
   //! Returns maximum Energy found in {orbs}
   static double max_En(const std::vector<DiracSpinor> &orbs);
-  //! Returns maximum Energy found in {orbs}
+  //! Returns minimum Energy found in {orbs}
   static double min_En(const std::vector<DiracSpinor> &orbs);
 
   /*!
     @brief Splits orbitals into two groups (i.e., core, excited) by energy
+
     @details
-    - The first group contains orbitals with energy < energy
-    - The second group contains orbitals with energy > energy
-    - The first group is also limited to have n >= n_min_core (i.e., exclude
-      deep core states)
-    - The second group is limited to have n <= n_max_excited
+    - The first group contains orbitals with energy <= @p Fermi_energy
+    - The second group contains orbitals with energy > @p Fermi_energy
+    - The first group is also limited to have n >= @p n_min_core (i.e.,
+      exclude deep core states)
+    - The second group is limited to have n <= @p n_max_excited
     - Negative-energy states (if present) all go to the second group
-      (n_max_excited is not applied to them). Set include_negative_energy=false
-      to drop them entirely instead
+      (@p n_max_excited is not applied to them). Set
+      @p include_negative_energy = false to drop them entirely instead
   */
   static std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
   split_by_energy(const std::vector<DiracSpinor> &orbitals, double Fermi_energy,
@@ -423,23 +500,26 @@ public:
 
   /*!
     @brief Splits orbitals into two groups (i.e., core, excited)
+
     @details
-    - The first group contains orbitals with {n,kappa} in the given "core"
+    - The first group contains orbitals with {n,kappa} in the given @p core
     - The second group contains all of the rest
-    - The first group is also limited to have n >= n_min_core (i.e., exclude
-      deep core states)
+    - The first group is also limited to have n >= @p n_min_core (i.e.,
+      exclude deep core states)
   */
   static std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
   split_by_core(const std::vector<DiracSpinor> &orbitals,
                 const std::vector<DiracSpinor> &core, int n_min_core = 1);
 
   /*!
-    @brief Takes a subset of an input basis (by copy), according to subset_string
+    @brief Takes a subset of a basis (by copy), according to subset_string
+
     @details
-    - Includes only states matching the subset_string
-    - Negative-energy states are excluded, unless exclude_negative_energy is
-      false: then all those with kappa in subset_string are included (the n
-      limit is not applied to them)
+    - Includes only states matching the @p subset_string (e.g., "6sp5d": max
+      n for each kappa)
+    - Negative-energy states are excluded, unless @p exclude_negative_energy
+      is false: then all those with kappa in @p subset_string are included
+      (the n limit is not applied to them)
   */
   static std::vector<DiracSpinor> subset(const std::vector<DiracSpinor> &basis,
                                          const std::string &subset_string,

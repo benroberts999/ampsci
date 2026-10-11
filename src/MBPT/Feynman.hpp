@@ -11,35 +11,79 @@ namespace MBPT {
 
 // FeynmanOptions class
 
-//! Options for including hole-particle interaction. include mean all k;
-//! include_k0 means k=0 term only
+/*!
+  @brief Options for including the hole-particle interaction.
+
+  @details
+  - exclude    : not included
+  - include    : included, all k
+  - include_k0 : included, k=0 term only
+*/
 enum class HoleParticle { exclude, include, include_k0 };
 
 //! Options for including Screening
 enum class Screening { exclude, include };
 
+//! Options for the Feynman method (see Feynman)
 struct FeynmanOptions {
+  //! Include all-order screening of the Coulomb interaction
   Screening screening{Screening::exclude};
+  //! Include hole-particle interaction in the polarisation operator
   HoleParticle hole_particle{HoleParticle::exclude};
+  //! Maximum l for internal lines (at least the maximum l in the core)
   int max_l_internal{6};
+  //! Real part of the frequency, for integration along Im(w) (see best_omre)
   double omre{-0.3};
-  // nb: w0 = first non-zero point along Im(w) (u=0 is always included).
-  // The [0, w0] panel is a trapezoid: w0 must be small compared to the
-  // pole distances (~|omre|) so the integrand is flat across the panel.
+  /*!
+    @brief First non-zero point of the frequency grid along Im(w).
+
+    @details
+    u=0 is always included. The [0, w0] panel is a trapezoid: w0 must be
+    small compared to the pole distances (~|omre|) so the integrand is flat
+    across the panel.
+  */
   double w0{0.01};
+  //! Ratio for the logarithmic frequency grid along Im(w)
   double w_ratio{1.5};
-  // Method for Green's function at complex energy:
-  // false: solve at Re(en), extend to complex energy via Dyson (resolvent);
-  // true: solve the Dirac equation directly at complex energy
+  /*!
+    @brief Method for the Green's function at complex energy.
+
+    @details
+    - false : solve at Re(en), extend to complex energy via Dyson (resolvent)
+    - true  : solve the Dirac equation directly at complex energy (Dyson still
+              used at large Im(en); see Feynman::green)
+  */
   bool complex_green{true};
-  // int n_min_core{1};
 };
 
-//! Which states to include in Green's function:
+/*!
+  @brief Which states to include in the Green's function.
+
+  @details
+  - both    : core and excited (full Hartree-Fock Green's function)
+  - core    : core states only
+  - excited : excited states only (orthogonalised to the core)
+*/
 enum class GreenStates { both, core, excited };
 
 //------------------------------------------------------------------------------
-//! Class to construct Feynman diagrams, Green's functions and polarisation op.
+/*!
+  @brief Direct correlation potential diagrams via the Feynman technique.
+
+  @details
+  Constructs Hartree-Fock Green's functions, the polarisation operator, and
+  the direct Sigma diagrams, as matrices on a radial sub-grid. The direct
+  Sigma is formed by integrating, along Im(w) at fixed Re(w) = omre, the
+  product of the Green's function \f$ G(\varepsilon_v + \omega) \f$ and the
+  Coulomb-polarisation-Coulomb operator, \f$ Q\Pi Q(\omega) \f$.
+
+  Allows all-order inclusion of:
+  - screening of the Coulomb interaction:
+    \f$ Q\Pi Q \to Q\Pi X Q \f$, with \f$ X = [1 + iQ\Pi]^{-1} \f$
+  - the hole-particle interaction, in the polarisation operator
+
+  Exchange diagrams are not formed here (see Goldstone).
+*/
 class Feynman {
 
   // Pointer to HF potential, and HF core
@@ -100,94 +144,210 @@ class Feynman {
   bool m_Complex_green_method;
 
 public:
-  //! Construct Feynman diagram
-  //! @details rgrid_params={r0, rmax, stride}; omre is real part of frequency,
-  //! w_0 is initial point along imaginary freq. axis;
-  //! w_ratio is ratio used for logarithic omega grid (integration);
-  //! scr_option and hp_option are screening and hole-particle interactions;
-  //! max_l is maximum l to include for internal lines (Green's functions);
-  //! n_min_core is minimum n to include in polarisation loop;
-  //! ident is the file prefix for the Q*Pi*Q disk cache ("" or "false": no
-  //! cache); form_qpq=false skips forming Q*Pi*Q (the expensive step: only
-  //! needed for Sigma_direct; the Green's functions etc. do not need it),
-  //! which can be formed later with form_qpiq()
+  /*!
+    @brief Sets up the Feynman method on given sub-grid, and forms Q*Pi*Q.
+
+    @details
+    Forms the radial Coulomb (q^k), core projection, and Hartree-Fock
+    exchange matrices, and the frequency quadrature along Im(w). Q*Pi*Q is
+    the expensive step: only needed for Sigma_direct (the Green's functions
+    etc. do not need it), and can be skipped (@p form_qpq = false) and formed
+    later with form_qpiq().
+
+    @param vHF         Hartree-Fock (core, potential, grid). Pointer is
+                       stored: must outlive this object
+    @param i0          Sub-grid: index of first point on the full grid
+    @param stride      Sub-grid stride: every stride-th point of full grid
+    @param size        Number of sub-grid points
+    @param options     Screening, hole-particle, internal lines, frequency
+                       grid, Green's function method (see FeynmanOptions)
+    @param n_min_core  Minimum n of core states in the polarisation loop
+    @param include_G   Include small (g) components throughout. Always on if
+                       @p vHF includes Breit
+    @param verbose     Print summary of options
+    @param ident       File prefix for the Q*Pi*Q disk cache ("" or "false":
+                       no cache)
+    @param form_qpq    Form Q*Pi*Q on construction
+  */
   Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
           std::size_t size, const FeynmanOptions &options, int n_min_core,
           bool include_G, bool verbose = true, const std::string &ident = "",
           bool form_qpq = true);
 
+  //! True if Coulomb screening is included
   bool screening() const { return m_screen_Coulomb; }
+  //! True if hole-particle interaction is included
   bool hole_particle() const { return m_hole_particle; }
 
   //! Returns stride used for sub-grid
   std::size_t stride() const { return m_stride; }
 
+  //! Minimum n of core states in the polarisation loop
   int n_min() const { return m_min_core_n; }
+  //! Maximum multipolarity, k
   int max_k() const { return m_max_k; }
+  //! Real part of frequency used for integration
   double omre() const { return m_omre; }
+  //! First non-zero point of the frequency grid along Im(w)
   double w0() const { return m_w0; }
+  //! Ratio of the logarithmic frequency grid along Im(w)
   double wratio() const { return m_wratio; }
+  //! Maximum l for internal lines
   int lmax() const { return Angular::kindex_to_l(m_max_ki); }
 
-  //! Calculates Green's function for kappa, and complex energy
+  /*!
+    @brief Green's function for given kappa, at complex energy @p en.
+
+    @details
+    For @p states = both, the full Hartree-Fock Green's function. With
+    complex_green set (see FeynmanOptions): solved directly at complex energy
+    for small Im(en), and by the Dyson method at large Im(en) (where it is
+    consistent with the discrete radial sums). Otherwise, Dyson method
+    throughout.
+
+    @param kappa   Dirac quantum number
+    @param en      Complex energy
+    @param states  Which states to include:
+                   - both    : core and excited
+                   - core    : core only, sum over core states a of
+                               |a><a|/(en - e_a)
+                   - excited : excited only (orthogonalised to the core)
+  */
   ComplexGMatrix green(int kappa, std::complex<double> en,
                        GreenStates states = GreenStates::both) const;
 
-  //! Green's function by solving the Dirac equation directly at complex
-  //! energy (cf. green(), which uses the Dyson method unless complex_green set)
+  /*!
+    @brief Green's function, solving the Dirac equation directly at complex en.
+
+    @details
+    cf. green(), which mixes this with the Dyson method.
+  */
   ComplexGMatrix green_complex_dirac(int kappa, std::complex<double> en) const;
 
-  //! Green's function by the Dyson (resolvent) method: solve at Re(en), then
-  //! shift to complex energy (cf. green(), which mixes the two methods)
+  /*!
+    @brief Green's function by the Dyson (resolvent) method.
+
+    @details
+    Solves at Re(en), then shifts to complex energy. cf. green(), which mixes
+    the two methods.
+  */
   ComplexGMatrix green_dyson(int kappa, std::complex<double> en) const;
 
-  // Uses explicit basis
+  /*!
+    @brief Green's function for given kappa, as a sum over an explicit basis.
+
+    @details
+    \f$ G = \sum_n \ket{n}\bra{n}/(\varepsilon - \varepsilon_n) \f$, over
+    states in @p basis with given kappa.
+  */
   ComplexGMatrix green_basis(int kappa, std::complex<double> en,
                              const std::vector<DiracSpinor> &basis) const;
 
-  //! Polarisation operator pi^k(w), for each k = 0..max_k separately (not
-  //! summed). Green's functions are computed once and re-used across all k.
+  /*!
+    @brief Polarisation operator pi^k(w), for each k = 0..max_k separately.
+
+    @details
+    Not summed over k:
+    \f[
+      \Pi^k(\omega) = i \sum_{a,n} \frac{(C^k_{an})^2}{2k+1} \,
+      F_a^\dagger \left[ G^{\rm ex}_n(\varepsilon_a - \omega)
+      + G^{\rm ex}_n(\varepsilon_a + \omega) \right] F_a,
+    \f]
+    with core states a (n >= n_min) and excited-state Green's functions for
+    each internal kappa_n. Green's functions are computed once and re-used
+    across all k.
+
+    @param omega          Complex frequency
+    @param hole_particle  Include the hole-particle interaction (independent
+                          of the option set on construction)
+  */
   std::vector<ComplexRMatrix> polarisation_each_k(std::complex<double> omega,
                                                   bool hole_particle) const;
 
-  //! Calculates and returns the polarisation operator pi^k(w) at every point
-  //! of the frequency grid, for each k (indexed [iw][k]). Nothing is stored:
-  //! pass the result to form_qpiq(pi_wk) to form Q*Pi*Q (for this object, or
-  //! for another that differs only in screening). This is the expensive stage
-  //! of forming Q*Pi*Q; depends on the hole-particle option, not on screening
+  /*!
+    @brief Polarisation operator pi^k(w) on the frequency grid, for each k.
+
+    @details
+    This is the expensive stage of forming Q*Pi*Q. Nothing is stored: pass
+    the result to form_qpiq(pi_wk) to form Q*Pi*Q (for this object, or for
+    another that differs only in screening). Depends on the hole-particle
+    option, not on screening.
+
+    @return pi^k(w) at every point of the frequency grid, indexed [iw][k].
+  */
   std::vector<std::vector<ComplexRMatrix>> polarisation_wk() const;
 
-  //! Forms Q*Pi*Q along the frequency grid (required by Sigma_direct).
-  //! With ident, reads from the disk cache if a matching file exists, else
-  //! forms and writes it (see read_qpiq/write_qpiq)
+  /*!
+    @brief Forms Q*Pi*Q along the frequency grid (required by Sigma_direct).
+
+    @details
+    With @p ident, reads from the disk cache if a matching file exists, else
+    forms and writes it (see read_qpiq/write_qpiq).
+  */
   void form_qpiq(const std::string &ident = "");
 
-  //! Forms Q*Pi*Q (with screening, if set) from a given polarisation operator
-  //! pi_wk (from polarisation_wk()), which may be shared between Feynman
-  //! objects that differ only in screening. Must be on the same sub-grid and
-  //! frequency grid
+  /*!
+    @brief Forms Q*Pi*Q (with screening, if set) from given polarisation op.
+
+    @details
+    @p pi_wk is from polarisation_wk(), and may be shared between Feynman
+    objects that differ only in screening. With screening,
+    \f$ Q\Pi Q \to Q\Pi X Q \f$, with \f$ X = [1 + iQ\Pi]^{-1} \f$.
+
+    @warning @p pi_wk must be on the same sub-grid and frequency grid
+             (checked only by assert).
+  */
   void form_qpiq(const std::vector<std::vector<ComplexRMatrix>> &pi_wk);
 
   //! True once Q*Pi*Q has been formed
   bool has_qpiq() const { return m_qpiq_wk.size() != 0; }
 
-  //! Reads Q*Pi*Q from the disk cache for ident (file prefix); false if no
-  //! matching file (or ident is "" or "false")
+  /*!
+    @brief Reads Q*Pi*Q from the disk cache for @p ident (file prefix).
+
+    @return False if no matching file (or @p ident is "" or "false").
+  */
   bool read_qpiq(const std::string &ident);
 
   //! Writes Q*Pi*Q to the disk cache for ident; false if not written
   bool write_qpiq(const std::string &ident);
 
-  //! Calculate Direct part of correlation potential
+  /*!
+    @brief Direct part of the correlation potential, for kappa_v at en_v.
+
+    @details
+    Summed over multipoles k (unless @p k given) and internal kappa. See
+    class description.
+
+    @param kappa_v  Valence Dirac quantum number
+    @param en_v     Energy at which Sigma is formed
+    @param k        If given, only this multipole (zero matrix if out of
+                    range)
+
+    @warning Q*Pi*Q must be formed first (see form_qpiq); checked only by
+             assert.
+  */
   GMatrix Sigma_direct(int kappa_v, double en_v,
                        std::optional<int> k = {}) const;
 
-  //! Direct part of correlation potential, for each multipole k separately
-  //! (not summed: Sigma_d = sum of these). Same cost as a single Sigma_direct
-  //! call, since the Green's functions are shared by all k
+  /*!
+    @brief Direct part of correlation potential, for each multipole k.
+
+    @details
+    Not summed: Sigma_d = sum of these. Same cost as a single Sigma_direct
+    call, since the Green's functions are shared by all k.
+
+    @warning Q*Pi*Q must be formed first (see form_qpiq).
+  */
   std::vector<GMatrix> Sigma_direct_each_k(int kappa_v, double en_v) const;
 
-  //! Returns (reference to) q^k (radial) matrix. Note: includes drj? No?
+  /*!
+    @brief Returns (reference to) radial Coulomb matrix, q^k.
+
+    @details
+    \f$ q^k_{ij} = (r_<^k / r_>^{k+1}) \, dr_j \f$: includes the right-hand
+    integration measure (drj) only.
+  */
   const ComplexRMatrix &get_qk(int k) const { return m_qk.at(std::size_t(k)); }
 
   //! Returns (ref to) radial exchange matrix Vx_kappa. Nb: includes dri*drj
@@ -195,8 +355,12 @@ public:
     return m_Vx_kappa.at(Angular::kappa_to_kindex(kappa));
   }
 
-  //! Returns (ref to) summed core projection operator, P = sum_a |a><a|,
-  //! for given kappa. No integration measure.
+  /*!
+    @brief Returns (ref to) summed core projection operator, for given kappa.
+
+    @details
+    \f$ P = \sum_a \ket{a}\bra{a} \f$. No integration measure.
+  */
   const ComplexGMatrix &get_Pcore(int kappa) const {
     return m_Pcore.at(Angular::kappa_to_kindex(kappa));
   }
@@ -289,18 +453,27 @@ public:
   ~Feynman() = default;
 };
 
-//! Best real part of the frequency, omre, for the direct diagram: the value
-//! furthest from any pole of the u=0 integrand.
-//! @details With Delta = e_lowest_excited - e_core_max, the window
-//! (-Delta, 0) is free of true poles; inside it lie only the weak fictitious
-//! poles at core-core energy differences (imperfect core subtraction in the
-//! polarisation-loop Gex) and, for non-lowest valence states, the small
-//! valence-valence differences (valence-line G). Only the lowest few
-//! physical excited states enter, so the valence list suffices: no
-//! basis/spectrum needed (a typical valence energy is assumed if the list is
-//! empty). Returns the midpoint of the largest pole-free gap; one omre
-//! serves all valence states. Set print=true to show Delta, the in-window
-//! poles, and the chosen omre.
+/*!
+  @brief Best real part of the frequency, omre, for the direct diagram.
+
+  @details
+  The value furthest from any pole of the u=0 integrand. With
+  \f$ \Delta = \varepsilon_{\rm exc} - \varepsilon_{\rm core} \f$
+  (lowest excited minus highest core energy), the window
+  \f$ (-\Delta, 0) \f$ is free of true poles; inside it lie only the weak
+  fictitious poles at core-core energy differences (imperfect core
+  subtraction in the polarisation-loop Gex) and, for non-lowest valence
+  states, the small valence-valence differences (valence-line G). Only the
+  lowest few physical excited states enter, so the valence list suffices: no
+  basis/spectrum needed (a typical valence energy is assumed if the list is
+  empty). One omre serves all valence states.
+
+  @param core     Core states
+  @param valence  Valence states (lowest sets the window)
+  @param print    Print Delta, the in-window poles, and the chosen omre
+
+  @return Midpoint of the largest pole-free gap.
+*/
 double best_omre(const std::vector<DiracSpinor> &core,
                  const std::vector<DiracSpinor> &valence, bool print = false);
 

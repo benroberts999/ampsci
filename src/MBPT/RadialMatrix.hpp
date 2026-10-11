@@ -11,17 +11,16 @@
 
 namespace MBPT {
 
-/*! 
-Radial matrix: stored on a sub-grid (defined by i0, stride, size).
+/*!
+  @brief Radial matrix: stored on a sub-grid (defined by i0, stride, size).
 
-XXX Should actually just derive/specialise SpinorMatrix!!
+  @details
+   - i0 : the first grid-point included in subgrid
+   - stride: stride between grid-points used in subgrid
+   - size: total number of points used in subgrid
+   - rgrid: pointer to full grid
+   - T: type. Should usually be double or complex<double>
 
-@details
- - i0 : the first grid-point included in subgrid
- - stride: stride between grid-points used in subgrid
- - size: total number of points used in subgrid
- - rgrid: pointer to full grid
- - T: type. Should usually be double or complex<double>
 */
 template <typename T>
 class RadialMatrix {
@@ -35,6 +34,21 @@ class RadialMatrix {
 public:
   //============================================================================
 
+  /*!
+    @brief Constructs a zero (size x size) matrix on the given sub-grid.
+
+    @details
+    Sub-grid point i corresponds to full-grid point i0 + i*stride.
+
+    @param i0      First full-grid point included in the sub-grid
+    @param stride  Stride between full-grid points used in the sub-grid
+    @param size    Number of sub-grid points
+    @param rgrid   Full radial grid
+
+    @warning The last sub-grid point, i0 + stride*(size-1), must lie on the
+             full grid; this is checked by assert only (not in release
+             builds).
+  */
   RadialMatrix(std::size_t i0, std::size_t stride, std::size_t size,
                std::shared_ptr<const Grid> rgrid)
     : m_i0(i0),
@@ -97,12 +111,12 @@ public:
   void zero() { m_Rmatrix.zero(); }
 
   //============================================================================
-  //! Matrix adition +,-
+  //! Matrix addition +,-
   RadialMatrix<T> &operator+=(const RadialMatrix<T> &rhs) {
     m_Rmatrix += rhs.m_Rmatrix;
     return *this;
   }
-  //! Matrix adition +,-
+  //! Matrix addition +,-
   RadialMatrix<T> &operator-=(const RadialMatrix<T> &rhs) {
     m_Rmatrix -= rhs.m_Rmatrix;
     return *this;
@@ -113,12 +127,12 @@ public:
     return *this;
   }
 
-  //! Matrix adition +,-
+  //! Matrix addition +,-
   [[nodiscard]] friend RadialMatrix<T> operator+(RadialMatrix<T> lhs,
                                                  const RadialMatrix<T> &rhs) {
     return lhs += rhs;
   }
-  //! Matrix adition +,-
+  //! Matrix addition +,-
   [[nodiscard]] friend RadialMatrix<T> operator-(RadialMatrix<T> lhs,
                                                  const RadialMatrix<T> &rhs) {
     return lhs -= rhs;
@@ -129,22 +143,22 @@ public:
     return rhs *= x;
   }
 
-  //! Adition of identity: Matrix<T> += T : T assumed to be *Identity!
+  //! Addition of identity: Matrix<T> += T : T assumed to be *Identity!
   RadialMatrix<T> &operator+=(T aI) {
     m_Rmatrix += aI;
     return *this;
   }
-  //! Adition of identity: Matrix<T> -= T : T assumed to be *Identity!
+  //! Addition of identity: Matrix<T> -= T : T assumed to be *Identity!
   RadialMatrix<T> &operator-=(T aI) {
     m_Rmatrix -= aI;
     return *this;
   }
 
-  //! Adition of identity: Matrix<T> + T : T assumed to be *Identity!
+  //! Addition of identity: Matrix<T> + T : T assumed to be *Identity!
   [[nodiscard]] friend RadialMatrix<T> operator+(RadialMatrix<T> M, T aI) {
     return (M += aI);
   }
-  //! Adition of identity: Matrix<T> - T : T assumed to be *Identity!
+  //! Addition of identity: Matrix<T> - T : T assumed to be *Identity!
   [[nodiscard]] friend RadialMatrix<T> operator-(RadialMatrix<T> M, T aI) {
     return (M -= aI);
   }
@@ -163,8 +177,14 @@ public:
     return lhs;
   }
 
-  //! Matrix multiplication:  Gij = Aik*Bkj
-  //! Note: integration measure not included: call .drj() first to include it!
+  /*!
+    @brief Matrix multiplication:  Gij = Aik*Bkj
+
+    @details
+    Result is on the sub-grid of @p a.
+
+    @note Integration measure not included: call .drj() first to include it!
+  */
   [[nodiscard]] friend RadialMatrix<T>
   matrix_multiply(const RadialMatrix<T> &a, const RadialMatrix<T> &b) {
     RadialMatrix<T> out(a.m_i0, a.m_stride, a.m_size, a.m_rgrid);
@@ -187,7 +207,7 @@ public:
     return out;
   }
 
-  //! Conjuagtes current matrix, in place
+  //! Conjugates current matrix, in place
   RadialMatrix<T> &conj_in_place() {
     m_Rmatrix.conj_in_place();
     return *this;
@@ -276,7 +296,7 @@ public:
 
 //==============================================================================
 
-//! Checks if two matrix's are equal (to within parts in 10^12)
+//! Checks if two matrices are equal (to within parts in 10^12)
 template <typename T>
 bool equal(const RadialMatrix<T> &lhs, const RadialMatrix<T> &rhs) {
   return LinAlg::equal(lhs.Rmatrix(), rhs.Rmatrix());
@@ -296,7 +316,7 @@ double max_element(const RadialMatrix<T> &a) {
   return xmax;
 }
 
-//! returns maximum difference (abs) between two matrixs
+//! returns maximum difference (abs) between two matrices
 template <typename T>
 double max_delta(const RadialMatrix<T> &a, const RadialMatrix<T> &b) {
   double delta = 0.0;
@@ -310,8 +330,7 @@ double max_delta(const RadialMatrix<T> &a, const RadialMatrix<T> &b) {
   return delta;
 }
 
-//! returns maximum relative diference [aij-bij/(aij+bij)] (abs) between two
-//! matrices
+//! returns maximum relative difference, |(aij-bij)/(aij+bij)|, of two matrices
 template <typename T>
 double max_epsilon(const RadialMatrix<T> &a, const RadialMatrix<T> &b) {
   double eps = 0.0;

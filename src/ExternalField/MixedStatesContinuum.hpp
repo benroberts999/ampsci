@@ -7,9 +7,6 @@ namespace HF {
 class Breit;
 }
 
-//! External field: the channel solvers of TDHFcntm (mixed states above the
-//! ionisation threshold, and the bound channels solved alongside them), and
-//! the Anderson mixing they use
 namespace ExternalField {
 
 /*!

@@ -10,34 +10,44 @@
 
 namespace MBPT {
 
-/*! Defines SpinorMatrix, Radial Dirac Spinor matrix. Designed to store
-  Greens-function like operators: |Fa><Fb| (where Fa, Fb are radial Dirac
-  spinors), as a radial matrix. The matrix is stored on a sub-grid (between r0
-  and rmax), with a specified stride.
+/*!
+  @brief Radial Dirac spinor matrix.
 
-@details
+  @details
+  Designed to store Greens-function like operators: \f$ \ket{F_a}\bra{F_b} \f$
+  (where Fa, Fb are radial Dirac spinors), as a radial matrix. The matrix is
+  stored on a sub-grid (between r0 and rmax), with a specified stride.
 
-SpinorMatrix is a 2*2 matrix in spinor space {ff, fg, gf, gg} - the g blocks are
-small and are optional. Each block is an N*N radial matrix, where N is a subset
-of the number of points along the full radial grid. May store doubles or complex
-doubles.
+  SpinorMatrix is a 2*2 matrix in spinor space {ff, fg, gf, gg} - the g blocks
+  are small and are optional. Each block is an N*N radial matrix, where N is a
+  subset of the number of points along the full radial grid. May store doubles
+  or complex doubles.
 
-   SpinorMatrix = {ff fg}
-                  {gf gg}
-   SpinorMatrix * F = {ff fg} * (f)
-                      {gf gg}   (g)
-                    = (ff(r,r')*f(r') + fg(r,r')*g(r'))
-                      (gf(r,r')*f(r') + gg(r,r')*g(r'))
+  \f[
+  \begin{align}
+    G &= \begin{pmatrix} G_{ff} & G_{fg} \\ G_{gf} & G_{gg} \end{pmatrix},\\
+    G F &= \begin{pmatrix} G_{ff} & G_{fg} \\ G_{gf} & G_{gg} \end{pmatrix}
+          \begin{pmatrix} f \\ g \end{pmatrix}
+        = \begin{pmatrix}
+            G_{ff}(r,r')\,f(r') + G_{fg}(r,r')\,g(r') \\
+            G_{gf}(r,r')\,f(r') + G_{gg}(r,r')\,g(r')
+          \end{pmatrix}.
+  \end{align}
+  \f]
 
-Note: Careful to distinguish SpinorMatrix multiplication/integration:
-  G1 * G2 = Int G1(ra,rb)*G2(rb,rc)
-          = Sum_j G1(i,j)*G2(j,k)
+  Careful to distinguish SpinorMatrix multiplication/integration:
+  \f[
+  \begin{align}
+    G_1 * G_2 &= \int G_1(r_a,r_b)\,G_2(r_b,r_c)
+               = \sum_j G_1(i,j)\,G_2(j,k),\\
+    G_1.{\rm drj}() * G_2 &= \int G_1(r_a,r_b)\,G_2(r_b,r_c)\,dr_b
+                           = \sum_j G_1(i,j)\,G_2(j,k)\,dr_j
+                           = G_1 * G_2.{\rm dri}(),
+  \end{align}
+  \f]
+  where \f$ dr_j = (dr/du)_j \times du \times {\rm stride} \f$ (see dr()).
 
-G1.drj() * G2 = Int G1(ra,rb)*G2(rb,rc)*dr_b
-              = Sum_j G1(i,j)*G2(j,k)*drdu_j*du
-              = G1 * G2.dri()
-
-While almost always symmetric, this doesn't assume that.
+  While almost always symmetric, this doesn't assume that.
 */
 template <typename T>
 class SpinorMatrix {
@@ -53,6 +63,19 @@ class SpinorMatrix {
 public:
   //============================================================================
 
+  /*!
+    @brief Constructs a zero matrix on the given radial sub-grid.
+
+    @details
+    Sub-grid point i is full-grid point i0 + i*stride (see index_to_fullgrid).
+    The last sub-grid point must lie on the full grid (checked by assert).
+
+    @param i0      Full-grid index of the first sub-grid point
+    @param stride  Sub-grid stride: every stride-th point of the full grid
+    @param size    Number of sub-grid points (each block is size*size)
+    @param incl_g  Include the g blocks (fg, gf, gg)
+    @param rgrid   Full radial grid
+  */
   SpinorMatrix(std::size_t i0, std::size_t stride, std::size_t size,
                bool incl_g, std::shared_ptr<const Grid> rgrid)
     : m_i0(i0),
@@ -90,7 +113,7 @@ public:
   const T gf(std::size_t i, std::size_t j) const { return m_gf(i, j); }
   const T gg(std::size_t i, std::size_t j) const { return m_gg(i, j); }
 
-  //! direct access to matrix's
+  //! direct access to matrices
   const LinAlg::Matrix<T> &ff() const { return m_ff; }
   const LinAlg::Matrix<T> &fg() const { return m_fg; }
   const LinAlg::Matrix<T> &gf() const { return m_gf; }
@@ -100,6 +123,16 @@ public:
   LinAlg::Matrix<T> &gf() { return m_gf; }
   LinAlg::Matrix<T> &gg() { return m_gg; }
 
+  /*!
+    @brief Spinor block by index: 0 = f, 1 = g.
+
+    @details
+    (mu, nu) = (0, 0): ff; (0, 1): fg; (1, 0): gf; (1, 1): gg.
+
+    @note The g blocks are empty (0*0) if g parts are not included.
+    @warning @p mu and @p nu must be 0 or 1; checked only by assert (no block
+             is returned otherwise: undefined behaviour).
+  */
   LinAlg::Matrix<T> &sp(std::size_t mu, std::size_t nu) {
     assert(mu < 2 && nu < 2);
     if (mu == 0 && nu == 0)
@@ -113,6 +146,7 @@ public:
     assert(false);
   }
 
+  //! Spinor block by index: 0 = f, 1 = g (const)
   const LinAlg::Matrix<T> &sp(std::size_t mu, std::size_t nu) const {
     assert(mu < 2 && nu < 2);
     if (mu == 0 && nu == 0)
@@ -126,10 +160,15 @@ public:
     assert(false);
   }
 
+  //! Number of sub-grid points (dimension of each block)
   std::size_t size() const { return m_size; }
+  //! Dimension of the g blocks: size(), or 0 if g parts are not included
   std::size_t g_size() const { return m_g_size; }
+  //! True if g parts (fg, gf, gg) are included
   bool includes_g() const { return m_g_size == m_size; };
+  //! Full-grid index of the first sub-grid point
   std::size_t i0() const { return m_i0; }
+  //! Sub-grid stride: every stride-th point of the full grid
   std::size_t stride() const { return m_stride; }
 
   //============================================================================
@@ -152,7 +191,11 @@ public:
     return *this;
   }
 
-  //! Creates g parts of spinor matrix - will have value 0
+  /*!
+    @brief Creates g parts of spinor matrix - will have value 0.
+
+    @note If g parts already exist, they are reset to 0.
+  */
   SpinorMatrix<T> &create_g() {
     m_g_size = m_size;
     m_incl_g = true;
@@ -163,9 +206,14 @@ public:
   }
 
   //============================================================================
-  //! Matrix adition +,-. A matrix without g parts is treated as having
-  //! zero g parts: adding one to a matrix with g parts leaves its g parts
-  //! unchanged; adding a matrix with g parts to one without creates them
+  /*!
+    @brief Matrix addition +,-.
+
+    @details
+    A matrix without g parts is treated as having zero g parts: adding one to
+    a matrix with g parts leaves its g parts unchanged; adding a matrix with g
+    parts to one without creates them.
+  */
   SpinorMatrix<T> &operator+=(const SpinorMatrix<T> &rhs) {
     m_ff += rhs.m_ff;
     if (rhs.m_incl_g) {
@@ -178,7 +226,7 @@ public:
     }
     return *this;
   }
-  //! Matrix adition +,- (see operator+= for matrices without g parts)
+  //! Matrix addition +,- (see operator+= for matrices without g parts)
   SpinorMatrix<T> &operator-=(const SpinorMatrix<T> &rhs) {
     m_ff -= rhs.m_ff;
     if (rhs.m_incl_g) {
@@ -200,12 +248,12 @@ public:
     return *this;
   }
 
-  //! Matrix adition +,-
+  //! Matrix addition +,-
   [[nodiscard]] friend SpinorMatrix<T> operator+(SpinorMatrix<T> lhs,
                                                  const SpinorMatrix<T> &rhs) {
     return (lhs += rhs);
   }
-  //! Matrix adition +,-
+  //! Matrix addition +,-
   [[nodiscard]] friend SpinorMatrix<T> operator-(SpinorMatrix<T> lhs,
                                                  const SpinorMatrix<T> &rhs) {
     return (lhs -= rhs);
@@ -216,32 +264,44 @@ public:
     return (rhs *= x);
   }
 
-  //! Adition of identity: Matrix<T> += T : T assumed to be *Identity!
+  //! Addition of identity: Matrix<T> += T : T assumed to be *Identity!
   SpinorMatrix<T> &operator+=(T aI) {
     m_ff += aI;
     m_gg += aI;
     return *this;
   }
-  //! Adition of identity: Matrix<T> -= T : T assumed to be *Identity!
+  //! Addition of identity: Matrix<T> -= T : T assumed to be *Identity!
   SpinorMatrix<T> &operator-=(T aI) {
     m_ff -= aI;
     m_gg -= aI;
     return *this;
   }
 
-  //! Adition of identity: Matrix<T> + T : T assumed to be *Identity!
+  //! Addition of identity: Matrix<T> + T : T assumed to be *Identity!
   [[nodiscard]] friend SpinorMatrix<T> operator+(SpinorMatrix<T> M, T aI) {
     return (M += aI);
   }
-  //! Adition of identity: Matrix<T> - T : T assumed to be *Identity!
+  //! Addition of identity: Matrix<T> - T : T assumed to be *Identity!
   [[nodiscard]] friend SpinorMatrix<T> operator-(SpinorMatrix<T> M, T aI) {
     return (M -= aI);
   }
 
   //============================================================================
 
-  //! Matrix multplication: \f$ C=A\times B \equiv C_{ij} = \sum_k A_{ik}\,B_{kj}. \f$
-  //! Note: integration measure not automatically included: call .drj() first to include it!
+  /*!
+    @brief Matrix multiplication.
+
+    @details
+    \f$ C=A\times B \equiv C_{ij} = \sum_k A_{ik}\,B_{kj}, \f$ including the
+    sum over spinor blocks (e.g., ff = a.ff*b.ff + a.fg*b.gf).
+
+    @note Integration measure not automatically included: call .drj() first
+          to include it!
+    @warning If only one of @p a and @p b includes g parts, only the ff block
+             is formed (ff = a.ff*b.ff); the result includes (zero) g parts
+             only if @p a does. This differs from treating missing g parts as
+             zero (e.g., gf = a.gf*b.ff is dropped), cf. operator+=.
+  */
   [[nodiscard]] friend SpinorMatrix<T> operator*(const SpinorMatrix<T> &a,
                                                  const SpinorMatrix<T> &b) {
 
@@ -318,8 +378,7 @@ public:
     out.gg().conj_in_place();
     return out;
   }
-  //! Returns real part of complex matrix (changes type; returns a real
-  //! matrix)
+  //! Returns real part of complex matrix (changes type; returns a real matrix)
   [[nodiscard]] SpinorMatrix<double> real() const {
     SpinorMatrix<double> out(m_i0, m_stride, m_size, m_incl_g, m_rgrid);
     out.ff() = m_ff.real();
@@ -337,8 +396,7 @@ public:
     out.gg() = m_gg.imag();
     return out;
   }
-  //! Converts a real to complex matrix (changes type; returns a complex
-  //! matrix)
+  //! Converts a real to complex matrix (changes type; returns a complex matrix)
   [[nodiscard]] SpinorMatrix<std::complex<double>> complex() const {
     SpinorMatrix<std::complex<double>> out(m_i0, m_stride, m_size, m_incl_g,
                                            m_rgrid);
@@ -474,8 +532,17 @@ public:
   }
 
   //============================================================================
-  //! Action of SpinorMatrix operator on DiracSpinor. Assumes matrix already
-  //! includes integration measure. Result is zero outside the sub-grid.
+  /*!
+    @brief Action of SpinorMatrix operator on DiracSpinor.
+
+    @details
+    Assumes matrix already includes integration measure. Formed on the
+    sub-grid, then interpolated onto the full grid of @p Fn. Result is zero
+    outside the sub-grid.
+
+    @note If g parts are not included, the g component of the result is zero
+          (and the g component of @p Fn is not used).
+  */
   DiracSpinor operator*(const DiracSpinor &Fn) const {
 
     const auto &r = Fn.grid().r();
@@ -524,7 +591,7 @@ public:
   }
 };
 
-//! Checks if two matrix's are equal (to within parts in 10^12)
+//! Checks if two matrices are equal (to within parts in 10^12)
 template <typename T>
 bool equal(const SpinorMatrix<T> &lhs, const SpinorMatrix<T> &rhs) {
   return equal(lhs.ff(), rhs.ff()) && equal(lhs.fg(), rhs.fg()) &&
@@ -552,7 +619,7 @@ double max_element(const SpinorMatrix<T> &a) {
   return std::max({xff, xfg, xgf, xgg});
 }
 
-//! returns maximum difference (abs) between two matrixs
+//! returns maximum difference (abs) between two matrices
 template <typename T>
 double max_delta(const SpinorMatrix<T> &a, const SpinorMatrix<T> &b) {
   double xff = 0.0, xfg = 0.0, xgf = 0.0, xgg = 0.0;
@@ -573,8 +640,12 @@ double max_delta(const SpinorMatrix<T> &a, const SpinorMatrix<T> &b) {
   return std::max({xff, xfg, xgf, xgg});
 }
 
-//! returns maximum relative diference [aij-bij/(aij+bij)] (abs) between two
-//! matrices
+/*!
+  @brief Returns maximum relative difference (abs) between two matrices.
+
+  @details
+  Maximum over all elements of \f$ |(a_{ij}-b_{ij})/(a_{ij}+b_{ij})| \f$.
+*/
 template <typename T>
 double max_epsilon(const SpinorMatrix<T> &a, const SpinorMatrix<T> &b) {
   double xff = 0.0, xfg = 0.0, xgf = 0.0, xgg = 0.0;

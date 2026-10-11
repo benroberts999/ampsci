@@ -6,7 +6,7 @@
 #include <vector>
 
 //! Flambaum-Ginges Radiative potential
-/*!@details
+/*! @details
 
 First introduced in:
  * V. V. Flambaum and J. S. M. Ginges, Phys. Rev. A 72, 052115 (2005).
@@ -21,7 +21,6 @@ Note:
  * Sign convention: H -> H - V_rad
  * V_rad = V_Uehling + V_SEh + V_SEl + V_WK + i(g.n())H_Magnetic
 */
-
 namespace FGRP {
 
 // Fine structure constant:
