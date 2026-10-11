@@ -18,7 +18,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
   Wavefunction wf({num_points, r0, rmax, b, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0, "0");
   wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-4);
-  wf.formBasis({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0});
+  wf.formBasis({basis_str, 20, 7, {1e-3}, 20.0});
   wf.solve_valence(val_str);
 
   wf.printCore();
@@ -115,7 +115,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
                    false, "", false, false, false, 6, -0.2, 0.01, 1.5, false,
                    std::nullopt, "", false, false, false, tail);
     wf_s.hartreeFockBrueckner(false);
-    wf_s.formSpectrum({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0});
+    wf_s.formSpectrum({basis_str, 20, 7, {1e-3}, 20.0});
     const auto &spectrum = wf_s.spectrum();
     for (const auto &Fv : wf_s.valence()) {
       const auto Fspec = std::find(spectrum.cbegin(), spectrum.cend(), Fv);
@@ -129,7 +129,7 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 
   wf.formSigma(2, 1.0e-3, 15.0, 8, false, false, false, 0, {}, {}, {}, false);
   wf.hartreeFockBrueckner(true);
-  wf.formSpectrum({basis_str, 20, 7, 1.0e-3, 1.0e-3, 20.0});
+  wf.formSpectrum({basis_str, 20, 7, {1e-3}, 20.0});
   wf.printValence();
   //
   // wf.SOEnergyShift();

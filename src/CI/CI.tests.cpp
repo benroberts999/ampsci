@@ -17,7 +17,7 @@ TEST_CASE("CI: Configuration Interaction unit tests", "[CI][unit]") {
   Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
                   {"He", -1, "pointlike"}, 1.0);
   wf.solve_core("HartreeFock", "[]", std::nullopt, 1.0e-5);
-  wf.formBasis(SplineBasis::Parameters("6spd", 20, 6, 1.0e-2, 1.0e-2, 20.0));
+  wf.formBasis(SplineBasis::Parameters("6spd", 20, 6, {1.0e-2}, 20.0));
 
   std::string qk_filename = "deleteme_" + qip::random_string(3) + ".qk.abf";
   std::string ci_filename = "deleteme_" + qip::random_string(3) + ".ci.abf";
@@ -392,7 +392,8 @@ TEST_CASE("CI: dSdE from correlation potential", "[CI][integration]") {
                   {"Na", -1, "pointlike"}, 1.0);
   wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-7);
   wf.solve_valence("3sp");
-  wf.formBasis(SplineBasis::Parameters("12spd", 25, 7, 1.0e-3, 1.0e-3, 30.0));
+  // wf.formBasis(SplineBasis::Parameters("12spd", 25, 7, {1.1e-3, 3.2e-2}, 30.0));
+  wf.formBasis(SplineBasis::Parameters("12spd", 25, 7, {1.0e-3}, 30.0));
 
   // Goldstone correlation potential, with dSigma/dE (derivative = true);
   // written to file for the round-trip check below

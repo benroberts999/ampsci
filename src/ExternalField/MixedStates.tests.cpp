@@ -99,8 +99,7 @@ TEST_CASE("External Field: Mixed-states (full)",
     bspl_param.states = "85spdfg";
     bspl_param.n = 90;
     bspl_param.k = 9;
-    bspl_param.r0 = 1.0e-5;
-    bspl_param.reps = 0.0;
+    bspl_param.r0 = {1.0e-5};
     bspl_param.rmax = 75.0;
     bspl_param.positron = "";
   }

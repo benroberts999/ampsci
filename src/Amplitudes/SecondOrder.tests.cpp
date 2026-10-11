@@ -50,7 +50,7 @@ TEST_CASE("Amplitudes: second-order SOS", "[Amplitudes][SecondOrder][unit]") {
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("HartreeFock", "[Xe]");
   wf.solve_valence("7sp5d");
-  wf.formBasis({"30spd", 40, 7, 1.0e-4, 0.0, 40.0});
+  wf.formBasis({"30spd", 40, 7, {1.0e-4}, 40.0});
 
   const auto *p6s = wf.getState("6s+");
   const auto *p7s = wf.getState("7s+");
@@ -187,7 +187,7 @@ TEST_CASE("Amplitudes: Sigma tail extrapolation",
                    {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf0.solve_core("HartreeFock", "[Xe]", std::nullopt, 1.0e-13, true);
   wf0.solve_valence("6sp5d", false);
-  SplineBasis::Parameters params{"25spdfghi", 35, 7, 1.0e-4, 0.0, 40.0};
+  SplineBasis::Parameters params{"25spdfghi", 35, 7, {1.0e-4}, 40.0};
   params.verbose = false;
   wf0.formBasis(params);
 
@@ -207,7 +207,7 @@ TEST_CASE("Amplitudes: Sigma tail extrapolation",
                  false, "", false, false, false, 6, -0.2, 0.01, 1.5, false,
                  std::nullopt, "", false, false, false, tail);
     wf.hartreeFockBrueckner(false);
-    SplineBasis::Parameters spectrum_params{"70spdf", 70, 9, 1.0e-4, 0.0, 90.0};
+    SplineBasis::Parameters spectrum_params{"70spdf", 70, 9, {1.0e-4}, 90.0};
     spectrum_params.verbose = false;
     wf.formSpectrum(spectrum_params);
 
@@ -284,7 +284,7 @@ TEST_CASE("Amplitudes: second-order SOS vs MS",
   wf.solve_core("HartreeFock", "[Xe]");
   wf.solve_valence("7sp");
   // f states needed so the SOS core sum has the 4d -> f excitations
-  wf.formBasis({"90spdf", 100, 9, 1.0e-4, 0.0, 75.0});
+  wf.formBasis({"90spdf", 100, 9, {1.0e-4}, 75.0});
 
   const auto *p6s = wf.getState("6s+");
   const auto *p7s = wf.getState("7s+");

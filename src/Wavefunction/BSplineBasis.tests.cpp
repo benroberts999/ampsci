@@ -29,8 +29,15 @@ TEST_CASE("Wavefunction: BSpline H-like",
   wf.solve_valence("5spdf");
 
   const auto basis =
-    SplineBasis::form_basis({"5spdf", 90, 9, 1.0e-5, 0.0, 90.0, "",
-                             SplineBasis::SplineType::Derevianko, false, false},
+    SplineBasis::form_basis({"5spdf",
+                             90,
+                             9,
+                             {1.0e-5},
+                             90.0,
+                             "",
+                             SplineBasis::SplineType::Derevianko,
+                             false,
+                             false},
                             wf);
 
   const auto hlike = DiracSpinor::HlikeBasis(3, 5, wf.grid_sptr(), Z);
@@ -181,18 +188,19 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][basis][unit]") {
   const std::string states = "7sp5d4f";
   const int k = 7;
   const int n_spl = 70;
-  const auto r0 = 1.0e-4;
-  // const auto r0_eps = 1.0e-3;
+  // r0: the type-dependent default (see SplineBasis::default_r0)
+  const auto r0 = std::vector<double>{};
   const auto rmax = 75.0;
 
   using ST = SplineBasis::SplineType;
-  for (const auto type : {ST::Derevianko, ST::Johnson, ST::Fischer}) {
+  for (const auto type :
+       {ST::Derevianko, ST::Shabaev, ST::Johnson, ST::Hybrid, ST::Fischer}) {
     const auto tname = SplineBasis::parseSplineType(type);
 
-    const auto r0_eps = type == ST::Johnson ? 1.0e-4 : 0.0;
+    const auto no_kb = type == ST::Johnson || type == ST::Fischer;
 
     // State comparison: energy, HFS, <r>, ortho
-    wf.formBasis({states, std::size_t(n_spl), k, r0, r0_eps, rmax, "", type});
+    wf.formBasis({states, std::size_t(n_spl), k, r0, rmax, "", type});
     fmt::print("\n{} (N={}, k={}):\n", tname, n_spl, k);
     fmt::print("{:<8}  {:>9}  {:>9}  {:>9}  {:>9}\n", "State", "dE/E", "dA/A",
                "d<r>", "ort");
@@ -215,10 +223,10 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][basis][unit]") {
     }
 
     // Sum rules (bigger basis with positrons)
-    wf.formBasis({"spdf", 70, 9, r0, r0_eps, rmax, "spdf", type});
+    wf.formBasis({"spdf", 70, 9, r0, rmax, "spdf", type});
 
     fmt::print("\n{}: TKR sum rule, including positron states:\n", tname);
-    const auto eps_tkr = type == ST::Johnson ? 1.0e-5 : 1.0e-7;
+    const auto eps_tkr = no_kb ? 1.0e-5 : 1.0e-7;
     const auto &tkr_l =
       SplineBasis::sumrule_TKR(wf.basis(), wf.grid().r(), true);
     for (auto &tkr : tkr_l) {
@@ -228,7 +236,7 @@ TEST_CASE("Wavefunction: BSpline-basis unit", "[BSpline][basis][unit]") {
     fmt::print("\n{}: Drake-Goldman sum rule, including positron states:\n",
                tname);
     const auto eps_dg = type == ST::Derevianko ? 1.0e-7 :
-                        type == ST::Johnson    ? 1.0e-5 :
+                        no_kb                  ? 1.0e-5 :
                                                  1.0e-6;
     for (int n = 0; n <= 2; ++n) {
       const auto &dgs =
@@ -305,9 +313,14 @@ TEST_CASE("Wavefunction: BSpline-basis",
       wf.solve_core();
       wf.solve_valence("7sp5d4f");
 
-      for (const auto type : {SplineBasis::SplineType::Derevianko,
-                              SplineBasis::SplineType::Johnson,
-                              SplineBasis::SplineType::Fischer}) {
+      for (const auto type :
+           {SplineBasis::SplineType::Derevianko,
+            SplineBasis::SplineType::Shabaev, SplineBasis::SplineType::Johnson,
+            SplineBasis::SplineType::Hybrid,
+            SplineBasis::SplineType::Fischer}) {
+
+        const auto no_kb = type == SplineBasis::SplineType::Johnson ||
+                           type == SplineBasis::SplineType::Fischer;
 
         // Compare the energy of a Dirac spinor to a double:
         const auto comp_en = [](const auto &Fa, double en) {
@@ -324,14 +337,14 @@ TEST_CASE("Wavefunction: BSpline-basis",
 
             // Form spline basis:
             const std::string states = "30spdf";
-            const auto r0 = 1.0e-5;
-            const auto r0_eps =
-              type == SplineBasis::SplineType::Johnson ? 1.0e-3 : 0.0;
+            // No kinetic balance: the type-dependent default (default_r0)
+            const auto r0 =
+              no_kb ? std::vector<double>{} : std::vector<double>{1.0e-5};
             const auto rmax = 75.0;
             const std::string positron = "";
             const auto basis =
-              SplineBasis::form_basis({states, std::size_t(n), k, r0, r0_eps,
-                                       rmax, positron, type, false, false},
+              SplineBasis::form_basis({states, std::size_t(n), k, r0, rmax,
+                                       positron, type, false, false},
                                       wf);
 
             // Check orthonormality <a|b>:
@@ -346,7 +359,7 @@ TEST_CASE("Wavefunction: BSpline-basis",
             std::cout << str2 << " " << eps2 << "\n";
             REQUIRE(eps < 1.0e-12);
             REQUIRE(eps1 < 1.0e-4);
-            REQUIRE(eps1 < 1.0e-4);
+            REQUIRE(eps2 < 1.0e-4);
 
             // Compare energies
             std::vector<double> core_en;
@@ -432,8 +445,7 @@ TEST_CASE("Wavefunction: BSpline-basis",
             fmt::print(
               "A_{}: A_HF = {:12.4e}, A_spl = {:12.4e}, eps = {:.1e}\n",
               wv_Asym, wv_A, wv_Aspl, wv_Aeps);
-            const auto eps_hfs =
-              type == SplineBasis::SplineType::Johnson ? 1.0e-2 : 1.0e-4;
+            const auto eps_hfs = no_kb ? 1.0e-2 : 1.0e-4;
             REQUIRE(wc_Aeps < eps_hfs);
             REQUIRE(wv_Aeps < eps_hfs);
 
@@ -469,19 +481,18 @@ TEST_CASE("Wavefunction: BSpline-basis negative-energy states",
 
   const std::size_t n_spl = 20;
   const std::size_t k_spl = 7;
-  const auto r0 = 1.0e-4;
-  const auto r0_eps = 0.0;
+  const auto r0 = std::vector<double>{1.0e-4};
   const auto rmax = 40.0;
   const auto type = SplineBasis::SplineType::Derevianko;
 
   // Electron states only; plus 5 negative-energy states per kappa; plus all
   // negative-energy states (at most n_spl per kappa)
   const auto basis_e = SplineBasis::form_basis(
-    {"5sp", n_spl, k_spl, r0, r0_eps, rmax, "", type, false, false}, wf);
+    {"5sp", n_spl, k_spl, r0, rmax, "", type, false, false}, wf);
   const auto basis_5 = SplineBasis::form_basis(
-    {"5sp", n_spl, k_spl, r0, r0_eps, rmax, "5sp", type, false, false}, wf);
+    {"5sp", n_spl, k_spl, r0, rmax, "5sp", type, false, false}, wf);
   const auto basis_all = SplineBasis::form_basis(
-    {"5sp", n_spl, k_spl, r0, r0_eps, rmax, "20sp", type, false, false}, wf);
+    {"5sp", n_spl, k_spl, r0, rmax, "20sp", type, false, false}, wf);
 
   const auto is_negative = [](const DiracSpinor &F) {
     return F.negativeEnergyStateQ();

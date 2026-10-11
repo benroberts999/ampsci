@@ -43,32 +43,37 @@ For the \f$S_i\f$ basis orbitals, we use the Duel-Kinetic-Balence basis of Beloy
 ```java
 // Available Basis options/blocks
 Basis{
+  // Options for 'Basis' and 'Spectrum'. Spectrum is the same as Basis, but
+  // includes correlations. Spectrum is used for sum-over-states (while Basis
+  // is used for MBPT).
   // Number of splines used in expansion [30]
   number;
   // order of splines ~7-9 [7]
   order;
-  // minimum cavity radius (first internal knot) [1.0e-4]
+  // minimum cavity radius (first internal knot), for each l: comma-separated
+  // list, last value used for all higher l [1.0e-4; Johnson and Fischer:
+  // 3.0e-4,1.0e-4,1.0e-3,1.0e-3,1.0e-2]
   r0;
-  // Select cavity radius r0 for each l by position where core density
-  // rho_l(r0)/rho_max falls below r0_eps [0.0]
-  r0_eps;
   // maximum cavity radius [40.0]
   rmax;
   // states to keep (e.g., 30spdf20ghi)
   states;
-  // Force orthogonal to core [false]
+  // Force orthogonal to core (Basis) or valence (Spectrum) [false]
   orthogonalise;
   // Print all spline energies (for testing) [false]
   print;
-  // Include -ve energy states [false]]
+  // Basis string for negative energy states (same format as states). []
   positron;
-  // Derevianko (DKB), Johnson, or Fischer [Derevianko]
+  // Derevianko (DKB), Shabaev (DKB), Johnson, Fischer, or Hybrid (DKB)
+  // [Derevianko]
   type;
+  // Print construction details [true]
+  verbose;
 }
 ```
 
 `r0` is the location of the first 'internal' knot (first actual knot is always placed at r=0).
-We may instead set `r0_eps`, which automatically choses `r0` such that the core density \f$\rho_l(r) = \sum_n|\phi_{nl}(r)|^2\f$ drops below given relative value \f$\rho_l(r0)/\rho_{\rm max}<{\rm r0\_{\rm eps}}\f$.
+It may be given separately for each \f$l\f$, as a comma-separated list (e.g., `r0 = 1.0e-4, 1.0e-4, 1.0e-3;` for s, p, then d and all higher \f$l\f$); the last value is used for all higher \f$l\f$.
 
 e.g, to calculate basis including up to \f$n=30\f$ for states up to \f$l=6\f$ in a cavity of 40 \f$a_0\f$, using 40 B-splines of order 7:
 
@@ -142,7 +147,6 @@ e.g.,
 Spectrum{
   number = 90;
   order = 9;
-  r0_eps = 1.0e-3;
   rmax = 90.0;
   states = 80spd;
 }

@@ -135,7 +135,7 @@ TEST_CASE("CI: second-order amplitudes", "[CI][SecondOrder][unit]") {
   Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
                   {"He", -1, "pointlike"}, 1.0);
   wf.solve_core("HartreeFock", "[]", std::nullopt, 1.0e-5);
-  wf.formBasis(SplineBasis::Parameters("6spd", 20, 6, 1.0e-2, 1.0e-2, 20.0));
+  wf.formBasis(SplineBasis::Parameters("6spd", 20, 6, {1.0e-2}, 20.0));
 
   CI::Integrals ints;
   ints.ci_basis = CI::basis_subset(wf.basis(), "5spd");
@@ -288,7 +288,7 @@ TEST_CASE("CI: second-order core and core-valence", "[CI][SecondOrder][unit]") {
   Wavefunction wf({800, 1.0e-5, 40.0, 0.33 * 40.0, "loglinear"},
                   {"Mg", -1, "Fermi"}, 1.0);
   wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-8);
-  wf.formBasis(SplineBasis::Parameters("15spd", 30, 7, 1.0e-3, 1.0e-3, 40.0));
+  wf.formBasis(SplineBasis::Parameters("15spd", 30, 7, {1.0e-3, 2.9e-2}, 40.0));
 
   const auto excited =
     DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel()).second;

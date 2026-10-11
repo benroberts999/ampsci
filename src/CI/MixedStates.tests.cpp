@@ -20,7 +20,7 @@ TEST_CASE("CI: mixed states", "[CI][MixedStates][unit]") {
   Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
                   {"He", -1, "pointlike"}, 1.0);
   wf.solve_core("HartreeFock", "[]", std::nullopt, 1.0e-5);
-  wf.formBasis(SplineBasis::Parameters("6spd", 20, 6, 1.0e-2, 1.0e-2, 20.0));
+  wf.formBasis(SplineBasis::Parameters("6spd", 20, 6, {1.0e-2}, 20.0));
 
   const auto ci_basis = CI::basis_subset(wf.basis(), "5spd");
 

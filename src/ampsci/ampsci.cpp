@@ -20,8 +20,12 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   using namespace qip::overloads;
 
   //check if running in 'help' mode: if so, suppress some output
-  // (i.e., check if 'help' has been included, even if not set)
-  const auto help_mode = input.has_option("help");
+  // (i.e., check if 'help' has been included, even if not set), at the top
+  // level or in any block
+  const auto help_mode =
+    input.has_option("help") ||
+    std::any_of(input.blocks().cbegin(), input.blocks().cend(),
+                [](const auto &block) { return block.has_option("help"); });
   if (!help_mode) {
     std::cout << '\n';
     IO::print_line();
@@ -280,23 +284,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   //----------------------------------------------------------------------------
 
-  // Construct B-spline basis:
-  input.check(
-    {"Basis"},
-    {{"number", "Number of splines used in expansion [30]"},
-     {"order", "order of splines ~7-9 [7]"},
-     {"r0", "minimum cavity radius (first internal knot) [1.0e-4]"},
-     {"r0_eps", "Select cavity radius r0 for each l by position "
-                "where core density rho_l(r0)/rho_max falls below r0_eps "
-                "[0.0]"},
-     {"rmax", "maximum cavity radius [40.0]"},
-     {"states", "states to keep (e.g., 30spdf20ghi)"},
-     {"orthogonalise", "Force orthogonal to core [false]"},
-     {"print", "Print all spline energies (for testing) [false]"},
-     {"positron",
-      "Basis string for negative energy states (same format as states). []"},
-     {"type", "Derevianko (DKB), Johnson, or Fischer [Derevianko]"}});
-
+  // Construct B-spline basis (options checked by SplineBasis::Parameters):
   const auto basis_input = input.getBlock("Basis");
   if (basis_input) {
     wf.formBasis(*basis_input);
@@ -526,30 +514,17 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   //----------------------------------------------------------------------------
 
-  // Construct B-spline Spectrum:
-  input.check(
-    {"Spectrum"},
-    {{"", "Options for 'spectrum', Spectrum is the same as 'Basis', "
-          "but includes correlations. Spectrum is used for "
-          "sum-over-states (while basis is used for MBPT)."},
-     {"number", "Number of splines used in expansion"},
-     {"order", "order of splines ~7-9"},
-     {"r0", "minimum cavity radius"},
-     {"r0_eps", "Select cavity radius r0 for each l by position "
-                "where core density rho_l(r0)/rho_max falls below r0_eps"},
-     {"rmax", "maximum cavity radius"},
-     {"states", "states to keep (e.g., 30spdf20ghi)"},
-     {"orthogonalise", "Force orthogonal to valence [false]"},
-     {"print", "Print all spline energies (for testing)"},
-     {"positron", "Basis string (as states) to include -ve energy states"},
-     {"type", "Derevianko (DKB), Johnson, or Fischer [Derevianko]"}});
-
+  // Construct B-spline Spectrum (options as for Basis):
   const auto spectrum_in = input.getBlock("Spectrum");
-  if (spectrum_in && !spectrum_in->has_option("help")) {
-    wf.formSpectrum(*spectrum_in);
-    if (input.get({"Spectrum"}, "print", false) && !wf.spectrum().empty()) {
-      std::cout << "Spectrum:\n";
-      wf.printBasis(wf.spectrum());
+  if (spectrum_in) {
+    // Constructing the parameters checks the input (and prints any help)
+    const SplineBasis::Parameters spectrum_params(*spectrum_in);
+    if (!spectrum_in->has_option("help")) {
+      wf.formSpectrum(spectrum_params);
+      if (input.get({"Spectrum"}, "print", false) && !wf.spectrum().empty()) {
+        std::cout << "Spectrum:\n";
+        wf.printBasis(wf.spectrum());
+      }
     }
   }
 

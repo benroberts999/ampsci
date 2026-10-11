@@ -12,7 +12,8 @@ TEST_CASE("Amplitudes: dSigma_dE", "[Amplitudes][MBPT][unit]") {
                   1.0);
   wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-5);
   wf.solve_valence("3sp");
-  wf.formBasis({"20spd", 20, 6, 1.0e-4, 1.0e-4, 30.0});
+  // wf.formBasis({"20spd", 20, 6, {3.4e-4, 1.7e-2}, 30.0});
+  wf.formBasis({"20spd", 20, 6, {1.0e-4}, 30.0});
 
   // Small Sigma; parameters not meant to be accurate
   const double r0{1.0e-2};

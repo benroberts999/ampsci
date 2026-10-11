@@ -20,7 +20,7 @@ TEST_CASE("External Field: TDHF basic unit tests",
   wf.solve_valence("3sp", false);
   // nb: use very small basis.
   // Don't care about numerical results, just that eveything is working correctly.
-  SplineBasis::Parameters params{"10sp8d", 20, 7, 1.0e-3, 1.0e-3, 30.0};
+  SplineBasis::Parameters params{"10sp8d", 20, 7, {1e-3}, 30.0};
   params.verbose = false;
   wf.formBasis(params);
 
@@ -493,7 +493,7 @@ TEST_CASE("PNC: amplitude methods (A, B, SOS)",
                   {"Cs", 133, "Fermi", 4.8041, 2.3}, 1.0);
   wf.solve_core("HartreeFock", "[Xe]");
   wf.solve_valence("7sp5d");
-  wf.formBasis({"95p", 100, 9, 1.0e-4, 0.0, 75.0});
+  wf.formBasis({"95p", 100, 9, {1.0e-4}, 75.0});
 
   const auto *p6s = wf.getState("6s+");
   const auto *p7s = wf.getState("7s+");
@@ -650,7 +650,7 @@ TEST_CASE("PNC: amplitude methods (A, B, SOS)",
       const auto [b2_f, b1_f] = B_f;
       const auto [t1_f, t2_f] = sos_f;
       const auto Af = a1_f + a2_f, Bf = b2_f + b1_f, Sf = t1_f + t2_f;
-      const auto eps_AB_f = 2.0 * std ::abs((Af - Bf) / (Af + Bf));
+      const auto eps_AB_f = 2.0 * std::abs((Af - Bf) / (Af + Bf));
       const auto eps_SOS_f = 2.0 * std::abs((Af - Sf) / (Af + Sf));
       fmt::print("\n  {}\n", label_f);
       fmt::print(

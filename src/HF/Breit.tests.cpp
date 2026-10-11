@@ -493,11 +493,11 @@ TEST_CASE("Breit", "[Breit][integration]") {
     }
 
     // Then, calculate Sigma(2), compare those
-    wf.formBasis({"30spdfghi", 40, 7, 1.0e-4, 1.0e-4, 40.0});
+    wf.formBasis({"30spdfghi", 40, 7, {1.0e-4, 1.0e-3}, 40.0});
     wf.formSigma(3, 3.0e-4, 30.0, 25 /*stride*/, false, false, false, 0, {}, {},
                  {}, false);
 
-    wf0.formBasis({"30spdfghi", 40, 7, 1.0e-4, 1.0e-4, 40.0});
+    wf0.formBasis({"30spdfghi", 40, 7, {1.0e-4, 1.0e-3}, 40.0});
     wf0.formSigma(3, 3.0e-4, 30.0, 25 /*stride*/, false, false, false, 0, {},
                   {}, {}, false);
 
@@ -541,8 +541,6 @@ TEST_CASE("Breit", "[Breit][integration]") {
     REQUIRE(std::abs(weps) < 0.1);
     REQUIRE(std::abs(weps2) < 0.4);
     REQUIRE(std::abs(wepsme) < 1.0e-2);
-    // XXX Fails on GitHub actions (with g++13), passes locally (g++12)
-    // XXX
   }
 
   // return pass;
@@ -560,13 +558,13 @@ TEST_CASE("Breit: RPA Corrections",
                    {"Cs", -1, "Fermi", -1.0, -1.0});
   wf0.solve_core("HartreeFock", "[Xe]");
   wf0.solve_valence("7sp5d");
-  wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 1.0e-6, 40.0});
+  wf0.formBasis({"25spd15f", 30, 7, {1.0e-4}, 40.0});
 
   // With Breit:
   auto wfB = wf0;
   wfB.solve_core("HartreeFock", "[Xe]", HF::Breit::Params{1.0});
   wfB.solve_valence("7sp5d");
-  wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 1.0e-6, 40.0});
+  wfB.formBasis({"25spd15f", 30, 7, {1.0e-4}, 40.0});
 
   // Format: "a", "b", Breit correction to <a|h|b>, Breit corr. to <a|h+dV|b>,
   // Derev. PRA 65 012106 (2001)
@@ -685,13 +683,13 @@ TEST_CASE("Breit: RPA Corrections - for HFS",
                    {"Cs", -1, "Fermi", -1.0, -1.0});
   wf0.solve_core("HartreeFock", "[Xe]");
   wf0.solve_valence("7sp5d");
-  wf0.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0});
+  wf0.formBasis({"25spd15f", 30, 7, {1.0e-4}, 40.0});
 
   // With Breit:
   auto wfB = wf0;
   wfB.solve_core("HartreeFock", "[Xe]", HF::Breit::Params{1.0});
   wfB.solve_valence("7sp5d");
-  wfB.formBasis({"25spd15f", 30, 7, 1.0e-4, 0.0, 40.0});
+  wfB.formBasis({"25spd15f", 30, 7, {1.0e-4}, 40.0});
 
   // Format: "a", "b", Breit correction to <a|h|b>, Breit corr. to <a|h+dV|b>,
   // Derev. PRA 65 012106 (2001)
@@ -786,7 +784,7 @@ TEST_CASE("Breit: RPA TDHF vs Diagram",
   Wavefunction wf0({1000, 1.0e-6, 120.0, 0.33 * 120.0, "loglinear", -1.0},
                    {"Cs", -1, "Fermi", -1.0, -1.0});
   const std::string valence = "6sp5d";
-  SplineBasis::Parameters basis("25spd15f", 30, 7, 1.0e-4, 0.0, 40.0);
+  SplineBasis::Parameters basis("25spd15f", 30, 7, {1.0e-4}, 40.0);
   basis.verbose = false;
 
   // Solve HF without Breit:

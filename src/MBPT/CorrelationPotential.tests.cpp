@@ -24,7 +24,7 @@ TEST_CASE("MBPT: Goldstone, unit tests", "[MBPT][Goldstone][unit]") {
                   {"Na", -1, "Fermi"}, 1.0);
   wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-5);
   wf.solve_valence("3sp");
-  wf.formBasis(SplineBasis::Parameters("20spd", 20, 6, 1.0e-4, 1.0e-4, 30.0));
+  wf.formBasis(SplineBasis::Parameters("20spd", 20, 6, {1.0e-3}, 30.0));
 
   // These parameters are not meant to be accurate
   const double r0{1.0e-2};
@@ -171,7 +171,7 @@ TEST_CASE("MBPT: Feynman complex Green",
   Wavefunction wf({1000, 1.0e-4, 50.0, 0.33 * 100.0, "loglinear"},
                   {"Na", -1, "Fermi"}, 1.0);
   wf.solve_core("HartreeFock", "[Ne]");
-  wf.formBasis(SplineBasis::Parameters("30spdf", 40, 7, 1.0e-4, 0.0, 40.0, "",
+  wf.formBasis(SplineBasis::Parameters("30spdf", 40, 7, {1.0e-4}, 40.0, "",
                                        SplineBasis::SplineType::Derevianko,
                                        false, false));
 
@@ -316,8 +316,8 @@ TEST_CASE("MBPT: Feynman omre stability", "[MBPT][Feynman][omre]") {
                   {"Na", -1, "Fermi"}, 1.0);
   wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-6);
   wf.solve_valence("3s");
-  wf.formBasis(SplineBasis::Parameters("30spdf", 35, 7, 1.0e-4, 1.0e-4, 40.0,
-                                       "", SplineBasis::SplineType::Derevianko,
+  wf.formBasis(SplineBasis::Parameters("30spdf", 35, 7, {1.0e-3}, 40.0, "",
+                                       SplineBasis::SplineType::Derevianko,
                                        false, false));
 
   const double r0{1.0e-3};
@@ -394,7 +394,7 @@ TEST_CASE("MBPT: CorrelationPotential", "[MBPT][CorrelationPotential][unit]") {
                   {"Na", -1, "Fermi"}, 1.0);
   wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-5);
   wf.solve_valence("3sp");
-  wf.formBasis(SplineBasis::Parameters("20spd", 20, 6, 1.0e-4, 1.0e-4, 30.0));
+  wf.formBasis(SplineBasis::Parameters("20spd", 20, 6, {1.0e-3}, 30.0));
 
   // These parameters are not meant to be accurate
   const double r0{1.0e-2};
@@ -488,7 +488,7 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
 
       double prev = 0.0;
       std::vector<double> vals;
-      wf.formBasis({"100spdfghi", 101, 11, 0.0, 1.0e-6, 50.0});
+      wf.formBasis({"100spdfghi", 101, 11, {1e-5}, 50.0});
       // wf.formSigma(1, false);
       // Coulomb::YkTable yk(wf.basis()); // this is a *huge* basis!
       const auto [holes, excited] =
@@ -514,7 +514,7 @@ TEST_CASE("MBPT: 2nd Order de", "[MBPT][integration]") {
     }
 
     { // "smaller" basis set (not exactly same as Derev)
-      wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0});
+      wf.formBasis({"30spdfghi", 40, 7, {1e-5}, 40.0});
       const auto [holes, excited] =
         DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
       Coulomb::YkTable yk(holes, excited);
@@ -552,7 +552,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
     wf.solve_core("HartreeFock", "[Xe]");
     wf.solve_valence("7sp5d4f");
-    wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0});
+    wf.formBasis({"30spdfghi", 40, 7, {1e-5}, 40.0});
     wf.formSigma(3, 1.0e-4, 30.0, 14 /*stride*/, false, false, false, 0, {}, {},
                  {}, true, fname + "Cs");
 
@@ -638,7 +638,7 @@ TEST_CASE("MBPT: Correlation Potential: Sigma2",
                     {"Fr", -1, "Fermi", -1.0, -1.0}, 1.0);
     wf.solve_core("HartreeFock", "[Rn]");
     wf.solve_valence("7sp6d");
-    wf.formBasis({"30spdfghi", 40, 7, 0.0, 1.0e-6, 40.0});
+    wf.formBasis({"30spdfghi", 40, 7, {1e-5}, 40.0});
     wf.formSigma(4, 1.0e-4, 30.0, 12 /*stride*/, false, false, false, 0, {}, {},
                  {}, true, fname + "Fr");
 
@@ -680,7 +680,7 @@ TEST_CASE("MBPT: Correlation Potential: SigmaAO",
                     {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
     wf.solve_core("HartreeFock", "[Xe]");
     wf.solve_valence("7sp5d");
-    wf.formBasis({"35spdfghi", 40, 9, 0.0, 1.0e-6, 40.0});
+    wf.formBasis({"35spdfghi", 40, 9, {1e-5}, 40.0});
 
     const auto n_min_core = 3;
     const auto rmin = 1.0e-4;
@@ -728,7 +728,7 @@ TEST_CASE("MBPT: Sigma2", "[MBPT][Sigma2][CI][unit]") {
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("Local", "[Ne]", std::nullopt, 1.0e-4);
   wf.solve_valence("3spd");
-  wf.formBasis({"5spdf", 20, 5, 1.0e-2, 1.0e-2, 20.0});
+  wf.formBasis({"5spdf", 20, 5, {1e-2}, 20.0});
 
   const auto &[core, excited] =
     DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel(), 2);

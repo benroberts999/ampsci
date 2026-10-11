@@ -25,23 +25,43 @@ Parameters::Parameters(IO::InputBlock input)
   : states(input.get<std::string>("states", "")),
     n(input.get("number", 30ul)),
     k(input.get("order", 7ul)),
-    r0(input.get("r0", 1.0e-4)),
-    reps(input.get("r0_eps", 0.0)),
+    r0(input.get("r0", std::vector<double>{})),
     rmax(input.get("rmax", 40.0)),
     positron(input.get("positron", std::string{""})),
     type(parseSplineType(input.get<std::string>("type", "Derevianko"))),
     orthogonalise(input.get("orthogonalise", false)),
-    verbose(input.get("verbose", true)) {}
+    verbose(input.get("verbose", true)) {
+  // The same options are used for both the Basis and Spectrum blocks
+  input.check(
+    {{"", "Options for 'Basis' and 'Spectrum'. Spectrum is the same as "
+          "Basis, but includes correlations. Spectrum is used for "
+          "sum-over-states (while Basis is used for MBPT)."},
+     {"number", "Number of splines used in expansion [30]"},
+     {"order", "order of splines ~7-9 [7]"},
+     {"r0", "minimum cavity radius (first internal knot), for each l: "
+            "comma-separated list, last value used for all higher l "
+            "[1.0e-4; Johnson and Fischer: 3.0e-4,1.0e-4,1.0e-3,1.0e-3,"
+            "1.0e-2]"},
+     {"rmax", "maximum cavity radius [40.0]"},
+     {"states", "states to keep (e.g., 30spdf20ghi)"},
+     {"orthogonalise",
+      "Force orthogonal to core (Basis) or valence (Spectrum) [false]"},
+     {"print", "Print all spline energies (for testing) [false]"},
+     {"positron",
+      "Basis string for negative energy states (same format as states). []"},
+     {"type", "Derevianko (DKB), Shabaev (DKB), Johnson, Fischer, or Hybrid "
+              "(DKB) [Derevianko]"},
+     {"verbose", "Print construction details [true]"}});
+}
 
 Parameters::Parameters(const std::string &istates, std::size_t in,
-                       std::size_t ik, double ir0, double ireps, double irmax,
+                       std::size_t ik, std::vector<double> ir0, double irmax,
                        const std::string &ipositron, SplineType itype,
                        bool iorthogonalise, bool iverbose)
   : states(istates),
     n(in),
     k(ik),
-    r0(ir0),
-    reps(ireps),
+    r0(std::move(ir0)),
     rmax(irmax),
     positron(ipositron),
     type(itype),
@@ -49,13 +69,31 @@ Parameters::Parameters(const std::string &istates, std::size_t in,
     verbose(iverbose) {}
 
 //==============================================================================
+std::vector<double> default_r0(SplineType type) {
+  switch (type) {
+  case SplineType::Johnson:
+  case SplineType::Fischer:
+    return {3.0e-4, 1.0e-4, 1.0e-3, 1.0e-3, 1.0e-2};
+  case SplineType::Derevianko:
+  case SplineType::Shabaev:
+  case SplineType::Hybrid:
+    return {1.0e-4};
+  }
+  assert(false && "Unreachable: missing spline type in default_r0");
+  return {1.0e-4};
+}
+
+//==============================================================================
 std::vector<DiracSpinor> form_basis(const Parameters &params,
                                     const Wavefunction &wf,
                                     const bool correlationsQ) {
   // Forms the pseudo-spectrum basis by diagonalising Hamiltonian over B-splines
 
-  const auto &[states_str, n_spl, k_spl, r0_spl, r0_eps, rmax_spl,
-               tmp_positron_str, basis_type, ortho, verbose] = params;
+  const auto &[states_str, n_spl, k_spl, r0_in, rmax_spl, tmp_positron_str,
+               basis_type, ortho, verbose] = params;
+
+  // First internal knot for each l; last entry used for all higher l
+  const auto r0_list = r0_in.empty() ? default_r0(basis_type) : r0_in;
 
   // Not required, but helpful to be back compatible
   const std::string positron_str =
@@ -106,21 +144,18 @@ std::vector<DiracSpinor> form_basis(const Parameters &params,
                            [kappa](const auto &nk2) { return nk2.k == kappa; });
     const auto max_n_positron = (it != nklst_positron.end()) ? it->n : 0;
 
-    // Choose larger r0 depending on core density:
+    // First knot for this l; no closer than the first grid point (r0 > 0)
     const auto l = Angular::l_k(kappa);
-    const auto l_tmp = std::min(l, DiracSpinor::max_l(wf.core()));
+    const auto il = std::min(std::size_t(l), r0_list.size() - 1);
+    const auto r0_eff = std::max(r0_list.at(il), wf.grid().r0());
 
-    const auto [rmin_l, rmax_l] = wf.lminmax_core_range(l_tmp, r0_eps);
-    (void)rmax_l; // don't warn on unused rmax_l
-    // rmin_l is a grid point, so r0_eff > 0
-    const auto r0_eff = std::max(rmin_l, r0_spl);
-
-    const auto [spl_basis, d_basis] =
+    const auto splines =
       form_spline_basis(kappa, n_spl, k, r0_eff, rmax_spl, wf.grid_sptr(),
                         wf.alpha(), basis_type);
+    const auto &spl_basis = splines.basis;
 
-    auto [Aij, Sij] = fill_Hamiltonian_matrix(spl_basis, d_basis, wf,
-                                              correlationsQ, basis_type);
+    auto [Aij, Sij] =
+      fill_Hamiltonian_matrix(splines, wf, correlationsQ, basis_type);
     const auto [e_values, e_vectors] = LinAlg::symmhEigensystem(Aij, Sij);
 
     expand_basis_orbitals(&basis, &basis_positron, spl_basis, kappa, max_n,
@@ -211,39 +246,71 @@ double check(const std::vector<DiracSpinor> &basis,
 //==============================================================================
 SplineParams spline_params(SplineType type, int kappa, std::size_t N_states) {
   const auto lk = static_cast<std::size_t>(std::abs(kappa));
+  const auto N = N_states;
 
+  // {n_spl, imin_f, imax_f, imin_g, imax_g, lambda_DKB}
   switch (type) {
   case SplineType::Johnson:
-    return {0, N_states, N_states, 0.0};
-  case SplineType::Fischer:
-    return {1, N_states + 1, N_states + 1, 1.0};
+    return {N, 0, N, 0, N, 0.0};
+  case SplineType::Fischer: {
+    // f = ~r^(kappa+1) for kappa > 0: the second spline (linear at r = 0)
+    // is also dropped from f, which removes the spurious kappa = 1 state
+    // (Fischer and Parpia)
+    const auto imin_f = kappa > 0 ? 2ul : 1ul;
+    return {N + 2, imin_f, N + 1, 1, N + 1, 0.0};
+  }
+  case SplineType::Hybrid:
+    return {N + lk, lk, N + lk, lk, N + lk, 1.0};
+  case SplineType::Shabaev:
+    return {N + 2, 1, N + 1, 1, N + 1, 1.0};
   case SplineType::Derevianko:
-    return {lk, N_states + lk + 1, N_states + lk, 1.0};
+    return {N + lk + 1, lk, N + lk, lk, N + lk, 1.0};
   }
   assert(false && "Unreachable: missing spline type in spline_params");
   return {};
 }
 
 //==============================================================================
-std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>>
-form_spline_basis(const int kappa, const std::size_t N_states,
-                  const std::size_t k_spl, const double r0_spl,
-                  const double rmax_spl, std::shared_ptr<const Grid> rgrid,
-                  const double alpha, SplineType type) {
-  // Forms the "base" basis of B-splines (DKB/Reno Method)
+SplineSpinorValues spline_spinor_values(double B, double dB, double d2B,
+                                        int kappa, double r, double kb) {
+  // f-like: f = B, g = kb (B' + kappa B/r)
+  // g-like: g = B, f = kb (B' - kappa B/r)
+  const auto k_r = kappa / r;
+  SplineSpinorValues v{};
+  v.f_f = B;
+  v.g_f = kb * (dB + k_r * B);
+  v.df_f = dB;
+  v.dg_f = kb * (d2B + k_r * dB - k_r / r * B);
+  v.f_g = kb * (dB - k_r * B);
+  v.g_g = B;
+  v.df_g = kb * (d2B - k_r * dB + k_r / r * B);
+  v.dg_g = dB;
+  return v;
+}
 
-  const auto [imin, n_spl, imax, lambda_DKB] =
-    spline_params(type, kappa, N_states);
+//==============================================================================
+SplineSpinors form_spline_basis(const int kappa, const std::size_t N_states,
+                                const std::size_t k_spl, const double r0_spl,
+                                const double rmax_spl,
+                                std::shared_ptr<const Grid> rgrid,
+                                const double alpha, SplineType type) {
+  // Forms the underlying spline spinors for the given SplineType
+
+  const auto params = spline_params(type, kappa, N_states);
+  const auto kb = params.lambda_DKB * 0.5 * alpha;
+  const auto num_f = params.num_f();
+  const auto num_spinors = num_f + params.num_g();
 
   // uses sepperate B-splines for each partial wave! OK?
 
-  BSpline bspl(n_spl, k_spl, r0_spl, rmax_spl, BSpline::KnotDistro::loglinear);
+  BSpline bspl(params.n_spl, k_spl, r0_spl, rmax_spl,
+               BSpline::KnotDistro::loglinear);
 
-  std::pair<std::vector<DiracSpinor>, std::vector<DiracSpinor>> out;
-  auto &basis = out.first;
-  auto &d_basis = out.second;
-  basis.resize(2 * N_states, {0, kappa, rgrid});
-  d_basis.resize(2 * N_states, {0, kappa, rgrid});
+  SplineSpinors out;
+  out.basis.resize(num_spinors, {0, kappa, rgrid});
+  out.d_basis.resize(num_spinors, {0, kappa, rgrid});
+  out.f_rmax.resize(num_spinors, 0.0);
+  out.g_rmax.resize(num_spinors, 0.0);
 
   for (auto ir = 0ul; ir < rgrid->num_points(); ++ir) {
     const auto r = rgrid->r(ir);
@@ -251,36 +318,45 @@ form_spline_basis(const int kappa, const std::size_t N_states,
     for (auto i = 0ul; i < bspl.K(); ++i) {
 
       const auto nB = i + i0; // which basis spline
+      const auto v =
+        spline_spinor_values(bij[i][0], bij[i][1], bij[i][2], kappa, r, kb);
 
-      // Only include
-      if (nB < imin || nB >= imax)
-        continue;
+      // "f-like" set: B_i in the large component
+      if (nB >= params.imin_f && nB < params.imax_f) {
+        auto &Sn = out.basis.at(nB - params.imin_f);
+        auto &dSn = out.d_basis.at(nB - params.imin_f);
+        Sn.f(ir) = v.f_f;
+        Sn.g(ir) = v.g_f;
+        dSn.f(ir) = v.df_f;
+        dSn.g(ir) = v.dg_f;
+      }
 
-      // Set the splines
-      auto &Sn1 = basis.at(nB - imin);
-      // First "f-like" set
-      Sn1.f(ir) = bij[i][0];
-      Sn1.g(ir) =
-        lambda_DKB * 0.5 * alpha * (bij[i][1] + (kappa / r) * bij[i][0]);
-      // second "g-like"
-      auto &Sn2 = basis.at(nB + N_states - imin);
-      Sn2.f(ir) =
-        lambda_DKB * 0.5 * alpha * (bij[i][1] - (kappa / r) * bij[i][0]);
-      Sn2.g(ir) = bij[i][0];
+      // "g-like" set: B_i in the small component
+      if (nB >= params.imin_g && nB < params.imax_g) {
+        auto &Sn = out.basis.at(num_f + nB - params.imin_g);
+        auto &dSn = out.d_basis.at(num_f + nB - params.imin_g);
+        Sn.f(ir) = v.f_g;
+        Sn.g(ir) = v.g_g;
+        dSn.f(ir) = v.df_g;
+        dSn.g(ir) = v.dg_g;
+      }
+    }
+  }
 
-      // Set the spline derivatives
-      auto &dSn1 = d_basis.at(nB - imin);
-      // First "f-like" set
-      dSn1.f(ir) = bij[i][1];
-      dSn1.g(ir) =
-        lambda_DKB * 0.5 * alpha *
-        (bij[i][2] + (kappa / r) * bij[i][1] - (kappa / r / r) * bij[i][0]);
-      // second "g-like"
-      auto &dSn2 = d_basis.at(nB + N_states - imin);
-      dSn2.f(ir) =
-        lambda_DKB * 0.5 * alpha *
-        (bij[i][2] - (kappa / r) * bij[i][1] + (kappa / r / r) * bij[i][0]);
-      dSn2.g(ir) = bij[i][1];
+  // Values exactly at rmax (generally between grid points), for the rmax
+  // boundary terms
+  const auto [i0, bij] = bspl.get_nonzero(rmax_spl, 2);
+  for (auto i = 0ul; i < bspl.K(); ++i) {
+    const auto nB = i + i0;
+    const auto v = spline_spinor_values(bij[i][0], bij[i][1], bij[i][2], kappa,
+                                        rmax_spl, kb);
+    if (nB >= params.imin_f && nB < params.imax_f) {
+      out.f_rmax.at(nB - params.imin_f) = v.f_f;
+      out.g_rmax.at(nB - params.imin_f) = v.g_f;
+    }
+    if (nB >= params.imin_g && nB < params.imax_g) {
+      out.f_rmax.at(num_f + nB - params.imin_g) = v.f_g;
+      out.g_rmax.at(num_f + nB - params.imin_g) = v.g_g;
     }
   }
 
@@ -289,10 +365,10 @@ form_spline_basis(const int kappa, const std::size_t N_states,
 
 //==============================================================================
 std::pair<LinAlg::Matrix<double>, LinAlg::Matrix<double>>
-fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
-                        const std::vector<DiracSpinor> &d_basis,
-                        const Wavefunction &wf, const bool correlationsQ,
-                        SplineType type) {
+fill_Hamiltonian_matrix(const SplineSpinors &splines, const Wavefunction &wf,
+                        const bool correlationsQ, SplineType type) {
+  const auto &spl_basis = splines.basis;
+  const auto &d_basis = splines.d_basis;
   const auto n_spl = spl_basis.size();
 
   auto A_and_S = std::make_pair(LinAlg::Matrix<double>{n_spl, n_spl},
@@ -338,42 +414,53 @@ fill_Hamiltonian_matrix(const std::vector<DiracSpinor> &spl_basis,
   }
   // Note: This is work-around, since Breit seems not to be 100% symmetric!
   if (type == SplineType::Johnson)
-    add_JohnsonBoundary(&Aij, spl_basis.front().kappa(), wf.alpha());
-  else if (type == SplineType::Fischer)
-    add_FischerBoundary(&Aij, wf.alpha());
+    add_JohnsonBoundary(&Aij, spl_basis.front().kappa(), wf.alpha(),
+                        splines.f_rmax, splines.g_rmax);
+  else if (type == SplineType::Hybrid)
+    add_rmaxBoundary(&Aij, wf.alpha(), splines.f_rmax, splines.g_rmax);
 
   return A_and_S;
 }
 
 //==============================================================================
 void add_JohnsonBoundary(LinAlg::Matrix<double> *pAij, const int kappa,
-                         const double alpha) {
+                         const double alpha, const std::vector<double> &f_rmax,
+                         const std::vector<double> &g_rmax) {
   // W. R. Johnson, S. A. Blundell, J. Sapirstein, Phys. Rev. A 37, 307 (1988)
+  // Second derivatives of the boundary term S', plus the surface term dropped
+  // by H0ab (see header); f(0) is the coefficient of the first f-like spline.
+  // The f(0)g(0) terms of the two cancel, so there is no r=0 cross term.
   auto &Aij = *pAij;
-  const auto n2 = Aij.rows();
-  const auto n1 = n2 / 2;
-  // r=0 boundary conds
-  // Add (c/2)*f(0)^2 + (c/2)*f(0)*g(0)
-  Aij[0][0] += (kappa < 0) ? 1.0 / alpha : 2.0 / (alpha * alpha);
-  Aij[0][n1] += 0.5;
-  Aij[n1][0] -= 0.5;
-  // f(rmax)=g(rmax)
-  Aij[n1 - 1][n1 - 1] += 0.5 / alpha; // f(R)^2
-  Aij[n1 - 1][n2 - 1] -= 0.5;
-  Aij[n2 - 1][n1 - 1] += 0.5;
-  Aij[n2 - 1][n2 - 1] -= 0.5 * alpha; // g(R)^2
+  const auto c = 1.0 / alpha;
+  // r=0: (c/2) f(0)^2 [kappa<0], c^2 f(0)^2 [kappa>0]
+  Aij[0][0] += (kappa < 0) ? c : 2.0 * c * c;
+  add_rmaxBoundary(pAij, alpha, f_rmax, g_rmax);
 }
 
 //==============================================================================
-void add_FischerBoundary(LinAlg::Matrix<double> *pAij, const double alpha) {
+void add_rmaxBoundary(LinAlg::Matrix<double> *pAij, const double alpha,
+                      const std::vector<double> &f_rmax,
+                      const std::vector<double> &g_rmax) {
+  // r=R: (c/4)[f(R)^2 - g(R)^2] + (c/2) f(R) g(R), where f(R) = sum_i p_i
+  // f_i(R) (likewise g) over the spline spinors: with kinetic balance, several
+  // of the last splines contribute to both. The cross term restores the
+  // surface term dropped by H0ab, so that the natural boundary condition is
+  // f(R) = -g(R)
   auto &Aij = *pAij;
-  const auto n2 = Aij.rows();
-  const auto n1 = n2 / 2;
-  // f(rmax)=g(rmax)
-  Aij[n1 - 1][n1 - 1] += 0.5 / alpha; // f(R)^2
-  Aij[n1 - 1][n2 - 1] -= 0.5;
-  Aij[n2 - 1][n1 - 1] += 0.5;
-  Aij[n2 - 1][n2 - 1] -= 0.5 * alpha; // g(R)^2
+  assert(f_rmax.size() == Aij.rows() && g_rmax.size() == Aij.rows());
+  const auto c = 1.0 / alpha;
+  std::vector<std::size_t> nonzero_at_rmax;
+  for (std::size_t i = 0; i < f_rmax.size(); ++i) {
+    if (f_rmax[i] != 0.0 || g_rmax[i] != 0.0)
+      nonzero_at_rmax.push_back(i);
+  }
+  for (const auto i : nonzero_at_rmax) {
+    for (const auto j : nonzero_at_rmax) {
+      const auto fi = f_rmax[i], gi = g_rmax[i];
+      const auto fj = f_rmax[j], gj = g_rmax[j];
+      Aij[i][j] += 0.5 * c * (fi * fj - gi * gj + fi * gj + gi * fj);
+    }
+  }
 }
 
 //==============================================================================

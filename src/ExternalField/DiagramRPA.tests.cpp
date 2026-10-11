@@ -22,7 +22,8 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
   wf.solve_core("Local", "[Ar]", std::nullopt, 1.0e-10, false);
   wf.solve_valence("4sp", false);
   // nb: use very small basis. Don't care about numerical results, just that eveything is working correctly.
-  SplineBasis::Parameters params{"10spd", 20, 7, 1.0e-3, 1.0e-3, 40.0};
+  // SplineBasis::Parameters params{"10spd", 20, 7, {1.0e-3, 1.5e-2}, 40.0};
+  SplineBasis::Parameters params{"10spd", 20, 7, {1.0e-3}, 40.0};
   params.verbose = false;
   wf.formBasis(params);
 
@@ -164,7 +165,8 @@ TEST_CASE("External Field: Diagram RPA",
                   {"Cs", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("HartreeFock", "[Xe]");
   wf.solve_valence("6sp5d4f");
-  wf.formBasis({"30spd20f", 60, 9, 1.0e-4, 1.0e-3, 40.0});
+  // wf.formBasis({"30spd20f", 60, 9, {1.4e-4, 2.8e-3, 2.4e-2}, 40.0});
+  wf.formBasis({"30spd20f", 60, 9, {1e-4}, 40.0});
 
   auto sorter = [](auto x, auto y) { return x.first < y.first; };
   auto compr = [](const auto &x, const auto &y) {
@@ -297,7 +299,9 @@ TEST_CASE("External Field: Diagram RPA - negative-energy states",
   wf.solve_core("HartreeFock", "[Xe]", std::nullopt, 1.0e-10, false);
   wf.solve_valence("6sp", false);
 
-  SplineBasis::Parameters params{"25spd", 40, 9, 1.0e-4, 1.0e-3, 40.0};
+  // SplineBasis::Parameters params{
+  // "25spd", 40, 9, {1.4e-4, 2.8e-3, 2.5e-2}, 40.0};
+  SplineBasis::Parameters params{"25spd", 40, 9, {1e-4}, 40.0};
   params.verbose = false;
   wf.formBasis(params);
   const auto basis_e = wf.basis();

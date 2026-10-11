@@ -519,7 +519,8 @@ TEST_CASE("Coulomb: formulas", "[Coulomb][integration]") {
   Wavefunction wf({900, 1.0e-6, 100.0, 10.0, "loglinear", -1.0},
                   {"Na", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("Hartree", "[Ne]");
-  wf.formBasis({"4spd6fg8h8i", 30, 7, 1.0e-3, 1.0e-3, 40.0});
+  // wf.formBasis({"4spd6fg8h8i", 30, 7, {1.1e-3, 3.3e-2}, 40.0});
+  wf.formBasis({"4spd6fg8h8i", 30, 7, {1.0e-3}, 40.0});
 
   // Split basis into core/excited
   std::vector<DiracSpinor> core, excited;

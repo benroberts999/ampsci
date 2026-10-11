@@ -187,7 +187,7 @@ void Feynman::form_vx() {
   const auto basis_string = l_string;
 
   wfH.formBasis(SplineBasis::Parameters(
-    basis_string, number, order, r0, 0.0, rmax, basis_string,
+    basis_string, number, order, {r0}, rmax, basis_string,
     SplineBasis::SplineType::Derevianko, false, false));
 
   // constructs the exchange matrix as:

@@ -20,7 +20,7 @@ TEST_CASE("External Field: TDHFbasis - basic unit tests",
   wf.solve_valence("3sp", false);
   // nb: use very small basis.
   // Don't care about numerical results, just that eveything is working correctly.
-  SplineBasis::Parameters params{"9sp8d", 20, 7, 1.0e-3, 1.0e-3, 30.0};
+  SplineBasis::Parameters params{"9sp8d", 20, 7, {1e-3}, 30.0};
   params.verbose = false;
   wf.formBasis(params);
 
@@ -100,7 +100,7 @@ TEST_CASE("External Field: TDHFbasis (RPA)",
   // Use reasonably small basis here
   // Use Diagram method as benchmark
   // Should be OK - since Diagram method is well tested
-  SplineBasis::Parameters params{"25spdfg", 40, 7, 1.0e-4, 1.0e-5, 40.0};
+  SplineBasis::Parameters params{"25spdfg", 40, 7, {1.0e-4}, 40.0};
   params.verbose = false;
   wf.formBasis(params);
 
@@ -183,8 +183,7 @@ TEST_CASE("External Field: TDHF (basis) Breit",
     bspl_param.states = "40spd30f";
     bspl_param.n = 50;
     bspl_param.k = 7;
-    bspl_param.r0 = 1.0e-3;
-    bspl_param.reps = 0.0;
+    bspl_param.r0 = {1.0e-3};
     bspl_param.rmax = 40.0;
   }
   bspl_param.verbose = false;

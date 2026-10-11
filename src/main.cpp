@@ -231,12 +231,16 @@ int main(int argc, char *argv[]) {
     return 0;
   } else if (in_text_1 == "-a" || in_text_1 == "--ampsci" ||
              in_text_1 == "-i" || in_text_1 == "--input") {
-    auto temp_input = IO::InputBlock{"ampsci", {"help;"}};
+    // Top-level options are printed only if no blocks are requested
+    auto temp_input = IO::InputBlock{"ampsci"};
     for (int i_in = 2; i_in < argc; ++i_in) {
       const std::string block_name = (argc > i_in) ? argv[i_in] : "";
       if (!block_name.empty()) {
         temp_input.add(IO::InputBlock{block_name, {"help;"}});
       }
+    }
+    if (temp_input.blocks().empty()) {
+      temp_input.add(IO::Option{"help", ""});
     }
     ampsci(temp_input);
     return 0;

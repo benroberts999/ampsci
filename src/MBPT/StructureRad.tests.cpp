@@ -17,7 +17,7 @@ TEST_CASE("MBPT: Structure Rad + Norm basic", "[StrucRad][MBPT][unit]") {
   Wavefunction wf({300, 1.0e-3, 30.0, 10.0, "loglinear", -1.0},
                   {"B", -1, "Fermi", -1.0, -1.0}, 1.0);
   wf.solve_core("Local", "[He],2s2", std::nullopt, 1.0e-12, false);
-  SplineBasis::Parameters params{"3spd4f", 60, 5, 1.0e-2, 1.0e-2, 20.0};
+  SplineBasis::Parameters params{"3spd4f", 60, 5, {1.0e-2}, 20.0};
   params.verbose = false;
   wf.formBasis(params);
 
@@ -160,8 +160,8 @@ TEST_CASE("MBPT: Structure Rad + Norm",
   wf.solve_valence("4s3p", false);
   // wf.printValence();
   auto basis_params =
-    SplineBasis::Parameters{"25spdfgh", 30, 7, 1.0e-4, 0, 40.0};
-  // SplineBasis::Parameters{"40spdfghi", 42, 7, 1.0e-4, 0, 40.0};
+    SplineBasis::Parameters{"25spdfgh", 30, 7, {1.0e-4}, 40.0};
+  // SplineBasis::Parameters{"40spdfghi", 42, 7, {1.0e-4}, 40.0};
   basis_params.verbose = false;
   wf.formBasis(basis_params);
 
@@ -242,8 +242,8 @@ TEST_CASE("MBPT: Structure Rad + Norm HFS",
   wf.solve_valence("6p", false);
   // wf.printValence();
   auto basis_params =
-    SplineBasis::Parameters{"20spdfgh", 30, 7, 1.0e-4, 0, 40.0};
-  // SplineBasis::Parameters{"40spdfghi", 42, 7, 1.0e-4, 0, 40.0};
+    SplineBasis::Parameters{"20spdfgh", 30, 7, {1.0e-4}, 40.0};
+  // SplineBasis::Parameters{"40spdfghi", 42, 7, {1.0e-4}, 40.0};
   basis_params.verbose = false;
   wf.formBasis(basis_params);
 
