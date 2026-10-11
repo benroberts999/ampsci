@@ -132,7 +132,11 @@ double StructureRad::srTB(const DiracSpinor &w, const DiracSpinor &v,
     const auto t_ra = mTab.getv(r, a);
 
     const auto T_wrva = t1234(m_K, w, r, v, a);
-    const auto B_wavr = v == w ? T_wrva : b1234(m_K, w, a, v, r);
+    // Even for w == v, the bottom diagram retains the internal-leg phase
+    // from b1234(): (-1)^(j_a - j_r).
+    const auto B_wavr = v == w ?
+                          Angular::neg1pow_2(a.twoj() - r.twoj()) * T_wrva :
+                          b1234(m_K, w, a, v, r);
 
     tb += (t_ar * T_wrva * inv_era_pw) + (t_ra * B_wavr * inv_era_mw);
   }

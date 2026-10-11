@@ -9,6 +9,43 @@
 #include <string>
 
 //==============================================================================
+TEST_CASE("MBPT: diagonal SR retains the internal Hermitian phase",
+          "[StrucRad][SRPhase][MBPT][unit]") {
+  const auto grid = std::make_shared<const Grid>(
+    GridParameters{1200, 1.0e-6, 200.0, 50.0, GridType::loglinear});
+  const auto basis = DiracSpinor::HlikeBasis("3spd", grid, 1.0);
+  MBPT::StructureRad sr(basis, -0.3, {1, 3}, "", 99, {}, {}, false);
+  const DiracOperator::hfs hfs2(2, 1.0, 0.0, *grid,
+                                DiracOperator::Hyperfine::pointlike_F(), false);
+  sr.solve_core(&hfs2);
+
+  // Independent references: differentiate the explicit magnetic-substate
+  // second-order self-energy with respect to h0 + lambda*hfs2, rotating only
+  // its internal orbitals and holding the external state/energy fixed.
+  // The closed core is 1s^2 and the finite basis/grid are those above. These
+  // are stretched matrix elements, not experimental hyperfine constants.
+  // Opposite-j reduced phases must add in the static top/bottom pair; the
+  // phase-free diagonal shortcut instead cancels those contributions.
+  const std::map<std::pair<int, int>, double> reference{
+    {{2, -2}, 7.48723815975974e-5},
+    {{3, 2}, 1.505169369350745e-5},
+    {{3, -3}, 2.1502043375518955e-5}};
+  std::size_t checked = 0;
+  for (const auto &v : basis) {
+    const auto it = reference.find({v.n(), v.kappa()});
+    if (it == reference.end())
+      continue;
+    CAPTURE(v.n(), v.kappa());
+    const auto factor =
+      hfs2.matel_factor(DiracOperator::MatrixElementType::Stretched, v, v);
+    CHECK(factor * sr.SR(v, v) ==
+          Approx(it->second).epsilon(0.0).margin(1.0e-12));
+    ++checked;
+  }
+  REQUIRE(checked == reference.size());
+}
+
+//==============================================================================
 TEST_CASE("MBPT: Structure Rad + Norm basic", "[StrucRad][MBPT][unit]") {
 
   // note: does not test formulas: just checks class is working correctly.
