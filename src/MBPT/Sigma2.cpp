@@ -270,7 +270,8 @@ double Sigma2::S_Sigma2_c1(int k, const DiracSpinor &v, const DiracSpinor &w,
 
           const auto SixJ1 = SixJ.get(l, u, k, v, x, a);
           const auto SixJ2 = SixJ.get(l, u, k, y, w, n);
-          const auto s = Angular::neg1pow_2(2 * a.twoj() + 2 * l + 2 * u);
+          const auto s =
+            Angular::neg1pow_2(a.twoj() + n.twoj() + 2 * l + 2 * u);
 
           const auto qk_vnay = Fk(u) * qk.Q(u, v, n, a, y);
           const auto qk_awxn = Fk(l) * qk.Q(l, a, w, x, n);
@@ -343,7 +344,8 @@ double Sigma2::S_Sigma2_c2(int k, const DiracSpinor &v, const DiracSpinor &w,
 
           const auto SixJ1 = SixJ.get(l, u, k, v, x, n);
           const auto SixJ2 = SixJ.get(l, u, k, y, w, a);
-          const auto s = Angular::neg1pow_2(2 * a.twoj() + 2 * l + 2 * u);
+          const auto s =
+            Angular::neg1pow_2(a.twoj() + n.twoj() + 2 * l + 2 * u);
 
           const auto qk_vany = Fk(u) * qk.Q(u, v, a, n, y);
           const auto qk_nwxa = Fk(l) * qk.Q(l, n, w, x, a);
