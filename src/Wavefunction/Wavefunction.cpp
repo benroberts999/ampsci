@@ -372,7 +372,7 @@ std::tuple<double, double> Wavefunction::lminmax_core_range(int l,
   const auto first = std::find_if(rho_l.begin(), rho_l.end(), lam);
   const auto last = std::find_if(rho_l.rbegin(), rho_l.rend(), lam);
   const auto index_first = std::size_t(first - rho_l.begin());
-  const auto index_last = std::size_t(rho_l.rend() - last);
+  const auto index_last = std::size_t(rho_l.rend() - last) - 1;
   return {rgrid->r()[index_first], rgrid->r()[index_last]};
 }
 
@@ -935,8 +935,8 @@ void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
         break;
     }
 
-    // Not really needed, but update HF in wavefunction:
-    // Remember to not include muon in Vnuc
+    // Update HF in wavefunction, so that its potentials (used below, and by
+    // any later modules) include the screening. Muon is not included in Vnuc
     hf.vnuc() = this->vnuc();
     *this->vHF() = hf;
 
@@ -954,10 +954,6 @@ void Wavefunction::solve_exotic(const std::string &in_exotic_str, double mass,
                    "(keV)\n";
     }
     for (auto &Fnk : this->valence()) {
-
-      const auto v =
-        hf.vdir() + this->vnuc() +
-        (this->vrad() ? this->vrad()->Vel() : std::vector<double>{});
       DiracODE::boundState(Fnk, Fnk.en(), this->vlocal(), this->Hmag(),
                            this->alpha(), 1.0e-14, nullptr, nullptr,
                            double(this->Znuc()), mass);

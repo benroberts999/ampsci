@@ -220,6 +220,10 @@ T H1f1(T a, double b, T z, double s) {
     // Real case: GSL, in double precision
     // static: set once only (thread safe)
     [[maybe_unused]] static const auto hndl = gsl_set_error_handler_off();
+    // GSL recurses without end (stack overflow) when both a and b are nan
+    if (std::isnan(a) || std::isnan(b) || std::isnan(z)) {
+      return std::numeric_limits<double>::quiet_NaN();
+    }
     gsl_sf_result res;
     const auto status = gsl_sf_hyperg_1F1_e(a, b, z, &res);
     const auto val = status == 0 ? res.val : 0.0;

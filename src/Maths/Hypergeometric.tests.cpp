@@ -1,7 +1,9 @@
 #include "Maths/Hypergeometric.hpp"
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
+#include <cmath>
 #include <complex>
+#include <limits>
 #include <vector>
 
 //==============================================================================
@@ -581,4 +583,13 @@ const std::vector<std::complex<double>> &h1f1_expected() {
     7.2902985349067395912966970077e-15 -
       1.61577858692683793826718754573e-14 * I};
   return data;
+}
+
+//==============================================================================
+TEST_CASE("Maths::Hypergeometric 1F1 nan", "[Hypergeometric][unit]") {
+  // nan arguments give nan (GSL alone recurses without end when a, b are nan)
+  const auto nan = std::numeric_limits<double>::quiet_NaN();
+  REQUIRE(std::isnan(Hypergeometric::H1f1(nan, nan, 3.0e-6)));
+  REQUIRE(std::isnan(Hypergeometric::H1f1(nan, 7.0, 3.0e-6)));
+  REQUIRE(std::isnan(Hypergeometric::H1f1(3.4, 7.0, nan)));
 }

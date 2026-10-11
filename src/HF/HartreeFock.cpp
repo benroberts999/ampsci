@@ -147,7 +147,7 @@ EpsIts HartreeFock::solve_core(bool print) {
     printf("%-7s:  it:%3i eps=%6.1e for %s\n", "Core", its, eps, nk.c_str());
   }
 
-  if (eps > m_eps_HF && eps > 1.0e-6) {
+  if (std::isnan(eps) || (eps > m_eps_HF && eps > 1.0e-6)) {
     fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
     std::cout << "Core didn't converge!\n\n";
   }
@@ -232,8 +232,10 @@ void HartreeFock::solve_valence(
       // printf(" delta=%8.5f; eps=%5.0e [its=%3i]", delta, veps, vits);
       const auto &Fa = valence->at(i);
       const bool wrong_nodes = Fa.num_nodes() != Fa.n() - Fa.l() - 1;
-      if ((veps > m_eps_HF && veps > 1.0e-6) || wrong_nodes || spurious.at(i)) {
-        std::cout << " ====*";
+      const bool not_converged =
+        std::isnan(veps) || (veps > m_eps_HF && veps > 1.0e-6);
+      if (not_converged || wrong_nodes || spurious.at(i)) {
+        std::cout << "  ****";
       }
       std::cout << "\n";
     }
@@ -244,23 +246,26 @@ void HartreeFock::solve_valence(
     printf("%-7s:  it:%3i eps=%6.1e for %s [%3i eps=%5.0e for %s]\n", which,
            its, eps, state.c_str(), bits, beps, bstate.c_str());
   }
-  if (eps > m_eps_HF && eps > 1.0e-6) {
-    fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
-    std::cout << "Valence didn't converge!\n\n";
+  bool warned = false;
+  if (std::isnan(eps) || (eps > m_eps_HF && eps > 1.0e-6)) {
+    warned = true;
+    fmt2::styled_print(fg(fmt::color::orange), "WARNING\n");
+    std::cout << "Valence didn't converge!\n";
   }
   check_nodes(*valence, "Valence");
-  bool warned = false;
   for (std::size_t i = 0; i < valence->size(); i++) {
     if (spurious.at(i)) {
       if (!warned)
         fmt2::styled_print(fg(fmt::color::orange), "WARNING\n");
       warned = true;
       fmt::print("Valence: {} Brueckner shift {:.5f} vs <Sigma> {:.5f}; "
-                 "converged to spurious state!\n",
+                 "converged to spurious state?\n",
                  valence->at(i).shortSymbol(), deltas.at(i),
                  sigma_shifts.at(i));
     }
   }
+  if (warned)
+    std::cout << "\n";
 }
 
 //==============================================================================

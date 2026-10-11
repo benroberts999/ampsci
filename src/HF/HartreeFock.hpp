@@ -4,6 +4,7 @@
 #include "Physics/PhysConst_constants.hpp"
 #include "Potentials/Parametric_potentials.hpp"
 #include "Potentials/RadPot.hpp"
+#include <cmath>
 #include <memory>
 #include <optional>
 #include <string>
@@ -35,8 +36,10 @@ struct EpsIts {
   double eps{0.0};
   int its{0};
   std::string symbol{};
+  // nan (failed solve) is ordered as the largest, i.e., worst, eps
   friend bool operator<(const EpsIts &l, const EpsIts &r) {
-    return std::abs(l.eps) < std::abs(r.eps);
+    return !std::isnan(l.eps) &&
+           (std::isnan(r.eps) || std::abs(l.eps) < std::abs(r.eps));
   }
 };
 
