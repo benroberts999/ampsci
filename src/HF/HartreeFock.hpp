@@ -264,6 +264,11 @@ private:
   // Local, Kohn-Sham or approxHF)
   EpsIts local_valence(DiracSpinor &Fa) const;
 
+  // Prints a warning for each orbital that does not have n-l-1 nodes (i.e.,
+  // converged to the wrong state)
+  void check_nodes(const std::vector<DiracSpinor> &orbitals,
+                   const std::string &label) const;
+
   /*
     // same as hf_valence, but uses Green method
     EpsIts hf_valence_Green(

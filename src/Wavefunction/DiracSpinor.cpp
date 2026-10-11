@@ -123,6 +123,45 @@ std::pair<double, double> DiracSpinor::r0pinfratio() const {
 }
 
 //==============================================================================
+int DiracSpinor::num_nodes(double rel_cut) const {
+  double f_max = 0.0;
+  for (std::size_t i = m_p0; i < m_pinf; ++i) {
+    if (!std::isfinite(m_f[i])) {
+      return -1;
+    }
+    f_max = std::max(f_max, std::abs(m_f[i]));
+  }
+  if (f_max == 0.0) {
+    return -1;
+  }
+
+  // Nodes are counted out to the last point where |f| >= rel_cut*max|f|; sign
+  // changes in the small tail beyond are not physical nodes. Inner lobes are
+  // counted however small (e.g., core-penetrating Rydberg states), but only
+  // from the first point where |f| >= inner_cut*max|f|: closer to the nucleus
+  // a high-l orbital (f ~ r^|kappa|) is negligible, and its sign can be set by
+  // numerical noise in a non-local potential (e.g., Sigma|a> near r=0).
+  const auto f_cut = rel_cut * f_max;
+  auto last = m_pinf;
+  while (last > m_p0 && std::abs(m_f[last - 1]) < f_cut) {
+    --last;
+  }
+  constexpr double inner_cut = 1.0e-10;
+  auto first = m_p0;
+  while (first < last && std::abs(m_f[first]) < inner_cut * f_max) {
+    ++first;
+  }
+
+  int nodes = 0;
+  for (std::size_t i = first + 1; i < last; ++i) {
+    if (m_f[i - 1] * m_f[i] < 0.0) {
+      ++nodes;
+    }
+  }
+  return nodes;
+}
+
+//==============================================================================
 std::vector<double> DiracSpinor::rho() const {
   std::vector<double> psi2;
   psi2.reserve(m_rgrid->num_points());

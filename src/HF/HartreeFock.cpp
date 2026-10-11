@@ -151,6 +151,7 @@ EpsIts HartreeFock::solve_core(bool print) {
     fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
     std::cout << "Core didn't converge!\n\n";
   }
+  check_nodes(m_core, "Core");
 
   return eps_its;
 }
@@ -166,6 +167,16 @@ void HartreeFock::solve_valence(
   std::vector<EpsIts> eis(valence->size());
   std::vector<double> deltas(valence->size());
 
+  // With Sigma, the Brueckner energy shift (from the input HF orbital) should
+  // be similar to the first-order shift <v|Sigma|v>: somewhat larger, since the
+  // orbital relaxes, and considerably larger for f states that contract
+  // strongly. A shift of the wrong sign, or much larger, means the solution
+  // converged to a spurious state. A negligible shift is allowed: the input
+  // may already be a Brueckner orbital (e.g., re-solving after fitting Sigma).
+  const double min_shift_ratio = -0.1;
+  const double max_shift_ratio = 10.0;
+  std::vector<double> sigma_shifts(valence->size(), 0.0);
+
   if (Sigma && print) {
     std::cout << "Solving for Brueckner orbitals (correlation potential)\n";
     Sigma->print_scaling();
@@ -176,7 +187,7 @@ void HartreeFock::solve_valence(
   // #pragma omp parallel for
   for (std::size_t i = 0; i < valence->size(); i++) {
     auto &Fa = valence->at(i);
-    const auto en0 = Fa.en();
+    const auto F_in = Fa;
     if (m_method == Method::HartreeFock) {
 
       eis.at(i) = hf_valence(Fa, Sigma);
@@ -185,7 +196,20 @@ void HartreeFock::solve_valence(
 
       eis.at(i) = local_valence(Fa);
     }
-    deltas.at(i) = Fa.en() - en0;
+    deltas.at(i) = Fa.en() - F_in.en();
+    // input orbitals with zero energy are not existing solutions
+    if (Sigma && F_in.en() != 0.0) {
+      sigma_shifts.at(i) = F_in * Sigma->SigmaFv(F_in);
+    }
+  }
+
+  std::vector<bool> spurious(valence->size(), false);
+  for (std::size_t i = 0; i < valence->size(); i++) {
+    if (sigma_shifts.at(i) != 0.0) {
+      const auto shift_ratio = deltas.at(i) / sigma_shifts.at(i);
+      spurious.at(i) =
+        !(shift_ratio >= min_shift_ratio && shift_ratio <= max_shift_ratio);
+    }
   }
 
   assert(valence->size() == eis.size());
@@ -197,13 +221,18 @@ void HartreeFock::solve_valence(
 
   if (Sigma && print) {
     // For Brueckner, print each valence
+    fmt::print(" {:4s} {:>9s} {:>9s}   {:>5s} {:>4s}\n", "nk", "<Sigma>",
+               "dE(bru)", "eps", "its");
     for (std::size_t i = 0; i < valence->size(); i++) {
       const auto &[veps, vits, vstate] = eis.at(i);
       const auto delta = deltas.at(i);
-      fmt::print(" {:4s} delta={:8.5f}; eps={:5.0e} [its={:3}]",
-                 valence->at(i).shortSymbol(), delta, veps, vits);
+      fmt::print(" {:4s} {:9.5f} {:9.5f}  {:6.0e} {:4}",
+                 valence->at(i).shortSymbol(), sigma_shifts.at(i), delta, veps,
+                 vits);
       // printf(" delta=%8.5f; eps=%5.0e [its=%3i]", delta, veps, vits);
-      if (veps > m_eps_HF && veps > 1.0e-6) {
+      const auto &Fa = valence->at(i);
+      const bool wrong_nodes = Fa.num_nodes() != Fa.n() - Fa.l() - 1;
+      if ((veps > m_eps_HF && veps > 1.0e-6) || wrong_nodes || spurious.at(i)) {
         std::cout << " ====*";
       }
       std::cout << "\n";
@@ -219,6 +248,45 @@ void HartreeFock::solve_valence(
     fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
     std::cout << "Valence didn't converge!\n\n";
   }
+  check_nodes(*valence, "Valence");
+  bool warned = false;
+  for (std::size_t i = 0; i < valence->size(); i++) {
+    if (spurious.at(i)) {
+      if (!warned)
+        fmt2::styled_print(fg(fmt::color::orange), "WARNING\n");
+      warned = true;
+      fmt::print("Valence: {} Brueckner shift {:.5f} vs <Sigma> {:.5f}; "
+                 "converged to spurious state!\n",
+                 valence->at(i).shortSymbol(), deltas.at(i),
+                 sigma_shifts.at(i));
+    }
+  }
+}
+
+//==============================================================================
+void HartreeFock::check_nodes(const std::vector<DiracSpinor> &orbitals,
+                              const std::string &label) const {
+  bool warned = false;
+  for (const auto &Fa : orbitals) {
+    const auto expected = Fa.n() - Fa.l() - 1;
+    const auto found = Fa.num_nodes();
+    if (found < 0) {
+      if (!warned)
+        fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
+      warned = true;
+      fmt::print("{}: {} solution failed (zero or non-finite orbital)!\n",
+                 label, Fa.shortSymbol());
+    } else if (found != expected) {
+      if (!warned)
+        fmt2::styled_print(fg(fmt::color::orange), "\nWARNING\n");
+      warned = true;
+      fmt::print("{}: {} has {} nodes, expected {}; converged to wrong "
+                 "state!\n",
+                 label, Fa.shortSymbol(), found, expected);
+    }
+  }
+  if (warned)
+    std::cout << "\n";
 }
 
 //==============================================================================
@@ -593,8 +661,10 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
     eps = std::abs((prev_en - Fa.en()) / Fa.en());
     prev_en = Fa.en();
 
+    // boundState zeroes the orbital if the solve fails; eps is then not finite
+    const bool failed = !std::isfinite(eps);
     const bool converged = std::isnan(prev_en) || (eps <= eps_target && it > 1);
-    if (converged || it == max_its)
+    if (failed || converged || it == max_its)
       break;
 
     Fa = (1.0 - eta_damp) * Fa + eta_damp * Fa_prev;
@@ -603,6 +673,16 @@ EpsIts HartreeFock::hf_valence(DiracSpinor &Fa,
 
   if (prev_its)
     it += *prev_its;
+
+  // The outward solution starts from the previous orbital's amplitude near the
+  // nucleus. For high-l states (f ~ r^|kappa|) that amplitude can be set by
+  // numerical noise in Sigma|a>, so the self-consistent solution is unreachable
+  // and the solve eventually fails. The Green's method fixes the energy through
+  // the normalisation (set by the bulk of the orbital), so restart with that.
+  if (!std::isfinite(eps)) {
+    Fa = F_orig;
+    return hf_valence_Green(Fa, Sigma);
+  }
 
   // prev_its checks if this already 2nd attempt - don't get stuck in loop
   if (eps < 10.0 * eps_target || prev_its)
@@ -631,7 +711,9 @@ EpsIts HartreeFock::hf_valence_Green(
     return local_valence(Fa);
 
   local_valence(Fa);
-  const auto vx0 = vex_KS(m_core);
+  // Same local exchange used by local_valence to form Fzero, so the first-order
+  // energy update below is consistent
+  const auto vx0 = vex_approx(Fa, m_core);
   const auto Fzero = Fa;
   const auto Vx0Fa = vx0 * Fa;
 

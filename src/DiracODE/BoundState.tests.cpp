@@ -12,8 +12,10 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
+#include "qip/Vector.hpp"
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <memory>
 #include <numeric>
 #include <string>
@@ -558,4 +560,53 @@ TEST_CASE("DiracODE: tail extension", "[DiracODE][unit]") {
     }
   }
   REQUIRE(any_extended);
+}
+
+//==============================================================================
+//! Inhomogeneous solve: a local potential vx entered as the source term
+//! VxFa = vx*F, iterated to self-consistency, must give the same solution as
+//! including vx in the potential directly. Tests the particular + homogeneous
+//! inward solution and its join to the outward solution.
+TEST_CASE("DiracODE: inhomogeneous bound state", "[DiracODE][bound][unit]") {
+
+  const auto grid = std::make_shared<const Grid>(1.0e-6, 150.0, 2000,
+                                                 GridType::loglinear, 10.0);
+  const double Zeff = 5.0;
+  const auto v_nuc = Nuclear::sphericalNuclearPotential(Zeff, 0.0, grid->r());
+  // Short-range attractive potential, standing in for exchange/correlation
+  std::vector<double> vx(grid->num_points());
+  for (std::size_t i = 0; i < vx.size(); ++i) {
+    vx[i] = -2.0 * std::exp(-grid->r(i));
+  }
+  const auto v_tot = qip::add(v_nuc, vx);
+
+  double worst_eps = 0.0;
+  for (int n = 1; n <= 6; ++n) {
+    for (int l = 0; l < n && l <= 3; ++l) {
+      for (const int kappa : {l, -l - 1}) {
+        if (kappa == 0) {
+          continue;
+        }
+        const auto en_guess = -0.5 * Zeff * Zeff / (n * n);
+        const auto F_direct = DiracODE::boundState(
+          n, kappa, en_guess, grid, v_tot, {}, PhysConst::alpha, 1.0e-15);
+
+        auto Fa = DiracODE::boundState(n, kappa, en_guess, grid, v_nuc, {},
+                                       PhysConst::alpha, 1.0e-15);
+        for (int it = 0; it < 100; ++it) {
+          const auto Fa_prev = Fa;
+          const auto VxFa = vx * Fa_prev;
+          DiracODE::boundState(Fa, Fa.en(), v_nuc, {}, PhysConst::alpha,
+                               1.0e-15, &VxFa, &Fa_prev);
+          if (std::abs((Fa.en() - Fa_prev.en()) / Fa.en()) < 1.0e-15)
+            break;
+        }
+
+        REQUIRE(Fa.num_nodes() == n - l - 1);
+        const auto eps = std::abs((Fa.en() - F_direct.en()) / F_direct.en());
+        worst_eps = std::max(worst_eps, eps);
+      }
+    }
+  }
+  REQUIRE(worst_eps < 1.0e-12);
 }

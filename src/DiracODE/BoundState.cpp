@@ -43,12 +43,15 @@ void boundState(DiracSpinor &Fn, const double en0, const std::vector<double> &v,
   // energy iterations below (avoids re-allocating two grid-sized vectors each
   // iteration).
   std::vector<double> f_in(Fn.f().size()), g_in(Fn.g().size());
+  // Scratch for the inward particular solution (only for inhomogeneous case)
+  const auto p_size = VxFa ? Fn.f().size() : 0;
+  std::vector<double> f_p(p_size), g_p(p_size);
 
   // Iterate: build a trial solution at the current energy, then adjust the
   // energy (PT step if # nodes correct, large step otherwise) until converged.
   for (; sofar.its < Param::max_its; ++sofar.its) {
     sofar = trialSolution(&Fn, v, H_mag, alpha, VxFa, Fa0, zion, mass, f_in,
-                          g_in, sofar);
+                          g_in, f_p, g_p, sofar);
     sofar = adjustEnergy(&Fn, required_nodes, alpha, sofar);
     if ((sofar.eps < eps_goal && sofar.correct_nodes) || std::isnan(sofar.en))
       break;
@@ -63,13 +66,21 @@ void boundState(DiracSpinor &Fn, const double en0, const std::vector<double> &v,
   Fn.its() = sofar.its;
   Fn.normalise();
 
-  // Solve failed (nan): zero the orbital and flag as unconverged.
-  if (std::isnan(sofar.en)) {
+  // Ran out of iterations without a solution with the correct number of nodes:
+  // energy may look converged (bracket collapsed), so flag as unconverged
+  if (!sofar.correct_nodes) {
+    Fn.eps() = 1.0;
+  }
+
+  // Solve failed (nan energy or orbital): zero the orbital and flag as
+  // unconverged. Zeros are assigned, since nan * 0 = nan.
+  if (std::isnan(sofar.en) || !std::isfinite(Fn.norm2())) {
     Fn.en() = 0.0;
     Fn.eps() = 1.0 / 0.0;
     Fn.max_pt() = Fn.grid().num_points();
     Fn.its() = 0;
-    Fn *= 0.0;
+    std::fill(Fn.f().begin(), Fn.f().end(), 0.0);
+    std::fill(Fn.g().begin(), Fn.g().end(), 0.0);
   }
 }
 
@@ -122,15 +133,16 @@ namespace Internal {
 //==============================================================================
 // Build the trial solution at the current energy (sofar.en): find the practical
 // infinity and the matching point near the classical turning point, then
-// integrate outwards and inwards and join the two solutions. The asymptotic
-// boundary conditions are set inside the integrators (using a previous solution
-// Fa0 if supplied, otherwise the standard expansions).
+// integrate outwards and inwards and join the two solutions. The boundary
+// conditions are set inside the integrators (the outward start uses a previous
+// solution Fa0 if supplied; the inward start uses the asymptotic expansion).
 // Returns sofar with pinf, ctp, and dg updated.
 TrackEnGuess trialSolution(DiracSpinor *Fn_ptr, const std::vector<double> &v,
                            const std::vector<double> &H_mag, double alpha,
                            const DiracSpinor *VxFa, const DiracSpinor *Fa0,
                            double zion, double mass, std::vector<double> &f_in,
-                           std::vector<double> &g_in, TrackEnGuess sofar) {
+                           std::vector<double> &g_in, std::vector<double> &f_p,
+                           std::vector<double> &g_p, TrackEnGuess sofar) {
   auto &Fn = *Fn_ptr;
   const auto &rgrid = Fn.grid();
 
@@ -139,9 +151,9 @@ TrackEnGuess trialSolution(DiracSpinor *Fn_ptr, const std::vector<double> &v,
     findClassicalTurningPoint(sofar.en, v, sofar.pinf, Param::d_ctp);
   sofar.ctp = (1 * sofar.pinf + 4 * t_ctp) / 5;
 
-  trialDiracSolution(Fn.f(), Fn.g(), sofar.dg, f_in, g_in, sofar.en, Fn.kappa(),
-                     v, H_mag, rgrid, sofar.ctp, Param::d_ctp, sofar.pinf,
-                     alpha, VxFa, Fa0, zion, mass);
+  trialDiracSolution(Fn.f(), Fn.g(), sofar.dg, f_in, g_in, f_p, g_p, sofar.en,
+                     Fn.kappa(), v, H_mag, rgrid, sofar.ctp, Param::d_ctp,
+                     sofar.pinf, alpha, VxFa, Fa0, zion, mass);
 
   // Keep min/max_pt in sync with the solved region, so the norm (Fn*Fn) used
   // by the PT energy step integrates over exactly [0, pinf). Matters when
@@ -160,7 +172,12 @@ TrackEnGuess adjustEnergy(DiracSpinor *Fn_ptr, int required_nodes, double alpha,
                           TrackEnGuess sofar) {
   auto &Fn = *Fn_ptr;
 
-  const int counted_nodes = countNodes(Fn.f(), sofar.pinf);
+  // Bound-state nodes lie inside the classically allowed region, so only count
+  // sign changes up to the end of the matching region (ctp + d_ctp). Beyond it
+  // the orbital is the inward, exponentially small tail: the homogeneous
+  // solution has no zeros there, but an inhomogeneous (exchange/Sigma) source
+  // can produce tiny sign changes that are not nodes.
+  const int counted_nodes = countNodes(Fn.f(), sofar.ctp + Param::d_ctp + 1);
   const double en_old = sofar.en;
   if (counted_nodes == required_nodes) {
     sofar.correct_nodes = true;
@@ -342,8 +359,9 @@ int countNodes(const std::vector<double> &f, std::size_t pinf) {
 //==============================================================================
 void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         std::vector<double> &dg, std::vector<double> &f_in,
-                        std::vector<double> &g_in, const double en,
-                        const int ka, const std::vector<double> &v,
+                        std::vector<double> &g_in, std::vector<double> &f_p,
+                        std::vector<double> &g_p, const double en, const int ka,
+                        const std::vector<double> &v,
                         const std::vector<double> &H_mag, const Grid &gr,
                         std::size_t ctp, std::size_t d_ctp, std::size_t pinf,
                         const double alpha, const DiracSpinor *const VxFa,
@@ -362,7 +380,27 @@ void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
   // [ctp-d_ctp, pinf) and zeros beyond, covering everything joinInOutSolutions
   // reads, so no pre-clear is required.
   solve_Dirac_inwards(f_in, g_in, Hd, ctp - d_ctp, pinf, mass);
+  if (VxFa == nullptr) {
+    joinInOutSolutions(f, g, dg, f_in, g_in, ctp, d_ctp, pinf);
+    return;
+  }
+
+  // Inhomogeneous equation: the inward solution is a particular solution
+  // (zero at pinf) plus c times the homogeneous solution regular at infinity.
+  // Only the homogeneous part is rescaled to match the outward solution, so
+  // the source enters with the same (unit) weight on both sides of ctp, and
+  // the trial solution varies smoothly with energy and pinf. f_p/g_p are
+  // caller-owned scratch, like f_in/g_in.
+  solve_Dirac_inwards_particular(f_p, g_p, Hd, ctp - d_ctp, pinf);
+  for (std::size_t i = ctp - d_ctp; i <= ctp + d_ctp; ++i) {
+    f[i] -= f_p[i];
+    g[i] -= g_p[i];
+  }
   joinInOutSolutions(f, g, dg, f_in, g_in, ctp, d_ctp, pinf);
+  for (std::size_t i = ctp - d_ctp; i < pinf; ++i) {
+    f[i] += f_p[i];
+    g[i] += g_p[i];
+  }
 }
 
 //==============================================================================
@@ -515,20 +553,6 @@ void solve_Dirac_inwards(std::vector<double> &f, std::vector<double> &g,
     --i0;
   }
 
-  // If we have an existing solution (and an inhomogenous term)
-  // we could use existing solution for boundary condition.
-  // However, this is numerically unstable, since f(r) is very small.
-  // Instead, we re-scale the inhomogenous term so that the normalisation is
-  // consistant between the two
-  if (Hd.VxFa) {
-    const auto i0 = ode.last_t();
-    const auto f0 = ode.last_f();
-    const auto Xscl =
-      (Hd.VxFa && Hd.Fa0->f(i0) != 0.0) ? f0 / Hd.Fa0->f(i0) : 0.0;
-    ode.S_scale = Xscl;
-    // nb: what if pinf is very different between current and previous soln?
-  }
-
   for (std::size_t i = 0; i < ode.K_steps(); ++i) {
     f[ode.t[i]] = ode.f[i];
     g[ode.t[i]] = ode.g[i];
@@ -542,6 +566,32 @@ void solve_Dirac_inwards(std::vector<double> &f, std::vector<double> &g,
       break;
   }
   for (std::size_t i = i_start + ode.K_steps(); i < f.size(); ++i) {
+    f[i] = 0.0;
+    g[i] = 0.0;
+  }
+}
+
+//==============================================================================
+void solve_Dirac_inwards_particular(std::vector<double> &f,
+                                    std::vector<double> &g,
+                                    const DiracDerivative &Hd, std::size_t nf,
+                                    std::size_t pinf) {
+  // Starts from f = g = 0 at pinf-1; the source enters at unit weight.
+  AdamsMoulton::ODESolver2D<Param::K_Adams, std::size_t, double> ode{
+    -Hd.pgr->du(), &Hd};
+  ode.solve_initial_K(pinf - 1, 0.0, 0.0);
+  for (std::size_t i = 0; i < ode.K_steps(); ++i) {
+    f[ode.t[i]] = ode.f[i];
+    g[ode.t[i]] = ode.g[i];
+  }
+  for (std::size_t i = ode.last_t() - 1; i >= nf; --i) {
+    ode.drive(i);
+    f[i] = ode.last_f();
+    g[i] = ode.last_g();
+    if (i == 0)
+      break;
+  }
+  for (std::size_t i = pinf; i < f.size(); ++i) {
     f[i] = 0.0;
     g[i] = 0.0;
   }

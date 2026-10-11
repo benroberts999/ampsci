@@ -20,6 +20,12 @@ namespace DiracODE {
   - @p v is the local potential (e.g., v = v_dir + v_nuc)
   - @p H_off_diag is an optional off-diagonal potential
   - @p alpha: \f$ \alpha = \lambda\alpha_0 \f$ is the effective fine-structure constant
+  - @p VxFa, @p Fa0: optional inhomogeneous (e.g., exchange) term, and the
+    previous solution (sets the starting amplitude at the origin)
+
+  On exit, Fa.eps() is the final fractional energy change; it is set to 1 if no
+  solution with the correct number of nodes (n-l-1) was found, and to infinity
+  (orbital zeroed) if the solve failed.
 */
 void boundState(DiracSpinor &Fa, const double en0, const std::vector<double> &v,
                 const std::vector<double> &H_off_diag = {},
@@ -48,7 +54,8 @@ void regularAtOrigin(DiracSpinor &Fa, const double en,
                      const DiracSpinor *const Fa0 = nullptr, double zion = 1,
                      double mass = 1.0);
 
-//! For given energy en, solves (local) DE with correct boundary conditions at infinity
+//! For given energy en, solves (local) DE with correct boundary conditions at
+//! infinity. Homogeneous solution only: VxFa is ignored.
 void regularAtInfinity(DiracSpinor &Fa, const double en,
                        const std::vector<double> &v,
                        const std::vector<double> &H_off_diag,
@@ -202,7 +209,8 @@ TrackEnGuess trialSolution(DiracSpinor *Fn, const std::vector<double> &v,
                            const std::vector<double> &H_off_diag, double alpha,
                            const DiracSpinor *VxFa, const DiracSpinor *Fa0,
                            double zion, double mass, std::vector<double> &f_in,
-                           std::vector<double> &g_in, TrackEnGuess sofar);
+                           std::vector<double> &g_in, std::vector<double> &f_p,
+                           std::vector<double> &g_p, TrackEnGuess sofar);
 
 //! Counts nodes and updates the energy guess (PT step if # nodes correct, else a
 //! large bracketing step). Returns sofar with en, eps, correct_nodes updated.
@@ -234,11 +242,17 @@ std::size_t findClassicalTurningPoint(const double en,
   not an eigenvalue, there will be a discontinuity ('kink') in g at ctp. The
   difference dg = g_out - g_in at the joining region is stored and used for the
   perturbation-theory energy update.
+
+  With an inhomogeneous term (VxFa), the inward solution is a particular
+  solution (f_p, g_p) plus c times the homogeneous solution (f_in, g_in); only c
+  is fixed by the matching, so dg = g_out - (g_p + c*g_in). f_in, g_in, f_p and
+  g_p are caller-owned scratch (f_p, g_p unused if VxFa is null).
 */
 void trialDiracSolution(std::vector<double> &f, std::vector<double> &g,
                         std::vector<double> &dg, std::vector<double> &f_in,
-                        std::vector<double> &g_in, const double en,
-                        const int ka, const std::vector<double> &v,
+                        std::vector<double> &g_in, std::vector<double> &f_p,
+                        std::vector<double> &g_p, const double en, const int ka,
+                        const std::vector<double> &v,
                         const std::vector<double> &H_off_diag, const Grid &gr,
                         std::size_t ctp, std::size_t d_ctp, std::size_t pinf,
                         const double alpha,
@@ -272,14 +286,28 @@ void solve_Dirac_outwards(std::vector<double> &f, std::vector<double> &g,
                           const DiracDerivative &Hd, std::size_t final = 0);
 
 /*!
-  @brief Integrates the Dirac equation inwards from pinf to ctp.
+  @brief Integrates the homogeneous Dirac equation inwards from pinf to ctp.
   @details
   The solution satisfies the boundary condition at large r (practical infinity)
-  but not at the origin.
+  but not at the origin. Any source term (Hd.VxFa) is ignored; see
+  solve_Dirac_inwards_particular().
 */
 void solve_Dirac_inwards(std::vector<double> &f, std::vector<double> &g,
                          const DiracDerivative &Hd, std::size_t ctp,
                          std::size_t pinf, double mass = 1.0);
+
+/*!
+  @brief Integrates the inhomogeneous Dirac equation inwards from pinf to nf,
+  starting from f = g = 0 at pinf-1.
+  @details
+  Gives a particular solution, with the source (Hd.VxFa) at unit weight. The
+  general inward solution regular at infinity is this plus any multiple of the
+  homogeneous solution from solve_Dirac_inwards().
+*/
+void solve_Dirac_inwards_particular(std::vector<double> &f,
+                                    std::vector<double> &g,
+                                    const DiracDerivative &Hd, std::size_t nf,
+                                    std::size_t pinf);
 
 //==============================================================================
 /*!

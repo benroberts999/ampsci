@@ -197,6 +197,20 @@ public:
   //! Returns the norm^2, defined: Norm2 = <a|a>
   double norm2() const;
 
+  /*! 
+  @brief
+    Number of nodes (sign changes) in f(r); should be n-l-1 for bound states
+  
+  @details 
+    Only counts out to the last point where |f| >= rel_cut*max|f|,
+    so that small-amplitude sign changes in the tail (e.g., the
+    exchange-dominated tail of Hartree-Fock orbitals), which are not physical
+    nodes, are not counted. Likewise, sign changes before |f| first reaches
+    1e-10*max|f| (near the nucleus, where high-l orbitals are negligible) are
+    not counted. Returns -1 if f is zero or not finite (failed solution).
+  */
+  int num_nodes(double rel_cut = 1.0e-3) const;
+
   //! Returns [f[p0]/f_max , f[pinf]/f_max] - for tests
   std::pair<double, double> r0pinfratio() const;
 

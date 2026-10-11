@@ -415,7 +415,12 @@ void Wavefunction::printValence(
   if (tmp_orbs.empty())
     return;
 
-  std::cout << "Valence: " << atomicSymbol() << ion_symbol(1) << "\n";
+  fmt::print("Valence: {}{}", atomicSymbol(), ion_symbol(1));
+  if (const auto charge = ion_degree(1); charge != 0) {
+    fmt::print(" ({}^{}{})", atomicSymbol(), std::abs(charge),
+               charge > 0 ? '+' : '-');
+  }
+  fmt::print("\n");
 
   // Find lowest valence energy:
   const auto min_it =
