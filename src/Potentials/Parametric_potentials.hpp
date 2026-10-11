@@ -21,7 +21,9 @@ enum class Type { Green, Tietz };
     V(r) = \frac{Z}{r} - \frac{1}{r}
       \left[ 1 + \frac{Z-1}{H\,(e^{r/d} - 1) + 1} \right].
   \f]
-  The total potential is V(r) - Z/r. Returns 0 at r = 0.
+
+  The total potential is V(r) - Z/r. 
+  Returns 0 at r = 0, and for Z = 1 (no screening electrons).
 */
 double green(int Z, double r, double H, double d);
 
@@ -29,17 +31,11 @@ double green(int Z, double r, double H, double d);
   @brief Tietz parametric potential at r; electron part only (no nuclear).
 
   @details
-  As implemented, in terms of the parameter names here:
   \f[
     V(r) = \frac{Z}{r} - \frac{1}{r}
-      \left[ 1 + \frac{(Z-1)\,e^{-t r}}{(1 + g r)^2} \right].
+      \left[ 1 + \frac{(Z-1)\,e^{-g r}}{(1 + t r)^2} \right].
   \f]
   The total potential is V(r) - Z/r. Returns 0 at r = 0.
-
-  @warning The definition names the 3rd/4th parameters (t, g), opposite to
-           this declaration (g, t). As called, g and t therefore take the
-           opposite roles to the standard Tietz form,
-           \f$ e^{-g r}/(1 + t r)^2 \f$.
 */
 double tietz(int Z, double r, double g, double t);
 
@@ -52,7 +48,7 @@ double tietz(int Z, double r, double g, double t);
 
   @return Always 0; H and d are set by reference.
 
-  @warning For Z = 1, H = d = 0, for which green() is nan.
+  @note For Z = 1, H = d = 0: unused, since there is no screening.
 */
 int defaultGreenCore(int z, double &H, double &d);
 

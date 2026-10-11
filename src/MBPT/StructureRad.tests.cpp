@@ -117,6 +117,35 @@ TEST_CASE("MBPT: Structure Rad + Norm basic", "[StrucRad][MBPT][unit]") {
         }
       }
     }
+
+    std::cout << "Test SRN k_cut: Qk vs Yk table: " << h->name() << "\n";
+    // k_cut must give the same result with Yk, with a QkTable filled only up
+    // to k_cut, and with a QkTable holding all k (read from QK_fname)
+    const int k_cut = 1;
+    const auto QK_cut_fname = "deleteme_" + rand_str + "_kcut.qk.abf";
+    MBPT::StructureRad srn_Yk(wf.basis(), wf.FermiLevel(), {0, 999}, "", k_cut,
+                              {}, {}, false);
+    MBPT::StructureRad srn_Qk(wf.basis(), wf.FermiLevel(), {0, 999},
+                              QK_cut_fname, k_cut, {}, {}, false);
+    MBPT::StructureRad srn_Qk_all(wf.basis(), wf.FermiLevel(), {0, 999},
+                                  QK_fname, k_cut, {}, {}, false);
+    srn_Yk.solve_core(h);
+    srn_Qk.solve_core(h);
+    srn_Qk_all.solve_core(h);
+    double max_cut_effect = 0.0;
+    for (const auto &a : srn.core()) {
+      for (const auto &b : srn.excited()) {
+        if (h->isZero(a, b))
+          continue;
+        const auto sr_Yk = srn_Yk.srn(a, b, h);
+        REQUIRE(sr_Yk == Approx(srn_Qk.srn(a, b, h)));
+        REQUIRE(sr_Yk == Approx(srn_Qk_all.srn(a, b, h)));
+        max_cut_effect =
+          std::max(max_cut_effect, std::abs(sr_Yk - srn.srn(a, b, h)));
+      }
+    }
+    // the cut must actually change the result
+    REQUIRE(max_cut_effect > 1.0e-6);
   }
 }
 

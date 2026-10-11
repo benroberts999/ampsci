@@ -132,7 +132,7 @@ public:
   Starts from the default nucleus for given Z and A (see Nucleus), then
   over-rides with any options given in @p input: type, rrms, c, t, beta,
   input_file, parameters. If c is given, it over-rides rrms. If A or r_rms
-  is zero, the nucleus is set to point-like.
+  is zero, the nucleus is set to point-like (except for custom).
 
   @param Z      Nuclear charge
   @param A      Mass number; default A for Z if not given
@@ -232,7 +232,7 @@ fermiNuclearDensity_tcN(double t, double c, double Z_norm, const Grid &grid);
 
   @details
   Calls one of the above, depending on nucleus type. If r_rms = 0, point-like
-  (-Z/r) regardless of type.
+  (-Z/r) for all types except custom.
   - Fermi: c from r_rms and t; if beta is non-zero, uses the effective skin
     thickness for the deformed nucleus (deformation_effective_t)
   - spherical: radius r_N = sqrt(5/3) r_rms

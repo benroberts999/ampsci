@@ -356,3 +356,47 @@ TEST_CASE("MBPT: SpinorMatrix", "[MBPT][SpinorMatrix][unit]") {
     REQUIRE(std::abs(worst_2) < 1.0e-12);
   }
 }
+
+//==============================================================================
+TEST_CASE("MBPT: SpinorMatrix mixed g", "[MBPT][SpinorMatrix][unit]") {
+  // A matrix without g parts must behave as one with zero g parts
+
+  const auto grid =
+    std::make_shared<const Grid>(1.0e-4, 10.0, 100ul, GridType::loglinear, 2.0);
+  const std::size_t i0 = 10;
+  const std::size_t stride = 2;
+  const std::size_t size = 20;
+
+  // Arbitrary non-zero, non-symmetric elements
+  MBPT::GMatrix a(i0, stride, size, true, grid);
+  MBPT::GMatrix b(i0, stride, size, false, grid);
+  for (std::size_t i = 0; i < size; ++i) {
+    for (std::size_t j = 0; j < size; ++j) {
+      a.ff(i, j) = 1.0 + 0.1 * double(i) - 0.03 * double(j);
+      a.fg(i, j) = 0.5 + 0.02 * double(i * j);
+      a.gf(i, j) = -0.71 + 0.05 * double(j);
+      a.gg(i, j) = 0.2 + 0.01 * double(i + j);
+      b.ff(i, j) = 2.0 - 0.04 * double(i) + 0.06 * double(j);
+    }
+  }
+  // b, with explicit zero g parts
+  auto b_g = b;
+  b_g.create_g();
+
+  REQUIRE(equal(a * b, a * b_g));
+  REQUIRE(equal(b * a, b_g * a));
+  REQUIRE(max_delta(a, b) == max_delta(a, b_g));
+  REQUIRE(max_delta(b, a) == max_delta(b_g, a));
+  REQUIRE(max_epsilon(a, b) == max_epsilon(a, b_g));
+  REQUIRE(max_epsilon(b, a) == max_epsilon(b_g, a));
+
+  // A change in any single block must show up in max_delta and max_epsilon
+  const std::vector<std::pair<std::size_t, std::size_t>> blocks{
+    {0, 0}, {0, 1}, {1, 0}, {1, 1}};
+  for (const auto &[mu, nu] : blocks) {
+    auto a2 = a;
+    a2.sp(mu, nu)(3, 5) *= 1.1;
+    REQUIRE(max_delta(a, a2) > 0.0);
+    REQUIRE(max_epsilon(a, a2) > 0.01);
+  }
+}

@@ -6,22 +6,22 @@
 namespace Parametric {
 
 //==============================================================================
-double green(int Z, double r, double H, double d)
-// Have default H and d : scaled to fit Alkali atoms!
-// Does not include nuclear part!
-{
-  if (r == 0)
+double green(int Z, double r, double H, double d) {
+  // Have default H and d : scaled to fit Alkali atoms!
+  // Does not include nuclear part!
+
+  // Z = 1: no other electrons, so no screening (H, d irrelevant, may be 0)
+  if (r <= 0 || Z == 1)
     return 0;
   return (-1.0 / r) * (1.0 + (double(Z) - 1.) / (H * (exp(r / d) - 1) + 1)) +
          double(Z) / r;
 }
 
 //==============================================================================
-double tietz(int Z, double r, double t, double g)
-// TIETZ parametric potential
-// Does NOT include nuclear potential
-{
-  if (r == 0)
+double tietz(int Z, double r, double g, double t) {
+  // TIETZ parametric potential
+  // Does NOT include nuclear potential
+  if (r <= 0 || Z == 1)
     return 0;
   return (-1.0 / r) *
            (1.0 + (double(Z) - 1.) * exp(-g * r) / std::pow(1.0 + t * r, 2)) +
@@ -29,9 +29,8 @@ double tietz(int Z, double r, double t, double g)
 }
 
 //==============================================================================
-int defaultGreenCore(int z, double &H, double &d)
-// Fitted to match HF closed-shell core energies - aid convergance!
-{
+int defaultGreenCore(int z, double &H, double &d) {
+  // Fitted to match HF closed-shell core energies - aid convergance!
   const std::vector<std::vector<double>> zHd = {
     {1, 0.0, 0.0},          {2, 12.275, 3.552},     {3, 3.248, 2.518},
     {5, 6.812, 4.535},      {11, 3.001, 1.038},     {13, 9.837, 2.99813},
@@ -74,11 +73,10 @@ int defaultGreenCore(int z, double &H, double &d)
 }
 
 //==============================================================================
-int defaultGreen(int z, double &H, double &d)
-// Default values for Green potential parameters.
-// Determined by fitting the 5 lowest J=1/2 states.
-// Crude quadratic fit used for other Z values.
-{
+int defaultGreen(int z, double &H, double &d) {
+  // Default values for Green potential parameters.
+  // Determined by fitting the 5 lowest J=1/2 states.
+  // Crude quadratic fit used for other Z values.
 
   if (z == 3) {
     H = 0.65074;
@@ -135,11 +133,10 @@ int defaultGreen(int z, double &H, double &d)
 }
 
 //==============================================================================
-int defaultTietz(int z, double &g, double &t)
-// Default values for Green potential parameters.
-// Determined by fitting the 5 lowest J=1/2 states.
-// Crude quadratic fit used for other Z values.
-{
+int defaultTietz(int z, double &g, double &t) {
+  // Default values for Tietz potential parameters.
+  // Determined by fitting the 5 lowest J=1/2 states.
+  // Crude quadratic fit used for other Z values.
   if (z == 3) {
     t = 0.10000;
     g = 1.94363;

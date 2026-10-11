@@ -2,6 +2,7 @@
 #include "DiracOperator/include.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
+#include <algorithm>
 
 //==============================================================================
 //==============================================================================
@@ -37,15 +38,22 @@ TEST_CASE("Parametric potentials", "[prm][unit]") {
   const auto vg = Parametric::GreenPotential(int(zeff), radial_grid->r());
   const auto vt = Parametric::TietzPotential(int(zeff), radial_grid->r());
 
+  // Z = 1: no screening electrons, so electron potential is exactly zero
+  const auto v_H = Parametric::GreenPotential(1, radial_grid->r());
+  const auto result =
+    std::all_of(v_H.cbegin(), v_H.cend(), [](double v) { return v == 0.0; });
+  REQUIRE(result);
+
   // geneated with 5000 pts
   const auto aga0s =
     std::vector{35.851733939957235, 23.857128488699516, 23.806698412657056,
                 15.520681948768228, 15.508963307396499, 10.439854223306053,
                 10.436137600652057};
+  // updated: were incorrect
   const auto ata0s =
-    std::vector{30.913482805598647, 23.504270400835946, 23.468519915732003,
-                16.557099169686712, 16.546379062750177, 11.415329473402792,
-                11.411383617964162};
+    std::vector{33.386808487089361, 24.565794637034891, 24.524491657740008,
+                16.856261639250768, 16.844655540371761, 11.455226123489282,
+                11.451146314342445};
   std::size_t count = 0;
   for (const auto &Fa : orbs) {
     auto aga = Fa * (vg * Fa);

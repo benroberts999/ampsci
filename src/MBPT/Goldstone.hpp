@@ -135,7 +135,7 @@ public:
     @param etak           Effective hole-particle factors, for each k (direct
                           part only)
     @param n_max_core     Maximum n of internal hole states (<= 0: all)
-    @param m_max_n_breit  Maximum n of internal excited states (<= 0: all)
+    @param max_n_breit    Maximum n of internal excited states (<= 0: all)
 
     @return Breit correction to Sigma, on the sub-grid.
 
@@ -145,7 +145,7 @@ public:
   GMatrix dSigma_Breit2(int kappa_v, double en_v,
                         const std::vector<double> &fk = {},
                         const std::vector<double> &etak = {},
-                        int n_max_core = 99, int m_max_n_breit = -1) const;
+                        int n_max_core = 99, int max_n_breit = -1) const;
 
   //! Internal {holes, excited} states (holes: core states with n >= n_min)
   const std::pair<Basis, Basis> &basis() const { return m_basis; }

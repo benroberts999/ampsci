@@ -165,13 +165,13 @@ Nucleus form_nucleus(int Z, std::optional<int> tA, IO::InputBlock input) {
      {"beta", "Intrinsic nuclear quadrupole deformation parameter \u03b2 "
               "(Currently only for Fermi potential) [0.0]"},
      {"input_file", "Read potential from given file of the form (r v(r)) "
-                    "(space delimetered, in atomic units) - will be "
+                    "(space delimited, in atomic units) - will be "
                     "interpolated onto atomic grid. Note: potential will be "
                     "extrapolated to larger R, assuming ~1/R, but "
                     "will NOT be extrapolated to smaller R. So, ensure "
                     "smallest required {r V(r)} is given"},
      {"parameters",
-      "List of comma separated real numbers. Not currently unused, but may "
+      "List of comma separated real numbers. Not currently used, but may "
       "be used in future for more complicated nuclear distros."}});
 
   using namespace std::string_literals;
@@ -216,7 +216,9 @@ Nucleus form_nucleus(int Z, std::optional<int> tA, IO::InputBlock input) {
 
   // If A or given rrms are zero, explicitly set to point-like nucleus
   // This isn't required, but makes output more explicit
-  if (nucleus.a() == 0 || nucleus.r_rms() == 0.0) {
+  // (custom potential is read from file, so does not depend on rrms)
+  if (nucleus.type() != Nuclear::ChargeDistro::custom &&
+      (nucleus.a() == 0 || nucleus.r_rms() == 0.0)) {
     nucleus.t() = 0.0;
     nucleus.set_rrms(0.0);
     nucleus.beta() = 0.0;
@@ -359,8 +361,11 @@ std::vector<double> formPotential(const Nucleus &nuc,
 
   // const auto params = nuc.params(); // not used as yet
 
+  // custom potential is read from file, so does not depend on rrms
   const auto nucleus_type =
-    r_rms > 0.0 ? nuc.type() : Nuclear::ChargeDistro::point;
+    (r_rms > 0.0 || nuc.type() == Nuclear::ChargeDistro::custom) ?
+      nuc.type() :
+      Nuclear::ChargeDistro::point;
 
   switch (nucleus_type) {
 
@@ -420,7 +425,7 @@ std::vector<double> formPotential(const Nucleus &nuc,
   }
 
   default: {
-    std::cout << "\nFAIL Nuclear:266 - invalid nucleus type?\n";
+    std::cout << "\nFAIL Nuclear::formPotential - invalid nucleus type?\n";
     std::abort();
   }
   }

@@ -98,8 +98,9 @@ public:
     @param etak      Effective hole-particle factors, for each k (test only)
     @param verbose   If true, prints progress to screen
 
-    @note Without a QkTable, @p k_cut is applied in only some of the diagram
-          sums (not t2, t3, c1, or the normalisation).
+    @note @p k_cut applies to every Coulomb line, including those inside
+          the exchange integrals (all Q^k, P^k, W^k with k > k_cut are zero),
+          whether or not a QkTable is used.
   */
   StructureRad(const std::vector<DiracSpinor> &basis, double en_core,
                std::pair<int, int> nminmax = {0, 999},
@@ -175,11 +176,10 @@ public:
     @param omega  Operator frequency; enters the energy denominators of the
                   top and bottom diagrams
 
-    @note Must call solve_core() first.
+    @note Must call solve_core() first; aborts otherwise.
     @warning Returns zero if <w||h||v> is not in the solve_core() table: i.e.,
              if zero by selection rules, or if @p w or @p v (matched by n and
-             kappa) is not in the basis. Also zero (release builds) if
-             solve_core() was not called.
+             kappa) is not in the basis.
   */
   double SR(const DiracSpinor &w, const DiracSpinor &v,
             double omega = 0.0) const {
@@ -219,7 +219,8 @@ public:
     @param dV     Core polarisation (RPA), for norm() only; may be null
     @param omega  Operator frequency, for SR() only
 
-    @note Must call solve_core() first! h and dV used for norm() only
+    @note Must call solve_core() first (aborts otherwise). h and dV used for
+          norm() only
   */
   double srn(const DiracSpinor &w, const DiracSpinor &v,
              const DiracOperator::TensorOperator *const h,
@@ -249,7 +250,7 @@ public:
     @details
     From 10.1006/adnd.1996.0024:
     \f[
-      f_w \redmatel{w}{h}{\delta v} + f_v \redmatel{\delta w}{h}{v},
+      f_v \redmatel{w}{h}{\delta v} + f_w \redmatel{\delta w}{h}{v},
       \qquad
       \ket{\delta v} = \sum_{i \neq v}
         \frac{\ket{i}\matel{i}{\Sigma}{v}}{\varepsilon_v - \varepsilon_i},
@@ -262,12 +263,12 @@ public:
 
     @param w   Bra state
     @param v   Ket state
-    @param fw  Factor multiplying the \f$ \redmatel{w}{h}{\delta v} \f$ term
-    @param fv  Factor multiplying the \f$ \redmatel{\delta w}{h}{v} \f$ term
+    @param fw  Factor multiplying the \f$ \redmatel{\delta w}{h}{v} \f$ term
+    @param fv  Factor multiplying the \f$ \redmatel{w}{h}{\delta v} \f$ term
 
-    @warning Must call solve_core() first; otherwise, silently returns zero.
-             Likewise, terms are zero if @p w or @p v (matched by n and
-             kappa) is not in the basis.
+    @note Must call solve_core() first; aborts otherwise.
+    @warning Terms are zero if @p w or @p v (matched by n and kappa) is not
+             in the basis.
   */
   double BO(const DiracSpinor &w, const DiracSpinor &v, double fw = 1.0,
             double fv = 1.0) const;
@@ -343,20 +344,29 @@ private:
   double z_bo(const DiracSpinor &w, const DiracSpinor &v,
               bool transpose = false) const;
 
+  //! Aborts, with message, if solve_core() has not been called
+  void check_solve_core() const;
+
   //
   double Q(int k, const DiracSpinor &a, const DiracSpinor &b,
            const DiracSpinor &c, const DiracSpinor &d) const {
     // inlcudes effective Coulomb screening
+    if (k > m_k_cut)
+      return 0.0;
     const auto fk = f_root_scr(k);
     return m_use_Qk ? fk * mQ->Q(k, a, b, c, d) : fk * mY.Q(k, a, b, c, d);
   }
 
+  /*!
+    @brief Exchange Coulomb integral, P^k_abcd, built from Q().
+
+    @details
+    \f$ P^k_{abcd} = [k] \sum_l \{a,c,k;b,d,l\}\, Q^l_{abdc} \f$, with
+    Q^l from Q(): includes effective screening, and k_cut applies to the
+    internal Coulomb lines l (and to k).
+  */
   double P(int k, const DiracSpinor &a, const DiracSpinor &b,
-           const DiracSpinor &c, const DiracSpinor &d) const {
-    // inlcudes effective Coulomb screening
-    return m_use_Qk ? mQ->P2(k, a, b, c, d, mY.SixJ(), m_root_fk) :
-                      mY.P2(k, a, b, c, d, m_root_fk);
-  }
+           const DiracSpinor &c, const DiracSpinor &d) const;
 
   double W(int k, const DiracSpinor &a, const DiracSpinor &b,
            const DiracSpinor &c, const DiracSpinor &d) const {

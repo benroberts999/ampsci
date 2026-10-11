@@ -8,6 +8,8 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Vector.hpp"
 #include "qip/omp.hpp"
+#include <cstdlib>
+#include <iostream>
 #include <numeric>
 #include <vector>
 
@@ -100,8 +102,7 @@ void StructureRad::solve_core(const DiracOperator::TensorOperator *const h,
 //==============================================================================
 double StructureRad::srTB(const DiracSpinor &w, const DiracSpinor &v,
                           double omega) const {
-  assert(!mTab.empty());
-  assert(m_K >= 0);
+  check_solve_core();
 
   // no SR correction to zero matrix element
   if (!mTab.contains(w, v))
@@ -142,8 +143,7 @@ double StructureRad::srTB(const DiracSpinor &w, const DiracSpinor &v,
 
 //==============================================================================
 double StructureRad::srC(const DiracSpinor &w, const DiracSpinor &v) const {
-  assert(!mTab.empty());
-  assert(m_K >= 0);
+  check_solve_core();
 
   // no SR correction to zero matrix element
   if (!mTab.contains(w, v))
@@ -703,6 +703,7 @@ double StructureRad::n2(const DiracSpinor &v) const {
 //==============================================================================
 double StructureRad::z_bo(const DiracSpinor &w, const DiracSpinor &v,
                           bool transpose) const {
+  check_solve_core();
 
   double zBO = 0.0;
 
@@ -775,11 +776,42 @@ double StructureRad::z_bo(const DiracSpinor &w, const DiracSpinor &v,
 double StructureRad::BO(const DiracSpinor &w, const DiracSpinor &v, double fw,
                         double fv) const {
 
+  // z1 = <w||h||dv>: correction to v; z2 = <dw||h||v>: correction to w
   const auto z1 = z_bo(w, v, false);
   const auto z2 = v == w ? z1 : z_bo(v, w, true);
 
-  // check fw/fv order?
-  return z1 * fw + z2 * fv;
+  return z1 * fv + z2 * fw;
+}
+
+//==============================================================================
+void StructureRad::check_solve_core() const {
+  if (m_K < 0) {
+    std::cout << "\nFAIL: StructureRad: must call solve_core() before SR/BO\n"
+              << "These will just return 0 (or may crash)\n"
+              << std::flush;
+    // std::abort();
+  }
+}
+
+//==============================================================================
+double StructureRad::P(int k, const DiracSpinor &a, const DiracSpinor &b,
+                       const DiracSpinor &c, const DiracSpinor &d) const {
+  // P^k_abcd = [k] sum_l {a,c,k,b,d,l} Q^l_abdc
+  if (k > m_k_cut)
+    return 0.0;
+  if (Coulomb::triangle(a, c, k) == 0 || Coulomb::triangle(k, b, d) == 0)
+    return 0.0;
+
+  const auto &SixJ = mY.SixJ();
+  const auto [l_min, l_max] = Coulomb::k_minmax_Q(a, b, d, c);
+  double pk = 0.0;
+  for (int l = l_min; l <= std::min(l_max, m_k_cut); l += 2) {
+    const auto ql = Q(l, a, b, d, c);
+    if (ql == 0.0)
+      continue;
+    pk += SixJ.get(a, c, k, b, d, l) * ql;
+  }
+  return pk * (2 * k + 1);
 }
 
 //==============================================================================

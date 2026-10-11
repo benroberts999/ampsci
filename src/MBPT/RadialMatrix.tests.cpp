@@ -65,6 +65,11 @@ TEST_CASE("MBPT: RadialMatrix", "[MBPT][RadialMatrix][unit]") {
     REQUIRE(!equal(m2, 1.1 * m3));
     REQUIRE(equal(m2, m4));
 
+    // max_delta, max_epsilon: |m - 2m| = |m|; |(m - 2m)/(m + 2m)| = 1/3
+    REQUIRE(max_delta(m2, m3) == 0.0);
+    REQUIRE(max_delta(m, m2) == Approx(max_element(m)));
+    REQUIRE(max_epsilon(m, m2) == Approx(1.0 / 3.0));
+
     // Test inversion:
     // m not invertable, mM is:
     const auto mM = m + 100.0;

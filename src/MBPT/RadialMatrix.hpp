@@ -65,7 +65,7 @@ public:
     for (std::size_t i = 0; i < m_size; ++i) {
       sub_r.push_back(r[index_to_fullgrid(i)]);
     }
-    assert(sub_r[1] == r[index_to_fullgrid(1)]);
+    assert(m_size < 2 || sub_r[1] == r[index_to_fullgrid(1)]);
     assert(sub_r[m_size - 1] == r[index_to_fullgrid(m_size - 1)]);
     //------------------
   }
@@ -322,8 +322,8 @@ double max_delta(const RadialMatrix<T> &a, const RadialMatrix<T> &b) {
   double delta = 0.0;
   for (auto i = 0ul; i < a.size(); ++i) {
     for (auto j = 0ul; j < a.size(); ++j) {
-      if (std::abs(a.Rmatrix(i, j) - b.Rmatrix(i, j)) > delta) {
-        delta = std::abs(a.Rmatrix(i, j) - b.Rmatrix(i, j));
+      if (std::abs(a(i, j) - b(i, j)) > delta) {
+        delta = std::abs(a(i, j) - b(i, j));
       }
     }
   }
@@ -336,8 +336,7 @@ double max_epsilon(const RadialMatrix<T> &a, const RadialMatrix<T> &b) {
   double eps = 0.0;
   for (auto i = 0ul; i < a.size(); ++i) {
     for (auto j = 0ul; j < a.size(); ++j) {
-      const auto eps_temp = std::abs((a.Rmatrix(i, j) - b.Rmatrix(i, j)) /
-                                     (a.Rmatrix(i, j) + b.Rmatrix(i, j)));
+      const auto eps_temp = std::abs((a(i, j) - b(i, j)) / (a(i, j) + b(i, j)));
       if (eps_temp > eps)
         eps = eps_temp;
     }

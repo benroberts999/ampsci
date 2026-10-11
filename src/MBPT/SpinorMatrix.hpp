@@ -4,8 +4,12 @@
 #include "Maths/Interpolator.hpp"
 #include "RadialMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <algorithm>
 #include <cassert>
+#include <complex>
+#include <cstdlib>
 #include <iostream>
+#include <memory>
 #include <type_traits>
 
 namespace MBPT {
@@ -97,7 +101,7 @@ public:
     for (std::size_t i = 0; i < m_size; ++i) {
       sub_r.push_back(r[index_to_fullgrid(i)]);
     }
-    assert(sub_r[1] == r[index_to_fullgrid(1)]);
+    assert(m_size < 2 || sub_r[1] == r[index_to_fullgrid(1)]);
     assert(sub_r[m_size - 1] == r[index_to_fullgrid(m_size - 1)]);
     //------------------
   }
@@ -130,8 +134,7 @@ public:
     (mu, nu) = (0, 0): ff; (0, 1): fg; (1, 0): gf; (1, 1): gg.
 
     @note The g blocks are empty (0*0) if g parts are not included.
-    @warning @p mu and @p nu must be 0 or 1; checked only by assert (no block
-             is returned otherwise: undefined behaviour).
+    @warning @p mu and @p nu must be 0 or 1; aborts otherwise.
   */
   LinAlg::Matrix<T> &sp(std::size_t mu, std::size_t nu) {
     assert(mu < 2 && nu < 2);
@@ -143,7 +146,8 @@ public:
       return m_gf;
     if (mu == 1 && nu == 1)
       return m_gg;
-    assert(false);
+    assert(false && "SpinorMatrix::sp: mu, nu must be 0 or 1");
+    std::abort();
   }
 
   //! Spinor block by index: 0 = f, 1 = g (const)
@@ -157,7 +161,8 @@ public:
       return m_gf;
     if (mu == 1 && nu == 1)
       return m_gg;
-    assert(false);
+    assert(false && "SpinorMatrix::sp: mu, nu must be 0 or 1");
+    std::abort();
   }
 
   //! Number of sub-grid points (dimension of each block)
@@ -295,17 +300,17 @@ public:
     \f$ C=A\times B \equiv C_{ij} = \sum_k A_{ik}\,B_{kj}, \f$ including the
     sum over spinor blocks (e.g., ff = a.ff*b.ff + a.fg*b.gf).
 
+    A matrix without g parts is treated as having zero g parts (as in
+    operator+=); the result includes g parts if either @p a or @p b does.
+
     @note Integration measure not automatically included: call .drj() first
           to include it!
-    @warning If only one of @p a and @p b includes g parts, only the ff block
-             is formed (ff = a.ff*b.ff); the result includes (zero) g parts
-             only if @p a does. This differs from treating missing g parts as
-             zero (e.g., gf = a.gf*b.ff is dropped), cf. operator+=.
   */
   [[nodiscard]] friend SpinorMatrix<T> operator*(const SpinorMatrix<T> &a,
                                                  const SpinorMatrix<T> &b) {
 
-    SpinorMatrix<T> out(a.m_i0, a.m_stride, a.m_size, a.m_incl_g, a.m_rgrid);
+    SpinorMatrix<T> out(a.m_i0, a.m_stride, a.m_size, a.m_incl_g || b.m_incl_g,
+                        a.m_rgrid);
 
     // FF = FF*FF + FG*GF
     // FG = FF*FG + FG*GG
@@ -317,6 +322,12 @@ public:
       out.fg() = a.ff() * b.fg() + a.fg() * b.gg();
       out.gf() = a.gf() * b.ff() + a.gg() * b.gf();
       out.gg() = a.gf() * b.fg() + a.gg() * b.gg();
+    } else if (a.m_incl_g) {
+      // b has zero g parts: only GF = GF*FF survives
+      out.gf() = a.gf() * b.ff();
+    } else if (b.m_incl_g) {
+      // a has zero g parts: only FG = FF*FG survives
+      out.fg() = a.ff() * b.fg();
     }
     return out;
   }
@@ -326,11 +337,16 @@ public:
   [[deprecated]] SpinorMatrix<T> &mult_elements_by(const SpinorMatrix<T> &rhs) {
     m_ff.mult_elements_by(rhs.ff());
     if (this->m_incl_g) {
-      // && rhs.m_incl_g
-      // I WANT an error if matrices not identical!?
-      m_fg.mult_elements_by(rhs.fg());
-      m_gf.mult_elements_by(rhs.gf());
-      m_gg.mult_elements_by(rhs.gg());
+      if (rhs.m_incl_g) {
+        m_fg.mult_elements_by(rhs.fg());
+        m_gf.mult_elements_by(rhs.gf());
+        m_gg.mult_elements_by(rhs.gg());
+      } else {
+        // rhs has zero g parts
+        m_fg.zero();
+        m_gf.zero();
+        m_gg.zero();
+      }
     }
     return *this;
   }
@@ -619,9 +635,18 @@ double max_element(const SpinorMatrix<T> &a) {
   return std::max({xff, xfg, xgf, xgg});
 }
 
-//! returns maximum difference (abs) between two matrices
+/*!
+  @brief Returns maximum difference (abs) between two matrices.
+
+  @details
+  A matrix without g parts is treated as having zero g parts.
+*/
 template <typename T>
 double max_delta(const SpinorMatrix<T> &a, const SpinorMatrix<T> &b) {
+  if (a.includes_g() != b.includes_g()) {
+    return a.includes_g() ? max_delta(a, SpinorMatrix<T>(b).create_g()) :
+                            max_delta(SpinorMatrix<T>(a).create_g(), b);
+  }
   double xff = 0.0, xfg = 0.0, xgf = 0.0, xgg = 0.0;
   for (auto i = 0ul; i < a.size(); ++i) {
     for (auto j = 0ul; j < a.size(); ++j) {
@@ -645,9 +670,14 @@ double max_delta(const SpinorMatrix<T> &a, const SpinorMatrix<T> &b) {
 
   @details
   Maximum over all elements of \f$ |(a_{ij}-b_{ij})/(a_{ij}+b_{ij})| \f$.
+  A matrix without g parts is treated as having zero g parts.
 */
 template <typename T>
 double max_epsilon(const SpinorMatrix<T> &a, const SpinorMatrix<T> &b) {
+  if (a.includes_g() != b.includes_g()) {
+    return a.includes_g() ? max_epsilon(a, SpinorMatrix<T>(b).create_g()) :
+                            max_epsilon(SpinorMatrix<T>(a).create_g(), b);
+  }
   double xff = 0.0, xfg = 0.0, xgf = 0.0, xgg = 0.0;
   for (auto i = 0ul; i < a.size(); ++i) {
     for (auto j = 0ul; j < a.size(); ++j) {
@@ -662,7 +692,7 @@ double max_epsilon(const SpinorMatrix<T> &a, const SpinorMatrix<T> &b) {
           std::abs((a.gf(i, j) - b.gf(i, j)) / (a.gf(i, j) + b.gf(i, j)));
         const auto eps_gg =
           std::abs((a.gg(i, j) - b.gg(i, j)) / (a.gg(i, j) + b.gg(i, j)));
-        if (eps_ff > xfg)
+        if (eps_fg > xfg)
           xfg = eps_fg;
         if (eps_gf > xgf)
           xgf = eps_gf;
