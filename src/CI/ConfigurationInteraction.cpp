@@ -102,7 +102,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "derivative) which is much faster, and can include all-orders [false]"},
     {"qk_file",
      "Filename for storing two-body Coulomb integrals. By default, is "
-     "~ At.qk, where At is atomic symbol + 'identity'. Set to 'false' to "
+     "At.qk.abf, where At is atomic symbol + 'identity'. Set to 'false' to "
      "disable read/write."},
     {"sk_file",
      "Filename for storing two-body Sigma_2 integrals. By default, is "
@@ -120,7 +120,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "tables. Not used if the Correlations block provides dSigma/dE (option "
      "derivative). Set to 'false' to disable read/write."},
     {"bk_file", "Filename for storing two-body Breit integrals. By default, is "
-                "~ At.bk, where At is atomic symbol + 'identity'. Set to "
+                "At.bk.abf, where At is atomic symbol + 'identity'. Set to "
                 "'false' to disable read/write."},
     {"ci_file",
      "Filename for storing CI solutions. Default: At_b_hash.ci.abf, where At "
@@ -566,7 +566,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     std::cout << std::flush;
 
     const auto bk_filename =
-      input.get("bk_file", wf.identity() + br_string + ".bk");
+      input.get("bk_file", wf.identity() + br_string + ".bk.abf");
 
     Bk = CI::calculate_Bk(bk_filename, wf.vHF()->vBreit(), Breit_basis,
                           max_k_Coulomb, no_new_integralsQ);

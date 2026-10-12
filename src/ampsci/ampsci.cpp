@@ -366,7 +366,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "Method for Green's function at complex energy in Feynman method. "
       "false: solve at real energy, extend via Dyson method; "
       "true: solve Dirac equation directly at complex energy [true]"},
-     {"include_G", "Inlcude lower g-part into Sigma [false]"},
+     {"include_G",
+      "Include lower g-part into Sigma. Should be included for the Feynman "
+      "(all-order) method when Breit is included in HF [true if Breit "
+      "included in HF, otherwise false]"},
      {"include_Breit", "Inlcude two-body Breit corrections into Sigma [false]"},
      {"n_max_Breit",
       "Maximum n for excited states to include in two-body Breit "
@@ -414,7 +417,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     input.get({"Correlations"}, "hole_particle", all_order);
   const auto sigma_lmax = input.get({"Correlations"}, "lmax", 6);
   const auto complex_green = input.get({"Correlations"}, "complex_green", true);
-  const auto include_G = input.get({"Correlations"}, "include_G", false);
+  const auto include_G =
+    input.get({"Correlations"}, "include_G", wf.vHF() && wf.vHF()->vBreit());
   const auto include_Breit =
     input.get({"Correlations"}, "include_Breit", false);
   const auto n_max_Breit = input.get({"Correlations"}, "n_max_Breit", -1);

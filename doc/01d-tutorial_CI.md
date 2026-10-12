@@ -152,7 +152,7 @@ CI{
     // include all-orders [false]
   qk_file;
     // Filename for storing two-body Coulomb integrals. By
-    // default, is ~ At.qk, where At is atomic symbol +
+    // default, is At.qk.abf, where At is atomic symbol +
     // 'identity'. Set to 'false' to disable read/write.
   sk_file;
     // Filename for storing two-body Sigma_2 integrals. By
@@ -175,7 +175,7 @@ CI{
     // 'false' to disable read/write.
   bk_file;
     // Filename for storing two-body Breit integrals. By
-    // default, is ~ At.bk, where At is atomic symbol +
+    // default, is At.bk.abf, where At is atomic symbol +
     // 'identity'. Set to 'false' to disable read/write.
   ci_file;
     // Filename for storing CI solutions. Default:

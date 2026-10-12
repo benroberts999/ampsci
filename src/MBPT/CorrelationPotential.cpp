@@ -419,7 +419,13 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     Sd += dS;
   }
 
-  return Sd + Sx;
+  auto Sigma = Sd + Sx;
+  // With Breit, the Feynman diagrams always include the g parts (see
+  // Feynman); they are kept in Sigma only if requested
+  if (!m_includeG) {
+    Sigma.drop_g();
+  }
+  return Sigma;
 }
 
 //==============================================================================
