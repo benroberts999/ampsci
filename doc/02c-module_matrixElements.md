@@ -94,7 +94,7 @@ rpa_options{
   eps;
     // Convergance goal [1.0e-10]
   eta;
-    // Damping factor - be carful with this [0.4]
+    // Damping factor - be careful with this [0.35]
   max_iterations;
     // Maximum number of iterations. 1 should correspond to
     // first-order RPA [100]

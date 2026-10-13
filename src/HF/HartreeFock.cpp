@@ -11,8 +11,10 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
+#include "fmt/format.hpp"
 #include "qip/String.hpp"
 #include "qip/Vector.hpp"
+#include "qip/Widgets.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -100,42 +102,26 @@ EpsIts HartreeFock::solve_core(bool print) {
     return eps_its;
 
   std::string text;
-
-  const auto initial_eps = m_method == Method::Local ? 1.0e-15 : 1.0e-5;
-  solve_initial_core(initial_eps);
-
   switch (m_method) {
-
   case Method::HartreeFock:
     text = "Hartree-Fock";
-    eps_its = hartree_fock_core();
     break;
-
   case Method::ApproxHF:
     text = "Approximate (localised) Hartree-Fock";
-    eps_its = hf_approx_core(m_eps_HF);
     break;
-
   case Method::Hartree:
     text = "Hartree (No exchange)";
-    eps_its = selfcon_local_core(m_eps_HF);
     break;
-
   case Method::KohnSham:
     text = "Kohn-Sham\n";
-    eps_its = selfcon_local_core(m_eps_HF);
     break;
-
   case Method::Local:
     text = "Local (parametric) potential";
-    m_Yab.calculate(m_core); // aren't otherwise calc'd (prob never used)
     break;
-
   default:
     assert(false && "HF method missing??");
   }
 
-  const auto [eps, its, nk] = eps_its;
   if (print) {
     std::cout << text;
     const auto da = m_alpha / PhysConst::alpha;
@@ -144,7 +130,41 @@ EpsIts HartreeFock::solve_core(bool print) {
                 << "]";
     }
     std::cout << "\n";
-    printf("%-7s:  it:%3i eps=%6.1e for %s\n", "Core", its, eps, nk.c_str());
+  }
+
+  const auto initial_eps = m_method == Method::Local ? 1.0e-15 : 1.0e-5;
+  solve_initial_core(initial_eps);
+
+  switch (m_method) {
+
+  case Method::HartreeFock:
+    // prints its own (live) convergence line
+    eps_its = hartree_fock_core(print);
+    break;
+
+  case Method::ApproxHF:
+    eps_its = hf_approx_core(m_eps_HF);
+    break;
+
+  case Method::Hartree:
+    eps_its = selfcon_local_core(m_eps_HF);
+    break;
+
+  case Method::KohnSham:
+    eps_its = selfcon_local_core(m_eps_HF);
+    break;
+
+  case Method::Local:
+    m_Yab.calculate(m_core); // aren't otherwise calc'd (prob never used)
+    break;
+
+  default:
+    assert(false && "HF method missing??");
+  }
+
+  const auto [eps, its, nk] = eps_its;
+  if (print && m_method != Method::HartreeFock) {
+    printf("%-7s:  it:%3i eps=%6.1e [%s]\n", "Core", its, eps, nk.c_str());
   }
 
   if (std::isnan(eps) || (eps > m_eps_HF && eps > 1.0e-6)) {
@@ -451,7 +471,7 @@ EpsIts HartreeFock::hf_approx_core(const double eps_target_HF) {
 }
 
 //==============================================================================
-EpsIts HartreeFock::hartree_fock_core() {
+EpsIts HartreeFock::hartree_fock_core(bool print) {
   using namespace qip::overloads;
   if (m_core.empty()) {
     return {};
@@ -506,6 +526,7 @@ EpsIts HartreeFock::hartree_fock_core() {
   const auto num_core_states = m_core.size();
   std::vector<double> eps_lst(num_core_states, 0.0);
   auto vd_prev = m_vdir;
+  qip::LiveMessage status(fmt::format("{:<7s}:  ", "Core"), print);
   for (; it <= m_max_hf_its; it++) {
     const auto a_damp = damper;
 
@@ -569,6 +590,9 @@ EpsIts HartreeFock::hartree_fock_core() {
       }
     }
 
+    status(fmt::format("it:{:3d} eps={:6.1e} [{}]", it, eps,
+                       m_core[worst_index].shortSymbol()));
+
     const bool converged = std::isnan(eps) || (eps <= eps_target && it > 0);
     if (converged || it == m_max_hf_its)
       break;
@@ -576,6 +600,7 @@ EpsIts HartreeFock::hartree_fock_core() {
     vd_prev = m_vdir;
     update_vdir();
   }
+  status.done();
 
   return {eps, it, m_core[worst_index].shortSymbol()};
 }

@@ -348,35 +348,75 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
   assert(m_h->imaginaryQ() == m_imag && "Imaginarity must match in solve_core");
 
   const double converge_targ = m_eps;
-  const auto eta_damp = m_eta;
   omega = std::abs(omega);
 
   m_hFcore = form_hFcore(m_h);
   m_hFcore_minus = form_hFcore(m_h_minus);
 
-  std::pair<double, std::string> eps{};
-  double best_eps{1.0e30};
+  // If the iterations stall (or diverge), restart from scratch with a
+  // different damping: convergence is sensitive to eta, and weaker damping
+  // usually works where the default does not (HFS in particular), so try
+  // weaker first, then stronger. Each attempt is allowed max_its further
+  // iterations; the best attempt is kept.
+  const std::vector<double> etas{m_eta, 0.75 * m_eta, 0.5 * m_eta,
+                                 0.5 * (1.0 + m_eta)};
+  std::size_t attempt = 0;
+  bool first_it_of_attempt = true;
+  double best_eps_attempt{1.0e30}; // for stall detection, this attempt
   int count_worse = 0;
+
+  // Best attempt so far (only filled once an attempt has failed)
+  std::pair<double, std::string> best_eps{1.0e30, ""};
+  std::vector<std::vector<DiracSpinor>> best_X, best_Y;
+
+  std::pair<double, std::string> eps{};
   int it{0};
   qip::LiveMessage status(
-    fmt::format("TDHF {} (w={:.4f}): ", m_h->name(), omega), print);
-  for (; it < max_its; it++) {
-    const auto eta = it == 0 ? 0.0 : eta_damp;
+    fmt::format("TDHF {:4s} (w={:.4f}): ", m_h->name(), omega), print);
+  for (; it < int(attempt + 1) * max_its; it++) {
+    const auto eta = first_it_of_attempt ? 0.0 : etas[attempt];
+    first_it_of_attempt = false;
     eps = tdhf_core_it(omega, eta);
 
     status(fmt::format("{:2d} {:.1e} [{}]", it, eps.first, eps.second));
 
-    if (eps.first < converge_targ || std::isnan(eps.first))
-      break; // converged (or broken)
+    if (eps.first < converge_targ)
+      break; // converged
 
-    // Stalled: no meaningful improvement for several iterations -> give up.
-    // (The result is still used; the warning stars flag its quality.)
-    if (eps.first < 0.99 * best_eps) {
-      best_eps = eps.first;
+    // Stalled: no meaningful improvement for several iterations (or NaN)
+    bool stalled = std::isnan(eps.first);
+    if (eps.first < 0.99 * best_eps_attempt) {
+      best_eps_attempt = eps.first;
       count_worse = 0;
     } else if (++count_worse > 5) {
-      break;
+      stalled = true;
     }
+    if (!stalled)
+      continue;
+
+    // Give up (result is still used; the warning stars flag its quality)
+    if (attempt + 1 >= etas.size() || max_its <= 1)
+      break;
+
+    // Retry with different damping. nb: NaN compares false, so counts as worse
+    if (eps.first < best_eps.first) {
+      best_eps = eps;
+      best_X = m_X;
+      best_Y = m_Y;
+    }
+    ++attempt;
+    clear();
+    first_it_of_attempt = true;
+    best_eps_attempt = 1.0e30;
+    count_worse = 0;
+  }
+
+  // Restore the best attempt if the final one was not it (nb: NaN compares
+  // false, so a NaN final attempt is replaced)
+  if (attempt > 0 && !(eps.first <= best_eps.first)) {
+    m_X = std::move(best_X);
+    m_Y = std::move(best_Y);
+    eps = best_eps;
   }
 
   // Soft visual warning, relative to the convergence target.

@@ -124,7 +124,7 @@ private:
   double m_eps_HF;
   std::vector<double> m_vdir;
   Coulomb::YkTable m_Yab;
-  int m_max_hf_its = 128;
+  int m_max_hf_its = 256;
 
 public:
   //! @brief Method is enum class, eps_HF is convergence goal.
@@ -261,8 +261,8 @@ private:
   EpsIts selfcon_local_core(const double eps_target_HF);
   // Solve HF equations self-consistantly for core, using approximate HF method
   EpsIts hf_approx_core(const double eps_target_HF);
-  // Solve HF equations self-consistantly for core, using Hartree-Fock method
-  EpsIts hartree_fock_core();
+  // Solve HF equations self-consistantly for core, using Hartree-Fock method.
+  EpsIts hartree_fock_core(bool print);
   // Solves HF equation for valence state, assuming local potential (Hartree,
   // Local, Kohn-Sham or approxHF)
   EpsIts local_valence(DiracSpinor &Fa) const;

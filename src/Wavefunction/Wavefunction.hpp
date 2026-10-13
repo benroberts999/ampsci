@@ -360,7 +360,7 @@ public:
   void set_HF(HF::Method method = HF::Method::HartreeFock,
               const std::string &in_core = "",
               std::optional<HF::Breit::Params> breit_params = std::nullopt,
-              double eps_HF = 1.0e-13, bool print = true);
+              double eps_HF = 1.0e-14, bool print = true);
 
   //! Performs Hartree-Fock procedure for core (nothing if HF not set)
   void solve_core(bool print = true);
@@ -368,11 +368,11 @@ public:
   //! This version will first set_HF(), then solve_core()
   void solve_core(HF::Method method, const std::string &in_core = "",
                   std::optional<HF::Breit::Params> breit_params = std::nullopt,
-                  double eps_HF = 1.0e-13, bool print = true);
+                  double eps_HF = 1.0e-14, bool print = true);
   //! @overload
   void solve_core(const std::string &method, const std::string &in_core = "",
                   std::optional<HF::Breit::Params> breit_params = std::nullopt,
-                  double eps_HF = 1.0e-13, bool print = true);
+                  double eps_HF = 1.0e-14, bool print = true);
 
   /*!
     @brief Performs Hartree-Fock procedure for valence; populates valence.

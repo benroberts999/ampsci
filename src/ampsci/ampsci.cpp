@@ -163,7 +163,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "include valence states up to  n=7 for s and p, and up to n=5 for d "
       "and f states. Automatically excludes states in the core (except "
       "those above the optional ':'). [blank by default]"},
-     {"eps", "HF convergance goal [1.0e-13]"},
+     {"eps", "HF convergance goal [1.0e-14]"},
      {"method", "Method for mean-field approximation: HartreeFock, Hartree, "
                 "KohnSham, Local [HartreeFock]"},
      {"Breit", "Include Breit into HF? true/false, or scale factor. Scale "
@@ -179,7 +179,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
 
   const auto core = input.get({"HartreeFock"}, "core", "[]"s);
   const auto HF_method = input.get({"HartreeFock"}, "method", "HartreeFock"s);
-  const auto eps_HF = input.get({"HartreeFock"}, "eps", 1.0e-13);
+  const auto eps_HF = input.get({"HartreeFock"}, "eps", 1.0e-14);
   const auto tf_Breit = input.get({"HartreeFock"}, "Breit", false);
   const auto x_Breit =
     tf_Breit ? 1.0 : input.get({"HartreeFock"}, "Breit", 0.0);

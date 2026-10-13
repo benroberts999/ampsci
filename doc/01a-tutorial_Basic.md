@@ -207,7 +207,7 @@ HartreeFock{
   // Automatically excludes states in the core (except those above the optional
   // ':'). [blank by default]
   valence;
-  // HF convergance goal [1.0e-13]
+  // HF convergance goal [1.0e-15]
   eps;
   // Method for mean-field approximation: HartreeFock, Hartree, KohnSham, Local
   // [HartreeFock]

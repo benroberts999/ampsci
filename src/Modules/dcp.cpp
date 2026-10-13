@@ -381,7 +381,7 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "beta: " << AK / ss << "\n";
   }
 
-  if (K == 1 && s->name() == "pnc-nsi") {
+  if (K == 1 && s->name() == "pnc") {
     std::cout << "Epnc: " << AK * z_comp << "\n";
   }
 
@@ -430,7 +430,7 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "beta: " << AK / ss << " + " << delta_AK / ss << "\n";
   }
 
-  if (K == 1 && s->name() == "pnc-nsi") {
+  if (K == 1 && s->name() == "pnc") {
     std::cout << "Epnc: " << AK * z_comp << " + " << delta_AK * z_comp << "\n";
   }
 }

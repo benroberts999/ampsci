@@ -35,7 +35,7 @@ public:
                      {0, -1, +1, 0}, Realness::imaginary),
       m_unit(in_units) {}
 
-  std::string name() const override final { return "pnc-nsi"; }
+  std::string name() const override final { return "pnc"; }
   std::string units() const override final { return m_unit; }
 
   std::unique_ptr<TensorOperator> clone() const override final {

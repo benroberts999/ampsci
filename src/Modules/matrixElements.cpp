@@ -125,9 +125,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     rpa_input.add("help;");
   }
   rpa_input.check({{"eps", "Convergance goal [1.0e-10]"},
-                   {"eta", "Damping factor - be carful with this [0.4]"},
+                   {"eta", "Damping factor - be careful with this [0.35]"},
                    {"max_iterations", "Maximum number of iterations. 1 should "
-                                      "correspond to first-order RPA [100]"}});
+                                      "correspond to first-order RPA [128]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -197,9 +197,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
                                      wf.basis(), wf.identity(), h_minus.get());
 
-  const auto rpa_eps = rpa_input.get("eps", 1.0e-10);
+  const auto rpa_eps = rpa_input.get("eps", 1.0e-16);
   const auto rpa_its = rpa_input.get("max_iterations", 128);
-  const auto rpa_eta = rpa_input.get("eta", 0.4);
+  const auto rpa_eta = rpa_input.get("eta", 0.35);
   if (rpa) {
     rpa->set_eta(rpa_eta);
     rpa->eps_target() = rpa_eps;

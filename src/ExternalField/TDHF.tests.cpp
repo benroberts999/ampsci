@@ -780,3 +780,40 @@ TEST_CASE("External Field: TDHF E1 length-velocity gauge and hermiticity",
     }
   }
 }
+//==============================================================================
+// TDHF core convergence for the alkalis, with the default damping (eta) and
+// convergence target. No values are checked: only that the iterations reach
+// the target. HFS is the hard case (slow convergence in the f channels).
+TEST_CASE("External Field: TDHF convergence",
+          "[ExternalField][TDHF][RPA][integration]") {
+
+  const std::vector<std::pair<std::string, std::string>> atoms{
+    {"K", "[Ar]"},       {"Rb", "[Kr]"}, {"Kr", "[Kr]"}, {"Cs", "[Xe]"},
+    {"Yb", "[Xe],4f14"}, {"Fr", "[Rn]"}, {"Fr", "[Ar]"}};
+
+  for (const auto &[atom, core] : atoms) {
+    Wavefunction wf({1200, 1.0e-6, 100.0, 20.0, "loglinear", -1.0},
+                    {atom, -1, "Fermi"}, 1.0);
+    wf.set_HF(HF::Method::HartreeFock, core, std::nullopt, 1.0e-14, true);
+    std::cout << "\n" << wf.identity() << "\n";
+
+    REQUIRE(wf.vHF()->solve_core(true).eps < 1.0e-12);
+
+    const DiracOperator::hfs hfs(1, 1.0, 0.0, wf.grid(),
+                                 DiracOperator::Hyperfine::pointlike_F());
+    const DiracOperator::E1 dE1(wf.grid());
+    const DiracOperator::PNCnsi pnc(3.5, 2.3, wf.grid());
+    const DiracOperator::hfs hfsB(2, 1.0, 0.0, wf.grid(),
+                                  DiracOperator::Hyperfine::pointlike_F());
+
+    for (const DiracOperator::TensorOperator *h :
+         {static_cast<const DiracOperator::TensorOperator *>(&dE1),
+          static_cast<const DiracOperator::TensorOperator *>(&pnc),
+          static_cast<const DiracOperator::TensorOperator *>(&hfs),
+          static_cast<const DiracOperator::TensorOperator *>(&hfsB)}) {
+      ExternalField::TDHF dV(h, wf.vHF());
+      dV.solve_core(0.0, 100, true);
+      CHECK(dV.last_eps() < 1.0e-12);
+    }
+  }
+}

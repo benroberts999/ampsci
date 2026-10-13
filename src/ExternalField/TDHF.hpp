@@ -124,6 +124,10 @@ public:
   */
   virtual void solve_core(double omega, int max_its = 100,
                           bool print = true) override;
+  // nb: if the iterations stall, the solve is restarted from scratch with
+  // different damping (weaker, then stronger), up to a few times, each with
+  // a further max_its iterations; the best attempt is kept. eta() itself is
+  // not changed.
 
   virtual Method method() const override { return Method::TDHF; }
 

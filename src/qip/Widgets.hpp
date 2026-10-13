@@ -73,13 +73,14 @@ public:
   void update(std::string_view msg) {
     if (!m_active || m_done)
       return;
-    m_last_msg = msg;
     if (m_is_tty) {
       std::fputs("\r", stdout);
       std::fwrite(m_header.data(), 1, m_header.size(), stdout);
       std::fwrite(msg.data(), 1, msg.size(), stdout);
+      clear_tail(msg.size());
       std::fflush(stdout);
     }
+    m_last_msg = msg;
   }
 
   //! Update the status message. see @ref update()
@@ -100,6 +101,15 @@ public:
       std::fwrite(post.data(), 1, post.size(), stdout);
     std::fputc('\n', stdout);
     std::fflush(stdout);
+  }
+
+private:
+  // Overwrite any leftover characters when the new message is shorter than
+  // the previous one (the line is rewritten in place, not cleared)
+  void clear_tail(std::size_t new_size) const {
+    for (auto i = new_size; i < m_last_msg.size(); ++i) {
+      std::fputc(' ', stdout);
+    }
   }
 };
 

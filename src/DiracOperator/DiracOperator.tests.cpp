@@ -353,7 +353,7 @@ TEST_CASE("DiracOperator", "[DiracOperator][unit]") {
     REQUIRE(h->imaginaryQ() == true);
     REQUIRE(h->rank() == 0);
     REQUIRE(h->parity() == -1);
-    REQUIRE(h->name() == "pnc-nsi");
+    REQUIRE(h->name() == "pnc");
     REQUIRE(!h->units().empty());
 
     for (auto &[a, b, me] : data) {

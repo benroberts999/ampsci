@@ -485,7 +485,7 @@ void DiagramRPA::solve_core(double omega, int max_its, bool print) {
     return;
 
   qip::LiveMessage status(
-    fmt::format("RPA(D) {} (w={:.4f}): ", m_h->name(), m_core_omega), print);
+    fmt::format("RPAd {:4s} (w={:.4f}): ", m_h->name(), m_core_omega), print);
 
   // Start at 2:
   int its_performed = 0;
