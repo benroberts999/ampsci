@@ -1,6 +1,8 @@
 #include "StructureRad.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/DiagramRPA.hpp"
+#include "ExternalField/TDHF.hpp"
+#include "MBPT/Feynman.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Random.hpp"
@@ -9,40 +11,85 @@
 #include <string>
 
 //==============================================================================
-TEST_CASE("MBPT: diagonal SR retains the internal Hermitian phase",
-          "[StrucRad][SRPhase][MBPT][unit]") {
+TEST_CASE("MBPT: Structure Rad Hermiticity", "[StrucRad][MBPT][unit]") {
+  // Hermiticity of the structure radiation matrix elements:
+  //   <w||h_SR||v>(omega) = s_wv <v||h_SR||w>(-omega),
+  // with s_wv the operator's symmetry sign. Each bottom diagram is the mirror
+  // image of a top diagram, so this tests their relative phase, which includes
+  // (-1)^(ja-jr) for each core-excited pair (a, r).
+  // omega is non-zero, since for w == v (and a real operator) the relation is
+  // trivial at omega = 0.
+  // Small H-like basis: tests the algebra, not accuracy. The core is 1s2s2p,
+  // so there are core-excited pairs with odd ja - jr (e.g., p1/2-p3/2)
   const auto grid = std::make_shared<const Grid>(
-    GridParameters{1200, 1.0e-6, 200.0, 50.0, GridType::loglinear});
-  const auto basis = DiracSpinor::HlikeBasis("3spd", grid, 1.0);
-  MBPT::StructureRad sr(basis, -0.3, {1, 3}, "", 99, {}, {}, false);
-  const DiracOperator::hfs hfs2(2, 1.0, 0.0, *grid,
-                                DiracOperator::Hyperfine::pointlike_F(), false);
-  sr.solve_core(&hfs2);
+    GridParameters{1000, 1.0e-6, 150.0, 50.0, GridType::loglinear});
+  const auto basis = DiracSpinor::HlikeBasis("4spd", grid, 1.0);
+  // n = 1, 2 (e < -0.09 au) are core states
+  MBPT::StructureRad sr(basis, -0.09, {0, 99}, "", 99, {}, {}, false);
 
-  // Independent references: differentiate the explicit magnetic-substate
-  // second-order self-energy with respect to h0 + lambda*hfs2, rotating only
-  // its internal orbitals and holding the external state/energy fixed.
-  // The closed core is 1s^2 and the finite basis/grid are those above. These
-  // are stretched matrix elements, not experimental hyperfine constants.
-  // Opposite-j reduced phases must add in the static top/bottom pair; the
-  // phase-free diagonal shortcut instead cancels those contributions.
-  const std::map<std::pair<int, int>, double> reference{
-    {{2, -2}, 7.48723815975974e-5},
-    {{3, 2}, 1.505169369350745e-5},
-    {{3, -3}, 2.1502043375518955e-5}};
-  std::size_t checked = 0;
-  for (const auto &v : basis) {
-    const auto it = reference.find({v.n(), v.kappa()});
-    if (it == reference.end())
-      continue;
-    CAPTURE(v.n(), v.kappa());
-    const auto factor =
-      hfs2.matel_factor(DiracOperator::MatrixElementType::Stretched, v, v);
-    CHECK(factor * sr.SR(v, v) ==
-          Approx(it->second).epsilon(0.0).margin(1.0e-12));
-    ++checked;
+  // Below the smallest core-excited gap (n = 2 to 3: ~0.07 au)
+  const double omega = 0.02;
+
+  for (const int k : {1, 2}) {
+    const DiracOperator::hfs h(k, 1.0, 0.0, *grid,
+                               DiracOperator::Hyperfine::pointlike_F(), false);
+    sr.solve_core(&h);
+    for (const auto &w : sr.excited()) {
+      for (const auto &v : sr.excited()) {
+        // n = 3 states as the external legs, including w == v
+        if (w.n() != 3 || v.n() != 3 || h.isZero(w, v))
+          continue;
+        CAPTURE(k, w.shortSymbol(), v.shortSymbol());
+        const auto sr_wv = sr.SR(w, v, omega);
+        const auto sr_vw = h.symm_sign(w, v) * sr.SR(v, w, -omega);
+        CHECK(sr_wv == Approx(sr_vw).epsilon(1.0e-10));
+      }
+    }
   }
-  REQUIRE(checked == reference.size());
+}
+
+//==============================================================================
+TEST_CASE("MBPT: Structure Rad Hermiticity (imaginary operator)",
+          "[StrucRad][MBPT][unit]") {
+  // For an operator with imaginary matrix elements, Hermiticity at omega = 0,
+  //   <w||h_SR||v> = s_wv <v||h_SR||w>,  s_wv = -(-1)^(jw-jv),
+  // forces the diagonal (w == v) structure radiation to vanish. This tests the
+  // diagonal top/bottom phase at omega = 0, which the real-operator test
+  // cannot (for w == v the relation is trivial there).
+  // Same small H-like basis and 1s2s2p core as the real-operator test
+  const auto grid = std::make_shared<const Grid>(
+    GridParameters{1000, 1.0e-6, 150.0, 50.0, GridType::loglinear});
+  const auto basis = DiracSpinor::HlikeBasis("4spd", grid, 1.0);
+  MBPT::StructureRad sr(basis, -0.09, {0, 99}, "", 99, {}, {}, false);
+
+  // Even-parity, rank-1, imaginary operator. Its frequency only sets
+  // q = alpha*omega in the radial functions; any non-zero value will do
+  const DiracOperator::Phi5k h(*grid, 1, 1.0);
+  sr.solve_core(&h);
+
+  // Scale for the zero diagonal: the largest off-diagonal SR
+  double max_offdiagonal = 0.0;
+  for (const auto &w : sr.excited()) {
+    for (const auto &v : sr.excited()) {
+      if (w.n() != 3 || v.n() != 3 || w == v || h.isZero(w, v))
+        continue;
+      max_offdiagonal = std::max(max_offdiagonal, std::abs(sr.SR(w, v)));
+    }
+  }
+  REQUIRE(max_offdiagonal > 0.0);
+
+  for (const auto &w : sr.excited()) {
+    for (const auto &v : sr.excited()) {
+      // n = 3 states as the external legs, including w == v
+      if (w.n() != 3 || v.n() != 3 || h.isZero(w, v))
+        continue;
+      CAPTURE(w.shortSymbol(), v.shortSymbol());
+      const auto sr_wv = sr.SR(w, v);
+      const auto sr_vw = h.symm_sign(w, v) * sr.SR(v, w);
+      CHECK(sr_wv ==
+            Approx(sr_vw).epsilon(1.0e-10).margin(1.0e-10 * max_offdiagonal));
+    }
+  }
 }
 
 //==============================================================================
