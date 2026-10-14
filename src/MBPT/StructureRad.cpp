@@ -92,10 +92,11 @@ StructureRad::StructureRad(const std::vector<DiracSpinor> &basis,
 
 //==============================================================================
 void StructureRad::solve_core(const DiracOperator::TensorOperator *const h,
-                              const ExternalField::CorePolarisation *const dV) {
+                              const ExternalField::CorePolarisation *const dV,
+                              double omega) {
 
   // Require all: core-core, core-excited, excited-excited
-  mTab = Amplitudes::me_table(mBasis, h, dV);
+  mTab = Amplitudes::me_table(mBasis, h, dV, nullptr, omega);
   m_K = h->rank();
 }
 
@@ -204,19 +205,25 @@ double StructureRad::srC(const DiracSpinor &w, const DiracSpinor &v) const {
 }
 
 //==============================================================================
-double
-StructureRad::norm(const DiracSpinor &w, const DiracSpinor &v,
-                   const DiracOperator::TensorOperator *const h,
-                   const ExternalField::CorePolarisation *const dV) const {
+double StructureRad::norm(const DiracSpinor &w, const DiracSpinor &v,
+                          const DiracOperator::TensorOperator *const h,
+                          const ExternalField::CorePolarisation *const dV,
+                          bool conj) const {
   if (h->isZero(w.kappa(), v.kappa()))
     return 0.0;
 
-  const auto t_wv = h->reducedME(w, v) + (dV ? dV->dV(w, v) : 0.0);
+  const auto t_wv = h->reducedME(w, v) + (dV ? dV->dV(w, v, conj) : 0.0);
 
-  const auto f_nv = f_norm(v);
-  const auto f_nw = w == v ? f_nv : f_norm(w);
+  return norm_factor(w, v) * t_wv;
+}
 
-  return t_wv * (f_nv + f_nw);
+//==============================================================================
+double StructureRad::norm_factor(const DiracSpinor &w,
+                                 const DiracSpinor &v) const {
+  // f_norm is costly; evaluate once for diagonal elements
+  const auto f_v = f_norm(v);
+  const auto f_w = w == v ? f_v : f_norm(w);
+  return f_v + f_w;
 }
 
 //==============================================================================

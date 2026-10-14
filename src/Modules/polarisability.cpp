@@ -630,12 +630,13 @@ double core_sos(const std::vector<DiracSpinor> &core,
         continue;
       const auto dtab_nc = dtab ? dtab->get(Fn, Fc) : nullptr;
       const auto d_nc = dtab_nc ? *dtab_nc : he1.reducedME(Fn, Fc);
-      const auto dv_nc = dVE1 ? dVE1->dV(Fn, Fc) : 0.0;
-      // For core, only have dV for one ME
+      // For core, only have dV for one ME. The absorption term carries dV
+      // at +omega, the emission term dV at -omega (dV^dag)
+      const auto dv_abs = dVE1 ? dVE1->dV(Fn, Fc, false) : 0.0;
+      const auto dv_em = dVE1 ? dVE1->dV(Fn, Fc, true) : 0.0;
       const auto de = Fc.en() - Fn.en();
-      const auto denom =
-        omega == 0.0 ? 1.0 / de : de / (de * de - omega * omega);
-      alpha_core += std::abs(d_nc * (d_nc + dv_nc)) * denom;
+      alpha_core += 0.5 * std::abs(d_nc * (d_nc + dv_abs)) / (de + omega) +
+                    0.5 * std::abs(d_nc * (d_nc + dv_em)) / (de - omega);
     }
   }
 
@@ -659,11 +660,13 @@ double valence_sos(const DiracSpinor &Fv,
       continue;
     const auto dtab_nv = dtab ? dtab->get(Fn, Fv) : nullptr;
     const auto d0_nv = dtab_nv ? *dtab_nv : he1.reducedME(Fn, Fv);
-    const auto dv_nv = dVE1 ? dVE1->dV(Fn, Fv) : 0.0;
-    const auto d_nv = d0_nv + dv_nv;
+    // The absorption term carries dV at +omega, the emission term dV at
+    // -omega (dV^dag)
+    const auto d_abs = d0_nv + (dVE1 ? dVE1->dV(Fn, Fv, false) : 0.0);
+    const auto d_em = d0_nv + (dVE1 ? dVE1->dV(Fn, Fv, true) : 0.0);
     const auto de = Fv.en() - Fn.en();
-    const auto denom = omega == 0.0 ? 1.0 / de : de / (de * de - omega * omega);
-    alpha_v += std::abs(d_nv * d_nv) * denom;
+    alpha_v += 0.5 * std::abs(d_abs * d_abs) / (de + omega) +
+               0.5 * std::abs(d_em * d_em) / (de - omega);
   }
 
   return f * alpha_v;
@@ -787,11 +790,14 @@ double tensor2_sos(const DiracSpinor &Fv,
     // const auto d0_nv = he1.reducedME(Fn, Fv);
     const auto dtab_nv = dtab ? dtab->get(Fn, Fv) : nullptr;
     const auto d0_nv = dtab_nv ? *dtab_nv : he1.reducedME(Fn, Fv);
-    const auto dv_nv = dVE1 ? dVE1->dV(Fn, Fv) : 0.0;
-    const auto d_nv = d0_nv + dv_nv;
+    // The absorption term carries dV at +omega, the emission term dV at
+    // -omega (dV^dag)
+    const auto d_abs = d0_nv + (dVE1 ? dVE1->dV(Fn, Fv, false) : 0.0);
+    const auto d_em = d0_nv + (dVE1 ? dVE1->dV(Fn, Fv, true) : 0.0);
     const auto de = Fv.en() - Fn.en();
-    const auto denom = omega == 0.0 ? 1.0 / de : de / (de * de - omega * omega);
-    alpha_2 += s * sj * std::abs(d_nv * d_nv) * denom;
+    alpha_2 += s * sj *
+               (0.5 * std::abs(d_abs * d_abs) / (de + omega) +
+                0.5 * std::abs(d_em * d_em) / (de - omega));
   }
 
   return C * alpha_2;
@@ -866,12 +872,14 @@ double valence_tdhf(const DiracSpinor &Fv, const DiracOperator::E1 &he1,
     }
   }
 
+  // The X term carries the absorption component of dV, the Y term the
+  // emission one
   double alpha_v = 0.0;
   for (const auto &Xbeta : Xv) {
-    alpha_v += he1.reducedME(Xbeta, Fv) + dVE1.dV(Xbeta, Fv);
+    alpha_v += he1.reducedME(Xbeta, Fv) + dVE1.dV(Xbeta, Fv, false);
   }
   for (const auto &Ybeta : Yv) {
-    alpha_v += he1.reducedME(Ybeta, Fv) + dVE1.dV(Ybeta, Fv);
+    alpha_v += he1.reducedME(Ybeta, Fv) + dVE1.dV(Ybeta, Fv, true);
   }
   return f * alpha_v;
 }
@@ -913,7 +921,9 @@ valence_SRN(const DiracSpinor &Fv, const std::vector<DiracSpinor> &spectrum,
 
     if (he1.isZero(Fv.kappa(), Fn.kappa()))
       continue;
-    const auto d0 = he1.reducedME(Fn, Fv) + (dVE1 ? dVE1->dV(Fn, Fv) : 0.0);
+    // Absorption component only: this is an estimate of the SR correction
+    const auto d0 =
+      he1.reducedME(Fn, Fv) + (dVE1 ? dVE1->dV(Fn, Fv, false) : 0.0);
 
     const auto d1 = d0 + d_sr;
 

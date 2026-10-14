@@ -145,9 +145,6 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   const auto h = DiracOperator::generate(oper, h_options, wf);
-  // For sign-sensitive freq-dependent operators (e.g. E1v), h_minus holds
-  // t_- at -|omega|; otherwise nullptr and TDHF uses h for both.
-  auto h_minus = h->freqDependantQ() ? h->clone() : nullptr;
 
   // treat hyperfine operator differently: constants instead of RME
   const bool is_hyperfine =
@@ -195,7 +192,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   if (wf.core().empty())
     rpa_method_str = "false";
   auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
-                                     wf.basis(), wf.identity(), h_minus.get());
+                                     wf.basis(), wf.identity());
 
   const auto rpa_eps = rpa_input.get("eps", 1.0e-16);
   const auto rpa_its = rpa_input.get("max_iterations", 128);
@@ -262,7 +259,7 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     omega_operator ? Frequency::fixed : Frequency::transition,
     eachFreqQ ? Frequency::transition : Frequency::fixed};
   if (omega_operator) {
-    Amplitudes::set_operator_frequency(h.get(), h_minus.get(), *omega_operator);
+    h->updateFrequency(*omega_operator);
   }
   if (!eachFreqQ && rpa) {
     rpa->solve_core(omega, rpa_its, true);
@@ -273,8 +270,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   options.type = matel_type;
   options.rpa_iterations = rpa_its;
 
-  const auto mes = Amplitudes::matrix_elements(orbs, h.get(), h_minus.get(),
-                                               rpa.get(), options);
+  const auto mes =
+    Amplitudes::matrix_elements(orbs, h.get(), rpa.get(), nullptr, options);
 
   // Print:
   std::cout << "\n" << h->name() << "\n";
@@ -458,7 +455,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     sr =
       MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
   }
-  const MBPT::StructureRad *const p_sr = sr ? &*sr : nullptr;
+  MBPT::StructureRad *const p_sr = sr ? &*sr : nullptr;
 
   if (!eachFreqQ && h->freqDependantQ()) {
     std::cout << "Frequency-dependent operator at fixed frequency: w=" << omega
@@ -478,8 +475,12 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Solving RPA at fixed frequency: w=" << omega << "\n";
     rpa->solve_core(omega, 300);
   }
+  // The single-particle table follows each transition if anything in it
+  // (operator, RPA, or the SR tables that contain them) changes with omega
+  const bool table_each = eachFreqQ && (h->freqDependantQ() || rpa);
+
   // SR requires solve_core, whether or not there is anything frequency dependent
-  if (sr && (!eachFreqQ || !h->freqDependantQ())) {
+  if (sr && !table_each) {
     sr->solve_core(h.get(), rpa.get());
   }
   if (eachFreqQ && rpa) {
@@ -488,7 +489,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // The normalisation is applied to the single-particle matrix elements
   Coulomb::meTable<double> me_tab;
-  if (!eachFreqQ || !h->freqDependantQ()) {
+  if (!table_each) {
     std::cout << "Calculate matrix element table.." << std::flush;
     me_tab = Amplitudes::me_table(ci_basis, h.get(), rpa.get(), p_sr, omega,
                                   sr_n_max, sr_norm);
@@ -501,20 +502,21 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto J_odd_list = input.get("J-", J_list);
   const auto num_solutions = input.get("num_solutions", 5ul);
 
+  // With omega = each, the operator, the RPA, and the SR tables follow each
+  // transition (see Amplitudes::solve_at_frequency)
+  using Amplitudes::Frequency;
+  Amplitudes::MEoptions ci_options{Frequency::transition,
+                                   Frequency::transition};
+  ci_options.rpa_iterations = 100;
+  ci_options.print = false;
+
   auto calc_me = [&](const CI::PsiJPi &wfA, std::size_t iA,
                      const CI::PsiJPi &wfB, std::size_t iB) {
-    const auto t_omega = wfA.energy(iA) - wfB.energy(iB); // abs?
+    const auto t_omega = wfA.energy(iA) - wfB.energy(iB);
 
-    if (eachFreqQ && h->freqDependantQ()) {
-      h->updateFrequency(t_omega);
-    }
-    if (eachFreqQ && rpa) {
-      rpa->solve_core(t_omega, 100, false);
-    }
-    if (sr && eachFreqQ && (rpa || h->freqDependantQ())) {
-      sr->solve_core(h.get(), rpa.get());
-    }
-    if (eachFreqQ && h->freqDependantQ()) {
+    if (table_each) {
+      Amplitudes::solve_at_frequency(h.get(), rpa.get(), p_sr, t_omega,
+                                     ci_options);
       std::cout << "Re-Calculate matrix element table.." << std::flush;
       me_tab = Amplitudes::me_table(ci_basis, h.get(), rpa.get(), p_sr, t_omega,
                                     sr_n_max, sr_norm);

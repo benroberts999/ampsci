@@ -13,6 +13,7 @@
 #include <algorithm>
 #include <iostream>
 #include <memory>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -33,8 +34,9 @@ const Register r_alias_StrucRad{"StrucRad", "Alias for StructureRadiation",
 } // namespace
 
 //==============================================================================
-// The calculations are done by Amplitudes::sr_matrix_elements; this module
-// only parses input and prints.
+// The calculations are done by Amplitudes::matrix_element (with the
+// frequencies set by Amplitudes::solve_at_frequency); this module only
+// parses input and prints every part of each element.
 void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
@@ -274,10 +276,10 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << std::flush;
 
   // Frequency choices: the operator is pinned only if omega_operator was
-  // given; the RPA (and hence the SR) is solved here unless it follows each
-  // transition
+  // given; the RPA, and the SR tables, are solved here unless they follow
+  // each transition
   using Amplitudes::Frequency;
-  Amplitudes::SRNoptions options{
+  Amplitudes::MEoptions options{
     omega_operator ? Frequency::fixed : Frequency::transition,
     eachFreqQ ? Frequency::transition : Frequency::fixed};
   if (omega_operator && h->freqDependantQ()) {
@@ -286,14 +288,69 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
   if (!eachFreqQ && dV) {
     dV->solve_core(const_omega, 100, true);
   }
+  if (!eachFreqQ && (omega_operator || !h->freqDependantQ())) {
+    sr.solve_core(h.get(), dV.get());
+  }
   options.diagonal = input.get("diagonal", true);
   options.off_diagonal = input.get("off-diagonal", true);
   options.calculate_both = input.get("printBoth", false);
   options.type = matel_type;
-  options.include_bo = !have_brueckner;
+  options.rpa_iterations = 100;
 
-  const auto mes =
-    Amplitudes::sr_matrix_elements(orbs, h.get(), &sr, dV.get(), options);
+  // Each element, with every part printed as it is calculated. The Brueckner
+  // orbital correction (with its frequency-derivative term) is kept alongside
+  std::vector<Amplitudes::MEdata> mes;
+  std::vector<double> bo_terms;
+  std::optional<double> solved_at{};
+  for (const auto [w, v] :
+       Amplitudes::orbital_pairs(orbs, orbs, h.get(), options)) {
+    IO::ChronoTimer timer("time");
+
+    const auto w_ab = w->en() - v->en();
+    fmt::print("\n{} -> {}: w = {:.8f}\n", v->shortSymbol(), w->shortSymbol(),
+               w_ab);
+
+    // Solved once per frequency (the diagonal elements all share w = 0)
+    if (solved_at != w_ab) {
+      Amplitudes::solve_at_frequency(h.get(), dV.get(), &sr, w_ab, options);
+      solved_at = w_ab;
+    }
+    auto me = Amplitudes::matrix_element(
+      *w, *v, h.get(), dV.get(), &sr, matel_type, w_ab,
+      Amplitudes::sr_frequency(dV.get(), w_ab, options));
+    const auto factor = me.factor;
+
+    fmt::print("{:8s}  {:12.5e}\n", "t0", factor * me.t0);
+    if (dV) {
+      fmt::print("{:8s}  {:12.5e}\n", "dV", factor * me.dv);
+      fmt::print("{:8s}  {:12.5e}\n", "RPA", me.value());
+    }
+    fmt::print("{:8s}  {:12.5e}\n", "SR", factor * me.sr);
+    // Normalisation of states, of the RPA element, and of the RPA+SR one
+    fmt::print("{:8s}  {:12.5e}\n", "Norm(0)", factor * me.norm);
+    fmt::print("{:8s}  {:12.5e}\n", "Norm(SR)",
+               factor * me.norm_factor * (me.t0 + me.dv + me.sr));
+
+    // Brueckner orbital correction (only when the legs are not already
+    // Brueckner orbitals), with the frequency-derivative term when the
+    // operator is at its transition frequency
+    double bo = 0.0;
+    if (!have_brueckner) {
+      bo = sr.BO(*w, *v);
+      fmt::print("{:8s}  {:12.5e}\n", "BO", factor * bo);
+      if (h->freqDependantQ() && !omega_operator && w != v) {
+        const auto tderiv =
+          Amplitudes::frequency_derivative_term(*w, *v, h.get(), &sr, w_ab);
+        fmt::print("+ {:7s} {:12.5e}\n", "Tderiv", factor * tderiv);
+        bo += tderiv;
+      }
+    }
+    fmt::print("{:8s}  {:12.5e}\n", "Total", me.total() + factor * bo);
+    std::cout << std::flush;
+
+    mes.push_back(me);
+    bo_terms.push_back(bo);
+  }
 
   // Print summary table:
   std::cout << "\n"
@@ -304,13 +361,15 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
   if (!have_brueckner)
     std::cout << "BO           ";
   std::cout << "Total\n";
-  for (const auto &m : mes) {
-    fmt::print("{:4s} {:4s} {:+.4e}  {:+.4e}  {:+.4e}", m.a, m.b, m.value0(),
+  for (std::size_t i = 0; i < mes.size(); ++i) {
+    const auto &m = mes[i];
+    const auto bo = m.factor * bo_terms[i];
+    fmt::print("{:4s} {:4s} {:+.4e}  {:+.4e}  {:+.4e}", m.a, m.b, m.value(),
                m.factor * m.sr, m.factor * m.norm);
     if (!have_brueckner) {
-      fmt::print("  {:+.4e}", m.factor * m.bo);
+      fmt::print("  {:+.4e}", bo);
     }
-    fmt::print("  {:+.4e}\n", m.total());
+    fmt::print("  {:+.4e}\n", m.total() + bo);
   }
   std::cout << std::endl;
 }

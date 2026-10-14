@@ -7,6 +7,8 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
+#include <algorithm>
+#include <cmath>
 #include <map>
 #include <sstream>
 #include <string>
@@ -81,17 +83,18 @@ TEST_CASE("Amplitudes: matrix elements", "[Amplitudes][unit]") {
   }
 
   // Frequency-dependent operator (E1v): driver evaluates each pair at its
-  // own (signed) transition frequency, using h_minus for negative omega
+  // own (signed) transition frequency; E1v is odd in omega, so a negative
+  // frequency flips the sign of the operator held at +|omega|
   {
     auto hv = DiracOperator::E1v(wf.alpha(), 0.0);
-    auto hv_minus = DiracOperator::E1v(wf.alpha(), 0.0);
+    REQUIRE(hv.h_minus_sign() == -1.0);
 
     using Amplitudes::Frequency;
     Amplitudes::MEoptions options{Frequency::transition, Frequency::fixed};
     options.print = false;
     options.calculate_both = true;
-    const auto mes = Amplitudes::matrix_elements(wf.valence(), &hv, &hv_minus,
-                                                 nullptr, options);
+    const auto mes =
+      Amplitudes::matrix_elements(wf.valence(), &hv, nullptr, nullptr, options);
 
     REQUIRE(!mes.empty());
     for (const auto &m : mes) {
@@ -104,6 +107,56 @@ TEST_CASE("Amplitudes: matrix elements", "[Amplitudes][unit]") {
     }
   }
 
+  // The driver at each transition frequency, against a hand-built element:
+  // the operator at the signed frequency, the RPA solved at |omega|, and the
+  // dV component of the sign of omega. For E1, and for E1v (odd in omega);
+  // in both directions, which must then be Hermitian partners
+  {
+    using Amplitudes::Frequency;
+    Amplitudes::MEoptions options{Frequency::transition, Frequency::transition};
+    options.print = false;
+    options.calculate_both = true;
+    options.rpa_iterations = 1; // first-order RPA: deterministic
+
+    auto hv = DiracOperator::E1v(wf.alpha(), 0.0);
+    const std::vector<DiracOperator::TensorOperator *> operators{&dE1, &hv};
+    for (auto *h : operators) {
+      auto rpa = ExternalField::TDHF(h, wf.vHF());
+      const auto mes =
+        Amplitudes::matrix_elements(wf.valence(), h, &rpa, nullptr, options);
+      REQUIRE(!mes.empty());
+
+      for (const auto &m : mes) {
+        const auto *Fa = wf.getState(m.a);
+        const auto *Fb = wf.getState(m.b);
+        REQUIRE(Fa != nullptr);
+        REQUIRE(Fb != nullptr);
+        const auto w = m.omega;
+        REQUIRE(w == Approx(Fa->en() - Fb->en()));
+
+        // By hand: RPA with the operator at +|w|, element at the signed w
+        auto h0 = h->clone();
+        h0->updateFrequency(std::abs(w));
+        auto rpa0 = ExternalField::TDHF(h0.get(), wf.vHF());
+        rpa0.solve_core(std::abs(w), 1, false);
+        h0->updateFrequency(w);
+        REQUIRE(m.t0 == Approx(h0->reducedME(*Fa, *Fb)).epsilon(1.0e-12));
+        REQUIRE(m.dv == Approx(rpa0.dV(*Fa, *Fb, w < 0.0)).epsilon(1.0e-10));
+
+        // The reverse direction is the Hermitian partner
+        if (w > 0.0) {
+          const auto reverse =
+            std::find_if(mes.cbegin(), mes.cend(), [&m](const auto &r) {
+              return r.a == m.b && r.b == m.a;
+            });
+          REQUIRE(reverse != mes.cend());
+          REQUIRE(reverse->value() ==
+                  Approx(h->symm_sign(*Fa, *Fb) * m.value()).epsilon(1.0e-10));
+        }
+      }
+    }
+  }
+
   // With RPA: dv is dV, solved by the driver
   {
     auto rpa = ExternalField::TDHF(&dE1, wf.vHF());
@@ -112,7 +165,7 @@ TEST_CASE("Amplitudes: matrix elements", "[Amplitudes][unit]") {
     options.print = false;
     rpa.solve_core(0.0, options.rpa_iterations, false);
     const auto mes =
-      Amplitudes::matrix_elements(wf.valence(), &dE1, nullptr, &rpa, options);
+      Amplitudes::matrix_elements(wf.valence(), &dE1, &rpa, nullptr, options);
 
     auto rpa0 = ExternalField::TDHF(&dE1, wf.vHF());
     rpa0.solve_core(0.0, options.rpa_iterations, false);
@@ -149,7 +202,7 @@ TEST_CASE("Amplitudes: matrix elements with RPA",
     options.print = false;
     rpa.solve_core(0.0, options.rpa_iterations, false);
     const auto mes =
-      Amplitudes::matrix_elements(wf.valence(), &dE1, nullptr, &rpa, options);
+      Amplitudes::matrix_elements(wf.valence(), &dE1, &rpa, nullptr, options);
 
     auto rpa0 = ExternalField::TDHF(&dE1, wf.vHF());
     rpa0.solve_core(0.0, options.rpa_iterations, false);
@@ -180,8 +233,8 @@ TEST_CASE("Amplitudes: matrix elements with RPA",
     options.rpa_iterations = 1; // first-order RPA: quick
     options.type = DiracOperator::MatrixElementType::HFConstant;
     rpa.solve_core(0.0, options.rpa_iterations, false);
-    const auto mes = Amplitudes::matrix_elements(wf.valence(), h.get(), nullptr,
-                                                 &rpa, options);
+    const auto mes = Amplitudes::matrix_elements(wf.valence(), h.get(), &rpa,
+                                                 nullptr, options);
 
     REQUIRE(!mes.empty());
     for (const auto &m : mes) {
@@ -208,7 +261,7 @@ TEST_CASE("Amplitudes: matrix elements with RPA",
     Amplitudes::MEoptions options{Frequency::transition, Frequency::transition};
     options.print = false;
     const auto mes =
-      Amplitudes::matrix_elements(wf.valence(), &dE1, nullptr, &rpa, options);
+      Amplitudes::matrix_elements(wf.valence(), &dE1, &rpa, nullptr, options);
 
     auto rpa0 = ExternalField::TDHF(&dE1, wf.vHF());
     for (const auto &m : mes) {
@@ -216,7 +269,7 @@ TEST_CASE("Amplitudes: matrix elements with RPA",
       const auto *Fb = wf.getState(m.b);
       rpa0.clear();
       rpa0.solve_core(m.omega, options.rpa_iterations, false);
-      const auto expected = rpa0.dV(*Fa, *Fb);
+      const auto expected = rpa0.dV(*Fa, *Fb, m.omega < 0.0);
       const auto found = m.dv;
       const auto eps = std::abs((found - expected) / expected);
       fmt::print("{:5s} {:5s} {:13.6e} {:13.6e} {:9.1e}\n", m.a, m.b, expected,
@@ -244,10 +297,10 @@ TEST_CASE("Amplitudes: SR matrix elements",
   MBPT::StructureRad sr(wf.basis(), wf.FermiLevel(), {2, 10}, "", 99, {}, {},
                         false);
   using Amplitudes::Frequency;
-  Amplitudes::SRNoptions options{Frequency::transition, Frequency::fixed};
+  Amplitudes::MEoptions options{Frequency::transition, Frequency::fixed};
   options.print = false;
   const auto mes =
-    Amplitudes::sr_matrix_elements(wf.valence(), &hE1, &sr, nullptr, options);
+    Amplitudes::matrix_elements(wf.valence(), &hE1, nullptr, &sr, options);
 
   // Direct evaluation, separate StructureRad object:
   MBPT::StructureRad sr0(wf.basis(), wf.FermiLevel(), {2, 10}, "", 99, {}, {},
@@ -263,9 +316,7 @@ TEST_CASE("Amplitudes: SR matrix elements",
     REQUIRE(m.t0 == Approx(hE1.reducedME(*Fa, *Fb)));
     // Frequency::fixed: SR denominators at the RPA frequency (0), not w_ab
     REQUIRE(m.sr == Approx(sr0.SR(*Fa, *Fb, 0.0)));
-    REQUIRE(m.norm == Approx((sr0.f_norm(*Fa) + sr0.f_norm(*Fb)) * m.t0));
-    REQUIRE(m.bo == Approx(sr0.BO(*Fa, *Fb)));
-    REQUIRE(m.total() ==
-            Approx(m.factor * (m.t0 + m.dv + m.sr + m.norm + m.bo)));
+    REQUIRE(m.norm == Approx(sr0.norm_factor(*Fa, *Fb) * m.t0));
+    REQUIRE(m.total() == Approx(m.factor * (m.t0 + m.dv + m.sr + m.norm)));
   }
 }

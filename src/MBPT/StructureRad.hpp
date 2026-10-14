@@ -157,12 +157,16 @@ public:
     @param h   Operator (must not be null)
     @param dV  Core polarisation (RPA); included in the matrix elements if
                not null
+    @param omega  Transition frequency: selects the dV component on the
+                  internal lines (emission if negative); see
+                  CorePolarisation::dV
 
     @note This must be called before structure radiation (or BO) can be
           calculated
   */
   void solve_core(const DiracOperator::TensorOperator *const h,
-                  const ExternalField::CorePolarisation *const dV = nullptr);
+                  const ExternalField::CorePolarisation *const dV = nullptr,
+                  double omega = 0.0);
 
   /*!
     @brief Reduced matrix element of structure radiation, <w||h_sr||v>.
@@ -195,17 +199,23 @@ public:
     \f]
     with f from f_norm(). Does not require solve_core().
 
-    @param w   Bra state
-    @param v   Ket state
-    @param h   Operator (must not be null)
-    @param dV  Core polarisation (RPA); included if not null
+    @param w    Bra state
+    @param v    Ket state
+    @param h    Operator (must not be null)
+    @param dV   Core polarisation (RPA); included if not null
+    @param conj The dV component: emission (true) for a negative frequency;
+                see CorePolarisation::dV
   */
   double norm(const DiracSpinor &w, const DiracSpinor &v,
               const DiracOperator::TensorOperator *const h,
-              const ExternalField::CorePolarisation *const dV = nullptr) const;
+              const ExternalField::CorePolarisation *const dV = nullptr,
+              bool conj = false) const;
 
   //! Normalisation factor; defined: <w||h||v>_norm = <w||h||v>(f_v + f_w)
   double f_norm(const DiracSpinor &v) const { return -0.5 * (n1(v) + n2(v)); }
+
+  //! Normalisation factor for pair: <w||h||v>_norm = norm_factor(w,v) <w||h||v>
+  double norm_factor(const DiracSpinor &w, const DiracSpinor &v) const;
 
   /*!
     @brief Returns sum of SR+Norm diagrams, reduced ME: <w||T+B+C+N||v>.
@@ -217,7 +227,8 @@ public:
     @param v      Ket state
     @param h      Operator, for norm() only (must not be null)
     @param dV     Core polarisation (RPA), for norm() only; may be null
-    @param omega  Operator frequency, for SR() only
+    @param omega  Operator frequency: for the SR() denominators, and the sign
+                  selects the dV component in norm()
 
     @note Must call solve_core() first (aborts otherwise). h and dV used for
           norm() only
@@ -228,7 +239,7 @@ public:
              double omega = 0.0) const {
     const auto tb = srTB(w, v, omega);
     const auto c = srC(w, v);
-    const auto n = norm(w, v, h, dV);
+    const auto n = norm(w, v, h, dV, omega < 0.0);
     return tb + c + n;
   }
 

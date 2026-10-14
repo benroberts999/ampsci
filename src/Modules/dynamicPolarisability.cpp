@@ -284,18 +284,21 @@ void dynamicPolarisability(const IO::InputBlock &input,
     std::cout << " Done.\n" << std::flush;
   }
 
-  // Full single-particle ME table at frequency w: t0 + dV(w) + SR. Cheap to
+  // Full single-particle ME table: t0 + dV + SR, with the dV component at
+  // +w (absorption, conj = false) or -w (emission, conj = true). Cheap to
   // rebuild each frequency: only the dV part varies (and the SR is cached)
-  const auto build_me_table = [&](double) {
+  const auto build_me_table = [&](bool conj) {
     Coulomb::meTable<double> t_me{};
     for (const auto &Fv : states) {
       for (const auto &Fn : spectrum) {
         if (he1.isZero(Fn, Fv))
           continue;
-        const auto me = he1.reducedME(Fn, Fv) +
-                        (dVptr ? dVptr->dV(Fn, Fv) : 0.0) + sr_tab.getv(Fn, Fv);
-        t_me.add(Fn, Fv, me);
-        t_me.add(Fv, Fn, he1.symm_sign(Fn, Fv) * me);
+        const auto dv_nv = dVptr ? dVptr->dV(Fn, Fv, conj) : 0.0;
+        const auto dv_vn = dVptr ? dVptr->dV(Fv, Fn, conj) : 0.0;
+        const auto sr_nv = sr_tab.getv(Fn, Fv);
+        t_me.add(Fn, Fv, he1.reducedME(Fn, Fv) + dv_nv + sr_nv);
+        t_me.add(Fv, Fn,
+                 he1.reducedME(Fv, Fn) + dv_vn + he1.symm_sign(Fn, Fv) * sr_nv);
       }
     }
     return t_me;
@@ -353,10 +356,13 @@ void dynamicPolarisability(const IO::InputBlock &input,
         dVE1.solve_core(ww, 5, false);
       }
     }
-    // Full ME table at this frequency (SOS paths only)
-    const auto t_me = (method != "MS" || do_tensor) ?
-                        build_me_table(ww) :
-                        Coulomb::meTable<double>{};
+    // Full ME tables at this frequency (SOS paths only): the two legs of
+    // the amplitude carry the field at +w and at -w
+    const auto sos_tables = method != "MS" || do_tensor;
+    const auto t_me =
+      sos_tables ? build_me_table(false) : Coulomb::meTable<double>{};
+    const auto s_me =
+      sos_tables ? build_me_table(true) : Coulomb::meTable<double>{};
 
     // MS method is fine for the core, and _much_ faster, and core contributes
     // negligably..so fine.
@@ -383,7 +389,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
         method == "MS" ?
           ac + alpha_ms_valence(Fv, ww) :
           ac + Amplitudes::sos_valence(0, Fv, Fv, &he1, &he1, ww, -ww, spectrum,
-                                       nullptr, nullptr, t_me, t_me) /
+                                       nullptr, nullptr, t_me, s_me) /
                  std::sqrt(3.0 * (Fv.twoj() + 1));
       avs.at(iv) = av;
       if (do_tensor) {
@@ -396,7 +402,7 @@ void dynamicPolarisability(const IO::InputBlock &input,
                        (3.0 * (twoJ + 1.0) * (twoJ + 2.0) * (twoJ + 3.0)));
         a2s.at(iv) = factor2 * Amplitudes::sos_valence(
                                  2, Fv, Fv, &he1, &he1, ww, -ww, spectrum,
-                                 nullptr, nullptr, t_me, t_me);
+                                 nullptr, nullptr, t_me, s_me);
       }
     }
     for (auto &av : avs) {

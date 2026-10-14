@@ -96,7 +96,6 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   const auto h = DiracOperator::generate(oper, h_options, wf);
-  auto h_minus = h->freqDependantQ() ? h->clone() : nullptr;
 
   // treat hyperfine operator differently: constants instead of RME
   const bool is_hyperfine =
@@ -131,7 +130,7 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
   if (wf.core().empty())
     rpa_method_str = "false";
   auto rpa = ExternalField::make_rpa(rpa_method_str, h.get(), wf.vHF(), true,
-                                     wf.basis(), wf.identity(), h_minus.get());
+                                     wf.basis(), wf.identity());
 
   const auto str_om = input.get<std::string>("omega", "_");
   const bool eachFreqQ = qip::ci_compare(str_om, "each");
@@ -164,8 +163,8 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
   options.calculate_both = input.get("printBoth", false);
   options.type = matel_type;
 
-  const auto mes = Amplitudes::matrix_elements(orbs, h.get(), h_minus.get(),
-                                               rpa.get(), options);
+  const auto mes =
+    Amplitudes::matrix_elements(orbs, h.get(), rpa.get(), nullptr, options);
 
   // Print, with the normalisation correction for each pair:
   // Norm = (1/2) (t_ab + dV_ab) (dSigma_a/de + dSigma_b/de)

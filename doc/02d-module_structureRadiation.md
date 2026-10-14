@@ -41,8 +41,8 @@ Module::StructureRadiation{
 }
 ```
 
-The calculations are performed by \ref Amplitudes::sr_matrix_elements "Amplitudes::sr_matrix_elements()" (see
-also \ref Amplitudes::SRNdata "Amplitudes::SRNdata"), using
+The calculations are performed by \ref Amplitudes::matrix_element "Amplitudes::matrix_element()" (see
+also \ref Amplitudes::MEdata "Amplitudes::MEdata"), using
 \ref MBPT::StructureRad "MBPT::StructureRad"; the module only parses input
 and prints. See \ref MBPT::StructureRad "MBPT::StructureRad" for the
 diagram formulas [Johnson et al., At. Data Nucl. Data Tables 64, 279

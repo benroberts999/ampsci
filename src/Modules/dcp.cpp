@@ -338,7 +338,8 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   double AK = 0.0;
   double A_zz = 0.0;
   for (const auto &n : wf.spectrum()) {
-    const auto Twn = t->reducedME(w, n) + dVt.dV(w, n);
+    // t carries omega: its dV is the component at that frequency; s is static
+    const auto Twn = t->reducedME(w, n) + dVt.dV(w, n, omega < 0.0);
     const auto Snv = s->reducedME(n, v) + dVs.dV(n, v);
     const auto de_ts = v.en() - n.en();
 
@@ -346,7 +347,7 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
       C_K(K, kt, ks, w.twoj(), n.twoj(), v.twoj()) * Angular::neg1pow(K);
 
     const auto Swn = s->reducedME(w, n) + dVs.dV(w, n);
-    const auto Tnv = t->reducedME(n, v) + dVt.dV(n, v);
+    const auto Tnv = t->reducedME(n, v) + dVt.dV(n, v, omega < 0.0);
     const auto de_st = w.en() - n.en();
 
     const auto C_st =
@@ -390,10 +391,11 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "\nCalculating DCP:\n";
   std::cout << "Filling tables.." << std::flush;
-  const auto t_ce =
-    Amplitudes::me_table(wf.basis(), t.get(), rpaQ ? &dVt : nullptr);
-  const auto s_ce =
-    Amplitudes::me_table(wf.basis(), s.get(), rpaQ ? &dVs : nullptr);
+  // Each table carries the dV component at the frequency of its operator
+  const auto t_ce = Amplitudes::me_table(wf.basis(), t.get(),
+                                         rpaQ ? &dVt : nullptr, nullptr, omega);
+  const auto s_ce = Amplitudes::me_table(wf.basis(), s.get(),
+                                         rpaQ ? &dVs : nullptr, nullptr, 0.0);
   std::cout << "..done\n" << std::flush;
 
   double cc1 =

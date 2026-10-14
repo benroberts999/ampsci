@@ -265,9 +265,9 @@ void continuum(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     const auto mes_c = Amplitudes::matrix_elements(
-      cntm.orbitals, wf.core(), h.get(), nullptr, p_rpa, options);
+      cntm.orbitals, wf.core(), h.get(), p_rpa, nullptr, options);
     const auto mes_v = Amplitudes::matrix_elements(
-      cntm.orbitals, wf.valence(), h.get(), nullptr, p_rpa, options);
+      cntm.orbitals, wf.valence(), h.get(), p_rpa, nullptr, options);
 
     const auto print_mes = [rpaQ](const auto &mes) {
       for (const auto &me : mes) {
