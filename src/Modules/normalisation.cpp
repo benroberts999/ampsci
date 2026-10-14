@@ -39,8 +39,8 @@ void normalisation(const IO::InputBlock &input, const Wavefunction &wf) {
           "wavefunction"},
      {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
      {"options{}", "options specific to operator (see ampsci -o 'operator')"},
-     {"rpa",
-      "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]"},
+     {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram, "
+             "cntm [true]"},
      {"omega",
       "Text or number. Frequency RPA is solved at. Put 'each' to solve at "
       "correct frequency for each transition. [0.0]"},

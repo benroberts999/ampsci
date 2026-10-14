@@ -95,8 +95,9 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
            "triangle rule for (Jb,K,Ja) [default: smallest allowed]"},
      {"method", "SOS (sum-over-states over the solved CI levels) or MS (CI "
                 "mixed states) [MS]"},
-     {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram "
-             "[true]"},
+     {"rpa",
+      "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram, cntm "
+      "[true]"},
      {"project_out",
       "List of CI states, as for A, that are removed from the intermediate "
       "states - e.g., '1-:0, 1-:1' removes the two lowest J=1 odd solutions "

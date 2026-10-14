@@ -485,10 +485,11 @@ void DiagramRPA::solve_core(double omega, int max_its, bool print) {
   const auto least_bound =
     std::max_element(m_holes.cbegin(), m_holes.cend(), DiracSpinor::comp_en);
   if (m_core_omega > -least_bound->en()) {
-    fmt::print("RPAd {:4s} (w={:.4f}): omega exceeds the ionisation threshold "
-               "of {} ({:.4f}); RPA not solvable, dV set to zero\n",
-               m_h->name(), m_core_omega, least_bound->shortSymbol(),
-               -least_bound->en());
+    fmt::print(
+      "RPAd {:4s} (w={:.4f}): Fail\n * omega exceeds the ionisation threshold "
+      "of {} ({:.4f}); * diagram RPA not solvable, dV set to zero\n",
+      m_h->name(), m_core_omega, least_bound->shortSymbol(),
+      -least_bound->en());
     // Empty t's give dV = 0 (clear() would give first-order RPA); they are
     // re-filled by the next solve_core()
     m_tam.clear();

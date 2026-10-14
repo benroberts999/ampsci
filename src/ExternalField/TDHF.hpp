@@ -71,7 +71,6 @@ protected:
 
   const HF::HartreeFock *const p_hf;
   const std::vector<DiracSpinor> m_core;
-  // const std::vector<double> m_Hmag;
   const double m_alpha;
   const HF::Breit *const p_VBr;
   // If true, eps is the relative change |dPsi| (sqrt of the ratio); if false,
@@ -107,24 +106,27 @@ public:
     single call covers both components, \f$ \delta V(\pm|\omega|) \f$;
     see dV().
 
-    ---
+    --
 
     @note Does not update the frequency of the operator itself; for frequency-dependent
     operators, update the operator frequency externally before calling.
+
+    --
+
+    @note nb: if the iterations stall, the solve is restarted from scratch with
+    different damping (weaker, then stronger), up to a few times, each with
+    a further max_its iterations; the best attempt is kept. eta() itself is
+    not changed.
   */
   virtual void solve_core(double omega, int max_its = 100,
                           bool print = true) override;
-  // nb: if the iterations stall, the solve is restarted from scratch with
-  // different damping (weaker, then stronger), up to a few times, each with
-  // a further max_its iterations; the best attempt is kept. eta() itself is
-  // not changed.
 
   virtual Method method() const override { return Method::TDHF; }
 
   virtual void clear() override;
 
-  //! Returns reduced matrix element \f$\redmatel{a}{\delta V}{b}\f$,
-  //! or the conjugate \f$\redmatel{a}{\delta V^\dagger}{b}\f$ if conj=true.
+  //! Returns reduced matrix element <a||dV||b>, or the conjugate
+  //! <a||dV^dag||b> if conj=true.
   double dV(const DiracSpinor &Fa, const DiracSpinor &Fb,
             bool conj = false) const override;
 
@@ -139,8 +141,8 @@ public:
                                 const int kappa_x) const;
 
   /*!
-    @brief Forms the mixed states phi^v_+- for valence state Fv (including core pol.):
-    single kappa channel.
+    @brief Forms the mixed states phi^v_+- for valence state Fv (including
+    core pol.): single kappa channel.
     @details
     Solves
     \f[ (h_{\rm HF} + \Sigma - \en_v - \omega)\varphi^v_+
@@ -165,7 +167,7 @@ public:
              const MBPT::CorrelationPotential *const Sigma = nullptr,
              StateType st = StateType::ket, bool incl_dV = true) const;
 
-  //! Forms \f$\varphi^v_\pm\f$ for all kappa channels; see @ref solve_dPsi.
+  //! Forms the mixed states phi^v_+- for all kappa channels; see solve_dPsi.
   std::vector<DiracSpinor>
   solve_dPsis(const DiracSpinor &Fv, const double omega, dPsiType XorY,
               const MBPT::CorrelationPotential *const Sigma = nullptr,

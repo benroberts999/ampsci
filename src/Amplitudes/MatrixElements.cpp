@@ -173,8 +173,9 @@ std::vector<MEdata> matrix_elements(const std::vector<DiracSpinor> &a_orbs,
   // The caller owns a fixed-frequency RPA. Solving it may not be wanted, so
   // this is a note, not an error
   if (!rpa_each && dV && dV->last_its() == 0) {
-    fmt::print(outstream, "\nNote: RPA at Frequency::fixed, and solve_core() "
-                          "has not been called: dV will be zero\n");
+    fmt::print(outstream,
+               "\nNote: RPA at a fixed frequency, but solve_core() "
+               "has not been called (or broke):\n ** dV will be zero\n");
   }
 
   // With everything at a fixed frequency, the SR tables are built once here

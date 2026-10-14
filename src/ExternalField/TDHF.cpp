@@ -363,10 +363,10 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
   const auto least_bound =
     std::max_element(m_core.cbegin(), m_core.cend(), DiracSpinor::comp_en);
   if (least_bound != m_core.cend() && omega > -least_bound->en()) {
-    fmt::print("TDHF {:4s} (w={:.4f}): omega exceeds the ionisation threshold "
-               "of {} ({:.4f}); RPA not solvable, dV set to zero\n",
-               m_h->name(), omega, least_bound->shortSymbol(),
-               -least_bound->en());
+    fmt::print(
+      "TDHF {:4s} (w={:.4f}): Fail\n * omega exceeds the ionisation threshold "
+      "of {} ({:.4f});\n * TDHF not solvable, dV set to zero\n",
+      m_h->name(), omega, least_bound->shortSymbol(), -least_bound->en());
     clear();
     m_core_eps = 1.0;
     m_core_its = 0;

@@ -101,7 +101,7 @@ TEST_CASE("Coulomb: quad integrate", "[Coulomb][unit]") {
 }
 
 //==============================================================================
-TEST_CASE("Coulomb: yk,Rk formulas", "[Coulomb][unit]") {
+TEST_CASE("Coulomb: yk Rk formulas", "[Coulomb][unit]") {
 
   const auto radial_grid = std::make_shared<const Grid>(
     GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});

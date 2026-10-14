@@ -4,6 +4,7 @@
 #include "HF/HartreeFock.hpp"
 #include "TDHF.hpp"
 #include "TDHFbasis.hpp"
+#include "TDHFcntm.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "fmt/color.hpp"
 #include <iostream>
@@ -49,6 +50,11 @@ make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
       std::cout << "diagram method (" << DiracSpinor::state_config(basis)
                 << ")\n";
     dV = std::make_unique<ExternalField::DiagramRPA>(h, basis, vhf, identity);
+  } else if (rpa_method == ExternalField::Method::cntm) {
+    if (print)
+      std::cout
+        << "TDHFcntm method (complex TDHF with continuum (open) channels)\n";
+    dV = std::make_unique<ExternalField::TDHFcntm>(h, vhf);
   }
   return dV;
 }

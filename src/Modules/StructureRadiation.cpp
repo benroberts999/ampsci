@@ -45,7 +45,7 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
           "perturbation theory"},
      {"operator", "e.g., E1, hfs"},
      {"options{}", "options specific to operator; blank by dflt"},
-     {"rpa", "true(=TDHF), false, TDHF, basis, diagram [true]"},
+     {"rpa", "true(=TDHF), false, TDHF, basis, diagram, cntm [true]"},
      {"omega",
       "Text or number. Frequency for RPA and the SR tables/denominators. "
       "Put 'each' to solve at correct frequency for each transition. [0.0]"},

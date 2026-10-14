@@ -93,7 +93,7 @@ namespace ExternalField {
 class TDHFcntm : public TDHF {
 
 public:
-  //! Constructs for operator h; see @ref TDHF::TDHF.
+  //! Constructs for operator h; see TDHF::TDHF.
   TDHFcntm(const DiracOperator::TensorOperator *const h,
            const HF::HartreeFock *const hf);
 
@@ -107,36 +107,39 @@ public:
 
   /*!
     @brief Solves the (complex) TDHF equations self-consistently at omega.
+    @details Re-solving at the same omega warm-starts from the previous
+    solution; the continuum data of the open channels is rebuilt only when
+    omega changes.
     @param omega    Frequency (atomic units); its magnitude is used.
     @param max_its  Maximum number of iterations; 1 gives the first-order
                     (outgoing-wave) correction.
     @param print    If true, write convergence progress to screen.
-    @details Re-solving at the same omega warm-starts from the previous
-    solution; the continuum data of the open channels is rebuilt only when
-    omega changes.
   */
   void solve_core(double omega, int max_its = 100, bool print = true) override;
 
   //! Clears the corrections and the continuum channel data
   void clear() override;
 
-  //! Open channels at the omega of the last solve_core(), in @ref A_phys
-  //! order; empty before solve_core(), or if no channel is open
+  Method method() const override final { return Method::cntm; }
+
+  //! Open channels at the omega of the last solve_core(), in A_phys order;
+  //! empty before solve_core(), or if no channel is open
   std::vector<Channel> channel_list() const;
 
   //! Ionisation amplitude A = K_+^*/pi of every open channel (see class
-  //! description), in @ref channel_list order. Requires solve_core().
+  //! description), in channel_list order. Requires solve_core().
   std::vector<std::complex<double>> A_phys() const;
 
-  //! A (see @ref A_phys) of the channel of core orbital Fa with
-  //! ejected-electron kappa; zero if that channel is closed
+  //! A (see A_phys) of the channel of core orbital Fa with ejected-electron
+  //! kappa; zero if that channel is closed
   std::complex<double> A_phys(const DiracSpinor &Fa, int kappa) const;
 
   /*!
     @brief Reduced matrix element of the (complex) induced potential,
-    <a||dV||b>, or the conjugate <a||dV^dag||b> if conj; as @ref TDHF::dV,
-    complex.
-    @details Real, and equal to TDHF, below every threshold. For a continuum
+    <a||dV||b>, or the conjugate <a||dV^dag||b> if conj.
+
+    @details The complex version of @ref TDHF::dV. Real, and equal to TDHF,
+    below every threshold. For a continuum
     bra (en_a > 0), Fa must be the energy-normalised continuum state of hole
     Fb in the V^{N-1} potential (direct y^0_bb and one-electron exchange of
     Fb removed); the source then includes the hole term V^b_0 phi of the
@@ -147,11 +150,26 @@ public:
   std::complex<double> dV_complex(const DiracSpinor &Fa, const DiracSpinor &Fb,
                                   bool conj = false) const;
 
-  //! Real part of @ref dV_complex, for bound Fa and Fb (exact below every
-  //! threshold, where the class acts as TDHF). For a continuum state use
-  //! dV_complex.
+  /*!
+    @brief Real part of dV_complex, for bound Fa and Fb only.
+    
+    @details 
+    Exact below every threshold, where the class acts as TDHF.
+
+    @warning Asserts (and aborts) if either state is a continuum state
+    (en > 0): dV_complex must be used there.
+  */
   double dV(const DiracSpinor &Fa, const DiracSpinor &Fb,
             bool conj = false) const override;
+
+  //! Real part of dV_complex. Convenience only: the full complex element is
+  //! calculated, so prefer dV_complex if both parts are needed
+  double dV_re(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               bool conj = false) const;
+  //! Imaginary part of dV_complex. Convenience only: the full complex element
+  //! is calculated, so prefer dV_complex if both parts are needed
+  double dV_im(const DiracSpinor &Fa, const DiracSpinor &Fb,
+               bool conj = false) const;
 
 private:
   // Imaginary parts of the corrections, indexed as m_X / m_Y (the real

@@ -84,7 +84,7 @@ class HartreeFock;
 namespace ExternalField {
 
 //! Available RPA/core-polarisation methods
-enum class Method { TDHF, basis, diagram, none, Error };
+enum class Method { TDHF, basis, diagram, cntm, none, Error };
 
 //! Parses method string to Method enum (case-insensitive)
 inline Method ParseMethod(std::string_view str) {
@@ -98,6 +98,8 @@ inline Method ParseMethod(std::string_view str) {
          qip::ci_compare(str, "diagramRPA") ? Method::diagram :
          qip::ci_compare(str, "rpad")       ? Method::diagram :
          qip::ci_compare(str, "rpa(d)")     ? Method::diagram :
+         qip::ci_compare(str, "cntm")       ? Method::cntm :
+         qip::ci_compare(str, "TDHFcntm")   ? Method::cntm :
          qip::ci_compare(str, "none")       ? Method::none :
          qip::ci_compare(str, "false")      ? Method::none :
          qip::ci_compare(str, "")           ? Method::none :

@@ -10,7 +10,7 @@ class TensorOperator;
 namespace ExternalField {
 
 /*!
-  @brief Like @ref TDHF, but solves the TDHF equations via basis expansion.
+  @brief Like TDHF, but solves the TDHF equations via basis expansion.
   @details
   Same physics as @ref TDHF; see that class for full description.
   The perturbed core orbitals are found via the basis expansion
@@ -38,7 +38,7 @@ private:
   std::vector<DiracSpinor> m_basis{}; // store copy?
 
 public:
-  //! See @ref TDHF::solve_core(); same notes and warnings apply.
+  //! See TDHF::solve_core(); same notes and warnings apply.
   virtual void solve_core(const double omega, int max_its = 100,
                           const bool print = true) override final;
 
@@ -70,6 +70,7 @@ public:
 
   /*!
     @brief Forms varphi^v_pm for valence state Fv: all kappa channels.
+    
     @details
     Calls @ref form_dPsi() for all allowed \f$ \kappa \f$ channels.
 

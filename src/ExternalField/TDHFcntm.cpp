@@ -626,4 +626,16 @@ double TDHFcntm::dV(const DiracSpinor &Fa, const DiracSpinor &Fb,
   return dV_complex(Fa, Fb, conj).real();
 }
 
+//==============================================================================
+double TDHFcntm::dV_re(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                       bool conj) const {
+  return dV_complex(Fa, Fb, conj).real();
+}
+
+//==============================================================================
+double TDHFcntm::dV_im(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                       bool conj) const {
+  return dV_complex(Fa, Fb, conj).imag();
+}
+
 } // namespace ExternalField

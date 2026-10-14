@@ -92,8 +92,8 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
          "own modules"},
     {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
     {"options{}", "options specific to operator (see ampsci -o 'operator')"},
-    {"rpa",
-     "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram [true]"},
+    {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram, "
+            "cntm [true]"},
     {"rpa_options{}", "Block: some further options for RPA"},
     {"omega",
      "Text or number. Frequency RPA is solved at. Put 'each' to solve at "
@@ -215,6 +215,9 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     else
       std::cout << "each transition frequency\n";
   }
+  if (rpa && rpa->method() == ExternalField::Method::cntm) {
+    std::cout << "(nb: re(dV) is given (complex above threshold)\n";
+  }
   if (rpa) {
     std::cout << "RPA solved at omega = ";
     if (eachFreqQ)
@@ -303,7 +306,8 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       "RPA and structure radiation + normalisation corrections."},
      {"operator", "e.g., E1, hfs (see ampsci -o for available operators)"},
      {"options{}", "options specific to operator"},
-     {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram"},
+     {"rpa",
+      "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram, cntm"},
      {"omega",
       "Text or number. Freq. for RPA (and freq. dependent operators). Put "
       "'each' to solve at correct frequency for each transition. [0.0]"},

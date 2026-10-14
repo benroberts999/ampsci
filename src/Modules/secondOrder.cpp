@@ -71,9 +71,10 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
      {"K", "Rank K of the amplitude. Requires |kt-ks| <= K <= kt+ks, and the "
            "triangle rule for (jb,K,ja) [default: smallest allowed]"},
      {"method", "SOS (sum-over-states) or MS (mixed states) [MS]"},
-     {"rpa", "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram "
-             "[true]. MS requires TDHF: the diagram method triggers a "
-             "warning, and TDHF is used"},
+     {"rpa",
+      "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram, cntm "
+      "[true]. MS requires TDHF: the diagram method triggers a "
+      "warning, and TDHF is used"},
      {"replace_w_valence",
       "SOS: replace the basis/spectrum states with the corresponding valence "
       "states in the sum, where available (e.g., when the valence states were "

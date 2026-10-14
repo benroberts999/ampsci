@@ -16,7 +16,7 @@
 #include <string>
 
 //==============================================================================
-TEST_CASE("MBPT: Goldstone, unit tests", "[MBPT][Goldstone][unit]") {
+TEST_CASE("MBPT: Goldstone unit tests", "[MBPT][Goldstone][unit]") {
 
   std::cout << "Goldstone diagram, unit tests (not meant to be accurate)\n";
 

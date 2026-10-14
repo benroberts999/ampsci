@@ -335,7 +335,7 @@ TEST_CASE("Kion: all-K plane-wave response vs multipole sum",
 }
 
 //==============================================================================
-TEST_CASE("Kion: ridge correction, hydrogen Kmax independence",
+TEST_CASE("Kion: ridge correction hydrogen Kmax independence",
           "[Kion][ridge][unit]") {
   std::cout << "Ridge correction: hydrogen 1s on the Bethe ridge\n";
   // Exact all-K distorted-wave values (non-relativistic, partial waves to
