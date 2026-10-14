@@ -120,9 +120,8 @@ public:
   }
 
   /*!
-    @brief Angular factor linking the radial integral to the reduced matrix
-    element: \f$ \langle a \| h \| b \rangle = F(\kappa_a,\kappa_b) \cdot
-    \int \! dr \f$.
+    @brief Angular factor F(kappa_a, kappa_b) linking the radial integral to
+    the reduced matrix element: <a||h||b> = F * (radial integral).
     @details
     Returns \f$ C^K(\kappa_a, \kappa_b) \f$ or
     \f$ C^K(\kappa_a, -\kappa_b) \f$ depending on the Lorentz structure.

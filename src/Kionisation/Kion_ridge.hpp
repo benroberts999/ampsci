@@ -236,8 +236,8 @@ std::array<double, 13> planewave_formFactors(const MomentumOrbital &orb,
 
 //------------------------------------------------------------------------------
 /*!
-  @brief Fraction of the norm of \f$ e^{i\vb{q}\cdot\vb{r}}\psi_a \f$ carried by
-  the multipoles K <= Kmax.
+  @brief Fraction of the norm of exp(i q.r) psi_a carried by the multipoles
+  K <= Kmax.
 
   @details
   \f[

@@ -262,7 +262,7 @@ void helper(const AdamsMoulton::DerivativeMatrix<double> &D, double dt) {
 }
 
 //------------------------------------------------------------------------------
-TEST_CASE("Simple: K=[1,12]", "[AdamsMoulton][unit]") {
+TEST_CASE("Simple: K=1 to 12", "[AdamsMoulton][unit]") {
   // y''(x) = -y(x)
   // y(0)=0, y'(0)=1
   // => y(x) = sin(x)
@@ -457,7 +457,7 @@ TEST_CASE("Inhomogeneous: constant source", "[AdamsMoulton][unit]") {
 }
 
 //------------------------------------------------------------------------------
-TEST_CASE("Inhomogeneous: K=[1,12]", "[AdamsMoulton][unit]") {
+TEST_CASE("Inhomogeneous: K=1 to 12", "[AdamsMoulton][unit]") {
   double dt = 0.001;
   helper_inhom<1>(dt);
   helper_inhom<2>(dt);

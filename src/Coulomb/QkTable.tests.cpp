@@ -287,7 +287,7 @@ TEST_CASE("Coulomb: Qk Table", "[Coulomb][QkTable][unit]") {
 }
 
 //==============================================================================
-TEST_CASE("Coulomb: Q,W,N k Table", "[Coulomb][QkTable][unit]") {
+TEST_CASE("Coulomb: Q W N k Table", "[Coulomb][QkTable][unit]") {
 
   // just 4 dummy DiracSpinors to test set/get for CoulombTable
   const DiracSpinor a{0, -1, nullptr};

@@ -7,7 +7,7 @@
 #include <random>
 
 //==============================================================================
-TEST_CASE("LinAlg: Element access, memory layout", "[LinAlg][unit]") {
+TEST_CASE("LinAlg: Element access and memory layout", "[LinAlg][unit]") {
 
   LinAlg::Matrix<double> a{{1.0, 2.0, 3.0}, {4.0, 5.0, 6.0}};
   LinAlg::Matrix<double> a2(2, 3);
@@ -669,7 +669,7 @@ TEST_CASE("LinAlg: Row and Column Views", "[LinAlg][unit]") {
 }
 
 //==============================================================================
-TEST_CASE("LinAlg: Row and Column Views, complex", "[LinAlg][unit]") {
+TEST_CASE("LinAlg: Row and Column Views complex", "[LinAlg][unit]") {
 
   using namespace std::complex_literals;
   const LinAlg::Matrix<std::complex<double>> a{
