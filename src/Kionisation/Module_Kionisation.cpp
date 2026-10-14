@@ -640,18 +640,6 @@ void photoionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "\n";
 
-  // The operator pair for the RPA solver: t_+ and t_-. E1v depends on the
-  // sign of omega, so t_- is E1v at -omega. Every other operator depends on
-  // |omega| only, so t_- = t_+^dagger (automatic: nullptr)
-  using OperatorPtr = std::unique_ptr<DiracOperator::TensorOperator>;
-  const auto make_operator_pair =
-    [&](const Block &block) -> std::pair<OperatorPtr, OperatorPtr> {
-    const auto &name = operators[block.i_op];
-    return {make_operator(name, block.k, energies.front()),
-            name == "E1v" ? make_operator(name, block.k, -energies.front()) :
-                            nullptr};
-  };
-
   // Angular/polarisation factor: dimensionless absorption form factor Q is
   // f * |<e||t||a>|^2 summed over channels (as in photo{})
   const auto Q_factor = [&](const Block &block, double omega) {
@@ -697,16 +685,12 @@ void photoionisation(const IO::InputBlock &input, const Wavefunction &wf) {
   // cleared so the next energy does not warm start from a broken state.
   const auto solve_energy = [&](std::size_t ib, std::size_t i_omega,
                                 DiracOperator::TensorOperator *h,
-                                DiracOperator::TensorOperator *h_minus,
                                 ExternalField::TDHFcntm *rpa, bool print) {
     const auto &block = blocks[ib];
     const auto omega = energies[i_omega];
 
     if (h->freqDependantQ()) {
       h->updateFrequency(omega);
-      if (h_minus) {
-        h_minus->updateFrequency(-omega);
-      }
     }
 
     const bool solve_rpa = rpa != nullptr &&
@@ -771,21 +755,20 @@ void photoionisation(const IO::InputBlock &input, const Wavefunction &wf) {
     // the previous one.
 #pragma omp parallel if (parallel_omega)
     {
-      // Bug(?): OMP cannot work with structured bindings?
-      const auto operator_pair = make_operator_pair(block);
-      const auto &h = operator_pair.first;
-      const auto &h_minus = operator_pair.second;
+      // The operator for the RPA solver, at +|omega| (the emission side
+      // follows from TensorOperator::h_minus_sign)
+      const auto h =
+        make_operator(operators[block.i_op], block.k, energies.front());
       std::unique_ptr<ExternalField::TDHFcntm> rpa;
       if (use_rpa) {
-        rpa = std::make_unique<ExternalField::TDHFcntm>(h.get(), wf.vHF(),
-                                                        h_minus.get());
+        rpa = std::make_unique<ExternalField::TDHFcntm>(h.get(), wf.vHF());
         rpa->eps_target() = eps;
       }
 #pragma omp for schedule(dynamic)
       for (std::size_t i_omega = 0; i_omega < n_E; ++i_omega) {
         if (any_open(energies[i_omega])) {
-          eps_rpa(ib, i_omega) = solve_energy(
-            ib, i_omega, h.get(), h_minus.get(), rpa.get(), !parallel_omega);
+          eps_rpa(ib, i_omega) =
+            solve_energy(ib, i_omega, h.get(), rpa.get(), !parallel_omega);
         }
         bar.update();
       }

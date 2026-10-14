@@ -88,8 +88,28 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
     REQUIRE(rhs_sp == Approx(dv_sp));
   }
 
+  // A static imaginary operator (PNC): the two components of dV coincide,
+  // so the conjugate flag is immaterial for any static solve
+  {
+    DiracOperator::PNCnsi hpnc(5.67073, 2.3, wf.grid());
+    auto rpa_pnc =
+      ExternalField::DiagramRPA(&hpnc, wf.basis(), wf.vHF(), file_name);
+    rpa_pnc.solve_core(0.0, 20, false);
+    for (const auto pa : {F6s, F6p}) {
+      for (const auto pb : {F6s, F6p}) {
+        if (hpnc.isZero(*pa, *pb))
+          continue;
+        REQUIRE(rpa_pnc.dV(*pa, *pb, false) != 0.0);
+        REQUIRE(rpa_pnc.dV(*pa, *pb, true) ==
+                Approx(rpa_pnc.dV(*pa, *pb, false)));
+      }
+    }
+  }
+
   // E1v (velocity gauge, frequency-dependent operator)
-  // Tests of Hermicity for f-dependent case
+  // An operator odd in the frequency (E1v): the emission amplitudes carry
+  // the opposite sign, and the two components must be related by Hermiticity
+  // (the comparison with TDHF needs a real basis: see the integration test)
   const auto &v = *F6s;
   const auto F6p3 = wf.getState("4p+");
   for (const auto pw : {F6p, F6p3}) {
@@ -99,14 +119,13 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
     REQUIRE(omega > 0.0);
 
     auto t_plus = DiracOperator::E1v(wf.alpha(), omega);
+    REQUIRE(t_plus.h_minus_sign() == -1.0);
     auto t_minus = DiracOperator::E1v(wf.alpha(), -omega);
-
-    auto dV_plus = ExternalField::DiagramRPA(&t_plus, wf.basis(), wf.vHF(),
-                                             file_name, false);
-    auto dV_minus = ExternalField::DiagramRPA(&t_minus, wf.basis(), wf.vHF(),
-                                              file_name, false);
-
     auto twv = t_plus.reducedME(w, v);
+
+    // h(-omega) = h_minus_sign * h(omega)
+    REQUIRE(t_minus.reducedME(w, v) ==
+            Approx(t_plus.h_minus_sign() * twv).epsilon(1.0e-12));
 
     // incorrect Hermitian:
     auto twv_X = t_plus.reducedME(v, w) * t_minus.symm_sign(v, w);
@@ -116,43 +135,29 @@ TEST_CASE("External Field: Diagram RPA - basic unit tests",
     auto twv_c = t_minus.reducedME(v, w) * t_minus.symm_sign(v, w);
     REQUIRE(twv_c == Approx(twv));
 
-    dV_plus.solve_core(omega, 5, false);
-    dV_minus.solve_core(-omega, 5, false);
+    auto dV_d = ExternalField::DiagramRPA(&t_plus, wf.basis(), wf.vHF(),
+                                          file_name, false);
+    dV_d.solve_core(omega, 5, false);
 
-    // These should all be the same (uses 'auto conj')
-    const auto dV1 = dV_plus.dV(w, v);
-    const auto dV2 = dV_plus.dV(v, w) * t_minus.symm_sign(v, w);
-    const auto dV3 = dV_minus.dV(w, v);
-    const auto dV4 = dV_minus.dV(v, w) * t_minus.symm_sign(v, w);
+    // Absorption component, and the same by Hermiticity from the emission
+    // one
+    const auto dV1 = dV_d.dV(w, v, false);
+    const auto dV2 = dV_d.dV(v, w, true) * t_minus.symm_sign(v, w);
+    REQUIRE(dV1 == dV_d.dV(w, v));
     REQUIRE(dV2 == Approx(dV1));
-    REQUIRE(dV3 == Approx(dV1));
-    REQUIRE(dV4 == Approx(dV1));
 
-    // These should NOT be the same as dV1 (incorrect conj)
-    // But should be the same as each other
-    const auto dV1_X = dV_plus.dV(w, v, true);
-    const auto dV2_X = dV_plus.dV(v, w, false) * t_minus.symm_sign(v, w);
-    const auto dV3_X = dV_minus.dV(w, v, false);
-    const auto dV4_X = dV_minus.dV(v, w, true) * t_minus.symm_sign(v, w);
+    // The wrong component is not the same
+    const auto dV1_X = dV_d.dV(w, v, true);
+    const auto dV2_X = dV_d.dV(v, w, false) * t_minus.symm_sign(v, w);
     REQUIRE(dV1_X != dV1);
-    REQUIRE(dV2_X != dV1);
-    REQUIRE(dV3_X != dV1);
-    REQUIRE(dV4_X != dV1);
     REQUIRE(dV2_X == Approx(dV1_X));
-    REQUIRE(dV3_X == Approx(dV1_X));
-    REQUIRE(dV4_X == Approx(dV1_X));
 
     // Fb * dV_rhs(kappa_b, Fa) should equal dV(Fb, Fa)
-    const auto dV1_r = w * dV_plus.dV_rhs(w.kappa(), v, false);
+    const auto dV1_r = w * dV_d.dV_rhs(w.kappa(), v, false);
     const auto dV2_r =
-      v * dV_plus.dV_rhs(v.kappa(), w, true) * t_minus.symm_sign(v, w);
-    const auto dV3_r = w * dV_minus.dV_rhs(w.kappa(), v, true);
-    const auto dV4_r =
-      v * dV_minus.dV_rhs(v.kappa(), w, false) * t_minus.symm_sign(v, w);
+      v * dV_d.dV_rhs(v.kappa(), w, true) * t_minus.symm_sign(v, w);
     REQUIRE(dV1_r == Approx(dV1));
     REQUIRE(dV2_r == Approx(dV1_r));
-    REQUIRE(dV3_r == Approx(dV1_r));
-    REQUIRE(dV4_r == Approx(dV1_r));
   }
 }
 
@@ -230,9 +235,11 @@ TEST_CASE("External Field: Diagram RPA",
         for (const auto &Fw : wf.valence()) {
           if (dE1.isZero(Fv.kappa(), Fw.kappa()))
             continue;
-          // nb: -ve sign account for |e| vs -|e| diff from VD
+          // nb: -ve sign account for |e| vs -|e| diff from VD. The
+          // reference lists each pair in the physical direction of its
+          // transition: emission when the ket lies above the bra
           e1me.emplace_back(Fv.shortSymbol() + Fw.shortSymbol(),
-                            -rpa.dV(Fv, Fw));
+                            -rpa.dV(Fv, Fw, Fw.en() > Fv.en()));
         }
       }
       std::sort(begin(e1me), end(e1me), sorter);
@@ -245,6 +252,39 @@ TEST_CASE("External Field: Diagram RPA",
       INFO("RPA(D) E1 w=0.05 " << at->first << " " << eps);
       // REQUIRE(std::abs(eps) < 0.0005);
       REQUIRE(std::abs(eps) < 0.02); //?
+    }
+
+    { // E1v (odd in omega), w=0.05: both components, against TDHF. The
+      // emission (conj) component carries the sign of the operator at -omega
+      const auto ww = 0.05;
+      auto dE1v = DiracOperator::E1v(wf.alpha(), ww);
+      auto rpa_v = ExternalField::DiagramRPA(&dE1v, &rpa);
+      rpa_v.solve_core(ww);
+      auto tdhf_v = ExternalField::TDHF(&dE1v, wf.vHF());
+      tdhf_v.solve_core(ww, 100, false);
+
+      // The basis-incompleteness error is the same in absolute terms for
+      // every element, so the difference is measured against the largest
+      fmt::print("E1v w=0.05, diagram vs TDHF (absorption, emission):\n");
+      double worst = 0.0;
+      double largest = 0.0;
+      for (const auto &Fv : wf.valence()) {
+        for (const auto &Fw : wf.valence()) {
+          if (dE1v.isZero(Fv.kappa(), Fw.kappa()))
+            continue;
+          fmt::print("{:6s}", Fv.shortSymbol() + Fw.shortSymbol());
+          for (const auto conj : {false, true}) {
+            const auto d = rpa_v.dV(Fv, Fw, conj);
+            const auto t = tdhf_v.dV(Fv, Fw, conj);
+            worst = std::max(worst, std::abs(d - t));
+            largest = std::max(largest, std::abs(t));
+            fmt::print(" {:9.5f} [{:9.5f}]", d, t);
+          }
+          fmt::print("\n");
+        }
+      }
+      fmt::print("worst: {:.1e} (of largest {:.3f})\n", worst, largest);
+      REQUIRE(worst < 0.02 * largest);
     }
   }
 

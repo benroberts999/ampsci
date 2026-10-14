@@ -43,13 +43,12 @@ namespace ExternalField {
   It is via \f$ \delta V_\pm \f$ that the \f$ e^{\pm i\omega t} \f$ terms are mixed.
 
   \par Construction
-  Requires a pointer to the forward operator (\f$ t_+ \f$), a const
-  @ref HF::HartreeFock object, and an optional pointer to the backward
-  operator (\f$ t_- \f$). If @p h_minus is omitted, \f$ t_- \f$ is taken
-  to be the same pointer as \f$ t_+ \f$.
-  The user is responsible for updating operator frequencies externally
-  before calling solve_core().
-  Note: Only need \f$t_-\f$ for operators that depend on the sign of the frequency (e.g., E1v). Most depend only on magnitude, in which case \f$t_- = t_+^\dag \f$, which is dealt with automatically.
+  Requires a pointer to the operator (\f$ t_+ \f$, at \f$ +|\omega| \f$)
+  and a const @ref HF::HartreeFock object. The user is responsible for
+  updating the operator frequency externally before calling solve_core().
+  The backward operator \f$ t_- \f$ (at \f$ -|\omega| \f$) is
+  \f$ t_+ \f$ times TensorOperator::h_minus_sign(): -1 for an operator
+  odd in the frequency (E1v), +1 otherwise.
 
   \par Usage
   @ref solve_core (omega) solves the TDHF equations for a given frequency.
@@ -75,9 +74,6 @@ protected:
   // const std::vector<double> m_Hmag;
   const double m_alpha;
   const HF::Breit *const p_VBr;
-  // nb: m_h_plus := m_h is the one in CorePolarisation
-  const DiracOperator::TensorOperator *const m_h_minus;
-
   // If true, eps is the relative change |dPsi| (sqrt of the ratio); if false,
   // the squared ratio. See eps_dPsi().
   bool m_eps_sqrt{false};
@@ -86,18 +82,12 @@ public:
   /*!
     @brief Constructs TDHF for operator h.
 
-    @param h_plus  Forward operator \f$ t_+ \f$; must be set to positive
+    @param h_plus  The operator \f$ t_+ \f$; must be set to positive
                    frequency before each call to solve_core().
     @param hf      @ref HF::HartreeFock object defining the core.
-    @param h_minus Backward operator \f$ t_- \f$; if nullptr (default), uses
-                   @p h_plus. Only needed when the operator is frequency-dependent
-                   *and* depends on the **sign** of \f$ \omega \f$ (e.g. E1
-                   velocity form). For operators that depend only on
-                   \f$ |\omega| \f$ (e.g. M1), the default suffices.
   */
   TDHF(const DiracOperator::TensorOperator *const h_plus,
-       const HF::HartreeFock *const hf,
-       const DiracOperator::TensorOperator *const h_minus = nullptr);
+       const HF::HartreeFock *const hf);
 
   /*!
     @brief Solves TDHF equations self-consistently for core electrons at frequency omega.
@@ -112,10 +102,10 @@ public:
                    first iteration).
     @param print    If true, write convergence progress to screen.
 
-    @note Frequency should be positive; negative is allowed but use with care.
-    Unlike @ref DiagramRPA, TDHF solves for both \f$ \varphi^a_+ \f$ and
-    \f$ \varphi^a_- \f$ simultaneously (see class docs), so a single call
-    covers both contributions to \f$ \delta V_\pm \f$.
+    @note Solved at \f$ |\omega| \f$: both \f$ \varphi^a_+ \f$ and
+    \f$ \varphi^a_- \f$ are found simultaneously (see class docs), so a
+    single call covers both components, \f$ \delta V(\pm|\omega|) \f$;
+    see dV().
 
     ---
 
@@ -135,10 +125,8 @@ public:
 
   //! Returns reduced matrix element \f$\redmatel{a}{\delta V}{b}\f$,
   //! or the conjugate \f$\redmatel{a}{\delta V^\dagger}{b}\f$ if conj=true.
-  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
-
-  virtual double dV(const DiracSpinor &Fa,
-                    const DiracSpinor &Fb) const override;
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb,
+            bool conj = false) const override;
 
   DiracSpinor dV_rhs(int kappa_n, const DiracSpinor &Fm,
                      bool conj = false) const override;
@@ -151,7 +139,7 @@ public:
                                 const int kappa_x) const;
 
   /*!
-    @brief Forms \f$\varphi^v_\pm\f$ for valence state Fv (including core pol.):
+    @brief Forms the mixed states phi^v_+- for valence state Fv (including core pol.):
     single kappa channel.
     @details
     Solves
@@ -190,6 +178,9 @@ protected:
   // Forms set of h*Fc for all core orbitals and all projections
   std::vector<std::vector<DiracSpinor>>
   form_hFcore(const DiracOperator::TensorOperator *h) const;
+  // The same at -|omega| (for the Y equations), from the set at +|omega|
+  std::vector<std::vector<DiracSpinor>>
+  form_hFcore_minus(const std::vector<std::vector<DiracSpinor>> &hFcore) const;
 
   // dV_rhs built from explicit correction sets X, Y (indexed as m_X, m_Y)
   // in place of the members; dV_rhs delegates here with (m_X, m_Y). Lets a

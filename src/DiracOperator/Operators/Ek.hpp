@@ -103,8 +103,7 @@ public:
 };
 
 //==============================================================================
-//! @brief Electric dipole operator, v-form:
-//! \f$ \frac{ie}{\omega \alpha} \vec{\alpha}\f$
+//! @brief Electric dipole operator, v-form: (ie/(omega alpha)) alpha_vec
 /*! @details
 \f[  <a||d_v||b> =  R \f]
 \f[ R = -\frac{2e}{\omega \alpha}
@@ -116,7 +115,7 @@ class E1v final : public TensorOperator
 {
 public:
   E1v(const double alpha, const double omega = 0.0)
-    : TensorOperator(1, Parity::odd, -0.0, {}, Realness::real, true),
+    : TensorOperator(1, Parity::odd, -0.0, {}, Realness::real, true, true),
       m_alpha(alpha) {
     updateFrequency(omega);
   }

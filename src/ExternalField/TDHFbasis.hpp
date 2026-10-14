@@ -27,13 +27,12 @@ public:
     @param h     External field operator.
     @param hf    @ref HF::HartreeFock object defining the core.
     @param basis Single-particle basis used to expand \f$ \varphi^a_\pm \f$.
-                 The entire basis is used; caller must ensure all required
-                 states are present.
+                 Core (occupied) states are dropped; only the excited states
+                 are used.
   */
   TDHFbasis(const DiracOperator::TensorOperator *const h,
             const HF::HartreeFock *const hf,
-            const std::vector<DiracSpinor> &basis,
-            const DiracOperator::TensorOperator *const h_minus = nullptr);
+            const std::vector<DiracSpinor> &basis);
 
 private:
   std::vector<DiracSpinor> m_basis{}; // store copy?
@@ -62,7 +61,6 @@ public:
     @param incl_dV    Include the induced potential \f$ \delta V \f$ if true.
 
     @note To include correlations, use a basis with correlations.
-    @note To exclude excitations to occupied states, remove them from the basis.
   */
   DiracSpinor form_dPsi(const DiracSpinor &Fv, const double omega,
                         dPsiType XorY, const int kappa_beta,

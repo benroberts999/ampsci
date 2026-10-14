@@ -47,6 +47,22 @@ TEST_CASE("External Field: TDHF basic unit tests",
     }
   }
 
+  // A static imaginary operator (PNC): the two components of dV coincide,
+  // so the conjugate flag is immaterial for any static solve
+  {
+    DiracOperator::PNCnsi hpnc(5.67073, 2.3, wf.grid());
+    ExternalField::TDHF rpa_pnc(&hpnc, wf.vHF());
+    rpa_pnc.solve_core(0.0, 25, false);
+    for (const auto &v : wf.valence()) {
+      for (const auto &w : wf.valence()) {
+        if (hpnc.isZero(v, w))
+          continue;
+        REQUIRE(rpa_pnc.dV(v, w, false) != 0.0);
+        REQUIRE(rpa_pnc.dV(v, w, true) == Approx(rpa_pnc.dV(v, w, false)));
+      }
+    }
+  }
+
   for (const auto &Fc : wf.core()) {
     auto dPsis1 = rpa.solve_dPsis(Fc, 0.0, ExternalField::dPsiType::X);
     auto dPsis2 = rpa.get_dPsis(Fc, ExternalField::dPsiType::X);
@@ -202,7 +218,9 @@ void test_RPA(const Wavefunction &wf, DiracOperator::TensorOperator &h,
                        1, Fa.kappa(), Fb.kappa()) :
                      1.0;
     const auto hab = f * h.reducedME(Fa, Fb);
-    const auto dv = f * dV.dV(Fa, Fb);
+    // Reference values are for each transition in its physical direction:
+    // emission when the ket lies above the bra
+    const auto dv = f * dV.dV(Fa, Fb, Fb.en() > Fa.en());
 
     // don't worry about sign (tested elsewhere)
     const auto s1 = hab / std::abs(hab);
@@ -245,7 +263,9 @@ void test_RPA2(const Wavefunction &wf, DiracOperator::TensorOperator &h,
     const auto f = DiracOperator::Hyperfine::convert_RME_to_HFSconstant(
       1, Fa.kappa(), Fb.kappa());
     const auto hab = f * h.reducedME(Fa, Fb);
-    const auto dv = f * dV.dV(Fa, Fb);
+    // Reference values are for each transition in its physical direction:
+    // emission when the ket lies above the bra
+    const auto dv = f * dV.dV(Fa, Fb, Fb.en() > Fa.en());
 
     const auto delta1 = (hab - h0);
     const auto eps1 = std::abs(delta1 / h0);
@@ -486,7 +506,7 @@ calc_sos(DiracOperator::TensorOperator &hd, DiracOperator::TensorOperator &hpnc,
   Tests forward and reverse directions, which must differ by sign only.
   WIP: A/B equivalence for freq-dep (E1v) s-d transition under investigation.
 */
-TEST_CASE("PNC: amplitude methods (A, B, SOS)",
+TEST_CASE("PNC: amplitude methods (A B SOS)",
           "[ExternalField][TDHF][TDHFf][PNC][MixedStates][gauge]") {
 
   Wavefunction wf({2200, 1.0e-6, 120.0, 20.0, "loglinear", -1.0},
@@ -504,12 +524,11 @@ TEST_CASE("PNC: amplitude methods (A, B, SOS)",
 
   DiracOperator::E1 hE1(wf.grid());
   DiracOperator::E1v hE1v(wf.alpha());
-  DiracOperator::E1v hE1v_m(wf.alpha());
   DiracOperator::PNCnsi hPNC(5.67073, 2.3, wf.grid());
 
   ExternalField::TDHF tdhf_pnc(&hPNC, wf.vHF());
   ExternalField::TDHF tdhf_E1(&hE1, wf.vHF());
-  ExternalField::TDHF tdhf_E1v(&hE1v, wf.vHF(), &hE1v_m);
+  ExternalField::TDHF tdhf_E1v(&hE1v, wf.vHF());
 
   fmt::print("\nPNC amplitude, Cs-133, no dV:\n");
 
@@ -517,11 +536,10 @@ TEST_CASE("PNC: amplitude methods (A, B, SOS)",
   const std::array<FIPair, 2> trans = {FIPair{p7s, p6s},   // s-s
                                        FIPair{p5dm, p6s}}; // s-d
 
-  using OpTriple =
-    std::tuple<DiracOperator::TensorOperator *, DiracOperator::TensorOperator *,
-               ExternalField::TDHF *>;
-  for (const auto &[hd, hd_m, tdhf_d] : std::array<OpTriple, 2>{
-         OpTriple{&hE1, &hE1, &tdhf_E1}, OpTriple{&hE1v, &hE1v_m, &tdhf_E1v}}) {
+  using OpPair =
+    std::pair<DiracOperator::TensorOperator *, ExternalField::TDHF *>;
+  for (const auto &[hd, tdhf_d] : std::array<OpPair, 2>{
+         OpPair{&hE1, &tdhf_E1}, OpPair{&hE1v, &tdhf_E1v}}) {
 
     for (const auto &[pFf, pFi] : trans) {
       const auto *pRf = pFi; // reverse
@@ -529,7 +547,6 @@ TEST_CASE("PNC: amplitude methods (A, B, SOS)",
       const auto w = pFf->en() - pFi->en(); // signed transition frequency
       if (hd->freqDependantQ()) {
         hd->updateFrequency(std::abs(w));
-        hd_m->updateFrequency(-std::abs(w));
       }
 
       const bool emission_f = pFf->en() < pFi->en();
@@ -604,8 +621,8 @@ TEST_CASE("PNC: amplitude methods (A, B, SOS)",
 
   tdhf_pnc.solve_core(0.0);
 
-  for (const auto &[hd, hd_m, tdhf_d] : std::array<OpTriple, 2>{
-         OpTriple{&hE1, &hE1, &tdhf_E1}, OpTriple{&hE1v, &hE1v_m, &tdhf_E1v}}) {
+  for (const auto &[hd, tdhf_d] : std::array<OpPair, 2>{
+         OpPair{&hE1, &tdhf_E1}, OpPair{&hE1v, &tdhf_E1v}}) {
 
     for (const auto &[pFf, pFi] : trans) {
       const auto *pRf = pFi; // reverse
@@ -622,7 +639,6 @@ TEST_CASE("PNC: amplitude methods (A, B, SOS)",
 
       if (hd->freqDependantQ()) {
         hd->updateFrequency(std::abs(w));
-        hd_m->updateFrequency(-std::abs(w));
       }
 
       std::cout << "\n";
@@ -719,10 +735,9 @@ TEST_CASE("External Field: TDHF E1 length-velocity gauge and hermiticity",
   DiracOperator::E1 h_L(wf.grid());
 
   DiracOperator::E1v h_V_p(wf.alpha(), 0.0);
-  DiracOperator::E1v h_V_m(wf.alpha(), 0.0);
 
   ExternalField::TDHF rpa_L(&h_L, wf.vHF());
-  ExternalField::TDHF rpa_V(&h_V_p, wf.vHF(), &h_V_m);
+  ExternalField::TDHF rpa_V(&h_V_p, wf.vHF());
 
   fmt::print("\nE1 length-velocity gauge equivalence (Na, TDHF)\n");
 
@@ -741,8 +756,8 @@ TEST_CASE("External Field: TDHF E1 length-velocity gauge and hermiticity",
         const auto &Fb = abs ? Fw : Fv;
 
         const double omega = Fa.en() - Fb.en();
+        // The RPA is solved with the operator at +|omega|
         h_V_p.updateFrequency(std::abs(omega));
-        h_V_m.updateFrequency(-std::abs(omega));
 
         std::cout << "\n";
         fmt::print("{:3s} -> {:3s}  omega = {:+.5f}  ({})\n", Fa.shortSymbol(),
@@ -751,11 +766,13 @@ TEST_CASE("External Field: TDHF E1 length-velocity gauge and hermiticity",
         rpa_L.solve_core(omega);
         rpa_V.solve_core(omega);
 
+        // The element itself: the operator at the signed frequency, and the
+        // dV component of that sign
+        h_V_p.updateFrequency(omega);
         const auto me_L0 = h_L.reducedME(Fa, Fb);
-        const auto me_V0 =
-          abs ? h_V_p.reducedME(Fa, Fb) : h_V_m.reducedME(Fa, Fb);
-        const auto dV_L = rpa_L.dV(Fa, Fb);
-        const auto dV_V = rpa_V.dV(Fa, Fb);
+        const auto me_V0 = h_V_p.reducedME(Fa, Fb);
+        const auto dV_L = rpa_L.dV(Fa, Fb, omega < 0.0);
+        const auto dV_V = rpa_V.dV(Fa, Fb, omega < 0.0);
         const auto me_L = me_L0 + dV_L;
         const auto me_V = me_V0 + dV_V;
         const auto eps = std::abs(2.0 * (me_L - me_V) / (me_L + me_V));

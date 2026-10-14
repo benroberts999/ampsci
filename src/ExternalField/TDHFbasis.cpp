@@ -21,30 +21,17 @@ static double round_to_zero(double omega) {
 //==============================================================================
 TDHFbasis::TDHFbasis(const DiracOperator::TensorOperator *const h,
                      const HF::HartreeFock *const hf,
-                     const std::vector<DiracSpinor> &basis,
-                     const DiracOperator::TensorOperator *const h_minus)
-  : TDHF(h, hf, h_minus) {
+                     const std::vector<DiracSpinor> &basis)
+  : TDHF(h, hf) {
 
-  // Let user make this choice on construction
-  m_basis = basis;
-  // return;
-
-  // // find maximum n for each kappa in core:
-  // const auto max_ki_core = DiracSpinor::max_kindex(hf->core());
-  // std::vector<int> max_n_ka_core;
-  // for (int ki = 0; ki <= max_ki_core; ++ki) {
-  //   max_n_ka_core.push_back(
-  //     DiracSpinor::max_n(hf->core(), Angular::kappaFromIndex(ki)));
-  // }
-
-  // // only include excited states in spectrum?
-  // for (const auto &n : basis) {
-  //   const auto ki = std::size_t(n.k_index());
-  //   const auto n_core = ki < max_n_ka_core.size() ? max_n_ka_core.at(ki) : 0;
-  //   if (n.n() > n_core) {
-  //     m_basis.push_back(n);
-  //   }
-  // }
+  // Only the excited (unoccupied) states: excitations into the core are
+  // Pauli forbidden
+  const auto &core = hf->core();
+  for (const auto &Fn : basis) {
+    if (std::find(core.cbegin(), core.cend(), Fn) == core.cend()) {
+      m_basis.push_back(Fn);
+    }
+  }
 }
 
 //==============================================================================
@@ -60,9 +47,9 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
     conj = !conj; //?
 
   const auto imag = m_h->imaginaryQ();
-  const auto s = (imag && conj) ? -1 : 1;
-
-  const auto *h_use = conj ? m_h_minus : m_h;
+  // The conjugate (emission) side carries h^dag: h at -|omega|, and the
+  // sign of an imaginary operator
+  const auto s = conj ? m_h->h_minus_sign() * (imag ? -1.0 : 1.0) : 1.0;
 
   auto s2 = 1;
   if (st == StateType::bra) {
@@ -83,8 +70,8 @@ DiracSpinor TDHFbasis::form_dPsi(const DiracSpinor &Fv, const double omega,
         Fv == Fn)
       continue;
     const auto hnc = incl_dV ?
-                       s2 * s * (h_use->reducedME(Fn, Fv) + dV(Fn, Fv, conj)) :
-                       s2 * s * h_use->reducedME(Fn, Fv);
+                       s2 * s * (m_h->reducedME(Fn, Fv) + dV(Fn, Fv, conj)) :
+                       s2 * s * m_h->reducedME(Fn, Fv);
     Xx += (hnc / (Fv.en() - Fn.en() + ww)) * Fn;
   }
 

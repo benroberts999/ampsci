@@ -19,10 +19,9 @@
 namespace ExternalField {
 
 //==============================================================================
-TDHFcntm::TDHFcntm(const DiracOperator::TensorOperator *const h_plus,
-                   const HF::HartreeFock *const hf,
-                   const DiracOperator::TensorOperator *const h_minus)
-  : TDHF(h_plus, hf, h_minus) {
+TDHFcntm::TDHFcntm(const DiracOperator::TensorOperator *const h,
+                   const HF::HartreeFock *const hf)
+  : TDHF(h, hf) {
   zero_imaginary_sets();
 }
 
@@ -145,7 +144,7 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
   omega = std::abs(omega);
 
   m_hFcore = form_hFcore(m_h);
-  m_hFcore_minus = form_hFcore(m_h_minus);
+  m_hFcore_minus = form_hFcore_minus(m_hFcore);
 
   // Continuum data of the open channels; kept while omega is unchanged (a
   // re-solve at the same omega warm-starts from the previous corrections)
@@ -598,7 +597,8 @@ std::complex<double> TDHFcntm::A_phys(const DiracSpinor &Fa, int kappa) const {
 
 //==============================================================================
 std::complex<double> TDHFcntm::dV_complex(const DiracSpinor &Fa,
-                                          const DiracSpinor &Fb) const {
+                                          const DiracSpinor &Fb,
+                                          bool conj) const {
   // As TDHF::dV, on the real and imaginary sets. A continuum bra (en_a > 0)
   // gets the V^{N-1} treatment of the ejected electron: the source carries
   // the hole term V^b_0 chi, whose y^0_bb chi part cancels pointwise the
@@ -606,12 +606,11 @@ std::complex<double> TDHFcntm::dV_complex(const DiracSpinor &Fa,
   // is box independent.
   using namespace qip::overloads;
   assert(Fb.en() <= 0.0 && "the ket must be a core orbital: dV(Fe, Fa)");
-  const auto conj = Fb.en() > Fa.en();
   const auto s = conj && m_h->imaginaryQ() ? -1.0 : 1.0;
   auto S_re = dV_rhs(Fa.kappa(), Fb, conj);
   auto S_im = dV_rhs_sets(Fa.kappa(), Fb, conj, m_Xi, m_Yi);
   if (Fa.en() > 0.0) {
-    assert(!conj);
+    assert(!conj && "a continuum bra is the absorption side");
     const auto [ib, be] = channel_index(Fb, Fa.kappa());
     S_re += hole_compensation(Fb, m_X[ib][be]);
     S_im += hole_compensation(Fb, m_Xi[ib][be]);
@@ -620,10 +619,11 @@ std::complex<double> TDHFcntm::dV_complex(const DiracSpinor &Fa,
 }
 
 //==============================================================================
-double TDHFcntm::dV(const DiracSpinor &Fa, const DiracSpinor &Fb) const {
+double TDHFcntm::dV(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                    bool conj) const {
   assert(Fa.en() <= 0.0 && Fb.en() <= 0.0 &&
          "TDHFcntm::dV is real: for a continuum state use dV_complex");
-  return dV_complex(Fa, Fb).real();
+  return dV_complex(Fa, Fb, conj).real();
 }
 
 } // namespace ExternalField

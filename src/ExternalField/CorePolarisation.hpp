@@ -198,7 +198,9 @@ public:
     eps_target(), or @p max_its iterations are reached.
 
     @param omega    External-field frequency \f$ \omega \f$ in atomic units.
-                   May be zero (static limit) or negative.
+                   Solved at \f$ |\omega| \f$: both components,
+                   \f$ \delta V(\pm|\omega|) \f$, are found together,
+                   and selected in dV().
     @param max_its  Maximum number of iterations.
                    - 0: no iterations; dV() returns 0.
                    - 1: single iteration; dV() returns lowest-order correction.
@@ -213,8 +215,25 @@ public:
   //! @brief Clears the internal state back to pre solve_core()
   virtual void clear() = 0;
 
-  //! @brief Returns reduced matrix element <n||dV_pm||m> (see namespace doc for dV_pm)
-  virtual double dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const = 0;
+  /*!
+    @brief Returns the reduced matrix element <n||dV||m> (see namespace doc).
+    @details
+    
+    * conj = false: dV at +|omega|, the absorption (e^{-i omega t}) component;
+    * conj = true: dV at -|omega|, the emission component, which is the
+      Hermitian conjugate dV^dag. 
+      
+    Both are solved by solve_core, which takes
+    |omega|. The caller chooses: for a matrix element at the transition
+    frequency omega = e_n - e_m, conj = (omega < 0). For a sum over states or
+    a mixed state, conj follows the sign of the frequency the operator was
+    set at, not the energies of the pair of orbitals.
+
+    For a static solve the two coincide (exactly, including imaginary
+    operators), so conj does nothing there.
+  */
+  virtual double dV(const DiracSpinor &Fn, const DiracSpinor &Fm,
+                    bool conj = false) const = 0;
 
   //! @brief Returns [dV_pm * phi_m]_kappa: RHS of TDHF eq., projected onto kappa (see namespace doc)
   virtual DiracSpinor dV_rhs(int kappa, const DiracSpinor &Fm,
@@ -254,9 +273,6 @@ public:
   @param print     If true, print a brief description of the chosen method.
   @param basis     Basis set for basis/diagram methods (ignored for TDHF).
   @param identity  Identifier string passed to DiagramRPA (e.g. for caching).
-  @param h_minus   Pointer to the backward operator (\f$ t_- \f$); if nullptr
-                   (default), @p h is used for both. See @ref TDHF constructor
-                   for when this is needed.
 
   @return Unique pointer to the constructed CorePolarisation object, or
           nullptr if RPA is disabled.
@@ -268,7 +284,6 @@ public:
 make_rpa(const std::string &method, const DiracOperator::TensorOperator *h,
          const HF::HartreeFock *vhf, bool print = false,
          const std::vector<DiracSpinor> &basis = {},
-         const std::string &identity = "",
-         const DiracOperator::TensorOperator *h_minus = nullptr);
+         const std::string &identity = "");
 
 } // namespace ExternalField

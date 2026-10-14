@@ -192,7 +192,6 @@ TEST_CASE("TDHFcntm: E1 gauge invariance above threshold",
   const double omega = 4.0;
   const auto E1 = DiracOperator::E1(wf.grid());
   const auto E1v = DiracOperator::E1v(wf.alpha(), omega);
-  const auto E1v_minus = DiracOperator::E1v(wf.alpha(), -omega);
 
   auto rpa_L = ExternalField::TDHFcntm(&E1, wf.vHF());
   rpa_L.eps_target() = 1.0e-7;
@@ -200,7 +199,7 @@ TEST_CASE("TDHFcntm: E1 gauge invariance above threshold",
   const auto channels = rpa_L.channel_list();
   const auto A_L = rpa_L.A_phys();
 
-  auto rpa_V = ExternalField::TDHFcntm(&E1v, wf.vHF(), &E1v_minus);
+  auto rpa_V = ExternalField::TDHFcntm(&E1v, wf.vHF());
   rpa_V.eps_target() = 1.0e-7;
   rpa_V.solve_core(omega, 60, false);
   const auto A_V = rpa_V.A_phys();

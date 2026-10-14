@@ -29,14 +29,12 @@ static double round_to_zero(double omega) {
 
 //==============================================================================
 TDHF::TDHF(const DiracOperator::TensorOperator *const h_plus,
-           const HF::HartreeFock *const hf,
-           const DiracOperator::TensorOperator *const h_minus)
+           const HF::HartreeFock *const hf)
   : CorePolarisation((assert(h_plus != nullptr), h_plus)),
     p_hf((assert(hf != nullptr), hf)),
     m_core(hf->core()),
     m_alpha(hf->alpha()),
-    p_VBr(hf->vBreit()),
-    m_h_minus(h_minus ? h_minus : h_plus) {
+    p_VBr(hf->vBreit()) {
   initialise_dPsi();
 }
 
@@ -131,16 +129,16 @@ DiracSpinor TDHF::solve_dPsi(const DiracSpinor &Fv, const double omega,
     conj = !conj;
 
   const auto imag = m_h->imaginaryQ();
-  const auto *h_use = conj ? m_h_minus : m_h;
+  // The conjugate (emission) side carries h^dag: h at -|omega|, and the
+  // sign of an imaginary operator
+  const auto s_conj = conj ? m_h->h_minus_sign() * (imag ? -1.0 : 1.0) : 1.0;
 
-  auto rhs = h_use->reduced_rhs(kappa_x, Fv);
-  if (imag && conj)
-    rhs *= -1;
+  auto rhs = s_conj * m_h->reduced_rhs(kappa_x, Fv);
 
   if (incl_dV)
     rhs += dV_rhs(kappa_x, Fv, conj);
   if (kappa_x == Fv.kappa() && !imag) {
-    auto de = h_use->reducedME(Fv, Fv);
+    auto de = s_conj * m_h->reducedME(Fv, Fv);
     if (incl_dV)
       de += dV(Fv, Fv, conj);
     rhs -= de * Fv;
@@ -223,6 +221,15 @@ void TDHF::solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fb,
   const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
   ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
                                  eps_ms, nullptr, p_VBr, Hmag);
+}
+
+//==============================================================================
+std::vector<std::vector<DiracSpinor>> TDHF::form_hFcore_minus(
+  const std::vector<std::vector<DiracSpinor>> &hFcore) const {
+  // h at -|omega|, for the Y (emission) equations: the same as h at
+  // +|omega| up to the sign of an operator odd in the frequency
+  using namespace qip::overloads;
+  return hFcore * m_h->h_minus_sign();
 }
 
 //==============================================================================
@@ -350,8 +357,25 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
   const double converge_targ = m_eps;
   omega = std::abs(omega);
 
+  // Above the ionisation threshold of the core, the core equations have no
+  // bound solution: the RPA cannot be solved, and the correction is set to
+  // zero (eps = 1 flags this to callers)
+  const auto least_bound =
+    std::max_element(m_core.cbegin(), m_core.cend(), DiracSpinor::comp_en);
+  if (least_bound != m_core.cend() && omega > -least_bound->en()) {
+    fmt::print("TDHF {:4s} (w={:.4f}): omega exceeds the ionisation threshold "
+               "of {} ({:.4f}); RPA not solvable, dV set to zero\n",
+               m_h->name(), omega, least_bound->shortSymbol(),
+               -least_bound->en());
+    clear();
+    m_core_eps = 1.0;
+    m_core_its = 0;
+    m_core_omega = omega;
+    return;
+  }
+
   m_hFcore = form_hFcore(m_h);
-  m_hFcore_minus = form_hFcore(m_h_minus);
+  m_hFcore_minus = form_hFcore_minus(m_hFcore);
 
   // If the iterations stall (or diverge), restart from scratch with a
   // different damping: convergence is sensitive to eta, and weaker damping
@@ -412,11 +436,17 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
   }
 
   // Restore the best attempt if the final one was not it (nb: NaN compares
-  // false, so a NaN final attempt is replaced)
+  // false, so a NaN final attempt is replaced). If every attempt failed
+  // outright (NaN), there is nothing to restore: dV is set to zero
   if (attempt > 0 && !(eps.first <= best_eps.first)) {
-    m_X = std::move(best_X);
-    m_Y = std::move(best_Y);
-    eps = best_eps;
+    if (best_X.empty()) {
+      clear();
+      eps = {1.0, ""};
+    } else {
+      m_X = std::move(best_X);
+      m_Y = std::move(best_Y);
+      eps = best_eps;
+    }
   }
 
   // Soft visual warning, relative to the convergence target.
@@ -438,12 +468,6 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
 double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm, bool conj) const {
   const auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful. OK?
   return s * Fn * dV_rhs(Fn.kappa(), Fm, conj);
-}
-
-//==============================================================================
-double TDHF::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
-  const auto conj = Fm.en() > Fn.en();
-  return dV(Fn, Fm, conj);
 }
 
 //==============================================================================

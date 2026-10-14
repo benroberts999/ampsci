@@ -93,11 +93,9 @@ namespace ExternalField {
 class TDHFcntm : public TDHF {
 
 public:
-  //! Constructs for operator h_plus (with optional h_minus); see
-  //! @ref TDHF::TDHF.
-  TDHFcntm(const DiracOperator::TensorOperator *const h_plus,
-           const HF::HartreeFock *const hf,
-           const DiracOperator::TensorOperator *const h_minus = nullptr);
+  //! Constructs for operator h; see @ref TDHF::TDHF.
+  TDHFcntm(const DiracOperator::TensorOperator *const h,
+           const HF::HartreeFock *const hf);
 
   //! Open channel: core-orbital index, ejected-electron kappa, and its
   //! energy en = en_a + omega
@@ -136,9 +134,8 @@ public:
 
   /*!
     @brief Reduced matrix element of the (complex) induced potential,
-    \f$ \redmatel{a}{\delta V}{b} \f$, or the conjugate
-    \f$ \redmatel{a}{\delta V^\dagger}{b} \f$ if en_b > en_a; as
-    @ref TDHF::dV, complex.
+    <a||dV||b>, or the conjugate <a||dV^dag||b> if conj; as @ref TDHF::dV,
+    complex.
     @details Real, and equal to TDHF, below every threshold. For a continuum
     bra (en_a > 0), Fa must be the energy-normalised continuum state of hole
     Fb in the V^{N-1} potential (direct y^0_bb and one-electron exchange of
@@ -147,14 +144,14 @@ public:
     the outgoing-wave amplitude, |A| of @ref A_phys in the phase reference
     of Fa.
   */
-  std::complex<double> dV_complex(const DiracSpinor &Fa,
-                                  const DiracSpinor &Fb) const;
+  std::complex<double> dV_complex(const DiracSpinor &Fa, const DiracSpinor &Fb,
+                                  bool conj = false) const;
 
   //! Real part of @ref dV_complex, for bound Fa and Fb (exact below every
   //! threshold, where the class acts as TDHF). For a continuum state use
   //! dV_complex.
-  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb) const override;
-  using TDHF::dV;
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb,
+            bool conj = false) const override;
 
 private:
   // Imaginary parts of the corrections, indexed as m_X / m_Y (the real

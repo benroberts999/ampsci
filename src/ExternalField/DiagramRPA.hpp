@@ -72,11 +72,12 @@ namespace ExternalField {
   ---
 
   @note
-  @ref solve_core() must be called separately for positive and negative frequencies;
-  the solutions
-  are not related by simple conjugation. To maintain Hermiticity,
-  \f$ [\delta V_\pm(\omega)]^\dag = \delta V_\mp(-\omega) \f$,
-  so dV() is not Hermitian unless solve_core() has been run at the specific \f$\pm\omega\f$
+  @ref solve_core() solves at \f$ |\omega| \f$ for both components at once
+  (\f$ t_{am} \f$ and \f$ t_{ma} \f$, with the \f$ \mp\omega \f$
+  denominators), as TDHF does. dV(a, b, conj) returns the component at
+  \f$ +|\omega| \f$ (absorption; conj = false) or at \f$ -|\omega| \f$
+  (emission; conj = true), the latter being the Hermitian conjugate:
+  \f$ [\delta V_\pm(\omega)]^\dag = \delta V_\mp(-\omega) \f$.
 */
 class DiagramRPA : public CorePolarisation {
 
@@ -151,10 +152,8 @@ public:
     ---
 
     @note
-    Must be called separately for positive and negative frequencies; the solutions
-    are not related by simple conjugation. To maintain Hermiticity,
-    \f$ [\delta V_\pm(\omega)]^\dag = \delta V_\mp(-\omega) \f$,
-    so dV() is not Hermitian unless solve_core() has been run at both @p omega and -@p omega.
+    Solved at \f$ |\omega| \f$: the sign of @p omega is ignored, both
+    components being found together; see dV() for selecting between them.
 
     ---
 
@@ -169,23 +168,18 @@ public:
   Method method() const final { return Method::diagram; }
 
   /*!
-    @brief Returns the RPA correction to a reduced matrix element.
+    @brief Returns the RPA correction to a reduced matrix element,
+    <a||dV||b>; see CorePolarisation::dV.
     @details
-    Computes the many-body RPA correction to the reduced matrix element
-    \f[ \langle a \| \delta V \| b \rangle \f]
-    using the converged RPA matrix elements \f$ t_{am} \f$ from the most
-    recent solve_core() call.  Should be called after solve_core() has
-    converged.
-    @param Fa  Bra state
-    @param Fb  Ket state
-    @return    Reduced matrix element of the RPA correction
-
-    @note
-    Not Hermitian - solve_core() must be called with negaitve omega
+    Uses the converged RPA matrix elements \f$ t_{am} \f$ (and
+    \f$ t_{ma} \f$) from the most recent solve_core() call.
+    @param Fa    Bra state
+    @param Fb    Ket state
+    @param conj  false: dV at +|omega| (absorption); true: at -|omega|
+                 (emission, the Hermitian conjugate)
   */
-  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb) const override final;
-
-  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb,
+            bool conj = false) const override final;
 
   //! @brief Calculates reduced right-hand-side, projected onto kappa: [dV|phi_m]_kappa
   DiracSpinor dV_rhs(int kappa, const DiracSpinor &Fm,

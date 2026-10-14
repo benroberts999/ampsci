@@ -48,9 +48,10 @@ TEST_CASE("External Field: TDHFbasis - basic unit tests",
     }
   }
 
+  const auto excited =
+    DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel()).second;
   for (const auto &Fc : wf.core()) {
-    auto dPsis1 =
-      rpa.form_dPsis(Fc, 0.0, ExternalField::dPsiType::X, wf.basis());
+    auto dPsis1 = rpa.form_dPsis(Fc, 0.0, ExternalField::dPsiType::X, excited);
     auto dPsis2 = rpa.get_dPsis(Fc, ExternalField::dPsiType::X);
     REQUIRE(dPsis1.size() == dPsis2.size());
     REQUIRE(dPsis1.size() != 0);

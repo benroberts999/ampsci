@@ -14,6 +14,7 @@
 #include "qip/Widgets.hpp"
 #include "qip/omp.hpp"
 #include <algorithm>
+#include <cmath>
 #include <numeric>
 #include <string>
 #include <vector>
@@ -297,11 +298,13 @@ void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
     }
     m_t0am.push_back(t0a_m);
   }
+  // t_ma are the emission amplitudes: h at -|omega|
+  const auto s_minus = h->h_minus_sign();
   for (const auto &Fm : m_excited) {
     std::vector<double> t0m_a;
     t0m_a.reserve(m_holes.size());
     for (const auto &Fa : m_holes) {
-      t0m_a.push_back(h->reducedME(Fm, Fa));
+      t0m_a.push_back(s_minus * h->reducedME(Fm, Fa));
     }
     m_t0ma.push_back(t0m_a);
   }
@@ -342,23 +345,13 @@ void DiagramRPA::update_t0s(const DiracOperator::TensorOperator *const h) {
     for (std::size_t im = 0; im < m_excited.size(); ++im) {
       const auto &Fm = m_excited[im];
       m_t0am[ia][im] = m_h->reducedME(Fa, Fm);
-      m_t0ma[im][ia] = m_h->symm_sign(Fa, Fm) * m_t0am[ia][im];
+      m_t0ma[im][ia] =
+        m_h->h_minus_sign() * m_h->symm_sign(Fa, Fm) * m_t0am[ia][im];
     }
   }
   // Don't update Ts (faster convergance)
   // m_tam = m_t0am;
   // m_tma = m_t0ma;
-}
-
-//==============================================================================
-double DiagramRPA::dV(const DiracSpinor &Fw, const DiracSpinor &Fv) const {
-  // can base this on sign of omega?
-  // But then lose ability to explicitely check Hermicity..?
-  const auto omega_eff = Fw.en() - Fv.en();
-  // if the signs of the omegas don't match, then we should do "conj"
-  const auto conjugate = m_core_omega * omega_eff < 0.0;
-  // XXX NB: This will break some tests! XXX
-  return dV(Fw, Fv, conjugate);
 }
 
 //==============================================================================
@@ -479,10 +472,31 @@ void DiagramRPA::solve_core(double omega, int max_its, bool print) {
   const auto a_damp = m_eta; // ? or always 0.5
   const auto b_damp = 1.0 - a_damp;
 
-  m_core_omega = omega;
+  // Solved at |omega|: both components are found together (t_am with the
+  // -omega denominators, t_ma with +omega), and dV(.., conj = true) is the
+  // one at -|omega|, as for TDHF
+  m_core_omega = std::abs(omega);
 
   if (m_holes.empty() || m_excited.empty())
     return;
+
+  // Above the ionisation threshold of the core, the RPA equations have no
+  // bound solution: the correction is set to zero (eps = 1 flags this)
+  const auto least_bound =
+    std::max_element(m_holes.cbegin(), m_holes.cend(), DiracSpinor::comp_en);
+  if (m_core_omega > -least_bound->en()) {
+    fmt::print("RPAd {:4s} (w={:.4f}): omega exceeds the ionisation threshold "
+               "of {} ({:.4f}); RPA not solvable, dV set to zero\n",
+               m_h->name(), m_core_omega, least_bound->shortSymbol(),
+               -least_bound->en());
+    // Empty t's give dV = 0 (clear() would give first-order RPA); they are
+    // re-filled by the next solve_core()
+    m_tam.clear();
+    m_tma.clear();
+    m_core_eps = 1.0;
+    m_core_its = 0;
+    return;
+  }
 
   qip::LiveMessage status(
     fmt::format("RPAd {:4s} (w={:.4f}): ", m_h->name(), m_core_omega), print);

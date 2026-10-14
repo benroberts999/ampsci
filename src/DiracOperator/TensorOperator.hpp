@@ -217,11 +217,13 @@ protected:
   */
   TensorOperator(int rank_k, Parity pi, double constant = 1.0,
                  const std::vector<double> &vec = {},
-                 Realness RorI = Realness::real, bool freq_dep = false)
+                 Realness RorI = Realness::real, bool freq_dep = false,
+                 bool odd_in_omega = false)
     : m_rank(rank_k),
       m_parity(pi),
       m_Realness(RorI),
       m_freqDependantQ(freq_dep),
+      m_oddInOmegaQ(odd_in_omega),
       m_constant(constant),
       m_vec(vec) {};
 
@@ -250,6 +252,7 @@ protected:
   Parity m_parity;
   Realness m_Realness;
   bool m_freqDependantQ{false};
+  bool m_oddInOmegaQ{false};
 
 protected:
   // these may be updated for frequency-dependant operators
@@ -260,6 +263,13 @@ protected:
 public:
   //! Returns true if the operator is frequency-dependent (requires updateFrequency() calls).
   bool freqDependantQ() const { return m_freqDependantQ; }
+
+  //! Sign of the operator at -|omega| relative to that at +|omega|:
+  //! h(-|omega|) = h_minus_sign() * h(+|omega|): -1 for an operator odd in
+  //! the frequency (e.g. E1v), +1 otherwise (depends on |omega| only). So
+  //! the operator need only ever be set at +|omega|; the emission
+  //! (e^{+i omega t}) side carries this sign
+  double h_minus_sign() const { return m_oddInOmegaQ ? -1.0 : 1.0; }
 
   //! Returns the current frequency set by the last updateFrequency() call.
   //! Zero for frequency-independent operators.
@@ -282,28 +292,29 @@ public:
     return (m_parity == Parity::even) == (piA == piB);
   }
 
-  //! @brief Updates the operator for a new frequency omega.
   /*!
+     @brief Updates the operator for a new frequency omega.
+
     @details
     Must be overridden by any frequency-dependent operator (i.e., where
     freqDependantQ() returns true). Called before computing matrix elements
-    whenever the frequency changes.
+    whenever the frequency changes. Does nothing for a frequency-independent
+    operator, so may be called on any operator.
 
-    The base class implementation aborts -- if a frequency-dependent operator
-    is constructed but this function is not overridden, it will abort at
-    runtime when called.
+    The base class implementation aborts for a frequency-dependent operator:
+    if freq_dep=true is set but this function is not overridden, it will
+    abort at runtime when called.
 
     @param omega   Frequency in atomic units.
 
-    @warning Must be implemented in any derived class that sets freq_dep=true.
-    Calling this on a non-frequency-dependent operator is a logic error.
-
     @note Derived implementations must set @p m_omega = omega so that omega()
-    reflects the current frequency (e.g., for use by the TDHF solver when
-    constructing the \f$ t_- \f$ operator at negated frequency).
+    reflects the current frequency.
   */
   virtual void updateFrequency(const double) {
-    std::cout << "Must reimplement updateFrequency()\n";
+    if (!m_freqDependantQ)
+      return;
+    std::cout
+      << "Must reimplement updateFrequency() for freq. dep operators!\n";
     std::cout << this->name() << "\n";
     std::abort();
   };

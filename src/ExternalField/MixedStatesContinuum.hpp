@@ -61,10 +61,9 @@ public:
 
   /*!
     @brief The Anderson extrapolation over the kept entries,
-    \f$ x = \sum_k c_k g_k \f$ and (if @p k is non-null)
-    \f$ k = \sum_k c_k k_k \f$, with the coefficients of
-    @ref anderson_coefficients; entries that had to be dropped for
-    conditioning are dropped from the history too.
+    x = sum_k c_k g_k and (if @p k is non-null) k = sum_k c_k k_k, with the
+    coefficients of @ref anderson_coefficients; entries that had to be
+    dropped for conditioning are dropped from the history too.
     @details If no entry is usable (the coefficients could not be solved
     for), x is the plain step: the latest map output, and the history is
     cleared.
