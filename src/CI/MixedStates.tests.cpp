@@ -12,7 +12,7 @@
 //==============================================================================
 // Tests the CI mixed states against the direct sum-over-states:
 //   <A|dPsi_0> = <A||h||Psi_0> / (E_0 - E_A)
-// which holds for each CI solution, A, in the block of the mixed state
+// which holds for each CI solution, A, in the J/Pi of the mixed state
 TEST_CASE("CI: mixed states", "[CI][MixedStates][unit]") {
 
   std::cout << "CI mixed states (not meant to be accurate)\n";
@@ -37,12 +37,12 @@ TEST_CASE("CI: mixed states", "[CI][MixedStates][unit]") {
   const auto E0 = Psi0.energy(0);
 
   // Solve mixed state for operator h, and compare to the sum-over-states
-  // Returns largest relative deviation, over all solutions of target block
+  // Returns largest relative deviation, over all solutions of the target J/Pi
   const auto test_mixed_state = [&](int twoJ, int parity,
                                     const DiracOperator::TensorOperator *h) {
     const auto h_tab = Amplitudes::me_table(ci_basis, h);
 
-    // Solve CI for the block the mixed state lives in
+    // Solve CI for the J/Pi the mixed state lives in
     CI::PsiJPi target(twoJ, parity, ci_basis);
     const auto Hci = CI::construct_Hci(target, h1, qk);
     target.solve(Hci);
@@ -108,7 +108,7 @@ TEST_CASE("CI: mixed states", "[CI][MixedStates][unit]") {
   const DiracOperator::PNCnsi hpnc{1.0, Nuclear::default_t, wf.grid()};
   REQUIRE(test_mixed_state(0, -1, &hpnc) < 1.0e-10);
 
-  // Scalar r^2: rank 0, even parity => same block as Psi0 (singular case)
+  // Scalar r^2: rank 0, even parity => same J/Pi as Psi0 (singular case)
   const DiracOperator::RadialF r2{wf.grid(), 2.0};
   REQUIRE(test_mixed_state(0, +1, &r2) < 1.0e-10);
 

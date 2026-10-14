@@ -403,6 +403,19 @@ TEST_CASE("Amplitudes: second-order SOS vs MS",
                                              0.0, &rpa_E1, &rpa_pnc);
     compare("A^1 6s-7s PNC (RPA)", sos_p, ms_p, 1.0e-3, 1.0e-5);
 
+    // The same, with the E1 RPA solved at the transition frequency. The RPA
+    // correction then differs between the two signs of omega, and every t
+    // vertex of both routes must carry dV(omega)
+    {
+      ExternalField::TDHF rpa_E1w(&hE1, wf.vHF());
+      rpa_E1w.solve_core(omega, 128, false);
+      const auto sos_w = Amplitudes::sos_valence(
+        1, *p7s, *p6s, &hE1, &hPNC, omega, 0.0, basis, &rpa_E1w, &rpa_pnc);
+      const auto ms_w = Amplitudes::ms_valence(1, *p7s, *p6s, &hE1, &hPNC,
+                                               omega, 0.0, &rpa_E1w, &rpa_pnc);
+      compare("A^1 6s-7s PNC (RPA, w)", sos_w, ms_w, 1.0e-3, 1.0e-5);
+    }
+
     const auto excited =
       DiracSpinor::split_by_energy(basis, wf.FermiLevel()).second;
     const auto sos_c =

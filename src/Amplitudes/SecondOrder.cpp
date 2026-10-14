@@ -30,15 +30,16 @@ int smallest_allowed_K(int kt, int ks, int twoJb, int twoJa) {
 }
 
 //==============================================================================
-// ME from the table if present, otherwise calculated directly (with RPA)
+// ME from the table if present, otherwise calculated directly (with RPA; conj
+// selects the dV component, see CorePolarisation::dV)
 static double table_me(const Coulomb::meTable<double> &tab,
                        const DiracOperator::TensorOperator *h,
                        const ExternalField::CorePolarisation *dV,
-                       const DiracSpinor &x, const DiracSpinor &y) {
+                       const DiracSpinor &x, const DiracSpinor &y, bool conj) {
   const auto *ptr = tab.empty() ? nullptr : tab.get(x, y);
   if (ptr)
     return *ptr;
-  return h->reducedME(x, y) + (dV ? dV->dV(x, y) : 0.0);
+  return h->reducedME(x, y) + (dV ? dV->dV(x, y, conj) : 0.0);
 }
 
 //==============================================================================
@@ -59,6 +60,11 @@ double sos_valence(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
   const auto kt = t->rank();
   const auto ks = s->rank();
 
+  // Each vertex carries the RPA component at the frequency of its operator:
+  // the emission one for a negative frequency
+  const auto conj_t = omega < 0.0;
+  const auto conj_s = omega_s < 0.0;
+
   double A = 0.0;
 
   for (const auto &n : spectrum) {
@@ -69,15 +75,15 @@ double sos_valence(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
     // 'ts' term: s takes a -> n, t takes n -> b
     if (c1 != 0.0 && !t->isZero(Fb, n) && !s->isZero(n, Fa)) {
       const auto denom = Fa.en() + omega_s - n.en();
-      A += c1 * table_me(t_me, t, dVt, Fb, n) * table_me(s_me, s, dVs, n, Fa) /
-           denom;
+      A += c1 * table_me(t_me, t, dVt, Fb, n, conj_t) *
+           table_me(s_me, s, dVs, n, Fa, conj_s) / denom;
     }
 
     // 'st' term: t takes a -> n, s takes n -> b
     if (c2 != 0.0 && !s->isZero(Fb, n) && !t->isZero(n, Fa)) {
       const auto denom = Fa.en() + omega - n.en();
-      A += c2 * table_me(s_me, s, dVs, Fb, n) * table_me(t_me, t, dVt, n, Fa) /
-           denom;
+      A += c2 * table_me(s_me, s, dVs, Fb, n, conj_s) *
+           table_me(t_me, t, dVt, n, Fa, conj_t) / denom;
     }
   }
 
@@ -153,6 +159,15 @@ ms_valence(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
   // at frequency w, dv = sum_n |n> <n||h + dV_h||v> / (e_v + w - e_n),
   // decomposed into kappa channels (one spinor per channel)
 
+  // Every vertex carries the RPA component at the frequency of its operator
+  // (the emission one for a negative frequency). The outer vertices take it
+  // explicitly. The inner ones have it already: solve_dPsi takes dV^dag at a
+  // negative frequency, and the symmetry sign on the mixed states of b
+  // conjugates once more, so with energy conservation each inner vertex is
+  // dV at its operator's frequency
+  const auto conj_t = omega < 0.0;
+  const auto conj_s = omega_s < 0.0;
+
   // Route 1: the sums formed with the mixed states of s
   double A_s = 0.0;
   {
@@ -163,7 +178,7 @@ ms_valence(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
     for (const auto &da_x : da) {
       const auto [c1, c2] = CI::A_K_coefs(K, kt, ks, twoJb, da_x.twoj(), twoJa);
       if (c1 != 0.0 && !t->isZero(Fb, da_x)) {
-        A_s += c1 * (t->reducedME(Fb, da_x) + dVt->dV(Fb, da_x));
+        A_s += c1 * (t->reducedME(Fb, da_x) + dVt->dV(Fb, da_x, conj_t));
       }
     }
     // 'st' term: db = mixed state of b due to s at e_a + omega - e_b:
@@ -176,7 +191,7 @@ ms_valence(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
       const auto [c1, c2] = CI::A_K_coefs(K, kt, ks, twoJb, db_x.twoj(), twoJa);
       if (c2 != 0.0 && !t->isZero(db_x, Fa)) {
         A_s += c2 * CI::symm_sign(s, twoJb, db_x.twoj()) *
-               (t->reducedME(db_x, Fa) + dVt->dV(db_x, Fa));
+               (t->reducedME(db_x, Fa) + dVt->dV(db_x, Fa, conj_t));
       }
     }
   }
@@ -191,7 +206,7 @@ ms_valence(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
     for (const auto &Da_x : Da) {
       const auto [c1, c2] = CI::A_K_coefs(K, kt, ks, twoJb, Da_x.twoj(), twoJa);
       if (c2 != 0.0 && !s->isZero(Fb, Da_x)) {
-        A_t += c2 * (s->reducedME(Fb, Da_x) + dVs->dV(Fb, Da_x));
+        A_t += c2 * (s->reducedME(Fb, Da_x) + dVs->dV(Fb, Da_x, conj_s));
       }
     }
     // 'ts' term: Db = mixed state of b due to t at e_a + omega_s - e_b:
@@ -203,7 +218,7 @@ ms_valence(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
       const auto [c1, c2] = CI::A_K_coefs(K, kt, ks, twoJb, Db_x.twoj(), twoJa);
       if (c1 != 0.0 && !s->isZero(Db_x, Fa)) {
         A_t += c1 * CI::symm_sign(t, twoJb, Db_x.twoj()) *
-               (s->reducedME(Db_x, Fa) + dVs->dV(Db_x, Fa));
+               (s->reducedME(Db_x, Fa) + dVs->dV(Db_x, Fa, conj_s));
       }
     }
   }

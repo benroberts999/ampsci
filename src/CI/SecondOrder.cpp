@@ -58,7 +58,7 @@ A_K(int K, const PsiJPi &Psi_b, std::size_t ib, const PsiJPi &Psi_a,
     const DiracOperator::TensorOperator *s,
     const Coulomb::meTable<double> &s_me, double omega, double omega_s,
     const Integrals &ints, const std::vector<Level> &levels_to_remove,
-    std::ostream &outstream) {
+    const std::vector<PsiJPi> &solved_Jpi, std::ostream &outstream) {
 
   // The amplitude, evaluated with the mixed states of s, and of t
   double A_s{0.0};
@@ -97,7 +97,17 @@ A_K(int K, const PsiJPi &Psi_b, std::size_t ib, const PsiJPi &Psi_a,
       if (!do_ts && !do_st)
         continue;
 
+      // If this J/Pi was solved in the CI run, start from that solution: the
+      // energy-dependent corrections to the Hamiltonian are then at its own
+      // reference energy, as in the run (and as in the levels a
+      // sum-over-states would use), rather than at the ground-state energy
       PsiJPi target(twoJn, pi_n, ints.ci_basis);
+      for (const auto &psi : solved_Jpi) {
+        if (psi.twoJ() == twoJn && psi.parity() == pi_n) {
+          target = psi;
+          break;
+        }
+      }
       if (target.CSFs().empty())
         continue;
       const auto Hci = construct_Hci(target, ints);
@@ -197,11 +207,12 @@ double A_K_core(int K, int twoJ, const DiracOperator::TensorOperator *t,
   const auto ks = s->rank();
 
   // Of each pair of matrix elements, only the one acting on the core orbital
-  // carries RPA; see the note on A_K_core
+  // carries RPA (see the note on A_K_core), at the frequency of its operator
   const auto t_0 = Amplitudes::me_table(core, excited, t);
-  const auto t_v = Amplitudes::me_table(core, excited, t, dVt);
+  const auto t_v = Amplitudes::me_table(core, excited, t, dVt, nullptr, omega);
   const auto s_0 = Amplitudes::me_table(core, excited, s);
-  const auto s_v = Amplitudes::me_table(core, excited, s, dVs);
+  const auto s_v =
+    Amplitudes::me_table(core, excited, s, dVs, nullptr, omega_s);
 
   double A_core = 0.0;
   for (const auto &c : core) {
@@ -245,10 +256,12 @@ double A_K_cv(int K, const PsiJPi &Psi_b, std::size_t ib, const PsiJPi &Psi_a,
   const auto kt = t->rank();
   const auto ks = s->rank();
 
-  // Matrix elements between the CI basis and the core. RPA on both, since the
-  // blocked pair is a link of the chain; see the note on A_K_cv
-  const auto t_vc = Amplitudes::me_table(ci_basis, core, t, dVt);
-  const auto s_vc = Amplitudes::me_table(ci_basis, core, s, dVs);
+  // Matrix elements between the CI basis and the core. RPA on both,
+  // each at the frequency of its operator
+  const auto t_vc =
+    Amplitudes::me_table(ci_basis, core, t, dVt, nullptr, omega);
+  const auto s_vc =
+    Amplitudes::me_table(ci_basis, core, s, dVs, nullptr, omega_s);
 
   // The effective one-body operator of rank K, in the valence space
   Coulomb::meTable<double> W;

@@ -8,6 +8,7 @@
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
 #include <cmath>
+#include <sstream>
 #include <vector>
 
 //==============================================================================
@@ -171,7 +172,7 @@ TEST_CASE("CI: second-order amplitudes", "[CI][SecondOrder][unit]") {
 
   //----------------------------------------------------------------------------
   // Static polarisability of the ground state (all K), and the dynamic case,
-  // for which s carries -omega. The only intermediate block is J=1 odd, so
+  // for which s carries -omega. The only intermediate J/Pi is 1-, so
   // the direct sum over its complete CI spectrum is the reference
   {
     CI::PsiJPi Psi_1o(2, -1, ints.ci_basis);
@@ -271,6 +272,100 @@ TEST_CASE("CI: second-order amplitudes", "[CI][SecondOrder][unit]") {
                removed, eps);
     REQUIRE(eps < 1.0e-10);
   }
+}
+
+//==============================================================================
+// With an energy-dependent CI Hamiltonian (the dSigma/dE correction), each J/Pi
+// has its own reference energy E0. The mixed states of an intermediate J/Pi
+// that was solved in the CI run must be formed at that E0, so that the
+// amplitude is the sum over the levels of that run. Without the solved J/Pi,
+// they are formed at the ground-state E0: a different Hamiltonian
+TEST_CASE("CI: second-order amplitude energy-dependent Hamiltonian",
+          "[CI][SecondOrder][unit]") {
+
+  std::cout << "\nCI second-order: energy-dependent Hamiltonian\n";
+
+  Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
+                  {"He", -1, "pointlike"}, 1.0);
+  wf.solve_core("HartreeFock", "[]", std::nullopt, 1.0e-5);
+  wf.formBasis(SplineBasis::Parameters("6spd", 20, 6, {1.0e-2}, 20.0));
+
+  CI::Integrals ints;
+  ints.ci_basis = CI::basis_subset(wf.basis(), "5spd");
+  {
+    const Coulomb::YkTable yk(ints.ci_basis);
+    ints.qk.fill(ints.ci_basis, yk, 8, false);
+  }
+  ints.h1 = CI::calculate_h1_table(ints.ci_basis, {}, {}, ints.qk, false);
+
+  // A synthetic Sigma_1 correction: constant Sigma_1 and dSigma/dE for each
+  // orbital, with the reference energies e_sigma at zero, so that the
+  // correction is active (dE < 0) and depends on E0 through every orbital
+  for (const auto &a : ints.ci_basis) {
+    ints.s1_corr.S1.add(a, a, -0.02);
+    ints.s1_corr.dS1.add(a, a, -0.1);
+    ints.s1_corr.e_sigma[a.kappa()] = 0.0;
+    ints.s1_corr.en[a.nk_index()] = a.en();
+  }
+
+  // The CI run: each J/Pi solved at its own E0. The stored fallback E0 is the
+  // ground-state energy
+  std::ostringstream quiet;
+  CI::PsiJPi Psi_0e(0, +1, ints.ci_basis);
+  Psi_0e.solve(CI::iterate_E0(&Psi_0e, ints.s1_corr, ints.h1, ints.qk, nullptr,
+                              nullptr, {}, nullptr, 0.0, quiet));
+  ints.s1_corr.E0 = Psi_0e.energy(0);
+
+  CI::PsiJPi Psi_1o(2, -1, ints.ci_basis);
+  Psi_1o.solve(CI::iterate_E0(&Psi_1o, ints.s1_corr, ints.h1, ints.qk, nullptr,
+                              nullptr, {}, nullptr, 0.0, quiet));
+
+  // The same J/Pi, at the ground-state E0
+  CI::PsiJPi Psi_1o_gs(2, -1, ints.ci_basis);
+  Psi_1o_gs.solve(CI::construct_Hci(Psi_1o_gs, ints));
+
+  fmt::print("E0: ground {:.6f}, 1- {:.6f}, 1- at ground E0 {:.6f}\n",
+             Psi_0e.energy(0), Psi_1o.energy(0), Psi_1o_gs.energy(0));
+  REQUIRE(std::abs(Psi_1o.energy(0) - Psi_1o_gs.energy(0)) > 1.0e-4);
+
+  const DiracOperator::E1 d{wf.grid()};
+  const auto d_me = Amplitudes::me_table(ints.ci_basis, &d);
+
+  // Static scalar polarisability of the ground state: the direct sum over the
+  // complete spectrum of the given 1- levels
+  const auto sos = [&](const CI::PsiJPi &levels) {
+    const auto [c1, c2] = CI::A_K_coefs(0, 1, 1, 0, 2, 0);
+    double A = 0.0;
+    for (std::size_t ip = 0; ip < levels.num_solutions(); ++ip) {
+      const auto dE = Psi_0e.energy(0) - levels.energy(ip);
+      const auto d_bp = CI::ReducedME(Psi_0e, 0, levels, ip, d_me, 1, -1);
+      const auto d_pa = CI::ReducedME(levels, ip, Psi_0e, 0, d_me, 1, -1);
+      A += (c1 + c2) * d_bp * d_pa / dE;
+    }
+    return A;
+  };
+  const auto A_sos_own = sos(Psi_1o);
+  const auto A_sos_gs = sos(Psi_1o_gs);
+
+  // Mixed states: with the solved 1- given, and without
+  const auto A_ms_own = CI::A_K(0, Psi_0e, 0, Psi_0e, 0, &d, d_me, &d, d_me,
+                                0.0, 0.0, ints, {}, {Psi_1o}, quiet)
+                          .first;
+  const auto A_ms_gs = CI::A_K(0, Psi_0e, 0, Psi_0e, 0, &d, d_me, &d, d_me, 0.0,
+                               0.0, ints, {}, {}, quiet)
+                         .first;
+
+  fmt::print("{:<22} {:>16} {:>16}\n", "A^0", "sum-over-states",
+             "mixed states");
+  fmt::print("{:<22} {:16.8e} {:16.8e}\n", "1- at own E0", A_sos_own, A_ms_own);
+  fmt::print("{:<22} {:16.8e} {:16.8e}\n", "1- at ground E0", A_sos_gs,
+             A_ms_gs);
+
+  // The two Hamiltonians must differ, so that the comparison is meaningful
+  REQUIRE(std::abs(A_sos_own - A_sos_gs) / std::abs(A_sos_own) > 1.0e-4);
+  // The E0 of the solved J/Pi is converged to 1e-8, so the match is not exact
+  REQUIRE(std::abs(A_ms_own - A_sos_own) / std::abs(A_sos_own) < 1.0e-6);
+  REQUIRE(std::abs(A_ms_gs - A_sos_gs) / std::abs(A_sos_gs) < 1.0e-10);
 }
 
 //==============================================================================

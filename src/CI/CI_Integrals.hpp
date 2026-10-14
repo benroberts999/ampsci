@@ -49,7 +49,7 @@ namespace CI {
 double corrected_Sigma(double Sigma, double dSigma, double dE);
 
 /*!
-  @brief Resummed shift of a \f$ \Sigma_2 \f$ integral to a new reference
+  @brief Resummed shift of a Sigma_2 integral to a new reference
   energy E0 (Brillouin-Wigner denominators).
   @details
   \f$ S^k \to (S^k)^2 / (S^k - \delta E_0\, dS^k/dE_0) \f$, the same
@@ -250,6 +250,8 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
 struct Integrals {
   //! Single-particle basis used for the CI expansion
   std::vector<DiracSpinor> ci_basis{};
+  //! True if ci_basis are Brueckner (spectrum) states, false if HF basis
+  bool brueckner{false};
   //! One-body matrix elements, <a|h1|b>; may include Sigma_1
   Coulomb::meTable<double> h1{};
   //! Two-body Coulomb integrals, Q^k
@@ -324,7 +326,7 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, DiracSpinor::Index v,
                     DiracSpinor::Index y, int twoJ);
 
 /*!
-  @brief Two-body \f$ \Sigma_2 \f$ (MBPT) correction to CSF2_Coulomb().
+  @brief Two-body Sigma_2 (MBPT) correction to CSF2_Coulomb().
   @details
   Evaluates the same angular reduction as CSF2_Coulomb(), but using the
   two-body \f$ \Sigma_2 \f$ integrals \f$ S^k \f$ stored in @p Sk in place of
@@ -386,7 +388,7 @@ double Hab(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
            const Sigma1Correction *s1c = nullptr);
 
 /*!
-  @brief Two-body \f$ \Sigma_2 \f$ correction to Hab().
+  @brief Two-body Sigma_2 correction to Hab().
   @details
   Evaluates the MBPT \f$ \Sigma_2 \f$ contribution to the CI matrix element
   using CSF2_Sigma2().  Add to Hab() to form the full CI+MBPT Hamiltonian
@@ -654,10 +656,10 @@ construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
 
   If the iterative (dSigma/dE) correction is included, the reference energy
   E0 (which also sets the Sigma_2 BW shift, if present) belongs to this
-  (J, parity) block: the lowest solved energy of @p psi is used if it has
+  J/Pi: the lowest solved energy of @p psi is used if it has
   solutions; otherwise the stored fallback is used, which is the
   ground-state energy of the CI run. Blocks never solved directly - e.g.,
-  the target block of a mixed state - thus have their corrections evaluated
+  the target J/Pi of a mixed state - thus have their corrections evaluated
   at the run's ground-state energy; the difference is higher order.
 
   @param psi   CI solution container holding the CSF basis and J/parity.

@@ -9,6 +9,7 @@
 #include "IO/InputBlock.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Modules/Modules.hpp"
+#include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
@@ -286,8 +287,11 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
       IO::print_line('-', 40);
     }
 
-    const auto pFa = wf.getState(name_A);
-    const auto pFb = wf.getState(name_B);
+    // Valence states only: getState() would also find core states
+    const auto [nA, kA] = AtomData::parse_symbol(name_A);
+    const auto [nB, kB] = AtomData::parse_symbol(name_B);
+    const auto pFa = wf.isInValence(nA, kA) ? wf.getState(nA, kA) : nullptr;
+    const auto pFb = wf.isInValence(nB, kB) ? wf.getState(nB, kB) : nullptr;
     if (pFa == nullptr || pFb == nullptr) {
       fmt2::error();
       std::cout << ": Could not find the requested valence state(s): A = "
@@ -466,8 +470,8 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     //--------------------------------------------------------------------------
     // The second column of the table is the quantity that was asked for. For
     // the specific cases below (as in the polarisability/pnc/dcp modules)
-    // that is alpha/beta/E_pnc; otherwise it is the z-component, A^K_0. Only
-    // s is tested: t is E1 in all of these cases
+    // that is alpha/beta/E_pnc; otherwise it is the rank-K part of the
+    // z-component, A_zz. Only s is tested: t is E1 in all of these cases
     const auto E1_s = hs->name() == "E1";
     const auto kind =
       " "s + (dynamic ? "dynamic "s : ""s) + (diagonal ? ""s : "transition "s);
@@ -476,7 +480,7 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     // both operators
     const auto two_m = std::min(Fa.twoj(), Fb.twoj());
     auto title = fmt::format("z-component, m = {}/2", two_m);
-    auto name = fmt::format("A^{}_0", K);
+    auto name = fmt::format("A_zz (K={})", K);
     auto factor = CI::z_component(K, kt, ks, Fb.twoj(), Fa.twoj(), two_m);
 
     // Scalar polarisability
@@ -495,10 +499,19 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
                           (3.0 * (twoJ + 1.0) * (twoJ + 2.0) * (twoJ + 3.0)));
     }
 
+    // Vector polarisability of a state, alpha_1 = A^1 sqrt(2j/((j+1)(2j+1)));
+    // see the CI_secondOrder module for the convention
+    if (K == 1 && E1_s && diagonal) {
+      const auto j = double(Fa.twoj()) / 2.0;
+      title = fmt::format("Vector{}polarisability", kind);
+      name = "alpha_1 (au)";
+      factor = std::sqrt(2.0 * j / ((j + 1.0) * (2.0 * j + 1.0)));
+    }
+
     // Vector transition polarisability, beta = A^1/(sqrt(2) <b||sigma||a>).
     // Single-valence convention: the radial overlap is dropped, so
     // <b||sigma||a> = 2 S_kk (cf CI::sigma_rme and the dcp module)
-    if (K == 1 && E1_s) {
+    if (K == 1 && E1_s && !diagonal) {
       const auto sigma = 2.0 * Angular::S_kk(Fb.kappa(), Fa.kappa());
       fmt::print("\nVector{}polarisability:\n", kind);
       fmt::print("<B||sigma||A> = {:.6e}\n", sigma);

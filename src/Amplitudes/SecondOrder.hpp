@@ -109,7 +109,11 @@ namespace Amplitudes {
   Matrix elements: taken from @p t_me / @p s_me if present in the table,
   otherwise calculated directly as \f$ \redmatel{}{h}{} + \delta V \f$. The
   tables (if given) should be formed at the operator's frequency, and may
-  contain RPA and structure radiation. RPA enters on both vertices.
+  contain RPA and structure radiation. RPA enters on both vertices, as
+  \f$ \delta V(\omega) \f$ of the operator's own frequency at every
+  vertex (the emission component for a negative frequency; see
+  CorePolarisation::dV), whichever side of the leg the intermediate state
+  lies.
 
   @param K       Rank of the amplitude.
   @param Fb,Fa   Final and initial valence states.
@@ -199,8 +203,10 @@ sos_core(int K, int twoJ, const DiracOperator::TensorOperator *t,
 
   RPA enters on both vertices: the mixed states are solved with
   \f$ t + \delta V \f$ (the inner vertex), and the outer matrix element is
-  dressed with the \f$ \delta V \f$ of the outer operator. With RPA not
-  solved, \f$ \delta V = 0 \f$ and the amplitude is at the HF level.
+  dressed with the \f$ \delta V \f$ of the outer operator; each is
+  \f$ \delta V(\omega) \f$ at the frequency of its own operator (cf.
+  @ref sos_valence). With RPA not solved, \f$ \delta V = 0 \f$ and the
+  amplitude is at the HF level.
 
   @param K       Rank of the amplitude.
   @param Fb,Fa   Final and initial valence states.

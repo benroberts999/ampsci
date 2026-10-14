@@ -17,7 +17,7 @@ namespace CI {
 //==============================================================================
 /*!
   @brief Angular coefficients of the two terms of the second-order amplitude
-  \f$ A^K \f$.
+  A^K.
   @details
   For a transition \f$ a \to b \f$ due to two one-body operators, \f$ t \f$
   (rank \f$ k_t \f$, frequency \f$ \omega \f$) and \f$ s \f$ (rank
@@ -127,7 +127,7 @@ namespace CI {
 A_K_coefs(int K, int kt, int ks, int twoJb, int twoJn, int twoJa);
 
 /*!
-  @brief Converts the reduced amplitude \f$ A^K \f$ to its contribution to the
+  @brief Converts the reduced amplitude A^K to its contribution to the
   z-component of the amplitude.
   @details
   Undoing the coupling of @ref A_K_coefs,
@@ -166,7 +166,7 @@ A_K_coefs(int K, int kt, int ks, int twoJb, int twoJn, int twoJa);
 
 /*!
   @brief Reduced matrix element of the Pauli spin operator between two CI
-  states, \f$ \redmatel{b}{\sigma}{a} \f$.
+  states, <b||sigma||a>.
   @details
   This is the factor that defines the vector transition polarisability, beta:
   the rank-1 part of the amplitude is written
@@ -208,7 +208,7 @@ A_K_coefs(int K, int kt, int ks, int twoJb, int twoJn, int twoJa);
 
 //==============================================================================
 /*!
-  @brief Second-order amplitude \f$ A^K \f$ between two CI states, evaluated
+  @brief Second-order amplitude A^K between two CI states, evaluated
   with CI mixed states.
   @details
   Evaluates \f$ A^K \f$; see @ref A_K_coefs.
@@ -260,6 +260,13 @@ A_K_coefs(int K, int kt, int ks, int twoJb, int twoJn, int twoJa);
                  separately - e.g., with experimental energies. See @ref Level;
                  the CI problem for those (J, parity) is solved here, as far as
                  required.
+  @param solved_Jpi  CI solutions of the run, one per J/Pi; e.g.,
+                 Wavefunction::CIwfs(). An intermediate J/Pi that is among
+                 them has its CI Hamiltonian formed at that J/Pi's own
+                 reference energy, as in the run; otherwise at the run's
+                 ground-state energy (see @ref construct_Hci). Only matters
+                 with the energy-dependent corrections (dSigma/dE,
+                 Brillouin-Wigner Sigma_2).
   @param outstream  Stream for progress and the intermediate sums.
   @return The two evaluations of \f$ A^K \f$: with the mixed states of
           \f$ s \f$, and with those of \f$ t \f$.
@@ -286,11 +293,12 @@ A_K(int K, const PsiJPi &Psi_b, std::size_t ib, const PsiJPi &Psi_a,
     const DiracOperator::TensorOperator *s,
     const Coulomb::meTable<double> &s_me, double omega, double omega_s,
     const Integrals &ints, const std::vector<Level> &levels_to_remove = {},
+    const std::vector<PsiJPi> &solved_Jpi = {},
     std::ostream &outstream = std::cout);
 
 //==============================================================================
 /*!
-  @brief Contribution to \f$ A^K \f$ from the polarisation of the closed core.
+  @brief Contribution to A^K from the polarisation of the closed core.
   @details
   The intermediate states of @ref A_K carry no core hole. This is the missing
   term: a core electron \f$ c \f$ excited by one operator and de-excited by
@@ -344,7 +352,7 @@ A_K_core(int K, int twoJ, const DiracOperator::TensorOperator *t,
          const ExternalField::CorePolarisation *dVs = nullptr);
 
 /*!
-  @brief Core-valence contribution to \f$ A^K \f$: the Pauli blocking of the
+  @brief Core-valence contribution to A^K: the Pauli blocking of the
   core excitations by the valence electrons.
   @details
   @ref A_K_core sums over every particle state, including those occupied by

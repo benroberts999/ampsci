@@ -233,7 +233,7 @@ struct ConfigInfo {
 
 //==============================================================================
 /*!
-  @brief Container for CI solutions in a single (J, parity) block.
+  @brief Container for CI solutions in a single J/Pi.
   @details
   Holds the complete set of configuration state functions and the results of
   the CI diagonalisation for a fixed total angular momentum J and parity.
@@ -307,7 +307,7 @@ public:
   //! Set configuration info for the ith solution (must be called manually after solve())
   void update_config_info(std::size_t i, const ConfigInfo &info);
 
-  //! Full list of CSFs spanning this (J, parity) block
+  //! Full list of CSFs spanning this J/Pi
   const std::vector<CSF2> &CSFs() const;
 
   //! Returns reference to the ith CSF
@@ -322,10 +322,10 @@ public:
   //! CI coefficient for the ith solution corresponding to the jth CSF
   double coef(std::size_t i, std::size_t j) const;
 
-  //! Parity of the block (+/-1)
+  //! Parity of the J/Pi (+/-1)
   int parity() const;
 
-  //! Twice the total angular momentum 2J for this block
+  //! Twice the total angular momentum 2J for this J/Pi
   int twoJ() const;
 
   //! Number of CI solutions currently stored

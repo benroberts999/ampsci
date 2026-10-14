@@ -6,7 +6,7 @@ namespace CI {
 
 //==============================================================================
 // Forms T_I = sum_K <I||T||K> c_K, the action of the one-body operator T on
-// the CI state Psi_0, in the CSF basis of the target J/parity block
+// the CI state Psi_0, in the CSF basis of the target J/Pi
 LinAlg::Vector<double> TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ,
                                     const PsiJPi &Psi0, std::size_t i0,
                                     const Coulomb::meTable<double> &h,
@@ -48,7 +48,7 @@ PsiJPi solve_mixed_state(const PsiJPi &Psi0, std::size_t i0,
   const auto N = target.CSFs().size();
   const auto E0 = Psi0.energy(i0);
 
-  // Right-hand side: -T|Psi_0>, in the CSF basis of the target block
+  // Right-hand side: -T|Psi_0>, in the CSF basis of the target J/Pi
   auto rhs =
     -1.0 * TPsi_reduced(target.CSFs(), target.twoJ(), Psi0, i0, h, K_rank);
 
@@ -58,7 +58,7 @@ PsiJPi solve_mixed_state(const PsiJPi &Psi0, std::size_t i0,
     M(i, i) -= E0 + omega;
   }
 
-  // If target block is that of Psi_0, and omega is zero, then M is singular
+  // If the target J/Pi is that of Psi_0, and omega is zero, then M is singular
   // (M|Psi_0> = 0). Project Psi_0 out of the right-hand side, and add
   // |Psi_0><Psi_0| to M, which leaves M unchanged in the orthogonal subspace,
   // but makes it invertible; the solution is then orthogonal to Psi_0

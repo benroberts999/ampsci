@@ -26,7 +26,7 @@ namespace CI {
   The CSF matrix elements are reduced (see @ref RME_CSF2), formed from the
   single-particle reduced matrix elements in @p h; so is the result.
 
-  @param CSFs   CSFs spanning the block the operator maps into.
+  @param CSFs   CSFs spanning the J/Pi the operator maps into.
   @param twoJ   Twice the total angular momentum, 2J, of @p CSFs.
   @param Psi0   CI solutions containing the reference state.
   @param i0     Index of the reference solution within @p Psi0.
@@ -44,7 +44,7 @@ TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ, const PsiJPi &Psi0,
   @details
   Finds the first-order correction to the CI state \f$ \Psi_0 \f$ (solution
   @p i0 of @p Psi0, with energy \f$ E_0 \f$) due to the one-body operator
-  \f$ T^{(K)} \f$, expanded over the CSFs of a single (J, parity) block:
+  \f$ T^{(K)} \f$, expanded over the CSFs of a single J/Pi:
 
   \f[
     \ket{\delta\Psi} = \sum_I c_I \ket{I; J^\pi}.
@@ -57,19 +57,19 @@ TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ, const PsiJPi &Psi0,
       = - \sum_K \redmatel{I}{T^{(K)}}{K} \, c^{(0)}_K,
   \f]
 
-  where \f$ H \f$ is the CI Hamiltonian in the block defined by @p target
+  where \f$ H \f$ is the CI Hamiltonian in the J/Pi defined by @p target
   (given as the matrix @p Hci, e.g., from @ref construct_Hci), and the
   right-hand side is formed by @ref TPsi_reduced.
 
   Since the right-hand side is reduced (in \f$ T \f$), so is the solution: for
-  any CI state \f$ A \f$ in the same block, the mixed state satisfies
+  any CI state \f$ A \f$ in the same J/Pi, the mixed state satisfies
 
   \f[
     \sum_I c^A_I \, c_I
       = \frac{\redmatel{A}{T^{(K)}}{\Psi_0}}{E_0 + \omega - E_A},
   \f]
 
-  i.e., the sum over the entire spectrum of that block, without finding (or
+  i.e., the sum over the entire spectrum of that J/Pi, without finding (or
   summing over) the individual CI solutions.
 
   Returned as a @ref PsiJPi holding a single "solution", the coefficients
@@ -78,7 +78,7 @@ TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ, const PsiJPi &Psi0,
 
   @param Psi0    CI solutions containing the reference state.
   @param i0      Index of the reference solution within @p Psi0.
-  @param target  Defines the block the mixed state lives in (2J, parity, and
+  @param target  Defines the J/Pi the mixed state lives in (2J, parity, and
                  CSF list); its solutions, if any, are not used.
   @param Hci     CI Hamiltonian matrix in the CSF basis of @p target.
   @param h       Table of single-particle reduced matrix elements of T.
@@ -86,7 +86,7 @@ TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ, const PsiJPi &Psi0,
   @param omega   Frequency: the mixed state due to a time-dependent operator,
                  \f$ T e^{-i\omega t} \f$, has denominators
                  \f$ E_0 + \omega - E_A \f$ [0].
-  @return PsiJPi for the @p target block, holding the single mixed state.
+  @return PsiJPi for the @p target J/Pi, holding the single mixed state.
   @see project_out, to remove individual levels from the mixed state.
 
   @note If @p target has the same J and parity as @p Psi0, and
@@ -99,7 +99,7 @@ TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ, const PsiJPi &Psi0,
         system singular. Its term in the sum over states is divergent, and must
         be dealt with separately, as in degenerate perturbation theory.
 
-  @note If the operator cannot connect the two blocks (triangle rule or
+  @note If the operator cannot connect the two J/Pi (triangle rule or
         parity), the right-hand side vanishes, and the mixed state is zero.
 */
 [[nodiscard]] PsiJPi solve_mixed_state(const PsiJPi &Psi0, std::size_t i0,
@@ -140,11 +140,11 @@ TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ, const PsiJPi &Psi0,
   internally.
   @details
   Convenience overload of @ref solve_mixed_state: forms the CSFs for the
-  requested (@p twoJ, @p parity) block from @p ci_sp_basis, constructs the CI
+  requested J/Pi (@p twoJ, @p parity) from @p ci_sp_basis, constructs the CI
   Hamiltonian matrix via @ref construct_Hci, then solves the mixed-states
   equation.
 
-  Use the other overload if the CI matrix for the target block is already
+  Use the other overload if the CI matrix for the target J/Pi is already
   available (e.g., when several operators are considered).
 
   @param Psi0        CI solutions containing the reference state.
@@ -160,7 +160,7 @@ TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ, const PsiJPi &Psi0,
   @param Bk          Pointer to Breit W^k table; ignored if nullptr.
   @param Sk          Pointer to Sigma_2 L^k table; ignored if nullptr.
   @param omega       Frequency; see the other overload [0].
-  @return PsiJPi for the (@p twoJ, @p parity) block, holding the single mixed
+  @return PsiJPi for the J/Pi (@p twoJ, @p parity), holding the single mixed
           state.
 */
 [[nodiscard]] PsiJPi

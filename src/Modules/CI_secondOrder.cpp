@@ -257,10 +257,12 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
   // Intermediate states carrying a core hole lie outside the CI space (used
-  // for the core and core-valence terms) - common to every pair
-  const auto &spectrum = wf.spectrum().empty() ? wf.basis() : wf.spectrum();
+  // for the core and core-valence terms) - common to every pair. They come
+  // from the same source as the CI basis, so that the core-valence term
+  // removes the excitations into the occupied CI orbitals
+  const auto &core_hole_source = ints.brueckner ? wf.spectrum() : wf.basis();
   const auto excited =
-    DiracSpinor::split_by_energy(spectrum, wf.FermiLevel()).second;
+    DiracSpinor::split_by_energy(core_hole_source, wf.FermiLevel()).second;
 
   // The RPA solutions and single-particle matrix-element tables depend only
   // on the frequencies: they are re-used between pairs when omega is
@@ -402,7 +404,7 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
       fmt::print("\nContributions to A^{}, by intermediate J and parity:\n", K);
       const auto [A_s, A_t] =
         CI::A_K(K, *Psi_b, ib, *Psi_a, ia, ht.get(), t_me, hs.get(), s_me,
-                omega, omega_s, ints, levels_to_remove);
+                omega, omega_s, ints, levels_to_remove, wf.CIwfs());
       A_val = A_s;
     }
 
@@ -430,8 +432,8 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     //--------------------------------------------------------------------------
     // The second column of the table is the quantity that was asked for. For
     // the specific cases below (as in the dcp module) that is
-    // alpha/beta/E_pnc; otherwise it is the z-component, A^K_0. Only s is
-    // tested: t is E1 in all of these cases
+    // alpha/beta/E_pnc; otherwise it is the rank-K part of the z-component,
+    // A_zz. Only s is tested: t is E1 in all of these cases
     const auto E1_s = hs->name() == "E1";
     // e.g., "Scalar polarisability", "Scalar dynamic polarisability",
     // "Scalar transition polarisability"
@@ -442,7 +444,7 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     // both operators
     const auto two_m = std::min(Psi_a->twoJ(), Psi_b->twoJ());
     auto title = fmt::format("z-component, m = {}", two_m / 2);
-    auto name = fmt::format("A^{}_0", K);
+    auto name = fmt::format("A_zz (K={})", K);
     auto factor =
       CI::z_component(K, kt, ks, Psi_b->twoJ(), Psi_a->twoJ(), two_m);
 
@@ -466,10 +468,22 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
                           (3.0 * (twoJ + 1.0) * (twoJ + 2.0) * (twoJ + 3.0)));
     }
 
+    // Vector polarisability of a state, alpha_1 = A^1 sqrt(2J/((J+1)(2J+1))):
+    // the Stark shift is -(1/2)|E|^2 [alpha_0 + A cos(theta_k) (m/2J) alpha_1
+    // + ...], for light of degree of circular polarisation A, as in Le Kien,
+    // Schneider, Rauschenbeutel, Eur. Phys. J. D 67, 92 (2013), whose
+    // alpha^(1) is -A^1
+    if (K == 1 && E1_s && diagonal) {
+      const auto J = double(Psi_a->twoJ()) / 2.0;
+      title = fmt::format("Vector{}polarisability", kind);
+      name = "alpha_1 (au)";
+      factor = std::sqrt(2.0 * J / ((J + 1.0) * (2.0 * J + 1.0)));
+    }
+
     // Vector transition polarisability, beta = A^1/(sqrt(2) <b||sigma||a>).
     // The spin matrix element expresses the Wigner-Eckart factor of the
     // rank-1 amplitude, so no radial overlap enters it; see CI::sigma_rme
-    if (K == 1 && E1_s) {
+    if (K == 1 && E1_s && !diagonal) {
       const auto sigma = CI::sigma_rme(*Psi_b, ib, *Psi_a, ia, ints.ci_basis);
       fmt::print("\nVector{}polarisability:\n", kind);
       fmt::print("<B||sigma||A> = {:.6e}\n", sigma);

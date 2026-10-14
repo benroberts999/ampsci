@@ -11,7 +11,7 @@ class TensorOperator;
 namespace Amplitudes {
 
 /*!
-  @brief Second-order amplitude \f$ A^K \f$ between two CI states, by
+  @brief Second-order amplitude A^K between two CI states, by
   sum-over-states over the solved CI levels.
   @details
   Evaluates \f$ A^K \f$ (see CI::A_K_coefs) directly,
@@ -29,7 +29,7 @@ namespace Amplitudes {
   (J, parity). This is the sum-over-states analogue of CI::A_K (the
   generalisation of the CI_Pol module): only the levels actually solved in
   the CI{} block are available, so the sum is truncated - both to the
-  (J, parity) blocks that were solved (a note is printed for any that are
+  J/Pi that were solved (a note is printed for any that are
   missing) and to num_solutions levels within each. CI::A_K, by contrast,
   is complete; the comparison shows how much of the amplitude the low
   levels carry.
@@ -48,7 +48,7 @@ namespace Amplitudes {
   @param s,s_me  The \f$ s \f$ operator, and its table (formed at
                  @p omega_s).
   @param omega,omega_s  Frequency of each operator; see CI::A_K.
-  @param ciwfs   The solved CI blocks, e.g., Wavefunction::CIwfs(): the
+  @param ciwfs   The solved CI J/Pi, e.g., Wavefunction::CIwfs(): the
                  intermediate states of the sum.
   @param levels_to_remove  CI levels skipped in the sum, so that they may be
                  treated separately - e.g., with experimental energies.

@@ -82,10 +82,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "energies. BW (Brillouin-Wigner): the denominator is E0 minus the energy "
      "of the intermediate state, where E0 is the total valence energy of the "
      "target level; DFK is this with E0 taken from the leading configuration. "
-     "BW requires the E0 of each (J, parity) block, so it enables "
+     "BW requires the E0 of each J/Pi, so it enables "
      "iterative_correction (requires sigma1): S^k and dS^k/dE0 are "
      "tabulated at an internal reference and each S^k is resummed to the E0 "
-     "of the block being solved. This doubles the Sigma_2 calculation time "
+     "of the J/Pi being solved. This doubles the Sigma_2 calculation time "
      "and stores a second sk file. "
      "RS uses actual energies for all external legs, Fermi uses the "
      "lowest excited state for each kappa (both legs), Fermi0 uses lowest "
@@ -314,12 +314,12 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     }
   }
 
-  // Shift Sigma_2 to each block's E0 (BW only; see denominators doc)
+  // Shift Sigma_2 to each J/Pi's E0 (BW only; see denominators doc)
   const auto iterative_correction_sigma2 =
     include_Sigma2 && denominators == MBPT::Denominators::BW;
 
   // Internal reference E0 that the Sigma_2 integrals are tabulated at. The
-  // shift to each block is resummed, so results barely depend on it; it need
+  // shift to each J/Pi is resummed, so results barely depend on it; it need
   // only be roughly right (zeroth-order ground-state pair energy)
   const auto E0_sigma2 =
     iterative_correction_sigma2 ? 2.0 * DiracSpinor::min_En(ci_sp_basis) : 0.0;
@@ -684,7 +684,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   const auto sort_output = input.get("sort_output", false);
   const auto print_details = input.get("print_details", true);
 
-  // {2J, parity} for each requested block
+  // {2J, parity} for each requested J/Pi
   std::vector<std::pair<int, int>> J_pi_list;
   for (const auto J : J_even_list) {
     J_pi_list.push_back({2 * J, +1});
@@ -829,6 +829,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   Solutions out;
   out.levels = std::move(levels);
   out.integrals.ci_basis = ci_sp_basis;
+  out.integrals.brueckner = Brueckner;
   out.integrals.h1 = std::move(h1);
   out.integrals.qk = std::move(qk);
   out.integrals.Bk = std::move(Bk);
