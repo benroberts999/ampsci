@@ -268,6 +268,15 @@ public:
   //! Parent states and their coefficients
   const std::vector<Parent> &parents() const;
 
+  /*!
+    @brief Returns the number of orbitals that differ between two CSFs (0 to
+    3), counting repeated orbitals.
+    @details
+    Matrix elements of one- and two-body operators vanish if more than two
+    orbitals differ.
+  */
+  static int num_different(const CSF3 &A, const CSF3 &B);
+
   std::size_t num_electrons() const override { return 3; }
 
   //! Single-particle configuration as a string, in relativistic or non-rel form

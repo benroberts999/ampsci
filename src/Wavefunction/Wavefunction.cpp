@@ -491,10 +491,14 @@ void Wavefunction::formBasis(const SplineBasis::Parameters &params) {
     }
 
     if (params.verbose) {
-      std::cout << "Basis/core:\n";
-      SplineBasis::check(m_basis, core(), true);
-      std::cout << "Basis/valence:\n";
-      SplineBasis::check(m_basis, valence(), true);
+      if (!core().empty()) {
+        std::cout << "Basis/core:\n";
+        SplineBasis::check(m_basis, core(), true);
+      }
+      if (!valence().empty()) {
+        std::cout << "Basis/valence:\n";
+        SplineBasis::check(m_basis, valence(), true);
+      }
     }
   }
 }

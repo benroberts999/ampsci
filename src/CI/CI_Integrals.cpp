@@ -230,6 +230,55 @@ double Breit_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
 }
 
 //==============================================================================
+double Sigma2_AB(const CI::CSF3 &A, const CI::CSF3 &B, int,
+                 const Coulomb::LkTable &Sk, const Coulomb::QkTable *qk,
+                 const std::vector<double> &hk, const Coulomb::LkTable *dSk,
+                 double dE0,
+                 const std::map<DiracSpinor::Index, double> *orbital_energies) {
+  assert((dSk == nullptr || orbital_energies != nullptr) &&
+         "Brillouin-Wigner Sigma_2 requires the orbital energies");
+
+  if (CSF3::num_different(A, B) > 2)
+    return 0.0;
+
+  // Two-body: acts on electrons 1 and 2; the third electron must coincide
+  double out = 0.0;
+  for (const auto &p : A.parents()) {
+    for (const auto &q : B.parents()) {
+      if (p.spectator != q.spectator || p.twoJ2 != q.twoJ2)
+        continue;
+      // The pair energy excludes the third electron
+      const auto dE0_pair =
+        dSk == nullptr ? dE0 : dE0 - orbital_energies->at(p.spectator);
+      out += p.coef * q.coef *
+             CSF2_Sigma2(Sk, p.pair[0], p.pair[1], q.pair[0], q.pair[1],
+                         p.twoJ2, qk, hk, dSk, dE0_pair);
+    }
+  }
+  return 3.0 * out;
+}
+
+//==============================================================================
+double Breit_AB(const CI::CSF3 &A, const CI::CSF3 &B, int,
+                const Coulomb::WkTable &Bk) {
+  if (CSF3::num_different(A, B) > 2)
+    return 0.0;
+
+  // Two-body: acts on electrons 1 and 2; the third electron must coincide
+  double out = 0.0;
+  for (const auto &p : A.parents()) {
+    for (const auto &q : B.parents()) {
+      if (p.spectator != q.spectator || p.twoJ2 != q.twoJ2)
+        continue;
+      out +=
+        p.coef * q.coef *
+        CSF2_Breit(Bk, p.pair[0], p.pair[1], q.pair[0], q.pair[1], p.twoJ2);
+    }
+  }
+  return 3.0 * out;
+}
+
+//==============================================================================
 double corrected_Sigma(double Sigma, double dSigma, double dE) {
   if (Sigma == 0.0) {
     return 0.0;
@@ -276,6 +325,25 @@ double Sigma1Correction::delta_h1(DiracSpinor::Index a, DiracSpinor::Index b,
     return 0.0;
   }
   const auto dE = E0 - es->second - e_spec->second;
+  return corrected_Sigma(Sig, dS1.getv(a, b), dE) - Sig;
+}
+
+//------------------------------------------------------------------------------
+double Sigma1Correction::delta_h1(DiracSpinor::Index a, DiracSpinor::Index b,
+                                  DiracSpinor::Index spectator1,
+                                  DiracSpinor::Index spectator2) const {
+  const auto Sig = S1.getv(a, b);
+  // E0 = 0.0 means it was never set: no correction (see iterate_E0)
+  if (Sig == 0.0 || E0 == 0.0) {
+    return 0.0;
+  }
+  const auto es = e_sigma.find(Angular::nkindex_to_kappa(a));
+  const auto e_spec1 = en.find(spectator1);
+  const auto e_spec2 = en.find(spectator2);
+  if (es == e_sigma.end() || e_spec1 == en.end() || e_spec2 == en.end()) {
+    return 0.0;
+  }
+  const auto dE = E0 - es->second - e_spec1->second - e_spec2->second;
   return corrected_Sigma(Sig, dS1.getv(a, b), dE) - Sig;
 }
 
@@ -552,6 +620,40 @@ double Hab(const CI::CSF2 &X, const CI::CSF2 &V, int twoJ,
   }
 
   return h1_VX + CSF2_Coulomb(qk, v, w, x, y, twoJ);
+}
+
+//==============================================================================
+double Hab(const CI::CSF3 &A, const CI::CSF3 &B, int,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+           const Sigma1Correction *s1c) {
+
+  if (CSF3::num_different(A, B) > 2)
+    return 0.0;
+
+  double out = 0.0;
+  for (const auto &p : A.parents()) {
+    for (const auto &q : B.parents()) {
+      if (p.twoJ2 != q.twoJ2)
+        continue;
+      const auto c = p.coef * q.coef;
+
+      // One-body: acts on electron 3; the parent pair must coincide, and its
+      // two orbitals are the spectators for the dSigma/dE correction
+      if (p.pair == q.pair) {
+        const auto [x, y] = p.pair;
+        const auto dh1 =
+          s1c ? s1c->delta_h1(p.spectator, q.spectator, x, y) : 0.0;
+        out += c * (h1.getv(p.spectator, q.spectator) + dh1);
+      }
+
+      // Two-body: acts on electrons 1 and 2; the third electron must coincide
+      if (p.spectator == q.spectator) {
+        out += c * CSF2_Coulomb(qk, p.pair[0], p.pair[1], q.pair[0], q.pair[1],
+                                p.twoJ2);
+      }
+    }
+  }
+  return 3.0 * out;
 }
 
 //==============================================================================
@@ -917,9 +1019,20 @@ construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
               const Coulomb::LkTable *Sk, const Sigma1Correction *s1c,
               const std::vector<double> &hk, const Coulomb::LkTable *dSk,
               double dE0) {
+  return construct_Hci(psi.CSFs(), psi.twoJ(), h1, qk, Bk, Sk, s1c, hk, dSk,
+                       dE0);
+}
 
-  const auto N_CSFs = psi.CSFs().size();
-  const auto twoJ = psi.twoJ();
+//==============================================================================
+template <typename CSFType>
+LinAlg::Matrix<double>
+construct_Hci(const std::vector<CSFType> &CSFs, int twoJ,
+              const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+              const Coulomb::WkTable *Bk, const Coulomb::LkTable *Sk,
+              const Sigma1Correction *s1c, const std::vector<double> &hk,
+              const Coulomb::LkTable *dSk, double dE0) {
+
+  const auto N_CSFs = CSFs.size();
   LinAlg::Matrix Hci(N_CSFs, N_CSFs);
 
 #pragma omp parallel for
@@ -927,14 +1040,22 @@ construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
     // go to iB <= iA only: symmetric matrix
     for (std::size_t iB = 0; iB <= iA; ++iB) {
 
-      const auto &A = psi.CSF(iA);
-      const auto &B = psi.CSF(iB);
+      const auto &A = CSFs[iA];
+      const auto &B = CSFs[iB];
 
       // Regular CI matrix (h1 may include Sigma_1):
       const auto E_AB = Hab(A, B, twoJ, h1, qk, s1c);
-      // Sigma_2 correction:
-      const auto dEs_AB =
-        Sk ? CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0) : 0.0;
+      // Sigma_2 correction (three electrons: the pair energies need the
+      // orbital energy of the third electron):
+      double dEs_AB = 0.0;
+      if (Sk != nullptr) {
+        if constexpr (std::is_same_v<CSFType, CSF3>) {
+          dEs_AB = CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0,
+                                 s1c ? &s1c->en : nullptr);
+        } else {
+          dEs_AB = CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0);
+        }
+      }
       // Breit correction:
       const auto dEb_AB = Bk ? CI::Breit_AB(A, B, twoJ, *Bk) : 0.0;
 
@@ -948,6 +1069,19 @@ construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
 
   return Hci;
 }
+
+template LinAlg::Matrix<double>
+construct_Hci<CSF2>(const std::vector<CSF2> &, int,
+                    const Coulomb::meTable<double> &, const Coulomb::QkTable &,
+                    const Coulomb::WkTable *, const Coulomb::LkTable *,
+                    const Sigma1Correction *, const std::vector<double> &,
+                    const Coulomb::LkTable *, double);
+template LinAlg::Matrix<double>
+construct_Hci<CSF3>(const std::vector<CSF3> &, int,
+                    const Coulomb::meTable<double> &, const Coulomb::QkTable &,
+                    const Coulomb::WkTable *, const Coulomb::LkTable *,
+                    const Sigma1Correction *, const std::vector<double> &,
+                    const Coulomb::LkTable *, double);
 
 //==============================================================================
 LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi, const Integrals &ints) {

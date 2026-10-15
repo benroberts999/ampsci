@@ -2,12 +2,17 @@
 #include "CI_Integrals.hpp"
 #include "ConfigurationInteraction.hpp"
 #include "Coulomb/include.hpp"
+#include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
+#include "LinAlg/include.hpp"
 #include "MBPT/Sigma2.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Random.hpp"
+#include <algorithm>
+#include <array>
 #include <cstdio>
+#include <vector>
 
 //==============================================================================
 TEST_CASE("CI: Configuration Interaction unit tests", "[CI][unit]") {
@@ -483,4 +488,277 @@ TEST_CASE("CI: dSdE from correlation potential", "[CI][integration]") {
 
   // No stored fk: average is empty
   REQUIRE(wf.Sigma()->average_fk().empty());
+}
+
+//==============================================================================
+// Three-electron CI Hamiltonian (CSF3), against independent results:
+//  1. Closed s1/2 pair plus one electron: the block is the energy of the pair,
+//     plus h1, plus the Hartree-Fock potential of the pair (direct and
+//     exchange), which is computed independently by the HF routines.
+//  2. A third electron that does not interact with the other two: the
+//     spectrum is the two-electron CI spectrum plus its orbital energy. Covers
+//     Coulomb, Breit, Sigma_2 (incl. extrapolation and the Brillouin-Wigner
+//     pair-energy shift), and the dSigma/dE correction.
+//  3. Centre-of-gravity sum rule: sum_J [J] Tr(H_J) over all CSFs of one
+//     configuration equals the trace over its determinants, which is formed
+//     from the two-electron (pair) traces.
+TEST_CASE("CI: three-electron Hamiltonian", "[CI][3VCI][unit]") {
+
+  std::cout << "CI three-electron Hamiltonian\n";
+
+  Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
+                  {"Li", -1, "pointlike"}, 1.0);
+  wf.solve_core("HartreeFock", "[He]", std::nullopt, 1.0e-5, false);
+  auto b_params = SplineBasis::Parameters("5spd", 20, 6, {1.0e-2}, 20.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
+
+  // Closed 1s pair, and excited basis states
+  const auto &a = wf.core().front();
+  REQUIRE(a.n() == 1);
+  std::vector<DiracSpinor> orbitals{a};
+  for (const auto &Fn : wf.basis()) {
+    if (Fn.n() > 1 && Fn.l() <= 2) {
+      orbitals.push_back(Fn);
+    }
+  }
+
+  Coulomb::QkTable qk;
+  qk.fill(orbitals, Coulomb::YkTable(orbitals), -1, false);
+
+  // One-body table: orbital energies, plus (arbitrary) off-diagonal elements
+  Coulomb::meTable<double> h1;
+  for (const auto &v : orbitals) {
+    for (const auto &w : orbitals) {
+      if (v.kappa() == w.kappa()) {
+        h1.add(v, w, v == w ? v.en() : 0.01 / (v.n() + w.n()));
+      }
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // 1. Closed pair a^2 plus one electron z: J = j_z, one CSF per z
+  double worst_closed = 0.0;
+  {
+    const auto ia = a.nk_index();
+    const auto E_pair =
+      2.0 * h1.getv(ia, ia) + CI::CSF2_Coulomb(qk, ia, ia, ia, ia, 0);
+
+    // Direct potential of the closed pair
+    auto v_direct = Coulomb::yk_ab(0, a, a);
+    for (auto &v : v_direct) {
+      v *= a.twojp1();
+    }
+
+    for (const auto &z : orbitals) {
+      if (z == a)
+        continue;
+      const auto csf_z = CI::form_CSF3s({ia, ia, z.nk_index()}, z.twoj());
+      REQUIRE(csf_z.size() == 1);
+      for (const auto &zp : orbitals) {
+        if (zp == a || zp.kappa() != z.kappa())
+          continue;
+        const auto csf_zp = CI::form_CSF3s({ia, ia, zp.nk_index()}, zp.twoj());
+        const auto H = CI::Hab(csf_z[0], csf_zp[0], z.twoj(), h1, qk);
+        const auto V_HF =
+          z * (v_direct * zp) + z * HF::vexFa(zp, std::vector{a});
+        const auto expected = (z == zp ? E_pair : 0.0) + h1.getv(z, zp) + V_HF;
+        worst_closed = std::max(worst_closed, std::abs(H - expected));
+      }
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // 2. Third electron z (3d3/2) does not interact with the pair space S:
+  // no integrals involving z, and no one-body coupling to S
+  double worst_spectator = 0.0;
+  {
+    std::vector<DiracSpinor> S;
+    std::vector<DiracSpinor> S_small; // Sk tabulated here only
+    for (const auto &Fn : wf.basis()) {
+      if (Fn.n() > 1 && Fn.l() <= 1) {
+        S.push_back(Fn);
+        if (Fn.n() <= 3) {
+          S_small.push_back(Fn);
+        }
+      }
+    }
+    const auto &z =
+      *std::find_if(wf.basis().cbegin(), wf.basis().cend(), [](const auto &Fn) {
+        return Fn.n() == 3 && Fn.kappa() == 2;
+      });
+
+    Coulomb::QkTable qk_S;
+    qk_S.fill(S, Coulomb::YkTable(S), -1, false);
+
+    // Breit and Sigma_2 tables: arbitrary multiples of Q^k
+    const auto all_k = [](int, const DiracSpinor &, const DiracSpinor &,
+                          const DiracSpinor &,
+                          const DiracSpinor &) { return true; };
+    Coulomb::WkTable Bk;
+    Bk.fill(
+      S,
+      [&qk_S](int k, const DiracSpinor &v, const DiracSpinor &w,
+              const DiracSpinor &x,
+              const DiracSpinor &y) { return 0.3 * qk_S.Q(k, v, w, x, y); },
+      all_k, -1, false);
+    Coulomb::LkTable Sk, dSk;
+    Sk.fill(
+      S_small,
+      [&qk_S](int k, const DiracSpinor &v, const DiracSpinor &w,
+              const DiracSpinor &x,
+              const DiracSpinor &y) { return 0.2 * qk_S.Q(k, v, w, x, y); },
+      all_k, -1, false);
+    dSk.fill(
+      S_small,
+      [&qk_S](int k, const DiracSpinor &v, const DiracSpinor &w,
+              const DiracSpinor &x,
+              const DiracSpinor &y) { return 0.05 * qk_S.Q(k, v, w, x, y); },
+      all_k, -1, false);
+    // Sigma_2 extrapolation ratios, beyond S_small
+    const std::vector<double> hk{0.1, 0.12, 0.14, 0.16};
+
+    // dSigma/dE correction: no entries for z
+    CI::Sigma1Correction s1c_2e;
+    for (const auto &v : S) {
+      s1c_2e.en[v.nk_index()] = v.en();
+      s1c_2e.e_sigma.insert({v.kappa(), v.en()});
+      for (const auto &w : S) {
+        if (v.kappa() == w.kappa()) {
+          s1c_2e.S1.add(v, w, -0.02 / (v.n() * w.n()));
+          s1c_2e.dS1.add(v, w, -0.005 / (v.n() + w.n()));
+        }
+      }
+    }
+    s1c_2e.en[z.nk_index()] = z.en();
+    s1c_2e.E0 = -0.6;
+    const auto dE0_2e = 0.03;
+
+    // Three-electron: the total energy includes the third electron
+    auto s1c_3e = s1c_2e;
+    s1c_3e.E0 = s1c_2e.E0 + z.en();
+    const auto dE0_3e = dE0_2e + z.en();
+
+    for (const int parity : {1, -1}) {
+      for (const int twoJ : {1, 3, 5}) {
+
+        std::vector<CI::CSF3> csfs_3e;
+        for (std::size_t i = 0; i < S.size(); ++i) {
+          for (std::size_t j = i; j < S.size(); ++j) {
+            for (auto &csf : CI::form_CSF3s(
+                   {S[i].nk_index(), S[j].nk_index(), z.nk_index()}, twoJ)) {
+              if (csf.parity() == parity) {
+                csfs_3e.push_back(std::move(csf));
+              }
+            }
+          }
+        }
+        const auto H_3e = CI::construct_Hci(csfs_3e, twoJ, h1, qk_S, &Bk, &Sk,
+                                            &s1c_3e, hk, &dSk, dE0_3e);
+        const auto E_3e = LinAlg::symmhEigensystem(H_3e).first;
+
+        // Two-electron spectra of each J2 that couples with j_z to J
+        std::vector<double> expected;
+        for (int twoJ2 = std::abs(twoJ - z.twoj()); twoJ2 <= twoJ + z.twoj();
+             twoJ2 += 2) {
+          const CI::PsiJPi psi_2e(twoJ2, parity * z.parity(), S);
+          if (psi_2e.CSFs().empty())
+            continue;
+          const auto H_2e = CI::construct_Hci(psi_2e, h1, qk_S, &Bk, &Sk,
+                                              &s1c_2e, hk, &dSk, dE0_2e);
+          for (const auto e : LinAlg::symmhEigensystem(H_2e).first) {
+            expected.push_back(e + z.en());
+          }
+        }
+        std::sort(expected.begin(), expected.end());
+
+        REQUIRE(E_3e.size() == expected.size());
+        for (std::size_t i = 0; i < expected.size(); ++i) {
+          worst_spectator =
+            std::max(worst_spectator, std::abs(E_3e[i] - expected[i]));
+        }
+      }
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // 3. Centre-of-gravity sum rule, for each type of configuration
+  double worst_trace = 0.0;
+  {
+    const auto index = [&wf](int n, int kappa) {
+      return std::find_if(wf.basis().cbegin(), wf.basis().cend(),
+                          [n, kappa](const auto &Fn) {
+                            return Fn.n() == n && Fn.kappa() == kappa;
+                          })
+        ->nk_index();
+    };
+
+    // Trace of g over the determinants of orbitals {x, y}
+    const auto pair_trace = [&qk](DiracSpinor::Index x, DiracSpinor::Index y) {
+      const auto tjx = Angular::nkindex_to_twoj(x);
+      const auto tjy = Angular::nkindex_to_twoj(y);
+      double trace = 0.0;
+      for (int twoJ2 = std::abs(tjx - tjy); twoJ2 <= tjx + tjy; twoJ2 += 2) {
+        if (x == y && twoJ2 % 4 != 0)
+          continue;
+        trace += (twoJ2 + 1) * CI::CSF2_Coulomb(qk, x, y, x, y, twoJ2);
+      }
+      return trace;
+    };
+
+    const std::vector<std::array<DiracSpinor::Index, 3>> configs{
+      {index(2, -1), index(2, 1), index(3, 2)},   // 2s 2p- 3d-
+      {index(2, 1), index(3, 1), index(4, 1)},    // 2p- 3p- 4p-
+      {index(2, -2), index(2, -2), index(3, -1)}, // 2p+^2 3s
+      {index(2, -1), index(2, -2), index(2, -2)}, // 2s 2p+^2
+      {index(2, -2), index(2, -2), index(2, -2)}, // 2p+^3
+      {index(3, -3), index(3, -3), index(3, -3)}, // 3d+^3
+      {index(3, -3), index(3, -3), index(4, -3)} // 3d+^2 4d+
+    };
+
+    for (auto config : configs) {
+      std::sort(config.begin(), config.end());
+      const auto [x, y, z] = config;
+      const auto nx = Angular::nkindex_to_twoj(x) + 1;
+      const auto ny = Angular::nkindex_to_twoj(y) + 1;
+      const auto nz = Angular::nkindex_to_twoj(z) + 1;
+
+      // Number of determinants, and two-body trace over them
+      double num_det = 0.0;
+      double trace_g = 0.0;
+      if (x != y && y != z) {
+        num_det = nx * ny * nz;
+        trace_g =
+          nz * pair_trace(x, y) + ny * pair_trace(x, z) + nx * pair_trace(y, z);
+      } else if (x == y && y != z) {
+        num_det = nx * (nx - 1) / 2.0 * nz;
+        trace_g = nz * pair_trace(x, x) + (nx - 1) * pair_trace(x, z);
+      } else if (x != y && y == z) {
+        num_det = nx * ny * (ny - 1) / 2.0;
+        trace_g = nx * pair_trace(y, y) + (ny - 1) * pair_trace(x, y);
+      } else {
+        num_det = nx * (nx - 1) * (nx - 2) / 6.0;
+        trace_g = (nx - 2) * pair_trace(x, x);
+      }
+      const auto trace_h1 =
+        num_det * (h1.getv(x, x) + h1.getv(y, y) + h1.getv(z, z));
+      const auto expected = trace_h1 + trace_g;
+
+      double trace = 0.0;
+      for (int twoJ = 1; twoJ <= nx + ny + nz - 3; twoJ += 2) {
+        for (const auto &csf : CI::form_CSF3s(config, twoJ)) {
+          trace += (twoJ + 1) * CI::Hab(csf, csf, twoJ, h1, qk);
+        }
+      }
+      worst_trace =
+        std::max(worst_trace, std::abs(trace - expected) / std::abs(expected));
+    }
+  }
+
+  fmt::print("<H> vs <h> + <V_HF>:    {:.1e}\n", worst_closed);
+  fmt::print("E_3e vs E_2e + e_z:     {:.1e}\n", worst_spectator);
+  fmt::print("Tr(H) vs Tr(det), rel.: {:.1e}\n", worst_trace);
+  REQUIRE(worst_closed < 1.0e-10);
+  REQUIRE(worst_spectator < 1.0e-10);
+  REQUIRE(worst_trace < 1.0e-12);
 }

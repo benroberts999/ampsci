@@ -216,6 +216,26 @@ int CSF3::twoJ12() const { return m_twoJ12; }
 
 const std::vector<CSF3::Parent> &CSF3::parents() const { return m_parents; }
 
+//------------------------------------------------------------------------------
+int CSF3::num_different(const CSF3 &A, const CSF3 &B) {
+  // Count common orbitals, with repeats; works because states are sorted
+  int num_common = 0;
+  std::size_t i = 0;
+  std::size_t j = 0;
+  while (i < A.states.size() && j < B.states.size()) {
+    if (A.states[i] == B.states[j]) {
+      ++num_common;
+      ++i;
+      ++j;
+    } else if (A.states[i] < B.states[j]) {
+      ++i;
+    } else {
+      ++j;
+    }
+  }
+  return 3 - num_common;
+}
+
 bool operator==(const CSF3 &A, const CSF3 &B) {
   // only works because states is sorted
   return A.states == B.states && A.m_twoJ12 == B.m_twoJ12;

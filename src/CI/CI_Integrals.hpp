@@ -107,8 +107,8 @@ struct Sigma1Correction {
   std::map<int, double> e_sigma{};
   //! Single-particle orbital energies, keyed by nk_index
   std::map<DiracSpinor::Index, double> en{};
-  //! Reference total two-electron valence energy. 0.0 means "not set": it
-  //! belongs to a single (J, parity), and is found by @ref iterate_E0
+  //! Reference total valence energy (all valence electrons). 0.0 means "not
+  //! set": it belongs to a single (J, parity), and is found by @ref iterate_E0
   double E0{0.0};
 
   [[nodiscard]] bool empty() const { return dS1.empty(); }
@@ -123,6 +123,15 @@ struct Sigma1Correction {
   */
   [[nodiscard]] double delta_h1(DiracSpinor::Index a, DiracSpinor::Index b,
                                 DiracSpinor::Index spectator) const;
+
+  /*!
+    @brief Correction to the one-body matrix element <a|h1|b> for 3 Valence Ci states, given the two spectator orbitals.
+    @details
+    The spectator energy is the sum of the two orbital energies.
+  */
+  [[nodiscard]] double delta_h1(DiracSpinor::Index a, DiracSpinor::Index b,
+                                DiracSpinor::Index spectator1,
+                                DiracSpinor::Index spectator2) const;
 
   /*!
     @brief Reads or writes the correction tables to/from a binary file.
@@ -420,6 +429,75 @@ double Breit_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
                 const Coulomb::WkTable &Bk);
 
 /*!
+  @brief CI Hamiltonian matrix element between two three-electron CSFs.
+  @details
+  Each CSF is expanded over its parent states \f$ |[xy]J_2, z; J\rangle \f$
+  (see @ref CSF3). Both CSFs are fully antisymmetric, so the one-body part may
+  be taken to act on electron 3 only, and the two-body part on electrons 1 and
+  2 only (each with a factor of 3). The one-body part connects parents with
+  the same pair, \f$ \Phi = [xy]J_2 \f$:
+  \f[
+    \langle A|H^1|B\rangle = 3 \sum_{pq} C^A_p C^B_q \,
+    \delta_{\Phi_p \Phi_q} \, h^1_{z_p z_q} ,
+  \f]
+  and the two-body part connects parents with the same third electron:
+  \f[
+    \langle A|H^2|B\rangle = 3 \sum_{pq} C^A_p C^B_q \,
+    \delta_{z_p z_q} \delta_{J_{2p} J_{2q}} \,
+    \langle \Phi_p | g | \Phi_q \rangle ,
+  \f]
+  where the two-electron matrix element is CSF2_Coulomb().
+
+  Does NOT include \f$ \Sigma_2 \f$ or Breit corrections; add those via
+  Sigma2_AB() and Breit_AB() respectively.
+
+  @param A,B   The two CSFs.
+  @param twoJ  Twice the total angular momentum 2J. Not used: the parent states
+               carry the coupling.
+  @param h1    Table of one-body matrix elements \f$ \langle a | h_1 | b \rangle \f$.
+  @param qk    Table of Coulomb \f$ Q^k \f$ integrals.
+  @param s1c   Optional derivative (dSigma/dE) correction to Sigma_1; applied
+               to each one-body matrix element, with the two orbitals of the
+               parent pair as spectators. See @ref Sigma1Correction.
+  @return CI Hamiltonian matrix element \f$ H_{AB} \f$.
+*/
+double Hab(const CI::CSF3 &A, const CI::CSF3 &B, int twoJ,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+           const Sigma1Correction *s1c = nullptr);
+
+/*!
+  @brief Two-body Sigma_2 correction to Hab(), for three-electron CSFs.
+  @details
+  As the two-body part of Hab(const CSF3 &, ...), with CSF2_Sigma2() in place
+  of CSF2_Coulomb().
+
+  With the Brillouin-Wigner shift (@p dSk given), each Sigma_2 integral acts on
+  a pair of electrons, whose energy is \f$ E_0 - \varepsilon_z \f$, with
+  \f$ \varepsilon_z \f$ the orbital energy of the third electron. The shift
+  of each pair is therefore \f$ \delta E_0 - \varepsilon_z \f$.
+
+  @param dE0  Shift of the total valence energy E0 from the pair energy that
+              Sk was tabulated at.
+  @param orbital_energies  Orbital energies, keyed by nk_index (e.g.,
+              Sigma1Correction::en). Required if @p dSk is given.
+  @return \f$ \Sigma_2 \f$ correction to \f$ H_{AB} \f$.
+*/
+double Sigma2_AB(
+  const CI::CSF3 &A, const CI::CSF3 &B, int twoJ, const Coulomb::LkTable &Sk,
+  const Coulomb::QkTable *qk = nullptr, const std::vector<double> &hk = {},
+  const Coulomb::LkTable *dSk = nullptr, double dE0 = 0.0,
+  const std::map<DiracSpinor::Index, double> *orbital_energies = nullptr);
+
+/*!
+  @brief Breit correction to Hab(), for three-electron CSFs.
+  @details
+  As the two-body part of Hab(const CSF3 &, ...), with CSF2_Breit() in place
+  of CSF2_Coulomb().
+*/
+double Breit_AB(const CI::CSF3 &A, const CI::CSF3 &B, int twoJ,
+                const Coulomb::WkTable &Bk);
+
+/*!
   @brief Builds the one-body Hamiltonian matrix element table for the CI basis.
   @details
   Constructs a lookup table of single-particle matrix elements
@@ -647,6 +725,26 @@ construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
               const Sigma1Correction *s1c = nullptr,
               const std::vector<double> &hk = {},
               const Coulomb::LkTable *dSk = nullptr, double dE0 = 0.0);
+
+/*!
+  @brief Constructs the full CI Hamiltonian matrix for a list of CSFs.
+  @details
+  As construct_Hci(const PsiJPi &, ...), for any list of CSFs with total
+  angular momentum J: @ref CSF2 or @ref CSF3. Calls Hab(), Sigma2_AB(), and
+  Breit_AB() for each pair.
+
+  For three-electron CSFs, @p dE0 is the shift of the total (three-electron)
+  valence energy; the orbital energies of the third electron, needed for the
+  Brillouin-Wigner shift of each pair (see Sigma2_AB(const CSF3 &, ...)), are
+  taken from @p s1c, which is then required if @p dSk is given.
+*/
+template <typename CSFType>
+LinAlg::Matrix<double> construct_Hci(
+  const std::vector<CSFType> &CSFs, int twoJ,
+  const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+  const Coulomb::WkTable *Bk = nullptr, const Coulomb::LkTable *Sk = nullptr,
+  const Sigma1Correction *s1c = nullptr, const std::vector<double> &hk = {},
+  const Coulomb::LkTable *dSk = nullptr, double dE0 = 0.0);
 
 /*!
   @brief Constructs the CI Hamiltonian matrix from a set of integral tables.
