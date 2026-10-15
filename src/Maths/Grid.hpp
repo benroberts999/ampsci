@@ -147,7 +147,7 @@ public:
   auto drduor(std::size_t i) const { return m_drduor.at(i); };
 
   //! Returns the grid index closest to x. If `require_nearest` is false,
-  //! returns the index of the largest grid point ≤ x.
+  //! returns the index of the largest grid point  x.
   std::size_t getIndex(double x, bool require_nearest = false) const;
 
   //! Returns a human-readable string of grid parameters
@@ -177,7 +177,7 @@ public:
     @brief Extends the grid to at least `new_rmax`.
     @details
     This is the only mutating function; use with caution. The extended grid
-    is not guaranteed to end exactly at `new_rmax` — it will typically extend
+    is not guaranteed to end exactly at `new_rmax`  it will typically extend
     slightly beyond, as new points must land on the existing uniform u grid.
   */
   void extend_to(double new_rmax);

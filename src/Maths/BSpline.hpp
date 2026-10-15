@@ -164,7 +164,7 @@ public:
     @details
     Returns `{i0, M}`, where:
     - `i0` is the index of the first non-zero spline,
-    - `M` is a K × (n_deriv+1) matrix; `M(i, j)` is the j-th derivative of
+    - `M` is a K  (n_deriv+1) matrix; `M(i, j)` is the j-th derivative of
       spline `b[i0 + i]` evaluated at x.
 
     At most K splines are non-zero at any x. This is more efficient than

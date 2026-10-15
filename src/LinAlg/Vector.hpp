@@ -16,7 +16,7 @@ namespace LinAlg {
   **Vector vs View<T>:**
   Use `Vector<T>` when you need to own the data (e.g. storing a result,
   passing to a solver). Use `View<T>` (@ref LinAlg::View) for non-owning,
-  zero-copy access into an existing array — e.g. a row or column of a Matrix,
+  zero-copy access into an existing array  e.g. a row or column of a Matrix,
   obtained via `Matrix::row_view()` or `Matrix::column_view()`.
 
   @tparam T Element type (default: `double`).
