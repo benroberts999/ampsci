@@ -11,6 +11,7 @@
 #include "qip/omp.hpp"
 #include "version/EasterEgg.hpp"
 #include "version/version.hpp"
+#include <algorithm>
 #include <iostream>
 #include <string>
 
@@ -231,14 +232,40 @@ int main(int argc, char *argv[]) {
     return 0;
   } else if (in_text_1 == "-a" || in_text_1 == "--ampsci" ||
              in_text_1 == "-i" || in_text_1 == "--input") {
-    // Top-level options are printed only if no blocks are requested
+    // Each name is a top-level block, else a module (as -m), else an
+    // operator (as -o). No block shares a name with a module or operator, so
+    // modules and operators are looked up first; any other name is passed
+    // to the block check, which also reports unknown names. Top-level
+    // options are printed only if nothing is requested
+    const auto &modules = Module::Registry::get().entries();
+    const auto &operators = DiracOperator::Registry::get().entries();
     auto temp_input = IO::InputBlock{"ampsci"};
+    bool other_requested = false;
     for (int i_in = 2; i_in < argc; ++i_in) {
-      const std::string block_name = (argc > i_in) ? argv[i_in] : "";
-      if (!block_name.empty()) {
-        temp_input.add(IO::InputBlock{block_name, {"help;"}});
+      const std::string name = argv[i_in];
+      if (name.empty())
+        continue;
+      const auto is_module =
+        std::any_of(modules.cbegin(), modules.cend(), [&name](const auto &e) {
+          return qip::ci_wc_compare(e.name, name) ||
+                 qip::ci_wc_compare("Module::" + e.name, name);
+        });
+      const auto is_operator = std::any_of(
+        operators.cbegin(), operators.cend(),
+        [&name](const auto &e) { return qip::ci_wc_compare(e.name, name); });
+      if (is_module) {
+        Module::runModule(IO::InputBlock{name, {"help;"}}, {});
+        other_requested = true;
+      } else if (is_operator) {
+        Wavefunction wf{{1, 1.0, 1.0}, {1, 1}};
+        DiracOperator::generate(name, IO::InputBlock{name, {"help;"}}, wf);
+        other_requested = true;
+      } else {
+        temp_input.add(IO::InputBlock{name, {"help;"}});
       }
     }
+    if (temp_input.blocks().empty() && other_requested)
+      return 0;
     if (temp_input.blocks().empty()) {
       temp_input.add(IO::Option{"help", ""});
     }
