@@ -1,17 +1,18 @@
-#include "MixedStatesContinuum.hpp"
+#include "Anderson.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
 #include <cmath>
 #include <memory>
+#include <utility>
 #include <vector>
 
 //==============================================================================
-//! Anderson mixing coefficients: the constrained least-squares
-//! solution for known residuals, the history-dropping on an ill-conditioned
-//! Gram matrix, and exact convergence of the extrapolation for a small
-//! linear fixed-point problem whose damped iteration diverges.
+// Anderson mixing coefficients: the constrained least-squares
+// solution for known residuals, the history-dropping on an ill-conditioned
+// Gram matrix, and exact convergence of the extrapolation for a small
+// linear fixed-point problem whose damped iteration diverges.
 TEST_CASE("External Field: Anderson coefficients",
           "[ExternalField][MixedStatesCntm][TDHFcntm][unit]") {
   using ExternalField::anderson_coefficients;
@@ -107,11 +108,11 @@ TEST_CASE("External Field: Anderson coefficients",
 }
 
 //==============================================================================
-//! AndersonHistory: its incrementally kept Gram matrix, with the drops of the
-//! oldest entries on overflow and on ill-conditioning, must reproduce the
-//! extrapolation of the full recomputation (anderson_coefficients over the
-//! residuals), including the carried amplitude. Also DiracSpinor::add_scaled
-//! against the out-of-place form.
+// AndersonHistory: its incrementally kept Gram matrix, with the drops of the
+// oldest entries on overflow and on ill-conditioning, must reproduce the
+// extrapolation of the full recomputation (anderson_coefficients over the
+// residuals), including the carried amplitude. Also DiracSpinor::add_scaled
+// against the out-of-place form.
 TEST_CASE("External Field: Anderson history",
           "[ExternalField][MixedStatesCntm][TDHFcntm][unit]") {
   using ExternalField::anderson_coefficients;
@@ -188,4 +189,38 @@ TEST_CASE("External Field: Anderson history",
     REQUIRE(k_x == Approx(k_x_ref).epsilon(1.0e-12).margin(1.0e-12));
   }
   REQUIRE(n_conditioning_drops == 3);
+}
+
+//==============================================================================
+// AndersonVectorHistory on the linear fixed point x = A x + b of the
+// coefficients test (eigenvalues of A outside the unit circle, so damped
+// iteration diverges): the extrapolation must reach the exact solution once
+// the residual history spans the space.
+TEST_CASE("External Field: Anderson vector history",
+          "[ExternalField][TDHF][TDHFcntm][unit]") {
+  const double A[2][2] = {{1.5, 0.3}, {0.2, -1.2}};
+  const double b[2] = {1.0, 1.0};
+  // Exact: (1 - A) x = b
+  const double M[2][2] = {{1.0 - A[0][0], -A[0][1]}, {-A[1][0], 1.0 - A[1][1]}};
+  const double det = M[0][0] * M[1][1] - M[0][1] * M[1][0];
+  const double x_exact[2] = {(M[1][1] * b[0] - M[0][1] * b[1]) / det,
+                             (M[0][0] * b[1] - M[1][0] * b[0]) / det};
+
+  ExternalField::AndersonVectorHistory history(3);
+  std::vector<double> x{0.0, 0.0};
+  int its = 0;
+  double residual = 1.0;
+  for (; its < 10; ++its) {
+    std::vector<double> g{A[0][0] * x[0] + A[0][1] * x[1] + b[0],
+                          A[1][0] * x[0] + A[1][1] * x[1] + b[1]};
+    residual = std::hypot(g[0] - x[0], g[1] - x[1]);
+    if (residual < 1.0e-10)
+      break;
+    history.push(x, std::move(g));
+    x = history.mix();
+    REQUIRE(history.size() >= 1);
+  }
+  REQUIRE(its <= 4);
+  REQUIRE(x[0] == Approx(x_exact[0]).epsilon(1.0e-8));
+  REQUIRE(x[1] == Approx(x_exact[1]).epsilon(1.0e-8));
 }

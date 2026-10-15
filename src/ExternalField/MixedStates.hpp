@@ -90,6 +90,32 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
                      const MBPT::CorrelationPotential *const Sigma = nullptr);
 
 /*!
+  @brief Bound mixed-state solve with Anderson acceleration; the core
+  channels of @ref TDHF, and the bound channels of @ref TDHFcntm.
+  @details
+  Same physics and conditioning as @ref solveMixedState (in-place overload),
+  but the linear equation \f$ (h_{\rm HF} - \en_0)\,\delta F = -F_S \f$ is
+  solved by Anderson mixing (@ref anderson_coefficients) of the preconditioned
+  fixed-point map instead of damped iteration. At the high frequencies of
+  ionisation a bound channel's \f$ \en_0 = \en_a + \omega \f$ can sit near a
+  spurious eigenvalue of the local preconditioner
+  \f$ (h_{\rm local} + U_x - \en_0) \f$, where damped iteration diverges
+  although \f$ (h_{\rm HF} - \en_0) \f$ is non-singular; Anderson mixing
+  converges on the conditioning of the true operator. The iteration also
+  ends when the residual stops improving (the round-off floor of the solve,
+  which can lie above a tight @p eps_target): the best iterate is then
+  returned, with its residual in dF.eps(). Parameters as
+  @ref solveMixedState.
+*/
+void solveMixedState_Anderson(DiracSpinor &dF, const DiracSpinor &Fa,
+                              double omega, const std::vector<double> &vl,
+                              double alpha,
+                              const std::vector<DiracSpinor> &core,
+                              const DiracSpinor &Fs, double eps_target = 1.0e-9,
+                              const HF::Breit *const VBr = nullptr,
+                              const std::vector<double> &H_mag = {});
+
+/*!
   @brief Solves for dF via explicit sum over basis; mainly for tests.
   @details
   \f[

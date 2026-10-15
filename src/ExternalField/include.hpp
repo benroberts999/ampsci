@@ -1,5 +1,6 @@
 // Auto-generated ampsci include file
 #pragma once
+#include "ExternalField/Anderson.hpp"
 #include "ExternalField/CorePolarisation.hpp"
 #include "ExternalField/DiagramRPA.hpp"
 #include "ExternalField/MixedStates.hpp"

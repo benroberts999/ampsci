@@ -1,5 +1,6 @@
 #include "MixedStates.hpp"
 #include "DiracODE/include.hpp"
+#include "ExternalField/Anderson.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
 #include "MBPT/CorrelationPotential.hpp"
@@ -179,6 +180,114 @@ void solveMixedState(DiracSpinor &dF, const DiracSpinor &Fa, double omega,
   return solveMixedState(dF, Fa, omega, hf->vlocal(Fa.l()), hf->alpha(),
                          hf->core(), hFa, eps_target, Sigma, hf->vBreit(),
                          hf->Hmag(Fa.l()));
+}
+
+//==============================================================================
+void solveMixedState_Anderson(DiracSpinor &dF, const DiracSpinor &Fa,
+                              const double omega, const std::vector<double> &vl,
+                              const double alpha,
+                              const std::vector<DiracSpinor> &core,
+                              const DiracSpinor &hFa, const double eps_target,
+                              const HF::Breit *const VBr,
+                              const std::vector<double> &H_mag) {
+  // As solveMixedState(), with Anderson mixing of the preconditioned
+  // fixed-point map in place of damped iteration (see header).
+  using namespace qip::overloads;
+  assert(dF.kappa() == hFa.kappa());
+
+  const int max_its = (eps_target < 1.0e-8) ? 256 : 128;
+  const auto e0 = Fa.en() + omega;
+
+  // Near-singular same-kappa bound states: project the source orthogonal to
+  // them, solve the well-conditioned remainder, restore analytically. (Same
+  // as solveMixedState(); see conditioning_states().)
+  const auto resonant = conditioning_states(core, Fa, dF.kappa(), e0);
+  const auto orthogonalise = [&resonant](DiracSpinor &dF_v) {
+    for (const auto *Fm : resonant) {
+      dF_v.orthog(*Fm);
+    }
+  };
+  auto src = hFa;
+  std::vector<double> amps;
+  amps.reserve(resonant.size());
+  for (const auto *Fm : resonant) {
+    const auto cm = (*Fm) * src;
+    amps.push_back(cm);
+    src -= cm * (*Fm);
+  }
+
+  // Seed (or re-seed if dF holds nan from a failed solve at a nearby omega)
+  if (std::abs(dF * dF) == 0.0 || !std::isfinite(dF * dF)) {
+    DiracODE::solve_inhomog(dF, e0, vl, H_mag, alpha, -1.0 * src);
+  }
+  orthogonalise(dF);
+
+  // Local exchange on the LHS for conditioning (cancels on the RHS at the
+  // fixed point); orbital-independent Kohn-Sham exchange, as solveMixedState()
+  const auto Ux = HF::vex_KS(core);
+  const auto v = vl + Ux;
+
+  // Preconditioned fixed-point map G(dF) (fixed point = the solution)
+  const auto G = [&](const DiracSpinor &x) {
+    auto rhs = (Ux * x) - HF::vexFa(x, core) - src;
+    if (VBr) {
+      rhs -= VBr->VbrFa(x, core);
+    }
+    auto gx = x; // solve_inhomog uses x as the starting guess
+    DiracODE::solve_inhomog(gx, e0, v, H_mag, alpha, rhs);
+    orthogonalise(gx);
+    return gx;
+  };
+
+  // Anderson mixing over the recent iterates. The iteration also ends when
+  // the residual stops improving: the round-off floor of the solve can lie
+  // above a tight target, and the best iterate is then the answer
+  constexpr std::size_t history_depth = 8;
+  AndersonHistory history(history_depth);
+  auto best = dF;
+  double best_eps = 1.0e30;
+  int count_worse = 0;
+
+  int its{0};
+  double eps{};
+  for (; its < max_its; its++) {
+    auto g = G(dF);
+    auto r = g - dF;
+    const auto r2 = r.norm2();
+    eps = std::sqrt(r2 / (dF.norm2() + 1.0e-300));
+    if (eps < eps_target) {
+      dF = std::move(g);
+      break;
+    }
+    if (eps < 0.99 * best_eps) {
+      best_eps = eps;
+      best = g;
+      count_worse = 0;
+    } else if (++count_worse > 5) {
+      dF = std::move(best);
+      eps = best_eps;
+      break;
+    }
+
+    // Anderson extrapolation over the kept history: dF = sum_i c_i g_i
+    history.push(std::move(g), std::move(r), r2);
+    history.mix(&dF);
+    orthogonalise(dF);
+  }
+
+  // Restore the projected components analytically: <m|dF> = <m|src>/(e0 - e_m)
+  for (std::size_t i = 0; i < resonant.size(); ++i) {
+    const auto *Fm = resonant[i];
+    if (*Fm == Fa)
+      continue;
+    const auto denom = e0 - Fm->en();
+    if (std::abs(denom) < 1.0e-5)
+      continue;
+    dF += (amps[i] / denom) * (*Fm);
+  }
+
+  dF.its() = its;
+  dF.eps() = eps;
 }
 
 //==============================================================================

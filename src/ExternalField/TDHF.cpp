@@ -3,6 +3,7 @@
 #include "Angular/Wigner369j.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracOperator/TensorOperator.hpp"
+#include "ExternalField/Anderson.hpp"
 #include "ExternalField/MixedStates.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
@@ -219,8 +220,13 @@ void TDHF::solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fb,
 
   const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
   const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
-  ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
-                                 eps_ms, nullptr, p_VBr, Hmag);
+  if (m_use_anderson_ms) {
+    ExternalField::solveMixedState_Anderson(dF_beta, Fb, ww, vl, m_alpha,
+                                            m_core, rhs, eps_ms, p_VBr, Hmag);
+  } else {
+    ExternalField::solveMixedState(dF_beta, Fb, ww, vl, m_alpha, m_core, rhs,
+                                   eps_ms, nullptr, p_VBr, Hmag);
+  }
 }
 
 //==============================================================================
@@ -349,6 +355,46 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
 
 //==============================================================================
 void TDHF::solve_core(double omega, int max_its, bool print) {
+  if (m_use_anderson) {
+    solve_core_anderson(omega, max_its, print);
+  } else {
+    solve_core_damped(omega, max_its, print);
+  }
+
+  // Not converged: start again from scratch with the other method. Not for
+  // a first-order solve (max_its <= 1, not iterated), or above the
+  // ionisation threshold (no solution to find)
+  if (m_core_eps < m_eps || max_its <= 1 || above_ionisation_threshold(omega))
+    return;
+
+  const auto first_X = m_X;
+  const auto first_Y = m_Y;
+  const auto first_eps = m_core_eps;
+  const auto first_its = m_core_its;
+  if (print) {
+    fmt::print(" * not converged: retry with {}\n",
+               m_use_anderson ? "damped iteration" : "Anderson mixing");
+  }
+  clear();
+  if (m_use_anderson) {
+    solve_core_damped(omega, max_its, print);
+  } else {
+    solve_core_anderson(omega, max_its, print);
+  }
+
+  // Keep the better result (a NaN eps counts as worst)
+  const bool first_better =
+    std::isnan(m_core_eps) ? !std::isnan(first_eps) : first_eps < m_core_eps;
+  if (first_better) {
+    m_X = first_X;
+    m_Y = first_Y;
+    m_core_eps = first_eps;
+    m_core_its = first_its;
+  }
+}
+
+//==============================================================================
+void TDHF::solve_core_damped(double omega, int max_its, bool print) {
 
   assert(m_h->rank() == m_rank && "Rank must match in solve_core");
   assert(m_h->parity() == m_pi && "Parity must match in solve_core");
@@ -461,6 +507,102 @@ void TDHF::solve_core(double omega, int max_its, bool print) {
   m_core_eps = eps.first;
   m_core_its = it;
   m_core_omega = omega;
+}
+
+//==============================================================================
+void TDHF::solve_core_anderson(double omega, int max_its, bool print) {
+
+  assert(m_h->rank() == m_rank && "Rank must match in solve_core_anderson");
+  assert(m_h->parity() == m_pi && "Parity must match in solve_core_anderson");
+  assert(m_h->imaginaryQ() == m_imag &&
+         "Imaginarity must match in solve_core_anderson");
+
+  const double converge_targ = m_eps;
+  omega = std::abs(omega);
+
+  // Above the ionisation threshold of the core there is no bound solution;
+  // solve_core_damped() handles (and reports) that case
+  if (above_ionisation_threshold(omega)) {
+    solve_core_damped(omega, max_its, print);
+    return;
+  }
+
+  m_hFcore = form_hFcore(m_h);
+  m_hFcore_minus = form_hFcore_minus(m_hFcore);
+
+  // Anderson history of the corrections: map outputs g_k = G(x_k) and
+  // residuals r_k = g_k - x_k. The bound state is small, so a deep history
+  // is cheap; it speeds the slowest cases (e.g. finite omega) markedly.
+  constexpr std::size_t history_depth = 8;
+  AndersonVectorHistory history(history_depth);
+
+  std::pair<double, std::string> eps{};
+  int it{0};
+  qip::LiveMessage status(
+    fmt::format("TDHF {:4s} (w={:.4f}): ", m_h->name(), omega), print);
+  for (; it < max_its; it++) {
+    const auto x = dPsi_vector();
+    // Undamped map application: m_X, m_Y now hold G(x)
+    eps = tdhf_core_it(omega, 0.0);
+
+    status(fmt::format("{:2d} {:.1e} [{}]", it, eps.first, eps.second));
+
+    if (eps.first < converge_targ || std::isnan(eps.first))
+      break; // converged (or broken)
+
+    // Anderson extrapolation over the kept history: x = sum_i c_i g_i
+    history.push(x, dPsi_vector());
+    set_dPsi_vector(history.mix());
+  }
+
+  // Soft visual warning, relative to the convergence target.
+  const auto stars = (max_its <= 1)                      ? "" :
+                     (eps.first > 1.0e6 * converge_targ) ? "  ***" :
+                     (eps.first > 1.0e4 * converge_targ) ? "  **" :
+                     (eps.first > 1.0e2 * converge_targ) ? "  *" :
+                                                           "";
+  status.done(stars);
+
+  m_core_eps = eps.first;
+  m_core_its = it;
+  m_core_omega = omega;
+}
+
+//==============================================================================
+bool TDHF::above_ionisation_threshold(double omega) const {
+  const auto least_bound =
+    std::max_element(m_core.cbegin(), m_core.cend(), DiracSpinor::comp_en);
+  return least_bound != m_core.cend() && std::abs(omega) > -least_bound->en();
+}
+
+//==============================================================================
+std::vector<double> TDHF::dPsi_vector() const {
+  std::vector<double> state;
+  for (const auto *set : {&m_X, &m_Y}) {
+    for (const auto &Fs : *set) {
+      for (const auto &F : Fs) {
+        state.insert(state.end(), F.f().cbegin(), F.f().cend());
+        state.insert(state.end(), F.g().cbegin(), F.g().cend());
+      }
+    }
+  }
+  return state;
+}
+
+//==============================================================================
+void TDHF::set_dPsi_vector(const std::vector<double> &state) {
+  std::size_t i = 0;
+  for (auto *set : {&m_X, &m_Y}) {
+    for (auto &Fs : *set) {
+      for (auto &F : Fs) {
+        std::copy_n(state.cbegin() + long(i), F.f().size(), F.f().begin());
+        i += F.f().size();
+        std::copy_n(state.cbegin() + long(i), F.g().size(), F.g().begin());
+        i += F.g().size();
+      }
+    }
+  }
+  assert(i == state.size());
 }
 
 //==============================================================================

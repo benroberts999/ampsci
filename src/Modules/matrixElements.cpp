@@ -2,6 +2,7 @@
 #include "CI/include.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/CorePolarisation.hpp"
+#include "ExternalField/TDHF.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/StructureRad.hpp"
@@ -124,10 +125,14 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   if (input.has_option("help")) {
     rpa_input.add("help;");
   }
-  rpa_input.check({{"eps", "Convergance goal [1.0e-10]"},
-                   {"eta", "Damping factor - be careful with this [0.35]"},
-                   {"max_iterations", "Maximum number of iterations. 1 should "
-                                      "correspond to first-order RPA [128]"}});
+  rpa_input.check(
+    {{"eps", "Convergance goal [1.0e-10]"},
+     {"eta", "Damping factor - be careful with this [0.35]"},
+     {"max_iterations", "Maximum number of iterations. 1 should "
+                        "correspond to first-order RPA [128]"},
+     {"anderson", "TDHF only: solve by Anderson mixing (true) or damped "
+                  "iteration (false); if it does not converge, the other "
+                  "is tried [true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -200,6 +205,11 @@ void matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   if (rpa) {
     rpa->set_eta(rpa_eta);
     rpa->eps_target() = rpa_eps;
+  }
+  if (rpa && rpa->method() == ExternalField::Method::TDHF) {
+    // option only available for TDHF method
+    static_cast<ExternalField::TDHF *>(rpa.get())->set_anderson(
+      rpa_input.get("anderson", true));
   }
 
   const auto str_om = input.get<std::string>("omega", "_");

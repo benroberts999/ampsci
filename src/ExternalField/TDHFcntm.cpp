@@ -3,6 +3,8 @@
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracODE/ContinuumState.hpp"
 #include "DiracOperator/TensorOperator.hpp"
+#include "ExternalField/Anderson.hpp"
+#include "ExternalField/MixedStates.hpp"
 #include "ExternalField/MixedStatesContinuum.hpp"
 #include "HF/HartreeFock.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -179,8 +181,7 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
   // state (the dominant memory use); depth 4 converges as well as deeper
   // histories here.
   constexpr std::size_t history_depth = 4;
-  std::vector<std::vector<double>> g_hist;
-  std::vector<std::vector<double>> r_hist;
+  AndersonVectorHistory history(history_depth);
 
   std::pair<double, std::string> eps{};
   double best_eps{1.0e30};
@@ -200,45 +201,13 @@ void TDHFcntm::solve_core(double omega, int max_its, bool print) {
       break; // converged (or broken)
     eps_ms = inner_tolerance(eps.first);
 
-    auto g = state_vector();
-    auto r = g;
-    for (std::size_t i = 0; i < r.size(); ++i) {
-      r[i] -= x[i];
-    }
-    g_hist.push_back(std::move(g));
-    r_hist.push_back(std::move(r));
-    if (g_hist.size() > history_depth) {
-      g_hist.erase(g_hist.begin());
-      r_hist.erase(r_hist.begin());
-    }
-
     // Anderson extrapolation over the kept history: x = sum_i c_i g_i
-    const auto m = r_hist.size();
-    std::vector<std::vector<double>> gram(m, std::vector<double>(m, 0.0));
-    for (std::size_t i = 0; i < m; ++i) {
-      for (std::size_t j = 0; j <= i; ++j) {
-        double sum = 0.0;
-        for (std::size_t k = 0; k < r_hist[i].size(); ++k) {
-          sum += r_hist[i][k] * r_hist[j][k];
-        }
-        gram[i][j] = sum;
-        gram[j][i] = sum;
-      }
-    }
-    const auto c = anderson_coefficients(gram);
-    const auto n_drop = long(m - c.size());
-    g_hist.erase(g_hist.begin(), g_hist.begin() + n_drop);
-    r_hist.erase(r_hist.begin(), r_hist.begin() + n_drop);
+    history.push(x, state_vector());
+    const auto x_new = history.mix();
     // Nothing to mix (a single entry is the plain step, which the sets
     // already hold)
-    if (c.size() <= 1)
+    if (history.size() <= 1)
       continue;
-    std::vector<double> x_new(g_hist[0].size(), 0.0);
-    for (std::size_t i = 0; i < c.size(); ++i) {
-      for (std::size_t k = 0; k < x_new.size(); ++k) {
-        x_new[k] += c[i] * g_hist[i][k];
-      }
-    }
     set_state(x_new);
 
     // Stalled: no meaningful improvement for several iterations -> give up.
@@ -461,7 +430,7 @@ void TDHFcntm::solve_channel_bound(DiracSpinor *dF_beta, const DiracSpinor &Fb,
                                    dPsiType XorY, double eps_ms) const {
   // Bound channel (closed orbital, or the Y partner of an ionised orbital):
   // plain V^N bound solve, as TDHF, with Anderson mixing of the mixed-state
-  // iteration (solveMixedState_cntm). The V^{N-1} rearrangement applies to
+  // iteration (solveMixedState_Anderson). The V^{N-1} rearrangement applies to
   // the open channels only.
   using namespace qip::overloads;
   const auto ww = XorY == dPsiType::X ? omega : -omega;
@@ -473,8 +442,8 @@ void TDHFcntm::solve_channel_bound(DiracSpinor *dF_beta, const DiracSpinor &Fb,
   }
   const auto vl = p_hf->vlocal(Angular::l_k(Fb.kappa()));
   const auto &Hmag = p_hf->Hmag(Angular::l_k(Fb.kappa()));
-  ExternalField::solveMixedState_cntm(*dF_beta, Fb, ww, vl, m_alpha, m_core,
-                                      rhs, eps_ms, p_VBr, Hmag);
+  ExternalField::solveMixedState_Anderson(*dF_beta, Fb, ww, vl, m_alpha, m_core,
+                                          rhs, eps_ms, p_VBr, Hmag);
 }
 
 //==============================================================================

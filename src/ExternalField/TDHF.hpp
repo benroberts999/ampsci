@@ -76,6 +76,13 @@ protected:
   // If true, eps is the relative change |dPsi| (sqrt of the ratio); if false,
   // the squared ratio. See eps_dPsi().
   bool m_eps_sqrt{false};
+  // Method of solve_core(): Anderson mixing if true, damped iteration if
+  // false; the other is the fallback
+  bool m_use_anderson{true};
+  // Method of the core mixed-state solves: Anderson mixing
+  // (solveMixedState_Anderson) if true, damped iteration (solveMixedState)
+  // if false
+  bool m_use_anderson_ms{true};
 
 public:
   /*!
@@ -95,6 +102,10 @@ public:
     eps_target(), or @p max_its iterations have been performed.
     Can be re-run at a different frequency without restarting from scratch.
 
+    Solved by solve_core_anderson() (default) or solve_core_damped(). If
+    that does not converge, the solve is started again from scratch with the
+    other method, and the better result is kept.
+
     @param omega    External-field frequency \f$ \omega \f$ in atomic units.
     @param max_its  Maximum number of iterations.
                    Set to 1 to get the first-order correction (no damping on
@@ -110,16 +121,38 @@ public:
 
     @note Does not update the frequency of the operator itself; for frequency-dependent
     operators, update the operator frequency externally before calling.
+  */
+  virtual void solve_core(double omega, int max_its = 100,
+                          bool print = true) override;
 
-    --
+  /*!
+    @brief As solve_core(), by damped iteration only (no fallback).
+    @details
+    Each iteration mixes the new corrections with the previous ones, with
+    damping factor eta().
 
     @note nb: if the iterations stall, the solve is restarted from scratch with
     different damping (weaker, then stronger), up to a few times, each with
     a further max_its iterations; the best attempt is kept. eta() itself is
     not changed.
   */
-  virtual void solve_core(double omega, int max_its = 100,
-                          bool print = true) override;
+  void solve_core_damped(double omega, int max_its = 128, bool print = true);
+
+  /*!
+    @brief As solve_core(), by Anderson mixing only (no fallback).
+    @details
+    Self-consistency is driven by Anderson mixing (@ref anderson_coefficients)
+    of all the corrections together, X and Y. Each iteration applies the
+    TDHF map undamped, then extrapolates over the recent iterates. The TDHF
+    equations are linear in the corrections, so this is equivalent to
+    truncated GMRES: there is no damping parameter, and it converges
+    wherever the equations are non-singular.
+  */
+  void solve_core_anderson(double omega, int max_its = 128, bool print = true);
+
+  //! Method of solve_core(): Anderson mixing if true (default), damped
+  //! iteration if false; the other is the fallback
+  void set_anderson(bool andersonQ) { m_use_anderson = andersonQ; }
 
   virtual Method method() const override { return Method::TDHF; }
 
@@ -213,6 +246,15 @@ private:
   std::pair<double, std::string>
   eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
            bool relative) const;
+
+  // True if |omega| exceeds the ionisation threshold of the core, where the
+  // core equations have no bound solution
+  bool above_ionisation_threshold(double omega) const;
+
+  // The corrections X and Y as one real vector, and back: the Anderson
+  // iterate of solve_core_anderson()
+  std::vector<double> dPsi_vector() const;
+  void set_dPsi_vector(const std::vector<double> &state);
 
 public:
   TDHF &operator=(const TDHF &) = delete;
