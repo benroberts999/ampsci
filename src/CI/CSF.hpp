@@ -11,25 +11,94 @@
 
 namespace CI {
 
-//==============================================================================
+//------------------------------------------------------------------------------
+/*!
+  @brief Base class for configuration state functions (CSFs).
+
+  @details
+  A CSF is an antisymmetrised N-electron basis state with definite total
+  angular momentum (\f$ J^2 \f$, \f$ J_z \f$) and parity \f$\pi\f$.
+  Each CSF is built from a combination of \f$ N \f$-electron Slater determinants,
+  which are themselves built from N single-particle relativistic orbitals.
+  Each Slater determinant has a specific set of single-particle angular
+  momentum projections \f$ j_{i,z} = m_i \f$, with \f$ \sum_i m_i = J_z \f$:
+
+  \f[
+    |I; J J_z\rangle = \sum_{\{m\}} d_{\{m\}} \,
+    |n_1\kappa_1 m_1, n_2\kappa_2 m_2, \ldots, n_N\kappa_N m_N\rangle,
+  \f]
+
+  where the kets on the right are (normalised) Slater determinants, and
+
+  \f[
+    \sum_{\{m\}} d_{\{m\}}^2 = 1.
+  \f]
+
+  The parity is the product from the orbitals,
+
+  \f[
+    \pi = \prod_i (-1)^{l_i}.
+  \f]
+
+  The determinants are not formed explicitly: the coefficients
+  \f$ d_{\{m\}} \f$ are fixed by angular momentum coupling, so matrix elements
+  are evaluated directly in the coupled basis.
+
+  Specialised by @ref CSF2 (two electrons) and @ref CSF3 (three electrons).
+*/
+class CSF {
+protected:
+  int m_parity{1};
+
+  explicit CSF(int parity) : m_parity(parity) {}
+  CSF(const CSF &) = default;
+  CSF(CSF &&) = default;
+  CSF &operator=(const CSF &) = default;
+  CSF &operator=(CSF &&) = default;
+
+public:
+  virtual ~CSF() = default;
+
+  //! Parity of the CSF, +/-1
+  int parity() const { return m_parity; }
+
+  //! Number of electrons in the CSF
+  virtual std::size_t num_electrons() const = 0;
+
+  //! Single-particle configuration as a string, in relativistic or non-rel form
+  virtual std::string config(bool relativistic = false) const = 0;
+};
+
+//------------------------------------------------------------------------------
 /*!
   @brief Two-electron configuration state function (CSF).
+
   @details
   A CSF is an antisymmetrised two-electron basis state with definite total
-  angular momentum (\f$ J^2 \f$, \f$ J_z \f$) and parity, 
+  angular momentum (\f$ J^2 \f$, \f$ J_z \f$) and parity,
   built from a pair of single-particle
-  relativistic orbitals.  Only two-electron CSFs are implemented.
+  relativistic orbitals. See @ref CSF3 for three electrons.
 
-  Each CSF2 stores the indices of its two constituent orbitals (always sorted
-  to avoid double-counting) and the total parity, which is the product of the
-  parities of the two single-particle states.
+  For orbitals v and w, the determinant coefficients of @ref CSF are
+  simply Clebcsh-Gordan coefficients:
+  \f[
+    |vw; J J_z\rangle = \eta_{vw} \sum_{m_v m_w}
+    C^{J J_z}_{j_v m_v, j_w m_w} \, |n_v\kappa_v m_v, n_w\kappa_w m_w\rangle,
+  \f]
+  where \f$ \eta_{vw} = 1/\sqrt{2} \f$ if v = w (both electrons in the same
+  orbital), and 1 otherwise. 
+  
+  The orbitals are put in sorted order (v before w); this fixes the phase
+  convention of all CSF2 matrix elements (e.g., CSF2_Coulomb()).
+
+  Each CSF2 stores the indices (@ref DiracSpinor::Index) of its two constituent orbitals (always sorted to avoid double-counting) and the total parity, 
+  which is the product of the parities of the two single-particle states.
 
   @note The orbital pair is stored as a sorted array of DiracSpinor::Index
         (uint16_t) rather than DiracSpinor references, so CSF2 objects are
         cheap to copy and store. There is a limit to maximum n<=256 - see @ref Angular::nk_to_index
 */
-class CSF2 {
-  int m_parity;
+class CSF2 : public CSF {
 
 public:
   // nb: array of states is always sorted
@@ -79,14 +148,13 @@ public:
   */
   static DiracSpinor::Index same_1_j(const CSF2 &A, const CSF2 &B);
 
-  //! Parity of the CSF, +/-1
-  int parity() const;
+  std::size_t num_electrons() const override { return 2; }
 
   //! Single-particle configuration as a string, in relativistic or non-rel form
-  std::string config(bool relativistic = false) const;
+  std::string config(bool relativistic = false) const override;
 };
 
-//==============================================================================
+//------------------------------------------------------------------------------
 /*!
   @brief Forms all two-electron CSFs with given total J and parity.
   @details
@@ -102,6 +170,185 @@ public:
 */
 std::vector<CSF2> form_CSFs(int twoJ, int parity,
                             const std::vector<DiracSpinor> &cisp_basis);
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Three-electron configuration state function (CSF).
+
+  @details
+  An antisymmetrised three-electron state with definite total angular momentum
+  J, J_z, and parity, built from three single-particle orbitals (which may
+  coincide).
+
+  The determinant coefficients of @ref CSF are not stored directly. Instead,
+  the CSF is stored as an expansion over "parent" states, which are
+  antisymmetric in electrons 1 and 2 only: a two-electron CSF \f$ [xy] \f$
+  (exactly as @ref CSF2) with angular momentum \f$ J_2 \f$, coupled to the
+  orbital z of the third electron:
+  \f[
+    |[xy] J_2, z; J J_z\rangle = \sum_{M_2 m_z}
+    C^{J J_z}_{J_2 M_2, j_z m_z} \, |xy; J_2 M_2\rangle_{12} \,
+    |n_z\kappa_z m_z\rangle_3 ,
+  \f]
+
+  where \f$ |xy; J_2 M_2\rangle_{12} \f$ is the CSF2 state of 
+  electrons 1 and 2. 
+  
+  The three-electron CSF is then:
+  
+  \f[
+    |\Psi; J J_z\rangle = \sum_p C_p \, |[x_p y_p] J_{2p}, z_p; J J_z\rangle,
+  \f]
+
+  normalised such that
+
+  \f[
+    \sum_p C_p^2 = 1.
+  \f]
+
+  The parent coefficients \f$ C_p \f$ are chosen such that
+  \f$ |\Psi\rangle \f$ is fully antisymmetric (see @ref form_CSF3s); together
+  with the Clebsch-Gordan coefficients above, they fix the determinant
+  coefficients \f$ d_{\{m\}} \f$. (In the literature, these are called
+  "coefficients of fractional parentage": the three-electron state is built
+  by adding one electron to each two-electron parent, and \f$ C_p \f$ is the
+  amplitude of parent p.)
+
+  Expanding over parents reduces three-electron matrix elements to sums of
+  two-electron (or one-electron) ones. E.g., for a two-body operator,
+  \f[
+    \langle\Psi|\sum_{i<j} g_{ij}|\Psi'\rangle
+    = 3\sum_{pq} C_p C'_q \, \delta_{z_p z_q}\delta_{J_{2p}J_{2q}}
+    \langle [x_p y_p] J_{2p}|g|[x_q y_q] J_{2q}\rangle .
+  \f]
+
+  The expansion depends on J, so (as for @ref CSF2) each CSF belongs to a
+  single J. Formed by @ref form_CSF3s.
+
+  @note Orbitals are stored as DiracSpinor::Index (sorted), as in @ref CSF2.
+*/
+class CSF3 : public CSF {
+public:
+  //! One parent state of a CSF3, and its coefficient
+  struct Parent {
+    //! Orbitals of the parent two-electron CSF (sorted, as in CSF2)
+    std::array<DiracSpinor::Index, 2> pair;
+    //! Orbital of the third electron
+    DiracSpinor::Index spectator;
+    //! Twice the angular momentum of the parent pair, 2*J2
+    int twoJ2;
+    //! Coefficient of this parent, C_p
+    double coef;
+  };
+
+  //! The three orbitals; always sorted
+  std::array<DiracSpinor::Index, 3> states;
+
+private:
+  int m_twoJ12;
+  std::vector<Parent> m_parents;
+
+public:
+  /*!
+    @brief Constructs from the three orbitals and the parent expansion.
+    @param orbitals  The three orbitals (any order; stored sorted).
+    @param twoJ12    Label: 2*J12 of the coupling the CSF was formed from (see
+                     @ref form_CSF3s).
+    @param parents   Parent states and their coefficients.
+  */
+  CSF3(const std::array<DiracSpinor::Index, 3> &orbitals, int twoJ12,
+       std::vector<Parent> parents);
+
+  //! Index (nk_index) of the ith constituent orbital (i = 0, 1, or 2)
+  DiracSpinor::Index state(std::size_t i) const;
+
+  //! Label: 2*J12 of the two-electron coupling the CSF was formed from
+  int twoJ12() const;
+
+  //! Parent states and their coefficients
+  const std::vector<Parent> &parents() const;
+
+  std::size_t num_electrons() const override { return 3; }
+
+  //! Single-particle configuration as a string, in relativistic or non-rel form
+  std::string config(bool relativistic = false) const override;
+
+  friend bool operator==(const CSF3 &A, const CSF3 &B);
+  friend bool operator!=(const CSF3 &A, const CSF3 &B);
+};
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Exchange of electrons 2 and 3, between two parent states of a
+  CSF3.
+  @details
+  Matrix element
+  \f$ \langle [x'y']J_2', z'; J | P_{23} | [xy]J_2, z; J \rangle \f$, where
+  each state is antisymmetric in electrons 1 and 2 (see @ref CSF3::Parent). In
+  terms of uncoupled-pair states, the exchange is the recoupling
+
+  \f[
+    P_{23}|(o_1 o_2)J_{12}, o_3; J\rangle
+    = \sum_K (-1)^{j_3+j_2+K+J_{12}}\sqrt{[K][J_{12}]}
+      \begin{Bmatrix} j_3 & j_1 & K \\ j_2 & J & J_{12} \end{Bmatrix}
+      |(o_1 o_3)K, o_2; J\rangle .
+  \f]
+
+  @param bra,ket  Parent states (their coef members are not used).
+  @param twoJ     Twice the total angular momentum 2J.
+  @return The matrix element.
+*/
+double parent_exchange_23(const CSF3::Parent &bra, const CSF3::Parent &ket,
+                          int twoJ);
+
+/*!
+  @brief Forms all three-electron CSFs of a single configuration, with given
+  total J.
+  @details
+  Builds an orthonormal basis for the antisymmetric three-electron states of
+  the configuration, each as its expansion over parent states (see
+  @ref CSF3):
+
+  1. Parent basis: all \f$ |[xy]J_2, z; J\rangle \f$, for each distinct choice
+     of orbital z for the third electron, with [xy] the remaining pair. J2 is
+     even if x = y, and is limited by the triangle rules. These are
+     orthonormal, and span the states antisymmetric in electrons 1 and 2.
+  2. On that space, the full antisymmetriser is
+     \f[
+       A = \frac{1}{3}(1 - 2P_{23})
+     \f]
+     (see @ref parent_exchange_23); each column \f$ A|p\rangle \f$ is fully
+     antisymmetric.
+  3. Gram-Schmidt orthonormalisation of the \f$ A|p\rangle \f$, starting with
+     the standard couplings ((ab)J12, c)J (or ((bc)J12, a)J if only b = c);
+     linearly dependent vectors are discarded.
+
+  For three distinct orbitals this gives one CSF per allowed J12; for
+  \f$ j^2 j' \f$, one per even J12; for \f$ j^3 \f$, the standard
+  \f$ j^3 \f$ states, including repeated J (e.g., the two J = 9/2 states of
+  \f$ (9/2)^3 \f$).
+
+  @param orbitals  The three orbitals (nk_index; any order; may coincide).
+  @param twoJ      Twice the total angular momentum 2J.
+  @return The CSFs of this configuration and J; empty if there are none.
+*/
+std::vector<CSF3> form_CSF3s(std::array<DiracSpinor::Index, 3> orbitals,
+                             int twoJ);
+
+/*!
+  @brief Forms all three-electron CSFs with given total J and parity.
+  @details
+  Iterates over all distinct triples (with repetition) of single-particle
+  states in @p cisp_basis with total parity @p parity, and forms the CSFs of
+  each; see @ref form_CSF3s(std::array<DiracSpinor::Index, 3>, int).
+
+  @param twoJ       Twice the total angular momentum 2J (odd).
+  @param parity     Total parity: +1 (even) or -1 (odd).
+  @param cisp_basis Single-particle basis from which CSFs are constructed.
+  @return All three-electron CSFs for the given J and parity.
+*/
+std::vector<CSF3> form_CSF3s(int twoJ, int parity,
+                             const std::vector<DiracSpinor> &cisp_basis);
 
 //==============================================================================
 /*!
@@ -146,10 +393,14 @@ double LS_amplitude(int n1, int l1, int twoj1, int n2, int l2, int twoj2, int L,
   @details
   Recouples each CSF to LS coupling (see @ref LS_amplitude) and accumulates,
   per non-relativistic configuration g,
-  \f$ B_g(L,S) = \sum_{I \in g} c_I A_I(L,S) \f$, giving
-
   \f[
-    \langle L^2 \rangle = \sum_{g,L,S} B_g(L,S)^2 \, L(L+1), \qquad
+    B_g(L,S) = \sum_{I \in g} c_I A_I(L,S),
+  \f]
+  giving
+  \f[
+    \langle L^2 \rangle = \sum_{g,L,S} B_g(L,S)^2 \, L(L+1),
+  \f]
+  \f[
     \langle S^2 \rangle = \sum_{g,L,S} B_g(L,S)^2 \, S(S+1).
   \f]
 

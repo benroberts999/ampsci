@@ -3,8 +3,12 @@
 #include "Maths/Grid.hpp"
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
+#include <algorithm>
+#include <array>
 #include <cmath>
+#include <map>
 #include <string>
+#include <tuple>
 #include <vector>
 
 //==============================================================================
@@ -167,4 +171,178 @@ TEST_CASE("CI: LS coupling", "[CI][unit]") {
     REQUIRE(L2b == Approx(0.0).margin(1.0e-12));
     REQUIRE(S2b == Approx(0.0).margin(1.0e-12));
   }
+}
+
+//==============================================================================
+// Tests the three-electron CSFs: the number formed for each configuration and
+// J (against an independent count of m-scheme determinants), and that each is
+// normalised, orthogonal, and fully antisymmetric (by explicit expansion over
+// single-particle m)
+TEST_CASE("CI: three-electron CSFs", "[CI][unit]") {
+
+  std::cout << "CI three-electron CSFs\n";
+
+  const auto grid = std::make_shared<const Grid>(
+    GridParameters{10, 1.0e-4, 10.0, 5.0, GridType::loglinear});
+
+  // j = 1/2 to 9/2: includes j^3 with unique J, e.g. (5/2)^3, and with
+  // repeated J: (9/2)^3 has two J = 9/2 states
+  std::vector<DiracSpinor> basis;
+  for (const auto &[n, kappa] : std::vector<std::pair<int, int>>{
+         {4, -1}, {5, -1}, {4, 1}, {4, -2}, {3, 2}, {4, 3}, {5, -5}}) {
+    basis.emplace_back(n, kappa, grid);
+  }
+
+  // Number of determinants of the configuration with total 2*M = twoM.
+  // Equal orbitals are adjacent (sorted); their m strictly increase (Pauli)
+  const auto num_determinants =
+    [](const std::array<DiracSpinor::Index, 3> &orbitals, int twoM) {
+      const auto tj0 = Angular::nkindex_to_twoj(orbitals[0]);
+      const auto tj1 = Angular::nkindex_to_twoj(orbitals[1]);
+      const auto tj2 = Angular::nkindex_to_twoj(orbitals[2]);
+      int count = 0;
+      for (int m0 = -tj0; m0 <= tj0; m0 += 2) {
+        for (int m1 = -tj1; m1 <= tj1; m1 += 2) {
+          if (orbitals[1] == orbitals[0] && m1 <= m0)
+            continue;
+          const auto m2 = twoM - m0 - m1;
+          if (std::abs(m2) > tj2)
+            continue;
+          if (orbitals[2] == orbitals[1] && m2 <= m1)
+            continue;
+          ++count;
+        }
+      }
+      return count;
+    };
+
+  // Total number of CSFs for each {2J, parity}, summed over configurations
+  std::map<std::pair<int, int>, std::size_t> expected_totals;
+
+  std::size_t worst_count_error = 0;
+  double worst_norm = 0.0;
+  double worst_antisymmetry = 0.0;
+  double worst_overlap = 0.0;
+
+  for (std::size_t i = 0; i < basis.size(); ++i) {
+    for (std::size_t j = i; j < basis.size(); ++j) {
+      for (std::size_t k = j; k < basis.size(); ++k) {
+        std::array orbitals{basis[i].nk_index(), basis[j].nk_index(),
+                            basis[k].nk_index()};
+        std::sort(orbitals.begin(), orbitals.end());
+        const auto parity =
+          basis[i].parity() * basis[j].parity() * basis[k].parity();
+        const auto max_twoJ =
+          basis[i].twoj() + basis[j].twoj() + basis[k].twoj();
+
+        for (int twoJ = 1; twoJ <= max_twoJ; twoJ += 2) {
+          const auto csfs = CI::form_CSF3s(orbitals, twoJ);
+
+          const auto expected =
+            std::size_t(num_determinants(orbitals, twoJ) -
+                        num_determinants(orbitals, twoJ + 2));
+          expected_totals[{twoJ, parity}] += expected;
+          worst_count_error = std::max(
+            worst_count_error, csfs.size() > expected ? csfs.size() - expected :
+                                                        expected - csfs.size());
+
+          // Expansion of each CSF over single-particle states, at M = J:
+          // amplitude of |o1 m1>|o2 m2>|o3 m3>, key {o1, 2m1, o2, 2m2, o3, 2m3}
+          std::vector<std::map<std::array<int, 6>, double>> expansions;
+          for (const auto &csf : csfs) {
+            auto &amplitude = expansions.emplace_back();
+            for (const auto &parent : csf.parents()) {
+              const auto [x, y] = parent.pair;
+              const auto z = parent.spectator;
+              const auto tjx = Angular::nkindex_to_twoj(x);
+              const auto tjy = Angular::nkindex_to_twoj(y);
+              const auto tjz = Angular::nkindex_to_twoj(z);
+              // Parent pair, antisymmetric in electrons 1 and 2 (as CSF2):
+              // {orbital of 1, orbital of 2, coefficient}
+              const auto eta = x == y ? 1.0 : 1.0 / std::sqrt(2.0);
+              std::vector<std::tuple<int, int, double>> pair_terms{{x, y, eta}};
+              if (x != y) {
+                const auto s = Angular::neg1pow_2(tjx + tjy - parent.twoJ2);
+                pair_terms.push_back({y, x, -s * eta});
+              }
+              for (const auto &[o1, o2, c] : pair_terms) {
+                const auto tj1 = Angular::nkindex_to_twoj(std::uint64_t(o1));
+                const auto tj2 = Angular::nkindex_to_twoj(std::uint64_t(o2));
+                for (int m1 = -tj1; m1 <= tj1; m1 += 2) {
+                  for (int m2 = -tj2; m2 <= tj2; m2 += 2) {
+                    const auto twoM2 = m1 + m2;
+                    const auto m3 = twoJ - twoM2;
+                    if (std::abs(m3) > tjz)
+                      continue;
+                    const auto cg =
+                      Angular::cg_2(tj1, m1, tj2, m2, parent.twoJ2, twoM2) *
+                      Angular::cg_2(parent.twoJ2, twoM2, tjz, m3, twoJ, twoJ);
+                    if (cg == 0.0)
+                      continue;
+                    amplitude[{o1, m1, o2, m2, int(z), m3}] +=
+                      parent.coef * c * cg;
+                  }
+                }
+              }
+            }
+          }
+
+          for (std::size_t a = 0; a < expansions.size(); ++a) {
+            const auto &amplitude = expansions[a];
+            double norm2 = 0.0;
+            for (const auto &[key, value] : amplitude) {
+              norm2 += value * value;
+              const auto [o1, m1, o2, m2, o3, m3] = key;
+              // Exchange of electrons 1-2, 1-3, 2-3: amplitude changes sign
+              for (const auto &exchanged :
+                   {std::array{o2, m2, o1, m1, o3, m3},
+                    std::array{o3, m3, o2, m2, o1, m1},
+                    std::array{o1, m1, o3, m3, o2, m2}}) {
+                const auto it = amplitude.find(exchanged);
+                const auto value_exchanged =
+                  it == amplitude.end() ? 0.0 : it->second;
+                worst_antisymmetry = std::max(
+                  worst_antisymmetry, std::abs(value + value_exchanged));
+              }
+            }
+            worst_norm = std::max(worst_norm, std::abs(norm2 - 1.0));
+
+            for (std::size_t b = a + 1; b < expansions.size(); ++b) {
+              double overlap = 0.0;
+              for (const auto &[key, value] : expansions[b]) {
+                const auto it = amplitude.find(key);
+                if (it != amplitude.end()) {
+                  overlap += value * it->second;
+                }
+              }
+              worst_overlap = std::max(worst_overlap, std::abs(overlap));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  fmt::print("Worst: count error {}, |norm-1| {:.1e}, antisymmetry {:.1e}, "
+             "overlap {:.1e}\n",
+             worst_count_error, worst_norm, worst_antisymmetry, worst_overlap);
+  REQUIRE(worst_count_error == 0);
+  REQUIRE(worst_norm < 1.0e-12);
+  REQUIRE(worst_antisymmetry < 1.0e-12);
+  REQUIRE(worst_overlap < 1.0e-12);
+
+  // All configurations of the basis together
+  for (const auto &[twoJ_parity, expected] : expected_totals) {
+    const auto [twoJ, parity] = twoJ_parity;
+    REQUIRE(CI::form_CSF3s(twoJ, parity, basis).size() == expected);
+  }
+
+  // j^3 with repeated J: two J = 9/2 states of (5g9/2)^3, labelled by the
+  // J12 of the coupling each was formed from
+  const auto g = basis.back().nk_index();
+  const auto g3 = CI::form_CSF3s({g, g, g}, 9);
+  REQUIRE(g3.size() == 2);
+  REQUIRE(g3[0].twoJ12() != g3[1].twoJ12());
+  REQUIRE(g3[0].config(true) == "5g+^3");
+  REQUIRE(g3[0].config(false) == "5g^3");
 }
