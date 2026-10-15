@@ -10,6 +10,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
 #include "fmt/format.hpp"
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <optional>
@@ -80,9 +81,9 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
            "May be a comma separated list "
            "(A = 0+:0, 1-:2;) each pair (A_i -> B_i) is calculated in turn, "
            "with a summary of the totals at the end [required]"},
-     {"B", "Final CI state(s), as for A [default: same as A]. If B is "
-           "shorter than A, the remaining pairs are diagonal: A = a,b,c; "
-           "B = d,e; gives (a,d), (b,e), (c,c)"},
+     {"B", "Final CI state(s), as for A [default: same as A]. If the lists "
+           "differ in length, the shorter is padded with its final state: "
+           "A = a,b,c; B = d,e; gives (a,d), (b,e), (c,e)"},
      {"t", "The operator that carries the frequency omega [E1]"},
      {"t_options{}", "Options for the t operator"},
      {"s", "The other operator; it carries omega_s = E_b - E_a - omega [E1]"},
@@ -147,7 +148,7 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
   // The CI states: lists of A (and B), calculated pairwise (A_i -> B_i).
-  // If B is shorter than A, the remaining pairs are diagonal
+  // The shorter list is padded with its final state; an empty B means B = A
   const auto list_A = input.get("A", std::vector<std::string>{});
   const auto list_B = input.get("B", std::vector<std::string>{});
   if (list_A.empty()) {
@@ -155,10 +156,7 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << ": No A state(s) given\n";
     return;
   }
-  if (list_B.size() > list_A.size()) {
-    fmt2::warning();
-    std::cout << ": B list is longer than A; the extra B states are ignored\n";
-  }
+  const auto num_pairs = std::max(list_A.size(), list_B.size());
 
   //----------------------------------------------------------------------------
   // The two operators
@@ -281,13 +279,14 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   };
   std::vector<Summary> summary;
 
-  for (std::size_t i = 0; i < list_A.size(); ++i) {
-    const auto &str_A = list_A.at(i);
-    const auto &str_B = i < list_B.size() ? list_B.at(i) : str_A;
+  for (std::size_t i = 0; i < num_pairs; ++i) {
+    const auto &str_A = list_A.at(std::min(i, list_A.size() - 1));
+    const auto &str_B =
+      list_B.empty() ? str_A : list_B.at(std::min(i, list_B.size() - 1));
 
-    if (list_A.size() > 1) {
+    if (num_pairs > 1) {
       std::cout << "\n";
-      IO::print_line('-', 40);
+      // IO::print_line('-', 40);
     }
 
     const auto level_A = CI::parse_level(str_A);
@@ -498,15 +497,17 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
 
-    // PNC amplitude: the static operator is the PNC interaction
+    // PNC amplitude: the static operator is the PNC interaction. Both columns
+    // are in the units of the PNC operator, given in the title
     if (hs->name().substr(0, 3) == "pnc") {
-      title = "PNC amplitude";
-      name = fmt::format("E_pnc ({})", hs->units());
+      title = fmt::format("PNC amplitude ({})", hs->units());
+      name = "E_pnc";
     }
 
     //--------------------------------------------------------------------------
     fmt::print("\n{}:\n", title);
-    fmt::print("{:<14} {:>16} {:>16}\n", "", fmt::format("A^{}", K), name);
+    // Column labels line up with the first digit of the values (after sign)
+    fmt::print("{:<19}{:<17}{}\n", "", fmt::format("A^{}", K), name);
     fmt::print("{:<14} {:16.6e} {:16.6e}\n", "valence (CI)", A_val,
                factor * A_val);
     fmt::print("{:<14} {:16.6e} {:16.6e}\n", "core", A_core, factor * A_core);
@@ -522,9 +523,9 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
   // Summary of the totals, for a list of pairs
-  if (list_A.size() > 1 && !summary.empty()) {
+  if (num_pairs > 1 && !summary.empty()) {
     std::cout << "\n";
-    IO::print_line('-', 40);
+    // IO::print_line('-', 40);
     std::cout << "\nSummary of totals:\n";
     fmt::print("{:>6} {:>6} {:>3} {:>16} {:>16}\n", "A", "B", "K", "A^K",
                "value");
