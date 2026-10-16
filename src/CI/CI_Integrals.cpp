@@ -508,7 +508,7 @@ iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
 
   constexpr auto eps_E0 = 1.0e-8;
   constexpr auto max_iterations = 16;
-  const auto N_CSFs = psi->CSFs().size();
+  const auto N_CSFs = psi->num_CSFs();
 
   // Sigma_2 was tabulated at the reference E0_sigma2, and is shifted to the
   // current E0 using dS^k/dE0 (see corrected_Sk). Both corrections then move
@@ -522,7 +522,7 @@ iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
   auto s1_Jpi = s1c;
 
   // E0 = 0.0 means "not set": start from the lowest zeroth-order configuration
-  // (two electrons in the lowest orbital)
+  // (all valence electrons in the lowest orbital)
   if (s1_Jpi.E0 == 0.0) {
     auto e_min = 0.0;
     for (const auto &orbital : s1_Jpi.en) {
@@ -530,7 +530,7 @@ iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
         e_min = orbital.second;
       }
     }
-    s1_Jpi.E0 = 2.0 * e_min;
+    s1_Jpi.E0 = psi->num_electrons() * e_min;
   }
 
   fmt::print(outstream,
@@ -913,9 +913,10 @@ double RME_CSF2(const CI::CSF2 &X, int twoJX, const CI::CSF2 &V, int twoJV,
 }
 
 //==============================================================================
+template <typename CSFType>
 std::pair<std::string, double>
 leading_config(const LinAlg::View<const double> &coefs,
-               const std::vector<CSF2> &csfs) {
+               const std::vector<CSFType> &csfs) {
   assert(coefs.size() == csfs.size());
 
   // Total |c|^2 of each non-rel configuration (summed over its rel. CSFs):
@@ -931,6 +932,13 @@ leading_config(const LinAlg::View<const double> &coefs,
   return max_it != nr_configs.end() ? std::pair{max_it->first, max_it->second} :
                                       std::pair{std::string{}, 0.0};
 }
+
+template std::pair<std::string, double>
+leading_config<CSF2>(const LinAlg::View<const double> &,
+                     const std::vector<CSF2> &);
+template std::pair<std::string, double>
+leading_config<CSF3>(const LinAlg::View<const double> &,
+                     const std::vector<CSF3> &);
 
 //==============================================================================
 std::pair<int, int> Term_S_L(int l1, int l2, int twoJ, double gJ_target) {
@@ -1019,6 +1027,11 @@ construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
               const Coulomb::LkTable *Sk, const Sigma1Correction *s1c,
               const std::vector<double> &hk, const Coulomb::LkTable *dSk,
               double dE0) {
+  // Two- or three-electron CSFs: one dispatch per matrix
+  if (psi.num_electrons() == 3) {
+    return construct_Hci(psi.CSF3s(), psi.twoJ(), h1, qk, Bk, Sk, s1c, hk, dSk,
+                         dE0);
+  }
   return construct_Hci(psi.CSFs(), psi.twoJ(), h1, qk, Bk, Sk, s1c, hk, dSk,
                        dE0);
 }

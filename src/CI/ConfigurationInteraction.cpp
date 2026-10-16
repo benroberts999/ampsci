@@ -20,6 +20,7 @@
 #include <array>
 #include <fstream>
 #include <iostream>
+#include <set>
 #include <vector>
 
 namespace CI {
@@ -29,12 +30,19 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // Check input options:
   input.check({
     {"ci_basis",
-     "Basis used for CI expansion; must be a sub-set of full ampsci basis "
-     "[default: 20spdf]"},
+     "Basis used for CI expansion; must be a sub-set of full ampsci basis. "
+     "With three valence electrons the number of CSFs grows quickly: a "
+     "smaller basis (e.g., 12spdf) is usually required [default: 20spdf]"},
+    {"num_electrons", "Number of valence electrons: 2 or 3 [2]"},
     {"J", "List of total angular momentum J for CI solutions (comma "
-          "separated). Must be integers (two-electron only). []"},
+          "separated). Integers for two electrons; half-integers, as "
+          "fractions (1/2, 3/2) or decimals (0.5, 1.5), for three. []"},
     {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
     {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
+    {"twoJ", "List of 2J (integers) for CI solutions; takes precedence over "
+             "J. Works for either number of electrons."},
+    {"twoJ+", "As above, but for EVEN CSFs only (takes precedence over J+)."},
+    {"twoJ-", "As above, but for ODD CSFs (takes precedence over J-)."},
     {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
     {"all_below_cm",
      "Find all CI solutions for energies below this threshold, "
@@ -124,8 +132,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                 "'false' to disable read/write."},
     {"ci_file",
      "Filename for storing CI solutions. Default: At_b_hash.ci.abf, where At "
-     "is atomic symbol + 'identity', b is ci_basis, and hash encodes "
-     "other setting that  changes the CI Hamiltonian. "
+     "is atomic symbol + 'identity', b is ci_basis (prefixed with 3el_ for "
+     "three electrons), and hash encodes other settings that change the CI "
+     "Hamiltonian. "
      "Set to 'false' to disable read/write."},
     {"read_only",
      "If true, will *only* read in the existing CI solutions, and will not "
@@ -173,6 +182,17 @@ Solutions configuration_interaction(const IO::InputBlock &input,
 
   // Determine the sub-set of basis to use in CI:
   const auto basis_string = input.get("ci_basis", std::string{"20spdf"});
+
+  // Number of valence electrons (in the CI space)
+  const auto num_electrons = input.get("num_electrons", 2);
+  if (num_electrons != 2 && num_electrons != 3) {
+    fmt2::warning();
+    fmt::print(": CI is implemented for two or three valence electrons, not "
+               "{}. Nothing to do\n",
+               num_electrons);
+    return {};
+  }
+  fmt::print("CI for {} valence electrons\n", num_electrons);
   // options to include MBPT
   const auto include_Sigma1 = input.get("sigma1", false);
   const auto include_Sigma2 = input.get("sigma2", false);
@@ -676,21 +696,60 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   }
 
   //----------------------------------------------------------------------------
-  const auto J_list = input.get("J", std::vector<int>{});
-  const auto J_even_list = input.get("J+", J_list);
-  const auto J_odd_list = input.get("J-", J_list);
+  // Requested J's, as 2J: 'twoJ' (integers; works for either number of
+  // electrons) takes precedence over 'J' (integers or fractions over 2).
+  // '+'/'-' versions take precedence over the plain ones, for their parity
+  const auto twoJ_list = [&input](const std::string &pi_tag) {
+    for (const auto &name : {"twoJ" + pi_tag, std::string{"twoJ"}}) {
+      if (input.get<std::vector<int>>(name)) {
+        return input.get(name, std::vector<int>{});
+      }
+    }
+    std::vector<int> list;
+    for (const auto &name : {"J" + pi_tag, std::string{"J"}}) {
+      const auto J_strings = input.get<std::vector<std::string>>(name);
+      if (!J_strings)
+        continue;
+      for (const auto &J_text : *J_strings) {
+        const auto twoJ = parse_twoJ(J_text);
+        if (twoJ) {
+          list.push_back(*twoJ);
+        } else {
+          fmt2::warning();
+          fmt::print(": Could not parse J = '{}' (in {}): skipping\n", J_text,
+                     name);
+        }
+      }
+      return list;
+    }
+    return list;
+  };
+  const auto twoJ_even_list = twoJ_list("+");
+  const auto twoJ_odd_list = twoJ_list("-");
   const auto num_solutions = input.get("num_solutions", 5);
   const auto all_below_cm = input.get<double>("all_below_cm");
   const auto sort_output = input.get("sort_output", false);
   const auto print_details = input.get("print_details", true);
 
-  // {2J, parity} for each requested J/Pi
+  // {2J, parity} for each requested J/Pi. 2J must be even for two electrons,
+  // odd for three (half-integer J): others cannot be formed
   std::vector<std::pair<int, int>> J_pi_list;
-  for (const auto J : J_even_list) {
-    J_pi_list.push_back({2 * J, +1});
+  // Both parity lists may come from the same J list: warn once per J
+  std::set<int> impossible_twoJ;
+  for (const auto [list, pi] :
+       {std::pair{&twoJ_even_list, +1}, std::pair{&twoJ_odd_list, -1}}) {
+    for (const auto twoJ : *list) {
+      if (twoJ < 0 || (twoJ + num_electrons) % 2 != 0) {
+        impossible_twoJ.insert(twoJ);
+        continue;
+      }
+      J_pi_list.push_back({twoJ, pi});
+    }
   }
-  for (const auto J : J_odd_list) {
-    J_pi_list.push_back({2 * J, -1});
+  for (const auto twoJ : impossible_twoJ) {
+    fmt2::warning();
+    fmt::print(": J = {} is not possible for {} electrons: skipping\n",
+               J_string(twoJ), num_electrons);
   }
   levels.resize(J_pi_list.size());
 
@@ -732,8 +791,11 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf") + ";";
   }
 
-  const auto default_ci_fname = wf.identity() + "_" + basis_string + "_" +
-                                qip::hash_string(ci_settings) + ".ci.abf";
+  // nb: only three electrons is tagged: two-electron filenames do not depend
+  // on num_electrons
+  const auto default_ci_fname =
+    wf.identity() + "_" + (num_electrons == 2 ? "" : "3el_") + basis_string +
+    "_" + qip::hash_string(ci_settings) + ".ci.abf";
   const auto ci_fname_input = input.get("ci_file", default_ci_fname);
   const auto ci_fname =
     (ci_fname_input == "false") ? std::string{} : ci_fname_input;
@@ -749,11 +811,11 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     for (std::size_t i = 0; i < J_pi_list.size(); ++i) {
       const auto [twoj, pi] = J_pi_list.at(i);
 
-      levels.at(i) =
-        run_CI(ci_sp_basis, twoj, pi, num_solutions, all_below_cm, h1, qk, Bk,
-               Sk, include_Sigma2, print_details, read_only, std::cout,
-               ci_fname, s1_corr.empty() ? nullptr : &s1_corr, hk,
-               dSk.emptyQ() ? nullptr : &dSk, E0_sigma2);
+      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_electrons, num_solutions,
+                            all_below_cm, h1, qk, Bk, Sk, include_Sigma2,
+                            print_details, read_only, std::cout, ci_fname,
+                            s1_corr.empty() ? nullptr : &s1_corr, hk,
+                            dSk.emptyQ() ? nullptr : &dSk, E0_sigma2);
     }
   }
 
@@ -791,12 +853,14 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       const auto iL = (int)std::round(L);
       const auto itwoS = (int)std::round(twoS);
 
+      // Term symbol only where L, S were assigned (two electrons)
+      const auto term =
+        L < 0.0 ? std::string{} : Term_Symbol(iL, itwoS, Psi_Jpi.parity());
       auto out_string = fmt::format(
-        "{:<2} {:+2} {:>2}  {:<6s} {:2.0f}  {:<3s}  {:+12.8f}  {:+12.2f} "
+        "{:<3} {:+2} {:>2}  {:<9s} {:2.0f}  {:<3s}  {:+12.8f}  {:+12.2f} "
         "{:12.2f}",
-        Psi_Jpi.twoJ() / 2, Psi_Jpi.parity(), i, config, pc * 100.0,
-        Term_Symbol(iL, itwoS, Psi_Jpi.parity()), Psi_Jpi.energy(i),
-        Psi_Jpi.energy(i) * PhysConst::Hartree_invcm,
+        J_string(Psi_Jpi.twoJ()), Psi_Jpi.parity(), i, config, pc * 100.0, term,
+        Psi_Jpi.energy(i), Psi_Jpi.energy(i) * PhysConst::Hartree_invcm,
         (Psi_Jpi.energy(i) - e0) * PhysConst::Hartree_invcm);
       if (gJ != 0.0) {
         out_string += fmt::format("  {:.4f}", gJ);
@@ -817,7 +881,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     std::cout << "d(α^2) = " << wf.dalpha2() << "\n";
   }
   std::cout
-    << "J   π  #  conf.  %   Term   Energy(au)   Energy(/cm)   Level(/cm) "
+    << "J    π  #  conf.     %   Term   Energy(au)   Energy(/cm)   Level(/cm) "
        " gJ\n";
   for (const auto &[E, output] : E_output) {
     std::cout << output << "\n";
@@ -829,6 +893,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   Solutions out;
   out.levels = std::move(levels);
   out.integrals.ci_basis = ci_sp_basis;
+  out.integrals.num_electrons = num_electrons;
   out.integrals.brueckner = Brueckner;
   out.integrals.h1 = std::move(h1);
   out.integrals.qk = std::move(qk);
@@ -846,7 +911,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
 //==============================================================================
 //==============================================================================
 PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
-              int num_solutions, std::optional<double> all_below_cm,
+              int num_electrons, int num_solutions,
+              std::optional<double> all_below_cm,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
               const Coulomb::WkTable &Bk, const Coulomb::LkTable &Sk,
               bool include_Sigma2, bool print_details, bool read_only,
@@ -854,28 +920,31 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
               const Coulomb::LkTable *dSk, double E0_sigma2) {
 
-  auto printJ = [](int twoj) {
-    return twoj % 2 == 0 ? std::to_string(twoj / 2) :
-                           std::to_string(twoj) + "/2";
-  };
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
-  fmt::print(outstream, "CI: J={}, {} parity\n", printJ(twoJ), printPi(parity));
+  fmt::print(outstream, "CI: J={}, {} parity\n", J_string(twoJ),
+             printPi(parity));
   outstream << std::flush;
 
-  PsiJPi psi{twoJ, parity, ci_sp_basis};
-
-  if (twoJ < 0) {
-    outstream << "Fail: twoJ must >=0\n";
-    return psi;
-  }
-  if (twoJ % 2 != 0) {
-    outstream << "Fail: twoJ must be even for two-electron CSF\n";
-    return psi;
+  if (twoJ < 0 || (twoJ + num_electrons) % 2 != 0) {
+    fmt::print(outstream, "Fail: J={} is not possible for {} electrons\n",
+               J_string(twoJ), num_electrons);
+    return PsiJPi{};
   }
 
-  const auto N_CSFs = psi.CSFs().size();
+  PsiJPi psi{twoJ, parity, ci_sp_basis, num_electrons};
+
+  const auto N_CSFs = psi.num_CSFs();
   outstream << "Total CSFs: " << N_CSFs << "\n" << std::flush;
+  if (N_CSFs == 0) {
+    outstream << "No CSFs can be formed for this J/parity from the basis\n\n";
+    return psi;
+  }
+  // The dense Hamiltonian is N^2 doubles; forewarn for very large blocks
+  const auto Hci_GB = double(N_CSFs) * double(N_CSFs) * 8.0 / 1.0e9;
+  if (Hci_GB > 1.0) {
+    fmt::print(outstream, "Note: CI matrix requires {:.1f} GB\n", Hci_GB);
+  }
 
   // Try to read existing solutions from file
   bool read_ok =
@@ -958,7 +1027,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     if (print_details)
       fmt::print(outstream,
                  "{} {} {:<2}  {:+11.8f} au  {:+11.2f} cm^-1  {:11.2f} cm^-1\n",
-                 twoJ / 2, pi, i, psi.energy(i),
+                 J_string(twoJ), pi, i, psi.energy(i),
                  psi.energy(i) * PhysConst::Hartree_invcm,
                  (psi.energy(i) - E0) * PhysConst::Hartree_invcm);
 
@@ -966,10 +1035,24 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       for (std::size_t j = 0ul; j < N_CSFs; ++j) {
         const auto cj = 100.0 * std::pow(psi.coef(i, j), 2);
         if (cj > minimum_percentage) {
-          fmt::print(outstream, "   {:<6s} {:5.3f}%\n", psi.CSF(j).config(true),
+          fmt::print(outstream, "   {:<9s} {:5.3f}%\n", psi.csf(j).config(true),
                      cj);
         }
       }
+    }
+
+    // Leading non-relativistic configuration, and its |c|^2 weight:
+    const auto [config, pc] = psi.num_electrons() == 3 ?
+                                CI::leading_config(psi.coefs(i), psi.CSF3s()) :
+                                CI::leading_config(psi.coefs(i), psi.CSFs());
+
+    // g-factor, <L^2>, <S^2>, and term symbol: two-electron states only
+    if (psi.num_electrons() != 2) {
+      if (print_details) {
+        fmt::print(outstream, "   --------------\n   {:<9s}\n\n", config);
+      }
+      psi.update_config_info(i, {config, pc, 0.0, -1.0, -1.0, -1.0, -1.0});
+      continue;
     }
 
     // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
@@ -1002,12 +1085,6 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       // fmt::print(outstream, "   <L^2> = {:.4f}, <S^2> = {:.4f}\n", L2, S2);
       fmt::print(outstream, "   L_eff = {:.4f}, S_eff = {:.4f}\n", LSeff(L2),
                  LSeff(S2));
-    }
-
-    // Leading non-relativistic configuration, and its |c|^2 weight:
-    const auto [config, pc] = CI::leading_config(psi.coefs(i), psi.CSFs());
-
-    if (print_details) {
       fmt::print(outstream, "   {:<6s} {}\n", config,
                  Term_Symbol(twoJ, L, 2 * S, parity));
       outstream << "\n";

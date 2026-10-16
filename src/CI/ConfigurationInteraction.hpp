@@ -19,7 +19,7 @@
     - @ref run_CI
     
     Main Classes are: 
-    - @ref CSF2
+    - @ref CSF2, @ref CSF3
     - @ref PsiJPi
 */
 namespace CI {
@@ -57,9 +57,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
 /*!
   @brief Constructs and solves the CI eigenvalue problem for a single J,pi
   @details
-  Builds the CI+MBPT Hamiltonian matrix in the basis of two-electron 
-  configuration state functions (CSFs) with total angular momentum 
-  @p twoJ /2 and parity @p parity, 
+  Builds the CI+MBPT Hamiltonian matrix in the basis of two- or three-electron
+  configuration state functions (CSFs; see @ref CSF2, @ref CSF3) with total
+  angular momentum @p twoJ /2 and parity @p parity, 
   then solves the eigenvalue problem to obtain CI energies and
   expansion coefficients.
 
@@ -76,9 +76,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   with total energy below the threshold are found.
 
   @param ci_sp_basis  Single-particle basis states spanning the CI space.
-  @param twoJ         Twice the total angular momentum, 2J (must be a
-                      non-negative even integer for two-electron systems).
+  @param twoJ         Twice the total angular momentum, 2J (non-negative; even
+                      for two electrons, odd for three).
   @param parity       Parity of the block: +1 (even) or -1 (odd).
+  @param num_electrons Number of valence electrons: 2 or 3.
   @param num_solutions Number of lowest eigenstates to find. Ignored if
                        @p all_below_cm is set. Pass 0 to find all solutions.
   @param all_below_cm If set, find all eigenstates with total energy below this
@@ -116,7 +117,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   coefficients for the requested solutions.
 */
 PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
-              int num_solutions, std::optional<double> all_below_cm,
+              int num_electrons, int num_solutions,
+              std::optional<double> all_below_cm,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
               const Coulomb::WkTable &Bk, const Coulomb::LkTable &Sk,
               bool include_Sigma2, bool print_details, bool read_only = false,

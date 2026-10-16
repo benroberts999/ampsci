@@ -146,17 +146,77 @@ std::optional<Level> parse_level(std::string_view str) {
     --last;
   }
 
-  const auto J = read_int(first, last);
-  if (!J)
+  const auto twoJ = parse_twoJ(str.substr(first, last - first));
+  if (!twoJ)
     return std::nullopt;
 
-  return Level{2 * *J, parity, index};
+  return Level{*twoJ, parity, index};
 }
 
 //==============================================================================
 std::string to_string(const Level &level) {
-  return std::to_string(level.twoJ / 2) + (level.parity == 1 ? "+" : "-") +
-         ":" + std::to_string(level.index);
+  return J_string(level.twoJ) + (level.parity == 1 ? "+" : "-") + ":" +
+         std::to_string(level.index);
+}
+
+//==============================================================================
+std::string J_string(int twoJ) {
+  return twoJ % 2 == 0 ? std::to_string(twoJ / 2) : std::to_string(twoJ) + "/2";
+}
+
+//==============================================================================
+std::optional<int> parse_twoJ(std::string_view str) {
+  // trim whitespace
+  while (!str.empty() && std::isspace(str.front())) {
+    str.remove_prefix(1);
+  }
+  while (!str.empty() && std::isspace(str.back())) {
+    str.remove_suffix(1);
+  }
+  if (str.empty())
+    return std::nullopt;
+
+  // Digits only, else empty
+  const auto read_int = [](std::string_view digits) -> std::optional<int> {
+    if (digits.empty())
+      return std::nullopt;
+    int value = 0;
+    for (const auto c : digits) {
+      if (!std::isdigit(c))
+        return std::nullopt;
+      value = 10 * value + (c - '0');
+    }
+    return value;
+  };
+
+  // Decimal: must be an integer or half-integer
+  const auto point = str.find('.');
+  if (point != std::string_view::npos) {
+    const auto whole = read_int(str.substr(0, point));
+    const auto fraction = str.substr(point + 1);
+    if (!whole || fraction.empty())
+      return std::nullopt;
+    // .0 or .5 only (any number of trailing zeros)
+    const auto first = fraction.front();
+    const auto rest = fraction.substr(1);
+    if ((first != '0' && first != '5') ||
+        rest.find_first_not_of('0') != std::string_view::npos) {
+      return std::nullopt;
+    }
+    return 2 * *whole + (first == '5' ? 1 : 0);
+  }
+
+  const auto slash = str.find('/');
+  if (slash == std::string_view::npos) {
+    const auto J = read_int(str);
+    return J ? std::optional{2 * *J} : std::nullopt;
+  }
+  // Fraction: numerator / 2 only
+  const auto numerator = read_int(str.substr(0, slash));
+  const auto denominator = read_int(str.substr(slash + 1));
+  if (!numerator || !denominator || *denominator != 2)
+    return std::nullopt;
+  return *numerator;
 }
 
 //==============================================================================
@@ -529,13 +589,51 @@ expectation_L2S2(const LinAlg::View<const double> &coefs,
 
 //==============================================================================
 
+PsiJPi::PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
+               int num_electrons)
+  : m_twoj(twoJ), m_pi(pi) {
+  assert((num_electrons == 2 || num_electrons == 3) &&
+         "CI is implemented for two or three valence electrons");
+  if (num_electrons == 3) {
+    m_CSFs = form_CSF3s(twoJ, pi, cisp_basis);
+  } else {
+    m_CSFs = form_CSFs(twoJ, pi, cisp_basis);
+  }
+}
+
+int PsiJPi::num_electrons() const {
+  return std::holds_alternative<std::vector<CSF3>>(m_CSFs) ? 3 : 2;
+}
+
+std::size_t PsiJPi::num_CSFs() const {
+  return std::visit([](const auto &csfs) { return csfs.size(); }, m_CSFs);
+}
+
+const CSF &PsiJPi::csf(std::size_t i) const {
+  return std::visit(
+    [i](const auto &csfs) -> const CI::CSF & { return csfs.at(i); }, m_CSFs);
+}
+
+const std::vector<CSF2> &PsiJPi::CSFs() const {
+  assert(num_electrons() == 2);
+  return std::get<std::vector<CSF2>>(m_CSFs);
+}
+
+const std::vector<CSF3> &PsiJPi::CSF3s() const {
+  assert(num_electrons() == 3);
+  return std::get<std::vector<CSF3>>(m_CSFs);
+}
+
+const CSF2 &PsiJPi::CSF(std::size_t i) const { return CSFs().at(i); }
+
+//==============================================================================
 // Solves the CI equation for Hamiltonian matrix Hci;
 // finds first num_solutions solutions.
 // Doesn't set the Config info: have to call update_config_info() manually.
 void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions,
                    std::optional<double> all_below_cm) {
   assert(Hci.rows() == Hci.cols());
-  assert(Hci.rows() == m_CSFs.size());
+  assert(Hci.rows() == num_CSFs());
 
   if (all_below_cm) {
     const auto all_below_au = *all_below_cm / PhysConst::Hartree_invcm;
@@ -544,9 +642,9 @@ void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions,
     m_num_solutions = std::size_t(t_num);
     m_Solution.first = std::move(t_evals);
     m_Solution.second = std::move(t_evecs);
-  } else if (num_solutions <= 0 || num_solutions >= int(m_CSFs.size())) {
+  } else if (num_solutions <= 0 || num_solutions >= int(num_CSFs())) {
     m_Solution = LinAlg::symmhEigensystem(Hci);
-    m_num_solutions = m_CSFs.size();
+    m_num_solutions = num_CSFs();
   } else {
     m_Solution = LinAlg::symmhEigensystem(Hci, num_solutions);
     m_num_solutions = std::size_t(num_solutions);
@@ -559,7 +657,7 @@ void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions,
 
 // Stores a single solution, that was not found by diagonalising Hci
 void PsiJPi::set_solution(double energy, const LinAlg::Vector<double> &coefs) {
-  assert(coefs.size() == m_CSFs.size());
+  assert(coefs.size() == num_CSFs());
 
   m_num_solutions = 1;
   m_Solution.first = LinAlg::Vector<double>{energy};
@@ -576,12 +674,6 @@ void PsiJPi::update_config_info(std::size_t i, const ConfigInfo &info) {
   assert(m_Info.size() == m_num_solutions);
   m_Info.at(i) = info;
 }
-
-// Full list of CSFs
-const std::vector<CSF2> &PsiJPi::CSFs() const { return m_CSFs; }
-
-// The ith CSF
-const CSF2 &PsiJPi::CSF(std::size_t i) const { return m_CSFs.at(i); }
 
 // Energy of the ith CI solution
 double PsiJPi::energy(std::size_t i) const {
@@ -622,7 +714,7 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
   using IO::FRW::rw_binary;
   const bool readQ = (rw == IO::FRW::read);
 
-  std::size_t nc = m_CSFs.size();
+  std::size_t nc = num_CSFs();
 
   // Bytes of one J/Pi block: num_solutions + E[nc] + M[nc*nc]
   const auto block_bytes = [](std::size_t n) {
@@ -696,11 +788,9 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
     IO::FRW::open_binary(f, fname, IO::FRW::read);
     f.seekg(match_offset + static_cast<std::streamoff>(prefix_bytes));
     rw_binary(f, IO::FRW::read, m_num_solutions);
-    const auto Jstr = (m_twoj % 2 == 0) ? std::to_string(m_twoj / 2) :
-                                          std::to_string(m_twoj) + "/2";
-    outstream << "Reading J=" << Jstr << " pi=" << (m_pi > 0 ? "+" : "-")
-              << " (" << m_num_solutions << " solutions) from " << fname
-              << "\n";
+    outstream << "Reading J=" << J_string(m_twoj)
+              << " pi=" << (m_pi > 0 ? "+" : "-") << " (" << m_num_solutions
+              << " solutions) from " << fname << "\n";
     std::vector<double> E(nc), M(nc * nc);
     f.read(reinterpret_cast<char *>(E.data()),
            static_cast<std::streamsize>(nc * sizeof(double)));
@@ -714,10 +804,9 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
 
   // ===== WRITE =====
   {
-    const auto Jstr = (m_twoj % 2 == 0) ? std::to_string(m_twoj / 2) :
-                                          std::to_string(m_twoj) + "/2";
-    outstream << "Writing J=" << Jstr << " pi=" << (m_pi > 0 ? "+" : "-")
-              << " (" << m_num_solutions << " solutions) to " << fname << "\n";
+    outstream << "Writing J=" << J_string(m_twoj)
+              << " pi=" << (m_pi > 0 ? "+" : "-") << " (" << m_num_solutions
+              << " solutions) to " << fname << "\n";
   }
 
   if (match_offset >= 0) {

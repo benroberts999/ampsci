@@ -82,13 +82,13 @@ double corrected_Sk(double Sk, double dSk, double dE0);
   matrix element is corrected via @ref corrected_Sigma, with
 
   \f[
-    \delta E = E_0 - E_\Sigma(\kappa) - \epsilon_{\rm spectator},
+    \delta E = E_0 - E_\Sigma(\kappa) - \sum_{\rm spectators} \epsilon,
   \f]
 
-  where \f$ E_0 \f$ is the reference total two-electron valence energy,
-  \f$ E_\Sigma(\kappa) \f$ is the energy Sigma_1 was evaluated at, and
-  \f$ \epsilon_{\rm spectator} \f$ is the orbital energy of the spectator
-  electron in the determinant.
+  where \f$ E_0 \f$ is the reference total valence energy (of all valence
+  electrons), \f$ E_\Sigma(\kappa) \f$ is the energy Sigma_1 was evaluated
+  at, and the sum is over the orbital energies of the other (spectator)
+  electrons in the determinant: one for two electrons, two for three.
 
   Fill with @ref calculate_dSdE_correction; applied by Hab() (as a correction
   on top of an h1 table that already includes Sigma_1).
@@ -259,6 +259,8 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
 struct Integrals {
   //! Single-particle basis used for the CI expansion
   std::vector<DiracSpinor> ci_basis{};
+  //! Number of valence electrons the CI was run for (2 or 3)
+  int num_electrons{2};
   //! True if ci_basis are Brueckner (spectrum) states, false if HF basis
   bool brueckner{false};
   //! One-body matrix elements, <a|h1|b>; may include Sigma_1
@@ -653,12 +655,13 @@ double RME_CSF2(const CI::CSF2 &X, int twoJX, const CI::CSF2 &V, int twoJV,
   configuration, and returns the configuration with the largest total weight.
 
   @param coefs  CI expansion coefficients (one per CSF).
-  @param csfs   The CSF basis (matching @p coefs).
+  @param csfs   The CSF basis (matching @p coefs); @ref CSF2 or @ref CSF3.
   @return Pair {configuration label (non-rel notation), total |c|^2 weight}.
 */
+template <typename CSFType>
 std::pair<std::string, double>
 leading_config(const LinAlg::View<const double> &coefs,
-               const std::vector<CSF2> &csfs);
+               const std::vector<CSFType> &csfs);
 
 /*!
   @brief Determines the best-fit (S, L) term for a two-electron state by

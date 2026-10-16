@@ -7,6 +7,7 @@
 #include <optional>
 #include <string_view>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace CI {
@@ -436,8 +437,8 @@ expectation_L2S2(const LinAlg::View<const double> &coefs,
   The standard text form is `J{+,-}:index`, e.g., `2+:3` is the fourth solution
   (index counts from zero) of the J=2, even parity, CI. 
   The index may be omitted, in which case it is zero:
-  `0+` is the lowest even-parity J=0 solution. See @ref parse_level and
-  @ref to_string.
+  `0+` is the lowest even-parity J=0 solution. Half-integer J is written as a
+  fraction: `3/2-:1`. See @ref parse_level and @ref to_string.
 */
 struct Level {
   //! Twice the total angular momentum, 2J
@@ -451,17 +452,30 @@ struct Level {
 /*!
   @brief Parses the text form of a CI level reference; see @ref Level.
   @details
-  Accepts `2+:3` (standard) and `e2:3`; the index is optional. Surrounding
-  whitespace is ignored. Only integer J is accepted, since only two-electron CI
-  is implemented.
+  Accepts `2+:3` (standard) and `e2:3`; the index is optional. Half-integer J
+  is given as a fraction over 2, or a decimal: `3/2-:1`, `1.5-:1`, `o3/2:1`.
+  Surrounding whitespace is ignored.
 
-  @param str  Text form, e.g., `2+:3`, `e2:3`, `0+`.
+  @param str  Text form, e.g., `2+:3`, `e2:3`, `0+`, `1/2-`.
   @return The level; empty if @p str is not a valid level reference.
 */
 [[nodiscard]] std::optional<Level> parse_level(std::string_view str);
 
-//! Text form of a CI level reference, e.g., "2+:3"; see @ref Level
+//! Text form of a CI level reference, e.g., "2+:3", "1/2-:0"; see @ref Level
 [[nodiscard]] std::string to_string(const Level &level);
+
+//! J as text, given 2J: "2" for even 2J, "3/2" for odd
+[[nodiscard]] std::string J_string(int twoJ);
+
+/*!
+  @brief Parses a J value given as text: an integer, a fraction over 2, or a
+  decimal.
+  @details
+  Accepts `2`, `1/2`, `3/2`, `0.5`, `1.5`, `2.0`; a decimal must be an integer
+  or half-integer. Surrounding whitespace is ignored.
+  @return 2J; empty if @p str is not a valid J.
+*/
+[[nodiscard]] std::optional<int> parse_twoJ(std::string_view str);
 
 //==============================================================================
 /*!
@@ -498,12 +512,15 @@ struct ConfigInfo {
   Holds the complete set of configuration state functions and the results of
   the CI diagonalisation for a fixed total angular momentum J and parity.
 
-  Construction builds the CSF basis via form_CSFs() but does not solve the
-  eigenvalue problem; call solve() separately after constructing the CI
-  Hamiltonian matrix.  Configuration labels are not set automatically -- call
-  update_config_info() for each solution after solving.
+  Construction builds the CSF basis (form_CSFs() for two electrons,
+  form_CSF3s() for three) but does not solve the eigenvalue problem; call
+  solve() separately after constructing the CI Hamiltonian matrix.
+  Configuration labels are not set automatically -- call update_config_info()
+  for each solution after solving.
 
-  @note Only two-electron (two-particle) systems are supported.
+  A J/Pi holds CSFs of a single electron number: two (@ref CSF2) or three
+  (@ref CSF3); see num_electrons(). The CSF list is accessed by type (CSFs(),
+  CSF3s()); num_CSFs() and csf() work for either.
 */
 class PsiJPi {
 
@@ -512,8 +529,8 @@ class PsiJPi {
 
   // Number of solutions stored:
   std::size_t m_num_solutions{0};
-  // List of CSFs
-  std::vector<CSF2> m_CSFs{};
+  // List of CSFs: two- or three-electron
+  std::variant<std::vector<CSF2>, std::vector<CSF3>> m_CSFs{};
   // Energy, and CI expansion coeficients
   std::pair<LinAlg::Vector<double>, LinAlg::Matrix<double>> m_Solution{};
   std::vector<ConfigInfo> m_Info{};
@@ -522,15 +539,17 @@ public:
   /*!
     @brief Constructs the CSF basis for the given J and parity; does not solve.
     @details
-    Calls form_CSFs() to build the list of two-electron CSFs.  The eigenvalue
-    problem is not solved until solve() is called with the CI Hamiltonian.
+    Calls form_CSFs() (two electrons) or form_CSF3s() (three) to build the
+    list of CSFs.  The eigenvalue problem is not solved until solve() is called
+    with the CI Hamiltonian.
 
-    @param twoJ        Twice the total angular momentum 2J.
-    @param pi          Total parity: +1 or -1.
-    @param cisp_basis  Single-particle basis used to construct the CSFs.
+    @param twoJ           Twice the total angular momentum 2J.
+    @param pi             Total parity: +1 or -1.
+    @param cisp_basis     Single-particle basis used to construct the CSFs.
+    @param num_electrons  Number of valence electrons: 2 or 3.
   */
-  PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis)
-    : m_twoj(twoJ), m_pi(pi), m_CSFs(form_CSFs(twoJ, pi, cisp_basis)) {}
+  PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
+         int num_electrons = 2);
 
   PsiJPi() {}
 
@@ -567,10 +586,22 @@ public:
   //! Set configuration info for the ith solution (must be called manually after solve())
   void update_config_info(std::size_t i, const ConfigInfo &info);
 
-  //! Full list of CSFs spanning this J/Pi
+  //! Number of valence electrons in each CSF (2 or 3)
+  int num_electrons() const;
+
+  //! Number of CSFs spanning this J/Pi
+  std::size_t num_CSFs() const;
+
+  //! The ith CSF, as the common base (for parity, config string, ...)
+  const CI::CSF &csf(std::size_t i) const;
+
+  //! Full list of two-electron CSFs spanning this J/Pi; must have num_electrons() == 2
   const std::vector<CSF2> &CSFs() const;
 
-  //! Returns reference to the ith CSF
+  //! Full list of three-electron CSFs spanning this J/Pi; must have num_electrons() == 3
+  const std::vector<CSF3> &CSF3s() const;
+
+  //! Returns reference to the ith two-electron CSF; must have num_electrons() == 2
   const CSF2 &CSF(std::size_t i) const;
 
   //! Energy of the ith CI solution (atomic units)
