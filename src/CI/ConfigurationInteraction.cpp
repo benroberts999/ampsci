@@ -696,61 +696,13 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   }
 
   //----------------------------------------------------------------------------
-  // Requested J's, as 2J: 'twoJ' (integers; works for either number of
-  // electrons) takes precedence over 'J' (integers or fractions over 2).
-  // '+'/'-' versions take precedence over the plain ones, for their parity
-  const auto twoJ_list = [&input](const std::string &pi_tag) {
-    for (const auto &name : {"twoJ" + pi_tag, std::string{"twoJ"}}) {
-      if (input.get<std::vector<int>>(name)) {
-        return input.get(name, std::vector<int>{});
-      }
-    }
-    std::vector<int> list;
-    for (const auto &name : {"J" + pi_tag, std::string{"J"}}) {
-      const auto J_strings = input.get<std::vector<std::string>>(name);
-      if (!J_strings)
-        continue;
-      for (const auto &J_text : *J_strings) {
-        const auto twoJ = parse_twoJ(J_text);
-        if (twoJ) {
-          list.push_back(*twoJ);
-        } else {
-          fmt2::warning();
-          fmt::print(": Could not parse J = '{}' (in {}): skipping\n", J_text,
-                     name);
-        }
-      }
-      return list;
-    }
-    return list;
-  };
-  const auto twoJ_even_list = twoJ_list("+");
-  const auto twoJ_odd_list = twoJ_list("-");
   const auto num_solutions = input.get("num_solutions", 5);
   const auto all_below_cm = input.get<double>("all_below_cm");
   const auto sort_output = input.get("sort_output", false);
   const auto print_details = input.get("print_details", true);
 
-  // {2J, parity} for each requested J/Pi. 2J must be even for two electrons,
-  // odd for three (half-integer J): others cannot be formed
-  std::vector<std::pair<int, int>> J_pi_list;
-  // Both parity lists may come from the same J list: warn once per J
-  std::set<int> impossible_twoJ;
-  for (const auto [list, pi] :
-       {std::pair{&twoJ_even_list, +1}, std::pair{&twoJ_odd_list, -1}}) {
-    for (const auto twoJ : *list) {
-      if (twoJ < 0 || (twoJ + num_electrons) % 2 != 0) {
-        impossible_twoJ.insert(twoJ);
-        continue;
-      }
-      J_pi_list.push_back({twoJ, pi});
-    }
-  }
-  for (const auto twoJ : impossible_twoJ) {
-    fmt2::warning();
-    fmt::print(": J = {} is not possible for {} electrons: skipping\n",
-               J_string(twoJ), num_electrons);
-  }
+  // {2J, parity} for each requested J/Pi
+  const auto J_pi_list = requested_J_pi(input, num_electrons);
   levels.resize(J_pi_list.size());
 
   // CI solutions file: At_basis_hash.ci.abf; see above.
@@ -908,6 +860,64 @@ Solutions configuration_interaction(const IO::InputBlock &input,
 }
 
 //==============================================================================
+std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
+                                                int num_electrons) {
+
+  // Requested J's, as 2J: 'twoJ' (integers; works for either number of
+  // electrons) takes precedence over 'J' (integers or fractions over 2).
+  // '+'/'-' versions take precedence over the plain ones, for their parity
+  const auto twoJ_list = [&input](const std::string &pi_tag) {
+    for (const auto &name : {"twoJ" + pi_tag, std::string{"twoJ"}}) {
+      if (input.get<std::vector<int>>(name)) {
+        return input.get(name, std::vector<int>{});
+      }
+    }
+    std::vector<int> list;
+    for (const auto &name : {"J" + pi_tag, std::string{"J"}}) {
+      const auto J_strings = input.get<std::vector<std::string>>(name);
+      if (!J_strings)
+        continue;
+      for (const auto &J_text : *J_strings) {
+        const auto twoJ = parse_twoJ(J_text);
+        if (twoJ) {
+          list.push_back(*twoJ);
+        } else {
+          fmt2::warning();
+          fmt::print(": Could not parse J = '{}' (in {}): skipping\n", J_text,
+                     name);
+        }
+      }
+      return list;
+    }
+    return list;
+  };
+  const auto twoJ_even_list = twoJ_list("+");
+  const auto twoJ_odd_list = twoJ_list("-");
+
+  // 2J must be even for two electrons, odd for three (half-integer J): others
+  // cannot be formed
+  std::vector<std::pair<int, int>> J_pi_list;
+  // Both parity lists may come from the same J list: warn once per J
+  std::set<int> impossible_twoJ;
+  for (const auto [list, pi] :
+       {std::pair{&twoJ_even_list, +1}, std::pair{&twoJ_odd_list, -1}}) {
+    for (const auto twoJ : *list) {
+      if (twoJ < 0 || (twoJ + num_electrons) % 2 != 0) {
+        impossible_twoJ.insert(twoJ);
+        continue;
+      }
+      J_pi_list.push_back({twoJ, pi});
+    }
+  }
+  for (const auto twoJ : impossible_twoJ) {
+    fmt2::warning();
+    fmt::print(": J = {} is not possible for {} electrons: skipping\n",
+               J_string(twoJ), num_electrons);
+  }
+  return J_pi_list;
+}
+
+//==============================================================================
 //==============================================================================
 //==============================================================================
 PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
@@ -940,10 +950,16 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     outstream << "No CSFs can be formed for this J/parity from the basis\n\n";
     return psi;
   }
-  // The dense Hamiltonian is N^2 doubles; forewarn for very large blocks
+  // The dense Hamiltonian is N^2 doubles; forewarn for very large blocks.
+  // Diagonalising holds a copy of it and an N x N eigenvector matrix (even
+  // for a few solutions); finding all solutions also needs ~2 N^2 workspace
   const auto Hci_GB = double(N_CSFs) * double(N_CSFs) * 8.0 / 1.0e9;
   if (Hci_GB > 1.0) {
-    fmt::print(outstream, "Note: CI matrix requires {:.1f} GB\n", Hci_GB);
+    const auto all_solutions =
+      all_below_cm || num_solutions <= 0 || num_solutions >= int(N_CSFs);
+    const auto peak_GB = (all_solutions ? 4.0 : 3.0) * Hci_GB;
+    fmt::print(outstream, "nb: CI matrix (dense) requires ~{:.0f} GB\n",
+               peak_GB);
   }
 
   // Try to read existing solutions from file

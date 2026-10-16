@@ -55,6 +55,22 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                                     const Wavefunction &wf);
 
 /*!
+  @brief The (2J, parity) blocks requested in a CI input block.
+  @details
+  'twoJ', 'twoJ+', 'twoJ-' (lists of integer 2J) take precedence over 'J',
+  'J+', 'J-' (integers, fractions such as 3/2, or decimals such as 1.5). A
+  parity-specific list takes precedence over the plain one, for its parity.
+  2J must be even for two electrons and odd for three; other values are
+  skipped, with a warning (once per value).
+
+  @param input          The CI input block.
+  @param num_electrons  Number of valence electrons (2 or 3).
+  @return List of {2J, parity}, even parity first.
+*/
+std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
+                                                int num_electrons);
+
+/*!
   @brief Constructs and solves the CI eigenvalue problem for a single J,pi
   @details
   Builds the CI+MBPT Hamiltonian matrix in the basis of two- or three-electron

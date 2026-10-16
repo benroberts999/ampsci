@@ -6,12 +6,14 @@
 #include "Physics/periodicTable.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "ampsci/ampsci.hpp"
+#include "ampsci/size_estimates.hpp"
 #include "fmt/color.hpp"
 #include "qip/String.hpp"
 #include "qip/omp.hpp"
 #include "version/EasterEgg.hpp"
 #include "version/version.hpp"
 #include <algorithm>
+#include <fstream>
 #include <iostream>
 #include <string>
 
@@ -35,6 +37,7 @@ const std::string synopsis{
   "ampsci -p <Atom> <Isotope>        | Periodic table, isotope info\n"
   "ampsci -c <value> <unit>          | Unit conversions\n"
   "ampsci -z [Basis] <core> <kmax>   | Check memory requirements\n"
+  "ampsci -z <input_file>            | Size estimates for an input file\n"
   "ampsci -v                         | Ampsci version information\n"
   "ampsci -h                         | Detailed help information\n"};
 
@@ -130,6 +133,10 @@ const std::vector<std::pair<std::string, std::string>> options{
   {"-z [basis_string] <core_string> <max_k>, --estimate-size",
    "Takes a basis string (e.g., 20spdf) and optional multipolarity cut-off "
    "max_k, and estimates memory required\n"},
+  {"-z [input_file], --estimate-size",
+   "Estimates the sizes of the integral tables and CI matrices the input "
+   "file would form (Basis, HartreeFock core, and CI options), without "
+   "running it\n"},
   {"-v, --version", "Prints ampsci version (and git commit) details"} //
 };
 
@@ -186,6 +193,10 @@ void print_manual(bool details = true) {
 //! Parses command-line input, then runs ampsci
 int main(int argc, char *argv[]) {
   using namespace std::string_literals;
+
+  std::cout << '\n';
+  IO::print_line();
+  std::cout << "AMPSCI v: " << version::version() << '\n';
 
   // Parse input text into strings:
   const std::string in_text_1 = (argc > 1) ? argv[1] : "";
@@ -292,11 +303,21 @@ int main(int argc, char *argv[]) {
     std::cout << "Reading input from command-line string\n";
 
   } else if (in_text_1 == "-z" || in_text_1 == "--estimate-size") {
-    std::string basis_string = (argc > 2) ? argv[2] : "20spdf";
-    std::string core_string = (argc > 3) ? argv[3] : "";
-    int k_max = (argc > 4) ? std::stoi(argv[4]) : 999;
-    Coulomb::estimate_memory_usage(basis_string, core_string, k_max);
-    return 0;
+    // An input file: estimates for the run it describes
+    if (std::fstream(in_text_2).good()) {
+      std::fstream input_file(in_text_2);
+      const IO::InputBlock input("ampsci", input_file);
+      IO::print_line();
+      std::cout << "\nSize estimates for: " << in_text_2 << "\n\n";
+      print_size_estimates(estimate_sizes(input));
+      return 0;
+    } else {
+      std::string basis_string = (argc > 2) ? argv[2] : "20spdf";
+      std::string core_string = (argc > 3) ? argv[3] : "";
+      int k_max = (argc > 4) ? std::stoi(argv[4]) : 999;
+      Coulomb::estimate_memory_usage(basis_string, core_string, k_max);
+      return 0;
+    }
 
   } else if (!in_text_1.empty() && in_text_1.front() == '-') {
     std::cout << "Unrecognised option: " << in_text_1 << '\n';
@@ -305,9 +326,6 @@ int main(int argc, char *argv[]) {
   }
 
   // Print git/version info to screen:
-  std::cout << '\n';
-  IO::print_line();
-  std::cout << "AMPSCI v: " << version::version() << '\n';
   const auto blas_t = version::blas_threads();
   std::cout << "Parallel: " << qip::omp_details()
             << (blas_t.empty() ? "" : " " + blas_t) << '\n';
