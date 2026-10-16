@@ -159,14 +159,15 @@ public:
   const std::vector<CI::PsiJPi> &CIwfs() const { return m_CI.levels; }
 
   /*!
-    @brief CI solutions for given J and parity; nullptr if not found.
+    @brief CI solutions for given 2J and parity; nullptr if not found.
 
     @details
-    @p J is integer (CI is for two-electron systems); @p parity is +1 or -1.
+    @p twoJ is twice the total angular momentum (even for two electrons, odd
+    for three); @p parity is +1 or -1.
   */
-  const CI::PsiJPi *CIwf(int J, int parity) const {
+  const CI::PsiJPi *CIwf(int twoJ, int parity) const {
     for (const auto &ci_wf : m_CI.levels) {
-      if (ci_wf.twoJ() == 2 * J && ci_wf.parity() == parity)
+      if (ci_wf.twoJ() == twoJ && ci_wf.parity() == parity)
         return &ci_wf;
     }
     return nullptr;

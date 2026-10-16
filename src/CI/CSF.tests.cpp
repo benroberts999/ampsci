@@ -481,4 +481,19 @@ TEST_CASE("CI: CSF functions", "[CI][3VCI][unit]") {
   REQUIRE(two_spectators == Approx(s1c.delta_h1(is, is, id5)));
   // Unknown spectator: no correction
   REQUIRE(s1c.delta_h1(is, is, ip1, s.nk_index()) == 0.0);
+
+  // L^2, S^2 between two-electron CSFs (non-rel limit): 4p- 4p+, J=1 is pure
+  // 3P1; different non-rel configurations do not connect
+  const auto [L2_pp, S2_pp] = CI::L2S2_pair(ip1, ip3, ip1, ip3, 2);
+  REQUIRE(L2_pp == Approx(2.0));
+  REQUIRE(S2_pp == Approx(2.0));
+  const auto [L2_sd, S2_sd] = CI::L2S2_pair(is, ip1, is, id5, 2);
+  REQUIRE(L2_sd == 0.0);
+  REQUIRE(S2_sd == 0.0);
+
+  // Nearest term {2S, L}: S has the parity of J
+  REQUIRE(CI::Term_S_L_from_expectation(0.0, 0.75, 1) == std::pair{1, 0});
+  REQUIRE(CI::Term_S_L_from_expectation(2.0, 3.75, 3) == std::pair{3, 1});
+  REQUIRE(CI::Term_S_L_from_expectation(2.0, 2.0, 2) == std::pair{2, 1});
+  REQUIRE(CI::Term_S_L_from_expectation(6.0, 0.0, 4) == std::pair{0, 2});
 }

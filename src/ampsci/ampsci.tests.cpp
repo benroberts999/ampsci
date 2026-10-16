@@ -263,7 +263,7 @@ TEST_CASE("ampsci - basic CI unit test", "[ampsci][CI][unit]") {
     const auto twoj = ci_wf.twoJ();
     const auto parity = ci_wf.parity();
 
-    const auto ci_wf2 = wf.CIwf(twoj / 2, parity);
+    const auto ci_wf2 = wf.CIwf(twoj, parity);
     REQUIRE(ci_wf2 == &ci_wf);
 
     const auto ci_en = ci_wf.energy(0) * PhysConst::Hartree_invcm;
@@ -320,7 +320,7 @@ TEST_CASE("ampsci - basic CI unit test", "[ampsci][CI][unit]") {
     const auto parity = ci_wf.parity();
 
     // Find corresponding CI solution from second:
-    const auto ci_wf2 = wf2.CIwf(twoj / 2, parity);
+    const auto ci_wf2 = wf2.CIwf(twoj, parity);
     REQUIRE(ci_wf2 != nullptr);
 
     for (std::size_t i = 0; i < ci_wf.num_solutions(); ++i) {

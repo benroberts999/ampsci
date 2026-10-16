@@ -1,17 +1,22 @@
+#include "Amplitudes/MatrixElements.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "CI_Integrals.hpp"
 #include "ConfigurationInteraction.hpp"
 #include "Coulomb/include.hpp"
+#include "DiracOperator/include.hpp"
 #include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
 #include "LinAlg/include.hpp"
 #include "MBPT/Sigma2.hpp"
+#include "MixedStates.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Random.hpp"
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <map>
+#include <tuple>
 #include <vector>
 
 //==============================================================================
@@ -819,6 +824,24 @@ TEST_CASE("CI: three-electron run", "[CI][3VCI][unit]") {
   fmt::print("Li 1s^2 2s 2S1/2: E = {:.6f} au ({:.0f}% {})\n", gs->energy(0),
              100.0 * gs->info(0).ci2, gs->info(0).config);
 
+  // Term identification: 2S1/2 ground state (gJ = 2), and 1s^2 np 2P1/2 and
+  // 2P3/2 (gJ = 2/3, 4/3, in the non-rel limit)
+  REQUIRE(gs->info(0).gJ == Approx(2.0).epsilon(1.0e-2));
+  REQUIRE(gs->info(0).L2 == Approx(0.0).margin(0.05));
+  REQUIRE(gs->info(0).S2 == Approx(0.75).margin(0.05));
+  REQUIRE(gs->info(0).twoS == 1.0);
+  REQUIRE(gs->info(0).L == 0.0);
+  for (const auto &psi : levels) {
+    if (psi.parity() != -1)
+      continue;
+    const auto gJ_P = psi.twoJ() == 1 ? 2.0 / 3.0 : 4.0 / 3.0;
+    REQUIRE(psi.info(0).gJ == Approx(gJ_P).epsilon(1.0e-2));
+    REQUIRE(psi.info(0).L2 == Approx(2.0).margin(0.05));
+    REQUIRE(psi.info(0).S2 == Approx(0.75).margin(0.05));
+    REQUIRE(psi.info(0).twoS == 1.0);
+    REQUIRE(psi.info(0).L == 1.0);
+  }
+
   // Same blocks via twoJ (which supersedes J), read from the ci file
   // (read_only: a failed read would leave the blocks unsolved)
   const IO::InputBlock input_twoJ{"CI",
@@ -858,4 +881,397 @@ TEST_CASE("CI: three-electron run", "[CI][3VCI][unit]") {
   REQUIRE(levels_pi[0].twoJ() == 1);
   REQUIRE(levels_pi[0].parity() == 1);
   REQUIRE(levels_pi[0].num_solutions() == 3);
+}
+
+//==============================================================================
+// Three-electron reduced matrix elements and <L^2>, <S^2>, against exact
+// results:
+//  1. The angular momentum operator J itself: <A||J||B> = delta_AB
+//     sqrt(J(J+1)(2J+1)) for every CSF of a configuration (the sums over
+//     parents between different CSFs of one configuration must cancel).
+//  2. Closed 1s^2 pair plus z: <[1s^2]z||t^k||[1s^2]z'> = <z||t^k||z'>, for
+//     odd (E1) and even (E2) rank.
+//  3. General case (different j of the active orbital, different J of the two
+//     CSFs): against the explicit expansion of each CSF over single-particle
+//     m states, with the Wigner-Eckart theorem applied to each orbital.
+//  4. <L^2>, <S^2> of 1s^2 nl states: l(l+1), 3/4; the S^2 and L^2 spectra
+//     of 2s 2p^2 J=1/2.
+//  5. Mixed states: against the sum over the full spectrum.
+TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
+
+  std::cout << "CI three-electron matrix elements\n";
+
+  Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
+                  {"Li", -1, "pointlike"}, 1.0);
+  wf.solve_core("HartreeFock", "[He]", std::nullopt, 1.0e-5, false);
+  wf.formBasis(SplineBasis::Parameters("4spd", 20, 6, {1.0e-2}, 20.0));
+
+  const auto &a = wf.core().front();
+  std::vector<DiracSpinor> orbitals{a};
+  for (const auto &Fn : wf.basis()) {
+    if (Fn.n() > 1 && Fn.l() <= 2) {
+      orbitals.push_back(Fn);
+    }
+  }
+
+  const auto view = [](const std::vector<double> &c) {
+    return LinAlg::View<const double>{c.data(), 0, c.size(), 1};
+  };
+  const auto unit = [](std::size_t n, std::size_t i) {
+    std::vector<double> c(n, 0.0);
+    c[i] = 1.0;
+    return c;
+  };
+
+  //----------------------------------------------------------------------------
+  // 1. J operator: single-particle <z||j||z> = sqrt(j(j+1)(2j+1)); rank 1, even
+  Coulomb::meTable<double> j_tab;
+  for (const auto &z : orbitals) {
+    const auto j = 0.5 * z.twoj();
+    j_tab.add(z, z, std::sqrt(j * (j + 1.0) * (2.0 * j + 1.0)));
+  }
+
+  const auto index = [&orbitals](int n, int kappa) {
+    return std::find_if(orbitals.cbegin(), orbitals.cend(),
+                        [n, kappa](const auto &Fn) {
+                          return Fn.n() == n && Fn.kappa() == kappa;
+                        })
+      ->nk_index();
+  };
+  const std::vector<std::array<DiracSpinor::Index, 3>> configs{
+    {index(2, -1), index(2, 1), index(3, 2)},   // 2s 2p- 3d-
+    {index(2, 1), index(3, 1), index(4, 1)},    // 2p- 3p- 4p-
+    {index(2, -2), index(2, -2), index(3, -1)}, // 2p+^2 3s
+    {index(2, -1), index(2, -2), index(2, -2)}, // 2s 2p+^2
+    {index(2, -2), index(2, -2), index(2, -2)}, // 2p+^3
+    {index(3, -3), index(3, -3), index(3, -3)}, // 3d+^3
+    {index(3, -3), index(3, -3), index(4, -3)} // 3d+^2 4d+
+  };
+
+  // Convention of the single-particle table: the same identity must hold for
+  // two-electron CSFs (which fixes what "the" convention is)
+  double worst_J2 = 0.0;
+  for (const int twoJ : {0, 2, 4}) {
+    const auto csfs = CI::form_CSFs(twoJ, +1, orbitals);
+    const auto J = 0.5 * twoJ;
+    const auto expected = std::sqrt(J * (J + 1.0) * (2.0 * J + 1.0));
+    for (std::size_t A = 0; A < csfs.size(); ++A) {
+      for (std::size_t B = A; B < csfs.size(); ++B) {
+        const auto cA = unit(csfs.size(), A);
+        const auto cB = unit(csfs.size(), B);
+        const auto rme = CI::ReducedME(view(cA), csfs, twoJ, view(cB), csfs,
+                                       twoJ, j_tab, 1, +1);
+        worst_J2 =
+          std::max(worst_J2, std::abs(rme - (A == B ? expected : 0.0)));
+      }
+    }
+  }
+
+  double worst_J3 = 0.0;
+  for (const auto &config : configs) {
+    for (int twoJ = 1; twoJ <= 15; twoJ += 2) {
+      const auto csfs = CI::form_CSF3s(config, twoJ);
+      const auto J = 0.5 * twoJ;
+      const auto expected = std::sqrt(J * (J + 1.0) * (2.0 * J + 1.0));
+      for (std::size_t A = 0; A < csfs.size(); ++A) {
+        for (std::size_t B = 0; B < csfs.size(); ++B) {
+          const auto cA = unit(csfs.size(), A);
+          const auto cB = unit(csfs.size(), B);
+          const auto rme = CI::ReducedME(view(cA), csfs, twoJ, view(cB), csfs,
+                                         twoJ, j_tab, 1, +1);
+          worst_J3 =
+            std::max(worst_J3, std::abs(rme - (A == B ? expected : 0.0)));
+        }
+      }
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // 2. Closed pair plus one electron: E1 (rank 1, odd), E2 (rank 2, even)
+  const DiracOperator::E1 d{wf.grid()};
+  const DiracOperator::E2 q{wf.grid()};
+  const auto d_tab = Amplitudes::me_table(orbitals, &d);
+  const auto q_tab = Amplitudes::me_table(orbitals, &q);
+
+  double worst_closed = 0.0;
+  const auto ia = a.nk_index();
+  for (const auto &z : orbitals) {
+    if (z == a)
+      continue;
+    const auto csf_z = CI::form_CSF3s({ia, ia, z.nk_index()}, z.twoj());
+    REQUIRE(csf_z.size() == 1);
+    for (const auto &zp : orbitals) {
+      if (zp == a)
+        continue;
+      const auto csf_zp = CI::form_CSF3s({ia, ia, zp.nk_index()}, zp.twoj());
+      for (const auto &[tab, op] :
+           {std::pair{&d_tab,
+                      &static_cast<const DiracOperator::TensorOperator &>(d)},
+            std::pair{
+              &q_tab,
+              &static_cast<const DiracOperator::TensorOperator &>(q)}}) {
+        const auto rme = CI::RME_CSF3(csf_z[0], z.twoj(), csf_zp[0], zp.twoj(),
+                                      *tab, op->rank());
+        worst_closed = std::max(worst_closed, std::abs(rme - tab->getv(z, zp)));
+      }
+    }
+  }
+
+  //----------------------------------------------------------------------------
+  // 3. General case, against the m-scheme expansion of the CSFs.
+  // Amplitude of |o1 m1>|o2 m2>|o3 m3> (electrons 1, 2, 3 in definite
+  // orbitals) in a CSF at M = J, keyed by {o1, 2m1, o2, 2m2, o3, 2m3}
+  const auto expand_m = [](const CI::CSF3 &csf, int twoJ) {
+    std::map<std::array<int, 6>, double> amplitude;
+    for (const auto &parent : csf.parents()) {
+      const auto [x, y] = parent.pair;
+      const auto z = parent.spectator;
+      const auto tjx = Angular::nkindex_to_twoj(x);
+      const auto tjy = Angular::nkindex_to_twoj(y);
+      const auto tjz = Angular::nkindex_to_twoj(z);
+      // The parent pair, antisymmetric in electrons 1 and 2 (as CSF2)
+      const auto eta = x == y ? 1.0 : 1.0 / std::sqrt(2.0);
+      std::vector<std::tuple<int, int, double>> pair_terms{{x, y, eta}};
+      if (x != y) {
+        const auto s = Angular::neg1pow_2(tjx + tjy - parent.twoJ2);
+        pair_terms.push_back({y, x, -s * eta});
+      }
+      for (const auto &[o1, o2, c] : pair_terms) {
+        const auto tj1 = Angular::nkindex_to_twoj(std::uint64_t(o1));
+        const auto tj2 = Angular::nkindex_to_twoj(std::uint64_t(o2));
+        for (int m1 = -tj1; m1 <= tj1; m1 += 2) {
+          for (int m2 = -tj2; m2 <= tj2; m2 += 2) {
+            const auto twoM2 = m1 + m2;
+            const auto m3 = twoJ - twoM2;
+            if (std::abs(m3) > tjz)
+              continue;
+            const auto cg =
+              Angular::cg_2(tj1, m1, tj2, m2, parent.twoJ2, twoM2) *
+              Angular::cg_2(parent.twoJ2, twoM2, tjz, m3, twoJ, twoJ);
+            if (cg != 0.0) {
+              amplitude[{o1, m1, o2, m2, int(z), m3}] += parent.coef * c * cg;
+            }
+          }
+        }
+      }
+    }
+    return amplitude;
+  };
+
+  // <X J_X J_X| sum_i t^k_q |V J_V J_V>, q = J_X - J_V, with the Wigner-Eckart
+  // theorem for each orbital; then the reduced matrix element by the same
+  // theorem for the whole state
+  const auto brute_force_rme =
+    [&expand_m](const CI::CSF3 &X, int twoJX, const CI::CSF3 &V, int twoJV,
+                const Coulomb::meTable<double> &tab, int K) {
+      const auto twoq = twoJX - twoJV;
+      const auto amp_X = expand_m(X, twoJX);
+      const auto amp_V = expand_m(V, twoJV);
+      double me = 0.0;
+      for (const auto &[key_V, c_V] : amp_V) {
+        for (std::size_t i = 0; i < 3; ++i) {
+          const auto o = std::uint64_t(key_V[2 * i]);
+          const auto m = key_V[2 * i + 1];
+          const auto tj = Angular::nkindex_to_twoj(o);
+          // Act with t on electron i: orbital o -> op (same other electrons)
+          for (const auto &[key_X, c_X] : amp_X) {
+            bool others_same = true;
+            for (std::size_t l = 0; l < 3; ++l) {
+              if (l != i && (key_X[2 * l] != key_V[2 * l] ||
+                             key_X[2 * l + 1] != key_V[2 * l + 1])) {
+                others_same = false;
+              }
+            }
+            if (!others_same)
+              continue;
+            const auto op = std::uint64_t(key_X[2 * i]);
+            const auto mp = key_X[2 * i + 1];
+            if (mp != m + twoq)
+              continue;
+            const auto t =
+              tab.getv(DiracSpinor::Index(op), DiracSpinor::Index(o));
+            if (t == 0.0)
+              continue;
+            const auto tjp = Angular::nkindex_to_twoj(op);
+            me += c_X * c_V * Angular::neg1pow_2(tjp - mp) *
+                  Angular::threej_2(tjp, 2 * K, tj, -mp, twoq, m) * t;
+          }
+        }
+      }
+      const auto wigner_eckart =
+        Angular::neg1pow_2(twoJX - twoJX) *
+        Angular::threej_2(twoJX, 2 * K, twoJV, -twoJX, twoq, twoJV);
+      return wigner_eckart == 0.0 ? 0.0 : me / wigner_eckart;
+    };
+
+  // Pairs of configurations differing by one orbital of different j:
+  // E1 (odd): 2s 2p- 3d- <-> 2s 2p- 2p+ ; E2 (even): 2s 2p- 2p+ <-> 2s 2p- 3p-
+  double worst_general = 0.0;
+  int num_general = 0;
+  for (const auto &[config_X, config_V, tab, K] :
+       std::vector<std::tuple<std::array<DiracSpinor::Index, 3>,
+                              std::array<DiracSpinor::Index, 3>,
+                              const Coulomb::meTable<double> *, int>>{
+         {{index(2, -1), index(2, 1), index(3, 2)},
+          {index(2, -1), index(2, 1), index(2, -2)},
+          &d_tab,
+          1},
+         {{index(2, -1), index(2, 1), index(2, -2)},
+          {index(2, -1), index(2, 1), index(3, 1)},
+          &q_tab,
+          2}}) {
+    for (int twoJX = 1; twoJX <= 9; twoJX += 2) {
+      for (int twoJV = 1; twoJV <= 9; twoJV += 2) {
+        if (std::abs(twoJX - twoJV) > 2 * K)
+          continue;
+        for (const auto &X : CI::form_CSF3s(config_X, twoJX)) {
+          for (const auto &V : CI::form_CSF3s(config_V, twoJV)) {
+            const auto rme = CI::RME_CSF3(X, twoJX, V, twoJV, *tab, K);
+            const auto bf = brute_force_rme(X, twoJX, V, twoJV, *tab, K);
+            worst_general = std::max(worst_general, std::abs(rme - bf));
+            ++num_general;
+          }
+        }
+      }
+    }
+  }
+  REQUIRE(num_general > 20);
+
+  //----------------------------------------------------------------------------
+  // 4. <L^2>, <S^2>: 1s^2 nl is a pure doublet with L = l
+  double worst_LS = 0.0;
+  for (const auto &z : orbitals) {
+    if (z == a)
+      continue;
+    const auto csfs = CI::form_CSF3s({ia, ia, z.nk_index()}, z.twoj());
+    const std::vector<double> c{1.0};
+    const auto [L2, S2] = CI::expectation_L2S2(view(c), csfs, z.twoj());
+    worst_LS = std::max(worst_LS, std::abs(L2 - z.l() * (z.l() + 1.0)));
+    worst_LS = std::max(worst_LS, std::abs(S2 - 0.75));
+  }
+  // 2s 2p^2, J=1/2: the jj CSFs (over p-^2, p-p+, p+^2) mix doublets and
+  // quartets, but the S^2 matrix over them must have eigenvalues 3/4 or 15/4
+  // only (the states are 4P1/2, 2P1/2, 2S1/2, in the non-rel limit)
+  {
+    std::vector<CI::CSF3> csfs;
+    for (const auto &[p1, p2] :
+         std::vector<std::pair<int, int>>{{1, 1}, {1, -2}, {-2, -2}}) {
+      for (auto &csf :
+           CI::form_CSF3s({index(2, -1), index(2, p1), index(2, p2)}, 1)) {
+        csfs.push_back(std::move(csf));
+      }
+    }
+    const auto n = csfs.size();
+    // S^2 matrix in this basis, from expectation values of basis combinations
+    LinAlg::Matrix<double> S2(n, n);
+    for (std::size_t A = 0; A < n; ++A) {
+      for (std::size_t B = 0; B < n; ++B) {
+        // <A|S^2|B> = (<A+B|S^2|A+B> - <A|S^2|A> - <B|S^2|B>)/2
+        auto cAB = unit(n, A);
+        cAB[B] += 1.0;
+        const auto SAB = CI::expectation_L2S2(view(cAB), csfs, 1).second;
+        const auto SA = CI::expectation_L2S2(view(unit(n, A)), csfs, 1).second;
+        const auto SB = CI::expectation_L2S2(view(unit(n, B)), csfs, 1).second;
+        S2(A, B) = A == B ? SA : 0.5 * (SAB - SA - SB);
+      }
+    }
+    // and L^2 likewise
+    LinAlg::Matrix<double> L2(n, n);
+    for (std::size_t A = 0; A < n; ++A) {
+      for (std::size_t B = 0; B < n; ++B) {
+        auto cAB = unit(n, A);
+        cAB[B] += 1.0;
+        const auto LAB = CI::expectation_L2S2(view(cAB), csfs, 1).first;
+        const auto LA = CI::expectation_L2S2(view(unit(n, A)), csfs, 1).first;
+        const auto LB = CI::expectation_L2S2(view(unit(n, B)), csfs, 1).first;
+        L2(A, B) = A == B ? LA : 0.5 * (LAB - LA - LB);
+      }
+    }
+    // Terms with J=1/2: 2S1/2, 2P1/2, 4P1/2 (ascending)
+    const std::vector<double> expected_S2{0.75, 0.75, 3.75};
+    const std::vector<double> expected_L2{0.0, 2.0, 2.0};
+    const auto eigen_S2 = LinAlg::symmhEigensystem(S2).first;
+    const auto eigen_L2 = LinAlg::symmhEigensystem(L2).first;
+    REQUIRE(n == 3);
+    for (std::size_t i = 0; i < n; ++i) {
+      worst_LS = std::max(worst_LS, std::abs(eigen_S2[i] - expected_S2[i]));
+      worst_LS = std::max(worst_LS, std::abs(eigen_L2[i] - expected_L2[i]));
+    }
+  }
+
+  fmt::print("<A||J||B> vs delta sqrt(J(J+1)(2J+1)), 2e: {:.1e}\n", worst_J2);
+  fmt::print("<A||J||B> vs delta sqrt(J(J+1)(2J+1)), 3e: {:.1e}\n", worst_J3);
+  fmt::print("<a^2 z||t||a^2 z'> vs <z||t||z'>:          {:.1e}\n",
+             worst_closed);
+  fmt::print("<X||t||V> vs m-scheme:                     {:.1e}\n",
+             worst_general);
+  fmt::print("<L^2>, <S^2> vs exact:                     {:.1e}\n", worst_LS);
+  REQUIRE(worst_J2 < 1.0e-12);
+  REQUIRE(worst_J3 < 1.0e-12);
+  REQUIRE(worst_closed < 1.0e-12);
+  REQUIRE(worst_general < 1.0e-12);
+  REQUIRE(worst_LS < 1.0e-12);
+
+  //----------------------------------------------------------------------------
+  // 5. Mixed states vs sum over states: Li, all three electrons active
+  {
+    Wavefunction wf3({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
+                     {"Li", -1, "pointlike"}, 1.0);
+    wf3.solve_core("HartreeFock", "[]", std::nullopt, 1.0e-5, false);
+    wf3.formBasis(SplineBasis::Parameters("3sp", 20, 6, {1.0e-2}, 20.0));
+    const auto ci_basis = CI::basis_subset(wf3.basis(), "3sp");
+    Coulomb::QkTable qk;
+    qk.fill(ci_basis, Coulomb::YkTable(ci_basis), 8, false);
+    const auto h1 = CI::calculate_h1_table(ci_basis, {}, {}, qk, false);
+
+    CI::PsiJPi Psi0(1, +1, ci_basis, 3);
+    Psi0.solve(CI::construct_Hci(Psi0, h1, qk));
+    const auto E0 = Psi0.energy(0);
+
+    const auto test_mixed_state = [&](int twoJ, int parity,
+                                      const DiracOperator::TensorOperator *h) {
+      const auto h_tab = Amplitudes::me_table(ci_basis, h);
+      CI::PsiJPi target(twoJ, parity, ci_basis, 3);
+      const auto Hci = CI::construct_Hci(target, h1, qk);
+      target.solve(Hci);
+      const auto dPsi =
+        CI::solve_mixed_state(Psi0, 0, target, Hci, h_tab, h->rank());
+      const auto dc = dPsi.coefs(0);
+      // T_I = sum_K <I||t||K> c_K: projected onto a level A, it is <A||t||0>
+      const auto T =
+        CI::TPsi_reduced(target.CSF3s(), twoJ, Psi0, 0, h_tab, h->rank());
+      double worst = 0.0;
+      double max_me = 0.0;
+      for (std::size_t iA = 0; iA < target.num_solutions(); ++iA) {
+        const auto dE = E0 - target.energy(iA);
+        const auto me =
+          CI::ReducedME(target, iA, Psi0, 0, h_tab, h->rank(), h->parity());
+        const auto cA = target.coefs(iA);
+        double overlap = 0.0;
+        double cA_T = 0.0;
+        for (std::size_t i = 0; i < cA.size(); ++i) {
+          overlap += cA[i] * dc[i];
+          cA_T += cA[i] * T[i];
+        }
+        REQUIRE(cA_T == Approx(me).margin(1.0e-12));
+        if (std::abs(dE) < 1.0e-10) {
+          REQUIRE(std::abs(overlap) < 1.0e-10);
+          continue;
+        }
+        max_me = std::max(max_me, std::abs(me));
+        worst = std::max(worst, std::abs(dE * overlap - me));
+      }
+      fmt::print("(E0-EA)<A|dPsi> vs <A||t||0>, {}{} {}: {:.1e} (rel.)\n",
+                 CI::J_string(twoJ), parity == 1 ? '+' : '-', h->name(),
+                 worst / max_me);
+      return worst / max_me;
+    };
+
+    const DiracOperator::E1 d3{wf3.grid()};
+    REQUIRE(test_mixed_state(1, -1, &d3) < 1.0e-10);
+    REQUIRE(test_mixed_state(3, -1, &d3) < 1.0e-10);
+    // Scalar, same J/Pi as Psi0 (singular case)
+    const DiracOperator::RadialF r2{wf3.grid(), 2.0};
+    REQUIRE(test_mixed_state(1, +1, &r2) < 1.0e-10);
+  }
 }

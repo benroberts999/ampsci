@@ -826,10 +826,11 @@ std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
 //==============================================================================
 // Calculate reduced matrix elements between two CI states.
 // cA is CI expansion coefficients (row if CI eigenvector matrix)
+template <typename CSFType>
 double ReducedME(const LinAlg::View<const double> &cA,
-                 const std::vector<CI::CSF2> &CSFAs, int twoJA,
+                 const std::vector<CSFType> &CSFAs, int twoJA,
                  const LinAlg::View<const double> &cB,
-                 const std::vector<CI::CSF2> &CSFBs, int twoJB,
+                 const std::vector<CSFType> &CSFBs, int twoJB,
                  const Coulomb::meTable<double> &h, int K_rank, int Parity) {
 
   // selection rules: Not required (operator encodes it's own),
@@ -857,10 +858,54 @@ double ReducedME(const LinAlg::View<const double> &cA,
       const auto &csf_j = CSFBs.at(j);
       const auto cj = cB[j];
 
-      rme += ci * cj * RME_CSF2(csf_i, twoJA, csf_j, twoJB, h, K_rank);
+      if constexpr (std::is_same_v<CSFType, CSF3>) {
+        rme += ci * cj * RME_CSF3(csf_i, twoJA, csf_j, twoJB, h, K_rank);
+      } else {
+        rme += ci * cj * RME_CSF2(csf_i, twoJA, csf_j, twoJB, h, K_rank);
+      }
     }
   }
   return rme;
+}
+
+template double ReducedME<CSF2>(const LinAlg::View<const double> &,
+                                const std::vector<CSF2> &, int,
+                                const LinAlg::View<const double> &,
+                                const std::vector<CSF2> &, int,
+                                const Coulomb::meTable<double> &, int, int);
+template double ReducedME<CSF3>(const LinAlg::View<const double> &,
+                                const std::vector<CSF3> &, int,
+                                const LinAlg::View<const double> &,
+                                const std::vector<CSF3> &, int,
+                                const Coulomb::meTable<double> &, int, int);
+
+//==============================================================================
+double RME_CSF3(const CI::CSF3 &X, int twoJX, const CI::CSF3 &V, int twoJV,
+                const Coulomb::meTable<double> &h, int K_rank) {
+
+  if (CSF3::num_different(X, V) > 1)
+    return 0.0;
+
+  const auto twok = 2 * K_rank;
+  const auto f = 3.0 * std::sqrt(double(twoJX + 1) * (twoJV + 1));
+
+  double sum = 0.0;
+  for (const auto &p : X.parents()) {
+    for (const auto &q : V.parents()) {
+      // One-body: acts on electron 3; the parent pair must coincide
+      if (p.twoJ2 != q.twoJ2 || p.pair != q.pair)
+        continue;
+      const auto t = h.getv(p.spectator, q.spectator);
+      if (t == 0.0)
+        continue;
+      const auto tjp = Angular::nkindex_to_twoj(p.spectator);
+      const auto tjq = Angular::nkindex_to_twoj(q.spectator);
+      const auto sj = Angular::sixj_2(tjp, twoJX, p.twoJ2, twoJV, tjq, twok);
+      const auto s = Angular::neg1pow_2(p.twoJ2 + tjq + twoJX + twok);
+      sum += p.coef * q.coef * s * sj * t;
+    }
+  }
+  return f * sum;
 }
 
 //==============================================================================
@@ -983,27 +1028,29 @@ std::pair<int, int> Term_S_L(int l1, int l2, int twoJ, double gJ_target) {
 
 //==============================================================================
 std::pair<int, int> Term_S_L_from_expectation(double L2, double S2, int twoJ) {
-  // Nearest (S, L) consistent with J; for two electrons, S = 0 or 1.
-  // L limit: generous; l1 + l2 for any realistic CI basis
+  // Nearest (S, L) consistent with J. S has the parity of J: for two
+  // electrons S = 0, 1; for three, S = 1/2, 3/2.
+  // L limit: generous; sum of l's for any realistic CI basis
   constexpr int max_L = 16;
 
   int best_L = -1;
-  int best_S = 0;
+  int best_twoS = twoJ % 2;
   double best_del = 1.0e30;
-  for (int S = 0; S <= 1; ++S) {
+  for (int twoS = twoJ % 2; twoS <= twoJ % 2 + 2; twoS += 2) {
+    const auto S = 0.5 * twoS;
     for (int L = 0; L <= max_L; ++L) {
-      if (twoJ > 2 * (L + S) || twoJ < 2 * std::abs(L - S))
+      if (twoJ > 2 * L + twoS || twoJ < std::abs(2 * L - twoS))
         continue;
       const auto del =
         std::abs(L * (L + 1.0) - L2) + std::abs(S * (S + 1.0) - S2);
       if (del < best_del) {
         best_del = del;
         best_L = L;
-        best_S = S;
+        best_twoS = twoS;
       }
     }
   }
-  return {best_S, best_L};
+  return {best_twoS, best_L};
 }
 
 //==============================================================================

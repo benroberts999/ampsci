@@ -853,7 +853,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       const auto iL = (int)std::round(L);
       const auto itwoS = (int)std::round(twoS);
 
-      // Term symbol only where L, S were assigned (two electrons)
+      // Term symbol only where L, S were assigned
       const auto term =
         L < 0.0 ? std::string{} : Term_Symbol(iL, itwoS, Psi_Jpi.parity());
       auto out_string = fmt::format(
@@ -1040,39 +1040,31 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
         }
       }
     }
+    const bool three_electron = psi.num_electrons() == 3;
 
     // Leading non-relativistic configuration, and its |c|^2 weight:
-    const auto [config, pc] = psi.num_electrons() == 3 ?
+    const auto [config, pc] = three_electron ?
                                 CI::leading_config(psi.coefs(i), psi.CSF3s()) :
                                 CI::leading_config(psi.coefs(i), psi.CSFs());
-
-    // g-factor, <L^2>, <S^2>, and term symbol: two-electron states only
-    if (psi.num_electrons() != 2) {
-      if (print_details) {
-        fmt::print(outstream, "   --------------\n   {:<9s}\n\n", config);
-      }
-      psi.update_config_info(i, {config, pc, 0.0, -1.0, -1.0, -1.0, -1.0});
-      continue;
-    }
 
     // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
     // take J=Jz, <JJz|J|JJz> = J
     // then: g_J = <JJ|L + 2*S|JJ> / J
     // And: <JJ|L + 2*S|JJ> = 3js * <A||L+2S||A> (W.E. Theorem)
-    // const auto m1AA_NR = CI::ReducedME(psi.coefs(i), psi.CSFs(), twoJ, &m1);
     const auto m1AA_R =
-      CI::ReducedME(psi.coefs(i), psi.CSFs(), twoJ, psi.coefs(i), psi.CSFs(),
-                    twoJ, m1_tab, m1.rank(), m1.parity());
+      CI::ReducedME(psi, i, psi, i, m1_tab, m1.rank(), m1.parity());
     const auto tjs = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0);
 
     // Calculate g-factors, for line identification. Only defined for J!=0
     const double gJ = twoJ != 0 ? tjs * m1AA_R / (0.5 * twoJ) : 0.0;
 
     // <L^2> and <S^2> of the CI state (non-rel limit): measure LS-purity
-    const auto [L2, S2] = CI::expectation_L2S2(psi.coefs(i), psi.CSFs(), twoJ);
+    const auto [L2, S2] =
+      three_electron ? CI::expectation_L2S2(psi.coefs(i), psi.CSF3s(), twoJ) :
+                       CI::expectation_L2S2(psi.coefs(i), psi.CSFs(), twoJ);
 
     // Determine Term Symbol, from <L^2> and <S^2>
-    const auto [S, L] = CI::Term_S_L_from_expectation(L2, S2, twoJ);
+    const auto [twoS, L] = CI::Term_S_L_from_expectation(L2, S2, twoJ);
     const auto LSeff = [](double x) {
       return 0.5 * (std::sqrt(1.0 + 4.0 * x) - 1.0);
     };
@@ -1085,12 +1077,12 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       // fmt::print(outstream, "   <L^2> = {:.4f}, <S^2> = {:.4f}\n", L2, S2);
       fmt::print(outstream, "   L_eff = {:.4f}, S_eff = {:.4f}\n", LSeff(L2),
                  LSeff(S2));
-      fmt::print(outstream, "   {:<6s} {}\n", config,
-                 Term_Symbol(twoJ, L, 2 * S, parity));
+      fmt::print(outstream, "   {:<9s} {}\n", config,
+                 Term_Symbol(twoJ, L, twoS, parity));
       outstream << "\n";
     }
 
-    psi.update_config_info(i, {config, pc, gJ, 1.0 * L, 2.0 * S, L2, S2});
+    psi.update_config_info(i, {config, pc, gJ, 1.0 * L, 1.0 * twoS, L2, S2});
   }
 
   return psi;

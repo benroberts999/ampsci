@@ -1,18 +1,27 @@
 #include "MixedStates.hpp"
 #include "CI_Integrals.hpp"
 #include <cassert>
+#include <type_traits>
 
 namespace CI {
 
 //==============================================================================
 // Forms T_I = sum_K <I||T||K> c_K, the action of the one-body operator T on
 // the CI state Psi_0, in the CSF basis of the target J/Pi
-LinAlg::Vector<double> TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ,
-                                    const PsiJPi &Psi0, std::size_t i0,
-                                    const Coulomb::meTable<double> &h,
-                                    int K_rank) {
+template <typename CSFType>
+LinAlg::Vector<double>
+TPsi_reduced(const std::vector<CSFType> &CSFs, int twoJ, const PsiJPi &Psi0,
+             std::size_t i0, const Coulomb::meTable<double> &h, int K_rank) {
 
-  const auto &CSF0s = Psi0.CSFs();
+  constexpr bool three_electron = std::is_same_v<CSFType, CSF3>;
+  assert(Psi0.num_electrons() == (three_electron ? 3 : 2));
+  const auto &CSF0s = [&Psi0]() -> const std::vector<CSFType> & {
+    if constexpr (three_electron) {
+      return Psi0.CSF3s();
+    } else {
+      return Psi0.CSFs();
+    }
+  }();
   const auto twoJ0 = Psi0.twoJ();
   const auto c0 = Psi0.coefs(i0);
 
@@ -25,13 +34,26 @@ LinAlg::Vector<double> TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ,
   for (std::size_t i = 0; i < N; ++i) {
     double sum = 0.0;
     for (std::size_t k = 0; k < N0; ++k) {
-      sum += c0[k] * RME_CSF2(CSFs.at(i), twoJ, CSF0s.at(k), twoJ0, h, K_rank);
+      if constexpr (three_electron) {
+        sum +=
+          c0[k] * RME_CSF3(CSFs.at(i), twoJ, CSF0s.at(k), twoJ0, h, K_rank);
+      } else {
+        sum +=
+          c0[k] * RME_CSF2(CSFs.at(i), twoJ, CSF0s.at(k), twoJ0, h, K_rank);
+      }
     }
     Tc[i] = sum;
   }
 
   return Tc;
 }
+
+template LinAlg::Vector<double>
+TPsi_reduced<CSF2>(const std::vector<CSF2> &, int, const PsiJPi &, std::size_t,
+                   const Coulomb::meTable<double> &, int);
+template LinAlg::Vector<double>
+TPsi_reduced<CSF3>(const std::vector<CSF3> &, int, const PsiJPi &, std::size_t,
+                   const Coulomb::meTable<double> &, int);
 
 //==============================================================================
 // Solves [<I|H|J> - (E_0 + w) d_IJ] c_J = -<I||T||K> c_K, for the mixed state
@@ -43,14 +65,17 @@ PsiJPi solve_mixed_state(const PsiJPi &Psi0, std::size_t i0,
                          double omega) {
 
   assert(Hci.rows() == Hci.cols());
-  assert(Hci.rows() == target.CSFs().size());
+  assert(Hci.rows() == target.num_CSFs());
+  assert(Psi0.num_electrons() == target.num_electrons());
 
-  const auto N = target.CSFs().size();
+  const auto N = target.num_CSFs();
   const auto E0 = Psi0.energy(i0);
 
   // Right-hand side: -T|Psi_0>, in the CSF basis of the target J/Pi
   auto rhs =
-    -1.0 * TPsi_reduced(target.CSFs(), target.twoJ(), Psi0, i0, h, K_rank);
+    -1.0 * (target.num_electrons() == 3 ?
+              TPsi_reduced(target.CSF3s(), target.twoJ(), Psi0, i0, h, K_rank) :
+              TPsi_reduced(target.CSFs(), target.twoJ(), Psi0, i0, h, K_rank));
 
   // Left-hand side: M_IJ = <I|H|J> - (E_0 + omega) * delta_IJ
   auto M = Hci;
@@ -64,7 +89,7 @@ PsiJPi solve_mixed_state(const PsiJPi &Psi0, std::size_t i0,
   // but makes it invertible; the solution is then orthogonal to Psi_0
   if (omega == 0.0 && target.twoJ() == Psi0.twoJ() &&
       target.parity() == Psi0.parity()) {
-    assert(N == Psi0.CSFs().size());
+    assert(N == Psi0.num_CSFs());
     LinAlg::Vector<double> c0(N);
     for (std::size_t i = 0; i < N; ++i) {
       c0[i] = Psi0.coef(i0, i);
@@ -85,9 +110,9 @@ PsiJPi solve_mixed_state(const PsiJPi &Psi0, std::size_t i0,
 PsiJPi project_out(PsiJPi dPsi, const PsiJPi &levels,
                    const std::vector<std::size_t> &indices) {
 
-  assert(dPsi.CSFs().size() == levels.CSFs().size());
+  assert(dPsi.num_CSFs() == levels.num_CSFs());
 
-  const auto N = dPsi.CSFs().size();
+  const auto N = dPsi.num_CSFs();
 
   LinAlg::Vector<double> c(N);
   for (std::size_t i = 0; i < N; ++i) {
@@ -122,7 +147,8 @@ PsiJPi solve_mixed_state(const PsiJPi &Psi0, std::size_t i0, int twoJ,
                          const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk,
                          const Coulomb::LkTable *Sk, double omega) {
 
-  const PsiJPi target(twoJ, parity, ci_sp_basis);
+  // The mixed state has the same number of electrons as the reference state
+  const PsiJPi target(twoJ, parity, ci_sp_basis, Psi0.num_electrons());
   const auto Hci = construct_Hci(target, h1, qk, Bk, Sk);
 
   return solve_mixed_state(Psi0, i0, target, Hci, h, K_rank, omega);

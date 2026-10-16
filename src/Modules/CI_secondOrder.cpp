@@ -292,9 +292,9 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto level_A = CI::parse_level(str_A);
     const auto level_B = CI::parse_level(str_B);
     const auto Psi_a =
-      level_A ? wf.CIwf(level_A->twoJ / 2, level_A->parity) : nullptr;
+      level_A ? wf.CIwf(level_A->twoJ, level_A->parity) : nullptr;
     const auto Psi_b =
-      level_B ? wf.CIwf(level_B->twoJ / 2, level_B->parity) : nullptr;
+      level_B ? wf.CIwf(level_B->twoJ, level_B->parity) : nullptr;
     const auto ia = level_A ? level_A->index : 0;
     const auto ib = level_B ? level_B->index : 0;
     if (Psi_a == nullptr || Psi_b == nullptr || ia >= Psi_a->num_solutions() ||
@@ -305,7 +305,8 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
                 << "\nGive as J{+,-}:index; e.g., A = 0+; B = 1-:2;\n"
                    "Available (J,parity):";
       for (const auto &psi : wf.CIwfs()) {
-        fmt::print(" {}{}", psi.twoJ() / 2, psi.parity() == 1 ? '+' : '-');
+        fmt::print(" {}{}", CI::J_string(psi.twoJ()),
+                   psi.parity() == 1 ? '+' : '-');
       }
       std::cout << "\n";
       continue;

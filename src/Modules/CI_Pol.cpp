@@ -103,19 +103,20 @@ void CI_Pol(const IO::InputBlock &input, const Wavefunction &wf) {
                input_state);
     return;
   }
-  const auto J = level ? level->twoJ / 2 : input.get("J", 0);
+  const auto twoJ = level ? level->twoJ : 2 * input.get("J", 0);
   const auto parity = level ? level->parity : input.get("parity", 1);
   const auto nv = level ? level->index : input.get("state_number", 0ul);
   //get CI wavefunction for "initial state"
-  const auto wfV = wf.CIwf(J, parity);
+  const auto wfV = wf.CIwf(twoJ, parity);
   if (wfV == nullptr || nv >= wfV->num_solutions()) {
     fmt2::error();
     std::cout << ": Could not find the requested CI state ("
-              << CI::to_string({2 * J, parity, nv})
+              << CI::to_string({twoJ, parity, nv})
               << "). Requires a CI{} block.\n"
                  "Available (J,parity):";
     for (const auto &psi : wf.CIwfs()) {
-      fmt::print(" {}{}", psi.twoJ() / 2, psi.parity() == 1 ? '+' : '-');
+      fmt::print(" {}{}", CI::J_string(psi.twoJ()),
+                 psi.parity() == 1 ? '+' : '-');
     }
     std::cout << "\n";
     return;
@@ -166,21 +167,21 @@ void CI_Pol(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //for polarisability
   double pol = 0.0;
-  double pol_factor = 2.0 / (3.0 * (2.0 * J + 1.0));
+  double pol_factor = 2.0 / (3.0 * (twoJ + 1.0));
 
-  for (int J2 = J - k1; J2 <= J + k1; J2++) {
-    if (J2 < 0) {
+  for (int twoJ2 = twoJ - 2 * k1; twoJ2 <= twoJ + 2 * k1; twoJ2 += 2) {
+    if (twoJ2 < 0) {
       continue;
     }
-    if (J2 == 0 && J == 0) {
+    if (twoJ2 == 0 && twoJ == 0) {
       continue;
     }
-    const auto wfn = wf.CIwf(J2, -parity);
+    const auto wfn = wf.CIwf(twoJ2, -parity);
     if (wfn == nullptr) {
       continue;
     }
     const auto num = wfn->num_solutions();
-    double conj_phase = Angular::neg1pow_2(2 * J - 2 * J2);
+    double conj_phase = Angular::neg1pow_2(twoJ - twoJ2);
     std::cout << "\n Matrix elements and energy denominator contributions to "
                  "polarisability \n\n\n";
     for (std::size_t i = 0; i < num; i++) {
@@ -204,8 +205,8 @@ void CI_Pol(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto cf = (*wfV).info(nv).config;
   pol = pol_factor * pol;
   std::cout << "Polarisability of state with configuration " << cf
-            << ", angular momentum " << J << " and parity " << parity << " is "
-            << pol << " a_0^3\n";
+            << ", angular momentum " << CI::J_string(twoJ) << " and parity "
+            << parity << " is " << pol << " a_0^3\n";
 }
 
 } // namespace Module

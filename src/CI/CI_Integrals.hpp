@@ -601,17 +601,19 @@ basis_subset(const std::vector<DiracSpinor> &basis,
   where the single-particle reduced matrix elements are looked up from @p h.
 
   @param cA,cB      CI expansion coefficient vectors for states A and B.
-  @param CSFAs,CSFBs CSF bases for states A and B respectively.
+  @param CSFAs,CSFBs CSF bases for states A and B respectively (both @ref CSF2,
+                     or both @ref CSF3).
   @param twoJA,twoJB Twice the total angular momentum of states A and B.
   @param h          Lookup table of single-particle reduced matrix elements.
   @param K_rank     Rank of the tensor operator.
   @param Parity     Parity of the operator (+1 or -1).
   @return Reduced matrix element \f$ \redmatel{A}{T^K}{B} \f$.
 */
+template <typename CSFType>
 double ReducedME(const LinAlg::View<const double> &cA,
-                 const std::vector<CI::CSF2> &CSFAs, int twoJA,
+                 const std::vector<CSFType> &CSFAs, int twoJA,
                  const LinAlg::View<const double> &cB,
-                 const std::vector<CI::CSF2> &CSFBs, int twoJB,
+                 const std::vector<CSFType> &CSFBs, int twoJB,
                  const Coulomb::meTable<double> &h, int K_rank, int Parity);
 
 /*!
@@ -631,6 +633,11 @@ double ReducedME(const LinAlg::View<const double> &cA,
 inline double ReducedME(const PsiJPi &As, std::size_t iA, const PsiJPi &Bs,
                         std::size_t iB, const Coulomb::meTable<double> &h,
                         int K_rank, int Parity) {
+  assert(As.num_electrons() == Bs.num_electrons());
+  if (As.num_electrons() == 3) {
+    return ReducedME(As.coefs(iA), As.CSF3s(), As.twoJ(), Bs.coefs(iB),
+                     Bs.CSF3s(), Bs.twoJ(), h, K_rank, Parity);
+  }
   return ReducedME(As.coefs(iA), As.CSFs(), As.twoJ(), Bs.coefs(iB), Bs.CSFs(),
                    Bs.twoJ(), h, K_rank, Parity);
 }
@@ -646,6 +653,24 @@ inline double ReducedME(const PsiJPi &As, std::size_t iA, const PsiJPi &Bs,
            verified for non-trivial configurations.
 */
 double RME_CSF2(const CI::CSF2 &X, int twoJX, const CI::CSF2 &V, int twoJV,
+                const Coulomb::meTable<double> &h, int K_rank);
+
+/*!
+  @brief Reduced matrix element between two three-electron CSFs.
+  @details
+  The CSFs are fully antisymmetric, so the one-body operator may be taken to
+  act on electron 3 only (with a factor of 3). Expanding over parent states
+  (see @ref CSF3), only parents with the same pair \f$ \Phi = [xy]J_2 \f$
+  connect, and the operator acts on the third orbital:
+  \f[
+    \langle X; J_X \| T^k \| V; J_V \rangle
+    = 3 \sum_{pq} C^X_p C^V_q \, \delta_{\Phi_p \Phi_q}
+    (-1)^{J_2 + j_{z_q} + J_X + k} \sqrt{[J_X][J_V]}
+    \begin{Bmatrix} j_{z_p} & J_X & J_2 \\ J_V & j_{z_q} & k \end{Bmatrix}
+    \langle z_p \| t^k \| z_q \rangle .
+  \f]
+*/
+double RME_CSF3(const CI::CSF3 &X, int twoJX, const CI::CSF3 &V, int twoJV,
                 const Coulomb::meTable<double> &h, int K_rank);
 
 /*!
@@ -679,18 +704,20 @@ leading_config(const LinAlg::View<const double> &coefs,
 std::pair<int, int> Term_S_L(int l1, int l2, int twoJ, double gJ_target);
 
 /*!
-  @brief Determines the (S, L) term for a two-electron state from the
-  expectation values of L^2 and S^2.
+  @brief Determines the (S, L) term for a CI state from the expectation values
+  of L^2 and S^2.
   @details
-  Returns the (S, L) pair, subject to the triangle condition with J, that
+  Returns the (2S, L) pair, subject to the triangle condition with J, that
   minimises the combined distance |L(L+1) - @p L2| + |S(S+1) - @p S2|.
+  S is integer for integer J (two electrons: S = 0, 1), half-integer for
+  half-integer J (three electrons: S = 1/2, 3/2).
   For a mixed state, this is the nearest (dominant) term; the purity is
   indicated by @p L2, @p S2 themselves. See @ref expectation_L2S2.
 
   @param L2    Expectation value of L^2.
   @param S2    Expectation value of S^2.
   @param twoJ  Twice the total angular momentum 2J.
-  @return Best-fit {S, L} pair.
+  @return Best-fit {2S, L} pair.
 */
 std::pair<int, int> Term_S_L_from_expectation(double L2, double S2, int twoJ);
 

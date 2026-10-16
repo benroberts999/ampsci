@@ -430,6 +430,53 @@ std::pair<double, double>
 expectation_L2S2(const LinAlg::View<const double> &coefs,
                  const std::vector<CSF2> &csfs, int twoJ);
 
+/*!
+  @brief Matrix elements of L^2 and S^2 between two two-electron CSFs of the
+  same J (non-relativistic limit).
+  @details
+  Both are scalars in the two-electron space, and (with the radial orbitals
+  of \f$ j = l \pm 1/2 \f$ treated as identical, see @ref LS_amplitude)
+  connect only CSFs of the same non-relativistic configuration, in the same
+  stored order. Then
+  \f[
+    \langle x'y'; J | L^2 | xy; J \rangle
+    = \sum_{LS} A_{x'y'}(L,S) A_{xy}(L,S) \, L(L+1),
+  \f]
+  and likewise for \f$ S^2 \f$ with \f$ S(S+1) \f$.
+
+  @param x,y    Orbitals (nk_index, sorted) of the ket CSF.
+  @param xp,yp  Orbitals of the bra CSF.
+  @param twoJ   Twice the total angular momentum 2J of both CSFs.
+  @return Pair {<L^2>, <S^2>}; zero if the configurations differ.
+*/
+std::pair<double, double> L2S2_pair(DiracSpinor::Index x, DiracSpinor::Index y,
+                                    DiracSpinor::Index xp,
+                                    DiracSpinor::Index yp, int twoJ);
+
+/*!
+  @brief Expectation values of L^2 and S^2 for a three-electron CI state.
+  @details
+  Written as sums of pair operators plus one-body terms,
+  \f[
+    L^2 = \sum_{i<j} L_{ij}^2 - \sum_i l_i(l_i+1),
+  \f]
+  \f[
+    S^2 = \sum_{i<j} S_{ij}^2 - \tfrac{9}{4},
+  \f]
+  the pair terms reduce, by the expansion over parent states (see @ref CSF3),
+  to the two-electron matrix elements of @ref L2S2_pair, between parents with
+  the same third orbital. As for two electrons, only CSFs of the same
+  non-relativistic configuration are connected.
+
+  @param coefs  CI expansion coefficients (one per CSF).
+  @param csfs   The CSF basis (matching @p coefs).
+  @param twoJ   Twice the total angular momentum 2J.
+  @return Pair {<L^2>, <S^2>}.
+*/
+std::pair<double, double>
+expectation_L2S2(const LinAlg::View<const double> &coefs,
+                 const std::vector<CSF3> &csfs, int twoJ);
+
 //==============================================================================
 /*!
   @brief Identifies one CI level: its (J, parity), and which solution.

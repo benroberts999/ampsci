@@ -83,7 +83,7 @@ A_K(int K, const PsiJPi &Psi_b, std::size_t ib, const PsiJPi &Psi_a,
   // other. The first ('ts') term has s acting on a, so those states have parity
   // pi_a*pi_s; the second ('st') term has t acting on a: pi_a*pi_t
   const auto twoJn_max = std::max(twoJa, twoJb) + 2 * std::max(kt, ks);
-  for (int twoJn = 0; twoJn <= twoJn_max; twoJn += 2) {
+  for (int twoJn = twoJa % 2; twoJn <= twoJn_max; twoJn += 2) {
     for (const auto pi_n : {-1, 1}) {
 
       const bool do_ts = pi_n == Psi_a.parity() * s->parity() &&
@@ -101,14 +101,14 @@ A_K(int K, const PsiJPi &Psi_b, std::size_t ib, const PsiJPi &Psi_a,
       // energy-dependent corrections to the Hamiltonian are then at its own
       // reference energy, as in the run (and as in the levels a
       // sum-over-states would use), rather than at the ground-state energy
-      PsiJPi target(twoJn, pi_n, ints.ci_basis);
+      PsiJPi target(twoJn, pi_n, ints.ci_basis, ints.num_electrons);
       for (const auto &psi : solved_Jpi) {
         if (psi.twoJ() == twoJn && psi.parity() == pi_n) {
           target = psi;
           break;
         }
       }
-      if (target.CSFs().empty())
+      if (target.num_CSFs() == 0)
         continue;
       const auto Hci = construct_Hci(target, ints);
 
@@ -166,15 +166,15 @@ A_K(int K, const PsiJPi &Psi_b, std::size_t ib, const PsiJPi &Psi_a,
       A_s += c1 * ts_s + c2 * st_s;
       A_t += c1 * ts_t + c2 * st_t;
 
-      const auto Jpi = std::to_string(twoJn / 2) + (pi_n == 1 ? "+" : "-");
+      const auto Jpi = J_string(twoJn) + (pi_n == 1 ? "+" : "-");
       if (do_ts) {
         fmt::print(outstream, "{:>5} {:>7} {:>4}  {:16.6e} {:16.6e} {:8.1e}\n",
-                   Jpi, target.CSFs().size(), "ts", c1 * ts_s, c1 * ts_t,
+                   Jpi, target.num_CSFs(), "ts", c1 * ts_s, c1 * ts_t,
                    std::abs(ts_s - ts_t) / std::max(std::abs(ts_s), 1.0e-30));
       }
       if (do_st) {
         fmt::print(outstream, "{:>5} {:>7} {:>4}  {:16.6e} {:16.6e} {:8.1e}\n",
-                   Jpi, target.CSFs().size(), "st", c2 * st_s, c2 * st_t,
+                   Jpi, target.num_CSFs(), "st", c2 * st_s, c2 * st_t,
                    std::abs(st_s - st_t) / std::max(std::abs(st_s), 1.0e-30));
       }
       outstream << std::flush;

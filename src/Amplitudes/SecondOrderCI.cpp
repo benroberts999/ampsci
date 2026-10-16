@@ -38,7 +38,7 @@ double sos_ci(int K, const CI::PsiJPi &Psi_b, std::size_t ib,
   // other. The first ('ts') term has s acting on a, so those states have
   // parity pi_a*pi_s; the second ('st') term has t acting on a: pi_a*pi_t
   const auto twoJn_max = std::max(twoJa, twoJb) + 2 * std::max(kt, ks);
-  for (int twoJn = 0; twoJn <= twoJn_max; twoJn += 2) {
+  for (int twoJn = twoJa % 2; twoJn <= twoJn_max; twoJn += 2) {
     for (const auto pi_n : {-1, 1}) {
 
       const bool do_ts = pi_n == Psi_a.parity() * s->parity() &&
@@ -55,7 +55,7 @@ double sos_ci(int K, const CI::PsiJPi &Psi_b, std::size_t ib,
 
       // The solved levels of this (J, parity): only what the CI{} block
       // solved is available, so the sum is truncated to those
-      const auto Jpi = std::to_string(twoJn / 2) + (pi_n == 1 ? "+" : "-");
+      const auto Jpi = CI::J_string(twoJn) + (pi_n == 1 ? "+" : "-");
       const CI::PsiJPi *Psi_n = nullptr;
       for (const auto &psi : ciwfs) {
         if (psi.twoJ() == twoJn && psi.parity() == pi_n) {

@@ -588,7 +588,91 @@ expectation_L2S2(const LinAlg::View<const double> &coefs,
 }
 
 //==============================================================================
+std::pair<double, double> L2S2_pair(DiracSpinor::Index x, DiracSpinor::Index y,
+                                    DiracSpinor::Index xp,
+                                    DiracSpinor::Index yp, int twoJ) {
+  const auto [n1, k1] = Angular::index_to_nk(x);
+  const auto [n2, k2] = Angular::index_to_nk(y);
+  const auto [n1p, k1p] = Angular::index_to_nk(xp);
+  const auto [n2p, k2p] = Angular::index_to_nk(yp);
+  const auto l1 = Angular::l_k(k1);
+  const auto l2 = Angular::l_k(k2);
+  // Same non-rel configuration, in the same (stored) order
+  if (n1 != n1p || n2 != n2p || l1 != Angular::l_k(k1p) ||
+      l2 != Angular::l_k(k2p)) {
+    return {0.0, 0.0};
+  }
+  const auto twoj1 = Angular::twoj_k(k1);
+  const auto twoj2 = Angular::twoj_k(k2);
+  const auto twoj1p = Angular::twoj_k(k1p);
+  const auto twoj2p = Angular::twoj_k(k2p);
 
+  double L2 = 0.0;
+  double S2 = 0.0;
+  for (int S = 0; S <= 1; ++S) {
+    for (int L = std::abs(l1 - l2); L <= l1 + l2; ++L) {
+      if (twoJ > 2 * (L + S) || twoJ < 2 * std::abs(L - S))
+        continue;
+      const auto A = LS_amplitude(n1, l1, twoj1, n2, l2, twoj2, L, S, twoJ);
+      const auto Ap = LS_amplitude(n1, l1, twoj1p, n2, l2, twoj2p, L, S, twoJ);
+      L2 += A * Ap * L * (L + 1.0);
+      S2 += A * Ap * S * (S + 1.0);
+    }
+  }
+  return {L2, S2};
+}
+
+//==============================================================================
+std::pair<double, double>
+expectation_L2S2(const LinAlg::View<const double> &coefs,
+                 const std::vector<CSF3> &csfs, int) {
+  assert(coefs.size() == csfs.size());
+
+  // The pair operators connect only CSFs of the same non-rel configuration:
+  // group the CSFs by configuration, and sum within each group
+  std::map<std::string, std::vector<std::size_t>> groups;
+  for (std::size_t i = 0; i < csfs.size(); ++i) {
+    if (coefs[i] != 0.0) {
+      groups[csfs[i].config(false)].push_back(i);
+    }
+  }
+
+  double L2 = 0.0;
+  double S2 = 0.0;
+  for (const auto &[config, members] : groups) {
+    for (const auto a : members) {
+      // One-body terms: diagonal in the CSFs
+      double sum_l2 = 0.0;
+      for (const auto orbital : csfs[a].states) {
+        const auto l = Angular::nkindex_to_l(orbital);
+        sum_l2 += l * (l + 1.0);
+      }
+      L2 -= coefs[a] * coefs[a] * sum_l2;
+      S2 -= coefs[a] * coefs[a] * 9.0 / 4.0;
+
+      // Pair terms, via parents with the same third orbital and pair J2
+      for (const auto b : members) {
+        double L2_ab = 0.0;
+        double S2_ab = 0.0;
+        for (const auto &p : csfs[a].parents()) {
+          for (const auto &q : csfs[b].parents()) {
+            if (p.spectator != q.spectator || p.twoJ2 != q.twoJ2)
+              continue;
+            const auto [L2_pq, S2_pq] =
+              L2S2_pair(q.pair[0], q.pair[1], p.pair[0], p.pair[1], p.twoJ2);
+            L2_ab += p.coef * q.coef * L2_pq;
+            S2_ab += p.coef * q.coef * S2_pq;
+          }
+        }
+        L2 += 3.0 * coefs[a] * coefs[b] * L2_ab;
+        S2 += 3.0 * coefs[a] * coefs[b] * S2_ab;
+      }
+    }
+  }
+  return {L2, S2};
+}
+
+//==============================================================================
 PsiJPi::PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
                int num_electrons)
   : m_twoj(twoJ), m_pi(pi) {

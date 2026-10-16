@@ -34,8 +34,9 @@ namespace CI {
   @param K_rank Rank of the tensor operator T.
   @return Vector \f$ T_I \f$, of length @p CSFs .size().
 */
+template <typename CSFType>
 [[nodiscard]] LinAlg::Vector<double>
-TPsi_reduced(const std::vector<CSF2> &CSFs, int twoJ, const PsiJPi &Psi0,
+TPsi_reduced(const std::vector<CSFType> &CSFs, int twoJ, const PsiJPi &Psi0,
              std::size_t i0, const Coulomb::meTable<double> &h, int K_rank);
 
 /*!

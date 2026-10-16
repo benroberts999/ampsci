@@ -322,8 +322,8 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       "Text or number. Freq. for RPA (and freq. dependent operators). Put "
       "'each' to solve at correct frequency for each transition. [0.0]"},
      {"J", "List of angular momentum Js to calculate matrix elements for. If "
-           "blank, all available Js will be calculated. Must be integers "
-           "(two-electron only)."},
+           "blank, all available Js will be calculated. Integers for two "
+           "electrons; fractions (1/2, 3/2) for three."},
      {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
      {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
      {"num_solutions", "Maximum solution number to calculate MEs for. If "
@@ -510,10 +510,29 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "..done\n" << std::flush;
   }
 
-  const auto J_list =
-    input.get("J", std::vector<int>{0, 1, 2, 3, 4, 5, 6, 7, 8, 9});
-  const auto J_even_list = input.get("J+", J_list);
-  const auto J_odd_list = input.get("J-", J_list);
+  // J lists, as 2J: integers, or fractions over 2 for three electrons.
+  // Default: every J up to 9 (or 19/2)
+  const auto twoJ_list = [&input](const std::string &name,
+                                  const std::vector<int> &fallback) {
+    const auto texts = input.get<std::vector<std::string>>(name);
+    if (!texts)
+      return fallback;
+    std::vector<int> list;
+    for (const auto &text : *texts) {
+      const auto twoJ = CI::parse_twoJ(text);
+      if (twoJ) {
+        list.push_back(*twoJ);
+      }
+    }
+    return list;
+  };
+  std::vector<int> default_twoJ;
+  for (int twoJ = wf.CI_integrals().num_electrons % 2; twoJ < 20; twoJ += 2) {
+    default_twoJ.push_back(twoJ);
+  }
+  const auto J_list = twoJ_list("J", default_twoJ);
+  const auto J_even_list = twoJ_list("J+", J_list);
+  const auto J_odd_list = twoJ_list("J-", J_list);
   const auto num_solutions = input.get("num_solutions", 5ul);
 
   // With omega = each, the operator, the RPA, and the SR tables follow each
@@ -549,20 +568,20 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
       fmt::print(
         "{}{} {:2} {:5s} {:3s} - {}{} {:2} {:5s} {:3s}  {:2} {:.0e}  {: .5f} "
         "{: 12.5e}\n",
-        wfA.twoJ() / 2, p1, iA, wfA.info(iA).config,
+        CI::J_string(wfA.twoJ()), p1, iA, wfA.info(iA).config,
         CI::Term_Symbol((int)wfA.info(iA).L, (int)wfA.info(iA).twoS,
                         wfA.parity()),
-        wfB.twoJ() / 2, p2, iB, wfB.info(iB).config,
+        CI::J_string(wfB.twoJ()), p2, iB, wfB.info(iB).config,
         CI::Term_Symbol((int)wfB.info(iB).L, (int)wfB.info(iB).twoS,
                         wfB.parity()),
         rpa->last_its(), rpa->last_eps(), t_omega, me);
     } else {
       fmt::print(
         "{}{} {:2} {:5s} {:3s} - {}{} {:2} {:5s} {:3s}  {: .5f} {: 12.5e}\n",
-        wfA.twoJ() / 2, p1, iA, wfA.info(iA).config,
+        CI::J_string(wfA.twoJ()), p1, iA, wfA.info(iA).config,
         CI::Term_Symbol((int)wfA.info(iA).L, (int)wfA.info(iA).twoS,
                         wfA.parity()),
-        wfB.twoJ() / 2, p2, iB, wfB.info(iB).config,
+        CI::J_string(wfB.twoJ()), p2, iB, wfB.info(iB).config,
         CI::Term_Symbol((int)wfB.info(iB).L, (int)wfB.info(iB).twoS,
                         wfB.parity()),
         t_omega, me);
@@ -587,7 +606,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
           continue;
 
         // selection rules:
-        if (!h->selectrion_rule(2 * ej, pi1, 2 * oj, pi2))
+        if (!h->selectrion_rule(ej, pi1, oj, pi2))
           continue;
 
         for (std::size_t i = 0; i < num_solutions && i < wf_e->num_solutions();
