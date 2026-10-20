@@ -9,15 +9,41 @@
 #include "LinAlg/include.hpp"
 #include "MBPT/Sigma2.hpp"
 #include "MixedStates.hpp"
+#include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "qip/Random.hpp"
 #include <algorithm>
 #include <array>
 #include <cstdio>
+#include <filesystem>
+#include <fstream>
 #include <map>
+#include <random>
+#include <sstream>
 #include <tuple>
 #include <vector>
+
+namespace UnitTest {
+// CI tables for Li (core [He]): orbitals 1s and the excited 5spd basis
+// states; Coulomb Q^k; one-body (orbital energies, arbitrary off-diagonal
+// elements); Breit and Sigma_2 (arbitrary multiples of Q^k; Sigma_2 over
+// n <= 3, with extrapolation ratios and a dS^k/dE0 table); a dSigma/dE
+// correction. As in "CI: three-electron Hamiltonian"
+struct CITables {
+  std::vector<DiracSpinor> orbitals{};
+  Coulomb::QkTable qk{};
+  Coulomb::meTable<double> h1{};
+  Coulomb::WkTable Bk{};
+  Coulomb::LkTable Sk{};
+  Coulomb::LkTable dSk{};
+  std::vector<double> hk{};
+  CI::Sigma1Correction s1c{};
+  // Shift of E0 from where Sk was tabulated
+  double dE0{0.0};
+};
+CITables Li_CI_tables();
+} // namespace UnitTest
 
 //==============================================================================
 TEST_CASE("CI: Configuration Interaction unit tests", "[CI][unit]") {
@@ -505,8 +531,6 @@ TEST_CASE("CI: dSdE from correlation potential", "[CI][integration]") {
 //     from the two-electron (pair) traces.
 TEST_CASE("CI: three-electron Hamiltonian", "[CI][3VCI][unit]") {
 
-  std::cout << "CI three-electron Hamiltonian\n";
-
   Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
                   {"Li", -1, "pointlike"}, 1.0);
   wf.solve_core("HartreeFock", "[He]", std::nullopt, 1.0e-5, false);
@@ -756,12 +780,209 @@ TEST_CASE("CI: three-electron Hamiltonian", "[CI][3VCI][unit]") {
     }
   }
 
-  fmt::print("<H> vs <h> + <V_HF>:    {:.1e}\n", worst_closed);
-  fmt::print("E_3e vs E_2e + e_z:     {:.1e}\n", worst_spectator);
-  fmt::print("Tr(H) vs Tr(det), rel.: {:.1e}\n", worst_trace);
   REQUIRE(worst_closed < 1.0e-10);
   REQUIRE(worst_spectator < 1.0e-10);
   REQUIRE(worst_trace < 1.0e-12);
+}
+
+//==============================================================================
+// Sparse CI matrix against the dense one, with all corrections (Breit,
+// Sigma_2 with extrapolation and BW shift, dSigma/dE), for two and three
+// electrons: every element equal, and every non-zero element stored. The
+// number stored is bounded by the pairs of CSFs that can interact, which
+// equals a direct count over all pairs
+TEST_CASE("CI: sparse Hamiltonian", "[CI][3VCI][unit]") {
+
+  const auto t = UnitTest::Li_CI_tables();
+
+  double worst_element = 0.0;
+  // {2J, parity, number of electrons}
+  for (const auto &[twoJ, parity, num_electrons] :
+       std::vector<std::array<int, 3>>{{1, 1, 3}, {3, -1, 3}, {2, 1, 2}}) {
+    const CI::PsiJPi psi{twoJ, parity, t.orbitals, num_electrons};
+    const auto H_dense = CI::construct_Hci(psi, t.h1, t.qk, &t.Bk, &t.Sk,
+                                           &t.s1c, t.hk, &t.dSk, t.dE0);
+    const auto H_sparse =
+      CI::construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
+        psi, t.h1, t.qk, &t.Bk, &t.Sk, &t.s1c, t.hk, &t.dSk, t.dE0);
+    const auto H_sparse_dense = H_sparse.dense();
+
+    const auto N = psi.num_CSFs();
+    std::size_t num_nonzero = 0;
+    for (std::size_t i = 0; i < N; ++i) {
+      for (std::size_t j = 0; j < N; ++j) {
+        worst_element = std::max(
+          worst_element, std::abs(H_sparse_dense(i, j) - H_dense(i, j)));
+        if (j <= i && H_dense(i, j) != 0.0) {
+          ++num_nonzero;
+        }
+      }
+    }
+
+    // Pairs that can interact, counted directly
+    std::size_t num_pairs = 0;
+    for (std::size_t i = 0; i < N; ++i) {
+      for (std::size_t j = 0; j <= i; ++j) {
+        const auto num_different =
+          num_electrons == 3 ?
+            CI::CSF3::num_different(psi.CSF3s()[i], psi.CSF3s()[j]) :
+            CI::CSF2::num_different(psi.CSFs()[i], psi.CSFs()[j]);
+        if (num_different <= 2) {
+          ++num_pairs;
+        }
+      }
+    }
+    const auto num_interacting = num_electrons == 3 ?
+                                   CI::num_interacting_pairs(psi.CSF3s()) :
+                                   CI::num_interacting_pairs(psi.CSFs());
+
+    REQUIRE(H_sparse.num_stored() == num_nonzero);
+    REQUIRE(num_interacting == num_pairs);
+    REQUIRE(H_sparse.num_stored() <= num_interacting);
+    if (num_electrons == 3) {
+      // Three electrons: not every pair interacts
+      REQUIRE(num_interacting < N * (N + 1) / 2);
+    } else {
+      REQUIRE(num_interacting == N * (N + 1) / 2);
+    }
+  }
+  REQUIRE(worst_element == 0.0);
+}
+
+//==============================================================================
+// Lowest five solutions of a three-electron CI matrix (with all
+// corrections): Davidson, on the sparse matrix, vs direct diagonalisation
+TEST_CASE("CI: Davidson vs dense", "[CI][3VCI]") {
+
+  const auto t = UnitTest::Li_CI_tables();
+
+  double worst_E = 0.0, worst_overlap = 0.0;
+  for (const auto &[twoJ, parity] :
+       std::vector<std::pair<int, int>>{{1, 1}, {3, -1}}) {
+    CI::PsiJPi psi_dense{twoJ, parity, t.orbitals, 3};
+    auto psi_iterative = psi_dense;
+    psi_dense.solve(CI::construct_Hci(psi_dense, t.h1, t.qk, &t.Bk, &t.Sk,
+                                      &t.s1c, t.hk, &t.dSk, t.dE0),
+                    5);
+    const auto convergence = psi_iterative.solve(
+      CI::construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
+        psi_iterative, t.h1, t.qk, &t.Bk, &t.Sk, &t.s1c, t.hk, &t.dSk, t.dE0),
+      5);
+    REQUIRE(convergence.converged);
+    REQUIRE(convergence.iterations > 0);
+    REQUIRE(psi_iterative.num_solutions() == 5);
+    for (std::size_t i = 0; i < 5; ++i) {
+      worst_E = std::max(
+        worst_E, std::abs(psi_iterative.energy(i) - psi_dense.energy(i)));
+      double overlap = 0.0;
+      for (std::size_t j = 0; j < psi_dense.num_CSFs(); ++j) {
+        overlap += psi_iterative.coef(i, j) * psi_dense.coef(i, j);
+      }
+      worst_overlap = std::max(worst_overlap, 1.0 - std::abs(overlap));
+    }
+  }
+  fmt::print("E vs dense:          max diff = {:.1e}\n", worst_E);
+  fmt::print("|<c|c_dense>| vs 1:  max diff = {:.1e}\n", worst_overlap);
+  REQUIRE(worst_E < 1.0e-12);
+  REQUIRE(worst_overlap < 1.0e-12);
+
+  // All solutions below an energy: the number found is not known in
+  // advance (here 20: found 8, 16, then 32, of which 20 are below)
+  {
+    CI::PsiJPi psi_dense{1, 1, t.orbitals, 3};
+    auto psi_iterative = psi_dense;
+    const auto H_dense = CI::construct_Hci(psi_dense, t.h1, t.qk, &t.Bk, &t.Sk,
+                                           &t.s1c, t.hk, &t.dSk, t.dE0);
+    const auto H_sparse =
+      CI::construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
+        psi_iterative, t.h1, t.qk, &t.Bk, &t.Sk, &t.s1c, t.hk, &t.dSk, t.dE0);
+    const auto E_all = LinAlg::symmhEigensystem(H_dense).first;
+    const auto all_below_cm =
+      0.5 * (E_all[19] + E_all[20]) * PhysConst::Hartree_invcm;
+    psi_dense.solve(H_dense, 0, all_below_cm);
+    const auto convergence = psi_iterative.solve(H_sparse, 0, all_below_cm);
+    REQUIRE(convergence.converged);
+    // Found iteratively
+    REQUIRE(convergence.iterations > 0);
+    REQUIRE(psi_dense.num_solutions() == 20);
+    REQUIRE(psi_iterative.num_solutions() == 20);
+    double worst_E_below = 0.0;
+    for (std::size_t i = 0; i < 20; ++i) {
+      worst_E_below = std::max(
+        worst_E_below, std::abs(psi_iterative.energy(i) - psi_dense.energy(i)));
+    }
+    fmt::print("All below, E vs dense: max diff = {:.1e}\n", worst_E_below);
+    REQUIRE(worst_E_below < 1.0e-12);
+
+    // Threshold above every solution: as many as Davidson finds, N - 1
+    const auto above_all =
+      (E_all[E_all.size() - 1] + 1.0) * PhysConst::Hartree_invcm;
+    std::cout << "Expect two warnings below (deliberate): many solutions\n";
+    REQUIRE(psi_iterative.solve(H_sparse, 0, above_all).converged);
+    REQUIRE(psi_iterative.num_solutions() == psi_iterative.num_CSFs() - 1);
+    REQUIRE(psi_iterative.energy(5) == Approx(E_all[5]).epsilon(1.0e-12));
+
+    // More than N/20 solutions requested (slower than dense, but works)
+    const auto many = int(psi_iterative.num_CSFs() / 20) + 1;
+    const auto convergence_many = psi_iterative.solve(H_sparse, many);
+    REQUIRE(convergence_many.converged);
+    REQUIRE(psi_iterative.num_solutions() == std::size_t(many));
+    REQUIRE(psi_iterative.energy(std::size_t(many) - 1) ==
+            Approx(E_all[std::size_t(many) - 1]).epsilon(1.0e-12));
+  }
+
+  // A block of a single CSF (1s^2 2p-, J=1/2-, from the orbitals 1s and
+  // 2p-), as the first pass of iterate_E0 requests: the one solution, without
+  // an eigensolve
+  {
+    const auto p_minus =
+      std::find_if(t.orbitals.cbegin(), t.orbitals.cend(), [](const auto &Fn) {
+        return Fn.n() == 2 && Fn.kappa() == 1;
+      });
+    REQUIRE(p_minus != t.orbitals.cend());
+    const std::vector<DiracSpinor> two_orbitals{t.orbitals.front(), *p_minus};
+    CI::PsiJPi psi_single{1, -1, two_orbitals, 3};
+    REQUIRE(psi_single.num_CSFs() == 1);
+    const auto H_single =
+      CI::construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(psi_single, t.h1,
+                                                               t.qk);
+    const auto convergence_single = psi_single.solve(H_single, 1);
+    REQUIRE(convergence_single.iterations == 0);
+    REQUIRE(psi_single.num_solutions() == 1);
+    REQUIRE(psi_single.energy(0) == H_single.diagonal()[0]);
+    REQUIRE(std::abs(psi_single.coef(0, 0)) == 1.0);
+  }
+}
+
+//==============================================================================
+// Self-consistent dSigma/dE reference energy E0, and the CI matrix built
+// with it: sparse (Davidson) vs dense
+TEST_CASE("CI: iterate_E0 sparse", "[CI][3VCI]") {
+
+  const auto t = UnitTest::Li_CI_tables();
+
+  std::ostringstream discard;
+  auto s1c_unset = t.s1c;
+  s1c_unset.E0 = 0.0;
+  CI::PsiJPi psi_dense{1, 1, t.orbitals, 3};
+  auto psi_iterative = psi_dense;
+  const auto H_dense = CI::iterate_E0(&psi_dense, s1c_unset, t.h1, t.qk, &t.Bk,
+                                      &t.Sk, t.hk, &t.dSk, -7.4, discard);
+  const auto H_sparse = CI::iterate_E0<LinAlg::SparseSymmetricMatrix<double>>(
+                          &psi_iterative, s1c_unset, t.h1, t.qk, &t.Bk, &t.Sk,
+                          t.hk, &t.dSk, -7.4, discard)
+                          .dense();
+  double worst_H = 0.0;
+  for (std::size_t i = 0; i < psi_dense.num_CSFs(); ++i) {
+    for (std::size_t j = 0; j < psi_dense.num_CSFs(); ++j) {
+      worst_H = std::max(worst_H, std::abs(H_sparse(i, j) - H_dense(i, j)));
+    }
+  }
+  const auto dE0 = std::abs(psi_iterative.energy(0) - psi_dense.energy(0));
+  fmt::print("E0 vs dense:  diff     = {:.1e}\n", dE0);
+  fmt::print("H vs dense:   max diff = {:.1e}\n", worst_H);
+  REQUIRE(dE0 < 1.0e-12);
+  REQUIRE(worst_H < 1.0e-12);
 }
 
 //==============================================================================
@@ -770,13 +991,13 @@ TEST_CASE("CI: three-electron Hamiltonian", "[CI][3VCI][unit]") {
 // (block energies reproduce the directly constructed Hamiltonian)
 TEST_CASE("CI: three-electron run", "[CI][3VCI][unit]") {
 
-  std::cout << "CI three-electron run\n";
-
   // Li, all three electrons in the CI space (bare-nucleus basis)
   Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
                   {"Li", -1, "pointlike"}, 1.0);
   wf.solve_core("HartreeFock", "[]", std::nullopt, 1.0e-5, false);
-  wf.formBasis(SplineBasis::Parameters("3sp", 20, 6, {1.0e-2}, 20.0));
+  auto b_params = SplineBasis::Parameters("3sp", 20, 6, {1.0e-2}, 20.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
 
   const std::string qk_filename =
     "deleteme_" + qip::random_string(3) + ".qk.abf";
@@ -821,8 +1042,6 @@ TEST_CASE("CI: three-electron run", "[CI][3VCI][unit]") {
   REQUIRE(gs->info(0).config.back() == 's');
   REQUIRE(gs->energy(0) > -7.48);
   REQUIRE(gs->energy(0) < -7.3);
-  fmt::print("Li 1s^2 2s 2S1/2: E = {:.6f} au ({:.0f}% {})\n", gs->energy(0),
-             100.0 * gs->info(0).ci2, gs->info(0).config);
 
   // Term identification: 2S1/2 ground state (gJ = 2), and 1s^2 np 2P1/2 and
   // 2P3/2 (gJ = 2/3, 4/3, in the non-rel limit)
@@ -871,8 +1090,7 @@ TEST_CASE("CI: three-electron run", "[CI][3VCI][unit]") {
 
   // Parity-specific list supersedes the plain one, for its parity only:
   // odd parity takes twoJ- (rejected), even parity takes J
-  std::cout << "\nExpect one warning below (deliberate, from twoJ- = 2): J = 1 "
-               "is not possible for 3 electrons\n";
+  std::cout << "\nExpect one warning below (deliberate): twoJ- = 2\n";
   const IO::InputBlock input_pi{"CI", "ci_basis = 3sp; num_electrons = 3;"
                                       "J = 1/2; twoJ- = 2; read_only = true;" +
                                         files};
@@ -881,6 +1099,131 @@ TEST_CASE("CI: three-electron run", "[CI][3VCI][unit]") {
   REQUIRE(levels_pi[0].twoJ() == 1);
   REQUIRE(levels_pi[0].parity() == 1);
   REQUIRE(levels_pi[0].num_solutions() == 3);
+}
+
+//==============================================================================
+// The CI solutions file: blocks with different numbers of solutions; a new
+// block appended; a block re-written with more solutions (the other block
+// kept exactly); an incomplete final block dropped; the file size; and a file
+// without the format tag (blocks holding all num_CSFs solutions), which is
+// not read, and is replaced on write
+TEST_CASE("CI: solutions file", "[CI][unit]") {
+
+  Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
+                  {"He", -1, "pointlike"}, 1.0);
+  wf.solve_core("HartreeFock", "[]", std::nullopt, 1.0e-5, false);
+  auto b_params = SplineBasis::Parameters("4sp", 20, 6, {1.0e-2}, 20.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
+
+  // Solutions of a random symmetric matrix: distinct, non-trivial
+  // coefficients
+  std::mt19937_64 rng{123456789};
+  std::uniform_real_distribution<double> uniform(-1.0, 1.0);
+  const auto solved = [&](int twoJ, int num_solutions) {
+    CI::PsiJPi psi{twoJ, +1, wf.basis()};
+    const auto N = psi.num_CSFs();
+    LinAlg::Matrix<double> H(N, N);
+    for (std::size_t i = 0; i < N; ++i) {
+      for (std::size_t j = 0; j <= i; ++j) {
+        H(i, j) = H(j, i) = uniform(rng);
+      }
+    }
+    psi.solve(H, num_solutions);
+    return psi;
+  };
+  const auto A2 = solved(0, 2);
+  const auto B2 = solved(2, 2);
+  const auto A3 = solved(0, 3);
+  const auto N_A = A2.num_CSFs();
+  const auto N_B = B2.num_CSFs();
+
+  // Format tag, then per block: 2J, parity, N, num_solutions, E, coefficients
+  const auto block_bytes = [](std::size_t N, std::size_t num_solutions) {
+    return 2 * sizeof(int) + 2 * sizeof(std::size_t) +
+           (num_solutions + num_solutions * N) * sizeof(double);
+  };
+
+  const auto fname = "deleteme_" + qip::random_string(4) + ".ci.abf";
+  auto write_A2 = A2;
+  auto write_B2 = B2;
+  auto write_A3 = A3;
+  REQUIRE(write_A2.read_write(fname, IO::FRW::write));
+  // New block: appended
+  REQUIRE(write_B2.read_write(fname, IO::FRW::write));
+  REQUIRE(std::filesystem::file_size(fname) ==
+          8 + block_bytes(N_A, 2) + block_bytes(N_B, 2));
+  // A grows: the file is re-written
+  REQUIRE(write_A3.read_write(fname, IO::FRW::write));
+
+  CI::PsiJPi read_A{0, +1, wf.basis()};
+  CI::PsiJPi read_B{2, +1, wf.basis()};
+  REQUIRE(read_A.read_write(fname, IO::FRW::read));
+  REQUIRE(read_B.read_write(fname, IO::FRW::read));
+  REQUIRE(read_A.num_solutions() == 3);
+  REQUIRE(read_B.num_solutions() == 2);
+  // Binary round trip: exact
+  for (std::size_t i = 0; i < 3; ++i) {
+    REQUIRE(read_A.energy(i) == A3.energy(i));
+    for (std::size_t j = 0; j < N_A; ++j) {
+      REQUIRE(read_A.coef(i, j) == A3.coef(i, j));
+    }
+  }
+  for (std::size_t i = 0; i < 2; ++i) {
+    REQUIRE(read_B.energy(i) == B2.energy(i));
+    for (std::size_t j = 0; j < N_B; ++j) {
+      REQUIRE(read_B.coef(i, j) == B2.coef(i, j));
+    }
+  }
+  REQUIRE(std::filesystem::file_size(fname) ==
+          8 + block_bytes(N_A, 3) + block_bytes(N_B, 2));
+
+  // Incomplete final block (A, written last), e.g. from an interrupted
+  // write: a new block (C) is not appended after it; the file is re-written
+  // without it
+  std::filesystem::resize_file(fname, std::filesystem::file_size(fname) - 5);
+  auto write_C2 = solved(4, 2);
+  const auto N_C = write_C2.num_CSFs();
+  REQUIRE(write_C2.read_write(fname, IO::FRW::write));
+  REQUIRE(std::filesystem::file_size(fname) ==
+          8 + block_bytes(N_B, 2) + block_bytes(N_C, 2));
+  CI::PsiJPi read_B_again{2, +1, wf.basis()};
+  CI::PsiJPi read_C{4, +1, wf.basis()};
+  REQUIRE(read_B_again.read_write(fname, IO::FRW::read));
+  REQUIRE(read_C.read_write(fname, IO::FRW::read));
+  REQUIRE(read_B_again.coef(1, N_B - 1) == B2.coef(1, N_B - 1));
+  REQUIRE(read_C.coef(1, N_C - 1) == write_C2.coef(1, N_C - 1));
+  REQUIRE(!read_A.read_write(fname, IO::FRW::read));
+
+  // No format tag: twoJ, pi, N, num_solutions, E[N], M[N x N]
+  const auto fname_old = "deleteme_" + qip::random_string(4) + ".ci.abf";
+  {
+    std::fstream f;
+    IO::FRW::open_binary(f, fname_old, IO::FRW::write);
+    int twoJ = 0, pi = 1;
+    std::size_t N = N_A, num_solutions = 2;
+    IO::FRW::rw_binary(f, IO::FRW::write, twoJ, pi, N, num_solutions);
+    std::vector<double> E(N, 0.0), M(N * N, 0.0);
+    for (std::size_t i = 0; i < 2; ++i) {
+      E[i] = A2.energy(i);
+      for (std::size_t j = 0; j < N; ++j) {
+        M[i * N + j] = A2.coef(i, j);
+      }
+    }
+    f.write(reinterpret_cast<const char *>(E.data()),
+            std::streamsize(E.size() * sizeof(double)));
+    f.write(reinterpret_cast<const char *>(M.data()),
+            std::streamsize(M.size() * sizeof(double)));
+  }
+  std::cout << "Expect a message below (deliberate): file without the format "
+               "tag is not read\n";
+  CI::PsiJPi read_old{0, +1, wf.basis()};
+  REQUIRE(!read_old.read_write(fname_old, IO::FRW::read));
+  REQUIRE(write_A2.read_write(fname_old, IO::FRW::write));
+  REQUIRE(read_old.read_write(fname_old, IO::FRW::read));
+  REQUIRE(read_old.num_solutions() == 2);
+  REQUIRE(read_old.energy(1) == A2.energy(1));
+  REQUIRE(std::filesystem::file_size(fname_old) == 8 + block_bytes(N_A, 2));
 }
 
 //==============================================================================
@@ -899,12 +1242,12 @@ TEST_CASE("CI: three-electron run", "[CI][3VCI][unit]") {
 //  5. Mixed states: against the sum over the full spectrum.
 TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
 
-  std::cout << "CI three-electron matrix elements\n";
-
   Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
                   {"Li", -1, "pointlike"}, 1.0);
   wf.solve_core("HartreeFock", "[He]", std::nullopt, 1.0e-5, false);
-  wf.formBasis(SplineBasis::Parameters("4spd", 20, 6, {1.0e-2}, 20.0));
+  auto b_params = SplineBasis::Parameters("4spd", 20, 6, {1.0e-2}, 20.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
 
   const auto &a = wf.core().front();
   std::vector<DiracSpinor> orbitals{a};
@@ -1199,13 +1542,6 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
     }
   }
 
-  fmt::print("<A||J||B> vs delta sqrt(J(J+1)(2J+1)), 2e: {:.1e}\n", worst_J2);
-  fmt::print("<A||J||B> vs delta sqrt(J(J+1)(2J+1)), 3e: {:.1e}\n", worst_J3);
-  fmt::print("<a^2 z||t||a^2 z'> vs <z||t||z'>:          {:.1e}\n",
-             worst_closed);
-  fmt::print("<X||t||V> vs m-scheme:                     {:.1e}\n",
-             worst_general);
-  fmt::print("<L^2>, <S^2> vs exact:                     {:.1e}\n", worst_LS);
   REQUIRE(worst_J2 < 1.0e-12);
   REQUIRE(worst_J3 < 1.0e-12);
   REQUIRE(worst_closed < 1.0e-12);
@@ -1218,7 +1554,9 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
     Wavefunction wf3({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
                      {"Li", -1, "pointlike"}, 1.0);
     wf3.solve_core("HartreeFock", "[]", std::nullopt, 1.0e-5, false);
-    wf3.formBasis(SplineBasis::Parameters("3sp", 20, 6, {1.0e-2}, 20.0));
+    auto b_params3 = SplineBasis::Parameters("3sp", 20, 6, {1.0e-2}, 20.0);
+    b_params3.verbose = false;
+    wf3.formBasis(b_params3);
     const auto ci_basis = CI::basis_subset(wf3.basis(), "3sp");
     Coulomb::QkTable qk;
     qk.fill(ci_basis, Coulomb::YkTable(ci_basis), 8, false);
@@ -1261,9 +1599,6 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
         max_me = std::max(max_me, std::abs(me));
         worst = std::max(worst, std::abs(dE * overlap - me));
       }
-      fmt::print("(E0-EA)<A|dPsi> vs <A||t||0>, {}{} {}: {:.1e} (rel.)\n",
-                 CI::J_string(twoJ), parity == 1 ? '+' : '-', h->name(),
-                 worst / max_me);
       return worst / max_me;
     };
 
@@ -1274,4 +1609,78 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
     const DiracOperator::RadialF r2{wf3.grid(), 2.0};
     REQUIRE(test_mixed_state(1, +1, &r2) < 1.0e-10);
   }
+}
+
+//==============================================================================
+UnitTest::CITables UnitTest::Li_CI_tables() {
+  CITables t;
+
+  Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
+                  {"Li", -1, "pointlike"}, 1.0);
+  wf.solve_core("HartreeFock", "[He]", std::nullopt, 1.0e-5, false);
+  auto b_params = SplineBasis::Parameters("5spd", 20, 6, {1.0e-2}, 20.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
+
+  t.orbitals.push_back(wf.core().front());
+  for (const auto &Fn : wf.basis()) {
+    if (Fn.n() > 1 && Fn.l() <= 2) {
+      t.orbitals.push_back(Fn);
+    }
+  }
+  std::vector<DiracSpinor> orbitals_small; // Sk tabulated here only
+  for (const auto &Fn : t.orbitals) {
+    if (Fn.n() <= 3) {
+      orbitals_small.push_back(Fn);
+    }
+  }
+
+  t.qk.fill(t.orbitals, Coulomb::YkTable(t.orbitals), -1, false);
+
+  for (const auto &v : t.orbitals) {
+    for (const auto &w : t.orbitals) {
+      if (v.kappa() == w.kappa()) {
+        t.h1.add(v, w, v == w ? v.en() : 0.01 / (v.n() + w.n()));
+      }
+    }
+  }
+
+  const auto all_k = [](int, const DiracSpinor &, const DiracSpinor &,
+                        const DiracSpinor &,
+                        const DiracSpinor &) { return true; };
+  const auto &qk = t.qk;
+  t.Bk.fill(
+    t.orbitals,
+    [&qk](int k, const DiracSpinor &v, const DiracSpinor &w,
+          const DiracSpinor &x,
+          const DiracSpinor &y) { return 0.3 * qk.Q(k, v, w, x, y); },
+    all_k, -1, false);
+  t.Sk.fill(
+    orbitals_small,
+    [&qk](int k, const DiracSpinor &v, const DiracSpinor &w,
+          const DiracSpinor &x,
+          const DiracSpinor &y) { return 0.2 * qk.Q(k, v, w, x, y); },
+    all_k, -1, false);
+  t.dSk.fill(
+    orbitals_small,
+    [&qk](int k, const DiracSpinor &v, const DiracSpinor &w,
+          const DiracSpinor &x,
+          const DiracSpinor &y) { return 0.05 * qk.Q(k, v, w, x, y); },
+    all_k, -1, false);
+  t.hk = {0.1, 0.12, 0.14, 0.16};
+
+  for (const auto &v : t.orbitals) {
+    t.s1c.en[v.nk_index()] = v.en();
+    t.s1c.e_sigma.insert({v.kappa(), v.en()});
+    for (const auto &w : t.orbitals) {
+      if (v.kappa() == w.kappa()) {
+        t.s1c.S1.add(v, w, -0.02 / (v.n() * w.n()));
+        t.s1c.dS1.add(v, w, -0.005 / (v.n() + w.n()));
+      }
+    }
+  }
+  t.s1c.E0 = -7.3;
+  t.dE0 = 0.03;
+
+  return t;
 }

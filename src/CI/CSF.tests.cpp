@@ -182,8 +182,6 @@ TEST_CASE("CI: LS coupling", "[CI][unit]") {
 // single-particle m)
 TEST_CASE("CI: three-electron CSFs", "[CI][3VCI][unit]") {
 
-  std::cout << "CI three-electron CSFs\n";
-
   const auto grid = std::make_shared<const Grid>(
     GridParameters{10, 1.0e-4, 10.0, 5.0, GridType::loglinear});
 
@@ -325,10 +323,6 @@ TEST_CASE("CI: three-electron CSFs", "[CI][3VCI][unit]") {
     }
   }
 
-  fmt::print("N_CSF vs N(M=J) - N(M=J+1): {}\n", worst_count_error);
-  fmt::print("<A|A> - 1:                  {:.1e}\n", worst_norm);
-  fmt::print("P_ij|A> + |A>:              {:.1e}\n", worst_antisymmetry);
-  fmt::print("<A|B>:                      {:.1e}\n", worst_overlap);
   REQUIRE(worst_count_error == 0);
   REQUIRE(worst_norm < 1.0e-12);
   REQUIRE(worst_antisymmetry < 1.0e-12);
@@ -355,8 +349,6 @@ TEST_CASE("CI: three-electron CSFs", "[CI][3VCI][unit]") {
 // comparisons, the electron-2-3 exchange, PsiJPi accessors, the leading
 // configuration, and the two-spectator dSigma/dE correction
 TEST_CASE("CI: CSF functions", "[CI][3VCI][unit]") {
-
-  std::cout << "CI CSF functions\n";
 
   // J as text
   REQUIRE(CI::J_string(0) == "0");

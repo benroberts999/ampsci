@@ -20,7 +20,7 @@ random_sparse_matrix(std::size_t dim, double fill, double spread);
 // sparse matrix (~5% of elements), spread diagonal, coupling strong enough to
 // need many iterations (including restarts). Lowest eigenvalues, eigenvectors
 // (up to sign), residuals, and orthonormality
-TEST_CASE("Davidson: random sparse matrix", "[LinAlg][Davidson][unit]") {
+TEST_CASE("Davidson: random sparse matrix", "[LinAlg][Davidson]") {
 
   const std::size_t dim = 1500;
   const int num_wanted = 5;
@@ -83,7 +83,7 @@ TEST_CASE("Davidson: random sparse matrix", "[LinAlg][Davidson][unit]") {
 // solutions need not equal the dense ones, but must span the same
 // eigenspaces: each dense eigenvector of the lowest four lies in the span of
 // the four Davidson solutions
-TEST_CASE("Davidson: degenerate eigenvalues", "[LinAlg][Davidson][unit]") {
+TEST_CASE("Davidson: degenerate eigenvalues", "[LinAlg][Davidson]") {
 
   const std::size_t block = 400;
   const auto block_matrix =

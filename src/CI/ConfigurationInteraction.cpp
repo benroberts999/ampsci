@@ -1042,9 +1042,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
                  convergence.max_residual, t2.reading_str());
       if (!convergence.converged) {
         fmt::print(outstream,
-                   "Warning: Davidson did not converge for J={}, {} parity: "
-                   "solutions not written to the ci file\n",
-                   J_string(twoJ), printPi(parity));
+                   "Warning: Davidson not converged (J={}{}): not saved\n",
+                   J_string(twoJ), parity == 1 ? '+' : '-');
         write_solutions = false;
       }
 

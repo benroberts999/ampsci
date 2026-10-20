@@ -814,8 +814,7 @@ PsiJPi::solve(const LinAlg::SparseSymmetricMatrix<double> &Hci,
   while (true) {
     if (number > many_solutions && !warned) {
       fmt::print(outstream,
-                 "Warning: Davidson for finding {}/{} solutions unlikely to "
-                 "work well; consider using dense (davidson = false)\n",
+                 "Warning: Davidson for {}/{} solutions: dense may be better\n",
                  number, N);
       warned = true;
     }
