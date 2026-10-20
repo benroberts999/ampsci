@@ -3,6 +3,8 @@
 #include "IO/FRW_fileReadWrite.hpp"
 #include "Physics/AtomData.hpp"
 #include "Physics/PhysConst_constants.hpp"
+#include "fmt/format.hpp"
+#include "fmt/ostream.hpp"
 #include <algorithm>
 #include <array>
 #include <cassert>
@@ -518,6 +520,43 @@ std::vector<CSF3> form_CSF3s(int twoJ, int parity,
 }
 
 //==============================================================================
+template <typename CSFType>
+std::size_t num_interacting_pairs(const std::vector<CSFType> &CSFs) {
+  // Configurations (orbitals): index of one of its CSFs, and number of CSFs.
+  // Two configurations interact for all of their CSFs, or for none
+  std::map<decltype(CSFType::states), std::pair<std::size_t, std::size_t>>
+    config_map;
+  for (std::size_t i = 0; i < CSFs.size(); ++i) {
+    auto &[first_CSF, num_CSFs] =
+      config_map.try_emplace(CSFs[i].states, i, 0).first->second;
+    ++num_CSFs;
+  }
+  std::vector<std::pair<std::size_t, std::size_t>> configs;
+  for (const auto &config : config_map) {
+    configs.push_back(config.second);
+  }
+
+  std::size_t count = 0;
+#pragma omp parallel for schedule(dynamic) reduction(+ : count)
+  for (std::size_t a = 0; a < configs.size(); ++a) {
+    const auto &[A_index, num_A] = configs[a];
+    // Pairs within the configuration, including each CSF with itself
+    count += num_A * (num_A + 1) / 2;
+    for (std::size_t b = 0; b < a; ++b) {
+      const auto &[B_index, num_B] = configs[b];
+      if (CSFType::num_different(CSFs[A_index], CSFs[B_index]) <= 2) {
+        count += num_A * num_B;
+      }
+    }
+  }
+  return count;
+}
+
+// explicictely instateiate template for our cases: CSF2, CSF3
+template std::size_t num_interacting_pairs(const std::vector<CSF2> &);
+template std::size_t num_interacting_pairs(const std::vector<CSF3> &);
+
+//==============================================================================
 double LS_amplitude(int n1, int l1, int twoj1, int n2, int l2, int twoj2, int L,
                     int S, int twoJ) {
 
@@ -739,6 +778,75 @@ void PsiJPi::solve(const LinAlg::Matrix<double> &Hci, int num_solutions,
   }
 }
 
+//==============================================================================
+// Finds the lowest num_solutions solutions (or all below all_below_cm)
+// iteratively (Davidson), for a sparse Hci. Doesn't set the Config info (as
+// solve(), above)
+LinAlg::DavidsonConvergence
+PsiJPi::solve(const LinAlg::SparseSymmetricMatrix<double> &Hci,
+              int num_solutions, std::optional<double> all_below_cm,
+              std::ostream &outstream) {
+  assert(Hci.rows() == num_CSFs());
+  const auto N = int(num_CSFs());
+
+  // A single CSF is its own solution (Davidson needs fewer solutions than
+  // CSFs)
+  if (N == 1) {
+    set_solution(Hci.diagonal()[0], LinAlg::Vector<double>{1.0});
+    return {0, 0.0, true};
+  }
+
+  // Number of solutions to find in each Davidson solve: as requested, or,
+  // for all below an energy, a few to start with, doubled until enough.
+  // Davidson finds at most N - 1: if more are requested, fewer are returned
+  constexpr int initial_below = 8;
+  auto number = all_below_cm       ? initial_below :
+                num_solutions <= 0 ? N :
+                                     num_solutions;
+  number = std::min(number, N - 1);
+  const auto all_below_au =
+    all_below_cm ? *all_below_cm / PhysConst::Hartree_invcm : 0.0;
+  // Beyond this many solutions, Davidson is slower, and takes more memory,
+  // than the dense solver
+  const auto many_solutions = std::max(1, N / 20);
+  bool warned = false;
+
+  while (true) {
+    if (number > many_solutions && !warned) {
+      fmt::print(outstream,
+                 "Warning: Davidson for finding {}/{} solutions unlikely to "
+                 "work well; consider using dense (davidson = false)\n",
+                 number, N);
+      warned = true;
+    }
+    auto [values, vectors, convergence] = LinAlg::Davidson(Hci, number);
+
+    // All below: enough once the highest found is above the threshold (or
+    // no more can be found)
+    if (all_below_cm && convergence.converged && number < N - 1 &&
+        values[std::size_t(number) - 1] <= all_below_au) {
+      number = std::min(2 * number, N - 1);
+      continue;
+    }
+
+    m_Solution.first = std::move(values);
+    m_Solution.second = std::move(vectors);
+    m_num_solutions = std::size_t(number);
+    if (all_below_cm) {
+      m_num_solutions = 0;
+      while (m_num_solutions < std::size_t(number) &&
+             m_Solution.first[m_num_solutions] <= all_below_au) {
+        ++m_num_solutions;
+      }
+    }
+    if (m_num_solutions >= m_Info.size()) {
+      m_Info.resize(m_num_solutions);
+    }
+    return convergence;
+  }
+}
+
+//==============================================================================
 // Stores a single solution, that was not found by diagonalising Hci
 void PsiJPi::set_solution(double energy, const LinAlg::Vector<double> &coefs) {
   assert(coefs.size() == num_CSFs());
@@ -798,126 +906,176 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
   using IO::FRW::rw_binary;
   const bool readQ = (rw == IO::FRW::read);
 
-  std::size_t nc = num_CSFs();
+  const std::size_t nc = num_CSFs();
 
-  // Bytes of one J/Pi block: num_solutions + E[nc] + M[nc*nc]
-  const auto block_bytes = [](std::size_t n) {
-    return sizeof(std::size_t) + (n + n * n) * sizeof(double);
-  };
-  // Bytes of one block's prefix: twoJ + pi + num_csfs
-  constexpr std::size_t prefix_bytes = 2 * sizeof(int) + sizeof(std::size_t);
-
-  // Write this block's solutions (num_solutions, E, M) to an open stream
-  const auto write_jpi_block = [&](std::fstream &f) {
-    rw_binary(f, IO::FRW::write, m_num_solutions);
-    // Energies: always nc doubles (zero-pad if partial solve)
-    std::vector<double> E(nc, 0.0);
-    std::copy_n(m_Solution.first.data(), std::min(m_Solution.first.size(), nc),
-                E.data());
-    f.write(reinterpret_cast<const char *>(E.data()),
-            static_cast<std::streamsize>(nc * sizeof(double)));
-    // Coefficient matrix: always nc*nc doubles (zero-pad extra rows)
-    std::vector<double> M(nc * nc, 0.0);
-    const auto nr = std::min(m_Solution.second.rows(), nc);
-    const auto nc2 = std::min(m_Solution.second.cols(), nc);
-    for (std::size_t i = 0; i < nr; ++i) {
-      std::copy_n(m_Solution.second.data() + i * m_Solution.second.cols(), nc2,
-                  M.data() + i * nc);
-    }
-    f.write(reinterpret_cast<const char *>(M.data()),
-            static_cast<std::streamsize>(nc * nc * sizeof(double)));
+  // Marks the file layout: a file without it is never read as this one
+  constexpr std::array<char, 8> format_tag{'a', 'm', 'p', 's',
+                                           'c', 'i', '0', '2'};
+  // Each block: twoJ, pi, num_csfs, num_solutions; then the payload
+  constexpr std::size_t header_bytes =
+    2 * sizeof(int) + 2 * sizeof(std::size_t);
+  // Payload: energies E[num_solutions], coefficients M[num_solutions x num_csfs]
+  const auto payload_bytes = [](std::size_t num_csfs, std::size_t num_stored) {
+    return (num_stored + num_stored * num_csfs) * sizeof(double);
   };
 
-  if (readQ && !IO::FRW::file_exists(fname)) {
-    return false;
-  }
-
-  // Scan file for matching (twoJ, pi) block; record its offset if found
-  std::streamoff match_offset = -1;
-  std::size_t match_num_csfs = 0;
-  if (IO::FRW::file_exists(fname)) {
-    std::fstream f;
+  // Opens fname for reading, and checks the format tag
+  const auto open_tagged = [&fname, &format_tag](std::fstream &f) {
+    if (!IO::FRW::file_exists(fname))
+      return false;
     IO::FRW::open_binary(f, fname, IO::FRW::read);
-    while (f) {
-      const auto pos = f.tellg();
-      int twoj = 0, pi = 0;
-      std::size_t num_csfs = 0;
-      rw_binary(f, IO::FRW::read, twoj, pi, num_csfs);
-      if (!f) {
-        break;
-      }
-      if (twoj == m_twoj && pi == m_pi) {
-        match_offset = pos;
-        match_num_csfs = num_csfs;
-        break;
-      }
-      f.seekg(static_cast<std::streamoff>(block_bytes(num_csfs)),
-              std::ios::cur);
-    }
-  }
+    auto tag = format_tag;
+    tag.fill('\0');
+    rw_binary(f, IO::FRW::read, tag);
+    return bool(f) && tag == format_tag;
+  };
 
   // ===== READ =====
   if (readQ) {
-    if (match_offset < 0) {
-      return false;
-    }
-    if (match_num_csfs != nc) {
-      // in theory, should never happen: filename includes basis string..
-      outstream << "\nCannot read from " << fname << ": CSF count mismatch "
-                << "(file has " << match_num_csfs << ", expected " << nc
-                << ").\n";
-      return false;
-    }
     std::fstream f;
-    IO::FRW::open_binary(f, fname, IO::FRW::read);
-    f.seekg(match_offset + static_cast<std::streamoff>(prefix_bytes));
-    rw_binary(f, IO::FRW::read, m_num_solutions);
-    outstream << "Reading J=" << J_string(m_twoj)
-              << " pi=" << (m_pi > 0 ? "+" : "-") << " (" << m_num_solutions
-              << " solutions) from " << fname << "\n";
-    std::vector<double> E(nc), M(nc * nc);
-    f.read(reinterpret_cast<char *>(E.data()),
-           static_cast<std::streamsize>(nc * sizeof(double)));
-    f.read(reinterpret_cast<char *>(M.data()),
-           static_cast<std::streamsize>(nc * nc * sizeof(double)));
-    m_Solution.first = LinAlg::Vector<double>(std::move(E));
-    m_Solution.second = LinAlg::Matrix<double>(nc, nc, std::move(M));
-    m_Info.resize(m_num_solutions);
-    return true;
+    if (!open_tagged(f)) {
+      if (IO::FRW::file_exists(fname)) {
+        outstream << "Cannot read from " << fname
+                  << ": not a CI solutions file of the current format\n";
+      }
+      return false;
+    }
+    while (true) {
+      int twoj = 0, pi = 0;
+      std::size_t num_csfs = 0, num_stored = 0;
+      rw_binary(f, IO::FRW::read, twoj, pi, num_csfs, num_stored);
+      if (!f) {
+        return false;
+      }
+      if (twoj != m_twoj || pi != m_pi) {
+        f.seekg(
+          static_cast<std::streamoff>(payload_bytes(num_csfs, num_stored)),
+          std::ios::cur);
+        continue;
+      }
+      if (num_csfs != nc) {
+        // in theory, should never happen: filename includes basis string..
+        outstream << "\nCannot read from " << fname << ": CSF count mismatch "
+                  << "(file has " << num_csfs << ", expected " << nc << ").\n";
+        return false;
+      }
+      std::vector<double> E(num_stored), M(num_stored * nc);
+      f.read(reinterpret_cast<char *>(E.data()),
+             static_cast<std::streamsize>(E.size() * sizeof(double)));
+      f.read(reinterpret_cast<char *>(M.data()),
+             static_cast<std::streamsize>(M.size() * sizeof(double)));
+      if (!f) {
+        outstream << "\nCannot read from " << fname << ": file is truncated\n";
+        return false;
+      }
+      outstream << "Reading J=" << J_string(m_twoj)
+                << " pi=" << (m_pi > 0 ? "+" : "-") << " (" << num_stored
+                << " solutions) from " << fname << "\n";
+      m_num_solutions = num_stored;
+      m_Solution.first = LinAlg::Vector<double>(std::move(E));
+      m_Solution.second = LinAlg::Matrix<double>(num_stored, nc, std::move(M));
+      m_Info.resize(m_num_solutions);
+      return true;
+    }
   }
 
   // ===== WRITE =====
+  // A block new to the file is appended. If this J/Pi is in the file already
+  // (its size may differ), or the last block is incomplete, the file is
+  // re-written instead: the other complete blocks, as they are, then this
+  // one. A file without the format tag is replaced
+  bool tagged = false;
+  bool rewrite = false;
+  // End of the last complete block
+  std::streamoff blocks_end = 0;
   {
-    outstream << "Writing J=" << J_string(m_twoj)
-              << " pi=" << (m_pi > 0 ? "+" : "-") << " (" << m_num_solutions
-              << " solutions) to " << fname << "\n";
+    std::fstream f;
+    tagged = open_tagged(f);
+    if (tagged) {
+      blocks_end = f.tellg();
+      f.seekg(0, std::ios::end);
+      const std::streamoff file_end = f.tellg();
+      f.seekg(blocks_end);
+      while (blocks_end < file_end) {
+        int twoj = 0, pi = 0;
+        std::size_t num_csfs = 0, num_stored = 0;
+        rw_binary(f, IO::FRW::read, twoj, pi, num_csfs, num_stored);
+        const auto block_end =
+          blocks_end + static_cast<std::streamoff>(
+                         header_bytes + payload_bytes(num_csfs, num_stored));
+        if (!f || block_end > file_end) {
+          rewrite = true;
+          break;
+        }
+        if (twoj == m_twoj && pi == m_pi) {
+          if (num_csfs != nc) {
+            outstream << "\nCannot write to " << fname
+                      << ": CSF count mismatch " << "(file has " << num_csfs
+                      << ", expected " << nc << ").\n";
+            return false;
+          }
+          rewrite = true;
+        }
+        f.seekg(block_end);
+        blocks_end = block_end;
+      }
+    }
   }
 
-  if (match_offset >= 0) {
-    // Block exists: overwrite in-place (payload size fixed by num_csfs)
-    if (match_num_csfs != nc) {
-      outstream << "\nCannot write to " << fname << ": CSF count mismatch "
-                << "(file has " << match_num_csfs << ", expected " << nc
-                << ").\n";
-      return false;
-    }
+  // The other complete blocks, if re-writing
+  std::vector<char> other_blocks;
+  if (tagged && rewrite) {
     std::fstream f;
-    IO::FRW::open_binary(f, fname, IO::FRW::update);
-    f.seekp(match_offset + static_cast<std::streamoff>(prefix_bytes));
-    write_jpi_block(f);
-  } else {
-    // New block: append prefix + payload at end of file
-    std::fstream f;
-    IO::FRW::open_binary(f, fname, IO::FRW::update);
-    if (!f) {
-      IO::FRW::open_binary(f, fname, IO::FRW::write);
+    open_tagged(f);
+    while (f && f.tellg() < blocks_end) {
+      const auto block_start = f.tellg();
+      int twoj = 0, pi = 0;
+      std::size_t num_csfs = 0, num_stored = 0;
+      rw_binary(f, IO::FRW::read, twoj, pi, num_csfs, num_stored);
+      const auto block_bytes =
+        header_bytes + payload_bytes(num_csfs, num_stored);
+      if (twoj != m_twoj || pi != m_pi) {
+        const auto old_size = other_blocks.size();
+        other_blocks.resize(old_size + block_bytes);
+        f.seekg(block_start);
+        f.read(other_blocks.data() + old_size,
+               static_cast<std::streamsize>(block_bytes));
+      }
+      f.seekg(block_start + static_cast<std::streamoff>(block_bytes));
     }
+  }
+
+  outstream << "Writing J=" << J_string(m_twoj)
+            << " pi=" << (m_pi > 0 ? "+" : "-") << " (" << m_num_solutions
+            << " solutions) to " << fname << "\n";
+
+  // Solutions are rows of the coefficient matrix (which may hold more rows
+  // than solutions, e.g., if all eigenvectors were found); the energy vector
+  // may hold more entries than solutions
+  assert(m_num_solutions == 0 || (m_Solution.second.cols() == nc &&
+                                  m_Solution.second.rows() >= m_num_solutions &&
+                                  m_Solution.first.size() >= m_num_solutions));
+
+  std::fstream f;
+  if (tagged && !rewrite) {
+    IO::FRW::open_binary(f, fname, IO::FRW::update);
     f.seekp(0, std::ios::end);
-    rw_binary(f, IO::FRW::write, m_twoj, m_pi, nc);
-    write_jpi_block(f);
+  } else {
+    IO::FRW::open_binary(f, fname, IO::FRW::write);
+    auto tag = format_tag;
+    rw_binary(f, IO::FRW::write, tag);
+    f.write(other_blocks.data(),
+            static_cast<std::streamsize>(other_blocks.size()));
   }
+  auto num_csfs = nc;
+  auto num_stored = m_num_solutions;
+  rw_binary(f, IO::FRW::write, m_twoj, m_pi, num_csfs, num_stored);
+  f.write(reinterpret_cast<const char *>(m_Solution.first.data()),
+          static_cast<std::streamsize>(num_stored * sizeof(double)));
+  f.write(reinterpret_cast<const char *>(m_Solution.second.data()),
+          static_cast<std::streamsize>(num_stored * nc * sizeof(double)));
 
-  return true;
+  return bool(f);
 }
 
 } // namespace CI

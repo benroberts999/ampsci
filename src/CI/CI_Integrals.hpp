@@ -227,9 +227,14 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
                         together as E0 converges.
   @param E0_sigma2      Reference E0 that @p Sk and @p dSk were tabulated at.
   @param outstream      Stream for the per-pass output.
+  @tparam MatrixType    Storage of the CI Hamiltonian: dense
+                        (LinAlg::Matrix<double>; diagonalised directly) or
+                        sparse (LinAlg::SparseSymmetricMatrix<double>; solved
+                        with LinAlg::Davidson). See @ref construct_Hci.
   @return CI Hamiltonian matrix, built with the converged E0.
 */
-[[nodiscard]] LinAlg::Matrix<double> iterate_E0(
+template <typename MatrixType = LinAlg::Matrix<double>>
+[[nodiscard]] MatrixType iterate_E0(
   PsiJPi *psi, const Sigma1Correction &s1c, const Coulomb::meTable<double> &h1,
   const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
   const Coulomb::LkTable *Sk = nullptr, const std::vector<double> &hk = {},
@@ -746,9 +751,16 @@ std::string Term_Symbol(int L, int two_S, int parity);
                each stored S^k is shifted to the target E0. See
                @ref CI::corrected_Sk.
   @param dE0   Shift of the target E0 from the one Sk was tabulated at.
+  @tparam MatrixType Storage of the matrix:
+    - LinAlg::Matrix<double> (default): dense, both triangles filled.
+    - LinAlg::SparseSymmetricMatrix<double>: the non-zero elements of the
+      lower triangle only. For three electrons most elements are zero (CSFs
+      differing by more than two orbitals do not interact), so this needs far
+      less memory for large J/Pi blocks; solved with LinAlg::Davidson.
   @return Full CI Hamiltonian matrix in the CSF basis.
 */
-LinAlg::Matrix<double>
+template <typename MatrixType = LinAlg::Matrix<double>>
+MatrixType
 construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
               const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
               const Coulomb::LkTable *Sk = nullptr,
@@ -768,8 +780,8 @@ construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
   Brillouin-Wigner shift of each pair (see Sigma2_AB(const CSF3 &, ...)), are
   taken from @p s1c, which is then required if @p dSk is given.
 */
-template <typename CSFType>
-LinAlg::Matrix<double> construct_Hci(
+template <typename MatrixType = LinAlg::Matrix<double>, typename CSFType>
+MatrixType construct_Hci(
   const std::vector<CSFType> &CSFs, int twoJ,
   const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
   const Coulomb::WkTable *Bk = nullptr, const Coulomb::LkTable *Sk = nullptr,

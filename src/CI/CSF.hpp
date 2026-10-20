@@ -360,6 +360,25 @@ std::vector<CSF3> form_CSF3s(std::array<DiracSpinor::Index, 3> orbitals,
 std::vector<CSF3> form_CSF3s(int twoJ, int parity,
                              const std::vector<DiracSpinor> &cisp_basis);
 
+/*!
+  @brief Number of pairs of CSFs that can interact: those whose orbitals
+  differ by at most two.
+  @details
+  Counts the pairs (A, B), with B no later than A in @p CSFs (A = B
+  included): the elements of the lower triangle of the CI matrix that are not
+  zero by the orbitals alone. So an upper bound on the elements stored in the
+  sparse CI matrix (construct_Hci()), some of which are zero by angular
+  selection. For two electrons every pair can interact.
+
+  CSFs of the same configuration (orbitals) are counted together, so the cost
+  scales with the square of the number of configurations.
+
+  @param CSFs  List of CSFs (@ref CSF2 or @ref CSF3).
+  @return Number of pairs that can interact.
+*/
+template <typename CSFType>
+std::size_t num_interacting_pairs(const std::vector<CSFType> &CSFs);
+
 //==============================================================================
 /*!
   @brief jj -> LS recoupling amplitude for an antisymmetrised two-electron CSF.
@@ -619,6 +638,41 @@ public:
              std::optional<double> all_below = {});
 
   /*!
+    @brief Solves the CI eigenvalue problem iteratively, for a sparse
+    Hamiltonian matrix.
+    @details
+    Finds the lowest @p num_solutions eigenpairs with LinAlg::Davidson, and
+    stores them, as solve() does. For large J/Pi blocks, where the dense
+    matrix does not fit in memory (or takes too long to diagonalise) and only
+    a few solutions are needed.
+
+    If @p all_below is set, all eigenpairs below that energy are found
+    instead: their number is not known in advance, so the lowest few are
+    found, and the number is doubled (solving again) while the highest found
+    is still below the threshold.
+
+    Davidson finds fewer solutions than CSFs: if num_CSFs() or more are
+    requested (or all), num_CSFs() - 1 are found. The Davidson vectors grow
+    with the number of solutions: beyond ~num_CSFs()/20 it is slower, and
+    takes more memory, than the dense solve(), and a warning is printed. A
+    single CSF is its own solution.
+
+    @param Hci           CI Hamiltonian matrix in the CSF basis (sparse; see
+                         construct_Hci()).
+    @param num_solutions Number of lowest solutions to find (all if <= 0).
+                         Ignored if @p all_below is set.
+    @param all_below     If set, find all solutions below this energy (cm^-1).
+    @param outstream     For the warning when many solutions are requested.
+    @return Convergence of the iterative solution (of the last Davidson
+            solve, if repeated); {0 iterations, 0 residual, converged} for a
+            single CSF.
+  */
+  LinAlg::DavidsonConvergence
+  solve(const LinAlg::SparseSymmetricMatrix<double> &Hci, int num_solutions,
+        std::optional<double> all_below = {},
+        std::ostream &outstream = std::cout);
+
+  /*!
     @brief Stores a single solution directly, without diagonalising.
     @details
     Replaces any existing solutions with the single one given.  For states that
@@ -675,11 +729,12 @@ public:
   /*!
     @brief Reads or writes CI solutions (energies, eigenvectors) to/from a multi-block binary file.
     @details
-    A single file holds multiple blocks, one per (twoJ, parity) pair.
-    Each block is self-describing: (twoJ, pi, num_csfs, num_solutions, E[num_csfs], M[num_csfs x num_csfs]).
-    Energies and eigenvectors are always stored at full num_csfs size (zero-padded
-    if only a partial solve was done), so block size is determined from num_csfs
-    alone, enabling O(N) scan and in-place overwrite.
+    A single file holds multiple blocks, one per (twoJ, parity) pair, after a
+    short format tag. Each block is self-describing:
+    (twoJ, pi, num_csfs, num_solutions, E[num_solutions],
+    M[num_solutions x num_csfs]), with row i of M the CSF coefficients of
+    solution i. Only the solutions found are stored, so the file size does
+    not grow as num_csfs^2 when only a few solutions are found.
 
     The CSF basis (m_CSFs) is not touched; it must be constructed via the normal
     constructor before calling this function. The basis (and hence num_csfs) must
@@ -687,13 +742,14 @@ public:
 
     ConfigInfo is not stored -- call update_config_info() after reading if needed.
 
-    On read: scans blocks until matching (twoJ, pi) is found, verifies num_csfs,
-    reads num_solutions, E, and M; returns false if block not found or num_csfs
-    mismatches.
+    On read: checks the format tag (files without it are not read), scans
+    blocks until the matching (twoJ, pi) is found, verifies num_csfs, reads
+    num_solutions, E, and M; returns false if the block is not found or
+    num_csfs mismatches.
 
-    On write: if the block already exists and num_csfs matches, overwrites it
-    in-place using @ref IO::FRW::update. If it is a new block, appends it to
-    the end of the file -- no rewrite of existing data.
+    On write: a new (twoJ, pi) block is appended. If the block exists already
+    (its size may differ), the file is re-written: the other blocks, then
+    this one. A file without the format tag is replaced.
 
     @note No settings are stored in the file: the filename identifies the
     calculation. The default filenames encode the settings that change the
