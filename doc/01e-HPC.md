@@ -188,11 +188,11 @@ export OMP_NUM_THREADS=$SLURM_CPUS_PER_TASK
 
 * ampsci memory use depends on the basis size.
 * 8--16 GB is often sufficient for small calculations; large MBPT calculations may need more.
-* Use `ampsci -z <Basis>` to estimate memory requirements (can be very rough). e.g.,
+* Use `ampsci -z <InputFile>` to estimate the memory a run needs (integral tables and CI matrices), without running it. e.g.,
 
 <div class="shell-block">
 ```shell
-  ./ampsci -z 35spdfgh
+  ./ampsci -z input.in
 ```
 </div>
 

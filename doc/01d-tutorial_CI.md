@@ -533,62 +533,20 @@ On my PC, this entire calculation took less than two minutes.
 
 For two-valence CI, the memory bottleneck is calculating the two-body Coulomb (\f$Q^k\f$) integrals; the time bottleneck is usually calculating the two-body Correlation.
 
-You can estimate the memory required using the `ampsci -z` command-line option.
-In the above example, we used:
+You can estimate the memory a run needs, without running it, using the `ampsci -z` command-line option with the input file:
 
-* `20spdf` for CI
-* `30spdfghi` for MBPT, with a multipolarity cut-off of 7 (default)
-
-The CI calculation requires only excited-excited Coulomb integrals, while the MBPT only requires Coulomb integrals involving 1 or 2 core states.
-
-We can therefore check the memory requirements by running:
 <div class="shell-block">
 ```bash
-./ampsci -z 20spdf [Ne]
-./ampsci -z 30spdfghi [Ne] 7
+./ampsci -z input.in
 ```
 </div>
 
-Should return something like:
+This counts the Coulomb integrals the run would form: those among the CI orbitals (here `20spdf`), and those with one or two core orbitals for the MBPT (here `30spdfghi`).
+It also gives the number of CSFs in each requested \f$J^\pi\f$ block, and the memory of each CI matrix.
+Tables the run forms are marked with `*`, and counted in the total along with the largest CI block (the blocks are solved one at a time).
+The counts are exact; the memory is an estimate.
 
-```text
-Estimating memory usage (nb: may be very rough)
-For basis         : 20spdf
-Total orbitals    : 128
-Orbitals in core  : 4
-Counting integrals...
-With maximum k    : 6
-Total integrals   : 17488761
-Excited-only      : 15896631
-Core-Excited      : 1590740
-Estimated Qk size :
-All possible Qk   : 1 Gb  [SR]
-Excited-only      : 1 Gb  [CI]
-Core-Excited      : 0 Gb  (1 or 2 core states allowed)  [MBPT]
-```
-
-and
-
-```text
-Estimating memory usage (nb: may be very rough)
-For basis         : 30spdfghi
-Total orbitals    : 348
-Orbitals in core  : 4
-Counting integrals...
-With maximum k    : 7
-Total integrals   : 1234351841
-Excited-only      : 1204586189
-Core-Excited      : 29763502
-Estimated Qk size :
-All possible Qk   : 45 Gb  [SR]
-Excited-only      : 44 Gb  [CI]
-Core-Excited      : 1 Gb  (1 or 2 core states allowed)  [MBPT]
-```
-
-Combining, we see that we should require 15896631 for the CI part, and 29763502 for MBPT.
-This exactly matched the calculated Qk integral summaries we saw above.
-In this case, the total memory requirement is very small (~2 Gb).
-Notice, however, if we had tried to run CI with the full MBPT basis, we would have required nearly 50Gb!
+Note that the CI integrals are only needed among the CI orbitals: running CI with the full MBPT basis would require far more memory.
 
 -----
 

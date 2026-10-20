@@ -11,7 +11,8 @@
   @details
   Counts are exact for the given input (they use the same selection rules and
   defaults as the run); the memory is an estimate (hash-table overhead for the
-  integral tables; workspace for the dense CI diagonalisation).
+  integral tables; workspace for the dense CI diagonalisation; elements of
+  the sparse CI matrix that are zero by angular selection).
   See @ref estimate_sizes.
 */
 struct SizeEstimates {
@@ -23,10 +24,12 @@ struct SizeEstimates {
     int parity;
     //! Number of CSFs
     std::size_t num_CSFs;
-    //! Peak memory while forming and diagonalising the dense CI matrix (GB)
+    //! True if solved with Davidson, with a sparse CI matrix (CI input option
+    //! `davidson`)
+    bool davidson;
+    //! Peak memory of the CI matrix (GB): forming and diagonalising the dense
+    //! matrix, or the stored elements of the sparse one (an upper bound)
     double matrix_GB;
-    //! Size of this block in the ci solutions file (GB)
-    double file_GB;
   };
 
   //! Full single-particle basis (Basis{} states) and core
@@ -41,7 +44,7 @@ struct SizeEstimates {
   int num_electrons{2};
 
   //! All Coulomb Q^k integrals over the full basis, all k (as needed by
-  //! structure radiation)
+  //! structure radiation); zero (not counted) unless required
   std::size_t qk_all{0};
   //! Coulomb Q^k integrals among the CI orbitals
   std::size_t qk_CI{0};
@@ -66,15 +69,15 @@ struct SizeEstimates {
   the same defaults as the CI run). Orbitals are labels only: no
   wavefunctions are calculated. Counted:
   - all Q^k over the full basis, for all k (the table structure radiation
-    uses; required if structure radiation is requested);
+    uses); counted only if structure radiation is requested;
   - Q^k among the CI orbitals (required if there is a CI{} block);
   - Q^k with one or two core orbitals, over the MBPT basis (required when
     Sigma_1 is calculated in the CI - no Correlations{} block, or a
     dSigma/dE correction that the correlation potential does not supply -
     or Sigma_2 is included);
   - B^k over Breit_basis (if Breit is included in HF);
-  - the number of CSFs, peak memory, and ci-file size of each requested
-    (J, parity), from @ref CI::requested_J_pi.
+  - the number of CSFs, and peak memory, of each requested (J, parity), from
+    @ref CI::requested_J_pi.
 
   @param input  The full ampsci input.
   @return The estimates. Without a CI{} block, the CI and MBPT counts use the
@@ -88,8 +91,9 @@ struct SizeEstimates {
 /*!
   @brief Prints the estimates of @ref estimate_sizes.
   @details
-  All tables are printed; those the run requires are marked, and counted in
-  the total, with the largest CI block (blocks are solved one at a time).
+  All tables counted are printed; those the run requires are marked, and
+  counted in the total, with the largest CI block (blocks are solved one at a
+  time).
 */
 void print_size_estimates(const SizeEstimates &estimates,
                           std::ostream &os = std::cout);

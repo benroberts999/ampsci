@@ -36,8 +36,7 @@ const std::string synopsis{
   "ampsci -o <Operator>              | Query operator options\n"
   "ampsci -p <Atom> <Isotope>        | Periodic table, isotope info\n"
   "ampsci -c <value> <unit>          | Unit conversions\n"
-  "ampsci -z [Basis] <core> <kmax>   | Check memory requirements\n"
-  "ampsci -z <input_file>            | Size estimates for an input file\n"
+  "ampsci -z <InputFile>             | Memory/size estimates for a run\n"
   "ampsci -v                         | Ampsci version information\n"
   "ampsci -h                         | Detailed help information\n"};
 
@@ -130,10 +129,7 @@ const std::vector<std::pair<std::string, std::string>> options{
    "(available) Cs iotopes\n"},
   {"-s [input options as string], --string",
    "Takes input options as a string, using same format as input file\n"},
-  {"-z [basis_string] <core_string> <max_k>, --estimate-size",
-   "Takes a basis string (e.g., 20spdf) and optional multipolarity cut-off "
-   "max_k, and estimates memory required\n"},
-  {"-z [input_file], --estimate-size",
+  {"-z <input_file>, --estimate-size",
    "Estimates the sizes of the integral tables and CI matrices the input "
    "file would form (Basis, HartreeFock core, and CI options), without "
    "running it\n"},

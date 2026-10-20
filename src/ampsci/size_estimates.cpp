@@ -57,15 +57,6 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   // while: each reports as it starts, and the time it took (timer, at the end
   // of its scope)
 
-  // All Q^k over the full basis, all k
-  Coulomb::QkTable qk;
-  {
-    std::cout << "Counting all Q^k (" << basis.size() << " orbitals).. "
-              << std::flush;
-    const IO::ChronoTimer timer;
-    out.qk_all = qk.count_non_zero_integrals(basis, 999, e_Fermi)[0];
-  }
-
   // Structure radiation: its own module, or a StructureRadiation{} block
   // within another module. It forms the full Q^k table
   for (const auto &block : input.blocks()) {
@@ -74,6 +65,16 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
         block.getBlock("StructureRadiation")) {
       out.qk_all_required = true;
     }
+  }
+
+  // All Q^k over the full basis, all k: counted only if required, since it
+  // is the slowest count
+  Coulomb::QkTable qk;
+  if (out.qk_all_required) {
+    std::cout << "Counting all Q^k (" << basis.size() << " orbitals).. "
+              << std::flush;
+    const IO::ChronoTimer timer;
+    out.qk_all = qk.count_non_zero_integrals(basis, 999, e_Fermi)[0];
   }
 
   // CI options, with the same defaults as configuration_interaction. Without
@@ -175,28 +176,32 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
       count_integrals(Coulomb::WkTable{}, Breit_orbitals, &HF::Breit::Bk_SR);
   }
 
-  // CI blocks: dense matrix, plus a copy and an N x N eigenvector matrix while
-  // diagonalising (and ~2 N^2 more workspace when finding all solutions)
-  const auto num_solutions = ci_input.get("num_solutions", 5);
-  const auto all_below = ci_input.get<double>("all_below_cm").has_value();
+  // CI blocks, dense: the matrix, plus a copy while diagonalising. Sparse:
+  // the stored elements (lower triangle), at most the pairs of CSFs that can
+  // interact; the Davidson vectors are small next to it
+  const auto davidson = ci_input.get("davidson", out.num_electrons >= 3);
   const auto J_pi_list = CI::requested_J_pi(ci_input, out.num_electrons);
   std::cout << "Forming CSFs (" << J_pi_list.size() << " J/pi).. "
             << std::flush;
   const IO::ChronoTimer timer;
   for (const auto &[twoJ, parity] : J_pi_list) {
-    const auto num_CSFs = out.num_electrons == 3 ?
-                            CI::form_CSF3s(twoJ, parity, ci_orbitals).size() :
-                            CI::form_CSFs(twoJ, parity, ci_orbitals).size();
+    // Number of CSFs, and of pairs that can interact (sparse elements)
+    std::size_t num_CSFs = 0;
+    std::size_t num_pairs = 0;
+    if (out.num_electrons == 3) {
+      const auto CSFs = CI::form_CSF3s(twoJ, parity, ci_orbitals);
+      num_CSFs = CSFs.size();
+      num_pairs = CI::num_interacting_pairs(CSFs);
+    } else {
+      const auto CSFs = CI::form_CSFs(twoJ, parity, ci_orbitals);
+      num_CSFs = CSFs.size();
+      num_pairs = CI::num_interacting_pairs(CSFs);
+    }
     const auto N = double(num_CSFs);
-    const auto all_solutions =
-      all_below || num_solutions <= 0 || num_solutions >= int(num_CSFs);
-    const auto matrix_GB = (all_solutions ? 4.0 : 3.0) * 8.0 * N * N * 1.0e-9;
-    // Block header (2J, parity, N, num_solutions), energies, and the full
-    // coefficient matrix (see PsiJPi::read_write)
-    const auto file_GB =
-      (2.0 * sizeof(int) + 2.0 * sizeof(std::size_t) + 8.0 * (N + N * N)) *
-      1.0e-9;
-    out.ci_blocks.push_back({twoJ, parity, num_CSFs, matrix_GB, file_GB});
+    // Sparse: each stored element is a value (double) and a column (32 bit)
+    const auto matrix_GB =
+      davidson ? 12.0 * double(num_pairs) * 1.0e-9 : 2.0 * 8.0 * N * N * 1.0e-9;
+    out.ci_blocks.push_back({twoJ, parity, num_CSFs, davidson, matrix_GB});
   }
 
   return out;
@@ -208,8 +213,6 @@ void print_size_estimates(const SizeEstimates &estimates, std::ostream &os) {
   const auto &e = estimates;
   fmt::print(os, "Basis: {}, {} orbitals ({} core: {})\n", e.basis_string,
              e.num_orbitals, e.num_core, e.core_string);
-  fmt::print(os, "CI: {}, {} orbitals, {} valence electrons\n",
-             e.ci_basis_string, e.num_ci_orbitals, e.num_electrons);
 
   // Tables the run requires are marked, and counted in the total
   double total_GB = 0.0;
@@ -217,13 +220,14 @@ void print_size_estimates(const SizeEstimates &estimates, std::ostream &os) {
   const auto print_table = [&os, &total_GB](const std::string &name,
                                             std::size_t count, bool required) {
     const auto memory_GB = Coulomb::estimate_memory_GB(count);
-    fmt::print(os, "{:<22} {:>14} {:>7.1f} GB{}\n", name, count, memory_GB,
-               required ? " *" : "");
+    fmt::print(os, "{:<22} {:>14} {:>7.1f} GB\n", name, count, memory_GB);
     if (required) {
       total_GB += memory_GB;
     }
   };
-  print_table("Q^k (all; SR)", e.qk_all, e.qk_all_required);
+  if (e.qk_all_required) {
+    print_table("Q^k (all; SR)", e.qk_all, true);
+  }
   print_table("Q^k (CI)", e.qk_CI, e.qk_CI_required);
   print_table("Q^k (MBPT, 1-2 core)", e.qk_MBPT, e.qk_MBPT_required);
   if (e.bk > 0) {
@@ -233,12 +237,15 @@ void print_size_estimates(const SizeEstimates &estimates, std::ostream &os) {
   // CI blocks are solved one at a time: the largest counts in the total
   double largest_block_GB = 0.0;
   if (!e.ci_blocks.empty()) {
-    fmt::print(os, "\n{:<5} {:>2} {:>10} {:>14} {:>10}\n", "J", "pi", "N_CSF",
-               "matrix (peak)", "ci file");
+    fmt::print(os, "\nCI: {}, {} orbitals, {} valence electrons\n",
+               e.ci_basis_string, e.num_ci_orbitals, e.num_electrons);
+    fmt::print(os, "{:<5} {:>2} {:>10} {:>14}\n", "J", "pi", "N_CSF",
+               "matrix (peak)");
     for (const auto &block : e.ci_blocks) {
-      fmt::print(os, "{:<5} {:>2} {:>10} {:>11.1f} GB {:>7.1f} GB\n",
+      fmt::print(os, "{:<5} {:>2} {:>10} {:>11.1f} GB{}\n",
                  CI::J_string(block.twoJ), block.parity == 1 ? "+" : "-",
-                 block.num_CSFs, block.matrix_GB, block.file_GB);
+                 block.num_CSFs, block.matrix_GB,
+                 block.davidson ? "  (sparse)" : "  (dense)");
       largest_block_GB = std::max(largest_block_GB, block.matrix_GB);
     }
   }
