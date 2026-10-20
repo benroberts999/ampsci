@@ -42,14 +42,15 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A);
   @brief Solves Av = ev for the first `number` eigenvalues and eigenvectors
   of a real symmetric matrix A.
   @details
-  Uses LAPACK `dsyevx`. Only available for `T = double`.
+  Uses LAPACK `dsyevr`. Only available for `T = double`.
 
   @tparam T Element type: `double` only.
   @param A      Square real symmetric matrix (taken by value; overwritten).
   @param number Number of lowest eigenvalues/eigenvectors to compute.
                 Must satisfy `number < A.rows()`.
-  @returns  Pair `{e, V}`, where only the first `number` entries of `e` and
-            rows of `V` are valid.
+  @returns  Pair `{e, V}`, where `V` has `number` rows: `V(i,j)` is the j-th
+            element of the i-th eigenvector. Only the first `number` entries
+            of `e` are valid.
 */
 template <typename T>
 std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number);
@@ -66,8 +67,10 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number);
   @returns  Tuple `{N, e, V}`, where:
             - `N` is the number of eigenvalues found,
             - `e(i)` is the i-th eigenvalue (ascending),
-            - `V(i,j)` is the j-th element of the i-th eigenvector.
-            Only the first `N` entries of `e` and rows of `V` are valid.
+            - `V(i,j)` is the j-th element of the i-th eigenvector; `V` has
+              `N` rows.
+            
+  @note Only the first `N` entries of `e` are valid.
 */
 template <typename T>
 std::tuple<int, Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A,

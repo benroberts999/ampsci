@@ -142,7 +142,11 @@ std::pair<Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A, int number) {
                 "For complex Hermitian use zheevr/cheevr.");
 
   // E. values of Hermetian complex matrix are _real_
-  auto eigen_vv = std::make_pair(Vector<double>(A.rows()), Matrix<T>(A.rows()));
+  // Eigenvectors: LAPACK fills `number` columns of Z (column-major, ldz = N),
+  // which are the `number` rows of the row-major Matrix. The eigenvalue array
+  // must still have room for N.
+  auto eigen_vv = std::make_pair(Vector<double>(A.rows()),
+                                 Matrix<T>(std::size_t(number), A.rows()));
   auto &[e_values, e_vectors] = eigen_vv;
 
   int dim = (int)A.rows();
@@ -249,6 +253,15 @@ std::tuple<int, Vector<double>, Matrix<T>> symmhEigensystem(Matrix<T> A,
   if (info != 0) {
     std::cerr << "\nError: symmhEigensystem dsyevr info=" << info << " n=" << n
               << " m=" << num_solutions << "\n";
+  }
+
+  // LAPACK needs room for all N eigenvectors, since the number found is not
+  // known in advance: keep only those found
+  if (num_solutions < n) {
+    const auto num_found = std::size_t(std::max(0, num_solutions));
+    Matrix<T> found(num_found, A.rows());
+    std::copy_n(e_vectors.data(), num_found * A.rows(), found.data());
+    e_vectors = std::move(found);
   }
 
   return eigen_vv;

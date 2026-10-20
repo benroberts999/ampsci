@@ -572,6 +572,56 @@ TEST_CASE("LinAlg: eigensystems <complex<double>> 2", "[LinAlg][unit]") {
     e, LinAlg::Vector{-21.1352313820589, 9.58605091059717, 52.0231804714617}));
 }
 
+//==============================================================================
+// Lowest few eigenpairs, and all below a value: only the eigenvectors found
+// are returned (as rows), and they match the full solution (up to sign)
+TEST_CASE("LinAlg: partial eigensystems <double>", "[LinAlg][unit]") {
+  const std::size_t dim = 200;
+  std::mt19937_64 rng{123456789};
+  std::uniform_real_distribution<double> uniform(-1.0, 1.0);
+  LinAlg::Matrix<double> A(dim, dim);
+  for (std::size_t i = 0; i < dim; ++i) {
+    for (std::size_t j = 0; j <= i; ++j) {
+      A(i, j) = A(j, i) = uniform(rng);
+    }
+  }
+  const auto [e0, V0] = symmhEigensystem(A);
+
+  // Largest deviation from the full solution, over the first n eigenpairs
+  double worst_E = 0.0, worst_overlap = 0.0;
+
+  const int number = 5;
+  const auto [e, V] = symmhEigensystem(A, number);
+  REQUIRE(V.rows() == std::size_t(number));
+  REQUIRE(V.cols() == dim);
+  for (std::size_t i = 0; i < std::size_t(number); ++i) {
+    worst_E = std::max(worst_E, std::abs(e[i] - e0[i]));
+    double overlap = 0.0;
+    for (std::size_t j = 0; j < dim; ++j) {
+      overlap += V(i, j) * V0(i, j);
+    }
+    worst_overlap = std::max(worst_overlap, 1.0 - std::abs(overlap));
+  }
+
+  // Seven eigenvalues below the threshold
+  const auto threshold = 0.5 * (e0[6] + e0[7]);
+  const auto [num_below, e_below, V_below] = symmhEigensystem(A, threshold);
+  REQUIRE(num_below == 7);
+  REQUIRE(V_below.rows() == 7);
+  REQUIRE(V_below.cols() == dim);
+  for (std::size_t i = 0; i < 7; ++i) {
+    worst_E = std::max(worst_E, std::abs(e_below[i] - e0[i]));
+    double overlap = 0.0;
+    for (std::size_t j = 0; j < dim; ++j) {
+      overlap += V_below(i, j) * V0(i, j);
+    }
+    worst_overlap = std::max(worst_overlap, 1.0 - std::abs(overlap));
+  }
+  REQUIRE(worst_E < 1.0e-12);
+  REQUIRE(worst_overlap < 1.0e-12);
+}
+
+//==============================================================================
 // Generalised Eigensystems (symmetric/Hermetian)
 TEST_CASE("LinAlg: Generalised eigensystems <double>", "[LinAlg][unit]") {
   const LinAlg::Matrix A{{1.0, -1.0}, {-1.0, 2.0}};
