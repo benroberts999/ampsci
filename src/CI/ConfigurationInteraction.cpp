@@ -48,6 +48,15 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Find all CI solutions for energies below this threshold, "
      "in inverse cm. Note that this is the total energy, not the "
      "excitation energy. If set, num_solutions is ignored."},
+    {"davidson",
+     "Solve each J/pi block iteratively (Davidson method, with a sparse CI "
+     "matrix), finding only the lowest num_solutions (or all below "
+     "all_below_cm). Needs far less memory and time than forming and "
+     "diagonalising the full CI matrix when the blocks are large and few "
+     "solutions are wanted; slower and larger if many (more than ~1/20 of "
+     "the CSFs) are. Small blocks are solved exactly in the first iteration. "
+     "Finds at most (number of CSFs - 1) solutions. "
+     "[default: true for three electrons, false for two]"},
     {"sigma1", "Include one-body MBPT correlations? [false]"},
     {"sigma2", "Include two-body MBPT correlations? [false]"},
     {"Brueckner", "Use Brueckner (spectrum) states for CI basis? Must have "
@@ -698,6 +707,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   //----------------------------------------------------------------------------
   const auto num_solutions = input.get("num_solutions", 5);
   const auto all_below_cm = input.get<double>("all_below_cm");
+  const auto solver = input.get("davidson", num_electrons >= 3) ?
+                        Solver::Davidson :
+                        Solver::dense;
   const auto sort_output = input.get("sort_output", false);
   const auto print_details = input.get("print_details", true);
 
@@ -767,7 +779,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                             all_below_cm, h1, qk, Bk, Sk, include_Sigma2,
                             print_details, read_only, std::cout, ci_fname,
                             s1_corr.empty() ? nullptr : &s1_corr, hk,
-                            dSk.emptyQ() ? nullptr : &dSk, E0_sigma2);
+                            dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver);
     }
   }
 
@@ -928,7 +940,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               bool include_Sigma2, bool print_details, bool read_only,
               std::ostream &outstream, const std::string &ci_fname,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
-              const Coulomb::LkTable *dSk, double E0_sigma2) {
+              const Coulomb::LkTable *dSk, double E0_sigma2, Solver solver) {
 
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
@@ -937,7 +949,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   outstream << std::flush;
 
   if (twoJ < 0 || (twoJ + num_electrons) % 2 != 0) {
-    fmt::print(outstream, "Fail: J={} is not possible for {} electrons\n",
+    fmt::print(outstream, "No please: J={} is not possible for {} electrons\n",
                J_string(twoJ), num_electrons);
     return PsiJPi{};
   }
@@ -950,16 +962,17 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     outstream << "No CSFs can be formed for this J/parity from the basis\n\n";
     return psi;
   }
-  // The dense Hamiltonian is N^2 doubles; forewarn for very large blocks.
-  // Diagonalising holds a copy of it and an N x N eigenvector matrix (even
-  // for a few solutions); finding all solutions also needs ~2 N^2 workspace
-  const auto Hci_GB = double(N_CSFs) * double(N_CSFs) * 8.0 / 1.0e9;
-  if (Hci_GB > 1.0) {
-    const auto all_solutions =
-      all_below_cm || num_solutions <= 0 || num_solutions >= int(N_CSFs);
-    const auto peak_GB = (all_solutions ? 4.0 : 3.0) * Hci_GB;
-    fmt::print(outstream, "nb: CI matrix (dense) requires ~{:.0f} GB\n",
-               peak_GB);
+  // Davidson (sparse Hamiltonian) or dense solution
+  const auto davidson = solver == Solver::Davidson;
+
+  // The dense Hamiltonian is N^2 doubles, and diagonalising holds a copy of
+  // it: warn for very large blocks
+  const auto Hci_GB = (8.0 / 1.0e9) * double(N_CSFs) * double(N_CSFs);
+  if (!davidson && Hci_GB > 6.0) {
+    fmt::print(outstream,
+               "nb: CI matrix (dense) requires ~{:.0f} GB; consider using "
+               "Davidson\n",
+               2.0 * Hci_GB);
   }
 
   // Try to read existing solutions from file
@@ -991,32 +1004,79 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     // self-consistently (see iterate_E0).
     // nb: the final solve re-uses the converged Hci, so no matrix is built
     // that we do not use.
-    LinAlg::Matrix<double> Hci;
-    if (s1c != nullptr) {
-      Hci = CI::iterate_E0(&psi, *s1c, h1, qk, br_ptr, s2_ptr, hk, dSk,
-                           E0_sigma2, outstream);
-    } else {
-      // No correction (or iteration disabled): single matrix
-      Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr, s1c, hk);
-    }
+    // Unconverged (Davidson) solutions are used, but not kept for re-use
+    bool write_solutions = true;
+    if (davidson) {
+      using SparseMatrix = LinAlg::SparseSymmetricMatrix<double>;
+      SparseMatrix Hci;
+      if (s1c != nullptr) {
+        Hci = CI::iterate_E0<SparseMatrix>(&psi, *s1c, h1, qk, br_ptr, s2_ptr,
+                                           hk, dSk, E0_sigma2, outstream);
+      } else {
+        // No correction (or iteration disabled): single matrix
+        Hci =
+          CI::construct_Hci<SparseMatrix>(psi, h1, qk, br_ptr, s2_ptr, s1c, hk);
+      }
+      // Each stored element: value (double) and column index (32 bit)
+      const auto Hci_sparse_GB = double(Hci.num_stored()) * 12.0 / 1.0e9;
+      fmt::print(outstream,
+                 "CI matrix (sparse): {} non-zero elements ({:.2f} GB)\n",
+                 Hci.num_stored(), Hci_sparse_GB);
+      if (all_below_cm) {
+        fmt::print(outstream,
+                   "Finding all solutions below {} cm^-1 (Davidson)\n",
+                   *all_below_cm);
+      } else if (num_solutions <= 0) {
+        fmt::print(outstream, "Finding all solutions (Davidson)\n");
+      } else {
+        fmt::print(outstream, "Find first {} solutions (Davidson)\n",
+                   num_solutions);
+      }
 
-    if (all_below_cm) {
-      fmt::print(outstream, "Finding all solutions below {} cm^-1\n",
-                 *all_below_cm);
-    } else if (num_solutions > 0) {
-      fmt::print(outstream, "Find first {} solutions\n", num_solutions);
-    } else {
-      fmt::print(outstream, "Finding all solutions\n");
-    }
+      IO::ChronoTimer t2("", false);
+      const auto convergence =
+        psi.solve(Hci, num_solutions, all_below_cm, outstream);
+      fmt::print(outstream,
+                 "{} eigenvalues: {} iterations, eps = {:.1e}: T = {}\n",
+                 psi.num_solutions(), convergence.iterations,
+                 convergence.max_residual, t2.reading_str());
+      if (!convergence.converged) {
+        fmt::print(outstream,
+                   "Warning: Davidson did not converge for J={}, {} parity: "
+                   "solutions not written to the ci file\n",
+                   J_string(twoJ), printPi(parity));
+        write_solutions = false;
+      }
 
-    {
-      IO::ChronoTimer t2("");
+    } else {
+      LinAlg::Matrix<double> Hci;
+      if (s1c != nullptr) {
+        Hci = CI::iterate_E0(&psi, *s1c, h1, qk, br_ptr, s2_ptr, hk, dSk,
+                             E0_sigma2, outstream);
+      } else {
+        // No correction (or iteration disabled): single matrix
+        Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr, s1c, hk);
+      }
+      fmt::print(outstream,
+                 "CI matrix (dense): {} total elements ({:.2f} GB)\n",
+                 Hci.size(), double(Hci.size()) * 8.0 / 1.0e9);
+
+      if (all_below_cm) {
+        fmt::print(outstream, "Finding all solutions below {} cm^-1\n",
+                   *all_below_cm);
+      } else if (num_solutions > 0) {
+        fmt::print(outstream, "Find first {} solutions\n", num_solutions);
+      } else {
+        fmt::print(outstream, "Finding all solutions\n");
+      }
+
+      IO::ChronoTimer t2("", false);
       psi.solve(Hci, num_solutions, all_below_cm);
       outstream << psi.num_solutions()
                 << " eigenvalues: T = " << t2.reading_str() << "\n";
     }
 
-    if (!ci_fname.empty()) {
+    if (!ci_fname.empty() && write_solutions) {
       psi.read_write(ci_fname, IO::FRW::write, outstream);
     }
   } else {

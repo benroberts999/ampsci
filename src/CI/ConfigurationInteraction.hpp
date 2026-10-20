@@ -7,6 +7,7 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <iostream>
+#include <optional>
 #include <string>
 #include <vector>
 
@@ -71,6 +72,18 @@ std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
                                                 int num_electrons);
 
 /*!
+  @brief Method for solving the CI eigenvalue problem of a (J, parity) block.
+  @details
+  - dense: forms the full CI matrix and diagonalises it directly. Memory and
+    time grow quickly with the number of CSFs.
+  - Davidson: forms the sparse CI matrix and finds the lowest solutions
+    iteratively (LinAlg::Davidson). Much less memory and time for large
+    blocks when few solutions are wanted; slower than dense if many are, and
+    finds at most (number of CSFs - 1).
+*/
+enum class Solver { dense, Davidson };
+
+/*!
   @brief Constructs and solves the CI eigenvalue problem for a single J,pi
   @details
   Builds the CI+MBPT Hamiltonian matrix in the basis of two- or three-electron
@@ -128,7 +141,8 @@ std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
   @param dSk          Pointer to the dS^k/dE0 table (Brillouin-Wigner Sigma_2);
                       ignored if nullptr. See @ref CI::corrected_Sk.
   @param E0_sigma2    Reference E0 that Sk and dSk were tabulated at.
-                      
+  @param solver       Dense or Davidson; see @ref Solver.
+
   @return PsiJPi (@ref PsiJPi) containing the CI eigenvalues and expansion
   coefficients for the requested solutions.
 */
@@ -142,6 +156,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               const std::string &ci_fname = "",
               const Sigma1Correction *s1c = nullptr,
               const std::vector<double> &hk = {},
-              const Coulomb::LkTable *dSk = nullptr, double E0_sigma2 = 0.0);
+              const Coulomb::LkTable *dSk = nullptr, double E0_sigma2 = 0.0,
+              Solver solver = Solver::dense);
 
 } // namespace CI
