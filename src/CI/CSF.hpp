@@ -1,4 +1,5 @@
 #pragma once
+#include "ConfigurationSpace.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
 #include "LinAlg/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -164,13 +165,15 @@ public:
   @p twoJ /2 and whose combined parity equals @p parity.  Duplicate pairs are
   excluded by construction.
 
-  @param twoJ       Twice the total angular momentum 2J.
-  @param parity     Total parity: +1 (even) or -1 (odd).
-  @param cisp_basis Single-particle basis from which CSFs are constructed.
+  @param twoJ         Twice the total angular momentum 2J.
+  @param parity       Total parity: +1 (even) or -1 (odd).
+  @param cisp_basis   Single-particle basis from which CSFs are constructed.
+  @param config_space Configurations to include; all by default.
   @return Sorted list of all valid two-electron CSFs for the given J and parity.
 */
 std::vector<CSF2> form_CSFs(int twoJ, int parity,
-                            const std::vector<DiracSpinor> &cisp_basis);
+                            const std::vector<DiracSpinor> &cisp_basis,
+                            const ConfigurationSpace &config_space = {});
 
 //------------------------------------------------------------------------------
 /*!
@@ -352,13 +355,15 @@ std::vector<CSF3> form_CSF3s(std::array<DiracSpinor::Index, 3> orbitals,
   states in @p cisp_basis with total parity @p parity, and forms the CSFs of
   each; see @ref form_CSF3s(std::array<DiracSpinor::Index, 3>, int).
 
-  @param twoJ       Twice the total angular momentum 2J (odd).
-  @param parity     Total parity: +1 (even) or -1 (odd).
-  @param cisp_basis Single-particle basis from which CSFs are constructed.
+  @param twoJ         Twice the total angular momentum 2J (odd).
+  @param parity       Total parity: +1 (even) or -1 (odd).
+  @param cisp_basis   Single-particle basis from which CSFs are constructed.
+  @param config_space Configurations to include; all by default.
   @return All three-electron CSFs for the given J and parity.
 */
 std::vector<CSF3> form_CSF3s(int twoJ, int parity,
-                             const std::vector<DiracSpinor> &cisp_basis);
+                             const std::vector<DiracSpinor> &cisp_basis,
+                             const ConfigurationSpace &config_space = {});
 
 /*!
   @brief Number of pairs of CSFs that can interact: those whose orbitals
@@ -649,9 +654,10 @@ public:
     @param pi             Total parity: +1 or -1.
     @param cisp_basis     Single-particle basis used to construct the CSFs.
     @param num_electrons  Number of valence electrons: 2 or 3.
+    @param config_space   Configurations to include; all by default.
   */
   PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
-         int num_electrons = 2);
+         int num_electrons = 2, const ConfigurationSpace &config_space = {});
 
   PsiJPi() {}
 

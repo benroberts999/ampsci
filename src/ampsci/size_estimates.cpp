@@ -2,6 +2,7 @@
 #include "CI/CI_Integrals.hpp"
 #include "CI/CSF.hpp"
 #include "CI/ConfigurationInteraction.hpp"
+#include "CI/ConfigurationSpace.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/QkTable.hpp"
 #include "HF/Breit.hpp"
@@ -181,6 +182,10 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   // interact; the Davidson vectors are small next to it
   const auto davidson = ci_input.get("davidson", out.num_electrons >= 3);
   const auto J_pi_list = CI::requested_J_pi(ci_input, out.num_electrons);
+  const CI::ConfigurationSpace config_space{
+    ci_orbitals, out.num_electrons,
+    ci_input.get("leading", std::vector<std::string>{}),
+    ci_input.get("excitations", std::vector<std::string>{"1", "2"})};
   std::cout << "Forming CSFs (" << J_pi_list.size() << " J/pi).. "
             << std::flush;
   const IO::ChronoTimer timer;
@@ -189,11 +194,11 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
     std::size_t num_CSFs = 0;
     std::size_t num_pairs = 0;
     if (out.num_electrons == 3) {
-      const auto CSFs = CI::form_CSF3s(twoJ, parity, ci_orbitals);
+      const auto CSFs = CI::form_CSF3s(twoJ, parity, ci_orbitals, config_space);
       num_CSFs = CSFs.size();
       num_pairs = CI::num_interacting_pairs(CSFs);
     } else {
-      const auto CSFs = CI::form_CSFs(twoJ, parity, ci_orbitals);
+      const auto CSFs = CI::form_CSFs(twoJ, parity, ci_orbitals, config_space);
       num_CSFs = CSFs.size();
       num_pairs = CI::num_interacting_pairs(CSFs);
     }

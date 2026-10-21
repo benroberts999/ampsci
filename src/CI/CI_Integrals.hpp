@@ -1,5 +1,6 @@
 #pragma once
 #include "CSF.hpp"
+#include "ConfigurationSpace.hpp"
 #include "Coulomb/QkTable.hpp"
 #include "Coulomb/meTable.hpp"
 #include "LinAlg/Matrix.hpp"
@@ -268,6 +269,8 @@ struct Integrals {
   std::vector<DiracSpinor> ci_basis{};
   //! Number of valence electrons the CI was run for (2 or 3)
   int num_electrons{2};
+  //! Configurations included in the CI expansion
+  ConfigurationSpace config_space{};
   //! True if ci_basis are Brueckner (spectrum) states, false if HF basis
   bool brueckner{false};
   //! One-body matrix elements, <a|h1|b>; may include Sigma_1

@@ -3,6 +3,7 @@
 #include "Angular/include.hpp"
 #include "CI_Integrals.hpp"
 #include "CSF.hpp"
+#include "ConfigurationSpace.hpp"
 #include "Coulomb/include.hpp"
 #include "DiracOperator/include.hpp"
 #include "IO/InputBlock.hpp"
@@ -34,6 +35,22 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "With three valence electrons the number of CSFs grows quickly: a "
      "smaller basis (e.g., 12spdf) is usually required [default: 20spdf]"},
     {"num_electrons", "Number of valence electrons: 2 or 3 [2]"},
+    {"leading",
+     "Leading configurations, from which the CI configurations are formed by "
+     "excitations; shells separated by '.', e.g., 'leading = 6s2.6p, "
+     "6s.6p2;'. Labels are non-relativistic: each includes both j. Check the "
+     "printed list: it should include the dominant configuration of every "
+     "state of interest. [default: the " +
+       std::to_string(default_leading_per_parity) +
+       " lowest configurations of each parity, by the sum of orbital "
+       "energies]"},
+    {"excitations",
+     "Excitations from the leading configurations, formed stepwise (as in "
+     "AMBiT): 'k' or 'k:basis', e.g., '1, 2, 3:6spdf'. Step k moves one "
+     "electron into its basis (default: ci_basis); the largest k is the "
+     "number of steps, so '3:6spdf' is the same as '1, 2, 3:6spdf'; '0' gives "
+     "the leading configurations only. Two full steps include every "
+     "two-electron configuration. [1, 2]"},
     {"J", "List of total angular momentum J for CI solutions (comma "
           "separated). Integers for two electrons; half-integers, as "
           "fractions (1/2, 3/2) or decimals (0.5, 1.5), for three. []"},
@@ -247,6 +264,13 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   std::cout << "\nUsing " << DiracSpinor::state_config(ci_sp_basis) << " = "
             << ci_sp_basis.size() << " orbitals in CI expansion\n";
 
+  // Configurations in the CI expansion: leading + excitations
+  const ConfigurationSpace config_space{
+    ci_sp_basis, num_electrons,
+    input.get("leading", std::vector<std::string>{}),
+    input.get("excitations", std::vector<std::string>{"1", "2"})};
+  std::cout << config_space.summary();
+
   if (Brueckner) {
     std::cout
       << "CI + MBPT + Brueckner method: using Brueckner states for CI basis\n";
@@ -451,7 +475,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   };
 
   {
-    std::cout << (no_new_integralsQ ? "Read" : "Calculate")
+    std::cout << "\n"
+              << (no_new_integralsQ ? "Read" : "Calculate")
               << " two-body Coulomb integrals: Q^k_abcd\n";
     std::cout << std::flush;
 
@@ -746,6 +771,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // into the hash. nb: converged E0 is not included: it is derived
   // (self-consistently) from the other settings, so is reproducible.
   std::string ci_settings = common_settings;
+  if (!config_space.unrestricted()) {
+    ci_settings += "cs;" + config_space.summary();
+  }
   if (include_Sigma1) {
     ci_settings += "s1;" + DiracSpinor::state_config(s1_basis) + ";";
   }
@@ -803,11 +831,12 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     for (std::size_t i = 0; i < J_pi_list.size(); ++i) {
       const auto [twoj, pi] = J_pi_list.at(i);
 
-      levels.at(i) = run_CI(
-        ci_sp_basis, twoj, pi, num_electrons, num_solutions, all_below_cm, h1,
-        qk, Bk, Sk, include_Sigma2, print_details, read_only, std::cout,
-        ci_fname, s1_corr.empty() ? nullptr : &s1_corr, hk,
-        dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver, BW_each_level);
+      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_electrons, num_solutions,
+                            all_below_cm, h1, qk, Bk, Sk, include_Sigma2,
+                            print_details, read_only, std::cout, ci_fname,
+                            s1_corr.empty() ? nullptr : &s1_corr, hk,
+                            dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver,
+                            BW_each_level, config_space);
     }
   }
 
@@ -886,6 +915,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   out.levels = std::move(levels);
   out.integrals.ci_basis = ci_sp_basis;
   out.integrals.num_electrons = num_electrons;
+  out.integrals.config_space = config_space;
   out.integrals.brueckner = Brueckner;
   out.integrals.h1 = std::move(h1);
   out.integrals.qk = std::move(qk);
@@ -969,7 +999,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               std::ostream &outstream, const std::string &ci_fname,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
               const Coulomb::WkTable *dSk, double E0_sigma2, Solver solver,
-              bool BW_each_level) {
+              bool BW_each_level, const ConfigurationSpace &config_space) {
 
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
@@ -983,12 +1013,13 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     return PsiJPi{};
   }
 
-  PsiJPi psi{twoJ, parity, ci_sp_basis, num_electrons};
+  PsiJPi psi{twoJ, parity, ci_sp_basis, num_electrons, config_space};
 
   const auto N_CSFs = psi.num_CSFs();
   outstream << "Total CSFs: " << N_CSFs << "\n" << std::flush;
   if (N_CSFs == 0) {
-    outstream << "No CSFs can be formed for this J/parity from the basis\n\n";
+    outstream << "No CSFs can be formed for this J/parity from the basis and "
+                 "configurations\n\n";
     return psi;
   }
   // Davidson (sparse Hamiltonian) or dense solution

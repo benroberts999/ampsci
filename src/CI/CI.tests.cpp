@@ -2,6 +2,7 @@
 #include "Angular/Wigner369j.hpp"
 #include "CI_Integrals.hpp"
 #include "ConfigurationInteraction.hpp"
+#include "ConfigurationSpace.hpp"
 #include "Coulomb/include.hpp"
 #include "DiracOperator/include.hpp"
 #include "HF/HartreeFock.hpp"
@@ -1063,104 +1064,131 @@ TEST_CASE("CI: three-electron run", "[CI][3VCI][unit]") {
 
   const std::string qk_filename =
     "deleteme_" + qip::random_string(3) + ".qk.abf";
-  const std::string ci_filename =
-    "deleteme_" + qip::random_string(3) + ".ci.abf";
-  const auto files = "qk_file = " + qk_filename + "; ci_file = " + ci_filename +
-                     "; num_solutions = 3; print_details = false;";
 
-  const IO::InputBlock input{"CI", "ci_basis = 3sp; num_electrons = 3;"
-                                   "J = 1/2, 3/2;" +
-                                     files};
-  const auto solution = CI::configuration_interaction(input, wf);
-  const auto &levels = solution.levels;
-  REQUIRE(solution.integrals.num_electrons == 3);
-  REQUIRE(levels.size() == 4);
+  // Two configuration spaces: every configuration (three full steps), and
+  // singles and doubles from given leading configurations (over 1s, 2p), so
+  // the test does not depend on the default
+  const std::vector<std::string> sd_leading{"1s2.2p", "1s.2p2", "2p3"};
+  const std::vector<std::string> sd_excitations{"1", "2"};
+  for (const bool full_space : {true, false}) {
+    const std::string space_input =
+      full_space ? "excitations = 1, 2, 3;" :
+                   "leading = 1s2.2p, 1s.2p2, 2p3; excitations = 1, 2;";
+    INFO(space_input);
 
-  const auto &basis = solution.integrals.ci_basis;
-  for (const auto &psi : levels) {
-    REQUIRE(psi.num_electrons() == 3);
-    REQUIRE(psi.twoJ() % 2 == 1);
-    REQUIRE(psi.num_CSFs() ==
-            CI::form_CSF3s(psi.twoJ(), psi.parity(), basis).size());
-    REQUIRE(psi.num_solutions() == 3);
-    // Energies reproduce the directly constructed Hamiltonian
-    const auto Hci = CI::construct_Hci(psi, solution.integrals);
-    const auto E = LinAlg::symmhEigensystem(Hci).first;
-    for (std::size_t i = 0; i < psi.num_solutions(); ++i) {
-      REQUIRE(psi.energy(i) == Approx(E[i]).epsilon(1.0e-10));
+    const std::string ci_filename =
+      "deleteme_" + qip::random_string(3) + ".ci.abf";
+    const auto files =
+      "qk_file = " + qk_filename + "; ci_file = " + ci_filename +
+      "; num_solutions = 3; print_details = false;" + space_input;
+
+    const IO::InputBlock input{"CI", "ci_basis = 3sp; num_electrons = 3;"
+                                     "J = 1/2, 3/2;" +
+                                       files};
+    const auto solution = CI::configuration_interaction(input, wf);
+    const auto &levels = solution.levels;
+    REQUIRE(solution.integrals.num_electrons == 3);
+    REQUIRE(levels.size() == 4);
+
+    const auto &basis = solution.integrals.ci_basis;
+    const auto space =
+      full_space ? CI::ConfigurationSpace{} :
+                   CI::ConfigurationSpace{basis, 3, sd_leading, sd_excitations};
+    for (const auto &psi : levels) {
+      REQUIRE(psi.num_electrons() == 3);
+      REQUIRE(psi.twoJ() % 2 == 1);
+      // CSFs of exactly the configurations in the space; singles and
+      // doubles leave out some of every block
+      const auto num_CSFs_all =
+        CI::form_CSF3s(psi.twoJ(), psi.parity(), basis).size();
+      const auto num_CSFs_space =
+        CI::form_CSF3s(psi.twoJ(), psi.parity(), basis, space).size();
+      REQUIRE(psi.num_CSFs() == num_CSFs_space);
+      if (!full_space) {
+        REQUIRE(num_CSFs_space < num_CSFs_all);
+      }
+      REQUIRE(psi.num_solutions() == 3);
+      // Energies reproduce the directly constructed Hamiltonian
+      const auto Hci = CI::construct_Hci(psi, solution.integrals);
+      const auto E = LinAlg::symmhEigensystem(Hci).first;
+      for (std::size_t i = 0; i < psi.num_solutions(); ++i) {
+        REQUIRE(psi.energy(i) == Approx(E[i]).epsilon(1.0e-10));
+      }
+      // Every CSF has three electrons, and the config strings reflect that
+      REQUIRE(psi.csf(0).num_electrons() == 3);
+      REQUIRE(psi.csf(0).parity() == psi.parity());
     }
-    // Every CSF has three electrons, and the config strings reflect that
-    REQUIRE(psi.csf(0).num_electrons() == 3);
-    REQUIRE(psi.csf(0).parity() == psi.parity());
-  }
 
-  // Ground state: 1s^2 ns, J=1/2 even (in the bare-nucleus basis, the 2s
-  // and 3s spline orbitals carry similar weight). Bounds: above the exact
-  // energy (-7.478 au, non-rel), and below the single-configuration limit
-  const auto *gs = &levels.front();
-  REQUIRE(gs->twoJ() == 1);
-  REQUIRE(gs->parity() == 1);
-  REQUIRE(gs->info(0).config.rfind("1s^2 ", 0) == 0);
-  REQUIRE(gs->info(0).config.back() == 's');
-  REQUIRE(gs->energy(0) > -7.48);
-  REQUIRE(gs->energy(0) < -7.3);
+    // Ground state: 1s^2 ns, J=1/2 even (in the bare-nucleus basis, the 2s
+    // and 3s spline orbitals carry similar weight). Bounds: above the exact
+    // energy (-7.478 au, non-rel), and below the single-configuration limit
+    const auto *gs = &levels.front();
+    REQUIRE(gs->twoJ() == 1);
+    REQUIRE(gs->parity() == 1);
+    REQUIRE(gs->info(0).config.rfind("1s^2 ", 0) == 0);
+    REQUIRE(gs->info(0).config.back() == 's');
+    REQUIRE(gs->energy(0) > -7.48);
+    REQUIRE(gs->energy(0) < -7.3);
 
-  // Term identification: 2S1/2 ground state (gJ = 2), and 1s^2 np 2P1/2 and
-  // 2P3/2 (gJ = 2/3, 4/3, in the non-rel limit)
-  REQUIRE(gs->info(0).gJ == Approx(2.0).epsilon(1.0e-2));
-  REQUIRE(gs->info(0).L2 == Approx(0.0).margin(0.05));
-  REQUIRE(gs->info(0).S2 == Approx(0.75).margin(0.05));
-  REQUIRE(gs->info(0).twoS == 1.0);
-  REQUIRE(gs->info(0).L == 0.0);
-  for (const auto &psi : levels) {
-    if (psi.parity() != -1)
-      continue;
-    const auto gJ_P = psi.twoJ() == 1 ? 2.0 / 3.0 : 4.0 / 3.0;
-    REQUIRE(psi.info(0).gJ == Approx(gJ_P).epsilon(1.0e-2));
-    REQUIRE(psi.info(0).L2 == Approx(2.0).margin(0.05));
-    REQUIRE(psi.info(0).S2 == Approx(0.75).margin(0.05));
-    REQUIRE(psi.info(0).twoS == 1.0);
-    REQUIRE(psi.info(0).L == 1.0);
-  }
+    // Term identification: 2S1/2 ground state (gJ = 2), and 1s^2 np 2P1/2 and
+    // 2P3/2 (gJ = 2/3, 4/3, in the non-rel limit)
+    REQUIRE(gs->info(0).gJ == Approx(2.0).epsilon(1.0e-2));
+    REQUIRE(gs->info(0).L2 == Approx(0.0).margin(0.05));
+    REQUIRE(gs->info(0).S2 == Approx(0.75).margin(0.05));
+    REQUIRE(gs->info(0).twoS == 1.0);
+    REQUIRE(gs->info(0).L == 0.0);
+    for (const auto &psi : levels) {
+      if (psi.parity() != -1)
+        continue;
+      const auto gJ_P = psi.twoJ() == 1 ? 2.0 / 3.0 : 4.0 / 3.0;
+      REQUIRE(psi.info(0).gJ == Approx(gJ_P).epsilon(1.0e-2));
+      REQUIRE(psi.info(0).L2 == Approx(2.0).margin(0.05));
+      REQUIRE(psi.info(0).S2 == Approx(0.75).margin(0.05));
+      REQUIRE(psi.info(0).twoS == 1.0);
+      REQUIRE(psi.info(0).L == 1.0);
+    }
 
-  // Same blocks via twoJ (which supersedes J), read from the ci file
-  // (read_only: a failed read would leave the blocks unsolved)
-  const IO::InputBlock input_twoJ{"CI",
-                                  "ci_basis = 3sp; num_electrons = 3;"
-                                  "J = 2.5; twoJ = 1, 3; read_only = true;" +
-                                    files};
-  const auto levels_twoJ = CI::configuration_interaction(input_twoJ, wf).levels;
-  REQUIRE(levels_twoJ.size() == levels.size());
-  for (std::size_t i = 0; i < levels.size(); ++i) {
-    REQUIRE(levels_twoJ[i].twoJ() == levels[i].twoJ());
-    REQUIRE(levels_twoJ[i].parity() == levels[i].parity());
-    for (std::size_t s = 0; s < levels[i].num_solutions(); ++s) {
-      REQUIRE(levels_twoJ[i].energy(s) == Approx(levels[i].energy(s)));
-      for (std::size_t k = 0; k < levels[i].num_CSFs(); ++k) {
-        REQUIRE(levels_twoJ[i].coef(s, k) == Approx(levels[i].coef(s, k)));
+    // Same blocks via twoJ (which supersedes J), read from the ci file
+    // (read_only: a failed read would leave the blocks unsolved)
+    const IO::InputBlock input_twoJ{"CI",
+                                    "ci_basis = 3sp; num_electrons = 3;"
+                                    "J = 2.5; twoJ = 1, 3; read_only = true;" +
+                                      files};
+    const auto levels_twoJ =
+      CI::configuration_interaction(input_twoJ, wf).levels;
+    REQUIRE(levels_twoJ.size() == levels.size());
+    for (std::size_t i = 0; i < levels.size(); ++i) {
+      REQUIRE(levels_twoJ[i].twoJ() == levels[i].twoJ());
+      REQUIRE(levels_twoJ[i].parity() == levels[i].parity());
+      for (std::size_t s = 0; s < levels[i].num_solutions(); ++s) {
+        REQUIRE(levels_twoJ[i].energy(s) == Approx(levels[i].energy(s)));
+        for (std::size_t k = 0; k < levels[i].num_CSFs(); ++k) {
+          REQUIRE(levels_twoJ[i].coef(s, k) == Approx(levels[i].coef(s, k)));
+        }
       }
     }
+
+    // Integer J is not possible for three electrons: no blocks
+    std::cout << "\nExpect one warning below (deliberate): J = 1 is not "
+                 "possible for 3 electrons\n";
+    const IO::InputBlock input_bad{"CI", "ci_basis = 3sp; num_electrons = 3;"
+                                         "J = 1;" +
+                                           files};
+    REQUIRE(CI::configuration_interaction(input_bad, wf).levels.empty());
+
+    // Parity-specific list supersedes the plain one, for its parity only:
+    // odd parity takes twoJ- (rejected), even parity takes J
+    std::cout << "\nExpect one warning below (deliberate): twoJ- = 2\n";
+    const IO::InputBlock input_pi{"CI",
+                                  "ci_basis = 3sp; num_electrons = 3;"
+                                  "J = 1/2; twoJ- = 2; read_only = true;" +
+                                    files};
+    const auto levels_pi = CI::configuration_interaction(input_pi, wf).levels;
+    REQUIRE(levels_pi.size() == 1);
+    REQUIRE(levels_pi[0].twoJ() == 1);
+    REQUIRE(levels_pi[0].parity() == 1);
+    REQUIRE(levels_pi[0].num_solutions() == 3);
   }
-
-  // Integer J is not possible for three electrons: no blocks
-  std::cout << "\nExpect one warning below (deliberate): J = 1 is not possible "
-               "for 3 electrons\n";
-  const IO::InputBlock input_bad{"CI", "ci_basis = 3sp; num_electrons = 3;"
-                                       "J = 1;" +
-                                         files};
-  REQUIRE(CI::configuration_interaction(input_bad, wf).levels.empty());
-
-  // Parity-specific list supersedes the plain one, for its parity only:
-  // odd parity takes twoJ- (rejected), even parity takes J
-  std::cout << "\nExpect one warning below (deliberate): twoJ- = 2\n";
-  const IO::InputBlock input_pi{"CI", "ci_basis = 3sp; num_electrons = 3;"
-                                      "J = 1/2; twoJ- = 2; read_only = true;" +
-                                        files};
-  const auto levels_pi = CI::configuration_interaction(input_pi, wf).levels;
-  REQUIRE(levels_pi.size() == 1);
-  REQUIRE(levels_pi[0].twoJ() == 1);
-  REQUIRE(levels_pi[0].parity() == 1);
-  REQUIRE(levels_pi[0].num_solutions() == 3);
 }
 
 //==============================================================================

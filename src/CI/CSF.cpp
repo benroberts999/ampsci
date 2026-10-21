@@ -224,7 +224,8 @@ std::optional<int> parse_twoJ(std::string_view str) {
 //==============================================================================
 // Forms list of all possible (2-particle) CSFs with given J and parity
 std::vector<CSF2> form_CSFs(int twoJ, int parity,
-                            const std::vector<DiracSpinor> &cisp_basis) {
+                            const std::vector<DiracSpinor> &cisp_basis,
+                            const ConfigurationSpace &config_space) {
 
   assert((parity == 1 || parity == -1) && "Parity must be +/-1");
   assert(twoJ >= 0 && "2*J must not be negative");
@@ -251,6 +252,9 @@ std::vector<CSF2> form_CSFs(int twoJ, int parity,
 
       // identical particles can only give even J (cannot have mv=mw)
       if (v == w && twoJ % 4 != 0)
+        continue;
+
+      if (!config_space.included({v.nk_index(), w.nk_index()}))
         continue;
 
       CSFs.emplace_back(v, w);
@@ -490,7 +494,8 @@ std::vector<CSF3> form_CSF3s(std::array<DiracSpinor::Index, 3> orbitals,
 
 //==============================================================================
 std::vector<CSF3> form_CSF3s(int twoJ, int parity,
-                             const std::vector<DiracSpinor> &cisp_basis) {
+                             const std::vector<DiracSpinor> &cisp_basis,
+                             const ConfigurationSpace &config_space) {
 
   assert((parity == 1 || parity == -1) && "Parity must be +/-1");
   assert(twoJ > 0 && twoJ % 2 == 1 && "2*J must be odd for three electrons");
@@ -506,6 +511,8 @@ std::vector<CSF3> form_CSF3s(int twoJ, int parity,
         if (u.parity() * v.parity() * w.parity() != parity)
           continue;
         if (u.twoj() + v.twoj() + w.twoj() < twoJ)
+          continue;
+        if (!config_space.included({u.nk_index(), v.nk_index(), w.nk_index()}))
           continue;
 
         auto config_CSFs =
@@ -788,14 +795,14 @@ expectation_L2S2(const LinAlg::View<const double> &coefs,
 
 //==============================================================================
 PsiJPi::PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
-               int num_electrons)
+               int num_electrons, const ConfigurationSpace &config_space)
   : m_twoj(twoJ), m_pi(pi) {
   assert((num_electrons == 2 || num_electrons == 3) &&
          "CI is implemented for two or three valence electrons");
   if (num_electrons == 3) {
-    m_CSFs = form_CSF3s(twoJ, pi, cisp_basis);
+    m_CSFs = form_CSF3s(twoJ, pi, cisp_basis, config_space);
   } else {
-    m_CSFs = form_CSFs(twoJ, pi, cisp_basis);
+    m_CSFs = form_CSFs(twoJ, pi, cisp_basis, config_space);
   }
 }
 
