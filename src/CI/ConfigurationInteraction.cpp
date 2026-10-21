@@ -62,10 +62,12 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     {"Brueckner", "Use Brueckner (spectrum) states for CI basis? Must have "
                   "Correlations, Spectrum, and sigma1. [false]"},
     {"cis2_basis",
-     "The subset of ci_basis for which the two-body MBPT corrections are "
-     "calculated. Must be a subset of ci_basis. If existing sk file has "
-     "more integrals, they will be used. [default: Nspdf, where N is "
-     "maximum n for core + 3]"},
+     "Pair of basis strings, e.g. '8spdf, 12spdf'. Sigma_2 is calculated for "
+     "<vw|Q|xy> if vw or xy is in the first, and all four are in the second. "
+     "All diagonal entries (xy = vw) up to second are included. "
+     "Others are extrapolated (see extrapolate_sigma2). If only one is given, "
+     "the second is ci_basis. [default: 'Nspdf, ci_basis', where N is maximum "
+     "n for core + 2]"},
     {"Breit2", "Include two-body Breit? Default is true if Breit included in "
                "HF. Ignored if Breit not included in HF. [true]"},
     {"Breit_basis",
@@ -296,10 +298,18 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   const auto [core_s2, excited_s2] =
     DiracSpinor::split_by_energy(s2_basis, wf.FermiLevel(), n_min_core);
 
-  // S2 corrections are included only for this subset of the CI basis:
-  const auto cis2_basis_string =
-    input.get("cis2_basis", std::to_string(N_max_core + 3) + "spdf");
-  const auto cis2_basis = CI::basis_subset(ci_sp_basis, cis2_basis_string);
+  // S2 corrections are included for <vw|Q|xy> with the pair vw, or xy, in
+  // cis2_basis (the first subset), or diagonal (xy = vw or wv), and all four
+  // orbitals in cis2_legs_basis (the second; all of the CI basis if not given)
+  const auto cis2_basis_strings = input.get(
+    "cis2_basis",
+    std::vector<std::string>{std::to_string(N_max_core + 2) + "spdf"});
+  const auto cis2_basis =
+    CI::basis_subset(ci_sp_basis, cis2_basis_strings.front());
+  const auto cis2_legs_basis =
+    cis2_basis_strings.size() > 1 ?
+      CI::basis_subset(ci_sp_basis, cis2_basis_strings.at(1)) :
+      ci_sp_basis;
 
   // Screening factors for Sigma_2 (QPQ ~ fk*Q):
   // - explicit list: used as given
@@ -379,8 +389,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       std::cout << "With basis for Σ_2: " << DiracSpinor::state_config(s2_basis)
                 << "\n";
 
-      std::cout << "Including Σ_2 correction to Coulomb integrals up to: "
-                << DiracSpinor::state_config(cis2_basis) << "\n";
+      std::cout << "Including Σ_2 correction to <vw|Q|xy> for: vw or xy in "
+                << DiracSpinor::state_config(cis2_basis)
+                << " (or diagonal), all in "
+                << DiracSpinor::state_config(cis2_legs_basis) << "\n";
       if (extrapolate_sigma2) {
         std::cout << "(and extrapolating beyond using hk=<Sk/Qk>)\n";
       }
@@ -618,9 +630,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   }
   common_settings += ";";
 
-  Coulomb::LkTable Sk;
+  Coulomb::WkTable Sk;
   // dS^k/dE0; empty unless iterative_correction_sigma2
-  Coulomb::LkTable dSk;
+  Coulomb::WkTable dSk;
   // Average S^k/Q^k ratios, for extrapolating Sigma_2 beyond cis2_basis
   std::vector<double> hk;
   if (include_Sigma2) {
@@ -638,7 +650,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     std::cout << (no_new_integralsQ ? "\nRead" : "\nCalculate")
               << " two-body MBPT integrals: Σ^k_abcd\n";
 
-    std::cout << "For: " << DiracSpinor::state_config(cis2_basis) << ", using "
+    std::cout << "For: " << DiracSpinor::state_config(cis2_basis) << " (pair), "
+              << DiracSpinor::state_config(cis2_legs_basis) << " (all), using "
               << DiracSpinor::state_config(excited_s2) << "\n";
 
     // output screening factors to check
@@ -661,9 +674,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                  E0_sigma2);
     }
 
-    Sk = MBPT::calculate_Sk(Sk_filename, cis2_basis, core_s2, excited_s2, qk,
-                            max_k_Coulomb, exclude_wrong_parity_box,
-                            denominators, no_new_integralsQ, fk, E0_sigma2);
+    Sk = MBPT::calculate_Sk(Sk_filename, cis2_legs_basis, cis2_basis, core_s2,
+                            excited_s2, qk, max_k_Coulomb,
+                            exclude_wrong_parity_box, denominators,
+                            no_new_integralsQ, fk, E0_sigma2);
     warn_if_empty(Sk.count(), "Sigma_2 S^k", Sk_filename);
 
     if (iterative_correction_sigma2) {
@@ -677,10 +691,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       std::cout << "\nCalculate Σ^k_abcd at E0 + " << delta_E0
                 << " au, for dΣ^k/dE0\n"
                 << std::flush;
-      dSk = MBPT::calculate_Sk(dSk_filename, cis2_basis, core_s2, excited_s2,
-                               qk, max_k_Coulomb, exclude_wrong_parity_box,
-                               denominators, no_new_integralsQ, fk,
-                               E0_sigma2 + delta_E0);
+      dSk = MBPT::calculate_Sk(dSk_filename, cis2_legs_basis, cis2_basis,
+                               core_s2, excited_s2, qk, max_k_Coulomb,
+                               exclude_wrong_parity_box, denominators,
+                               no_new_integralsQ, fk, E0_sigma2 + delta_E0);
       warn_if_empty(dSk.count(), "dSigma_2 (dsk)", dSk_filename);
       // Both tables have the same entries (same fill), so this is safe
       for (std::size_t k = 0; k < dSk->size(); ++k) {
@@ -747,6 +761,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                                      "") +
       DiracSpinor::state_config(s2_basis) + ";" +
       DiracSpinor::state_config(cis2_basis) + ";" +
+      DiracSpinor::state_config(cis2_legs_basis) + ";" +
       (exclude_wrong_parity_box ? "xb" : "") + ";" +
       (extrapolate_sigma2 ? "ex" : "") + ";";
   }
@@ -936,11 +951,11 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_electrons, int num_solutions,
               std::optional<double> all_below_cm,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-              const Coulomb::WkTable &Bk, const Coulomb::LkTable &Sk,
+              const Coulomb::WkTable &Bk, const Coulomb::WkTable &Sk,
               bool include_Sigma2, bool print_details, bool read_only,
               std::ostream &outstream, const std::string &ci_fname,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
-              const Coulomb::LkTable *dSk, double E0_sigma2, Solver solver) {
+              const Coulomb::WkTable *dSk, double E0_sigma2, Solver solver) {
 
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 

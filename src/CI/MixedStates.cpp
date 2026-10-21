@@ -145,7 +145,7 @@ PsiJPi solve_mixed_state(const PsiJPi &Psi0, std::size_t i0, int twoJ,
                          const Coulomb::meTable<double> &h, int K_rank,
                          const Coulomb::meTable<double> &h1,
                          const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk,
-                         const Coulomb::LkTable *Sk, double omega) {
+                         const Coulomb::WkTable *Sk, double omega) {
 
   // The mixed state has the same number of electrons as the reference state
   const PsiJPi target(twoJ, parity, ci_sp_basis, Psi0.num_electrons());

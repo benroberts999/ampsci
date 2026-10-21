@@ -35,8 +35,8 @@ struct CITables {
   Coulomb::QkTable qk{};
   Coulomb::meTable<double> h1{};
   Coulomb::WkTable Bk{};
-  Coulomb::LkTable Sk{};
-  Coulomb::LkTable dSk{};
+  Coulomb::WkTable Sk{};
+  Coulomb::WkTable dSk{};
   std::vector<double> hk{};
   CI::Sigma1Correction s1c{};
   // Shift of E0 from where Sk was tabulated
@@ -199,7 +199,7 @@ TEST_CASE("CI: Configuration Interaction unit tests", "[CI][unit]") {
     const auto &ints = solution_2.integrals;
 
     // Table with S^k = Q^k for a small subset: ratio S/Q = 1 exactly
-    Coulomb::LkTable Sk_test;
+    Coulomb::WkTable Sk_test;
     const auto S_eq_Q = [&ints](int k, const DiracSpinor &a,
                                 const DiracSpinor &b, const DiracSpinor &c,
                                 const DiracSpinor &d) {
@@ -627,7 +627,7 @@ TEST_CASE("CI: three-electron Hamiltonian", "[CI][3VCI][unit]") {
               const DiracSpinor &x,
               const DiracSpinor &y) { return 0.3 * qk_S.Q(k, v, w, x, y); },
       all_k, -1, false);
-    Coulomb::LkTable Sk, dSk;
+    Coulomb::WkTable Sk, dSk;
     Sk.fill(
       S_small,
       [&qk_S](int k, const DiracSpinor &v, const DiracSpinor &w,

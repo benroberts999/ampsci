@@ -360,8 +360,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
      {"n_max_legs",
       "Max n of the CI basis states that SR+N is applied to. SR+N is only "
       "meaningful between physical states, and the high-n states of the CI "
-      "basis are cavity states [default: maximum n for core + 3, as for "
-      "cis2_basis]"},
+      "basis are cavity states [default: maximum n for core + 3]"},
      {"norm", "Include the normalisation of states? If false, only the "
               "structure radiation is included [true]"}});
 

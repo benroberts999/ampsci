@@ -19,7 +19,7 @@
 // five Goldstone diagrams (a, b, c1, c2, d), using m-scheme Coulomb integrals
 // g (from the Qk table), and compares against the angular-reduced form
 //   Sigma2_vwxy = sum_k A^k_vwxy S^k_vwxy ,
-// with S^k from Sk_vwxy(), returned to the m-scheme by LkTable::g().
+// with S^k from Sk_vwxy(), returned to the m-scheme by WkTable::g().
 // RS denominators: each is averaged with that of the bra-ket partner diagram,
 // 1/D -> (1/D + 1/D')/2, as in Sk_vwxy().
 // The core includes a p shell, so core and excited j differ by both even and
@@ -126,8 +126,8 @@ TEST_CASE("Sigma2: m-scheme check", "[Sigma2][MBPT][unit]") {
              "found", "eps");
   for (const auto &[v, w, x, y] : tuples) {
 
-    // Reduced S^k, returned to the m-scheme via LkTable::g()
-    Coulomb::LkTable Sk;
+    // Reduced S^k, returned to the m-scheme via WkTable::g()
+    Coulomb::WkTable Sk;
     const auto [k0, kI] = MBPT::k_minmax_S(v, w, x, y);
     REQUIRE(kI >= k0);
     for (int k = k0; k <= kI; ++k) {
@@ -219,4 +219,78 @@ TEST_CASE("Sigma2: Mg fine structure", "[Sigma2][CI][integration]") {
 
   REQUIRE(lande_ratio(E_sigma2) ==
           Approx(lande_ratio(E_sigma1)).epsilon(1.0e-3));
+}
+
+//==============================================================================
+// calculate_Sk stores S^k_vwxy when both states of the pair (v, w), or of
+// (x, y), are in the pair basis, or the integral is diagonal (xy = vw or wv),
+// and all four are in the external basis: exactly those (and only those)
+// allowed by the selection rule, with the values of Sk_vwxy
+TEST_CASE("Sigma2: S^k pair selection", "[Sigma2][MBPT][unit]") {
+
+  const auto radial_grid = std::make_shared<const Grid>(
+    GridParameters{500, 1.0e-4, 250.0, 50.0, GridType::loglinear});
+  const auto orbs = DiracSpinor::HlikeBasis("5sp4d", radial_grid, 1.0);
+
+  // core: n <= 2; external: n = 3, 4; pair basis: n = 3
+  std::vector<DiracSpinor> core, excited, external, pair_basis;
+  for (const auto &Fn : orbs) {
+    (Fn.n() <= 2 ? core : excited).push_back(Fn);
+    if (Fn.n() == 3 || Fn.n() == 4) {
+      external.push_back(Fn);
+    }
+    if (Fn.n() == 3) {
+      pair_basis.push_back(Fn);
+    }
+  }
+
+  const Coulomb::YkTable yk(orbs);
+  Coulomb::QkTable qk;
+  qk.fill(orbs, yk, -1, false);
+
+  const auto Sk =
+    MBPT::calculate_Sk("false", external, pair_basis, core, excited, qk, -1,
+                       false, MBPT::Denominators::RS);
+
+  const auto in = [](const std::vector<DiracSpinor> &set,
+                     const DiracSpinor &a) {
+    return std::find(set.cbegin(), set.cend(), a) != set.cend();
+  };
+
+  // All excited states (n = 3, 4, 5): includes legs outside external
+  std::size_t num_selected = 0;
+  std::size_t num_wrong = 0;
+  double worst_value = 0.0;
+  for (const auto &v : excited) {
+    for (const auto &w : excited) {
+      for (const auto &x : excited) {
+        for (const auto &y : excited) {
+          const auto all_in = in(external, v) && in(external, w) &&
+                              in(external, x) && in(external, y);
+          const auto pair_in = (in(pair_basis, v) && in(pair_basis, w)) ||
+                               (in(pair_basis, x) && in(pair_basis, y));
+          const auto diagonal = (x == v && y == w) || (x == w && y == v);
+          const auto [k0, k1] = MBPT::k_minmax_S(v, w, x, y);
+          for (int k = k0; k <= k1; ++k) {
+            const auto selected = all_in && (pair_in || diagonal) &&
+                                  MBPT::Sk_vwxy_SR(k, v, w, x, y);
+            if (Sk.contains(k, v, w, x, y) != selected) {
+              ++num_wrong;
+            }
+            if (selected) {
+              ++num_selected;
+              const auto expected =
+                MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, yk.SixJ(),
+                              MBPT::Denominators::RS);
+              worst_value =
+                std::max(worst_value, std::abs(Sk.Q(k, v, w, x, y) - expected));
+            }
+          }
+        }
+      }
+    }
+  }
+  REQUIRE(num_selected > 0);
+  REQUIRE(num_wrong == 0);
+  REQUIRE(worst_value < 1.0e-14);
 }

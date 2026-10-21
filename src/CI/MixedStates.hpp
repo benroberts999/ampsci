@@ -171,6 +171,6 @@ solve_mixed_state(const PsiJPi &Psi0, std::size_t i0, int twoJ, int parity,
                   const Coulomb::meTable<double> &h1,
                   const Coulomb::QkTable &qk,
                   const Coulomb::WkTable *Bk = nullptr,
-                  const Coulomb::LkTable *Sk = nullptr, double omega = 0.0);
+                  const Coulomb::WkTable *Sk = nullptr, double omega = 0.0);
 
 } // namespace CI

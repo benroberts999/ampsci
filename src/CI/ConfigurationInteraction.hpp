@@ -150,13 +150,13 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_electrons, int num_solutions,
               std::optional<double> all_below_cm,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-              const Coulomb::WkTable &Bk, const Coulomb::LkTable &Sk,
+              const Coulomb::WkTable &Bk, const Coulomb::WkTable &Sk,
               bool include_Sigma2, bool print_details, bool read_only = false,
               std::ostream &outstream = std::cout,
               const std::string &ci_fname = "",
               const Sigma1Correction *s1c = nullptr,
               const std::vector<double> &hk = {},
-              const Coulomb::LkTable *dSk = nullptr, double E0_sigma2 = 0.0,
+              const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
               Solver solver = Solver::dense);
 
 } // namespace CI

@@ -36,6 +36,9 @@ Denominators parse_Denominators(std::string_view s) {
     return Denominators::Fermi0;
   if (qip::ci_compare(s, "BW"))
     return Denominators::BW;
+  if (qip::ci_compare(s, "DFK"))
+    return Denominators::DFK;
+  std::cout << "Unknown denominator option: " << s << "? Defaulting to DFK\n;";
   return Denominators::DFK;
 }
 
@@ -79,7 +82,10 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited) {
 //==============================================================================
 bool Sk_vwxy_SR(int k, const DiracSpinor &v, const DiracSpinor &w,
                 const DiracSpinor &x, const DiracSpinor &y) {
-  return Coulomb::sixjTriads({}, {}, k, v, x, {}) &&
+  // Each vertex conserves parity, so S^k vanishes unless the pair states vw
+  // and xy have the same parity; k itself may have either parity
+  return v.parity() * w.parity() == x.parity() * y.parity() &&
+         Coulomb::sixjTriads({}, {}, k, v, x, {}) &&
          Coulomb::sixjTriads({}, {}, k, w, y, {});
 }
 
@@ -451,8 +457,9 @@ double Sigma2::S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
 }
 
 //==============================================================================
-Coulomb::LkTable calculate_Sk(const std::string &filename,
+Coulomb::WkTable calculate_Sk(const std::string &filename,
                               const std::vector<DiracSpinor> &external,
+                              const std::vector<DiracSpinor> &pair_basis,
                               const std::vector<DiracSpinor> &core,
                               const std::vector<DiracSpinor> &excited,
                               const Coulomb::QkTable &qk, int max_k,
@@ -460,7 +467,7 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
                               Denominators denominators, bool no_new_integrals,
                               const std::vector<double> &fk, double E0) {
 
-  Coulomb::LkTable Sk;
+  Coulomb::WkTable Sk;
 
   const auto max_twoj =
     std::max({DiracSpinor::max_tj(excited), DiracSpinor::max_tj(core),
@@ -473,9 +480,38 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
     return MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, sjt, denominators,
                          fk, E0);
   };
+
+  // Which states are in pair_basis, indexed by nk_index: checked for every
+  // candidate integral, so must be fast
+  std::vector<bool> in_pair_basis;
+  for (const auto &a : pair_basis) {
+    const auto index = std::size_t(a.nk_index());
+    if (index >= in_pair_basis.size()) {
+      in_pair_basis.resize(index + 1, false);
+    }
+    in_pair_basis[index] = true;
+  }
+  const auto pair_in_basis = [&in_pair_basis](const DiracSpinor &a,
+                                              const DiracSpinor &b) {
+    const auto ia = std::size_t(a.nk_index());
+    const auto ib = std::size_t(b.nk_index());
+    return ia < in_pair_basis.size() && ib < in_pair_basis.size() &&
+           in_pair_basis[ia] && in_pair_basis[ib];
+  };
+
+  // Either pair, (v, w) or (x, y), in pair_basis; or diagonal (xy = vw or
+  // wv), which enter the energy of every configuration. Unchanged under the
+  // symmetries of S^k (vwxy = wvyx = xyvw = yxwv)
   const auto Sk_selection_rule = [&](int k, const DiracSpinor &v,
                                      const DiracSpinor &w, const DiracSpinor &x,
                                      const DiracSpinor &y) {
+    const auto iv = v.nk_index();
+    const auto iw = w.nk_index();
+    const auto ix = x.nk_index();
+    const auto iy = y.nk_index();
+    const auto diagonal = (ix == iv && iy == iw) || (ix == iw && iy == iv);
+    if (!diagonal && !pair_in_basis(v, w) && !pair_in_basis(x, y))
+      return false;
     return exclude_wrong_parity_box ? Coulomb::Qk_abcd_SR(k, v, w, x, y) :
                                       MBPT::Sk_vwxy_SR(k, v, w, x, y);
   };
@@ -501,7 +537,7 @@ Coulomb::LkTable calculate_Sk(const std::string &filename,
 }
 
 //==============================================================================
-std::vector<double> average_hk(const Coulomb::LkTable &Sk,
+std::vector<double> average_hk(const Coulomb::WkTable &Sk,
                                const Coulomb::QkTable &qk,
                                const std::vector<DiracSpinor> &external,
                                int max_k) {
@@ -515,14 +551,10 @@ std::vector<double> average_hk(const Coulomb::LkTable &Sk,
   std::vector<double> sum(std::size_t(k_max + 1), 0.0);
   std::vector<long> num(std::size_t(k_max + 1), 0);
 
-  // S^k has a 4-fold symmetry: S^k_vwxy = S^k_wvyx = S^k_xyvw = S^k_yxwv.
-  // The Lk normal order accounts for the first pair; the bra-ket pair is added
-  // here. Count each distinct integral once - otherwise each is weighted by its
-  // own symmetry multiplicity, which is not the same for every integral.
-  const auto normal_order = [&Sk](const DiracSpinor &v, const DiracSpinor &w,
-                                  const DiracSpinor &x, const DiracSpinor &y) {
-    return std::min(Sk.NormalOrder(v, w, x, y), Sk.NormalOrder(x, y, v, w));
-  };
+  // S^k has a 4-fold symmetry: S^k_vwxy = S^k_wvyx = S^k_xyvw = S^k_yxwv,
+  // which the table's normal order accounts for. Count each distinct integral
+  // once - otherwise each is weighted by its own symmetry multiplicity, which
+  // is not the same for every integral.
 
   // Parallel over k: each k accumulates independently
 #pragma omp parallel for
@@ -531,7 +563,7 @@ std::vector<double> average_hk(const Coulomb::LkTable &Sk,
       for (const auto &w : external) {
         for (const auto &x : external) {
           for (const auto &y : external) {
-            const auto index = normal_order(v, w, x, y);
+            const auto index = Sk.NormalOrder(v, w, x, y);
             if (index != Sk.CurrentOrder(v, w, x, y))
               continue;
             const auto [k0, k1] = Coulomb::k_minmax_Q(v, w, x, y);

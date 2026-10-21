@@ -237,8 +237,8 @@ template <typename MatrixType = LinAlg::Matrix<double>>
 [[nodiscard]] MatrixType iterate_E0(
   PsiJPi *psi, const Sigma1Correction &s1c, const Coulomb::meTable<double> &h1,
   const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
-  const Coulomb::LkTable *Sk = nullptr, const std::vector<double> &hk = {},
-  const Coulomb::LkTable *dSk = nullptr, double E0_sigma2 = 0.0,
+  const Coulomb::WkTable *Sk = nullptr, const std::vector<double> &hk = {},
+  const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
   std::ostream &outstream = std::cout);
 
 //==============================================================================
@@ -275,7 +275,7 @@ struct Integrals {
   //! Two-body Breit integrals, B^k; empty if not included
   Coulomb::WkTable Bk{};
   //! Two-body Sigma_2 integrals, S^k; empty if not included
-  Coulomb::LkTable Sk{};
+  Coulomb::WkTable Sk{};
   //! Average S^k/Q^k ratios, indexed by k; empty if Sigma_2 is not being
   //! extrapolated beyond the cis2 basis. Diagrams with no stored S^k then
   //! use S^k = hk[k] * Q^k. See MBPT::average_hk
@@ -283,7 +283,7 @@ struct Integrals {
   //! Energy derivatives dS^k/dE0 of the Sigma_2 integrals; empty unless the
   //! Brillouin-Wigner (E0-dependent) Sigma_2 correction is included.
   //! See CI::corrected_Sk
-  Coulomb::LkTable dSk{};
+  Coulomb::WkTable dSk{};
   //! Reference E0 that Sk and dSk were tabulated at (Brillouin-Wigner)
   double E0_sigma2{0.0};
   //! Derivative (dSigma/dE) correction for Sigma_1; empty if not included
@@ -355,12 +355,12 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, DiracSpinor::Index v,
   @param twoJ  Twice the total angular momentum 2J of the coupled pair.
   @return Antisymmetrised two-body \f$ \Sigma_2 \f$ matrix element.
 */
-double CSF2_Sigma2(const Coulomb::LkTable &Sk, DiracSpinor::Index v,
+double CSF2_Sigma2(const Coulomb::WkTable &Sk, DiracSpinor::Index v,
                    DiracSpinor::Index w, DiracSpinor::Index x,
                    DiracSpinor::Index y, int twoJ,
                    const Coulomb::QkTable *qk = nullptr,
                    const std::vector<double> &hk = {},
-                   const Coulomb::LkTable *dSk = nullptr, double dE0 = 0.0);
+                   const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0);
 
 /*!
   @brief Antisymmetrised two-body Breit matrix element in the coupled CSF
@@ -416,10 +416,10 @@ double Hab(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
   @return \f$ \Sigma_2 \f$ correction to \f$ H_{AB} \f$.
 */
 double Sigma2_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
-                 const Coulomb::LkTable &Sk,
+                 const Coulomb::WkTable &Sk,
                  const Coulomb::QkTable *qk = nullptr,
                  const std::vector<double> &hk = {},
-                 const Coulomb::LkTable *dSk = nullptr, double dE0 = 0.0);
+                 const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0);
 
 /*!
   @brief Breit correction to Hab().
@@ -490,9 +490,9 @@ double Hab(const CI::CSF3 &A, const CI::CSF3 &B, int twoJ,
   @return \f$ \Sigma_2 \f$ correction to \f$ H_{AB} \f$.
 */
 double Sigma2_AB(
-  const CI::CSF3 &A, const CI::CSF3 &B, int twoJ, const Coulomb::LkTable &Sk,
+  const CI::CSF3 &A, const CI::CSF3 &B, int twoJ, const Coulomb::WkTable &Sk,
   const Coulomb::QkTable *qk = nullptr, const std::vector<double> &hk = {},
-  const Coulomb::LkTable *dSk = nullptr, double dE0 = 0.0,
+  const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0,
   const std::map<DiracSpinor::Index, double> *orbital_energies = nullptr);
 
 /*!
@@ -763,10 +763,10 @@ template <typename MatrixType = LinAlg::Matrix<double>>
 MatrixType
 construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
               const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
-              const Coulomb::LkTable *Sk = nullptr,
+              const Coulomb::WkTable *Sk = nullptr,
               const Sigma1Correction *s1c = nullptr,
               const std::vector<double> &hk = {},
-              const Coulomb::LkTable *dSk = nullptr, double dE0 = 0.0);
+              const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0);
 
 /*!
   @brief Constructs the full CI Hamiltonian matrix for a list of CSFs.
@@ -784,9 +784,9 @@ template <typename MatrixType = LinAlg::Matrix<double>, typename CSFType>
 MatrixType construct_Hci(
   const std::vector<CSFType> &CSFs, int twoJ,
   const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-  const Coulomb::WkTable *Bk = nullptr, const Coulomb::LkTable *Sk = nullptr,
+  const Coulomb::WkTable *Bk = nullptr, const Coulomb::WkTable *Sk = nullptr,
   const Sigma1Correction *s1c = nullptr, const std::vector<double> &hk = {},
-  const Coulomb::LkTable *dSk = nullptr, double dE0 = 0.0);
+  const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0);
 
 /*!
   @brief Constructs the CI Hamiltonian matrix from a set of integral tables.

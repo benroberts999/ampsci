@@ -84,10 +84,10 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, DiracSpinor::Index v,
 }
 
 //==============================================================================
-double CSF2_Sigma2(const Coulomb::LkTable &Sk, DiracSpinor::Index v,
+double CSF2_Sigma2(const Coulomb::WkTable &Sk, DiracSpinor::Index v,
                    DiracSpinor::Index w, DiracSpinor::Index x,
                    DiracSpinor::Index y, int twoJ, const Coulomb::QkTable *qk,
-                   const std::vector<double> &hk, const Coulomb::LkTable *dSk,
+                   const std::vector<double> &hk, const Coulomb::WkTable *dSk,
                    double dE0) {
 
   // If c==d, or a==b : can make short-cut due to symmetry
@@ -214,8 +214,8 @@ double CSF2_Breit(const Coulomb::WkTable &Bk, DiracSpinor::Index v,
 
 //==============================================================================
 double Sigma2_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
-                 const Coulomb::LkTable &Sk, const Coulomb::QkTable *qk,
-                 const std::vector<double> &hk, const Coulomb::LkTable *dSk,
+                 const Coulomb::WkTable &Sk, const Coulomb::QkTable *qk,
+                 const std::vector<double> &hk, const Coulomb::WkTable *dSk,
                  double dE0) {
   const auto [v, w] = A.states;
   const auto [x, y] = B.states;
@@ -232,8 +232,8 @@ double Breit_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
 
 //==============================================================================
 double Sigma2_AB(const CI::CSF3 &A, const CI::CSF3 &B, int,
-                 const Coulomb::LkTable &Sk, const Coulomb::QkTable *qk,
-                 const std::vector<double> &hk, const Coulomb::LkTable *dSk,
+                 const Coulomb::WkTable &Sk, const Coulomb::QkTable *qk,
+                 const std::vector<double> &hk, const Coulomb::WkTable *dSk,
                  double dE0,
                  const std::map<DiracSpinor::Index, double> *orbital_energies) {
   assert((dSk == nullptr || orbital_energies != nullptr) &&
@@ -503,8 +503,8 @@ template <typename MatrixType>
 MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
                       const Coulomb::meTable<double> &h1,
                       const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk,
-                      const Coulomb::LkTable *Sk, const std::vector<double> &hk,
-                      const Coulomb::LkTable *dSk, double E0_sigma2,
+                      const Coulomb::WkTable *Sk, const std::vector<double> &hk,
+                      const Coulomb::WkTable *dSk, double E0_sigma2,
                       std::ostream &outstream) {
   assert(psi != nullptr);
 
@@ -591,14 +591,14 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
 
 template LinAlg::Matrix<double> iterate_E0<LinAlg::Matrix<double>>(
   PsiJPi *, const Sigma1Correction &, const Coulomb::meTable<double> &,
-  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::LkTable *,
-  const std::vector<double> &, const Coulomb::LkTable *, double,
+  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
+  const std::vector<double> &, const Coulomb::WkTable *, double,
   std::ostream &);
 template LinAlg::SparseSymmetricMatrix<double>
 iterate_E0<LinAlg::SparseSymmetricMatrix<double>>(
   PsiJPi *, const Sigma1Correction &, const Coulomb::meTable<double> &,
-  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::LkTable *,
-  const std::vector<double> &, const Coulomb::LkTable *, double,
+  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
+  const std::vector<double> &, const Coulomb::WkTable *, double,
   std::ostream &);
 
 //==============================================================================
@@ -1090,10 +1090,10 @@ std::string Term_Symbol(int L, int two_S, int parity) {
 template <typename MatrixType>
 MatrixType construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
                          const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk,
-                         const Coulomb::LkTable *Sk,
+                         const Coulomb::WkTable *Sk,
                          const Sigma1Correction *s1c,
                          const std::vector<double> &hk,
-                         const Coulomb::LkTable *dSk, double dE0) {
+                         const Coulomb::WkTable *dSk, double dE0) {
   // Two- or three-electron CSFs: one dispatch per matrix
   if (psi.num_electrons() == 3) {
     return construct_Hci<MatrixType>(psi.CSF3s(), psi.twoJ(), h1, qk, Bk, Sk,
@@ -1105,22 +1105,22 @@ MatrixType construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
 
 template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>>(
   const PsiJPi &, const Coulomb::meTable<double> &, const Coulomb::QkTable &,
-  const Coulomb::WkTable *, const Coulomb::LkTable *, const Sigma1Correction *,
-  const std::vector<double> &, const Coulomb::LkTable *, double);
+  const Coulomb::WkTable *, const Coulomb::WkTable *, const Sigma1Correction *,
+  const std::vector<double> &, const Coulomb::WkTable *, double);
 template LinAlg::SparseSymmetricMatrix<double>
 construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
   const PsiJPi &, const Coulomb::meTable<double> &, const Coulomb::QkTable &,
-  const Coulomb::WkTable *, const Coulomb::LkTable *, const Sigma1Correction *,
-  const std::vector<double> &, const Coulomb::LkTable *, double);
+  const Coulomb::WkTable *, const Coulomb::WkTable *, const Sigma1Correction *,
+  const std::vector<double> &, const Coulomb::WkTable *, double);
 
 //==============================================================================
 template <typename MatrixType, typename CSFType>
 MatrixType
 construct_Hci(const std::vector<CSFType> &CSFs, int twoJ,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-              const Coulomb::WkTable *Bk, const Coulomb::LkTable *Sk,
+              const Coulomb::WkTable *Bk, const Coulomb::WkTable *Sk,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
-              const Coulomb::LkTable *dSk, double dE0) {
+              const Coulomb::WkTable *dSk, double dE0) {
 
   constexpr bool sparse =
     std::is_same_v<MatrixType, LinAlg::SparseSymmetricMatrix<double>>;
@@ -1188,26 +1188,26 @@ construct_Hci(const std::vector<CSFType> &CSFs, int twoJ,
 
 template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>, CSF2>(
   const std::vector<CSF2> &, int, const Coulomb::meTable<double> &,
-  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::LkTable *,
+  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::LkTable *, double);
+  const Coulomb::WkTable *, double);
 template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>, CSF3>(
   const std::vector<CSF3> &, int, const Coulomb::meTable<double> &,
-  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::LkTable *,
+  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::LkTable *, double);
+  const Coulomb::WkTable *, double);
 template LinAlg::SparseSymmetricMatrix<double>
 construct_Hci<LinAlg::SparseSymmetricMatrix<double>, CSF2>(
   const std::vector<CSF2> &, int, const Coulomb::meTable<double> &,
-  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::LkTable *,
+  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::LkTable *, double);
+  const Coulomb::WkTable *, double);
 template LinAlg::SparseSymmetricMatrix<double>
 construct_Hci<LinAlg::SparseSymmetricMatrix<double>, CSF3>(
   const std::vector<CSF3> &, int, const Coulomb::meTable<double> &,
-  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::LkTable *,
+  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::LkTable *, double);
+  const Coulomb::WkTable *, double);
 
 //==============================================================================
 LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi, const Integrals &ints) {

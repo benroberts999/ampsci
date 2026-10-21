@@ -83,11 +83,14 @@ CI{
     // Use Brueckner (spectrum) states for CI basis? Must
     // have Correlations, Spectrum, and sigma1. [false]
   cis2_basis;
-    // The subset of ci_basis for which the two-body MBPT
-    // corrections are calculated. Must be a subset of
-    // ci_basis. If existing sk file has more integrals,
-    // they will be used. [default: Nspdf, where N is
-    // maximum n for core + 3]
+    // Pair of basis strings, e.g. '8spdf, 12spdf'.
+    // Sigma_2 is calculated for <vw|Q|xy> if vw or xy is
+    // in the first, and all four are in the second.
+    // Diagonal ones (xy = vw or wv) need only be in the
+    // second. Others are extrapolated (see
+    // extrapolate_sigma2). If only one is given, the
+    // second is ci_basis. [default: 'Nspdf, ci_basis',
+    // where N is maximum n for core + 2]
   Breit2;
     // Include two-body Breit? Default is true if Breit
     // included in HF. Ignored if Breit not included in HF.
@@ -487,8 +490,16 @@ This uses close to 5Gb of memory, so may already be difficulty on some laptops.
 Then, is will calculate the matrix elements of the two-body \f$\Sigma^2\f$ operator.
 This is the slow part of the calculation.
 Fortunately, the \f$\Sigma^2\f$ correction is rather small, and good accuracy can be obtained by only including matrix elements between the lowest few valence-space basis states.
-By default, it will include up to \f$n=n_{\rm core}+3\f$, where \f$n_{\rm core}\f$ is the largest \f$n\f$ in the core, for each \f$l\f$ in the `ci_basis`.
+By default, it will include up to \f$n=n_{\rm core}+2\f$, where \f$n_{\rm core}\f$ is the largest \f$n\f$ in the core, for each \f$l\f$ in the `ci_basis`.
 This can be controlled manually with the `cis2_basis` option.
+
+Each Coulomb integral \f$\langle vw|Q|xy\rangle\f$ has two pairs of orbitals: \f$vw\f$ and \f$xy\f$.
+The \f$\Sigma^2\f$ correction to it is calculated if both orbitals of at least one pair are in the first subset given by `cis2_basis`, and all four orbitals are in the second.
+If only one subset is given, the second is the whole `ci_basis`.
+For example, with `cis2_basis = 5spdf;`, \f$\langle 3s4p|Q|7s9p\rangle\f$ is corrected (the pair \f$3s4p\f$ is in `5spdf`), but \f$\langle 3s7p|Q|4s9p\rangle\f$ is not (neither pair is).
+With `cis2_basis = 5spdf, 10spdf;`, all four orbitals must also be in `10spdf`; with `cis2_basis = 5spdf, 5spdf;`, all four must be in `5spdf`.
+The diagonal integrals, \f$\langle vw|Q|vw\rangle\f$ and \f$\langle vw|Q|wv\rangle\f$, are calculated for all \f$v, w\f$ in the second subset: they enter the energy of every configuration, and there are few of them.
+The integrals that are not calculated are extrapolated (see `extrapolate_sigma2`).
 
 ```text
   Calculate two-body MBPT integrals: Sigma^k_abcd

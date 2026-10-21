@@ -139,11 +139,11 @@ double leg_de(Denominators denominators, double et_bar, double et,
   \f]
 
   Note: these have fewer symmetries than \f$ Q^k \f$; specifically
-  \f$ S^k_{vwxy} = S^k_{wvyx} \f$. We call with the "Lk" symmetry
-  (though, we should have called it "Sk").
+  \f$ S^k_{vwxy} = S^k_{wvyx} \f$.
   Since each diagram is averaged with its bra-ket partner (Hermitised, see
   \ref MBPT::Denominators), the bra-ket symmetry
   \f$ S^k_{vwxy} = S^k_{xyvw} \f$ also holds, for all denominator options.
+  These are the symmetries of the "Wk" table, which is used to store them.
 
   @param k            Multipolarity.
   @param v            External spinor.
@@ -175,7 +175,9 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
   @brief Selection rule for Sk_vwxy.
 
   @details
-  Differs from the \f$ Q^k_{vwxy} \f$ selection rule due to parity.
+  Triangle rules for (v, x, k) and (w, y, k), and parity of the pair state
+  conserved. Differs from the \f$ Q^k_{vwxy} \f$ selection rule in that k may
+  have either parity (the 'wrong-parity' box diagrams).
 
   @return True if \f$ S^k_{vwxy} \f$ is non-zero by selection rules.
 */
@@ -292,15 +294,20 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
   @brief Calculates (or reads in) a table of two-body Sigma_2 matrix elements.
 
   @details
-  Computes \f$ S^k_{vwxy} \f$ for all relevant combinations of states in
-  @p external, using the provided core and excited bases and Coulomb table.
+  Computes \f$ S^k_{vwxy} \f$ for which all four external states are in
+  @p external, and at least one pair, (v, w) or (x, y), is in @p pair_basis,
+  or which are diagonal ((x, y) = (v, w) or (w, v)), using the provided core
+  and excited bases and Coulomb table. With @p pair_basis the same as
+  @p external, all four states are in it.
   Results are written to / read from @p filename (empty string or "false"
   disables I/O).
 
   @param filename                 File to read/write the table (blank or
                                   "false" to not read/write).
-  @param external                 Basis states for external legs (all ME
-                                  between these are computed).
+  @param external                 Basis states for external legs: all four
+                                  are in this set.
+  @param pair_basis               At least one pair of external legs, (v, w)
+                                  or (x, y), is in this set (unless diagonal).
   @param core                     Core (hole) states for internal summations.
   @param excited                  Excited (particle) states for internal
                                   summations.
@@ -318,15 +325,16 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
   @param E0                       Target-level valence energy; used only by
                                   Denominators::BW.
 
-  @return LkTable containing all computed \f$ S^k_{vwxy} \f$ matrix elements.
+  @return WkTable containing all computed \f$ S^k_{vwxy} \f$ matrix elements.
 
   @note no_new_integrals - if we _know_ all required integrals are already in
   the file to be read in, saves time.
   Otherwise, ampsci will check if any new integrals are required.
   This checking can take a while, particularly for large basis.
 */
-[[nodiscard]] Coulomb::LkTable calculate_Sk(
+[[nodiscard]] Coulomb::WkTable calculate_Sk(
   const std::string &filename, const std::vector<DiracSpinor> &external,
+  const std::vector<DiracSpinor> &pair_basis,
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
   const Coulomb::QkTable &qk, int max_k, bool exclude_wrong_parity_box,
   Denominators denominators, bool no_new_integrals = false,
@@ -349,7 +357,7 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
 
   @return Vector of average correction ratios, indexed by k.
 */
-std::vector<double> average_hk(const Coulomb::LkTable &Sk,
+std::vector<double> average_hk(const Coulomb::WkTable &Sk,
                                const Coulomb::QkTable &qk,
                                const std::vector<DiracSpinor> &external,
                                int max_k = -1);
