@@ -25,24 +25,24 @@ TPsi_reduced(const std::vector<CSFType> &CSFs, int twoJ, const PsiJPi &Psi0,
   const auto twoJ0 = Psi0.twoJ();
   const auto c0 = Psi0.coefs(i0);
 
-  const auto N = CSFs.size();
-  const auto N0 = CSF0s.size();
+  // Only pairs of CSFs differing by at most one orbital contribute
+  const auto connections = one_body_connected(CSFs, CSF0s);
 
-  LinAlg::Vector<double> Tc(N);
+  LinAlg::Vector<double> Tc(CSFs.size());
 
-#pragma omp parallel for
-  for (std::size_t i = 0; i < N; ++i) {
-    double sum = 0.0;
-    for (std::size_t k = 0; k < N0; ++k) {
-      if constexpr (three_electron) {
-        sum +=
-          c0[k] * RME_CSF3(CSFs.at(i), twoJ, CSF0s.at(k), twoJ0, h, K_rank);
-      } else {
-        sum +=
-          c0[k] * RME_CSF2(CSFs.at(i), twoJ, CSF0s.at(k), twoJ0, h, K_rank);
+#pragma omp parallel for schedule(dynamic)
+  for (std::size_t a = 0; a < connections.size(); ++a) {
+    for (const auto i : connections[a].config_CSFs) {
+      double sum = 0.0;
+      for (const auto k : connections[a].connected_CSFs) {
+        if constexpr (three_electron) {
+          sum += c0[k] * RME_CSF3(CSFs[i], twoJ, CSF0s[k], twoJ0, h, K_rank);
+        } else {
+          sum += c0[k] * RME_CSF2(CSFs[i], twoJ, CSF0s[k], twoJ0, h, K_rank);
+        }
       }
+      Tc[i] = sum;
     }
-    Tc[i] = sum;
   }
 
   return Tc;

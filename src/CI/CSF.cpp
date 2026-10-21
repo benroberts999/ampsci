@@ -557,6 +557,81 @@ template std::size_t num_interacting_pairs(const std::vector<CSF2> &);
 template std::size_t num_interacting_pairs(const std::vector<CSF3> &);
 
 //==============================================================================
+template <typename CSFType>
+std::vector<OneBodyConnected>
+one_body_connected(const std::vector<CSFType> &CSFAs,
+                   const std::vector<CSFType> &CSFBs) {
+  using Config = decltype(CSFType::states);
+  constexpr auto num_orbitals = std::tuple_size_v<Config>;
+  using SubConfig = std::array<DiracSpinor::Index, num_orbitals - 1>;
+
+  // Sorted orbitals with the one at 'position' removed (stays sorted)
+  const auto remove_orbital = [](const Config &config, std::size_t position) {
+    SubConfig sub_config{};
+    for (std::size_t i = 0, j = 0; i < num_orbitals; ++i) {
+      if (i != position) {
+        sub_config[j++] = config[i];
+      }
+    }
+    return sub_config;
+  };
+
+  // Configurations of B (CSF indices), and, for each configuration with one
+  // orbital removed, the B configurations containing it
+  std::map<Config, std::vector<std::size_t>> B_config_map;
+  for (std::size_t j = 0; j < CSFBs.size(); ++j) {
+    B_config_map[CSFBs[j].states].push_back(j);
+  }
+  std::vector<std::vector<std::size_t>> B_configs;
+  std::map<SubConfig, std::vector<std::size_t>> B_containing;
+  for (const auto &[config, CSF_indices] : B_config_map) {
+    for (std::size_t position = 0; position < num_orbitals; ++position) {
+      B_containing[remove_orbital(config, position)].push_back(
+        B_configs.size());
+    }
+    B_configs.push_back(CSF_indices);
+  }
+
+  std::map<Config, std::vector<std::size_t>> A_config_map;
+  for (std::size_t i = 0; i < CSFAs.size(); ++i) {
+    A_config_map[CSFAs[i].states].push_back(i);
+  }
+  std::vector<std::pair<Config, std::vector<std::size_t>>> A_configs(
+    std::make_move_iterator(A_config_map.begin()),
+    std::make_move_iterator(A_config_map.end()));
+  std::vector<OneBodyConnected> connections(A_configs.size());
+#pragma omp parallel for schedule(dynamic, 64)
+  for (std::size_t a = 0; a < A_configs.size(); ++a) {
+    const auto &[config, CSF_indices] = A_configs[a];
+    // B configurations sharing all but one orbital; repeated orbitals, or
+    // identical configurations, give duplicates
+    std::vector<std::size_t> partners;
+    for (std::size_t position = 0; position < num_orbitals; ++position) {
+      const auto it = B_containing.find(remove_orbital(config, position));
+      if (it != B_containing.end()) {
+        partners.insert(partners.end(), it->second.begin(), it->second.end());
+      }
+    }
+    std::sort(partners.begin(), partners.end());
+    partners.erase(std::unique(partners.begin(), partners.end()),
+                   partners.end());
+
+    std::vector<std::size_t> connected_CSFs;
+    for (const auto b : partners) {
+      connected_CSFs.insert(connected_CSFs.end(), B_configs[b].begin(),
+                            B_configs[b].end());
+    }
+    connections[a] = {CSF_indices, std::move(connected_CSFs)};
+  }
+  return connections;
+}
+
+template std::vector<OneBodyConnected>
+one_body_connected(const std::vector<CSF2> &, const std::vector<CSF2> &);
+template std::vector<OneBodyConnected>
+one_body_connected(const std::vector<CSF3> &, const std::vector<CSF3> &);
+
+//==============================================================================
 double LS_amplitude(int n1, int l1, int twoj1, int n2, int l2, int twoj2, int L,
                     int S, int twoJ) {
 

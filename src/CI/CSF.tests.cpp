@@ -489,3 +489,55 @@ TEST_CASE("CI: CSF functions", "[CI][3VCI][unit]") {
   REQUIRE(CI::Term_S_L_from_expectation(2.0, 2.0, 2) == std::pair{2, 1});
   REQUIRE(CI::Term_S_L_from_expectation(6.0, 0.0, 4) == std::pair{0, 2});
 }
+
+//==============================================================================
+// One-body operators connect CSFs whose orbitals differ by at most one: the
+// pairs found per configuration must be exactly those, each once
+TEST_CASE("CI: one-body connected CSFs", "[CI][3VCI][unit]") {
+
+  const auto grid = std::make_shared<const Grid>(
+    GridParameters{10, 1.0e-4, 10.0, 5.0, GridType::loglinear});
+  std::vector<DiracSpinor> basis;
+  for (const auto &[n, kappa] : std::vector<std::pair<int, int>>{
+         {4, -1}, {5, -1}, {4, 1}, {4, -2}, {5, -2}, {3, 2}, {3, -3}}) {
+    basis.emplace_back(n, kappa, grid);
+  }
+
+  // Each CSF of A in exactly one configuration (all of its CSFs with the
+  // same orbitals); connected pairs equal to those found by direct comparison
+  const auto check = [](const auto &CSFAs, const auto &CSFBs) {
+    using CSFType = typename std::decay_t<decltype(CSFAs)>::value_type;
+    std::vector<int> times_grouped(CSFAs.size(), 0);
+    std::vector<std::pair<std::size_t, std::size_t>> found;
+    for (const auto &[config_CSFs, connected_CSFs] :
+         CI::one_body_connected(CSFAs, CSFBs)) {
+      for (const auto i : config_CSFs) {
+        ++times_grouped.at(i);
+        REQUIRE(CSFAs.at(i).states == CSFAs.at(config_CSFs.front()).states);
+        for (const auto j : connected_CSFs) {
+          found.emplace_back(i, j);
+        }
+      }
+    }
+    std::vector<std::pair<std::size_t, std::size_t>> expected;
+    for (std::size_t i = 0; i < CSFAs.size(); ++i) {
+      for (std::size_t j = 0; j < CSFBs.size(); ++j) {
+        if (CSFType::num_different(CSFAs[i], CSFBs[j]) <= 1) {
+          expected.emplace_back(i, j);
+        }
+      }
+    }
+    std::sort(found.begin(), found.end());
+    REQUIRE(std::all_of(times_grouped.cbegin(), times_grouped.cend(),
+                        [](int times) { return times == 1; }));
+    REQUIRE(!expected.empty());
+    REQUIRE(found == expected);
+  };
+
+  const auto A3 = CI::form_CSF3s(3, +1, basis);
+  check(A3, A3);
+  check(A3, CI::form_CSF3s(5, -1, basis));
+  const auto A2 = CI::form_CSFs(2, +1, basis);
+  check(A2, A2);
+  check(A2, CI::form_CSFs(2, -1, basis));
+}

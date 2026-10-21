@@ -379,7 +379,40 @@ std::vector<CSF3> form_CSF3s(int twoJ, int parity,
 template <typename CSFType>
 std::size_t num_interacting_pairs(const std::vector<CSFType> &CSFs);
 
-//==============================================================================
+//------------------------------------------------------------------------------
+
+//! The CSFs of one configuration, and the CSFs (of a second list) whose
+//! configurations differ from it by at most one orbital
+struct OneBodyConnected {
+  //! Indices of the CSFs of the configuration
+  std::vector<std::size_t> config_CSFs{};
+  //! Indices of the CSFs, in the second list, a one-body operator can connect
+  //! them to
+  std::vector<std::size_t> connected_CSFs{};
+};
+
+/*!
+  @brief Groups @p CSFAs by configuration, and finds the CSFs of @p CSFBs a
+  one-body operator can connect to each.
+  @details
+  Matrix elements of a one-body operator vanish between CSFs whose orbitals
+  differ by more than one. Configurations within one orbital share all but one
+  of their orbitals: @p CSFBs is indexed by its configurations with one orbital
+  removed, so each configuration of @p CSFAs finds its partners directly. The
+  cost scales with the number of connected pairs, rather than with
+  @p CSFAs .size() x @p CSFBs .size().
+
+  @param CSFAs  CSFs to be grouped (@ref CSF2 or @ref CSF3).
+  @param CSFBs  CSFs to be connected to them (same type).
+  @return One entry per configuration of @p CSFAs.
+*/
+template <typename CSFType>
+std::vector<OneBodyConnected>
+one_body_connected(const std::vector<CSFType> &CSFAs,
+                   const std::vector<CSFType> &CSFBs);
+
+//------------------------------------------------------------------------------
+
 /*!
   @brief jj -> LS recoupling amplitude for an antisymmetrised two-electron CSF.
   @details
@@ -416,6 +449,8 @@ std::size_t num_interacting_pairs(const std::vector<CSFType> &CSFs);
 */
 double LS_amplitude(int n1, int l1, int twoj1, int n2, int l2, int twoj2, int L,
                     int S, int twoJ);
+
+//------------------------------------------------------------------------------
 
 /*!
   @brief Expectation values of L^2 and S^2 for a two-electron CI state.
@@ -496,7 +531,8 @@ std::pair<double, double>
 expectation_L2S2(const LinAlg::View<const double> &coefs,
                  const std::vector<CSF3> &csfs, int twoJ);
 
-//==============================================================================
+//------------------------------------------------------------------------------
+
 /*!
   @brief Identifies one CI level: its (J, parity), and which solution.
   @details

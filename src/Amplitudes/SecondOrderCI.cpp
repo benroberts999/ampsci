@@ -75,6 +75,8 @@ double sos_ci(int K, const CI::PsiJPi &Psi_b, std::size_t ib,
       double A_st{0.0};
       std::size_t n_levels = 0;
 
+      // Could be faster: form T|a> etc. once per J/pi (TPsi_reduced), then
+      // each matrix element is a dot product with the coefficients of n
       for (std::size_t n = 0; n < Psi_n->num_solutions(); ++n) {
 
         bool removed = false;

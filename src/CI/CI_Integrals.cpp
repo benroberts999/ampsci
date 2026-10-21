@@ -863,22 +863,24 @@ double ReducedME(const LinAlg::View<const double> &cA,
 
   // <A|h|A>   = Σ_{IJ} c_I * c_J * <I|h|J>
   // <A||h||A> = Σ_{IJ} c_I * c_J * <I||h||J>
-  const auto NA = CSFAs.size();
-  const auto NB = CSFBs.size();
+  // Only pairs of CSFs differing by at most one orbital contribute
+  const auto connections = one_body_connected(CSFAs, CSFBs);
 
   double rme = 0.0;
-#pragma omp parallel for collapse(2) reduction(+ : rme)
-  for (std::size_t i = 0ul; i < NA; ++i) {
-    for (std::size_t j = 0ul; j < NB; ++j) {
-      const auto &csf_i = CSFAs.at(i);
+#pragma omp parallel for schedule(dynamic) reduction(+ : rme)
+  for (std::size_t a = 0ul; a < connections.size(); ++a) {
+    for (const auto i : connections[a].config_CSFs) {
+      const auto &csf_i = CSFAs[i];
       const auto ci = cA[i];
-      const auto &csf_j = CSFBs.at(j);
-      const auto cj = cB[j];
+      for (const auto j : connections[a].connected_CSFs) {
+        const auto &csf_j = CSFBs[j];
+        const auto cj = cB[j];
 
-      if constexpr (std::is_same_v<CSFType, CSF3>) {
-        rme += ci * cj * RME_CSF3(csf_i, twoJA, csf_j, twoJB, h, K_rank);
-      } else {
-        rme += ci * cj * RME_CSF2(csf_i, twoJA, csf_j, twoJB, h, K_rank);
+        if constexpr (std::is_same_v<CSFType, CSF3>) {
+          rme += ci * cj * RME_CSF3(csf_i, twoJA, csf_j, twoJB, h, K_rank);
+        } else {
+          rme += ci * cj * RME_CSF2(csf_i, twoJA, csf_j, twoJB, h, K_rank);
+        }
       }
     }
   }
