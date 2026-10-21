@@ -186,7 +186,7 @@ std::vector<MEdata> matrix_elements(const std::vector<DiracSpinor> &a_orbs,
 
   std::vector<MEdata> mes;
   bool diagonal_set = false;
-  for (const auto [a, b] : orbital_pairs(a_orbs, b_orbs, h, options)) {
+  for (const auto &[a, b] : orbital_pairs(a_orbs, b_orbs, h, options)) {
 
     const auto w_ab = a->en() - b->en();
 

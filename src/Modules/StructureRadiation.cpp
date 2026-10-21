@@ -302,7 +302,7 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
   std::vector<Amplitudes::MEdata> mes;
   std::vector<double> bo_terms;
   std::optional<double> solved_at{};
-  for (const auto [w, v] :
+  for (const auto &[w, v] :
        Amplitudes::orbital_pairs(orbs, orbs, h.get(), options)) {
     IO::ChronoTimer timer("time");
 
