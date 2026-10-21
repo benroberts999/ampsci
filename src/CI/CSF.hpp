@@ -720,6 +720,20 @@ public:
   */
   void set_solution(double energy, const LinAlg::Vector<double> &coefs);
 
+  /*!
+    @brief Replaces the ith solution (energy and expansion coefficients).
+    @details
+    For a level solved separately from the others: e.g., with its own reference
+    energy E0 (see @ref run_CI). The solutions are then no longer eigenstates
+    of a single Hamiltonian, so are not orthogonal.
+
+    @param i      Index of an existing solution.
+    @param energy Its new energy (atomic units).
+    @param coefs  Its new CI expansion coefficients; one per CSF.
+  */
+  void replace_solution(std::size_t i, double energy,
+                        const LinAlg::View<const double> &coefs);
+
   //! Set configuration info for the ith solution (must be called manually after solve())
   void update_config_info(std::size_t i, const ConfigInfo &info);
 

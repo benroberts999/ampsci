@@ -295,10 +295,19 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
 
   @details
   Computes \f$ S^k_{vwxy} \f$ for which all four external states are in
-  @p external, and at least one pair, (v, w) or (x, y), is in @p pair_basis,
-  or which are diagonal ((x, y) = (v, w) or (w, v)), using the provided core
-  and excited bases and Coulomb table. With @p pair_basis the same as
+  @p external, and either at least one pair, (v, w) or (x, y), is in
+  @p pair_basis, or the integral is diagonal; using the provided core and
+  excited bases and Coulomb table. With @p pair_basis the same as
   @p external, all four states are in it.
+
+  Diagonal means diagonal in the non-relativistic shells: x, y are in the same
+  shells nl as v, w (or w, v), with any j. So it includes integrals that are
+  off-diagonal between the j components of those shells, e.g.
+  \f$ S^k_{3s\,5p_{1/2},3s\,5p_{3/2}} \f$, as well as
+  \f$ S^k_{3s\,5p_{1/2},3s\,5p_{1/2}} \f$. All j components of a shell are then
+  treated alike: otherwise Sigma_2 would become spin dependent, and split LS
+  multiplets (e.g., violate the Lande interval rule).
+
   Results are written to / read from @p filename (empty string or "false"
   disables I/O).
 
@@ -307,7 +316,8 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
   @param external                 Basis states for external legs: all four
                                   are in this set.
   @param pair_basis               At least one pair of external legs, (v, w)
-                                  or (x, y), is in this set (unless diagonal).
+                                  or (x, y), is in this set (unless the
+                                  integral is diagonal: see above).
   @param core                     Core (hole) states for internal summations.
   @param excited                  Excited (particle) states for internal
                                   summations.

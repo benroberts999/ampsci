@@ -223,8 +223,8 @@ TEST_CASE("Sigma2: Mg fine structure", "[Sigma2][CI][integration]") {
 
 //==============================================================================
 // calculate_Sk stores S^k_vwxy when both states of the pair (v, w), or of
-// (x, y), are in the pair basis, or the integral is diagonal (xy = vw or wv),
-// and all four are in the external basis: exactly those (and only those)
+// (x, y), are in the pair basis, or the integral is diagonal (xy in the same
+// shells as vw, either j), and all four are in the external basis: exactly those (and only those)
 // allowed by the selection rule, with the values of Sk_vwxy
 TEST_CASE("Sigma2: S^k pair selection", "[Sigma2][MBPT][unit]") {
 
@@ -256,6 +256,9 @@ TEST_CASE("Sigma2: S^k pair selection", "[Sigma2][MBPT][unit]") {
                      const DiracSpinor &a) {
     return std::find(set.cbegin(), set.cend(), a) != set.cend();
   };
+  const auto same_shell = [](const DiracSpinor &a, const DiracSpinor &b) {
+    return a.n() == b.n() && a.l() == b.l();
+  };
 
   // All excited states (n = 3, 4, 5): includes legs outside external
   std::size_t num_selected = 0;
@@ -269,7 +272,8 @@ TEST_CASE("Sigma2: S^k pair selection", "[Sigma2][MBPT][unit]") {
                               in(external, x) && in(external, y);
           const auto pair_in = (in(pair_basis, v) && in(pair_basis, w)) ||
                                (in(pair_basis, x) && in(pair_basis, y));
-          const auto diagonal = (x == v && y == w) || (x == w && y == v);
+          const auto diagonal = (same_shell(x, v) && same_shell(y, w)) ||
+                                (same_shell(x, w) && same_shell(y, v));
           const auto [k0, k1] = MBPT::k_minmax_S(v, w, x, y);
           for (int k = k0; k <= k1; ++k) {
             const auto selected = all_in && (pair_in || diagonal) &&

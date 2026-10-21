@@ -986,6 +986,68 @@ TEST_CASE("CI: iterate_E0 sparse", "[CI][3VCI]") {
 }
 
 //==============================================================================
+// E0 for each level: the lowest level is unchanged, and each excited level is
+// much closer to the eigenvalue of the Hamiltonian built at its own energy
+// than with the lowest level's E0. Dense and Davidson agree
+TEST_CASE("CI: E0 for each level", "[CI]") {
+
+  const auto t = UnitTest::Li_CI_tables();
+  const double E0_sigma2 = -7.4;
+  const int num_solutions = 3;
+
+  std::ostringstream discard;
+  const auto run = [&](bool BW_each_level, CI::Solver solver) {
+    return CI::run_CI(t.orbitals, 1, +1, 3, num_solutions, {}, t.h1, t.qk, t.Bk,
+                      t.Sk, true, false, false, discard, "", &t.s1c, t.hk,
+                      &t.dSk, E0_sigma2, solver, BW_each_level);
+  };
+  const auto psi_lowest = run(false, CI::Solver::dense);
+  const auto psi_each = run(true, CI::Solver::dense);
+  const auto psi_each_davidson = run(true, CI::Solver::Davidson);
+  REQUIRE(psi_each.num_solutions() == std::size_t(num_solutions));
+
+  // Energy of level i of the Hamiltonian built with reference energy E
+  const auto level_energy = [&t, E0_sigma2](std::size_t i, double E) {
+    auto s1c_E = t.s1c;
+    s1c_E.E0 = E;
+    CI::PsiJPi psi{1, +1, t.orbitals, 3};
+    const auto Hci = CI::construct_Hci(psi, t.h1, t.qk, &t.Bk, &t.Sk, &s1c_E,
+                                       t.hk, &t.dSk, E - E0_sigma2);
+    psi.solve(Hci, int(i) + 1);
+    return psi.energy(i);
+  };
+
+  const auto dE_lowest = std::abs(psi_each.energy(0) - psi_lowest.energy(0));
+  double worst_each = 0.0;
+  double worst_lowest = 0.0;
+  double worst_davidson = 0.0;
+  for (std::size_t i = 0; i < psi_each.num_solutions(); ++i) {
+    worst_davidson =
+      std::max(worst_davidson,
+               std::abs(psi_each_davidson.energy(i) - psi_each.energy(i)));
+    if (i == 0)
+      continue;
+    const auto E_each = psi_each.energy(i);
+    const auto E_lowest = psi_lowest.energy(i);
+    const auto residual_each = std::abs(E_each - level_energy(i, E_each));
+    const auto residual_lowest = std::abs(E_lowest - level_energy(i, E_lowest));
+    REQUIRE(residual_each < residual_lowest);
+    worst_each = std::max(worst_each, residual_each);
+    worst_lowest = std::max(worst_lowest, residual_lowest);
+  }
+  fmt::print("Level 0, each vs lowest E0:          diff     = {:.1e}\n",
+             dE_lowest);
+  fmt::print("E_i vs level i of H(E_i), each:      max diff = {:.1e}\n",
+             worst_each);
+  fmt::print("E_i vs level i of H(E_i), lowest E0: max diff = {:.1e}\n",
+             worst_lowest);
+  fmt::print("Each level, Davidson vs dense:       max diff = {:.1e}\n",
+             worst_davidson);
+  REQUIRE(dE_lowest < 1.0e-12);
+  REQUIRE(worst_davidson < 1.0e-9);
+}
+
+//==============================================================================
 // Three-electron CI, run through configuration_interaction: input parsing
 // (fractions, twoJ), the odd-2J blocks, the ci file, and the plumbing
 // (block energies reproduce the directly constructed Hamiltonian)

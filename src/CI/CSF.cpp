@@ -935,6 +935,16 @@ void PsiJPi::set_solution(double energy, const LinAlg::Vector<double> &coefs) {
   m_Info.resize(m_num_solutions);
 }
 
+void PsiJPi::replace_solution(std::size_t i, double energy,
+                              const LinAlg::View<const double> &coefs) {
+  assert(i < m_num_solutions);
+  assert(coefs.size() == num_CSFs());
+  m_Solution.first[i] = energy;
+  for (std::size_t j = 0; j < coefs.size(); ++j) {
+    m_Solution.second(i, j) = coefs[j];
+  }
+}
+
 // You must manually update the config. info for each solution (if required)
 void PsiJPi::update_config_info(std::size_t i, const ConfigInfo &info) {
   assert(m_Info.size() == m_num_solutions);

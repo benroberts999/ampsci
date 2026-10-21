@@ -505,7 +505,7 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
                       const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk,
                       const Coulomb::WkTable *Sk, const std::vector<double> &hk,
                       const Coulomb::WkTable *dSk, double E0_sigma2,
-                      std::ostream &outstream) {
+                      std::ostream &outstream, std::size_t level) {
   assert(psi != nullptr);
 
   constexpr auto eps_E0 = 1.0e-8;
@@ -535,11 +535,11 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
   }
 
   fmt::print(outstream,
-             "Iterating E0 for dSigma/dE correction (initial: {:.8f} au):\n",
-             s1_Jpi.E0);
+             "Iterating E0{} for dSigma/dE correction (initial: {:.8f} au):\n",
+             level == 0 ? "" : fmt::format(" (level {})", level), s1_Jpi.E0);
   outstream << std::flush;
 
-  // First pass: build Hci at the current E0, and diagonalise for the lowest
+  // First pass: build Hci at the current E0, and diagonalise up to the
   // level. E0 enters only through the (small) dSigma/dE correction, so the
   // state itself hardly changes from pass to pass. Later passes therefore
   // rebuild Hci with the updated E0, and take the new E0 as the expectation
@@ -550,19 +550,20 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
   auto Hci = construct_Hci<MatrixType>(*psi, h1, qk, Bk, Sk, &s1_Jpi, hk, dSk,
                                        dE0_s2(s1_Jpi.E0));
   if constexpr (std::is_same_v<MatrixType, LinAlg::Matrix<double>>) {
-    psi->solve(Hci, 1);
+    psi->solve(Hci, int(level) + 1);
   } else {
-    if (!psi->solve(Hci, 1).converged) {
-      outstream
-        << "Warning: Davidson did not converge (lowest level, for E0)\n";
+    if (!psi->solve(Hci, int(level) + 1).converged) {
+      fmt::print(outstream,
+                 "Warning: Davidson did not converge (level {}, for E0)\n",
+                 level);
     }
   }
-  auto c_view = psi->coefs(0);
+  auto c_view = psi->coefs(level);
   const LinAlg::Vector<double> c(
     std::vector<double>(c_view.data(), c_view.data() + c_view.size()));
 
-  auto delta = psi->energy(0) - s1_Jpi.E0;
-  s1_Jpi.E0 = psi->energy(0);
+  auto delta = psi->energy(level) - s1_Jpi.E0;
+  s1_Jpi.E0 = psi->energy(level);
   fmt::print(outstream, "  it {:2}: E0 = {:.8f} au (eps = {:.1e})\n", 1,
              s1_Jpi.E0, delta / s1_Jpi.E0);
   outstream << std::flush;
@@ -592,14 +593,14 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
 template LinAlg::Matrix<double> iterate_E0<LinAlg::Matrix<double>>(
   PsiJPi *, const Sigma1Correction &, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
-  const std::vector<double> &, const Coulomb::WkTable *, double,
-  std::ostream &);
+  const std::vector<double> &, const Coulomb::WkTable *, double, std::ostream &,
+  std::size_t);
 template LinAlg::SparseSymmetricMatrix<double>
 iterate_E0<LinAlg::SparseSymmetricMatrix<double>>(
   PsiJPi *, const Sigma1Correction &, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
-  const std::vector<double> &, const Coulomb::WkTable *, double,
-  std::ostream &);
+  const std::vector<double> &, const Coulomb::WkTable *, double, std::ostream &,
+  std::size_t);
 
 //==============================================================================
 // Determines CI Hamiltonian matrix element for two 2-particle CSFs, a and b

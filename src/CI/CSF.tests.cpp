@@ -446,6 +446,17 @@ TEST_CASE("CI: CSF functions", "[CI][3VCI][unit]") {
   REQUIRE(psi2.CSF(0) == psi2.CSFs()[0]);
   REQUIRE(psi2.csf(0).num_electrons() == 2);
 
+  // Replace one solution: its energy and coefficients
+  auto psi_replaced = psi2;
+  const auto num_CSFs = psi_replaced.num_CSFs();
+  psi_replaced.set_solution(
+    -1.0, LinAlg::Vector<double>(std::vector<double>(num_CSFs, 0.0)));
+  const std::vector<double> new_coefs(num_CSFs, 0.5);
+  psi_replaced.replace_solution(
+    0, -2.0, LinAlg::View<const double>{new_coefs.data(), 0, num_CSFs, 1});
+  REQUIRE(psi_replaced.energy(0) == -2.0);
+  REQUIRE(psi_replaced.coef(0, num_CSFs - 1) == 0.5);
+
   // Leading configuration: weights summed over the relativistic CSFs of each
   // non-rel configuration. J = 3/2: two 4s4p-4p+ CSFs (c = 0.5 each) beat
   // the single 4s^2 4p CSF with the largest coefficient (c = 0.6)
@@ -508,12 +519,15 @@ TEST_CASE("CI: one-body connected CSFs", "[CI][3VCI][unit]") {
   const auto check = [](const auto &CSFAs, const auto &CSFBs) {
     using CSFType = typename std::decay_t<decltype(CSFAs)>::value_type;
     std::vector<int> times_grouped(CSFAs.size(), 0);
+    std::size_t num_wrong_config = 0;
     std::vector<std::pair<std::size_t, std::size_t>> found;
     for (const auto &[config_CSFs, connected_CSFs] :
          CI::one_body_connected(CSFAs, CSFBs)) {
       for (const auto i : config_CSFs) {
         ++times_grouped.at(i);
-        REQUIRE(CSFAs.at(i).states == CSFAs.at(config_CSFs.front()).states);
+        if (CSFAs.at(i).states != CSFAs.at(config_CSFs.front()).states) {
+          ++num_wrong_config;
+        }
         for (const auto j : connected_CSFs) {
           found.emplace_back(i, j);
         }
@@ -528,9 +542,13 @@ TEST_CASE("CI: one-body connected CSFs", "[CI][3VCI][unit]") {
       }
     }
     std::sort(found.begin(), found.end());
-    REQUIRE(std::all_of(times_grouped.cbegin(), times_grouped.cend(),
-                        [](int times) { return times == 1; }));
-    REQUIRE(!expected.empty());
+    const auto num_not_once =
+      std::count_if(times_grouped.cbegin(), times_grouped.cend(),
+                    [](int times) { return times != 1; });
+    const auto num_expected = expected.size();
+    REQUIRE(num_wrong_config == 0);
+    REQUIRE(num_not_once == 0);
+    REQUIRE(num_expected > 0);
     REQUIRE(found == expected);
   };
 

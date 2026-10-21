@@ -499,17 +499,20 @@ Coulomb::WkTable calculate_Sk(const std::string &filename,
            in_pair_basis[ia] && in_pair_basis[ib];
   };
 
-  // Either pair, (v, w) or (x, y), in pair_basis; or diagonal (xy = vw or
-  // wv), which enter the energy of every configuration. Unchanged under the
+  // Either pair, (v, w) or (x, y), in pair_basis; or diagonal (xy in the
+  // same shells as vw), which enter the energy of every configuration.
+  // Diagonal is by non-relativistic shell (n, l), both j: otherwise the j
+  // components of one shell would be treated differently, making Sigma_2 spin
+  // dependent (it would then split LS multiplets). Unchanged under the
   // symmetries of S^k (vwxy = wvyx = xyvw = yxwv)
+  const auto same_shell = [](const DiracSpinor &a, const DiracSpinor &b) {
+    return a.n() == b.n() && a.l() == b.l();
+  };
   const auto Sk_selection_rule = [&](int k, const DiracSpinor &v,
                                      const DiracSpinor &w, const DiracSpinor &x,
                                      const DiracSpinor &y) {
-    const auto iv = v.nk_index();
-    const auto iw = w.nk_index();
-    const auto ix = x.nk_index();
-    const auto iy = y.nk_index();
-    const auto diagonal = (ix == iv && iy == iw) || (ix == iw && iy == iv);
+    const auto diagonal = (same_shell(x, v) && same_shell(y, w)) ||
+                          (same_shell(x, w) && same_shell(y, v));
     if (!diagonal && !pair_in_basis(v, w) && !pair_in_basis(x, y))
       return false;
     return exclude_wrong_parity_box ? Coulomb::Qk_abcd_SR(k, v, w, x, y) :

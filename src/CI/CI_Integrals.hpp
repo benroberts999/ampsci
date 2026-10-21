@@ -201,18 +201,19 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
   @brief Finds the reference energy E0 for the dSigma/dE correction, for a
   single (J, parity); returns the CI Hamiltonian built with it.
   @details
-  E0 is the lowest energy of this (J, parity), which is only known once we
-  have solved - so it is found self-consistently. If @p s1c has no E0 set
+  E0 is the energy of level @p level (by default, the lowest) of this
+  (J, parity), which is only known once we have solved - so it is found
+  self-consistently. If @p s1c has no E0 set
   (i.e., 0.0), the iteration starts from the lowest zeroth-order configuration
   energy. The first pass builds the
-  CI Hamiltonian at the current E0 and diagonalises it for the lowest level.
+  CI Hamiltonian at the current E0 and diagonalises it, up to the level.
   E0 enters only through the (small) dSigma/dE correction, so the state itself
   hardly changes from pass to pass: later passes rebuild the Hamiltonian with
   the updated E0 and take the new E0 as the expectation value of the new
   Hamiltonian in the (unchanged) state - first-order perturbation theory in
   the change to the Hamiltonian. Only the first pass is diagonalised.
 
-  @param psi            Solved for the lowest level (updated in place).
+  @param psi            Solved up to @p level (updated in place).
   @param s1c            Correction tables. E0 belongs to a single (J, parity),
                         while these tables are shared between them, so a local
                         copy is made: @p s1c is left as it was.
@@ -227,6 +228,7 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
                         together as E0 converges.
   @param E0_sigma2      Reference E0 that @p Sk and @p dSk were tabulated at.
   @param outstream      Stream for the per-pass output.
+  @param level          Index of the level whose energy E0 is (0: lowest).
   @tparam MatrixType    Storage of the CI Hamiltonian: dense
                         (LinAlg::Matrix<double>; diagonalised directly) or
                         sparse (LinAlg::SparseSymmetricMatrix<double>; solved
@@ -239,7 +241,7 @@ template <typename MatrixType = LinAlg::Matrix<double>>
   const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
   const Coulomb::WkTable *Sk = nullptr, const std::vector<double> &hk = {},
   const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
-  std::ostream &outstream = std::cout);
+  std::ostream &outstream = std::cout, std::size_t level = 0);
 
 //==============================================================================
 /*!

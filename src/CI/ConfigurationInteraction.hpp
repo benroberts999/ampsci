@@ -142,6 +142,10 @@ enum class Solver { dense, Davidson };
                       ignored if nullptr. See @ref CI::corrected_Sk.
   @param E0_sigma2    Reference E0 that Sk and dSk were tabulated at.
   @param solver       Dense or Davidson; see @ref Solver.
+  @param BW_each_level If true (and @p s1c is given), each level has its own
+                      E0 (rather than the lowest level's): one more E0
+                      iteration and solve per level. The levels are then not
+                      orthogonal.
 
   @return PsiJPi (@ref PsiJPi) containing the CI eigenvalues and expansion
   coefficients for the requested solutions.
@@ -157,6 +161,6 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               const Sigma1Correction *s1c = nullptr,
               const std::vector<double> &hk = {},
               const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
-              Solver solver = Solver::dense);
+              Solver solver = Solver::dense, bool BW_each_level = false);
 
 } // namespace CI

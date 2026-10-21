@@ -114,11 +114,19 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Include the derivative (dSigma/dE) correction to the Sigma_1 matrix "
      "elements. Restores the configuration dependence lost by evaluating "
      "Sigma_1 at a fixed energy. "
-     "The reference energy E0 is the lowest energy of each J/pi, and is found "
-     "iteratively. With denominators = BW, the same E0 also shifts the "
+     "The reference energy E0 is the lowest energy of each J/pi (or of each "
+     "level: see BW_each_level), and is found iteratively. With denominators = "
+     "BW, the same E0 also shifts the "
      "Sigma_2 matrix elements (see denominators). "
      "Prefer calculating dSigma/dE in the Correlations block (option "
      "derivative) which is much faster, and can include all-orders [false]"},
+    {"BW_each_level",
+     "With BW denominators or iterative_correction: find E0 for each level "
+     "separately, rather than using the lowest level of each J/pi. Each level "
+     "then has its own energy denominators and dSigma/dE correction, but the "
+     "levels are not orthogonal (each is an eigenstate of a different "
+     "Hamiltonian). Costs an extra E0 iteration and CI solve per level "
+     "[false]"},
     {"qk_file",
      "Filename for storing two-body Coulomb integrals. By default, is "
      "At.qk.abf, where At is atomic symbol + 'identity'. Set to 'false' to "
@@ -299,8 +307,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     DiracSpinor::split_by_energy(s2_basis, wf.FermiLevel(), n_min_core);
 
   // S2 corrections are included for <vw|Q|xy> with the pair vw, or xy, in
-  // cis2_basis (the first subset), or diagonal (xy = vw or wv), and all four
-  // orbitals in cis2_legs_basis (the second; all of the CI basis if not given)
+  // cis2_basis (the first subset), or diagonal (xy in the same nl shells as
+  // vw), and all four orbitals in cis2_legs_basis (the second; all of the CI
+  // basis if not given)
   const auto cis2_basis_strings = input.get(
     "cis2_basis",
     std::vector<std::string>{std::to_string(N_max_core + 2) + "spdf"});
@@ -332,6 +341,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
 
   // Iterative (dSigma/dE) energy correction for Sigma_1
   auto iterative_correction = input.get("iterative_correction", false);
+  const auto BW_each_level = input.get("BW_each_level", false);
 
   auto denominators =
     MBPT::parse_Denominators(input.get("denominators", "DFK"s));
@@ -753,6 +763,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     // Tag the source: CP-provided (all-orders) tables differ from the
     // second-order Goldstone ones
     ci_settings += CP_derivative ? "dSdE-CP;" : "dSdE;";
+    if (BW_each_level) {
+      ci_settings += "BWeach;";
+    }
   }
   if (include_Sigma2) {
     ci_settings +=
@@ -790,11 +803,11 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     for (std::size_t i = 0; i < J_pi_list.size(); ++i) {
       const auto [twoj, pi] = J_pi_list.at(i);
 
-      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_electrons, num_solutions,
-                            all_below_cm, h1, qk, Bk, Sk, include_Sigma2,
-                            print_details, read_only, std::cout, ci_fname,
-                            s1_corr.empty() ? nullptr : &s1_corr, hk,
-                            dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver);
+      levels.at(i) = run_CI(
+        ci_sp_basis, twoj, pi, num_electrons, num_solutions, all_below_cm, h1,
+        qk, Bk, Sk, include_Sigma2, print_details, read_only, std::cout,
+        ci_fname, s1_corr.empty() ? nullptr : &s1_corr, hk,
+        dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver, BW_each_level);
     }
   }
 
@@ -955,7 +968,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               bool include_Sigma2, bool print_details, bool read_only,
               std::ostream &outstream, const std::string &ci_fname,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
-              const Coulomb::WkTable *dSk, double E0_sigma2, Solver solver) {
+              const Coulomb::WkTable *dSk, double E0_sigma2, Solver solver,
+              bool BW_each_level) {
 
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
@@ -1088,6 +1102,37 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       psi.solve(Hci, num_solutions, all_below_cm);
       outstream << psi.num_solutions()
                 << " eigenvalues: T = " << t2.reading_str() << "\n";
+    }
+
+    // Optionally, each level with its own E0, found in the same way (and
+    // solved again with the Hamiltonian built at that E0, as above), so its
+    // energy denominators (BW) and dSigma/dE correction are at its own
+    // energy. Each level is then an eigenstate of a different Hamiltonian, so
+    // the levels are not orthogonal
+    if (BW_each_level && s1c != nullptr) {
+      for (std::size_t i = 1; i < psi.num_solutions(); ++i) {
+        auto s1_level = *s1c;
+        s1_level.E0 = psi.energy(i);
+        auto psi_level = psi;
+        if (davidson) {
+          const auto Hci =
+            CI::iterate_E0<LinAlg::SparseSymmetricMatrix<double>>(
+              &psi_level, s1_level, h1, qk, br_ptr, s2_ptr, hk, dSk, E0_sigma2,
+              outstream, i);
+          if (!psi_level.solve(Hci, int(i) + 1, {}, outstream).converged) {
+            fmt::print(
+              outstream,
+              "Warning: Davidson not converged (level {}): not saved\n", i);
+            write_solutions = false;
+          }
+        } else {
+          const auto Hci =
+            CI::iterate_E0(&psi_level, s1_level, h1, qk, br_ptr, s2_ptr, hk,
+                           dSk, E0_sigma2, outstream, i);
+          psi_level.solve(Hci, int(i) + 1);
+        }
+        psi.replace_solution(i, psi_level.energy(i), psi_level.coefs(i));
+      }
     }
 
     if (!ci_fname.empty() && write_solutions) {
