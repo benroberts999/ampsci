@@ -507,6 +507,9 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     me_tab = Amplitudes::me_table(ci_basis, h.get(), rpa.get(), p_sr, omega,
                                   sr_n_max, sr_norm);
     std::cout << "..done\n" << std::flush;
+  } else {
+    std::cout
+      << "Matrix element table recalculated at each transition frequency\n";
   }
 
   // J lists, as 2J: integers, or fractions over 2 for three electrons.
@@ -542,6 +545,11 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
   ci_options.rpa_iterations = 100;
   ci_options.print = false;
 
+  // RPA convergence at each frequency: reported after the table, so the table
+  // is identical to the fixed-frequency one
+  int num_rpa_unconverged = 0;
+  double worst_rpa_eps = 0.0;
+
   auto calc_me = [&](const CI::PsiJPi &wfA, std::size_t iA,
                      const CI::PsiJPi &wfB, std::size_t iB) {
     const auto t_omega = wfA.energy(iA) - wfB.energy(iB);
@@ -549,10 +557,12 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     if (table_each) {
       Amplitudes::solve_at_frequency(h.get(), rpa.get(), p_sr, t_omega,
                                      ci_options);
-      std::cout << "Re-Calculate matrix element table.." << std::flush;
+      if (rpa && !(rpa->last_eps() < rpa->eps_target())) {
+        ++num_rpa_unconverged;
+        worst_rpa_eps = std::max(worst_rpa_eps, rpa->last_eps());
+      }
       me_tab = Amplitudes::me_table(ci_basis, h.get(), rpa.get(), p_sr, t_omega,
                                     sr_n_max, sr_norm);
-      std::cout << "..done\n" << std::flush;
     }
 
     const auto factor = h->matel_factor(matel_type, wfA.twoJ(), wfB.twoJ());
@@ -563,28 +573,15 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     auto p1 = wfA.parity() == 1 ? '+' : '-';
     auto p2 = wfB.parity() == 1 ? '+' : '-';
 
-    if (eachFreqQ && rpa) {
-      fmt::print(
-        "{}{} {:2} {:5s} {:3s} - {}{} {:2} {:5s} {:3s}  {:2} {:.0e}  {: .5f} "
-        "{: 12.5e}\n",
-        CI::J_string(wfA.twoJ()), p1, iA, wfA.info(iA).config,
-        CI::Term_Symbol((int)wfA.info(iA).L, (int)wfA.info(iA).twoS,
-                        wfA.parity()),
-        CI::J_string(wfB.twoJ()), p2, iB, wfB.info(iB).config,
-        CI::Term_Symbol((int)wfB.info(iB).L, (int)wfB.info(iB).twoS,
-                        wfB.parity()),
-        rpa->last_its(), rpa->last_eps(), t_omega, me);
-    } else {
-      fmt::print(
-        "{}{} {:2} {:5s} {:3s} - {}{} {:2} {:5s} {:3s}  {: .5f} {: 12.5e}\n",
-        CI::J_string(wfA.twoJ()), p1, iA, wfA.info(iA).config,
-        CI::Term_Symbol((int)wfA.info(iA).L, (int)wfA.info(iA).twoS,
-                        wfA.parity()),
-        CI::J_string(wfB.twoJ()), p2, iB, wfB.info(iB).config,
-        CI::Term_Symbol((int)wfB.info(iB).L, (int)wfB.info(iB).twoS,
-                        wfB.parity()),
-        t_omega, me);
-    }
+    fmt::print(
+      "{}{} {:2} {:5s} {:3s} - {}{} {:2} {:5s} {:3s}  {: .5f} {: 12.5e}\n",
+      CI::J_string(wfA.twoJ()), p1, iA, wfA.info(iA).config,
+      CI::Term_Symbol((int)wfA.info(iA).L, (int)wfA.info(iA).twoS,
+                      wfA.parity()),
+      CI::J_string(wfB.twoJ()), p2, iB, wfB.info(iB).config,
+      CI::Term_Symbol((int)wfB.info(iB).L, (int)wfB.info(iB).twoS,
+                      wfB.parity()),
+      t_omega, me);
   };
 
   //-----------------------------------------------------------------------
@@ -616,7 +613,10 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
             if (diagonal && pi1 == pi2 && ej == oj && i == j) {
               calc_me(*wf_e, i, *wf_o, j);
             }
-            if (!diagonal && (pi1 != pi2 || ej != oj || i != j)) {
+            // <B||t||A> follows from <A||t||B> by a phase, so each pair is
+            // calculated once. Same-parity pairs come from one J list: keep
+            // (J_A, i) < (J_B, j)
+            if (!diagonal && (pi1 != pi2 || ej < oj || (ej == oj && i < j))) {
               calc_me(*wf_e, i, *wf_o, j);
             }
           }
@@ -627,11 +627,7 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   std::cout << "<a||t||b> -- "
             << DiracOperator::parse_MatrixElementType(matel_type) << "\n";
-  if (eachFreqQ && rpa) {
-    std::cout << "Ja  # conf      - Jb  # conf      its eps    w_ab     t_ab\n";
-  } else {
-    std::cout << "Ja  # conf      - Jb  # conf       w_ab     t_ab\n";
-  }
+  std::cout << "Ja  # conf      - Jb  # conf        w_ab     t_ab\n";
 
   const bool diagonal = input.get("diagonal", true);
   const bool off_diagonal = input.get("off-diagonal", true);
@@ -642,12 +638,17 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
     me_calculator(J_odd_list, -1, J_odd_list, -1, true);
   }
 
-  // off-diagonal:
+  // off-diagonal (odd-even pairs are already covered by even-odd):
   if (off_diagonal) {
     me_calculator(J_even_list, 1, J_even_list, 1, false);
     me_calculator(J_even_list, 1, J_odd_list, -1, false);
-    me_calculator(J_odd_list, -1, J_even_list, 1, false);
     me_calculator(J_odd_list, -1, J_odd_list, -1, false);
+  }
+
+  if (num_rpa_unconverged > 0) {
+    fmt::print("\nWARNING: RPA did not converge for {} transition(s); worst "
+               "eps = {:.1e} (target {:.1e})\n",
+               num_rpa_unconverged, worst_rpa_eps, rpa->eps_target());
   }
 
   std::cout << "\n";
