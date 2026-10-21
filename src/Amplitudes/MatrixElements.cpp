@@ -229,19 +229,6 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
 
   const auto a_is_b = &a_orbs == &b_orbs;
 
-  for (const auto &a : a_orbs) {
-    for (const auto &b : b_orbs) {
-      if (b < a && a_is_b)
-        continue;
-      if (h->isZero(a, b))
-        continue;
-      h_ab.add(a, b, 0.0);
-      if (a != b) {
-        h_ab.add(b, a, 0.0);
-      }
-    }
-  }
-
   // Every element carries the RPA component at omega: the emission one
   // (conjugate) for a negative frequency
   const auto conj = omega < 0.0;
@@ -254,35 +241,58 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
   const auto symmetric =
     omega == 0.0 && (dV == nullptr || dV->last_omega() == 0.0);
 
+  // SR+N only between physical (low-n) states
+  const auto sr_included = [&](const DiracSpinor &x, const DiracSpinor &y) {
+    return srn && x.n() <= sr_n_max && y.n() <= sr_n_max;
+  };
+
   const auto matrix_element = [&](const DiracSpinor &x, const DiracSpinor &y) {
     const auto tab = h->reducedME(x, y);
     const auto dv = dV ? dV->dV(x, y, conj) : 0.0;
-    // SR+N only between physical (low-n) states; optionally without the norm
-    const auto do_sr = srn && x.n() <= sr_n_max && y.n() <= sr_n_max;
-    const auto sr = !do_sr  ? 0.0 :
-                    sr_norm ? srn->srn(x, y, h, dV, omega) :
-                              srn->SR(x, y, omega);
+    // Optionally without the norm
+    const auto sr = !sr_included(x, y) ? 0.0 :
+                    sr_norm            ? srn->srn(x, y, h, dV, omega) :
+                                         srn->SR(x, y, omega);
     return tab + dv + sr;
   };
 
-#pragma omp parallel for schedule(dynamic)
-  for (std::size_t i = 0; i < a_orbs.size(); ++i) {
-    const auto &a = a_orbs[i];
+  // Each element to calculate is its own task, for an even load balance (the
+  // cost is concentrated in the few SR+N elements). The reversed element is a
+  // separate task, unless it follows by symmetry
+  std::vector<std::pair<const DiracSpinor *, const DiracSpinor *>> elements;
+  for (const auto &a : a_orbs) {
     for (const auto &b : b_orbs) {
-
       if (b < a && a_is_b)
         continue;
-
       if (h->isZero(a, b))
         continue;
-
-      const auto me = matrix_element(a, b);
-
-      h_ab.update(a, b, me);
+      h_ab.add(a, b, 0.0);
+      elements.emplace_back(&a, &b);
       if (a != b) {
-        h_ab.update(b, a,
-                    symmetric ? h->symm_sign(a, b) * me : matrix_element(b, a));
+        h_ab.add(b, a, 0.0);
+        if (!symmetric) {
+          elements.emplace_back(&b, &a);
+        }
       }
+    }
+  }
+
+  // SR+N elements cost far more than the rest: schedule them first
+  std::stable_partition(elements.begin(), elements.end(),
+                        [&](const auto &element) {
+                          return sr_included(*element.first, *element.second);
+                        });
+
+#pragma omp parallel for schedule(dynamic)
+  for (std::size_t i = 0; i < elements.size(); ++i) {
+    const auto &x = *elements[i].first;
+    const auto &y = *elements[i].second;
+
+    const auto me = matrix_element(x, y);
+
+    h_ab.update(x, y, me);
+    if (symmetric && x != y) {
+      h_ab.update(y, x, h->symm_sign(x, y) * me);
     }
   }
   return h_ab;
