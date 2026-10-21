@@ -894,18 +894,23 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   // 4) Fill the pre-constructed map with values, in parallel. Since we are
   // not adding any new elements to map, and since we are guarenteed to only
   // access each map element once, we can do this part in parallel.
+  // Parallel over (a, b, c), not just a: integrals are spread very unevenly
+  // over the first index (each sits on its lowest-index orbital; with a pair
+  // selection rule, only a few orbitals carry any), and their cost varies.
   if (print)
     fmt::print("Calculating {}{} integrals\n",
                n_existing == 0 ? "" : "(subset of) ", count());
   t.start();
 
-  qip::ProgressBar prog(int(basis.size()), print);
-#pragma omp parallel for schedule(dynamic, 1)
+  qip::ProgressBar prog(basis.size() * basis.size() * basis.size(), print);
+#pragma omp parallel for collapse(3) schedule(dynamic, 1)
   for (std::size_t ia = 0; ia < basis.size(); ++ia) {
+    for (std::size_t ib = 0; ib < basis.size(); ++ib) {
+      for (std::size_t ic = 0; ic < basis.size(); ++ic) {
 
-    const auto &a = basis[ia];
-    for (const auto &b : basis) {
-      for (const auto &c : basis) {
+        const auto &a = basis[ia];
+        const auto &b = basis[ib];
+        const auto &c = basis[ic];
         for (const auto &d : basis) {
 
           const auto normal_index = NormalOrder(a, b, c, d);
@@ -925,10 +930,10 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
             }
           }
         }
+
+        prog.update();
       }
     }
-
-    prog.update();
   }
 
   // if (print)

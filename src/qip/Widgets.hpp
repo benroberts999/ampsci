@@ -308,19 +308,22 @@ private:
     else
       snprintf(buf, sizeof(buf), "%d%%, ", pct);
 
-    bool did_print = false;
 #pragma omp critical
     {
-      if (!m_done) {
+      // Check again: another thread may have printed this slot meanwhile
+      const bool already_printed =
+        !is_initial && !is_final &&
+        slot <= m_last_fill.load(std::memory_order_relaxed);
+      if (!m_done && !already_printed) {
         fputs(buf, stdout);
         fflush(stdout);
-        did_print = true;
-        if (is_final)
+        if (is_final) {
           m_done = true;
+        } else {
+          m_last_fill.store(slot, std::memory_order_relaxed);
+        }
       }
     }
-    if (!is_final && did_print)
-      m_last_fill.store(slot, std::memory_order_relaxed);
   }
 };
 
