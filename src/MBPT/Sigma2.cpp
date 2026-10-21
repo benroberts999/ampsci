@@ -143,6 +143,14 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
 
   // overall selectrion rule tested outside
 
+  // Every term has a direct Coulomb line of multipolarity k between a core and
+  // an excited orbital, Q^k_vnxa or Q^k_awny, whose other end is (v, x) or
+  // (w, y). If k is not allowed at either of those (k of the 'wrong' parity,
+  // which only the box diagrams have), every term vanishes
+  if (!Angular::Ck_kk_SR(k, v.kappa(), x.kappa()) &&
+      !Angular::Ck_kk_SR(k, w.kappa(), y.kappa()))
+    return 0.0;
+
   // screening factors
   auto Fk = [&fk](int l) {
     return l < (int)fk.size() ? fk[std::size_t(l)] : 1.0;
@@ -174,6 +182,10 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
   double sum = 0.0;
   for (const auto &a : core) {
     for (const auto &n : excited) {
+      // ...and that line vanishes unless k is allowed between a and n
+      if (!Angular::Ck_kk_SR(k, a.kappa(), n.kappa()))
+        continue;
+
       const auto de_an = a.en() - n.en();
 
       // Hermitianse: average each diagram with its dagged partner
