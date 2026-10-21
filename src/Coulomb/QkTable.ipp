@@ -660,12 +660,17 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
   if (print)
     fmt::print("Calculating {}{} integrals\n",
                n_existing == 0 ? "" : "(subset of) ", count());
+  // Parallel over (a, b), not just a: each integral is filled from its normal
+  // order, whose first orbital is its lowest-index one, so the work falls
+  // steeply with a, and the first few a alone would set the run time on many
+  // cores.
   t.start();
-  qip::ProgressBar prog(int(basis.size()), print);
-#pragma omp parallel for schedule(dynamic, 1)
+  qip::ProgressBar prog(basis.size() * basis.size(), print);
+#pragma omp parallel for collapse(2) schedule(dynamic, 1)
   for (auto ia = 0ul; ia < basis.size(); ++ia) {
-    const auto &a = basis[ia];
-    for (const auto &b : basis) {
+    for (auto ib = 0ul; ib < basis.size(); ++ib) {
+      const auto &a = basis[ia];
+      const auto &b = basis[ib];
       for (const auto &c : basis) {
         for (const auto &d : basis) {
 
@@ -686,8 +691,8 @@ void CoulombTable<S>::fill(const std::vector<DiracSpinor> &basis,
           }
         }
       }
+      prog.update();
     }
-    prog.update();
   }
 
   if (print)
@@ -704,7 +709,11 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
   IO::ChronoTimer t("", print);
 
   /*
-  Same as above, but only calculate integrals satisfying the SelectionFunction
+  Same as above, but only calculate integrals satisfying the SelectionFunction.
+  With a selection function, the work can be spread very unevenly over k and
+  over the first orbital (e.g., only integrals with one or two core orbitals:
+  in normal order, every one has a core orbital first), so each step is
+  parallel over two indices rather than one.
   */
 
   const auto tmp_max_k =
@@ -716,41 +725,17 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
   if (m_data.size() < max_k + 1)
     m_data.resize(max_k + 1);
 
-  // 1) Count non-zero Q integrals (each k). Use this to 'reserve' map space
-  std::vector<std::size_t> count_non_zero_k(max_k + 1);
-#pragma omp parallel for
+  // 1) Find the integrals to calculate: non-zero, satisfying
+  // SelectionFunction, and each 'unique' integral once (normal order). Each
+  // (k, a) keeps its own list, so the search is parallel over (k, a). The
+  // lists hold 8 bytes per integral, until step 3.
+  const auto num_orbitals = basis.size();
+  std::vector<std::vector<nk4Index>> to_calculate((max_k + 1) * num_orbitals);
+#pragma omp parallel for collapse(2) schedule(dynamic, 1)
   for (auto k = 0ul; k <= max_k; ++k) {
-    const auto ik = static_cast<int>(k);
-    for (const auto &a : basis) {
-      for (const auto &b : basis) {
-        for (const auto &c : basis) {
-          if (!Angular::Ck_kk_SR(ik, a.kappa(), c.kappa()))
-            continue;
-          for (const auto &d : basis) {
-            // due to symmetry, only calculate each 'unique' integral once
-            if (NormalOrder(a, b, c, d) == CurrentOrder(a, b, c, d)) {
-              if (Angular::Ck_kk_SR(ik, b.kappa(), d.kappa()) &&
-                  SelectionFunction(ik, a, b, c, d)) {
-                ++count_non_zero_k[k];
-              }
-            }
-          }
-        }
-      }
-    }
-  }
-
-  // 2) Reserve space in each sub-map
-#pragma omp parallel for
-  for (auto ik = 0ul; ik <= max_k; ++ik) {
-    m_data[ik].reserve(count_non_zero_k[ik]);
-  }
-  const auto n_existing = count();
-
-  // 3) Create space in map (set each element to zero).
-#pragma omp parallel for
-  for (auto k = 0ul; k <= max_k; ++k) {
-    for (const auto &a : basis) {
+    for (auto ia = 0ul; ia < num_orbitals; ++ia) {
+      const auto &a = basis[ia];
+      auto &indices = to_calculate[k * num_orbitals + ia];
       for (const auto &c : basis) {
         if (!Angular::Ck_kk_SR(int(k), a.kappa(), c.kappa()))
           continue;
@@ -762,26 +747,47 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
               continue;
             const auto normal_index = NormalOrder(a, b, c, d);
             if (normal_index == CurrentOrder(a, b, c, d)) {
-              m_data[k].insert({normal_index, 0.0});
+              indices.push_back(normal_index);
             }
           }
         }
       }
     }
   }
+  const auto n_existing = count();
+
+  // 2) Reserve space in each sub-map, and 3) create the elements (set each to
+  // zero). Each k has its own map, so this is parallel over k
+#pragma omp parallel for schedule(dynamic, 1)
+  for (auto k = 0ul; k <= max_k; ++k) {
+    std::size_t num_to_calculate = 0;
+    for (auto ia = 0ul; ia < num_orbitals; ++ia) {
+      num_to_calculate += to_calculate[k * num_orbitals + ia].size();
+    }
+    m_data[k].reserve(num_to_calculate);
+    for (auto ia = 0ul; ia < num_orbitals; ++ia) {
+      auto &indices = to_calculate[k * num_orbitals + ia];
+      for (const auto index : indices) {
+        m_data[k].insert({index, 0.0});
+      }
+      indices = std::vector<nk4Index>{};
+    }
+  }
 
   // 4) Fill the pre-constructed map with values, in parallel. Since we are
   // not adding any new elements to map, and since we are guarenteed to only
   // access each map element once, we can do this part in parallel.
+  // Parallel over (a, b) (see above).
   if (print)
     fmt::print("Calculating {}{} integrals\n",
                n_existing == 0 ? "" : "(subset of) ", count());
   t.start();
-  qip::ProgressBar prog(int(basis.size()), print);
-#pragma omp parallel for schedule(dynamic, 1)
-  for (auto ia = 0ul; ia < basis.size(); ++ia) {
-    const auto &a = basis[ia];
-    for (const auto &b : basis) {
+  qip::ProgressBar prog(num_orbitals * num_orbitals, print);
+#pragma omp parallel for collapse(2) schedule(dynamic, 1)
+  for (auto ia = 0ul; ia < num_orbitals; ++ia) {
+    for (auto ib = 0ul; ib < num_orbitals; ++ib) {
+      const auto &a = basis[ia];
+      const auto &b = basis[ib];
       for (const auto &c : basis) {
         for (const auto &d : basis) {
 
@@ -802,8 +808,8 @@ void CoulombTable<S>::fill_if(const std::vector<DiracSpinor> &basis,
           }
         }
       }
+      prog.update();
     }
-    prog.update();
   }
 
   if (print)
