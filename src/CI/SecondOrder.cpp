@@ -101,7 +101,8 @@ A_K(int K, const PsiJPi &Psi_b, std::size_t ib, const PsiJPi &Psi_a,
       // energy-dependent corrections to the Hamiltonian are then at its own
       // reference energy, as in the run (and as in the levels a
       // sum-over-states would use), rather than at the ground-state energy
-      PsiJPi target(twoJn, pi_n, ints.ci_basis, ints.num_electrons);
+      PsiJPi target(twoJn, pi_n, ints.ci_basis, ints.num_electrons,
+                    ints.config_space);
       for (const auto &psi : solved_Jpi) {
         if (psi.twoJ() == twoJn && psi.parity() == pi_n) {
           target = psi;

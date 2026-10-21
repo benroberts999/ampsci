@@ -564,8 +564,8 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
 
   auto delta = psi->energy(level) - s1_Jpi.E0;
   s1_Jpi.E0 = psi->energy(level);
-  fmt::print(outstream, "  it {:2}: E0 = {:.8f} au (eps = {:.1e})\n", 1,
-             s1_Jpi.E0, delta / s1_Jpi.E0);
+  fmt::print(outstream, "  it {:2}: E0 = {:.8f} au (eps = {:.0e})\n", 1,
+             s1_Jpi.E0, std::abs(delta / s1_Jpi.E0));
   outstream << std::flush;
 
   for (int it = 2; it <= max_iterations && std::abs(delta) >= eps_E0; ++it) {
@@ -579,8 +579,8 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
 
     delta = E0_new - s1_Jpi.E0;
     s1_Jpi.E0 = E0_new;
-    fmt::print(outstream, "  it {:2}: E0 = {:.8f} au (eps = {:.1e})\n", it,
-               s1_Jpi.E0, delta / s1_Jpi.E0);
+    fmt::print(outstream, "  it {:2}: E0 = {:.8f} au (eps = {:.0e})\n", it,
+               s1_Jpi.E0, std::abs(delta / s1_Jpi.E0));
     outstream << std::flush;
     if (it == max_iterations && std::abs(delta) >= eps_E0) {
       outstream << "Warning: E0 iteration did not converge\n";

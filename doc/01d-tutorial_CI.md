@@ -59,6 +59,23 @@ CI{
   ci_basis;
     // Basis used for CI expansion; must be a sub-set of
     // full ampsci basis [default: 20spdf]
+  leading;
+    // Leading configurations, from which the CI
+    // configurations are formed by excitations; shells
+    // separated by '.', e.g., 'leading = 6s2.6p, 6s.6p2;'.
+    // Labels are non-relativistic: each includes both j.
+    // Check the printed list: it should include the
+    // dominant configuration of every state of interest.
+    // [default: the 5 lowest configurations of each parity,
+    // by the sum of orbital energies]
+  excitations;
+    // Excitations from the leading configurations, formed
+    // stepwise: 'k' or 'k:basis', e.g., '1, 2, 3:6spdf'.
+    // Step k moves one electron into its basis (default:
+    // ci_basis); the largest k is the number of steps, so
+    // '3:6spdf' is the same as '1, 2, 3:6spdf'; '0' gives
+    // the leading configurations only. Two full steps
+    // include every two-electron configuration. [1, 2]
   J;
     // List of total angular momentum J for CI solutions
     // (comma separated). Must be integers (two-electron
@@ -386,6 +403,35 @@ Where `conf` is the leading configuration (in non-relativistic notation), and th
 
 The table shows the results of the calculation, and comparison to experimental excitation energies, in units of \f${\rm cm}^{-1}\f$ (for the ground state, the ionisation potential is instead shown).
 The agreement is at the ~few % level.
+
+-----
+
+## Configuration space: leading configurations and excitations <a name="configspace"></a>
+
+By default, for two valence electrons the CI includes every configuration that can be formed from the `ci_basis`.
+For three valence electrons this quickly becomes far too many CSFs.
+Instead, the configurations are formed by excitations from a set of _leading_ configurations.
+
+* Configurations are labelled non-relativistically, but each label includes both \f$j=l\pm1/2\f$: `6s.6p2` means every relativistic configuration of \f$6s6p^2\f$. The number of excitations is counted on these labels.
+* `leading`: the leading configurations, e.g., `leading = 6s2.6p, 6s2.7s, 6s2.6d;`. Shells are separated by `.`; the number of electrons is optional (default 1).
+* `excitations`: excitations are formed stepwise. Each step moves one electron into that step's basis (by default, the whole `ci_basis`), and any of the steps may be used. For example, `excitations = 1, 2:8spdf;` includes all single excitations, and double excitations where at least one of the two electrons is within `8spdf`. The largest step number is the number of steps, so `3:8spdf` is the same as `1, 2, 3:8spdf`. `excitations = 0;` gives the leading configurations only. Adding a step never removes a configuration.
+* The default is singles and doubles over the full `ci_basis` (`excitations = 1, 2;`). For two electrons, this is every configuration (full CI).
+* The default leading configurations are the 5 lowest of each parity, by the sum of the orbital energies.
+
+With singles and doubles over the full basis, the space depends only on which shells appear in the leading configurations: for three electrons, it is every configuration with at least one electron in one of those shells.
+
+**It is up to the user to check that the configuration space is adequate.**
+The leading configurations, the excitations, and the number of configurations included are printed, e.g., for Tl with `leading = 6s2.6p, 6s2.7s, 6s2.6d, 5f.6s2; excitations = 1, 2:8spdf;`:
+
+```text
+Leading: 6s2.6p1, 6s2.7s1, 6s2.6d1, 5f1.6s2
+Including excitations: 1 with 14spdf, 2 with 8spdf
+Configurations: 1653 of 9130
+```
+
+* The leading configurations should include the dominant configuration of every state of interest. Otherwise, the pair correlations of that state (two electrons excited, the others as spectators) are only partly included, while those of the ground state are, which biases its excitation energy. The printed list can be copied into `leading` and extended.
+* Check convergence against the full space, `excitations = 1, 2, 3;` (for three electrons), at least for a smaller basis.
+* When the leading configurations are generated automatically (no `leading` given), a note is printed as a reminder to check them.
 
 -----
 
