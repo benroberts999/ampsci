@@ -17,6 +17,7 @@
 #include "Potentials/NuclearPotentials.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "Amplitudes/MatrixElements.hpp"
 #include <optional>
 #include <string>
 #include <vector>
@@ -55,16 +56,26 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
   //Need matrix elements between valence states in transition and intermediate states from the spectrum
 
   //create tables for matrix elements
-  Coulomb::meTable<double> pnc_me; //PNC
-  Coulomb::meTable<double> e1_me;  //E1
-  Coulomb::meTable<double> hf_me;  // Magnetic dipole hyperfine
+  Coulomb::meTable<double> pnc_me;
+  Coulomb::meTable<double> pnc_me2;  //PNC plus test
+  Coulomb::meTable<double> e1_me;
+  Coulomb::meTable<double> e1_me2;  //E1 plus test
+  Coulomb::meTable<double> hf_me; 
+  Coulomb::meTable<double> hf_me2;  // Magnetic dipole hyperfine plus test
 
   // initialise vector of tables for output
   std::vector<Coulomb::meTable<double>> ME_tables;
 
   //fill tables: need matrix elements
+  //test with matrix element table existing (parallelised)
+e1_me2 =  Amplitudes::me_table(spectrum,spectrum,he1,dV_e1);
+hf_me2 =  Amplitudes::me_table(spectrum,spectrum,hfs,dV_hf);
+pnc_me2 =  Amplitudes::me_table_Jpnc(spectrum,spectrum,hpnc,dV_pnc);
 
   //summing over all states in the spectrum
+  //remove now after using me table
+
+  /*
 
   // get angular momentum
   double tjw = w.twoj();
@@ -100,7 +111,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
     const auto i_wf = i.shortSymbol();
     const auto v_wf = v.shortSymbol();
 
-    /*
+    
     if (i.n() < 0) {
       std::cout << "Reduced NSI PNC matrix element  " << " <<" << w_wf
                 << "||h_pnc||" << i_wf << ">> = " << pnc_wi
@@ -112,7 +123,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
                 << "||h_pnc||" << v_wf << ">> = " << pnc_iv
                 << "(-Q_w/N)x10^-11\n.";
     }
-  */
+  
     pnc_me.add(w, i, pnc_factor1*pnc_wi);
     pnc_me.add(i, v, pnc_factor2*pnc_iv);
 
@@ -123,6 +134,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
     e1_me.add(w, i, e1_wi);
     e1_me.add(i, v, e1_iv);
 
+
     //hfs matrix elements--------------------------------------------------------------------
     const auto hfs_wi = hfs->reducedME(w, i) + (dV_hf ? dV_hf->dV(w, i) : 0.0);
     const auto hfs_iv = hfs->reducedME(i, v) + (dV_hf ? dV_hf->dV(i, v) : 0.0);
@@ -131,7 +143,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
     hf_me.add(i, v, hfs_iv);
 
     //output for test
-    /*
+    
     if (i.n() < 0) {
       std::cout << "Reduced hyperfine matrix element  " << " <<" << w_wf
                 << "||h_hfs||" << i_wf << ">> = " << hfs_wi << "MHz \n.";
@@ -140,7 +152,7 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
       std::cout << "Reduced hyperfine matrix element " << " <<" << i_wf
                 << "||h_hfs||" << v_wf << ">> = " << hfs_iv << "MHz \n.";
     }
-    */            
+             
 
     //now include additional loop over spectrum
     for (const auto &j : spectrum) {
@@ -162,7 +174,8 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
       e1_me.add(i, j, e1_ij);
       hf_me.add(i, j, hfs_ij);
   }else{
-     */ const auto pnc_ij =
+     
+    const auto pnc_ij =
           hpnc->reducedME(i, j) + (dV_pnc ? dV_pnc->dV(i, j) : 0.0);
       const auto e1_ij = he1->reducedME(i, j) + (dV_e1 ? dV_e1->dV(i, j) : 0.0);
       const auto hfs_ij =
@@ -174,12 +187,14 @@ compute_me_3f(const DiracOperator::TensorOperator *hpnc,
       e1_me.add(i, j, e1_ij);
       hf_me.add(i, j, hfs_ij);
   //}
+  
     }
   }
+   */
   //finally create vector of matrix element tables for single element output
-  ME_tables.push_back(pnc_me);
-  ME_tables.push_back(e1_me);
-  ME_tables.push_back(hf_me);
+  ME_tables.push_back(pnc_me2);
+  ME_tables.push_back(e1_me2);
+  ME_tables.push_back(hf_me2);
   return ME_tables;
 }
             

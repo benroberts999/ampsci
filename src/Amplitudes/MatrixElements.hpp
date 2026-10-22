@@ -290,6 +290,12 @@ me_table(const std::vector<DiracSpinor> &a_orbs,
   return me_table(a_orbs, a_orbs, h, dV, srn, omega, sr_n_max, sr_norm);
 }
 
+Coulomb::meTable<double> me_table_Jpnc(const std::vector<DiracSpinor> &a_orbs,
+  const std::vector<DiracSpinor> &b_orbs,
+  const DiracOperator::TensorOperator *h,
+  const ExternalField::CorePolarisation *dV=nullptr);
+
+
 //==============================================================================
 
 /*!

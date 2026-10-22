@@ -218,6 +218,65 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
   return h_ab;
 }
 
+
+//==============================================================================
+//==============================================================================
+Coulomb::meTable<double> me_table_Jpnc(const std::vector<DiracSpinor> &a_orbs,
+  const std::vector<DiracSpinor> &b_orbs,
+  const DiracOperator::TensorOperator *h,
+  const ExternalField::CorePolarisation *dV) {
+
+Coulomb::meTable<double> h_ab;
+
+const auto a_is_b = &a_orbs == &b_orbs;
+
+for (const auto &a : a_orbs) {
+for (const auto &b : b_orbs) {
+if (b < a && a_is_b)
+continue;
+if (h->isZero(a, b))
+continue;
+h_ab.add(a, b, 0.0);
+if (a != b) {
+h_ab.add(b, a, 0.0);
+}
+}
+}
+
+#pragma omp parallel for schedule(dynamic)
+for (std::size_t i = 0; i < a_orbs.size(); ++i) {
+const auto &a = a_orbs[i];
+for (const auto &b : b_orbs) {
+
+if (b < a && a_is_b)
+continue;
+
+if (h->isZero(a, b))
+continue;
+
+
+//Johnson factor 
+double tja = a.twoj();
+const auto factor = 1.0/sqrt(tja+1);
+const auto tab = h->reducedME(a, b);
+const auto tab_J = tab*factor;
+
+const auto dv = dV ? dV->dV(a, b) : 0.0;
+
+
+const auto me = tab_J + dv;
+
+h_ab.update(a, b, me);
+if (a != b) {
+h_ab.update(b, a, h->symm_sign(a, b) * me);
+}
+}
+}
+return h_ab;
+}
+
+
+
 //==============================================================================
 std::vector<SRNdata> sr_matrix_elements(const std::vector<DiracSpinor> &orbs,
                                         DiracOperator::TensorOperator *h,
