@@ -534,8 +534,7 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
     s1_Jpi.E0 = psi->num_electrons() * e_min;
   }
 
-  fmt::print(outstream,
-             "Iterating E0{} for dSigma/dE correction (initial: {:.8f} au):\n",
+  fmt::print(outstream, "Iterating E0{} (initial: {:.8f} au):\n",
              level == 0 ? "" : fmt::format(" (level {})", level), s1_Jpi.E0);
   outstream << std::flush;
 
@@ -1215,7 +1214,8 @@ LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi, const Integrals &ints) {
   const auto Bk = ints.Bk.emptyQ() ? nullptr : &ints.Bk;
   const auto Sk = ints.Sk.emptyQ() ? nullptr : &ints.Sk;
   const auto dSk = ints.dSk.emptyQ() ? nullptr : &ints.dSk;
-  if (ints.s1_corr.empty()) {
+  // No E0 needed: no dSigma/dE correction, and no BW Sigma_2
+  if (ints.s1_corr.empty() && dSk == nullptr) {
     return construct_Hci(psi, ints.h1, ints.qk, Bk, Sk, nullptr, ints.hk);
   }
   // E0 is per (J, parity): if psi has been solved, it is just the lowest

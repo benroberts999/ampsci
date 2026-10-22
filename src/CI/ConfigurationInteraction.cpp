@@ -38,12 +38,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     {"leading",
      "Leading configurations, from which the CI configurations are formed by "
      "excitations; shells separated by '.', e.g., 'leading = 6s2.6p, "
-     "6s.6p2;'. Labels are non-relativistic: each includes both j. Check the "
-     "printed list: it should include the dominant configuration of every "
-     "state of interest. [default: the " +
-       std::to_string(default_leading_per_parity) +
-       " lowest configurations of each parity, by the sum of orbital "
-       "energies]"},
+     "6s.6p2;'. Default: the lowest few configurations of each parity\n"
+     "NB: Always check for truncated CI"},
     {"excitations",
      "Excitations from the leading configurations, formed stepwise (as in "
      "AMBiT): 'k' or 'k:basis', e.g., '1, 2, 3:6spdf'. Step k moves one "
@@ -65,15 +61,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Find all CI solutions for energies below this threshold, "
      "in inverse cm. Note that this is the total energy, not the "
      "excitation energy. If set, num_solutions is ignored."},
-    {"davidson",
-     "Solve each J/pi block iteratively (Davidson method, with a sparse CI "
-     "matrix), finding only the lowest num_solutions (or all below "
-     "all_below_cm). Needs far less memory and time than forming and "
-     "diagonalising the full CI matrix when the blocks are large and few "
-     "solutions are wanted; slower and larger if many (more than ~1/20 of "
-     "the CSFs) are. Small blocks are solved exactly in the first iteration. "
-     "Finds at most (number of CSFs - 1) solutions. "
-     "[default: true for three electrons, false for two]"},
+    {"davidson", "Use iterative Davidson method for CI solutions "
+                 "[default: true for 3 electrons, false for 2]"},
     {"sigma1", "Include one-body MBPT correlations? [false]"},
     {"sigma2", "Include two-body MBPT correlations? [false]"},
     {"Brueckner", "Use Brueckner (spectrum) states for CI basis? Must have "
@@ -112,38 +101,19 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "file already has higher-k terms, they will be included. Set negative "
      "(or very large) to include all k. [8]"},
     {"denominators",
-     "'DFK', 'BW', 'RS', 'Fermi', 'Fermi0'. Denominators used in Sigma2 matrix "
-     "elements. DFK (Dzuba-Flambaum-Kozlov): target-state legs use the lowest "
-     "excited state of their kappa, intermediate-state legs use actual "
-     "energies. BW (Brillouin-Wigner): the denominator is E0 minus the energy "
-     "of the intermediate state, where E0 is the total valence energy of the "
-     "target level; DFK is this with E0 taken from the leading configuration. "
-     "BW requires the E0 of each J/Pi, so it enables "
-     "iterative_correction (requires sigma1): S^k and dS^k/dE0 are "
-     "tabulated at an internal reference and each S^k is resummed to the E0 "
-     "of the J/Pi being solved. This doubles the Sigma_2 calculation time "
-     "and stores a second sk file. "
-     "RS uses actual energies for all external legs, Fermi uses the "
-     "lowest excited state for each kappa (both legs), Fermi0 uses lowest "
-     "excited state for all kappas (and thus cancels in all except diagram "
-     "'d'). Applies to Sigma_2 only. [DFK]"},
-    {"iterative_correction",
-     "Include the derivative (dSigma/dE) correction to the Sigma_1 matrix "
-     "elements. Restores the configuration dependence lost by evaluating "
-     "Sigma_1 at a fixed energy. "
-     "The reference energy E0 is the lowest energy of each J/pi (or of each "
-     "level: see BW_each_level), and is found iteratively. With denominators = "
-     "BW, the same E0 also shifts the "
-     "Sigma_2 matrix elements (see denominators). "
-     "Prefer calculating dSigma/dE in the Correlations block (option "
-     "derivative) which is much faster, and can include all-orders [false]"},
-    {"BW_each_level",
-     "With BW denominators or iterative_correction: find E0 for each level "
-     "separately, rather than using the lowest level of each J/pi. Each level "
-     "then has its own energy denominators and dSigma/dE correction, but the "
-     "levels are not orthogonal (each is an eigenstate of a different "
-     "Hamiltonian). Costs an extra E0 iteration and CI solve per level "
-     "[false]"},
+     "Energy denominators in Sigma_2 [DFK]:\n"
+     "- DFK: (Dzuba Flambaum Kozlov) target legs as Fermi, others as RS\n"
+     "- BW: Brillouin-Wigner E0 (iterated; see BW_each_level)."
+     "- RS: actual single-particle energies\n"
+     "- Fermi: lowest excited energy of each kappa\n"
+     "- Fermi0: lowest excited energy of all kappas\n"},
+    {"sigma1_dSdE", "Sigma_1 at the level energy E0, via dSigma/dE [false]\n"
+                    "- E0: lowest level of J/pi, or each (BW_each_level)\n"
+                    "- much faster with Correlations{ derivative = true; }\n"
+                    "- For testing; usually should be left off"},
+    {"BW_each_level", "E0 for each level, not just lowest of J/pi [false]\n"
+                      "- for BW and sigma1_dSdE\n"
+                      "- levels not orthogonal; one more solve per level"},
     {"qk_file",
      "Filename for storing two-body Coulomb integrals. By default, is "
      "At.qk.abf, where At is atomic symbol + 'identity'. Set to 'false' to "
@@ -159,7 +129,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "S^k at the shifted E0; the derivative is formed from it after reading."},
     {"ds1_file",
      "Filename for storing the Sigma_1 derivative-correction tables "
-     "(iterative_correction). Default: At_b_hash.ds1.abf, where b is the s1 "
+     "(sigma1_dSdE). Default: At_b_hash.ds1.abf, where b is the s1 "
      "(internal) basis, and hash encodes other settings that change the "
      "tables. Not used if the Correlations block provides dSigma/dE (option "
      "derivative). Set to 'false' to disable read/write."},
@@ -364,30 +334,14 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   const auto extrapolate_sigma2 = input.get("extrapolate_sigma2", true);
 
   // Iterative (dSigma/dE) energy correction for Sigma_1
-  auto iterative_correction = input.get("iterative_correction", false);
+  const auto sigma1_dSdE = input.get("sigma1_dSdE", false);
   const auto BW_each_level = input.get("BW_each_level", false);
 
-  auto denominators =
+  const auto denominators =
     MBPT::parse_Denominators(input.get("denominators", "DFK"s));
 
-  // BW denominators depend on E0, which is found by the iterative-correction
-  // machinery (Sigma_1): BW enables that correction, and shifts Sigma_2 too.
-  // The E0 machinery lives in the Sigma_1 correction, so sigma1 is required.
-  if (include_Sigma2 && denominators == MBPT::Denominators::BW) {
-    if (!include_Sigma1) {
-      std::cout << "\nNote: BW denominators require sigma1 (the E0 iteration "
-                   "is part of the Sigma_1 iterative correction): using DFK "
-                   "denominators instead\n";
-      denominators = MBPT::Denominators::DFK;
-    } else if (!iterative_correction) {
-      std::cout << "\nNote: BW denominators require E0: enabling "
-                   "iterative_correction (which finds the E0 of each "
-                   "block)\n";
-      iterative_correction = true;
-    }
-  }
-
-  // Shift Sigma_2 to each J/Pi's E0 (BW only; see denominators doc)
+  // Shift Sigma_2 to each J/Pi's E0 (BW only; see denominators doc). E0 is
+  // found iteratively, with or without the dSigma/dE correction to Sigma_1
   const auto iterative_correction_sigma2 =
     include_Sigma2 && denominators == MBPT::Denominators::BW;
 
@@ -446,8 +400,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // `derivative`): build the Sigma_1 correction tables directly from it -
   // consistent with the actual Sigma (any method), and no Sigma_1 qk
   // integrals or Goldstone tabulation needed
-  const bool CP_derivative = iterative_correction && include_Sigma1 &&
-                             wf.Sigma() && wf.Sigma()->has_derivative();
+  const bool CP_derivative =
+    sigma1_dSdE && include_Sigma1 && wf.Sigma() && wf.Sigma()->has_derivative();
 
   // Lookup table; stores all qk's
   Coulomb::QkTable qk;
@@ -518,8 +472,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       // (With matrix, still required if calculating derivative correction -
       // except when the matrix supplies dSigma/dE itself: CP_derivative)
       const bool need_s1_qk =
-        include_Sigma1 &&
-        (!wf.Sigma() || (iterative_correction && !CP_derivative));
+        include_Sigma1 && (!wf.Sigma() || (sigma1_dSdE && !CP_derivative));
       if (need_s1_qk) {
         const auto temp_basis = qip::merge(core_s1, excited_s1);
         std::cout << "and: " << DiracSpinor::state_config(temp_basis)
@@ -571,7 +524,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
 
   // Derivative (dSigma/dE) correction for Sigma_1
   CI::Sigma1Correction s1_corr;
-  if (iterative_correction && include_Sigma1) {
+  if (sigma1_dSdE && include_Sigma1) {
     std::cout << "\nIncluding derivative (dSigma/dE) correction for Sigma_1\n";
     std::cout << std::flush;
 
@@ -614,6 +567,17 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     }
     std::cout << std::flush;
   }
+
+  // E0 is found iteratively for the dSigma/dE correction, and for BW Sigma_2.
+  // BW needs the orbital energies (initial E0; the pair energies, for three
+  // electrons), which come with the dSigma/dE tables; without those, they are
+  // added on their own
+  if (iterative_correction_sigma2 && s1_corr.empty()) {
+    for (const auto &v : ci_sp_basis) {
+      s1_corr.en[v.nk_index()] = v.en();
+    }
+  }
+  const bool find_E0 = !s1_corr.empty() || iterative_correction_sigma2;
 
   //----------------------------------------------------------------------------
   // Breit and QED
@@ -791,9 +755,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     // Tag the source: CP-provided (all-orders) tables differ from the
     // second-order Goldstone ones
     ci_settings += CP_derivative ? "dSdE-CP;" : "dSdE;";
-    if (BW_each_level) {
-      ci_settings += "BWeach;";
-    }
+  }
+  if (find_E0 && BW_each_level) {
+    ci_settings += "BWeach;";
   }
   if (include_Sigma2) {
     ci_settings +=
@@ -831,12 +795,12 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     for (std::size_t i = 0; i < J_pi_list.size(); ++i) {
       const auto [twoj, pi] = J_pi_list.at(i);
 
-      levels.at(i) = run_CI(ci_sp_basis, twoj, pi, num_electrons, num_solutions,
-                            all_below_cm, h1, qk, Bk, Sk, include_Sigma2,
-                            print_details, read_only, std::cout, ci_fname,
-                            s1_corr.empty() ? nullptr : &s1_corr, hk,
-                            dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver,
-                            BW_each_level, config_space);
+      levels.at(i) =
+        run_CI(ci_sp_basis, twoj, pi, num_electrons, num_solutions,
+               all_below_cm, h1, qk, Bk, Sk, include_Sigma2, print_details,
+               read_only, std::cout, ci_fname, find_E0 ? &s1_corr : nullptr, hk,
+               dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver, BW_each_level,
+               config_space);
     }
   }
 
@@ -858,7 +822,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // only a fallback: it is used when a Hci is later re-constructed (from the
   // stored Integrals) for a (J, parity) that was never solved - e.g. the
   // intermediate states of the sum-over-states. Use the ground state.
-  if (!s1_corr.empty() && e0 < 0.0) {
+  if (find_E0 && e0 < 0.0) {
     s1_corr.E0 = e0;
   }
 
@@ -1059,9 +1023,9 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     const auto br_ptr = !Bk.emptyQ() ? &Bk : nullptr;
     const auto s2_ptr = include_Sigma2 ? &Sk : nullptr;
 
-    // The dSigma/dE correction depends on E0, the lowest energy of _this_
-    // (J, parity), which we only know once we have solved: find it
-    // self-consistently (see iterate_E0).
+    // The dSigma/dE correction and the BW Sigma_2 shift depend on E0, the
+    // lowest energy of _this_ (J, parity), which we only know once we have
+    // solved: find it self-consistently (see iterate_E0).
     // nb: the final solve re-uses the converged Hci, so no matrix is built
     // that we do not use.
     // Unconverged (Davidson) solutions are used, but not kept for re-use

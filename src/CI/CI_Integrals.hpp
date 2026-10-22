@@ -94,6 +94,10 @@ double corrected_Sk(double Sk, double dSk, double dE0);
   Fill with @ref calculate_dSdE_correction; applied by Hab() (as a correction
   on top of an h1 table that already includes Sigma_1).
 
+  E0 and the orbital energies are also used for the Brillouin-Wigner shift of
+  Sigma_2 (see @ref iterate_E0). If S1 and dS1 are empty, delta_h1() is zero:
+  then only E0 and the orbital energies are used.
+
   @note The tables are agnostic to how Sigma_1 is calculated: to use the
         Feynman (all-orders) Sigma, fill S1 and dS1 from the
         CorrelationPotential (formSigma at two energies) instead of
@@ -112,6 +116,7 @@ struct Sigma1Correction {
   //! set": it belongs to a single (J, parity), and is found by @ref iterate_E0
   double E0{0.0};
 
+  //! True if there is no dSigma/dE correction (S1, dS1 empty)
   [[nodiscard]] bool empty() const { return dS1.empty(); }
 
   /*!
@@ -199,8 +204,9 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
                           const MBPT::CorrelationPotential &Sigma);
 
 /*!
-  @brief Finds the reference energy E0 for the dSigma/dE correction, for a
-  single (J, parity); returns the CI Hamiltonian built with it.
+  @brief Finds the reference energy E0 for the dSigma/dE correction and the
+  Brillouin-Wigner Sigma_2 shift, for a single (J, parity); returns the CI
+  Hamiltonian built with it.
   @details
   E0 is the energy of level @p level (by default, the lowest) of this
   (J, parity), which is only known once we have solved - so it is found
@@ -799,9 +805,8 @@ MatrixType construct_Hci(
   Overload of construct_Hci() taking the tables as @ref Integrals; the Breit
   and \f$ \Sigma_2 \f$ corrections are included if those tables are non-empty.
 
-  If the iterative (dSigma/dE) correction is included, the reference energy
-  E0 (which also sets the Sigma_2 BW shift, if present) belongs to this
-  J/Pi: the lowest solved energy of @p psi is used if it has
+  If the iterative (dSigma/dE) correction or the Sigma_2 BW shift is
+  included, the reference energy E0 belongs to this J/Pi: the lowest solved energy of @p psi is used if it has
   solutions; otherwise the stored fallback is used, which is the
   ground-state energy of the CI run. Blocks never solved directly - e.g.,
   the target J/Pi of a mixed state - thus have their corrections evaluated

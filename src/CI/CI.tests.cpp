@@ -44,6 +44,9 @@ struct CITables {
   double dE0{0.0};
 };
 CITables Li_CI_tables();
+// CI input options for Be (core [He]), Sigma_2 in a small basis, two levels
+// of 0+ and 1-, no files written
+std::string Be_sigma2_input();
 } // namespace UnitTest
 
 //==============================================================================
@@ -739,7 +742,7 @@ TEST_CASE("CI: three-electron Hamiltonian", "[CI][3VCI][unit]") {
       {index(2, -1), index(2, -2), index(2, -2)}, // 2s 2p+^2
       {index(2, -2), index(2, -2), index(2, -2)}, // 2p+^3
       {index(3, -3), index(3, -3), index(3, -3)}, // 3d+^3
-      {index(3, -3), index(3, -3), index(4, -3)} // 3d+^2 4d+
+      {index(3, -3), index(3, -3), index(4, -3)}  // 3d+^2 4d+
     };
 
     for (auto config : configs) {
@@ -1378,7 +1381,7 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
     {index(2, -1), index(2, -2), index(2, -2)}, // 2s 2p+^2
     {index(2, -2), index(2, -2), index(2, -2)}, // 2p+^3
     {index(3, -3), index(3, -3), index(3, -3)}, // 3d+^3
-    {index(3, -3), index(3, -3), index(4, -3)} // 3d+^2 4d+
+    {index(3, -3), index(3, -3), index(4, -3)}  // 3d+^2 4d+
   };
 
   // Convention of the single-particle table: the same identity must hold for
@@ -1773,4 +1776,12 @@ UnitTest::CITables UnitTest::Li_CI_tables() {
   t.dE0 = 0.03;
 
   return t;
+}
+
+//==============================================================================
+std::string UnitTest::Be_sigma2_input() {
+  return "ci_basis = 6spd; J+ = 0; J- = 1; num_solutions = 2; "
+         "sigma2 = true; cis2_basis = 3sp; print_details = false; "
+         "qk_file = false; sk_file = false; dsk_file = false; "
+         "ds1_file = false; ci_file = false;";
 }

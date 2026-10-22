@@ -134,7 +134,10 @@ enum class Solver { dense, Davidson };
                       Sigma_1; ignored if nullptr. See @ref Sigma1Correction.
                       Its reference energy E0 is the lowest energy of this
                       (J, parity), so is found self-consistently: see
-                      @ref iterate_E0.
+                      @ref iterate_E0. Required for the Brillouin-Wigner
+                      Sigma_2 shift (@p dSk), which uses the same E0. Without
+                      the dSigma/dE correction, it holds only the orbital
+                      energies.
   @param hk           Average S^k/Q^k ratios, for extrapolating Sigma_2 beyond
                       the cis2 basis; empty for no extrapolation.
                       See @ref MBPT::average_hk.
