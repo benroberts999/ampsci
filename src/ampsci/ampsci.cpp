@@ -477,7 +477,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto fk_both_lines =
     input.get({"Correlations"}, "fk_both_lines", false);
 
-  // Also form dSigma/dE (for CI iterative_correction)
+  // Also form dSigma/dE (for CI sigma1_dSdE)
   const auto sigma_derivative =
     input.get({"Correlations"}, "derivative", false);
 

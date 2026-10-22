@@ -7,7 +7,6 @@
 #include "Coulomb/QkTable.hpp"
 #include "HF/Breit.hpp"
 #include "IO/ChronoTimer.hpp"
-#include "MBPT/Sigma2.hpp"
 #include "Maths/Grid.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -91,12 +90,7 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   // As the table fills: a cut of zero or less means all k
   const auto max_k = ci_input.get("max_k", 8);
   const auto k_cut = max_k <= 0 ? 999ul : std::size_t(max_k);
-  const auto BW =
-    MBPT::parse_Denominators(ci_input.get("denominators", "DFK"s)) ==
-    MBPT::Denominators::BW;
-  const auto iterative_correction =
-    ci_input.get("iterative_correction", false) ||
-    (BW && include_Sigma1 && include_Sigma2);
+  const auto sigma1_dSdE = ci_input.get("sigma1_dSdE", false);
 
   const auto ci_orbitals =
     CI::basis_subset(basis, out.ci_basis_string, out.core_string);
@@ -118,8 +112,7 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   const auto Sigma_derivative =
     input.get({"Correlations"}, "derivative", false);
   const auto need_s1_qk =
-    include_Sigma1 &&
-    (!have_Sigma || (iterative_correction && !Sigma_derivative));
+    include_Sigma1 && (!have_Sigma || (sigma1_dSdE && !Sigma_derivative));
   {
     const auto mbpt_string =
       need_s1_qk ? ci_input.get("s1_basis", ""s) :

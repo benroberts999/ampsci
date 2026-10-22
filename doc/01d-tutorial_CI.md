@@ -140,36 +140,21 @@ CI{
     // terms, they will be included. Set negative (or very
     // large) to include all k. [8]
   denominators;
-    // 'DFK', 'BW', 'RS', 'Fermi', 'Fermi0'. Denominators
-    // used in Sigma2 matrix elements. DFK
-    // (Dzuba-Flambaum-Kozlov): target-state legs use the
-    // lowest excited state of their kappa,
-    // intermediate-state legs use actual energies. BW
-    // (Brillouin-Wigner): the denominator is E0 minus the
-    // energy of the intermediate state, where E0 is the
-    // total valence energy of the target level; DFK is this
-    // with E0 taken from the leading configuration. BW
-    // requires the E0 of each (J, parity) block, so it
-    // enables iterative_correction (requires sigma1): S^k
-    // and dS^k/dE0 are tabulated at an internal reference
-    // and each S^k is resummed to the E0 of the block being
-    // solved. This doubles the Sigma_2 calculation time and
-    // stores a second sk file. RS uses actual energies for
-    // all external legs, Fermi uses the lowest excited
-    // state for each kappa (both legs), Fermi0 uses lowest
-    // excited state for all kappas (and thus cancels in all
-    // except diagram 'd'). Applies to Sigma_2 only. [DFK]
-  iterative_correction;
-    // Include the derivative (dSigma/dE) correction to the
-    // Sigma_1 matrix elements. Restores the configuration
-    // dependence lost by evaluating Sigma_1 at a fixed
-    // energy. The reference energy E0 is the lowest energy
-    // of each J/pi, and is found iteratively. With
-    // denominators = BW, the same E0 also shifts the
-    // Sigma_2 matrix elements (see denominators). Prefer
-    // calculating dSigma/dE in the Correlations block
-    // (option derivative) which is much faster, and can
-    // include all-orders [false]
+    // Energy denominators in Sigma_2 [DFK]:
+    // - RS: actual energies
+    // - Fermi: lowest excited energy of each kappa
+    // - Fermi0: lowest excited energy of all kappas
+    // - DFK: target legs as Fermi, others as RS
+    // - BW: Brillouin-Wigner, at E0 of lowest level of J/pi
+    //   (iterated; see BW_each_level). Doubles Sigma_2 time
+  sigma1_dSdE;
+    // Sigma_1 at the level energy E0, via dSigma/dE [false]
+    // - E0: lowest level of J/pi, or each (BW_each_level)
+    // - much faster with Correlations{ derivative = true; }
+  BW_each_level;
+    // E0 for each level, not just lowest of J/pi [false]
+    // - for BW and sigma1_dSdE
+    // - levels not orthogonal; one more solve per level
   qk_file;
     // Filename for storing two-body Coulomb integrals. By
     // default, is At.qk.abf, where At is atomic symbol +
@@ -187,7 +172,7 @@ CI{
     // formed from it after reading.
   ds1_file;
     // Filename for storing the Sigma_1
-    // derivative-correction tables (iterative_correction).
+    // derivative-correction tables (sigma1_dSdE).
     // Default: At_b_hash.ds1.abf, where b is the s1
     // (internal) basis, and hash encodes other settings
     // that change the tables. Not used if the Correlations
