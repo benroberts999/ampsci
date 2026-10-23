@@ -214,6 +214,21 @@ CI{
     // those values; set 'false' for no screening (or 'fk =
     // 1;'). If blank (default), takes from correlation
     // potential if it has them.
+  Feynman_screen;
+    // Sigma_2 screening (loop) diagrams by the Feynman
+    // method (static limit), in place of the Goldstone ones
+    // (their energy dependence, from DFK/BW denominators, kept
+    // at second order, screened by fk). Needs
+    // Correlations{Feynman = true;}, from
+    // which these are taken: rmin, rmax, stride (radial
+    // sub-grid), lmax, n_min_core, include_G, real_omega,
+    // imag_omega, complex_green. [false]
+  all_order_screen;
+    // With Feynman_screen: screening to all orders; else
+    // second order only [true]
+  hp_screen;
+    // With Feynman_screen: include the hole-particle
+    // interaction [true]
   extrapolate_sigma2;
     // Extrapolate Sigma_2 to diagrams outside cis2_basis,
     // using average correction ratios: S^k ~ h_k*Q^k, where

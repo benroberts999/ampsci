@@ -9,6 +9,7 @@
 #include "IO/InputBlock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/CorrelationPotential.hpp"
+#include "MBPT/Feynman.hpp"
 #include "MBPT/Sigma2.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -161,6 +162,14 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Give an explicit list to use those values; set 'false' for no "
      "screening (or 'fk = 1;'). "
      "If blank (default), takes from correlation potential if it has them."},
+    {"Feynman_screen",
+     "Use Feynman method for Sigma_2 screening diagrams. Requires "
+     "Correlations{Feynman = true;} [false]"},
+    {"all_order_screen",
+     "With Feynman_screen: screening to all orders; else second order only "
+     "[true]"},
+    {"hp_screen",
+     "With Feynman_screen: include the hole-particle interaction [true]"},
     {"extrapolate_sigma2",
      "Extrapolate Sigma_2 to diagrams outside cis2_basis, using average "
      "correction ratios: S^k ~ h_k*Q^k, where h_k = <S^k/Q^k> is averaged over "
@@ -329,6 +338,28 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     fk_from_Sigma = !fk.empty();
   }
 
+  // Sigma_2 loop diagrams (a1, b1) by the Feynman method, static limit,
+  // with the correlation potential's sub-grid and Feynman parameters. The
+  // energy dependence of their denominators is kept at second order.
+  const auto Feynman_screen_requested =
+    include_Sigma2 && input.get("Feynman_screen", false);
+  const auto Feynman_screen =
+    Feynman_screen_requested && wf.Sigma() &&
+    wf.Sigma()->method() == MBPT::SigmaMethod::Feynman;
+  const auto all_order_screen = input.get("all_order_screen", true);
+  const auto hp_screen = input.get("hp_screen", true);
+  // Tag for the sk and ci file hashes
+  const auto Feynman_screen_tag =
+    Feynman_screen ? std::string("Fscr") + (all_order_screen ? "ao" : "2") +
+                       (hp_screen ? "hp" : "") + ";" :
+                     "";
+  if (Feynman_screen_requested && !Feynman_screen) {
+    fmt2::warning();
+    std::cout << ": Requested Feynman screening in Sigma_2, but the "
+                 "correlation potential does not use the Feynman method."
+                 " Not including it\n";
+  }
+
   // Extrapolate Sigma_2 (via average screening) for diagrams outside
   // cis2_basis
   const auto extrapolate_sigma2 = input.get("extrapolate_sigma2", true);
@@ -377,10 +408,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       std::cout << "With basis for Σ_2: " << DiracSpinor::state_config(s2_basis)
                 << "\n";
 
-      std::cout << "Including Σ_2 correction to <vw|Q|xy> for: vw or xy in "
-                << DiracSpinor::state_config(cis2_basis)
-                << " (or diagonal), all in "
-                << DiracSpinor::state_config(cis2_legs_basis) << "\n";
+      std::cout << "Including <vw|Σ_2|xy> for: vw/xy in "
+                << DiracSpinor::state_config(cis2_basis) << ", vw+xy in "
+                << DiracSpinor::state_config(cis2_legs_basis) << " (+diag)\n";
       if (extrapolate_sigma2) {
         std::cout << "(and extrapolating beyond using hk=<Sk/Qk>)\n";
       }
@@ -640,7 +670,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     const auto sk_settings =
       common_settings + MBPT::parse_Denominators(denominators) + ";" +
       (exclude_wrong_parity_box ? "xb" : "") + ";" +
-      (iterative_correction_sigma2 ? std::to_string(E0_sigma2) + ";" : "");
+      (iterative_correction_sigma2 ? std::to_string(E0_sigma2) + ";" : "") +
+      Feynman_screen_tag;
     const auto sk_basename = wf.identity() + "_" +
                              DiracSpinor::state_config(excited_s2) + "_" +
                              qip::hash_string(sk_settings);
@@ -663,20 +694,52 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       for (std::size_t i = 0; i < fk.size(); ++i) {
         fmt::print("{:.3f}{}", fk.at(i), i + 1 == fk.size() ? "]\n" : ", ");
       }
+      if (Feynman_screen) {
+        std::cout << " * fk only used for (non-screening) diagrams; Feynman "
+                     "for others\n";
+      }
     }
 
     std::cout << std::flush;
 
     if (iterative_correction_sigma2) {
-      fmt::print("Brillouin-Wigner Σ_2: at E0 = {:.4f} au, + "
-                 "dΣ^k/dE0 correction for each J/pi\n",
-                 E0_sigma2);
+      fmt::print(
+        "Brillouin-Wigner Σ_2: at E0 = {:.2f}, + dΣ^k/dE0 (each J/pi)\n",
+        E0_sigma2);
     }
+
+    // Static screened-Coulomb kernels for the loop diagrams. The
+    // correlation potential's own Feynman object is used if it has the
+    // requested screening and hole-particle options; otherwise one is
+    // constructed with its sub-grid and parameters (Q*Pi*Q from the disk
+    // cache, if present)
+    std::vector<MBPT::RMatrix> screening_kernels;
+    if (Feynman_screen && !no_new_integralsQ) {
+      fmt::print(
+        "Σ_2 direct (screening) diagrams by Feynman method: {} screening{}\n",
+        all_order_screen ? "all-orders" : "second-order",
+        hp_screen ? " + hole-particle" : "");
+      std::cout << std::flush;
+      const auto *feynman = wf.Sigma()->feynman();
+      if (feynman != nullptr && feynman->screening() == all_order_screen &&
+          feynman->hole_particle() == hp_screen) {
+        screening_kernels = feynman->dQ_0_k();
+      } else {
+        const auto new_feynman =
+          wf.Sigma()->make_feynman(all_order_screen ? MBPT::Screening::include :
+                                                      MBPT::Screening::exclude,
+                                   hp_screen ? MBPT::HoleParticle::include :
+                                               MBPT::HoleParticle::exclude);
+        screening_kernels = new_feynman->dQ_0_k();
+      }
+    }
+    const auto *screening_ptr =
+      screening_kernels.empty() ? nullptr : &screening_kernels;
 
     Sk = MBPT::calculate_Sk(Sk_filename, cis2_legs_basis, cis2_basis, core_s2,
                             excited_s2, qk, max_k_Coulomb,
                             exclude_wrong_parity_box, denominators,
-                            no_new_integralsQ, fk, E0_sigma2);
+                            no_new_integralsQ, fk, E0_sigma2, screening_ptr);
     warn_if_empty(Sk.count(), "Sigma_2 S^k", Sk_filename);
 
     if (iterative_correction_sigma2) {
@@ -690,10 +753,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       std::cout << "\nCalculate Σ^k_abcd at E0 + " << delta_E0
                 << " au, for dΣ^k/dE0\n"
                 << std::flush;
-      dSk = MBPT::calculate_Sk(dSk_filename, cis2_legs_basis, cis2_basis,
-                               core_s2, excited_s2, qk, max_k_Coulomb,
-                               exclude_wrong_parity_box, denominators,
-                               no_new_integralsQ, fk, E0_sigma2 + delta_E0);
+      dSk = MBPT::calculate_Sk(
+        dSk_filename, cis2_legs_basis, cis2_basis, core_s2, excited_s2, qk,
+        max_k_Coulomb, exclude_wrong_parity_box, denominators,
+        no_new_integralsQ, fk, E0_sigma2 + delta_E0, screening_ptr);
       warn_if_empty(dSk.count(), "dSigma_2 (dsk)", dSk_filename);
       // Both tables have the same entries (same fill), so this is safe
       for (std::size_t k = 0; k < dSk->size(); ++k) {
@@ -768,7 +831,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       DiracSpinor::state_config(cis2_basis) + ";" +
       DiracSpinor::state_config(cis2_legs_basis) + ";" +
       (exclude_wrong_parity_box ? "xb" : "") + ";" +
-      (extrapolate_sigma2 ? "ex" : "") + ";";
+      (extrapolate_sigma2 ? "ex" : "") + ";" + Feynman_screen_tag;
   }
   if (!Bk.emptyQ()) {
     ci_settings +=
