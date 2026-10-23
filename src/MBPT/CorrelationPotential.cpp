@@ -873,6 +873,19 @@ bool CorrelationPotential::read_write(const std::string &fname,
 }
 
 //==============================================================================
+std::optional<Feynman>
+CorrelationPotential::make_feynman(Screening screening,
+                                   HoleParticle hole_particle) const {
+  if (m_method != SigmaMethod::Feynman)
+    return std::nullopt;
+  auto options = m_Foptions;
+  options.screening = screening;
+  options.hole_particle = hole_particle;
+  return Feynman(m_HF, m_i0, m_stride, m_size, options, m_n_min_core,
+                 m_includeG, false, m_fname);
+}
+
+//==============================================================================
 std::string CorrelationPotential::method_string() const {
   std::string out = m_method == SigmaMethod::Feynman ? "Feynman" : "Goldstone";
   if (m_method == SigmaMethod::Feynman) {

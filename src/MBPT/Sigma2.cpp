@@ -1,6 +1,7 @@
 #include "Sigma2.hpp"
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
+#include "MBPT/Feynman.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <algorithm>
 #include <cassert>
@@ -113,33 +114,41 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
                const std::vector<DiracSpinor> &excited,
                const Angular::SixJTable &SixJ, Denominators denominators,
-               const std::vector<double> &fk, double E0) {
+               const std::vector<double> &fk, double E0,
+               const std::vector<RMatrix> *screening_kernels) {
   using namespace Sigma2;
 
   if (!Sk_vwxy_SR(k, v, w, x, y))
     return 0.0;
 
-  return S_Sigma2_ab(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk,
-                     E0) +
-         S_Sigma2_c1(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk,
-                     E0) +
-         S_Sigma2_c2(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk,
-                     E0) +
-         S_Sigma2_d(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk,
-                    E0);
+  // Static loop diagrams from the Feynman method, for the k the kernels
+  // cover; otherwise all diagrams are second-order Goldstone
+  const auto ik = std::size_t(k);
+  const bool feynman_loop =
+    screening_kernels != nullptr && ik < screening_kernels->size();
+
+  const auto Sk_Goldstone =
+    S_Sigma2_ab(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk, E0,
+                feynman_loop) +
+    S_Sigma2_c1(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk, E0) +
+    S_Sigma2_c2(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk, E0) +
+    S_Sigma2_d(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk, E0);
+
+  return feynman_loop ?
+           Sk_Goldstone +
+             S_Sigma2_screen(k, v, w, x, y, screening_kernels->at(ik)) :
+           Sk_Goldstone;
 }
 
 //==============================================================================
 //==============================================================================
 //==============================================================================
-double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
-                           const DiracSpinor &x, const DiracSpinor &y,
-                           const Coulomb::QkTable &qk,
-                           const std::vector<DiracSpinor> &core,
-                           const std::vector<DiracSpinor> &excited,
-                           const Angular::SixJTable &SixJ,
-                           Denominators denominators,
-                           const std::vector<double> &fk, double E0) {
+double Sigma2::S_Sigma2_ab(
+  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
+  const DiracSpinor &y, const Coulomb::QkTable &qk,
+  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
+  const Angular::SixJTable &SixJ, Denominators denominators,
+  const std::vector<double> &fk, double E0, bool exclude_static_loop) {
 
   // overall selectrion rule tested outside
 
@@ -207,7 +216,7 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
 
       // Screening: the direct leg is of multipolarity k, so each term picks up
       // a single Fk(k); the exchange legs are screened inside P2 (at their own
-      // internal multipolarity). The bubble (screening) diagrams a1 and b1 are
+      // internal multipolarity). The screening diagrams a1 and b1 are
       // thus screened once, all others twice.
 
       // diagrams a1, a2, a3:
@@ -222,6 +231,18 @@ double Sigma2::S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
 
       // diagrams b1, b2, b3:
       sum += Fk(k) * (qk_vaxn * wk_nway + pk_vaxn * qk_nway) * inv_de_b;
+
+      // The loop screening diagrams a1 and b1 are the Q*Q parts of the above.
+      // With
+      // exclude_static_loop, their static part (denominator e_a - e_n,
+      // i.e. 1/de_an, for each) is removed, with the same screening factor:
+      // only the energy dependence of their denominators remains, screened by
+      // fk as the other diagrams are. The static loop, screened to all
+      // orders, is added by the caller
+      if (exclude_static_loop) {
+        const auto qq_loop = qk_vnxa * qk_awny;
+        sum -= Fk(k) * qq_loop * 2.0 / de_an;
+      }
     }
   }
 
@@ -469,6 +490,25 @@ double Sigma2::S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
 }
 
 //==============================================================================
+double Sigma2::S_Sigma2_screen(int k, const DiracSpinor &v,
+                               const DiracSpinor &w, const DiracSpinor &x,
+                               const DiracSpinor &y, const RMatrix &delta_Qk) {
+
+  // Same angular structure as Q^k_vwxy (the loop diagrams have a direct
+  // Coulomb line of multipolarity k at each vertex), with the radial Coulomb
+  // kernel replaced by the screening kernel
+  if (!Angular::Ck_kk_SR(k, v.kappa(), x.kappa()) ||
+      !Angular::Ck_kk_SR(k, w.kappa(), y.kappa()))
+    return 0.0;
+
+  const auto angular = Angular::neg1pow_2(2 * k + v.twoj() - w.twoj()) *
+                       Angular::Ck_kk(k, v.kappa(), x.kappa()) *
+                       Angular::Ck_kk(k, w.kappa(), y.kappa());
+
+  return angular * two_body_ME(delta_Qk, v, w, x, y);
+}
+
+//==============================================================================
 Coulomb::WkTable calculate_Sk(const std::string &filename,
                               const std::vector<DiracSpinor> &external,
                               const std::vector<DiracSpinor> &pair_basis,
@@ -477,7 +517,8 @@ Coulomb::WkTable calculate_Sk(const std::string &filename,
                               const Coulomb::QkTable &qk, int max_k,
                               bool exclude_wrong_parity_box,
                               Denominators denominators, bool no_new_integrals,
-                              const std::vector<double> &fk, double E0) {
+                              const std::vector<double> &fk, double E0,
+                              const std::vector<RMatrix> *screening_kernels) {
 
   Coulomb::WkTable Sk;
 
@@ -490,7 +531,7 @@ Coulomb::WkTable calculate_Sk(const std::string &filename,
                                const DiracSpinor &w, const DiracSpinor &x,
                                const DiracSpinor &y) {
     return MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, sjt, denominators,
-                         fk, E0);
+                         fk, E0, screening_kernels);
   };
 
   // Which states are in pair_basis, indexed by nk_index: checked for every

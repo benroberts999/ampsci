@@ -342,6 +342,82 @@ public:
   std::vector<GMatrix> Sigma_direct_each_k(int kappa_v, double en_v) const;
 
   /*!
+    @brief Static (w = 0) screening correction dQ^k(0), each k, from the
+           stored Q*Pi*Q along the frequency contour.
+
+    @details
+    The screening correction to the Coulomb line is the chain of
+    polarisation loops, summed to all orders:
+    \f[
+      \delta Q(\omega) = -iQ\Pi(\omega)XQ,
+    \f]
+    where
+    \f[
+      X = \left[1 + iQ\Pi(\omega)\right]^{-1}.
+    \f]
+    Without screening, it is the second-order loop, \f$ -iQ\Pi Q \f$.
+
+    The static value, \f$ \delta Q(0) \f$, is needed. Evaluating it
+    directly would need the Green's functions in the loop at the core
+    energies, which are their (projected-out) poles. Instead, it is obtained
+    from the values already stored along the frequency contour used for
+    Sigma, \f$ \omega = \omega_{\rm re} + iu \f$, by Cauchy's integral
+    formula:
+
+    \f[
+      \delta Q(0) = \frac{1}{2\pi i}\oint_C
+        \frac{\delta Q(\omega)}{\omega}\,d\omega.
+    \f]
+
+    The contour C is the rectangle bounded by the lines
+    \f$ {\rm Re}\,\omega = \pm\omega_{\rm re} \f$, closed at
+    \f$ {\rm Im}\,\omega = \pm\infty \f$. 
+    
+    Inside it,
+    \f$ \delta Q \f$ is analytic: its poles are at the excitation energies,
+    \f$ |\omega| \geq \Delta > |\omega_{\rm re}| \f$. The closing
+    segments vanish, since \f$ \delta Q \sim 1/\omega^2 \f$ at large
+    \f$ |\omega| \f$.
+
+    Two symmetries reduce the contour to the stored half-line, u >= 0:
+    - \f$ \delta Q(-\omega) = \delta Q(\omega) \f$, so the two vertical
+      lines contribute equally;
+    - \f$ \delta Q(\omega^*) = \delta Q(\omega)^* \f$, so the lower half
+      of each line is the complex conjugate of the upper half.
+
+    With \f$ \omega_{\rm re} < 0 \f$, this gives
+
+    \f[
+      \delta Q(0) = -\frac{2}{\pi}\,{\rm Re}\int_0^\infty
+        \frac{\delta Q(\omega_{\rm re} + iu)}{\omega_{\rm re} + iu}\,du,
+    \f]
+
+    which is evaluated on the same frequency quadrature (points u_j, weights
+    W_j) as Sigma_direct:
+
+    \f[
+      \delta Q(0) \approx -\frac{2}{\pi}\,{\rm Re}\sum_j W_j\,
+        \frac{\delta Q(\omega_{\rm re} + iu_j)}{\omega_{\rm re} + iu_j}.
+    \f]
+    This is a weighted sum of the stored matrices, so costs almost nothing.
+    The Green's functions are never evaluated closer than
+    \f$ |\omega_{\rm re}| \f$ to a pole, and the only error is that of the
+    frequency quadrature, as for Sigma. Screening and the hole-particle
+    interaction are as set for this object.
+
+    @note As for Sigma, weak fictitious poles from the imperfect core
+          subtraction (at core-core energy differences; see best_omre) may lie
+          inside the contour.
+
+    @return Real kernels for k = 0..max_k(), including both integration
+            measures (see two_body_ME).
+
+    @warning Q*Pi*Q must be formed first (see form_qpiq); checked only by
+             assert.
+  */
+  std::vector<RMatrix> dQ_0_k() const;
+
+  /*!
     @brief Returns (reference to) radial Coulomb matrix, q^k.
 
     @details
@@ -476,5 +552,29 @@ public:
 */
 double best_omre(const std::vector<DiracSpinor> &core,
                  const std::vector<DiracSpinor> &valence, bool print = false);
+
+/*!
+  @brief Radial two-body matrix element <ab|G|cd> of a radial (spinless) kernel.
+
+  @details
+  \f[
+    \langle ab | G | cd \rangle = \sum_{ij} \rho_{ac}(r_i)\, G_{ij}\,
+    \rho_{bd}(r_j), 
+  \f]
+  wirth
+  \f[
+    \rho_{ac} = f_a f_c + g_a g_c,
+  \f]
+  on the subgrid of @p G. With G the Coulomb matrix q^k this is the radial
+  integral \f$ R^k_{abcd} \f$; with G the screening correction dQ^k (see
+  Feynman::dQ_0_k) it is the corresponding screening
+  integral.
+
+  @param G  Radial kernel on a sub-grid; must include both integration
+            measures (dri and drj)
+*/
+double two_body_ME(const RMatrix &G, const DiracSpinor &Fa,
+                   const DiracSpinor &Fb, const DiracSpinor &Fc,
+                   const DiracSpinor &Fd);
 
 } // namespace MBPT

@@ -1,6 +1,7 @@
 #pragma once
 #include "Angular/SixJTable.hpp"
 #include "Coulomb/QkTable.hpp"
+#include "MBPT/RadialMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/String.hpp"
 #include <string>
@@ -160,6 +161,16 @@ double leg_de(Denominators denominators, double et_bar, double et,
                       Missing (or empty) implies 1.0 (no screening).
   @param E0           Total valence energy of the target CI level; used only
                       by Denominators::BW.
+  @param screening_kernels
+                      Static screened-Coulomb kernels dQ^k(0), for each k
+                      (see Feynman::dQ_0_k), on the Feynman
+                      radial sub-grid. If given (for
+                      the k it covers), the loop diagrams a1 and b1 are
+                      the Feynman static polarisation loop, 
+                      screened to all orders
+                      (\ref Sigma2::S_Sigma2_screen), plus the energy
+                      dependence of their denominators at second order (see
+                      \ref Sigma2::S_Sigma2_ab; screened by fk).
 
   @return \f$ S^k_{vwxy} \f$.
 */
@@ -169,7 +180,8 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const std::vector<DiracSpinor> &excited,
                const Angular::SixJTable &SixJ,
                Denominators denominators = Denominators::DFK,
-               const std::vector<double> &fk = {}, double E0 = 0.0);
+               const std::vector<double> &fk = {}, double E0 = 0.0,
+               const std::vector<RMatrix> *screening_kernels = nullptr);
 
 /*!
   @brief Selection rule for Sk_vwxy.
@@ -334,6 +346,9 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
                                   Coulomb line.
   @param E0                       Target-level valence energy; used only by
                                   Denominators::BW.
+  @param screening_kernels        Static screened-Coulomb kernels, for
+                                  each k: loop diagrams from the Feynman
+                                  method (see \ref Sk_vwxy).
 
   @return WkTable containing all computed \f$ S^k_{vwxy} \f$ matrix elements.
 
@@ -348,7 +363,8 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
   const Coulomb::QkTable &qk, int max_k, bool exclude_wrong_parity_box,
   Denominators denominators, bool no_new_integrals = false,
-  const std::vector<double> &fk = {}, double E0 = 0.0);
+  const std::vector<double> &fk = {}, double E0 = 0.0,
+  const std::vector<RMatrix> *screening_kernels = nullptr);
 
 /*!
   @brief Average Sigma_2 correction ratios, h_k, for each multipole k.
@@ -400,9 +416,18 @@ namespace Sigma2 {
   @param E0           Target-level valence energy; used only by
                       Denominators::BW.
 
+  @param exclude_static_loop
+                      The loop diagrams a1 and b1 keep only the energy
+                      dependence of their denominators: their static
+                      (Fermi0) part, with denominator e_a - e_n, is
+                      subtracted. Screened by fk, as the other diagrams.
+                      Used when the static loop comes from the Feynman
+                      method (see \ref Sk_vwxy). For Fermi0, a1 and b1 are
+                      then zero.
+
   @return Diagrams a+b contribution to \f$ S^k_{vwxy} \f$.
 
-  @note The bubble diagrams (a1, b1) are screened once, by fk[k]; all others
+  @note The loop diagrams (a1, b1) are screened once, by fk[k]; all others
         are screened on both Coulomb lines.
 */
 double S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
@@ -411,7 +436,8 @@ double S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
                    const std::vector<DiracSpinor> &core,
                    const std::vector<DiracSpinor> &excited,
                    const Angular::SixJTable &SixJ, Denominators denominators,
-                   const std::vector<double> &fk = {}, double E0 = 0.0);
+                   const std::vector<double> &fk = {}, double E0 = 0.0,
+                   bool exclude_static_loop = false);
 
 /*!
   @brief Diagram c1 contribution to the reduced two-body Sigma.
@@ -507,6 +533,35 @@ double S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
                   const std::vector<DiracSpinor> &excited,
                   const Angular::SixJTable &SixJ, Denominators denominators,
                   const std::vector<double> &fk = {}, double E0 = 0.0);
+
+/*!
+  @brief Static loop diagrams, from a screened-Coulomb kernel.
+
+  @details
+  The loop diagrams (a1, b1) are the second-order term of the screening of
+  the valence-valence Coulomb line by the core, -iQ Pi Q; the Feynman method
+  gives the whole chain (see Feynman::dQ_0_k). They have the
+  angular structure of the Coulomb integral, with the radial Coulomb kernel
+  replaced by the screening kernel:
+  \f[
+    S^k_{vwxy} = (-1)^{k + j_v - j_w}\, C^k_{vx} C^k_{wy}\,
+    \langle vw | \delta Q^k | xy \rangle,
+  \f]
+  cf. \f$ Q^k_{vwxy} \f$ (\ref Coulomb::Qk_abcd), with the radial matrix
+  element from \ref two_body_ME. 
+  This is zero unless k is allowed at both vertices,
+   (v, x) and (w, y), as for Q^k.
+
+  @param k         Multipolarity.
+  @param v         (+ w x y) External spinors.
+  @param delta_Qk  Screening kernel for this k, including both integration
+                   measures.
+
+  @return Static loop contribution to \f$ S^k_{vwxy} \f$.
+*/
+double S_Sigma2_screen(int k, const DiracSpinor &v, const DiracSpinor &w,
+                       const DiracSpinor &x, const DiracSpinor &y,
+                       const RMatrix &delta_Qk);
 
 } // namespace Sigma2
 

@@ -1234,4 +1234,77 @@ std::vector<GMatrix> Feynman::Sigma_direct_each_k(int kv, double env) const {
   return Sigma_k;
 }
 
+//==============================================================================
+std::vector<RMatrix> Feynman::dQ_0_k() const {
+  // dQ(0) = (1/2 pi i) closed-contour integral of dQ(w)/w dw around w = 0,
+  // along Re(w) = -omre (upwards) and Re(w) = omre (downwards). dQ is even,
+  // so the two lines are equal; dQ(w*) = dQ(w)*, so the lower half of each
+  // line is the conjugate of the upper half. For omre < 0:
+  //   dQ(0) = -(2/pi) Re int_0^inf du dQ(omre + iu)/(omre + iu)
+  // with dQ = -i * qpiq (qpiq = Q*Pi*X*Q, or Q*Pi*Q, as formed in form_qpiq)
+
+  assert(has_qpiq() && "Q*Pi*Q must be formed (form_qpiq) first");
+
+  const auto num_ks = std::size_t(m_max_k + 1);
+  const ComplexRMatrix zero{m_i0, m_stride, m_subgrid_points, m_grid};
+  std::vector<ComplexRMatrix> sum_k(num_ks, zero);
+
+  constexpr auto minus_I = std::complex<double>{0.0, -1.0};
+  for (auto iw = 0ul; iw < m_wgrid_points.size(); ++iw) {
+    const auto omega = std::complex<double>{m_omre, m_wgrid_points[iw]};
+    const auto weight = minus_I * m_wgrid_weights[iw] / omega;
+    for (auto k = 0ul; k < num_ks; ++k) {
+      sum_k[k] += weight * m_qpiq_wk[iw][k];
+    }
+  }
+
+  const auto sign = m_omre < 0.0 ? -1.0 : 1.0;
+  std::vector<RMatrix> dQ_k;
+  dQ_k.reserve(num_ks);
+  for (const auto &sum : sum_k) {
+    auto dQ = sum.real();
+    dQ *= sign * 2.0 / M_PI;
+    // left-hand integration measure (qpiq includes drj only)
+    dQ_k.push_back(dQ.dri_in_place());
+  }
+  return dQ_k;
+}
+
+//==============================================================================
+double two_body_ME(const RMatrix &G, const DiracSpinor &Fa,
+                   const DiracSpinor &Fb, const DiracSpinor &Fc,
+                   const DiracSpinor &Fd) {
+  // <ab|G|cd> = sum_ij rho_ac(i) G_ij rho_bd(j); G includes both measures
+
+  const auto size = G.size();
+
+  // Densities on the sub-grid; zero beyond the orbitals' extent
+  const auto density = [&G, size](const DiracSpinor &F1,
+                                  const DiracSpinor &F2) {
+    std::vector<double> rho(size, 0.0);
+    const auto max_pt = std::min(F1.max_pt(), F2.max_pt());
+    for (auto i = 0ul; i < size; ++i) {
+      const auto si = G.index_to_fullgrid(i);
+      if (si >= max_pt)
+        break;
+      rho[i] = F1.f(si) * F2.f(si) + F1.g(si) * F2.g(si);
+    }
+    return rho;
+  };
+  const auto rho_ac = density(Fa, Fc);
+  const auto rho_bd = density(Fb, Fd);
+
+  double sum = 0.0;
+  for (auto i = 0ul; i < size; ++i) {
+    if (rho_ac[i] == 0.0)
+      continue;
+    double inner_sum = 0.0;
+    for (auto j = 0ul; j < size; ++j) {
+      inner_sum += G(i, j) * rho_bd[j];
+    }
+    sum += rho_ac[i] * inner_sum;
+  }
+  return sum;
+}
+
 } // namespace MBPT

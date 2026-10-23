@@ -373,6 +373,38 @@ public:
   */
   std::vector<double> average_fk(int l_max = 2) const;
 
+  //! Method used for the direct diagrams: Goldstone or Feynman
+  SigmaMethod method() const { return m_method; }
+
+  /*!
+    @brief Feynman object used for the direct diagrams (sub-grid, options,
+           Q*Pi*Q), if formed.
+
+    @details
+    It is formed with Sigma; not when Sigma is read from file (see
+    make_feynman). nullptr if not formed, or not the Feynman method.
+  */
+  const Feynman *feynman() const { return m_Fy ? &*m_Fy : nullptr; }
+
+  /*!
+    @brief Constructs a Feynman object with the sub-grid and parameters of
+           this Sigma, with the given screening and hole-particle options.
+
+    @details
+    Inherited from this Sigma (the Correlations input): the radial sub-grid
+    (rmin, rmax, stride), lmax for internal lines, n_min_core for the
+    polarisation loop, include_G (small components), and the frequency
+    contour (real_omega, imag_omega) and complex-energy Green's function
+    method. Only screening and hole-particle are set here.
+
+    Q*Pi*Q is read from the disk cache used when forming Sigma, if a file
+    with these options is present (its name encodes them), else formed and
+    written. For when feynman() is not available (Sigma read from file), or
+    has other options. Empty if not the Feynman method.
+  */
+  std::optional<Feynman> make_feynman(Screening screening,
+                                      HoleParticle hole_particle) const;
+
   //! Prints the sub-grid parameters to screen
   void print_subGrid() const;
 

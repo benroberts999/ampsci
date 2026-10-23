@@ -508,8 +508,8 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
                       std::ostream &outstream, std::size_t level) {
   assert(psi != nullptr);
 
-  constexpr auto eps_E0 = 1.0e-8;
-  constexpr auto max_iterations = 16;
+  constexpr auto eps_E0 = 1.0e-6;
+  constexpr auto max_iterations = 12;
 
   // Sigma_2 was tabulated at the reference E0_sigma2, and is shifted to the
   // current E0 using dS^k/dE0 (see corrected_Sk). Both corrections then move
@@ -534,8 +534,8 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
     s1_Jpi.E0 = psi->num_electrons() * e_min;
   }
 
-  fmt::print(outstream, "Iterating E0{} (initial: {:.8f} au):\n",
-             level == 0 ? "" : fmt::format(" (level {})", level), s1_Jpi.E0);
+  fmt::print(outstream, "Iterating E0{} (initial: {:.6f}):\n",
+             fmt::format(" ({})", level), s1_Jpi.E0);
   outstream << std::flush;
 
   // First pass: build Hci at the current E0, and diagonalise up to the
@@ -563,7 +563,7 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
 
   auto delta = psi->energy(level) - s1_Jpi.E0;
   s1_Jpi.E0 = psi->energy(level);
-  fmt::print(outstream, "  it {:2}: E0 = {:.8f} au (eps = {:.0e})\n", 1,
+  fmt::print(outstream, "  it {:2}: E0 = {:.6f} au (eps = {:.0e})\n", 1,
              s1_Jpi.E0, std::abs(delta / s1_Jpi.E0));
   outstream << std::flush;
 
