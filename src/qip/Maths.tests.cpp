@@ -59,6 +59,12 @@ TEST_CASE("qip::Maths", "[qip][Maths][unit]") {
   REQUIRE(qip::factorial(12u) == Approx(479001600.0));
   REQUIRE(qip::factorial(12l) == Approx(479001600.0));
   REQUIRE(qip::factorial(20ul) == Approx(2432902008176640000.0));
+  REQUIRE(qip::factorial(21ul) == Approx(21.0 * 2432902008176640000.0));
+
+  REQUIRE(qip::factorial(50ul) == Approx(3.04140932017134e64));
+  REQUIRE(qip::factorial(100ul) == Approx(9.33262154439442e157));
+  REQUIRE(qip::factorial(50) / qip::factorial(30) ==
+          Approx(1.14660755112113e32));
 
   REQUIRE(qip::double_factorial(0) == Approx(1.0));
   REQUIRE(qip::double_factorial(0ul) == Approx(1.0));
