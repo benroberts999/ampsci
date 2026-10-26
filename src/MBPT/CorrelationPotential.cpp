@@ -318,6 +318,18 @@ CorrelationPotential::state_fk(double ev, const DiracSpinor *Fv) {
     printf("%.3f, ", each_fk);
   }
   std::cout << "}\n";
+  // Hole-particle factors (ratio of the hp-dressed to the screened direct
+  // Sigma, each k), for reference: not used by this Sigma (hp is included
+  // exactly in the direct diagrams), but comparable to the fk
+  const bool calc_etak = false;
+  if (calc_etak && m_Fy->hole_particle()) {
+    const auto etak = calculate_etak(ev, *Fv);
+    std::cout << "  etak = {";
+    for (const auto &each_etak : etak) {
+      printf("%.3f, ", each_etak);
+    }
+    std::cout << "}\n";
+  }
   // If not stored, store first screening factors
   if (m_fk.empty()) {
     m_fk = fk;
@@ -472,7 +484,7 @@ CorrelationPotential::calculate_fk(double ev, const DiracSpinor &v) const {
 //==============================================================================
 std::vector<double>
 CorrelationPotential::calculate_etak(double ev, const DiracSpinor &v) const {
-  assert(m_Fy0 && m_FyH);
+  assert(m_Fy && m_FyX);
   // Sigma_d for every k in one pass (see calculate_fk)
   const auto Sd0_k = m_FyX->Sigma_direct_each_k(v.kappa(), ev);
   const auto SdH_k = m_Fy->Sigma_direct_each_k(v.kappa(), ev);
