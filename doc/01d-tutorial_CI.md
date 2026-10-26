@@ -542,6 +542,7 @@ This can be controlled manually with the `cis2_basis` option.
 Each Coulomb integral \f$\langle vw|Q|xy\rangle\f$ has two pairs of orbitals: \f$vw\f$ and \f$xy\f$.
 The \f$\Sigma^2\f$ correction to it is calculated if both orbitals of at least one pair are in the first subset given by `cis2_basis`, and all four orbitals are in the second.
 If only one subset is given, the second is the whole `ci_basis`.
+By default, the second subset is \f$n\le 20\f$, for each \f$l\f$ in the `ci_basis`.
 For example, with `cis2_basis = 5spdf;`, \f$\langle 3s4p|Q|7s9p\rangle\f$ is corrected (the pair \f$3s4p\f$ is in `5spdf`), but \f$\langle 3s7p|Q|4s9p\rangle\f$ is not (neither pair is).
 With `cis2_basis = 5spdf, 10spdf;`, all four orbitals must also be in `10spdf`; with `cis2_basis = 5spdf, 5spdf;`, all four must be in `5spdf`.
 The diagonal integrals, \f$\langle vw|Q|vw\rangle\f$ and \f$\langle vw|Q|wv\rangle\f$, are calculated for all \f$v, w\f$ in the second subset (for both \f$j\f$ of each \f$nl\f$ shell): they enter the energy of every configuration, and there are few of them.

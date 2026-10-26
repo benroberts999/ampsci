@@ -69,12 +69,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     {"Brueckner", "Use Brueckner (spectrum) states for CI basis? Must have "
                   "Correlations, Spectrum, and sigma1. [false]"},
     {"cis2_basis",
-     "Pair of basis strings, e.g. '8spdf, 12spdf'. Sigma_2 is calculated for "
-     "<vw|Q|xy> if vw or xy is in the first, and all four are in the second. "
+     "Pair of basis strings, e.g. '8spdf, 20spdf'. Sigma_2 is calculated for "
+     "<vw|Q|xy> if (vw or xy) is in the first, and (vw and xy) are in second. "
      "All diagonal entries (xy = vw) up to second are included. "
-     "Others are extrapolated (see extrapolate_sigma2). If only one is given, "
-     "the second is ci_basis. [default: 'Nspdf, ci_basis', where N is maximum "
-     "n for core + 2]"},
+     "Default: '(n+2)spdf..., 20spdf...' (each L in ci_basis)."},
     {"Breit2", "Include two-body Breit? Default is true if Breit included in "
                "HF. Ignored if Breit not included in HF. [true]"},
     {"Breit_basis",
@@ -312,10 +310,16 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // S2 corrections are included for <vw|Q|xy> with the pair vw, or xy, in
   // cis2_basis (the first subset), or diagonal (xy in the same nl shells as
   // vw), and all four orbitals in cis2_legs_basis (the second; all of the CI
-  // basis if not given)
+  // basis if only the first is given). Defaults: n up to n_core + 2 for the
+  // pair, n up to 20 for the legs, both with every l of the CI basis
+  std::string ci_l_symbols;
+  for (int l = 0; l <= DiracSpinor::max_l(ci_sp_basis); ++l) {
+    ci_l_symbols += AtomData::l_symbol(l);
+  }
   const auto cis2_basis_strings = input.get(
     "cis2_basis",
-    std::vector<std::string>{std::to_string(N_max_core + 2) + "spdf"});
+    std::vector<std::string>{std::to_string(N_max_core + 2) + ci_l_symbols,
+                             "20" + ci_l_symbols});
   const auto cis2_basis =
     CI::basis_subset(ci_sp_basis, cis2_basis_strings.front());
   const auto cis2_legs_basis =
