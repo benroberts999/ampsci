@@ -416,8 +416,12 @@ TEST_CASE("Sigma2: Feynman static loop", "[Sigma2][MBPT][Feynman]") {
                 false,
                 false});
 
-  const auto [core, excited] =
+  // Named references (not structured bindings), so the lambdas below can
+  // capture them in C++17
+  const auto core_excited =
     DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
+  const auto &core = core_excited.first;
+  const auto &excited = core_excited.second;
 
   // As Correlations: sub-grid over r = 1e-4 to 30
   const std::size_t stride = 2;
