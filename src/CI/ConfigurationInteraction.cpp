@@ -35,35 +35,16 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Basis used for CI expansion; must be a sub-set of full ampsci basis. "
      "With three valence electrons the number of CSFs grows quickly: a "
      "smaller basis (e.g., 12spdf) is usually required [default: 20spdf]"},
-    {"num_electrons", "Number of valence electrons: 2 or 3 [2]"},
-    {"leading",
-     "Leading configurations, from which the CI configurations are formed by "
-     "excitations; shells separated by '.', e.g., 'leading = 6s2.6p, "
-     "6s.6p2;'. Default: the lowest few configurations of each parity\n"
-     "NB: Always check for truncated CI"},
-    {"excitations",
-     "Excitations from the leading configurations, formed stepwise: 'k' or "
-     "'k:basis', e.g., '1, 2, 3:6spdf'. Step k moves one electron into its "
-     "basis (default: ci_basis); the largest k is the number of steps, so "
-     "'3:6spdf' is the same as '1, 2, 3:6spdf'; '0' gives the leading "
-     "configurations only. Two full steps include every two-electron "
-     "configuration. [1, 2]"},
     {"J", "List of total angular momentum J for CI solutions (comma "
           "separated). Integers for two electrons; half-integers, as "
           "fractions (1/2, 3/2) or decimals (0.5, 1.5), for three. []"},
     {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
     {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
-    {"twoJ", "List of 2J (integers) for CI solutions; takes precedence over "
-             "J. Works for either number of electrons."},
-    {"twoJ+", "As above, but for EVEN CSFs only (takes precedence over J+)."},
-    {"twoJ-", "As above, but for ODD CSFs (takes precedence over J-)."},
     {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
     {"all_below_cm",
      "Find all CI solutions for energies below this threshold, "
      "in inverse cm. Note that this is the total energy, not the "
      "excitation energy. If set, num_solutions is ignored."},
-    {"davidson", "Use iterative Davidson method for CI solutions "
-                 "[default: true for 3 electrons, false for 2]"},
     {"sigma1", "Include one-body MBPT correlations? [false]"},
     {"sigma2", "Include two-body MBPT correlations? [false]"},
     {"Brueckner", "Use Brueckner (spectrum) states for CI basis? Must have "
@@ -73,6 +54,28 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "<vw|Q|xy> if (vw or xy) is in the first, and (vw and xy) are in second. "
      "All diagonal entries (xy = vw) up to second are included. "
      "Default: '(n+2)spdf..., 20spdf...' (each L in ci_basis)."},
+    {"fk",
+     "Effective QPQ ~ fk Q screening factors for the Sigma_2 Coulomb lines. "
+     "Give an explicit list to use those values; set 'false' for no "
+     "screening (or 'fk = 1;'). "
+     "If blank (default), takes from correlation potential if it has them."},
+    {"Feynman_screen",
+     "Use Feynman method for Sigma_2 screening diagrams. Requires "
+     "Correlations{Feynman = true;} [false]"},
+    {"denominators",
+     "Energy denominators in Sigma_2 [DFK]:\n"
+     " - DFK: (Dzuba Flambaum Kozlov) target legs as Fermi, others as RS\n"
+     " - BW: Brillouin-Wigner E0 (iterated; see BW_each_level).\n"
+     " - RS: actual single-particle energies\n"
+     " - Fermi: lowest excited energy of each kappa\n"
+     " - Fermi0: lowest excited energy of all kappas\n"},
+    {"sigma1_dSdE", "Sigma_1 at the level energy E0, via dSigma/dE [false]\n"
+                    " - E0: lowest level of J/pi, or each (BW_each_level)\n"
+                    " - faster with Correlations{ derivative = true; }\n"
+                    " - For testing; usually should be left off"},
+    {"BW_each_level", "E0 for each level, not just lowest of J/pi [false]\n"
+                      "- for BW and sigma1_dSdE\n"
+                      "- levels not orthogonal; one more solve per level"},
     {"Breit2", "Include two-body Breit? Default is true if Breit included in "
                "HF. Ignored if Breit not included in HF. [true]"},
     {"Breit_basis",
@@ -98,21 +101,30 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Maximum k (multipolarity) to include when calculating new "
      "Coulomb integrals. Higher k often contribute negligably. Note: if qk "
      "file already has higher-k terms, they will be included. Set negative "
-     "(or very large) to include all k. [8]"},
-    {"denominators",
-     "Energy denominators in Sigma_2 [DFK]:\n"
-     "- DFK: (Dzuba Flambaum Kozlov) target legs as Fermi, others as RS\n"
-     "- BW: Brillouin-Wigner E0 (iterated; see BW_each_level)."
-     "- RS: actual single-particle energies\n"
-     "- Fermi: lowest excited energy of each kappa\n"
-     "- Fermi0: lowest excited energy of all kappas\n"},
-    {"sigma1_dSdE", "Sigma_1 at the level energy E0, via dSigma/dE [false]\n"
-                    "- E0: lowest level of J/pi, or each (BW_each_level)\n"
-                    "- much faster with Correlations{ derivative = true; }\n"
-                    "- For testing; usually should be left off"},
-    {"BW_each_level", "E0 for each level, not just lowest of J/pi [false]\n"
-                      "- for BW and sigma1_dSdE\n"
-                      "- levels not orthogonal; one more solve per level"},
+     "(or very large) to include all k. [10]"},
+    //////
+    {"num_electrons", "Number of valence electrons: 2 or 3 [2]"},
+    {"leading",
+     "Leading configurations, from which the CI configurations are formed by "
+     "excitations;\n"
+     " - shells separated by '.', e.g., 'leading = 6s2.6p, 6s.6p2;'.\n"
+     " - Default: the lowest few configurations of each parity\n"
+     " - NB: Always check for truncated CI\n"
+     " - Not required for two-valence (full CI)"},
+    {"excitations",
+     "Excitations from the leading configurations, formed stepwise: 'k' or "
+     "'k:basis', e.g., '1, 2, 3:6spdf'. Step k moves one electron into its "
+     "basis (default: ci_basis); the largest k is the number of steps, so "
+     "'3:6spdf' is the same as '1, 2, 3:6spdf'; '0' gives the leading "
+     "configurations only. Two full steps include every two-electron "
+     "configuration. [1, 2]"},
+    {"davidson", "Use iterative Davidson method for CI solutions "
+                 "[default: true for 3 electrons, false for 2]"},
+    /////
+    // {"twoJ", "List of 2J (integers) for CI solutions; takes precedence over "
+    //          "J. Works for either number of electrons."},
+    // {"twoJ+", "As above, but for EVEN CSFs only (takes precedence over J+)."},
+    // {"twoJ-", "As above, but for ODD CSFs (takes precedence over J-)."},
     {"qk_file",
      "Filename for storing two-body Coulomb integrals. By default, is "
      "At.qk.abf, where At is atomic symbol + 'identity'. Set to 'false' to "
@@ -155,14 +167,6 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                     "first. [false]"},
     {"print_details", "Condition to print details of each CI solution "
                       "(otherwise just prints summary) [true]"},
-    {"fk",
-     "Effective QPQ ~ fk Q screening factors for the Sigma_2 Coulomb lines. "
-     "Give an explicit list to use those values; set 'false' for no "
-     "screening (or 'fk = 1;'). "
-     "If blank (default), takes from correlation potential if it has them."},
-    {"Feynman_screen",
-     "Use Feynman method for Sigma_2 screening diagrams. Requires "
-     "Correlations{Feynman = true;} [false]"},
     {"all_order_screen",
      "With Feynman_screen: screening to all orders; else second order only "
      "[true]"},
@@ -283,7 +287,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // Determine different basis subsets
 
   // Details of MBPT
-  const auto max_k_Coulomb = input.get("max_k", 8);
+  const auto max_k_Coulomb = input.get("max_k", 10);
   const auto exclude_wrong_parity_box =
     input.get("exclude_wrong_parity_box", false);
   const auto include_MBPT = include_Sigma1 || include_Sigma2;

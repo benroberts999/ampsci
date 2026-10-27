@@ -736,14 +736,13 @@ TEST_CASE("CI: three-electron Hamiltonian", "[CI][3VCI][unit]") {
     };
 
     const std::vector<std::array<DiracSpinor::Index, 3>> configs{
-      {index(2, -1), index(2, 1), index(3, 2)},   // 2s 2p- 3d-
-      {index(2, 1), index(3, 1), index(4, 1)},    // 2p- 3p- 4p-
-      {index(2, -2), index(2, -2), index(3, -1)}, // 2p+^2 3s
-      {index(2, -1), index(2, -2), index(2, -2)}, // 2s 2p+^2
-      {index(2, -2), index(2, -2), index(2, -2)}, // 2p+^3
-      {index(3, -3), index(3, -3), index(3, -3)}, // 3d+^3
-      {index(3, -3), index(3, -3), index(4, -3)}  // 3d+^2 4d+
-    };
+      {index(2, -1), index(2, 1), index(3, 2)},
+      {index(2, 1), index(3, 1), index(4, 1)},
+      {index(2, -2), index(2, -2), index(3, -1)},
+      {index(2, -1), index(2, -2), index(2, -2)},
+      {index(2, -2), index(2, -2), index(2, -2)},
+      {index(3, -3), index(3, -3), index(3, -3)},
+      {index(3, -3), index(3, -3), index(4, -3)}};
 
     for (auto config : configs) {
       std::sort(config.begin(), config.end());
@@ -1375,14 +1374,13 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
       ->nk_index();
   };
   const std::vector<std::array<DiracSpinor::Index, 3>> configs{
-    {index(2, -1), index(2, 1), index(3, 2)},   // 2s 2p- 3d-
-    {index(2, 1), index(3, 1), index(4, 1)},    // 2p- 3p- 4p-
-    {index(2, -2), index(2, -2), index(3, -1)}, // 2p+^2 3s
-    {index(2, -1), index(2, -2), index(2, -2)}, // 2s 2p+^2
-    {index(2, -2), index(2, -2), index(2, -2)}, // 2p+^3
-    {index(3, -3), index(3, -3), index(3, -3)}, // 3d+^3
-    {index(3, -3), index(3, -3), index(4, -3)}  // 3d+^2 4d+
-  };
+    {index(2, -1), index(2, 1), index(3, 2)},
+    {index(2, 1), index(3, 1), index(4, 1)},
+    {index(2, -2), index(2, -2), index(3, -1)},
+    {index(2, -1), index(2, -2), index(2, -2)},
+    {index(2, -2), index(2, -2), index(2, -2)},
+    {index(3, -3), index(3, -3), index(3, -3)},
+    {index(3, -3), index(3, -3), index(4, -3)}};
 
   // Convention of the single-particle table: the same identity must hold for
   // two-electron CSFs (which fixes what "the" convention is)
