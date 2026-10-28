@@ -235,7 +235,7 @@ double sum_ij_2 =0.0;
 
   for (const auto &j : spectrum) {
     // make sure j is not equal to v
-    if (j != v) {
+    if (j != w) {
         double sum_j_cont = 0.0;
         //get six 6 symbols
         int kj = j.kappa();
@@ -291,6 +291,7 @@ double sum_ij_2 =0.0;
   }
 }
 const auto h1 = sum_ij_1+sum_ij_2+sum_j;
+std::cout << sum_j<< "\n\n\n" << sum_ij_1<< "\n\n\n"<<sum_ij_2<< "\n\n\n"<<h1<< "\n\n\n";
 return h1;
 
 }
@@ -333,9 +334,9 @@ Coulomb::meTable<double> hf_me = ME_tables.at(2);
 
 for (const auto &j : spectrum) {
 // make sure j is not equal to v
-if (j != v) {
+if (j != w) {
   for (const auto &i : spectrum) {
-    if (i != w) {
+    if (i != v) {
         double sum_ij_1_cont =0.0;
         double sum_ij_2_cont=0.0;
 
@@ -351,7 +352,7 @@ if (j != v) {
         double sixj2 = Angular::sixj_2(tji, tjw, twok_hf, I2, I2, Fw2);
         double sixj3 = Angular::sixj_2(tjv, tji, twok_pt, I2, I2, Fv2);
         double sixj4 = Angular::sixj_2(tji, tjw, twok_pt, I2, I2, Fw2);
-        double sixj5 = Angular::sixj_2(tjv, tjj, twok_hf, I2, I2, Fv2);
+        double sixj5 = Angular::sixj_2(tjv, tji, twok_hf, I2, I2, Fv2);
 
         //get matrix elements
         //get matrix elements
@@ -380,6 +381,7 @@ if (j != v) {
 
 const auto h2_phase_factor = Angular::neg1pow_2(Fv2-Fw2+tjw-tjv);
 double h2 = h2_phase_factor*(sum_ij_1+sum_ij_2);
+std::cout << sum_ij_1<< "\n\n\n"<<sum_ij_2<< "\n\n\n"<<h2<< "\n\n\n";
 return h2;
 }
 
@@ -430,7 +432,7 @@ e_j = j.en();
 
 
  // make sure j is not equal to vx
- if (j != w) {
+ if (j != v) {
  double sum_j_cont = 0.0;
  //get six 6 symbols
  //int kj = j.kappa();
@@ -488,7 +490,10 @@ for (const auto &i : spectrum) {
 }
 }
 
+
+
 const auto h3 = sum_ij_1+sum_ij_2+sum_j;
+std::cout << sum_j<< "\n\n\n" << sum_ij_1<< "\n\n\n"<<sum_ij_2<< "\n\n\n"<<h3<< "\n\n\n";
 return h3;
 }
 
