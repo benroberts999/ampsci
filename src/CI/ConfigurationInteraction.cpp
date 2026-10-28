@@ -37,7 +37,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "smaller basis (e.g., 12spdf) is usually required [default: 20spdf]"},
     {"J", "List of total angular momentum J for CI solutions (comma "
           "separated). Integers for two electrons; half-integers, as "
-          "fractions (1/2, 3/2) or decimals (0.5, 1.5), for three. []"},
+          "fractions (1/2, 3/2) or decimals (0.5, 1.5), for one or three. []"},
     {"J+", "As above, but for EVEN CSFs only (takes precedence over J)."},
     {"J-", "As above, but for ODD CSFs (takes precedence over J)."},
     {"num_solutions", "Number of CI solutions to find (for each J/pi) [5]"},
@@ -103,14 +103,14 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "file already has higher-k terms, they will be included. Set negative "
      "(or very large) to include all k. [10]"},
     //////
-    {"num_electrons", "Number of valence electrons: 2 or 3 [2]"},
+    {"num_electrons", "Number of valence electrons: 1, 2 or 3 [2]"},
     {"leading",
      "Leading configurations, from which the CI configurations are formed by "
      "excitations;\n"
      " - shells separated by '.', e.g., 'leading = 6s2.6p, 6s.6p2;'.\n"
      " - Default: the lowest few configurations of each parity\n"
      " - NB: Always check for truncated CI\n"
-     " - Not required for two-valence (full CI)"},
+     " - Not required for one or two valence electrons (full CI)"},
     {"excitations",
      "Excitations from the leading configurations, formed stepwise: 'k' or "
      "'k:basis', e.g., '1, 2, 3:6spdf'. Step k moves one electron into its "
@@ -119,7 +119,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "configurations only. Two full steps include every two-electron "
      "configuration. [1, 2]"},
     {"davidson", "Use iterative Davidson method for CI solutions "
-                 "[default: true for 3 electrons, false for 2]"},
+                 "[default: true for 3 electrons, false otherwise]"},
     /////
     // {"twoJ", "List of 2J (integers) for CI solutions; takes precedence over "
     //          "J. Works for either number of electrons."},
@@ -149,9 +149,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                 "'false' to disable read/write."},
     {"ci_file",
      "Filename for storing CI solutions. Default: At_b_hash.ci.abf, where At "
-     "is atomic symbol + 'identity', b is ci_basis (prefixed with 3el_ for "
-     "three electrons), and hash encodes other settings that change the CI "
-     "Hamiltonian. "
+     "is atomic symbol + 'identity', b is ci_basis (prefixed with 1el_ or "
+     "3el_ for one or three electrons), and hash encodes other settings that "
+     "change the CI Hamiltonian. "
      "Set to 'false' to disable read/write."},
     {"read_only",
      "If true, will *only* read in the existing CI solutions, and will not "
@@ -202,17 +202,22 @@ Solutions configuration_interaction(const IO::InputBlock &input,
 
   // Number of valence electrons (in the CI space)
   const auto num_electrons = input.get("num_electrons", 2);
-  if (num_electrons != 2 && num_electrons != 3) {
+  if (num_electrons < 1 || num_electrons > 3) {
     fmt2::warning();
-    fmt::print(": CI is implemented for two or three valence electrons, not "
-               "{}. Nothing to do\n",
+    fmt::print(": CI is implemented for one, two, or three valence electrons, "
+               "not {}. Nothing to do\n",
                num_electrons);
     return {};
   }
-  fmt::print("CI for {} valence electrons\n", num_electrons);
+  fmt::print("CI for {} valence electron{}\n", num_electrons,
+             num_electrons == 1 ? "" : "s");
   // options to include MBPT
   const auto include_Sigma1 = input.get("sigma1", false);
-  const auto include_Sigma2 = input.get("sigma2", false);
+  // Sigma_2 acts between pairs of valence electrons: none for one electron
+  const auto include_Sigma2 = input.get("sigma2", false) && num_electrons > 1;
+  if (input.get("sigma2", false) && !include_Sigma2) {
+    std::cout << "nb: one valence electron: no Sigma_2 (no valence pairs)\n";
+  }
 
   // Use Breuckner states for MBPT
   // nb: currently also use these Bruckner states in place of the "core"
@@ -628,9 +633,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   }
   std::cout << std::flush;
 
-  // Creat Breit table (only for CI, not MBPT part)
+  // Creat Breit table (only for CI, not MBPT part).
+  // Two-body Breit acts between pairs of valence electrons: none for one
   Coulomb::WkTable Bk;
-  const auto Breit2 = input.get("Breit2", true);
+  const auto Breit2 = input.get("Breit2", true) && num_electrons > 1;
   if (wf.vHF()->vBreit() && Breit2) {
 
     // use a subset of basis for Breit?
@@ -846,11 +852,13 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf") + ";";
   }
 
-  // nb: only three electrons is tagged: two-electron filenames do not depend
-  // on num_electrons
-  const auto default_ci_fname =
-    wf.identity() + "_" + (num_electrons == 2 ? "" : "3el_") + basis_string +
-    "_" + qip::hash_string(ci_settings) + ".ci.abf";
+  // nb: two electrons is not tagged: two-electron filenames do not depend on
+  // num_electrons
+  const auto electrons_tag =
+    num_electrons == 2 ? "" : std::to_string(num_electrons) + "el_";
+  const auto default_ci_fname = wf.identity() + "_" + electrons_tag +
+                                basis_string + "_" +
+                                qip::hash_string(ci_settings) + ".ci.abf";
   const auto ci_fname_input = input.get("ci_file", default_ci_fname);
   const auto ci_fname =
     (ci_fname_input == "false") ? std::string{} : ci_fname_input;
@@ -1241,12 +1249,11 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
         }
       }
     }
-    const bool three_electron = psi.num_electrons() == 3;
-
     // Leading non-relativistic configuration, and its |c|^2 weight:
-    const auto [config, pc] = three_electron ?
-                                CI::leading_config(psi.coefs(i), psi.CSF3s()) :
-                                CI::leading_config(psi.coefs(i), psi.CSFs());
+    const auto [config, pc] =
+      num_electrons == 1 ? CI::leading_config(psi.coefs(i), psi.CSF1s()) :
+      num_electrons == 3 ? CI::leading_config(psi.coefs(i), psi.CSF3s()) :
+                           CI::leading_config(psi.coefs(i), psi.CSFs());
 
     // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
     // take J=Jz, <JJz|J|JJz> = J
@@ -1261,8 +1268,11 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
 
     // <L^2> and <S^2> of the CI state (non-rel limit): measure LS-purity
     const auto [L2, S2] =
-      three_electron ? CI::expectation_L2S2(psi.coefs(i), psi.CSF3s(), twoJ) :
-                       CI::expectation_L2S2(psi.coefs(i), psi.CSFs(), twoJ);
+      num_electrons == 1 ?
+        CI::expectation_L2S2(psi.coefs(i), psi.CSF1s(), twoJ) :
+      num_electrons == 3 ?
+        CI::expectation_L2S2(psi.coefs(i), psi.CSF3s(), twoJ) :
+        CI::expectation_L2S2(psi.coefs(i), psi.CSFs(), twoJ);
 
     // Determine Term Symbol, from <L^2> and <S^2>
     const auto [twoS, L] = CI::Term_S_L_from_expectation(L2, S2, twoJ);
