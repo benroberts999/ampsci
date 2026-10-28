@@ -18,6 +18,47 @@
 namespace CI {
 
 //==============================================================================
+CSF1::CSF1(const DiracSpinor &a) : CSF(a.parity()), states{a.nk_index()} {}
+
+DiracSpinor::Index CSF1::state(std::size_t i) const { return states.at(i); }
+
+bool operator==(const CSF1 &A, const CSF1 &B) { return A.states == B.states; }
+
+bool operator!=(const CSF1 &A, const CSF1 &B) { return !(A == B); }
+
+int CSF1::num_different(const CSF1 &A, const CSF1 &B) { return A == B ? 0 : 1; }
+
+std::string CSF1::config(bool relativistic) const {
+  const auto [n, kappa] = Angular::index_to_nk(states[0]);
+  auto symbol = DiracSpinor::shortSymbol(n, kappa);
+  if (!relativistic) {
+    symbol.pop_back();
+  }
+  return symbol;
+}
+
+//==============================================================================
+// Forms list of all possible (1-particle) CSFs with given J and parity: the
+// orbitals with j = J and that parity
+std::vector<CSF1> form_CSF1s(int twoJ, int parity,
+                             const std::vector<DiracSpinor> &cisp_basis,
+                             const ConfigurationSpace &config_space) {
+
+  assert((parity == 1 || parity == -1) && "Parity must be +/-1");
+  assert(twoJ > 0 && twoJ % 2 == 1 && "2*J must be odd for one electron");
+
+  std::vector<CSF1> CSFs;
+  for (const auto &v : cisp_basis) {
+    if (v.twoj() != twoJ || v.parity() != parity)
+      continue;
+    if (!config_space.included({v.nk_index()}))
+      continue;
+    CSFs.emplace_back(v);
+  }
+  return CSFs;
+}
+
+//==============================================================================
 CSF2::CSF2(const DiracSpinor &a, const DiracSpinor &b)
   : CSF(a.parity() * b.parity()),
     states(a <= b ? std::array{a.nk_index(), b.nk_index()} :
@@ -559,7 +600,8 @@ std::size_t num_interacting_pairs(const std::vector<CSFType> &CSFs) {
   return count;
 }
 
-// explicictely instateiate template for our cases: CSF2, CSF3
+// explicictely instateiate template for our cases: CSF1, CSF2, CSF3
+template std::size_t num_interacting_pairs(const std::vector<CSF1> &);
 template std::size_t num_interacting_pairs(const std::vector<CSF2> &);
 template std::size_t num_interacting_pairs(const std::vector<CSF3> &);
 
@@ -633,6 +675,8 @@ one_body_connected(const std::vector<CSFType> &CSFAs,
   return connections;
 }
 
+template std::vector<OneBodyConnected>
+one_body_connected(const std::vector<CSF1> &, const std::vector<CSF1> &);
 template std::vector<OneBodyConnected>
 one_body_connected(const std::vector<CSF2> &, const std::vector<CSF2> &);
 template std::vector<OneBodyConnected>
@@ -746,6 +790,23 @@ std::pair<double, double> L2S2_pair(DiracSpinor::Index x, DiracSpinor::Index y,
 //==============================================================================
 std::pair<double, double>
 expectation_L2S2(const LinAlg::View<const double> &coefs,
+                 const std::vector<CSF1> &csfs, int) {
+  assert(coefs.size() == csfs.size());
+
+  // Each orbital has definite l, and s = 1/2: both operators are diagonal
+  double L2 = 0.0;
+  double S2 = 0.0;
+  for (std::size_t i = 0; i < csfs.size(); ++i) {
+    const auto l = Angular::nkindex_to_l(csfs[i].state(0));
+    L2 += coefs[i] * coefs[i] * l * (l + 1.0);
+    S2 += coefs[i] * coefs[i] * 0.75;
+  }
+  return {L2, S2};
+}
+
+//==============================================================================
+std::pair<double, double>
+expectation_L2S2(const LinAlg::View<const double> &coefs,
                  const std::vector<CSF3> &csfs, int) {
   assert(coefs.size() == csfs.size());
 
@@ -797,9 +858,11 @@ expectation_L2S2(const LinAlg::View<const double> &coefs,
 PsiJPi::PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
                int num_electrons, const ConfigurationSpace &config_space)
   : m_twoj(twoJ), m_pi(pi) {
-  assert((num_electrons == 2 || num_electrons == 3) &&
-         "CI is implemented for two or three valence electrons");
-  if (num_electrons == 3) {
+  assert((num_electrons == 1 || num_electrons == 2 || num_electrons == 3) &&
+         "CI is implemented for one, two, or three valence electrons");
+  if (num_electrons == 1) {
+    m_CSFs = form_CSF1s(twoJ, pi, cisp_basis, config_space);
+  } else if (num_electrons == 3) {
     m_CSFs = form_CSF3s(twoJ, pi, cisp_basis, config_space);
   } else {
     m_CSFs = form_CSFs(twoJ, pi, cisp_basis, config_space);
@@ -807,7 +870,9 @@ PsiJPi::PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
 }
 
 int PsiJPi::num_electrons() const {
-  return std::holds_alternative<std::vector<CSF3>>(m_CSFs) ? 3 : 2;
+  return std::holds_alternative<std::vector<CSF1>>(m_CSFs) ? 1 :
+         std::holds_alternative<std::vector<CSF3>>(m_CSFs) ? 3 :
+                                                             2;
 }
 
 std::size_t PsiJPi::num_CSFs() const {
@@ -817,6 +882,11 @@ std::size_t PsiJPi::num_CSFs() const {
 const CSF &PsiJPi::csf(std::size_t i) const {
   return std::visit(
     [i](const auto &csfs) -> const CI::CSF & { return csfs.at(i); }, m_CSFs);
+}
+
+const std::vector<CSF1> &PsiJPi::CSF1s() const {
+  assert(num_electrons() == 1);
+  return std::get<std::vector<CSF1>>(m_CSFs);
 }
 
 const std::vector<CSF2> &PsiJPi::CSFs() const {

@@ -61,11 +61,11 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   'twoJ', 'twoJ+', 'twoJ-' (lists of integer 2J) take precedence over 'J',
   'J+', 'J-' (integers, fractions such as 3/2, or decimals such as 1.5). A
   parity-specific list takes precedence over the plain one, for its parity.
-  2J must be even for two electrons and odd for three; other values are
-  skipped, with a warning (once per value).
+  2J must be even for two electrons and odd for one or three; other values
+  are skipped, with a warning (once per value).
 
   @param input          The CI input block.
-  @param num_electrons  Number of valence electrons (2 or 3).
+  @param num_electrons  Number of valence electrons (1, 2 or 3).
   @return List of {2J, parity}, even parity first.
 */
 std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
@@ -86,8 +86,9 @@ enum class Solver { dense, Davidson };
 /*!
   @brief Constructs and solves the CI eigenvalue problem for a single J,pi
   @details
-  Builds the CI+MBPT Hamiltonian matrix in the basis of two- or three-electron
-  configuration state functions (CSFs; see @ref CSF2, @ref CSF3) with total
+  Builds the CI+MBPT Hamiltonian matrix in the basis of one-, two- or
+  three-electron configuration state functions (CSFs; see @ref CSF1,
+  @ref CSF2, @ref CSF3) with total
   angular momentum @p twoJ /2 and parity @p parity, 
   then solves the eigenvalue problem to obtain CI energies and
   expansion coefficients.
@@ -106,9 +107,9 @@ enum class Solver { dense, Davidson };
 
   @param ci_sp_basis  Single-particle basis states spanning the CI space.
   @param twoJ         Twice the total angular momentum, 2J (non-negative; even
-                      for two electrons, odd for three).
+                      for two electrons, odd for one or three).
   @param parity       Parity of the block: +1 (even) or -1 (odd).
-  @param num_electrons Number of valence electrons: 2 or 3.
+  @param num_electrons Number of valence electrons: 1, 2 or 3.
   @param num_solutions Number of lowest eigenstates to find. Ignored if
                        @p all_below_cm is set. Pass 0 to find all solutions.
   @param all_below_cm If set, find all eigenstates with total energy below this

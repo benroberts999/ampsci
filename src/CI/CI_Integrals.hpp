@@ -7,6 +7,7 @@
 #include "MBPT/Sigma2.hpp" //temp - remove after refactor
 #include <iostream>
 #include <map>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -89,7 +90,8 @@ double corrected_Sk(double Sk, double dSk, double dE0);
   where \f$ E_0 \f$ is the reference total valence energy (of all valence
   electrons), \f$ E_\Sigma(\kappa) \f$ is the energy Sigma_1 was evaluated
   at, and the sum is over the orbital energies of the other (spectator)
-  electrons in the determinant: one for two electrons, two for three.
+  electrons in the determinant: none for one electron, one for two, two for
+  three.
 
   Fill with @ref calculate_dSdE_correction; applied by Hab() (as a correction
   on top of an h1 table that already includes Sigma_1).
@@ -121,23 +123,19 @@ struct Sigma1Correction {
 
   /*!
     @brief Correction to the one-body matrix element <a|h1|b>, given the
-    spectator orbital.
+    spectator orbitals.
     @details
     Returns \f$ \Sigma_{\rm corrected} - \Sigma \f$, i.e., the amount to add
     to an h1 matrix element that already includes (uncorrected) Sigma_1.
+    The spectators are the other valence electrons in the determinant: none
+    for one electron, one for two, two for three. Their orbital energies are
+    subtracted in the energy shift (see @ref Sigma1Correction).
     Returns zero for orbitals not in the tables.
   */
-  [[nodiscard]] double delta_h1(DiracSpinor::Index a, DiracSpinor::Index b,
-                                DiracSpinor::Index spectator) const;
-
-  /*!
-    @brief Correction to the one-body matrix element <a|h1|b> for 3 Valence Ci states, given the two spectator orbitals.
-    @details
-    The spectator energy is the sum of the two orbital energies.
-  */
-  [[nodiscard]] double delta_h1(DiracSpinor::Index a, DiracSpinor::Index b,
-                                DiracSpinor::Index spectator1,
-                                DiracSpinor::Index spectator2) const;
+  [[nodiscard]] double
+  delta_h1(DiracSpinor::Index a, DiracSpinor::Index b,
+           std::optional<DiracSpinor::Index> spectator1 = std::nullopt,
+           std::optional<DiracSpinor::Index> spectator2 = std::nullopt) const;
 
   /*!
     @brief Reads or writes the correction tables to/from a binary file.
@@ -273,7 +271,7 @@ template <typename MatrixType = LinAlg::Matrix<double>>
 struct Integrals {
   //! Single-particle basis used for the CI expansion
   std::vector<DiracSpinor> ci_basis{};
-  //! Number of valence electrons the CI was run for (2 or 3)
+  //! Number of valence electrons the CI was run for (1, 2 or 3)
   int num_electrons{2};
   //! Configurations included in the CI expansion
   ConfigurationSpace config_space{};
@@ -389,6 +387,25 @@ double CSF2_Sigma2(const Coulomb::WkTable &Sk, DiracSpinor::Index v,
 double CSF2_Breit(const Coulomb::WkTable &Bk, DiracSpinor::Index v,
                   DiracSpinor::Index w, DiracSpinor::Index x,
                   DiracSpinor::Index y, int twoJ);
+
+/*!
+  @brief CI Hamiltonian matrix element between two one-electron CSFs.
+  @details
+  Just the one-body matrix element, \f$ \langle a | h_1 | b \rangle \f$ (zero
+  between different kappa), with the dSigma/dE correction (no spectators) if
+  @p s1c is given. There is no two-body part: construct_Hci() adds no
+  Sigma_2 or Breit for one electron.
+
+  @param A,B   The two CSFs.
+  @param twoJ  Not used.
+  @param h1    Table of one-body matrix elements \f$ \langle a | h_1 | b \rangle \f$.
+  @param qk    Not used: no two-body interaction for one electron.
+  @param s1c   Optional derivative (dSigma/dE) correction to Sigma_1.
+  @return CI Hamiltonian matrix element \f$ H_{AB} \f$.
+*/
+double Hab(const CI::CSF1 &A, const CI::CSF1 &B, int twoJ,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+           const Sigma1Correction *s1c = nullptr);
 
 /*!
   @brief CI Hamiltonian matrix element between two two-electron CSFs.
@@ -617,8 +634,8 @@ basis_subset(const std::vector<DiracSpinor> &basis,
   where the single-particle reduced matrix elements are looked up from @p h.
 
   @param cA,cB      CI expansion coefficient vectors for states A and B.
-  @param CSFAs,CSFBs CSF bases for states A and B respectively (both @ref CSF2,
-                     or both @ref CSF3).
+  @param CSFAs,CSFBs CSF bases for states A and B respectively (both
+                     @ref CSF1, both @ref CSF2, or both @ref CSF3).
   @param twoJA,twoJB Twice the total angular momentum of states A and B.
   @param h          Lookup table of single-particle reduced matrix elements.
   @param K_rank     Rank of the tensor operator.
@@ -650,6 +667,10 @@ inline double ReducedME(const PsiJPi &As, std::size_t iA, const PsiJPi &Bs,
                         std::size_t iB, const Coulomb::meTable<double> &h,
                         int K_rank, int Parity) {
   assert(As.num_electrons() == Bs.num_electrons());
+  if (As.num_electrons() == 1) {
+    return ReducedME(As.coefs(iA), As.CSF1s(), As.twoJ(), Bs.coefs(iB),
+                     Bs.CSF1s(), Bs.twoJ(), h, K_rank, Parity);
+  }
   if (As.num_electrons() == 3) {
     return ReducedME(As.coefs(iA), As.CSF3s(), As.twoJ(), Bs.coefs(iB),
                      Bs.CSF3s(), Bs.twoJ(), h, K_rank, Parity);
@@ -657,6 +678,16 @@ inline double ReducedME(const PsiJPi &As, std::size_t iA, const PsiJPi &Bs,
   return ReducedME(As.coefs(iA), As.CSFs(), As.twoJ(), Bs.coefs(iB), Bs.CSFs(),
                    Bs.twoJ(), h, K_rank, Parity);
 }
+
+/*!
+  @brief Reduced matrix element between two one-electron CSFs: the
+  single-particle reduced matrix element \f$ \langle x \| t^k \| v \rangle \f$,
+  from @p h.
+  @param twoJX,twoJV,K_rank  Not used: the single-particle table carries the
+                             angular momenta.
+*/
+double RME_CSF1(const CI::CSF1 &X, int twoJX, const CI::CSF1 &V, int twoJV,
+                const Coulomb::meTable<double> &h, int K_rank);
 
 /*!
   @brief Reduced matrix element between two two-electron CSFs.
@@ -696,7 +727,8 @@ double RME_CSF3(const CI::CSF3 &X, int twoJX, const CI::CSF3 &V, int twoJV,
   configuration, and returns the configuration with the largest total weight.
 
   @param coefs  CI expansion coefficients (one per CSF).
-  @param csfs   The CSF basis (matching @p coefs); @ref CSF2 or @ref CSF3.
+  @param csfs   The CSF basis (matching @p coefs); @ref CSF1, @ref CSF2 or
+                @ref CSF3.
   @return Pair {configuration label (non-rel notation), total |c|^2 weight}.
 */
 template <typename CSFType>
@@ -783,8 +815,9 @@ construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
   @brief Constructs the full CI Hamiltonian matrix for a list of CSFs.
   @details
   As construct_Hci(const PsiJPi &, ...), for any list of CSFs with total
-  angular momentum J: @ref CSF2 or @ref CSF3. Calls Hab(), Sigma2_AB(), and
-  Breit_AB() for each pair.
+  angular momentum J: @ref CSF1, @ref CSF2 or @ref CSF3. Calls Hab(),
+  Sigma2_AB(), and Breit_AB() for each pair (one electron: Hab() only, there
+  being no two-body terms).
 
   For three-electron CSFs, @p dE0 is the shift of the total (three-electron)
   valence energy; the orbital energies of the third electron, needed for the
