@@ -18,6 +18,7 @@
 #include <string>
 #include <type_traits>
 #include <utility>
+#include <variant>
 #include <vector>
 
 namespace CI {
@@ -277,6 +278,51 @@ double Breit_AB(const CI::CSF3 &A, const CI::CSF3 &B, int,
     }
   }
   return 3.0 * out;
+}
+
+//==============================================================================
+double Sigma2_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
+                 const Coulomb::WkTable &Sk, const Coulomb::QkTable *qk,
+                 const std::vector<double> &hk, const Coulomb::WkTable *dSk,
+                 double dE0,
+                 const std::map<DiracSpinor::Index, double> *orbital_energies) {
+  return std::visit(
+    [&](const auto &a, const auto &b) -> double {
+      using CSFType = std::decay_t<decltype(a)>;
+      if constexpr (!std::is_same_v<decltype(a), decltype(b)>) {
+        assert(false && "Sigma_2 between CSFs of different kinds is not "
+                        "implemented");
+        return 0.0;
+      } else if constexpr (std::is_same_v<CSFType, CSF1>) {
+        // No valence pairs
+        return 0.0;
+      } else if constexpr (std::is_same_v<CSFType, CSF2>) {
+        return Sigma2_AB(a, b, twoJ, Sk, qk, hk, dSk, dE0);
+      } else {
+        return Sigma2_AB(a, b, twoJ, Sk, qk, hk, dSk, dE0, orbital_energies);
+      }
+    },
+    A.variant(), B.variant());
+}
+
+//==============================================================================
+double Breit_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
+                const Coulomb::WkTable &Bk) {
+  return std::visit(
+    [&](const auto &a, const auto &b) -> double {
+      using CSFType = std::decay_t<decltype(a)>;
+      if constexpr (!std::is_same_v<decltype(a), decltype(b)>) {
+        assert(false && "Breit between CSFs of different kinds is not "
+                        "implemented");
+        return 0.0;
+      } else if constexpr (std::is_same_v<CSFType, CSF1>) {
+        // No valence pairs
+        return 0.0;
+      } else {
+        return Breit_AB(a, b, twoJ, Bk);
+      }
+    },
+    A.variant(), B.variant());
 }
 
 //==============================================================================
@@ -674,6 +720,23 @@ double Hab(const CI::CSF3 &A, const CI::CSF3 &B, int,
 }
 
 //==============================================================================
+double Hab(const CI::CSF &A, const CI::CSF &B, int twoJ,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+           const Sigma1Correction *s1c) {
+  return std::visit(
+    [&](const auto &a, const auto &b) -> double {
+      if constexpr (std::is_same_v<decltype(a), decltype(b)>) {
+        return Hab(a, b, twoJ, h1, qk, s1c);
+      } else {
+        assert(false && "CI matrix elements between CSFs of different kinds "
+                        "are not implemented");
+        return 0.0;
+      }
+    },
+    A.variant(), B.variant());
+}
+
+//==============================================================================
 Coulomb::meTable<double>
 calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
                    const std::vector<DiracSpinor> &s1_basis_core,
@@ -843,11 +906,10 @@ std::vector<DiracSpinor> basis_subset(const std::vector<DiracSpinor> &basis,
 //==============================================================================
 // Calculate reduced matrix elements between two CI states.
 // cA is CI expansion coefficients (row if CI eigenvector matrix)
-template <typename CSFType>
 double ReducedME(const LinAlg::View<const double> &cA,
-                 const std::vector<CSFType> &CSFAs, int twoJA,
+                 const std::vector<CSF> &CSFAs, int twoJA,
                  const LinAlg::View<const double> &cB,
-                 const std::vector<CSFType> &CSFBs, int twoJB,
+                 const std::vector<CSF> &CSFBs, int twoJB,
                  const Coulomb::meTable<double> &h, int K_rank, int Parity) {
 
   // selection rules: Not required (operator encodes it's own),
@@ -876,34 +938,12 @@ double ReducedME(const LinAlg::View<const double> &cA,
         const auto &csf_j = CSFBs[j];
         const auto cj = cB[j];
 
-        if constexpr (std::is_same_v<CSFType, CSF1>) {
-          rme += ci * cj * RME_CSF1(csf_i, twoJA, csf_j, twoJB, h, K_rank);
-        } else if constexpr (std::is_same_v<CSFType, CSF3>) {
-          rme += ci * cj * RME_CSF3(csf_i, twoJA, csf_j, twoJB, h, K_rank);
-        } else {
-          rme += ci * cj * RME_CSF2(csf_i, twoJA, csf_j, twoJB, h, K_rank);
-        }
+        rme += ci * cj * RME_CSF(csf_i, twoJA, csf_j, twoJB, h, K_rank);
       }
     }
   }
   return rme;
 }
-
-template double ReducedME<CSF1>(const LinAlg::View<const double> &,
-                                const std::vector<CSF1> &, int,
-                                const LinAlg::View<const double> &,
-                                const std::vector<CSF1> &, int,
-                                const Coulomb::meTable<double> &, int, int);
-template double ReducedME<CSF2>(const LinAlg::View<const double> &,
-                                const std::vector<CSF2> &, int,
-                                const LinAlg::View<const double> &,
-                                const std::vector<CSF2> &, int,
-                                const Coulomb::meTable<double> &, int, int);
-template double ReducedME<CSF3>(const LinAlg::View<const double> &,
-                                const std::vector<CSF3> &, int,
-                                const LinAlg::View<const double> &,
-                                const std::vector<CSF3> &, int,
-                                const Coulomb::meTable<double> &, int, int);
 
 //==============================================================================
 double RME_CSF1(const CI::CSF1 &X, int, const CI::CSF1 &V, int,
@@ -990,10 +1030,31 @@ double RME_CSF2(const CI::CSF2 &X, int twoJX, const CI::CSF2 &V, int twoJV,
 }
 
 //==============================================================================
-template <typename CSFType>
+double RME_CSF(const CI::CSF &X, int twoJX, const CI::CSF &V, int twoJV,
+               const Coulomb::meTable<double> &h, int K_rank) {
+  // Reduced matrix element for the kinds of CSF held by X and V
+  const auto rme_by_kind = [&](const auto &x, const auto &v) -> double {
+    using CSFType = std::decay_t<decltype(x)>;
+    if constexpr (!std::is_same_v<decltype(x), decltype(v)>) {
+      assert(false && "Reduced matrix elements between CSFs of different "
+                      "kinds are not implemented");
+      return 0.0;
+    } else if constexpr (std::is_same_v<CSFType, CSF1>) {
+      return RME_CSF1(x, twoJX, v, twoJV, h, K_rank);
+    } else if constexpr (std::is_same_v<CSFType, CSF2>) {
+      return RME_CSF2(x, twoJX, v, twoJV, h, K_rank);
+    } else {
+      return RME_CSF3(x, twoJX, v, twoJV, h, K_rank);
+    }
+  };
+
+  return std::visit(rme_by_kind, X.variant(), V.variant());
+}
+
+//==============================================================================
 std::pair<std::string, double>
 leading_config(const LinAlg::View<const double> &coefs,
-               const std::vector<CSFType> &csfs) {
+               const std::vector<CSF> &csfs) {
   assert(coefs.size() == csfs.size());
 
   // Total |c|^2 of each non-rel configuration (summed over its rel. CSFs):
@@ -1009,16 +1070,6 @@ leading_config(const LinAlg::View<const double> &coefs,
   return max_it != nr_configs.end() ? std::pair{max_it->first, max_it->second} :
                                       std::pair{std::string{}, 0.0};
 }
-
-template std::pair<std::string, double>
-leading_config<CSF1>(const LinAlg::View<const double> &,
-                     const std::vector<CSF1> &);
-template std::pair<std::string, double>
-leading_config<CSF2>(const LinAlg::View<const double> &,
-                     const std::vector<CSF2> &);
-template std::pair<std::string, double>
-leading_config<CSF3>(const LinAlg::View<const double> &,
-                     const std::vector<CSF3> &);
 
 //==============================================================================
 std::pair<int, int> Term_S_L(int l1, int l2, int twoJ, double gJ_target) {
@@ -1110,15 +1161,6 @@ MatrixType construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
                          const Sigma1Correction *s1c,
                          const std::vector<double> &hk,
                          const Coulomb::WkTable *dSk, double dE0) {
-  // One-, two- or three-electron CSFs: one dispatch per matrix
-  if (psi.num_electrons() == 1) {
-    return construct_Hci<MatrixType>(psi.CSF1s(), psi.twoJ(), h1, qk, Bk, Sk,
-                                     s1c, hk, dSk, dE0);
-  }
-  if (psi.num_electrons() == 3) {
-    return construct_Hci<MatrixType>(psi.CSF3s(), psi.twoJ(), h1, qk, Bk, Sk,
-                                     s1c, hk, dSk, dE0);
-  }
   return construct_Hci<MatrixType>(psi.CSFs(), psi.twoJ(), h1, qk, Bk, Sk, s1c,
                                    hk, dSk, dE0);
 }
@@ -1134,9 +1176,9 @@ construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
   const std::vector<double> &, const Coulomb::WkTable *, double);
 
 //==============================================================================
-template <typename MatrixType, typename CSFType>
+template <typename MatrixType>
 MatrixType
-construct_Hci(const std::vector<CSFType> &CSFs, int twoJ,
+construct_Hci(const std::vector<CSF> &CSFs, int twoJ,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
               const Coulomb::WkTable *Bk, const Coulomb::WkTable *Sk,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
@@ -1160,33 +1202,20 @@ construct_Hci(const std::vector<CSFType> &CSFs, int twoJ,
       const auto &A = CSFs[iA];
       const auto &B = CSFs[iB];
 
-      // Three electrons: CSFs differing by more than two orbitals do not
-      // interact (most pairs); skip before any element is evaluated
-      if constexpr (std::is_same_v<CSFType, CSF3>) {
-        if (CSF3::num_different(A, B) > 2)
-          continue;
-      }
+      // CSFs differing by more than two orbitals do not interact (three
+      // electrons: most pairs); skip before any element is evaluated
+      if (num_different(A, B) > 2)
+        continue;
 
       // Regular CI matrix (h1 may include Sigma_1):
       const auto E_AB = Hab(A, B, twoJ, h1, qk, s1c);
-      // Two-body corrections: none for one electron.
-      // Sigma_2 (three electrons: the pair energies need the orbital energy
-      // of the third electron), and Breit
-      double dEs_AB = 0.0;
-      double dEb_AB = 0.0;
-      if constexpr (!std::is_same_v<CSFType, CSF1>) {
-        if (Sk != nullptr) {
-          if constexpr (std::is_same_v<CSFType, CSF3>) {
-            dEs_AB = CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0,
-                                   s1c ? &s1c->en : nullptr);
-          } else {
-            dEs_AB = CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0);
-          }
-        }
-        if (Bk != nullptr) {
-          dEb_AB = CI::Breit_AB(A, B, twoJ, *Bk);
-        }
-      }
+      // Two-body corrections: Sigma_2 (three electrons: the pair energies
+      // need the orbital energy of the third electron), and Breit
+      const auto dEs_AB = Sk != nullptr ?
+                            CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0,
+                                          s1c ? &s1c->en : nullptr) :
+                            0.0;
+      const auto dEb_AB = Bk != nullptr ? CI::Breit_AB(A, B, twoJ, *Bk) : 0.0;
 
       const auto H_AB = E_AB + dEs_AB + dEb_AB;
       if constexpr (sparse) {
@@ -1211,36 +1240,14 @@ construct_Hci(const std::vector<CSFType> &CSFs, int twoJ,
   return Hci;
 }
 
-template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>, CSF1>(
-  const std::vector<CSF1> &, int, const Coulomb::meTable<double> &,
-  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
-  const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::WkTable *, double);
-template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>, CSF2>(
-  const std::vector<CSF2> &, int, const Coulomb::meTable<double> &,
-  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
-  const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::WkTable *, double);
-template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>, CSF3>(
-  const std::vector<CSF3> &, int, const Coulomb::meTable<double> &,
+template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>>(
+  const std::vector<CSF> &, int, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
   const Coulomb::WkTable *, double);
 template LinAlg::SparseSymmetricMatrix<double>
-construct_Hci<LinAlg::SparseSymmetricMatrix<double>, CSF1>(
-  const std::vector<CSF1> &, int, const Coulomb::meTable<double> &,
-  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
-  const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::WkTable *, double);
-template LinAlg::SparseSymmetricMatrix<double>
-construct_Hci<LinAlg::SparseSymmetricMatrix<double>, CSF2>(
-  const std::vector<CSF2> &, int, const Coulomb::meTable<double> &,
-  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
-  const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::WkTable *, double);
-template LinAlg::SparseSymmetricMatrix<double>
-construct_Hci<LinAlg::SparseSymmetricMatrix<double>, CSF3>(
-  const std::vector<CSF3> &, int, const Coulomb::meTable<double> &,
+construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
+  const std::vector<CSF> &, int, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
   const Coulomb::WkTable *, double);

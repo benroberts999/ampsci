@@ -131,7 +131,7 @@ TEST_CASE("CI: LS coupling", "[CI][unit]") {
 
   {
     // Single CSF {4s, 3d5/2}, J=3: pure 3D3
-    const std::vector<CI::CSF2> csfs{{s4, d5}};
+    const std::vector<CI::CSF> csfs{CI::CSF2{s4, d5}};
     const std::vector<double> c{1.0};
     const auto [L2, S2] = CI::expectation_L2S2(view(c), csfs, 6);
     REQUIRE(L2 == Approx(6.0).epsilon(1.0e-12));
@@ -140,7 +140,7 @@ TEST_CASE("CI: LS coupling", "[CI][unit]") {
 
   {
     // Single CSF {3p1/2, 3p3/2}, J=1: pure 3P1 (tests the sqrt(2) factor)
-    const std::vector<CI::CSF2> csfs{{p1, p3}};
+    const std::vector<CI::CSF> csfs{CI::CSF2{p1, p3}};
     const std::vector<double> c{1.0};
     const auto [L2, S2] = CI::expectation_L2S2(view(c), csfs, 2);
     REQUIRE(L2 == Approx(2.0).epsilon(1.0e-12));
@@ -150,7 +150,7 @@ TEST_CASE("CI: LS coupling", "[CI][unit]") {
   {
     // {4s, 3d3/2} and {4s, 3d5/2}, J=2: mixtures of 1D2 and 3D2.
     // L2 = 6 always; total 3D2 weight across the two CSFs is 1
-    const std::vector<CI::CSF2> csfs{{s4, d3}, {s4, d5}};
+    const std::vector<CI::CSF> csfs{CI::CSF2{s4, d3}, CI::CSF2{s4, d5}};
     const std::vector<double> ca{1.0, 0.0};
     const std::vector<double> cb{0.0, 1.0};
     const auto [L2a, S2a] = CI::expectation_L2S2(view(ca), csfs, 4);
@@ -163,7 +163,7 @@ TEST_CASE("CI: LS coupling", "[CI][unit]") {
   {
     // (3p)^2, J=0: CI coefficients equal to the LS amplitudes of 3P0
     // give the pure 3P0 state; those of 1S0 give pure 1S0
-    const std::vector<CI::CSF2> csfs{{p1, p1}, {p3, p3}};
+    const std::vector<CI::CSF> csfs{CI::CSF2{p1, p1}, CI::CSF2{p3, p3}};
     const std::vector<double> c_3P0{a12, a22};
     const std::vector<double> c_1S0{a11, a21};
     const auto [L2a, S2a] = CI::expectation_L2S2(view(c_3P0), csfs, 0);
@@ -437,14 +437,20 @@ TEST_CASE("CI: CSF functions", "[CI][3VCI][unit]") {
   const CI::PsiJPi psi3(3, +1, basis, 3);
   REQUIRE(psi3.num_electrons() == 3);
   REQUIRE(psi3.num_CSFs() == CI::form_CSF3s(3, +1, basis).size());
-  REQUIRE(psi3.CSF3s().size() == psi3.num_CSFs());
+  REQUIRE(psi3.CSFs().size() == psi3.num_CSFs());
   REQUIRE(psi3.csf(0).num_electrons() == 3);
-  REQUIRE(psi3.csf(1).config(true) == psi3.CSF3s()[1].config(true));
+  REQUIRE(psi3.csf(1).config(true) == psi3.CSFs()[1].config(true));
   const CI::PsiJPi psi2(2, +1, basis);
   REQUIRE(psi2.num_electrons() == 2);
   REQUIRE(psi2.num_CSFs() == psi2.CSFs().size());
-  REQUIRE(psi2.CSF(0) == psi2.CSFs()[0]);
+  REQUIRE(psi2.csf(0) == psi2.CSFs()[0]);
   REQUIRE(psi2.csf(0).num_electrons() == 2);
+  const auto orbitals_0 = psi2.csf(0).orbitals();
+  REQUIRE(orbitals_0.size() == 2);
+  REQUIRE(orbitals_0[0] == psi2.csf(0).state(0));
+  REQUIRE(orbitals_0[1] == psi2.csf(0).state(1));
+  // CSFs of different kinds are never equal
+  REQUIRE(psi2.csf(0) != psi3.csf(0));
 
   // Replace one solution: its energy and coefficients
   auto psi_replaced = psi2;
@@ -460,8 +466,9 @@ TEST_CASE("CI: CSF functions", "[CI][3VCI][unit]") {
   // Leading configuration: weights summed over the relativistic CSFs of each
   // non-rel configuration. J = 3/2: two 4s4p-4p+ CSFs (c = 0.5 each) beat
   // the single 4s^2 4p CSF with the largest coefficient (c = 0.6)
-  std::vector<CI::CSF3> csfs = CI::form_CSF3s({is, ip1, ip3}, 3);
-  REQUIRE(csfs.size() == 2);
+  const auto csfs_spp = CI::form_CSF3s({is, ip1, ip3}, 3);
+  REQUIRE(csfs_spp.size() == 2);
+  std::vector<CI::CSF> csfs(csfs_spp.cbegin(), csfs_spp.cend());
   csfs.push_back(CI::form_CSF3s({is, is, ip3}, 3).at(0));
   const std::vector<double> coefs{0.5, 0.5, 0.6};
   const LinAlg::View<const double> view{coefs.data(), 0, coefs.size(), 1};
@@ -521,8 +528,8 @@ TEST_CASE("CI: one-body connected CSFs", "[CI][3VCI][unit]") {
 
   // Each CSF of A in exactly one configuration (all of its CSFs with the
   // same orbitals); connected pairs equal to those found by direct comparison
-  const auto check = [](const auto &CSFAs, const auto &CSFBs) {
-    using CSFType = typename std::decay_t<decltype(CSFAs)>::value_type;
+  const auto check = [](const std::vector<CI::CSF> &CSFAs,
+                        const std::vector<CI::CSF> &CSFBs) {
     std::vector<int> times_grouped(CSFAs.size(), 0);
     std::size_t num_wrong_config = 0;
     std::vector<std::pair<std::size_t, std::size_t>> found;
@@ -530,7 +537,8 @@ TEST_CASE("CI: one-body connected CSFs", "[CI][3VCI][unit]") {
          CI::one_body_connected(CSFAs, CSFBs)) {
       for (const auto i : config_CSFs) {
         ++times_grouped.at(i);
-        if (CSFAs.at(i).states != CSFAs.at(config_CSFs.front()).states) {
+        if (CSFAs.at(i).orbitals() !=
+            CSFAs.at(config_CSFs.front()).orbitals()) {
           ++num_wrong_config;
         }
         for (const auto j : connected_CSFs) {
@@ -541,7 +549,7 @@ TEST_CASE("CI: one-body connected CSFs", "[CI][3VCI][unit]") {
     std::vector<std::pair<std::size_t, std::size_t>> expected;
     for (std::size_t i = 0; i < CSFAs.size(); ++i) {
       for (std::size_t j = 0; j < CSFBs.size(); ++j) {
-        if (CSFType::num_different(CSFAs[i], CSFBs[j]) <= 1) {
+        if (CI::num_different(CSFAs[i], CSFBs[j]) <= 1) {
           expected.emplace_back(i, j);
         }
       }
@@ -560,9 +568,9 @@ TEST_CASE("CI: one-body connected CSFs", "[CI][3VCI][unit]") {
   const auto A3 = CI::form_CSF3s(3, +1, basis);
   check(A3, A3);
   check(A3, CI::form_CSF3s(5, -1, basis));
-  const auto A2 = CI::form_CSFs(2, +1, basis);
+  const auto A2 = CI::form_CSF2s(2, +1, basis);
   check(A2, A2);
-  check(A2, CI::form_CSFs(2, -1, basis));
+  check(A2, CI::form_CSF2s(2, -1, basis));
   const auto A1 = CI::form_CSF1s(1, +1, basis);
   check(A1, A1);
   check(A1, CI::form_CSF1s(1, -1, basis));
@@ -632,12 +640,12 @@ TEST_CASE("CI: one-electron CSFs", "[CI][unit]") {
   const CI::PsiJPi psi(1, +1, basis, 1);
   REQUIRE(psi.num_electrons() == 1);
   REQUIRE(psi.num_CSFs() == 3);
-  REQUIRE(psi.CSF1s().size() == 3);
+  REQUIRE(psi.CSFs().size() == 3);
   REQUIRE(psi.csf(0).num_electrons() == 1);
   REQUIRE(psi.csf(2).config(false) == "6s");
   REQUIRE(CI::PsiJPi(1, -1, basis, 1, leading_only).num_CSFs() == 0);
   // Every pair of CSFs can interact (one-body operator)
-  REQUIRE(CI::num_interacting_pairs(psi.CSF1s()) == 6);
+  REQUIRE(CI::num_interacting_pairs(psi.CSFs()) == 6);
 
   // <L^2> = l(l+1) and <S^2> = 3/4 for any state of one kappa; the leading
   // configuration is the orbital with the largest weight

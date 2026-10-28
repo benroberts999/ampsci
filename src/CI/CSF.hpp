@@ -15,65 +15,6 @@ namespace CI {
 
 //------------------------------------------------------------------------------
 /*!
-  @brief Base class for configuration state functions (CSFs).
-
-  @details
-  A CSF is an antisymmetrised N-electron basis state with definite total
-  angular momentum (\f$ J^2 \f$, \f$ J_z \f$) and parity \f$\pi\f$.
-  Each CSF is built from a combination of \f$ N \f$-electron Slater determinants,
-  which are themselves built from N single-particle relativistic orbitals.
-  Each Slater determinant has a specific set of single-particle angular
-  momentum projections \f$ j_{i,z} = m_i \f$, with \f$ \sum_i m_i = J_z \f$:
-
-  \f[
-    |I; J J_z\rangle = \sum_{\{m\}} d_{\{m\}} \,
-    |n_1\kappa_1 m_1, n_2\kappa_2 m_2, \ldots, n_N\kappa_N m_N\rangle,
-  \f]
-
-  where the kets on the right are (normalised) Slater determinants, and
-
-  \f[
-    \sum_{\{m\}} d_{\{m\}}^2 = 1.
-  \f]
-
-  The parity is the product from the orbitals,
-
-  \f[
-    \pi = \prod_i (-1)^{l_i}.
-  \f]
-
-  The determinants are not formed explicitly: the coefficients
-  \f$ d_{\{m\}} \f$ are fixed by angular momentum coupling, so matrix elements
-  are evaluated directly in the coupled basis.
-
-  Specialised by @ref CSF1 (one electron), @ref CSF2 (two electrons) and
-  @ref CSF3 (three electrons).
-*/
-class CSF {
-protected:
-  int m_parity{1};
-
-  explicit CSF(int parity) : m_parity(parity) {}
-  CSF(const CSF &) = default;
-  CSF(CSF &&) = default;
-  CSF &operator=(const CSF &) = default;
-  CSF &operator=(CSF &&) = default;
-
-public:
-  virtual ~CSF() = default;
-
-  //! Parity of the CSF, +/-1
-  int parity() const { return m_parity; }
-
-  //! Number of electrons in the CSF
-  virtual std::size_t num_electrons() const = 0;
-
-  //! Single-particle configuration as a string, in relativistic or non-rel form
-  virtual std::string config(bool relativistic = false) const = 0;
-};
-
-//------------------------------------------------------------------------------
-/*!
   @brief One-electron configuration state function (CSF): a single orbital.
 
   @details
@@ -82,15 +23,19 @@ public:
   therefore have the same \f$ \kappa \f$, and the CI Hamiltonian between them
   is just the one-body \f$ h_1 \f$ (there is no two-body part). Allows
   single-valence systems to be treated with the CI machinery.
-  See @ref CSF2 and @ref CSF3 for two and three electrons.
+  See @ref CSF2 and @ref CSF3 for two and three electrons, and @ref CSF.
 
   @note The orbital is stored as a one-element array of DiracSpinor::Index,
-        so the functions generic in the orbital list (@c states) apply.
+        as for @ref CSF2 and @ref CSF3.
 */
-class CSF1 : public CSF {
+class CSF1 {
 public:
   std::array<DiracSpinor::Index, 1> states;
 
+private:
+  int m_parity;
+
+public:
   explicit CSF1(const DiracSpinor &a);
 
   //! Index (nk_index) of the orbital (i must be 0)
@@ -102,27 +47,15 @@ public:
   //! Number of orbitals that differ between two CSFs: 0 or 1
   static int num_different(const CSF1 &A, const CSF1 &B);
 
-  std::size_t num_electrons() const override { return 1; }
+  //! Parity of the CSF, +/-1
+  int parity() const { return m_parity; }
+
+  //! Number of electrons in the CSF
+  std::size_t num_electrons() const { return 1; }
 
   //! Single-particle configuration as a string, in relativistic or non-rel form
-  std::string config(bool relativistic = false) const override;
+  std::string config(bool relativistic = false) const;
 };
-
-/*!
-  @brief Forms all one-electron CSFs with given total J and parity.
-  @details
-  These are the orbitals of @p cisp_basis with j = J and the given parity (a
-  single kappa), in the order of the basis.
-
-  @param twoJ         Twice the total angular momentum 2J (odd).
-  @param parity       Total parity: +1 (even) or -1 (odd).
-  @param cisp_basis   Single-particle basis from which CSFs are constructed.
-  @param config_space Configurations to include; all by default.
-  @return List of all valid one-electron CSFs for the given J and parity.
-*/
-std::vector<CSF1> form_CSF1s(int twoJ, int parity,
-                             const std::vector<DiracSpinor> &cisp_basis,
-                             const ConfigurationSpace &config_space = {});
 
 //------------------------------------------------------------------------------
 /*!
@@ -135,7 +68,7 @@ std::vector<CSF1> form_CSF1s(int twoJ, int parity,
   relativistic orbitals. See @ref CSF1 for one electron, and @ref CSF3 for
   three.
 
-  For orbitals v and w, the determinant coefficients of @ref CSF are
+  For orbitals v and w, the determinant coefficients (see @ref CSF) are
   simply Clebcsh-Gordan coefficients:
   \f[
     |vw; J J_z\rangle = \eta_{vw} \sum_{m_v m_w}
@@ -154,12 +87,16 @@ std::vector<CSF1> form_CSF1s(int twoJ, int parity,
         (uint16_t) rather than DiracSpinor references, so CSF2 objects are
         cheap to copy and store. There is a limit to maximum n<=256 - see @ref Angular::nk_to_index
 */
-class CSF2 : public CSF {
+class CSF2 {
 
 public:
   // nb: array of states is always sorted
   std::array<DiracSpinor::Index, 2> states;
 
+private:
+  int m_parity;
+
+public:
   CSF2(const DiracSpinor &a, const DiracSpinor &b);
 
   //! Index (nk_index) of the ith constituent orbital (i = 0 or 1)
@@ -204,30 +141,15 @@ public:
   */
   static DiracSpinor::Index same_1_j(const CSF2 &A, const CSF2 &B);
 
-  std::size_t num_electrons() const override { return 2; }
+  //! Parity of the CSF, +/-1
+  int parity() const { return m_parity; }
+
+  //! Number of electrons in the CSF
+  std::size_t num_electrons() const { return 2; }
 
   //! Single-particle configuration as a string, in relativistic or non-rel form
-  std::string config(bool relativistic = false) const override;
+  std::string config(bool relativistic = false) const;
 };
-
-//------------------------------------------------------------------------------
-/*!
-  @brief Forms all two-electron CSFs with given total J and parity.
-  @details
-  Iterates over all pairs of single-particle states in @p cisp_basis and
-  retains those whose angular momenta can be coupled to total \f$ J = \f$
-  @p twoJ /2 and whose combined parity equals @p parity.  Duplicate pairs are
-  excluded by construction.
-
-  @param twoJ         Twice the total angular momentum 2J.
-  @param parity       Total parity: +1 (even) or -1 (odd).
-  @param cisp_basis   Single-particle basis from which CSFs are constructed.
-  @param config_space Configurations to include; all by default.
-  @return Sorted list of all valid two-electron CSFs for the given J and parity.
-*/
-std::vector<CSF2> form_CSFs(int twoJ, int parity,
-                            const std::vector<DiracSpinor> &cisp_basis,
-                            const ConfigurationSpace &config_space = {});
 
 //------------------------------------------------------------------------------
 /*!
@@ -238,7 +160,7 @@ std::vector<CSF2> form_CSFs(int twoJ, int parity,
   J, J_z, and parity, built from three single-particle orbitals (which may
   coincide).
 
-  The determinant coefficients of @ref CSF are not stored directly. Instead,
+  The determinant coefficients (see @ref CSF) are not stored directly. Instead,
   the CSF is stored as an expansion over "parent" states, which are
   antisymmetric in electrons 1 and 2 only: a two-electron CSF \f$ [xy] \f$
   (exactly as @ref CSF2) with angular momentum \f$ J_2 \f$, coupled to the
@@ -285,7 +207,7 @@ std::vector<CSF2> form_CSFs(int twoJ, int parity,
 
   @note Orbitals are stored as DiracSpinor::Index (sorted), as in @ref CSF2.
 */
-class CSF3 : public CSF {
+class CSF3 {
 public:
   //! One parent state of a CSF3, and its coefficient
   struct Parent {
@@ -305,6 +227,7 @@ public:
 private:
   int m_twoJ12;
   std::vector<Parent> m_parents;
+  int m_parity;
 
 public:
   /*!
@@ -335,10 +258,14 @@ public:
   */
   static int num_different(const CSF3 &A, const CSF3 &B);
 
-  std::size_t num_electrons() const override { return 3; }
+  //! Parity of the CSF, +/-1
+  int parity() const { return m_parity; }
+
+  //! Number of electrons in the CSF
+  std::size_t num_electrons() const { return 3; }
 
   //! Single-particle configuration as a string, in relativistic or non-rel form
-  std::string config(bool relativistic = false) const override;
+  std::string config(bool relativistic = false) const;
 
   friend bool operator==(const CSF3 &A, const CSF3 &B);
   friend bool operator!=(const CSF3 &A, const CSF3 &B);
@@ -402,6 +329,123 @@ double parent_exchange_23(const CSF3::Parent &bra, const CSF3::Parent &ket,
 std::vector<CSF3> form_CSF3s(std::array<DiracSpinor::Index, 3> orbitals,
                              int twoJ);
 
+//------------------------------------------------------------------------------
+/*!
+  @brief Configuration state function (CSF): the type the CI code works with.
+
+  @details
+  A CSF is an antisymmetrised N-electron basis state with definite total
+  angular momentum (\f$ J^2 \f$, \f$ J_z \f$) and parity \f$\pi\f$.
+  Each CSF is built from a combination of \f$ N \f$-electron Slater determinants,
+  which are themselves built from N single-particle relativistic orbitals.
+  Each Slater determinant has a specific set of single-particle angular
+  momentum projections \f$ j_{i,z} = m_i \f$, with \f$ \sum_i m_i = J_z \f$:
+
+  \f[
+    |I; J J_z\rangle = \sum_{\{m\}} d_{\{m\}} \,
+    |n_1\kappa_1 m_1, n_2\kappa_2 m_2, \ldots, n_N\kappa_N m_N\rangle,
+  \f]
+
+  where the kets on the right are (normalised) Slater determinants, and
+
+  \f[
+    \sum_{\{m\}} d_{\{m\}}^2 = 1.
+  \f]
+
+  The parity is the product from the orbitals,
+
+  \f[
+    \pi = \prod_i (-1)^{l_i}.
+  \f]
+
+  The determinants are not formed explicitly: the coefficients
+  \f$ d_{\{m\}} \f$ are fixed by angular momentum coupling, so matrix elements
+  are evaluated directly in the coupled basis.
+
+  Holds one of @ref CSF1 (one electron), @ref CSF2 (two electrons) or
+  @ref CSF3 (three electrons), which carry the orbitals and the coupling; the
+  matrix elements are evaluated by the functions of each kind (see, e.g.,
+  Hab()), and the functions taking CSF dispatch to them. A list of CSFs
+  (e.g., of one J/Pi, see @ref PsiJPi) may hold CSFs of different kinds; at
+  present every list holds one kind, and matrix elements between CSFs of
+  different kinds are not implemented (they assert).
+*/
+class CSF {
+  std::variant<CSF1, CSF2, CSF3> m_csf;
+
+public:
+  CSF(CSF1 csf) : m_csf(std::move(csf)) {}
+  CSF(CSF2 csf) : m_csf(std::move(csf)) {}
+  CSF(CSF3 csf) : m_csf(std::move(csf)) {}
+
+  //! Parity of the CSF, +/-1
+  int parity() const;
+
+  //! Number of electrons in the CSF
+  std::size_t num_electrons() const;
+
+  //! Single-particle configuration as a string, in relativistic or non-rel form
+  std::string config(bool relativistic = false) const;
+
+  //! The orbitals (nk_index), sorted
+  std::vector<DiracSpinor::Index> orbitals() const;
+
+  //! Index (nk_index) of the ith orbital
+  DiracSpinor::Index state(std::size_t i) const;
+
+  //! The held CSF1, CSF2 or CSF3, for std::visit
+  const std::variant<CSF1, CSF2, CSF3> &variant() const { return m_csf; }
+
+  //! Equal if of the same kind, and equal as that kind
+  friend bool operator==(const CSF &A, const CSF &B);
+  friend bool operator!=(const CSF &A, const CSF &B);
+};
+
+/*!
+  @brief Number of orbitals that differ between two CSFs, counting repeated
+  orbitals.
+  @details
+  Matrix elements of one- and two-body operators vanish if more than two
+  orbitals differ. See CSF1::num_different() etc. Both CSFs must be of the
+  same kind (see @ref CSF).
+*/
+int num_different(const CSF &A, const CSF &B);
+
+/*!
+  @brief Forms all one-electron CSFs with given total J and parity.
+  @details
+  These are the orbitals of @p cisp_basis with j = J and the given parity (a
+  single kappa), in the order of the basis.
+
+  @param twoJ         Twice the total angular momentum 2J (odd).
+  @param parity       Total parity: +1 (even) or -1 (odd).
+  @param cisp_basis   Single-particle basis from which CSFs are constructed.
+  @param config_space Configurations to include; all by default.
+  @return List of all valid one-electron CSFs for the given J and parity.
+*/
+std::vector<CSF> form_CSF1s(int twoJ, int parity,
+                            const std::vector<DiracSpinor> &cisp_basis,
+                            const ConfigurationSpace &config_space = {});
+
+//------------------------------------------------------------------------------
+/*!
+  @brief Forms all two-electron CSFs with given total J and parity.
+  @details
+  Iterates over all pairs of single-particle states in @p cisp_basis and
+  retains those whose angular momenta can be coupled to total \f$ J = \f$
+  @p twoJ /2 and whose combined parity equals @p parity.  Duplicate pairs are
+  excluded by construction.
+
+  @param twoJ         Twice the total angular momentum 2J.
+  @param parity       Total parity: +1 (even) or -1 (odd).
+  @param cisp_basis   Single-particle basis from which CSFs are constructed.
+  @param config_space Configurations to include; all by default.
+  @return Sorted list of all valid two-electron CSFs for the given J and parity.
+*/
+std::vector<CSF> form_CSF2s(int twoJ, int parity,
+                            const std::vector<DiracSpinor> &cisp_basis,
+                            const ConfigurationSpace &config_space = {});
+
 /*!
   @brief Forms all three-electron CSFs with given total J and parity.
   @details
@@ -415,9 +459,27 @@ std::vector<CSF3> form_CSF3s(std::array<DiracSpinor::Index, 3> orbitals,
   @param config_space Configurations to include; all by default.
   @return All three-electron CSFs for the given J and parity.
 */
-std::vector<CSF3> form_CSF3s(int twoJ, int parity,
-                             const std::vector<DiracSpinor> &cisp_basis,
-                             const ConfigurationSpace &config_space = {});
+std::vector<CSF> form_CSF3s(int twoJ, int parity,
+                            const std::vector<DiracSpinor> &cisp_basis,
+                            const ConfigurationSpace &config_space = {});
+
+/*!
+  @brief Forms all CSFs of @p num_electrons valence electrons with given
+  total J and parity.
+  @details
+  Calls form_CSF1s(), form_CSF2s() or form_CSF3s().
+
+  @param twoJ          Twice the total angular momentum 2J.
+  @param parity        Total parity: +1 (even) or -1 (odd).
+  @param cisp_basis    Single-particle basis from which CSFs are constructed.
+  @param num_electrons Number of valence electrons: 1, 2 or 3.
+  @param config_space  Configurations to include; all by default.
+  @return All CSFs for the given J and parity.
+*/
+std::vector<CSF> form_CSFs(int twoJ, int parity,
+                           const std::vector<DiracSpinor> &cisp_basis,
+                           int num_electrons,
+                           const ConfigurationSpace &config_space = {});
 
 /*!
   @brief Number of pairs of CSFs that can interact: those whose orbitals
@@ -432,11 +494,10 @@ std::vector<CSF3> form_CSF3s(int twoJ, int parity,
   CSFs of the same configuration (orbitals) are counted together, so the cost
   scales with the square of the number of configurations.
 
-  @param CSFs  List of CSFs (@ref CSF1, @ref CSF2, or @ref CSF3).
+  @param CSFs  List of CSFs.
   @return Number of pairs that can interact.
 */
-template <typename CSFType>
-std::size_t num_interacting_pairs(const std::vector<CSFType> &CSFs);
+std::size_t num_interacting_pairs(const std::vector<CSF> &CSFs);
 
 //------------------------------------------------------------------------------
 
@@ -461,14 +522,12 @@ struct OneBodyConnected {
   cost scales with the number of connected pairs, rather than with
   @p CSFAs .size() x @p CSFBs .size().
 
-  @param CSFAs  CSFs to be grouped (@ref CSF1, @ref CSF2, or @ref CSF3).
-  @param CSFBs  CSFs to be connected to them (same type).
+  @param CSFAs  CSFs to be grouped.
+  @param CSFBs  CSFs to be connected to them.
   @return One entry per configuration of @p CSFAs.
 */
-template <typename CSFType>
-std::vector<OneBodyConnected>
-one_body_connected(const std::vector<CSFType> &CSFAs,
-                   const std::vector<CSFType> &CSFBs);
+std::vector<OneBodyConnected> one_body_connected(const std::vector<CSF> &CSFAs,
+                                                 const std::vector<CSF> &CSFBs);
 
 //------------------------------------------------------------------------------
 
@@ -509,40 +568,6 @@ one_body_connected(const std::vector<CSFType> &CSFAs,
 double LS_amplitude(int n1, int l1, int twoj1, int n2, int l2, int twoj2, int L,
                     int S, int twoJ);
 
-//------------------------------------------------------------------------------
-
-/*!
-  @brief Expectation values of L^2 and S^2 for a two-electron CI state.
-  @details
-  Recouples each CSF to LS coupling (see @ref LS_amplitude) and accumulates,
-  per non-relativistic configuration g,
-  \f[
-    B_g(L,S) = \sum_{I \in g} c_I A_I(L,S),
-  \f]
-  giving
-  \f[
-    \langle L^2 \rangle = \sum_{g,L,S} B_g(L,S)^2 \, L(L+1),
-  \f]
-  \f[
-    \langle S^2 \rangle = \sum_{g,L,S} B_g(L,S)^2 \, S(S+1).
-  \f]
-
-  These are expectation values of the CI state, not eigenvalues: deviation
-  from L(L+1), S(S+1) measures the LS-purity of the state.
-
-  @param coefs  CI expansion coefficients (one per CSF).
-  @param csfs   The CSF basis (matching @p coefs).
-  @param twoJ   Twice the total angular momentum 2J.
-  @return Pair {<L^2>, <S^2>}.
-
-  @note Non-relativistic limit: radial overlaps between j = l +- 1/2 orbitals
-        are set to 1, so for a normalised state the total LS weight is exactly
-        1 and no renormalisation is required.
-*/
-std::pair<double, double>
-expectation_L2S2(const LinAlg::View<const double> &coefs,
-                 const std::vector<CSF2> &csfs, int twoJ);
-
 /*!
   @brief Matrix elements of L^2 and S^2 between two two-electron CSFs of the
   same J (non-relativistic limit).
@@ -567,49 +592,61 @@ std::pair<double, double> L2S2_pair(DiracSpinor::Index x, DiracSpinor::Index y,
                                     DiracSpinor::Index yp, int twoJ);
 
 /*!
-  @brief Expectation values of L^2 and S^2 for a one-electron CI state.
+  @brief Matrix elements of L^2 and S^2 between two CSFs of the same J
+  (non-relativistic limit).
   @details
-  Each orbital has definite l, and s = 1/2, so both are diagonal:
-  \f[
-    \langle L^2 \rangle = \sum_I c_I^2 \, l_I(l_I+1),
-  \f]
-  \f[
-    \langle S^2 \rangle = \tfrac{3}{4} \sum_I c_I^2 .
-  \f]
-  (All CSFs of one (J, parity) have the same kappa, so the same l.)
+  Both are scalars, and (with the radial orbitals of \f$ j = l \pm 1/2 \f$
+  treated as identical, see @ref LS_amplitude) connect only CSFs of the same
+  non-relativistic configuration, in the same stored order.
 
-  @param coefs  CI expansion coefficients (one per CSF).
-  @param csfs   The CSF basis (matching @p coefs).
-  @param twoJ   Twice the total angular momentum 2J. Not used.
-  @return Pair {<L^2>, <S^2>}.
-*/
-std::pair<double, double>
-expectation_L2S2(const LinAlg::View<const double> &coefs,
-                 const std::vector<CSF1> &csfs, int twoJ);
-
-/*!
-  @brief Expectation values of L^2 and S^2 for a three-electron CI state.
-  @details
-  Written as sums of pair operators plus one-body terms,
+  - One electron: each orbital has definite l, and s = 1/2, so both are
+    diagonal, \f$ l(l+1) \f$ and \f$ 3/4 \f$.
+  - Two electrons: @ref L2S2_pair.
+  - Three electrons: written as sums of pair operators plus one-body terms,
   \f[
     L^2 = \sum_{i<j} L_{ij}^2 - \sum_i l_i(l_i+1),
   \f]
   \f[
     S^2 = \sum_{i<j} S_{ij}^2 - \tfrac{9}{4},
   \f]
-  the pair terms reduce, by the expansion over parent states (see @ref CSF3),
-  to the two-electron matrix elements of @ref L2S2_pair, between parents with
-  the same third orbital. As for two electrons, only CSFs of the same
-  non-relativistic configuration are connected.
+    the pair terms reduce, by the expansion over parent states (see
+    @ref CSF3), to the two-electron matrix elements of @ref L2S2_pair,
+    between parents with the same third orbital; the one-body terms are
+    diagonal.
+
+  Both CSFs must be of the same kind (see @ref CSF).
+
+  @param A,B   The two CSFs.
+  @param twoJ  Twice the total angular momentum 2J of both CSFs.
+  @return Pair {<A|L^2|B>, <A|S^2|B>}; zero if the configurations differ.
+*/
+std::pair<double, double> L2S2_element(const CSF &A, const CSF &B, int twoJ);
+
+/*!
+  @brief Expectation values of L^2 and S^2 for a CI state.
+  @details
+  \f[
+    \langle L^2 \rangle = \sum_{IJ} c_I c_J \langle I | L^2 | J \rangle ,
+  \f]
+  and likewise for \f$ S^2 \f$, with the matrix elements of
+  @ref L2S2_element, which connect only CSFs of the same non-relativistic
+  configuration.
+
+  These are expectation values of the CI state, not eigenvalues: deviation
+  from L(L+1), S(S+1) measures the LS-purity of the state.
 
   @param coefs  CI expansion coefficients (one per CSF).
   @param csfs   The CSF basis (matching @p coefs).
   @param twoJ   Twice the total angular momentum 2J.
   @return Pair {<L^2>, <S^2>}.
+
+  @note Non-relativistic limit: radial overlaps between j = l +- 1/2 orbitals
+        are set to 1, so for a normalised state the total LS weight is exactly
+        1 and no renormalisation is required.
 */
 std::pair<double, double>
 expectation_L2S2(const LinAlg::View<const double> &coefs,
-                 const std::vector<CSF3> &csfs, int twoJ);
+                 const std::vector<CSF> &csfs, int twoJ);
 
 //------------------------------------------------------------------------------
 
@@ -694,28 +731,24 @@ struct ConfigInfo {
   Holds the complete set of configuration state functions and the results of
   the CI diagonalisation for a fixed total angular momentum J and parity.
 
-  Construction builds the CSF basis (form_CSF1s() for one electron,
-  form_CSFs() for two, form_CSF3s() for three) but does not solve the
+  Construction builds the CSF basis (form_CSFs()) but does not solve the
   eigenvalue problem; call solve() separately after constructing the CI
   Hamiltonian matrix.
   Configuration labels are not set automatically -- call update_config_info()
   for each solution after solving.
 
-  A J/Pi holds CSFs of a single electron number: one (@ref CSF1), two
-  (@ref CSF2) or three (@ref CSF3); see num_electrons(). The CSF list is
-  accessed by type (CSF1s(), CSFs(), CSF3s()); num_CSFs() and csf() work for
-  any.
+  The CSFs (see @ref CSF) are those of num_electrons() valence electrons.
 */
 class PsiJPi {
 
   int m_twoj{-1};
   int m_pi{0};
+  // Number of valence electrons the CSFs were formed with
+  int m_num_electrons{0};
 
   // Number of solutions stored:
   std::size_t m_num_solutions{0};
-  // List of CSFs: one-, two-, or three-electron
-  std::variant<std::vector<CSF1>, std::vector<CSF2>, std::vector<CSF3>>
-    m_CSFs{};
+  std::vector<CSF> m_CSFs{};
   // Energy, and CI expansion coeficients
   std::pair<LinAlg::Vector<double>, LinAlg::Matrix<double>> m_Solution{};
   std::vector<ConfigInfo> m_Info{};
@@ -724,9 +757,8 @@ public:
   /*!
     @brief Constructs the CSF basis for the given J and parity; does not solve.
     @details
-    Calls form_CSF1s() (one electron), form_CSFs() (two) or form_CSF3s()
-    (three) to build the list of CSFs.  The eigenvalue problem is not solved
-    until solve() is called with the CI Hamiltonian.
+    Calls form_CSFs() to build the list of CSFs. The eigenvalue problem is
+    not solved until solve() is called with the CI Hamiltonian.
 
     @param twoJ           Twice the total angular momentum 2J.
     @param pi             Total parity: +1 or -1.
@@ -821,26 +853,17 @@ public:
   //! Set configuration info for the ith solution (must be called manually after solve())
   void update_config_info(std::size_t i, const ConfigInfo &info);
 
-  //! Number of valence electrons in each CSF (1, 2 or 3)
+  //! Number of valence electrons the CSFs were formed with (1, 2 or 3)
   int num_electrons() const;
 
   //! Number of CSFs spanning this J/Pi
   std::size_t num_CSFs() const;
 
-  //! The ith CSF, as the common base (for parity, config string, ...)
+  //! The ith CSF
   const CI::CSF &csf(std::size_t i) const;
 
-  //! Full list of one-electron CSFs spanning this J/Pi; must have num_electrons() == 1
-  const std::vector<CSF1> &CSF1s() const;
-
-  //! Full list of two-electron CSFs spanning this J/Pi; must have num_electrons() == 2
-  const std::vector<CSF2> &CSFs() const;
-
-  //! Full list of three-electron CSFs spanning this J/Pi; must have num_electrons() == 3
-  const std::vector<CSF3> &CSF3s() const;
-
-  //! Returns reference to the ith two-electron CSF; must have num_electrons() == 2
-  const CSF2 &CSF(std::size_t i) const;
+  //! Full list of CSFs spanning this J/Pi
+  const std::vector<CSF> &CSFs() const;
 
   //! Energy of the ith CI solution (atomic units)
   double energy(std::size_t i) const;
