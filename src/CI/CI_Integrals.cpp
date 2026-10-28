@@ -313,38 +313,28 @@ double corrected_Sk(double Sk, double dSk, double dE0) {
 }
 
 //==============================================================================
-double Sigma1Correction::delta_h1(DiracSpinor::Index a, DiracSpinor::Index b,
-                                  DiracSpinor::Index spectator) const {
+double
+Sigma1Correction::delta_h1(DiracSpinor::Index a, DiracSpinor::Index b,
+                           std::optional<DiracSpinor::Index> spectator1,
+                           std::optional<DiracSpinor::Index> spectator2) const {
   const auto Sig = S1.getv(a, b);
   // E0 = 0.0 means it was never set: no correction (see iterate_E0)
   if (Sig == 0.0 || E0 == 0.0) {
     return 0.0;
   }
   const auto es = e_sigma.find(Angular::nkindex_to_kappa(a));
-  const auto e_spec = en.find(spectator);
-  if (es == e_sigma.end() || e_spec == en.end()) {
+  if (es == e_sigma.end()) {
     return 0.0;
   }
-  const auto dE = E0 - es->second - e_spec->second;
-  return corrected_Sigma(Sig, dS1.getv(a, b), dE) - Sig;
-}
-
-//------------------------------------------------------------------------------
-double Sigma1Correction::delta_h1(DiracSpinor::Index a, DiracSpinor::Index b,
-                                  DiracSpinor::Index spectator1,
-                                  DiracSpinor::Index spectator2) const {
-  const auto Sig = S1.getv(a, b);
-  // E0 = 0.0 means it was never set: no correction (see iterate_E0)
-  if (Sig == 0.0 || E0 == 0.0) {
-    return 0.0;
+  auto dE = E0 - es->second;
+  for (const auto &spectator : {spectator1, spectator2}) {
+    if (!spectator)
+      continue;
+    const auto e_spec = en.find(*spectator);
+    if (e_spec == en.end())
+      return 0.0;
+    dE -= e_spec->second;
   }
-  const auto es = e_sigma.find(Angular::nkindex_to_kappa(a));
-  const auto e_spec1 = en.find(spectator1);
-  const auto e_spec2 = en.find(spectator2);
-  if (es == e_sigma.end() || e_spec1 == en.end() || e_spec2 == en.end()) {
-    return 0.0;
-  }
-  const auto dE = E0 - es->second - e_spec1->second - e_spec2->second;
   return corrected_Sigma(Sig, dS1.getv(a, b), dE) - Sig;
 }
 
@@ -600,6 +590,16 @@ iterate_E0<LinAlg::SparseSymmetricMatrix<double>>(
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const std::vector<double> &, const Coulomb::WkTable *, double, std::ostream &,
   std::size_t);
+
+//==============================================================================
+// CI Hamiltonian matrix element for two 1-particle CSFs: one-body only
+double Hab(const CI::CSF1 &A, const CI::CSF1 &B, int,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &,
+           const Sigma1Correction *s1c) {
+  const auto a = A.state(0);
+  const auto b = B.state(0);
+  return h1.getv(a, b) + (s1c ? s1c->delta_h1(a, b) : 0.0);
+}
 
 //==============================================================================
 // Determines CI Hamiltonian matrix element for two 2-particle CSFs, a and b
@@ -876,7 +876,9 @@ double ReducedME(const LinAlg::View<const double> &cA,
         const auto &csf_j = CSFBs[j];
         const auto cj = cB[j];
 
-        if constexpr (std::is_same_v<CSFType, CSF3>) {
+        if constexpr (std::is_same_v<CSFType, CSF1>) {
+          rme += ci * cj * RME_CSF1(csf_i, twoJA, csf_j, twoJB, h, K_rank);
+        } else if constexpr (std::is_same_v<CSFType, CSF3>) {
           rme += ci * cj * RME_CSF3(csf_i, twoJA, csf_j, twoJB, h, K_rank);
         } else {
           rme += ci * cj * RME_CSF2(csf_i, twoJA, csf_j, twoJB, h, K_rank);
@@ -887,6 +889,11 @@ double ReducedME(const LinAlg::View<const double> &cA,
   return rme;
 }
 
+template double ReducedME<CSF1>(const LinAlg::View<const double> &,
+                                const std::vector<CSF1> &, int,
+                                const LinAlg::View<const double> &,
+                                const std::vector<CSF1> &, int,
+                                const Coulomb::meTable<double> &, int, int);
 template double ReducedME<CSF2>(const LinAlg::View<const double> &,
                                 const std::vector<CSF2> &, int,
                                 const LinAlg::View<const double> &,
@@ -897,6 +904,12 @@ template double ReducedME<CSF3>(const LinAlg::View<const double> &,
                                 const LinAlg::View<const double> &,
                                 const std::vector<CSF3> &, int,
                                 const Coulomb::meTable<double> &, int, int);
+
+//==============================================================================
+double RME_CSF1(const CI::CSF1 &X, int, const CI::CSF1 &V, int,
+                const Coulomb::meTable<double> &h, int) {
+  return h.getv(X.state(0), V.state(0));
+}
 
 //==============================================================================
 double RME_CSF3(const CI::CSF3 &X, int twoJX, const CI::CSF3 &V, int twoJV,
@@ -998,6 +1011,9 @@ leading_config(const LinAlg::View<const double> &coefs,
 }
 
 template std::pair<std::string, double>
+leading_config<CSF1>(const LinAlg::View<const double> &,
+                     const std::vector<CSF1> &);
+template std::pair<std::string, double>
 leading_config<CSF2>(const LinAlg::View<const double> &,
                      const std::vector<CSF2> &);
 template std::pair<std::string, double>
@@ -1094,7 +1110,11 @@ MatrixType construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
                          const Sigma1Correction *s1c,
                          const std::vector<double> &hk,
                          const Coulomb::WkTable *dSk, double dE0) {
-  // Two- or three-electron CSFs: one dispatch per matrix
+  // One-, two- or three-electron CSFs: one dispatch per matrix
+  if (psi.num_electrons() == 1) {
+    return construct_Hci<MatrixType>(psi.CSF1s(), psi.twoJ(), h1, qk, Bk, Sk,
+                                     s1c, hk, dSk, dE0);
+  }
   if (psi.num_electrons() == 3) {
     return construct_Hci<MatrixType>(psi.CSF3s(), psi.twoJ(), h1, qk, Bk, Sk,
                                      s1c, hk, dSk, dE0);
@@ -1149,19 +1169,24 @@ construct_Hci(const std::vector<CSFType> &CSFs, int twoJ,
 
       // Regular CI matrix (h1 may include Sigma_1):
       const auto E_AB = Hab(A, B, twoJ, h1, qk, s1c);
-      // Sigma_2 correction (three electrons: the pair energies need the
-      // orbital energy of the third electron):
+      // Two-body corrections: none for one electron.
+      // Sigma_2 (three electrons: the pair energies need the orbital energy
+      // of the third electron), and Breit
       double dEs_AB = 0.0;
-      if (Sk != nullptr) {
-        if constexpr (std::is_same_v<CSFType, CSF3>) {
-          dEs_AB = CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0,
-                                 s1c ? &s1c->en : nullptr);
-        } else {
-          dEs_AB = CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0);
+      double dEb_AB = 0.0;
+      if constexpr (!std::is_same_v<CSFType, CSF1>) {
+        if (Sk != nullptr) {
+          if constexpr (std::is_same_v<CSFType, CSF3>) {
+            dEs_AB = CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0,
+                                   s1c ? &s1c->en : nullptr);
+          } else {
+            dEs_AB = CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0);
+          }
+        }
+        if (Bk != nullptr) {
+          dEb_AB = CI::Breit_AB(A, B, twoJ, *Bk);
         }
       }
-      // Breit correction:
-      const auto dEb_AB = Bk ? CI::Breit_AB(A, B, twoJ, *Bk) : 0.0;
 
       const auto H_AB = E_AB + dEs_AB + dEb_AB;
       if constexpr (sparse) {
@@ -1186,6 +1211,11 @@ construct_Hci(const std::vector<CSFType> &CSFs, int twoJ,
   return Hci;
 }
 
+template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>, CSF1>(
+  const std::vector<CSF1> &, int, const Coulomb::meTable<double> &,
+  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
+  const Sigma1Correction *, const std::vector<double> &,
+  const Coulomb::WkTable *, double);
 template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>, CSF2>(
   const std::vector<CSF2> &, int, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
@@ -1193,6 +1223,12 @@ template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>, CSF2>(
   const Coulomb::WkTable *, double);
 template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>, CSF3>(
   const std::vector<CSF3> &, int, const Coulomb::meTable<double> &,
+  const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
+  const Sigma1Correction *, const std::vector<double> &,
+  const Coulomb::WkTable *, double);
+template LinAlg::SparseSymmetricMatrix<double>
+construct_Hci<LinAlg::SparseSymmetricMatrix<double>, CSF1>(
+  const std::vector<CSF1> &, int, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
   const Coulomb::WkTable *, double);

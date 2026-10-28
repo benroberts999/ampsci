@@ -1194,6 +1194,268 @@ TEST_CASE("CI: three-electron run", "[CI][3VCI][unit]") {
 }
 
 //==============================================================================
+// One valence electron: the CI Hamiltonian of each (J, parity) is the one-body
+// h1 between the orbitals of that kappa. Without Sigma_1 it is diagonal, so
+// each level is one orbital: its energy, g-factor, and term. Matrix elements
+// between levels are the single-particle ones, and the mixed states are the
+// sums over the orbitals. With Sigma_1, h1 has off-diagonal elements, which
+// the Hamiltonian must carry
+TEST_CASE("CI: one-electron run", "[CI][unit]") {
+
+  Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
+                  {"Li", -1, "pointlike"}, 1.0);
+  wf.solve_core("HartreeFock", "[He]", std::nullopt, 1.0e-5, false);
+  auto b_params = SplineBasis::Parameters("4spd", 20, 6, {1.0e-2}, 20.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
+
+  const std::string qk_filename =
+    "deleteme_" + qip::random_string(3) + ".qk.abf";
+  const std::string ci_filename =
+    "deleteme_" + qip::random_string(3) + ".ci.abf";
+  const auto files = "qk_file = " + qk_filename + "; ci_file = " + ci_filename +
+                     "; print_details = false;";
+
+  const IO::InputBlock input{"CI", "ci_basis = 4spd; num_electrons = 1;"
+                                   "J = 1/2, 3/2; num_solutions = 2;" +
+                                     files};
+  const auto solution = CI::configuration_interaction(input, wf);
+  const auto &levels = solution.levels;
+  const auto &basis = solution.integrals.ci_basis;
+  REQUIRE(solution.integrals.num_electrons == 1);
+  // 1/2+ (s), 3/2+ (d3/2), 1/2- (p1/2), 3/2- (p3/2)
+  REQUIRE(levels.size() == 4);
+
+  // The CI orbitals of one kappa, in energy order
+  const auto orbitals_of = [&basis](int twoJ, int parity) {
+    std::vector<DiracSpinor> orbitals;
+    for (const auto &Fn : basis) {
+      if (Fn.twoj() == twoJ && Fn.parity() == parity) {
+        orbitals.push_back(Fn);
+      }
+    }
+    std::sort(orbitals.begin(), orbitals.end(),
+              [](const auto &a, const auto &b) { return a.en() < b.en(); });
+    return orbitals;
+  };
+  const DiracOperator::M1 m1{wf.grid(), PhysConst::alpha, 0.0};
+
+  for (const auto &psi : levels) {
+    REQUIRE(psi.num_electrons() == 1);
+    const auto twoJ = psi.twoJ();
+    const auto orbitals = orbitals_of(twoJ, psi.parity());
+    REQUIRE(orbitals.size() >= 2);
+    REQUIRE(psi.num_CSFs() == orbitals.size());
+    REQUIRE(psi.num_solutions() == 2);
+    for (std::size_t i = 0; i < psi.num_solutions(); ++i) {
+      const auto &Fa = orbitals[i];
+      // Diagonal Hamiltonian: each level is one orbital
+      REQUIRE(psi.energy(i) == Approx(Fa.en()).epsilon(1.0e-10));
+      REQUIRE(psi.csf(i).config(true) == Fa.shortSymbol());
+      REQUIRE(std::abs(psi.coef(i, i)) == Approx(1.0).epsilon(1.0e-10));
+      auto nonrel_symbol = Fa.shortSymbol();
+      nonrel_symbol.pop_back();
+      REQUIRE(psi.info(i).config == nonrel_symbol);
+      REQUIRE(psi.info(i).ci2 == Approx(1.0).epsilon(1.0e-10));
+      // Term and g-factor of the orbital: gJ = 3j * <a||M1||a> / J
+      const auto l = Fa.l();
+      REQUIRE(psi.info(i).L2 == Approx(l * (l + 1.0)).epsilon(1.0e-12));
+      REQUIRE(psi.info(i).S2 == Approx(0.75).epsilon(1.0e-12));
+      REQUIRE(psi.info(i).L == 1.0 * l);
+      REQUIRE(psi.info(i).twoS == 1.0);
+      const auto gJ = Angular::threej_2(twoJ, twoJ, 2, twoJ, -twoJ, 0) *
+                      m1.reducedME(Fa, Fa) / (0.5 * twoJ);
+      REQUIRE(psi.info(i).gJ == Approx(gJ).epsilon(1.0e-10));
+    }
+  }
+
+  // Matrix elements between levels: the single-particle reduced matrix
+  // elements (up to the sign of the CI eigenvectors)
+  const auto level = [&levels](int twoJ, int parity) {
+    return *std::find_if(levels.cbegin(), levels.cend(),
+                         [twoJ, parity](const auto &psi) {
+                           return psi.twoJ() == twoJ && psi.parity() == parity;
+                         });
+  };
+  const auto &s_half = level(1, +1);
+  const auto &p_half = level(1, -1);
+  const auto &p_three = level(3, -1);
+  const auto s_orbitals = orbitals_of(1, +1);
+  const auto p_orbitals = orbitals_of(1, -1);
+  const auto pp_orbitals = orbitals_of(3, -1);
+  const auto &F2s = s_orbitals.front();
+  const auto &F2p = p_orbitals.front();
+  const auto &F2pp = pp_orbitals.front();
+
+  const DiracOperator::E1 e1{wf.grid()};
+  const auto e1_tab = Amplitudes::me_table(basis, &e1);
+  const auto m1_tab = Amplitudes::me_table(basis, &m1);
+  const auto d_sp = CI::ReducedME(s_half, 0, p_half, 0, e1_tab, 1, -1);
+  const auto d_spp = CI::ReducedME(s_half, 0, p_three, 0, e1_tab, 1, -1);
+  const auto m_ppp = CI::ReducedME(p_half, 0, p_three, 0, m1_tab, 1, +1);
+  REQUIRE(d_sp != 0.0);
+  REQUIRE(std::abs(d_sp) ==
+          Approx(std::abs(e1.reducedME(F2s, F2p))).epsilon(1.0e-10));
+  REQUIRE(std::abs(d_spp) ==
+          Approx(std::abs(e1.reducedME(F2s, F2pp))).epsilon(1.0e-10));
+  REQUIRE(std::abs(m_ppp) ==
+          Approx(std::abs(m1.reducedME(F2p, F2pp))).epsilon(1.0e-10));
+  // Parity selection: E1 within a parity, M1 across, vanish
+  REQUIRE(CI::ReducedME(p_half, 0, p_three, 0, e1_tab, 1, -1) == 0.0);
+  REQUIRE(CI::ReducedME(s_half, 0, p_half, 0, m1_tab, 1, +1) == 0.0);
+
+  // Mixed state of 2s under E1, in the p1/2 block: with a diagonal
+  // Hamiltonian, c_n = -<n||d||2s> c_2s / (e_n - e_2s - omega)
+  const auto Hci = CI::construct_Hci(p_half, solution.integrals);
+  for (const double omega : {0.0, 0.05}) {
+    const auto dPsi =
+      CI::solve_mixed_state(s_half, 0, p_half, Hci, e1_tab, 1, omega);
+    REQUIRE(dPsi.num_electrons() == 1);
+    REQUIRE(dPsi.num_CSFs() == p_half.num_CSFs());
+    const auto c_2s = s_half.coef(0, 0);
+    for (std::size_t n = 0; n < p_half.num_CSFs(); ++n) {
+      const auto &Fn = p_orbitals[n];
+      REQUIRE(p_half.csf(n).config(true) == Fn.shortSymbol());
+      const auto expected =
+        -e1.reducedME(Fn, F2s) * c_2s / (Fn.en() - F2s.en() - omega);
+      REQUIRE(dPsi.coef(0, n) == Approx(expected).epsilon(1.0e-10));
+    }
+  }
+
+  // With Sigma_1 (second order, from the Coulomb integrals), h1 has
+  // off-diagonal elements between the orbitals of a kappa: the Hamiltonian is
+  // that table, and the levels are its eigenvalues
+  const IO::InputBlock input_s1{"CI",
+                                "ci_basis = 4spd; num_electrons = 1; J = 1/2;"
+                                "sigma1 = true; s1_basis = 6spd;"
+                                "num_solutions = 0; ci_file = false;"
+                                "qk_file = " +
+                                  qk_filename + "; print_details = false;"};
+  const auto solution_s1 = CI::configuration_interaction(input_s1, wf);
+  REQUIRE(solution_s1.levels.size() == 2);
+  for (const auto &psi : solution_s1.levels) {
+    const auto N = psi.num_CSFs();
+    REQUIRE(N >= 2);
+    REQUIRE(psi.num_solutions() == N);
+    const auto H = CI::construct_Hci(psi, solution_s1.integrals);
+    double largest_off_diagonal = 0.0;
+    for (std::size_t i = 0; i < N; ++i) {
+      for (std::size_t j = 0; j < N; ++j) {
+        const auto h1_ij = solution_s1.integrals.h1.getv(
+          psi.CSF1s()[i].state(0), psi.CSF1s()[j].state(0));
+        REQUIRE(H(i, j) == h1_ij);
+        if (i != j) {
+          largest_off_diagonal =
+            std::max(largest_off_diagonal, std::abs(h1_ij));
+        }
+      }
+    }
+    REQUIRE(largest_off_diagonal > 1.0e-6);
+    const auto E = LinAlg::symmhEigensystem(H).first;
+    for (std::size_t i = 0; i < N; ++i) {
+      REQUIRE(psi.energy(i) == Approx(E[i]).epsilon(1.0e-10));
+    }
+    // Correlations lower the lowest level below its orbital energy
+    const auto e_orbital = orbitals_of(psi.twoJ(), psi.parity()).front().en();
+    REQUIRE(psi.energy(0) < e_orbital);
+  }
+}
+
+//==============================================================================
+// One valence electron, Na (core [Ne]), against single-particle calculations
+// on the grid. Without MBPT, the CI levels are the Hartree-Fock valence
+// energies. With Sigma_1 (second order, from the Coulomb integrals), the CI
+// diagonalises h_HF + Sigma in the CI basis: the levels are the second-order
+// Brueckner energies, for which h_HF + Sigma is solved on the grid (with
+// Sigma from the Goldstone method, as a radial matrix). Agreement is limited
+// by the completeness of the CI basis (a 12spd CI basis misses over 1% of the
+// 3s correction), and by the different evaluation of Sigma (radial matrix on
+// a sub-grid, vs sums over Coulomb integrals)
+TEST_CASE("CI: one-electron Na", "[CI][integration]") {
+
+  Wavefunction wf({1500, 1.0e-6, 100.0, 0.33 * 100.0, "loglinear"},
+                  {"Na", -1, "Fermi"}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-8, false);
+  wf.solve_valence("4sp3d", false);
+  auto b_params = SplineBasis::Parameters("30spd", 35, 7, {1.0e-5}, 50.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
+
+  // CI energies of the valence states: the level of the (J, parity) of each,
+  // indexed by the number of lower valence states of the same kappa
+  const auto ci_energies = [&wf](const std::string &options) {
+    const IO::InputBlock input{
+      "CI", "ci_basis = 20spd; num_electrons = 1; J+ = 1/2, 3/2, 5/2;"
+            "J- = 1/2, 3/2; num_solutions = 2; qk_file = false;"
+            "ci_file = false; print_details = false;" +
+              options};
+    const auto levels = CI::configuration_interaction(input, wf).levels;
+    std::vector<double> energies;
+    for (const auto &Fv : wf.valence()) {
+      const auto level =
+        std::find_if(levels.cbegin(), levels.cend(), [&Fv](const auto &psi) {
+          return psi.twoJ() == Fv.twoj() && psi.parity() == Fv.parity();
+        });
+      REQUIRE(level != levels.cend());
+      const auto index = std::count_if(
+        wf.valence().cbegin(), wf.valence().cend(), [&Fv](const auto &Fw) {
+          return Fw.kappa() == Fv.kappa() && Fw.n() < Fv.n();
+        });
+      energies.push_back(level->energy(std::size_t(index)));
+    }
+    return energies;
+  };
+
+  const auto E_CI = ci_energies("");
+  // Second-order Sigma_1, calculated within CI (there is no correlation
+  // potential yet)
+  const auto E_CI_Sigma1 = ci_energies("sigma1 = true;");
+
+  std::vector<double> E_HF;
+  for (const auto &Fv : wf.valence()) {
+    E_HF.push_back(Fv.en());
+  }
+
+  // Second-order Brueckner: Goldstone Sigma (including the small components,
+  // as the Coulomb integrals do), at the lowest valence energy of each kappa
+  wf.formSigma(1, 1.0e-4, 30.0, 6, false, true, false, 0, {}, {}, {}, false);
+  wf.hartreeFockBrueckner(false);
+
+  std::cout << "\n";
+  fmt::print("CI (one valence electron) vs Hartree-Fock and Brueckner, Na "
+             "(/cm)\n");
+  fmt::print("       HF         CI     diff  Brueckner   CI+S1     diff  "
+             "diff/dE_Sigma\n");
+  // CI vs HF in /cm; CI+Sigma_1 vs Brueckner relative to the correlation
+  // correction, dE_Sigma = E_Brueckner - E_HF
+  double max_diff_HF = 0.0;
+  double max_relative_diff_Br = 0.0;
+  for (std::size_t i = 0; i < E_HF.size(); ++i) {
+    const auto &Fv = wf.valence()[i];
+    const auto E_Br = Fv.en();
+    const auto diff_HF = E_CI[i] - E_HF[i];
+    const auto diff_Br = E_CI_Sigma1[i] - E_Br;
+    const auto relative_diff_Br = diff_Br / (E_Br - E_HF[i]);
+    fmt::print(
+      "{:5s} {:9.2f} {:9.2f} {:6.3f} {:9.2f} {:9.2f} {:6.3f}  {:+.1e}\n",
+      Fv.shortSymbol(), E_HF[i] * PhysConst::Hartree_invcm,
+      E_CI[i] * PhysConst::Hartree_invcm, diff_HF * PhysConst::Hartree_invcm,
+      E_Br * PhysConst::Hartree_invcm,
+      E_CI_Sigma1[i] * PhysConst::Hartree_invcm,
+      diff_Br * PhysConst::Hartree_invcm, relative_diff_Br);
+    max_diff_HF = std::max(max_diff_HF, std::abs(diff_HF));
+    max_relative_diff_Br =
+      std::max(max_relative_diff_Br, std::abs(relative_diff_Br));
+  }
+  const auto max_diff_HF_invcm = max_diff_HF * PhysConst::Hartree_invcm;
+  fmt::print("CI vs HF: max diff = {:.3f} /cm\n", max_diff_HF_invcm);
+  fmt::print("CI+Sigma_1 vs Brueckner: max diff = {:.1e} of dE_Sigma\n",
+             max_relative_diff_Br);
+  REQUIRE(max_diff_HF_invcm < 1.0);
+  REQUIRE(max_relative_diff_Br < 0.01);
+}
+
+//==============================================================================
 // The CI solutions file: blocks with different numbers of solutions; a new
 // block appended; a block re-written with more solutions (the other block
 // kept exactly); an incomplete final block dropped; the file size; and a file

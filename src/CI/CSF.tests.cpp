@@ -484,6 +484,11 @@ TEST_CASE("CI: CSF functions", "[CI][3VCI][unit]") {
   REQUIRE(two_spectators == Approx(s1c.delta_h1(is, is, id5)));
   // Unknown spectator: no correction
   REQUIRE(s1c.delta_h1(is, is, ip1, s.nk_index()) == 0.0);
+  // No spectators (one electron): dE = E0 - e_sigma
+  const auto no_spectators = s1c.delta_h1(is, is);
+  REQUIRE(no_spectators != 0.0);
+  REQUIRE(no_spectators ==
+          Approx(CI::corrected_Sigma(-0.01, -0.002, -0.8 + 0.2) + 0.01));
 
   // L^2, S^2 between two-electron CSFs (non-rel limit): 4p- 4p+, J=1 is pure
   // 3P1; different non-rel configurations do not connect
@@ -558,4 +563,92 @@ TEST_CASE("CI: one-body connected CSFs", "[CI][3VCI][unit]") {
   const auto A2 = CI::form_CSFs(2, +1, basis);
   check(A2, A2);
   check(A2, CI::form_CSFs(2, -1, basis));
+  const auto A1 = CI::form_CSF1s(1, +1, basis);
+  check(A1, A1);
+  check(A1, CI::form_CSF1s(1, -1, basis));
+}
+
+//==============================================================================
+// One-electron CSFs: one per orbital of the given j and parity (a single
+// kappa), restricted by the configuration space; PsiJPi holds them; <L^2> and
+// <S^2> are those of the orbital
+TEST_CASE("CI: one-electron CSFs", "[CI][unit]") {
+
+  const auto grid = std::make_shared<const Grid>(
+    GridParameters{10, 1.0e-4, 10.0, 5.0, GridType::loglinear});
+  std::vector<DiracSpinor> basis;
+  for (const auto &[n, kappa] : std::vector<std::pair<int, int>>{
+         {4, -1}, {5, -1}, {6, -1}, {4, 1}, {5, 1}, {4, -2}, {3, 2}, {3, -3}}) {
+    basis.emplace_back(n, kappa, grid);
+  }
+
+  // A CSF is one orbital: its parity and configuration string
+  const CI::CSF1 s4{basis[0]};
+  REQUIRE(s4.num_electrons() == 1);
+  REQUIRE(s4.state(0) == basis[0].nk_index());
+  REQUIRE(s4.parity() == +1);
+  REQUIRE(s4.config(false) == "4s");
+  REQUIRE(s4.config(true) == "4s+");
+  REQUIRE(CI::CSF1{basis[3]}.parity() == -1);
+  REQUIRE(CI::CSF1{basis[3]}.config(true) == "4p-");
+  REQUIRE(s4 == CI::CSF1{basis[0]});
+  REQUIRE(s4 != CI::CSF1{basis[1]});
+  REQUIRE(CI::CSF1::num_different(s4, s4) == 0);
+  REQUIRE(CI::CSF1::num_different(s4, CI::CSF1{basis[1]}) == 1);
+
+  // For each (2J, parity), the CSFs are exactly the orbitals of that kappa, in
+  // basis order; every orbital belongs to one (2J, parity)
+  std::size_t total = 0;
+  for (int twoJ = 1; twoJ <= 7; twoJ += 2) {
+    for (const int parity : {+1, -1}) {
+      std::vector<DiracSpinor::Index> expected;
+      for (const auto &Fn : basis) {
+        if (Fn.twoj() == twoJ && Fn.parity() == parity) {
+          expected.push_back(Fn.nk_index());
+        }
+      }
+      std::vector<DiracSpinor::Index> found;
+      for (const auto &csf : CI::form_CSF1s(twoJ, parity, basis)) {
+        found.push_back(csf.state(0));
+      }
+      REQUIRE(found == expected);
+      total += found.size();
+    }
+  }
+  REQUIRE(total == basis.size());
+
+  // Configuration space: the leading configuration only, or with one step
+  // of excitations into 5sp (so not 6s, and not the d orbitals)
+  const CI::ConfigurationSpace leading_only{basis, 1, {"4s"}, {"0"}};
+  REQUIRE(CI::form_CSF1s(1, +1, basis, leading_only).size() == 1);
+  REQUIRE(CI::form_CSF1s(1, -1, basis, leading_only).empty());
+  const CI::ConfigurationSpace one_step{basis, 1, {"4s"}, {"1:5sp"}};
+  REQUIRE(CI::form_CSF1s(1, +1, basis, one_step).size() == 2);
+  REQUIRE(CI::form_CSF1s(1, -1, basis, one_step).size() == 2);
+  REQUIRE(CI::form_CSF1s(3, -1, basis, one_step).size() == 1);
+  REQUIRE(CI::form_CSF1s(3, +1, basis, one_step).empty());
+
+  // PsiJPi of one electron
+  const CI::PsiJPi psi(1, +1, basis, 1);
+  REQUIRE(psi.num_electrons() == 1);
+  REQUIRE(psi.num_CSFs() == 3);
+  REQUIRE(psi.CSF1s().size() == 3);
+  REQUIRE(psi.csf(0).num_electrons() == 1);
+  REQUIRE(psi.csf(2).config(false) == "6s");
+  REQUIRE(CI::PsiJPi(1, -1, basis, 1, leading_only).num_CSFs() == 0);
+  // Every pair of CSFs can interact (one-body operator)
+  REQUIRE(CI::num_interacting_pairs(psi.CSF1s()) == 6);
+
+  // <L^2> = l(l+1) and <S^2> = 3/4 for any state of one kappa; the leading
+  // configuration is the orbital with the largest weight
+  const auto csfs_p = CI::form_CSF1s(1, -1, basis);
+  const std::vector<double> c{0.6, -0.8};
+  const LinAlg::View<const double> view{c.data(), 0, c.size(), 1};
+  const auto [L2, S2] = CI::expectation_L2S2(view, csfs_p, 1);
+  REQUIRE(L2 == Approx(2.0).epsilon(1.0e-12));
+  REQUIRE(S2 == Approx(0.75).epsilon(1.0e-12));
+  REQUIRE(CI::Term_S_L_from_expectation(L2, S2, 1) == std::pair{1, 1});
+  const auto [config, weight] = CI::leading_config(view, csfs_p);
+  REQUIRE(config == "5p");
+  REQUIRE(weight == Approx(0.64));
 }

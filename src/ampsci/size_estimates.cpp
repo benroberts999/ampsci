@@ -186,7 +186,11 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
     // Number of CSFs, and of pairs that can interact (sparse elements)
     std::size_t num_CSFs = 0;
     std::size_t num_pairs = 0;
-    if (out.num_electrons == 3) {
+    if (out.num_electrons == 1) {
+      const auto CSFs = CI::form_CSF1s(twoJ, parity, ci_orbitals, config_space);
+      num_CSFs = CSFs.size();
+      num_pairs = CI::num_interacting_pairs(CSFs);
+    } else if (out.num_electrons == 3) {
       const auto CSFs = CI::form_CSF3s(twoJ, parity, ci_orbitals, config_space);
       num_CSFs = CSFs.size();
       num_pairs = CI::num_interacting_pairs(CSFs);

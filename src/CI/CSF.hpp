@@ -46,7 +46,8 @@ namespace CI {
   \f$ d_{\{m\}} \f$ are fixed by angular momentum coupling, so matrix elements
   are evaluated directly in the coupled basis.
 
-  Specialised by @ref CSF2 (two electrons) and @ref CSF3 (three electrons).
+  Specialised by @ref CSF1 (one electron), @ref CSF2 (two electrons) and
+  @ref CSF3 (three electrons).
 */
 class CSF {
 protected:
@@ -73,13 +74,66 @@ public:
 
 //------------------------------------------------------------------------------
 /*!
+  @brief One-electron configuration state function (CSF): a single orbital.
+
+  @details
+  The simplest CSF: one single-particle relativistic orbital, with
+  \f$ J = j \f$ and the parity of the orbital. All CSFs of one (J, parity)
+  therefore have the same \f$ \kappa \f$, and the CI Hamiltonian between them
+  is just the one-body \f$ h_1 \f$ (there is no two-body part). Allows
+  single-valence systems to be treated with the CI machinery.
+  See @ref CSF2 and @ref CSF3 for two and three electrons.
+
+  @note The orbital is stored as a one-element array of DiracSpinor::Index,
+        so the functions generic in the orbital list (@c states) apply.
+*/
+class CSF1 : public CSF {
+public:
+  std::array<DiracSpinor::Index, 1> states;
+
+  explicit CSF1(const DiracSpinor &a);
+
+  //! Index (nk_index) of the orbital (i must be 0)
+  DiracSpinor::Index state(std::size_t i) const;
+
+  friend bool operator==(const CSF1 &A, const CSF1 &B);
+  friend bool operator!=(const CSF1 &A, const CSF1 &B);
+
+  //! Number of orbitals that differ between two CSFs: 0 or 1
+  static int num_different(const CSF1 &A, const CSF1 &B);
+
+  std::size_t num_electrons() const override { return 1; }
+
+  //! Single-particle configuration as a string, in relativistic or non-rel form
+  std::string config(bool relativistic = false) const override;
+};
+
+/*!
+  @brief Forms all one-electron CSFs with given total J and parity.
+  @details
+  These are the orbitals of @p cisp_basis with j = J and the given parity (a
+  single kappa), in the order of the basis.
+
+  @param twoJ         Twice the total angular momentum 2J (odd).
+  @param parity       Total parity: +1 (even) or -1 (odd).
+  @param cisp_basis   Single-particle basis from which CSFs are constructed.
+  @param config_space Configurations to include; all by default.
+  @return List of all valid one-electron CSFs for the given J and parity.
+*/
+std::vector<CSF1> form_CSF1s(int twoJ, int parity,
+                             const std::vector<DiracSpinor> &cisp_basis,
+                             const ConfigurationSpace &config_space = {});
+
+//------------------------------------------------------------------------------
+/*!
   @brief Two-electron configuration state function (CSF).
 
   @details
   A CSF is an antisymmetrised two-electron basis state with definite total
   angular momentum (\f$ J^2 \f$, \f$ J_z \f$) and parity,
   built from a pair of single-particle
-  relativistic orbitals. See @ref CSF3 for three electrons.
+  relativistic orbitals. See @ref CSF1 for one electron, and @ref CSF3 for
+  three.
 
   For orbitals v and w, the determinant coefficients of @ref CSF are
   simply Clebcsh-Gordan coefficients:
@@ -373,12 +427,12 @@ std::vector<CSF3> form_CSF3s(int twoJ, int parity,
   included): the elements of the lower triangle of the CI matrix that are not
   zero by the orbitals alone. So an upper bound on the elements stored in the
   sparse CI matrix (construct_Hci()), some of which are zero by angular
-  selection. For two electrons every pair can interact.
+  selection. For one or two electrons every pair can interact.
 
   CSFs of the same configuration (orbitals) are counted together, so the cost
   scales with the square of the number of configurations.
 
-  @param CSFs  List of CSFs (@ref CSF2 or @ref CSF3).
+  @param CSFs  List of CSFs (@ref CSF1, @ref CSF2, or @ref CSF3).
   @return Number of pairs that can interact.
 */
 template <typename CSFType>
@@ -407,7 +461,7 @@ struct OneBodyConnected {
   cost scales with the number of connected pairs, rather than with
   @p CSFAs .size() x @p CSFBs .size().
 
-  @param CSFAs  CSFs to be grouped (@ref CSF2 or @ref CSF3).
+  @param CSFAs  CSFs to be grouped (@ref CSF1, @ref CSF2, or @ref CSF3).
   @param CSFBs  CSFs to be connected to them (same type).
   @return One entry per configuration of @p CSFAs.
 */
@@ -511,6 +565,27 @@ expectation_L2S2(const LinAlg::View<const double> &coefs,
 std::pair<double, double> L2S2_pair(DiracSpinor::Index x, DiracSpinor::Index y,
                                     DiracSpinor::Index xp,
                                     DiracSpinor::Index yp, int twoJ);
+
+/*!
+  @brief Expectation values of L^2 and S^2 for a one-electron CI state.
+  @details
+  Each orbital has definite l, and s = 1/2, so both are diagonal:
+  \f[
+    \langle L^2 \rangle = \sum_I c_I^2 \, l_I(l_I+1),
+  \f]
+  \f[
+    \langle S^2 \rangle = \tfrac{3}{4} \sum_I c_I^2 .
+  \f]
+  (All CSFs of one (J, parity) have the same kappa, so the same l.)
+
+  @param coefs  CI expansion coefficients (one per CSF).
+  @param csfs   The CSF basis (matching @p coefs).
+  @param twoJ   Twice the total angular momentum 2J. Not used.
+  @return Pair {<L^2>, <S^2>}.
+*/
+std::pair<double, double>
+expectation_L2S2(const LinAlg::View<const double> &coefs,
+                 const std::vector<CSF1> &csfs, int twoJ);
 
 /*!
   @brief Expectation values of L^2 and S^2 for a three-electron CI state.
@@ -619,15 +694,17 @@ struct ConfigInfo {
   Holds the complete set of configuration state functions and the results of
   the CI diagonalisation for a fixed total angular momentum J and parity.
 
-  Construction builds the CSF basis (form_CSFs() for two electrons,
-  form_CSF3s() for three) but does not solve the eigenvalue problem; call
-  solve() separately after constructing the CI Hamiltonian matrix.
+  Construction builds the CSF basis (form_CSF1s() for one electron,
+  form_CSFs() for two, form_CSF3s() for three) but does not solve the
+  eigenvalue problem; call solve() separately after constructing the CI
+  Hamiltonian matrix.
   Configuration labels are not set automatically -- call update_config_info()
   for each solution after solving.
 
-  A J/Pi holds CSFs of a single electron number: two (@ref CSF2) or three
-  (@ref CSF3); see num_electrons(). The CSF list is accessed by type (CSFs(),
-  CSF3s()); num_CSFs() and csf() work for either.
+  A J/Pi holds CSFs of a single electron number: one (@ref CSF1), two
+  (@ref CSF2) or three (@ref CSF3); see num_electrons(). The CSF list is
+  accessed by type (CSF1s(), CSFs(), CSF3s()); num_CSFs() and csf() work for
+  any.
 */
 class PsiJPi {
 
@@ -636,8 +713,9 @@ class PsiJPi {
 
   // Number of solutions stored:
   std::size_t m_num_solutions{0};
-  // List of CSFs: two- or three-electron
-  std::variant<std::vector<CSF2>, std::vector<CSF3>> m_CSFs{};
+  // List of CSFs: one-, two-, or three-electron
+  std::variant<std::vector<CSF1>, std::vector<CSF2>, std::vector<CSF3>>
+    m_CSFs{};
   // Energy, and CI expansion coeficients
   std::pair<LinAlg::Vector<double>, LinAlg::Matrix<double>> m_Solution{};
   std::vector<ConfigInfo> m_Info{};
@@ -646,14 +724,14 @@ public:
   /*!
     @brief Constructs the CSF basis for the given J and parity; does not solve.
     @details
-    Calls form_CSFs() (two electrons) or form_CSF3s() (three) to build the
-    list of CSFs.  The eigenvalue problem is not solved until solve() is called
-    with the CI Hamiltonian.
+    Calls form_CSF1s() (one electron), form_CSFs() (two) or form_CSF3s()
+    (three) to build the list of CSFs.  The eigenvalue problem is not solved
+    until solve() is called with the CI Hamiltonian.
 
     @param twoJ           Twice the total angular momentum 2J.
     @param pi             Total parity: +1 or -1.
     @param cisp_basis     Single-particle basis used to construct the CSFs.
-    @param num_electrons  Number of valence electrons: 2 or 3.
+    @param num_electrons  Number of valence electrons: 1, 2 or 3.
     @param config_space   Configurations to include; all by default.
   */
   PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
@@ -743,7 +821,7 @@ public:
   //! Set configuration info for the ith solution (must be called manually after solve())
   void update_config_info(std::size_t i, const ConfigInfo &info);
 
-  //! Number of valence electrons in each CSF (2 or 3)
+  //! Number of valence electrons in each CSF (1, 2 or 3)
   int num_electrons() const;
 
   //! Number of CSFs spanning this J/Pi
@@ -751,6 +829,9 @@ public:
 
   //! The ith CSF, as the common base (for parity, config string, ...)
   const CI::CSF &csf(std::size_t i) const;
+
+  //! Full list of one-electron CSFs spanning this J/Pi; must have num_electrons() == 1
+  const std::vector<CSF1> &CSF1s() const;
 
   //! Full list of two-electron CSFs spanning this J/Pi; must have num_electrons() == 2
   const std::vector<CSF2> &CSFs() const;
