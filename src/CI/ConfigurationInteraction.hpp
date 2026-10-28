@@ -20,7 +20,7 @@
     - @ref run_CI
     
     Main Classes are: 
-    - @ref CSF2, @ref CSF3
+    - @ref CSF (holding @ref CSF1, @ref CSF2 or @ref CSF3)
     - @ref PsiJPi
 */
 namespace CI {
@@ -87,8 +87,7 @@ enum class Solver { dense, Davidson };
   @brief Constructs and solves the CI eigenvalue problem for a single J,pi
   @details
   Builds the CI+MBPT Hamiltonian matrix in the basis of one-, two- or
-  three-electron configuration state functions (CSFs; see @ref CSF1,
-  @ref CSF2, @ref CSF3) with total
+  three-electron configuration state functions (CSFs; see @ref CSF) with total
   angular momentum @p twoJ /2 and parity @p parity, 
   then solves the eigenvalue problem to obtain CI energies and
   expansion coefficients.

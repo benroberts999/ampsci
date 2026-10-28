@@ -1250,10 +1250,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       }
     }
     // Leading non-relativistic configuration, and its |c|^2 weight:
-    const auto [config, pc] =
-      num_electrons == 1 ? CI::leading_config(psi.coefs(i), psi.CSF1s()) :
-      num_electrons == 3 ? CI::leading_config(psi.coefs(i), psi.CSF3s()) :
-                           CI::leading_config(psi.coefs(i), psi.CSFs());
+    const auto [config, pc] = CI::leading_config(psi.coefs(i), psi.CSFs());
 
     // g_J <JJz|J|JJz> = <JJz|L + 2*S|JJz>
     // take J=Jz, <JJz|J|JJz> = J
@@ -1267,12 +1264,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     const double gJ = twoJ != 0 ? tjs * m1AA_R / (0.5 * twoJ) : 0.0;
 
     // <L^2> and <S^2> of the CI state (non-rel limit): measure LS-purity
-    const auto [L2, S2] =
-      num_electrons == 1 ?
-        CI::expectation_L2S2(psi.coefs(i), psi.CSF1s(), twoJ) :
-      num_electrons == 3 ?
-        CI::expectation_L2S2(psi.coefs(i), psi.CSF3s(), twoJ) :
-        CI::expectation_L2S2(psi.coefs(i), psi.CSFs(), twoJ);
+    const auto [L2, S2] = CI::expectation_L2S2(psi.coefs(i), psi.CSFs(), twoJ);
 
     // Determine Term Symbol, from <L^2> and <S^2>
     const auto [twoS, L] = CI::Term_S_L_from_expectation(L2, S2, twoJ);

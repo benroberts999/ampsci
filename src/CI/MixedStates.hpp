@@ -23,7 +23,7 @@ namespace CI {
   \f$ \Psi_0 \f$ (solution @p i0 of @p Psi0), and \f$ c^{(0)}_K \f$ are its CI
   expansion coefficients.
 
-  The CSF matrix elements are reduced (see @ref RME_CSF2), formed from the
+  The CSF matrix elements are reduced (see @ref RME_CSF), formed from the
   single-particle reduced matrix elements in @p h; so is the result.
 
   @param CSFs   CSFs spanning the J/Pi the operator maps into.
@@ -34,9 +34,8 @@ namespace CI {
   @param K_rank Rank of the tensor operator T.
   @return Vector \f$ T_I \f$, of length @p CSFs .size().
 */
-template <typename CSFType>
 [[nodiscard]] LinAlg::Vector<double>
-TPsi_reduced(const std::vector<CSFType> &CSFs, int twoJ, const PsiJPi &Psi0,
+TPsi_reduced(const std::vector<CSF> &CSFs, int twoJ, const PsiJPi &Psi0,
              std::size_t i0, const Coulomb::meTable<double> &h, int K_rank);
 
 /*!

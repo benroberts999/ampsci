@@ -533,6 +533,38 @@ double Breit_AB(const CI::CSF3 &A, const CI::CSF3 &B, int twoJ,
                 const Coulomb::WkTable &Bk);
 
 /*!
+  @brief CI Hamiltonian matrix element between two CSFs (of any kind).
+  @details
+  Calls Hab() for the kind of CSF held (see @ref CSF): the one-, two- or
+  three-electron rules. Both CSFs must be of the same kind.
+*/
+double Hab(const CI::CSF &A, const CI::CSF &B, int twoJ,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+           const Sigma1Correction *s1c = nullptr);
+
+/*!
+  @brief Two-body Sigma_2 correction to Hab(), for CSFs of any kind.
+  @details
+  Calls Sigma2_AB() for the kind of CSF held (see @ref CSF); zero for one
+  electron (no valence pairs). @p orbital_energies is used for three
+  electrons only. Both CSFs must be of the same kind.
+*/
+double Sigma2_AB(
+  const CI::CSF &A, const CI::CSF &B, int twoJ, const Coulomb::WkTable &Sk,
+  const Coulomb::QkTable *qk = nullptr, const std::vector<double> &hk = {},
+  const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0,
+  const std::map<DiracSpinor::Index, double> *orbital_energies = nullptr);
+
+/*!
+  @brief Breit correction to Hab(), for CSFs of any kind.
+  @details
+  Calls Breit_AB() for the kind of CSF held (see @ref CSF); zero for one
+  electron (no valence pairs). Both CSFs must be of the same kind.
+*/
+double Breit_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
+                const Coulomb::WkTable &Bk);
+
+/*!
   @brief Builds the one-body Hamiltonian matrix element table for the CI basis.
   @details
   Constructs a lookup table of single-particle matrix elements
@@ -634,19 +666,17 @@ basis_subset(const std::vector<DiracSpinor> &basis,
   where the single-particle reduced matrix elements are looked up from @p h.
 
   @param cA,cB      CI expansion coefficient vectors for states A and B.
-  @param CSFAs,CSFBs CSF bases for states A and B respectively (both
-                     @ref CSF1, both @ref CSF2, or both @ref CSF3).
+  @param CSFAs,CSFBs CSF bases for states A and B respectively.
   @param twoJA,twoJB Twice the total angular momentum of states A and B.
   @param h          Lookup table of single-particle reduced matrix elements.
   @param K_rank     Rank of the tensor operator.
   @param Parity     Parity of the operator (+1 or -1).
   @return Reduced matrix element \f$ \redmatel{A}{T^K}{B} \f$.
 */
-template <typename CSFType>
 double ReducedME(const LinAlg::View<const double> &cA,
-                 const std::vector<CSFType> &CSFAs, int twoJA,
+                 const std::vector<CSF> &CSFAs, int twoJA,
                  const LinAlg::View<const double> &cB,
-                 const std::vector<CSFType> &CSFBs, int twoJB,
+                 const std::vector<CSF> &CSFBs, int twoJB,
                  const Coulomb::meTable<double> &h, int K_rank, int Parity);
 
 /*!
@@ -667,14 +697,6 @@ inline double ReducedME(const PsiJPi &As, std::size_t iA, const PsiJPi &Bs,
                         std::size_t iB, const Coulomb::meTable<double> &h,
                         int K_rank, int Parity) {
   assert(As.num_electrons() == Bs.num_electrons());
-  if (As.num_electrons() == 1) {
-    return ReducedME(As.coefs(iA), As.CSF1s(), As.twoJ(), Bs.coefs(iB),
-                     Bs.CSF1s(), Bs.twoJ(), h, K_rank, Parity);
-  }
-  if (As.num_electrons() == 3) {
-    return ReducedME(As.coefs(iA), As.CSF3s(), As.twoJ(), Bs.coefs(iB),
-                     Bs.CSF3s(), Bs.twoJ(), h, K_rank, Parity);
-  }
   return ReducedME(As.coefs(iA), As.CSFs(), As.twoJ(), Bs.coefs(iB), Bs.CSFs(),
                    Bs.twoJ(), h, K_rank, Parity);
 }
@@ -721,20 +743,27 @@ double RME_CSF3(const CI::CSF3 &X, int twoJX, const CI::CSF3 &V, int twoJV,
                 const Coulomb::meTable<double> &h, int K_rank);
 
 /*!
+  @brief Reduced matrix element between two CSFs of any kind.
+  @details
+  Calls RME_CSF1(), RME_CSF2() or RME_CSF3() for the kind of CSF held (see
+  @ref CSF). Both CSFs must be of the same kind.
+*/
+double RME_CSF(const CI::CSF &X, int twoJX, const CI::CSF &V, int twoJV,
+               const Coulomb::meTable<double> &h, int K_rank);
+
+/*!
   @brief Leading non-relativistic configuration of a CI state.
   @details
   Sums |c|^2 over the relativistic CSFs belonging to each non-relativistic
   configuration, and returns the configuration with the largest total weight.
 
   @param coefs  CI expansion coefficients (one per CSF).
-  @param csfs   The CSF basis (matching @p coefs); @ref CSF1, @ref CSF2 or
-                @ref CSF3.
+  @param csfs   The CSF basis (matching @p coefs).
   @return Pair {configuration label (non-rel notation), total |c|^2 weight}.
 */
-template <typename CSFType>
 std::pair<std::string, double>
 leading_config(const LinAlg::View<const double> &coefs,
-               const std::vector<CSFType> &csfs);
+               const std::vector<CSF> &csfs);
 
 /*!
   @brief Determines the best-fit (S, L) term for a two-electron state by
@@ -815,22 +844,21 @@ construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
   @brief Constructs the full CI Hamiltonian matrix for a list of CSFs.
   @details
   As construct_Hci(const PsiJPi &, ...), for any list of CSFs with total
-  angular momentum J: @ref CSF1, @ref CSF2 or @ref CSF3. Calls Hab(),
-  Sigma2_AB(), and Breit_AB() for each pair (one electron: Hab() only, there
-  being no two-body terms).
+  angular momentum J. Calls Hab(), Sigma2_AB(), and Breit_AB() for each pair
+  (one electron: Hab() only, there being no two-body terms).
 
   For three-electron CSFs, @p dE0 is the shift of the total (three-electron)
   valence energy; the orbital energies of the third electron, needed for the
   Brillouin-Wigner shift of each pair (see Sigma2_AB(const CSF3 &, ...)), are
   taken from @p s1c, which is then required if @p dSk is given.
 */
-template <typename MatrixType = LinAlg::Matrix<double>, typename CSFType>
+template <typename MatrixType = LinAlg::Matrix<double>>
 MatrixType construct_Hci(
-  const std::vector<CSFType> &CSFs, int twoJ,
-  const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-  const Coulomb::WkTable *Bk = nullptr, const Coulomb::WkTable *Sk = nullptr,
-  const Sigma1Correction *s1c = nullptr, const std::vector<double> &hk = {},
-  const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0);
+  const std::vector<CSF> &CSFs, int twoJ, const Coulomb::meTable<double> &h1,
+  const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
+  const Coulomb::WkTable *Sk = nullptr, const Sigma1Correction *s1c = nullptr,
+  const std::vector<double> &hk = {}, const Coulomb::WkTable *dSk = nullptr,
+  double dE0 = 0.0);
 
 /*!
   @brief Constructs the CI Hamiltonian matrix from a set of integral tables.
