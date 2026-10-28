@@ -334,9 +334,9 @@ Coulomb::meTable<double> hf_me = ME_tables.at(2);
 
 for (const auto &j : spectrum) {
 // make sure j is not equal to v
-if (j != w) {
+if (j != v) {
   for (const auto &i : spectrum) {
-    if (i != v) {
+    if (i != w) {
         double sum_ij_1_cont =0.0;
         double sum_ij_2_cont=0.0;
 
@@ -364,7 +364,7 @@ if (j != w) {
         //const auto pt2 = pt.getv(w,i);
         
         //energy denominator
-        double e_denom = (e_w-e_j)*(e_v-e_i);
+        double e_denom = (e_w-e_i)*(e_v-e_j);
 
          //evaluate corresponding contributions
 
