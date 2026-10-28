@@ -236,12 +236,11 @@ TEST_CASE("CI: Configuration Interaction unit tests", "[CI][unit]") {
       const auto n_csf = std::min(psi0.CSFs().size(), std::size_t(6));
       for (std::size_t i = 0; i < n_csf; ++i) {
         for (std::size_t j = 0; j <= i; ++j) {
-          const auto &A = psi0.CSF(i);
-          const auto &B = psi0.CSF(j);
+          const auto &A = psi0.csf(i);
+          const auto &B = psi0.csf(j);
           const auto s2_x = CI::Sigma2_AB(A, B, twoJ, Sk_test, &ints.qk, hk_1);
-          const auto [v, w] = A.states;
-          const auto [x, y] = B.states;
-          const auto coulomb = CI::CSF2_Coulomb(ints.qk, v, w, x, y, twoJ);
+          const auto coulomb = CI::CSF2_Coulomb(ints.qk, A.state(0), A.state(1),
+                                                B.state(0), B.state(1), twoJ);
           REQUIRE(s2_x == Approx(coulomb).margin(1.0e-12));
         }
       }
@@ -671,7 +670,7 @@ TEST_CASE("CI: three-electron Hamiltonian", "[CI][3VCI][unit]") {
     for (const int parity : {1, -1}) {
       for (const int twoJ : {1, 3, 5}) {
 
-        std::vector<CI::CSF3> csfs_3e;
+        std::vector<CI::CSF> csfs_3e;
         for (std::size_t i = 0; i < S.size(); ++i) {
           for (std::size_t j = i; j < S.size(); ++j) {
             for (auto &csf : CI::form_CSF3s(
@@ -826,18 +825,12 @@ TEST_CASE("CI: sparse Hamiltonian", "[CI][3VCI][unit]") {
     std::size_t num_pairs = 0;
     for (std::size_t i = 0; i < N; ++i) {
       for (std::size_t j = 0; j <= i; ++j) {
-        const auto num_different =
-          num_electrons == 3 ?
-            CI::CSF3::num_different(psi.CSF3s()[i], psi.CSF3s()[j]) :
-            CI::CSF2::num_different(psi.CSFs()[i], psi.CSFs()[j]);
-        if (num_different <= 2) {
+        if (CI::num_different(psi.csf(i), psi.csf(j)) <= 2) {
           ++num_pairs;
         }
       }
     }
-    const auto num_interacting = num_electrons == 3 ?
-                                   CI::num_interacting_pairs(psi.CSF3s()) :
-                                   CI::num_interacting_pairs(psi.CSFs());
+    const auto num_interacting = CI::num_interacting_pairs(psi.CSFs());
 
     REQUIRE(H_sparse.num_stored() == num_nonzero);
     REQUIRE(num_interacting == num_pairs);
@@ -1341,8 +1334,8 @@ TEST_CASE("CI: one-electron run", "[CI][unit]") {
     double largest_off_diagonal = 0.0;
     for (std::size_t i = 0; i < N; ++i) {
       for (std::size_t j = 0; j < N; ++j) {
-        const auto h1_ij = solution_s1.integrals.h1.getv(
-          psi.CSF1s()[i].state(0), psi.CSF1s()[j].state(0));
+        const auto h1_ij = solution_s1.integrals.h1.getv(psi.csf(i).state(0),
+                                                         psi.csf(j).state(0));
         REQUIRE(H(i, j) == h1_ij);
         if (i != j) {
           largest_off_diagonal =
@@ -1648,7 +1641,7 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
   // two-electron CSFs (which fixes what "the" convention is)
   double worst_J2 = 0.0;
   for (const int twoJ : {0, 2, 4}) {
-    const auto csfs = CI::form_CSFs(twoJ, +1, orbitals);
+    const auto csfs = CI::form_CSF2s(twoJ, +1, orbitals);
     const auto J = 0.5 * twoJ;
     const auto expected = std::sqrt(J * (J + 1.0) * (2.0 * J + 1.0));
     for (std::size_t A = 0; A < csfs.size(); ++A) {
@@ -1666,7 +1659,8 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
   double worst_J3 = 0.0;
   for (const auto &config : configs) {
     for (int twoJ = 1; twoJ <= 15; twoJ += 2) {
-      const auto csfs = CI::form_CSF3s(config, twoJ);
+      const auto csfs_config = CI::form_CSF3s(config, twoJ);
+      const std::vector<CI::CSF> csfs(csfs_config.cbegin(), csfs_config.cend());
       const auto J = 0.5 * twoJ;
       const auto expected = std::sqrt(J * (J + 1.0) * (2.0 * J + 1.0));
       for (std::size_t A = 0; A < csfs.size(); ++A) {
@@ -1839,7 +1833,8 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
   for (const auto &z : orbitals) {
     if (z == a)
       continue;
-    const auto csfs = CI::form_CSF3s({ia, ia, z.nk_index()}, z.twoj());
+    const auto csfs_z = CI::form_CSF3s({ia, ia, z.nk_index()}, z.twoj());
+    const std::vector<CI::CSF> csfs(csfs_z.cbegin(), csfs_z.cend());
     const std::vector<double> c{1.0};
     const auto [L2, S2] = CI::expectation_L2S2(view(c), csfs, z.twoj());
     worst_LS = std::max(worst_LS, std::abs(L2 - z.l() * (z.l() + 1.0)));
@@ -1849,7 +1844,7 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
   // quartets, but the S^2 matrix over them must have eigenvalues 3/4 or 15/4
   // only (the states are 4P1/2, 2P1/2, 2S1/2, in the non-rel limit)
   {
-    std::vector<CI::CSF3> csfs;
+    std::vector<CI::CSF> csfs;
     for (const auto &[p1, p2] :
          std::vector<std::pair<int, int>>{{1, 1}, {1, -2}, {-2, -2}}) {
       for (auto &csf :
@@ -1930,7 +1925,7 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
       const auto dc = dPsi.coefs(0);
       // T_I = sum_K <I||t||K> c_K: projected onto a level A, it is <A||t||0>
       const auto T =
-        CI::TPsi_reduced(target.CSF3s(), twoJ, Psi0, 0, h_tab, h->rank());
+        CI::TPsi_reduced(target.CSFs(), twoJ, Psi0, 0, h_tab, h->rank());
       double worst = 0.0;
       double max_me = 0.0;
       for (std::size_t iA = 0; iA < target.num_solutions(); ++iA) {

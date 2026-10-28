@@ -184,21 +184,10 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   const IO::ChronoTimer timer;
   for (const auto &[twoJ, parity] : J_pi_list) {
     // Number of CSFs, and of pairs that can interact (sparse elements)
-    std::size_t num_CSFs = 0;
-    std::size_t num_pairs = 0;
-    if (out.num_electrons == 1) {
-      const auto CSFs = CI::form_CSF1s(twoJ, parity, ci_orbitals, config_space);
-      num_CSFs = CSFs.size();
-      num_pairs = CI::num_interacting_pairs(CSFs);
-    } else if (out.num_electrons == 3) {
-      const auto CSFs = CI::form_CSF3s(twoJ, parity, ci_orbitals, config_space);
-      num_CSFs = CSFs.size();
-      num_pairs = CI::num_interacting_pairs(CSFs);
-    } else {
-      const auto CSFs = CI::form_CSFs(twoJ, parity, ci_orbitals, config_space);
-      num_CSFs = CSFs.size();
-      num_pairs = CI::num_interacting_pairs(CSFs);
-    }
+    const auto CSFs =
+      CI::form_CSFs(twoJ, parity, ci_orbitals, out.num_electrons, config_space);
+    const auto num_CSFs = CSFs.size();
+    const auto num_pairs = CI::num_interacting_pairs(CSFs);
     const auto N = double(num_CSFs);
     // Sparse: each stored element is a value (double) and a column (32 bit)
     const auto matrix_GB =

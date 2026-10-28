@@ -198,9 +198,7 @@ TEST_CASE("ConfigSpace: three-electron CSFs", "[CI][unit][3VCI]") {
     const auto all_CSFs = CI::form_CSF3s(3, parity, basis);
     std::size_t num_expected = 0;
     for (const auto &csf : all_CSFs) {
-      const std::vector<DiracSpinor::Index> orbitals(csf.states.cbegin(),
-                                                     csf.states.cend());
-      if (space.included(orbitals)) {
+      if (space.included(csf.orbitals())) {
         ++num_expected;
       }
     }
