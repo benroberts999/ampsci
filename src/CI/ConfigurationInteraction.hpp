@@ -151,6 +151,11 @@ enum class Solver { dense, Davidson };
                       orthogonal.
   @param config_space Configurations included in the CI expansion (see
                       @ref ConfigurationSpace); all by default.
+  @param holes        Core orbitals that may hold a hole: adds the hole CSFs
+                      (two electrons and one hole; see @ref CSF2p1h) to the
+                      block. None by default; one valence electron only.
+  @param holes_basis  Basis of the two electrons of the hole CSFs;
+                      @p ci_sp_basis if empty.
 
   @return PsiJPi (@ref PsiJPi) containing the CI eigenvalues and expansion
   coefficients for the requested solutions.
@@ -167,6 +172,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               const std::vector<double> &hk = {},
               const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
               Solver solver = Solver::dense, bool BW_each_level = false,
-              const ConfigurationSpace &config_space = {});
+              const ConfigurationSpace &config_space = {},
+              const std::vector<DiracSpinor> &holes = {},
+              const std::vector<DiracSpinor> &holes_basis = {});
 
 } // namespace CI

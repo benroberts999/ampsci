@@ -275,6 +275,10 @@ struct Integrals {
   int num_electrons{2};
   //! Configurations included in the CI expansion
   ConfigurationSpace config_space{};
+  //! Core orbitals that may hold a hole (hole CSFs); empty if none
+  std::vector<DiracSpinor> holes{};
+  //! Basis of the particles of the hole CSFs (ci_basis if empty)
+  std::vector<DiracSpinor> holes_basis{};
   //! True if ci_basis are Brueckner (spectrum) states, false if HF basis
   bool brueckner{false};
   //! One-body matrix elements, <a|h1|b>; may include Sigma_1
@@ -387,6 +391,130 @@ double CSF2_Sigma2(const Coulomb::WkTable &Sk, DiracSpinor::Index v,
 double CSF2_Breit(const Coulomb::WkTable &Bk, DiracSpinor::Index v,
                   DiracSpinor::Index w, DiracSpinor::Index x,
                   DiracSpinor::Index y, int twoJ);
+
+/*!
+  @brief One-body part of the CI Hamiltonian between two two-electron pair
+  states, \f$ \langle vw; J | H^1 | xy; J \rangle \f$.
+  @details
+  \f[
+    \eta_{vw}\eta_{xy}\Big[ h^1_{yw}\delta_{xv} + h^1_{xv}\delta_{yw}
+    - (-1)^{J + j_v + j_w}\left( h^1_{yv}\delta_{xw} + h^1_{xw}\delta_{yv}
+    \right) \Big] ,
+  \f]
+  with \f$ \eta_{ab} = 1/\sqrt{2} \f$ if a = b. In each term the matched
+  orbital is the spectator for the dSigma/dE correction (if @p s1c is
+  given). The pair states are those of @ref CSF2 (orbitals in the given
+  order), and the parent pairs of @ref CSF3 and @ref CSF2p1h.
+
+  @param h1    Table of one-body matrix elements.
+  @param v,w   Orbitals of the first pair.
+  @param x,y   Orbitals of the second pair.
+  @param twoJ  Twice the angular momentum 2J of both pairs.
+  @param s1c   Optional derivative (dSigma/dE) correction to Sigma_1.
+*/
+double CSF2_one_body(const Coulomb::meTable<double> &h1, DiracSpinor::Index v,
+                     DiracSpinor::Index w, DiracSpinor::Index x,
+                     DiracSpinor::Index y, int twoJ,
+                     const Sigma1Correction *s1c = nullptr);
+
+/*!
+  @brief The Coulomb pair elements, CSF2_Coulomb(), bound to a Q^k table.
+  @details
+  For the two-body terms of the hole CSFs (two_body_2p1h(),
+  two_body_1p_2p1h()). The table must outlive the returned function.
+*/
+PairElement coulomb_pair_element(const Coulomb::QkTable &qk);
+
+//! The Breit pair elements, CSF2_Breit(), bound to a B^k table; see
+//! coulomb_pair_element()
+PairElement breit_pair_element(const Coulomb::WkTable &Bk);
+
+//! The Sigma_2 pair elements, CSF2_Sigma2(), bound to the S^k table and its
+//! options (see CSF2_Sigma2(); all must outlive the returned function); see
+//! coulomb_pair_element()
+PairElement sigma2_pair_element(const Coulomb::WkTable &Sk,
+                                const Coulomb::QkTable *qk = nullptr,
+                                const std::vector<double> &hk = {},
+                                const Coulomb::WkTable *dSk = nullptr,
+                                double dE0 = 0.0);
+
+/*!
+  @brief Element of a two-body interaction between particle-hole pairs,
+  \f$ F_K(y\tilde b; w\tilde a) = \langle (y \tilde b) K | V | (w \tilde a)
+  K \rangle \f$, from its antisymmetrised particle-particle pair elements.
+  @details
+  For an interaction \f$ V = \tfrac12 \sum g :a^\dagger a^\dagger a a: \f$
+  (Coulomb, Breit, or the effective Sigma_2), the element between
+  particle-hole pairs follows from the particle-particle elements by
+  recoupling: the pairs (y a) and (w b), coupled to J', are summed with a 6j
+  symbol over J',
+  \f[
+    F_K(y\tilde b; w\tilde a) = -\sum_{J'} [J']
+    \begin{Bmatrix} j_w & j_a & K \\ j_y & j_b & J' \end{Bmatrix}
+    \langle (y a) J' | \tilde g | (w b) J' \rangle ,
+  \f]
+  with the minus sign from reordering the hole operators. The hole states
+  are \f$ h^\dagger_{am} = (-1)^{j_a - m} a_{a,-m} \f$ (see @ref CSF2p1h);
+  the particle-hole pair is coupled particle first.
+
+  @param pair_element Antisymmetrised pair elements of the interaction,
+                      (a, b, c, d, 2J') -> \f$ \langle (ab)J' | \tilde g |
+                      (cd)J' \rangle \f$ (e.g., coulomb_pair_element()).
+  @param y,b   Particle and hole of the bra.
+  @param w,a   Particle and hole of the ket.
+  @param twoK  Twice the angular momentum 2K of the particle-hole pairs.
+*/
+double particle_hole_element(const PairElement &pair_element,
+                             DiracSpinor::Index y, DiracSpinor::Index b,
+                             DiracSpinor::Index w, DiracSpinor::Index a,
+                             int twoK);
+
+/*!
+  @brief Two-body interaction between two hole CSFs, for an interaction given
+  by its antisymmetrised pair elements.
+  @details
+  For \f$ |(xy)J_{12}', \tilde b; J\rangle \f$ and
+  \f$ |(vw)J_{12}, \tilde a; J\rangle \f$ (see @ref CSF2p1h):
+  - between the particles (hole spectator): \f$ \delta_{ab}
+    \delta_{J_{12} J_{12}'} \langle (xy)J_{12} | \tilde g | (vw)J_{12}
+    \rangle \f$;
+  - between each particle and the hole: @ref particle_hole_sum, with the
+    particle-hole elements of particle_hole_element().
+
+  Zero if the CSFs differ by more than two orbitals. The same angular
+  reduction serves the Coulomb (Hab()), Breit (Breit_AB()) and Sigma_2
+  (Sigma2_AB()) interactions, with their pair elements.
+
+  @param pair_element Antisymmetrised pair elements of the interaction
+                      (e.g., coulomb_pair_element()).
+  @param A,B   The two CSFs.
+  @param twoJ  Twice the total angular momentum 2J.
+  @return The two-body matrix element.
+*/
+double two_body_2p1h(const PairElement &pair_element, const CI::CSF2p1h &A,
+                     const CI::CSF2p1h &B, int twoJ);
+
+/*!
+  @brief Two-body interaction between a one-electron CSF and a hole CSF, for
+  an interaction given by its antisymmetrised pair elements.
+  @details
+  The pair de-excites into the electron and the hole:
+  \f[
+    \langle x; J | V | (vw)J_{12}, \tilde a; J \rangle
+    = (-1)^{j_x - j_a + J_{12}} \sqrt{[J_{12}]/[J]}
+    \, \langle (xa) J_{12} | \tilde g | (vw) J_{12} \rangle
+  \f]
+  (the pair element includes the factor \f$ \eta_{vw} \f$).
+
+  @param pair_element Antisymmetrised pair elements of the interaction
+                      (e.g., coulomb_pair_element()).
+  @param A     The one-electron CSF (J = j_x).
+  @param B     The hole CSF.
+  @param twoJ  Twice the total angular momentum 2J.
+  @return The two-body matrix element (real and symmetric).
+*/
+double two_body_1p_2p1h(const PairElement &pair_element, const CI::CSF1 &A,
+                        const CI::CSF2p1h &B, int twoJ);
 
 /*!
   @brief CI Hamiltonian matrix element between two one-electron CSFs.
@@ -533,10 +661,118 @@ double Breit_AB(const CI::CSF3 &A, const CI::CSF3 &B, int twoJ,
                 const Coulomb::WkTable &Bk);
 
 /*!
+  @brief CI Hamiltonian matrix element between two two-particle one-hole
+  CSFs.
+  @details
+  With the core Hartree-Fock potential in the one-body Hamiltonian (the
+  V^{N-M} approximation), the Hamiltonian relative to the core is
+  \f$ \sum_i \epsilon_i :a^\dagger_i a_i: + \tfrac12 \sum g :a^\dagger
+  a^\dagger a a: \f$, and the matrix element between
+  \f$ |(xy)J_{12}', \tilde b; J\rangle \f$ and
+  \f$ |(vw)J_{12}, \tilde a; J\rangle \f$ (see @ref CSF2p1h) has three
+  parts:
+  - one-body on the particles (hole spectator): \f$ \delta_{ab}
+    \delta_{J_{12} J_{12}'} \f$ times CSF2_one_body();
+  - one-body on the hole (pair spectator): \f$ -h^1_{ab} \f$ if the pairs
+    and \f$ J_{12} \f$ coincide;
+  - Coulomb between the particles, and between each particle and the hole:
+    two_body_2p1h() with the pair elements of CSF2_Coulomb().
+
+  The Breit and Sigma_2 interactions enter in the same way, through
+  Breit_AB() and Sigma2_AB(). The dSigma/dE correction (@p s1c) is not
+  applied to hole CSFs.
+
+  @param A,B   The two CSFs.
+  @param twoJ  Twice the total angular momentum 2J.
+  @param h1    Table of one-body matrix elements; must hold the hole
+               orbitals (diagonal: their orbital energies).
+  @param qk    Table of Coulomb \f$ Q^k \f$ integrals, including those with
+               the hole orbitals.
+  @return CI Hamiltonian matrix element \f$ H_{AB} \f$.
+*/
+double Hab(const CI::CSF2p1h &A, const CI::CSF2p1h &B, int twoJ,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+           const Sigma1Correction *s1c = nullptr);
+
+/*!
+  @brief CI Hamiltonian matrix element between a one-electron CSF and a
+  two-particle one-hole CSF.
+  @details
+  The one-body part vanishes (\f$ \langle w | h^{\rm HF} | a \rangle = 0 \f$
+  for a core orbital a in the V^{N-M} approximation); the two-body part is
+  two_body_1p_2p1h() with the pair elements of CSF2_Coulomb().
+
+  @param A     The one-electron CSF (J = j_x).
+  @param B     The hole CSF.
+  @param twoJ  Twice the total angular momentum 2J.
+  @param h1    Not used.
+  @param qk    Table of Coulomb \f$ Q^k \f$ integrals, including those with
+               the hole orbital.
+  @param s1c   Not used.
+  @return CI Hamiltonian matrix element \f$ H_{AB} \f$.
+*/
+double Hab(const CI::CSF1 &A, const CI::CSF2p1h &B, int twoJ,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+           const Sigma1Correction *s1c = nullptr);
+
+/*!
+  @brief Two-body Sigma_2 correction to Hab(), for two hole CSFs.
+  @details
+  As the two-body part of Hab(const CSF2p1h &, ...), i.e., two_body_2p1h()
+  with CSF2_Sigma2() in place of CSF2_Coulomb(). For the Brillouin-Wigner
+  shift (@p dSk), the pair energy excludes the hole, whose energy enters with
+  the opposite sign: \f$ E_0 + \epsilon_a \f$ (hole of @p B); so
+  @p orbital_energies must then hold the hole orbitals.
+
+  @note The S^k tables hold no integrals with hole orbitals, so the
+        particle-hole terms (and those between one-electron and hole CSFs)
+        are only those of the extrapolation (@p hk), if any.
+*/
+double Sigma2_AB(
+  const CI::CSF2p1h &A, const CI::CSF2p1h &B, int twoJ,
+  const Coulomb::WkTable &Sk, const Coulomb::QkTable *qk = nullptr,
+  const std::vector<double> &hk = {}, const Coulomb::WkTable *dSk = nullptr,
+  double dE0 = 0.0,
+  const std::map<DiracSpinor::Index, double> *orbital_energies = nullptr);
+
+/*!
+  @brief Two-body Sigma_2 correction to Hab(), between a one-electron and a
+  hole CSF.
+  @details
+  two_body_1p_2p1h() with CSF2_Sigma2(); see
+  Sigma2_AB(const CSF2p1h &, const CSF2p1h &, ...).
+*/
+double Sigma2_AB(
+  const CI::CSF1 &A, const CI::CSF2p1h &B, int twoJ, const Coulomb::WkTable &Sk,
+  const Coulomb::QkTable *qk = nullptr, const std::vector<double> &hk = {},
+  const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0,
+  const std::map<DiracSpinor::Index, double> *orbital_energies = nullptr);
+
+/*!
+  @brief Breit correction to Hab(), for two hole CSFs.
+  @details
+  As the two-body part of Hab(const CSF2p1h &, ...), i.e., two_body_2p1h()
+  with CSF2_Breit() in place of CSF2_Coulomb(): the Breit interaction enters
+  exactly as the Coulomb interaction. The B^k table must hold the integrals
+  with the hole orbitals.
+*/
+double Breit_AB(const CI::CSF2p1h &A, const CI::CSF2p1h &B, int twoJ,
+                const Coulomb::WkTable &Bk);
+
+/*!
+  @brief Breit correction to Hab(), between a one-electron and a hole CSF.
+  @details
+  two_body_1p_2p1h() with CSF2_Breit().
+*/
+double Breit_AB(const CI::CSF1 &A, const CI::CSF2p1h &B, int twoJ,
+                const Coulomb::WkTable &Bk);
+
+/*!
   @brief CI Hamiltonian matrix element between two CSFs (of any kind).
   @details
-  Calls Hab() for the kind of CSF held (see @ref CSF): the one-, two- or
-  three-electron rules. Both CSFs must be of the same kind.
+  Calls Hab() for the kinds of CSF held (see @ref CSF): the one-, two- or
+  three-electron rules, the hole CSFs, and the one-electron / hole CSF
+  cross terms. Other mixed kinds assert.
 */
 double Hab(const CI::CSF &A, const CI::CSF &B, int twoJ,
            const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
@@ -545,9 +781,10 @@ double Hab(const CI::CSF &A, const CI::CSF &B, int twoJ,
 /*!
   @brief Two-body Sigma_2 correction to Hab(), for CSFs of any kind.
   @details
-  Calls Sigma2_AB() for the kind of CSF held (see @ref CSF); zero for one
-  electron (no valence pairs). @p orbital_energies is used for three
-  electrons only. Both CSFs must be of the same kind.
+  Calls Sigma2_AB() for the kinds of CSF held (see @ref CSF): zero for one
+  electron (no valence pairs); the hole CSFs, and the one-electron / hole
+  CSF cross terms, as for Hab(). @p orbital_energies is used for three
+  electrons and for hole CSFs. Other mixed kinds assert.
 */
 double Sigma2_AB(
   const CI::CSF &A, const CI::CSF &B, int twoJ, const Coulomb::WkTable &Sk,
@@ -558,8 +795,9 @@ double Sigma2_AB(
 /*!
   @brief Breit correction to Hab(), for CSFs of any kind.
   @details
-  Calls Breit_AB() for the kind of CSF held (see @ref CSF); zero for one
-  electron (no valence pairs). Both CSFs must be of the same kind.
+  Calls Breit_AB() for the kinds of CSF held (see @ref CSF): zero for one
+  electron (no valence pairs); the hole CSFs, and the one-electron / hole
+  CSF cross terms, as for Hab(). Other mixed kinds assert.
 */
 double Breit_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
                 const Coulomb::WkTable &Bk);
@@ -712,17 +950,78 @@ double RME_CSF1(const CI::CSF1 &X, int twoJX, const CI::CSF1 &V, int twoJV,
                 const Coulomb::meTable<double> &h, int K_rank);
 
 /*!
-  @brief Reduced matrix element between two two-electron CSFs.
+  @brief Reduced matrix element between two two-electron pair states,
+  \f$ \langle xy; J_X \| T^K \| vw; J_V \rangle \f$ (orbitals in the given
+  order).
   @details
-  Evaluates \f$ \redmatel{X; J_X}{T^K}{V; J_V} \f$ for a rank-@p K_rank
-  one-body tensor operator using the standard 6j angular reduction, accounting
-  for identical-particle normalisation factors.
+  Evaluates the reduced matrix element of a rank-@p K_rank one-body tensor
+  operator using the standard 6j angular reduction, accounting for
+  identical-particle normalisation factors. The pair states are those of
+  @ref CSF2 (RME_CSF2()), and the particle pairs of @ref CSF2p1h.
+*/
+double RME_pair(DiracSpinor::Index x, DiracSpinor::Index y, int twoJX,
+                DiracSpinor::Index v, DiracSpinor::Index w, int twoJV,
+                const Coulomb::meTable<double> &h, int K_rank);
 
-  @warning This function may not handle all cases correctly; results should be
-           verified for non-trivial configurations.
+/*!
+  @brief Reduced matrix element between two two-electron CSFs; see
+  RME_pair().
 */
 double RME_CSF2(const CI::CSF2 &X, int twoJX, const CI::CSF2 &V, int twoJV,
                 const Coulomb::meTable<double> &h, int K_rank);
+
+/*!
+  @brief Reduced matrix element between two two-particle one-hole CSFs.
+  @details
+  The operator acts on a particle (hole spectator; the pair is coupled
+  first) or on the hole (pair spectator):
+  \f[
+    \langle (xy)J_{12}', \tilde b; J_X \| T^K \| (vw)J_{12}, \tilde a; J_V
+    \rangle = \delta_{ab} (-1)^{J_{12}' + j_a + J_V + K} \sqrt{[J_X][J_V]}
+    \begin{Bmatrix} J_{12}' & J_X & j_a \\ J_V & J_{12} & K \end{Bmatrix}
+    \langle xy; J_{12}' \| T^K \| vw; J_{12} \rangle
+    + \delta_{\rm pair} \delta_{J_{12} J_{12}'} (-1)^{J_{12} + j_a + J_X + K}
+    \sqrt{[J_X][J_V]}
+    \begin{Bmatrix} j_b & J_X & J_{12} \\ J_V & j_a & K \end{Bmatrix}
+    \langle \tilde b \| t^K \| \tilde a \rangle ,
+  \f]
+  with the pair element of RME_pair(), and the hole single-particle element
+  \f$ \langle \tilde b \| t^K \| \tilde a \rangle = (-1)^{j_a + j_b + K}
+  \langle a \| t^K \| b \rangle \f$ (hole states
+  \f$ h^\dagger_{am} = (-1)^{j_a - m} a_{a,-m} \f$, see @ref CSF2p1h).
+*/
+double RME_CSF2p1h(const CI::CSF2p1h &X, int twoJX, const CI::CSF2p1h &V,
+                   int twoJV, const Coulomb::meTable<double> &h, int K_rank);
+
+/*!
+  @brief Reduced matrix element between a two-particle one-hole CSF and a
+  one-electron CSF: the operator excites the hole.
+  @details
+  The one-body operator contains the particle-hole creation
+  \f$ -\sum_{pa} \langle p \| t^K \| a \rangle [K]^{-1/2} [a^\dagger_p
+  h^\dagger_a]^K \f$; acting on \f$ |x\rangle \f$ it gives the hole CSFs with
+  x as one of the two particles:
+  \f[
+    \langle (vw)J_{12}, \tilde a; J \| T^K \| x \rangle
+    = -(-1)^{j_v + j_w + j_a + J} \sqrt{[J][J_{12}]} \, \eta_{vw}
+    \Big[ \delta_{xv} \begin{Bmatrix} j_v & j_w & J_{12} \\ j_a & J & K
+    \end{Bmatrix} \langle w \| t^K \| a \rangle
+    + s_{vw} \delta_{xw} \begin{Bmatrix} j_w & j_v & J_{12} \\ j_a & J & K
+    \end{Bmatrix} \langle v \| t^K \| a \rangle \Big] ,
+  \f]
+  with \f$ s_{vw} = (-1)^{j_v + j_w - J_{12} + 1} \f$. The reverse element,
+  \f$ \langle x \| T^K \| (vw)J_{12}, \tilde a; J \rangle \f$ (the operator
+  de-excites the hole), is the same with \f$ \langle w \| t^K \| a \rangle
+  \to (-1)^{j_a - j_w + J - j_x} \langle a \| t^K \| w \rangle \f$ in the
+  first term, and likewise in the second: see RME_CSF1_2p1h().
+*/
+double RME_CSF2p1h_1(const CI::CSF2p1h &X, int twoJX, const CI::CSF1 &V,
+                     int twoJV, const Coulomb::meTable<double> &h, int K_rank);
+
+//! Reduced matrix element between a one-electron CSF and a two-particle
+//! one-hole CSF; see RME_CSF2p1h_1()
+double RME_CSF1_2p1h(const CI::CSF1 &X, int twoJX, const CI::CSF2p1h &V,
+                     int twoJV, const Coulomb::meTable<double> &h, int K_rank);
 
 /*!
   @brief Reduced matrix element between two three-electron CSFs.
@@ -745,8 +1044,9 @@ double RME_CSF3(const CI::CSF3 &X, int twoJX, const CI::CSF3 &V, int twoJV,
 /*!
   @brief Reduced matrix element between two CSFs of any kind.
   @details
-  Calls RME_CSF1(), RME_CSF2() or RME_CSF3() for the kind of CSF held (see
-  @ref CSF). Both CSFs must be of the same kind.
+  Calls RME_CSF1(), RME_CSF2(), RME_CSF3() or RME_CSF2p1h() for the kind of
+  CSF held (see @ref CSF), and RME_CSF2p1h_1() / RME_CSF1_2p1h() between a
+  one-electron and a hole CSF. Other mixed kinds assert.
 */
 double RME_CSF(const CI::CSF &X, int twoJX, const CI::CSF &V, int twoJV,
                const Coulomb::meTable<double> &h, int K_rank);

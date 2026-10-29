@@ -13,6 +13,7 @@ This assumes you already have ampsci compiled and have a basic understanding of 
 
 * [CI+MBPT overview](#cimbpt)
 * [Basic CI example](#basic)
+* [Hole CSFs](#holes)
 
 ## CI+MBPT overview: Configuration Interaction with Many-Body Perturbation Theory <a name="cimbpt"></a>
 
@@ -417,6 +418,7 @@ Instead, the configurations are formed by excitations from a set of _leading_ co
 * `excitations`: excitations are formed stepwise. Each step moves one electron into that step's basis (by default, the whole `ci_basis`), and any of the steps may be used. For example, `excitations = 1, 2:8spdf;` includes all single excitations, and double excitations where at least one of the two electrons is within `8spdf`. The largest step number is the number of steps, so `3:8spdf` is the same as `1, 2, 3:8spdf`. `excitations = 0;` gives the leading configurations only. Adding a step never removes a configuration.
 * The default is singles and doubles over the full `ci_basis` (`excitations = 1, 2;`). For two electrons, this is every configuration (full CI).
 * The default leading configurations are the 5 lowest of each parity, by the sum of the orbital energies.
+* With hole CSFs, a hole is written as a negative number, e.g., `6s-1.6p2`; see [Hole CSFs](#holes).
 
 With singles and doubles over the full basis, the space depends only on which shells appear in the leading configurations: for three electrons, it is every configuration with at least one electron in one of those shells.
 
@@ -432,6 +434,33 @@ Configurations: 1653 of 9130
 * The leading configurations should include the dominant configuration of every state of interest. Otherwise, the pair correlations of that state (two electrons excited, the others as spectators) are only partly included, while those of the ground state are, which biases its excitation energy. The printed list can be copied into `leading` and extended.
 * Check convergence against the full space, `excitations = 1, 2, 3;` (for three electrons), at least for a smaller basis.
 * When the leading configurations are generated automatically (no `leading` given), a note is printed as a reminder to check them.
+
+-----
+
+## Hole CSFs <a name="holes"></a>
+
+**Caution: not fully developed, use with care**
+
+For one valence electron, excitations of the core may be included in the CI space as hole CSFs: two electrons in excited orbitals and one hole in a core shell, e.g., \f$6p^2\,6s^{-1}\f$ for Tl with \f$6s^2\f$ in the Hartree-Fock core.
+They share the \f$J^\pi\f$ blocks with the one-electron CSFs (\f$|6p\rangle\f$, \f$|7p\rangle\f$, ...), and the CI mixes them.
+The Hartree-Fock potential is that of the full core (\f$V^{N-1}\f$), as for the one-electron CSFs; the core orbital energies and the particle-hole Coulomb (and Breit) interactions enter the Hamiltonian directly, with no further subtractions.
+
+```cpp
+CI{
+  num_electrons = 1;
+  ci_basis = 14spdf;
+  holes = 6s;             // core shells that may hold the hole (both j)
+  ci_hole_basis = 10spdf; // basis of the two electrons of the hole CSFs [ci_basis]
+  J- = 1/2, 3/2;
+}
+```
+
+* `holes`: the core shells (non-relativistic labels; both \f$j\f$) that may hold the hole. They must be in the Hartree-Fock core.
+* `ci_hole_basis`: the basis of the two excited electrons of the hole CSFs (a subset of `ci_basis`). The number of hole CSFs grows as the square of this basis, so it is usually smaller than `ci_basis`.
+* The number of CSFs of each kind is printed for each block, and the hole configurations appear as, e.g., `6p^2 6s^-1`.
+* `leading` and `excitations` apply to the hole CSFs too (see [Configuration space](#configspace)). A hole is written as a negative number, e.g., `leading = 6p, 7s, 6s-1.6p2;`. An excitation from a configuration without a hole may create one (`6s-1.6p2` and `6s-1.6p.7p` are single excitations from `6p`), and a configuration with a hole keeps it: there is at most one hole, so there are no further hole excitations, and the hole is never filled. The default leading configurations have no holes. The configuration count printed includes the configurations with a hole.
+* Two-body Breit (`Breit2`) enters the hole CSFs exactly as the other CSFs (for pairs within `Breit_basis`, which always includes the hole orbitals). `sigma1` enters through the one-body matrix elements of the excited electrons (the one-electron CSFs, and the two electrons of the hole CSFs), not the hole; `sigma2` is not used with one valence electron.
+* Term symbols (from \f$\langle L^2\rangle\f$ and \f$\langle S^2\rangle\f$) and \f$g_J\f$ factors are given as usual.
 
 -----
 

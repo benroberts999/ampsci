@@ -570,21 +570,126 @@ std::vector<CSF> form_CSF3s(int twoJ, int parity,
 }
 
 //==============================================================================
+CSF2p1h::CSF2p1h(DiracSpinor::Index v, DiracSpinor::Index w,
+                 DiracSpinor::Index a, int twoJ12)
+  : states(v <= w ? std::array{v, w} : std::array{w, v}),
+    hole(a),
+    m_twoJ12(twoJ12),
+    m_parity(Angular::neg1pow(Angular::nkindex_to_l(v) +
+                              Angular::nkindex_to_l(w) +
+                              Angular::nkindex_to_l(a))) {}
+
+DiracSpinor::Index CSF2p1h::state(std::size_t i) const { return states.at(i); }
+
+int CSF2p1h::twoJ12() const { return m_twoJ12; }
+
+bool operator==(const CSF2p1h &A, const CSF2p1h &B) {
+  // only works because states is sorted
+  return A.states == B.states && A.hole == B.hole && A.m_twoJ12 == B.m_twoJ12;
+}
+
+bool operator!=(const CSF2p1h &A, const CSF2p1h &B) { return !(A == B); }
+
+int CSF2p1h::num_different(const CSF2p1h &A, const CSF2p1h &B) {
+  // Particles of A not in B (counting repeats; states are sorted), plus the
+  // hole of B if A does not have it
+  const auto common_particles =
+    A.states == B.states ? 2 :
+    (A.state(0) == B.state(0) || A.state(0) == B.state(1) ||
+     A.state(1) == B.state(0) || A.state(1) == B.state(1)) ?
+                           1 :
+                           0;
+  return 2 - common_particles + (A.hole == B.hole ? 0 : 1);
+}
+
+std::string CSF2p1h::config(bool relativistic) const {
+  const auto [na, ka] = Angular::index_to_nk(states[0]);
+  const auto [nb, kb] = Angular::index_to_nk(states[1]);
+  const auto [nh, kh] = Angular::index_to_nk(hole);
+  auto s1 = DiracSpinor::shortSymbol(na, ka);
+  auto s2 = DiracSpinor::shortSymbol(nb, kb);
+  auto sh = DiracSpinor::shortSymbol(nh, kh);
+  if (!relativistic) {
+    s1.pop_back();
+    s2.pop_back();
+    sh.pop_back();
+  }
+  return (s1 == s2 ? s1 + "^2" : s1 + s2) + " " + sh + "^-1";
+}
+
+//==============================================================================
+std::vector<CSF> form_CSF2p1hs(int twoJ, int parity,
+                               const std::vector<DiracSpinor> &particle_basis,
+                               const std::vector<DiracSpinor> &holes,
+                               const ConfigurationSpace &config_space) {
+
+  assert((parity == 1 || parity == -1) && "Parity must be +/-1");
+  assert(twoJ > 0 && twoJ % 2 == 1 &&
+         "2*J must be odd for two particles and one hole");
+
+  std::vector<CSF> CSFs;
+  for (const auto &a : holes) {
+    for (const auto &v : particle_basis) {
+      for (const auto &w : particle_basis) {
+
+        // Symmetric: only include unique pairs once
+        if (w < v)
+          continue;
+
+        if (v.parity() * w.parity() * a.parity() != parity)
+          continue;
+
+        if (!config_space.included({v.nk_index(), w.nk_index()},
+                                   {a.nk_index()}))
+          continue;
+
+        // One CSF per pair angular momentum J12 that couples with the hole
+        // to J; identical particles can only give even J12
+        for (int twoJ12 = std::abs(v.twoj() - w.twoj());
+             twoJ12 <= v.twoj() + w.twoj(); twoJ12 += 2) {
+          if (v == w && twoJ12 % 4 != 0)
+            continue;
+          if (Angular::triangle(twoJ12, a.twoj(), twoJ) == 0)
+            continue;
+          CSFs.emplace_back(
+            CSF2p1h{v.nk_index(), w.nk_index(), a.nk_index(), twoJ12});
+        }
+      }
+    }
+  }
+  return CSFs;
+}
+
+//==============================================================================
 std::vector<CSF> form_CSFs(int twoJ, int parity,
                            const std::vector<DiracSpinor> &cisp_basis,
                            int num_electrons,
-                           const ConfigurationSpace &config_space) {
+                           const ConfigurationSpace &config_space,
+                           const std::vector<DiracSpinor> &holes,
+                           const std::vector<DiracSpinor> &holes_basis) {
+  std::vector<CSF> CSFs;
   if (num_electrons == 1) {
-    return form_CSF1s(twoJ, parity, cisp_basis, config_space);
+    CSFs = form_CSF1s(twoJ, parity, cisp_basis, config_space);
+  } else if (num_electrons == 2) {
+    CSFs = form_CSF2s(twoJ, parity, cisp_basis, config_space);
+  } else if (num_electrons == 3) {
+    CSFs = form_CSF3s(twoJ, parity, cisp_basis, config_space);
+  } else {
+    assert(false &&
+           "CI is implemented for one, two, or three valence electrons");
   }
-  if (num_electrons == 2) {
-    return form_CSF2s(twoJ, parity, cisp_basis, config_space);
+
+  // Hole CSFs: two particles and one hole, with one valence electron
+  if (!holes.empty()) {
+    assert(num_electrons == 1 &&
+           "Hole CSFs are implemented for one valence electron only");
+    const auto &particle_basis = holes_basis.empty() ? cisp_basis : holes_basis;
+    for (auto &csf :
+         form_CSF2p1hs(twoJ, parity, particle_basis, holes, config_space)) {
+      CSFs.emplace_back(std::move(csf));
+    }
   }
-  if (num_electrons == 3) {
-    return form_CSF3s(twoJ, parity, cisp_basis, config_space);
-  }
-  assert(false && "CI is implemented for one, two, or three valence electrons");
-  return {};
+  return CSFs;
 }
 
 //==============================================================================
@@ -594,6 +699,26 @@ int CSF::parity() const {
 
 std::size_t CSF::num_electrons() const {
   return std::visit([](const auto &csf) { return csf.num_electrons(); }, m_csf);
+}
+
+std::size_t CSF::num_particles() const {
+  return std::visit([](const auto &csf) { return csf.num_particles(); }, m_csf);
+}
+
+std::size_t CSF::num_holes() const {
+  return std::visit([](const auto &csf) { return csf.num_holes(); }, m_csf);
+}
+
+std::vector<DiracSpinor::Index> CSF::holes() const {
+  return std::visit(
+    [](const auto &csf) -> std::vector<DiracSpinor::Index> {
+      if constexpr (std::is_same_v<std::decay_t<decltype(csf)>, CSF2p1h>) {
+        return {csf.hole};
+      } else {
+        return {};
+      }
+    },
+    m_csf);
 }
 
 std::string CSF::config(bool relativistic) const {
@@ -631,10 +756,24 @@ bool operator!=(const CSF &A, const CSF &B) { return !(A == B); }
 
 //------------------------------------------------------------------------------
 int num_different(const CSF &A, const CSF &B) {
+  // One electron x, and two particles (v, w) with a hole: the determinants
+  // differ by one orbital (the hole replaced by the other particle) if x is
+  // one of the particles, else by two
+  const auto one_electron_vs_hole = [](const CSF1 &x, const CSF2p1h &vw) {
+    return (x.state(0) == vw.state(0) || x.state(0) == vw.state(1)) ? 1 : 2;
+  };
   return std::visit(
-    [](const auto &a, const auto &b) -> int {
-      if constexpr (std::is_same_v<decltype(a), decltype(b)>) {
-        return std::decay_t<decltype(a)>::num_different(a, b);
+    [&one_electron_vs_hole](const auto &a, const auto &b) -> int {
+      using A_type = std::decay_t<decltype(a)>;
+      using B_type = std::decay_t<decltype(b)>;
+      if constexpr (std::is_same_v<A_type, B_type>) {
+        return A_type::num_different(a, b);
+      } else if constexpr (std::is_same_v<A_type, CSF1> &&
+                           std::is_same_v<B_type, CSF2p1h>) {
+        return one_electron_vs_hole(a, b);
+      } else if constexpr (std::is_same_v<A_type, CSF2p1h> &&
+                           std::is_same_v<B_type, CSF1>) {
+        return one_electron_vs_hole(b, a);
       } else {
         assert(false && "num_different between CSFs of different kinds is "
                         "not implemented");
@@ -646,13 +785,17 @@ int num_different(const CSF &A, const CSF &B) {
 
 //==============================================================================
 std::size_t num_interacting_pairs(const std::vector<CSF> &CSFs) {
-  // Configurations (orbitals): index of one of its CSFs, and number of CSFs.
-  // Two configurations interact for all of their CSFs, or for none
-  std::map<std::vector<DiracSpinor::Index>, std::pair<std::size_t, std::size_t>>
-    config_map;
+  // Configurations (particle orbitals, and holes): index of one of its CSFs,
+  // and number of CSFs. Two configurations interact for all of their CSFs,
+  // or for none
+  using Configuration =
+    std::pair<std::vector<DiracSpinor::Index>, std::vector<DiracSpinor::Index>>;
+  std::map<Configuration, std::pair<std::size_t, std::size_t>> config_map;
   for (std::size_t i = 0; i < CSFs.size(); ++i) {
     auto &[first_CSF, num_CSFs] =
-      config_map.try_emplace(CSFs[i].orbitals(), i, 0).first->second;
+      config_map
+        .try_emplace(Configuration{CSFs[i].orbitals(), CSFs[i].holes()}, i, 0)
+        .first->second;
     ++num_CSFs;
   }
   std::vector<std::pair<std::size_t, std::size_t>> configs;
@@ -680,39 +823,77 @@ std::size_t num_interacting_pairs(const std::vector<CSF> &CSFs) {
 std::vector<OneBodyConnected>
 one_body_connected(const std::vector<CSF> &CSFAs,
                    const std::vector<CSF> &CSFBs) {
-  using Config = std::vector<DiracSpinor::Index>;
+  // A configuration: its particle orbitals (sorted) and its holes (sorted)
+  using Orbitals = std::vector<DiracSpinor::Index>;
+  using Config = std::pair<Orbitals, Orbitals>;
 
   // Sorted orbitals with the one at 'position' removed (stays sorted)
-  const auto remove_orbital = [](const Config &config, std::size_t position) {
-    Config sub_config;
-    sub_config.reserve(config.size() - 1);
-    for (std::size_t i = 0; i < config.size(); ++i) {
+  const auto remove_orbital = [](const Orbitals &orbitals,
+                                 std::size_t position) {
+    Orbitals sub_orbitals;
+    sub_orbitals.reserve(orbitals.size() - 1);
+    for (std::size_t i = 0; i < orbitals.size(); ++i) {
       if (i != position) {
-        sub_config.push_back(config[i]);
+        sub_orbitals.push_back(orbitals[i]);
       }
     }
-    return sub_config;
+    return sub_orbitals;
   };
 
-  // Configurations of B (CSF indices), and, for each configuration with one
-  // orbital removed, the B configurations containing it
+  // The configuration with one orbital (particle or hole) removed, in every
+  // way: two configurations of the same size differing by one orbital share
+  // one of these
+  const auto remove_one = [&remove_orbital](const Config &config) {
+    const auto &[particles, holes] = config;
+    std::vector<Config> sub_configs;
+    for (std::size_t position = 0; position < particles.size(); ++position) {
+      sub_configs.push_back({remove_orbital(particles, position), holes});
+    }
+    for (std::size_t position = 0; position < holes.size(); ++position) {
+      sub_configs.push_back({particles, remove_orbital(holes, position)});
+    }
+    return sub_configs;
+  };
+
+  // The configuration with one particle and one hole removed, in every way:
+  // a configuration is connected to those it is a hole excitation of
+  const auto remove_particle_hole = [&remove_orbital](const Config &config) {
+    const auto &[particles, holes] = config;
+    std::vector<Config> sub_configs;
+    for (std::size_t ip = 0; ip < particles.size(); ++ip) {
+      for (std::size_t ih = 0; ih < holes.size(); ++ih) {
+        sub_configs.push_back(
+          {remove_orbital(particles, ip), remove_orbital(holes, ih)});
+      }
+    }
+    return sub_configs;
+  };
+
+  // Configurations of B (CSF indices); then, for each configuration with one
+  // orbital removed, and with one particle and one hole removed, the B
+  // configurations it came from; and the B configurations as they are
   std::map<Config, std::vector<std::size_t>> B_config_map;
   for (std::size_t j = 0; j < CSFBs.size(); ++j) {
-    B_config_map[CSFBs[j].orbitals()].push_back(j);
+    B_config_map[{CSFBs[j].orbitals(), CSFBs[j].holes()}].push_back(j);
   }
   std::vector<std::vector<std::size_t>> B_configs;
   std::map<Config, std::vector<std::size_t>> B_containing;
+  std::map<Config, std::vector<std::size_t>> B_excitation_of;
+  std::map<Config, std::size_t> B_exact;
   for (const auto &[config, CSF_indices] : B_config_map) {
-    for (std::size_t position = 0; position < config.size(); ++position) {
-      B_containing[remove_orbital(config, position)].push_back(
-        B_configs.size());
+    for (const auto &sub_config : remove_one(config)) {
+      B_containing[sub_config].push_back(B_configs.size());
     }
+    for (const auto &sub_config : remove_particle_hole(config)) {
+      B_excitation_of[sub_config].push_back(B_configs.size());
+    }
+    B_exact[config] = B_configs.size();
     B_configs.push_back(CSF_indices);
   }
 
   std::map<Config, std::vector<std::size_t>> A_config_map;
   for (std::size_t i = 0; i < CSFAs.size(); ++i) {
-    A_config_map[CSFAs[i].orbitals()].push_back(i);
+    A_config_map[{CSFAs[i].orbitals(), CSFAs[i].holes()}].push_back(i);
   }
   std::vector<std::pair<Config, std::vector<std::size_t>>> A_configs(
     std::make_move_iterator(A_config_map.begin()),
@@ -721,12 +902,25 @@ one_body_connected(const std::vector<CSF> &CSFAs,
 #pragma omp parallel for schedule(dynamic, 64)
   for (std::size_t a = 0; a < A_configs.size(); ++a) {
     const auto &[config, CSF_indices] = A_configs[a];
-    // B configurations sharing all but one orbital; repeated orbitals, or
-    // identical configurations, give duplicates
+    // B configurations of the same size sharing all but one orbital
+    // (repeated orbitals, or identical configurations, give duplicates);
+    // those this one is a hole excitation of; and the hole excitations of it
     std::vector<std::size_t> partners;
-    for (std::size_t position = 0; position < config.size(); ++position) {
-      const auto it = B_containing.find(remove_orbital(config, position));
+    for (const auto &sub_config : remove_one(config)) {
+      const auto it = B_containing.find(sub_config);
       if (it != B_containing.end()) {
+        partners.insert(partners.end(), it->second.begin(), it->second.end());
+      }
+    }
+    for (const auto &sub_config : remove_particle_hole(config)) {
+      const auto it = B_exact.find(sub_config);
+      if (it != B_exact.end()) {
+        partners.push_back(it->second);
+      }
+    }
+    {
+      const auto it = B_excitation_of.find(config);
+      if (it != B_excitation_of.end()) {
         partners.insert(partners.end(), it->second.begin(), it->second.end());
       }
     }
@@ -742,6 +936,74 @@ one_body_connected(const std::vector<CSF> &CSFAs,
     connections[a] = {CSF_indices, std::move(connected_CSFs)};
   }
   return connections;
+}
+
+//==============================================================================
+double particle_hole_sum(const CSF2p1h &A, const CSF2p1h &B, int twoJ,
+                         const PairElement &ph_element) {
+  const auto [x, y] = A.states;
+  const auto [v, w] = B.states;
+  const auto b = A.hole;
+  const auto a = B.hole;
+  const auto twoJ12_A = A.twoJ12();
+  const auto twoJ12_B = B.twoJ12();
+
+  const auto tjx = Angular::nkindex_to_twoj(x);
+  const auto tjy = Angular::nkindex_to_twoj(y);
+  const auto tjv = Angular::nkindex_to_twoj(v);
+  const auto tjw = Angular::nkindex_to_twoj(w);
+  const auto tja = Angular::nkindex_to_twoj(a);
+  const auto tjb = Angular::nkindex_to_twoj(b);
+
+  // Recoupling of the pair to a particle-hole pair, with the first particle
+  // as spectator: |(vw)J12, a~; J> = sum_K R_K(vwa) |v, (w a~)K; J>
+  const auto R = [twoJ](int tj1, int tj2, int twoJ12, int tjh, int twoK) {
+    return Angular::neg1pow_2(tj1 + tj2 + tjh + twoJ) *
+           std::sqrt(double((twoJ12 + 1) * (twoK + 1))) *
+           Angular::sixj_2(tj1, tj2, twoJ12, tjh, twoJ, twoK);
+  };
+  // Phase for exchanging the two particles of a pair
+  const auto s_vw = double(Angular::neg1pow_2(tjv + tjw - twoJ12_B + 2));
+  const auto s_xy = double(Angular::neg1pow_2(tjx + tjy - twoJ12_A + 2));
+  const auto eta_vw = v == w ? 1.0 / std::sqrt(2.0) : 1.0;
+  const auto eta_xy = x == y ? 1.0 / std::sqrt(2.0) : 1.0;
+
+  // Spectator (first particle of bra and ket), then the particles of the
+  // interacting particle-hole pairs; with the exchange phases
+  struct Term {
+    DiracSpinor::Index spectator_A, spectator_B;
+    DiracSpinor::Index particle_A, particle_B;
+    int tj_spectator_A, tj_spectator_B, tj_particle_A, tj_particle_B;
+    double phase;
+  };
+  const std::array<Term, 4> terms{
+    Term{x, v, y, w, tjx, tjv, tjy, tjw, 1.0},
+    Term{x, w, y, v, tjx, tjw, tjy, tjv, s_vw},
+    Term{y, v, x, w, tjy, tjv, tjx, tjw, s_xy},
+    Term{y, w, x, v, tjy, tjw, tjx, tjv, s_vw * s_xy}};
+
+  double sum = 0.0;
+  for (const auto &t : terms) {
+    if (t.spectator_A != t.spectator_B)
+      continue;
+    // K: triangle with the spectator and J, and with each particle-hole pair
+    const auto twoK_min = std::max({std::abs(t.tj_spectator_B - twoJ),
+                                    std::abs(t.tj_particle_B - tja),
+                                    std::abs(t.tj_particle_A - tjb)});
+    const auto twoK_max = std::min(
+      {t.tj_spectator_B + twoJ, t.tj_particle_B + tja, t.tj_particle_A + tjb});
+    for (int twoK = twoK_min; twoK <= twoK_max; twoK += 2) {
+      const auto R_B =
+        R(t.tj_spectator_B, t.tj_particle_B, twoJ12_B, tja, twoK);
+      const auto R_A =
+        R(t.tj_spectator_A, t.tj_particle_A, twoJ12_A, tjb, twoK);
+      if (R_A == 0.0 || R_B == 0.0)
+        continue;
+      sum += t.phase * R_A * R_B *
+             ph_element(t.particle_A, b, t.particle_B, a, twoK);
+    }
+  }
+  return eta_vw * eta_xy * sum;
 }
 
 //==============================================================================
@@ -802,11 +1064,79 @@ std::pair<double, double> L2S2_pair(DiracSpinor::Index x, DiracSpinor::Index y,
 }
 
 //==============================================================================
+std::pair<double, double> L2S2_particle_hole(DiracSpinor::Index y,
+                                             DiracSpinor::Index b,
+                                             DiracSpinor::Index w,
+                                             DiracSpinor::Index a, int twoK) {
+  // (l_1 + l_2)^2 between the pairs (w a) and (y b), in product coupling:
+  // a particle and a hole are never in the same shell
+  auto [L2, S2] = L2S2_pair(w, a, y, b, twoK);
+  // Less the one-body terms, which are diagonal
+  if (y == w && a == b) {
+    const auto lw = Angular::nkindex_to_l(w);
+    const auto la = Angular::nkindex_to_l(a);
+    L2 -= lw * (lw + 1.0) + la * (la + 1.0);
+    S2 -= 1.5;
+  }
+  return {L2, S2};
+}
+
+//==============================================================================
+std::pair<double, double> L2S2_2p1h(const CSF2p1h &A, const CSF2p1h &B,
+                                    int twoJ) {
+  const auto [x, y] = A.states;
+  const auto [v, w] = B.states;
+  const auto same_hole = A.hole == B.hole;
+  const auto same_J12 = A.twoJ12() == B.twoJ12();
+
+  double L2 = 0.0;
+  double S2 = 0.0;
+
+  // The pair, with the hole as spectator
+  if (same_hole && same_J12) {
+    const auto [L2_pair, S2_pair] = L2S2_pair(v, w, x, y, B.twoJ12());
+    L2 += L2_pair;
+    S2 += S2_pair;
+  }
+
+  // The hole, with the pair as spectator
+  if (same_hole && same_J12 && A.states == B.states) {
+    const auto la = Angular::nkindex_to_l(A.hole);
+    L2 += la * (la + 1.0);
+    S2 += 0.75;
+  }
+
+  // Cross terms between each particle and the hole
+  const auto L_cross = [](DiracSpinor::Index yp, DiracSpinor::Index bp,
+                          DiracSpinor::Index wp, DiracSpinor::Index ap,
+                          int twoK) {
+    return L2S2_particle_hole(yp, bp, wp, ap, twoK).first;
+  };
+  const auto S_cross = [](DiracSpinor::Index yp, DiracSpinor::Index bp,
+                          DiracSpinor::Index wp, DiracSpinor::Index ap,
+                          int twoK) {
+    return L2S2_particle_hole(yp, bp, wp, ap, twoK).second;
+  };
+  L2 += particle_hole_sum(A, B, twoJ, L_cross);
+  S2 += particle_hole_sum(A, B, twoJ, S_cross);
+
+  return {L2, S2};
+}
+
+//==============================================================================
 std::pair<double, double> L2S2_element(const CSF &A, const CSF &B, int twoJ) {
   return std::visit(
     [twoJ](const auto &a, const auto &b) -> std::pair<double, double> {
       using CSFType = std::decay_t<decltype(a)>;
-      if constexpr (!std::is_same_v<decltype(a), decltype(b)>) {
+      using B_type = std::decay_t<decltype(b)>;
+      if constexpr ((std::is_same_v<CSFType, CSF1> &&
+                     std::is_same_v<B_type, CSF2p1h>) ||
+                    (std::is_same_v<CSFType, CSF2p1h> &&
+                     std::is_same_v<B_type, CSF1>)) {
+        // L and S conserve the numbers of particles and holes: no element
+        // between a one-electron and a hole CSF
+        return {0.0, 0.0};
+      } else if constexpr (!std::is_same_v<CSFType, B_type>) {
         assert(false && "L^2 and S^2 between CSFs of different kinds are not "
                         "implemented");
         return {0.0, 0.0};
@@ -819,6 +1149,8 @@ std::pair<double, double> L2S2_element(const CSF &A, const CSF &B, int twoJ) {
         return {l * (l + 1.0), 0.75};
       } else if constexpr (std::is_same_v<CSFType, CSF2>) {
         return L2S2_pair(b.state(0), b.state(1), a.state(0), a.state(1), twoJ);
+      } else if constexpr (std::is_same_v<CSFType, CSF2p1h>) {
+        return L2S2_2p1h(a, b, twoJ);
       } else {
         // One-body terms: diagonal in the CSFs
         double L2 = 0.0;
@@ -878,13 +1210,21 @@ expectation_L2S2(const LinAlg::View<const double> &coefs,
 
 //==============================================================================
 PsiJPi::PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
-               int num_electrons, const ConfigurationSpace &config_space)
+               int num_electrons, const ConfigurationSpace &config_space,
+               const std::vector<DiracSpinor> &holes,
+               const std::vector<DiracSpinor> &holes_basis)
   : m_twoj(twoJ),
     m_pi(pi),
     m_num_electrons(num_electrons),
-    m_CSFs(form_CSFs(twoJ, pi, cisp_basis, num_electrons, config_space)) {}
+    m_CSFs(form_CSFs(twoJ, pi, cisp_basis, num_electrons, config_space, holes,
+                     holes_basis)) {}
 
 int PsiJPi::num_electrons() const { return m_num_electrons; }
+
+bool PsiJPi::has_holes() const {
+  return std::any_of(m_CSFs.cbegin(), m_CSFs.cend(),
+                     [](const auto &csf) { return csf.num_holes() > 0; });
+}
 
 std::size_t PsiJPi::num_CSFs() const { return m_CSFs.size(); }
 

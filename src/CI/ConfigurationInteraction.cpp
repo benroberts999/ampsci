@@ -108,6 +108,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Leading configurations, from which the CI configurations are formed by "
      "excitations;\n"
      " - shells separated by '.', e.g., 'leading = 6s2.6p, 6s.6p2;'.\n"
+     " - a hole (see 'holes') as a negative number, e.g., '6s-1.6p2'.\n"
      " - Default: the lowest few configurations of each parity\n"
      " - NB: Always check for truncated CI\n"
      " - Not required for one or two valence electrons (full CI)"},
@@ -120,6 +121,12 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "configuration. [1, 2]"},
     {"davidson", "Use iterative Davidson method for CI solutions "
                  "[default: true for 3 electrons, false otherwise]"},
+    {"holes",
+     "Core shells that may hold a hole, e.g., 'holes = 6s;' (both j). Adds "
+     "CSFs with two electrons and one hole, e.g., 6p^2 6s^-1, to the CI "
+     "space (one valence electron only). [none]"},
+    {"ci_hole_basis", "Basis for the two electrons of the hole CSFs; subset "
+                      "of ci_basis. [default: ci_basis]"},
     /////
     // {"twoJ", "List of 2J (integers) for CI solutions; takes precedence over "
     //          "J. Works for either number of electrons."},
@@ -250,11 +257,62 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   std::cout << "\nUsing " << DiracSpinor::state_config(ci_sp_basis) << " = "
             << ci_sp_basis.size() << " orbitals in CI expansion\n";
 
-  // Configurations in the CI expansion: leading + excitations
+  // Hole CSFs (two electrons + one hole): the core shells that may hold the
+  // hole, as orbitals of the basis, and the basis of the two electrons
+  std::vector<DiracSpinor> hole_orbitals;
+  std::vector<DiracSpinor> ci_hole_basis;
+  {
+    const auto core_shells = AtomData::core_parser(wf.coreConfiguration());
+    for (const auto &shell_string :
+         input.get("holes", std::vector<std::string>{})) {
+      const auto configuration = CI::parse_configuration(shell_string);
+      if (configuration.size() != 1) {
+        fmt2::warning();
+        fmt::print(": hole shell '{}' is not a single shell: skipping\n",
+                   shell_string);
+        continue;
+      }
+      const auto &shell = configuration.front();
+      const auto in_core = std::any_of(
+        core_shells.cbegin(), core_shells.cend(),
+        [&shell](const auto &c) { return c.n == shell.n && c.l == shell.l; });
+      if (!in_core) {
+        fmt2::warning();
+        fmt::print(": hole shell '{}' is not a core shell: skipping\n",
+                   shell_string);
+        continue;
+      }
+      for (const auto &Fa : t_basis) {
+        if (Fa.n() == shell.n && Fa.l() == shell.l) {
+          hole_orbitals.push_back(Fa);
+        }
+      }
+    }
+    if (!hole_orbitals.empty() && num_electrons != 1) {
+      fmt2::warning();
+      std::cout << ": hole CSFs are available for one valence electron only: "
+                   "not including them\n";
+      hole_orbitals.clear();
+    }
+    if (!hole_orbitals.empty()) {
+      ci_hole_basis =
+        CI::basis_subset(ci_sp_basis, input.get("ci_hole_basis", basis_string));
+      std::cout << "With hole CSFs: holes in "
+                << DiracSpinor::state_config(hole_orbitals)
+                << ", two electrons in "
+                << DiracSpinor::state_config(ci_hole_basis) << "\n";
+    }
+  }
+
+  // Configurations in the CI expansion: leading + excitations (including
+  // those with a hole, if any)
   const ConfigurationSpace config_space{
-    ci_sp_basis, num_electrons,
+    ci_sp_basis,
+    num_electrons,
     input.get("leading", std::vector<std::string>{}),
-    input.get("excitations", std::vector<std::string>{"1", "2"})};
+    input.get("excitations", std::vector<std::string>{"1", "2"}),
+    hole_orbitals,
+    ci_hole_basis};
   std::cout << config_space.summary();
 
   if (Brueckner) {
@@ -490,13 +548,15 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       // use whole basis (these are used inside Sigma_2)
       // If not including MBPT, only need to caculate smaller set of integrals
 
-      // First, calculate the integrals between ci basis states:
+      // First, calculate the integrals between ci basis states (and the
+      // hole orbitals, if any):
       {
-        std::cout << "For: " << DiracSpinor::state_config(ci_sp_basis)
+        const auto ci_and_holes = qip::merge(ci_sp_basis, hole_orbitals);
+        std::cout << "For: " << DiracSpinor::state_config(ci_and_holes)
                   << " (for CI)\n"
                   << std::flush;
-        const auto yk = Coulomb::YkTable(ci_sp_basis);
-        qk.fill(ci_sp_basis, yk, max_k_Coulomb, false);
+        const auto yk = Coulomb::YkTable(ci_and_holes);
+        qk.fill(ci_and_holes, yk, max_k_Coulomb, false);
       }
 
       // Selection function for which Qk's to calculate.
@@ -564,6 +624,13 @@ Solutions configuration_interaction(const IO::InputBlock &input,
               CI::calculate_h1_table(ci_sp_basis, *wf.Sigma(), include_Sigma1) :
               CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
                                      include_Sigma1);
+  // The hole orbitals: their orbital energies only (no Sigma_1)
+  for (const auto &Fa : hole_orbitals) {
+    h1.add(Fa, Fa, Fa.en());
+  }
+  if (!hole_orbitals.empty() && include_Sigma1) {
+    std::cout << "nb: no Sigma_1 for the hole orbitals\n";
+  }
 
   // Derivative (dSigma/dE) correction for Sigma_1
   CI::Sigma1Correction s1_corr;
@@ -634,15 +701,18 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   std::cout << std::flush;
 
   // Creat Breit table (only for CI, not MBPT part).
-  // Two-body Breit acts between pairs of valence electrons: none for one
+  // Two-body Breit acts between pairs of valence electrons: none for one,
+  // unless there are hole CSFs (two particles and a hole)
   Coulomb::WkTable Bk;
-  const auto Breit2 = input.get("Breit2", true) && num_electrons > 1;
+  const auto Breit2 =
+    input.get("Breit2", true) && (num_electrons > 1 || !hole_orbitals.empty());
   if (wf.vHF()->vBreit() && Breit2) {
 
-    // use a subset of basis for Breit?
+    // use a subset of basis for Breit? (plus the hole orbitals, if any)
     const auto Breit_basis_string =
       input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf");
-    const auto Breit_basis = CI::basis_subset(ci_sp_basis, Breit_basis_string);
+    const auto Breit_basis = qip::merge(
+      CI::basis_subset(ci_sp_basis, Breit_basis_string), hole_orbitals);
 
     std::cout << (no_new_integralsQ ? "\nRead" : "\nCalculate +")
               << " include two-body Breit integrals for CI: B^k_abcd\n";
@@ -851,6 +921,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     ci_settings +=
       input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf") + ";";
   }
+  if (!hole_orbitals.empty()) {
+    ci_settings += "holes;" + DiracSpinor::state_config(hole_orbitals) + ";" +
+                   DiracSpinor::state_config(ci_hole_basis) + ";";
+  }
 
   // nb: two electrons is not tagged: two-electron filenames do not depend on
   // num_electrons
@@ -879,7 +953,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                all_below_cm, h1, qk, Bk, Sk, include_Sigma2, print_details,
                read_only, std::cout, ci_fname, find_E0 ? &s1_corr : nullptr, hk,
                dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver, BW_each_level,
-               config_space);
+               config_space, hole_orbitals, ci_hole_basis);
     }
   }
 
@@ -959,6 +1033,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   out.integrals.ci_basis = ci_sp_basis;
   out.integrals.num_electrons = num_electrons;
   out.integrals.config_space = config_space;
+  out.integrals.holes = std::move(hole_orbitals);
+  out.integrals.holes_basis = std::move(ci_hole_basis);
   out.integrals.brueckner = Brueckner;
   out.integrals.h1 = std::move(h1);
   out.integrals.qk = std::move(qk);
@@ -1042,7 +1118,9 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               std::ostream &outstream, const std::string &ci_fname,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
               const Coulomb::WkTable *dSk, double E0_sigma2, Solver solver,
-              bool BW_each_level, const ConfigurationSpace &config_space) {
+              bool BW_each_level, const ConfigurationSpace &config_space,
+              const std::vector<DiracSpinor> &holes,
+              const std::vector<DiracSpinor> &holes_basis) {
 
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
@@ -1056,10 +1134,20 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     return PsiJPi{};
   }
 
-  PsiJPi psi{twoJ, parity, ci_sp_basis, num_electrons, config_space};
+  PsiJPi psi{twoJ,         parity, ci_sp_basis, num_electrons,
+             config_space, holes,  holes_basis};
 
   const auto N_CSFs = psi.num_CSFs();
-  outstream << "Total CSFs: " << N_CSFs << "\n" << std::flush;
+  if (psi.has_holes()) {
+    const auto num_hole_CSFs = std::size_t(
+      std::count_if(psi.CSFs().cbegin(), psi.CSFs().cend(),
+                    [](const auto &csf) { return csf.num_holes() > 0; }));
+    outstream << "Total CSFs: " << N_CSFs << " (" << N_CSFs - num_hole_CSFs
+              << " + " << num_hole_CSFs << " with a hole)\n"
+              << std::flush;
+  } else {
+    outstream << "Total CSFs: " << N_CSFs << "\n" << std::flush;
+  }
   if (N_CSFs == 0) {
     outstream << "No CSFs can be formed for this J/parity from the basis and "
                  "configurations\n\n";

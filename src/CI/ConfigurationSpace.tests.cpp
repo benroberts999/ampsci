@@ -9,6 +9,7 @@
 #include <memory>
 #include <set>
 #include <string>
+#include <variant>
 #include <vector>
 
 namespace UnitTest {
@@ -204,6 +205,98 @@ TEST_CASE("ConfigSpace: three-electron CSFs", "[CI][unit][3VCI]") {
     }
     const auto num_CSFs = CI::form_CSF3s(3, parity, basis, space).size();
     REQUIRE(num_CSFs == num_expected);
+    REQUIRE(num_CSFs < all_CSFs.size());
+  }
+}
+
+//==============================================================================
+TEST_CASE("ConfigSpace: parse hole configurations", "[CI][unit][ciholes]") {
+  const auto hole =
+    CI::configuration_string(CI::parse_configuration("6p2.6s-1"));
+  REQUIRE(hole == "6s-1.6p2");
+
+  // Invalid: no number after '-', a non-integer number, an empty shell
+  for (const auto &invalid : {"6s-.6p2", "6s-x.6p2", "6s0.6p"}) {
+    const auto configuration = CI::parse_configuration(invalid);
+    REQUIRE(configuration.empty());
+  }
+}
+
+//==============================================================================
+// One electron, with hole CSFs (hole in 3s; the two particles within 6spd).
+// The hole is created by an excitation from a configuration without one, so
+// 3s-1.4p2 and 3s-1.4p.5s are single excitations from 4p; 3s-1.5s.5p is a
+// double. From a leading configuration with the hole, the particles are
+// excited; the hole is never filled
+TEST_CASE("ConfigSpace: hole excitations", "[CI][unit][ciholes]") {
+  const auto basis =
+    UnitTest::config_space_basis({{4, 9, 0}, {4, 9, 1}, {3, 9, 2}});
+  const auto holes = UnitTest::config_space_basis({{3, 3, 0}});
+  const auto hole_basis =
+    UnitTest::config_space_basis({{4, 6, 0}, {4, 6, 1}, {3, 6, 2}});
+  using UnitTest::config_space_orbitals;
+  const auto hole_3s = config_space_orbitals({{3, -1}});
+  const auto p4 = config_space_orbitals({{4, 1}});
+  const auto p4_p4 = config_space_orbitals({{4, 1}, {4, -2}});
+  const auto p4_s5 = config_space_orbitals({{4, 1}, {5, -1}});
+  const auto s5_p5 = config_space_orbitals({{5, -1}, {5, 1}});
+
+  const CI::ConfigurationSpace singles{basis, 1,     {"4p"},
+                                       {"1"}, holes, hole_basis};
+  REQUIRE(!singles.unrestricted());
+  const auto single_p2 = singles.included(p4_p4, hole_3s);
+  const auto single_ps = singles.included(p4_s5, hole_3s);
+  const auto double_sp = singles.included(s5_p5, hole_3s);
+  REQUIRE(single_p2);
+  REQUIRE(single_ps);
+  REQUIRE(!double_sp);
+
+  // Two particles and a hole: two full steps include every configuration
+  const CI::ConfigurationSpace doubles{basis,      1,     {"4p"},
+                                       {"1", "2"}, holes, hole_basis};
+  REQUIRE(doubles.unrestricted());
+
+  const CI::ConfigurationSpace from_hole{basis, 1,     {"3s-1.4p2"},
+                                         {"1"}, holes, hole_basis};
+  REQUIRE(!from_hole.unrestricted());
+  const auto hole_kept = from_hole.included(p4_s5, hole_3s);
+  const auto hole_filled = from_hole.included(p4);
+  const auto hole_double = from_hole.included(s5_p5, hole_3s);
+  REQUIRE(hole_kept);
+  REQUIRE(!hole_filled);
+  REQUIRE(!hole_double);
+
+  // The default leading configurations have no holes
+  const CI::ConfigurationSpace leading_only{basis, 1,     {},
+                                            {"0"}, holes, hole_basis};
+  const auto default_electron = leading_only.included(p4);
+  const auto default_hole = leading_only.included(p4_p4, hole_3s);
+  REQUIRE(default_electron);
+  REQUIRE(!default_hole);
+}
+
+//==============================================================================
+// Only hole CSFs of included configurations are formed; all of them
+TEST_CASE("ConfigSpace: hole CSFs", "[CI][unit][ciholes]") {
+  const auto basis =
+    UnitTest::config_space_basis({{4, 6, 0}, {4, 6, 1}, {3, 6, 2}});
+  const auto holes = UnitTest::config_space_basis({{3, 3, 0}});
+  const CI::ConfigurationSpace space{basis, 1, {"4p"}, {"1"}, holes};
+
+  for (const auto parity : {+1, -1}) {
+    const auto all_CSFs = CI::form_CSF2p1hs(3, parity, basis, holes);
+    std::size_t num_expected = 0;
+    for (const auto &csf : all_CSFs) {
+      const auto &hole_csf = std::get<CI::CSF2p1h>(csf.variant());
+      if (space.included({hole_csf.state(0), hole_csf.state(1)},
+                         {hole_csf.hole})) {
+        ++num_expected;
+      }
+    }
+    const auto num_CSFs =
+      CI::form_CSF2p1hs(3, parity, basis, holes, space).size();
+    REQUIRE(num_CSFs == num_expected);
+    REQUIRE(num_CSFs > 0);
     REQUIRE(num_CSFs < all_CSFs.size());
   }
 }

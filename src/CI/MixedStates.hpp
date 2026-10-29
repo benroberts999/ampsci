@@ -160,16 +160,20 @@ TPsi_reduced(const std::vector<CSF> &CSFs, int twoJ, const PsiJPi &Psi0,
   @param Bk          Pointer to Breit W^k table; ignored if nullptr.
   @param Sk          Pointer to Sigma_2 L^k table; ignored if nullptr.
   @param omega       Frequency; see the other overload [0].
+  @param holes       Core orbitals that may hold a hole (hole CSFs in the
+                     target J/Pi; see @ref CSF2p1h); none by default.
+  @param holes_basis Basis of the two electrons of the hole CSFs;
+                     @p ci_sp_basis if empty.
   @return PsiJPi for the J/Pi (@p twoJ, @p parity), holding the single mixed
           state.
 */
-[[nodiscard]] PsiJPi
-solve_mixed_state(const PsiJPi &Psi0, std::size_t i0, int twoJ, int parity,
-                  const std::vector<DiracSpinor> &ci_sp_basis,
-                  const Coulomb::meTable<double> &h, int K_rank,
-                  const Coulomb::meTable<double> &h1,
-                  const Coulomb::QkTable &qk,
-                  const Coulomb::WkTable *Bk = nullptr,
-                  const Coulomb::WkTable *Sk = nullptr, double omega = 0.0);
+[[nodiscard]] PsiJPi solve_mixed_state(
+  const PsiJPi &Psi0, std::size_t i0, int twoJ, int parity,
+  const std::vector<DiracSpinor> &ci_sp_basis,
+  const Coulomb::meTable<double> &h, int K_rank,
+  const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+  const Coulomb::WkTable *Bk = nullptr, const Coulomb::WkTable *Sk = nullptr,
+  double omega = 0.0, const std::vector<DiracSpinor> &holes = {},
+  const std::vector<DiracSpinor> &holes_basis = {});
 
 } // namespace CI

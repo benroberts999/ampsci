@@ -36,6 +36,16 @@ constexpr std::size_t default_leading_per_parity = 5;
   Default leading configurations: the default_leading_per_parity lowest of each
   parity, by the sum of orbital energies. A default-constructed space, or one
   with as many full-basis steps as electrons, includes every configuration.
+
+  With hole CSFs (see CSF2p1h), the configurations with a hole (one more
+  particle than electrons, and a hole in one of the hole shells; written with
+  a negative occupancy, e.g. 6s-1.6p2) are included too. The hole is created
+  by an excitation from a leading configuration without one (6s-1.6p2 and
+  6s-1.6p.7p are single excitations from 6p), or is that of the leading
+  configuration; it is never moved or filled, since that would put an
+  electron into the core. There is at most one hole. The default leading
+  configurations have no holes. With a hole-free leading configuration and as
+  many full-basis steps as particles, every configuration is included.
 */
 class ConfigurationSpace {
 public:
@@ -55,6 +65,10 @@ private:
   std::vector<std::vector<Shell>> m_step_shells{};
   std::vector<std::string> m_step_strings{};
   bool m_unrestricted{true};
+  // Shells that may hold a hole, and shells of the particles of the
+  // configurations with a hole (empty if no holes)
+  std::vector<Shell> m_hole_shells{};
+  std::vector<Shell> m_hole_basis_shells{};
 
 public:
   //! Includes every configuration
@@ -71,16 +85,24 @@ public:
                           is the number of steps: {"3:6spdf"} is the same as
                           {"1", "2", "3:6spdf"}, and {"0"} gives the leading
                           configurations only.
+    @param holes          Core orbitals that may hold a hole (see CSF2p1h);
+                          none by default.
+    @param hole_basis     Basis of the particles of the configurations with a
+                          hole; @p ci_basis if empty.
   */
   ConfigurationSpace(const std::vector<DiracSpinor> &ci_basis,
                      int num_electrons, const std::vector<std::string> &leading,
-                     const std::vector<std::string> &excitations);
+                     const std::vector<std::string> &excitations,
+                     const std::vector<DiracSpinor> &holes = {},
+                     const std::vector<DiracSpinor> &hole_basis = {});
 
   //! True if every configuration is included
   bool unrestricted() const { return m_unrestricted; }
 
-  //! True if the configuration of these orbitals (nk_index) is included
-  bool included(const std::vector<DiracSpinor::Index> &orbitals) const;
+  //! True if the configuration of these orbitals (nk_index), with holes in
+  //! these core orbitals, is included
+  bool included(const std::vector<DiracSpinor::Index> &orbitals,
+                const std::vector<DiracSpinor::Index> &holes = {}) const;
 
   //! The leading configurations (in the form of the 'leading' input option),
   //! the excitation steps, and the number of configurations included; or one
@@ -90,18 +112,37 @@ public:
 private:
   bool included_configuration(const Configuration &configuration) const;
 
+  // Every configuration of num_particles particles in the given shells
+  std::vector<Configuration>
+  particle_configurations(const std::vector<Shell> &shells,
+                          int num_particles) const;
   // Every configuration of the electrons in the CI basis shells
+  std::vector<Configuration> electron_configurations() const;
+  // Every configuration with a hole: one hole shell, and one more particle
+  // than electrons in the hole basis shells
+  std::vector<Configuration> hole_configurations() const;
+  // Both of the above
   std::vector<Configuration> all_configurations() const;
 };
 
+//! Non-relativistic shells {n, l} of the orbitals: sorted, each once
+std::vector<ConfigurationSpace::Shell>
+shells_of(const std::vector<DiracSpinor> &orbitals);
+
+//! The holes of a configuration (shells with negative occupancy), one entry
+//! per hole
+std::vector<ConfigurationSpace::Shell>
+configuration_holes(const ConfigurationSpace::Configuration &configuration);
+
 /*!
   @brief Parses a configuration, e.g. "6s2.6p": shells separated by '.', each
-  with its number of electrons (default 1).
+  with its number of electrons (default 1); negative for a hole, e.g.
+  "6s-1.6p2".
   @return Empty if not a valid configuration.
 */
 ConfigurationSpace::Configuration parse_configuration(const std::string &text);
 
-//! Configuration as text, e.g. "6s2.6p1"
+//! Configuration as text, e.g. "6s2.6p1" (a hole as "6s-1")
 std::string
 configuration_string(const ConfigurationSpace::Configuration &configuration);
 

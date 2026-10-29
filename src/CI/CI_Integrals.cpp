@@ -281,6 +281,48 @@ double Breit_AB(const CI::CSF3 &A, const CI::CSF3 &B, int,
 }
 
 //==============================================================================
+double Sigma2_AB(const CI::CSF2p1h &A, const CI::CSF2p1h &B, int twoJ,
+                 const Coulomb::WkTable &Sk, const Coulomb::QkTable *qk,
+                 const std::vector<double> &hk, const Coulomb::WkTable *dSk,
+                 double dE0,
+                 const std::map<DiracSpinor::Index, double> *orbital_energies) {
+  assert((dSk == nullptr || orbital_energies != nullptr) &&
+         "Brillouin-Wigner Sigma_2 requires the orbital energies");
+  // The pair energy excludes the hole, whose energy enters with the opposite
+  // sign
+  const auto dE0_pair =
+    dSk == nullptr ? dE0 : dE0 + orbital_energies->at(B.hole);
+  return two_body_2p1h(sigma2_pair_element(Sk, qk, hk, dSk, dE0_pair), A, B,
+                       twoJ);
+}
+
+//==============================================================================
+double Sigma2_AB(const CI::CSF1 &A, const CI::CSF2p1h &B, int twoJ,
+                 const Coulomb::WkTable &Sk, const Coulomb::QkTable *qk,
+                 const std::vector<double> &hk, const Coulomb::WkTable *dSk,
+                 double dE0,
+                 const std::map<DiracSpinor::Index, double> *orbital_energies) {
+  assert((dSk == nullptr || orbital_energies != nullptr) &&
+         "Brillouin-Wigner Sigma_2 requires the orbital energies");
+  const auto dE0_pair =
+    dSk == nullptr ? dE0 : dE0 + orbital_energies->at(B.hole);
+  return two_body_1p_2p1h(sigma2_pair_element(Sk, qk, hk, dSk, dE0_pair), A, B,
+                          twoJ);
+}
+
+//==============================================================================
+double Breit_AB(const CI::CSF2p1h &A, const CI::CSF2p1h &B, int twoJ,
+                const Coulomb::WkTable &Bk) {
+  return two_body_2p1h(breit_pair_element(Bk), A, B, twoJ);
+}
+
+//==============================================================================
+double Breit_AB(const CI::CSF1 &A, const CI::CSF2p1h &B, int twoJ,
+                const Coulomb::WkTable &Bk) {
+  return two_body_1p_2p1h(breit_pair_element(Bk), A, B, twoJ);
+}
+
+//==============================================================================
 double Sigma2_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
                  const Coulomb::WkTable &Sk, const Coulomb::QkTable *qk,
                  const std::vector<double> &hk, const Coulomb::WkTable *dSk,
@@ -288,18 +330,30 @@ double Sigma2_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
                  const std::map<DiracSpinor::Index, double> *orbital_energies) {
   return std::visit(
     [&](const auto &a, const auto &b) -> double {
-      using CSFType = std::decay_t<decltype(a)>;
-      if constexpr (!std::is_same_v<decltype(a), decltype(b)>) {
+      using A_type = std::decay_t<decltype(a)>;
+      using B_type = std::decay_t<decltype(b)>;
+      if constexpr (std::is_same_v<A_type, CSF1> &&
+                    std::is_same_v<B_type, CSF1>) {
+        // No valence pairs
+        return 0.0;
+      } else if constexpr (std::is_same_v<A_type, CSF2> &&
+                           std::is_same_v<B_type, CSF2>) {
+        return Sigma2_AB(a, b, twoJ, Sk, qk, hk, dSk, dE0);
+      } else if constexpr ((std::is_same_v<A_type, CSF3> &&
+                            std::is_same_v<B_type, CSF3>) ||
+                           (std::is_same_v<A_type, CSF2p1h> &&
+                            std::is_same_v<B_type, CSF2p1h>) ||
+                           (std::is_same_v<A_type, CSF1> &&
+                            std::is_same_v<B_type, CSF2p1h>)) {
+        return Sigma2_AB(a, b, twoJ, Sk, qk, hk, dSk, dE0, orbital_energies);
+      } else if constexpr (std::is_same_v<A_type, CSF2p1h> &&
+                           std::is_same_v<B_type, CSF1>) {
+        // Transposed element (the CI matrix is symmetric)
+        return Sigma2_AB(b, a, twoJ, Sk, qk, hk, dSk, dE0, orbital_energies);
+      } else {
         assert(false && "Sigma_2 between CSFs of different kinds is not "
                         "implemented");
         return 0.0;
-      } else if constexpr (std::is_same_v<CSFType, CSF1>) {
-        // No valence pairs
-        return 0.0;
-      } else if constexpr (std::is_same_v<CSFType, CSF2>) {
-        return Sigma2_AB(a, b, twoJ, Sk, qk, hk, dSk, dE0);
-      } else {
-        return Sigma2_AB(a, b, twoJ, Sk, qk, hk, dSk, dE0, orbital_energies);
       }
     },
     A.variant(), B.variant());
@@ -310,16 +364,24 @@ double Breit_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
                 const Coulomb::WkTable &Bk) {
   return std::visit(
     [&](const auto &a, const auto &b) -> double {
-      using CSFType = std::decay_t<decltype(a)>;
-      if constexpr (!std::is_same_v<decltype(a), decltype(b)>) {
+      using A_type = std::decay_t<decltype(a)>;
+      using B_type = std::decay_t<decltype(b)>;
+      if constexpr (std::is_same_v<A_type, CSF1> &&
+                    std::is_same_v<B_type, CSF1>) {
+        // No valence pairs
+        return 0.0;
+      } else if constexpr (std::is_same_v<A_type, B_type> ||
+                           (std::is_same_v<A_type, CSF1> &&
+                            std::is_same_v<B_type, CSF2p1h>)) {
+        return Breit_AB(a, b, twoJ, Bk);
+      } else if constexpr (std::is_same_v<A_type, CSF2p1h> &&
+                           std::is_same_v<B_type, CSF1>) {
+        // Transposed element (the CI matrix is symmetric)
+        return Breit_AB(b, a, twoJ, Bk);
+      } else {
         assert(false && "Breit between CSFs of different kinds is not "
                         "implemented");
         return 0.0;
-      } else if constexpr (std::is_same_v<CSFType, CSF1>) {
-        // No valence pairs
-        return 0.0;
-      } else {
-        return Breit_AB(a, b, twoJ, Bk);
       }
     },
     A.variant(), B.variant());
@@ -648,15 +710,10 @@ double Hab(const CI::CSF1 &A, const CI::CSF1 &B, int,
 }
 
 //==============================================================================
-// Determines CI Hamiltonian matrix element for two 2-particle CSFs, a and b
-double Hab(const CI::CSF2 &X, const CI::CSF2 &V, int twoJ,
-           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-           const Sigma1Correction *s1c) {
-
-  // Calculates matrix element of the CI Hamiltonian between two CSFs
-
-  const auto [v, w] = V.states;
-  const auto [x, y] = X.states;
+double CSF2_one_body(const Coulomb::meTable<double> &h1, DiracSpinor::Index v,
+                     DiracSpinor::Index w, DiracSpinor::Index x,
+                     DiracSpinor::Index y, int twoJ,
+                     const Sigma1Correction *s1c) {
 
   const auto etaV = v == w ? 1.0 / std::sqrt(2.0) : 1.0;
   const auto etaX = x == y ? 1.0 / std::sqrt(2.0) : 1.0;
@@ -681,8 +738,155 @@ double Hab(const CI::CSF2 &X, const CI::CSF2 &V, int twoJ,
   if (y == w) {
     h1_VX += eta2 * (h1.getv(x, v) + (s1c ? s1c->delta_h1(x, v, w) : 0.0));
   }
+  return h1_VX;
+}
 
-  return h1_VX + CSF2_Coulomb(qk, v, w, x, y, twoJ);
+//==============================================================================
+// Determines CI Hamiltonian matrix element for two 2-particle CSFs, a and b
+double Hab(const CI::CSF2 &X, const CI::CSF2 &V, int twoJ,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+           const Sigma1Correction *s1c) {
+  const auto [v, w] = V.states;
+  const auto [x, y] = X.states;
+  return CSF2_one_body(h1, v, w, x, y, twoJ, s1c) +
+         CSF2_Coulomb(qk, v, w, x, y, twoJ);
+}
+
+//==============================================================================
+PairElement coulomb_pair_element(const Coulomb::QkTable &qk) {
+  return [&qk](DiracSpinor::Index v, DiracSpinor::Index w, DiracSpinor::Index x,
+               DiracSpinor::Index y,
+               int twoJ) { return CSF2_Coulomb(qk, v, w, x, y, twoJ); };
+}
+
+//==============================================================================
+PairElement breit_pair_element(const Coulomb::WkTable &Bk) {
+  return [&Bk](DiracSpinor::Index v, DiracSpinor::Index w, DiracSpinor::Index x,
+               DiracSpinor::Index y,
+               int twoJ) { return CSF2_Breit(Bk, v, w, x, y, twoJ); };
+}
+
+//==============================================================================
+PairElement sigma2_pair_element(const Coulomb::WkTable &Sk,
+                                const Coulomb::QkTable *qk,
+                                const std::vector<double> &hk,
+                                const Coulomb::WkTable *dSk, double dE0) {
+  return [&Sk, qk, &hk, dSk, dE0](DiracSpinor::Index v, DiracSpinor::Index w,
+                                  DiracSpinor::Index x, DiracSpinor::Index y,
+                                  int twoJ) {
+    return CSF2_Sigma2(Sk, v, w, x, y, twoJ, qk, hk, dSk, dE0);
+  };
+}
+
+//==============================================================================
+double particle_hole_element(const PairElement &pair_element,
+                             DiracSpinor::Index y, DiracSpinor::Index b,
+                             DiracSpinor::Index w, DiracSpinor::Index a,
+                             int twoK) {
+  const auto tjy = Angular::nkindex_to_twoj(y);
+  const auto tjb = Angular::nkindex_to_twoj(b);
+  const auto tjw = Angular::nkindex_to_twoj(w);
+  const auto tja = Angular::nkindex_to_twoj(a);
+
+  // Recoupling: the element between the particle-particle pairs (y a) and
+  // (w b), coupled to J', summed with a 6j symbol over J' to give the element
+  // between the particle-hole pairs (y b~) and (w a~) coupled to K.
+  // The overall minus sign comes from reordering the hole operators
+  const auto twoJ_min = std::max(std::abs(tjy - tja), std::abs(tjw - tjb));
+  const auto twoJ_max = std::min(tjy + tja, tjw + tjb);
+  double out = 0.0;
+  for (int twoJp = twoJ_min; twoJp <= twoJ_max; twoJp += 2) {
+    const auto sj = Angular::sixj_2(tjw, tja, twoK, tjy, tjb, twoJp);
+    if (sj == 0.0)
+      continue;
+    out -= (twoJp + 1) * sj * pair_element(y, a, w, b, twoJp);
+  }
+  return out;
+}
+
+//==============================================================================
+double two_body_2p1h(const PairElement &pair_element, const CI::CSF2p1h &A,
+                     const CI::CSF2p1h &B, int twoJ) {
+
+  if (CSF2p1h::num_different(A, B) > 2)
+    return 0.0;
+
+  const auto [x, y] = A.states;
+  const auto [v, w] = B.states;
+
+  double out = 0.0;
+
+  // Between the particles: hole spectator
+  if (A.hole == B.hole && A.twoJ12() == B.twoJ12()) {
+    out += pair_element(v, w, x, y, B.twoJ12());
+  }
+
+  // Between each particle and the hole
+  const auto ph_element =
+    [&pair_element](DiracSpinor::Index yp, DiracSpinor::Index bp,
+                    DiracSpinor::Index wp, DiracSpinor::Index ap, int twoK) {
+      return particle_hole_element(pair_element, yp, bp, wp, ap, twoK);
+    };
+  out += particle_hole_sum(A, B, twoJ, ph_element);
+
+  return out;
+}
+
+//==============================================================================
+double two_body_1p_2p1h(const PairElement &pair_element, const CI::CSF1 &A,
+                        const CI::CSF2p1h &B, int twoJ) {
+  const auto x = A.state(0);
+  const auto [v, w] = B.states;
+  const auto a = B.hole;
+  const auto tjx = Angular::nkindex_to_twoj(x);
+  const auto tja = Angular::nkindex_to_twoj(a);
+  const auto twoJ12 = B.twoJ12();
+  assert(tjx == twoJ);
+  // The pair (vw), coupled to J12, de-excites into the electron x and the
+  // hole: the pair element <(xa)J12|g~|(vw)J12> (which includes eta_vw)
+  return Angular::neg1pow_2(tjx - tja + twoJ12) *
+         std::sqrt(double(twoJ12 + 1) / (twoJ + 1)) *
+         pair_element(x, a, v, w, twoJ12);
+}
+
+//==============================================================================
+double Hab(const CI::CSF2p1h &A, const CI::CSF2p1h &B, int twoJ,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+           const Sigma1Correction *) {
+
+  if (CSF2p1h::num_different(A, B) > 2)
+    return 0.0;
+
+  const auto [x, y] = A.states;
+  const auto [v, w] = B.states;
+  const auto b = A.hole;
+  const auto a = B.hole;
+  const auto same_J12 = A.twoJ12() == B.twoJ12();
+
+  double out = 0.0;
+
+  // One-body on the particles: hole spectator
+  if (a == b && same_J12) {
+    out += CSF2_one_body(h1, v, w, x, y, B.twoJ12());
+  }
+
+  // One-body on the hole: pair spectator
+  if (A.states == B.states && same_J12) {
+    out -= h1.getv(a, b);
+  }
+
+  // Coulomb between the particles, and between each particle and the hole
+  out += two_body_2p1h(coulomb_pair_element(qk), A, B, twoJ);
+
+  return out;
+}
+
+//==============================================================================
+double Hab(const CI::CSF1 &A, const CI::CSF2p1h &B, int twoJ,
+           const Coulomb::meTable<double> &, const Coulomb::QkTable &qk,
+           const Sigma1Correction *) {
+  // The one-body part vanishes: <w|h_HF|a> = 0 for a core orbital a
+  return two_body_1p_2p1h(coulomb_pair_element(qk), A, B, twoJ);
 }
 
 //==============================================================================
@@ -725,8 +929,17 @@ double Hab(const CI::CSF &A, const CI::CSF &B, int twoJ,
            const Sigma1Correction *s1c) {
   return std::visit(
     [&](const auto &a, const auto &b) -> double {
-      if constexpr (std::is_same_v<decltype(a), decltype(b)>) {
+      using A_type = std::decay_t<decltype(a)>;
+      using B_type = std::decay_t<decltype(b)>;
+      if constexpr (std::is_same_v<A_type, B_type>) {
         return Hab(a, b, twoJ, h1, qk, s1c);
+      } else if constexpr (std::is_same_v<A_type, CSF1> &&
+                           std::is_same_v<B_type, CSF2p1h>) {
+        return Hab(a, b, twoJ, h1, qk, s1c);
+      } else if constexpr (std::is_same_v<A_type, CSF2p1h> &&
+                           std::is_same_v<B_type, CSF1>) {
+        // Real and symmetric
+        return Hab(b, a, twoJ, h1, qk, s1c);
       } else {
         assert(false && "CI matrix elements between CSFs of different kinds "
                         "are not implemented");
@@ -984,13 +1197,18 @@ double RME_CSF3(const CI::CSF3 &X, int twoJX, const CI::CSF3 &V, int twoJV,
 // Calculate reduce ME between two 2-particle CSFs
 double RME_CSF2(const CI::CSF2 &X, int twoJX, const CI::CSF2 &V, int twoJV,
                 const Coulomb::meTable<double> &h, int K_rank) {
+  return RME_pair(X.state(0), X.state(1), twoJX, V.state(0), V.state(1), twoJV,
+                  h, K_rank);
+}
 
-  const auto [v, w] = V.states;
-  const auto [x, y] = X.states;
+//==============================================================================
+double RME_pair(DiracSpinor::Index x, DiracSpinor::Index y, int twoJX,
+                DiracSpinor::Index v, DiracSpinor::Index w, int twoJV,
+                const Coulomb::meTable<double> &h, int K_rank) {
+
   const auto etaV = v == w ? 1.0 / std::sqrt(2.0) : 1.0;
   const auto etaX = x == y ? 1.0 / std::sqrt(2.0) : 1.0;
 
-  // const auto num_diff = CI::CSF2::num_different(F, I);
   const auto twok = 2 * K_rank;
 
   const auto f = etaV * etaX * std::sqrt(double(twoJX + 1) * (twoJV + 1)) *
@@ -1030,19 +1248,141 @@ double RME_CSF2(const CI::CSF2 &X, int twoJX, const CI::CSF2 &V, int twoJV,
 }
 
 //==============================================================================
+double RME_CSF2p1h(const CI::CSF2p1h &X, int twoJX, const CI::CSF2p1h &V,
+                   int twoJV, const Coulomb::meTable<double> &h, int K_rank) {
+
+  if (CSF2p1h::num_different(X, V) > 1)
+    return 0.0;
+
+  const auto twok = 2 * K_rank;
+  const auto b = X.hole;
+  const auto a = V.hole;
+  const auto tja = Angular::nkindex_to_twoj(a);
+  const auto tjb = Angular::nkindex_to_twoj(b);
+  const auto twoJ12_X = X.twoJ12();
+  const auto twoJ12_V = V.twoJ12();
+  const auto f = std::sqrt(double(twoJX + 1) * (twoJV + 1));
+
+  double out = 0.0;
+
+  // On a particle: the pair is the first part of the coupling, the hole is
+  // the spectator
+  if (a == b) {
+    const auto sj =
+      Angular::sixj_2(twoJ12_X, twoJX, tja, twoJV, twoJ12_V, twok);
+    if (sj != 0.0) {
+      const auto s = Angular::neg1pow_2(twoJ12_X + tja + twoJV + twok);
+      out += s * f * sj *
+             RME_pair(X.state(0), X.state(1), twoJ12_X, V.state(0), V.state(1),
+                      twoJ12_V, h, K_rank);
+    }
+  }
+
+  // On the hole: the pair is the spectator. Hole single-particle element:
+  // <b~||t||a~> = (-1)^(ja + jb + k) <a||t||b>
+  if (X.states == V.states && twoJ12_X == twoJ12_V) {
+    const auto t_ab = h.getv(a, b);
+    const auto sj = Angular::sixj_2(tjb, twoJX, twoJ12_V, twoJV, tja, twok);
+    if (t_ab != 0.0 && sj != 0.0) {
+      const auto s = Angular::neg1pow_2(twoJ12_V + tja + twoJX + twok) *
+                     Angular::neg1pow_2(tja + tjb + twok);
+      out += s * f * sj * t_ab;
+    }
+  }
+  return out;
+}
+
+//==============================================================================
+double RME_CSF2p1h_1(const CI::CSF2p1h &X, int twoJX, const CI::CSF1 &V,
+                     int twoJV, const Coulomb::meTable<double> &h, int K_rank) {
+  const auto x = V.state(0);
+  const auto [v, w] = X.states;
+  const auto a = X.hole;
+  if (x != v && x != w)
+    return 0.0;
+
+  const auto twok = 2 * K_rank;
+  const auto tjv = Angular::nkindex_to_twoj(v);
+  const auto tjw = Angular::nkindex_to_twoj(w);
+  const auto tja = Angular::nkindex_to_twoj(a);
+  assert(Angular::nkindex_to_twoj(x) == twoJV);
+  const auto twoJ12 = X.twoJ12();
+  const auto eta = v == w ? 1.0 / std::sqrt(2.0) : 1.0;
+  const auto f = -Angular::neg1pow_2(tjv + tjw + tja + twoJX) *
+                 std::sqrt(double(twoJX + 1) * (twoJ12 + 1)) * eta;
+  const auto s_vw = Angular::neg1pow_2(tjv + tjw - twoJ12 + 2);
+
+  // The electron x is one of the two particles; the operator excites the
+  // hole into the other
+  double out = 0.0;
+  if (x == v) {
+    out += Angular::sixj_2(tjv, tjw, twoJ12, tja, twoJX, twok) * h.getv(w, a);
+  }
+  if (x == w) {
+    out +=
+      s_vw * Angular::sixj_2(tjw, tjv, twoJ12, tja, twoJX, twok) * h.getv(v, a);
+  }
+  return f * out;
+}
+
+//==============================================================================
+double RME_CSF1_2p1h(const CI::CSF1 &X, int twoJX, const CI::CSF2p1h &V,
+                     int twoJV, const Coulomb::meTable<double> &h, int K_rank) {
+  const auto x = X.state(0);
+  const auto [v, w] = V.states;
+  const auto a = V.hole;
+  if (x != v && x != w)
+    return 0.0;
+
+  const auto twok = 2 * K_rank;
+  const auto tjv = Angular::nkindex_to_twoj(v);
+  const auto tjw = Angular::nkindex_to_twoj(w);
+  const auto tja = Angular::nkindex_to_twoj(a);
+  const auto tjx = Angular::nkindex_to_twoj(x);
+  assert(tjx == twoJX);
+  const auto twoJ12 = V.twoJ12();
+  const auto eta = v == w ? 1.0 / std::sqrt(2.0) : 1.0;
+  const auto f = -Angular::neg1pow_2(tjv + tjw + tja + twoJV) *
+                 std::sqrt(double(twoJV + 1) * (twoJ12 + 1)) * eta;
+  const auto s_vw = Angular::neg1pow_2(tjv + tjw - twoJ12 + 2);
+
+  // The electron x is one of the two particles; the operator de-excites the
+  // other into the hole (the conjugate of RME_CSF2p1h_1, term by term)
+  double out = 0.0;
+  if (x == v) {
+    out += Angular::neg1pow_2(tja - tjw + twoJV - tjx) *
+           Angular::sixj_2(tjv, tjw, twoJ12, tja, twoJV, twok) * h.getv(a, w);
+  }
+  if (x == w) {
+    out += s_vw * Angular::neg1pow_2(tja - tjv + twoJV - tjx) *
+           Angular::sixj_2(tjw, tjv, twoJ12, tja, twoJV, twok) * h.getv(a, v);
+  }
+  return f * out;
+}
+
+//==============================================================================
 double RME_CSF(const CI::CSF &X, int twoJX, const CI::CSF &V, int twoJV,
                const Coulomb::meTable<double> &h, int K_rank) {
   // Reduced matrix element for the kinds of CSF held by X and V
   const auto rme_by_kind = [&](const auto &x, const auto &v) -> double {
-    using CSFType = std::decay_t<decltype(x)>;
-    if constexpr (!std::is_same_v<decltype(x), decltype(v)>) {
+    using X_type = std::decay_t<decltype(x)>;
+    using V_type = std::decay_t<decltype(v)>;
+    if constexpr (std::is_same_v<X_type, CSF1> &&
+                  std::is_same_v<V_type, CSF2p1h>) {
+      return RME_CSF1_2p1h(x, twoJX, v, twoJV, h, K_rank);
+    } else if constexpr (std::is_same_v<X_type, CSF2p1h> &&
+                         std::is_same_v<V_type, CSF1>) {
+      return RME_CSF2p1h_1(x, twoJX, v, twoJV, h, K_rank);
+    } else if constexpr (!std::is_same_v<X_type, V_type>) {
       assert(false && "Reduced matrix elements between CSFs of different "
                       "kinds are not implemented");
       return 0.0;
-    } else if constexpr (std::is_same_v<CSFType, CSF1>) {
+    } else if constexpr (std::is_same_v<X_type, CSF1>) {
       return RME_CSF1(x, twoJX, v, twoJV, h, K_rank);
-    } else if constexpr (std::is_same_v<CSFType, CSF2>) {
+    } else if constexpr (std::is_same_v<X_type, CSF2>) {
       return RME_CSF2(x, twoJX, v, twoJV, h, K_rank);
+    } else if constexpr (std::is_same_v<X_type, CSF2p1h>) {
+      return RME_CSF2p1h(x, twoJX, v, twoJV, h, K_rank);
     } else {
       return RME_CSF3(x, twoJX, v, twoJV, h, K_rank);
     }

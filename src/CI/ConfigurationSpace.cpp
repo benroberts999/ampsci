@@ -9,6 +9,7 @@
 #include "qip/String.hpp"
 #include <algorithm>
 #include <cctype>
+#include <cstdlib>
 #include <map>
 #include <numeric>
 #include <string>
@@ -20,9 +21,15 @@ namespace CI {
 ConfigurationSpace::ConfigurationSpace(
   const std::vector<DiracSpinor> &ci_basis, int num_electrons,
   const std::vector<std::string> &leading,
-  const std::vector<std::string> &excitations)
+  const std::vector<std::string> &excitations,
+  const std::vector<DiracSpinor> &holes,
+  const std::vector<DiracSpinor> &hole_basis)
   : m_num_electrons(num_electrons),
-    m_basis_string(DiracSpinor::state_config(ci_basis)) {
+    m_basis_string(DiracSpinor::state_config(ci_basis)),
+    m_hole_shells(shells_of(holes)),
+    m_hole_basis_shells(
+      holes.empty() ? std::vector<Shell>{} :
+                      shells_of(hole_basis.empty() ? ci_basis : hole_basis)) {
 
   // Shells of the CI basis, with energies averaged over both j (weight 2j+1):
   // shell -> {sum of (2j+1) * energy, sum of (2j+1)}
@@ -38,25 +45,42 @@ ConfigurationSpace::ConfigurationSpace(
 
   for (const auto &text : leading) {
     const auto configuration = parse_configuration(IO::removeSpaces(text));
+    // A hole counts as minus one electron
     int count = 0;
     for (const auto &shell : configuration) {
       count += shell.num;
     }
-    if (count != num_electrons) {
+    if (configuration.empty() || count != num_electrons) {
       fmt2::warning();
       fmt::print(": leading configuration '{}' not understood, or not {} "
-                 "electrons (form: 6s2.6p); skipped\n",
+                 "electrons (form: 6s2.6p, or 6s-1.6p2 with a hole); "
+                 "skipped\n",
                  text, num_electrons);
+      continue;
+    }
+    // At most one hole, in one of the hole shells
+    const auto configuration_hole_shells = configuration_holes(configuration);
+    const auto hole_ok =
+      configuration_hole_shells.empty() ||
+      (configuration_hole_shells.size() == 1 &&
+       std::find(m_hole_shells.cbegin(), m_hole_shells.cend(),
+                 configuration_hole_shells.front()) != m_hole_shells.cend());
+    if (!hole_ok) {
+      fmt2::warning();
+      fmt::print(": leading configuration '{}': at most one hole, in a shell "
+                 "of 'holes'; skipped\n",
+                 text);
       continue;
     }
     m_leading.push_back(configuration);
   }
 
-  // Default: the lowest configurations of each parity, by orbital energy
+  // Default: the lowest configurations of each parity, by orbital energy;
+  // none with a hole
   m_default_leading = m_leading.empty();
   if (m_default_leading) {
     std::vector<std::pair<double, Configuration>> even, odd;
-    for (auto &configuration : all_configurations()) {
+    for (auto &configuration : electron_configurations()) {
       double energy = 0.0;
       int sum_l = 0;
       for (const auto &shell : configuration) {
@@ -102,40 +126,45 @@ ConfigurationSpace::ConfigurationSpace(
   }
   for (int k = 1; k <= num_steps; ++k) {
     const auto &basis_string = step_basis_strings[k];
-    std::vector<Shell> shells;
-    for (const auto &Fn : basis_subset(ci_basis, basis_string)) {
-      shells.emplace_back(Fn.n(), Fn.l());
-    }
-    std::sort(shells.begin(), shells.end());
-    shells.erase(std::unique(shells.begin(), shells.end()), shells.end());
-    m_step_shells.push_back(std::move(shells));
+    m_step_shells.push_back(shells_of(basis_subset(ci_basis, basis_string)));
     m_step_strings.push_back(basis_string);
   }
 
-  // With as many full-basis steps as electrons, every configuration can be
-  // reached from any leading configuration
+  // With as many full-basis steps as particles, every configuration can be
+  // reached from a leading configuration without a hole (the configurations
+  // with a hole have one more particle than electrons)
   const auto num_full_steps =
     std::count(m_step_shells.cbegin(), m_step_shells.cend(), m_shells);
-  m_unrestricted = !m_leading.empty() && num_full_steps >= num_electrons;
+  const auto num_particles =
+    m_hole_shells.empty() ? num_electrons : num_electrons + 1;
+  const auto hole_free_leading = std::any_of(
+    m_leading.cbegin(), m_leading.cend(), [](const auto &configuration) {
+      return configuration_holes(configuration).empty();
+    });
+  m_unrestricted = hole_free_leading && num_full_steps >= num_particles;
 }
 
 //==============================================================================
 bool ConfigurationSpace::included(
-  const std::vector<DiracSpinor::Index> &orbitals) const {
+  const std::vector<DiracSpinor::Index> &orbitals,
+  const std::vector<DiracSpinor::Index> &holes) const {
   if (m_unrestricted)
     return true;
 
-  // Both j of a shell count together
+  // Both j of a shell count together; a hole counts as minus one electron
   Configuration configuration;
-  for (const auto index : orbitals) {
-    const auto [n, kappa] = Angular::index_to_nk(index);
-    const AtomData::NonRelConfig electron{n, Angular::l_k(kappa), 1};
-    const auto shell =
-      std::find(configuration.begin(), configuration.end(), electron);
-    if (shell == configuration.end()) {
-      configuration.push_back(electron);
-    } else {
-      *shell += electron;
+  for (const auto *list : {&orbitals, &holes}) {
+    const int num = list == &orbitals ? 1 : -1;
+    for (const auto index : *list) {
+      const auto [n, kappa] = Angular::index_to_nk(index);
+      const AtomData::NonRelConfig electron{n, Angular::l_k(kappa), num};
+      const auto shell =
+        std::find(configuration.begin(), configuration.end(), electron);
+      if (shell == configuration.end()) {
+        configuration.push_back(electron);
+      } else {
+        *shell += electron;
+      }
     }
   }
   return included_configuration(configuration);
@@ -147,10 +176,21 @@ bool ConfigurationSpace::included_configuration(
   if (m_unrestricted)
     return true;
 
+  const auto holes = configuration_holes(configuration);
   for (const auto &leading_configuration : m_leading) {
+    // The hole is created by an excitation from a leading configuration
+    // without one, or is that of the leading configuration: it is never
+    // moved or filled (that would put an electron into the core)
+    const auto leading_holes = configuration_holes(leading_configuration);
+    if (!leading_holes.empty() && leading_holes != holes)
+      continue;
+
     // Electrons beyond the leading configuration's occupancy of each shell
+    // (the particles; the hole is not an excited electron)
     std::vector<Shell> excited;
     for (const auto &shell : configuration) {
+      if (shell.num < 0)
+        continue;
       const auto in_leading = std::find(leading_configuration.cbegin(),
                                         leading_configuration.cend(), shell);
       const auto num_leading =
@@ -183,18 +223,19 @@ bool ConfigurationSpace::included_configuration(
 
 //==============================================================================
 std::vector<ConfigurationSpace::Configuration>
-ConfigurationSpace::all_configurations() const {
+ConfigurationSpace::particle_configurations(const std::vector<Shell> &shells,
+                                            int num_particles) const {
   std::vector<Configuration> configurations;
-  if (m_shells.empty() || m_num_electrons <= 0)
+  if (shells.empty() || num_particles <= 0)
     return configurations;
 
   // Each configuration is a non-decreasing list of shell indices, one for
-  // each electron; step through them in order
-  std::vector<std::size_t> chosen(std::size_t(m_num_electrons), 0);
+  // each particle; step through them in order
+  std::vector<std::size_t> chosen(std::size_t(num_particles), 0);
   while (true) {
     Configuration configuration;
     for (const auto index : chosen) {
-      const auto &[n, l] = m_shells[index];
+      const auto &[n, l] = shells[index];
       if (!configuration.empty() && configuration.back().n == n &&
           configuration.back().l == l) {
         ++configuration.back().num;
@@ -210,7 +251,7 @@ ConfigurationSpace::all_configurations() const {
     // Next list: increase the last index that is not at the last shell, and
     // set all after it equal to it
     auto position = chosen.size();
-    while (position > 0 && chosen[position - 1] + 1 == m_shells.size()) {
+    while (position > 0 && chosen[position - 1] + 1 == shells.size()) {
       --position;
     }
     if (position == 0)
@@ -222,18 +263,66 @@ ConfigurationSpace::all_configurations() const {
 }
 
 //==============================================================================
+std::vector<ConfigurationSpace::Configuration>
+ConfigurationSpace::electron_configurations() const {
+  return particle_configurations(m_shells, m_num_electrons);
+}
+
+//==============================================================================
+std::vector<ConfigurationSpace::Configuration>
+ConfigurationSpace::hole_configurations() const {
+  std::vector<Configuration> configurations;
+  if (m_hole_shells.empty())
+    return configurations;
+
+  // One hole, and one more particle than electrons
+  const auto particles =
+    particle_configurations(m_hole_basis_shells, m_num_electrons + 1);
+  for (const auto &[n, l] : m_hole_shells) {
+    for (auto configuration : particles) {
+      configuration.emplace_back(n, l, -1);
+      std::sort(configuration.begin(), configuration.end());
+      configurations.push_back(std::move(configuration));
+    }
+  }
+  return configurations;
+}
+
+//==============================================================================
+std::vector<ConfigurationSpace::Configuration>
+ConfigurationSpace::all_configurations() const {
+  auto configurations = electron_configurations();
+  for (auto &configuration : hole_configurations()) {
+    configurations.push_back(std::move(configuration));
+  }
+  return configurations;
+}
+
+//==============================================================================
 std::string ConfigurationSpace::summary() const {
   const auto configurations = all_configurations();
-  const auto num_included =
-    std::count_if(configurations.cbegin(), configurations.cend(),
-                  [this](const auto &configuration) {
-                    return included_configuration(configuration);
-                  });
+  std::size_t num_included = 0;
+  std::size_t num_holes = 0;
+  std::size_t num_holes_included = 0;
+  for (const auto &configuration : configurations) {
+    const auto included = included_configuration(configuration);
+    const auto has_hole = !configuration_holes(configuration).empty();
+    num_included += included ? 1 : 0;
+    num_holes += has_hole ? 1 : 0;
+    num_holes_included += included && has_hole ? 1 : 0;
+  }
+  // Of which, those with a hole (if there are hole CSFs)
+  std::string hole_text;
+  if (!m_hole_shells.empty()) {
+    hole_text = m_unrestricted ? fmt::format(" ({} with a hole)", num_holes) :
+                                 fmt::format(" ({} of {} with a hole)",
+                                             num_holes_included, num_holes);
+  }
 
   std::string out;
   if (m_unrestricted) {
-    out += fmt::format("Including all configurations: {} of {}\n", num_included,
-                       configurations.size());
+    out += fmt::format("Including all configurations: {} of {}{}\n",
+                       num_included, configurations.size(), hole_text);
   } else {
     // In the form of the 'leading' input option, to be copied and edited;
     // continuation lines indented under the list
@@ -253,8 +342,8 @@ std::string ConfigurationSpace::summary() const {
     }
     out += fmt::format("Including excitations: {}\n",
                        steps_text.empty() ? "none" : steps_text);
-    out += fmt::format("Configurations: {} of {}\n", num_included,
-                       configurations.size());
+    out += fmt::format("Configurations: {} of {}{}\n", num_included,
+                       configurations.size(), hole_text);
     if (m_default_leading) {
       out += "* NOTE: leading configs auto generated: check they are OK for "
              "your problem!\n";
@@ -273,8 +362,15 @@ ConfigurationSpace::Configuration parse_configuration(const std::string &text) {
         std::isalpha(static_cast<unsigned char>(term.back()))) {
       term += "1";
     }
+    // n, the l symbol, then the number of electrons: negative for a hole
+    const auto symbol = term.find_first_not_of("0123456789");
+    if (symbol == std::string::npos ||
+        !qip::string_is_integer(term.substr(symbol + 1))) {
+      return {};
+    }
     const auto shell = AtomData::term_parser(term);
-    if (!shell.ok() || shell.num < 1)
+    const AtomData::NonRelConfig filled{shell.n, shell.l, std::abs(shell.num)};
+    if (shell.num == 0 || !filled.ok())
       return {};
     const auto existing =
       std::find(configuration.begin(), configuration.end(), shell);
@@ -285,11 +381,36 @@ ConfigurationSpace::Configuration parse_configuration(const std::string &text) {
     }
   }
   for (const auto &shell : configuration) {
-    if (!shell.ok())
+    const AtomData::NonRelConfig filled{shell.n, shell.l, std::abs(shell.num)};
+    if (shell.num == 0 || !filled.ok())
       return {};
   }
   std::sort(configuration.begin(), configuration.end());
   return configuration;
+}
+
+//==============================================================================
+std::vector<ConfigurationSpace::Shell>
+shells_of(const std::vector<DiracSpinor> &orbitals) {
+  std::vector<ConfigurationSpace::Shell> shells;
+  for (const auto &Fn : orbitals) {
+    shells.emplace_back(Fn.n(), Fn.l());
+  }
+  std::sort(shells.begin(), shells.end());
+  shells.erase(std::unique(shells.begin(), shells.end()), shells.end());
+  return shells;
+}
+
+//==============================================================================
+std::vector<ConfigurationSpace::Shell>
+configuration_holes(const ConfigurationSpace::Configuration &configuration) {
+  std::vector<ConfigurationSpace::Shell> holes;
+  for (const auto &shell : configuration) {
+    for (int i = shell.num; i < 0; ++i) {
+      holes.emplace_back(shell.n, shell.l);
+    }
+  }
+  return holes;
 }
 
 //==============================================================================

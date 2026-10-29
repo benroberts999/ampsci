@@ -4,6 +4,7 @@
 #include "LinAlg/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <array>
+#include <functional>
 #include <iostream>
 #include <optional>
 #include <string_view>
@@ -52,6 +53,10 @@ public:
 
   //! Number of electrons in the CSF
   std::size_t num_electrons() const { return 1; }
+  //! Number of particles (excited orbitals) in the CSF
+  std::size_t num_particles() const { return 1; }
+  //! Number of holes (core orbitals removed) in the CSF
+  std::size_t num_holes() const { return 0; }
 
   //! Single-particle configuration as a string, in relativistic or non-rel form
   std::string config(bool relativistic = false) const;
@@ -146,6 +151,10 @@ public:
 
   //! Number of electrons in the CSF
   std::size_t num_electrons() const { return 2; }
+  //! Number of particles (excited orbitals) in the CSF
+  std::size_t num_particles() const { return 2; }
+  //! Number of holes (core orbitals removed) in the CSF
+  std::size_t num_holes() const { return 0; }
 
   //! Single-particle configuration as a string, in relativistic or non-rel form
   std::string config(bool relativistic = false) const;
@@ -263,6 +272,10 @@ public:
 
   //! Number of electrons in the CSF
   std::size_t num_electrons() const { return 3; }
+  //! Number of particles (excited orbitals) in the CSF
+  std::size_t num_particles() const { return 3; }
+  //! Number of holes (core orbitals removed) in the CSF
+  std::size_t num_holes() const { return 0; }
 
   //! Single-particle configuration as a string, in relativistic or non-rel form
   std::string config(bool relativistic = false) const;
@@ -331,6 +344,90 @@ std::vector<CSF3> form_CSF3s(std::array<DiracSpinor::Index, 3> orbitals,
 
 //------------------------------------------------------------------------------
 /*!
+  @brief Two-particle, one-hole configuration state function (CSF).
+
+  @details
+  A hole excitation of the closed-shell core: two electrons in excited
+  orbitals v and w, and one electron removed from the core orbital a. With
+  the hole creation operator \f$ h^\dagger_{am} = (-1)^{j_a - m} a_{a,-m} \f$
+  (a rank-\f$ j_a \f$ tensor), the CSF is the pair of particles (an
+  antisymmetrised two-electron state, exactly as @ref CSF2, with angular
+  momentum \f$ J_{12} \f$) coupled to the hole:
+  \f[
+    |(vw)J_{12}, \tilde a; J J_z\rangle = \eta_{vw} \sum
+    C^{J_{12} M_{12}}_{j_v m_v, j_w m_w} C^{J J_z}_{J_{12} M_{12}, j_a m}
+    \, a^\dagger_{v m_v} a^\dagger_{w m_w} h^\dagger_{a m} |0_{\rm core}\rangle ,
+  \f]
+  with \f$ \eta_{vw} = 1/\sqrt{2} \f$ if v = w (then \f$ J_{12} \f$ is
+  even). There is one CSF for each \f$ J_{12} \f$ allowed by the triangle
+  rule with \f$ j_a \f$ and J. The parity is the product of the parities of
+  the three orbitals. The hole is not antisymmetrised with the particles (the
+  hole orbital is in the core, the particles are excited), so no parent
+  expansion is needed (cf. @ref CSF3).
+
+  Counts one valence electron (two particles, one hole), and belongs to the
+  same (J, parity) blocks as the one-electron CSFs (@ref CSF1): e.g., for Tl
+  with \f$ 6s^2 \f$ in the core, \f$ |6p\rangle \f$ and
+  \f$ |6p^2\, 6s^{-1}\rangle \f$.
+
+  @note The particle pair is stored sorted, as in @ref CSF2; this fixes the
+        phase convention of all matrix elements.
+*/
+class CSF2p1h {
+public:
+  //! The two particle orbitals; always sorted
+  std::array<DiracSpinor::Index, 2> states;
+  //! The hole orbital (a core orbital)
+  DiracSpinor::Index hole;
+
+private:
+  int m_twoJ12;
+  int m_parity;
+
+public:
+  /*!
+    @param v,w     The two particle orbitals (nk_index; any order).
+    @param a       The hole orbital (nk_index).
+    @param twoJ12  Twice the angular momentum of the particle pair, 2*J12.
+  */
+  CSF2p1h(DiracSpinor::Index v, DiracSpinor::Index w, DiracSpinor::Index a,
+          int twoJ12);
+
+  //! Index (nk_index) of the ith particle orbital (i = 0 or 1)
+  DiracSpinor::Index state(std::size_t i) const;
+
+  //! Twice the angular momentum of the particle pair, 2*J12
+  int twoJ12() const;
+
+  /*!
+    @brief Number of orbitals by which the determinants of two CSFs differ:
+    the particles of A not in B, plus the holes of B not in A (0 to 3).
+    @details
+    Matrix elements of one- and two-body operators vanish if more than two
+    orbitals differ.
+  */
+  static int num_different(const CSF2p1h &A, const CSF2p1h &B);
+
+  //! Parity of the CSF, +/-1
+  int parity() const { return m_parity; }
+
+  //! Number of electrons in the CSF: particles minus holes
+  std::size_t num_electrons() const { return 1; }
+  //! Number of particles (excited orbitals) in the CSF
+  std::size_t num_particles() const { return 2; }
+  //! Number of holes (core orbitals removed) in the CSF
+  std::size_t num_holes() const { return 1; }
+
+  //! Configuration as a string, e.g., "6p^2 6s^-1", in relativistic or
+  //! non-rel form
+  std::string config(bool relativistic = false) const;
+
+  friend bool operator==(const CSF2p1h &A, const CSF2p1h &B);
+  friend bool operator!=(const CSF2p1h &A, const CSF2p1h &B);
+};
+
+//------------------------------------------------------------------------------
+/*!
   @brief Configuration state function (CSF): the type the CI code works with.
 
   @details
@@ -362,39 +459,50 @@ std::vector<CSF3> form_CSF3s(std::array<DiracSpinor::Index, 3> orbitals,
   \f$ d_{\{m\}} \f$ are fixed by angular momentum coupling, so matrix elements
   are evaluated directly in the coupled basis.
 
-  Holds one of @ref CSF1 (one electron), @ref CSF2 (two electrons) or
-  @ref CSF3 (three electrons), which carry the orbitals and the coupling; the
-  matrix elements are evaluated by the functions of each kind (see, e.g.,
-  Hab()), and the functions taking CSF dispatch to them. A list of CSFs
-  (e.g., of one J/Pi, see @ref PsiJPi) may hold CSFs of different kinds; at
-  present every list holds one kind, and matrix elements between CSFs of
-  different kinds are not implemented (they assert).
+  Holds one of @ref CSF1 (one electron), @ref CSF2 (two electrons),
+  @ref CSF3 (three electrons) or @ref CSF2p1h (two particles and one hole),
+  which carry the orbitals and the coupling; the matrix elements are
+  evaluated by the functions of each kind (see, e.g., Hab()), and the
+  functions taking CSF dispatch to them. A list of CSFs (e.g., of one J/Pi,
+  see @ref PsiJPi) may hold CSFs of different kinds with the same number of
+  electrons (particles minus holes): one-electron and two-particle one-hole
+  CSFs share a block. Other mixed pairs are not implemented (they assert).
 */
 class CSF {
-  std::variant<CSF1, CSF2, CSF3> m_csf;
+  std::variant<CSF1, CSF2, CSF3, CSF2p1h> m_csf;
 
 public:
   CSF(CSF1 csf) : m_csf(std::move(csf)) {}
   CSF(CSF2 csf) : m_csf(std::move(csf)) {}
   CSF(CSF3 csf) : m_csf(std::move(csf)) {}
+  CSF(CSF2p1h csf) : m_csf(std::move(csf)) {}
 
   //! Parity of the CSF, +/-1
   int parity() const;
 
-  //! Number of electrons in the CSF
+  //! Number of electrons in the CSF: particles minus holes
   std::size_t num_electrons() const;
+  //! Number of particles (excited orbitals) in the CSF
+  std::size_t num_particles() const;
+  //! Number of holes (core orbitals removed) in the CSF
+  std::size_t num_holes() const;
 
   //! Single-particle configuration as a string, in relativistic or non-rel form
   std::string config(bool relativistic = false) const;
 
-  //! The orbitals (nk_index), sorted
+  //! The particle orbitals (nk_index), sorted
   std::vector<DiracSpinor::Index> orbitals() const;
 
-  //! Index (nk_index) of the ith orbital
+  //! The hole orbitals (nk_index); empty if there are none
+  std::vector<DiracSpinor::Index> holes() const;
+
+  //! Index (nk_index) of the ith particle orbital
   DiracSpinor::Index state(std::size_t i) const;
 
-  //! The held CSF1, CSF2 or CSF3, for std::visit
-  const std::variant<CSF1, CSF2, CSF3> &variant() const { return m_csf; }
+  //! The held CSF1, CSF2, CSF3 or CSF2p1h, for std::visit
+  const std::variant<CSF1, CSF2, CSF3, CSF2p1h> &variant() const {
+    return m_csf;
+  }
 
   //! Equal if of the same kind, and equal as that kind
   friend bool operator==(const CSF &A, const CSF &B);
@@ -402,12 +510,16 @@ public:
 };
 
 /*!
-  @brief Number of orbitals that differ between two CSFs, counting repeated
-  orbitals.
+  @brief Number of orbitals by which the determinants of two CSFs differ,
+  counting repeated orbitals.
   @details
-  Matrix elements of one- and two-body operators vanish if more than two
-  orbitals differ. See CSF1::num_different() etc. Both CSFs must be of the
-  same kind (see @ref CSF).
+  The particles of A that are not in B, plus the holes of B that are not in
+  A: the orbitals of the full determinant (core, less the holes, plus the
+  particles) of A that are absent from that of B. Matrix elements of one-
+  and two-body operators vanish if more than two orbitals differ. See
+  CSF1::num_different() etc.; for a one-electron and a two-particle one-hole
+  CSF, one if the electron is one of the two particles (the other replaces
+  the hole), else two. Other mixed kinds assert (see @ref CSF).
 */
 int num_different(const CSF &A, const CSF &B);
 
@@ -464,22 +576,49 @@ std::vector<CSF> form_CSF3s(int twoJ, int parity,
                             const ConfigurationSpace &config_space = {});
 
 /*!
+  @brief Forms all two-particle one-hole CSFs with given total J and parity.
+  @details
+  For each hole orbital of @p holes, and each pair of orbitals of
+  @p particle_basis (with repetition) of the right parity, one CSF for each
+  pair angular momentum J12 allowed by the triangle rule with the hole and
+  J (J12 even for two electrons in the same orbital); see @ref CSF2p1h.
+
+  @param twoJ            Twice the total angular momentum 2J (odd).
+  @param parity          Total parity: +1 (even) or -1 (odd).
+  @param particle_basis  Basis of the two particles.
+  @param holes           Core orbitals that may hold the hole.
+  @param config_space    Configurations to include; all by default.
+  @return All two-particle one-hole CSFs for the given J and parity.
+*/
+std::vector<CSF> form_CSF2p1hs(int twoJ, int parity,
+                               const std::vector<DiracSpinor> &particle_basis,
+                               const std::vector<DiracSpinor> &holes,
+                               const ConfigurationSpace &config_space = {});
+
+/*!
   @brief Forms all CSFs of @p num_electrons valence electrons with given
   total J and parity.
   @details
-  Calls form_CSF1s(), form_CSF2s() or form_CSF3s().
+  Calls form_CSF1s(), form_CSF2s() or form_CSF3s(); then, if @p holes is not
+  empty, appends the hole CSFs of form_CSF2p1hs() (one valence electron
+  only: two particles and one hole).
 
   @param twoJ          Twice the total angular momentum 2J.
   @param parity        Total parity: +1 (even) or -1 (odd).
   @param cisp_basis    Single-particle basis from which CSFs are constructed.
   @param num_electrons Number of valence electrons: 1, 2 or 3.
   @param config_space  Configurations to include; all by default.
+  @param holes         Core orbitals that may hold a hole; none by default.
+  @param holes_basis   Basis of the particles of the hole CSFs; @p cisp_basis
+                       if empty.
   @return All CSFs for the given J and parity.
 */
 std::vector<CSF> form_CSFs(int twoJ, int parity,
                            const std::vector<DiracSpinor> &cisp_basis,
                            int num_electrons,
-                           const ConfigurationSpace &config_space = {});
+                           const ConfigurationSpace &config_space = {},
+                           const std::vector<DiracSpinor> &holes = {},
+                           const std::vector<DiracSpinor> &holes_basis = {});
 
 /*!
   @brief Number of pairs of CSFs that can interact: those whose orbitals
@@ -515,12 +654,16 @@ struct OneBodyConnected {
   @brief Groups @p CSFAs by configuration, and finds the CSFs of @p CSFBs a
   one-body operator can connect to each.
   @details
-  Matrix elements of a one-body operator vanish between CSFs whose orbitals
-  differ by more than one. Configurations within one orbital share all but one
-  of their orbitals: @p CSFBs is indexed by its configurations with one orbital
-  removed, so each configuration of @p CSFAs finds its partners directly. The
-  cost scales with the number of connected pairs, rather than with
-  @p CSFAs .size() x @p CSFBs .size().
+  Matrix elements of a one-body operator vanish between CSFs whose
+  determinants differ by more than one orbital (see num_different()).
+  Configurations within one orbital share all but one of their orbitals:
+  @p CSFBs is indexed by its configurations with one orbital (particle or
+  hole) removed, so each configuration of @p CSFAs finds its partners
+  directly. A configuration with one more particle and one more hole than
+  another (a hole excitation of it) is connected to it if it contains it:
+  @p CSFBs is also indexed by its configurations as they are, and with one
+  particle and one hole removed. The cost scales with the number of
+  connected pairs, rather than with @p CSFAs .size() x @p CSFBs .size().
 
   @param CSFAs  CSFs to be grouped.
   @param CSFBs  CSFs to be connected to them.
@@ -528,6 +671,66 @@ struct OneBodyConnected {
 */
 std::vector<OneBodyConnected> one_body_connected(const std::vector<CSF> &CSFAs,
                                                  const std::vector<CSF> &CSFBs);
+
+//------------------------------------------------------------------------------
+
+/*!
+  @brief Matrix element of a two-body operator between coupled pairs of
+  orbitals: (a, b, c, d, 2J) -> \f$ \langle (ab)J | O | (cd)J \rangle \f$.
+  @details
+  Used for the antisymmetrised particle-particle pair elements of the
+  Coulomb, Breit and Sigma_2 interactions (e.g., CSF2_Coulomb() bound to a
+  Q^k table; see coulomb_pair_element()), and for the elements between
+  particle-hole pairs (see @ref particle_hole_sum).
+*/
+using PairElement =
+  std::function<double(DiracSpinor::Index, DiracSpinor::Index,
+                       DiracSpinor::Index, DiracSpinor::Index, int)>;
+
+/*!
+  @brief Particle-hole part of a two-body operator between two hole CSFs:
+  the sum of the interactions of each particle with the hole.
+  @details
+  The pair of \f$ |(vw)J_{12}, \tilde a; J\rangle \f$ (see @ref CSF2p1h) is
+  recoupled to a particle-hole pair,
+  \f[
+    |(vw)J_{12}, \tilde a; J\rangle = \sum_K R_K(vwa) \,
+    |v, (w\tilde a)K; J\rangle ,
+  \f]
+  \f[
+    R_K(vwa) = (-1)^{j_v + j_w + j_a + J} \sqrt{[J_{12}][K]}
+    \begin{Bmatrix} j_v & j_w & J_{12} \\ j_a & J & K \end{Bmatrix} ,
+  \f]
+  and the operator acts on the particle-hole pair with the other particle as
+  spectator (which must then coincide between bra and ket). Each of the two
+  particles of the bra and of the ket may be the spectator: four terms, the
+  swapped ones carrying the pair exchange phase
+  \f$ s_{vw} = (-1)^{j_v + j_w - J_{12} + 1} \f$. With the bra
+  \f$ |(xy)J_{12}', \tilde b; J\rangle \f$,
+  \f[
+    \eta_{vw}\eta_{xy} \sum_K \Big[ \delta_{xv} R_K(vwa) R_K(xyb)
+    F_K(y\tilde b; w\tilde a) + s_{vw} \delta_{xw} R_K(wva) R_K(xyb)
+    F_K(y\tilde b; v\tilde a) + s_{xy} \delta_{yv} R_K(vwa) R_K(yxb)
+    F_K(x\tilde b; w\tilde a) + s_{vw} s_{xy} \delta_{yw} R_K(wva)
+    R_K(yxb) F_K(x\tilde b; v\tilde a) \Big] ,
+  \f]
+  where \f$ F_K(y\tilde b; w\tilde a) \f$ = @p ph_element (y, b, w, a, 2K)
+  is the element of the operator between the particle-hole pairs
+  \f$ |(w\tilde a)K\rangle \f$ (coupled particle first). For a two-body
+  interaction (Coulomb, Breit, Sigma_2) it follows from the particle-particle
+  pair elements by recoupling (see particle_hole_element()); for
+  \f$ L^2 \f$ and \f$ S^2 \f$, under which the hole behaves as a particle,
+  it is the plain two-body element (see @ref L2S2_2p1h).
+
+  @param A          The bra CSF (particles x, y; hole b).
+  @param B          The ket CSF (particles v, w; hole a).
+  @param twoJ       Twice the total angular momentum 2J of both.
+  @param ph_element Elements of the operator between particle-hole pairs,
+                    (y, b, w, a, 2K) -> \f$ F_K(y\tilde b; w\tilde a) \f$.
+  @return The particle-hole sum above.
+*/
+double particle_hole_sum(const CSF2p1h &A, const CSF2p1h &B, int twoJ,
+                         const PairElement &ph_element);
 
 //------------------------------------------------------------------------------
 
@@ -592,6 +795,59 @@ std::pair<double, double> L2S2_pair(DiracSpinor::Index x, DiracSpinor::Index y,
                                     DiracSpinor::Index yp, int twoJ);
 
 /*!
+  @brief Matrix elements of 2 l_1.l_2 and 2 s_1.s_2 between particle-hole
+  pairs, \f$ \langle (y\tilde b)K | 2 l_1 \cdot l_2 | (w\tilde a)K \rangle
+  \f$ (non-relativistic limit).
+  @details
+  Under L and S the hole behaves as a particle (see @ref L2S2_2p1h), so this
+  is the two-particle element in product coupling: a particle and a hole are
+  never in the same shell, so there is no antisymmetrisation between them.
+  Then \f$ 2 l_1 \cdot l_2 = (l_1 + l_2)^2 - l_1^2 - l_2^2 \f$, with
+  \f$ (l_1 + l_2)^2 \f$ from @ref L2S2_pair and the one-body terms
+  \f$ \delta_{yw}\delta_{ab} [l_w(l_w+1) + l_a(l_a+1)] \f$; likewise for
+  the spins, with \f$ s(s+1) = 3/4 \f$.
+
+  @param y,b   Particle and hole of the bra.
+  @param w,a   Particle and hole of the ket.
+  @param twoK  Twice the angular momentum 2K of the particle-hole pairs.
+  @return Pair {<2 l_1.l_2>, <2 s_1.s_2>}; zero if the configurations differ.
+*/
+std::pair<double, double> L2S2_particle_hole(DiracSpinor::Index y,
+                                             DiracSpinor::Index b,
+                                             DiracSpinor::Index w,
+                                             DiracSpinor::Index a, int twoK);
+
+/*!
+  @brief Matrix elements of L^2 and S^2 between two hole CSFs of the same J
+  (non-relativistic limit).
+  @details
+  The closed core has L = S = 0, so (with the radial orbitals of
+  \f$ j = l \pm 1/2 \f$ treated as identical, and no mixing between core
+  and excited orbitals) the orbital and spin angular momenta act on a hole
+  exactly as on a particle: the one-body operators L and S conserve the
+  numbers of particles and holes, and their reduced matrix elements between
+  hole states equal those between the orbitals. Then, for
+  \f$ |(vw)J_{12}, \tilde a; J\rangle \f$ (see @ref CSF2p1h),
+  \f$ L^2 = (l_v + l_w + l_a)^2 \f$ is evaluated as for three
+  distinguishable particles:
+  - the pair, \f$ (l_v + l_w)^2 \f$, with the hole as spectator:
+    \f$ \delta_{ab} \delta_{J_{12} J_{12}'} \f$ times @ref L2S2_pair;
+  - the hole, \f$ l_a^2 = l_a(l_a+1) \f$, with the pair as spectator;
+  - the cross terms, \f$ 2 l_v \cdot l_a + 2 l_w \cdot l_a \f$: the sum
+    over the particles of an operator acting on a particle-hole pair,
+    evaluated by @ref particle_hole_sum with the elements of
+    @ref L2S2_particle_hole.
+
+  Likewise for \f$ S^2 \f$, with \f$ s(s+1) = 3/4 \f$.
+
+  @param A,B   The two CSFs.
+  @param twoJ  Twice the total angular momentum 2J of both CSFs.
+  @return Pair {<A|L^2|B>, <A|S^2|B>}; zero if the configurations differ.
+*/
+std::pair<double, double> L2S2_2p1h(const CSF2p1h &A, const CSF2p1h &B,
+                                    int twoJ);
+
+/*!
   @brief Matrix elements of L^2 and S^2 between two CSFs of the same J
   (non-relativistic limit).
   @details
@@ -613,8 +869,12 @@ std::pair<double, double> L2S2_pair(DiracSpinor::Index x, DiracSpinor::Index y,
     @ref CSF3), to the two-electron matrix elements of @ref L2S2_pair,
     between parents with the same third orbital; the one-body terms are
     diagonal.
+  - Hole CSFs (@ref CSF2p1h): @ref L2S2_2p1h. Between a one-electron CSF
+    and a hole CSF: zero (L and S conserve the numbers of particles and
+    holes).
 
-  Both CSFs must be of the same kind (see @ref CSF).
+  Both CSFs must be of the same kind (see @ref CSF), or one a one-electron
+  and the other a hole CSF.
 
   @param A,B   The two CSFs.
   @param twoJ  Twice the total angular momentum 2J of both CSFs.
@@ -737,13 +997,15 @@ struct ConfigInfo {
   Configuration labels are not set automatically -- call update_config_info()
   for each solution after solving.
 
-  The CSFs (see @ref CSF) are those of num_electrons() valence electrons.
+  The CSFs (see @ref CSF) are those of num_electrons() valence electrons,
+  plus the hole CSFs if hole orbitals were given.
 */
 class PsiJPi {
 
   int m_twoj{-1};
   int m_pi{0};
-  // Number of valence electrons the CSFs were formed with
+  // Number of valence electrons (particles minus holes) the CSFs were formed
+  // with
   int m_num_electrons{0};
 
   // Number of solutions stored:
@@ -765,9 +1027,15 @@ public:
     @param cisp_basis     Single-particle basis used to construct the CSFs.
     @param num_electrons  Number of valence electrons: 1, 2 or 3.
     @param config_space   Configurations to include; all by default.
+    @param holes          Core orbitals that may hold a hole (see
+                          form_CSFs()); none by default.
+    @param holes_basis    Basis of the particles of the hole CSFs;
+                          @p cisp_basis if empty.
   */
   PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
-         int num_electrons = 2, const ConfigurationSpace &config_space = {});
+         int num_electrons = 2, const ConfigurationSpace &config_space = {},
+         const std::vector<DiracSpinor> &holes = {},
+         const std::vector<DiracSpinor> &holes_basis = {});
 
   PsiJPi() {}
 
@@ -853,8 +1121,12 @@ public:
   //! Set configuration info for the ith solution (must be called manually after solve())
   void update_config_info(std::size_t i, const ConfigInfo &info);
 
-  //! Number of valence electrons the CSFs were formed with (1, 2 or 3)
+  //! Number of valence electrons (particles minus holes) the CSFs were
+  //! formed with (1, 2 or 3)
   int num_electrons() const;
+
+  //! True if any of the CSFs has a hole
+  bool has_holes() const;
 
   //! Number of CSFs spanning this J/Pi
   std::size_t num_CSFs() const;

@@ -660,3 +660,190 @@ TEST_CASE("CI: one-electron CSFs", "[CI][unit]") {
   REQUIRE(config == "5p");
   REQUIRE(weight == Approx(0.64));
 }
+
+//==============================================================================
+// Hole CSFs (two particles, one hole): storage, parity, configuration
+// strings, the number of different orbitals (in the determinant sense),
+// the number of CSFs of each J (against a count of determinants), and the
+// one-body connections and interacting pairs of a mixed block (against the
+// number of different orbitals)
+TEST_CASE("CI: hole CSFs", "[CI][unit][ciholes]") {
+
+  const auto grid = std::make_shared<const Grid>(
+    GridParameters{10, 1.0e-4, 10.0, 5.0, GridType::loglinear});
+  // Particle orbitals: 4s, 5s, 4p-, 4p+, 5p-, 3d+, 4d-; holes: 3s, 2p-, 2p+
+  std::vector<DiracSpinor> basis;
+  for (const auto &[n, kappa] : std::vector<std::pair<int, int>>{
+         {4, -1}, {5, -1}, {4, 1}, {4, -2}, {5, 1}, {3, -3}, {4, 2}}) {
+    basis.emplace_back(n, kappa, grid);
+  }
+  std::vector<DiracSpinor> holes;
+  for (const auto &[n, kappa] :
+       std::vector<std::pair<int, int>>{{3, -1}, {2, 1}, {2, -2}}) {
+    holes.emplace_back(n, kappa, grid);
+  }
+  const auto index = [](int n, int kappa) {
+    return DiracSpinor::Index(Angular::nk_to_index(n, kappa));
+  };
+  const auto s4 = index(4, -1);
+  const auto s5 = index(5, -1);
+  const auto p4 = index(4, 1);
+  const auto pp4 = index(4, -2);
+  const auto h3s = index(3, -1);
+  const auto h2p = index(2, 1);
+
+  // Storage (sorted pair), parity, electron numbers, configuration strings
+  const CI::CSF2p1h csf{p4, s4, h3s, 2};
+  REQUIRE(csf.state(0) == s4);
+  REQUIRE(csf.state(1) == p4);
+  REQUIRE(csf.hole == h3s);
+  REQUIRE(csf.twoJ12() == 2);
+  REQUIRE(csf.parity() == -1);
+  REQUIRE(csf.num_electrons() == 1);
+  REQUIRE(csf.num_particles() == 2);
+  REQUIRE(csf.num_holes() == 1);
+  REQUIRE(csf.config(false) == "4s4p 3s^-1");
+  REQUIRE(csf.config(true) == "4s+4p- 3s+^-1");
+  REQUIRE(CI::CSF2p1h(p4, p4, h2p, 0).config(false) == "4p^2 2p^-1");
+  REQUIRE(CI::CSF2p1h(p4, p4, h2p, 0).parity() == -1);
+  REQUIRE(CI::CSF2p1h(p4, s4, h2p, 2).parity() == +1);
+  REQUIRE(csf == CI::CSF2p1h(s4, p4, h3s, 2));
+  REQUIRE(csf != CI::CSF2p1h(s4, p4, h3s, 0));
+  REQUIRE(csf != CI::CSF2p1h(s4, p4, h2p, 2));
+  REQUIRE(csf != CI::CSF2p1h(s5, p4, h3s, 2));
+
+  // Through CSF: particles, holes, equality across kinds
+  const CI::CSF general{csf};
+  REQUIRE(general.num_electrons() == 1);
+  REQUIRE(general.num_particles() == 2);
+  REQUIRE(general.num_holes() == 1);
+  REQUIRE(general.orbitals() == std::vector<DiracSpinor::Index>{s4, p4});
+  REQUIRE(general.holes() == std::vector<DiracSpinor::Index>{h3s});
+  REQUIRE(CI::CSF{CI::CSF1{basis[0]}}.holes().empty());
+  REQUIRE(CI::CSF{CI::CSF1{basis[0]}} != general);
+
+  // Number of different orbitals: particles of A not in B, plus the hole of
+  // B if A does not have it
+  REQUIRE(CI::CSF2p1h::num_different(csf, csf) == 0);
+  REQUIRE(CI::CSF2p1h::num_different(csf, {s4, p4, h3s, 0}) == 0);
+  REQUIRE(CI::CSF2p1h::num_different(csf, {s5, p4, h3s, 2}) == 1);
+  REQUIRE(CI::CSF2p1h::num_different(csf, {s5, pp4, h3s, 2}) == 2);
+  REQUIRE(CI::CSF2p1h::num_different(csf, {s4, p4, h2p, 2}) == 1);
+  REQUIRE(CI::CSF2p1h::num_different(csf, {s5, p4, h2p, 2}) == 2);
+  REQUIRE(CI::CSF2p1h::num_different(csf, {s5, pp4, h2p, 2}) == 3);
+  REQUIRE(CI::CSF2p1h::num_different({p4, p4, h3s, 0}, {p4, s4, h3s, 2}) == 1);
+  REQUIRE(CI::CSF2p1h::num_different({p4, p4, h3s, 0}, {s4, s4, h3s, 0}) == 2);
+  // One electron x and the hole CSF: one if x is one of the particles
+  const CI::CSF one_s4{CI::CSF1{basis[0]}};
+  const CI::CSF one_s5{CI::CSF1{basis[1]}};
+  REQUIRE(CI::num_different(one_s4, general) == 1);
+  REQUIRE(CI::num_different(general, one_s4) == 1);
+  REQUIRE(CI::num_different(one_s5, general) == 2);
+  REQUIRE(CI::num_different(general, one_s5) == 2);
+
+  // Number of CSFs of each J and parity = N(M = J) - N(M = J + 1), with N(M)
+  // the number of determinants (one electron, or two particles and a hole)
+  // with total projection M and that parity
+  const auto num_determinants = [&basis, &holes](int twoM, int parity) {
+    int count = 0;
+    for (const auto &x : basis) {
+      if (x.parity() == parity && std::abs(twoM) <= x.twoj()) {
+        ++count;
+      }
+    }
+    for (const auto &a : holes) {
+      for (std::size_t i = 0; i < basis.size(); ++i) {
+        for (std::size_t j = i; j < basis.size(); ++j) {
+          const auto &v = basis[i];
+          const auto &w = basis[j];
+          if (v.parity() * w.parity() * a.parity() != parity)
+            continue;
+          for (int mv = -v.twoj(); mv <= v.twoj(); mv += 2) {
+            for (int mw = -w.twoj(); mw <= w.twoj(); mw += 2) {
+              if (v == w && mw <= mv)
+                continue;
+              const auto m = twoM - mv - mw;
+              if (std::abs(m) <= a.twoj()) {
+                ++count;
+              }
+            }
+          }
+        }
+      }
+    }
+    return count;
+  };
+  std::size_t total_hole_CSFs = 0;
+  for (int twoJ = 1; twoJ <= 13; twoJ += 2) {
+    for (const int parity : {+1, -1}) {
+      const auto expected =
+        num_determinants(twoJ, parity) - num_determinants(twoJ + 2, parity);
+      const auto CSFs = CI::form_CSFs(twoJ, parity, basis, 1, {}, holes);
+      REQUIRE(CSFs.size() == std::size_t(expected));
+      for (const auto &c : CSFs) {
+        REQUIRE(c.parity() == parity);
+        REQUIRE(c.num_electrons() == 1);
+        total_hole_CSFs += c.num_holes();
+      }
+      // The hole CSFs alone, and with a smaller particle basis
+      REQUIRE(CI::form_CSF2p1hs(twoJ, parity, basis, holes).size() ==
+              CSFs.size() - CI::form_CSF1s(twoJ, parity, basis).size());
+      const std::vector<DiracSpinor> small(basis.begin(), basis.begin() + 3);
+      const auto fewer =
+        CI::form_CSFs(twoJ, parity, basis, 1, {}, holes, small);
+      REQUIRE(fewer.size() <= CSFs.size());
+      REQUIRE(fewer.size() ==
+              CI::form_CSF1s(twoJ, parity, basis).size() +
+                CI::form_CSF2p1hs(twoJ, parity, small, holes).size());
+    }
+  }
+  REQUIRE(total_hole_CSFs > 100);
+  // Even 2J cannot be formed
+  REQUIRE(CI::form_CSFs(1, +1, basis, 1).size() ==
+          CI::form_CSF1s(1, +1, basis).size());
+
+  // PsiJPi of a mixed block
+  const CI::PsiJPi psi(1, -1, basis, 1, {}, holes);
+  REQUIRE(psi.num_electrons() == 1);
+  REQUIRE(psi.has_holes());
+  REQUIRE(!CI::PsiJPi(1, -1, basis, 1).has_holes());
+  REQUIRE(psi.num_CSFs() == CI::form_CSFs(1, -1, basis, 1, {}, holes).size());
+
+  // One-body connections of the mixed block, against the number of
+  // different orbitals (at most one); interacting pairs (at most two)
+  const auto &CSFs = psi.CSFs();
+  const auto connections = CI::one_body_connected(CSFs, CSFs);
+  std::size_t num_connected = 0;
+  std::size_t num_configs = 0;
+  for (const auto &[config_CSFs, connected_CSFs] : connections) {
+    num_configs += config_CSFs.size();
+    for (const auto i : config_CSFs) {
+      std::vector<std::size_t> expected;
+      for (std::size_t j = 0; j < CSFs.size(); ++j) {
+        if (CI::num_different(CSFs[i], CSFs[j]) <= 1) {
+          expected.push_back(j);
+        }
+      }
+      auto found = connected_CSFs;
+      std::sort(found.begin(), found.end());
+      REQUIRE(found == expected);
+      num_connected += found.size();
+    }
+  }
+  REQUIRE(num_configs == CSFs.size());
+  // Some, but not all, pairs are connected: one-electron CSFs connect to
+  // the hole CSFs containing them, and hole CSFs to each other within one
+  // orbital
+  REQUIRE(num_connected > CSFs.size());
+  REQUIRE(num_connected < CSFs.size() * CSFs.size());
+  std::size_t expected_pairs = 0;
+  for (std::size_t i = 0; i < CSFs.size(); ++i) {
+    for (std::size_t j = 0; j <= i; ++j) {
+      if (CI::num_different(CSFs[i], CSFs[j]) <= 2) {
+        ++expected_pairs;
+      }
+    }
+  }
+  REQUIRE(CI::num_interacting_pairs(CSFs) == expected_pairs);
+  REQUIRE(expected_pairs < CSFs.size() * (CSFs.size() + 1) / 2);
+}
