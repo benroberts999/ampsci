@@ -239,6 +239,74 @@ TEST_CASE("Wavefunction", "[wf][unit]") {
 }
 
 //==============================================================================
+// A core orbital listed as a valence state (hole state) is occupied: the
+// Fermi level must still lie above every core energy, below the valence
+TEST_CASE("Wavefunction: Fermi level with a hole in the valence list",
+          "[wf][unit][holes]") {
+  Wavefunction wf({500, 1.0e-5, 50.0, 10.0, "loglinear", -1.0},
+                  {"Na", -1, "Fermi", -1.0, -1.0}, 1.0, "0");
+  // 2p is in the core, and may also be in the valence list
+  wf.solve_core("HartreeFock", "[He],2s2:2p6", std::nullopt, 1.0e-6, false);
+  wf.solve_valence("3s2p", false);
+
+  const auto *hole = wf.getState(2, 1);
+  const auto *valence_3s = wf.getState(3, -1);
+  REQUIRE(hole != nullptr);
+  REQUIRE(valence_3s != nullptr);
+  const auto hole_in_valence =
+    std::find(wf.valence().cbegin(), wf.valence().cend(), *hole) !=
+    wf.valence().cend();
+  REQUIRE(hole_in_valence);
+
+  const auto e_core_max = DiracSpinor::max_En(wf.core());
+  const auto fermi = wf.FermiLevel();
+  REQUIRE(fermi > e_core_max);
+  REQUIRE(fermi < valence_3s->en());
+}
+
+//==============================================================================
+// holes_valence: core shells copied into the valence list as hole states
+TEST_CASE("Wavefunction: hole states in the valence list",
+          "[wf][unit][holes]") {
+  Wavefunction wf({500, 1.0e-5, 50.0, 10.0, "loglinear", -1.0},
+                  {"Na", -1, "Fermi", -1.0, -1.0}, 1.0, "0");
+  wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-6, false);
+  // 2p (both j) as holes; 4f is not in the core and is skipped (expect a
+  // warning)
+  wf.solve_valence("3s", false, "2p4f");
+
+  REQUIRE(wf.valence().size() == 3);
+  int num_holes = 0;
+  double worst_energy = 0.0;
+  bool symbols_marked = true;
+  for (const auto &Fv : wf.valence()) {
+    if (!Fv.hole())
+      continue;
+    ++num_holes;
+    for (const auto &Fa : wf.core()) {
+      if (Fa.n() == Fv.n() && Fa.kappa() == Fv.kappa()) {
+        worst_energy =
+          std::max(worst_energy, std::abs((Fv.en() - Fa.en()) / Fa.en()));
+      }
+    }
+    symbols_marked = symbols_marked && Fv.shortSymbol().back() == '*' &&
+                     Fv.symbol().back() == '*';
+  }
+  REQUIRE(num_holes == 2);
+  // The hole state is the core orbital
+  REQUIRE(worst_energy < 1.0e-5);
+  REQUIRE(symbols_marked);
+
+  const auto *valence_3s = wf.getState(3, -1);
+  REQUIRE(valence_3s != nullptr);
+  REQUIRE(!valence_3s->hole());
+  const auto e_core_max = DiracSpinor::max_En(wf.core());
+  const auto fermi = wf.FermiLevel();
+  REQUIRE(fermi > e_core_max);
+  REQUIRE(fermi < valence_3s->en());
+}
+
+//==============================================================================
 TEST_CASE("Wavefunction - continuum", "[wf][cntm][unit]") {
 
   std::cout << "Wavefunction - continuum\n";

@@ -163,6 +163,11 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "include valence states up to  n=7 for s and p, and up to n=5 for d "
       "and f states. Automatically excludes states in the core (except "
       "those above the optional ':'). [blank by default]"},
+     {"holes_valence",
+      "Core shells to treat also as hole states in the valence list, e.g., "
+      "'holes_valence = 4f;'. The shell stays in the core; the hole "
+      "state is the core orbital, and -energy is its removal energy. Marked "
+      "with '*' in output. [none]"},
      {"eps", "HF convergance goal [1.0e-14]"},
      {"method", "Method for mean-field approximation: HartreeFock, Hartree, "
                 "KohnSham, Local [HartreeFock]"},
@@ -184,6 +189,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto x_Breit =
     tf_Breit ? 1.0 : input.get({"HartreeFock"}, "Breit", 0.0);
   const auto valence = input.get({"HartreeFock"}, "valence", ""s);
+  const auto holes_valence = input.get({"HartreeFock"}, "holes_valence", ""s);
   const auto freq_Breit = input.get({"HartreeFock"}, "FrequencyBreit", false);
 
   // Decide if to include QED into core+valence, just core, or not at all
@@ -270,8 +276,8 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     std::cout << "\n";
   }
 
-  // Solve for the valence states:
-  wf.solve_valence(valence);
+  // Solve for the valence states (and hole states, if any):
+  wf.solve_valence(valence, true, holes_valence);
 
   // Output Hartree Fock energies:
   if (!help_mode) {

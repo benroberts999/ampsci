@@ -36,19 +36,22 @@ DiracSpinor::DiracSpinor(int in_n, int in_k,
 std::string DiracSpinor::symbol(bool gnuplot) const {
   // Readable symbol (s_1/2, p_{3/2} etc.).
   // gnuplot-firndly '{}' braces optional.
-  // Negative-energy states are printed with a leading '-' (e.g., -1s_1/2)
+  // Negative-energy states are printed with a leading '-' (e.g., -1s_1/2);
+  // hole states with a trailing '*' (e.g., 4f_7/2*)
   const std::string sign = m_negative_energy ? "-" : "";
   const std::string ostring1 =
     (m_n != 0) ? sign + std::to_string(m_n) + AtomData::l_symbol(m_l) :
                  AtomData::l_symbol(m_l);
   std::string ostring2 = gnuplot ? "_{" + std::to_string(m_twoj) + "/2}" :
                                    "_" + std::to_string(m_twoj) + "/2";
-  return ostring1 + ostring2;
+  return ostring1 + ostring2 + (m_hole ? "*" : "");
 }
 
 std::string DiracSpinor::shortSymbol() const {
-  // Negative-energy states are printed with a leading '-' (e.g., -1s+)
-  return (m_negative_energy ? "-" : "") + shortSymbol(m_n, m_kappa);
+  // Negative-energy states are printed with a leading '-' (e.g., -1s+); hole
+  // states with a trailing '*' (e.g., 4f+*)
+  return (m_negative_energy ? "-" : "") + shortSymbol(m_n, m_kappa) +
+         (m_hole ? "*" : "");
 }
 
 std::string DiracSpinor::shortSymbol(int n, int kappa) {

@@ -244,6 +244,9 @@ public:
     0.5*( max(e_core) + min(e_valence)), plus a small offset (1e-5; or 1e-3
     if there are no valence states, in which case min(e_valence) is taken as
     zero). If there is no core: 1.1*min(e_valence). Should be -ve.
+    A valence state that is also a core orbital (a hole state) is occupied,
+    and is not counted in min(e_valence): the level lies above every core
+    energy.
   */
   double FermiLevel() const;
 
@@ -385,9 +388,17 @@ public:
     set_HF). Then solves for all valence states (existing ones are re-solved)
     in the HF potential, without Sigma, and copies them to hf_valence. If HF
     is not set, solves in the nuclear potential (H-like).
+
+    Hole states: each core shell in @p holes_valence (single-n form, e.g.
+    "4f" or "4f6s", both j; commas and spaces ignored) is copied from the
+    core into the valence list and flagged as a hole (DiracSpinor::hole()).
+    It is solved like the others, and stays the core orbital: -en is its
+    (Koopmans) removal energy. Shells not in the core are skipped, with a
+    warning.
   */
   void solve_valence(const std::string &in_valence_str = "",
-                     const bool print = true);
+                     const bool print = true,
+                     const std::string &holes_valence = "");
 
   /*!
     @brief Solves for exotic atoms (e.g., muonic), including screening.

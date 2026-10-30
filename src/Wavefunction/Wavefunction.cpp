@@ -190,7 +190,8 @@ double Wavefunction::coreEnergyHF() const {
 
 //==============================================================================
 void Wavefunction::solve_valence(const std::string &in_valence_str,
-                                 const bool print) {
+                                 const bool print,
+                                 const std::string &holes_valence) {
 
   const auto explicite_val_list = false;
   // (m_HF && m_HF->method() == HF::Method::KohnSham);
@@ -207,6 +208,32 @@ void Wavefunction::solve_valence(const std::string &in_valence_str,
       auto &Fv = m_valence.emplace_back(n, k, rgrid);
       Fv.occ_frac() = 1.0 / Fv.twojp1();
     }
+  }
+
+  // 1b. hole states: copies of core orbitals, flagged (the shell stays in the
+  // core, so the state is occupied; -en is its removal energy)
+  auto holes_string = IO::removeSpaces(holes_valence);
+  holes_string.erase(std::remove(holes_string.begin(), holes_string.end(), ','),
+                     holes_string.end());
+  for (const auto &[n, k, en] : AtomData::listOfStates_singlen(holes_string)) {
+    (void)en;
+    if (isInValence(n, k))
+      continue;
+    const DiracSpinor *core_orbital = nullptr;
+    for (const auto &Fa : core()) {
+      if (Fa.n() == n && Fa.kappa() == k) {
+        core_orbital = &Fa;
+      }
+    }
+    if (core_orbital == nullptr) {
+      fmt2::warning();
+      fmt::print(": holes_valence: {} is not a core orbital; skipped\n",
+                 DiracSpinor::shortSymbol(n, k));
+      continue;
+    }
+    auto &Fv = m_valence.emplace_back(*core_orbital);
+    Fv.occ_frac() = 1.0 / Fv.twojp1();
+    Fv.hole() = true;
   }
 
   // 2. Solve HF
@@ -322,22 +349,28 @@ const DiracSpinor *Wavefunction::getState(std::string_view state) const {
 
 //==============================================================================
 double Wavefunction::FermiLevel() const {
-  // Find core/valence energy: allows distingush core/valence states
+  // Energy separating the occupied (core) orbitals from the unoccupied ones.
+  // A valence state that is also a core orbital (a hole state) is occupied,
+  // so it does not count: the level must lie above every core energy
   const auto ec_max =
     core().empty() ?
       0.0 :
       std::max_element(cbegin(core()), cend(core()), DiracSpinor::comp_en)
         ->en();
-  const auto ev_min =
-    m_valence.empty() ?
-      0.0 :
-      std::min_element(cbegin(m_valence), cend(m_valence), DiracSpinor::comp_en)
-        ->en();
-  // return 0.5 * (ev_min + ec_max);
+  auto ev_min = 0.0;
+  bool have_valence = false;
+  for (const auto &Fv : m_valence) {
+    if (isInCore(Fv.n(), Fv.kappa()))
+      continue;
+    if (!have_valence || Fv.en() < ev_min) {
+      ev_min = Fv.en();
+    }
+    have_valence = true;
+  }
   if (core().empty()) {
     return 1.1 * ev_min;
   }
-  const auto extra = m_valence.empty() ? 1.0e-3 : 1.0e-5;
+  const auto extra = have_valence ? 1.0e-5 : 1.0e-3;
   return ec_max + 0.5 * (ev_min - ec_max) + extra;
 }
 double Wavefunction::energy_gap() const {

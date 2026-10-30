@@ -95,6 +95,8 @@ private:
   double m_eps = -1.0;
   // Occupation fraction. =1 for closed shells. =1/(2j+1) for valence
   double m_occ_frac = 0.0;
+  // Hole state: a core orbital treated as a valence state (still occupied)
+  bool m_hole = false;
 
   // 2j, l, pi, kappa_index (for convenience): these are defined by n and kappa
   int m_twoj;
@@ -150,6 +152,12 @@ public:
   bool &exotic() { return m_exotic; }
   //! Checks if spinor is for "exotic" lepton, or regular electron
   bool exotic() const { return m_exotic; }
+
+  //! True for a hole state: a core orbital treated as a valence state (still
+  //! occupied; -en is its removal energy). Marked with '*' in the symbol
+  bool hole() const { return m_hole; }
+  //! Sets or clears the hole flag (see hole())
+  bool &hole() { return m_hole; }
 
   /*!
     @brief Returns true if this is a negative-energy (Dirac sea) state.
