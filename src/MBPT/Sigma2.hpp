@@ -4,6 +4,7 @@
 #include "MBPT/RadialMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/String.hpp"
+#include <functional>
 #include <string>
 #include <vector>
 
@@ -240,6 +241,40 @@ double Sigma_vw(const DiracSpinor &v, const DiracSpinor &w,
                 const std::vector<DiracSpinor> &excited,
                 int max_l_internal = 99,
                 std::optional<double> ev = std::nullopt);
+
+/*!
+  @brief The core-excitation (2p1h) part of Sigma_vw(), restricted to chosen
+  intermediate states.
+  @details
+  The terms of Sigma_vw() (direct and exchange) whose intermediate state has
+  one core hole b and two excited electrons m, n:
+
+  \f[
+    \sum_{bmn} \frac{\langle v b|g|m n\rangle
+      \left( \langle m n|g|w b\rangle - \langle m n|g|b w\rangle \right)}
+      {E + \varepsilon_b - \varepsilon_m - \varepsilon_n} ,
+  \f]
+
+  summed over the (b, m, n) with b in @p core and m, n in @p excited for
+  which @p include(b, m, n) is true. Used to remove from Sigma_1 the
+  intermediate states that are configurations of a CI space (the hole CSFs,
+  which the CI then treats exactly); see CI::calculate_Sigma1_in_CI.
+
+  @param v,w      External orbitals (same kappa; zero otherwise).
+  @param qk       Coulomb integral table (YkTable or QkTable).
+  @param core     Core orbitals b that may hold the hole.
+  @param excited  Excited orbitals m, n.
+  @param ev       Energy E at which Sigma is evaluated.
+  @param include  Which intermediate states (b, m, n) to include.
+  @return The restricted 2p1h part of \f$ \langle v | \Sigma(E) | w \rangle \f$.
+*/
+template <class CoulombIntegral>
+double
+Sigma_vw_2p1h(const DiracSpinor &v, const DiracSpinor &w,
+              const CoulombIntegral &qk, const std::vector<DiracSpinor> &core,
+              const std::vector<DiracSpinor> &excited, double ev,
+              const std::function<bool(const DiracSpinor &, const DiracSpinor &,
+                                       const DiracSpinor &)> &include);
 
 /*!
   @brief Direct and exchange parts of Sigma_vw(), returned separately.

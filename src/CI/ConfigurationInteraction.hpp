@@ -156,6 +156,9 @@ enum class Solver { dense, Davidson };
                       block. None by default; one valence electron only.
   @param holes_basis  Basis of the two electrons of the hole CSFs;
                       @p ci_sp_basis if empty.
+  @param Sigma1_in_CI Sigma_1 already in the CI space (hole CSFs), subtracted
+                      from the one-electron CSF elements; nullptr if none.
+                      See @ref calculate_Sigma1_in_CI.
 
   @return PsiJPi (@ref PsiJPi) containing the CI eigenvalues and expansion
   coefficients for the requested solutions.
@@ -174,6 +177,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               Solver solver = Solver::dense, bool BW_each_level = false,
               const ConfigurationSpace &config_space = {},
               const std::vector<DiracSpinor> &holes = {},
-              const std::vector<DiracSpinor> &holes_basis = {});
+              const std::vector<DiracSpinor> &holes_basis = {},
+              const Coulomb::meTable<double> *Sigma1_in_CI = nullptr);
 
 } // namespace CI

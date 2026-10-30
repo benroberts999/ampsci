@@ -99,7 +99,8 @@ CI{
     // Include two-body MBPT correlations? [false]
   Brueckner;
     // Use Brueckner (spectrum) states for CI basis? Must
-    // have Correlations, Spectrum, and sigma1. [false]
+    // have Correlations, Spectrum, and sigma1. Not used
+    // with hole CSFs. [false]
   cis2_basis;
     // Pair of basis strings, e.g. '8spdf, 12spdf'.
     // Sigma_2 is calculated for <vw|Q|xy> if vw or xy is
@@ -444,6 +445,9 @@ Configurations: 1653 of 9130
 For one valence electron, excitations of the core may be included in the CI space as hole CSFs: two electrons in excited orbitals and one hole in a core shell, e.g., \f$6p^2\,6s^{-1}\f$ for Tl with \f$6s^2\f$ in the Hartree-Fock core.
 They share the \f$J^\pi\f$ blocks with the one-electron CSFs (\f$|6p\rangle\f$, \f$|7p\rangle\f$, ...), and the CI mixes them.
 The Hartree-Fock potential is that of the full core (\f$V^{N-1}\f$), as for the one-electron CSFs; the core orbital energies and the particle-hole Coulomb (and Breit) interactions enter the Hamiltonian directly, with no further subtractions.
+The method follows the particle-hole CI+MBPT of Berengut (there applied to Hg+ with a \f$5d\f$ hole); the hole shell should be the top shell of the Hartree-Fock core.
+
+* J. C. Berengut, [Phys. Rev. A **94**, 012502 (2016)](https://doi.org/10.1103/PhysRevA.94.012502)
 
 ```cpp
 CI{
@@ -459,7 +463,8 @@ CI{
 * `ci_hole_basis`: the basis of the two excited electrons of the hole CSFs (a subset of `ci_basis`). The number of hole CSFs grows as the square of this basis, so it is usually smaller than `ci_basis`.
 * The number of CSFs of each kind is printed for each block, and the hole configurations appear as, e.g., `6p^2 6s^-1`.
 * `leading` and `excitations` apply to the hole CSFs too (see [Configuration space](#configspace)). A hole is written as a negative number, e.g., `leading = 6p, 7s, 6s-1.6p2;`. An excitation from a configuration without a hole may create one (`6s-1.6p2` and `6s-1.6p.7p` are single excitations from `6p`), and a configuration with a hole keeps it: there is at most one hole, so there are no further hole excitations, and the hole is never filled. The default leading configurations have no holes. The configuration count printed includes the configurations with a hole.
-* Two-body Breit (`Breit2`) enters the hole CSFs exactly as the other CSFs (for pairs within `Breit_basis`, which always includes the hole orbitals). `sigma1` enters through the one-body matrix elements of the excited electrons (the one-electron CSFs, and the two electrons of the hole CSFs), not the hole; `sigma2` is not used with one valence electron.
+* Two-body Breit (`Breit2`) enters the hole CSFs exactly as the other CSFs (for pairs within `Breit_basis`, which always includes the hole orbitals). `sigma2` is not used with one valence electron.
+* `sigma1` (second order) enters the one-body matrix elements of the excited electrons and of the hole orbital (at the hole energy; it enters with the opposite sign, as the hole energy does). Some intermediate states of the one-electron Sigma_1 are themselves hole CSFs of the block (one hole in a shell of `holes`, two electrons in `ci_hole_basis`); the CI treats those exactly, so that part of Sigma_1 is removed from the one-electron CSFs. Brueckner orbitals are therefore not used with hole CSFs (`Brueckner` is switched off, with a warning).
 * Term symbols (from \f$\langle L^2\rangle\f$ and \f$\langle S^2\rangle\f$) and \f$g_J\f$ factors are given as usual.
 
 -----

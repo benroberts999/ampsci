@@ -101,6 +101,47 @@ double Sigma_vw(const DiracSpinor &v, const DiracSpinor &w,
 
 //==============================================================================
 template <class CoulombIntegral>
+double Sigma_vw_2p1h(
+  const DiracSpinor &v, const DiracSpinor &w, const CoulombIntegral &qk,
+  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
+  double ev,
+  const std::function<bool(const DiracSpinor &, const DiracSpinor &,
+                           const DiracSpinor &)> &include) {
+
+  static_assert(std::is_same_v<CoulombIntegral, Coulomb::QkTable> ||
+                std::is_same_v<CoulombIntegral, Coulomb::YkTable>);
+
+  if (v.kappa() != w.kappa())
+    return 0.0;
+
+  // Diagrams (a) [direct] and (b) [exchange] of Sigma_vw_direct_exchange, for
+  // the included (b, m, n) only
+  double sum = 0.0;
+#pragma omp parallel for reduction(+ : sum) collapse(2) schedule(dynamic)
+  for (auto ib = 0ul; ib < core.size(); ib++) {
+    for (auto in = 0ul; in < excited.size(); in++) {
+      const auto &b = core[ib];
+      const auto &n = excited[in];
+      for (const auto &m : excited) {
+        if (!include(b, m, n))
+          continue;
+        const auto inv_de = 1.0 / (ev + b.en() - m.en() - n.en());
+        const auto [k0, k1] = Coulomb::k_minmax_Q(v, b, m, n);
+        for (int k = k0; k <= k1; k += 2) {
+          const auto Qk_vbmn = qk.Q(k, v, b, m, n);
+          const auto Qk_wbmn = (v == w) ? Qk_vbmn : qk.Q(k, w, b, m, n);
+          const auto Pk_wbmn = qk.P(k, w, b, m, n);
+          sum += Qk_vbmn * (Qk_wbmn + Pk_wbmn) * inv_de / (2.0 * k + 1.0);
+        }
+      }
+    }
+  }
+
+  return sum / v.twojp1();
+}
+
+//==============================================================================
+template <class CoulombIntegral>
 double dSigma_dE_vw(const DiracSpinor &v, const DiracSpinor &w,
                     const CoulombIntegral &qk,
                     const std::vector<DiracSpinor> &core,

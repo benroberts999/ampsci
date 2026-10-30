@@ -370,6 +370,11 @@ std::vector<CSF3> form_CSF3s(std::array<DiracSpinor::Index, 3> orbitals,
   with \f$ 6s^2 \f$ in the core, \f$ |6p\rangle \f$ and
   \f$ |6p^2\, 6s^{-1}\rangle \f$.
 
+  Particle-hole CI(+MBPT): the hole shell is the top shell of the
+  Hartree-Fock core, and the hole's orbital energy and Sigma_1 enter with the
+  opposite sign.
+   - J. C. Berengut, Phys. Rev. A 94, 012502 (2016)
+
   @note The particle pair is stored sorted, as in @ref CSF2; this fixes the
         phase convention of all matrix elements.
 */
