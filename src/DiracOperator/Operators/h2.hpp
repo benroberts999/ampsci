@@ -87,6 +87,11 @@ public:
         << "\nCannot use this operator for a custom charge distribution.\n";
       std::abort();
     }
+    case Nuclear::ChargeDistro::Error: {
+      std::cout << "\nCannot use this operator for case "
+                   "Nuclear::ChargeDistro::Error.\n";
+      std::abort();
+    }
     }
   }
 

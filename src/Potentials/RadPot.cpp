@@ -211,8 +211,8 @@ RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
      {"SE_h", "    self-energy high-freq electric."},
      {"SE_l", "    self-energy low-freq electric."},
      {"SE_m", "    self-energy magnetic."},
-     {"SE_dm", "    self-energy magnetic DeltaH."},
-     {"SE_mV2", "    self-energy magnetic V2."},
+     {"SE_dm", "    self-energy magnetic DeltaH (Overleaf 5.2)."},
+     {"SE_mV2", "    self-energy magnetic V2 (Overleaf 5.1)."},
      {"", ""},
      {"WK",
       "  Wickman-Kroll (approximate form of higher-order vac. pol.). [0.0]"},
@@ -238,8 +238,8 @@ RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
   const auto x_spd = input.get("scale_l", std::vector{1.0});
 
   return RadPot(r, Z_eff, scale_rN * rN_au, rcut,
-                {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_SEdm, x_SEmV2, x_wk}, x_spd, print,
-                do_readwrite, label);
+                {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_SEdm, x_SEmV2, x_wk}, x_spd,
+                print, do_readwrite, label);
 }
 
 } // namespace QED

@@ -1,4 +1,5 @@
 #pragma once
+#include "DiracOperator/Operators/h2.hpp" // for DeltaH correction
 #include "DiracOperator/Operators/hfs.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "IO/InputBlock.hpp"
@@ -6,7 +7,6 @@
 #include "Potentials/FGRadPot.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Vector.hpp"
-#include "DiracOperator/Operators/h2.hpp" // for DeltaH correction
 #include <cmath>
 
 namespace DiracOperator {
@@ -31,12 +31,11 @@ public:
     const auto &HmagV2 = m_Vrad.HmagV2();
     const double scale_HmV2 = m_Vrad.scale_HmagV2();
     if (scale_Hm != 0.0 && scale_HmV2 == 0.0) {
-      dF.f() -= (Hmag + scale_DH*DeltaH) * Fb.g();
-      dF.g() -= (Hmag + scale_DH*DeltaH) * Fb.f();
-    }
-    else {
-      dF.f() -= (scale_HmV2*HmagV2) * Fb.g();
-      dF.g() -= (scale_HmV2*HmagV2) * Fb.f();
+      dF.f() -= (Hmag + scale_DH * DeltaH) * Fb.g();
+      dF.g() -= (Hmag + scale_DH * DeltaH) * Fb.f();
+    } else {
+      dF.f() -= (scale_HmV2 * HmagV2) * Fb.g();
+      dF.g() -= (scale_HmV2 * HmagV2) * Fb.f();
     }
     if (kappa_a != Fb.kappa())
       return 0.0 * dF;
@@ -86,9 +85,10 @@ public:
     const auto readwrite = input.get("readwrite", true);
     const auto r_N_au =
       std::sqrt(5.0 / 3.0) * scale_rN * wf.nucleus().r_rms() / PhysConst::aB_fm;
-    auto qed = QED::RadPot(wf.grid().r(), wf.Znuc(), r_N_au, rcut,
-                           {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_SEdm, x_SEmV2, x_wk}, x_spd, true,
-                           readwrite, wf.run_label());
+    auto qed =
+      QED::RadPot(wf.grid().r(), wf.Znuc(), r_N_au, rcut,
+                  {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_SEdm, x_SEmV2, x_wk},
+                  x_spd, true, readwrite, wf.run_label());
     qed.set_DeltaH(h2::form_DeltaH(wf));
     qed.set_HmagV2(h2::form_H_AMM(wf));
     return std::make_unique<Vrad>(std::move(qed));
