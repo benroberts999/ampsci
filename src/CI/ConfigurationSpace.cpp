@@ -421,4 +421,38 @@ configuration_string(const ConfigurationSpace::Configuration &configuration) {
   return text;
 }
 
+//==============================================================================
+std::vector<DiracSpinor> hole_orbitals(const std::vector<std::string> &shells,
+                                       const std::vector<DiracSpinor> &basis,
+                                       const std::string &core_string) {
+  std::vector<DiracSpinor> holes;
+  const auto core_shells = AtomData::core_parser(core_string);
+  for (const auto &shell_string : shells) {
+    // Each entry must be a single shell, in the core
+    const auto configuration = parse_configuration(shell_string);
+    if (configuration.size() != 1) {
+      fmt2::warning();
+      fmt::print(": hole shell '{}' is not a single shell: skipping\n",
+                 shell_string);
+      continue;
+    }
+    const auto &shell = configuration.front();
+    const auto in_core = std::any_of(
+      core_shells.cbegin(), core_shells.cend(),
+      [&shell](const auto &c) { return c.n == shell.n && c.l == shell.l; });
+    if (!in_core) {
+      fmt2::warning();
+      fmt::print(": hole shell '{}' is not a core shell: skipping\n",
+                 shell_string);
+      continue;
+    }
+    for (const auto &Fa : basis) {
+      if (Fa.n() == shell.n && Fa.l() == shell.l) {
+        holes.push_back(Fa);
+      }
+    }
+  }
+  return holes;
+}
+
 } // namespace CI

@@ -42,6 +42,10 @@ struct SizeEstimates {
   std::string ci_basis_string{};
   std::size_t num_ci_orbitals{0};
   int num_electrons{2};
+  //! Hole CSFs: the hole orbitals, and the basis of their two particles
+  //! (empty without hole CSFs)
+  std::string holes_string{};
+  std::string holes_basis_string{};
 
   //! All Coulomb Q^k integrals over the full basis, all k (as needed by
   //! structure radiation); zero (not counted) unless required

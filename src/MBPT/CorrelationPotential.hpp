@@ -232,6 +232,9 @@ public:
                   energy shift. Must have kappa = @p kappa.
 
     @warning Not thread safe.
+    @warning Feynman method: not valid for @p ev below the top of the core
+    (a hole state deeper than the top shell); the contour misses the 2h1p core
+    poles above @p ev. A warning is printed; use Goldstone for such states.
   */
   void formSigma(int kappa, double ev, int n, const DiracSpinor *Fv = nullptr);
 

@@ -8,6 +8,7 @@
 #include "MBPT/SpinorMatrix.hpp"
 #include "Physics/AtomData.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "fmt/color.hpp"
 #include "fmt/format.hpp"
 #include <algorithm>
 #include <cassert>
@@ -192,6 +193,23 @@ void CorrelationPotential::formSigma(int kappa, double ev, int n,
                Fv->shortSymbol(), ev, ev * PhysConst::Hartree_invcm);
   } else {
     fmt::print("Form Σ for kappa={} at e = {:.4f}\n", kappa, ev);
+  }
+
+  // Feynman: the contour at Re(w) = omre assumes every pole of G(ev + w) to
+  // its right is an excited state. For ev below the top of the core (a hole
+  // deeper than the top shell), the core poles at w = e_b - ev > 0 are crossed
+  // and their residues (the 2h1p terms with b above the hole) are lost.
+  // Tolerance allows a hole in the top shell itself, whose energy matches the
+  // core orbital only to the HF convergence
+  if (m_method == SigmaMethod::Feynman) {
+    const auto e_core_max = DiracSpinor::max_En(m_HF->core());
+    if (ev < e_core_max - 1.0e-6) {
+      fmt2::warning();
+      fmt::print(": Feynman Sigma at e = {:.4f} au, below the top of the core "
+                 "({:.4f} au): misses the 2h1p core poles above e. Use "
+                 "Goldstone for this state\n",
+                 ev, e_core_max);
+    }
   }
 
   // fk screening factors for this state: calculated once, here; the base

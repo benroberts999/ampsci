@@ -72,6 +72,43 @@ std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
                                                 int num_electrons);
 
 /*!
+  @brief Orbitals of the hole CSFs (two particles and one hole); see
+  requested_hole_orbitals().
+*/
+struct HoleOrbitals {
+  //! Core orbitals that may hold the hole (both j of each shell); empty if
+  //! there are no hole CSFs
+  std::vector<DiracSpinor> holes{};
+  //! Basis of the two particles of the hole CSFs (a subset of the CI basis)
+  std::vector<DiracSpinor> holes_basis{};
+};
+
+/*!
+  @brief The hole CSF orbitals requested in a CI input block.
+
+  @details
+  'holes' lists the core shells (non-relativistic, e.g., '6s') that may hold
+  the hole; the hole orbitals are found by hole_orbitals() (an entry that is
+  not a single core shell is skipped with a warning). Hole CSFs exist for one
+  valence electron only: for any other @p num_electrons none are returned
+  (warning). 'ci_hole_basis' (a basis string; all of @p ci_basis by default)
+  selects the basis of the two particles.
+
+  @param input          The CI input block.
+  @param basis          Single-particle basis, including the core orbitals.
+  @param ci_basis       The CI basis (excited orbitals).
+  @param core_string    Core configuration (e.g., "[Xe],4f14,5d10,6s2").
+  @param num_electrons  Number of valence electrons.
+  @return The hole orbitals and the particle basis; both empty without hole
+          CSFs.
+*/
+HoleOrbitals requested_hole_orbitals(const IO::InputBlock &input,
+                                     const std::vector<DiracSpinor> &basis,
+                                     const std::vector<DiracSpinor> &ci_basis,
+                                     const std::string &core_string,
+                                     int num_electrons);
+
+/*!
   @brief Method for solving the CI eigenvalue problem of a (J, parity) block.
   @details
   - dense: forms the full CI matrix and diagonalises it directly. Memory and

@@ -146,4 +146,22 @@ ConfigurationSpace::Configuration parse_configuration(const std::string &text);
 std::string
 configuration_string(const ConfigurationSpace::Configuration &configuration);
 
+/*!
+  @brief The core orbitals of the given shells: those that may hold a hole.
+
+  @details
+  Each entry of @p shells is one non-relativistic shell (e.g., "6s"); the
+  orbitals of @p basis with that n and l (both j) are returned. An entry that
+  is not a single shell, or not a shell of the core, is skipped with a
+  warning.
+
+  @param shells       Shell labels, e.g., {"6s", "5d"}.
+  @param basis        Single-particle basis, including the core orbitals.
+  @param core_string  Core configuration (e.g., "[Xe],4f14,5d10,6s2").
+  @return The hole orbitals, in the order of @p shells, then of @p basis.
+*/
+std::vector<DiracSpinor> hole_orbitals(const std::vector<std::string> &shells,
+                                       const std::vector<DiracSpinor> &basis,
+                                       const std::string &core_string);
+
 } // namespace CI

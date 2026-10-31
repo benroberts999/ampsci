@@ -13,6 +13,7 @@
 #include "fmt/format.hpp"
 #include "fmt/ostream.hpp"
 #include "qip/String.hpp"
+#include "qip/Vector.hpp"
 #include "version/version.hpp"
 #include <algorithm>
 #include <memory>
@@ -96,12 +97,22 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
     CI::basis_subset(basis, out.ci_basis_string, out.core_string);
   out.num_ci_orbitals = ci_orbitals.size();
 
-  // Q^k among the CI orbitals
+  // Hole CSFs (one valence electron): the hole orbitals, and the basis of
+  // their two particles
+  const auto hole_csfs = CI::requested_hole_orbitals(
+    ci_input, basis, ci_orbitals, out.core_string, out.num_electrons);
+  if (!hole_csfs.holes.empty()) {
+    out.holes_string = DiracSpinor::state_config(hole_csfs.holes);
+    out.holes_basis_string = DiracSpinor::state_config(hole_csfs.holes_basis);
+  }
+
+  // Q^k among the CI orbitals (and the hole orbitals, if any)
   {
-    std::cout << "Counting CI Q^k (" << ci_orbitals.size() << " orbitals).. "
+    const auto ci_and_holes = qip::merge(ci_orbitals, hole_csfs.holes);
+    std::cout << "Counting CI Q^k (" << ci_and_holes.size() << " orbitals).. "
               << std::flush;
     const IO::ChronoTimer timer;
-    out.qk_CI = qk.count_non_zero_integrals(ci_orbitals, k_cut, e_Fermi)[0];
+    out.qk_CI = qk.count_non_zero_integrals(ci_and_holes, k_cut, e_Fermi)[0];
     out.qk_CI_required = have_CI;
   }
 
@@ -112,7 +123,8 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   const auto Sigma_derivative =
     input.get({"Correlations"}, "derivative", false);
   const auto need_s1_qk =
-    include_Sigma1 && (!have_Sigma || (sigma1_dSdE && !Sigma_derivative));
+    include_Sigma1 && (!have_Sigma || (sigma1_dSdE && !Sigma_derivative) ||
+                       !hole_csfs.holes.empty());
   {
     const auto mbpt_string =
       need_s1_qk ? ci_input.get("s1_basis", ""s) :
@@ -159,10 +171,14 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   // B^k over Breit_basis, if Breit is included in HF
   const auto Breit_HF = input.get({"HartreeFock"}, "Breit", false) ||
                         input.get({"HartreeFock"}, "Breit", 0.0) != 0.0;
-  if (have_CI && Breit_HF && ci_input.get("Breit2", true)) {
-    const auto Breit_orbitals = CI::basis_subset(
-      ci_orbitals,
-      ci_input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf"));
+  const auto Breit2 = ci_input.get("Breit2", true) &&
+                      (out.num_electrons > 1 || !hole_csfs.holes.empty());
+  if (have_CI && Breit_HF && Breit2) {
+    const auto Breit_orbitals = qip::merge(
+      CI::basis_subset(
+        ci_orbitals,
+        ci_input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf")),
+      hole_csfs.holes);
     std::cout << "Counting B^k (" << Breit_orbitals.size() << " orbitals).. "
               << std::flush;
     const IO::ChronoTimer timer;
@@ -176,16 +192,20 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   const auto davidson = ci_input.get("davidson", out.num_electrons >= 3);
   const auto J_pi_list = CI::requested_J_pi(ci_input, out.num_electrons);
   const CI::ConfigurationSpace config_space{
-    ci_orbitals, out.num_electrons,
+    ci_orbitals,
+    out.num_electrons,
     ci_input.get("leading", std::vector<std::string>{}),
-    ci_input.get("excitations", std::vector<std::string>{"1", "2"})};
+    ci_input.get("excitations", std::vector<std::string>{"1", "2"}),
+    hole_csfs.holes,
+    hole_csfs.holes_basis};
   std::cout << "Forming CSFs (" << J_pi_list.size() << " J/pi).. "
             << std::flush;
   const IO::ChronoTimer timer;
   for (const auto &[twoJ, parity] : J_pi_list) {
     // Number of CSFs, and of pairs that can interact (sparse elements)
     const auto CSFs =
-      CI::form_CSFs(twoJ, parity, ci_orbitals, out.num_electrons, config_space);
+      CI::form_CSFs(twoJ, parity, ci_orbitals, out.num_electrons, config_space,
+                    hole_csfs.holes, hole_csfs.holes_basis);
     const auto num_CSFs = CSFs.size();
     const auto num_pairs = CI::num_interacting_pairs(CSFs);
     const auto N = double(num_CSFs);
@@ -228,8 +248,13 @@ void print_size_estimates(const SizeEstimates &estimates, std::ostream &os) {
   // CI blocks are solved one at a time: the largest counts in the total
   double largest_block_GB = 0.0;
   if (!e.ci_blocks.empty()) {
-    fmt::print(os, "\nCI: {}, {} orbitals, {} valence electrons\n",
-               e.ci_basis_string, e.num_ci_orbitals, e.num_electrons);
+    fmt::print(os, "\nCI: {}, {} orbitals, {} valence electron{}\n",
+               e.ci_basis_string, e.num_ci_orbitals, e.num_electrons,
+               e.num_electrons == 1 ? "" : "s");
+    if (!e.holes_string.empty()) {
+      fmt::print(os, "Hole CSFs: holes in {}, two electrons in {}\n",
+                 e.holes_string, e.holes_basis_string);
+    }
     fmt::print(os, "{:<5} {:>2} {:>10} {:>14}\n", "J", "pi", "N_CSF",
                "matrix (peak)");
     for (const auto &block : e.ci_blocks) {
