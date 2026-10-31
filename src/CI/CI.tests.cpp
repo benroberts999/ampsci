@@ -19,11 +19,14 @@
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <array>
+#include <cassert>
+#include <cmath>
 #include <cstdio>
 #include <filesystem>
 #include <fstream>
 #include <iterator>
 #include <map>
+#include <numeric>
 #include <random>
 #include <sstream>
 #include <tuple>
@@ -52,6 +55,101 @@ CITables Li_CI_tables();
 // CI input options for Be (core [He]), Sigma_2 in a small basis, two levels
 // of 0+ and 1-, no files written
 std::string Be_sigma2_input();
+
+// Slater determinants, for the hole CSF tests. The spin-orbitals (nk_index,
+// 2m) of a list of orbitals are numbered in order; a determinant is a sorted
+// list of spin-orbital numbers, |D> = a+_D[0] a+_D[1] ... |0>; a state is a
+// map from determinants to amplitudes
+using SpinOrbital = std::pair<DiracSpinor::Index, int>;
+using Determinant = std::vector<std::size_t>;
+using Expansion = std::map<Determinant, double>;
+
+// A small atom with hole CSFs: the Hartree-Fock core, the core orbitals
+// that may hold a hole, the excited orbitals (the CI basis), all orbitals
+// (core first), and Coulomb Q^k and Breit B^k tables over all of them
+struct HoleAtom {
+  Wavefunction wf;
+  std::vector<DiracSpinor> core{}, holes{}, excited{}, all{};
+  Coulomb::QkTable qk{};
+  Coulomb::WkTable Bk{};
+};
+HoleAtom hole_atom(const std::string &atom, const std::string &core,
+                   const std::vector<std::string> &hole_shells,
+                   const std::string &basis);
+// Li (1s hole), Be (1s and 2s holes), Na (2s and 2p holes), with their
+// (2J, parity) blocks
+struct HoleAtomInput {
+  std::string atom, core;
+  std::vector<std::string> hole_shells;
+  std::string basis;
+  std::vector<std::pair<int, int>> blocks;
+};
+std::vector<HoleAtomInput> hole_atoms();
+
+// Spin-orbitals of the orbitals, in order; the number of the one (nk, 2m)
+std::vector<SpinOrbital>
+spin_orbitals(const std::vector<DiracSpinor> &orbitals);
+std::size_t spin_orbital(const std::vector<SpinOrbital> &so,
+                         DiracSpinor::Index nk, int twom);
+// Orbital energy of each spin-orbital
+std::vector<double> energies(const std::vector<SpinOrbital> &so,
+                             const std::vector<DiracSpinor> &orbitals);
+// a+_i |D> and a_i |D>: the sign (zero if not possible) and the result
+std::pair<double, Determinant> create(std::size_t i, Determinant D);
+std::pair<double, Determinant> annihilate(std::size_t i, Determinant D);
+// <ij|g|kl> between spin-orbitals, as g(i n + j, k n + l): Coulomb from the
+// Q^k table, plus Breit from the B^k table if given
+LinAlg::Matrix<double> g_table(const std::vector<SpinOrbital> &so,
+                               const std::vector<DiracSpinor> &orbitals,
+                               const Coulomb::QkTable &qk,
+                               const Coulomb::WkTable *Bk = nullptr);
+// <D'|H|D> for H = sum_i h0(i) + sum_{i<j} g(i,j), by the Slater-Condon
+// rules, with h0 = e - V_HF and V_HF from the core determinant: h0 + V_HF =
+// e exactly, as the CI assumes (V^{N-M})
+double H_det(const Determinant &Dp, const Determinant &D,
+             const Determinant &core, const std::vector<double> &e,
+             const LinAlg::Matrix<double> &g);
+// A CSF (one electron, or two particles and a hole) at M = J
+Expansion expand(const CI::CSF &csf, int twoJ, const Determinant &core,
+                 const std::vector<SpinOrbital> &so);
+// A particle-hole pair of the core, |(w a~) K, M = K> = sum C(j_w m_w, j_a m
+// | K K) a+_{w m_w} h+_{a m} |0>, with h+_{a m} = (-1)^(j_a - m) a_{a,-m}
+Expansion particle_hole(DiracSpinor::Index w, DiracSpinor::Index a, int twoK,
+                        const Determinant &core,
+                        const std::vector<SpinOrbital> &so);
+// Matrix <A_i|op|B_j> of a determinant operator between two sets of states
+template <class Op>
+LinAlg::Matrix<double> matrix(const std::vector<Expansion> &A,
+                              const std::vector<Expansion> &B, const Op &op) {
+  LinAlg::Matrix<double> M(A.size(), B.size());
+  for (std::size_t i = 0; i < A.size(); ++i) {
+    for (std::size_t j = 0; j < B.size(); ++j) {
+      double sum = 0.0;
+      for (const auto &[Dp, amp_i] : A[i]) {
+        for (const auto &[D, amp_j] : B[j]) {
+          sum += amp_i * amp_j * op(Dp, D);
+        }
+      }
+      M(i, j) = sum;
+    }
+  }
+  return M;
+}
+// The determinants with the given number of electrons (particles minus
+// holes), M and parity, outside the CI space: one to three holes, except a
+// single hole in a shell of `holes` (every such configuration is in the CI)
+std::vector<Determinant> Q_space(const std::vector<SpinOrbital> &so,
+                                 const Determinant &core,
+                                 const std::vector<DiracSpinor> &holes,
+                                 int twoM, int parity, int num_electrons);
+// Second order between the states, through the determinants Q:
+// (1/2)[1/(E_A - E_Q) + 1/(E_B - E_Q)] <A|H|Q><Q|H|B>, with orbital-sum
+// energies (the symmetrised Rayleigh-Schrodinger form of the S^k)
+LinAlg::Matrix<double> second_order(const std::vector<Expansion> &states,
+                                    const std::vector<Determinant> &Q,
+                                    const Determinant &core,
+                                    const std::vector<double> &e,
+                                    const LinAlg::Matrix<double> &g);
 } // namespace UnitTest
 
 //==============================================================================
@@ -2047,6 +2145,372 @@ std::string UnitTest::Be_sigma2_input() {
 }
 
 //==============================================================================
+UnitTest::HoleAtom
+UnitTest::hole_atom(const std::string &name, const std::string &core,
+                    const std::vector<std::string> &hole_shells,
+                    const std::string &basis) {
+  HoleAtom atom{Wavefunction({500, 1.0e-4, 30.0, 0.33 * 30.0, "loglinear"},
+                             {name, -1, "pointlike"}, 1.0)};
+  atom.wf.solve_core("HartreeFock", core, std::nullopt, 1.0e-6, false);
+  auto b_params = SplineBasis::Parameters(basis, 20, 6, {1.0e-2}, 20.0);
+  b_params.verbose = false;
+  atom.wf.formBasis(b_params);
+  const auto core_shells = AtomData::core_parser(atom.wf.coreConfiguration());
+  for (const auto &Fn : atom.wf.basis()) {
+    const auto in_core = std::any_of(
+      core_shells.cbegin(), core_shells.cend(),
+      [&Fn](const auto &c) { return c.n == Fn.n() && c.l == Fn.l(); });
+    (in_core ? atom.core : atom.excited).push_back(Fn);
+    for (const auto &shell : hole_shells) {
+      const auto s = CI::parse_configuration(shell).front();
+      if (in_core && s.n == Fn.n() && s.l == Fn.l()) {
+        atom.holes.push_back(Fn);
+      }
+    }
+  }
+  atom.all = qip::merge(atom.core, atom.excited);
+  atom.qk.fill(atom.all, Coulomb::YkTable(atom.all), -1, false);
+  HF::Breit breit{};
+  breit.fill_gb(atom.all);
+  const auto Bk_function = [&breit](int k, const DiracSpinor &p,
+                                    const DiracSpinor &q, const DiracSpinor &r,
+                                    const DiracSpinor &t) {
+    return breit.Bk_abcd_2(k, p, q, r, t);
+  };
+  atom.Bk.fill(atom.all, Bk_function, HF::Breit::Bk_SR, 99, false);
+  return atom;
+}
+
+std::vector<UnitTest::HoleAtomInput> UnitTest::hole_atoms() {
+  return {{"Li", "[He]", {"1s"}, "3spd", {{1, -1}, {1, +1}, {3, +1}}},
+          {"Be", "[Be]", {"1s", "2s"}, "3sp", {{1, +1}, {1, -1}, {3, -1}}},
+          {"Na", "[Ne]", {"2s", "2p"}, "3spd", {{1, +1}, {3, -1}}}};
+}
+
+std::vector<UnitTest::SpinOrbital>
+UnitTest::spin_orbitals(const std::vector<DiracSpinor> &orbitals) {
+  std::vector<SpinOrbital> so;
+  for (const auto &Fn : orbitals) {
+    for (int m = -Fn.twoj(); m <= Fn.twoj(); m += 2) {
+      so.push_back({Fn.nk_index(), m});
+    }
+  }
+  return so;
+}
+
+std::size_t UnitTest::spin_orbital(const std::vector<SpinOrbital> &so,
+                                   DiracSpinor::Index nk, int twom) {
+  const auto it = std::find(so.cbegin(), so.cend(), SpinOrbital{nk, twom});
+  assert(it != so.cend());
+  return std::size_t(it - so.cbegin());
+}
+
+std::vector<double>
+UnitTest::energies(const std::vector<SpinOrbital> &so,
+                   const std::vector<DiracSpinor> &orbitals) {
+  std::vector<double> e;
+  for (const auto &s_i : so) {
+    const auto nk = s_i.first;
+    const auto Fn =
+      std::find_if(orbitals.cbegin(), orbitals.cend(),
+                   [nk](const auto &F) { return F.nk_index() == nk; });
+    e.push_back(Fn->en());
+  }
+  return e;
+}
+
+std::pair<double, UnitTest::Determinant> UnitTest::create(std::size_t i,
+                                                          Determinant D) {
+  const auto pos = std::lower_bound(D.begin(), D.end(), i);
+  if (pos != D.end() && *pos == i)
+    return {0.0, {}};
+  const auto sign = (pos - D.begin()) % 2 == 0 ? 1.0 : -1.0;
+  D.insert(pos, i);
+  return {sign, D};
+}
+
+std::pair<double, UnitTest::Determinant> UnitTest::annihilate(std::size_t i,
+                                                              Determinant D) {
+  const auto pos = std::lower_bound(D.begin(), D.end(), i);
+  if (pos == D.end() || *pos != i)
+    return {0.0, {}};
+  const auto sign = (pos - D.begin()) % 2 == 0 ? 1.0 : -1.0;
+  D.erase(pos);
+  return {sign, D};
+}
+
+LinAlg::Matrix<double>
+UnitTest::g_table(const std::vector<SpinOrbital> &so,
+                  const std::vector<DiracSpinor> &orbitals,
+                  const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk) {
+  const auto n = so.size();
+  std::vector<const DiracSpinor *> orbital;
+  for (const auto &s_i : so) {
+    const auto nk = s_i.first;
+    orbital.push_back(
+      &*std::find_if(orbitals.cbegin(), orbitals.cend(),
+                     [nk](const auto &F) { return F.nk_index() == nk; }));
+  }
+  LinAlg::Matrix<double> g(n * n, n * n);
+  for (std::size_t i = 0; i < n; ++i) {
+    for (std::size_t j = 0; j < n; ++j) {
+      for (std::size_t k = 0; k < n; ++k) {
+        for (std::size_t l = 0; l < n; ++l) {
+          // m is conserved
+          if (so[i].second + so[j].second != so[k].second + so[l].second)
+            continue;
+          const auto g_ijkl =
+            qk.g(*orbital[i], *orbital[j], *orbital[k], *orbital[l],
+                 so[i].second, so[j].second, so[k].second, so[l].second);
+          const auto b_ijkl =
+            Bk ? Bk->g(*orbital[i], *orbital[j], *orbital[k], *orbital[l],
+                       so[i].second, so[j].second, so[k].second, so[l].second) :
+                 0.0;
+          g(i * n + j, k * n + l) = g_ijkl + b_ijkl;
+        }
+      }
+    }
+  }
+  return g;
+}
+
+double UnitTest::H_det(const Determinant &Dp, const Determinant &D,
+                       const Determinant &core, const std::vector<double> &e,
+                       const LinAlg::Matrix<double> &g) {
+  const auto n = std::size_t(std::lround(std::sqrt(double(g.rows()))));
+  // antisymmetrised <ij|g|kl> - <ij|g|lk>
+  const auto gt = [&g, n](std::size_t i, std::size_t j, std::size_t k,
+                          std::size_t l) {
+    return g(i * n + j, k * n + l) - g(i * n + j, l * n + k);
+  };
+  const auto h0 = [&](std::size_t i, std::size_t j) {
+    double V_HF = 0.0;
+    for (const auto c : core) {
+      V_HF += gt(i, c, j, c);
+    }
+    return (i == j ? e[i] : 0.0) - V_HF;
+  };
+  Determinant added, removed;
+  std::set_difference(Dp.begin(), Dp.end(), D.begin(), D.end(),
+                      std::back_inserter(added));
+  std::set_difference(D.begin(), D.end(), Dp.begin(), Dp.end(),
+                      std::back_inserter(removed));
+  if (added.size() > 2)
+    return 0.0;
+  if (added.empty()) {
+    double E = 0.0;
+    for (std::size_t t = 0; t < D.size(); ++t) {
+      E += h0(D[t], D[t]);
+      for (std::size_t u = 0; u < t; ++u) {
+        E += gt(D[t], D[u], D[t], D[u]);
+      }
+    }
+    return E;
+  }
+  if (added.size() == 1) {
+    const auto p = added[0];
+    const auto r = removed[0];
+    const auto [s1, D1] = annihilate(r, D);
+    const auto [s2, D2] = create(p, D1);
+    assert(D2 == Dp);
+    double two_body = 0.0;
+    for (const auto t : D) {
+      if (t != r) {
+        two_body += gt(p, t, r, t);
+      }
+    }
+    return s1 * s2 * (h0(p, r) + two_body);
+  }
+  const auto [s1, D1] = annihilate(removed[0], D);
+  const auto [s2, D2] = annihilate(removed[1], D1);
+  const auto [s3, D3] = create(added[1], D2);
+  const auto [s4, D4] = create(added[0], D3);
+  assert(D4 == Dp);
+  return s1 * s2 * s3 * s4 * gt(added[0], added[1], removed[0], removed[1]);
+}
+
+UnitTest::Expansion UnitTest::expand(const CI::CSF &csf, int twoJ,
+                                     const Determinant &core,
+                                     const std::vector<SpinOrbital> &so) {
+  Expansion amplitude;
+  if (csf.num_holes() == 0) {
+    const auto [sign, D] = create(spin_orbital(so, csf.state(0), twoJ), core);
+    amplitude[D] += sign;
+    return amplitude;
+  }
+  const auto &c = std::get<CI::CSF2p1h>(csf.variant());
+  const auto v = c.state(0);
+  const auto w = c.state(1);
+  const auto a = c.hole;
+  const auto tjv = Angular::nkindex_to_twoj(v);
+  const auto tjw = Angular::nkindex_to_twoj(w);
+  const auto tja = Angular::nkindex_to_twoj(a);
+  const auto eta = v == w ? 1.0 / std::sqrt(2.0) : 1.0;
+  for (int mv = -tjv; mv <= tjv; mv += 2) {
+    for (int mw = -tjw; mw <= tjw; mw += 2) {
+      const auto M12 = mv + mw;
+      const auto m = twoJ - M12;
+      if (std::abs(m) > tja)
+        continue;
+      const auto cg = Angular::cg_2(tjv, mv, tjw, mw, c.twoJ12(), M12) *
+                      Angular::cg_2(c.twoJ12(), M12, tja, m, twoJ, twoJ);
+      if (cg == 0.0)
+        continue;
+      // h+_{a m} = (-1)^(ja - m) a_{a,-m}; then a+_w, then a+_v
+      const auto [s1, D1] = annihilate(spin_orbital(so, a, -m), core);
+      const auto [s2, D2] = create(spin_orbital(so, w, mw), D1);
+      const auto [s3, D3] = create(spin_orbital(so, v, mv), D2);
+      const auto sign = s1 * s2 * s3;
+      if (sign != 0.0) {
+        amplitude[D3] += eta * cg * Angular::neg1pow_2(tja - m) * sign;
+      }
+    }
+  }
+  return amplitude;
+}
+
+UnitTest::Expansion
+UnitTest::particle_hole(DiracSpinor::Index w, DiracSpinor::Index a, int twoK,
+                        const Determinant &core,
+                        const std::vector<SpinOrbital> &so) {
+  const auto tjw = Angular::nkindex_to_twoj(w);
+  const auto tja = Angular::nkindex_to_twoj(a);
+  Expansion amplitude;
+  for (int mw = -tjw; mw <= tjw; mw += 2) {
+    const auto m = twoK - mw;
+    if (std::abs(m) > tja)
+      continue;
+    const auto cg = Angular::cg_2(tjw, mw, tja, m, twoK, twoK);
+    if (cg == 0.0)
+      continue;
+    const auto [s1, D1] = annihilate(spin_orbital(so, a, -m), core);
+    const auto [s2, D2] = create(spin_orbital(so, w, mw), D1);
+    if (s1 * s2 != 0.0) {
+      amplitude[D2] += cg * Angular::neg1pow_2(tja - m) * s1 * s2;
+    }
+  }
+  return amplitude;
+}
+
+std::vector<UnitTest::Determinant>
+UnitTest::Q_space(const std::vector<SpinOrbital> &so, const Determinant &core,
+                  const std::vector<DiracSpinor> &holes, int twoM, int parity,
+                  int num_electrons) {
+  // Core spin-orbitals are the first ones; the rest are excited
+  const auto num_core = core.size();
+  const auto num_excited = so.size() - num_core;
+  const auto in_holes = [&](std::size_t i) {
+    const auto nk = Angular::index_to_nk(so[i].first);
+    const auto n = nk.first;
+    const auto kappa = nk.second;
+    return std::any_of(holes.cbegin(), holes.cend(),
+                       [n, kappa](const auto &Fa) {
+                         return Fa.n() == n && Fa.kappa() == kappa;
+                       });
+  };
+  const auto parity_of = [&](std::size_t i) {
+    return Angular::parity_k(Angular::index_to_nk(so[i].first).second);
+  };
+  // Each r-combination of n items, in order
+  const auto for_each_combination = [](std::size_t n, std::size_t r,
+                                       const auto &fn) {
+    if (r > n)
+      return;
+    std::vector<std::size_t> idx(r);
+    for (std::size_t i = 0; i < r; ++i) {
+      idx[i] = i;
+    }
+    while (true) {
+      fn(idx);
+      std::size_t i = r;
+      while (i > 0 && idx[i - 1] == n - r + i - 1) {
+        --i;
+      }
+      if (i == 0)
+        break;
+      ++idx[i - 1];
+      for (std::size_t j = i; j < r; ++j) {
+        idx[j] = idx[j - 1] + 1;
+      }
+    }
+  };
+  std::vector<Determinant> Q;
+  for (std::size_t num_holes = 1; num_holes <= 3; ++num_holes) {
+    const auto num_particles = num_holes + std::size_t(num_electrons);
+    for_each_combination(
+      num_core, num_holes, [&](const std::vector<std::size_t> &ih) {
+        if (num_holes == 1 && in_holes(ih[0]))
+          return;
+        for_each_combination(num_excited, num_particles,
+                             [&](const std::vector<std::size_t> &ip) {
+                               int twoM_D = 0;
+                               int parity_D = 1;
+                               Determinant D = core;
+                               for (const auto i : ih) {
+                                 twoM_D -= so[i].second;
+                                 parity_D *= parity_of(i);
+                                 D.erase(std::find(D.begin(), D.end(), i));
+                               }
+                               for (const auto i : ip) {
+                                 twoM_D += so[num_core + i].second;
+                                 parity_D *= parity_of(num_core + i);
+                                 D.push_back(num_core + i);
+                               }
+                               if (twoM_D != twoM || parity_D != parity)
+                                 return;
+                               std::sort(D.begin(), D.end());
+                               Q.push_back(D);
+                             });
+      });
+  }
+  return Q;
+}
+
+LinAlg::Matrix<double>
+UnitTest::second_order(const std::vector<Expansion> &states,
+                       const std::vector<Determinant> &Q,
+                       const Determinant &core, const std::vector<double> &e,
+                       const LinAlg::Matrix<double> &g) {
+  const auto E0 = [&e](const Determinant &D) {
+    double E = 0.0;
+    for (const auto i : D) {
+      E += e[i];
+    }
+    return E;
+  };
+  const auto N = states.size();
+  const auto NQ = Q.size();
+  // <A|H|Q>: between different determinants, H is the two-body interaction
+  LinAlg::Matrix<double> V(N, NQ);
+  std::vector<double> E_A(N), E_Q(NQ);
+  for (std::size_t q = 0; q < NQ; ++q) {
+    E_Q[q] = E0(Q[q]);
+  }
+  for (std::size_t i = 0; i < N; ++i) {
+    E_A[i] = E0(states[i].cbegin()->first);
+    for (std::size_t q = 0; q < NQ; ++q) {
+      double sum = 0.0;
+      for (const auto &[D, amp] : states[i]) {
+        sum += amp * H_det(D, Q[q], core, e, g);
+      }
+      V(i, q) = sum;
+    }
+  }
+  LinAlg::Matrix<double> H2(N, N);
+  for (std::size_t i = 0; i < N; ++i) {
+    for (std::size_t j = 0; j < N; ++j) {
+      double sum = 0.0;
+      for (std::size_t q = 0; q < NQ; ++q) {
+        sum += V(i, q) * V(j, q) * 0.5 *
+               (1.0 / (E_A[i] - E_Q[q]) + 1.0 / (E_A[j] - E_Q[q]));
+      }
+      H2(i, j) = sum;
+    }
+  }
+  return H2;
+}
+
+//==============================================================================
 // Hole CSFs (two particles, one hole) with one-electron CSFs in one block,
 // against an explicit expansion of the CSFs over Slater determinants: the
 // determinants are formed by acting with the creation (and hole creation)
@@ -2060,654 +2524,380 @@ std::string UnitTest::Be_sigma2_input() {
 // tensor operators (E1 across blocks, M1 within), and the CI driver with the
 // 'holes' option. Li (hole in 1s) and Na (holes in 2s, 2p: different hole
 // orbitals in one block)
+// construct_Hci with hole CSFs (two particles and a hole), with Coulomb and
+// with Breit, against the Hamiltonian between Slater determinants
 TEST_CASE("CI: hole CSF Hamiltonian", "[CI][unit][ciholes]") {
-
-  // Spin-orbital: orbital (nk_index) and 2m. A determinant is a sorted
-  // list, |D> = a+_1 a+_2 ... |0>, in that order
-  using SpinOrbital = std::pair<DiracSpinor::Index, int>;
-  using Determinant = std::vector<SpinOrbital>;
-
-  // a+_i |D> and a_i |D>: the sign (zero if not possible) and the result
-  const auto create = [](const SpinOrbital &i, Determinant D) {
-    const auto pos = std::lower_bound(D.begin(), D.end(), i);
-    if (pos != D.end() && *pos == i)
-      return std::pair{0.0, Determinant{}};
-    const auto sign = (pos - D.begin()) % 2 == 0 ? 1.0 : -1.0;
-    D.insert(pos, i);
-    return std::pair{sign, D};
-  };
-  const auto annihilate = [](const SpinOrbital &i, Determinant D) {
-    const auto pos = std::lower_bound(D.begin(), D.end(), i);
-    if (pos == D.end() || *pos != i)
-      return std::pair{0.0, Determinant{}};
-    const auto sign = (pos - D.begin()) % 2 == 0 ? 1.0 : -1.0;
-    D.erase(pos);
-    return std::pair{sign, D};
-  };
-
-  struct Result {
-    double worst_norm, worst_H, worst_Breit, Breit_size, worst_L2S2,
-      worst_LS_eigenvalue, worst_expectation, worst_rme, worst_driver,
-      worst_table;
-    std::size_t num_CSFs, num_rme;
-  };
-
-  // Runs the checks for one atom: the core, the hole shells, the basis of
-  // the excited orbitals, the (2J, parity) blocks
-  const auto check_atom = [&](const std::string &atom, const std::string &core,
-                              const std::vector<std::string> &hole_shells,
-                              const std::string &basis_string,
-                              const std::vector<std::pair<int, int>> &blocks) {
-    Wavefunction wf({500, 1.0e-4, 30.0, 0.33 * 30.0, "loglinear"},
-                    {atom, -1, "pointlike"}, 1.0);
-    wf.solve_core("HartreeFock", core, std::nullopt, 1.0e-6, false);
-    auto b_params =
-      SplineBasis::Parameters(basis_string, 20, 6, {1.0e-2}, 20.0);
-    b_params.verbose = false;
-    wf.formBasis(b_params);
-
-    // Orbitals: all core orbitals (the determinants), the hole orbitals, and
-    // the excited orbitals (the CI basis)
-    std::vector<DiracSpinor> core_orbitals, holes, excited;
-    const auto core_shells = AtomData::core_parser(wf.coreConfiguration());
-    for (const auto &Fn : wf.basis()) {
-      const auto in_core = std::any_of(
-        core_shells.cbegin(), core_shells.cend(),
-        [&Fn](const auto &c) { return c.n == Fn.n() && c.l == Fn.l(); });
-      if (in_core) {
-        core_orbitals.push_back(Fn);
-        for (const auto &shell : hole_shells) {
-          const auto s = CI::parse_configuration(shell).front();
-          if (s.n == Fn.n() && s.l == Fn.l()) {
-            holes.push_back(Fn);
-          }
-        }
-      } else {
-        excited.push_back(Fn);
-      }
-    }
-    REQUIRE(!holes.empty());
-    REQUIRE(core_orbitals.size() == std::size_t(wf.core().size()));
-    const auto all_orbitals = qip::merge(core_orbitals, excited);
-    std::map<DiracSpinor::Index, const DiracSpinor *> orbital;
-    for (const auto &Fn : all_orbitals) {
-      orbital[Fn.nk_index()] = &Fn;
-    }
-
-    // Two-body interactions in the m-scheme (cached): Coulomb from the radial
-    // integrals, and Breit from a B^k table over all orbitals (the same
-    // angular decomposition, from the table; the Coulomb table is checked
-    // against the radial integrals, to validate it)
-    Coulomb::QkTable qk_all;
-    qk_all.fill(all_orbitals, Coulomb::YkTable(all_orbitals), -1, false);
-    HF::Breit breit{};
-    breit.fill_gb(all_orbitals);
-    const auto Bk_function =
-      [&breit](int k, const DiracSpinor &p, const DiracSpinor &q,
-               const DiracSpinor &r,
-               const DiracSpinor &t) { return breit.Bk_abcd_2(k, p, q, r, t); };
-    Coulomb::WkTable Bk_all;
-    Bk_all.fill(all_orbitals, Bk_function, HF::Breit::Bk_SR, 99, false);
-
-    double worst_table = 0.0;
-    std::map<std::array<int, 8>, double> g_cache, b_cache;
-    const auto key_of = [](const SpinOrbital &i, const SpinOrbital &j,
-                           const SpinOrbital &k, const SpinOrbital &l) {
-      return std::array<int, 8>{int(i.first), i.second, int(j.first), j.second,
-                                int(k.first), k.second, int(l.first), l.second};
-    };
-    const auto g = [&](const SpinOrbital &i, const SpinOrbital &j,
-                       const SpinOrbital &k, const SpinOrbital &l) {
-      const auto key = key_of(i, j, k, l);
-      const auto it = g_cache.find(key);
-      if (it != g_cache.end())
-        return it->second;
-      const auto &Fi = *orbital.at(i.first);
-      const auto &Fj = *orbital.at(j.first);
-      const auto &Fk = *orbital.at(k.first);
-      const auto &Fl = *orbital.at(l.first);
-      const auto value =
-        Coulomb::g_abcd(Fi, Fj, Fk, Fl, i.second, j.second, k.second, l.second);
-      const auto from_table =
-        qk_all.g(Fi, Fj, Fk, Fl, i.second, j.second, k.second, l.second);
-      worst_table = std::max(worst_table, std::abs(value - from_table));
-      g_cache[key] = value;
-      return value;
-    };
-    const auto b = [&](const SpinOrbital &i, const SpinOrbital &j,
-                       const SpinOrbital &k, const SpinOrbital &l) {
-      const auto key = key_of(i, j, k, l);
-      const auto it = b_cache.find(key);
-      if (it != b_cache.end())
-        return it->second;
-      const auto value = Bk_all.g(*orbital.at(i.first), *orbital.at(j.first),
-                                  *orbital.at(k.first), *orbital.at(l.first),
-                                  i.second, j.second, k.second, l.second);
-      b_cache[key] = value;
-      return value;
-    };
-    const auto g_plus_b = [&g, &b](const SpinOrbital &i, const SpinOrbital &j,
-                                   const SpinOrbital &k, const SpinOrbital &l) {
-      return g(i, j, k, l) + b(i, j, k, l);
-    };
-
-    Determinant core_determinant;
-    for (const auto &Fb : core_orbitals) {
-      for (int m = -Fb.twoj(); m <= Fb.twoj(); m += 2) {
-        core_determinant.push_back({Fb.nk_index(), m});
-      }
-    }
-    std::sort(core_determinant.begin(), core_determinant.end());
-
-    // h0 = e - V_HF, with V_HF from the core determinant and the given
-    // two-body interaction, so that h0 + V_HF = e exactly (V^{N-M})
-    const auto h0_for = [&](const auto &v) {
-      return [&, v](const SpinOrbital &i, const SpinOrbital &j) {
-        double V_HF = 0.0;
-        for (const auto &c : core_determinant) {
-          V_HF += v(i, c, j, c) - v(i, c, c, j);
-        }
-        const auto e = i == j ? orbital.at(i.first)->en() : 0.0;
-        return e - V_HF;
-      };
-    };
-    const auto h0 = h0_for(g);
-    const auto h0_Breit = h0_for(g_plus_b);
-
-    // <D'| sum_i f(i) + sum_{i<j} v(i,j) |D>: Slater-Condon rules, for a
-    // one-body operator f and a two-body operator v (m-scheme)
-    const auto operator_det = [&](const Determinant &Dp, const Determinant &D,
-                                  const auto &f, const auto &v) -> double {
-      const auto v_tilde = [&v](const SpinOrbital &p, const SpinOrbital &q,
-                                const SpinOrbital &r, const SpinOrbital &t) {
-        return v(p, q, r, t) - v(p, q, t, r);
-      };
-      std::vector<SpinOrbital> added, removed;
-      std::set_difference(Dp.begin(), Dp.end(), D.begin(), D.end(),
-                          std::back_inserter(added));
-      std::set_difference(D.begin(), D.end(), Dp.begin(), Dp.end(),
-                          std::back_inserter(removed));
-      if (added.size() > 2)
-        return 0.0;
-      if (added.empty()) {
-        double E = 0.0;
-        for (std::size_t t = 0; t < D.size(); ++t) {
-          E += f(D[t], D[t]);
-          for (std::size_t u = 0; u < t; ++u) {
-            E += v_tilde(D[t], D[u], D[t], D[u]);
-          }
-        }
-        return E;
-      }
-      if (added.size() == 1) {
-        const auto p = added[0];
-        const auto r = removed[0];
-        const auto [s1, D1] = annihilate(r, D);
-        const auto [s2, D2] = create(p, D1);
-        REQUIRE(D2 == Dp);
-        double two_body = 0.0;
-        for (const auto &t : D) {
-          if (t != r) {
-            two_body += v_tilde(p, t, r, t);
-          }
-        }
-        return s1 * s2 * (f(p, r) + two_body);
-      }
-      const auto p = added[0];
-      const auto q = added[1];
-      const auto r = removed[0];
-      const auto t = removed[1];
-      const auto [s1, D1] = annihilate(r, D);
-      const auto [s2, D2] = annihilate(t, D1);
-      const auto [s3, D3] = create(q, D2);
-      const auto [s4, D4] = create(p, D3);
-      REQUIRE(D4 == Dp);
-      return s1 * s2 * s3 * s4 * v_tilde(p, q, r, t);
-    };
-
-    // L and S in the m-scheme (non-relativistic limit): |n kappa m> =
-    // sum C(l ml, 1/2 ms | j m) |n l ml>|ms>, with the spherical components
-    // J_0 = J_z, J_{+-1} = -+(J_x +- i J_y)/sqrt2 of each
-    const auto J_q = [](int twoj, int twomp, int twoq, int twom) {
-      if (twomp != twom + twoq)
-        return 0.0;
-      const auto j = 0.5 * twoj;
-      const auto m = 0.5 * twom;
-      const auto mp = 0.5 * twomp;
-      if (twoq == 0)
-        return m;
-      return (twoq > 0 ? -1.0 : 1.0) *
-             std::sqrt(0.5 * (j * (j + 1.0) - m * mp));
-    };
-    const auto l_or_s = [&J_q](const SpinOrbital &p, const SpinOrbital &r,
-                               int twoq, bool orbital_part) {
-      const auto [np, kp] = Angular::index_to_nk(p.first);
-      const auto [nr, kr] = Angular::index_to_nk(r.first);
-      const auto l = Angular::l_k(kp);
-      if (np != nr || l != Angular::l_k(kr))
-        return 0.0;
-      const auto tjp = Angular::twoj_k(kp);
-      const auto tjr = Angular::twoj_k(kr);
-      double sum = 0.0;
-      for (int tml = -2 * l; tml <= 2 * l; tml += 2) {
-        for (int tms = -1; tms <= 1; tms += 2) {
-          const auto tml_p = orbital_part ? tml + twoq : tml;
-          const auto tms_p = orbital_part ? tms : tms + twoq;
-          if (std::abs(tml_p) > 2 * l || std::abs(tms_p) > 1)
-            continue;
-          const auto me = orbital_part ? J_q(2 * l, tml_p, twoq, tml) :
-                                         J_q(1, tms_p, twoq, tms);
-          sum += Angular::cg_2(2 * l, tml_p, 1, tms_p, tjp, p.second) * me *
-                 Angular::cg_2(2 * l, tml, 1, tms, tjr, r.second);
-        }
-      }
-      return sum;
-    };
-    std::vector<SpinOrbital> spin_orbitals;
-    for (const auto &Fn : all_orbitals) {
-      for (int m = -Fn.twoj(); m <= Fn.twoj(); m += 2) {
-        spin_orbitals.push_back({Fn.nk_index(), m});
-      }
-    }
-    std::map<SpinOrbital, std::size_t> spin_orbital_index;
-    for (std::size_t i = 0; i < spin_orbitals.size(); ++i) {
-      spin_orbital_index[spin_orbitals[i]] = i;
-    }
-    const auto num_so = spin_orbitals.size();
-    // Tables [q + 1](p, r) of <p|l_q|r> and <p|s_q|r>
-    std::vector<LinAlg::Matrix<double>> l_table(
-      3, LinAlg::Matrix<double>(num_so, num_so));
-    auto s_table = l_table;
-    for (std::size_t ip = 0; ip < num_so; ++ip) {
-      for (std::size_t ir = 0; ir < num_so; ++ir) {
-        for (int q = -1; q <= 1; ++q) {
-          l_table[std::size_t(q + 1)](ip, ir) =
-            l_or_s(spin_orbitals[ip], spin_orbitals[ir], 2 * q, true);
-          s_table[std::size_t(q + 1)](ip, ir) =
-            l_or_s(spin_orbitals[ip], spin_orbitals[ir], 2 * q, false);
-        }
-      }
-    }
-    // The scalar product: <p|J_q|r><q'|J_{-q}|t>, summed with (-1)^q
-    const auto dot =
-      [&spin_orbital_index](const std::vector<LinAlg::Matrix<double>> &table,
-                            const SpinOrbital &p, const SpinOrbital &r,
-                            const SpinOrbital &q2, const SpinOrbital &t) {
-        const auto ip = spin_orbital_index.at(p);
-        const auto ir = spin_orbital_index.at(r);
-        const auto iq = spin_orbital_index.at(q2);
-        const auto it = spin_orbital_index.at(t);
-        double sum = 0.0;
-        for (int q = -1; q <= 1; ++q) {
-          sum += (q == 0 ? 1.0 : -1.0) * table[std::size_t(q + 1)](ip, ir) *
-                 table[std::size_t(1 - q)](iq, it);
-        }
-        return sum;
-      };
-    // J^2 = sum_i J(i)^2 + sum_{i<j} 2 J(i).J(j): the one-body part summed
-    // over the spin-orbitals (complete within each nl shell)
-    const auto J2_operators =
-      [&](const std::vector<LinAlg::Matrix<double>> &table) {
-        const auto one_body = [&table, &dot, &spin_orbitals](
-                                const SpinOrbital &p, const SpinOrbital &r) {
-          double sum = 0.0;
-          for (const auto &t : spin_orbitals) {
-            sum += dot(table, p, t, t, r);
-          }
-          return sum;
-        };
-        const auto two_body =
-          [&table, &dot](const SpinOrbital &p, const SpinOrbital &q,
-                         const SpinOrbital &r, const SpinOrbital &t) {
-            return 2.0 * dot(table, p, r, q, t);
-          };
-        return std::pair{one_body, two_body};
-      };
-    const auto L2_operators = J2_operators(l_table);
-    const auto S2_operators = J2_operators(s_table);
-
-    // <D'| sum_i t_q(i) |D>, t in the m-scheme from the reduced elements
-    const auto T_det = [&](const Determinant &Dp, const Determinant &D,
-                           const Coulomb::meTable<double> &tab, int K,
-                           int twoq) {
-      const auto t = [&tab, K, twoq](const SpinOrbital &p,
-                                     const SpinOrbital &r) {
-        if (p.second - r.second != twoq)
-          return 0.0;
-        const auto tjp = Angular::nkindex_to_twoj(p.first);
-        const auto tjr = Angular::nkindex_to_twoj(r.first);
-        return Angular::neg1pow_2(tjp - p.second) *
-               Angular::threej_2(tjp, 2 * K, tjr, -p.second, twoq, r.second) *
-               tab.getv(p.first, r.first);
-      };
-      std::vector<SpinOrbital> added, removed;
-      std::set_difference(Dp.begin(), Dp.end(), D.begin(), D.end(),
-                          std::back_inserter(added));
-      std::set_difference(D.begin(), D.end(), Dp.begin(), Dp.end(),
-                          std::back_inserter(removed));
-      if (added.size() > 1)
-        return 0.0;
-      if (added.empty()) {
-        double sum = 0.0;
-        for (const auto &u : D) {
-          sum += t(u, u);
-        }
-        return sum;
-      }
-      const auto [s1, D1] = annihilate(removed[0], D);
-      const auto [s2, D2] = create(added[0], D1);
-      return s1 * s2 * t(added[0], removed[0]);
-    };
-
-    // Expansion of a CSF (at M = J) over determinants
-    using Expansion = std::map<Determinant, double>;
-    const auto expand = [&](const CI::CSF &csf, int twoJ) {
-      Expansion amplitude;
-      std::visit(
-        [&](const auto &c) {
-          using CSFType = std::decay_t<decltype(c)>;
-          if constexpr (std::is_same_v<CSFType, CI::CSF1>) {
-            const auto [sign, D] = create({c.state(0), twoJ}, core_determinant);
-            amplitude[D] += sign;
-          } else if constexpr (std::is_same_v<CSFType, CI::CSF2p1h>) {
-            const auto v = c.state(0);
-            const auto w = c.state(1);
-            const auto a = c.hole;
-            const auto tjv = Angular::nkindex_to_twoj(v);
-            const auto tjw = Angular::nkindex_to_twoj(w);
-            const auto tja = Angular::nkindex_to_twoj(a);
-            const auto eta = v == w ? 1.0 / std::sqrt(2.0) : 1.0;
-            for (int mv = -tjv; mv <= tjv; mv += 2) {
-              for (int mw = -tjw; mw <= tjw; mw += 2) {
-                const auto M12 = mv + mw;
-                const auto m = twoJ - M12;
-                if (std::abs(m) > tja)
-                  continue;
-                const auto cg =
-                  Angular::cg_2(tjv, mv, tjw, mw, c.twoJ12(), M12) *
-                  Angular::cg_2(c.twoJ12(), M12, tja, m, twoJ, twoJ);
-                if (cg == 0.0)
-                  continue;
-                // h+_{a m} = (-1)^(ja - m) a_{a,-m}; then a+_w, then a+_v
-                const auto [s1, D1] = annihilate({a, -m}, core_determinant);
-                const auto [s2, D2] = create({w, mw}, D1);
-                const auto [s3, D3] = create({v, mv}, D2);
-                const auto sign = s1 * s2 * s3;
-                if (sign != 0.0) {
-                  amplitude[D3] +=
-                    eta * cg * Angular::neg1pow_2(tja - m) * sign;
-                }
-              }
-            }
-          } else {
-            REQUIRE(false);
-          }
-        },
-        csf.variant());
-      return amplitude;
-    };
-
-    // Tables as the CI driver forms them: h1 = orbital energies (excited and
-    // hole orbitals), Q^k and B^k over both
-    const auto ci_orbitals = qip::merge(excited, holes);
-    Coulomb::QkTable qk;
-    qk.fill(ci_orbitals, Coulomb::YkTable(ci_orbitals), -1, false);
-    Coulomb::WkTable Bk;
-    Bk.fill(ci_orbitals, Bk_function, HF::Breit::Bk_SR, 99, false);
+  for (const auto &input : UnitTest::hole_atoms()) {
+    const auto atom = UnitTest::hole_atom(input.atom, input.core,
+                                          input.hole_shells, input.basis);
+    const auto so = UnitTest::spin_orbitals(atom.all);
+    const auto e = UnitTest::energies(so, atom.all);
+    const auto g = UnitTest::g_table(so, atom.all, atom.qk);
+    const auto g_Breit = UnitTest::g_table(so, atom.all, atom.qk, &atom.Bk);
+    // The core: its spin-orbitals come first
+    UnitTest::Determinant core(UnitTest::spin_orbitals(atom.core).size());
+    std::iota(core.begin(), core.end(), 0);
+    const auto E_core = UnitTest::H_det(core, core, core, e, g);
+    const auto E_core_Breit = UnitTest::H_det(core, core, core, e, g_Breit);
+    // The CI tables: one-body = orbital energies
     Coulomb::meTable<double> h1;
-    for (const auto &Fn : ci_orbitals) {
+    for (const auto &Fn : qip::merge(atom.excited, atom.holes)) {
       h1.add(Fn, Fn, Fn.en());
     }
-    const auto E_core = operator_det(core_determinant, core_determinant, h0, g);
-    const auto E_core_Breit =
-      operator_det(core_determinant, core_determinant, h0_Breit, g_plus_b);
 
-    Result result{};
-
-    // Blocks: CSFs, expansions, Hamiltonians
-    struct Block {
-      CI::PsiJPi psi;
-      std::vector<Expansion> expansions;
-      LinAlg::Matrix<double> H_brute_force;
-    };
-    std::vector<Block> block_list;
-    for (const auto &[twoJ, parity] : blocks) {
-      CI::PsiJPi psi(twoJ, parity, excited, 1, {}, holes);
+    double worst = 0.0, worst_Breit = 0.0, largest_Breit = 0.0;
+    for (const auto &[twoJ, parity] : input.blocks) {
+      const CI::PsiJPi psi(twoJ, parity, atom.excited, 1, {}, atom.holes);
       REQUIRE(psi.has_holes());
-      const auto N = psi.num_CSFs();
-      REQUIRE(N > 2);
-      result.num_CSFs += N;
-      std::vector<Expansion> expansions;
+      std::vector<UnitTest::Expansion> csfs;
       for (const auto &csf : psi.CSFs()) {
-        expansions.push_back(expand(csf, twoJ));
+        csfs.push_back(UnitTest::expand(csf, twoJ, core, so));
       }
-      // Orthonormal
-      for (std::size_t i = 0; i < N; ++i) {
-        for (std::size_t j = 0; j <= i; ++j) {
-          double overlap = 0.0;
-          for (const auto &[D, amp] : expansions[i]) {
-            const auto it = expansions[j].find(D);
-            if (it != expansions[j].end()) {
-              overlap += amp * it->second;
-            }
-          }
-          result.worst_norm = std::max(
-            result.worst_norm, std::abs(overlap - (i == j ? 1.0 : 0.0)));
-        }
-      }
-      // Hamiltonian (Coulomb; Coulomb + Breit), relative to the core; L^2, S^2
-      LinAlg::Matrix<double> H_bf(N, N), H_bf_Breit(N, N), L2_bf(N, N),
-        S2_bf(N, N);
-      for (std::size_t i = 0; i < N; ++i) {
-        for (std::size_t j = 0; j <= i; ++j) {
-          double H_ij = 0.0, HB_ij = 0.0, L2_ij = 0.0, S2_ij = 0.0;
-          for (const auto &[Dp, amp_i] : expansions[i]) {
-            for (const auto &[D, amp_j] : expansions[j]) {
-              const auto weight = amp_i * amp_j;
-              H_ij += weight * operator_det(Dp, D, h0, g);
-              HB_ij += weight * operator_det(Dp, D, h0_Breit, g_plus_b);
-              L2_ij += weight * operator_det(Dp, D, L2_operators.first,
-                                             L2_operators.second);
-              S2_ij += weight * operator_det(Dp, D, S2_operators.first,
-                                             S2_operators.second);
+      const auto Hci = CI::construct_Hci(psi, h1, atom.qk);
+      const auto Hci_Breit = CI::construct_Hci(psi, h1, atom.qk, &atom.Bk);
+      for (std::size_t i = 0; i < psi.num_CSFs(); ++i) {
+        for (std::size_t j = 0; j < psi.num_CSFs(); ++j) {
+          double H = 0.0, H_Breit = 0.0;
+          for (const auto &[Dp, amp_i] : csfs[i]) {
+            for (const auto &[D, amp_j] : csfs[j]) {
+              H += amp_i * amp_j * UnitTest::H_det(Dp, D, core, e, g);
+              H_Breit +=
+                amp_i * amp_j * UnitTest::H_det(Dp, D, core, e, g_Breit);
             }
           }
           if (i == j) {
-            H_ij -= E_core;
-            HB_ij -= E_core_Breit;
+            H -= E_core;
+            H_Breit -= E_core_Breit;
           }
-          H_bf(i, j) = H_bf(j, i) = H_ij;
-          H_bf_Breit(i, j) = H_bf_Breit(j, i) = HB_ij;
-          L2_bf(i, j) = L2_bf(j, i) = L2_ij;
-          S2_bf(i, j) = S2_bf(j, i) = S2_ij;
+          worst = std::max(worst, std::abs(Hci(i, j) - H));
+          worst_Breit =
+            std::max(worst_Breit, std::abs(Hci_Breit(i, j) - H_Breit));
+          largest_Breit = std::max(largest_Breit, std::abs(H_Breit - H));
         }
       }
-      const auto Hci = CI::construct_Hci(psi, h1, qk);
-      const auto Hci_Breit = CI::construct_Hci(psi, h1, qk, &Bk);
+    }
+    fmt::print("{}: Hci vs determinants {:.1e}; with Breit {:.1e} (Breit "
+               "terms up to {:.1e})\n",
+               input.atom, worst, worst_Breit, largest_Breit);
+    REQUIRE(worst < 1.0e-10);
+    REQUIRE(worst_Breit < 1.0e-10);
+    REQUIRE(largest_Breit > 1.0e-6);
+  }
+}
+
+//==============================================================================
+// L^2 and S^2 over a block with hole CSFs (L2S2_element): the eigenvalues are
+// L(L+1) and S(S+1), with integer L and half-integer S (one electron), and
+// expectation_L2S2 of each eigenvector (which groups the CSFs by
+// configuration) returns its eigenvalue
+TEST_CASE("CI: hole CSF L2 and S2", "[CI][unit][ciholes]") {
+  for (const auto &input : UnitTest::hole_atoms()) {
+    const auto atom = UnitTest::hole_atom(input.atom, input.core,
+                                          input.hole_shells, input.basis);
+    double worst_eigenvalue = 0.0, worst_expectation = 0.0;
+    for (const auto &[twoJ, parity] : input.blocks) {
+      CI::PsiJPi psi(twoJ, parity, atom.excited, 1, {}, atom.holes);
+      const auto N = psi.num_CSFs();
+      LinAlg::Matrix<double> L2(N, N), S2(N, N);
       for (std::size_t i = 0; i < N; ++i) {
         for (std::size_t j = 0; j < N; ++j) {
-          result.worst_H =
-            std::max(result.worst_H, std::abs(Hci(i, j) - H_bf(i, j)));
-          result.worst_Breit = std::max(
-            result.worst_Breit, std::abs(Hci_Breit(i, j) - H_bf_Breit(i, j)));
-          result.Breit_size = std::max(result.Breit_size,
-                                       std::abs(H_bf_Breit(i, j) - H_bf(i, j)));
-          const auto [L2, S2] = CI::L2S2_element(psi.csf(i), psi.csf(j), twoJ);
-          result.worst_L2S2 =
-            std::max({result.worst_L2S2, std::abs(L2 - L2_bf(i, j)),
-                      std::abs(S2 - S2_bf(i, j))});
+          std::tie(L2(i, j), S2(i, j)) =
+            CI::L2S2_element(psi.csf(i), psi.csf(j), twoJ);
         }
       }
-      // The brute-force L^2 and S^2 have eigenvalues L(L+1) and S(S+1), with
-      // integer L and (one electron) half-integer S
-      for (const auto &[matrix, two_S_like] :
-           {std::pair{&L2_bf, false}, std::pair{&S2_bf, true}}) {
-        for (const auto lambda : LinAlg::symmhEigensystem(*matrix).first) {
+      for (const auto &[J2, is_S] :
+           {std::pair{&L2, false}, std::pair{&S2, true}}) {
+        psi.solve(*J2, 0);
+        for (std::size_t n = 0; n < psi.num_solutions(); ++n) {
+          // lambda = X(X+1): X integer (L), or half-integer (S)
+          const auto lambda = psi.energy(n);
           const auto twoX = std::round(std::sqrt(1.0 + 4.0 * lambda) - 1.0);
-          const auto expected = 0.25 * twoX * (twoX + 2.0);
-          const auto parity_ok = two_S_like ? std::fmod(twoX, 2.0) == 1.0 :
-                                              std::fmod(twoX, 2.0) == 0.0;
-          REQUIRE(parity_ok);
-          result.worst_LS_eigenvalue =
-            std::max(result.worst_LS_eigenvalue, std::abs(lambda - expected));
+          REQUIRE(std::fmod(twoX, 2.0) == (is_S ? 1.0 : 0.0));
+          worst_eigenvalue = std::max(
+            worst_eigenvalue, std::abs(lambda - 0.25 * twoX * (twoX + 2.0)));
+          const auto [L2_c, S2_c] =
+            CI::expectation_L2S2(psi.coefs(n), psi.CSFs(), twoJ);
+          worst_expectation = std::max(worst_expectation,
+                                       std::abs((is_S ? S2_c : L2_c) - lambda));
         }
       }
-      // <L^2> and <S^2> of the CI states (expectation_L2S2 groups the CSFs by
-      // configuration) against the brute-force matrices
-      psi.solve(H_bf, 0);
-      for (std::size_t n = 0; n < psi.num_solutions(); ++n) {
-        const auto c = psi.coefs(n);
-        double L2_c = 0.0, S2_c = 0.0;
-        for (std::size_t i = 0; i < N; ++i) {
-          for (std::size_t j = 0; j < N; ++j) {
-            L2_c += c[i] * c[j] * L2_bf(i, j);
-            S2_c += c[i] * c[j] * S2_bf(i, j);
-          }
-        }
-        const auto [L2, S2] = CI::expectation_L2S2(c, psi.CSFs(), twoJ);
-        result.worst_expectation = std::max(
-          {result.worst_expectation, std::abs(L2 - L2_c), std::abs(S2 - S2_c)});
-      }
-      block_list.push_back({std::move(psi), std::move(expansions), H_bf});
     }
+    fmt::print("{}: L^2, S^2 eigenvalues vs X(X+1) {:.1e}; expectation_L2S2 "
+               "{:.1e}\n",
+               input.atom, worst_eigenvalue, worst_expectation);
+    REQUIRE(worst_eigenvalue < 1.0e-10);
+    REQUIRE(worst_expectation < 1.0e-10);
+  }
+}
 
-    // Reduced matrix elements of one-body operators: E1 (odd) and M1 (even)
-    const DiracOperator::E1 e1{wf.grid()};
-    const DiracOperator::M1 m1{wf.grid(), PhysConst::alpha, 0.0};
-    const auto e1_tab = Amplitudes::me_table(ci_orbitals, &e1);
-    const auto m1_tab = Amplitudes::me_table(ci_orbitals, &m1);
-    for (const auto &X : block_list) {
-      for (const auto &V : block_list) {
-        const auto twoJX = X.psi.twoJ();
-        const auto twoJV = V.psi.twoJ();
-        for (const auto &[tab, op] :
-             {std::pair{
-                &e1_tab,
-                static_cast<const DiracOperator::TensorOperator *>(&e1)},
-              std::pair{
-                &m1_tab,
-                static_cast<const DiracOperator::TensorOperator *>(&m1)}}) {
-          const auto K = op->rank();
-          if (X.psi.parity() * V.psi.parity() != op->parity())
+//==============================================================================
+// Reduced matrix elements between hole CSFs, and between one-electron and
+// hole CSFs (RME_CSF; E1 and M1): <A||T||B> = (-1)^(J_A - J_B) <B||T||A>
+TEST_CASE("CI: hole CSF RMEs", "[CI][unit][ciholes]") {
+  for (const auto &input : UnitTest::hole_atoms()) {
+    const auto atom = UnitTest::hole_atom(input.atom, input.core,
+                                          input.hole_shells, input.basis);
+    std::vector<CI::PsiJPi> blocks;
+    for (const auto &[twoJ, parity] : input.blocks) {
+      blocks.emplace_back(twoJ, parity, atom.excited, 1,
+                          CI::ConfigurationSpace{}, atom.holes);
+    }
+    const auto ci_orbitals = qip::merge(atom.excited, atom.holes);
+    const DiracOperator::E1 e1{atom.wf.grid()};
+    const DiracOperator::M1 m1{atom.wf.grid(), PhysConst::alpha, 0.0};
+    double worst = 0.0, largest = 0.0;
+    std::size_t num_rme = 0;
+    for (const auto *op :
+         {static_cast<const DiracOperator::TensorOperator *>(&e1),
+          static_cast<const DiracOperator::TensorOperator *>(&m1)}) {
+      const auto tab = Amplitudes::me_table(ci_orbitals, op);
+      const auto K = op->rank();
+      for (const auto &A : blocks) {
+        for (const auto &B : blocks) {
+          if (A.parity() * B.parity() != op->parity() ||
+              std::abs(A.twoJ() - B.twoJ()) > 2 * K)
             continue;
-          if (std::abs(twoJX - twoJV) > 2 * K)
-            continue;
-          const auto twoq = twoJX - twoJV;
-          const auto wigner_eckart =
-            Angular::threej_2(twoJX, 2 * K, twoJV, -twoJX, twoq, twoJV);
-          if (wigner_eckart == 0.0)
-            continue;
-          for (std::size_t i = 0; i < X.psi.num_CSFs(); ++i) {
-            for (std::size_t j = 0; j < V.psi.num_CSFs(); ++j) {
-              double me = 0.0;
-              for (const auto &[Dp, amp_i] : X.expansions[i]) {
-                for (const auto &[D, amp_j] : V.expansions[j]) {
-                  me += amp_i * amp_j * T_det(Dp, D, *tab, K, twoq);
-                }
-              }
-              const auto bf = me / wigner_eckart;
-              const auto rme =
-                CI::RME_CSF(X.psi.csf(i), twoJX, V.psi.csf(j), twoJV, *tab, K);
-              result.worst_rme = std::max(result.worst_rme, std::abs(rme - bf));
-              ++result.num_rme;
+          const auto sign = Angular::neg1pow_2(A.twoJ() - B.twoJ());
+          for (std::size_t i = 0; i < A.num_CSFs(); ++i) {
+            for (std::size_t j = 0; j < B.num_CSFs(); ++j) {
+              const auto AB =
+                CI::RME_CSF(A.csf(i), A.twoJ(), B.csf(j), B.twoJ(), tab, K);
+              const auto BA =
+                CI::RME_CSF(B.csf(j), B.twoJ(), A.csf(i), A.twoJ(), tab, K);
+              worst = std::max(worst, std::abs(AB - sign * BA));
+              largest = std::max(largest, std::abs(AB));
+              ++num_rme;
             }
           }
         }
       }
     }
+    fmt::print("{}: {} RMEs, bra-ket symmetry {:.1e} (largest {:.1e})\n",
+               input.atom, num_rme, worst, largest);
+    REQUIRE(num_rme > 100);
+    REQUIRE(largest > 0.1);
+    REQUIRE(worst < 1.0e-12);
+  }
+}
 
-    // The CI driver: energies against the eigenvalues of the brute-force
-    // Hamiltonian
+//==============================================================================
+// The CI driver with hole CSFs: its energies against the eigenvalues of
+// construct_Hci over the same CSFs
+TEST_CASE("CI: hole CSF driver", "[CI][unit][ciholes]") {
+  for (const auto &input : UnitTest::hole_atoms()) {
+    const auto atom = UnitTest::hole_atom(input.atom, input.core,
+                                          input.hole_shells, input.basis);
+    Coulomb::meTable<double> h1;
+    for (const auto &Fn : qip::merge(atom.excited, atom.holes)) {
+      h1.add(Fn, Fn, Fn.en());
+    }
     std::string J_even, J_odd;
-    for (const auto &[twoJ, parity] : blocks) {
+    for (const auto &[twoJ, parity] : input.blocks) {
       auto &J_list = parity == 1 ? J_even : J_odd;
       J_list += (J_list.empty() ? "" : ",") + CI::J_string(twoJ);
     }
-    std::string hole_option;
-    for (const auto &shell : hole_shells) {
-      hole_option += (hole_option.empty() ? "" : ",") + shell;
+    std::string holes;
+    for (const auto &shell : input.hole_shells) {
+      holes += (holes.empty() ? "" : ",") + shell;
     }
-    const IO::InputBlock input{
-      "CI", "ci_basis = " + basis_string + "; num_electrons = 1; holes = " +
-              hole_option + "; J+ = " + J_even + "; J- = " + J_odd +
+    const IO::InputBlock ci_input{
+      "CI", "ci_basis = " + input.basis + "; num_electrons = 1; holes = " +
+              holes + "; J+ = " + J_even + "; J- = " + J_odd +
               "; num_solutions = 0; qk_file = false; ci_file = false; "
               "print_details = false;"};
-    const auto solution = CI::configuration_interaction(input, wf);
-    REQUIRE(solution.levels.size() == blocks.size());
-    REQUIRE(solution.integrals.holes.size() == holes.size());
+    const auto solution = CI::configuration_interaction(ci_input, atom.wf);
+    REQUIRE(solution.levels.size() == input.blocks.size());
+    REQUIRE(solution.integrals.holes.size() == atom.holes.size());
+    double worst = 0.0;
     for (const auto &level : solution.levels) {
-      const auto &block = *std::find_if(
-        block_list.cbegin(), block_list.cend(), [&level](const auto &b) {
-          return b.psi.twoJ() == level.twoJ() &&
-                 b.psi.parity() == level.parity();
-        });
-      REQUIRE(level.num_CSFs() == block.psi.num_CSFs());
       REQUIRE(level.has_holes());
-      const auto E_bf = LinAlg::symmhEigensystem(block.H_brute_force).first;
+      CI::PsiJPi psi(level.twoJ(), level.parity(), atom.excited, 1, {},
+                     atom.holes);
+      REQUIRE(psi.num_CSFs() == level.num_CSFs());
+      psi.solve(CI::construct_Hci(psi, h1, atom.qk), 0);
       for (std::size_t i = 0; i < level.num_solutions(); ++i) {
-        result.worst_driver =
-          std::max(result.worst_driver, std::abs(level.energy(i) - E_bf[i]));
+        worst = std::max(worst, std::abs(level.energy(i) - psi.energy(i)));
       }
     }
-    result.worst_table = worst_table;
-    return result;
-  };
-
-  // Li: hole in 1s; blocks 1/2-, 1/2+, 3/2+ (E1 between them, M1 within).
-  // Na: holes in 2s and 2p (one block holds hole CSFs of 2s, 2p-, 2p+)
-  std::vector<std::pair<std::string, Result>> results;
-  for (const auto &[atom, core, hole_shells, basis_string, blocks] :
-       std::vector<
-         std::tuple<std::string, std::string, std::vector<std::string>,
-                    std::string, std::vector<std::pair<int, int>>>>{
-         {"Li", "[He]", {"1s"}, "3spd", {{1, -1}, {1, +1}, {3, +1}}},
-         {"Na", "[Ne]", {"2s", "2p"}, "3spd", {{1, +1}, {3, -1}}}}) {
-    results.emplace_back(
-      atom, check_atom(atom, core, hole_shells, basis_string, blocks));
+    fmt::print("{}: driver vs construct_Hci {:.1e}\n", input.atom, worst);
+    REQUIRE(worst < 1.0e-9);
   }
+}
 
-  // Table: one column per atom, one row per check
-  struct Row {
-    const char *label;
-    double Result::*value;
-  };
-  const std::array<Row, 10> rows{
-    {{"CSF orthonormality (dev)", &Result::worst_norm},
-     {"Hci vs determinants", &Result::worst_H},
-     {"Hci with Breit vs determinants", &Result::worst_Breit},
-     {"  largest Breit term", &Result::Breit_size},
-     {"  Q^k table vs radial integrals", &Result::worst_table},
-     {"L^2, S^2 elements", &Result::worst_L2S2},
-     {"L^2, S^2 eigenvalues vs L(L+1), S(S+1)", &Result::worst_LS_eigenvalue},
-     {"<L^2>, <S^2> of CI states", &Result::worst_expectation},
-     {"RMEs", &Result::worst_rme},
-     {"driver E vs eigenvalues", &Result::worst_driver}}};
-  fmt::print("{:40s}", "Hole CSFs, max diff:");
-  for (const auto &[atom, r] : results) {
-    fmt::print("{:>14s}", fmt::format("{} ({} CSFs)", atom, r.num_CSFs));
-  }
-  fmt::print("\n");
-  for (const auto &row : rows) {
-    fmt::print("{:40s}", row.label);
-    for (const auto &[atom, r] : results) {
-      fmt::print("{:14.1e}", r.*row.value);
+//==============================================================================
+// Second order with one hole leg: the one-electron / hole CSF elements,
+// Sigma2_AB (the S^k with a hole leg, the terms whose intermediate state is a
+// hole CSF left out) plus one_body_1p_2p1h with <w|Sigma|a> between the other
+// particle and the hole (the full Sigma_1, at the hole and the particle
+// energies, averaged), against the second-order sum over the determinants
+// outside the CI space. Every hole CSF is in the space (hole basis = all
+// excited orbitals), so those are the 3p2h determinants. Li and Be (the
+// sector is enumerated). RS denominators: exact
+TEST_CASE("CI: Sigma_2 with one hole leg", "[CI][unit][ciholes]") {
+  for (const auto &input : UnitTest::hole_atoms()) {
+    if (input.atom == "Na")
+      continue;
+    const auto atom = UnitTest::hole_atom(input.atom, input.core,
+                                          input.hole_shells, input.basis);
+    const auto so = UnitTest::spin_orbitals(atom.all);
+    const auto e = UnitTest::energies(so, atom.all);
+    const auto g = UnitTest::g_table(so, atom.all, atom.qk);
+    UnitTest::Determinant core(UnitTest::spin_orbitals(atom.core).size());
+    std::iota(core.begin(), core.end(), 0);
+
+    // S^k over the CI orbitals, with hole legs
+    const auto &holes = atom.holes;
+    const MBPT::InCISpace in_ci_space =
+      [&holes](const DiracSpinor &a, const DiracSpinor &, const DiracSpinor *) {
+        return std::find(holes.cbegin(), holes.cend(), a) != holes.cend();
+      };
+    const Angular::SixJTable sixj(DiracSpinor::max_tj(atom.all));
+    const auto Sk_function = [&](int k, const DiracSpinor &p,
+                                 const DiracSpinor &q, const DiracSpinor &r,
+                                 const DiracSpinor &t) {
+      return MBPT::Sk_vwxy(k, p, q, r, t, atom.qk, atom.core, atom.excited,
+                           sixj, MBPT::Denominators::RS, {}, 0.0, nullptr,
+                           &in_ci_space);
+    };
+    Coulomb::WkTable Sk;
+    Sk.fill(qip::merge(atom.excited, atom.holes), Sk_function, MBPT::Sk_vwxy_SR,
+            99, false);
+    // <w|Sigma|a> between the excited and hole orbitals of one kappa
+    Coulomb::meTable<double> h1_Sigma;
+    for (const auto &Fw : atom.excited) {
+      for (const auto &Fa : holes) {
+        if (Fw.kappa() != Fa.kappa())
+          continue;
+        const auto S_a =
+          MBPT::Sigma_vw(Fw, Fa, atom.qk, atom.core, atom.excited, 99, Fa.en());
+        const auto S_w =
+          MBPT::Sigma_vw(Fw, Fa, atom.qk, atom.core, atom.excited, 99, Fw.en());
+        h1_Sigma.add(Fw, Fa, 0.5 * (S_a + S_w));
+      }
     }
-    fmt::print("\n");
-  }
 
-  for (const auto &[atom, r] : results) {
-    REQUIRE(r.num_rme > 100);
-    REQUIRE(r.worst_norm < 1.0e-12);
-    REQUIRE(r.worst_H < 1.0e-10);
-    REQUIRE(r.worst_table < 1.0e-12);
-    REQUIRE(r.worst_Breit < 1.0e-10);
-    REQUIRE(r.Breit_size > 1.0e-6);
-    REQUIRE(r.worst_L2S2 < 1.0e-10);
-    REQUIRE(r.worst_LS_eigenvalue < 1.0e-10);
-    REQUIRE(r.worst_expectation < 1.0e-10);
-    REQUIRE(r.worst_rme < 1.0e-10);
-    REQUIRE(r.worst_driver < 1.0e-9);
+    double worst = 0.0, largest = 0.0;
+    for (const auto &[twoJ, parity] : input.blocks) {
+      const CI::PsiJPi psi(twoJ, parity, atom.excited, 1, {}, atom.holes);
+      std::vector<UnitTest::Expansion> csfs;
+      for (const auto &csf : psi.CSFs()) {
+        csfs.push_back(UnitTest::expand(csf, twoJ, core, so));
+      }
+      const auto Q = UnitTest::Q_space(so, core, holes, twoJ, parity, 1);
+      REQUIRE(!Q.empty());
+      const auto H2 = UnitTest::second_order(csfs, Q, core, e, g);
+      for (std::size_t i = 0; i < psi.num_CSFs(); ++i) {
+        for (std::size_t j = 0; j < psi.num_CSFs(); ++j) {
+          if (psi.csf(i).num_holes() != 0 || psi.csf(j).num_holes() != 1)
+            continue;
+          const auto &x = std::get<CI::CSF1>(psi.csf(i).variant());
+          const auto &vwa = std::get<CI::CSF2p1h>(psi.csf(j).variant());
+          const auto Sigma2 = CI::Sigma2_AB(x, vwa, twoJ, Sk) +
+                              CI::one_body_1p_2p1h(h1_Sigma, x, vwa, twoJ);
+          worst = std::max(worst, std::abs(Sigma2 - H2(i, j)));
+          largest = std::max(largest, std::abs(H2(i, j)));
+        }
+      }
+    }
+    fmt::print("{}: Sigma_2 (one hole leg) vs second-order determinants {:.1e} "
+               "(largest {:.1e})\n",
+               input.atom, worst, largest);
+    REQUIRE(worst < 1.0e-10);
+    REQUIRE(largest > 1.0e-7);
   }
+}
+
+//==============================================================================
+// Second order with two hole legs: particle_hole_element with the Sigma_2
+// pair elements, for the particle-hole pairs of the closed-shell core,
+// |(w a~) K>, with different particles and different holes (then the element
+// is the two-body part alone, and no spectator), against the second-order sum
+// over the determinants outside the space of those pairs (2p2h and 3p3h).
+// First order (the Coulomb element) checks the pair states. Be: two hole shells
+TEST_CASE("CI: Sigma_2 with two hole legs", "[CI][unit][ciholes]") {
+  const auto atom = UnitTest::hole_atom("Be", "[Be]", {"1s", "2s"}, "3sp");
+  const auto so = UnitTest::spin_orbitals(atom.all);
+  const auto e = UnitTest::energies(so, atom.all);
+  const auto g = UnitTest::g_table(so, atom.all, atom.qk);
+  UnitTest::Determinant core(UnitTest::spin_orbitals(atom.core).size());
+  std::iota(core.begin(), core.end(), 0);
+
+  const auto &holes = atom.holes;
+  const MBPT::InCISpace in_ci_space =
+    [&holes](const DiracSpinor &a, const DiracSpinor &, const DiracSpinor *) {
+      return std::find(holes.cbegin(), holes.cend(), a) != holes.cend();
+    };
+  const Angular::SixJTable sixj(DiracSpinor::max_tj(atom.all));
+  const auto Sk_function = [&](int k, const DiracSpinor &p,
+                               const DiracSpinor &q, const DiracSpinor &r,
+                               const DiracSpinor &t) {
+    return MBPT::Sk_vwxy(k, p, q, r, t, atom.qk, atom.core, atom.excited, sixj,
+                         MBPT::Denominators::RS, {}, 0.0, nullptr,
+                         &in_ci_space);
+  };
+  Coulomb::WkTable Sk;
+  Sk.fill(qip::merge(atom.excited, atom.holes), Sk_function, MBPT::Sk_vwxy_SR,
+          99, false);
+  const auto coulomb = CI::coulomb_pair_element(atom.qk);
+  const auto sigma2 = CI::sigma2_pair_element(Sk);
+
+  double worst_first = 0.0, worst_second = 0.0, largest = 0.0;
+  std::size_t num_pairs = 0;
+  for (const auto &Fw : atom.excited) {
+    for (const auto &Fa : holes) {
+      for (int twoK = std::abs(Fw.twoj() - Fa.twoj());
+           twoK <= Fw.twoj() + Fa.twoj(); twoK += 2) {
+        // The pairs (y b~) of the same K and parity, with y != w and b != a
+        const auto parity = Fw.parity() * Fa.parity();
+        std::vector<std::pair<DiracSpinor::Index, DiracSpinor::Index>> pairs;
+        std::vector<UnitTest::Expansion> states;
+        for (const auto &Fy : atom.excited) {
+          for (const auto &Fb : holes) {
+            if (Fy == Fw || Fb == Fa || Fy.parity() * Fb.parity() != parity ||
+                std::abs(Fy.twoj() - Fb.twoj()) > twoK ||
+                Fy.twoj() + Fb.twoj() < twoK)
+              continue;
+            pairs.push_back({Fy.nk_index(), Fb.nk_index()});
+            states.push_back(UnitTest::particle_hole(
+              Fy.nk_index(), Fb.nk_index(), twoK, core, so));
+          }
+        }
+        if (pairs.empty())
+          continue;
+        const auto ket =
+          UnitTest::particle_hole(Fw.nk_index(), Fa.nk_index(), twoK, core, so);
+        const auto Q = UnitTest::Q_space(so, core, holes, twoK, parity, 0);
+        const auto H2 =
+          UnitTest::second_order(qip::merge(states, {ket}), Q, core, e, g);
+        for (std::size_t i = 0; i < pairs.size(); ++i) {
+          const auto [y, b] = pairs[i];
+          double H1 = 0.0;
+          for (const auto &[Dp, amp_i] : states[i]) {
+            for (const auto &[D, amp_j] : ket) {
+              H1 += amp_i * amp_j * UnitTest::H_det(Dp, D, core, e, g);
+            }
+          }
+          const auto first = CI::particle_hole_element(
+            coulomb, y, b, Fw.nk_index(), Fa.nk_index(), twoK);
+          const auto second = CI::particle_hole_element(
+            sigma2, y, b, Fw.nk_index(), Fa.nk_index(), twoK);
+          worst_first = std::max(worst_first, std::abs(first - H1));
+          worst_second =
+            std::max(worst_second, std::abs(second - H2(i, pairs.size())));
+          largest = std::max(largest, std::abs(H2(i, pairs.size())));
+          ++num_pairs;
+        }
+      }
+    }
+  }
+  fmt::print(
+    "Be, core particle-hole pairs ({}): Coulomb vs determinants {:.1e}; "
+    "Sigma_2 (two hole legs) vs second order {:.1e} (largest {:.1e})\n",
+    num_pairs, worst_first, worst_second, largest);
+  REQUIRE(num_pairs > 10);
+  REQUIRE(worst_first < 1.0e-10);
+  REQUIRE(worst_second < 1.0e-10);
+  REQUIRE(largest > 1.0e-7);
 }
 
 //==============================================================================

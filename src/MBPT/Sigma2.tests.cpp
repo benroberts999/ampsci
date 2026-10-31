@@ -10,8 +10,10 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
+#include "qip/Vector.hpp"
 #include <algorithm>
 #include <array>
+#include <cmath>
 #include <string>
 #include <vector>
 
@@ -797,4 +799,95 @@ TEST_CASE("Sigma2: Mg Feynman screening", "[Sigma2][CI][integration]") {
              lande_ratio(E_sigma2));
   REQUIRE(lande_ratio(E_screened) ==
           Approx(lande_ratio(E_sigma2)).epsilon(1.0e-3));
+}
+
+//==============================================================================
+// S^k with hole legs (external legs that are core orbitals, for the hole
+// CSFs of a CI). The stored symmetries S_vwxy = S_wvyx = S_xyvw must hold with
+// hole legs, in every denominator mode, with and without the exclusion of
+// the terms whose intermediate state is in the CI space; the exclusion must
+// change some integrals; and the Fermi-level energy of a hole leg is its own
+// energy
+TEST_CASE("Sigma2: hole legs", "[Sigma2][MBPT][unit][ciholes]") {
+  Wavefunction wf({500, 1.0e-4, 30.0, 10.0, "loglinear"},
+                  {"Na", -1, "pointlike"}, 1.0);
+  wf.solve_core("HartreeFock", "[Ne]", std::nullopt, 1.0e-6, false);
+  auto b_params = SplineBasis::Parameters("4sp", 20, 6, {1.0e-2}, 20.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
+  // Named references (not structured bindings), so the lambdas below can
+  // capture them in C++17
+  const auto core_excited = DiracSpinor::split_by_core(wf.basis(), wf.core());
+  const auto &core = core_excited.first;
+  const auto &excited = core_excited.second;
+  const auto all_orbitals = qip::merge(core, excited);
+  Coulomb::QkTable qk;
+  qk.fill(all_orbitals, Coulomb::YkTable(all_orbitals), -1, false);
+  const Angular::SixJTable sixj(DiracSpinor::max_tj(all_orbitals));
+
+  // Legs: the n = 2 core orbitals (hole legs) and the n = 3 excited ones
+  std::vector<DiracSpinor> legs;
+  for (const auto &Fn : all_orbitals) {
+    if (Fn.n() == 2 || Fn.n() == 3) {
+      legs.push_back(Fn);
+    }
+  }
+  REQUIRE(legs.size() == 6);
+  const auto is_hole = [&core](const DiracSpinor &Fn) {
+    return std::find(core.cbegin(), core.cend(), Fn) != core.cend();
+  };
+  for (const auto &Fn : legs) {
+    const auto expected =
+      is_hole(Fn) ? Fn.en() : MBPT::e_bar(Fn.kappa(), excited);
+    REQUIRE(MBPT::e_bar(Fn, core, excited) == expected);
+  }
+
+  // The CI space: a hole in any n = 2 shell, particles with n <= 3 (the
+  // spectator too). Required with hole legs: without it, the terms whose
+  // intermediate state is the bra or the ket itself have zero denominators
+  const MBPT::InCISpace in_ci_space =
+    [](const DiracSpinor &a, const DiracSpinor &n, const DiracSpinor *p) {
+      return a.n() == 2 && n.n() <= 3 && (p == nullptr || p->n() <= 3);
+    };
+
+  // Leg patterns of the hole CSF elements: at most one hole in each pair,
+  // (v, w) and (x, y), and at least one in all
+  const auto E0 = -0.5;
+  double largest = 0.0;
+  std::size_t num_checked = 0;
+  for (const auto &v : legs) {
+    for (const auto &w : legs) {
+      for (const auto &x : legs) {
+        for (const auto &y : legs) {
+          const auto holes_vw = int(is_hole(v)) + int(is_hole(w));
+          const auto holes_xy = int(is_hole(x)) + int(is_hole(y));
+          if (holes_vw + holes_xy == 0 || holes_vw > 1 || holes_xy > 1)
+            continue;
+          for (int k = 0; k <= 3; ++k) {
+            if (!MBPT::Sk_vwxy_SR(k, v, w, x, y))
+              continue;
+            for (const auto mode :
+                 {MBPT::Denominators::RS, MBPT::Denominators::DFK,
+                  MBPT::Denominators::BW}) {
+              const auto Sk = [&](const DiracSpinor &a, const DiracSpinor &b,
+                                  const DiracSpinor &c, const DiracSpinor &d) {
+                return MBPT::Sk_vwxy(k, a, b, c, d, qk, core, excited, sixj,
+                                     mode, {}, E0, nullptr, &in_ci_space);
+              };
+              const auto S_vwxy = Sk(v, w, x, y);
+              REQUIRE(std::isfinite(S_vwxy));
+              REQUIRE(Sk(w, v, y, x) == Approx(S_vwxy).margin(1.0e-14));
+              REQUIRE(Sk(x, y, v, w) == Approx(S_vwxy).margin(1.0e-14));
+              largest = std::max(largest, std::abs(S_vwxy));
+              ++num_checked;
+            }
+          }
+        }
+      }
+    }
+  }
+  fmt::print("S^k with hole legs: {} symmetry checks; largest {:.1e}\n",
+             num_checked, largest);
+  REQUIRE(num_checked > 1000);
+  REQUIRE(largest > 1.0e-5);
 }

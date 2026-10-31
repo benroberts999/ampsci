@@ -103,6 +103,20 @@ double leg_de(Denominators denominators, double et_bar, double et,
               double ei_bar, double ei, double es, double E0);
 
 /*!
+  @brief Whether a two-particle one-hole state is a CSF of the CI space.
+
+  @details
+  For Sk_vwxy() with a hole leg: the second-order terms whose intermediate
+  state is a hole CSF of the CI block are already in the CI, and are left
+  out. Called with the hole @p a and excited orbital @p n of the internal
+  lines, and the other particle @p p of the intermediate state; @p p is
+  nullptr when that particle is a spectator of the matrix element (any
+  orbital of the hole-CSF basis), as for integrals with two hole legs.
+*/
+using InCISpace = std::function<bool(const DiracSpinor &a, const DiracSpinor &n,
+                                     const DiracSpinor *p)>;
+
+/*!
   @brief Reduced two-body Sigma (2nd-order correlation) operator matrix element.
 
   @details
@@ -173,6 +187,24 @@ double leg_de(Denominators denominators, double et_bar, double et,
                       dependence of their denominators at second order (see
                       \ref Sigma2::S_Sigma2_ab; screened by fk).
 
+  @param in_ci_space  Hole legs: an external leg that is a core orbital (one
+                      of @p core) is the hole of a hole CSF. The diagrams
+                      are the same, with that leg at its own energy in every
+                      denominator (see e_bar(const DiracSpinor &, ...)),
+                      which gives the energies of the intermediate states
+                      with the hole filled or open; the particle-hole sign
+                      is in the recoupling of the CSF matrix elements, not
+                      here. The terms whose intermediate state is a hole
+                      CSF of the CI space (every hole leg filled: one hole,
+                      two particles) are left out, as the CI holds them
+                      exactly; see \ref Sigma2::ExcludedTerms. Required
+                      (asserted) for integrals with a hole leg: the bra and
+                      ket themselves are among those states, with zero
+                      denominators. With a hole leg in each pair, the
+                      particle-particle ladder is added (see
+                      \ref Sigma2::S_Sigma2_pp). The Feynman static loop
+                      is not used for integrals with a hole leg.
+
   @return \f$ S^k_{vwxy} \f$.
 */
 double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
@@ -182,7 +214,8 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const Angular::SixJTable &SixJ,
                Denominators denominators = Denominators::DFK,
                const std::vector<double> &fk = {}, double E0 = 0.0,
-               const std::vector<RMatrix> *screening_kernels = nullptr);
+               const std::vector<RMatrix> *screening_kernels = nullptr,
+               const InCISpace *in_ci_space = nullptr);
 
 /*!
   @brief Selection rule for Sk_vwxy.
@@ -338,6 +371,19 @@ double dSigma_dE_vw(const DiracSpinor &v, const DiracSpinor &w,
 double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
 
 /*!
+  @brief Fermi-level energy of an external leg: e_bar() of its kappa, or, for
+  a hole leg, its own energy.
+
+  @details
+  A hole leg is an external leg that is a core orbital (one of @p core): the
+  hole of a hole CSF. Its own energy is the Fermi level of its shell, and
+  gives the energies of the intermediate states (the hole filled or open) in
+  every denominator mode; see Sk_vwxy().
+*/
+double e_bar(const DiracSpinor &leg, const std::vector<DiracSpinor> &core,
+             const std::vector<DiracSpinor> &excited);
+
+/*!
   @brief Calculates (or reads in) a table of two-body Sigma_2 matrix elements.
 
   @details
@@ -435,6 +481,24 @@ std::vector<double> average_hk(const Coulomb::WkTable &Sk,
 namespace Sigma2 {
 
 /*!
+  @brief Second-order terms to leave out of each diagram, by their internal
+  lines.
+
+  @details
+  One predicate per diagram (a, b, c1, c2), of the internal hole @p a and
+  excited @p n: a term is skipped when its predicate is set and true. Set by
+  Sk_vwxy() for integrals with a hole leg, for the terms whose intermediate
+  state is a CSF of the CI space (see \ref InCISpace). Diagram d has no such
+  terms. Default: nothing excluded.
+*/
+struct ExcludedTerms {
+  std::function<bool(const DiracSpinor &a, const DiracSpinor &n)> a{};
+  std::function<bool(const DiracSpinor &a, const DiracSpinor &n)> b{};
+  std::function<bool(const DiracSpinor &a, const DiracSpinor &n)> c1{};
+  std::function<bool(const DiracSpinor &a, const DiracSpinor &n)> c2{};
+};
+
+/*!
   @brief Diagrams a+b contribution to the reduced two-body Sigma.
 
   @details
@@ -460,6 +524,9 @@ namespace Sigma2 {
                       method (see \ref Sk_vwxy). For Fermi0, a1 and b1 are
                       then zero.
 
+  @param excluded     Terms to leave out (predicates a and b); see
+                      \ref ExcludedTerms.
+
   @return Diagrams a+b contribution to \f$ S^k_{vwxy} \f$.
 
   @note The loop diagrams (a1, b1) are screened once, by fk[k]; all others
@@ -472,7 +539,8 @@ double S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
                    const std::vector<DiracSpinor> &excited,
                    const Angular::SixJTable &SixJ, Denominators denominators,
                    const std::vector<double> &fk = {}, double E0 = 0.0,
-                   bool exclude_static_loop = false);
+                   bool exclude_static_loop = false,
+                   const ExcludedTerms &excluded = {});
 
 /*!
   @brief Diagram c1 contribution to the reduced two-body Sigma.
@@ -491,6 +559,9 @@ double S_Sigma2_ab(int k, const DiracSpinor &v, const DiracSpinor &w,
   @param E0           Target-level valence energy; used only by
                       Denominators::BW.
 
+  @param excluded     Terms to leave out (predicate c1); see
+                      \ref ExcludedTerms.
+
   @return Diagram c1 contribution to \f$ S^k_{vwxy} \f$.
 */
 double S_Sigma2_c1(int k, const DiracSpinor &v, const DiracSpinor &w,
@@ -499,7 +570,8 @@ double S_Sigma2_c1(int k, const DiracSpinor &v, const DiracSpinor &w,
                    const std::vector<DiracSpinor> &core,
                    const std::vector<DiracSpinor> &excited,
                    const Angular::SixJTable &SixJ, Denominators denominators,
-                   const std::vector<double> &fk = {}, double E0 = 0.0);
+                   const std::vector<double> &fk = {}, double E0 = 0.0,
+                   const ExcludedTerms &excluded = {});
 
 /*!
   @brief Diagram c2 contribution to the reduced two-body Sigma.
@@ -518,6 +590,9 @@ double S_Sigma2_c1(int k, const DiracSpinor &v, const DiracSpinor &w,
   @param E0           Target-level valence energy; used only by
                       Denominators::BW.
 
+  @param excluded     Terms to leave out (predicate c2); see
+                      \ref ExcludedTerms.
+
   @return Diagram c2 contribution to \f$ S^k_{vwxy} \f$.
 */
 double S_Sigma2_c2(int k, const DiracSpinor &v, const DiracSpinor &w,
@@ -526,7 +601,8 @@ double S_Sigma2_c2(int k, const DiracSpinor &v, const DiracSpinor &w,
                    const std::vector<DiracSpinor> &core,
                    const std::vector<DiracSpinor> &excited,
                    const Angular::SixJTable &SixJ, Denominators denominators,
-                   const std::vector<double> &fk = {}, double E0 = 0.0);
+                   const std::vector<double> &fk = {}, double E0 = 0.0,
+                   const ExcludedTerms &excluded = {});
 
 /*!
   @brief Diagram d contribution to the reduced two-body Sigma.
@@ -568,6 +644,48 @@ double S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
                   const std::vector<DiracSpinor> &excited,
                   const Angular::SixJTable &SixJ, Denominators denominators,
                   const std::vector<double> &fk = {}, double E0 = 0.0);
+
+/*!
+  @brief Particle-particle ladder contribution to the reduced two-body Sigma,
+  for integrals with a hole leg in each pair.
+
+  @details
+  The pair (xy) scatters into two excited orbitals (mn), and those into (vw):
+  \f[
+    \frac{g_{vwmn} g_{mnxy}}{\epsilon_{xy} - \epsilon_{mn}} ,
+  \f]
+  the angular structure of diagram d (S_Sigma2_d()) with the two internal
+  holes replaced by particles. For excited legs the intermediate state is a
+  configuration of the CI (or lies outside its basis), so the ladder is not
+  part of Sigma_2. With a hole leg in each pair (the particle-hole elements
+  of the hole CSFs) the intermediate state has one more hole than any CSF,
+  and the ladder must be included. Both pairs are target-state legs:
+  - RS     : e_x + e_y - (e_m + e_n), averaged with the partner, e_v + e_w
+  - Fermi, DFK : as RS, each leg at its Fermi-level energy (a hole leg: its
+             own energy)
+  - Fermi0 : 2 e0 - (e_m + e_n), e0 the lowest excited-state energy
+  - BW     : E0 - (e_m + e_n)
+  No screening factors: not a core-polarisation diagram.
+
+  @param k            Multipolarity.
+  @param v            (+ w x y) External spinors.
+  @param qk           Coulomb integral table.
+  @param core         Core states (hole legs are those among them).
+  @param excited      Excited states (the internal lines).
+  @param SixJ         6-j symbol table.
+  @param denominators Energy denominator convention.
+  @param E0           Target-level valence energy; used only by
+                      Denominators::BW.
+
+  @return Ladder contribution to \f$ S^k_{vwxy} \f$.
+*/
+double S_Sigma2_pp(int k, const DiracSpinor &v, const DiracSpinor &w,
+                   const DiracSpinor &x, const DiracSpinor &y,
+                   const Coulomb::QkTable &qk,
+                   const std::vector<DiracSpinor> &core,
+                   const std::vector<DiracSpinor> &excited,
+                   const Angular::SixJTable &SixJ, Denominators denominators,
+                   double E0 = 0.0);
 
 /*!
   @brief Static loop diagrams, from a screened-Coulomb kernel.

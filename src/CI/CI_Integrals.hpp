@@ -706,17 +706,45 @@ double Hab(const CI::CSF2p1h &A, const CI::CSF2p1h &B, int twoJ,
            const Sigma1Correction *s1c = nullptr);
 
 /*!
+  @brief One-body interaction between a one-electron CSF and a hole CSF.
+  @details
+  Non-zero only when the electron x is one of the particles of the hole CSF;
+  the other particle then de-excites into the hole through the one-body
+  operator:
+  \f[
+    \langle x; J | h | (vw)J_{12}, \tilde a; J \rangle
+    = -(-1)^{j_a + J + J_{12}} \sqrt{[J_{12}]/[J]} \, \eta_{vw}
+    \left[ \delta_{xv} h_{wa} + s_{vw} \delta_{xw} h_{va} \right] ,
+  \f]
+  with \f$ s_{vw} = (-1)^{j_v + j_w - J_{12} + 1} \f$ and \f$ \eta_{vw} =
+  1/\sqrt2 \f$ if v = w. For Hartree-Fock orbitals (V^{N-M}) the one-body
+  elements between an excited and a core orbital vanish; the second-order
+  Sigma_1 between them does not.
+
+  @param h1    Table of one-body matrix elements; \f$ h_{wa} \f$ between the
+               excited and hole orbitals of one kappa (zero if absent).
+  @param A     The one-electron CSF (J = j_x).
+  @param B     The hole CSF.
+  @param twoJ  Twice the total angular momentum 2J.
+  @return The one-body matrix element.
+*/
+double one_body_1p_2p1h(const Coulomb::meTable<double> &h1, const CI::CSF1 &A,
+                        const CI::CSF2p1h &B, int twoJ);
+
+/*!
   @brief CI Hamiltonian matrix element between a one-electron CSF and a
   two-particle one-hole CSF.
   @details
-  The one-body part vanishes (\f$ \langle w | h^{\rm HF} | a \rangle = 0 \f$
-  for a core orbital a in the V^{N-M} approximation); the two-body part is
+  one_body_1p_2p1h() (zero for Hartree-Fock orbitals, \f$ \langle w | h^{\rm
+  HF} | a \rangle = 0 \f$ for a core orbital a in the V^{N-M} approximation,
+  unless @p h1 holds Sigma_1 between the excited and hole orbitals), plus
   two_body_1p_2p1h() with the pair elements of CSF2_Coulomb().
 
   @param A     The one-electron CSF (J = j_x).
   @param B     The hole CSF.
   @param twoJ  Twice the total angular momentum 2J.
-  @param h1    Not used.
+  @param h1    Table of one-body matrix elements (the elements between the
+               excited and hole orbitals, if any).
   @param qk    Table of Coulomb \f$ Q^k \f$ integrals, including those with
                the hole orbital.
   @param s1c   Not used.

@@ -886,11 +886,41 @@ double Hab(const CI::CSF2p1h &A, const CI::CSF2p1h &B, int twoJ,
 }
 
 //==============================================================================
+double one_body_1p_2p1h(const Coulomb::meTable<double> &h1, const CI::CSF1 &A,
+                        const CI::CSF2p1h &B, int twoJ) {
+  const auto x = A.state(0);
+  const auto [v, w] = B.states;
+  const auto a = B.hole;
+  if (x != v && x != w)
+    return 0.0;
+  const auto tjv = Angular::nkindex_to_twoj(v);
+  const auto tjw = Angular::nkindex_to_twoj(w);
+  const auto tja = Angular::nkindex_to_twoj(a);
+  const auto twoJ12 = B.twoJ12();
+  const auto kappa_a = Angular::nkindex_to_kappa(a);
+  const auto eta = v == w ? 1.0 / std::sqrt(2.0) : 1.0;
+  const auto s_vw = Angular::neg1pow_2(tjv + tjw - twoJ12 + 2);
+  // The electron x is one particle; the other de-excites into the hole
+  // (scalar operator: same kappa)
+  double sum = 0.0;
+  if (x == v && Angular::nkindex_to_kappa(w) == kappa_a) {
+    sum += h1.getv(w, a);
+  }
+  if (x == w && Angular::nkindex_to_kappa(v) == kappa_a) {
+    sum += s_vw * h1.getv(v, a);
+  }
+  return -Angular::neg1pow_2(tja + twoJ + twoJ12) *
+         std::sqrt(double(twoJ12 + 1) / (twoJ + 1)) * eta * sum;
+}
+
+//==============================================================================
 double Hab(const CI::CSF1 &A, const CI::CSF2p1h &B, int twoJ,
-           const Coulomb::meTable<double> &, const Coulomb::QkTable &qk,
+           const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
            const Sigma1Correction *) {
-  // The one-body part vanishes: <w|h_HF|a> = 0 for a core orbital a
-  return two_body_1p_2p1h(coulomb_pair_element(qk), A, B, twoJ);
+  // The one-body part is zero for the Hartree-Fock potential (<w|h_HF|a> = 0
+  // for a core orbital a), but not with Sigma_1 in h1
+  return one_body_1p_2p1h(h1, A, B, twoJ) +
+         two_body_1p_2p1h(coulomb_pair_element(qk), A, B, twoJ);
 }
 
 //==============================================================================
