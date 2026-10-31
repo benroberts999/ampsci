@@ -6,6 +6,7 @@
 #include "Potentials/FGRadPot.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "qip/Vector.hpp"
+#include "DiracOperator/Operators/h2.hpp" // for DeltaH correction
 #include <cmath>
 
 namespace DiracOperator {
@@ -24,8 +25,19 @@ public:
     auto dF = m_Vrad.Vel(Fb.l()) * Fb;
     using namespace qip::overloads;
     const auto &Hmag = m_Vrad.Hmag(Fb.l());
-    dF.f() -= Hmag * Fb.g();
-    dF.g() -= Hmag * Fb.f();
+    const double scale_Hm = m_Vrad.scale_Hmag();
+    const auto &DeltaH = m_Vrad.DeltaH();
+    const double scale_DH = m_Vrad.scale_DeltaH();
+    const auto &HmagV2 = m_Vrad.HmagV2();
+    const double scale_HmV2 = m_Vrad.scale_HmagV2();
+    if (scale_Hm != 0.0 && scale_HmV2 == 0.0) {
+      dF.f() -= (Hmag + scale_DH*DeltaH) * Fb.g();
+      dF.g() -= (Hmag + scale_DH*DeltaH) * Fb.f();
+    }
+    else {
+      dF.f() -= (scale_HmV2*HmagV2) * Fb.g();
+      dF.g() -= (scale_HmV2*HmagV2) * Fb.f();
+    }
     if (kappa_a != Fb.kappa())
       return 0.0 * dF;
     return dF;
@@ -50,6 +62,8 @@ public:
         {"SE_h", "  self-energy high-freq electric. [1.0]"},
         {"SE_l", "  self-energy low-freq electric. [1.0]"},
         {"SE_m", "  self-energy magnetic. [1.0]"},
+        {"SE_dm", "  self-energy magnetic correction. [0.0]"},
+        {"SE_mV2", "  self-energy magnetic V2. [0.0]"},
         {"WK", "  Wickman-Kroll. [0.0]"},
         {"rcut", "Maximum radius (au) to calculate Rad Pot for [5.0]"},
         {"scale_rN", "Scale factor for Nuclear size. 0 for pointlike, 1 for "
@@ -63,6 +77,8 @@ public:
     const auto x_SEe_h = input.get("SE_h", 1.0);
     const auto x_SEe_l = input.get("SE_l", 1.0);
     const auto x_SEm = input.get("SE_m", 1.0);
+    const auto x_SEdm = input.get("SE_dm", 0.0);
+    const auto x_SEmV2 = input.get("SE_mV2", 0.0);
     const auto x_wk = input.get("WK", 0.0);
     const auto rcut = input.get("rcut", 5.0);
     const auto scale_rN = input.get("scale_rN", 1.0);
@@ -71,8 +87,10 @@ public:
     const auto r_N_au =
       std::sqrt(5.0 / 3.0) * scale_rN * wf.nucleus().r_rms() / PhysConst::aB_fm;
     auto qed = QED::RadPot(wf.grid().r(), wf.Znuc(), r_N_au, rcut,
-                           {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, x_spd, true,
+                           {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_SEdm, x_SEmV2, x_wk}, x_spd, true,
                            readwrite, wf.run_label());
+    qed.set_DeltaH(h2::form_DeltaH(wf));
+    qed.set_HmagV2(h2::form_H_AMM(wf));
     return std::make_unique<Vrad>(std::move(qed));
   }
 
