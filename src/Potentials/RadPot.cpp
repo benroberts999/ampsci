@@ -27,7 +27,7 @@ RadPot::RadPot()
   : m_Z(0),
     m_rN(0.0),
     m_rcut(0.0),
-    m_f({0.0, 0.0, 0.0, 0.0, 0.0}),
+    m_f({0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0}),
     m_xl{},
     print(true) {}
 
@@ -144,6 +144,14 @@ void RadPot::form_potentials(const std::vector<double> &r) {
       std::cout << "Self-energy (magnetic); scale=" << m_f.m << "\n";
     mHm = fill(FGRP::H_Magnetic, r);
   }
+  if (m_f.dm != 0.0) {
+    if (print)
+      std::cout << "Self-energy (magnetic) DeltaH; scale=" << m_f.dm << "\n";
+  }
+  if (m_f.mV2 != 0.0) {
+    if (print)
+      std::cout << "Self-energy (magnetic) V2; scale=" << m_f.mV2 << "\n";
+  }
   if (m_f.wk != 0.0) {
     if (print)
       std::cout << "Wickman-Kroll; scale=" << m_f.wk << "\n";
@@ -203,6 +211,8 @@ RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
      {"SE_h", "    self-energy high-freq electric."},
      {"SE_l", "    self-energy low-freq electric."},
      {"SE_m", "    self-energy magnetic."},
+     {"SE_dm", "    self-energy magnetic DeltaH."},
+     {"SE_mV2", "    self-energy magnetic V2."},
      {"", ""},
      {"WK",
       "  Wickman-Kroll (approximate form of higher-order vac. pol.). [0.0]"},
@@ -220,13 +230,15 @@ RadPot ConstructRadPot(const std::vector<double> &r, double Z_eff, double rN_au,
   const auto x_SEe_h = input.get("SE_h", x_SE);
   const auto x_SEe_l = input.get("SE_l", x_SE);
   const auto x_SEm = input.get("SE_m", x_SE);
+  const auto x_SEdm = input.get("SE_dm", x_SE);
+  const auto x_SEmV2 = input.get("SE_mV2", x_SE);
   const auto x_wk = input.get("WK", 0.0);
   const auto rcut = input.get("rcut", 5.0);
   const auto scale_rN = input.get("scale_rN", 1.0);
   const auto x_spd = input.get("scale_l", std::vector{1.0});
 
   return RadPot(r, Z_eff, scale_rN * rN_au, rcut,
-                {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_wk}, x_spd, print,
+                {x_Ueh, x_SEe_h, x_SEe_l, x_SEm, x_SEdm, x_SEmV2, x_wk}, x_spd, print,
                 do_readwrite, label);
 }
 
