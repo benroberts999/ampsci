@@ -118,19 +118,14 @@ PsiJPi project_out(PsiJPi dPsi, const PsiJPi &levels,
 
 //==============================================================================
 PsiJPi solve_mixed_state(const PsiJPi &Psi0, std::size_t i0, int twoJ,
-                         int parity,
-                         const std::vector<DiracSpinor> &ci_sp_basis,
-                         const Coulomb::meTable<double> &h, int K_rank,
-                         const Coulomb::meTable<double> &h1,
-                         const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk,
-                         const Coulomb::WkTable *Sk, double omega,
-                         const std::vector<DiracSpinor> &holes,
-                         const std::vector<DiracSpinor> &holes_basis) {
+                         int parity, const Coulomb::meTable<double> &h,
+                         int K_rank, const Integrals &ints, double omega) {
 
-  // The mixed state has the same number of electrons as the reference state
-  const PsiJPi target(twoJ, parity, ci_sp_basis, Psi0.num_electrons(), {},
-                      holes, holes_basis);
-  const auto Hci = construct_Hci(target, h1, qk, Bk, Sk);
+  // The mixed state has the same number of electrons as the reference state,
+  // and the CSF space (configurations, holes) of the CI run
+  const PsiJPi target(twoJ, parity, ints.ci_basis, Psi0.num_electrons(),
+                      ints.config_space, ints.holes, ints.holes_basis);
+  const auto Hci = construct_Hci(target, ints);
 
   return solve_mixed_state(Psi0, i0, target, Hci, h, K_rank, omega);
 }

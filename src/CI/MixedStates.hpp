@@ -1,4 +1,5 @@
 #pragma once
+#include "CI_Integrals.hpp"
 #include "CSF.hpp"
 #include "Coulomb/QkTable.hpp"
 #include "Coulomb/meTable.hpp"
@@ -139,41 +140,34 @@ TPsi_reduced(const std::vector<CSF> &CSFs, int twoJ, const PsiJPi &Psi0,
   @brief Solves the CI mixed-states equation; constructs the CI matrix
   internally.
   @details
-  Convenience overload of @ref solve_mixed_state: forms the CSFs for the
-  requested J/Pi (@p twoJ, @p parity) from @p ci_sp_basis, constructs the CI
-  Hamiltonian matrix via @ref construct_Hci, then solves the mixed-states
+  Convenience overload of @ref solve_mixed_state: forms the CSFs of the
+  requested J/Pi (@p twoJ, @p parity) with the CI basis, configuration space
+  and hole orbitals of @p ints (so the target block is the one the CI run
+  would form), constructs its Hamiltonian via construct_Hci(const PsiJPi &,
+  const Integrals &) (all corrections held by @p ints, including the Sigma_1
+  already in the CI space with hole CSFs), then solves the mixed-states
   equation.
 
   Use the other overload if the CI matrix for the target J/Pi is already
   available (e.g., when several operators are considered).
 
-  @param Psi0        CI solutions containing the reference state.
-  @param i0          Index of the reference solution within @p Psi0.
-  @param twoJ        Twice the total angular momentum, 2J, of the mixed state.
-  @param parity      Parity of the mixed state: +1 or -1. This is the parity of
-                     @p Psi0 times that of the operator.
-  @param ci_sp_basis Single-particle basis used to construct the CSFs.
-  @param h           Table of single-particle reduced matrix elements of T.
-  @param K_rank      Rank of the tensor operator T.
-  @param h1          One-body matrix element table (may include Sigma_1).
-  @param qk          Coulomb Q^k integral table.
-  @param Bk          Pointer to Breit W^k table; ignored if nullptr.
-  @param Sk          Pointer to Sigma_2 L^k table; ignored if nullptr.
-  @param omega       Frequency; see the other overload [0].
-  @param holes       Core orbitals that may hold a hole (hole CSFs in the
-                     target J/Pi; see @ref CSF2p1h); none by default.
-  @param holes_basis Basis of the two electrons of the hole CSFs;
-                     @p ci_sp_basis if empty.
+  @param Psi0    CI solutions containing the reference state.
+  @param i0      Index of the reference solution within @p Psi0.
+  @param twoJ    Twice the total angular momentum, 2J, of the mixed state.
+  @param parity  Parity of the mixed state: +1 or -1. This is the parity of
+                 @p Psi0 times that of the operator.
+  @param h       Table of single-particle reduced matrix elements of T.
+  @param K_rank  Rank of the tensor operator T.
+  @param ints    Integral tables of the CI run (see @ref Integrals), e.g.,
+                 Wavefunction::CI_integrals().
+  @param omega   Frequency; see the other overload [0].
   @return PsiJPi for the J/Pi (@p twoJ, @p parity), holding the single mixed
           state.
 */
-[[nodiscard]] PsiJPi solve_mixed_state(
-  const PsiJPi &Psi0, std::size_t i0, int twoJ, int parity,
-  const std::vector<DiracSpinor> &ci_sp_basis,
-  const Coulomb::meTable<double> &h, int K_rank,
-  const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-  const Coulomb::WkTable *Bk = nullptr, const Coulomb::WkTable *Sk = nullptr,
-  double omega = 0.0, const std::vector<DiracSpinor> &holes = {},
-  const std::vector<DiracSpinor> &holes_basis = {});
+[[nodiscard]] PsiJPi solve_mixed_state(const PsiJPi &Psi0, std::size_t i0,
+                                       int twoJ, int parity,
+                                       const Coulomb::meTable<double> &h,
+                                       int K_rank, const Integrals &ints,
+                                       double omega = 0.0);
 
 } // namespace CI
