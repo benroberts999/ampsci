@@ -634,8 +634,7 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
                       const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk,
                       const Coulomb::WkTable *Sk, const std::vector<double> &hk,
                       const Coulomb::WkTable *dSk, double E0_sigma2,
-                      std::ostream &outstream, std::size_t level,
-                      const Coulomb::meTable<double> *Sigma1_in_CI) {
+                      std::ostream &outstream, std::size_t level) {
   assert(psi != nullptr);
 
   constexpr auto eps_E0 = 1.0e-6;
@@ -688,7 +687,7 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
   // with H) costs far more than one build, so this is much cheaper than
   // re-solving each pass.
   auto Hci = construct_Hci<MatrixType>(*psi, h1, qk, Bk, Sk, &s1_Jpi, hk, dSk,
-                                       dE0_s2(s1_Jpi.E0), Sigma1_in_CI);
+                                       dE0_s2(s1_Jpi.E0));
   if constexpr (std::is_same_v<MatrixType, LinAlg::Matrix<double>>) {
     psi->solve(Hci, int(level) + 1);
   } else {
@@ -712,7 +711,7 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
     // Free the previous matrix first: only one is held at a time
     Hci = MatrixType{};
     Hci = construct_Hci<MatrixType>(*psi, h1, qk, Bk, Sk, &s1_Jpi, hk, dSk,
-                                    dE0_s2(s1_Jpi.E0), Sigma1_in_CI);
+                                    dE0_s2(s1_Jpi.E0));
 
     // <c|Hci|c>; c is normalised
     const double E0_new = c * (Hci * c);
@@ -734,26 +733,23 @@ template LinAlg::Matrix<double> iterate_E0<LinAlg::Matrix<double>>(
   PsiJPi *, const Sigma1Correction &, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const std::vector<double> &, const Coulomb::WkTable *, double, std::ostream &,
-  std::size_t, const Coulomb::meTable<double> *);
+  std::size_t);
 template LinAlg::SparseSymmetricMatrix<double>
 iterate_E0<LinAlg::SparseSymmetricMatrix<double>>(
   PsiJPi *, const Sigma1Correction &, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const std::vector<double> &, const Coulomb::WkTable *, double, std::ostream &,
-  std::size_t, const Coulomb::meTable<double> *);
+  std::size_t);
 
 //==============================================================================
 
-// CI Hamiltonian matrix element for two 1-particle CSFs: one-body only. The
-// Sigma_1 already in the CI space (hole CSFs in the block) is removed
+// CI Hamiltonian matrix element for two 1-particle CSFs: one-body only
 double Hab(const CI::CSF1 &A, const CI::CSF1 &B, int,
            const Coulomb::meTable<double> &h1, const Coulomb::QkTable &,
-           const Sigma1Correction *s1c,
-           const Coulomb::meTable<double> *Sigma1_in_CI) {
+           const Sigma1Correction *s1c) {
   const auto a = A.state(0);
   const auto b = B.state(0);
-  return h1.getv(a, b) - (Sigma1_in_CI ? Sigma1_in_CI->getv(a, b) : 0.0) +
-         (s1c ? s1c->delta_h1(a, b) : 0.0);
+  return h1.getv(a, b) + (s1c ? s1c->delta_h1(a, b) : 0.0);
 }
 
 //==============================================================================
@@ -1016,15 +1012,14 @@ double Hab(const CI::CSF3 &A, const CI::CSF3 &B, int,
 
 double Hab(const CI::CSF &A, const CI::CSF &B, int twoJ,
            const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-           const Sigma1Correction *s1c,
-           const Coulomb::meTable<double> *Sigma1_in_CI) {
+           const Sigma1Correction *s1c) {
   return std::visit(
     [&](const auto &a, const auto &b) -> double {
       using A_type = std::decay_t<decltype(a)>;
       using B_type = std::decay_t<decltype(b)>;
       if constexpr (std::is_same_v<A_type, CSF1> &&
                     std::is_same_v<B_type, CSF1>) {
-        return Hab(a, b, twoJ, h1, qk, s1c, Sigma1_in_CI);
+        return Hab(a, b, twoJ, h1, qk, s1c);
       } else if constexpr (std::is_same_v<A_type, B_type>) {
         return Hab(a, b, twoJ, h1, qk, s1c);
       } else if constexpr (std::is_same_v<A_type, CSF1> &&
@@ -1068,11 +1063,7 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
   for (auto iv = 0ul; iv < ci_basis.size(); ++iv) {
     const auto &v = ci_basis[iv];
 
-    // Find lowest valence state of this kappa; for Sigma energy
-    const auto vp = std::find_if(
-      ci_basis.cbegin(), ci_basis.cend(),
-      [kappa = v.kappa()](const auto &n) { return n.kappa() == kappa; });
-    auto ev = vp->en();
+    const auto ev = Sigma1_energy(v.kappa(), ci_basis);
 
     for (const auto &w : ci_basis) {
       if (w > v)
@@ -1097,36 +1088,21 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
 
 //==============================================================================
 
-Coulomb::meTable<double>
-calculate_Sigma1_in_CI(const std::vector<DiracSpinor> &ci_basis,
-                       const std::vector<DiracSpinor> &holes,
-                       const Coulomb::QkTable &qk) {
-  Coulomb::meTable<double> Sigma1_in_CI;
-
-  // The intermediate states (b, m, n) that lie in the CI space
-  const auto in_ci_space = in_CI_space(holes, ci_basis);
-  const auto in_space =
-    [&in_ci_space](const DiracSpinor &b, const DiracSpinor &m,
-                   const DiracSpinor &n) { return in_ci_space(b, m, &n); };
-
-  for (const auto &v : ci_basis) {
-    // Same energy as calculate_h1_table: the lowest orbital of this kappa
-    const auto vp = std::find_if(
-      ci_basis.cbegin(), ci_basis.cend(),
-      [kappa = v.kappa()](const auto &n) { return n.kappa() == kappa; });
-    const auto ev = vp->en();
-
-    for (const auto &w : ci_basis) {
-      if (w > v || w.kappa() != v.kappa())
-        continue;
-      const auto Sigma_P =
-        MBPT::Sigma_vw_2p1h(v, w, qk, holes, ci_basis, ev, in_space);
-      Sigma1_in_CI.add(v, w, Sigma_P);
-      if (v != w)
-        Sigma1_in_CI.add(w, v, Sigma_P);
+double Sigma1_energy(int kappa, const std::vector<DiracSpinor> &ci_basis,
+                     const std::vector<DiracSpinor> &holes) {
+  const auto lowest =
+    std::find_if(ci_basis.cbegin(), ci_basis.cend(),
+                 [kappa](const DiracSpinor &n) { return n.kappa() == kappa; });
+  if (lowest != ci_basis.cend())
+    return lowest->en();
+  const DiracSpinor *highest_hole = nullptr;
+  for (const auto &a : holes) {
+    if (a.kappa() == kappa &&
+        (highest_hole == nullptr || a.en() > highest_hole->en())) {
+      highest_hole = &a;
     }
   }
-  return Sigma1_in_CI;
+  return highest_hole ? highest_hole->en() : 0.0;
 }
 
 //==============================================================================
@@ -1136,51 +1112,89 @@ void add_holes_to_h1_table(Coulomb::meTable<double> *h1,
                            const std::vector<DiracSpinor> &ci_basis,
                            const std::vector<DiracSpinor> &s1_basis_core,
                            const std::vector<DiracSpinor> &s1_basis_excited,
-                           const Coulomb::QkTable &qk, bool include_Sigma1) {
+                           const Coulomb::QkTable &qk, bool include_Sigma1,
+                           const MBPT::CorrelationPotential *Sigma) {
   assert(h1 != nullptr);
   if (holes.empty())
     return;
 
-  // Sigma_1 at the orbital energy on the diagonal; off the diagonal, the
-  // average of Sigma_1 at the two orbital energies (Hermitian)
-  const auto Sigma = [&](const DiracSpinor &Fa, const DiracSpinor &Fb) {
+  // Sigma_1 of the hole's kappa: from the correlation potential if it holds
+  // one for the kappa, else second order
+  const auto Sigma_ab = [&](const DiracSpinor &a, const DiracSpinor &b) {
     if (!include_Sigma1)
       return 0.0;
-    if (Fa == Fb)
-      return MBPT::Sigma_vw(Fa, Fa, qk, s1_basis_core, s1_basis_excited, 99,
-                            Fa.en());
-    return 0.5 * (MBPT::Sigma_vw(Fa, Fb, qk, s1_basis_core, s1_basis_excited,
-                                 99, Fa.en()) +
-                  MBPT::Sigma_vw(Fa, Fb, qk, s1_basis_core, s1_basis_excited,
-                                 99, Fb.en()));
+    if (Sigma != nullptr && Sigma->getSigma(a.kappa()) != nullptr)
+      return b * (*Sigma)(a);
+    return MBPT::Sigma_vw(a, b, qk, s1_basis_core, s1_basis_excited, 99,
+                          Sigma1_energy(a.kappa(), ci_basis, holes));
   };
 
-  if (include_Sigma1) {
-    std::cout << "Sigma_1 for the hole orbitals: second order, at the hole "
-                 "energy; between the excited and hole orbitals, averaged "
-                 "over the two energies\n";
-  }
-  for (const auto &Fa : holes) {
-    for (const auto &Fb : holes) {
-      if (Fb.kappa() != Fa.kappa())
+  for (const auto &a : holes) {
+    for (const auto &b : holes) {
+      if (b.kappa() != a.kappa())
         continue;
-      const auto h0_ab = Fa == Fb ? Fa.en() : 0.0;
-      const auto Sigma_ab = Sigma(Fa, Fb);
-      h1->add(Fa, Fb, h0_ab + Sigma_ab);
-      if (include_Sigma1 && Fa == Fb) {
-        fmt::print("  {:4s}: e = {:.6f}, Sigma_1 = {:+.6f}, e + Sigma_1 = "
-                   "{:.6f}\n",
-                   Fa.shortSymbol(), Fa.en(), Sigma_ab, Fa.en() + Sigma_ab);
-      }
+      const auto h0_ab = a == b ? a.en() : 0.0;
+      h1->add(a, b, h0_ab + Sigma_ab(a, b));
     }
     if (!include_Sigma1)
       continue;
-    for (const auto &Fw : ci_basis) {
-      if (Fw.kappa() != Fa.kappa())
+    for (const auto &w : ci_basis) {
+      if (w.kappa() != a.kappa())
         continue;
-      const auto Sigma_wa = Sigma(Fw, Fa);
-      h1->add(Fw, Fa, Sigma_wa);
-      h1->add(Fa, Fw, Sigma_wa);
+      const auto Sigma_wa = Sigma_ab(a, w);
+      h1->add(w, a, Sigma_wa);
+      h1->add(a, w, Sigma_wa);
+    }
+  }
+}
+
+//==============================================================================
+
+void remove_Sigma1_in_CI_orbitals(
+  Coulomb::meTable<double> *h1, const std::vector<DiracSpinor> &holes,
+  const std::vector<DiracSpinor> &ci_basis,
+  const std::vector<DiracSpinor> &s1_basis_core,
+  const std::vector<DiracSpinor> &s1_basis_excited, const Coulomb::QkTable &qk,
+  const MBPT::CorrelationPotential *Sigma) {
+  assert(h1 != nullptr);
+  if (holes.empty())
+    return;
+
+  // The internal lines of Sigma_1 that lie in the CI orbitals
+  const auto in = [](const std::vector<DiracSpinor> &set,
+                     const DiracSpinor &n) {
+    return std::find(set.cbegin(), set.cend(), n) != set.cend();
+  };
+  const auto core_in_CI = qip::select_if(
+    s1_basis_core, [&](const DiracSpinor &b) { return in(holes, b); });
+  const auto excited_in_CI = qip::select_if(
+    s1_basis_excited, [&](const DiracSpinor &n) { return in(ci_basis, n); });
+
+  // Without Sigma for a kappa (correlation potential without it), the
+  // excited orbitals of that kappa hold none to remove; the hole orbitals
+  // always do
+  const auto holds_Sigma = [&](const DiracSpinor &v, const DiracSpinor &w) {
+    return Sigma == nullptr || Sigma->getSigma(v.kappa()) != nullptr ||
+           in(holes, v) || in(holes, w);
+  };
+
+  const auto orbitals = qip::merge(ci_basis, holes);
+  for (std::size_t iv = 0; iv < orbitals.size(); ++iv) {
+    const auto &v = orbitals[iv];
+    for (std::size_t iw = 0; iw <= iv; ++iw) {
+      const auto &w = orbitals[iw];
+      if (w.kappa() != v.kappa() || !holds_Sigma(v, w))
+        continue;
+      auto *h1_vw = h1->get(v, w);
+      if (h1_vw == nullptr)
+        continue;
+      const auto Sigma_in_CI =
+        MBPT::Sigma_vw(v, w, qk, core_in_CI, excited_in_CI, 99,
+                       Sigma1_energy(v.kappa(), ci_basis, holes));
+      *h1_vw -= Sigma_in_CI;
+      if (iw != iv) {
+        *h1->get(w, v) -= Sigma_in_CI;
+      }
     }
   }
 }
@@ -1204,41 +1218,6 @@ Sigma2_hole_legs(const std::vector<DiracSpinor> &holes,
     }
   }
   return hole_legs;
-}
-
-//==============================================================================
-
-MBPT::InCISpace in_CI_space(const std::vector<DiracSpinor> &holes,
-                            const std::vector<DiracSpinor> &ci_basis) {
-  // The predicate is asked inside the internal sums of every integral with a
-  // hole leg: membership must be a lookup, not a search. Flags indexed by
-  // nk_index (a small integer unique to each orbital)
-  const auto members = [](const std::vector<DiracSpinor> &orbitals) {
-    std::vector<bool> member;
-    for (const auto &orbital : orbitals) {
-      const auto index = std::size_t(orbital.nk_index());
-      if (index >= member.size()) {
-        member.resize(index + 1, false);
-      }
-      member[index] = true;
-    }
-    return member;
-  };
-  const auto is_hole = members(holes);
-  const auto is_ci_orbital = members(ci_basis);
-  // An orbital beyond the flags (e.g. a high internal line) is not a member
-  const auto in = [](const std::vector<bool> &member, const DiracSpinor &a) {
-    const auto index = std::size_t(a.nk_index());
-    return index < member.size() && member[index];
-  };
-  // In the CI space iff every orbital of the state may be occupied in the CI
-  // model space: the hole in a hole shell, the particles in the CI basis. A
-  // spectator particle (p = nullptr) is one of the CSF's own orbitals, so it
-  // always is
-  return [=](const DiracSpinor &a, const DiracSpinor &n, const DiracSpinor *p) {
-    return in(is_hole, a) && in(is_ci_orbital, n) &&
-           (p == nullptr || in(is_ci_orbital, *p));
-  };
 }
 
 //==============================================================================
@@ -1880,27 +1859,25 @@ std::string Term_Symbol(int L, int two_S, int parity) {
 //==============================================================================
 
 template <typename MatrixType>
-MatrixType
-construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
-              const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk,
-              const Coulomb::WkTable *Sk, const Sigma1Correction *s1c,
-              const std::vector<double> &hk, const Coulomb::WkTable *dSk,
-              double dE0, const Coulomb::meTable<double> *Sigma1_in_CI) {
+MatrixType construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
+                         const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk,
+                         const Coulomb::WkTable *Sk,
+                         const Sigma1Correction *s1c,
+                         const std::vector<double> &hk,
+                         const Coulomb::WkTable *dSk, double dE0) {
   return construct_Hci<MatrixType>(psi.CSFs(), psi.twoJ(), h1, qk, Bk, Sk, s1c,
-                                   hk, dSk, dE0, Sigma1_in_CI);
+                                   hk, dSk, dE0);
 }
 
 template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>>(
   const PsiJPi &, const Coulomb::meTable<double> &, const Coulomb::QkTable &,
   const Coulomb::WkTable *, const Coulomb::WkTable *, const Sigma1Correction *,
-  const std::vector<double> &, const Coulomb::WkTable *, double,
-  const Coulomb::meTable<double> *);
+  const std::vector<double> &, const Coulomb::WkTable *, double);
 template LinAlg::SparseSymmetricMatrix<double>
 construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
   const PsiJPi &, const Coulomb::meTable<double> &, const Coulomb::QkTable &,
   const Coulomb::WkTable *, const Coulomb::WkTable *, const Sigma1Correction *,
-  const std::vector<double> &, const Coulomb::WkTable *, double,
-  const Coulomb::meTable<double> *);
+  const std::vector<double> &, const Coulomb::WkTable *, double);
 
 //==============================================================================
 
@@ -1910,8 +1887,7 @@ construct_Hci(const std::vector<CSF> &CSFs, int twoJ,
               const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
               const Coulomb::WkTable *Bk, const Coulomb::WkTable *Sk,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
-              const Coulomb::WkTable *dSk, double dE0,
-              const Coulomb::meTable<double> *Sigma1_in_CI) {
+              const Coulomb::WkTable *dSk, double dE0) {
 
   constexpr bool sparse =
     std::is_same_v<MatrixType, LinAlg::SparseSymmetricMatrix<double>>;
@@ -1937,7 +1913,7 @@ construct_Hci(const std::vector<CSF> &CSFs, int twoJ,
         continue;
 
       // Regular CI matrix (h1 may include Sigma_1):
-      const auto E_AB = Hab(A, B, twoJ, h1, qk, s1c, Sigma1_in_CI);
+      const auto E_AB = Hab(A, B, twoJ, h1, qk, s1c);
       // Two-body corrections: Sigma_2 (three electrons: the pair energies
       // need the orbital energy of the third electron), and Breit
       const auto dEs_AB = Sk != nullptr ?
@@ -1973,13 +1949,13 @@ template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>>(
   const std::vector<CSF> &, int, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::WkTable *, double, const Coulomb::meTable<double> *);
+  const Coulomb::WkTable *, double);
 template LinAlg::SparseSymmetricMatrix<double>
 construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
   const std::vector<CSF> &, int, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::WkTable *, double, const Coulomb::meTable<double> *);
+  const Coulomb::WkTable *, double);
 
 //==============================================================================
 
@@ -1987,12 +1963,9 @@ LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi, const Integrals &ints) {
   const auto Bk = ints.Bk.emptyQ() ? nullptr : &ints.Bk;
   const auto Sk = ints.Sk.emptyQ() ? nullptr : &ints.Sk;
   const auto dSk = ints.dSk.emptyQ() ? nullptr : &ints.dSk;
-  const auto Sigma1_in_CI =
-    ints.Sigma1_in_CI.empty() ? nullptr : &ints.Sigma1_in_CI;
   // No E0 needed: no dSigma/dE correction, and no BW Sigma_2
   if (ints.s1_corr.empty() && dSk == nullptr) {
-    return construct_Hci(psi, ints.h1, ints.qk, Bk, Sk, nullptr, ints.hk,
-                         nullptr, 0.0, Sigma1_in_CI);
+    return construct_Hci(psi, ints.h1, ints.qk, Bk, Sk, nullptr, ints.hk);
   }
   // E0 is per (J, parity): if psi has been solved, it is just the lowest
   // energy of this J/Pi. Otherwise, fall back to the stored E0.
@@ -2001,7 +1974,7 @@ LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi, const Integrals &ints) {
     s1_Jpi.E0 = psi.energy(0);
   }
   return construct_Hci(psi, ints.h1, ints.qk, Bk, Sk, &s1_Jpi, ints.hk, dSk,
-                       s1_Jpi.E0 - ints.E0_sigma2, Sigma1_in_CI);
+                       s1_Jpi.E0 - ints.E0_sigma2);
 }
 
 } // namespace CI

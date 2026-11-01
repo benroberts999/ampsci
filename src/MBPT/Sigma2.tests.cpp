@@ -842,13 +842,22 @@ TEST_CASE("Sigma2: hole legs", "[Sigma2][MBPT][unit][ciholes]") {
     REQUIRE(MBPT::e_bar(Fn, core, excited) == expected);
   }
 
-  // The CI space: a hole in any n = 2 shell, particles with n <= 3 (the
-  // spectator too). Required with hole legs: without it, the terms whose
-  // intermediate state is the bra or the ket itself have zero denominators
-  const MBPT::InCISpace in_ci_space =
-    [](const DiracSpinor &a, const DiracSpinor &n, const DiracSpinor *p) {
-      return a.n() == 2 && n.n() <= 3 && (p == nullptr || p->n() <= 3);
-    };
+  // The CI orbitals: the n = 2 core orbitals (holes) and the excited
+  // orbitals with n <= 3. Required with hole legs: without them, the terms
+  // whose intermediate state is the bra or the ket itself have zero
+  // denominators
+  std::vector<DiracSpinor> hole_orbitals, ci_basis;
+  for (const auto &Fn : core) {
+    if (Fn.n() == 2) {
+      hole_orbitals.push_back(Fn);
+    }
+  }
+  for (const auto &Fn : excited) {
+    if (Fn.n() <= 3) {
+      ci_basis.push_back(Fn);
+    }
+  }
+  const MBPT::CIOrbitals ci_orbitals(hole_orbitals, ci_basis);
 
   // Leg patterns of the hole CSF elements: at most one hole in each pair,
   // (v, w) and (x, y), and at least one in all
@@ -872,7 +881,7 @@ TEST_CASE("Sigma2: hole legs", "[Sigma2][MBPT][unit][ciholes]") {
               const auto Sk = [&](const DiracSpinor &a, const DiracSpinor &b,
                                   const DiracSpinor &c, const DiracSpinor &d) {
                 return MBPT::Sk_vwxy(k, a, b, c, d, qk, core, excited, sixj,
-                                     mode, {}, E0, nullptr, &in_ci_space);
+                                     mode, {}, E0, nullptr, &ci_orbitals);
               };
               const auto S_vwxy = Sk(v, w, x, y);
               REQUIRE(std::isfinite(S_vwxy));

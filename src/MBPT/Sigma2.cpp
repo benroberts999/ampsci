@@ -51,6 +51,20 @@ Denominators parse_Denominators(std::string_view s) {
 // (e_a - e_n) + leg_de. For BW, the whole denominator is E0 - E_intermediate,
 // where E_intermediate = es + ei + e_n - e_a is the total energy of the state
 // between the two Coulomb vertices; hence the target slot becomes (E0 - es).
+CIOrbitals::CIOrbitals(const std::vector<DiracSpinor> &holes,
+                       const std::vector<DiracSpinor> &ci_basis) {
+  for (const auto &orbitals : {&holes, &ci_basis}) {
+    for (const auto &orbital : *orbitals) {
+      const auto index = std::size_t(orbital.nk_index());
+      if (index >= m_member.size()) {
+        m_member.resize(index + 1, false);
+      }
+      m_member[index] = true;
+    }
+  }
+}
+
+//==============================================================================
 double leg_de(Denominators denominators, double et_bar, double et,
               double ei_bar, double ei, double es, double E0) {
   switch (denominators) {
@@ -126,82 +140,75 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const Angular::SixJTable &SixJ, Denominators denominators,
                const std::vector<double> &fk, double E0,
                const std::vector<RMatrix> *screening_dQk,
-               const InCISpace *in_ci_space) {
+               const CIOrbitals *ci_orbitals) {
   using namespace Sigma2;
 
   if (!Sk_vwxy_SR(k, v, w, x, y))
     return 0.0;
 
   // Hole legs: external legs that are core orbitals (the holes of hole CSFs)
-  const std::array<const DiracSpinor *, 4> legs{&v, &w, &x, &y};
-  std::array<bool, 4> hole_leg{};
-  for (std::size_t i = 0; i < 4; ++i) {
-    hole_leg[i] =
-      std::find(core.cbegin(), core.cend(), *legs[i]) != core.cend();
-  }
-  const bool any_hole_leg =
-    std::any_of(hole_leg.cbegin(), hole_leg.cend(), [](bool h) { return h; });
-  // Without the CI space, the terms whose intermediate state is the bra or
-  // the ket itself (internal hole = the hole leg) have zero denominators
-  assert((!any_hole_leg || in_ci_space != nullptr) &&
-         "Sigma_2 with a hole leg requires the CI-space predicate");
-  // With a hole leg in each pair, the particle-particle ladder's intermediate
-  // state (two excited orbitals, both holes open) is outside the CI space
-  const bool hole_in_each_pair =
-    (hole_leg[0] || hole_leg[1]) && (hole_leg[2] || hole_leg[3]);
-
-  // The terms whose intermediate state is a CSF of the CI space (a hole CSF:
-  // one hole, two particles) are left out. The intermediate state of a
-  // diagram holds two of the external legs (a: v, y; b: x, w; c1: v, x;
-  // c2: w, y), the internal excited n and the internal hole. A hole leg it
-  // holds is a filled hole (or a core electron not yet removed), so the
-  // state has one hole when every hole leg is held; its two particles are
-  // then n and the held particle leg, or n and a spectator of the matrix
-  // element (not an external leg) when both held legs are holes
-  ExcludedTerms excluded;
-  if (any_hole_leg && in_ci_space != nullptr) {
-    const auto terms_in_ci_space = [&](std::size_t i, std::size_t j)
-      -> std::function<bool(const DiracSpinor &, const DiracSpinor &)> {
-      for (std::size_t l = 0; l < 4; ++l) {
-        if (hole_leg[l] && l != i && l != j)
-          return {};
-      }
-      const DiracSpinor *partner = !hole_leg[i] ? legs[i] :
-                                   !hole_leg[j] ? legs[j] :
-                                                  nullptr;
-      return
-        [in_ci_space, partner](const DiracSpinor &a, const DiracSpinor &n) {
-          return (*in_ci_space)(a, n, partner);
-        };
-    };
-    excluded.a = terms_in_ci_space(0, 3);
-    excluded.b = terms_in_ci_space(2, 1);
-    excluded.c1 = terms_in_ci_space(0, 2);
-    excluded.c2 = terms_in_ci_space(1, 3);
-  }
+  const auto is_hole_leg = [&core](const DiracSpinor &leg) {
+    return std::find(core.cbegin(), core.cend(), leg) != core.cend();
+  };
+  const bool hole_leg_vw = is_hole_leg(v) || is_hole_leg(w);
+  const bool hole_leg_xy = is_hole_leg(x) || is_hole_leg(y);
+  // The bra and ket themselves are intermediate states of terms with a hole
+  // leg (zero denominators); they lie within the CI orbitals
+  assert((!(hole_leg_vw || hole_leg_xy) || ci_orbitals != nullptr) &&
+         "Sigma_2 with a hole leg requires the CI orbitals");
 
   // Static loop diagrams from the Feynman method, for the k the correction
-  // covers; otherwise all diagrams are second-order Goldstone. Not for hole
-  // legs: the loop's intermediate states cannot be restricted
+  // covers; otherwise all diagrams are second-order Goldstone. Not with the CI
+  // orbitals left out: the loop's intermediate states cannot be restricted
   const auto ik = std::size_t(k);
-  const bool feynman_loop =
-    screening_dQk != nullptr && ik < screening_dQk->size() && !any_hole_leg;
+  const bool feynman_loop = screening_dQk != nullptr &&
+                            ik < screening_dQk->size() &&
+                            ci_orbitals == nullptr;
 
-  const auto Sk_Goldstone =
-    S_Sigma2_ab(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk, E0,
-                feynman_loop, excluded) +
-    S_Sigma2_c1(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk, E0,
-                excluded) +
-    S_Sigma2_c2(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk, E0,
-                excluded) +
-    S_Sigma2_d(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk, E0) +
-    (hole_in_each_pair ?
-       S_Sigma2_pp(k, v, w, x, y, qk, core, excited, SixJ, denominators, E0) :
-       0.0);
+  const auto Sk_Goldstone = [&](const DiracSpinor &v_, const DiracSpinor &w_,
+                                const DiracSpinor &x_, const DiracSpinor &y_) {
+    return S_Sigma2_ab(k, v_, w_, x_, y_, qk, core, excited, SixJ, denominators,
+                       fk, E0, feynman_loop, ci_orbitals) +
+           S_Sigma2_c1(k, v_, w_, x_, y_, qk, core, excited, SixJ, denominators,
+                       fk, E0, ci_orbitals) +
+           S_Sigma2_c2(k, v_, w_, x_, y_, qk, core, excited, SixJ, denominators,
+                       fk, E0, ci_orbitals) +
+           S_Sigma2_d(k, v_, w_, x_, y_, qk, core, excited, SixJ, denominators,
+                      fk, E0, ci_orbitals) +
+           // The particle-particle ladder, with a hole leg in each pair
+           (hole_leg_vw && hole_leg_xy ?
+              S_Sigma2_pp(k, v_, w_, x_, y_, qk, core, excited, SixJ,
+                          denominators, E0, ci_orbitals) :
+              0.0);
+  };
 
-  return feynman_loop ? Sk_Goldstone + S_Sigma2_screen(k, v, w, x, y,
-                                                       screening_dQk->at(ik)) :
-                        Sk_Goldstone;
+  // With the Fermi-level denominators, a hole leg is one more orbital of its
+  // kappa: at the energy of the lowest excited orbital of that kappa, in
+  // every slot (as for its Sigma_1)
+  const bool holes_at_kappa_energy =
+    (hole_leg_vw || hole_leg_xy) &&
+    (denominators == Denominators::DFK || denominators == Denominators::Fermi);
+  if (holes_at_kappa_energy) {
+    const auto at_kappa_energy = [&](const DiracSpinor &leg) {
+      auto out = leg;
+      const auto lowest =
+        std::find_if(excited.cbegin(), excited.cend(),
+                     [kappa = leg.kappa()](const DiracSpinor &n) {
+                       return n.kappa() == kappa;
+                     });
+      if (is_hole_leg(leg) && lowest != excited.cend()) {
+        out.en() = lowest->en();
+      }
+      return out;
+    };
+    return Sk_Goldstone(at_kappa_energy(v), at_kappa_energy(w),
+                        at_kappa_energy(x), at_kappa_energy(y));
+  }
+
+  return feynman_loop ?
+           Sk_Goldstone(v, w, x, y) +
+             S_Sigma2_screen(k, v, w, x, y, screening_dQk->at(ik)) :
+           Sk_Goldstone(v, w, x, y);
 }
 
 //==============================================================================
@@ -213,7 +220,7 @@ double Sigma2::S_Sigma2_ab(
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
   const Angular::SixJTable &SixJ, Denominators denominators,
   const std::vector<double> &fk, double E0, bool exclude_static_loop,
-  const ExcludedTerms &excluded) {
+  const CIOrbitals *ci_orbitals) {
 
   // overall selectrion rule tested outside
 
@@ -260,9 +267,8 @@ double Sigma2::S_Sigma2_ab(
       if (!Angular::Ck_kk_SR(k, a.kappa(), n.kappa()))
         continue;
 
-      const bool skip_a = excluded.a && excluded.a(a, n);
-      const bool skip_b = excluded.b && excluded.b(a, n);
-      if (skip_a && skip_b)
+      // Both internal lines within the CI orbitals: left out
+      if (ci_orbitals && ci_orbitals->contains(a) && ci_orbitals->contains(n))
         continue;
 
       const auto de_an = a.en() - n.en();
@@ -290,9 +296,7 @@ double Sigma2::S_Sigma2_ab(
       // thus screened once, all others twice.
 
       // diagrams a1, a2, a3:
-      if (!skip_a) {
-        sum += Fk(k) * (qk_vnxa * wk_awny + pk_vnxa * qk_awny) * inv_de_a;
-      }
+      sum += Fk(k) * (qk_vnxa * wk_awny + pk_vnxa * qk_awny) * inv_de_a;
 
       // B diagrams: a <-> n
       const auto qk_vaxn = qk_vnxa;
@@ -302,9 +306,7 @@ double Sigma2::S_Sigma2_ab(
       const auto wk_nway = qk_nway + pk_nway;
 
       // diagrams b1, b2, b3:
-      if (!skip_b) {
-        sum += Fk(k) * (qk_vaxn * wk_nway + pk_vaxn * qk_nway) * inv_de_b;
-      }
+      sum += Fk(k) * (qk_vaxn * wk_nway + pk_vaxn * qk_nway) * inv_de_b;
 
       // The loop screening diagrams a1 and b1 are the Q*Q parts of the above.
       // With
@@ -315,8 +317,7 @@ double Sigma2::S_Sigma2_ab(
       // orders, is added by the caller
       if (exclude_static_loop) {
         const auto qq_loop = qk_vnxa * qk_awny;
-        const auto loops = (skip_a ? 0.0 : 1.0) + (skip_b ? 0.0 : 1.0);
-        sum -= Fk(k) * qq_loop * loops / de_an;
+        sum -= Fk(k) * qq_loop * 2.0 / de_an;
       }
     }
   }
@@ -330,7 +331,7 @@ double Sigma2::S_Sigma2_c1(
   const DiracSpinor &y, const Coulomb::QkTable &qk,
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
   const Angular::SixJTable &SixJ, Denominators denominators,
-  const std::vector<double> &fk, double E0, const ExcludedTerms &excluded) {
+  const std::vector<double> &fk, double E0, const CIOrbitals *ci_orbitals) {
 
   // overall selectrion rule tested outside
 
@@ -362,7 +363,8 @@ double Sigma2::S_Sigma2_c1(
     if (!Coulomb::sixjTriads({}, {}, k, v, x, a))
       continue;
     for (const auto &n : excited) {
-      if (excluded.c1 && excluded.c1(a, n))
+      // Both internal lines within the CI orbitals: left out
+      if (ci_orbitals && ci_orbitals->contains(a) && ci_orbitals->contains(n))
         continue;
       const auto [u0, u1] = Coulomb::k_minmax_Q(v, n, a, y);
       const auto [l0, l1] = Coulomb::k_minmax_Q(a, w, x, n);
@@ -404,7 +406,7 @@ double Sigma2::S_Sigma2_c2(
   const DiracSpinor &y, const Coulomb::QkTable &qk,
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
   const Angular::SixJTable &SixJ, Denominators denominators,
-  const std::vector<double> &fk, double E0, const ExcludedTerms &excluded) {
+  const std::vector<double> &fk, double E0, const CIOrbitals *ci_orbitals) {
 
   // overall selectrion rule tested outside
 
@@ -435,7 +437,8 @@ double Sigma2::S_Sigma2_c2(
     if (!Coulomb::sixjTriads({}, {}, k, y, w, a))
       continue;
     for (const auto &n : excited) {
-      if (excluded.c2 && excluded.c2(a, n))
+      // Both internal lines within the CI orbitals: left out
+      if (ci_orbitals && ci_orbitals->contains(a) && ci_orbitals->contains(n))
         continue;
 
       const auto [u0, u1] = Coulomb::k_minmax_Q(v, a, n, y);
@@ -473,14 +476,12 @@ double Sigma2::S_Sigma2_c2(
 }
 
 //==============================================================================
-double Sigma2::S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
-                          const DiracSpinor &x, const DiracSpinor &y,
-                          const Coulomb::QkTable &qk,
-                          const std::vector<DiracSpinor> &core,
-                          const std::vector<DiracSpinor> &excited,
-                          const Angular::SixJTable &SixJ,
-                          Denominators denominators,
-                          const std::vector<double> &fk, double E0) {
+double Sigma2::S_Sigma2_d(
+  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
+  const DiracSpinor &y, const Coulomb::QkTable &qk,
+  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
+  const Angular::SixJTable &SixJ, Denominators denominators,
+  const std::vector<double> &fk, double E0, const CIOrbitals *ci_orbitals) {
 
   // screening factors
   auto Fk = [&fk](int l) {
@@ -528,6 +529,9 @@ double Sigma2::S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
       continue;
 
     for (const auto &b : core) {
+      // Both internal holes within the CI orbitals: left out
+      if (ci_orbitals && ci_orbitals->contains(a) && ci_orbitals->contains(b))
+        continue;
 
       const auto [u0, u1] = Coulomb::k_minmax_Q(v, w, a, b);
       const auto [l0, l1] = Coulomb::k_minmax_Q(a, b, x, y);
@@ -571,7 +575,8 @@ double Sigma2::S_Sigma2_pp(int k, const DiracSpinor &v, const DiracSpinor &w,
                            const std::vector<DiracSpinor> &core,
                            const std::vector<DiracSpinor> &excited,
                            const Angular::SixJTable &SixJ,
-                           Denominators denominators, double E0) {
+                           Denominators denominators, double E0,
+                           const CIOrbitals *ci_orbitals) {
 
   const auto f = Angular::neg1pow_2(v.twoj() + w.twoj() + x.twoj() + y.twoj()) *
                  (2.0 * k + 1.0);
@@ -609,6 +614,9 @@ double Sigma2::S_Sigma2_pp(int k, const DiracSpinor &v, const DiracSpinor &w,
       continue;
 
     for (const auto &n : excited) {
+      // Both internal lines within the CI orbitals: left out
+      if (ci_orbitals && ci_orbitals->contains(m) && ci_orbitals->contains(n))
+        continue;
 
       const auto [u0, u1] = Coulomb::k_minmax_Q(v, w, m, n);
       const auto [l0, l1] = Coulomb::k_minmax_Q(m, n, x, y);
@@ -671,13 +679,10 @@ Coulomb::WkTable calculate_Sk(
   const Coulomb::QkTable &qk, int max_k, bool exclude_wrong_parity_box,
   Denominators denominators, bool no_new_integrals,
   const std::vector<double> &fk, double E0,
-  const std::vector<RMatrix> *screening_dQk, const InCISpace *in_ci_space,
+  const std::vector<RMatrix> *screening_dQk, const CIOrbitals *ci_orbitals,
   const InCISpace *hole_CSFs) {
 
   Coulomb::WkTable Sk;
-  if (hole_CSFs == nullptr) {
-    hole_CSFs = in_ci_space;
-  }
 
   const auto max_twoj =
     std::max({DiracSpinor::max_tj(excited), DiracSpinor::max_tj(core),
@@ -688,7 +693,7 @@ Coulomb::WkTable calculate_Sk(
                                const DiracSpinor &w, const DiracSpinor &x,
                                const DiracSpinor &y) {
     return MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, sjt, denominators,
-                         fk, E0, screening_dQk, in_ci_space);
+                         fk, E0, screening_dQk, ci_orbitals);
   };
 
   // Which states are in pair_basis, and which are core (hole legs), indexed
@@ -787,7 +792,8 @@ Coulomb::WkTable calculate_Sk(
     const auto total = Sk.count();
     assert(total >= existing);
     const auto new_integrals = total - existing;
-    std::cout << "Calculated " << new_integrals << " new MBPT integrals\n";
+    std::cout << "Calculated " << new_integrals << " new MBPT integrals\n"
+              << std::flush;
     if (new_integrals > 0) {
       Sk.write(filename);
     }

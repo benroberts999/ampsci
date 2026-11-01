@@ -393,9 +393,16 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // energy dependence of their denominators is kept at second order.
   const auto Feynman_screen_requested =
     include_Sigma2 && input.get("Feynman_screen", false);
+  // Not with hole CSFs: the loop's intermediate states cannot be restricted
+  // to those outside the CI orbitals
   const auto Feynman_screen =
     Feynman_screen_requested && wf.Sigma() &&
-    wf.Sigma()->method() == MBPT::SigmaMethod::Feynman;
+    wf.Sigma()->method() == MBPT::SigmaMethod::Feynman &&
+    hole_csfs.holes.empty();
+  if (Feynman_screen_requested && !hole_csfs.holes.empty()) {
+    fmt2::warning();
+    std::cout << ": Feynman_screen is not used with hole CSFs\n";
+  }
   const auto all_order_screen = input.get("all_order_screen", true);
   const auto hp_screen = input.get("hp_screen", true);
   // Tag for the sk and ci file hashes
@@ -541,17 +548,20 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                                      include_Sigma1);
 
   // The hole orbitals (hole CSFs): e_a + Sigma_1, and Sigma_1 between the
-  // excited and hole orbitals
+  // excited and hole orbitals; the same Sigma_1 operator as the other
+  // orbitals of each kappa
   CI::add_holes_to_h1_table(&h1, hole_csfs.holes, ci_sp_basis, core_s1,
-                            excited_s1, qk, include_Sigma1);
+                            excited_s1, qk, include_Sigma1,
+                            Brueckner ? nullptr : wf.Sigma());
 
-  // With hole CSFs, part of the Sigma_1 of the one-electron CSFs lies in the
-  // CI space; tabulated, to be removed from those elements
-  Coulomb::meTable<double> Sigma1_in_CI;
-  if (include_Sigma1 && !hole_csfs.holes.empty()) {
-    std::cout << "Sigma_1 in the CI space (hole CSFs): removed from the "
-                 "one-electron CSFs\n";
-    Sigma1_in_CI = CI::calculate_Sigma1_in_CI(ci_sp_basis, hole_csfs.holes, qk);
+  // With hole CSFs, the MBPT leaves out every term whose internal lines all
+  // lie in the CI orbitals (hole shells and ci_basis), for every orbital
+  const bool MBPT_without_CI_orbitals = !hole_csfs.holes.empty();
+  if (include_Sigma1 && !Brueckner && MBPT_without_CI_orbitals) {
+    std::cout << "Sigma_1 with hole CSFs: terms within the CI orbitals left "
+                 "out\n";
+    CI::remove_Sigma1_in_CI_orbitals(&h1, hole_csfs.holes, ci_sp_basis, core_s1,
+                                     excited_s1, qk, wf.Sigma());
   }
 
   // Derivative (dSigma/dE) correction for Sigma_1
@@ -675,10 +685,13 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   if (include_Sigma2) {
 
     // Hole CSFs: the integrals with the hole as an external leg (those the
-    // block's hole CSFs need), less the terms within the CI space
+    // block's hole CSFs need); every integral less the terms within the CI
+    // orbitals
     const auto hole_legs = CI::Sigma2_hole_legs(hole_csfs.holes, core_s2);
     const auto Sk_legs = qip::merge(cis2_legs_basis, hole_legs);
-    const auto in_ci_spaceQ = CI::in_CI_space(hole_csfs.holes, ci_sp_basis);
+    const MBPT::CIOrbitals ci_orbitals(hole_csfs.holes, ci_sp_basis);
+    const auto *ci_orbitals_ptr =
+      MBPT_without_CI_orbitals ? &ci_orbitals : nullptr;
     const auto hole_CSFQ =
       CI::hole_CSFs(config_space, hole_csfs.holes, hole_csfs.holes_basis);
 
@@ -692,7 +705,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       (hole_legs.empty() ?
          "" :
          "holes;" + DiracSpinor::state_config(hole_legs) + ";" +
-           DiracSpinor::state_config(ci_sp_basis) + ";");
+           DiracSpinor::state_config(ci_sp_basis) + ";orb;");
     const auto sk_basename = wf.identity() + "_" +
                              DiracSpinor::state_config(excited_s2) + "_" +
                              qip::hash_string(sk_settings);
@@ -708,7 +721,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       std::cout << "With hole legs (" << DiracSpinor::state_config(hole_legs)
                 << "): the integrals of the hole CSFs, legs in "
                 << DiracSpinor::state_config(cis2_legs_basis)
-                << ", less the terms in the CI space\n";
+                << "; terms within the CI orbitals left out\n";
       if (iterative_correction_sigma2) {
         std::cout << "nb: Brillouin-Wigner shift of the particle-hole terms "
                      "of the hole CSFs is that of the particle pair\n";
@@ -758,7 +771,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     Sk = MBPT::calculate_Sk(
       Sk_filename, Sk_legs, cis2_basis, core_s2, excited_s2, qk, max_k_Coulomb,
       exclude_wrong_parity_box, denominators, no_new_integralsQ, fk, E0_sigma2,
-      screening_dQk_ptr, &in_ci_spaceQ, &hole_CSFQ);
+      screening_dQk_ptr, ci_orbitals_ptr, &hole_CSFQ);
     warn_if_empty(Sk.count(), "Sigma_2 S^k", Sk_filename);
 
     if (iterative_correction_sigma2) {
@@ -776,7 +789,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                                excited_s2, qk, max_k_Coulomb,
                                exclude_wrong_parity_box, denominators,
                                no_new_integralsQ, fk, E0_sigma2 + delta_E0,
-                               screening_dQk_ptr, &in_ci_spaceQ, &hole_CSFQ);
+                               screening_dQk_ptr, ci_orbitals_ptr, &hole_CSFQ);
       warn_if_empty(dSk.count(), "dSigma_2 (dsk)", dSk_filename);
       // Both tables have the same entries (same fill), so this is safe
       for (std::size_t k = 0; k < dSk->size(); ++k) {
@@ -856,8 +869,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf") + ";";
   }
   ci_settings += hole_csfs.tag();
-  if (!Sigma1_in_CI.empty()) {
-    ci_settings += "s1P;";
+  if (MBPT_without_CI_orbitals && (include_Sigma1 || include_Sigma2)) {
+    ci_settings += "MBPTorb;";
   }
 
   // nb: two electrons is not tagged: two-electron filenames do not depend on
@@ -887,8 +900,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                all_below_cm, h1, qk, Bk, Sk, include_Sigma2, print_details,
                read_only, std::cout, ci_fname, find_E0 ? &s1_corr : nullptr, hk,
                dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver, BW_each_level,
-               config_space, hole_csfs.holes, hole_csfs.holes_basis,
-               Sigma1_in_CI.empty() ? nullptr : &Sigma1_in_CI);
+               config_space, hole_csfs.holes, hole_csfs.holes_basis);
     }
   }
 
@@ -972,7 +984,6 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   out.integrals.holes_basis = hole_csfs.holes_basis;
   out.integrals.brueckner = Brueckner;
   out.integrals.h1 = std::move(h1);
-  out.integrals.Sigma1_in_CI = std::move(Sigma1_in_CI);
   out.integrals.qk = std::move(qk);
   out.integrals.Bk = std::move(Bk);
   out.integrals.Sk = std::move(Sk);
@@ -1110,8 +1121,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               const Coulomb::WkTable *dSk, double E0_sigma2, Solver solver,
               bool BW_each_level, const ConfigurationSpace &config_space,
               const std::vector<DiracSpinor> &holes,
-              const std::vector<DiracSpinor> &holes_basis,
-              const Coulomb::meTable<double> *Sigma1_in_CI) {
+              const std::vector<DiracSpinor> &holes_basis) {
 
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
@@ -1193,12 +1203,11 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       SparseMatrix Hci;
       if (s1c != nullptr) {
         Hci = CI::iterate_E0<SparseMatrix>(&psi, *s1c, h1, qk, br_ptr, s2_ptr,
-                                           hk, dSk, E0_sigma2, outstream, 0,
-                                           Sigma1_in_CI);
+                                           hk, dSk, E0_sigma2, outstream, 0);
       } else {
         // No correction (or iteration disabled): single matrix
-        Hci = CI::construct_Hci<SparseMatrix>(psi, h1, qk, br_ptr, s2_ptr, s1c,
-                                              hk, nullptr, 0.0, Sigma1_in_CI);
+        Hci =
+          CI::construct_Hci<SparseMatrix>(psi, h1, qk, br_ptr, s2_ptr, s1c, hk);
       }
       // Each stored element: value (double) and column index (32 bit)
       const auto Hci_sparse_GB = double(Hci.num_stored()) * 12.0 / 1.0e9;
@@ -1215,6 +1224,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
         fmt::print(outstream, "Find first {} solutions (Davidson)\n",
                    num_solutions);
       }
+      outstream << std::flush;
 
       IO::ChronoTimer t2("", false);
       const auto convergence =
@@ -1234,11 +1244,10 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       LinAlg::Matrix<double> Hci;
       if (s1c != nullptr) {
         Hci = CI::iterate_E0(&psi, *s1c, h1, qk, br_ptr, s2_ptr, hk, dSk,
-                             E0_sigma2, outstream, 0, Sigma1_in_CI);
+                             E0_sigma2, outstream, 0);
       } else {
         // No correction (or iteration disabled): single matrix
-        Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr, s1c, hk, nullptr,
-                                0.0, Sigma1_in_CI);
+        Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr, s1c, hk);
       }
       fmt::print(outstream,
                  "CI matrix (dense): {} total elements ({:.2f} GB)\n",
@@ -1252,6 +1261,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       } else {
         fmt::print(outstream, "Finding all solutions\n");
       }
+      outstream << std::flush;
 
       IO::ChronoTimer t2("", false);
       psi.solve(Hci, num_solutions, all_below_cm);
@@ -1273,7 +1283,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
           const auto Hci =
             CI::iterate_E0<LinAlg::SparseSymmetricMatrix<double>>(
               &psi_level, s1_level, h1, qk, br_ptr, s2_ptr, hk, dSk, E0_sigma2,
-              outstream, i, Sigma1_in_CI);
+              outstream, i);
           if (!psi_level.solve(Hci, int(i) + 1, {}, outstream).converged) {
             fmt::print(
               outstream,
@@ -1283,7 +1293,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
         } else {
           const auto Hci =
             CI::iterate_E0(&psi_level, s1_level, h1, qk, br_ptr, s2_ptr, hk,
-                           dSk, E0_sigma2, outstream, i, Sigma1_in_CI);
+                           dSk, E0_sigma2, outstream, i);
           psi_level.solve(Hci, int(i) + 1);
         }
         psi.replace_solution(i, psi_level.energy(i), psi_level.coefs(i));

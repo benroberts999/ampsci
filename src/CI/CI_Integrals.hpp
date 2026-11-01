@@ -249,8 +249,7 @@ template <typename MatrixType = LinAlg::Matrix<double>>
   const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
   const Coulomb::WkTable *Sk = nullptr, const std::vector<double> &hk = {},
   const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
-  std::ostream &outstream = std::cout, std::size_t level = 0,
-  const Coulomb::meTable<double> *Sigma1_in_CI = nullptr);
+  std::ostream &outstream = std::cout, std::size_t level = 0);
 
 //==============================================================================
 /*!
@@ -305,10 +304,6 @@ struct Integrals {
   double E0_sigma2{0.0};
   //! Derivative (dSigma/dE) correction for Sigma_1; empty if not included
   Sigma1Correction s1_corr{};
-  //! One-body Sigma_1 already contained in the CI space (hole CSFs), to be
-  //! subtracted from the one-electron CSF elements; empty if none. See
-  //! calculate_Sigma1_in_CI
-  Coulomb::meTable<double> Sigma1_in_CI{};
 
   //! False if the tables were never calculated (e.g., CI was run 'read_only')
   [[nodiscard]] bool availableQ() const {
@@ -532,22 +527,16 @@ double two_body_1p_2p1h(const PairElement &pair_element, const CI::CSF1 &A,
   @p s1c is given. There is no two-body part: construct_Hci() adds no
   Sigma_2 or Breit for one electron.
 
-  With hole CSFs in the block, part of the Sigma_1 in @p h1 is already in the
-  CI space: that part, @p Sigma1_in_CI, is subtracted (see
-  calculate_Sigma1_in_CI()).
-
   @param A,B   The two CSFs.
   @param twoJ  Not used.
   @param h1    Table of one-body matrix elements \f$ \langle a | h_1 | b \rangle \f$.
   @param qk    Not used: no two-body interaction for one electron.
   @param s1c   Optional derivative (dSigma/dE) correction to Sigma_1.
-  @param Sigma1_in_CI  Optional Sigma_1 already in the CI space; subtracted.
   @return CI Hamiltonian matrix element \f$ H_{AB} \f$.
 */
 double Hab(const CI::CSF1 &A, const CI::CSF1 &B, int twoJ,
            const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-           const Sigma1Correction *s1c = nullptr,
-           const Coulomb::meTable<double> *Sigma1_in_CI = nullptr);
+           const Sigma1Correction *s1c = nullptr);
 
 /*!
   @brief CI Hamiltonian matrix element between two two-electron CSFs.
@@ -814,13 +803,11 @@ double Breit_AB(const CI::CSF1 &A, const CI::CSF2p1h &B, int twoJ,
   @details
   Calls Hab() for the kinds of CSF held (see @ref CSF): the one-, two- or
   three-electron rules, the hole CSFs, and the one-electron / hole CSF
-  cross terms. Other mixed kinds assert. @p Sigma1_in_CI applies to the
-  one-electron CSFs only.
+  cross terms. Other mixed kinds assert.
 */
 double Hab(const CI::CSF &A, const CI::CSF &B, int twoJ,
            const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-           const Sigma1Correction *s1c = nullptr,
-           const Coulomb::meTable<double> *Sigma1_in_CI = nullptr);
+           const Sigma1Correction *s1c = nullptr);
 
 /*!
   @brief Two-body Sigma_2 correction to Hab(), for CSFs of any kind.
@@ -875,20 +862,38 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
                    const Coulomb::QkTable &qk, bool include_Sigma1);
 
 /*!
+  @brief Energy at which Sigma_1 is evaluated for the orbitals of one kappa.
+  @details
+  The energy of the lowest orbital of that kappa in @p ci_basis (the first
+  one listed: the basis is ordered by n). Every orbital of the kappa uses it,
+  including the hole orbitals, so each kappa has a single Sigma_1 operator.
+  If @p ci_basis has no orbital of that kappa, the energy of the highest hole
+  orbital of that kappa in @p holes.
+
+  @param kappa     Dirac quantum number.
+  @param ci_basis  CI single-particle basis (excited orbitals).
+  @param holes     Core orbitals that may hold a hole.
+  @return The energy; zero if neither set has an orbital of that kappa.
+*/
+double Sigma1_energy(int kappa, const std::vector<DiracSpinor> &ci_basis,
+                     const std::vector<DiracSpinor> &holes = {});
+
+/*!
   @brief Adds the one-body elements of the hole orbitals (hole CSFs) to an
   h1 table.
   @details
-  For each hole orbital a: the diagonal \f$ \epsilon_a + \langle a |
-  \Sigma_1(\epsilon_a) | a \rangle \f$ (the hole is a core orbital, so this
-  is second-order Sigma_1 evaluated below the Fermi level; its 2h1p terms
-  need the Q^k with three core orbitals, see calculate_Qk()); and, with
-  Sigma_1, the elements between a and every other orbital b of the same
-  kappa (another hole orbital, or an excited orbital of @p ci_basis, which
-  connect a one-electron CSF to the hole CSFs that contain it: see
-  one_body_1p_2p1h()), as the average of Sigma_1 at the two orbital
-  energies, \f$ \frac12 [\langle a|\Sigma_1(\epsilon_a)|b\rangle + \langle
-  a|\Sigma_1(\epsilon_b)|b\rangle] \f$: the symmetrised second-order form,
-  Hermitian by construction. Nothing is added without hole orbitals.
+  For each hole orbital a: the diagonal \f$ \epsilon_a + \langle a | \Sigma_1
+  | a \rangle \f$ and, with Sigma_1, the elements between a and every other
+  orbital b of the same kappa (another hole orbital, or an excited orbital of
+  @p ci_basis, which connect a one-electron CSF to the hole CSFs that contain
+  it: see one_body_1p_2p1h()). Nothing is added without hole orbitals.
+
+  The hole is one more orbital of its kappa: Sigma_1 is the operator of that
+  kappa, at the energy of Sigma1_energy() (that of the lowest CI orbital of
+  the kappa, not the hole energy), so the elements are Hermitian. It is
+  taken from @p Sigma if that holds a matrix for the kappa, otherwise it is
+  second order from @p qk. The terms within the CI orbitals are then removed
+  from these and the other elements by remove_Sigma1_in_CI_orbitals().
 
   @param h1                The table to add to (see calculate_h1_table()).
   @param holes             Core orbitals that may hold a hole.
@@ -897,71 +902,52 @@ calculate_h1_table(const std::vector<DiracSpinor> &ci_basis,
   @param s1_basis_excited  Excited states used as internal lines for Sigma_1.
   @param qk                Table of Coulomb Q^k integrals.
   @param include_Sigma1    If true, add the Sigma_1 elements.
+  @param Sigma             Correlation potential, used for the kappas it holds
+                           (may be nullptr: second order from @p qk).
 */
 void add_holes_to_h1_table(Coulomb::meTable<double> *h1,
                            const std::vector<DiracSpinor> &holes,
                            const std::vector<DiracSpinor> &ci_basis,
                            const std::vector<DiracSpinor> &s1_basis_core,
                            const std::vector<DiracSpinor> &s1_basis_excited,
-                           const Coulomb::QkTable &qk, bool include_Sigma1);
+                           const Coulomb::QkTable &qk, bool include_Sigma1,
+                           const MBPT::CorrelationPotential *Sigma = nullptr);
 
 /*!
-  @brief One-body Sigma_1 that the CI space already contains (hole CSFs).
+  @brief Removes from h1 the Sigma_1 terms whose internal lines all lie in
+  the CI orbitals (CI with hole CSFs).
   @details
-  With hole CSFs in a block, some intermediate states of the second-order
-  Sigma_1 of a one-electron CSF \f$ |v\rangle \f$ lie in the CI space: one
-  hole in a shell of @p holes and two electrons in @p ci_basis (see
-  in_CI_space()). The CI treats those, so their Sigma_1 term must not also
-  be in h1. This returns that term, \f$ \langle v | \Sigma_1^{P} | w
-  \rangle \f$ for v, w in @p ci_basis (same kappa), evaluated at the same
-  energy as calculate_h1_table() (the lowest orbital energy of that kappa),
-  to be subtracted from the one-electron CSF elements (see Hab()). It is
-  MBPT::Sigma_vw_2p1h() over those intermediate states only.
+  For every element of @p h1 between orbitals of @p ci_basis and @p holes
+  that holds Sigma_1: subtracts the second-order MBPT::Sigma_vw() with core
+  lines in @p holes and excited lines in @p ci_basis (within the Sigma_1
+  basis), at the energy of Sigma1_energy(). These are the terms whose
+  intermediate state lies within the orbitals the CI model space may occupy
+  (see MBPT::CIOrbitals): the 2p1h terms with the hole in a hole shell and
+  both particles in the CI basis, and the 2h1p terms with both holes in hole
+  shells and the particle in the CI basis. The same rule leaves out the
+  corresponding Sigma_2 terms (MBPT::Sk_vwxy()), so h1 is one operator for
+  every CSF it enters.
 
-  The particles of the hole CSFs keep the full Sigma_1: their corresponding
-  intermediate states have two holes, which are never in the CI space.
+  An element holds Sigma_1 if it involves a hole orbital (see
+  add_holes_to_h1_table()), or, for excited orbitals, if Sigma_1 is second
+  order (@p Sigma is nullptr) or @p Sigma holds a matrix for the kappa.
 
-  This is the usual CI+MBPT restriction of Sigma to intermediate states
-  outside the CI space, applied to the particle-hole CI.
-   - J. C. Berengut, Phys. Rev. A 94, 012502 (2016)
-
-  @param ci_basis  CI single-particle basis.
-  @param holes     Core orbitals that may hold the hole.
-  @param qk        Coulomb Q^k table (must hold <v b|Q^k|m n>).
-  @return Table of \f$ \langle v | \Sigma_1^{P} | w \rangle \f$.
+  @param h1                The table (see calculate_h1_table() and
+                           add_holes_to_h1_table()).
+  @param holes             Core orbitals that may hold a hole.
+  @param ci_basis          CI single-particle basis (excited orbitals).
+  @param s1_basis_core     Core states used as internal lines for Sigma_1.
+  @param s1_basis_excited  Excited states used as internal lines for Sigma_1.
+  @param qk                Table of Coulomb Q^k integrals.
+  @param Sigma             Correlation potential that h1 was built from (may
+                           be nullptr: second order from @p qk).
 */
-Coulomb::meTable<double>
-calculate_Sigma1_in_CI(const std::vector<DiracSpinor> &ci_basis,
-                       const std::vector<DiracSpinor> &holes,
-                       const Coulomb::QkTable &qk);
-
-/*!
-  @brief Makes the predicate that tells whether a two-particle one-hole
-  state lies in the CI space (see MBPT::InCISpace).
-  @details
-  The returned function answers, for a hole a and particles n and p: does
-  that state lie in the CI space? It does if every orbital of it may be
-  occupied in the CI model space: a is one of @p holes and n and p are in
-  @p ci_basis (a particle given as nullptr, a spectator of the matrix
-  element, is taken to be). It does not matter whether the state is a CSF of
-  the block (the particle basis of the hole CSFs, and the configuration
-  list, may be smaller): a state within the CI orbitals but not in the block
-  is left out of both the CI and the MBPT. Perturbation theory is not valid
-  for those states (their energies are close to those of the CSFs), and this
-  is the usual CI+MBPT practice.
-
-  This is the one definition of "in the CI space" for the MBPT with hole
-  CSFs: the terms of Sigma_1 (calculate_Sigma1_in_CI()) and of the Sigma_2
-  integrals with hole legs (MBPT::Sk_vwxy()) whose intermediate state it
-  accepts are left to the CI. Compare hole_CSFs(), which selects the Sigma_2
-  integrals a block needs.
-
-  @param holes     Core orbitals that may hold the hole.
-  @param ci_basis  CI single-particle basis (excited orbitals).
-  @return The predicate, for MBPT::calculate_Sk() and MBPT::Sk_vwxy().
-*/
-MBPT::InCISpace in_CI_space(const std::vector<DiracSpinor> &holes,
-                            const std::vector<DiracSpinor> &ci_basis);
+void remove_Sigma1_in_CI_orbitals(
+  Coulomb::meTable<double> *h1, const std::vector<DiracSpinor> &holes,
+  const std::vector<DiracSpinor> &ci_basis,
+  const std::vector<DiracSpinor> &s1_basis_core,
+  const std::vector<DiracSpinor> &s1_basis_excited, const Coulomb::QkTable &qk,
+  const MBPT::CorrelationPotential *Sigma = nullptr);
 
 /*!
   @brief Makes the predicate that tells whether a two-particle one-hole
@@ -976,8 +962,8 @@ MBPT::InCISpace in_CI_space(const std::vector<DiracSpinor> &holes,
   predicate is made, so each call is a lookup.
 
   Selects the Sigma_2 integrals with hole legs that the block needs (see
-  MBPT::calculate_Sk()). Not the definition of "in the CI space" for the
-  MBPT: see in_CI_space().
+  MBPT::calculate_Sk()). Not what the MBPT leaves out: see
+  MBPT::CIOrbitals.
 
   @param config_space Configurations in the CI expansion.
   @param holes        Core orbitals that may hold the hole.
@@ -993,7 +979,7 @@ MBPT::InCISpace hole_CSFs(const ConfigurationSpace &config_space,
   integrals: those among the core orbitals of the Sigma_2 basis.
   @details
   MBPT::Sk_vwxy() recognises a hole leg as a core orbital of its internal
-  lines (at its own energy). A hole outside @p s2_basis_core (not in
+  lines. A hole outside @p s2_basis_core (not in
   s2_basis, or below n_min_core) is left out, with a warning: no Sigma_2
   integral is formed with it.
 */
@@ -1323,9 +1309,6 @@ std::string Term_Symbol(int L, int two_S, int parity);
                each stored S^k is shifted to the target E0. See
                @ref CI::corrected_Sk.
   @param dE0   Shift of the target E0 from the one Sk was tabulated at.
-  @param Sigma1_in_CI  Sigma_1 already in the CI space (hole CSFs), subtracted
-               from the one-electron CSF elements; see calculate_Sigma1_in_CI.
-               nullptr if none.
   @tparam MatrixType Storage of the matrix:
     - LinAlg::Matrix<double> (default): dense, both triangles filled.
     - LinAlg::SparseSymmetricMatrix<double>: the non-zero elements of the
@@ -1335,12 +1318,13 @@ std::string Term_Symbol(int L, int two_S, int parity);
   @return Full CI Hamiltonian matrix in the CSF basis.
 */
 template <typename MatrixType = LinAlg::Matrix<double>>
-MatrixType construct_Hci(
-  const PsiJPi &psi, const Coulomb::meTable<double> &h1,
-  const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
-  const Coulomb::WkTable *Sk = nullptr, const Sigma1Correction *s1c = nullptr,
-  const std::vector<double> &hk = {}, const Coulomb::WkTable *dSk = nullptr,
-  double dE0 = 0.0, const Coulomb::meTable<double> *Sigma1_in_CI = nullptr);
+MatrixType
+construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
+              const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
+              const Coulomb::WkTable *Sk = nullptr,
+              const Sigma1Correction *s1c = nullptr,
+              const std::vector<double> &hk = {},
+              const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0);
 
 /*!
   @brief Constructs the full CI Hamiltonian matrix for a list of CSFs.
@@ -1360,7 +1344,7 @@ MatrixType construct_Hci(
   const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
   const Coulomb::WkTable *Sk = nullptr, const Sigma1Correction *s1c = nullptr,
   const std::vector<double> &hk = {}, const Coulomb::WkTable *dSk = nullptr,
-  double dE0 = 0.0, const Coulomb::meTable<double> *Sigma1_in_CI = nullptr);
+  double dE0 = 0.0);
 
 /*!
   @brief Constructs the CI Hamiltonian matrix from a set of integral tables.
