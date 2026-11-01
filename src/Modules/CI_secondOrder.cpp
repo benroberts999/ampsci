@@ -10,6 +10,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
 #include "fmt/format.hpp"
+#include "qip/Vector.hpp"
 #include <algorithm>
 #include <cmath>
 #include <iostream>
@@ -145,6 +146,8 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
                  "the CI Hamiltonian. Include a CI{} block\n";
     return;
   }
+  // One-body tables cover the CI basis and the hole orbitals of the hole CSFs
+  const auto ci_orbitals = qip::merge(ints.ci_basis, ints.holes);
 
   //----------------------------------------------------------------------------
   // The CI states: lists of A (and B), calculated pairwise (A_i -> B_i).
@@ -381,13 +384,13 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
       // The normalisation of states goes onto the single-particle matrix
       // elements, as in the single-valence case
       t_me =
-        Amplitudes::me_table(ints.ci_basis, ht.get(), rpa_t.get(),
+        Amplitudes::me_table(ci_orbitals, ht.get(), rpa_t.get(),
                              sr ? &*sr : nullptr, omega, sr_n_max, sr_norm);
       if (sr) {
         sr->solve_core(hs.get(), rpa_s.get());
       }
       s_me =
-        Amplitudes::me_table(ints.ci_basis, hs.get(), rpa_s.get(),
+        Amplitudes::me_table(ci_orbitals, hs.get(), rpa_s.get(),
                              sr ? &*sr : nullptr, omega_s, sr_n_max, sr_norm);
       std::cout << "done\n" << std::flush;
       table_freqs = std::pair{omega, omega_s};
@@ -485,7 +488,7 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     // The spin matrix element expresses the Wigner-Eckart factor of the
     // rank-1 amplitude, so no radial overlap enters it; see CI::sigma_rme
     if (K == 1 && E1_s && !diagonal) {
-      const auto sigma = CI::sigma_rme(*Psi_b, ib, *Psi_a, ia, ints.ci_basis);
+      const auto sigma = CI::sigma_rme(*Psi_b, ib, *Psi_a, ia, ci_orbitals);
       fmt::print("\nVector{}polarisability:\n", kind);
       fmt::print("<B||sigma||A> = {:.6e}\n", sigma);
       if (std::abs(sigma) < 1.0e-12) {

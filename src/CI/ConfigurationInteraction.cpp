@@ -1300,10 +1300,10 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   outstream << "\n";
   const auto E0 = psi.num_solutions() > 0 ? psi.energy(0) : 0.0;
 
-  // For calculating g-factors
+  // For calculating g-factors. Tabled over the CI basis and the hole
+  // orbitals: the hole CSFs have elements between the hole and the basis
   DiracOperator::M1 m1{ci_sp_basis.front().grid(), PhysConst::alpha, 0.0};
-  // only actually need to do this once..
-  const auto m1_tab = Amplitudes::me_table(ci_sp_basis, &m1);
+  const auto m1_tab = Amplitudes::me_table(qip::merge(ci_sp_basis, holes), &m1);
 
   // Print details of each solution, unless we find all, or read from file:
   const auto print_details_tmp =

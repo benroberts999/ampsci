@@ -12,6 +12,7 @@
 #include "fmt/color.hpp"
 #include "fmt/ostream.hpp"
 #include "qip/String.hpp"
+#include "qip/Vector.hpp"
 #include <algorithm>
 #include <iostream>
 #include <memory>
@@ -371,9 +372,11 @@ void CI_matrixElements(const IO::InputBlock &input, const Wavefunction &wf) {
 
   IO::ChronoTimer t("CI_matrixElements");
 
-  // The CI basis, as used to construct the CI solutions.
-  // Only matrix elements between these states are required
-  const auto &ci_basis = wf.CI_integrals().ci_basis;
+  // The CI basis, as used to construct the CI solutions, plus the hole
+  // orbitals of the hole CSFs. Only matrix elements between these states are
+  // required
+  const auto ci_basis =
+    qip::merge(wf.CI_integrals().ci_basis, wf.CI_integrals().holes);
   if (wf.CIwfs().empty() || ci_basis.empty()) {
     fmt2::error();
     std::cout << ": Requires CI solutions and the single-particle basis used "

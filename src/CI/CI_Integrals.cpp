@@ -1155,12 +1155,23 @@ void add_holes_to_h1_table(Coulomb::meTable<double> *h1,
                                  99, Fb.en()));
   };
 
+  if (include_Sigma1) {
+    std::cout << "Sigma_1 for the hole orbitals: second order, at the hole "
+                 "energy; between the excited and hole orbitals, averaged "
+                 "over the two energies\n";
+  }
   for (const auto &Fa : holes) {
     for (const auto &Fb : holes) {
       if (Fb.kappa() != Fa.kappa())
         continue;
       const auto h0_ab = Fa == Fb ? Fa.en() : 0.0;
-      h1->add(Fa, Fb, h0_ab + Sigma(Fa, Fb));
+      const auto Sigma_ab = Sigma(Fa, Fb);
+      h1->add(Fa, Fb, h0_ab + Sigma_ab);
+      if (include_Sigma1 && Fa == Fb) {
+        fmt::print("  {:4s}: e = {:.6f}, Sigma_1 = {:+.6f}, e + Sigma_1 = "
+                   "{:.6f}\n",
+                   Fa.shortSymbol(), Fa.en(), Sigma_ab, Fa.en() + Sigma_ab);
+      }
     }
     if (!include_Sigma1)
       continue;
@@ -1171,11 +1182,6 @@ void add_holes_to_h1_table(Coulomb::meTable<double> *h1,
       h1->add(Fw, Fa, Sigma_wa);
       h1->add(Fa, Fw, Sigma_wa);
     }
-  }
-  if (include_Sigma1) {
-    std::cout << "Sigma_1 for the hole orbitals: second order, at the hole "
-                 "energy; between the excited and hole orbitals, averaged "
-                 "over the two energies\n";
   }
 }
 

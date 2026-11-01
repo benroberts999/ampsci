@@ -10,6 +10,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/color.hpp"
 #include "fmt/format.hpp"
+#include "qip/Vector.hpp"
 #include <iostream>
 #include <optional>
 #include <string>
@@ -122,8 +123,10 @@ void CI_Pol(const IO::InputBlock &input, const Wavefunction &wf) {
     return;
   }
 
-  // The matrix elements are only required between the CI basis states
-  const auto &orbitals = wf.CI_integrals().ci_basis;
+  // The matrix elements are only required between the CI basis states, and
+  // the hole orbitals of the hole CSFs
+  const auto orbitals =
+    qip::merge(wf.CI_integrals().ci_basis, wf.CI_integrals().holes);
 
   // Structure radiation.
   // SR+N is only meaningful between physical states,
