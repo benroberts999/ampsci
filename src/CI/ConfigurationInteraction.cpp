@@ -222,11 +222,14 @@ Solutions configuration_interaction(const IO::InputBlock &input,
              num_electrons == 1 ? "" : "s");
   // options to include MBPT
   const auto include_Sigma1 = input.get("sigma1", false);
-  // Sigma_2 acts between pairs of valence electrons: none for one electron
-  const auto include_Sigma2 = input.get("sigma2", false) && num_electrons > 1;
-  if (input.get("sigma2", false) && !include_Sigma2) {
-    std::cout << "nb: one valence electron: no Sigma_2 (no valence pairs)\n";
-  }
+  // Hole CSFs (two particles and a hole) are available for one electron
+  const auto holes_requested =
+    !input.get("holes", std::vector<std::string>{}).empty() &&
+    num_electrons == 1;
+  // Sigma_2 acts between pairs: of valence electrons, or of the particles and
+  // the hole of the hole CSFs. None for one electron without hole CSFs
+  const auto include_Sigma2 =
+    input.get("sigma2", false) && (num_electrons > 1 || holes_requested);
 
   // Use Breuckner states for MBPT
   // nb: currently also use these Bruckner states in place of the "core"
@@ -243,9 +246,6 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // With hole CSFs, Sigma_1 of the one-electron CSFs must be an explicit
   // matrix element (the part already in the CI space is removed); with
   // Brueckner orbitals it is inside the orbitals, so they are not used
-  const auto holes_requested =
-    !input.get("holes", std::vector<std::string>{}).empty() &&
-    num_electrons == 1;
   const auto Brueckner = Brueckner_raw && include_Sigma1 && wf.Sigma() &&
                          !wf.spectrum().empty() && !holes_requested;
 
@@ -265,23 +265,8 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   std::cout << "\nUsing " << DiracSpinor::state_config(ci_sp_basis) << " = "
             << ci_sp_basis.size() << " orbitals in CI expansion\n";
 
-  // The CI Hamiltonian assumes V^(N-M): the orbitals are eigenstates of the
-  // Hartree-Fock potential of a closed-shell core holding every electron
-  // except the CI electrons, so <v|h|w> = e_v delta_vw with no subtraction
-  // terms. Not enforced: warn on what can be seen (another potential; an open
-  // core shell)
-  if (wf.vHF() && wf.vHF()->method() != HF::Method::HartreeFock) {
-    fmt2::warning();
-    fmt::print(": CI assumes Hartree-Fock orbitals (V^(N-M)); these are {}\n",
-               HF::parseMethod(wf.vHF()->method()));
-  }
-  for (const auto &shell : AtomData::core_parser(wf.coreConfiguration())) {
-    if (shell.frac() < 1.0) {
-      fmt2::warning();
-      fmt::print(": CI assumes a closed-shell core (V^(N-M)); {} is open\n",
-                 shell.symbol());
-    }
-  }
+  // The CI Hamiltonian assumes V^(N-M) Hartree-Fock orbitals
+  warn_unless_frozen_core_HF(wf);
 
   // Hole CSFs (two electrons + one hole): the core orbitals that may hold the
   // hole, and the basis of the two electrons
@@ -498,8 +483,6 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   const bool CP_derivative =
     sigma1_dSdE && include_Sigma1 && wf.Sigma() && wf.Sigma()->has_derivative();
 
-  // Lookup table; stores all qk's
-  Coulomb::QkTable qk;
   // Often, we don't need to calculate new integrals.
   // It takes time to check if we need to, so faster to skip if we already
   // know all integrals exist.
@@ -523,101 +506,25 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     }
   };
 
-  {
-    std::cout << "\n"
-              << (no_new_integralsQ ? "Read" : "Calculate")
-              << " two-body Coulomb integrals: Q^k_abcd\n";
-    std::cout << std::flush;
-
-    const auto qk_filename =
-      input.get("qk_file", wf.identity() + br_string + ".qk.abf");
-
-    // Try to read from disk (may already have calculated Qk)
-    qk.read(qk_filename);
-    const auto existing = qk.count();
-    warn_if_empty(existing, "Coulomb Q^k", qk_filename);
-
-    if (!no_new_integralsQ) {
-      // Try to limit number of Coulomb integrals we calculate
-      // use whole basis (these are used inside Sigma_2)
-      // If not including MBPT, only need to caculate smaller set of integrals
-
-      // First, calculate the integrals between ci basis states (and the
-      // hole orbitals, if any):
-      {
-        const auto ci_and_holes = qip::merge(ci_sp_basis, hole_csfs.holes);
-        std::cout << "For: " << DiracSpinor::state_config(ci_and_holes)
-                  << " (for CI)\n"
-                  << std::flush;
-        const auto yk = Coulomb::YkTable(ci_and_holes);
-        qk.fill(ci_and_holes, yk, max_k_Coulomb, false);
-      }
-
-      // Selection function for which Qk's to calculate.
-      // For Sigma, we only need those with 1 or 2 core electrons
-      // i.e., no Q_vwxy, Q_vabc, or Q_abcd
-      // Note: we *do* need Q_vwxy for the CI part (but with smaller basis)
-      const auto select_Q_sigma = [eF = wf.FermiLevel(), &hole_csfs](
-                                    int, const DiracSpinor &s,
-                                    const DiracSpinor &t, const DiracSpinor &u,
-                                    const DiracSpinor &v) {
-        // Only calculate Coulomb integrals with 1 or 2 electrons in the
-        // core. Sigma_1 of a hole orbital also needs those with 3, one of
-        // them the hole (its 2h1p terms)
-        const auto num = Coulomb::number_below_Fermi(s, t, u, v, eF);
-        if (num == 1 || num == 2)
-          return true;
-        if (num != 3)
-          return false;
-        for (const auto &hole : hole_csfs.holes) {
-          if (hole == s || hole == t || hole == u || hole == v)
-            return true;
-        }
-        return false;
-      };
-
-      // Then, add those required for Sigma_1 (unless we have matrix!)
-      // (With matrix, still required if calculating derivative correction -
-      // except when the matrix supplies dSigma/dE itself: CP_derivative)
-      // (and always with hole CSFs: Sigma_1 of the hole orbitals, and the
-      // Sigma_1 in the CI space, are formed from the integrals)
-      const bool need_s1_qk =
-        include_Sigma1 && (!wf.Sigma() || (sigma1_dSdE && !CP_derivative) ||
-                           !hole_csfs.holes.empty());
-      if (need_s1_qk) {
-        const auto temp_basis = qip::merge(core_s1, excited_s1);
-        std::cout << "and: " << DiracSpinor::state_config(temp_basis)
-                  << " (for MBPT)\n"
-                  << std::flush;
-        const auto yk = Coulomb::YkTable(temp_basis);
-        qk.fill_if(temp_basis, yk, select_Q_sigma, max_k_Coulomb, false);
-      }
-
-      // Then, add those required for Sigma_2 (unless we already did Sigma_1)
-      if (include_Sigma2 && !need_s1_qk) {
-        const auto temp_basis = qip::merge(core_s2, excited_s2);
-        std::cout << "and: " << DiracSpinor::state_config(temp_basis)
-                  << " (for MBPT)\n"
-                  << std::flush;
-        const auto yk = Coulomb::YkTable(temp_basis);
-        qk.fill_if(temp_basis, yk, select_Q_sigma, max_k_Coulomb, false);
-      }
-
-      // print summary
-      qk.summary();
-      std::cout << std::flush;
-
-      // If we calculated new integrals, write to disk
-      const auto total = qk.count();
-      assert(total >= existing);
-      const auto new_integrals = total - existing;
-      std::cout << "Calculated " << new_integrals << " new Coulomb integrals\n";
-      if (new_integrals > 0) {
-        qk.write(qk_filename);
-      }
-    }
-    std::cout << "\n" << std::flush;
-  }
+  // Two-body Coulomb integrals, for the CI and for the MBPT internal lines:
+  // the s1 basis if Sigma_1 is formed from them (no correlation potential, or
+  // its derivative, or hole CSFs), else the s2 basis for Sigma_2
+  const bool need_s1_qk =
+    include_Sigma1 && (!wf.Sigma() || (sigma1_dSdE && !CP_derivative) ||
+                       !hole_csfs.holes.empty());
+  const auto mbpt_qk_basis = need_s1_qk     ? qip::merge(core_s1, excited_s1) :
+                             include_Sigma2 ? qip::merge(core_s2, excited_s2) :
+                                              std::vector<DiracSpinor>{};
+  std::cout << "\n"
+            << (no_new_integralsQ ? "Read" : "Calculate")
+            << " two-body Coulomb integrals: Q^k_abcd\n"
+            << std::flush;
+  const auto qk_filename =
+    input.get("qk_file", wf.identity() + br_string + ".qk.abf");
+  auto qk =
+    CI::calculate_Qk(qk_filename, ci_sp_basis, hole_csfs.holes, mbpt_qk_basis,
+                     wf.FermiLevel(), max_k_Coulomb, no_new_integralsQ);
+  warn_if_empty(qk.count(), "Coulomb Q^k", qk_filename);
 
   //----------------------------------------------------------------------------
 
@@ -632,37 +539,19 @@ Solutions configuration_interaction(const IO::InputBlock &input,
               CI::calculate_h1_table(ci_sp_basis, *wf.Sigma(), include_Sigma1) :
               CI::calculate_h1_table(ci_sp_basis, core_s1, excited_s1, qk,
                                      include_Sigma1);
-  // The hole orbitals: orbital energy, plus second-order Sigma_1 at the hole
-  // energy. The hole is a core orbital, so this is the same Sigma_1 formula
-  // evaluated below the Fermi level (its 2h1p terms need Q^k with three core
-  // orbitals; see select_Q_sigma). Between two hole orbitals of one kappa, at
-  // the mean of their energies
-  for (const auto &Fa : hole_csfs.holes) {
-    for (const auto &Fb : hole_csfs.holes) {
-      if (Fb.kappa() != Fa.kappa())
-        continue;
-      const auto h0_ab = Fa == Fb ? Fa.en() : 0.0;
-      const auto Sigma_ab = include_Sigma1 ?
-                              MBPT::Sigma_vw(Fa, Fb, qk, core_s1, excited_s1,
-                                             99, 0.5 * (Fa.en() + Fb.en())) :
-                              0.0;
-      h1.add(Fa, Fb, h0_ab + Sigma_ab);
-    }
-  }
-  if (!hole_csfs.holes.empty() && include_Sigma1) {
-    std::cout << "Sigma_1 for the hole orbitals: second order, at the hole "
-                 "energy\n";
-  }
 
-  // With hole CSFs, part of the Sigma_1 of the one-electron CSFs is in the CI
-  // space (intermediate states that are hole CSFs); tabulated, to be removed
-  // from those elements
+  // The hole orbitals (hole CSFs): e_a + Sigma_1, and Sigma_1 between the
+  // excited and hole orbitals
+  CI::add_holes_to_h1_table(&h1, hole_csfs.holes, ci_sp_basis, core_s1,
+                            excited_s1, qk, include_Sigma1);
+
+  // With hole CSFs, part of the Sigma_1 of the one-electron CSFs lies in the
+  // CI space; tabulated, to be removed from those elements
   Coulomb::meTable<double> Sigma1_in_CI;
   if (include_Sigma1 && !hole_csfs.holes.empty()) {
     std::cout << "Sigma_1 in the CI space (hole CSFs): removed from the "
                  "one-electron CSFs\n";
-    Sigma1_in_CI = CI::calculate_Sigma1_in_CI(
-      ci_sp_basis, hole_csfs.holes, hole_csfs.holes_basis, config_space, qk);
+    Sigma1_in_CI = CI::calculate_Sigma1_in_CI(ci_sp_basis, hole_csfs.holes, qk);
   }
 
   // Derivative (dSigma/dE) correction for Sigma_1
@@ -712,13 +601,11 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   }
 
   // E0 is found iteratively for the dSigma/dE correction, and for BW Sigma_2.
-  // BW needs the orbital energies (initial E0; the pair energies, for three
-  // electrons), which come with the dSigma/dE tables; without those, they are
-  // added on their own
-  if (iterative_correction_sigma2 && s1_corr.empty()) {
-    for (const auto &v : ci_sp_basis) {
-      s1_corr.en[v.nk_index()] = v.en();
-    }
+  // BW needs the orbital energies (initial E0; the pair energies, including
+  // the hole orbitals of the hole CSFs)
+  if (iterative_correction_sigma2) {
+    s1_corr.add_orbital_energies(ci_sp_basis);
+    s1_corr.add_orbital_energies(hole_csfs.holes);
   }
   const bool find_E0 = !s1_corr.empty() || iterative_correction_sigma2;
 
@@ -775,6 +662,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     common_settings += std::to_string(f) + ",";
   }
   common_settings += ";";
+  // Restricted configuration space (empty if every configuration)
+  const auto config_space_tag = config_space.unrestricted() ?
+                                  std::string{} :
+                                  "cs;" + config_space.summary();
 
   Coulomb::WkTable Sk;
   // dS^k/dE0; empty unless iterative_correction_sigma2
@@ -783,12 +674,25 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   std::vector<double> hk;
   if (include_Sigma2) {
 
+    // Hole CSFs: the integrals with the hole as an external leg (those the
+    // block's hole CSFs need), less the terms within the CI space
+    const auto hole_legs = CI::Sigma2_hole_legs(hole_csfs.holes, core_s2);
+    const auto Sk_legs = qip::merge(cis2_legs_basis, hole_legs);
+    const auto in_ci_spaceQ = CI::in_CI_space(hole_csfs.holes, ci_sp_basis);
+    const auto hole_CSFQ =
+      CI::hole_CSFs(config_space, hole_csfs.holes, hole_csfs.holes_basis);
+
     // Here, write basis info into filename, since these are _internal_ lines!
+    // (the integrals with hole legs depend on the holes and the CI basis)
     const auto sk_settings =
       common_settings + MBPT::parse_Denominators(denominators) + ";" +
       (exclude_wrong_parity_box ? "xb" : "") + ";" +
       (iterative_correction_sigma2 ? std::to_string(E0_sigma2) + ";" : "") +
-      Feynman_screen_tag;
+      Feynman_screen_tag +
+      (hole_legs.empty() ?
+         "" :
+         "holes;" + DiracSpinor::state_config(hole_legs) + ";" +
+           DiracSpinor::state_config(ci_sp_basis) + ";");
     const auto sk_basename = wf.identity() + "_" +
                              DiracSpinor::state_config(excited_s2) + "_" +
                              qip::hash_string(sk_settings);
@@ -800,6 +704,16 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     std::cout << "For: " << DiracSpinor::state_config(cis2_basis) << " (pair), "
               << DiracSpinor::state_config(cis2_legs_basis) << " (all), using "
               << DiracSpinor::state_config(excited_s2) << "\n";
+    if (!hole_legs.empty()) {
+      std::cout << "With hole legs (" << DiracSpinor::state_config(hole_legs)
+                << "): the integrals of the hole CSFs, legs in "
+                << DiracSpinor::state_config(cis2_legs_basis)
+                << ", less the terms in the CI space\n";
+      if (iterative_correction_sigma2) {
+        std::cout << "nb: Brillouin-Wigner shift of the particle-hole terms "
+                     "of the hole CSFs is that of the particle pair\n";
+      }
+    }
 
     // output screening factors to check
     if (!fk.empty()) {
@@ -825,38 +739,26 @@ Solutions configuration_interaction(const IO::InputBlock &input,
         E0_sigma2);
     }
 
-    // Static screened-Coulomb kernels for the loop diagrams. The
-    // correlation potential's own Feynman object is used if it has the
-    // requested screening and hole-particle options; otherwise one is
-    // constructed with its sub-grid and parameters (Q*Pi*Q from the disk
-    // cache, if present)
-    std::vector<MBPT::RMatrix> screening_kernels;
+    // Static screened-Coulomb correction dQ^k(0) for the loop diagrams
+    // (Feynman method), from the correlation potential
+    std::vector<MBPT::RMatrix> screening_dQk;
     if (Feynman_screen && !no_new_integralsQ) {
       fmt::print(
         "Σ_2 direct (screening) diagrams by Feynman method: {} screening{}\n",
         all_order_screen ? "all-orders" : "second-order",
         hp_screen ? " + hole-particle" : "");
       std::cout << std::flush;
-      const auto *feynman = wf.Sigma()->feynman();
-      if (feynman != nullptr && feynman->screening() == all_order_screen &&
-          feynman->hole_particle() == hp_screen) {
-        screening_kernels = feynman->dQ_0_k();
-      } else {
-        const auto new_feynman =
-          wf.Sigma()->make_feynman(all_order_screen ? MBPT::Screening::include :
-                                                      MBPT::Screening::exclude,
-                                   hp_screen ? MBPT::HoleParticle::include :
-                                               MBPT::HoleParticle::exclude);
-        screening_kernels = new_feynman->dQ_0_k();
-      }
+      screening_dQk = wf.Sigma()->screening_dQk(
+        all_order_screen ? MBPT::Screening::include : MBPT::Screening::exclude,
+        hp_screen ? MBPT::HoleParticle::include : MBPT::HoleParticle::exclude);
     }
-    const auto *screening_ptr =
-      screening_kernels.empty() ? nullptr : &screening_kernels;
+    const auto *screening_dQk_ptr =
+      screening_dQk.empty() ? nullptr : &screening_dQk;
 
-    Sk = MBPT::calculate_Sk(Sk_filename, cis2_legs_basis, cis2_basis, core_s2,
-                            excited_s2, qk, max_k_Coulomb,
-                            exclude_wrong_parity_box, denominators,
-                            no_new_integralsQ, fk, E0_sigma2, screening_ptr);
+    Sk = MBPT::calculate_Sk(
+      Sk_filename, Sk_legs, cis2_basis, core_s2, excited_s2, qk, max_k_Coulomb,
+      exclude_wrong_parity_box, denominators, no_new_integralsQ, fk, E0_sigma2,
+      screening_dQk_ptr, &in_ci_spaceQ, &hole_CSFQ);
     warn_if_empty(Sk.count(), "Sigma_2 S^k", Sk_filename);
 
     if (iterative_correction_sigma2) {
@@ -870,10 +772,11 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       std::cout << "\nCalculate Σ^k_abcd at E0 + " << delta_E0
                 << " au, for dΣ^k/dE0\n"
                 << std::flush;
-      dSk = MBPT::calculate_Sk(
-        dSk_filename, cis2_legs_basis, cis2_basis, core_s2, excited_s2, qk,
-        max_k_Coulomb, exclude_wrong_parity_box, denominators,
-        no_new_integralsQ, fk, E0_sigma2 + delta_E0, screening_ptr);
+      dSk = MBPT::calculate_Sk(dSk_filename, Sk_legs, cis2_basis, core_s2,
+                               excited_s2, qk, max_k_Coulomb,
+                               exclude_wrong_parity_box, denominators,
+                               no_new_integralsQ, fk, E0_sigma2 + delta_E0,
+                               screening_dQk_ptr, &in_ci_spaceQ, &hole_CSFQ);
       warn_if_empty(dSk.count(), "dSigma_2 (dsk)", dSk_filename);
       // Both tables have the same entries (same fill), so this is safe
       for (std::size_t k = 0; k < dSk->size(); ++k) {
@@ -915,9 +818,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // into the hash. nb: converged E0 is not included: it is derived
   // (self-consistently) from the other settings, so is reproducible.
   std::string ci_settings = common_settings;
-  if (!config_space.unrestricted()) {
-    ci_settings += "cs;" + config_space.summary();
-  }
+  ci_settings += config_space_tag;
   if (include_Sigma1) {
     ci_settings += "s1;" + DiracSpinor::state_config(s1_basis) + ";";
   }
@@ -954,10 +855,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     ci_settings +=
       input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf") + ";";
   }
-  if (!hole_csfs.holes.empty()) {
-    ci_settings += "holes;" + DiracSpinor::state_config(hole_csfs.holes) + ";" +
-                   DiracSpinor::state_config(hole_csfs.holes_basis) + ";";
-  }
+  ci_settings += hole_csfs.tag();
   if (!Sigma1_in_CI.empty()) {
     ci_settings += "s1P;";
   }
@@ -1087,6 +985,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
 }
 
 //==============================================================================
+
 std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
                                                 int num_electrons) {
 
@@ -1145,6 +1044,7 @@ std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
 }
 
 //==============================================================================
+
 HoleOrbitals requested_hole_orbitals(const IO::InputBlock &input,
                                      const std::vector<DiracSpinor> &basis,
                                      const std::vector<DiracSpinor> &ci_basis,
@@ -1170,8 +1070,35 @@ HoleOrbitals requested_hole_orbitals(const IO::InputBlock &input,
 }
 
 //==============================================================================
+
+std::string HoleOrbitals::tag() const {
+  if (holes.empty())
+    return {};
+  return "holes;" + DiracSpinor::state_config(holes) + ";" +
+         DiracSpinor::state_config(holes_basis) + ";";
+}
+
+//==============================================================================
+
+void warn_unless_frozen_core_HF(const Wavefunction &wf) {
+  if (wf.vHF() && wf.vHF()->method() != HF::Method::HartreeFock) {
+    fmt2::warning();
+    fmt::print(": CI assumes Hartree-Fock orbitals (V^(N-M)); these are {}\n",
+               HF::parseMethod(wf.vHF()->method()));
+  }
+  for (const auto &shell : AtomData::core_parser(wf.coreConfiguration())) {
+    if (shell.frac() < 1.0) {
+      fmt2::warning();
+      fmt::print(": CI assumes a closed-shell core (V^(N-M)); {} is open\n",
+                 shell.symbol());
+    }
+  }
+}
+
 //==============================================================================
 //==============================================================================
+//==============================================================================
+
 PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               int num_electrons, int num_solutions,
               std::optional<double> all_below_cm,

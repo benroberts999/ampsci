@@ -81,6 +81,9 @@ struct HoleOrbitals {
   std::vector<DiracSpinor> holes{};
   //! Basis of the two particles of the hole CSFs (a subset of the CI basis)
   std::vector<DiracSpinor> holes_basis{};
+  //! Tag for the file hashes: the holes and their particle basis; empty
+  //! without hole CSFs
+  std::string tag() const;
 };
 
 /*!
@@ -107,6 +110,18 @@ HoleOrbitals requested_hole_orbitals(const IO::InputBlock &input,
                                      const std::vector<DiracSpinor> &ci_basis,
                                      const std::string &core_string,
                                      int num_electrons);
+
+/*!
+  @brief Warns if the orbitals are not what the CI Hamiltonian assumes.
+
+  @details
+  The CI assumes V^(N-M): the orbitals are eigenstates of the Hartree-Fock
+  potential of a closed-shell core holding every electron except the CI
+  electrons, so <v|h|w> = e_v delta_vw with no subtraction terms (and, with
+  hole CSFs, the hole shells are full core shells). Not enforced: warns on
+  what can be seen, another HF method or an open core shell.
+*/
+void warn_unless_frozen_core_HF(const Wavefunction &wf);
 
 /*!
   @brief Method for solving the CI eigenvalue problem of a (J, parity) block.

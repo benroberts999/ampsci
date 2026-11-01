@@ -463,9 +463,9 @@ CI{
 * `ci_hole_basis`: the basis of the two excited electrons of the hole CSFs (a subset of `ci_basis`). The number of hole CSFs grows as the square of this basis, so it is usually smaller than `ci_basis`.
 * The number of CSFs of each kind is printed for each block, and the hole configurations appear as, e.g., `6p^2 6s^-1`.
 * `leading` and `excitations` apply to the hole CSFs too (see [Configuration space](#configspace)). A hole is written as a negative number, e.g., `leading = 6p, 7s, 6s-1.6p2;`. An excitation from a configuration without a hole may create one (`6s-1.6p2` and `6s-1.6p.7p` are single excitations from `6p`), and a configuration with a hole keeps it: there is at most one hole, so there are no further hole excitations, and the hole is never filled. The default leading configurations have no holes. The configuration count printed includes the configurations with a hole.
-* Two-body Breit (`Breit2`) enters the hole CSFs exactly as the other CSFs (for pairs within `Breit_basis`, which always includes the hole orbitals). `sigma2` is not used with one valence electron.
-* `sigma1` (second order) enters the one-body matrix elements of the excited electrons and of the hole orbital (at the hole energy; it enters with the opposite sign, as the hole energy does). Some intermediate states of the one-electron Sigma_1 are themselves hole CSFs of the block (one hole in a shell of `holes`, two electrons in `ci_hole_basis`); the CI treats those exactly, so that part of Sigma_1 is removed from the one-electron CSFs. Brueckner orbitals are therefore not used with hole CSFs (`Brueckner` is switched off, with a warning).
-* Term symbols (from \f$\langle L^2\rangle\f$ and \f$\langle S^2\rangle\f$) and \f$g_J\f$ factors are given as usual.
+* Two-body Breit (`Breit2`) is included for the hole CSFs as for the others.
+* `sigma1` and `sigma2` include the corrections for the hole too.
+* `Brueckner` is not used with hole CSFs.
 
 -----
 

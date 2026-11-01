@@ -408,6 +408,19 @@ public:
   std::optional<Feynman> make_feynman(Screening screening,
                                       HoleParticle hole_particle) const;
 
+  /*!
+    @brief Static screened-Coulomb correction dQ^k(0), one radial matrix per
+           k, with the given screening and hole-particle options.
+
+    @details
+    From feynman() if it has these options, otherwise from a new Feynman
+    object with the sub-grid and parameters of this Sigma (see
+    make_feynman). For the loop diagrams of Sigma_2 (see MBPT::Sk_vwxy).
+    Empty if not the Feynman method.
+  */
+  std::vector<RMatrix> screening_dQk(Screening screening,
+                                     HoleParticle hole_particle) const;
+
   //! Prints the sub-grid parameters to screen
   void print_subGrid() const;
 

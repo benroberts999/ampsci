@@ -103,15 +103,17 @@ double leg_de(Denominators denominators, double et_bar, double et,
               double ei_bar, double ei, double es, double E0);
 
 /*!
-  @brief Whether a two-particle one-hole state is a CSF of the CI space.
+  @brief Whether a two-particle one-hole state lies in the CI space.
 
   @details
   For Sk_vwxy() with a hole leg: the second-order terms whose intermediate
-  state is a hole CSF of the CI block are already in the CI, and are left
-  out. Called with the hole @p a and excited orbital @p n of the internal
-  lines, and the other particle @p p of the intermediate state; @p p is
-  nullptr when that particle is a spectator of the matrix element (any
-  orbital of the hole-CSF basis), as for integrals with two hole legs.
+  state lies in the CI space are left to the CI, and left out here. Called
+  with the hole @p a and excited orbital @p n of the internal lines, and the
+  other particle @p p of the intermediate state; @p p is nullptr when that
+  particle is a spectator of the matrix element (not known to the integral),
+  as for integrals with two hole legs. What "in the CI space" means is the
+  caller's: see CI::in_CI_space (every orbital of the state may be occupied
+  in the CI model space) and CI::hole_CSFs (the state is a CSF of the block).
 */
 using InCISpace = std::function<bool(const DiracSpinor &a, const DiracSpinor &n,
                                      const DiracSpinor *p)>;
@@ -176,8 +178,8 @@ using InCISpace = std::function<bool(const DiracSpinor &a, const DiracSpinor &n,
                       Missing (or empty) implies 1.0 (no screening).
   @param E0           Total valence energy of the target CI level; used only
                       by Denominators::BW.
-  @param screening_kernels
-                      Static screened-Coulomb kernels dQ^k(0), for each k
+  @param screening_dQk
+                      Static screened-Coulomb correction dQ^k(0), for each k
                       (see Feynman::dQ_0_k), on the Feynman
                       radial sub-grid. If given (for
                       the k it covers), the loop diagrams a1 and b1 are
@@ -194,10 +196,10 @@ using InCISpace = std::function<bool(const DiracSpinor &a, const DiracSpinor &n,
                       which gives the energies of the intermediate states
                       with the hole filled or open; the particle-hole sign
                       is in the recoupling of the CSF matrix elements, not
-                      here. The terms whose intermediate state is a hole
-                      CSF of the CI space (every hole leg filled: one hole,
-                      two particles) are left out, as the CI holds them
-                      exactly; see \ref Sigma2::ExcludedTerms. Required
+                      here. The terms whose intermediate state lies in the
+                      CI space (every hole leg filled: one hole, two
+                      particles) are left out, as the CI holds them; see
+                      \ref Sigma2::ExcludedTerms. Required
                       (asserted) for integrals with a hole leg: the bra and
                       ket themselves are among those states, with zero
                       denominators. With a hole leg in each pair, the
@@ -214,7 +216,7 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const Angular::SixJTable &SixJ,
                Denominators denominators = Denominators::DFK,
                const std::vector<double> &fk = {}, double E0 = 0.0,
-               const std::vector<RMatrix> *screening_kernels = nullptr,
+               const std::vector<RMatrix> *screening_dQk = nullptr,
                const InCISpace *in_ci_space = nullptr);
 
 /*!
@@ -401,16 +403,28 @@ double e_bar(const DiracSpinor &leg, const std::vector<DiracSpinor> &core,
   treated alike: otherwise Sigma_2 would become spin dependent, and split LS
   multiplets (e.g., violate the Lande interval rule).
 
+  Hole legs (see Sk_vwxy()): an external leg that is one of @p core is the
+  hole of a hole CSF. The integrals with a hole leg are those the block's
+  hole CSFs need, by @p hole_CSFs (none without it), whatever @p pair_basis:
+  with one hole leg, the other pair are the two particles of a hole CSF with
+  that hole; with a hole leg in each pair (the pairs of the CSF matrix
+  elements are particle-particle or particle-hole, so never two holes in one
+  pair), each hole forms a hole CSF with the particle of the other pair. All
+  legs in @p external. The terms left out of them are those @p in_ci_space
+  accepts.
+
   Results are written to / read from @p filename (empty string or "false"
   disables I/O).
 
   @param filename                 File to read/write the table (blank or
                                   "false" to not read/write).
   @param external                 Basis states for external legs: all four
-                                  are in this set.
+                                  are in this set (the hole orbitals too, for
+                                  integrals with hole legs).
   @param pair_basis               At least one pair of external legs, (v, w)
                                   or (x, y), is in this set (unless the
-                                  integral is diagonal: see above).
+                                  integral is diagonal: see above; or has a
+                                  hole leg).
   @param core                     Core (hole) states for internal summations.
   @param excited                  Excited (particle) states for internal
                                   summations.
@@ -427,9 +441,17 @@ double e_bar(const DiracSpinor &leg, const std::vector<DiracSpinor> &core,
                                   Coulomb line.
   @param E0                       Target-level valence energy; used only by
                                   Denominators::BW.
-  @param screening_kernels        Static screened-Coulomb kernels, for
-                                  each k: loop diagrams from the Feynman
-                                  method (see \ref Sk_vwxy).
+  @param screening_dQk        Static screened-Coulomb correction dQ^k(0),
+                                  for each k: loop diagrams from the
+                                  Feynman method (see \ref Sk_vwxy).
+  @param in_ci_space              Whether a two-particle one-hole state
+                                  lies in the CI space: the terms left out
+                                  of the integrals with hole legs (see
+                                  Sk_vwxy()).
+  @param hole_CSFs                Whether a two-particle one-hole state is a
+                                  CSF of the block: selects the integrals
+                                  with hole legs. @p in_ci_space if not
+                                  given.
 
   @return WkTable containing all computed \f$ S^k_{vwxy} \f$ matrix elements.
 
@@ -445,7 +467,8 @@ double e_bar(const DiracSpinor &leg, const std::vector<DiracSpinor> &core,
   const Coulomb::QkTable &qk, int max_k, bool exclude_wrong_parity_box,
   Denominators denominators, bool no_new_integrals = false,
   const std::vector<double> &fk = {}, double E0 = 0.0,
-  const std::vector<RMatrix> *screening_kernels = nullptr);
+  const std::vector<RMatrix> *screening_dQk = nullptr,
+  const InCISpace *in_ci_space = nullptr, const InCISpace *hole_CSFs = nullptr);
 
 /*!
   @brief Average Sigma_2 correction ratios, h_k, for each multipole k.

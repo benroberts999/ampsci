@@ -2928,68 +2928,57 @@ TEST_CASE("CI: Sigma_1 with hole CSFs", "[CI][unit][ciholes]") {
   // Not used by the one-electron / hole CSF cross elements
   const Coulomb::meTable<double> h1_unused{};
 
-  // (1) Every hole configuration, and singles from 2s only
-  const CI::ConfigurationSpace all_configurations{
-    excited, 1, {}, {"1", "2"}, holes, hole_basis};
-  const CI::ConfigurationSpace singles{excited, 1,     {"2s"},
-                                       {"1"},   holes, hole_basis};
+  // (1) The table is the sum over every two-particle one-hole state within
+  // the CI orbitals: the hole CSFs of the block with the hole basis = the CI
+  // basis and every configuration (the particle basis of the hole CSFs and
+  // the configuration list do not enter: see in_CI_space)
   double worst = 0.0;
   double largest = 0.0;
-  double largest_restriction = 0.0;
-  for (const auto *space : {&all_configurations, &singles}) {
-    const auto Sigma1_in_CI =
-      CI::calculate_Sigma1_in_CI(excited, holes, hole_basis, *space, qk);
-    const auto Sigma1_in_CI_full = CI::calculate_Sigma1_in_CI(
-      excited, holes, hole_basis, all_configurations, qk);
-    for (const auto &[twoJ, parity] :
-         {std::pair{1, 1}, std::pair{1, -1}, std::pair{3, -1}}) {
-      const CI::PsiJPi psi(twoJ, parity, excited, 1, *space, holes, hole_basis);
-      std::vector<std::size_t> one_electron, hole_CSFs;
-      for (std::size_t i = 0; i < psi.num_CSFs(); ++i) {
-        (psi.csf(i).num_holes() == 0 ? one_electron : hole_CSFs).push_back(i);
-      }
-      REQUIRE(!hole_CSFs.empty());
-      for (const auto i : one_electron) {
-        for (const auto j : one_electron) {
-          const auto &A = std::get<CI::CSF1>(psi.csf(i).variant());
-          const auto &B = std::get<CI::CSF1>(psi.csf(j).variant());
-          const auto v = A.state(0);
-          const auto w = B.state(0);
-          // Same energy as the table: the lowest orbital of this kappa
-          const auto kappa = Angular::nkindex_to_kappa(v);
-          double ev = 0.0;
-          for (const auto &Fn : excited) {
-            if (Fn.kappa() == kappa) {
-              ev = Fn.en();
-              break;
-            }
+  const auto Sigma1_in_CI = CI::calculate_Sigma1_in_CI(excited, holes, qk);
+  for (const auto &[twoJ, parity] :
+       {std::pair{1, 1}, std::pair{1, -1}, std::pair{3, -1}}) {
+    const CI::PsiJPi psi(twoJ, parity, excited, 1, {}, holes, excited);
+    std::vector<std::size_t> one_electron, hole_CSFs;
+    for (std::size_t i = 0; i < psi.num_CSFs(); ++i) {
+      (psi.csf(i).num_holes() == 0 ? one_electron : hole_CSFs).push_back(i);
+    }
+    REQUIRE(!hole_CSFs.empty());
+    for (const auto i : one_electron) {
+      for (const auto j : one_electron) {
+        const auto &A = std::get<CI::CSF1>(psi.csf(i).variant());
+        const auto &B = std::get<CI::CSF1>(psi.csf(j).variant());
+        const auto v = A.state(0);
+        const auto w = B.state(0);
+        // Same energy as the table: the lowest orbital of this kappa
+        const auto kappa = Angular::nkindex_to_kappa(v);
+        double ev = 0.0;
+        for (const auto &Fn : excited) {
+          if (Fn.kappa() == kappa) {
+            ev = Fn.en();
+            break;
           }
-          double sum = 0.0;
-          for (const auto k : hole_CSFs) {
-            const auto &I = std::get<CI::CSF2p1h>(psi.csf(k).variant());
-            const auto denominator = ev + energy.at(I.hole) -
-                                     energy.at(I.state(0)) -
-                                     energy.at(I.state(1));
-            sum += CI::Hab(A, I, twoJ, h1_unused, qk) *
-                   CI::Hab(B, I, twoJ, h1_unused, qk) / denominator;
-          }
-          const auto tabulated = Sigma1_in_CI.getv(v, w);
-          worst = std::max(worst, std::abs(tabulated - sum));
-          largest = std::max(largest, std::abs(tabulated));
-          largest_restriction =
-            std::max(largest_restriction,
-                     std::abs(tabulated - Sigma1_in_CI_full.getv(v, w)));
         }
+        double sum = 0.0;
+        for (const auto k : hole_CSFs) {
+          const auto &I = std::get<CI::CSF2p1h>(psi.csf(k).variant());
+          const auto denominator = ev + energy.at(I.hole) -
+                                   energy.at(I.state(0)) -
+                                   energy.at(I.state(1));
+          sum += CI::Hab(A, I, twoJ, h1_unused, qk) *
+                 CI::Hab(B, I, twoJ, h1_unused, qk) / denominator;
+        }
+        const auto tabulated = Sigma1_in_CI.getv(v, w);
+        worst = std::max(worst, std::abs(tabulated - sum));
+        largest = std::max(largest, std::abs(tabulated));
       }
     }
   }
   fmt::print("Sigma_1 in the CI space vs sum over hole CSFs: max diff {:.1e} "
-             "(largest {:.1e}; restriction changes up to {:.1e})\n",
-             worst, largest, largest_restriction);
+             "(largest {:.1e})\n",
+             worst, largest);
   REQUIRE(worst < 1.0e-12);
   // Not trivially zero (Li, 1s hole: a few 1e-5 au)
   REQUIRE(largest > 1.0e-6);
-  REQUIRE(largest_restriction > 1.0e-6);
 
   // (2) The driver: Sigma_1 on the hole orbital, and the stored table, from
   // its selected Q^k integrals, against the table of all integrals
@@ -3010,8 +2999,7 @@ TEST_CASE("CI: Sigma_1 with hole CSFs", "[CI][unit][ciholes]") {
   REQUIRE(std::abs(h1_hole - Sigma_hole) < 1.0e-10);
   REQUIRE(std::abs(Sigma_hole) > 1.0e-4);
 
-  const auto direct = CI::calculate_Sigma1_in_CI(
-    ints.ci_basis, ints.holes, ints.holes_basis, ints.config_space, qk);
+  const auto direct = CI::calculate_Sigma1_in_CI(ints.ci_basis, ints.holes, qk);
   double worst_table = 0.0;
   double worst_h1 = 0.0;
   for (const auto &v : ints.ci_basis) {
@@ -3038,4 +3026,170 @@ TEST_CASE("CI: Sigma_1 with hole CSFs", "[CI][unit][ciholes]") {
              worst_table, worst_h1);
   REQUIRE(worst_table < 1.0e-12);
   REQUIRE(worst_h1 < 1.0e-10);
+}
+
+//==============================================================================
+// The driver with sigma2 and hole CSFs: the S^k table holds the integrals
+// with a hole leg (at most one per pair) that the block's hole CSFs need,
+// with the terms whose intermediate state lies within the CI orbitals (hole
+// in the hole shells, particles in ci_basis, whatever the hole basis and the
+// configuration list) left out; h1 holds <w|Sigma|a> between the excited and
+// hole orbitals of one kappa, averaged over the two orbital energies; and the
+// levels are those of the Hamiltonian built from the stored tables. Li, 1s
+// hole, hole CSFs = single excitations from 2s only, particles in 3sp
+TEST_CASE("CI: Sigma_2 driver with hole CSFs", "[CI][unit][ciholes]") {
+  Wavefunction wf({500, 1.0e-4, 30.0, 10.0, "loglinear"},
+                  {"Li", -1, "pointlike"}, 1.0);
+  wf.solve_core("HartreeFock", "[He]", std::nullopt, 1.0e-6, false);
+  auto b_params = SplineBasis::Parameters("5spd", 20, 6, {1.0e-2}, 20.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
+  const auto [core, excited] =
+    DiracSpinor::split_by_core(wf.basis(), wf.core());
+  Coulomb::QkTable qk;
+  qk.fill(wf.basis(), Coulomb::YkTable(wf.basis()), -1, false);
+  const Angular::SixJTable sixj(DiracSpinor::max_tj(wf.basis()));
+
+  const IO::InputBlock input{
+    "CI", "ci_basis = 5spd; num_electrons = 1; holes = 1s; "
+          "ci_hole_basis = 3sp; leading = 2s; excitations = 1; "
+          "sigma1 = true; sigma2 = true; s1_basis = 5spd; cis2_basis = 5spd; "
+          "denominators = RS; J+ = 1/2; J- = 1/2; num_solutions = 0; "
+          "qk_file = false; sk_file = false; ci_file = false; "
+          "print_details = false;"};
+  const auto solution = CI::configuration_interaction(input, wf);
+  const auto &ints = solution.integrals;
+  REQUIRE(solution.levels.size() == 2);
+  REQUIRE(ints.holes.size() == 1);
+  REQUIRE(!ints.Sk.emptyQ());
+  REQUIRE(!ints.config_space.unrestricted());
+  const auto &hole = ints.holes.front();
+  const auto &hole_basis = ints.holes_basis;
+
+  // The hole CSFs of the block, directly from the configuration space (which
+  // integrals are stored); the states within the CI orbitals (which terms are
+  // left out)
+  const auto in = [](const std::vector<DiracSpinor> &set,
+                     const DiracSpinor &n) {
+    return std::find(set.cbegin(), set.cend(), n) != set.cend();
+  };
+  const auto in_hole_basis = [&](const DiracSpinor &n) {
+    return in(hole_basis, n);
+  };
+  const MBPT::InCISpace hole_CSF =
+    [&](const DiracSpinor &a, const DiracSpinor &n, const DiracSpinor *p) {
+      if (a != hole || !in_hole_basis(n))
+        return false;
+      if (p != nullptr) {
+        return in_hole_basis(*p) &&
+               ints.config_space.included({n.nk_index(), p->nk_index()},
+                                          {a.nk_index()});
+      }
+      return std::any_of(hole_basis.cbegin(), hole_basis.cend(),
+                         [&](const DiracSpinor &q) {
+                           return ints.config_space.included(
+                             {n.nk_index(), q.nk_index()}, {a.nk_index()});
+                         });
+    };
+  const auto &ci_basis = excited;
+  const MBPT::InCISpace in_ci_space =
+    [&](const DiracSpinor &a, const DiracSpinor &n, const DiracSpinor *p) {
+      return a == hole && in(ci_basis, n) && (p == nullptr || in(ci_basis, *p));
+    };
+
+  // (1) Which integrals are stored (the legs basis is the whole CI basis, so
+  // every integral without a hole leg is; with a hole leg, those of the hole
+  // CSFs: one hole leg, the other pair its particles; one in each pair, each
+  // hole with the particle of the other pair), and their values
+  const auto legs = qip::merge(excited, ints.holes);
+  std::size_t num_hole_leg = 0, num_wrong = 0, num_not_finite = 0;
+  double worst = 0.0, largest = 0.0, criterion = 0.0;
+  for (const auto &v : legs) {
+    for (const auto &w : legs) {
+      for (const auto &x : legs) {
+        for (const auto &y : legs) {
+          const auto holes_vw = int(v == hole) + int(w == hole);
+          const auto holes_xy = int(x == hole) + int(y == hole);
+          bool hole_CSFs = holes_vw <= 1 && holes_xy <= 1;
+          if (holes_vw == 1 && holes_xy == 1) {
+            hole_CSFs = hole_CSF(hole, v == hole ? w : v, nullptr) &&
+                        hole_CSF(hole, x == hole ? y : x, nullptr);
+          } else if (holes_vw == 1) {
+            hole_CSFs = hole_CSF(hole, x, &y);
+          } else if (holes_xy == 1) {
+            hole_CSFs = hole_CSF(hole, v, &w);
+          }
+          const auto [k0, k1] = MBPT::k_minmax_S(v, w, x, y);
+          for (int k = k0; k <= k1; ++k) {
+            const auto selected = hole_CSFs && MBPT::Sk_vwxy_SR(k, v, w, x, y);
+            if (ints.Sk.contains(k, v, w, x, y) != selected) {
+              ++num_wrong;
+            }
+            if (!selected || holes_vw + holes_xy == 0)
+              continue;
+            ++num_hole_leg;
+            const auto stored = ints.Sk.Q(k, v, w, x, y);
+            if (!std::isfinite(stored)) {
+              ++num_not_finite;
+            }
+            const auto expected = MBPT::Sk_vwxy(
+              k, v, w, x, y, qk, core, excited, sixj, MBPT::Denominators::RS,
+              {}, 0.0, nullptr, &in_ci_space);
+            // Leaving out only the block's own CSFs would differ
+            const auto by_block_CSFs = MBPT::Sk_vwxy(
+              k, v, w, x, y, qk, core, excited, sixj, MBPT::Denominators::RS,
+              {}, 0.0, nullptr, &hole_CSF);
+            worst = std::max(worst, std::abs(stored - expected));
+            largest = std::max(largest, std::abs(expected));
+            criterion = std::max(criterion, std::abs(expected - by_block_CSFs));
+          }
+        }
+      }
+    }
+  }
+  fmt::print("S^k with hole legs: {} stored ({} not finite), {} wrongly "
+             "(un)stored; driver vs direct {:.1e} (largest {:.1e}; leaving "
+             "out only the block's CSFs would change up to {:.1e})\n",
+             num_hole_leg, num_not_finite, num_wrong, worst, largest,
+             criterion);
+  REQUIRE(num_hole_leg > 0);
+  REQUIRE(num_not_finite == 0);
+  REQUIRE(num_wrong == 0);
+  REQUIRE(worst < 1.0e-14);
+  REQUIRE(largest > 1.0e-6);
+  REQUIRE(criterion > 1.0e-8);
+
+  // (2) <w|Sigma|a> between the excited and hole orbitals, averaged over the
+  // two energies (Hermitian)
+  double worst_h1 = 0.0, largest_h1 = 0.0;
+  for (const auto &w : excited) {
+    if (w.kappa() != hole.kappa())
+      continue;
+    const auto expected =
+      0.5 * (MBPT::Sigma_vw(w, hole, qk, core, excited, 99, hole.en()) +
+             MBPT::Sigma_vw(w, hole, qk, core, excited, 99, w.en()));
+    worst_h1 = std::max(worst_h1, std::abs(ints.h1.getv(w, hole) - expected));
+    worst_h1 = std::max(worst_h1, std::abs(ints.h1.getv(hole, w) - expected));
+    largest_h1 = std::max(largest_h1, std::abs(expected));
+  }
+  fmt::print("<w|Sigma|a>: driver vs direct {:.1e} (largest {:.1e})\n",
+             worst_h1, largest_h1);
+  REQUIRE(worst_h1 < 1.0e-12);
+  REQUIRE(largest_h1 > 1.0e-5);
+
+  // (3) The levels are those of the Hamiltonian from the stored tables
+  double worst_level = 0.0;
+  for (const auto &level : solution.levels) {
+    REQUIRE(level.has_holes());
+    CI::PsiJPi psi(level.twoJ(), level.parity(), ints.ci_basis, 1,
+                   ints.config_space, ints.holes, ints.holes_basis);
+    REQUIRE(psi.num_CSFs() == level.num_CSFs());
+    psi.solve(CI::construct_Hci(psi, ints), 0);
+    for (std::size_t i = 0; i < level.num_solutions(); ++i) {
+      worst_level =
+        std::max(worst_level, std::abs(level.energy(i) - psi.energy(i)));
+    }
+  }
+  fmt::print("Levels: driver vs construct_Hci {:.1e}\n", worst_level);
+  REQUIRE(worst_level < 1.0e-9);
 }

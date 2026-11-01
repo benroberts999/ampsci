@@ -6,6 +6,7 @@
 #include <algorithm>
 #include <array>
 #include <cassert>
+#include <optional>
 
 namespace MBPT {
 
@@ -124,7 +125,7 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const std::vector<DiracSpinor> &excited,
                const Angular::SixJTable &SixJ, Denominators denominators,
                const std::vector<double> &fk, double E0,
-               const std::vector<RMatrix> *screening_kernels,
+               const std::vector<RMatrix> *screening_dQk,
                const InCISpace *in_ci_space) {
   using namespace Sigma2;
 
@@ -179,12 +180,12 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
     excluded.c2 = terms_in_ci_space(1, 3);
   }
 
-  // Static loop diagrams from the Feynman method, for the k the kernels
-  // cover; otherwise all diagrams are second-order Goldstone. Not for hole
+  // Static loop diagrams from the Feynman method, for the k the correction
+  // covers; otherwise all diagrams are second-order Goldstone. Not for hole
   // legs: the loop's intermediate states cannot be restricted
   const auto ik = std::size_t(k);
-  const bool feynman_loop = screening_kernels != nullptr &&
-                            ik < screening_kernels->size() && !any_hole_leg;
+  const bool feynman_loop =
+    screening_dQk != nullptr && ik < screening_dQk->size() && !any_hole_leg;
 
   const auto Sk_Goldstone =
     S_Sigma2_ab(k, v, w, x, y, qk, core, excited, SixJ, denominators, fk, E0,
@@ -198,10 +199,9 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
        S_Sigma2_pp(k, v, w, x, y, qk, core, excited, SixJ, denominators, E0) :
        0.0);
 
-  return feynman_loop ?
-           Sk_Goldstone +
-             S_Sigma2_screen(k, v, w, x, y, screening_kernels->at(ik)) :
-           Sk_Goldstone;
+  return feynman_loop ? Sk_Goldstone + S_Sigma2_screen(k, v, w, x, y,
+                                                       screening_dQk->at(ik)) :
+                        Sk_Goldstone;
 }
 
 //==============================================================================
@@ -664,18 +664,20 @@ double Sigma2::S_Sigma2_screen(int k, const DiracSpinor &v,
 }
 
 //==============================================================================
-Coulomb::WkTable calculate_Sk(const std::string &filename,
-                              const std::vector<DiracSpinor> &external,
-                              const std::vector<DiracSpinor> &pair_basis,
-                              const std::vector<DiracSpinor> &core,
-                              const std::vector<DiracSpinor> &excited,
-                              const Coulomb::QkTable &qk, int max_k,
-                              bool exclude_wrong_parity_box,
-                              Denominators denominators, bool no_new_integrals,
-                              const std::vector<double> &fk, double E0,
-                              const std::vector<RMatrix> *screening_kernels) {
+Coulomb::WkTable calculate_Sk(
+  const std::string &filename, const std::vector<DiracSpinor> &external,
+  const std::vector<DiracSpinor> &pair_basis,
+  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
+  const Coulomb::QkTable &qk, int max_k, bool exclude_wrong_parity_box,
+  Denominators denominators, bool no_new_integrals,
+  const std::vector<double> &fk, double E0,
+  const std::vector<RMatrix> *screening_dQk, const InCISpace *in_ci_space,
+  const InCISpace *hole_CSFs) {
 
   Coulomb::WkTable Sk;
+  if (hole_CSFs == nullptr) {
+    hole_CSFs = in_ci_space;
+  }
 
   const auto max_twoj =
     std::max({DiracSpinor::max_tj(excited), DiracSpinor::max_tj(core),
@@ -686,25 +688,30 @@ Coulomb::WkTable calculate_Sk(const std::string &filename,
                                const DiracSpinor &w, const DiracSpinor &x,
                                const DiracSpinor &y) {
     return MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, sjt, denominators,
-                         fk, E0, screening_kernels);
+                         fk, E0, screening_dQk, in_ci_space);
   };
 
-  // Which states are in pair_basis, indexed by nk_index: checked for every
-  // candidate integral, so must be fast
-  std::vector<bool> in_pair_basis;
-  for (const auto &a : pair_basis) {
-    const auto index = std::size_t(a.nk_index());
-    if (index >= in_pair_basis.size()) {
-      in_pair_basis.resize(index + 1, false);
+  // Which states are in pair_basis, and which are core (hole legs), indexed
+  // by nk_index: checked for every candidate integral, so must be fast
+  const auto membership = [](const std::vector<DiracSpinor> &set) {
+    std::vector<bool> in_set;
+    for (const auto &a : set) {
+      const auto index = std::size_t(a.nk_index());
+      if (index >= in_set.size()) {
+        in_set.resize(index + 1, false);
+      }
+      in_set[index] = true;
     }
-    in_pair_basis[index] = true;
-  }
-  const auto pair_in_basis = [&in_pair_basis](const DiracSpinor &a,
-                                              const DiracSpinor &b) {
+    return in_set;
+  };
+  const auto in_pair_basis = membership(pair_basis);
+  const auto in_core = membership(core);
+  const auto is_in = [](const std::vector<bool> &in_set, const DiracSpinor &a) {
     const auto ia = std::size_t(a.nk_index());
-    const auto ib = std::size_t(b.nk_index());
-    return ia < in_pair_basis.size() && ib < in_pair_basis.size() &&
-           in_pair_basis[ia] && in_pair_basis[ib];
+    return ia < in_set.size() && in_set[ia];
+  };
+  const auto pair_in_basis = [&](const DiracSpinor &a, const DiracSpinor &b) {
+    return is_in(in_pair_basis, a) && is_in(in_pair_basis, b);
   };
 
   // Either pair, (v, w) or (x, y), in pair_basis; or diagonal (xy in the
@@ -716,13 +723,55 @@ Coulomb::WkTable calculate_Sk(const std::string &filename,
   const auto same_shell = [](const DiracSpinor &a, const DiracSpinor &b) {
     return a.n() == b.n() && a.l() == b.l();
   };
+  // Hole legs (core orbitals among the external legs): the integrals the
+  // block's hole CSFs need (hole_CSFs). One hole leg: the other pair are the
+  // two particles of its hole CSF. Two hole legs (one in each pair; two in
+  // one pair never occurs, as the pairs of the CSF matrix elements are
+  // particle-particle or particle-hole): each hole with the particle of the
+  // other pair in a hole CSF (the spectator is not known). The bra and ket
+  // states are then in the CI space, so the terms with a zero denominator
+  // are among those left out. Nothing without the predicate. Unchanged
+  // under the symmetries of S^k (which swap within pairs, or the pairs).
+  // Returns nothing if there is no hole leg
+  const auto hole_leg_rule = [&](const DiracSpinor &v, const DiracSpinor &w,
+                                 const DiracSpinor &x,
+                                 const DiracSpinor &y) -> std::optional<bool> {
+    const auto hole_v = is_in(in_core, v);
+    const auto hole_w = is_in(in_core, w);
+    const auto hole_x = is_in(in_core, x);
+    const auto hole_y = is_in(in_core, y);
+    const auto holes_vw = int(hole_v) + int(hole_w);
+    const auto holes_xy = int(hole_x) + int(hole_y);
+    if (holes_vw + holes_xy == 0)
+      return std::nullopt;
+    if (holes_vw > 1 || holes_xy > 1 || hole_CSFs == nullptr)
+      return false;
+    if (holes_vw == 1 && holes_xy == 1) {
+      const auto &hole_in_vw = hole_v ? v : w;
+      const auto &particle_in_vw = hole_v ? w : v;
+      const auto &hole_in_xy = hole_x ? x : y;
+      const auto &particle_in_xy = hole_x ? y : x;
+      return (*hole_CSFs)(hole_in_xy, particle_in_vw, nullptr) &&
+             (*hole_CSFs)(hole_in_vw, particle_in_xy, nullptr);
+    }
+    if (holes_vw == 1)
+      return (*hole_CSFs)(hole_v ? v : w, x, &y);
+    return (*hole_CSFs)(hole_x ? x : y, v, &w);
+  };
+
   const auto Sk_selection_rule = [&](int k, const DiracSpinor &v,
                                      const DiracSpinor &w, const DiracSpinor &x,
                                      const DiracSpinor &y) {
-    const auto diagonal = (same_shell(x, v) && same_shell(y, w)) ||
-                          (same_shell(x, w) && same_shell(y, v));
-    if (!diagonal && !pair_in_basis(v, w) && !pair_in_basis(x, y))
-      return false;
+    const auto hole_legs = hole_leg_rule(v, w, x, y);
+    if (hole_legs) {
+      if (!*hole_legs)
+        return false;
+    } else {
+      const auto diagonal = (same_shell(x, v) && same_shell(y, w)) ||
+                            (same_shell(x, w) && same_shell(y, v));
+      if (!diagonal && !pair_in_basis(v, w) && !pair_in_basis(x, y))
+        return false;
+    }
     return exclude_wrong_parity_box ? Coulomb::Qk_abcd_SR(k, v, w, x, y) :
                                       MBPT::Sk_vwxy_SR(k, v, w, x, y);
   };

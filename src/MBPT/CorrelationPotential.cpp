@@ -916,6 +916,19 @@ CorrelationPotential::make_feynman(Screening screening,
 }
 
 //==============================================================================
+std::vector<RMatrix>
+CorrelationPotential::screening_dQk(Screening screening,
+                                    HoleParticle hole_particle) const {
+  const auto same_options =
+    m_Fy && m_Fy->screening() == (screening == Screening::include) &&
+    m_Fy->hole_particle() == (hole_particle == HoleParticle::include);
+  if (same_options)
+    return m_Fy->dQ_0_k();
+  const auto feynman = make_feynman(screening, hole_particle);
+  return feynman ? feynman->dQ_0_k() : std::vector<RMatrix>{};
+}
+
+//==============================================================================
 std::string CorrelationPotential::method_string() const {
   std::string out = m_method == SigmaMethod::Feynman ? "Feynman" : "Goldstone";
   if (m_method == SigmaMethod::Feynman) {
