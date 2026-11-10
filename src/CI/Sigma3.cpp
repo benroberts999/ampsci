@@ -4,6 +4,11 @@
 #include <algorithm>
 #include <cassert>
 #include <cmath>
+#include <map>
+#include <set>
+#include <string>
+#include <utility>
+#include <variant>
 
 namespace CI {
 
@@ -134,6 +139,62 @@ double Sigma3_AB(const CSF3 &A, const CSF3 &B, int twoJ,
   }
   // 3!: orderings of the three electrons among the roles in the diagram
   return 6.0 * out;
+}
+
+//==============================================================================
+
+double Sigma3_AB(const CSF &A, const CSF &B, int twoJ,
+                 const Coulomb::QkTable &qk, const Sigma3Orbitals &orbitals,
+                 MBPT::Denominators denominators, double E0) {
+  const auto *A3 = std::get_if<CSF3>(&A.variant());
+  const auto *B3 = std::get_if<CSF3>(&B.variant());
+  if (A3 == nullptr || B3 == nullptr)
+    return 0.0;
+  return Sigma3_AB(*A3, *B3, twoJ, qk, orbitals, denominators, E0);
+}
+
+//==============================================================================
+
+std::vector<char> sigma3_selected(const std::vector<CSF> &CSFs,
+                                  const Sigma3Orbitals &orbitals,
+                                  std::size_t num_configs) {
+  std::vector<char> selected(CSFs.size(), 0);
+
+  // Zeroth-order energy of each non-relativistic configuration: the lowest
+  // of its CSFs
+  std::map<std::string, double> config_energies;
+  std::vector<std::string> csf_configs(CSFs.size());
+  for (std::size_t i = 0; i < CSFs.size(); ++i) {
+    const auto *csf = std::get_if<CSF3>(&CSFs[i].variant());
+    if (csf == nullptr)
+      return selected;
+    const auto energy = orbitals.en[csf->state(0)] +
+                        orbitals.en[csf->state(1)] + orbitals.en[csf->state(2)];
+    csf_configs[i] = csf->config(false);
+    const auto [it, is_new] = config_energies.insert({csf_configs[i], energy});
+    if (!is_new && energy < it->second) {
+      it->second = energy;
+    }
+  }
+
+  // The lowest num_configs configurations
+  std::vector<std::pair<double, std::string>> ordered;
+  for (const auto &[config, energy] : config_energies) {
+    ordered.emplace_back(energy, config);
+  }
+  std::sort(ordered.begin(), ordered.end());
+  if (ordered.size() > num_configs) {
+    ordered.resize(num_configs);
+  }
+  std::set<std::string> lowest;
+  for (const auto &[energy, config] : ordered) {
+    lowest.insert(config);
+  }
+
+  for (std::size_t i = 0; i < CSFs.size(); ++i) {
+    selected[i] = lowest.count(csf_configs[i]) != 0;
+  }
+  return selected;
 }
 
 } // namespace CI

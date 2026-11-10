@@ -3,6 +3,7 @@
 #include "Coulomb/QkTable.hpp"
 #include "MBPT/Sigma2.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <cstddef>
 #include <vector>
 
 namespace CI {
@@ -26,6 +27,29 @@ struct Sigma3Orbitals {
   std::vector<double> en_bar{};
   //! Energy of the lowest CI orbital
   double en_min{0.0};
+};
+
+/*!
+  @brief Everything needed to add Sigma_3 to the CI Hamiltonian: the orbital
+  data, the energy denominators, and which matrix elements to include.
+
+  @details
+  Sigma_3 connects CSFs that differ in all three orbitals, so including it
+  for every pair of CSFs would fill the (otherwise sparse) CI matrix. It is
+  included for the matrix elements in which at least one of the two CSFs
+  belongs to one of the @p num_configs lowest configurations of the J/Pi
+  block; see @ref sigma3_selected.
+*/
+struct Sigma3Parameters {
+  //! Core orbitals and orbital energies
+  Sigma3Orbitals orbitals{};
+  //! Energy denominators; see @ref Sigma3_inverse_denominator
+  MBPT::Denominators denominators{MBPT::Denominators::DFK};
+  //! Number of lowest configurations (of each J/Pi) Sigma_3 is included for
+  std::size_t num_configs{10};
+
+  //! False if Sigma_3 is not included
+  [[nodiscard]] bool included() const { return !orbitals.core.empty(); }
 };
 
 /*!
@@ -170,5 +194,39 @@ double Sigma3_parents(const CSF3::Parent &bra, const CSF3::Parent &ket,
 double Sigma3_AB(const CSF3 &A, const CSF3 &B, int twoJ,
                  const Coulomb::QkTable &qk, const Sigma3Orbitals &orbitals,
                  MBPT::Denominators denominators, double E0 = 0.0);
+
+/*!
+  @brief Sigma_3 correction to Hab(), for CSFs of any kind.
+  @details
+  Calls Sigma3_AB(const CSF3 &, ...) for three-electron CSFs; zero otherwise
+  (a three-body operator needs three valence electrons).
+*/
+double Sigma3_AB(const CSF &A, const CSF &B, int twoJ,
+                 const Coulomb::QkTable &qk, const Sigma3Orbitals &orbitals,
+                 MBPT::Denominators denominators, double E0 = 0.0);
+
+/*!
+  @brief Marks the CSFs that belong to the lowest configurations: those for
+  which Sigma_3 is included.
+
+  @details
+  The CSFs are grouped by non-relativistic configuration (so that both
+  j of each shell are always treated alike), and the configurations ordered
+  by their zeroth-order energy: the sum of the orbital energies (the lowest
+  of the configuration's CSFs). The CSFs of the first @p num_configs
+  configurations are marked.
+
+  The matrix element \f$ \langle A|\Sigma_3|B\rangle \f$ is included in the
+  CI matrix if A or B is marked.
+
+  @param CSFs         CSFs of one J/Pi block.
+  @param orbitals     Orbital energies; see @ref Sigma3Orbitals.
+  @param num_configs  Number of configurations to mark.
+  @return One entry per CSF: true if marked. All false unless the CSFs are
+          three-electron CSFs.
+*/
+std::vector<char> sigma3_selected(const std::vector<CSF> &CSFs,
+                                  const Sigma3Orbitals &orbitals,
+                                  std::size_t num_configs);
 
 } // namespace CI

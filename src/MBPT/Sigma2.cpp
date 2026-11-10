@@ -583,7 +583,8 @@ Coulomb::WkTable calculate_Sk(const std::string &filename,
     const auto total = Sk.count();
     assert(total >= existing);
     const auto new_integrals = total - existing;
-    std::cout << "Calculated " << new_integrals << " new MBPT integrals\n";
+    std::cout << "Calculated " << new_integrals << " new MBPT integrals\n"
+              << std::flush;
     if (new_integrals > 0) {
       Sk.write(filename);
     }
