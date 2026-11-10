@@ -185,8 +185,12 @@ TEST_CASE("CI: mixed states", "[CI][MixedStates][unit]") {
     const auto dPsi1 = CI::solve_mixed_state(
       Psi0, 0, target, CI::construct_Hci(target, h1, qk), d_tab, d.rank());
 
+    CI::Integrals ints;
+    ints.ci_basis = ci_basis;
+    ints.h1 = h1;
+    ints.qk = qk;
     const auto dPsi2 =
-      CI::solve_mixed_state(Psi0, 0, 2, -1, ci_basis, d_tab, d.rank(), h1, qk);
+      CI::solve_mixed_state(Psi0, 0, 2, -1, d_tab, d.rank(), ints);
 
     REQUIRE(dPsi2.twoJ() == 2);
     REQUIRE(dPsi2.parity() == -1);
