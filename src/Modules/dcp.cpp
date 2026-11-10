@@ -7,11 +7,13 @@
 #include "Wavefunction/Wavefunction.hpp"
 
 //==============================================================================
-double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
-          int kt, int ks, const Coulomb::meTable<double> &T,
-          const Coulomb::meTable<double> &S,
+double C1(const DiracSpinor &w, const DiracSpinor &v, double omega_t,
+          double omega_s, int K, int kt, int ks,
+          const Coulomb::meTable<double> &T, const Coulomb::meTable<double> &S,
           const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited) {
+
+  const auto s_Kts = Angular::neg1pow(K + kt + ks);
 
   double Ak = 0.0;
 #pragma omp parallel for reduction(+ : Ak) collapse(2)
@@ -32,9 +34,9 @@ double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_ts != 0.0) {
           const auto Tna = T.getv(n, a);
           const auto Sam = S.getv(a, m);
-          const auto de_ts = (a.en() - n.en() + omega) * (a.en() - m.en());
-          const auto s_ts = s_wm * Angular::neg1pow(kt + ks);
-          Ak += Tna * Sam * Wmwvn / de_ts * s_ts * sj_ts;
+          const auto de_ts =
+            (a.en() - n.en() + omega_t) * (a.en() - m.en() - omega_s);
+          Ak += Tna * Sam * Wmwvn / de_ts * s_wm * sj_ts;
         }
 
         // C1_st:
@@ -42,9 +44,9 @@ double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_st != 0.0) {
           const auto Sna = S.getv(n, a);
           const auto Tam = T.getv(a, m);
-          const auto de_st = (a.en() - n.en()) * (a.en() - m.en() - omega);
-          const auto s_st = s_wm * Angular::neg1pow(K);
-          Ak += Sna * Tam * Wmwvn / de_st * s_st * sj_st;
+          const auto de_st =
+            (a.en() - n.en() + omega_s) * (a.en() - m.en() - omega_t);
+          Ak += Sna * Tam * Wmwvn / de_st * s_wm * s_Kts * sj_st;
         }
       }
     }
@@ -53,14 +55,13 @@ double C1(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 }
 
 //==============================================================================
-double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
-          int kt, int ks, const Coulomb::meTable<double> &T,
-          const Coulomb::meTable<double> &S,
+double C2(const DiracSpinor &w, const DiracSpinor &v, double omega_t,
+          double omega_s, int K, int kt, int ks,
+          const Coulomb::meTable<double> &T, const Coulomb::meTable<double> &S,
           const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited) {
 
-  const auto sK = Angular::neg1pow(K + 1);
-  const auto sts = Angular::neg1pow(kt + ks + 1);
+  const auto s_Kts = Angular::neg1pow(K + kt + ks);
 
   double Ak = 0.0;
 #pragma omp parallel for reduction(+ : Ak) collapse(2)
@@ -69,7 +70,7 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
       const auto &a = core[ia];
       const auto &b = core[ib];
 
-      const auto s_wa = Angular::neg1pow_2(w.twoj() + a.twoj());
+      const auto s_wa = Angular::neg1pow_2(w.twoj() - a.twoj());
       const auto Wwavb = Coulomb::Wk_abcd(K, w, a, v, b);
       if (Wwavb == 0.0)
         continue;
@@ -81,8 +82,9 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_ts != 0.0) {
           const auto Tna = T.getv(n, a);
           const auto Sbn = S.getv(b, n);
-          const auto de_ts = (a.en() - n.en() + omega) * (b.en() - n.en());
-          Ak += s_wa * sK * sj_ts * Tna * Sbn * Wwavb / de_ts;
+          const auto de_ts =
+            (a.en() - n.en() + omega_t) * (b.en() - n.en() - omega_s);
+          Ak += s_wa * s_Kts * sj_ts * Tna * Sbn * Wwavb / de_ts;
         }
 
         // C2_st
@@ -90,8 +92,9 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_st != 0.0) {
           const auto Sna = S.getv(n, a);
           const auto Tbn = T.getv(b, n);
-          const auto de_st = (a.en() - n.en()) * (b.en() - n.en() - omega);
-          Ak += s_wa * sts * sj_st * Sna * Tbn * Wwavb / de_st;
+          const auto de_st =
+            (a.en() - n.en() + omega_s) * (b.en() - n.en() - omega_t);
+          Ak += s_wa * sj_st * Sna * Tbn * Wwavb / de_st;
         }
       }
     }
@@ -100,16 +103,16 @@ double C2(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 }
 
 //==============================================================================
-double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
-           int kt, int ks, const Coulomb::meTable<double> &T,
-           const Coulomb::meTable<double> &S,
+double R12(const DiracSpinor &w, const DiracSpinor &v, double omega_t,
+           double omega_s, int K, int kt, int ks,
+           const Coulomb::meTable<double> &T, const Coulomb::meTable<double> &S,
            const std::vector<DiracSpinor> &core,
            const std::vector<DiracSpinor> &excited) {
 
   // Both R1 and R2 share a Wk integral; faster to combine
 
-  const auto sK = Angular::neg1pow(K);
-  const auto sts = Angular::neg1pow(kt + ks);
+  const auto s_Kts = Angular::neg1pow(K + kt + ks);
+  const auto omega_ts = omega_t + omega_s;
 
   double Ak = 0.0;
 #pragma omp parallel for reduction(+ : Ak) collapse(2)
@@ -132,8 +135,8 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const auto Tma = T.getv(m, a);
           const auto Snm = S.getv(n, m);
           const auto de_ts =
-            (a.en() - m.en() + omega) * (a.en() - n.en() + omega);
-          Ak += s_wa * sK * sj_ts * Tma * Snm * Wwavn / de_ts;
+            (a.en() - m.en() + omega_t) * (a.en() - n.en() + omega_ts);
+          Ak += s_wa * s_Kts * sj_ts * Tma * Snm * Wwavn / de_ts;
         }
 
         //R1_st
@@ -141,8 +144,9 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_st != 0.0) {
           const auto Sma = S.getv(m, a);
           const auto Tnm = T.getv(n, m);
-          const auto de_st = (a.en() - m.en()) * (a.en() - n.en() + omega);
-          Ak += s_wa * sts * sj_st * Sma * Tnm * Wwavn / de_st;
+          const auto de_st =
+            (a.en() - m.en() + omega_s) * (a.en() - n.en() + omega_ts);
+          Ak += s_wa * sj_st * Sma * Tnm * Wwavn / de_st;
         }
       }
 
@@ -155,8 +159,8 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const auto Tnb = T.getv(n, b);
           const auto Sba = S.getv(b, a);
           const auto de_ts =
-            (b.en() - n.en() + omega) * (a.en() - n.en() + omega);
-          Ak -= s_wa * sts * sj_ts * Tnb * Sba * Wwavn / de_ts;
+            (b.en() - n.en() + omega_t) * (a.en() - n.en() + omega_ts);
+          Ak -= s_wa * sj_ts * Tnb * Sba * Wwavn / de_ts;
         }
 
         //R2_st
@@ -164,8 +168,9 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_st != 0.0) {
           const auto Snb = S.getv(n, b);
           const auto Tba = T.getv(b, a);
-          const auto de_st = (b.en() - n.en()) * (a.en() - n.en() + omega);
-          Ak -= s_wa * sK * sj_st * Snb * Tba * Wwavn / de_st;
+          const auto de_st =
+            (b.en() - n.en() + omega_s) * (a.en() - n.en() + omega_ts);
+          Ak -= s_wa * s_Kts * sj_st * Snb * Tba * Wwavn / de_st;
         }
       }
     }
@@ -174,16 +179,16 @@ double R12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
 }
 
 //==============================================================================
-double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
-           int kt, int ks, const Coulomb::meTable<double> &T,
-           const Coulomb::meTable<double> &S,
+double L12(const DiracSpinor &w, const DiracSpinor &v, double omega_t,
+           double omega_s, int K, int kt, int ks,
+           const Coulomb::meTable<double> &T, const Coulomb::meTable<double> &S,
            const std::vector<DiracSpinor> &core,
            const std::vector<DiracSpinor> &excited) {
 
   // Both L1 and L2 share a Wk integral; faster to combine
 
-  const auto sK = Angular::neg1pow(K);
-  const auto sts = Angular::neg1pow(kt + ks);
+  const auto s_Kts = Angular::neg1pow(K + kt + ks);
+  const auto omega_ts = omega_t + omega_s;
 
   double Ak = 0.0;
 #pragma omp parallel for reduction(+ : Ak) collapse(2)
@@ -205,8 +210,9 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_ts != 0.0) {
           const auto Tmn = T.getv(m, n);
           const auto Sam = S.getv(a, m);
-          const auto de_ts = (a.en() - n.en() - omega) * (a.en() - m.en());
-          Ak += s_wn * sK * sj_ts * Tmn * Sam * Wwnva / de_ts;
+          const auto de_ts =
+            (a.en() - n.en() - omega_ts) * (a.en() - m.en() - omega_s);
+          Ak += s_wn * s_Kts * sj_ts * Tmn * Sam * Wwnva / de_ts;
         }
 
         //L1_st
@@ -215,8 +221,8 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const auto Smn = S.getv(m, n);
           const auto Tam = T.getv(a, m);
           const auto de_st =
-            (a.en() - n.en() - omega) * (a.en() - m.en() - omega);
-          Ak += s_wn * sts * sj_st * Smn * Tam * Wwnva / de_st;
+            (a.en() - n.en() - omega_ts) * (a.en() - m.en() - omega_t);
+          Ak += s_wn * sj_st * Smn * Tam * Wwnva / de_st;
         }
       }
 
@@ -228,8 +234,9 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
         if (sj_ts != 0.0) {
           const auto Tab = T.getv(a, b);
           const auto Sbn = S.getv(b, n);
-          const auto de_ts = (a.en() - n.en() - omega) * (b.en() - n.en());
-          Ak -= s_wn * sts * sj_ts * Tab * Sbn * Wwnva / de_ts;
+          const auto de_ts =
+            (a.en() - n.en() - omega_ts) * (b.en() - n.en() - omega_s);
+          Ak -= s_wn * sj_ts * Tab * Sbn * Wwnva / de_ts;
         }
 
         //L2_st
@@ -238,8 +245,8 @@ double L12(const DiracSpinor &w, const DiracSpinor &v, double omega, int K,
           const auto Sab = S.getv(a, b);
           const auto Tbn = T.getv(b, n);
           const auto de_st =
-            (a.en() - n.en() - omega) * (b.en() - n.en() - omega);
-          Ak -= s_wn * sK * sj_st * Sab * Tbn * Wwnva / de_st;
+            (a.en() - n.en() - omega_ts) * (b.en() - n.en() - omega_t);
+          Ak -= s_wn * s_Kts * sj_st * Sab * Tbn * Wwnva / de_st;
         }
       }
     }
@@ -291,15 +298,16 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\n";
   std::cout << v << " -> " << w << " : <" << w << "|D|" << v << ">\n";
 
-  // Transition frequency (omega)
+  // Frequencies of t and s: energy conservation, e_w = e_v + omega_t + omega_s
   const auto omega_default = w.en() - v.en();
-  const auto omega = input.get("omega", omega_default);
+  const auto omega_t = input.get("omega", omega_default);
+  const auto omega_s = omega_default - omega_t;
 
   std::cout << "E_w - E_v = " << omega_default << "\n";
-  std::cout << "omega     = " << omega << "\n";
+  std::cout << "omega_t   = " << omega_t << "\n";
+  std::cout << "omega_s   = " << omega_s << "\n";
 
   // Get required operators:
-  // t is time-dependent, s is static
   const auto t_oper = input.get("t", ""s);
   const auto s_oper = input.get("s", ""s);
   const auto t = DiracOperator::generate(t_oper, {}, wf);
@@ -324,8 +332,8 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   auto dVs = ExternalField::TDHF(s.get(), wf.vHF());
   const auto rpaQ = input.get("rpa", true);
   if (rpaQ) {
-    dVt.solve_core(omega);
-    dVs.solve_core(0.0);
+    dVt.solve_core(omega_t);
+    dVs.solve_core(omega_s);
   }
 
   int tm = std::min(w.twoj(), v.twoj());
@@ -338,17 +346,17 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   double AK = 0.0;
   double A_zz = 0.0;
   for (const auto &n : wf.spectrum()) {
-    // t carries omega: its dV is the component at that frequency; s is static
-    const auto Twn = t->reducedME(w, n) + dVt.dV(w, n, omega < 0.0);
-    const auto Snv = s->reducedME(n, v) + dVs.dV(n, v);
-    const auto de_ts = v.en() - n.en();
+    // Each dV is the component at the frequency of its operator
+    const auto Twn = t->reducedME(w, n) + dVt.dV(w, n, omega_t < 0.0);
+    const auto Snv = s->reducedME(n, v) + dVs.dV(n, v, omega_s < 0.0);
+    const auto de_ts = v.en() + omega_s - n.en();
 
     const auto C_ts =
       C_K(K, kt, ks, w.twoj(), n.twoj(), v.twoj()) * Angular::neg1pow(K);
 
-    const auto Swn = s->reducedME(w, n) + dVs.dV(w, n);
-    const auto Tnv = t->reducedME(n, v) + dVt.dV(n, v, omega < 0.0);
-    const auto de_st = w.en() - n.en();
+    const auto Swn = s->reducedME(w, n) + dVs.dV(w, n, omega_s < 0.0);
+    const auto Tnv = t->reducedME(n, v) + dVt.dV(n, v, omega_t < 0.0);
+    const auto de_st = v.en() + omega_t - n.en();
 
     const auto C_st =
       C_K(K, ks, kt, w.twoj(), n.twoj(), v.twoj()) * Angular::neg1pow(kt + ks);
@@ -392,23 +400,23 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "\nCalculating DCP:\n";
   std::cout << "Filling tables.." << std::flush;
   // Each table carries the dV component at the frequency of its operator
-  const auto t_ce = Amplitudes::me_table(wf.basis(), t.get(),
-                                         rpaQ ? &dVt : nullptr, nullptr, omega);
-  const auto s_ce = Amplitudes::me_table(wf.basis(), s.get(),
-                                         rpaQ ? &dVs : nullptr, nullptr, 0.0);
+  const auto t_ce = Amplitudes::me_table(
+    wf.basis(), t.get(), rpaQ ? &dVt : nullptr, nullptr, omega_t);
+  const auto s_ce = Amplitudes::me_table(
+    wf.basis(), s.get(), rpaQ ? &dVs : nullptr, nullptr, omega_s);
   std::cout << "..done\n" << std::flush;
 
-  double cc1 =
-    C1(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
+  double cc1 = C1(w, v, omega_t, omega_s, K, t->rank(), s->rank(), t_ce, s_ce,
+                  core, excited);
 
-  double cc2 =
-    C2(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
+  double cc2 = C2(w, v, omega_t, omega_s, K, t->rank(), s->rank(), t_ce, s_ce,
+                  core, excited);
 
-  double cr12 =
-    R12(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
+  double cr12 = R12(w, v, omega_t, omega_s, K, t->rank(), s->rank(), t_ce, s_ce,
+                    core, excited);
 
-  double cl12 =
-    L12(w, v, omega, K, t->rank(), s->rank(), t_ce, s_ce, core, excited);
+  double cl12 = L12(w, v, omega_t, omega_s, K, t->rank(), s->rank(), t_ce, s_ce,
+                    core, excited);
 
   const auto delta_AK = cc1 + cc2 + cr12 + cl12;
 
