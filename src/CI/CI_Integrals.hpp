@@ -218,6 +218,10 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
   Hamiltonian in the (unchanged) state - first-order perturbation theory in
   the change to the Hamiltonian. Only the first pass is diagonalised.
 
+  If a step reverses the previous one (E0 alternating about the fixed point),
+  half the step is taken, E0 -> (E0 + E0_new) / 2, so that alternating
+  sequences converge. Convergence is judged on the full (undamped) step.
+
   @param psi            Solved up to @p level (updated in place).
   @param s1c            Correction tables. E0 belongs to a single (J, parity),
                         while these tables are shared between them, so a local
