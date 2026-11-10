@@ -72,6 +72,17 @@ std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
                                                 int num_electrons);
 
 /*!
+  @brief Warns if the orbitals are not what the CI Hamiltonian assumes.
+
+  @details
+  The CI assumes V^(N-M): the orbitals are eigenstates of the Hartree-Fock
+  potential of a closed-shell core holding every electron except the CI
+  electrons, so <v|h|w> = e_v delta_vw with no subtraction terms. Not enforced:
+  warns on what can be seen, another HF method or an open core shell.
+*/
+void warn_unless_frozen_core_HF(const Wavefunction &wf);
+
+/*!
   @brief Method for solving the CI eigenvalue problem of a (J, parity) block.
   @details
   - dense: forms the full CI matrix and diagonalises it directly. Memory and

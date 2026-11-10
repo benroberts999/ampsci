@@ -6,6 +6,7 @@
 #include "ConfigurationSpace.hpp"
 #include "Coulomb/include.hpp"
 #include "DiracOperator/include.hpp"
+#include "HF/HartreeFock.hpp"
 #include "IO/InputBlock.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/CorrelationPotential.hpp"
@@ -249,6 +250,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // Print info re: basis to screen:
   std::cout << "\nUsing " << DiracSpinor::state_config(ci_sp_basis) << " = "
             << ci_sp_basis.size() << " orbitals in CI expansion\n";
+
+  // The CI Hamiltonian assumes V^(N-M) Hartree-Fock orbitals
+  warn_unless_frozen_core_HF(wf);
 
   // Configurations in the CI expansion: leading + excitations
   const ConfigurationSpace config_space{
@@ -1028,6 +1032,23 @@ std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
                J_string(twoJ), num_electrons);
   }
   return J_pi_list;
+}
+
+//==============================================================================
+
+void warn_unless_frozen_core_HF(const Wavefunction &wf) {
+  if (wf.vHF() && wf.vHF()->method() != HF::Method::HartreeFock) {
+    fmt2::warning();
+    fmt::print(": CI assumes Hartree-Fock orbitals (V^(N-M)); these are {}\n",
+               HF::parseMethod(wf.vHF()->method()));
+  }
+  for (const auto &shell : AtomData::core_parser(wf.coreConfiguration())) {
+    if (shell.frac() < 1.0) {
+      fmt2::warning();
+      fmt::print(": CI assumes a closed-shell core (V^(N-M)); {} is open\n",
+                 shell.symbol());
+    }
+  }
 }
 
 //==============================================================================
