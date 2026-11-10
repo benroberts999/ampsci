@@ -99,7 +99,9 @@ The ampsci code and methods have been described in the following papers
 
 ### A selection of publications using ampsci
 
-* E. Aprile _et al._ (XENON Collaboration), _Light Dark Matter Search with 7.8 Tonne-Year of Ionization-Only Data in XENONnT_, Physical Review Letters (2026), [[arXiv:2601.11296](https://arxiv.org/abs/2601.11296)]
+* C. J. West, B. M. Roberts, _Atomic structure calculations for constraining new electron-electron forces_, Physical Review A (2026), [[arXiv:2608.26532](https://arxiv.org/abs/2608.26532)]
+* M. L. Bissell _et al._, _Interrogating the composition and distribution of nuclear magnetization via the hyperfine anomaly: experiment meets nuclear and atomic theory for short-lived <sup>47</sup>K_, [[arXiv:2603.20090](https://arxiv.org/abs/2603.20090)]
+* E. Aprile _et al._ (XENON Collaboration), _Light Dark Matter Search with 7.8 Tonne-Year of Ionization-Only Data in XENONnT_, [Phys. Rev. Lett. 137, 051003 (2026)](https://journals.aps.org/prl/abstract/10.1103/2lrq-f6bk), [[arXiv:2601.11296](https://arxiv.org/abs/2601.11296)]
 * The COSINE-100 Collaboration, _Constraints on sub-GeV dark matter scattering on electrons with COSINE-100_, [Physical Review D **113**, 072012 (2026)](https://journals.aps.org/prd/abstract/10.1103/kszv-g7tl), [[arXiv:2510.01927](https://arxiv.org/abs/2510.01927)]
 * R. B. Cserveny, B. M. Roberts, _Theoretical characterization of the barium II and radium II ions_, [Physical Review A **112**, 032816 (2025)](https://link.aps.org/doi/10.1103/1rtb-8ymc), [[arXiv:2505.05230](https://arxiv.org/abs/2505.05230)]
 * The NEON Collaboration, _First Direct Search for Light Dark Matter Using the NEON Experiment at a Nuclear Reactor_, [Physical Review Letters **134**, 021802 (2025)](https://link.aps.org/doi/10.1103/PhysRevLett.134.021802), [[arXiv:2407.16194](https://arxiv.org/abs/2407.16194)]
