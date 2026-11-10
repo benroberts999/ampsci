@@ -5,6 +5,7 @@
 #include "Coulomb/meTable.hpp"
 #include "LinAlg/Matrix.hpp"
 #include "MBPT/Sigma2.hpp" //temp - remove after refactor
+#include "Sigma3.hpp"
 #include <iostream>
 #include <map>
 #include <optional>
@@ -238,6 +239,8 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
   @param E0_sigma2      Reference E0 that @p Sk and @p dSk were tabulated at.
   @param outstream      Stream for the per-pass output.
   @param level          Index of the level whose energy E0 is (0: lowest).
+  @param sigma3         Pointer to the Sigma_3 parameters; ignored if nullptr.
+                        See @ref construct_Hci.
   @tparam MatrixType    Storage of the CI Hamiltonian: dense
                         (LinAlg::Matrix<double>; diagonalised directly) or
                         sparse (LinAlg::SparseSymmetricMatrix<double>; solved
@@ -250,7 +253,8 @@ template <typename MatrixType = LinAlg::Matrix<double>>
   const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
   const Coulomb::WkTable *Sk = nullptr, const std::vector<double> &hk = {},
   const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
-  std::ostream &outstream = std::cout, std::size_t level = 0);
+  std::ostream &outstream = std::cout, std::size_t level = 0,
+  const Sigma3Parameters *sigma3 = nullptr);
 
 //==============================================================================
 /*!
@@ -301,6 +305,8 @@ struct Integrals {
   double E0_sigma2{0.0};
   //! Derivative (dSigma/dE) correction for Sigma_1; empty if not included
   Sigma1Correction s1_corr{};
+  //! Parameters of the Sigma_3 correction; see Sigma3Parameters::included()
+  Sigma3Parameters sigma3{};
 
   //! False if the tables were never calculated (e.g., CI was run 'read_only')
   [[nodiscard]] bool availableQ() const {
@@ -827,6 +833,12 @@ std::string Term_Symbol(int L, int two_S, int parity);
                each stored S^k is shifted to the target E0. See
                @ref CI::corrected_Sk.
   @param dE0   Shift of the target E0 from the one Sk was tabulated at.
+  @param sigma3 Pointer to the Sigma_3 parameters; ignored if nullptr. If
+               given, the effective three-body correction is added to the
+               matrix elements in which one of the CSFs belongs to the lowest
+               configurations (see @ref sigma3_selected), including those
+               between CSFs that differ in all three orbitals. With
+               Brillouin-Wigner denominators, E0 is taken from @p s1c.
   @tparam MatrixType Storage of the matrix:
     - LinAlg::Matrix<double> (default): dense, both triangles filled.
     - LinAlg::SparseSymmetricMatrix<double>: the non-zero elements of the
@@ -836,13 +848,12 @@ std::string Term_Symbol(int L, int two_S, int parity);
   @return Full CI Hamiltonian matrix in the CSF basis.
 */
 template <typename MatrixType = LinAlg::Matrix<double>>
-MatrixType
-construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
-              const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
-              const Coulomb::WkTable *Sk = nullptr,
-              const Sigma1Correction *s1c = nullptr,
-              const std::vector<double> &hk = {},
-              const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0);
+MatrixType construct_Hci(
+  const PsiJPi &psi, const Coulomb::meTable<double> &h1,
+  const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
+  const Coulomb::WkTable *Sk = nullptr, const Sigma1Correction *s1c = nullptr,
+  const std::vector<double> &hk = {}, const Coulomb::WkTable *dSk = nullptr,
+  double dE0 = 0.0, const Sigma3Parameters *sigma3 = nullptr);
 
 /*!
   @brief Constructs the full CI Hamiltonian matrix for a list of CSFs.
@@ -862,13 +873,14 @@ MatrixType construct_Hci(
   const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
   const Coulomb::WkTable *Sk = nullptr, const Sigma1Correction *s1c = nullptr,
   const std::vector<double> &hk = {}, const Coulomb::WkTable *dSk = nullptr,
-  double dE0 = 0.0);
+  double dE0 = 0.0, const Sigma3Parameters *sigma3 = nullptr);
 
 /*!
   @brief Constructs the CI Hamiltonian matrix from a set of integral tables.
   @details
   Overload of construct_Hci() taking the tables as @ref Integrals; the Breit
-  and \f$ \Sigma_2 \f$ corrections are included if those tables are non-empty.
+  and \f$ \Sigma_2 \f$ corrections are included if those tables are non-empty,
+  and \f$ \Sigma_3 \f$ if its parameters are set.
 
   If the iterative (dSigma/dE) correction or the Sigma_2 BW shift is
   included, the reference energy E0 belongs to this J/Pi: the lowest solved energy of @p psi is used if it has

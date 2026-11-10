@@ -1,7 +1,11 @@
 #include "CI/Sigma3.hpp"
 #include "Angular/include.hpp"
+#include "CI/CI_Integrals.hpp"
 #include "CI/CSF.hpp"
+#include "CI/ConfigurationInteraction.hpp"
 #include "Coulomb/include.hpp"
+#include "IO/InputBlock.hpp"
+#include "LinAlg/include.hpp"
 #include "MBPT/Sigma2.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
@@ -9,6 +13,8 @@
 #include <array>
 #include <cmath>
 #include <map>
+#include <set>
+#include <string>
 #include <utility>
 #include <vector>
 
@@ -40,6 +46,8 @@ struct Atom {
   // <ij|g|kl> between spin-orbitals; see g()
   std::vector<double> g_table{};
   int twoJ{3};
+  // Every CSF of the block, and a sample of them
+  std::vector<CI::CSF> block{};
   std::vector<CI::CSF3> csfs{};
 
   double g(std::size_t i, std::size_t j, std::size_t k, std::size_t l) const {
@@ -193,6 +201,159 @@ TEST_CASE("Sigma3: symmetric", "[CI][Sigma3][3VCI][unit]") {
 }
 
 //==============================================================================
+// The CSFs Sigma_3 is included for: those of the lowest non-relativistic
+// configurations
+TEST_CASE("Sigma3: lowest configurations", "[CI][Sigma3][3VCI][unit]") {
+  using namespace UnitTest::Sigma3Test;
+  const auto at = atom();
+  const auto orbitals = CI::sigma3_orbitals(at.core, at.valence);
+
+  // Lowest configuration of this block: 3s^2 3p
+  const auto lowest = CI::sigma3_selected(at.block, orbitals, 1);
+  std::size_t num_lowest = 0;
+  bool only_ground_config = true;
+  for (std::size_t i = 0; i < at.block.size(); ++i) {
+    const auto is_ground_config = at.block[i].config(false) == "3s^2 3p";
+    if (lowest[i]) {
+      ++num_lowest;
+    }
+    if (bool(lowest[i]) != is_ground_config) {
+      only_ground_config = false;
+    }
+  }
+  REQUIRE(only_ground_config);
+  REQUIRE(num_lowest == 1);
+
+  // Both j of each shell are selected together: a CSF is selected if any CSF
+  // of the same non-relativistic configuration is
+  const auto several = CI::sigma3_selected(at.block, orbitals, 4);
+  std::set<std::string> selected_configs;
+  for (std::size_t i = 0; i < at.block.size(); ++i) {
+    if (several[i]) {
+      selected_configs.insert(at.block[i].config(false));
+    }
+  }
+  bool whole_configs = true;
+  for (std::size_t i = 0; i < at.block.size(); ++i) {
+    const auto in_selected_config =
+      selected_configs.count(at.block[i].config(false)) != 0;
+    if (in_selected_config != bool(several[i])) {
+      whole_configs = false;
+    }
+  }
+  REQUIRE(selected_configs.size() == 4);
+  REQUIRE(whole_configs);
+
+  // None, and all
+  const auto none = CI::sigma3_selected(at.block, orbitals, 0);
+  const auto all = CI::sigma3_selected(at.block, orbitals, 1000);
+  const auto num_none = std::count(none.begin(), none.end(), 1);
+  const auto num_all = std::count(all.begin(), all.end(), 1);
+  REQUIRE(num_none == 0);
+  REQUIRE(std::size_t(num_all) == at.block.size());
+}
+
+//==============================================================================
+// CI matrix with Sigma_3: the matrix without it, plus Sigma_3 for exactly the
+// pairs with a CSF of the lowest configurations (also when all three orbitals
+// differ); sparse and dense matrices agree
+TEST_CASE("Sigma3: in the CI matrix", "[CI][Sigma3][3VCI][unit]") {
+  using namespace UnitTest::Sigma3Test;
+  const auto at = atom();
+
+  Coulomb::meTable<double> h1;
+  for (const auto &v : at.valence) {
+    h1.add(v, v, v.en());
+  }
+
+  CI::Sigma3Parameters sigma3;
+  sigma3.orbitals = CI::sigma3_orbitals(at.core, at.valence);
+  sigma3.denominators = MBPT::Denominators::DFK;
+  sigma3.num_configs = 3;
+  const auto selected =
+    CI::sigma3_selected(at.block, sigma3.orbitals, sigma3.num_configs);
+
+  const auto H0 = CI::construct_Hci(at.block, at.twoJ, h1, at.qk);
+  const auto H3 =
+    CI::construct_Hci(at.block, at.twoJ, h1, at.qk, nullptr, nullptr, nullptr,
+                      {}, nullptr, 0.0, &sigma3);
+
+  double worst = 0.0;
+  double largest_three_different = 0.0;
+  for (std::size_t i = 0; i < at.block.size(); ++i) {
+    for (std::size_t j = 0; j < at.block.size(); ++j) {
+      const auto expected =
+        selected[i] || selected[j] ?
+          CI::Sigma3_AB(at.block[i], at.block[j], at.twoJ, at.qk,
+                        sigma3.orbitals, sigma3.denominators) :
+          0.0;
+      const auto found = H3(i, j) - H0(i, j);
+      worst = std::max(worst, std::abs(found - expected));
+      if (CI::num_different(at.block[i], at.block[j]) == 3) {
+        largest_three_different =
+          std::max(largest_three_different, std::abs(found));
+      }
+    }
+  }
+  REQUIRE(worst < 1.0e-14);
+  REQUIRE(largest_three_different > 1.0e-6);
+
+  const auto H3_sparse =
+    CI::construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
+      at.block, at.twoJ, h1, at.qk, nullptr, nullptr, nullptr, {}, nullptr, 0.0,
+      &sigma3)
+      .dense();
+  double worst_sparse = 0.0;
+  for (std::size_t i = 0; i < at.block.size(); ++i) {
+    for (std::size_t j = 0; j < at.block.size(); ++j) {
+      worst_sparse =
+        std::max(worst_sparse, std::abs(H3_sparse(i, j) - H3(i, j)));
+    }
+  }
+  REQUIRE(worst_sparse == 0.0);
+}
+
+//==============================================================================
+// Full CI run with the sigma3 option: the levels are the eigenvalues of the
+// Hamiltonian with Sigma_3, as re-formed from the stored integrals; with BW
+// denominators, of the Hamiltonian at the converged E0
+TEST_CASE("Sigma3: CI run", "[CI][Sigma3][3VCI][unit]") {
+
+  // B: [He] core, three valence electrons
+  Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
+                  {"B", -1, "pointlike"}, 1.0);
+  wf.solve_core("HartreeFock", "[He]", std::nullopt, 1.0e-5, false);
+  auto b_params = SplineBasis::Parameters("6spd", 20, 6, {1.0e-2}, 20.0);
+  b_params.verbose = false;
+  wf.formBasis(b_params);
+
+  const std::string common =
+    "ci_basis = 3sp; num_electrons = 3; J- = 1/2; num_solutions = 2; "
+    "sigma1 = true; sigma2 = true; davidson = false; print_details = false; "
+    "qk_file = false; sk_file = false; dsk_file = false; ds1_file = false; "
+    "ci_file = false;";
+
+  for (const std::string denominators : {"DFK", "BW"}) {
+    INFO(denominators);
+    const auto options = common + "denominators = " + denominators + ";";
+
+    const auto without =
+      CI::configuration_interaction(IO::InputBlock{"CI", options}, wf);
+    const auto with = CI::configuration_interaction(
+      IO::InputBlock{"CI", options + "sigma3 = true; sigma3_configs = 2;"}, wf);
+
+    const auto &psi = with.levels.at(0);
+    const auto shift = psi.energy(0) - without.levels.at(0).energy(0);
+    REQUIRE(std::abs(shift) > 1.0e-7);
+
+    const auto Hci = CI::construct_Hci(psi, with.integrals);
+    const auto E = LinAlg::symmhEigensystem(Hci).first;
+    REQUIRE(psi.energy(0) == Approx(E[0]).epsilon(1.0e-9));
+    REQUIRE(psi.energy(1) == Approx(E[1]).epsilon(1.0e-9));
+  }
+}
+
+//==============================================================================
 //==============================================================================
 
 UnitTest::Sigma3Test::Atom UnitTest::Sigma3Test::atom() {
@@ -248,9 +409,9 @@ UnitTest::Sigma3Test::Atom UnitTest::Sigma3Test::atom() {
 
   // A sample of the CSFs: every seventh, so that many configurations (with
   // and without repeated orbitals) are present
-  const auto all_csfs = CI::form_CSF3s(at.twoJ, -1, at.valence);
-  for (std::size_t i = 0; i < all_csfs.size(); i += 7) {
-    at.csfs.push_back(std::get<CI::CSF3>(all_csfs[i].variant()));
+  at.block = CI::form_CSF3s(at.twoJ, -1, at.valence);
+  for (std::size_t i = 0; i < at.block.size(); i += 7) {
+    at.csfs.push_back(std::get<CI::CSF3>(at.block[i].variant()));
   }
 
   return at;

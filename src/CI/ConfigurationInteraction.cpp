@@ -48,6 +48,13 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "excitation energy. If set, num_solutions is ignored."},
     {"sigma1", "Include one-body MBPT correlations? [false]"},
     {"sigma2", "Include two-body MBPT correlations? [false]"},
+    {"sigma3", "Include effective three-body MBPT correlations? [false]\n"
+               " - three valence electrons only; requires sigma2"},
+    {"sigma3_configs",
+     "Sigma_3 is included in <A|H|B> if A or B belongs to one of the N "
+     "lowest configurations of the J/pi [10]\n"
+     " - non-relativistic configurations, by sum of orbital energies\n"
+     " - check convergence by increasing N"},
     {"Brueckner", "Use Brueckner (spectrum) states for CI basis? Must have "
                   "Correlations, Spectrum, and sigma1. [false]"},
     {"cis2_basis",
@@ -218,6 +225,15 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   const auto include_Sigma2 = input.get("sigma2", false) && num_electrons > 1;
   if (input.get("sigma2", false) && !include_Sigma2) {
     std::cout << "nb: one valence electron: no Sigma_2 (no valence pairs)\n";
+  }
+
+  // Sigma_3 acts between three valence electrons, and goes together with
+  // Sigma_2 (same order; shares its integrals and denominators)
+  const auto include_Sigma3 =
+    input.get("sigma3", false) && num_electrons == 3 && include_Sigma2;
+  if (input.get("sigma3", false) && !include_Sigma3) {
+    std::cout << "nb: Sigma_3 requires three valence electrons, and sigma2: "
+                 "not including it\n";
   }
 
   // Use Breuckner states for MBPT
@@ -393,6 +409,15 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   const auto iterative_correction_sigma2 =
     include_Sigma2 && denominators == MBPT::Denominators::BW;
 
+  // Sigma_3: evaluated as needed from the Coulomb integrals (those with one
+  // core orbital, which Sigma_2 also needs); same denominators as Sigma_2
+  Sigma3Parameters sigma3;
+  if (include_Sigma3) {
+    sigma3.orbitals = sigma3_orbitals(core_s2, ci_sp_basis);
+    sigma3.denominators = denominators;
+    sigma3.num_configs = std::size_t(input.get("sigma3_configs", 10));
+  }
+
   // Internal reference E0 that the Sigma_2 integrals are tabulated at. The
   // shift to each J/Pi is resummed, so results barely depend on it; it need
   // only be roughly right (zeroth-order ground-state pair energy)
@@ -402,11 +427,17 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   //----------------------------------------------------------------------------
 
   if (include_MBPT && !read_only) {
-    std::cout << "\nIncluding MBPT: "
-              << (include_Sigma1 && include_Sigma2 ? "Σ_1 + Σ_2" :
-                  include_Sigma1                   ? "Σ_1" :
-                                                     "Σ_2")
-              << "\n";
+    std::vector<std::string> sigma_terms;
+    if (include_Sigma1) {
+      sigma_terms.push_back("Σ_1");
+    }
+    if (include_Sigma2) {
+      sigma_terms.push_back("Σ_2");
+    }
+    if (include_Sigma3) {
+      sigma_terms.push_back("Σ_3");
+    }
+    fmt::print("\nIncluding MBPT: {}\n", fmt::join(sigma_terms, " + "));
     std::cout << "Including core excitations from n ≥ " << n_min_core << "\n";
     if (max_k_Coulomb >= 0 && max_k_Coulomb < 50) {
       std::cout << "Including k ≤ " << max_k_Coulomb
@@ -437,6 +468,11 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       }
       std::cout << "Using: " << MBPT::parse_Denominators(denominators)
                 << " denominators\n";
+    }
+    if (include_Sigma3) {
+      fmt::print("Including <A|Σ_3|B> for A or B in lowest {} "
+                 "configurations of each J/pi\n",
+                 sigma3.num_configs);
     }
     std::cout << "\n";
   }
@@ -851,6 +887,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       (exclude_wrong_parity_box ? "xb" : "") + ";" +
       (extrapolate_sigma2 ? "ex" : "") + ";" + Feynman_screen_tag;
   }
+  if (include_Sigma3) {
+    ci_settings += "s3;" + std::to_string(sigma3.num_configs) + ";";
+  }
   if (!Bk.emptyQ()) {
     ci_settings +=
       input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf") + ";";
@@ -883,7 +922,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                all_below_cm, h1, qk, Bk, Sk, include_Sigma2, print_details,
                read_only, std::cout, ci_fname, find_E0 ? &s1_corr : nullptr, hk,
                dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver, BW_each_level,
-               config_space);
+               config_space, include_Sigma3 ? &sigma3 : nullptr);
     }
   }
 
@@ -972,6 +1011,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   out.integrals.E0_sigma2 = E0_sigma2;
   out.integrals.hk = std::move(hk);
   out.integrals.s1_corr = std::move(s1_corr);
+  out.integrals.sigma3 = std::move(sigma3);
 
   return out;
 }
@@ -1063,7 +1103,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               std::ostream &outstream, const std::string &ci_fname,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
               const Coulomb::WkTable *dSk, double E0_sigma2, Solver solver,
-              bool BW_each_level, const ConfigurationSpace &config_space) {
+              bool BW_each_level, const ConfigurationSpace &config_space,
+              const Sigma3Parameters *sigma3) {
 
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
@@ -1134,12 +1175,13 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       using SparseMatrix = LinAlg::SparseSymmetricMatrix<double>;
       SparseMatrix Hci;
       if (s1c != nullptr) {
-        Hci = CI::iterate_E0<SparseMatrix>(&psi, *s1c, h1, qk, br_ptr, s2_ptr,
-                                           hk, dSk, E0_sigma2, outstream);
+        Hci =
+          CI::iterate_E0<SparseMatrix>(&psi, *s1c, h1, qk, br_ptr, s2_ptr, hk,
+                                       dSk, E0_sigma2, outstream, 0, sigma3);
       } else {
         // No correction (or iteration disabled): single matrix
-        Hci =
-          CI::construct_Hci<SparseMatrix>(psi, h1, qk, br_ptr, s2_ptr, s1c, hk);
+        Hci = CI::construct_Hci<SparseMatrix>(psi, h1, qk, br_ptr, s2_ptr, s1c,
+                                              hk, nullptr, 0.0, sigma3);
       }
       // Each stored element: value (double) and column index (32 bit)
       const auto Hci_sparse_GB = double(Hci.num_stored()) * 12.0 / 1.0e9;
@@ -1175,10 +1217,11 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       LinAlg::Matrix<double> Hci;
       if (s1c != nullptr) {
         Hci = CI::iterate_E0(&psi, *s1c, h1, qk, br_ptr, s2_ptr, hk, dSk,
-                             E0_sigma2, outstream);
+                             E0_sigma2, outstream, 0, sigma3);
       } else {
         // No correction (or iteration disabled): single matrix
-        Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr, s1c, hk);
+        Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr, s1c, hk, nullptr,
+                                0.0, sigma3);
       }
       fmt::print(outstream,
                  "CI matrix (dense): {} total elements ({:.2f} GB)\n",
@@ -1213,7 +1256,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
           const auto Hci =
             CI::iterate_E0<LinAlg::SparseSymmetricMatrix<double>>(
               &psi_level, s1_level, h1, qk, br_ptr, s2_ptr, hk, dSk, E0_sigma2,
-              outstream, i);
+              outstream, i, sigma3);
           if (!psi_level.solve(Hci, int(i) + 1, {}, outstream).converged) {
             fmt::print(
               outstream,
@@ -1223,7 +1266,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
         } else {
           const auto Hci =
             CI::iterate_E0(&psi_level, s1_level, h1, qk, br_ptr, s2_ptr, hk,
-                           dSk, E0_sigma2, outstream, i);
+                           dSk, E0_sigma2, outstream, i, sigma3);
           psi_level.solve(Hci, int(i) + 1);
         }
         psi.replace_solution(i, psi_level.energy(i), psi_level.coefs(i));
@@ -1235,9 +1278,10 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     }
   } else {
     outstream << "Using " << psi.num_solutions()
-              << " solutions read from file.\n";
+              << " solutions read from file.\n"
+              << std::flush;
   }
-  outstream << "\n";
+  outstream << "\n" << std::flush;
   const auto E0 = psi.num_solutions() > 0 ? psi.energy(0) : 0.0;
 
   // For calculating g-factors

@@ -162,6 +162,9 @@ enum class Solver { dense, Davidson };
                       orthogonal.
   @param config_space Configurations included in the CI expansion (see
                       @ref ConfigurationSpace); all by default.
+  @param sigma3       Pointer to the Sigma_3 (effective three-body)
+                      parameters; ignored if nullptr. See
+                      @ref Sigma3Parameters.
 
   @return PsiJPi (@ref PsiJPi) containing the CI eigenvalues and expansion
   coefficients for the requested solutions.
@@ -178,6 +181,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               const std::vector<double> &hk = {},
               const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
               Solver solver = Solver::dense, bool BW_each_level = false,
-              const ConfigurationSpace &config_space = {});
+              const ConfigurationSpace &config_space = {},
+              const Sigma3Parameters *sigma3 = nullptr);
 
 } // namespace CI

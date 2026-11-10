@@ -1111,6 +1111,10 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
                   << "(file has " << num_csfs << ", expected " << nc << ").\n";
         return false;
       }
+      outstream << "Reading J=" << J_string(m_twoj)
+                << " pi=" << (m_pi > 0 ? "+" : "-") << " (" << num_stored
+                << " solutions) from " << fname << "\n"
+                << std::flush;
       std::vector<double> E(num_stored), M(num_stored * nc);
       f.read(reinterpret_cast<char *>(E.data()),
              static_cast<std::streamsize>(E.size() * sizeof(double)));
@@ -1120,9 +1124,6 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
         outstream << "\nCannot read from " << fname << ": file is truncated\n";
         return false;
       }
-      outstream << "Reading J=" << J_string(m_twoj)
-                << " pi=" << (m_pi > 0 ? "+" : "-") << " (" << num_stored
-                << " solutions) from " << fname << "\n";
       m_num_solutions = num_stored;
       m_Solution.first = LinAlg::Vector<double>(std::move(E));
       m_Solution.second = LinAlg::Matrix<double>(num_stored, nc, std::move(M));
