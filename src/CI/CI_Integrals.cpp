@@ -612,8 +612,13 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
     // <c|Hci|c>; c is normalised
     const double E0_new = c * (Hci * c);
 
-    delta = E0_new - s1_Jpi.E0;
-    s1_Jpi.E0 = E0_new;
+    // A step that reverses the previous one means E0 alternates about the
+    // fixed point (the energy falls as E0 rises), and the alternation can
+    // grow. Half the step is taken then: E0 -> (E0 + E0_new) / 2
+    const auto step = E0_new - s1_Jpi.E0;
+    const auto reversed = step * delta < 0.0;
+    delta = step;
+    s1_Jpi.E0 += reversed ? 0.5 * step : step;
     fmt::print(outstream, "  it {:2}: E0 = {:.8f} au (eps = {:.0e})\n", it,
                s1_Jpi.E0, std::abs(delta / s1_Jpi.E0));
     outstream << std::flush;
