@@ -1,5 +1,8 @@
 name: Build (linux)
-# Build Latest (linux) - g++-13 and clang++-15
+# Build Latest (linux) - default g++ and clang++ of the newest Ubuntu runner.
+# Compilers are unversioned on purpose: versioned packages (e.g. clang-15) are
+# dropped by newer Ubuntu releases, which breaks the build when ubuntu-latest
+# moves. The unversioned clang and libomp-dev are always the same LLVM version.
 
 on:
   push:
@@ -11,8 +14,9 @@ jobs:
   build_latest:
     runs-on: ubuntu-latest
     strategy:
+      fail-fast: false # one failing configuration does not cancel the others
       matrix:
-        compiler: [g++-13, clang++-15]  # Test with both g++ and clang++
+        compiler: [g++, clang++]       # Test with both g++ and clang++
         openmp: [-fopenmp, '']               # Test with and without OpenMP support
 
     steps:
@@ -25,14 +29,15 @@ jobs:
         set -x
         sudo apt-get update -y
         # Install build tools and compilers based on the matrix
-        if [ "${{ matrix.compiler }}" = "g++-13" ]; then
-          sudo apt-get install -y g++-13
-        elif [ "${{ matrix.compiler }}" = "clang++-15" ]; then
-          sudo apt-get install -y clang-15
+        if [ "${{ matrix.compiler }}" = "g++" ]; then
+          sudo apt-get install -y g++
+        elif [ "${{ matrix.compiler }}" = "clang++" ]; then
+          sudo apt-get install -y clang
           if [ "${{ matrix.openmp }}" = "-fopenmp" ]; then
-            sudo apt-get install -y libomp-15-dev
+            sudo apt-get install -y libomp-dev
           fi
         fi
+        ${{ matrix.compiler }} --version
         # Install scientific libraries
         sudo apt-get install -y make liblapack-dev libblas-dev libgsl-dev
 
@@ -52,7 +57,7 @@ jobs:
 
     # Step 5: Run with input file ampsci.in (only for g++ with OpenMP)
     - name: "Run with ampsci.in"
-      if: ${{ matrix.compiler == 'g++-13' && matrix.openmp == '-fopenmp' }}
+      if: ${{ matrix.compiler == 'g++' && matrix.openmp == '-fopenmp' }}
       run: |
         ./ampsci ampsci.in
 

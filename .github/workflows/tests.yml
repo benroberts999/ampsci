@@ -21,11 +21,13 @@ jobs:
         sudo apt-get update -y
         sudo apt-get install -y make
         sudo apt-get install -y g++
-        sudo apt-get install -y clang-15
+        sudo apt-get install -y clang
         sudo apt-get install -y liblapack-dev
         sudo apt-get install -y libblas-dev
         sudo apt-get install -y libgsl-dev
-        sudo apt-get install -y libomp-15-dev
+        sudo apt-get install -y libomp-dev
+        g++ --version
+        clang++ --version
 
     - name: setup
       run: ./configure.sh --yes
@@ -33,7 +35,7 @@ jobs:
     - name: Build ampsci (clang++)
       run: |
         make clean
-        make CXX='clang++-15' OMPLIB=-fopenmp tests
+        make CXX='clang++' OMPLIB=-fopenmp tests
 
     - name: Run unit tests (clang++)
       run: ./tests [unit]

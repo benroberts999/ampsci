@@ -7,45 +7,38 @@ on:
 jobs:
   coverage:
 
-    # lcov setup for g++-11, which is in 22.04
-    # This will have to be updated with GitHub updates its runners
-    runs-on: ubuntu-22.04
+    # gcov must be the same version as the gcc that compiled the code, and lcov
+    # must understand that gcov's output. All three come from a fixed Ubuntu
+    # 22.04 container (g++-11, gcov-11, lcov 1.15), so updates to the GitHub
+    # runner OS do not change them.
+    runs-on: ubuntu-latest
 
     steps:
     - uses: actions/checkout@v5
 
-    # Step 1: Install required dependencies
-    # This step installs all the necessary tools, compilers, and libraries
-    - name: "Install dependencies"
+    # Build with coverage flags, run tests, and generate the coverage report,
+    # inside the container. Dry run (small test subset) on dev, full on main.
+    # The workspace is mounted at the same path inside the container, so file
+    # paths in coverage.info match the checkout.
+    - name: Build and Coverage
+      continue-on-error: ${{ github.ref == 'refs/heads/main' }}
       run: |
         set -x
-        sudo apt-get update -y
-        sudo apt-get install -y g++-11
-        sudo apt-get install -y make
-        sudo apt-get install -y liblapack-dev
-        sudo apt-get install -y libblas-dev
-        sudo apt-get install -y libgsl-dev
-        sudo apt-get install -y lcov
+        if [ "${{ github.ref }}" = "refs/heads/main" ]; then
+          lcov_args=""
+        else
+          lcov_args="--dry-run"
+        fi
+        docker run --rm -e DEBIAN_FRONTEND=noninteractive \
+          -v "$PWD":"$PWD" -w "$PWD" ubuntu:22.04 bash -c "
+            set -ex
+            apt-get update -y
+            apt-get install -y g++-11 make liblapack-dev libblas-dev libgsl-dev lcov
+            ./configure.sh --yes
+            ./src/tools/lcov.sh ${lcov_args}
+          "
 
-    # Step 2: Set up the environment
-    # This step prepares the environment by copying necessary files and setting permissions
-    - name: Setup
-      run: |
-        ./configure.sh --yes
-        chmod +x ./src/tools/lcov.sh
-
-    # Step 3: Build the project and generate coverage report
-    - name: Build and Coverage (dry-run on dev)
-      if: github.ref == 'refs/heads/dev'
-      run: ./src/tools/lcov.sh --dry-run
-
-    - name: Build and Coverage (main)
-      if: github.ref == 'refs/heads/main'
-      continue-on-error: true
-      run: ./src/tools/lcov.sh
-
-    # Step 4: Upload coverage report to Codecov
-    # This step uploads the coverage report to Codecov for visualization
+    # Upload coverage report to Codecov
     - name: Upload coverage to Codecov
       continue-on-error: true
       if: github.ref == 'refs/heads/main' && hashFiles('coverage.info') != ''
