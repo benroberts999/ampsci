@@ -49,7 +49,7 @@ TDHF_DCP::TDHF_DCP(const ExternalField::TDHF *const T,
 
 void TDHF_DCP::initialise_dPsi() {
   // Initialise dPsi vectors, accounting for selection rules
-  constexpr bool print = true;
+  constexpr bool print = false;
   m_X.resize(m_core.size());
   for (auto ic = 0u; ic < m_core.size(); ic++) {
     const auto &Fc = m_core[ic];
