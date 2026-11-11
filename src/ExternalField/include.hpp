@@ -6,5 +6,6 @@
 #include "ExternalField/MixedStates.hpp"
 #include "ExternalField/MixedStatesContinuum.hpp"
 #include "ExternalField/TDHF.hpp"
+#include "ExternalField/TDHF_DCP.hpp"
 #include "ExternalField/TDHFbasis.hpp"
 #include "ExternalField/TDHFcntm.hpp"
