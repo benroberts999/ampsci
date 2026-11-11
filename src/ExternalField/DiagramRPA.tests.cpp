@@ -259,32 +259,39 @@ TEST_CASE("External Field: Diagram RPA",
       const auto ww = 0.05;
       auto dE1v = DiracOperator::E1v(wf.alpha(), ww);
       auto rpa_v = ExternalField::DiagramRPA(&dE1v, &rpa);
-      rpa_v.solve_core(ww);
       auto tdhf_v = ExternalField::TDHF(&dE1v, wf.vHF());
-      tdhf_v.solve_core(ww, 100, false);
 
-      // The basis-incompleteness error is the same in absolute terms for
-      // every element, so the difference is measured against the largest
-      fmt::print("E1v w=0.05, diagram vs TDHF (absorption, emission):\n");
-      double worst = 0.0;
-      double largest = 0.0;
-      for (const auto &Fv : wf.valence()) {
-        for (const auto &Fw : wf.valence()) {
-          if (dE1v.isZero(Fv.kappa(), Fw.kappa()))
-            continue;
-          fmt::print("{:6s}", Fv.shortSymbol() + Fw.shortSymbol());
-          for (const auto conj : {false, true}) {
-            const auto d = rpa_v.dV(Fv, Fw, conj);
-            const auto t = tdhf_v.dV(Fv, Fw, conj);
-            worst = std::max(worst, std::abs(d - t));
-            largest = std::max(largest, std::abs(t));
-            fmt::print(" {:9.5f} [{:9.5f}]", d, t);
+      // First order (a single iteration: the lowest-order matrix elements
+      // of the operator enter directly), then converged
+      for (const auto max_its : {1, 100}) {
+        rpa_v.solve_core(ww, max_its);
+        tdhf_v.solve_core(ww, max_its, false);
+
+        // The basis-incompleteness error is the same in absolute terms for
+        // every element, so the difference is measured against the largest
+        fmt::print("E1v w=0.05, max_its={}, diagram vs TDHF (absorption, "
+                   "emission):\n",
+                   max_its);
+        double worst = 0.0;
+        double largest = 0.0;
+        for (const auto &Fv : wf.valence()) {
+          for (const auto &Fw : wf.valence()) {
+            if (dE1v.isZero(Fv.kappa(), Fw.kappa()))
+              continue;
+            fmt::print("{:6s}", Fv.shortSymbol() + Fw.shortSymbol());
+            for (const auto conj : {false, true}) {
+              const auto d = rpa_v.dV(Fv, Fw, conj);
+              const auto t = tdhf_v.dV(Fv, Fw, conj);
+              worst = std::max(worst, std::abs(d - t));
+              largest = std::max(largest, std::abs(t));
+              fmt::print(" {:9.5f} [{:9.5f}]", d, t);
+            }
+            fmt::print("\n");
           }
-          fmt::print("\n");
         }
+        fmt::print("worst: {:.1e} (of largest {:.3f})\n", worst, largest);
+        REQUIRE(worst < 0.02 * largest);
       }
-      fmt::print("worst: {:.1e} (of largest {:.3f})\n", worst, largest);
-      REQUIRE(worst < 0.02 * largest);
     }
   }
 

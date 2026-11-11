@@ -298,13 +298,12 @@ void DiagramRPA::setup_ts(const DiracOperator::TensorOperator *const h) {
     }
     m_t0am.push_back(t0a_m);
   }
-  // t_ma are the emission amplitudes: h at -|omega|
-  const auto s_minus = h->h_minus_sign();
+  // t_ma, like t_am, is of the stored operator (t_+, at +|omega|)
   for (const auto &Fm : m_excited) {
     std::vector<double> t0m_a;
     t0m_a.reserve(m_holes.size());
     for (const auto &Fa : m_holes) {
-      t0m_a.push_back(s_minus * h->reducedME(Fm, Fa));
+      t0m_a.push_back(h->reducedME(Fm, Fa));
     }
     m_t0ma.push_back(t0m_a);
   }
@@ -345,6 +344,8 @@ void DiagramRPA::update_t0s(const DiracOperator::TensorOperator *const h) {
     for (std::size_t im = 0; im < m_excited.size(); ++im) {
       const auto &Fm = m_excited[im];
       m_t0am[ia][im] = m_h->reducedME(Fa, Fm);
+      // <m||h||a> from <a||h||m>, both at +|omega|: symm_sign() gives the
+      // transposed element at -|omega|, h_minus_sign() takes it back
       m_t0ma[im][ia] =
         m_h->h_minus_sign() * m_h->symm_sign(Fa, Fm) * m_t0am[ia][im];
     }
