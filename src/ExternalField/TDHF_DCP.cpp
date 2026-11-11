@@ -427,49 +427,184 @@ double TDHF_DCP::dV(const DiracSpinor &Fn, const DiracSpinor &Fm,
 
 //==============================================================================
 
-DiracSpinor TDHF_DCP::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
+DiracSpinor TDHF_DCP::dV_rhs(const int kappa_w, const DiracSpinor &Fv,
                              bool conj) const {
+  return d2V_11_rhs(kappa_w, Fv, conj) + d2V_Norm_rhs(kappa_w, Fv) +
+         d2V_2_rhs(kappa_w, Fv, conj);
+}
 
-  auto dVFa = DiracSpinor(0, kappa_n, Fa.grid_sptr());
-  dVFa.max_pt() = Fa.max_pt();
+//==============================================================================
 
-  const auto ChiType = !conj ? dPsiType::X : dPsiType::Y;
-  const auto EtaType = !conj ? dPsiType::Y : dPsiType::X;
+DiracSpinor TDHF_DCP::d2V_11_rhs(const int kappa_w, const DiracSpinor &Fv,
+                                 bool conj) const {
+  // Sum over core orbitals a, and pairs of first-order corrections to a,
+  // one from each operator: the Y of one in the bra with the X of the other
+  // in the ket. No explicit factors of iota: the Y are stored with theirs.
+  //
+  // conj (the -- component) is the Hermitian conjugate, found from
+  // <w||d2V_--||v> = iota_t * iota_s * (-1)^{jw-jv} <v||d2V_++||w>, and
+  // W^K_{abcd} = W^K_{cdab}: the roles of X and Y swap, with the phase
+  // (-1)^{K+kt+ks} from the conjugate of the pair coupled to rank K.
 
-  const auto k = m_h->rank();
-  const auto tkp1 = double(2 * k + 1);
-  const auto tjn = Angular::twoj_k(kappa_n);
+  auto d2VFv = DiracSpinor(0, kappa_w, Fv.grid_sptr());
+  d2VFv.max_pt() = Fv.max_pt();
 
-  // nb: faster to not //ize this one
-  for (const auto &Fb : m_core) {
+  const auto K = m_rank;
+  const auto kt = m_T->rank();
+  const auto ks = m_S->rank();
+  const auto tjw = Angular::twoj_k(kappa_w);
+  const auto sign_st = Angular::neg1pow(K + ks + kt);
+  const auto sign_conj = conj ? sign_st : 1;
 
-    const auto &X_b = get_dPsis(Fb, ChiType);
-    const auto &Y_b = get_dPsis(Fb, EtaType);
+  const auto in_ket = conj ? dPsiType::Y : dPsiType::X;
+  const auto in_bra = conj ? dPsiType::X : dPsiType::Y;
 
-    for (auto ibeta = 0ul; ibeta < X_b.size(); ++ibeta) {
-      const auto &X_beta = X_b[ibeta];
-      const auto &Y_beta = Y_b[ibeta];
+  for (const auto &Fa : m_core) {
+    const auto tja = Fa.twoj();
+    const auto sign_wa = sign_conj * Angular::neg1pow_2(tjw + tja);
 
-      const auto sQ = Angular::neg1pow_2(tjn - X_beta.twoj() + 2 * k);
-      if (sQ == 1) { // faster than multiplying!
-        dVFa += Coulomb::Wkv_bcd(k, kappa_n, Fb, Fa, X_beta);
-        dVFa += Coulomb::Wkv_bcd(k, kappa_n, Y_beta, Fa, Fb);
-      } else {
-        dVFa -= Coulomb::Wkv_bcd(k, kappa_n, Fb, Fa, X_beta);
-        dVFa -= Coulomb::Wkv_bcd(k, kappa_n, Y_beta, Fa, Fb);
+    // First-order corrections to a. ++ component: X in the ket, Y in the
+    // bra; -- component: Y in the ket, X in the bra
+    const auto &ket_t = m_T->get_dPsis(Fa, in_ket);
+    const auto &bra_t = m_T->get_dPsis(Fa, in_bra);
+    const auto &ket_s = m_S->get_dPsis(Fa, in_ket);
+    const auto &bra_s = m_S->get_dPsis(Fa, in_bra);
+
+    // s correction in the bra, t correction in the ket
+    for (const auto &bra_s_beta : bra_s) {
+      for (const auto &ket_t_alpha : ket_t) {
+        const auto sixj = Angular::sixj_2(
+          2 * kt, 2 * ks, 2 * K, bra_s_beta.twoj(), ket_t_alpha.twoj(), tja);
+        if (sixj != 0.0) {
+          d2VFv += (sign_wa * sixj) *
+                   Coulomb::Wkv_bcd(K, kappa_w, bra_s_beta, Fv, ket_t_alpha);
+        }
       }
+    }
 
-      // Breit part:
-      if (p_VBr) {
-        // Makes small difference for E1, huge difference for HFS
-        dVFa += tkp1 * p_VBr->dV_Br(kappa_n, k, Fa, Fb, X_beta, Y_beta);
+    // t correction in the bra, s correction in the ket
+    for (const auto &bra_t_beta : bra_t) {
+      for (const auto &ket_s_alpha : ket_s) {
+        const auto sixj = Angular::sixj_2(
+          2 * kt, 2 * ks, 2 * K, ket_s_alpha.twoj(), bra_t_beta.twoj(), tja);
+        if (sixj != 0.0) {
+          d2VFv += (sign_st * sign_wa * sixj) *
+                   Coulomb::Wkv_bcd(K, kappa_w, bra_t_beta, Fv, ket_s_alpha);
+        }
       }
     }
   }
 
-  dVFa *= (1.0 / tkp1);
+  d2VFv *= (1.0 / std::sqrt(2.0 * K + 1.0));
 
-  return dVFa;
+  return d2VFv;
+}
+
+//==============================================================================
+
+DiracSpinor TDHF_DCP::d2V_Norm_rhs(const int kappa_w,
+                                   const DiracSpinor &Fv) const {
+  // The second-order corrections are solved orthogonal to their core
+  // orbital, a. Normalisation fixes the component along a, from the
+  // overlaps of the first-order corrections to a (Y of one operator with X
+  // of the other, same channel). It enters as that component times
+  // W^K_{wava}. No explicit factors of iota: the Y are stored with theirs.
+  //
+  // The same for the ++ and -- components: for --, X and Y swap, with the
+  // phase (-1)^{K+kt+ks} (see d2V_11_rhs), which leaves the sum unchanged.
+
+  auto d2VFv = DiracSpinor(0, kappa_w, Fv.grid_sptr());
+  d2VFv.max_pt() = Fv.max_pt();
+
+  const auto K = m_rank;
+  const auto kt = m_T->rank();
+  const auto ks = m_S->rank();
+  const auto tjw = Angular::twoj_k(kappa_w);
+  const auto sign_ts = Angular::neg1pow(K + ks + kt);
+
+  for (const auto &Fa : m_core) {
+    const auto tja = Fa.twoj();
+
+    // W^K_{wava} is zero unless (ja, ja, K) is a triangle
+    if (Angular::triangle(tja, tja, 2 * K) == 0)
+      continue;
+
+    const auto &Xt = m_T->get_dPsis(Fa, dPsiType::X);
+    const auto &Yt = m_T->get_dPsis(Fa, dPsiType::Y);
+    const auto &Xs = m_S->get_dPsis(Fa, dPsiType::X);
+    const auto &Ys = m_S->get_dPsis(Fa, dPsiType::Y);
+
+    // Sum over the channels, nu, common to the corrections from t and s
+    double overlaps = 0.0;
+    for (auto it = 0ul; it < Xt.size(); ++it) {
+      for (auto is = 0ul; is < Xs.size(); ++is) {
+        if (Xt[it].kappa() != Xs[is].kappa())
+          continue;
+        const auto tjnu = Xt[it].twoj();
+        const auto sixj =
+          Angular::sixj_2(2 * kt, 2 * ks, 2 * K, tja, tja, tjnu);
+        if (sixj == 0.0)
+          continue;
+        overlaps += Angular::neg1pow_2(tjw - tjnu) * sixj *
+                    (sign_ts * (Ys[is] * Xt[it]) + Yt[it] * Xs[is]);
+      }
+    }
+
+    if (overlaps != 0.0) {
+      d2VFv += overlaps * Coulomb::Wkv_bcd(K, kappa_w, Fa, Fv, Fa);
+    }
+  }
+
+  d2VFv *= (1.0 / std::sqrt(2.0 * K + 1.0));
+
+  return d2VFv;
+}
+
+//==============================================================================
+
+DiracSpinor TDHF_DCP::d2V_2_rhs(const int kappa_w, const DiracSpinor &Fv,
+                                bool conj) const {
+  // The first-order formula for dV, at rank K, with the second-order
+  // corrections dX, dY in place of X, Y
+
+  auto d2VFv = DiracSpinor(0, kappa_w, Fv.grid_sptr());
+  d2VFv.max_pt() = Fv.max_pt();
+
+  const auto K = m_rank;
+  const auto tKp1 = double(2 * K + 1);
+  const auto tjw = Angular::twoj_k(kappa_w);
+
+  // nb: faster to not //ize this one
+  for (auto ia = 0ul; ia < m_core.size(); ++ia) {
+    const auto &Fa = m_core[ia];
+
+    // conj (the -- component): the roles of dX and dY swap
+    const auto &dX_a = conj ? m_Y[ia] : m_X[ia];
+    const auto &dY_a = conj ? m_X[ia] : m_Y[ia];
+
+    for (auto ibeta = 0ul; ibeta < dX_a.size(); ++ibeta) {
+      const auto &dX_beta = dX_a[ibeta];
+      const auto &dY_beta = dY_a[ibeta];
+
+      const auto sQ = Angular::neg1pow_2(tjw - dX_beta.twoj() + 2 * K);
+      if (sQ == 1) { // faster than multiplying!
+        d2VFv += Coulomb::Wkv_bcd(K, kappa_w, Fa, Fv, dX_beta);
+        d2VFv += Coulomb::Wkv_bcd(K, kappa_w, dY_beta, Fv, Fa);
+      } else {
+        d2VFv -= Coulomb::Wkv_bcd(K, kappa_w, Fa, Fv, dX_beta);
+        d2VFv -= Coulomb::Wkv_bcd(K, kappa_w, dY_beta, Fv, Fa);
+      }
+
+      // Breit part:
+      if (p_VBr) {
+        d2VFv += tKp1 * p_VBr->dV_Br(kappa_w, K, Fv, Fa, dX_beta, dY_beta);
+      }
+    }
+  }
+
+  d2VFv *= (1.0 / tKp1);
+
+  return d2VFv;
 }
 
 } // namespace ExternalField

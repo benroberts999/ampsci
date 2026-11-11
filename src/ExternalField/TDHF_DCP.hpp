@@ -130,10 +130,118 @@ public:
   double dV(const DiracSpinor &Fa, const DiracSpinor &Fb,
             bool conj = false) const override;
 
-  //! Returns "reduced partial matrix element RHS": dV||Fb}.
-  //! Note: Fa * dV_rhs(..) equiv to dV(..)
-  DiracSpinor dV_rhs(const int kappa_n, const DiracSpinor &Fm,
+  /*!
+    @brief Returns [d2V Fv]_kappa: the DCP correction to the potential
+    acting on Fv, projected onto kappa_w.
+
+    @details
+    \f$ [\delta^2V_{++}\phi_v]^K_w \f$, such that Fw * dV_rhs(kappa_w, Fv)
+    is \f$ \delta A^K_{wv} \f$. Sum of d2V_11_rhs(), d2V_Norm_rhs(), and
+    d2V_2_rhs():
+    \f[
+      \delta A^K = \delta A^K(C1_{ts}) + \delta A^K(C1_{st})
+        + \delta A^K(C2_{ts}) + \delta A^K(C2_{st}) + \delta A^K_{RL} .
+    \f]
+
+    @param kappa_w  Kappa of the projection (final state).
+    @param Fv       State acted on (initial state).
+    @param conj     False: the \f$ ++ \f$ component; true: the \f$ -- \f$
+                    one.
+
+    @note The \f$ -- \f$ component is the Hermitian conjugate:
+    \f[
+      \redmatel{w}{\delta^2V_{--}}{v}
+        = \iota_t\iota_s\,(-1)^{j_w-j_v}\,\redmatel{v}{\delta^2V_{++}}{w} .
+    \f]
+    With @p conj = true, the result carries the factor
+    \f$ \iota_t\iota_s \f$, as dY does.
+  */
+  DiracSpinor dV_rhs(const int kappa_w, const DiracSpinor &Fv,
                      bool conj = false) const override;
+
+  /*!
+    @brief Part of dV_rhs() from pairs of first-order corrections, one from
+    each operator.
+
+    @details
+    The \f$ \delta^2V_{(1,1)} \f$ part; its matrix element is
+    \f$ \delta A^K(C1_{ts}) + \delta A^K(C1_{st}) \f$:
+    \f[
+      \delta A^K(C1_{ts}) = \iota_s\sum_{a\alpha\beta}
+        \frac{(-1)^{j_w+j_a}}{\sqrt{[K]}}
+        \sixj{k_t}{k_s}{K}{j_\beta}{j_\alpha}{j_a}\,
+        W^K_{w\beta_{s-}v\alpha_{t+}} ,
+    \f]
+    \f[
+      \delta A^K(C1_{st}) = \iota_t\sum_{a\alpha\beta}
+        \frac{(-1)^{K+k_s+k_t+j_w+j_a}}{\sqrt{[K]}}
+        \sixj{k_t}{k_s}{K}{j_\alpha}{j_\beta}{j_a}\,
+        W^K_{w\beta_{t-}v\alpha_{s+}} .
+    \f]
+    Does not depend on the second-order corrections.
+
+    @param kappa_w  Kappa of the projection (final state).
+    @param Fv       State acted on (initial state).
+    @param conj     False: the \f$ ++ \f$ component; true: the \f$ -- \f$
+                    one (the Hermitian conjugate: the first-order X and Y
+                    swap, with the phase \f$ (-1)^{K+k_t+k_s} \f$).
+
+    @note The Breit interaction is not included.
+  */
+  DiracSpinor d2V_11_rhs(const int kappa_w, const DiracSpinor &Fv,
+                         bool conj = false) const;
+
+  /*!
+    @brief Part of dV_rhs() from the normalisation of the second-order
+    corrections.
+
+    @details
+    The second-order corrections are solved orthogonal to their core
+    orbital; the component along it is fixed by the normalisation,
+    through the overlaps of the first-order corrections. The matrix
+    element is \f$ \delta A^K(C2_{ts}) + \delta A^K(C2_{st}) \f$:
+    \f[
+      \delta A^K(C2_{ts}) = \iota_s\sum_{a\nu}
+        \frac{(-1)^{K+k_s+k_t+j_w-j_\nu}}{\sqrt{[K]}}
+        \sixj{k_t}{k_s}{K}{j_a}{j_a}{j_\nu}\,W^K_{wava}\,
+        \braket{[\varphi^a_{s-}]_\nu}{[\varphi^a_{t+}]_\nu} ,
+    \f]
+    \f[
+      \delta A^K(C2_{st}) = \iota_t\sum_{a\nu}
+        \frac{(-1)^{j_w-j_\nu}}{\sqrt{[K]}}
+        \sixj{k_t}{k_s}{K}{j_a}{j_a}{j_\nu}\,W^K_{wava}\,
+        \braket{[\varphi^a_{t-}]_\nu}{[\varphi^a_{s+}]_\nu} .
+    \f]
+    Does not depend on the second-order corrections. The same for the
+    \f$ ++ \f$ and \f$ -- \f$ components.
+
+    @param kappa_w  Kappa of the projection (final state).
+    @param Fv       State acted on (initial state).
+
+    @note The Breit interaction is not included.
+  */
+  DiracSpinor d2V_Norm_rhs(const int kappa_w, const DiracSpinor &Fv) const;
+
+  /*!
+    @brief Part of dV_rhs() from the second-order corrections dX, dY.
+
+    @details
+    The \f$ \delta^2V_{(2)} \f$ part: the first-order formula for
+    \f$ \delta V \f$, at rank \f$ K \f$, with the second-order corrections
+    in place of the first-order ones. Its matrix element is
+    \f[
+      \delta A^K_{RL} = \sum_{a\beta}\frac{(-1)^{K+j_w-j_\beta}}{[K]}
+        \Big(W^K_{wav\beta_{++}} + \iota_t\iota_s\,W^K_{w\beta_{--}va}\Big) .
+    \f]
+    This is the part that is iterated.
+
+    @param kappa_w  Kappa of the projection (final state).
+    @param Fv       State acted on (initial state).
+    @param conj     False: the \f$ ++ \f$ component; true: the \f$ -- \f$
+                    one (dX and dY swap).
+  */
+  DiracSpinor d2V_2_rhs(const int kappa_w, const DiracSpinor &Fv,
+                        bool conj = false) const;
 
   //! Returns const ref to the second-order corrections (all channels) of
   //! core orbital Fc: dX (XorY = X) or dY (XorY = Y).
