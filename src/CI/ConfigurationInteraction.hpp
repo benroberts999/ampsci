@@ -165,6 +165,8 @@ enum class Solver { dense, Davidson };
   @param sigma3       Pointer to the Sigma_3 (effective three-body)
                       parameters; ignored if nullptr. See
                       @ref Sigma3Parameters.
+  @param Sk_Feynman_correction  Pointer to the table of Feynman corrections
+                      to S^k; ignored if nullptr. See @ref construct_Hci.
 
   @return PsiJPi (@ref PsiJPi) containing the CI eigenvalues and expansion
   coefficients for the requested solutions.
@@ -182,6 +184,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
               Solver solver = Solver::dense, bool BW_each_level = false,
               const ConfigurationSpace &config_space = {},
-              const Sigma3Parameters *sigma3 = nullptr);
+              const Sigma3Parameters *sigma3 = nullptr,
+              const Coulomb::WkTable *Sk_Feynman_correction = nullptr);
 
 } // namespace CI
