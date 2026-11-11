@@ -141,24 +141,6 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
 }
 
 //==============================================================================
-
-double Sk_vwxy_Feynman_correction(
-  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
-  const DiracSpinor &y, const Coulomb::QkTable &qk,
-  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  const std::vector<double> &fk,
-  const std::vector<RMatrix> &screening_kernels) {
-  using namespace Sigma2;
-
-  const auto ik = std::size_t(k);
-  if (ik >= screening_kernels.size() || !Sk_vwxy_SR(k, v, w, x, y))
-    return 0.0;
-
-  return S_Sigma2_screen(k, v, w, x, y, screening_kernels[ik]) -
-         S_Sigma2_static_loop(k, v, w, x, y, qk, core, excited, fk);
-}
-
-//==============================================================================
 //==============================================================================
 //==============================================================================
 double Sigma2::S_Sigma2_ab(
@@ -527,36 +509,6 @@ double Sigma2::S_Sigma2_screen(int k, const DiracSpinor &v,
 }
 
 //==============================================================================
-
-double Sigma2::S_Sigma2_static_loop(int k, const DiracSpinor &v,
-                                    const DiracSpinor &w, const DiracSpinor &x,
-                                    const DiracSpinor &y,
-                                    const Coulomb::QkTable &qk,
-                                    const std::vector<DiracSpinor> &core,
-                                    const std::vector<DiracSpinor> &excited,
-                                    const std::vector<double> &fk) {
-
-  // Both Coulomb lines are direct, of multipolarity k: Q^k_vnxa and Q^k_awny
-  if (!Angular::Ck_kk_SR(k, v.kappa(), x.kappa()) ||
-      !Angular::Ck_kk_SR(k, w.kappa(), y.kappa()))
-    return 0.0;
-
-  double sum = 0.0;
-  for (const auto &a : core) {
-    for (const auto &n : excited) {
-      if (!Angular::Ck_kk_SR(k, a.kappa(), n.kappa()))
-        continue;
-      // Diagrams a1 and b1 have the same numerator
-      sum +=
-        qk.Q(k, v, n, x, a) * qk.Q(k, a, w, n, y) * 2.0 / (a.en() - n.en());
-    }
-  }
-
-  const auto screening_factor = k < (int)fk.size() ? fk[std::size_t(k)] : 1.0;
-  return Angular::neg1pow(k) / (2.0 * k + 1.0) * screening_factor * sum;
-}
-
-//==============================================================================
 Coulomb::WkTable calculate_Sk(const std::string &filename,
                               const std::vector<DiracSpinor> &external,
                               const std::vector<DiracSpinor> &pair_basis,
@@ -639,32 +591,6 @@ Coulomb::WkTable calculate_Sk(const std::string &filename,
   }
   std::cout << "\n" << std::flush;
   return Sk;
-}
-
-//==============================================================================
-
-Coulomb::WkTable calculate_Sk_Feynman_correction(
-  const Coulomb::WkTable &Sk, const std::vector<DiracSpinor> &external,
-  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  const Coulomb::QkTable &qk, int max_k, const std::vector<double> &fk,
-  const std::vector<RMatrix> &screening_kernels) {
-
-  const auto correction_function =
-    [&](int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
-        const DiracSpinor &y) {
-      return MBPT::Sk_vwxy_Feynman_correction(k, v, w, x, y, qk, core, excited,
-                                              fk, screening_kernels);
-    };
-
-  // One entry for each entry of Sk
-  const auto in_Sk = [&Sk](int k, const DiracSpinor &v, const DiracSpinor &w,
-                           const DiracSpinor &x, const DiracSpinor &y) {
-    return Sk.contains(k, v, w, x, y);
-  };
-
-  Coulomb::WkTable Sk_Feynman_correction;
-  Sk_Feynman_correction.fill(external, correction_function, in_Sk, max_k);
-  return Sk_Feynman_correction;
 }
 
 //==============================================================================

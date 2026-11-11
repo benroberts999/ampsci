@@ -184,46 +184,6 @@ double Sk_vwxy(int k, const DiracSpinor &v, const DiracSpinor &w,
                const std::vector<RMatrix> *screening_kernels = nullptr);
 
 /*!
-  @brief Feynman correction to \ref Sk_vwxy: what the screening kernels add
-  to the second-order sum.
-
-  @details
-  With screening kernels, the reduced two-body Sigma is
-  \f[
-    S^k_{vwxy} = S^{k\,(2)}_{vwxy} + \delta S^{k}_{vwxy} ,
-  \f]
-  where \f$ S^{k\,(2)} \f$ is the complete second-order sum (that of
-  \ref Sk_vwxy without kernels), and
-  \f[
-    \delta S^{k}_{vwxy} =
-    S^{k\,{\rm screen}}_{vwxy} - S^{k\,{\rm loop}}_{vwxy}
-  \f]
-  is the static loop screened to all orders
-  (\ref Sigma2::S_Sigma2_screen), less the second-order static loop it
-  replaces (\ref Sigma2::S_Sigma2_static_loop). This returns
-  \f$ \delta S^{k} \f$.
-
-  It has no energy denominators that contain the external legs, so it does
-  not depend on E0 (Brillouin-Wigner), nor on the choice of denominators.
-
-  @param k                  Multipolarity.
-  @param v                  (+ w x y) External spinors.
-  @param qk                 Coulomb integral table (QkTable).
-  @param core               Core (hole) states for internal lines.
-  @param excited            Excited (particle) states (internal lines).
-  @param fk                 Screening factors, as given to \ref Sk_vwxy.
-  @param screening_kernels  Static screened-Coulomb kernels, as given to
-                            \ref Sk_vwxy.
-
-  @return \f$ \delta S^{k}_{vwxy} \f$; zero for k the kernels do not cover.
-*/
-double Sk_vwxy_Feynman_correction(
-  int k, const DiracSpinor &v, const DiracSpinor &w, const DiracSpinor &x,
-  const DiracSpinor &y, const Coulomb::QkTable &qk,
-  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  const std::vector<double> &fk, const std::vector<RMatrix> &screening_kernels);
-
-/*!
   @brief Selection rule for Sk_vwxy.
 
   @details
@@ -407,34 +367,6 @@ double e_bar(int kappa_v, const std::vector<DiracSpinor> &excited);
   const std::vector<RMatrix> *screening_kernels = nullptr);
 
 /*!
-  @brief Calculates the table of Feynman corrections to S^k (see
-  \ref Sk_vwxy_Feynman_correction), for every integral of an existing S^k
-  table.
-
-  @details
-  The table has an entry for each entry of @p Sk whose four legs are in
-  @p external, so that the two tables can be used together.
-
-  @param Sk                 Table of S^k integrals (see \ref calculate_Sk),
-                            calculated with the same @p core, @p excited and
-                            @p fk, without screening kernels.
-  @param external           Basis states for external legs.
-  @param core               Core (hole) states for internal summations.
-  @param excited            Excited (particle) states for internal summations.
-  @param qk                 Precomputed Coulomb integral table (QkTable).
-  @param max_k              Maximum multipolarity to include (<= 0: no limit).
-  @param fk                 Screening factors, as given to \ref calculate_Sk.
-  @param screening_kernels  Static screened-Coulomb kernels, for each k.
-
-  @return WkTable of \f$ \delta S^{k}_{vwxy} \f$.
-*/
-[[nodiscard]] Coulomb::WkTable calculate_Sk_Feynman_correction(
-  const Coulomb::WkTable &Sk, const std::vector<DiracSpinor> &external,
-  const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  const Coulomb::QkTable &qk, int max_k, const std::vector<double> &fk,
-  const std::vector<RMatrix> &screening_kernels);
-
-/*!
   @brief Average Sigma_2 correction ratios, h_k, for each multipole k.
 
   @details
@@ -601,35 +533,6 @@ double S_Sigma2_d(int k, const DiracSpinor &v, const DiracSpinor &w,
                   const std::vector<DiracSpinor> &excited,
                   const Angular::SixJTable &SixJ, Denominators denominators,
                   const std::vector<double> &fk = {}, double E0 = 0.0);
-
-/*!
-  @brief Second-order static loop: the loop diagrams (a1, b1) with the
-  energy denominator e_a - e_n.
-
-  @details
-  \f[
-    S^{k\,{\rm loop}}_{vwxy} = \frac{(-1)^k}{[k]} f_k \sum_{an}
-    \frac{2\, Q^k_{vnxa} Q^k_{awny}}{\varepsilon_a - \varepsilon_n} ,
-  \f]
-  the sum of diagrams a1 and b1 with the external legs removed from the
-  denominators (their Fermi0 form; see \ref MBPT::Denominators). This is
-  the term \ref S_Sigma2_ab removes with exclude_static_loop.
-
-  @param k        Multipolarity.
-  @param v        (+ w x y) External spinors.
-  @param qk       Coulomb integral table.
-  @param core     Core states.
-  @param excited  Excited states.
-  @param fk       Screening factors; the loop is scaled by fk[k].
-
-  @return \f$ S^{k\,{\rm loop}}_{vwxy} \f$.
-*/
-double S_Sigma2_static_loop(int k, const DiracSpinor &v, const DiracSpinor &w,
-                            const DiracSpinor &x, const DiracSpinor &y,
-                            const Coulomb::QkTable &qk,
-                            const std::vector<DiracSpinor> &core,
-                            const std::vector<DiracSpinor> &excited,
-                            const std::vector<double> &fk = {});
 
 /*!
   @brief Static loop diagrams, from a screened-Coulomb kernel.

@@ -165,26 +165,26 @@ enum class Solver { dense, Davidson };
   @param sigma3       Pointer to the Sigma_3 (effective three-body)
                       parameters; ignored if nullptr. See
                       @ref Sigma3Parameters.
-  @param Sk_Feynman_correction  Pointer to the table of Feynman corrections
-                      to S^k; ignored if nullptr. See @ref construct_Hci.
+  @param BW_failed    If given, set to true if the Brillouin-Wigner Sigma_2
+                      fails (E0 does not converge, or the lowest level is
+                      below the lowest zeroth-order configuration); otherwise
+                      left as it was. The solutions are then not saved.
 
   @return PsiJPi (@ref PsiJPi) containing the CI eigenvalues and expansion
   coefficients for the requested solutions.
 */
-PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
-              int num_electrons, int num_solutions,
-              std::optional<double> all_below_cm,
-              const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
-              const Coulomb::WkTable &Bk, const Coulomb::WkTable &Sk,
-              bool include_Sigma2, bool print_details, bool read_only = false,
-              std::ostream &outstream = std::cout,
-              const std::string &ci_fname = "",
-              const Sigma1Correction *s1c = nullptr,
-              const std::vector<double> &hk = {},
-              const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
-              Solver solver = Solver::dense, bool BW_each_level = false,
-              const ConfigurationSpace &config_space = {},
-              const Sigma3Parameters *sigma3 = nullptr,
-              const Coulomb::WkTable *Sk_Feynman_correction = nullptr);
+PsiJPi
+run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
+       int num_electrons, int num_solutions, std::optional<double> all_below_cm,
+       const Coulomb::meTable<double> &h1, const Coulomb::QkTable &qk,
+       const Coulomb::WkTable &Bk, const Coulomb::WkTable &Sk,
+       bool include_Sigma2, bool print_details, bool read_only = false,
+       std::ostream &outstream = std::cout, const std::string &ci_fname = "",
+       const Sigma1Correction *s1c = nullptr,
+       const std::vector<double> &hk = {},
+       const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
+       Solver solver = Solver::dense, bool BW_each_level = false,
+       const ConfigurationSpace &config_space = {},
+       const Sigma3Parameters *sigma3 = nullptr, bool *BW_failed = nullptr);
 
 } // namespace CI

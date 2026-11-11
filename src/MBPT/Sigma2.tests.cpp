@@ -544,10 +544,7 @@ TEST_CASE("Sigma2: Feynman static loop", "[Sigma2][MBPT][Feynman]") {
 // denominators at second order. So, without fk, for any denominators:
 //   S^k(kernels) - S^k = <kernel loop> - <Goldstone a1 + b1, Fermi0>
 // with the Fermi0 loop (-1)^k/[k] sum_an Q^k_vnxa Q^k_awny 2/(e_a - e_n).
-// Any kernel tests this: the Coulomb kernel q^k is used.
-// That difference is the Feynman correction to S^k
-// (Sk_vwxy_Feynman_correction), also with fk (which scales the second-order
-// static loop)
+// Any kernel tests this: the Coulomb kernel q^k is used
 TEST_CASE("Sigma2: Feynman loop in S^k", "[Sigma2][MBPT][unit]") {
 
   const auto radial_grid = std::make_shared<const Grid>(
@@ -608,13 +605,10 @@ TEST_CASE("Sigma2: Feynman loop in S^k", "[Sigma2][MBPT][unit]") {
   }
 
   const double E0 = -0.15;
-  const std::vector<double> fk{0.7, 0.8, 0.9};
   for (const auto denominators :
        {MBPT::Denominators::Fermi0, MBPT::Denominators::DFK,
         MBPT::Denominators::BW, MBPT::Denominators::RS}) {
     double max_diff = 0.0;
-    double max_diff_correction = 0.0;
-    double max_diff_correction_fk = 0.0;
     double max_value = 0.0;
     for (const auto &v : external) {
       for (const auto &w : external) {
@@ -635,22 +629,6 @@ TEST_CASE("Sigma2: Feynman loop in S^k", "[Sigma2][MBPT][unit]") {
               max_diff = std::max(
                 max_diff, std::abs((Sk_Feynman - Sk_Goldstone) - expected));
               max_value = std::max(max_value, std::abs(expected));
-
-              const auto Sk_correction = MBPT::Sk_vwxy_Feynman_correction(
-                k, v, w, x, y, qk, core, excited, {}, kernels);
-              max_diff_correction = std::max(
-                max_diff_correction, std::abs(Sk_correction - expected));
-
-              const auto Sk_Goldstone_fk = MBPT::Sk_vwxy(
-                k, v, w, x, y, qk, core, excited, sjt, denominators, fk, E0);
-              const auto Sk_Feynman_fk =
-                MBPT::Sk_vwxy(k, v, w, x, y, qk, core, excited, sjt,
-                              denominators, fk, E0, &kernels);
-              const auto Sk_correction_fk = MBPT::Sk_vwxy_Feynman_correction(
-                k, v, w, x, y, qk, core, excited, fk, kernels);
-              max_diff_correction_fk = std::max(
-                max_diff_correction_fk,
-                std::abs((Sk_Feynman_fk - Sk_Goldstone_fk) - Sk_correction_fk));
             }
           }
         }
@@ -658,8 +636,6 @@ TEST_CASE("Sigma2: Feynman loop in S^k", "[Sigma2][MBPT][unit]") {
     }
     REQUIRE(max_value > 1.0e-3);
     REQUIRE(max_diff < 1.0e-12 * max_value);
-    REQUIRE(max_diff_correction < 1.0e-12 * max_value);
-    REQUIRE(max_diff_correction_fk < 1.0e-12 * max_value);
   }
 }
 
