@@ -115,6 +115,9 @@ public:
     Self-consistency is driven by Anderson mixing of all the corrections
     together (as TDHF::solve_core_anderson).
 
+    In the static case (\f$ \omega_t = \omega_s = 0 \f$, operators not
+    frequency dependent), only dX is solved for; dY follows from it.
+
     The two first-order TDHF objects must be solved first.
 
     @param omega    \f$ \omega_t + \omega_s \f$: the sum of the frequencies
@@ -289,12 +292,22 @@ private:
     @brief Single (undamped) iteration of the second-order equations, for
     all core orbitals and channels, dX and dY.
 
-    @param omega  \f$ \omega_t + \omega_s \f$.
+    @details
+    In the static case (\f$ \omega_t = \omega_s = 0 \f$, operators not
+    frequency dependent), the \f$ -- \f$ equations are those of
+    \f$ ++ \f$ up to a sign, and only dX is solved for:
+    \f[
+      {\rm dY} = (-1)^{K+k_t+k_s}\,\iota_t\iota_s\,{\rm dX} .
+    \f]
+
+    @param omega     \f$ \omega_t + \omega_s \f$.
+    @param static_Y  If true, dY is set from dX by the static relation,
+                     and not solved for.
 
     @return {eps, label of the channel with the largest change}; see
     eps_dPsi().
   */
-  std::pair<double, std::string> tdhf_core_it(double omega);
+  std::pair<double, std::string> tdhf_core_it(double omega, bool static_Y);
 
   /*!
     @brief Solves the second-order equation for a single core orbital and

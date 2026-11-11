@@ -254,7 +254,9 @@ TDHF_DCP::form_hFcore(dPsiType XorY, bool include_d2V) const {
 
 //==============================================================================
 
-std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega) {
+std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega,
+                                                      bool static_Y) {
+  using namespace qip::overloads;
 
   // Copies (instead of blank spinors): the mixed-state solves are faster
   // if they start from the existing solution
@@ -277,8 +279,10 @@ std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega) {
     for (auto ibeta = 0ul; ibeta < dX_new[ia].size(); ibeta++) {
       tasks.push_back(
         {&dX_new[ia][ibeta], &m_core[ia], &m_hFcore[ia][ibeta], dPsiType::X});
-      tasks.push_back({&dY_new[ia][ibeta], &m_core[ia],
-                       &m_hFcore_minus[ia][ibeta], dPsiType::Y});
+      if (!static_Y) {
+        tasks.push_back({&dY_new[ia][ibeta], &m_core[ia],
+                         &m_hFcore_minus[ia][ibeta], dPsiType::Y});
+      }
     }
   }
 
@@ -290,6 +294,17 @@ std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega) {
 
   // dX and dY are solved with the same d2V, so dX alone measures convergence
   const auto eps = eps_dPsi(m_core, m_X, dX_new, false);
+
+  if (static_Y) {
+    // Static: the -- equations are those of ++ up to a sign, from the
+    // conjugate of the pair coupled to rank K, and of imaginary operators:
+    // dY = (-1)^{K+kt+ks} * iota_t * iota_s * dX
+    const auto sign_Y =
+      Angular::neg1pow(m_rank + m_T->rank() + m_S->rank()) * (m_imag ? -1 : 1);
+    for (auto ia = 0ul; ia < m_core.size(); ia++) {
+      dY_new[ia] = sign_Y * dX_new[ia];
+    }
+  }
 
   m_X = std::move(dX_new);
   m_Y = std::move(dY_new);
@@ -345,9 +360,21 @@ void TDHF_DCP::solve_core(const double omega, int max_its, const bool print) {
     clear();
   }
 
+  // Static (both frequencies zero, and neither operator depends on the
+  // frequency): dY follows from dX, so is not solved for; see
+  // tdhf_core_it()
+  const auto zero = 1.0e-10;
+  const bool static_Y = std::abs(omega) < zero &&
+                        std::abs(m_T->last_omega()) < zero &&
+                        std::abs(m_S->last_omega()) < zero &&
+                        !m_T->get_operator()->freqDependantQ() &&
+                        !m_S->get_operator()->freqDependantQ();
+
   // Sources: fixed by the first-order solutions
   m_hFcore = form_hFcore(dPsiType::X, !lowest_order);
-  m_hFcore_minus = form_hFcore(dPsiType::Y, !lowest_order);
+  if (!static_Y) {
+    m_hFcore_minus = form_hFcore(dPsiType::Y, !lowest_order);
+  }
 
   // Anderson mixing of all the corrections together, dX and dY (see
   // TDHF::solve_core_anderson): the equations are linear in dX, dY
@@ -363,7 +390,7 @@ void TDHF_DCP::solve_core(const double omega, int max_its, const bool print) {
   for (; it < max_its; it++) {
     const auto x = dPsi_vector(m_X, m_Y);
     // Undamped map application: m_X, m_Y now hold G(x)
-    eps = tdhf_core_it(omega);
+    eps = tdhf_core_it(omega, static_Y);
 
     status(fmt::format("{:2d} {:.1e} [{}]", it, eps.first, eps.second));
 
