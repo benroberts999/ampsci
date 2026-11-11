@@ -12,6 +12,8 @@
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include <algorithm>
+#include <cassert>
+#include <cmath>
 #include <fstream>
 #include <memory>
 #include <vector>
@@ -19,11 +21,12 @@
 namespace ExternalField {
 
 //==============================================================================
-// Rank K, parity pi_t*pi_s. Matrix elements of the pair are imaginary if
-// those of exactly one of t, s are
+
 TDHF_DCP::TDHF_DCP(const ExternalField::TDHF *const T,
                    const ExternalField::TDHF *const S, int K,
                    const HF::HartreeFock *const hf)
+  // Rank K, parity pi_t*pi_s. Matrix elements of the pair are imaginary if
+  // those of exactly one of t, s are
   : CorePolarisation(K, T->parity() * S->parity(), T->imagQ() != S->imagQ()),
     p_hf((assert(hf != nullptr), hf)),
     m_core(hf->core()),
@@ -39,6 +42,7 @@ TDHF_DCP::TDHF_DCP(const ExternalField::TDHF *const T,
 }
 
 //==============================================================================
+
 void TDHF_DCP::initialise_dPsi() {
   // Initialise dPsi vectors, accounting for selection rules
   constexpr bool print = true;
@@ -76,6 +80,7 @@ void TDHF_DCP::initialise_dPsi() {
 }
 
 //==============================================================================
+
 void TDHF_DCP::clear() {
   using namespace qip::overloads;
   m_X *= 0.0;
@@ -83,6 +88,7 @@ void TDHF_DCP::clear() {
 }
 
 //==============================================================================
+
 const std::vector<DiracSpinor> &TDHF_DCP::get_dPsis(const DiracSpinor &Fc,
                                                     dPsiType XorY) const {
 
@@ -93,6 +99,7 @@ const std::vector<DiracSpinor> &TDHF_DCP::get_dPsis(const DiracSpinor &Fc,
 }
 
 //==============================================================================
+
 const DiracSpinor &TDHF_DCP::get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
                                         const int kappa_x) const {
   const auto &dPsis = get_dPsis(Fc, XorY);
@@ -101,6 +108,7 @@ const DiracSpinor &TDHF_DCP::get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
 }
 
 //==============================================================================
+
 std::vector<DiracSpinor> TDHF_DCP::solve_dPsis(const DiracSpinor &Fv,
                                                const double omega,
                                                dPsiType XorY) const {
@@ -116,6 +124,7 @@ std::vector<DiracSpinor> TDHF_DCP::solve_dPsis(const DiracSpinor &Fv,
   return dFvs;
 }
 //==============================================================================
+
 DiracSpinor TDHF_DCP::solve_dPsi(const DiracSpinor &Fa, const double omega,
                                  dPsiType XorY, const int kappa_x) const {
   // Solves (H + Sigma - e - w)dX = -(s + dVs)X-(t + dVt)dPsi-dVstPsi+(de_st)Psi
@@ -138,36 +147,129 @@ DiracSpinor TDHF_DCP::solve_dPsi(const DiracSpinor &Fa, const double omega,
 }
 
 //==============================================================================
-DiracSpinor TDHF_DCP::source_rhs(const DiracSpinor &Fa, dPsiType XorY,
-                                 const int kappa_x) const {
-  const auto s = m_S->get_operator();
-  const auto t = m_T->get_operator();
-  //getting states
-  const auto &X_s = m_S->get_dPsis(Fa, XorY);
-  const auto &X_t = m_T->get_dPsis(Fa, XorY);
-  DiracSpinor rhs{0, kappa_x, Fa.grid_sptr()};
-  //auto rhs = s->reduced_rhs(kappa_x, Fv);
-  for (const auto &XA : X_s) {
-    const auto angular_factor = 1.0; //change this
 
-    rhs += angular_factor * s->reduced_rhs(kappa_x, XA);
-    rhs += angular_factor * m_S->dV_rhs(kappa_x, XA);
+DiracSpinor TDHF_DCP::source_rhs(const DiracSpinor &Fa, dPsiType XorY,
+                                 const int kappa_beta) const {
+  // [sigma^a]^K_beta - [lambda^a]^K_beta:
+  // sigma: each first-order operator (with its core polarisation) acting on
+  // the first-order corrections to Fa of the other operator;
+  // lambda: the first-order energy shifts of Fa times those corrections.
+  // X: source of the ++ equation, from Xt, Xs (t, s both at positive
+  // frequency). Y: that of the -- equation, from Yt, Ys.
+  //
+  // No explicit factors of iota (+1 real operator, -1 imaginary): the
+  // first-order Y corrections are stored with their iota,
+  // Y = iota * [phi_-], as is dV_rhs(conj). So the solutions of the --
+  // equation are dY = iota_t * iota_s * [phi_--].
+
+  const auto conj = XorY == dPsiType::Y;
+  const auto tja = Fa.twoj();
+  const auto tjbeta = Angular::twoj_k(kappa_beta);
+
+  // First-order corrections to Fa: (Xt, Xs), or (Yt, Ys)
+  const auto &phi_t = m_T->get_dPsis(Fa, XorY);
+  const auto &phi_s = m_S->get_dPsis(Fa, XorY);
+
+  DiracSpinor rhs{0, kappa_beta, Fa.grid_sptr()};
+
+  // sigma. Coefficients are zero unless the operator connects alpha to beta
+  for (const auto &phi_s_alpha : phi_s) {
+    const auto [c_ts, c_st] =
+      source_coefs(tja, phi_s_alpha.twoj(), tjbeta, conj);
+    if (c_ts != 0.0) {
+      rhs += c_ts * h_tilde_rhs(*m_T, kappa_beta, phi_s_alpha, conj);
+    }
+  }
+  for (const auto &phi_t_alpha : phi_t) {
+    const auto [c_ts, c_st] =
+      source_coefs(tja, phi_t_alpha.twoj(), tjbeta, conj);
+    if (c_st != 0.0) {
+      rhs += c_st * h_tilde_rhs(*m_S, kappa_beta, phi_t_alpha, conj);
+    }
   }
 
-  for (const auto &XA : X_t) {
-    const auto angular_factor = 1.0; //change this
-
-    rhs += angular_factor * t->reduced_rhs(kappa_x, XA);
-    rhs += angular_factor * m_T->dV_rhs(kappa_x, XA);
+  // lambda. The shift from t multiplies the s correction: t takes a to a,
+  // then s takes a to beta; so the intermediate state is a, and the
+  // coefficient is that of s acting on a t correction (and t <-> s)
+  const auto [c_ts, c_st] = source_coefs(tja, tja, tjbeta, conj);
+  const auto de_t = c_st != 0.0 ? h_tilde_de(*m_T, Fa, conj) : 0.0;
+  const auto de_s = c_ts != 0.0 ? h_tilde_de(*m_S, Fa, conj) : 0.0;
+  if (de_t != 0.0) {
+    for (const auto &phi_s_beta : phi_s) {
+      if (phi_s_beta.kappa() == kappa_beta) {
+        rhs -= (c_st * de_t) * phi_s_beta;
+      }
+    }
+  }
+  if (de_s != 0.0) {
+    for (const auto &phi_t_beta : phi_t) {
+      if (phi_t_beta.kappa() == kappa_beta) {
+        rhs -= (c_ts * de_s) * phi_t_beta;
+      }
+    }
   }
 
   return rhs;
 }
 
 //==============================================================================
+
+std::pair<double, double>
+TDHF_DCP::source_coefs(int twoj_a, int twoj_n, int twoj_beta, bool conj) const {
+  // c1_wnv = (-1)^{K+jw+jv} * sqrt[K] * {K ks kt; jn jw jv}
+  // c2_wnv = (-1)^{kt+ks+jw+jv} * sqrt[K] * {K kt ks; jn jw jv}
+  // ++ equation: {c1, c2} for (w, n, v) = (beta, n, a).
+  // -- equation: {c2, c1} for (w, n, v) = (a, n, beta)
+  const auto K = m_rank;
+  const auto kt = m_T->rank();
+  const auto ks = m_S->rank();
+  const auto twoj_w = conj ? twoj_a : twoj_beta;
+  const auto twoj_v = conj ? twoj_beta : twoj_a;
+
+  const auto sqrtK_sign =
+    std::sqrt(2.0 * K + 1.0) * Angular::neg1pow_2(twoj_w + twoj_v);
+
+  const auto c1 =
+    Angular::neg1pow(K) * sqrtK_sign *
+    Angular::sixj_2(2 * K, 2 * ks, 2 * kt, twoj_n, twoj_w, twoj_v);
+
+  const auto c2 =
+    Angular::neg1pow(kt + ks) * sqrtK_sign *
+    Angular::sixj_2(2 * K, 2 * kt, 2 * ks, twoj_n, twoj_w, twoj_v);
+
+  return conj ? std::pair{c2, c1} : std::pair{c1, c2};
+}
+
+//==============================================================================
+
+DiracSpinor TDHF_DCP::h_tilde_rhs(const TDHF &h_tilde, const int kappa,
+                                  const DiracSpinor &F, bool conj) const {
+  // The emission component of the operator is the stored one, up to the
+  // signs of an anti-Hermitian and of an imaginary operator. With these,
+  // and dV_rhs(conj), the result follows the convention of the Y
+  // corrections
+  const auto h = h_tilde.get_operator();
+  const auto s_conj =
+    conj ? h->h_minus_sign() * (h_tilde.imagQ() ? -1.0 : 1.0) : 1.0;
+  return s_conj * h->reduced_rhs(kappa, F) + h_tilde.dV_rhs(kappa, F, conj);
+}
+
+//==============================================================================
+
+double TDHF_DCP::h_tilde_de(const TDHF &h_tilde, const DiracSpinor &Fa,
+                            bool conj) const {
+  // Zero by the selection rules, or for an imaginary operator
+  if (h_tilde.get_operator()->isZero(Fa, Fa) || h_tilde.imagQ())
+    return 0.0;
+  return Fa * h_tilde_rhs(h_tilde, Fa.kappa(), Fa, conj);
+}
+
+//==============================================================================
+
 std::vector<std::vector<DiracSpinor>>
 TDHF_DCP::form_hFcore(dPsiType XorY) const {
   std::vector<std::vector<DiracSpinor>> hFcore(m_core.size());
+#pragma omp parallel for schedule(dynamic)
   for (auto ic = 0ul; ic < m_core.size(); ic++) {
     const auto &Fc = m_core[ic];
     hFcore[ic].reserve(m_X[ic].size()); // one for each channel
@@ -179,6 +281,7 @@ TDHF_DCP::form_hFcore(dPsiType XorY) const {
 }
 
 //==============================================================================
+
 std::pair<double, std::string>
 TDHF_DCP::tdhf_core_it(double omega, [[maybe_unused]] double eta_damp) {
   // solve TDHF_DCP equation for core - single iteration
@@ -249,7 +352,13 @@ TDHF_DCP::tdhf_core_it(double omega, [[maybe_unused]] double eta_damp) {
 }
 
 //==============================================================================
+
 void TDHF_DCP::solve_core(const double omega, int max_its, const bool print) {
+
+  // The second-order corrections are at the sum of the frequencies of t and
+  // s, each non-negative: the first-order X are the + components of both
+  assert(std::abs(omega - (m_T->last_omega() + m_S->last_omega())) < 1.0e-10 &&
+         "omega must be omega_t + omega_s, with omega_t, omega_s >= 0");
 
   const double converge_targ = m_eps;
   const auto eta_damp = m_eta;
@@ -308,14 +417,16 @@ void TDHF_DCP::solve_core(const double omega, int max_its, const bool print) {
 }
 
 //==============================================================================
-// does it matter if a or b is in the core?
+
 double TDHF_DCP::dV(const DiracSpinor &Fn, const DiracSpinor &Fm,
                     bool conj) const {
+  // does it matter if a or b is in the core?
   const auto s = conj && m_imag ? -1 : 1; // careful. OK?
   return s * Fn * dV_rhs(Fn.kappa(), Fm, conj);
 }
 
 //==============================================================================
+
 DiracSpinor TDHF_DCP::dV_rhs(const int kappa_n, const DiracSpinor &Fa,
                              bool conj) const {
 
