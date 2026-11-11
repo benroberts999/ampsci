@@ -3,6 +3,7 @@
 #include "Angular/Wigner369j.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "DiracOperator/TensorOperator.hpp"
+#include "ExternalField/Anderson.hpp"
 #include "ExternalField/MixedStates.hpp"
 #include "HF/Breit.hpp"
 #include "HF/HartreeFock.hpp"
@@ -11,6 +12,9 @@
 #include "Wavefunction/BSplineBasis.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
+#include "fmt/color.hpp"
+#include "fmt/format.hpp"
+#include "qip/Widgets.hpp"
 #include <algorithm>
 #include <cassert>
 #include <cmath>
@@ -105,45 +109,6 @@ const DiracSpinor &TDHF_DCP::get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
   const auto &dPsis = get_dPsis(Fc, XorY);
   auto match_kappa_x = [=](const auto &Fa) { return Fa.kappa() == kappa_x; };
   return *std::find_if(dPsis.cbegin(), dPsis.cend(), match_kappa_x);
-}
-
-//==============================================================================
-
-std::vector<DiracSpinor> TDHF_DCP::solve_dPsis(const DiracSpinor &Fv,
-                                               const double omega,
-                                               dPsiType XorY) const {
-  std::vector<DiracSpinor> dFvs;
-
-  const auto tjmin = std::max(1, Fv.twoj() - 2 * m_rank);
-  const auto tjmax = Fv.twoj() + 2 * m_rank;
-  for (int tjbeta = tjmin; tjbeta <= tjmax; tjbeta += 2) {
-    const auto kappa = Angular::kappa_twojpi(tjbeta, Fv.parity() * m_pi);
-    dFvs.push_back(solve_dPsi(Fv, omega, XorY, kappa));
-  }
-
-  return dFvs;
-}
-//==============================================================================
-
-DiracSpinor TDHF_DCP::solve_dPsi(const DiracSpinor &Fa, const double omega,
-                                 dPsiType XorY, const int kappa_x) const {
-  // Solves (H + Sigma - e - w)dX = -(s + dVs)X-(t + dVt)dPsi-dVstPsi+(de_st)Psi
-  //(H + Sigma - e - w)dY = -(s^dag + dVs^dag)Y-(t^dag + dVt^dag)dPsi-dVstdag Psi+(de_st)Psi
-
-  const auto ww = XorY == dPsiType::X ? omega : -omega;
-  auto conj = XorY == dPsiType::Y;
-  if (omega < 0.0)
-    conj = !conj;
-
-  [[maybe_unused]] const auto imag = m_imag;
-
-  const auto rhs = source_rhs(Fa, XorY, kappa_x);
-
-  const auto vl = p_hf->vlocal(Angular::l_k(Fa.kappa()));
-  const auto &Hmag = p_hf->Hmag(Angular::l_k(Fa.kappa()));
-  // The l from X ? or from Fv ?
-  return ExternalField::solveMixedState(Fa, ww, vl, m_alpha, m_core, rhs,
-                                        1.0e-9, nullptr, p_VBr, Hmag);
 }
 
 //==============================================================================
@@ -267,14 +232,21 @@ double TDHF_DCP::h_tilde_de(const TDHF &h_tilde, const DiracSpinor &Fa,
 //==============================================================================
 
 std::vector<std::vector<DiracSpinor>>
-TDHF_DCP::form_hFcore(dPsiType XorY) const {
+TDHF_DCP::form_hFcore(dPsiType XorY, bool include_d2V) const {
+  const auto conj = XorY == dPsiType::Y;
   std::vector<std::vector<DiracSpinor>> hFcore(m_core.size());
 #pragma omp parallel for schedule(dynamic)
   for (auto ic = 0ul; ic < m_core.size(); ic++) {
     const auto &Fc = m_core[ic];
     hFcore[ic].reserve(m_X[ic].size()); // one for each channel
     for (const auto &X_beta : m_X[ic]) {
-      hFcore[ic].push_back(source_rhs(Fc, XorY, X_beta.kappa()));
+      const auto kappa_beta = X_beta.kappa();
+      hFcore[ic].push_back(source_rhs(Fc, XorY, kappa_beta));
+      if (include_d2V) {
+        // The parts of d2V that do not depend on dX, dY
+        hFcore[ic].back() += d2V_11_rhs(kappa_beta, Fc, conj);
+        hFcore[ic].back() += d2V_Norm_rhs(kappa_beta, Fc);
+      }
     }
   }
   return hFcore;
@@ -282,73 +254,69 @@ TDHF_DCP::form_hFcore(dPsiType XorY) const {
 
 //==============================================================================
 
-std::pair<double, std::string>
-TDHF_DCP::tdhf_core_it(double omega, [[maybe_unused]] double eta_damp) {
-  // solve TDHF_DCP equation for core - single iteration
-  using namespace qip::overloads;
-  const bool staticQ = std::abs(omega) < 1.0e-10;
-  const auto s = m_imag ? -1 : 1;
+std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega) {
 
-  // make copies (instead of blank spinors) since the solve_mixed_states
-  // is faster if it starts from existing solution
-  auto Xs = m_X;
-  auto Ys = m_Y;
-  std::vector<std::pair<double, std::string>> epss(m_core.size());
+  // Copies (instead of blank spinors): the mixed-state solves are faster
+  // if they start from the existing solution
+  auto dX_new = m_X;
+  auto dY_new = m_Y;
 
-  [[maybe_unused]] const auto eps_ms = 1.0e-10;
+  const auto eps_ms = 1.0e-12;
 
-  double DdF2 = 0.0;
-  double dF2 = 0.0;
-  //#pragma omp parallel for reduction(+ : DdF2) reduction(+ : dF2)
-  for (auto ib = 0ul; ib < m_core.size(); ib++) {
-    const auto &Fb = m_core.at(ib);
-
-    [[maybe_unused]] const auto &hFbs = m_hFcore[ib];
-
-    // solve for dF, and damp
-    Xs[ib] = solve_dPsis(Fb, omega, dPsiType::X);
-    //Xs[ib] = eta_damp * m_X[ib] + (1.0 - eta_damp) * Xs[ib];
-    if (staticQ) {
-      Ys[ib] = s * Xs[ib];
-    } else {
-      Ys[ib] = solve_dPsis(Fb, omega, dPsiType::Y);
-      //Ys[ib] = eta_damp * m_Y[ib] + (1.0 - eta_damp) * Ys[ib];
-    }
-
-    // find eps: of each orbital (just so I know which was the 'worst')
-    // and for total core (for overal convergance)
-    epss[ib] = {0.0, ""};
-    for (std::size_t ibeta = 0; ibeta < Xs[ib].size(); ++ibeta) {
-      const auto &Xx = Xs[ib][ibeta];
-      const auto &oldX = m_X[ib][ibeta];
-
-      const auto t_DdF2 = (Xx - oldX).norm2();
-      std::cout << ib << " " << ibeta << " " << t_DdF2 << "\n";
-      const auto t_dF2 = 0.5 * (Xx + oldX).norm2();
-      DdF2 += t_DdF2;
-      dF2 += t_dF2;
-
-      // find worst orbital
-      const auto t_eps = t_dF2 == 0.0 ? 1.0 : t_DdF2 / t_dF2;
-      if (t_eps > epss[ib].first) {
-        epss[ib].first = t_eps;
-        epss[ib].second = Fb.shortSymbol() + "," + Xx.shortSymbol();
-      }
+  // One task for each (core orbital, channel, dX or dY): many small, fairly
+  // uniform tasks for the parallel loop. Each writes a distinct spinor, and
+  // only reads shared state. See solve_ms_core_b().
+  struct MixedStateTask {
+    DiracSpinor *dF;           // target (in dX_new or dY_new)
+    const DiracSpinor *Fa;     // core orbital
+    const DiracSpinor *source; // fixed source of its equation
+    dPsiType type;
+  };
+  std::vector<MixedStateTask> tasks;
+  for (auto ia = 0ul; ia < m_core.size(); ia++) {
+    for (auto ibeta = 0ul; ibeta < dX_new[ia].size(); ibeta++) {
+      tasks.push_back(
+        {&dX_new[ia][ibeta], &m_core[ia], &m_hFcore[ia][ibeta], dPsiType::X});
+      tasks.push_back({&dY_new[ia][ibeta], &m_core[ia],
+                       &m_hFcore_minus[ia][ibeta], dPsiType::Y});
     }
   }
-  const auto total_eps = DdF2 / dF2;
 
-  // Find the worst orbital (just for reporting)
-  const auto comp_first = [](const auto &a, const auto &b) {
-    return a.first < b.first;
-  };
-  const auto worst_orbital =
-    *std::max_element(epss.begin(), epss.end(), comp_first);
+#pragma omp parallel for schedule(dynamic)
+  for (auto i = 0ul; i < tasks.size(); i++) {
+    const auto &task = tasks[i];
+    solve_ms_core_b(*task.dF, *task.Fa, *task.source, omega, task.type, eps_ms);
+  }
 
-  m_X = std::move(Xs);
-  m_Y = std::move(Ys);
+  // dX and dY are solved with the same d2V, so dX alone measures convergence
+  const auto eps = eps_dPsi(m_core, m_X, dX_new, false);
 
-  return {total_eps, worst_orbital.second};
+  m_X = std::move(dX_new);
+  m_Y = std::move(dY_new);
+
+  return eps;
+}
+
+//==============================================================================
+
+void TDHF_DCP::solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fa,
+                               const DiracSpinor &source, const double omega,
+                               dPsiType XorY, double eps_ms) const {
+  // Solves (H - e_a - w) dX = -rhs, or (H - e_a + w) dY = -rhs, with
+  // rhs = source + [d2V_2 Fa]_beta. The d2V_2 part is from the corrections
+  // of the previous iteration. The solver keeps the solution orthogonal to
+  // Fa.
+  // Thread-safe: reads only const/shared state; writes only dF_beta.
+
+  const auto conj = XorY == dPsiType::Y;
+  const auto ww = conj ? -omega : omega;
+
+  const auto rhs = source + d2V_2_rhs(dF_beta.kappa(), Fa, conj);
+
+  const auto vl = p_hf->vlocal(Angular::l_k(Fa.kappa()));
+  const auto &Hmag = p_hf->Hmag(Angular::l_k(Fa.kappa()));
+  ExternalField::solveMixedState_Anderson(dF_beta, Fa, ww, vl, m_alpha, m_core,
+                                          rhs, eps_ms, p_VBr, Hmag);
 }
 
 //==============================================================================
@@ -356,59 +324,64 @@ TDHF_DCP::tdhf_core_it(double omega, [[maybe_unused]] double eta_damp) {
 void TDHF_DCP::solve_core(const double omega, int max_its, const bool print) {
 
   // The second-order corrections are at the sum of the frequencies of t and
-  // s, each non-negative: the first-order X are the + components of both
-  assert(std::abs(omega - (m_T->last_omega() + m_S->last_omega())) < 1.0e-10 &&
-         "omega must be omega_t + omega_s, with omega_t, omega_s >= 0");
+  // s, each non-negative: the first-order X are the + components of both.
+  // Any other frequency is allowed (it is solved as given), but is not the
+  // physical one
+  const auto omega_ts = m_T->last_omega() + m_S->last_omega();
+  if (std::abs(omega - omega_ts) > 1.0e-10) {
+    fmt2::warning();
+    fmt::print(": TDHF_DCP: omega = {:.6f}, but omega_t + omega_s = {:.6f} "
+               "(first-order solutions, with omega_t, omega_s >= 0)\n",
+               omega, omega_ts);
+  }
 
   const double converge_targ = m_eps;
-  const auto eta_damp = m_eta;
 
-  if (print) {
-    const auto name =
-      m_S->get_operator()->name() + "+" + m_T->get_operator()->name();
-    printf("TDHF_DCP %s (w=%.4f): ", name.c_str(), omega);
-    std::cout << std::flush;
+  // Lowest order (a single iteration): d2V is not included in the core
+  // equations. So none of it goes in the sources, and the corrections
+  // start from zero
+  const bool lowest_order = max_its <= 1;
+  if (lowest_order) {
+    clear();
   }
 
-  //m_hFcore = form_hFcore();
+  // Sources: fixed by the first-order solutions
+  m_hFcore = form_hFcore(dPsiType::X, !lowest_order);
+  m_hFcore_minus = form_hFcore(dPsiType::Y, !lowest_order);
+
+  // Anderson mixing of all the corrections together, dX and dY (see
+  // TDHF::solve_core_anderson): the equations are linear in dX, dY
+  constexpr std::size_t history_depth = 8;
+  AndersonVectorHistory history(history_depth);
 
   std::pair<double, std::string> eps{};
-  double best_eps{1.0};
-  int count_worse = 0;
   int it{0};
+  qip::LiveMessage status(
+    fmt::format("TDHF_DCP {},{} K={} (w={:.4f}): ", m_T->get_operator()->name(),
+                m_S->get_operator()->name(), m_rank, omega),
+    print);
   for (; it < max_its; it++) {
-    const auto eta = it == 0 ? 0.0 : eta_damp;
-    eps = tdhf_core_it(omega, eta);
+    const auto x = dPsi_vector(m_X, m_Y);
+    // Undamped map application: m_X, m_Y now hold G(x)
+    eps = tdhf_core_it(omega);
 
-    // Check for a "platau" in convergance (count # of 'worse' iterations)
-    if (it > 15) {
-      if (eps.first > best_eps) {
-        ++count_worse;
-      } else {
-        best_eps = eps.first;
-        count_worse = 0;
-      }
-    }
+    status(fmt::format("{:2d} {:.1e} [{}]", it, eps.first, eps.second));
 
-    if (it > 1 && eps.first < converge_targ)
-      break;
-    if (count_worse > 5 && eps.first < 1.0e4 * converge_targ)
-      break;
-    if (std::isnan(eps.first)) {
-      break;
-    }
+    if (eps.first < converge_targ || std::isnan(eps.first))
+      break; // converged (or broken)
+
+    // Anderson extrapolation over the kept history: x = sum_i c_i g_i
+    history.push(x, dPsi_vector(m_X, m_Y));
+    set_dPsi_vector(history.mix(), m_X, m_Y);
   }
 
-  if (print) {
-    printf("%2i %.1e [%s]", it, eps.first, eps.second.c_str());
-    if (eps.first > 1.0e-8 && max_its > 1)
-      std::cout << "  *";
-    if (eps.first > 1.0e-6 && max_its > 1)
-      std::cout << "*";
-    if (eps.first > 1.0e-4 && max_its > 1)
-      std::cout << "*";
-    std::cout << "\n" << std::flush;
-  }
+  // Soft visual warning, relative to the convergence target.
+  const auto stars = (max_its <= 1)                      ? "" :
+                     (eps.first > 1.0e6 * converge_targ) ? "  ***" :
+                     (eps.first > 1.0e4 * converge_targ) ? "  **" :
+                     (eps.first > 1.0e2 * converge_targ) ? "  *" :
+                                                           "";
+  status.done(stars);
 
   // set last eps (convergance) and frequency (omega)
   m_core_eps = eps.first;

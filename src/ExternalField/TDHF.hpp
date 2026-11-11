@@ -240,26 +240,69 @@ private:
                        const DiracSpinor &hFb, const double omega,
                        dPsiType XorY, double eps_ms = 1.0e-9) const;
 
-  // Convergence (eps): the relative L2 change of the (undamped) X spinors,
-  // Sum|dX|^2 / Sum|X_new|^2 (summed over all channels); returns its sqrt
-  // -- the relative change -- if @p relative. Returns {eps, worst-channel}.
-  std::pair<double, std::string>
-  eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
-           bool relative) const;
-
   // True if |omega| exceeds the ionisation threshold of the core, where the
   // core equations have no bound solution
   bool above_ionisation_threshold(double omega) const;
-
-  // The corrections X and Y as one real vector, and back: the Anderson
-  // iterate of solve_core_anderson()
-  std::vector<double> dPsi_vector() const;
-  void set_dPsi_vector(const std::vector<double> &state);
 
 public:
   TDHF &operator=(const TDHF &) = delete;
   TDHF(const TDHF &) = default;
   ~TDHF() = default;
 };
+
+//==============================================================================
+
+/*!
+  @brief Convergence of an iteration of the TDHF equations: relative change
+  of the set of X corrections.
+
+  @details
+  The L2 change of the X spinors, summed over all core orbitals and
+  channels, relative to the new ones:
+  \f[
+    \frac{\sum |X_{\rm new} - X_{\rm old}|^2}{\sum |X_{\rm new}|^2} .
+  \f]
+  Y need not be included: X and Y are solved with the same
+  \f$ \delta V \f$, so once X is converged, \f$ \delta V \f$ is, and
+  so is Y.
+
+  @param core      Core orbitals (for the label of the worst channel).
+  @param X_old     Corrections before the iteration: [core orbital][channel].
+  @param X_new     Corrections after the iteration (undamped).
+  @param relative  If true, returns the square root of the ratio (the
+                   relative change); otherwise the ratio itself.
+
+  @return {eps, label of the channel with the largest change}.
+*/
+std::pair<double, std::string>
+eps_dPsi(const std::vector<DiracSpinor> &core,
+         const std::vector<std::vector<DiracSpinor>> &X_old,
+         const std::vector<std::vector<DiracSpinor>> &X_new, bool relative);
+
+/*!
+  @brief The sets of corrections X and Y as one real vector.
+
+  @details
+  All radial components of all the spinors, X then Y: the form in which
+  the corrections are mixed between iterations (see
+  @ref AndersonVectorHistory). Inverse of set_dPsi_vector().
+
+  @param X  Corrections: [core orbital][channel].
+  @param Y  Corrections: [core orbital][channel].
+*/
+std::vector<double> dPsi_vector(const std::vector<std::vector<DiracSpinor>> &X,
+                                const std::vector<std::vector<DiracSpinor>> &Y);
+
+/*!
+  @brief Sets the corrections X and Y from one real vector; inverse of
+  dPsi_vector().
+
+  @param state  Vector of the form returned by dPsi_vector().
+  @param X      Corrections to set; must already have the right structure.
+  @param Y      Corrections to set; must already have the right structure.
+*/
+void set_dPsi_vector(const std::vector<double> &state,
+                     std::vector<std::vector<DiracSpinor>> &X,
+                     std::vector<std::vector<DiracSpinor>> &Y);
 
 } // namespace ExternalField

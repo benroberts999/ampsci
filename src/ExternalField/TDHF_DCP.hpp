@@ -63,7 +63,10 @@ protected:
   // j(beta) = j(a)-K, ..., j(a)+K.  And: pi(beta) = pi(a)*pi(t)*pi(s)
   std::vector<std::vector<DiracSpinor>> m_X{};
   std::vector<std::vector<DiracSpinor>> m_Y{};
+  // Sources of the dX (m_hFcore) and dY (m_hFcore_minus) equations that
+  // are fixed by the first-order solutions; see form_hFcore()
   std::vector<std::vector<DiracSpinor>> m_hFcore{};
+  std::vector<std::vector<DiracSpinor>> m_hFcore_minus{};
   // can just write these to disk! Read them in, continue as per normal
 
   const HF::HartreeFock *const p_hf;
@@ -100,11 +103,31 @@ public:
            const ExternalField::TDHF *const S, int K,
            const HF::HartreeFock *const hf);
 
-  //! Solves TDHF equations self-consistantly for core electrons at frequency
-  //! omega.
-  /*! @details Will iterate up to a maximum of max_its. Set max_its=1
-     to get first-order correction [note: no damping is used for first
-     itteration]. If print=true, will write progress to screen.
+  /*!
+    @brief Solves the second-order TDHF equations self-consistently for
+    the core.
+
+    @details
+    Iterates the equations for dX, dY until they converge to within
+    eps_target(), or @p max_its iterations have been performed. The
+    \f$ \delta^2V_{(2)} \f$ term, d2V_2_rhs(), is built from the previous
+    iteration; the other terms are fixed by the first-order solutions.
+    Self-consistency is driven by Anderson mixing of all the corrections
+    together (as TDHF::solve_core_anderson).
+
+    The two first-order TDHF objects must be solved first.
+
+    @param omega    \f$ \omega_t + \omega_s \f$: the sum of the frequencies
+                    the two first-order TDHF were solved at. Any other
+                    value is solved as given, with a warning.
+    @param max_its  Maximum number of iterations.
+                    - 1: lowest-order DCP. \f$ \delta^2V \f$ is not included
+                      in the core equations, and the corrections start from
+                      zero.
+    @param print    If true, write convergence progress to screen.
+
+    @note The first-order X are taken as the \f$ + \f$ components of
+    both operators: \f$ \omega_t, \omega_s \ge 0 \f$.
   */
   virtual void solve_core(const double omega, int max_its = 100,
                           const bool print = true) override;
@@ -252,25 +275,6 @@ public:
   const DiracSpinor &get_dPsi_x(const DiracSpinor &Fc, dPsiType XorY,
                                 const int kappa_x) const;
 
-  //! Forms \delta Psi_v for valence state Fv (including core pol.) - 1 kappa
-  /*! @details 
-   Solves
-   \f[ (H + \Sigma - \epsilon - \omega)X = -(h + \delta V
-   - \delta\epsilon)\psi \f]
-   or
-   \f[ (H + \Sigma - \epsilon + \omega)Y = -(h^\dagger + \delta V^\dagger
-     - \delta\epsilon)Psi\f]
-   Returns \f$ \chi_\beta \f$ for given kappa_beta, where
-   \f[ X_{j,m} = (-1)^{j_\beta-m}tjs(j,k,j;-m,0,m)\chi_j \f]
-   XorY takes values: dPsiType::X or dPsiType::Y.
-   st takes values: StateType::ket or StateType::bra
-  */
-  DiracSpinor solve_dPsi(const DiracSpinor &Fa, const double omega,
-                         dPsiType XorY, const int kappa_beta) const;
-  //! Forms \delta Psi_v for valence state Fv for all kappas (see solve_dPsi)
-  std::vector<DiracSpinor> solve_dPsis(const DiracSpinor &Fv,
-                                       const double omega, dPsiType XorY) const;
-
   // //! Writes dPsi (f-component) to textfile
   // void print(const std::string &ofname = "dPsi.txt") const;
 
@@ -282,14 +286,40 @@ private:
   void initialise_dPsi();
 
   /*!
-    @brief Single iteration of the TDHF equations.
+    @brief Single (undamped) iteration of the second-order equations, for
+    all core orbitals and channels, dX and dY.
 
-    @param omega     Frequency.
-    @param eta_damp  Damping factor.
+    @param omega  \f$ \omega_t + \omega_s \f$.
 
-    @return {eps, label of the worst channel}.
+    @return {eps, label of the channel with the largest change}; see
+    eps_dPsi().
   */
-  std::pair<double, std::string> tdhf_core_it(double omega, double eta_damp);
+  std::pair<double, std::string> tdhf_core_it(double omega);
+
+  /*!
+    @brief Solves the second-order equation for a single core orbital and
+    channel.
+
+    @details
+    \f[
+      (h_{\rm HF} - \en_a \mp \omega)[\chi^a_{\pm\pm}]^K_\beta
+        = -\,{\rm source} - [\delta^2V_{(2)\pm\pm}\phi_a]^K_\beta ,
+    \f]
+    with \f$ \delta^2V_{(2)} \f$ from the current dX, dY (d2V_2_rhs()).
+    The solution is orthogonal to \f$ \phi_a \f$.
+
+    @param dF_beta  Correction to solve for (dX or dY of @p Fa, one
+                    channel); its kappa sets the channel. Updated in place.
+    @param Fa       Core orbital \f$ \phi_a \f$.
+    @param source   Fixed source for this orbital and channel; see
+                    form_hFcore().
+    @param omega    \f$ \omega_t + \omega_s \f$.
+    @param XorY     X: the \f$ ++ \f$ equation; Y: the \f$ -- \f$ one.
+    @param eps_ms   Convergence target of the mixed-state solve.
+  */
+  void solve_ms_core_b(DiracSpinor &dF_beta, const DiracSpinor &Fa,
+                       const DiracSpinor &source, const double omega,
+                       dPsiType XorY, double eps_ms) const;
 
   /*!
     @brief Forms the sources of the second-order equations, for all core
@@ -300,12 +330,17 @@ private:
     the part of the right-hand side that is fixed by the first-order
     solutions. See source_rhs().
 
-    @param XorY  X: sources of the dX (\f$ ++ \f$) equations;
-                 Y: of the dY (\f$ -- \f$) equations.
+    @param XorY         X: sources of the dX (\f$ ++ \f$) equations;
+                        Y: of the dY (\f$ -- \f$) equations.
+    @param include_d2V  If true, includes the parts of
+                        \f$ \delta^2V\phi_a \f$ that do not depend on
+                        dX, dY: d2V_11_rhs() and d2V_Norm_rhs(). False
+                        for the lowest order.
 
     @return Sources, indexed as dX and dY: [core orbital][channel].
   */
-  std::vector<std::vector<DiracSpinor>> form_hFcore(dPsiType XorY) const;
+  std::vector<std::vector<DiracSpinor>> form_hFcore(dPsiType XorY,
+                                                    bool include_d2V) const;
 
   /*!
     @brief Source of the second-order equation for one core orbital and
