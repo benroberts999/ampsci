@@ -96,6 +96,18 @@ TEST_CASE("DCP: diagrams basic unit tests", "[Amplitudes][DCP][unit]") {
                                    core, excited) == Approx(phase * C1));
         REQUIRE(Amplitudes::dcp_C2(v, w, -omega_t, -omega_s, K, kt, ks, *T, *S,
                                    core, excited) == Approx(phase * C2));
+
+        // Swapping t and s (with their frequencies) changes the order of the
+        // coupling only: each term changes by (-1)^{kt+ks-K}
+        const auto sign_swap = Angular::neg1pow(kt + ks - K);
+        REQUIRE(Amplitudes::dcp_C1(w, v, omega_s, omega_t, K, ks, kt, *S, *T,
+                                   core, excited) == Approx(sign_swap * C1));
+        REQUIRE(Amplitudes::dcp_C2(w, v, omega_s, omega_t, K, ks, kt, *S, *T,
+                                   core, excited) == Approx(sign_swap * C2));
+        REQUIRE(Amplitudes::dcp_R12(w, v, omega_s, omega_t, K, ks, kt, *S, *T,
+                                    core, excited) == Approx(sign_swap * R));
+        REQUIRE(Amplitudes::dcp_L12(w, v, omega_s, omega_t, K, ks, kt, *S, *T,
+                                    core, excited) == Approx(sign_swap * L));
       }
     }
     REQUIRE(count != 0);

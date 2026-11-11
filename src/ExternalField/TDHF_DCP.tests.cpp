@@ -99,6 +99,48 @@ TEST_CASE("TDHF_DCP: unit tests", "[ExternalField][TDHF_DCP][DCP][unit]") {
   }
 
   //----------------------------------------------------------------------------
+  SECTION("swapping t and s changes only the order of the coupling") {
+
+    // A^K for (s, t) is (-1)^{kt+ks-K} times A^K for (t, s)
+    const std::vector<OperatorPair> pairs{
+      {&d, &d, 0}, {&d, &d, 1}, {&d, &q, 2}, {&d, &hpnc, 1}};
+
+    // Both frequencies non-zero, and different
+    const auto omega_t = 0.05;
+    const auto omega_s = 0.02;
+
+    for (const auto &[t, s, K] : pairs) {
+
+      ExternalField::TDHF T(t, wf.vHF());
+      ExternalField::TDHF S(s, wf.vHF());
+      T.solve_core(omega_t, 30, false);
+      S.solve_core(omega_s, 30, false);
+
+      ExternalField::TDHF_DCP d2V_ts(&T, &S, K, wf.vHF());
+      ExternalField::TDHF_DCP d2V_st(&S, &T, K, wf.vHF());
+      d2V_ts.solve_core(omega_t + omega_s, 30, false);
+      d2V_st.solve_core(omega_t + omega_s, 30, false);
+      REQUIRE(d2V_ts.last_eps() < 1.0e-10);
+      REQUIRE(d2V_st.last_eps() < 1.0e-10);
+
+      const auto sign_swap = Angular::neg1pow(t->rank() + s->rank() - K);
+
+      int count = 0;
+      for (const auto &w : wf.valence()) {
+        for (const auto &v : wf.valence()) {
+          if (w.parity() * v.parity() != d2V_ts.parity() ||
+              Angular::triangle(w.twoj(), v.twoj(), 2 * K) == 0)
+            continue;
+          ++count;
+          REQUIRE(d2V_ts.dV(w, v) != 0.0);
+          REQUIRE(d2V_st.dV(w, v) == Approx(sign_swap * d2V_ts.dV(w, v)));
+        }
+      }
+      REQUIRE(count != 0);
+    }
+  }
+
+  //----------------------------------------------------------------------------
   SECTION("static limit: solving for dY reproduces the static relation") {
 
     // In the static case dY is not solved for:
