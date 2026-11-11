@@ -39,6 +39,11 @@ TEST_CASE("Physics: AtomData", "[AtomData][Physics][unit]") {
   REQUIRE(AtomData::parse_symbol("12d-") == (std::pair<int, int>{12, 2}));
   REQUIRE(AtomData::parse_symbol("12d_3/2") == (std::pair<int, int>{12, 2}));
   REQUIRE(AtomData::parse_symbol("d_3/2") == (std::pair<int, int>{0, 2}));
+  // No j given: the lower j
+  REQUIRE(AtomData::parse_symbol("6p") == (std::pair<int, int>{6, 1}));
+  REQUIRE(AtomData::parse_symbol("5d") == (std::pair<int, int>{5, 2}));
+  REQUIRE(AtomData::parse_symbol("f") == (std::pair<int, int>{0, 3}));
+  REQUIRE(AtomData::parse_symbol("5d+") == (std::pair<int, int>{5, -3}));
 
   REQUIRE(AtomData::shortSymbol(1, -1) == "1s+");
   REQUIRE(AtomData::shortSymbol(2, 1) == "2p-");

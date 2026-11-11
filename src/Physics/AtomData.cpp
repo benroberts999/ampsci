@@ -160,7 +160,14 @@ std::pair<int, int> parse_symbol(std::string_view symbol) {
   const auto l =
     (l_pos < symbol.size()) ? symbol_to_l(symbol.substr(l_pos, 1)) : -1;
 
-  int kappa = l == 0 ? -1 : 0; // allow '6s' instead of '6s+'
+  // No j given (e.g., '5d'): the lower j = l - 1/2 (kappa = l), so '5d' is
+  // '5d-'. Except s, which has only j = 1/2: '6s' is '6s+'
+  int kappa = 0;
+  if (l == 0) {
+    kappa = -1;
+  } else if (l > 0) {
+    kappa = l;
+  }
   if (l >= 0 && l_pos + 1 < symbol.size()) {
     const auto pm = symbol.substr(l_pos + 1);
     if (pm[0] == '_') {
