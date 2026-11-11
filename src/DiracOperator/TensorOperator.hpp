@@ -202,15 +202,17 @@ protected:
     @details
     Initialises the basic properties of a tensor operator.
 
-    @param rank_k     Tensor rank k of the operator.
-    @param pi         Parity of the operator (Parity::even or Parity::odd).
-    @param constant   Multiplicative constant c, included in the radial integral.
-    @param vec        Overall v=f(r) radial function, as std::vector. 
-                      May be impty, in which case it is not used (equivilant to vector of 1)
-    @param RorI       Specifies whether the matrix element is real or imaginary
-                      (Realness::real or Realness::imaginary).
-    @param freq_dep   Indicates whether the operator depends on frequency
-                      (e.g., dynamic external fields).
+    @param rank_k          Tensor rank k of the operator.
+    @param pi              Parity of the operator (Parity::even or Parity::odd).
+    @param constant        Multiplicative constant c, included in the radial integral.
+    @param vec             Overall v=f(r) radial function, as std::vector.
+                           May be impty, in which case it is not used (equivilant to vector of 1)
+    @param RorI            Specifies whether the matrix element is real or imaginary
+                           (Realness::real or Realness::imaginary).
+    @param freq_dep        Indicates whether the operator depends on frequency
+                           (e.g., dynamic external fields).
+    @param anti_hermitian  True if the operator is anti-Hermitian at fixed
+                           frequency (e.g., E1v); see h_minus_sign().
 
     @note TensorOperator is a virtual base class and may not be constructed
     directly. It is intended to be initialised by derived operator classes.
@@ -218,12 +220,12 @@ protected:
   TensorOperator(int rank_k, Parity pi, double constant = 1.0,
                  const std::vector<double> &vec = {},
                  Realness RorI = Realness::real, bool freq_dep = false,
-                 bool odd_in_omega = false)
+                 bool anti_hermitian = false)
     : m_rank(rank_k),
       m_parity(pi),
       m_Realness(RorI),
       m_freqDependantQ(freq_dep),
-      m_oddInOmegaQ(odd_in_omega),
+      m_antiHermitianQ(anti_hermitian),
       m_constant(constant),
       m_vec(vec) {};
 
@@ -252,7 +254,7 @@ protected:
   Parity m_parity;
   Realness m_Realness;
   bool m_freqDependantQ{false};
-  bool m_oddInOmegaQ{false};
+  bool m_antiHermitianQ{false};
 
 protected:
   // these may be updated for frequency-dependant operators
@@ -264,12 +266,30 @@ public:
   //! Returns true if the operator is frequency-dependent (requires updateFrequency() calls).
   bool freqDependantQ() const { return m_freqDependantQ; }
 
-  //! Sign of the operator at -|omega| relative to that at +|omega|:
-  //! h(-|omega|) = h_minus_sign() * h(+|omega|): -1 for an operator odd in
-  //! the frequency (e.g. E1v), +1 otherwise (depends on |omega| only). So
-  //! the operator need only ever be set at +|omega|; the emission
-  //! (e^{+i omega t}) side carries this sign
-  double h_minus_sign() const { return m_oddInOmegaQ ? -1.0 : 1.0; }
+  /*!
+    @brief Sign of the emission (h-) component of the operator relative to the
+    stored (absorption) one: +1 Hermitian, -1 anti-Hermitian.
+
+    @details
+    The field is \f$ t_+ e^{-i\omega t} + t_- e^{+i\omega t} \f$, with
+    \f$ t_- = t_+^\dag \f$. The stored operator is \f$ t_+ = t^k_q \f$, set
+    at \f$ +|\omega| \f$. With \f$ s \f$ the returned sign,
+
+    \f[ (t^k_q)^\dag = s\,(-1)^q\,t^k_{-q} , \f]
+
+    so \f$ s=+1 \f$ for a Hermitian operator, and \f$ s=-1 \f$ for one that is
+    anti-Hermitian at fixed frequency (e.g., E1v).
+
+    @note Only E1v (of the standard operators) is anti-Hermetian
+
+    @return +1.0 or -1.0.
+
+    @note Since \f$ t(-\omega) = t(\omega)^\dag \f$, this is also the sign of
+    the operator at \f$ -|\omega| \f$ relative to that at \f$ +|\omega| \f$:
+    anti-Hermitian is the same as odd in the frequency. So the operator need
+    only ever be set at \f$ +|\omega| \f$; the emission side carries this sign.
+  */
+  double h_minus_sign() const { return m_antiHermitianQ ? -1.0 : 1.0; }
 
   //! Returns the current frequency set by the last updateFrequency() call.
   //! Zero for frequency-independent operators.
