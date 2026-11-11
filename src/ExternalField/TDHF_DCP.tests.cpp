@@ -1,12 +1,19 @@
 #include "TDHF_DCP.hpp"
+#include "Amplitudes/DCP.hpp"
+#include "Amplitudes/MatrixElements.hpp"
 #include "Angular/Wigner369j.hpp"
 #include "DiracOperator/include.hpp"
 #include "ExternalField/TDHF.hpp"
+#include "Wavefunction/BSplineBasis.hpp"
+#include "Wavefunction/DiracSpinor.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "catch2/catch.hpp"
+#include "fmt/format.hpp"
 #include <algorithm>
 #include <cmath>
+#include <iostream>
 #include <optional>
+#include <string>
 #include <vector>
 
 //==============================================================================
@@ -169,5 +176,99 @@ TEST_CASE("TDHF_DCP: unit tests", "[ExternalField][TDHF_DCP][DCP][unit]") {
         }
       }
     }
+  }
+}
+
+//==============================================================================
+TEST_CASE("TDHF_DCP: lowest order agrees with diagrams",
+          "[ExternalField][TDHF_DCP][DCP]") {
+
+  // The lowest-order DCP correction (a single iteration of the second-order
+  // TDHF equations) is the sum of the Goldstone diagrams, with the same
+  // core polarisation of t and s in both.
+
+  Wavefunction wf({1600, 1.0e-6, 100.0, 40.0, "loglinear", -1.0},
+                  {"Cs", 133, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("HartreeFock", "[Xe]");
+  wf.solve_valence("7sp");
+  SplineBasis::Parameters params{"40spd20fg", 45, 7, {1.0e-4}, 40.0};
+  params.verbose = false;
+  wf.formBasis(params);
+
+  const auto [core, excited] =
+    DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
+
+  const DiracOperator::E1 d(wf.grid());
+  const DiracOperator::PNCnsi hpnc(5.67073, 2.3, wf.grid());
+
+  // t carries the whole frequency of the transition; s is static
+  struct Transition {
+    std::string label;
+    const DiracOperator::TensorOperator *t;
+    const DiracOperator::TensorOperator *s;
+    int K;
+    std::string initial;
+    std::string final;
+  };
+  const std::vector<Transition> transitions{
+    {"PNC transition", &d, &hpnc, 1, "6s+", "7s+"},
+    {"alpha transition", &d, &d, 0, "6s+", "7s+"},
+    {"alpha static", &d, &d, 0, "6s+", "6s+"}};
+
+  const auto tolerance = 1e-3;
+
+  for (const auto &[label, t, s, K, initial, final] : transitions) {
+
+    const auto *v_ptr = wf.getState(initial);
+    const auto *w_ptr = wf.getState(final);
+    REQUIRE(v_ptr != nullptr);
+    REQUIRE(w_ptr != nullptr);
+    const auto &v = *v_ptr;
+    const auto &w = *w_ptr;
+
+    const auto omega_t = w.en() - v.en();
+    const auto omega_s = 0.0;
+
+    std::cout << "\n" << label << "\n" << std::flush;
+    fmt::print("operators: t = {} (w = {:.5f}), s = {} (w = {:.5f}), K = {}\n",
+               t->name(), omega_t, s->name(), omega_s, K);
+    fmt::print("transition: {} -> {}\n", v.shortSymbol(), w.shortSymbol());
+
+    // First order: core polarisation of t and s
+    ExternalField::TDHF T(t, wf.vHF());
+    ExternalField::TDHF S(s, wf.vHF());
+    T.solve_core(omega_t);
+    S.solve_core(omega_s);
+
+    // TDHF: lowest order, then all orders
+    ExternalField::TDHF_DCP d2V(&T, &S, K, wf.vHF());
+    d2V.solve_core(omega_t + omega_s, 1);
+    const auto tdhf = d2V.dV(w, v);
+    d2V.solve_core(omega_t + omega_s);
+    const auto tdhf_all_orders = d2V.dV(w, v);
+
+    // Diagrams
+    std::cout << "Calculating DCP diagrams.." << std::flush;
+    const auto T_me = Amplitudes::me_table(wf.basis(), t, &T, nullptr, omega_t);
+    const auto S_me = Amplitudes::me_table(wf.basis(), s, &S, nullptr, omega_s);
+    const auto diagram = Amplitudes::dcp(w, v, omega_t, omega_s, K, t->rank(),
+                                         s->rank(), T_me, S_me, core, excited);
+    std::cout << " done\n" << std::flush;
+
+    const auto eps = std::abs((tdhf - diagram) / diagram);
+
+    std::cout << "\n";
+    fmt::print("{:18s} {:>13s} {:>13s} {:>8s}\n", "Term", "Diagram", "TDHF",
+               "eps");
+    fmt::print("{:18s} {:13.5e} {:13.5e} {:8.1e}\n", "Total (1)", diagram, tdhf,
+               eps);
+    fmt::print("{:18s} {:>13s} {:13.5e}\n", "Total (all orders)", "",
+               tdhf_all_orders);
+
+    REQUIRE(eps < tolerance);
+
+    // Iterating converges, and changes the result
+    REQUIRE(d2V.last_eps() < 1.0e-10);
+    REQUIRE(tdhf_all_orders != Approx(tdhf));
   }
 }
