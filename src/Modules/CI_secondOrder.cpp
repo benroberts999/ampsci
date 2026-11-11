@@ -116,7 +116,9 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     SR_input.add("help;");
   }
   SR_input.check(
-    {{"", "If this block is included, structure radiation will be included"},
+    {{"", "If this block is included, structure radiation will be included. "
+          "All lines of the diagrams are from the same states as the CI "
+          "basis: the Basis, or the Spectrum if the CI used Brueckner states"},
      {"n_minmax", "list; min,max n for core/excited (internal): [1,inf]"},
      {"n_max_legs",
       "Max n of the CI basis states that SR is applied to. SR is only "
@@ -129,9 +131,8 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
                "dependence, usually very weak [true]"},
      {"Qk_file", "true/false/filename: QkTable of Coulomb integrals; read if "
                  "it exists, otherwise calculated and written. true: default "
-                 "filename. false: no QkTable (~10x slower, less memory). "
-                 "Note: with a QkTable, the basis states are used for the "
-                 "legs [true]"}});
+                 "filename, the same file as the CI (integrals are added to "
+                 "it). false: no QkTable (~10x slower, less memory) [true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -235,6 +236,23 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
                                        wf.basis(), wf.identity());
 
   //----------------------------------------------------------------------------
+  // The states for the internal lines of the MBPT corrections (structure
+  // radiation, and the core-hole intermediate states). From the same source as
+  // the CI basis: the internal lines are then orthogonal to the CI orbitals,
+  // and the core-valence term removes the excitations into the occupied ones
+  const auto &internal_basis = ints.brueckner ? wf.spectrum() : wf.basis();
+  const auto [below_fermi, excited] =
+    DiracSpinor::split_by_energy(internal_basis, wf.FermiLevel());
+  // The correlation potential shifts the spectrum energies: the split (by
+  // energy) must still be that of the Hartree-Fock core
+  if (below_fermi.size() != wf.core().size()) {
+    fmt2::warning();
+    fmt::print(": {} states for the internal lines lie below the Fermi level, "
+               "but there are {} core states\n",
+               below_fermi.size(), wf.core().size());
+  }
+
+  //----------------------------------------------------------------------------
   // Structure radiation. SR+N is only meaningful between physical states, so
   // it is applied only to the low-n part of the CI basis
   const auto sr_n_max =
@@ -250,7 +268,8 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto Qk_file_t = SR_input.get("Qk_file", "true"s);
     const std::string Qk_file =
       Qk_file_t != "false" ?
-        (Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t) :
+        (Qk_file_t == "true" ? wf.identity(ints.brueckner) + ".qk.abf" :
+                               Qk_file_t) :
         "";
     std::cout << "\nIncluding structure radiation"
               << (sr_norm ? " and normalisation:\n" : " (no normalisation):\n");
@@ -258,18 +277,13 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     if (!sr_omega) {
       std::cout << "Structure radiation denominators at omega = 0\n";
     }
-    sr =
-      MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
+    if (ints.brueckner) {
+      std::cout << "CI basis is Brueckner (spectrum) states: using the "
+                   "spectrum for all lines of the diagrams\n";
+    }
+    sr = MBPT::StructureRad(internal_basis, wf.FermiLevel(), {n_min, n_max},
+                            Qk_file);
   }
-
-  //----------------------------------------------------------------------------
-  // Intermediate states carrying a core hole lie outside the CI space (used
-  // for the core and core-valence terms) - common to every pair. They come
-  // from the same source as the CI basis, so that the core-valence term
-  // removes the excitations into the occupied CI orbitals
-  const auto &core_hole_source = ints.brueckner ? wf.spectrum() : wf.basis();
-  const auto excited =
-    DiracSpinor::split_by_energy(core_hole_source, wf.FermiLevel()).second;
 
   // The RPA solutions and single-particle matrix-element tables depend only
   // on the frequencies: they are re-used between pairs when omega is

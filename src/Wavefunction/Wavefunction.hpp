@@ -285,8 +285,16 @@ public:
     variation ("_x", with x = (alpha/alpha_0)^2 to 6 significant figures, if
     |dalpha2()| > 1e-5) + "_run_label" (if not empty). E.g., "Cs1",
     "Cs1bq_label", "Cs1_1.01".
+
+    Files of quantities between Spectrum states (@p from_spectrum) get
+    "_bru" appended: such tables are indexed by (n, kappa) only, and the
+    Spectrum states (e.g., Brueckner orbitals) are different orbitals with
+    the same (n, kappa) as the Basis states, so the two must not share a file.
+
+    @param from_spectrum  True for files of quantities between Spectrum
+                          states [false].
   */
-  std::string identity() const;
+  std::string identity(bool from_spectrum = false) const;
 
   //! Optional label for output identity (see identity)
   const std::string &run_label() const { return m_run_label; };
