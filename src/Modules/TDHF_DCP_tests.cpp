@@ -20,7 +20,7 @@ void TDHF_DCP_tests(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto d = DiracOperator::E1(wf.grid());
   ExternalField::TDHF S(&d, wf.vHF());
   ExternalField::TDHF T(&d, wf.vHF());
-  ExternalField::TDHF_DCP ddcp(&S, &T, 2, wf.vHF());
+  ExternalField::TDHF_DCP ddcp(&T, &S, 2, wf.vHF());
   std::cout << __LINE__ << std::endl;
 
   S.solve_core(0.0);
