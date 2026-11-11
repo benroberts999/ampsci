@@ -342,6 +342,11 @@ TEST_CASE("Sigma3: CI run", "[CI][Sigma3][3VCI][unit]") {
     const auto with = CI::configuration_interaction(
       IO::InputBlock{"CI", options + "sigma3 = true; sigma3_configs = 2;"}, wf);
 
+    // Sigma_3 never has Brillouin-Wigner denominators
+    const auto sigma3_BW =
+      with.integrals.sigma3.denominators == MBPT::Denominators::BW;
+    REQUIRE(!sigma3_BW);
+
     const auto &psi = with.levels.at(0);
     const auto shift = psi.energy(0) - without.levels.at(0).energy(0);
     REQUIRE(std::abs(shift) > 1.0e-7);

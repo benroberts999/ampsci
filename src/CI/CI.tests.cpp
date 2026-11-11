@@ -846,6 +846,64 @@ TEST_CASE("CI: sparse Hamiltonian", "[CI][3VCI][unit]") {
 }
 
 //==============================================================================
+// The Feynman correction to Sigma_2 is not shifted with E0; S^k itself is.
+// So the CI matrix with the correction is that without it, plus the
+// (unshifted) two-body matrix elements of the correction. Two and three
+// electrons (where each pair has its own shift)
+TEST_CASE("CI: Feynman correction to Sigma_2", "[CI][3VCI][unit]") {
+
+  const auto t = UnitTest::Li_CI_tables();
+
+  // Correction: an arbitrary multiple of Q^k, for each entry of Sk; opposite
+  // in sign to Sk, and larger
+  const auto &qk = t.qk;
+  const auto &Sk = t.Sk;
+  const auto in_Sk = [&Sk](int k, const DiracSpinor &v, const DiracSpinor &w,
+                           const DiracSpinor &x, const DiracSpinor &y) {
+    return Sk.contains(k, v, w, x, y);
+  };
+  Coulomb::WkTable Sk_Feynman_correction;
+  Sk_Feynman_correction.fill(
+    t.orbitals,
+    [&qk](int k, const DiracSpinor &v, const DiracSpinor &w,
+          const DiracSpinor &x,
+          const DiracSpinor &y) { return -0.27 * qk.Q(k, v, w, x, y); },
+    in_Sk, -1, false);
+  REQUIRE(Sk_Feynman_correction.count() == Sk.count());
+
+  double worst_element = 0.0;
+  double largest_correction = 0.0;
+  // {2J, parity, number of electrons}
+  for (const auto &[twoJ, parity, num_electrons] :
+       std::vector<std::array<int, 3>>{{1, 1, 3}, {3, -1, 3}, {2, 1, 2}}) {
+    const CI::PsiJPi psi{twoJ, parity, t.orbitals, num_electrons};
+
+    const auto H =
+      CI::construct_Hci(psi, t.h1, t.qk, &t.Bk, &t.Sk, &t.s1c, t.hk, &t.dSk,
+                        t.dE0, nullptr, &Sk_Feynman_correction);
+
+    // Without the correction; and the correction, unshifted, on its own
+    const auto H_shifted = CI::construct_Hci(psi, t.h1, t.qk, &t.Bk, &t.Sk,
+                                             &t.s1c, t.hk, &t.dSk, t.dE0);
+    const auto H_correction =
+      CI::construct_Hci(psi, t.h1, t.qk, nullptr, &Sk_Feynman_correction);
+    const auto H_bare = CI::construct_Hci(psi, t.h1, t.qk);
+
+    const auto N = psi.num_CSFs();
+    for (std::size_t i = 0; i < N; ++i) {
+      for (std::size_t j = 0; j < N; ++j) {
+        const auto correction = H_correction(i, j) - H_bare(i, j);
+        const auto expected = H_shifted(i, j) + correction;
+        worst_element = std::max(worst_element, std::abs(H(i, j) - expected));
+        largest_correction = std::max(largest_correction, std::abs(correction));
+      }
+    }
+  }
+  REQUIRE(worst_element < 1.0e-12);
+  REQUIRE(largest_correction > 1.0e-6);
+}
+
+//==============================================================================
 // Lowest five solutions of a three-electron CI matrix (with all
 // corrections): Davidson, on the sparse matrix, vs direct diagonalisation
 TEST_CASE("CI: Davidson vs dense", "[CI][3VCI]") {
