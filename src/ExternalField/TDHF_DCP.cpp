@@ -216,7 +216,14 @@ DiracSpinor TDHF_DCP::h_tilde_rhs(const TDHF &h_tilde, const int kappa,
   const auto h = h_tilde.get_operator();
   const auto s_conj =
     conj ? h->h_minus_sign() * (h_tilde.imagQ() ? -1.0 : 1.0) : 1.0;
-  return s_conj * h->reduced_rhs(kappa, F) + h_tilde.dV_rhs(kappa, F, conj);
+  auto rhs = s_conj * h->reduced_rhs(kappa, F);
+  // Core polarisation of h, unless its first-order TDHF was not run, not
+  // iterated (a single iteration: eps = 1, the change from zero), or failed.
+  // A loose test: a solve that stops short of its target is still used
+  if (h_tilde.last_eps() < 1.0e-2) {
+    rhs += h_tilde.dV_rhs(kappa, F, conj);
+  }
+  return rhs;
 }
 
 //==============================================================================

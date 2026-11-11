@@ -426,6 +426,11 @@ private:
     @details
     \f$ [\tilde h F]_\kappa \f$, with
     \f$ \tilde h = h + \delta V^h \f$, for \f$ h = t \f$ or \f$ s \f$.
+    \f$ \delta V^h \f$ is not included if the first-order TDHF of
+    \f$ h \f$ was not run, not iterated, or failed (last_eps() not small).
+    In particular, if it was solved with a single iteration (bare first-order
+    corrections), the lowest order has no core polarisation of \f$ t \f$,
+    \f$ s \f$ at all, as the bare DCP diagrams.
 
     @param h_tilde  First-order TDHF of \f$ h \f$: holds the operator and
                     its \f$ \delta V^h \f$.

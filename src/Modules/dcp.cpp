@@ -18,7 +18,9 @@ const Register r_dcp{"dcp", "Module for testing dcp calculations", &dcp};
 
 void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.check({{"initial", ""},
+  input.check({{"v", "Initial valence state, e.g., 6s"},
+               {"w", "Final valence state [default: v]"},
+               {"initial", ""},
                {"final", ""},
                {"rpa", ""},
                {"K", ""},
@@ -33,20 +35,23 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
 
   using namespace std::string_literals;
 
-  // Parse which valence states for transition
-  const auto [ni, ki] = AtomData::parse_symbol(input.get("initial", ""s));
-  const auto [nf, kf] = AtomData::parse_symbol(input.get("final", ""s));
+  // Parse which valence states for transition v -> w (also allowed as
+  // initial, final). w defaults to v
+  const auto v_symbol = input.get("v", input.get("initial", ""s));
+  const auto w_symbol = input.get("w", input.get("final", v_symbol));
+  const auto [nv, kv] = AtomData::parse_symbol(v_symbol);
+  const auto [nw, kw] = AtomData::parse_symbol(w_symbol);
   // Lookup states in wavefunction, check if exist
-  const auto i_ptr = wf.getState(ni, ki);
-  const auto f_ptr = wf.getState(nf, kf);
-  if (!i_ptr || !f_ptr) {
+  const auto v_ptr = wf.getState(nv, kv);
+  const auto w_ptr = wf.getState(nw, kw);
+  if (!v_ptr || !w_ptr) {
     std::cerr << "\nFAIL 22\n"
               << "Couldn't find requested state. Is it in valence list?\n";
     return;
   }
   // Transition v->w => <w|...|v>
-  const auto v = *i_ptr;
-  const auto w = *f_ptr;
+  const auto v = *v_ptr;
+  const auto w = *w_ptr;
 
   std::cout << "\n";
   std::cout << v << " -> " << w << " : <" << w << "|D|" << v << ">\n";
@@ -128,9 +133,9 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
                       Angular::threej_2(w.twoj(), 2 * K, v.twoj(), -tm, 0, tm);
 
   std::cout << "\n";
-  std::cout << "A^K  : " << AK << "\n";
-  std::cout << "A^K_0: " << AK * z_comp << "\n";
-  std::cout << "A_zz : " << A_zz << "\n";
+  fmt::print("A^K  : {: .5e}\n", AK);
+  fmt::print("A^K_0: {: .5e}\n", AK * z_comp);
+  fmt::print("A_zz : {: .5e}\n", A_zz);
 
   // Specific output:
   std::cout << "\n";
@@ -150,7 +155,7 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto [core, excited] =
     DiracSpinor::split_by_energy(wf.basis(), wf.FermiLevel());
 
-  std::cout << "\nCalculating DCP:\n";
+  std::cout << "\nCalculating DCP via diagrams:\n";
   std::cout << "Filling tables.." << std::flush;
   // Each table carries the dV component at the frequency of its operator
   const auto t_ce = Amplitudes::me_table(
@@ -174,27 +179,79 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto delta_AK = cc1 + cc2 + cr12 + cl12;
 
   std::cout << "\ndelta(AK):\n";
-  fmt::print(" C1    = {:.4e}\n C2    = {:.4e}\n "
-             "R     = {:.4e}\n L     = {:.4e}\n "
-             "Total = {:.4e}\n\n",
+  fmt::print(" C1    = {: .4e}\n C2    = {: .4e}\n "
+             "R     = {: .4e}\n L     = {: .4e}\n "
+             "Total = {: .4e}\n",
              cc1, cc2, cr12, cl12, delta_AK);
 
-  std::cout << "A^K  : " << AK << " + " << delta_AK << "\n";
+  //----------------------------------------------------------------------------
+  // DCP by second-order TDHF.
+  // rpa = false: no core polarisation of t and s. The first-order TDHF are
+  // solved with a single iteration (bare first-order corrections; not
+  // iterated, so TDHF_DCP does not use their dV); and only the lowest order
+  // of the second-order TDHF.
+  std::cout << "\nCalculating DCP via TDHF:\n";
+  if (!rpaQ) {
+    dVt.solve_core(omega_t, 1);
+    dVs.solve_core(omega_s, 1);
+  }
+  ExternalField::TDHF_DCP d2V(&dVt, &dVs, K, wf.vHF());
 
-  // Specific output:
-  std::cout << "\n";
+  // Lowest order: a single iteration
+  d2V.solve_core(omega_t + omega_s, 1);
+  // d2V_11 and d2V_Norm are fixed by the first-order solutions
+  const auto d2V_11 = w * d2V.d2V_11_rhs(w.kappa(), v);
+  const auto d2V_Norm = w * d2V.d2V_Norm_rhs(w.kappa(), v);
+  const auto d2V_2_lowest = w * d2V.d2V_2_rhs(w.kappa(), v);
+  const auto delta_AK_tdhf1 = d2V.dV(w, v);
+
+  // All orders (rpa = false: lowest order only)
+  if (rpaQ) {
+    d2V.solve_core(omega_t + omega_s);
+  }
+  const auto d2V_2 = w * d2V.d2V_2_rhs(w.kappa(), v);
+  const auto delta_AK_tdhf = d2V.dV(w, v);
+
+  // The all-orders column only with rpa = true
+  const std::vector<std::tuple<std::string, double, double>> d2V_parts{
+    {"d2V_11", d2V_11, d2V_11},
+    {"d2V_Norm", d2V_Norm, d2V_Norm},
+    {"d2V_2", d2V_2_lowest, d2V_2},
+    {"Total", delta_AK_tdhf1, delta_AK_tdhf}};
+  std::cout << "\ndelta(AK) by TDHF:\n";
+  fmt::print(" {:8s} {:>12s}{}\n", "", "lowest order",
+             rpaQ ? fmt::format(" {:>12s}", "all orders") : "");
+  for (const auto &[name, lowest_order, all_orders] : d2V_parts) {
+    fmt::print(" {:8s} {:12.4e}{}\n", name, lowest_order,
+               rpaQ ? fmt::format(" {:12.4e}", all_orders) : "");
+  }
+
+  fmt::print("\nTDHF lowest order vs diagrams: eps = {:.1e}\n",
+             std::abs((delta_AK_tdhf1 - delta_AK) / delta_AK));
+
+  // Final values: the amplitude (and the quantity derived from it, by its
+  // factor), and its DCP correction by each method
+  std::vector<std::pair<std::string, double>> quantities{{"A^K", 1.0}};
   if (K == 0 && s->name() == "E1") {
-    std::cout << "alpha: " << AK / std::sqrt(3.0 * w.twojp1()) << " + "
-              << delta_AK / std::sqrt(3.0 * w.twojp1()) << "\n";
+    quantities.emplace_back("alpha", 1.0 / std::sqrt(3.0 * w.twojp1()));
   }
-
   if (K == 1 && s->name() == "E1") {
-    const auto ss = 2.0 * std::sqrt(2.0) * Angular::S_kk(w.kappa(), v.kappa());
-    std::cout << "beta: " << AK / ss << " + " << delta_AK / ss << "\n";
+    quantities.emplace_back(
+      "beta",
+      1.0 / (2.0 * std::sqrt(2.0) * Angular::S_kk(w.kappa(), v.kappa())));
+  }
+  if (K == 1 && s->name() == "pnc") {
+    quantities.emplace_back("Epnc", z_comp);
   }
 
-  if (K == 1 && s->name() == "pnc") {
-    std::cout << "Epnc: " << AK * z_comp << " + " << delta_AK * z_comp << "\n";
+  fmt::print("\nDCP correction\n");
+  // The all-orders (TDHF) column only with rpa = true
+  fmt::print("{:6s} {:>12s} {:>12s} {:>12s}{}\n", "", "value", "diagram",
+             "TDHF(1)", rpaQ ? fmt::format(" {:>12s}", "TDHF") : "");
+  for (const auto &[name, factor] : quantities) {
+    fmt::print("{:6s} {:12.5e} {:12.5e} {:12.5e}{}\n", name, factor * AK,
+               factor * delta_AK, factor * delta_AK_tdhf1,
+               rpaQ ? fmt::format(" {:12.5e}", factor * delta_AK_tdhf) : "");
   }
 }
 
