@@ -89,7 +89,7 @@ double CSF2_Sigma2(const Coulomb::WkTable &Sk, DiracSpinor::Index v,
                    DiracSpinor::Index w, DiracSpinor::Index x,
                    DiracSpinor::Index y, int twoJ, const Coulomb::QkTable *qk,
                    const std::vector<double> &hk, const Coulomb::WkTable *dSk,
-                   double dE0, const Coulomb::WkTable *Sk_Feynman_correction) {
+                   double dE0) {
 
   // If c==d, or a==b : can make short-cut due to symmetry
   // More efficient to use two Q's than W:
@@ -112,24 +112,19 @@ double CSF2_Sigma2(const Coulomb::WkTable &Sk, DiracSpinor::Index v,
     return hk[std::size_t(k)] * qk->Q(k, a, b, c, d);
   };
 
-  // S^k, shifted to the target-level E0 if the derivative table is given.
-  // The Feynman correction (if held separately) has no dependence on E0: it
-  // is added after the shift
-  const auto get_Sk = [&Sk, dSk, dE0, Sk_Feynman_correction, &extrap](
-                        int k, DiracSpinor::Index a, DiracSpinor::Index b,
-                        DiracSpinor::Index c, DiracSpinor::Index d) {
-    if (!Sk.contains(k, a, b, c, d)) {
-      return extrap(k, a, b, c, d);
-    }
-    const auto correction = Sk_Feynman_correction == nullptr ?
-                              0.0 :
-                              Sk_Feynman_correction->Q(k, a, b, c, d);
-    const auto S0 = Sk.Q(k, a, b, c, d);
-    if (dSk == nullptr) {
-      return S0 + correction;
-    }
-    return corrected_Sk(S0, dSk->Q(k, a, b, c, d), dE0) + correction;
-  };
+  // S^k, shifted to the target-level E0 if the derivative table is given
+  const auto get_Sk =
+    [&Sk, dSk, dE0, &extrap](int k, DiracSpinor::Index a, DiracSpinor::Index b,
+                             DiracSpinor::Index c, DiracSpinor::Index d) {
+      if (!Sk.contains(k, a, b, c, d)) {
+        return extrap(k, a, b, c, d);
+      }
+      const auto S0 = Sk.Q(k, a, b, c, d);
+      if (dSk == nullptr) {
+        return S0;
+      }
+      return corrected_Sk(S0, dSk->Q(k, a, b, c, d), dE0);
+    };
 
   // Direct part:
   const auto [k0, k1] = MBPT::k_minmax_S(tjv, tjw, tjx, tjy);
@@ -222,11 +217,10 @@ double CSF2_Breit(const Coulomb::WkTable &Bk, DiracSpinor::Index v,
 double Sigma2_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
                  const Coulomb::WkTable &Sk, const Coulomb::QkTable *qk,
                  const std::vector<double> &hk, const Coulomb::WkTable *dSk,
-                 double dE0, const Coulomb::WkTable *Sk_Feynman_correction) {
+                 double dE0) {
   const auto [v, w] = A.states;
   const auto [x, y] = B.states;
-  return CSF2_Sigma2(Sk, v, w, x, y, twoJ, qk, hk, dSk, dE0,
-                     Sk_Feynman_correction);
+  return CSF2_Sigma2(Sk, v, w, x, y, twoJ, qk, hk, dSk, dE0);
 }
 
 //==============================================================================
@@ -242,8 +236,7 @@ double Sigma2_AB(const CI::CSF3 &A, const CI::CSF3 &B, int,
                  const Coulomb::WkTable &Sk, const Coulomb::QkTable *qk,
                  const std::vector<double> &hk, const Coulomb::WkTable *dSk,
                  double dE0,
-                 const std::map<DiracSpinor::Index, double> *orbital_energies,
-                 const Coulomb::WkTable *Sk_Feynman_correction) {
+                 const std::map<DiracSpinor::Index, double> *orbital_energies) {
   assert((dSk == nullptr || orbital_energies != nullptr) &&
          "Brillouin-Wigner Sigma_2 requires the orbital energies");
 
@@ -261,7 +254,7 @@ double Sigma2_AB(const CI::CSF3 &A, const CI::CSF3 &B, int,
         dSk == nullptr ? dE0 : dE0 - orbital_energies->at(p.spectator);
       out += p.coef * q.coef *
              CSF2_Sigma2(Sk, p.pair[0], p.pair[1], q.pair[0], q.pair[1],
-                         p.twoJ2, qk, hk, dSk, dE0_pair, Sk_Feynman_correction);
+                         p.twoJ2, qk, hk, dSk, dE0_pair);
     }
   }
   return 3.0 * out;
@@ -292,8 +285,7 @@ double Sigma2_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
                  const Coulomb::WkTable &Sk, const Coulomb::QkTable *qk,
                  const std::vector<double> &hk, const Coulomb::WkTable *dSk,
                  double dE0,
-                 const std::map<DiracSpinor::Index, double> *orbital_energies,
-                 const Coulomb::WkTable *Sk_Feynman_correction) {
+                 const std::map<DiracSpinor::Index, double> *orbital_energies) {
   return std::visit(
     [&](const auto &a, const auto &b) -> double {
       using CSFType = std::decay_t<decltype(a)>;
@@ -305,11 +297,9 @@ double Sigma2_AB(const CI::CSF &A, const CI::CSF &B, int twoJ,
         // No valence pairs
         return 0.0;
       } else if constexpr (std::is_same_v<CSFType, CSF2>) {
-        return Sigma2_AB(a, b, twoJ, Sk, qk, hk, dSk, dE0,
-                         Sk_Feynman_correction);
+        return Sigma2_AB(a, b, twoJ, Sk, qk, hk, dSk, dE0);
       } else {
-        return Sigma2_AB(a, b, twoJ, Sk, qk, hk, dSk, dE0, orbital_energies,
-                         Sk_Feynman_correction);
+        return Sigma2_AB(a, b, twoJ, Sk, qk, hk, dSk, dE0, orbital_energies);
       }
     },
     A.variant(), B.variant());
@@ -552,8 +542,7 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
                       const Coulomb::WkTable *Sk, const std::vector<double> &hk,
                       const Coulomb::WkTable *dSk, double E0_sigma2,
                       std::ostream &outstream, std::size_t level,
-                      const Sigma3Parameters *sigma3,
-                      const Coulomb::WkTable *Sk_Feynman_correction) {
+                      const Sigma3Parameters *sigma3, bool *converged) {
   assert(psi != nullptr);
 
   constexpr auto eps_E0 = 1.0e-6;
@@ -594,9 +583,8 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
   // theory in the change to Hci. Solving (dense: N^3; sparse: many products
   // with H) costs far more than one build, so this is much cheaper than
   // re-solving each pass.
-  auto Hci =
-    construct_Hci<MatrixType>(*psi, h1, qk, Bk, Sk, &s1_Jpi, hk, dSk,
-                              dE0_s2(s1_Jpi.E0), sigma3, Sk_Feynman_correction);
+  auto Hci = construct_Hci<MatrixType>(*psi, h1, qk, Bk, Sk, &s1_Jpi, hk, dSk,
+                                       dE0_s2(s1_Jpi.E0), sigma3);
   if constexpr (std::is_same_v<MatrixType, LinAlg::Matrix<double>>) {
     psi->solve(Hci, int(level) + 1);
   } else {
@@ -620,8 +608,7 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
     // Free the previous matrix first: only one is held at a time
     Hci = MatrixType{};
     Hci = construct_Hci<MatrixType>(*psi, h1, qk, Bk, Sk, &s1_Jpi, hk, dSk,
-                                    dE0_s2(s1_Jpi.E0), sigma3,
-                                    Sk_Feynman_correction);
+                                    dE0_s2(s1_Jpi.E0), sigma3);
 
     // <c|Hci|c>; c is normalised
     const double E0_new = c * (Hci * c);
@@ -638,6 +625,9 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
     outstream << std::flush;
     if (it == max_iterations && std::abs(delta) >= eps_E0) {
       outstream << "Warning: E0 iteration did not converge\n";
+      if (converged != nullptr) {
+        *converged = false;
+      }
     }
   }
 
@@ -648,13 +638,13 @@ template LinAlg::Matrix<double> iterate_E0<LinAlg::Matrix<double>>(
   PsiJPi *, const Sigma1Correction &, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const std::vector<double> &, const Coulomb::WkTable *, double, std::ostream &,
-  std::size_t, const Sigma3Parameters *, const Coulomb::WkTable *);
+  std::size_t, const Sigma3Parameters *, bool *);
 template LinAlg::SparseSymmetricMatrix<double>
 iterate_E0<LinAlg::SparseSymmetricMatrix<double>>(
   PsiJPi *, const Sigma1Correction &, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const std::vector<double> &, const Coulomb::WkTable *, double, std::ostream &,
-  std::size_t, const Sigma3Parameters *, const Coulomb::WkTable *);
+  std::size_t, const Sigma3Parameters *, bool *);
 
 //==============================================================================
 // CI Hamiltonian matrix element for two 1-particle CSFs: one-body only
@@ -1179,23 +1169,22 @@ construct_Hci(const PsiJPi &psi, const Coulomb::meTable<double> &h1,
               const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk,
               const Coulomb::WkTable *Sk, const Sigma1Correction *s1c,
               const std::vector<double> &hk, const Coulomb::WkTable *dSk,
-              double dE0, const Sigma3Parameters *sigma3,
-              const Coulomb::WkTable *Sk_Feynman_correction) {
+              double dE0, const Sigma3Parameters *sigma3) {
   return construct_Hci<MatrixType>(psi.CSFs(), psi.twoJ(), h1, qk, Bk, Sk, s1c,
-                                   hk, dSk, dE0, sigma3, Sk_Feynman_correction);
+                                   hk, dSk, dE0, sigma3);
 }
 
 template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>>(
   const PsiJPi &, const Coulomb::meTable<double> &, const Coulomb::QkTable &,
   const Coulomb::WkTable *, const Coulomb::WkTable *, const Sigma1Correction *,
   const std::vector<double> &, const Coulomb::WkTable *, double,
-  const Sigma3Parameters *, const Coulomb::WkTable *);
+  const Sigma3Parameters *);
 template LinAlg::SparseSymmetricMatrix<double>
 construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
   const PsiJPi &, const Coulomb::meTable<double> &, const Coulomb::QkTable &,
   const Coulomb::WkTable *, const Coulomb::WkTable *, const Sigma1Correction *,
   const std::vector<double> &, const Coulomb::WkTable *, double,
-  const Sigma3Parameters *, const Coulomb::WkTable *);
+  const Sigma3Parameters *);
 
 //==============================================================================
 template <typename MatrixType>
@@ -1205,8 +1194,7 @@ construct_Hci(const std::vector<CSF> &CSFs, int twoJ,
               const Coulomb::WkTable *Bk, const Coulomb::WkTable *Sk,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
               const Coulomb::WkTable *dSk, double dE0,
-              const Sigma3Parameters *sigma3,
-              const Coulomb::WkTable *Sk_Feynman_correction) {
+              const Sigma3Parameters *sigma3) {
 
   constexpr bool sparse =
     std::is_same_v<MatrixType, LinAlg::SparseSymmetricMatrix<double>>;
@@ -1250,9 +1238,8 @@ construct_Hci(const std::vector<CSF> &CSFs, int twoJ,
         // Two-body corrections: Sigma_2 (three electrons: the pair energies
         // need the orbital energy of the third electron), and Breit
         if (Sk != nullptr) {
-          H_AB +=
-            CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0,
-                          s1c ? &s1c->en : nullptr, Sk_Feynman_correction);
+          H_AB += CI::Sigma2_AB(A, B, twoJ, *Sk, &qk, hk, dSk, dE0,
+                                s1c ? &s1c->en : nullptr);
         }
         if (Bk != nullptr) {
           H_AB += CI::Breit_AB(A, B, twoJ, *Bk);
@@ -1289,15 +1276,13 @@ template LinAlg::Matrix<double> construct_Hci<LinAlg::Matrix<double>>(
   const std::vector<CSF> &, int, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::WkTable *, double, const Sigma3Parameters *,
-  const Coulomb::WkTable *);
+  const Coulomb::WkTable *, double, const Sigma3Parameters *);
 template LinAlg::SparseSymmetricMatrix<double>
 construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
   const std::vector<CSF> &, int, const Coulomb::meTable<double> &,
   const Coulomb::QkTable &, const Coulomb::WkTable *, const Coulomb::WkTable *,
   const Sigma1Correction *, const std::vector<double> &,
-  const Coulomb::WkTable *, double, const Sigma3Parameters *,
-  const Coulomb::WkTable *);
+  const Coulomb::WkTable *, double, const Sigma3Parameters *);
 
 //==============================================================================
 LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi, const Integrals &ints) {
@@ -1305,8 +1290,6 @@ LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi, const Integrals &ints) {
   const auto Sk = ints.Sk.emptyQ() ? nullptr : &ints.Sk;
   const auto dSk = ints.dSk.emptyQ() ? nullptr : &ints.dSk;
   const auto sigma3 = ints.sigma3.included() ? &ints.sigma3 : nullptr;
-  const auto Sk_Feynman_correction =
-    ints.Sk_Feynman_correction.emptyQ() ? nullptr : &ints.Sk_Feynman_correction;
   // No E0 needed: no dSigma/dE correction, and no BW Sigma_2
   if (ints.s1_corr.empty() && dSk == nullptr) {
     return construct_Hci(psi, ints.h1, ints.qk, Bk, Sk, nullptr, ints.hk,
@@ -1319,8 +1302,7 @@ LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi, const Integrals &ints) {
     s1_Jpi.E0 = psi.energy(0);
   }
   return construct_Hci(psi, ints.h1, ints.qk, Bk, Sk, &s1_Jpi, ints.hk, dSk,
-                       s1_Jpi.E0 - ints.E0_sigma2, sigma3,
-                       Sk_Feynman_correction);
+                       s1_Jpi.E0 - ints.E0_sigma2, sigma3);
 }
 
 } // namespace CI

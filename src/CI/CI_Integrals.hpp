@@ -241,9 +241,8 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
   @param level          Index of the level whose energy E0 is (0: lowest).
   @param sigma3         Pointer to the Sigma_3 parameters; ignored if nullptr.
                         See @ref construct_Hci.
-  @param Sk_Feynman_correction  Pointer to the table of Feynman corrections
-                        to \f$ S^k \f$; ignored if nullptr. See
-                        @ref construct_Hci.
+  @param converged      If given, set to false if the iteration does not
+                        converge; otherwise left as it was.
   @tparam MatrixType    Storage of the CI Hamiltonian: dense
                         (LinAlg::Matrix<double>; diagonalised directly) or
                         sparse (LinAlg::SparseSymmetricMatrix<double>; solved
@@ -257,8 +256,7 @@ template <typename MatrixType = LinAlg::Matrix<double>>
   const Coulomb::WkTable *Sk = nullptr, const std::vector<double> &hk = {},
   const Coulomb::WkTable *dSk = nullptr, double E0_sigma2 = 0.0,
   std::ostream &outstream = std::cout, std::size_t level = 0,
-  const Sigma3Parameters *sigma3 = nullptr,
-  const Coulomb::WkTable *Sk_Feynman_correction = nullptr);
+  const Sigma3Parameters *sigma3 = nullptr, bool *converged = nullptr);
 
 //==============================================================================
 /*!
@@ -307,11 +305,6 @@ struct Integrals {
   Coulomb::WkTable dSk{};
   //! Reference E0 that Sk and dSk were tabulated at (Brillouin-Wigner)
   double E0_sigma2{0.0};
-  //! Feynman correction to the Sigma_2 integrals, when it is held separately
-  //! from Sk (with the Brillouin-Wigner Sigma_2: Sk is then the second-order
-  //! sum, which is shifted with E0, and this is added, unshifted); else empty.
-  //! See MBPT::Sk_vwxy_Feynman_correction
-  Coulomb::WkTable Sk_Feynman_correction{};
   //! Derivative (dSigma/dE) correction for Sigma_1; empty if not included
   Sigma1Correction s1_corr{};
   //! Parameters of the Sigma_3 correction; see Sigma3Parameters::included()
@@ -381,16 +374,6 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, DiracSpinor::Index v,
   @param v,w   Indices of the bra single-particle states.
   @param x,y   Indices of the ket single-particle states.
   @param twoJ  Twice the total angular momentum 2J of the coupled pair.
-  @param qk    Coulomb \f$ Q^k \f$ table, for integrals not stored in @p Sk
-               (with @p hk); ignored if nullptr.
-  @param hk    Average S^k/Q^k ratios; see MBPT::average_hk.
-  @param dSk   Pointer to the dS^k/dE0 table; ignored if nullptr. If given,
-               each stored S^k is shifted by @p dE0 (see CI::corrected_Sk).
-  @param dE0   Shift of the pair energy from the one Sk was tabulated at.
-  @param Sk_Feynman_correction  Pointer to the table of Feynman corrections
-               to \f$ S^k \f$ (see MBPT::Sk_vwxy_Feynman_correction);
-               ignored if nullptr. Added to each stored S^k, after any shift:
-               it does not depend on E0.
   @return Antisymmetrised two-body \f$ \Sigma_2 \f$ matrix element.
 */
 double CSF2_Sigma2(const Coulomb::WkTable &Sk, DiracSpinor::Index v,
@@ -398,8 +381,7 @@ double CSF2_Sigma2(const Coulomb::WkTable &Sk, DiracSpinor::Index v,
                    DiracSpinor::Index y, int twoJ,
                    const Coulomb::QkTable *qk = nullptr,
                    const std::vector<double> &hk = {},
-                   const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0,
-                   const Coulomb::WkTable *Sk_Feynman_correction = nullptr);
+                   const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0);
 
 /*!
   @brief Antisymmetrised two-body Breit matrix element in the coupled CSF
@@ -477,8 +459,7 @@ double Sigma2_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
                  const Coulomb::WkTable &Sk,
                  const Coulomb::QkTable *qk = nullptr,
                  const std::vector<double> &hk = {},
-                 const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0,
-                 const Coulomb::WkTable *Sk_Feynman_correction = nullptr);
+                 const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0);
 
 /*!
   @brief Breit correction to Hab().
@@ -552,8 +533,7 @@ double Sigma2_AB(
   const CI::CSF3 &A, const CI::CSF3 &B, int twoJ, const Coulomb::WkTable &Sk,
   const Coulomb::QkTable *qk = nullptr, const std::vector<double> &hk = {},
   const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0,
-  const std::map<DiracSpinor::Index, double> *orbital_energies = nullptr,
-  const Coulomb::WkTable *Sk_Feynman_correction = nullptr);
+  const std::map<DiracSpinor::Index, double> *orbital_energies = nullptr);
 
 /*!
   @brief Breit correction to Hab(), for three-electron CSFs.
@@ -585,8 +565,7 @@ double Sigma2_AB(
   const CI::CSF &A, const CI::CSF &B, int twoJ, const Coulomb::WkTable &Sk,
   const Coulomb::QkTable *qk = nullptr, const std::vector<double> &hk = {},
   const Coulomb::WkTable *dSk = nullptr, double dE0 = 0.0,
-  const std::map<DiracSpinor::Index, double> *orbital_energies = nullptr,
-  const Coulomb::WkTable *Sk_Feynman_correction = nullptr);
+  const std::map<DiracSpinor::Index, double> *orbital_energies = nullptr);
 
 /*!
   @brief Breit correction to Hab(), for CSFs of any kind.
@@ -862,10 +841,6 @@ std::string Term_Symbol(int L, int two_S, int parity);
                configurations (see @ref sigma3_selected), including those
                between CSFs that differ in all three orbitals. With
                Brillouin-Wigner denominators, E0 is taken from @p s1c.
-  @param Sk_Feynman_correction Pointer to the table of Feynman corrections to
-               S^k (see MBPT::Sk_vwxy_Feynman_correction); ignored if
-               nullptr. If given, @p Sk is the second-order sum only: the
-               correction is added to it, and is not shifted with E0.
   @tparam MatrixType Storage of the matrix:
     - LinAlg::Matrix<double> (default): dense, both triangles filled.
     - LinAlg::SparseSymmetricMatrix<double>: the non-zero elements of the
@@ -880,8 +855,7 @@ MatrixType construct_Hci(
   const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
   const Coulomb::WkTable *Sk = nullptr, const Sigma1Correction *s1c = nullptr,
   const std::vector<double> &hk = {}, const Coulomb::WkTable *dSk = nullptr,
-  double dE0 = 0.0, const Sigma3Parameters *sigma3 = nullptr,
-  const Coulomb::WkTable *Sk_Feynman_correction = nullptr);
+  double dE0 = 0.0, const Sigma3Parameters *sigma3 = nullptr);
 
 /*!
   @brief Constructs the full CI Hamiltonian matrix for a list of CSFs.
@@ -901,8 +875,7 @@ MatrixType construct_Hci(
   const Coulomb::QkTable &qk, const Coulomb::WkTable *Bk = nullptr,
   const Coulomb::WkTable *Sk = nullptr, const Sigma1Correction *s1c = nullptr,
   const std::vector<double> &hk = {}, const Coulomb::WkTable *dSk = nullptr,
-  double dE0 = 0.0, const Sigma3Parameters *sigma3 = nullptr,
-  const Coulomb::WkTable *Sk_Feynman_correction = nullptr);
+  double dE0 = 0.0, const Sigma3Parameters *sigma3 = nullptr);
 
 /*!
   @brief Constructs the CI Hamiltonian matrix from a set of integral tables.

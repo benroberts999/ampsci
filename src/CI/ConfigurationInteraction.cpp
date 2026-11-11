@@ -48,7 +48,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "excitation energy. If set, num_solutions is ignored."},
     {"sigma1", "Include one-body MBPT correlations? [false]"},
     {"sigma2", "Include two-body MBPT correlations? [false]"},
-    {"sigma3", "Include effective three-body MBPT correlations? [false]\n"},
+    {"sigma3", "Include effective three-body MBPT correlations? [false]\n"
+               " - three valence electrons only; requires sigma2\n"
+               " - denominators as for Sigma_2; DFK if those are BW"},
     {"sigma3_configs",
      "Sigma_3 is included in <A|H|B> if A or B belongs to one of the N "
      "lowest configurations of the J/pi [10]\n"
@@ -73,6 +75,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Energy denominators in Sigma_2 [DFK]:\n"
      " - DFK: (Dzuba Flambaum Kozlov) target legs as Fermi, others as RS\n"
      " - BW: Brillouin-Wigner E0 (iterated; see BW_each_level).\n"
+     "   DFK is used instead if this fails\n"
      " - RS: actual single-particle energies\n"
      " - Fermi: lowest excited energy of each kappa\n"
      " - Fermi0: lowest excited energy of all kappas\n"},
@@ -725,24 +728,16 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   Coulomb::WkTable Sk;
   // dS^k/dE0; empty unless iterative_correction_sigma2
   Coulomb::WkTable dSk;
-  // Feynman correction to S^k, held separately from Sk; empty unless
-  // iterative_correction_sigma2 with Feynman_screen
-  Coulomb::WkTable Sk_Feynman_correction;
   // Average S^k/Q^k ratios, for extrapolating Sigma_2 beyond cis2_basis
   std::vector<double> hk;
   if (include_Sigma2) {
 
     // Here, write basis info into filename, since these are _internal_ lines!
-    // With the Brillouin-Wigner Sigma_2, only the second-order sum is
-    // shifted with E0: the stored tables are those without the Feynman
-    // method (same files), and the Feynman correction is held separately
-    const auto Feynman_correction_separate =
-      Feynman_screen && iterative_correction_sigma2;
     const auto sk_settings =
       common_settings + MBPT::parse_Denominators(denominators) + ";" +
       (exclude_wrong_parity_box ? "xb" : "") + ";" +
       (iterative_correction_sigma2 ? std::to_string(E0_sigma2) + ";" : "") +
-      (Feynman_correction_separate ? "" : Feynman_screen_tag);
+      Feynman_screen_tag;
     const auto sk_basename = wf.identity() + "_" +
                              DiracSpinor::state_config(excited_s2) + "_" +
                              qip::hash_string(sk_settings);
@@ -785,7 +780,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     // constructed with its sub-grid and parameters (Q*Pi*Q from the disk
     // cache, if present)
     std::vector<MBPT::RMatrix> screening_kernels;
-    if (Feynman_screen && (!no_new_integralsQ || Feynman_correction_separate)) {
+    if (Feynman_screen && !no_new_integralsQ) {
       fmt::print(
         "Σ_2 direct (screening) diagrams by Feynman method: {} screening{}\n",
         all_order_screen ? "all-orders" : "second-order",
@@ -805,9 +800,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
       }
     }
     const auto *screening_ptr =
-      (screening_kernels.empty() || Feynman_correction_separate) ?
-        nullptr :
-        &screening_kernels;
+      screening_kernels.empty() ? nullptr : &screening_kernels;
 
     Sk = MBPT::calculate_Sk(Sk_filename, cis2_legs_basis, cis2_basis, core_s2,
                             excited_s2, qk, max_k_Coulomb,
@@ -837,34 +830,12 @@ Solutions configuration_interaction(const IO::InputBlock &input,
           value = (value - Sk.Q(int(k), index)) / delta_E0;
         }
       }
-
-      // The Feynman correction has no dependence on E0: it is not part of
-      // the shifted tables, and is added to each S^k after the shift.
-      // For every stored S^k that the CI may use
-      if (Feynman_correction_separate) {
-        std::cout << "\nCalculate Feynman correction to Σ^k_abcd\n"
-                  << std::flush;
-        Sk_Feynman_correction = MBPT::calculate_Sk_Feynman_correction(
-          Sk, ci_sp_basis, core_s2, excited_s2, qk, max_k_Coulomb, fk,
-          screening_kernels);
-      }
     }
 
     if (extrapolate_sigma2) {
       // Store the <hk> average ratios.
       // S^k = hk*Q^k formed as needed
-      // The ratios are those of the full S^k: with the Feynman correction
-      if (Feynman_correction_separate) {
-        auto Sk_full = Sk;
-        for (std::size_t k = 0; k < Sk_full->size(); ++k) {
-          for (auto &[index, value] : Sk_full->at(k)) {
-            value += Sk_Feynman_correction.Q(int(k), index);
-          }
-        }
-        hk = MBPT::average_hk(Sk_full, qk, cis2_basis, max_k_Coulomb);
-      } else {
-        hk = MBPT::average_hk(Sk, qk, cis2_basis, max_k_Coulomb);
-      }
+      hk = MBPT::average_hk(Sk, qk, cis2_basis, max_k_Coulomb);
       std::cout << "Extrapolating Sigma_2 beyond cis2 basis, using average "
                    "correction ratios:\n ";
       std::cout << " hk = [";
@@ -953,19 +924,32 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   fmt::print("Running CI for {} J/pi's\n\n", J_pi_list.size());
   std::cout << std::flush;
 
+  bool BW_failed = false;
   {
     IO::ChronoTimer t2("CI Eigenvalues");
     for (std::size_t i = 0; i < J_pi_list.size(); ++i) {
       const auto [twoj, pi] = J_pi_list.at(i);
 
-      levels.at(i) = run_CI(
-        ci_sp_basis, twoj, pi, num_electrons, num_solutions, all_below_cm, h1,
-        qk, Bk, Sk, include_Sigma2, print_details, read_only, std::cout,
-        ci_fname, find_E0 ? &s1_corr : nullptr, hk,
-        dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver, BW_each_level,
-        config_space, include_Sigma3 ? &sigma3 : nullptr,
-        Sk_Feynman_correction.emptyQ() ? nullptr : &Sk_Feynman_correction);
+      levels.at(i) =
+        run_CI(ci_sp_basis, twoj, pi, num_electrons, num_solutions,
+               all_below_cm, h1, qk, Bk, Sk, include_Sigma2, print_details,
+               read_only, std::cout, ci_fname, find_E0 ? &s1_corr : nullptr, hk,
+               dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver, BW_each_level,
+               config_space, include_Sigma3 ? &sigma3 : nullptr, &BW_failed);
+      if (BW_failed)
+        break;
     }
+  }
+
+  // If the Brillouin-Wigner Sigma_2 failed for any J/pi (see run_CI), every
+  // J/pi is run again with DFK denominators, so that all levels are found
+  // with the same Hamiltonian
+  if (BW_failed) {
+    fmt2::warning();
+    fmt::print(": Brillouin-Wigner Σ_2 failed; using DFK denominators\n\n");
+    auto input_DFK = input;
+    input_DFK.add(IO::Option{"denominators", "DFK"});
+    return configuration_interaction(input_DFK, wf);
   }
 
   //----------------------------------------------------------------------------
@@ -1051,7 +1035,6 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   out.integrals.Sk = std::move(Sk);
   out.integrals.dSk = std::move(dSk);
   out.integrals.E0_sigma2 = E0_sigma2;
-  out.integrals.Sk_Feynman_correction = std::move(Sk_Feynman_correction);
   out.integrals.hk = std::move(hk);
   out.integrals.s1_corr = std::move(s1_corr);
   out.integrals.sigma3 = std::move(sigma3);
@@ -1147,8 +1130,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
               const Sigma1Correction *s1c, const std::vector<double> &hk,
               const Coulomb::WkTable *dSk, double E0_sigma2, Solver solver,
               bool BW_each_level, const ConfigurationSpace &config_space,
-              const Sigma3Parameters *sigma3,
-              const Coulomb::WkTable *Sk_Feynman_correction) {
+              const Sigma3Parameters *sigma3, bool *BW_failed) {
 
   auto printPi = [](int pi) { return pi > 0 ? "even" : "odd"; };
 
@@ -1215,13 +1197,14 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     // that we do not use.
     // Unconverged (Davidson) solutions are used, but not kept for re-use
     bool write_solutions = true;
+    bool E0_converged = true;
     if (davidson) {
       using SparseMatrix = LinAlg::SparseSymmetricMatrix<double>;
       SparseMatrix Hci;
       if (s1c != nullptr) {
         Hci = CI::iterate_E0<SparseMatrix>(&psi, *s1c, h1, qk, br_ptr, s2_ptr,
                                            hk, dSk, E0_sigma2, outstream, 0,
-                                           sigma3, Sk_Feynman_correction);
+                                           sigma3, &E0_converged);
       } else {
         // No correction (or iteration disabled): single matrix
         Hci = CI::construct_Hci<SparseMatrix>(psi, h1, qk, br_ptr, s2_ptr, s1c,
@@ -1260,9 +1243,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     } else {
       LinAlg::Matrix<double> Hci;
       if (s1c != nullptr) {
-        Hci =
-          CI::iterate_E0(&psi, *s1c, h1, qk, br_ptr, s2_ptr, hk, dSk, E0_sigma2,
-                         outstream, 0, sigma3, Sk_Feynman_correction);
+        Hci = CI::iterate_E0(&psi, *s1c, h1, qk, br_ptr, s2_ptr, hk, dSk,
+                             E0_sigma2, outstream, 0, sigma3, &E0_converged);
       } else {
         // No correction (or iteration disabled): single matrix
         Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr, s1c, hk, nullptr,
@@ -1301,7 +1283,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
           const auto Hci =
             CI::iterate_E0<LinAlg::SparseSymmetricMatrix<double>>(
               &psi_level, s1_level, h1, qk, br_ptr, s2_ptr, hk, dSk, E0_sigma2,
-              outstream, i, sigma3, Sk_Feynman_correction);
+              outstream, i, sigma3, &E0_converged);
           if (!psi_level.solve(Hci, int(i) + 1, {}, outstream).converged) {
             fmt::print(
               outstream,
@@ -1309,12 +1291,27 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
             write_solutions = false;
           }
         } else {
-          const auto Hci = CI::iterate_E0(&psi_level, s1_level, h1, qk, br_ptr,
-                                          s2_ptr, hk, dSk, E0_sigma2, outstream,
-                                          i, sigma3, Sk_Feynman_correction);
+          const auto Hci =
+            CI::iterate_E0(&psi_level, s1_level, h1, qk, br_ptr, s2_ptr, hk,
+                           dSk, E0_sigma2, outstream, i, sigma3, &E0_converged);
           psi_level.solve(Hci, int(i) + 1);
         }
         psi.replace_solution(i, psi_level.energy(i), psi_level.coefs(i));
+      }
+    }
+
+    // The Brillouin-Wigner Sigma_2 can fail: E0 may not converge, or a
+    // shifted S^k may lie next to its pole, which gives unphysical states. No
+    // level lies below the lowest zeroth-order configuration (the repulsion
+    // between the valence electrons is positive)
+    if (dSk != nullptr) {
+      const auto E_lowest_configuration =
+        num_electrons * DiracSpinor::min_En(ci_sp_basis);
+      if (!E0_converged || psi.energy(0) < E_lowest_configuration) {
+        write_solutions = false;
+        if (BW_failed != nullptr) {
+          *BW_failed = true;
+        }
       }
     }
 
