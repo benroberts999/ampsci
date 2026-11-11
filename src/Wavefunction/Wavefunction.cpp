@@ -772,7 +772,7 @@ int Wavefunction::Ncore() const {
 }
 
 //==============================================================================
-std::string Wavefunction::identity() const {
+std::string Wavefunction::identity(bool from_spectrum) const {
   const auto lab = m_run_label == "" ? "" : "_" + m_run_label;
 
   const std::string bq = vrad() && m_HF && m_HF->vBreit() ? "bq" :
@@ -782,7 +782,8 @@ std::string Wavefunction::identity() const {
   // 6 significant figures resolves any variation above the 1e-5 cut-off
   const std::string va2 =
     std::abs(dalpha2()) > 1.0e-5 ? fmt::format("_{:.6g}", 1.0 + dalpha2()) : "";
-  return atomicSymbol() + std::to_string(Zion()) + bq + va2 + lab;
+  const auto bru = from_spectrum ? "_bru" : "";
+  return atomicSymbol() + std::to_string(Zion()) + bq + va2 + lab + bru;
 }
 
 //==============================================================================

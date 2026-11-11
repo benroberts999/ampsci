@@ -272,9 +272,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     std::cout << "Not using Brueckner method: using regular basis\n";
   }
 
-  // aditional output string for br method:
   using namespace std::string_literals;
-  const auto br_string = Brueckner ? "_bru"s : "";
 
   const auto read_only = input.get("read_only", false);
   if (read_only) {
@@ -473,7 +471,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     std::cout << std::flush;
 
     const auto qk_filename =
-      input.get("qk_file", wf.identity() + br_string + ".qk.abf");
+      input.get("qk_file", wf.identity(Brueckner) + ".qk.abf");
 
     // Try to read from disk (may already have calculated Qk)
     qk.read(qk_filename);
@@ -582,7 +580,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
                                 DiracSpinor::state_config(core_s1) + ";" +
                                 std::to_string(n_min_core) + ";" +
                                 std::to_string(max_k_Coulomb) + ";";
-      const auto ds1_basename = wf.identity() + br_string + "_" +
+      const auto ds1_basename = wf.identity(Brueckner) + "_" +
                                 DiracSpinor::state_config(excited_s1) + "_" +
                                 qip::hash_string(ds1_settings);
       const auto ds1_filename =
@@ -644,7 +642,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
     std::cout << std::flush;
 
     const auto bk_filename =
-      input.get("bk_file", wf.identity() + br_string + ".bk.abf");
+      input.get("bk_file", wf.identity(Brueckner) + ".bk.abf");
 
     Bk = CI::calculate_Bk(bk_filename, wf.vHF()->vBreit(), Breit_basis,
                           max_k_Coulomb, no_new_integralsQ);
