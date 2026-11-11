@@ -255,8 +255,9 @@ TDHF::form_hFcore(const DiracOperator::TensorOperator *h) const {
 
 //==============================================================================
 std::pair<double, std::string>
-TDHF::eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
-               bool relative) const {
+eps_dPsi(const std::vector<DiracSpinor> &core,
+         const std::vector<std::vector<DiracSpinor>> &X_old,
+         const std::vector<std::vector<DiracSpinor>> &X_new, bool relative) {
 
   // Relative L2 change of the (undamped) X spinors, summed over all core
   // orbitals and channels: ratio = Sum|dX|^2 / Sum|X_new|^2. Returns sqrt(ratio)
@@ -269,10 +270,10 @@ TDHF::eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
   double dF2 = 0.0;
   double worst = 0.0;
   std::string worst_lab;
-  for (std::size_t ib = 0; ib < m_core.size(); ++ib) {
-    for (std::size_t i = 0; i < Xnew[ib].size(); ++i) {
-      const auto &nw = Xnew[ib][i];
-      const auto d = (nw - m_X[ib][i]).norm2();
+  for (std::size_t ib = 0; ib < core.size(); ++ib) {
+    for (std::size_t i = 0; i < X_new[ib].size(); ++i) {
+      const auto &nw = X_new[ib][i];
+      const auto d = (nw - X_old[ib][i]).norm2();
       const auto n = nw.norm2();
       DdF2 += d;
       dF2 += n;
@@ -280,7 +281,7 @@ TDHF::eps_dPsi(const std::vector<std::vector<DiracSpinor>> &Xnew,
       const auto e = n == 0.0 ? 0.0 : d / n;
       if (e > worst) {
         worst = e;
-        worst_lab = m_core[ib].shortSymbol() + "," + nw.shortSymbol();
+        worst_lab = core[ib].shortSymbol() + "," + nw.shortSymbol();
       }
     }
   }
@@ -335,7 +336,7 @@ std::pair<double, std::string> TDHF::tdhf_core_it(double omega,
   }
 
   // Measure convergence on the undamped X solution, before damping.
-  const auto eps = eps_dPsi(Xs, m_eps_sqrt);
+  const auto eps = eps_dPsi(m_core, m_X, Xs, m_eps_sqrt);
 
   // Damp the solution (for the next iteration) and store.
 #pragma omp parallel for
@@ -541,7 +542,7 @@ void TDHF::solve_core_anderson(double omega, int max_its, bool print) {
   qip::LiveMessage status(
     fmt::format("TDHF {:4s} (w={:.4f}): ", m_h->name(), omega), print);
   for (; it < max_its; it++) {
-    const auto x = dPsi_vector();
+    const auto x = dPsi_vector(m_X, m_Y);
     // Undamped map application: m_X, m_Y now hold G(x)
     eps = tdhf_core_it(omega, 0.0);
 
@@ -551,8 +552,8 @@ void TDHF::solve_core_anderson(double omega, int max_its, bool print) {
       break; // converged (or broken)
 
     // Anderson extrapolation over the kept history: x = sum_i c_i g_i
-    history.push(x, dPsi_vector());
-    set_dPsi_vector(history.mix());
+    history.push(x, dPsi_vector(m_X, m_Y));
+    set_dPsi_vector(history.mix(), m_X, m_Y);
   }
 
   // Soft visual warning, relative to the convergence target.
@@ -576,9 +577,11 @@ bool TDHF::above_ionisation_threshold(double omega) const {
 }
 
 //==============================================================================
-std::vector<double> TDHF::dPsi_vector() const {
+std::vector<double>
+dPsi_vector(const std::vector<std::vector<DiracSpinor>> &X,
+            const std::vector<std::vector<DiracSpinor>> &Y) {
   std::vector<double> state;
-  for (const auto *set : {&m_X, &m_Y}) {
+  for (const auto *set : {&X, &Y}) {
     for (const auto &Fs : *set) {
       for (const auto &F : Fs) {
         state.insert(state.end(), F.f().cbegin(), F.f().cend());
@@ -590,9 +593,11 @@ std::vector<double> TDHF::dPsi_vector() const {
 }
 
 //==============================================================================
-void TDHF::set_dPsi_vector(const std::vector<double> &state) {
+void set_dPsi_vector(const std::vector<double> &state,
+                     std::vector<std::vector<DiracSpinor>> &X,
+                     std::vector<std::vector<DiracSpinor>> &Y) {
   std::size_t i = 0;
-  for (auto *set : {&m_X, &m_Y}) {
+  for (auto *set : {&X, &Y}) {
     for (auto &Fs : *set) {
       for (auto &F : Fs) {
         std::copy_n(state.cbegin() + long(i), F.f().size(), F.f().begin());
