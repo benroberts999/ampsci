@@ -68,7 +68,11 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
       "not use QkTable; if exists, will read it in; if doesn't exist, will "
       "create it and write to disk. If 'true' will use default filename. "
       "Save time (10x) at cost of memory. Note: Using QkTable implies "
-      "legs=basis [true]"},
+      "legs=basis (legs=spectrum, if spectrum=true) [true]"},
+     {"spectrum",
+      "Use the Spectrum, in place of the Basis, for all internal lines of the "
+      "diagrams (Brueckner orbitals, if the Spectrum includes correlations). "
+      "A test; the QkTable then goes to its own default file [false]"},
      {"n_minmax", "list; min,max n for core/excited: (1,inf)dflt"},
      {"k_cut",
       "Maximum multipolarity k to include in Coulomb Qk. Default: all"},
@@ -100,10 +104,19 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto h = DiracOperator::generate(oper, h_options, wf);
 
+  // The states for the internal lines of the diagrams
+  const auto use_spectrum = input.get("spectrum", false);
+  if (use_spectrum && wf.spectrum().empty()) {
+    fmt2::error();
+    std::cout << ": spectrum = true requires a Spectrum\n";
+    return;
+  }
+  const auto &internal_basis = use_spectrum ? wf.spectrum() : wf.basis();
+
   const auto Qk_file_t = input.get("Qk_file", std::string{"true"});
   const std::string Qk_file =
     Qk_file_t != "false" ?
-      Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t :
+      Qk_file_t == "true" ? wf.identity(use_spectrum) + ".qk.abf" : Qk_file_t :
       "";
 
   const auto k_cut = input.get("k_cut", 99);
@@ -116,8 +129,10 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Including core-state matrix elements\n";
   }
 
-  const auto legs_str =
-    Qk_file == "" ? input.get("legs", std::string{"hf"}) : "basis";
+  // With a QkTable, the legs are the states of the table
+  const auto legs_str = Qk_file == "" ? input.get("legs", std::string{"hf"}) :
+                        use_spectrum  ? "spectrum" :
+                                        "basis";
 
   // External-leg states: core (optionally), then valence, taken from the
   // requested source (hf/basis/spectrum/brueckner)
@@ -238,6 +253,25 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
   else
     std::cout << "Using HF valence states for diagram legs (external states)\n";
 
+  if (use_spectrum) {
+    std::cout << "Using spectrum for the internal lines of the diagrams\n";
+    // The correlation potential shifts the spectrum energies: the split (by
+    // energy) must still be that of the Hartree-Fock core
+    const auto num_below_fermi =
+      DiracSpinor::split_by_energy(internal_basis, wf.FermiLevel())
+        .first.size();
+    if (num_below_fermi != wf.core().size()) {
+      fmt2::warning();
+      fmt::print(": {} spectrum states lie below the Fermi level, but there "
+                 "are {} core states\n",
+                 num_below_fermi, wf.core().size());
+    }
+    if (!have_brueckner) {
+      std::cout << "Note: the Brueckner orbital correction is then also "
+                   "calculated with the spectrum\n";
+    }
+  }
+
   if (!Qk_file.empty()) {
     std::cout << "Will read/write Qk integrals to file: " << Qk_file << "\n";
   } else {
@@ -267,12 +301,12 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-  if (wf.core().empty() || wf.valence().empty() || wf.basis().empty())
+  if (wf.core().empty() || wf.valence().empty() || internal_basis.empty())
     return;
 
   // Construct SR object (holds basis, Qk integrals, screening):
-  MBPT::StructureRad sr(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file,
-                        k_cut, fk, etak);
+  MBPT::StructureRad sr(internal_basis, wf.FermiLevel(), {n_min, n_max},
+                        Qk_file, k_cut, fk, etak);
   std::cout << std::flush;
 
   // Frequency choices: the operator is pinned only if omega_operator was

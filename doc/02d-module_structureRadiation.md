@@ -23,6 +23,9 @@ Aliases: the module may also be run as `Module::StructureRad{}` or
 * Requires a basis (B-splines).
 * The `legs` option selects which states are used for the external lines
   (HF valence, basis, spectrum, or Brueckner orbitals).
+* The `spectrum` option uses the spectrum, in place of the basis, for all
+  internal lines of the diagrams (a test). Its Coulomb integrals go to a
+  separate `Qk_file`.
 * The `Qk_file` option caches the Coulomb integrals to disk: roughly 10x
   faster, at the cost of memory. An existing file is re-used, and any
   missing integrals are calculated and appended automatically.
@@ -61,7 +64,7 @@ Module::StructureRadiation{
   options{}
     // options specific to operator; blank by dflt
   rpa;
-    // true(=TDHF), false, TDHF, basis, diagram [true]
+    // true(=TDHF), false, TDHF, basis, diagram, cntm [true]
   omega;
     // Text or number. Frequency for RPA and the SR
     // tables/denominators. Put 'each' to solve at correct
@@ -93,7 +96,12 @@ Module::StructureRadiation{
     // it in; if doesn't exist, will create it and write to
     // disk. If 'true' will use default filename. Save time
     // (10x) at cost of memory. Note: Using QkTable implies
-    // legs=basis
+    // legs=basis (legs=spectrum, if spectrum=true) [true]
+  spectrum;
+    // Use the Spectrum, in place of the Basis, for all
+    // internal lines of the diagrams (Brueckner orbitals,
+    // if the Spectrum includes correlations). A test; the
+    // QkTable then goes to its own default file [false]
   n_minmax;
     // list; min,max n for core/excited: (1,inf)dflt
   k_cut;
