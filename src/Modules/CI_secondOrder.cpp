@@ -117,17 +117,21 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   SR_input.check(
     {{"", "If this block is included, structure radiation will be included"},
-     {"Qk_file", "true/false/filename - SR: filename for QkTable file. If "
-                 "blank will not use QkTable; if exists, will read it in; if "
-                 "doesn't exist, will create it and write to disk. If 'true' "
-                 "will use default filename"},
      {"n_minmax", "list; min,max n for core/excited (internal): [1,inf]"},
      {"n_max_legs",
       "Max n of the CI basis states that SR is applied to. SR is only "
       "meaningful between physical states, and the high-n states of the CI "
       "basis are cavity states [default: max_n_core + 3]"},
      {"norm", "Include the normalisation of states, applied to the "
-              "single-particle matrix elements [true]"}});
+              "single-particle matrix elements [true]"},
+     {"omega", "Structure radiation denominators at the frequency of each "
+               "operator (true), or at zero (false): a test of the frequency "
+               "dependence, usually very weak [true]"},
+     {"Qk_file", "true/false/filename: QkTable of Coulomb integrals; read if "
+                 "it exists, otherwise calculated and written. true: default "
+                 "filename. false: no QkTable (~10x slower, less memory). "
+                 "Note: with a QkTable, the basis states are used for the "
+                 "legs [true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -236,13 +240,14 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto sr_n_max =
     SR_input.get("n_max_legs", DiracSpinor::max_n(wf.core()) + 3);
   const auto sr_norm = SR_input.get("norm", true);
+  const auto sr_omega = SR_input.get("omega", true);
 
   std::optional<MBPT::StructureRad> sr;
   if (t_SR_input) {
     const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
     const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
-    const auto Qk_file_t = SR_input.get("Qk_file", "false"s);
+    const auto Qk_file_t = SR_input.get("Qk_file", "true"s);
     const std::string Qk_file =
       Qk_file_t != "false" ?
         (Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t) :
@@ -250,6 +255,9 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\nIncluding structure radiation"
               << (sr_norm ? " and normalisation:\n" : " (no normalisation):\n");
     fmt::print("Applied to CI basis states with n <= {}\n", sr_n_max);
+    if (!sr_omega) {
+      std::cout << "Structure radiation denominators at omega = 0\n";
+    }
     sr =
       MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
   }
@@ -375,20 +383,22 @@ void CI_secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
       }
 
       std::cout << "\nFill matrix element tables..." << std::flush;
+      // The RPA on the internal lines of the structure radiation is the
+      // component at the operator's frequency (emission, if negative)
       if (sr) {
-        sr->solve_core(ht.get(), rpa_t.get());
+        sr->solve_core(ht.get(), rpa_t.get(), omega);
       }
       // The normalisation of states goes onto the single-particle matrix
       // elements, as in the single-valence case
-      t_me =
-        Amplitudes::me_table(ints.ci_basis, ht.get(), rpa_t.get(),
-                             sr ? &*sr : nullptr, omega, sr_n_max, sr_norm);
+      t_me = Amplitudes::me_table(ints.ci_basis, ht.get(), rpa_t.get(),
+                                  sr ? &*sr : nullptr, omega, sr_n_max, sr_norm,
+                                  true, sr_omega ? omega : 0.0);
       if (sr) {
-        sr->solve_core(hs.get(), rpa_s.get());
+        sr->solve_core(hs.get(), rpa_s.get(), omega_s);
       }
-      s_me =
-        Amplitudes::me_table(ints.ci_basis, hs.get(), rpa_s.get(),
-                             sr ? &*sr : nullptr, omega_s, sr_n_max, sr_norm);
+      s_me = Amplitudes::me_table(ints.ci_basis, hs.get(), rpa_s.get(),
+                                  sr ? &*sr : nullptr, omega_s, sr_n_max,
+                                  sr_norm, true, sr_omega ? omega_s : 0.0);
       std::cout << "done\n" << std::flush;
       table_freqs = std::pair{omega, omega_s};
     }
