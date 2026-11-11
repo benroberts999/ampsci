@@ -19,18 +19,21 @@
 namespace ExternalField {
 
 //==============================================================================
-TDHF_DCP::TDHF_DCP(const ExternalField::TDHF *const S,
-                   const ExternalField::TDHF *const T, int K,
+// Rank K, parity pi_t*pi_s. Matrix elements of the pair are imaginary if
+// those of exactly one of t, s are
+TDHF_DCP::TDHF_DCP(const ExternalField::TDHF *const T,
+                   const ExternalField::TDHF *const S, int K,
                    const HF::HartreeFock *const hf)
-  : CorePolarisation(
-      K, S->get_operator()->parity() * T->get_operator()->parity(),
-      S->get_operator()->parity() xor T->get_operator()->parity()),
+  : CorePolarisation(K, T->parity() * S->parity(), T->imagQ() != S->imagQ()),
     p_hf((assert(hf != nullptr), hf)),
     m_core(hf->core()),
     m_alpha(hf->alpha()),
     p_VBr(hf->vBreit()),
-    m_S(S),
-    m_T(T) {
+    m_T(T),
+    m_S(S) {
+
+  assert(Angular::triangle(T->rank(), S->rank(), K) != 0 &&
+         "K must satisfy the triangle rule with the ranks of t and s");
 
   initialise_dPsi();
 }
@@ -125,6 +128,18 @@ DiracSpinor TDHF_DCP::solve_dPsi(const DiracSpinor &Fa, const double omega,
 
   [[maybe_unused]] const auto imag = m_imag;
 
+  const auto rhs = source_rhs(Fa, XorY, kappa_x);
+
+  const auto vl = p_hf->vlocal(Angular::l_k(Fa.kappa()));
+  const auto &Hmag = p_hf->Hmag(Angular::l_k(Fa.kappa()));
+  // The l from X ? or from Fv ?
+  return ExternalField::solveMixedState(Fa, ww, vl, m_alpha, m_core, rhs,
+                                        1.0e-9, nullptr, p_VBr, Hmag);
+}
+
+//==============================================================================
+DiracSpinor TDHF_DCP::source_rhs(const DiracSpinor &Fa, dPsiType XorY,
+                                 const int kappa_x) const {
   const auto s = m_S->get_operator();
   const auto t = m_T->get_operator();
   //getting states
@@ -146,24 +161,18 @@ DiracSpinor TDHF_DCP::solve_dPsi(const DiracSpinor &Fa, const double omega,
     rhs += angular_factor * m_T->dV_rhs(kappa_x, XA);
   }
 
-  const auto vl = p_hf->vlocal(Angular::l_k(Fa.kappa()));
-  const auto &Hmag = p_hf->Hmag(Angular::l_k(Fa.kappa()));
-  // The l from X ? or from Fv ?
-  return ExternalField::solveMixedState(Fa, ww, vl, m_alpha, m_core, rhs,
-                                        1.0e-9, nullptr, p_VBr, Hmag);
+  return rhs;
 }
 
 //==============================================================================
-
-//==============================================================================
-std::vector<std::vector<DiracSpinor>> TDHF_DCP::form_hFcore() const {
+std::vector<std::vector<DiracSpinor>>
+TDHF_DCP::form_hFcore(dPsiType XorY) const {
   std::vector<std::vector<DiracSpinor>> hFcore(m_core.size());
-  for (auto ic = 0ul; ic < m_X.size(); ic++) {
+  for (auto ic = 0ul; ic < m_core.size(); ic++) {
     const auto &Fc = m_core[ic];
-    hFcore.reserve(m_X[ic].size()); // each h projection
-    for (auto beta = 0ul; beta < m_X[ic].size(); beta++) {
-      const auto &Xx = m_X[ic][beta];
-      hFcore[ic].push_back(m_h->reduced_rhs(Xx.kappa(), Fc));
+    hFcore[ic].reserve(m_X[ic].size()); // one for each channel
+    for (const auto &X_beta : m_X[ic]) {
+      hFcore[ic].push_back(source_rhs(Fc, XorY, X_beta.kappa()));
     }
   }
   return hFcore;
@@ -302,14 +311,8 @@ void TDHF_DCP::solve_core(const double omega, int max_its, const bool print) {
 // does it matter if a or b is in the core?
 double TDHF_DCP::dV(const DiracSpinor &Fn, const DiracSpinor &Fm,
                     bool conj) const {
-  const auto s = conj && m_h->imaginaryQ() ? -1 : 1; // careful. OK?
+  const auto s = conj && m_imag ? -1 : 1; // careful. OK?
   return s * Fn * dV_rhs(Fn.kappa(), Fm, conj);
-}
-
-//==============================================================================
-double TDHF_DCP::dV(const DiracSpinor &Fn, const DiracSpinor &Fm) const {
-  const auto conj = Fm.en() > Fn.en();
-  return dV(Fn, Fm, conj);
 }
 
 //==============================================================================
