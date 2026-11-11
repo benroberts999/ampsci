@@ -22,15 +22,15 @@ namespace ExternalField {
 TDHF_DCP::TDHF_DCP(const ExternalField::TDHF *const S,
                    const ExternalField::TDHF *const T, int K,
                    const HF::HartreeFock *const hf)
-    : CorePolarisation(
-          K, S->get_operator()->parity() * T->get_operator()->parity(),
-          S->get_operator()->parity() xor T->get_operator()->parity()),
-      p_hf((assert(hf != nullptr), hf)),
-      m_core(hf->core()),
-      m_alpha(hf->alpha()),
-      p_VBr(hf->vBreit()),
-      m_S(S),
-      m_T(T) {
+  : CorePolarisation(
+      K, S->get_operator()->parity() * T->get_operator()->parity(),
+      S->get_operator()->parity() xor T->get_operator()->parity()),
+    p_hf((assert(hf != nullptr), hf)),
+    m_core(hf->core()),
+    m_alpha(hf->alpha()),
+    p_VBr(hf->vBreit()),
+    m_S(S),
+    m_T(T) {
 
   initialise_dPsi();
 }
@@ -84,7 +84,7 @@ const std::vector<DiracSpinor> &TDHF_DCP::get_dPsis(const DiracSpinor &Fc,
                                                     dPsiType XorY) const {
 
   const auto index = static_cast<std::size_t>(
-      std::find(m_core.cbegin(), m_core.cend(), Fc) - m_core.cbegin());
+    std::find(m_core.cbegin(), m_core.cend(), Fc) - m_core.cbegin());
   assert(index < m_X.size());
   return XorY == dPsiType::X ? m_X[index] : m_Y[index];
 }
@@ -123,7 +123,7 @@ DiracSpinor TDHF_DCP::solve_dPsi(const DiracSpinor &Fa, const double omega,
   if (omega < 0.0)
     conj = !conj;
 
-  const auto imag = m_imag;
+  [[maybe_unused]] const auto imag = m_imag;
 
   const auto s = m_S->get_operator();
   const auto t = m_T->get_operator();
@@ -170,8 +170,8 @@ std::vector<std::vector<DiracSpinor>> TDHF_DCP::form_hFcore() const {
 }
 
 //==============================================================================
-std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega,
-                                                      double eta_damp) {
+std::pair<double, std::string>
+TDHF_DCP::tdhf_core_it(double omega, [[maybe_unused]] double eta_damp) {
   // solve TDHF_DCP equation for core - single iteration
   using namespace qip::overloads;
   const bool staticQ = std::abs(omega) < 1.0e-10;
@@ -183,7 +183,7 @@ std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega,
   auto Ys = m_Y;
   std::vector<std::pair<double, std::string>> epss(m_core.size());
 
-  const auto eps_ms = 1.0e-10;
+  [[maybe_unused]] const auto eps_ms = 1.0e-10;
 
   double DdF2 = 0.0;
   double dF2 = 0.0;
@@ -191,7 +191,7 @@ std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega,
   for (auto ib = 0ul; ib < m_core.size(); ib++) {
     const auto &Fb = m_core.at(ib);
 
-    const auto &hFbs = m_hFcore[ib];
+    [[maybe_unused]] const auto &hFbs = m_hFcore[ib];
 
     // solve for dF, and damp
     Xs[ib] = solve_dPsis(Fb, omega, dPsiType::X);
@@ -231,7 +231,7 @@ std::pair<double, std::string> TDHF_DCP::tdhf_core_it(double omega,
     return a.first < b.first;
   };
   const auto worst_orbital =
-      *std::max_element(epss.begin(), epss.end(), comp_first);
+    *std::max_element(epss.begin(), epss.end(), comp_first);
 
   m_X = std::move(Xs);
   m_Y = std::move(Ys);
@@ -247,7 +247,7 @@ void TDHF_DCP::solve_core(const double omega, int max_its, const bool print) {
 
   if (print) {
     const auto name =
-        m_S->get_operator()->name() + "+" + m_T->get_operator()->name();
+      m_S->get_operator()->name() + "+" + m_T->get_operator()->name();
     printf("TDHF_DCP %s (w=%.4f): ", name.c_str(), omega);
     std::cout << std::flush;
   }

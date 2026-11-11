@@ -84,17 +84,17 @@ public:
 
   //! Calculate reduced matrix element <a||dV||b> or <a||dV*||b>.
   //! Will exclude orbital 'Fexcl' from sum over core (for tests only)
-  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb, bool conj) const;
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb,
+            bool conj) const override;
 
   //! As above, but automatically determines if 'conjugate' version
   //! required (Based on sign of [en_a-en_b])
-  virtual double dV(const DiracSpinor &Fa,
-                    const DiracSpinor &Fb) const override final;
+  double dV(const DiracSpinor &Fa, const DiracSpinor &Fb) const;
 
   //! Returns "reduced partial matrix element RHS": dV||Fb}.
   //! Note: Fa * dV_rhs(..) equiv to dV(..)
   DiracSpinor dV_rhs(const int kappa_n, const DiracSpinor &Fm,
-                     bool conj = false) const;
+                     bool conj = false) const override;
 
   //! Returns const ref to dPsi orbitals for given core orbital Fc
   const std::vector<DiracSpinor> &get_dPsis(const DiracSpinor &Fc,

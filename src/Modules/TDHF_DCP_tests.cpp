@@ -1,11 +1,18 @@
 #include "DiracOperator/include.hpp" //For E1 operator
 #include "ExternalField/TDHF_DCP.hpp"
 #include "IO/InputBlock.hpp"
-#include "Modules/exampleModule.hpp"
+#include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp" // For GHz unit conversion
 #include "Wavefunction/Wavefunction.hpp"
 
 namespace Module {
+
+// Declare, register, then define below.
+void TDHF_DCP_tests(const IO::InputBlock &input, const Wavefunction &wf);
+namespace {
+const Register r_TDHF_DCP_tests{
+  "TDHF_DCP_tests", "Module for testing DCP by TDHF", &TDHF_DCP_tests};
+} // namespace
 
 void TDHF_DCP_tests(const IO::InputBlock &input, const Wavefunction &wf) {
   (void)input; // suppress unused variable warning
