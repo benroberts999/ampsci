@@ -2,6 +2,7 @@
 #include "CorePolarisation.hpp"
 #include "TDHF.hpp"
 #include <string>
+#include <utility>
 #include <vector>
 class DiracSpinor;
 namespace DiracOperator {
@@ -166,19 +167,132 @@ public:
   // void print(const std::string &ofname = "dPsi.txt") const;
 
 private:
+  /*!
+    @brief Sets up the second-order corrections dX, dY (as zero): one for
+    each core orbital and each channel allowed by the selection rules.
+  */
   void initialise_dPsi();
 
-  // Single iteration of TDHF equations
+  /*!
+    @brief Single iteration of the TDHF equations.
+
+    @param omega     Frequency.
+    @param eta_damp  Damping factor.
+
+    @return {eps, label of the worst channel}.
+  */
   std::pair<double, std::string> tdhf_core_it(double omega, double eta_damp);
-  // Forms the set of sources of the second-order equations, for all core
-  // orbitals and all channels: of the dX equations (XorY = X), or the dY
-  // equations (XorY = Y). Second-order analogue of h*Fc.
+
+  /*!
+    @brief Forms the sources of the second-order equations, for all core
+    orbitals and all channels.
+
+    @details
+    Second-order analogue of the set of \f$ [t\phi_a]_\beta \f$ of TDHF:
+    the part of the right-hand side that is fixed by the first-order
+    solutions. See source_rhs().
+
+    @param XorY  X: sources of the dX (\f$ ++ \f$) equations;
+                 Y: of the dY (\f$ -- \f$) equations.
+
+    @return Sources, indexed as dX and dY: [core orbital][channel].
+  */
   std::vector<std::vector<DiracSpinor>> form_hFcore(dPsiType XorY) const;
-  // Source of the second-order equation for core orbital Fa, in the channel
-  // kappa_beta: the first-order operators acting on the first-order
-  // corrections
+
+  /*!
+    @brief Source of the second-order equation for one core orbital and
+    channel, from the first-order operators and corrections.
+
+    @details
+    For the \f$ ++ \f$ equation (@p XorY = X), returns
+    \f$ [\sigma^a_{++}]^K_\beta - [\lambda^a_{++}]^K_\beta \f$, where
+    \f[
+      [\sigma^a_{++}]^K_\beta = \sum_\alpha\Big(
+        c^1_{\beta\alpha a}\,[\tilde t_+[\varphi^a_{s+}]_\alpha]_\beta
+        + c^2_{\beta\alpha a}\,[\tilde s_+[\varphi^a_{t+}]_\alpha]_\beta
+      \Big) ,
+    \f]
+    \f[
+      [\lambda^a_{++}]^K_\beta =
+        c^2_{\beta aa}\,\redmatel{a}{\tilde t_+}{a}\,[\varphi^a_{s+}]_\beta
+        + c^1_{\beta aa}\,\redmatel{a}{\tilde s_+}{a}\,[\varphi^a_{t+}]_\beta .
+    \f]
+    For the \f$ -- \f$ equation (@p XorY = Y), the same with the \f$ - \f$
+    components of the operators and corrections, and
+    \f$ c^{1,2}_{\beta\alpha a} \to c^{2,1}_{a\alpha\beta} \f$.
+    The \f$ \delta^2V \f$ term is not included.
+
+    @param Fa          Core orbital \f$ \phi_a \f$.
+    @param XorY        X: the \f$ ++ \f$ equation; Y: the \f$ -- \f$ one.
+    @param kappa_beta  Kappa of the channel \f$ \beta \f$.
+
+    @return The source, a spinor of kappa @p kappa_beta.
+
+    @note The first-order corrections Xt, Xs are taken to be the \f$ + \f$
+    components of \f$ t \f$ and \f$ s \f$: \f$ \omega_t, \omega_s \ge 0 \f$.
+  */
   DiracSpinor source_rhs(const DiracSpinor &Fa, dPsiType XorY,
                          const int kappa_beta) const;
+
+  /*!
+    @brief Angular coefficients of the terms of source_rhs() that pass
+    through an intermediate state of angular momentum j_n.
+
+    @details
+    In terms of the coefficients
+    \f[
+      c^1_{wnv} = (-1)^{K+j_w+j_v}\sqrt{[K]}
+        \sixj{K}{k_s}{k_t}{j_n}{j_w}{j_v} ,
+      \qquad
+      c^2_{wnv} = (-1)^{k_t+k_s+j_w+j_v}\sqrt{[K]}
+        \sixj{K}{k_t}{k_s}{j_n}{j_w}{j_v} :
+    \f]
+    - \f$ ++ \f$ equation:
+      \f$ \{c^1_{\beta na},\, c^2_{\beta na}\} \f$
+    - \f$ -- \f$ equation:
+      \f$ \{c^2_{an\beta},\, c^1_{an\beta}\} \f$
+
+    @param twoj_a     2j of the core orbital.
+    @param twoj_n     2j of the intermediate state.
+    @param twoj_beta  2j of the channel.
+    @param conj       False: the \f$ ++ \f$ equation; true: the \f$ -- \f$ one.
+
+    @return {c_ts, c_st}: c_ts for t acting on an s correction; c_st for
+    s acting on a t correction.
+  */
+  std::pair<double, double> source_coefs(int twoj_a, int twoj_n, int twoj_beta,
+                                         bool conj) const;
+
+  /*!
+    @brief First-order operator, with its core polarisation, acting on F:
+    reduced projection onto kappa.
+
+    @details
+    \f$ [\tilde h F]_\kappa \f$, with
+    \f$ \tilde h = h + \delta V^h \f$, for \f$ h = t \f$ or \f$ s \f$.
+
+    @param h_tilde  First-order TDHF of \f$ h \f$: holds the operator and
+                    its \f$ \delta V^h \f$.
+    @param kappa    Kappa of the projection.
+    @param F        Spinor acted on (of definite kappa).
+    @param conj     If true, the emission components \f$ h_- \f$,
+                    \f$ \delta V^h_- \f$, in the convention of the Y
+                    corrections.
+  */
+  DiracSpinor h_tilde_rhs(const TDHF &h_tilde, const int kappa,
+                          const DiracSpinor &F, bool conj) const;
+
+  /*!
+    @brief First-order energy shift of a core orbital, <a||h + dV^h||a>.
+
+    @param h_tilde  First-order TDHF of \f$ h \f$: holds the operator and
+                    its \f$ \delta V^h \f$.
+    @param Fa       Core orbital \f$ \phi_a \f$.
+    @param conj     If true, that of the emission components; see
+                    h_tilde_rhs().
+  */
+  double h_tilde_de(const TDHF &h_tilde, const DiracSpinor &Fa,
+                    bool conj) const;
 
 public:
   TDHF_DCP &operator=(const TDHF_DCP &) = delete;
