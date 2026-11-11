@@ -13,20 +13,32 @@ namespace Module {
 // Declare, register, then define below.
 void dcp(const IO::InputBlock &input, const Wavefunction &wf);
 namespace {
-const Register r_dcp{"dcp", "Module for testing dcp calculations", &dcp};
+const Register r_dcp{
+  "dcp", "Module for testing dcp calculations using diagrams and TDHF", &dcp};
 } // namespace
 
 void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
 
-  input.check({{"v", "Initial valence state, e.g., 6s"},
-               {"w", "Final valence state [default: v]"},
-               {"initial", ""},
-               {"final", ""},
-               {"rpa", ""},
-               {"K", ""},
-               {"s", ""},
-               {"t", ""},
-               {"omega", ""}});
+  input.check(
+    {{"",
+      "Double core polarisation (DCP) correction to the second-order "
+      "amplitude A^K for a single-valence transition v -> w.\n"
+      "Using diagram and TDHF, showing breakdown. DCP is also included in "
+      "SecondOrder module, this one is mostly for testing.\n"
+      "NB: unlike SecondOrder, this module only does 1 transition at a time"},
+     {"v", "Initial valence state, e.g., 6s [required]"},
+     {"w", "Final valence state [default: v]"},
+     {"t", "The operator that carries the frequency omega, e.g., E1 "
+           "[required]"},
+     {"s", "The other operator; it carries omega_s = E_w - E_v - omega, "
+           "e.g., pnc [required]"},
+     {"omega", "Frequency of t. The TDHF method requires omega and omega_s "
+               "both non-negative [default: E_w - E_v]"},
+     {"K", "Rank K of the amplitude. Requires |kt-ks| <= K <= kt+ks "
+           "[required]"},
+     {"rpa", "Include the core polarisation (RPA, by TDHF) of t and s, and "
+             "the all-orders second-order TDHF. If false: bare t and s, and "
+             "the lowest-order DCP only [true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -37,8 +49,8 @@ void dcp(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Parse which valence states for transition v -> w (also allowed as
   // initial, final). w defaults to v
-  const auto v_symbol = input.get("v", input.get("initial", ""s));
-  const auto w_symbol = input.get("w", input.get("final", v_symbol));
+  const auto v_symbol = input.get("v", ""s);
+  const auto w_symbol = input.get("w", v_symbol);
   const auto [nv, kv] = AtomData::parse_symbol(v_symbol);
   const auto [nw, kw] = AtomData::parse_symbol(w_symbol);
   // Lookup states in wavefunction, check if exist

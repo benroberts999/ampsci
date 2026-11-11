@@ -2,6 +2,7 @@
 #include "Coulomb/meTable.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include <iostream>
+#include <optional>
 #include <string>
 #include <utility>
 #include <vector>
@@ -324,9 +325,9 @@ me_table(const std::vector<DiracSpinor> &a_orbs,
   \f$ \delta V(\omega) \f$ throughout (the emission component,
   \f$ \delta V^\dagger \f$, for negative @p omega; see
   CorePolarisation::dV), and the structure radiation is at @p omega,
-  absorbed by the ket. The reversed pair \f$ (b, a) \f$ is then
-  not the symmetry conjugate of \f$ (a, b) \f$, and is calculated as well
-  (except at \f$ \omega = 0 \f$, where it is).
+  absorbed by the ket (or at @p omega_sr, if given). The reversed pair
+  \f$ (b, a) \f$ is then not the symmetry conjugate of \f$ (a, b) \f$, and is
+  calculated as well (except at \f$ \omega = 0 \f$, where it is).
 
   @param a_orbs  Bra states.
   @param b_orbs  Ket states.
@@ -344,6 +345,15 @@ me_table(const std::vector<DiracSpinor> &a_orbs,
                  lines of the diagrams (see MBPT::StructureRad) [999].
   @param sr_norm If false, only the structure radiation is added, not the
                  normalisation of states [true].
+  @param sr_rpa  If false, the normalisation of states is without the RPA
+                 correction (@p dV still applied to the elements themselves).
+                 The RPA on the internal lines of the structure radiation is
+                 set separately, by the dV given to
+                 MBPT::StructureRad::solve_core() [true].
+  @param omega_sr  Frequency for the structure radiation denominators only;
+                 e.g., zero, to test their (usually very weak) frequency
+                 dependence. The RPA components are still those at @p omega
+                 [default: @p omega].
 
   @return meTable containing t_ab for all non-zero pairs, both orderings.
 */
@@ -353,7 +363,8 @@ me_table(const std::vector<DiracSpinor> &a_orbs,
          const DiracOperator::TensorOperator *h,
          const ExternalField::CorePolarisation *dV,
          const MBPT::StructureRad *srn, double omega, int sr_n_max = 999,
-         bool sr_norm = true);
+         bool sr_norm = true, bool sr_rpa = true,
+         std::optional<double> omega_sr = std::nullopt);
 
 /*!
   @brief Builds a SR+N matrix element table for a single set of orbitals.
@@ -366,8 +377,10 @@ me_table(const std::vector<DiracSpinor> &a_orbs,
          const DiracOperator::TensorOperator *h,
          const ExternalField::CorePolarisation *dV,
          const MBPT::StructureRad *srn, double omega, int sr_n_max = 999,
-         bool sr_norm = true) {
-  return me_table(a_orbs, a_orbs, h, dV, srn, omega, sr_n_max, sr_norm);
+         bool sr_norm = true, bool sr_rpa = true,
+         std::optional<double> omega_sr = std::nullopt) {
+  return me_table(a_orbs, a_orbs, h, dV, srn, omega, sr_n_max, sr_norm, sr_rpa,
+                  omega_sr);
 }
 
 //==============================================================================

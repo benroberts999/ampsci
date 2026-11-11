@@ -9,6 +9,7 @@
 #include <cmath>
 #include <cstddef>
 #include <iostream>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -223,7 +224,8 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
                                   const DiracOperator::TensorOperator *h,
                                   const ExternalField::CorePolarisation *dV,
                                   const MBPT::StructureRad *srn, double omega,
-                                  int sr_n_max, bool sr_norm) {
+                                  int sr_n_max, bool sr_norm, bool sr_rpa,
+                                  std::optional<double> omega_sr) {
 
   Coulomb::meTable<double> h_ab;
 
@@ -233,27 +235,35 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
   // (conjugate) for a negative frequency
   const auto conj = omega < 0.0;
 
+  // Frequency of the structure radiation denominators
+  const auto omega_srd = omega_sr.value_or(omega);
+
   // At omega = 0 (and the RPA solved there, or absent) the table is
   // symmetric: dV and the structure radiation are both Hermitian, so the
   // reversed pair is the symmetry conjugate. Otherwise it must be calculated:
   // dV(omega) of (b, a) is not the conjugate of that of (a, b), and the
   // structure radiation of (b, a) at omega is that of (a, b) at -omega
-  const auto symmetric =
-    omega == 0.0 && (dV == nullptr || dV->last_omega() == 0.0);
+  const auto symmetric = omega == 0.0 && omega_srd == 0.0 &&
+                         (dV == nullptr || dV->last_omega() == 0.0);
 
   // SR+N only between physical (low-n) states
   const auto sr_included = [&](const DiracSpinor &x, const DiracSpinor &y) {
     return srn && x.n() <= sr_n_max && y.n() <= sr_n_max;
   };
 
+  // The RPA in the normalisation of states (part of SR+N)
+  const auto dV_norm = sr_rpa ? dV : nullptr;
+
   const auto matrix_element = [&](const DiracSpinor &x, const DiracSpinor &y) {
     const auto tab = h->reducedME(x, y);
     const auto dv = dV ? dV->dV(x, y, conj) : 0.0;
-    // Optionally without the norm
-    const auto sr = !sr_included(x, y) ? 0.0 :
-                    sr_norm            ? srn->srn(x, y, h, dV, omega) :
-                                         srn->SR(x, y, omega);
-    return tab + dv + sr;
+    if (!sr_included(x, y)) {
+      return tab + dv;
+    }
+    // The normalisation (optional) takes the RPA component at omega
+    const auto sr = srn->SR(x, y, omega_srd);
+    const auto norm = sr_norm ? srn->norm(x, y, h, dV_norm, conj) : 0.0;
+    return tab + dv + sr + norm;
   };
 
   // Each element to calculate is its own task, for an even load balance (the

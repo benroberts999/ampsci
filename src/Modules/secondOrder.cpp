@@ -6,6 +6,7 @@
 #include "DiracOperator/GenerateOperator.hpp"
 #include "ExternalField/CorePolarisation.hpp"
 #include "ExternalField/TDHF.hpp"
+#include "ExternalField/TDHF_DCP.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/StructureRad.hpp"
 #include "Modules/Modules.hpp"
@@ -39,53 +40,56 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   input.check(
     {{"",
-      "Second-order amplitude A^K for a single-valence transition A -> B, for "
-      "two operators t and s, at frequencies omega and omega_s:\n"
-      "A^K = sum_n [c1 <B||t||n><n||s||A>/(E_A+omega_s-E_n) "
-      "+ c2 <B||s||n><n||t||A>/(E_A+omega-E_n)].\n"
-      "Energy conservation fixes omega_s = E_B - E_A - omega, so only omega is "
+      "Second-order amplitude A^K for a single-valence transition v -> w, for "
+      "two operators t and s, at frequencies omega(=omega_t) and omega_s:\n"
+      "A^K = sum_n [c1 <w||t||n><n||s||v>/(E_v+omega_s-E_n) "
+      "+ c2 <w||s||n><n||t||v>/(E_v+omega-E_n)].\n"
+      "Energy conservation fixes omega_s = E_w - E_v - omega, so only omega is "
       "an input: at its default, t carries the whole transition frequency and "
-      "s is static. For a dynamic polarisability, set B = A and omega to the "
-      "frequency; then omega_s = -omega.\n"
+      "s is static.\n"
+      "For a dynamic polarisability, set w = v and omega to the "
+      "frequency; then omega_s = -omega (only does 1 freq.)\n"
       "The valence sum is evaluated either by sum-over-states (method=SOS), "
-      "or with mixed states (method=MS), which is complete (no truncation of "
-      "the sum). Run twice to compare the two."},
-     {"A", "Initial valence state, e.g., 6s+. May be a list (A = 6s+,7s+;): "
-           "each pair (A_i -> B_i) is calculated in turn, with a summary of "
+      "or with mixed states (method=MS)."},
+     {"v", "Initial valence state, e.g., 6s+. May be a list (v = 6s+,7s+;): "
+           "each pair (v_i -> w_i) is calculated in turn, with a summary of "
            "the totals at the end [required]"},
-     {"B", "Final valence state(s) [default: same as A]. If the lists "
+     {"w", "Final valence state(s) [default: same as v]. If the lists "
            "differ in length, the shorter is padded with its final state: "
-           "A = a,b,c; B = d,e; gives (a,d), (b,e), (c,e)"},
+           "v = a,b,c; w = d,e; gives (a,d), (b,e), (c,e)"},
      {"t", "The operator that carries the frequency omega [E1]"},
      {"t_options{}", "Options for the t operator"},
-     {"s", "The other operator; it carries omega_s = E_b - E_a - omega [E1]"},
+     {"s", "The other operator; it carries omega_s = E_w - E_v - omega [E1]"},
      {"s_options{}", "Options for the s operator"},
      {"omega", "Frequency of t. For a transition, leave as default, so that t "
                "carries it all and s is static. For a dynamic polarisability "
-               "(B = A), set this to the frequency: s then carries -omega. "
-               "[default: E_b - E_a]"},
-     {"omega_t", "Explicit frequency for t, overriding omega. Energy "
-                 "conservation is then up to you; use with care [rare]"},
-     {"omega_s", "Explicit frequency for s, overriding omega_s = "
-                 "E_b - E_a - omega. Use with care [rare]"},
+               "(w = v), set this to the frequency: s then carries -omega. "
+               "[default: E_w - E_v]"},
+
      {"K", "Rank K of the amplitude. Requires |kt-ks| <= K <= kt+ks, and the "
-           "triangle rule for (jb,K,ja) [default: smallest allowed]"},
+           "triangle rule for (jw,K,jv) [default: smallest allowed]"},
      {"method", "SOS (sum-over-states) or MS (mixed states) [MS]"},
      {"rpa",
       "Method used for RPA: true(=TDHF), false, TDHF, basis, diagram, cntm "
-      "[true]. MS requires TDHF: the diagram method triggers a "
-      "warning, and TDHF is used"},
+      "[true]. MS requires TDHF."},
+     {"DCP",
+      "Include the double core polarisation (DCP) correction, by TDHF. "
+      "With rpa = false: gives lowest-order, with no RPA for t and s. [true]"},
      {"replace_w_valence",
       "SOS: replace the basis/spectrum states with the corresponding valence "
       "states in the sum, where available (e.g., when the valence states were "
       "fitted to experiment) [false]"},
      {"n_main", "The 'main' part of the valence sum: intermediate states up "
-                "to this n, printed separately (as the pnc module) "
-                "[max_n_core + 4]"},
+                "to this n, printed separately [max_n_core + 4]"},
      {"StructureRadiation{}",
       "Options for structure radiation and normalisation. If this block is "
       "included, SR+N is added to the single-particle matrix elements of the "
-      "sum. Sum-over-states method only"}});
+      "sum. Sum-over-states method only"},
+     {"", ""},
+     {"omega_t", "Explicit frequency for t, overriding omega. Energy "
+                 "conservation is then up to you; use with care [rare]"},
+     {"omega_s", "Explicit frequency for s, overriding omega_s = "
+                 "E_w - E_v - omega. Use with care [rare]"}});
 
   // Check for Structure Radiation
   const auto t_SR_input = input.getBlock("StructureRadiation");
@@ -97,10 +101,6 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   SR_input.check(
     {{"", "If this block is included, SR + Normalisation corrections will be "
           "included (sum-over-states method only)"},
-     {"Qk_file", "true/false/filename - SR: filename for QkTable file. If "
-                 "blank will not use QkTable; if exists, will read it in; if "
-                 "doesn't exist, will create it and write to disk. If 'true' "
-                 "will use default filename"},
      {"n_minmax", "list; min,max n for core/excited (internal): [1,inf]"},
      {"n_max_legs",
       "SR+N is applied to matrix elements whose states both have n <= this "
@@ -108,7 +108,18 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
       "meaningful between physical states: the high-n basis states are "
       "cavity states [default: max_n_core + 3]"},
      {"norm", "Include the normalisation of states? If false, only the "
-              "structure radiation is included [true]"}});
+              "structure radiation is included [true]"},
+     {"rpa", "Include the core polarisation (RPA) inside SR+N: on the "
+             "internal lines of the structure radiation diagrams, and in the "
+             "normalisation. Only if RPA is included in the main block [true]"},
+     {"omega", "Structure radiation denominators at the frequency of each "
+               "operator (true), or at zero (false): a test of the frequency "
+               "dependence, usually very weak [true]"},
+     {"Qk_file", "true/false/filename: QkTable of Coulomb integrals; read if "
+                 "it exists, otherwise calculated and written. true: default "
+                 "filename. false: no QkTable (~10x slower, less memory). "
+                 "Note: with a QkTable, the basis states are used for the "
+                 "legs [true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -118,16 +129,19 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   using namespace std::string_literals;
 
   //----------------------------------------------------------------------------
-  // The valence states: lists of A (and B), calculated pairwise (A_i -> B_i).
-  // The shorter list is padded with its final state; an empty B means B = A
-  const auto list_A = input.get("A", std::vector<std::string>{});
-  const auto list_B = input.get("B", std::vector<std::string>{});
-  if (list_A.empty()) {
+  // The valence states: lists of v (and w), calculated pairwise (v_i -> w_i).
+  // The shorter list is padded with its final state; an empty w means w = v.
+  // A and B are accepted in place of v and w
+  const auto list_v =
+    input.get("v", input.get("A", std::vector<std::string>{}));
+  const auto list_w =
+    input.get("w", input.get("B", std::vector<std::string>{}));
+  if (list_v.empty()) {
     fmt2::error();
-    std::cout << ": No A state(s) given\n";
+    std::cout << ": No v state(s) given\n";
     return;
   }
-  const auto num_pairs = std::max(list_A.size(), list_B.size());
+  const auto num_pairs = std::max(list_v.size(), list_w.size());
 
   //----------------------------------------------------------------------------
   // The two operators
@@ -173,6 +187,9 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   const auto rpaQ =
     ExternalField::ParseMethod(rpa_method) != ExternalField::Method::none;
+
+  // Double core polarisation
+  const auto dcpQ = input.get("DCP", true);
 
   std::cout << "\n";
   auto rpa_t = ExternalField::make_rpa(rpa_method, ht.get(), wf.vHF(), true,
@@ -240,6 +257,8 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::optional<MBPT::StructureRad> sr{};
   auto sr_n_max = 0;
   auto sr_norm = true;
+  auto sr_rpa = true;
+  auto sr_omega = true;
   if (t_SR_input && !use_sos) {
     fmt2::warning();
     std::cout << ": Structure radiation is not (simply) possible with mixed "
@@ -250,36 +269,41 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   if (t_SR_input && use_sos) {
     sr_n_max = SR_input.get("n_max_legs", DiracSpinor::max_n(wf.core()) + 3);
     sr_norm = SR_input.get("norm", true);
+    // No RPA objects without RPA in the main block: none to include
+    sr_rpa = rpaQ && SR_input.get("rpa", true);
+    sr_omega = SR_input.get("omega", true);
     const auto n_minmax = SR_input.get("n_minmax", std::vector{1});
     const auto n_min = n_minmax.size() > 0 ? n_minmax[0] : 1;
     const auto n_max = n_minmax.size() > 1 ? n_minmax[1] : 999;
-    const auto Qk_file_t = SR_input.get("Qk_file", "false"s);
+    const auto Qk_file_t = SR_input.get("Qk_file", "true"s);
     const std::string Qk_file =
       Qk_file_t != "false" ?
         (Qk_file_t == "true" ? wf.identity() + ".qk.abf" : Qk_file_t) :
         "";
     std::cout << "\nIncluding structure radiation"
-              << (sr_norm ? " and normalisation:\n" : " (no normalisation):\n");
+              << (sr_norm ? " and normalisation" : " (no normalisation)")
+              << (sr_rpa ? ", with RPA:\n" : ", without RPA:\n");
     fmt::print("Applied to matrix elements with n <= {}\n", sr_n_max);
+    if (!sr_omega) {
+      std::cout << "Structure radiation denominators at omega = 0\n";
+    }
     sr =
       MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
   }
 
-  const auto n_main = input.get("n_main", DiracSpinor::max_n(wf.core()) + 4);
-
   //----------------------------------------------------------------------------
-  // Loop over the A -> B pairs; store the totals for the summary
+  // Loop over the v -> w pairs; store the totals for the summary
   struct Summary {
-    std::string A, B, name;
+    std::string v, w, name;
     int K;
     double A_K, value;
   };
   std::vector<Summary> summary;
 
   for (std::size_t i = 0; i < num_pairs; ++i) {
-    const auto &name_A = list_A.at(std::min(i, list_A.size() - 1));
-    const auto &name_B =
-      list_B.empty() ? name_A : list_B.at(std::min(i, list_B.size() - 1));
+    const auto &name_v = list_v.at(std::min(i, list_v.size() - 1));
+    const auto &name_w =
+      list_w.empty() ? name_v : list_w.at(std::min(i, list_w.size() - 1));
 
     if (num_pairs > 1) {
       std::cout << "\n";
@@ -287,14 +311,14 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     // Valence states only: getState() would also find core states
-    const auto [nA, kA] = AtomData::parse_symbol(name_A);
-    const auto [nB, kB] = AtomData::parse_symbol(name_B);
-    const auto pFa = wf.isInValence(nA, kA) ? wf.getState(nA, kA) : nullptr;
-    const auto pFb = wf.isInValence(nB, kB) ? wf.getState(nB, kB) : nullptr;
+    const auto [nv, kv] = AtomData::parse_symbol(name_v);
+    const auto [nw, kw] = AtomData::parse_symbol(name_w);
+    const auto pFa = wf.isInValence(nv, kv) ? wf.getState(nv, kv) : nullptr;
+    const auto pFb = wf.isInValence(nw, kw) ? wf.getState(nw, kw) : nullptr;
     if (pFa == nullptr || pFb == nullptr) {
       fmt2::error();
-      std::cout << ": Could not find the requested valence state(s): A = "
-                << name_A << ", B = " << name_B << "\nValence:";
+      std::cout << ": Could not find the requested valence state(s): v = "
+                << name_v << ", w = " << name_w << "\nValence:";
       for (const auto &v : wf.valence()) {
         std::cout << " " << v.shortSymbol();
       }
@@ -306,8 +330,8 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
 
     fmt::print("\nSecond-order amplitude, {} -> {}:\n", Fa.shortSymbol(),
                Fb.shortSymbol());
-    fmt::print("A: {}  E = {:.8f} au\n", Fa.shortSymbol(), Fa.en());
-    fmt::print("B: {}  E = {:.8f} au\n", Fb.shortSymbol(), Fb.en());
+    fmt::print("v: {}  E = {:.8f} au\n", Fa.shortSymbol(), Fa.en());
+    fmt::print("w: {}  E = {:.8f} au\n", Fb.shortSymbol(), Fb.en());
 
     // omega_t/omega_s: rare explicit overrides (e.g. comparison to
     // calculations with approximate frequencies); by default, energy
@@ -317,7 +341,7 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto omega_s = input.get("omega_s", Fb.en() - Fa.en() - omega);
     const auto dynamic = omega != 0.0 && omega_s != 0.0;
     if (std::abs(Fb.en() - Fa.en() - omega - omega_s) > 1.0e-10) {
-      std::cout << "Note: omega_t + omega_s does not equal E_b - E_a "
+      std::cout << "Note: omega_t + omega_s does not equal E_w - E_v "
                    "(explicit override)\n";
     }
 
@@ -371,6 +395,9 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     bool have_main{false};
     double A_core{0.0};
 
+    // "main" terms: only matters for splitting output, doesn't impact final
+    const auto n_main = input.get("n_main", DiracSpinor::max_n(wf.core()) + 4);
+
     if (use_sos) {
       // Structure radiation + normalisation: added to the single-particle
       // matrix elements, for pairs with n <= n_max_legs (the valence legs and
@@ -380,12 +407,16 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
       if (sr) {
         std::cout << "Fill matrix element tables..." << std::flush;
         const std::vector<DiracSpinor> legs{Fa, Fb};
-        sr->solve_core(ht.get(), rpa_t.get());
+        // The RPA on the internal lines is the component at the operator's
+        // frequency (emission, for a negative frequency)
+        sr->solve_core(ht.get(), sr_rpa ? rpa_t.get() : nullptr, omega);
         t_me = Amplitudes::me_table(legs, spectrum, ht.get(), rpa_t.get(), &*sr,
-                                    omega, sr_n_max, sr_norm);
-        sr->solve_core(hs.get(), rpa_s.get());
+                                    omega, sr_n_max, sr_norm, sr_rpa,
+                                    sr_omega ? omega : 0.0);
+        sr->solve_core(hs.get(), sr_rpa ? rpa_s.get() : nullptr, omega_s);
         s_me = Amplitudes::me_table(legs, spectrum, hs.get(), rpa_s.get(), &*sr,
-                                    omega_s, sr_n_max, sr_norm);
+                                    omega_s, sr_n_max, sr_norm, sr_rpa,
+                                    sr_omega ? omega_s : 0.0);
         std::cout << "done\n" << std::flush;
       }
 
@@ -464,7 +495,35 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
       }
     }
 
-    const auto A_total = A_v + A_core;
+    //--------------------------------------------------------------------------
+    // Double core polarisation, by second-order TDHF. It has its own
+    // first-order TDHF for t and s, whatever the RPA method. rpa = false: no
+    // core polarisation of t and s (a single iteration: bare first-order
+    // corrections), and the lowest order of the second-order TDHF only
+    double A_dcp{0.0};
+    bool have_dcp{false};
+    if (dcpQ && (omega < 0.0 || omega_s < 0.0)) {
+      std::cout << "\nDCP: not implemented for negative frequencies; "
+                   "not included\n";
+    } else if (dcpQ) {
+      std::cout << "\nDCP (double core polarisation), by TDHF:\n";
+      ExternalField::TDHF dcp_t(ht.get(), wf.vHF());
+      ExternalField::TDHF dcp_s(hs.get(), wf.vHF());
+      ExternalField::TDHF_DCP d2V(&dcp_t, &dcp_s, K, wf.vHF());
+      if (rpaQ) {
+        dcp_t.solve_core(omega);
+        dcp_s.solve_core(omega_s);
+        d2V.solve_core(omega + omega_s);
+      } else {
+        dcp_t.solve_core(omega, 1);
+        dcp_s.solve_core(omega_s, 1);
+        d2V.solve_core(omega + omega_s, 1);
+      }
+      A_dcp = d2V.dV(Fb, Fa);
+      have_dcp = true;
+    }
+
+    const auto A_total = A_v + A_core + A_dcp;
 
     //--------------------------------------------------------------------------
     // The second column of the table is the quantity that was asked for. For
@@ -548,6 +607,9 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     if (diagonal && K == 0) {
       fmt::print("{:<18}{:16.6e} {:16.6e}\n", "core", A_core, factor * A_core);
     }
+    if (have_dcp) {
+      fmt::print("{:<18}{:16.6e} {:16.6e}\n", "DCP", A_dcp, factor * A_dcp);
+    }
     fmt::print("{:<18}{:16.6e} {:16.6e}\n", "total", A_total, factor * A_total);
 
     summary.push_back(
@@ -560,10 +622,10 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\n";
     // IO::print_line('-', 40);
     std::cout << "\nSummary of totals:\n";
-    fmt::print("{:>5} {:>6} {:>3} {:>16} {:>16}\n", "A", "B", "K", "A^K",
+    fmt::print("{:>5} {:>6} {:>3} {:>16} {:>16}\n", "v", "w", "K", "A^K",
                "value");
     for (const auto &row : summary) {
-      fmt::print("{:>5} {:>6} {:>3} {:16.6e} {:16.6e}  {}\n", row.A, row.B,
+      fmt::print("{:>5} {:>6} {:>3} {:16.6e} {:16.6e}  {}\n", row.v, row.w,
                  row.K, row.A_K, row.value, row.name);
     }
   }

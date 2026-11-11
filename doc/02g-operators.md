@@ -62,8 +62,8 @@ as the static operator in \ref module_secondorder :
 
 ```java
 Module::secondOrder{
-  A = 6s+;
-  B = 7s+;
+  v = 6s+;
+  w = 7s+;
   t = E1;
   s = pnc;
   // s_options{ c = 5.67073; t = 2.3; }
