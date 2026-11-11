@@ -31,7 +31,7 @@ TEST_CASE("TDHF_DCP: unit tests", "[ExternalField][TDHF_DCP][DCP][unit]") {
   };
 
   //----------------------------------------------------------------------------
-  SECTION("parts add up, and -- is the conjugate of ++") {
+  SECTION("parts add up and -- is the conjugate of ++") {
 
     // Between them: both signs of (-1)^{K+kt+ks}, and an imaginary operator
     const std::vector<OperatorPair> pairs{
