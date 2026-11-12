@@ -1448,29 +1448,42 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
     Measures: q^k carries dr_j; q^l carries dr_i, dr_2
     => Sigma carries dr_2 (as for the direct term)
 
-    Screening (when included): half-screened. The numeric line is dressed,
-    q^l -> q^l + bar-q^l(w), bar-q^l = -i [q pi q~]^l (the stored Q*Pi*Q;
-    all-orders, hp-dressed pi). The mirror term (bar-q on the analytic q^k
-    line, bare q^l) is the transpose of the bar-q correction, since the
-    diagram maps to its transpose under (1,i,k,w1) <-> (2,j,l,w2):
+    Only the w1 integral is analytic, so the two Coulomb lines enter
+    differently: the analytic line, q^k (frequency w1), must be static; the
+    numeric line, q^l (frequency w), may depend on w. The diagram maps to
+    its transpose under (1,i,k,w1) <-> (2,j,l,w2), so the transpose of the
+    expression above is the same diagram with the roles of the two lines
+    exchanged. Sigma is the average of these two forms (so is symmetric):
 
-      Sigma = Sigma[q,q] + dSigma[q,bar-q] + dSigma[q,bar-q]^T
+      Sigma = (S + S^T)/2
+      S     = sum_k S^k[q^k ; q^l + (1 + f_k) bar-q^l(w)]
 
-    Dressing both lines at once, dSigma[bar-q,bar-q], has no analytic
+    S^k[analytic line ; numeric line]: the expression above, for multipole
+    k of the analytic line.
+
+    Screening (when included): bar-q^l = -i [q pi q~]^l is the screening
+    correction to a Coulomb line (the stored Q*Pi*Q; all-orders, hp-dressed
+    pi). Each form has it on the numeric line only, so it enters S twice
+    (f_k = 1), and the average is each line screened, one at a time:
+
+      Sigma = Sigma[q;q] + dSigma[q;bar-q] + dSigma[bar-q;q]
+
+    Dressing both lines at once, dSigma[bar-q;bar-q], has no analytic
     inner integral. Given the valence state, it is estimated with the
     effective screening factor of the analytic line, bar-q^k -> (f_k - 1)
     q^k (screening_fk: the valence-weighted ratio of the screened to the
     bare line, from the direct diagram), keeping the exact bar-q^l(w) on
-    the numeric line:
+    the numeric line. Each form gives one such estimate; the average is
+    their mean. Without the valence state that term is neglected (f_k = 1).
 
-      dSigma[bar-q,bar-q] ~ E = sum_k (f_k - 1) dSigma^k[q,bar-q]
-
-    where dSigma^k is the k-th (analytic-line) multipole term of
-    dSigma[q,bar-q]. E^T is the equally valid estimate with the roles of
-    the two lines exchanged, so (E + E^T)/2 is added. Without the valence
-    state that term is neglected.
-    Hole-particle: Vhp(a) dresses gex(e_a +/- w), the excited half of the
-    (a, gex) pair, as in the polarisation loop.
+    Hole-particle (when included): Vhp(a) dresses gex(e_a +/- w), the
+    excited half of the (a, gex) pair, as in the polarisation loop. This is
+    the hole-particle interaction between one pair of adjacent lines
+    (1i, ij). In the second-order diagram it is included once. Its mirror
+    image, the interaction between the other pair (ij, j2), is not added
+    here: it comes from the ladder diagrams (the particle-hole ladders in
+    the exchange diagram). The interaction in both pairs at once is not
+    included.
   */
 
   const auto num_ks = std::size_t(m_max_k + 1);
@@ -1488,17 +1501,12 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
 
   // Loop gex: no-op when already calculated or read from disk
   calculate_gex();
-  // Accumulated terms, indexed by the q^l-line variant of exchange_Gamma_q:
-  // [bare] q^l; [screened] bar-q^l (when screening); and [both] the
-  // screened terms weighted by (f_k - 1), for the both-lines estimate
-  constexpr std::size_t bare = 0, screened = 1, both = 2;
+  // Effective screening factors of the analytic line, for the estimate of
+  // the term with both lines screened (1: that term is neglected)
   assert((Fv_both_lines == nullptr || Fv_both_lines->kappa() == kv) &&
          "Fv_both_lines must have kappa_v");
-  const bool estimate_both = m_screen_Coulomb && Fv_both_lines != nullptr;
-  const auto num_lines = m_screen_Coulomb ? 2ul : 1ul;
-  const auto num_terms = estimate_both ? 3ul : num_lines;
-  const auto fk = estimate_both ? screening_fk(*Fv_both_lines, env) :
-                                  std::vector<double>(num_ks, 1.0);
+  const auto fk = Fv_both_lines != nullptr ? screening_fk(*Fv_both_lines, env) :
+                                             std::vector<double>(num_ks, 1.0);
 
   // BLAS must run single-threaded inside the omp regions below
   const qip::SingleThreadBlas single_thread_blas{};
@@ -1519,10 +1527,8 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
   const ComplexRMatrix zero(m_i0, m_stride, m_subgrid_points, m_grid);
   const GMatrix Sigma_zero(m_i0, m_stride, m_subgrid_points, m_include_G,
                            m_grid);
-  // Per-thread accumulators, one per term
-  std::vector<std::vector<GMatrix>> Sigma_ts(
-    std::size_t(omp_get_max_threads()),
-    std::vector<GMatrix>(num_terms, Sigma_zero));
+  // Per-thread accumulators
+  std::vector<GMatrix> Sigma_ts(std::size_t(omp_get_max_threads()), Sigma_zero);
 
 #pragma omp parallel for collapse(2) schedule(dynamic)
   for (auto iw = 0ul; iw < m_wgrid_points.size(); ++iw) {
@@ -1531,7 +1537,7 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
       const auto du = weights[iw];
       const auto &Fa = m_HF->core()[m_core_index[ic]];
       const auto ka = Fa.kappa();
-      const auto Gammas = exchange_Gamma_q(kv, ic, iw, sixj);
+      const auto Gamma = exchange_Gamma_q(kv, ic, iw, sixj, fk);
 
       for (auto k = 0ul; k < num_ks; ++k) {
         const auto &qk = get_qk(int(k));
@@ -1546,22 +1552,18 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
             continue;
 
           for (auto nu = 0ul; nu < num_sp; ++nu) {
-            // The two terms of Gamma, per q^l-line variant and mu
-            std::vector<std::vector<ComplexRMatrix>> dSigma(
-              num_lines, std::vector<ComplexRMatrix>(num_sp, zero));
+            // The two terms of Gamma, for each mu
+            std::vector<ComplexRMatrix> dSigma(num_sp, zero);
 
             if (pa_gex_nonzero) {
               // F_a^mu(r_1) sum_t [q^k (g^{t nu} o [pa_gex]^t)]_12
-              for (auto iq = 0ul; iq < num_lines; ++iq) {
-                ComplexRMatrix qk_g_Gamma(zero);
-                for (auto t = 0ul; t < num_sp; ++t) {
-                  qk_g_Gamma += qk * mult_elements(g.radial(t, nu),
-                                                   Gammas[iq].pa_gex[t](k, ig));
-                }
-                for (auto mu = 0ul; mu < num_sp; ++mu) {
-                  dSigma[iq][mu] +=
-                    mult_rows_full(qk_g_Gamma, Fa.component(mu));
-                }
+              ComplexRMatrix qk_g_Gamma(zero);
+              for (auto t = 0ul; t < num_sp; ++t) {
+                qk_g_Gamma +=
+                  qk * mult_elements(g.radial(t, nu), Gamma.pa_gex[t](k, ig));
+              }
+              for (auto mu = 0ul; mu < num_sp; ++mu) {
+                dSigma[mu] += mult_rows_full(qk_g_Gamma, Fa.component(mu));
               }
             }
 
@@ -1572,25 +1574,14 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
                 Fa_g += mult_rows_full(g.radial(t, nu), Fa.component(t));
               }
               const auto qk_Fa_g = qk * Fa_g;
-              for (auto iq = 0ul; iq < num_lines; ++iq) {
-                for (auto mu = 0ul; mu < num_sp; ++mu) {
-                  dSigma[iq][mu] +=
-                    mult_elements(Gammas[iq].gex_pa[mu](k, ig), qk_Fa_g);
-                }
+              for (auto mu = 0ul; mu < num_sp; ++mu) {
+                dSigma[mu] += mult_elements(Gamma.gex_pa[mu](k, ig), qk_Fa_g);
               }
             }
 
-            // Accumulate (real part, quadrature weight); the screened-line
-            // terms also enter the both-lines estimate, with weight (f_k - 1)
-            // for this analytic-line multipole
-            for (auto iq = 0ul; iq < num_lines; ++iq) {
-              for (auto mu = 0ul; mu < num_sp; ++mu) {
-                const auto dS = du * dSigma[iq][mu].real().Rmatrix();
-                Sigma_t[iq].sp(mu, nu) += dS;
-                if (estimate_both && iq == screened) {
-                  Sigma_t[both].sp(mu, nu) += (fk[k] - 1.0) * dS;
-                }
-              }
+            // Accumulate (real part, quadrature weight)
+            for (auto mu = 0ul; mu < num_sp; ++mu) {
+              Sigma_t.sp(mu, nu) += du * dSigma[mu].real().Rmatrix();
             }
           }
         }
@@ -1598,36 +1589,26 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
     }
   }
 
-  // Sum over threads
-  std::vector<GMatrix> Sigma_terms(num_terms, Sigma_zero);
+  // Sum over threads: one form of the diagram, S
+  GMatrix Sigma_one_form(Sigma_zero);
   for (const auto &Sigma_t : Sigma_ts) {
-    for (auto it = 0ul; it < num_terms; ++it) {
-      Sigma_terms[it] += Sigma_t[it];
-    }
+    Sigma_one_form += Sigma_t;
   }
 
-  // Sigma = Sigma[q,q] + dSigma[q,bar-q] + dSigma[q,bar-q]^T + (E + E^T)/2:
-  // the mirror of each screened term (bar-q on the analytic line; the roles
-  // of the two lines exchanged in the estimate) is its transpose
-  auto Sigma = Sigma_terms[bare];
-  if (m_screen_Coulomb) {
-    Sigma += Sigma_terms[screened];
-    Sigma += Sigma_terms[screened].transpose_drj();
-  }
-  if (estimate_both) {
-    Sigma += 0.5 * (Sigma_terms[both] + Sigma_terms[both].transpose_drj());
-  }
+  // Sigma = (S + S^T)/2: average of the two forms of the diagram
+  auto Sigma = Sigma_one_form + Sigma_one_form.transpose_drj();
 
-  // -1/pi = (1/2pi) * i (dw = i du) * i (w1 integral) * 2 (the integrand
-  // at -u is the conjugate of that at +u, and we take Re part)
-  Sigma *= (-1.0 / M_PI);
+  // -1/2pi = (1/2) (average) * (1/2pi) * i (dw = i du) * i (w1 integral) * 2
+  // (the integrand at -u is the conjugate of that at +u, and we take Re part)
+  Sigma *= (-0.5 / M_PI);
   return Sigma;
 }
 
 //==============================================================================
-std::vector<Feynman::GammaQ>
-Feynman::exchange_Gamma_q(int kv, std::size_t ic, std::size_t iw,
-                          const Angular::SixJTable &sixj) const {
+Feynman::GammaQ Feynman::exchange_Gamma_q(int kv, std::size_t ic,
+                                          std::size_t iw,
+                                          const Angular::SixJTable &sixj,
+                                          const std::vector<double> &fk) const {
   /*
     The two terms of Gamma (see Sigma_exchange) for core state a, with the
     Coulomb line q^l_i2 and the angular factor L attached, summed over the
@@ -1649,9 +1630,10 @@ Feynman::exchange_Gamma_q(int kv, std::size_t ic, std::size_t iw,
 
       [gex F_a]^t_ji = sum_s gex^{ts}_ji F_a^s(r_i)   (uses gex_ij = gex_ji^T)
 
-    Returned for each (k, gamma), and each spinor index t (mu); one GammaQ
-    per q^l-line variant: [0] bare q^l, [1] (when screening) the
-    screening-only part, bar-q^l(w) = -i [q pi q~]^l(w).
+    Returned for each (k, gamma), and each spinor index t (mu).
+    Screening: q^l above is the numeric line of Sigma_exchange,
+    q^l + (1 + f_k) bar-q^l(w), with bar-q^l(w) = -i [q pi q~]^l(w) the
+    screening correction (so depends on k, through f_k).
     Hole-particle: the cached gex(e_a +/- w) are Vhp(a)-dressed (the
     excited electron of the (a, gex) pair feels the hole it left).
   */
@@ -1667,8 +1649,7 @@ Feynman::exchange_Gamma_q(int kv, std::size_t ic, std::size_t iw,
 
   const ComplexRMatrix zero(m_i0, m_stride, m_subgrid_points, m_grid);
   const LinAlg::Matrix<ComplexRMatrix> zeros(num_ks, num_kappas, zero);
-  std::vector<GammaQ> Gammas(
-    num_lines, GammaQ{std::vector(num_sp, zeros), std::vector(num_sp, zeros)});
+  GammaQ Gamma{std::vector(num_sp, zeros), std::vector(num_sp, zeros)};
 
   for (auto ik = 0ul; ik < num_kappas; ++ik) {
     const auto kappa = Angular::kindex_to_kappa(ik);
@@ -1692,8 +1673,9 @@ Feynman::exchange_Gamma_q(int kv, std::size_t ic, std::size_t iw,
         continue;
 
       for (auto iq = 0ul; iq < num_lines; ++iq) {
-        // Bare q^l, or the screening-only part bar-q^l(w)
-        const auto ql = iq == 0 ?
+        // Bare q^l, or the screening correction bar-q^l(w)
+        const bool bare_line = iq == 0;
+        const auto ql = bare_line ?
                           get_qk(l).dri() :
                           (-Iunit * m_qpiq_wk[iw][std::size_t(l)]).dri();
 
@@ -1705,18 +1687,20 @@ Feynman::exchange_Gamma_q(int kv, std::size_t ic, std::size_t iw,
         }
 
         for (auto k = 0ul; k < num_ks; ++k) {
+          // Weight of this part of the numeric line
+          const auto weight = bare_line ? 1.0 : 1.0 + fk[k];
           for (auto ig = 0ul; ig < num_kappas; ++ig) {
             const auto kg = Angular::kindex_to_kappa(ig);
             const auto L_pa_gex =
-              L_exchange(int(k), l, kv, ka, kappa, kg, sixj);
+              weight * L_exchange(int(k), l, kv, ka, kappa, kg, sixj);
             const auto L_gex_pa =
-              L_exchange(int(k), l, kv, kappa, ka, kg, sixj);
+              weight * L_exchange(int(k), l, kv, kappa, ka, kg, sixj);
             for (auto t = 0ul; t < num_sp; ++t) {
               if (L_pa_gex != 0.0) {
-                Gammas[iq].pa_gex[t](k, ig) += L_pa_gex * gexFaq_plus[t];
+                Gamma.pa_gex[t](k, ig) += L_pa_gex * gexFaq_plus[t];
               }
               if (L_gex_pa != 0.0) {
-                Gammas[iq].gex_pa[t](k, ig) += L_gex_pa * gexFaq_minus[t];
+                Gamma.gex_pa[t](k, ig) += L_gex_pa * gexFaq_minus[t];
               }
             }
           }
@@ -1724,7 +1708,7 @@ Feynman::exchange_Gamma_q(int kv, std::size_t ic, std::size_t iw,
       }
     }
   }
-  return Gammas;
+  return Gamma;
 }
 
 //==============================================================================

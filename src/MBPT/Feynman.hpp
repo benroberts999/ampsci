@@ -427,19 +427,28 @@ public:
     @details
     The first of the two frequency integrals is done analytically (closing
     the contour on the core poles), leaving a single integral along
-    w = omre + iu, on the same grid as the direct term. When the
-    screening/hole_particle options are set: all-orders screening of each
-    Coulomb line one at a time (half-screening; exact for those terms), and
-    Vhp(a) on the loop Green's functions.
+    w = omre + iu, on the same grid as the direct term. Only the Coulomb
+    line of the numerically integrated frequency (the numeric line) can
+    then be screened, and the hole-particle interaction acts only between
+    the two electron lines of the analytic integral. The transpose is the
+    same diagram with the roles of the two Coulomb lines exchanged; the
+    result is the average of the two, so is symmetric.
+
+    When the screening/hole_particle options are set:
+    - all-orders screening of each Coulomb line, one at a time
+      (single-screening; exact for those terms);
+    - Vhp(a) on the loop Green's functions: the hole-particle interaction
+      between one pair of adjacent electron lines, included once. Its
+      mirror image (the other pair) comes from the ladder diagrams; the
+      interaction in both pairs at once is not included.
 
     The term with both lines screened at once (which has no analytic inner
     integral) is included as an estimate when @p Fv_both_lines is given: the
     screening correction on the analytic line is replaced by its effective
     factor, \f$ \bar q^k \to (f_k - 1) q^k \f$ (screening_fk, for that
-    state), with the exact \f$ \bar q^l(w) \f$ kept on the numeric line;
-    the result is symmetrised (the transpose is the equally valid estimate
-    with the roles of the two lines exchanged). Cf. Goldstone::Sigma_exchange,
-    where f_k f_l on the two lines approximates all of the screening.
+    state), with the exact \f$ \bar q^l(w) \f$ kept on the numeric line.
+    Cf. Goldstone::Sigma_exchange, where f_k f_l on the two lines
+    approximates all of the screening.
 
     @param kappa_v        Valence kappa
     @param en_v           Valence energy
@@ -672,17 +681,18 @@ private:
       gex_pa[mu](k, gamma)_12 = sum_{alpha l} L^{kl}_{v a alpha gamma}
                                   [gex^alpha(e_a-w) F_a q^l]^mu_12
 
-    One GammaQ per q^l-line variant: [0] bare q^l; [1] (when screening) the
-    screening-only bar-q^l(w). gex is Vhp(a)-dressed when hole_particle.
+    When screening, q^l is the numeric line of Sigma_exchange,
+    q^l + (1 + f_k) bar-q^l(w). gex is Vhp(a)-dressed when hole_particle.
   */
   struct GammaQ {
     std::vector<LinAlg::Matrix<ComplexRMatrix>> pa_gex, gex_pa;
   };
   // ic indexes the core state within m_core_index (the gex cache must be
-  // filled first)
-  std::vector<GammaQ> exchange_Gamma_q(int kappa_v, std::size_t ic,
-                                       std::size_t iw,
-                                       const Angular::SixJTable &sixj) const;
+  // filled first). fk: effective screening factors of the analytic line
+  // (all 1 unless the term with both lines screened is estimated)
+  GammaQ exchange_Gamma_q(int kappa_v, std::size_t ic, std::size_t iw,
+                          const Angular::SixJTable &sixj,
+                          const std::vector<double> &fk) const;
 
   // Given Dirac solutions regular at 0 (x0) and infinity (xI), forms "local"
   // Green's function, with all four spinor components
