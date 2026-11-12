@@ -225,7 +225,7 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
                                   const ExternalField::CorePolarisation *dV,
                                   const MBPT::StructureRad *srn, double omega,
                                   int sr_n_max, bool sr_norm, bool sr_rpa,
-                                  std::optional<double> omega_sr) {
+                                  std::optional<double> omega_sr, bool sr_sr) {
 
   Coulomb::meTable<double> h_ab;
 
@@ -261,7 +261,7 @@ Coulomb::meTable<double> me_table(const std::vector<DiracSpinor> &a_orbs,
       return tab + dv;
     }
     // The normalisation (optional) takes the RPA component at omega
-    const auto sr = srn->SR(x, y, omega_srd);
+    const auto sr = sr_sr ? srn->SR(x, y, omega_srd) : 0.0;
     const auto norm = sr_norm ? srn->norm(x, y, h, dV_norm, conj) : 0.0;
     return tab + dv + sr + norm;
   };

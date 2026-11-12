@@ -84,7 +84,10 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
      {"StructureRadiation{}",
       "Options for structure radiation and normalisation. If this block is "
       "included, SR+N is added to the single-particle matrix elements of the "
-      "sum. Sum-over-states method only"},
+      "sum, by sum-over-states (for either method). The basis is used for "
+      "all of it (legs, intermediate states, and the internal lines of the "
+      "diagrams). Printed separately: SR and Norm, each for t and s, and the "
+      "nonlinear part (t and s both corrected)"},
      {"", ""},
      {"omega_t", "Explicit frequency for t, overriding omega. Energy "
                  "conservation is then up to you; use with care [rare]"},
@@ -100,13 +103,15 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   SR_input.check(
     {{"", "If this block is included, SR + Normalisation corrections will be "
-          "included (sum-over-states method only)"},
+          "included, by sum-over-states (for either method), using the basis "
+          "for all states"},
      {"n_minmax", "list; min,max n for core/excited (internal): [1,inf]"},
      {"n_max_legs",
       "SR+N is applied to matrix elements whose states both have n <= this "
       "(the valence legs, and the low-n intermediate states). SR+N is only "
       "meaningful between physical states: the high-n basis states are "
-      "cavity states [default: max_n_core + 3]"},
+      "cavity states. Never applied to core intermediate states "
+      "[default: max_n_core + 3]"},
      {"norm", "Include the normalisation of states? If false, only the "
               "structure radiation is included [true]"},
      {"rpa", "Include the core polarisation (RPA) inside SR+N: on the "
@@ -117,9 +122,8 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
                "dependence, usually very weak [true]"},
      {"Qk_file", "true/false/filename: QkTable of Coulomb integrals; read if "
                  "it exists, otherwise calculated and written. true: default "
-                 "filename. false: no QkTable (~10x slower, less memory). "
-                 "Note: with a QkTable, the basis states are used for the "
-                 "legs [true]"}});
+                 "filename. false: no QkTable (~10x slower, less memory) "
+                 "[true]"}});
 
   // If we are just requesting 'help', don't run module:
   if (input.has_option("help")) {
@@ -252,21 +256,24 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   }
 
   //----------------------------------------------------------------------------
-  // Structure radiation + normalisation (sum-over-states only). Constructed
-  // once; the matrix-element tables are built per pair
+  // Structure radiation + normalisation, by sum-over-states (for either
+  // method). Constructed once; the matrix-element tables are built per pair.
+  // The basis is used for all of it: the legs, the intermediate states of
+  // the sum, and the internal lines of the diagrams. Matrix-element and
+  // Coulomb-integral tables are indexed by (n, kappa) only, so every orbital
+  // with a given (n, kappa) must be the same orbital
+  const auto &srn_states = wf.basis();
+  if (t_SR_input && srn_states.empty()) {
+    fmt2::error();
+    std::cout << ": Structure radiation requires a basis\n";
+    return;
+  }
   std::optional<MBPT::StructureRad> sr{};
   auto sr_n_max = 0;
   auto sr_norm = true;
   auto sr_rpa = true;
   auto sr_omega = true;
-  if (t_SR_input && !use_sos) {
-    fmt2::warning();
-    std::cout << ": Structure radiation is not (simply) possible with mixed "
-                 "states: ignoring. Use method=SOS for SR+N; the correction "
-                 "may be added to the MS result by hand, as "
-                 "SOS(with SR) - SOS(without)\n";
-  }
-  if (t_SR_input && use_sos) {
+  if (t_SR_input) {
     sr_n_max = SR_input.get("n_max_legs", DiracSpinor::max_n(wf.core()) + 3);
     sr_norm = SR_input.get("norm", true);
     // No RPA objects without RPA in the main block: none to include
@@ -287,8 +294,9 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     if (!sr_omega) {
       std::cout << "Structure radiation denominators at omega = 0\n";
     }
+    std::cout << "By sum-over-states, with the basis for all states\n";
     sr =
-      MBPT::StructureRad(wf.basis(), wf.FermiLevel(), {n_min, n_max}, Qk_file);
+      MBPT::StructureRad(srn_states, wf.FermiLevel(), {n_min, n_max}, Qk_file);
   }
 
   //----------------------------------------------------------------------------
@@ -399,38 +407,17 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     const auto n_main = input.get("n_main", DiracSpinor::max_n(wf.core()) + 4);
 
     if (use_sos) {
-      // Structure radiation + normalisation: added to the single-particle
-      // matrix elements, for pairs with n <= n_max_legs (the valence legs and
-      // the low-n intermediate states, which are the physical ones)
-      Coulomb::meTable<double> t_me{};
-      Coulomb::meTable<double> s_me{};
-      if (sr) {
-        std::cout << "Fill matrix element tables..." << std::flush;
-        const std::vector<DiracSpinor> legs{Fa, Fb};
-        // The RPA on the internal lines is the component at the operator's
-        // frequency (emission, for a negative frequency)
-        sr->solve_core(ht.get(), sr_rpa ? rpa_t.get() : nullptr, omega);
-        t_me = Amplitudes::me_table(legs, spectrum, ht.get(), rpa_t.get(), &*sr,
-                                    omega, sr_n_max, sr_norm, sr_rpa,
-                                    sr_omega ? omega : 0.0);
-        sr->solve_core(hs.get(), sr_rpa ? rpa_s.get() : nullptr, omega_s);
-        s_me = Amplitudes::me_table(legs, spectrum, hs.get(), rpa_s.get(), &*sr,
-                                    omega_s, sr_n_max, sr_norm, sr_rpa,
-                                    sr_omega ? omega_s : 0.0);
-        std::cout << "done\n" << std::flush;
-      }
-
       A_v =
         Amplitudes::sos_valence(K, Fb, Fa, ht.get(), hs.get(), omega, omega_s,
-                                spectrum, rpa_t.get(), rpa_s.get(), t_me, s_me);
+                                spectrum, rpa_t.get(), rpa_s.get());
 
       // Core-valence (Pauli blocking) part: the below-Fermi terms of the sum.
       // Already included in the valence total; separated for comparison
       const auto [below_fermi, excited] =
         DiracSpinor::split_by_energy(spectrum, wf.FermiLevel());
-      A_cv = Amplitudes::sos_valence(K, Fb, Fa, ht.get(), hs.get(), omega,
-                                     omega_s, below_fermi, rpa_t.get(),
-                                     rpa_s.get(), t_me, s_me);
+      A_cv =
+        Amplitudes::sos_valence(K, Fb, Fa, ht.get(), hs.get(), omega, omega_s,
+                                below_fermi, rpa_t.get(), rpa_s.get());
 
       // 'Main' part: the low-n (physical) excited states, as the pnc module
       std::vector<DiracSpinor> main_states;
@@ -439,9 +426,9 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
           main_states.push_back(n);
         }
       }
-      A_main = Amplitudes::sos_valence(K, Fb, Fa, ht.get(), hs.get(), omega,
-                                       omega_s, main_states, rpa_t.get(),
-                                       rpa_s.get(), t_me, s_me);
+      A_main =
+        Amplitudes::sos_valence(K, Fb, Fa, ht.get(), hs.get(), omega, omega_s,
+                                main_states, rpa_t.get(), rpa_s.get());
       have_main = true;
 
       if (diagonal && K == 0) {
@@ -496,6 +483,33 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     }
 
     //--------------------------------------------------------------------------
+    // Structure radiation + normalisation, by sum-over-states (for either
+    // method): each part separately. The legs are the states of the SR+N set
+    // with the n and kappa of the valence states
+    Amplitudes::SRNparts srn{};
+    if (sr) {
+      const auto leg_a = std::find(srn_states.cbegin(), srn_states.cend(), Fa);
+      const auto leg_b = std::find(srn_states.cbegin(), srn_states.cend(), Fb);
+      if (leg_a == srn_states.cend() || leg_b == srn_states.cend()) {
+        fmt2::warning();
+        std::cout << ": SR+N not included: valence state(s) not among the "
+                     "SR+N states\n";
+      } else {
+        std::cout << "\nSR+N, by sum-over-states..." << std::flush;
+        // The mixed-states TDHF objects exist even without RPA: only use if
+        // solved
+        srn = Amplitudes::sos_srn(K, *leg_b, *leg_a, ht.get(), hs.get(), omega,
+                                  omega_s, srn_states, wf.FermiLevel(),
+                                  rpaQ ? rpa_t.get() : nullptr,
+                                  rpaQ ? rpa_s.get() : nullptr, &*sr, sr_n_max,
+                                  sr_norm, sr_rpa, sr_omega);
+        std::cout << "done\n" << std::flush;
+      }
+    }
+    const auto A_srn =
+      srn.sr_t + srn.sr_s + srn.norm_t + srn.norm_s + srn.nonlinear;
+
+    //--------------------------------------------------------------------------
     // Double core polarisation, by second-order TDHF. It has its own
     // first-order TDHF for t and s, whatever the RPA method. rpa = false: no
     // core polarisation of t and s (a single iteration: bare first-order
@@ -523,7 +537,7 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
       have_dcp = true;
     }
 
-    const auto A_total = A_v + A_core + A_dcp;
+    const auto A_total = A_v + A_srn + A_core + A_dcp;
 
     //--------------------------------------------------------------------------
     // The second column of the table is the quantity that was asked for. For
@@ -594,21 +608,38 @@ void secondOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     fmt::print("\n{}:\n", title);
     // Column labels line up with the first digit of the values (after sign)
     fmt::print("{:<22}{:<17}{}\n", "", fmt::format("A^{}", K), name);
-    fmt::print("{:<18}{:16.6e} {:16.6e}\n", "valence", A_v, factor * A_v);
-    fmt::print("    {:<14}{:16.6e} {:16.6e}   [included in valence]\n",
-               "core-valence", A_cv, factor * A_cv);
-    if (have_main) {
-      fmt::print("    {:<14}{:16.6e} {:16.6e}   [included in valence]\n",
-                 fmt::format("main (n<={})", n_main), A_main, factor * A_main);
-      const auto A_tail = A_v - A_cv - A_main;
-      fmt::print("    {:<14}{:16.6e} {:16.6e}   [included in valence]\n",
-                 "tail", A_tail, factor * A_tail);
-    }
     if (diagonal && K == 0) {
       fmt::print("{:<18}{:16.6e} {:16.6e}\n", "core", A_core, factor * A_core);
     }
+    fmt::print("{:<18}{:16.6e} {:16.6e}\n", "core-valence", A_cv,
+               factor * A_cv);
+    if (have_main) {
+      fmt::print("{:<18}{:16.6e} {:16.6e}\n",
+                 fmt::format("main (n<={})", n_main), A_main, factor * A_main);
+      const auto A_tail = A_v - A_cv - A_main;
+      fmt::print("{:<18}{:16.6e} {:16.6e}\n", "tail", A_tail, factor * A_tail);
+    }
+    const auto A_subtotal = A_core + A_v;
+    fmt::print("{:<18}{:16.6e} {:16.6e}\n\n", "subtotal", A_subtotal,
+               factor * A_subtotal);
     if (have_dcp) {
-      fmt::print("{:<18}{:16.6e} {:16.6e}\n", "DCP", A_dcp, factor * A_dcp);
+      fmt::print("{:<18}{:16.6e} {:16.6e}\n\n", "DCP", A_dcp, factor * A_dcp);
+    }
+    if (sr) {
+      fmt::print("{:<18}{:16.6e} {:16.6e}\n", "SR (t)", srn.sr_t,
+                 factor * srn.sr_t);
+      fmt::print("{:<18}{:16.6e} {:16.6e}\n", "SR (s)", srn.sr_s,
+                 factor * srn.sr_s);
+      if (sr_norm) {
+        fmt::print("{:<18}{:16.6e} {:16.6e}\n", "Norm (t)", srn.norm_t,
+                   factor * srn.norm_t);
+        fmt::print("{:<18}{:16.6e} {:16.6e}\n", "Norm (s)", srn.norm_s,
+                   factor * srn.norm_s);
+      }
+      fmt::print("{:<18}{:16.6e} {:16.6e}\n", "SR+N nonlinear", srn.nonlinear,
+                 factor * srn.nonlinear);
+      fmt::print("{:<18}{:16.6e} {:16.6e}\n\n", "SR+N total", A_srn,
+                 factor * A_srn);
     }
     fmt::print("{:<18}{:16.6e} {:16.6e}\n", "total", A_total, factor * A_total);
 

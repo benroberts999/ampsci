@@ -169,6 +169,25 @@ TEST_CASE("Amplitudes: second-order SOS", "[Amplitudes][SecondOrder][unit]") {
     }
     check("alpha_core", (-2.0 / 3.0) * ref, alpha_core);
   }
+
+  // Even-parity operators, static and diagonal: the n = a term has a
+  // degenerate denominator, and must be excluded from the sum
+  {
+    const DiracOperator::Ek hE2(wf.grid(), 2);
+    std::vector<DiracSpinor> basis_without_5dm;
+    for (const auto &Fn : basis) {
+      if (Fn != *p5dm) {
+        basis_without_5dm.push_back(Fn);
+      }
+    }
+    REQUIRE(basis_without_5dm.size() == basis.size() - 1);
+    const auto expected = Amplitudes::sos_valence(0, *p5dm, *p5dm, &hE2, &hE2,
+                                                  0.0, 0.0, basis_without_5dm);
+    const auto found =
+      Amplitudes::sos_valence(0, *p5dm, *p5dm, &hE2, &hE2, 0.0, 0.0, basis);
+    REQUIRE(expected != 0.0);
+    check("A^0(E2 E2) 5d-", expected, found);
+  }
 }
 
 //==============================================================================

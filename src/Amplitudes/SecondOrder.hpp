@@ -13,7 +13,8 @@ class TDHF;
 } // namespace ExternalField
 namespace MBPT {
 class CorrelationPotential;
-}
+class StructureRad;
+} // namespace MBPT
 
 namespace Amplitudes {
 
@@ -130,12 +131,14 @@ namespace Amplitudes {
                  elements; empty (default) to calculate directly.
   @return \f$ A^K \f$ (valence part).
 
-  @note Degenerate denominators arise for even-parity operator pairs (an
-        intermediate state degenerate with \f$ \en_a + \omega \f$; e.g.
-        n = a for a static diagonal amplitude). Such terms diverge, and
-        nothing is skipped here: remove the offending states from the sum
-        and treat them separately (cf. the project-out treatment in the
-        pnc module).
+  @note Degenerate denominators arise for even-parity operator pairs: the
+        intermediate state is one of the valence states themselves, left
+        unchanged by a static operator (n = a for \f$ \omega_s = 0 \f$ or
+        \f$ \omega = 0 \f$; n = b for \f$ \en_a + \omega_s = \en_b \f$ or
+        \f$ \en_a + \omega = \en_b \f$). Such terms are excluded from the
+        sum: the perturbed state has no admixture of the unperturbed one. A
+        state of @p spectrum is taken to be a valence state if it has the
+        same n and kappa.
 */
 [[nodiscard]] double
 sos_valence(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
@@ -184,6 +187,94 @@ sos_core(int K, int twoJ, const DiracOperator::TensorOperator *t,
          const std::vector<DiracSpinor> &excited,
          const ExternalField::CorePolarisation *dVt = nullptr,
          const ExternalField::CorePolarisation *dVs = nullptr);
+
+/*!
+  @brief Structure radiation and normalisation corrections to the valence
+  part of A^K, each part separately; see sos_srn().
+*/
+struct SRNparts {
+  //! Structure radiation of t alone
+  double sr_t{0.0};
+  //! Structure radiation of s alone
+  double sr_s{0.0};
+  //! Normalisation of states in the matrix elements of t alone
+  double norm_t{0.0};
+  //! Normalisation of states in the matrix elements of s alone
+  double norm_s{0.0};
+  //! Remainder: t and s both corrected
+  double nonlinear{0.0};
+};
+
+/*!
+  @brief Structure radiation and normalisation (SR+N) corrections to the
+  valence part of A^K, by sum-over-states.
+  @details
+  SR+N is added to the single-particle matrix elements of the sum; see
+  sos_valence() and me_table(). The valence sum is bilinear in the matrix
+  elements of the two operators, \f$ A^K = A[t, s] \f$. With
+  \f$ \delta t = \delta t_{\rm SR} + \delta t_{\rm N} \f$ (and the same for
+  \f$ s \f$), each correction is the change in the sum due to that correction
+  to one operator alone,
+
+  \f[
+    \delta A_{\rm SR}(t) = A[t + \delta t_{\rm SR},\, s] - A[t, s]
+      = A[\delta t_{\rm SR},\, s],
+  \f]
+
+  and likewise for the other three. The remainder, with both operators
+  corrected, is the nonlinear part:
+
+  \f[
+    \delta A_{\rm nonlinear} = A[t + \delta t,\, s + \delta s] - A[t, s]
+      - A[\delta t,\, s] - A[t,\, \delta s] = A[\delta t,\, \delta s],
+  \f]
+
+  so that the five parts sum to the full SR+N correction.
+
+  SR+N is applied to matrix elements between the valence states and the
+  intermediate states above @p en_fermi with \f$ n \le \f$ @p sr_n_max (and
+  only if the valence states have \f$ n \le \f$ @p sr_n_max too). It is not
+  applied to core intermediate states: the SR+N formulas assume valence
+  legs, and with a core state on a leg their energy denominators can vanish.
+
+  One set of orbitals is used throughout: the tables of matrix elements and
+  of Coulomb integrals are indexed by (n, kappa) only, so every orbital with
+  a given (n, kappa) must be the same orbital. The valence states @p Fb and
+  @p Fa must therefore be states of @p states, and @p sr must be constructed
+  from the same set.
+
+  @param K        Rank of the amplitude.
+  @param Fb,Fa    Final and initial valence states: the states of @p states
+                  with their n and kappa (not separate valence orbitals).
+  @param t,s      The two operators.
+  @param omega,omega_s  Frequency of each operator; see sos_valence().
+  @param states   Intermediate states summed over: those @p sr is
+                  constructed from.
+  @param en_fermi Fermi level: separates the core from the excited states of
+                  @p states.
+  @param dVt,dVs  RPA for each operator, solved at the frequency of that
+                  operator. May be nullptr.
+  @param sr       Structure radiation, constructed from @p states; must not
+                  be null. Its solve_core() is called here, for each operator
+                  in turn.
+  @param sr_n_max SR+N is applied only to pairs with both n <= @p sr_n_max.
+  @param sr_norm  If false, only the structure radiation is included, and
+                  the normalisation parts are zero.
+  @param sr_rpa   If false, no RPA inside SR+N: on the internal lines of the
+                  structure radiation, and in the normalisation.
+  @param sr_omega If false, the structure radiation denominators are at
+                  zero frequency, not that of each operator.
+  @return Each part of the correction to \f$ A^K \f$.
+*/
+[[nodiscard]] SRNparts
+sos_srn(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
+        const DiracOperator::TensorOperator *t,
+        const DiracOperator::TensorOperator *s, double omega, double omega_s,
+        const std::vector<DiracSpinor> &states, double en_fermi,
+        const ExternalField::CorePolarisation *dVt,
+        const ExternalField::CorePolarisation *dVs, MBPT::StructureRad *sr,
+        int sr_n_max, bool sr_norm = true, bool sr_rpa = true,
+        bool sr_omega = true);
 
 /*!
   @brief Valence part of the second-order amplitude A^K, evaluated with

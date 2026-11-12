@@ -1,9 +1,11 @@
 #include "Amplitudes/SecondOrder.hpp"
+#include "Amplitudes/MatrixElements.hpp"
 #include "Angular/include.hpp"
 #include "CI/SecondOrder.hpp"
 #include "DiracOperator/TensorOperator.hpp"
 #include "ExternalField/CorePolarisation.hpp"
 #include "ExternalField/TDHF.hpp"
+#include "MBPT/StructureRad.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "fmt/ostream.hpp"
 #include <cassert>
@@ -65,6 +67,9 @@ double sos_valence(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
   const auto conj_t = omega < 0.0;
   const auto conj_s = omega_s < 0.0;
 
+  // Below any physical energy difference
+  const auto degenerate_tolerance = 1.0e-10;
+
   double A = 0.0;
 
   for (const auto &n : spectrum) {
@@ -72,15 +77,28 @@ double sos_valence(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
     const auto [c1, c2] =
       CI::A_K_coefs(K, kt, ks, Fb.twoj(), n.twoj(), Fa.twoj());
 
+    // Degenerate denominators: n is one of the valence states themselves,
+    // left unchanged by a static operator. Such a term does not belong in the
+    // sum: the perturbed state has no admixture of the unperturbed one. Only
+    // for even-parity operators (zero by parity otherwise). Tested with the
+    // energy of the valence state, which that of n may differ from slightly
+    const auto *valence_n = n == Fa ? &Fa : n == Fb ? &Fb : nullptr;
+    const auto degenerate_ts =
+      valence_n &&
+      std::abs(Fa.en() + omega_s - valence_n->en()) < degenerate_tolerance;
+    const auto degenerate_st =
+      valence_n &&
+      std::abs(Fa.en() + omega - valence_n->en()) < degenerate_tolerance;
+
     // 'ts' term: s takes a -> n, t takes n -> b
-    if (c1 != 0.0 && !t->isZero(Fb, n) && !s->isZero(n, Fa)) {
+    if (c1 != 0.0 && !degenerate_ts && !t->isZero(Fb, n) && !s->isZero(n, Fa)) {
       const auto denom = Fa.en() + omega_s - n.en();
       A += c1 * table_me(t_me, t, dVt, Fb, n, conj_t) *
            table_me(s_me, s, dVs, n, Fa, conj_s) / denom;
     }
 
     // 'st' term: t takes a -> n, s takes n -> b
-    if (c2 != 0.0 && !s->isZero(Fb, n) && !t->isZero(n, Fa)) {
+    if (c2 != 0.0 && !degenerate_st && !s->isZero(Fb, n) && !t->isZero(n, Fa)) {
       const auto denom = Fa.en() + omega - n.en();
       A += c2 * table_me(s_me, s, dVs, Fb, n, conj_s) *
            table_me(t_me, t, dVt, n, Fa, conj_t) / denom;
@@ -99,6 +117,69 @@ double sos_core(int K, int twoJ, const DiracOperator::TensorOperator *t,
                 const ExternalField::CorePolarisation *dVs) {
   // Identical quantity; single-particle j plays the role of J
   return CI::A_K_core(K, twoJ, t, s, omega, omega_s, core, excited, dVt, dVs);
+}
+
+//==============================================================================
+SRNparts sos_srn(int K, const DiracSpinor &Fb, const DiracSpinor &Fa,
+                 const DiracOperator::TensorOperator *t,
+                 const DiracOperator::TensorOperator *s, double omega,
+                 double omega_s, const std::vector<DiracSpinor> &states,
+                 double en_fermi, const ExternalField::CorePolarisation *dVt,
+                 const ExternalField::CorePolarisation *dVs,
+                 MBPT::StructureRad *sr, int sr_n_max, bool sr_norm,
+                 bool sr_rpa, bool sr_omega) {
+  assert(sr != nullptr);
+
+  const std::vector<DiracSpinor> legs{Fa, Fb};
+  // Core states are absent from the tables, so are bare (plus RPA) in every
+  // sum
+  const auto excited = DiracSpinor::split_by_energy(states, en_fermi).second;
+
+  // Tables for one operator, at its frequency: without SR+N, with SR only,
+  // with Norm only, and with both (SR and Norm are additive)
+  struct Tables {
+    Coulomb::meTable<double> base, sr, norm, both;
+  };
+  const auto srn_tables = [&](const DiracOperator::TensorOperator *h,
+                              const ExternalField::CorePolarisation *dV,
+                              double w) {
+    // The RPA on the internal lines is the component at the operator's
+    // frequency (emission, for a negative frequency)
+    sr->solve_core(h, sr_rpa ? dV : nullptr, w);
+    const auto w_sr = sr_omega ? w : 0.0;
+    Tables tables;
+    tables.base = me_table(legs, excited, h, dV, nullptr, w);
+    tables.sr = me_table(legs, excited, h, dV, sr, w, sr_n_max, false, sr_rpa,
+                         w_sr, true);
+    // Without the normalisation, its table is the base: no correction
+    tables.norm = sr_norm ? me_table(legs, excited, h, dV, sr, w, sr_n_max,
+                                     true, sr_rpa, w_sr, false) :
+                            tables.base;
+    tables.both = tables.sr;
+    for (auto &[index, value] : tables.both) {
+      const auto [a, b] = Coulomb::meTable<double>::unFormIndex(index);
+      value += tables.norm.getv(a, b) - tables.base.getv(a, b);
+    }
+    return tables;
+  };
+  const auto t_tables = srn_tables(t, dVt, omega);
+  const auto s_tables = srn_tables(s, dVs, omega_s);
+
+  const auto sos_sum = [&](const Coulomb::meTable<double> &t_me,
+                           const Coulomb::meTable<double> &s_me) {
+    return sos_valence(K, Fb, Fa, t, s, omega, omega_s, states, dVt, dVs, t_me,
+                       s_me);
+  };
+  const auto A_base = sos_sum(t_tables.base, s_tables.base);
+
+  SRNparts parts;
+  parts.sr_t = sos_sum(t_tables.sr, s_tables.base) - A_base;
+  parts.sr_s = sos_sum(t_tables.base, s_tables.sr) - A_base;
+  parts.norm_t = sos_sum(t_tables.norm, s_tables.base) - A_base;
+  parts.norm_s = sos_sum(t_tables.base, s_tables.norm) - A_base;
+  parts.nonlinear = sos_sum(t_tables.both, s_tables.both) - A_base -
+                    parts.sr_t - parts.sr_s - parts.norm_t - parts.norm_s;
+  return parts;
 }
 
 //==============================================================================
