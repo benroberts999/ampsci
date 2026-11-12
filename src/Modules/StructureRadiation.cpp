@@ -80,7 +80,7 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
                       "use HF core, unless legs=spectrum [false]"},
      {"legs",
       "Which states to use for diagram legs? hf/basis/spectrum/brueckner "
-      "[hf]"},
+      "[hf; spectrum if spectrum=true]"},
      {"fk", "list: Coulomb screening factors for each k"},
      {"etak", "list: Hole-particle factors for each k"}});
   // If we are just requesting 'help', don't run module:
@@ -129,10 +129,13 @@ void structureRadiation(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "Including core-state matrix elements\n";
   }
 
-  // With a QkTable, the legs are the states of the table
-  const auto legs_str = Qk_file == "" ? input.get("legs", std::string{"hf"}) :
-                        use_spectrum  ? "spectrum" :
-                                        "basis";
+  // With a QkTable, the legs are the states of the table. Otherwise they may
+  // be chosen; by default the spectrum if it is used for the internal lines
+  // (the legs are then orthogonal to them), else the HF valence states
+  const auto legs_str =
+    Qk_file == "" ?
+      input.get("legs", std::string{use_spectrum ? "spectrum" : "hf"}) :
+      std::string{use_spectrum ? "spectrum" : "basis"};
 
   // External-leg states: core (optionally), then valence, taken from the
   // requested source (hf/basis/spectrum/brueckner)
