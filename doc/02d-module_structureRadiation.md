@@ -22,7 +22,8 @@ Aliases: the module may also be run as `Module::StructureRad{}` or
 
 * Requires a basis (B-splines).
 * The `legs` option selects which states are used for the external lines
-  (HF valence, basis, spectrum, or Brueckner orbitals).
+  (HF valence, basis, spectrum, or Brueckner orbitals). Default: HF valence,
+  or the spectrum if `spectrum = true`.
 * The `spectrum` option uses the spectrum, in place of the basis, for all
   internal lines of the diagrams (a test). Its Coulomb integrals go to a
   separate `Qk_file`.
@@ -112,7 +113,8 @@ Module::StructureRadiation{
     // use HF core, unless legs=spectrum [false]
   legs;
     // Which states to use for diagram legs?
-    // hf/basis/spectrum/brueckner [hf]
+    // hf/basis/spectrum/brueckner [hf; spectrum if
+    // spectrum=true]
   fk;
     // list: Coulomb screening factors for each k
   etak;
