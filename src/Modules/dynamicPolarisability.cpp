@@ -91,7 +91,8 @@ void dynamicPolarisability(const IO::InputBlock &input,
       "SR+N is applied to matrix elements whose states both have n <= this "
       "(the valence legs, and the low-n intermediate states). SR+N is only "
       "meaningful between physical states: the high-n basis states are "
-      "cavity states [default: max_n_core + 3]"},
+      "cavity states. Never applied to core intermediate states "
+      "[default: max_n_core + 3]"},
      {"norm", "Include the normalisation of states? If false, only the "
               "structure radiation is included [true]"},
      {"RPA_in_SR", "Include RPA in the SR+N diagrams [false]"}});
@@ -264,7 +265,9 @@ void dynamicPolarisability(const IO::InputBlock &input,
 
   // SR (+Norm) corrections: expensive, so calculated once (at w = 0,
   // ignoring their frequency dependence) and cached in a table. Only between
-  // physical (low-n) states, as Amplitudes::me_table
+  // physical (low-n) states, as Amplitudes::me_table, and not for core
+  // intermediate states: the SR+N formulas assume valence legs, and with a
+  // core state on a leg their energy denominators can vanish
   Coulomb::meTable<double> sr_tab{};
   if (sr) {
     IO::ChronoTimer t("Build SR table");
@@ -273,7 +276,8 @@ void dynamicPolarisability(const IO::InputBlock &input,
       if (Fv.n() > sr_n_max)
         continue;
       for (const auto &Fn : spectrum) {
-        if (Fn.n() > sr_n_max || he1.isZero(Fn, Fv))
+        if (Fn.n() > sr_n_max || he1.isZero(Fn, Fv) ||
+            wf.isInCore(Fn.n(), Fn.kappa()))
           continue;
         const auto *sr_dV = rpa_in_SR ? &dVE1 : nullptr;
         sr_tab.add(Fn, Fv,
