@@ -320,3 +320,53 @@ TEST_CASE("Amplitudes: SR matrix elements",
     REQUIRE(m.total() == Approx(m.factor * (m.t0 + m.dv + m.sr + m.norm)));
   }
 }
+
+//==============================================================================
+//! me_table with structure radiation only and normalisation only: each flag
+//! adds its own correction and nothing else
+TEST_CASE("Amplitudes: me_table SR and Norm separately",
+          "[Amplitudes][StrucRad][MBPT][unit]") {
+
+  Wavefunction wf({300, 1.0e-3, 30.0, 10.0, "loglinear", -1.0},
+                  {"B", -1, "Fermi", -1.0, -1.0}, 1.0);
+  wf.solve_core("Local", "[He],2s2", std::nullopt, 1.0e-12, false);
+  SplineBasis::Parameters params{"3spd4f", 60, 5, {1.0e-2}, 20.0};
+  params.verbose = false;
+  wf.formBasis(params);
+
+  const auto h = DiracOperator::E1(wf.grid());
+  MBPT::StructureRad sr(wf.basis(), wf.FermiLevel(), {0, 999}, "", 99, {}, {},
+                        false);
+  sr.solve_core(&h);
+  const auto &states = sr.excited();
+
+  const auto table = [&](bool sr_norm, bool sr_sr) {
+    return Amplitudes::me_table(states, &h, nullptr, &sr, 0.0, 999, sr_norm,
+                                true, {}, sr_sr);
+  };
+  const auto base = table(false, false);
+  const auto with_sr = table(false, true);
+  const auto with_norm = table(true, false);
+  const auto with_both = table(true, true);
+
+  // Guards against the corrections being trivially zero
+  double max_sr = 0.0;
+  double max_norm = 0.0;
+  for (const auto &a : states) {
+    for (const auto &b : states) {
+      if (h.isZero(a, b))
+        continue;
+      const auto t_ab = h.reducedME(a, b);
+      const auto sr_ab = sr.SR(a, b, 0.0);
+      const auto norm_ab = sr.norm(a, b, &h);
+      REQUIRE(base.getv(a, b) == Approx(t_ab));
+      REQUIRE(with_sr.getv(a, b) == Approx(t_ab + sr_ab));
+      REQUIRE(with_norm.getv(a, b) == Approx(t_ab + norm_ab));
+      REQUIRE(with_both.getv(a, b) == Approx(t_ab + sr_ab + norm_ab));
+      max_sr = std::max(max_sr, std::abs(sr_ab));
+      max_norm = std::max(max_norm, std::abs(norm_ab));
+    }
+  }
+  REQUIRE(max_sr > 1.0e-3);
+  REQUIRE(max_norm > 1.0e-3);
+}

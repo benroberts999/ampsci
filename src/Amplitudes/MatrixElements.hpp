@@ -317,7 +317,7 @@ me_table(const std::vector<DiracSpinor> &a_orbs,
 
 /*!
   @brief Builds a table of reduced matrix elements, including structure
-  radiation and (optionally) the normalisation of states.
+  radiation and the normalisation of states (each optional).
   @details
   As above, but each element also carries the second-order corrections,
   \f[ t_{ab} = \redmatel{a}{h}{b} + \delta V_{ab} + \delta_{\rm SR}^{ab}, \f]
@@ -354,6 +354,8 @@ me_table(const std::vector<DiracSpinor> &a_orbs,
                  e.g., zero, to test their (usually very weak) frequency
                  dependence. The RPA components are still those at @p omega
                  [default: @p omega].
+  @param sr_sr   If false, only the normalisation of states is added, not the
+                 structure radiation [true].
 
   @return meTable containing t_ab for all non-zero pairs, both orderings.
 */
@@ -364,7 +366,7 @@ me_table(const std::vector<DiracSpinor> &a_orbs,
          const ExternalField::CorePolarisation *dV,
          const MBPT::StructureRad *srn, double omega, int sr_n_max = 999,
          bool sr_norm = true, bool sr_rpa = true,
-         std::optional<double> omega_sr = std::nullopt);
+         std::optional<double> omega_sr = std::nullopt, bool sr_sr = true);
 
 /*!
   @brief Builds a SR+N matrix element table for a single set of orbitals.
@@ -378,9 +380,9 @@ me_table(const std::vector<DiracSpinor> &a_orbs,
          const ExternalField::CorePolarisation *dV,
          const MBPT::StructureRad *srn, double omega, int sr_n_max = 999,
          bool sr_norm = true, bool sr_rpa = true,
-         std::optional<double> omega_sr = std::nullopt) {
+         std::optional<double> omega_sr = std::nullopt, bool sr_sr = true) {
   return me_table(a_orbs, a_orbs, h, dV, srn, omega, sr_n_max, sr_norm, sr_rpa,
-                  omega_sr);
+                  omega_sr, sr_sr);
 }
 
 //==============================================================================

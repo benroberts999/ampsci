@@ -36,8 +36,11 @@ The core polarisation contribution is included (for diagonal, K = 0
 amplitudes), and the valence sum is decomposed into core-valence, main
 (low-n, see `n_main`), and tail parts, for comparison with other
 calculations. Structure radiation + normalisation may be added to the
-matrix elements of the sum via the `StructureRadiation{}` block
-(sum-over-states method only).
+matrix elements of the sum via the `StructureRadiation{}` block. This is
+always by sum-over-states (for either method), and printed separately: SR
+and Norm, each for t and s, and the small nonlinear part (t and s both
+corrected). The basis is used for all of the SR+N part (legs, intermediate
+states, and the internal lines of the diagrams).
 
 This is the single-valence analogue of the CI_secondOrder module.
 
@@ -225,8 +228,12 @@ Module::secondOrder{
   StructureRadiation{}
     // Options for structure radiation and normalisation. If
     // this block is included, SR+N is added to the
-    // single-particle matrix elements of the sum.
-    // Sum-over-states method only
+    // single-particle matrix elements of the sum, by
+    // sum-over-states (for either method). The basis is
+    // used for all of it (legs, intermediate states, and
+    // the internal lines of the diagrams). Printed
+    // separately: SR and Norm, each for t and s, and the
+    // nonlinear part (t and s both corrected)
 
   omega_t;
     // Explicit frequency for t, overriding omega. Energy
@@ -239,8 +246,8 @@ Module::secondOrder{
 // Available StructureRadiation options/blocks
 StructureRadiation{
   // If this block is included, SR + Normalisation
-  // corrections will be included (sum-over-states method
-  // only)
+  // corrections will be included, by sum-over-states (for
+  // either method), using the basis for all states
   n_minmax;
     // list; min,max n for core/excited (internal): [1,inf]
   n_max_legs;
@@ -248,7 +255,8 @@ StructureRadiation{
     // have n <= this (the valence legs, and the low-n
     // intermediate states). SR+N is only meaningful between
     // physical states: the high-n basis states are cavity
-    // states [default: max_n_core + 3]
+    // states. Never applied to core intermediate states
+    // [default: max_n_core + 3]
   norm;
     // Include the normalisation of states? If false, only
     // the structure radiation is included [true]
@@ -265,7 +273,6 @@ StructureRadiation{
     // true/false/filename: QkTable of Coulomb integrals;
     // read if it exists, otherwise calculated and written.
     // true: default filename. false: no QkTable (~10x
-    // slower, less memory). Note: with a QkTable, the basis
-    // states are used for the legs [true]
+    // slower, less memory) [true]
 }
 ```
