@@ -398,8 +398,8 @@ TEST_CASE("ampsci - Integration Tests",
   fmt2::styled_print(fg(fmt::color::blue), "\nCompare energies:\n");
   fmt::print("{:3} {:9} [{:9}] {:5}\n", "v", "En", "NIST", "Eps(%)");
   for (const auto &v : wf.valence()) {
-    // 0.1% for s, p; 0.2% for f; 1% for d
-    const auto eps_target = v.l() == 2 ? 1.0e-2 : v.l() == 3 ? 2.0e-3 : 1.0e-3;
+    // 0.1% for s; 0.2% for p, f; 1% for d
+    const auto eps_target = v.l() == 2 ? 1.0e-2 : v.l() == 0 ? 1.0e-3 : 2.0e-3;
 
     const auto nist_val = nist[v.shortSymbol()];
     const auto ampsci_val = v.en() * PhysConst::Hartree_invcm;

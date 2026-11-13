@@ -38,10 +38,7 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
     m_omre(options.omre),
     m_w0(options.w0),
     m_wratio(options.w_ratio),
-    m_hole_particle(options.hole_particle == HoleParticle::include ||
-                    options.hole_particle == HoleParticle::include_k0),
-    m_include_higher_order_hp(options.hole_particle !=
-                              HoleParticle::include_k0),
+    m_hole_particle(options.hole_particle == HoleParticle::include),
     m_screen_Coulomb(options.screening == Screening::include),
     m_Complex_green_method(options.complex_green) {
 
@@ -64,9 +61,7 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
       std::cout << "Including all-orders Coulomb screening\n";
     }
     if (m_hole_particle) {
-      std::cout << "Including hole-particle interaction: "
-                << (m_include_higher_order_hp ? "(all k in hp)\n" :
-                                                "(only k=0)\n");
+      std::cout << "Including hole-particle interaction\n";
     }
     std::cout << "Re(w) = " << m_omre << "\n";
     fmt::print("Im(w) : 0 + log grid [{}, {:.1f}], ratio={}, N={} "
@@ -173,10 +168,6 @@ ComplexGMatrix Feynman::green_single(const DiracSpinor &ket,
 // new test way to form the radial exchange potential coordinate matrix using change of basis formula -- the complete basis that is used is the hydrogenic wave functions
 void Feynman::form_vx() {
 
-  const auto localQ = m_HF->is_localQ();
-  if (localQ)
-    return;
-
   m_Vx_kappa = std::vector<GMatrix>(
     m_max_ki + 1, {m_i0, m_stride, m_subgrid_points, m_include_G, m_grid});
 
@@ -193,7 +184,7 @@ void Feynman::form_vx() {
   const auto max_l =
     std::max(Angular::kindex_to_l(m_max_ki), DiracSpinor::max_l(m_HF->core()));
   const auto l_string =
-    AtomData::spectroscopic_notation.substr(0, std::size_t(max_l));
+    AtomData::spectroscopic_notation.substr(0, std::size_t(max_l) + 1);
   const auto basis_string = l_string;
 
   wfH.formBasis(SplineBasis::Parameters(
@@ -315,16 +306,6 @@ ComplexGMatrix Feynman::green_hf(int kappa, std::complex<double> en,
   // Get G0 (Green's function, without exchange):
   const auto g0 = construct_green_g0(x0, xI, w);
 
-  // Don't include exchange if local!
-  const auto localQ = m_HF->is_localQ();
-  if (localQ) {
-    if (en.imag() == 0.0)
-      return g0.complex();
-    std::complex<double> iw{0.0, en.imag()};
-    return g0.complex() *
-           ((iw * g0.complex().dri_in_place() + 1.0).invert_in_place());
-  }
-
   // Include exchange (optionally, with hole-particle correction)
   auto Vx = get_Vx_kappa(kappa);
   if (Fc_hp != nullptr) {
@@ -385,19 +366,14 @@ ComplexGMatrix Feynman::green_hf_complex_dirac(int kappa,
   // Get G0 (Green's function, without exchange):
   const auto g0 = construct_green_g0(x0, Ix0, xI, IxI, w);
 
-  auto G = g0;
-
-  // Include exchange (optionally, with hole-particle correction),
-  // unless local (no exchange)
-  if (!m_HF->is_localQ()) {
-    auto Vx = get_Vx_kappa(kappa);
-    if (Fc_hp != nullptr) {
-      // Include hole-particle interaction (w/ [1-P]V[1-P]):
-      Vx += calculate_Vhp(kappa, *Fc_hp);
-    }
-    // Include exchange using Dyson:
-    G = -1.0 * ((g0 * Vx.complex() - 1.0).invert_in_place() * g0);
+  // Include exchange (optionally, with hole-particle correction)
+  auto Vx = get_Vx_kappa(kappa);
+  if (Fc_hp != nullptr) {
+    // Include hole-particle interaction (w/ [1-P]V[1-P]):
+    Vx += calculate_Vhp(kappa, *Fc_hp);
   }
+  // Include exchange using Dyson:
+  auto G = -1.0 * ((g0 * Vx.complex() - 1.0).invert_in_place() * g0);
 
   // Cell-average the continuum part of the sampled kernel. The core-pole
   // part is smooth and separable (not a ridge), so it is excluded from the
@@ -569,28 +545,31 @@ GMatrix Feynman::calculate_Vhp(int kappa, const DiracSpinor &Fc) const {
     }
   }
 
-  // Higher-k hole-particle
-  if (m_include_higher_order_hp) {
-    const auto tjcp1 = Fc.twojp1();
-    for (int k = 2; k <= m_max_k; k += 2) {
-      const auto ykcc = Coulomb::yk_ab(k, Fc, Fc);
-      const auto ck = Angular::Ck_kk(k, Fc.kappa(), Fc.kappa());
-      const auto coef = (ck / tjcp1) * (ck / tjcp1);
-      for (auto i = 0ul; i < m_subgrid_points; ++i) {
-        const auto si = V0.index_to_fullgrid(i);
-        V0.ff(i, i) += coef * ykcc[si];
-        if (m_include_G) {
-          V0.gg(i, i) += coef * ykcc[si];
-        }
-      }
-    }
-  }
+  // Higher-k terms not included: they are the exchange with the hole, which
+  // is already in the screening (and is not a local potential).
+  // const auto tjcp1 = Fc.twojp1();
+  // for (int k = 2; k <= m_max_k; k += 2) {
+  //   const auto ykcc = Coulomb::yk_ab(k, Fc, Fc);
+  //   const auto ck = Angular::Ck_kk(k, Fc.kappa(), Fc.kappa());
+  //   const auto coef = (ck / tjcp1) * (ck / tjcp1);
+  //   for (auto i = 0ul; i < m_subgrid_points; ++i) {
+  //     const auto si = V0.index_to_fullgrid(i);
+  //     V0.ff(i, i) += coef * ykcc[si];
+  //     if (m_include_G) {
+  //       V0.gg(i, i) += coef * ykcc[si];
+  //     }
+  //   }
+  // }
 
   V0.drj_in_place();
 
-  // (1-P), with P = sum_a |a><a| drj
-  const auto OneNegPc = -1.0 * get_Pcore(kappa).real().drj_in_place() + 1.0;
-  return OneNegPc * V0 * OneNegPc;
+  // (1-P) V (1-P), with P = sum_a |a><a|.
+  // The result carries both integration measures (dr_i on the left, dr_j on
+  // the right), so the left projector is 1 - dr_i*P, the right 1 - P*dr_j
+  const auto P = get_Pcore(kappa).real();
+  const auto OneNegPc_left = -1.0 * P.dri() + 1.0;
+  const auto OneNegPc_right = -1.0 * P.drj() + 1.0;
+  return OneNegPc_left * V0 * OneNegPc_right;
 }
 
 //==============================================================================
@@ -849,8 +828,8 @@ double best_omre(const std::vector<DiracSpinor> &core,
   // should sit as far as possible from the poles.
   // The poles:
   //  - Green's function, g(e_v + omre): bound-state poles. The core
-  //    ones require omre <= e_core_max - e_v; the excited ones require
-  //    omre >= 0, except the few excited states BELOW e_v, which give
+  //    ones lie at omre <= e_core_max - e_v; the excited ones lie at
+  //    omre >= 0, except the few excited states BELOW e_v, which lie at
   //    omre = e_m - e_v (small, near zero; only for non-lowest valence).
   //  - Polarisation loop, gex(e_a +/- omre): true (excited) poles all lie
   //    at omre <= -Delta. The numerical core subtraction in gex is
@@ -1000,12 +979,10 @@ bool Feynman::rw_cache_header(std::fstream &iofs, IO::FRW::RoW rw,
 
   // Check screening / hole-particle (should be different filename)
   bool t_hp{m_hole_particle}, t_sc{screening ? *screening : m_screen_Coulomb},
-    t_hohp{m_include_higher_order_hp}, t_cgm{m_Complex_green_method},
-    t_iG{m_include_G};
-  rw_binary(iofs, rw, t_hp, t_sc, t_hohp, t_cgm, t_iG);
+    t_cgm{m_Complex_green_method}, t_iG{m_include_G};
+  rw_binary(iofs, rw, t_hp, t_sc, t_cgm, t_iG);
   if (t_hp != m_hole_particle || (screening && t_sc != *screening) ||
-      t_hohp != m_include_higher_order_hp || t_cgm != m_Complex_green_method ||
-      t_iG != m_include_G)
+      t_cgm != m_Complex_green_method || t_iG != m_include_G)
     return false;
 
   // Other parameters that make a difference

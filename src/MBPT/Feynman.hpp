@@ -17,11 +17,10 @@ namespace MBPT {
   @brief Options for including the hole-particle interaction.
 
   @details
-  - exclude    : not included
-  - include    : included, all k
-  - include_k0 : included, k=0 term only
+  - exclude : not included
+  - include : included (monopole potential of the hole)
 */
-enum class HoleParticle { exclude, include, include_k0 };
+enum class HoleParticle { exclude, include };
 
 //! Options for including Screening
 enum class Screening { exclude, include };
@@ -121,8 +120,6 @@ class Feynman {
 
   // Option: include hole-particle interaction into polarisation operator
   bool m_hole_particle;
-  // Option to include higher-k in hp interaction
-  bool m_include_higher_order_hp;
   // Include screening correction to Coulomb line in Q*Pi*Q => Q*Pi*X*Q
   bool m_screen_Coulomb;
 

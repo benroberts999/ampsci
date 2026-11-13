@@ -952,8 +952,8 @@ std::string CorrelationPotential::method_string() const {
       if (scr) {
         out += "+scr";
       }
-      if (m_Foptions.hole_particle != HoleParticle::exclude) {
-        out += hp ? "+hp" : "+hp0";
+      if (hp) {
+        out += "+hp";
       }
     }
   }
