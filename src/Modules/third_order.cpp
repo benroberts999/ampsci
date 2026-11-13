@@ -701,7 +701,7 @@ void third_order(const IO::InputBlock &input, const Wavefunction &wf) {
     //pre factor for pnc (SI)
     double pre_factor_PToperator = sqrt(2*I+1);
 
-
+    std::cout << "\n TEST" <<  pre_factor_HFoperator  << "  \n\n";
 
     double h_sum = pre_factor_const*pre_factor_HFoperator*pre_factor_PToperator * (h_1+h_2+h_3);
    

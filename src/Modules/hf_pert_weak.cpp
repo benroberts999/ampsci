@@ -596,14 +596,25 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
-    std::cout << "\n Total value is " << h_sum << "  MHz .with RPA\n\n";
-    std::cout << "In atomic unuts value is " << h_sum / PhysConst::Hartree_MHz
+
+    //also want to compute in relevant units for paper as well as full matrix element
+    int two_M = std::min(Fw2, Fv2); 
+
+    double z_me_conv =Angular::neg1pow_2(Fw2 - two_M)* Angular::threej_2(Fw2, 2, Fv2, -two_M, 0, two_M);
+    double full = z_me_conv*h_sum;
+
+    std::cout << "\n Total reduced matrix element is " << h_sum << "  MHz .with RPA\n\n";
+    std::cout << "In atomic units value is " << h_sum / PhysConst::Hartree_MHz
               << "  au .";
     std::cout << "\n\n We also split up positive and negative contributions to the sum\n\n";
     std::cout << "Negative sum contribution is " << h_sum_n / PhysConst::Hartree_MHz
     << "  au .\n\n";  
     std::cout << "Positive sum contribution is " << h_sum_p / PhysConst::Hartree_MHz
-    << "  au .\n\n";      
+    << "  au .\n\n";   
+    std::cout << "The full z-comp matrix element in atomic units is " << full / PhysConst::Hartree_MHz
+    << "  au .\n\n";
+    
+    
 
   } else {
     // Compute and store matrix elements without RPA
@@ -640,6 +651,11 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
 
     double h_sum =
         pre_factor * (h_1.at(0)+h_2.at(0)+h_1.at(1)+h_2.at(1));
+         //also want to compute in relevant units for paper as well as full matrix element
+    int two_M = std::min(Fw2, Fv2); 
+
+    double z_me_conv =Angular::neg1pow_2(Fw2 - two_M)* Angular::threej_2(Fw2, 2, Fv2, -two_M, 0, two_M);
+    double full = z_me_conv*h_sum;
 
     //need additional factor to account for different definition of the reduced matrix element (phase+3j symbol)
     // double tjw = Fw.twoj();
@@ -651,6 +667,9 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
     << "  au .\n\n";  
     std::cout << "Positive sum contribution is " << h_sum_p / PhysConst::Hartree_MHz
     << "  au .\n\n";    
+    std::cout << "The full z-comp matrix element in atomic units is " << full / PhysConst::Hartree_MHz
+    << "  au .\n\n";
+    
   }
 }
     
