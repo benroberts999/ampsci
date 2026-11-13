@@ -263,7 +263,7 @@ double sum_ij_2 =0.0;
                 double e_i = i.en();
                 double sixj4 = Angular::sixj_2(tjj, tjv, 2, Fv2, Fw2, I2);
                 double sixj5 = Angular::sixj_2(tji, tjw, twok_hf, I2, I2, Fw2);
-                double sixj6 = Angular::sixj_2(tjj, tjv, twok_pt, I2, I2, Fw2);
+                double sixj6 = Angular::sixj_2(tjj, tji, twok_pt, I2, I2, Fw2);
                 //get matrix elements
                 
                 double e_denom = (e_w-e_i)*(e_w-e_j);
@@ -271,7 +271,7 @@ double sum_ij_2 =0.0;
 
                 //second part 
                 double sixj7 = Angular::sixj_2(tji, tjw, twok_pt, I2, I2, Fw2);
-                double sixj8 = Angular::sixj_2(tjj, tjv, twok_hf, I2, I2, Fw2);
+                double sixj8 = Angular::sixj_2(tjj, tji, twok_hf, I2, I2, Fw2);
                  //get matrix elements
                 
                  //get phase
@@ -350,9 +350,9 @@ if (j != v) {
         //six j symbols
         double sixj1 = Angular::sixj_2(tji, tjj, 2, Fv2, Fw2, I2);
         double sixj2 = Angular::sixj_2(tji, tjw, twok_hf, I2, I2, Fw2);
-        double sixj3 = Angular::sixj_2(tjv, tji, twok_pt, I2, I2, Fv2);
+        double sixj3 = Angular::sixj_2(tjv, tjj, twok_pt, I2, I2, Fv2);
         double sixj4 = Angular::sixj_2(tji, tjw, twok_pt, I2, I2, Fw2);
-        double sixj5 = Angular::sixj_2(tjv, tji, twok_hf, I2, I2, Fv2);
+        double sixj5 = Angular::sixj_2(tjv, tjj, twok_hf, I2, I2, Fv2);
 
         //get matrix elements
         //get matrix elements
