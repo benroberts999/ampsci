@@ -1004,7 +1004,7 @@ std::vector<std::pair<int, int>> requested_J_pi(const IO::InputBlock &input,
   std::vector<std::pair<int, int>> J_pi_list;
   // Both parity lists may come from the same J list: warn once per J
   std::set<int> impossible_twoJ;
-  for (const auto [list, pi] :
+  for (const auto &[list, pi] :
        {std::pair{&twoJ_even_list, +1}, std::pair{&twoJ_odd_list, -1}}) {
     for (const auto twoJ : *list) {
       if (twoJ < 0 || (twoJ + num_electrons) % 2 != 0) {
