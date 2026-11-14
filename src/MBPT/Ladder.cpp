@@ -1,10 +1,14 @@
 #include "Ladder.hpp"
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
+#include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include "MBPT/LadderIteration.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include "fmt/format.hpp"
 #include "qip/String.hpp"
+#include "qip/Vector.hpp"
 #include "qip/omp.hpp"
 #include <algorithm>
 #include <array>
@@ -15,7 +19,6 @@
 #include <iostream>
 #include <numeric>
 #include <string>
-#include <unordered_set>
 #include <vector>
 
 namespace MBPT {
@@ -500,74 +503,37 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
-                  const Angular::SixJTable &sjt, int max_k, bool print) {
+                  int max_k, bool print) {
 
-  // const double a_damp = 0.35;
-  // const double b_damp = 1.0 - a_damp;
-
-  // Build combined basis: excited + core + any extra i_orbs (e.g. valence)
-  const auto basis = qip::merge(core, excited);
-
-  // Flat arrays for O(1) membership checks (no hash overhead).
-  // Indexed directly by nk_index (uint16_t), so size is max_idx+1.
-  DiracSpinor::Index max_idx = 0;
-  for (const auto &x : basis)
-    max_idx = std::max(max_idx, x.nk_index());
-  // i_orbs is almost always a subset of basis - but not always
-  // For example, basis might restict n_min_core
-  // whereas i_orbs may be full basis, eg.g., L|i><i| = L_mnib|i>
-  for (const auto &x : i_orbs)
-    max_idx = std::max(max_idx, x.nk_index());
-  std::vector<uint8_t> is_excited(std::size_t(max_idx) + 1, 0);
-  std::vector<uint8_t> is_core(std::size_t(max_idx) + 1, 0);
-  std::vector<uint8_t> is_i_orb(std::size_t(max_idx) + 1, 0);
-  for (const auto &n : excited)
-    is_excited[n.nk_index()] = 1;
-  for (const auto &a : core)
-    is_core[a.nk_index()] = 1;
-  for (const auto &x : i_orbs)
-    is_i_orb[x.nk_index()] = 1;
-
-  const auto kmax = (max_k < 0) ? qk.max_k() : std::min(max_k, qk.max_k());
-
-  // Base selection rule: m,n in excited, i in i_orbs, b in core + angular SR.
-  // Determines which L^k_mnib integrals we actually need.
+  // Required integrals: L^k_mnib with m,n excited, i in i_orbs, b in core.
   // nb: k runs over the full ladder range (k_minmax_L): triangle rules plus
   // the combined parity rule only. Unlike Q^k, L^k has components at BOTH
   // parities of k; the wrong-parity (Coulomb-forbidden) components enter the
   // exchange diagrams (via P/W) and feed back into the iterated rungs.
-  const auto Lk_SR_one = [&](int k, const DiracSpinor &m, const DiracSpinor &n,
-                             const DiracSpinor &i,
-                             const DiracSpinor &b) -> bool {
-    // Require m and n to be excited
-    if (!is_excited[m.nk_index()] || !is_excited[n.nk_index()])
-      return false;
-    // Require i to be in {i}, and b to be in core
-    if (!is_i_orb[i.nk_index()] || !is_core[b.nk_index()])
-      return false;
-    const auto [k0, kI] = k_minmax_L(m, n, i, b);
-    return k >= k0 && k <= kI;
-  };
 
-  // Selection rule passed to fill(): must be invariant under the Lk table
-  // symmetry L^k_{abcd} = L^k_{badc}. fill() only stores/computes the canonical
-  // tuple, so an entry must be accepted if EITHER it OR its symmetry partner
-  // (b,a,d,c) passes the base rule - otherwise needed entries whose canonical
-  // form puts a non-core hole in the b-slot (e.g. L^k_{mnva} -> canonical
-  // (n,m,a,v) with valence v in slot b) are silently dropped.
-  const auto Lk_SR = [&](int k, const DiracSpinor &a, const DiracSpinor &b,
-                         const DiracSpinor &c, const DiracSpinor &d) -> bool {
-    return Lk_SR_one(k, a, b, c, d) || Lk_SR_one(k, b, a, d, c);
-  };
+  const auto kmax = (max_k < 0) ? qk.max_k() : std::min(max_k, qk.max_k());
 
-  // Lk integral
-  const auto Lk_function = [&](int k, const DiracSpinor &m,
-                               const DiracSpinor &n, const DiracSpinor &i,
-                               const DiracSpinor &b) -> double {
-    return Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, nullptr);
-  };
+  // Maximum multipolarity of the stored integrals: same convention as
+  // CoulombTable::fill (kmax <= 0 means no cut-off)
+  const auto basis_max_k = DiracSpinor::max_tj(qip::merge(core, excited));
+  const auto max_k_stored =
+    (kmax <= 0) ? basis_max_k : std::min(basis_max_k, kmax);
 
-  lk->fill(basis, Lk_function, Lk_SR, kmax, print);
+  IO::ChronoTimer timer("", print);
+
+  // Add the required integrals that are not already in the table. Existing
+  // entries are kept (e.g., read from file), and only the new ones calculated
+  const auto num_existing = lk->count();
+  add_Lk_mnib_entries(lk, excited, core, i_orbs, max_k_stored);
+  if (lk->count() == num_existing)
+    return;
+
+  if (print) {
+    fmt::print("Calculating {}{} integrals\n",
+               num_existing == 0 ? "" : "(subset of) ", lk->count());
+  }
+  calculate_Lk_mnib(lk, qk, excited, core, i_orbs, include_L4, nullptr,
+                    max_k_stored, true, 0.0);
 }
 
 //==============================================================================
@@ -1426,6 +1392,340 @@ Sigma_ladder_direct(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
 }
 
 //==============================================================================
+ExternalLines external_lines(const std::vector<DiracSpinor> &valence,
+                             const std::vector<DiracSpinor> &core,
+                             const std::vector<DiracSpinor> &excited,
+                             const std::vector<DiracSpinor> &projection) {
+  ExternalLines lines;
+  // Labels: above the index of any real orbital present
+  Coulomb::nkIndex next_label = 0;
+  for (const auto *orbitals : {&core, &excited, &projection}) {
+    for (const auto &Fn : *orbitals) {
+      next_label = std::max(next_label, Fn.nk_index());
+    }
+  }
+  ++next_label;
+  lines.of_valence.resize(valence.size());
+  for (std::size_t iv = 0; iv < valence.size(); ++iv) {
+    const auto &v = valence[iv];
+    for (const auto &x : projection) {
+      if (x.kappa() != v.kappa())
+        continue;
+      lines.of_valence[iv].push_back({&x, next_label});
+      lines.orbitals.push_back(
+        {x.nk_index(), next_label, x.kappa(), x.twoj(), x.l(), v.en()});
+      ++next_label;
+    }
+  }
+  return lines;
+}
+
+//==============================================================================
+LadderIntegralSet
+external_i_slot_integrals(const std::vector<LadderOrbital> &excited,
+                          const std::vector<LadderOrbital> &core,
+                          const std::vector<LadderOrbital> &external) {
+  LadderIntegralSet integrals;
+  integrals.m_orbitals = excited;
+  integrals.symmetric_mn = true;
+  integrals.ij_orbitals = qip::merge(core, external);
+  // external lines in the i slot; core orbitals in the j slot
+  integrals.in_i_slot.assign(integrals.ij_orbitals.size(), 1);
+  integrals.in_j_slot.assign(integrals.ij_orbitals.size(), 0);
+  for (std::size_t ic = 0; ic < core.size(); ++ic) {
+    integrals.in_i_slot[ic] = 0;
+    integrals.in_j_slot[ic] = 1;
+  }
+  return integrals;
+}
+
+//==============================================================================
+LadderIntegralSet
+external_m_slot_integrals(const std::vector<LadderOrbital> &core,
+                          const std::vector<LadderOrbital> &external) {
+  LadderIntegralSet integrals;
+  integrals.m_orbitals = external;
+  integrals.symmetric_mn = false;
+  integrals.ij_orbitals = core;
+  integrals.in_i_slot.assign(core.size(), 1);
+  integrals.in_j_slot.assign(core.size(), 1);
+  return integrals;
+}
+
+//==============================================================================
+ExternalLineIntegrals external_line_integrals(
+  const std::vector<DiracSpinor> &valence, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited,
+  const std::vector<DiracSpinor> &projection, const Coulomb::QkTable &qk,
+  const Coulomb::LkTable &lk, bool include_L4, int max_it, double eps_target,
+  double a_damp, bool print) {
+
+  ExternalLineIntegrals out;
+  if (valence.empty() || core.empty() || excited.empty())
+    return out;
+
+  const auto excited_orbitals = ladder_orbitals(excited);
+  const auto core_orbitals = ladder_orbitals(core);
+  out.lines = external_lines(valence, core, excited, projection);
+  const auto &external_orbitals = out.lines.orbitals;
+
+  // The two families of integrals, for all valence states at once
+  const auto i_slot = external_i_slot_integrals(excited_orbitals, core_orbitals,
+                                                external_orbitals);
+  const auto m_slot =
+    external_m_slot_integrals(core_orbitals, external_orbitals);
+  const LadderDiagrams diagrams{true, true, true, include_L4};
+
+  // Tables for the two families. Start from the stored integrals of the
+  // orbital x itself, where they exist.
+  const auto max_k = lk.max_k();
+  auto &lk_i_slot = out.i_slot;
+  auto &lk_m_slot = out.m_slot;
+  add_Lk_entries(&lk_i_slot, excited_orbitals, i_slot, max_k);
+  add_Lk_entries(&lk_m_slot, excited_orbitals, m_slot, max_k);
+#pragma omp parallel for schedule(dynamic)
+  for (std::size_t im = 0; im < excited_orbitals.size(); ++im) {
+    const auto &m = excited_orbitals[im];
+    for (const auto &n : excited_orbitals) {
+      for (const auto &x : external_orbitals) {
+        for (const auto &b : core_orbitals) {
+          const auto [k0, kI] = k_minmax_L(m.kappa, n.kappa, x.kappa, b.kappa);
+          for (int k = k0; k <= std::min(kI, max_k); ++k) {
+            double *const L = lk_i_slot.get(
+              k, lk_i_slot.NormalOrder(m.label, n.label, x.label, b.label));
+            if (L != nullptr) {
+              *L = lk.Q(k, m.nk_index, n.nk_index, x.nk_index, b.nk_index);
+            }
+          }
+        }
+      }
+    }
+  }
+#pragma omp parallel for schedule(dynamic)
+  for (std::size_t ix = 0; ix < external_orbitals.size(); ++ix) {
+    const auto &x = external_orbitals[ix];
+    for (const auto &n : excited_orbitals) {
+      for (const auto &a : core_orbitals) {
+        for (const auto &b : core_orbitals) {
+          const auto [k0, kI] = k_minmax_L(x.kappa, n.kappa, a.kappa, b.kappa);
+          for (int k = k0; k <= std::min(kI, max_k); ++k) {
+            double *const L = lk_m_slot.get(
+              k, lk_m_slot.NormalOrder(x.label, n.label, a.label, b.label));
+            if (L != nullptr) {
+              *L = lk.Q(k, x.nk_index, n.nk_index, a.nk_index, b.nk_index);
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // Iterate the ladder equations for both families. Rungs containing an
+  // external line come from the family's previous iteration; all others from
+  // the converged table.
+  if (print) {
+    fmt::print("Iterating {} + {} ladder integrals with external lines\n",
+               lk_i_slot.count(), lk_m_slot.count());
+  }
+  for (int it = 1; it <= max_it; ++it) {
+    const auto lk_i_slot_prev = lk_i_slot;
+    const auto lk_m_slot_prev = lk_m_slot;
+    const auto change_i =
+      calculate_Lk(&lk_i_slot, qk, excited_orbitals, core_orbitals, i_slot,
+                   diagrams, &lk_i_slot_prev, &lk, max_k, false, a_damp);
+    const auto change_m =
+      calculate_Lk(&lk_m_slot, qk, excited_orbitals, core_orbitals, m_slot,
+                   diagrams, &lk_m_slot_prev, &lk, max_k, false, a_damp);
+    const auto eps =
+      std::max(change_i.max_change, change_m.max_change) /
+      std::max({change_i.max_value, change_m.max_value, 1.0e-300});
+    if (print) {
+      fmt::print("external-line it:{:2}  eps = {:.1e}\n", it, eps);
+      std::cout << std::flush;
+    }
+    if (eps < eps_target)
+      break;
+  }
+  return out;
+}
+
+//==============================================================================
+GMatrix ladder_potential(
+  const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited,
+  const std::vector<std::pair<const DiracSpinor *, Coulomb::nkIndex>> &external,
+  const Coulomb::LkTable *i_slot_Q, const Coulomb::LkTable *i_slot_W,
+  const Coulomb::LkTable *m_slot_Q, const Coulomb::LkTable *m_slot_W, int max_k,
+  double r0, double rmax, std::size_t stride, bool include_G) {
+
+  const auto kappa_v = v.kappa();
+  const auto en_v = v.en();
+  const auto tjv = v.twoj();
+
+  const auto grid = v.grid_sptr();
+  const auto i0 = grid->getIndex(r0);
+  const auto size = (grid->getIndex(rmax) - i0) / stride + 1;
+  GMatrix Sd{i0, stride, size, include_G, grid};
+  std::vector<GMatrix> Sd_ts(std::size_t(omp_get_max_threads()), Sd);
+
+#pragma omp parallel for schedule(dynamic)
+  for (auto in = 0ul; in < excited.size(); ++in) {
+    const auto &n = excited[in];
+    auto &Sd_t = Sd_ts[std::size_t(omp_get_thread_num())];
+    // sum_x L_x |x>, for one (k, m, n, a) or (k, n, a, b):
+    DiracSpinor Lx_x(0, kappa_v, grid);
+    for (const auto &a : core) {
+
+      // First term: |Q or W^k_{.amn}> L^k_{mnxa} <x|
+      for (const auto &m : excited) {
+        const auto [k0, kI] = k_minmax_L(m, n, v, a);
+        const auto dele = en_v + a.en() - m.en() - n.en();
+        for (int k = k0; k <= std::min(kI, max_k); ++k) {
+          const auto factor = 1.0 / ((2 * k + 1) * (tjv + 1) * dele);
+          for (const bool direct : {true, false}) {
+            const auto *const lk = direct ? i_slot_Q : i_slot_W;
+            if (lk == nullptr)
+              continue;
+            // direct closing: Coulomb-allowed k only
+            if (direct && (!Angular::Ck_kk_SR(k, kappa_v, m.kappa()) ||
+                           !Angular::Ck_kk_SR(k, a.kappa(), n.kappa())))
+              continue;
+            Lx_x *= 0.0;
+            bool any = false;
+            for (const auto &[x, label] : external) {
+              const auto Lkmnxa =
+                lk->Q(k, m.nk_index(), n.nk_index(), label, a.nk_index());
+              if (Lkmnxa != 0.0) {
+                Lx_x += Lkmnxa * *x;
+                any = true;
+              }
+            }
+            if (!any)
+              continue;
+            const auto Fkv = direct ? Coulomb::Qkv_bcd(k, kappa_v, a, m, n) :
+                                      Coulomb::Wkv_bcd(k, kappa_v, a, m, n);
+            Sd_t.add(Fkv, Lx_x, factor);
+          }
+        }
+      }
+
+      // Second term: |Q or W^k_{.nab}> L^k_{xnab} <x|
+      for (const auto &b : core) {
+        const auto [k0, kI] = k_minmax_L(v, n, a, b);
+        const auto dele = en_v + n.en() - a.en() - b.en();
+        for (int k = k0; k <= std::min(kI, max_k); ++k) {
+          const auto factor = 1.0 / ((2 * k + 1) * (tjv + 1) * dele);
+          for (const bool direct : {true, false}) {
+            const auto *const lk = direct ? m_slot_Q : m_slot_W;
+            if (lk == nullptr)
+              continue;
+            if (direct && (!Angular::Ck_kk_SR(k, kappa_v, a.kappa()) ||
+                           !Angular::Ck_kk_SR(k, n.kappa(), b.kappa())))
+              continue;
+            Lx_x *= 0.0;
+            bool any = false;
+            for (const auto &[x, label] : external) {
+              const auto Lkxnab =
+                lk->Q(k, label, n.nk_index(), a.nk_index(), b.nk_index());
+              if (Lkxnab != 0.0) {
+                Lx_x += Lkxnab * *x;
+                any = true;
+              }
+            }
+            if (!any)
+              continue;
+            const auto Fkv = direct ? Coulomb::Qkv_bcd(k, kappa_v, n, a, b) :
+                                      Coulomb::Wkv_bcd(k, kappa_v, n, a, b);
+            Sd_t.add(Fkv, Lx_x, factor);
+          }
+        }
+      }
+    }
+  }
+  for (const auto &Sd_t : Sd_ts) {
+    Sd += Sd_t;
+  }
+  return Sd.drj_in_place();
+}
+
+//==============================================================================
+std::vector<GMatrix> Sigma_ladder_iterated(
+  const std::vector<DiracSpinor> &valence, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited,
+  const std::vector<DiracSpinor> &projection, const Coulomb::QkTable &qk,
+  const Coulomb::LkTable &lk, bool include_L4, int max_it, double eps_target,
+  double a_damp, double r0, double rmax, std::size_t stride, bool include_G,
+  bool print) {
+
+  std::vector<GMatrix> Sigmas;
+  if (valence.empty() || core.empty() || excited.empty())
+    return Sigmas;
+
+  const auto integrals =
+    external_line_integrals(valence, core, excited, projection, qk, lk,
+                            include_L4, max_it, eps_target, a_damp, print);
+  for (std::size_t iv = 0; iv < valence.size(); ++iv) {
+    Sigmas.push_back(ladder_potential(
+      valence[iv], core, excited, integrals.lines.of_valence[iv], nullptr,
+      &integrals.i_slot, nullptr, &integrals.m_slot, lk.max_k(), r0, rmax,
+      stride, include_G));
+  }
+  return Sigmas;
+}
+
+//==============================================================================
+std::vector<GMatrix> Sigma_ladder_mirror(
+  const std::vector<DiracSpinor> &valence, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited,
+  const std::vector<DiracSpinor> &projection, const Coulomb::QkTable &qk,
+  bool include_L4, int max_k, double r0, double rmax, std::size_t stride,
+  bool include_G) {
+
+  std::vector<GMatrix> Sigmas;
+  if (valence.empty() || core.empty() || excited.empty())
+    return Sigmas;
+
+  const auto excited_orbitals = ladder_orbitals(excited);
+  const auto core_orbitals = ladder_orbitals(core);
+  const auto lines = external_lines(valence, core, excited, projection);
+  const auto i_slot =
+    external_i_slot_integrals(excited_orbitals, core_orbitals, lines.orbitals);
+  const auto m_slot = external_m_slot_integrals(core_orbitals, lines.orbitals);
+
+  // Lowest-order (bare rung) integrals of the diagrams in which a core pair
+  // is excited before the valence electron interacts, one diagram per table:
+  // external line in the i slot: L2 (a2) and L4 (a4, b4);
+  // external line in the m slot: L1 (c1, d1) and L3 (c3).
+  const auto lowest_order = [&](const LadderIntegralSet &integrals,
+                                const LadderDiagrams &diagrams) {
+    Coulomb::LkTable lk;
+    add_Lk_entries(&lk, excited_orbitals, integrals, max_k);
+    calculate_Lk(&lk, qk, excited_orbitals, core_orbitals, integrals, diagrams,
+                 nullptr, nullptr, max_k, false, 0.0);
+    return lk;
+  };
+  const auto L2_mnxa = lowest_order(i_slot, {false, true, false, false});
+  const auto L3_xnab = lowest_order(m_slot, {false, false, true, false});
+  const auto L1_xnab = lowest_order(m_slot, {true, false, false, false});
+  Coulomb::LkTable L4_mnxa;
+  if (include_L4) {
+    L4_mnxa = lowest_order(i_slot, {false, false, false, true});
+  }
+
+  // The mirror image is the transpose. The exchange closings of L2 and L3
+  // are not included: their mirror images are hole-particle (not ladder)
+  // diagrams.
+  for (std::size_t iv = 0; iv < valence.size(); ++iv) {
+    const auto Sigma =
+      ladder_potential(valence[iv], core, excited, lines.of_valence[iv],
+                       &L2_mnxa, include_L4 ? &L4_mnxa : nullptr, &L3_xnab,
+                       &L1_xnab, max_k, r0, rmax, stride, include_G);
+    Sigmas.push_back(Sigma.transpose_drj());
+  }
+  return Sigmas;
+}
+
+//==============================================================================
 void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &excited,
                     const std::vector<DiracSpinor> &core,
@@ -1434,45 +1734,31 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const Coulomb::LkTable *const lk_prev, double a_damp,
                     bool print) {
 
-  const auto basis = qip::merge(core, excited);
-
-  // Lk integral with damping folded in
-  const auto Lk_function = [&](int k, const DiracSpinor &m,
-                               const DiracSpinor &n, const DiracSpinor &i,
-                               const DiracSpinor &b) -> double {
-    return Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, lk_prev);
-  };
-
-  // Empty update_i => update everything.
+  // Empty update_i => update everything: every entry of the table (for the
+  // core + excited basis) is re-calculated, one at a time
   if (update_i.empty()) {
+    const auto basis = qip::merge(core, excited);
+    const auto Lk_function = [&](int k, const DiracSpinor &m,
+                                 const DiracSpinor &n, const DiracSpinor &i,
+                                 const DiracSpinor &b) -> double {
+      return Lkmnij(k, m, n, i, b, qk, core, excited, include_L4, sjt, lk_prev);
+    };
     lk->update(basis, Lk_function, a_damp, print);
     return;
   }
 
   // Otherwise restrict the re-iteration to entries whose i-slot is in
   // 'update_i' (b is always core; by the L^k_{mnib}=L^k_{nmbi} symmetry the i
-  // index sits in slot 3 or 4). The filter is applied in update() before any
-  // per-k lookup, so skipped entries cost (almost) nothing. Lets us converge
-  // core (update_i=core) before valence (update_i=valence), the latter using
-  // the now-frozen core rungs.
-  std::unordered_set<DiracSpinor::Index> core_set, update_set;
-  for (const auto &x : core) {
-    core_set.insert(x.nk_index());
+  // index sits in slot 3 or 4). Lets us converge core (update_i=core) before
+  // valence (update_i=valence), the latter using the now-frozen core rungs.
+  // All these integrals are calculated at once [see calculate_Lk_mnib()].
+  assert(a_damp != 1.0);
+  IO::ChronoTimer timer("", print);
+  if (print) {
+    fmt::print("Updating (subset of) {} integrals\n", lk->count());
   }
-  for (const auto &x : update_i) {
-    update_set.insert(x.nk_index());
-  }
-  const auto in = [](const std::unordered_set<DiracSpinor::Index> &set,
-                     const DiracSpinor &x) {
-    return set.find(x.nk_index()) != set.cend();
-  };
-  const auto filter = [&](const DiracSpinor &, const DiracSpinor &,
-                          const DiracSpinor &i, const DiracSpinor &b) {
-    return (in(update_set, i) && in(core_set, b)) ||
-           (in(update_set, b) && in(core_set, i));
-  };
-
-  lk->update(basis, Lk_function, a_damp, print, filter);
+  calculate_Lk_mnib(lk, qk, excited, core, update_i, include_L4, lk_prev,
+                    lk->max_k(), false, a_damp);
 }
 
 //==============================================================================

@@ -1,6 +1,7 @@
 #pragma once
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
+#include "MBPT/LadderIteration.hpp"
 #include "MBPT/SpinorMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <optional>
@@ -208,6 +209,7 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   orbitals in @p i_orbs, computing \f$ L^k_{mnib} \f$ (with \f$ b \f$ in
   @p core) and storing results in @p lk.
   Only calculates new integrals. Only lowest-order.
+  All the integrals are calculated at once, see calculate_Lk_mnib().
 
   @param lk          Output ladder table (written in place)
   @param qk          Coulomb \f$ Q^k \f$ integral table
@@ -215,7 +217,6 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param core        Core orbitals
   @param i_orbs      Orbitals for the \f$ i \f$ index
   @param include_L4  Include core-core diagram L4
-  @param sjt         6j symbol table
   @param max_k       Maximum multipolarity; -1 uses qk.max_k()
   @param print       Print progress and timing to screen
 */
@@ -223,8 +224,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
                   const std::vector<DiracSpinor> &i_orbs, bool include_L4,
-                  const Angular::SixJTable &sjt, int max_k = -1,
-                  bool print = true);
+                  int max_k = -1, bool print = true);
 
 /*!
   @brief Updates the ladder integral table with L(Q,Q) -> L(Q,Q+L)
@@ -234,6 +234,9 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   \f$ i \f$ in @p update_i), using @p lk_prev for the internal (Q+L) rung,
   and stores results in @p lk. Designed for iterative refinement: pass the
   previous iteration's table as @p lk_prev.
+  If @p update_i is given, all the integrals are calculated at once, see
+  calculate_Lk_mnib(); otherwise each entry of the table is re-calculated
+  separately with Lkmnij().
 
   @param lk          Output ladder table (written in place)
   @param qk          Coulomb \f$ Q^k \f$ integral table
@@ -348,8 +351,9 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
   @brief Method used to construct the ladder correlation potential, Sigma_L.
 
   @details
-  - basis  : project onto the basis; requires extending Qk (slow)
-             [Sigma_ladder()]
+  - basis  : project onto the basis, with the ladder integrals iterated for
+             each projection state at the valence energy; requires extending
+             Qk [Sigma_ladder_iterated()]
   - ratio  : no projection; rescale each Sigma(2) term by L/Q
              [Sigma_ladder(), empty projection basis]
   - direct : no projection; open the external line exactly (ladder vertex)
@@ -585,6 +589,245 @@ GMatrix Sigma_ladder_direct(
   const Coulomb::YkTable &yk, const Coulomb::LkTable *lk,
   const Angular::SixJTable &sjt, bool include_L4 = false, double r0 = 1.0e-4,
   double rmax = 30.0, std::size_t stride = 4, bool include_G = false);
+
+/*!
+  @brief External lines of the ladder integrals: for each valence state v,
+         each projection state x of kappa_v as an orbital with energy e_v.
+
+  @details
+  The ladder integrals with the external line x at the energy of v differ
+  from those of the orbital x itself, so each external line has a label of
+  its own in the ladder tables (above the index of any real orbital present):
+  look such integrals up with the label in the slot of x, and
+  DiracSpinor::nk_index() for the other orbitals.
+*/
+struct ExternalLines {
+  //! of_valence[iv]: the projection states x of kappa_v (pointers into the
+  //! projection basis), each with its label
+  std::vector<std::vector<std::pair<const DiracSpinor *, Coulomb::nkIndex>>>
+    of_valence{};
+  //! All the external lines, as orbitals for the ladder iteration: quantum
+  //! numbers of x, energy of v, own label
+  std::vector<LadderOrbital> orbitals{};
+};
+
+//! Forms the external lines: for each valence state, the states of
+//! @p projection with the same kappa. @p projection must outlive the result.
+ExternalLines external_lines(const std::vector<DiracSpinor> &valence,
+                             const std::vector<DiracSpinor> &core,
+                             const std::vector<DiracSpinor> &excited,
+                             const std::vector<DiracSpinor> &projection);
+
+//! Ladder integrals with an external line in the i slot: L^k_mnxb, with m,n
+//! excited, x external, b core (and the partners L^k_nmbx)
+LadderIntegralSet
+external_i_slot_integrals(const std::vector<LadderOrbital> &excited,
+                          const std::vector<LadderOrbital> &core,
+                          const std::vector<LadderOrbital> &external);
+
+//! Ladder integrals with an external line in the m slot: L^k_xnab, with x
+//! external, n excited (the excited set of calculate_Lk()), a,b core
+LadderIntegralSet
+external_m_slot_integrals(const std::vector<LadderOrbital> &core,
+                          const std::vector<LadderOrbital> &external);
+
+/*!
+  @brief Ladder integrals with an external line, for each valence state and
+         each projection state.
+  @details See external_line_integrals() and ExternalLines.
+*/
+struct ExternalLineIntegrals {
+  //! L^k_mnxb(e_v): external line in the i-slot; m,n excited, b core
+  Coulomb::LkTable i_slot{};
+  //! L^k_xnab(e_v): external line in the m-slot; n excited, a,b core
+  Coulomb::LkTable m_slot{};
+  //! The external lines, and their labels in the two tables
+  ExternalLines lines{};
+};
+
+/*!
+  @brief Iterates the ladder equations with an external line at the valence
+         energy, for every projection state.
+
+  @details
+  For each valence state \f$v\f$ and each state \f$x\f$ of @p projection
+  with kappa_v, calculates \f$L^k_{mnxb}(\epsilon_v)\f$ and
+  \f$L^k_{xnab}(\epsilon_v)\f$: the ladder integrals with \f$x\f$ in the
+  i-slot or the m-slot, and the external energy \f$\epsilon_v\f$ in place of
+  \f$\epsilon_x\f$ in the energy denominators (as the energy overrides of
+  Lkmnij()). The external orbital is only a label in the ladder equations, so
+  each family obeys them by itself: rungs that contain \f$x\f$ are taken from
+  the same family, all others from the converged table @p lk.
+
+  The iteration starts from the stored integrals of the orbital \f$x\f$
+  itself where they exist, so after one iteration the integrals are
+  Lkmnij() with rung @p lk and the energy override. It stops when the largest
+  change of any integral, relative to the largest integral, is below
+  @p eps_target. For \f$x = v\f$ the converged integrals are those of @p lk.
+
+  @param valence     Valence states (basis versions)
+  @param core        Core (hole) orbitals
+  @param excited     Excited orbitals
+  @param projection  Projection basis; for each valence state those of
+                     kappa_v are used. Must outlive the returned object
+  @param qk          Coulomb table; must hold the integrals with one
+                     projection state and three orbitals of core + excited
+  @param lk          Converged ladder table
+  @param include_L4  Include the hole-hole diagram L4
+  @param max_it      Maximum number of iterations
+  @param eps_target  Convergence target
+  @param a_damp      Damping factor [0,1), as update_Lk_mnib()
+  @param print       Print convergence to screen
+*/
+ExternalLineIntegrals external_line_integrals(
+  const std::vector<DiracSpinor> &valence, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited,
+  const std::vector<DiracSpinor> &projection, const Coulomb::QkTable &qk,
+  const Coulomb::LkTable &lk, bool include_L4, int max_it, double eps_target,
+  double a_damp, bool print = true);
+
+/*!
+  @brief Ladder correlation potential from ladder integrals with an external
+         line: the projection sum.
+
+  @details
+  \f[
+    \Sigma_L = \sum_{x}\Big[\sum_{amn,k} |F^k_{\cdot amn}\rangle\,
+      \frac{L^k_{mnxa}}
+           {[k][j_v]\,(\epsilon_v+\epsilon_a-\epsilon_m-\epsilon_n)}
+      + \sum_{nab,k} |F^k_{\cdot nab}\rangle\,
+      \frac{L^k_{xnab}}
+           {[k][j_v]\,(\epsilon_v+\epsilon_n-\epsilon_a-\epsilon_b)}
+      \Big]\langle x| ,
+  \f]
+  where \f$x\f$ runs over the external lines, and \f$F = Q\f$ (direct
+  closing only) for the integrals of the tables @p i_slot_Q, @p m_slot_Q,
+  and \f$F = W = Q + P\f$ (direct and exchange) for those of @p i_slot_W,
+  @p m_slot_W. Any of the tables may be nullptr.
+
+  @param v               Valence state: kappa and energy
+  @param core            Core (hole) orbitals
+  @param excited         Excited orbitals
+  @param external        External lines of v, with their labels
+                         [ExternalLines::of_valence]
+  @param i_slot_Q,i_slot_W  Tables of \f$L^k_{mnxa}\f$ (external line in the
+                            i slot)
+  @param m_slot_Q,m_slot_W  Tables of \f$L^k_{xnab}\f$ (external line in the
+                            m slot)
+  @param max_k           Largest multipolarity k
+  @param r0,rmax,stride  Sub-grid parameters
+  @param include_G       Include the lower (g) component
+*/
+GMatrix ladder_potential(
+  const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited,
+  const std::vector<std::pair<const DiracSpinor *, Coulomb::nkIndex>> &external,
+  const Coulomb::LkTable *i_slot_Q, const Coulomb::LkTable *i_slot_W,
+  const Coulomb::LkTable *m_slot_Q, const Coulomb::LkTable *m_slot_W, int max_k,
+  double r0 = 1.0e-4, double rmax = 30.0, std::size_t stride = 4,
+  bool include_G = false);
+
+/*!
+  @brief Ladder correlation potential Sigma_L by projection, with the ladder
+         integrals iterated for every projection state.
+
+  @details
+  As the projection form of Sigma_ladder(),
+  \f[
+    \Sigma_L = \sum_{x}\Big[\sum_{amn,k} |W^k_{\cdot amn}\rangle\,
+      \frac{L^k_{mnxa}(\epsilon_v)}
+           {[k][j_v]\,(\epsilon_v+\epsilon_a-\epsilon_m-\epsilon_n)}
+      + \sum_{nab,k} |W^k_{\cdot nab}\rangle\,
+      \frac{L^k_{xnab}(\epsilon_v)}
+           {[k][j_v]\,(\epsilon_v+\epsilon_n-\epsilon_a-\epsilon_b)}
+      \Big]\langle x| ,
+  \f]
+  where \f$x\f$ runs over the @p projection states of kappa_v. Here the
+  ladder integrals with the external line \f$x\f$, at the external energy
+  \f$\epsilon_v\f$ in place of \f$\epsilon_x\f$, are themselves iterated to
+  convergence, for every \f$x\f$: the external orbital is only a label in the
+  ladder equations (its energy enters the denominators only), so
+  \f$L^k_{mnxa}\f$ (external line in the i-slot) and \f$L^k_{xnab}\f$
+  (external line in the m-slot) each obey the ladder equations, with rungs
+  that contain \f$x\f$ taken from the same family, and all other rungs from
+  the converged table @p lk.
+
+  So every rung is dressed, and all integrals are at the external energy.
+  For \f$x = v\f$ the integrals are the stored ones, and
+  \f$\langle v|\Sigma_L|v\rangle\f$ is the ladder energy, de_valence_w().
+  The result is exact within the span of the projection states.
+
+  The iteration starts from the stored integrals where they exist (so its
+  first pass gives the integrals used by the projection form of
+  Sigma_ladder()), and stops when the largest change of any integral,
+  relative to the largest integral, is below @p eps_target.
+
+  @param valence         Valence states (basis versions); one Sigma_L each
+  @param core            Core (hole) orbitals
+  @param excited         Excited orbitals
+  @param projection      Projection basis; those of kappa_v are used. Qk must
+                         hold the integrals with one projection state and
+                         three orbitals of @p core + @p excited
+  @param qk              Coulomb \f$ Q^k \f$ table
+  @param lk              Converged ladder table
+  @param include_L4      Include the hole-hole diagram L4
+  @param max_it          Maximum number of iterations
+  @param eps_target      Convergence target
+  @param a_damp          Damping factor [0,1), as update_Lk_mnib()
+  @param r0,rmax,stride  Sub-grid parameters
+  @param include_G       Include the lower (g) component of Sigma_L
+  @param print           Print convergence to screen
+  @return Sigma_L for each valence state, as coordinate-space GMatrix
+*/
+std::vector<GMatrix> Sigma_ladder_iterated(
+  const std::vector<DiracSpinor> &valence, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited,
+  const std::vector<DiracSpinor> &projection, const Coulomb::QkTable &qk,
+  const Coulomb::LkTable &lk, bool include_L4, int max_it, double eps_target,
+  double a_damp, double r0 = 1.0e-4, double rmax = 30.0, std::size_t stride = 4,
+  bool include_G = false, bool print = true);
+
+/*!
+  @brief The mirror images of the ladder diagrams that the ladder equation
+         does not generate, as a correction to Sigma_L (third order).
+
+  @details
+  Each third-order ladder diagram has six time orderings: two are their own
+  mirror (time-reversed) image, and four form two mirror pairs. The ladder
+  equation generates one member of each pair: those in which a core pair is
+  excited before the valence electron interacts, i.e., the closings (a) of
+  L2, (a),(b) of L4, (c),(d) of L1 and (c) of L3 [(a),(c): direct;
+  (b),(d): exchange]. Their mirror images are not generated, and are not part
+  of the correlation potential otherwise.
+
+  The mirror image of a term of the correlation potential is its transpose.
+  So this returns the transpose of the sum of those six terms, with the
+  lowest-order (bare rung) ladder integrals: the missing diagrams at third
+  order. \f$\langle v|\Sigma|v\rangle\f$ is their energy, equal to that
+  of the six terms themselves.
+
+  The exchange closings of L2 and L3 are not included: their mirror images
+  are hole-particle diagrams, not ladder diagrams.
+
+  @param valence         Valence states (basis versions); one matrix each
+  @param core            Core (hole) orbitals
+  @param excited         Excited orbitals
+  @param projection      Projection basis; those of kappa_v are used. Qk must
+                         hold the integrals with one projection state and
+                         three orbitals of @p core + @p excited
+  @param qk              Coulomb \f$ Q^k \f$ table
+  @param include_L4      Include the terms from the hole-hole diagram L4
+  @param max_k           Largest multipolarity k of the ladder integrals
+  @param r0,rmax,stride  Sub-grid parameters
+  @param include_G       Include the lower (g) component
+  @return The correction for each valence state, as coordinate-space GMatrix
+*/
+std::vector<GMatrix> Sigma_ladder_mirror(
+  const std::vector<DiracSpinor> &valence, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited,
+  const std::vector<DiracSpinor> &projection, const Coulomb::QkTable &qk,
+  bool include_L4, int max_k, double r0 = 1.0e-4, double rmax = 30.0,
+  std::size_t stride = 4, bool include_G = false);
 
 //==============================================================================
 
