@@ -5,6 +5,7 @@
 #include "MBPT/Goldstone.hpp"
 #include "MBPT/Ladder.hpp"
 #include "MBPT/LadderDriver.hpp"
+#include "MBPT/LadderIteration.hpp"
 #include "MBPT/RadialMatrix.hpp"
 #include "MBPT/Sigma2.hpp"
 #include "MBPT/SpinorMatrix.hpp"
