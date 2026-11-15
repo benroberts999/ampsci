@@ -56,13 +56,21 @@ coupled_rank_range(const DiracSpinor &a, const DiracSpinor &b,
     std::min({a.twoj() + b.twoj(), c.twoj() + d.twoj(), 2 * max_rank}) / 2};
 }
 
-//! Which ladder diagrams to include. L2 and L3 go together: alone, neither
-//! has the table symmetry L_mnij = L_nmji
+/*!
+  @brief Which ladder diagrams to include.
+
+  @details
+  L2 or L3 alone does not have the table symmetry L_mnij = L_nmji [L3^k_mnij
+  = L2^k_nmji]: with only one of them, an entry L_mnib (b core) holds that
+  diagram of L^k_mnib [see store_Lk_mnij()].
+*/
 struct LadderDiagrams {
   //! Particle-particle ladder
   bool L1{true};
-  //! Particle-hole ladders [L3^k_mnij = L2^k_nmji]
-  bool L2_L3{true};
+  //! Particle-hole ladder
+  bool L2{true};
+  //! Particle-hole ladder, L3^k_mnij = L2^k_nmji
+  bool L3{true};
   //! Hole-hole ladder
   bool L4{true};
 };
@@ -339,11 +347,12 @@ std::vector<LinAlg::Matrix<double>> QL_particle_hole_over_de(
   const ExternalLine *external = nullptr);
 
 //! L2 right factor Q^K_{cr,ni}: rows (r excited, c core) by rc_pairs; columns
-//! (n excited, i in ij_orbitals) by ph_pairs
+//! (n in n_orbitals, i in i_orbitals) by ni_pairs
 std::vector<LinAlg::Matrix<double>> Q_particle_hole(
   const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
-  const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &rc_pairs,
-  const OrbitalPairIndex &ph_pairs, const Coulomb::QkTable &qk,
+  const std::vector<DiracSpinor> &n_orbitals,
+  const std::vector<DiracSpinor> &i_orbitals, const OrbitalPairIndex &rc_pairs,
+  const OrbitalPairIndex &ni_pairs, const Coulomb::QkTable &qk,
   const SixJArray &sixj);
 
 //==============================================================================
@@ -388,8 +397,9 @@ L4_hole_hole(const DiracSpinor &m, const std::vector<std::size_t> &n_group,
              const SixJArray &sixj, const ExternalLine *external = nullptr);
 
 /*!
-  @brief Particle-hole ladder L2^K_{mj,ni} for all (m,j), (n,i) in ph_pairs
-         (m,n excited; i,j in ij_orbitals).
+  @brief Particle-hole ladder L2^K_{mj,ni}: rows (m,j) in mj_pairs (m
+         excited, j in j_orbitals), columns (n,i) in ni_pairs (n in
+         n_orbitals, i in i_orbitals).
 
   @details
   One matrix product per (K, parity) block:
@@ -404,12 +414,19 @@ L4_hole_hole(const DiracSpinor &m, const std::vector<std::size_t> &n_group,
   (m,c),(r,j)] to QL^K_{mj,rc}, and of L2^K_{mj,ni} back to L2^k_{mnij} [pairs
   (m,i),(n,j)].
 
-  L3 is read from the same matrix: L3^k_mnij from L2^K_{ni,mj}.
-  @p external is passed to QL_particle_hole_over_de().
+  In the ladder equation the matrix is square (n_orbitals = excited,
+  i_orbitals = j_orbitals, ni_pairs = mj_pairs), and L3 is read from the same
+  matrix: L3^k_mnij from L2^K_{ni,mj}. n and i enter only the bare Q^K, so
+  they may be any orbitals, indexed by position (one may have the key of a
+  core orbital): the matrix is then rectangular, and gives L2 only
+  [lowest_order_Lk_mnxb(), lowest_order_Lk_xnab()]. @p external is passed to
+  QL_particle_hole_over_de().
 */
 std::vector<LinAlg::Matrix<double>> L2_particle_hole(
   const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
-  const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &ph_pairs,
+  const std::vector<DiracSpinor> &j_orbitals, const OrbitalPairIndex &mj_pairs,
+  const std::vector<DiracSpinor> &n_orbitals,
+  const std::vector<DiracSpinor> &i_orbitals, const OrbitalPairIndex &ni_pairs,
   const Coulomb::QkTable &qk, const Coulomb::LkTable *lk_prev,
   const SixJArray &sixj, const ExternalLine *external = nullptr);
 
@@ -437,6 +454,21 @@ read_L2K(const std::vector<LinAlg::Matrix<double>> &L2K_mj_ni,
          std::size_t index_j, std::size_t index_n, std::size_t index_i,
          int K_min, int K_max);
 
+/*!
+  @brief Element L2^K_{mj,ni} of a square or rectangular L2_particle_hole()
+         matrix, for K_min <= K <= K_max (zero elsewhere).
+
+  @details
+  Row (m,j) in @p mj_pairs, column (n,i) in @p ni_pairs; index_m etc. are
+  positions in the orbitals of the pair indices. Gives L2^k_mnij.
+*/
+std::array<double, ladder_max_multipoles>
+read_L2K_element(const std::vector<LinAlg::Matrix<double>> &L2K_mj_ni,
+                 const OrbitalPairIndex &mj_pairs,
+                 const OrbitalPairIndex &ni_pairs, int parity_mj,
+                 std::size_t index_m, std::size_t index_j, std::size_t index_n,
+                 std::size_t index_i, int K_min, int K_max);
+
 //! New value of a table entry, damped as CoulombTable::update:
 //! a L_old + (1-a) L_new, with a = a_damp clamped to [0,1]; L_new if L_old is
 //! exactly zero
@@ -449,6 +481,12 @@ double damped(double L_old, double L_new, double a_damp);
   @details
   Only entries already in the table are written. For m = n only the
   normal-ordered (i,j): the two orders are the same integral.
+
+  L_mnij and L_nmji are one entry, and L2^k_nmji = L3^k_mnij. With only one of
+  L2 and L3 [@p diagrams], the entry holds that diagram of L_nmji if j comes
+  after i in ij_orbitals, and of L_mnij otherwise. ij_orbitals is the core,
+  then the i orbitals not in the core: for those, the entry is the diagram of
+  L^k_mnib with the i orbital in the third index.
 
   @param lk             Ladder table to write to
   @param index_m        m = excited[index_m]
@@ -463,6 +501,8 @@ double damped(double L_old, double L_new, double a_damp);
                         columns ij_pairs
   @param L2K_mj_ni      Particle-hole coupled L2^K_{mj,ni} [L2_particle_hole()]:
                         indexed by OrbitalPairIndex::block(K, parity)
+  @param diagrams       Which of L2 and L3 to write (L1 and L4 come from
+                        L1_L4_J_mn_ij)
   @param sixj           6j symbols
   @param max_k          Largest multipolarity k written
   @param only_new       If true, only entries that are exactly zero are written
@@ -477,8 +517,8 @@ void store_Lk_mnij(Coulomb::LkTable *lk, std::size_t index_m,
                    const OrbitalPairIndex &ph_pairs,
                    const std::vector<LinAlg::Matrix<double>> &L1_L4_J_mn_ij,
                    const std::vector<LinAlg::Matrix<double>> &L2K_mj_ni,
-                   const SixJArray &sixj, int max_k, bool only_new,
-                   double a_damp);
+                   const LadderDiagrams &diagrams, const SixJArray &sixj,
+                   int max_k, bool only_new, double a_damp);
 
 //==============================================================================
 //! Adds zero entries for all L^k_mnib (m,n excited; i in i_orbs; b core;

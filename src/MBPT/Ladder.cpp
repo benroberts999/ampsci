@@ -83,8 +83,9 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
     fmt::print("Calculating {}{} integrals\n",
                num_existing == 0 ? "" : "(subset of) ", lk->count());
   }
-  calculate_Lk_mnib(lk, qk, excited, core, i_orbs, {true, true, include_L4},
-                    nullptr, max_k_stored, true, 0.0);
+  calculate_Lk_mnib(lk, qk, excited, core, i_orbs,
+                    {true, true, true, include_L4}, nullptr, max_k_stored, true,
+                    0.0);
 }
 //==============================================================================
 GMatrix Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
@@ -206,7 +207,7 @@ GMatrix Sigma_ladder_ratio2(const DiracSpinor &v,
   // Exact column Sigma_L|v>: the x = v term of the projection onto the basis,
   // whose ladder integrals L^k_mnva and L^k_vnab are in the ladder table
   const auto column = Sigma_ladder(v, std::vector{v}, lk, lk, core, excited, r0,
-                                   rmax, stride, include_G) *
+                                   rmax, stride, include_G, true) *
                       v;
 
   // Symmetric rank-2 correction, so that Sigma_L|v> is the exact column
@@ -238,8 +239,9 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   if (print) {
     fmt::print("Updating (subset of) {} integrals\n", lk->count());
   }
-  calculate_Lk_mnib(lk, qk, excited, core, update_i, {true, true, include_L4},
-                    lk_prev, lk->max_k(), false, a_damp);
+  calculate_Lk_mnib(lk, qk, excited, core, update_i,
+                    {true, true, true, include_L4}, lk_prev, lk->max_k(), false,
+                    a_damp);
 }
 
 //==============================================================================

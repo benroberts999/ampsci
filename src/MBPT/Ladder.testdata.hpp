@@ -14,7 +14,8 @@ namespace UnitTest::LadderTest {
 struct LadderTestData {
   //! core: n <= 2 (1s, 2s, 2p-, 2p+), so hole pairs have several J
   std::vector<DiracSpinor> core;
-  //! excited: n = 3, 4 (up to f states)
+  //! excited: n >= 3, from 3 states per kappa starting at n = l+1 (3s; 3p,
+  //! 4p; 3d to 5d; 4f to 6f)
   std::vector<DiracSpinor> excited;
   //! "valence": 3s, 3p+, 3d+ (members of excited, as in the ladder driver)
   std::vector<DiracSpinor> valence;

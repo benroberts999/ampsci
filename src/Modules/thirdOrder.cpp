@@ -322,9 +322,9 @@ void thirdOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   // particle-particle (L1), particle-hole (L2 + L3), and hole-hole (L4)
   // diagrams. They hold both L_mnva and, since the valence states are members
   // of the excited set, L_vnab
-  const MBPT::LadderDiagrams diagram_L1{true, false, false};
-  const MBPT::LadderDiagrams diagrams_L2_L3{false, true, false};
-  const MBPT::LadderDiagrams diagram_L4{false, false, true};
+  const MBPT::LadderDiagrams diagram_L1{true, false, false, false};
+  const MBPT::LadderDiagrams diagrams_L2_L3{false, true, true, false};
+  const MBPT::LadderDiagrams diagram_L4{false, false, false, true};
   const auto i_orbs = qip::merge(core, valence);
   const auto L1 = lowest_order_ladder(qk, excited, core, i_orbs, diagram_L1);
   const auto L2_L3 =

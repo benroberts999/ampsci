@@ -40,6 +40,14 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       "   - ratio2 : exact acting on the valence state; ratio only for the "
       "change of the valence orbital in the Brueckner equation (fast)\n"
       "  [ratio]"},
+     {"mirror_terms",
+      "Add the mirror terms to Sigma_L: the mirror images of the ladder "
+      "diagrams that the ladder equation does not generate (lowest order "
+      "only). Their off-diagonal part is projected onto every basis state "
+      "of kappa_v, core states included: complete up to the basis (the "
+      "positive-energy spline states of kappa_v in the cavity). The Coulomb "
+      "integrals of those states are calculated each run, not stored in the "
+      "Qk file [false]"},
      {"each_valence",
       "If true, iterate L and calculate Sigma_L for each valence state "
       "separately. If false, only for the lowest valence state of each kappa "
@@ -85,6 +93,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // L/Q; Dzuba)
   using namespace std::string_literals;
   const auto method = parseSigmaLMethod(input.get("sigma_method", "ratio"s));
+
+  const auto mirror_terms = input.get("mirror_terms", false);
 
   const auto each_valence = input.get("each_valence", false);
 
@@ -140,6 +150,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << std::boolalpha;
   std::cout << "include_L4   = " << include_L4 << "\n";
   std::cout << "sigma_method = " << parseSigmaLMethod(method) << "\n";
+  std::cout << "mirror_terms = " << mirror_terms << "\n";
   std::cout << "each_valence = " << each_valence << "\n";
   std::cout << "include_G    = " << include_G << "\n";
   std::cout << "max_k        = " << max_k << "\n";
@@ -322,7 +333,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       std::cout << v << "\n";
       if (method == SigmaLMethod::basis) {
         const auto ladder_v = MBPT::external_line_ladder(
-          v, holes, excited, qk, lk, {true, true, include_L4}, max_it,
+          v, holes, excited, qk, lk, {true, true, true, include_L4}, max_it,
           eps_target, a_damp, true);
         SigL_v.push_back(MBPT::Sigma_ladder(v, ladder_v, holes, excited, sig_r0,
                                             sig_rmax, sig_stride, include_G));
@@ -333,6 +344,34 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
         SigL_v.push_back(MBPT::Sigma_ladder(v, holes, excited, qk, &lk, sig_r0,
                                             sig_rmax, sig_stride, include_G));
       }
+    }
+  }
+
+  // Mirror images of the ladder diagrams that the ladder equation does not
+  // generate
+  if (mirror_terms) {
+    // Kept in memory only: the table is then not a full fill, so it is not
+    // written to the Qk file [see fill_Qk_projection_states()]
+    std::cout << "\nQk integrals of the projection states (mirror terms):\n";
+    {
+      IO::ChronoTimer t("", true);
+      const auto num_added =
+        MBPT::fill_Qk_projection_states(&qk, both, wf.basis(), valence, max_k);
+      fmt::print("Calculated {} new Qk integrals\n", num_added);
+    }
+    std::cout << "\nMirror terms (lowest order), added to Sigma_L:\n";
+    IO::ChronoTimer t("", true);
+    for (std::size_t i = 0; i < valence.size(); ++i) {
+      const auto &v = valence[i];
+      // Projection states x: every basis state of kappa_v
+      const auto x_orbitals = MBPT::projection_states(v, wf.basis());
+      const auto Sigma_mirror = MBPT::Sigma_ladder_mirror(
+        v, x_orbitals, holes, excited, qk, lk.max_k(), include_L4, sig_r0,
+        sig_rmax, sig_stride, include_G);
+      const auto de_mirror = v * (Sigma_mirror * v);
+      fmt::print("de({:>4}): {:+12.9f} au  {:+12.5f} cm^-1\n", v.shortSymbol(),
+                 de_mirror, de_mirror * icm);
+      SigL_v[i] += Sigma_mirror;
     }
   }
 
@@ -365,11 +404,14 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // is not, however exactly L is known: the ladder equation generates only
   // one member of each mirror (time-reversed) pair of diagrams in which a
   // core pair is excited before the valence electron interacts [closings
-  // (a+b) of L2 and L4; (c+d) of L1 and L3]. The transpose of such a diagram
-  // is its mirror image, which is not generated. The asymmetry here measures
-  // those diagrams. The stored matrix is K_ij*dr_j (drj_in_place), so
-  // compare w_i*S_ij with w_j*S_ji. Uses only the matrix as built: no new
-  // integrals are evaluated.
+  // (a) of L2, (a+b) of L4, (c+d) of L1, (c) of L3]. The transpose of such a
+  // diagram is its mirror image, which is not generated. The asymmetry here
+  // measures those diagrams. With mirror_terms, the third-order mirror images
+  // are added above, so the asymmetry is from higher orders, and from the
+  // exchange closings of L2 and L3 (their mirror images are hole-particle
+  // diagrams). The stored matrix is K_ij*dr_j (drj_in_place), so compare
+  // w_i*S_ij with w_j*S_ji. Uses only the matrix as built: no new integrals
+  // are evaluated.
   if (check_symmetry) {
     std::cout << "\nSigma_L hermiticity: eps = max|K - K^T| / max|K|\n";
     for (std::size_t iv = 0; iv < valence.size(); ++iv) {
@@ -411,8 +453,10 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // Hermitian. Each diagram whose mirror image is not generated (see above)
   // is replaced by the average of itself and its mirror image, i.e., the
   // complete pair at half weight: consistent with the energy, which holds one
-  // member of the pair. Expectation values are unchanged. The stored matrix
-  // is K_ij*dr_j, so symmetrise the kernel:
+  // member of the pair. With mirror_terms, both members of each third-order
+  // pair are already in Sigma_L at full weight, and so in the energy:
+  // symmetrising leaves them unchanged. Expectation values are unchanged.
+  // The stored matrix is K_ij*dr_j, so symmetrise the kernel:
   // S_ij -> (S_ij + (w_j/w_i) S_ji)/2. nb: the hermiticity check above
   // reports the raw (pre-symmetrisation) asymmetry.
   for (auto &S : SigL_v) {

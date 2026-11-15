@@ -88,8 +88,9 @@ void calculate_Lk_xnab(Coulomb::NkTable *L_xnab, const Coulomb::QkTable &qk,
   @details
   As store_Lk_mnij() with m = x and (i,j) = (a,b), x = excited[index_x],
   except that L2 is read from @p L2K_mb_na_line [element (x,b),(n,a); the line
-  as m] and L3 from @p L2K_mb_na [element (n,a),(x,b); no external line].
-  Each entry is damped by @p a_damp [see damped()].
+  as m] and L3 from @p L2K_mb_na [element (n,a),(x,b); no external line]. A
+  diagram whose matrices are empty is not included. Each entry is damped by
+  @p a_damp [see damped()].
 */
 void store_Lk_xnab(Coulomb::NkTable *L_xnab, std::size_t index_x,
                    const std::vector<std::size_t> &n_group,
@@ -151,29 +152,35 @@ external_line_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
       + \sum_{nab,k} |W^k_{\cdot nab}\rangle\,
       \frac{L^k_{xnab}}
            {[k][j_v]\,(\epsilon_v+\epsilon_n-\epsilon_a-\epsilon_b)}
-      \Big]\langle x| .
+      \Big]\langle x| ,
   \f]
-  MnxbTable is Coulomb::LkTable [ExternalLineLadder::L_mnxb]; XnabTable is
-  Coulomb::NkTable [ExternalLineLadder::L_xnab]. For x = v alone, both may be
-  the ladder table itself (Coulomb::LkTable), which holds L^k_mnva and
-  L^k_vnab.
+  or with Q in place of W. The x enter only as the projection: they may be
+  any orbitals of kappa_v, in @p excited or not, core orbitals included.
+  MnxbTable is Coulomb::LkTable [ExternalLineLadder::L_mnxb] or
+  Coulomb::NkTable [lowest_order_Lk_mnxb()]; XnabTable is Coulomb::NkTable
+  [ExternalLineLadder::L_xnab, lowest_order_Lk_xnab()]. For x = v alone,
+  both may be the ladder table itself (Coulomb::LkTable), which holds
+  L^k_mnva and L^k_vnab.
 
-  @param v               Valence state: kappa, j and energy
-  @param x_orbitals      Projection states x
-  @param L_mnxb          L^k_mnxa: m,n excited, x, a core
-  @param L_xnab          L^k_xnab: x, n excited, a,b core
-  @param core            Core orbitals
-  @param excited         Excited orbitals
-  @param r0,rmax,stride  Sub-grid parameters
-  @param include_G       Include the lower (g) component
+  @param v                 Valence state: kappa, j and energy
+  @param x_orbitals        Projection states x
+  @param L_mnxb            L^k_mnxa: m,n excited, x, a core
+  @param L_xnab            L^k_xnab: x, n excited, a,b core
+  @param core              Core orbitals
+  @param excited           Excited orbitals
+  @param r0,rmax,stride    Sub-grid parameters
+  @param include_G         Include the lower (g) component
+  @param include_exchange  Close the ladder integrals with W = Q + P (direct
+                           and exchange closings); if false, with Q (direct
+                           closing only)
 */
 template <typename MnxbTable, typename XnabTable>
-GMatrix Sigma_ladder(const DiracSpinor &v,
-                     const std::vector<DiracSpinor> &x_orbitals,
-                     const MnxbTable &L_mnxb, const XnabTable &L_xnab,
-                     const std::vector<DiracSpinor> &core,
-                     const std::vector<DiracSpinor> &excited, double r0,
-                     double rmax, std::size_t stride, bool include_G);
+GMatrix
+Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &x_orbitals,
+             const MnxbTable &L_mnxb, const XnabTable &L_xnab,
+             const std::vector<DiracSpinor> &core,
+             const std::vector<DiracSpinor> &excited, double r0, double rmax,
+             std::size_t stride, bool include_G, bool include_exchange);
 
 /*!
   @brief Ladder correlation potential Sigma_L(e_v) from the ladder integrals
@@ -181,14 +188,9 @@ GMatrix Sigma_ladder(const DiracSpinor &v,
 
   @details
   Sigma_L(e_v) by projection onto the excited states x of kappa_v, with the
-  ladder iterated for each x [external_line_ladder()]: the Sigma_ladder()
-  template with the integrals L^k_mnxa(e_v) and L^k_xnab(e_v) of @p ladder.
-  x is the external line: it carries the valence energy e_v in the energy
-  denominators, not its own [see ExternalLine]. L^k_mnxb (x as the i orbital)
-  and L^k_xnab (x as the m orbital) each obey the ladder equation by
-  themselves: the dressed integrals that contain x come from the same table,
-  all others from the converged ladder table [calculate_Lk_mnxb(),
-  calculate_Lk_xnab()].
+  ladder iterated for each x [external_line_ladder()]: the equation of the
+  Sigma_ladder() template, closed with W, with the integrals L^k_mnxa(e_v)
+  and L^k_xnab(e_v) of @p ladder. x is the external line [see ExternalLine].
 
   For x = v these are the integrals of the ladder table, so the column
   Sigma_L|v> is exact, and <v|Sigma_L|v> is de_valence_w().
@@ -204,5 +206,136 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const ExternalLineLadder &ladder,
                      const std::vector<DiracSpinor> &core,
                      const std::vector<DiracSpinor> &excited, double r0,
                      double rmax, std::size_t stride, bool include_G);
+
+/*!
+  @brief Lowest-order L2 and/or L4 ladder integrals L^k_mnxb with x as the i
+         orbital, for every (m,n): any orbitals x.
+
+  @details
+  m,n excited, b core, k <= @p max_k; the internal lines run over @p excited
+  and @p core. At lowest order, x is in these two diagrams only in the bare
+  Coulomb integral (Q^K_{cr,nx} of L2, Q^J_{cd,xb} of L4), never in an energy
+  denominator, so x may be any orbital (in @p excited or not, core orbitals
+  included). L1 and L3 [@p diagrams] are not allowed: they hold e_x.
+
+  An NkTable, with no symmetry: L^k_mnxb = L^k_nmbx holds only for the sum
+  of all four diagrams (L2^k_nmbx = L3^k_mnxb), and for an x that is also a
+  core orbital, (n,m,b,x) is the key of the integral with b as the x.
+*/
+Coulomb::NkTable
+lowest_order_Lk_mnxb(const Coulomb::QkTable &qk,
+                     const std::vector<DiracSpinor> &excited,
+                     const std::vector<DiracSpinor> &core,
+                     const std::vector<DiracSpinor> &x_orbitals,
+                     const LadderDiagrams &diagrams, int max_k);
+
+/*!
+  @brief Lowest-order L1 and/or L3 ladder integrals L^k_xnab with x as the m
+         orbital: any orbitals x.
+
+  @details
+  n excited, a,b core, k <= @p max_k; the internal lines run over @p excited
+  and @p core. At lowest order, x is in these two diagrams only in the bare
+  Coulomb integral (Q^J_{xn,rs} of L1; Q^K_{cr,xb} of L3^k_xnab =
+  L2^k_nxba), never in an energy denominator, so x may be any orbital (in
+  @p excited or not, core orbitals included). L2 and L4 [@p diagrams] are not
+  allowed: they hold e_x.
+*/
+Coulomb::NkTable
+lowest_order_Lk_xnab(const Coulomb::QkTable &qk,
+                     const std::vector<DiracSpinor> &excited,
+                     const std::vector<DiracSpinor> &core,
+                     const std::vector<DiracSpinor> &x_orbitals,
+                     const LadderDiagrams &diagrams, int max_k);
+
+/*!
+  @brief The mirror terms of Sigma_L(e_v), at third order.
+
+  @details
+  The mirror images of the ladder diagrams that the ladder equation does not
+  generate. Each third-order ladder diagram has six time orderings: two are
+  their own mirror (time-reversed) image, and four form two mirror pairs. The
+  ladder equation generates one member of each pair. In Sigma_L these are the
+  lowest-order terms of
+  - L2 and L4 with the line as i (L^k_mnxa): the direct closing of L2, and
+    the direct and exchange closings of L4;
+  - L1 and L3 with the line as m (L^k_xnab): the direct and exchange closings
+    of L1, and the direct closing of L3.
+
+  Their mirror images are not generated. The mirror image of a term of the
+  correlation potential is its transpose, so
+  \f[
+    \Sigma_{\rm mirror} = \Big[\sum_x \big(|Q\rangle L2_{mnxa}
+      + |W\rangle L4_{mnxa} + |W\rangle L1_{xnab} + |Q\rangle L3_{xnab}\big)
+      \langle x|\Big]^T,
+  \f]
+  each term in the form of Sigma_ladder(), with the lowest-order ladder
+  integrals (no dressing, no iteration; they hold no e_v, which enters
+  through the closing) [lowest_order_Lk_mnxb(), lowest_order_Lk_xnab()].
+  Q closes with the direct
+  Coulomb integral only, W = Q + P with both. In these four terms x is only
+  in a bare Coulomb integral, never in an energy denominator, so the x may be
+  any orbitals of kappa_v; the internal lines run over @p excited and
+  @p core.
+
+  The transpose puts the projection on the left: \f$\Sigma_{\rm mirror}\f$
+  maps onto the span of the x, so its off-diagonal part (and the Brueckner
+  orbital) depends on the set of x, and is exact only for a complete set. The
+  diagonal does not: with v one of the x,
+  \f$\langle v|\Sigma_{\rm mirror}|v\rangle\f$ is the energy of the six
+  terms. The driver uses every basis state of kappa_v, core states included
+  [projection_states(), fill_Qk_projection_states()].
+
+  The exchange closings of L2 and L3 are not included: their mirror images
+  are orderings of the exchange hole-particle diagram.
+
+  @param v               Valence state: kappa, j and energy
+  @param x_orbitals      Projection states x: orbitals of kappa_v, v among them
+  @param core            Core orbitals
+  @param excited         Excited orbitals
+  @param qk              Coulomb integral table: must hold the integrals with
+                         one x and three of core and excited
+  @param max_k           Largest multipolarity k of the ladder integrals
+  @param include_L4      Include the terms of the hole-hole diagram L4
+  @param r0,rmax,stride  Sub-grid parameters
+  @param include_G       Include the lower (g) component
+*/
+GMatrix Sigma_ladder_mirror(const DiracSpinor &v,
+                            const std::vector<DiracSpinor> &x_orbitals,
+                            const std::vector<DiracSpinor> &core,
+                            const std::vector<DiracSpinor> &excited,
+                            const Coulomb::QkTable &qk, int max_k,
+                            bool include_L4, double r0, double rmax,
+                            std::size_t stride, bool include_G);
+
+/*!
+  @brief The projection states of the mirror terms [Sigma_ladder_mirror()]:
+         every state of @p basis with the kappa of @p v.
+*/
+std::vector<DiracSpinor>
+projection_states(const DiracSpinor &v, const std::vector<DiracSpinor> &basis);
+
+/*!
+  @brief Adds the Coulomb integrals of the projection states of
+         Sigma_ladder_mirror() to @p qk: every state of @p basis with the
+         kappa of a valence state [projection_states()].
+
+  @details
+  For each kappa of @p valence, fills @p qk over @p orbitals together with
+  the states of @p basis of that kappa not in @p orbitals [see
+  Coulomb::QkTable::fill()]. No integrals between such states of two
+  different kappas are formed.
+
+  The table is then not a full fill of any set of orbitals, so it must not
+  be written to the Qk file: a later QkTable::fill() over a larger set of
+  orbitals may find every orbital present and take the table as complete.
+
+  @return Number of integrals added
+*/
+std::size_t fill_Qk_projection_states(Coulomb::QkTable *qk,
+                                      const std::vector<DiracSpinor> &orbitals,
+                                      const std::vector<DiracSpinor> &basis,
+                                      const std::vector<DiracSpinor> &valence,
+                                      int max_k);
 
 } // namespace MBPT

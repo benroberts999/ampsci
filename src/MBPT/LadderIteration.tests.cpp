@@ -336,8 +336,8 @@ TEST_CASE("Ladder: fill matches reference", "[Ladder][unit]") {
     auto reference = reference_sweep({}, data, data.i_orbs, include_L4, nullptr,
                                      max_k, true, 0.0);
     auto calculated =
-      ladder_sweep({}, data, data.i_orbs, {true, true, include_L4}, nullptr,
-                   max_k, true, 0.0);
+      ladder_sweep({}, data, data.i_orbs, {true, true, true, include_L4},
+                   nullptr, max_k, true, 0.0);
     const auto eps = ladder_table_difference(reference, calculated);
     REQUIRE(eps < 1.0e-12);
   }
@@ -353,8 +353,8 @@ TEST_CASE("Ladder: core update matches reference", "[Ladder][unit]") {
   // Core integrals only, from the filled table: valence integrals untouched
   auto reference =
     reference_sweep(lk, data, data.core, true, &lk, max_k, false, 0.0);
-  auto calculated = ladder_sweep(lk, data, data.core, {true, true, true}, &lk,
-                                 max_k, false, 0.0);
+  auto calculated = ladder_sweep(lk, data, data.core, {true, true, true, true},
+                                 &lk, max_k, false, 0.0);
   const auto eps = ladder_table_difference(reference, calculated);
   const auto eps_changed = ladder_table_difference(lk, calculated);
   double max_change_valence = 0.0;
@@ -391,7 +391,7 @@ TEST_CASE("Ladder: valence update matches reference", "[Ladder][unit]") {
     auto reference = reference_sweep(lk_core, data, data.valence, include_L4,
                                      &lk_core, max_k, false, 0.0);
     auto calculated =
-      ladder_sweep(lk_core, data, data.valence, {true, true, include_L4},
+      ladder_sweep(lk_core, data, data.valence, {true, true, true, include_L4},
                    &lk_core, max_k, false, 0.0);
     const auto eps = ladder_table_difference(reference, calculated);
     REQUIRE(eps < 1.0e-12);
@@ -407,10 +407,10 @@ TEST_CASE("Ladder: damping matches reference", "[Ladder][unit]") {
   auto lk = reference_fill(data);
   auto reference =
     reference_sweep(lk, data, data.i_orbs, true, &lk, max_k, false, a_damp);
-  auto calculated = ladder_sweep(lk, data, data.i_orbs, {true, true, true}, &lk,
-                                 max_k, false, a_damp);
-  auto undamped = ladder_sweep(lk, data, data.i_orbs, {true, true, true}, &lk,
-                               max_k, false, 0.0);
+  auto calculated = ladder_sweep(
+    lk, data, data.i_orbs, {true, true, true, true}, &lk, max_k, false, a_damp);
+  auto undamped = ladder_sweep(lk, data, data.i_orbs, {true, true, true, true},
+                               &lk, max_k, false, 0.0);
   const auto eps = ladder_table_difference(reference, calculated);
   const auto eps_undamped = ladder_table_difference(reference, undamped);
   REQUIRE(eps_undamped > 1.0e-3);
@@ -438,10 +438,10 @@ TEST_CASE("Ladder: only_new matches reference", "[Ladder][unit]") {
   }
   auto reference =
     reference_sweep(start, data, data.i_orbs, true, &lk, max_k, true, 0.0);
-  auto calculated = ladder_sweep(start, data, data.i_orbs, {true, true, true},
-                                 &lk, max_k, true, 0.0);
-  auto all_new = ladder_sweep(start, data, data.i_orbs, {true, true, true}, &lk,
-                              max_k, false, 0.0);
+  auto calculated = ladder_sweep(
+    start, data, data.i_orbs, {true, true, true, true}, &lk, max_k, true, 0.0);
+  auto all_new = ladder_sweep(start, data, data.i_orbs,
+                              {true, true, true, true}, &lk, max_k, false, 0.0);
   const auto eps = ladder_table_difference(reference, calculated);
   const auto eps_all_new = ladder_table_difference(reference, all_new);
   REQUIRE(num_zeroed > 0);
@@ -458,12 +458,12 @@ TEST_CASE("Ladder: multipole cut-off matches reference", "[Ladder][unit]") {
   const auto max_k = stored_max_k(data);
   auto reference_lo =
     reference_sweep({}, data, data.i_orbs, true, nullptr, max_k, true, 0.0);
-  auto calculated_lo = ladder_sweep({}, data, data.i_orbs, {true, true, true},
-                                    nullptr, max_k, true, 0.0);
+  auto calculated_lo = ladder_sweep(
+    {}, data, data.i_orbs, {true, true, true, true}, nullptr, max_k, true, 0.0);
   auto reference = reference_sweep(reference_lo, data, data.core, true,
                                    &reference_lo, max_k, false, 0.0);
   auto calculated =
-    ladder_sweep(reference_lo, data, data.core, {true, true, true},
+    ladder_sweep(reference_lo, data, data.core, {true, true, true, true},
                  &reference_lo, max_k, false, 0.0);
   const auto eps_fill = ladder_table_difference(reference_lo, calculated_lo);
   const auto eps_update = ladder_table_difference(reference, calculated);
@@ -485,12 +485,15 @@ TEST_CASE("Ladder: diagrams match reference", "[Ladder][unit]") {
   // Each diagram alone, at lowest order and with the dressed integrals
   const std::vector<const Coulomb::LkTable *> dressing{nullptr, &lk_filled};
   for (const auto *lk_prev : dressing) {
-    const auto L1_only = ladder_sweep(
-      {}, data, data.i_orbs, {true, false, false}, lk_prev, max_k, false, 0.0);
-    const auto L2_L3_only = ladder_sweep(
-      {}, data, data.i_orbs, {false, true, false}, lk_prev, max_k, false, 0.0);
-    const auto L4_only = ladder_sweep(
-      {}, data, data.i_orbs, {false, false, true}, lk_prev, max_k, false, 0.0);
+    const auto L1_only =
+      ladder_sweep({}, data, data.i_orbs, {true, false, false, false}, lk_prev,
+                   max_k, false, 0.0);
+    const auto L2_L3_only =
+      ladder_sweep({}, data, data.i_orbs, {false, true, true, false}, lk_prev,
+                   max_k, false, 0.0);
+    const auto L4_only =
+      ladder_sweep({}, data, data.i_orbs, {false, false, false, true}, lk_prev,
+                   max_k, false, 0.0);
     const auto eps_L1 = diagram_vs_scalar(
       L1_only, data,
       [&](int k, const DiracSpinor &m, const DiracSpinor &n,

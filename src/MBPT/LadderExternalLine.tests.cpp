@@ -11,6 +11,7 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <string>
 #include <vector>
 
 namespace UnitTest::LadderTest {
@@ -127,6 +128,91 @@ inline double xnab_difference(const MBPT::ExternalLineLadder &ladder,
   return largest == 0.0 ? 1.0 : max_difference / largest;
 }
 
+//! Largest difference between L^k_abcd of table and expected(k,a,b,c,d), for
+//! a in a_list etc. and k <= max_k, relative to the largest expected; 1 if
+//! all are zero
+inline double table_vs_reference(const Coulomb::NkTable &table,
+                                 const std::vector<DiracSpinor> &a_list,
+                                 const std::vector<DiracSpinor> &b_list,
+                                 const std::vector<DiracSpinor> &c_list,
+                                 const std::vector<DiracSpinor> &d_list,
+                                 int max_k, const LadderIntegral &expected) {
+  double max_difference = 0.0;
+  double largest = 0.0;
+  for (const auto &a : a_list) {
+    for (const auto &b : b_list) {
+      for (const auto &c : c_list) {
+        for (const auto &d : d_list) {
+          const auto [k_min, k_max] = MBPT::k_minmax_L(a, b, c, d);
+          for (int k = k_min; k <= std::min(k_max, max_k); ++k) {
+            const auto value = expected(k, a, b, c, d);
+            max_difference = std::max(max_difference,
+                                      std::abs(value - table.Q(k, a, b, c, d)));
+            largest = std::max(largest, std::abs(value));
+          }
+        }
+      }
+    }
+  }
+  return largest == 0.0 ? 1.0 : max_difference / largest;
+}
+
+//! Every orbital of the test data (core and excited) with the kappa of v
+inline std::vector<DiracSpinor> orbitals_of_kappa(const DiracSpinor &v,
+                                                  const LadderTestData &data) {
+  return qip::select_if(
+    qip::merge(data.core, data.excited),
+    [&v](const DiracSpinor &x) { return x.kappa() == v.kappa(); });
+}
+
+//! The excited orbitals with n <= 4: a smaller set of internal lines, so that
+//! the d and f orbitals with n = 5, 6 are outside it
+inline std::vector<DiracSpinor> excited_up_to_n4(const LadderTestData &data) {
+  return qip::select_if(data.excited,
+                        [](const DiracSpinor &x) { return x.n() <= 4; });
+}
+
+//! <bra|Sigma_mirror|ket> at energy en, one integral at a time: the six
+//! lowest-order terms with ket on the Coulomb vertex and bra in the ladder
+//! integral (closed with Q for L2 and L3, with W for L1 and L4); internal
+//! lines from excited and data.core
+inline double mirror_terms_element(const DiracSpinor &bra,
+                                   const DiracSpinor &ket, double en,
+                                   const std::vector<DiracSpinor> &excited,
+                                   const LadderTestData &data) {
+  const auto &sjt = data.yk.SixJ();
+  double sum = 0.0;
+  for (const auto &n : excited) {
+    for (const auto &a : data.core) {
+      for (const auto &m : excited) {
+        const auto de = en + a.en() - m.en() - n.en();
+        const auto [k_min, k_max] = MBPT::k_minmax_L(m, n, bra, a);
+        for (int k = k_min; k <= k_max; ++k) {
+          const auto f = (2 * k + 1) * ket.twojp1() * de;
+          sum += data.qk.Q(k, ket, a, m, n) *
+                 MBPT::L2(k, m, n, bra, a, data.qk, data.core, excited, sjt) /
+                 f;
+          sum += data.qk.W(k, ket, a, m, n, &sjt) *
+                 MBPT::L4(k, m, n, bra, a, data.qk, data.core, sjt) / f;
+        }
+      }
+      for (const auto &b : data.core) {
+        const auto de = en + n.en() - a.en() - b.en();
+        const auto [k_min, k_max] = MBPT::k_minmax_L(bra, n, a, b);
+        for (int k = k_min; k <= k_max; ++k) {
+          const auto f = (2 * k + 1) * ket.twojp1() * de;
+          sum += data.qk.W(k, ket, n, a, b, &sjt) *
+                 MBPT::L1(k, bra, n, a, b, data.qk, excited, sjt) / f;
+          sum += data.qk.Q(k, ket, n, a, b) *
+                 MBPT::L3(k, bra, n, a, b, data.qk, data.core, excited, sjt) /
+                 f;
+        }
+      }
+    }
+  }
+  return sum;
+}
+
 } // namespace UnitTest::LadderTest
 
 //==============================================================================
@@ -189,12 +275,17 @@ TEST_CASE("Ladder: external line matches reference", "[Ladder][unit]") {
     // dressed integrals that contain x come from lk_line: L1 and L3 of
     // L^k_mnxb, L2 and L4 of L^k_xnab
     const auto L1 =
-      external_line_sweep(start, en_v, data, lk, {true, false, false});
-    const auto L2_L3 =
-      external_line_sweep(start, en_v, data, lk, {false, true, false});
+      external_line_sweep(start, en_v, data, lk, {true, false, false, false});
+    const auto L2 =
+      external_line_sweep(start, en_v, data, lk, {false, true, false, false});
+    const auto L3 =
+      external_line_sweep(start, en_v, data, lk, {false, false, true, false});
     const auto L4 =
-      external_line_sweep(start, en_v, data, lk, {false, false, true});
+      external_line_sweep(start, en_v, data, lk, {false, false, false, true});
 
+    // L^k_mnxb for every (m,n), both orders: L_mnxb and L_nmbx are one
+    // entry, half of them written from L_nmbx, for which L2 and L3 trade
+    // places
     const auto eps_L1_mnxb =
       mnxb_difference(L1, x_list, data,
                       [&](int k, const DiracSpinor &m, const DiracSpinor &n,
@@ -202,13 +293,18 @@ TEST_CASE("Ladder: external line matches reference", "[Ladder][unit]") {
                         return MBPT::L1(k, m, n, x, b, data.qk, data.excited,
                                         sjt, &lk_line, en_v);
                       });
-    const auto eps_L2_L3_mnxb =
-      mnxb_difference(L2_L3, x_list, data,
+    const auto eps_L2_mnxb =
+      mnxb_difference(L2, x_list, data,
                       [&](int k, const DiracSpinor &m, const DiracSpinor &n,
                           const DiracSpinor &x, const DiracSpinor &b) {
                         return MBPT::L2(k, m, n, x, b, data.qk, data.core,
-                                        data.excited, sjt, &lk) +
-                               MBPT::L3(k, m, n, x, b, data.qk, data.core,
+                                        data.excited, sjt, &lk);
+                      });
+    const auto eps_L3_mnxb =
+      mnxb_difference(L3, x_list, data,
+                      [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                          const DiracSpinor &x, const DiracSpinor &b) {
+                        return MBPT::L3(k, m, n, x, b, data.qk, data.core,
                                         data.excited, sjt, &lk_line, en_v);
                       });
     const auto eps_L4_mnxb = mnxb_difference(
@@ -218,26 +314,30 @@ TEST_CASE("Ladder: external line matches reference", "[Ladder][unit]") {
         return MBPT::L4(k, m, n, x, b, data.qk, data.core, sjt, &lk);
       });
 
+    // L^k_xnab. For L2 and L3, n also a projection state: n is an internal
+    // line in L3 and the line in L2 of the same integral
     const auto eps_L1_xnab = xnab_difference(
       L1, x_list, data.excited, data,
       [&](int k, const DiracSpinor &x, const DiracSpinor &n,
           const DiracSpinor &a, const DiracSpinor &b) {
         return MBPT::L1(k, x, n, a, b, data.qk, data.excited, sjt, &lk);
       });
-    const auto L2_L3_xnab = [&](int k, const DiracSpinor &x,
-                                const DiracSpinor &n, const DiracSpinor &a,
-                                const DiracSpinor &b) {
+    const auto L2_xnab = [&](int k, const DiracSpinor &x, const DiracSpinor &n,
+                             const DiracSpinor &a, const DiracSpinor &b) {
       return MBPT::L2(k, x, n, a, b, data.qk, data.core, data.excited, sjt,
-                      &lk_line, {}, en_v) +
-             MBPT::L3(k, x, n, a, b, data.qk, data.core, data.excited, sjt,
+                      &lk_line, {}, en_v);
+    };
+    const auto L3_xnab = [&](int k, const DiracSpinor &x, const DiracSpinor &n,
+                             const DiracSpinor &a, const DiracSpinor &b) {
+      return MBPT::L3(k, x, n, a, b, data.qk, data.core, data.excited, sjt,
                       &lk);
     };
-    const auto eps_L2_L3_xnab =
-      xnab_difference(L2_L3, x_list, data.excited, data, L2_L3_xnab);
-    // n also a projection state: n is an internal line in L3 and the line in
-    // L2 of the same integral
-    const auto eps_L2_L3_xnab_n_projection =
-      xnab_difference(L2_L3, x_list, x_list, data, L2_L3_xnab);
+    const auto eps_L2_xnab =
+      std::max(xnab_difference(L2, x_list, data.excited, data, L2_xnab),
+               xnab_difference(L2, x_list, x_list, data, L2_xnab));
+    const auto eps_L3_xnab =
+      std::max(xnab_difference(L3, x_list, data.excited, data, L3_xnab),
+               xnab_difference(L3, x_list, x_list, data, L3_xnab));
     const auto eps_L4_xnab = xnab_difference(
       L4, x_list, data.excited, data,
       [&](int k, const DiracSpinor &x, const DiracSpinor &n,
@@ -246,11 +346,12 @@ TEST_CASE("Ladder: external line matches reference", "[Ladder][unit]") {
       });
 
     REQUIRE(eps_L1_mnxb < 1.0e-12);
-    REQUIRE(eps_L2_L3_mnxb < 1.0e-12);
+    REQUIRE(eps_L2_mnxb < 1.0e-12);
+    REQUIRE(eps_L3_mnxb < 1.0e-12);
     REQUIRE(eps_L4_mnxb < 1.0e-12);
     REQUIRE(eps_L1_xnab < 1.0e-12);
-    REQUIRE(eps_L2_L3_xnab < 1.0e-12);
-    REQUIRE(eps_L2_L3_xnab_n_projection < 1.0e-12);
+    REQUIRE(eps_L2_xnab < 1.0e-12);
+    REQUIRE(eps_L3_xnab < 1.0e-12);
     REQUIRE(eps_L4_xnab < 1.0e-12);
   }
 }
@@ -404,4 +505,149 @@ TEST_CASE("Ladder: ratio2 potential", "[Ladder][unit]") {
   REQUIRE(worst_column < 1.0e-8);
   REQUIRE(worst_diagonal < 1.0e-8);
   REQUIRE(worst_asymmetry < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: lowest order with any x matches reference",
+          "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto &sjt = data.yk.SixJ();
+  const auto max_k = stored_max_k(data);
+  const auto excited = excited_up_to_n4(data);
+
+  std::size_t num_core_x = 0;
+  std::size_t num_outside_x = 0;
+  double worst_mnxb = 0.0;
+  double worst_xnab = 0.0;
+  for (const auto &v : data.valence) {
+    // x: every orbital of kappa_v; a core x has the key of a core line
+    const auto x_list = orbitals_of_kappa(v, data);
+    for (const auto &x : x_list) {
+      if (std::find(data.core.cbegin(), data.core.cend(), x) !=
+          data.core.cend()) {
+        ++num_core_x;
+      } else if (std::find(excited.cbegin(), excited.cend(), x) ==
+                 excited.cend()) {
+        ++num_outside_x;
+      }
+    }
+
+    // Each diagram alone, every entry, both orders of (m,n)
+    const auto L2_mnxb = MBPT::lowest_order_Lk_mnxb(
+      data.qk, excited, data.core, x_list, {false, true, false, false}, max_k);
+    const auto L4_mnxb = MBPT::lowest_order_Lk_mnxb(
+      data.qk, excited, data.core, x_list, {false, false, false, true}, max_k);
+    const auto L1_xnab = MBPT::lowest_order_Lk_xnab(
+      data.qk, excited, data.core, x_list, {true, false, false, false}, max_k);
+    const auto L3_xnab = MBPT::lowest_order_Lk_xnab(
+      data.qk, excited, data.core, x_list, {false, false, true, false}, max_k);
+
+    const auto eps_L2 = table_vs_reference(
+      L2_mnxb, excited, excited, x_list, data.core, max_k,
+      [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &x, const DiracSpinor &b) {
+        return MBPT::L2(k, m, n, x, b, data.qk, data.core, excited, sjt);
+      });
+    const auto eps_L4 = table_vs_reference(
+      L4_mnxb, excited, excited, x_list, data.core, max_k,
+      [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &x, const DiracSpinor &b) {
+        return MBPT::L4(k, m, n, x, b, data.qk, data.core, sjt);
+      });
+    const auto eps_L1 = table_vs_reference(
+      L1_xnab, x_list, excited, data.core, data.core, max_k,
+      [&](int k, const DiracSpinor &x, const DiracSpinor &n,
+          const DiracSpinor &a, const DiracSpinor &b) {
+        return MBPT::L1(k, x, n, a, b, data.qk, excited, sjt);
+      });
+    const auto eps_L3 = table_vs_reference(
+      L3_xnab, x_list, excited, data.core, data.core, max_k,
+      [&](int k, const DiracSpinor &x, const DiracSpinor &n,
+          const DiracSpinor &a, const DiracSpinor &b) {
+        return MBPT::L3(k, x, n, a, b, data.qk, data.core, excited, sjt);
+      });
+    worst_mnxb = std::max({worst_mnxb, eps_L2, eps_L4});
+    worst_xnab = std::max({worst_xnab, eps_L1, eps_L3});
+  }
+  REQUIRE(num_core_x > 0);
+  REQUIRE(num_outside_x > 0);
+  REQUIRE(worst_mnxb < 1.0e-12);
+  REQUIRE(worst_xnab < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: mirror terms", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data(-1, 8.0);
+  const auto max_k = stored_max_k(data);
+  // Internal lines n <= 4: the projection states are every orbital of
+  // kappa_v, so some are internal lines, some are not, and some are core
+  const auto excited = excited_up_to_n4(data);
+
+  fmt::print("\nLadder: <y|Sigma_mirror|v> and <v|Sigma_mirror|y> vs the six "
+             "terms (au); x = every orbital of kappa_v\n");
+  fmt::print("{:4s}  {:4s}  {:8s}  {:>13s}  {:>13s}  {:>8s}  {:>8s}\n", "v",
+             "y", "y is", "expected", "found", "eps", "eps(vy)");
+  // Worst eps for y = v, and for y an internal line, outside the internal
+  // lines, and a core orbital
+  double worst_diagonal = 0.0;
+  double worst_internal = 0.0;
+  double worst_outside = 0.0;
+  double worst_core = 0.0;
+  std::size_t num_internal = 0;
+  std::size_t num_outside = 0;
+  std::size_t num_core = 0;
+  for (const auto &v : data.valence) {
+    const auto x_list = orbitals_of_kappa(v, data);
+    const auto Sigma =
+      MBPT::Sigma_ladder_mirror(v, x_list, data.core, excited, data.qk, max_k,
+                                true, 1.0e-4, 200.0, 1, true);
+    const auto Sigma_v = Sigma * v;
+
+    for (const auto &y : x_list) {
+      // <y|Sigma_mirror|v>: the transpose of the terms with y in the ladder
+      // integral (y one of the x). For y = v, the energy of the six terms,
+      // whatever the other x
+      const auto expected = mirror_terms_element(y, v, v.en(), excited, data);
+      const auto found = y * Sigma_v;
+      const auto eps = std::abs(found / expected - 1.0);
+      // <v|Sigma_mirror|y>: the terms with y on the Coulomb vertex
+      const auto expected_vy =
+        mirror_terms_element(v, y, v.en(), excited, data);
+      const auto eps_vy = std::abs((v * (Sigma * y)) / expected_vy - 1.0);
+      const auto worst = std::max(eps, eps_vy);
+
+      const bool is_core =
+        std::find(data.core.cbegin(), data.core.cend(), y) != data.core.cend();
+      const bool is_internal =
+        std::find(excited.cbegin(), excited.cend(), y) != excited.cend();
+      std::string kind = "v";
+      if (y == v) {
+        worst_diagonal = std::max(worst_diagonal, worst);
+      } else if (is_core) {
+        kind = "core";
+        worst_core = std::max(worst_core, worst);
+        ++num_core;
+      } else if (is_internal) {
+        kind = "internal";
+        worst_internal = std::max(worst_internal, worst);
+        ++num_internal;
+      } else {
+        kind = "outside";
+        worst_outside = std::max(worst_outside, worst);
+        ++num_outside;
+      }
+      fmt::print(
+        "{:4s}  {:4s}  {:8s}  {:+13.6e}  {:+13.6e}  {:8.1e}  {:8.1e}\n",
+        v.shortSymbol(), y.shortSymbol(), kind, expected, found, eps, eps_vy);
+    }
+  }
+  REQUIRE(num_internal > 0);
+  REQUIRE(num_outside > 0);
+  REQUIRE(num_core > 0);
+  REQUIRE(worst_diagonal < 1.0e-8);
+  REQUIRE(worst_internal < 1.0e-8);
+  REQUIRE(worst_outside < 1.0e-8);
+  REQUIRE(worst_core < 1.0e-8);
 }
