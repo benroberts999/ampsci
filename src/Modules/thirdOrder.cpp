@@ -4,6 +4,7 @@
 #include "LinAlg/include.hpp"
 #include "MBPT/CorrelationPotential.hpp"
 #include "MBPT/Ladder.hpp"
+#include "MBPT/LadderIteration.hpp"
 #include "Modules/Modules.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
@@ -127,19 +128,20 @@ ParticleHoleTerms particle_hole_terms(const DiracSpinor &v,
                                       const Angular::SixJTable &sjt);
 
 /*!
-  @brief Lowest-order ladder integrals: the ladder diagrams with Coulomb
-         integrals for both interactions.
-  @details See MBPT::calculate_Lk().
-  @param qk         Coulomb integral table
-  @param excited    Excited orbitals
-  @param core       Core orbitals
-  @param integrals  The set of integrals L^k_mnij to calculate
-  @param diagrams   Which of the four ladder diagrams to include
+  @brief Lowest-order ladder integrals L^k_mnib (m,n excited, i in i_orbs, b
+         core): the ladder diagrams with Coulomb integrals for both
+         interactions.
+  @details See MBPT::calculate_Lk_mnib().
+  @param qk        Coulomb integral table
+  @param excited   Excited orbitals
+  @param core      Core orbitals
+  @param i_orbs    Orbitals for the i index
+  @param diagrams  Which of the ladder diagrams to include
 */
 Coulomb::LkTable lowest_order_ladder(const Coulomb::QkTable &qk,
                                      const std::vector<DiracSpinor> &excited,
                                      const std::vector<DiracSpinor> &core,
-                                     const MBPT::LadderIntegralSet &integrals,
+                                     const std::vector<DiracSpinor> &i_orbs,
                                      const MBPT::LadderDiagrams &diagrams);
 
 /*!
@@ -316,20 +318,18 @@ void thirdOrder(const IO::InputBlock &input, const Wavefunction &wf) {
   Coulomb::LkTable lk;
   const auto have_ladder = lk.read(Lk_file);
 
-  // Lowest-order ladder integrals with the valence orbital in the third
-  // index, L_mnva (for all valence states): the particle-particle (L1),
-  // particle-hole (L2 + L3), and hole-hole (L4) diagrams
-  const MBPT::LadderDiagrams diagram_L1{true, false, false, false};
-  const MBPT::LadderDiagrams diagrams_L2_L3{false, true, true, false};
-  const MBPT::LadderDiagrams diagram_L4{false, false, false, true};
-  const auto integrals_mnva =
-    MBPT::ladder_integrals_mnib(excited, core, valence);
-  const auto L1_mnva =
-    lowest_order_ladder(qk, excited, core, integrals_mnva, diagram_L1);
-  const auto L2_L3_mnva =
-    lowest_order_ladder(qk, excited, core, integrals_mnva, diagrams_L2_L3);
-  const auto L4_mnva =
-    lowest_order_ladder(qk, excited, core, integrals_mnva, diagram_L4);
+  // Lowest-order ladder integrals L_mnib, i core or valence, for each of the
+  // particle-particle (L1), particle-hole (L2 + L3), and hole-hole (L4)
+  // diagrams. They hold both L_mnva and, since the valence states are members
+  // of the excited set, L_vnab
+  const MBPT::LadderDiagrams diagram_L1{true, false, false};
+  const MBPT::LadderDiagrams diagrams_L2_L3{false, true, false};
+  const MBPT::LadderDiagrams diagram_L4{false, false, true};
+  const auto i_orbs = qip::merge(core, valence);
+  const auto L1 = lowest_order_ladder(qk, excited, core, i_orbs, diagram_L1);
+  const auto L2_L3 =
+    lowest_order_ladder(qk, excited, core, i_orbs, diagrams_L2_L3);
+  const auto L4 = lowest_order_ladder(qk, excited, core, i_orbs, diagram_L4);
 
   // rows[term][valence state]
   const std::vector<std::string> terms{
@@ -346,29 +346,15 @@ void thirdOrder(const IO::InputBlock &input, const Wavefunction &wf) {
 
     const auto particle_hole = particle_hole_terms(v, core, excited, qk, sjt);
 
-    // Ladder integrals with the valence orbital in the first index, L_vnab
-    const auto integrals_vnab = MBPT::external_m_slot_integrals(
-      MBPT::ladder_orbitals(core), MBPT::ladder_orbitals({v}));
-    const auto L1_vnab =
-      lowest_order_ladder(qk, excited, core, integrals_vnab, diagram_L1);
-    const auto L2_L3_vnab =
-      lowest_order_ladder(qk, excited, core, integrals_vnab, diagrams_L2_L3);
-    const auto L4_vnab =
-      lowest_order_ladder(qk, excited, core, integrals_vnab, diagram_L4);
-
     // {direct, exchange} energy of each ladder diagram
-    const auto de_L1_mnva =
-      ladder_energy_mnva(v, core, excited, qk, L1_mnva, sjt);
+    const auto de_L1_mnva = ladder_energy_mnva(v, core, excited, qk, L1, sjt);
     const auto de_L2_L3_mnva =
-      ladder_energy_mnva(v, core, excited, qk, L2_L3_mnva, sjt);
-    const auto de_L4_mnva =
-      ladder_energy_mnva(v, core, excited, qk, L4_mnva, sjt);
-    const auto de_L1_vnab =
-      ladder_energy_vnab(v, core, excited, qk, L1_vnab, sjt);
+      ladder_energy_mnva(v, core, excited, qk, L2_L3, sjt);
+    const auto de_L4_mnva = ladder_energy_mnva(v, core, excited, qk, L4, sjt);
+    const auto de_L1_vnab = ladder_energy_vnab(v, core, excited, qk, L1, sjt);
     const auto de_L2_L3_vnab =
-      ladder_energy_vnab(v, core, excited, qk, L2_L3_vnab, sjt);
-    const auto de_L4_vnab =
-      ladder_energy_vnab(v, core, excited, qk, L4_vnab, sjt);
+      ladder_energy_vnab(v, core, excited, qk, L2_L3, sjt);
+    const auto de_L4_vnab = ladder_energy_vnab(v, core, excited, qk, L4, sjt);
 
     // L4_mnva and L1_vnab each have a mirror-image diagram, equal in value,
     // that the ladder integrals do not contain: counted twice.
@@ -564,14 +550,12 @@ ParticleHoleTerms particle_hole_terms(const DiracSpinor &v,
 Coulomb::LkTable lowest_order_ladder(const Coulomb::QkTable &qk,
                                      const std::vector<DiracSpinor> &excited,
                                      const std::vector<DiracSpinor> &core,
-                                     const MBPT::LadderIntegralSet &integrals,
+                                     const std::vector<DiracSpinor> &i_orbs,
                                      const MBPT::LadderDiagrams &diagrams) {
-  const auto excited_orbitals = MBPT::ladder_orbitals(excited);
-  const auto core_orbitals = MBPT::ladder_orbitals(core);
   Coulomb::LkTable lk;
-  MBPT::add_Lk_entries(&lk, excited_orbitals, integrals, qk.max_k());
-  MBPT::calculate_Lk(&lk, qk, excited_orbitals, core_orbitals, integrals,
-                     diagrams, nullptr, nullptr, qk.max_k(), false, 0.0);
+  MBPT::add_Lk_mnib_entries(&lk, excited, core, i_orbs, qk.max_k());
+  MBPT::calculate_Lk_mnib(&lk, qk, excited, core, i_orbs, diagrams, nullptr,
+                          qk.max_k(), false, 0.0);
   return lk;
 }
 
