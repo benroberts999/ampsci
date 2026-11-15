@@ -4,6 +4,7 @@
 #include "Coulomb/include.hpp"
 #include "IO/InputBlock.hpp"
 #include "MBPT/Ladder.hpp"
+#include "MBPT/LadderExternalLine.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/format.hpp"
@@ -13,21 +14,10 @@
 #include <cassert>
 #include <cmath>
 #include <iostream>
-#include <random>
 #include <string>
 #include <vector>
 
 namespace MBPT {
-
-namespace {
-// Helper, defined below.
-void check_L_symmetry(const std::vector<DiracSpinor> &core,
-                      const std::vector<DiracSpinor> &excited,
-                      const std::vector<DiracSpinor> &valence,
-                      const Coulomb::QkTable &qk, bool include_L4,
-                      const Angular::SixJTable &sj,
-                      const Coulomb::LkTable *const lk = nullptr);
-} // namespace
 
 //==============================================================================
 // Driver for ladder diagram calculation: Ladder{} input block
@@ -42,18 +32,12 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
      {"include_L4", "Inlcude 4th Ladder diagram [false]"},
      {"sigma_method",
       "Method for the ladder correlation potential Sigma_L. Options:\n"
-      "   - basis  : projection Sigma_L = sum_i L|i><i| onto the basis, "
-      "with the ladder iterated for every projection state at the valence "
-      "energy; requires extending Qk\n"
+      "   - basis  : projection Sigma_L = sum_x L_x|x><x| onto the excited "
+      "states x of kappa_v, with the ladder iterated for each x at the "
+      "valence energy (uses max_it, damp and eps_target)\n"
       "   - ratio  : no projection; rescale each Sigma(2) term by L/Q "
       "(fast)\n"
-      "   - direct : no projection; open the external line exactly (ladder "
-      "vertex)\n"
       "  [ratio]"},
-     {"mirror_terms",
-      "Add the mirror images of the ladder diagrams that the ladder equation "
-      "does not generate, to Sigma_L (lowest order only; requires extending "
-      "Qk) [false]"},
      {"each_valence",
       "If true, iterate L and calculate Sigma_L for each valence state "
       "separately. If false, only for the lowest valence state of each kappa "
@@ -78,8 +62,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                 "that there are 150 points between (1e-4, 30)"},
      {"include_G", "Inlcude lower g-part into Sigma_L [false]"},
      {"check_symmetry",
-      "Run the (slow) numerical symmetry test of the ladder integrals at the "
-      "end [false]"}});
+      "Print the asymmetry of Sigma_L, before it is symmetrised [false]"}});
   // If we are just requesting 'help', don't run:
   if (input.has_option("help")) {
     return;
@@ -96,12 +79,10 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_k = input.get("max_k", 8);
   const auto include_L4 = input.get("include_L4", false);
 
-  // Method for Sigma_L: basis projection, ratio (rescale Sigma(2) terms by
-  // L/Q; Dzuba), or direct (open the external line exactly)
+  // Method for Sigma_L: basis projection, or ratio (rescale Sigma(2) terms by
+  // L/Q; Dzuba)
   using namespace std::string_literals;
   const auto method = parseSigmaLMethod(input.get("sigma_method", "ratio"s));
-
-  const auto mirror_terms = input.get("mirror_terms", false);
 
   const auto each_valence = input.get("each_valence", false);
 
@@ -157,7 +138,6 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << std::boolalpha;
   std::cout << "include_L4   = " << include_L4 << "\n";
   std::cout << "sigma_method = " << parseSigmaLMethod(method) << "\n";
-  std::cout << "mirror_terms = " << mirror_terms << "\n";
   std::cout << "each_valence = " << each_valence << "\n";
   std::cout << "include_G    = " << include_G << "\n";
   std::cout << "max_k        = " << max_k << "\n";
@@ -270,8 +250,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // Iterate for core states:
   for (int it = 1; it <= max_it; ++it) {
     std::cout << "\ncore it:" << it << "\n";
-    MBPT::update_Lk_mnib(&lk_next, qk, excited, holes, holes, include_L4, sjt,
-                         &lk, a_damp, true);
+    MBPT::update_Lk_mnib(&lk_next, qk, excited, holes, holes, include_L4, &lk,
+                         a_damp, true);
     // for the damping, don't swap; lk and lk_prev must match before next iter
     lk = lk_next;
     lk.write(Lk_file);
@@ -302,7 +282,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   for (int it = 1; it <= max_it; ++it) {
     std::cout << "\nvalence it:" << it << "\n";
     MBPT::update_Lk_mnib(&lk_next, qk, excited, holes, unconverged_valence,
-                         include_L4, sjt, &lk, a_damp, true);
+                         include_L4, &lk, a_damp, true);
     lk = lk_next;
     lk.write(Lk_file);
     for (std::size_t i = 0; i < valence.size(); ++i) {
@@ -328,32 +308,6 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   //----------------------------------------------------------------------------
 
-  // Extend Qk table for the projection states. With projection=basis,
-  // Sigma_ladder projects the ladder onto the full basis of each kappa_v, so
-  // Lkmnij() needs Qk integrals involving those (high-n) projection states -
-  // absent if Qk was filled only over the [n_min,n_max] subset 'both'.
-  // Only basis states with a valence kappa are used in the projection, so
-  // extend over both + those (not the entire basis).
-  if (method == SigmaLMethod::basis || mirror_terms) {
-    std::cout
-      << "\nExtending Qk table for projection states (for Sigma_ladder):\n"
-      << std::flush;
-
-    // Basis states with a valence kappa, not already in 'both':
-    const auto proj_states = qip::select_if(wf.basis(), [&](const auto &Fi) {
-      const auto vkappa =
-        std::any_of(valence.cbegin(), valence.cend(),
-                    [&](const auto &v) { return v.kappa() == Fi.kappa(); });
-      return vkappa && std::find(both.cbegin(), both.cend(), Fi) == both.cend();
-    });
-
-    std::cout << "Adding: " << DiracSpinor::state_config(proj_states) << "\n";
-    const auto ext_basis = qip::merge(both, proj_states);
-    const Coulomb::YkTable yk_ext(ext_basis);
-    qk.fill(ext_basis, yk_ext, max_k);
-    qk.write(Qk_file);
-  }
-
   // Build all Sigma_L first (parallelisable), then print
   std::vector<MBPT::GMatrix> SigL_v;
   fmt::print("\nCalculating Sigma_L matrix (method: {}):\n",
@@ -362,44 +316,18 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
              sig_rmax, sig_stride);
   {
     IO::ChronoTimer t("", true);
-    if (method == SigmaLMethod::basis) {
-      // All valence states at once (iterates the ladder for each projection
-      // state)
-      SigL_v = MBPT::Sigma_ladder_iterated(
-        valence, holes, excited, wf.basis(), qk, lk, include_L4, max_it,
-        eps_target, a_damp, sig_r0, sig_rmax, sig_stride, include_G, true);
-    }
-    const std::vector<DiracSpinor> no_states{};
-    const auto &one_at_a_time =
-      method == SigmaLMethod::basis ? no_states : valence;
-    for (const auto &v : one_at_a_time) {
+    for (const auto &v : valence) {
       std::cout << v << "\n";
-      if (method == SigmaLMethod::direct) {
-        SigL_v.push_back(MBPT::Sigma_ladder_direct(
-          v, holes, excited, qk, yk, &lk, sjt, include_L4, sig_r0, sig_rmax,
-          sig_stride, include_G));
-        continue;
+      if (method == SigmaLMethod::basis) {
+        const auto ladder_v = MBPT::external_line_ladder(
+          v, holes, excited, qk, lk, {true, true, include_L4}, max_it,
+          eps_target, a_damp, true);
+        SigL_v.push_back(MBPT::Sigma_ladder(v, ladder_v, holes, excited, sig_r0,
+                                            sig_rmax, sig_stride, include_G));
+      } else {
+        SigL_v.push_back(MBPT::Sigma_ladder(v, holes, excited, qk, &lk, sig_r0,
+                                            sig_rmax, sig_stride, include_G));
       }
-      // Ratio method: Sigma_ladder with an empty projection basis
-      const std::vector<DiracSpinor> empty{};
-      SigL_v.push_back(MBPT::Sigma_ladder(v, holes, excited, empty, qk, &lk,
-                                          sjt, include_L4, sig_r0, sig_rmax,
-                                          sig_stride, include_G));
-    }
-  }
-
-  // Mirror images of the ladder diagrams not generated by the ladder equation
-  if (mirror_terms) {
-    const auto mirror = MBPT::Sigma_ladder_mirror(
-      valence, holes, excited, wf.basis(), qk, include_L4, lk.max_k(), sig_r0,
-      sig_rmax, sig_stride, include_G);
-    std::cout << "\nMirror-image terms (lowest order), added to Sigma_L:\n";
-    for (std::size_t i = 0; i < valence.size(); ++i) {
-      const auto &v = valence[i];
-      const auto de_mirror = v * (mirror[i] * v);
-      fmt::print("de({:>4}): {:+12.9f} au  {:+12.5f} cm^-1\n", v.shortSymbol(),
-                 de_mirror, de_mirror * icm);
-      SigL_v[i] += mirror[i];
     }
   }
 
@@ -524,119 +452,6 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     SLs.push_back({v.kappa(), v.n(), v.en(), std::move(SigL_v[i])});
   }
   MBPT::write_SigmaL(sl_file, SLs, wf.grid());
-
-  // Use this to check the symmetries
-  if (check_symmetry)
-    check_L_symmetry(holes, excited, valence, qk, include_L4, sjt, &lk);
 }
-
-//==============================================================================
-namespace {
-void check_L_symmetry(const std::vector<DiracSpinor> &core,
-                      const std::vector<DiracSpinor> &excited,
-                      const std::vector<DiracSpinor> &valence,
-                      const Coulomb::QkTable &qk, bool include_L4,
-                      const Angular::SixJTable &sj,
-                      const Coulomb::LkTable *const lk) {
-  std::cout << "\ncheck_L_symmetry\n";
-  std::random_device rd;
-  std::mt19937 gen(rd());
-  if (excited.empty() || core.empty() || valence.empty())
-    return;
-  std::uniform_int_distribution<std::size_t> e_index(0, excited.size() - 1);
-  std::uniform_int_distribution<std::size_t> c_index(0, core.size() - 1);
-  std::uniform_int_distribution<std::size_t> v_index(0, valence.size() - 1);
-
-  const int num_to_test = 150000;
-
-  // worst-case trackers; init to -1 so first element always sets a result
-  double max1 = -1.0, max2 = -1.0, max3 = -1.0;
-  std::string label1, label2, label3;
-  std::string info1, info2, info3;
-  int count = 0;
-
-  for (int tries = 0; tries < num_to_test; ++tries) {
-    const auto &m = excited[e_index(gen)];
-    const auto &n = excited[e_index(gen)];
-
-    // half the time: core, other, valence
-    const auto &a = tries % 2 == 0 ? core[c_index(gen)] : valence[v_index(gen)];
-
-    const auto &b = core[c_index(gen)];
-    auto sym = [](const auto &x) { return x.shortSymbol(); };
-
-    // Full ladder k range: both parities (see k_minmax_L)
-    const auto [k0, kI] = k_minmax_L(m, n, a, b);
-    for (int k = k0; k <= kI; ++k) {
-      ++count;
-      auto Qkmnab = qk.Q(k, m, n, a, b);
-      auto lkmnab =
-        MBPT::Lkmnij(k, m, n, a, b, qk, core, excited, include_L4, sj);
-      auto lknmba =
-        MBPT::Lkmnij(k, n, m, b, a, qk, core, excited, include_L4, sj);
-
-      auto lkmnab_tab = lk ? lk->Q(k, m, n, a, b) : 0.0;
-      auto lknmba_tab = lk ? lk->Q(k, n, m, b, a) : 0.0;
-
-      auto lbl = "L^" + std::to_string(k) + "_(" + sym(m) + sym(n) + sym(a) +
-                 sym(b) + ")";
-
-      // 1: Lk_mnab vs Lk_nmba
-      auto d1 = std::abs(lkmnab - lknmba);
-      if (d1 > max1) {
-        max1 = d1;
-        label1 = lbl;
-        info1 = fmt::format("Qk     = {:11.4e}\n"
-                            "Lk_mnab= {:12.5e}\n"
-                            "Lk_nmba= {:12.5e}\n"
-                            "del    = {:8.1e}",
-                            Qkmnab, lkmnab, lknmba, d1);
-      }
-
-      if (lk) {
-        // 2: Lk_mnab(T) vs Lk_nmba(T)
-        auto d2 = std::abs(lkmnab_tab - lknmba_tab);
-        if (d2 > max2) {
-          max2 = d2;
-          label2 = lbl;
-          info2 = fmt::format("Qk        = {:11.4e}\n"
-                              "Lk_mnab(T)= {:12.5e}\n"
-                              "Lk_nmba(T)= {:12.5e}\n"
-                              "del       = {:8.1e}",
-                              Qkmnab, lkmnab_tab, lknmba_tab, d2);
-        }
-
-        // 3: Lk_mnab vs Lk_mnab(T)
-        auto d3 = std::abs(lkmnab - lkmnab_tab);
-        if (d3 > max3) {
-          max3 = d3;
-          label3 = lbl;
-          info3 = fmt::format("Qk        = {:11.4e}\n"
-                              "Lk_mnab   = {:12.5e}\n"
-                              "Lk_mnab(T)= {:12.5e}\n"
-                              "del       = {:8.1e}",
-                              Qkmnab, lkmnab, lkmnab_tab, d3);
-        }
-      }
-    }
-  }
-
-  std::cout << "Checked " << count << " Lk elements (worst case shown)\n\n";
-
-  std::cout << "Lk_mnab vs Lk_nmba:\n  " << label1 << "\n" << info1 << "\n\n";
-
-  if (lk) {
-    std::cout << "Lk_mnab(T) vs Lk_nmba(T) [should be trivially the same]:\n  "
-              << label2 << "\n"
-              << info2 << "\n\n";
-    std::cout << "Lk_mnab vs Lk_mnab(T) [direct vs table; differs if >1 "
-                 "iteration]:\n  "
-              << label3 << "\n"
-              << info3 << "\n";
-  } else {
-    std::cout << "(no table -- skipping table comparisons)\n";
-  }
-}
-} // namespace
 
 } // namespace MBPT
