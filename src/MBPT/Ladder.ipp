@@ -138,6 +138,47 @@ double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
 }
 
 //------------------------------------------------------------------------------
+
+template <typename Qintegrals, typename Lintegrals, typename VnabIntegrals>
+double de_valence_F(const DiracSpinor &v, const Qintegrals &qk,
+                    const Lintegrals &lk_F, const VnabIntegrals &L_vnab,
+                    const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &excited) {
+
+  auto de_v = 0.0;
+#pragma omp parallel for reduction(+ : de_v)
+  for (auto in = 0ul; in < excited.size(); ++in) {
+    const auto &n = excited[in];
+    for (const auto &a : core) {
+
+      // Diagram (a): Q^k_{vamn} L^{F,k}_{mnva}
+      for (const auto &m : excited) {
+        const auto inv_de = 1.0 / (v.en() + a.en() - m.en() - n.en());
+        const auto [k0, kI] = Coulomb::k_minmax_Q(v, a, m, n);
+        for (int k = k0; k <= kI; k += 2) {
+          const auto Q_kvamn = qk.Q(k, v, a, m, n);
+          const auto L_kmnva = lk_F.Q(k, m, n, v, a);
+          de_v += Q_kvamn * L_kmnva * inv_de / (2 * k + 1);
+        }
+      }
+
+      // Diagram (c): Q^k_{vnab} L'^k_{vnab}
+      for (const auto &b : core) {
+        const auto inv_de = 1.0 / (v.en() + n.en() - a.en() - b.en());
+        const auto [k0, kI] = Coulomb::k_minmax_Q(v, n, a, b);
+        for (int k = k0; k <= kI; k += 2) {
+          const auto Q_kvnab = qk.Q(k, v, n, a, b);
+          const auto L_kvnab = L_vnab.Q(k, v, n, a, b);
+          de_v += Q_kvnab * L_kvnab * inv_de / (2 * k + 1);
+        }
+      }
+    }
+  }
+
+  return de_v / v.twojp1();
+}
+
+//------------------------------------------------------------------------------
 // Calculate energy shift (either ladder, or sigma2) for CORE
 // lk may be regular Coulomb integrals [in which case this returns MBPT(2)
 // correction], or Ladder diagrams [in which case this returns the ladder

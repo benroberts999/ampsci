@@ -807,6 +807,392 @@ TEST_CASE("Ladder: P update matches reference", "[Ladder][unit]") {
 }
 
 //==============================================================================
+TEST_CASE("Ladder: Vhp diagram matches reference", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+  const auto x_random = random_ladder_table(data);
+
+  // The hole-particle interaction alone, and with the polarisation loop (they
+  // share a factor), i core and valence, at lowest order and with a dressed
+  // integral that has both parities of k. Table entry: one side plus partner
+  MBPT::LadderDiagrams Vhp_only{false, false, false, false};
+  Vhp_only.hole_particle = true;
+  auto P1_Vhp = Vhp_only;
+  P1_Vhp.P1 = true;
+  const std::vector<const Coulomb::LkTable *> dressing{nullptr, &x_random};
+  for (const auto *lk_prev : dressing) {
+    const auto Vhp_table =
+      ladder_sweep({}, data, data.i_orbs, Vhp_only, lk_prev, max_k, false, 0.0);
+    const auto P1_Vhp_table =
+      ladder_sweep({}, data, data.i_orbs, P1_Vhp, lk_prev, max_k, false, 0.0);
+    const auto eps_Vhp =
+      diagram_vs_scalar(Vhp_table, data,
+                        [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                            const DiracSpinor &i, const DiracSpinor &b) {
+                          return MBPT::Vhp(k, m, n, i, b, data.qk, data.core,
+                                           data.excited, lk_prev) +
+                                 MBPT::Vhp(k, n, m, b, i, data.qk, data.core,
+                                           data.excited, lk_prev);
+                        });
+    const auto eps_P1_Vhp =
+      diagram_vs_scalar(P1_Vhp_table, data,
+                        [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                            const DiracSpinor &i, const DiracSpinor &b) {
+                          return MBPT::P1(k, m, n, i, b, data.qk, data.core,
+                                          data.excited, lk_prev) +
+                                 MBPT::P1(k, n, m, b, i, data.qk, data.core,
+                                          data.excited, lk_prev) +
+                                 MBPT::Vhp(k, m, n, i, b, data.qk, data.core,
+                                           data.excited, lk_prev) +
+                                 MBPT::Vhp(k, n, m, b, i, data.qk, data.core,
+                                           data.excited, lk_prev);
+                        });
+    REQUIRE(eps_Vhp < 1.0e-12);
+    REQUIRE(eps_P1_Vhp < 1.0e-12);
+  }
+}
+
+//==============================================================================
+TEST_CASE("Ladder: Vhp update matches reference", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+  const auto x_random = random_ladder_table(data);
+  const double a_damp = 0.3;
+
+  // x_F (polarisation loop and hole-particle interaction), damped, with a
+  // dressed integral that has both parities of k: the core sweep, then the
+  // valence sweep (which reads the core entries too). Table entry: one side
+  // plus partner, damped as a whole
+  MBPT::LadderDiagrams P1_Vhp{false, false, false, false};
+  P1_Vhp.P1 = true;
+  P1_Vhp.hole_particle = true;
+  double worst_eps = 0.0;
+  for (const auto *i_orbs : {&data.core, &data.valence}) {
+    const auto calculated = ladder_sweep(x_random, data, *i_orbs, P1_Vhp,
+                                         &x_random, max_k, false, a_damp);
+    double max_difference = 0.0, largest = 0.0;
+    for (const auto &m : data.excited) {
+      for (const auto &n : data.excited) {
+        for (const auto &i : *i_orbs) {
+          for (const auto &b : data.core) {
+            const auto [k_min, k_max] = MBPT::k_minmax_L(m, n, i, b);
+            for (int k = k_min; k <= std::min(k_max, max_k); ++k) {
+              const auto L_new = MBPT::P1(k, m, n, i, b, data.qk, data.core,
+                                          data.excited, &x_random) +
+                                 MBPT::P1(k, n, m, b, i, data.qk, data.core,
+                                          data.excited, &x_random) +
+                                 MBPT::Vhp(k, m, n, i, b, data.qk, data.core,
+                                           data.excited, &x_random) +
+                                 MBPT::Vhp(k, n, m, b, i, data.qk, data.core,
+                                           data.excited, &x_random);
+              const auto L_old = x_random.Q(k, m, n, i, b);
+              const auto expected =
+                L_old == 0.0 ? L_new : a_damp * L_old + (1.0 - a_damp) * L_new;
+              const auto found = calculated.Q(k, m, n, i, b);
+              max_difference =
+                std::max(max_difference, std::abs(found - expected));
+              largest = std::max(largest, std::abs(expected));
+            }
+          }
+        }
+      }
+    }
+    worst_eps =
+      std::max(worst_eps, largest == 0.0 ? 1.0 : max_difference / largest);
+  }
+  REQUIRE(worst_eps < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: Vhp factors", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  using MBPT::OrbitalPairIndex;
+  const auto data = ladder_test_data();
+  const auto x_random = random_ladder_table(data);
+
+  // Factors as in calculate_Lk_mnib(), i core and valence, with a dressed
+  // integral that has both parities of k
+  const auto ij_orbitals =
+    MBPT::ladder_ij_orbitals(data.core, data.excited, data.i_orbs);
+  const auto max_tj = DiracSpinor::max_tj(qip::merge(data.core, data.excited));
+  const OrbitalPairIndex ph_pairs(data.excited, ij_orbitals, max_tj);
+  const OrbitalPairIndex rc_pairs(data.excited, data.core, max_tj);
+  const auto Y_rc_nj = MBPT::Vhp_matrix(data.excited, data.core, ij_orbitals,
+                                        rc_pairs, ph_pairs, data.qk);
+  const auto QLk_mi_rc_over_de =
+    MBPT::QL_multipole_over_de(data.excited, data.core, ij_orbitals, ph_pairs,
+                               rc_pairs, data.qk, &x_random);
+  const auto Hk_mi_nj = MBPT::Vhp_multipole(QLk_mi_rc_over_de, Y_rc_nj);
+
+  // Y at every rank of both parities: -y^(c)_nr = -R^0_ncrc for the hole
+  // unchanged (j = c) and kappa_r = kappa_n; zero otherwise, so zero in the
+  // columns with a valence hole
+  double max_difference_Y = 0.0, largest_Y = 0.0;
+  std::size_t num_nonzero_valence_hole = 0;
+  for (std::size_t index_r = 0; index_r < data.excited.size(); ++index_r) {
+    const auto &r = data.excited[index_r];
+    for (std::size_t index_c = 0; index_c < data.core.size(); ++index_c) {
+      const auto &c = data.core[index_c];
+      const auto parity = MBPT::pair_parity(r, c);
+      for (std::size_t index_n = 0; index_n < data.excited.size(); ++index_n) {
+        const auto &n = data.excited[index_n];
+        for (std::size_t index_j = 0; index_j < ij_orbitals.size(); ++index_j) {
+          const auto &j = ij_orbitals[index_j];
+          if (MBPT::pair_parity(n, j) != parity)
+            continue;
+          const bool hole_unchanged = j == c && r.kappa() == n.kappa();
+          const auto expected =
+            hole_unchanged ? -data.qk.R(0, n, c, r, c) : 0.0;
+          for (int K = 0; K <= ph_pairs.max_rank(); ++K) {
+            const auto row = rc_pairs.index(K, index_r, index_c);
+            const auto col = ph_pairs.index(K, index_n, index_j);
+            if (row < 0 || col < 0)
+              continue;
+            const auto found = Y_rc_nj[OrbitalPairIndex::block(K, parity)](
+              std::size_t(row), std::size_t(col));
+            max_difference_Y =
+              std::max(max_difference_Y, std::abs(found - expected));
+            largest_Y = std::max(largest_Y, std::abs(expected));
+            if (index_j >= data.core.size() && found != 0.0) {
+              ++num_nonzero_valence_hole;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // H^k_{mi,nj} = (A Y)^k: element (m,i),(n,j) at rank k is the reference
+  // one side, j core
+  double max_difference_H = 0.0, largest_H = 0.0;
+  for (std::size_t index_m = 0; index_m < data.excited.size(); ++index_m) {
+    const auto &m = data.excited[index_m];
+    for (std::size_t index_n = 0; index_n < data.excited.size(); ++index_n) {
+      const auto &n = data.excited[index_n];
+      for (std::size_t index_i = 0; index_i < ij_orbitals.size(); ++index_i) {
+        const auto &i = ij_orbitals[index_i];
+        for (std::size_t index_j = 0; index_j < data.core.size(); ++index_j) {
+          const auto &j = ij_orbitals[index_j];
+          const auto [k_min, k_max] = MBPT::k_minmax_L(m, n, i, j);
+          if (k_max < k_min)
+            continue;
+          const auto found = MBPT::read_L2K_element(
+            Hk_mi_nj, ph_pairs, ph_pairs, MBPT::pair_parity(m, i), index_m,
+            index_i, index_n, index_j, k_min, k_max);
+          for (int k = k_min; k <= k_max; ++k) {
+            const auto expected = MBPT::Vhp(k, m, n, i, j, data.qk, data.core,
+                                            data.excited, &x_random);
+            max_difference_H = std::max(
+              max_difference_H, std::abs(found[std::size_t(k)] - expected));
+            largest_H = std::max(largest_H, std::abs(expected));
+          }
+        }
+      }
+    }
+  }
+
+  REQUIRE(largest_Y > 0.0);
+  REQUIRE(max_difference_Y == 0.0);
+  REQUIRE(num_nonzero_valence_hole == 0);
+  REQUIRE(largest_H > 0.0);
+  REQUIRE(max_difference_H / largest_H < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: closing amplitude factor", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  using MBPT::OrbitalPairIndex;
+  const auto data = ladder_test_data();
+  const auto L_vnab_random = random_closing_table(data);
+
+  // Rows (v,a) of the closing amplitude, as in calculate_Lk_vnab_F():
+  // (Q + L')^k_vrac/de, with a dressed integral that has k of both parities
+  const auto max_tj = DiracSpinor::max_tj(qip::merge(data.core, data.excited));
+  const OrbitalPairIndex rc_pairs(data.excited, data.core, max_tj);
+  const OrbitalPairIndex va_pairs(data.valence, data.core, max_tj);
+  const auto QLk_va_rc_over_de = MBPT::QL_multipole_vrac_over_de(
+    data.valence, data.excited, data.core, va_pairs, rc_pairs, data.qk,
+    &L_vnab_random);
+
+  double max_difference_QL = 0.0, largest_QL = 0.0;
+  for (std::size_t index_v = 0; index_v < data.valence.size(); ++index_v) {
+    const auto &v = data.valence[index_v];
+    for (std::size_t index_a = 0; index_a < data.core.size(); ++index_a) {
+      const auto &a = data.core[index_a];
+      const auto parity = MBPT::pair_parity(v, a);
+      for (std::size_t index_r = 0; index_r < data.excited.size(); ++index_r) {
+        const auto &r = data.excited[index_r];
+        for (std::size_t index_c = 0; index_c < data.core.size(); ++index_c) {
+          const auto &c = data.core[index_c];
+          if (MBPT::pair_parity(r, c) != parity)
+            continue;
+          const auto de = a.en() + c.en() - v.en() - r.en();
+          const auto [k_min, k_max] = MBPT::k_minmax_L(v, r, a, c);
+          for (int k = k_min; k <= k_max; ++k) {
+            const auto va = std::size_t(va_pairs.index(k, index_v, index_a));
+            const auto rc = std::size_t(rc_pairs.index(k, index_r, index_c));
+            const auto expected =
+              (data.qk.Q(k, v, r, a, c) + L_vnab_random.Q(k, v, r, a, c)) / de;
+            const auto found =
+              QLk_va_rc_over_de[OrbitalPairIndex::block(k, parity)](va, rc);
+            max_difference_QL =
+              std::max(max_difference_QL, std::abs(found - expected));
+            largest_QL = std::max(largest_QL, std::abs(expected));
+          }
+        }
+      }
+    }
+  }
+  REQUIRE(largest_QL > 0.0);
+  REQUIRE(max_difference_QL / largest_QL < 1.0e-14);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: x_F closing matches reference", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+  const auto x_random = random_ladder_table(data);
+  const auto L_vnab_random = random_closing_table(data);
+
+  // Every L'^k_vnab (v valence; n excited; a,b core) is an entry
+  std::size_t num_expected = 0;
+  for (const auto &v : data.valence) {
+    for (const auto &n : data.excited) {
+      for (const auto &a : data.core) {
+        for (const auto &b : data.core) {
+          const auto [k_min, k_max] = MBPT::k_minmax_L(v, n, a, b);
+          num_expected += std::size_t(std::max(0, k_max - k_min + 1));
+        }
+      }
+    }
+  }
+
+  // The polarisation loop, the hole-particle interaction, and both; at lowest
+  // order, and from random tables (both parities of k) with damping
+  MBPT::LadderDiagrams P1_only{false, false, false, false};
+  P1_only.P1 = true;
+  MBPT::LadderDiagrams Vhp_only{false, false, false, false};
+  Vhp_only.hole_particle = true;
+  auto P1_Vhp = P1_only;
+  P1_Vhp.hole_particle = true;
+  std::size_t num_wrong_count = 0;
+  double worst_eps = 0.0;
+  for (const auto *diagrams : {&P1_only, &Vhp_only, &P1_Vhp}) {
+    for (const bool dressed : {false, true}) {
+      const auto *lk_F = dressed ? &x_random : nullptr;
+      const auto *L_vnab_prev = dressed ? &L_vnab_random : nullptr;
+      const double a_damp = dressed ? 0.3 : 0.0;
+      auto L_vnab = dressed ? L_vnab_random : Coulomb::NkTable{};
+      MBPT::add_Lk_vnab_F_entries(&L_vnab, data.excited, data.core,
+                                  data.valence, max_k);
+      if (L_vnab.count() != num_expected) {
+        ++num_wrong_count;
+      }
+      MBPT::calculate_Lk_vnab_F(&L_vnab, data.qk, data.excited, data.core,
+                                data.valence, *diagrams, lk_F, L_vnab_prev,
+                                a_damp);
+      double max_difference = 0.0, largest = 0.0;
+      for (const auto &v : data.valence) {
+        for (const auto &n : data.excited) {
+          for (const auto &a : data.core) {
+            for (const auto &b : data.core) {
+              const auto [k_min, k_max] = MBPT::k_minmax_L(v, n, a, b);
+              for (int k = k_min; k <= k_max; ++k) {
+                const auto L_new =
+                  MBPT::Lk_vnab_F(k, v, n, a, b, data.qk, data.core,
+                                  data.excited, *diagrams, lk_F, L_vnab_prev);
+                const auto L_old =
+                  dressed ? L_vnab_random.Q(k, v, n, a, b) : 0.0;
+                const auto expected = L_old == 0.0 ?
+                                        L_new :
+                                        a_damp * L_old + (1.0 - a_damp) * L_new;
+                const auto found = L_vnab.Q(k, v, n, a, b);
+                max_difference =
+                  std::max(max_difference, std::abs(found - expected));
+                largest = std::max(largest, std::abs(expected));
+              }
+            }
+          }
+        }
+      }
+      worst_eps =
+        std::max(worst_eps, largest == 0.0 ? 1.0 : max_difference / largest);
+    }
+  }
+  REQUIRE(num_expected > 0);
+  REQUIRE(num_wrong_count == 0);
+  REQUIRE(worst_eps < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: x_F closing vs core amplitude", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+
+  // Without the hole-particle interaction, the closing amplitude is the core
+  // amplitude x_F_vnab at every order (two sweeps here). With it, at lowest
+  // order, it is the core amplitude without the term on (v,a), H^k_nvba
+  MBPT::LadderDiagrams P1_only{false, false, false, false};
+  P1_only.P1 = true;
+  auto P1_Vhp = P1_only;
+  P1_Vhp.hole_particle = true;
+
+  const auto lk_1 =
+    ladder_sweep({}, data, data.i_orbs, P1_only, nullptr, max_k, false, 0.0);
+  const auto lk_2 =
+    ladder_sweep({}, data, data.i_orbs, P1_only, &lk_1, max_k, false, 0.0);
+  Coulomb::NkTable L_1, L_2;
+  MBPT::add_Lk_vnab_F_entries(&L_1, data.excited, data.core, data.valence,
+                              max_k);
+  MBPT::add_Lk_vnab_F_entries(&L_2, data.excited, data.core, data.valence,
+                              max_k);
+  MBPT::calculate_Lk_vnab_F(&L_1, data.qk, data.excited, data.core,
+                            data.valence, P1_only, nullptr, nullptr, 0.0);
+  MBPT::calculate_Lk_vnab_F(&L_2, data.qk, data.excited, data.core,
+                            data.valence, P1_only, &lk_1, &L_1, 0.0);
+
+  const auto lk_Vhp =
+    ladder_sweep({}, data, data.i_orbs, P1_Vhp, nullptr, max_k, false, 0.0);
+  Coulomb::NkTable L_Vhp;
+  MBPT::add_Lk_vnab_F_entries(&L_Vhp, data.excited, data.core, data.valence,
+                              max_k);
+  MBPT::calculate_Lk_vnab_F(&L_Vhp, data.qk, data.excited, data.core,
+                            data.valence, P1_Vhp, nullptr, nullptr, 0.0);
+
+  double max_difference_loop = 0.0, largest_loop = 0.0;
+  double max_difference_Vhp = 0.0, largest_Vhp_va = 0.0;
+  for (const auto &v : data.valence) {
+    for (const auto &n : data.excited) {
+      for (const auto &a : data.core) {
+        for (const auto &b : data.core) {
+          const auto [k_min, k_max] = MBPT::k_minmax_L(v, n, a, b);
+          for (int k = k_min; k <= k_max; ++k) {
+            const auto core_loop = lk_2.Q(k, v, n, a, b);
+            max_difference_loop = std::max(
+              max_difference_loop, std::abs(L_2.Q(k, v, n, a, b) - core_loop));
+            largest_loop = std::max(largest_loop, std::abs(core_loop));
+            const auto Vhp_va = MBPT::Vhp(k, n, v, b, a, data.qk, data.core,
+                                          data.excited, nullptr);
+            const auto expected = lk_Vhp.Q(k, v, n, a, b) - Vhp_va;
+            max_difference_Vhp = std::max(
+              max_difference_Vhp, std::abs(L_Vhp.Q(k, v, n, a, b) - expected));
+            largest_Vhp_va = std::max(largest_Vhp_va, std::abs(Vhp_va));
+          }
+        }
+      }
+    }
+  }
+  REQUIRE(largest_loop > 0.0);
+  REQUIRE(max_difference_loop / largest_loop < 1.0e-12);
+  REQUIRE(largest_Vhp_va > 0.0);
+  REQUIRE(max_difference_Vhp / largest_Vhp_va < 1.0e-12);
+}
+
+//==============================================================================
 TEST_CASE("Ladder: coupling round trips", "[Ladder][unit]") {
   using namespace MBPT;
   const auto data = UnitTest::LadderTest::ladder_test_data();

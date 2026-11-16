@@ -73,6 +73,13 @@ coupled_rank_range(const DiracSpinor &a, const DiracSpinor &b,
   out of l_mnij - l_mnji, and so out of every energy, at all orders. Each
   piece of P, with its partner, has the table symmetry by itself. Off by
   default; not with the external line.
+
+  Vhp is the hole-particle interaction as the Feynman direct diagram includes
+  it, through V^(a): -y^0_cc acts on the particle of each pair (n,c) whose
+  hole c is a core orbital, with the hole unchanged (the monopole only)
+  [see Vhp()]. With P1 it gives P_F, the part of P[X] the Feynman direct
+  diagram contains (x_F = P_F[g + x_F]). It is part of piece (2): not with
+  P2. Off by default; not with the external line.
 */
 struct LadderDiagrams {
   //! Particle-particle ladder
@@ -89,6 +96,8 @@ struct LadderDiagrams {
   bool P2{false};
   //! Piece (3) of P, -g_cnrj X_mrci
   bool P3{false};
+  //! Hole-particle interaction of V^(a): -y^0_jj on n, -y^0_ii on m (i core)
+  bool hole_particle{false};
 };
 
 /*!
@@ -389,6 +398,38 @@ std::vector<LinAlg::Matrix<double>> Q_multipole(
   const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &rc_pairs,
   const OrbitalPairIndex &ph_pairs, const Coulomb::QkTable &qk);
 
+/*!
+  @brief Hole-particle factor of V^(a), Y_{rc,nj} = -delta_cj y^(c)_nr, in the
+         blocks of every rank K allowed for (n,j): rows (r excited, c core) by
+         rc_pairs; columns (n excited, j in ij_orbitals) by ph_pairs.
+
+  @details
+  \f[
+    y^{(c)}_{nr} = \langle n|y^0_{cc}|r\rangle = R^0_{ncrc},
+  \f]
+  nonzero only for \f$\kappa_r = \kappa_n\f$: the monopole of the
+  interaction with the hole c, which is left unchanged (orbital and
+  projection). No recoupling: it does not change the rank of the pair, so it
+  enters every block of both parities. Columns (n,j) with j not in the core
+  are zero. ij_orbitals must start with the core, in the same order
+  [ladder_ij_orbitals()].
+*/
+std::vector<LinAlg::Matrix<double>> Vhp_matrix(
+  const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &rc_pairs,
+  const OrbitalPairIndex &ph_pairs, const Coulomb::QkTable &qk);
+
+//! Left factor of calculate_Lk_vnab_F(): QL^k_vrac/Delta e_{ac,vr}, k of both
+//! parities, in the block of rank k: rows (v in valence, a core) by va_pairs;
+//! columns (r excited, c core) by rc_pairs. QL = Q + L, with L from
+//! L_vnab_prev (nullptr: Q only). As QL_multipole_over_de(), with the rows
+//! (v,a) of the closing amplitude
+std::vector<LinAlg::Matrix<double>> QL_multipole_vrac_over_de(
+  const std::vector<DiracSpinor> &valence,
+  const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
+  const OrbitalPairIndex &va_pairs, const OrbitalPairIndex &rc_pairs,
+  const Coulomb::QkTable &qk, const Coulomb::NkTable *L_vnab_prev);
+
 //==============================================================================
 /*!
   @brief Particle-particle ladder L1^J_{mn,ij} for one m and the n of one
@@ -530,14 +571,32 @@ P3_multipole(const std::vector<LinAlg::Matrix<double>> &QLK_mi_rc_over_de,
              const std::vector<LinAlg::Matrix<double>> &Qk_rc_nj);
 
 /*!
+  @brief Hole-particle interaction of V^(a), one side: H^k_{mi,nj}, rows (m,i)
+         and columns (n,j), in the block of rank k.
+
+  @details
+  \f[
+    H^k_{mi,nj} = \sum_{rc} \frac{QL^k_{mric}}{\Delta\epsilon_{ic,mr}}
+      Y_{rc,nj}
+      = -\sum_{r} y^{(j)}_{nr} \frac{QL^k_{mrij}}{\Delta\epsilon_{ij,mr}},
+  \f]
+  r excited (\f$\kappa_r = \kappa_n\f$), j core: @p QLk_mi_rc_over_de
+  [QL_multipole_over_de()] times @p Y_rc_nj [Vhp_matrix()], one matrix
+  product per block, with no sign and no 1/[k]. See calculate_Lk_mnib().
+*/
+std::vector<LinAlg::Matrix<double>>
+Vhp_multipole(const std::vector<LinAlg::Matrix<double>> &QLk_mi_rc_over_de,
+              const std::vector<LinAlg::Matrix<double>> &Y_rc_nj);
+
+/*!
   @brief The pieces of P switched on in @p diagrams, one side, summed:
          P^k_{mi,nj}, rows (m,i) and columns (n,j) by ph_pairs (m,n excited;
          i,j in ij_orbitals), in the block of rank k.
 
   @details
-  P1_multipole() + P2_multipole() + P3_multipole(); each factor is formed
-  once, and only if a piece switched on needs it. The table entry is
-  P^k_mnij = P^k_{mi,nj} + P^k_{nj,mi} [store_Lk_mnij()]. See
+  P1_multipole() + P2_multipole() + P3_multipole() + Vhp_multipole(); each
+  factor is formed once, and only if a piece switched on needs it. The table
+  entry is P^k_mnij = P^k_{mi,nj} + P^k_{nj,mi} [store_Lk_mnij()]. See
   calculate_Lk_mnib().
 */
 std::vector<LinAlg::Matrix<double>> P_multipole(
@@ -729,6 +788,19 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
   function: P1_multipole(), P2_multipole() and P3_multipole()
   [P_multipole()].
 
+  The hole-particle interaction of V^(a) [hole_particle; see Vhp(); off by default] has
+  the same form, with the factor Y_{rc,nj} = -\delta_{cj} y^{(c)}_{nr}
+  [Vhp_matrix()] in place of the Coulomb integral:
+  \f[
+    H^k_{mi,nj} = \sum_{rc}
+                  \frac{QL^k_{mric}}{\Delta\epsilon_{ic,mr}} Y_{rc,nj}
+                = -\sum_r y^{(j)}_{nr}
+                  \frac{QL^k_{mrij}}{\Delta\epsilon_{ij,mr}},
+  \f]
+  [Vhp_multipole()]: -y^0_jj acts on n, with the hole j unchanged, and the
+  rank is unchanged. Its partner H^k_{nj,mi} acts on m, and is zero unless i
+  is a core orbital (Y has no columns with a valence hole).
+
   Factors shared by all (m,n) are indexed by OrbitalPairIndex::block(J or K,
   parity); factors for one m and one kappa group of n by J alone (their parity
   is fixed).
@@ -742,7 +814,8 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
                    excited; others are ignored)
   @param diagrams  Which diagrams to include. L2 and L3 must go together:
                    L_mnij and L_nmji are one table entry, and L3^k_mnij =
-                   L2^k_nmji. P only without @p external
+                   L2^k_nmji. P and Vhp only without @p external; Vhp not
+                   with P2 (it is part of piece (2))
   @param lk_prev   Ladder table for the dressed integral QL = Q + L; nullptr
                    for the lowest order. Must not be lk
   @param max_k     Largest multipolarity k of the integrals to write
@@ -766,5 +839,69 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                        const Coulomb::LkTable *lk_prev, int max_k,
                        bool only_new, double a_damp,
                        const ExternalLine *external = nullptr);
+
+//==============================================================================
+//! Adds zero entries for all L'^k_vnab (v in valence, n excited, a,b core,
+//! k <= max_k), keyed (v,n,a,b), to the closing table of
+//! calculate_Lk_vnab_F(); existing entries are left unchanged
+void add_Lk_vnab_F_entries(Coulomb::NkTable *L_vnab,
+                           const std::vector<DiracSpinor> &excited,
+                           const std::vector<DiracSpinor> &core,
+                           const std::vector<DiracSpinor> &valence, int max_k);
+
+/*!
+  @brief One sweep of the closing amplitude of x_F, for all valence states at
+         once: x_F_vnab without the hole-particle term on the pair (v,a).
+
+  @details
+  In the second term of the direct (Q) closing of x_F [de_valence_F()],
+  \f$ \sum_{nab} g_{abvn} x_{vnab}/(\epsilon_{vn} - \epsilon_{ab}) \f$, the
+  pair (v,a) is part of the valence line, not a polarisation loop: V^(a)
+  never acts on it, at any step after the pair is created. The core amplitude
+  x_F_mnab (m = v included) has the hole-particle term on both pairs, since
+  it also enters as an inner amplitude, where (v,a) is a loop. So the closing
+  has its own amplitude x', for each valence state v:
+  \f[
+    x'_{vnab} = \sum_{rc}\frac{g_{cnrb}\,X'_{vrac}}{\epsilon_{ac}-\epsilon_{vr}}
+      + \sum_{rc}\frac{g_{cvra}\,X^F_{nrbc}}{\epsilon_{bc}-\epsilon_{nr}}
+      - \sum_r \frac{y^{(b)}_{nr}\,X'_{vrab}}{\epsilon_{ab}-\epsilon_{vr}},
+  \f]
+  with X' = g + x' and X^F = g + x_F, r excited and c core. The first term
+  is the loop on (n,b), which keeps (v,a); the second the loop on (v,a), the
+  step that creates (v,a) from a core amplitude; the third the hole-particle
+  term on (n,b). In the multipole form, as calculate_Lk_mnib():
+  \f[
+    L'^k_{vnab} = \Big[A'\Big(\frac{(-1)^k}{[k]} D + Y\Big)\Big]_{va,nb}
+      + \Big[A\,\frac{(-1)^k}{[k]} D\Big]_{nb,va},
+  \f]
+  in the block of rank k: A' = QL'^k_vrac/De from @p L_vnab_prev
+  [QL_multipole_vrac_over_de()], A = QL^k_nrbc/De from @p lk_F
+  [QL_multipole_over_de()], D = Q^k_cnrb [Q_multipole()] and Y
+  [Vhp_matrix()]. Without Vhp, x' is the core amplitude x_F_vnab.
+
+  The table is a Coulomb::NkTable: with n = w another valence state, x'_vwab
+  (of v) and x'_wvba (of w) are different amplitudes.
+
+  @param L_vnab       Closing table to write to, keyed (v,n,a,b). Only
+                      entries already in the table are written [see
+                      add_Lk_vnab_F_entries()]
+  @param qk           Coulomb integral table
+  @param excited      Excited orbitals
+  @param core         Core orbitals
+  @param valence      Valence orbitals: members of excited
+  @param diagrams     P1 (polarisation loop) and Vhp only
+  @param lk_F         x_F [calculate_Lk_mnib() with P1 and Vhp]: its core
+                      entries; nullptr for the lowest order
+  @param L_vnab_prev  Closing table for X' = g + x'; nullptr for the lowest
+                      order. Must not be L_vnab
+  @param a_damp       Damping factor [see damped()]
+*/
+void calculate_Lk_vnab_F(Coulomb::NkTable *L_vnab, const Coulomb::QkTable &qk,
+                         const std::vector<DiracSpinor> &excited,
+                         const std::vector<DiracSpinor> &core,
+                         const std::vector<DiracSpinor> &valence,
+                         const LadderDiagrams &diagrams,
+                         const Coulomb::LkTable *lk_F,
+                         const Coulomb::NkTable *L_vnab_prev, double a_damp);
 
 } // namespace MBPT

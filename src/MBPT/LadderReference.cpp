@@ -3,6 +3,7 @@
 #include "Coulomb/include.hpp"
 #include "MBPT/LadderIteration.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <algorithm>
 #include <array>
 #include <optional>
 #include <vector>
@@ -400,6 +401,75 @@ double P3(int k, const DiracSpinor &m, const DiracSpinor &n,
     }
   }
   return Angular::neg1pow(k) * p3;
+}
+
+//------------------------------------------------------------------------------
+
+double Vhp(int k, const DiracSpinor &m, const DiracSpinor &n,
+           const DiracSpinor &i, const DiracSpinor &j,
+           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+           const std::vector<DiracSpinor> &excited,
+           const Coulomb::LkTable *const Lk) {
+  // Only a pair whose hole is a core orbital is a polarisation loop
+  if (std::find(core.cbegin(), core.cend(), j) == core.cend())
+    return 0.0;
+
+  double h = 0.0;
+  for (const auto &r : excited) {
+    if (r.kappa() != n.kappa())
+      continue;
+    // y^(j)_nr = <n|y^0_jj|r>: the monopole of the interaction with the hole
+    const auto y_nr = qk.R(0, n, j, r, j);
+    const auto QL_kmrij =
+      qk.Q(k, m, r, i, j) + (Lk ? Lk->Q(k, m, r, i, j) : 0.0);
+    h += y_nr * QL_kmrij / (i.en() + j.en() - m.en() - r.en());
+  }
+  return -h;
+}
+
+//------------------------------------------------------------------------------
+
+double Lk_vnab_F(int k, const DiracSpinor &v, const DiracSpinor &n,
+                 const DiracSpinor &a, const DiracSpinor &b,
+                 const Coulomb::QkTable &qk,
+                 const std::vector<DiracSpinor> &core,
+                 const std::vector<DiracSpinor> &excited,
+                 const LadderDiagrams &diagrams,
+                 const Coulomb::LkTable *const lk_F,
+                 const Coulomb::NkTable *const L_vnab) {
+
+  double L = 0.0;
+  if (diagrams.P1) {
+    // Polarisation loop on (n,b), acting on the closing amplitude
+    double loop_nb = 0.0;
+    for (const auto &r : excited) {
+      for (const auto &c : core) {
+        const auto Q_kcnrb = qk.Q(k, c, n, r, b);
+        if (Q_kcnrb == 0.0)
+          continue;
+        const auto QL_kvrac =
+          qk.Q(k, v, r, a, c) + (L_vnab ? L_vnab->Q(k, v, r, a, c) : 0.0);
+        loop_nb += Q_kcnrb * QL_kvrac / (a.en() + c.en() - v.en() - r.en());
+      }
+    }
+    L += Angular::neg1pow(k) * loop_nb / (2.0 * k + 1.0);
+    // Polarisation loop on (v,a), acting on the core amplitude x_F_nrbc
+    L += P1(k, n, v, b, a, qk, core, excited, lk_F);
+  }
+  if (diagrams.hole_particle) {
+    // Hole-particle term on (n,b) only
+    double h = 0.0;
+    for (const auto &r : excited) {
+      if (r.kappa() != n.kappa())
+        continue;
+      const auto y_nr = qk.R(0, n, b, r, b);
+      const auto QL_kvrab =
+        qk.Q(k, v, r, a, b) + (L_vnab ? L_vnab->Q(k, v, r, a, b) : 0.0);
+      h += y_nr * QL_kvrab / (a.en() + b.en() - v.en() - r.en());
+    }
+    L -= h;
+  }
+  return L;
 }
 
 } // namespace MBPT

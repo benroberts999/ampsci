@@ -72,4 +72,21 @@ inline Coulomb::LkTable random_ladder_table(const LadderTestData &data) {
   return lk;
 }
 
+//! Closing table of x_F with every L'^k_vnab (v valence; n excited; a,b core;
+//! k <= stored_max_k() [add_Lk_vnab_F_entries()]) a random number in
+//! [-0.05, 0.05]: both parities of k, and no symmetry
+inline Coulomb::NkTable random_closing_table(const LadderTestData &data) {
+  Coulomb::NkTable L_vnab;
+  MBPT::add_Lk_vnab_F_entries(&L_vnab, data.excited, data.core, data.valence,
+                              stored_max_k(data));
+  std::mt19937 generator(2);
+  std::uniform_real_distribution<double> random_value(-0.05, 0.05);
+  for (std::size_t k = 0; k < L_vnab->size(); ++k) {
+    for (auto &entry : L_vnab->at(k)) {
+      entry.second = random_value(generator);
+    }
+  }
+  return L_vnab;
+}
+
 } // namespace UnitTest::LadderTest

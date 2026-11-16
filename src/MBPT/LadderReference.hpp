@@ -1,6 +1,7 @@
 #pragma once
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
+#include "MBPT/LadderIteration.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <optional>
 #include <vector>
@@ -269,5 +270,78 @@ double P3(int k, const DiracSpinor &m, const DiracSpinor &n,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
           const Coulomb::LkTable *const Lk = nullptr);
+
+/*!
+  @brief Hole-particle interaction of V^(a), one side: -y^0_jj acting on the
+         particle n, with the hole j unchanged.
+
+  @details
+  The m-scheme term
+  \f$ -\sum_r y^{(j)}_{nr}\,X_{mrij}/(\epsilon_{ij}-\epsilon_{mr}) \f$, with
+  \f$ y^{(j)}_{nr} = \langle n|y^0_{jj}|r\rangle \f$ (the average of
+  \f$ g_{njrj} \f$ over the projections of the hole, which keeps only the
+  monopole):
+  \f[
+    H^k_{mnij} = -\sum_{r} R^0_{njrj}\,
+      \frac{(Q+L)^k_{mrij}}{\epsilon_i + \epsilon_j - \epsilon_m - \epsilon_r},
+  \f]
+  r over excited, \f$ \kappa_r = \kappa_n \f$. The same k as the result: the
+  monopole does not change the rank. Zero unless j is a core orbital: a pair
+  whose hole is a valence state is the valence line, not a polarisation loop.
+  The table entry of LadderDiagrams::hole_particle is H^k_mnij + H^k_nmji.
+
+  @param k       Multipole rank
+  @param m,n     Excited (particle) orbitals
+  @param i,j     Core (hole) or valence orbitals
+  @param qk      Coulomb \f$ Q^k \f$ integral table
+  @param core    Core orbitals
+  @param excited Excited orbitals
+  @param Lk      Ladder table for the dressed integral (nullptr: X = g)
+  @return \f$ H^k_{mnij} \f$
+*/
+double Vhp(int k, const DiracSpinor &m, const DiracSpinor &n,
+           const DiracSpinor &i, const DiracSpinor &j,
+           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+           const std::vector<DiracSpinor> &excited,
+           const Coulomb::LkTable *const Lk = nullptr);
+
+/*!
+  @brief Closing amplitude of x_F, L'^k_vnab: x_F_vnab without the
+         hole-particle term on the pair (v,a) [see calculate_Lk_vnab_F()].
+
+  @details
+  \f[
+    L'^k_{vnab} = \frac{(-1)^k}{[k]} \sum_{rc}
+      \frac{Q^k_{cnrb}\,(Q+L')^k_{vrac}}
+           {\epsilon_a + \epsilon_c - \epsilon_v - \epsilon_r}
+      + P1^k_{nvba}
+      - \sum_{r} R^0_{nbrb}\,
+      \frac{(Q+L')^k_{vrab}}{\epsilon_a + \epsilon_b - \epsilon_v - \epsilon_r},
+  \f]
+  r over excited (\f$ \kappa_r = \kappa_n \f$ in the last term) and c over
+  core, with L' from @p L_vnab and P1() from @p lk_F. The first two terms (the
+  polarisation loop on (n,b), and on (v,a) acting on the core amplitude) if
+  diagrams.P1, the last (the hole-particle term on (n,b)) if diagrams.hole_particle.
+
+  @param k         Multipole rank
+  @param v         Valence orbital
+  @param n         Excited orbital
+  @param a,b       Core orbitals
+  @param qk        Coulomb \f$ Q^k \f$ integral table
+  @param core      Core orbitals
+  @param excited   Excited orbitals
+  @param diagrams  P1 and Vhp
+  @param lk_F      x_F table (nullptr: X^F = g)
+  @param L_vnab    Closing table (nullptr: X' = g)
+  @return \f$ L'^k_{vnab} \f$
+*/
+double Lk_vnab_F(int k, const DiracSpinor &v, const DiracSpinor &n,
+                 const DiracSpinor &a, const DiracSpinor &b,
+                 const Coulomb::QkTable &qk,
+                 const std::vector<DiracSpinor> &core,
+                 const std::vector<DiracSpinor> &excited,
+                 const LadderDiagrams &diagrams,
+                 const Coulomb::LkTable *const lk_F = nullptr,
+                 const Coulomb::NkTable *const L_vnab = nullptr);
 
 } // namespace MBPT

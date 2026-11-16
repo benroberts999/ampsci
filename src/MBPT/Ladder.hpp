@@ -135,6 +135,39 @@ double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
                     const Angular::SixJTable *sj = nullptr);
 
 /*!
+  @brief Direct (Q) closing of x_F: the part of the valence energy that the
+         Feynman direct diagram contains, in the basis.
+
+  @details
+  \f[
+    \delta\epsilon^F_v = \frac{1}{[j_v]} \sum_{amn,k}
+      \frac{Q^k_{vamn}\,L^{F,k}_{mnva}}
+           {[k]\,(\epsilon_v + \epsilon_a - \epsilon_m - \epsilon_n)}
+    + \frac{1}{[j_v]} \sum_{nab,k}
+      \frac{Q^k_{vnab}\,L'^k_{vnab}}
+           {[k]\,(\epsilon_v + \epsilon_n - \epsilon_a - \epsilon_b)},
+  \f]
+  diagrams (a) and (c) of de_valence(), k over the Coulomb range only. L^F is
+  x_F [calculate_Lk_mnib() with P1 and Vhp], and L' the closing amplitude:
+  x_F_vnab without the hole-particle term on (v,a), which is part of the
+  valence line there [calculate_Lk_vnab_F()]. The correction to the valence
+  energy is de_valence_w() of x minus this.
+
+  @param v        Valence orbital
+  @param qk       Coulomb \f$ Q^k \f$ integral table
+  @param lk_F     x_F table: L^k_mnva
+  @param L_vnab   Closing table: L'^k_vnab
+  @param core     Core orbitals
+  @param excited  Excited orbitals
+  @return \f$ \delta\epsilon^F_v \f$
+*/
+template <typename Qintegrals, typename Lintegrals, typename VnabIntegrals>
+double de_valence_F(const DiracSpinor &v, const Qintegrals &qk,
+                    const Lintegrals &lk_F, const VnabIntegrals &L_vnab,
+                    const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &excited);
+
+/*!
   @brief Second-order (or ladder) correction to the core energy.
 
   @details
