@@ -43,10 +43,16 @@ const Register r_thirdOrder{
   At. Data Nucl. Data Tables 37, 103 (1987). The diagrams are sorted into
   classes, to show the relative size of each.
 
+  Each class is split into two parts. SD part: the time orderings that the
+  singles-doubles (pair) equations generate at third order, terms T1-T10 of
+  Blundell et al. Extra part: the others, X1-X8, in which a core pair is
+  de-excited with the valence electron as a spectator (they need triples).
+
   Notation: \f$a,b,c\f$ are core orbitals, \f$m,n,r\f$ excited orbitals,
   \f$[k] = 2k+1\f$, and \f$W^k = Q^k + P^k\f$ is the antisymmetrised Coulomb
   integral: \f$Q^k\f$ is the direct part and \f$P^k\f$ the exchange part.
-  Functions that return {direct, exchange} do so in that order.
+  Functions that return {direct, exchange}, or {SD part, extra part}, do so in
+  that order.
 */
 namespace ThirdOrder {
 
@@ -111,6 +117,12 @@ struct ParticleHoleTerms {
       \left( t_x^T\,G\,t_x + 2\,t_x^T\,T\,u_x \right),
   \f]
   with the plus sign for excited \f$x\f$ and the minus sign for core \f$x\f$.
+  In the notation of Blundell et al., \f$t_x^T\,G\,t_x\f$ is T9 (\f$x\f$
+  excited) and T4 (\f$x\f$ core); \f$t_x^T\,T\,u_x\f$ is T10 (\f$x\f$ excited)
+  and T3 (\f$x\f$ core), and, equal in value within each class, their mirror
+  images X2 and X1. So the SD part is
+  \f$t_x^T\,G\,t_x + t_x^T\,T\,u_x\f$, and the extra part is
+  \f$t_x^T\,T\,u_x\f$.
 
   Each \f$W = Q + P\f$: the eight combinations of direct and exchange vertices
   are sorted into the classes of ParticleHoleTerms.
@@ -120,12 +132,12 @@ struct ParticleHoleTerms {
   @param excited  Excited orbitals
   @param qk       Coulomb integral table
   @param sjt      6j symbol table
+  @return {SD part, extra part}
 */
-ParticleHoleTerms particle_hole_terms(const DiracSpinor &v,
-                                      const std::vector<DiracSpinor> &core,
-                                      const std::vector<DiracSpinor> &excited,
-                                      const Coulomb::QkTable &qk,
-                                      const Angular::SixJTable &sjt);
+std::array<ParticleHoleTerms, 2>
+particle_hole_terms(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &excited,
+                    const Coulomb::QkTable &qk, const Angular::SixJTable &sjt);
 
 /*!
   @brief Lowest-order ladder integrals L^k_mnib (m,n excited, i in i_orbs, b
@@ -220,18 +232,22 @@ struct RelaxationTerms {
       {[k]\,(\en_a+\en_b-\en_m-\en_n)(\en_a+\en_b-\en_n-\en_r)}.
   \f]
   Each \f$W = Q + P\f$: sorted into the classes of RelaxationTerms.
+  In the notation of Blundell et al., the \f$\rho_{ma}\f$ part is T5 and T6
+  (SD part); the \f$\rho_{am}\f$ part, equal in value, is their mirror images
+  X8 and X7, and the \f$\rho_{bc}\f$ and \f$\rho_{mr}\f$ parts are X3 and X4
+  (extra part).
 
   @param v        Valence orbital
   @param core     Core orbitals
   @param excited  Excited orbitals
   @param qk       Coulomb integral table
   @param sjt      6j symbol table
+  @return {SD part, extra part}
 */
-RelaxationTerms relaxation_terms(const DiracSpinor &v,
-                                 const std::vector<DiracSpinor> &core,
-                                 const std::vector<DiracSpinor> &excited,
-                                 const Coulomb::QkTable &qk,
-                                 const Angular::SixJTable &sjt);
+std::array<RelaxationTerms, 2>
+relaxation_terms(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+                 const std::vector<DiracSpinor> &excited,
+                 const Coulomb::QkTable &qk, const Angular::SixJTable &sjt);
 
 } // namespace ThirdOrder
 using namespace ThirdOrder;
@@ -249,6 +265,10 @@ void thirdOrder(const IO::InputBlock &input, const Wavefunction &wf) {
           " - L_par, L_parx: ladder\n"
           " - R_dd, R_dx, R_xd, R_xx: core relaxation\n"
           " - d: direct; x: exchange\n"
+          "Each class is then split into two parts:\n"
+          " - SD: orderings the singles-doubles equations generate\n"
+          " - extra: the others, in which a core pair is de-excited\n"
+          "   while the valence electron is a spectator (need triples)\n"
           "Also prints the energy of the Ladder{} diagrams:\n"
           "3rd order, and iterated (if Lk_file exists);\n"
           "and <v|Sigma|v> (if Correlations included)"},
@@ -336,6 +356,11 @@ void thirdOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     "de(2)", "S_d",    "S_x",  "S_xx", "H_d",  "H_x",  "L_cross",
     "L_par", "L_parx", "R_dd", "R_dx", "R_xd", "R_xx", "de(3)"};
   std::vector<std::vector<double>> rows(terms.size());
+  // The same for the {SD, extra} parts of the third-order terms (all but
+  // de(2)): part_rows[part][term - 1][valence state]
+  std::array<std::vector<std::vector<double>>, 2> part_rows{
+    std::vector<std::vector<double>>(terms.size() - 1),
+    std::vector<std::vector<double>>(terms.size() - 1)};
   std::vector<double> ladder_third_order, ladder_iterated, sigma;
 
   std::cout << "\nCalculating:" << std::flush;
@@ -356,29 +381,48 @@ void thirdOrder(const IO::InputBlock &input, const Wavefunction &wf) {
       ladder_energy_vnab(v, core, excited, qk, L2_L3, sjt);
     const auto de_L4_vnab = ladder_energy_vnab(v, core, excited, qk, L4, sjt);
 
-    // L4_mnva and L1_vnab each have a mirror-image diagram, equal in value,
-    // that the ladder integrals do not contain: counted twice.
+    // {SD, extra} parts of L_par (direct) and L_parx (exchange).
+    // SD: L1_mnva (T8), L4_mnva (T7), L1_vnab (T2), L4_vnab (T1).
+    // Extra: the mirror images of L4_mnva (X6) and L1_vnab (X5), equal in
+    // value, that the ladder integrals do not contain.
     // (The particle-hole ladders, L2 and L3, are parts of L_cross and H_x)
-    const auto L_par =
-      de_L1_mnva[0] + 2.0 * de_L4_mnva[0] + 2.0 * de_L1_vnab[0] + de_L4_vnab[0];
-    const auto L_parx =
-      de_L1_mnva[1] + 2.0 * de_L4_mnva[1] + 2.0 * de_L1_vnab[1] + de_L4_vnab[1];
+    const std::array<double, 2> L_par{de_L1_mnva[0] + de_L4_mnva[0] +
+                                        de_L1_vnab[0] + de_L4_vnab[0],
+                                      de_L4_mnva[0] + de_L1_vnab[0]};
+    const std::array<double, 2> L_parx{de_L1_mnva[1] + de_L4_mnva[1] +
+                                         de_L1_vnab[1] + de_L4_vnab[1],
+                                       de_L4_mnva[1] + de_L1_vnab[1]};
 
     const auto relaxation = relaxation_terms(v, core, excited, qk, sjt);
 
-    const std::vector<double> column{de2,
-                                     particle_hole.S_d,
-                                     particle_hole.S_x,
-                                     particle_hole.S_xx,
-                                     particle_hole.H_d,
-                                     particle_hole.H_x,
-                                     particle_hole.L_cross,
-                                     L_par,
-                                     L_parx,
-                                     relaxation.R_dd,
-                                     relaxation.R_dx,
-                                     relaxation.R_xd,
-                                     relaxation.R_xx};
+    // {SD, extra} parts of each class
+    std::array<std::vector<double>, 2> part_columns;
+    for (const auto part : {0ul, 1ul}) {
+      part_columns[part] = {particle_hole[part].S_d,
+                            particle_hole[part].S_x,
+                            particle_hole[part].S_xx,
+                            particle_hole[part].H_d,
+                            particle_hole[part].H_x,
+                            particle_hole[part].L_cross,
+                            L_par[part],
+                            L_parx[part],
+                            relaxation[part].R_dd,
+                            relaxation[part].R_dx,
+                            relaxation[part].R_xd,
+                            relaxation[part].R_xx};
+      for (std::size_t i = 0; i < part_columns[part].size(); ++i) {
+        part_rows[part][i].push_back(part_columns[part][i]);
+      }
+      // de(3): sum of the classes
+      part_rows[part].back().push_back(std::accumulate(
+        part_columns[part].cbegin(), part_columns[part].cend(), 0.0));
+    }
+
+    // Each class: SD part + extra part
+    std::vector<double> column{de2};
+    for (std::size_t i = 0; i < part_columns[0].size(); ++i) {
+      column.push_back(part_columns[0][i] + part_columns[1][i]);
+    }
     for (std::size_t i = 0; i < column.size(); ++i) {
       rows[i].push_back(column[i]);
     }
@@ -422,6 +466,19 @@ void thirdOrder(const IO::InputBlock &input, const Wavefunction &wf) {
     print_row(terms[i], rows[i]);
   }
 
+  const std::array<std::string, 2> part_names{"SD part", "extra part"};
+  for (const auto part : {0ul, 1ul}) {
+    std::cout << "\n" << part_names[part] << " of each class (cm^-1):\n";
+    fmt::print("{:9s}", "");
+    for (const auto &v : valence) {
+      fmt::print(" {:>10s}", v.shortSymbol());
+    }
+    std::cout << "\n";
+    for (std::size_t i = 1; i < terms.size(); ++i) {
+      print_row(terms[i], part_rows[part][i - 1]);
+    }
+  }
+
   std::cout << "\nDiagrams of Ladder{}, with include_L4 (cm^-1):\n";
   print_row("3rd order", ladder_third_order);
   if (have_ladder) {
@@ -445,14 +502,14 @@ direct_exchange(int k, const DiracSpinor &a, const DiracSpinor &b,
 
 //==============================================================================
 
-ParticleHoleTerms particle_hole_terms(const DiracSpinor &v,
-                                      const std::vector<DiracSpinor> &core,
-                                      const std::vector<DiracSpinor> &excited,
-                                      const Coulomb::QkTable &qk,
-                                      const Angular::SixJTable &sjt) {
+std::array<ParticleHoleTerms, 2>
+particle_hole_terms(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &excited,
+                    const Coulomb::QkTable &qk, const Angular::SixJTable &sjt) {
 
-  // sum[number of valence vertices that are exchange][core vertex is exchange]
-  std::array<std::array<double, 2>, 3> sum{};
+  // SD and extra parts, each:
+  // [number of valence vertices that are exchange][core vertex is exchange]
+  std::array<std::array<double, 2>, 3> SD{}, extra{};
 
   const auto max_k =
     (DiracSpinor::max_tj(core) + DiracSpinor::max_tj(excited)) / 2;
@@ -524,25 +581,32 @@ ParticleHoleTerms particle_hole_terms(const DiracSpinor &v,
         }
       }
 
-      // t^T (G t + 2 T u), summed over x, for each choice of direct or
-      // exchange in the left valence vertex, core vertex, right valence vertex
+      // t^T (G t + T u) (SD part) and t^T T u (extra part), summed over x,
+      // for each choice of direct or exchange in the left valence vertex, core
+      // vertex, right valence vertex
       const auto factor = (x_in_core ? -1.0 : 1.0) * Angular::neg1pow(k) /
                           ((2 * k + 1) * (2 * k + 1) * v.twojp1());
       for (const auto core_vertex : {0ul, 1ul}) {
         for (const auto right : {0ul, 1ul}) {
-          const auto Gt_2Tu =
-            G[core_vertex] * t[right] + 2.0 * (T[core_vertex] * u[right]);
+          const auto Tu = T[core_vertex] * u[right];
+          const auto Gt_Tu = G[core_vertex] * t[right] + Tu;
           for (const auto left : {0ul, 1ul}) {
-            const auto chain = std::inner_product(
-              t[left].cbegin(), t[left].cend(), Gt_2Tu.cbegin(), 0.0);
-            sum[left + right][core_vertex] += factor * chain;
+            const auto chain_SD = std::inner_product(
+              t[left].cbegin(), t[left].cend(), Gt_Tu.cbegin(), 0.0);
+            const auto chain_extra = std::inner_product(
+              t[left].cbegin(), t[left].cend(), Tu.cbegin(), 0.0);
+            SD[left + right][core_vertex] += factor * chain_SD;
+            extra[left + right][core_vertex] += factor * chain_extra;
           }
         }
       }
     }
   }
 
-  return {sum[0][0], sum[1][0], sum[2][0], sum[0][1], sum[1][1], sum[2][1]};
+  return {ParticleHoleTerms{SD[0][0], SD[1][0], SD[2][0], SD[0][1], SD[1][1],
+                            SD[2][1]},
+          ParticleHoleTerms{extra[0][0], extra[1][0], extra[2][0], extra[0][1],
+                            extra[1][1], extra[2][1]}};
 }
 
 //==============================================================================
@@ -621,18 +685,17 @@ ladder_energy_vnab(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
 
 //==============================================================================
 
-RelaxationTerms relaxation_terms(const DiracSpinor &v,
-                                 const std::vector<DiracSpinor> &core,
-                                 const std::vector<DiracSpinor> &excited,
-                                 const Coulomb::QkTable &qk,
-                                 const Angular::SixJTable &sjt) {
+std::array<RelaxationTerms, 2>
+relaxation_terms(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+                 const std::vector<DiracSpinor> &excited,
+                 const Coulomb::QkTable &qk, const Angular::SixJTable &sjt) {
 
   double R_dd = 0.0, R_dx = 0.0, R_xd = 0.0, R_xx = 0.0;
 
   // In each block: rho = {direct, exchange} change of the density, then its
   // interaction with the valence electron
 
-  // Core-excited: rho_ma (and the equal rho_am: factor of two)
+  // Core-excited: rho_ma
 #pragma omp parallel for reduction(+ : R_dd, R_dx, R_xd, R_xx) schedule(dynamic)
   for (std::size_t im = 0; im < excited.size(); ++im) {
     const auto &m = excited[im];
@@ -670,7 +733,7 @@ RelaxationTerms relaxation_terms(const DiracSpinor &v,
       }
       const auto W_vavm = direct_exchange(0, v, a, v, m, qk, sjt);
       const auto factor =
-        2.0 * Angular::neg1pow_2(v.twoj() + a.twoj() + 2) /
+        Angular::neg1pow_2(v.twoj() + a.twoj() + 2) /
         (std::sqrt(v.twojp1() * a.twojp1()) * (a.en() - m.en()));
       R_dd += factor * W_vavm[0] * rho[0];
       R_dx += factor * W_vavm[0] * rho[1];
@@ -678,6 +741,10 @@ RelaxationTerms relaxation_terms(const DiracSpinor &v,
       R_xx += factor * W_vavm[1] * rho[1];
     }
   }
+
+  // SD part: rho_ma. The extra part starts with rho_am, equal in value to
+  // rho_ma, and adds rho_bc and rho_mr
+  const RelaxationTerms SD{R_dd, R_dx, R_xd, R_xx};
 
   // Core-core: rho_bc (here, the part of it from each excited m)
 #pragma omp parallel for reduction(+ : R_dd, R_dx, R_xd, R_xx) schedule(dynamic)
@@ -749,7 +816,8 @@ RelaxationTerms relaxation_terms(const DiracSpinor &v,
     }
   }
 
-  return {R_dd, R_dx, R_xd, R_xx};
+  const RelaxationTerms extra{R_dd, R_dx, R_xd, R_xx};
+  return {SD, extra};
 }
 
 } // namespace ThirdOrder
