@@ -1,7 +1,9 @@
+#include "MBPT/Ladder.hpp"
 #include "Angular/include.hpp"
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/QkTable.hpp"
 #include "Coulomb/YkTable.hpp"
+#include "MBPT/Ladder.testdata.hpp"
 #include "MBPT/LadderIteration.hpp"
 #include "MBPT/LadderReference.hpp"
 #include "Maths/Grid.hpp"
@@ -9,6 +11,7 @@
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
 #include <algorithm>
+#include <cmath>
 #include <vector>
 
 //==============================================================================
@@ -184,4 +187,24 @@ TEST_CASE("Ladder: m-scheme check", "[Ladder][unit]") {
                eps);
     REQUIRE(eps < 1.0e-10);
   }
+}
+
+//==============================================================================
+TEST_CASE("Ladder: core energy with W", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto &sjt = data.yk.SixJ();
+  // Ladder table with entries at both parities of k: lowest order, one sweep
+  Coulomb::LkTable lk;
+  MBPT::fill_Lk_mnib(&lk, data.qk, data.excited, data.core, data.core, true, -1,
+                     false);
+  const auto lk_lowest = lk;
+  MBPT::update_Lk_mnib(&lk, data.qk, data.excited, data.core, data.core, true,
+                       &lk_lowest, 0.0, false);
+
+  const auto expected = MBPT::de_core(data.qk, lk, data.core, data.excited);
+  const auto found =
+    MBPT::de_core_w(data.qk, lk, data.core, data.excited, &sjt);
+  const auto eps = std::abs(found / expected - 1.0);
+  REQUIRE(eps < 1.0e-12);
 }

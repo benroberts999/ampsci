@@ -124,6 +124,9 @@ double de_valence(const DiracSpinor &v, const Qintegrals &qk,
   @param excited Excited orbitals
   @param sj      Optional 6j table (speeds up the W exchange sum)
   @return \f$ \delta\epsilon_v \f$
+
+  @warning @p sj must hold every 6j symbol of @p v, @p core and @p excited:
+           a symbol missing from it is taken as 0, giving a wrong energy.
 */
 template <typename Qintegrals, typename Lintegrals>
 double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
@@ -151,6 +154,39 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
                const std::vector<DiracSpinor> &excited);
 
 /*!
+  @brief Ladder (or MBPT2) core energy, antisymmetrising the FIRST integral.
+
+  @details
+  Computes
+  \f[
+    \delta E_{\rm core} = \frac{1}{2} \sum_{abmn,k}
+      \frac{W^k_{abmn}\,L^k_{mnab}}
+           {[k]\,(\epsilon_a + \epsilon_b - \epsilon_m - \epsilon_n)},
+  \f]
+  with \f$ W = Q + P \f$ the antisymmetrised Coulomb integral (@p qk.W) and the
+  ladder @p lk entering only through the direct integral @p lk.Q; \f$ k \f$
+  runs over both parities. Equivalent to de_core() (which instead
+  antisymmetrises the ladder via @p lk.P), since the exchange symmetry holds
+  under the full sum. Works only with the Coulomb integrals in the first slot
+  (the ladder lacks the required symmetry).
+
+  @param qk      Coulomb integrals supplying \f$ W = Q+P \f$ (first integral)
+  @param lk      Ladder \f$ L^k \f$ integrals (second, direct integral)
+  @param core    Core orbitals
+  @param excited Excited orbitals
+  @param sj      Optional 6j table (speeds up the W exchange sum)
+  @return Total core correlation energy shift
+
+  @warning @p sj must hold every 6j symbol of @p core and @p excited: a
+           symbol missing from it is taken as 0, giving a wrong energy.
+*/
+template <typename Qintegrals, typename Lintegrals>
+double de_core_w(const Qintegrals &qk, const Lintegrals &lk,
+                 const std::vector<DiracSpinor> &core,
+                 const std::vector<DiracSpinor> &excited,
+                 const Angular::SixJTable *sj = nullptr);
+
+/*!
   @brief Method used to construct the ladder correlation potential, Sigma_L.
 
   @details
@@ -168,7 +204,7 @@ enum class SigmaLMethod { basis, ratio, ratio2 };
 
   @details
   Also accepts "full" (basis) and "Dzuba" (ratio). Warns and defaults to
-  ratio if unknown.
+  basis if unknown.
 */
 SigmaLMethod parseSigmaLMethod(const std::string &method);
 //! Converts SigmaLMethod enum to string (name)

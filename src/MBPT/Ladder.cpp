@@ -31,8 +31,8 @@ SigmaLMethod parseSigmaLMethod(const std::string &method) {
   if (qip::ci_compare(method, "ratio2"))
     return SigmaLMethod::ratio2;
   std::cout << "Warning: unknown Sigma_L method: " << method
-            << " ?? Defaulting to ratio\n";
-  return SigmaLMethod::ratio;
+            << " ?? Defaulting to basis\n";
+  return SigmaLMethod::basis;
 }
 
 std::string parseSigmaLMethod(SigmaLMethod method) {

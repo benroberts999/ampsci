@@ -49,8 +49,9 @@ ExternalLineLadder external_line_start(const DiracSpinor &v,
   @details
   calculate_Lk_mnib() with i_orbs = x_orbitals: the dressed integrals of L1
   and L3 that contain x come from @p L_mnxb_prev, at e_v; all others from
-  @p lk (L2 and L4 hold x only in a bare Q). Only entries already in
-  @p L_mnxb are written, damped by @p a_damp [see damped()].
+  @p lk (L2 and L4 hold x only in a bare Q). As in calculate_Lk_mnib(), L2
+  and L3 [@p diagrams] must go together. Only entries already in @p L_mnxb
+  are written, damped by @p a_damp [see damped()].
 */
 void calculate_Lk_mnxb(Coulomb::LkTable *L_mnxb, const Coulomb::QkTable &qk,
                        const std::vector<DiracSpinor> &excited,
@@ -126,7 +127,8 @@ double external_line_change(ExternalLineLadder &ladder,
   @param excited     Excited orbitals
   @param qk          Coulomb integral table
   @param lk          Converged ladder table (i orbitals: core and v)
-  @param diagrams    Which diagrams to include
+  @param diagrams    Which diagrams to include. L2 and L3 must go together
+                     [calculate_Lk_mnxb()]
   @param max_it      Largest number of sweeps
   @param eps_target  Convergence target
   @param a_damp      Damping factor [see damped()]
@@ -321,14 +323,15 @@ projection_states(const DiracSpinor &v, const std::vector<DiracSpinor> &basis);
          kappa of a valence state [projection_states()].
 
   @details
-  For each kappa of @p valence, fills @p qk over @p orbitals together with
-  the states of @p basis of that kappa not in @p orbitals [see
-  Coulomb::QkTable::fill()]. No integrals between such states of two
-  different kappas are formed.
+  The mirror terms hold a projection state only once in a Coulomb integral,
+  with three of @p orbitals (the internal lines). So it adds every integral
+  with exactly one state of @p basis that has the kappa of a valence state
+  and is not in @p orbitals, and three of @p orbitals [see
+  Coulomb::QkTable::fill_if()]. The integrals of a projection state that is
+  in @p orbitals are those of @p orbitals alone: they are not added, and
+  @p qk must hold them already.
 
-  The table is then not a full fill of any set of orbitals, so it must not
-  be written to the Qk file: a later QkTable::fill() over a larger set of
-  orbitals may find every orbital present and take the table as complete.
+  The table must not be written to the Qk file [see QkTable::fill()].
 
   @return Number of integrals added
 */

@@ -73,6 +73,19 @@ external_line_sweep(const MBPT::ExternalLineLadder &start, double en_v,
   return ladder;
 }
 
+//! One sweep of L^k_xnab alone, from start, with the external line at en_v;
+//! L^k_mnxb is that of start
+inline MBPT::ExternalLineLadder
+xnab_sweep(const MBPT::ExternalLineLadder &start, double en_v,
+           const LadderTestData &data, const Coulomb::LkTable &lk,
+           const MBPT::LadderDiagrams &diagrams) {
+  auto ladder = start;
+  MBPT::calculate_Lk_xnab(&ladder.L_xnab, data.qk, data.excited, data.core,
+                          ladder.x_orbitals, en_v, diagrams, lk, start.L_xnab,
+                          0.0);
+  return ladder;
+}
+
 //! Largest difference between L^k_mnxb of ladder (x in x_list) and
 //! expected(k,m,n,x,b), relative to the largest expected; 1 if all are zero
 inline double mnxb_difference(const MBPT::ExternalLineLadder &ladder,
@@ -271,21 +284,23 @@ TEST_CASE("Ladder: external line matches reference", "[Ladder][unit]") {
     const auto start = ladder_from_table(v, data, lk_line);
     const auto &x_list = start.x_orbitals;
 
-    // Each diagram alone: L^k_mnxb [x as i] and L^k_xnab [x as m]. The
-    // dressed integrals that contain x come from lk_line: L1 and L3 of
-    // L^k_mnxb, L2 and L4 of L^k_xnab
+    // Each diagram alone (L2 and L3 together for L^k_mnxb): L^k_mnxb [x as
+    // i] and L^k_xnab [x as m]. The dressed integrals that contain x come
+    // from lk_line: L1 and L3 of L^k_mnxb, L2 and L4 of L^k_xnab
     const auto L1 =
       external_line_sweep(start, en_v, data, lk, {true, false, false, false});
-    const auto L2 =
-      external_line_sweep(start, en_v, data, lk, {false, true, false, false});
-    const auto L3 =
-      external_line_sweep(start, en_v, data, lk, {false, false, true, false});
+    const auto L2_L3 =
+      external_line_sweep(start, en_v, data, lk, {false, true, true, false});
     const auto L4 =
       external_line_sweep(start, en_v, data, lk, {false, false, false, true});
+    // L2 and L3 alone: only L^k_xnab, which has no symmetry
+    const auto L2 =
+      xnab_sweep(start, en_v, data, lk, {false, true, false, false});
+    const auto L3 =
+      xnab_sweep(start, en_v, data, lk, {false, false, true, false});
 
-    // L^k_mnxb for every (m,n), both orders: L_mnxb and L_nmbx are one
-    // entry, half of them written from L_nmbx, for which L2 and L3 trade
-    // places
+    // L^k_mnxb: L2 and L3 together, since L_mnxb and L_nmbx are one entry
+    // and L3^k_mnxb = L2^k_nmbx
     const auto eps_L1_mnxb =
       mnxb_difference(L1, x_list, data,
                       [&](int k, const DiracSpinor &m, const DiracSpinor &n,
@@ -293,18 +308,13 @@ TEST_CASE("Ladder: external line matches reference", "[Ladder][unit]") {
                         return MBPT::L1(k, m, n, x, b, data.qk, data.excited,
                                         sjt, &lk_line, en_v);
                       });
-    const auto eps_L2_mnxb =
-      mnxb_difference(L2, x_list, data,
+    const auto eps_L2_L3_mnxb =
+      mnxb_difference(L2_L3, x_list, data,
                       [&](int k, const DiracSpinor &m, const DiracSpinor &n,
                           const DiracSpinor &x, const DiracSpinor &b) {
                         return MBPT::L2(k, m, n, x, b, data.qk, data.core,
-                                        data.excited, sjt, &lk);
-                      });
-    const auto eps_L3_mnxb =
-      mnxb_difference(L3, x_list, data,
-                      [&](int k, const DiracSpinor &m, const DiracSpinor &n,
-                          const DiracSpinor &x, const DiracSpinor &b) {
-                        return MBPT::L3(k, m, n, x, b, data.qk, data.core,
+                                        data.excited, sjt, &lk) +
+                               MBPT::L3(k, m, n, x, b, data.qk, data.core,
                                         data.excited, sjt, &lk_line, en_v);
                       });
     const auto eps_L4_mnxb = mnxb_difference(
@@ -346,8 +356,7 @@ TEST_CASE("Ladder: external line matches reference", "[Ladder][unit]") {
       });
 
     REQUIRE(eps_L1_mnxb < 1.0e-12);
-    REQUIRE(eps_L2_mnxb < 1.0e-12);
-    REQUIRE(eps_L3_mnxb < 1.0e-12);
+    REQUIRE(eps_L2_L3_mnxb < 1.0e-12);
     REQUIRE(eps_L4_mnxb < 1.0e-12);
     REQUIRE(eps_L1_xnab < 1.0e-12);
     REQUIRE(eps_L2_xnab < 1.0e-12);
@@ -650,4 +659,69 @@ TEST_CASE("Ladder: mirror terms", "[Ladder][unit]") {
   REQUIRE(worst_internal < 1.0e-8);
   REQUIRE(worst_outside < 1.0e-8);
   REQUIRE(worst_core < 1.0e-8);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: Coulomb integrals of the projection states",
+          "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  // orbitals (the internal lines): core n = 2 and excited n <= 4. Of the
+  // projection states, 1s (a core state) and 5d+ (above the excited orbitals)
+  // are not among them
+  const auto core_n2 =
+    qip::select_if(data.core, [](const DiracSpinor &a) { return a.n() == 2; });
+  const auto orbitals = qip::merge(core_n2, excited_up_to_n4(data));
+  const auto basis = qip::merge(data.core, data.excited);
+
+  Coulomb::QkTable qk;
+  qk.fill(orbitals, data.yk, -1, false);
+  const auto num_added =
+    MBPT::fill_Qk_projection_states(&qk, orbitals, basis, data.valence, -1);
+
+  // Every integral with one projection state x that is not in orbitals, and
+  // three of orbitals: by the symmetry of Q, x may go first. Each
+  // must be in the table, equal to that of the table of all orbitals. No
+  // other integral is added: expected holds each distinct integral once
+  Coulomb::QkTable expected;
+  std::size_t num_core_x = 0;
+  std::size_t num_outside_x = 0;
+  std::size_t num_missing = 0;
+  double worst = 0.0;
+  double largest = 0.0;
+  for (const auto &v : data.valence) {
+    for (const auto &x : MBPT::projection_states(v, basis)) {
+      if (std::find(orbitals.cbegin(), orbitals.cend(), x) != orbitals.cend())
+        continue;
+      if (std::find(data.core.cbegin(), data.core.cend(), x) !=
+          data.core.cend()) {
+        ++num_core_x;
+      } else {
+        ++num_outside_x;
+      }
+      for (const auto &a : orbitals) {
+        for (const auto &b : orbitals) {
+          for (const auto &c : orbitals) {
+            const auto [k_min, k_max] = Coulomb::k_minmax_Q(x, a, b, c);
+            for (int k = k_min; k <= k_max; k += 2) {
+              const auto value = data.qk.Q(k, x, a, b, c);
+              expected.add(k, x, a, b, c, value);
+              if (!qk.contains(k, x, a, b, c)) {
+                ++num_missing;
+              }
+              worst = std::max(worst, std::abs(qk.Q(k, x, a, b, c) - value));
+              largest = std::max(largest, std::abs(value));
+            }
+          }
+        }
+      }
+    }
+  }
+  const auto num_expected = expected.count();
+  const auto eps = worst / largest;
+  REQUIRE(num_core_x > 0);
+  REQUIRE(num_outside_x > 0);
+  REQUIRE(num_missing == 0);
+  REQUIRE(num_added == num_expected);
+  REQUIRE(eps < 1.0e-12);
 }

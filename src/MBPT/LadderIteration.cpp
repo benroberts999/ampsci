@@ -761,8 +761,7 @@ void store_Lk_mnij(Coulomb::LkTable *lk, std::size_t index_m,
                    const OrbitalPairIndex &ij_pairs,
                    const OrbitalPairIndex &ph_pairs,
                    const std::vector<Matrix> &L1_L4_J_mn_ij,
-                   const std::vector<Matrix> &L2K_mj_ni,
-                   const LadderDiagrams &diagrams, const SixJArray &sixj,
+                   const std::vector<Matrix> &L2K_mj_ni, const SixJArray &sixj,
                    int max_k, bool only_new, double a_damp) {
   const auto &m = excited[index_m];
   const auto num_ij = ij_orbitals.size();
@@ -798,14 +797,6 @@ void store_Lk_mnij(Coulomb::LkTable *lk, std::size_t index_m,
           read_L2K(L2K_mj_ni, ph_pairs, pair_parity(m, j), index_m, index_j,
                    index_n, index_i, K_min, K_max);
 
-        // L_mnij and L_nmji are one entry, and L2^k_nmji = L3^k_mnij. With
-        // only one of L2, L3, the entry holds that diagram with the later of
-        // i, j in the third index (L^k_mnib, b core): for j after i, the two
-        // trade places
-        const bool as_nmji = index_j > index_i;
-        const bool with_L2 = as_nmji ? diagrams.L3 : diagrams.L2;
-        const bool with_L3 = as_nmji ? diagrams.L2 : diagrams.L3;
-
         const auto key = lk->NormalOrder(m.nk_index(), n.nk_index(),
                                          i.nk_index(), j.nk_index());
         for (int k = k_min; k <= k_max; ++k) {
@@ -821,9 +812,7 @@ void store_Lk_mnij(Coulomb::LkTable *lk, std::size_t index_m,
           // L3^k_mnij = L2^k_nmji
           const auto L3 = multipole_from_particle_hole_coupled(
             k, n, m, j, i, L2K_for_L3, K_min, K_max, sixj);
-          *L_stored =
-            damped(*L_stored,
-                   L1_L4 + (with_L2 ? L2 : 0.0) + (with_L3 ? L3 : 0.0), a_damp);
+          *L_stored = damped(*L_stored, L1_L4 + L2 + L3, a_damp);
         }
       }
     }
@@ -896,6 +885,8 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   assert(lk != lk_prev);
   // With the line as the m orbital, L2 and L3 need different matrices
   assert(external == nullptr || external->L_xnab == nullptr);
+  // L_mnij and L_nmji are one table entry, and L3^k_mnij = L2^k_nmji
+  assert(diagrams.L2 == diagrams.L3);
   if (excited.empty() || core.empty() || i_orbs.empty())
     return;
 
@@ -970,8 +961,8 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
       }
 
       store_Lk_mnij(lk, index_m, n_group, excited, ij_orbitals, required_ij,
-                    ij_pairs, ph_pairs, L1_L4_J_mn_ij, L2K_mj_ni, diagrams,
-                    sixj, max_k, only_new, a_damp);
+                    ij_pairs, ph_pairs, L1_L4_J_mn_ij, L2K_mj_ni, sixj, max_k,
+                    only_new, a_damp);
     }
   }
 }

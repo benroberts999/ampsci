@@ -29,7 +29,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                "subset of full "
                "basis), e.g. '30spdf'. Default: include entire excited basis."},
      {"max_k", "maximum k to include in Qk. Put -1 to include all. [8]"},
-     {"include_L4", "Inlcude 4th Ladder diagram [false]"},
+     {"include_L4", "Inlcude 4th Ladder diagram [true]"},
      {"sigma_method",
       "Method for the ladder correlation potential Sigma_L. Options:\n"
       "   - basis  : projection Sigma_L = sum_x L_x|x><x| onto the excited "
@@ -39,7 +39,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       "(fast)\n"
       "   - ratio2 : exact acting on the valence state; ratio only for the "
       "change of the valence orbital in the Brueckner equation (fast)\n"
-      "  [ratio]"},
+      "  [basis]"},
      {"mirror_terms",
       "Add the mirror terms to Sigma_L: the mirror images of the ladder "
       "diagrams that the ladder equation does not generate (lowest order "
@@ -55,7 +55,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
      {"Qk_file", "Filename for storing Qk Coulomb integrals. By default, is "
                  "<Identity>.qk. If 'false' will not read or write."},
      {"Lk_file", "Filename for storing Lk ladder integrals. By default, is "
-                 "<Identity>.lk. If 'false' will not read or write."},
+                 "<Identity>_l4.lk (<Identity>.lk if include_L4 is false). If "
+                 "'false' will not read or write."},
      {"sl_file", "Filename for storing the ladder correlation potential, "
                  "Sigma_L. By default, is <Identity>.sl.abf. If 'false' will "
                  "not write. Read in via Correlations{ladder=...;}"},
@@ -87,12 +88,12 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto min_n_core = input.get("min_n_core", 1);
   const auto basis_str = input.get<std::string>("basis", "");
   const auto max_k = input.get("max_k", 8);
-  const auto include_L4 = input.get("include_L4", false);
+  const auto include_L4 = input.get("include_L4", true);
 
   // Method for Sigma_L: basis projection, or ratio (rescale Sigma(2) terms by
   // L/Q; Dzuba)
   using namespace std::string_literals;
-  const auto method = parseSigmaLMethod(input.get("sigma_method", "ratio"s));
+  const auto method = parseSigmaLMethod(input.get("sigma_method", "basis"s));
 
   const auto mirror_terms = input.get("mirror_terms", false);
 
@@ -381,7 +382,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto Ec_HF = wf.coreEnergyHF();
   const auto de2_c = MBPT::de_core(qk, qk, holes, excited);
   const auto del_c = MBPT::de_core(qk, lk, holes, excited);
-  const auto del_c_2 = MBPT::de_core(lk, qk, holes, excited);
+  const auto del_c_2 = MBPT::de_core_w(qk, lk, holes, excited, &sjt);
   fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}\n", "core", Ec_HF * icm,
              de2_c * icm, del_c * icm, del_c_2 * icm);
 

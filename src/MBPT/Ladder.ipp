@@ -181,3 +181,34 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
   }
   return de_c;
 }
+
+//------------------------------------------------------------------------------
+
+template <typename Qintegrals, typename Lintegrals>
+double de_core_w(const Qintegrals &qk, const Lintegrals &lk,
+                 const std::vector<DiracSpinor> &core,
+                 const std::vector<DiracSpinor> &excited,
+                 const Angular::SixJTable *sj) {
+
+  auto de_c = 0.0;
+#pragma omp parallel for reduction(+ : de_c)
+  for (auto in = 0ul; in < excited.size(); ++in) {
+    const auto &n = excited[in];
+    for (const auto &m : excited) {
+      for (const auto &a : core) {
+        for (const auto &b : core) {
+          const auto inv_de = 1.0 / (a.en() + b.en() - m.en() - n.en());
+          const auto [k0, kI] = Coulomb::k_minmax_W(a, b, m, n);
+          for (int k = k0; k <= kI; ++k) {
+            const auto W_kabmn = qk.W(k, a, b, m, n, sj);
+            if (W_kabmn == 0.0)
+              continue;
+            const auto L_kmnab = lk.Q(k, m, n, a, b);
+            de_c += 0.5 * W_kabmn * L_kmnab * inv_de / (2 * k + 1);
+          }
+        }
+      }
+    }
+  }
+  return de_c;
+}

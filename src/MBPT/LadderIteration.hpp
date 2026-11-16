@@ -61,8 +61,9 @@ coupled_rank_range(const DiracSpinor &a, const DiracSpinor &b,
 
   @details
   L2 or L3 alone does not have the table symmetry L_mnij = L_nmji [L3^k_mnij
-  = L2^k_nmji]: with only one of them, an entry L_mnib (b core) holds that
-  diagram of L^k_mnib [see store_Lk_mnij()].
+  = L2^k_nmji]: for a table with that symmetry the two go together
+  [calculate_Lk_mnib(), calculate_Lk_mnxb()]. With no table symmetry they
+  need not [calculate_Lk_xnab()].
 */
 struct LadderDiagrams {
   //! Particle-particle ladder
@@ -480,13 +481,8 @@ double damped(double L_old, double L_new, double a_damp);
 
   @details
   Only entries already in the table are written. For m = n only the
-  normal-ordered (i,j): the two orders are the same integral.
-
-  L_mnij and L_nmji are one entry, and L2^k_nmji = L3^k_mnij. With only one of
-  L2 and L3 [@p diagrams], the entry holds that diagram of L_nmji if j comes
-  after i in ij_orbitals, and of L_mnij otherwise. ij_orbitals is the core,
-  then the i orbitals not in the core: for those, the entry is the diagram of
-  L^k_mnib with the i orbital in the third index.
+  normal-ordered (i,j): the two orders are the same integral. A diagram whose
+  matrices are empty is not included.
 
   @param lk             Ladder table to write to
   @param index_m        m = excited[index_m]
@@ -501,8 +497,6 @@ double damped(double L_old, double L_new, double a_damp);
                         columns ij_pairs
   @param L2K_mj_ni      Particle-hole coupled L2^K_{mj,ni} [L2_particle_hole()]:
                         indexed by OrbitalPairIndex::block(K, parity)
-  @param diagrams       Which of L2 and L3 to write (L1 and L4 come from
-                        L1_L4_J_mn_ij)
   @param sixj           6j symbols
   @param max_k          Largest multipolarity k written
   @param only_new       If true, only entries that are exactly zero are written
@@ -517,8 +511,8 @@ void store_Lk_mnij(Coulomb::LkTable *lk, std::size_t index_m,
                    const OrbitalPairIndex &ph_pairs,
                    const std::vector<LinAlg::Matrix<double>> &L1_L4_J_mn_ij,
                    const std::vector<LinAlg::Matrix<double>> &L2K_mj_ni,
-                   const LadderDiagrams &diagrams, const SixJArray &sixj,
-                   int max_k, bool only_new, double a_damp);
+                   const SixJArray &sixj, int max_k, bool only_new,
+                   double a_damp);
 
 //==============================================================================
 //! Adds zero entries for all L^k_mnib (m,n excited; i in i_orbs; b core;
@@ -593,7 +587,9 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
   @param core      Core orbitals
   @param i_orbs    Orbitals for the i index (those not in core must be in
                    excited; others are ignored)
-  @param diagrams  Which diagrams to include
+  @param diagrams  Which diagrams to include. L2 and L3 must go together:
+                   L_mnij and L_nmji are one table entry, and L3^k_mnij =
+                   L2^k_nmji
   @param lk_prev   Ladder table for the dressed integral QL = Q + L; nullptr
                    for the lowest order. Must not be lk
   @param max_k     Largest multipolarity k of the integrals to write

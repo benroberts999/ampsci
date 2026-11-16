@@ -12,6 +12,7 @@
 #include <cmath>
 #include <cstddef>
 #include <iostream>
+#include <limits>
 #include <vector>
 
 namespace MBPT {
@@ -613,23 +614,43 @@ std::size_t fill_Qk_projection_states(Coulomb::QkTable *qk,
                                       const std::vector<DiracSpinor> &valence,
                                       int max_k) {
   const auto count_before = qk->count();
+
+  // The projection states of every valence kappa (each kappa once) that are
+  // not in orbitals
+  std::vector<DiracSpinor> new_states;
   std::vector<int> kappas_done;
   for (const auto &v : valence) {
     if (std::find(kappas_done.cbegin(), kappas_done.cend(), v.kappa()) !=
         kappas_done.cend())
       continue;
     kappas_done.push_back(v.kappa());
-    const auto new_states = qip::select_if(
-      projection_states(v, basis), [&orbitals](const DiracSpinor &x) {
-        return std::find(orbitals.cbegin(), orbitals.cend(), x) ==
-               orbitals.cend();
-      });
-    if (new_states.empty())
-      continue;
-    const auto orbitals_and_x = qip::merge(orbitals, new_states);
-    const Coulomb::YkTable yk(orbitals_and_x);
-    qk->fill(orbitals_and_x, yk, max_k, false);
+    for (const auto &x : projection_states(v, basis)) {
+      if (std::find(orbitals.cbegin(), orbitals.cend(), x) == orbitals.cend()) {
+        new_states.push_back(x);
+      }
+    }
   }
+  if (new_states.empty())
+    return 0;
+  const auto orbitals_and_x = qip::merge(orbitals, new_states);
+  const Coulomb::YkTable yk(orbitals_and_x);
+
+  // The mirror terms hold a projection state only once in a Coulomb
+  // integral, with three of orbitals: only the integrals with exactly one
+  // new state are required. One entry for each nk_index: 1 for a new state
+  std::vector<char> is_new_state(
+    std::size_t(std::numeric_limits<DiracSpinor::Index>::max()) + 1, 0);
+  for (const auto &x : new_states) {
+    is_new_state[x.nk_index()] = 1;
+  }
+  const auto one_new_state =
+    [&is_new_state](int, const DiracSpinor &a, const DiracSpinor &b,
+                    const DiracSpinor &c, const DiracSpinor &d) {
+      return is_new_state[a.nk_index()] + is_new_state[b.nk_index()] +
+               is_new_state[c.nk_index()] + is_new_state[d.nk_index()] ==
+             1;
+    };
+  qk->fill_if(orbitals_and_x, yk, one_new_state, max_k, false);
   return qk->count() - count_before;
 }
 
