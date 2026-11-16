@@ -139,21 +139,50 @@ external_line_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
                      double eps_target, double a_damp, bool print);
 
 /*!
+  @brief Ladder correlation potential from ladder integrals with the
+         projection states x in the third (L^k_mnxa) and first (L^k_xnab)
+         index.
+
+  @details
+  \f[
+    \Sigma = \sum_{x}\Big[\sum_{amn,k} |W^k_{\cdot amn}\rangle\,
+      \frac{L^k_{mnxa}}
+           {[k][j_v]\,(\epsilon_v+\epsilon_a-\epsilon_m-\epsilon_n)}
+      + \sum_{nab,k} |W^k_{\cdot nab}\rangle\,
+      \frac{L^k_{xnab}}
+           {[k][j_v]\,(\epsilon_v+\epsilon_n-\epsilon_a-\epsilon_b)}
+      \Big]\langle x| .
+  \f]
+  MnxbTable is Coulomb::LkTable [ExternalLineLadder::L_mnxb]; XnabTable is
+  Coulomb::NkTable [ExternalLineLadder::L_xnab]. For x = v alone, both may be
+  the ladder table itself (Coulomb::LkTable), which holds L^k_mnva and
+  L^k_vnab.
+
+  @param v               Valence state: kappa, j and energy
+  @param x_orbitals      Projection states x
+  @param L_mnxb          L^k_mnxa: m,n excited, x, a core
+  @param L_xnab          L^k_xnab: x, n excited, a,b core
+  @param core            Core orbitals
+  @param excited         Excited orbitals
+  @param r0,rmax,stride  Sub-grid parameters
+  @param include_G       Include the lower (g) component
+*/
+template <typename MnxbTable, typename XnabTable>
+GMatrix Sigma_ladder(const DiracSpinor &v,
+                     const std::vector<DiracSpinor> &x_orbitals,
+                     const MnxbTable &L_mnxb, const XnabTable &L_xnab,
+                     const std::vector<DiracSpinor> &core,
+                     const std::vector<DiracSpinor> &excited, double r0,
+                     double rmax, std::size_t stride, bool include_G);
+
+/*!
   @brief Ladder correlation potential Sigma_L(e_v) from the ladder integrals
          with the external line.
 
   @details
   Sigma_L(e_v) by projection onto the excited states x of kappa_v, with the
-  ladder iterated for each x [external_line_ladder()]:
-  \f[
-    \Sigma_L = \sum_{x}\Big[\sum_{amn,k} |W^k_{\cdot amn}\rangle\,
-      \frac{L^k_{mnxa}(\epsilon_v)}
-           {[k][j_v]\,(\epsilon_v+\epsilon_a-\epsilon_m-\epsilon_n)}
-      + \sum_{nab,k} |W^k_{\cdot nab}\rangle\,
-      \frac{L^k_{xnab}(\epsilon_v)}
-           {[k][j_v]\,(\epsilon_v+\epsilon_n-\epsilon_a-\epsilon_b)}
-      \Big]\langle x| .
-  \f]
+  ladder iterated for each x [external_line_ladder()]: the Sigma_ladder()
+  template with the integrals L^k_mnxa(e_v) and L^k_xnab(e_v) of @p ladder.
   x is the external line: it carries the valence energy e_v in the energy
   denominators, not its own [see ExternalLine]. L^k_mnxb (x as the i orbital)
   and L^k_xnab (x as the m orbital) each obey the ladder equation by

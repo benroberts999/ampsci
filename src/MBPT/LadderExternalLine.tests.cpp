@@ -342,3 +342,66 @@ TEST_CASE("Ladder: external line potential", "[Ladder][unit]") {
   REQUIRE(worst_eps < 1.0e-8);
   REQUIRE(worst_eps_yx < 1.0e-8);
 }
+
+//==============================================================================
+TEST_CASE("Ladder: ratio2 potential", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data(-1, 8.0);
+  const auto &sjt = data.yk.SixJ();
+  const auto lk = dressed_table(data, data.i_orbs, 40);
+
+  // Full sub-grid (stride 1), so the quadrature of Sigma_L is that of the
+  // orbitals
+  double worst_column = 0.0;
+  double worst_diagonal = 0.0;
+  double worst_asymmetry = 0.0;
+  double smallest_change = 1.0;
+  for (const auto &v : data.valence) {
+    const auto Sigma = MBPT::Sigma_ladder_ratio2(
+      v, data.core, data.excited, data.qk, lk, 1.0e-4, 200.0, 1, true);
+
+    // Acting on v: the exact column, as from the projection onto the basis
+    // before it is made symmetric (sum_x L_x|..><x|v> = L_v|..>)
+    const auto ladder = MBPT::external_line_ladder(
+      v, data.core, data.excited, data.qk, lk, {}, 60, 1.0e-13, 0.0, false);
+    const auto column = MBPT::Sigma_ladder(v, ladder, data.core, data.excited,
+                                           1.0e-4, 200.0, 1, true) *
+                        v;
+    const auto Sigma_v = Sigma * v;
+    const auto difference = Sigma_v - column;
+    const auto column_norm = std::sqrt(column * column);
+    worst_column =
+      std::max(worst_column, std::sqrt(difference * difference) / column_norm);
+
+    const auto expected =
+      MBPT::de_valence_w(v, data.qk, lk, data.core, data.excited, &sjt);
+    const auto found = v * Sigma_v;
+    worst_diagonal = std::max(worst_diagonal, std::abs(found / expected - 1.0));
+
+    // Symmetric kernel: Sigma equals its transpose (measure on the column)
+    const auto Sigma_T = Sigma.transpose_drj();
+    double max_element = 0.0;
+    double max_asymmetry = 0.0;
+    for (std::size_t i = 0; i < Sigma.size(); ++i) {
+      for (std::size_t j = 0; j < Sigma.size(); ++j) {
+        max_element = std::max(max_element, std::abs(Sigma.ff(i, j)));
+        max_asymmetry =
+          std::max(max_asymmetry, std::abs(Sigma.ff(i, j) - Sigma_T.ff(i, j)));
+      }
+    }
+    worst_asymmetry = std::max(worst_asymmetry, max_asymmetry / max_element);
+
+    // The ratio method alone does not act exactly on v, so the correction
+    // matters
+    const auto Sigma_ratio = MBPT::Sigma_ladder(
+      v, data.core, data.excited, data.qk, &lk, 1.0e-4, 200.0, 1, true);
+    const auto ratio_difference = Sigma_ratio * v - column;
+    smallest_change =
+      std::min(smallest_change,
+               std::sqrt(ratio_difference * ratio_difference) / column_norm);
+  }
+  REQUIRE(smallest_change > 1.0e-3);
+  REQUIRE(worst_column < 1.0e-8);
+  REQUIRE(worst_diagonal < 1.0e-8);
+  REQUIRE(worst_asymmetry < 1.0e-12);
+}
