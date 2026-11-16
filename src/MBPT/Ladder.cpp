@@ -3,6 +3,7 @@
 #include "Coulomb/include.hpp"
 #include "IO/ChronoTimer.hpp"
 #include "IO/FRW_fileReadWrite.hpp"
+#include "MBPT/LadderExternalLine.hpp"
 #include "MBPT/LadderIteration.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -27,6 +28,8 @@ SigmaLMethod parseSigmaLMethod(const std::string &method) {
     return SigmaLMethod::basis;
   if (qip::ci_compare(method, "Dzuba") || qip::ci_compare(method, "ratio"))
     return SigmaLMethod::ratio;
+  if (qip::ci_compare(method, "ratio2"))
+    return SigmaLMethod::ratio2;
   std::cout << "Warning: unknown Sigma_L method: " << method
             << " ?? Defaulting to ratio\n";
   return SigmaLMethod::ratio;
@@ -38,6 +41,8 @@ std::string parseSigmaLMethod(SigmaLMethod method) {
     return "basis";
   case SigmaLMethod::ratio:
     return "ratio";
+  case SigmaLMethod::ratio2:
+    return "ratio2";
   }
   assert(false);
   return "ratio";
@@ -183,6 +188,36 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
   }
 
   return Sd.drj_in_place();
+}
+
+//==============================================================================
+
+GMatrix Sigma_ladder_ratio2(const DiracSpinor &v,
+                            const std::vector<DiracSpinor> &core,
+                            const std::vector<DiracSpinor> &excited,
+                            const Coulomb::QkTable &qk,
+                            const Coulomb::LkTable &lk, double r0, double rmax,
+                            std::size_t stride, bool include_G) {
+  // Ratio method, made symmetric
+  const auto Sigma_ratio =
+    Sigma_ladder(v, core, excited, qk, &lk, r0, rmax, stride, include_G);
+  auto Sigma = 0.5 * (Sigma_ratio + Sigma_ratio.transpose_drj());
+
+  // Exact column Sigma_L|v>: the x = v term of the projection onto the basis,
+  // whose ladder integrals L^k_mnva and L^k_vnab are in the ladder table
+  const auto column = Sigma_ladder(v, std::vector{v}, lk, lk, core, excited, r0,
+                                   rmax, stride, include_G) *
+                      v;
+
+  // Symmetric rank-2 correction, so that Sigma_L|v> is the exact column
+  const auto c = column - Sigma * v;
+  GMatrix correction{Sigma.i0(), stride, Sigma.size(), include_G,
+                     v.grid_sptr()};
+  correction.add(c, v);
+  correction.add(v, c);
+  correction.add(v, v, -(v * c));
+  Sigma += correction.drj_in_place();
+  return Sigma;
 }
 
 //==============================================================================

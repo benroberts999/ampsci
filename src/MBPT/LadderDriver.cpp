@@ -37,6 +37,8 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       "valence energy (uses max_it, damp and eps_target)\n"
       "   - ratio  : no projection; rescale each Sigma(2) term by L/Q "
       "(fast)\n"
+      "   - ratio2 : exact acting on the valence state; ratio only for the "
+      "change of the valence orbital in the Brueckner equation (fast)\n"
       "  [ratio]"},
      {"each_valence",
       "If true, iterate L and calculate Sigma_L for each valence state "
@@ -324,6 +326,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
           eps_target, a_damp, true);
         SigL_v.push_back(MBPT::Sigma_ladder(v, ladder_v, holes, excited, sig_r0,
                                             sig_rmax, sig_stride, include_G));
+      } else if (method == SigmaLMethod::ratio2) {
+        SigL_v.push_back(MBPT::Sigma_ladder_ratio2(
+          v, holes, excited, qk, lk, sig_r0, sig_rmax, sig_stride, include_G));
       } else {
         SigL_v.push_back(MBPT::Sigma_ladder(v, holes, excited, qk, &lk, sig_r0,
                                             sig_rmax, sig_stride, include_G));

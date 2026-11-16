@@ -158,8 +158,10 @@ double de_core(const Qintegrals &qk, const QorLintegrals &lk,
             iterated for each [external_line_ladder(), Sigma_ladder()]
   - ratio : no projection; rescale each Sigma(2) term by L/Q
             [Sigma_ladder()]
+  - ratio2 : exact acting on the valence state, ratio otherwise
+             [Sigma_ladder_ratio2()]
 */
-enum class SigmaLMethod { basis, ratio };
+enum class SigmaLMethod { basis, ratio, ratio2 };
 
 /*!
   @brief Converts string (name) to SigmaLMethod enum (case-insensitive).
@@ -223,6 +225,49 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable *lk,
                      double r0 = 1.0e-4, double rmax = 30.0,
                      std::size_t stride = 4, bool include_G = false);
+
+/*!
+  @brief Ladder correction to the correlation potential, Sigma_L(e_v): exact
+         acting on the valence state, by the ratio method otherwise.
+
+  @details
+  In the Brueckner equation the change of the valence orbital,
+  dF = F^Br - F_v, is small: Sigma_L acts exactly on F_v, and only its
+  action on dF is from the ratio method. With S the ratio-method Sigma_L
+  [Sigma_ladder()], made symmetric, and the exact column
+  \f$ |c_v\rangle = \Sigma_L|v\rangle \f$ (the x = v term of the
+  projection onto the basis, from the ladder integrals L^k_mnva and L^k_vnab
+  of @p lk):
+  \f[
+    \Sigma_L = S + |c\rangle\langle v| + |v\rangle\langle c|
+               - \langle v|c\rangle\,|v\rangle\langle v| ,
+  \f]
+  \f[
+    |c\rangle = |c_v\rangle - S|v\rangle .
+  \f]
+  Sigma_L is symmetric, \f$ \Sigma_L|v\rangle = |c_v\rangle \f$, and
+  <v|Sigma_L|v> = de_valence_w(v), up to the sub-grid quadrature. The column
+  is that of the ladder diagrams as the ladder equation generates them: the
+  projection onto the basis [sigma_method basis], made symmetric, acts on v
+  with the average of this column and the matching row.
+
+  @param v               Valence state (basis version; normalised; must be in
+                         the qk/lk tables)
+  @param core            Core (hole) orbitals
+  @param excited         Excited orbitals
+  @param qk              Converged Coulomb \f$ Q^k \f$ table
+  @param lk              Converged ladder \f$ L^k \f$ table
+  @param r0,rmax,stride  Sub-grid parameters
+  @param include_G       Include the lower (g) component of Sigma_L
+  @return Sigma_L as a coordinate-space GMatrix
+*/
+GMatrix Sigma_ladder_ratio2(const DiracSpinor &v,
+                            const std::vector<DiracSpinor> &core,
+                            const std::vector<DiracSpinor> &excited,
+                            const Coulomb::QkTable &qk,
+                            const Coulomb::LkTable &lk, double r0 = 1.0e-4,
+                            double rmax = 30.0, std::size_t stride = 4,
+                            bool include_G = false);
 
 //==============================================================================
 

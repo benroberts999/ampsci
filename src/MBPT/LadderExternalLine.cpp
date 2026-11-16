@@ -266,7 +266,10 @@ external_line_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
 }
 
 //==============================================================================
-GMatrix Sigma_ladder(const DiracSpinor &v, const ExternalLineLadder &ladder,
+template <typename MnxbTable, typename XnabTable>
+GMatrix Sigma_ladder(const DiracSpinor &v,
+                     const std::vector<DiracSpinor> &x_orbitals,
+                     const MnxbTable &L_mnxb, const XnabTable &L_xnab,
                      const std::vector<DiracSpinor> &core,
                      const std::vector<DiracSpinor> &excited, double r0,
                      double rmax, std::size_t stride, bool include_G) {
@@ -275,7 +278,7 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const ExternalLineLadder &ladder,
   const auto size = (grid->getIndex(rmax) - i0) / stride + 1;
   GMatrix Sigma{i0, stride, size, include_G, grid};
   std::vector<GMatrix> Sigma_thread(std::size_t(omp_get_max_threads()), Sigma);
-  const auto max_k = ladder.L_mnxb.max_k();
+  const auto max_k = L_mnxb.max_k();
 
 #pragma omp parallel for schedule(dynamic)
   for (std::size_t index_n = 0; index_n < excited.size(); ++index_n) {
@@ -291,8 +294,8 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const ExternalLineLadder &ladder,
         const auto de = v.en() + a.en() - m.en() - n.en();
         for (int k = k_min; k <= std::min(k_max, max_k); ++k) {
           L_projected *= 0.0;
-          for (const auto &x : ladder.x_orbitals) {
-            L_projected += ladder.L_mnxb.Q(k, m, n, x, a) * x;
+          for (const auto &x : x_orbitals) {
+            L_projected += L_mnxb.Q(k, m, n, x, a) * x;
           }
           Sigma_t.add(Coulomb::Wkv_bcd(k, v.kappa(), a, m, n), L_projected,
                       1.0 / ((2 * k + 1) * (v.twoj() + 1) * de));
@@ -305,8 +308,8 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const ExternalLineLadder &ladder,
         const auto de = v.en() + n.en() - a.en() - b.en();
         for (int k = k_min; k <= std::min(k_max, max_k); ++k) {
           L_projected *= 0.0;
-          for (const auto &x : ladder.x_orbitals) {
-            L_projected += ladder.L_xnab.Q(k, x, n, a, b) * x;
+          for (const auto &x : x_orbitals) {
+            L_projected += L_xnab.Q(k, x, n, a, b) * x;
           }
           Sigma_t.add(Coulomb::Wkv_bcd(k, v.kappa(), n, a, b), L_projected,
                       1.0 / ((2 * k + 1) * (v.twoj() + 1) * de));
@@ -318,6 +321,26 @@ GMatrix Sigma_ladder(const DiracSpinor &v, const ExternalLineLadder &ladder,
     Sigma += Sigma_t;
   }
   return Sigma.drj_in_place();
+}
+
+template GMatrix
+Sigma_ladder(const DiracSpinor &, const std::vector<DiracSpinor> &,
+             const Coulomb::LkTable &, const Coulomb::NkTable &,
+             const std::vector<DiracSpinor> &, const std::vector<DiracSpinor> &,
+             double, double, std::size_t, bool);
+template GMatrix
+Sigma_ladder(const DiracSpinor &, const std::vector<DiracSpinor> &,
+             const Coulomb::LkTable &, const Coulomb::LkTable &,
+             const std::vector<DiracSpinor> &, const std::vector<DiracSpinor> &,
+             double, double, std::size_t, bool);
+
+//==============================================================================
+GMatrix Sigma_ladder(const DiracSpinor &v, const ExternalLineLadder &ladder,
+                     const std::vector<DiracSpinor> &core,
+                     const std::vector<DiracSpinor> &excited, double r0,
+                     double rmax, std::size_t stride, bool include_G) {
+  return Sigma_ladder(v, ladder.x_orbitals, ladder.L_mnxb, ladder.L_xnab, core,
+                      excited, r0, rmax, stride, include_G);
 }
 
 } // namespace MBPT
