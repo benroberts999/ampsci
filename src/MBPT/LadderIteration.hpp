@@ -64,6 +64,15 @@ coupled_rank_range(const DiracSpinor &a, const DiracSpinor &b,
   = L2^k_nmji]: for a table with that symmetry the two go together
   [calculate_Lk_mnib(), calculate_Lk_mnxb()]. With no table symmetry they
   need not [calculate_Lk_xnab()].
+
+  P1, P2 and P3 are pieces (1)-(3) of P, the screening and hole-particle
+  interaction of the ladder diagrams [see Pkmnij()]. L2 + L3 is the fourth
+  piece, with i and j exchanged and the sign reversed (the direct slot). With
+  all of them, the particle-hole term differs from that of the doubles
+  equation of the SD method only by a part symmetric under i <-> j: it drops
+  out of l_mnij - l_mnji, and so out of every energy, at all orders. Each
+  piece of P, with its partner, has the table symmetry by itself. Off by
+  default; not with the external line.
 */
 struct LadderDiagrams {
   //! Particle-particle ladder
@@ -74,6 +83,12 @@ struct LadderDiagrams {
   bool L3{true};
   //! Hole-hole ladder
   bool L4{true};
+  //! Piece (1) of P, +g_cnrj X_mric: the polarisation loop (screening)
+  bool P1{false};
+  //! Piece (2) of P, -g_cnjr X_mric
+  bool P2{false};
+  //! Piece (3) of P, -g_cnrj X_mrci
+  bool P3{false};
 };
 
 /*!
@@ -356,6 +371,24 @@ std::vector<LinAlg::Matrix<double>> Q_particle_hole(
   const OrbitalPairIndex &ni_pairs, const Coulomb::QkTable &qk,
   const SixJArray &sixj);
 
+//! P left factor QL^k_mric/Delta e_{ic,mr}, k of both parities, in the block
+//! of rank k: rows (m excited, i in ij_orbitals) by ph_pairs; columns (r
+//! excited, c core) by rc_pairs. No recoupling: the multipole k couples m
+//! with i, and r with c
+std::vector<LinAlg::Matrix<double>> QL_multipole_over_de(
+  const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &ph_pairs,
+  const OrbitalPairIndex &rc_pairs, const Coulomb::QkTable &qk,
+  const Coulomb::LkTable *lk_prev);
+
+//! P right factor Q^k_cnrj, in the block of rank k: rows (r excited, c core)
+//! by rc_pairs; columns (n excited, j in ij_orbitals) by ph_pairs. Coulomb k
+//! only: the blocks of the other parity are empty. No recoupling
+std::vector<LinAlg::Matrix<double>> Q_multipole(
+  const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &rc_pairs,
+  const OrbitalPairIndex &ph_pairs, const Coulomb::QkTable &qk);
+
 //==============================================================================
 /*!
   @brief Particle-particle ladder L1^J_{mn,ij} for one m and the n of one
@@ -436,6 +469,83 @@ std::vector<LinAlg::Matrix<double>> L2_particle_hole(
 void add_blocks(std::vector<LinAlg::Matrix<double>> *sum,
                 std::vector<LinAlg::Matrix<double>> term);
 
+//! (-1)^rank times the product left*right of each (rank, parity) block, all
+//! indexed by OrbitalPairIndex::block(): the matrix products of the pieces of
+//! P. Empty where either factor is empty
+std::vector<LinAlg::Matrix<double>>
+signed_block_products(const std::vector<LinAlg::Matrix<double>> &left,
+                      const std::vector<LinAlg::Matrix<double>> &right);
+
+/*!
+  @brief Piece (1) of P, the polarisation loop, one side: P1^k_{mi,nj}, rows
+         (m,i) and columns (n,j), in the block of rank k.
+
+  @details
+  \f[
+    P1^k_{mi,nj} = \frac{(-1)^k}{[k]} \sum_{rc}
+      \frac{QL^k_{mric}}{\Delta\epsilon_{ic,mr}} Q^k_{cnrj},
+  \f]
+  r excited, c core: @p QLk_mi_rc_over_de [QL_multipole_over_de()] times
+  @p Qk_rc_nj [Q_multipole()], one matrix product per block. See
+  calculate_Lk_mnib().
+*/
+std::vector<LinAlg::Matrix<double>>
+P1_multipole(const std::vector<LinAlg::Matrix<double>> &QLk_mi_rc_over_de,
+             const std::vector<LinAlg::Matrix<double>> &Qk_rc_nj);
+
+/*!
+  @brief Piece (2) of P, one side: P2^k_{mi,nj}, rows (m,i) and columns (n,j),
+         in the block of rank k.
+
+  @details
+  \f[
+    P2^k_{mi,nj} = (-1)^k \sum_{rc}
+      \frac{QL^k_{mric}}{\Delta\epsilon_{ic,mr}} Q^K_{cr,nj},
+    \qquad K = k,
+  \f]
+  r excited, c core: @p QLk_mi_rc_over_de [QL_multipole_over_de()] times
+  @p QK_cr_nj [Q_particle_hole(), the L2 right factor], one matrix product
+  per block. See calculate_Lk_mnib().
+*/
+std::vector<LinAlg::Matrix<double>>
+P2_multipole(const std::vector<LinAlg::Matrix<double>> &QLk_mi_rc_over_de,
+             const std::vector<LinAlg::Matrix<double>> &QK_cr_nj);
+
+/*!
+  @brief Piece (3) of P, one side: P3^k_{mi,nj}, rows (m,i) and columns (n,j),
+         in the block of rank k.
+
+  @details
+  \f[
+    P3^k_{mi,nj} = (-1)^k \sum_{rc}
+      \frac{QL^K_{mi,rc}}{\Delta\epsilon_{ic,mr}} Q^k_{cnrj},
+    \qquad K = k,
+  \f]
+  r excited, c core: @p QLK_mi_rc_over_de [QL_particle_hole_over_de(), the L2
+  left factor] times @p Qk_rc_nj [Q_multipole()], one matrix product per
+  block. See calculate_Lk_mnib().
+*/
+std::vector<LinAlg::Matrix<double>>
+P3_multipole(const std::vector<LinAlg::Matrix<double>> &QLK_mi_rc_over_de,
+             const std::vector<LinAlg::Matrix<double>> &Qk_rc_nj);
+
+/*!
+  @brief The pieces of P switched on in @p diagrams, one side, summed:
+         P^k_{mi,nj}, rows (m,i) and columns (n,j) by ph_pairs (m,n excited;
+         i,j in ij_orbitals), in the block of rank k.
+
+  @details
+  P1_multipole() + P2_multipole() + P3_multipole(); each factor is formed
+  once, and only if a piece switched on needs it. The table entry is
+  P^k_mnij = P^k_{mi,nj} + P^k_{nj,mi} [store_Lk_mnij()]. See
+  calculate_Lk_mnib().
+*/
+std::vector<LinAlg::Matrix<double>> P_multipole(
+  const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &ph_pairs,
+  const Coulomb::QkTable &qk, const Coulomb::LkTable *lk_prev,
+  const SixJArray &sixj, const LadderDiagrams &diagrams);
+
 //==============================================================================
 //! (L1+L4)^J_{mn,ij} for J_min <= J <= J_max (zero elsewhere): row `row` (the
 //! n) of L1_L4_J_mn_ij[J], column of (ij_orbitals[index_i],
@@ -470,14 +580,24 @@ read_L2K_element(const std::vector<LinAlg::Matrix<double>> &L2K_mj_ni,
                  std::size_t index_m, std::size_t index_j, std::size_t index_n,
                  std::size_t index_i, int K_min, int K_max);
 
+//! P^k_mnij = P^k_{mi,nj} + P^k_{nj,mi} for k_min <= k <= k_max (zero
+//! elsewhere): element (m,i),(n,j) of Pk_mi_nj [P_multipole()], one side, plus
+//! its partner [m <-> n, i <-> j], the transposed element. m = excited[index_m]
+//! etc.; i = ij_orbitals[index_i] etc.
+std::array<double, ladder_max_multipoles>
+read_Pk(const std::vector<LinAlg::Matrix<double>> &Pk_mi_nj,
+        const OrbitalPairIndex &ph_pairs, int parity_mi, std::size_t index_m,
+        std::size_t index_i, std::size_t index_n, std::size_t index_j,
+        int k_min, int k_max);
+
 //! New value of a table entry, damped as CoulombTable::update:
 //! a L_old + (1-a) L_new, with a = a_damp clamped to [0,1]; L_new if L_old is
 //! exactly zero
 double damped(double L_old, double L_new, double a_damp);
 
 /*!
-  @brief Writes L^k_mnij = (L1+L4) + L2 + L3 for one m and the n of one kappa
-         group into the table.
+  @brief Writes L^k_mnij = (L1+L4) + L2 + L3 + P for one m and the n of one
+         kappa group into the table.
 
   @details
   Only entries already in the table are written. For m = n only the
@@ -497,6 +617,10 @@ double damped(double L_old, double L_new, double a_damp);
                         columns ij_pairs
   @param L2K_mj_ni      Particle-hole coupled L2^K_{mj,ni} [L2_particle_hole()]:
                         indexed by OrbitalPairIndex::block(K, parity)
+  @param Pk_mi_nj       P^k_{mi,nj} [P_multipole()], rows and columns
+                        ph_pairs: indexed by OrbitalPairIndex::block(k,
+                        parity); P^k_mnij = P^k_{mi,nj} + P^k_{nj,mi}
+                        [read_Pk()]
   @param sixj           6j symbols
   @param max_k          Largest multipolarity k written
   @param only_new       If true, only entries that are exactly zero are written
@@ -511,6 +635,7 @@ void store_Lk_mnij(Coulomb::LkTable *lk, std::size_t index_m,
                    const OrbitalPairIndex &ph_pairs,
                    const std::vector<LinAlg::Matrix<double>> &L1_L4_J_mn_ij,
                    const std::vector<LinAlg::Matrix<double>> &L2K_mj_ni,
+                   const std::vector<LinAlg::Matrix<double>> &Pk_mi_nj,
                    const SixJArray &sixj, int max_k, bool only_new,
                    double a_damp);
 
@@ -576,6 +701,34 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
   Q^J_{mn,rs}, are never stored: they are formed for one m and one kappa group
   of n at a time. J and K are cut off at ladder_max_k.
 
+  The screening and hole-particle interaction, pieces (1)-(3) of P [see
+  Pkmnij(); off by default], are diagonal in the multipole form itself: k
+  couples m with i, n with j and r with c. Each is one matrix product at rank
+  k, rows (m,i) and columns (n,j), with no recoupling of the result:
+  \f[
+    P1^k_{mi,nj} = \frac{(-1)^k}{[k]} \sum_{rc}
+                   \frac{QL^k_{mric}}{\Delta\epsilon_{ic,mr}} Q^k_{cnrj},
+  \f]
+  \f[
+    P2^k_{mi,nj} = (-1)^k \sum_{rc}
+                   \frac{QL^k_{mric}}{\Delta\epsilon_{ic,mr}} Q^K_{cr,nj},
+  \f]
+  \f[
+    P3^k_{mi,nj} = (-1)^k \sum_{rc}
+                   \frac{QL^K_{mi,rc}}{\Delta\epsilon_{ic,mr}} Q^k_{cnrj},
+  \f]
+  \f[
+    P^k_{mnij} = (P1 + P2 + P3)^k_{mi,nj} + (P1 + P2 + P3)^k_{nj,mi},
+  \f]
+  with K = k. Pieces (2) and (3) contain the exchange multipoles of
+  (c,n,r,j) and (m,r,i,c): these are [k] times the particle-hole coupled
+  forms at K = k, the two factors of L2. The factor (-1)^k/[k] is from the sum
+  over the projections of r and c; the minus signs of pieces (2) and (3)
+  cancel those of the exchange multipoles. P^k_{nj,mi}, the partner [m <-> n,
+  i <-> j], is the transposed element, at the same k. Each piece has its own
+  function: P1_multipole(), P2_multipole() and P3_multipole()
+  [P_multipole()].
+
   Factors shared by all (m,n) are indexed by OrbitalPairIndex::block(J or K,
   parity); factors for one m and one kappa group of n by J alone (their parity
   is fixed).
@@ -589,7 +742,7 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
                    excited; others are ignored)
   @param diagrams  Which diagrams to include. L2 and L3 must go together:
                    L_mnij and L_nmji are one table entry, and L3^k_mnij =
-                   L2^k_nmji
+                   L2^k_nmji. P only without @p external
   @param lk_prev   Ladder table for the dressed integral QL = Q + L; nullptr
                    for the lowest order. Must not be lk
   @param max_k     Largest multipolarity k of the integrals to write

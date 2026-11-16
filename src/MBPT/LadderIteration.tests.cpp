@@ -71,14 +71,15 @@ inline void add_required_entries(Coulomb::LkTable *lk,
 }
 
 //! One sweep of the ladder equation on a copy of the start table, one
-//! integral at a time with the reference MBPT::Lkmnij: the expected result of
-//! calculate_Lk_mnib(). Entries from add_required_entries(); only_new and
-//! damping rules as documented for calculate_Lk_mnib()
+//! integral at a time with the reference MBPT::Lkmnij (and MBPT::Pkmnij if
+//! include_P): the expected result of calculate_Lk_mnib(). Entries from
+//! add_required_entries(); only_new and damping rules as documented for
+//! calculate_Lk_mnib()
 inline Coulomb::LkTable
 reference_sweep(const Coulomb::LkTable &start, const LadderTestData &data,
                 const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                 const Coulomb::LkTable *lk_prev, int max_k, bool only_new,
-                double a_damp) {
+                double a_damp, bool include_P = false) {
   auto lk_old = start;
   add_required_entries(&lk_old, data, i_orbs, max_k);
   auto lk = lk_old;
@@ -94,7 +95,10 @@ reference_sweep(const Coulomb::LkTable &start, const LadderTestData &data,
               continue;
             const auto L_new =
               MBPT::Lkmnij(k, m, n, i, b, data.qk, data.core, data.excited,
-                           include_L4, sjt, lk_prev);
+                           include_L4, sjt, lk_prev) +
+              (include_P ? MBPT::Pkmnij(k, m, n, i, b, data.qk, data.core,
+                                        data.excited, sjt, lk_prev) :
+                           0.0);
             // L_mnib and L_nmbi (both visited if i is core) are one entry,
             // and both visits write the same value
             lk.update(k, m, n, i, b,
@@ -518,6 +522,287 @@ TEST_CASE("Ladder: diagrams match reference", "[Ladder][unit]") {
     REQUIRE(eps_L1 < 1.0e-12);
     REQUIRE(eps_L2_L3 < 1.0e-12);
     REQUIRE(eps_L4 < 1.0e-12);
+  }
+}
+
+//==============================================================================
+TEST_CASE("Ladder: P diagrams match reference", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+  const auto &sjt = data.yk.SixJ();
+  const auto x_random = random_ladder_table(data);
+
+  // Each piece of P alone (with its partner), i core and valence, at lowest
+  // order and with a dressed integral that has both parities of k
+  MBPT::LadderDiagrams P1_only{false, false, false, false};
+  P1_only.P1 = true;
+  MBPT::LadderDiagrams P2_only{false, false, false, false};
+  P2_only.P2 = true;
+  MBPT::LadderDiagrams P3_only{false, false, false, false};
+  P3_only.P3 = true;
+  const std::vector<const Coulomb::LkTable *> dressing{nullptr, &x_random};
+  for (const auto *lk_prev : dressing) {
+    const auto P1_table =
+      ladder_sweep({}, data, data.i_orbs, P1_only, lk_prev, max_k, false, 0.0);
+    const auto P2_table =
+      ladder_sweep({}, data, data.i_orbs, P2_only, lk_prev, max_k, false, 0.0);
+    const auto P3_table =
+      ladder_sweep({}, data, data.i_orbs, P3_only, lk_prev, max_k, false, 0.0);
+    const auto eps_P1 =
+      diagram_vs_scalar(P1_table, data,
+                        [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                            const DiracSpinor &i, const DiracSpinor &b) {
+                          return MBPT::P1(k, m, n, i, b, data.qk, data.core,
+                                          data.excited, lk_prev) +
+                                 MBPT::P1(k, n, m, b, i, data.qk, data.core,
+                                          data.excited, lk_prev);
+                        });
+    const auto eps_P2 =
+      diagram_vs_scalar(P2_table, data,
+                        [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                            const DiracSpinor &i, const DiracSpinor &b) {
+                          return MBPT::P2(k, m, n, i, b, data.qk, data.core,
+                                          data.excited, sjt, lk_prev) +
+                                 MBPT::P2(k, n, m, b, i, data.qk, data.core,
+                                          data.excited, sjt, lk_prev);
+                        });
+    const auto eps_P3 =
+      diagram_vs_scalar(P3_table, data,
+                        [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                            const DiracSpinor &i, const DiracSpinor &b) {
+                          return MBPT::P3(k, m, n, i, b, data.qk, data.core,
+                                          data.excited, sjt, lk_prev) +
+                                 MBPT::P3(k, n, m, b, i, data.qk, data.core,
+                                          data.excited, sjt, lk_prev);
+                        });
+    REQUIRE(eps_P1 < 1.0e-12);
+    REQUIRE(eps_P2 < 1.0e-12);
+    REQUIRE(eps_P3 < 1.0e-12);
+  }
+}
+
+//==============================================================================
+TEST_CASE("Ladder: P pieces match reference one side", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  using MBPT::OrbitalPairIndex;
+  const auto data = ladder_test_data();
+  const auto &sjt = data.yk.SixJ();
+  const auto x_random = random_ladder_table(data);
+
+  // Factors and pieces as in calculate_Lk_mnib(), i core and valence, with a
+  // dressed integral that has both parities of k
+  const auto ij_orbitals =
+    MBPT::ladder_ij_orbitals(data.core, data.excited, data.i_orbs);
+  const auto max_tj = DiracSpinor::max_tj(qip::merge(data.core, data.excited));
+  const MBPT::SixJArray sixj(max_tj, max_tj);
+  const OrbitalPairIndex ph_pairs(data.excited, ij_orbitals, max_tj);
+  const OrbitalPairIndex rc_pairs(data.excited, data.core, max_tj);
+  const auto QLk_mi_rc_over_de =
+    MBPT::QL_multipole_over_de(data.excited, data.core, ij_orbitals, ph_pairs,
+                               rc_pairs, data.qk, &x_random);
+  const auto Qk_rc_nj = MBPT::Q_multipole(data.excited, data.core, ij_orbitals,
+                                          rc_pairs, ph_pairs, data.qk);
+  const auto QK_cr_nj =
+    MBPT::Q_particle_hole(data.excited, data.core, data.excited, ij_orbitals,
+                          rc_pairs, ph_pairs, data.qk, sixj);
+  const auto QLK_mi_rc_over_de = MBPT::QL_particle_hole_over_de(
+    data.excited, data.core, ij_orbitals, ph_pairs, rc_pairs, data.qk,
+    &x_random, sixj);
+  const std::array<std::vector<LinAlg::Matrix<double>>, 3> pieces{
+    MBPT::P1_multipole(QLk_mi_rc_over_de, Qk_rc_nj),
+    MBPT::P2_multipole(QLk_mi_rc_over_de, QK_cr_nj),
+    MBPT::P3_multipole(QLK_mi_rc_over_de, Qk_rc_nj)};
+  MBPT::LadderDiagrams all_P{false, false, false, false};
+  all_P.P1 = all_P.P2 = all_P.P3 = true;
+  const auto P_sum =
+    MBPT::P_multipole(data.excited, data.core, ij_orbitals, ph_pairs, data.qk,
+                      &x_random, sixj, all_P);
+
+  // The factors element by element: QL^k_mric/de at k of both parities, and
+  // Q^k_cnrj with (n,j) = (m,i) at the Coulomb parity only (the blocks of the
+  // other parity are empty)
+  double max_difference_QL = 0.0, largest_QL = 0.0;
+  double max_difference_Q = 0.0, largest_Q = 0.0;
+  for (std::size_t index_m = 0; index_m < data.excited.size(); ++index_m) {
+    const auto &m = data.excited[index_m];
+    for (std::size_t index_i = 0; index_i < ij_orbitals.size(); ++index_i) {
+      const auto &i = ij_orbitals[index_i];
+      const auto parity = MBPT::pair_parity(m, i);
+      for (std::size_t index_r = 0; index_r < data.excited.size(); ++index_r) {
+        const auto &r = data.excited[index_r];
+        for (std::size_t index_c = 0; index_c < data.core.size(); ++index_c) {
+          const auto &c = data.core[index_c];
+          if (MBPT::pair_parity(r, c) != parity)
+            continue;
+          const auto de = i.en() + c.en() - m.en() - r.en();
+          const auto [k_min, k_max] = MBPT::k_minmax_L(m, r, i, c);
+          for (int k = k_min; k <= k_max; ++k) {
+            const auto block = OrbitalPairIndex::block(k, parity);
+            const auto index_mi =
+              std::size_t(ph_pairs.index(k, index_m, index_i));
+            const auto index_rc =
+              std::size_t(rc_pairs.index(k, index_r, index_c));
+            const auto QL_over_de =
+              (data.qk.Q(k, m, r, i, c) + x_random.Q(k, m, r, i, c)) / de;
+            max_difference_QL =
+              std::max(max_difference_QL,
+                       std::abs(QLk_mi_rc_over_de[block](index_mi, index_rc) -
+                                QL_over_de));
+            largest_QL = std::max(largest_QL, std::abs(QL_over_de));
+            if ((k + parity) % 2 != 0)
+              continue;
+            const auto Q = data.qk.Q(k, c, m, r, i);
+            max_difference_Q =
+              std::max(max_difference_Q,
+                       std::abs(Qk_rc_nj[block](index_rc, index_mi) - Q));
+            largest_Q = std::max(largest_Q, std::abs(Q));
+          }
+        }
+      }
+    }
+  }
+  std::size_t num_filled_other_parity = 0;
+  for (int k = 0; k <= rc_pairs.max_rank(); ++k) {
+    if (Qk_rc_nj[OrbitalPairIndex::block(k, (k + 1) % 2)].rows() != 0) {
+      ++num_filled_other_parity;
+    }
+  }
+
+  // Element (m,i),(n,j) at rank k: the reference piece of (m,n,i,j), one side
+  // (the partner is the transposed element). j core: the first orbitals of
+  // ij_orbitals. read_Pk(): the table entry P^k_mnij, one side plus partner
+  std::array<double, 3> max_difference{}, largest{};
+  double max_difference_sum = 0.0, largest_sum = 0.0;
+  double max_difference_entry = 0.0, largest_entry = 0.0;
+  for (std::size_t index_m = 0; index_m < data.excited.size(); ++index_m) {
+    const auto &m = data.excited[index_m];
+    for (std::size_t index_n = 0; index_n < data.excited.size(); ++index_n) {
+      const auto &n = data.excited[index_n];
+      for (std::size_t index_i = 0; index_i < ij_orbitals.size(); ++index_i) {
+        const auto &i = ij_orbitals[index_i];
+        for (std::size_t index_j = 0; index_j < data.core.size(); ++index_j) {
+          const auto &j = ij_orbitals[index_j];
+          const auto [k_min, k_max] = MBPT::k_minmax_L(m, n, i, j);
+          if (k_max < k_min)
+            continue;
+          const auto parity = MBPT::pair_parity(m, i);
+          std::array<std::array<double, MBPT::ladder_max_multipoles>, 3> found;
+          for (std::size_t p = 0; p < 3; ++p) {
+            found[p] = MBPT::read_L2K_element(pieces[p], ph_pairs, ph_pairs,
+                                              parity, index_m, index_i, index_n,
+                                              index_j, k_min, k_max);
+          }
+          const auto found_sum =
+            MBPT::read_L2K_element(P_sum, ph_pairs, ph_pairs, parity, index_m,
+                                   index_i, index_n, index_j, k_min, k_max);
+          const auto found_entry =
+            MBPT::read_Pk(P_sum, ph_pairs, parity, index_m, index_i, index_n,
+                          index_j, k_min, k_max);
+          for (int k = k_min; k <= k_max; ++k) {
+            const auto sk = std::size_t(k);
+            const std::array<double, 3> expected{
+              MBPT::P1(k, m, n, i, j, data.qk, data.core, data.excited,
+                       &x_random),
+              MBPT::P2(k, m, n, i, j, data.qk, data.core, data.excited, sjt,
+                       &x_random),
+              MBPT::P3(k, m, n, i, j, data.qk, data.core, data.excited, sjt,
+                       &x_random)};
+            for (std::size_t p = 0; p < 3; ++p) {
+              max_difference[p] = std::max(
+                max_difference[p], std::abs(found[p][sk] - expected[p]));
+              largest[p] = std::max(largest[p], std::abs(expected[p]));
+            }
+            const auto sum = found[0][sk] + found[1][sk] + found[2][sk];
+            max_difference_sum =
+              std::max(max_difference_sum, std::abs(found_sum[sk] - sum));
+            largest_sum = std::max(largest_sum, std::abs(sum));
+            const auto entry = MBPT::Pkmnij(k, m, n, i, j, data.qk, data.core,
+                                            data.excited, sjt, &x_random);
+            max_difference_entry =
+              std::max(max_difference_entry, std::abs(found_entry[sk] - entry));
+            largest_entry = std::max(largest_entry, std::abs(entry));
+          }
+        }
+      }
+    }
+  }
+  REQUIRE(num_filled_other_parity == 0);
+  REQUIRE(max_difference_QL / largest_QL < 1.0e-14);
+  REQUIRE(max_difference_Q / largest_Q < 1.0e-14);
+  REQUIRE(largest[0] > 0.0);
+  REQUIRE(largest[1] > 0.0);
+  REQUIRE(largest[2] > 0.0);
+  REQUIRE(max_difference[0] / largest[0] < 1.0e-12);
+  REQUIRE(max_difference[1] / largest[1] < 1.0e-12);
+  REQUIRE(max_difference[2] / largest[2] < 1.0e-12);
+  REQUIRE(max_difference_sum / largest_sum < 1.0e-14);
+  REQUIRE(largest_entry > 0.0);
+  REQUIRE(max_difference_entry / largest_entry < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: signed block products", "[Ladder][unit]") {
+  using MBPT::OrbitalPairIndex;
+  using Matrix = LinAlg::Matrix<double>;
+  // Blocks of ranks 0 and 1: (1 2) times (3 4)^T = 11, times (-1)^rank. Rank 0
+  // in the block of parity 1 and rank 1 in that of parity 0: the sign follows
+  // the rank. A block with an empty factor stays empty
+  std::vector<Matrix> left(4), right(4);
+  left[OrbitalPairIndex::block(0, 1)] = Matrix{{1.0, 2.0}};
+  right[OrbitalPairIndex::block(0, 1)] = Matrix{{3.0}, {4.0}};
+  left[OrbitalPairIndex::block(1, 0)] = Matrix{{1.0, 2.0}};
+  right[OrbitalPairIndex::block(1, 0)] = Matrix{{3.0}, {4.0}};
+  left[OrbitalPairIndex::block(1, 1)] = Matrix{{1.0}};
+  const auto products = MBPT::signed_block_products(left, right);
+  const auto &rank_0 = products[OrbitalPairIndex::block(0, 1)];
+  const auto &rank_1 = products[OrbitalPairIndex::block(1, 0)];
+  REQUIRE(rank_0.rows() == 1);
+  REQUIRE(rank_0.cols() == 1);
+  REQUIRE(rank_1.rows() == 1);
+  REQUIRE(rank_1.cols() == 1);
+  REQUIRE(rank_0(0, 0) == 11.0);
+  REQUIRE(rank_1(0, 0) == -11.0);
+  REQUIRE(products[OrbitalPairIndex::block(0, 0)].rows() == 0);
+  REQUIRE(products[OrbitalPairIndex::block(1, 1)].rows() == 0);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: P fill matches reference", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+  // All diagrams and all pieces of P, lowest order, i core and valence
+  const MBPT::LadderDiagrams all{true, true, true, true, true, true, true};
+  auto reference = reference_sweep({}, data, data.i_orbs, true, nullptr, max_k,
+                                   true, 0.0, true);
+  auto calculated =
+    ladder_sweep({}, data, data.i_orbs, all, nullptr, max_k, true, 0.0);
+  auto without_P = reference_fill(data);
+  const auto eps = ladder_table_difference(reference, calculated);
+  const auto eps_without_P = ladder_table_difference(reference, without_P);
+  REQUIRE(eps_without_P > 1.0e-3);
+  REQUIRE(eps < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: P update matches reference", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+  const auto x_random = random_ladder_table(data);
+  const double a_damp = 0.3;
+  // All diagrams and all pieces of P, damped, with a dressed integral that has
+  // both parities of k: the core sweep, then the valence sweep (which reads
+  // the core entries too)
+  const MBPT::LadderDiagrams all{true, true, true, true, true, true, true};
+  for (const auto *i_orbs : {&data.core, &data.valence}) {
+    auto reference = reference_sweep(x_random, data, *i_orbs, true, &x_random,
+                                     max_k, false, a_damp, true);
+    auto calculated = ladder_sweep(x_random, data, *i_orbs, all, &x_random,
+                                   max_k, false, a_damp);
+    const auto eps = ladder_table_difference(reference, calculated);
+    REQUIRE(eps < 1.0e-12);
   }
 }
 

@@ -1,10 +1,12 @@
 #pragma once
 #include "Coulomb/include.hpp"
+#include "MBPT/LadderIteration.hpp"
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include "qip/Vector.hpp"
 #include <algorithm>
 #include <memory>
+#include <random>
 #include <vector>
 
 namespace UnitTest::LadderTest {
@@ -51,6 +53,23 @@ inline LadderTestData ladder_test_data(int k_cut = -1, double zeff = 1.0) {
 inline int stored_max_k(const LadderTestData &data) {
   return std::min(DiracSpinor::max_tj(qip::merge(data.core, data.excited)),
                   data.qk.max_k());
+}
+
+//! Ladder table with every L^k_mnib (m,n excited; i in i_orbs; b core; k <=
+//! stored_max_k() [add_Lk_mnib_entries()]) a random number in [-0.05, 0.05]:
+//! a dressed integral with both parities of k, unlike the Coulomb integrals
+inline Coulomb::LkTable random_ladder_table(const LadderTestData &data) {
+  Coulomb::LkTable lk;
+  MBPT::add_Lk_mnib_entries(&lk, data.excited, data.core, data.i_orbs,
+                            stored_max_k(data));
+  std::mt19937 generator(1);
+  std::uniform_real_distribution<double> random_value(-0.05, 0.05);
+  for (std::size_t k = 0; k < lk->size(); ++k) {
+    for (auto &entry : lk->at(k)) {
+      entry.second = random_value(generator);
+    }
+  }
+  return lk;
 }
 
 } // namespace UnitTest::LadderTest

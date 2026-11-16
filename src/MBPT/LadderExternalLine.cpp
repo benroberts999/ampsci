@@ -84,6 +84,8 @@ void calculate_Lk_xnab(Coulomb::NkTable *L_xnab, const Coulomb::QkTable &qk,
                        const LadderDiagrams &diagrams,
                        const Coulomb::LkTable &lk,
                        const Coulomb::NkTable &L_xnab_prev, double a_damp) {
+  // P with the external line is not derived
+  assert(!(diagrams.P1 || diagrams.P2 || diagrams.P3));
   if (excited.empty() || core.empty() || x_orbitals.empty())
     return;
   const ExternalLine line{x_orbitals, en_v, nullptr, &L_xnab_prev};
@@ -368,6 +370,8 @@ lowest_order_Lk_mnxb(const Coulomb::QkTable &qk,
                      const LadderDiagrams &diagrams, int max_k) {
   // L1 and L3 have e_x in an energy denominator
   assert(!diagrams.L1 && !diagrams.L3);
+  // P with the external line is not derived
+  assert(!(diagrams.P1 || diagrams.P2 || diagrams.P3));
   Coulomb::NkTable L_mnxb;
   for (const auto &m : excited) {
     for (const auto &n : excited) {
@@ -475,6 +479,8 @@ lowest_order_Lk_xnab(const Coulomb::QkTable &qk,
                      const LadderDiagrams &diagrams, int max_k) {
   // L2 and L4 have e_x in an energy denominator
   assert(!diagrams.L2 && !diagrams.L4);
+  // P with the external line is not derived
+  assert(!(diagrams.P1 || diagrams.P2 || diagrams.P3));
   Coulomb::NkTable L_xnab;
   for (const auto &x : x_orbitals) {
     for (const auto &n : excited) {

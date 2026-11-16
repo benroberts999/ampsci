@@ -593,6 +593,87 @@ std::vector<Matrix> Q_particle_hole(const std::vector<DiracSpinor> &excited,
 }
 
 //==============================================================================
+
+std::vector<Matrix> QL_multipole_over_de(
+  const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &ph_pairs,
+  const OrbitalPairIndex &rc_pairs, const Coulomb::QkTable &qk,
+  const Coulomb::LkTable *lk_prev) {
+  const auto max_K = std::min(ph_pairs.max_rank(), rc_pairs.max_rank());
+  auto QLk_mi_rc_over_de = block_matrices(ph_pairs, rc_pairs);
+
+#pragma omp parallel for schedule(dynamic)
+  for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+    const auto &m = excited[index_m];
+    for (std::size_t index_i = 0; index_i < ij_orbitals.size(); ++index_i) {
+      const auto &i = ij_orbitals[index_i];
+      const auto parity = pair_parity(m, i);
+      for (std::size_t index_r = 0; index_r < excited.size(); ++index_r) {
+        const auto &r = excited[index_r];
+        for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
+          const auto &c = core[index_c];
+          if (pair_parity(r, c) != parity)
+            continue;
+          // k obeys the triangles {m,i,k} and {r,c,k}: both pairs have rank k
+          const auto QL = QL_multipoles(m, r, i, c, qk, lk_prev);
+          const auto de = i.en() + c.en() - m.en() - r.en();
+          for (int k = QL.k_min; k <= std::min(QL.k_max, max_K); ++k) {
+            const auto row = std::size_t(ph_pairs.index(k, index_m, index_i));
+            const auto col = std::size_t(rc_pairs.index(k, index_r, index_c));
+            QLk_mi_rc_over_de[OrbitalPairIndex::block(k, parity)](row, col) =
+              QL.value[std::size_t(k)] / de;
+          }
+        }
+      }
+    }
+  }
+  return QLk_mi_rc_over_de;
+}
+
+//==============================================================================
+
+std::vector<Matrix> Q_multipole(const std::vector<DiracSpinor> &excited,
+                                const std::vector<DiracSpinor> &core,
+                                const std::vector<DiracSpinor> &ij_orbitals,
+                                const OrbitalPairIndex &rc_pairs,
+                                const OrbitalPairIndex &ph_pairs,
+                                const Coulomb::QkTable &qk) {
+  const auto max_K = std::min(ph_pairs.max_rank(), rc_pairs.max_rank());
+  auto Qk_rc_nj = block_matrices(rc_pairs, ph_pairs);
+  // Coulomb parity: l_r + l_c + k even. The other blocks stay empty, so no
+  // matrix product is formed for them
+  for (int k = 0; k <= max_K; ++k) {
+    Qk_rc_nj[OrbitalPairIndex::block(k, (k + 1) % 2)] = Matrix{};
+  }
+
+#pragma omp parallel for schedule(dynamic)
+  for (std::size_t index_r = 0; index_r < excited.size(); ++index_r) {
+    const auto &r = excited[index_r];
+    for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
+      const auto &c = core[index_c];
+      const auto parity = pair_parity(r, c);
+      for (std::size_t index_n = 0; index_n < excited.size(); ++index_n) {
+        const auto &n = excited[index_n];
+        for (std::size_t index_j = 0; index_j < ij_orbitals.size(); ++index_j) {
+          const auto &j = ij_orbitals[index_j];
+          if (pair_parity(n, j) != parity)
+            continue;
+          // k obeys the triangles {c,r,k} and {n,j,k}: both pairs have rank k
+          const auto Q = coulomb_multipoles(c, n, r, j, qk);
+          for (int k = Q.k_min; k <= std::min(Q.k_max, max_K); k += Q.k_step) {
+            const auto row = std::size_t(rc_pairs.index(k, index_r, index_c));
+            const auto col = std::size_t(ph_pairs.index(k, index_n, index_j));
+            Qk_rc_nj[OrbitalPairIndex::block(k, parity)](row, col) =
+              Q.value[std::size_t(k)];
+          }
+        }
+      }
+    }
+  }
+  return Qk_rc_nj;
+}
+
+//==============================================================================
 std::vector<Matrix> L1_particle_particle(
   const DiracSpinor &m, const std::vector<std::size_t> &n_group,
   const std::vector<DiracSpinor> &excited, const OrbitalPairIndex &rs_pairs,
@@ -698,6 +779,102 @@ void add_blocks(std::vector<Matrix> *sum, std::vector<Matrix> term) {
 }
 
 //==============================================================================
+
+std::vector<Matrix> signed_block_products(const std::vector<Matrix> &left,
+                                          const std::vector<Matrix> &right) {
+  assert(left.size() == right.size());
+  // The blocks are (rank, parity), rank = 0, 1, ..., max_rank
+  const auto max_rank = int(left.size() / 2) - 1;
+
+  // The blocks are independent, so they run in parallel, each with
+  // single-threaded BLAS [as L2_particle_hole()]
+  std::vector<Matrix> products(left.size());
+  const qip::SingleThreadBlas single_thread_blas{};
+#pragma omp parallel for collapse(2) schedule(dynamic)
+  for (int rank = 0; rank <= max_rank; ++rank) {
+    for (int parity = 0; parity < 2; ++parity) {
+      const auto block = OrbitalPairIndex::block(rank, parity);
+      if (left[block].rows() == 0 || right[block].rows() == 0)
+        continue;
+      products[block] = Matrix(left[block].rows(), right[block].cols());
+      LinAlg::GEMM(left[block], right[block], &products[block]);
+      products[block] *= double(Angular::neg1pow(rank));
+    }
+  }
+  return products;
+}
+
+//==============================================================================
+
+std::vector<Matrix> P1_multipole(const std::vector<Matrix> &QLk_mi_rc_over_de,
+                                 const std::vector<Matrix> &Qk_rc_nj) {
+  auto P1k_mi_nj = signed_block_products(QLk_mi_rc_over_de, Qk_rc_nj);
+  const auto max_k = int(P1k_mi_nj.size() / 2) - 1;
+  for (int k = 0; k <= max_k; ++k) {
+    for (int parity = 0; parity < 2; ++parity) {
+      P1k_mi_nj[OrbitalPairIndex::block(k, parity)] *= 1.0 / (2 * k + 1);
+    }
+  }
+  return P1k_mi_nj;
+}
+
+//==============================================================================
+
+std::vector<Matrix> P2_multipole(const std::vector<Matrix> &QLk_mi_rc_over_de,
+                                 const std::vector<Matrix> &QK_cr_nj) {
+  return signed_block_products(QLk_mi_rc_over_de, QK_cr_nj);
+}
+
+//==============================================================================
+
+std::vector<Matrix> P3_multipole(const std::vector<Matrix> &QLK_mi_rc_over_de,
+                                 const std::vector<Matrix> &Qk_rc_nj) {
+  return signed_block_products(QLK_mi_rc_over_de, Qk_rc_nj);
+}
+
+//==============================================================================
+
+std::vector<Matrix> P_multipole(
+  const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &ph_pairs,
+  const Coulomb::QkTable &qk, const Coulomb::LkTable *lk_prev,
+  const SixJArray &sixj, const LadderDiagrams &diagrams) {
+  const OrbitalPairIndex rc_pairs(excited, core, ph_pairs.max_rank());
+  const auto num_blocks = ph_pairs.num_blocks();
+
+  // Factors: each formed once, and only if a piece switched on needs it
+  const auto QLk_mi_rc_over_de =
+    diagrams.P1 || diagrams.P2 ?
+      QL_multipole_over_de(excited, core, ij_orbitals, ph_pairs, rc_pairs, qk,
+                           lk_prev) :
+      std::vector<Matrix>(num_blocks);
+  const auto Qk_rc_nj =
+    diagrams.P1 || diagrams.P3 ?
+      Q_multipole(excited, core, ij_orbitals, rc_pairs, ph_pairs, qk) :
+      std::vector<Matrix>(num_blocks);
+  const auto QK_cr_nj = diagrams.P2 ?
+                          Q_particle_hole(excited, core, excited, ij_orbitals,
+                                          rc_pairs, ph_pairs, qk, sixj) :
+                          std::vector<Matrix>(num_blocks);
+  const auto QLK_mi_rc_over_de =
+    diagrams.P3 ? QL_particle_hole_over_de(excited, core, ij_orbitals, ph_pairs,
+                                           rc_pairs, qk, lk_prev, sixj) :
+                  std::vector<Matrix>(num_blocks);
+
+  std::vector<Matrix> Pk_mi_nj(num_blocks);
+  if (diagrams.P1) {
+    add_blocks(&Pk_mi_nj, P1_multipole(QLk_mi_rc_over_de, Qk_rc_nj));
+  }
+  if (diagrams.P2) {
+    add_blocks(&Pk_mi_nj, P2_multipole(QLk_mi_rc_over_de, QK_cr_nj));
+  }
+  if (diagrams.P3) {
+    add_blocks(&Pk_mi_nj, P3_multipole(QLK_mi_rc_over_de, Qk_rc_nj));
+  }
+  return Pk_mi_nj;
+}
+
+//==============================================================================
 std::array<double, ladder_max_multipoles>
 read_L1_L4_J(const std::vector<Matrix> &L1_L4_J_mn_ij, std::size_t row,
              const OrbitalPairIndex &ij_pairs, std::size_t index_i,
@@ -747,6 +924,25 @@ read_L2K_element(const std::vector<Matrix> &L2K_mj_ni,
 }
 
 //==============================================================================
+
+std::array<double, ladder_max_multipoles>
+read_Pk(const std::vector<Matrix> &Pk_mi_nj, const OrbitalPairIndex &ph_pairs,
+        int parity_mi, std::size_t index_m, std::size_t index_i,
+        std::size_t index_n, std::size_t index_j, int k_min, int k_max) {
+  std::array<double, ladder_max_multipoles> Pk{};
+  for (int k = k_min; k <= k_max; ++k) {
+    // (m,i) and (n,j) are in one block: rank k, parity(m,i) = parity(n,j)
+    const auto &block = Pk_mi_nj[OrbitalPairIndex::block(k, parity_mi)];
+    if (block.rows() == 0)
+      continue;
+    const auto mi = std::size_t(ph_pairs.index(k, index_m, index_i));
+    const auto nj = std::size_t(ph_pairs.index(k, index_n, index_j));
+    Pk[std::size_t(k)] = block(mi, nj) + block(nj, mi);
+  }
+  return Pk;
+}
+
+//==============================================================================
 double damped(double L_old, double L_new, double a_damp) {
   const auto a = std::clamp(a_damp, 0.0, 1.0);
   return (L_old == 0.0 || a == 0.0) ? L_new : (1.0 - a) * L_new + a * L_old;
@@ -761,7 +957,8 @@ void store_Lk_mnij(Coulomb::LkTable *lk, std::size_t index_m,
                    const OrbitalPairIndex &ij_pairs,
                    const OrbitalPairIndex &ph_pairs,
                    const std::vector<Matrix> &L1_L4_J_mn_ij,
-                   const std::vector<Matrix> &L2K_mj_ni, const SixJArray &sixj,
+                   const std::vector<Matrix> &L2K_mj_ni,
+                   const std::vector<Matrix> &Pk_mi_nj, const SixJArray &sixj,
                    int max_k, bool only_new, double a_damp) {
   const auto &m = excited[index_m];
   const auto num_ij = ij_orbitals.size();
@@ -796,6 +993,9 @@ void store_Lk_mnij(Coulomb::LkTable *lk, std::size_t index_m,
         const auto [L2K_for_L2, L2K_for_L3] =
           read_L2K(L2K_mj_ni, ph_pairs, pair_parity(m, j), index_m, index_j,
                    index_n, index_i, K_min, K_max);
+        // P^k_mnij = P^k_{mi,nj} + P^k_{nj,mi}
+        const auto Pk = read_Pk(Pk_mi_nj, ph_pairs, pair_parity(m, i), index_m,
+                                index_i, index_n, index_j, k_min, k_max);
 
         const auto key = lk->NormalOrder(m.nk_index(), n.nk_index(),
                                          i.nk_index(), j.nk_index());
@@ -812,7 +1012,8 @@ void store_Lk_mnij(Coulomb::LkTable *lk, std::size_t index_m,
           // L3^k_mnij = L2^k_nmji
           const auto L3 = multipole_from_particle_hole_coupled(
             k, n, m, j, i, L2K_for_L3, K_min, K_max, sixj);
-          *L_stored = damped(*L_stored, L1_L4 + L2 + L3, a_damp);
+          const auto P = Pk[std::size_t(k)];
+          *L_stored = damped(*L_stored, L1_L4 + L2 + L3 + P, a_damp);
         }
       }
     }
@@ -887,6 +1088,9 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   assert(external == nullptr || external->L_xnab == nullptr);
   // L_mnij and L_nmji are one table entry, and L3^k_mnij = L2^k_nmji
   assert(diagrams.L2 == diagrams.L3);
+  // P with the external line is not derived
+  const bool any_P = diagrams.P1 || diagrams.P2 || diagrams.P3;
+  assert(external == nullptr || !any_P);
   if (excited.empty() || core.empty() || i_orbs.empty())
     return;
 
@@ -926,6 +1130,11 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
       L2_particle_hole(excited, core, ij_orbitals, ph_pairs, excited,
                        ij_orbitals, ph_pairs, qk, lk_prev, sixj, external) :
       std::vector<Matrix>(ph_pairs.num_blocks());
+  // The pieces of P, in the multipole form: rows (m,i), columns (n,j)
+  const auto Pk_mi_nj = any_P ?
+                          P_multipole(excited, core, ij_orbitals, ph_pairs, qk,
+                                      lk_prev, sixj, diagrams) :
+                          std::vector<Matrix>(ph_pairs.num_blocks());
 
   // The n of one kappa group share all angular factors and block structure:
   // one matrix (rows n) per J. Only n >= m: L^k_mnij = L^k_nmji
@@ -961,8 +1170,8 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
       }
 
       store_Lk_mnij(lk, index_m, n_group, excited, ij_orbitals, required_ij,
-                    ij_pairs, ph_pairs, L1_L4_J_mn_ij, L2K_mj_ni, sixj, max_k,
-                    only_new, a_damp);
+                    ij_pairs, ph_pairs, L1_L4_J_mn_ij, L2K_mj_ni, Pk_mi_nj,
+                    sixj, max_k, only_new, a_damp);
     }
   }
 }

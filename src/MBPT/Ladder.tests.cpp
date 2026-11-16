@@ -11,8 +11,72 @@
 #include "catch2/catch.hpp"
 #include "fmt/format.hpp"
 #include <algorithm>
+#include <array>
 #include <cmath>
 #include <vector>
+
+namespace UnitTest::LadderTest {
+
+//! Pieces (1), (2), (3) of P_mnij, one side, in the m-scheme, for one set of
+//! projections (twice m): brute-force sums over r in excited, c in the core
+//! and their projections, of +g_cnrj X_mric, -g_cnjr X_mric and
+//! -g_cnrj X_mrci, each over e_i + e_c - e_m - e_r. g from the Coulomb table;
+//! X = g + x, with x from lk (nullptr: X = g)
+inline std::array<double, 3>
+P_pieces_mscheme(const DiracSpinor &m, const DiracSpinor &n,
+                 const DiracSpinor &i, const DiracSpinor &j, int tmm, int tmn,
+                 int tmi, int tmj, const std::vector<DiracSpinor> &excited,
+                 const LadderTestData &data, const Coulomb::LkTable *lk) {
+  std::array<double, 3> pieces{};
+  for (const auto &r : excited) {
+    for (const auto &c : data.core) {
+      const auto de = i.en() + c.en() - m.en() - r.en();
+      for (int tmr = -r.twoj(); tmr <= r.twoj(); tmr += 2) {
+        for (int tmc = -c.twoj(); tmc <= c.twoj(); tmc += 2) {
+          const auto g_cnrj = data.qk.g(c, n, r, j, tmc, tmn, tmr, tmj);
+          const auto g_cnjr = data.qk.g(c, n, j, r, tmc, tmn, tmj, tmr);
+          auto X_mric = data.qk.g(m, r, i, c, tmm, tmr, tmi, tmc);
+          auto X_mrci = data.qk.g(m, r, c, i, tmm, tmr, tmc, tmi);
+          if (lk != nullptr) {
+            X_mric += lk->g(m, r, i, c, tmm, tmr, tmi, tmc);
+            X_mrci += lk->g(m, r, c, i, tmm, tmr, tmc, tmi);
+          }
+          pieces[0] += g_cnrj * X_mric / de;
+          pieces[1] -= g_cnjr * X_mric / de;
+          pieces[2] -= g_cnrj * X_mrci / de;
+        }
+      }
+    }
+  }
+  return pieces;
+}
+
+//! sum_k A^k_mnij T^k for one set of projections (twice m), with the angular
+//! factor A^k of CoulombTable::g(); T_k[k - k_min] for k = k_min, k_min + 1,
+//! ... (both parities)
+inline double multipole_sum(const DiracSpinor &m, const DiracSpinor &n,
+                            const DiracSpinor &i, const DiracSpinor &j, int tmm,
+                            int tmn, int tmi, int tmj, int k_min,
+                            const std::vector<double> &T_k) {
+  if (tmi - tmm != tmn - tmj)
+    return 0.0;
+  const int twoq = tmi - tmm;
+  double sum = 0.0;
+  for (std::size_t index = 0; index < T_k.size(); ++index) {
+    const auto k = k_min + int(index);
+    if (std::abs(twoq) > 2 * k)
+      continue;
+    const auto tjs1 =
+      Angular::threej_2(m.twoj(), 2 * k, i.twoj(), -tmm, -twoq, tmi);
+    const auto tjs2 =
+      Angular::threej_2(n.twoj(), 2 * k, j.twoj(), -tmn, twoq, tmj);
+    const auto s = Angular::neg1pow_2(2 * k + tmn - tmm + twoq);
+    sum += s * tjs1 * tjs2 * T_k[index];
+  }
+  return sum;
+}
+
+} // namespace UnitTest::LadderTest
 
 //==============================================================================
 // Independent (m-scheme) check of the reduced ladder integrals.
@@ -187,6 +251,130 @@ TEST_CASE("Ladder: m-scheme check", "[Ladder][unit]") {
                eps);
     REQUIRE(eps < 1.0e-10);
   }
+}
+
+//==============================================================================
+// Independent (m-scheme) check of the reduced pieces of P [P1(), P2(), P3(),
+// Pkmnij()]: each one-sided piece, of (m,n,i,j) and of its partner
+// (n,m,j,i), and the whole P_mnij, summed by brute force over the projections
+// of r and c, against
+//   P_mnij = sum_k A^k_mnij P^k_mnij
+// for every set of projections of m, n, i, j. At lowest order (X = g), and
+// with X = g + x, x random at both parities of k.
+TEST_CASE("Ladder: P m-scheme check", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto &sjt = data.yk.SixJ();
+  const auto x_random = random_ladder_table(data);
+
+  // r runs over one excited orbital of each kappa (s to f): keeps the
+  // brute-force sums quick. The reduced pieces use the same set
+  std::vector<DiracSpinor> excited;
+  for (const auto &group : MBPT::group_by_kappa(data.excited)) {
+    excited.push_back(data.excited[group.front()]);
+  }
+
+  // {m, n, i, j}: i core (2p+), and i valence (3p+); k of both parities
+  const auto *d5_3 = DiracSpinor::find(3, -3, data.excited);
+  const auto *d3_3 = DiracSpinor::find(3, 2, data.excited);
+  const auto *d5_4 = DiracSpinor::find(4, -3, data.excited);
+  const auto *d3_4 = DiracSpinor::find(4, 2, data.excited);
+  const auto *p3_2 = DiracSpinor::find(2, -2, data.core);
+  const auto *p1_2 = DiracSpinor::find(2, 1, data.core);
+  const auto *p3_3 = DiracSpinor::find(3, -2, data.valence);
+  const std::vector<const DiracSpinor *> found{d5_3, d3_3, d5_4, d3_4,
+                                               p3_2, p1_2, p3_3};
+  const auto num_missing = std::count(found.cbegin(), found.cend(), nullptr);
+  REQUIRE(num_missing == 0);
+  using Four = std::array<DiracSpinor, 4>;
+  const std::vector<Four> tuples{{*d5_3, *d3_4, *p3_2, *p1_2},
+                                 {*d3_3, *d5_4, *p3_3, *p1_2}};
+
+  // Worst relative difference over each quantity (3 pieces of each side, and
+  // the whole P) of each tuple; and the largest P^k at l_m + l_i + k odd
+  double worst_eps = 0.0;
+  std::size_t num_zero_quantities = 0;
+  double largest_P_odd_lowest_order = 0.0;
+  double largest_P2_odd_dressed = 0.0;
+  const std::vector<const Coulomb::LkTable *> dressing{nullptr, &x_random};
+  for (const auto *x : dressing) {
+    for (const auto &[m, n, i, j] : tuples) {
+      // Reduced: pieces of (m,n,i,j) and of (n,m,j,i), and the whole P
+      const auto [k_min, k_max] = MBPT::k_minmax_L(m, n, i, j);
+      std::array<std::vector<double>, 3> pieces, partner_pieces;
+      std::vector<double> P_k;
+      for (int k = k_min; k <= k_max; ++k) {
+        pieces[0].push_back(
+          MBPT::P1(k, m, n, i, j, data.qk, data.core, excited, x));
+        pieces[1].push_back(
+          MBPT::P2(k, m, n, i, j, data.qk, data.core, excited, sjt, x));
+        pieces[2].push_back(
+          MBPT::P3(k, m, n, i, j, data.qk, data.core, excited, sjt, x));
+        partner_pieces[0].push_back(
+          MBPT::P1(k, n, m, j, i, data.qk, data.core, excited, x));
+        partner_pieces[1].push_back(
+          MBPT::P2(k, n, m, j, i, data.qk, data.core, excited, sjt, x));
+        partner_pieces[2].push_back(
+          MBPT::P3(k, n, m, j, i, data.qk, data.core, excited, sjt, x));
+        P_k.push_back(
+          MBPT::Pkmnij(k, m, n, i, j, data.qk, data.core, excited, sjt, x));
+        if ((m.l() + i.l() + k) % 2 == 0)
+          continue;
+        if (x == nullptr) {
+          largest_P_odd_lowest_order =
+            std::max(largest_P_odd_lowest_order, std::abs(P_k.back()));
+        } else {
+          largest_P2_odd_dressed =
+            std::max(largest_P2_odd_dressed, std::abs(pieces[1].back()));
+        }
+      }
+
+      // Brute force, for every set of projections
+      std::array<double, 7> max_difference{}, largest{};
+      for (int tmm = -m.twoj(); tmm <= m.twoj(); tmm += 2) {
+        for (int tmn = -n.twoj(); tmn <= n.twoj(); tmn += 2) {
+          for (int tmi = -i.twoj(); tmi <= i.twoj(); tmi += 2) {
+            for (int tmj = -j.twoj(); tmj <= j.twoj(); tmj += 2) {
+              const auto brute = P_pieces_mscheme(m, n, i, j, tmm, tmn, tmi,
+                                                  tmj, excited, data, x);
+              const auto brute_partner = P_pieces_mscheme(
+                n, m, j, i, tmn, tmm, tmj, tmi, excited, data, x);
+              std::array<double, 7> expected{}, reduced{};
+              for (std::size_t p = 0; p < 3; ++p) {
+                expected[p] = brute[p];
+                reduced[p] = multipole_sum(m, n, i, j, tmm, tmn, tmi, tmj,
+                                           k_min, pieces[p]);
+                expected[3 + p] = brute_partner[p];
+                reduced[3 + p] = multipole_sum(n, m, j, i, tmn, tmm, tmj, tmi,
+                                               k_min, partner_pieces[p]);
+                expected[6] += brute[p] + brute_partner[p];
+              }
+              reduced[6] =
+                multipole_sum(m, n, i, j, tmm, tmn, tmi, tmj, k_min, P_k);
+              for (std::size_t q = 0; q < expected.size(); ++q) {
+                max_difference[q] = std::max(
+                  max_difference[q], std::abs(expected[q] - reduced[q]));
+                largest[q] = std::max(largest[q], std::abs(expected[q]));
+              }
+            }
+          }
+        }
+      }
+      for (std::size_t q = 0; q < largest.size(); ++q) {
+        if (largest[q] == 0.0) {
+          ++num_zero_quantities;
+        } else {
+          worst_eps = std::max(worst_eps, max_difference[q] / largest[q]);
+        }
+      }
+    }
+  }
+  REQUIRE(num_zero_quantities == 0);
+  REQUIRE(worst_eps < 1.0e-10);
+  // At X = g all of P has the Coulomb parity of k; with x, piece (2) also
+  // has the other one (through x^k_mric), so the check covers it
+  REQUIRE(largest_P_odd_lowest_order == 0.0);
+  REQUIRE(largest_P2_odd_dressed > 1.0e-6);
 }
 
 //==============================================================================

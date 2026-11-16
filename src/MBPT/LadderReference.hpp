@@ -159,4 +159,115 @@ double L4(int k, const DiracSpinor &m, const DiracSpinor &n,
           const Coulomb::LkTable *const Lk = nullptr,
           std::optional<double> e_m = {});
 
+/*!
+  @brief Screening and hole-particle interaction of the ladder diagrams,
+         P^k_mnij: pieces (1)-(3) of the particle-hole term of the doubles
+         equation, with their partners.
+
+  @details
+  In the m-scheme, with X = g + l the dressed integral (l from @p Lk),
+  \f[
+    P_{mnij} = \sum_{rc}\left(
+      \frac{(g_{cnrj} - g_{cnjr})\,X_{mric}}{\epsilon_{ic} - \epsilon_{mr}}
+      - \frac{g_{cnrj}\,X_{mrci}}{\epsilon_{ic} - \epsilon_{mr}}\right)
+      + [m \leftrightarrow n,\, i \leftrightarrow j].
+  \f]
+  The three terms are pieces (1), (2) and (3) [P1(), P2(), P3()]. The fourth
+  piece of the particle-hole term, \f$ +g_{cnjr}X_{mrci} \f$, is in the
+  ladder integral as L2 + L3, written with i and j exchanged and the sign
+  reversed, \f$ -g_{cnir}X_{mrcj} \f$. Each piece is diagonal in k, and the
+  partner has the same k:
+  \f[
+    P^k_{mnij} = (P1 + P2 + P3)^k_{mnij} + (P1 + P2 + P3)^k_{nmji}.
+  \f]
+  Evaluated one integral at a time, as Lkmnij(), to test the matrix form
+  [P_multipole()].
+
+  @param k       Multipole rank
+  @param m,n     Excited (particle) orbitals
+  @param i,j     Core (hole) or valence orbitals
+  @param qk      Coulomb \f$ Q^k \f$ integral table
+  @param core    Core orbitals
+  @param excited Excited orbitals
+  @param SJ      6j symbol table
+  @param Lk      Ladder table for the dressed integral (nullptr: X = g)
+  @return \f$ P^k_{mnij} \f$
+*/
+double Pkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
+              const DiracSpinor &i, const DiracSpinor &j,
+              const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+              const std::vector<DiracSpinor> &excited,
+              const Angular::SixJTable &SJ,
+              const Coulomb::LkTable *const Lk = nullptr);
+
+/*!
+  @brief Piece (1) of P [see Pkmnij()], one side: the polarisation loop
+         (screening).
+
+  @details
+  The m-scheme term \f$ +g_{cnrj}X_{mric}/(\epsilon_{ic}-\epsilon_{mr}) \f$
+  summed over r and c:
+  \f[
+    P1^k_{mnij} = \frac{(-1)^k}{[k]} \sum_{rc}
+      \frac{Q^k_{cnrj}\,(Q+L)^k_{mric}}{\epsilon_{ic} - \epsilon_{mr}}.
+  \f]
+  Intermediate states: \f$ r \f$ runs over excited, \f$ c \f$ over core.
+  Exists only at the Coulomb-allowed k of the pairs (m,i) and (n,j). The
+  partner is P1^k_nmji.
+
+  @param k       Multipole rank
+  @param m,n     Excited (particle) orbitals
+  @param i,j     Core (hole) or valence orbitals
+  @param qk      Coulomb \f$ Q^k \f$ integral table
+  @param core    Core orbitals
+  @param excited Excited orbitals
+  @param Lk      Ladder table for the dressed integral (nullptr: X = g)
+  @return \f$ P1^k_{mnij} \f$
+*/
+double P1(int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &i, const DiracSpinor &j,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+          const std::vector<DiracSpinor> &excited,
+          const Coulomb::LkTable *const Lk = nullptr);
+
+/*!
+  @brief Piece (2) of P [see Pkmnij()], one side.
+
+  @details
+  The m-scheme term \f$ -g_{cnjr}X_{mric}/(\epsilon_{ic}-\epsilon_{mr}) \f$
+  summed over r and c:
+  \f[
+    P2^k_{mnij} = (-1)^k \sum_{rc,u} \sixj{c}{r}{k}{n}{j}{u}
+      \frac{Q^u_{cnjr}\,(Q+L)^k_{mric}}{\epsilon_{ic} - \epsilon_{mr}}.
+  \f]
+  Intermediate states: \f$ r \f$ runs over excited, \f$ c \f$ over core.
+  Both parities of k, the other one through \f$ L^k_{mric} \f$ only. The
+  partner is P2^k_nmji. Parameters as P1().
+*/
+double P2(int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &i, const DiracSpinor &j,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+          const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
+          const Coulomb::LkTable *const Lk = nullptr);
+
+/*!
+  @brief Piece (3) of P [see Pkmnij()], one side.
+
+  @details
+  The m-scheme term \f$ -g_{cnrj}X_{mrci}/(\epsilon_{ic}-\epsilon_{mr}) \f$
+  summed over r and c:
+  \f[
+    P3^k_{mnij} = (-1)^k \sum_{rc,l} \sixj{m}{i}{k}{r}{c}{l}
+      \frac{Q^k_{cnrj}\,(Q+L)^l_{mrci}}{\epsilon_{ic} - \epsilon_{mr}},
+  \f]
+  with l over both parities (the L part). Intermediate states: \f$ r \f$ runs
+  over excited, \f$ c \f$ over core. Exists only at the Coulomb-allowed k of
+  the pairs (m,i) and (n,j). The partner is P3^k_nmji. Parameters as P1().
+*/
+double P3(int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &i, const DiracSpinor &j,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+          const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
+          const Coulomb::LkTable *const Lk = nullptr);
+
 } // namespace MBPT

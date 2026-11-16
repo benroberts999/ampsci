@@ -292,4 +292,114 @@ double L2(int k, const DiracSpinor &m, const DiracSpinor &n,
   return l2;
 }
 
+//------------------------------------------------------------------------------
+
+double Pkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
+              const DiracSpinor &i, const DiracSpinor &j,
+              const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+              const std::vector<DiracSpinor> &excited,
+              const Angular::SixJTable &SJ, const Coulomb::LkTable *const Lk) {
+  // Each piece, and its partner [m <-> n, i <-> j] at the same k
+  const auto P_mnij = P1(k, m, n, i, j, qk, core, excited, Lk) +
+                      P2(k, m, n, i, j, qk, core, excited, SJ, Lk) +
+                      P3(k, m, n, i, j, qk, core, excited, SJ, Lk);
+  const auto P_nmji = P1(k, n, m, j, i, qk, core, excited, Lk) +
+                      P2(k, n, m, j, i, qk, core, excited, SJ, Lk) +
+                      P3(k, n, m, j, i, qk, core, excited, SJ, Lk);
+  return P_mnij + P_nmji;
+}
+
+//------------------------------------------------------------------------------
+
+double P1(int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &i, const DiracSpinor &j,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+          const std::vector<DiracSpinor> &excited,
+          const Coulomb::LkTable *const Lk) {
+
+  double p1 = 0.0;
+  for (const auto &r : excited) {
+    for (const auto &c : core) {
+      // Zero unless k is Coulomb-allowed for (c,n,r,j)
+      const auto Q_kcnrj = qk.Q(k, c, n, r, j);
+      if (Q_kcnrj == 0.0)
+        continue;
+      const auto QL_kmric =
+        qk.Q(k, m, r, i, c) + (Lk ? Lk->Q(k, m, r, i, c) : 0.0);
+      p1 += Q_kcnrj * QL_kmric / (i.en() + c.en() - m.en() - r.en());
+    }
+  }
+  return Angular::neg1pow(k) * p1 / (2.0 * k + 1.0);
+}
+
+//------------------------------------------------------------------------------
+
+double P2(int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &i, const DiracSpinor &j,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+          const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
+          const Coulomb::LkTable *const Lk) {
+
+  double p2 = 0.0;
+  for (const auto &r : excited) {
+    for (const auto &c : core) {
+      // (Q+L)^k_mric: the L^k part exists at both parities of k (see L1)
+      const auto QL_kmric =
+        qk.Q(k, m, r, i, c) + (Lk ? Lk->Q(k, m, r, i, c) : 0.0);
+      if (QL_kmric == 0.0)
+        continue;
+
+      // Exchange multipole of (c,n,r,j), over [k]: the sum over u of Q^u_cnjr
+      const auto [u0, uI] = Coulomb::k_minmax_Q(c, n, j, r);
+      double sum_u = 0.0;
+      for (auto u = u0; u <= uI; u += 2) {
+        sum_u +=
+          SJ.get_2(c.twoj(), r.twoj(), 2 * k, n.twoj(), j.twoj(), 2 * u) *
+          qk.Q(u, c, n, j, r);
+      }
+      p2 += sum_u * QL_kmric / (i.en() + c.en() - m.en() - r.en());
+    }
+  }
+  return Angular::neg1pow(k) * p2;
+}
+
+//------------------------------------------------------------------------------
+
+double P3(int k, const DiracSpinor &m, const DiracSpinor &n,
+          const DiracSpinor &i, const DiracSpinor &j,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+          const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
+          const Coulomb::LkTable *const Lk) {
+
+  double p3 = 0.0;
+  for (const auto &r : excited) {
+    for (const auto &c : core) {
+      // Zero unless k is Coulomb-allowed for (c,n,r,j)
+      const auto Q_kcnrj = qk.Q(k, c, n, r, j);
+      if (Q_kcnrj == 0.0)
+        continue;
+
+      // Exchange multipole of (m,r,i,c), over [k]: the sum over l of
+      // (Q+L)^l_mrci. Range of l: the bare Coulomb part exists only in the
+      // parity range [l0,lI]; the L^l part exists at both parities of l (see
+      // L1)
+      const auto [l0, lI] = Coulomb::k_minmax_Q(m, r, c, i);
+      const auto [w0, wI] = k_minmax_L(m, r, c, i);
+      const auto Qkey_mrci = qk.NormalOrder(m, r, c, i);
+      const auto Lkey_mrci = Lk ? Lk->NormalOrder(m, r, c, i) : 0ul;
+      double sum_l = 0.0;
+      for (auto l = w0; l <= wI; ++l) {
+        const bool has_Q = l >= l0 && l <= lI && (l - l0) % 2 == 0;
+        const auto QL_lmrci =
+          (has_Q ? qk.Q(l, Qkey_mrci) : 0.0) + (Lk ? Lk->Q(l, Lkey_mrci) : 0.0);
+        sum_l +=
+          SJ.get_2(m.twoj(), i.twoj(), 2 * k, r.twoj(), c.twoj(), 2 * l) *
+          QL_lmrci;
+      }
+      p3 += Q_kcnrj * sum_l / (i.en() + c.en() - m.en() - r.en());
+    }
+  }
+  return Angular::neg1pow(k) * p3;
+}
+
 } // namespace MBPT
