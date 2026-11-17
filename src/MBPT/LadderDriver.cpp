@@ -38,6 +38,12 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                    "   (Correlations with screening and hole_particle)\n"
                    " - use min_n_core = Correlations n_min_core\n"
                    " - needs max_it > 0"},
+     {"include_R", "Include the core relaxation [false]:\n"
+                   " - core single excitations in the ladder\n"
+                   " - adds the interaction with the change of the\n"
+                   "   core density, <v|dV^R|v>, to the valence\n"
+                   "   energy corrections\n"
+                   " - needs include_P"},
      {"sigma_method",
       "Method for the ladder correlation potential Sigma_L. Options:\n"
       "   - basis  : projection Sigma_L = sum_x L_x|x><x| onto the excited "
@@ -64,9 +70,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                  "<Identity>.qk. If 'false' will not read or write."},
      {"Lk_file", "Filename for storing Lk ladder integrals. By default, is "
                  "<Identity>_l4.lk (<Identity>.lk if include_L4 is false; _P "
-                 "added before .lk with include_P). Do not use one file for "
-                 "runs with and without include_P. If 'false' will not read "
-                 "or write."},
+                 "added before .lk with include_P, _PR with include_R). Do "
+                 "not use one file for runs with and without include_P or "
+                 "include_R. If 'false' will not read or write."},
      {"sl_file", "Filename for storing the ladder correlation potential, "
                  "Sigma_L. By default, is <Identity>.sl.abf. If 'false' will "
                  "not write. Read in via Correlations{ladder=...;}"},
@@ -101,6 +107,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto max_k = input.get("max_k", 8);
   const auto include_L4 = input.get("include_L4", true);
   const auto include_P = input.get("include_P", false);
+  const auto include_R = input.get("include_R", false);
   // Diagrams of the ladder equation: L1-L4 (L4 optional), and the three
   // pieces of P with include_P
   const MBPT::LadderDiagrams diagrams{
@@ -167,6 +174,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << std::boolalpha;
   std::cout << "include_L4   = " << include_L4 << "\n";
   std::cout << "include_P    = " << include_P << "\n";
+  std::cout << "include_R    = " << include_R << "\n";
   std::cout << "sigma_method = " << parseSigmaLMethod(method) << "\n";
   std::cout << "mirror_terms = " << mirror_terms << "\n";
   std::cout << "each_valence = " << each_valence << "\n";
@@ -181,12 +189,17 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     std::cout << "\nFAIL: include_P requires max_it > 0\n";
     return;
   }
+  // The energy with R is formed only on the include_P path
+  if (include_R && !include_P) {
+    std::cout << "\nFAIL: include_R requires include_P\n";
+    return;
+  }
 
   // in/out file names (default based on atom identity)
   const auto ident = wf.identity();
   const auto Qk_file = input.get("Qk_file", ident + ".qk.abf"s);
   const auto lk4 = include_L4 ? "_l4" : ""s;
-  const auto lkP = include_P ? "_P" : ""s;
+  const auto lkP = include_R ? "_PR" : include_P ? "_P" : ""s;
   const auto Lk_file =
     input.get<std::string>("Lk_file", ident + lk4 + lkP + ".lk.abf"s);
   const auto sl_file = input.get<std::string>("sl_file", ident + ".sl.abf"s);
@@ -289,12 +302,32 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // many consecutive sweeps below eps_target
   const int required_sweeps_below_eps = include_P ? 2 : 1;
 
+  // Core single excitations rho_ma (include_R): rows excited, columns core.
+  // Not stored: solved for the x the sweeps start from (read, or lowest
+  // order), then updated with x in each core sweep
+  LinAlg::Matrix<double> rho_ma;
+  if (include_R) {
+    std::cout << "\nCore single excitations for the starting x:\n";
+    const auto source = MBPT::core_singles_source(qk, excited, holes, &lk);
+    rho_ma = MBPT::core_singles(source, qk, excited, holes, nullptr);
+    int steps = 0;
+    double eps_rho = 1.0;
+    for (int it = 1; it <= max_it && eps_rho >= eps_target; ++it) {
+      auto rho_next = MBPT::core_singles(source, qk, excited, holes, &rho_ma);
+      eps_rho = MBPT::core_singles_change(rho_next, rho_ma);
+      rho_ma = std::move(rho_next);
+      steps = it;
+    }
+    fmt::print("rho_ma: {} steps, change {:.1e}\n", steps, eps_rho);
+  }
+  const auto *const rho_ma_or_null = include_R ? &rho_ma : nullptr;
+
   // Iterate for core states:
   int core_sweeps_below_eps = 0;
   for (int it = 1; it <= max_it; ++it) {
     std::cout << "\ncore it:" << it << "\n";
     MBPT::update_Lk_mnib(&lk_next, qk, excited, holes, holes, diagrams, &lk,
-                         a_damp, true);
+                         a_damp, true, rho_ma_or_null);
     // for the damping, don't swap; lk and lk_prev must match before next iter
     lk = lk_next;
     lk.write(Lk_file);
@@ -303,8 +336,18 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     de_c0 = de_c;
     fmt::print("de_l({:>4}): {:+12.9f} au  {:+12.5f} cm^-1  {:.1e}\n", "core",
                de_c, de_c * icm, eps_c);
+    // The core single excitations from the new x, one step
+    double eps_rho = 0.0;
+    if (include_R) {
+      auto rho_next =
+        MBPT::core_singles(MBPT::core_singles_source(qk, excited, holes, &lk),
+                           qk, excited, holes, &rho_ma);
+      eps_rho = MBPT::core_singles_change(rho_next, rho_ma);
+      rho_ma = std::move(rho_next);
+      fmt::print("rho_ma: change {:.1e}\n", eps_rho);
+    }
     core_sweeps_below_eps =
-      (eps_c < eps_target) ? core_sweeps_below_eps + 1 : 0;
+      (std::max(eps_c, eps_rho) < eps_target) ? core_sweeps_below_eps + 1 : 0;
     if (core_sweeps_below_eps == required_sweeps_below_eps)
       break;
   }
@@ -328,7 +371,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   for (int it = 1; it <= max_it; ++it) {
     std::cout << "\nvalence it:" << it << "\n";
     MBPT::update_Lk_mnib(&lk_next, qk, excited, holes, unconverged_valence,
-                         diagrams, &lk, a_damp, true);
+                         diagrams, &lk, a_damp, true, rho_ma_or_null);
     lk = lk_next;
     lk.write(Lk_file);
     for (std::size_t i = 0; i < valence.size(); ++i) {
@@ -358,7 +401,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // part of x that the Feynman direct diagram contains: the polarisation loop
   // (piece 1 of P) with the hole-particle interaction, x_F = P_F[g + x_F]. Its
   // direct (Q) closing uses the closing amplitude x' [calculate_Lk_vnab_F()].
-  // Sigma_L is not formed with P: only the valence energy corrections.
+  // x_F has no core single excitations: with R, the same x_F, and de has
+  // <v|dV^R|v> added. Sigma_L is not formed with P: only the valence energy
+  // corrections.
   if (include_P) {
     MBPT::LadderDiagrams diagrams_F{false, false, false, false};
     diagrams_F.P1 = true;
@@ -422,14 +467,53 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                  max_it);
     }
 
-    std::cout << "\nValence energy corrections, de = E_W[x] - E_Q[x_F] "
-                 "(cm^-1):\n";
-    fmt::print("{:4s}  {:11}  {:11}  {:11}\n", "", "E_W[x]", "E_Q[x_F]", "de");
+    // With R: the interaction with the change of the core density,
+    // <v|dV^R|v>, from rho_ma (all orders, with its mirror image) and the
+    // occupation blocks (third order); and its third-order value, with
+    // rho_ma at lowest order
+    std::vector<double> dV_R(valence.size(), 0.0);
+    if (include_R) {
+      const auto density = MBPT::relaxation_density(qk, holes, excited);
+      const auto rho_ma_lowest = MBPT::core_singles(
+        MBPT::core_singles_source(qk, excited, holes, nullptr), qk, excited,
+        holes, nullptr);
+      std::cout << "\nCore relaxation, <v|dV^R|v> (cm^-1): rho_ma part, "
+                   "occupation part (third order), total; third order\n";
+      fmt::print("{:4s}  {:11}  {:11}  {:11}  {:11}\n", "", "rho_ma",
+                 "occupation", "dV^R", "dV^R(3)");
+      for (std::size_t i = 0; i < valence.size(); ++i) {
+        const auto &v = valence[i];
+        const auto [rho_part, occupation_part] =
+          MBPT::de_valence_relaxation(v, qk, rho_ma, density, holes, excited);
+        const auto [rho_part_3, occupation_part_3] =
+          MBPT::de_valence_relaxation(v, qk, rho_ma_lowest, density, holes,
+                                      excited);
+        dV_R[i] = rho_part + occupation_part;
+        fmt::print("{:4s}  {:11.7}  {:11.7}  {:11.7}  {:11.7}\n",
+                   v.shortSymbol(), rho_part * icm, occupation_part * icm,
+                   dV_R[i] * icm, (rho_part_3 + occupation_part_3) * icm);
+      }
+      std::cout << "\nValence energy corrections, de = E_W[x] - E_Q[x_F] + "
+                   "<v|dV^R|v> (cm^-1):\n";
+      fmt::print("{:4s}  {:11}  {:11}  {:11}  {:11}\n", "", "E_W[x]",
+                 "E_Q[x_F]", "dV^R", "de");
+    } else {
+      std::cout << "\nValence energy corrections, de = E_W[x] - E_Q[x_F] "
+                   "(cm^-1):\n";
+      fmt::print("{:4s}  {:11}  {:11}  {:11}\n", "", "E_W[x]", "E_Q[x_F]",
+                 "de");
+    }
     for (std::size_t i = 0; i < valence.size(); ++i) {
       const auto &v = valence[i];
       const auto E_W_x = MBPT::de_valence_w(v, qk, lk, holes, excited, &sjt);
-      fmt::print("{:4s}  {:11.7}  {:11.7}  {:11.7}\n", v.shortSymbol(),
-                 E_W_x * icm, E_Q_F[i] * icm, (E_W_x - E_Q_F[i]) * icm);
+      if (include_R) {
+        fmt::print("{:4s}  {:11.7}  {:11.7}  {:11.7}  {:11.7}\n",
+                   v.shortSymbol(), E_W_x * icm, E_Q_F[i] * icm, dV_R[i] * icm,
+                   (E_W_x - E_Q_F[i] + dV_R[i]) * icm);
+      } else {
+        fmt::print("{:4s}  {:11.7}  {:11.7}  {:11.7}\n", v.shortSymbol(),
+                   E_W_x * icm, E_Q_F[i] * icm, (E_W_x - E_Q_F[i]) * icm);
+      }
     }
     std::cout << "\nSigma_L is not formed with include_P: no sl file written\n";
     return;

@@ -3,6 +3,7 @@
 #include "Coulomb/CoulombIntegrals.hpp"
 #include "Coulomb/QkTable.hpp"
 #include "Coulomb/YkTable.hpp"
+#include "HF/HartreeFock.hpp"
 #include "MBPT/Ladder.testdata.hpp"
 #include "MBPT/LadderIteration.hpp"
 #include "MBPT/LadderReference.hpp"
@@ -108,6 +109,187 @@ inline double Vhp_mscheme(const DiracSpinor &m, const DiracSpinor &n,
     }
   }
   return h;
+}
+
+//! Position of a in orbitals; orbitals.size() if not there
+inline std::size_t position_of(const std::vector<DiracSpinor> &orbitals,
+                               const DiracSpinor &a) {
+  return std::size_t(std::find(orbitals.cbegin(), orbitals.cend(), a) -
+                     orbitals.cbegin());
+}
+
+//! Core relaxation R_mnij in the m-scheme, for one set of projections (twice
+//! m): brute-force sums of +rho_ri g_mnrj and +rho_rj g_mnir (each only if
+//! the hole is a core orbital), -rho_mc g_cnij and -rho_nc g_mcij, with
+//! rho_ma diagonal in kappa and projection. g from the Coulomb table
+inline double relaxation_mscheme(const DiracSpinor &m, const DiracSpinor &n,
+                                 const DiracSpinor &i, const DiracSpinor &j,
+                                 int tmm, int tmn, int tmi, int tmj,
+                                 const LadderTestData &data,
+                                 const LinAlg::Matrix<double> &rho_ma) {
+  const auto index_i = position_of(data.core, i);
+  const auto index_j = position_of(data.core, j);
+  const auto index_m = position_of(data.excited, m);
+  const auto index_n = position_of(data.excited, n);
+  double R = 0.0;
+  for (std::size_t index_r = 0; index_r < data.excited.size(); ++index_r) {
+    const auto &r = data.excited[index_r];
+    if (index_i < data.core.size() && r.kappa() == i.kappa()) {
+      R += rho_ma(index_r, index_i) * data.qk.g(m, n, r, j, tmm, tmn, tmi, tmj);
+    }
+    if (index_j < data.core.size() && r.kappa() == j.kappa()) {
+      R += rho_ma(index_r, index_j) * data.qk.g(m, n, i, r, tmm, tmn, tmi, tmj);
+    }
+  }
+  for (std::size_t index_c = 0; index_c < data.core.size(); ++index_c) {
+    const auto &c = data.core[index_c];
+    if (c.kappa() == m.kappa()) {
+      R -= rho_ma(index_m, index_c) * data.qk.g(c, n, i, j, tmm, tmn, tmi, tmj);
+    }
+    if (c.kappa() == n.kappa()) {
+      R -= rho_ma(index_n, index_c) * data.qk.g(m, c, i, j, tmm, tmn, tmi, tmj);
+    }
+  }
+  return R;
+}
+
+//! Terms of the singles equation for the core, in the m-scheme, for the
+//! projection 1/2 of m and a: brute-force sums over b, c core and n, r
+//! excited and their projections
+struct SinglesTermsMscheme {
+  //! sum g_mbnr (X_nrab - X_nrba) / (e_a + e_b - e_n - e_r)
+  double particle_particle{0.0};
+  //! -sum g_bcan (X_mnbc - X_mncb) / (e_b + e_c - e_m - e_n)
+  double hole_hole{0.0};
+  //! sum (g_mban - g_mbna) rho_nb
+  double singles_term{0.0};
+};
+
+//! SinglesTermsMscheme for one (m,a), with X = g + x (x from lk; nullptr:
+//! X = g) and rho_nb from rho_ma
+inline SinglesTermsMscheme
+singles_mscheme(const DiracSpinor &m, const DiracSpinor &a,
+                const LadderTestData &data, const Coulomb::LkTable *lk,
+                const LinAlg::Matrix<double> &rho_ma) {
+  const int tm = 1;
+  const auto &qk = data.qk;
+  const auto X = [&](const DiracSpinor &p, const DiracSpinor &q,
+                     const DiracSpinor &r, const DiracSpinor &s, int tmp,
+                     int tmq, int tmr, int tms) {
+    return qk.g(p, q, r, s, tmp, tmq, tmr, tms) +
+           (lk ? lk->g(p, q, r, s, tmp, tmq, tmr, tms) : 0.0);
+  };
+  SinglesTermsMscheme terms;
+  for (std::size_t index_b = 0; index_b < data.core.size(); ++index_b) {
+    const auto &b = data.core[index_b];
+    for (int tmb = -b.twoj(); tmb <= b.twoj(); tmb += 2) {
+      for (std::size_t index_n = 0; index_n < data.excited.size(); ++index_n) {
+        const auto &n = data.excited[index_n];
+        if (n.kappa() == b.kappa()) {
+          terms.singles_term += (qk.g(m, b, a, n, tm, tmb, tm, tmb) -
+                                 qk.g(m, b, n, a, tm, tmb, tmb, tm)) *
+                                rho_ma(index_n, index_b);
+        }
+        for (int tmn = -n.twoj(); tmn <= n.twoj(); tmn += 2) {
+          for (const auto &r : data.excited) {
+            const int tmr = tm + tmb - tmn;
+            if (std::abs(tmr) > r.twoj())
+              continue;
+            const auto de = a.en() + b.en() - n.en() - r.en();
+            terms.particle_particle += qk.g(m, b, n, r, tm, tmb, tmn, tmr) *
+                                       (X(n, r, a, b, tmn, tmr, tm, tmb) -
+                                        X(n, r, b, a, tmn, tmr, tmb, tm)) /
+                                       de;
+          }
+          for (const auto &c : data.core) {
+            const int tmc = tm + tmn - tmb;
+            if (std::abs(tmc) > c.twoj())
+              continue;
+            const auto de = b.en() + c.en() - m.en() - n.en();
+            terms.hole_hole -= qk.g(b, c, a, n, tmb, tmc, tm, tmn) *
+                               (X(m, n, b, c, tm, tmn, tmb, tmc) -
+                                X(m, n, c, b, tm, tmn, tmc, tmb)) /
+                               de;
+          }
+        }
+      }
+    }
+  }
+  return terms;
+}
+
+//! Occupation block gamma_cb in the m-scheme, for the projection 1/2 of b
+//! and c: -sum g_mnab (g_mnac - g_mnca) / (De_{ab,mn} De_{ac,mn}), a core and
+//! m, n excited, over their projections
+inline double gamma_cb_mscheme(const DiracSpinor &b, const DiracSpinor &c,
+                               const LadderTestData &data) {
+  const int tm = 1;
+  double gamma = 0.0;
+  for (const auto &a : data.core) {
+    for (int tma = -a.twoj(); tma <= a.twoj(); tma += 2) {
+      for (const auto &m : data.excited) {
+        for (int tmm = -m.twoj(); tmm <= m.twoj(); tmm += 2) {
+          for (const auto &n : data.excited) {
+            const int tmn = tma + tm - tmm;
+            if (std::abs(tmn) > n.twoj())
+              continue;
+            const auto de = (a.en() + b.en() - m.en() - n.en()) *
+                            (a.en() + c.en() - m.en() - n.en());
+            gamma -= data.qk.g(m, n, a, b, tmm, tmn, tma, tm) *
+                     (data.qk.g(m, n, a, c, tmm, tmn, tma, tm) -
+                      data.qk.g(m, n, c, a, tmm, tmn, tm, tma)) /
+                     de;
+          }
+        }
+      }
+    }
+  }
+  return gamma;
+}
+
+//! Occupation block gamma_ms in the m-scheme, for the projection 1/2 of m
+//! and s: sum g_mnab (g_snab - g_snba) / (De_{ab,mn} De_{ab,sn}), a, b core
+//! and n excited, over their projections
+inline double gamma_ms_mscheme(const DiracSpinor &m, const DiracSpinor &s,
+                               const LadderTestData &data) {
+  const int tm = 1;
+  double gamma = 0.0;
+  for (const auto &a : data.core) {
+    for (int tma = -a.twoj(); tma <= a.twoj(); tma += 2) {
+      for (const auto &b : data.core) {
+        for (int tmb = -b.twoj(); tmb <= b.twoj(); tmb += 2) {
+          for (const auto &n : data.excited) {
+            const int tmn = tma + tmb - tm;
+            if (std::abs(tmn) > n.twoj())
+              continue;
+            const auto de = (a.en() + b.en() - m.en() - n.en()) *
+                            (a.en() + b.en() - s.en() - n.en());
+            gamma += data.qk.g(m, n, a, b, tm, tmn, tma, tmb) *
+                     (data.qk.g(s, n, a, b, tm, tmn, tma, tmb) -
+                      data.qk.g(s, n, b, a, tm, tmn, tmb, tma)) /
+                     de;
+          }
+        }
+      }
+    }
+  }
+  return gamma;
+}
+
+//! <v|V_HF|v> of a closed shell in the orbital x (occupation one in every
+//! projection): direct [j_x] <v|y^0_xx|v> plus exchange [HF::vexFa()]. Any
+//! normalisation of x
+inline double hf_shell_energy(const DiracSpinor &v, DiracSpinor x) {
+  x.occ_frac() = 1.0;
+  const auto y0_xx = Coulomb::yk_ab(0, x, x);
+  return x.twojp1() * (v * (y0_xx * v)) + v * HF::vexFa(v, {x});
+}
+
+//! Polar form of hf_shell_energy(), (E(p + q) - E(p - q))/4, p and q of one
+//! kappa: the sum over the projections of g~_{v p v q}, symmetrised in p, q
+inline double hf_polar_form(const DiracSpinor &v, const DiracSpinor &p,
+                            const DiracSpinor &q) {
+  return 0.25 * (hf_shell_energy(v, p + q) - hf_shell_energy(v, p - q));
 }
 
 } // namespace UnitTest::LadderTest
@@ -606,4 +788,451 @@ TEST_CASE("Ladder: direct closing of x_F", "[Ladder][unit]") {
   }
   REQUIRE(max_eps_loop < 1.0e-12);
   REQUIRE(smallest_eps_Vhp > 1.0e-4);
+}
+
+//==============================================================================
+// The core relaxation R against the m-scheme: the reduced R^k [Rkmnij()] and
+// the table entries read back [LkTable::g], for every set of projections of
+// m, n, i, j. Holes: both core; i valence; j valence. Particles: both with
+// core orbitals of their kappa; and m = n
+TEST_CASE("Ladder: relaxation m-scheme check", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+  const auto rho_ma = random_core_singles(data);
+  Coulomb::LkTable R_table;
+  MBPT::add_Lk_mnib_entries(&R_table, data.excited, data.core, data.i_orbs,
+                            max_k);
+  MBPT::calculate_Lk_mnib(&R_table, data.qk, data.excited, data.core,
+                          data.i_orbs, {false, false, false, false}, nullptr,
+                          max_k, false, 0.0, nullptr, &rho_ma);
+
+  const auto *d5_3 = DiracSpinor::find(3, -3, data.excited);
+  const auto *d3_3 = DiracSpinor::find(3, 2, data.excited);
+  const auto *d5_4 = DiracSpinor::find(4, -3, data.excited);
+  const auto *d3_4 = DiracSpinor::find(4, 2, data.excited);
+  const auto *p1_3 = DiracSpinor::find(3, 1, data.excited);
+  const auto *s_3 = DiracSpinor::find(3, -1, data.excited);
+  const auto *s_1 = DiracSpinor::find(1, -1, data.core);
+  const auto *s_2 = DiracSpinor::find(2, -1, data.core);
+  const auto *p3_2 = DiracSpinor::find(2, -2, data.core);
+  const auto *p1_2 = DiracSpinor::find(2, 1, data.core);
+  const auto *p3_4 = DiracSpinor::find(4, -2, data.excited);
+  const auto *p3_3_valence = DiracSpinor::find(3, -2, data.valence);
+  const auto *d5_3_valence = DiracSpinor::find(3, -3, data.valence);
+  const std::vector<const DiracSpinor *> found{
+    d5_3, d3_3, d5_4, d3_4, p1_3,         s_3,         p3_4,
+    s_1,  s_2,  p3_2, p1_2, p3_3_valence, d5_3_valence};
+  const auto num_missing = std::count(found.cbegin(), found.cend(), nullptr);
+  REQUIRE(num_missing == 0);
+  using Four = std::array<DiracSpinor, 4>;
+  const std::vector<Four> tuples{{*d5_3, *d3_4, *p3_2, *p1_2},
+                                 {*d3_3, *d5_4, *p3_3_valence, *p1_2},
+                                 {*p1_3, *d5_4, *p3_2, *d5_3_valence},
+                                 {*s_3, *p3_4, *s_1, *p3_2},
+                                 {*s_3, *s_3, *s_1, *s_2}};
+
+  // Worst relative difference of the reduced form and of the table, over
+  // each tuple
+  double worst_eps_reduced = 0.0;
+  double worst_eps_table = 0.0;
+  std::size_t num_zero_tuples = 0;
+  for (const auto &[m, n, i, j] : tuples) {
+    const auto [k_min, k_max] = MBPT::k_minmax_L(m, n, i, j);
+    std::vector<double> R_k;
+    for (int k = k_min; k <= k_max; ++k) {
+      R_k.push_back(
+        MBPT::Rkmnij(k, m, n, i, j, data.qk, rho_ma, data.core, data.excited));
+    }
+    double max_difference_reduced = 0.0, max_difference_table = 0.0;
+    double largest = 0.0;
+    for (int tmm = -m.twoj(); tmm <= m.twoj(); tmm += 2) {
+      for (int tmn = -n.twoj(); tmn <= n.twoj(); tmn += 2) {
+        for (int tmi = -i.twoj(); tmi <= i.twoj(); tmi += 2) {
+          for (int tmj = -j.twoj(); tmj <= j.twoj(); tmj += 2) {
+            if (tmm + tmn != tmi + tmj)
+              continue;
+            const auto expected =
+              relaxation_mscheme(m, n, i, j, tmm, tmn, tmi, tmj, data, rho_ma);
+            const auto reduced =
+              multipole_sum(m, n, i, j, tmm, tmn, tmi, tmj, k_min, R_k);
+            const auto table = R_table.g(m, n, i, j, tmm, tmn, tmi, tmj);
+            max_difference_reduced =
+              std::max(max_difference_reduced, std::abs(reduced - expected));
+            max_difference_table =
+              std::max(max_difference_table, std::abs(table - expected));
+            largest = std::max(largest, std::abs(expected));
+          }
+        }
+      }
+    }
+    if (largest == 0.0) {
+      ++num_zero_tuples;
+    } else {
+      worst_eps_reduced =
+        std::max(worst_eps_reduced, max_difference_reduced / largest);
+      worst_eps_table =
+        std::max(worst_eps_table, max_difference_table / largest);
+    }
+  }
+  REQUIRE(num_zero_tuples == 0);
+  REQUIRE(worst_eps_reduced < 1.0e-10);
+  REQUIRE(worst_eps_table < 1.0e-10);
+}
+
+//==============================================================================
+// The source and one step of the singles equation for the core against the
+// m-scheme, with X = g and with X = g + x (x random at both parities of k),
+// and a random previous rho_ma
+TEST_CASE("Ladder: core singles m-scheme check", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto x_random = random_ladder_table(data);
+  const auto rho_prev = random_core_singles(data);
+
+  double worst_eps_source = 0.0, worst_eps_rho = 0.0;
+  std::size_t num_pairs = 0;
+  const std::vector<const Coulomb::LkTable *> dressing{nullptr, &x_random};
+  for (const auto *x : dressing) {
+    const auto source =
+      MBPT::core_singles_source(data.qk, data.excited, data.core, x);
+    const auto rho_ma =
+      MBPT::core_singles(source, data.qk, data.excited, data.core, &rho_prev);
+    double max_difference_source = 0.0, largest_source = 0.0;
+    double max_difference_rho = 0.0, largest_rho = 0.0;
+    for (std::size_t index_m = 0; index_m < data.excited.size(); ++index_m) {
+      for (std::size_t index_a = 0; index_a < data.core.size(); ++index_a) {
+        const auto &m = data.excited[index_m];
+        const auto &a = data.core[index_a];
+        if (m.kappa() != a.kappa())
+          continue;
+        const auto terms = singles_mscheme(m, a, data, x, rho_prev);
+        const auto expected_source = terms.particle_particle + terms.hole_hole;
+        const auto expected_rho =
+          (terms.particle_particle + terms.hole_hole + terms.singles_term) /
+          (a.en() - m.en());
+        max_difference_source =
+          std::max(max_difference_source,
+                   std::abs(source(index_m, index_a) - expected_source));
+        largest_source = std::max(largest_source, std::abs(expected_source));
+        max_difference_rho =
+          std::max(max_difference_rho,
+                   std::abs(rho_ma(index_m, index_a) - expected_rho));
+        largest_rho = std::max(largest_rho, std::abs(expected_rho));
+        ++num_pairs;
+      }
+    }
+    worst_eps_source = std::max(
+      worst_eps_source,
+      largest_source == 0.0 ? 1.0 : max_difference_source / largest_source);
+    worst_eps_rho =
+      std::max(worst_eps_rho,
+               largest_rho == 0.0 ? 1.0 : max_difference_rho / largest_rho);
+  }
+  REQUIRE(num_pairs > 0);
+  REQUIRE(worst_eps_source < 1.0e-10);
+  REQUIRE(worst_eps_rho < 1.0e-10);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: closed shell factor", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+
+  // f_xp W^0_xpyq vs the sum over the projections of p of g~_{xpyq}, at
+  // every projection of x, for pairs (x,y) and (p,q) of one kappa
+  const auto *s_3 = DiracSpinor::find(3, -1, data.excited);
+  const auto *d5_3 = DiracSpinor::find(3, -3, data.excited);
+  const auto *d5_4 = DiracSpinor::find(4, -3, data.excited);
+  const auto *p3_3 = DiracSpinor::find(3, -2, data.excited);
+  const auto *p3_4 = DiracSpinor::find(4, -2, data.excited);
+  const auto *s_1 = DiracSpinor::find(1, -1, data.core);
+  const auto *s_2 = DiracSpinor::find(2, -1, data.core);
+  const auto *p3_2 = DiracSpinor::find(2, -2, data.core);
+  const std::vector<const DiracSpinor *> found{s_3,  d5_3, d5_4, p3_3,
+                                               p3_4, s_1,  s_2,  p3_2};
+  const auto num_missing = std::count(found.cbegin(), found.cend(), nullptr);
+  REQUIRE(num_missing == 0);
+  using Four = std::array<DiracSpinor, 4>;
+  // {x, y, p, q}
+  const std::vector<Four> tuples{{*s_3, *s_3, *s_1, *s_2},
+                                 {*d5_3, *d5_4, *p3_2, *p3_2},
+                                 {*p3_3, *p3_4, *d5_3, *d5_4}};
+  double max_difference = 0.0, largest = 0.0;
+  for (const auto &[x, y, p, q] : tuples) {
+    const auto reduced =
+      MBPT::closed_shell_factor(x, p) * data.qk.W(0, x, p, y, q);
+    for (int tmx = -x.twoj(); tmx <= x.twoj(); tmx += 2) {
+      double sum = 0.0;
+      for (int tmp = -p.twoj(); tmp <= p.twoj(); tmp += 2) {
+        sum += data.qk.g(x, p, y, q, tmx, tmp, tmx, tmp) -
+               data.qk.g(x, p, q, y, tmx, tmp, tmp, tmx);
+      }
+      max_difference = std::max(max_difference, std::abs(reduced - sum));
+      largest = std::max(largest, std::abs(sum));
+    }
+  }
+  const auto eps = largest == 0.0 ? 1.0 : max_difference / largest;
+  REQUIRE(eps < 1.0e-12);
+}
+
+//==============================================================================
+// Third order: rho_ma at lowest order against the second-order correlation
+// potential written with the bare Coulomb integral first [Sigma_ma, with Q on
+// the bare integral and W on the amplitude], and <v|dV^R|v> against the
+// expressions of the third-order relaxation diagrams (rho_ma block, and
+// occupation blocks of the core and excited orbitals, with 1/sqrt([j_v][j_p])
+// angular factors)
+TEST_CASE("Ladder: relaxation at third order", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto &sjt = data.yk.SixJ();
+  const auto &core = data.core;
+  const auto &excited = data.excited;
+
+  const auto rho_ma = MBPT::core_singles(
+    MBPT::core_singles_source(data.qk, excited, core, nullptr), data.qk,
+    excited, core, nullptr);
+  const auto density = MBPT::relaxation_density(data.qk, core, excited);
+
+  // Sigma_ma = sum_k 1/[k] (sum Q^k_mbnr W^k_nrab / De - sum Q^k_bcan
+  // W^k_mnbc / De), summed over the projections: [j_a] (e_a - e_m) rho_ma
+  LinAlg::Matrix<double> Sigma_ma(excited.size(), core.size());
+  double max_difference_rho = 0.0, largest_rho = 0.0;
+  for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+    for (std::size_t index_a = 0; index_a < core.size(); ++index_a) {
+      const auto &m = excited[index_m];
+      const auto &a = core[index_a];
+      if (m.kappa() != a.kappa())
+        continue;
+      double sum = 0.0;
+      for (const auto &b : core) {
+        for (const auto &n : excited) {
+          for (const auto &r : excited) {
+            const auto [k0, kI] = Coulomb::k_minmax_Q(m, b, n, r);
+            for (int k = k0; k <= kI; k += 2) {
+              sum += data.qk.Q(k, m, b, n, r) * data.qk.W(k, n, r, a, b, &sjt) /
+                     ((2 * k + 1) * (a.en() + b.en() - n.en() - r.en()));
+            }
+          }
+          for (const auto &c : core) {
+            const auto [k0, kI] = Coulomb::k_minmax_Q(b, c, a, n);
+            for (int k = k0; k <= kI; k += 2) {
+              sum -= data.qk.Q(k, b, c, a, n) * data.qk.W(k, m, n, b, c, &sjt) /
+                     ((2 * k + 1) * (b.en() + c.en() - m.en() - n.en()));
+            }
+          }
+        }
+      }
+      Sigma_ma(index_m, index_a) = sum;
+      const auto expected = sum / (a.twojp1() * (a.en() - m.en()));
+      max_difference_rho = std::max(
+        max_difference_rho, std::abs(rho_ma(index_m, index_a) - expected));
+      largest_rho = std::max(largest_rho, std::abs(expected));
+    }
+  }
+
+  // Occupation blocks, summed over the projections: [j_b] gamma_cb, [j_m]
+  // gamma_ms
+  LinAlg::Matrix<double> occupation_core(core.size(), core.size());
+  for (std::size_t index_b = 0; index_b < core.size(); ++index_b) {
+    for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
+      const auto &b = core[index_b];
+      const auto &c = core[index_c];
+      if (b.kappa() != c.kappa())
+        continue;
+      for (const auto &a : core) {
+        for (const auto &m : excited) {
+          for (const auto &n : excited) {
+            const auto [k0, kI] = Coulomb::k_minmax_Q(a, b, m, n);
+            for (int k = k0; k <= kI; k += 2) {
+              occupation_core(index_b, index_c) -=
+                data.qk.Q(k, a, b, m, n) * data.qk.W(k, m, n, a, c, &sjt) /
+                ((2 * k + 1) * (a.en() + b.en() - m.en() - n.en()) *
+                 (a.en() + c.en() - m.en() - n.en()));
+            }
+          }
+        }
+      }
+    }
+  }
+  LinAlg::Matrix<double> occupation_excited(excited.size(), excited.size());
+  for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+    for (std::size_t index_r = 0; index_r < excited.size(); ++index_r) {
+      const auto &m = excited[index_m];
+      const auto &r = excited[index_r];
+      if (m.kappa() != r.kappa())
+        continue;
+      for (const auto &a : core) {
+        for (const auto &b : core) {
+          for (const auto &n : excited) {
+            const auto [k0, kI] = Coulomb::k_minmax_Q(a, b, m, n);
+            for (int k = k0; k <= kI; k += 2) {
+              occupation_excited(index_m, index_r) +=
+                data.qk.Q(k, a, b, m, n) * data.qk.W(k, n, r, b, a, &sjt) /
+                ((2 * k + 1) * (a.en() + b.en() - m.en() - n.en()) *
+                 (a.en() + b.en() - n.en() - r.en()));
+            }
+          }
+        }
+      }
+    }
+  }
+
+  // The energies: (-1)^(j_v+j_p+1)/sqrt([j_v][j_p]) W^0 times the block
+  double worst_eps_rho_part = 0.0, worst_eps_occupation = 0.0;
+  for (const auto &v : data.valence) {
+    double SD_part = 0.0, occupation_part = 0.0;
+    for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+      for (std::size_t index_a = 0; index_a < core.size(); ++index_a) {
+        const auto &m = excited[index_m];
+        const auto &a = core[index_a];
+        if (m.kappa() != a.kappa())
+          continue;
+        SD_part += Angular::neg1pow_2(v.twoj() + a.twoj() + 2) *
+                   data.qk.W(0, v, a, v, m, &sjt) * Sigma_ma(index_m, index_a) /
+                   (std::sqrt(v.twojp1() * a.twojp1()) * (a.en() - m.en()));
+      }
+    }
+    for (std::size_t index_b = 0; index_b < core.size(); ++index_b) {
+      for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
+        const auto &b = core[index_b];
+        const auto &c = core[index_c];
+        if (b.kappa() != c.kappa())
+          continue;
+        occupation_part += Angular::neg1pow_2(v.twoj() + b.twoj() + 2) *
+                           data.qk.W(0, v, c, v, b, &sjt) *
+                           occupation_core(index_b, index_c) /
+                           std::sqrt(v.twojp1() * b.twojp1());
+      }
+    }
+    for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+      for (std::size_t index_r = 0; index_r < excited.size(); ++index_r) {
+        const auto &m = excited[index_m];
+        const auto &r = excited[index_r];
+        if (m.kappa() != r.kappa())
+          continue;
+        occupation_part += Angular::neg1pow_2(v.twoj() + m.twoj() + 2) *
+                           data.qk.W(0, v, m, v, r, &sjt) *
+                           occupation_excited(index_m, index_r) /
+                           std::sqrt(v.twojp1() * m.twojp1());
+      }
+    }
+    const auto [rho_part, occupation_found] =
+      MBPT::de_valence_relaxation(v, data.qk, rho_ma, density, core, excited);
+    worst_eps_rho_part =
+      std::max(worst_eps_rho_part, std::abs(rho_part / (2.0 * SD_part) - 1.0));
+    worst_eps_occupation = std::max(
+      worst_eps_occupation, std::abs(occupation_found / occupation_part - 1.0));
+  }
+  const auto eps_rho =
+    largest_rho == 0.0 ? 1.0 : max_difference_rho / largest_rho;
+  REQUIRE(eps_rho < 1.0e-12);
+  REQUIRE(worst_eps_rho_part < 1.0e-12);
+  REQUIRE(worst_eps_occupation < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: relaxation density m-scheme check", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto density =
+    MBPT::relaxation_density(data.qk, data.core, data.excited);
+
+  // Every element of one kappa, and the zeros between different kappa
+  double max_difference_core = 0.0, largest_core = 0.0;
+  double largest_other_kappa = 0.0;
+  for (std::size_t index_b = 0; index_b < data.core.size(); ++index_b) {
+    for (std::size_t index_c = 0; index_c < data.core.size(); ++index_c) {
+      const auto &b = data.core[index_b];
+      const auto &c = data.core[index_c];
+      const auto found = density.gamma_cb(index_b, index_c);
+      if (b.kappa() != c.kappa()) {
+        largest_other_kappa = std::max(largest_other_kappa, std::abs(found));
+        continue;
+      }
+      const auto expected = gamma_cb_mscheme(b, c, data);
+      max_difference_core =
+        std::max(max_difference_core, std::abs(found - expected));
+      largest_core = std::max(largest_core, std::abs(expected));
+    }
+  }
+  double max_difference_excited = 0.0, largest_excited = 0.0;
+  for (std::size_t index_m = 0; index_m < data.excited.size(); ++index_m) {
+    for (std::size_t index_s = 0; index_s < data.excited.size(); ++index_s) {
+      const auto &m = data.excited[index_m];
+      const auto &s = data.excited[index_s];
+      const auto found = density.gamma_ms(index_m, index_s);
+      if (m.kappa() != s.kappa()) {
+        largest_other_kappa = std::max(largest_other_kappa, std::abs(found));
+        continue;
+      }
+      const auto expected = gamma_ms_mscheme(m, s, data);
+      max_difference_excited =
+        std::max(max_difference_excited, std::abs(found - expected));
+      largest_excited = std::max(largest_excited, std::abs(expected));
+    }
+  }
+  const auto eps_core =
+    largest_core == 0.0 ? 1.0 : max_difference_core / largest_core;
+  const auto eps_excited =
+    largest_excited == 0.0 ? 1.0 : max_difference_excited / largest_excited;
+  REQUIRE(largest_other_kappa == 0.0);
+  REQUIRE(eps_core < 1.0e-10);
+  REQUIRE(eps_excited < 1.0e-10);
+}
+
+//==============================================================================
+// <v|dV^R|v> = sum_pq g~_vpvq gamma_qp against the first-order change of the
+// Hartree-Fock potential seen by v, with no angular reduction: the polar form
+// of <v|V_HF|v> of one closed shell [hf_polar_form()]. Random rho_ma, and the
+// occupation blocks at third order
+TEST_CASE("Ladder: relaxation potential vs Hartree-Fock", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto &core = data.core;
+  const auto &excited = data.excited;
+  const auto rho_ma = random_core_singles(data);
+  const auto density = MBPT::relaxation_density(data.qk, core, excited);
+
+  double worst_eps_rho = 0.0, worst_eps_occupation = 0.0;
+  for (const auto &v : data.valence) {
+    // gamma_am = gamma_ma = rho_ma: both orders of the pair
+    double radial_rho = 0.0;
+    for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+      for (std::size_t index_a = 0; index_a < core.size(); ++index_a) {
+        if (excited[index_m].kappa() != core[index_a].kappa())
+          continue;
+        radial_rho += 2.0 * rho_ma(index_m, index_a) *
+                      hf_polar_form(v, core[index_a], excited[index_m]);
+      }
+    }
+    double radial_occupation = 0.0;
+    for (std::size_t index_b = 0; index_b < core.size(); ++index_b) {
+      for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
+        if (core[index_b].kappa() != core[index_c].kappa())
+          continue;
+        radial_occupation += density.gamma_cb(index_b, index_c) *
+                             hf_polar_form(v, core[index_b], core[index_c]);
+      }
+    }
+    for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+      for (std::size_t index_s = 0; index_s < excited.size(); ++index_s) {
+        if (excited[index_m].kappa() != excited[index_s].kappa())
+          continue;
+        radial_occupation +=
+          density.gamma_ms(index_m, index_s) *
+          hf_polar_form(v, excited[index_m], excited[index_s]);
+      }
+    }
+    const auto [rho_part, occupation_part] =
+      MBPT::de_valence_relaxation(v, data.qk, rho_ma, density, core, excited);
+    worst_eps_rho =
+      std::max(worst_eps_rho, std::abs(rho_part / radial_rho - 1.0));
+    worst_eps_occupation =
+      std::max(worst_eps_occupation,
+               std::abs(occupation_part / radial_occupation - 1.0));
+  }
+  REQUIRE(worst_eps_rho < 1.0e-12);
+  REQUIRE(worst_eps_occupation < 1.0e-12);
 }

@@ -22,7 +22,10 @@ namespace MBPT {
   With include_P, the ladder equation also includes P (screening, with its
   exchange and hole-particle parts); only the valence energy corrections are
   printed, without the part the Feynman direct diagram contains, and Sigma_L
-  is not formed.
+  is not formed. With include_R (needs include_P), the ladder equation also
+  includes the core relaxation R (the core single excitations rho_ma), and
+  the interaction with the change of the core density, <v|dV^R|v>, is added
+  to the valence energy corrections.
 
   @param input  The Ladder{} input block
   @param wf     Wavefunction: supplies the core, valence states, and basis

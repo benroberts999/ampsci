@@ -72,6 +72,22 @@ inline Coulomb::LkTable random_ladder_table(const LadderTestData &data) {
   return lk;
 }
 
+//! Core single excitations rho_ma (rows excited, columns core): every element
+//! with kappa_m = kappa_a a random number in [-0.05, 0.05], the others zero
+inline LinAlg::Matrix<double> random_core_singles(const LadderTestData &data) {
+  LinAlg::Matrix<double> rho_ma(data.excited.size(), data.core.size());
+  std::mt19937 generator(3);
+  std::uniform_real_distribution<double> random_value(-0.05, 0.05);
+  for (std::size_t index_m = 0; index_m < data.excited.size(); ++index_m) {
+    for (std::size_t index_a = 0; index_a < data.core.size(); ++index_a) {
+      if (data.excited[index_m].kappa() == data.core[index_a].kappa()) {
+        rho_ma(index_m, index_a) = random_value(generator);
+      }
+    }
+  }
+  return rho_ma;
+}
+
 //! Closing table of x_F with every L'^k_vnab (v valence; n excited; a,b core;
 //! k <= stored_max_k() [add_Lk_vnab_F_entries()]) a random number in
 //! [-0.05, 0.05]: both parities of k, and no symmetry

@@ -1,8 +1,10 @@
 #pragma once
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
+#include "LinAlg/include.hpp"
 #include "MBPT/SpinorMatrix.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
+#include <array>
 #include <memory>
 #include <string>
 #include <vector>
@@ -61,6 +63,9 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                      L -> a_damp*L + (1-a_damp)*L_new, where L is the
                      existing entry of @p lk (not @p lk_prev)
   @param print       Print progress and timing to screen
+  @param rho_ma      Optional: core single excitations rho_ma (rows excited,
+                     columns core) for the core relaxation R [see
+                     calculate_Lk_mnib()]; nullptr: no R
 
   @note Does not calculate any new integrals - assumes all already present.
   Just updates them (based on iterative rule: L(Q,Q) -> L(Q,Q+L))
@@ -71,7 +76,7 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &update_i,
                     const LadderDiagrams &diagrams,
                     const Coulomb::LkTable *const lk_prev, double a_damp,
-                    bool print);
+                    bool print, const LinAlg::Matrix<double> *rho_ma = nullptr);
 
 /*!
   @brief Second-order (or ladder) correction to the valence energy.
@@ -224,6 +229,87 @@ double de_core_w(const Qintegrals &qk, const Lintegrals &lk,
                  const std::vector<DiracSpinor> &core,
                  const std::vector<DiracSpinor> &excited,
                  const Angular::SixJTable *sj = nullptr);
+
+//==============================================================================
+
+//! Occupation blocks of the change of the core density at third order
+//! [relaxation_density()]: m-scheme values, zero between orbitals of
+//! different kappa
+struct RelaxationDensity {
+  //! gamma_cb, core orbitals: rows b, columns c
+  LinAlg::Matrix<double> gamma_cb;
+  //! gamma_ms, excited orbitals: rows m, columns s
+  LinAlg::Matrix<double> gamma_ms;
+};
+
+/*!
+  @brief Occupation blocks gamma_cb and gamma_ms of the change of the core
+         density, at third order.
+
+  @details
+  Besides the core single excitations, gamma_am = gamma_ma = rho_ma
+  [core_singles()], the second-order change of the core density matrix has
+  the blocks
+  \f[
+    \gamma_{cb} = -\frac{1}{[j_b]} \sum_k \frac{1}{[k]} \sum_{amn}
+      \frac{Q^k_{abmn}\,W^k_{mnac}}
+           {\Delta\epsilon_{ab,mn}\,\Delta\epsilon_{ac,mn}},
+  \f]
+  \f[
+    \gamma_{ms} = \frac{1}{[j_m]} \sum_k \frac{1}{[k]} \sum_{abn}
+      \frac{Q^k_{abmn}\,W^k_{nsba}}
+           {\Delta\epsilon_{ab,mn}\,\Delta\epsilon_{ab,ns}},
+  \f]
+  a, b, c core and m, n, s excited, kappa_c = kappa_b and kappa_s = kappa_m:
+  the core orbitals are partly emptied, and the excited orbitals partly
+  filled. In the m-scheme, with \f$ \rho_{mnab} = g_{mnab}/
+  \Delta\epsilon_{ab,mn} \f$, they are
+  \f$ \gamma_{cb} = -\sum_{amn} \rho_{mnab}\widetilde\rho_{mnac} \f$ and
+  \f$ \gamma_{ms} = \sum_{abn} \rho_{mnab}\widetilde\rho_{snab} \f$, the
+  same for every projection. Both are symmetric.
+
+  @param qk       Coulomb integral table
+  @param core     Core orbitals
+  @param excited  Excited orbitals
+*/
+RelaxationDensity relaxation_density(const Coulomb::QkTable &qk,
+                                     const std::vector<DiracSpinor> &core,
+                                     const std::vector<DiracSpinor> &excited);
+
+/*!
+  @brief Core relaxation correction to the valence energy, <v|dV^R|v>: the
+         interaction of the valence electron with the change of the core
+         density.
+
+  @details
+  \f[
+    \langle v|\delta V^{\rm R}|v\rangle = \sum_{pq}\widetilde g_{vpvq}
+      \gamma_{qp}
+      = 2\sum_{am} f_{va} W^0_{vavm} \rho_{ma}
+      + \sum_{bc} f_{vb} W^0_{vbvc} \gamma_{cb}
+      + \sum_{ms} f_{vm} W^0_{vmvs} \gamma_{ms},
+  \f]
+  with f the closed_shell_factor() and each pair of one kappa. The first
+  term is the core-excited block, gamma_am = gamma_ma = rho_ma: the core
+  single excitations [core_singles()], and their mirror image. The others
+  are the occupation blocks [relaxation_density()]. With rho_ma at lowest
+  order, this is the full third-order relaxation (all 24 time orderings),
+  and the first term alone is twice the part the SD method contains.
+
+  @param v        Valence orbital
+  @param qk       Coulomb integral table
+  @param rho_ma   Core single excitations, rows excited and columns core
+  @param density  Occupation blocks [relaxation_density()]
+  @param core     Core orbitals: columns of rho_ma
+  @param excited  Excited orbitals: rows of rho_ma
+  @return {rho_ma part, gamma_cb + gamma_ms part}; their sum is <v|dV^R|v>
+*/
+std::array<double, 2>
+de_valence_relaxation(const DiracSpinor &v, const Coulomb::QkTable &qk,
+                      const LinAlg::Matrix<double> &rho_ma,
+                      const RelaxationDensity &density,
+                      const std::vector<DiracSpinor> &core,
+                      const std::vector<DiracSpinor> &excited);
 
 /*!
   @brief Method used to construct the ladder correlation potential, Sigma_L.

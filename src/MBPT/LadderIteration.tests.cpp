@@ -1,6 +1,7 @@
 #include "MBPT/LadderIteration.hpp"
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
+#include "MBPT/Ladder.hpp"
 #include "MBPT/Ladder.testdata.hpp"
 #include "MBPT/LadderReference.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -72,14 +73,15 @@ inline void add_required_entries(Coulomb::LkTable *lk,
 
 //! One sweep of the ladder equation on a copy of the start table, one
 //! integral at a time with the reference MBPT::Lkmnij (and MBPT::Pkmnij if
-//! include_P): the expected result of calculate_Lk_mnib(). Entries from
-//! add_required_entries(); only_new and damping rules as documented for
-//! calculate_Lk_mnib()
+//! include_P, MBPT::Rkmnij if rho_ma is given): the expected result of
+//! calculate_Lk_mnib(). Entries from add_required_entries(); only_new and
+//! damping rules as documented for calculate_Lk_mnib()
 inline Coulomb::LkTable
 reference_sweep(const Coulomb::LkTable &start, const LadderTestData &data,
                 const std::vector<DiracSpinor> &i_orbs, bool include_L4,
                 const Coulomb::LkTable *lk_prev, int max_k, bool only_new,
-                double a_damp, bool include_P = false) {
+                double a_damp, bool include_P = false,
+                const LinAlg::Matrix<double> *rho_ma = nullptr) {
   auto lk_old = start;
   add_required_entries(&lk_old, data, i_orbs, max_k);
   auto lk = lk_old;
@@ -98,7 +100,10 @@ reference_sweep(const Coulomb::LkTable &start, const LadderTestData &data,
                            include_L4, sjt, lk_prev) +
               (include_P ? MBPT::Pkmnij(k, m, n, i, b, data.qk, data.core,
                                         data.excited, sjt, lk_prev) :
-                           0.0);
+                           0.0) +
+              (rho_ma ? MBPT::Rkmnij(k, m, n, i, b, data.qk, *rho_ma, data.core,
+                                     data.excited) :
+                        0.0);
             // L_mnib and L_nmbi (both visited if i is core) are one entry,
             // and both visits write the same value
             lk.update(k, m, n, i, b,
@@ -114,16 +119,17 @@ reference_sweep(const Coulomb::LkTable &start, const LadderTestData &data,
 }
 
 //! One sweep of MBPT::calculate_Lk_mnib() on a copy of the start table
-inline Coulomb::LkTable ladder_sweep(const Coulomb::LkTable &start,
-                                     const LadderTestData &data,
-                                     const std::vector<DiracSpinor> &i_orbs,
-                                     const MBPT::LadderDiagrams &diagrams,
-                                     const Coulomb::LkTable *lk_prev, int max_k,
-                                     bool only_new, double a_damp) {
+inline Coulomb::LkTable
+ladder_sweep(const Coulomb::LkTable &start, const LadderTestData &data,
+             const std::vector<DiracSpinor> &i_orbs,
+             const MBPT::LadderDiagrams &diagrams,
+             const Coulomb::LkTable *lk_prev, int max_k, bool only_new,
+             double a_damp, const LinAlg::Matrix<double> *rho_ma = nullptr) {
   auto lk = start;
   MBPT::add_Lk_mnib_entries(&lk, data.excited, data.core, i_orbs, max_k);
   MBPT::calculate_Lk_mnib(&lk, data.qk, data.excited, data.core, i_orbs,
-                          diagrams, lk_prev, max_k, only_new, a_damp);
+                          diagrams, lk_prev, max_k, only_new, a_damp, nullptr,
+                          rho_ma);
   return lk;
 }
 
@@ -903,6 +909,172 @@ TEST_CASE("Ladder: Vhp update matches reference", "[Ladder][unit]") {
       std::max(worst_eps, largest == 0.0 ? 1.0 : max_difference / largest);
   }
   REQUIRE(worst_eps < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: relaxation matches reference", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+  const auto rho_ma = random_core_singles(data);
+
+  // R alone, i core and valence: every entry, as (m,n,i,b) and, through the
+  // table symmetry, as its partner (n,m,b,i)
+  const MBPT::LadderDiagrams no_diagrams{false, false, false, false};
+  auto R_table = ladder_sweep({}, data, data.i_orbs, no_diagrams, nullptr,
+                              max_k, false, 0.0, &rho_ma);
+  const auto eps_table =
+    diagram_vs_scalar(R_table, data,
+                      [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                          const DiracSpinor &i, const DiracSpinor &b) {
+                        return MBPT::Rkmnij(k, m, n, i, b, data.qk, rho_ma,
+                                            data.core, data.excited);
+                      });
+
+  // Entries stored with the valence hole at j: a hole must be dressed at
+  // either position of the stored entry
+  std::size_t num_valence_hole_at_j = 0;
+  for (std::size_t k = 0; k < R_table->size(); ++k) {
+    for (const auto &entry : R_table->at(k)) {
+      const auto nk_j = R_table.UnFormIndex(entry.first)[3];
+      bool j_is_core = false;
+      for (const auto &c : data.core) {
+        j_is_core = j_is_core || c.nk_index() == nk_j;
+      }
+      if (!j_is_core) {
+        ++num_valence_hole_at_j;
+      }
+    }
+  }
+
+  // relaxation_multipoles() itself, for every (i,j): core and valence holes
+  // at both positions, every k (zero at the k that are not Coulomb-allowed)
+  const auto ij_orbitals =
+    MBPT::ladder_ij_orbitals(data.core, data.excited, data.i_orbs);
+  double max_difference = 0.0, largest = 0.0;
+  for (std::size_t index_m = 0; index_m < data.excited.size(); ++index_m) {
+    for (std::size_t index_n = 0; index_n < data.excited.size(); ++index_n) {
+      for (std::size_t index_i = 0; index_i < ij_orbitals.size(); ++index_i) {
+        for (std::size_t index_j = 0; index_j < ij_orbitals.size(); ++index_j) {
+          const auto &m = data.excited[index_m];
+          const auto &n = data.excited[index_n];
+          const auto &i = ij_orbitals[index_i];
+          const auto &j = ij_orbitals[index_j];
+          const auto R = MBPT::relaxation_multipoles(
+            index_m, index_n, index_i, index_j, data.excited, ij_orbitals,
+            data.qk, rho_ma);
+          const auto [k_min, k_max] = MBPT::k_minmax_L(m, n, i, j);
+          for (int k = k_min; k <= k_max; ++k) {
+            const auto expected = MBPT::Rkmnij(k, m, n, i, j, data.qk, rho_ma,
+                                               data.core, data.excited);
+            const auto found = R.value[std::size_t(k)];
+            max_difference =
+              std::max(max_difference, std::abs(found - expected));
+            largest = std::max(largest, std::abs(expected));
+          }
+        }
+      }
+    }
+  }
+  const auto eps_multipoles = largest == 0.0 ? 1.0 : max_difference / largest;
+
+  REQUIRE(num_valence_hole_at_j > 0);
+  REQUIRE(eps_table < 1.0e-12);
+  REQUIRE(eps_multipoles < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: relaxation update matches reference", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+  const auto x_random = random_ladder_table(data);
+  const auto rho_ma = random_core_singles(data);
+  const double a_damp = 0.3;
+
+  // All diagrams, all pieces of P and R, damped, with a dressed integral that
+  // has both parities of k: the core sweep, then the valence sweep (which
+  // reads the core entries too). R is added before the damping. Also through
+  // update_Lk_mnib(), which must pass rho_ma on
+  const MBPT::LadderDiagrams all{true, true, true, true, true, true, true};
+  double worst_eps = 0.0;
+  double worst_eps_update = 0.0;
+  double smallest_eps_without_R = 1.0;
+  for (const auto *i_orbs : {&data.core, &data.valence}) {
+    auto reference = reference_sweep(x_random, data, *i_orbs, true, &x_random,
+                                     max_k, false, a_damp, true, &rho_ma);
+    auto calculated = ladder_sweep(x_random, data, *i_orbs, all, &x_random,
+                                   max_k, false, a_damp, &rho_ma);
+    auto without_R = ladder_sweep(x_random, data, *i_orbs, all, &x_random,
+                                  max_k, false, a_damp);
+    auto updated = x_random;
+    MBPT::update_Lk_mnib(&updated, data.qk, data.excited, data.core, *i_orbs,
+                         all, &x_random, a_damp, false, &rho_ma);
+    worst_eps =
+      std::max(worst_eps, ladder_table_difference(reference, calculated));
+    worst_eps_update =
+      std::max(worst_eps_update, ladder_table_difference(reference, updated));
+    smallest_eps_without_R = std::min(
+      smallest_eps_without_R, ladder_table_difference(reference, without_R));
+  }
+  REQUIRE(smallest_eps_without_R > 1.0e-3);
+  REQUIRE(worst_eps < 1.0e-12);
+  REQUIRE(worst_eps_update < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: antisymmetrised multipoles", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto orbitals = qip::merge(data.core, data.excited);
+  const auto max_tj = DiracSpinor::max_tj(orbitals);
+  const MBPT::SixJArray sixj(max_tj, std::min(max_tj, MBPT::ladder_max_k));
+
+  // The core and the excited orbitals of n = 3, in every position: W^k_abcd
+  // vs the table's W at every k, including those with an exchange part only
+  auto subset = data.core;
+  for (const auto &m : data.excited) {
+    if (m.n() == 3) {
+      subset.push_back(m);
+    }
+  }
+  double max_difference = 0.0, largest = 0.0;
+  std::size_t num_exchange_only = 0;
+  for (const auto &a : subset) {
+    for (const auto &b : subset) {
+      for (const auto &c : subset) {
+        for (const auto &d : subset) {
+          const auto W = MBPT::W_multipoles(a, b, c, d, data.qk, sixj);
+          const auto [k_min, k_max] = MBPT::k_minmax_L(a, b, c, d);
+          for (int k = k_min; k <= k_max; ++k) {
+            const auto expected = data.qk.W(k, a, b, c, d);
+            const auto found = W.value[std::size_t(k)];
+            max_difference =
+              std::max(max_difference, std::abs(found - expected));
+            largest = std::max(largest, std::abs(expected));
+            if ((a.l() + c.l() + k) % 2 == 1 && expected != 0.0) {
+              ++num_exchange_only;
+            }
+          }
+        }
+      }
+    }
+  }
+  const auto eps = largest == 0.0 ? 1.0 : max_difference / largest;
+  REQUIRE(num_exchange_only > 0);
+  REQUIRE(eps < 1.0e-12);
+}
+
+//==============================================================================
+TEST_CASE("Ladder: core singles change", "[Ladder][unit]") {
+  // Largest change 1, largest element 4
+  const LinAlg::Matrix<double> rho_ma{2, 2, {1.0, 2.0, 0.0, -4.0}};
+  const LinAlg::Matrix<double> rho_prev{2, 2, {1.0, 1.0, 0.0, -4.5}};
+  const LinAlg::Matrix<double> zero(2, 2);
+  const auto change = MBPT::core_singles_change(rho_ma, rho_prev);
+  const auto change_from_zero = MBPT::core_singles_change(zero, rho_ma);
+  REQUIRE(std::abs(change - 0.25) < 1.0e-15);
+  REQUIRE(change_from_zero == 0.0);
 }
 
 //==============================================================================

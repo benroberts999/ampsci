@@ -227,7 +227,7 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &update_i,
                     const LadderDiagrams &diagrams,
                     const Coulomb::LkTable *const lk_prev, double a_damp,
-                    bool print) {
+                    bool print, const LinAlg::Matrix<double> *rho_ma) {
 
   // Restrict the re-iteration to entries whose i-slot is in 'update_i' (b is
   // always core; by the L^k_{mnib}=L^k_{nmbi} symmetry the i index sits in
@@ -240,7 +240,136 @@ void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
     fmt::print("Updating (subset of) {} integrals\n", lk->count());
   }
   calculate_Lk_mnib(lk, qk, excited, core, update_i, diagrams, lk_prev,
-                    lk->max_k(), false, a_damp);
+                    lk->max_k(), false, a_damp, nullptr, rho_ma);
+}
+
+//==============================================================================
+
+RelaxationDensity relaxation_density(const Coulomb::QkTable &qk,
+                                     const std::vector<DiracSpinor> &core,
+                                     const std::vector<DiracSpinor> &excited) {
+  RelaxationDensity density{
+    LinAlg::Matrix<double>(core.size(), core.size()),
+    LinAlg::Matrix<double>(excited.size(), excited.size())};
+  if (core.empty() || excited.empty())
+    return density;
+  const auto max_tj =
+    std::max(DiracSpinor::max_tj(excited), DiracSpinor::max_tj(core));
+  const SixJArray sixj(max_tj, std::min(max_tj, ladder_max_k));
+
+  // Core: gamma_cb, the core orbitals partly emptied
+#pragma omp parallel for collapse(2) schedule(dynamic)
+  for (std::size_t index_b = 0; index_b < core.size(); ++index_b) {
+    for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
+      const auto &b = core[index_b];
+      const auto &c = core[index_c];
+      if (c.kappa() != b.kappa())
+        continue;
+      double sum = 0.0;
+      for (const auto &a : core) {
+        for (const auto &m : excited) {
+          for (const auto &n : excited) {
+            const auto Q_abmn = coulomb_multipoles(a, b, m, n, qk);
+            if (Q_abmn.k_max < Q_abmn.k_min)
+              continue;
+            const auto W_mnac = W_multipoles(m, n, a, c, qk, sixj);
+            const auto de = (a.en() + b.en() - m.en() - n.en()) *
+                            (a.en() + c.en() - m.en() - n.en());
+            for (int k = Q_abmn.k_min; k <= Q_abmn.k_max; k += 2) {
+              sum -= Q_abmn.value[std::size_t(k)] *
+                     W_mnac.value[std::size_t(k)] / ((2 * k + 1) * de);
+            }
+          }
+        }
+      }
+      density.gamma_cb(index_b, index_c) = sum / b.twojp1();
+    }
+  }
+
+  // Excited: gamma_ms, the excited orbitals partly filled
+#pragma omp parallel for collapse(2) schedule(dynamic)
+  for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+    for (std::size_t index_s = 0; index_s < excited.size(); ++index_s) {
+      const auto &m = excited[index_m];
+      const auto &s = excited[index_s];
+      if (s.kappa() != m.kappa())
+        continue;
+      double sum = 0.0;
+      for (const auto &a : core) {
+        for (const auto &b : core) {
+          for (const auto &n : excited) {
+            const auto Q_abmn = coulomb_multipoles(a, b, m, n, qk);
+            if (Q_abmn.k_max < Q_abmn.k_min)
+              continue;
+            const auto W_nsba = W_multipoles(n, s, b, a, qk, sixj);
+            const auto de = (a.en() + b.en() - m.en() - n.en()) *
+                            (a.en() + b.en() - n.en() - s.en());
+            for (int k = Q_abmn.k_min; k <= Q_abmn.k_max; k += 2) {
+              sum += Q_abmn.value[std::size_t(k)] *
+                     W_nsba.value[std::size_t(k)] / ((2 * k + 1) * de);
+            }
+          }
+        }
+      }
+      density.gamma_ms(index_m, index_s) = sum / m.twojp1();
+    }
+  }
+  return density;
+}
+
+//==============================================================================
+
+std::array<double, 2>
+de_valence_relaxation(const DiracSpinor &v, const Coulomb::QkTable &qk,
+                      const LinAlg::Matrix<double> &rho_ma,
+                      const RelaxationDensity &density,
+                      const std::vector<DiracSpinor> &core,
+                      const std::vector<DiracSpinor> &excited) {
+  assert(rho_ma.rows() == excited.size() && rho_ma.cols() == core.size());
+  assert(density.gamma_cb.rows() == core.size() &&
+         density.gamma_ms.rows() == excited.size());
+  const auto max_tj = std::max(
+    {DiracSpinor::max_tj(excited), DiracSpinor::max_tj(core), v.twoj()});
+  const SixJArray sixj(max_tj, std::min(max_tj, ladder_max_k));
+
+  // Each term: f_vp W^0_vpvq gamma, over p, q of one kappa
+  double rho_part = 0.0;
+  for (std::size_t index_a = 0; index_a < core.size(); ++index_a) {
+    const auto &a = core[index_a];
+    const auto f_va = closed_shell_factor(v, a);
+    for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+      const auto &m = excited[index_m];
+      if (m.kappa() != a.kappa())
+        continue;
+      rho_part += 2.0 * f_va * W_multipoles(v, a, v, m, qk, sixj).value[0] *
+                  rho_ma(index_m, index_a);
+    }
+  }
+
+  double occupation_part = 0.0;
+  for (std::size_t index_b = 0; index_b < core.size(); ++index_b) {
+    const auto &b = core[index_b];
+    const auto f_vb = closed_shell_factor(v, b);
+    for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
+      const auto &c = core[index_c];
+      if (c.kappa() != b.kappa())
+        continue;
+      occupation_part += f_vb * W_multipoles(v, b, v, c, qk, sixj).value[0] *
+                         density.gamma_cb(index_b, index_c);
+    }
+  }
+  for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+    const auto &m = excited[index_m];
+    const auto f_vm = closed_shell_factor(v, m);
+    for (std::size_t index_s = 0; index_s < excited.size(); ++index_s) {
+      const auto &s = excited[index_s];
+      if (s.kappa() != m.kappa())
+        continue;
+      occupation_part += f_vm * W_multipoles(v, m, v, s, qk, sixj).value[0] *
+                         density.gamma_ms(index_m, index_s);
+    }
+  }
+  return {rho_part, occupation_part};
 }
 
 //==============================================================================

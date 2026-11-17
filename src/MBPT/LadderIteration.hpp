@@ -271,6 +271,21 @@ Multipoles QL_multipoles(const DiracSpinor &a, const DiracSpinor &b,
                          const DiracSpinor &c, const DiracSpinor &d,
                          const Coulomb::QkTable &qk, const LadderTable *lk);
 
+/*!
+  @brief W^k_abcd = Q^k_abcd + P^k_abcd for all k of k_minmax_L() (k_step =
+         1): the antisymmetrised Coulomb integral [Coulomb::QkTable::W].
+
+  @details
+  The exchange part from the multipoles of Q_abdc:
+  \f[
+    P^k_{abcd} = [k] \sum_l \sixj{j_a}{j_c}{k}{j_b}{j_d}{l} Q^l_{abdc}.
+  \f]
+  @p sixj must hold every 6j symbol of the four orbitals.
+*/
+Multipoles W_multipoles(const DiracSpinor &a, const DiracSpinor &b,
+                        const DiracSpinor &c, const DiracSpinor &d,
+                        const Coulomb::QkTable &qk, const SixJArray &sixj);
+
 //! Pair-coupled form L^J_{ab,cd} of one integral from its multipoles L^k_abcd
 //! (Q, L or QL)
 double pair_coupled(int J, const DiracSpinor &a, const DiracSpinor &b,
@@ -655,13 +670,54 @@ read_Pk(const std::vector<LinAlg::Matrix<double>> &Pk_mi_nj,
 double damped(double L_old, double L_new, double a_damp);
 
 /*!
-  @brief Writes L^k_mnij = (L1+L4) + L2 + L3 + P for one m and the n of one
-         kappa group into the table.
+  @brief Core relaxation R^k_mnij, for all Coulomb-allowed k (k_step = 2):
+         the source term of the core single excitations rho_ma in the doubles
+         equation.
+
+  @details
+  \f[
+    R^k_{mnij} = [i\in{\rm core}] \sum_{r} \rho_{ri}\,Q^k_{mnrj}
+               + [j\in{\rm core}] \sum_{r} \rho_{rj}\,Q^k_{mnir}
+               - \sum_{c} \rho_{mc}\,Q^k_{cnij}
+               - \sum_{c} \rho_{nc}\,Q^k_{mcij},
+  \f]
+  r excited and c core, each with the kappa of the orbital it replaces. It is
+  the first-order change of Q^k_mnij when each core hole relaxes,
+  \f$ a \to a + \sum_r \rho_{ra}\,r \f$, and each particle is kept
+  orthogonal to the core, \f$ m \to m - \sum_c \rho_{mc}\,c \f$. A valence
+  hole is not changed: its single excitations are the Brueckner orbital, not
+  part of the doubles equation. The single excitations are diagonal in kappa
+  and the same for every projection, so there is no angular factor, and
+  R^k_mnij = R^k_nmji.
+
+  @param index_m,index_n  m = excited[index_m], n = excited[index_n]
+  @param index_i,index_j  i = ij_orbitals[index_i], j = ij_orbitals[index_j]
+  @param excited          Excited orbitals: the rows of rho_ma
+  @param ij_orbitals      Orbitals of the (i,j) indices, starting with the
+                          core: the first rho_ma.cols() of them are the core
+                          orbitals, the columns of rho_ma
+                          [ladder_ij_orbitals()]
+  @param qk               Coulomb integral table
+  @param rho_ma           Core single excitations rho_ma, rows excited and
+                          columns core (m-scheme value; zero unless kappa_m =
+                          kappa_a) [core_singles()]
+*/
+Multipoles relaxation_multipoles(std::size_t index_m, std::size_t index_n,
+                                 std::size_t index_i, std::size_t index_j,
+                                 const std::vector<DiracSpinor> &excited,
+                                 const std::vector<DiracSpinor> &ij_orbitals,
+                                 const Coulomb::QkTable &qk,
+                                 const LinAlg::Matrix<double> &rho_ma);
+
+/*!
+  @brief Writes L^k_mnij = (L1+L4) + L2 + L3 + P [+ R] for one m and the n of
+         one kappa group into the table.
 
   @details
   Only entries already in the table are written. For m = n only the
   normal-ordered (i,j): the two orders are the same integral. A diagram whose
-  matrices are empty is not included.
+  matrices are empty is not included. The core relaxation R
+  [relaxation_multipoles()] is included if @p rho_ma is given.
 
   @param lk             Ladder table to write to
   @param index_m        m = excited[index_m]
@@ -680,6 +736,9 @@ double damped(double L_old, double L_new, double a_damp);
                         ph_pairs: indexed by OrbitalPairIndex::block(k,
                         parity); P^k_mnij = P^k_{mi,nj} + P^k_{nj,mi}
                         [read_Pk()]
+  @param qk             Coulomb integral table (for R)
+  @param rho_ma         Core single excitations for R [see
+                        relaxation_multipoles()]; nullptr: no R
   @param sixj           6j symbols
   @param max_k          Largest multipolarity k written
   @param only_new       If true, only entries that are exactly zero are written
@@ -695,8 +754,9 @@ void store_Lk_mnij(Coulomb::LkTable *lk, std::size_t index_m,
                    const std::vector<LinAlg::Matrix<double>> &L1_L4_J_mn_ij,
                    const std::vector<LinAlg::Matrix<double>> &L2K_mj_ni,
                    const std::vector<LinAlg::Matrix<double>> &Pk_mi_nj,
-                   const SixJArray &sixj, int max_k, bool only_new,
-                   double a_damp);
+                   const Coulomb::QkTable &qk,
+                   const LinAlg::Matrix<double> *rho_ma, const SixJArray &sixj,
+                   int max_k, bool only_new, double a_damp);
 
 //==============================================================================
 //! Adds zero entries for all L^k_mnib (m,n excited; i in i_orbs; b core;
@@ -802,6 +862,14 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
   rank is unchanged. Its partner H^k_{nj,mi} acts on m, and is zero unless i
   is a core orbital (Y has no columns with a valence hole).
 
+  The core relaxation R [relaxation_multipoles(); with @p rho_ma, off by
+  default] is a source term: the core single excitations act on the bare
+  Coulomb integral, R^k_mnij = R[rho_ma], with no dressed integral. It is
+  added to the new entry with the diagrams, before the damping; from the next
+  sweep on it is part of the dressed integral QL, as every entry is. A hole
+  is dressed only if it is a core orbital, at either position of the stored
+  entry: in the valence entries the valence hole is stored at i or at j.
+
   Factors shared by all (m,n) are indexed by OrbitalPairIndex::block(J or K,
   parity); factors for one m and one kappa group of n by J alone (their parity
   is fixed).
@@ -827,6 +895,9 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
                    damping for entries whose current value is exactly zero
   @param external  Optional: the i orbitals are the external line of
                    Sigma_L(e_v) [ExternalLine::L_mnxb; see calculate_Lk_mnxb()]
+  @param rho_ma    Optional: core single excitations rho_ma, rows excited
+                   and columns core [core_singles()]; includes the core
+                   relaxation R. Not with @p external
 
   @note Integrals that vanish because no term is allowed may come out as
         rounding noise (relative to the terms that cancel) instead of exactly
@@ -839,7 +910,8 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                        const LadderDiagrams &diagrams,
                        const Coulomb::LkTable *lk_prev, int max_k,
                        bool only_new, double a_damp,
-                       const ExternalLine *external = nullptr);
+                       const ExternalLine *external = nullptr,
+                       const LinAlg::Matrix<double> *rho_ma = nullptr);
 
 //==============================================================================
 //! Adds zero entries for all L'^k_vnab (v in valence, n excited, a,b core,
@@ -904,5 +976,97 @@ void calculate_Lk_vnab_F(Coulomb::NkTable *L_vnab, const Coulomb::QkTable &qk,
                          const LadderDiagrams &diagrams,
                          const Coulomb::LkTable *lk_F,
                          const Coulomb::NkTable *L_vnab_prev, double a_damp);
+
+//==============================================================================
+/*!
+  @brief Factor of a sum over the projections of a closed shell:
+         f_xp = (-1)^(j_x + j_p + 1) sqrt([j_p]/[j_x]).
+
+  @details
+  For kappa_x = kappa_y and kappa_p = kappa_q, and one projection of x (the
+  same for y):
+  \f[
+    \sum_{\mu_p} \widetilde g_{x p y q} = f_{xp}\,W^0_{xpyq},
+  \f]
+  with the projection of q that of p, and \f$ \widetilde g_{xpyq} = g_{xpyq}
+  - g_{xpqy} \f$. Independent of the projection of x.
+*/
+double closed_shell_factor(const DiracSpinor &x, const DiracSpinor &p);
+
+/*!
+  @brief Source of the core single excitations rho_ma: the terms of the
+         singles equation for the core that contain the doubles.
+
+  @details
+  The singles equation of the SD method for the core, m excited (valence
+  states included) and a core, is
+  \f[
+    (\epsilon_a - \epsilon_m)\rho_{ma} = \sum_{bn} \widetilde g_{mban}
+      \rho_{nb} + \sum_{bnr} g_{mbnr}\,\widetilde\rho_{nrab}
+      - \sum_{bcn} g_{bcan}\,\widetilde\rho_{mnbc},
+  \f]
+  with \f$ \rho_{mnab} = X_{mnab}/\Delta\epsilon_{ab,mn} \f$, X = g + x the
+  dressed integral, and \f$ \widetilde\rho_{mnab} = \rho_{mnab} -
+  \rho_{mnba} \f$. This returns the last two terms; the first is added by
+  core_singles(). In the multipole form, with X^k = Q^k + L^k (L from @p lk,
+  both parities of k) and W = Q + P [W_multipoles()]:
+  \f[
+    pp_{ma} = \frac{1}{[j_a]} \sum_k \frac{1}{[k]} \sum_{bnr}
+      \frac{W^k_{mbnr}\,X^k_{nrab}}{\Delta\epsilon_{ab,nr}},
+  \f]
+  \f[
+    hh_{ma} = -\frac{1}{[j_a]} \sum_k \frac{1}{[k]} \sum_{bcn}
+      \frac{W^k_{bcan}\,X^k_{mnbc}}{\Delta\epsilon_{bc,mn}},
+  \f]
+  b, c core and n, r excited. Single excitations are diagonal in kappa and
+  the same for every projection: zero unless kappa_m = kappa_a. With X = g
+  (lk = nullptr) the source is the second-order correlation potential
+  Sigma_ma, and rho_ma = Sigma_ma/(e_a - e_m) is the lowest order.
+
+  @param qk       Coulomb integral table
+  @param excited  Excited orbitals: rows
+  @param core     Core orbitals: columns
+  @param lk       Ladder table x, core entries L^k_mnab (nullptr: X = g)
+  @return pp + hh, rows excited and columns core
+*/
+LinAlg::Matrix<double> core_singles_source(
+  const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &excited,
+  const std::vector<DiracSpinor> &core, const Coulomb::LkTable *lk);
+
+/*!
+  @brief Core single excitations rho_ma from the source and the previous
+         rho_ma: one step of the singles equation for the core.
+
+  @details
+  \f[
+    \rho_{ma} = \frac{1}{\epsilon_a - \epsilon_m}\Big( s_{ma}
+      + \sum_{bn} f_{ab}\,W^0_{mban}\,\rho^{\rm prev}_{nb} \Big),
+    \qquad
+    f_{ab} = (-1)^{j_a+j_b+1}\sqrt{[j_b]/[j_a]},
+  \f]
+  s the source [core_singles_source()], b core and n excited with kappa_n =
+  kappa_b: the m-scheme term \f$ \sum_{bn} \widetilde g_{mban}\rho_{nb} \f$,
+  summed over the projections of b. Cheap: the singles equation for a fixed
+  x is solved by repeating this with one source.
+
+  @param source    Source s_ma, rows excited and columns core
+  @param qk        Coulomb integral table
+  @param excited   Excited orbitals: rows
+  @param core      Core orbitals: columns
+  @param rho_prev  Previous rho_ma (nullptr: no first term)
+  @return rho_ma, rows excited and columns core (m-scheme value; zero unless
+          kappa_m = kappa_a)
+*/
+LinAlg::Matrix<double> core_singles(const LinAlg::Matrix<double> &source,
+                                    const Coulomb::QkTable &qk,
+                                    const std::vector<DiracSpinor> &excited,
+                                    const std::vector<DiracSpinor> &core,
+                                    const LinAlg::Matrix<double> *rho_prev);
+
+//! Change of the core single excitations, relative to their size:
+//! max|rho_ma - rho_prev| / max|rho_ma| (zero if rho_ma is zero). Both of one
+//! size
+double core_singles_change(const LinAlg::Matrix<double> &rho_ma,
+                           const LinAlg::Matrix<double> &rho_prev);
 
 } // namespace MBPT

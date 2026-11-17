@@ -306,6 +306,37 @@ double Vhp(int k, const DiracSpinor &m, const DiracSpinor &n,
            const Coulomb::LkTable *const Lk = nullptr);
 
 /*!
+  @brief Core relaxation R^k_mnij, the source term of the core single
+         excitations rho_ma in the doubles equation.
+
+  @details
+  \f[
+    R^k_{mnij} = [i\in{\rm core}] \sum_{r} \rho_{ri}\,Q^k_{mnrj}
+               + [j\in{\rm core}] \sum_{r} \rho_{rj}\,Q^k_{mnir}
+               - \sum_{c} \rho_{mc}\,Q^k_{cnij}
+               - \sum_{c} \rho_{nc}\,Q^k_{mcij},
+  \f]
+  r over excited and c over core, each with the kappa of the orbital it
+  replaces. A hole is dressed only if it is in @p core. Evaluated one integral
+  at a time, by explicit sums, to test the table [calculate_Lk_mnib() with
+  rho_ma; relaxation_multipoles()].
+
+  @param k       Multipole rank
+  @param m,n     Excited (particle) orbitals: members of excited
+  @param i,j     Core (hole) or valence orbitals
+  @param qk      Coulomb \f$ Q^k \f$ integral table
+  @param rho_ma  Core single excitations, rows excited and columns core
+  @param core    Core orbitals
+  @param excited Excited orbitals
+  @return \f$ R^k_{mnij} \f$
+*/
+double Rkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
+              const DiracSpinor &i, const DiracSpinor &j,
+              const Coulomb::QkTable &qk, const LinAlg::Matrix<double> &rho_ma,
+              const std::vector<DiracSpinor> &core,
+              const std::vector<DiracSpinor> &excited);
+
+/*!
   @brief Closing amplitude of x_F, L'^k_vnab: x_F_vnab without the
          hole-particle term on the pair (v,a) [see calculate_Lk_vnab_F()].
 

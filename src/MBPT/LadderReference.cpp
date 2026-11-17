@@ -429,6 +429,48 @@ double Vhp(int k, const DiracSpinor &m, const DiracSpinor &n,
 
 //------------------------------------------------------------------------------
 
+double Rkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
+              const DiracSpinor &i, const DiracSpinor &j,
+              const Coulomb::QkTable &qk, const LinAlg::Matrix<double> &rho_ma,
+              const std::vector<DiracSpinor> &core,
+              const std::vector<DiracSpinor> &excited) {
+  const auto position = [](const std::vector<DiracSpinor> &orbitals,
+                           const DiracSpinor &a) {
+    return std::size_t(std::find(orbitals.cbegin(), orbitals.cend(), a) -
+                       orbitals.cbegin());
+  };
+  const auto index_m = position(excited, m);
+  const auto index_n = position(excited, n);
+  const auto index_i = position(core, i);
+  const auto index_j = position(core, j);
+  assert(index_m < excited.size() && index_n < excited.size());
+
+  double R = 0.0;
+  for (std::size_t index_r = 0; index_r < excited.size(); ++index_r) {
+    const auto &r = excited[index_r];
+    // A core hole relaxes; a valence hole is unchanged
+    if (index_i < core.size() && r.kappa() == i.kappa()) {
+      R += rho_ma(index_r, index_i) * qk.Q(k, m, n, r, j);
+    }
+    if (index_j < core.size() && r.kappa() == j.kappa()) {
+      R += rho_ma(index_r, index_j) * qk.Q(k, m, n, i, r);
+    }
+  }
+  for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
+    const auto &c = core[index_c];
+    // Each particle is kept orthogonal to the core
+    if (c.kappa() == m.kappa()) {
+      R -= rho_ma(index_m, index_c) * qk.Q(k, c, n, i, j);
+    }
+    if (c.kappa() == n.kappa()) {
+      R -= rho_ma(index_n, index_c) * qk.Q(k, m, c, i, j);
+    }
+  }
+  return R;
+}
+
+//------------------------------------------------------------------------------
+
 double Lk_vnab_F(int k, const DiracSpinor &v, const DiracSpinor &n,
                  const DiracSpinor &a, const DiracSpinor &b,
                  const Coulomb::QkTable &qk,
