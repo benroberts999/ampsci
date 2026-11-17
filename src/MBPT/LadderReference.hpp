@@ -223,13 +223,16 @@ double Pkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param core    Core orbitals
   @param excited Excited orbitals
   @param Lk      Ladder table for the dressed integral (nullptr: X = g)
+  @param e_i     Optional: used in place of i.en() in energy denominator
+  @param e_m     Optional: used in place of m.en() in energy denominator
   @return \f$ P1^k_{mnij} \f$
 */
 double P1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited,
-          const Coulomb::LkTable *const Lk = nullptr);
+          const Coulomb::LkTable *const Lk = nullptr,
+          std::optional<double> e_i = {}, std::optional<double> e_m = {});
 
 /*!
   @brief Piece (2) of P [see Pkmnij()], one side.
@@ -249,7 +252,8 @@ double P2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk = nullptr);
+          const Coulomb::LkTable *const Lk = nullptr,
+          std::optional<double> e_i = {}, std::optional<double> e_m = {});
 
 /*!
   @brief Piece (3) of P [see Pkmnij()], one side.
@@ -269,7 +273,8 @@ double P3(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk = nullptr);
+          const Coulomb::LkTable *const Lk = nullptr,
+          std::optional<double> e_i = {}, std::optional<double> e_m = {});
 
 /*!
   @brief Hole-particle interaction of V^(a), one side: -y^0_jj acting on the
@@ -297,13 +302,15 @@ double P3(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param core    Core orbitals
   @param excited Excited orbitals
   @param Lk      Ladder table for the dressed integral (nullptr: X = g)
+  @param e_i     Optional: used in place of i.en() in energy denominator
   @return \f$ H^k_{mnij} \f$
 */
 double Vhp(int k, const DiracSpinor &m, const DiracSpinor &n,
            const DiracSpinor &i, const DiracSpinor &j,
            const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
            const std::vector<DiracSpinor> &excited,
-           const Coulomb::LkTable *const Lk = nullptr);
+           const Coulomb::LkTable *const Lk = nullptr,
+           std::optional<double> e_i = {});
 
 /*!
   @brief Core relaxation R^k_mnij, the source term of the core single
@@ -328,13 +335,15 @@ double Vhp(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param rho_ma  Core single excitations, rows excited and columns core
   @param core    Core orbitals
   @param excited Excited orbitals
+  @param m_is_line  m is the external line: without the term with rho_mc
+                    [see relaxation_multipoles()]
   @return \f$ R^k_{mnij} \f$
 */
 double Rkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
               const DiracSpinor &i, const DiracSpinor &j,
               const Coulomb::QkTable &qk, const LinAlg::Matrix<double> &rho_ma,
               const std::vector<DiracSpinor> &core,
-              const std::vector<DiracSpinor> &excited);
+              const std::vector<DiracSpinor> &excited, bool m_is_line = false);
 
 /*!
   @brief Closing amplitude of x_F, L'^k_vnab: x_F_vnab without the
@@ -365,6 +374,7 @@ double Rkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param diagrams  P1 and hole_particle
   @param lk_F      x_F table (nullptr: X^F = g)
   @param L_vnab    Closing table (nullptr: X' = g)
+  @param e_v       Optional: used in place of v.en() in energy denominators
   @return \f$ L'^k_{vnab} \f$
 */
 double Lk_vnab_F(int k, const DiracSpinor &v, const DiracSpinor &n,
@@ -374,6 +384,7 @@ double Lk_vnab_F(int k, const DiracSpinor &v, const DiracSpinor &n,
                  const std::vector<DiracSpinor> &excited,
                  const LadderDiagrams &diagrams,
                  const Coulomb::LkTable *const lk_F = nullptr,
-                 const Coulomb::NkTable *const L_vnab = nullptr);
+                 const Coulomb::NkTable *const L_vnab = nullptr,
+                 std::optional<double> e_v = {});
 
 } // namespace MBPT

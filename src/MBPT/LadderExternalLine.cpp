@@ -23,7 +23,8 @@ using Matrix = LinAlg::Matrix<double>;
 ExternalLineLadder external_line_start(const DiracSpinor &v,
                                        const std::vector<DiracSpinor> &core,
                                        const std::vector<DiracSpinor> &excited,
-                                       const Coulomb::LkTable &lk) {
+                                       const Coulomb::LkTable &lk,
+                                       const Coulomb::NkTable *L_vnab) {
   assert(std::find(excited.cbegin(), excited.cend(), v) != excited.cend());
   ExternalLineLadder ladder{v.en(),
                             qip::select_if(excited, [&v](const DiracSpinor &x) {
@@ -53,8 +54,9 @@ ExternalLineLadder external_line_start(const DiracSpinor &v,
         for (const auto &b : core) {
           const auto [k_min, k_max] = k_minmax_L(x, n, a, b);
           for (int k = k_min; k <= std::min(k_max, max_k); ++k) {
-            ladder.L_xnab.add(k, x, n, a, b,
-                              x == v ? lk.Q(k, v, n, a, b) : 0.0);
+            const auto L_v =
+              L_vnab ? L_vnab->Q(k, v, n, a, b) : lk.Q(k, v, n, a, b);
+            ladder.L_xnab.add(k, x, n, a, b, x == v ? L_v : 0.0);
           }
         }
       }
@@ -70,10 +72,11 @@ void calculate_Lk_mnxb(Coulomb::LkTable *L_mnxb, const Coulomb::QkTable &qk,
                        const std::vector<DiracSpinor> &x_orbitals, double en_v,
                        const LadderDiagrams &diagrams,
                        const Coulomb::LkTable &lk,
-                       const Coulomb::LkTable &L_mnxb_prev, double a_damp) {
+                       const Coulomb::LkTable &L_mnxb_prev, double a_damp,
+                       const Matrix *rho_ma) {
   const ExternalLine line{x_orbitals, en_v, &L_mnxb_prev, nullptr};
   calculate_Lk_mnib(L_mnxb, qk, excited, core, x_orbitals, diagrams, &lk,
-                    L_mnxb->max_k(), false, a_damp, &line);
+                    L_mnxb->max_k(), false, a_damp, &line, rho_ma);
 }
 
 //==============================================================================
@@ -83,10 +86,13 @@ void calculate_Lk_xnab(Coulomb::NkTable *L_xnab, const Coulomb::QkTable &qk,
                        const std::vector<DiracSpinor> &x_orbitals, double en_v,
                        const LadderDiagrams &diagrams,
                        const Coulomb::LkTable &lk,
-                       const Coulomb::NkTable &L_xnab_prev, double a_damp) {
-  // P and hole_particle with the external line are not derived
-  assert(
-    !(diagrams.P1 || diagrams.P2 || diagrams.P3 || diagrams.hole_particle));
+                       const Coulomb::NkTable &L_xnab_prev, double a_damp,
+                       const Matrix *rho_ma) {
+  // The hole-particle term never acts on the pair of the line: the closing
+  // amplitude of x_F has its own sweep [calculate_Lk_vnab_F()]
+  assert(!diagrams.hole_particle);
+  assert(rho_ma == nullptr ||
+         (rho_ma->rows() == excited.size() && rho_ma->cols() == core.size()));
   if (excited.empty() || core.empty() || x_orbitals.empty())
     return;
   const ExternalLine line{x_orbitals, en_v, nullptr, &L_xnab_prev};
@@ -121,6 +127,15 @@ void calculate_Lk_xnab(Coulomb::NkTable *L_xnab, const Coulomb::QkTable &qk,
     diagrams.L3 ? L2_particle_hole(excited, core, core, ph_pairs, excited, core,
                                    ph_pairs, qk, &lk, sixj) :
                   std::vector<Matrix>(ph_pairs.num_blocks());
+  // P^k_{xa,nb}: rows (x,a) hold the line. P^k_{nb,xa} (the partner): no line
+  const bool any_P = diagrams.P1 || diagrams.P2 || diagrams.P3;
+  const auto Pk_ma_nb_line = any_P ?
+                               P_multipole(excited, core, core, ph_pairs, qk,
+                                           &lk, sixj, diagrams, &line) :
+                               std::vector<Matrix>(ph_pairs.num_blocks());
+  const auto Pk_ma_nb = any_P ? P_multipole(excited, core, core, ph_pairs, qk,
+                                            &lk, sixj, diagrams) :
+                                std::vector<Matrix>(ph_pairs.num_blocks());
 
   // Positions of the x in excited; all n of each kappa group (no symmetry)
   std::vector<std::size_t> x_positions;
@@ -151,8 +166,8 @@ void calculate_Lk_xnab(Coulomb::NkTable *L_xnab, const Coulomb::QkTable &qk,
                                 QJ_cd_ab, qk, &lk, sixj, &line));
       }
       store_Lk_xnab(L_xnab, x_positions[ix], n_group, excited, core, ab_pairs,
-                    ph_pairs, L1_L4_J_xn_ab, L2K_mb_na_line, L2K_mb_na, sixj,
-                    a_damp);
+                    ph_pairs, L1_L4_J_xn_ab, L2K_mb_na_line, L2K_mb_na,
+                    Pk_ma_nb_line, Pk_ma_nb, qk, rho_ma, sixj, a_damp);
     }
   }
 }
@@ -166,8 +181,11 @@ void store_Lk_xnab(Coulomb::NkTable *L_xnab, std::size_t index_x,
                    const OrbitalPairIndex &ph_pairs,
                    const std::vector<Matrix> &L1_L4_J_xn_ab,
                    const std::vector<Matrix> &L2K_mb_na_line,
-                   const std::vector<Matrix> &L2K_mb_na, const SixJArray &sixj,
-                   double a_damp) {
+                   const std::vector<Matrix> &L2K_mb_na,
+                   const std::vector<Matrix> &Pk_ma_nb_line,
+                   const std::vector<Matrix> &Pk_ma_nb,
+                   const Coulomb::QkTable &qk, const Matrix *rho_ma,
+                   const SixJArray &sixj, double a_damp) {
   const auto &x = excited[index_x];
   for (std::size_t row = 0; row < n_group.size(); ++row) {
     const auto index_n = n_group[row];
@@ -194,7 +212,14 @@ void store_Lk_xnab(Coulomb::NkTable *L_xnab, std::size_t index_x,
         const auto L2K_for_L3 =
           read_L2K_element(L2K_mb_na, ph_pairs, ph_pairs, parity_xb, index_n,
                            index_a, index_x, index_b, K_min, K_max);
+        // R^k_xnab without the single excitations of x: zero at the k that
+        // are not Coulomb-allowed
+        const auto Rk =
+          rho_ma ? relaxation_multipoles(index_x, index_n, index_a, index_b,
+                                         excited, core, qk, *rho_ma, true) :
+                   Multipoles{};
 
+        const auto parity_xa = pair_parity(x, a);
         const auto key = L_xnab->NormalOrder(x, n, a, b);
         for (int k = k_min; k <= k_max; ++k) {
           double *const L_stored = L_xnab->get(k, key);
@@ -207,7 +232,19 @@ void store_Lk_xnab(Coulomb::NkTable *L_xnab, std::size_t index_x,
           // L3^k_xnab = L2^k_nxba
           const auto L3 = multipole_from_particle_hole_coupled(
             k, n, x, b, a, L2K_for_L3, K_min, K_max, sixj);
-          *L_stored = damped(*L_stored, L1_L4 + L2 + L3, a_damp);
+          auto L_new = L1_L4 + L2 + L3;
+          // P^k_xnab = P^k_{xa,nb} (the line) + P^k_{nb,xa} (no line): both
+          // pairs are in the block of rank k and parity(x,a) = parity(n,b)
+          const auto block = OrbitalPairIndex::block(k, parity_xa);
+          if (Pk_ma_nb_line[block].rows() != 0) {
+            const auto xa = std::size_t(ph_pairs.index(k, index_x, index_a));
+            const auto nb = std::size_t(ph_pairs.index(k, index_n, index_b));
+            L_new += Pk_ma_nb_line[block](xa, nb) + Pk_ma_nb[block](nb, xa);
+          }
+          if (rho_ma) {
+            L_new += Rk.value[std::size_t(k)];
+          }
+          *L_stored = damped(*L_stored, L_new, a_damp);
         }
       }
     }
@@ -242,16 +279,19 @@ external_line_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
                      const std::vector<DiracSpinor> &excited,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable &lk,
                      const LadderDiagrams &diagrams, int max_it,
-                     double eps_target, double a_damp, bool print) {
-  auto ladder = external_line_start(v, core, excited, lk);
+                     double eps_target, double a_damp, bool print,
+                     const Matrix *rho_ma, const Coulomb::NkTable *L_vnab) {
+  auto ladder = external_line_start(v, core, excited, lk, L_vnab);
   // Not converged until at least one sweep is done
   double eps = 1.0;
   for (int it = 1; it <= max_it; ++it) {
     const auto ladder_prev = ladder;
     calculate_Lk_mnxb(&ladder.L_mnxb, qk, excited, core, ladder.x_orbitals,
-                      ladder.en_v, diagrams, lk, ladder_prev.L_mnxb, a_damp);
+                      ladder.en_v, diagrams, lk, ladder_prev.L_mnxb, a_damp,
+                      rho_ma);
     calculate_Lk_xnab(&ladder.L_xnab, qk, excited, core, ladder.x_orbitals,
-                      ladder.en_v, diagrams, lk, ladder_prev.L_xnab, a_damp);
+                      ladder.en_v, diagrams, lk, ladder_prev.L_xnab, a_damp,
+                      rho_ma);
     eps = external_line_change(ladder, ladder_prev);
     if (print) {
       fmt::print("{:4s} external line it:{:2}  eps = {:.1e}\n", v.shortSymbol(),
@@ -263,6 +303,41 @@ external_line_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
   }
   if (eps >= eps_target) {
     fmt::print("Warning: external line of {} not converged in {} sweeps\n",
+               v.shortSymbol(), max_it);
+  }
+  return ladder;
+}
+
+//==============================================================================
+ExternalLineLadder external_line_ladder_F(
+  const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited, const Coulomb::QkTable &qk,
+  const Coulomb::LkTable &lk_F, const Coulomb::NkTable &L_vnab_F,
+  const LadderDiagrams &diagrams, int max_it, double eps_target, double a_damp,
+  bool print) {
+  auto ladder = external_line_start(v, core, excited, lk_F, &L_vnab_F);
+  // Not converged until at least one sweep is done
+  double eps = 1.0;
+  for (int it = 1; it <= max_it; ++it) {
+    const auto ladder_prev = ladder;
+    calculate_Lk_mnxb(&ladder.L_mnxb, qk, excited, core, ladder.x_orbitals,
+                      ladder.en_v, diagrams, lk_F, ladder_prev.L_mnxb, a_damp);
+    // The closing amplitude, rows (x,a): the line carries en_v
+    calculate_Lk_vnab_F(&ladder.L_xnab, qk, excited, core, ladder.x_orbitals,
+                        diagrams, &lk_F, &ladder_prev.L_xnab, a_damp,
+                        ladder.en_v);
+    eps = external_line_change(ladder, ladder_prev);
+    if (print) {
+      fmt::print("{:4s} external line (x_F) it:{:2}  eps = {:.1e}\n",
+                 v.shortSymbol(), it, eps);
+      std::cout << std::flush;
+    }
+    if (eps < eps_target)
+      break;
+  }
+  if (eps >= eps_target) {
+    fmt::print("Warning: external line (x_F) of {} not converged in {} "
+               "sweeps\n",
                v.shortSymbol(), max_it);
   }
   return ladder;
@@ -371,7 +446,7 @@ lowest_order_Lk_mnxb(const Coulomb::QkTable &qk,
                      const LadderDiagrams &diagrams, int max_k) {
   // L1 and L3 have e_x in an energy denominator
   assert(!diagrams.L1 && !diagrams.L3);
-  // P and hole_particle with the external line are not derived
+  // Only the ladder diagrams are formed here
   assert(
     !(diagrams.P1 || diagrams.P2 || diagrams.P3 || diagrams.hole_particle));
   Coulomb::NkTable L_mnxb;
@@ -481,7 +556,7 @@ lowest_order_Lk_xnab(const Coulomb::QkTable &qk,
                      const LadderDiagrams &diagrams, int max_k) {
   // L2 and L4 have e_x in an energy denominator
   assert(!diagrams.L2 && !diagrams.L4);
-  // P and hole_particle with the external line are not derived
+  // Only the ladder diagrams are formed here
   assert(
     !(diagrams.P1 || diagrams.P2 || diagrams.P3 || diagrams.hole_particle));
   Coulomb::NkTable L_xnab;

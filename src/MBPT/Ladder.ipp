@@ -99,6 +99,15 @@ double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
                     const Lintegrals &lk, const std::vector<DiracSpinor> &core,
                     const std::vector<DiracSpinor> &excited,
                     const Angular::SixJTable *sj) {
+  return de_valence_w(v, qk, lk, lk, core, excited, sj);
+}
+
+template <typename Qintegrals, typename Lintegrals, typename VnabIntegrals>
+double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
+                    const Lintegrals &lk, const VnabIntegrals &L_vnab,
+                    const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &excited,
+                    const Angular::SixJTable *sj) {
 
   auto de_v = 0.0;
 #pragma omp parallel for reduction(+ : de_v)
@@ -127,7 +136,7 @@ double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
           const auto W_kvnab = qk.W(k, v, n, a, b, sj);
           if (W_kvnab == 0.0)
             continue;
-          const auto L_kvnab = lk.Q(k, v, n, a, b);
+          const auto L_kvnab = L_vnab.Q(k, v, n, a, b);
           de_v += W_kvnab * L_kvnab * inv_de / (2 * k + 1);
         }
       }

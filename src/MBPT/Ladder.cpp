@@ -373,6 +373,102 @@ de_valence_relaxation(const DiracSpinor &v, const Coulomb::QkTable &qk,
 }
 
 //==============================================================================
+
+LinAlg::Matrix<double> relaxation_potential_matrix(
+  const std::vector<DiracSpinor> &orbitals, const Coulomb::QkTable &qk,
+  const LinAlg::Matrix<double> &rho_ma, const RelaxationDensity &density,
+  const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited) {
+  assert(rho_ma.rows() == excited.size() && rho_ma.cols() == core.size());
+  assert(density.gamma_cb.rows() == core.size() &&
+         density.gamma_ms.rows() == excited.size());
+  LinAlg::Matrix<double> dV(orbitals.size(), orbitals.size());
+  if (orbitals.empty())
+    return dV;
+  const auto max_tj =
+    std::max({DiracSpinor::max_tj(excited), DiracSpinor::max_tj(core),
+              DiracSpinor::max_tj(orbitals)});
+  const SixJArray sixj(max_tj, std::min(max_tj, ladder_max_k));
+
+#pragma omp parallel for collapse(2) schedule(dynamic)
+  for (std::size_t index_x = 0; index_x < orbitals.size(); ++index_x) {
+    for (std::size_t index_y = 0; index_y < orbitals.size(); ++index_y) {
+      const auto &x = orbitals[index_x];
+      const auto &y = orbitals[index_y];
+      assert(x.kappa() == y.kappa());
+      double sum = 0.0;
+      // Core single excitations and their mirror image
+      for (std::size_t index_a = 0; index_a < core.size(); ++index_a) {
+        const auto &a = core[index_a];
+        const auto f_xa = closed_shell_factor(x, a);
+        for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+          const auto &m = excited[index_m];
+          if (m.kappa() != a.kappa())
+            continue;
+          sum += f_xa *
+                 (W_multipoles(x, a, y, m, qk, sixj).value[0] +
+                  W_multipoles(x, m, y, a, qk, sixj).value[0]) *
+                 rho_ma(index_m, index_a);
+        }
+      }
+      // Occupation blocks
+      for (std::size_t index_b = 0; index_b < core.size(); ++index_b) {
+        const auto &b = core[index_b];
+        const auto f_xb = closed_shell_factor(x, b);
+        for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
+          const auto &c = core[index_c];
+          if (c.kappa() != b.kappa())
+            continue;
+          sum += f_xb * W_multipoles(x, b, y, c, qk, sixj).value[0] *
+                 density.gamma_cb(index_b, index_c);
+        }
+      }
+      for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+        const auto &m = excited[index_m];
+        const auto f_xm = closed_shell_factor(x, m);
+        for (std::size_t index_s = 0; index_s < excited.size(); ++index_s) {
+          const auto &s = excited[index_s];
+          if (s.kappa() != m.kappa())
+            continue;
+          sum += f_xm * W_multipoles(x, m, y, s, qk, sixj).value[0] *
+                 density.gamma_ms(index_m, index_s);
+        }
+      }
+      dV(index_x, index_y) = sum;
+    }
+  }
+  return dV;
+}
+
+//==============================================================================
+
+GMatrix relaxation_potential(const std::vector<DiracSpinor> &orbitals,
+                             const Coulomb::QkTable &qk,
+                             const LinAlg::Matrix<double> &rho_ma,
+                             const RelaxationDensity &density,
+                             const std::vector<DiracSpinor> &core,
+                             const std::vector<DiracSpinor> &excited, double r0,
+                             double rmax, std::size_t stride, bool include_G) {
+  assert(!orbitals.empty());
+  const auto grid = orbitals.front().grid_sptr();
+  const auto i0 = grid->getIndex(r0);
+  const auto size = (grid->getIndex(rmax) - i0) / stride + 1;
+  GMatrix dV{i0, stride, size, include_G, grid};
+
+  const auto dV_xy =
+    relaxation_potential_matrix(orbitals, qk, rho_ma, density, core, excited);
+  for (std::size_t index_y = 0; index_y < orbitals.size(); ++index_y) {
+    // sum_x |x> <x|dV^R|y>
+    DiracSpinor dV_y(0, orbitals[index_y].kappa(), grid);
+    for (std::size_t index_x = 0; index_x < orbitals.size(); ++index_x) {
+      dV_y += dV_xy(index_x, index_y) * orbitals[index_x];
+    }
+    dV.add(dV_y, orbitals[index_y]);
+  }
+  return dV.drj_in_place();
+}
+
+//==============================================================================
 bool write_SigmaL(const std::string &fname, const std::vector<SigmaLData> &SLs,
                   const Grid &grid) {
   if (fname.empty() || fname == "false" || SLs.empty())

@@ -316,9 +316,11 @@ double P1(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited,
-          const Coulomb::LkTable *const Lk) {
+          const Coulomb::LkTable *const Lk, std::optional<double> e_i,
+          std::optional<double> e_m) {
 
   double p1 = 0.0;
+  const auto e_im = e_i.value_or(i.en()) - e_m.value_or(m.en());
   for (const auto &r : excited) {
     for (const auto &c : core) {
       // Zero unless k is Coulomb-allowed for (c,n,r,j)
@@ -327,7 +329,7 @@ double P1(int k, const DiracSpinor &m, const DiracSpinor &n,
         continue;
       const auto QL_kmric =
         qk.Q(k, m, r, i, c) + (Lk ? Lk->Q(k, m, r, i, c) : 0.0);
-      p1 += Q_kcnrj * QL_kmric / (i.en() + c.en() - m.en() - r.en());
+      p1 += Q_kcnrj * QL_kmric / (e_im + c.en() - r.en());
     }
   }
   return Angular::neg1pow(k) * p1 / (2.0 * k + 1.0);
@@ -339,9 +341,11 @@ double P2(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk) {
+          const Coulomb::LkTable *const Lk, std::optional<double> e_i,
+          std::optional<double> e_m) {
 
   double p2 = 0.0;
+  const auto e_im = e_i.value_or(i.en()) - e_m.value_or(m.en());
   for (const auto &r : excited) {
     for (const auto &c : core) {
       // (Q+L)^k_mric: the L^k part exists at both parities of k (see L1)
@@ -358,7 +362,7 @@ double P2(int k, const DiracSpinor &m, const DiracSpinor &n,
           SJ.get_2(c.twoj(), r.twoj(), 2 * k, n.twoj(), j.twoj(), 2 * u) *
           qk.Q(u, c, n, j, r);
       }
-      p2 += sum_u * QL_kmric / (i.en() + c.en() - m.en() - r.en());
+      p2 += sum_u * QL_kmric / (e_im + c.en() - r.en());
     }
   }
   return Angular::neg1pow(k) * p2;
@@ -370,9 +374,11 @@ double P3(int k, const DiracSpinor &m, const DiracSpinor &n,
           const DiracSpinor &i, const DiracSpinor &j,
           const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
           const std::vector<DiracSpinor> &excited, const Angular::SixJTable &SJ,
-          const Coulomb::LkTable *const Lk) {
+          const Coulomb::LkTable *const Lk, std::optional<double> e_i,
+          std::optional<double> e_m) {
 
   double p3 = 0.0;
+  const auto e_im = e_i.value_or(i.en()) - e_m.value_or(m.en());
   for (const auto &r : excited) {
     for (const auto &c : core) {
       // Zero unless k is Coulomb-allowed for (c,n,r,j)
@@ -397,7 +403,7 @@ double P3(int k, const DiracSpinor &m, const DiracSpinor &n,
           SJ.get_2(m.twoj(), i.twoj(), 2 * k, r.twoj(), c.twoj(), 2 * l) *
           QL_lmrci;
       }
-      p3 += Q_kcnrj * sum_l / (i.en() + c.en() - m.en() - r.en());
+      p3 += Q_kcnrj * sum_l / (e_im + c.en() - r.en());
     }
   }
   return Angular::neg1pow(k) * p3;
@@ -409,7 +415,7 @@ double Vhp(int k, const DiracSpinor &m, const DiracSpinor &n,
            const DiracSpinor &i, const DiracSpinor &j,
            const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
            const std::vector<DiracSpinor> &excited,
-           const Coulomb::LkTable *const Lk) {
+           const Coulomb::LkTable *const Lk, std::optional<double> e_i) {
   // Only a pair whose hole is a core orbital is a polarisation loop
   if (std::find(core.cbegin(), core.cend(), j) == core.cend())
     return 0.0;
@@ -422,7 +428,7 @@ double Vhp(int k, const DiracSpinor &m, const DiracSpinor &n,
     const auto y_nr = qk.R(0, n, j, r, j);
     const auto QL_kmrij =
       qk.Q(k, m, r, i, j) + (Lk ? Lk->Q(k, m, r, i, j) : 0.0);
-    h += y_nr * QL_kmrij / (i.en() + j.en() - m.en() - r.en());
+    h += y_nr * QL_kmrij / (e_i.value_or(i.en()) + j.en() - m.en() - r.en());
   }
   return -h;
 }
@@ -433,7 +439,7 @@ double Rkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
               const DiracSpinor &i, const DiracSpinor &j,
               const Coulomb::QkTable &qk, const LinAlg::Matrix<double> &rho_ma,
               const std::vector<DiracSpinor> &core,
-              const std::vector<DiracSpinor> &excited) {
+              const std::vector<DiracSpinor> &excited, bool m_is_line) {
   const auto position = [](const std::vector<DiracSpinor> &orbitals,
                            const DiracSpinor &a) {
     return std::size_t(std::find(orbitals.cbegin(), orbitals.cend(), a) -
@@ -458,8 +464,8 @@ double Rkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
   }
   for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
     const auto &c = core[index_c];
-    // Each particle is kept orthogonal to the core
-    if (c.kappa() == m.kappa()) {
+    // Each particle is kept orthogonal to the core; not the external line
+    if (c.kappa() == m.kappa() && !m_is_line) {
       R -= rho_ma(index_m, index_c) * qk.Q(k, c, n, i, j);
     }
     if (c.kappa() == n.kappa()) {
@@ -471,16 +477,16 @@ double Rkmnij(int k, const DiracSpinor &m, const DiracSpinor &n,
 
 //------------------------------------------------------------------------------
 
-double Lk_vnab_F(int k, const DiracSpinor &v, const DiracSpinor &n,
-                 const DiracSpinor &a, const DiracSpinor &b,
-                 const Coulomb::QkTable &qk,
-                 const std::vector<DiracSpinor> &core,
-                 const std::vector<DiracSpinor> &excited,
-                 const LadderDiagrams &diagrams,
-                 const Coulomb::LkTable *const lk_F,
-                 const Coulomb::NkTable *const L_vnab) {
+double
+Lk_vnab_F(int k, const DiracSpinor &v, const DiracSpinor &n,
+          const DiracSpinor &a, const DiracSpinor &b,
+          const Coulomb::QkTable &qk, const std::vector<DiracSpinor> &core,
+          const std::vector<DiracSpinor> &excited,
+          const LadderDiagrams &diagrams, const Coulomb::LkTable *const lk_F,
+          const Coulomb::NkTable *const L_vnab, std::optional<double> e_v) {
 
   double L = 0.0;
+  const auto en_v = e_v.value_or(v.en());
   if (diagrams.P1) {
     // Polarisation loop on (n,b), acting on the closing amplitude
     double loop_nb = 0.0;
@@ -491,7 +497,7 @@ double Lk_vnab_F(int k, const DiracSpinor &v, const DiracSpinor &n,
           continue;
         const auto QL_kvrac =
           qk.Q(k, v, r, a, c) + (L_vnab ? L_vnab->Q(k, v, r, a, c) : 0.0);
-        loop_nb += Q_kcnrb * QL_kvrac / (a.en() + c.en() - v.en() - r.en());
+        loop_nb += Q_kcnrb * QL_kvrac / (a.en() + c.en() - en_v - r.en());
       }
     }
     L += Angular::neg1pow(k) * loop_nb / (2.0 * k + 1.0);
@@ -507,7 +513,7 @@ double Lk_vnab_F(int k, const DiracSpinor &v, const DiracSpinor &n,
       const auto y_nr = qk.R(0, n, b, r, b);
       const auto QL_kvrab =
         qk.Q(k, v, r, a, b) + (L_vnab ? L_vnab->Q(k, v, r, a, b) : 0.0);
-      h += y_nr * QL_kvrab / (a.en() + b.en() - v.en() - r.en());
+      h += y_nr * QL_kvrab / (a.en() + b.en() - en_v - r.en());
     }
     L -= h;
   }

@@ -36,12 +36,16 @@ struct ExternalLineLadder {
 
   @details
   All entries are added. The projection states x are the orbitals of
-  @p excited with the kappa of @p v (v must be one of them).
+  @p excited with the kappa of @p v (v must be one of them). With @p L_vnab,
+  a closing table keyed (v,n,a,b), L_xnab for x = v is taken from it, not
+  from @p lk: the closing amplitude of x_F [calculate_Lk_vnab_F()], or of x
+  with the core relaxation [calculate_Lk_xnab()].
 */
-ExternalLineLadder external_line_start(const DiracSpinor &v,
-                                       const std::vector<DiracSpinor> &core,
-                                       const std::vector<DiracSpinor> &excited,
-                                       const Coulomb::LkTable &lk);
+ExternalLineLadder
+external_line_start(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &excited,
+                    const Coulomb::LkTable &lk,
+                    const Coulomb::NkTable *L_vnab = nullptr);
 
 /*!
   @brief One sweep of the ladder equation for L^k_mnxb(e_v), all x at once.
@@ -52,6 +56,19 @@ ExternalLineLadder external_line_start(const DiracSpinor &v,
   @p lk (L2 and L4 hold x only in a bare Q). As in calculate_Lk_mnib(), L2
   and L3 [@p diagrams] must go together. Only entries already in @p L_mnxb
   are written, damped by @p a_damp [see damped()].
+
+  The pieces of P and the hole-particle term: P^k_mnxb = P^k_{mx,nb} +
+  P^k_{nb,mx}. In the first, the dressed integrals of the row (m,x) contain
+  x: from @p L_mnxb_prev, at e_v. In the second, the partner, x is only in
+  the bare integrals of the column (m,x), and the row (n,b) is from @p lk.
+  The hole-particle term acts on the pair (n,b) only: (m,x) is the valence
+  line. With P1 and hole_particle alone, @p lk is x_F and the table holds
+  x_F with the line.
+
+  The core relaxation [@p rho_ma] holds x only in bare integrals: the core
+  hole b and the particles m, n are dressed, with the single excitations of
+  the core; the line x is not (its single excitations are the Brueckner
+  orbital).
 */
 void calculate_Lk_mnxb(Coulomb::LkTable *L_mnxb, const Coulomb::QkTable &qk,
                        const std::vector<DiracSpinor> &excited,
@@ -59,7 +76,8 @@ void calculate_Lk_mnxb(Coulomb::LkTable *L_mnxb, const Coulomb::QkTable &qk,
                        const std::vector<DiracSpinor> &x_orbitals, double en_v,
                        const LadderDiagrams &diagrams,
                        const Coulomb::LkTable &lk,
-                       const Coulomb::LkTable &L_mnxb_prev, double a_damp);
+                       const Coulomb::LkTable &L_mnxb_prev, double a_damp,
+                       const LinAlg::Matrix<double> *rho_ma = nullptr);
 
 /*!
   @brief One sweep of the ladder equation for L^k_xnab(e_v), all x at once.
@@ -73,6 +91,22 @@ void calculate_Lk_mnxb(Coulomb::LkTable *L_mnxb, const Coulomb::QkTable &qk,
   projection state, so it comes from a second L2^K matrix, with no external
   line. Only entries already in @p L_xnab are written, damped by @p a_damp
   [see damped()].
+
+  The pieces of P likewise: P^k_xnab = P^k_{xa,nb} + P^k_{nb,xa}. The
+  dressed integrals of the row (x,a) contain x: from @p L_xnab_prev, at e_v.
+  The partner holds x only in the bare integrals of the column (x,a); its
+  row (n,b) is from @p lk, from a second matrix with no external line. Not
+  hole_particle: the closing amplitude of x_F has its own sweep
+  [calculate_Lk_vnab_F()].
+
+  The core relaxation [@p rho_ma] dresses the core holes a, b and the
+  particle n, with x in the bare integrals. The term with the single
+  excitations of the line itself, \f$ -\sum_c \rho_{xc}\,Q^k_{cnab} \f$, is
+  left out [relaxation_multipoles()]: it is a chain through the core orbital
+  c, which the Brueckner equation generates. So with the core relaxation the
+  integrals of x = v are not those of the ladder table: for a valence state
+  v alone (@p x_orbitals = {v}, @p en_v its energy) this gives the closing
+  amplitude of the second term of the valence energy [de_valence_w()].
 */
 void calculate_Lk_xnab(Coulomb::NkTable *L_xnab, const Coulomb::QkTable &qk,
                        const std::vector<DiracSpinor> &excited,
@@ -80,18 +114,23 @@ void calculate_Lk_xnab(Coulomb::NkTable *L_xnab, const Coulomb::QkTable &qk,
                        const std::vector<DiracSpinor> &x_orbitals, double en_v,
                        const LadderDiagrams &diagrams,
                        const Coulomb::LkTable &lk,
-                       const Coulomb::NkTable &L_xnab_prev, double a_damp);
+                       const Coulomb::NkTable &L_xnab_prev, double a_damp,
+                       const LinAlg::Matrix<double> *rho_ma = nullptr);
 
 /*!
-  @brief Writes L^k_xnab = (L1+L4) + L2 + L3 for one x and the n of one kappa
-         group into the table.
+  @brief Writes L^k_xnab = (L1+L4) + L2 + L3 + P [+ R] for one x and the n of
+         one kappa group into the table.
 
   @details
   As store_Lk_mnij() with m = x and (i,j) = (a,b), x = excited[index_x],
   except that L2 is read from @p L2K_mb_na_line [element (x,b),(n,a); the line
-  as m] and L3 from @p L2K_mb_na [element (n,a),(x,b); no external line]. A
-  diagram whose matrices are empty is not included. Each entry is damped by
-  @p a_damp [see damped()].
+  as m] and L3 from @p L2K_mb_na [element (n,a),(x,b); no external line].
+  P is read from @p Pk_ma_nb_line [element (x,a),(n,b); the line as m] and
+  its partner from @p Pk_ma_nb [element (n,b),(x,a); no external line]. A
+  diagram whose matrices are empty is not included. The core relaxation R is
+  included if @p rho_ma is given, without the single excitations of x
+  [relaxation_multipoles()]. Each entry is damped by @p a_damp [see
+  damped()].
 */
 void store_Lk_xnab(Coulomb::NkTable *L_xnab, std::size_t index_x,
                    const std::vector<std::size_t> &n_group,
@@ -102,7 +141,11 @@ void store_Lk_xnab(Coulomb::NkTable *L_xnab, std::size_t index_x,
                    const std::vector<LinAlg::Matrix<double>> &L1_L4_J_xn_ab,
                    const std::vector<LinAlg::Matrix<double>> &L2K_mb_na_line,
                    const std::vector<LinAlg::Matrix<double>> &L2K_mb_na,
-                   const SixJArray &sixj, double a_damp);
+                   const std::vector<LinAlg::Matrix<double>> &Pk_ma_nb_line,
+                   const std::vector<LinAlg::Matrix<double>> &Pk_ma_nb,
+                   const Coulomb::QkTable &qk,
+                   const LinAlg::Matrix<double> *rho_ma, const SixJArray &sixj,
+                   double a_damp);
 
 //! Largest change of any integral in either table of ladder from ladder_prev,
 //! relative to the largest integral (same entries in both). ladder is
@@ -128,18 +171,65 @@ double external_line_change(ExternalLineLadder &ladder,
   @param qk          Coulomb integral table
   @param lk          Converged ladder table (i orbitals: core and v)
   @param diagrams    Which diagrams to include. L2 and L3 must go together
-                     [calculate_Lk_mnxb()]
+                     [calculate_Lk_mnxb()]; not hole_particle
+                     [external_line_ladder_F()]
   @param max_it      Largest number of sweeps
   @param eps_target  Convergence target
   @param a_damp      Damping factor [see damped()]
   @param print       Print the convergence
+  @param rho_ma      Optional: core single excitations (rows excited,
+                     columns core) of @p lk, for the core relaxation R
+  @param L_vnab      Optional: closing table, keyed (v,n,a,b), for the start
+                     of L_xnab at x = v [external_line_start()]. With
+                     @p rho_ma, the integrals L_xnab of x = v are not those
+                     of @p lk [calculate_Lk_xnab()]
 */
 ExternalLineLadder
 external_line_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
                      const std::vector<DiracSpinor> &excited,
                      const Coulomb::QkTable &qk, const Coulomb::LkTable &lk,
                      const LadderDiagrams &diagrams, int max_it,
-                     double eps_target, double a_damp, bool print);
+                     double eps_target, double a_damp, bool print,
+                     const LinAlg::Matrix<double> *rho_ma = nullptr,
+                     const Coulomb::NkTable *L_vnab = nullptr);
+
+/*!
+  @brief The integrals of x_F with the external line of Sigma_L(e_v), for
+         valence state v: the part of the ladder integrals of
+         external_line_ladder() that the Feynman direct diagram contains.
+
+  @details
+  L_mnxb is x_F with x as the i orbital [calculate_Lk_mnxb() with P1 and
+  hole_particle], and L_xnab the closing amplitude x' with x as the m
+  orbital [calculate_Lk_vnab_F() with the rows (x,a), at e_v]. The
+  hole-particle term never acts on the pair that holds the line, (m,x) or
+  (x,a): there the line is the valence line, not part of a polarisation
+  loop. Starts from the integrals of x = v [external_line_start() with
+  @p L_vnab_F], and sweeps both tables with x_F fixed, as
+  external_line_ladder().
+
+  Closed with Q [the Sigma_ladder() template without exchange], these give
+  the part of Sigma_L(e_v) that is subtracted: for x = v the diagonal is
+  de_valence_F().
+
+  @param v           Valence state (the basis version, one of @p excited)
+  @param core        Core orbitals
+  @param excited     Excited orbitals
+  @param qk          Coulomb integral table
+  @param lk_F        Converged x_F table (i orbitals: core and v)
+  @param L_vnab_F    Converged closing table x' [calculate_Lk_vnab_F()]
+  @param diagrams    P1 and hole_particle only
+  @param max_it      Largest number of sweeps
+  @param eps_target  Convergence target
+  @param a_damp      Damping factor [see damped()]
+  @param print       Print the convergence
+*/
+ExternalLineLadder external_line_ladder_F(
+  const DiracSpinor &v, const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited, const Coulomb::QkTable &qk,
+  const Coulomb::LkTable &lk_F, const Coulomb::NkTable &L_vnab_F,
+  const LadderDiagrams &diagrams, int max_it, double eps_target, double a_damp,
+  bool print);
 
 /*!
   @brief Ladder correlation potential from ladder integrals with the
@@ -194,7 +284,8 @@ Sigma_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &x_orbitals,
   Sigma_ladder() template, closed with W, with the integrals L^k_mnxa(e_v)
   and L^k_xnab(e_v) of @p ladder. x is the external line [see ExternalLine].
 
-  For x = v these are the integrals of the ladder table, so the column
+  For x = v these are the integrals of the ladder table (with the core
+  relaxation, of the ladder table and the closing table), so the column
   Sigma_L|v> is exact, and <v|Sigma_L|v> is de_valence_w().
 
   @param v               Valence state: kappa, j and energy

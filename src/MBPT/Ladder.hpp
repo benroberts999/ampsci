@@ -145,6 +145,31 @@ double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
                     const Angular::SixJTable *sj = nullptr);
 
 /*!
+  @brief de_valence_w() with the integrals L^k_vnab of the second term,
+         diagrams (c+d), from a closing table of their own.
+
+  @details
+  With the core relaxation, the amplitude closed in the second term is not
+  the entry of the ladder table: it has no single excitations of the core
+  into the valence orbital [calculate_Lk_xnab()]. Their contribution is a
+  chain through a core orbital, which the Brueckner equation generates.
+
+  @param v       Valence orbital
+  @param qk      Coulomb integrals supplying \f$ W = Q+P \f$
+  @param lk      Ladder table: L^k_mnva
+  @param L_vnab  Closing table: L^k_vnab, keyed (v,n,a,b)
+  @param core    Core orbitals
+  @param excited Excited orbitals
+  @param sj      Optional 6j table [see de_valence_w()]
+*/
+template <typename Qintegrals, typename Lintegrals, typename VnabIntegrals>
+double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
+                    const Lintegrals &lk, const VnabIntegrals &L_vnab,
+                    const std::vector<DiracSpinor> &core,
+                    const std::vector<DiracSpinor> &excited,
+                    const Angular::SixJTable *sj = nullptr);
+
+/*!
   @brief Direct (Q) closing of x_F: the part of the valence energy that the
          Feynman direct diagram contains, in the basis.
 
@@ -310,6 +335,74 @@ de_valence_relaxation(const DiracSpinor &v, const Coulomb::QkTable &qk,
                       const RelaxationDensity &density,
                       const std::vector<DiracSpinor> &core,
                       const std::vector<DiracSpinor> &excited);
+
+/*!
+  @brief Matrix elements <x|dV^R|y> of the core relaxation potential between
+         orbitals of one kappa.
+
+  @details
+  dV^R is the interaction with the change of the core density, a one-body
+  potential, the same for every valence state and independent of the energy:
+  \f[
+    \langle x|\delta V^{\rm R}|y\rangle = \sum_{pq}\widetilde g_{xpyq}
+      \gamma_{qp}
+      = \sum_{am} f_{xa} (W^0_{xaym} + W^0_{xmya}) \rho_{ma}
+      + \sum_{bc} f_{xb} W^0_{xbyc} \gamma_{cb}
+      + \sum_{ms} f_{xm} W^0_{xmys} \gamma_{ms},
+  \f]
+  with f the closed_shell_factor() and each pair of one kappa. The two terms
+  of the first sum are the core single excitations and their mirror image
+  (gamma_am = gamma_ma = rho_ma). Symmetric; the diagonal element of a
+  valence state is the sum of the two parts of de_valence_relaxation().
+
+  @param orbitals  Orbitals x, y: all of one kappa, and in @p qk with @p core
+                   and @p excited
+  @param qk        Coulomb integral table
+  @param rho_ma    Core single excitations, rows excited and columns core
+  @param density   Occupation blocks [relaxation_density()]
+  @param core      Core orbitals: columns of rho_ma
+  @param excited   Excited orbitals: rows of rho_ma
+  @return <x|dV^R|y>, rows x and columns y by position in @p orbitals
+*/
+LinAlg::Matrix<double> relaxation_potential_matrix(
+  const std::vector<DiracSpinor> &orbitals, const Coulomb::QkTable &qk,
+  const LinAlg::Matrix<double> &rho_ma, const RelaxationDensity &density,
+  const std::vector<DiracSpinor> &core,
+  const std::vector<DiracSpinor> &excited);
+
+/*!
+  @brief Core relaxation potential dV^R, projected onto a set of orbitals of
+         one kappa.
+
+  @details
+  \f[
+    \delta V^{\rm R} = \sum_{xy} |x\rangle\,
+      \langle x|\delta V^{\rm R}|y\rangle\,\langle y|,
+  \f]
+  x, y in @p orbitals, with the matrix elements of
+  relaxation_potential_matrix(): from the Coulomb integral table, so the
+  near cancellation of the two occupation blocks is exact, not subject to
+  the quadrature of the sub-grid. It acts only within the span of the
+  orbitals. This is the part of the correction to the correlation potential
+  that does not depend on the energy; the rest is from the ladder integrals
+  with the external line [Sigma_ladder() template].
+
+  @param orbitals        Projection states: orthonormal, all of one kappa
+  @param qk              Coulomb integral table
+  @param rho_ma          Core single excitations, rows excited, columns core
+  @param density         Occupation blocks [relaxation_density()]
+  @param core            Core orbitals
+  @param excited         Excited orbitals
+  @param r0,rmax,stride  Sub-grid parameters
+  @param include_G       Include the lower (g) component
+*/
+GMatrix relaxation_potential(const std::vector<DiracSpinor> &orbitals,
+                             const Coulomb::QkTable &qk,
+                             const LinAlg::Matrix<double> &rho_ma,
+                             const RelaxationDensity &density,
+                             const std::vector<DiracSpinor> &core,
+                             const std::vector<DiracSpinor> &excited, double r0,
+                             double rmax, std::size_t stride, bool include_G);
 
 /*!
   @brief Method used to construct the ladder correlation potential, Sigma_L.

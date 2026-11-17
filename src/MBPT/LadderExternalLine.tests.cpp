@@ -11,6 +11,8 @@
 #include <algorithm>
 #include <cmath>
 #include <functional>
+#include <optional>
+#include <random>
 #include <string>
 #include <vector>
 
@@ -22,20 +24,34 @@ using LadderIntegral =
                        const DiracSpinor &, const DiracSpinor &)>;
 
 //! Ladder table with i orbitals i_orbs: lowest order, then num_sweeps sweeps
-inline Coulomb::LkTable dressed_table(const LadderTestData &data,
-                                      const std::vector<DiracSpinor> &i_orbs,
-                                      int num_sweeps) {
+inline Coulomb::LkTable
+dressed_table(const LadderTestData &data,
+              const std::vector<DiracSpinor> &i_orbs, int num_sweeps,
+              const MBPT::LadderDiagrams &diagrams = {}) {
   const auto max_k = stored_max_k(data);
   Coulomb::LkTable lk;
   MBPT::add_Lk_mnib_entries(&lk, data.excited, data.core, i_orbs, max_k);
-  MBPT::calculate_Lk_mnib(&lk, data.qk, data.excited, data.core, i_orbs, {},
-                          nullptr, max_k, false, 0.0);
+  MBPT::calculate_Lk_mnib(&lk, data.qk, data.excited, data.core, i_orbs,
+                          diagrams, nullptr, max_k, false, 0.0);
   for (int sweep = 0; sweep < num_sweeps; ++sweep) {
     const auto lk_prev = lk;
-    MBPT::calculate_Lk_mnib(&lk, data.qk, data.excited, data.core, i_orbs, {},
-                            &lk_prev, max_k, false, 0.0);
+    MBPT::calculate_Lk_mnib(&lk, data.qk, data.excited, data.core, i_orbs,
+                            diagrams, &lk_prev, max_k, false, 0.0);
   }
   return lk;
+}
+
+//! The ladder diagrams with the three pieces of P
+inline MBPT::LadderDiagrams diagrams_with_P() {
+  return {true, true, true, true, true, true, true};
+}
+
+//! The diagrams of x_F: piece (1) of P and the hole-particle term
+inline MBPT::LadderDiagrams diagrams_of_x_F() {
+  MBPT::LadderDiagrams diagrams{false, false, false, false};
+  diagrams.P1 = true;
+  diagrams.hole_particle = true;
+  return diagrams;
 }
 
 //! The ladder integrals with the external line of v, every L_x (not only
@@ -62,14 +78,15 @@ inline MBPT::ExternalLineLadder ladder_from_table(const DiracSpinor &v,
 inline MBPT::ExternalLineLadder
 external_line_sweep(const MBPT::ExternalLineLadder &start, double en_v,
                     const LadderTestData &data, const Coulomb::LkTable &lk,
-                    const MBPT::LadderDiagrams &diagrams) {
+                    const MBPT::LadderDiagrams &diagrams,
+                    const LinAlg::Matrix<double> *rho_ma = nullptr) {
   auto ladder = start;
   MBPT::calculate_Lk_mnxb(&ladder.L_mnxb, data.qk, data.excited, data.core,
                           ladder.x_orbitals, en_v, diagrams, lk, start.L_mnxb,
-                          0.0);
+                          0.0, rho_ma);
   MBPT::calculate_Lk_xnab(&ladder.L_xnab, data.qk, data.excited, data.core,
                           ladder.x_orbitals, en_v, diagrams, lk, start.L_xnab,
-                          0.0);
+                          0.0, rho_ma);
   return ladder;
 }
 
@@ -724,4 +741,473 @@ TEST_CASE("Ladder: Coulomb integrals of the projection states",
   REQUIRE(num_missing == 0);
   REQUIRE(num_added == num_expected);
   REQUIRE(eps < 1.0e-12);
+}
+
+//==============================================================================
+// Each piece of P with the external line, one sweep, every entry: the side
+// with the line (dressed integrals from the integrals with the line, at
+// en_v) plus the partner (the line only in a bare integral; dressed
+// integrals from the ladder table)
+TEST_CASE("Ladder: external line with P matches reference", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto &sjt = data.yk.SixJ();
+  const auto i_orbs = qip::merge(data.core, data.excited);
+  const auto lk = dressed_table(data, i_orbs, 1);
+  // The integrals with the line start from a different table
+  const auto lk_line = dressed_table(data, i_orbs, 2);
+
+  // One piece of P, one side, with the reference function of that piece
+  using Piece = std::function<double(
+    int, const DiracSpinor &, const DiracSpinor &, const DiracSpinor &,
+    const DiracSpinor &, const Coulomb::LkTable *, std::optional<double>,
+    std::optional<double>)>;
+  const Piece piece_1 =
+    [&](int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
+        const DiracSpinor &j, const Coulomb::LkTable *table,
+        std::optional<double> e_i, std::optional<double> e_m) {
+      return MBPT::P1(k, m, n, i, j, data.qk, data.core, data.excited, table,
+                      e_i, e_m);
+    };
+  const Piece piece_2 =
+    [&](int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
+        const DiracSpinor &j, const Coulomb::LkTable *table,
+        std::optional<double> e_i, std::optional<double> e_m) {
+      return MBPT::P2(k, m, n, i, j, data.qk, data.core, data.excited, sjt,
+                      table, e_i, e_m);
+    };
+  const Piece piece_3 =
+    [&](int k, const DiracSpinor &m, const DiracSpinor &n, const DiracSpinor &i,
+        const DiracSpinor &j, const Coulomb::LkTable *table,
+        std::optional<double> e_i, std::optional<double> e_m) {
+      return MBPT::P3(k, m, n, i, j, data.qk, data.core, data.excited, sjt,
+                      table, e_i, e_m);
+    };
+  const std::vector<Piece> pieces{piece_1, piece_2, piece_3};
+
+  double worst_mnxb = 0.0;
+  double worst_xnab = 0.0;
+  for (const auto &v : data.valence) {
+    const auto en_v = v.en() - 0.05;
+    const auto start = ladder_from_table(v, data, lk_line);
+    const auto &x_list = start.x_orbitals;
+    for (std::size_t index = 0; index < pieces.size(); ++index) {
+      MBPT::LadderDiagrams diagrams{false, false, false, false};
+      diagrams.P1 = index == 0;
+      diagrams.P2 = index == 1;
+      diagrams.P3 = index == 2;
+      const auto &piece = pieces[index];
+      const auto ladder = external_line_sweep(start, en_v, data, lk, diagrams);
+
+      // x as i: the row (m,x) holds the line
+      const auto eps_mnxb =
+        mnxb_difference(ladder, x_list, data,
+                        [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                            const DiracSpinor &x, const DiracSpinor &b) {
+                          return piece(k, m, n, x, b, &lk_line, en_v, {}) +
+                                 piece(k, n, m, b, x, &lk, {}, {});
+                        });
+      // x as m: the row (x,a) holds the line. n also a projection state: in
+      // the partner it is an internal line
+      const auto eps_xnab =
+        xnab_difference(ladder, x_list, data.excited, data,
+                        [&](int k, const DiracSpinor &x, const DiracSpinor &n,
+                            const DiracSpinor &a, const DiracSpinor &b) {
+                          return piece(k, x, n, a, b, &lk_line, {}, en_v) +
+                                 piece(k, n, x, b, a, &lk, {}, {});
+                        });
+      worst_mnxb = std::max(worst_mnxb, eps_mnxb);
+      worst_xnab = std::max(worst_xnab, eps_xnab);
+    }
+  }
+  REQUIRE(worst_mnxb < 1.0e-12);
+  REQUIRE(worst_xnab < 1.0e-12);
+}
+
+//==============================================================================
+// x_F with the external line, one sweep, every entry. x as i: the
+// polarisation loop on either pair, and the hole-particle term on (n,b)
+// only. x as m: the closing amplitude at en_v
+TEST_CASE("Ladder: external line of x_F matches reference", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto i_orbs = qip::merge(data.core, data.excited);
+  const auto diagrams = diagrams_of_x_F();
+  const auto lk_F = dressed_table(data, i_orbs, 0, diagrams);
+  const auto lk_F_line = dressed_table(data, i_orbs, 1, diagrams);
+
+  double worst_mnxb = 0.0;
+  double worst_xnab = 0.0;
+  double smallest_hole_particle = 1.0;
+  for (const auto &v : data.valence) {
+    const auto en_v = v.en() - 0.05;
+    auto start = ladder_from_table(v, data, lk_F_line);
+    // The closing amplitude has no symmetry: every entry its own value
+    std::mt19937 generator(5);
+    std::uniform_real_distribution<double> random_value(-0.05, 0.05);
+    for (std::size_t k = 0; k < start.L_xnab->size(); ++k) {
+      for (auto &entry : start.L_xnab->at(k)) {
+        entry.second = random_value(generator);
+      }
+    }
+    const auto &x_list = start.x_orbitals;
+
+    auto ladder = start;
+    MBPT::calculate_Lk_mnxb(&ladder.L_mnxb, data.qk, data.excited, data.core,
+                            x_list, en_v, diagrams, lk_F, start.L_mnxb, 0.0);
+    MBPT::calculate_Lk_vnab_F(&ladder.L_xnab, data.qk, data.excited, data.core,
+                              x_list, diagrams, &lk_F, &start.L_xnab, 0.0,
+                              en_v);
+
+    // No hole-particle term on (m,x): there x is the valence line
+    const auto x_F_mnxb = [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                              const DiracSpinor &x, const DiracSpinor &b) {
+      return MBPT::P1(k, m, n, x, b, data.qk, data.core, data.excited,
+                      &lk_F_line, en_v) +
+             MBPT::Vhp(k, m, n, x, b, data.qk, data.core, data.excited,
+                       &lk_F_line, en_v) +
+             MBPT::P1(k, n, m, b, x, data.qk, data.core, data.excited, &lk_F);
+    };
+    worst_mnxb =
+      std::max(worst_mnxb, mnxb_difference(ladder, x_list, data, x_F_mnxb));
+    // The hole-particle term matters: without it the reference is far off
+    smallest_hole_particle = std::min(
+      smallest_hole_particle,
+      mnxb_difference(ladder, x_list, data,
+                      [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                          const DiracSpinor &x, const DiracSpinor &b) {
+                        return x_F_mnxb(k, m, n, x, b) -
+                               MBPT::Vhp(k, m, n, x, b, data.qk, data.core,
+                                         data.excited, &lk_F_line, en_v);
+                      }));
+
+    worst_xnab = std::max(
+      worst_xnab,
+      xnab_difference(ladder, x_list, data.excited, data,
+                      [&](int k, const DiracSpinor &x, const DiracSpinor &n,
+                          const DiracSpinor &a, const DiracSpinor &b) {
+                        return MBPT::Lk_vnab_F(
+                          k, x, n, a, b, data.qk, data.core, data.excited,
+                          diagrams, &lk_F, &start.L_xnab, en_v);
+                      }));
+  }
+  REQUIRE(smallest_hole_particle > 1.0e-3);
+  REQUIRE(worst_mnxb < 1.0e-12);
+  REQUIRE(worst_xnab < 1.0e-12);
+}
+
+//==============================================================================
+// The core relaxation with the external line, alone, every entry. x as i:
+// the hole x is not dressed. x as m: the particle x is not dressed (no
+// single excitations of the core into x), the particle n is
+TEST_CASE("Ladder: external line with relaxation matches reference",
+          "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto i_orbs = qip::merge(data.core, data.excited);
+  const auto lk = dressed_table(data, i_orbs, 1);
+  const auto rho_ma = random_core_singles(data);
+  const MBPT::LadderDiagrams no_diagrams{false, false, false, false};
+
+  double worst_mnxb = 0.0;
+  double worst_xnab = 0.0;
+  double smallest_line_term = 1.0;
+  for (const auto &v : data.valence) {
+    const auto en_v = v.en() - 0.05;
+    const auto start = ladder_from_table(v, data, lk);
+    const auto &x_list = start.x_orbitals;
+    const auto ladder =
+      external_line_sweep(start, en_v, data, lk, no_diagrams, &rho_ma);
+
+    worst_mnxb = std::max(
+      worst_mnxb,
+      mnxb_difference(ladder, x_list, data,
+                      [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                          const DiracSpinor &x, const DiracSpinor &b) {
+                        return MBPT::Rkmnij(k, m, n, x, b, data.qk, rho_ma,
+                                            data.core, data.excited);
+                      }));
+    worst_xnab = std::max(
+      worst_xnab,
+      xnab_difference(ladder, x_list, data.excited, data,
+                      [&](int k, const DiracSpinor &x, const DiracSpinor &n,
+                          const DiracSpinor &a, const DiracSpinor &b) {
+                        return MBPT::Rkmnij(k, x, n, a, b, data.qk, rho_ma,
+                                            data.core, data.excited, true);
+                      }));
+    // With the term of the line itself the integrals are different, for a
+    // line with a core orbital of its kappa
+    const auto with_line_term =
+      xnab_difference(ladder, x_list, data.excited, data,
+                      [&](int k, const DiracSpinor &x, const DiracSpinor &n,
+                          const DiracSpinor &a, const DiracSpinor &b) {
+                        return MBPT::Rkmnij(k, x, n, a, b, data.qk, rho_ma,
+                                            data.core, data.excited);
+                      });
+    const bool core_of_kappa_v = std::any_of(
+      data.core.cbegin(), data.core.cend(),
+      [&v](const DiracSpinor &c) { return c.kappa() == v.kappa(); });
+    if (core_of_kappa_v) {
+      smallest_line_term = std::min(smallest_line_term, with_line_term);
+    }
+  }
+  REQUIRE(smallest_line_term > 1.0e-3);
+  REQUIRE(worst_mnxb < 1.0e-12);
+  REQUIRE(worst_xnab < 1.0e-12);
+}
+
+//==============================================================================
+// All diagrams, P and the core relaxation together: with en_v = e_x0 the x0
+// integrals are those of a normal sweep, except for the single excitations
+// of the core into x0, which the integrals with x0 as m do not have
+TEST_CASE("Ladder: external line with P and relaxation at its own energy",
+          "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto max_k = stored_max_k(data);
+  const auto i_orbs = qip::merge(data.core, data.excited);
+  const auto diagrams = diagrams_with_P();
+  const auto lk = dressed_table(data, i_orbs, 1, diagrams);
+  const auto rho_ma = random_core_singles(data);
+  auto lk_next = lk;
+  MBPT::calculate_Lk_mnib(&lk_next, data.qk, data.excited, data.core, i_orbs,
+                          diagrams, &lk, max_k, false, 0.0, nullptr, &rho_ma);
+
+  double worst_mnxb = 0.0;
+  double worst_xnab = 0.0;
+  for (const auto &v : data.valence) {
+    const auto start = ladder_from_table(v, data, lk);
+    for (const auto &x0 : start.x_orbitals) {
+      const auto index_x0 =
+        std::size_t(std::find(data.excited.cbegin(), data.excited.cend(), x0) -
+                    data.excited.cbegin());
+      const auto ladder =
+        external_line_sweep(start, x0.en(), data, lk, diagrams, &rho_ma);
+      worst_mnxb = std::max(
+        worst_mnxb,
+        mnxb_difference(ladder, {x0}, data,
+                        [&](int k, const DiracSpinor &m, const DiracSpinor &n,
+                            const DiracSpinor &x, const DiracSpinor &b) {
+                          return lk_next.Q(k, m, n, x, b);
+                        }));
+      // The normal sweep has -sum_c rho_xc Q^k_cnab: add it back
+      worst_xnab = std::max(
+        worst_xnab,
+        xnab_difference(ladder, {x0}, data.excited, data,
+                        [&](int k, const DiracSpinor &x, const DiracSpinor &n,
+                            const DiracSpinor &a, const DiracSpinor &b) {
+                          double line_term = 0.0;
+                          for (std::size_t index_c = 0;
+                               index_c < data.core.size(); ++index_c) {
+                            const auto &c = data.core[index_c];
+                            if (c.kappa() == x.kappa()) {
+                              line_term += rho_ma(index_x0, index_c) *
+                                           data.qk.Q(k, c, n, a, b);
+                            }
+                          }
+                          return lk_next.Q(k, x, n, a, b) + line_term;
+                        }));
+    }
+  }
+  REQUIRE(worst_mnxb < 1.0e-12);
+  REQUIRE(worst_xnab < 1.0e-12);
+}
+
+//==============================================================================
+// The correction to the correlation potential from the full pair equation,
+// converged: x = L + P + R closed with W, less x_F closed with Q, plus the
+// core relaxation potential
+TEST_CASE("Ladder: potential with P and relaxation", "[Ladder]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data(-1, 8.0);
+  const auto &sjt = data.yk.SixJ();
+  const auto max_k = stored_max_k(data);
+  const auto &core = data.core;
+  const auto &excited = data.excited;
+  const auto diagrams = diagrams_with_P();
+  const auto diagrams_F = diagrams_of_x_F();
+  const int num_sweeps = 50;
+
+  // x = L + P, and x = L + P + R with the core single excitations: both
+  // iterated to convergence (the iteration converges geometrically)
+  const auto lk_P = dressed_table(data, data.i_orbs, num_sweeps, diagrams);
+  auto lk = dressed_table(data, data.i_orbs, 0, diagrams);
+  auto rho_ma =
+    MBPT::core_singles(MBPT::core_singles_source(data.qk, excited, core, &lk),
+                       data.qk, excited, core, nullptr);
+  for (int sweep = 0; sweep < num_sweeps; ++sweep) {
+    const auto lk_prev = lk;
+    MBPT::calculate_Lk_mnib(&lk, data.qk, excited, core, data.i_orbs, diagrams,
+                            &lk_prev, max_k, false, 0.0, nullptr, &rho_ma);
+    rho_ma =
+      MBPT::core_singles(MBPT::core_singles_source(data.qk, excited, core, &lk),
+                         data.qk, excited, core, &rho_ma);
+  }
+  const auto density = MBPT::relaxation_density(data.qk, core, excited);
+
+  // Closing amplitude of x for each valence state, alone: no single
+  // excitations of the core into v
+  Coulomb::NkTable L_vnab;
+  MBPT::add_Lk_vnab_F_entries(&L_vnab, excited, core, data.valence, max_k);
+  for (int sweep = 0; sweep < num_sweeps; ++sweep) {
+    const auto L_vnab_prev = L_vnab;
+    for (const auto &v : data.valence) {
+      MBPT::calculate_Lk_xnab(&L_vnab, data.qk, excited, core, {v}, v.en(),
+                              diagrams, lk, L_vnab_prev, 0.0, &rho_ma);
+    }
+  }
+
+  // x_F and its closing amplitude
+  const auto lk_F = dressed_table(data, data.i_orbs, num_sweeps, diagrams_F);
+  Coulomb::NkTable L_vnab_F;
+  MBPT::add_Lk_vnab_F_entries(&L_vnab_F, excited, core, data.valence, max_k);
+  for (int sweep = 0; sweep < num_sweeps; ++sweep) {
+    const auto L_vnab_F_prev = L_vnab_F;
+    MBPT::calculate_Lk_vnab_F(&L_vnab_F, data.qk, excited, core, data.valence,
+                              diagrams_F, &lk_F, &L_vnab_F_prev, 0.0);
+  }
+
+  fmt::print("\nLadder: x = v integrals with the external line vs the valence "
+             "integrals (eps);\n"
+             "<v|dSigma|v> vs E_W[x] - E_Q[x_F] + <v|dV^R|v> (au);\n"
+             "eps(<y|dSigma|x>) vs the sum over the tables\n");
+  fmt::print("{:4s}  {:>7s}  {:>7s}  {:>7s}  {:>7s}  {:>13s}  {:>13s}  {:>7s}  "
+             "{:>7s}\n",
+             "v", "x(L+P)", "x(i)", "x(m)", "x_F", "expected", "found", "eps",
+             "eps(yx)");
+  double worst_column_P = 0.0;
+  double worst_column = 0.0;
+  double worst_column_F = 0.0;
+  double worst_diagonal = 0.0;
+  double worst_yx = 0.0;
+  double smallest_line_term = 1.0;
+  for (const auto &v : data.valence) {
+    const auto from_table = [](const Coulomb::LkTable &table) {
+      return [&table](int k, const DiracSpinor &a, const DiracSpinor &b,
+                      const DiracSpinor &c,
+                      const DiracSpinor &d) { return table.Q(k, a, b, c, d); };
+    };
+    const auto from_closing = [](const Coulomb::NkTable &table) {
+      return [&table](int k, const DiracSpinor &a, const DiracSpinor &b,
+                      const DiracSpinor &c,
+                      const DiracSpinor &d) { return table.Q(k, a, b, c, d); };
+    };
+
+    // L + P: the x = v integrals are those of the ladder table, both slots
+    const auto ladder_P = MBPT::external_line_ladder(
+      v, core, excited, data.qk, lk_P, diagrams, 80, 1.0e-13, 0.0, false);
+    const auto eps_column_P =
+      std::max(mnxb_difference(ladder_P, {v}, data, from_table(lk_P)),
+               xnab_difference(ladder_P, {v}, excited, data, from_table(lk_P)));
+
+    // L + P + R: x as i from the ladder table; x as m from the closing table
+    // (found for v alone), not from the ladder table
+    const auto ladder =
+      MBPT::external_line_ladder(v, core, excited, data.qk, lk, diagrams, 80,
+                                 1.0e-13, 0.0, false, &rho_ma, &L_vnab);
+    const auto eps_column_i =
+      mnxb_difference(ladder, {v}, data, from_table(lk));
+    const auto eps_column_m =
+      xnab_difference(ladder, {v}, excited, data, from_closing(L_vnab));
+    const auto line_term =
+      xnab_difference(ladder, {v}, excited, data, from_table(lk));
+    const bool core_of_kappa_v =
+      std::any_of(core.cbegin(), core.cend(), [&v](const DiracSpinor &c) {
+        return c.kappa() == v.kappa();
+      });
+    if (core_of_kappa_v) {
+      smallest_line_term = std::min(smallest_line_term, line_term);
+    }
+
+    // x_F: x as i from the x_F table; x as m from its closing table
+    const auto ladder_F =
+      MBPT::external_line_ladder_F(v, core, excited, data.qk, lk_F, L_vnab_F,
+                                   diagrams_F, 80, 1.0e-13, 0.0, false);
+    const auto eps_column_F = std::max(
+      mnxb_difference(ladder_F, {v}, data, from_table(lk_F)),
+      xnab_difference(ladder_F, {v}, excited, data, from_closing(L_vnab_F)));
+
+    // The potential, lower components included, on the full grid
+    auto dSigma =
+      MBPT::Sigma_ladder(v, ladder, core, excited, 1.0e-4, 200.0, 1, true);
+    dSigma -= MBPT::Sigma_ladder(v, ladder_F.x_orbitals, ladder_F.L_mnxb,
+                                 ladder_F.L_xnab, core, excited, 1.0e-4, 200.0,
+                                 1, true, false);
+    dSigma +=
+      MBPT::relaxation_potential(ladder.x_orbitals, data.qk, rho_ma, density,
+                                 core, excited, 1.0e-4, 200.0, 1, true);
+
+    const auto [rho_part, occupation_part] =
+      MBPT::de_valence_relaxation(v, data.qk, rho_ma, density, core, excited);
+    const auto expected =
+      MBPT::de_valence_w(v, data.qk, lk, L_vnab, core, excited, &sjt) -
+      MBPT::de_valence_F(v, data.qk, lk_F, L_vnab_F, core, excited) + rho_part +
+      occupation_part;
+    const auto found = v * (dSigma * v);
+    const auto eps = std::abs(found / expected - 1.0);
+
+    // Every <y|dSigma|x>: W closing of x, less the Q closing of x_F, plus
+    // <y|dV^R|x>
+    const auto dV = MBPT::relaxation_potential_matrix(
+      ladder.x_orbitals, data.qk, rho_ma, density, core, excited);
+    double max_difference = 0.0;
+    double largest = 0.0;
+    for (std::size_t index_x = 0; index_x < ladder.x_orbitals.size();
+         ++index_x) {
+      const auto &x = ladder.x_orbitals[index_x];
+      const auto dSigma_x = dSigma * x;
+      for (std::size_t index_y = 0; index_y < ladder.x_orbitals.size();
+           ++index_y) {
+        const auto &y = ladder.x_orbitals[index_y];
+        double sum = 0.0;
+        for (const auto &n : excited) {
+          for (const auto &a : core) {
+            for (const auto &m : excited) {
+              const auto de = v.en() + a.en() - m.en() - n.en();
+              const auto [k_min, k_max] = Coulomb::k_minmax_W(y, a, m, n);
+              for (int k = k_min; k <= k_max; ++k) {
+                sum += (data.qk.W(k, y, a, m, n, &sjt) *
+                          ladder.L_mnxb.Q(k, m, n, x, a) -
+                        data.qk.Q(k, y, a, m, n) *
+                          ladder_F.L_mnxb.Q(k, m, n, x, a)) /
+                       ((2 * k + 1) * de);
+              }
+            }
+            for (const auto &b : core) {
+              const auto de = v.en() + n.en() - a.en() - b.en();
+              const auto [k_min, k_max] = Coulomb::k_minmax_W(y, n, a, b);
+              for (int k = k_min; k <= k_max; ++k) {
+                sum += (data.qk.W(k, y, n, a, b, &sjt) *
+                          ladder.L_xnab.Q(k, x, n, a, b) -
+                        data.qk.Q(k, y, n, a, b) *
+                          ladder_F.L_xnab.Q(k, x, n, a, b)) /
+                       ((2 * k + 1) * de);
+              }
+            }
+          }
+        }
+        sum = sum / v.twojp1() + dV(index_y, index_x);
+        max_difference = std::max(max_difference, std::abs(y * dSigma_x - sum));
+        largest = std::max(largest, std::abs(sum));
+      }
+    }
+    const auto eps_yx = max_difference / largest;
+
+    fmt::print("{:4s}  {:7.1e}  {:7.1e}  {:7.1e}  {:7.1e}  {:+13.6e}  "
+               "{:+13.6e}  {:7.1e}  {:7.1e}\n",
+               v.shortSymbol(), eps_column_P, eps_column_i, eps_column_m,
+               eps_column_F, expected, found, eps, eps_yx);
+    worst_column_P = std::max(worst_column_P, eps_column_P);
+    worst_column = std::max({worst_column, eps_column_i, eps_column_m});
+    worst_column_F = std::max(worst_column_F, eps_column_F);
+    worst_diagonal = std::max(worst_diagonal, eps);
+    worst_yx = std::max(worst_yx, eps_yx);
+  }
+  // With R, the integrals with x = v as m are not those of the ladder table
+  REQUIRE(smallest_line_term > 1.0e-6);
+  REQUIRE(worst_column_P < 1.0e-9);
+  REQUIRE(worst_column < 1.0e-9);
+  REQUIRE(worst_column_F < 1.0e-9);
+  REQUIRE(worst_diagonal < 1.0e-8);
+  REQUIRE(worst_yx < 1.0e-8);
 }

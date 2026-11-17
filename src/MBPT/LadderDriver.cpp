@@ -33,16 +33,17 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
      {"include_L4", "Inlcude 4th Ladder diagram [true]"},
      {"include_P", "Include core polarisation in the ladder [false]:\n"
                    " - with its exchange and hole-particle parts\n"
-                   " - no Sigma_L: prints valence energy corrections,\n"
-                   "   without the part in the Feynman direct diagram\n"
+                   " - without the part in the Feynman direct diagram\n"
                    "   (Correlations with screening and hole_particle)\n"
+                   " - Sigma_L only with sigma_method = basis; otherwise\n"
+                   "   only prints the valence energy corrections\n"
                    " - use min_n_core = Correlations n_min_core\n"
                    " - needs max_it > 0"},
      {"include_R", "Include the core relaxation [false]:\n"
                    " - core single excitations in the ladder\n"
                    " - adds the interaction with the change of the\n"
-                   "   core density, <v|dV^R|v>, to the valence\n"
-                   "   energy corrections\n"
+                   "   core density, dV^R, to Sigma_L and to the\n"
+                   "   valence energy corrections\n"
                    " - needs include_P"},
      {"sigma_method",
       "Method for the ladder correlation potential Sigma_L. Options:\n"
@@ -397,23 +398,85 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   }
   std::cout << "\n";
 
+  // With R: the closing amplitude of the second term of the valence energy,
+  // L_vnab, for each valence state: x_vnab without the single excitations of
+  // the core into v. Their contribution is a chain through a core orbital,
+  // which the Brueckner equation generates (as it does the single excitations
+  // of v). The ladder table keeps them: for the core, v is an excited orbital
+  // like any other. Starts from the entries of the ladder table
+  Coulomb::NkTable L_vnab;
+  if (include_R) {
+    std::cout << "\nClosing amplitude L_vnab, without the single excitations "
+                 "of the core into v:\n";
+    MBPT::add_Lk_vnab_F_entries(&L_vnab, excited, holes, valence, lk.max_k());
+    for (std::size_t k = 0; k < L_vnab->size(); ++k) {
+      for (auto &[key, value] : L_vnab->at(k)) {
+        const auto [v, n, a, b] = L_vnab.UnFormIndex(key);
+        value = lk.Q(int(k), v, n, a, b);
+      }
+    }
+    auto L_vnab_next = L_vnab;
+    std::vector<double> E_W_0;
+    for (const auto &v : valence) {
+      E_W_0.push_back(
+        MBPT::de_valence_w(v, qk, lk, L_vnab, holes, excited, &sjt));
+    }
+    std::vector<DiracSpinor> unconverged_closing = valence;
+    std::vector<int> closing_sweeps_below_eps(valence.size(), 0);
+    for (int it = 1; it <= max_it; ++it) {
+      std::cout << "\nclosing it:" << it << "\n";
+      for (const auto &v : unconverged_closing) {
+        MBPT::calculate_Lk_xnab(&L_vnab_next, qk, excited, holes, {v}, v.en(),
+                                diagrams, lk, L_vnab, a_damp, &rho_ma);
+      }
+      L_vnab = L_vnab_next;
+      for (std::size_t i = 0; i < valence.size(); ++i) {
+        const auto &v = valence[i];
+        auto it2 =
+          std::find(unconverged_closing.begin(), unconverged_closing.end(), v);
+        if (it2 == unconverged_closing.end())
+          continue;
+        const auto E_W_v =
+          MBPT::de_valence_w(v, qk, lk, L_vnab, holes, excited, &sjt);
+        const auto eps_v =
+          std::abs(2.0 * (E_W_v - E_W_0[i]) / (E_W_v + E_W_0[i]));
+        E_W_0[i] = E_W_v;
+        fmt::print("E_W({:>4}): {:+12.9f} au  {:+12.5f} cm^-1  {:.1e}\n",
+                   v.shortSymbol(), E_W_v, E_W_v * icm, eps_v);
+        closing_sweeps_below_eps[i] =
+          (eps_v < eps_target) ? closing_sweeps_below_eps[i] + 1 : 0;
+        if (closing_sweeps_below_eps[i] == required_sweeps_below_eps) {
+          unconverged_closing.erase(it2);
+        }
+      }
+      if (unconverged_closing.empty())
+        break;
+    }
+    if (!unconverged_closing.empty()) {
+      fmt::print("\nWarning: closing amplitude not converged in max_it = {} "
+                 "sweeps\n",
+                 max_it);
+    }
+  }
+
   // With P: the valence energy correction de = E_W[x] - E_Q[x_F]. x_F is the
   // part of x that the Feynman direct diagram contains: the polarisation loop
   // (piece 1 of P) with the hole-particle interaction, x_F = P_F[g + x_F]. Its
   // direct (Q) closing uses the closing amplitude x' [calculate_Lk_vnab_F()].
   // x_F has no core single excitations: with R, the same x_F, and de has
-  // <v|dV^R|v> added. Sigma_L is not formed with P: only the valence energy
-  // corrections.
+  // <v|dV^R|v> added. Sigma_L is formed from the same parts, with the
+  // external line (sigma_method basis only).
+  MBPT::LadderDiagrams diagrams_F{false, false, false, false};
+  diagrams_F.P1 = true;
+  diagrams_F.hole_particle = true;
+  Coulomb::LkTable lk_F;
+  Coulomb::NkTable L_vnab_F;
+  MBPT::RelaxationDensity density;
+  std::vector<double> de_P(valence.size(), 0.0);
   if (include_P) {
-    MBPT::LadderDiagrams diagrams_F{false, false, false, false};
-    diagrams_F.P1 = true;
-    diagrams_F.hole_particle = true;
-
     std::cout << "\nInitial fill of x_F table: core + valence\n" << std::flush;
-    Coulomb::LkTable lk_F;
     MBPT::fill_Lk_mnib(&lk_F, qk, excited, holes, core_and_val, diagrams_F,
                        max_k, true);
-    Coulomb::NkTable L_vnab_F;
     MBPT::add_Lk_vnab_F_entries(&L_vnab_F, excited, holes, valence,
                                 lk_F.max_k());
     MBPT::calculate_Lk_vnab_F(&L_vnab_F, qk, excited, holes, valence,
@@ -473,7 +536,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     // rho_ma at lowest order
     std::vector<double> dV_R(valence.size(), 0.0);
     if (include_R) {
-      const auto density = MBPT::relaxation_density(qk, holes, excited);
+      density = MBPT::relaxation_density(qk, holes, excited);
       const auto rho_ma_lowest = MBPT::core_singles(
         MBPT::core_singles_source(qk, excited, holes, nullptr), qk, excited,
         holes, nullptr);
@@ -505,18 +568,26 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     }
     for (std::size_t i = 0; i < valence.size(); ++i) {
       const auto &v = valence[i];
-      const auto E_W_x = MBPT::de_valence_w(v, qk, lk, holes, excited, &sjt);
+      // With R, the second term is closed with the closing amplitude
+      const auto E_W_x =
+        include_R ?
+          MBPT::de_valence_w(v, qk, lk, L_vnab, holes, excited, &sjt) :
+          MBPT::de_valence_w(v, qk, lk, holes, excited, &sjt);
+      de_P[i] = E_W_x - E_Q_F[i] + dV_R[i];
       if (include_R) {
         fmt::print("{:4s}  {:11.7}  {:11.7}  {:11.7}  {:11.7}\n",
                    v.shortSymbol(), E_W_x * icm, E_Q_F[i] * icm, dV_R[i] * icm,
-                   (E_W_x - E_Q_F[i] + dV_R[i]) * icm);
+                   de_P[i] * icm);
       } else {
         fmt::print("{:4s}  {:11.7}  {:11.7}  {:11.7}\n", v.shortSymbol(),
-                   E_W_x * icm, E_Q_F[i] * icm, (E_W_x - E_Q_F[i]) * icm);
+                   E_W_x * icm, E_Q_F[i] * icm, de_P[i] * icm);
       }
     }
-    std::cout << "\nSigma_L is not formed with include_P: no sl file written\n";
-    return;
+    if (method != SigmaLMethod::basis) {
+      std::cout << "\nSigma_L is formed with include_P only by sigma_method = "
+                   "basis: no sl file written\n";
+      return;
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -532,11 +603,30 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     for (const auto &v : valence) {
       std::cout << v << "\n";
       if (method == SigmaLMethod::basis) {
-        const auto ladder_v =
-          MBPT::external_line_ladder(v, holes, excited, qk, lk, diagrams,
-                                     max_it, eps_target, a_damp, true);
-        SigL_v.push_back(MBPT::Sigma_ladder(v, ladder_v, holes, excited, sig_r0,
-                                            sig_rmax, sig_stride, include_G));
+        const auto ladder_v = MBPT::external_line_ladder(
+          v, holes, excited, qk, lk, diagrams, max_it, eps_target, a_damp, true,
+          rho_ma_or_null, include_R ? &L_vnab : nullptr);
+        auto Sigma_v = MBPT::Sigma_ladder(v, ladder_v, holes, excited, sig_r0,
+                                          sig_rmax, sig_stride, include_G);
+        if (include_P) {
+          // Less the part in the Feynman direct diagram: x_F and its closing
+          // amplitude with the external line, closed with Q
+          const auto ladder_F = MBPT::external_line_ladder_F(
+            v, holes, excited, qk, lk_F, L_vnab_F, diagrams_F, max_it,
+            eps_target, a_damp, true);
+          Sigma_v -= MBPT::Sigma_ladder(v, ladder_F.x_orbitals, ladder_F.L_mnxb,
+                                        ladder_F.L_xnab, holes, excited, sig_r0,
+                                        sig_rmax, sig_stride, include_G, false);
+        }
+        if (include_R) {
+          // The interaction with the change of the core density, projected
+          // onto every state of kappa_v in the ladder: the states x, and the
+          // core states
+          Sigma_v += MBPT::relaxation_potential(
+            MBPT::projection_states(v, both), qk, rho_ma, density, holes,
+            excited, sig_r0, sig_rmax, sig_stride, include_G);
+        }
+        SigL_v.push_back(std::move(Sigma_v));
       } else if (method == SigmaLMethod::ratio2) {
         SigL_v.push_back(MBPT::Sigma_ladder_ratio2(
           v, holes, excited, qk, lk, sig_r0, sig_rmax, sig_stride, include_G));
@@ -575,28 +665,40 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     }
   }
 
-  std::cout << "\nEnergy corrections:\n";
-  fmt::print("{:4s}  {:13}  {:11}  {:10}  {:10}  {:10}\n", "", "HF", "de(2)",
-             "de(l) [Q*L]", "de(l) [W*L]", "<v|Sig_L|v>");
-  const auto Ec_HF = wf.coreEnergyHF();
-  const auto de2_c = MBPT::de_core(qk, qk, holes, excited);
-  const auto del_c = MBPT::de_core(qk, lk, holes, excited);
-  const auto del_c_2 = MBPT::de_core_w(qk, lk, holes, excited, &sjt);
-  fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}\n", "core", Ec_HF * icm,
-             de2_c * icm, del_c * icm, del_c_2 * icm);
+  if (include_P) {
+    // de: the valence energy corrections printed above
+    std::cout << "\nEnergy corrections (cm^-1):\n";
+    fmt::print("{:4s}  {:11}  {:11}\n", "", "de", "<v|Sig_L|v>");
+    for (std::size_t i = 0; i < valence.size(); ++i) {
+      const auto &v = valence[i];
+      const auto deS = v * (SigL_v[i] * v);
+      fmt::print("{:4s}  {:11.7}  {:11.7}\n", v.shortSymbol(), de_P[i] * icm,
+                 deS * icm);
+    }
+  } else {
+    std::cout << "\nEnergy corrections:\n";
+    fmt::print("{:4s}  {:13}  {:11}  {:10}  {:10}  {:10}\n", "", "HF", "de(2)",
+               "de(l) [Q*L]", "de(l) [W*L]", "<v|Sig_L|v>");
+    const auto Ec_HF = wf.coreEnergyHF();
+    const auto de2_c = MBPT::de_core(qk, qk, holes, excited);
+    const auto del_c = MBPT::de_core(qk, lk, holes, excited);
+    const auto del_c_2 = MBPT::de_core_w(qk, lk, holes, excited, &sjt);
+    fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}\n", "core",
+               Ec_HF * icm, de2_c * icm, del_c * icm, del_c_2 * icm);
 
-  for (std::size_t i = 0; i < valence.size(); ++i) {
-    const auto &v = valence[i];
-    const auto e0 = v.en();
-    const auto de2 = MBPT::de_valence(v, qk, qk, holes, excited);
-    const auto del = MBPT::de_valence(v, qk, lk, holes, excited);
-    // Alternative: antisymmetrise the first (Coulomb) integral via W=Q+P,
-    // rather than the second (ladder) integral via lk.P. Should match 'del'.
-    const auto del2 = MBPT::de_valence_w(v, qk, lk, holes, excited, &sjt);
-    const auto deS = v * (SigL_v[i] * v);
-    fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}  {:10.7}\n",
-               v.shortSymbol(), e0 * icm, de2 * icm, del * icm, del2 * icm,
-               deS * icm);
+    for (std::size_t i = 0; i < valence.size(); ++i) {
+      const auto &v = valence[i];
+      const auto e0 = v.en();
+      const auto de2 = MBPT::de_valence(v, qk, qk, holes, excited);
+      const auto del = MBPT::de_valence(v, qk, lk, holes, excited);
+      // Alternative: antisymmetrise the first (Coulomb) integral via W=Q+P,
+      // rather than the second (ladder) integral via lk.P. Should match 'del'.
+      const auto del2 = MBPT::de_valence_w(v, qk, lk, holes, excited, &sjt);
+      const auto deS = v * (SigL_v[i] * v);
+      fmt::print("{:4s}  {:13.7}  {:11.7}  {:10.7}  {:10.7}  {:10.7}\n",
+                 v.shortSymbol(), e0 * icm, de2 * icm, del * icm, del2 * icm,
+                 deS * icm);
+    }
   }
 
   // Hermiticity check of Sigma_L. The exact correlation potential, at fixed

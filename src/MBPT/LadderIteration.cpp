@@ -9,6 +9,7 @@
 #include <cassert>
 #include <cmath>
 #include <cstddef>
+#include <optional>
 #include <tuple>
 #include <utility>
 #include <vector>
@@ -622,15 +623,25 @@ std::vector<Matrix> QL_multipole_over_de(
   const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
   const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &ph_pairs,
   const OrbitalPairIndex &rc_pairs, const Coulomb::QkTable &qk,
-  const Coulomb::LkTable *lk_prev) {
+  const Coulomb::LkTable *lk_prev, const ExternalLine *external) {
   const auto max_K = std::min(ph_pairs.max_rank(), rc_pairs.max_rank());
   auto QLk_mi_rc_over_de = block_matrices(ph_pairs, rc_pairs);
+
+  // The external line carries en_v. As i its integrals are in L_mnxb, as m
+  // in L_xnab
+  std::vector<char> i_is_line(ij_orbitals.size(), 0);
+  for (std::size_t index_i = 0; index_i < ij_orbitals.size(); ++index_i) {
+    i_is_line[index_i] = external && external->is_ij_line(ij_orbitals[index_i]);
+  }
 
 #pragma omp parallel for schedule(dynamic)
   for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
     const auto &m = excited[index_m];
+    const bool m_is_line = external && external->is_m_line(m);
+    const auto en_m = m_is_line ? external->en_v : m.en();
     for (std::size_t index_i = 0; index_i < ij_orbitals.size(); ++index_i) {
       const auto &i = ij_orbitals[index_i];
+      const auto en_i = i_is_line[index_i] ? external->en_v : i.en();
       const auto parity = pair_parity(m, i);
       for (std::size_t index_r = 0; index_r < excited.size(); ++index_r) {
         const auto &r = excited[index_r];
@@ -639,8 +650,12 @@ std::vector<Matrix> QL_multipole_over_de(
           if (pair_parity(r, c) != parity)
             continue;
           // k obeys the triangles {m,i,k} and {r,c,k}: both pairs have rank k
-          const auto QL = QL_multipoles(m, r, i, c, qk, lk_prev);
-          const auto de = i.en() + c.en() - m.en() - r.en();
+          const auto QL = i_is_line[index_i] ?
+                            QL_multipoles(m, r, i, c, qk, external->L_mnxb) :
+                          m_is_line ?
+                            QL_multipoles(m, r, i, c, qk, external->L_xnab) :
+                            QL_multipoles(m, r, i, c, qk, lk_prev);
+          const auto de = en_i + c.en() - en_m - r.en();
           for (int k = QL.k_min; k <= std::min(QL.k_max, max_K); ++k) {
             const auto row = std::size_t(ph_pairs.index(k, index_m, index_i));
             const auto col = std::size_t(rc_pairs.index(k, index_r, index_c));
@@ -742,7 +757,8 @@ std::vector<Matrix> QL_multipole_vrac_over_de(
   const std::vector<DiracSpinor> &valence,
   const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
   const OrbitalPairIndex &va_pairs, const OrbitalPairIndex &rc_pairs,
-  const Coulomb::QkTable &qk, const Coulomb::NkTable *L_vnab_prev) {
+  const Coulomb::QkTable &qk, const Coulomb::NkTable *L_vnab_prev,
+  std::optional<double> en_v) {
   const auto max_K = std::min(va_pairs.max_rank(), rc_pairs.max_rank());
   auto QLk_va_rc_over_de = block_matrices(va_pairs, rc_pairs);
 
@@ -760,7 +776,7 @@ std::vector<Matrix> QL_multipole_vrac_over_de(
             continue;
           // k obeys the triangles {v,a,k} and {r,c,k}: both pairs have rank k
           const auto QL = QL_multipoles(v, r, a, c, qk, L_vnab_prev);
-          const auto de = a.en() + c.en() - v.en() - r.en();
+          const auto de = a.en() + c.en() - en_v.value_or(v.en()) - r.en();
           for (int k = QL.k_min; k <= std::min(QL.k_max, max_K); ++k) {
             const auto row = std::size_t(va_pairs.index(k, index_v, index_a));
             const auto col = std::size_t(rc_pairs.index(k, index_r, index_c));
@@ -951,11 +967,13 @@ std::vector<Matrix> Vhp_multipole(const std::vector<Matrix> &QLk_mi_rc_over_de,
 
 //==============================================================================
 
-std::vector<Matrix> P_multipole(
-  const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
-  const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &ph_pairs,
-  const Coulomb::QkTable &qk, const Coulomb::LkTable *lk_prev,
-  const SixJArray &sixj, const LadderDiagrams &diagrams) {
+std::vector<Matrix>
+P_multipole(const std::vector<DiracSpinor> &excited,
+            const std::vector<DiracSpinor> &core,
+            const std::vector<DiracSpinor> &ij_orbitals,
+            const OrbitalPairIndex &ph_pairs, const Coulomb::QkTable &qk,
+            const Coulomb::LkTable *lk_prev, const SixJArray &sixj,
+            const LadderDiagrams &diagrams, const ExternalLine *external) {
   const OrbitalPairIndex rc_pairs(excited, core, ph_pairs.max_rank());
   const auto num_blocks = ph_pairs.num_blocks();
 
@@ -963,7 +981,7 @@ std::vector<Matrix> P_multipole(
   const auto QLk_mi_rc_over_de =
     diagrams.P1 || diagrams.P2 || diagrams.hole_particle ?
       QL_multipole_over_de(excited, core, ij_orbitals, ph_pairs, rc_pairs, qk,
-                           lk_prev) :
+                           lk_prev, external) :
       std::vector<Matrix>(num_blocks);
   const auto Qk_rc_nj =
     diagrams.P1 || diagrams.P3 ?
@@ -974,9 +992,10 @@ std::vector<Matrix> P_multipole(
                                           rc_pairs, ph_pairs, qk, sixj) :
                           std::vector<Matrix>(num_blocks);
   const auto QLK_mi_rc_over_de =
-    diagrams.P3 ? QL_particle_hole_over_de(excited, core, ij_orbitals, ph_pairs,
-                                           rc_pairs, qk, lk_prev, sixj) :
-                  std::vector<Matrix>(num_blocks);
+    diagrams.P3 ?
+      QL_particle_hole_over_de(excited, core, ij_orbitals, ph_pairs, rc_pairs,
+                               qk, lk_prev, sixj, external) :
+      std::vector<Matrix>(num_blocks);
 
   std::vector<Matrix> Pk_mi_nj(num_blocks);
   if (diagrams.P1) {
@@ -1077,7 +1096,7 @@ Multipoles relaxation_multipoles(std::size_t index_m, std::size_t index_n,
                                  const std::vector<DiracSpinor> &excited,
                                  const std::vector<DiracSpinor> &ij_orbitals,
                                  const Coulomb::QkTable &qk,
-                                 const Matrix &rho_ma) {
+                                 const Matrix &rho_ma, bool m_is_line) {
   const auto num_core = rho_ma.cols();
   assert(rho_ma.rows() == excited.size() && num_core <= ij_orbitals.size());
   const auto &m = excited[index_m];
@@ -1117,10 +1136,11 @@ Multipoles relaxation_multipoles(std::size_t index_m, std::size_t index_n,
   }
 
   // Particles stay orthogonal to the core: m -> m - sum_c rho_mc c, and
-  // likewise n
+  // likewise n. Not the external line: that term is a chain through the core
+  // orbital c, which the Brueckner equation generates
   for (std::size_t index_c = 0; index_c < num_core; ++index_c) {
     const auto &c = ij_orbitals[index_c];
-    if (c.kappa() == m.kappa()) {
+    if (c.kappa() == m.kappa() && !m_is_line) {
       const auto Q_cnij = coulomb_multipoles(c, n, i, j, qk);
       for (int k = R.k_min; k <= R.k_max; k += 2) {
         R.value[std::size_t(k)] -=
@@ -1286,11 +1306,8 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   assert(external == nullptr || external->L_xnab == nullptr);
   // L_mnij and L_nmji are one table entry, and L3^k_mnij = L2^k_nmji
   assert(diagrams.L2 == diagrams.L3);
-  // P, hole_particle and R with the external line are not derived
   const bool any_P =
     diagrams.P1 || diagrams.P2 || diagrams.P3 || diagrams.hole_particle;
-  assert(external == nullptr || !any_P);
-  assert(external == nullptr || rho_ma == nullptr);
   assert(rho_ma == nullptr ||
          (rho_ma->rows() == excited.size() && rho_ma->cols() == core.size()));
   // hole_particle is part of piece (2) of P
@@ -1338,7 +1355,7 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   // (m,i), columns (n,j)
   const auto Pk_mi_nj = any_P ?
                           P_multipole(excited, core, ij_orbitals, ph_pairs, qk,
-                                      lk_prev, sixj, diagrams) :
+                                      lk_prev, sixj, diagrams, external) :
                           std::vector<Matrix>(ph_pairs.num_blocks());
 
   // The n of one kappa group share all angular factors and block structure:
@@ -1409,7 +1426,8 @@ void calculate_Lk_vnab_F(Coulomb::NkTable *L_vnab, const Coulomb::QkTable &qk,
                          const std::vector<DiracSpinor> &valence,
                          const LadderDiagrams &diagrams,
                          const Coulomb::LkTable *lk_F,
-                         const Coulomb::NkTable *L_vnab_prev, double a_damp) {
+                         const Coulomb::NkTable *L_vnab_prev, double a_damp,
+                         std::optional<double> en_v) {
   assert(L_vnab != L_vnab_prev);
   // Only the terms of P_F are derived for the closing amplitude
   assert(!(diagrams.L1 || diagrams.L2 || diagrams.L3 || diagrams.L4 ||
@@ -1429,7 +1447,7 @@ void calculate_Lk_vnab_F(Coulomb::NkTable *L_vnab, const Coulomb::QkTable &qk,
   // Side: rows (v,a), from X' = g + x'. The loop on (n,b) and the
   // hole-particle term on (n,b); none on (v,a)
   const auto QLk_va_rc_over_de = QL_multipole_vrac_over_de(
-    valence, excited, core, va_pairs, rc_pairs, qk, L_vnab_prev);
+    valence, excited, core, va_pairs, rc_pairs, qk, L_vnab_prev, en_v);
   const auto Qk_rc_nb =
     diagrams.P1 ? Q_multipole(excited, core, core, rc_pairs, ph_pairs, qk) :
                   std::vector<Matrix>(ph_pairs.num_blocks());

@@ -7,6 +7,7 @@
 #include <array>
 #include <cstddef>
 #include <cstdlib>
+#include <optional>
 #include <utility>
 #include <vector>
 
@@ -72,14 +73,14 @@ coupled_rank_range(const DiracSpinor &a, const DiracSpinor &b,
   equation of the SD method only by a part symmetric under i <-> j: it drops
   out of l_mnij - l_mnji, and so out of every energy, at all orders. Each
   piece of P, with its partner, has the table symmetry by itself. Off by
-  default; not with the external line.
+  default.
 
   hole_particle is the hole-particle interaction as the Feynman direct
   diagram includes it, through V^(a): -y^0_cc acts on the particle of each
   pair (n,c) whose hole c is a core orbital, with the hole unchanged (the
   monopole only) [see Vhp()]. With P1 it gives P_F, the part of P[X] the
   Feynman direct diagram contains (x_F = P_F[g + x_F]). It is part of piece
-  (2): not with P2. Off by default; not with the external line.
+  (2): not with P2. Off by default.
 */
 struct LadderDiagrams {
   //! Particle-particle ladder
@@ -398,12 +399,13 @@ std::vector<LinAlg::Matrix<double>> Q_particle_hole(
 //! P left factor QL^k_mric/Delta e_{ic,mr}, k of both parities, in the block
 //! of rank k: rows (m excited, i in ij_orbitals) by ph_pairs; columns (r
 //! excited, c core) by rc_pairs. No recoupling: the multipole k couples m
-//! with i, and r with c
+//! with i, and r with c. external: the line is i (ExternalLine::L_mnxb) or m
+//! (ExternalLine::L_xnab)
 std::vector<LinAlg::Matrix<double>> QL_multipole_over_de(
   const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
   const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &ph_pairs,
   const OrbitalPairIndex &rc_pairs, const Coulomb::QkTable &qk,
-  const Coulomb::LkTable *lk_prev);
+  const Coulomb::LkTable *lk_prev, const ExternalLine *external = nullptr);
 
 //! P right factor Q^k_cnrj, in the block of rank k: rows (r excited, c core)
 //! by rc_pairs; columns (n excited, j in ij_orbitals) by ph_pairs. Coulomb k
@@ -438,12 +440,14 @@ std::vector<LinAlg::Matrix<double>> Vhp_matrix(
 //! parities, in the block of rank k: rows (v in valence, a core) by va_pairs;
 //! columns (r excited, c core) by rc_pairs. QL = Q + L, with L from
 //! L_vnab_prev (nullptr: Q only). As QL_multipole_over_de(), with the rows
-//! (v,a) of the closing amplitude
+//! (v,a) of the closing amplitude. en_v: used in place of the energy of v
+//! [see calculate_Lk_vnab_F()]
 std::vector<LinAlg::Matrix<double>> QL_multipole_vrac_over_de(
   const std::vector<DiracSpinor> &valence,
   const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
   const OrbitalPairIndex &va_pairs, const OrbitalPairIndex &rc_pairs,
-  const Coulomb::QkTable &qk, const Coulomb::NkTable *L_vnab_prev);
+  const Coulomb::QkTable &qk, const Coulomb::NkTable *L_vnab_prev,
+  std::optional<double> en_v = {});
 
 //==============================================================================
 /*!
@@ -613,12 +617,18 @@ Vhp_multipole(const std::vector<LinAlg::Matrix<double>> &QLk_mi_rc_over_de,
   factor is formed once, and only if a piece switched on needs it. The table
   entry is P^k_mnij = P^k_{mi,nj} + P^k_{nj,mi} [store_Lk_mnij()]. See
   calculate_Lk_mnib().
+
+  With @p external, the rows (m,i) that hold the external line (as i or as
+  m) take their dressed integrals from its table, with en_v in the energy
+  denominator [QL_multipole_over_de(), QL_particle_hole_over_de()]. The
+  columns hold only bare integrals.
 */
 std::vector<LinAlg::Matrix<double>> P_multipole(
   const std::vector<DiracSpinor> &excited, const std::vector<DiracSpinor> &core,
   const std::vector<DiracSpinor> &ij_orbitals, const OrbitalPairIndex &ph_pairs,
   const Coulomb::QkTable &qk, const Coulomb::LkTable *lk_prev,
-  const SixJArray &sixj, const LadderDiagrams &diagrams);
+  const SixJArray &sixj, const LadderDiagrams &diagrams,
+  const ExternalLine *external = nullptr);
 
 //==============================================================================
 //! (L1+L4)^J_{mn,ij} for J_min <= J <= J_max (zero elsewhere): row `row` (the
@@ -701,13 +711,20 @@ double damped(double L_old, double L_new, double a_damp);
   @param rho_ma           Core single excitations rho_ma, rows excited and
                           columns core (m-scheme value; zero unless kappa_m =
                           kappa_a) [core_singles()]
+  @param m_is_line        The orbital m is the valence orbital as the
+                          external line of Sigma_L(e_v) [calculate_Lk_xnab()]:
+                          the term with rho_mc is left out. It is a chain
+                          through the core orbital c, which the Brueckner
+                          equation generates, as it does the single
+                          excitations of the valence orbital
 */
 Multipoles relaxation_multipoles(std::size_t index_m, std::size_t index_n,
                                  std::size_t index_i, std::size_t index_j,
                                  const std::vector<DiracSpinor> &excited,
                                  const std::vector<DiracSpinor> &ij_orbitals,
                                  const Coulomb::QkTable &qk,
-                                 const LinAlg::Matrix<double> &rho_ma);
+                                 const LinAlg::Matrix<double> &rho_ma,
+                                 bool m_is_line = false);
 
 /*!
   @brief Writes L^k_mnij = (L1+L4) + L2 + L3 + P [+ R] for one m and the n of
@@ -883,8 +900,8 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
                    excited; others are ignored)
   @param diagrams  Which diagrams to include. L2 and L3 must go together:
                    L_mnij and L_nmji are one table entry, and L3^k_mnij =
-                   L2^k_nmji. P and hole_particle only without @p external;
-                   hole_particle not with P2 (it is part of piece (2))
+                   L2^k_nmji. hole_particle not with P2 (it is part of piece
+                   (2))
   @param lk_prev   Ladder table for the dressed integral QL = Q + L; nullptr
                    for the lowest order. Must not be lk
   @param max_k     Largest multipolarity k of the integrals to write
@@ -897,7 +914,7 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
                    Sigma_L(e_v) [ExternalLine::L_mnxb; see calculate_Lk_mnxb()]
   @param rho_ma    Optional: core single excitations rho_ma, rows excited
                    and columns core [core_singles()]; includes the core
-                   relaxation R. Not with @p external
+                   relaxation R
 
   @note Integrals that vanish because no term is allowed may come out as
         rounding noise (relative to the terms that cancel) instead of exactly
@@ -915,8 +932,9 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
 
 //==============================================================================
 //! Adds zero entries for all L'^k_vnab (v in valence, n excited, a,b core,
-//! k <= max_k), keyed (v,n,a,b), to the closing table of
-//! calculate_Lk_vnab_F(); existing entries are left unchanged
+//! k <= max_k), keyed (v,n,a,b), to a closing table [calculate_Lk_vnab_F();
+//! calculate_Lk_xnab() for the valence states]; existing entries are left
+//! unchanged
 void add_Lk_vnab_F_entries(Coulomb::NkTable *L_vnab,
                            const std::vector<DiracSpinor> &excited,
                            const std::vector<DiracSpinor> &core,
@@ -968,6 +986,11 @@ void add_Lk_vnab_F_entries(Coulomb::NkTable *L_vnab,
   @param L_vnab_prev  Closing table for X' = g + x'; nullptr for the lowest
                       order. Must not be L_vnab
   @param a_damp       Damping factor [see damped()]
+  @param en_v         Optional: used in place of the energy of each orbital
+                      of @p valence in the energy denominators. For the
+                      external line of Sigma_L(e_v): @p valence is then the
+                      projection states x of one valence state, and the
+                      table holds x'_xnab(e_v) [external_line_ladder_F()]
 */
 void calculate_Lk_vnab_F(Coulomb::NkTable *L_vnab, const Coulomb::QkTable &qk,
                          const std::vector<DiracSpinor> &excited,
@@ -975,7 +998,8 @@ void calculate_Lk_vnab_F(Coulomb::NkTable *L_vnab, const Coulomb::QkTable &qk,
                          const std::vector<DiracSpinor> &valence,
                          const LadderDiagrams &diagrams,
                          const Coulomb::LkTable *lk_F,
-                         const Coulomb::NkTable *L_vnab_prev, double a_damp);
+                         const Coulomb::NkTable *L_vnab_prev, double a_damp,
+                         std::optional<double> en_v = {});
 
 //==============================================================================
 /*!

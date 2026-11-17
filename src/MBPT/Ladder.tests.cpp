@@ -1236,3 +1236,122 @@ TEST_CASE("Ladder: relaxation potential vs Hartree-Fock", "[Ladder][unit]") {
   REQUIRE(worst_eps_rho < 1.0e-12);
   REQUIRE(worst_eps_occupation < 1.0e-12);
 }
+
+//==============================================================================
+// <x|dV^R|y> between orbitals of one kappa (core orbitals included): the
+// diagonal of a valence state against de_valence_relaxation(), an
+// off-diagonal element against the Hartree-Fock potential with no angular
+// reduction [polar form in x, y of hf_polar_form()], the symmetry, and the
+// potential on the radial grid. Random rho_ma, occupation blocks at third
+// order
+TEST_CASE("Ladder: relaxation potential matrix", "[Ladder][unit]") {
+  using namespace UnitTest::LadderTest;
+  const auto data = ladder_test_data();
+  const auto &core = data.core;
+  const auto &excited = data.excited;
+  const auto rho_ma = random_core_singles(data);
+  const auto density = MBPT::relaxation_density(data.qk, core, excited);
+
+  // sum_pq gamma_qp (sum over the projections of g~_{upuq}), radial
+  const auto radial_diagonal = [&](const DiracSpinor &u) {
+    double sum = 0.0;
+    for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+      for (std::size_t index_a = 0; index_a < core.size(); ++index_a) {
+        if (excited[index_m].kappa() == core[index_a].kappa()) {
+          sum += 2.0 * rho_ma(index_m, index_a) *
+                 hf_polar_form(u, core[index_a], excited[index_m]);
+        }
+      }
+    }
+    for (std::size_t index_b = 0; index_b < core.size(); ++index_b) {
+      for (std::size_t index_c = 0; index_c < core.size(); ++index_c) {
+        if (core[index_b].kappa() == core[index_c].kappa()) {
+          sum += density.gamma_cb(index_b, index_c) *
+                 hf_polar_form(u, core[index_b], core[index_c]);
+        }
+      }
+    }
+    for (std::size_t index_m = 0; index_m < excited.size(); ++index_m) {
+      for (std::size_t index_s = 0; index_s < excited.size(); ++index_s) {
+        if (excited[index_m].kappa() == excited[index_s].kappa()) {
+          sum += density.gamma_ms(index_m, index_s) *
+                 hf_polar_form(u, excited[index_m], excited[index_s]);
+        }
+      }
+    }
+    return sum;
+  };
+
+  double worst_diagonal = 0.0;
+  double worst_off_diagonal = 0.0;
+  double worst_asymmetry = 0.0;
+  double worst_grid = 0.0;
+  std::size_t num_off_diagonal = 0;
+  for (const auto &v : data.valence) {
+    // Every orbital of kappa_v, v among them
+    std::vector<DiracSpinor> orbitals;
+    for (const auto &x : core) {
+      if (x.kappa() == v.kappa()) {
+        orbitals.push_back(x);
+      }
+    }
+    for (const auto &x : excited) {
+      if (x.kappa() == v.kappa()) {
+        orbitals.push_back(x);
+      }
+    }
+    const auto index_v = position_of(orbitals, v);
+    const auto dV = MBPT::relaxation_potential_matrix(orbitals, data.qk, rho_ma,
+                                                      density, core, excited);
+
+    const auto [rho_part, occupation_part] =
+      MBPT::de_valence_relaxation(v, data.qk, rho_ma, density, core, excited);
+    worst_diagonal = std::max(
+      worst_diagonal,
+      std::abs(dV(index_v, index_v) / (rho_part + occupation_part) - 1.0));
+
+    double largest = 0.0;
+    double max_asymmetry = 0.0;
+    for (std::size_t index_x = 0; index_x < orbitals.size(); ++index_x) {
+      for (std::size_t index_y = 0; index_y < orbitals.size(); ++index_y) {
+        largest = std::max(largest, std::abs(dV(index_x, index_y)));
+        max_asymmetry = std::max(
+          max_asymmetry, std::abs(dV(index_x, index_y) - dV(index_y, index_x)));
+      }
+    }
+    worst_asymmetry = std::max(worst_asymmetry, max_asymmetry / largest);
+
+    // <v|dV^R|y> for the first other orbital y: polar form in v, y
+    for (std::size_t index_y = 0; index_y < orbitals.size(); ++index_y) {
+      if (index_y == index_v)
+        continue;
+      const auto &y = orbitals[index_y];
+      const auto expected =
+        0.25 * (radial_diagonal(v + y) - radial_diagonal(v - y));
+      worst_off_diagonal = std::max(
+        worst_off_diagonal, std::abs(dV(index_v, index_y) / expected - 1.0));
+      ++num_off_diagonal;
+      break;
+    }
+
+    // On the radial grid: every <x|dV^R|y> of the orbitals
+    const auto dV_grid =
+      MBPT::relaxation_potential(orbitals, data.qk, rho_ma, density, core,
+                                 excited, 1.0e-4, 200.0, 1, true);
+    double max_difference = 0.0;
+    for (std::size_t index_y = 0; index_y < orbitals.size(); ++index_y) {
+      const auto dV_y = dV_grid * orbitals[index_y];
+      for (std::size_t index_x = 0; index_x < orbitals.size(); ++index_x) {
+        max_difference =
+          std::max(max_difference,
+                   std::abs(orbitals[index_x] * dV_y - dV(index_x, index_y)));
+      }
+    }
+    worst_grid = std::max(worst_grid, max_difference / largest);
+  }
+  REQUIRE(num_off_diagonal == data.valence.size());
+  REQUIRE(worst_diagonal < 1.0e-12);
+  REQUIRE(worst_off_diagonal < 1.0e-10);
+  REQUIRE(worst_asymmetry < 1.0e-12);
+  REQUIRE(worst_grid < 1.0e-8);
+}
