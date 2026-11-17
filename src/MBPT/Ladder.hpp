@@ -9,6 +9,9 @@
 
 namespace MBPT {
 
+// Which diagrams to include [see LadderIteration.hpp]
+struct LadderDiagrams;
+
 /*!
   @brief Fills the ladder integral table for all _new_ index combinations.
 
@@ -24,15 +27,16 @@ namespace MBPT {
   @param excited     Excited orbitals
   @param core        Core orbitals
   @param i_orbs      Orbitals for the \f$ i \f$ index
-  @param include_L4  Include core-core diagram L4
+  @param diagrams    Which diagrams to include [see calculate_Lk_mnib()]
   @param max_k       Maximum multipolarity; -1 uses qk.max_k()
   @param print       Print progress and timing to screen
 */
 void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                   const std::vector<DiracSpinor> &excited,
                   const std::vector<DiracSpinor> &core,
-                  const std::vector<DiracSpinor> &i_orbs, bool include_L4,
-                  int max_k = -1, bool print = true);
+                  const std::vector<DiracSpinor> &i_orbs,
+                  const LadderDiagrams &diagrams, int max_k = -1,
+                  bool print = true);
 
 /*!
   @brief Updates the ladder integral table with L(Q,Q) -> L(Q,Q+L)
@@ -51,7 +55,7 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   @param update_i    Restrict re-iteration to entries whose i index is in this
                      set (b is always core). Used to converge core
                      (update_i=core) before valence (update_i=valence).
-  @param include_L4  Include core--core diagram L4
+  @param diagrams    Which diagrams to include [see calculate_Lk_mnib()]
   @param lk_prev     Ladder table from previous iteration
   @param a_damp      Damping factor [0,1) : 0 means no damping.
                      L -> a_damp*L + (1-a_damp)*L_new, where L is the
@@ -64,7 +68,8 @@ void fill_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
 void update_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
                     const std::vector<DiracSpinor> &excited,
                     const std::vector<DiracSpinor> &core,
-                    const std::vector<DiracSpinor> &update_i, bool include_L4,
+                    const std::vector<DiracSpinor> &update_i,
+                    const LadderDiagrams &diagrams,
                     const Coulomb::LkTable *const lk_prev, double a_damp,
                     bool print);
 
@@ -148,7 +153,8 @@ double de_valence_w(const DiracSpinor &v, const Qintegrals &qk,
            {[k]\,(\epsilon_v + \epsilon_n - \epsilon_a - \epsilon_b)},
   \f]
   diagrams (a) and (c) of de_valence(), k over the Coulomb range only. L^F is
-  x_F [calculate_Lk_mnib() with P1 and Vhp], and L' the closing amplitude:
+  x_F [calculate_Lk_mnib() with P1 and hole_particle], and L' the closing
+  amplitude:
   x_F_vnab without the hole-particle term on (v,a), which is part of the
   valence line there [calculate_Lk_vnab_F()]. The correction to the valence
   energy is de_valence_w() of x minus this.

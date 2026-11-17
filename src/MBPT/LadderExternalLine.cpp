@@ -84,7 +84,7 @@ void calculate_Lk_xnab(Coulomb::NkTable *L_xnab, const Coulomb::QkTable &qk,
                        const LadderDiagrams &diagrams,
                        const Coulomb::LkTable &lk,
                        const Coulomb::NkTable &L_xnab_prev, double a_damp) {
-  // P and Vhp with the external line are not derived
+  // P and hole_particle with the external line are not derived
   assert(
     !(diagrams.P1 || diagrams.P2 || diagrams.P3 || diagrams.hole_particle));
   if (excited.empty() || core.empty() || x_orbitals.empty())
@@ -371,7 +371,7 @@ lowest_order_Lk_mnxb(const Coulomb::QkTable &qk,
                      const LadderDiagrams &diagrams, int max_k) {
   // L1 and L3 have e_x in an energy denominator
   assert(!diagrams.L1 && !diagrams.L3);
-  // P and Vhp with the external line are not derived
+  // P and hole_particle with the external line are not derived
   assert(
     !(diagrams.P1 || diagrams.P2 || diagrams.P3 || diagrams.hole_particle));
   Coulomb::NkTable L_mnxb;
@@ -481,7 +481,7 @@ lowest_order_Lk_xnab(const Coulomb::QkTable &qk,
                      const LadderDiagrams &diagrams, int max_k) {
   // L2 and L4 have e_x in an energy denominator
   assert(!diagrams.L2 && !diagrams.L4);
-  // P and Vhp with the external line are not derived
+  // P and hole_particle with the external line are not derived
   assert(
     !(diagrams.P1 || diagrams.P2 || diagrams.P3 || diagrams.hole_particle));
   Coulomb::NkTable L_xnab;

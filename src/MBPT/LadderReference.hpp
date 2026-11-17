@@ -321,7 +321,8 @@ double Vhp(int k, const DiracSpinor &m, const DiracSpinor &n,
   r over excited (\f$ \kappa_r = \kappa_n \f$ in the last term) and c over
   core, with L' from @p L_vnab and P1() from @p lk_F. The first two terms (the
   polarisation loop on (n,b), and on (v,a) acting on the core amplitude) if
-  diagrams.P1, the last (the hole-particle term on (n,b)) if diagrams.hole_particle.
+  diagrams.P1, the last (the hole-particle term on (n,b)) if
+  diagrams.hole_particle.
 
   @param k         Multipole rank
   @param v         Valence orbital
@@ -330,7 +331,7 @@ double Vhp(int k, const DiracSpinor &m, const DiracSpinor &n,
   @param qk        Coulomb \f$ Q^k \f$ integral table
   @param core      Core orbitals
   @param excited   Excited orbitals
-  @param diagrams  P1 and Vhp
+  @param diagrams  P1 and hole_particle
   @param lk_F      x_F table (nullptr: X^F = g)
   @param L_vnab    Closing table (nullptr: X' = g)
   @return \f$ L'^k_{vnab} \f$

@@ -1186,11 +1186,11 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
   assert(external == nullptr || external->L_xnab == nullptr);
   // L_mnij and L_nmji are one table entry, and L3^k_mnij = L2^k_nmji
   assert(diagrams.L2 == diagrams.L3);
-  // P and Vhp with the external line are not derived
+  // P and hole_particle with the external line are not derived
   const bool any_P =
     diagrams.P1 || diagrams.P2 || diagrams.P3 || diagrams.hole_particle;
   assert(external == nullptr || !any_P);
-  // Vhp is part of piece (2) of P
+  // hole_particle is part of piece (2) of P
   assert(!(diagrams.hole_particle && diagrams.P2));
   if (excited.empty() || core.empty() || i_orbs.empty())
     return;
@@ -1231,7 +1231,8 @@ void calculate_Lk_mnib(Coulomb::LkTable *lk, const Coulomb::QkTable &qk,
       L2_particle_hole(excited, core, ij_orbitals, ph_pairs, excited,
                        ij_orbitals, ph_pairs, qk, lk_prev, sixj, external) :
       std::vector<Matrix>(ph_pairs.num_blocks());
-  // The pieces of P and Vhp, in the multipole form: rows (m,i), columns (n,j)
+  // The pieces of P and the hole-particle term, in the multipole form: rows
+  // (m,i), columns (n,j)
   const auto Pk_mi_nj = any_P ?
                           P_multipole(excited, core, ij_orbitals, ph_pairs, qk,
                                       lk_prev, sixj, diagrams) :

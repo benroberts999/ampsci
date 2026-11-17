@@ -19,6 +19,10 @@ namespace MBPT {
   The .sl file may then be read in by the Correlations block (ladder
   option) to include Sigma_L into the correlation potential.
   Runs before Correlations. Options are parsed from the Ladder{} input block.
+  With include_P, the ladder equation also includes P (screening, with its
+  exchange and hole-particle parts); only the valence energy corrections are
+  printed, without the part the Feynman direct diagram contains, and Sigma_L
+  is not formed.
 
   @param input  The Ladder{} input block
   @param wf     Wavefunction: supplies the core, valence states, and basis

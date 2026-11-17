@@ -5,6 +5,7 @@
 #include "IO/InputBlock.hpp"
 #include "MBPT/Ladder.hpp"
 #include "MBPT/LadderExternalLine.hpp"
+#include "MBPT/LadderIteration.hpp"
 #include "Physics/PhysConst_constants.hpp"
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/format.hpp"
@@ -30,6 +31,13 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                "basis), e.g. '30spdf'. Default: include entire excited basis."},
      {"max_k", "maximum k to include in Qk. Put -1 to include all. [8]"},
      {"include_L4", "Inlcude 4th Ladder diagram [true]"},
+     {"include_P", "Include core polarisation in the ladder [false]:\n"
+                   " - with its exchange and hole-particle parts\n"
+                   " - no Sigma_L: prints valence energy corrections,\n"
+                   "   without the part in the Feynman direct diagram\n"
+                   "   (Correlations with screening and hole_particle)\n"
+                   " - use min_n_core = Correlations n_min_core\n"
+                   " - needs max_it > 0"},
      {"sigma_method",
       "Method for the ladder correlation potential Sigma_L. Options:\n"
       "   - basis  : projection Sigma_L = sum_x L_x|x><x| onto the excited "
@@ -55,15 +63,18 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
      {"Qk_file", "Filename for storing Qk Coulomb integrals. By default, is "
                  "<Identity>.qk. If 'false' will not read or write."},
      {"Lk_file", "Filename for storing Lk ladder integrals. By default, is "
-                 "<Identity>_l4.lk (<Identity>.lk if include_L4 is false). If "
-                 "'false' will not read or write."},
+                 "<Identity>_l4.lk (<Identity>.lk if include_L4 is false; _P "
+                 "added before .lk with include_P). Do not use one file for "
+                 "runs with and without include_P. If 'false' will not read "
+                 "or write."},
      {"sl_file", "Filename for storing the ladder correlation potential, "
                  "Sigma_L. By default, is <Identity>.sl.abf. If 'false' will "
                  "not write. Read in via Correlations{ladder=...;}"},
      {"from_scratch", "If true, don't read existing Qk/Lk files (still "
                       "writes). [false]"},
      {"max_it", "Max # iterations. If zero, will simply read ladder diagrams "
-                "in (any _new_ ladder diagrams will be calculated,). [15]"},
+                "in (any _new_ ladder diagrams will be calculated,). Must be > "
+                "0 with include_P. [32]"},
      {"damp",
       "Damping factor for iterations, [0,1). 0 means no damping. [0.0]"},
      {"eps_target", "Target for convergance [1.0e-5]"},
@@ -89,6 +100,11 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto basis_str = input.get<std::string>("basis", "");
   const auto max_k = input.get("max_k", 8);
   const auto include_L4 = input.get("include_L4", true);
+  const auto include_P = input.get("include_P", false);
+  // Diagrams of the ladder equation: L1-L4 (L4 optional), and the three
+  // pieces of P with include_P
+  const MBPT::LadderDiagrams diagrams{
+    true, true, true, include_L4, include_P, include_P, include_P};
 
   // Method for Sigma_L: basis projection, or ratio (rescale Sigma(2) terms by
   // L/Q; Dzuba)
@@ -99,7 +115,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   const auto each_valence = input.get("each_valence", false);
 
-  const auto max_it = input.get("max_it", 15);
+  const auto max_it = input.get("max_it", 32);
   const auto a_damp = input.get("damp", 0.0);
   const auto eps_target = input.get("eps_target", 1.0e-5);
 
@@ -150,6 +166,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "min_n (core) = " << min_n_core << "\n";
   std::cout << std::boolalpha;
   std::cout << "include_L4   = " << include_L4 << "\n";
+  std::cout << "include_P    = " << include_P << "\n";
   std::cout << "sigma_method = " << parseSigmaLMethod(method) << "\n";
   std::cout << "mirror_terms = " << mirror_terms << "\n";
   std::cout << "each_valence = " << each_valence << "\n";
@@ -159,12 +176,19 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   std::cout << "damp         = " << a_damp << "\n";
   std::cout << "eps_target   = " << eps_target << "\n";
 
+  // x_F is not stored: it is iterated in every run, from the lowest order
+  if (include_P && max_it < 1) {
+    std::cout << "\nFAIL: include_P requires max_it > 0\n";
+    return;
+  }
+
   // in/out file names (default based on atom identity)
   const auto ident = wf.identity();
   const auto Qk_file = input.get("Qk_file", ident + ".qk.abf"s);
   const auto lk4 = include_L4 ? "_l4" : ""s;
+  const auto lkP = include_P ? "_P" : ""s;
   const auto Lk_file =
-    input.get<std::string>("Lk_file", ident + lk4 + ".lk.abf"s);
+    input.get<std::string>("Lk_file", ident + lk4 + lkP + ".lk.abf"s);
   const auto sl_file = input.get<std::string>("sl_file", ident + ".sl.abf"s);
   const auto from_scratch = input.get("from_scratch", false);
 
@@ -233,7 +257,7 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
   // iterations below re-iterate the existing table.
   std::cout << "\nInitial fill of Lk table: core + valence\n" << std::flush;
   const auto n_lk_initial = lk.count();
-  MBPT::fill_Lk_mnib(&lk, qk, excited, holes, core_and_val, include_L4, max_k,
+  MBPT::fill_Lk_mnib(&lk, qk, excited, holes, core_and_val, diagrams, max_k,
                      true);
   const auto n_lk_after = lk.count();
   if (n_lk_initial != n_lk_after) {
@@ -261,10 +285,15 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
                de_v, de_v * icm);
   }
 
+  // With P the change per sweep is not monotone: converged only after this
+  // many consecutive sweeps below eps_target
+  const int required_sweeps_below_eps = include_P ? 2 : 1;
+
   // Iterate for core states:
+  int core_sweeps_below_eps = 0;
   for (int it = 1; it <= max_it; ++it) {
     std::cout << "\ncore it:" << it << "\n";
-    MBPT::update_Lk_mnib(&lk_next, qk, excited, holes, holes, include_L4, &lk,
+    MBPT::update_Lk_mnib(&lk_next, qk, excited, holes, holes, diagrams, &lk,
                          a_damp, true);
     // for the damping, don't swap; lk and lk_prev must match before next iter
     lk = lk_next;
@@ -274,7 +303,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     de_c0 = de_c;
     fmt::print("de_l({:>4}): {:+12.9f} au  {:+12.5f} cm^-1  {:.1e}\n", "core",
                de_c, de_c * icm, eps_c);
-    if (eps_c < eps_target)
+    core_sweeps_below_eps =
+      (eps_c < eps_target) ? core_sweeps_below_eps + 1 : 0;
+    if (core_sweeps_below_eps == required_sweeps_below_eps)
       break;
   }
 
@@ -293,10 +324,11 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
 
   // Iterate for each required valence state; drop converged states each iter
   std::vector<DiracSpinor> unconverged_valence = valence;
+  std::vector<int> valence_sweeps_below_eps(valence.size(), 0);
   for (int it = 1; it <= max_it; ++it) {
     std::cout << "\nvalence it:" << it << "\n";
     MBPT::update_Lk_mnib(&lk_next, qk, excited, holes, unconverged_valence,
-                         include_L4, &lk, a_damp, true);
+                         diagrams, &lk, a_damp, true);
     lk = lk_next;
     lk.write(Lk_file);
     for (std::size_t i = 0; i < valence.size(); ++i) {
@@ -309,7 +341,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
         std::find(unconverged_valence.begin(), unconverged_valence.end(), v);
       if (it2 != unconverged_valence.end()) {
         de_0[i] = de_v;
-        if (eps_v < eps_target) {
+        valence_sweeps_below_eps[i] =
+          (eps_v < eps_target) ? valence_sweeps_below_eps[i] + 1 : 0;
+        if (valence_sweeps_below_eps[i] == required_sweeps_below_eps) {
           // if converged: remove from list (speed up convergance)
           unconverged_valence.erase(it2);
         }
@@ -319,6 +353,87 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
       break;
   }
   std::cout << "\n";
+
+  // With P: the valence energy correction de = E_W[x] - E_Q[x_F]. x_F is the
+  // part of x that the Feynman direct diagram contains: the polarisation loop
+  // (piece 1 of P) with the hole-particle interaction, x_F = P_F[g + x_F]. Its
+  // direct (Q) closing uses the closing amplitude x' [calculate_Lk_vnab_F()].
+  // Sigma_L is not formed with P: only the valence energy corrections.
+  if (include_P) {
+    MBPT::LadderDiagrams diagrams_F{false, false, false, false};
+    diagrams_F.P1 = true;
+    diagrams_F.hole_particle = true;
+
+    std::cout << "\nInitial fill of x_F table: core + valence\n" << std::flush;
+    Coulomb::LkTable lk_F;
+    MBPT::fill_Lk_mnib(&lk_F, qk, excited, holes, core_and_val, diagrams_F,
+                       max_k, true);
+    Coulomb::NkTable L_vnab_F;
+    MBPT::add_Lk_vnab_F_entries(&L_vnab_F, excited, holes, valence,
+                                lk_F.max_k());
+    MBPT::calculate_Lk_vnab_F(&L_vnab_F, qk, excited, holes, valence,
+                              diagrams_F, nullptr, nullptr, 0.0);
+    auto lk_F_next = lk_F;
+    auto L_vnab_F_next = L_vnab_F;
+
+    std::vector<double> E_Q_F;
+    std::cout << "\nInitial x_F corrections:\n";
+    for (const auto &v : valence) {
+      const auto E_Q_v =
+        MBPT::de_valence_F(v, qk, lk_F, L_vnab_F, holes, excited);
+      E_Q_F.push_back(E_Q_v);
+      fmt::print("E_Q({:>4}): {:+12.9f} au  {:+12.5f} cm^-1\n", v.shortSymbol(),
+                 E_Q_v, E_Q_v * icm);
+    }
+
+    // x_F (core and valence entries) and x' together, each from the previous
+    // sweep: the core entries depend on no others, so the fixed point is the
+    // same as converging the core first
+    int sweeps_below_eps = 0;
+    for (int it = 1; it <= max_it; ++it) {
+      std::cout << "\nx_F it:" << it << "\n";
+      MBPT::calculate_Lk_vnab_F(&L_vnab_F_next, qk, excited, holes, valence,
+                                diagrams_F, &lk_F, &L_vnab_F, a_damp);
+      MBPT::update_Lk_mnib(&lk_F_next, qk, excited, holes, core_and_val,
+                           diagrams_F, &lk_F, a_damp, true);
+      // for the damping, don't swap: tables and their copies must match
+      lk_F = lk_F_next;
+      L_vnab_F = L_vnab_F_next;
+      double max_eps = 0.0;
+      for (std::size_t i = 0; i < valence.size(); ++i) {
+        const auto &v = valence[i];
+        const auto E_Q_v =
+          MBPT::de_valence_F(v, qk, lk_F, L_vnab_F, holes, excited);
+        const auto eps_v =
+          std::abs(2.0 * (E_Q_v - E_Q_F[i]) / (E_Q_v + E_Q_F[i]));
+        E_Q_F[i] = E_Q_v;
+        max_eps = std::max(max_eps, eps_v);
+        fmt::print("E_Q({:>4}): {:+12.9f} au  {:+12.5f} cm^-1  {:.1e}\n",
+                   v.shortSymbol(), E_Q_v, E_Q_v * icm, eps_v);
+      }
+      sweeps_below_eps = (max_eps < eps_target) ? sweeps_below_eps + 1 : 0;
+      if (sweeps_below_eps == required_sweeps_below_eps)
+        break;
+    }
+    // x_F starts from the lowest order in every run, so may be unconverged
+    // even when x was read in converged
+    if (sweeps_below_eps < required_sweeps_below_eps) {
+      fmt::print("\nWarning: x_F not converged in max_it = {} sweeps\n",
+                 max_it);
+    }
+
+    std::cout << "\nValence energy corrections, de = E_W[x] - E_Q[x_F] "
+                 "(cm^-1):\n";
+    fmt::print("{:4s}  {:11}  {:11}  {:11}\n", "", "E_W[x]", "E_Q[x_F]", "de");
+    for (std::size_t i = 0; i < valence.size(); ++i) {
+      const auto &v = valence[i];
+      const auto E_W_x = MBPT::de_valence_w(v, qk, lk, holes, excited, &sjt);
+      fmt::print("{:4s}  {:11.7}  {:11.7}  {:11.7}\n", v.shortSymbol(),
+                 E_W_x * icm, E_Q_F[i] * icm, (E_W_x - E_Q_F[i]) * icm);
+    }
+    std::cout << "\nSigma_L is not formed with include_P: no sl file written\n";
+    return;
+  }
 
   //----------------------------------------------------------------------------
 
@@ -333,9 +448,9 @@ void ladder(const IO::InputBlock &input, const Wavefunction &wf) {
     for (const auto &v : valence) {
       std::cout << v << "\n";
       if (method == SigmaLMethod::basis) {
-        const auto ladder_v = MBPT::external_line_ladder(
-          v, holes, excited, qk, lk, {true, true, true, include_L4}, max_it,
-          eps_target, a_damp, true);
+        const auto ladder_v =
+          MBPT::external_line_ladder(v, holes, excited, qk, lk, diagrams,
+                                     max_it, eps_target, a_damp, true);
         SigL_v.push_back(MBPT::Sigma_ladder(v, ladder_v, holes, excited, sig_r0,
                                             sig_rmax, sig_stride, include_G));
       } else if (method == SigmaLMethod::ratio2) {

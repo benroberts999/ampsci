@@ -531,11 +531,11 @@ TEST_CASE("Ladder: core energy with W", "[Ladder][unit]") {
   const auto &sjt = data.yk.SixJ();
   // Ladder table with entries at both parities of k: lowest order, one sweep
   Coulomb::LkTable lk;
-  MBPT::fill_Lk_mnib(&lk, data.qk, data.excited, data.core, data.core, true, -1,
-                     false);
+  MBPT::fill_Lk_mnib(&lk, data.qk, data.excited, data.core, data.core,
+                     {true, true, true, true}, -1, false);
   const auto lk_lowest = lk;
-  MBPT::update_Lk_mnib(&lk, data.qk, data.excited, data.core, data.core, true,
-                       &lk_lowest, 0.0, false);
+  MBPT::update_Lk_mnib(&lk, data.qk, data.excited, data.core, data.core,
+                       {true, true, true, true}, &lk_lowest, 0.0, false);
 
   const auto expected = MBPT::de_core(data.qk, lk, data.core, data.excited);
   const auto found =

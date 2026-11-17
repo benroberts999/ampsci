@@ -74,12 +74,12 @@ coupled_rank_range(const DiracSpinor &a, const DiracSpinor &b,
   piece of P, with its partner, has the table symmetry by itself. Off by
   default; not with the external line.
 
-  Vhp is the hole-particle interaction as the Feynman direct diagram includes
-  it, through V^(a): -y^0_cc acts on the particle of each pair (n,c) whose
-  hole c is a core orbital, with the hole unchanged (the monopole only)
-  [see Vhp()]. With P1 it gives P_F, the part of P[X] the Feynman direct
-  diagram contains (x_F = P_F[g + x_F]). It is part of piece (2): not with
-  P2. Off by default; not with the external line.
+  hole_particle is the hole-particle interaction as the Feynman direct
+  diagram includes it, through V^(a): -y^0_cc acts on the particle of each
+  pair (n,c) whose hole c is a core orbital, with the hole unchanged (the
+  monopole only) [see Vhp()]. With P1 it gives P_F, the part of P[X] the
+  Feynman direct diagram contains (x_F = P_F[g + x_F]). It is part of piece
+  (2): not with P2. Off by default; not with the external line.
 */
 struct LadderDiagrams {
   //! Particle-particle ladder
@@ -788,9 +788,10 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
   function: P1_multipole(), P2_multipole() and P3_multipole()
   [P_multipole()].
 
-  The hole-particle interaction of V^(a) [hole_particle; see Vhp(); off by default] has
-  the same form, with the factor Y_{rc,nj} = -\delta_{cj} y^{(c)}_{nr}
-  [Vhp_matrix()] in place of the Coulomb integral:
+  The hole-particle interaction of V^(a) [hole_particle; see Vhp(); off by
+  default] has the same form, with the factor
+  Y_{rc,nj} = -\delta_{cj} y^{(c)}_{nr} [Vhp_matrix()] in place of the Coulomb
+  integral:
   \f[
     H^k_{mi,nj} = \sum_{rc}
                   \frac{QL^k_{mric}}{\Delta\epsilon_{ic,mr}} Y_{rc,nj}
@@ -814,8 +815,8 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
                    excited; others are ignored)
   @param diagrams  Which diagrams to include. L2 and L3 must go together:
                    L_mnij and L_nmji are one table entry, and L3^k_mnij =
-                   L2^k_nmji. P and Vhp only without @p external; Vhp not
-                   with P2 (it is part of piece (2))
+                   L2^k_nmji. P and hole_particle only without @p external;
+                   hole_particle not with P2 (it is part of piece (2))
   @param lk_prev   Ladder table for the dressed integral QL = Q + L; nullptr
                    for the lowest order. Must not be lk
   @param max_k     Largest multipolarity k of the integrals to write
@@ -889,9 +890,9 @@ void add_Lk_vnab_F_entries(Coulomb::NkTable *L_vnab,
   @param excited      Excited orbitals
   @param core         Core orbitals
   @param valence      Valence orbitals: members of excited
-  @param diagrams     P1 (polarisation loop) and Vhp only
-  @param lk_F         x_F [calculate_Lk_mnib() with P1 and Vhp]: its core
-                      entries; nullptr for the lowest order
+  @param diagrams     P1 (polarisation loop) and hole_particle only
+  @param lk_F         x_F [calculate_Lk_mnib() with P1 and hole_particle]:
+                      its core entries; nullptr for the lowest order
   @param L_vnab_prev  Closing table for X' = g + x'; nullptr for the lowest
                       order. Must not be L_vnab
   @param a_damp       Damping factor [see damped()]
