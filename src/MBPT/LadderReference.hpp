@@ -1,13 +1,4 @@
 #pragma once
-/*! @file
-  @brief The ladder diagrams evaluated one integral at a time.
-
-  @details
-  An independent evaluation of each ladder integral L^k_mnij as a direct sum
-  over the intermediate states, with no recoupling. It is used to test the
-  ladder iteration [calculate_Lk_mnib()], which evaluates all the integrals at
-  once as matrix products. Far too slow for a production calculation.
-*/
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
@@ -27,6 +18,13 @@ namespace MBPT {
   where \f$ L3^k_{mnij} = L2^k_{nmji} \f$ and \f$ L4 \f$ involves
   core--core intermediate states. @p Lk points to the ladder table from
   the previous iteration; pass nullptr on the first iteration.
+
+  Lkmnij() and L1(), L2(), L3(), L4() evaluate the ladder diagrams one
+  integral at a time: an independent evaluation of each ladder integral
+  L^k_mnij as a direct sum over the intermediate states, with no recoupling.
+  They are used to test the ladder iteration [calculate_Lk_mnib()], which
+  evaluates all the integrals at once as matrix products. Far too slow for a
+  production calculation.
 
   @param k          Multipole rank
   @param m,n        Excited (particle) orbitals

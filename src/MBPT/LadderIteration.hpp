@@ -1,13 +1,4 @@
 #pragma once
-/*! @file
-  @brief The ladder equation, with each ladder diagram evaluated as a matrix
-         product in the coupling scheme in which it is diagonal.
-
-  @details
-  Only the orbitals' quantum numbers and energies are used: every function
-  takes DiracSpinors, and looks integrals up in the tables by
-  DiracSpinor::nk_index(). The equations are given with calculate_Lk_mnib().
-*/
 #include "Angular/include.hpp"
 #include "Coulomb/include.hpp"
 #include "LinAlg/include.hpp"
@@ -506,7 +497,9 @@ void add_Lk_mnib_entries(Coulomb::LkTable *lk,
   The ladder integral is the sum of four diagrams,
   L^k_mnij = L1 + L2 + L3 + L4, each with one bare Coulomb integral Q and one
   dressed integral QL = Q + L (L from @p lk_prev). Each diagram is a matrix
-  product in the coupling scheme in which it is diagonal.
+  product in the coupling scheme in which it is diagonal. Only the orbitals'
+  quantum numbers and energies are used: integrals are looked up in the
+  tables by DiracSpinor::nk_index().
 
   Pair coupling, pairs (a,b) and (c,d), for any integral (Q, L or QL):
   \f[

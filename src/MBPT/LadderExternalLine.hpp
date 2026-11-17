@@ -1,31 +1,4 @@
 #pragma once
-/*! @file
-  @brief The ladder correlation potential Sigma_L(e_v) by projection onto the
-         basis states x of kappa_v, with the ladder iterated for each x.
-
-  @details
-  \f[
-    \Sigma_L = \sum_{x}\Big[\sum_{amn,k} |W^k_{\cdot amn}\rangle\,
-      \frac{L^k_{mnxa}(\epsilon_v)}
-           {[k][j_v]\,(\epsilon_v+\epsilon_a-\epsilon_m-\epsilon_n)}
-      + \sum_{nab,k} |W^k_{\cdot nab}\rangle\,
-      \frac{L^k_{xnab}(\epsilon_v)}
-           {[k][j_v]\,(\epsilon_v+\epsilon_n-\epsilon_a-\epsilon_b)}
-      \Big]\langle x| .
-  \f]
-  x is the external line: it carries the valence energy e_v in the energy
-  denominators, not its own [see ExternalLine]. L^k_mnxb (x as the i orbital)
-  and L^k_xnab (x as the m orbital) each obey the ladder equation by
-  themselves: the dressed integrals that contain x come from the same table,
-  all others from the converged ladder table.
-
-  Which diagrams hold the line in a dressed integral:
-  - L^k_mnxb: L1 and L3 (L2 and L4 hold x only in a bare Q);
-  - L^k_xnab: L2 and L4 (L1 and L3 hold x only in a bare Q).
-
-  For x = v these are the integrals of the ladder table, so the column
-  Sigma_L|v> is exact, and <v|Sigma_L|v> is de_valence_w().
-*/
 #include "Coulomb/include.hpp"
 #include "MBPT/LadderIteration.hpp"
 #include "MBPT/SpinorMatrix.hpp"
@@ -76,8 +49,8 @@ ExternalLineLadder external_line_start(const DiracSpinor &v,
   @details
   calculate_Lk_mnib() with i_orbs = x_orbitals: the dressed integrals of L1
   and L3 that contain x come from @p L_mnxb_prev, at e_v; all others from
-  @p lk. Only entries already in @p L_mnxb are written, damped by @p a_damp
-  [see damped()].
+  @p lk (L2 and L4 hold x only in a bare Q). Only entries already in
+  @p L_mnxb are written, damped by @p a_damp [see damped()].
 */
 void calculate_Lk_mnxb(Coulomb::LkTable *L_mnxb, const Coulomb::QkTable &qk,
                        const std::vector<DiracSpinor> &excited,
@@ -94,10 +67,11 @@ void calculate_Lk_mnxb(Coulomb::LkTable *L_mnxb, const Coulomb::QkTable &qk,
   The diagrams are those of calculate_Lk_mnib() with m = x and (i,j) = (a,b),
   for all n. The dressed integrals of L2 (row (x,b) of L2^K) and of L4
   [QL^J_{xn,cd}] contain x: they come from @p L_xnab_prev, at e_v. L1 and L3
-  take theirs from @p lk. L3 is read from L2^K_{na,xb}, in which n is an
-  internal line even when it is also a projection state, so it comes from a
-  second L2^K matrix, with no external line. Only entries already in
-  @p L_xnab are written, damped by @p a_damp [see damped()].
+  hold x only in a bare Q, and take theirs from @p lk. L3 is read from
+  L2^K_{na,xb}, in which n is an internal line even when it is also a
+  projection state, so it comes from a second L2^K matrix, with no external
+  line. Only entries already in @p L_xnab are written, damped by @p a_damp
+  [see damped()].
 */
 void calculate_Lk_xnab(Coulomb::NkTable *L_xnab, const Coulomb::QkTable &qk,
                        const std::vector<DiracSpinor> &excited,
@@ -166,7 +140,29 @@ external_line_ladder(const DiracSpinor &v, const std::vector<DiracSpinor> &core,
 
 /*!
   @brief Ladder correlation potential Sigma_L(e_v) from the ladder integrals
-         with the external line [see the file description].
+         with the external line.
+
+  @details
+  Sigma_L(e_v) by projection onto the excited states x of kappa_v, with the
+  ladder iterated for each x [external_line_ladder()]:
+  \f[
+    \Sigma_L = \sum_{x}\Big[\sum_{amn,k} |W^k_{\cdot amn}\rangle\,
+      \frac{L^k_{mnxa}(\epsilon_v)}
+           {[k][j_v]\,(\epsilon_v+\epsilon_a-\epsilon_m-\epsilon_n)}
+      + \sum_{nab,k} |W^k_{\cdot nab}\rangle\,
+      \frac{L^k_{xnab}(\epsilon_v)}
+           {[k][j_v]\,(\epsilon_v+\epsilon_n-\epsilon_a-\epsilon_b)}
+      \Big]\langle x| .
+  \f]
+  x is the external line: it carries the valence energy e_v in the energy
+  denominators, not its own [see ExternalLine]. L^k_mnxb (x as the i orbital)
+  and L^k_xnab (x as the m orbital) each obey the ladder equation by
+  themselves: the dressed integrals that contain x come from the same table,
+  all others from the converged ladder table [calculate_Lk_mnxb(),
+  calculate_Lk_xnab()].
+
+  For x = v these are the integrals of the ladder table, so the column
+  Sigma_L|v> is exact, and <v|Sigma_L|v> is de_valence_w().
 
   @param v               Valence state: kappa, j and energy
   @param ladder          Ladder integrals of v [external_line_ladder()]
