@@ -534,7 +534,7 @@ void Wavefunction::formSigma(
   double w0, double wratio, bool complex_green,
   const std::optional<IO::InputBlock> &ek, const std::string &ladder_file,
   bool derivative, bool print_de, bool exchange_both_lines,
-  bool tail_extrapolation, bool feynman_exchange) {
+  bool tail_extrapolation, bool feynman_exchange, bool store_gex) {
   if (core().empty() || !m_HF)
     return;
 
@@ -596,7 +596,8 @@ void Wavefunction::formSigma(
   m_Sigma = MBPT::CorrelationPotential(
     file_name, &*m_HF, m_basis, r0, rmax, std::size_t(stride), nmin_core,
     method, include_G, include_Breit_b2, n_max_breit,
-    MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio, complex_green},
+    MBPT::FeynmanOptions{screening, hp, lmax, omre, w0, wratio, complex_green,
+                         store_gex},
     calculate_fk, fk, etak, ladder_file, derivative, exchange_both_lines,
     tail_extrapolation, FeynmanQ && feynman_exchange);
 

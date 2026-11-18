@@ -55,6 +55,18 @@ struct FeynmanOptions {
               used at large Im(en); see Feynman::green)
   */
   bool complex_green{true};
+  /*!
+    @brief Store the loop Green's functions of the exchange diagrams.
+
+    @details
+    The loop Green's functions, \f$ G^{\rm ex}(\varepsilon_a \pm \omega) \f$,
+    are the largest memory use of the Feynman exchange (see gex_memory_GB,
+    Feynman::calculate_gex).
+    - true  : stored (and read from/written to disk)
+    - false : not stored; solved again in each Sigma_exchange call (slower,
+              much less memory)
+  */
+  bool store_gex{true};
 };
 
 /*!
@@ -159,8 +171,10 @@ class Feynman {
   // m_core_index). Independent of the valence state: filled once
   // (calculate_gex, or read from its disk cache), then re-used by every
   // Sigma_exchange call and by the polarisation loop.
-  // Memory: 2 N_w N_core N_kappa sub-grid matrices
+  // Memory: 2 N_w N_core N_kappa sub-grid matrices (see gex_memory_GB)
   std::vector<std::vector<std::vector<GexPair>>> m_gex_wak{};
+  // Option: store the loop gex (else solved as needed, see FeynmanOptions)
+  bool m_store_gex;
   // Indices of the polarised core states (n >= n_min_core) in
   // m_HF->core(); set at construction
   std::vector<std::size_t> m_core_index{};
@@ -320,11 +334,20 @@ public:
   */
   void form_qpiq(const std::string &ident = "");
 
-  //! Ensures the loop Green's functions gex(e_a +/- w) exist (required by
-  //! Sigma_exchange; re-used by the polarisation loop when present, so
-  //! call BEFORE form_qpiq): no-op if already calculated; else reads
-  //! its own disk cache, or calculates (Vhp(a)-dressed when
-  //! hole_particle) and writes it
+  /*!
+    @brief Calculates and stores the loop Green's functions of the exchange.
+
+    @details
+    \f$ G^{\rm ex}(\varepsilon_a \pm \omega) \f$ for each polarised core
+    state a, internal kappa, and frequency on the grid; Vhp(a)-dressed when
+    hole_particle. Used by Sigma_exchange, and re-used by the polarisation
+    loop when present: call before form_qpiq. Reads its own disk cache if a
+    matching file exists, else calculates and writes it. Prints the memory
+    required (see gex_memory_GB).
+
+    @note No-op if already stored, or if store_gex is false (then solved as
+          needed; see FeynmanOptions).
+  */
   void calculate_gex();
 
   /*!
@@ -608,6 +631,11 @@ private:
   // Reads/writes m_gex_wak
   bool readwrite_gex(IO::FRW::RoW rw, const std::string &fname);
 
+  // Solves the loop gex(e_a +/- w) for one (w, core state, kappa); ic
+  // indexes the core state within m_core_index. Vhp(a)-dressed when
+  // hole_particle
+  GexPair loop_gex(std::size_t iw, std::size_t ic, std::size_t ik) const;
+
   // Forms Q*Pi*Q (screened or not) from the polarisation operator, for
   // every (w, k)
   LinAlg::Matrix<ComplexRMatrix>
@@ -684,8 +712,9 @@ private:
   struct GammaQ {
     std::vector<LinAlg::Matrix<ComplexRMatrix>> pa_gex, gex_pa;
   };
-  // ic indexes the core state within m_core_index (the gex cache must be
-  // filled first). fk: effective screening factors of the analytic line
+  // ic indexes the core state within m_core_index. Uses the stored gex
+  // (calculate_gex), else solves them. fk: effective screening factors of
+  // the analytic line
   // (all 1 unless the term with both lines screened is estimated)
   GammaQ exchange_Gamma_q(int kappa_v, std::size_t ic, std::size_t iw,
                           const Angular::SixJTable &sixj,
@@ -752,6 +781,27 @@ double L_exchange(int k, int l, int kappa_v, int kappa_alpha, int kappa_beta,
 */
 double best_omre(const std::vector<DiracSpinor> &core,
                  const std::vector<DiracSpinor> &valence, bool print = false);
+
+/*!
+  @brief Memory (GB) of the stored loop Green's functions (Feynman exchange).
+
+  @details
+  \f$ G^{\rm ex}(\varepsilon_a + \omega) \f$ and
+  \f$ G^{\rm ex}(\varepsilon_a - \omega) \f$ for each frequency, core state
+  a, and kappa (see Feynman::calculate_gex): complex sub-grid matrices, with
+  four spinor blocks each if @p include_G.
+
+  @param num_w           Number of frequency points.
+  @param num_core        Number of polarised core states.
+  @param num_kappas      Number of internal partial waves (kappa).
+  @param subgrid_points  Number of sub-grid points.
+  @param include_G       Small (g) components included.
+
+  @return Memory, in GB.
+*/
+double gex_memory_GB(std::size_t num_w, std::size_t num_core,
+                     std::size_t num_kappas, std::size_t subgrid_points,
+                     bool include_G);
 
 /*!
   @brief Radial two-body matrix element <ab|G|cd> of a radial (spinless) kernel.

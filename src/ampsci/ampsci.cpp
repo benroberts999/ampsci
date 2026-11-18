@@ -368,6 +368,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "Method for Green's function at complex energy in Feynman method. "
       "false: solve at real energy, extend via Dyson method; "
       "true: solve Dirac equation directly at complex energy [true]"},
+     {"store_gex",
+      "Feynman exchange: store the loop Green's functions. The largest "
+      "memory use of the Feynman exchange (printed at run time). "
+      "false: recalculated as needed (slower, much less memory) [true]"},
      {"include_G",
       "Include lower g-part into Sigma. With Breit, the Feynman method "
       "always uses g parts internally; this sets whether they are kept in "
@@ -420,6 +424,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     input.get({"Correlations"}, "hole_particle", all_order);
   const auto sigma_lmax = input.get({"Correlations"}, "lmax", 6);
   const auto complex_green = input.get({"Correlations"}, "complex_green", true);
+  const auto store_gex = input.get({"Correlations"}, "store_gex", true);
   // Feynman always carries g internally when Breit is included; by default
   // keep it in the final Sigma too (it is already calculated)
   const auto include_G =
@@ -523,7 +528,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                  sigma_Screening, hole_particle, sigma_lmax, sigma_omre, w0,
                  wratio, complex_green, ek_Sig, ladder_file, sigma_derivative,
                  print_de, exchange_both_lines, tail_extrapolation,
-                 feynman_exchange && sigma_Feynman);
+                 feynman_exchange && sigma_Feynman, store_gex);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

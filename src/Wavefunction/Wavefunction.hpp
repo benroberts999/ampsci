@@ -545,6 +545,8 @@ public:
                                a_eff/r^4 (experimental)
     @param feynman_exchange    Exchange diagrams by Feynman method (else
                                Goldstone with fk)
+    @param store_gex           Store the loop Green's functions of the
+                               Feynman exchange (see MBPT::FeynmanOptions)
 
     @note If read from file, the sub-grid and @p include_G are taken from the
           file (see MBPT::CorrelationPotential).
@@ -562,8 +564,8 @@ public:
                  const std::optional<IO::InputBlock> &ek = std::nullopt,
                  const std::string &ladder_file = "", bool derivative = false,
                  bool print_de = false, bool exchange_both_lines = false,
-                 bool tail_extrapolation = false,
-                 bool feynman_exchange = false);
+                 bool tail_extrapolation = false, bool feynman_exchange = false,
+                 bool store_gex = true);
 
   // void correlations(const IO::InputBlock &input);
 

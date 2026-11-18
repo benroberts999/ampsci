@@ -40,6 +40,7 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
     m_wratio(options.w_ratio),
     m_hole_particle(options.hole_particle == HoleParticle::include),
     m_screen_Coulomb(options.screening == Screening::include),
+    m_store_gex(options.store_gex),
     m_Complex_green_method(options.complex_green) {
 
   m_ident = ident;
@@ -73,6 +74,9 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
               << "\n";
     if (m_include_G) {
       std::cout << "Inlcuding lower (g) components throughout\n";
+    }
+    if (!m_store_gex) {
+      std::cout << "Exchange loop Gex not stored: solved as needed\n";
     }
   }
 
@@ -211,7 +215,6 @@ void Feynman::form_vx() {
 }
 
 //==============================================================================
-// // this function constructs the radial exchange coordinate matrix using the typical way that ampsci does it -- know this works since this is what the feynman method used by default
 // void Feynman::form_vx_old() {
 //   // this function forms the matrix form of the radial exchange matrix
 //   // Vx = -|a>Q<a|
@@ -822,6 +825,18 @@ void Feynman::form_w_quadrature(double w0, double wratio) {
 }
 
 //==============================================================================
+double gex_memory_GB(std::size_t num_w, std::size_t num_core,
+                     std::size_t num_kappas, std::size_t subgrid_points,
+                     bool include_G) {
+  // gex(e_a + w) and gex(e_a - w): two complex matrices per (w, a, kappa)
+  const auto num_blocks = include_G ? 4.0 : 1.0;
+  const auto matrix_bytes = double(sizeof(std::complex<double>)) *
+                            double(subgrid_points * subgrid_points);
+  return 2.0 * double(num_w * num_core * num_kappas) * num_blocks *
+         matrix_bytes * 1.0e-9;
+}
+
+//==============================================================================
 double best_omre(const std::vector<DiracSpinor> &core,
                  const std::vector<DiracSpinor> &valence, bool print) {
   // Real part of frequency Re{omega} = omre:
@@ -1347,9 +1362,18 @@ void Feynman::calculate_gex() {
   // gex(e_a +/- w) depends on the core state and the w grid only:
   // Therefore, can fill once
   // Vhp(a)-dressed when hole_particle
-  if (!m_gex_wak.empty()) {
+  // Not stored: solved as needed (exchange_Gamma_q, polarisation_each_k)
+  if (!m_store_gex || !m_gex_wak.empty()) {
     return;
   }
+
+  const auto num_core = m_core_index.size();
+  const auto num_kappas = m_max_ki + 1;
+
+  fmt::print("Store Gex: {:.1f} GB\n -- if out of memory, set "
+             "store_gex=false\n",
+             gex_memory_GB(m_wgrid_points.size(), num_core, num_kappas,
+                           m_subgrid_points, m_include_G));
 
   if (readwrite_gex(IO::FRW::read, cache_filename(m_ident, "gex", false))) {
     return;
@@ -1357,10 +1381,6 @@ void Feynman::calculate_gex() {
 
   std::cout << "Calculating loop Gex .. " << std::flush;
 
-  const auto &core = m_HF->core();
-  const auto num_core = m_core_index.size();
-
-  const auto num_kappas = m_max_ki + 1;
   const ComplexGMatrix gzero(m_i0, m_stride, m_subgrid_points, m_include_G,
                              m_grid);
   m_gex_wak.assign(
@@ -1374,20 +1394,26 @@ void Feynman::calculate_gex() {
 #pragma omp parallel for collapse(2) schedule(dynamic)
   for (auto iw = 0ul; iw < m_wgrid_points.size(); ++iw) {
     for (auto ic = 0ul; ic < num_core; ++ic) {
-      const auto &Fa = core[m_core_index[ic]];
-      const auto ea = std::complex<double>{Fa.en()};
-      const auto w = std::complex<double>{m_omre, m_wgrid_points[iw]};
-      const auto *Fa_hp = m_hole_particle ? &Fa : nullptr;
       for (auto ik = 0ul; ik < num_kappas; ++ik) {
-        const auto kappa = Angular::kindex_to_kappa(ik);
-        m_gex_wak[iw][ic][ik] = GexPair{green_excited(kappa, ea + w, Fa_hp),
-                                        green_excited(kappa, ea - w, Fa_hp)};
+        m_gex_wak[iw][ic][ik] = loop_gex(iw, ic, ik);
       }
     }
   }
   std::cout << " done\n" << std::flush;
 
   readwrite_gex(IO::FRW::write, cache_filename(m_ident, "gex", false));
+}
+
+//==============================================================================
+Feynman::GexPair Feynman::loop_gex(std::size_t iw, std::size_t ic,
+                                   std::size_t ik) const {
+  const auto &Fa = m_HF->core()[m_core_index[ic]];
+  const auto ea = std::complex<double>{Fa.en()};
+  const auto w = std::complex<double>{m_omre, m_wgrid_points[iw]};
+  const auto *Fa_hp = m_hole_particle ? &Fa : nullptr;
+  const auto kappa = Angular::kindex_to_kappa(ik);
+  return GexPair{green_excited(kappa, ea + w, Fa_hp),
+                 green_excited(kappa, ea - w, Fa_hp)};
 }
 
 //==============================================================================
@@ -1476,7 +1502,7 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
   auto weights = m_wgrid_weights;
   weights.back() += 0.5 * m_wgrid_points.back();
 
-  // Loop gex: no-op when already calculated or read from disk
+  // Loop gex: no-op when already calculated, read from disk, or not stored
   calculate_gex();
   // Effective screening factors of the analytic line, for the estimate of
   // the term with both lines screened (1: that term is neglected)
@@ -1611,7 +1637,7 @@ Feynman::GammaQ Feynman::exchange_Gamma_q(int kv, std::size_t ic,
     Screening: q^l above is the numeric line of Sigma_exchange,
     q^l + (1 + f_k) bar-q^l(w), with bar-q^l(w) = -i [q pi q~]^l(w) the
     screening correction (so depends on k, through f_k).
-    Hole-particle: the cached gex(e_a +/- w) are Vhp(a)-dressed (the
+    Hole-particle: the loop gex(e_a +/- w) are Vhp(a)-dressed (the
     excited electron of the (a, gex) pair feels the hole it left).
   */
 
@@ -1631,7 +1657,13 @@ Feynman::GammaQ Feynman::exchange_Gamma_q(int kv, std::size_t ic,
   for (auto ik = 0ul; ik < num_kappas; ++ik) {
     const auto kappa = Angular::kindex_to_kappa(ik);
 
-    const auto &[gex_plus, gex_minus] = m_gex_wak[iw][ic][ik];
+    // Loop gex: stored (calculate_gex), else solved here
+    std::optional<GexPair> gex_solved;
+    if (m_gex_wak.empty()) {
+      gex_solved = loop_gex(iw, ic, ik);
+    }
+    const auto &[gex_plus, gex_minus] =
+      gex_solved ? *gex_solved : m_gex_wak[iw][ic][ik];
 
     // [gex F_a]^t = sum_s gex^{ts} F_a^s
     std::vector<ComplexRMatrix> gexFa_plus(num_sp, zero),
