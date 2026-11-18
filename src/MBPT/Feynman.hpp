@@ -327,7 +327,7 @@ public:
     return m_Pcore.at(Angular::kappa_to_kindex(kappa));
   }
 
-private:
+  // private:
   // Number of spinor components: 2 (f, g) if include_G, else 1
   std::size_t num_spins() const { return m_include_G ? 2ul : 1ul; }
   // forms Qk matrices, as well as dri, drj
@@ -464,6 +464,19 @@ private:
 
   // [[nodiscard]] const ComplexGMatrix &get_dri() const { return m_dri; }
   // [[nodiscard]] const ComplexGMatrix &get_drj() const { return m_drj; }
+
+  // STRUCT RAD
+
+  GMatrix Sigma_SR_direct(int kv, double env, int kw, double Omega);
+  GMatrix Sigma_SR_direct2(int kv, double env, int kw, double Omega);
+
+  ComplexGMatrix perturbed_greens(ComplexGMatrix gA, ComplexGMatrix gB) const;
+
+  //! Polarisation operator pi^k(w;Omega), for multipolarity k
+  ComplexRMatrix perturbed_polarisation_kl(int k, int l,
+                                           std::complex<double> omega,
+                                           double Omega,
+                                           bool hole_particle) const;
 
 public:
   Feynman &operator=(const Feynman &) = default;

@@ -789,4 +789,7 @@ double StructureRad::Sigma_vw(const DiracSpinor &v,
                     MBPT::Sigma_vw(v, w, mY, mCore, mExcited);
 }
 
+
+
+
 } // namespace MBPT

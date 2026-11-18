@@ -142,6 +142,14 @@ public:
   std::size_t num_spins() const { return includes_g() ? 2ul : 1ul; }
   std::size_t i0() const { return m_i0; }
   std::size_t stride() const { return m_stride; }
+  //=============================================================================
+
+  // Trace of spinor matrix
+  RadialMatrix<T> tr() const {
+    RadialMatrix<T> t_tr(m_i0, m_stride, m_size, m_rgrid);
+    t_tr.Rmatrix() = m_ff + m_gg;
+    return t_tr;
+  }
 
   //============================================================================
   //! Sets all matrix elements to zero
@@ -295,7 +303,9 @@ public:
   //============================================================================
   //! Multiply elements (in place): Gij -> Gij*Bij
   SpinorMatrix<T> &mult_elements_by(const RadialMatrix<T> &rhs) {
+        
     m_ff.mult_elements_by(rhs.Rmatrix());
+    
     if (this->m_incl_g) {
       m_fg.mult_elements_by(rhs.Rmatrix());
       m_gf.mult_elements_by(rhs.Rmatrix());
@@ -449,6 +459,11 @@ public:
     return m_rgrid->drdu(full_index) * m_rgrid->du() * double(m_stride);
   }
 
+  //! returns dr at position along sub grid
+  double r(std::size_t sub_index) const {
+    const auto full_index = index_to_fullgrid(sub_index);
+    return m_rgrid->r(full_index);
+  }
   //! Transpose of a matrix that carries the drj integration measure: the
   //! measure stays on the column index. Returns new matrix (orig unchanged)
   //! @details M_ij = K_ij*dr_j -> K_ji*dr_j, i.e., out^{mu nu}_ij =
