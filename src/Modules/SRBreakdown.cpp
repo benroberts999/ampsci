@@ -12,6 +12,7 @@
 #include "Wavefunction/Wavefunction.hpp"
 #include "fmt/format.hpp"
 #include <algorithm>
+#include <cmath>
 #include <iostream>
 #include <string>
 
@@ -43,6 +44,8 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
       "updated). If false, they are calculated from the Yk table: slower, "
       "but uses much less memory [true]"},
      {"n_min_core", "Minimum n for core states in the diagrams [1]"},
+     {"fk", "list: Coulomb screening factors for each k [none]"},
+     {"etak", "list: Hole-particle factors for each k [none]"},
      {"n_digits", "Number of decimal places printed [2]"}});
   if (input.has_option("help")) {
     return;
@@ -58,6 +61,8 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto rpa_method = input.get<std::string>("rpa", "false");
   const auto use_Qk = input.get("Qk_file", true);
   const auto n_min_core = input.get("n_min_core", 1);
+  const auto fk = input.get("fk", std::vector<double>{});
+  const auto etak = input.get("etak", std::vector<double>{});
   const auto n_digits = input.get("n_digits", 2);
 
   auto [core, excited] =
@@ -110,7 +115,22 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
             << " (n >= " << n_min_core << ")\n";
   std::cout << "Excited: " << DiracSpinor::state_config(excited) << "\n";
   std::cout << "Coulomb integrals: " << (use_Qk ? "QkTable" : "YkTable")
-            << "\n\n";
+            << "\n";
+  if (!fk.empty()) {
+    std::cout << "Effective Coulomb screening, fk = ";
+    for (const auto f : fk) {
+      std::cout << f << ", ";
+    }
+    std::cout << "\n";
+  }
+  if (!etak.empty()) {
+    std::cout << "Effective hole-particle interaction, etak = ";
+    for (const auto eta : etak) {
+      std::cout << eta << ", ";
+    }
+    std::cout << "\n";
+  }
+  std::cout << "\n";
 
   // Values are printed as +d.[n_digits]e-xx; columns at least as wide as the
   // "exchange" header
@@ -128,13 +148,15 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
       if (h->isZero(w, v))
         continue;
       const auto omega = w.en() - v.en();
-      const auto [a, c, ax, cx] =
-        use_Qk ?
-          SR_a_c_ax_cx(w, v, omega, core, excited, qk, h_table, h->rank()) :
-          SR_a_c_ax_cx(w, v, omega, core, excited, yk, h_table, h->rank());
-      const auto [b, bx] =
-        use_Qk ? SR_b_bx(w, v, omega, core, excited, qk, h_table, h->rank()) :
-                 SR_b_bx(w, v, omega, core, excited, yk, h_table, h->rank());
+      const auto [a, c, ax, cx] = use_Qk ?
+                                    SR_a_c_ax_cx(w, v, omega, core, excited, qk,
+                                                 h_table, h->rank(), fk, etak) :
+                                    SR_a_c_ax_cx(w, v, omega, core, excited, yk,
+                                                 h_table, h->rank(), fk, etak);
+      const auto [b, bx] = use_Qk ? SR_b_bx(w, v, omega, core, excited, qk,
+                                            h_table, h->rank(), fk, etak) :
+                                    SR_b_bx(w, v, omega, core, excited, yk,
+                                            h_table, h->rank(), fk, etak);
       const auto direct = a + b + c;
       const auto exchange = ax + bx + cx;
       fmt::print("{:5s} {:5s}", w.shortSymbol(), v.shortSymbol());
@@ -150,6 +172,37 @@ void SRBreakdown(const IO::InputBlock &input, const Wavefunction &wf) {
 }
 
 //==============================================================================
+double factor_k(const std::vector<double> &f, int k) {
+  const auto sk = std::size_t(k);
+  return sk < f.size() ? f[sk] : 1.0;
+}
+
+//==============================================================================
+template <typename CoulombTable>
+double Q_screened(const CoulombTable &qk, const std::vector<double> &fk, int k,
+                  const DiracSpinor &a, const DiracSpinor &b,
+                  const DiracSpinor &c, const DiracSpinor &d) {
+  return std::sqrt(factor_k(fk, k)) * qk.Q(k, a, b, c, d);
+}
+
+template <typename CoulombTable>
+double P_screened(const CoulombTable &qk, const std::vector<double> &fk, int k,
+                  const DiracSpinor &a, const DiracSpinor &b,
+                  const DiracSpinor &c, const DiracSpinor &d) {
+  // P^k_abcd = [k] sum_l {a c k; b d l} Q^l_abdc
+  const auto [l_min, l_max] = Coulomb::k_minmax_Q(a, b, d, c);
+  double pk = 0.0;
+  for (int l = l_min; l <= l_max; l += 2) {
+    const auto sj =
+      Angular::sixj_2(a.twoj(), c.twoj(), 2 * k, b.twoj(), d.twoj(), 2 * l);
+    if (sj == 0.0)
+      continue;
+    pk += sj * Q_screened(qk, fk, l, a, b, d, c);
+  }
+  return (2 * k + 1) * pk;
+}
+
+//==============================================================================
 // Each term: sum over internal states (core a,b,c; excited m,n,r) and
 // multipolarity mu of
 //   (-1)^(mu + k + j_w - j_x) / [mu] {v w k; x y mu} W^mu_(v) W^mu_(w)
@@ -162,7 +215,8 @@ std::array<double, 4>
 SR_a_c_ax_cx(const DiracSpinor &w, const DiracSpinor &v, double omega,
              const std::vector<DiracSpinor> &core,
              const std::vector<DiracSpinor> &excited, const CoulombTable &qk,
-             const Coulomb::meTable<double> &h, int K) {
+             const Coulomb::meTable<double> &h, int K,
+             const std::vector<double> &fk, const std::vector<double> &etak) {
 
   double sr_a{0.0}, sr_c{0.0}, sr_ax{0.0}, sr_cx{0.0};
 
@@ -189,11 +243,12 @@ SR_a_c_ax_cx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                             m.twoj(), 2 * mu);
             if (sj == 0.0)
               continue;
-            const auto f_mu = f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
-            const auto q_v = qk.Q(mu, m, n, v, b);
-            const auto p_v = qk.P(mu, m, n, v, b);
-            const auto q_w = qk.Q(mu, b, w, n, a);
-            const auto p_w = qk.P(mu, b, w, n, a);
+            const auto f_mu =
+              factor_k(etak, mu) * f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
+            const auto q_v = Q_screened(qk, fk, mu, m, n, v, b);
+            const auto p_v = P_screened(qk, fk, mu, m, n, v, b);
+            const auto q_w = Q_screened(qk, fk, mu, b, w, n, a);
+            const auto p_w = P_screened(qk, fk, mu, b, w, n, a);
             sr_a += f_mu * q_v * q_w;
             sr_ax += f_mu * p_v * q_w;
             sr_cx += f_mu * q_v * p_w;
@@ -227,11 +282,12 @@ SR_a_c_ax_cx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                             m.twoj(), 2 * mu);
             if (sj == 0.0)
               continue;
-            const auto f_mu = f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
-            const auto q_v = qk.Q(mu, m, r, v, a);
-            const auto p_v = qk.P(mu, m, r, v, a);
-            const auto q_w = qk.Q(mu, a, w, r, n);
-            const auto p_w = qk.P(mu, a, w, r, n);
+            const auto f_mu =
+              factor_k(etak, mu) * f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
+            const auto q_v = Q_screened(qk, fk, mu, m, r, v, a);
+            const auto p_v = P_screened(qk, fk, mu, m, r, v, a);
+            const auto q_w = Q_screened(qk, fk, mu, a, w, r, n);
+            const auto p_w = P_screened(qk, fk, mu, a, w, r, n);
             sr_a += f_mu * q_v * q_w;
             sr_ax += f_mu * p_v * q_w;
             sr_cx += f_mu * q_v * p_w;
@@ -265,11 +321,12 @@ SR_a_c_ax_cx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                             m.twoj(), 2 * mu);
             if (sj == 0.0)
               continue;
-            const auto f_mu = f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
-            const auto q_v = qk.Q(mu, m, b, v, n);
-            const auto p_v = qk.P(mu, m, b, v, n);
-            const auto q_w = qk.Q(mu, n, w, b, a);
-            const auto p_w = qk.P(mu, n, w, b, a);
+            const auto f_mu =
+              factor_k(etak, mu) * f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
+            const auto q_v = Q_screened(qk, fk, mu, m, b, v, n);
+            const auto p_v = P_screened(qk, fk, mu, m, b, v, n);
+            const auto q_w = Q_screened(qk, fk, mu, n, w, b, a);
+            const auto p_w = P_screened(qk, fk, mu, n, w, b, a);
             sr_a += f_mu * q_v * q_w;
             sr_ax += f_mu * p_v * q_w;
             sr_cx += f_mu * q_v * p_w;
@@ -303,11 +360,12 @@ SR_a_c_ax_cx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                             a.twoj(), 2 * mu);
             if (sj == 0.0)
               continue;
-            const auto f_mu = f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
-            const auto q_v = qk.Q(mu, a, c, v, m);
-            const auto p_v = qk.P(mu, a, c, v, m);
-            const auto q_w = qk.Q(mu, m, w, c, b);
-            const auto p_w = qk.P(mu, m, w, c, b);
+            const auto f_mu =
+              factor_k(etak, mu) * f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
+            const auto q_v = Q_screened(qk, fk, mu, a, c, v, m);
+            const auto p_v = P_screened(qk, fk, mu, a, c, v, m);
+            const auto q_w = Q_screened(qk, fk, mu, m, w, c, b);
+            const auto p_w = P_screened(qk, fk, mu, m, w, c, b);
             sr_a += f_mu * q_v * q_w;
             sr_ax += f_mu * p_v * q_w;
             sr_cx += f_mu * q_v * p_w;
@@ -341,11 +399,12 @@ SR_a_c_ax_cx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                             a.twoj(), 2 * mu);
             if (sj == 0.0)
               continue;
-            const auto f_mu = f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
-            const auto q_v = qk.Q(mu, a, n, v, b);
-            const auto p_v = qk.P(mu, a, n, v, b);
-            const auto q_w = qk.Q(mu, b, w, n, m);
-            const auto p_w = qk.P(mu, b, w, n, m);
+            const auto f_mu =
+              factor_k(etak, mu) * f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
+            const auto q_v = Q_screened(qk, fk, mu, a, n, v, b);
+            const auto p_v = P_screened(qk, fk, mu, a, n, v, b);
+            const auto q_w = Q_screened(qk, fk, mu, b, w, n, m);
+            const auto p_w = P_screened(qk, fk, mu, b, w, n, m);
             sr_a += f_mu * q_v * q_w;
             sr_ax += f_mu * p_v * q_w;
             sr_cx += f_mu * q_v * p_w;
@@ -379,11 +438,12 @@ SR_a_c_ax_cx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                             a.twoj(), 2 * mu);
             if (sj == 0.0)
               continue;
-            const auto f_mu = f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
-            const auto q_v = qk.Q(mu, a, b, v, n);
-            const auto p_v = qk.P(mu, a, b, v, n);
-            const auto q_w = qk.Q(mu, n, w, b, m);
-            const auto p_w = qk.P(mu, n, w, b, m);
+            const auto f_mu =
+              factor_k(etak, mu) * f * Angular::neg1pow(mu) * sj / (2 * mu + 1);
+            const auto q_v = Q_screened(qk, fk, mu, a, b, v, n);
+            const auto p_v = P_screened(qk, fk, mu, a, b, v, n);
+            const auto q_w = Q_screened(qk, fk, mu, n, w, b, m);
+            const auto p_w = P_screened(qk, fk, mu, n, w, b, m);
             sr_a += f_mu * q_v * q_w;
             sr_ax += f_mu * p_v * q_w;
             sr_cx += f_mu * q_v * p_w;
@@ -409,7 +469,8 @@ std::array<double, 2>
 SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
         const std::vector<DiracSpinor> &core,
         const std::vector<DiracSpinor> &excited, const CoulombTable &qk,
-        const Coulomb::meTable<double> &h, int K) {
+        const Coulomb::meTable<double> &h, int K, const std::vector<double> &fk,
+        const std::vector<double> &etak) {
 
   double sr_b{0.0}, sr_bx{0.0};
 
@@ -433,9 +494,10 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
           const auto [min_mu, max_mu] = Coulomb::k_minmax_Q(m, r, v, a);
           const auto [min_l, max_l] = Coulomb::k_minmax_W(n, w, r, m);
           for (int mu = min_mu; mu <= max_mu; mu += 2) {
-            const auto q_mu = qk.Q(mu, m, r, v, a);
+            const auto q_mu = Q_screened(qk, fk, mu, m, r, v, a);
             if (q_mu == 0.0)
               continue;
+            const auto f_mu = factor_k(etak, mu) * f * q_mu;
             for (int lambda = min_l; lambda <= max_l; ++lambda) {
               const auto sj = Angular::sixj_2(v.twoj(), w.twoj(), 2 * K,
                                               2 * lambda, 2 * mu, m.twoj()) *
@@ -443,8 +505,8 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                               r.twoj(), 2 * lambda, 2 * mu);
               if (sj == 0.0)
                 continue;
-              sr_b += f * sj * q_mu * qk.Q(lambda, n, w, r, m);
-              sr_bx += f * sj * q_mu * qk.P(lambda, n, w, r, m);
+              sr_b += f_mu * sj * Q_screened(qk, fk, lambda, n, w, r, m);
+              sr_bx += f_mu * sj * P_screened(qk, fk, lambda, n, w, r, m);
             }
           }
         }
@@ -473,9 +535,10 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
           const auto [min_mu, max_mu] = Coulomb::k_minmax_Q(m, n, v, a);
           const auto [min_l, max_l] = Coulomb::k_minmax_W(b, w, n, m);
           for (int mu = min_mu; mu <= max_mu; mu += 2) {
-            const auto q_mu = qk.Q(mu, m, n, v, a);
+            const auto q_mu = Q_screened(qk, fk, mu, m, n, v, a);
             if (q_mu == 0.0)
               continue;
+            const auto f_mu = factor_k(etak, mu) * f * q_mu;
             for (int lambda = min_l; lambda <= max_l; ++lambda) {
               const auto sj = Angular::sixj_2(v.twoj(), w.twoj(), 2 * K,
                                               2 * lambda, 2 * mu, m.twoj()) *
@@ -483,8 +546,8 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                               n.twoj(), 2 * lambda, 2 * mu);
               if (sj == 0.0)
                 continue;
-              sr_b += f * sj * q_mu * qk.Q(lambda, b, w, n, m);
-              sr_bx += f * sj * q_mu * qk.P(lambda, b, w, n, m);
+              sr_b += f_mu * sj * Q_screened(qk, fk, lambda, b, w, n, m);
+              sr_bx += f_mu * sj * P_screened(qk, fk, lambda, b, w, n, m);
             }
           }
         }
@@ -512,9 +575,10 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
           const auto [min_mu, max_mu] = Coulomb::k_minmax_Q(m, w, c, a);
           const auto [min_l, max_l] = Coulomb::k_minmax_W(a, c, v, b);
           for (int mu = min_mu; mu <= max_mu; mu += 2) {
-            const auto q_mu = qk.Q(mu, m, w, c, a);
+            const auto q_mu = Q_screened(qk, fk, mu, m, w, c, a);
             if (q_mu == 0.0)
               continue;
+            const auto f_mu = factor_k(etak, mu) * f * q_mu;
             for (int lambda = min_l; lambda <= max_l; ++lambda) {
               const auto sj = Angular::sixj_2(v.twoj(), w.twoj(), 2 * K, 2 * mu,
                                               2 * lambda, a.twoj()) *
@@ -522,8 +586,8 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                               c.twoj(), 2 * lambda, 2 * mu);
               if (sj == 0.0)
                 continue;
-              sr_b += f * sj * q_mu * qk.Q(lambda, a, c, v, b);
-              sr_bx += f * sj * q_mu * qk.P(lambda, a, c, v, b);
+              sr_b += f_mu * sj * Q_screened(qk, fk, lambda, a, c, v, b);
+              sr_bx += f_mu * sj * P_screened(qk, fk, lambda, a, c, v, b);
             }
           }
         }
@@ -552,9 +616,10 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
           const auto [min_mu, max_mu] = Coulomb::k_minmax_Q(n, w, b, a);
           const auto [min_l, max_l] = Coulomb::k_minmax_W(a, b, v, m);
           for (int mu = min_mu; mu <= max_mu; mu += 2) {
-            const auto q_mu = qk.Q(mu, n, w, b, a);
+            const auto q_mu = Q_screened(qk, fk, mu, n, w, b, a);
             if (q_mu == 0.0)
               continue;
+            const auto f_mu = factor_k(etak, mu) * f * q_mu;
             for (int lambda = min_l; lambda <= max_l; ++lambda) {
               const auto sj = Angular::sixj_2(v.twoj(), w.twoj(), 2 * K, 2 * mu,
                                               2 * lambda, a.twoj()) *
@@ -562,8 +627,8 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                               b.twoj(), 2 * lambda, 2 * mu);
               if (sj == 0.0)
                 continue;
-              sr_b += f * sj * q_mu * qk.Q(lambda, a, b, v, m);
-              sr_bx += f * sj * q_mu * qk.P(lambda, a, b, v, m);
+              sr_b += f_mu * sj * Q_screened(qk, fk, lambda, a, b, v, m);
+              sr_bx += f_mu * sj * P_screened(qk, fk, lambda, a, b, v, m);
             }
           }
         }
@@ -591,9 +656,10 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
           const auto [min_mu, max_mu] = Coulomb::k_minmax_Q(m, r, v, n);
           const auto [min_l, max_l] = Coulomb::k_minmax_W(a, w, r, m);
           for (int mu = min_mu; mu <= max_mu; mu += 2) {
-            const auto q_mu = qk.Q(mu, m, r, v, n);
+            const auto q_mu = Q_screened(qk, fk, mu, m, r, v, n);
             if (q_mu == 0.0)
               continue;
+            const auto f_mu = factor_k(etak, mu) * f * q_mu;
             for (int lambda = min_l; lambda <= max_l; ++lambda) {
               const auto sj = Angular::sixj_2(v.twoj(), w.twoj(), 2 * K,
                                               2 * lambda, 2 * mu, m.twoj()) *
@@ -601,8 +667,8 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                               r.twoj(), 2 * lambda, 2 * mu);
               if (sj == 0.0)
                 continue;
-              sr_b += f * sj * q_mu * qk.Q(lambda, a, w, r, m);
-              sr_bx += f * sj * q_mu * qk.P(lambda, a, w, r, m);
+              sr_b += f_mu * sj * Q_screened(qk, fk, lambda, a, w, r, m);
+              sr_bx += f_mu * sj * P_screened(qk, fk, lambda, a, w, r, m);
             }
           }
         }
@@ -630,9 +696,10 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
           const auto [min_mu, max_mu] = Coulomb::k_minmax_Q(b, w, c, a);
           const auto [min_l, max_l] = Coulomb::k_minmax_W(a, c, v, m);
           for (int mu = min_mu; mu <= max_mu; mu += 2) {
-            const auto q_mu = qk.Q(mu, b, w, c, a);
+            const auto q_mu = Q_screened(qk, fk, mu, b, w, c, a);
             if (q_mu == 0.0)
               continue;
+            const auto f_mu = factor_k(etak, mu) * f * q_mu;
             for (int lambda = min_l; lambda <= max_l; ++lambda) {
               const auto sj = Angular::sixj_2(v.twoj(), w.twoj(), 2 * K, 2 * mu,
                                               2 * lambda, a.twoj()) *
@@ -640,8 +707,8 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
                                               c.twoj(), 2 * mu, 2 * lambda);
               if (sj == 0.0)
                 continue;
-              sr_b += f * sj * q_mu * qk.Q(lambda, a, c, v, m);
-              sr_bx += f * sj * q_mu * qk.P(lambda, a, c, v, m);
+              sr_b += f_mu * sj * Q_screened(qk, fk, lambda, a, c, v, m);
+              sr_bx += f_mu * sj * P_screened(qk, fk, lambda, a, c, v, m);
             }
           }
         }
@@ -656,20 +723,40 @@ SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
 template std::array<double, 4> SR_a_c_ax_cx(
   const DiracSpinor &w, const DiracSpinor &v, double omega,
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  const Coulomb::YkTable &qk, const Coulomb::meTable<double> &h, int K);
+  const Coulomb::YkTable &qk, const Coulomb::meTable<double> &h, int K,
+  const std::vector<double> &fk, const std::vector<double> &etak);
 template std::array<double, 4> SR_a_c_ax_cx(
   const DiracSpinor &w, const DiracSpinor &v, double omega,
   const std::vector<DiracSpinor> &core, const std::vector<DiracSpinor> &excited,
-  const Coulomb::QkTable &qk, const Coulomb::meTable<double> &h, int K);
+  const Coulomb::QkTable &qk, const Coulomb::meTable<double> &h, int K,
+  const std::vector<double> &fk, const std::vector<double> &etak);
 template std::array<double, 2>
 SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
         const std::vector<DiracSpinor> &core,
         const std::vector<DiracSpinor> &excited, const Coulomb::YkTable &qk,
-        const Coulomb::meTable<double> &h, int K);
+        const Coulomb::meTable<double> &h, int K, const std::vector<double> &fk,
+        const std::vector<double> &etak);
 template std::array<double, 2>
 SR_b_bx(const DiracSpinor &w, const DiracSpinor &v, double omega,
         const std::vector<DiracSpinor> &core,
         const std::vector<DiracSpinor> &excited, const Coulomb::QkTable &qk,
-        const Coulomb::meTable<double> &h, int K);
+        const Coulomb::meTable<double> &h, int K, const std::vector<double> &fk,
+        const std::vector<double> &etak);
+template double Q_screened(const Coulomb::YkTable &qk,
+                           const std::vector<double> &fk, int k,
+                           const DiracSpinor &a, const DiracSpinor &b,
+                           const DiracSpinor &c, const DiracSpinor &d);
+template double Q_screened(const Coulomb::QkTable &qk,
+                           const std::vector<double> &fk, int k,
+                           const DiracSpinor &a, const DiracSpinor &b,
+                           const DiracSpinor &c, const DiracSpinor &d);
+template double P_screened(const Coulomb::YkTable &qk,
+                           const std::vector<double> &fk, int k,
+                           const DiracSpinor &a, const DiracSpinor &b,
+                           const DiracSpinor &c, const DiracSpinor &d);
+template double P_screened(const Coulomb::QkTable &qk,
+                           const std::vector<double> &fk, int k,
+                           const DiracSpinor &a, const DiracSpinor &b,
+                           const DiracSpinor &c, const DiracSpinor &d);
 
 } // namespace Module
