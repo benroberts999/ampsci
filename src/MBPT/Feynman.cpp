@@ -1942,9 +1942,7 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw, double Omega) {
 double L_ang_dSR_GGP(int K, int k, int l, int ka, int kb, int kc) {
   // Angular Factor for
   // Struct Rad diagram of the form PGG
-
   // This is the Diagr GGP
-  // const auto K = 1; //rank of operator
   const auto tj_ka = Angular::twoj_k(ka);
   const auto tj_kb = Angular::twoj_k(kb);
   const auto tj_kc = Angular::twoj_k(kc);
@@ -1959,8 +1957,6 @@ double L_ang_dSR_GGP(int K, int k, int l, int ka, int kb, int kc) {
 double L_ang_dSR_GPG(int K, int k, int l, int ka, int kb, int kc) {
   // Angular Factor for
   // Struct Rad diagram of the form PGG
-
-  // const auto K = 1; //rank of operator
   const auto tj_ka = Angular::twoj_k(ka);
   const auto tj_kb = Angular::twoj_k(kb);
   const auto tj_kc = Angular::twoj_k(kc);
@@ -1974,13 +1970,10 @@ double L_ang_dSR_GPG(int K, int k, int l, int ka, int kb, int kc) {
 double L_ang_dSR_PGG(int K, int k, int l, int ka, int kb, int kc) {
   // Angular Factor for
   // Struct Rad diagram of the form PGG
-
-  // const auto K = 1; //rank of operator
   const auto tj_ka = Angular::twoj_k(ka);
   const auto tj_kb = Angular::twoj_k(kb);
   const auto tj_kc = Angular::twoj_k(kc);
-  const auto sjs = Angular::sixj_2(2 * K, 2 * k, 2 * l, tj_kb, tj_ka, tj_kc);
-
+  const auto sjs = Angular::sixj_2(2 * K, 2 * k, 2 * l, tj_ka, tj_kb, tj_kc);
   const auto Ck_Ca = Angular::Ck_kk(k, kc, ka);
   const auto Cl_aB = Angular::Ck_kk(l, ka, kb);
   const auto s = Angular::neg1pow(k + l + 1);
@@ -1989,7 +1982,7 @@ double L_ang_dSR_PGG(int K, int k, int l, int ka, int kb, int kc) {
 
 ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
                                                   std::complex<double> omega,
-                                                  double Omega,
+                                                  double Omega_external,
                                                   bool hole_particle) const {
 
   // modifiedPolarisation operator is Tr G_12(omega + Omega) dG_21(omega + en) d_omega
@@ -2008,12 +2001,15 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
   const auto K = 1;
 
   // Generalised arguments for the triple Green's function integral
-  const auto alpha = Omega;
-  const auto beta = omega + Omega;
-  const auto gamma = omega;
+  const auto alpha = omega;
+  const auto beta = Omega_external;
+  const auto gamma = 0.0;
   const auto D_ab = alpha - beta;
   const auto D_bc = beta - gamma;
   const auto D_ac = alpha - gamma;
+  const auto D_ba = -D_ab;
+  const auto D_cb = -D_bc;
+  const auto D_ca = -D_ac;
 
   // auto green1 = core ? green_core : green_excited;
 
@@ -2030,12 +2026,10 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
     const auto ea = std::complex<double>{Fa.en()};
     // not m_hole_particle, as need both for "screen only"
     const auto *Fa_hp = hole_particle ? &Fa : nullptr;
-
     for (int iB = 0; iB <= m_max_ki; ++iB) {
       const auto kB = Angular::kindex_to_kappa(iB);
       for (int iC = 0; iC <= m_max_ki; ++iC) {
         const auto kC = Angular::kindex_to_kappa(iC);
-        // Gex^B(beta - alpha) Gex^C (gamma-alpha)) h P^A
 
         // angular factor for dipole operator
         const auto h_Ca = Angular::Ck_kk(k, kC, Fa.kappa());
@@ -2045,39 +2039,38 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
 
         if (c_ang_ggp != 0.0) {
 
-          auto gex_B_ba = green_excited(kB, ea - D_ab, Fa_hp);
-          auto gex_C_ca = green_excited(kC, ea - D_ac, Fa_hp);
-          auto gcor_B_ba = green_core(kB, ea - D_ab);
-          auto gcor_C_ca = green_core(kB, ea - D_ac);
+          auto gex_B_ac = green_excited(kB, ea + D_ac, Fa_hp);
+          auto gcor_B_ac = green_core(kB, ea + D_ac);
+
+          auto gcor_C_bc = green_core(kC, ea + D_bc);
+          auto gex_C_bc = green_excited(kC, ea + D_bc, Fa_hp);
 
           if (!m_include_G) {
-            gex_B_ba.drop_g();
-            gex_C_ca.drop_g();
-            gcor_B_ba.drop_g();
-            gcor_C_ca.drop_g();
+            gex_B_ac.drop_g();
+            gex_C_bc.drop_g();
+            gcor_B_ac.drop_g();
+            gcor_C_bc.drop_g();
           }
-          const auto gexC_h_Pa = perturbed_greens(gex_C_ca, Pa);
-          const auto gcorC_h_Pa = perturbed_greens(gcor_C_ca, Pa);
+          const auto gexC_h_Pa = perturbed_greens(gex_C_bc, Pa);
+          const auto gcorC_h_Pa = perturbed_greens(gcor_C_bc, Pa);
 
-          const auto dPi1 = mult_elements(gex_B_ba, gexC_h_Pa) +
-                            mult_elements(gex_B_ba, gcorC_h_Pa) +
-                            mult_elements(gcor_B_ba, gexC_h_Pa);
+          const auto dPi1 = mult_elements(gex_B_ac, gexC_h_Pa) +
+                            mult_elements(gex_B_ac, gcorC_h_Pa) +
+                            mult_elements(gcor_B_ac, gexC_h_Pa);
           dpi_k += c_ang_ggp * dPi1.tr();
         }
 
-        // Gex^B(alpha-beta) P^A h Gex^C(gamma-beta)
-
         // angular factor for dipole operator
         const auto h_aC = Angular::Ck_kk(k, Fa.kappa(), kC);
-
         const auto c_ang_gpg =
           h_aC * L_ang_dSR_GPG(K, k, l, Fa.kappa(), kB, kC);
 
         if (c_ang_gpg != 0) {
           auto gex_B_ab = green_excited(kB, ea + D_ab, Fa_hp);
-          auto gex_C_cb = green_excited(kC, ea - D_bc, Fa_hp);
           auto gcor_B_ab = green_core(kB, ea + D_ab);
-          auto gcor_C_cb = green_core(kB, ea - D_bc);
+
+          auto gcor_C_cb = green_core(kC, ea + D_cb);
+          auto gex_C_cb = green_excited(kC, ea + D_cb, Fa_hp);
 
           if (!m_include_G) {
             gex_B_ab.drop_g();
@@ -2098,26 +2091,26 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
 
         // angular factor for dipole
         auto h_BC = Angular::Ck_kk(k, kB, kC);
-
         const auto c_ang_pgg =
           h_BC * L_ang_dSR_PGG(K, k, l, Fa.kappa(), kB, kC);
 
         if (c_ang_pgg != 0) {
-          auto gex_B_ac = green_excited(kB, ea + D_ac, Fa_hp);
-          auto gex_C_bc = green_excited(kC, ea + D_bc, Fa_hp);
-          auto gcor_B_ac = green_core(kB, ea + D_ac);
-          auto gcor_C_bc = green_core(kB, ea + D_bc);
+          auto gex_B_ba = green_excited(kB, ea + D_ba, Fa_hp);
+          auto gcor_B_ba = green_core(kB, ea + D_ba);
+
+          auto gex_C_ca = green_excited(kC, ea + D_ca, Fa_hp);
+          auto gcor_C_ca = green_core(kC, ea + D_ca);
 
           if (!m_include_G) {
-            gex_B_ac.drop_g();
-            gex_C_bc.drop_g();
-            gcor_B_ac.drop_g();
-            gcor_C_bc.drop_g();
+            gex_B_ba.drop_g();
+            gex_C_ca.drop_g();
+            gcor_B_ba.drop_g();
+            gcor_C_ca.drop_g();
           }
 
-          const auto gexB_h_gexC = perturbed_greens(gex_B_ac, gex_C_bc);
-          const auto gexB_h_gcorC = perturbed_greens(gex_B_ac, gcor_C_bc);
-          const auto gcorB_h_gexC = perturbed_greens(gcor_B_ac, gex_C_bc);
+          const auto gexB_h_gexC = perturbed_greens(gex_B_ba, gex_C_ca);
+          const auto gexB_h_gcorC = perturbed_greens(gex_B_ba, gcor_C_ca);
+          const auto gcorB_h_gexC = perturbed_greens(gcor_B_ba, gex_C_ca);
 
           const auto dPi3 =
             mult_elements(Pa, gexB_h_gexC + gexB_h_gcorC + gcorB_h_gexC);

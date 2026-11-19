@@ -67,6 +67,8 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
       const auto Omega = Fa.en() - Fb.en();
 
+
+  
       const auto Sd1 =
         Fyn.Sigma_SR_direct(Fa.kappa(), Fb.en(), Fb.kappa(), Omega);
 
