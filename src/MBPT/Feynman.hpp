@@ -335,6 +335,25 @@ public:
   void form_qpiq(const std::string &ident = "");
 
   /*!
+    @brief Forms everything Sigma_exchange requires, ahead of its first call.
+
+    @details
+    In order: stores the loop Green's functions (calculate_gex), forms
+    Q*Pi*Q if not yet formed (form_qpiq, with @p ident), and, with
+    @p calculate_fk, the unscreened Q*Pi*Q (calculate_qpiq_unscreened), the
+    reference for the effective screening factors of the term with both
+    lines screened (screening_fk). Each is read from its disk cache when
+    present. Call once, before any Sigma_exchange call, so that no file is
+    read or formed (and nothing printed) during those calls.
+
+    @param ident         Identity for the disk caches (see form_qpiq)
+    @param calculate_fk  The effective screening factors are to be
+                         calculated (screening_fk); false if that term is
+                         neglected, or its factors are given
+  */
+  void setup_exchange(const std::string &ident = "", bool calculate_fk = false);
+
+  /*!
     @brief Calculates and stores the loop Green's functions of the exchange.
 
     @details
@@ -476,12 +495,17 @@ public:
                           both lines screened at once is included, estimated
                           with its effective screening factors; nullptr:
                           that term is neglected
+    @param fk_both_lines  Effective screening factors f_k to use for that
+                          estimate, in place of the calculated ones
+                          (screening_fk); 1 for any k beyond those given.
+                          Empty: calculated
 
     @note Not safe to call concurrently on one object (fills the loop-gex
     cache and the screening-factor store on first call)
   */
   GMatrix Sigma_exchange(int kappa_v, double en_v,
-                         const DiracSpinor *Fv_both_lines = nullptr);
+                         const DiracSpinor *Fv_both_lines = nullptr,
+                         const std::vector<double> &fk_both_lines = {});
 
   /*!
     @brief Direct part of correlation potential, for each multipole k.

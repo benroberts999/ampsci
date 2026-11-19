@@ -1172,10 +1172,22 @@ bool Feynman::readwrite_gex(IO::FRW::RoW rw, const std::string &fname) {
 void Feynman::form_qpiq(const std::string &ident) {
   if (read_qpiq(ident))
     return;
-  // The polarisation loop re-uses the cached gex when present (see
+  // The polarisation loop re-uses the stored loop gex when present (see
   // calculate_gex); otherwise it solves (and discards) its own
   form_qpiq(polarisation_wk());
   write_qpiq(ident);
+}
+
+//==============================================================================
+void Feynman::setup_exchange(const std::string &ident, bool calculate_fk) {
+  // Loop gex first: the polarisation loops below re-use them
+  calculate_gex();
+  if (!has_qpiq()) {
+    form_qpiq(ident);
+  }
+  if (calculate_fk) {
+    calculate_qpiq_unscreened();
+  }
 }
 
 //==============================================================================
@@ -1418,7 +1430,8 @@ Feynman::GexPair Feynman::loop_gex(std::size_t iw, std::size_t ic,
 
 //==============================================================================
 GMatrix Feynman::Sigma_exchange(int kv, double env,
-                                const DiracSpinor *Fv_both_lines) {
+                                const DiracSpinor *Fv_both_lines,
+                                const std::vector<double> &fk_both_lines) {
   /*
     Exchange Sigma, Methods Eq. (RadialSigmaExch):
 
@@ -1477,7 +1490,8 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
     q^k (screening_fk: the valence-weighted ratio of the screened to the
     bare line, from the direct diagram), keeping the exact bar-q^l(w) on
     the numeric line. Each form gives one such estimate; the average is
-    their mean. Without the valence state that term is neglected (f_k = 1).
+    their mean. Given factors f_k are used in place of the calculated ones.
+    Without the valence state that term is neglected (f_k = 1).
 
     Hole-particle (when included): Vhp(a) dresses gex(e_a +/- w), the
     excited half of the (a, gex) pair, as in the polarisation loop. This is
@@ -1508,8 +1522,15 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
   // the term with both lines screened (1: that term is neglected)
   assert((Fv_both_lines == nullptr || Fv_both_lines->kappa() == kv) &&
          "Fv_both_lines must have kappa_v");
-  const auto fk = Fv_both_lines != nullptr ? screening_fk(*Fv_both_lines, env) :
-                                             std::vector<double>(num_ks, 1.0);
+  auto fk = std::vector<double>(num_ks, 1.0);
+  if (Fv_both_lines != nullptr && !fk_both_lines.empty()) {
+    // Given factors (1 for any k beyond those given)
+    for (auto k = 0ul; k < num_ks && k < fk_both_lines.size(); ++k) {
+      fk[k] = fk_both_lines[k];
+    }
+  } else if (Fv_both_lines != nullptr) {
+    fk = screening_fk(*Fv_both_lines, env);
+  }
 
   // BLAS must run single-threaded inside the omp regions below
   const qip::SingleThreadBlas single_thread_blas{};

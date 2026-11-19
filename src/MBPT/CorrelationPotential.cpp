@@ -91,6 +91,13 @@ CorrelationPotential::CorrelationPotential(
                   << (m_exchange_both_lines ?
                         ", and both at once (estimate, effective fk)\n" :
                         " (one at a time)\n");
+        if (m_exchange_both_lines && !m_fk.empty()) {
+          std::cout << "Using given fk = {";
+          for (const auto &each_fk : m_fk) {
+            printf("%.3f, ", each_fk);
+          }
+          std::cout << "}\n";
+        }
       }
     } else if (m_method == SigmaMethod::Feynman) {
       std::cout << "Using Feynman method for direct diagrams, Goldstone "
@@ -413,7 +420,8 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
   const auto Fv_both_lines =
     m_feynman_exchange && m_exchange_both_lines && m_Fy->screening() ? Fv :
                                                                        nullptr;
-  if (Fv_both_lines != nullptr) {
+  // (not calculated when the factors are given)
+  if (Fv_both_lines != nullptr && m_fk.empty()) {
     const auto fk_state = m_Fy->screening_fk(*Fv_both_lines, ev);
     if (print) {
       std::cout << "  fk   = {";
@@ -440,7 +448,7 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
 
   const auto Sx =
     m_feynman_exchange ?
-      m_Fy->Sigma_exchange(kappa, ev, Fv_both_lines) :
+      m_Fy->Sigma_exchange(kappa, ev, Fv_both_lines, m_fk) :
       m_Gold->Sigma_exchange(kappa, ev, vfk, m_exchange_both_lines);
 
   if (Fv && print) {
@@ -608,16 +616,10 @@ void CorrelationPotential::setup_Feynman() {
   if (!m_Fy) {
     m_Fy = Feynman(m_HF, m_i0, m_stride, m_size, m_Foptions, m_n_min_core,
                    m_includeG, true, m_fname, !m_feynman_exchange);
-    // Feynman exchange needs the loop gex: calculate them first, so the
-    // polarisation loop (Q*Pi*Q) re-uses them
     if (m_feynman_exchange) {
-      m_Fy->calculate_gex();
-      m_Fy->form_qpiq(m_fname);
-    }
-    if (m_feynman_exchange && m_exchange_both_lines && m_Fy->screening()) {
-      // Reference for the effective screening factors (both-lines-screened
-      // exchange estimate); the polarisation loop re-uses the gex
-      m_Fy->calculate_qpiq_unscreened();
+      // Effective screening factors (both-lines-screened exchange estimate)
+      // are calculated unless given
+      m_Fy->setup_exchange(m_fname, m_exchange_both_lines && m_fk.empty());
     }
   }
 
