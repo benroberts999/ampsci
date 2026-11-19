@@ -129,7 +129,7 @@ void periodicTable(std::string z_str, std::string a_str) {
     }
     std::cout << "\n";
 
-    std::cout << "\nIsotpe data:";
+    std::cout << "\nIsotope data:";
     if (isotopes.empty()) {
       std::cout << " none known\n";
     }
