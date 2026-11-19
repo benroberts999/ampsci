@@ -312,7 +312,7 @@ public:
     return out;
   }
 
-  //============================================================================
+    //============================================================================
   //! Multiplies by drj: Q_ij -> Q_ij*dr_j, in place
   RadialMatrix<T> &drj_in_place() {
     const auto dus = m_rgrid->du() * double(m_stride);

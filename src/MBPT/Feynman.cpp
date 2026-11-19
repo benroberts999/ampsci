@@ -1903,7 +1903,7 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw, double Omega) {
           // continue;
 
           // - 1 for dipole constant factor
-          const auto h_AB = -1 * Angular::Ck_kk(int(1), kA, kB);
+          const auto h_AB = -1 * Angular::Ck_kk(1, kA, kB);
           if (h_AB == 0.0)
             continue;
 
@@ -1995,11 +1995,14 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
   // modifiedPolarisation operator is Tr G_12(omega + Omega) dG_21(omega + en) d_omega
   // Modified/perturbed polarisation operator
   // For dPi^(b) ~ GGhP + GPhG + PGhG
+
   // Should be the sameish for dPi^(c)
-  // dPi ~ G^e G_e h P + G^e G^c h P + G^c G^e h P
+  // dPi ~ G^e G^e h P + G^e G^c h P + G^c G^e h P
   //     + G^e P h G^e + G^e P h G^c + G^c P h G^e
   //     + P G^e h G^e + P G^e h G^c + P G^c h G^e
-
+  //TrdPi~ F G^e G^e h F + F G^e G^c h F + F G^c G^e h F
+  //     +  F h G^e G^e F + F h G^c G^e F + F h G^e G^c F
+  //     + F G^e h G^e F + F G^e h G^c F + F G^c h G^e F
   ComplexRMatrix dpi_k(m_i0, m_stride, m_subgrid_points, m_grid);
   // Tensor Rank of External field h
   const auto K = 1;
@@ -2023,10 +2026,11 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
     const auto &Fa = core[ia];
     if (Fa.n() < m_min_core_n)
       continue;
-    const auto &Pa = m_pa[ia];
+    auto const &Pa = m_pa[ia];
     const auto ea = std::complex<double>{Fa.en()};
     // not m_hole_particle, as need both for "screen only"
     const auto *Fa_hp = hole_particle ? &Fa : nullptr;
+
     for (int iB = 0; iB <= m_max_ki; ++iB) {
       const auto kB = Angular::kindex_to_kappa(iB);
       for (int iC = 0; iC <= m_max_ki; ++iC) {
@@ -2040,6 +2044,7 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
           h_Ca * L_ang_dSR_GGP(K, k, l, Fa.kappa(), kB, kC);
 
         if (c_ang_ggp != 0.0) {
+
           auto gex_B_ba = green_excited(kB, ea - D_ab, Fa_hp);
           auto gex_C_ca = green_excited(kC, ea - D_ac, Fa_hp);
           auto gcor_B_ba = green_core(kB, ea - D_ab);
@@ -2051,12 +2056,12 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
             gcor_B_ba.drop_g();
             gcor_C_ca.drop_g();
           }
-          const auto dG_gexC_h_Pa = perturbed_greens(gex_C_ca, Pa);
-          const auto dG_gcorC_h_Pa = perturbed_greens(gcor_C_ca, Pa);
+          const auto gexC_h_Pa = perturbed_greens(gex_C_ca, Pa);
+          const auto gcorC_h_Pa = perturbed_greens(gcor_C_ca, Pa);
 
-          const auto dPi1 = mult_elements(gex_B_ba, dG_gexC_h_Pa) +
-                            mult_elements(gex_B_ba, dG_gcorC_h_Pa) +
-                            mult_elements(gcor_B_ba, dG_gexC_h_Pa);
+          const auto dPi1 = mult_elements(gex_B_ba, gexC_h_Pa) +
+                            mult_elements(gex_B_ba, gcorC_h_Pa) +
+                            mult_elements(gcor_B_ba, gexC_h_Pa);
           dpi_k += c_ang_ggp * dPi1.tr();
         }
 
@@ -2081,11 +2086,12 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
             gcor_C_cb.drop_g();
           }
 
-          auto dG_Pa_h_gexC = perturbed_greens(Pa, gex_C_cb);
-          auto dG_Pa_h_gcorC = perturbed_greens(Pa, gcor_C_cb);
-          auto dPi2 = mult_elements(gex_B_ab, dG_Pa_h_gexC) +
-                      mult_elements(gex_B_ab, dG_Pa_h_gcorC) +
-                      mult_elements(gcor_B_ab, dG_Pa_h_gexC);
+          auto Pa_h_gexC = perturbed_greens(Pa, gex_C_cb);
+          auto Pa_h_gcorC = perturbed_greens(Pa, gcor_C_cb);
+          auto dPi2 = mult_elements(gex_B_ab, Pa_h_gexC) +
+                      mult_elements(gex_B_ab, Pa_h_gcorC) +
+                      mult_elements(gcor_B_ab, Pa_h_gexC);
+
           dpi_k += c_ang_gpg * dPi2.tr();
         }
         //  P^A Gex^B(alpha-gamma) h Gex^C(beta-gamma)
@@ -2109,18 +2115,19 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
             gcor_C_bc.drop_g();
           }
 
-          const auto dG_gexB_h_gexC = perturbed_greens(gex_B_ac, gex_C_bc);
-          const auto dG_gexB_h_gcorC = perturbed_greens(gex_B_ac, gcor_C_bc);
-          const auto dG_gcorB_h_gexC = perturbed_greens(gcor_B_ac, gex_C_bc);
+          const auto gexB_h_gexC = perturbed_greens(gex_B_ac, gex_C_bc);
+          const auto gexB_h_gcorC = perturbed_greens(gex_B_ac, gcor_C_bc);
+          const auto gcorB_h_gexC = perturbed_greens(gcor_B_ac, gex_C_bc);
 
-          const auto dPi3 = mult_elements(Pa, dG_gexB_h_gexC + dG_gexB_h_gcorC +
-                                                dG_gcorB_h_gexC);
+          const auto dPi3 =
+            mult_elements(Pa, gexB_h_gexC + gexB_h_gcorC + gcorB_h_gexC);
           dpi_k += c_ang_pgg * dPi3.tr();
         }
       }
     }
   }
   dpi_k *= Iunit;
+
   return dpi_k;
 }
 
@@ -2147,7 +2154,7 @@ GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw, double Omega) {
 #pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
   initializer(omp_priv = omp_orig)
 
-#pragma omp parallel for collapse(2) reduction(+ : Sigma)
+  // #pragma omp parallel for collapse(2) reduction(+ : Sigma)
   for (auto iw = 0ul; iw < m_wgrid_points.size(); iw++) {
     for (auto iB = 0ul; iB < num_kappas; ++iB) {
 
@@ -2160,7 +2167,7 @@ GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw, double Omega) {
       // const auto dw = I * weight * m_wgrid_points.drdu(iw);
       const auto dw = I * m_wgrid_weights[iw];
 
-      const auto kB = Angular::kindex_to_kappa(int(iB));
+      const auto kB = Angular::kindex_to_kappa(iB);
 
       // Silly, but ig gB includes G, then so will gB_QPQ
       const auto gB =
@@ -2177,12 +2184,12 @@ GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw, double Omega) {
           // Calculates the top and bottom parts
           const auto qdpq_top = perturbed_polarisation_kl(
             int(k), int(l), omega, Omega, m_hole_particle);
+
           const auto qdpq_bottom = perturbed_polarisation_kl(
-            int(k), int(l), -omega, Omega, m_hole_particle);
+            int(k), int(l), -omega + Omega, Omega, m_hole_particle);
 
-          const auto qdpq = qdpq_top + qdpq_bottom.transpose();
+          const auto qdpq = (qdpq_top + qdpq_bottom.transpose());
           const auto c_ang_dw = dw * ck_vB * ck_vB;
-
           Sigma += mult_elements(c_ang_dw * gB, qdpq).real();
         }
       }

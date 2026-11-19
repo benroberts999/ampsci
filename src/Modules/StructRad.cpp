@@ -21,6 +21,7 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
     {"rmax", "Maximum r value [30]"},
     {"r0", "Minimum r value, [1e-3]"},
     {"includeG", "include lower g component [false]"},
+    {"includeSR2", "include nd diagrams [false]"},
     {"screening", "Coulomb screening [false]"},
   });
 
@@ -36,6 +37,7 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
   const std::size_t stride = input.get("stride", 8);
   const auto n_min_core = input.get("n_min_core", 5);
   const bool includeG = input.get("includeG", false);
+  const bool includeSR2 = input.get("includeSR2", false);
   const auto gsize = (imax - i0) / stride;
   const auto screening = input.get("screening", false);
   const auto options =
@@ -52,6 +54,7 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
             << "Stride: " << stride << ", Rmax: " << rmax << "\n";
   std::cout << "Coulomb Screening: " << screening << ", Include G:" << includeG
             << "\n";
+  std::cout << "Include SR2: " << includeSR2 << "\n";
   // 2) Loop through each pair of valence states, calc E1 matrix elements:
   for (auto a = 0ul; a < wf.valence().size(); ++a) {
     const auto &Fa = wf.valence()[a];
@@ -69,10 +72,20 @@ void StructRad(const IO::InputBlock &input, const Wavefunction &wf) {
 
       const auto e_AB = (Fa) * (Sd1 * Fb);
 
-      std::cout << "Re <" << Fa.shortSymbol() << "|d|" << Fb.shortSymbol()
+      std::cout << "<" << Fa.shortSymbol() << "|d|" << Fb.shortSymbol()
                 << "> = " << e_AB << "\n"
                 << std::flush;
 
+      if (includeSR2) {
+        const auto Sd2 =
+          Fyn.Sigma_SR_direct2(Fa.kappa(), Fb.en(), Fb.kappa(), Omega);
+
+        const auto e_AB2 = (Fa) * (Sd2 * Fb);
+
+        std::cout << "<" << Fa.shortSymbol() << "|d|" << Fb.shortSymbol()
+                  << ">: a = " << e_AB << ", b + c = " << e_AB2 << "\n"
+                  << std::flush;
+      }
       // const auto Sd2 =
       //   Fyn.Sigma_SR_direct2(Fa.kappa(), Fb.en(), Fb.kappa(), Omega);
 

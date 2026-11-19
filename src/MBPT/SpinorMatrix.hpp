@@ -147,7 +147,10 @@ public:
   // Trace of spinor matrix
   RadialMatrix<T> tr() const {
     RadialMatrix<T> t_tr(m_i0, m_stride, m_size, m_rgrid);
-    t_tr.Rmatrix() = m_ff + m_gg;
+    if (m_incl_g)
+      t_tr.Rmatrix() = m_ff + m_gg;
+    else
+      t_tr.Rmatrix() = m_ff;
     return t_tr;
   }
 
@@ -303,9 +306,9 @@ public:
   //============================================================================
   //! Multiply elements (in place): Gij -> Gij*Bij
   SpinorMatrix<T> &mult_elements_by(const RadialMatrix<T> &rhs) {
-        
+
     m_ff.mult_elements_by(rhs.Rmatrix());
-    
+
     if (this->m_incl_g) {
       m_fg.mult_elements_by(rhs.Rmatrix());
       m_gf.mult_elements_by(rhs.Rmatrix());
