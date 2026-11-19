@@ -1903,7 +1903,8 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw, double Omega) {
           // continue;
 
           // - 1 for dipole constant factor
-          const auto h_AB = -1 * Angular::Ck_kk(1, kA, kB);
+          const auto K = 1;
+          const auto h_AB = -1 * Angular::Ck_kk(K, kA, kB);
           if (h_AB == 0.0)
             continue;
 
@@ -2032,7 +2033,7 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
         const auto kC = Angular::kindex_to_kappa(iC);
 
         // angular factor for dipole operator
-        const auto h_Ca = Angular::Ck_kk(k, kC, Fa.kappa());
+        const auto h_Ca = -Angular::Ck_kk(K, kC, Fa.kappa());
 
         const auto c_ang_ggp =
           h_Ca * L_ang_dSR_GGP(K, k, l, Fa.kappa(), kB, kC);
@@ -2061,7 +2062,7 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
         }
 
         // angular factor for dipole operator
-        const auto h_aC = Angular::Ck_kk(k, Fa.kappa(), kC);
+        const auto h_aC = -Angular::Ck_kk(K, Fa.kappa(), kC);
         const auto c_ang_gpg =
           h_aC * L_ang_dSR_GPG(K, k, l, Fa.kappa(), kB, kC);
 
@@ -2090,7 +2091,7 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
         //  P^A Gex^B(alpha-gamma) h Gex^C(beta-gamma)
 
         // angular factor for dipole
-        auto h_BC = Angular::Ck_kk(k, kB, kC);
+        auto h_BC = -Angular::Ck_kk(K, kB, kC);
         const auto c_ang_pgg =
           h_BC * L_ang_dSR_PGG(K, k, l, Fa.kappa(), kB, kC);
 
@@ -2147,7 +2148,7 @@ GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw, double Omega) {
 #pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
   initializer(omp_priv = omp_orig)
 
-  // #pragma omp parallel for collapse(2) reduction(+ : Sigma)
+#pragma omp parallel for collapse(2) reduction(+ : Sigma)
   for (auto iw = 0ul; iw < m_wgrid_points.size(); iw++) {
     for (auto iB = 0ul; iB < num_kappas; ++iB) {
 
