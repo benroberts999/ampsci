@@ -153,9 +153,15 @@ CorrelationPotential::CorrelationPotential(
     }
 
     // If didn't read, setup Goldstone/Feynman (create Yk, pol operator etc.)
-    m_Gold =
-      Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
-                m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
+    // Goldstone is not required when both direct and exchange use Feynman
+    // (except for the two-body Breit correction)
+    const bool feynman_only = m_method == SigmaMethod::Feynman &&
+                              m_feynman_exchange && !m_includeBreit_b2;
+    if (!feynman_only) {
+      m_Gold =
+        Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
+                  m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
+    }
     if (m_method == SigmaMethod::Feynman) {
       setup_Feynman();
     }
@@ -593,8 +599,8 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
 //==============================================================================
 void CorrelationPotential::setup_Feynman() {
 
-  if (!m_Gold) {
-    // Also need Goldstone for Feynman (exchange)
+  if (!m_Gold && (!m_feynman_exchange || m_includeBreit_b2)) {
+    // Goldstone exchange (and two-body Breit) with Feynman direct
     m_Gold = Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size,
                        m_n_min_core, m_includeG);
   }
