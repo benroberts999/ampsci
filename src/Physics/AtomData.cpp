@@ -591,7 +591,7 @@ void printTable() {
       col += 16;
       output_s += spaces2(16);
       output_z += spaces2(16);
-    } else if (row < 4 && col == 3) {
+    } else if (row < 4 && col == 2) {
       col += 10;
       output_s += spaces2(10);
       output_z += spaces2(10);
