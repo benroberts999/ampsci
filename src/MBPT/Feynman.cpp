@@ -1940,44 +1940,22 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw, double Omega) {
 
 // ================WORK IN PROGRESS================================
 
-double L_ang_dSR_GGP(int K, int k, int l, int ka, int kb, int kc) {
+double L_ang_dSR_QdPiQ(int K, int k, int l, int ka, int kb, int kc) {
   // Angular Factor for
-  // Struct Rad diagram of the form PGG
-  // This is the Diagr GGP
+  // dPi ~ G^a G^b h G^c
+  //        a
+  //k -<-\-->--/--- l
+  //   c  \   / b
+  //       \./
+  //        |
+  //        K
   const auto tj_ka = Angular::twoj_k(ka);
   const auto tj_kb = Angular::twoj_k(kb);
   const auto tj_kc = Angular::twoj_k(kc);
-  const auto sjs = Angular::sixj_2(2 * K, 2 * l, 2 * k, tj_kb, tj_ka, tj_kc);
-
-  const auto Ck_aB = Angular::Ck_kk(k, ka, kb);
-  const auto Cl_BC = Angular::Ck_kk(l, kb, kc);
-  const auto s = Angular::neg1pow(k + l + 1);
-  return s * Ck_aB * Cl_BC * sjs;
-}
-
-double L_ang_dSR_GPG(int K, int k, int l, int ka, int kb, int kc) {
-  // Angular Factor for
-  // Struct Rad diagram of the form PGG
-  const auto tj_ka = Angular::twoj_k(ka);
-  const auto tj_kb = Angular::twoj_k(kb);
-  const auto tj_kc = Angular::twoj_k(kc);
-  const auto sjs = Angular::sixj_2(2 * K, 2 * k, 2 * l, tj_kb, tj_ka, tj_kc);
-  const auto Ck_CB = Angular::Ck_kk(k, kc, kb);
-  const auto Cl_Ba = Angular::Ck_kk(l, kb, ka);
-  const auto s = Angular::neg1pow(k + l + 1);
-  return s * Ck_CB * Cl_Ba * sjs;
-}
-
-double L_ang_dSR_PGG(int K, int k, int l, int ka, int kb, int kc) {
-  // Angular Factor for
-  // Struct Rad diagram of the form PGG
-  const auto tj_ka = Angular::twoj_k(ka);
-  const auto tj_kb = Angular::twoj_k(kb);
-  const auto tj_kc = Angular::twoj_k(kc);
-  const auto sjs = Angular::sixj_2(2 * K, 2 * k, 2 * l, tj_ka, tj_kb, tj_kc);
+  const auto sjs = Angular::sixj_2(2 * K, 2 * l, 2 * k, tj_ka, tj_kc, tj_kb);
   const auto Ck_Ca = Angular::Ck_kk(k, kc, ka);
   const auto Cl_aB = Angular::Ck_kk(l, ka, kb);
-  const auto s = Angular::neg1pow(k + l + 1);
+  const auto s = Angular::neg1pow(l + k + 1);
   return s * Ck_Ca * Cl_aB * sjs;
 }
 
@@ -1989,14 +1967,10 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
   // modifiedPolarisation operator is Tr G_12(omega + Omega) dG_21(omega + en) d_omega
   // Modified/perturbed polarisation operator
   // For dPi^(b) ~ GGhP + GPhG + PGhG
-
   // Should be the sameish for dPi^(c)
   // dPi ~ G^e G^e h P + G^e G^c h P + G^c G^e h P
   //     + G^e P h G^e + G^e P h G^c + G^c P h G^e
   //     + P G^e h G^e + P G^e h G^c + P G^c h G^e
-  //TrdPi~ F G^e G^e h F + F G^e G^c h F + F G^c G^e h F
-  //     +  F h G^e G^e F + F h G^c G^e F + F h G^e G^c F
-  //     + F G^e h G^e F + F G^e h G^c F + F G^c h G^e F
   ComplexRMatrix dpi_k(m_i0, m_stride, m_subgrid_points, m_grid);
   // Tensor Rank of External field h
   const auto K = 1;
@@ -2036,7 +2010,7 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
         const auto h_Ca = -Angular::Ck_kk(K, kC, Fa.kappa());
 
         const auto c_ang_ggp =
-          h_Ca * L_ang_dSR_GGP(K, k, l, Fa.kappa(), kB, kC);
+          h_Ca * L_ang_dSR_QdPiQ(K, k, l, kB, kC, Fa.kappa());
 
         if (c_ang_ggp != 0.0) {
 
@@ -2064,7 +2038,7 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
         // angular factor for dipole operator
         const auto h_aC = -Angular::Ck_kk(K, Fa.kappa(), kC);
         const auto c_ang_gpg =
-          h_aC * L_ang_dSR_GPG(K, k, l, Fa.kappa(), kB, kC);
+          h_aC * L_ang_dSR_QdPiQ(K, k, l, kB, Fa.kappa(), kC);
 
         if (c_ang_gpg != 0) {
           auto gex_B_ab = green_excited(kB, ea + D_ab, Fa_hp);
@@ -2093,7 +2067,7 @@ ComplexRMatrix Feynman::perturbed_polarisation_kl(int k, int l,
         // angular factor for dipole
         auto h_BC = -Angular::Ck_kk(K, kB, kC);
         const auto c_ang_pgg =
-          h_BC * L_ang_dSR_PGG(K, k, l, Fa.kappa(), kB, kC);
+          h_BC * L_ang_dSR_QdPiQ(K, k, l, Fa.kappa(), kB, kC);
 
         if (c_ang_pgg != 0) {
           auto gex_B_ba = green_excited(kB, ea + D_ba, Fa_hp);
@@ -2143,7 +2117,7 @@ GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw, double Omega) {
 
   constexpr std::complex<double> I{0.0, 1.0};
   const auto num_kappas = std::size_t(m_max_ki + 1);
-
+  const auto K = 1; // Rank of the interaction (dipole)
 // Tell OpenMP how to reduce GMatrix
 #pragma omp declare reduction(+ : GMatrix : omp_out += omp_in)                 \
   initializer(omp_priv = omp_orig)
@@ -2153,9 +2127,6 @@ GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw, double Omega) {
     for (auto iB = 0ul; iB < num_kappas; ++iB) {
 
       const auto omega = std::complex{m_omre, m_wgrid_points[iw]};
-
-      // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
-      // const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
 
       // I, since dw is on imag. grid; 2 from symmetric +/- w
       // const auto dw = I * weight * m_wgrid_points.drdu(iw);
@@ -2172,28 +2143,30 @@ GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw, double Omega) {
 
           const auto ck_Bw = Angular::Ck_kk(int(l), kB, kw);
           const auto ck_vB = Angular::Ck_kk(int(k), kv, kB);
-          if (ck_vB * ck_Bw == 0.0)
+          const auto sf = Angular::neg1pow(K + kv + kw);
+          const auto tj_v = Angular::twoj_k(kv);
+          const auto tj_w = Angular::twoj_k(kw);
+          const auto tj_B = Angular::twoj_k(kB);
+          const auto sjs_sf =
+            sf * Angular::sixj_2(2 * K, tj_w, tj_v, tj_B, 2 * l, 2 * k);
+          if (ck_vB * ck_Bw * sjs_sf == 0.0)
             continue;
 
           // Calculates the top and bottom parts
-          const auto qdpq_top = perturbed_polarisation_kl(
+          const auto qdpq_bottom = perturbed_polarisation_kl(
             int(k), int(l), omega, Omega, m_hole_particle);
 
-          const auto qdpq_bottom = perturbed_polarisation_kl(
-            int(k), int(l), -omega + Omega, Omega, m_hole_particle);
+          const auto qdpq_top = perturbed_polarisation_kl(
+            int(k), int(l), Omega - omega, Omega, m_hole_particle);
 
-          const auto qdpq = (qdpq_top + qdpq_bottom.transpose());
-          const auto c_ang_dw = dw * ck_vB * ck_vB;
+          const auto qdpq = (qdpq_bottom + qdpq_top.transpose());
+          const auto c_ang_dw = dw * sjs_sf * ck_vB * ck_Bw;
           Sigma += mult_elements(c_ang_dw * gB, qdpq).real();
         }
       }
     }
   }
-
-  // Extra 2 from symmetric + / -w
-  // Sigma *= (m_wgrid_points.du() / M_PI);
   Sigma *= (1.0 / M_PI);
-
   return Sigma;
 }
 
