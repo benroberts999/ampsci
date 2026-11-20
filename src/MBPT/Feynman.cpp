@@ -1843,8 +1843,6 @@ ComplexGMatrix Feynman::perturbed_greens(ComplexGMatrix gA,
 }
 
 double L_ang_dSR(int kw, int kv, int kB, int kA, int k) {
-  // const auto sjs = Angular::sixj_2(kw, K, kv, kB, k, kA);
-  // const auto phases = std::pow(-1, k + K + kB + kA);
   const auto K = 1; //rank of operator
   const auto tj_w = Angular::twoj_k(kw);
   const auto tj_v = Angular::twoj_k(kv);
@@ -1881,27 +1879,18 @@ GMatrix Feynman::Sigma_SR_direct(int kv, double env, int kw, double Omega) {
       const auto kB = Angular::kindex_to_kappa(int(iB));
       for (auto iA = 0ul; iA < num_kappas; ++iA) {
         const auto kA = Angular::kindex_to_kappa(int(iA));
-        // for (auto s : {-1.0, 1.0}) {
-
         const auto omega = std::complex{m_omre, m_wgrid_points[iw]};
-
         // Simpson's rule: Implicit ends (integrand zero at w=0 and w>wmax)
-        const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
+        // const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
         // I, since dw is on imag. grid; 2 from symmetric +/- w
-        const auto dw = I * weight * m_wgrid_weights[iw];
+        const auto dw = I * m_wgrid_weights[iw];
         const auto gA = m_include_G ? green(kA, env + omega + Omega) :
                                       green(kA, env + omega + Omega).drop_g();
         const auto gB = m_include_G ? green(kB, env + omega) :
                                       green(kB, env + omega).drop_g();
 
         const auto dG_AB = perturbed_greens(gA, gB);
-
         for (auto k = 0ul; int(k) <= m_max_k; k++) {
-
-          // For doing single k (tests and for fk factors)
-          // if (in_k && *in_k != int(k))
-          // continue;
-
           // - 1 for dipole constant factor
           const auto K = 1;
           const auto h_AB = -1 * Angular::Ck_kk(K, kA, kB);
@@ -2130,6 +2119,7 @@ GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw, double Omega) {
 
       // I, since dw is on imag. grid; 2 from symmetric +/- w
       // const auto dw = I * weight * m_wgrid_points.drdu(iw);
+      // const auto weight = iw % 2 == 0 ? 4.0 / 3 : 2.0 / 3;
       const auto dw = I * m_wgrid_weights[iw];
 
       const auto kB = Angular::kindex_to_kappa(iB);
@@ -2141,26 +2131,33 @@ GMatrix Feynman::Sigma_SR_direct2(int kv, double env, int kw, double Omega) {
       for (auto k = 0ul; int(k) <= m_max_k; k++) {
         for (auto l = 0ul; int(l) <= m_max_k; l++) {
 
+          // Angular factors
           const auto ck_Bw = Angular::Ck_kk(int(l), kB, kw);
           const auto ck_vB = Angular::Ck_kk(int(k), kv, kB);
           const auto sf = Angular::neg1pow(K + kv + kw);
+
           const auto tj_v = Angular::twoj_k(kv);
           const auto tj_w = Angular::twoj_k(kw);
           const auto tj_B = Angular::twoj_k(kB);
+
           const auto sjs_sf =
             sf * Angular::sixj_2(2 * K, tj_w, tj_v, tj_B, 2 * l, 2 * k);
-          if (ck_vB * ck_Bw * sjs_sf == 0.0)
+
+          const auto c_ang_dw = dw * sjs_sf * ck_vB * ck_Bw;
+
+          if (c_ang_dw == 0.0)
             continue;
 
           // Calculates the top and bottom parts
           const auto qdpq_bottom = perturbed_polarisation_kl(
             int(k), int(l), omega, Omega, m_hole_particle);
 
-          const auto qdpq_top = perturbed_polarisation_kl(
-            int(k), int(l), Omega - omega, Omega, m_hole_particle);
+          const auto fudge = 1.0;
+          const auto qdpq_top =
+            fudge * perturbed_polarisation_kl(int(k), int(l), Omega - omega,
+                                              Omega, m_hole_particle);
 
           const auto qdpq = (qdpq_bottom + qdpq_top.transpose());
-          const auto c_ang_dw = dw * sjs_sf * ck_vB * ck_Bw;
           Sigma += mult_elements(c_ang_dw * gB, qdpq).real();
         }
       }
