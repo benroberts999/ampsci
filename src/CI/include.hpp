@@ -6,3 +6,4 @@
 #include "CI/ConfigurationSpace.hpp"
 #include "CI/MixedStates.hpp"
 #include "CI/SecondOrder.hpp"
+#include "CI/Sigma3.hpp"

@@ -241,9 +241,11 @@ public:
 
     @details
     Energy half way between core/valence. Defined:
-    0.5*( max(e_core) + min(e_valence)), plus a small offset (1e-5; or 1e-3
-    if there are no valence states, in which case min(e_valence) is taken as
-    zero). If there is no core: 1.1*min(e_valence). Should be -ve.
+    0.5*( max(e_core) + min(e_valence)), plus a small offset (1e-5).
+    If there are no valence states, the lowest basis state that is not a core
+    orbital is used in place of min(e_valence). If there are none of those
+    either, warns, and min(e_valence) is taken as zero (offset 1e-3).
+    If there is no core: 1.1*min(e_valence). Should be -ve.
   */
   double FermiLevel() const;
 

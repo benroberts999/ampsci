@@ -328,16 +328,36 @@ double Wavefunction::FermiLevel() const {
       0.0 :
       std::max_element(cbegin(core()), cend(core()), DiracSpinor::comp_en)
         ->en();
-  const auto ev_min =
-    m_valence.empty() ?
-      0.0 :
+
+  // Lowest state above the core: from the valence states; if there are none,
+  // from the basis states that are not core orbitals
+  bool found_excited = !m_valence.empty();
+  double ev_min = 0.0;
+  if (!m_valence.empty()) {
+    ev_min =
       std::min_element(cbegin(m_valence), cend(m_valence), DiracSpinor::comp_en)
         ->en();
+  } else {
+    for (const auto &Fb : m_basis) {
+      if (Fb.negativeEnergyStateQ() || isInCore(Fb.n(), Fb.kappa()))
+        continue;
+      if (!found_excited || Fb.en() < ev_min) {
+        ev_min = Fb.en();
+        found_excited = true;
+      }
+    }
+  }
+  if (!found_excited) {
+    fmt2::warning();
+    std::cout << ": Fermi level: no valence or basis states above the core; "
+                 "taking lowest excited energy as zero\n";
+  }
+
   // return 0.5 * (ev_min + ec_max);
   if (core().empty()) {
     return 1.1 * ev_min;
   }
-  const auto extra = m_valence.empty() ? 1.0e-3 : 1.0e-5;
+  const auto extra = found_excited ? 1.0e-5 : 1.0e-3;
   return ec_max + 0.5 * (ev_min - ec_max) + extra;
 }
 double Wavefunction::energy_gap() const {

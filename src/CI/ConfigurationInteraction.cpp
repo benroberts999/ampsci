@@ -1315,6 +1315,21 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       }
     }
 
+    // Non-finite integrals (or CI matrix elements) give non-finite energies,
+    // which the eigensolvers do not detect
+    bool energies_finite = true;
+    for (std::size_t i = 0; i < psi.num_solutions(); ++i) {
+      if (!std::isfinite(psi.energy(i))) {
+        energies_finite = false;
+      }
+    }
+    if (!energies_finite) {
+      fmt::print(outstream,
+                 "Warning: CI energies not finite (J={}{}): not saved\n",
+                 J_string(twoJ), parity == 1 ? '+' : '-');
+      write_solutions = false;
+    }
+
     if (!ci_fname.empty() && write_solutions) {
       psi.read_write(ci_fname, IO::FRW::write, outstream);
     }
