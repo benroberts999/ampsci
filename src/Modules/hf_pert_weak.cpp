@@ -584,7 +584,7 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
       pre_factor = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1));
 
     }else{
-      pre_factor = sqrt((I2+3)*(I2+1)*(I+1)* (Fv2 + 1) * (Fw2 + 1)/(I*(I-1)));
+      pre_factor = sqrt((I2+3)*(I2+1)*(I+1)* (Fv2 + 1) * (Fw2 + 1)/(4*I*(I2-1)));
 
     }
 
@@ -642,7 +642,7 @@ void hf_pert_weak(const IO::InputBlock &input, const Wavefunction &wf) {
       pre_factor = sqrt(I * (I + 1) * (I2 + 1) * (Fv2 + 1) * (Fw2 + 1));
 
     }else{
-      pre_factor = sqrt((I2+3)*(I2+1)*(I+1)* (Fv2 + 1) * (Fw2 + 1)/(I*(I-1)));
+      pre_factor = sqrt((I2+3)*(I2+1)*(I+1)* (Fv2 + 1) * (Fw2 + 1)/(4*I*(I2-1)));
 
     }
 

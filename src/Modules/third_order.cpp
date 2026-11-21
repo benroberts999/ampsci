@@ -642,7 +642,7 @@ void third_order(const IO::InputBlock &input, const Wavefunction &wf) {
       //magnetic dipole hyperfine
 
     }else{
-      pre_factor_HFoperator  = sqrt((I2+3)*(I2+1)*(I+1)/(I*(I-1)));
+      pre_factor_HFoperator  = sqrt((I2+3)*(I2+1)*(I+1)/(4*I*(I2-1)));
       //electric quadrupole hyperfine
 
     }
@@ -693,7 +693,7 @@ void third_order(const IO::InputBlock &input, const Wavefunction &wf) {
       //magnetic dipole hyperfine
 
     }else{
-      pre_factor_HFoperator  = sqrt((I2+3)*(I2+1)*(I+1)/(I*(I-1)));
+      pre_factor_HFoperator  = sqrt((I2+3)*(I2+1)*(I+1)/(4*I*(I2-1)));
       //electric quadrupole hyperfine
 
     }
