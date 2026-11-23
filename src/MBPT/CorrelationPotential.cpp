@@ -84,30 +84,38 @@ CorrelationPotential::CorrelationPotential(
 
   if (!read_ok) {
 
-    if (m_method == SigmaMethod::Feynman && m_feynman_exchange) {
-      std::cout << "Using Feynman method for direct and exchange diagrams\n";
-      if (m_Foptions.screening == Screening::include) {
-        std::cout << "Exchange screening: each Coulomb line"
-                  << (m_exchange_both_lines ?
-                        ", and both at once (estimate, effective fk)\n" :
-                        " (one at a time)\n");
-      }
-    } else if (m_method == SigmaMethod::Feynman) {
-      std::cout << "Using Feynman method for direct diagrams, Goldstone "
-                   "for exchange\n";
-      if (m_calculate_fk && m_Foptions.screening == Screening::include) {
-        std::cout << "Calculating f_k from scratch for exchange screening\n";
+    if (m_method == SigmaMethod::Feynman) {
+      const bool screening = m_Foptions.screening == Screening::include;
+      if (m_feynman_exchange) {
+        std::cout << "Using Feynman method for direct and exchange diagrams\n";
+        if (screening) {
+          std::cout << "Exchange screening: each Coulomb line"
+                    << (m_exchange_both_lines ?
+                          "+ fk estimate of double screening\n" :
+                          " (single screening)\n");
+        }
       } else {
-        if (!m_fk.empty()) {
-          std::cout << "Exchange screening with: fk = {";
-          for (auto &tfk : m_fk) {
-            printf("%.3f, ", tfk);
-          }
-          std::cout << "}\n";
+        std::cout << "Using Feynman method for direct diagrams, Goldstone "
+                     "for exchange\n";
+        if (m_exchange_both_lines) {
+          std::cout << "fk applied to both Coulomb lines in exchange\n";
         }
       }
-      if (m_exchange_both_lines) {
-        std::cout << "fk applied to both Coulomb lines in exchange\n";
+
+      // fk: screening of the Goldstone exchange, or the estimate of double
+      // screening in the Feynman exchange
+      const bool fk_used =
+        !m_feynman_exchange || (m_exchange_both_lines && screening);
+      const bool fk_calculated =
+        screening && (m_feynman_exchange ? m_fk.empty() : m_calculate_fk);
+      if (fk_used && fk_calculated) {
+        std::cout << "Calculating f_k from scratch for exchange screening\n";
+      } else if (fk_used && !m_fk.empty()) {
+        std::cout << "Exchange screening with: fk = {";
+        for (auto &tfk : m_fk) {
+          printf("%.3f, ", tfk);
+        }
+        std::cout << "}\n";
       }
     }
 
@@ -315,14 +323,21 @@ void add_tail(DiracSpinor *SigmaFn, const GMatrix &Sigma, const DiracSpinor &Fn,
 std::optional<std::vector<double>>
 CorrelationPotential::state_fk(double ev, const DiracSpinor *Fv) {
   const bool screening = m_Foptions.screening == Screening::include;
-  if (m_method != SigmaMethod::Feynman || !m_calculate_fk || !screening ||
-      Fv == nullptr) {
+  if (m_method != SigmaMethod::Feynman || !screening || Fv == nullptr) {
+    return std::nullopt;
+  }
+  // Feynman exchange: effective factors of this state, for the estimate of
+  // the term with both lines screened (unless fk given manually)
+  const bool feynman_estimate =
+    m_feynman_exchange && m_exchange_both_lines && m_fk.empty();
+  if (!m_calculate_fk && !feynman_estimate) {
     return std::nullopt;
   }
   if (!m_Fy) {
     setup_Feynman();
   }
-  auto fk = calculate_fk(ev, *Fv);
+  auto fk =
+    feynman_estimate ? m_Fy->screening_fk(*Fv, ev) : calculate_fk(ev, *Fv);
   std::cout << "  fk   = {";
   for (const auto &each_fk : fk) {
     printf("%.3f, ", each_fk);
@@ -340,8 +355,9 @@ CorrelationPotential::state_fk(double ev, const DiracSpinor *Fv) {
     }
     std::cout << "}\n";
   }
-  // If not stored, store first screening factors
-  if (m_fk.empty()) {
+  // If not stored, store first screening factors (Goldstone exchange: used
+  // when there is no valence state)
+  if (m_fk.empty() && !feynman_estimate) {
     m_fk = fk;
   }
   return fk;
@@ -401,22 +417,11 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
     vfk = m_fk;
   }
 
-  // Feynman exchange with both lines screened: needs the valence state, for
-  // its effective screening factors (stored per state on first calculation;
-  // the derivative re-uses them)
-  const auto Fv_both_lines =
-    m_feynman_exchange && m_exchange_both_lines && m_Fy->screening() ? Fv :
-                                                                       nullptr;
-  if (Fv_both_lines != nullptr) {
-    const auto fk_state = m_Fy->screening_fk(*Fv_both_lines, ev);
-    if (print) {
-      std::cout << "  fk   = {";
-      for (const auto &each_fk : fk_state) {
-        printf("%.3f, ", each_fk);
-      }
-      std::cout << "}\n";
-    }
-  }
+  // Feynman exchange with both lines screened: estimated with the screening
+  // factors (of this state, see state_fk; or given manually). Without any,
+  // that term is neglected
+  const auto fk_both_lines =
+    m_exchange_both_lines && m_Fy->screening() ? vfk : std::vector<double>{};
 
   if (Fv && print) {
     fmt::print("  de({}) = ", Fv->shortSymbol());
@@ -434,7 +439,7 @@ GMatrix CorrelationPotential::formSigma_F(int kappa, double ev,
 
   const auto Sx =
     m_feynman_exchange ?
-      m_Fy->Sigma_exchange(kappa, ev, Fv_both_lines) :
+      m_Fy->Sigma_exchange(kappa, ev, fk_both_lines) :
       m_Gold->Sigma_exchange(kappa, ev, vfk, m_exchange_both_lines);
 
   if (Fv && print) {
@@ -608,7 +613,8 @@ void CorrelationPotential::setup_Feynman() {
       m_Fy->calculate_gex();
       m_Fy->form_qpiq(m_fname);
     }
-    if (m_feynman_exchange && m_exchange_both_lines && m_Fy->screening()) {
+    if (m_feynman_exchange && m_exchange_both_lines && m_Fy->screening() &&
+        m_fk.empty()) {
       // Reference for the effective screening factors (both-lines-screened
       // exchange estimate); the polarisation loop re-uses the gex
       m_Fy->calculate_qpiq_unscreened();
@@ -956,6 +962,11 @@ std::string CorrelationPotential::method_string() const {
         out += "+hp";
       }
     }
+  }
+  if (m_feynman_exchange) {
+    out += ", Feynman exchange";
+  } else if (m_exchange_both_lines) {
+    out += ", fk both lines";
   }
   if (!m_ladder_file.empty()) {
     out += ", ladder";

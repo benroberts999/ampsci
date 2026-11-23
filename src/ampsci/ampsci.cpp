@@ -346,12 +346,11 @@ Wavefunction ampsci(const IO::InputBlock &input) {
      {"eta", "List of doubles. Hole-Particle factors. In Feynman method, "
              "used only for G part; Goldstone, used in direct also. []"},
      {"exchange",
-      "Method for the exchange diagrams, Goldstone, Goldstone2, Feynman, "
-      "Feynman2. "
+      "Method for the exchange diagrams, Goldstone, Goldstone2, Feynman. "
       "Goldstone: regular Goldstone with effective fk on oneline; "
       "Goldstone2: fk on both lines (f_k * f_l). "
-      "Feynman: Feynman with all-order screening on one line (+hp); "
-      "Feynman2: Feynman with estimated double-screened diagram [Goldstone]"},
+      "Feynman: Feynman with all-order screening on one line (+hp), and "
+      "estimated double-screened diagram [Goldstone]"},
      {"screening", "Include all-orders screening. Only applicable for "
                    "Feynman method [false]"},
      {"hole_particle",
@@ -482,19 +481,16 @@ Wavefunction ampsci(const IO::InputBlock &input) {
   const auto fk = input.get({"Correlations"}, "fk", std::vector<double>{});
   const auto etak = input.get({"Correlations"}, "eta", std::vector<double>{});
   // Exchange diagrams: method (Goldstone / Feynman), and whether the
-  // screening is applied to both Coulomb lines (Goldstone2 / Feynman2)
+  // screening is applied to both Coulomb lines (Goldstone2 / Feynman)
   const auto exchange_method =
     input.get({"Correlations"}, "exchange", "Goldstone"s);
-  const auto feynman_exchange = qip::ci_compare(exchange_method, "Feynman") ||
-                                qip::ci_compare(exchange_method, "Feynman2");
+  const auto feynman_exchange = qip::ci_compare(exchange_method, "Feynman");
   const auto exchange_both_lines =
-    qip::ci_compare(exchange_method, "Goldstone2") ||
-    qip::ci_compare(exchange_method, "Feynman2");
+    qip::ci_compare(exchange_method, "Goldstone2") || feynman_exchange;
   if (!feynman_exchange && !exchange_both_lines &&
       !qip::ci_compare(exchange_method, "Goldstone")) {
-    fmt::print("\nWARNING: Correlations{{exchange={}}} not recognised: use "
-               "Goldstone, Goldstone2, Feynman, or Feynman2. Using "
-               "Goldstone.\n",
+    fmt::print("\nWARNING:exchange={} not recognised: use "
+               "Goldstone, Goldstone2, or Feynman. Using Goldstone.\n",
                exchange_method);
   }
   if (feynman_exchange && !sigma_Feynman) {

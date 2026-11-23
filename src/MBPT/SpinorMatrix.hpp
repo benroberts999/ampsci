@@ -523,10 +523,15 @@ public:
     return m_rgrid->drdu(full_index) * m_rgrid->du() * double(m_stride);
   }
 
-  //! Transpose of a matrix that carries the drj integration measure: the
-  //! measure stays on the column index. Returns new matrix (orig unchanged)
-  //! @details M_ij = K_ij*dr_j -> K_ji*dr_j, i.e., out^{mu nu}_ij =
-  //! M^{nu mu}_ji * dr_j/dr_i (spinor blocks swapped and transposed)
+  /*!
+    @brief Transpose of a matrix that carries the drj integration measure:
+    the measure stays on the column index. Returns new matrix (orig
+    unchanged).
+
+    @details
+    M_ij = K_ij*dr_j -> K_ji*dr_j, i.e., out^{mu nu}_ij =
+    M^{nu mu}_ji * dr_j/dr_i (spinor blocks swapped and transposed)
+  */
   [[nodiscard]] SpinorMatrix<T> transpose_drj() const {
     SpinorMatrix<T> out(*this);
     const auto num_sp = num_spins();

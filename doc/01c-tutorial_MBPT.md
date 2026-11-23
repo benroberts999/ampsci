@@ -282,6 +282,10 @@ which can be summed exactly:
 The screening is accounted for in the direct diagrams via \f$Q\to \widetilde Q\f$ for _one_ of the Coulomb operators in \f$\Sigma_{\rm d}\f$.
 (Screening for exchange diagrams is taken into account in a simpler fasion, see pdf for details).
 
+By default, the exchange diagrams are calculated using the Goldstone technique, with effective screening factors.
+Alternatively, setting `exchange = Feynman;` calculates the exchange diagrams using the Feynman technique also, with all-orders screening of each Coulomb line (and the hole-particle interaction).
+This requires storing extra Green's functions, which may use a lot of memory (the amount is printed at run time); setting `store_gex = false;` avoids this (slower, much less memory, but still a lot of memory required).
+
 The hole-particle interaction arises due to the deviation of the Hartree-Fock potential for the excited core electron in the polarisation loop from that for the non-excited one.
 The potential that simultaneously describes the occupied core and excited states is
 \f[

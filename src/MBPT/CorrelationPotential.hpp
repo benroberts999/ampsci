@@ -67,7 +67,8 @@ void add_tail(DiracSpinor *SigmaFn, const GMatrix &Sigma, const DiracSpinor &Fn,
 
   @details
   Goldstone (basis sum) or Feynman (Green's function). Exchange diagrams
-  always use Goldstone.
+  use Goldstone, unless Feynman exchange is requested (see
+  CorrelationPotential).
 */
 enum class SigmaMethod { Goldstone, Feynman };
 
@@ -92,7 +93,8 @@ struct rgrid_params {
   Direct diagrams are formed using either the Goldstone (basis sum) or Feynman
   (Green's function) technique; the Feynman technique allows all-order
   inclusion of screening and the hole-particle interaction. Exchange diagrams
-  always use Goldstone, with optional effective screening factors fk.
+  use Goldstone, with optional effective screening factors fk; or, optionally,
+  the Feynman technique (see MBPT::Feynman::Sigma_exchange).
 
   The action of Sigma on a state (SigmaFv) includes:
   - lambda scaling, \f$ \Sigma \to \lambda\Sigma \f$ (see scale_Sigma)
@@ -189,9 +191,11 @@ public:
                                correction (0: all)
     @param Foptions            Options for the Feynman method (screening,
                                hole-particle, etc.)
-    @param calculate_fk        Calculate fk screening factors for exchange,
-                               for each state (Feynman, with screening); else
-                               @p fk used
+    @param calculate_fk        Calculate fk screening factors for the
+                               Goldstone exchange, for each state (Feynman,
+                               with screening); else @p fk used. With
+                               @p feynman_exchange: calculated whenever
+                               @p fk is empty
     @param fk                  Effective screening factors, for each
                                multipole k
     @param etak                Effective hole-particle factors, for each k
@@ -349,7 +353,8 @@ public:
     @brief Short string identifying the method (main differences only).
 
     @details
-    E.g., "Feynman, all-order" or "Goldstone". Intended for file-cache keys.
+    E.g., "Feynman, all-order" or "Goldstone". Includes the exchange method,
+    if not the default. Intended for file-cache keys.
   */
   std::string method_string() const;
 
@@ -457,8 +462,10 @@ private:
                       bool print = true);
 
   // Calculates the fk screening factors for this state, once (with print;
-  // stores first set in m_fk). nullopt if not applicable (not
-  // Feynman-screening, fk given manually, or no Fv)
+  // Goldstone exchange: stores first set in m_fk). For Feynman exchange,
+  // these are for the estimate of the term with both lines screened.
+  // nullopt if not applicable (not Feynman-screening, fk given manually, or
+  // no Fv)
   std::optional<std::vector<double>> state_fk(double ev, const DiracSpinor *Fv);
 
   // Forms dSigma/dE for given kappa by forward finite difference (step

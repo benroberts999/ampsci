@@ -81,7 +81,7 @@ enum class GreenStates { both, core, excited };
 
 //------------------------------------------------------------------------------
 /*!
-  @brief Direct correlation potential diagrams via the Feynman technique.
+  @brief Correlation potential diagrams via the Feynman technique.
 
   @details
   Constructs Hartree-Fock Green's functions, the polarisation operator, and
@@ -95,7 +95,8 @@ enum class GreenStates { both, core, excited };
     \f$ Q\Pi Q \to Q\Pi X Q \f$, with \f$ X = [1 + iQ\Pi]^{-1} \f$
   - the hole-particle interaction, in the polarisation operator
 
-  Exchange diagrams are not formed here (see Goldstone).
+  Exchange diagrams may also be formed here (see Sigma_exchange); otherwise
+  see Goldstone.
 */
 class Feynman {
 
@@ -406,7 +407,8 @@ public:
     @param en_v  Energy at which the direct diagrams are evaluated; by
                  default, the energy of Fv
 
-    @return f_k for k = 0..max_k. |f_k| is clamped to 10 (only when the
+    @return f_k for k = 0..9 (or max_k, if smaller): f_k is close to 1 for
+    larger k. |f_k| is clamped to 10 (only when the
     unscreened diagram is negligible and the ratio is meaningless)
   */
   std::vector<double> screening_fk(const DiracSpinor &Fv,
@@ -463,25 +465,26 @@ public:
       interaction in both pairs at once is not included.
 
     The term with both lines screened at once (which has no analytic inner
-    integral) is included as an estimate when @p Fv_both_lines is given: the
+    integral) is included as an estimate when @p fk_both_lines is given: the
     screening correction on the analytic line is replaced by its effective
-    factor, \f$ \bar q^k \to (f_k - 1) q^k \f$ (screening_fk, for that
-    state), with the exact \f$ \bar q^l(w) \f$ kept on the numeric line.
+    factor, \f$ \bar q^k \to (f_k - 1) q^k \f$ (e.g., from screening_fk),
+    with the exact \f$ \bar q^l(w) \f$ kept on the numeric line.
     Cf. Goldstone::Sigma_exchange, where f_k f_l on the two lines
     approximates all of the screening.
 
     @param kappa_v        Valence kappa
     @param en_v           Valence energy
-    @param Fv_both_lines  Valence state (kappa_v): if given, the term with
-                          both lines screened at once is included, estimated
-                          with its effective screening factors; nullptr:
-                          that term is neglected
+    @param fk_both_lines  Effective screening factors f_k (k = 0, 1, ...):
+                          if given, the term with both lines screened at
+                          once is included, estimated with these. Empty:
+                          that term is neglected (as is any k beyond the
+                          list)
 
     @note Not safe to call concurrently on one object (fills the loop-gex
-    cache and the screening-factor store on first call)
+    cache on first call)
   */
   GMatrix Sigma_exchange(int kappa_v, double en_v,
-                         const DiracSpinor *Fv_both_lines = nullptr);
+                         const std::vector<double> &fk_both_lines = {});
 
   /*!
     @brief Direct part of correlation potential, for each multipole k.
@@ -745,16 +748,22 @@ public:
   ~Feynman() = default;
 };
 
-//! Angular factor for the exchange correlation potential,
-//! L^{kl}_{v beta alpha gamma} of Methods Eq. (RadialSigmaExch), including
-//! that equation's (-1)^(k+l) / [j_v]:
-//!   L = (-1)^(k+l) C~^k_{v alpha} C~^k_{beta gamma} C~^l_{v gamma}
-//!       C~^l_{beta alpha} {j_v j_alpha k; j_beta j_gamma l} / [j_v]
-//! @details alpha, beta, gamma are the partial waves of the lines 1i, ij, j2
-//! (leaving r_1, joining the two internal points, entering r_2); k, l the
-//! multipoles of the Coulomb lines 1j, i2. The symmetric C~
-//! (Angular::tildeCk_kk) is used: the product of four C^k of Methods is
-//! identical, as the (-1)^(j+1/2) phases cancel in pairs.
+/*!
+  @brief Angular factor for the exchange correlation potential,
+  L^{kl}_{v beta alpha gamma}.
+
+  @details
+  Includes the (-1)^(k+l) / [j_v] factor:
+
+    L = (-1)^(k+l) C~^k_{v alpha} C~^k_{beta gamma} C~^l_{v gamma}
+        C~^l_{beta alpha} {j_v j_alpha k; j_beta j_gamma l} / [j_v]
+
+  alpha, beta, gamma are the partial waves of the lines 1i, ij, j2
+  (leaving r_1, joining the two internal points, entering r_2); k, l the
+  multipoles of the Coulomb lines 1j, i2. The symmetric C~
+  (Angular::tildeCk_kk) is used: the product of four C^k is identical, as
+  the (-1)^(j+1/2) phases cancel in pairs.
+*/
 double L_exchange(int k, int l, int kappa_v, int kappa_alpha, int kappa_beta,
                   int kappa_gamma, const Angular::SixJTable &sixj);
 
