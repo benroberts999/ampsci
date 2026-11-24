@@ -1,6 +1,6 @@
-\page tutorial_ci Two-valence atoms: CI+MBPT
+\page tutorial_ci Two- and three-valence atoms: CI+MBPT
 
-\brief CI+MBPT calculations for two-valence atoms
+\brief CI+MBPT calculations for two- and three-valence atoms
 
 This assumes you already have ampsci compiled and have a basic understanding of how to run and use it.
 
@@ -13,6 +13,11 @@ This assumes you already have ampsci compiled and have a basic understanding of 
 
 * [CI+MBPT overview](#cimbpt)
 * [Basic CI example](#basic)
+* [Configuration space](#configspace)
+* [One and three valence electrons](#numelectrons)
+* [Storing and reusing CI solutions](#cifile)
+* [CI+MBPT example](#mbpt)
+* [Matrix elements](#matrix)
 
 ## CI+MBPT overview: Configuration Interaction with Many-Body Perturbation Theory <a name="cimbpt"></a>
 
@@ -27,7 +32,8 @@ For an \f$M\f$-valence atomic system, the effective Hamiltonian is
 
 where \f$h^{\rm HF}\f$ is one-particle the Hartree-Fock Hamiltonian (with HF potential due to the \f$N-M\f$ core electrons), \f$\Sigma^1\f$ accounts for the core-valence correlations, and \f$\Sigma^2\f$ accounts for the screening of the valence-valence Coulomb interaction by the core electrons.
 
-The CI routines in ampsci are only for two-valence systems: \f$M=2\f$.
+The CI routines in ampsci are for one, two, or three valence electrons: \f$M=1,2,3\f$ (set with `num_electrons`; the default is two).
+The examples below are for two; see [One and three valence electrons](#numelectrons) for the others.
 
 In the CI method, approximate valence-space wavefunctions, \f$\Psi\f$, are expanded over \f$M\f$-particle wavefunctions called Configuration-State Functions (CSFs), \f$\psi_I\f$:
 
@@ -58,28 +64,14 @@ As always, we check the available input options: `./ampsci -i CI`
 CI{
   ci_basis;
     // Basis used for CI expansion; must be a sub-set of
-    // full ampsci basis [default: 20spdf]
-  leading;
-    // Leading configurations, from which the CI
-    // configurations are formed by excitations; shells
-    // separated by '.', e.g., 'leading = 6s2.6p, 6s.6p2;'.
-    // Labels are non-relativistic: each includes both j.
-    // Check the printed list: it should include the
-    // dominant configuration of every state of interest.
-    // [default: the 5 lowest configurations of each parity,
-    // by the sum of orbital energies]
-  excitations;
-    // Excitations from the leading configurations, formed
-    // stepwise: 'k' or 'k:basis', e.g., '1, 2, 3:6spdf'.
-    // Step k moves one electron into its basis (default:
-    // ci_basis); the largest k is the number of steps, so
-    // '3:6spdf' is the same as '1, 2, 3:6spdf'; '0' gives
-    // the leading configurations only. Two full steps
-    // include every two-electron configuration. [1, 2]
+    // full ampsci basis. With three valence electrons the
+    // number of CSFs grows quickly: a smaller basis (e.g.,
+    // 12spdf) is usually required [default: 20spdf]
   J;
     // List of total angular momentum J for CI solutions
-    // (comma separated). Must be integers (two-electron
-    // only). []
+    // (comma separated). Integers for two electrons;
+    // half-integers, as fractions (1/2, 3/2) or decimals
+    // (0.5, 1.5), for one or three. []
   J+;
     // As above, but for EVEN CSFs only (takes precedence
     // over J).
@@ -96,18 +88,55 @@ CI{
     // Include one-body MBPT correlations? [false]
   sigma2;
     // Include two-body MBPT correlations? [false]
+  sigma3;
+    // Include effective three-body MBPT correlations?
+    // [false]
+    //  - three valence electrons only; requires sigma2
+    //  - denominators as for Sigma_2; DFK if those are BW
+  sigma3_configs;
+    // Sigma_3 is included in <A|H|B> if A or B belongs to
+    // one of the N lowest configurations of the J/pi [10]
+    //  - non-relativistic configurations, by sum of orbital
+    // energies
+    //  - check convergence by increasing N
   Brueckner;
     // Use Brueckner (spectrum) states for CI basis? Must
     // have Correlations, Spectrum, and sigma1. [false]
   cis2_basis;
-    // Pair of basis strings, e.g. '8spdf, 12spdf'.
-    // Sigma_2 is calculated for <vw|Q|xy> if vw or xy is
-    // in the first, and all four are in the second. All
-    // diagonal entries (xy = vw) up to second are
-    // included. Others are extrapolated (see
-    // extrapolate_sigma2). If only one is given, the
-    // second is ci_basis. [default: 'Nspdf, ci_basis',
-    // where N is maximum n for core + 2]
+    // Pair of basis strings, e.g. '8spdf, 20spdf'. Sigma_2
+    // is calculated for <vw|Q|xy> if (vw or xy) is in the
+    // first, and (vw and xy) are in second. All diagonal
+    // entries (xy = vw) up to second are included. Default:
+    // '(n+2)spdf..., 20spdf...' (each L in ci_basis).
+  fk;
+    // Effective QPQ ~ fk Q screening factors for the
+    // Sigma_2 Coulomb lines. Give an explicit list to use
+    // those values; set 'false' for no screening (or 'fk =
+    // 1;'). If blank (default), takes from correlation
+    // potential if it has them.
+  Feynman_screen;
+    // Use Feynman method for Sigma_2 screening diagrams.
+    // Requires Correlations{Feynman = true;} [false]
+  denominators;
+    // Energy denominators in Sigma_2 [DFK]:
+    //  - DFK: (Dzuba Flambaum Kozlov) target legs as Fermi,
+    // others as RS
+    //  - BW: Brillouin-Wigner E0 (iterated; see
+    // BW_each_level).
+    //    If this fails for a J/pi, it is used with no shift to E0
+    //  - RS: actual single-particle energies
+    //  - Fermi: lowest excited energy of each kappa
+    //  - Fermi0: lowest excited energy of all kappas
+  sigma1_dSdE;
+    // Sigma_1 at the level energy E0, via dSigma/dE
+    // [false]
+    //  - E0: lowest level of J/pi, or each (BW_each_level)
+    //  - faster with Correlations{ derivative = true; }
+    //  - For testing; usually should be left off
+  BW_each_level;
+    // E0 for each level, not just lowest of J/pi [false]
+    // - for BW and sigma1_dSdE
+    // - levels not orthogonal; one more solve per level
   Breit2;
     // Include two-body Breit? Default is true if Breit
     // included in HF. Ignored if Breit not included in HF.
@@ -138,23 +167,30 @@ CI{
     // new Coulomb integrals. Higher k often contribute
     // negligably. Note: if qk file already has higher-k
     // terms, they will be included. Set negative (or very
-    // large) to include all k. [8]
-  denominators;
-    // Energy denominators in Sigma_2 [DFK]:
-    // - RS: actual energies
-    // - Fermi: lowest excited energy of each kappa
-    // - Fermi0: lowest excited energy of all kappas
-    // - DFK: target legs as Fermi, others as RS
-    // - BW: Brillouin-Wigner, at E0 of lowest level of J/pi
-    //   (iterated; see BW_each_level). Doubles Sigma_2 time
-  sigma1_dSdE;
-    // Sigma_1 at the level energy E0, via dSigma/dE [false]
-    // - E0: lowest level of J/pi, or each (BW_each_level)
-    // - much faster with Correlations{ derivative = true; }
-  BW_each_level;
-    // E0 for each level, not just lowest of J/pi [false]
-    // - for BW and sigma1_dSdE
-    // - levels not orthogonal; one more solve per level
+    // large) to include all k. [10]
+  num_electrons;
+    // Number of valence electrons: 1, 2 or 3 [2]
+  leading;
+    // Leading configurations, from which the CI
+    // configurations are formed by excitations;
+    //  - shells separated by '.', e.g., 'leading = 6s2.6p,
+    // 6s.6p2;'.
+    //  - Default: the lowest few configurations of each
+    // parity
+    //  - NB: Always check for truncated CI
+    //  - Not required for one or two valence electrons
+    // (full CI)
+  excitations;
+    // Excitations from the leading configurations, formed
+    // stepwise: 'k' or 'k:basis', e.g., '1, 2, 3:6spdf'.
+    // Step k moves one electron into its basis (default:
+    // ci_basis); the largest k is the number of steps, so
+    // '3:6spdf' is the same as '1, 2, 3:6spdf'; '0' gives
+    // the leading configurations only. Two full steps
+    // include every two-electron configuration. [1, 2]
+  davidson;
+    // Use iterative Davidson method for CI solutions
+    // [default: true for 3 electrons, false otherwise]
   qk_file;
     // Filename for storing two-body Coulomb integrals. By
     // default, is At.qk.abf, where At is atomic symbol +
@@ -172,11 +208,11 @@ CI{
     // formed from it after reading.
   ds1_file;
     // Filename for storing the Sigma_1
-    // derivative-correction tables (sigma1_dSdE).
-    // Default: At_b_hash.ds1.abf, where b is the s1
-    // (internal) basis, and hash encodes other settings
-    // that change the tables. Not used if the Correlations
-    // block provides dSigma/dE (option derivative). Set to
+    // derivative-correction tables (sigma1_dSdE). Default:
+    // At_b_hash.ds1.abf, where b is the s1 (internal)
+    // basis, and hash encodes other settings that change
+    // the tables. Not used if the Correlations block
+    // provides dSigma/dE (option derivative). Set to
     // 'false' to disable read/write.
   bk_file;
     // Filename for storing two-body Breit integrals. By
@@ -185,8 +221,9 @@ CI{
   ci_file;
     // Filename for storing CI solutions. Default:
     // At_b_hash.ci.abf, where At is atomic symbol +
-    // 'identity', b is ci_basis, and hash encodes other
-    // setting that  changes the CI Hamiltonian. Set to
+    // 'identity', b is ci_basis (prefixed with 1el_ or 3el_
+    // for one or three electrons), and hash encodes other
+    // settings that change the CI Hamiltonian. Set to
     // 'false' to disable read/write.
   read_only;
     // If true, will *only* read in the existing CI
@@ -207,21 +244,6 @@ CI{
   print_details;
     // Condition to print details of each CI solution
     // (otherwise just prints summary) [true]
-  fk;
-    // Effective QPQ ~ fk Q screening factors for the
-    // Sigma_2 Coulomb lines. Give an explicit list to use
-    // those values; set 'false' for no screening (or 'fk =
-    // 1;'). If blank (default), takes from correlation
-    // potential if it has them.
-  Feynman_screen;
-    // Sigma_2 screening (loop) diagrams by the Feynman
-    // method (static limit), in place of the Goldstone ones
-    // (their energy dependence, from DFK/BW denominators, kept
-    // at second order, screened by fk). Needs
-    // Correlations{Feynman = true;}, from
-    // which these are taken: rmin, rmax, stride (radial
-    // sub-grid), lmax, n_min_core, include_G, real_omega,
-    // imag_omega, complex_green. [false]
   all_order_screen;
     // With Feynman_screen: screening to all orders; else
     // second order only [true]
@@ -285,6 +307,8 @@ The first part of the output:
 
 ```text
   Using 20spdf = 124 orbitals in CI expansion
+  Including all configurations: 2556 of 2556
+
   Calculate two-body Coulomb integrals: Q^k_abcd
   For: 20spdf (for CI)
   Stored non-zero two-body integrals (Qk symmetry):
@@ -310,43 +334,43 @@ The output for each symmetry will look something like this:
 ```text
   CI: J=2, even parity
   Total CSFs: 3322
+  CI matrix (dense): 11035684 total elements (0.09 GB)
   Find first 3 solutions
-  3 eigenvalues: T = 472.56 ms
-  472.57 ms
-  Writing J=2 pi=+ (3 solutions) to Mg2_20spdf_xovgxe.ci.abf
+  3 eigenvalues: T = 3.27 s
+  Writing J=2 pi=+ (3 solutions) to Mg2_20spdf_4s2erf.ci.abf
 
   2 + 0   -0.61243636 au   -134414.24 cm^-1         0.00 cm^-1
-     3s+3d- 24.314%
-     3s+4d- 6.633%
-     3s+3d+ 36.576%
-     3s+4d+ 9.986%
-     3p-3p+ 13.506%
-     3p+^2  6.679%
+     3s+3d-    24.314%
+     3s+4d-    6.633%
+     3s+3d+    36.576%
+     3s+4d+    9.986%
+     3p-3p+    13.506%
+     3p+^2     6.679%
      --------------
      gJ = 0.999992
      L_eff = 2.0000, S_eff = 0.0000
-     3s3d   1^D_2
+     3s3d      1^D_2
 
   2 + 1   -0.60399682 au   -132561.98 cm^-1      1852.26 cm^-1
-     3s+3d- 36.482%
-     3s+4d- 22.331%
-     3s+3d+ 24.247%
-     3s+4d+ 14.844%
+     3s+3d-    36.482%
+     3s+4d-    22.331%
+     3s+3d+    24.247%
+     3s+4d+    14.844%
      --------------
      gJ = 1.16666
      L_eff = 2.0000, S_eff = 1.0000
-     3s3d   3^D_2
+     3s3d      3^D_2
 
   2 + 2   -0.58091120 au   -127495.27 cm^-1      6918.97 cm^-1
-     3s+4d- 17.618%
-     3s+5d- 16.030%
-     3s+4d+ 26.483%
-     3s+5d+ 24.106%
-     3p-3p+ 8.221%
+     3s+4d-    17.618%
+     3s+5d-    16.030%
+     3s+4d+    26.483%
+     3s+5d+    24.106%
+     3p-3p+    8.221%
      --------------
      gJ = 0.999999
      L_eff = 2.0000, S_eff = 0.0000
-     3s4d   1^D_2
+     3s4d      1^D_2
 ```
 
 After each line, the code will list all CSFs that contribute to the solution at above the 1% level (i.e., with \f$c_I^2>0.01\f$).
@@ -356,25 +380,25 @@ The term symbol (\f${}^{2S+1}L_J\f$ e.g., 1^D_2) and leading configuration are g
 The final output shows a summary of the calculation:
 
 ```text
-  J  pi  #  conf.  %   Term   Energy(au)   Energy(/cm)   Level(/cm)  gJ
-  0  +1  0  3s^2   89  1S    -0.81801329    -179533.17         0.00
-  0  +1  1  3s4s   66  1S    -0.62361589    -136867.87     42665.30
-  0  +1  2  3s6s   61  1S    -0.58270456    -127888.87     51644.30
-  1  +1  0  3s4s   83  3S    -0.63391442    -139128.13     40405.03  2.0000
-  1  +1  1  3s3d   61  3D    -0.60399697    -132562.01     46971.15  0.5000
-  1  +1  2  3s5s   47  3S    -0.58575697    -128558.80     50974.37  2.0000
-  2  +1  0  3s3d   61  1D    -0.61243636    -134414.24     45118.92  1.0000
-  2  +1  1  3s3d   61  3D    -0.60399682    -132561.98     46971.19  1.1667
-  2  +1  2  3s4d   44  1D    -0.58091120    -127495.27     52037.90  1.0000
-  0  -1  0  3s3p   94  3Po   -0.72276324    -158628.20     20904.97
-  0  -1  1  3s4p   65  3Po   -0.60424210    -132615.81     46917.35
-  0  -1  2  3s6p   64  3Po   -0.57510650    -126221.29     53311.88
-  1  -1  0  3s3p   94  3Po   -0.72267118    -158607.99     20925.18  1.5000
-  1  -1  1  3s3p   71  1Po   -0.66085861    -145041.70     34491.47  1.0000
-  1  -1  2  3s4p   65  3Po   -0.60422689    -132612.47     46920.69  1.5000
-  2  -1  0  3s3p   94  3Po   -0.72248658    -158567.48     20965.69  1.5000
-  2  -1  1  3s4p   65  3Po   -0.60419623    -132605.74     46927.42  1.5000
-  2  -1  2  3s6p   64  3Po   -0.57508849    -126217.33     53315.83  1.5000
+  J    π  #  conf.     %   Term   Energy(au)   Energy(/cm)   Level(/cm)  gJ
+  0   +1  0  3s^2      89  1S    -0.81801329    -179533.17         0.00
+  0   +1  1  3s4s      66  1S    -0.62361589    -136867.87     42665.30
+  0   +1  2  3s6s      61  1S    -0.58270456    -127888.87     51644.30
+  1   +1  0  3s4s      83  3S    -0.63391442    -139128.13     40405.03  2.0000
+  1   +1  1  3s3d      61  3D    -0.60399697    -132562.01     46971.15  0.5000
+  1   +1  2  3s5s      47  3S    -0.58575697    -128558.80     50974.37  2.0000
+  2   +1  0  3s3d      61  1D    -0.61243636    -134414.24     45118.92  1.0000
+  2   +1  1  3s3d      61  3D    -0.60399682    -132561.98     46971.19  1.1667
+  2   +1  2  3s4d      44  1D    -0.58091120    -127495.27     52037.90  1.0000
+  0   -1  0  3s3p      94  3P°   -0.72276324    -158628.20     20904.97
+  0   -1  1  3s4p      65  3P°   -0.60424210    -132615.81     46917.35
+  0   -1  2  3s6p      64  3P°   -0.57510650    -126221.29     53311.88
+  1   -1  0  3s3p      94  3P°   -0.72267118    -158607.99     20925.18  1.5000
+  1   -1  1  3s3p      71  1P°   -0.66085861    -145041.70     34491.47  1.0000
+  1   -1  2  3s4p      65  3P°   -0.60422689    -132612.47     46920.69  1.5000
+  2   -1  0  3s3p      94  3P°   -0.72248658    -158567.48     20965.69  1.5000
+  2   -1  1  3s4p      65  3P°   -0.60419623    -132605.74     46927.42  1.5000
+  2   -1  2  3s6p      64  3P°   -0.57508849    -126217.33     53315.83  1.5000
 ```
 
 Where `conf` is the leading configuration (in non-relativistic notation), and the `%` column shows the combined constructions from each relativistic configuration with the same non-relativistic configuration
@@ -435,6 +459,31 @@ Configurations: 1653 of 9130
 
 -----
 
+## One and three valence electrons <a name="numelectrons"></a>
+
+The number of valence electrons in the CI is set with `num_electrons` (1, 2 or 3; default 2).
+The core in `HartreeFock{}` should hold all the other electrons (\f$V^{N-M}\f$).
+
+* For one or three electrons \f$J\f$ is a half-integer: give it as a fraction or a decimal, e.g., `J+ = 1/2, 3/2;` or `J- = 0.5, 1.5;`.
+* With three electrons the number of CSFs grows quickly: a smaller `ci_basis` may be required, and the configurations should be chosen with `leading` and `excitations` (see above).
+* `sigma3 = true;` includes the effective three-body MBPT correction \f$\Sigma^3\f$ (three electrons only; requires `sigma2`). It is included in the matrix element \f$\langle A|H|B\rangle\f$ if \f$A\f$ or \f$B\f$ belongs to one of the `sigma3_configs` lowest configurations of the \f$J^\pi\f$ (default 10): check convergence by increasing it.
+* The default `ci_file` name is prefixed with `1el_` or `3el_`, so solutions for different numbers of electrons are kept apart.
+
+For example, for the lowest states of neutral Tl with three valence electrons:
+
+```java
+CI{
+  num_electrons = 3;
+  ci_basis = 12spdf;
+  leading = 6s2.6p, 6s2.7s, 6s2.6d;
+  J+ = 1/2;
+  J- = 1/2, 3/2;
+  num_solutions = 3;
+}
+```
+
+-----
+
 ## Storing and reusing CI solutions <a name="cifile"></a>
 
 CI solutions (energies and eigenvectors) can be saved to disk and read back on subsequent runs, which avoids re-diagonalising the Hamiltonian.
@@ -490,7 +539,7 @@ CI{
 
 -----
 
-## CI+MBPT example <a name="basic"></a>
+## CI+MBPT example <a name="mbpt"></a>
 
 Here, we will improve the accuracy of the calculation by including the MBPT corrections.
 We do this by setting `sigma1` and `sigma2` options to true.
@@ -527,12 +576,14 @@ The code will now calculate more \f$Q^k\f$ Coulomb integrals, since they are req
   k =  6: 3267217
   k =  7: 997236
   k =  8: 0
+  k =  9: 0
+  k = 10: 0
   Total: 45660133
   Calculated 29763502 new Coulomb integrals
   Writing 45660133 integrals to file: Mg2.qk.abf..
 ```
 
-This uses close to 5Gb of memory, so may already be difficulty on some laptops.
+This uses close to 2Gb of memory, so may already be difficulty on some laptops.
 Then, is will calculate the matrix elements of the two-body \f$\Sigma^2\f$ operator.
 This is the slow part of the calculation.
 Fortunately, the \f$\Sigma^2\f$ correction is rather small, and good accuracy can be obtained by only including matrix elements between the lowest few valence-space basis states.
@@ -549,43 +600,58 @@ The diagonal integrals, \f$\langle vw|Q|vw\rangle\f$ and \f$\langle vw|Q|wv\rang
 The integrals that are not calculated are extrapolated (see `extrapolate_sigma2`).
 
 ```text
-  Calculate two-body MBPT integrals: Sigma^k_abcd
-  For: 5spdf, using 30spdfghi
-  Calculating 130278 integrals
-  0%, 10%, 21%, 31%, 36%, 47%, 57%, 63%, 73%, 84%, 94%, 100%
-  3.59 s
-  Calculated 130278 new MBPT integrals
-  Writing 130278 integrals to file: Mg2_30spdfghi_gqlh2r.sk.abf..
+  Calculate two-body MBPT integrals: Σ^k_abcd
+  For: 4spdf (pair), 20spdf (all), using 30spdfghi
+  Calculating 1209173 integrals
+  0%, 9%, 18%, 27%, 36%, 45%, 54%, 63%, 72%, 81%, 90%, 99%, 100%
+  20.20 s
+  Calculated 1209173 new MBPT integrals
+  Writing 1209173 integrals to file: Mg2_30spdfghi_pygsrg.sk.abf..
 ```
 
-The `For: 5spdf, using 30spdfghi` means the external lines in \f$\Sigma_{ijkl}\f$ include up to `5spdf`, while the internal lines use the full `30spdfghi` basis. This is usually the bottle-neck; these integrals take a very long time to compute, though typically make only a modest difference to the calculations.
+The `For: 4spdf (pair), 20spdf (all), using 30spdfghi` means the external lines in \f$\Sigma_{ijkl}\f$ include pairs up to `4spdf` (with all four orbitals in `20spdf`), while the internal lines use the full `30spdfghi` basis. This is usually the bottle-neck; these integrals take a very long time to compute, though typically make only a modest difference to the calculations.
 
 The combined MBPT corrections lead to a significant improvement in the accuracy:
 
 | Level      |                 | AMPSCI  | Exp.    | \f$\Delta\f$ |
 |------------|-----------------|---------|---------|--------------|
-| \f$3s^2\f$ | \f${}^1S_0\f$   | -182703 | -182939 | -0.13%       |
+| \f$3s^2\f$ | \f${}^1S_0\f$   | -182672 | -182939 | -0.15%       |
 | \f$3s4s\f$ | \f${}^1S_0\f$   | 43440   | 43503   | -0.14%       |
-| \f$3s6s\f$ | \f${}^1S_0\f$   | 52473   | 52556   | -0.16%       |
-| \f$3s4s\f$ | \f${}^3S_1\f$   | 41146   | 41197   | -0.12%       |
-| \f$3s3d\f$ | \f${}^3D_1\f$   | 47895   | 47957   | -0.13%       |
-| \f$3s5s\f$ | \f${}^3S_1\f$   | 51810   | 51873   | -0.12%       |
-| \f$3s3d\f$ | \f${}^1D_2\f$   | 46326   | 46403   | -0.17%       |
-| \f$3s3d\f$ | \f${}^3D_2\f$   | 47895   | 47957   | -0.13%       |
-| \f$3s4d\f$ | \f${}^1D_2\f$   | 53052   | 53135   | -0.16%       |
-| \f$3s3p\f$ | \f${}^3P^o_0\f$ | 21787   | 21850   | -0.29%       |
-| \f$3s4p\f$ | \f${}^3P^o_0\f$ | 47777   | 47841   | -0.13%       |
-| \f$3s6p\f$ | \f${}^3P^o_0\f$ | 54204   | 54249   | -0.08%       |
-| \f$3s3p\f$ | \f${}^3P^o_1\f$ | 21809   | 21870   | -0.28%       |
-| \f$3s3p\f$ | \f${}^1P^o_1\f$ | 35041   | 35051   | -0.03%       |
-| \f$3s4p\f$ | \f${}^3P^o_1\f$ | 47781   | 47844   | -0.13%       |
-| \f$3s3p\f$ | \f${}^3P^o_2\f$ | 21852   | 21911   | -0.27%       |
-| \f$3s4p\f$ | \f${}^3P^o_2\f$ | 47788   | 47851   | -0.13%       |
-| \f$3s6p\f$ | \f${}^3P^o_2\f$ | 54208   | 54253   | -0.08%       |
+| \f$3s6s\f$ | \f${}^1S_0\f$   | 52451   | 52556   | -0.20%       |
+| \f$3s4s\f$ | \f${}^3S_1\f$   | 41119   | 41197   | -0.19%       |
+| \f$3s3d\f$ | \f${}^3D_1\f$   | 47869   | 47957   | -0.18%       |
+| \f$3s5s\f$ | \f${}^3S_1\f$   | 51778   | 51873   | -0.18%       |
+| \f$3s3d\f$ | \f${}^1D_2\f$   | 46291   | 46403   | -0.24%       |
+| \f$3s3d\f$ | \f${}^3D_2\f$   | 47869   | 47957   | -0.18%       |
+| \f$3s4d\f$ | \f${}^1D_2\f$   | 53018   | 53135   | -0.22%       |
+| \f$3s3p\f$ | \f${}^3P^o_0\f$ | 21752   | 21850   | -0.45%       |
+| \f$3s4p\f$ | \f${}^3P^o_0\f$ | 47741   | 47841   | -0.21%       |
+| \f$3s6p\f$ | \f${}^3P^o_0\f$ | 54170   | 54249   | -0.14%       |
+| \f$3s3p\f$ | \f${}^3P^o_1\f$ | 21773   | 21870   | -0.44%       |
+| \f$3s3p\f$ | \f${}^1P^o_1\f$ | 35043   | 35051   | -0.02%       |
+| \f$3s4p\f$ | \f${}^3P^o_1\f$ | 47744   | 47844   | -0.21%       |
+| \f$3s3p\f$ | \f${}^3P^o_2\f$ | 21816   | 21911   | -0.43%       |
+| \f$3s4p\f$ | \f${}^3P^o_2\f$ | 47751   | 47851   | -0.21%       |
+| \f$3s6p\f$ | \f${}^3P^o_2\f$ | 54175   | 54253   | -0.14%       |
 
-The discrepancies are now at the level of ~0.1%.
+The discrepancies are now at the level of ~0.2%.
 
 On my PC, this entire calculation took less than two minutes.
+
+### Energy denominators
+
+The energy denominators of the \f$\Sigma^2\f$ diagrams are set with the `denominators` option (see the option list above); the default is `DFK`.
+
+With `denominators = BW;`, Brillouin-Wigner denominators are used: they contain the energy \f$E_0\f$ of the level being calculated, which is found by iteration.
+
+* By default \f$E_0\f$ is that of the lowest level of each \f$J^\pi\f$; with `BW_each_level = true;` it is found for each level separately (one more solve per level, and the levels of a \f$J^\pi\f$ are then not exactly orthogonal).
+* If this fails for a \f$J^\pi\f$, a warning is printed, and that \f$J^\pi\f$ is solved with \f$\Sigma_2\f$ as tabulated, with no shift to its \f$E_0\f$ (close to `DFK`); the others keep Brillouin-Wigner.
+
+### Screening of Sigma_2
+
+The Coulomb lines of the \f$\Sigma^2\f$ diagrams may be screened with the factors `fk`; by default these are taken from the correlation potential (`Correlations{}`), if it has them.
+
+With `Feynman_screen = true;`, the screening diagrams of \f$\Sigma^2\f$ are instead calculated with the Feynman method. This requires `Correlations{Feynman = true;}`. Screening is then included to all orders (`all_order_screen`; second order only if false), with the hole-particle interaction (`hp_screen`).
 
 ### Memory usage
 
@@ -601,7 +667,7 @@ You can estimate the memory a run needs, without running it, using the `ampsci -
 
 This counts the Coulomb integrals the run would form: those among the CI orbitals (here `20spdf`), and those with one or two core orbitals for the MBPT (here `30spdfghi`).
 It also gives the number of CSFs in each requested \f$J^\pi\f$ block, and the memory of each CI matrix.
-Tables the run forms are marked with `*`, and counted in the total along with the largest CI block (the blocks are solved one at a time).
+Only the tables the run forms are counted in the total, along with the largest CI block (the blocks are solved one at a time).
 The counts are exact; the memory is an estimate.
 
 Note that the CI integrals are only needed among the CI orbitals: running CI with the full MBPT basis would require far more memory.
@@ -625,7 +691,8 @@ Module::CI_matrixElements{
   // to solve at correct frequency for each transition. [0.0]
   omega;
   // List of angular momentum Js to calculate matrix elements for. If blank, all
-  // available Js will be calculated. Must be integers (two-electron only).
+  // available Js will be calculated. Integers for two electrons; fractions
+  // (1/2, 3/2) for three.
   J;
   // As above, but for EVEN CSFs only (takes precedence over J).
   J+;

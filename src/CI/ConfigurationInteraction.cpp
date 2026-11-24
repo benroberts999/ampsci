@@ -75,7 +75,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Energy denominators in Sigma_2 [DFK]:\n"
      " - DFK: (Dzuba Flambaum Kozlov) target legs as Fermi, others as RS\n"
      " - BW: Brillouin-Wigner E0 (iterated; see BW_each_level).\n"
-     "   DFK is used instead if this fails\n"
+     "   If this fails for a J/pi, it is used with no shift to E0\n"
      " - RS: actual single-particle energies\n"
      " - Fermi: lowest excited energy of each kappa\n"
      " - Fermi0: lowest excited energy of all kappas\n"},
@@ -667,6 +667,9 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   // BW needs the orbital energies (initial E0; the pair energies, for three
   // electrons), which come with the dSigma/dE tables; without those, they are
   // added on their own
+  // Whether there are dSigma/dE tables for Sigma_1 (as opposed to the orbital
+  // energies alone)
+  const bool sigma1_dSdE_tables = !s1_corr.empty();
   if (iterative_correction_sigma2 && s1_corr.empty()) {
     for (const auto &v : ci_sp_basis) {
       s1_corr.en[v.nk_index()] = v.en();
@@ -924,32 +927,36 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   fmt::print("Running CI for {} J/pi's\n\n", J_pi_list.size());
   std::cout << std::flush;
 
-  bool BW_failed = false;
   {
     IO::ChronoTimer t2("CI Eigenvalues");
     for (std::size_t i = 0; i < J_pi_list.size(); ++i) {
       const auto [twoj, pi] = J_pi_list.at(i);
 
+      bool BW_failed = false;
       levels.at(i) =
         run_CI(ci_sp_basis, twoj, pi, num_electrons, num_solutions,
                all_below_cm, h1, qk, Bk, Sk, include_Sigma2, print_details,
                read_only, std::cout, ci_fname, find_E0 ? &s1_corr : nullptr, hk,
                dSk.emptyQ() ? nullptr : &dSk, E0_sigma2, solver, BW_each_level,
                config_space, include_Sigma3 ? &sigma3 : nullptr, &BW_failed);
-      if (BW_failed)
-        break;
-    }
-  }
 
-  // If the Brillouin-Wigner Sigma_2 failed for any J/pi (see run_CI), every
-  // J/pi is run again with DFK denominators, so that all levels are found
-  // with the same Hamiltonian
-  if (BW_failed) {
-    fmt2::warning();
-    fmt::print(": Brillouin-Wigner Σ_2 failed; using DFK denominators\n\n");
-    auto input_DFK = input;
-    input_DFK.add(IO::Option{"denominators", "DFK"});
-    return configuration_interaction(input_DFK, wf);
+      // If BW failed (i.e., shift too large to treat approx)
+      // Then we simply fall back to the S^k as tabulated (at the reference
+      // E0), with no shift to the E0 of this J/pi. This is close to DFK
+      // denominators
+      if (BW_failed) {
+        fmt2::warning();
+        fmt::print(": Brillouin-Wigner Σ_2 failed for J={}{}; using Σ_2 with "
+                   "no shift to E0 for this J/pi\n\n",
+                   J_string(twoj), pi == 1 ? '+' : '-');
+        levels.at(i) = run_CI(
+          ci_sp_basis, twoj, pi, num_electrons, num_solutions, all_below_cm, h1,
+          qk, Bk, Sk, include_Sigma2, print_details, read_only, std::cout,
+          ci_fname, sigma1_dSdE_tables ? &s1_corr : nullptr, hk, nullptr, 0.0,
+          solver, BW_each_level, config_space,
+          include_Sigma3 ? &sigma3 : nullptr);
+      }
+    }
   }
 
   //----------------------------------------------------------------------------
@@ -1269,6 +1276,12 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
                 << " eigenvalues: T = " << t2.reading_str() << "\n";
     }
 
+    // No solutions (e.g., none below all_below_cm): nothing more to do
+    if (psi.num_solutions() == 0) {
+      outstream << "\n" << std::flush;
+      return psi;
+    }
+
     // Optionally, each level with its own E0, found in the same way (and
     // solved again with the Hamiltonian built at that E0, as above), so its
     // energy denominators (BW) and dSigma/dE correction are at its own
@@ -1330,6 +1343,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       write_solutions = false;
     }
 
+    psi.set_Sigma2_unshifted(dSk == nullptr);
     if (!ci_fname.empty() && write_solutions) {
       psi.read_write(ci_fname, IO::FRW::write, outstream);
     }

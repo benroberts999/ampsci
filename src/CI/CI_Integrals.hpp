@@ -213,11 +213,13 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
   (i.e., 0.0), the iteration starts from the lowest zeroth-order configuration
   energy. The first pass builds the
   CI Hamiltonian at the current E0 and diagonalises it, up to the level.
-  E0 enters only through the (small) dSigma/dE correction, so the state itself
-  hardly changes from pass to pass: later passes rebuild the Hamiltonian with
+  E0 enters through the dSigma/dE correction and, with Brillouin-Wigner
+  denominators, the shift of Sigma_2. The state is taken not to change from
+  pass to pass: later passes rebuild the Hamiltonian with
   the updated E0 and take the new E0 as the expectation value of the new
   Hamiltonian in the (unchanged) state - first-order perturbation theory in
-  the change to the Hamiltonian. Only the first pass is diagonalised.
+  the change to the Hamiltonian. Only the first pass is diagonalised, so the
+  eigenvector is that of the first-pass Hamiltonian.
 
   If a step reverses the previous one (E0 alternating about the fixed point),
   half the step is taken, E0 -> (E0 + E0_new) / 2, so that alternating
@@ -374,6 +376,16 @@ double CSF2_Coulomb(const Coulomb::QkTable &qk, DiracSpinor::Index v,
   @param v,w   Indices of the bra single-particle states.
   @param x,y   Indices of the ket single-particle states.
   @param twoJ  Twice the total angular momentum 2J of the coupled pair.
+  @param qk    Pointer to the Coulomb \f$ Q^k \f$ table; used only with
+               @p hk. Ignored if nullptr.
+  @param hk    Average S^k/Q^k ratios; if non-empty (and @p qk given),
+               integrals not stored in @p Sk are taken as hk[k]*Q^k, and get
+               no E0 shift. See @ref MBPT::average_hk.
+  @param dSk   Pointer to the dS^k/dE0 table; ignored if nullptr. If given,
+               each stored S^k is shifted by @p dE0. See
+               @ref CI::corrected_Sk.
+  @param dE0   Shift of the pair energy E0 from the one @p Sk was tabulated
+               at.
   @return Antisymmetrised two-body \f$ \Sigma_2 \f$ matrix element.
 */
 double CSF2_Sigma2(const Coulomb::WkTable &Sk, DiracSpinor::Index v,
@@ -453,6 +465,13 @@ double Hab(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
   @param A,B   The two CSFs.
   @param twoJ  Twice the total angular momentum 2J.
   @param Sk    Table of \f$ \Sigma_2 \f$ (\f$ L^k \f$) integrals.
+  @param qk    Pointer to the Coulomb \f$ Q^k \f$ table; used only with
+               @p hk. Ignored if nullptr.
+  @param hk    Average S^k/Q^k ratios, for integrals not stored in @p Sk;
+               see CSF2_Sigma2().
+  @param dSk   Pointer to the dS^k/dE0 table (Brillouin-Wigner shift);
+               ignored if nullptr.
+  @param dE0   Shift of E0 from the one @p Sk was tabulated at.
   @return \f$ \Sigma_2 \f$ correction to \f$ H_{AB} \f$.
 */
 double Sigma2_AB(const CI::CSF2 &A, const CI::CSF2 &B, int twoJ,
@@ -523,6 +542,16 @@ double Hab(const CI::CSF3 &A, const CI::CSF3 &B, int twoJ,
   \f$ \varepsilon_z \f$ the orbital energy of the third electron. The shift
   of each pair is therefore \f$ \delta E_0 - \varepsilon_z \f$.
 
+  @param A,B  The two CSFs.
+  @param twoJ Twice the total angular momentum 2J. Not used: the parent states
+              carry the coupling.
+  @param Sk   Table of \f$ \Sigma_2 \f$ (\f$ L^k \f$) integrals.
+  @param qk   Pointer to the Coulomb \f$ Q^k \f$ table; used only with
+              @p hk. Ignored if nullptr.
+  @param hk   Average S^k/Q^k ratios, for integrals not stored in @p Sk;
+              see CSF2_Sigma2().
+  @param dSk  Pointer to the dS^k/dE0 table (Brillouin-Wigner shift);
+              ignored if nullptr.
   @param dE0  Shift of the total valence energy E0 from the pair energy that
               Sk was tabulated at.
   @param orbital_energies  Orbital energies, keyed by nk_index (e.g.,
@@ -717,8 +746,11 @@ inline double ReducedME(const PsiJPi &As, std::size_t iA, const PsiJPi &Bs,
   @brief Reduced matrix element between two one-electron CSFs: the
   single-particle reduced matrix element \f$ \langle x \| t^k \| v \rangle \f$,
   from @p h.
+  @param X,V  The two CSFs.
+  @param h    Table of single-particle reduced matrix elements.
   @param twoJX,twoJV,K_rank  Not used: the single-particle table carries the
                              angular momenta.
+  @return Reduced matrix element.
 */
 double RME_CSF1(const CI::CSF1 &X, int twoJX, const CI::CSF1 &V, int twoJV,
                 const Coulomb::meTable<double> &h, int K_rank);

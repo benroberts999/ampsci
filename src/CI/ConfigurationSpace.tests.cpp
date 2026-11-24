@@ -76,7 +76,7 @@ TEST_CASE("ConfigSpace: stepwise excitations", "[CI][unit]") {
 //==============================================================================
 // Two full steps include every two-electron configuration; one restricted
 // step does not
-TEST_CASE("ConfigSpace: two electrons, full CI", "[CI][unit]") {
+TEST_CASE("ConfigSpace: two electrons with full CI", "[CI][unit]") {
   const auto basis =
     UnitTest::config_space_basis({{4, 8, 0}, {4, 8, 1}, {3, 8, 2}});
   const CI::ConfigurationSpace default_space{basis, 2, {}, {"1", "2"}};
@@ -123,7 +123,7 @@ TEST_CASE("ConfigSpace: default leading", "[CI][unit]") {
 // Singles and doubles over the full basis are exactly the configurations with
 // at least one electron in a shell of the leading configurations (whichever
 // they are)
-TEST_CASE("ConfigSpace: three electrons, singles and doubles",
+TEST_CASE("ConfigSpace: three electrons with singles and doubles",
           "[CI][unit][3VCI]") {
   const auto basis =
     UnitTest::config_space_basis({{4, 9, 0}, {4, 9, 1}, {3, 9, 2}});

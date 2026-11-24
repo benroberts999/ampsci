@@ -576,8 +576,9 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
   outstream << std::flush;
 
   // First pass: build Hci at the current E0, and diagonalise up to the
-  // level. E0 enters only through the (small) dSigma/dE correction, so the
-  // state itself hardly changes from pass to pass. Later passes therefore
+  // level. E0 enters through the dSigma/dE correction and, with
+  // Brillouin-Wigner denominators, the shift of Sigma_2. The state is taken
+  // not to change from pass to pass: later passes
   // rebuild Hci with the updated E0, and take the new E0 as the expectation
   // value of the new Hci in the (unchanged) state: first-order perturbation
   // theory in the change to Hci. Solving (dense: N^3; sparse: many products
@@ -1288,7 +1289,10 @@ construct_Hci<LinAlg::SparseSymmetricMatrix<double>>(
 LinAlg::Matrix<double> construct_Hci(const PsiJPi &psi, const Integrals &ints) {
   const auto Bk = ints.Bk.emptyQ() ? nullptr : &ints.Bk;
   const auto Sk = ints.Sk.emptyQ() ? nullptr : &ints.Sk;
-  const auto dSk = ints.dSk.emptyQ() ? nullptr : &ints.dSk;
+  // Sigma_2 is shifted to the E0 of this J/Pi (BW), unless the solutions
+  // were found without the shift
+  const auto dSk =
+    (ints.dSk.emptyQ() || psi.Sigma2_unshifted()) ? nullptr : &ints.dSk;
   const auto sigma3 = ints.sigma3.included() ? &ints.sigma3 : nullptr;
   // No E0 needed: no dSigma/dE correction, and no BW Sigma_2
   if (ints.s1_corr.empty() && dSk == nullptr) {

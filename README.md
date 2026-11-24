@@ -3,12 +3,12 @@
 ## Atomic Many-body Perturbation theory in the Screened Coulomb Interaction
 
 [_ampsci_](https://ampsci.dev/)
-is a C++ program for high-precision atomic structure calculations of one and two valence atomic systems, developed and maintained by [Benjamin M. Roberts](https://broberts.io/), University of Queensland, Australia
+is a C++ program for high-precision atomic structure calculations of one, two, and three valence atomic systems, developed and maintained by [Benjamin M. Roberts](https://broberts.io/), University of Queensland, Australia
 
 Designed to be fast, accurate, and easy to use.
 
 * Solves the correlated Dirac equation using the Hartree-Fock and all-orders correlation potential method (based on Dzuba-Flambaum-Sushkov method) to produce a set of atomic wavefunctions and energies.
-* For two-valence systems, uses the CI+MBPT (Configuration Interaction with many-body perturbation theory) method, accounting for select series of diagrams to all-orders.
+* For two- and three-valence systems, uses the CI+MBPT (Configuration Interaction with many-body perturbation theory) method, accounting for select series of diagrams to all-orders.
 * Fully relativistic, includes electron correlations, all-orders screening and hole-particle interaction, finite-nuclear size, Breit interaction, radiative QED effects, RPA for matrix elements, and structure radiation/renormalisation.
 * QED is included via the Flambaum-Ginges radiative potential method.
 * Can solve for continuum states with high energy, and calculate ionisation cross sections with large energy/momentum transfer.

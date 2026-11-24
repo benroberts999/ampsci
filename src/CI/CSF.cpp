@@ -886,6 +886,12 @@ PsiJPi::PsiJPi(int twoJ, int pi, const std::vector<DiracSpinor> &cisp_basis,
 
 int PsiJPi::num_electrons() const { return m_num_electrons; }
 
+bool PsiJPi::Sigma2_unshifted() const { return m_Sigma2_unshifted; }
+
+void PsiJPi::set_Sigma2_unshifted(bool unshifted) {
+  m_Sigma2_unshifted = unshifted;
+}
+
 std::size_t PsiJPi::num_CSFs() const { return m_CSFs.size(); }
 
 const CSF &PsiJPi::csf(std::size_t i) const { return m_CSFs.at(i); }
@@ -1062,10 +1068,11 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
 
   // Marks the file layout: a file without it is never read as this one
   constexpr std::array<char, 8> format_tag{'a', 'm', 'p', 's',
-                                           'c', 'i', '0', '2'};
-  // Each block: twoJ, pi, num_csfs, num_solutions; then the payload
+                                           'c', 'i', '0', '3'};
+  // Each block: twoJ, pi, Sigma2_unshifted, num_csfs, num_solutions; then the
+  // payload
   constexpr std::size_t header_bytes =
-    2 * sizeof(int) + 2 * sizeof(std::size_t);
+    3 * sizeof(int) + 2 * sizeof(std::size_t);
   // Payload: energies E[num_solutions], coefficients M[num_solutions x num_csfs]
   const auto payload_bytes = [](std::size_t num_csfs, std::size_t num_stored) {
     return (num_stored + num_stored * num_csfs) * sizeof(double);
@@ -1093,9 +1100,9 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
       return false;
     }
     while (true) {
-      int twoj = 0, pi = 0;
+      int twoj = 0, pi = 0, unshifted = 0;
       std::size_t num_csfs = 0, num_stored = 0;
-      rw_binary(f, IO::FRW::read, twoj, pi, num_csfs, num_stored);
+      rw_binary(f, IO::FRW::read, twoj, pi, unshifted, num_csfs, num_stored);
       if (!f) {
         return false;
       }
@@ -1125,6 +1132,7 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
         return false;
       }
       m_num_solutions = num_stored;
+      m_Sigma2_unshifted = unshifted != 0;
       m_Solution.first = LinAlg::Vector<double>(std::move(E));
       m_Solution.second = LinAlg::Matrix<double>(num_stored, nc, std::move(M));
       m_Info.resize(m_num_solutions);
@@ -1150,9 +1158,9 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
       const std::streamoff file_end = f.tellg();
       f.seekg(blocks_end);
       while (blocks_end < file_end) {
-        int twoj = 0, pi = 0;
+        int twoj = 0, pi = 0, unshifted = 0;
         std::size_t num_csfs = 0, num_stored = 0;
-        rw_binary(f, IO::FRW::read, twoj, pi, num_csfs, num_stored);
+        rw_binary(f, IO::FRW::read, twoj, pi, unshifted, num_csfs, num_stored);
         const auto block_end =
           blocks_end + static_cast<std::streamoff>(
                          header_bytes + payload_bytes(num_csfs, num_stored));
@@ -1182,9 +1190,9 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
     open_tagged(f);
     while (f && f.tellg() < blocks_end) {
       const auto block_start = f.tellg();
-      int twoj = 0, pi = 0;
+      int twoj = 0, pi = 0, unshifted = 0;
       std::size_t num_csfs = 0, num_stored = 0;
-      rw_binary(f, IO::FRW::read, twoj, pi, num_csfs, num_stored);
+      rw_binary(f, IO::FRW::read, twoj, pi, unshifted, num_csfs, num_stored);
       const auto block_bytes =
         header_bytes + payload_bytes(num_csfs, num_stored);
       if (twoj != m_twoj || pi != m_pi) {
@@ -1222,7 +1230,8 @@ bool PsiJPi::read_write(const std::string &fname, IO::FRW::RoW rw,
   }
   auto num_csfs = nc;
   auto num_stored = m_num_solutions;
-  rw_binary(f, IO::FRW::write, m_twoj, m_pi, num_csfs, num_stored);
+  int unshifted = m_Sigma2_unshifted ? 1 : 0;
+  rw_binary(f, IO::FRW::write, m_twoj, m_pi, unshifted, num_csfs, num_stored);
   f.write(reinterpret_cast<const char *>(m_Solution.first.data()),
           static_cast<std::streamsize>(num_stored * sizeof(double)));
   f.write(reinterpret_cast<const char *>(m_Solution.second.data()),

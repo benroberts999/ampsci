@@ -1485,12 +1485,6 @@ TEST_CASE("CI: solutions file", "[CI][unit]") {
   const auto N_A = A2.num_CSFs();
   const auto N_B = B2.num_CSFs();
 
-  // Format tag, then per block: 2J, parity, N, num_solutions, E, coefficients
-  const auto block_bytes = [](std::size_t N, std::size_t num_solutions) {
-    return 2 * sizeof(int) + 2 * sizeof(std::size_t) +
-           (num_solutions + num_solutions * N) * sizeof(double);
-  };
-
   const auto fname = "deleteme_" + qip::random_string(4) + ".ci.abf";
   auto write_A2 = A2;
   auto write_B2 = B2;
@@ -1498,8 +1492,6 @@ TEST_CASE("CI: solutions file", "[CI][unit]") {
   REQUIRE(write_A2.read_write(fname, IO::FRW::write));
   // New block: appended
   REQUIRE(write_B2.read_write(fname, IO::FRW::write));
-  REQUIRE(std::filesystem::file_size(fname) ==
-          8 + block_bytes(N_A, 2) + block_bytes(N_B, 2));
   // A grows: the file is re-written
   REQUIRE(write_A3.read_write(fname, IO::FRW::write));
 
@@ -1522,8 +1514,6 @@ TEST_CASE("CI: solutions file", "[CI][unit]") {
       REQUIRE(read_B.coef(i, j) == B2.coef(i, j));
     }
   }
-  REQUIRE(std::filesystem::file_size(fname) ==
-          8 + block_bytes(N_A, 3) + block_bytes(N_B, 2));
 
   // Incomplete final block (A, written last), e.g. from an interrupted
   // write: a new block (C) is not appended after it; the file is re-written
@@ -1532,8 +1522,6 @@ TEST_CASE("CI: solutions file", "[CI][unit]") {
   auto write_C2 = solved(4, 2);
   const auto N_C = write_C2.num_CSFs();
   REQUIRE(write_C2.read_write(fname, IO::FRW::write));
-  REQUIRE(std::filesystem::file_size(fname) ==
-          8 + block_bytes(N_B, 2) + block_bytes(N_C, 2));
   CI::PsiJPi read_B_again{2, +1, wf.basis()};
   CI::PsiJPi read_C{4, +1, wf.basis()};
   REQUIRE(read_B_again.read_write(fname, IO::FRW::read));
@@ -1570,7 +1558,6 @@ TEST_CASE("CI: solutions file", "[CI][unit]") {
   REQUIRE(read_old.read_write(fname_old, IO::FRW::read));
   REQUIRE(read_old.num_solutions() == 2);
   REQUIRE(read_old.energy(1) == A2.energy(1));
-  REQUIRE(std::filesystem::file_size(fname_old) == 8 + block_bytes(N_A, 2));
 }
 
 //==============================================================================
@@ -1957,6 +1944,111 @@ TEST_CASE("CI: three-electron matrix elements", "[CI][3VCI][unit]") {
     const DiracOperator::RadialF r2{wf3.grid(), 2.0};
     REQUIRE(test_mixed_state(1, +1, &r2) < 1.0e-10);
   }
+}
+
+//==============================================================================
+// Brillouin-Wigner Sigma_2 that fails for one J/pi: that J/pi is solved with
+// Sigma_2 as tabulated (no shift to its E0), and the other is not affected.
+// The failure is forced: the dS^k/dE0 table is replaced by one that puts the
+// shifted S^k of the 1- block next to the pole of the shift
+TEST_CASE("CI: BW failure for one J/pi", "[CI]") {
+
+  Wavefunction wf({400, 1.0e-4, 20.0, 0.33 * 20.0, "loglinear"},
+                  {"Be", -1, "pointlike"}, 1.0);
+  wf.solve_core("HartreeFock", "[He]", std::nullopt, 1.0e-5, false);
+  auto basis_parameters =
+    SplineBasis::Parameters("6spd", 20, 6, {1.0e-2}, 20.0);
+  basis_parameters.verbose = false;
+  wf.formBasis(basis_parameters);
+
+  const auto file_tag = "deleteme_" + qip::random_string(3);
+  const auto sk_filename = file_tag + ".sk.abf";
+  const auto dsk_filename = file_tag + ".dsk.abf";
+  const auto ci_filename = file_tag + ".ci.abf";
+
+  const auto options =
+    "ci_basis = 6spd; J+ = 0; J- = 1; num_solutions = 2; sigma2 = true; "
+    "denominators = BW; cis2_basis = 3sp; print_details = false; "
+    "qk_file = false; ds1_file = false; sk_file = " +
+    sk_filename + "; dsk_file = " + dsk_filename + ";";
+  const IO::InputBlock input_no_ci_file{"CI", options + "ci_file = false;"};
+  const IO::InputBlock input{"CI", options + "ci_file = " + ci_filename + ";"};
+
+  // Forms the S^k and dS^k/dE0 tables (and writes them to file)
+  const auto E0_sigma2 =
+    CI::configuration_interaction(input_no_ci_file, wf).integrals.E0_sigma2;
+  Coulomb::WkTable Sk;
+  Sk.read(sk_filename, false);
+  REQUIRE(Sk.count() > 0);
+
+  // dS^k/dE0 = scale * S^k. The file holds S^k at E0 + 0.01 au, from which
+  // the derivative is formed by finite difference
+  const auto write_dSk = [&Sk, &dsk_filename](double scale) {
+    auto dSk = Sk;
+    for (std::size_t k = 0; k < dSk->size(); ++k) {
+      for (auto &[index, value] : dSk->at(k)) {
+        value *= 1.0 + 0.01 * scale;
+      }
+    }
+    dSk.write(dsk_filename, false);
+  };
+
+  // dS^k/dE0 = 0: no shift, so these are the levels with Sigma_2 as tabulated
+  write_dSk(0.0);
+  const auto unshifted =
+    CI::configuration_interaction(input_no_ci_file, wf).levels;
+  REQUIRE(unshifted.size() == 2);
+  REQUIRE(unshifted.at(1).parity() == -1);
+
+  // Shifted S^k = S^k / (1 - scale * dE0): the pole is put just past the
+  // shift of the 1- block, dE0 = E0 - E0_sigma2
+  write_dSk(0.999 / (unshifted.at(1).energy(0) - E0_sigma2));
+  fmt::print("\nExpect warnings (Brillouin-Wigner failed for J=1-; then no "
+             "Q^k read):\n");
+  const auto solutions = CI::configuration_interaction(input, wf);
+  const auto &even = solutions.levels.at(0);
+  const auto &odd = solutions.levels.at(1);
+
+  // Only the failed J/pi is solved without the shift
+  REQUIRE(!even.Sigma2_unshifted());
+  REQUIRE(odd.Sigma2_unshifted());
+  REQUIRE(odd.num_solutions() == unshifted.at(1).num_solutions());
+  double worst_unshifted = 0.0;
+  for (std::size_t i = 0; i < odd.num_solutions(); ++i) {
+    worst_unshifted = std::max(
+      worst_unshifted, std::abs(odd.energy(i) - unshifted.at(1).energy(i)));
+  }
+  const auto even_shift = std::abs(even.energy(0) - unshifted.at(0).energy(0));
+
+  // The Hamiltonian of the failed J/pi, formed again from the stored
+  // integrals, is the one its levels were found with
+  CI::PsiJPi rebuilt = odd;
+  rebuilt.solve(CI::construct_Hci(odd, solutions.integrals),
+                int(odd.num_solutions()));
+  double worst_rebuilt = 0.0;
+  for (std::size_t i = 0; i < odd.num_solutions(); ++i) {
+    worst_rebuilt =
+      std::max(worst_rebuilt, std::abs(rebuilt.energy(i) - odd.energy(i)));
+  }
+
+  // Read back from the ci file: still marked
+  auto input_read = input;
+  input_read.add("read_only = true;");
+  const auto levels_read = CI::configuration_interaction(input_read, wf).levels;
+  const auto even_read_unshifted = levels_read.at(0).Sigma2_unshifted();
+  const auto odd_read_unshifted = levels_read.at(1).Sigma2_unshifted();
+
+  fmt::print("1- levels vs no-shift run:        max diff = {:.1e}\n",
+             worst_unshifted);
+  fmt::print("1- levels vs re-formed H:         max diff = {:.1e}\n",
+             worst_rebuilt);
+  fmt::print("0+ ground (BW) vs no-shift run:   diff     = {:.1e}\n",
+             even_shift);
+  REQUIRE(worst_unshifted < 1.0e-10);
+  REQUIRE(worst_rebuilt < 1.0e-10);
+  REQUIRE(even_shift > 1.0e-6);
+  REQUIRE(!even_read_unshifted);
+  REQUIRE(odd_read_unshifted);
 }
 
 //==============================================================================

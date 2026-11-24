@@ -748,6 +748,8 @@ class PsiJPi {
 
   // Number of solutions stored:
   std::size_t m_num_solutions{0};
+  // Sigma_2 was used as tabulated: not shifted to the E0 of this J/Pi
+  bool m_Sigma2_unshifted{false};
   std::vector<CSF> m_CSFs{};
   // Energy, and CI expansion coeficients
   std::pair<LinAlg::Vector<double>, LinAlg::Matrix<double>> m_Solution{};
@@ -855,6 +857,19 @@ public:
 
   //! Number of valence electrons the CSFs were formed with (1, 2 or 3)
   int num_electrons() const;
+
+  /*!
+    @brief True if the solutions were found with the Sigma_2 integrals as
+    tabulated: not shifted to the reference energy E0 of this J/Pi.
+    @details
+    Only matters with Brillouin-Wigner denominators (see CI::corrected_Sk):
+    the CI Hamiltonian for this J/Pi must be formed in the same way as it was
+    when the solutions were found. Stored with the solutions (read_write()).
+  */
+  bool Sigma2_unshifted() const;
+
+  //! Sets Sigma2_unshifted()
+  void set_Sigma2_unshifted(bool unshifted);
 
   //! Number of CSFs spanning this J/Pi
   std::size_t num_CSFs() const;

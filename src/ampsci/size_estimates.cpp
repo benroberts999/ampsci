@@ -85,10 +85,12 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   out.ci_basis_string = ci_input.get("ci_basis", "20spdf"s);
   out.num_electrons = ci_input.get("num_electrons", 2);
   const auto include_Sigma1 = ci_input.get("sigma1", false);
-  const auto include_Sigma2 = ci_input.get("sigma2", false);
+  // Sigma_2 and the two-body Breit are two-electron terms
+  const auto include_Sigma2 =
+    ci_input.get("sigma2", false) && out.num_electrons > 1;
   const auto n_min_core = ci_input.get("n_min_core", 1);
   // As the table fills: a cut of zero or less means all k
-  const auto max_k = ci_input.get("max_k", 8);
+  const auto max_k = ci_input.get("max_k", 10);
   const auto k_cut = max_k <= 0 ? 999ul : std::size_t(max_k);
   const auto sigma1_dSdE = ci_input.get("sigma1_dSdE", false);
 
@@ -159,7 +161,8 @@ SizeEstimates estimate_sizes(const IO::InputBlock &input) {
   // B^k over Breit_basis, if Breit is included in HF
   const auto Breit_HF = input.get({"HartreeFock"}, "Breit", false) ||
                         input.get({"HartreeFock"}, "Breit", 0.0) != 0.0;
-  if (have_CI && Breit_HF && ci_input.get("Breit2", true)) {
+  if (have_CI && Breit_HF && ci_input.get("Breit2", true) &&
+      out.num_electrons > 1) {
     const auto Breit_orbitals = CI::basis_subset(
       ci_orbitals,
       ci_input.get("Breit_basis", std::to_string(N_max_core + 6) + "spdf"));
