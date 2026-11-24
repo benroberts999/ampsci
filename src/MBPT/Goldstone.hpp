@@ -6,6 +6,7 @@
 #include "Maths/Grid.hpp"
 #include "Wavefunction/DiracSpinor.hpp"
 #include <memory>
+#include <string>
 #include <vector>
 
 namespace MBPT {
@@ -63,11 +64,14 @@ public:
     @param include_G   Include small-component (fg, gf, gg) parts of Sigma
     @param Br          Breit operator, for dSigma_Breit2 (copied; nullptr:
                        none)
+    @param used_for    What the diagrams are used for (e.g., "exchange"), if
+                       not all of Sigma; only printed
   */
   Goldstone(const std::vector<DiracSpinor> &basis,
             const std::vector<DiracSpinor> &core, std::size_t i0,
             std::size_t stride, std::size_t size, int n_min_core = 1,
-            bool include_G = false, const HF::Breit *Br = nullptr);
+            bool include_G = false, const HF::Breit *Br = nullptr,
+            const std::string &used_for = "");
 
   /*!
     @brief Calculate Direct part of correlation potential.

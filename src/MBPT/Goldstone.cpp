@@ -8,7 +8,8 @@ namespace MBPT {
 Goldstone::Goldstone(const std::vector<DiracSpinor> &basis,
                      const std::vector<DiracSpinor> &core, std::size_t i0,
                      std::size_t stride, std::size_t size, int n_min_core,
-                     bool include_G, const HF::Breit *Br)
+                     bool include_G, const HF::Breit *Br,
+                     const std::string &used_for)
   : m_grid([&]() {
       assert(!basis.empty() && "Cannot construct Goldstone with empty basis");
       return basis.front().grid_sptr();
@@ -27,7 +28,8 @@ Goldstone::Goldstone(const std::vector<DiracSpinor> &basis,
 
   bool verbose = true;
   if (verbose) {
-    std::cout << "\nGoldstone diagrams:\n";
+    fmt::print("\nGoldstone diagrams{}:\n",
+               used_for.empty() ? "" : " (used for " + used_for + ")");
     std::cout << "Basis: " << DiracSpinor::state_config(basis) << "\n";
     fmt::print("Including n ≥ {} in internal hole states\n", n_min_core);
   }

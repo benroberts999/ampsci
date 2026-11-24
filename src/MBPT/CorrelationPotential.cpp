@@ -91,7 +91,7 @@ CorrelationPotential::CorrelationPotential(
         if (screening) {
           std::cout << "Exchange screening: each Coulomb line"
                     << (m_exchange_both_lines ?
-                          "+ fk estimate of double screening\n" :
+                          " + fk estimate of double screening\n" :
                           " (single screening)\n");
         }
       } else {
@@ -108,10 +108,18 @@ CorrelationPotential::CorrelationPotential(
         !m_feynman_exchange || (m_exchange_both_lines && screening);
       const bool fk_calculated =
         screening && (m_feynman_exchange ? m_fk.empty() : m_calculate_fk);
-      if (fk_used && fk_calculated) {
-        std::cout << "Calculating f_k from scratch for exchange screening\n";
+      if (fk_calculated && !fk_used) {
+        std::cout << "Calculating f_k from scratch (not used in exchange)\n";
+      } else if (fk_calculated) {
+        // Feynman exchange: fk only for the double-screening estimate (the
+        // line printed above)
+        std::cout
+          << (m_feynman_exchange ?
+                "with f_k calculated from scratch\n" :
+                "Calculating f_k from scratch for exchange screening\n");
       } else if (fk_used && !m_fk.empty()) {
-        std::cout << "Exchange screening with: fk = {";
+        std::cout << (m_feynman_exchange ? "with: fk = {" :
+                                           "Exchange screening with: fk = {");
         for (auto &tfk : m_fk) {
           printf("%.3f, ", tfk);
         }
@@ -144,7 +152,8 @@ CorrelationPotential::CorrelationPotential(
       std::cout << "Including G parts of matrix\n";
     }
     if (m_HF->vBreit()) {
-      std::cout << "Including one-body Breit (via basis/Green's function)\n";
+      std::cout
+        << "Including one-body (B1) Breit (via basis/Green's function)\n";
     }
     if (m_HF->vBreit() && m_includeBreit_b2) {
       std::cout << "Including two-body Breit [B2] correction: up to n="
@@ -161,9 +170,11 @@ CorrelationPotential::CorrelationPotential(
     }
 
     // If didn't read, setup Goldstone/Feynman (create Yk, pol operator etc.)
-    m_Gold =
-      Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
-                m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
+    if (m_method == SigmaMethod::Goldstone) {
+      m_Gold =
+        Goldstone(basis, m_HF->core(), m_i0, m_stride, m_size, n_min_core,
+                  m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr);
+    }
     if (m_method == SigmaMethod::Feynman) {
       setup_Feynman();
     }
@@ -326,10 +337,11 @@ CorrelationPotential::state_fk(double ev, const DiracSpinor *Fv) {
   if (m_method != SigmaMethod::Feynman || !screening || Fv == nullptr) {
     return std::nullopt;
   }
-  // Feynman exchange: effective factors of this state, for the estimate of
-  // the term with both lines screened (unless fk given manually)
-  const bool feynman_estimate =
-    m_feynman_exchange && m_exchange_both_lines && m_fk.empty();
+  // Feynman exchange: effective factors of this state (unless fk given
+  // manually). Used for the estimate of the term with both lines screened;
+  // calculated even if that term is not included, since they are stored with
+  // Sigma for use elsewhere (e.g., Sigma_2 screening in CI)
+  const bool feynman_estimate = m_feynman_exchange && m_fk.empty();
   if (!m_calculate_fk && !feynman_estimate) {
     return std::nullopt;
   }
@@ -598,10 +610,20 @@ GMatrix CorrelationPotential::formSigma_G(int kappa, double ev,
 //==============================================================================
 void CorrelationPotential::setup_Feynman() {
 
-  if (!m_Gold) {
-    // Also need Goldstone for Feynman (exchange)
-    m_Gold = Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size,
-                       m_n_min_core, m_includeG);
+  // Goldstone: for the exchange diagrams (unless those are also Feynman), and
+  // the two-body Breit
+  if (!m_Gold && (!m_feynman_exchange || m_includeBreit_b2)) {
+    std::vector<std::string> used_for;
+    if (!m_feynman_exchange) {
+      used_for.push_back("exchange");
+    }
+    if (m_includeBreit_b2) {
+      used_for.push_back("B2 Breit");
+    }
+    m_Gold =
+      Goldstone(m_basis, m_HF->core(), m_i0, m_stride, m_size, m_n_min_core,
+                m_includeG, m_includeBreit_b2 ? m_HF->vBreit() : nullptr,
+                fmt::format("{}", fmt::join(used_for, " + ")));
   }
 
   if (!m_Fy) {
@@ -613,10 +635,9 @@ void CorrelationPotential::setup_Feynman() {
       m_Fy->calculate_gex();
       m_Fy->form_qpiq(m_fname);
     }
-    if (m_feynman_exchange && m_exchange_both_lines && m_Fy->screening() &&
-        m_fk.empty()) {
-      // Reference for the effective screening factors (both-lines-screened
-      // exchange estimate); the polarisation loop re-uses the gex
+    if (m_feynman_exchange && m_Fy->screening() && m_fk.empty()) {
+      // Reference for the effective screening factors; the polarisation loop
+      // re-uses the gex
       m_Fy->calculate_qpiq_unscreened();
     }
   }
