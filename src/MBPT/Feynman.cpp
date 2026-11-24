@@ -35,6 +35,7 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
     m_max_k(int(std::max(m_max_ki_core + 1, m_max_ki + 1))),
     m_min_core_n(n_min_core),
     m_include_G(include_G || vHF->vBreit() != nullptr),
+    m_include_G_exchange(options.include_G_exchange && m_include_G),
     m_omre(options.omre),
     m_w0(options.w0),
     m_wratio(options.w_ratio),
@@ -73,7 +74,10 @@ Feynman::Feynman(const HF::HartreeFock *vHF, std::size_t i0, std::size_t stride,
                                            "Dyson (solve at Re(e), extend)")
               << "\n";
     if (m_include_G) {
-      std::cout << "Inlcuding lower (g) components throughout\n";
+      std::cout << "Including lower (g) components throughout\n";
+      if (!m_include_G_exchange) {
+        std::cout << "Exchange: g in the Green's functions only\n";
+      }
     }
     if (!m_store_gex) {
       std::cout << "Exchange loop Gex not stored: solved as needed\n";
@@ -1449,11 +1453,16 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
         = i sum_a [p^a_1i gex_ij(e_a+w) + gex_1i(e_a-w) p^a_ij]
     exchange_Gamma_q returns these two terms (pa_gex, gex_pa), with the
     numeric line and angular factor attached.
+
+    Spinor components: the Green's functions are solved with g when
+    included (needed with Breit), but the diagram is contracted over f and
+    g (density f f + g g at each vertex, and the fg, gf, gg blocks of
+    Sigma_X) only if m_include_G_exchange; else f throughout, as without g.
   */
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_kappas = m_max_ki + 1;
-  const auto num_sp = num_spins();
+  const auto num_sp = m_include_G_exchange ? num_spins() : 1ul;
   const auto num_core = m_core_index.size();
   assert((!m_screen_Coulomb || has_qpiq()) &&
          "Screened exchange requires Q*Pi*Q (form_qpiq)");
@@ -1516,13 +1525,13 @@ GMatrix Feynman::Sigma_exchange(int kv, double env,
           if (!pa_gex_nonzero && !gex_pa_nonzero)
             continue;
 
-          // S += Sigma_X[Q, Q] + (1 + f_k) Sigma_X[Q, dQ]
+          // S += Sigma_X[Q^k, Q^l] + (1 + f_k) Sigma_X[Q^k, dQ^l]
           for (auto nu = 0ul; nu < num_sp; ++nu) {
             // The two terms of Gamma, for each mu
             std::vector<ComplexRMatrix> dSigma(num_sp, zero);
 
             if (pa_gex_nonzero) {
-              // F_a^mu(r_1) sum_t [q^k (g^{t nu} o [pa_gex]^t)]_12
+              // F_a^mu(r_1) sum_t [q^k (g^{t nu} . [pa_gex]^t)]_12
               ComplexRMatrix qk_g_Gamma(zero);
               for (auto t = 0ul; t < num_sp; ++t) {
                 const auto &Gamma_pa_gex = Gamma.pa_gex[t](k, ig);
@@ -1602,7 +1611,8 @@ Feynman::GammaQ Feynman::exchange_Gamma_q(int kv, std::size_t ic,
 
       [gex F_a]^t_ji = sum_s gex^{ts}_ji F_a^s(r_i)   (uses gex_ij = gex_ji^T)
 
-    Returned for each (k, gamma), and each spinor index t (mu).
+    Returned for each (k, gamma), and each spinor index t (mu); f only
+    unless m_include_G_exchange (see Sigma_exchange).
     Screening: q^l above is the numeric line of Sigma_exchange,
     q^l + (1 + f_k) bar-q^l(w), with bar-q^l(w) = -i [q pi q~]^l(w) the
     screening correction (so depends on k, through f_k).
@@ -1612,7 +1622,7 @@ Feynman::GammaQ Feynman::exchange_Gamma_q(int kv, std::size_t ic,
 
   const auto num_ks = std::size_t(m_max_k + 1);
   const auto num_kappas = m_max_ki + 1;
-  const auto num_sp = num_spins();
+  const auto num_sp = m_include_G_exchange ? num_spins() : 1ul;
   const auto num_lines = m_screen_Coulomb ? 2ul : 1ul;
   constexpr std::complex<double> Iunit{0.0, 1.0};
 

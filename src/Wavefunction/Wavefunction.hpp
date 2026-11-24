@@ -549,6 +549,12 @@ public:
                                Goldstone with fk)
     @param store_gex           Store the loop Green's functions of the
                                Feynman exchange (see MBPT::FeynmanOptions)
+    @param include_g_fex       Include the g components in the Feynman
+                               exchange diagram (several times the cost);
+                               else f only there, with the Green's functions
+                               still solved with g. Only with @p include_G
+                               and @p feynman_exchange (see
+                               MBPT::FeynmanOptions)
 
     @note If read from file, the sub-grid and @p include_G are taken from the
           file (see MBPT::CorrelationPotential).
@@ -567,7 +573,7 @@ public:
                  const std::string &ladder_file = "", bool derivative = false,
                  bool print_de = false, bool exchange_both_lines = false,
                  bool tail_extrapolation = false, bool feynman_exchange = false,
-                 bool store_gex = true);
+                 bool store_gex = true, bool include_g_fex = false);
 
   // void correlations(const IO::InputBlock &input);
 

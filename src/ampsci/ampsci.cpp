@@ -376,6 +376,11 @@ Wavefunction ampsci(const IO::InputBlock &input) {
       "always uses g parts internally; this sets whether they are kept in "
       "the final Sigma [default: true if Feynman and Breit included in HF, "
       "otherwise false]"},
+     {"include_g_fex",
+      "Include the g parts in the Feynman exchange diagram itself (Sigma_x), "
+      "not only in the direct part and the Green's functions (several times "
+      "the cost of the exchange). Only used if exchange = Feynman and "
+      "include_G = true [false]"},
      {"include_B2",
       "Include two-body Breit (B2) corrections into Sigma [false]"},
      {"n_max_Breit",
@@ -506,6 +511,10 @@ Wavefunction ampsci(const IO::InputBlock &input) {
     std::cout << "\nWARNING: Correlations{exchange=Feynman} requires the "
                  "Feynman method; using Goldstone for exchange.\n";
   }
+  // g parts in the Feynman exchange itself: only when they are kept in Sigma
+  const auto include_g_fex =
+    feynman_exchange && sigma_Feynman && include_G &&
+    input.get({"Correlations"}, "include_g_fex", false);
 
   // Also form dSigma/dE (for CI sigma1_dSdE)
   const auto sigma_derivative =
@@ -533,7 +542,7 @@ Wavefunction ampsci(const IO::InputBlock &input) {
                  sigma_Screening, hole_particle, sigma_lmax, sigma_omre, w0,
                  wratio, complex_green, ek_Sig, ladder_file, sigma_derivative,
                  print_de, exchange_both_lines, tail_extrapolation,
-                 feynman_exchange && sigma_Feynman, store_gex);
+                 feynman_exchange && sigma_Feynman, store_gex, include_g_fex);
   }
 
   // Solve Brueckner orbitals (optionally, fit Sigma to exp energies)

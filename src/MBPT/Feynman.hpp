@@ -67,6 +67,19 @@ struct FeynmanOptions {
               much less memory)
   */
   bool store_gex{true};
+  /*!
+    @brief Include the small (g) components in the Feynman exchange diagram.
+
+    @details
+    When the g components are included (see Feynman), the Green's functions
+    are always solved with them (required with Breit). This sets whether the
+    exchange diagram is then also contracted over them: the g g part of the
+    density at each vertex, and the fg, gf and gg blocks of Sigma_exchange
+    (several times the cost). Else the exchange uses the f components only,
+    as without g, and the g blocks of Sigma come from the direct part
+    alone (cheap there).
+  */
+  bool include_G_exchange{false};
 };
 
 /*!
@@ -120,6 +133,10 @@ class Feynman {
   // Sigma itself. Changes Sigma by ~0.05%, but costs ~8x in the linear
   // algebra. Always on with Breit (Vx then mixes f and g)
   bool m_include_G;
+  // Contract the exchange diagram over the g components too (vertices and
+  // the fg, gf, gg blocks of Sigma_exchange); else f only, with the Green's
+  // functions still solved with g (m_include_G)
+  bool m_include_G_exchange;
   // real part of frequency for integration
   double m_omre;
   // Parameters of the log grid along Im(w): first point, ratio
@@ -467,6 +484,12 @@ public:
       mirror image (the other pair) comes from the ladder diagrams; the
       interaction in both pairs at once is not included.
 
+    With g components, the Green's functions are solved with them, but the
+    diagram is contracted over them (vertex densities f f + g g, and the fg,
+    gf, gg blocks of the result) only if FeynmanOptions::include_G_exchange
+    (several times the cost): else f only, so just the ff block is non-zero
+    (the g blocks of Sigma then come from Sigma_direct alone).
+
     The term with both lines screened at once (which has no analytic inner
     integral) is included as an estimate when @p fk_both_lines is given: the
     screening correction on the analytic line is replaced by its effective
@@ -715,7 +738,8 @@ private:
     When screening, q^l is the numeric line of Sigma_exchange,
     q^l + (1 + f_k) bar-q^l(w). gex is Vhp(a)-dressed when hole_particle.
   */
-  // Only the (k, gamma) allowed by the angular selection rules are formed
+  // Only the (k, gamma) allowed by the angular selection rules are formed.
+  // Outer index: spinor component (f only unless m_include_G_exchange)
   struct GammaQ {
     std::vector<LinAlg::Matrix<std::optional<ComplexRMatrix>>> pa_gex, gex_pa;
   };
