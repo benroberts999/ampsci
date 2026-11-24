@@ -239,8 +239,8 @@ CI{
     // time when we know all required integrals already
     // exist, since the code doesn't need to check. [false]
   sort_output;
-    // Sort output by energy? Default is to sort by J and Pi
-    // first. [false]
+    // Sort output by energy? If false, sorted by J and Pi
+    // first. [true]
   print_details;
     // Condition to print details of each CI solution
     // (otherwise just prints summary) [true]

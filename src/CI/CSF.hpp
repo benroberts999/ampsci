@@ -722,6 +722,9 @@ struct ConfigInfo {
   double L2{-1.0};
   //! Expectation value of S^2 for the CI state (-1 if not computed)
   double S2{-1.0};
+  //! Root-mean-square radius of the valence electrons, sqrt(<r^2>), with
+  //! <r^2> the mean over the electrons (atomic units; 0 if not computed)
+  double r_rms{0.0};
 };
 
 //==============================================================================

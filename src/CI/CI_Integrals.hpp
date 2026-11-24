@@ -244,7 +244,9 @@ calculate_dSdE_correction(const std::vector<DiracSpinor> &ci_basis,
   @param sigma3         Pointer to the Sigma_3 parameters; ignored if nullptr.
                         See @ref construct_Hci.
   @param converged      If given, set to false if the iteration does not
-                        converge; otherwise left as it was.
+                        converge, or (with @p dSk) is stopped because E0
+                        fell below the lowest zeroth-order configuration;
+                        otherwise left as it was.
   @tparam MatrixType    Storage of the CI Hamiltonian: dense
                         (LinAlg::Matrix<double>; diagonalised directly) or
                         sparse (LinAlg::SparseSymmetricMatrix<double>; solved

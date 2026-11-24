@@ -545,7 +545,7 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
                       const Sigma3Parameters *sigma3, bool *converged) {
   assert(psi != nullptr);
 
-  constexpr auto eps_E0 = 1.0e-6;
+  constexpr auto eps_E0 = 1.0e-4;
   constexpr auto max_iterations = 12;
 
   // Sigma_2 was tabulated at the reference E0_sigma2, and is shifted to the
@@ -559,17 +559,33 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
   // between them: work on a local copy. Only E0 changes between passes.
   auto s1_Jpi = s1c;
 
-  // E0 = 0.0 means "not set": start from the lowest zeroth-order configuration
-  // (all valence electrons in the lowest orbital)
-  if (s1_Jpi.E0 == 0.0) {
-    auto e_min = 0.0;
-    for (const auto &orbital : s1_Jpi.en) {
-      if (orbital.second < e_min) {
-        e_min = orbital.second;
-      }
+  // Lowest zeroth-order configuration: all valence electrons in the lowest
+  // orbital. No level lies below it (the repulsion between the valence
+  // electrons is positive)
+  auto e_min = 0.0;
+  for (const auto &orbital : s1_Jpi.en) {
+    if (orbital.second < e_min) {
+      e_min = orbital.second;
     }
-    s1_Jpi.E0 = psi->num_electrons() * e_min;
   }
+  const auto E_lowest_configuration = psi->num_electrons() * e_min;
+
+  // E0 = 0.0 means "not set": start from the lowest zeroth-order configuration
+  if (s1_Jpi.E0 == 0.0) {
+    s1_Jpi.E0 = E_lowest_configuration;
+  }
+
+  // With Brillouin-Wigner Sigma_2, a shifted S^k next to its pole gives
+  // unphysical states: E0 below the lowest configuration means the
+  // iteration has failed, and is not continued
+  const auto E0_unphysical = [dSk, E_lowest_configuration,
+                              &outstream](double E0) {
+    if (dSk == nullptr || E0 >= E_lowest_configuration) {
+      return false;
+    }
+    outstream << "Warning: E0 below the lowest configuration\n";
+    return true;
+  };
 
   fmt::print(outstream, "Iterating E0{} (initial: {:.6f}):\n",
              fmt::format(" ({})", level), s1_Jpi.E0);
@@ -604,6 +620,12 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
   fmt::print(outstream, "  it {:2}: E0 = {:.6f} au (eps = {:.0e})\n", 1,
              s1_Jpi.E0, std::abs(delta / s1_Jpi.E0));
   outstream << std::flush;
+  if (E0_unphysical(s1_Jpi.E0)) {
+    if (converged != nullptr) {
+      *converged = false;
+    }
+    return Hci;
+  }
 
   for (int it = 2; it <= max_iterations && std::abs(delta) >= eps_E0; ++it) {
     // Free the previous matrix first: only one is held at a time
@@ -624,6 +646,12 @@ MatrixType iterate_E0(PsiJPi *psi, const Sigma1Correction &s1c,
     fmt::print(outstream, "  it {:2}: E0 = {:.8f} au (eps = {:.0e})\n", it,
                s1_Jpi.E0, std::abs(delta / s1_Jpi.E0));
     outstream << std::flush;
+    if (E0_unphysical(s1_Jpi.E0)) {
+      if (converged != nullptr) {
+        *converged = false;
+      }
+      break;
+    }
     if (it == max_iterations && std::abs(delta) >= eps_E0) {
       outstream << "Warning: E0 iteration did not converge\n";
       if (converged != nullptr) {

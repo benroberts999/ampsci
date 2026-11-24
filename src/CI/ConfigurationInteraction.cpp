@@ -173,7 +173,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
      "Coulomb or Sigma_2 integrals, even if they are implied by the above "
      "settings. This saves time when we know all required integrals already "
      "exist, since the code doesn't need to check. [false]"},
-    {"sort_output", "Sort output by energy? Default is to sort by J and Pi "
+    {"sort_output", "Sort output by energy? If false, sorted by J and Pi "
                     "first. [false]"},
     {"print_details", "Condition to print details of each CI solution "
                       "(otherwise just prints summary) [true]"},
@@ -988,7 +988,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
 
     for (std::size_t i = 0; i < Psi_Jpi.num_solutions(); ++i) {
 
-      const auto &[config, pc, gJ, L, twoS, L2, S2] = Psi_Jpi.info(i);
+      const auto &[config, pc, gJ, L, twoS, L2, S2, r_rms] = Psi_Jpi.info(i);
       (void)L2, (void)S2;
       const auto iL = (int)std::round(L);
       const auto itwoS = (int)std::round(twoS);
@@ -1002,9 +1002,10 @@ Solutions configuration_interaction(const IO::InputBlock &input,
         J_string(Psi_Jpi.twoJ()), Psi_Jpi.parity(), i, config, pc * 100.0, term,
         Psi_Jpi.energy(i), Psi_Jpi.energy(i) * PhysConst::Hartree_invcm,
         (Psi_Jpi.energy(i) - e0) * PhysConst::Hartree_invcm);
-      if (gJ != 0.0) {
-        out_string += fmt::format("  {:.4f}", gJ);
-      }
+      // gJ is not defined for J=0
+      out_string +=
+        gJ != 0.0 ? fmt::format("  {:.4f}", gJ) : std::string(8, ' ');
+      out_string += fmt::format("  {:.4f}", r_rms);
       E_output.emplace_back(Psi_Jpi.energy(i), out_string);
     }
     std::cout << std::flush;
@@ -1022,7 +1023,7 @@ Solutions configuration_interaction(const IO::InputBlock &input,
   }
   std::cout
     << "J    π  #  conf.     %   Term   Energy(au)   Energy(/cm)   Level(/cm) "
-       " gJ\n";
+       " gJ      r_rms\n";
   for (const auto &[E, output] : E_output) {
     std::cout << output << "\n";
   }
@@ -1217,6 +1218,12 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
         Hci = CI::construct_Hci<SparseMatrix>(psi, h1, qk, br_ptr, s2_ptr, s1c,
                                               hk, nullptr, 0.0, sigma3);
       }
+      // Brillouin-Wigner failed (see below): nothing more to do
+      if (dSk != nullptr && !E0_converged && BW_failed != nullptr) {
+        *BW_failed = true;
+        outstream << "\n" << std::flush;
+        return psi;
+      }
       // Each stored element: value (double) and column index (32 bit)
       const auto Hci_sparse_GB = double(Hci.num_stored()) * 12.0 / 1.0e9;
       fmt::print(outstream,
@@ -1256,6 +1263,12 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
         // No correction (or iteration disabled): single matrix
         Hci = CI::construct_Hci(psi, h1, qk, br_ptr, s2_ptr, s1c, hk, nullptr,
                                 0.0, sigma3);
+      }
+      // Brillouin-Wigner failed (see below): nothing more to do
+      if (dSk != nullptr && !E0_converged && BW_failed != nullptr) {
+        *BW_failed = true;
+        outstream << "\n" << std::flush;
+        return psi;
       }
       fmt::print(outstream,
                  "CI matrix (dense): {} total elements ({:.2f} GB)\n",
@@ -1324,6 +1337,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
         write_solutions = false;
         if (BW_failed != nullptr) {
           *BW_failed = true;
+          outstream << "\n" << std::flush;
+          return psi;
         }
       }
     }
@@ -1359,6 +1374,9 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
   DiracOperator::M1 m1{ci_sp_basis.front().grid(), PhysConst::alpha, 0.0};
   // only actually need to do this once..
   const auto m1_tab = Amplitudes::me_table(ci_sp_basis, &m1);
+  // For the rms radius of the valence electrons
+  DiracOperator::RadialF r2{ci_sp_basis.front().grid(), 2.0};
+  const auto r2_tab = Amplitudes::me_table(ci_sp_basis, &r2);
 
   // Print details of each solution, unless we find all, or read from file:
   const auto print_details_tmp =
@@ -1399,6 +1417,13 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
     // Calculate g-factors, for line identification. Only defined for J!=0
     const double gJ = twoJ != 0 ? tjs * m1AA_R / (0.5 * twoJ) : 0.0;
 
+    // rms radius of the valence electrons, sqrt(<r^2>), with <r^2> the mean
+    // over the electrons. r^2 is a scalar: <JJ|r^2|JJ> = <A||r^2||A> / [J]
+    const auto r2AA_R =
+      CI::ReducedME(psi, i, psi, i, r2_tab, r2.rank(), r2.parity());
+    const auto r_rms =
+      std::sqrt(r2AA_R / std::sqrt(twoJ + 1.0) / double(num_electrons));
+
     // <L^2> and <S^2> of the CI state (non-rel limit): measure LS-purity
     const auto [L2, S2] = CI::expectation_L2S2(psi.coefs(i), psi.CSFs(), twoJ);
 
@@ -1413,6 +1438,7 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       if (twoJ != 0) {
         outstream << "   gJ = " << gJ << "\n";
       }
+      fmt::print(outstream, "   sqrt[<r^2>] = {:.4f}\n", r_rms);
       // fmt::print(outstream, "   <L^2> = {:.4f}, <S^2> = {:.4f}\n", L2, S2);
       fmt::print(outstream, "   L_eff = {:.4f}, S_eff = {:.4f}\n", LSeff(L2),
                  LSeff(S2));
@@ -1421,7 +1447,8 @@ PsiJPi run_CI(const std::vector<DiracSpinor> &ci_sp_basis, int twoJ, int parity,
       outstream << "\n";
     }
 
-    psi.update_config_info(i, {config, pc, gJ, 1.0 * L, 1.0 * twoS, L2, S2});
+    psi.update_config_info(
+      i, {config, pc, gJ, 1.0 * L, 1.0 * twoS, L2, S2, r_rms});
   }
 
   return psi;

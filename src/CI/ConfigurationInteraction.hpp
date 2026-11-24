@@ -168,7 +168,9 @@ enum class Solver { dense, Davidson };
   @param BW_failed    If given, set to true if the Brillouin-Wigner Sigma_2
                       fails (E0 does not converge, or the lowest level is
                       below the lowest zeroth-order configuration); otherwise
-                      left as it was. The solutions are then not saved.
+                      left as it was. Returns at once in that case: the
+                      solutions are not printed or saved, and should not be
+                      used.
 
   @return PsiJPi (@ref PsiJPi) containing the CI eigenvalues and expansion
   coefficients for the requested solutions.
