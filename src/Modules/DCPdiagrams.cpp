@@ -820,6 +820,8 @@ double AK_pol(const int K, const int k1, const int k2,
               const std::vector<DiracSpinor> &spectrum, const DiracSpinor &w,
               const DiracSpinor &v, double omega) {
 
+ //only do valence (check with pol module)               
+
   //get tables
   Coulomb::meTable<double> met_1 = ME_tables.at(0);
   Coulomb::meTable<double> met_2 = ME_tables.at(1);
@@ -954,7 +956,7 @@ double delta_A_KQ(const int K, const int k1, const int k2,
 //----------------------------------------------------------------------------------------------------------------------------------------------
 // Corrections to relevant physical quantities depend on some additional scaling factor
 void DCP_correction(double diagrams, std::string static_operator, int K,
-                    double omega) {
+                    double omega, int twoj_v) {
   //for pnc E1 amplitude
   if (static_operator == "pnc") {
     double threej1 = Angular::threej_2(0.0, 2.0, 2.0, 0.0, 0.0, 0.0);
@@ -969,13 +971,13 @@ void DCP_correction(double diagrams, std::string static_operator, int K,
   if (static_operator == "E1") {
     if (K == 0) {
       if (omega == 0.0) {
-        double threej3 = Angular::threej_2(2.0, 2.0, 0.0, 0.0, 0.0, 0.0);
-        double threej4 = Angular::threej_2(1, 0, 1, 1, 0, -1);
-        double alpha_correction = (1 / sqrt(6)) * diagrams;
+        //double threej3 = Angular::threej_2(2.0, 2.0, 0.0, 0.0, 0.0, 0.0);
+        //double threej4 = Angular::threej_2(1, 0, 1, 1, 0, -1);
+        double alpha_correction = (1 / sqrt(3*(twoj_v+1))) * diagrams;
         std::cout << "The DCP correction to the scalar static dipole "
                      "polarisability is "
-                  << alpha_correction << " a_B^3.\n"
-                  << threej3 * threej4;
+                  << alpha_correction << " a_B^3.\n";
+                 
 
       } else {
         double alpha_correction = -(1.0 / sqrt(6.0)) * diagrams;
@@ -1089,6 +1091,7 @@ void DCPdiagrams(const IO::InputBlock &input, const Wavefunction &wf) {
   const auto k2 = h2->rank();
 
   int kv = Fv.kappa();
+  auto tjv = Angular::twoj_k(kv);
   //auto jv = 0.5 * Angular::twoj_k(kv);
 
   // If including RPA, solve TDHF equations for polarisation of core electrons
@@ -1119,7 +1122,7 @@ void DCPdiagrams(const IO::InputBlock &input, const Wavefunction &wf) {
     // Compute Diagram DCP corrections
 
     double DCP = delta_A_KQ(K, k1, k2, Table, core, excited, Fw, Fv, omega);
-    DCP_correction(DCP, oper2, K, omega);
+    DCP_correction(DCP, oper2, K, omega,tjv);
 
     //Compute quantity without dcp correction to check
     std::cout << "\n\n\n Calculating without DCP correction... \n\n";
@@ -1135,7 +1138,7 @@ void DCPdiagrams(const IO::InputBlock &input, const Wavefunction &wf) {
     // Compute Diagram DCP corrections
 
     double DCP = delta_A_KQ(K, k1, k2, Table, core, excited, Fw, Fv, omega);
-    DCP_correction(DCP, oper2, K, omega);
+    DCP_correction(DCP, oper2, K, omega,tjv);
 
     //Compute quantity without dcp correction to check
     std::cout << "\n\n\n Calculating without DCP correction... \n\n";
